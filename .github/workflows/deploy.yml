@@ -1,0 +1,52 @@
+name: Deploy
+
+# Deploys main to Fly.io after CI passes. Stays inactive until the repository variable
+# FLY_DEPLOY_ENABLED is "true" and the FLY_API_TOKEN secret exists (see docs/DEPLOYMENT.md).
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to Fly.io
+    if: >-
+      vars.FLY_DEPLOY_ENABLED == 'true' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: ${{ vars.PUBLIC_URL }}
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.SHA }}
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy (migrations run as the release command)
+        run: flyctl deploy --remote-only --build-arg RELEASE="${SHA::7}"
+
+      - name: Verify the new release is live
+        if: vars.PUBLIC_URL != ''
+        run: |
+          for i in $(seq 1 20); do
+            curl -fsS "${{ vars.PUBLIC_URL }}/api/health" | grep -q "\"release\":\"${SHA::7}\"" && exit 0
+            sleep 3
+          done
+          echo "The deployed release did not report ${SHA::7}" && exit 1

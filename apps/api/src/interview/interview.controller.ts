@@ -1,8 +1,9 @@
-import { Body, Controller, Get, HttpException, Logger, Param, ParseUUIDPipe, Post, Res } from '@nestjs/common';
-import type { Response } from 'express';
+import { Body, Controller, Get, HttpException, Logger, Param, ParseUUIDPipe, Post, Req, Res } from '@nestjs/common';
+import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { LearnerId } from '../common/learner-id.decorator.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
+import { reportError } from '../observability/error-reporting.js';
 import { InterviewService } from './interview.service.js';
 
 const startSchema = z.object({
@@ -46,6 +47,7 @@ export class InterviewController {
     @LearnerId() learnerId: string,
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(messageSchema)) body: z.infer<typeof messageSchema>,
+    @Req() req: Request,
     @Res() res: Response,
   ) {
     const abort = new AbortController();
@@ -73,6 +75,7 @@ export class InterviewController {
       const status = err instanceof HttpException ? err.getStatus() : 502;
       const msg = err instanceof HttpException ? err.message : 'The interviewer is unavailable right now. Please try again.';
       if (!(err instanceof HttpException)) this.log.error(err);
+      if (status >= 500 && status !== 503) reportError(err, req.id);
       if (started) emit('error', { status, message: msg });
       else res.status(status).json({ statusCode: status, message: msg });
     }

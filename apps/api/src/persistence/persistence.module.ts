@@ -7,7 +7,7 @@ import { PostgresInterviewStore, PostgresProgressStore, type Db } from './postgr
 import * as schema from './schema.js';
 import { InterviewStore, ProgressStore } from './stores.js';
 
-const PG_POOL = Symbol('PG_POOL');
+export const PG_POOL = Symbol('PG_POOL');
 const DB = Symbol('DB');
 
 @Global()
@@ -39,7 +39,7 @@ const DB = Symbol('DB');
       useFactory: (db: Db | null) => (db ? new PostgresInterviewStore(db) : new MemoryInterviewStore()),
     },
   ],
-  exports: [APP_CONFIG, ProgressStore, InterviewStore],
+  exports: [APP_CONFIG, PG_POOL, ProgressStore, InterviewStore],
 })
 export class PersistenceModule implements OnApplicationShutdown {
   constructor(@Inject(PG_POOL) private readonly pool: pg.Pool | null) {}
