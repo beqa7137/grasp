@@ -1,9 +1,33 @@
+# Dependencies
 node_modules/
+
+# Build output
 dist/
+out-tsc/
+*.tsbuildinfo
 .angular/
-.env
+
+# Test output
 coverage/
-apps/app/android/
-apps/app/ios/
+test-results/
+playwright-report/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Logs & OS
 *.log
 .DS_Store
+Thumbs.db
+
+# Editors
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# Capacitor: generated web assets inside native projects (the native projects themselves are committed)
+apps/app/android/app/src/main/assets/public/
+apps/app/ios/App/App/public/
