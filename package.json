@@ -14,7 +14,12 @@
     "dev:api": "npm run build:engine && npm run start:dev -w @grasp/api",
     "dev:app": "npm run build:engine && npm start -w @grasp/app",
     "build": "npm run build:engine && npm run build -w @grasp/api && npm run build -w @grasp/app",
-    "test": "npm run build:engine && npm test -w @grasp/engine && npm test -w @grasp/api",
+    "lint": "oxlint -c .oxlintrc.json --deny-warnings apps/api/src apps/api/test apps/app/src libs/engine/src",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "npm run build:engine && npm run typecheck --workspaces --if-present",
+    "test": "npm run build:engine && npm test --workspaces --if-present",
+    "verify": "npm run lint && npm run format:check && npm run typecheck && npm test && npm run build",
     "db:up": "docker compose up -d postgres",
     "db:migrate": "npm run db:migrate -w @grasp/api"
   },
@@ -25,5 +30,9 @@
     "@parcel/watcher@2.6.0": true,
     "esbuild@0.18.20": true,
     "esbuild@0.25.12": true
+  },
+  "devDependencies": {
+    "oxlint": "^1.85.0",
+    "prettier": "^3.9.9"
   }
 }

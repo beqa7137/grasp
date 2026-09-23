@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Lint, typecheck, test, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: grasp
+          POSTGRES_PASSWORD: grasp
+          POSTGRES_DB: grasp_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U grasp"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      TEST_DATABASE_URL: postgresql://grasp:grasp@localhost:5432/grasp_test
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test (engine, API against memory + Postgres, app)
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Upload web build
+        uses: actions/upload-artifact@v7
+        with:
+          name: web
+          path: apps/app/dist/app/browser
+          retention-days: 7

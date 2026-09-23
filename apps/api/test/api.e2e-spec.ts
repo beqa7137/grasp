@@ -1,17 +1,25 @@
 import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import type { App } from 'supertest/types';
 import { AppModule } from '../src/app.module.js';
+import { resetDatabase } from './support/database.js';
 
 const learner = '6f1c1c1e-8a4b-4c1d-9e3f-2a7b8c9d0e1f';
 
-describe('API (in-memory, offline interviewer)', () => {
-  let app: INestApplication<App>;
+const testDatabaseUrl = process.env['TEST_DATABASE_URL'];
+const storages = testDatabaseUrl ? (['memory', 'postgres'] as const) : (['memory'] as const);
+
+describe.each(storages)('API (%s storage, offline interviewer)', (storage) => {
+  let app: INestApplication;
 
   beforeAll(async () => {
-    delete process.env['DATABASE_URL'];
     delete process.env['ANTHROPIC_API_KEY'];
+    if (storage === 'postgres') {
+      await resetDatabase(testDatabaseUrl!);
+      process.env['DATABASE_URL'] = testDatabaseUrl;
+    } else {
+      delete process.env['DATABASE_URL'];
+    }
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
     app.setGlobalPrefix('api');
@@ -24,7 +32,7 @@ describe('API (in-memory, offline interviewer)', () => {
 
   it('reports health and active integrations', async () => {
     const res = await request(app.getHttpServer()).get('/api/health').expect(200);
-    expect(res.body).toEqual({ status: 'ok', storage: 'memory', interviewer: 'offline' });
+    expect(res.body).toEqual({ status: 'ok', storage, interviewer: 'offline' });
   });
 
   it('serves the curriculum and traces algorithms server-side', async () => {
@@ -85,7 +93,19 @@ describe('API (in-memory, offline interviewer)', () => {
     await request(app.getHttpServer())
       .post('/api/progress/events')
       .set('x-learner-id', learner)
-      .send({ events: [{ id: 'evt-000010', at: new Date().toISOString(), type: 'review.graded', itemId: 'rec:unknown', rating: 3, correct: true, durationMs: 1 }] })
+      .send({
+        events: [
+          {
+            id: 'evt-000010',
+            at: new Date().toISOString(),
+            type: 'review.graded',
+            itemId: 'rec:unknown',
+            rating: 3,
+            correct: true,
+            durationMs: 1,
+          },
+        ],
+      })
       .expect(400);
   });
 

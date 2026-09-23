@@ -5,11 +5,11 @@
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build",
-    "watch": "ng build --watch --configuration development",
-    "test": "ng test",
+    "test": "ng test --watch=false",
     "cap:sync": "ng build && cap sync",
     "cap:android": "cap open android",
-    "cap:ios": "cap open ios"
+    "cap:ios": "cap open ios",
+    "typecheck": "ngc -p tsconfig.app.json --noEmit"
   },
   "private": true,
   "dependencies": {
@@ -39,7 +39,6 @@
     "@angular/compiler-cli": "^22.1.0",
     "@capacitor/cli": "^8.5.2",
     "jsdom": "^28.0.0",
-    "prettier": "^3.8.1",
     "typescript": "~6.0.2",
     "vitest": "^4.0.8"
   }

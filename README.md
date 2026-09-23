@@ -12,12 +12,12 @@ See [docs/PLAN.md](docs/PLAN.md) for the product vision, architecture and roadma
 
 ## Stack
 
-| Layer | Tech |
-|---|---|
-| App | Angular 22 (standalone, zoneless, signals) + Ionic 9 + Capacitor 8 |
-| API | NestJS 12 (ESM) + Drizzle ORM + Postgres; in-memory fallback |
+| Layer  | Tech                                                                                                               |
+| ------ | ------------------------------------------------------------------------------------------------------------------ |
+| App    | Angular 22 (standalone, zoneless, signals) + Ionic 9 + Capacitor 8                                                 |
+| API    | NestJS 12 (ESM) + Drizzle ORM + Postgres; in-memory fallback                                                       |
 | Shared | `@grasp/engine`: pure TS tracers, simulator, FSRS scheduler, review items, curriculum. The app and API both run it |
-| AI | Claude API via `@anthropic-ai/sdk` (streaming + structured outputs) |
+| AI     | Claude API via `@anthropic-ai/sdk` (streaming + structured outputs)                                                |
 
 ```
 apps/app      Angular + Ionic client (web, iOS, Android)
@@ -65,14 +65,30 @@ npm run cap:ios        # opens Xcode (or cap:android → Android Studio)
 
 Native builds call the API at `http://localhost:3000/api`, or `10.0.2.2` on the Android emulator. For a physical device, change `NATIVE_API` in `apps/app/src/app/core/api.service.ts`. Dev builds allow cleartext HTTP. For a store build, point `NATIVE_API` at your https API and sync with `GRASP_RELEASE=1 npm run cap:sync`.
 
-## Tests
+## Development workflow
 
-```bash
-npm test
-```
+| Command                           | What it does                                                     |
+| --------------------------------- | ---------------------------------------------------------------- |
+| `npm run lint`                    | oxlint across all packages, zero warnings allowed                |
+| `npm run format` / `format:check` | Prettier (shared config at the repo root)                        |
+| `npm run typecheck`               | `tsc` for engine and API; `ngc` for the app, including templates |
+| `npm test`                        | Engine, API and app unit tests                                   |
+| `npm run build`                   | Production builds of all three packages                          |
+| `npm run verify`                  | All of the above, in the same order CI runs them                 |
+
+CI (`.github/workflows/ci.yml`) runs `verify` on every push to `main` and every pull request, with a Postgres service so the API e2e suite runs against both in-memory and Postgres storage. Dependabot proposes grouped dependency updates weekly.
+
+### Tests
 
 - **Engine:** every tracer is checked against a reference implementation on 300 random inputs. Each scenario must fail with its starter design and pass with a reference solution. Every revisit variant is proven solvable. FSRS scheduling, event upcasting, signals and session building are covered, and a 90-day simulated learner checks that retention lands near the 90% target. Every review item is validated across 40 seeds.
-- **API:** e2e tests cover health, curriculum, idempotent event sync, validation, the full offline interview over SSE, and learner isolation.
+- **API:** e2e tests cover health, curriculum, idempotent event sync, validation, the full offline interview over SSE, and learner isolation. Set `TEST_DATABASE_URL` to run the same suite against Postgres too (migrations are applied and tables truncated first):
+
+  ```bash
+  npm run db:up
+  TEST_DATABASE_URL=postgresql://grasp:grasp@localhost:5432/grasp npm test -w @grasp/api
+  ```
+
+- **App:** component tests run with Vitest via `ng test`.
 
 ## How progress sync works
 
