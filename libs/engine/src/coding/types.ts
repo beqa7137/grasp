@@ -3,7 +3,7 @@ import type { Difficulty } from '../algorithms/types.js';
 export type Language = 'javascript' | 'typescript' | 'python';
 export const LANGUAGES: Language[] = ['python', 'javascript', 'typescript'];
 
-export type ParamType = 'int' | 'int[]' | 'int[][]' | 'string' | 'char[][]' | 'bool';
+export type ParamType = 'int' | 'int[]' | 'int[][]' | 'string' | 'string[]' | 'char[][]' | 'bool';
 
 export interface Param {
   name: string;

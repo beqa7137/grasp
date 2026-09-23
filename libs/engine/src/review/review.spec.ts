@@ -46,7 +46,9 @@ describe('review item catalog', () => {
 
   it('generates genuinely different variants for predict and numeric design items', () => {
     const varied = REVIEW_ITEMS.filter(
-      (i) => i.kind === 'predict' || ['sd:response-time', 'sd:bottleneck', 'sd:qps', 'sd:queue-drain', 'sd:spof'].includes(i.id),
+      (i) =>
+        i.kind === 'predict' ||
+        ['sd:response-time', 'sd:bottleneck', 'sd:qps', 'sd:queue-drain', 'sd:spof', 'sd:token-bucket', 'sd:shard-count'].includes(i.id),
     );
     for (const item of varied) {
       const prompts = new Set(

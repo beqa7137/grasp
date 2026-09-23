@@ -31,7 +31,7 @@ const SPEEDS = [1, 2, 4];
           <g-array-view [view]="f.array" />
         }
         @if (f.grid) {
-          <g-grid-view [view]="f.grid" />
+          <g-grid-view [view]="f.grid" [legend]="false" />
         }
         @if (f.stack || f.queue || f.set || f.output) {
           <div class="aux">

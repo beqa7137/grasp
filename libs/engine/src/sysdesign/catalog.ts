@@ -1,4 +1,4 @@
-import type { ComponentKind, ComponentSpec, Design, DesignNode } from './types.js';
+import type { ComponentKind, ComponentSpec, Design, DesignNode, ShardKey } from './types.js';
 
 export const COMPONENTS: Record<ComponentKind, ComponentSpec> = {
   client: {
@@ -11,7 +11,7 @@ export const COMPONENTS: Record<ComponentKind, ComponentSpec> = {
     monthlyCost: 0,
     maxInstances: 1,
     writeCost: 1,
-    connectsTo: ['cdn', 'lb', 'app'],
+    connectsTo: ['cdn', 'limiter', 'lb', 'app'],
   },
   cdn: {
     kind: 'cdn',
@@ -24,6 +24,19 @@ export const COMPONENTS: Record<ComponentKind, ComponentSpec> = {
     maxInstances: 1,
     writeCost: 1,
     hitRate: 0.5,
+    connectsTo: ['limiter', 'lb', 'app'],
+  },
+  limiter: {
+    kind: 'limiter',
+    name: 'Rate Limiter',
+    short: 'Limiter',
+    description:
+      'Counts requests per client in a shared store (token bucket) and answers anyone over quota with 429 before they reach your servers. Real users stay under quota; bots do not.',
+    capacityRps: 50_000,
+    baseLatencyMs: 1,
+    monthlyCost: 250,
+    maxInstances: 4,
+    writeCost: 1,
     connectsTo: ['lb', 'app'],
   },
   lb: {
@@ -68,11 +81,11 @@ export const COMPONENTS: Record<ComponentKind, ComponentSpec> = {
     name: 'Primary DB',
     short: 'DB',
     description:
-      'Source of truth. ~5k ops/s; a write costs 2 ops (index + WAL). Add read replicas to offload reads. One primary per shard.',
+      'Source of truth. ~5k ops/s per primary; a write costs 2 ops (index + WAL). Replicas offload reads. For more write capacity, add shards: each is its own primary owning a slice of the keys.',
     capacityRps: 5_000,
     baseLatencyMs: 6,
     monthlyCost: 1_100,
-    maxInstances: 1,
+    maxInstances: 8,
     writeCost: 2,
     connectsTo: ['replica'],
   },
@@ -116,7 +129,21 @@ export const COMPONENTS: Record<ComponentKind, ComponentSpec> = {
   },
 };
 
-export const PALETTE: ComponentKind[] = ['cdn', 'lb', 'app', 'cache', 'db', 'replica', 'queue', 'worker'];
+export const PALETTE: ComponentKind[] = ['cdn', 'limiter', 'lb', 'app', 'cache', 'db', 'replica', 'queue', 'worker'];
+
+export const SHARD_KEYS: Record<ShardKey, { label: string; short: string; detail: string }> = {
+  hash: { label: 'hash(conversation_id)', short: 'hash', detail: 'A hash of a high-cardinality key spreads reads and writes evenly.' },
+  time: {
+    label: 'created_at range',
+    short: 'created_at',
+    detail: 'Each shard owns a time range, so every new write lands on the newest shard.',
+  },
+  tenant: {
+    label: 'tenant_id',
+    short: 'tenant_id',
+    detail: 'Each customer lives on one shard; the largest customer is 40% of all traffic.',
+  },
+};
 
 export type ConnectCheck = { ok: true } | { ok: false; reason: string };
 

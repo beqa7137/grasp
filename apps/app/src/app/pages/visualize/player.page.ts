@@ -42,8 +42,11 @@ import { haptic } from '../../core/haptics';
 import { ProgressService } from '../../core/progress.service';
 import { ArrayViewComponent } from '../../viz/array-view.component';
 import { CodePanelComponent } from '../../viz/code-panel.component';
+import { GraphViewComponent } from '../../viz/graph-view.component';
 import { GridViewComponent } from '../../viz/grid-view.component';
 import { ListViewComponent } from '../../viz/list-view.component';
+import { TableViewComponent } from '../../viz/table-view.component';
+import { TreeViewComponent } from '../../viz/tree-view.component';
 
 type PredictState = { frame: number; choice: number | null };
 
@@ -64,6 +67,9 @@ const SPEEDS = [0.5, 1, 2, 4];
     IonIcon,
     ArrayViewComponent,
     GridViewComponent,
+    TableViewComponent,
+    GraphViewComponent,
+    TreeViewComponent,
     CodePanelComponent,
     ListViewComponent,
   ],
@@ -112,7 +118,8 @@ export class PlayerPage {
 
   readonly alignedOutput = computed<ArrayView | null>(() => {
     const f = this.frame();
-    if (!f?.output || !f.array || f.output.items.length !== f.array.values.length) return null;
+    // Structural views carry their own layout; an output list that happens to match the array's length is not per-index there.
+    if (!f?.output || !f.array || f.tree || f.graph || f.table || f.output.items.length !== f.array.values.length) return null;
     return { values: f.output.items, pointers: {}, found: f.array.settled ?? [], active: [] };
   });
 

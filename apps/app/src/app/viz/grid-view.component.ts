@@ -20,12 +20,14 @@ import type { GridView } from '@grasp/engine';
         }
       }
     </div>
-    <div class="legend">
-      <span><i data-state="frontier"></i>in queue</span>
-      <span><i data-state="visited"></i>expanded</span>
-      <span><i data-state="current"></i>current</span>
-      <span><i data-state="path"></i>shortest path</span>
-    </div>
+    @if (legend()) {
+      <div class="legend">
+        <span><i data-state="frontier"></i>in queue</span>
+        <span><i data-state="visited"></i>expanded</span>
+        <span><i data-state="current"></i>current</span>
+        <span><i data-state="path"></i>shortest path</span>
+      </div>
+    }
   `,
   styles: `
     :host {
@@ -129,5 +131,6 @@ import type { GridView } from '@grasp/engine';
 })
 export class GridViewComponent {
   readonly view = input.required<GridView>();
+  readonly legend = input(true);
   readonly cols = computed(() => this.view().cells[0]?.length ?? 1);
 }

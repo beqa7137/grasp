@@ -88,6 +88,56 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     const best = (i: number): number => (i < 0 ? 0 : Math.max(best(i - 1), best(i - 2) + nums[i]));
     return best(nums.length - 1);
   },
+  'kth-largest-element': (nums: number[], k: number) =>
+    nums.find((x) => nums.filter((y) => y > x).length < k && nums.filter((y) => y >= x).length >= k),
+  'longest-common-subsequence': (a: string, b: string) => {
+    const subsequences = (s: string) => {
+      const out = new Set<string>(['']);
+      for (const ch of s) for (const prefix of Array.from(out)) out.add(prefix + ch);
+      return out;
+    };
+    const inB = subsequences(b);
+    return Math.max(...[...subsequences(a)].filter((s) => inB.has(s)).map((s) => s.length));
+  },
+  'count-components': (n: number, edges: number[][]) => {
+    const seen = new Set<number>();
+    let components = 0;
+    for (let start = 0; start < n; start++) {
+      if (seen.has(start)) continue;
+      components++;
+      const stack = [start];
+      seen.add(start);
+      while (stack.length) {
+        const u = stack.pop()!;
+        for (const [a, b] of edges)
+          for (const [x, y] of [
+            [a, b],
+            [b, a],
+          ])
+            if (x === u && !seen.has(y)) {
+              seen.add(y);
+              stack.push(y);
+            }
+      }
+    }
+    return components;
+  },
+  'course-schedule': (_n: number, prerequisites: number[][]) => {
+    const reaches = (from: number, to: number, seen: Set<number>): boolean => {
+      if (from === to) return true;
+      seen.add(from);
+      return prerequisites.some(([a, b]) => b === from && !seen.has(a) && reaches(a, to, seen));
+    };
+    return !prerequisites.some(([a, b]) => reaches(a, b, new Set()));
+  },
+  'network-delay': (times: number[][], n: number, k: number) => {
+    const dist = Array<number>(n + 1).fill(Infinity);
+    dist[k] = 0;
+    for (let round = 0; round < n; round++) for (const [u, v, w] of times) dist[v] = Math.min(dist[v], dist[u] + w);
+    const worst = Math.max(...dist.slice(1));
+    return worst === Infinity ? -1 : worst;
+  },
+  'count-prefixes': (words: string[], prefixes: string[]) => prefixes.map((p) => words.filter((w) => w.startsWith(p)).length),
 };
 
 const hasPython = spawnSync('python3', ['--version']).status === 0;
@@ -123,7 +173,8 @@ describe('coding problems', () => {
     const [perf] = buildSuite(problem, { seed: 3 }).filter((t) => t.kind === 'performance');
     expect(perf).toBeDefined();
     expect(performance.now() - started).toBeLessThan(1_500);
-    expect(JSON.stringify(perf.args).length).toBeGreaterThan(10_000);
+    // LCS stresses the O(m·n) table, not input size: two 1,500-letter strings are only ~3 KB.
+    expect(JSON.stringify(perf.args).length).toBeGreaterThan(problem.id === 'longest-common-subsequence' ? 2_000 : 10_000);
   });
 
   it('keeps answers unique where the problem promises it', () => {

@@ -46,6 +46,12 @@
   }
 }
 
+.metric .bots {
+  font-size: 11px;
+  color: #ff8a5c;
+  margin-top: 2px;
+}
+
 .metric {
   background: var(--g-surface);
   border: 1px solid var(--g-line);
@@ -147,6 +153,9 @@
 [data-kind='cdn'] {
   --kind-color: #4cc9f0;
 }
+[data-kind='limiter'] {
+  --kind-color: #ff8a5c;
+}
 [data-kind='lb'] {
   --kind-color: #7aa2ff;
 }
@@ -247,6 +256,10 @@
   .sub {
     fill: var(--g-muted);
     font: 11px var(--g-font-mono);
+  }
+  .bots {
+    fill: #ff8a5c;
+    font: 600 11px var(--g-font-mono);
   }
   .failed {
     fill: var(--g-danger);
@@ -480,6 +493,81 @@ input[type='range'] {
     span {
       display: flex;
       justify-content: space-between;
+    }
+  }
+  .stats .wide {
+    grid-column: 1 / -1;
+  }
+  .stats dd.warn {
+    color: var(--g-warn);
+  }
+  .shard-key {
+    flex-wrap: wrap;
+    .choices {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+    button {
+      font: 600 12px var(--g-font-mono);
+      color: var(--g-muted);
+      background: var(--g-raised);
+      border: 1px solid var(--g-line-strong);
+      border-radius: 8px;
+      padding: 6px 8px;
+      cursor: pointer;
+    }
+    button.on {
+      color: #0b0d12;
+      background: var(--g-accent);
+      border-color: var(--g-accent);
+    }
+    p {
+      flex-basis: 100%;
+      margin: 0;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+  }
+  .shards {
+    list-style: none;
+    margin: 0 0 8px;
+    padding: 0;
+    display: grid;
+    gap: 5px;
+    li {
+      display: grid;
+      grid-template-columns: 26px 1fr 44px;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--g-muted);
+    }
+    .bar {
+      height: 6px;
+      border-radius: 3px;
+      background: var(--g-raised);
+      overflow: hidden;
+    }
+    i {
+      display: block;
+      height: 100%;
+      background: var(--g-found);
+      transition: width 0.3s;
+    }
+    li[data-status='hot'] i {
+      background: var(--g-warn);
+    }
+    li[data-status='overloaded'] i,
+    li[data-status='down'] i {
+      background: var(--g-danger);
+    }
+    li[data-status='overloaded'] .pct,
+    li[data-status='down'] .pct {
+      color: var(--g-danger);
+    }
+    .pct {
+      text-align: right;
     }
   }
   .stepper {

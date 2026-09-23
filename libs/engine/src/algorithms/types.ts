@@ -27,6 +27,50 @@ export interface GridView {
   distances: (number | null)[][];
 }
 
+/** A dynamic-programming table; null cells are not computed yet. */
+export interface TableView {
+  rowLabels: string[];
+  colLabels: string[];
+  cells: (Scalar | null)[][];
+  active?: [number, number];
+  /** Cells the active cell reads from. */
+  deps?: [number, number][];
+  /** Cells on the reconstructed answer. */
+  path?: [number, number][];
+}
+
+export type NodeState = 'idle' | 'frontier' | 'active' | 'done';
+export type EdgeState = 'idle' | 'active' | 'chosen' | 'skipped';
+
+export interface GraphNode {
+  id: string;
+  label: string;
+  /** Layout position in a 0..1 box. */
+  x: number;
+  y: number;
+  state?: NodeState;
+  /** Small value drawn next to the node: a distance, an in-degree. */
+  badge?: string;
+}
+
+export interface GraphEdge {
+  from: string;
+  to: string;
+  directed: boolean;
+  label?: string;
+  state?: EdgeState;
+}
+
+export interface GraphView {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+}
+
+/** A rooted forest (heap, trie, union-find); the component lays it out. */
+export interface TreeView {
+  nodes: { id: string; label: string; parent: string | null; state?: NodeState; badge?: string; marked?: boolean }[];
+}
+
 export interface Prediction {
   prompt: string;
   choices: string[];
@@ -44,10 +88,13 @@ export interface Frame {
   grid?: GridView;
   queue?: StackView;
   output?: StackView;
+  table?: TableView;
+  graph?: GraphView;
+  tree?: TreeView;
   predict?: Prediction;
 }
 
-export type InputKind = 'numbers' | 'sortedNumbers' | 'number' | 'text' | 'grid';
+export type InputKind = 'numbers' | 'sortedNumbers' | 'number' | 'text' | 'grid' | 'edges' | 'directedEdges' | 'weightedEdges' | 'words';
 
 export interface InputField {
   key: string;

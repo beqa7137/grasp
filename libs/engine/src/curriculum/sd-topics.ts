@@ -24,6 +24,18 @@ export const SD_TOPICS: SdTopic[] = [
     scenarioIds: ['viral-feed'],
   },
   { id: 'sd-queues', name: 'Queues & Async Work', oneLiner: 'Absorbing spikes and sizing consumers.', scenarioIds: ['flash-sale'] },
+  {
+    id: 'sd-rate-limiting',
+    name: 'Rate Limiting & Abuse',
+    oneLiner: 'Token buckets, shared counters and shedding load at the edge.',
+    scenarioIds: ['bot-storm'],
+  },
+  {
+    id: 'sd-sharding',
+    name: 'Sharding & Partitioning',
+    oneLiner: 'Scaling writes, choosing a shard key and avoiding hot shards.',
+    scenarioIds: ['write-wall'],
+  },
 ];
 
 export function getSdTopic(id: string): SdTopic | undefined {

@@ -12,13 +12,13 @@ _defend_ your reasoning to an interviewer — in one loop that remembers what yo
 
 Grasp is built around four signature experiences that feed a single mastery model:
 
-| Experience                                 | What makes it different                                                                                                                                                                                                                                                                                              |
-| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Step-through visualizer**                | Scrub forward _and backward_ through real execution. Code line, variables, data structure and narration stay in sync. Edit the input and the whole trace regenerates instantly (runs on-device).                                                                                                                     |
-| **Predict-the-next-step**                  | At every decision point the player pauses and asks _you_ what happens next (which pointer moves? pop or push?). This is active recall inside the visualization — the thing that actually builds intuition. Accuracy feeds mastery.                                                                                   |
-| **System design sandbox**                  | Drag real components (CDN, LB, app tier, cache, primary/replicas, queue, workers) onto a canvas, dial traffic from 100 to 1M RPS and watch utilization, p50/p99, error rate and cost react live. Pull the chaos lever to kill a node. Scenario goals ("p99 < 150 ms at 40k RPS under $4k/mo") turn it into a puzzle. |
-| **Pattern-first curriculum + FSRS review** | ~20 patterns instead of 3,000 problems. Small auto-graded items (recognition, predict-the-step, template recall, complexity, system design cases) are scheduled with FSRS. Each review is a fresh variant, and the rest of the app feeds the schedule. See [SPACED_REPETITION.md](SPACED_REPETITION.md).             |
-| **AI interviewer**                         | Claude plays a calibrated FAANG interviewer (coding or system design): asks clarifying-question-worthy prompts, gives graded hints instead of answers, pushes on trade-offs, and produces a rubric scorecard aligned with how real loops are scored.                                                                 |
+| Experience                                 | What makes it different                                                                                                                                                                                                                                                                                                                      |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Step-through visualizer**                | Scrub forward _and backward_ through real execution. Code line, variables, data structure and narration stay in sync. Edit the input and the whole trace regenerates instantly (runs on-device).                                                                                                                                             |
+| **Predict-the-next-step**                  | At every decision point the player pauses and asks _you_ what happens next (which pointer moves? pop or push?). This is active recall inside the visualization — the thing that actually builds intuition. Accuracy feeds mastery.                                                                                                           |
+| **System design sandbox**                  | Drag real components (CDN, rate limiter, LB, app tier, cache, sharded primaries/replicas, queue, workers) onto a canvas, dial traffic from 100 to 1M RPS and watch utilization, p50/p99, error rate and cost react live. Pull the chaos lever to kill a node. Scenario goals ("p99 < 150 ms at 40k RPS under $4k/mo") turn it into a puzzle. |
+| **Pattern-first curriculum + FSRS review** | ~20 patterns instead of 3,000 problems. Small auto-graded items (recognition, predict-the-step, template recall, complexity, system design cases) are scheduled with FSRS. Each review is a fresh variant, and the rest of the app feeds the schedule. See [SPACED_REPETITION.md](SPACED_REPETITION.md).                                     |
+| **AI interviewer**                         | Claude plays a calibrated FAANG interviewer (coding or system design): asks clarifying-question-worthy prompts, gives graded hints instead of answers, pushes on trade-offs, and produces a rubric scorecard aligned with how real loops are scored.                                                                                         |
 
 The loop: **Learn pattern → Watch & predict → Review → Apply in interview → Scorecard
 identifies weak patterns → they come back in the review queue. Missions come back as changed revisits at 3/10/30 days.**
@@ -118,22 +118,24 @@ release-time migrations. See [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## 4. Roadmap
 
-**M0 — Vertical slice (this repo).** Engine with 5 visualizers, sandbox with 3 scenarios,
-20 patterns, 117 FSRS review items, mission revisits, AI interviewer (8 problems), local-first sync,
-Ionic tabs app.
+**M0 — Vertical slice (this repo).** Engine with 11 visualizers, sandbox with 5 scenarios,
+20 patterns, 131 FSRS review items, 18 coding problems, mission revisits, AI interviewer (8 problems),
+accounts, local-first sync, Ionic tabs app.
 
 **M1 — Accounts & polish (2–3 wks).** Auth (Clerk/Auth0 or Nest + passkeys), learner linking,
 onboarding diagnostic that seeds the review queue, per-learner FSRS parameter optimization, haptics & gestures on mobile, dark/light polish.
 
-**M2 — Content depth (4–6 wks).** Visualizers for all 20 patterns (heap, union-find, DP table
-fill, trie, Dijkstra, topo sort, backtracking tree). Content authoring as data (JSON/MDX)
-validated by the engine in CI.
+**M2 — Content depth (4–6 wks).** Visualizers for all 20 patterns. Done: heap, union-find, DP table
+fill, trie, Dijkstra and topo sort, with table, graph and tree views. Next: backtracking tree, tree
+traversals, intervals, greedy, bit manipulation. Content authoring as data (JSON/MDX) validated by
+the engine in CI.
 
 **M3 — Code runner (3–4 wks).** In-browser TS/Python execution (WebWorker + Pyodide) with
 hidden tests; _auto-trace the user's own code_ into the visualizer by instrumenting it.
 
-**M4 — System design depth (4 wks).** Consistent hashing & sharding nodes, geo-regions,
-cache stampede and hot-key simulation, back-pressure, rate limiters; AI interviewer can _read
+**M4 — System design depth (4 wks).** Done: sharding with shard keys and hot shards, rate limiters
+against bot traffic. Next: consistent hashing ring, geo-regions, cache stampede and hot-key simulation,
+back-pressure; AI interviewer can _read
 the sandbox graph_ and interrogate your design; estimation calculator.
 
 **M5 — Growth.** Streaks, weekly plan generated from weak patterns, company-specific loops,

@@ -356,6 +356,139 @@ const asyncAck = concept(
   'Decoupling acceptance from processing: the user waits for the cheap, highly scalable step; the expensive step happens at a pace the database can handle.',
 );
 
+const tokenBucket = item('token-bucket', 'sd-rate-limiting', 'Token bucket over time', 0, (rand) => {
+  const burst = pick(rand, [20, 50, 100]);
+  const refill = pick(rand, [5, 10, 20]);
+  const sent = pick(rand, [50, 100, 200]);
+  const seconds = pick(rand, [10, 30, 60]);
+  const accepted = Math.min(sent * seconds, burst + refill * seconds);
+  const req = (v: number) => `${fmt(v)} requests`;
+  return {
+    prompt: `A token bucket holds up to ${burst} tokens and refills ${refill} tokens/s. It starts full, and a client then sends ${sent} requests/s for ${seconds} s. How many are accepted?`,
+    facts: [
+      { label: 'Bucket size (burst)', value: `${burst}` },
+      { label: 'Refill rate', value: `${refill}/s` },
+      { label: 'Client sends', value: `${sent}/s for ${seconds} s` },
+    ],
+    ...withChoices(
+      rand,
+      req(accepted),
+      [req(refill * seconds), req(burst), req(sent * seconds), req(burst + sent)].filter((d) => d !== req(accepted)).slice(0, 3),
+    ),
+    explain: `The full bucket absorbs a burst of ${burst}; after that the client gets exactly the refill rate: ${burst} + ${refill} × ${seconds} = ${fmt(accepted)}. The other ${fmt(sent * seconds - accepted)} get 429s. Burst size and sustained rate are separate knobs.`,
+  };
+});
+
+const limiterState = concept(
+  'limiter-state',
+  'sd-rate-limiting',
+  1,
+  'Four rate limiter instances sit behind round-robin. Each keeps per-client counters in its own memory with a limit of 100 requests/min. What limit does a client really get?',
+  'About 400/min: each instance only sees a quarter of that client’s requests',
+  [
+    'Exactly 100/min, because the load balancer keeps the counters in sync',
+    'About 25/min, because each instance enforces a quarter of the limit',
+    'Unlimited, because in-memory counters reset on every request',
+  ],
+  'Local counters multiply the limit by the instance count. Keep counters in a shared store (e.g. Redis INCR with a TTL, or an atomic token-bucket script), or route each client key to one instance.',
+);
+
+const botsCache = concept(
+  'bots-cache',
+  'sd-rate-limiting',
+  2,
+  'Why does 20k RPS of scraper traffic hurt the database far more than 20k RPS of real users?',
+  'Scrapers crawl long-tail and cache-busting URLs, so they miss every cache',
+  [
+    'Scrapers send larger request bodies that the database has to parse',
+    'Scrapers skip the load balancer and connect to the database directly',
+    'Scrapers always open fresh TLS sessions that the database must verify',
+  ],
+  'Real users read popular content that caches absorb; bots walk everything once. Every unfiltered bot request becomes a database read, so shed them at the edge before they cost anything.',
+);
+
+const overQuota = concept(
+  'over-quota',
+  'sd-rate-limiting',
+  3,
+  'What should an API return to a client that is over its rate limit?',
+  '429 Too Many Requests with a Retry-After header',
+  [
+    '503 Service Unavailable, so it looks like an outage',
+    '403 Forbidden and a permanent ban on the IP',
+    '200 OK with an empty body so bots cannot tell',
+  ],
+  '429 tells well-behaved clients exactly what happened, and Retry-After tells them when to come back, so retries spread out instead of stampeding. Reject cheaply, before any expensive work.',
+);
+
+const shardCount = item('shard-count', 'sd-sharding', 'How many shards?', 0, (rand) => {
+  const writes = pick(rand, [4_000, 6_000, 9_000, 12_000, 15_000]);
+  const target = 0.7;
+  const correct = Math.ceil((writes * 2) / (5_000 * target));
+  const shards = (v: number) => `${v} shards`;
+  const pool = [
+    Math.ceil(writes / (5_000 * target)),
+    Math.ceil((writes * 2) / 5_000),
+    correct + 2,
+    correct - 1,
+    correct + 1,
+    Math.ceil(writes / 5_000),
+  ]
+    .filter((v) => v > 0 && v !== correct)
+    .map(shards);
+  return {
+    prompt: `A service writes ${fmt(writes)} rows/s, sustained. Each write costs a primary 2 ops, one primary handles 5k ops/s, and you plan for 70% peak utilization. With an evenly spreading shard key, how many shards do you need?`,
+    facts: [
+      { label: 'Writes', value: `${fmt(writes)}/s × 2 ops` },
+      { label: 'Per primary', value: '5k ops/s at ≤ 70%' },
+    ],
+    ...withChoices(rand, shards(correct), [...new Set(pool)].slice(0, 3)),
+    explain: `${fmt(writes)} × 2 = ${fmt(writes * 2)} ops/s. Each shard should carry at most 5k × 0.7 = 3.5k, so ${fmt(writes * 2)} ÷ 3.5k → ${correct} shards. Forgetting the write cost or the headroom are the two classic misses.`,
+  };
+});
+
+const timeKey = concept(
+  'time-key',
+  'sd-sharding',
+  1,
+  'You range-partition a messages table by created_at across 6 shards. Where do new writes go?',
+  'All to the newest shard, while the others only serve older reads',
+  [
+    'Evenly across all 6 shards, since timestamps are unique',
+    'To whichever shard currently has the most free disk',
+    'Round-robin across the shards in insertion order',
+  ],
+  'Monotonic keys (timestamps, auto-increment IDs) put every new row at the end of the range: one hot shard takes all the writes. Hash a high-cardinality key instead, or prefix the time with a hash bucket.',
+);
+
+const tenantSkew = concept(
+  'tenant-skew',
+  'sd-sharding',
+  2,
+  'You shard by tenant_id and your largest tenant is 40% of all traffic. What does going from 4 to 8 shards do for the busiest shard?',
+  'Nothing: that tenant’s keys stay on one shard, still ~40% of load',
+  [
+    'Halves it to ~20%, like every other shard',
+    'Drops it to 1/8 of all traffic, about 12.5%',
+    'Doubles it, because rebalancing moves keys onto it',
+  ],
+  'A shard can never hold less than its single biggest key. Skewed keys cap scale-out; pick a finer key (e.g. conversation_id) or split the big tenant across several shards.',
+);
+
+const reshard = concept(
+  'reshard',
+  'sd-sharding',
+  3,
+  'Why place keys with consistent hashing (or many fixed virtual partitions) instead of hash(key) % N?',
+  'Changing N with modulo moves almost every key; consistent hashing moves ~1/N',
+  [
+    'Modulo hashing cannot spread string keys evenly across shards',
+    'Consistent hashing keeps related keys together so joins stay local',
+    'Modulo placement only works when N is a power of two',
+  ],
+  'With % N, adding one shard reassigns most keys and triggers a massive migration. Consistent hashing (or pre-splitting into many virtual partitions assigned to nodes) makes resharding incremental.',
+);
+
 export const DESIGN_ITEMS: ItemDef[] = [
   responseTime,
   headroom,
@@ -373,4 +506,12 @@ export const DESIGN_ITEMS: ItemDef[] = [
   queueDrain,
   workerLimit,
   asyncAck,
+  tokenBucket,
+  limiterState,
+  botsCache,
+  overQuota,
+  shardCount,
+  timeKey,
+  tenantSkew,
+  reshard,
 ];

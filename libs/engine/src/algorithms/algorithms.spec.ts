@@ -4,6 +4,58 @@ import { mulberry32 } from './input.js';
 import { InputError } from './types.js';
 
 const reference: Record<string, (input: any) => unknown> = {
+  'kth-largest': ({ nums, k }) => [...nums].sort((a: number, b: number) => b - a)[k - 1],
+  lcs: ({ a, b }) => {
+    const dp = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0));
+    for (let i = 1; i <= a.length; i++)
+      for (let j = 1; j <= b.length; j++) dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] + 1 : Math.max(dp[i - 1][j], dp[i][j - 1]);
+    return dp[a.length][b.length];
+  },
+  'union-find': ({ n, edges }) => {
+    const adj: number[][] = Array.from({ length: n }, () => []);
+    for (const [a, b] of edges) {
+      adj[a].push(b);
+      adj[b].push(a);
+    }
+    const seen = new Set<number>();
+    let count = 0;
+    for (let s = 0; s < n; s++) {
+      if (seen.has(s)) continue;
+      count++;
+      const stack = [s];
+      seen.add(s);
+      while (stack.length)
+        for (const v of adj[stack.pop()!])
+          if (!seen.has(v)) {
+            seen.add(v);
+            stack.push(v);
+          }
+    }
+    return count;
+  },
+  'topo-sort': ({ n, edges }) => {
+    const color = Array(n).fill(0);
+    const adj: number[][] = Array.from({ length: n }, () => []);
+    for (const [u, v] of edges) adj[u].push(v);
+    const cyclic = (u: number): boolean => {
+      color[u] = 1;
+      for (const v of adj[u]) if (color[v] === 1 || (color[v] === 0 && cyclic(v))) return true;
+      color[u] = 2;
+      return false;
+    };
+    return [...Array(n).keys()].some((u) => color[u] === 0 && cyclic(u)) ? 'cycle' : 'acyclic';
+  },
+  trie: ({ words, query }) => words.includes(query),
+  dijkstra: ({ n, edges, source }) => {
+    const dist = Array(n).fill(Infinity);
+    dist[source] = 0;
+    for (let round = 0; round < n; round++)
+      for (const [a, b, w] of edges) {
+        if (dist[a] + w < dist[b]) dist[b] = dist[a] + w;
+        if (dist[b] + w < dist[a]) dist[a] = dist[b] + w;
+      }
+    return `[${dist.map((d) => (d === Infinity ? '∞' : d)).join(', ')}]`;
+  },
   'binary-search': ({ nums, target }) => {
     const i = nums.indexOf(target);
     return i;
@@ -82,6 +134,14 @@ describe.each(ALGORITHMS.map((a) => [a.id, a] as const))('%s', (id, algo) => {
         const [l, r] = JSON.parse(String(result));
         const { nums, target } = algo.validate(input) as any;
         expect(nums[l] + nums[r]).toBe(target);
+      }
+    } else if (id === 'topo-sort') {
+      const { n, edges } = algo.validate(input) as any;
+      if (expected === 'cycle') expect(result).toBe('cycle');
+      else {
+        const order = String(result).split(' → ').map(Number);
+        expect([...order].sort((x, y) => x - y)).toEqual([...Array(n).keys()]);
+        for (const [u, v] of edges) expect(order.indexOf(u)).toBeLessThan(order.indexOf(v));
       }
     } else if (id === 'binary-search' && result !== -1) {
       const { nums, target } = algo.validate(input) as any;
