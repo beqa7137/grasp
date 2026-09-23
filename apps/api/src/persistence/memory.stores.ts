@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import type { StoredEvent } from '@grasp/engine';
 import type { LearnerEvent } from '../admin/cohort-metrics.js';
+import type { LoginCode, RefreshTokenRecord, User } from '../auth/auth.types.js';
 import type { FeedbackEntry } from '../feedback/feedback.types.js';
 import type { InterviewSession } from '../interview/interview.types.js';
-import { FeedbackStore, InterviewStore, ProgressStore, type AppendResult } from './stores.js';
+import { AuthStore, FeedbackStore, InterviewStore, ProgressStore, type AppendResult } from './stores.js';
 
 @Injectable()
 export class MemoryProgressStore extends ProgressStore {
@@ -31,6 +32,11 @@ export class MemoryProgressStore extends ProgressStore {
 
   async deleteLearner(learnerId: string): Promise<void> {
     this.events.delete(learnerId);
+  }
+
+  async moveLearner(from: string, to: string): Promise<void> {
+    await this.append(to, [...(this.events.get(from)?.values() ?? [])]);
+    this.events.delete(from);
   }
 }
 
@@ -62,6 +68,10 @@ export class MemoryInterviewStore extends InterviewStore {
   async deleteLearner(learnerId: string): Promise<void> {
     for (const [id, s] of this.sessions) if (s.learnerId === learnerId) this.sessions.delete(id);
   }
+
+  async moveLearner(from: string, to: string): Promise<void> {
+    for (const s of this.sessions.values()) if (s.learnerId === from) s.learnerId = to;
+  }
 }
 
 @Injectable()
@@ -82,5 +92,85 @@ export class MemoryFeedbackStore extends FeedbackStore {
 
   async deleteLearner(learnerId: string): Promise<void> {
     for (let i = this.entries.length - 1; i >= 0; i--) if (this.entries[i].learnerId === learnerId) this.entries.splice(i, 1);
+  }
+
+  async moveLearner(from: string, to: string): Promise<void> {
+    for (const e of this.entries) if (e.learnerId === from) e.learnerId = to;
+  }
+}
+
+@Injectable()
+export class MemoryAuthStore extends AuthStore {
+  private readonly codes: LoginCode[] = [];
+  private readonly users = new Map<string, User>();
+  private readonly tokens = new Map<string, RefreshTokenRecord>();
+
+  async addCode(code: LoginCode): Promise<void> {
+    this.codes.push({ ...code });
+  }
+
+  async countCodesSince(email: string, since: string): Promise<number> {
+    return this.codes.filter((c) => c.email === email && c.createdAt >= since).length;
+  }
+
+  async latestCode(email: string): Promise<LoginCode | null> {
+    const code = this.codes.filter((c) => c.email === email && !c.consumedAt).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+    return code ? { ...code } : null;
+  }
+
+  async updateCode(id: string, patch: Partial<Pick<LoginCode, 'attempts' | 'consumedAt'>>): Promise<void> {
+    const code = this.codes.find((c) => c.id === id);
+    if (code) Object.assign(code, patch);
+  }
+
+  async userByEmail(email: string): Promise<User | null> {
+    return this.copy([...this.users.values()].find((u) => u.email === email));
+  }
+
+  async userById(id: string): Promise<User | null> {
+    return this.copy(this.users.get(id));
+  }
+
+  async userByLearner(learnerId: string): Promise<User | null> {
+    return this.copy([...this.users.values()].find((u) => u.learnerId === learnerId));
+  }
+
+  async createUser(user: User): Promise<void> {
+    this.users.set(user.id, { ...user });
+  }
+
+  async touchLogin(userId: string, at: string): Promise<void> {
+    const user = this.users.get(userId);
+    if (user) user.lastLoginAt = at;
+  }
+
+  async deleteByLearner(learnerId: string): Promise<void> {
+    for (const [id, user] of this.users) {
+      if (user.learnerId !== learnerId) continue;
+      this.users.delete(id);
+      for (const [tokenId, token] of this.tokens) if (token.userId === id) this.tokens.delete(tokenId);
+    }
+  }
+
+  async addRefreshToken(token: RefreshTokenRecord): Promise<void> {
+    this.tokens.set(token.id, { ...token });
+  }
+
+  async refreshTokenByHash(tokenHash: string): Promise<RefreshTokenRecord | null> {
+    const token = [...this.tokens.values()].find((t) => t.tokenHash === tokenHash);
+    return token ? { ...token } : null;
+  }
+
+  async markRotated(id: string, at: string): Promise<void> {
+    const token = this.tokens.get(id);
+    if (token && !token.rotatedAt) token.rotatedAt = at;
+  }
+
+  async revokeFamily(familyId: string, at: string): Promise<void> {
+    for (const token of this.tokens.values()) if (token.familyId === familyId && !token.revokedAt) token.revokedAt = at;
+  }
+
+  private copy(user: User | undefined): User | null {
+    return user ? { ...user } : null;
   }
 }

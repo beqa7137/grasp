@@ -15,6 +15,9 @@
   @let st = progress.state();
   @let session = progress.session();
   <div class="page">
+    @if (auth.signInRequired()) {
+      <a class="resume panel" routerLink="/settings">Your session ended. Sign in to keep syncing your progress →</a>
+    }
     <section class="hero">
       <p class="eyebrow">{{ greeting() }}</p>
       <h1>Build intuition,<br />not a problem count.</h1>

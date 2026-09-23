@@ -26,6 +26,7 @@ describe('loadConfig', () => {
       DATABASE_URL: 'postgres://u:p@db.internal:5432/grasp',
       ANTHROPIC_API_KEY: 'sk-ant-api03-0123456789abcdef',
       AI_DAILY_BUDGET_USD: '12.5',
+      JWT_SECRET: 'a-very-long-secret-used-only-in-this-test-000',
       AI_UNRELATED: 'ignored',
     });
     expect(config).toMatchObject({
@@ -37,6 +38,12 @@ describe('loadConfig', () => {
       aiDailyBudgetUsd: 12.5,
       sentryEnvironment: 'production',
     });
+  });
+
+  it('requires a JWT secret in production only', () => {
+    expect(() => loadConfig({ NODE_ENV: 'production' })).toThrow(/JWT_SECRET: is required in production/);
+    expect(loadConfig({ NODE_ENV: 'development' }).jwtSecret).toBeNull();
+    expect(() => loadConfig({ JWT_SECRET: 'short' })).toThrow(/JWT_SECRET/);
   });
 
   it('treats empty strings as unset, as .env files often contain them', () => {

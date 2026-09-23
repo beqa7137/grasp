@@ -16,6 +16,7 @@ import {
   settingsOutline,
   sparkles,
 } from 'ionicons/icons';
+import { AuthService } from '../../core/auth.service';
 import { ProgressService } from '../../core/progress.service';
 import { MasteryRingComponent } from '../../viz/mastery-ring.component';
 
@@ -35,6 +36,7 @@ const TRACKS: { id: Track; title: string; blurb: string }[] = [
 })
 export class LearnPage {
   readonly progress = inject(ProgressService);
+  readonly auth = inject(AuthService);
   readonly tracks = TRACKS.map((t) => ({ ...t, patterns: PATTERNS.filter((p) => p.track === t.id) }));
 
   readonly sdTopics = SD_TOPICS;

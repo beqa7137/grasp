@@ -1,4 +1,5 @@
 import { Injectable, inject } from '@angular/core';
+import { AuthTokens } from './auth-tokens.service';
 import { LearnerService } from './learner.service';
 import { RuntimeConfigService } from './runtime-config.service';
 
@@ -6,6 +7,7 @@ export class ApiError extends Error {
   constructor(
     readonly status: number,
     message: string,
+    readonly code?: string,
   ) {
     super(message);
   }
@@ -19,6 +21,7 @@ export interface SseHandlers {
 export class ApiService {
   private readonly learner = inject(LearnerService);
   private readonly runtime = inject(RuntimeConfigService);
+  private readonly tokens = inject(AuthTokens);
 
   get base(): string {
     return this.runtime.apiBase();
@@ -38,7 +41,9 @@ export class ApiService {
 
   /** POSTs and consumes a text/event-stream response. Resolves with the `done` payload. */
   async stream<T>(path: string, body: unknown, handlers: SseHandlers, signal?: AbortSignal): Promise<T> {
-    const res = await fetch(this.base + path, { method: 'POST', headers: this.headers(), body: JSON.stringify(body), signal });
+    const send = () => fetch(this.base + path, { method: 'POST', headers: this.headers(), body: JSON.stringify(body), signal });
+    let res = await send();
+    if (res.status === 401 && (await this.renewAfter(res.clone(), path))) res = await send();
     if (!res.ok || !res.body) throw await this.toError(res);
 
     const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
@@ -62,24 +67,48 @@ export class ApiService {
   }
 
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
-    let res: Response;
-    try {
-      res = await fetch(this.base + path, { method, headers: this.headers(), body: body === undefined ? undefined : JSON.stringify(body) });
-    } catch {
-      throw new ApiError(0, 'Cannot reach the Grasp server. Is the API running?');
-    }
+    const send = async () => {
+      try {
+        return await fetch(this.base + path, {
+          method,
+          headers: this.headers(),
+          body: body === undefined ? undefined : JSON.stringify(body),
+        });
+      } catch {
+        throw new ApiError(0, 'Cannot reach the Grasp server. Check your connection.');
+      }
+    };
+    let res = await send();
+    if (res.status === 401 && (await this.renewAfter(res.clone(), path))) res = await send();
     if (!res.ok) throw await this.toError(res);
     return (res.status === 204 ? undefined : await res.json()) as T;
   }
 
+  /** On an expired session (or progress that needs a session), refreshes once so the caller can retry. */
+  private async renewAfter(res: Response, path: string): Promise<boolean> {
+    const code = await res
+      .json()
+      .then((b: { code?: string }) => b.code)
+      .catch(() => undefined);
+    if ((code !== 'token_invalid' && code !== 'sign_in_required') || path.startsWith('/auth/') || !this.tokens.refresher) return false;
+    const renewed = await this.tokens.refresher();
+    if (!renewed && code === 'sign_in_required') this.tokens.signInRequired.set(true);
+    return renewed;
+  }
+
   private headers(): Record<string, string> {
-    return { 'content-type': 'application/json', 'x-learner-id': this.learner.id() };
+    const token = this.tokens.accessToken();
+    return {
+      'content-type': 'application/json',
+      'x-learner-id': this.learner.id(),
+      ...(token ? { authorization: `Bearer ${token}` } : {}),
+    };
   }
 
   private async toError(res: Response): Promise<ApiError> {
     try {
       const body = await res.json();
-      return new ApiError(res.status, Array.isArray(body.message) ? body.message.join(', ') : (body.message ?? res.statusText));
+      return new ApiError(res.status, Array.isArray(body.message) ? body.message.join(', ') : (body.message ?? res.statusText), body.code);
     } catch {
       return new ApiError(res.status, res.statusText);
     }

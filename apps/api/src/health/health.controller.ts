@@ -1,11 +1,13 @@
 import { Controller, Get, Inject, ServiceUnavailableException } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
+import { SkipIdentity } from '../auth/identity.guard.js';
 import type pg from 'pg';
 import { APP_CONFIG, type AppConfig } from '../config.js';
 import { Interviewer } from '../interview/interviewer.js';
 import { PG_POOL } from '../persistence/persistence.module.js';
 
 @SkipThrottle()
+@SkipIdentity()
 @Controller('health')
 export class HealthController {
   constructor(

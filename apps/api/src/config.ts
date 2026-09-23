@@ -11,38 +11,43 @@ const list = z.string().transform((s) =>
     .filter(Boolean),
 );
 
-const envSchema = z.object({
-  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-  PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
-  CORS_ORIGINS: list.default([
-    'http://localhost:4200',
-    'capacitor://localhost',
-    'http://localhost',
-    'https://localhost',
-    'ionic://localhost',
-  ]),
-  TRUST_PROXY: z.coerce.number().int().min(0).max(10).default(0),
-  RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(300),
-  LOG_LEVEL: z.enum(LOG_LEVELS).default('log'),
-  LOG_FORMAT: optional(z.enum(['json', 'pretty'])),
-  WEB_DIST_DIR: optional(z.string()),
-  RELEASE: optional(z.string().max(64)),
+const envSchema = z
+  .object({
+    NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+    PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
+    CORS_ORIGINS: list.default([
+      'http://localhost:4200',
+      'capacitor://localhost',
+      'http://localhost',
+      'https://localhost',
+      'ionic://localhost',
+    ]),
+    TRUST_PROXY: z.coerce.number().int().min(0).max(10).default(0),
+    RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(300),
+    LOG_LEVEL: z.enum(LOG_LEVELS).default('log'),
+    LOG_FORMAT: optional(z.enum(['json', 'pretty'])),
+    WEB_DIST_DIR: optional(z.string()),
+    RELEASE: optional(z.string().max(64)),
 
-  DATABASE_URL: optional(z.url({ protocol: /^postgres(ql)?$/ })),
+    DATABASE_URL: optional(z.url({ protocol: /^postgres(ql)?$/ })),
 
-  ANTHROPIC_API_KEY: optional(z.string().min(20)),
-  ANTHROPIC_MODEL: z.string().min(1).default('claude-sonnet-5'),
-  ANTHROPIC_TIMEOUT_MS: z.coerce.number().int().min(1_000).default(60_000),
-  ANTHROPIC_MAX_RETRIES: z.coerce.number().int().min(0).max(10).default(2),
-  AI_DAILY_BUDGET_USD: optional(z.coerce.number().positive()),
-  INTERVIEW_MESSAGES_PER_HOUR: z.coerce.number().int().positive().default(120),
+    ANTHROPIC_API_KEY: optional(z.string().min(20)),
+    ANTHROPIC_MODEL: z.string().min(1).default('claude-sonnet-5'),
+    ANTHROPIC_TIMEOUT_MS: z.coerce.number().int().min(1_000).default(60_000),
+    ANTHROPIC_MAX_RETRIES: z.coerce.number().int().min(0).max(10).default(2),
+    AI_DAILY_BUDGET_USD: optional(z.coerce.number().positive()),
+    INTERVIEW_MESSAGES_PER_HOUR: z.coerce.number().int().positive().default(120),
 
-  ADMIN_TOKEN: optional(z.string().min(32, 'must be at least 32 characters')),
+    ADMIN_TOKEN: optional(z.string().min(32, 'must be at least 32 characters')),
+    JWT_SECRET: optional(z.string().min(32, 'must be at least 32 characters')),
+    RESEND_API_KEY: optional(z.string().min(10)),
+    MAIL_FROM: z.string().min(3).default('Grasp <login@grasp.dev>'),
 
-  SENTRY_DSN: optional(z.url()),
-  SENTRY_WEB_DSN: optional(z.url()),
-  SENTRY_ENVIRONMENT: optional(z.string()),
-});
+    SENTRY_DSN: optional(z.url()),
+    SENTRY_WEB_DSN: optional(z.url()),
+    SENTRY_ENVIRONMENT: optional(z.string()),
+  })
+  .refine((e) => e.NODE_ENV !== 'production' || e.JWT_SECRET, { path: ['JWT_SECRET'], message: 'is required in production' });
 
 export interface AppConfig {
   env: 'development' | 'production' | 'test';
@@ -66,6 +71,9 @@ export interface AppConfig {
   interviewMessagesPerHour: number;
   /** Bearer token for /api/admin; admin routes are disabled when unset. */
   adminToken: string | null;
+  /** Signs access tokens. Outside production a random per-process secret is used when unset. */
+  jwtSecret: string | null;
+  mail: { resendApiKey: string | null; from: string };
   sentryDsn: string | null;
   sentryEnvironment: string;
   /** Values the served web app receives through `/config.json`. */
@@ -99,6 +107,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     aiDailyBudgetUsd: e.AI_DAILY_BUDGET_USD ?? null,
     interviewMessagesPerHour: e.INTERVIEW_MESSAGES_PER_HOUR,
     adminToken: e.ADMIN_TOKEN ?? null,
+    jwtSecret: e.JWT_SECRET ?? null,
+    mail: { resendApiKey: e.RESEND_API_KEY ?? null, from: e.MAIL_FROM },
     sentryDsn: e.SENTRY_DSN ?? null,
     sentryEnvironment: e.SENTRY_ENVIRONMENT ?? e.NODE_ENV,
     web: { sentryDsn: e.SENTRY_WEB_DSN ?? null },

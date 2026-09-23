@@ -2,6 +2,7 @@ import { type ApplicationConfig, ErrorHandler, inject, provideAppInitializer, pr
 import { PreloadAllModules, RouteReuseStrategy, provideRouter, withComponentInputBinding, withPreloading } from '@angular/router';
 import { IonicRouteStrategy, provideIonicAngular } from '@ionic/angular';
 import { routes } from './app.routes';
+import { AuthService } from './core/auth.service';
 import { ReportingErrorHandler, initErrorReporting } from './core/error-reporting';
 import { LearnerService } from './core/learner.service';
 import { ProgressService } from './core/progress.service';
@@ -20,9 +21,11 @@ export const appConfig: ApplicationConfig = {
       const learner = inject(LearnerService);
       const progress = inject(ProgressService);
       const pilot = inject(PilotService);
+      const auth = inject(AuthService);
       await runtime.load();
       void initErrorReporting(runtime);
       await learner.init();
+      await auth.init();
       await progress.init();
       await pilot.init();
     }),
