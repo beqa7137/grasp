@@ -35,6 +35,19 @@ export interface Scorecard {
   mode: 'ai' | 'offline';
 }
 
+export interface TokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  /** Null when the model has no entry in the price table. */
+  costUsd: number | null;
+}
+
+export interface SessionUsage extends TokenUsage {
+  calls: number;
+}
+
 export interface InterviewSession {
   id: string;
   learnerId: string;
@@ -46,9 +59,10 @@ export interface InterviewSession {
   createdAt: string;
   scorecard?: Scorecard;
   scoredAt?: string;
+  usage?: SessionUsage;
 }
 
-export type PublicInterviewSession = Omit<InterviewSession, 'problem' | 'learnerId'> & {
+export type PublicInterviewSession = Omit<InterviewSession, 'problem' | 'learnerId' | 'usage'> & {
   problem: Pick<InterviewProblem, 'id' | 'title' | 'track' | 'patternIds'>;
   mode: 'ai' | 'offline';
 };

@@ -4,6 +4,10 @@ export interface AppConfig {
   databaseUrl: string | null;
   anthropicApiKey: string | null;
   anthropicModel: string;
+  anthropicTimeoutMs: number;
+  anthropicMaxRetries: number;
+  /** Null means no daily ceiling. */
+  aiDailyBudgetUsd: number | null;
   interviewMessagesPerHour: number;
 }
 
@@ -17,6 +21,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     databaseUrl: env['DATABASE_URL'] || null,
     anthropicApiKey: env['ANTHROPIC_API_KEY'] || null,
     anthropicModel: env['ANTHROPIC_MODEL'] || 'claude-sonnet-5',
+    anthropicTimeoutMs: Number(env['ANTHROPIC_TIMEOUT_MS'] || 60_000),
+    anthropicMaxRetries: Number(env['ANTHROPIC_MAX_RETRIES'] || 2),
+    aiDailyBudgetUsd: env['AI_DAILY_BUDGET_USD'] ? Number(env['AI_DAILY_BUDGET_USD']) : null,
     interviewMessagesPerHour: Number(env['INTERVIEW_MESSAGES_PER_HOUR'] ?? 120),
   };
 }

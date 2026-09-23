@@ -9,6 +9,7 @@ out-tsc/
 
 # Test output
 coverage/
+eval-results/
 test-results/
 playwright-report/
 

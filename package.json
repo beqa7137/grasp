@@ -21,7 +21,8 @@
     "test": "npm run build:engine && npm test --workspaces --if-present",
     "verify": "npm run lint && npm run format:check && npm run typecheck && npm test && npm run build",
     "db:up": "docker compose up -d postgres",
-    "db:migrate": "npm run db:migrate -w @grasp/api"
+    "db:migrate": "npm run db:migrate -w @grasp/api",
+    "eval:interviewer": "npm run eval:interviewer -w @grasp/api"
   },
   "allowScripts": {
     "esbuild@0.28.2": true,
