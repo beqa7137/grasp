@@ -40,5 +40,6 @@ import { SpendGuard } from './spend-guard.js';
       },
     },
   ],
+  exports: [Interviewer],
 })
 export class InterviewModule {}

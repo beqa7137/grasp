@@ -6,7 +6,7 @@
     "start": "ng serve",
     "build": "ng build",
     "test": "ng test --watch=false",
-    "cap:sync": "ng build && cap sync",
+    "cap:sync": "ng build && node scripts/write-runtime-config.mjs && cap sync",
     "cap:android": "cap open android",
     "cap:ios": "cap open ios",
     "typecheck": "ngc -p tsconfig.app.json --noEmit"
@@ -29,6 +29,7 @@
     "@fontsource-variable/space-grotesk": "^5.3.0",
     "@grasp/engine": "*",
     "@ionic/angular": "^9.0.5",
+    "@sentry/browser": "^11.0.0",
     "ionicons": "^8.1.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"

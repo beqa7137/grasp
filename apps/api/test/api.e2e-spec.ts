@@ -1,7 +1,6 @@
-import { Test } from '@nestjs/testing';
-import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { AppModule } from '../src/app.module.js';
+import type { NestExpressApplication } from '@nestjs/platform-express';
+import { createTestApp } from './support/app.js';
 import { resetDatabase } from './support/database.js';
 
 const learner = '6f1c1c1e-8a4b-4c1d-9e3f-2a7b8c9d0e1f';
@@ -10,20 +9,11 @@ const testDatabaseUrl = process.env['TEST_DATABASE_URL'];
 const storages = testDatabaseUrl ? (['memory', 'postgres'] as const) : (['memory'] as const);
 
 describe.each(storages)('API (%s storage, offline interviewer)', (storage) => {
-  let app: INestApplication;
+  let app: NestExpressApplication;
 
   beforeAll(async () => {
-    delete process.env['ANTHROPIC_API_KEY'];
-    if (storage === 'postgres') {
-      await resetDatabase(testDatabaseUrl!);
-      process.env['DATABASE_URL'] = testDatabaseUrl;
-    } else {
-      delete process.env['DATABASE_URL'];
-    }
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
-    app = moduleRef.createNestApplication();
-    app.setGlobalPrefix('api');
-    await app.init();
+    if (storage === 'postgres') await resetDatabase(testDatabaseUrl!);
+    app = await createTestApp({ DATABASE_URL: storage === 'postgres' ? testDatabaseUrl : undefined });
   });
 
   afterAll(async () => {
@@ -32,7 +22,7 @@ describe.each(storages)('API (%s storage, offline interviewer)', (storage) => {
 
   it('reports health and active integrations', async () => {
     const res = await request(app.getHttpServer()).get('/api/health').expect(200);
-    expect(res.body).toEqual({ status: 'ok', storage, interviewer: 'offline' });
+    expect(res.body).toEqual({ status: 'ok', storage, interviewer: 'offline', release: null });
   });
 
   it('serves the curriculum and traces algorithms server-side', async () => {

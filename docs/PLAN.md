@@ -82,6 +82,9 @@ set → Drizzle ORM + Postgres; unset → in-memory stores for zero-setup local 
 (Drizzle over Prisma: pure TypeScript, no engine binaries, first-class ESM — which NestJS 12
 now is.)
 
+**Deployment.** One Docker image serves the API and the web app, with runtime config and
+release-time migrations. See [DEPLOYMENT.md](DEPLOYMENT.md).
+
 ### Data model (Drizzle, `apps/api/src/persistence/schema.ts`)
 
 - `learners` (id, created_at) — anonymous device id today, linked to an auth identity later

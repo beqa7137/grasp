@@ -48,6 +48,9 @@ jobs:
       - name: Install
         run: npm ci
 
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
       - name: Lint
         run: npm run lint
 
@@ -69,3 +72,51 @@ jobs:
           name: web
           path: apps/app/dist/app/browser
           retention-days: 7
+
+  image:
+    name: Docker image smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: grasp
+          POSTGRES_PASSWORD: grasp
+          POSTGRES_DB: grasp
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U grasp"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://grasp:grasp@localhost:5432/grasp
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build image
+        run: docker build --build-arg RELEASE="${GITHUB_SHA::7}" -t grasp:ci .
+
+      - name: Run migrations the way the release step does
+        run: docker run --rm --network host -e DATABASE_URL grasp:ci node apps/api/dist/migrate.js
+
+      - name: Start the container
+        run: docker run -d --name grasp --network host -e NODE_ENV=production -e DATABASE_URL grasp:ci
+
+      - name: Smoke test
+        run: |
+          for i in $(seq 1 30); do curl -fsS localhost:3000/api/health/ready && break; sleep 1; done
+          curl -fsS localhost:3000/api/health | grep -q '"storage":"postgres"'
+          curl -fsS localhost:3000/api/health | grep -q "\"release\":\"${GITHUB_SHA::7}\""
+          curl -fsS -H 'Accept: text/html' localhost:3000/tabs/learn | grep -q '<app-root'
+          curl -fsS localhost:3000/config.json | grep -q '"apiUrl":null'
+          curl -fsS localhost:3000/api/curriculum/patterns | grep -q 'sliding-window'
+
+      - name: Container logs
+        if: always()
+        run: docker logs grasp || true

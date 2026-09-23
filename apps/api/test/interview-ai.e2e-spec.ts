@@ -1,13 +1,12 @@
-import { Logger, type INestApplication } from '@nestjs/common';
-import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import { AppModule } from '../src/app.module.js';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { ClaudeInterviewer } from '../src/interview/claude.interviewer.js';
 import { Interviewer } from '../src/interview/interviewer.js';
 import { RUBRICS } from '../src/interview/prompts.js';
 import { SpendGuard } from '../src/interview/spend-guard.js';
 import { InterviewStore } from '../src/persistence/stores.js';
 import { fakeAnthropic, type FakeResponse } from './support/fake-anthropic.js';
+import { createTestApp } from './support/app.js';
 import { resetDatabase } from './support/database.js';
 
 const learner = '9b2f3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d';
@@ -24,32 +23,24 @@ const scorecard = JSON.stringify({
 });
 
 describe.each(storages)('AI interviewer over HTTP (%s storage, scripted Claude API)', (storage) => {
-  let app: INestApplication;
+  let app: NestExpressApplication;
   let replies: FakeResponse[] = [];
   const guard = new SpendGuard(5);
 
   beforeAll(async () => {
-    Logger.overrideLogger(false);
-    if (storage === 'postgres') {
-      await resetDatabase(testDatabaseUrl!);
-      process.env['DATABASE_URL'] = testDatabaseUrl;
-    } else {
-      delete process.env['DATABASE_URL'];
-    }
+    if (storage === 'postgres') await resetDatabase(testDatabaseUrl!);
     const { client } = fakeAnthropic((body) =>
       body['output_config']?.['format']
         ? { text: scorecard, usage: { input_tokens: 2500, output_tokens: 600 } }
         : (replies.shift() ?? { stream: ['Okay.'] }),
     );
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
-      .overrideProvider(Interviewer)
-      .useValue(new ClaudeInterviewer(client, { model: 'claude-sonnet-5' }))
-      .overrideProvider(SpendGuard)
-      .useValue(guard)
-      .compile();
-    app = moduleRef.createNestApplication({ logger: false });
-    app.setGlobalPrefix('api');
-    await app.init();
+    app = await createTestApp({ DATABASE_URL: storage === 'postgres' ? testDatabaseUrl : undefined }, (builder) =>
+      builder
+        .overrideProvider(Interviewer)
+        .useValue(new ClaudeInterviewer(client, { model: 'claude-sonnet-5' }))
+        .overrideProvider(SpendGuard)
+        .useValue(guard),
+    );
   });
 
   afterAll(async () => {

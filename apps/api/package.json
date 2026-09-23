@@ -16,19 +16,23 @@
     "eval:interviewer": "vitest run --config ./vitest.config.live.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "db:migrate:prod": "node dist/migrate.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.128.0",
+    "@grasp/engine": "*",
     "@nestjs/common": "^12.0.1",
     "@nestjs/core": "^12.0.1",
     "@nestjs/platform-express": "^12.0.1",
+    "@nestjs/throttler": "^6.7.0",
+    "@sentry/node": "^11.0.0",
+    "drizzle-orm": "^0.45.3",
+    "helmet": "^8.3.0",
+    "pg": "^8.16.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "@grasp/engine": "*",
-    "@anthropic-ai/sdk": "^0.128.0",
-    "zod": "^4.6.5",
-    "pg": "^8.16.0",
-    "drizzle-orm": "^0.45.3"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@nestjs/cli": "^12.0.0",
@@ -36,13 +40,13 @@
     "@nestjs/testing": "^12.0.1",
     "@types/express": "^5.0.0",
     "@types/node": "^24.0.0",
+    "@types/pg": "^8.15.0",
     "@types/supertest": "^7.0.0",
     "@vitest/coverage-v8": "^4.1.2",
+    "drizzle-kit": "^0.31.11",
     "source-map-support": "^0.5.21",
     "supertest": "^7.0.0",
     "typescript": "^6.0.2",
-    "vitest": "^4.1.2",
-    "@types/pg": "^8.15.0",
-    "drizzle-kit": "^0.31.11"
+    "vitest": "^4.1.2"
   }
 }

@@ -64,7 +64,11 @@ npm run cap:sync       # build web assets + sync to native
 npm run cap:ios        # opens Xcode (or cap:android → Android Studio)
 ```
 
-Native builds call the API at `http://localhost:3000/api`, or `10.0.2.2` on the Android emulator. For a physical device, change `NATIVE_API` in `apps/app/src/app/core/api.service.ts`. Dev builds allow cleartext HTTP. For a store build, point `NATIVE_API` at your https API and sync with `GRASP_RELEASE=1 npm run cap:sync`.
+Native dev builds call the API at `http://localhost:3000/api`, or `10.0.2.2` on the Android emulator, and allow cleartext HTTP. To point a build at another API, set `GRASP_API_URL` when syncing. Store builds need https: `GRASP_RELEASE=1 GRASP_API_URL=https://<host>/api npm run cap:sync`.
+
+## Deployment
+
+A single Docker image serves the API and the web app. [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) covers the Fly.io setup (`fly.toml`, release-time migrations, health checks), continuous deployment from GitHub Actions, rollback, Sentry and the environment reference.
 
 ## Development workflow
 
@@ -78,12 +82,12 @@ Native builds call the API at `http://localhost:3000/api`, or `10.0.2.2` on the 
 | `npm run verify`                  | All of the above, in the same order CI runs them                 |
 | `npm run eval:interviewer`        | Live eval of the AI interviewer (needs `ANTHROPIC_API_KEY`)      |
 
-CI (`.github/workflows/ci.yml`) runs `verify` on every push to `main` and every pull request, with a Postgres service so the API e2e suite runs against both in-memory and Postgres storage. Dependabot proposes grouped dependency updates weekly.
+CI (`.github/workflows/ci.yml`) runs `verify` on every push to `main` and every pull request, with a Postgres service so the API e2e suite runs against both in-memory and Postgres storage. It also audits production dependencies, then builds the Docker image and smoke-tests it against Postgres. `deploy.yml` ships `main` to Fly.io once enabled. Dependabot proposes grouped dependency updates weekly.
 
 ### Tests
 
 - **Engine:** every tracer is checked against a reference implementation on 300 random inputs. Each scenario must fail with its starter design and pass with a reference solution. Every revisit variant is proven solvable. FSRS scheduling, event upcasting, signals and session building are covered, and a 90-day simulated learner checks that retention lands near the 90% target. Every review item is validated across 40 seeds.
-- **API:** contract tests drive a real Anthropic SDK client over a scripted `fetch`. They cover the exact request shape, cache-stable prefixes, cost accounting, every error mapping, retries, aborts, the structured-output schema, and scorecard repair and fallback. E2e tests cover health, curriculum, idempotent event sync, validation, learner isolation, and full offline and AI interviews over SSE, including 503/409 paths and the spend ceiling. Set `TEST_DATABASE_URL` to run the same suite against Postgres too (migrations are applied and tables truncated first):
+- **API:** contract tests drive a real Anthropic SDK client over a scripted `fetch`. They cover the exact request shape, cache-stable prefixes, cost accounting, every error mapping, retries, aborts, the structured-output schema, and scorecard repair and fallback. E2e tests build the app through the same `configureApp` as production. They cover health and readiness, security headers, request ids, CORS, body limits, per-IP rate limiting, web-app serving and runtime config, curriculum, idempotent event sync, validation, learner isolation, and full offline and AI interviews over SSE, including 503/409 paths and the spend ceiling. Environment validation has its own unit tests. Set `TEST_DATABASE_URL` to run the same suite against Postgres too (migrations are applied and tables truncated first):
 
   ```bash
   npm run db:up

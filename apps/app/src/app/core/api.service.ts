@@ -1,8 +1,6 @@
 import { Injectable, inject } from '@angular/core';
-import { Capacitor } from '@capacitor/core';
 import { LearnerService } from './learner.service';
-
-const NATIVE_API = Capacitor.getPlatform() === 'android' ? 'http://10.0.2.2:3000/api' : 'http://localhost:3000/api';
+import { RuntimeConfigService } from './runtime-config.service';
 
 export class ApiError extends Error {
   constructor(
@@ -20,7 +18,11 @@ export interface SseHandlers {
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private readonly learner = inject(LearnerService);
-  readonly base = Capacitor.isNativePlatform() ? NATIVE_API : '/api';
+  private readonly runtime = inject(RuntimeConfigService);
+
+  get base(): string {
+    return this.runtime.apiBase();
+  }
 
   get<T>(path: string): Promise<T> {
     return this.request<T>('GET', path);
