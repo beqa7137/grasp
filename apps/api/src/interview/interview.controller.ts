@@ -69,6 +69,7 @@ export class InterviewController {
       const message = await this.interviews.respond(learnerId, id, body, (text) => emit('delta', { text }), abort.signal);
       emit('done', { message });
     } catch (err) {
+      if (abort.signal.aborted) return void res.end();
       const status = err instanceof HttpException ? err.getStatus() : 502;
       const msg = err instanceof HttpException ? err.message : 'The interviewer is unavailable right now. Please try again.';
       if (!(err instanceof HttpException)) this.log.error(err);

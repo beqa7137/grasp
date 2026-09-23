@@ -1,4 +1,4 @@
-import { Interviewer } from './interviewer.js';
+import { Interviewer, type ReplyResult, type ScoreResult } from './interviewer.js';
 import type { InterviewSession, Scorecard, Verdict } from './interview.types.js';
 import { RUBRICS } from './prompts.js';
 
@@ -6,6 +6,9 @@ interface Stage {
   ask: string;
   skipIf?: RegExp;
 }
+
+const OFFLINE_SUMMARY =
+  'Offline heuristic scoring (no ANTHROPIC_API_KEY configured). It checks which rubric areas you covered, not whether your answers were right — add an API key for a real evaluation.';
 
 const WRAP_UP = 'Thanks, that is time. Hit "End & score" whenever you are ready.';
 
@@ -67,7 +70,7 @@ const SIGNALS: Record<string, RegExp> = {
 export class OfflineInterviewer extends Interviewer {
   readonly mode = 'offline' as const;
 
-  async reply(session: InterviewSession, onDelta: (text: string) => void, signal: AbortSignal): Promise<string> {
+  async reply(session: InterviewSession, onDelta: (text: string) => void, signal: AbortSignal): Promise<ReplyResult> {
     const last = session.messages[session.messages.length - 1];
     let text: string;
     if (last?.hint) {
@@ -83,7 +86,7 @@ export class OfflineInterviewer extends Interviewer {
       onDelta(word);
       await new Promise((r) => setTimeout(r, 18));
     }
-    return text;
+    return { text };
   }
 
   /** Asks the first rubric question the candidate hasn't already covered and hasn't been asked yet. */
@@ -98,7 +101,11 @@ export class OfflineInterviewer extends Interviewer {
     return next?.ask ?? WRAP_UP;
   }
 
-  async score(session: InterviewSession): Promise<Scorecard> {
+  async score(session: InterviewSession): Promise<ScoreResult> {
+    return { scorecard: this.scorecard(session) };
+  }
+
+  scorecard(session: InterviewSession, summary = OFFLINE_SUMMARY): Scorecard {
     const said = session.messages
       .filter((m) => m.role === 'candidate' && !m.hint)
       .map((m) => m.content)
@@ -124,8 +131,7 @@ export class OfflineInterviewer extends Interviewer {
 
     return {
       verdict,
-      summary:
-        'Offline heuristic scoring (no ANTHROPIC_API_KEY configured). It checks which rubric areas you covered, not whether your answers were right — add an API key for a real evaluation.',
+      summary,
       dimensions,
       strengths: dimensions.filter((d) => d.score >= 3).map((d) => d.name),
       improvements: dimensions

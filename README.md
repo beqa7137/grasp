@@ -6,7 +6,7 @@ Interactive prep for algorithm and system design interviews. Web, iOS and Androi
 - **Predict mode.** At each decision point the player stops and asks what happens next. Your answers count toward mastery.
 - **Design Lab.** Wire up CDN, LB, app tier, cache, primary and replicas, queue and workers. A queueing simulator shows utilization, p50/p99, errors, cost and backlog live. You can kill instances to test failure, and each mission has goals to hit.
 - **Spaced review (FSRS).** 117 small, auto-graded items in 5 kinds: pattern recognition, predict-the-next-step, template recall, complexity, and system design cases. Every review shows a fresh variant. Missed visualizer predictions, weak patterns from interview scorecards and completed Design Lab missions all feed the schedule. See [docs/SPACED_REPETITION.md](docs/SPACED_REPETITION.md).
-- **AI interviewer.** Claude runs coding or system design interviews: it streams replies, hints on request and scores you with a rubric scorecard. If no API key is set, a scripted offline interviewer takes its place.
+- **AI interviewer.** Claude runs coding or system design interviews: it streams replies, hints on request and scores you with a rubric scorecard. Prompt caching, per-session cost tracking, a daily spend ceiling and graceful failure handling are built in. See [docs/AI_INTERVIEWER.md](docs/AI_INTERVIEWER.md). If no API key is set, a scripted offline interviewer takes its place.
 
 See [docs/PLAN.md](docs/PLAN.md) for the product vision, architecture and roadmap.
 
@@ -48,6 +48,7 @@ Open http://localhost:4200.
 ```bash
 cp apps/api/.env.example apps/api/.env
 # set ANTHROPIC_API_KEY=...  → AI interviewer (default model claude-sonnet-5)
+# set AI_DAILY_BUDGET_USD=5  → optional daily Claude spend ceiling
 # set DATABASE_URL=...       → Postgres persistence
 
 npm run db:up        # Postgres 17 via docker compose
@@ -75,13 +76,14 @@ Native builds call the API at `http://localhost:3000/api`, or `10.0.2.2` on the 
 | `npm test`                        | Engine, API and app unit tests                                   |
 | `npm run build`                   | Production builds of all three packages                          |
 | `npm run verify`                  | All of the above, in the same order CI runs them                 |
+| `npm run eval:interviewer`        | Live eval of the AI interviewer (needs `ANTHROPIC_API_KEY`)      |
 
 CI (`.github/workflows/ci.yml`) runs `verify` on every push to `main` and every pull request, with a Postgres service so the API e2e suite runs against both in-memory and Postgres storage. Dependabot proposes grouped dependency updates weekly.
 
 ### Tests
 
 - **Engine:** every tracer is checked against a reference implementation on 300 random inputs. Each scenario must fail with its starter design and pass with a reference solution. Every revisit variant is proven solvable. FSRS scheduling, event upcasting, signals and session building are covered, and a 90-day simulated learner checks that retention lands near the 90% target. Every review item is validated across 40 seeds.
-- **API:** e2e tests cover health, curriculum, idempotent event sync, validation, the full offline interview over SSE, and learner isolation. Set `TEST_DATABASE_URL` to run the same suite against Postgres too (migrations are applied and tables truncated first):
+- **API:** contract tests drive a real Anthropic SDK client over a scripted `fetch`. They cover the exact request shape, cache-stable prefixes, cost accounting, every error mapping, retries, aborts, the structured-output schema, and scorecard repair and fallback. E2e tests cover health, curriculum, idempotent event sync, validation, learner isolation, and full offline and AI interviews over SSE, including 503/409 paths and the spend ceiling. Set `TEST_DATABASE_URL` to run the same suite against Postgres too (migrations are applied and tables truncated first):
 
   ```bash
   npm run db:up

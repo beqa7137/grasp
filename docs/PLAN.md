@@ -73,7 +73,9 @@ event stream for free.
 **AI interviewer.** `POST /api/interview/sessions/:id/messages` streams Server-Sent Events
 from the Claude API (default `claude-sonnet-5`, configurable via `ANTHROPIC_MODEL`). System
 prompts encode interviewer behaviour and rubrics per track. Without an API key the module
-falls back to a deterministic offline interviewer so the app is fully usable in dev.
+falls back to a deterministic offline interviewer so the app is fully usable in dev. Caching,
+cost tracking, failure handling and evaluation are described in
+[AI_INTERVIEWER.md](AI_INTERVIEWER.md).
 
 **Persistence.** `ProgressStore` / `InterviewStore` are abstract providers. `DATABASE_URL`
 set → Drizzle ORM + Postgres; unset → in-memory stores for zero-setup local dev and tests.

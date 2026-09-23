@@ -1,7 +1,18 @@
-import type { InterviewSession, Scorecard } from './interview.types.js';
+import type { InterviewSession, Scorecard, TokenUsage } from './interview.types.js';
+
+export interface ReplyResult {
+  text: string;
+  usage?: TokenUsage;
+}
+
+export interface ScoreResult {
+  scorecard: Scorecard;
+  /** One entry per model call; scoring may retry. */
+  usage?: TokenUsage[];
+}
 
 export abstract class Interviewer {
   abstract readonly mode: 'ai' | 'offline';
-  abstract reply(session: InterviewSession, onDelta: (text: string) => void, signal: AbortSignal): Promise<string>;
-  abstract score(session: InterviewSession): Promise<Scorecard>;
+  abstract reply(session: InterviewSession, onDelta: (text: string) => void, signal: AbortSignal): Promise<ReplyResult>;
+  abstract score(session: InterviewSession): Promise<ScoreResult>;
 }

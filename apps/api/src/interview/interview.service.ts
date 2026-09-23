@@ -1,10 +1,12 @@
-import { ConflictException, HttpException, HttpStatus, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, HttpException, HttpStatus, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { APP_CONFIG, type AppConfig } from '../config.js';
 import { InterviewStore, ProgressStore } from '../persistence/stores.js';
 import { Interviewer } from './interviewer.js';
-import type { InterviewSession, InterviewTrack, PublicInterviewSession } from './interview.types.js';
+import type { InterviewSession, InterviewTrack, PublicInterviewSession, TokenUsage } from './interview.types.js';
+import { addUsage } from './pricing.js';
 import { PROBLEMS, pickProblem } from './problems.js';
+import { SpendGuard } from './spend-guard.js';
 
 const HOUR_MS = 3_600_000;
 
@@ -13,12 +15,15 @@ const MAX_CANDIDATE_TURNS = 30;
 
 @Injectable()
 export class InterviewService {
-  private readonly usage = new Map<string, number[]>();
+  private readonly log = new Logger(InterviewService.name);
+  private readonly quota = new Map<string, number[]>();
+  private readonly inFlight = new Set<string>();
 
   constructor(
     private readonly store: InterviewStore,
     private readonly progress: ProgressStore,
     private readonly interviewer: Interviewer,
+    private readonly spend: SpendGuard,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
@@ -64,49 +69,84 @@ export class InterviewService {
     onDelta: (text: string) => void,
     signal: AbortSignal,
   ) {
-    const session = await this.load(learnerId, id);
-    if (session.status !== 'active') throw new ConflictException('Interview already scored');
-    if (session.messages.filter((m) => m.role === 'candidate').length >= MAX_CANDIDATE_TURNS) {
-      throw new ConflictException('Turn limit reached — end the interview to get your scorecard');
-    }
-    this.consumeQuota(learnerId);
+    return this.exclusive(id, async () => {
+      const session = await this.load(learnerId, id);
+      if (session.status !== 'active') throw new ConflictException('Interview already scored');
+      if (session.messages.filter((m) => m.role === 'candidate').length >= MAX_CANDIDATE_TURNS) {
+        throw new ConflictException('Turn limit reached — end the interview to get your scorecard');
+      }
+      this.spend.assertAvailable();
+      this.consumeQuota(learnerId);
 
-    session.messages.push({
-      role: 'candidate',
-      content: input.hint && !input.content.trim() ? 'Could I get a hint?' : input.content.trim(),
-      at: new Date().toISOString(),
-      ...(input.hint ? { hint: true } : {}),
+      session.messages.push({
+        role: 'candidate',
+        content: input.hint && !input.content.trim() ? 'Could I get a hint?' : input.content.trim(),
+        at: new Date().toISOString(),
+        ...(input.hint ? { hint: true } : {}),
+      });
+      if (input.hint) session.hintsUsed += 1;
+
+      const reply = await this.interviewer.reply(session, onDelta, signal);
+      this.track(session, reply.usage ? [reply.usage] : []);
+      const message = { role: 'interviewer' as const, content: reply.text, at: new Date().toISOString() };
+      session.messages.push(message);
+      await this.store.save(session);
+      return message;
     });
-    if (input.hint) session.hintsUsed += 1;
-
-    const reply = await this.interviewer.reply(session, onDelta, signal);
-    const message = { role: 'interviewer' as const, content: reply, at: new Date().toISOString() };
-    session.messages.push(message);
-    await this.store.save(session);
-    return message;
   }
 
   async score(learnerId: string, id: string): Promise<PublicInterviewSession> {
-    const session = await this.load(learnerId, id);
-    if (session.scorecard) return this.toPublic(session);
-    this.consumeQuota(learnerId);
-    session.scorecard = await this.interviewer.score(session);
-    session.status = 'scored';
-    session.scoredAt = new Date().toISOString();
-    await this.store.save(session);
-    // Weak patterns feed the learner's review schedule. The id is deterministic so the client's copy dedupes.
-    await this.progress.append(learnerId, [
-      {
-        id: interviewEventId(session.id),
-        at: session.scoredAt,
-        type: 'interview.scored',
-        sessionId: session.id,
-        track: session.track,
-        verdict: session.scorecard.verdict,
-        weakPatterns: session.scorecard.weakPatterns,
-      },
-    ]);
-    return this.toPublic(session);
+    return this.exclusive(id, async () => {
+      const session = await this.load(learnerId, id);
+      if (session.scorecard) return this.toPublic(session);
+      this.spend.assertAvailable();
+      this.consumeQuota(learnerId);
+      const result = await this.interviewer.score(session);
+      this.track(session, result.usage ?? []);
+      session.scorecard = result.scorecard;
+      session.status = 'scored';
+      session.scoredAt = new Date().toISOString();
+      await this.store.save(session);
+      if (session.usage) {
+        const u = session.usage;
+        this.log.log(
+          `Interview ${session.id} scored (${session.track}, ${result.scorecard.mode}): ${u.calls} calls, ` +
+            `${u.inputTokens} in / ${u.cacheReadTokens} cached / ${u.cacheWriteTokens} cache-write / ${u.outputTokens} out, ` +
+            `$${u.costUsd?.toFixed(4) ?? 'n/a'}`,
+        );
+      }
+      // Weak patterns feed the learner's review schedule. The id is deterministic so the client's copy dedupes.
+      await this.progress.append(learnerId, [
+        {
+          id: interviewEventId(session.id),
+          at: session.scoredAt,
+          type: 'interview.scored',
+          sessionId: session.id,
+          track: session.track,
+          verdict: session.scorecard.verdict,
+          weakPatterns: session.scorecard.weakPatterns,
+        },
+      ]);
+      return this.toPublic(session);
+    });
+  }
+
+  /** One model call per session at a time; a second request would race the first one's save. */
+  private async exclusive<T>(sessionId: string, run: () => Promise<T>): Promise<T> {
+    if (this.inFlight.has(sessionId)) throw new ConflictException('The interviewer is still working on your last message');
+    this.inFlight.add(sessionId);
+    try {
+      return await run();
+    } finally {
+      this.inFlight.delete(sessionId);
+    }
+  }
+
+  private track(session: InterviewSession, usage: TokenUsage[]) {
+    for (const u of usage) {
+      session.usage = addUsage(session.usage, u);
+      this.spend.record(u.costUsd);
+    }
   }
 
   private async load(learnerId: string, id: string) {
@@ -117,16 +157,16 @@ export class InterviewService {
 
   private consumeQuota(learnerId: string) {
     const now = Date.now();
-    const recent = (this.usage.get(learnerId) ?? []).filter((t) => now - t < HOUR_MS);
+    const recent = (this.quota.get(learnerId) ?? []).filter((t) => now - t < HOUR_MS);
     if (recent.length >= this.config.interviewMessagesPerHour) {
       throw new HttpException('Interview rate limit reached, try again later', HttpStatus.TOO_MANY_REQUESTS);
     }
     recent.push(now);
-    this.usage.set(learnerId, recent);
+    this.quota.set(learnerId, recent);
   }
 
   private toPublic(s: InterviewSession): PublicInterviewSession {
-    const { learnerId: _l, problem, ...rest } = s;
+    const { learnerId: _l, usage: _u, problem, ...rest } = s;
     return {
       ...rest,
       problem: { id: problem.id, title: problem.title, track: problem.track, patternIds: problem.patternIds },
