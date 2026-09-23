@@ -62,6 +62,7 @@ const TS_TYPES: Record<ParamType, string> = {
   'int[]': 'number[]',
   'int[][]': 'number[][]',
   string: 'string',
+  'string[]': 'string[]',
   'char[][]': 'string[][]',
   bool: 'boolean',
 };
@@ -71,6 +72,7 @@ const PY_TYPES: Record<ParamType, string> = {
   'int[]': 'list[int]',
   'int[][]': 'list[list[int]]',
   string: 'str',
+  'string[]': 'list[str]',
   'char[][]': 'list[list[str]]',
   bool: 'bool',
 };

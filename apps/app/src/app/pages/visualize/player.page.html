@@ -57,6 +57,15 @@
               @if (f.grid) {
                 <g-grid-view [view]="f.grid" />
               }
+              @if (f.table) {
+                <g-table-view [view]="f.table" />
+              }
+              @if (f.graph) {
+                <g-graph-view [view]="f.graph" />
+              }
+              @if (f.tree) {
+                <g-tree-view [view]="f.tree" />
+              }
               @if (f.stack || f.queue || f.set || (f.output && !alignedOutput())) {
                 <div class="aux">
                   @if (f.stack) {

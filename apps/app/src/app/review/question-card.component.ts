@@ -6,8 +6,11 @@ import { addIcons } from 'ionicons';
 import { checkmarkCircle, closeCircle } from 'ionicons/icons';
 import { ArrayViewComponent } from '../viz/array-view.component';
 import { CodePanelComponent } from '../viz/code-panel.component';
+import { GraphViewComponent } from '../viz/graph-view.component';
 import { GridViewComponent } from '../viz/grid-view.component';
 import { ListViewComponent } from '../viz/list-view.component';
+import { TableViewComponent } from '../viz/table-view.component';
+import { TreeViewComponent } from '../viz/tree-view.component';
 
 export type CardReason = SessionReason | 'practice';
 
@@ -22,7 +25,17 @@ const REASON_LABELS: Record<CardReason, string> = {
 @Component({
   selector: 'g-question-card',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, IonIcon, ArrayViewComponent, GridViewComponent, ListViewComponent, CodePanelComponent],
+  imports: [
+    RouterLink,
+    IonIcon,
+    ArrayViewComponent,
+    GridViewComponent,
+    GraphViewComponent,
+    TableViewComponent,
+    TreeViewComponent,
+    ListViewComponent,
+    CodePanelComponent,
+  ],
   template: `
     @let q = question();
     <article class="card panel" [class.answered]="chosen() !== null">
@@ -40,6 +53,15 @@ const REASON_LABELS: Record<CardReason, string> = {
           }
           @if (f.grid) {
             <g-grid-view [view]="f.grid" />
+          }
+          @if (f.table) {
+            <g-table-view [view]="f.table" [legend]="false" />
+          }
+          @if (f.graph) {
+            <g-graph-view [view]="f.graph" [legend]="false" />
+          }
+          @if (f.tree) {
+            <g-tree-view [view]="f.tree" [legend]="false" />
           }
           @if (f.stack || f.queue || f.set) {
             <div class="aux">

@@ -1,7 +1,14 @@
 import { fmt, simulate } from './simulate.js';
-import type { Design, GoalCheck, Scenario, SimResult } from './types.js';
+import type { Design, DesignNode, GoalCheck, Scenario, SimResult } from './types.js';
 
-const n = (id: string, kind: Design['nodes'][number]['kind'], x: number, y: number, instances = 1) => ({ id, kind, x, y, instances });
+const n = (id: string, kind: Design['nodes'][number]['kind'], x: number, y: number, instances = 1, extra: Partial<DesignNode> = {}) => ({
+  id,
+  kind,
+  x,
+  y,
+  instances,
+  ...extra,
+});
 
 export const SCENARIOS: Scenario[] = [
   {
@@ -154,6 +161,114 @@ export const SCENARIOS: Scenario[] = [
       },
     ],
   },
+  {
+    id: 'bot-storm',
+    title: 'Bot Storm',
+    tagline: 'Your real users are fine. The 24k bots behind them are not.',
+    brief:
+      'A marketplace serves 6,000 RPS of real users (90% reads). Overnight, scrapers and credential stuffers add 24,000 RPS of bot traffic from thousands of IPs, and it keeps falling over. Keep p99 under 200 ms and real-user errors under 0.1%, with no single point of failure, for at most $5,000/month.',
+    workload: { rps: 6_000, readRatio: 0.9, botRps: 24_000 },
+    goals: { maxP99Ms: 200, maxErrorRate: 0.001, maxMonthlyCost: 5_000, noSinglePointOfFailure: true },
+    starter: {
+      nodes: [
+        n('users', 'client', 70, 240),
+        n('lb', 'lb', 250, 240, 2),
+        n('app', 'app', 430, 240, 5),
+        n('cache', 'cache', 610, 240, 2),
+        n('db', 'db', 790, 240),
+        n('rep', 'replica', 790, 380),
+      ],
+      edges: [
+        { from: 'users', to: 'lb' },
+        { from: 'lb', to: 'app' },
+        { from: 'app', to: 'cache' },
+        { from: 'cache', to: 'db' },
+        { from: 'db', to: 'rep' },
+      ],
+    },
+    hints: [
+      'Tap the cache: why does bot traffic sail straight through it to the database?',
+      'Scaling every tier to carry bots costs far more than the budget. Can you stop them before they cost anything?',
+      'A rate limiter between users and the load balancer rejects clients over quota with 429. Real users stay under quota.',
+      'The limiter sits in front of everything, so one instance is a single point of failure.',
+    ],
+    takeaway:
+      'Shed abusive load at the edge, before it costs anything. Bots bypass caches, so every unfiltered bot request is a database request. Rate limits must be per client and shared across limiter instances.',
+    variants: [
+      {
+        twist: 'The botnet doubles: 60,000 bot RPS on top of the same 6,000 real users. Budget $5,500.',
+        workload: { rps: 6_000, readRatio: 0.9, botRps: 60_000 },
+        goals: { maxP99Ms: 200, maxErrorRate: 0.001, maxMonthlyCost: 5_500, noSinglePointOfFailure: true },
+      },
+      {
+        twist: 'A marketing push brings real growth: 12,000 user RPS (90% reads) plus 20,000 bot RPS. Budget $7,000.',
+        workload: { rps: 12_000, readRatio: 0.9, botRps: 20_000 },
+        goals: { maxP99Ms: 200, maxErrorRate: 0.001, maxMonthlyCost: 7_000, noSinglePointOfFailure: true },
+      },
+      {
+        twist: 'A holiday sale: 8,000 user RPS at 80% reads while 40,000 bot RPS probe the checkout. Budget $6,000.',
+        workload: { rps: 8_000, readRatio: 0.8, botRps: 40_000 },
+        goals: { maxP99Ms: 200, maxErrorRate: 0.001, maxMonthlyCost: 6_000, noSinglePointOfFailure: true },
+      },
+    ],
+  },
+  {
+    id: 'write-wall',
+    title: 'The Write Wall',
+    tagline: '7,200 messages a second, forever. One primary takes 2,500.',
+    brief:
+      'A chat service stores 12,000 RPS, 60% of them new messages — all day, not in a spike. Each write costs the database 2 ops, so one primary tops out near 2,500 writes/s. The messages table is partitioned by created_at. Keep p99 under 200 ms, errors under 0.1%, the queue (if any) keeping up, and spend at most $9,000/month.',
+    workload: { rps: 12_000, readRatio: 0.4 },
+    goals: { maxP99Ms: 200, maxErrorRate: 0.001, maxMonthlyCost: 9_000, requireDurableWrites: true, noBacklog: true },
+    starter: {
+      nodes: [
+        n('users', 'client', 70, 240),
+        n('lb', 'lb', 250, 240, 2),
+        n('app', 'app', 430, 240, 8),
+        n('cache', 'cache', 610, 240),
+        n('db', 'db', 790, 240, 1, { shardKey: 'time' }),
+      ],
+      edges: [
+        { from: 'users', to: 'lb' },
+        { from: 'lb', to: 'app' },
+        { from: 'app', to: 'cache' },
+        { from: 'cache', to: 'db' },
+      ],
+    },
+    hints: [
+      'Replicas replay every write, and a queue only delays writes the database still has to absorb. What actually adds write capacity?',
+      'Each database instance can be a shard: its own primary owning part of the keys. Try adding a few.',
+      'Look at the per-shard bars. With created_at ranges, which shard receives every new message?',
+      'Pick a shard key that spreads writes evenly, then size the shard count for ~70% utilization.',
+    ],
+    takeaway:
+      'Sustained write load needs more primaries: shard. The shard key decides everything — it must spread writes evenly (hash of a high-cardinality key), or one hot shard caps the whole system.',
+    variants: [
+      {
+        twist: 'Read receipts shipped: 16,000 RPS at 45% reads, still sustained. Budget $10,500.',
+        workload: { rps: 16_000, readRatio: 0.45 },
+        goals: { maxP99Ms: 200, maxErrorRate: 0.001, maxMonthlyCost: 10_500, requireDurableWrites: true, noBacklog: true },
+      },
+      {
+        twist:
+          'A shard died last week and its messages were unreadable for an hour. Same load, but now no single point of failure. Budget $13,500.',
+        workload: { rps: 12_000, readRatio: 0.4 },
+        goals: {
+          maxP99Ms: 200,
+          maxErrorRate: 0.001,
+          maxMonthlyCost: 13_500,
+          requireDurableWrites: true,
+          noBacklog: true,
+          noSinglePointOfFailure: true,
+        },
+      },
+      {
+        twist: 'New Year’s Eve, all evening: 20,000 RPS at 30% reads. Budget $14,000.',
+        workload: { rps: 20_000, readRatio: 0.3 },
+        goals: { maxP99Ms: 200, maxErrorRate: 0.001, maxMonthlyCost: 14_000, requireDurableWrites: true, noBacklog: true },
+      },
+    ],
+  },
 ];
 
 export function getScenario(id: string): Scenario | undefined {
@@ -213,6 +328,15 @@ export function evaluate(scenario: Scenario, design: Design, result: SimResult =
       label: 'Every accepted write is persisted',
       pass,
       actual: bgFailing ? 'jobs failing' : `${(m.durableWriteRatio * 100).toFixed(1)}%`,
+    });
+  }
+  if (g.noBacklog) {
+    const growth = m.backlogGrowthPerSec;
+    checks.push({
+      id: 'backlog',
+      label: 'Queue keeps up with sustained load',
+      pass: growth <= 1,
+      actual: growth <= 1 ? 'no backlog' : `+${fmt(growth)}/s`,
     });
   }
   if (g.spikeSeconds && g.maxDrainMinutes !== undefined) {

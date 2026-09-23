@@ -162,7 +162,7 @@ export const PATTERNS: Pattern[] = [
     template: ['const heap = new MinHeap();', 'for (const x of stream) {', '  heap.push(x);', '  if (heap.size > k) heap.pop();', '}'],
     complexity: 'O(n log k)',
     pitfalls: ['Min-heap vs max-heap for top-k', 'Sorting everything when k ≪ n'],
-    algorithmIds: [],
+    algorithmIds: ['kth-largest'],
   },
   {
     id: 'bfs',
@@ -219,7 +219,7 @@ export const PATTERNS: Pattern[] = [
     ],
     complexity: 'O(V + E)',
     pitfalls: ['Edge direction reversed', 'Not checking order.length === V for cycles'],
-    algorithmIds: [],
+    algorithmIds: ['topo-sort'],
   },
   {
     id: 'union-find',
@@ -239,7 +239,7 @@ export const PATTERNS: Pattern[] = [
     ],
     complexity: 'O(α(n)) amortized',
     pitfalls: ['Skipping path compression / union by rank', 'Using it for directed graphs'],
-    algorithmIds: [],
+    algorithmIds: ['union-find'],
   },
   {
     id: 'dijkstra',
@@ -258,7 +258,7 @@ export const PATTERNS: Pattern[] = [
     ],
     complexity: 'O((V + E) log V)',
     pitfalls: ['Negative weights (use Bellman-Ford)', 'Not skipping stale heap entries'],
-    algorithmIds: [],
+    algorithmIds: ['dijkstra'],
   },
   {
     id: 'tree-dfs',
@@ -288,7 +288,7 @@ export const PATTERNS: Pattern[] = [
     template: ['let node = root;', 'for (const ch of word) node = node[ch] ??= {};', 'node.end = true;'],
     complexity: 'O(L) per operation',
     pitfalls: ['Memory blow-up with large alphabets', 'Forgetting the end-of-word marker'],
-    algorithmIds: [],
+    algorithmIds: ['trie'],
   },
   {
     id: 'dp-1d',
@@ -320,7 +320,7 @@ export const PATTERNS: Pattern[] = [
     ],
     complexity: 'O(n × m)',
     pitfalls: ['Iterating capacity the wrong direction in 0/1 knapsack', 'Base row/column'],
-    algorithmIds: [],
+    algorithmIds: ['lcs'],
   },
   {
     id: 'greedy',

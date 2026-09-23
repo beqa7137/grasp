@@ -47,8 +47,64 @@ export function asGrid(value: unknown, key: string): string[] {
   return clean;
 }
 
+export type Edge = [number, number, number?];
+
+const EDGE_PATTERNS: Record<'edges' | 'directedEdges' | 'weightedEdges', RegExp> = {
+  edges: /^(\d+)\s*-\s*(\d+)$/,
+  directedEdges: /^(\d+)\s*>\s*(\d+)$/,
+  weightedEdges: /^(\d+)\s*-\s*(\d+)\s*:\s*(\d+)$/,
+};
+const EDGE_SEPARATOR: Record<keyof typeof EDGE_PATTERNS, string> = { edges: '-', directedEdges: '>', weightedEdges: '-' };
+
+/** Edges as `0-1`, `0>1` or `0-1:4`, between node ids 0..nodes-1, without self-loops or duplicates. */
+export function asEdges(
+  value: unknown,
+  key: string,
+  kind: keyof typeof EDGE_PATTERNS,
+  nodes: number,
+  { max = 20, maxWeight = 99 } = {},
+): Edge[] {
+  const items = Array.isArray(value) ? value : null;
+  if (!items) throw new InputError(`${key} must be a list of edges`);
+  if (items.length > max) throw new InputError(`${key} can hold at most ${max} edges`);
+  const seen = new Set<string>();
+  return items.map((raw) => {
+    const edge = Array.isArray(raw) ? raw.map(Number) : null;
+    const weighted = kind === 'weightedEdges';
+    if (!edge || edge.length !== (weighted ? 3 : 2) || edge.some((n) => !Number.isInteger(n))) {
+      throw new InputError(`${key}: write edges like ${weighted ? '0-1:4' : `0${EDGE_SEPARATOR[kind]}1`}`);
+    }
+    const [a, b, w] = edge;
+    if (a < 0 || b < 0 || a >= nodes || b >= nodes) throw new InputError(`${key}: nodes go from 0 to ${nodes - 1}`);
+    if (a === b) throw new InputError(`${key}: an edge cannot connect a node to itself`);
+    if (weighted && (w < 1 || w > maxWeight)) throw new InputError(`${key}: weights go from 1 to ${maxWeight}`);
+    const id = kind === 'directedEdges' ? `${a}>${b}` : `${Math.min(a, b)}-${Math.max(a, b)}`;
+    if (seen.has(id)) throw new InputError(`${key}: edge ${id} appears twice`);
+    seen.add(id);
+    return (weighted ? [a, b, w] : [a, b]) as Edge;
+  });
+}
+
+export function asWords(value: unknown, key: string, { max = 7, maxLength = 8 } = {}): string[] {
+  const words = Array.isArray(value) ? value.map((w) => String(w).trim().toLowerCase()).filter(Boolean) : null;
+  if (!words || words.length === 0) throw new InputError(`${key} must list at least one word`);
+  if (words.length > max) throw new InputError(`${key} can hold at most ${max} words`);
+  if (words.some((w) => !/^[a-z]+$/.test(w) || w.length > maxLength))
+    throw new InputError(`${key}: words use letters a–z, up to ${maxLength} long`);
+  return words;
+}
+
 export function parseField(kind: InputKind, text: string): unknown {
   switch (kind) {
+    case 'edges':
+    case 'directedEdges':
+    case 'weightedEdges':
+      return splitEdges(text).map((item) => {
+        const m = EDGE_PATTERNS[kind].exec(item);
+        return m ? m.slice(1).map(Number) : [item];
+      });
+    case 'words':
+      return splitList(text);
     case 'numbers':
     case 'sortedNumbers':
       return splitList(text).map(Number);
@@ -66,6 +122,13 @@ export function parseField(kind: InputKind, text: string): unknown {
 
 export function formatField(kind: InputKind, value: unknown): string {
   switch (kind) {
+    case 'edges':
+    case 'directedEdges':
+      return (value as Edge[]).map(([a, b]) => `${a}${EDGE_SEPARATOR[kind]}${b}`).join(', ');
+    case 'weightedEdges':
+      return (value as Edge[]).map(([a, b, w]) => `${a}-${b}:${w}`).join(', ');
+    case 'words':
+      return (value as string[]).join(', ');
     case 'numbers':
     case 'sortedNumbers':
       return (value as number[]).join(', ');
@@ -78,6 +141,13 @@ export function formatField(kind: InputKind, value: unknown): string {
 
 function splitList(text: string): string[] {
   return text.split(/[\s,]+/).filter(Boolean);
+}
+
+function splitEdges(text: string): string[] {
+  return text
+    .split(/[,;\n]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 export function mulberry32(seed: number): () => number {

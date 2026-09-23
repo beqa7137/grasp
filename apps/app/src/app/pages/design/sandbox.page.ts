@@ -17,6 +17,7 @@ import { Preferences } from '@capacitor/preferences';
 import {
   COMPONENTS,
   PALETTE,
+  SHARD_KEYS,
   canConnect,
   createNode,
   evaluate,
@@ -28,6 +29,7 @@ import {
   type Design,
   type DesignNode,
   type Scenario,
+  type ShardKey,
   type Workload,
 } from '@grasp/engine';
 import { addIcons } from 'ionicons';
@@ -81,6 +83,7 @@ export class SandboxPage {
   readonly viewBox = `0 0 ${VIEW_W} ${VIEW_H}`;
   readonly palette = PALETTE.map((k) => COMPONENTS[k]);
   readonly specs = COMPONENTS;
+  readonly shardKeys = (Object.keys(SHARD_KEYS) as ShardKey[]).map((id) => ({ id, ...SHARD_KEYS[id] }));
   readonly fmt = fmt;
 
   readonly scenario = computed<Scenario | undefined>(() => {
@@ -275,6 +278,15 @@ export class SandboxPage {
 
   setReadRatio(pct: number) {
     this.workload.update((w) => ({ ...w, readRatio: pct / 100 }));
+  }
+
+  setBotRps(rps: number) {
+    this.workload.update((w) => ({ ...w, botRps: rps }));
+  }
+
+  shardKeyDetail(n: DesignNode) {
+    const key = SHARD_KEYS[n.shardKey ?? 'hash'];
+    return `${key.label}: ${key.detail}`;
   }
 
   showHint() {

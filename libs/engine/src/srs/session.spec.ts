@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../algorithms/input.js';
 import { getReviewItem, itemsForTopic } from '../review/catalog.js';
 import type { StoredEvent } from './events.js';
-import { replay, trueRetention, type ProgressState } from './progress.js';
+import { isUnlocked, replay, trueRetention, type ProgressState } from './progress.js';
 import { RATING, retrievability } from './scheduler.js';
 import { buildSession, interleave, newCandidates, practiceSet } from './session.js';
 
@@ -71,7 +71,9 @@ describe('session builder', () => {
         weakPatterns: ['union-find'],
       },
     ]);
-    const first = newCandidates(s).slice(0, itemsForTopic('union-find').length);
+    // Predict items stay locked until the visualizer has been opened, so count only what can be introduced.
+    const unlocked = itemsForTopic('union-find').filter((d) => isUnlocked(d, s));
+    const first = newCandidates(s).slice(0, unlocked.length);
     expect(first.every((d) => d.topic === 'union-find')).toBe(true);
   });
 

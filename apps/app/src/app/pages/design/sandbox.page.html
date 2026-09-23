@@ -46,6 +46,9 @@
           <span class="value"
             >{{ fmt(m.successRps) }}<small>/{{ fmt(m.offeredRps) }} rps</small></span
           >
+          @if (m.botRps > 0) {
+            <span class="bots">{{ fmt(m.botsBlockedRps) }} of {{ fmt(m.botRps) }} bot rps blocked</span>
+          }
         </div>
         <div
           class="metric"
@@ -129,6 +132,9 @@
                     @if (n.kind === 'client') {
                       <text class="main" x="14" y="44">{{ fmt(m.offeredRps) }} rps</text>
                       <text class="sub" x="14" y="60">{{ workload().readRatio * 100 | number: '1.0-0' }}% reads</text>
+                      @if (workload().botRps) {
+                        <text class="bots" [attr.x]="W - 12" y="22" text-anchor="end">+{{ fmt(workload().botRps!) }} bots</text>
+                      }
                     } @else {
                       <text class="main" x="14" y="44">{{ st?.status === 'down' ? 'DOWN' : utilPct(n.id) + '%' }}</text>
                       <text class="sub" [attr.x]="W - 12" y="44" text-anchor="end">{{ st?.latencyMs | number: '1.0-0' }} ms</text>
@@ -181,6 +187,19 @@
                   step="1"
                   [value]="workload().readRatio * 100"
                   (input)="setReadRatio(+$any($event.target).value)"
+                />
+              </label>
+              <label>
+                <span
+                  >Bots <strong class="mono">{{ fmt(workload().botRps ?? 0) }} rps</strong></span
+                >
+                <input
+                  type="range"
+                  min="0"
+                  max="100000"
+                  step="1000"
+                  [value]="workload().botRps ?? 0"
+                  (input)="setBotRps(+$any($event.target).value)"
                 />
               </label>
             </div>
@@ -245,10 +264,16 @@
                     <dt>Dropped</dt>
                     <dd [class.bad]="st.droppedRps > 0">{{ fmt(st.droppedRps) }} rps</dd>
                   </div>
+                  @if (st.botRps > 0) {
+                    <div class="wide">
+                      <dt>Bot traffic</dt>
+                      <dd class="warn">{{ fmt(st.botRps) }} rps · {{ (st.botRps / st.loadOps) * 100 | number: '1.0-0' }}% of load</dd>
+                    </div>
+                  }
                 </dl>
 
                 <div class="row">
-                  <span>Instances</span>
+                  <span>{{ n.kind === 'db' ? 'Shards' : 'Instances' }}</span>
                   <div class="stepper">
                     <button class="g-btn icon" (click)="stepInstances(n, -1)" [disabled]="n.instances <= 1" aria-label="Fewer">
                       <ion-icon name="remove" />
@@ -264,6 +289,36 @@
                     </button>
                   </div>
                 </div>
+                @if (n.kind === 'db') {
+                  <div class="row shard-key">
+                    <span>Shard key</span>
+                    <div class="choices" role="radiogroup" aria-label="Shard key">
+                      @for (k of shardKeys; track k.id) {
+                        <button
+                          role="radio"
+                          [attr.aria-checked]="(n.shardKey ?? 'hash') === k.id"
+                          [class.on]="(n.shardKey ?? 'hash') === k.id"
+                          [title]="k.detail"
+                          (click)="updateNode(n.id, { shardKey: k.id })"
+                        >
+                          {{ k.short }}
+                        </button>
+                      }
+                    </div>
+                    <p class="muted small">{{ shardKeyDetail(n) }}</p>
+                  </div>
+                  @if (st.shards; as shards) {
+                    <ol class="shards" aria-label="Load per shard">
+                      @for (sh of shards; track $index) {
+                        <li [attr.data-status]="sh.down ? 'down' : sh.utilization > 1 ? 'overloaded' : sh.utilization > 0.8 ? 'hot' : 'ok'">
+                          <span class="mono">S{{ $index + 1 }}</span>
+                          <span class="bar"><i [style.width.%]="sh.down ? 100 : sh.utilization > 1 ? 100 : sh.utilization * 100"></i></span>
+                          <span class="mono pct">{{ sh.down ? 'down' : (sh.utilization * 100 | number: '1.0-0') + '%' }}</span>
+                        </li>
+                      }
+                    </ol>
+                  }
+                }
                 @if (spec.hitRate !== undefined) {
                   <label class="row slider">
                     <span
@@ -314,7 +369,12 @@
 
           @if (!isFree()) {
             <section class="panel mission">
-              <p class="eyebrow">Mission · {{ fmt(s.workload.rps) }} rps · {{ s.workload.readRatio * 100 | number: '1.0-0' }}% reads</p>
+              <p class="eyebrow">
+                Mission · {{ fmt(s.workload.rps) }} rps · {{ s.workload.readRatio * 100 | number: '1.0-0' }}% reads
+                @if (s.workload.botRps) {
+                  · +{{ fmt(s.workload.botRps) }} bot rps
+                }
+              </p>
               <p class="brief">{{ s.brief }}</p>
               <ul class="goals">
                 @for (c of checks(); track c.id) {

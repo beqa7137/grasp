@@ -1,4 +1,7 @@
-export type ComponentKind = 'client' | 'cdn' | 'lb' | 'app' | 'cache' | 'db' | 'replica' | 'queue' | 'worker';
+export type ComponentKind = 'client' | 'cdn' | 'limiter' | 'lb' | 'app' | 'cache' | 'db' | 'replica' | 'queue' | 'worker';
+
+/** How a sharded database assigns keys to shards. */
+export type ShardKey = 'hash' | 'time' | 'tenant';
 
 export interface ComponentSpec {
   kind: ComponentKind;
@@ -22,6 +25,8 @@ export interface DesignNode {
   instances: number;
   failed?: number;
   hitRate?: number;
+  /** Databases only: with several instances, each instance is a shard owning part of the keys. */
+  shardKey?: ShardKey;
 }
 
 export interface DesignEdge {
@@ -37,6 +42,8 @@ export interface Design {
 export interface Workload {
   rps: number;
   readRatio: number;
+  /** Abusive automated traffic (scrapers, credential stuffing) on top of rps. It is never counted as user errors. */
+  botRps?: number;
 }
 
 export type NodeStatus = 'idle' | 'ok' | 'hot' | 'overloaded' | 'down';
@@ -46,6 +53,7 @@ export interface NodeStats {
   writeRps: number;
   backgroundRps: number;
   replicationRps: number;
+  botRps: number;
   loadOps: number;
   capacityOps: number;
   utilization: number;
@@ -53,6 +61,13 @@ export interface NodeStats {
   droppedRps: number;
   absorbedRps: number;
   status: NodeStatus;
+  /** Sharded databases only, hottest shard first. */
+  shards?: ShardStats[];
+}
+
+export interface ShardStats {
+  utilization: number;
+  down: boolean;
 }
 
 export type Severity = 'critical' | 'warning' | 'tip';
@@ -76,6 +91,8 @@ export interface SimMetrics {
   backlogGrowthPerSec: number;
   queueDrainRps: number;
   durableWriteRatio: number;
+  botRps: number;
+  botsBlockedRps: number;
 }
 
 export interface SimResult {
@@ -93,6 +110,8 @@ export interface ScenarioGoals {
   spikeSeconds?: number;
   maxDrainMinutes?: number;
   requireDurableWrites?: boolean;
+  /** Sustained load: the queue backlog must not grow at all. */
+  noBacklog?: boolean;
 }
 
 export interface ScenarioVariant {
