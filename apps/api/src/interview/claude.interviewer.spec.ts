@@ -128,6 +128,16 @@ describe('ClaudeInterviewer.reply', () => {
     });
   });
 
+  it('sends shared code inside the candidate turn, marked for the interviewer', async () => {
+    const { interviewer, requests } = setup(() => ({ stream: ['Walk me through it.'] }));
+    const s = session('coding', [{ content: 'My first attempt.' }]);
+    s.messages[1].code = { language: 'python', source: 'def daily_temperatures(t):\n    return []' };
+    await interviewer.reply(s, () => {}, signal());
+    expect(requests[0].body['messages'].at(-1).content).toBe(
+      'My first attempt.\n\n[CANDIDATE CODE: python]\n```python\ndef daily_temperatures(t):\n    return []\n```',
+    );
+  });
+
   it.each([
     ['a refusal', { stream: ['I cannot'], stopReason: 'refusal' }],
     ['an empty reply', { stream: [] as string[] }],

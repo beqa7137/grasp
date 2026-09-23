@@ -10,11 +10,18 @@ export interface InterviewProblem {
   hints: string[];
 }
 
+export interface CodeSnapshot {
+  language: 'javascript' | 'typescript' | 'python';
+  source: string;
+}
+
 export interface InterviewMessage {
   role: 'interviewer' | 'candidate';
   content: string;
   at: string;
   hint?: boolean;
+  /** Editor contents the candidate shared with this message. */
+  code?: CodeSnapshot;
 }
 
 export interface ScoreDimension {

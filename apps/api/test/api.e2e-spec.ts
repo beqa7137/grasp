@@ -141,6 +141,52 @@ describe.each(storages)('API (%s storage, offline interviewer)', (storage) => {
       .expect(409);
   });
 
+  it('ingests coding submissions and validates them against the problem bank', async () => {
+    const at = new Date().toISOString();
+    const submit = (event: Record<string, unknown>) =>
+      request(app.getHttpServer())
+        .post('/api/progress/events')
+        .set('x-learner-id', learner)
+        .send({
+          events: [{ id: `code-${Math.random().toString(36).slice(2, 10)}`, at, type: 'code.submitted', language: 'python', ...event }],
+        });
+
+    await submit({ problemId: 'daily-temperatures', passed: 20, total: 28 }).expect(200);
+    await submit({ problemId: 'daily-temperatures', passed: 29, total: 28 }).expect(400);
+    await submit({ problemId: 'fizz-buzz', passed: 1, total: 1 }).expect(400);
+    await submit({ problemId: 'daily-temperatures', passed: 1, total: 1, language: 'cobol' }).expect(400);
+
+    const snap = await request(app.getHttpServer()).get('/api/progress').set('x-learner-id', learner).expect(200);
+    expect(snap.body.state.coding['daily-temperatures']).toMatchObject({ attempts: 1, bestPassed: 20, solvedAt: null });
+  });
+
+  it('keeps code the candidate shares with an interview message', async () => {
+    const start = await request(app.getHttpServer())
+      .post('/api/interview/sessions')
+      .set('x-learner-id', learner)
+      .send({ track: 'coding' })
+      .expect(201);
+    const reply = await request(app.getHttpServer())
+      .post(`/api/interview/sessions/${start.body.id}/messages`)
+      .set('x-learner-id', learner)
+      .send({ content: '', code: { language: 'javascript', source: 'function f(t) {\n  return t;\n}\n\n' } })
+      .expect(200);
+    expect(reply.text).toContain('3 lines of javascript');
+    const session = await request(app.getHttpServer())
+      .get(`/api/interview/sessions/${start.body.id}`)
+      .set('x-learner-id', learner)
+      .expect(200);
+    expect(session.body.messages[1]).toMatchObject({
+      content: 'Here is my code.',
+      code: { language: 'javascript', source: 'function f(t) {\n  return t;\n}' },
+    });
+    await request(app.getHttpServer())
+      .post(`/api/interview/sessions/${start.body.id}/messages`)
+      .set('x-learner-id', learner)
+      .send({ content: '', code: { language: 'python', source: '   ' } })
+      .expect(400);
+  });
+
   it('does not leak sessions across learners', async () => {
     const start = await request(app.getHttpServer())
       .post('/api/interview/sessions')

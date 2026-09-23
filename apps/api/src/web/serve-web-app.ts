@@ -6,6 +6,14 @@ import { join, resolve } from 'node:path';
 import type { AppConfig } from '../config.js';
 
 const HASHED_ASSET = /-[A-Z0-9]{8,}\.(js|css|woff2?|png|svg|jpg|webp)$/i;
+const WORKER_SCRIPT = /[/\\]worker-[A-Z0-9]+\.js$/i;
+const PYODIDE_ASSET = /[/\\]pyodide[/\\]/;
+
+/**
+ * The code runner worker evaluates learner code and compiles the Python runtime to WebAssembly, so its
+ * own policy allows eval; the page keeps the strict one. A worker's CSP comes from its own response.
+ */
+const WORKER_CSP = "default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; connect-src 'self'; object-src 'none'";
 
 /**
  * Serves the built Angular app next to the API: fingerprinted assets are cached for a year,
@@ -23,7 +31,13 @@ export function serveWebApp(app: NestExpressApplication, config: AppConfig) {
 
   app.use('/config.json', (_req: Request, res: Response) => {
     res.setHeader('Cache-Control', 'no-cache');
-    res.json({ apiUrl: null, sentryDsn: config.web.sentryDsn, environment: config.sentryEnvironment, release: config.release });
+    res.json({
+      apiUrl: null,
+      sentryDsn: config.web.sentryDsn,
+      environment: config.sentryEnvironment,
+      release: config.release,
+      pyodideUrl: null,
+    });
   });
 
   app.use(
@@ -31,6 +45,9 @@ export function serveWebApp(app: NestExpressApplication, config: AppConfig) {
       index: false,
       setHeaders: (res, path) => {
         res.setHeader('Cache-Control', HASHED_ASSET.test(path) ? 'public, max-age=31536000, immutable' : 'no-cache');
+        if (WORKER_SCRIPT.test(path)) res.setHeader('Content-Security-Policy', WORKER_CSP);
+        // Native apps load the Python runtime from here cross-origin.
+        if (PYODIDE_ASSET.test(path)) res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
       },
     }),
   );

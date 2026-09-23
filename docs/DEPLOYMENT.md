@@ -6,6 +6,7 @@ Grasp ships as one Docker image that serves the API under `/api` and the web app
 
 - **Multi-stage build.** It builds the engine, API and web app, then installs only the API's production dependencies into a `node:24-slim` runtime. It runs as the unprivileged `node` user.
 - **Web app.** It serves the web app from `/srv/web`. Fingerprinted assets are cached for a year, while `index.html` and other files revalidate. Deep links fall back to `index.html`.
+- **Python runtime.** The image serves Pyodide (about 14 MB) from `/pyodide/`. The code-runner worker gets its own CSP that allows `eval`, while the page keeps a strict one (see [CODE_RUNNER.md](CODE_RUNNER.md)).
 - **Runtime config.** It generates `/config.json` from the environment, so the same image works in every environment.
 - **Migrations.** `node apps/api/dist/migrate.js` applies migrations. On Fly this runs as the release command before new machines take traffic.
 - **Health.** `GET /api/health` is liveness: it reports storage, interviewer mode and release. `GET /api/health/ready` is readiness: it checks the database and returns 503 when the database is unreachable. The Docker `HEALTHCHECK` uses liveness; Fly's check uses readiness.

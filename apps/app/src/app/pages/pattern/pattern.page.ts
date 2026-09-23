@@ -1,9 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
-import { getAlgorithm, getPattern, itemsForTopic } from '@grasp/engine';
+import { getAlgorithm, getPattern, itemsForTopic, problemsForPattern } from '@grasp/engine';
 import { addIcons } from 'ionicons';
-import { alertCircleOutline, flashOutline, playCircle, searchOutline } from 'ionicons/icons';
+import { alertCircleOutline, codeSlashOutline, flashOutline, playCircle, searchOutline } from 'ionicons/icons';
 import { ProgressService } from '../../core/progress.service';
 import { CodePanelComponent } from '../../viz/code-panel.component';
 import { MasteryRingComponent } from '../../viz/mastery-ring.component';
@@ -50,6 +50,9 @@ import { MasteryRingComponent } from '../../viz/mastery-ring.component';
             <a class="g-btn" routerLink="/drill" [queryParams]="{ pattern: p.id }"
               ><ion-icon name="flash-outline" />Practice {{ itemCount() }} items</a
             >
+            @for (c of problems(); track c.id) {
+              <a class="g-btn" [routerLink]="['/code', c.id]"><ion-icon name="code-slash-outline" />Code: {{ c.title }}</a>
+            }
           </div>
 
           <section class="panel block">
@@ -153,10 +156,11 @@ export class PatternPage {
   readonly id = input.required<string>();
   readonly progress = inject(ProgressService);
   readonly pattern = computed(() => getPattern(this.id()));
+  readonly problems = computed(() => problemsForPattern(this.id()));
   readonly algorithms = computed(() => (this.pattern()?.algorithmIds ?? []).map((id) => getAlgorithm(id)!).filter(Boolean));
   readonly itemCount = computed(() => itemsForTopic(this.id()).length);
 
   constructor() {
-    addIcons({ playCircle, flashOutline, searchOutline, alertCircleOutline });
+    addIcons({ playCircle, flashOutline, searchOutline, alertCircleOutline, codeSlashOutline });
   }
 }

@@ -73,7 +73,10 @@ export class OfflineInterviewer extends Interviewer {
   async reply(session: InterviewSession, onDelta: (text: string) => void, signal: AbortSignal): Promise<ReplyResult> {
     const last = session.messages[session.messages.length - 1];
     let text: string;
-    if (last?.hint) {
+    if (last?.code && !last.hint) {
+      const lines = last.code.source.split('\n').filter((l) => l.trim()).length;
+      text = `Thanks, I see ${lines} line${lines === 1 ? '' : 's'} of ${last.code.language}. Walk me through it on the first example: what do your variables hold after each step, and what is the time and space complexity?`;
+    } else if (last?.hint) {
       const rung = Math.min(session.hintsUsed - 1, session.problem.hints.length - 1);
       text = `Here's a nudge: ${session.problem.hints[Math.max(0, rung)]}`;
     } else if (last && last.content.trim().split(/\s+/).length < 6) {

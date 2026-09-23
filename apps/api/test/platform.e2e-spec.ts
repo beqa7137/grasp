@@ -1,5 +1,5 @@
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import request from 'supertest';
@@ -97,6 +97,9 @@ describe('Serving the web app', () => {
     writeFileSync(join(dir, 'index.html'), '<!doctype html><title>Grasp</title>');
     writeFileSync(join(dir, 'main-ABCD1234.js'), 'console.log(1)');
     writeFileSync(join(dir, 'manifest.webmanifest'), '{}');
+    writeFileSync(join(dir, 'worker-ABCD1234.js'), 'self.onmessage = () => {}');
+    mkdirSync(join(dir, 'pyodide'));
+    writeFileSync(join(dir, 'pyodide', 'pyodide.mjs'), 'export {}');
     app = await createTestApp({ WEB_DIST_DIR: dir, SENTRY_WEB_DSN: 'https://key@o1.ingest.sentry.io/2', RELEASE: 'abc1234' });
   });
 
@@ -123,9 +126,25 @@ describe('Serving the web app', () => {
 
   it('generates runtime config for the web app from the server environment', async () => {
     const res = await request(app.getHttpServer()).get('/config.json').expect(200);
-    expect(res.body).toEqual({ apiUrl: null, sentryDsn: 'https://key@o1.ingest.sentry.io/2', environment: 'test', release: 'abc1234' });
+    expect(res.body).toEqual({
+      apiUrl: null,
+      sentryDsn: 'https://key@o1.ingest.sentry.io/2',
+      environment: 'test',
+      release: 'abc1234',
+      pyodideUrl: null,
+    });
     const page = await request(app.getHttpServer()).get('/').set('Accept', 'text/html');
     expect(page.headers['content-security-policy']).toContain("connect-src 'self' https://o1.ingest.sentry.io");
+  });
+
+  it('lets only the code-runner worker evaluate code, and shares the Python runtime cross-origin', async () => {
+    const worker = await request(app.getHttpServer()).get('/worker-ABCD1234.js').expect(200);
+    expect(worker.headers['content-security-policy']).toContain("'unsafe-eval' 'wasm-unsafe-eval'");
+    const page = await request(app.getHttpServer()).get('/').set('Accept', 'text/html');
+    expect(page.headers['content-security-policy']).not.toContain('unsafe-eval');
+    const py = await request(app.getHttpServer()).get('/pyodide/pyodide.mjs').set('Origin', 'capacitor://localhost').expect(200);
+    expect(py.headers['cross-origin-resource-policy']).toBe('cross-origin');
+    expect(py.headers['access-control-allow-origin']).toBe('capacitor://localhost');
   });
 
   it('keeps API routes out of the fallback', async () => {

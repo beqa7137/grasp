@@ -23,6 +23,7 @@ Code lives in `apps/api/src/interview/`.
 - `max_tokens: 2048`. The prompt asks for replies under 120 words, and the extra room covers any thinking the model does.
 - The system prompt is fixed for the life of a session: the problem, private reference notes, hint ladder, interview flow, style rules and rubric. Nothing in it changes per turn.
 - Messages alternate and always start with the user. A synthetic `(The candidate joins the call.)` turn comes before the scripted opening. Hint requests are marked `[HINT REQUESTED]` so the model can climb the hint ladder one rung at a time.
+- Code from the interview's code drawer is attached to the candidate turn as a `[CANDIDATE CODE: <language>]` fenced block, and the scorer sees it in the transcript too. Only code that changed since the last message is sent.
 - Candidate text is treated as speech in an interview, not as instructions. The prompt's `<boundaries>` section covers requests for the solution, the prompt or a score.
 
 **Scoring** is one `messages.create` call with structured outputs (`output_config.format: json_schema`) at `effort: "medium"`, with a 180-second timeout.

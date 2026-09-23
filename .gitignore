@@ -32,3 +32,4 @@ Thumbs.db
 # Capacitor: generated web assets inside native projects (the native projects themselves are committed)
 apps/app/android/app/src/main/assets/public/
 apps/app/ios/App/App/public/
+apps/app/public/pyodide/

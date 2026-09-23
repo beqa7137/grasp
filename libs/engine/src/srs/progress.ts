@@ -1,3 +1,4 @@
+import { getCodingProblem } from '../coding/problems.js';
 import { PATTERNS } from '../curriculum/patterns.js';
 import { SD_TOPICS, getSdTopic } from '../curriculum/sd-topics.js';
 import { getReviewItem, itemsForTopic } from '../review/catalog.js';
@@ -28,7 +29,14 @@ export interface MissionState {
 
 export interface Boost {
   at: string;
-  reason: 'prediction-miss' | 'interview';
+  reason: 'prediction-miss' | 'interview' | 'code';
+}
+
+export interface CodingRecord {
+  attempts: number;
+  solvedAt: string | null;
+  bestPassed: number;
+  total: number;
 }
 
 export interface ReviewRecord {
@@ -47,6 +55,7 @@ export interface ProgressState {
   predictions: Record<string, { correct: number; total: number }>;
   missions: Record<string, MissionState>;
   interviews: { total: number; lastVerdict: string | null };
+  coding: Record<string, CodingRecord>;
   practice: { correct: number; total: number };
   /** Moving average of answer time per item kind, in ms. */
   durations: Partial<Record<ItemKind, number>>;
@@ -64,6 +73,7 @@ export const emptyProgress = (): ProgressState => ({
   predictions: {},
   missions: {},
   interviews: { total: 0, lastVerdict: null },
+  coding: {},
   practice: { correct: 0, total: 0 },
   durations: {},
   recent: [],
@@ -162,6 +172,30 @@ export function applyEvent(state: ProgressState, stored: StoredEvent): ProgressS
         }
       }
       next.xp += 20;
+      break;
+    }
+    case 'code.submitted': {
+      const problem = getCodingProblem(event.problemId);
+      if (!problem) break;
+      const prev = state.coding[event.problemId];
+      const solved = event.total > 0 && event.passed === event.total;
+      next.coding = {
+        ...state.coding,
+        [event.problemId]: {
+          attempts: (prev?.attempts ?? 0) + 1,
+          solvedAt: prev?.solvedAt ?? (solved ? event.at : null),
+          bestPassed: Math.max(prev?.bestPassed ?? 0, event.passed),
+          total: event.total,
+        },
+      };
+      problem.patternIds.forEach(introduce);
+      // Failing before the first solve suggests the template isn't fluent yet: bring its recall cards forward.
+      if (!solved && !prev?.solvedAt) {
+        for (const topic of problem.patternIds) {
+          for (const def of itemsForTopic(topic)) if (def.kind === 'cloze') next.boosts[def.id] = { at: event.at, reason: 'code' };
+        }
+      }
+      next.xp += solved ? (prev?.solvedAt ? 5 : 50) : 2;
       break;
     }
   }

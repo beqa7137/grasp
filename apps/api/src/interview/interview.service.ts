@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { APP_CONFIG, type AppConfig } from '../config.js';
 import { InterviewStore, ProgressStore } from '../persistence/stores.js';
 import { Interviewer } from './interviewer.js';
-import type { InterviewSession, InterviewTrack, PublicInterviewSession, TokenUsage } from './interview.types.js';
+import type { CodeSnapshot, InterviewSession, InterviewTrack, PublicInterviewSession, TokenUsage } from './interview.types.js';
 import { addUsage } from './pricing.js';
 import { PROBLEMS, pickProblem } from './problems.js';
 import { SpendGuard } from './spend-guard.js';
@@ -65,7 +65,7 @@ export class InterviewService {
   async respond(
     learnerId: string,
     id: string,
-    input: { content: string; hint: boolean },
+    input: { content: string; hint: boolean; code?: CodeSnapshot },
     onDelta: (text: string) => void,
     signal: AbortSignal,
   ) {
@@ -78,11 +78,13 @@ export class InterviewService {
       this.spend.assertAvailable();
       this.consumeQuota(learnerId);
 
+      const code = input.code?.source.trim() ? { language: input.code.language, source: input.code.source.replace(/\s+$/, '') } : undefined;
       session.messages.push({
         role: 'candidate',
-        content: input.hint && !input.content.trim() ? 'Could I get a hint?' : input.content.trim(),
+        content: input.content.trim() || (input.hint ? 'Could I get a hint?' : 'Here is my code.'),
         at: new Date().toISOString(),
         ...(input.hint ? { hint: true } : {}),
+        ...(code ? { code } : {}),
       });
       if (input.hint) session.hintsUsed += 1;
 

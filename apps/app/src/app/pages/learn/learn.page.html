@@ -84,6 +84,12 @@
             <span class="cta">Take the mission →</span>
           </a>
         }
+        <a class="panel card-link tile code" [routerLink]="['/code', nextProblem().id]">
+          <ion-icon name="code-slash-outline" />
+          <h3>Code</h3>
+          <p>{{ nextProblem().title }}</p>
+          <span class="cta">Solve and trace it →</span>
+        </a>
         <a class="panel card-link tile mock" routerLink="/interview">
           <ion-icon name="chatbubbles-outline" />
           <h3>Mock interview</h3>

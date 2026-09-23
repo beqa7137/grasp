@@ -82,6 +82,8 @@ set → Drizzle ORM + Postgres; unset → in-memory stores for zero-setup local 
 (Drizzle over Prisma: pure TypeScript, no engine binaries, first-class ESM — which NestJS 12
 now is.)
 
+**Coding practice.** Learner code runs in a Web Worker on the device (JS/TS natively, Python on Pyodide), with per-test time limits and statement-level tracing into the visualizer. See [CODE_RUNNER.md](CODE_RUNNER.md).
+
 **Deployment.** One Docker image serves the API and the web app, with runtime config and
 release-time migrations. See [DEPLOYMENT.md](DEPLOYMENT.md).
 

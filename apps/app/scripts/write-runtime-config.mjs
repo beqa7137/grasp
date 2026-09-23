@@ -1,5 +1,5 @@
 // Writes config.json into the built web assets before `cap sync`, so native apps know which API to call.
-import { writeFileSync } from 'node:fs';
+import { rmSync, writeFileSync } from 'node:fs';
 
 const release = process.env.GRASP_RELEASE === '1';
 const apiUrl = process.env.GRASP_API_URL || null;
@@ -14,6 +14,10 @@ const config = {
   sentryDsn: process.env.GRASP_SENTRY_DSN || null,
   environment: release ? 'production' : 'development',
   release: process.env.GRASP_VERSION || null,
+  // The Python runtime (~14 MB) is fetched from the server on first use instead of bloating the app bundle.
+  pyodideUrl: apiUrl ? new URL('/pyodide/', apiUrl).href : null,
 };
-writeFileSync(new URL('../dist/app/browser/config.json', import.meta.url), `${JSON.stringify(config, null, 2)}\n`);
+const web = new URL('../dist/app/browser/', import.meta.url);
+writeFileSync(new URL('config.json', web), `${JSON.stringify(config, null, 2)}\n`);
+if (apiUrl) rmSync(new URL('pyodide', web), { recursive: true, force: true });
 console.log(`Runtime config: API ${apiUrl ?? '(platform default)'}`);

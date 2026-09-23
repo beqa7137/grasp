@@ -29,7 +29,9 @@
                 "input": "public"
               }
             ],
-            "styles": ["src/styles.scss"]
+            "styles": ["src/styles.scss"],
+            "webWorkerTsConfig": "tsconfig.worker.json",
+            "allowedCommonJsDependencies": ["ts-interface-checker", "lines-and-columns", "@jridgewell/resolve-uri"]
           },
           "configurations": {
             "production": {

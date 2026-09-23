@@ -1,10 +1,11 @@
-import { ALGORITHMS, DRILL_CARDS, PATTERNS, SCENARIOS, getReviewItem } from '@grasp/engine';
+import { ALGORITHMS, CODING_PROBLEMS, DRILL_CARDS, LANGUAGES, PATTERNS, SCENARIOS, getReviewItem } from '@grasp/engine';
 import { z } from 'zod';
 
 const cardIds = new Set(DRILL_CARDS.map((c) => c.id));
 const patternIds = new Set(PATTERNS.map((p) => p.id));
 const algorithmIds = new Set(ALGORITHMS.map((a) => a.id));
 const scenarioIds = new Set(SCENARIOS.map((s) => s.id));
+const problemIds = new Set(CODING_PROBLEMS.map((p) => p.id));
 
 const base = {
   id: z
@@ -60,6 +61,16 @@ export const learningEventSchema = z.discriminatedUnion('type', [
     verdict: z.string().max(32),
     weakPatterns: z.array(z.string().refine((id) => patternIds.has(id), 'Unknown pattern')).max(20),
   }),
+  z
+    .object({
+      ...base,
+      type: z.literal('code.submitted'),
+      problemId: z.string().refine((id) => problemIds.has(id), 'Unknown coding problem'),
+      language: z.enum(LANGUAGES),
+      passed: z.number().int().min(0).max(1_000),
+      total: z.number().int().min(1).max(1_000),
+    })
+    .refine((e) => e.passed <= e.total, 'passed cannot exceed total'),
   z.object({
     ...base,
     type: z.literal('drill.reviewed'),

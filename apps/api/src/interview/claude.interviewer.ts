@@ -5,7 +5,7 @@ import { Interviewer, type ReplyResult, type ScoreResult } from './interviewer.j
 import type { InterviewSession, TokenUsage } from './interview.types.js';
 import { OfflineInterviewer } from './offline.interviewer.js';
 import { costUsd } from './pricing.js';
-import { interviewerSystemPrompt, scorerSystemPrompt, transcriptText } from './prompts.js';
+import { candidateTurn, interviewerSystemPrompt, scorerSystemPrompt, transcriptText } from './prompts.js';
 import { InvalidScorecardError, normalizeScorecard, scorecardJsonSchema } from './scorecard.schema.js';
 
 export interface ClaudeInterviewerOptions {
@@ -116,7 +116,7 @@ export function toClaudeMessages(session: InterviewSession): Anthropic.MessagePa
   const out: { role: 'user' | 'assistant'; content: string }[] = [{ role: 'user', content: '(The candidate joins the call.)' }];
   for (const m of session.messages) {
     const role = m.role === 'interviewer' ? 'assistant' : 'user';
-    const content = m.hint ? `[HINT REQUESTED] ${m.content}` : m.content;
+    const content = m.role === 'interviewer' ? m.content : candidateTurn(m);
     const last = out[out.length - 1];
     if (last.role === role) last.content = `${last.content}\n\n${content}`;
     else out.push({ role, content });

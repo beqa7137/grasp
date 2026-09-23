@@ -2,9 +2,11 @@ import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, injec
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { IonBackButton, IonButtons, IonContent, IonFooter, IonHeader, IonIcon, IonSpinner, IonTitle, IonToolbar } from '@ionic/angular';
-import { getPattern, itemsForTopic } from '@grasp/engine';
+import { Preferences } from '@capacitor/preferences';
+import { LANGUAGES, getPattern, itemsForTopic, type Language } from '@grasp/engine';
 import { addIcons } from 'ionicons';
-import { arrowUp, bulbOutline, flagOutline, ribbonOutline } from 'ionicons/icons';
+import { arrowUp, bulbOutline, codeSlashOutline, flagOutline, ribbonOutline } from 'ionicons/icons';
+import { CodeEditorComponent } from '../../code/code-editor.component';
 import { ApiError, ApiService } from '../../core/api.service';
 import { ProgressService } from '../../core/progress.service';
 import type { InterviewMessage, InterviewSession } from './interview.types';
@@ -24,6 +26,7 @@ import type { InterviewMessage, InterviewSession } from './interview.types';
     IonFooter,
     IonIcon,
     IonSpinner,
+    CodeEditorComponent,
   ],
   templateUrl: './interview-session.page.html',
   styleUrl: './interview-session.page.scss',
@@ -43,6 +46,15 @@ export class InterviewSessionPage {
   readonly error = signal<string | null>(null);
   private abort: AbortController | null = null;
 
+  readonly languages = LANGUAGES;
+  readonly languageLabels: Record<Language, string> = { python: 'Python', javascript: 'JavaScript', typescript: 'TypeScript' };
+  readonly codeOpen = signal(false);
+  readonly codeLanguage = signal<Language>('python');
+  readonly code = signal('');
+  /** The code as the interviewer last saw it; only changes are sent again. */
+  private readonly sharedCode = signal('');
+  readonly codeChanged = computed(() => this.code().trim().length > 0 && this.code() !== this.sharedCode());
+
   readonly messages = computed(() => {
     const list = [...(this.session()?.messages ?? [])];
     const pending = this.pendingCandidate();
@@ -56,7 +68,10 @@ export class InterviewSessionPage {
   );
 
   constructor() {
-    addIcons({ arrowUp, bulbOutline, flagOutline, ribbonOutline });
+    addIcons({ arrowUp, bulbOutline, flagOutline, ribbonOutline, codeSlashOutline });
+    void Preferences.get({ key: 'grasp.code.language' }).then(({ value }) => {
+      if (value && (LANGUAGES as string[]).includes(value)) this.codeLanguage.set(value as Language);
+    });
     effect(() => {
       const id = this.id();
       void this.load(id);
@@ -71,7 +86,14 @@ export class InterviewSessionPage {
 
   private async load(id: string) {
     try {
-      this.session.set(await this.api.get<InterviewSession>(`/interview/sessions/${id}`));
+      const session = await this.api.get<InterviewSession>(`/interview/sessions/${id}`);
+      this.session.set(session);
+      const lastCode = [...session.messages].reverse().find((m) => m.code)?.code;
+      if (lastCode) {
+        this.code.set(lastCode.source);
+        this.sharedCode.set(lastCode.source);
+        this.codeLanguage.set(lastCode.language);
+      }
     } catch (e) {
       this.error.set(e instanceof ApiError ? e.message : 'Could not load the interview.');
     }
@@ -80,14 +102,16 @@ export class InterviewSessionPage {
   async send(hint = false) {
     const s = this.session();
     const content = this.draft().trim();
-    if (!s || this.busy() || (!hint && !content)) return;
+    const code = this.codeChanged() ? { language: this.codeLanguage(), source: this.code() } : undefined;
+    if (!s || this.busy() || (!hint && !content && !code)) return;
     this.busy.set(true);
     this.error.set(null);
     this.pendingCandidate.set({
       role: 'candidate',
-      content: hint && !content ? 'Could I get a hint?' : content,
+      content: content || (hint ? 'Could I get a hint?' : 'Here is my code.'),
       at: new Date().toISOString(),
       hint,
+      ...(code ? { code } : {}),
     });
     this.draft.set('');
     this.streaming.set('');
@@ -95,11 +119,12 @@ export class InterviewSessionPage {
     try {
       const done = await this.api.stream<{ message: InterviewMessage }>(
         `/interview/sessions/${s.id}/messages`,
-        { content, hint },
+        { content, hint, ...(code ? { code } : {}) },
         { delta: (t) => this.streaming.update((v) => (v ?? '') + t) },
         this.abort.signal,
       );
       const candidate = this.pendingCandidate()!;
+      if (code) this.sharedCode.set(code.source);
       this.session.update((cur) =>
         cur ? { ...cur, hintsUsed: cur.hintsUsed + (hint ? 1 : 0), messages: [...cur.messages, candidate, done.message] } : cur,
       );
@@ -137,6 +162,14 @@ export class InterviewSessionPage {
     } finally {
       this.scoring.set(false);
     }
+  }
+
+  setCodeLanguage(language: Language) {
+    this.codeLanguage.set(language);
+  }
+
+  lineCount(source: string) {
+    return source.split('\n').filter((l) => l.trim()).length;
   }
 
   onKeydown(e: KeyboardEvent) {

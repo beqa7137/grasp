@@ -1,3 +1,4 @@
+import type { Language } from '../coding/types.js';
 import type { ReviewRating } from './scheduler.js';
 
 interface BaseEvent {
@@ -46,8 +47,17 @@ export interface InterviewScoredEvent extends BaseEvent {
   weakPatterns: string[];
 }
 
+/** A full-suite submission in the coding workspace. */
+export interface CodeSubmittedEvent extends BaseEvent {
+  type: 'code.submitted';
+  problemId: string;
+  language: Language;
+  passed: number;
+  total: number;
+}
+
 export type LearningEvent =
-  ReviewGradedEvent | PracticeAnsweredEvent | PredictAnsweredEvent | ScenarioCompletedEvent | InterviewScoredEvent;
+  ReviewGradedEvent | PracticeAnsweredEvent | PredictAnsweredEvent | ScenarioCompletedEvent | InterviewScoredEvent | CodeSubmittedEvent;
 
 /** v1 (SM-2) drill review, still accepted from older clients and stored logs. */
 export interface LegacyDrillReviewedEvent extends BaseEvent {

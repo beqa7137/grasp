@@ -2,5 +2,6 @@
   "apiUrl": null,
   "sentryDsn": null,
   "environment": "development",
-  "release": null
+  "release": null,
+  "pyodideUrl": null
 }

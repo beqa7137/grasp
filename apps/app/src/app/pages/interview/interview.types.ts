@@ -7,11 +7,17 @@ export interface ProblemSummary {
   patternIds: string[];
 }
 
+export interface CodeSnapshot {
+  language: 'javascript' | 'typescript' | 'python';
+  source: string;
+}
+
 export interface InterviewMessage {
   role: 'interviewer' | 'candidate';
   content: string;
   at: string;
   hint?: boolean;
+  code?: CodeSnapshot;
 }
 
 export interface Scorecard {
