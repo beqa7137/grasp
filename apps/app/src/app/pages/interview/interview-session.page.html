@@ -1,0 +1,134 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-buttons slot="start"><ion-back-button defaultHref="/interview" text="" /></ion-buttons>
+    <ion-title>{{ session()?.problem?.title ?? 'Interview' }}</ion-title>
+    @if (active() && candidateTurns() >= 2) {
+      <ion-buttons slot="end">
+        <button class="g-btn ghost end" (click)="score()" [disabled]="scoring() || busy()">
+          @if (scoring()) {
+            <ion-spinner name="crescent" />
+          } @else {
+            <ion-icon name="flag-outline" />
+          }
+          End & score
+        </button>
+      </ion-buttons>
+    }
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <div class="page chat">
+    @if (session(); as s) {
+      <div class="meta">
+        <span class="chip accent">{{ s.track === 'coding' ? 'Coding' : 'System design' }}</span>
+        <span class="chip">{{ s.mode === 'ai' ? 'AI interviewer' : 'Offline interviewer' }}</span>
+        @if (s.hintsUsed) {
+          <span class="chip">{{ s.hintsUsed }} hint{{ s.hintsUsed > 1 ? 's' : '' }} used</span>
+        }
+      </div>
+    }
+
+    @for (m of messages(); track $index) {
+      <div class="msg" [class.me]="m.role === 'candidate'" [class.hint]="m.hint">
+        @if (m.role === 'interviewer') {
+          <span class="avatar">IV</span>
+        }
+        <p>{{ m.content }}</p>
+      </div>
+    }
+    @if (streaming() !== null) {
+      <div class="msg">
+        <span class="avatar">IV</span>
+        <p>
+          @if (streaming()) {
+            {{ streaming() }}<span class="caret"></span>
+          } @else {
+            <span class="typing"><i></i><i></i><i></i></span>
+          }
+        </p>
+      </div>
+    }
+
+    @if (error(); as e) {
+      <p class="error">{{ e }}</p>
+    }
+
+    @if (session()?.scorecard; as card) {
+      <section class="panel scorecard">
+        <header>
+          <ion-icon name="ribbon-outline" />
+          <div>
+            <p class="eyebrow">Scorecard · {{ card.mode === 'ai' ? 'AI calibrated' : 'offline heuristic' }}</p>
+            <h2 class="verdict" [attr.data-verdict]="card.verdict">{{ verdictLabel(card.verdict) }}</h2>
+          </div>
+        </header>
+        <p class="summary">{{ card.summary }}</p>
+        <div class="dims">
+          @for (d of card.dimensions; track d.name) {
+            <div class="dim">
+              <div class="dim-head">
+                <span>{{ d.name }}</span>
+                <span class="mono">{{ d.score }}/4</span>
+              </div>
+              <div class="pips">
+                @for (i of [1, 2, 3, 4]; track i) {
+                  <i [class.on]="i <= d.score" [attr.data-score]="d.score"></i>
+                }
+              </div>
+              <p class="muted">{{ d.evidence }}</p>
+            </div>
+          }
+        </div>
+        @if (card.strengths.length) {
+          <h3>Strengths</h3>
+          <ul>
+            @for (x of card.strengths; track $index) {
+              <li>{{ x }}</li>
+            }
+          </ul>
+        }
+        @if (card.improvements.length) {
+          <h3>To improve</h3>
+          <ul>
+            @for (x of card.improvements; track $index) {
+              <li>{{ x }}</li>
+            }
+          </ul>
+        }
+        @if (card.weakPatterns.length) {
+          <h3>Practice next</h3>
+          <p class="scheduled">{{ scheduledItems() }} review items for these patterns were moved into today's review.</p>
+          <div class="weak">
+            @for (p of card.weakPatterns; track p) {
+              <a class="g-btn" routerLink="/drill" [queryParams]="{ pattern: p }">{{ patternName(p) }} →</a>
+            }
+          </div>
+        }
+      </section>
+    }
+  </div>
+</ion-content>
+
+@if (active()) {
+  <ion-footer>
+    <div class="composer">
+      <textarea
+        rows="2"
+        placeholder="Think out loud… (⌘/Ctrl + Enter to send)"
+        [ngModel]="draft()"
+        (ngModelChange)="draft.set($event)"
+        (keydown)="onKeydown($event)"
+        [disabled]="busy()"
+      ></textarea>
+      <div class="buttons">
+        <button class="g-btn ghost hint" (click)="send(true)" [disabled]="busy()" title="Ask for a hint (costs a little on the scorecard)">
+          <ion-icon name="bulb-outline" />Hint
+        </button>
+        <button class="g-btn primary icon send" (click)="send()" [disabled]="busy() || !draft().trim()" aria-label="Send">
+          <ion-icon name="arrow-up" />
+        </button>
+      </div>
+    </div>
+  </ion-footer>
+}

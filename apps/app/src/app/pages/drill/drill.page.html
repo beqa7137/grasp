@@ -1,0 +1,140 @@
+<ion-header [translucent]="true">
+  <ion-toolbar><ion-title>{{ practice() ? 'Practice' : 'Review' }}</ion-title></ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <div class="page narrow">
+    <header class="head">
+      <div>
+        <p class="eyebrow">{{ practice() ? 'Practice · not scheduled' : 'Spaced review' }}</p>
+        <h1>{{ practice() ? focusName() : "Today's review" }}</h1>
+        @if (plan(); as p) {
+          @if (started() && !finished()) {
+            <p class="plan muted"><ion-icon name="time-outline" />{{ p.due }} due · {{ p.fresh }} new · ~{{ p.minutes }} min</p>
+          }
+        }
+      </div>
+      <div class="stats">
+        <span class="streak" title="Day streak"><ion-icon name="flame" />{{ progress.state().streak.current }}</span>
+        @if (current()) {
+          <span class="mono muted">{{ position() + 1 }}/{{ queue().length }}</span>
+        }
+      </div>
+    </header>
+
+    @if (practice()) {
+      <p class="banner">Practice answers don't change your review schedule — use this to cram a topic before an interview.</p>
+    }
+
+    @if (queue().length) {
+      <div class="bar"><i [style.width.%]="(position() / queue().length) * 100"></i></div>
+    }
+
+    @if (current(); as slot) {
+      <g-question-card [question]="slot.question" [reason]="slot.reason" [chosen]="chosen()" (choose)="answer($event)" />
+
+      @if (chosen() !== null) {
+        <div class="actions">
+          @if (practice()) {
+            <button class="g-btn primary grow" (click)="rate(3)">Next <ion-icon name="arrow-forward" /></button>
+          } @else if (isCorrect()) {
+            <button class="g-btn ghost" (click)="rate(2)" title="Right answer, but you weren't sure (G)">
+              I guessed <span class="interval">{{ previews()?.hard }}</span>
+            </button>
+            <button class="g-btn primary grow" (click)="rate(3)" title="Enter">
+              Got it <span class="interval">{{ previews()?.good }}</span>
+            </button>
+            <button class="g-btn ghost" (click)="rate(4)" title="Instant recall — show it much less often (E)">
+              Easy <span class="interval">{{ previews()?.easy }}</span>
+            </button>
+          } @else {
+            <button class="g-btn primary grow" (click)="rate(1)">
+              Continue <span class="interval">again in {{ previews()?.again }}</span>
+            </button>
+          }
+        </div>
+        <p class="keys muted">Enter to continue{{ isCorrect() && !practice() ? ' · G guessed · E easy' : '' }}</p>
+      } @else {
+        <p class="keys muted">Press 1–{{ slot.question.choices.length }} to answer</p>
+      }
+    } @else if (finished()) {
+      <section class="panel summary">
+        <p class="big display">{{ correctCount() }}/{{ results().length }}</p>
+        <p class="muted">{{ practice() ? 'practice answers' : 'reviews' }} · {{ minutes() }} min</p>
+
+        @if (!practice()) {
+          <div class="metrics">
+            <div>
+              <span class="label">Retention (30d)</span>
+              <strong>{{ progress.retention() === null ? '—' : ((progress.retention()! * 100).toFixed(0) + '%') }}</strong>
+              <span class="hint">target 90%</span>
+            </div>
+            <div>
+              <span class="label">Next review</span>
+              <strong>{{ progress.session().nextDueAt ? (progress.session().nextDueAt | date: 'EEE h:mm a') : '—' }}</strong>
+            </div>
+          </div>
+        }
+
+        @if (missedTopics().length) {
+          <p class="sub">Missed today — practice them now or let the schedule bring them back:</p>
+          <div class="chips">
+            @for (t of missedTopics(); track t.id) {
+              <a class="chip" routerLink="/drill" [queryParams]="{ pattern: t.id }">{{ t.name }}</a>
+            }
+          </div>
+        }
+
+        @if (!practice()) {
+          <div class="coming">
+            <p class="eyebrow">Coming up</p>
+            <g-forecast [days]="progress.forecast()" />
+          </div>
+        }
+
+        <div class="summary-actions">
+          @if (!practice() && progress.session().items.length) {
+            <button class="g-btn primary" (click)="start()">Keep going · {{ progress.session().items.length }} more</button>
+          }
+          @if (practice()) {
+            <a class="g-btn primary" routerLink="/drill">Back to your review</a>
+          }
+        </div>
+      </section>
+    } @else {
+      <section class="panel summary">
+        <ion-icon class="leaf" name="leaf-outline" />
+        <p class="big display">All caught up</p>
+        <p class="muted">
+          @if (progress.session().nextDueAt; as next) {
+            Next review {{ next | date: 'EEE h:mm a' }}. Coming back on time is what makes spacing work.
+          } @else {
+            Nothing scheduled yet.
+          }
+        </p>
+        <div class="coming">
+          <p class="eyebrow">Coming up</p>
+          <g-forecast [days]="progress.forecast()" />
+        </div>
+        <p class="sub">Unlock more kinds of review:</p>
+        <div class="unlocks">
+          <a class="g-btn" routerLink="/visualize"><ion-icon name="pulse-outline" />Visualize an algorithm → predict checkpoints</a>
+          <a class="g-btn" routerLink="/design"><ion-icon name="git-network-outline" />Finish a Design Lab mission → system design cards</a>
+        </div>
+      </section>
+    }
+
+    @if (!current() && progress.dueMissions().length) {
+      <section class="panel missions">
+        <p class="eyebrow">Mission revisits due</p>
+        @for (m of progress.dueMissions(); track m.scenarioId) {
+          <a class="mission" [routerLink]="['/design', m.scenarioId]" [queryParams]="{ revisit: m.variant }">
+            <ion-icon name="git-network-outline" />
+            <span>{{ scenarioTitle(m.scenarioId) }} · revisit {{ m.variant }}</span>
+            <ion-icon name="arrow-forward" />
+          </a>
+        }
+      </section>
+    }
+  </div>
+</ion-content>

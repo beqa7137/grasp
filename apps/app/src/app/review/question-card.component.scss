@@ -1,0 +1,160 @@
+:host { display: block; }
+
+.card {
+  padding: clamp(16px, 4vw, 24px);
+  animation: rise 0.25s ease-out;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.reason {
+  flex: none;
+  font: 600 11px/1 var(--ion-font-family);
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: var(--g-raised);
+  color: var(--g-muted);
+  border: 1px solid var(--g-line);
+
+  &[data-reason='new'] { color: var(--g-active); border-color: rgba(76, 201, 240, 0.4); }
+  &[data-reason='relearn'] { color: var(--g-danger); border-color: rgba(255, 93, 115, 0.4); }
+  &[data-reason='boosted'] { color: var(--g-warn); border-color: rgba(255, 181, 71, 0.45); }
+  &[data-reason='practice'] { color: var(--g-predict); border-color: rgba(212, 245, 60, 0.4); }
+}
+
+.prompt {
+  font: 500 clamp(16px, 2.4vw, 20px) / 1.5 var(--ion-font-family);
+  margin: 0 0 18px;
+}
+
+.visual {
+  padding: 16px 4px 12px;
+  margin-bottom: 14px;
+  border-radius: 12px;
+  background: var(--g-bg);
+  border: 1px solid var(--g-line);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+
+  .aux { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; padding: 0 10px; }
+}
+
+.code {
+  margin-bottom: 14px;
+  border-radius: 12px;
+  background: var(--g-bg);
+  border: 1px solid var(--g-line);
+  --code-max-height: 340px;
+}
+
+.pipeline {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 6px;
+
+  li {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: var(--g-raised);
+    border: 1px solid var(--g-line-strong);
+    min-width: 96px;
+  }
+  li + li::before {
+    content: '→';
+    position: absolute;
+    left: -11px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--g-faint);
+    font-size: 12px;
+  }
+  strong { font: 600 13px var(--g-font-display); }
+  span { font: 11.5px var(--g-font-mono); color: var(--g-muted); }
+}
+
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 14px;
+
+  div { padding: 8px 12px; border-radius: 10px; background: var(--g-raised); }
+  dt { font-size: 11px; color: var(--g-muted); }
+  dd { margin: 3px 0 0; font: 600 14px var(--g-font-mono); }
+}
+
+.choices {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+
+  &.mono { grid-template-columns: 1fr; .text { font: 13px/1.45 var(--g-font-mono); } }
+}
+
+.choice {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--g-raised);
+  border: 1px solid var(--g-line-strong);
+  color: var(--g-text);
+  font: 500 14.5px/1.4 var(--ion-font-family);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.08s;
+
+  &:hover:not(:disabled) { border-color: var(--g-accent); }
+  &:active:not(:disabled) { transform: scale(0.985); }
+  &:disabled { cursor: default; opacity: 0.5; }
+  &.right { opacity: 1; border-color: var(--g-found); background: rgba(61, 220, 151, 0.12); }
+  &.wrong { opacity: 1; border-color: var(--g-danger); background: rgba(255, 93, 115, 0.12); }
+
+  .key {
+    flex: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+    display: grid;
+    place-items: center;
+    background: var(--g-surface);
+    color: var(--g-muted);
+    font: 600 12px var(--g-font-mono);
+  }
+  .text { overflow-wrap: anywhere; }
+}
+
+.reveal {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 14px;
+  border-radius: 12px;
+  background: rgba(255, 93, 115, 0.08);
+  animation: rise 0.2s ease-out;
+
+  ion-icon { font-size: 24px; color: var(--g-danger); flex: none; }
+  &.ok { background: rgba(61, 220, 151, 0.08); ion-icon { color: var(--g-found); } }
+  .verdict { margin: 0 0 6px; font-weight: 600; font-size: 16px; }
+  .why { margin: 0 0 8px; line-height: 1.55; font-size: 14.5px; }
+  a { color: var(--g-accent); font-size: 13.5px; text-decoration: none; }
+}
+
+@keyframes rise { from { transform: translateY(6px); opacity: 0; } to { transform: none; opacity: 1; } }

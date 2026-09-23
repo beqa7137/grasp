@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.angular/
+.env
+coverage/
+apps/app/android/
+apps/app/ios/
+*.log
+.DS_Store

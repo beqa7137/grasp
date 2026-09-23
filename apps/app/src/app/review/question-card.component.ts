@@ -1,0 +1,138 @@
+import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { RouterLink } from '@angular/router';
+import { IonIcon } from '@ionic/angular';
+import type { Question, SessionReason } from '@grasp/engine';
+import { addIcons } from 'ionicons';
+import { checkmarkCircle, closeCircle } from 'ionicons/icons';
+import { ArrayViewComponent } from '../viz/array-view.component';
+import { CodePanelComponent } from '../viz/code-panel.component';
+import { GridViewComponent } from '../viz/grid-view.component';
+import { ListViewComponent } from '../viz/list-view.component';
+
+export type CardReason = SessionReason | 'practice';
+
+const REASON_LABELS: Record<CardReason, string> = {
+  due: 'Review',
+  relearn: 'Relearning',
+  boosted: 'Flagged for you',
+  new: 'New',
+  practice: 'Practice',
+};
+
+@Component({
+  selector: 'g-question-card',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [RouterLink, IonIcon, ArrayViewComponent, GridViewComponent, ListViewComponent, CodePanelComponent],
+  template: `
+    @let q = question();
+    <article class="card panel" [class.answered]="chosen() !== null">
+      <header>
+        <span class="eyebrow">{{ q.eyebrow }}</span>
+        <span class="reason" [attr.data-reason]="reason()">{{ reasonLabel() }}</span>
+      </header>
+
+      <p class="prompt">{{ q.prompt }}</p>
+
+      @if (q.frame; as f) {
+        <div class="visual">
+          @if (f.array) {
+            <g-array-view [view]="f.array" />
+          }
+          @if (f.grid) {
+            <g-grid-view [view]="f.grid" />
+          }
+          @if (f.stack || f.queue || f.set) {
+            <div class="aux">
+              @if (f.stack) {
+                <g-list-view [label]="f.stack.label" [items]="f.stack.items" />
+              }
+              @if (f.queue) {
+                <g-list-view [label]="f.queue.label" [items]="f.queue.items" />
+              }
+              @if (f.set) {
+                <g-list-view [label]="f.set.label" [items]="f.set.entries" [highlight]="f.set.active" />
+              }
+            </div>
+          }
+        </div>
+      }
+
+      @if (q.code; as code) {
+        <div class="code" [class.cloze]="code.blank !== undefined">
+          <g-code-panel [code]="codeLines()" [active]="activeLine()" />
+        </div>
+      }
+
+      @if (q.pipeline; as stages) {
+        <ol class="pipeline">
+          @for (s of stages; track $index) {
+            <li>
+              <strong>{{ s.name }}</strong>
+              <span>{{ s.detail }}</span>
+            </li>
+          }
+        </ol>
+      }
+
+      @if (q.facts; as facts) {
+        <dl class="facts">
+          @for (f of facts; track f.label) {
+            <div><dt>{{ f.label }}</dt><dd>{{ f.value }}</dd></div>
+          }
+        </dl>
+      }
+
+      <div class="choices" [class.mono]="q.kind === 'cloze'">
+        @for (c of q.choices; track $index) {
+          <button
+            class="choice"
+            [disabled]="chosen() !== null"
+            [class.right]="chosen() !== null && $index === q.answer"
+            [class.wrong]="chosen() === $index && $index !== q.answer"
+            (click)="choose.emit($index)"
+          >
+            <span class="key">{{ $index + 1 }}</span>
+            <span class="text">{{ c }}</span>
+          </button>
+        }
+      </div>
+
+      @if (chosen() !== null) {
+        <div class="reveal" [class.ok]="chosen() === q.answer">
+          <ion-icon [name]="chosen() === q.answer ? 'checkmark-circle' : 'close-circle'" />
+          <div>
+            <p class="verdict">{{ chosen() === q.answer ? 'Correct' : 'Not quite' }}</p>
+            <p class="why">{{ q.explain }}</p>
+            @if (q.link; as link) {
+              <a [routerLink]="link.path">{{ link.label }} →</a>
+            }
+          </div>
+        </div>
+      }
+    </article>
+  `,
+  styleUrl: './question-card.component.scss',
+})
+export class QuestionCardComponent {
+  readonly question = input.required<Question>();
+  readonly reason = input<CardReason>('due');
+  readonly chosen = input<number | null>(null);
+  readonly choose = output<number>();
+
+  readonly reasonLabel = computed(() => REASON_LABELS[this.reason()]);
+  readonly activeLine = computed(() => {
+    const code = this.question().code;
+    if (!code) return 0;
+    return code.blank !== undefined ? code.blank + 1 : (code.highlight ?? 0);
+  });
+  readonly codeLines = computed(() => {
+    const code = this.question().code!;
+    if (code.blank === undefined) return code.lines;
+    const revealed = this.chosen() !== null;
+    return code.lines.map((line, i) => (i === code.blank && !revealed ? `${line.match(/^\s*/)![0]}▁▁▁▁▁▁▁▁▁▁▁▁  ?` : line));
+  });
+
+  constructor() {
+    addIcons({ checkmarkCircle, closeCircle });
+  }
+}

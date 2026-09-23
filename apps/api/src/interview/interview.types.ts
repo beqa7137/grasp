@@ -1,0 +1,54 @@
+export type InterviewTrack = 'coding' | 'system-design';
+
+export interface InterviewProblem {
+  id: string;
+  track: InterviewTrack;
+  title: string;
+  opening: string;
+  referenceNotes: string;
+  patternIds: string[];
+  hints: string[];
+}
+
+export interface InterviewMessage {
+  role: 'interviewer' | 'candidate';
+  content: string;
+  at: string;
+  hint?: boolean;
+}
+
+export interface ScoreDimension {
+  name: string;
+  score: number;
+  evidence: string;
+}
+
+export type Verdict = 'strong-hire' | 'hire' | 'lean-hire' | 'lean-no-hire' | 'no-hire';
+
+export interface Scorecard {
+  verdict: Verdict;
+  summary: string;
+  dimensions: ScoreDimension[];
+  strengths: string[];
+  improvements: string[];
+  weakPatterns: string[];
+  mode: 'ai' | 'offline';
+}
+
+export interface InterviewSession {
+  id: string;
+  learnerId: string;
+  track: InterviewTrack;
+  problem: InterviewProblem;
+  messages: InterviewMessage[];
+  hintsUsed: number;
+  status: 'active' | 'scored';
+  createdAt: string;
+  scorecard?: Scorecard;
+  scoredAt?: string;
+}
+
+export type PublicInterviewSession = Omit<InterviewSession, 'problem' | 'learnerId'> & {
+  problem: Pick<InterviewProblem, 'id' | 'title' | 'track' | 'patternIds'>;
+  mode: 'ai' | 'offline';
+};

@@ -1,0 +1,132 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-title><span class="wordmark">grasp<i>.</i></span></ion-title>
+    <div slot="end" class="sync" [attr.data-status]="progress.syncStatus()">
+      <ion-icon [name]="progress.syncStatus() === 'offline' ? 'cloud-offline-outline' : 'cloud-done-outline'" />
+      <span>{{ progress.syncStatus() === 'offline' ? 'Offline' : 'Synced' }}</span>
+    </div>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  @let st = progress.state();
+  @let session = progress.session();
+  <div class="page">
+    <section class="hero">
+      <p class="eyebrow">{{ greeting() }}</p>
+      <h1>Build intuition,<br />not a problem count.</h1>
+      <div class="stats">
+        <div class="stat">
+          <ion-icon name="flame" class="flame" />
+          <div><strong>{{ st.streak.current }}</strong><span>day streak</span></div>
+        </div>
+        <div class="stat">
+          <ion-icon name="sparkles" class="xp" />
+          <div><strong>{{ st.xp }}</strong><span>XP</span></div>
+        </div>
+        <div class="stat">
+          <g-mastery-ring [value]="overall()" [size]="34" [showLabel]="false" />
+          <div><strong>{{ (overall() * 100).toFixed(0) }}%</strong><span>overall mastery</span></div>
+        </div>
+        <div class="stat" title="Share of learned items you still recalled at review time, last 30 days. The scheduler aims for 90%.">
+          <ion-icon name="pulse-outline" class="ret" />
+          <div>
+            <strong>{{ progress.retention() === null ? '—' : ((progress.retention()! * 100).toFixed(0) + '%') }}</strong>
+            <span>retention · target 90%</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="plan">
+      <p class="eyebrow">Today's loop</p>
+      <div class="tiles">
+        <a class="panel card-link tile drill" routerLink="/drill">
+          <ion-icon name="flash-outline" />
+          <h3>Review</h3>
+          @if (session.items.length) {
+            <p>{{ session.dueTotal }} due · {{ session.newIncluded }} new · ~{{ session.estimatedMinutes }} min</p>
+            <span class="cta">Start →</span>
+          } @else {
+            <p>All caught up</p>
+            <span class="cta">See what's next →</span>
+          }
+        </a>
+        <a class="panel card-link tile viz" [routerLink]="['/visualize', nextAlgorithm().id]">
+          <ion-icon name="play-circle-outline" />
+          <h3>Visualize</h3>
+          <p>{{ nextAlgorithm().title }}</p>
+          <span class="cta">Predict every step →</span>
+        </a>
+        @if (revisit(); as r) {
+          <a class="panel card-link tile lab" [routerLink]="['/design', r.scenarioId]" [queryParams]="{ revisit: r.variant }">
+            <ion-icon name="git-network-outline" />
+            <h3>Mission revisit</h3>
+            <p>{{ r.title }} · revisit {{ r.variant }}</p>
+            <span class="cta">Rebuild from memory →</span>
+          </a>
+        } @else {
+          <a class="panel card-link tile lab" [routerLink]="['/design', nextScenario().id]">
+            <ion-icon name="git-network-outline" />
+            <h3>Design Lab</h3>
+            <p>{{ nextScenario().title }}</p>
+            <span class="cta">Take the mission →</span>
+          </a>
+        }
+        <a class="panel card-link tile mock" routerLink="/interview">
+          <ion-icon name="chatbubbles-outline" />
+          <h3>Mock interview</h3>
+          <p>Coding or system design</p>
+          <span class="cta">Face the interviewer →</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="map">
+      <div class="map-head">
+        <p class="eyebrow">Pattern map</p>
+        <p class="muted">20 patterns cover the vast majority of coding interviews. Master the cue, and the problem names itself.</p>
+      </div>
+      @for (t of tracks; track t.id) {
+        <div class="track">
+          <div class="track-head">
+            <h2>{{ t.title }}</h2>
+            <p class="muted">{{ t.blurb }}</p>
+          </div>
+          <div class="patterns">
+            @for (p of t.patterns; track p.id) {
+              <a class="panel card-link pattern" [routerLink]="['/learn/pattern', p.id]">
+                <g-mastery-ring [value]="mastery(p.id)" />
+                <div class="info">
+                  <h3>{{ p.name }}</h3>
+                  <p class="muted">{{ p.oneLiner }}</p>
+                </div>
+                @if (p.algorithmIds.length) {
+                  <span class="has-viz" title="Has a visualizer"><ion-icon name="play-circle-outline" /></span>
+                }
+              </a>
+            }
+          </div>
+        </div>
+      }
+
+      <div class="track">
+        <div class="track-head">
+          <h2>System design</h2>
+          <p class="muted">Unlocked by Design Lab missions, then kept fresh with generated cases.</p>
+        </div>
+        <div class="patterns">
+          @for (t of sdTopics; track t.id) {
+            <a class="panel card-link pattern" routerLink="/drill" [queryParams]="{ pattern: t.id }">
+              <g-mastery-ring [value]="mastery(t.id)" />
+              <div class="info">
+                <h3>{{ t.name }}</h3>
+                <p class="muted">{{ t.oneLiner }}</p>
+              </div>
+            </a>
+          }
+        </div>
+      </div>
+    </section>
+  </div>
+</ion-content>

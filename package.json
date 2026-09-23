@@ -1,0 +1,29 @@
+{
+  "name": "grasp",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "libs/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=24.15"
+  },
+  "scripts": {
+    "build:engine": "npm run build -w @grasp/engine",
+    "dev:api": "npm run build:engine && npm run start:dev -w @grasp/api",
+    "dev:app": "npm run build:engine && npm start -w @grasp/app",
+    "build": "npm run build:engine && npm run build -w @grasp/api && npm run build -w @grasp/app",
+    "test": "npm run build:engine && npm test -w @grasp/engine && npm test -w @grasp/api",
+    "db:up": "docker compose up -d postgres",
+    "db:migrate": "npm run db:migrate -w @grasp/api"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "lmdb@3.5.6": true,
+    "msgpackr-extract@3.0.4": true,
+    "@parcel/watcher@2.6.0": true,
+    "esbuild@0.18.20": true,
+    "esbuild@0.25.12": true
+  }
+}

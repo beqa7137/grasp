@@ -1,0 +1,118 @@
+.chat { max-width: 780px; display: flex; flex-direction: column; gap: 14px; }
+
+.end { padding: 7px 11px; font-size: 13px; ion-spinner { width: 16px; height: 16px; } }
+
+.meta { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.msg {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  max-width: 88%;
+  animation: rise 0.2s ease-out;
+
+  p {
+    margin: 0;
+    padding: 11px 14px;
+    border-radius: 16px 16px 16px 4px;
+    background: var(--g-surface);
+    border: 1px solid var(--g-line);
+    line-height: 1.55;
+    font-size: 15px;
+    white-space: pre-wrap;
+  }
+
+  .avatar {
+    flex: none;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font: 700 11px var(--g-font-display);
+    background: var(--g-accent-soft);
+    color: var(--g-accent);
+    margin-top: 2px;
+  }
+
+  &.me {
+    align-self: flex-end;
+    p { background: var(--g-accent); color: #0b0d12; border-color: var(--g-accent); border-radius: 16px 16px 4px 16px; }
+  }
+  &.me.hint p { background: rgba(255, 181, 71, 0.18); border-color: rgba(255, 181, 71, 0.5); color: var(--g-text); }
+}
+
+.caret { display: inline-block; width: 7px; height: 15px; margin-left: 2px; vertical-align: -2px; background: var(--g-accent); animation: blink 1s steps(2) infinite; }
+
+.typing {
+  display: inline-flex;
+  gap: 4px;
+  i { width: 6px; height: 6px; border-radius: 50%; background: var(--g-muted); animation: bounce 1.2s infinite; }
+  i:nth-child(2) { animation-delay: 0.15s; }
+  i:nth-child(3) { animation-delay: 0.3s; }
+}
+
+.error { color: var(--g-danger); font-size: 14px; margin: 0; }
+
+.scorecard {
+  padding: 18px;
+  margin-top: 10px;
+  border-color: rgba(157, 140, 255, 0.5);
+  animation: rise 0.3s ease-out;
+
+  header { display: flex; gap: 12px; align-items: center; ion-icon { font-size: 34px; color: var(--g-accent); } }
+  .verdict { margin: 4px 0 0; font-size: 26px; text-transform: capitalize; color: var(--g-warn); }
+  .verdict[data-verdict='hire'], .verdict[data-verdict='strong-hire'] { color: var(--g-found); }
+  .verdict[data-verdict='no-hire'] { color: var(--g-danger); }
+  .summary { line-height: 1.55; margin: 12px 0 16px; }
+  h3 { font-size: 15px; margin: 18px 0 8px; }
+  ul { margin: 0; padding-left: 18px; li { line-height: 1.55; margin-bottom: 4px; font-size: 14px; } }
+  .scheduled { margin: 0 0 10px; font-size: 13.5px; color: var(--g-warn); }
+  .weak { display: flex; flex-wrap: wrap; gap: 6px; a { text-decoration: none; } }
+}
+
+.dims { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+
+.dim {
+  background: var(--g-raised);
+  border-radius: 10px;
+  padding: 10px 12px;
+  .dim-head { display: flex; justify-content: space-between; font-size: 13.5px; font-weight: 600; }
+  .pips { display: flex; gap: 4px; margin: 8px 0; }
+  .pips i { flex: 1; height: 5px; border-radius: 3px; background: var(--g-line); }
+  .pips i.on { background: var(--g-warn); }
+  .pips i.on[data-score='3'], .pips i.on[data-score='4'] { background: var(--g-found); }
+  .pips i.on[data-score='1'] { background: var(--g-danger); }
+  p { margin: 0; font-size: 12.5px; line-height: 1.45; }
+}
+
+ion-footer { background: var(--g-bg); border-top: 1px solid var(--g-line); }
+
+.composer {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+
+  textarea {
+    flex: 1;
+    resize: none;
+    background: var(--g-surface);
+    border: 1px solid var(--g-line-strong);
+    border-radius: 14px;
+    padding: 11px 14px;
+    color: var(--g-text);
+    font: 15px/1.45 var(--ion-font-family);
+    outline: none;
+    &:focus { border-color: var(--g-accent); }
+  }
+  .buttons { display: flex; gap: 6px; }
+  .hint { color: var(--g-warn); }
+  .send { border-radius: 50%; }
+}
+
+@keyframes rise { from { transform: translateY(6px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes blink { 50% { opacity: 0; } }
+@keyframes bounce { 0%, 60%, 100% { transform: none; opacity: 0.5; } 30% { transform: translateY(-4px); opacity: 1; } }

@@ -1,0 +1,209 @@
+@use '@ionic/angular/css/core.css';
+@use '@ionic/angular/css/normalize.css';
+@use '@ionic/angular/css/structure.css';
+@use '@ionic/angular/css/typography.css';
+@use '@ionic/angular/css/padding.css';
+@use '@ionic/angular/css/flex-utils.css';
+@use '@ionic/angular/css/display.css';
+@use '@ionic/angular/css/palettes/dark.always.css';
+@use '@fontsource-variable/inter';
+@use '@fontsource-variable/space-grotesk';
+@use '@fontsource-variable/jetbrains-mono';
+
+:root {
+  --g-bg: #0b0d12;
+  --g-surface: #12151d;
+  --g-raised: #181c26;
+  --g-line: #252a37;
+  --g-line-strong: #343b4d;
+  --g-text: #e9ebf2;
+  --g-muted: #8b93a8;
+  --g-faint: #5b6377;
+
+  --g-accent: #9d8cff;
+  --g-accent-soft: rgba(157, 140, 255, 0.14);
+  --g-pointer: #ffb547;
+  --g-active: #4cc9f0;
+  --g-window: rgba(157, 140, 255, 0.16);
+  --g-found: #3ddc97;
+  --g-danger: #ff5d73;
+  --g-warn: #ffb547;
+  --g-predict: #d4f53c;
+
+  --g-radius: 14px;
+  --g-radius-sm: 9px;
+  --g-font-display: 'Space Grotesk Variable', 'Inter Variable', system-ui, sans-serif;
+  --g-font-mono: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', Menlo, monospace;
+
+}
+
+:root,
+:root.ios,
+:root.md {
+  --ion-font-family: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --ion-background-color: var(--g-bg);
+  --ion-background-color-rgb: 11, 13, 18;
+  --ion-text-color: var(--g-text);
+  --ion-text-color-rgb: 233, 235, 242;
+  --ion-toolbar-background: var(--g-bg);
+  --ion-toolbar-border-color: var(--g-line);
+  --ion-tab-bar-background: rgba(14, 16, 22, 0.92);
+  --ion-tab-bar-border-color: var(--g-line);
+  --ion-tab-bar-color: var(--g-faint);
+  --ion-tab-bar-color-selected: var(--g-text);
+  --ion-item-background: var(--g-surface);
+  --ion-card-background: var(--g-surface);
+  --ion-border-color: var(--g-line);
+
+  --ion-color-primary: #9d8cff;
+  --ion-color-primary-rgb: 157, 140, 255;
+  --ion-color-primary-contrast: #0b0d12;
+  --ion-color-primary-contrast-rgb: 11, 13, 18;
+  --ion-color-primary-shade: #8a7be0;
+  --ion-color-primary-tint: #a797ff;
+
+  --ion-color-success: #3ddc97;
+  --ion-color-success-rgb: 61, 220, 151;
+  --ion-color-success-contrast: #0b0d12;
+  --ion-color-success-contrast-rgb: 11, 13, 18;
+  --ion-color-success-shade: #36c285;
+  --ion-color-success-tint: #50e0a1;
+
+  --ion-color-danger: #ff5d73;
+  --ion-color-danger-rgb: 255, 93, 115;
+  --ion-color-warning: #ffb547;
+  --ion-color-warning-rgb: 255, 181, 71;
+}
+
+body {
+  background: var(--g-bg);
+  font-variant-ligatures: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, .display {
+  font-family: var(--g-font-display);
+  letter-spacing: -0.02em;
+}
+
+code, pre, .mono {
+  font-family: var(--g-font-mono);
+  font-variant-ligatures: none;
+}
+
+ion-toolbar {
+  --padding-start: 12px;
+  --padding-end: 12px;
+}
+
+ion-title {
+  font-family: var(--g-font-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+ion-tab-bar {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding-top: 2px;
+}
+
+ion-tab-button {
+  --ripple-color: transparent;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.page {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 16px 16px 40px;
+}
+
+.panel {
+  background: var(--g-surface);
+  border: 1px solid var(--g-line);
+  border-radius: var(--g-radius);
+}
+
+.eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--g-muted);
+}
+
+.muted { color: var(--g-muted); }
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  background: var(--g-raised);
+  border: 1px solid var(--g-line);
+  color: var(--g-muted);
+  white-space: nowrap;
+
+  &.accent { color: var(--g-accent); background: var(--g-accent-soft); border-color: transparent; }
+  &.easy { color: var(--g-found); }
+  &.medium { color: var(--g-pointer); }
+  &.hard { color: var(--g-danger); }
+}
+
+.g-btn {
+  appearance: none;
+  border: 1px solid var(--g-line-strong);
+  background: var(--g-raised);
+  color: var(--g-text);
+  border-radius: 10px;
+  padding: 9px 14px;
+  font: 500 14px/1 var(--ion-font-family);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.15s, border-color 0.15s, transform 0.08s;
+  -webkit-tap-highlight-color: transparent;
+
+  &:hover { border-color: var(--g-faint); }
+  &:active { transform: scale(0.97); }
+  &:disabled { opacity: 0.4; cursor: default; transform: none; }
+  &:focus-visible { outline: 2px solid var(--g-accent); outline-offset: 2px; }
+
+  &.primary { background: var(--g-accent); border-color: var(--g-accent); color: #0b0d12; font-weight: 600; }
+  &.ghost { background: transparent; }
+  &.icon { padding: 9px; width: 40px; height: 40px; }
+  ion-icon { font-size: 18px; }
+}
+
+.card-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s, transform 0.15s;
+  cursor: pointer;
+
+  &:hover { border-color: var(--g-line-strong); transform: translateY(-1px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+ion-toast.g-toast {
+  --background: var(--g-raised);
+  --color: var(--g-text);
+  --border-color: var(--g-danger);
+  --border-style: solid;
+  --border-width: 1px;
+  --border-radius: 12px;
+}
