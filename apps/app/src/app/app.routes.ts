@@ -13,7 +13,10 @@ export const routes: Routes = [
       { path: 'design/:id', loadComponent: () => import('./pages/design/sandbox.page').then((m) => m.SandboxPage) },
       { path: 'drill', loadComponent: () => import('./pages/drill/drill.page').then((m) => m.DrillPage) },
       { path: 'interview', loadComponent: () => import('./pages/interview/interview-home.page').then((m) => m.InterviewHomePage) },
-      { path: 'interview/:id', loadComponent: () => import('./pages/interview/interview-session.page').then((m) => m.InterviewSessionPage) },
+      {
+        path: 'interview/:id',
+        loadComponent: () => import('./pages/interview/interview-session.page').then((m) => m.InterviewSessionPage),
+      },
       { path: '', pathMatch: 'full', redirectTo: 'learn' },
     ],
   },

@@ -99,7 +99,7 @@ export const COMPLEXITY_FACTS: ComplexityFact[] = [
   {
     id: 'topo',
     patternId: 'topo-sort',
-    question: 'Topological sort with Kahn\'s algorithm on V nodes and E edges — time?',
+    question: "Topological sort with Kahn's algorithm on V nodes and E edges — time?",
     answer: 'O(V + E)',
     distractors: ['O(V · E)', 'O(V²)', 'O((V + E) log V)'],
     why: 'Each node is dequeued once and each edge decrements one in-degree once.',

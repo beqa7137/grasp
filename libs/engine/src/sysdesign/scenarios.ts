@@ -9,7 +9,7 @@ export const SCENARIOS: Scenario[] = [
     title: 'Your First Scale-Up',
     tagline: 'One server, one database, and a launch tomorrow.',
     brief:
-      'A startup\'s REST API runs on a single app server. Marketing expects 3,000 requests/second at launch, 90% reads. Keep p99 under 150 ms and errors near zero without blowing the budget.',
+      "A startup's REST API runs on a single app server. Marketing expects 3,000 requests/second at launch, 90% reads. Keep p99 under 150 ms and errors near zero without blowing the budget.",
     workload: { rps: 3_000, readRatio: 0.9 },
     goals: { maxP99Ms: 150, maxErrorRate: 0.001, maxMonthlyCost: 4_000 },
     starter: {
@@ -100,12 +100,7 @@ export const SCENARIOS: Scenario[] = [
       requireDurableWrites: true,
     },
     starter: {
-      nodes: [
-        n('users', 'client', 70, 220),
-        n('lb', 'lb', 240, 220, 2),
-        n('app', 'app', 420, 220, 8),
-        n('db', 'db', 720, 220),
-      ],
+      nodes: [n('users', 'client', 70, 220), n('lb', 'lb', 240, 220, 2), n('app', 'app', 420, 220, 8), n('db', 'db', 720, 220)],
       edges: [
         { from: 'users', to: 'lb' },
         { from: 'lb', to: 'app' },
@@ -117,12 +112,20 @@ export const SCENARIOS: Scenario[] = [
       'A queue acknowledges writes in milliseconds. Workers drain it into the database.',
       'More workers drain faster — until they overload the database. Find the balance.',
     ],
-    takeaway: 'Queues decouple accepting work from doing it. Size consumers to what the slowest downstream dependency can sustain, not to peak inflow.',
+    takeaway:
+      'Queues decouple accepting work from doing it. Size consumers to what the slowest downstream dependency can sustain, not to peak inflow.',
     variants: [
       {
         twist: 'A bigger tour: 20,000 RPS, 75% of them orders, for 45 seconds.',
         workload: { rps: 20_000, readRatio: 0.25 },
-        goals: { maxP99Ms: 250, maxErrorRate: 0.005, maxMonthlyCost: 8_000, spikeSeconds: 45, maxDrainMinutes: 10, requireDurableWrites: true },
+        goals: {
+          maxP99Ms: 250,
+          maxErrorRate: 0.005,
+          maxMonthlyCost: 8_000,
+          spikeSeconds: 45,
+          maxDrainMinutes: 10,
+          requireDurableWrites: true,
+        },
       },
       {
         twist: 'Last sale the queue broker died mid-spike. Same load — now with no single point of failure.',
@@ -140,7 +143,14 @@ export const SCENARIOS: Scenario[] = [
       {
         twist: 'A slower, longer sale: 12,000 RPS for two full minutes, half of them orders. Clear the backlog within 8 minutes.',
         workload: { rps: 12_000, readRatio: 0.5 },
-        goals: { maxP99Ms: 250, maxErrorRate: 0.005, maxMonthlyCost: 6_000, spikeSeconds: 120, maxDrainMinutes: 8, requireDurableWrites: true },
+        goals: {
+          maxP99Ms: 250,
+          maxErrorRate: 0.005,
+          maxMonthlyCost: 6_000,
+          spikeSeconds: 120,
+          maxDrainMinutes: 8,
+          requireDurableWrites: true,
+        },
       },
     ],
   },
@@ -151,18 +161,18 @@ export function getScenario(id: string): Scenario | undefined {
 }
 
 /** The mission as it appears on its n-th spaced revisit (1-based). */
-export function scenarioVariant(id: string, n: number): Scenario | undefined {
+export function scenarioVariant(id: string, revisit: number): Scenario | undefined {
   const base = getScenario(id);
-  const variant = base?.variants?.[n - 1];
+  const variant = base?.variants?.[revisit - 1];
   if (!base || !variant) return undefined;
   return {
     ...base,
-    title: `${base.title} · Revisit ${n}`,
+    title: `${base.title} · Revisit ${revisit}`,
     brief: variant.twist,
     workload: variant.workload,
     goals: variant.goals,
     hints: [],
-    revisit: { number: n, of: base.variants!.length, twist: variant.twist },
+    revisit: { number: revisit, of: base.variants!.length, twist: variant.twist },
   };
 }
 
@@ -177,8 +187,18 @@ export function evaluate(scenario: Scenario, design: Design, result: SimResult =
   const g = scenario.goals;
   const m = result.metrics;
   const checks: GoalCheck[] = [
-    { id: 'p99', label: `p99 latency ≤ ${g.maxP99Ms} ms`, pass: m.errorRate < 1 && m.p99Ms <= g.maxP99Ms, actual: `${Math.round(m.p99Ms)} ms` },
-    { id: 'errors', label: `Error rate ≤ ${(g.maxErrorRate * 100).toFixed(1)}%`, pass: m.errorRate <= g.maxErrorRate, actual: `${(m.errorRate * 100).toFixed(2)}%` },
+    {
+      id: 'p99',
+      label: `p99 latency ≤ ${g.maxP99Ms} ms`,
+      pass: m.errorRate < 1 && m.p99Ms <= g.maxP99Ms,
+      actual: `${Math.round(m.p99Ms)} ms`,
+    },
+    {
+      id: 'errors',
+      label: `Error rate ≤ ${(g.maxErrorRate * 100).toFixed(1)}%`,
+      pass: m.errorRate <= g.maxErrorRate,
+      actual: `${(m.errorRate * 100).toFixed(2)}%`,
+    },
     { id: 'cost', label: `Cost ≤ $${fmt(g.maxMonthlyCost)}/mo`, pass: m.monthlyCost <= g.maxMonthlyCost, actual: `$${fmt(m.monthlyCost)}` },
   ];
   if (g.noSinglePointOfFailure) {

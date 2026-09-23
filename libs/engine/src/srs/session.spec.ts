@@ -61,7 +61,15 @@ describe('session builder', () => {
 
   it('introduces boosted items before the regular curriculum order', () => {
     const s = replay([
-      { id: 'evt-boost-1', at: new Date(t0).toISOString(), type: 'interview.scored', sessionId: 'x', track: 'coding', verdict: 'no-hire', weakPatterns: ['union-find'] },
+      {
+        id: 'evt-boost-1',
+        at: new Date(t0).toISOString(),
+        type: 'interview.scored',
+        sessionId: 'x',
+        track: 'coding',
+        verdict: 'no-hire',
+        weakPatterns: ['union-find'],
+      },
     ]);
     const first = newCandidates(s).slice(0, itemsForTopic('union-find').length);
     expect(first.every((d) => d.topic === 'union-find')).toBe(true);
@@ -69,7 +77,14 @@ describe('session builder', () => {
 
   it('boosted items are introduced even after the daily new-item cap is used up', () => {
     const today = ['rec:h1', 'rec:tp1', 'rec:sw1', 'rec:bs1'].map((i, n) => graded(i, t0 + n * 1000));
-    const miss: StoredEvent = { id: 'evt-miss-1', at: new Date(t0 + 5_000).toISOString(), type: 'predict.answered', algorithmId: 'grid-bfs', patternId: 'bfs', correct: false };
+    const miss: StoredEvent = {
+      id: 'evt-miss-1',
+      at: new Date(t0 + 5_000).toISOString(),
+      type: 'predict.answered',
+      algorithmId: 'grid-bfs',
+      patternId: 'bfs',
+      correct: false,
+    };
     const plan = buildSession(replay([...today, miss]), { now: new Date(t0 + 60_000), newPerDay: 4, budgetMinutes: 60 });
     expect(plan.items.some((i) => i.itemId === 'pred:grid-bfs' && i.reason === 'boosted')).toBe(true);
     expect(plan.items.filter((i) => i.reason === 'new')).toHaveLength(0);

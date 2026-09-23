@@ -67,7 +67,8 @@ export const COMPONENTS: Record<ComponentKind, ComponentSpec> = {
     kind: 'db',
     name: 'Primary DB',
     short: 'DB',
-    description: 'Source of truth. ~5k ops/s; a write costs 2 ops (index + WAL). Add read replicas to offload reads. One primary per shard.',
+    description:
+      'Source of truth. ~5k ops/s; a write costs 2 ops (index + WAL). Add read replicas to offload reads. One primary per shard.',
     capacityRps: 5_000,
     baseLatencyMs: 6,
     monthlyCost: 1_100,
@@ -79,7 +80,8 @@ export const COMPONENTS: Record<ComponentKind, ComponentSpec> = {
     kind: 'replica',
     name: 'Read Replicas',
     short: 'Replica',
-    description: 'Asynchronous copies of the primary that serve reads. Every write is replayed on each replica (1 op), so replicas help reads, not writes.',
+    description:
+      'Asynchronous copies of the primary that serve reads. Every write is replayed on each replica (1 op), so replicas help reads, not writes.',
     capacityRps: 5_000,
     baseLatencyMs: 6,
     monthlyCost: 800,
@@ -91,7 +93,8 @@ export const COMPONENTS: Record<ComponentKind, ComponentSpec> = {
     kind: 'queue',
     name: 'Message Queue',
     short: 'Queue',
-    description: 'Durably accepts writes in ~3 ms and lets workers process them later. Absorbs spikes; backlog grows if workers are slower than inflow.',
+    description:
+      'Durably accepts writes in ~3 ms and lets workers process them later. Absorbs spikes; backlog grows if workers are slower than inflow.',
     capacityRps: 150_000,
     baseLatencyMs: 3,
     monthlyCost: 300,

@@ -29,8 +29,17 @@ function highlight(line: string): string {
     </ol>
   `,
   styles: `
-    :host { display: block; overflow: auto; max-height: var(--code-max-height, none); }
-    ol { list-style: none; margin: 0; padding: 8px 0; min-width: max-content; }
+    :host {
+      display: block;
+      overflow: auto;
+      max-height: var(--code-max-height, none);
+    }
+    ol {
+      list-style: none;
+      margin: 0;
+      padding: 8px 0;
+      min-width: max-content;
+    }
     li {
       display: flex;
       gap: 14px;
@@ -38,15 +47,35 @@ function highlight(line: string): string {
       border-left: 3px solid transparent;
       font: 12.5px/1.65 var(--g-font-mono);
       color: #b9bfd0;
-      transition: background 0.2s, border-color 0.2s;
+      transition:
+        background 0.2s,
+        border-color 0.2s;
       white-space: pre;
     }
-    li.on { background: rgba(157, 140, 255, 0.13); border-left-color: var(--g-accent); color: var(--g-text); }
-    .n { width: 18px; text-align: right; color: var(--g-faint); user-select: none; }
-    :host ::ng-deep .kw { color: #c792ea; }
-    :host ::ng-deep .nu { color: #f78c6c; }
-    :host ::ng-deep .fn { color: #82aaff; }
-    :host ::ng-deep .cm { color: #5b6377; font-style: italic; }
+    li.on {
+      background: rgba(157, 140, 255, 0.13);
+      border-left-color: var(--g-accent);
+      color: var(--g-text);
+    }
+    .n {
+      width: 18px;
+      text-align: right;
+      color: var(--g-faint);
+      user-select: none;
+    }
+    :host ::ng-deep .kw {
+      color: #c792ea;
+    }
+    :host ::ng-deep .nu {
+      color: #f78c6c;
+    }
+    :host ::ng-deep .fn {
+      color: #82aaff;
+    }
+    :host ::ng-deep .cm {
+      color: #5b6377;
+      font-style: italic;
+    }
   `,
 })
 export class CodePanelComponent {

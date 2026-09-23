@@ -115,7 +115,7 @@ export const CLOZES: Record<string, Cloze[]> = {
     {
       line: 3,
       distractors: ['apply(c); go(state);', 'go(state); apply(c); undo(c);', 'undo(c); go(state); apply(c);'],
-      why: 'Choose, explore, un-choose. Without the undo, one branch\'s choices leak into the next.',
+      why: "Choose, explore, un-choose. Without the undo, one branch's choices leak into the next.",
     },
     {
       line: 1,
@@ -124,7 +124,7 @@ export const CLOZES: Record<string, Cloze[]> = {
         'if (done(state)) out.push(copy(state));',
         'if (!done(state)) { out.push(copy(state)); return; }',
       ],
-      why: 'Push a copy — state keeps mutating after this call — and return so a finished answer isn\'t extended further.',
+      why: "Push a copy — state keeps mutating after this call — and return so a finished answer isn't extended further.",
     },
   ],
   'topo-sort': [
@@ -139,14 +139,22 @@ export const CLOZES: Record<string, Cloze[]> = {
     },
     {
       line: 0,
-      distractors: ['const q = nodes.filter((n) => adj[n].length === 0);', 'const q = [nodes[0]];', 'const q = nodes.filter((n) => indeg[n] > 0);'],
+      distractors: [
+        'const q = nodes.filter((n) => adj[n].length === 0);',
+        'const q = [nodes[0]];',
+        'const q = nodes.filter((n) => indeg[n] > 0);',
+      ],
       why: 'Start from every node with no prerequisites — there can be several, in different components.',
     },
   ],
   'union-find': [
     {
       line: 0,
-      distractors: ['const find = (x) => (p[x] === x ? x : find(p[x]));', 'const find = (x) => p[x];', 'const find = (x) => (p[x] === x ? x : (p[x] = x));'],
+      distractors: [
+        'const find = (x) => (p[x] === x ? x : find(p[x]));',
+        'const find = (x) => p[x];',
+        'const find = (x) => (p[x] === x ? x : (p[x] = x));',
+      ],
       why: 'Path compression: point x straight at the root while unwinding, so later finds are near-constant.',
       hint: 'with path compression',
     },
@@ -173,7 +181,7 @@ export const CLOZES: Record<string, Cloze[]> = {
         'for (const [v, w] of adj[u]) if (w < dist[v]) pq.push([dist[v] = w, v]);',
         'for (const [v, w] of adj[u]) if (d + w > dist[v]) pq.push([dist[v] = d + w, v]);',
       ],
-      why: 'Relax: push only when going through u strictly improves v\'s best-known distance.',
+      why: "Relax: push only when going through u strictly improves v's best-known distance.",
     },
   ],
   'tree-dfs': [
@@ -191,7 +199,11 @@ export const CLOZES: Record<string, Cloze[]> = {
     },
     {
       line: 1,
-      distractors: ['for (const ch of word) node[ch] ??= {};', 'for (const ch of word) node = root[ch] ??= {};', 'for (const ch of word) node = node[ch] = {};'],
+      distractors: [
+        'for (const ch of word) node[ch] ??= {};',
+        'for (const ch of word) node = root[ch] ??= {};',
+        'for (const ch of word) node = node[ch] = {};',
+      ],
       why: 'Walk down, creating children only when missing. `= {}` wipes existing branches; not advancing node keeps writing at one level.',
     },
   ],

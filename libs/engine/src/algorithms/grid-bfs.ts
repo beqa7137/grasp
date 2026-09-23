@@ -4,7 +4,12 @@ import type { AlgorithmDef, CellState, Frame } from './types.js';
 type Input = { grid: string[] };
 type Cell = [number, number];
 
-const DIRS: Cell[] = [[-1, 0], [0, 1], [1, 0], [0, -1]];
+const DIRS: Cell[] = [
+  [-1, 0],
+  [0, 1],
+  [1, 0],
+  [0, -1],
+];
 const key = ([r, c]: Cell) => `${r},${c}`;
 const label = ([r, c]: Cell) => `(${r},${c})`;
 
@@ -141,7 +146,10 @@ export const gridBfs: AlgorithmDef<Input> = {
           walk = parent.get(key(walk));
         }
         path = new Set(pathCells.map(key));
-        snap(6, `Reached the goal at distance ${d}. Following parent links back gives the path (${pathCells.length} cells). Every cell was enqueued at most once → O(rows × cols).`);
+        snap(
+          6,
+          `Reached the goal at distance ${d}. Following parent links back gives the path (${pathCells.length} cells). Every cell was enqueued at most once → O(rows × cols).`,
+        );
         frames[frames.length - 1].vars['result'] = d;
         return frames;
       }

@@ -77,7 +77,10 @@ const REASON_LABELS: Record<CardReason, string> = {
       @if (q.facts; as facts) {
         <dl class="facts">
           @for (f of facts; track f.label) {
-            <div><dt>{{ f.label }}</dt><dd>{{ f.value }}</dd></div>
+            <div>
+              <dt>{{ f.label }}</dt>
+              <dd>{{ f.value }}</dd>
+            </div>
           }
         </dl>
       }

@@ -16,7 +16,9 @@ import { ProgressService } from '../../core/progress.service';
       <div class="page">
         <p class="eyebrow">Step-through visualizers</p>
         <h1>Watch the algorithm think.</h1>
-        <p class="muted lead">Scrub forward and back, edit the input, and call the next move before it happens. Every prediction feeds your mastery score.</p>
+        <p class="muted lead">
+          Scrub forward and back, edit the input, and call the next move before it happens. Every prediction feeds your mastery score.
+        </p>
 
         <div class="grid">
           @for (a of algorithms; track a.id) {
@@ -43,16 +45,54 @@ import { ProgressService } from '../../core/progress.service';
     </ion-content>
   `,
   styles: `
-    h1 { font-size: clamp(26px, 5vw, 38px); margin: 6px 0 8px; }
-    .lead { max-width: 60ch; line-height: 1.5; margin: 0 0 22px; }
-    .grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
-    .item { padding: 16px; display: flex; flex-direction: column; gap: 8px; }
-    .top { display: flex; gap: 6px; }
-    h2 { font-size: 19px; margin: 6px 0 0; }
-    p { margin: 0; line-height: 1.5; font-size: 14px; flex: 1; }
-    .bottom { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 13px; }
-    .acc { color: var(--g-predict); font-weight: 600; }
-    .acc.new { color: var(--g-accent); }
+    h1 {
+      font-size: clamp(26px, 5vw, 38px);
+      margin: 6px 0 8px;
+    }
+    .lead {
+      max-width: 60ch;
+      line-height: 1.5;
+      margin: 0 0 22px;
+    }
+    .grid {
+      display: grid;
+      gap: 14px;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    }
+    .item {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .top {
+      display: flex;
+      gap: 6px;
+    }
+    h2 {
+      font-size: 19px;
+      margin: 6px 0 0;
+    }
+    p {
+      margin: 0;
+      line-height: 1.5;
+      font-size: 14px;
+      flex: 1;
+    }
+    .bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 8px;
+      font-size: 13px;
+    }
+    .acc {
+      color: var(--g-predict);
+      font-weight: 600;
+    }
+    .acc.new {
+      color: var(--g-accent);
+    }
   `,
 })
 export class VisualizeListPage {

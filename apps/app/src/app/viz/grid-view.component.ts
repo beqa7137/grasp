@@ -28,7 +28,10 @@ import type { GridView } from '@grasp/engine';
     </div>
   `,
   styles: `
-    :host { display: block; width: 100%; }
+    :host {
+      display: block;
+      width: 100%;
+    }
     .grid {
       display: grid;
       grid-template-columns: repeat(var(--cols), 1fr);
@@ -43,24 +46,85 @@ import type { GridView } from '@grasp/engine';
       border: 1px solid var(--g-line);
       display: grid;
       place-items: center;
-      transition: background 0.3s, border-color 0.3s, transform 0.3s;
+      transition:
+        background 0.3s,
+        border-color 0.3s,
+        transform 0.3s;
     }
-    .cell[data-state='wall'] { background: #2a2f3d; border-color: #2a2f3d; background-image: repeating-linear-gradient(45deg, transparent 0 5px, rgba(255,255,255,0.04) 5px 10px); }
-    .cell[data-state='frontier'] { background: rgba(255, 181, 71, 0.16); border-color: rgba(255, 181, 71, 0.7); }
-    .cell[data-state='visited'] { background: rgba(157, 140, 255, 0.14); border-color: rgba(157, 140, 255, 0.35); }
-    .cell[data-state='current'] { background: var(--g-active); border-color: var(--g-active); transform: scale(1.08); }
-    .cell[data-state='current'] .d { color: #0b0d12; font-weight: 700; }
-    .cell[data-state='path'] { background: rgba(61, 220, 151, 0.28); border-color: var(--g-found); }
-    .cell[data-state='start'], .cell[data-state='goal'] { border-color: var(--g-text); }
-    .tag { font: 700 13px/1 var(--g-font-display); }
-    .d { font: 11px/1 var(--g-font-mono); color: var(--g-muted); }
-    .legend { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; margin-top: 14px; font-size: 12px; color: var(--g-muted); }
-    .legend span { display: inline-flex; align-items: center; gap: 6px; }
-    .legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; border: 1px solid; }
-    .legend i[data-state='frontier'] { background: rgba(255, 181, 71, 0.16); border-color: rgba(255, 181, 71, 0.7); }
-    .legend i[data-state='visited'] { background: rgba(157, 140, 255, 0.14); border-color: rgba(157, 140, 255, 0.35); }
-    .legend i[data-state='current'] { background: var(--g-active); border-color: var(--g-active); }
-    .legend i[data-state='path'] { background: rgba(61, 220, 151, 0.28); border-color: var(--g-found); }
+    .cell[data-state='wall'] {
+      background: #2a2f3d;
+      border-color: #2a2f3d;
+      background-image: repeating-linear-gradient(45deg, transparent 0 5px, rgba(255, 255, 255, 0.04) 5px 10px);
+    }
+    .cell[data-state='frontier'] {
+      background: rgba(255, 181, 71, 0.16);
+      border-color: rgba(255, 181, 71, 0.7);
+    }
+    .cell[data-state='visited'] {
+      background: rgba(157, 140, 255, 0.14);
+      border-color: rgba(157, 140, 255, 0.35);
+    }
+    .cell[data-state='current'] {
+      background: var(--g-active);
+      border-color: var(--g-active);
+      transform: scale(1.08);
+    }
+    .cell[data-state='current'] .d {
+      color: #0b0d12;
+      font-weight: 700;
+    }
+    .cell[data-state='path'] {
+      background: rgba(61, 220, 151, 0.28);
+      border-color: var(--g-found);
+    }
+    .cell[data-state='start'],
+    .cell[data-state='goal'] {
+      border-color: var(--g-text);
+    }
+    .tag {
+      font: 700 13px/1 var(--g-font-display);
+    }
+    .d {
+      font: 11px/1 var(--g-font-mono);
+      color: var(--g-muted);
+    }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      justify-content: center;
+      margin-top: 14px;
+      font-size: 12px;
+      color: var(--g-muted);
+    }
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .legend i {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      display: inline-block;
+      border: 1px solid;
+    }
+    .legend i[data-state='frontier'] {
+      background: rgba(255, 181, 71, 0.16);
+      border-color: rgba(255, 181, 71, 0.7);
+    }
+    .legend i[data-state='visited'] {
+      background: rgba(157, 140, 255, 0.14);
+      border-color: rgba(157, 140, 255, 0.35);
+    }
+    .legend i[data-state='current'] {
+      background: var(--g-active);
+      border-color: var(--g-active);
+    }
+    .legend i[data-state='path'] {
+      background: rgba(61, 220, 151, 0.28);
+      border-color: var(--g-found);
+    }
   `,
 })
 export class GridViewComponent {

@@ -21,7 +21,11 @@
         </section>
       }
       <section class="metrics">
-        <div class="metric" [class.bad]="!isFree() && m.p99Ms > s.goals.maxP99Ms" [class.good]="!isFree() && m.p99Ms <= s.goals.maxP99Ms && m.errorRate < 1">
+        <div
+          class="metric"
+          [class.bad]="!isFree() && m.p99Ms > s.goals.maxP99Ms"
+          [class.good]="!isFree() && m.p99Ms <= s.goals.maxP99Ms && m.errorRate < 1"
+        >
           <span class="label">p99 latency</span>
           <span class="value">{{ m.errorRate >= 1 ? '—' : (m.p99Ms | number: '1.0-0') }}<small>ms</small></span>
         </div>
@@ -29,15 +33,25 @@
           <span class="label">p50</span>
           <span class="value">{{ m.errorRate >= 1 ? '—' : (m.p50Ms | number: '1.0-0') }}<small>ms</small></span>
         </div>
-        <div class="metric" [class.bad]="m.errorRate > s.goals.maxErrorRate" [class.good]="!isFree() && m.errorRate <= s.goals.maxErrorRate">
+        <div
+          class="metric"
+          [class.bad]="m.errorRate > s.goals.maxErrorRate"
+          [class.good]="!isFree() && m.errorRate <= s.goals.maxErrorRate"
+        >
           <span class="label">Errors</span>
           <span class="value">{{ m.errorRate * 100 | number: '1.0-2' }}<small>%</small></span>
         </div>
         <div class="metric">
           <span class="label">Served</span>
-          <span class="value">{{ fmt(m.successRps) }}<small>/{{ fmt(m.offeredRps) }} rps</small></span>
+          <span class="value"
+            >{{ fmt(m.successRps) }}<small>/{{ fmt(m.offeredRps) }} rps</small></span
+          >
         </div>
-        <div class="metric" [class.bad]="!isFree() && m.monthlyCost > s.goals.maxMonthlyCost" [class.good]="!isFree() && m.monthlyCost <= s.goals.maxMonthlyCost">
+        <div
+          class="metric"
+          [class.bad]="!isFree() && m.monthlyCost > s.goals.maxMonthlyCost"
+          [class.good]="!isFree() && m.monthlyCost <= s.goals.maxMonthlyCost"
+        >
           <span class="label">Cost</span>
           <span class="value">${{ fmt(m.monthlyCost) }}<small>/mo</small></span>
         </div>
@@ -77,7 +91,13 @@
                 <rect width="100%" height="100%" fill="url(#dots)" />
 
                 @for (e of edges(); track e.key) {
-                  <g class="edge" [attr.data-status]="e.status" [class.idle]="e.rps === 0" [class.selected]="selectedEdge() === e.key" (pointerdown)="onEdgeClick($event, e.key)">
+                  <g
+                    class="edge"
+                    [attr.data-status]="e.status"
+                    [class.idle]="e.rps === 0"
+                    [class.selected]="selectedEdge() === e.key"
+                    (pointerdown)="onEdgeClick($event, e.key)"
+                  >
                     <path class="hit" [attr.d]="e.d" />
                     <path class="base" [attr.d]="e.d" [attr.stroke-width]="e.width" />
                     @if (e.rps > 0) {
@@ -113,7 +133,14 @@
                       <text class="main" x="14" y="44">{{ st?.status === 'down' ? 'DOWN' : utilPct(n.id) + '%' }}</text>
                       <text class="sub" [attr.x]="W - 12" y="44" text-anchor="end">{{ st?.latencyMs | number: '1.0-0' }} ms</text>
                       <rect class="meter-bg" x="14" [attr.y]="H - 16" [attr.width]="W - 28" height="4" rx="2" />
-                      <rect class="meter" x="14" [attr.y]="H - 16" [attr.width]="(W - 28) * (utilPct(n.id) > 100 ? 1 : utilPct(n.id) / 100)" height="4" rx="2" />
+                      <rect
+                        class="meter"
+                        x="14"
+                        [attr.y]="H - 16"
+                        [attr.width]="(W - 28) * (utilPct(n.id) > 100 ? 1 : utilPct(n.id) / 100)"
+                        height="4"
+                        rx="2"
+                      />
                     }
                     @if (n.failed) {
                       <text class="failed" [attr.x]="W - 12" y="60" text-anchor="end">✕{{ n.failed }} down</text>
@@ -131,12 +158,30 @@
           @if (isFree()) {
             <div class="panel workload">
               <label>
-                <span>Traffic <strong class="mono">{{ fmt(workload().rps) }} rps</strong></span>
-                <input type="range" min="4" max="8" step="0.01" [value]="log(workload().rps * 100)" (input)="setRps(+$any($event.target).value)" />
+                <span
+                  >Traffic <strong class="mono">{{ fmt(workload().rps) }} rps</strong></span
+                >
+                <input
+                  type="range"
+                  min="4"
+                  max="8"
+                  step="0.01"
+                  [value]="log(workload().rps * 100)"
+                  (input)="setRps(+$any($event.target).value)"
+                />
               </label>
               <label>
-                <span>Reads <strong class="mono">{{ workload().readRatio * 100 | number: '1.0-0' }}%</strong></span>
-                <input type="range" min="0" max="100" step="1" [value]="workload().readRatio * 100" (input)="setReadRatio(+$any($event.target).value)" />
+                <span
+                  >Reads <strong class="mono">{{ workload().readRatio * 100 | number: '1.0-0' }}%</strong></span
+                >
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  [value]="workload().readRatio * 100"
+                  (input)="setReadRatio(+$any($event.target).value)"
+                />
               </label>
             </div>
           }
@@ -166,32 +211,71 @@
                   <p class="eyebrow">{{ n.kind === 'client' ? 'Traffic source' : 'Component' }}</p>
                   <h3>{{ spec.name }}</h3>
                 </div>
-                <button class="g-btn ghost icon" (click)="clearSelection()" aria-label="Close"><ion-icon name="close-circle-outline" /></button>
+                <button class="g-btn ghost icon" (click)="clearSelection()" aria-label="Close">
+                  <ion-icon name="close-circle-outline" />
+                </button>
               </header>
               <p class="muted desc">{{ spec.description }}</p>
 
               @if (n.kind !== 'client') {
                 <dl class="stats">
-                  <div><dt>Load</dt><dd>{{ fmt(st.loadOps) }} ops/s</dd></div>
-                  <div><dt>Capacity</dt><dd>{{ fmt(st.capacityOps) }} ops/s</dd></div>
-                  <div><dt>Utilization</dt><dd [attr.data-status]="st.status">{{ st.status === 'down' ? 'down' : (st.utilization * 100 | number: '1.0-0') + '%' }}</dd></div>
-                  <div><dt>Latency</dt><dd>{{ st.latencyMs | number: '1.0-1' }} ms</dd></div>
-                  <div><dt>Reads · writes</dt><dd>{{ fmt(st.readRps) }} · {{ fmt(st.writeRps + st.backgroundRps) }}</dd></div>
-                  <div><dt>Dropped</dt><dd [class.bad]="st.droppedRps > 0">{{ fmt(st.droppedRps) }} rps</dd></div>
+                  <div>
+                    <dt>Load</dt>
+                    <dd>{{ fmt(st.loadOps) }} ops/s</dd>
+                  </div>
+                  <div>
+                    <dt>Capacity</dt>
+                    <dd>{{ fmt(st.capacityOps) }} ops/s</dd>
+                  </div>
+                  <div>
+                    <dt>Utilization</dt>
+                    <dd [attr.data-status]="st.status">
+                      {{ st.status === 'down' ? 'down' : (st.utilization * 100 | number: '1.0-0') + '%' }}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Latency</dt>
+                    <dd>{{ st.latencyMs | number: '1.0-1' }} ms</dd>
+                  </div>
+                  <div>
+                    <dt>Reads · writes</dt>
+                    <dd>{{ fmt(st.readRps) }} · {{ fmt(st.writeRps + st.backgroundRps) }}</dd>
+                  </div>
+                  <div>
+                    <dt>Dropped</dt>
+                    <dd [class.bad]="st.droppedRps > 0">{{ fmt(st.droppedRps) }} rps</dd>
+                  </div>
                 </dl>
 
                 <div class="row">
                   <span>Instances</span>
                   <div class="stepper">
-                    <button class="g-btn icon" (click)="stepInstances(n, -1)" [disabled]="n.instances <= 1" aria-label="Fewer"><ion-icon name="remove" /></button>
+                    <button class="g-btn icon" (click)="stepInstances(n, -1)" [disabled]="n.instances <= 1" aria-label="Fewer">
+                      <ion-icon name="remove" />
+                    </button>
                     <span class="mono">{{ n.instances }}</span>
-                    <button class="g-btn icon" (click)="stepInstances(n, 1)" [disabled]="n.instances >= spec.maxInstances" aria-label="More"><ion-icon name="add" /></button>
+                    <button
+                      class="g-btn icon"
+                      (click)="stepInstances(n, 1)"
+                      [disabled]="n.instances >= spec.maxInstances"
+                      aria-label="More"
+                    >
+                      <ion-icon name="add" />
+                    </button>
                   </div>
                 </div>
                 @if (spec.hitRate !== undefined) {
                   <label class="row slider">
-                    <span>Hit rate <strong class="mono">{{ (n.hitRate ?? 0) * 100 | number: '1.0-0' }}%</strong></span>
-                    <input type="range" min="0" max="99" [value]="(n.hitRate ?? 0) * 100" (input)="updateNode(n.id, { hitRate: +$any($event.target).value / 100 })" />
+                    <span
+                      >Hit rate <strong class="mono">{{ (n.hitRate ?? 0) * 100 | number: '1.0-0' }}%</strong></span
+                    >
+                    <input
+                      type="range"
+                      min="0"
+                      max="99"
+                      [value]="(n.hitRate ?? 0) * 100"
+                      (input)="updateNode(n.id, { hitRate: +$any($event.target).value / 100 })"
+                    />
                   </label>
                 }
               }
@@ -218,7 +302,9 @@
                   <p class="eyebrow">Connection</p>
                   <h3 class="mono">{{ fmt(result().edges[key] ?? 0) }} rps</h3>
                 </div>
-                <button class="g-btn ghost icon" (click)="clearSelection()" aria-label="Close"><ion-icon name="close-circle-outline" /></button>
+                <button class="g-btn ghost icon" (click)="clearSelection()" aria-label="Close">
+                  <ion-icon name="close-circle-outline" />
+                </button>
               </header>
               <div class="actions">
                 <button class="g-btn ghost danger" (click)="deleteEdge(key)"><ion-icon name="trash-outline" />Remove connection</button>
@@ -245,7 +331,9 @@
                     <p><ion-icon name="bulb-outline" />{{ h }}</p>
                   }
                   @if (hintsShown() < s.hints.length) {
-                    <button class="g-btn ghost" (click)="showHint()"><ion-icon name="bulb-outline" />{{ hintsShown() ? 'Another hint' : 'Need a hint?' }}</button>
+                    <button class="g-btn ghost" (click)="showHint()">
+                      <ion-icon name="bulb-outline" />{{ hintsShown() ? 'Another hint' : 'Need a hint?' }}
+                    </button>
                   }
                 </div>
               }
@@ -256,7 +344,9 @@
             <p class="eyebrow">What the simulator sees</p>
             @for (i of result().insights; track $index) {
               <button class="insight" [attr.data-severity]="i.severity" (click)="focusInsight(i.nodeId)">
-                <ion-icon [name]="i.severity === 'critical' ? 'alert-circle' : i.severity === 'warning' ? 'warning' : 'information-circle'" />
+                <ion-icon
+                  [name]="i.severity === 'critical' ? 'alert-circle' : i.severity === 'warning' ? 'warning' : 'information-circle'"
+                />
                 <span>
                   <strong>{{ i.title }}</strong>
                   <span class="muted">{{ i.detail }}</span>

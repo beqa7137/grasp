@@ -6,7 +6,7 @@ export const PROBLEMS: InterviewProblem[] = [
     track: 'coding',
     title: 'Days Until Warmer',
     opening:
-      'Let\'s start. You get an array of daily temperatures. For each day, return how many days you would have to wait for a strictly warmer temperature, or 0 if it never comes. For example [73, 74, 75, 71, 69, 72, 76, 73] → [1, 1, 4, 2, 1, 1, 0, 0]. Take a minute, ask me anything you need, and talk me through how you would approach it.',
+      "Let's start. You get an array of daily temperatures. For each day, return how many days you would have to wait for a strictly warmer temperature, or 0 if it never comes. For example [73, 74, 75, 71, 69, 72, 76, 73] → [1, 1, 4, 2, 1, 1, 0, 0]. Take a minute, ask me anything you need, and talk me through how you would approach it.",
     referenceNotes:
       'Brute force O(n²) scanning right from each index. Optimal: monotonic decreasing stack of indices; when a warmer temp arrives, pop and set answer[idx] = i - idx. O(n) time, O(n) space. Edge cases: equal temperatures (strictly warmer → do not pop on equal), all decreasing, single element. Follow-ups: iterate right-to-left variant; streaming input; what if we need next warmer by at least k degrees.',
     patternIds: ['monotonic-stack'],
@@ -21,7 +21,7 @@ export const PROBLEMS: InterviewProblem[] = [
     track: 'coding',
     title: 'Ship Within D Days',
     opening:
-      'A conveyor has packages with given weights that must be shipped in order. Each day you load packages onto a truck until adding the next would exceed the truck\'s capacity. Find the smallest capacity that ships everything within D days. For weights [1..10] and D = 5 the answer is 15. How would you tackle it?',
+      "A conveyor has packages with given weights that must be shipped in order. Each day you load packages onto a truck until adding the next would exceed the truck's capacity. Find the smallest capacity that ships everything within D days. For weights [1..10] and D = 5 the answer is 15. How would you tackle it?",
     referenceNotes:
       'Capacity range [max(weights), sum(weights)]. Feasibility check is greedy O(n) and monotonic in capacity → binary search on the answer: O(n log(sum)). Edge cases: D ≥ n (answer is max weight), D = 1 (sum), single heavy package. Follow-ups: why is feasibility monotonic; what if packages could be reordered (becomes bin packing, NP-hard); overflow in other languages.',
     patternIds: ['binary-search', 'greedy'],
@@ -38,7 +38,7 @@ export const PROBLEMS: InterviewProblem[] = [
     opening:
       'There are n courses labeled 0 to n − 1 and a list of prerequisite pairs [a, b] meaning you must take b before a. Return any valid order to take all courses, or an empty list if it is impossible. Walk me through your thinking.',
     referenceNotes:
-      'Model as a directed graph b → a. Kahn\'s algorithm with in-degrees and a queue, or DFS with three colors for cycle detection. O(V + E). Impossible iff a cycle exists (order length < n). Edge cases: no prerequisites, self-dependency, disconnected components, duplicate edges. Follow-ups: return all courses takeable per semester (BFS levels); lexicographically smallest order (min-heap).',
+      "Model as a directed graph b → a. Kahn's algorithm with in-degrees and a queue, or DFS with three colors for cycle detection. O(V + E). Impossible iff a cycle exists (order length < n). Edge cases: no prerequisites, self-dependency, disconnected components, duplicate edges. Follow-ups: return all courses takeable per semester (BFS levels); lexicographically smallest order (min-heap).",
     patternIds: ['topo-sort', 'bfs'],
     hints: [
       'How would you represent this as a graph? Which way do the edges point?',
@@ -66,7 +66,7 @@ export const PROBLEMS: InterviewProblem[] = [
     track: 'system-design',
     title: 'Design a URL Shortener',
     opening:
-      'Let\'s design a URL shortening service like the ones used in social media links: users submit a long URL and get a short one, and visiting the short link redirects. Where would you like to start?',
+      "Let's design a URL shortening service like the ones used in social media links: users submit a long URL and get a short one, and visiting the short link redirects. Where would you like to start?",
     referenceNotes:
       'Requirements: create, redirect, optional custom alias/expiry/analytics. Scale: e.g. 100M new URLs/month (~40 writes/s), 100:1 read:write (~4k reads/s, peaks 10×). Storage: 500 bytes × 100M × 12 × 5 years ≈ 3 TB. Key generation: base62 of a counter (range allocation per node) vs hash + collision check vs pre-generated key service. Read path: CDN/edge + cache (hot links), 301 vs 302 trade-off (caching vs analytics). DB: key-value store partitioned by short key. Analytics via async queue. Deep dives: collision handling, abuse/spam, hot keys, custom aliases uniqueness.',
     patternIds: [],
@@ -86,7 +86,7 @@ export const PROBLEMS: InterviewProblem[] = [
       'Requirements: post, follow, fetch feed (paginated), ranking. Scale: 300M DAU, feed reads ≫ posts. Fan-out on write (precompute feed caches per user, fast reads, expensive for celebrities) vs fan-out on read (merge at read time) → hybrid: push for normal users, pull for celebrities. Storage: posts table, social graph store, feed cache (Redis lists of post ids). Media via object storage + CDN. Ranking service async. Pagination with cursors. Deep dives: celebrity problem, cache invalidation on delete, consistency expectations.',
     patternIds: [],
     hints: [
-      'What are the two fundamental ways to assemble a user\'s feed, and when is each expensive?',
+      "What are the two fundamental ways to assemble a user's feed, and when is each expensive?",
       'What happens when someone with 50 million followers posts?',
       'Where does the precomputed feed live, and what exactly do you store in it?',
     ],
@@ -116,7 +116,7 @@ export const PROBLEMS: InterviewProblem[] = [
       'Requirements: send/receive in real time, history, delivery/read receipts, presence, offline push. Connections: WebSockets to stateless gateway servers; session registry (user → gateway) in Redis. Message flow: gateway → chat service → persist (wide-column store keyed by conversation, time-ordered ids e.g. Snowflake) → route to recipient gateways or push notification if offline. Ordering per conversation, idempotency keys for retries. Presence via heartbeats with TTL. Group fan-out. Deep dives: exactly-once illusion, multi-device sync, message ids, storage growth, end-to-end encryption trade-offs.',
     patternIds: [],
     hints: [
-      'How does a message physically get from the sender\'s phone to the recipient\'s phone in real time?',
+      "How does a message physically get from the sender's phone to the recipient's phone in real time?",
       'Many gateway servers hold connections. How do you know which one the recipient is connected to?',
       'How do you order messages in a conversation and avoid duplicates when clients retry?',
     ],

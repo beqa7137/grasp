@@ -3,7 +3,17 @@ import { RouterLink } from '@angular/router';
 import { IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
 import { ALGORITHMS, PATTERNS, SCENARIOS, SD_TOPICS, getScenario, type Track } from '@grasp/engine';
 import { addIcons } from 'ionicons';
-import { chatbubblesOutline, cloudDoneOutline, cloudOfflineOutline, flame, flashOutline, gitNetworkOutline, pulseOutline, playCircleOutline, sparkles } from 'ionicons/icons';
+import {
+  chatbubblesOutline,
+  cloudDoneOutline,
+  cloudOfflineOutline,
+  flame,
+  flashOutline,
+  gitNetworkOutline,
+  pulseOutline,
+  playCircleOutline,
+  sparkles,
+} from 'ionicons/icons';
 import { ProgressService } from '../../core/progress.service';
 import { MasteryRingComponent } from '../../viz/mastery-ring.component';
 
@@ -46,7 +56,17 @@ export class LearnPage {
   });
 
   constructor() {
-    addIcons({ flame, sparkles, flashOutline, playCircleOutline, gitNetworkOutline, chatbubblesOutline, cloudDoneOutline, cloudOfflineOutline, pulseOutline });
+    addIcons({
+      flame,
+      sparkles,
+      flashOutline,
+      playCircleOutline,
+      gitNetworkOutline,
+      chatbubblesOutline,
+      cloudDoneOutline,
+      cloudOfflineOutline,
+      pulseOutline,
+    });
   }
 
   ionViewWillEnter() {

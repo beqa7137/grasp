@@ -128,13 +128,18 @@ const bottleneck = item('bottleneck', 'sd-capacity', 'Spot the bottleneck', 0, (
       { name: 'Primary DB', detail: `${fmt(COMPONENTS.db.capacityRps)} ops/s · write = 2 ops` },
       ...(replicas ? [{ name: `Replicas ×${replicas}`, detail: `${fmt(COMPONENTS.replica.capacityRps)} ops/s each` }] : []),
     ];
-    const others = shuffle(rand, ranked.slice(1).map((x) => name(x.n))).slice(0, 3);
+    const others = shuffle(
+      rand,
+      ranked.slice(1).map((x) => name(x.n)),
+    ).slice(0, 3);
     return {
       prompt: 'Which component saturates first under this load?',
       pipeline,
       ...withChoices(rand, name(ranked[0].n), others),
       explain: `Utilization = load ÷ capacity: ${ranked.map((x) => `${COMPONENTS[x.n.kind].short} ${Math.round(x.u * 100)}%`).join(' · ')}. ${
-        ranked[0].n.kind === 'db' ? 'Remember cache misses, replica read-splitting, and that writes cost 2 ops.' : 'Scale the saturated tier first; everything behind it is idle waiting.'
+        ranked[0].n.kind === 'db'
+          ? 'Remember cache misses, replica read-splitting, and that writes cost 2 ops.'
+          : 'Scale the saturated tier first; everything behind it is idle waiting.'
       }`,
     };
   }
@@ -188,7 +193,11 @@ const availability = item('availability', 'sd-reliability', 'Availability math',
     prompt: parallel
       ? `Two independent replicas each have ${percent(a)} availability, and either one can serve traffic. What is the combined availability?`
       : `A request must pass through two independent services in a row, each with ${percent(a)} availability. What is the end-to-end availability?`,
-    ...withChoices(rand, percent(correct), [percent(parallel ? series : redundant), percent(a), percent(parallel ? 1 - (1 - a) ** 3 : a ** 3)]),
+    ...withChoices(rand, percent(correct), [
+      percent(parallel ? series : redundant),
+      percent(a),
+      percent(parallel ? 1 - (1 - a) ** 3 : a ** 3),
+    ]),
     explain: parallel
       ? `Redundancy multiplies failure probabilities: 1 − (1 − ${a})² = ${percent(redundant)}.`
       : `Dependencies in series multiply availabilities: ${a}² = ${percent(series)}. Every extra hop lowers the ceiling.`,
@@ -212,7 +221,11 @@ const spof = item('spof', 'sd-reliability', 'Find the single point of failure', 
   return {
     prompt: 'Which component is a single point of failure in this design?',
     pipeline: [{ name: 'Users', detail: 'traffic' }, ...pipeline],
-    ...withChoices(rand, weak.label, chosen.filter((c) => c !== weak).map((c) => c.label)),
+    ...withChoices(
+      rand,
+      weak.label,
+      chosen.filter((c) => c !== weak).map((c) => c.label),
+    ),
     explain: `${weak.label} is the only component without redundancy — if it fails, everything that depends on it fails too. The fix is a second instance or a failover replica.`,
   };
 });

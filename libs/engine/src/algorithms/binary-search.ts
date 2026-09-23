@@ -84,19 +84,24 @@ export const binarySearch: AlgorithmDef<Input> = {
       snap(4, `Middle of [${lo}, ${hi}] is index ${mid}, holding ${nums[mid]}.`, {}, mid);
 
       const answer = nums[mid] === target ? 0 : nums[mid] < target ? 1 : 2;
-      snap(5, `Compare nums[mid] = ${nums[mid]} with target ${target}.`, {
-        predict: {
-          prompt: `nums[mid] = ${nums[mid]}, target = ${target}. What happens next?`,
-          choices: CHOICES,
-          answer,
-          explain:
-            answer === 0
-              ? 'Equal values — the search is over.'
-              : answer === 1
-                ? `${nums[mid]} < ${target}. Since the array is sorted, everything at or left of mid is too small, so discard it.`
-                : `${nums[mid]} > ${target}. Everything at or right of mid is too big, so discard it.`,
+      snap(
+        5,
+        `Compare nums[mid] = ${nums[mid]} with target ${target}.`,
+        {
+          predict: {
+            prompt: `nums[mid] = ${nums[mid]}, target = ${target}. What happens next?`,
+            choices: CHOICES,
+            answer,
+            explain:
+              answer === 0
+                ? 'Equal values — the search is over.'
+                : answer === 1
+                  ? `${nums[mid]} < ${target}. Since the array is sorted, everything at or left of mid is too small, so discard it.`
+                  : `${nums[mid]} > ${target}. Everything at or right of mid is too big, so discard it.`,
+          },
         },
-      }, mid);
+        mid,
+      );
 
       if (answer === 0) {
         frames.push({

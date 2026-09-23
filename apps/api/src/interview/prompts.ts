@@ -13,7 +13,10 @@ export const RUBRICS: Record<InterviewTrack, { name: string; lookFor: string }[]
     { name: 'Requirements & scope', lookFor: 'Separates functional and non-functional requirements; agrees on scope.' },
     { name: 'Estimation', lookFor: 'Back-of-envelope QPS, storage and bandwidth that drive later decisions.' },
     { name: 'High-level design', lookFor: 'Clear components and data flow; APIs and data model that fit the access patterns.' },
-    { name: 'Deep dives & trade-offs', lookFor: 'Identifies bottlenecks, scaling strategy, failure modes; weighs alternatives explicitly.' },
+    {
+      name: 'Deep dives & trade-offs',
+      lookFor: 'Identifies bottlenecks, scaling strategy, failure modes; weighs alternatives explicitly.',
+    },
     { name: 'Communication', lookFor: 'Drives the conversation, checks in, adapts to feedback.' },
   ],
 };

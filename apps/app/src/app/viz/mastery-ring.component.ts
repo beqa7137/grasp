@@ -13,14 +13,37 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
     </svg>
   `,
   styles: `
-    :host { display: inline-block; line-height: 0; }
-    svg { transform: rotate(-90deg); }
-    circle { fill: none; stroke-width: 4; }
-    .bg { stroke: var(--g-line); }
-    .fg { stroke: var(--g-accent); stroke-linecap: round; transition: stroke-dasharray 0.6s ease; }
-    .fg[data-level='mid'] { stroke: var(--g-pointer); }
-    .fg[data-level='high'] { stroke: var(--g-found); }
-    text { transform: rotate(90deg); transform-origin: 20px 20px; fill: var(--g-text); font: 600 11px var(--g-font-mono); }
+    :host {
+      display: inline-block;
+      line-height: 0;
+    }
+    svg {
+      transform: rotate(-90deg);
+    }
+    circle {
+      fill: none;
+      stroke-width: 4;
+    }
+    .bg {
+      stroke: var(--g-line);
+    }
+    .fg {
+      stroke: var(--g-accent);
+      stroke-linecap: round;
+      transition: stroke-dasharray 0.6s ease;
+    }
+    .fg[data-level='mid'] {
+      stroke: var(--g-pointer);
+    }
+    .fg[data-level='high'] {
+      stroke: var(--g-found);
+    }
+    text {
+      transform: rotate(90deg);
+      transform-origin: 20px 20px;
+      fill: var(--g-text);
+      font: 600 11px var(--g-font-mono);
+    }
   `,
 })
 export class MasteryRingComponent {

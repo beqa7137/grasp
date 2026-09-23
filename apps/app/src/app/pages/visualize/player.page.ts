@@ -1,8 +1,28 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, HostListener, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  HostListener,
+  computed,
+  effect,
+  inject,
+  input,
+  signal,
+  untracked,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
-import { InputError, formatField, getAlgorithm, getPattern, parseField, type AlgorithmDef, type ArrayView, type Frame } from '@grasp/engine';
+import {
+  InputError,
+  formatField,
+  getAlgorithm,
+  getPattern,
+  parseField,
+  type AlgorithmDef,
+  type ArrayView,
+  type Frame,
+} from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import {
   checkmarkCircle,
@@ -62,8 +82,8 @@ export class PlayerPage {
 
   readonly frames = computed<Frame[]>(() => {
     const algo = this.algo();
-    const input = this.input();
-    return algo && input ? algo.trace(input) : [];
+    const current = this.input();
+    return algo && current ? algo.trace(current) : [];
   });
   readonly index = signal(0);
   readonly frame = computed(() => this.frames()[this.index()]);
@@ -99,7 +119,18 @@ export class PlayerPage {
   private timer: ReturnType<typeof setInterval> | undefined;
 
   constructor() {
-    addIcons({ play, pause, playSkipBack, playSkipForward, refresh, diceOutline, sparkles, checkmarkCircle, closeCircle, helpCircleOutline });
+    addIcons({
+      play,
+      pause,
+      playSkipBack,
+      playSkipForward,
+      refresh,
+      diceOutline,
+      sparkles,
+      checkmarkCircle,
+      closeCircle,
+      helpCircleOutline,
+    });
 
     effect(() => {
       const algo = this.algo();
@@ -116,10 +147,10 @@ export class PlayerPage {
     inject(DestroyRef).onDestroy(() => clearInterval(this.timer));
   }
 
-  load(input: unknown) {
+  load(raw: unknown) {
     const algo = this.algo()!;
     try {
-      const valid = algo.validate(input);
+      const valid = algo.validate(raw);
       this.input.set(valid);
       this.drafts.set(Object.fromEntries(algo.fields.map((f) => [f.key, formatField(f.kind, valid[f.key])])));
       this.inputError.set(null);

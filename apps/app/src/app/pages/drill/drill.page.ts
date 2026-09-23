@@ -78,11 +78,22 @@ export class DrillPage {
     if (!slot || this.chosen() === null || this.practice()) return null;
     const now = new Date();
     const due = previewDue(slot.itemId, this.progress.state().cards[slot.itemId], now);
-    return { again: formatInterval(now, due[1]), hard: formatInterval(now, due[2]), good: formatInterval(now, due[3]), easy: formatInterval(now, due[4]) };
+    return {
+      again: formatInterval(now, due[1]),
+      hard: formatInterval(now, due[2]),
+      good: formatInterval(now, due[3]),
+      easy: formatInterval(now, due[4]),
+    };
   });
 
   readonly missedTopics = computed(() => {
-    const topics = [...new Set(this.results().filter((r) => !r.correct).map((r) => r.topic))];
+    const topics = [
+      ...new Set(
+        this.results()
+          .filter((r) => !r.correct)
+          .map((r) => r.topic),
+      ),
+    ];
     return topics.map((t) => ({ id: t, name: getPattern(t)?.name ?? getSdTopic(t)?.name ?? t }));
   });
 

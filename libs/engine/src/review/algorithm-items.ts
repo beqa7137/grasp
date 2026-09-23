@@ -15,7 +15,7 @@ const recognitionItems: ItemDef[] = DRILL_CARDS.map((card, i) => ({
   kind: 'recognition',
   topic: card.patternId,
   label: card.prompt.length > 70 ? `${card.prompt.slice(0, 67)}…` : card.prompt,
-  order: patternOrder(card.patternId) + i % 10,
+  order: patternOrder(card.patternId) + (i % 10),
   generate(seed) {
     const rand = seeded(seed);
     const names = [card.patternId, ...card.distractors].map(patternName);
@@ -40,7 +40,7 @@ const complexityItems: ItemDef[] = COMPLEXITY_FACTS.map((fact, i) => ({
   kind: 'complexity',
   topic: fact.patternId,
   label: fact.question,
-  order: patternOrder(fact.patternId) + 10 + i % 10,
+  order: patternOrder(fact.patternId) + 10 + (i % 10),
   generate(seed) {
     const { choices, answer } = withChoices(seeded(seed), fact.answer, fact.distractors);
     return {
@@ -67,7 +67,11 @@ const clozeItems: ItemDef[] = PATTERNS.flatMap((pattern) =>
     order: patternOrder(pattern.id) + 20 + n,
     generate(seed) {
       const correct = pattern.template[cloze.line].trim();
-      const { choices, answer } = withChoices(seeded(seed), correct, cloze.distractors.map((d) => d.trim()));
+      const { choices, answer } = withChoices(
+        seeded(seed),
+        correct,
+        cloze.distractors.map((d) => d.trim()),
+      );
       return {
         itemId: this.id,
         kind: 'cloze',
@@ -100,7 +104,11 @@ const predictItems: ItemDef[] = ALGORITHMS.map((algo) => ({
       if (decisions.length === 0) continue;
       const frame = decisions[Math.floor(rand() * decisions.length)];
       const p = frame.predict!;
-      const { choices, answer } = withChoices(rand, p.choices[p.answer], p.choices.filter((_, i) => i !== p.answer));
+      const { choices, answer } = withChoices(
+        rand,
+        p.choices[p.answer],
+        p.choices.filter((_, i) => i !== p.answer),
+      );
       return {
         itemId: this.id,
         kind: 'predict',

@@ -11,7 +11,18 @@ import { MasteryRingComponent } from '../../viz/mastery-ring.component';
 @Component({
   selector: 'app-pattern',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle, IonContent, IonIcon, CodePanelComponent, MasteryRingComponent],
+  imports: [
+    RouterLink,
+    IonHeader,
+    IonToolbar,
+    IonButtons,
+    IonBackButton,
+    IonTitle,
+    IonContent,
+    IonIcon,
+    CodePanelComponent,
+    MasteryRingComponent,
+  ],
   template: `
     <ion-header [translucent]="true">
       <ion-toolbar>
@@ -36,7 +47,9 @@ import { MasteryRingComponent } from '../../viz/mastery-ring.component';
             @for (a of algorithms(); track a.id) {
               <a class="g-btn primary" [routerLink]="['/visualize', a.id]"><ion-icon name="play-circle" />Visualize: {{ a.title }}</a>
             }
-            <a class="g-btn" routerLink="/drill" [queryParams]="{ pattern: p.id }"><ion-icon name="flash-outline" />Practice {{ itemCount() }} items</a>
+            <a class="g-btn" routerLink="/drill" [queryParams]="{ pattern: p.id }"
+              ><ion-icon name="flash-outline" />Practice {{ itemCount() }} items</a
+            >
           </div>
 
           <section class="panel block">
@@ -75,17 +88,65 @@ import { MasteryRingComponent } from '../../viz/mastery-ring.component';
     </ion-content>
   `,
   styles: `
-    .narrow { max-width: 760px; }
-    .head { display: flex; align-items: center; gap: 16px; margin-top: 8px; }
-    h1 { font-size: clamp(26px, 5vw, 36px); margin: 4px 0 0; }
-    .one { font-size: 17px; line-height: 1.55; margin: 16px 0 18px; }
-    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; a { text-decoration: none; } }
-    .block { padding: 16px; margin-bottom: 12px; }
-    .block.code { padding: 16px 0 6px; h2 { padding: 0 16px; } }
-    h2 { display: flex; align-items: center; gap: 8px; font-size: 16px; margin: 0 0 10px; ion-icon { color: var(--g-accent); } }
-    ul { margin: 0; padding-left: 18px; }
-    li { line-height: 1.6; margin-bottom: 4px; font-size: 14.5px; }
-    .foot { font-size: 13px; }
+    .narrow {
+      max-width: 760px;
+    }
+    .head {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-top: 8px;
+    }
+    h1 {
+      font-size: clamp(26px, 5vw, 36px);
+      margin: 4px 0 0;
+    }
+    .one {
+      font-size: 17px;
+      line-height: 1.55;
+      margin: 16px 0 18px;
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 20px;
+      a {
+        text-decoration: none;
+      }
+    }
+    .block {
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    .block.code {
+      padding: 16px 0 6px;
+      h2 {
+        padding: 0 16px;
+      }
+    }
+    h2 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 16px;
+      margin: 0 0 10px;
+      ion-icon {
+        color: var(--g-accent);
+      }
+    }
+    ul {
+      margin: 0;
+      padding-left: 18px;
+    }
+    li {
+      line-height: 1.6;
+      margin-bottom: 4px;
+      font-size: 14.5px;
+    }
+    .foot {
+      font-size: 13px;
+    }
   `,
 })
 export class PatternPage {

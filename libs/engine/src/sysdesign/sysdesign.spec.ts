@@ -10,11 +10,27 @@ const SOLUTIONS: Record<string, Design> = {
     edges: e(['users', 'lb'], ['lb', 'app'], ['app', 'db']),
   },
   'viral-feed': {
-    nodes: [n('users', 'client'), n('cdn', 'cdn'), n('lb', 'lb', 2), n('app', 'app', 18), n('cache', 'cache', 2), n('db', 'db'), n('rep', 'replica', 2)],
+    nodes: [
+      n('users', 'client'),
+      n('cdn', 'cdn'),
+      n('lb', 'lb', 2),
+      n('app', 'app', 18),
+      n('cache', 'cache', 2),
+      n('db', 'db'),
+      n('rep', 'replica', 2),
+    ],
     edges: e(['users', 'cdn'], ['cdn', 'lb'], ['lb', 'app'], ['app', 'cache'], ['cache', 'db'], ['db', 'rep']),
   },
   'flash-sale': {
-    nodes: [n('users', 'client'), n('lb', 'lb', 2), n('app', 'app', 12), n('cache', 'cache'), n('db', 'db'), n('q', 'queue'), n('w', 'worker')],
+    nodes: [
+      n('users', 'client'),
+      n('lb', 'lb', 2),
+      n('app', 'app', 12),
+      n('cache', 'cache'),
+      n('db', 'db'),
+      n('q', 'queue'),
+      n('w', 'worker'),
+    ],
     edges: e(['users', 'lb'], ['lb', 'app'], ['app', 'cache'], ['cache', 'db'], ['app', 'q'], ['q', 'w'], ['w', 'db']),
   },
 };
@@ -36,19 +52,52 @@ describe('scenarios', () => {
 });
 
 const VARIANT_SOLUTIONS: Record<string, Design> = {
-  'first-scale-up:1': { nodes: [n('u', 'client'), n('lb', 'lb'), n('app', 'app', 5), n('db', 'db'), n('rep', 'replica')], edges: e(['u', 'lb'], ['lb', 'app'], ['app', 'db'], ['db', 'rep']) },
-  'first-scale-up:2': { nodes: [n('u', 'client'), n('lb', 'lb', 2), n('app', 'app', 4), n('db', 'db'), n('rep', 'replica')], edges: e(['u', 'lb'], ['lb', 'app'], ['app', 'db'], ['db', 'rep']) },
-  'first-scale-up:3': { nodes: [n('u', 'client'), n('lb', 'lb'), n('app', 'app', 8), n('c', 'cache'), n('db', 'db')], edges: e(['u', 'lb'], ['lb', 'app'], ['app', 'c'], ['c', 'db']) },
+  'first-scale-up:1': {
+    nodes: [n('u', 'client'), n('lb', 'lb'), n('app', 'app', 5), n('db', 'db'), n('rep', 'replica')],
+    edges: e(['u', 'lb'], ['lb', 'app'], ['app', 'db'], ['db', 'rep']),
+  },
+  'first-scale-up:2': {
+    nodes: [n('u', 'client'), n('lb', 'lb', 2), n('app', 'app', 4), n('db', 'db'), n('rep', 'replica')],
+    edges: e(['u', 'lb'], ['lb', 'app'], ['app', 'db'], ['db', 'rep']),
+  },
+  'first-scale-up:3': {
+    nodes: [n('u', 'client'), n('lb', 'lb'), n('app', 'app', 8), n('c', 'cache'), n('db', 'db')],
+    edges: e(['u', 'lb'], ['lb', 'app'], ['app', 'c'], ['c', 'db']),
+  },
   'viral-feed:1': {
-    nodes: [n('u', 'client'), n('cdn', 'cdn', 1, { hitRate: 0.6 }), n('lb', 'lb', 2), n('app', 'app', 20), n('c', 'cache', 2, { hitRate: 0.9 }), n('db', 'db'), n('rep', 'replica', 2)],
+    nodes: [
+      n('u', 'client'),
+      n('cdn', 'cdn', 1, { hitRate: 0.6 }),
+      n('lb', 'lb', 2),
+      n('app', 'app', 20),
+      n('c', 'cache', 2, { hitRate: 0.9 }),
+      n('db', 'db'),
+      n('rep', 'replica', 2),
+    ],
     edges: e(['u', 'cdn'], ['cdn', 'lb'], ['lb', 'app'], ['app', 'c'], ['c', 'db'], ['db', 'rep']),
   },
   'viral-feed:2': {
-    nodes: [n('u', 'client'), n('cdn', 'cdn', 1, { hitRate: 0.6 }), n('lb', 'lb', 2), n('app', 'app', 18), n('c', 'cache', 2, { hitRate: 0.9 }), n('db', 'db'), n('rep', 'replica', 2)],
+    nodes: [
+      n('u', 'client'),
+      n('cdn', 'cdn', 1, { hitRate: 0.6 }),
+      n('lb', 'lb', 2),
+      n('app', 'app', 18),
+      n('c', 'cache', 2, { hitRate: 0.9 }),
+      n('db', 'db'),
+      n('rep', 'replica', 2),
+    ],
     edges: e(['u', 'cdn'], ['cdn', 'lb'], ['lb', 'app'], ['app', 'c'], ['c', 'db'], ['db', 'rep']),
   },
   'viral-feed:3': {
-    nodes: [n('u', 'client'), n('cdn', 'cdn', 1, { hitRate: 0.7 }), n('lb', 'lb', 2), n('app', 'app', 24), n('c', 'cache', 2, { hitRate: 0.9 }), n('db', 'db'), n('rep', 'replica', 2)],
+    nodes: [
+      n('u', 'client'),
+      n('cdn', 'cdn', 1, { hitRate: 0.7 }),
+      n('lb', 'lb', 2),
+      n('app', 'app', 24),
+      n('c', 'cache', 2, { hitRate: 0.9 }),
+      n('db', 'db'),
+      n('rep', 'replica', 2),
+    ],
     edges: e(['u', 'cdn'], ['cdn', 'lb'], ['lb', 'app'], ['app', 'c'], ['c', 'db'], ['db', 'rep']),
   },
   'flash-sale:1': {
@@ -56,7 +105,16 @@ const VARIANT_SOLUTIONS: Record<string, Design> = {
     edges: e(['u', 'lb'], ['lb', 'app'], ['app', 'c'], ['c', 'db'], ['app', 'q'], ['q', 'w'], ['w', 'db']),
   },
   'flash-sale:2': {
-    nodes: [n('u', 'client'), n('lb', 'lb', 2), n('app', 'app', 12), n('c', 'cache', 2), n('db', 'db'), n('rep', 'replica'), n('q', 'queue', 2), n('w', 'worker')],
+    nodes: [
+      n('u', 'client'),
+      n('lb', 'lb', 2),
+      n('app', 'app', 12),
+      n('c', 'cache', 2),
+      n('db', 'db'),
+      n('rep', 'replica'),
+      n('q', 'queue', 2),
+      n('w', 'worker'),
+    ],
     edges: e(['u', 'lb'], ['lb', 'app'], ['app', 'c'], ['c', 'db'], ['db', 'rep'], ['app', 'q'], ['q', 'w'], ['w', 'db']),
   },
   'flash-sale:3': {
@@ -79,7 +137,9 @@ describe('mission revisit variants', () => {
   });
 
   it('the original mission solution does not automatically pass its revisits', () => {
-    const failing = SCENARIOS.flatMap((s) => [1, 2, 3].map((v) => evaluate(scenarioVariant(s.id, v)!, SOLUTIONS[s.id]).some((g) => !g.pass)));
+    const failing = SCENARIOS.flatMap((s) =>
+      [1, 2, 3].map((v) => evaluate(scenarioVariant(s.id, v)!, SOLUTIONS[s.id]).some((g) => !g.pass)),
+    );
     expect(failing.filter(Boolean).length).toBeGreaterThanOrEqual(6);
   });
 
@@ -90,7 +150,10 @@ describe('mission revisit variants', () => {
 });
 
 describe('simulate', () => {
-  const basic: Design = { nodes: [n('u', 'client'), n('lb', 'lb'), n('a', 'app', 2), n('d', 'db')], edges: e(['u', 'lb'], ['lb', 'a'], ['a', 'd']) };
+  const basic: Design = {
+    nodes: [n('u', 'client'), n('lb', 'lb'), n('a', 'app', 2), n('d', 'db')],
+    edges: e(['u', 'lb'], ['lb', 'a'], ['a', 'd']),
+  };
 
   it('conserves traffic when nothing is overloaded', () => {
     const r = simulate(basic, { rps: 1000, readRatio: 0.8 });

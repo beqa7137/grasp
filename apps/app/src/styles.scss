@@ -34,7 +34,6 @@
   --g-radius-sm: 9px;
   --g-font-display: 'Space Grotesk Variable', 'Inter Variable', system-ui, sans-serif;
   --g-font-mono: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', Menlo, monospace;
-
 }
 
 :root,
@@ -81,12 +80,17 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-h1, h2, h3, .display {
+h1,
+h2,
+h3,
+.display {
   font-family: var(--g-font-display);
   letter-spacing: -0.02em;
 }
 
-code, pre, .mono {
+code,
+pre,
+.mono {
   font-family: var(--g-font-mono);
   font-variant-ligatures: none;
 }
@@ -134,7 +138,9 @@ ion-tab-button {
   color: var(--g-muted);
 }
 
-.muted { color: var(--g-muted); }
+.muted {
+  color: var(--g-muted);
+}
 
 .chip {
   display: inline-flex;
@@ -149,10 +155,20 @@ ion-tab-button {
   color: var(--g-muted);
   white-space: nowrap;
 
-  &.accent { color: var(--g-accent); background: var(--g-accent-soft); border-color: transparent; }
-  &.easy { color: var(--g-found); }
-  &.medium { color: var(--g-pointer); }
-  &.hard { color: var(--g-danger); }
+  &.accent {
+    color: var(--g-accent);
+    background: var(--g-accent-soft);
+    border-color: transparent;
+  }
+  &.easy {
+    color: var(--g-found);
+  }
+  &.medium {
+    color: var(--g-pointer);
+  }
+  &.hard {
+    color: var(--g-danger);
+  }
 }
 
 .g-btn {
@@ -168,32 +184,66 @@ ion-tab-button {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  transition: background 0.15s, border-color 0.15s, transform 0.08s;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    transform 0.08s;
   -webkit-tap-highlight-color: transparent;
 
-  &:hover { border-color: var(--g-faint); }
-  &:active { transform: scale(0.97); }
-  &:disabled { opacity: 0.4; cursor: default; transform: none; }
-  &:focus-visible { outline: 2px solid var(--g-accent); outline-offset: 2px; }
+  &:hover {
+    border-color: var(--g-faint);
+  }
+  &:active {
+    transform: scale(0.97);
+  }
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+    transform: none;
+  }
+  &:focus-visible {
+    outline: 2px solid var(--g-accent);
+    outline-offset: 2px;
+  }
 
-  &.primary { background: var(--g-accent); border-color: var(--g-accent); color: #0b0d12; font-weight: 600; }
-  &.ghost { background: transparent; }
-  &.icon { padding: 9px; width: 40px; height: 40px; }
-  ion-icon { font-size: 18px; }
+  &.primary {
+    background: var(--g-accent);
+    border-color: var(--g-accent);
+    color: #0b0d12;
+    font-weight: 600;
+  }
+  &.ghost {
+    background: transparent;
+  }
+  &.icon {
+    padding: 9px;
+    width: 40px;
+    height: 40px;
+  }
+  ion-icon {
+    font-size: 18px;
+  }
 }
 
 .card-link {
   display: block;
   text-decoration: none;
   color: inherit;
-  transition: border-color 0.15s, transform 0.15s;
+  transition:
+    border-color 0.15s,
+    transform 0.15s;
   cursor: pointer;
 
-  &:hover { border-color: var(--g-line-strong); transform: translateY(-1px); }
+  &:hover {
+    border-color: var(--g-line-strong);
+    transform: translateY(-1px);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.001ms !important;
     transition-duration: 0.001ms !important;
   }

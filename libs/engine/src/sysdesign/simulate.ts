@@ -1,14 +1,5 @@
 import { COMPONENTS, monthlyCost } from './catalog.js';
-import type {
-  ComponentKind,
-  Design,
-  DesignNode,
-  Insight,
-  NodeStats,
-  NodeStatus,
-  SimResult,
-  Workload,
-} from './types.js';
+import type { ComponentKind, Design, DesignNode, Insight, NodeStats, NodeStatus, SimResult, Workload } from './types.js';
 
 interface Flow {
   read: number;
@@ -129,7 +120,8 @@ export function simulate(design: Design, workload: Workload): SimResult {
     const avail = clientFed.has(node.id) ? Math.min(1, available(node)) : available(node);
     const capacity = node.kind === 'client' ? Number.POSITIVE_INFINITY : avail * spec.capacityRps;
     const load = f.read + (f.write + f.bg) * spec.writeCost + f.repl * REPLICATION_COST;
-    const utilization = capacity === Number.POSITIVE_INFINITY ? 0 : capacity > 0 ? load / capacity : load > 0 ? Number.POSITIVE_INFINITY : 0;
+    const utilization =
+      capacity === Number.POSITIVE_INFINITY ? 0 : capacity > 0 ? load / capacity : load > 0 ? Number.POSITIVE_INFINITY : 0;
     const s = utilization <= 1 ? 1 : capacity > 0 ? 1 / utilization : 0;
     const served: Flow = { read: f.read * s, write: f.write * s, bg: f.bg * s, repl: f.repl * s };
     const dropped = total(f) * (1 - s);
@@ -304,9 +296,16 @@ export function simulate(design: Design, workload: Workload): SimResult {
   for (const n of design.nodes) {
     if (!stats[n.id]) {
       stats[n.id] = {
-        readRps: 0, writeRps: 0, backgroundRps: 0, replicationRps: 0, loadOps: 0,
-        capacityOps: available(n) * COMPONENTS[n.kind].capacityRps, utilization: 0,
-        latencyMs: COMPONENTS[n.kind].baseLatencyMs, droppedRps: 0, absorbedRps: 0,
+        readRps: 0,
+        writeRps: 0,
+        backgroundRps: 0,
+        replicationRps: 0,
+        loadOps: 0,
+        capacityOps: available(n) * COMPONENTS[n.kind].capacityRps,
+        utilization: 0,
+        latencyMs: COMPONENTS[n.kind].baseLatencyMs,
+        droppedRps: 0,
+        absorbedRps: 0,
         status: available(n) === 0 && n.kind !== 'client' ? 'down' : 'idle',
       };
     }
@@ -342,7 +341,14 @@ export function simulate(design: Design, workload: Workload): SimResult {
   const successRps = Math.max(0, offered - syncErrors);
   const errorRate = offered > 0 ? Math.min(1, syncErrors / offered) : 1;
 
-  addInsights(design, stats, insights, workload, { backlogGrowth, bgFailures, volatileWrites, durableWrites, clients: clients.length, clientFed });
+  addInsights(design, stats, insights, workload, {
+    backlogGrowth,
+    bgFailures,
+    volatileWrites,
+    durableWrites,
+    clients: clients.length,
+    clientFed,
+  });
 
   return {
     nodes: stats,
@@ -407,10 +413,21 @@ function addInsights(
   stats: Record<string, NodeStats>,
   insights: Insight[],
   workload: Workload,
-  ctx: { backlogGrowth: number; bgFailures: number; volatileWrites: number; durableWrites: number; clients: number; clientFed: Set<string> },
+  ctx: {
+    backlogGrowth: number;
+    bgFailures: number;
+    volatileWrites: number;
+    durableWrites: number;
+    clients: number;
+    clientFed: Set<string>;
+  },
 ) {
   if (ctx.clients === 0) {
-    insights.push({ severity: 'critical', title: 'No traffic source', detail: 'Add the Users node so requests have somewhere to come from.' });
+    insights.push({
+      severity: 'critical',
+      title: 'No traffic source',
+      detail: 'Add the Users node so requests have somewhere to come from.',
+    });
   }
 
   for (const n of design.nodes) {
@@ -438,20 +455,23 @@ function addInsights(
         severity: 'warning',
         nodeId: n.id,
         title: `${spec.name} running hot (${pct}%)`,
-        detail: 'Queueing delay grows like 1/(1−ρ): at 80% utilization waits are 5× the service time, at 95% they are 20×. Keep headroom for spikes.',
+        detail:
+          'Queueing delay grows like 1/(1−ρ): at 80% utilization waits are 5× the service time, at 95% they are 20×. Keep headroom for spikes.',
       });
     }
 
     if (hasLoad && SPOF_KINDS.includes(n.kind) && available(n) === 1) {
-      const hasReplica = n.kind === 'db' && design.edges.some((e) => e.from === n.id && design.nodes.find((x) => x.id === e.to)?.kind === 'replica');
+      const hasReplica =
+        n.kind === 'db' && design.edges.some((e) => e.from === n.id && design.nodes.find((x) => x.id === e.to)?.kind === 'replica');
       if (!hasReplica) {
         insights.push({
           severity: 'warning',
           nodeId: n.id,
           title: `Single point of failure: ${spec.name}`,
-          detail: n.kind === 'db'
-            ? 'One primary with no replica: if it dies, you lose reads and writes until it is restored. Add a replica for failover.'
-            : `Only one ${spec.short} instance. If it fails, everything behind it goes dark. Run at least 2.`,
+          detail:
+            n.kind === 'db'
+              ? 'One primary with no replica: if it dies, you lose reads and writes until it is restored. Add a replica for failover.'
+              : `Only one ${spec.short} instance. If it fails, everything behind it goes dark. Run at least 2.`,
         });
       }
     }
@@ -461,7 +481,8 @@ function addInsights(
     insights.push({
       severity: 'warning',
       title: `Queue backlog growing ${fmt(ctx.backlogGrowth)} jobs/s`,
-      detail: 'Writes are accepted faster than workers drain them. Fine for a short spike; for sustained load add workers (and make sure the DB can take their writes).',
+      detail:
+        'Writes are accepted faster than workers drain them. Fine for a short spike; for sustained load add workers (and make sure the DB can take their writes).',
     });
   }
   if (ctx.bgFailures > 1) {
@@ -478,7 +499,8 @@ function addInsights(
         severity: 'warning',
         nodeId: n.id,
         title: `Users can only reach one of ${n.instances} app servers`,
-        detail: 'Clients connect to a single address, so the extra instances sit idle. Put a load balancer in front: it spreads traffic and stops sending requests to dead servers.',
+        detail:
+          'Clients connect to a single address, so the extra instances sit idle. Put a load balancer in front: it spreads traffic and stops sending requests to dead servers.',
       });
     }
   }
@@ -487,7 +509,8 @@ function addInsights(
     insights.push({
       severity: 'tip',
       title: 'Consider a CDN',
-      detail: 'Read-heavy traffic at this scale usually has cacheable content. A CDN removes it from your origin and cuts ~30 ms of round-trip for users.',
+      detail:
+        'Read-heavy traffic at this scale usually has cacheable content. A CDN removes it from your origin and cuts ~30 ms of round-trip for users.',
     });
   }
 }

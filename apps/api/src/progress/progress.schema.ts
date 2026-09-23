@@ -7,11 +7,18 @@ const algorithmIds = new Set(ALGORITHMS.map((a) => a.id));
 const scenarioIds = new Set(SCENARIOS.map((s) => s.id));
 
 const base = {
-  id: z.string().min(8).max(80).regex(/^[\w-]+$/),
+  id: z
+    .string()
+    .min(8)
+    .max(80)
+    .regex(/^[\w-]+$/),
   at: z.iso.datetime({ offset: true }).transform((s) => new Date(s).toISOString()),
 };
 
-const itemId = z.string().max(80).refine((id) => Boolean(getReviewItem(id)), 'Unknown review item');
+const itemId = z
+  .string()
+  .max(80)
+  .refine((id) => Boolean(getReviewItem(id)), 'Unknown review item');
 const durationMs = z.number().int().min(0).max(3_600_000);
 
 export const learningEventSchema = z.discriminatedUnion('type', [

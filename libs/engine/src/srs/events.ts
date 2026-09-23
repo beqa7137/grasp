@@ -46,7 +46,8 @@ export interface InterviewScoredEvent extends BaseEvent {
   weakPatterns: string[];
 }
 
-export type LearningEvent = ReviewGradedEvent | PracticeAnsweredEvent | PredictAnsweredEvent | ScenarioCompletedEvent | InterviewScoredEvent;
+export type LearningEvent =
+  ReviewGradedEvent | PracticeAnsweredEvent | PredictAnsweredEvent | ScenarioCompletedEvent | InterviewScoredEvent;
 
 /** v1 (SM-2) drill review, still accepted from older clients and stored logs. */
 export interface LegacyDrillReviewedEvent extends BaseEvent {

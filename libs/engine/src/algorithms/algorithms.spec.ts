@@ -31,16 +31,23 @@ const reference: Record<string, (input: any) => unknown> = {
     const dist = new Map<string, number>();
     let start = '';
     let goal = '';
-    grid.forEach((row: string, r: number) => [...row].forEach((ch, c) => {
-      if (ch === 'S') start = `${r},${c}`;
-      if (ch === 'G') goal = `${r},${c}`;
-    }));
+    grid.forEach((row: string, r: number) =>
+      [...row].forEach((ch, c) => {
+        if (ch === 'S') start = `${r},${c}`;
+        if (ch === 'G') goal = `${r},${c}`;
+      }),
+    );
     const q = [start];
     dist.set(start, 0);
     while (q.length) {
       const k = q.shift()!;
       const [r, c] = k.split(',').map(Number);
-      for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      for (const [dr, dc] of [
+        [1, 0],
+        [-1, 0],
+        [0, 1],
+        [0, -1],
+      ]) {
         const nr = r + dr;
         const nc = c + dc;
         const nk = `${nr},${nc}`;

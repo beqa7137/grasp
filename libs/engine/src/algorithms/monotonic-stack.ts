@@ -71,16 +71,22 @@ export const nextGreater: AlgorithmDef<Input> = {
       while (stack.length) {
         const top = stack[stack.length - 1];
         const pop = nums[top] < nums[i];
-        snap(5, `Compare nums[i] = ${nums[i]} with top of stack ${nums[top]}.`, asked ? {} : {
-          predict: {
-            prompt: `Incoming ${nums[i]}, stack top is ${nums[top]}. Pop or push?`,
-            choices: CHOICES,
-            answer: pop ? 0 : 1,
-            explain: pop
-              ? `${nums[i]} > ${nums[top]}, so ${nums[i]} is the first bigger value to the right of index ${top}. Resolve it and pop.`
-              : `${nums[i]} ≤ ${nums[top]}. It cannot resolve the top — nor anything below it, which is even larger. Push and move on.`,
-          },
-        });
+        snap(
+          5,
+          `Compare nums[i] = ${nums[i]} with top of stack ${nums[top]}.`,
+          asked
+            ? {}
+            : {
+                predict: {
+                  prompt: `Incoming ${nums[i]}, stack top is ${nums[top]}. Pop or push?`,
+                  choices: CHOICES,
+                  answer: pop ? 0 : 1,
+                  explain: pop
+                    ? `${nums[i]} > ${nums[top]}, so ${nums[i]} is the first bigger value to the right of index ${top}. Resolve it and pop.`
+                    : `${nums[i]} ≤ ${nums[top]}. It cannot resolve the top — nor anything below it, which is even larger. Push and move on.`,
+                },
+              },
+        );
         asked = true;
         if (!pop) break;
         stack.pop();
@@ -92,7 +98,10 @@ export const nextGreater: AlgorithmDef<Input> = {
     }
 
     i = nums.length;
-    snap(10, `Done. ${stack.length} index${stack.length === 1 ? '' : 'es'} never found a bigger value and keep -1. Every index was pushed and popped at most once → O(n).`);
+    snap(
+      10,
+      `Done. ${stack.length} index${stack.length === 1 ? '' : 'es'} never found a bigger value and keep -1. Every index was pushed and popped at most once → O(n).`,
+    );
     frames[frames.length - 1].vars['result'] = `[${res.join(', ')}]`;
     return frames;
   },

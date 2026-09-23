@@ -53,7 +53,12 @@ export class InterviewController {
     let started = false;
     const emit = (event: string, data: unknown) => {
       if (!started) {
-        res.status(200).set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache, no-transform', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
+        res.status(200).set({
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache, no-transform',
+          Connection: 'keep-alive',
+          'X-Accel-Buffering': 'no',
+        });
         res.flushHeaders();
         started = true;
       }

@@ -87,7 +87,8 @@
                       [class.wrong]="p.choice === $index && $index !== q.answer"
                       (click)="choose($index)"
                     >
-                      <span class="key">{{ $index + 1 }}</span>{{ c }}
+                      <span class="key">{{ $index + 1 }}</span
+                      >{{ c }}
                     </button>
                   }
                 </div>
@@ -118,11 +119,23 @@
           <div class="controls">
             <div class="buttons">
               <button class="g-btn ghost icon" (click)="reset()" aria-label="Restart"><ion-icon name="refresh" /></button>
-              <button class="g-btn icon" (click)="prev()" [disabled]="index() === 0" aria-label="Step back"><ion-icon name="play-skip-back" /></button>
-              <button class="g-btn primary play" (click)="togglePlay()" [disabled]="!!pending()" [attr.aria-label]="playing() ? 'Pause' : 'Play'">
+              <button class="g-btn icon" (click)="prev()" [disabled]="index() === 0" aria-label="Step back">
+                <ion-icon name="play-skip-back" />
+              </button>
+              <button
+                class="g-btn primary play"
+                (click)="togglePlay()"
+                [disabled]="!!pending()"
+                [attr.aria-label]="playing() ? 'Pause' : 'Play'"
+              >
                 <ion-icon [name]="playing() ? 'pause' : 'play'" />
               </button>
-              <button class="g-btn icon" (click)="next()" [disabled]="!!pending() || (index() === last() && !frame()?.predict)" aria-label="Step forward">
+              <button
+                class="g-btn icon"
+                (click)="next()"
+                [disabled]="!!pending() || (index() === last() && !frame()?.predict)"
+                aria-label="Step forward"
+              >
                 <ion-icon name="play-skip-forward" />
               </button>
               <button class="g-btn ghost speed mono" (click)="cycleSpeed()" aria-label="Playback speed">{{ speed() }}×</button>
@@ -177,7 +190,12 @@
             </header>
             @for (field of a.fields; track field.key) {
               <label class="field">
-                <span>{{ field.label }} @if (field.hint) {<em class="muted">· {{ field.hint }}</em>}</span>
+                <span
+                  >{{ field.label }}
+                  @if (field.hint) {
+                    <em class="muted">· {{ field.hint }}</em>
+                  }
+                </span>
                 @if (field.kind === 'grid') {
                   <textarea
                     class="mono"

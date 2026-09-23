@@ -12,7 +12,19 @@ import type { InterviewMessage, InterviewSession } from './interview.types';
 @Component({
   selector: 'app-interview-session',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RouterLink, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle, IonContent, IonFooter, IonIcon, IonSpinner],
+  imports: [
+    FormsModule,
+    RouterLink,
+    IonHeader,
+    IonToolbar,
+    IonButtons,
+    IonBackButton,
+    IonTitle,
+    IonContent,
+    IonFooter,
+    IonIcon,
+    IonSpinner,
+  ],
   templateUrl: './interview-session.page.html',
   styleUrl: './interview-session.page.scss',
 })
@@ -39,7 +51,9 @@ export class InterviewSessionPage {
   });
   readonly candidateTurns = computed(() => this.messages().filter((m) => m.role === 'candidate').length);
   readonly active = computed(() => this.session()?.status === 'active');
-  readonly scheduledItems = computed(() => (this.session()?.scorecard?.weakPatterns ?? []).reduce((n, p) => n + itemsForTopic(p).length, 0));
+  readonly scheduledItems = computed(() =>
+    (this.session()?.scorecard?.weakPatterns ?? []).reduce((n, p) => n + itemsForTopic(p).length, 0),
+  );
 
   constructor() {
     addIcons({ arrowUp, bulbOutline, flagOutline, ribbonOutline });
@@ -69,7 +83,12 @@ export class InterviewSessionPage {
     if (!s || this.busy() || (!hint && !content)) return;
     this.busy.set(true);
     this.error.set(null);
-    this.pendingCandidate.set({ role: 'candidate', content: hint && !content ? 'Could I get a hint?' : content, at: new Date().toISOString(), hint });
+    this.pendingCandidate.set({
+      role: 'candidate',
+      content: hint && !content ? 'Could I get a hint?' : content,
+      at: new Date().toISOString(),
+      hint,
+    });
     this.draft.set('');
     this.streaming.set('');
     this.abort = new AbortController();

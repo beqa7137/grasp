@@ -1,6 +1,8 @@
 <ion-header [translucent]="true">
   <ion-toolbar>
-    <ion-title><span class="wordmark">grasp<i>.</i></span></ion-title>
+    <ion-title
+      ><span class="wordmark">grasp<i>.</i></span></ion-title
+    >
     <div slot="end" class="sync" [attr.data-status]="progress.syncStatus()">
       <ion-icon [name]="progress.syncStatus() === 'offline' ? 'cloud-offline-outline' : 'cloud-done-outline'" />
       <span>{{ progress.syncStatus() === 'offline' ? 'Offline' : 'Synced' }}</span>
@@ -18,20 +20,28 @@
       <div class="stats">
         <div class="stat">
           <ion-icon name="flame" class="flame" />
-          <div><strong>{{ st.streak.current }}</strong><span>day streak</span></div>
+          <div>
+            <strong>{{ st.streak.current }}</strong
+            ><span>day streak</span>
+          </div>
         </div>
         <div class="stat">
           <ion-icon name="sparkles" class="xp" />
-          <div><strong>{{ st.xp }}</strong><span>XP</span></div>
+          <div>
+            <strong>{{ st.xp }}</strong
+            ><span>XP</span>
+          </div>
         </div>
         <div class="stat">
           <g-mastery-ring [value]="overall()" [size]="34" [showLabel]="false" />
-          <div><strong>{{ (overall() * 100).toFixed(0) }}%</strong><span>overall mastery</span></div>
+          <div>
+            <strong>{{ (overall() * 100).toFixed(0) }}%</strong><span>overall mastery</span>
+          </div>
         </div>
         <div class="stat" title="Share of learned items you still recalled at review time, last 30 days. The scheduler aims for 90%.">
           <ion-icon name="pulse-outline" class="ret" />
           <div>
-            <strong>{{ progress.retention() === null ? '—' : ((progress.retention()! * 100).toFixed(0) + '%') }}</strong>
+            <strong>{{ progress.retention() === null ? '—' : (progress.retention()! * 100).toFixed(0) + '%' }}</strong>
             <span>retention · target 90%</span>
           </div>
         </div>

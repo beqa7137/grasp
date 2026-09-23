@@ -15,13 +15,43 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
     </div>
   `,
   styles: `
-    :host { display: block; }
-    .bars { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; height: 104px; }
-    .col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; min-width: 0; }
-    i { width: 100%; max-width: 28px; min-height: 3px; border-radius: 5px 5px 2px 2px; background: var(--g-line-strong); transition: height 0.4s ease; }
-    i.today { background: var(--g-accent); }
-    .n { font-size: 11px; color: var(--g-muted); height: 13px; }
-    .label { font-size: 11px; color: var(--g-faint); }
+    :host {
+      display: block;
+    }
+    .bars {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 6px;
+      height: 104px;
+    }
+    .col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 4px;
+      min-width: 0;
+    }
+    i {
+      width: 100%;
+      max-width: 28px;
+      min-height: 3px;
+      border-radius: 5px 5px 2px 2px;
+      background: var(--g-line-strong);
+      transition: height 0.4s ease;
+    }
+    i.today {
+      background: var(--g-accent);
+    }
+    .n {
+      font-size: 11px;
+      color: var(--g-muted);
+      height: 13px;
+    }
+    .label {
+      font-size: 11px;
+      color: var(--g-faint);
+    }
   `,
 })
 export class ForecastComponent {
@@ -36,5 +66,9 @@ export class ForecastComponent {
     }));
   });
 
-  readonly summary = computed(() => this.days().map((d) => `${d.day}: ${d.count}`).join(', '));
+  readonly summary = computed(() =>
+    this.days()
+      .map((d) => `${d.day}: ${d.count}`)
+      .join(', '),
+  );
 }

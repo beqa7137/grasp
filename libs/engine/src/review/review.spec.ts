@@ -45,9 +45,19 @@ describe('review item catalog', () => {
   });
 
   it('generates genuinely different variants for predict and numeric design items', () => {
-    const varied = REVIEW_ITEMS.filter((i) => i.kind === 'predict' || ['sd:response-time', 'sd:bottleneck', 'sd:qps', 'sd:queue-drain', 'sd:spof'].includes(i.id));
+    const varied = REVIEW_ITEMS.filter(
+      (i) => i.kind === 'predict' || ['sd:response-time', 'sd:bottleneck', 'sd:qps', 'sd:queue-drain', 'sd:spof'].includes(i.id),
+    );
     for (const item of varied) {
-      const prompts = new Set(SEEDS.map((s) => JSON.stringify([generateQuestion(item.id, s).prompt, generateQuestion(item.id, s).pipeline, generateQuestion(item.id, s).frame?.vars])));
+      const prompts = new Set(
+        SEEDS.map((s) =>
+          JSON.stringify([
+            generateQuestion(item.id, s).prompt,
+            generateQuestion(item.id, s).pipeline,
+            generateQuestion(item.id, s).frame?.vars,
+          ]),
+        ),
+      );
       expect(prompts.size, item.id).toBeGreaterThanOrEqual(5);
     }
   });
@@ -74,7 +84,8 @@ describe('answer-length tells', () => {
       for (const seed of SEEDS.slice(0, 10)) {
         const q = generateQuestion(item.id, seed);
         const lengths = q.choices.map((c) => c.length);
-        if (lengths[q.answer] === Math.max(...lengths) && lengths[q.answer] > 1.4 * Math.max(...lengths.filter((_, i) => i !== q.answer))) longest++;
+        if (lengths[q.answer] === Math.max(...lengths) && lengths[q.answer] > 1.4 * Math.max(...lengths.filter((_, i) => i !== q.answer)))
+          longest++;
         total++;
       }
     }

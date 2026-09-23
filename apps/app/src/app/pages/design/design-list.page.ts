@@ -20,7 +20,10 @@ import { FREE_BUILD } from './free-build';
       <div class="page">
         <p class="eyebrow">System design sandbox</p>
         <h1>Build it. Load it. Break it.</h1>
-        <p class="muted lead">Wire up real components, then watch utilization, tail latency, errors and cost react as the traffic hits. Each mission is a production incident waiting to happen.</p>
+        <p class="muted lead">
+          Wire up real components, then watch utilization, tail latency, errors and cost react as the traffic hits. Each mission is a
+          production incident waiting to happen.
+        </p>
 
         <div class="list">
           @for (s of scenarios; track s.id; let i = $index) {
@@ -39,11 +42,18 @@ import { FREE_BUILD } from './free-build';
                 </div>
               </div>
               @if (done) {
-                <span class="badge"><ion-icon name="checkmark-circle" />best \${{ fmt(done.bestCost) }}/mo · {{ done.revisitsDone }}/3 revisits</span>
+                <span class="badge"
+                  ><ion-icon name="checkmark-circle" />best \${{ fmt(done.bestCost) }}/mo · {{ done.revisitsDone }}/3 revisits</span
+                >
               }
             </a>
             @if (revisit) {
-              <a class="panel card-link revisit" [class.due]="revisit.due" [routerLink]="['/design', s.id]" [queryParams]="{ revisit: revisit.variant }">
+              <a
+                class="panel card-link revisit"
+                [class.due]="revisit.due"
+                [routerLink]="['/design', s.id]"
+                [queryParams]="{ revisit: revisit.variant }"
+              >
                 <ion-icon name="refresh-circle-outline" />
                 <span>
                   <strong>Revisit {{ revisit.variant }} {{ revisit.due ? 'is due' : 'unlocks ' + (revisit.dueAt | date: 'MMM d') }}</strong>
@@ -64,10 +74,27 @@ import { FREE_BUILD } from './free-build';
     </ion-content>
   `,
   styles: `
-    h1 { font-size: clamp(26px, 5vw, 38px); margin: 6px 0 8px; }
-    .lead { max-width: 62ch; line-height: 1.5; margin: 0 0 22px; }
-    .list { display: flex; flex-direction: column; gap: 12px; }
-    .mission { display: flex; gap: 16px; align-items: flex-start; padding: 16px; position: relative; }
+    h1 {
+      font-size: clamp(26px, 5vw, 38px);
+      margin: 6px 0 8px;
+    }
+    .lead {
+      max-width: 62ch;
+      line-height: 1.5;
+      margin: 0 0 22px;
+    }
+    .list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .mission {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+      padding: 16px;
+      position: relative;
+    }
     .num {
       flex: none;
       width: 44px;
@@ -80,21 +107,78 @@ import { FREE_BUILD } from './free-build';
       font-size: 20px;
       font-weight: 700;
     }
-    .done .num { background: rgba(61, 220, 151, 0.14); color: var(--g-found); }
-    .free .num { background: var(--g-raised); color: var(--g-muted); }
-    .body { flex: 1; min-width: 0; }
-    h2 { font-size: 18px; margin: 2px 0 4px; }
-    p { margin: 0 0 10px; font-size: 14px; }
-    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
-    .badge { position: absolute; top: 14px; right: 14px; display: inline-flex; align-items: center; gap: 4px; color: var(--g-found); font-size: 12px; font-weight: 600; }
-    .revisit {
-      display: flex; gap: 12px; align-items: flex-start; padding: 12px 16px; margin: -6px 0 0 24px; font-size: 13.5px;
-      ion-icon { font-size: 22px; color: var(--g-muted); flex: none; }
-      strong { display: block; margin-bottom: 3px; }
-      .muted { line-height: 1.45; }
-      &.due { border-color: rgba(255, 181, 71, 0.55); ion-icon, strong { color: var(--g-warn); } }
+    .done .num {
+      background: rgba(61, 220, 151, 0.14);
+      color: var(--g-found);
     }
-    @media (max-width: 560px) { .badge { position: static; align-self: center; } .mission { flex-wrap: wrap; } }
+    .free .num {
+      background: var(--g-raised);
+      color: var(--g-muted);
+    }
+    .body {
+      flex: 1;
+      min-width: 0;
+    }
+    h2 {
+      font-size: 18px;
+      margin: 2px 0 4px;
+    }
+    p {
+      margin: 0 0 10px;
+      font-size: 14px;
+    }
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .badge {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      color: var(--g-found);
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .revisit {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      padding: 12px 16px;
+      margin: -6px 0 0 24px;
+      font-size: 13.5px;
+      ion-icon {
+        font-size: 22px;
+        color: var(--g-muted);
+        flex: none;
+      }
+      strong {
+        display: block;
+        margin-bottom: 3px;
+      }
+      .muted {
+        line-height: 1.45;
+      }
+      &.due {
+        border-color: rgba(255, 181, 71, 0.55);
+        ion-icon,
+        strong {
+          color: var(--g-warn);
+        }
+      }
+    }
+    @media (max-width: 560px) {
+      .badge {
+        position: static;
+        align-self: center;
+      }
+      .mission {
+        flex-wrap: wrap;
+      }
+    }
   `,
 })
 export class DesignListPage {

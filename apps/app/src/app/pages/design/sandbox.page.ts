@@ -1,4 +1,16 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, computed, effect, inject, input, signal, untracked, viewChild } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  ElementRef,
+  computed,
+  effect,
+  inject,
+  input,
+  signal,
+  untracked,
+  viewChild,
+} from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar, ToastController } from '@ionic/angular';
 import { Preferences } from '@capacitor/preferences';
@@ -57,7 +69,9 @@ type Drag =
 })
 export class SandboxPage {
   readonly id = input.required<string>();
-  readonly revisit = input(undefined, { transform: (v: string | number | undefined) => (v === undefined || v === '' ? undefined : Number(v)) });
+  readonly revisit = input(undefined, {
+    transform: (v: string | number | undefined) => (v === undefined || v === '' ? undefined : Number(v)),
+  });
   private readonly progress = inject(ProgressService);
   private readonly toasts = inject(ToastController);
   private readonly svg = viewChild<ElementRef<SVGSVGElement>>('canvas');
@@ -109,7 +123,18 @@ export class SandboxPage {
       const key = `${e.from}->${e.to}`;
       const rps = this.result().edges[key] ?? 0;
       const status = this.result().nodes[b.id]?.status ?? 'idle';
-      return [{ key, from: e.from, to: e.to, d: curve(a.x + W / 2, a.y, b.x - W / 2, b.y), rps, status, width: 1.5 + Math.log10(rps + 1) * 0.9, dur: rps > 0 ? Math.max(0.35, 3.2 - Math.log10(rps + 1) * 0.55) : 0 }];
+      return [
+        {
+          key,
+          from: e.from,
+          to: e.to,
+          d: curve(a.x + W / 2, a.y, b.x - W / 2, b.y),
+          rps,
+          status,
+          width: 1.5 + Math.log10(rps + 1) * 0.9,
+          dur: rps > 0 ? Math.max(0.35, 3.2 - Math.log10(rps + 1) * 0.55) : 0,
+        },
+      ];
     });
   });
 
@@ -123,7 +148,22 @@ export class SandboxPage {
   private saveTimer: ReturnType<typeof setTimeout> | undefined;
 
   constructor() {
-    addIcons({ add, remove, refresh, trashOutline, skullOutline, gitCommitOutline, checkmarkCircle, closeCircleOutline, alertCircle, warning, informationCircle, bulbOutline, trophy, flash });
+    addIcons({
+      add,
+      remove,
+      refresh,
+      trashOutline,
+      skullOutline,
+      gitCommitOutline,
+      checkmarkCircle,
+      closeCircleOutline,
+      alertCircle,
+      warning,
+      informationCircle,
+      bulbOutline,
+      trophy,
+      flash,
+    });
 
     effect(() => {
       const s = this.scenario();
@@ -136,7 +176,10 @@ export class SandboxPage {
       if (!this.loaded()) return;
       const key = untracked(() => this.storageKey());
       clearTimeout(this.saveTimer);
-      this.saveTimer = setTimeout(() => void Preferences.set({ key, value: JSON.stringify({ design: d, workload: untracked(() => this.workload()) }) }), 400);
+      this.saveTimer = setTimeout(
+        () => void Preferences.set({ key, value: JSON.stringify({ design: d, workload: untracked(() => this.workload()) }) }),
+        400,
+      );
     });
 
     effect(() => {
@@ -148,7 +191,8 @@ export class SandboxPage {
       const mission = untracked(() => this.progress.state().missions[s.id]);
       const variant = s.revisit?.number;
       const counts = variant ? mission?.revisitsDone === variant - 1 : !mission || cost < mission.bestCost;
-      if (counts) void this.progress.record({ type: 'scenario.completed', scenarioId: s.id, monthlyCost: cost, ...(variant ? { variant } : {}) });
+      if (counts)
+        void this.progress.record({ type: 'scenario.completed', scenarioId: s.id, monthlyCost: cost, ...(variant ? { variant } : {}) });
     });
 
     inject(DestroyRef).onDestroy(() => clearTimeout(this.saveTimer));
@@ -288,7 +332,7 @@ export class SandboxPage {
     const x = clamp(p.x - d.dx, W / 2, VIEW_W - W / 2);
     const y = clamp(p.y - d.dy, H / 2, VIEW_H - H / 2);
     this.patch((draft) => {
-      const n = draft.nodes.find((x) => x.id === d.id);
+      const n = draft.nodes.find((node) => node.id === d.id);
       if (n) {
         n.x = Math.round(x);
         n.y = Math.round(y);

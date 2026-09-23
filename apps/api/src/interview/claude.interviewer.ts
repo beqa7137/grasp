@@ -19,7 +19,10 @@ export class ClaudeInterviewer extends Interviewer {
   readonly mode = 'ai' as const;
   private readonly client: Anthropic;
 
-  constructor(apiKey: string, private readonly model: string) {
+  constructor(
+    apiKey: string,
+    private readonly model: string,
+  ) {
     super();
     this.client = new Anthropic({ apiKey });
   }

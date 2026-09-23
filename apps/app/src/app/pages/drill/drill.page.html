@@ -1,5 +1,7 @@
 <ion-header [translucent]="true">
-  <ion-toolbar><ion-title>{{ practice() ? 'Practice' : 'Review' }}</ion-title></ion-toolbar>
+  <ion-toolbar
+    ><ion-title>{{ practice() ? 'Practice' : 'Review' }}</ion-title></ion-toolbar
+  >
 </ion-header>
 
 <ion-content [fullscreen]="true">
@@ -66,7 +68,7 @@
           <div class="metrics">
             <div>
               <span class="label">Retention (30d)</span>
-              <strong>{{ progress.retention() === null ? '—' : ((progress.retention()! * 100).toFixed(0) + '%') }}</strong>
+              <strong>{{ progress.retention() === null ? '—' : (progress.retention()! * 100).toFixed(0) + '%' }}</strong>
               <span class="hint">target 90%</span>
             </div>
             <div>

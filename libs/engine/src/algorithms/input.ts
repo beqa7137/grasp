@@ -57,7 +57,10 @@ export function parseField(kind: InputKind, text: string): unknown {
     case 'text':
       return text;
     case 'grid':
-      return text.split(/[\n/]+/).map((r) => r.trim()).filter(Boolean);
+      return text
+        .split(/[\n/]+/)
+        .map((r) => r.trim())
+        .filter(Boolean);
   }
 }
 

@@ -67,7 +67,14 @@ describe('progress reducer', () => {
   });
 
   it('a wrong prediction pulls the checkpoint forward (or boosts it if unseen)', () => {
-    const miss = (atMs: number): StoredEvent => ({ id: id(), at: iso(atMs), type: 'predict.answered', algorithmId: 'grid-bfs', patternId: 'bfs', correct: false });
+    const miss = (atMs: number): StoredEvent => ({
+      id: id(),
+      at: iso(atMs),
+      type: 'predict.answered',
+      algorithmId: 'grid-bfs',
+      patternId: 'bfs',
+      correct: false,
+    });
     const unseen = replay([miss(t0)]);
     expect(unseen.boosts['pred:grid-bfs']?.reason).toBe('prediction-miss');
     expect(isUnlocked(getReviewItem('pred:grid-bfs')!, unseen)).toBe(true);
@@ -87,7 +94,15 @@ describe('progress reducer', () => {
     const scoredAt = t0 + 3 * DAY;
     const s = replay([
       ...base,
-      { id: id(), at: iso(scoredAt), type: 'interview.scored', sessionId: 's1', track: 'coding', verdict: 'lean-no-hire', weakPatterns: ['monotonic-stack'] },
+      {
+        id: id(),
+        at: iso(scoredAt),
+        type: 'interview.scored',
+        sessionId: 's1',
+        track: 'coding',
+        verdict: 'lean-no-hire',
+        weakPatterns: ['monotonic-stack'],
+      },
     ]);
     expect(Date.parse(s.cards['rec:ms1'].due)).toBeLessThanOrEqual(scoredAt);
     for (const def of itemsForTopic('monotonic-stack')) expect(s.boosts[def.id]?.reason).toBe('interview');
@@ -169,7 +184,11 @@ describe('progress reducer', () => {
   });
 
   it('tracks answer-time moving averages per item kind, ignoring outliers', () => {
-    const s = replay([graded('rec:h1', t0, RATING.good, 10_000), graded('rec:h2', t0 + 1, RATING.good, 20_000), graded('rec:h3', t0 + 2, RATING.good, 900_000)]);
+    const s = replay([
+      graded('rec:h1', t0, RATING.good, 10_000),
+      graded('rec:h2', t0 + 1, RATING.good, 20_000),
+      graded('rec:h3', t0 + 2, RATING.good, 900_000),
+    ]);
     expect(s.durations.recognition).toBe(Math.round(10_000 + 0.2 * (20_000 - 10_000) + 0.2 * (120_000 - 12_000)));
   });
 

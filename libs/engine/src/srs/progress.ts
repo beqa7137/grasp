@@ -96,7 +96,9 @@ export function applyEvent(state: ProgressState, stored: StoredEvent): ProgressS
       next.cards[event.itemId] = review(event.itemId, prev, event.rating, at);
       delete next.boosts[event.itemId];
       introduce(def.topic);
-      next.recent = [...state.recent, { at: event.at, itemId: event.itemId, phase: prev?.phase ?? 'new', rating: event.rating }].slice(-RECENT_LOG_LIMIT);
+      next.recent = [...state.recent, { at: event.at, itemId: event.itemId, phase: prev?.phase ?? 'new', rating: event.rating }].slice(
+        -RECENT_LOG_LIMIT,
+      );
       next.durations = updateDuration(state.durations, def.kind, event.durationMs);
       next.xp += [0, 2, 6, 10, 12][event.rating];
       break;
@@ -126,11 +128,20 @@ export function applyEvent(state: ProgressState, stored: StoredEvent): ProgressS
       const prev = state.missions[event.scenarioId];
       let mission: MissionState;
       if (!prev) {
-        mission = { firstCompletedAt: event.at, bestCost: event.monthlyCost, revisitsDone: 0, nextRevisitAt: addDays(at, MISSION_LADDER_DAYS[0]) };
+        mission = {
+          firstCompletedAt: event.at,
+          bestCost: event.monthlyCost,
+          revisitsDone: 0,
+          nextRevisitAt: addDays(at, MISSION_LADDER_DAYS[0]),
+        };
         next.xp += 100;
       } else if (event.variant !== undefined && event.variant === prev.revisitsDone + 1) {
         const done = event.variant;
-        mission = { ...prev, revisitsDone: done, nextRevisitAt: done < MISSION_LADDER_DAYS.length ? addDays(at, MISSION_LADDER_DAYS[done]) : null };
+        mission = {
+          ...prev,
+          revisitsDone: done,
+          nextRevisitAt: done < MISSION_LADDER_DAYS.length ? addDays(at, MISSION_LADDER_DAYS[done]) : null,
+        };
         next.xp += 60;
       } else {
         mission = { ...prev, bestCost: event.variant === undefined ? Math.min(prev.bestCost, event.monthlyCost) : prev.bestCost };
@@ -211,7 +222,10 @@ export interface TopicMastery {
 }
 
 export function masteryByTopic(state: ProgressState, now: Date): TopicMastery[] {
-  const topics = [...PATTERNS.map((p) => ({ id: p.id, kind: 'pattern' as const })), ...SD_TOPICS.map((t) => ({ id: t.id, kind: 'design' as const }))];
+  const topics = [
+    ...PATTERNS.map((p) => ({ id: p.id, kind: 'pattern' as const })),
+    ...SD_TOPICS.map((t) => ({ id: t.id, kind: 'design' as const })),
+  ];
   return topics.map(({ id, kind }) => {
     const items = itemsForTopic(id);
     const total = items.reduce((s, i) => s + itemStrength(i.id, state.cards[i.id], now), 0);

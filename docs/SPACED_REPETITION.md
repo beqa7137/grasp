@@ -6,22 +6,22 @@ The goal isn't to memorize answers. It's to keep **cue → pattern → move** in
 
 `libs/engine/src/srs/scheduler.ts` wraps [`ts-fsrs`](https://github.com/open-spaced-repetition/ts-fsrs). FSRS is the scheduler Anki uses by default, and it needs fewer reviews than SM-2 to reach the same retention.
 
-| Setting | Value | Why |
-|---|---|---|
-| Target retention | 0.90 | Standard default. Each review is scheduled for when recall probability falls to about 90%. |
-| Max interval | 365 days | Interview prep runs on a months-long horizon. |
-| Learning step | 10 min | A correct first answer graduates at once. A miss comes back later in the same sitting. |
-| Relearning step | 10 min | A lapse gets one quick re-check before FSRS takes over again. |
-| Fuzz | on, seeded by `itemId:reps` | Spreads out reviews so items don't bunch on the same day. The seed avoids clocks and float math, so replay gives the same schedule everywhere. |
+| Setting          | Value                       | Why                                                                                                                                            |
+| ---------------- | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Target retention | 0.90                        | Standard default. Each review is scheduled for when recall probability falls to about 90%.                                                     |
+| Max interval     | 365 days                    | Interview prep runs on a months-long horizon.                                                                                                  |
+| Learning step    | 10 min                      | A correct first answer graduates at once. A miss comes back later in the same sitting.                                                         |
+| Relearning step  | 10 min                      | A lapse gets one quick re-check before FSRS takes over again.                                                                                  |
+| Fuzz             | on, seeded by `itemId:reps` | Spreads out reviews so items don't bunch on the same day. The seed avoids clocks and float math, so replay gives the same schedule everywhere. |
 
 **Ratings.** A question is auto-graded by correctness, and the learner can adjust the grade:
 
-| Outcome | Rating |
-|---|---|
-| Wrong | Again |
-| Right, "I guessed" (G) | Hard |
-| Right (Enter) | Good |
-| Right, "Easy" (E) | Easy |
+| Outcome                | Rating |
+| ---------------------- | ------ |
+| Wrong                  | Again  |
+| Right, "I guessed" (G) | Hard   |
+| Right (Enter)          | Good   |
+| Right, "Easy" (E)      | Easy   |
 
 Easy is never inferred from answer speed. Multiple-choice answers can be fast because the learner eliminated options, and an unearned Easy inflates intervals. Each button shows the interval it will produce, e.g. "Got it 2d".
 
@@ -29,13 +29,13 @@ Easy is never inferred from answer speed. Multiple-choice answers can be fast be
 
 117 items in 5 kinds (`libs/engine/src/review/`). Each generates a fresh variant from a seed on every review, so learners recall the idea rather than the card.
 
-| Kind | Count | Variation per review |
-|---|---|---|
-| Recognize the pattern | 49 | Choices reshuffled, so answer positions can't be memorized |
-| Predict the next step | 5 | New random input. A decision point from the real trace, rendered with the visualizer's views |
-| Recall the template | 30 | Cloze on a key template line, with plausible, subtly wrong alternatives |
-| Complexity | 17 | Choices reshuffled |
-| System design | 16 | Generated numbers (queueing, cache math, QPS, storage, availability, backlog drain) and simulator-generated cases ("which component saturates first?", "which one is the single point of failure?") |
+| Kind                  | Count | Variation per review                                                                                                                                                                                |
+| --------------------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Recognize the pattern | 49    | Choices reshuffled, so answer positions can't be memorized                                                                                                                                          |
+| Predict the next step | 5     | New random input. A decision point from the real trace, rendered with the visualizer's views                                                                                                        |
+| Recall the template   | 30    | Cloze on a key template line, with plausible, subtly wrong alternatives                                                                                                                             |
+| Complexity            | 17    | Choices reshuffled                                                                                                                                                                                  |
+| System design         | 16    | Generated numbers (queueing, cache math, QPS, storage, availability, backlog drain) and simulator-generated cases ("which component saturates first?", "which one is the single point of failure?") |
 
 Tests enforce the following:
 
@@ -50,22 +50,22 @@ Tests enforce the following:
 
 An item enters rotation only after its idea has been met somewhere else:
 
-| Kind | Unlocks when |
-|---|---|
-| Recognition | Always |
+| Kind                    | Unlocks when                                                                             |
+| ----------------------- | ---------------------------------------------------------------------------------------- |
+| Recognition             | Always                                                                                   |
 | Complexity and template | The pattern has been engaged with (any review, visualizer prediction, or interview flag) |
-| Predict checkpoints | The learner has used that algorithm's visualizer |
-| System design | The Design Lab mission linked to that topic is complete |
+| Predict checkpoints     | The learner has used that algorithm's visualizer                                         |
+| System design           | The Design Lab mission linked to that topic is complete                                  |
 
 ## 3. Signals from the rest of the app
 
 Signals move due dates. They never edit FSRS memory state. The next real review measures actual recall, and FSRS accounts for the shorter elapsed time.
 
-| Signal | Effect |
-|---|---|
-| Wrong prediction in a visualizer | That algorithm's checkpoint is due within 24 h. If never seen, it's boosted to the front of new items. |
-| Interview scorecard weak patterns | Every known item of those patterns is due now. Unseen ones are boosted. The API writes this event itself, with a deterministic id, so the client's copy dedupes. |
-| Design Lab mission completed | Revisits are scheduled at 3 → 10 → 30 days. Each revisit is a changed variant (more traffic, a new SLO, no single point of failure…) rebuilt from the starter design. Every variant is tested: the starter fails and a reference solution passes. |
+| Signal                            | Effect                                                                                                                                                                                                                                            |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Wrong prediction in a visualizer  | That algorithm's checkpoint is due within 24 h. If never seen, it's boosted to the front of new items.                                                                                                                                            |
+| Interview scorecard weak patterns | Every known item of those patterns is due now. Unseen ones are boosted. The API writes this event itself, with a deterministic id, so the client's copy dedupes.                                                                                  |
+| Design Lab mission completed      | Revisits are scheduled at 3 → 10 → 30 days. Each revisit is a changed variant (more traffic, a new SLO, no single point of failure…) rebuilt from the starter design. Every variant is tested: the starter fails and a reference solution passes. |
 
 Boosted new items bypass the daily new-item cap, with a cap of their own.
 
