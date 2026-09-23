@@ -82,6 +82,18 @@ export class ProgressService {
     this.scheduleSync();
   }
 
+  /** Pushes everything not yet on the server, now rather than after the usual debounce. */
+  async flush(): Promise<void> {
+    clearTimeout(this.syncTimer);
+    await this.push();
+  }
+
+  /** Pulls events from other devices (for example after signing in) and pushes local ones. */
+  async resync(): Promise<void> {
+    await this.pull();
+    await this.push();
+  }
+
   /** Forgets all local progress, e.g. after the learner erased their server-side data. */
   async clearLocal(): Promise<void> {
     clearTimeout(this.syncTimer);

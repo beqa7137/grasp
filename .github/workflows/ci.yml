@@ -95,6 +95,7 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://grasp:grasp@localhost:5432/grasp
+      JWT_SECRET: ci-only-secret-for-the-smoke-test-0123456789
 
     steps:
       - uses: actions/checkout@v7
@@ -106,7 +107,7 @@ jobs:
         run: docker run --rm --network host -e DATABASE_URL grasp:ci node apps/api/dist/migrate.js
 
       - name: Start the container
-        run: docker run -d --name grasp --network host -e NODE_ENV=production -e DATABASE_URL grasp:ci
+        run: docker run -d --name grasp --network host -e NODE_ENV=production -e DATABASE_URL -e JWT_SECRET grasp:ci
 
       - name: Smoke test
         run: |
@@ -116,6 +117,8 @@ jobs:
           curl -fsS -H 'Accept: text/html' localhost:3000/tabs/learn | grep -q '<app-root'
           curl -fsS localhost:3000/config.json | grep -q '"apiUrl":null'
           curl -fsS localhost:3000/api/curriculum/patterns | grep -q 'sliding-window'
+          curl -fsS localhost:3000/api/auth/config | grep -q '"email":false'
+          curl -fsS -o /dev/null localhost:3000/pyodide/pyodide.asm.wasm
 
       - name: Container logs
         if: always()

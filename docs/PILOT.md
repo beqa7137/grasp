@@ -105,7 +105,7 @@ Review the targets table and the daily activity, then tag each feedback note as 
   - interview transcripts and scorecards
   - feedback notes, each with the screen and app version it was sent from
 
-  All of it sits under a random learner id generated on the device. There are no names, emails or accounts in this pilot.
+  All of it sits under a random learner id generated on the device. Testers who choose to sign in also give an email address, which is used only to send sign-in codes.
 
 - **Third parties:** interview transcripts are sent to Anthropic's Claude API to run and score interviews. Error reports go to Sentry with request bodies, headers and learner ids stripped.
 - **Consent:** testers see a pilot notice on first launch that explains the above, and the onboarding message repeats it.

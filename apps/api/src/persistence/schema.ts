@@ -1,4 +1,4 @@
-import { index, jsonb, pgTable, smallint, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { index, integer, jsonb, pgTable, smallint, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 export const learners = pgTable('learners', {
   id: uuid('id').primaryKey(),
@@ -52,4 +52,46 @@ export const feedback = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).notNull(),
   },
   (t) => [index('feedback_created_at').on(t.createdAt)],
+);
+
+export const users = pgTable('users', {
+  id: uuid('id').primaryKey(),
+  email: text('email').notNull().unique(),
+  learnerId: uuid('learner_id')
+    .notNull()
+    .unique()
+    .references(() => learners.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).notNull(),
+  lastLoginAt: timestamp('last_login_at', { withTimezone: true, mode: 'string' }),
+});
+
+export const loginCodes = pgTable(
+  'login_codes',
+  {
+    id: uuid('id').primaryKey(),
+    email: text('email').notNull(),
+    codeHash: text('code_hash').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'string' }).notNull(),
+    attempts: integer('attempts').notNull().default(0),
+    consumedAt: timestamp('consumed_at', { withTimezone: true, mode: 'string' }),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).notNull(),
+  },
+  (t) => [index('login_codes_email_time').on(t.email, t.createdAt)],
+);
+
+export const refreshTokens = pgTable(
+  'refresh_tokens',
+  {
+    id: uuid('id').primaryKey(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    familyId: uuid('family_id').notNull(),
+    tokenHash: text('token_hash').notNull().unique(),
+    expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'string' }).notNull(),
+    rotatedAt: timestamp('rotated_at', { withTimezone: true, mode: 'string' }),
+    revokedAt: timestamp('revoked_at', { withTimezone: true, mode: 'string' }),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).notNull(),
+  },
+  (t) => [index('refresh_tokens_user').on(t.userId), index('refresh_tokens_family').on(t.familyId)],
 );

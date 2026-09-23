@@ -1,10 +1,12 @@
 import { Controller, Get, Header, UseGuards } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 import { FeedbackStore, InterviewStore, ProgressStore } from '../persistence/stores.js';
+import { SkipIdentity } from '../auth/identity.guard.js';
 import { AdminGuard } from './admin.guard.js';
 import { cohortMetrics } from './cohort-metrics.js';
 
 @SkipThrottle()
+@SkipIdentity()
 @UseGuards(AdminGuard)
 @Controller('admin')
 export class AdminController {

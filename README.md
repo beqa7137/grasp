@@ -50,6 +50,7 @@ Open http://localhost:4200.
 cp apps/api/.env.example apps/api/.env
 # set ANTHROPIC_API_KEY=...  → AI interviewer (default model claude-sonnet-5)
 # set AI_DAILY_BUDGET_USD=5  → optional daily Claude spend ceiling
+# set RESEND_API_KEY=...      → send sign-in codes by email (dev prints them to the log)
 # set DATABASE_URL=...       → Postgres persistence
 
 npm run db:up        # Postgres 17 via docker compose
@@ -66,6 +67,10 @@ npm run cap:ios        # opens Xcode (or cap:android → Android Studio)
 ```
 
 Native dev builds call the API at `http://localhost:3000/api`, or `10.0.2.2` on the Android emulator, and allow cleartext HTTP. To point a build at another API, set `GRASP_API_URL` when syncing. Store builds need https: `GRASP_RELEASE=1 GRASP_API_URL=https://<host>/api npm run cap:sync`.
+
+## Accounts
+
+Optional passwordless sign-in with emailed codes. Signing in folds the device's anonymous progress into the account, syncs every device, and protects the progress from anonymous access. Sessions use short-lived JWTs and rotating refresh tokens with reuse detection. Rate limits count per user once signed in. See [docs/ACCOUNTS.md](docs/ACCOUNTS.md).
 
 ## Pilot
 
