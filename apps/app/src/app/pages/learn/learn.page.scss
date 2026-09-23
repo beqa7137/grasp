@@ -7,6 +7,16 @@
   }
 }
 
+.settings-link {
+  display: inline-flex;
+  padding: 6px 12px 6px 6px;
+  color: var(--g-muted);
+  font-size: 20px;
+  &:hover {
+    color: var(--g-text);
+  }
+}
+
 .sync {
   display: inline-flex;
   align-items: center;

@@ -257,3 +257,17 @@ ion-toast.g-toast {
   --border-width: 1px;
   --border-radius: 12px;
 }
+
+ion-modal.g-dialog {
+  --width: min(560px, calc(100vw - 24px));
+  --height: auto;
+  --max-height: calc(100vh - 48px);
+  --border-radius: 16px;
+  --background: var(--g-surface);
+  --backdrop-opacity: 0.6;
+
+  &::part(content) {
+    border: 1px solid var(--g-line-strong);
+    overflow-y: auto;
+  }
+}

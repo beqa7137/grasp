@@ -2,10 +2,10 @@ import { Global, Inject, Logger, Module, type OnApplicationShutdown } from '@nes
 import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
 import { APP_CONFIG, loadConfig, type AppConfig } from '../config.js';
-import { MemoryInterviewStore, MemoryProgressStore } from './memory.stores.js';
-import { PostgresInterviewStore, PostgresProgressStore, type Db } from './postgres.stores.js';
+import { MemoryFeedbackStore, MemoryInterviewStore, MemoryProgressStore } from './memory.stores.js';
+import { PostgresFeedbackStore, PostgresInterviewStore, PostgresProgressStore, type Db } from './postgres.stores.js';
 import * as schema from './schema.js';
-import { InterviewStore, ProgressStore } from './stores.js';
+import { FeedbackStore, InterviewStore, ProgressStore } from './stores.js';
 
 export const PG_POOL = Symbol('PG_POOL');
 const DB = Symbol('DB');
@@ -38,8 +38,13 @@ const DB = Symbol('DB');
       inject: [DB],
       useFactory: (db: Db | null) => (db ? new PostgresInterviewStore(db) : new MemoryInterviewStore()),
     },
+    {
+      provide: FeedbackStore,
+      inject: [DB],
+      useFactory: (db: Db | null) => (db ? new PostgresFeedbackStore(db) : new MemoryFeedbackStore()),
+    },
   ],
-  exports: [APP_CONFIG, PG_POOL, ProgressStore, InterviewStore],
+  exports: [APP_CONFIG, PG_POOL, ProgressStore, InterviewStore, FeedbackStore],
 })
 export class PersistenceModule implements OnApplicationShutdown {
   constructor(@Inject(PG_POOL) private readonly pool: pg.Pool | null) {}

@@ -39,7 +39,7 @@ export function serveWebApp(app: NestExpressApplication, config: AppConfig) {
     const wantsPage = (req.method === 'GET' || req.method === 'HEAD') && req.accepts('html') === 'html';
     if (!wantsPage || req.path.startsWith('/api/') || req.path === '/api' || /\.[a-z0-9]+$/i.test(req.path)) return next();
     res.setHeader('Cache-Control', 'no-cache');
-    res.sendFile(index);
+    res.sendFile(index, (err) => err && next());
   });
 
   new Logger('WebApp').log(`Serving the web app from ${root}`);

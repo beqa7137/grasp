@@ -14,7 +14,7 @@
     "dev:api": "npm run build:engine && npm run start:dev -w @grasp/api",
     "dev:app": "npm run build:engine && npm start -w @grasp/app",
     "build": "npm run build:engine && npm run build -w @grasp/api && npm run build -w @grasp/app",
-    "lint": "oxlint -c .oxlintrc.json --deny-warnings apps/api/src apps/api/test apps/app/src libs/engine/src",
+    "lint": "oxlint -c .oxlintrc.json --deny-warnings apps/api/src apps/api/test apps/app/src apps/app/scripts libs/engine/src scripts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "npm run build:engine && npm run typecheck --workspaces --if-present",
@@ -22,7 +22,8 @@
     "verify": "npm run lint && npm run format:check && npm run typecheck && npm test && npm run build",
     "db:up": "docker compose up -d postgres",
     "db:migrate": "npm run db:migrate -w @grasp/api",
-    "eval:interviewer": "npm run eval:interviewer -w @grasp/api"
+    "eval:interviewer": "npm run eval:interviewer -w @grasp/api",
+    "pilot:report": "node scripts/pilot-report.mjs"
   },
   "allowScripts": {
     "esbuild@0.28.2": true,

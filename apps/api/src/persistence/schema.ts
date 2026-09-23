@@ -1,4 +1,4 @@
-import { index, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { index, jsonb, pgTable, smallint, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 export const learners = pgTable('learners', {
   id: uuid('id').primaryKey(),
@@ -36,4 +36,20 @@ export const interviewSessions = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('interview_sessions_learner_time').on(t.learnerId, t.createdAt)],
+);
+
+export const feedback = pgTable(
+  'feedback',
+  {
+    id: uuid('id').primaryKey(),
+    learnerId: uuid('learner_id')
+      .notNull()
+      .references(() => learners.id, { onDelete: 'cascade' }),
+    kind: text('kind').notNull(),
+    message: text('message').notNull(),
+    rating: smallint('rating'),
+    context: jsonb('context').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).notNull(),
+  },
+  (t) => [index('feedback_created_at').on(t.createdAt)],
 );

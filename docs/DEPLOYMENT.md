@@ -30,6 +30,7 @@ fly secrets set DATABASE_URL="postgresql://..."
 
 # 3. Optional integrations
 fly secrets set ANTHROPIC_API_KEY="sk-ant-..." AI_DAILY_BUDGET_USD=5
+fly secrets set ADMIN_TOKEN="$(openssl rand -hex 32)"
 fly secrets set SENTRY_DSN="https://...@o0.ingest.sentry.io/1" SENTRY_WEB_DSN="https://...@o0.ingest.sentry.io/2"
 
 # 4. Deploy (builds remotely, runs migrations, then rolls out)

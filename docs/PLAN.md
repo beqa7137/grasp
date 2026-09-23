@@ -93,23 +93,26 @@ release-time migrations. See [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ### API surface (v0)
 
-| Method | Path                                              | Purpose                                     |
-| ------ | ------------------------------------------------- | ------------------------------------------- |
-| GET    | `/api/health`                                     | liveness + which integrations are active    |
-| GET    | `/api/curriculum/patterns`                        | pattern catalog                             |
-| GET    | `/api/curriculum/algorithms`                      | visualizer metadata                         |
-| POST   | `/api/curriculum/algorithms/:id/trace`            | server-side trace (sharing, validation)     |
-| GET    | `/api/curriculum/drills`                          | recognition cards                           |
-| GET    | `/api/curriculum/review-items`                    | review item catalog                         |
-| GET    | `/api/curriculum/review-items/:id/question?seed=` | a (reproducible) question variant           |
-| GET    | `/api/curriculum/scenarios`                       | sandbox components + scenarios              |
-| POST   | `/api/progress/events`                            | idempotent batch ingest                     |
-| GET    | `/api/progress`                                   | derived card states + mastery per pattern   |
-| GET    | `/api/interview/problems`                         | interview problem catalog + mode            |
-| GET    | `/api/interview/sessions`                         | recent sessions                             |
-| POST   | `/api/interview/sessions`                         | start a session                             |
-| POST   | `/api/interview/sessions/:id/messages`            | send answer, stream interviewer reply (SSE) |
-| POST   | `/api/interview/sessions/:id/score`               | rubric scorecard                            |
+| Method | Path                                              | Purpose                                        |
+| ------ | ------------------------------------------------- | ---------------------------------------------- |
+| GET    | `/api/health` · `/api/health/ready`               | liveness (+ integrations, release) · readiness |
+| GET    | `/api/curriculum/patterns`                        | pattern catalog                                |
+| GET    | `/api/curriculum/algorithms`                      | visualizer metadata                            |
+| POST   | `/api/curriculum/algorithms/:id/trace`            | server-side trace (sharing, validation)        |
+| GET    | `/api/curriculum/drills`                          | recognition cards                              |
+| GET    | `/api/curriculum/review-items`                    | review item catalog                            |
+| GET    | `/api/curriculum/review-items/:id/question?seed=` | a (reproducible) question variant              |
+| GET    | `/api/curriculum/scenarios`                       | sandbox components + scenarios                 |
+| POST   | `/api/progress/events`                            | idempotent batch ingest                        |
+| GET    | `/api/progress`                                   | derived card states + mastery per pattern      |
+| GET    | `/api/interview/problems`                         | interview problem catalog + mode               |
+| GET    | `/api/interview/sessions`                         | recent sessions                                |
+| POST   | `/api/interview/sessions`                         | start a session                                |
+| POST   | `/api/interview/sessions/:id/messages`            | send answer, stream interviewer reply (SSE)    |
+| POST   | `/api/interview/sessions/:id/score`               | rubric scorecard                               |
+| POST   | `/api/feedback`                                   | in-app feedback note                           |
+| GET    | `/api/me/export` · DELETE `/api/me`               | export or erase the learner's data             |
+| GET    | `/api/admin/metrics` · `/api/admin/feedback`      | pilot metrics (bearer `ADMIN_TOKEN`)           |
 
 ## 4. Roadmap
 

@@ -80,6 +80,15 @@ export class ProgressService {
     this.scheduleSync();
   }
 
+  /** Forgets all local progress, e.g. after the learner erased their server-side data. */
+  async clearLocal(): Promise<void> {
+    clearTimeout(this.syncTimer);
+    this.events.set([]);
+    this.synced = new Set();
+    await Promise.all([Preferences.remove({ key: EVENTS_KEY }), Preferences.remove({ key: SYNCED_KEY })]);
+    this.syncStatus.set('idle');
+  }
+
   masteryOf(topic: string) {
     return this.mastery().find((m) => m.topic === topic);
   }
