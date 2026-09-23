@@ -7,6 +7,7 @@
       <ion-icon [name]="progress.syncStatus() === 'offline' ? 'cloud-offline-outline' : 'cloud-done-outline'" />
       <span>{{ progress.syncStatus() === 'offline' ? 'Offline' : 'Synced' }}</span>
     </div>
+    <a slot="end" class="settings-link" routerLink="/settings" aria-label="Settings"><ion-icon name="settings-outline" /></a>
   </ion-toolbar>
 </ion-header>
 

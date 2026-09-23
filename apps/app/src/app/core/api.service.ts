@@ -32,6 +32,10 @@ export class ApiService {
     return this.request<T>('POST', path, body);
   }
 
+  delete(path: string): Promise<void> {
+    return this.request<void>('DELETE', path);
+  }
+
   /** POSTs and consumes a text/event-stream response. Resolves with the `done` payload. */
   async stream<T>(path: string, body: unknown, handlers: SseHandlers, signal?: AbortSignal): Promise<T> {
     const res = await fetch(this.base + path, { method: 'POST', headers: this.headers(), body: JSON.stringify(body), signal });
@@ -65,7 +69,7 @@ export class ApiService {
       throw new ApiError(0, 'Cannot reach the Grasp server. Is the API running?');
     }
     if (!res.ok) throw await this.toError(res);
-    return (await res.json()) as T;
+    return (res.status === 204 ? undefined : await res.json()) as T;
   }
 
   private headers(): Record<string, string> {

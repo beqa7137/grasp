@@ -37,6 +37,8 @@ const envSchema = z.object({
   AI_DAILY_BUDGET_USD: optional(z.coerce.number().positive()),
   INTERVIEW_MESSAGES_PER_HOUR: z.coerce.number().int().positive().default(120),
 
+  ADMIN_TOKEN: optional(z.string().min(32, 'must be at least 32 characters')),
+
   SENTRY_DSN: optional(z.url()),
   SENTRY_WEB_DSN: optional(z.url()),
   SENTRY_ENVIRONMENT: optional(z.string()),
@@ -62,6 +64,8 @@ export interface AppConfig {
   /** Null means no daily ceiling. */
   aiDailyBudgetUsd: number | null;
   interviewMessagesPerHour: number;
+  /** Bearer token for /api/admin; admin routes are disabled when unset. */
+  adminToken: string | null;
   sentryDsn: string | null;
   sentryEnvironment: string;
   /** Values the served web app receives through `/config.json`. */
@@ -94,6 +98,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     anthropicMaxRetries: e.ANTHROPIC_MAX_RETRIES,
     aiDailyBudgetUsd: e.AI_DAILY_BUDGET_USD ?? null,
     interviewMessagesPerHour: e.INTERVIEW_MESSAGES_PER_HOUR,
+    adminToken: e.ADMIN_TOKEN ?? null,
     sentryDsn: e.SENTRY_DSN ?? null,
     sentryEnvironment: e.SENTRY_ENVIRONMENT ?? e.NODE_ENV,
     web: { sentryDsn: e.SENTRY_WEB_DSN ?? null },

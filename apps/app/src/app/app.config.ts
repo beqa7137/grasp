@@ -5,6 +5,7 @@ import { routes } from './app.routes';
 import { ReportingErrorHandler, initErrorReporting } from './core/error-reporting';
 import { LearnerService } from './core/learner.service';
 import { ProgressService } from './core/progress.service';
+import { PilotService } from './pilot/pilot.service';
 import { RuntimeConfigService } from './core/runtime-config.service';
 
 export const appConfig: ApplicationConfig = {
@@ -18,10 +19,12 @@ export const appConfig: ApplicationConfig = {
       const runtime = inject(RuntimeConfigService);
       const learner = inject(LearnerService);
       const progress = inject(ProgressService);
+      const pilot = inject(PilotService);
       await runtime.load();
       void initErrorReporting(runtime);
       await learner.init();
       await progress.init();
+      await pilot.init();
     }),
   ],
 };

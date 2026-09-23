@@ -66,6 +66,15 @@ npm run cap:ios        # opens Xcode (or cap:android → Android Studio)
 
 Native dev builds call the API at `http://localhost:3000/api`, or `10.0.2.2` on the Android emulator, and allow cleartext HTTP. To point a build at another API, set `GRASP_API_URL` when syncing. Store builds need https: `GRASP_RELEASE=1 GRASP_API_URL=https://<host>/api npm run cap:sync`.
 
+## Pilot
+
+[docs/PILOT.md](docs/PILOT.md) is the protocol for a ten-person pilot: success criteria, cohort, timeline, surveys, operations and data handling. The product side:
+
+- **In-app feedback.** A Feedback tab on every screen sends a note, an optional usefulness rating, and the screen and version it came from.
+- **First-run pilot notice.** Explains what is stored and where transcripts go.
+- **Settings.** Learners can export or delete all their data (`GET /api/me/export`, `DELETE /api/me`).
+- **Cohort metrics for the operator.** `GET /api/admin/metrics` behind `ADMIN_TOKEN` reports activation, D1/D7 retention, recall, interview completion and AI cost. `npm run pilot:report` turns it into a weekly Markdown report checked against the targets.
+
 ## Deployment
 
 A single Docker image serves the API and the web app. [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) covers the Fly.io setup (`fly.toml`, release-time migrations, health checks), continuous deployment from GitHub Actions, rollback, Sentry and the environment reference.
@@ -81,6 +90,7 @@ A single Docker image serves the API and the web app. [docs/DEPLOYMENT.md](docs/
 | `npm run build`                   | Production builds of all three packages                          |
 | `npm run verify`                  | All of the above, in the same order CI runs them                 |
 | `npm run eval:interviewer`        | Live eval of the AI interviewer (needs `ANTHROPIC_API_KEY`)      |
+| `npm run pilot:report`            | Markdown pilot report from `/api/admin/metrics` (`ADMIN_TOKEN`)  |
 
 CI (`.github/workflows/ci.yml`) runs `verify` on every push to `main` and every pull request, with a Postgres service so the API e2e suite runs against both in-memory and Postgres storage. It also audits production dependencies, then builds the Docker image and smoke-tests it against Postgres. `deploy.yml` ships `main` to Fly.io once enabled. Dependabot proposes grouped dependency updates weekly.
 

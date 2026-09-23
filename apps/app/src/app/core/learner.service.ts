@@ -14,4 +14,10 @@ export class LearnerService {
     if (!value) await Preferences.set({ key: KEY, value: id });
     this.current.set(id);
   }
+
+  /** Starts over as a brand-new anonymous learner. */
+  async reset(): Promise<void> {
+    await Preferences.remove({ key: KEY });
+    await this.init();
+  }
 }

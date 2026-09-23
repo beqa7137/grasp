@@ -12,6 +12,7 @@ import {
   gitNetworkOutline,
   pulseOutline,
   playCircleOutline,
+  settingsOutline,
   sparkles,
 } from 'ionicons/icons';
 import { ProgressService } from '../../core/progress.service';
@@ -57,6 +58,7 @@ export class LearnPage {
 
   constructor() {
     addIcons({
+      settingsOutline,
       flame,
       sparkles,
       flashOutline,

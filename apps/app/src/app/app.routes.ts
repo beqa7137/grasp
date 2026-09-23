@@ -17,6 +17,7 @@ export const routes: Routes = [
         path: 'interview/:id',
         loadComponent: () => import('./pages/interview/interview-session.page').then((m) => m.InterviewSessionPage),
       },
+      { path: 'settings', loadComponent: () => import('./pages/settings/settings.page').then((m) => m.SettingsPage) },
       { path: '', pathMatch: 'full', redirectTo: 'learn' },
     ],
   },
