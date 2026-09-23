@@ -2,6 +2,7 @@ import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core'
 import { Preferences } from '@capacitor/preferences';
 import {
   buildSession,
+  type CodeSubmittedEvent,
   forecast,
   masteryByTopic,
   missionRevisits,
@@ -27,7 +28,8 @@ export type NewEvent =
   | Draft<PracticeAnsweredEvent>
   | Draft<PredictAnsweredEvent>
   | Draft<ScenarioCompletedEvent>
-  | Draft<InterviewScoredEvent>;
+  | Draft<InterviewScoredEvent>
+  | Draft<CodeSubmittedEvent>;
 
 export type SyncStatus = 'idle' | 'syncing' | 'synced' | 'offline';
 

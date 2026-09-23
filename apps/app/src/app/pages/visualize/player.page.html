@@ -21,6 +21,11 @@
         </div>
         <h1>{{ a.title }}</h1>
         <p class="muted">{{ a.summary }}</p>
+        @if (problem(); as c) {
+          <a class="code-it" [routerLink]="['/code', c.id]"
+            ><ion-icon name="code-slash-outline" /> Now write it yourself: {{ c.title }} →</a
+          >
+        }
       </section>
 
       <div class="layout">

@@ -22,7 +22,8 @@
       {
         "allowWithDecorator": true
       }
-    ]
+    ],
+    "unicorn/require-post-message-target-origin": "off"
   },
   "ignorePatterns": ["**/dist/**", "**/node_modules/**", "**/.angular/**", "apps/api/drizzle/**"]
 }

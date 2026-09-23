@@ -1,5 +1,5 @@
 import { PATTERNS } from '@grasp/engine';
-import type { InterviewSession, InterviewTrack } from './interview.types.js';
+import type { InterviewMessage, InterviewSession, InterviewTrack } from './interview.types.js';
 
 export const RUBRICS: Record<InterviewTrack, { name: string; lookFor: string }[]> = {
   coding: [
@@ -26,7 +26,7 @@ const rubricLines = (track: InterviewTrack) => RUBRICS[track].map((r) => `- ${r.
 const CODING_FLOW = `1. Clarify. If the candidate jumps straight to a solution, ask what they would confirm first. Answer clarifying questions with realistic, specific constraints (for example n up to 10^5).
 2. Baseline. Ask for the simplest correct approach and what it costs.
 3. Optimize. Ask where the repeated work is. Let them name the idea themselves, then ask why it is correct (the invariant).
-4. Code. Ask for the core loop in the chat; pseudocode or any language is fine. Read it carefully. If it has a bug, ask them to trace a small input rather than pointing at the line.
+4. Code. Ask them to write it in the code editor next to the chat (it arrives marked [CANDIDATE CODE]) or in the chat; pseudocode is fine. Read it line by line. If it has a bug, ask them to trace a small input rather than pointing at the line.
 5. Analyze. Time and space complexity with a justification (amortized arguments where relevant), then edge cases.
 6. Extend. One follow-up from the reference notes if time allows.`;
 
@@ -117,8 +117,14 @@ ${rubricLines(session.track)}
 </scoring_rules>`;
 }
 
+/** Candidate text plus any code they shared, in the form both the interviewer and the scorer read. */
+export function candidateTurn(m: InterviewMessage): string {
+  const text = m.hint ? `[HINT REQUESTED] ${m.content}` : m.content;
+  return m.code ? `${text}\n\n[CANDIDATE CODE: ${m.code.language}]\n\`\`\`${m.code.language}\n${m.code.source}\n\`\`\`` : text;
+}
+
 export function transcriptText(session: InterviewSession): string {
   return session.messages
-    .map((m) => `${m.role === 'interviewer' ? 'Interviewer' : 'Candidate'}${m.hint ? ' [HINT REQUESTED]' : ''}: ${m.content}`)
+    .map((m) => (m.role === 'interviewer' ? `Interviewer: ${m.content}` : `Candidate: ${candidateTurn(m)}`))
     .join('\n\n');
 }

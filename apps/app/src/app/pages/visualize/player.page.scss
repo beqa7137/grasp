@@ -1,6 +1,15 @@
 .intro {
   margin: 4px 0 18px;
 
+  .code-it {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--g-found);
+    font-size: 14px;
+    text-decoration: none;
+  }
+
   .meta {
     display: flex;
     flex-wrap: wrap;

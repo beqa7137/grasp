@@ -111,6 +111,33 @@ describe('progress reducer', () => {
     expect(reviewed.boosts['rec:ms3']).toBeDefined();
   });
 
+  it('records coding submissions and boosts template recall after a failed first attempt', () => {
+    const submit = (atMs: number, passed: number, problemId = 'daily-temperatures'): StoredEvent => ({
+      id: id(),
+      at: iso(atMs),
+      type: 'code.submitted',
+      problemId,
+      language: 'python',
+      passed,
+      total: 28,
+    });
+    const clozes = itemsForTopic('monotonic-stack').filter((d) => d.kind === 'cloze');
+    expect(clozes.length).toBeGreaterThan(0);
+
+    const failed = replay([submit(t0, 20)]);
+    expect(failed.coding['daily-temperatures']).toEqual({ attempts: 1, solvedAt: null, bestPassed: 20, total: 28 });
+    expect(failed.introduced['monotonic-stack']).toBe(iso(t0));
+    for (const def of clozes) expect(failed.boosts[def.id]).toEqual({ at: iso(t0), reason: 'code' });
+
+    const solved = replay([submit(t0, 20), submit(t0 + 60_000, 28), submit(t0 + DAY, 3)]);
+    expect(solved.coding['daily-temperatures']).toEqual({ attempts: 3, solvedAt: iso(t0 + 60_000), bestPassed: 28, total: 28 });
+    expect(solved.xp).toBe(2 + 50 + 2);
+    const afterSolve = replay([submit(t0, 28), submit(t0 + DAY, 3)]);
+    for (const def of clozes) expect(afterSolve.boosts[def.id]).toBeUndefined();
+
+    expect(replay([submit(t0, 1, 'no-such-problem')]).coding).toEqual({});
+  });
+
   it('schedules mission revisits on a 3 → 10 → 30 day ladder', () => {
     const done = (atMs: number, variant?: number): StoredEvent => ({
       id: id(),

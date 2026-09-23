@@ -12,8 +12,12 @@ const startSchema = z.object({
 });
 
 const messageSchema = z
-  .object({ content: z.string().max(4000).default(''), hint: z.boolean().default(false) })
-  .refine((m) => m.hint || m.content.trim().length > 0, 'Message cannot be empty');
+  .object({
+    content: z.string().max(4000).default(''),
+    hint: z.boolean().default(false),
+    code: z.object({ language: z.enum(['javascript', 'typescript', 'python']), source: z.string().max(20_000) }).optional(),
+  })
+  .refine((m) => m.hint || m.content.trim().length > 0 || Boolean(m.code?.source.trim()), 'Message cannot be empty');
 
 @Controller('interview')
 export class InterviewController {

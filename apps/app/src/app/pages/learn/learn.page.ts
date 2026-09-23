@@ -1,11 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
-import { ALGORITHMS, PATTERNS, SCENARIOS, SD_TOPICS, getScenario, type Track } from '@grasp/engine';
+import { ALGORITHMS, CODING_PROBLEMS, PATTERNS, SCENARIOS, SD_TOPICS, getScenario, type Track } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import {
   chatbubblesOutline,
   cloudDoneOutline,
+  codeSlashOutline,
   cloudOfflineOutline,
   flame,
   flashOutline,
@@ -46,6 +47,7 @@ export class LearnPage {
     const preds = this.progress.state().predictions;
     return [...ALGORITHMS].sort((a, b) => (preds[a.patternId]?.total ?? 0) - (preds[b.patternId]?.total ?? 0))[0];
   });
+  readonly nextProblem = computed(() => CODING_PROBLEMS.find((p) => !this.progress.state().coding[p.id]?.solvedAt) ?? CODING_PROBLEMS[0]);
   readonly nextScenario = computed(() => SCENARIOS.find((s) => !this.progress.state().missions[s.id]) ?? SCENARIOS[0]);
   readonly revisit = computed(() => {
     const m = this.progress.dueMissions()[0];
@@ -59,6 +61,7 @@ export class LearnPage {
   constructor() {
     addIcons({
       settingsOutline,
+      codeSlashOutline,
       flame,
       sparkles,
       flashOutline,

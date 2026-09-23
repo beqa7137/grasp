@@ -14,6 +14,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
 import {
+  CODING_PROBLEMS,
   InputError,
   formatField,
   getAlgorithm,
@@ -27,6 +28,7 @@ import { addIcons } from 'ionicons';
 import {
   checkmarkCircle,
   closeCircle,
+  codeSlashOutline,
   diceOutline,
   helpCircleOutline,
   pause,
@@ -73,6 +75,7 @@ export class PlayerPage {
   private readonly progress = inject(ProgressService);
 
   readonly algo = computed(() => getAlgorithm(this.id()) as AlgorithmDef | undefined);
+  readonly problem = computed(() => CODING_PROBLEMS.find((p) => p.algorithmId === this.id()));
   readonly pattern = computed(() => (this.algo() ? getPattern(this.algo()!.patternId) : undefined));
 
   readonly input = signal<Record<string, unknown> | null>(null);
@@ -130,6 +133,7 @@ export class PlayerPage {
       checkmarkCircle,
       closeCircle,
       helpCircleOutline,
+      codeSlashOutline,
     });
 
     effect(() => {

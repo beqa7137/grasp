@@ -7,9 +7,11 @@ export interface RuntimeConfig {
   sentryDsn: string | null;
   environment: string;
   release: string | null;
+  /** Where the Python runtime is downloaded from; null means `pyodide/` next to the app. */
+  pyodideUrl: string | null;
 }
 
-const DEFAULTS: RuntimeConfig = { apiUrl: null, sentryDsn: null, environment: 'development', release: null };
+const DEFAULTS: RuntimeConfig = { apiUrl: null, sentryDsn: null, environment: 'development', release: null, pyodideUrl: null };
 const LOAD_TIMEOUT_MS = 3_000;
 
 /**
@@ -28,6 +30,11 @@ export class RuntimeConfigService {
     } catch {
       // Offline or no config file: the defaults keep local development working.
     }
+  }
+
+  pyodideUrl(): string {
+    const configured = this.current().pyodideUrl;
+    return configured ? configured.replace(/\/?$/, '/') : new URL('pyodide/', document.baseURI).href;
   }
 
   apiBase(): string {

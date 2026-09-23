@@ -49,3 +49,17 @@ describe('OfflineInterviewer', () => {
     expect(text).toContain('improved approach');
   });
 });
+
+describe('OfflineInterviewer with code', () => {
+  it('asks the candidate to walk through shared code', async () => {
+    const s = session([]);
+    s.messages.push({
+      role: 'candidate',
+      content: 'Here is my code.',
+      at: '',
+      code: { language: 'python', source: 'def f(t):\n    return t\n' },
+    });
+    const { text } = await new OfflineInterviewer().reply(s, () => {}, new AbortController().signal);
+    expect(text).toContain('2 lines of python');
+  });
+});

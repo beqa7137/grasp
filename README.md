@@ -5,8 +5,9 @@ Interactive prep for algorithm and system design interviews. Web, iOS and Androi
 - **Step-through visualizers.** Scrub forward and back through real execution, with code, variables, data structures and narration kept in sync. Edit the input and the trace regenerates on-device.
 - **Predict mode.** At each decision point the player stops and asks what happens next. Your answers count toward mastery.
 - **Design Lab.** Wire up CDN, LB, app tier, cache, primary and replicas, queue and workers. A queueing simulator shows utilization, p50/p99, errors, cost and backlog live. You can kill instances to test failure, and each mission has goals to hit.
+- **Coding practice.** Twelve problems tied to the pattern curriculum, solved in Python, JavaScript or TypeScript right in the browser. Each one runs against hidden tests plus a large performance input that only the right complexity finishes in time. **Trace** steps through _your own_ JavaScript/TypeScript line by line in the visualizer, with arrays, pointers, stacks and grids drawn live. A failed first attempt brings that pattern's template cards forward in review. See [docs/CODE_RUNNER.md](docs/CODE_RUNNER.md).
 - **Spaced review (FSRS).** 117 small, auto-graded items in 5 kinds: pattern recognition, predict-the-next-step, template recall, complexity, and system design cases. Every review shows a fresh variant. Missed visualizer predictions, weak patterns from interview scorecards and completed Design Lab missions all feed the schedule. See [docs/SPACED_REPETITION.md](docs/SPACED_REPETITION.md).
-- **AI interviewer.** Claude runs coding or system design interviews: it streams replies, hints on request and scores you with a rubric scorecard. Prompt caching, per-session cost tracking, a daily spend ceiling and graceful failure handling are built in. See [docs/AI_INTERVIEWER.md](docs/AI_INTERVIEWER.md). If no API key is set, a scripted offline interviewer takes its place.
+- **AI interviewer.** Claude runs coding or system design interviews: it streams replies, hints on request, reads the code you write in the built-in editor, and scores you with a rubric scorecard. Prompt caching, per-session cost tracking, a daily spend ceiling and graceful failure handling are built in. See [docs/AI_INTERVIEWER.md](docs/AI_INTERVIEWER.md). If no API key is set, a scripted offline interviewer takes its place.
 
 See [docs/PLAN.md](docs/PLAN.md) for the product vision, architecture and roadmap.
 
@@ -96,7 +97,7 @@ CI (`.github/workflows/ci.yml`) runs `verify` on every push to `main` and every 
 
 ### Tests
 
-- **Engine:** every tracer is checked against a reference implementation on 300 random inputs. Each scenario must fail with its starter design and pass with a reference solution. Every revisit variant is proven solvable. FSRS scheduling, event upcasting, signals and session building are covered, and a 90-day simulated learner checks that retention lands near the 90% target. Every review item is validated across 40 seeds.
+- **Engine:** every coding problem's reference solution is cross-checked against a brute-force solution on its full suite and run against a CPython reference through the same Python harness the browser uses. Every tracer is checked against a reference implementation on 300 random inputs. Each scenario must fail with its starter design and pass with a reference solution. Every revisit variant is proven solvable. FSRS scheduling, event upcasting, signals and session building are covered, and a 90-day simulated learner checks that retention lands near the 90% target. Every review item is validated across 40 seeds.
 - **API:** contract tests drive a real Anthropic SDK client over a scripted `fetch`. They cover the exact request shape, cache-stable prefixes, cost accounting, every error mapping, retries, aborts, the structured-output schema, and scorecard repair and fallback. E2e tests build the app through the same `configureApp` as production. They cover health and readiness, security headers, request ids, CORS, body limits, per-IP rate limiting, web-app serving and runtime config, curriculum, idempotent event sync, validation, learner isolation, and full offline and AI interviews over SSE, including 503/409 paths and the spend ceiling. Environment validation has its own unit tests. Set `TEST_DATABASE_URL` to run the same suite against Postgres too (migrations are applied and tables truncated first):
 
   ```bash
@@ -104,7 +105,7 @@ CI (`.github/workflows/ci.yml`) runs `verify` on every push to `main` and every 
   TEST_DATABASE_URL=postgresql://grasp:grasp@localhost:5432/grasp npm test -w @grasp/api
   ```
 
-- **App:** component tests run with Vitest via `ng test`.
+- **App:** Vitest via `ng test`. It covers components, the JS/TS runner (compilation, error lines, sandboxed globals), the code instrumenter and trace-to-frame conversion, and Python traceback cleanup. The in-browser runner (Pyodide under the production CSP, time limits, infinite-loop recovery) was checked end to end with Playwright against the built app.
 
 ## How progress sync works
 
@@ -117,3 +118,4 @@ Every learning action is an immutable event with a client-generated id: `review.
 - **Review items:** add recognition cards to `curriculum/drills.ts`, template clozes to `curriculum/clozes.ts`, complexity facts to `curriculum/complexity.ts`, and generated system design cases to `review/design-items.ts`. The review tests validate every item across many seeds.
 - **Mission revisits:** add `variants` to a scenario and a reference solution per variant in `sysdesign.spec.ts`.
 - **Interview problems:** add them to `apps/api/src/interview/problems.ts` (opening, private reference notes, hint ladder).
+- **Coding problems:** add a `CodingProblem` to `libs/engine/src/coding/problems.ts` with a reference `solve`, edge cases and random/performance generators. Then add a brute-force check and a Python reference to the tests; they prove the suite is correct in both languages.

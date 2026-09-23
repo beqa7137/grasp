@@ -16,3 +16,4 @@ docs
 *.md
 Dockerfile
 .dockerignore
+**/public/pyodide
