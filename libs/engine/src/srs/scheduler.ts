@@ -117,7 +117,7 @@ export function review(
   return fromFsrs(next.card, prev?.firstReview ?? at.toISOString());
 }
 
-/** Due date each rating would produce — shown to the learner before they commit to a rating. */
+/** Due date each rating would produce, shown to the learner before they commit to a rating. */
 export function previewDue(
   itemId: string,
   prev: CardState | undefined,
@@ -139,7 +139,7 @@ export function retrievability(itemId: string, card: CardState | undefined, now:
 
 /**
  * Moves the next review earlier without touching memory state. FSRS accounts for the shorter
- * elapsed time at the next real review, so this is safe — unlike editing stability or difficulty.
+ * elapsed time at the next real review, so this is safe, unlike editing stability or difficulty.
  */
 export function pullForward(card: CardState, to: Date): CardState {
   return Date.parse(card.due) <= to.getTime() ? card : { ...card, due: to.toISOString() };

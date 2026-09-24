@@ -79,21 +79,21 @@ export const longestUnique: AlgorithmDef<Input> = {
     for (right = 0; right < chars.length; right++) {
       const c = chars[right];
       const dup = seen.has(c);
-      snap(5, `right = ${right} brings in '${c}'. Is it already in the window?`, {
+      snap(5, `\`right = ${right}\` brings in '${c}'. Is it already in the window?`, {
         predict: {
           prompt: `'${c}' wants to join window {${[...seen].join(', ')}}. What happens?`,
           choices: CHOICES,
           answer: dup ? 1 : 0,
           explain: dup
             ? `'${c}' is already inside, so the window would contain a repeat. Evict from the left until the old '${c}' is gone.`
-            : `'${c}' is new, so the window stays valid — just extend it.`,
+            : `'${c}' is new, so the window stays valid: just extend it.`,
         },
       });
       while (seen.has(c)) {
         seen.delete(chars[left]);
         const evicted = chars[left];
         left++;
-        snap(7, `Evict '${evicted}' and move left to ${left}.${seen.has(c) ? ` '${c}' is still inside — keep shrinking.` : ''}`);
+        snap(7, `Evict '${evicted}' and move left to ${left}.${seen.has(c) ? ` '${c}' is still inside: keep shrinking.` : ''}`);
       }
       seen.add(c);
       snap(9, `Add '${c}'. Window "${chars.slice(left, right + 1).join('')}" has no repeats.`);

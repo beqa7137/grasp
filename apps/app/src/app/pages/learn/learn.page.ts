@@ -24,7 +24,7 @@ import { MasteryRingComponent } from '../../viz/mastery-ring.component';
 
 const TRACKS: { id: Track; title: string; blurb: string }[] = [
   { id: 'foundations', title: 'Foundations', blurb: 'The four patterns behind a third of all interview questions.' },
-  { id: 'core', title: 'Core patterns', blurb: 'Stacks, sweeps and heaps — where O(n²) becomes O(n).' },
+  { id: 'core', title: 'Core patterns', blurb: 'Stacks, sweeps and heaps: where O(n²) becomes O(n).' },
   { id: 'graphs', title: 'Graphs & trees', blurb: 'Traversal, ordering, connectivity, shortest paths.' },
   { id: 'advanced', title: 'Advanced', blurb: 'Dynamic programming, tries, greedy proofs, bits.' },
 ];

@@ -238,7 +238,7 @@ export class InterviewHomePage {
     {
       id: 'coding' as const,
       title: 'Coding',
-      blurb: 'Clarify, find the pattern, analyse, and handle edge cases — in 30 minutes.',
+      blurb: 'Clarify, find the pattern, analyse, and handle edge cases, all in 30 minutes.',
       icon: 'code-slash-outline',
     },
     {

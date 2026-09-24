@@ -4,7 +4,7 @@ import type { AlgorithmDef, Frame, TreeView } from './types.js';
 
 type Input = { n: number; edges: Edge[] };
 
-const CHOICES = ['Merge the two trees', 'Skip — already connected'];
+const CHOICES = ['Merge the two trees', 'Skip: already connected'];
 
 export const unionFind: AlgorithmDef<Input> = {
   id: 'union-find',
@@ -118,7 +118,7 @@ export const unionFind: AlgorithmDef<Input> = {
       return root;
     };
 
-    snap(2, `Every node starts as its own component: ${n} trees of one node, each its own root (parent[x] = x).`);
+    snap(2, `Every node starts as its own component: ${n} trees of one node, each its own root (\`parent[x] = x\`).`);
 
     for (edgeIndex = 0; edgeIndex < edges.length; edgeIndex++) {
       const [a, b] = edges[edgeIndex];
@@ -128,9 +128,9 @@ export const unionFind: AlgorithmDef<Input> = {
       current.rb = find(b);
       const { ra, rb } = current as { ra: number; rb: number };
       const same = ra === rb;
-      snap(6, `find(${a}) = ${ra}, find(${b}) = ${rb}.`, [ra, rb], {
+      snap(6, `\`find(${a}) = ${ra}\`, \`find(${b}) = ${rb}\`.`, [ra, rb], {
         predict: {
-          prompt: `find(${a}) = ${ra} and find(${b}) = ${rb}. What does union do?`,
+          prompt: `\`find(${a}) = ${ra}\` and \`find(${b}) = ${rb}\`. What does union do?`,
           choices: CHOICES,
           answer: same ? 1 : 0,
           explain: same

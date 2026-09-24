@@ -36,10 +36,10 @@ Requires **Node ≥ 24.15** (Angular 22 requirement).
 npm install
 npm run build:engine
 
-# terminal 1 — API on :3000 (in-memory storage, offline interviewer)
+# terminal 1: API on :3000 (in-memory storage, offline interviewer)
 npm run dev:api
 
-# terminal 2 — app on :4200 (proxies /api → :3000)
+# terminal 2: app on :4200 (proxies /api → :3000)
 npm run dev:app
 ```
 

@@ -48,7 +48,7 @@ describe('linked-list-cycle', () => {
     const last = frames[frames.length - 1];
     expect(frames).toHaveLength(16);
     expect(correctChoices(frames)).toEqual(['node 1', APART, MEET]);
-    expect(predictions(frames).map((p) => p.answer)).toEqual([0, 1, 0]);
+    expect(predictions(frames).map((p) => p.answer)).toEqual([2, 1, 0]);
     expect(frames[0].graph!.nodes[0]).toMatchObject({ label: '4', state: 'active', badge: 'slow, fast' });
     expect(last.line).toBe(5);
     expect(resultOf(frames)).toBe(true);

@@ -61,7 +61,7 @@ export function newIntroducedToday(state: ProgressState, now: Date, tzOffsetMinu
 
 /**
  * Plans one short sitting: the most-at-risk due items first, then new items (boosted ones first)
- * within a daily cap, all inside a time budget — then interleaved so consecutive items differ in topic and kind.
+ * within a daily cap, all inside a time budget, then interleaved so consecutive items differ in topic and kind.
  */
 export function buildSession(state: ProgressState, opts: SessionOptions): SessionPlan {
   const {
@@ -173,7 +173,7 @@ function interleaveByTopic(defs: ItemDef[]): ItemDef[] {
 
 /**
  * Greedy reorder so neighbours differ in topic and, where possible, kind. Interleaved practice feels
- * harder but transfers better — and interviews never tell you which pattern is coming.
+ * harder but transfers better, and interviews never tell you which pattern is coming.
  */
 export function interleave<T extends { def: Pick<ItemDef, 'topic' | 'kind'> }>(items: T[]): T[] {
   const pool = [...items];

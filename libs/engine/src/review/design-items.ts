@@ -53,7 +53,7 @@ function percent(p: number): string {
 }
 
 const concept = (id: string, topic: string, index: number, prompt: string, correct: string, distractors: string[], explain: string) =>
-  item(id, topic, prompt, index, (rand) => ({ prompt, ...withChoices(rand, correct, distractors), explain }));
+  item(id, topic, prompt.replaceAll('`', ''), index, (rand) => ({ prompt, ...withChoices(rand, correct, distractors), explain }));
 
 const responseTime = item('response-time', 'sd-latency', 'Response time at a given utilization', 0, (rand) => {
   const s = pick(rand, [4, 8, 10, 20]);
@@ -66,7 +66,7 @@ const responseTime = item('response-time', 'sd-latency', 'Response time at a giv
       { label: 'Utilization ρ', value: `${Math.round(rho * 100)}%` },
     ],
     ...withChoices(rand, ms(r), [ms(s), ms(s * (1 + rho)), ms(s / (1 - rho) ** 2), ms(r * 2)].filter((d) => d !== ms(r)).slice(0, 3)),
-    explain: `Response ≈ S / (1 − ρ) = ${s} / ${Number((1 - rho).toFixed(2))} ≈ ${ms(r)} — a ${Math.round(1 / (1 - rho))}× slowdown. Waiting time explodes as utilization approaches 100%.`,
+    explain: `Response ≈ S / (1 − ρ) = ${s} / ${Number((1 - rho).toFixed(2))} ≈ ${ms(r)}, a ${Math.round(1 / (1 - rho))}× slowdown. Waiting time explodes as utilization approaches 100%.`,
   };
 });
 
@@ -81,7 +81,7 @@ const headroom = concept(
     'Cloud providers charge a premium rate for sustained utilization above 70%, so it costs far more',
     'Load balancers mark servers above 70% as unhealthy and stop routing traffic to them entirely',
   ],
-  'Latency is not linear in load. The last 25% of utilization costs far more in tail latency than the first 70% — headroom is what absorbs spikes.',
+  'Latency is not linear in load. The last 25% of utilization costs far more in tail latency than the first 70%. Headroom is what absorbs spikes.',
 );
 
 const bottleneck = item('bottleneck', 'sd-capacity', 'Spot the bottleneck', 0, (rand) => {
@@ -226,7 +226,7 @@ const spof = item('spof', 'sd-reliability', 'Find the single point of failure', 
       weak.label,
       chosen.filter((c) => c !== weak).map((c) => c.label),
     ),
-    explain: `${weak.label} is the only component without redundancy — if it fails, everything that depends on it fails too. The fix is a second instance or a failover replica.`,
+    explain: `${weak.label} is the only component without redundancy: if it fails, everything that depends on it fails too. The fix is a second instance or a failover replica.`,
   };
 });
 
@@ -245,8 +245,8 @@ const hitP99 = item('cache-tail', 'sd-caching', 'Cache hit rate vs p99', 0, (ran
       `~${miss * 2} ms (twice the miss path)`,
     ]),
     explain: tailIsMiss
-      ? `${percent(missRate)} of reads miss — more than the slowest 1% — so the 99th percentile lands on the miss path. Caches fix p50; the tail is still the database.`
-      : `Only ${percent(missRate)} of reads miss — fewer than 1% — so even the 99th percentile is a hit. Past a 99% hit rate the cache fixes the tail too.`,
+      ? `${percent(missRate)} of reads miss (more than the slowest 1%), so the 99th percentile lands on the miss path. Caches fix p50; the tail is still the database.`
+      : `Only ${percent(missRate)} of reads miss (fewer than 1%), so even the 99th percentile is a hit. Past a 99% hit rate the cache fixes the tail too.`,
   };
 });
 
@@ -290,7 +290,7 @@ const fixDb = item('fix-db', 'sd-replication', 'First move for an overloaded dat
     ]),
     explain: readHeavy
       ? 'Reads dominate, and reads are easy to offload: caches absorb repeated reads, replicas split the rest. App servers are not the bottleneck.'
-      : 'Writes dominate. Replicas replay every write and caches do not absorb writes — you have to smooth writes (queue/batch) or split them across shards.',
+      : 'Writes dominate. Replicas replay every write and caches do not absorb writes, so you have to smooth writes (queue/batch) or split them across shards.',
   };
 });
 
@@ -302,12 +302,12 @@ const replicasWrites = item('replicas-writes', 'sd-replication', 'Do read replic
   const shown = `~${Math.round(after)}%`;
   return {
     prompt: `The primary is at ${util}% utilization and ${Math.round(writeShare * 100)}% of its load is writes. You add three read replicas that share reads evenly with the primary. Does that fix the overload?`,
-    ...withChoices(rand, fixed ? `Yes — the primary drops to ${shown}` : `No — the primary is still at ${shown}`, [
-      fixed ? `No — the primary is still at ${shown}` : `Yes — the primary drops to ${shown}`,
-      'Yes — replicas share the write load with the primary as well',
-      'No — replicas cannot serve reads until they fully catch up',
+    ...withChoices(rand, fixed ? `Yes: the primary drops to ${shown}` : `No: the primary is still at ${shown}`, [
+      fixed ? `No: the primary is still at ${shown}` : `Yes: the primary drops to ${shown}`,
+      'Yes: replicas share the write load with the primary as well',
+      'No: replicas cannot serve reads until they fully catch up',
     ]),
-    explain: `Reads split four ways (${util}% × ${Math.round((1 - writeShare) * 100)}% ÷ 4), but every write still lands on the primary (${util}% × ${Math.round(writeShare * 100)}%). Total ≈ ${shown}. Replicas scale reads, not writes.`,
+    explain: `Reads split four ways (${util}% × ${Math.round((1 - writeShare) * 100)}% ÷ 4), but every write still lands on the primary (${util}% × ${Math.round(writeShare * 100)}%). Total ≈ ${Math.round(after)}%. Replicas scale reads, not writes.`,
   };
 });
 
@@ -479,14 +479,14 @@ const reshard = concept(
   'reshard',
   'sd-sharding',
   3,
-  'Why place keys with consistent hashing (or many fixed virtual partitions) instead of hash(key) % N?',
+  'Why place keys with consistent hashing (or many fixed virtual partitions) instead of `hash(key) % N`?',
   'Changing N with modulo moves almost every key; consistent hashing moves ~1/N',
   [
     'Modulo hashing cannot spread string keys evenly across shards',
     'Consistent hashing keeps related keys together so joins stay local',
     'Modulo placement only works when N is a power of two',
   ],
-  'With % N, adding one shard reassigns most keys and triggers a massive migration. Consistent hashing (or pre-splitting into many virtual partitions assigned to nodes) makes resharding incremental.',
+  'With `hash(key) % N`, adding one shard reassigns most keys and triggers a massive migration. Consistent hashing (or pre-splitting into many virtual partitions assigned to nodes) makes resharding incremental.',
 );
 
 export const DESIGN_ITEMS: ItemDef[] = [

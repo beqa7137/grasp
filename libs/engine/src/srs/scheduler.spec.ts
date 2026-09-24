@@ -42,7 +42,7 @@ describe('FSRS scheduler', () => {
     expect(Date.parse(lapsed.due) - Date.parse(card.due)).toBe(10 * 60_000);
   });
 
-  it('is deterministic — the same history always produces the same schedule', () => {
+  it('is deterministic: the same history always produces the same schedule', () => {
     const run = () => {
       let card = graduate('cloze:bfs:1');
       for (let i = 0; i < 6; i++) card = review('cloze:bfs:1', card, i % 3 === 0 ? RATING.hard : RATING.good, at(card.due));

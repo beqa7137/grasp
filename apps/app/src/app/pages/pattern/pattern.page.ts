@@ -56,7 +56,7 @@ import { MasteryRingComponent } from '../../viz/mastery-ring.component';
           </div>
 
           <section class="panel block">
-            <h2><ion-icon name="search-outline" />Cues — how you spot it</h2>
+            <h2><ion-icon name="search-outline" />Cues: how you spot it</h2>
             <ul>
               @for (c of p.cues; track c) {
                 <li>{{ c }}</li>

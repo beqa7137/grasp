@@ -77,7 +77,7 @@ export class InterviewService {
       const session = await this.load(learnerId, id);
       if (session.status !== 'active') throw new ConflictException('Interview already scored');
       if (session.messages.filter((m) => m.role === 'candidate').length >= MAX_CANDIDATE_TURNS) {
-        throw new ConflictException('Turn limit reached — end the interview to get your scorecard');
+        throw new ConflictException('Turn limit reached: end the interview to get your scorecard');
       }
       await this.spend.assertAvailable();
       await this.consumeQuota(learnerId);

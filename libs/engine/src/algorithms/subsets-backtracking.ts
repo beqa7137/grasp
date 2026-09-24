@@ -67,6 +67,9 @@ export const subsetsBacktracking: AlgorithmDef<Input> = {
     const calls: string[] = [];
     let questions = 0;
     let askedUndo = false;
+    // Inputs of one size walk the same tree and ask at the same steps, so offsetting by the values moves each answer between them.
+    const valueSum = nums.reduce((sum, x) => sum + x, 0);
+    const nextShift = () => valueSum + questions++;
 
     // nums[0] is the highest bit, so counting a mask down from all ones follows the order go() records subsets in.
     const subsetOf = (mask: number) => nums.filter((_, k) => (mask >> (n - 1 - k)) & 1);
@@ -110,8 +113,8 @@ export const subsetsBacktracking: AlgorithmDef<Input> = {
       const j = taken.lastIndexOf(true);
       const nearby = [mask - 2, mask - 3, mask + 1].filter((m) => m >= 0).map(subsetOf);
       return {
-        prompt: `nums = ${bracket(nums)}. The search just recorded ${bracket(path)}. Which subset does it record next?`,
-        ...rotatedChoices(bracket(next), [path.slice(0, -1), ...nearby].map(bracket), questions++),
+        prompt: `\`nums = ${bracket(nums)}\`. The search just recorded ${bracket(path)}. Which subset does it record next?`,
+        ...rotatedChoices(bracket(next), [path.slice(0, -1), ...nearby].map(bracket), nextShift()),
         explain: `Every call deeper than go(${j}) is finished, so control returns to go(${j}). It pops ${nums[j]} and skips it, and each call below takes its number first: ${bracket(next)}.`,
       };
     };
@@ -142,12 +145,11 @@ export const subsetsBacktracking: AlgorithmDef<Input> = {
         snap(5, `go(${i}) resumes: the branch that took ${x} is fully explored.`, {
           predict: {
             prompt: `go(${i}) is back from the branch that took ${x}, and path is ${bracket(path)}. What does it do next?`,
-            choices: [
-              `Return: go(${i}) is done`,
+            ...rotatedChoices(
               `Pop ${x}, then call go(${i + 1}) to skip it`,
-              `Call go(${i + 1}) again with ${x} still in path`,
-            ],
-            answer: 1,
+              [`Return: go(${i}) is done`, `Call go(${i + 1}) again with ${x} still in path`],
+              nextShift(),
+            ),
             explain: `Choose, explore, un-choose: pop ${x} to get back to ${bracket(path.slice(0, -1))}, then explore every subset without ${x}. Returning now would miss them, and keeping ${x} would leak it into all of them.`,
           },
         });
@@ -169,8 +171,8 @@ export const subsetsBacktracking: AlgorithmDef<Input> = {
         'Call go(0) with an empty path. In the tree, blue is the running call, amber calls wait for it to return, and green calls are finished.',
         {
           predict: {
-            prompt: `nums = ${bracket(nums)}. go(0) starts with an empty path. Which subset is recorded first?`,
-            ...rotatedChoices(bracket(nums), [[], [nums[0]], nums.slice(0, -1)].map(bracket), questions++),
+            prompt: `\`nums = ${bracket(nums)}\`. go(0) starts with an empty path. Which subset is recorded first?`,
+            ...rotatedChoices(bracket(nums), [[], [nums[0]], nums.slice(0, -1)].map(bracket), nextShift()),
             explain: `Each call takes its number before it tries skipping it, so the first path takes everything on the way down: ${bracket(nums)}. Nothing is recorded until every number is decided.`,
           },
         },

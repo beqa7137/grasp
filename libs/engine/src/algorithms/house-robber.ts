@@ -167,7 +167,8 @@ export const houseRobber: AlgorithmDef<Input> = {
       snap(6, `\`i = ${i}\`: \`dp[${i}]\` covers houses 0 to ${house}, and the newest one, house ${house}, holds ${money}.`);
 
       const decide = asked % 2 === 0 && take !== skip;
-      const predict = decide ? robOrSkip(step) : dpValue(step, i >= 3 ? dp[i - 3] : null, valueQuestions);
+      // Counting from 0 alone would always put the first value question's answer first, so n offsets it between inputs.
+      const predict = decide ? robOrSkip(step) : dpValue(step, i >= 3 ? dp[i - 3] : null, n + valueQuestions);
       if (predict) {
         asked++;
         if (!decide) valueQuestions++;

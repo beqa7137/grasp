@@ -5,7 +5,7 @@ import type { AlgorithmDef, Frame, TableLegend, TableView } from './types.js';
 type Input = { a: string; b: string };
 
 const MAX_LENGTH = 9;
-const RULES = ['Diagonal + 1 — the characters match', 'Max of the cell above and the cell to the left'];
+const RULES = ['Diagonal + 1: the characters match', 'Max of the cell above and the cell to the left'];
 const LEGEND: TableLegend = { active: 'current cell', deps: 'reads from', path: 'answer path' };
 
 function asWord(value: unknown, key: string): string {
@@ -66,7 +66,7 @@ export const lcs: AlgorithmDef<Input> = {
 
     frames.push({
       line: 2,
-      note: 'dp[i][j] = length of the LCS of the first i letters of a and the first j letters of b. An empty prefix shares nothing, so row 0 and column 0 are 0.',
+      note: '`dp[i][j]` = length of the LCS of the first i letters of a and the first j letters of b. An empty prefix shares nothing, so row 0 and column 0 are 0.',
       vars: { a, b },
       table: table(),
     });
@@ -83,17 +83,17 @@ export const lcs: AlgorithmDef<Input> = {
         const ask = j === 1 || match;
         frames.push({
           line: 4,
-          note: `Cell (${i}, ${j}): compare a[${i - 1}] = ${a[i - 1]} with b[${j - 1}] = ${b[j - 1]}.`,
+          note: `Cell (${i}, ${j}): compare \`a[${i - 1}] = '${a[i - 1]}'\` with \`b[${j - 1}] = '${b[j - 1]}'\`.`,
           vars: { i, j, 'a[i-1]': a[i - 1], 'b[j-1]': b[j - 1] },
           table: table({ active: [i, j], deps }),
           ...(ask
             ? {
                 predict: {
-                  prompt: `a[${i - 1}] = ${a[i - 1]}, b[${j - 1}] = ${b[j - 1]}. Which rule fills dp[${i}][${j}]?`,
+                  prompt: `\`a[${i - 1}] = '${a[i - 1]}'\`, \`b[${j - 1}] = '${b[j - 1]}'\`. Which rule fills \`dp[${i}][${j}]\`?`,
                   choices: RULES,
                   answer: match ? 0 : 1,
                   explain: match
-                    ? `Both prefixes end in ${a[i - 1]}, so that letter extends the best answer for the prefixes without it: dp[${i - 1}][${j - 1}] + 1.`
+                    ? `Both prefixes end in ${a[i - 1]}, so that letter extends the best answer for the prefixes without it: \`dp[${i - 1}][${j - 1}] + 1\`.`
                     : `The last letters differ, so at least one of them is not in the LCS. Take the better of dropping a's (above) or b's (left).`,
                 },
               }
@@ -103,8 +103,8 @@ export const lcs: AlgorithmDef<Input> = {
         frames.push({
           line: match ? 5 : 6,
           note: match
-            ? `Match: dp[${i}][${j}] = dp[${i - 1}][${j - 1}] + 1 = ${dp[i][j]}.`
-            : `No match: dp[${i}][${j}] = max(${dp[i - 1][j]}, ${dp[i][j - 1]}) = ${dp[i][j]}.`,
+            ? `Match: \`dp[${i}][${j}] = dp[${i - 1}][${j - 1}] + 1\`, which is ${dp[i][j]}.`
+            : `No match: \`dp[${i}][${j}] = max(${dp[i - 1][j]}, ${dp[i][j - 1]})\`, which is ${dp[i][j]}.`,
           vars: { i, j, 'dp[i][j]': dp[i][j] },
           table: table({ active: [i, j], deps }),
         });

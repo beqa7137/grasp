@@ -1,4 +1,4 @@
-# Grasp — Product & Architecture Plan
+# Grasp: Product & Architecture Plan
 
 > Working name. Goal: the most intuitive way to go from "I kind of know Big-O" to passing
 > FAANG-level coding and system design loops, on web, iOS and Android from one codebase.
@@ -8,14 +8,14 @@
 Existing prep products are either **problem banks** (LeetCode, NeetCode), **static
 explainers** (videos, books, blog diagrams), or **mock-interview marketplaces**. None of them
 make you _see_ an algorithm think, _break_ a distributed system with your own hands, and then
-_defend_ your reasoning to an interviewer — in one loop that remembers what you're weak at.
+_defend_ your reasoning to an interviewer, in one loop that remembers what you're weak at.
 
 Grasp is built around four signature experiences that feed a single mastery model:
 
 | Experience                                 | What makes it different                                                                                                                                                                                                                                                                                                                      |
 | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Step-through visualizer**                | Scrub forward _and backward_ through real execution. Code line, variables, data structure and narration stay in sync. Edit the input and the whole trace regenerates instantly (runs on-device).                                                                                                                                             |
-| **Predict-the-next-step**                  | At every decision point the player pauses and asks _you_ what happens next (which pointer moves? pop or push?). This is active recall inside the visualization — the thing that actually builds intuition. Accuracy feeds mastery.                                                                                                           |
+| **Predict-the-next-step**                  | At every decision point the player pauses and asks _you_ what happens next (which pointer moves? pop or push?). This is active recall inside the visualization: the thing that actually builds intuition. Accuracy feeds mastery.                                                                                                            |
 | **System design sandbox**                  | Drag real components (CDN, rate limiter, LB, app tier, cache, sharded primaries/replicas, queue, workers) onto a canvas, dial traffic from 100 to 1M RPS and watch utilization, p50/p99, error rate and cost react live. Pull the chaos lever to kill a node. Scenario goals ("p99 < 150 ms at 40k RPS under $4k/mo") turn it into a puzzle. |
 | **Pattern-first curriculum + FSRS review** | ~20 patterns instead of 3,000 problems. Small auto-graded items (recognition, predict-the-step, template recall, complexity, system design cases) are scheduled with FSRS. Each review is a fresh variant, and the rest of the app feeds the schedule. See [SPACED_REPETITION.md](SPACED_REPETITION.md).                                     |
 | **AI interviewer**                         | Claude plays a calibrated FAANG interviewer (coding or system design): asks clarifying-question-worthy prompts, gives graded hints instead of answers, pushes on trade-offs, and produces a rubric scorecard aligned with how real loops are scored.                                                                                         |
@@ -48,17 +48,17 @@ autocomplete).
 
 ```
 grasp/
-├─ libs/engine        @grasp/engine — pure TypeScript, zero deps, ESM
+├─ libs/engine        @grasp/engine: pure TypeScript, zero deps, ESM
 │   ├─ algorithms/    tracers → Frame[] (line, vars, array/stack/grid view, narration, predict)
 │   ├─ sysdesign/     component catalog, queueing simulator, scenarios & goal evaluation
 │   ├─ review/        140 review items that generate a fresh variant per review
 │   ├─ srs/           FSRS scheduler, event upcasting, progress reducer, session builder
 │   └─ curriculum/    patterns, drill cards, template clozes, complexity facts, SD topics
-├─ apps/api           NestJS 12 (ESM) — curriculum, progress sync, AI interviewer (SSE)
+├─ apps/api           NestJS 12 (ESM): curriculum, progress sync, AI interviewer (SSE)
 └─ apps/app           Angular 22 (zoneless, signals) + Ionic 9 + Capacitor 8 (web, iOS, Android)
 ```
 
-**Key decision — one engine, two runtimes.** Tracing, simulation and SRS all live in
+**Key decision: one engine, two runtimes.** Tracing, simulation and SRS all live in
 `@grasp/engine`. The app runs them on-device (instant scrubbing, works offline on a plane);
 the API runs the _same code_ to validate and derive server state. No drift between client
 and server logic.
@@ -79,8 +79,8 @@ cost tracking, failure handling and evaluation are described in
 
 **Persistence.** `ProgressStore` / `InterviewStore` are abstract providers. `DATABASE_URL`
 set → Drizzle ORM + Postgres; unset → in-memory stores for zero-setup local dev and tests.
-(Drizzle over Prisma: pure TypeScript, no engine binaries, first-class ESM — which NestJS 12
-now is.)
+(Drizzle over Prisma: pure TypeScript, no engine binaries, and first-class ESM, which matters
+now that NestJS 12 is ESM.)
 
 **Coding practice.** Learner code runs in a Web Worker on the device (JS/TS natively, Python on Pyodide), with per-test time limits and statement-level tracing into the visualizer. See [CODE_RUNNER.md](CODE_RUNNER.md).
 
@@ -90,7 +90,7 @@ image. See [DEPLOYMENT.md](DEPLOYMENT.md) and [decisions/0001-hosting.md](decisi
 
 ### Data model (Drizzle, `apps/api/src/persistence/schema.ts`)
 
-- `learners` (id, created_at) — anonymous device id today, linked to an auth identity later
+- `learners` (id, created_at): anonymous device id today, linked to an auth identity later
 - `learning_events` (id [learner:client-id, PK], learner_id, type, payload jsonb, occurred_at, received_at)
 - `interview_sessions` (id, learner_id, track, problem_id, status, session jsonb, timestamps)
 

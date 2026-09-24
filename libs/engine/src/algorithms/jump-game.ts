@@ -41,6 +41,8 @@ export const jumpGame: AlgorithmDef<Input> = {
     const last = nums.length - 1;
     let reach = 0;
     let i = -1;
+    // Four distinct reach options only come up at one early index, so adding the total moves that answer between inputs.
+    const jumpTotal = nums.reduce((sum, x) => sum + x, 0);
 
     const snap = (line: number, note: string, extra: Partial<Frame> = {}) => {
       const scanning = i >= 0 && i <= last;
@@ -73,22 +75,22 @@ export const jumpGame: AlgorithmDef<Input> = {
 
     snap(
       2,
-      'reach is the farthest index you can get to so far. A jump may be shorter than nums[i], so every index up to reach is reachable too, and this one number is all you need to track.',
+      'reach is the farthest index you can get to so far. A jump may be shorter than `nums[i]`, so every index up to reach is reachable too, and this one number is all you need to track.',
     );
 
     for (i = 0; i < nums.length; i++) {
       const stuck = i > reach;
       if (i > 0 && (i >= reach || nums[i] === 0)) {
-        const zero = nums[i] === 0 ? ' The 0 here does not stop you by itself; the check never reads nums[i].' : '';
+        const zero = nums[i] === 0 ? ' The 0 here does not stop you by itself; the check never reads `nums[i]`.' : '';
         snap(4, `Compare index ${i} with reach ${reach}.`, {
           predict: {
-            prompt: `i = ${i}, reach = ${reach}, nums[${i}] = ${nums[i]}. Can you still continue?`,
+            prompt: `\`i = ${i}\`, \`reach = ${reach}\`, \`nums[${i}] = ${nums[i]}\`. Can you still continue?`,
             choices: CHECK,
             answer: stuck ? 1 : 0,
             explain: stuck
               ? `${i} > ${reach}: no index before ${i} jumps this far, so you can never get here. Return false.`
               : i === reach
-                ? `${i} = ${reach}: a jump lands exactly on index ${i}, which is enough to stand here. Only i > reach means stuck.${zero}`
+                ? `${i} = ${reach}: a jump lands exactly on index ${i}, which is enough to stand here. Only \`i > reach\` means stuck.${zero}`
                 : `${i} < ${reach}: index ${i} is inside the reachable prefix, so you can stand here.${zero}`,
           },
         });
@@ -106,16 +108,16 @@ export const jumpGame: AlgorithmDef<Input> = {
       const prev = reach;
       const jump = i + nums[i];
       const next = Math.max(reach, jump);
-      const options = rotatedChoices(String(next), [jump, reach + nums[i], Math.max(reach, nums[i]), reach].map(String), i);
+      const options = rotatedChoices(String(next), [jump, reach + nums[i], Math.max(reach, nums[i]), reach].map(String), jumpTotal + i);
       if (i > 0 && options.choices.length > 1) {
         snap(5, `Update reach using the jump from index ${i}.`, {
           predict: {
-            prompt: `i = ${i}, nums[${i}] = ${nums[i]}, reach = ${reach}. What is the new farthest reach?`,
+            prompt: `\`i = ${i}\`, \`nums[${i}] = ${nums[i]}\`, \`reach = ${reach}\`. What is the new farthest reach?`,
             ...options,
             explain:
               jump > reach
-                ? `From index ${i} you can jump to ${i} + ${nums[i]} = ${jump}, past ${reach}. Math.max keeps the farther point, so reach becomes ${jump}.`
-                : `From index ${i} you get at most to ${i} + ${nums[i]} = ${jump}, not past ${reach}. Math.max keeps ${reach}: reach never shrinks.`,
+                ? `From index ${i} you can jump to ${i} + ${nums[i]} = ${jump}, past ${reach}. \`Math.max\` keeps the farther point, so reach becomes ${jump}.`
+                : `From index ${i} you get at most to ${i} + ${nums[i]} = ${jump}, not past ${reach}. \`Math.max\` keeps ${reach}: reach never shrinks.`,
           },
         });
       }
@@ -125,7 +127,7 @@ export const jumpGame: AlgorithmDef<Input> = {
         reach > prev
           ? `From index ${i} you can land anywhere up to ${jump}, past the old reach ${prev}. reach grows to ${reach}.${prev < last && reach >= last ? ' That covers the last index.' : ''}`
           : nums[i] === 0
-            ? `nums[${i}] is 0, so you cannot jump from index ${i}. reach stays ${reach}.`
+            ? `\`nums[${i}]\` is 0, so you cannot jump from index ${i}. reach stays ${reach}.`
             : `From index ${i} you land at most at ${jump}, which is not past ${reach}. reach stays ${reach}: the farthest point already covers every shorter jump.`,
       );
     }

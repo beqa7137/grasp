@@ -3,7 +3,7 @@ import type { AlgorithmDef, Frame } from './types.js';
 
 type Input = { nums: number[] };
 
-const CHOICES = ['Pop — nums[i] is its next greater', 'Stop popping, push i'];
+const CHOICES = ['Pop: nums[i] is its next greater', 'Stop popping, push i'];
 
 export const nextGreater: AlgorithmDef<Input> = {
   id: 'next-greater-element',
@@ -73,7 +73,7 @@ export const nextGreater: AlgorithmDef<Input> = {
         const pop = nums[top] < nums[i];
         snap(
           5,
-          `Compare nums[i] = ${nums[i]} with top of stack ${nums[top]}.`,
+          `Compare \`nums[i] = ${nums[i]}\` with top of stack ${nums[top]}.`,
           asked
             ? {}
             : {
@@ -83,7 +83,7 @@ export const nextGreater: AlgorithmDef<Input> = {
                   answer: pop ? 0 : 1,
                   explain: pop
                     ? `${nums[i]} > ${nums[top]}, so ${nums[i]} is the first bigger value to the right of index ${top}. Resolve it and pop.`
-                    : `${nums[i]} ≤ ${nums[top]}. It cannot resolve the top — nor anything below it, which is even larger. Push and move on.`,
+                    : `${nums[i]} ≤ ${nums[top]}. It cannot resolve the top, or anything below it (those values are at least as large). Push and move on.`,
                 },
               },
         );
@@ -91,7 +91,7 @@ export const nextGreater: AlgorithmDef<Input> = {
         if (!pop) break;
         stack.pop();
         res[top] = nums[i];
-        snap(6, `res[${top}] = ${nums[i]}. Index ${top} is resolved and leaves the stack.`);
+        snap(6, `\`res[${top}] = ${nums[i]}\`. Index ${top} is resolved and leaves the stack.`);
       }
       stack.push(i);
       snap(8, `Push index ${i} (${nums[i]}). It now waits for something bigger.`);

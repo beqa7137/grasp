@@ -71,6 +71,8 @@ export const subarraySumPrefix: AlgorithmDef<Input> = {
     let key: number | null = null;
     let i = -1;
     let questions = 0;
+    // The first questions come at the same steps for many inputs, so offsetting by k moves their answers between inputs.
+    const nextShift = () => k + questions++;
 
     const table = ({ read, wrote }: Focus): TableView => {
       const keys = [...startsOf.keys()].sort((a, b) => a - b);
@@ -117,7 +119,7 @@ export const subarraySumPrefix: AlgorithmDef<Input> = {
       const repeat = zeroRun(next);
       return {
         prompt: `\`p = ${p}\` ${i === 0 ? 'before any number' : `after index ${i - 1}`}, and \`nums[${i}] = ${x}\`. What is p after \`p += nums[${i}]\`?`,
-        ...rotatedChoices(String(next), [p - x, x, p].map(String), questions++),
+        ...rotatedChoices(String(next), [p - x, x, p].map(String), nextShift()),
         explain: repeat
           ? `${p} + ${plus(x)} = ${next}. ${repeat}`
           : x < 0
@@ -132,7 +134,7 @@ export const subarraySumPrefix: AlgorithmDef<Input> = {
       const distractors = [lookup === 0 ? matches - 1 : -1, countOf(p), countOf(k - p), matches + 1, matches - 1, matches + 2];
       return {
         prompt: `\`p = ${p}\` after index ${i}, and \`k = ${k}\`. How many subarrays ending at index ${i} sum to k?`,
-        ...rotatedChoices(String(matches), distractors.filter((d) => d >= 0).map(String), questions++),
+        ...rotatedChoices(String(matches), distractors.filter((d) => d >= 0).map(String), nextShift()),
         explain:
           matches === 0
             ? `${rule} No prefix so far was ${lookup}, so \`count[${lookup}]\` is missing and adds 0.`

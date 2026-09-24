@@ -130,10 +130,10 @@ export const mergeIntervals: AlgorithmDef<Input> = {
       const overlaps = s <= end;
 
       snap(5, `Next interval: ${show(rows[i])}.`);
-      snap(6, `Compare s = ${s} with last[1] = ${end}.`, {
+      snap(6, `Compare \`s = ${s}\` with \`last[1] = ${end}\`.`, {
         table: table({ deps: [endCell] }),
         predict: {
-          prompt: `last = [${start}, ${end}], next interval [${s}, ${e}]. Does it overlap last?`,
+          prompt: `\`last = [${start}, ${end}]\`, next interval [${s}, ${e}]. Does it overlap last?`,
           choices: OVERLAP,
           answer: overlaps ? 0 : 1,
           explain: overlaps
@@ -155,19 +155,19 @@ export const mergeIntervals: AlgorithmDef<Input> = {
         snap(6, `${s} ≤ ${end}: they overlap, so [${s}, ${e}] merges into last. Now settle its end.`, {
           table: table({ active: [i, 1], deps: [endCell] }),
           predict: {
-            prompt: `[${s}, ${e}] overlaps last = [${start}, ${end}]. What is the merged end after this step?`,
+            prompt: `[${s}, ${e}] overlaps \`last = [${start}, ${end}]\`. What is the merged end after this step?`,
             choices: [String(end), String(e)],
             answer: merged === end ? 0 : 1,
             explain:
               e < end
-                ? `max(${end}, ${e}) = ${end}. [${s}, ${e}] sits inside last, so setting last[1] = e would wrongly shrink [${start}, ${end}] to [${start}, ${e}].`
-                : `max(${end}, ${e}) = ${e}. [${s}, ${e}] reaches past last, so the merged interval grows to ${e}.`,
+                ? `\`max(${end}, ${e}) = ${end}\`. [${s}, ${e}] sits inside last, so setting \`last[1] = e\` would wrongly shrink [${start}, ${end}] to [${start}, ${e}].`
+                : `\`max(${end}, ${e}) = ${e}\`. [${s}, ${e}] reaches past last, so the merged interval grows to ${e}.`,
           },
         });
       }
       last[1] = merged;
       if (e > end) source[1] = i;
-      snap(6, `last[1] = max(${end}, ${e}) = ${merged}, so last is now [${start}, ${merged}].`, { table: table({ active: [i, 1] }) });
+      snap(6, `\`last[1] = max(${end}, ${e})\` = ${merged}, so last is now [${start}, ${merged}].`, { table: table({ active: [i, 1] }) });
     }
 
     snap(

@@ -11,7 +11,7 @@ export const PROBLEMS: InterviewProblem[] = [
       'Brute force O(n²) scanning right from each index. Optimal: monotonic decreasing stack of indices; when a warmer temp arrives, pop and set answer[idx] = i - idx. O(n) time, O(n) space. Edge cases: equal temperatures (strictly warmer → do not pop on equal), all decreasing, single element. Follow-ups: iterate right-to-left variant; streaming input; what if we need next warmer by at least k degrees.',
     patternIds: ['monotonic-stack'],
     hints: [
-      'What makes the brute force slow — which work is being repeated?',
+      'What makes the brute force slow? Which work is being repeated?',
       'Think about the days that are still "waiting" for an answer. What order are their temperatures in?',
       'If you keep the waiting days on a stack, what happens to the stack when a warmer day arrives?',
     ],

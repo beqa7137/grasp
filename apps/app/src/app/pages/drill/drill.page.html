@@ -25,7 +25,7 @@
     </header>
 
     @if (practice()) {
-      <p class="banner">Practice answers don't change your review schedule — use this to cram a topic before an interview.</p>
+      <p class="banner">Practice answers don't change your review schedule. Use this to cram a topic before an interview.</p>
     }
 
     @if (queue().length) {
@@ -46,7 +46,7 @@
             <button class="g-btn primary grow" (click)="rate(3)" title="Enter">
               Got it <span class="interval">{{ previews()?.good }}</span>
             </button>
-            <button class="g-btn ghost" (click)="rate(4)" title="Instant recall — show it much less often (E)">
+            <button class="g-btn ghost" (click)="rate(4)" title="Instant recall: show it much less often (E)">
               Easy <span class="interval">{{ previews()?.easy }}</span>
             </button>
           } @else {
@@ -68,18 +68,18 @@
           <div class="metrics">
             <div>
               <span class="label">Retention (30d)</span>
-              <strong>{{ progress.retention() === null ? '—' : (progress.retention()! * 100).toFixed(0) + '%' }}</strong>
+              <strong>{{ progress.retention() === null ? '–' : (progress.retention()! * 100).toFixed(0) + '%' }}</strong>
               <span class="hint">target 90%</span>
             </div>
             <div>
               <span class="label">Next review</span>
-              <strong>{{ progress.session().nextDueAt ? (progress.session().nextDueAt | date: 'EEE h:mm a') : '—' }}</strong>
+              <strong>{{ progress.session().nextDueAt ? (progress.session().nextDueAt | date: 'EEE h:mm a') : '–' }}</strong>
             </div>
           </div>
         }
 
         @if (missedTopics().length) {
-          <p class="sub">Missed today — practice them now or let the schedule bring them back:</p>
+          <p class="sub">You missed these today. Practice them now or let the schedule bring them back:</p>
           <div class="chips">
             @for (t of missedTopics(); track t.id) {
               <a class="chip" routerLink="/drill" [queryParams]="{ pattern: t.id }">{{ t.name }}</a>
