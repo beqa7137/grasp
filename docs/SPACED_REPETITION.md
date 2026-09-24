@@ -33,12 +33,12 @@ The screen shows what a target costs, computed from FSRS's interval modifier (`r
 
 ## 2. Review items: small, varied, auto-gradable
 
-136 items in 5 kinds (`libs/engine/src/review/`). Each generates a fresh variant from a seed on every review, so learners recall the idea rather than the card.
+140 items in 5 kinds (`libs/engine/src/review/`). Each generates a fresh variant from a seed on every review, so learners recall the idea rather than the card.
 
 | Kind                  | Count | Variation per review                                                                                                                                                                                                             |
 | --------------------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Recognize the pattern | 49    | Choices reshuffled, so answer positions can't be memorized                                                                                                                                                                       |
-| Predict the next step | 16    | New random input. A decision point from the real trace, rendered with the visualizer's views                                                                                                                                     |
+| Predict the next step | 20    | New random input. A decision point from the real trace, rendered with the visualizer's views                                                                                                                                     |
 | Recall the template   | 30    | Cloze on a key template line, with plausible, subtly wrong alternatives                                                                                                                                                          |
 | Complexity            | 17    | Choices reshuffled                                                                                                                                                                                                               |
 | System design         | 24    | Generated numbers (queueing, cache math, QPS, storage, availability, backlog drain, token buckets, shard counts) and simulator-generated cases ("which component saturates first?", "which one is the single point of failure?") |

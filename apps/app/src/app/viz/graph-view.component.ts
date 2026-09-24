@@ -8,6 +8,7 @@ const PAD = 30;
 const RADIUS = 16;
 const ARROW = 4;
 const BEND = 22;
+const BADGE_OFFSET = RADIUS + 10;
 const EDGE_STATES: EdgeState[] = ['idle', 'active', 'chosen', 'skipped'];
 
 interface Point {
@@ -31,6 +32,7 @@ interface DrawnNode {
   y: number;
   state: NodeState;
   badge?: string;
+  badgeY: number;
 }
 
 let instances = 0;
@@ -80,16 +82,16 @@ const round = (n: number) => Math.round(n * 10) / 10;
           <circle class="body" [attr.cx]="n.x" [attr.cy]="n.y" [attr.r]="radius" />
           <text class="label" [attr.x]="n.x" [attr.y]="n.y">{{ n.label }}</text>
           @if (n.badge) {
-            <text class="badge" [attr.x]="n.x" [attr.y]="n.y + radius + 10">{{ n.badge }}</text>
+            <text class="badge" [attr.x]="n.x" [attr.y]="n.badgeY">{{ n.badge }}</text>
           }
         </g>
       }
     </svg>
-    @if (legend()) {
+    @if (legend() && legendEntries().length) {
       <div class="legend">
-        <span><i data-state="active"></i>current</span>
-        <span><i data-state="frontier"></i>queued</span>
-        <span><i data-state="done"></i>done</span>
+        @for (entry of legendEntries(); track entry[0]) {
+          <span><i [attr.data-state]="entry[0]"></i>{{ entry[1] }}</span>
+        }
       </div>
     }
   `,
@@ -167,15 +169,21 @@ export class GraphViewComponent {
   protected readonly edgeStates = EDGE_STATES;
   private readonly uid = `g-graph-${++instances}`;
 
+  readonly legendEntries = computed(() => Object.entries(this.view().legend ?? {}));
+
   readonly nodes = computed<DrawnNode[]>(() =>
-    this.view().nodes.map((n) => ({
-      id: n.id,
-      label: n.label,
-      x: round(PAD + n.x * (WIDTH - 2 * PAD)),
-      y: round(PAD + n.y * (HEIGHT - 2 * PAD)),
-      state: n.state ?? 'idle',
-      badge: n.badge,
-    })),
+    this.view().nodes.map((n) => {
+      const y = round(PAD + n.y * (HEIGHT - 2 * PAD));
+      return {
+        id: n.id,
+        label: n.label,
+        x: round(PAD + n.x * (WIDTH - 2 * PAD)),
+        y,
+        state: n.state ?? 'idle',
+        badge: n.badge,
+        badgeY: n.badgeAbove ? y - BADGE_OFFSET : y + BADGE_OFFSET,
+      };
+    }),
   );
 
   readonly edges = computed<DrawnEdge[]>(() => {

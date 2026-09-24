@@ -1,11 +1,12 @@
 import { InputError } from './types.js';
 import { asEdges, asNumber, randInt, type Edge } from './input.js';
 import { circleLayout, layeredLayout } from './layout.js';
-import type { AlgorithmDef, EdgeState, Frame, GraphView, NodeState } from './types.js';
+import type { AlgorithmDef, EdgeState, Frame, GraphLegend, GraphView, NodeState } from './types.js';
 
 type Input = { n: number; edges: Edge[] };
 
 const CHOICES = ['Yes — nothing else points to it now', 'Not yet — it still has prerequisites'];
+const LEGEND: GraphLegend = { active: 'current', frontier: 'queued', done: 'done' };
 
 export const topoSort: AlgorithmDef<Input> = {
   id: 'topo-sort',
@@ -98,6 +99,7 @@ export const topoSort: AlgorithmDef<Input> = {
         const state: EdgeState = id === activeEdge ? 'active' : used.has(id) ? 'chosen' : 'idle';
         return { from: String(a), to: String(b), directed: true, state };
       }),
+      legend: LEGEND,
     });
     const snap = (line: number, note: string, extra: Partial<Frame> = {}, activeEdge?: string) =>
       frames.push({

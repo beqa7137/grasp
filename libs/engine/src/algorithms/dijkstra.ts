@@ -1,11 +1,12 @@
 import { InputError } from './types.js';
 import { asEdges, asNumber, randInt, type Edge } from './input.js';
 import { circleLayout } from './layout.js';
-import type { AlgorithmDef, EdgeState, Frame, GraphView, NodeState } from './types.js';
+import type { AlgorithmDef, EdgeState, Frame, GraphLegend, GraphView, NodeState } from './types.js';
 
 type Input = { n: number; edges: Edge[]; source: number };
 
 const RELAX = ['Yes — a shorter path was found', 'No — keep the current distance'];
+const LEGEND: GraphLegend = { active: 'current', frontier: 'queued', done: 'done' };
 const fmt = (d: number) => (d === Infinity ? '∞' : String(d));
 
 export const dijkstra: AlgorithmDef<Input> = {
@@ -105,6 +106,7 @@ export const dijkstra: AlgorithmDef<Input> = {
           const state: EdgeState = id === active ? 'active' : tree.has(id) ? 'chosen' : 'idle';
           return { from: String(a), to: String(b), directed: false, label: String(w), state };
         }),
+        legend: LEGEND,
       };
     };
     const snap = (line: number, note: string, extra: Partial<Frame> = {}, active?: string) =>

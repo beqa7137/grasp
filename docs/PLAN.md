@@ -51,7 +51,7 @@ grasp/
 ├─ libs/engine        @grasp/engine — pure TypeScript, zero deps, ESM
 │   ├─ algorithms/    tracers → Frame[] (line, vars, array/stack/grid view, narration, predict)
 │   ├─ sysdesign/     component catalog, queueing simulator, scenarios & goal evaluation
-│   ├─ review/        136 review items that generate a fresh variant per review
+│   ├─ review/        140 review items that generate a fresh variant per review
 │   ├─ srs/           FSRS scheduler, event upcasting, progress reducer, session builder
 │   └─ curriculum/    patterns, drill cards, template clozes, complexity facts, SD topics
 ├─ apps/api           NestJS 12 (ESM) — curriculum, progress sync, AI interviewer (SSE)
@@ -119,8 +119,8 @@ image. See [DEPLOYMENT.md](DEPLOYMENT.md) and [decisions/0001-hosting.md](decisi
 
 ## 4. Roadmap
 
-**M0: Vertical slice (this repo).** Engine with 16 visualizers, sandbox with 5 scenarios,
-20 patterns, 136 FSRS review items, 18 coding problems, mission revisits, AI interviewer (8 problems),
+**M0: Vertical slice (this repo).** Engine with 20 visualizers, sandbox with 5 scenarios,
+20 patterns, 140 FSRS review items, 18 coding problems, mission revisits, AI interviewer (8 problems),
 accounts, local-first sync, Ionic tabs app.
 
 **M1: Accounts & polish (2–3 wks).** Done: Google and GitHub sign-in with learner linking, haptics,
@@ -129,10 +129,11 @@ reminders from the forecast, native projects with CI builds, an onboarding place
 weak patterns first in the review queue. Next: passkeys, per-learner FSRS parameter optimization,
 dark/light polish.
 
-**M2: Content depth (4–6 wks).** Visualizers for all 20 patterns. Done: heap, union-find, DP table
-fill, trie, Dijkstra, topo sort, merge intervals, subsets by backtracking, tree traversals, jump game
-(greedy) and single number (XOR), with table, graph and tree views. Next: arrays & hashing, prefix
-sums, fast/slow pointers, 1-D DP. Content authoring as data (JSON/MDX) validated by the engine in CI.
+**M2: Content depth (4–6 wks).** Done: visualizers now cover all 20 patterns, adding heap, union-find,
+DP table fill, trie, Dijkstra, topo sort, merge intervals, subsets by backtracking, tree traversals,
+jump game (greedy), single number (XOR), two sum with a hash map, subarray sums with prefix counts,
+linked list cycle (fast/slow pointers) and house robber (1-D DP), with table, graph and tree views.
+Next: content authoring as data (JSON/MDX) validated by the engine in CI.
 
 **M3: Code runner (3–4 wks).** In-browser TS/Python execution (WebWorker + Pyodide) with
 hidden tests; _auto-trace the user's own code_ into the visualizer by instrumenting it.

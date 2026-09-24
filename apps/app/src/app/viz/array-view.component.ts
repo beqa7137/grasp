@@ -82,6 +82,7 @@ const POINTER_COLORS: Record<string, string> = {
     }
     .ptr span {
       font: 600 11px/1 var(--g-font-mono);
+      white-space: nowrap;
       color: #0b0d12;
       background: var(--c);
       padding: 4px 6px 3px;

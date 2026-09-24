@@ -97,6 +97,30 @@ describe('structure views render real traces', () => {
     expect(el.querySelector('.legend')).toBeNull();
   });
 
+  it('graph: shows the legend a tracer gives, and none without one or when turned off', () => {
+    const pointers = getAlgorithm('linked-list-cycle')!.trace({ values: [4, 7, 1], pos: 0 })[0].graph!;
+    const el = render(GraphViewComponent, pointers);
+    expect(legendOf(el)).toEqual(['slow', 'fast', 'slow = fast']);
+    expect(el.querySelector('.legend i[data-state="frontier"]')).not.toBeNull();
+    expect(render(GraphViewComponent, pointers, false).querySelector('.legend')).toBeNull();
+    expect(render(GraphViewComponent, { ...pointers, legend: undefined }).querySelector('.legend')).toBeNull();
+    const queue = getAlgorithm('dijkstra')!.trace({ n: 2, edges: [[0, 1, 3]], source: 0 })[0].graph;
+    expect(legendOf(render(GraphViewComponent, queue))).toEqual(['current', 'queued', 'done']);
+  });
+
+  it('graph: draws a badge below its node, or above it when the tracer asks', () => {
+    const el = render(GraphViewComponent, {
+      nodes: [
+        { id: 'a', label: '1', x: 0, y: 0.5, badge: 'below' },
+        { id: 'b', label: '2', x: 1, y: 0.5, badge: 'above', badgeAbove: true },
+      ],
+      edges: [],
+    });
+    const centre = Number(el.querySelector('circle.body')!.getAttribute('cy'));
+    const [below, above] = [...el.querySelectorAll('text.badge')].map((badge) => Number(badge.getAttribute('y')));
+    expect(below > centre && above < centre).toBe(true);
+  });
+
   it('tree: rings word ends in a trie and explains the ring in its legend', () => {
     const frames = getAlgorithm('trie')!.trace({ words: ['to', 'tea'], query: 'te' });
     const last = frames.at(-1)!;

@@ -165,6 +165,37 @@ const reference: Record<string, (input: any) => unknown> = {
     return reachable[nums.length - 1];
   },
   'single-number-xor': ({ nums }) => nums.reduce((x: number, n: number) => x ^ n, 0),
+  // The smallest i that completes a pair wins, and seen keeps the newest index of a repeated value, so j counts down from i - 1.
+  'two-sum-hash': ({ nums, target }) => {
+    for (let i = 0; i < nums.length; i++) for (let j = i - 1; j >= 0; j--) if (nums[j] + nums[i] === target) return `[${j}, ${i}]`;
+    return '[]';
+  },
+  'subarray-sum-prefix': ({ nums, k }) => {
+    let count = 0;
+    for (let i = 0; i < nums.length; i++)
+      for (let j = i, sum = 0; j < nums.length; j++) {
+        sum += nums[j];
+        if (sum === k) count++;
+      }
+    return count;
+  },
+  // Follows next pointers and remembers every node it visits: the O(n) memory approach Floyd avoids.
+  'linked-list-cycle': ({ values, pos }) => {
+    const next = (node: number) => (node + 1 < values.length ? node + 1 : pos >= 0 ? pos : null);
+    const seen = new Set<number>();
+    for (let node: number | null = 0; node !== null; node = next(node)) {
+      if (seen.has(node)) return true;
+      seen.add(node);
+    }
+    return false;
+  },
+  // Tries every set of houses as a bitmask and keeps the richest one with no two neighbours.
+  'house-robber': ({ nums }) => {
+    const loot = (mask: number) => nums.reduce((sum: number, x: number, k: number) => ((mask >> k) & 1 ? sum + x : sum), 0);
+    let best = 0;
+    for (let mask = 0; mask < 1 << nums.length; mask++) if ((mask & (mask << 1)) === 0) best = Math.max(best, loot(mask));
+    return best;
+  },
 };
 
 describe.each(ALGORITHMS.map((a) => [a.id, a] as const))('%s', (id, algo) => {

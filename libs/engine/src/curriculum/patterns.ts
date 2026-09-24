@@ -30,7 +30,7 @@ export const PATTERNS: Pattern[] = [
     ],
     complexity: 'O(n) time, O(n) space',
     pitfalls: ['Inserting before checking (matches an element with itself)', 'Using objects as keys without a canonical form'],
-    algorithmIds: [],
+    algorithmIds: ['two-sum-hash'],
   },
   {
     id: 'two-pointers',
@@ -96,7 +96,7 @@ export const PATTERNS: Pattern[] = [
     template: ['const pre = [0];', 'for (const x of a) pre.push(pre.at(-1) + x);', '// sum(i..j) = pre[j + 1] - pre[i]'],
     complexity: 'O(n) build, O(1) query',
     pitfalls: ['Off-by-one on the leading zero', 'Forgetting count[0] = 1 when counting subarrays'],
-    algorithmIds: [],
+    algorithmIds: ['subarray-sum-prefix'],
   },
   {
     id: 'monotonic-stack',
@@ -132,7 +132,7 @@ export const PATTERNS: Pattern[] = [
     ],
     complexity: 'O(n) time, O(1) space',
     pitfalls: ['Null checks on fast.next', 'Finding the cycle start needs a second phase'],
-    algorithmIds: [],
+    algorithmIds: ['linked-list-cycle'],
   },
   {
     id: 'intervals',
@@ -304,7 +304,7 @@ export const PATTERNS: Pattern[] = [
     ],
     complexity: 'O(n) typically',
     pitfalls: ['Unclear state definition', 'Not compressing to O(1) space when only last two states matter'],
-    algorithmIds: [],
+    algorithmIds: ['house-robber'],
   },
   {
     id: 'dp-2d',
