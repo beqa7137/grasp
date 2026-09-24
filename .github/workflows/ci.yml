@@ -103,6 +103,16 @@ jobs:
 
       - uses: ./.github/actions/setup
 
+      - name: Read the Playwright version
+        id: playwright
+        run: echo "version=$(node -p "require('playwright-core/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      # With the browser cached, the install below only adds its system libraries.
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.version }}
+
       # Headless tests only need Chromium's headless shell, not the full browser.
       - name: Build, and install Chromium alongside
         run: |

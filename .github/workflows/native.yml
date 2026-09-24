@@ -37,14 +37,15 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: ./.github/actions/setup
-
-      # Capacitor 8 uses Android Gradle Plugin 8.13, which runs on JDK 21.
+      # Capacitor 8 uses Android Gradle Plugin 8.13, which runs on JDK 21. Set up before node_modules exists:
+      # the Gradle cache key hashes every *.gradle file in the tree, and the plugins' own would change it.
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '21'
           cache: gradle
+
+      - uses: ./.github/actions/setup
 
       - name: Build web app and sync native projects
         env:
