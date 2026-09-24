@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  ElementRef,
   HostListener,
   computed,
   effect,
@@ -43,6 +44,7 @@ import { RunnerService, type RunReport, type TestReport } from '../../code/runne
 import { toFrames } from '../../code/trace-frames';
 import { TracePlayerComponent } from '../../code/trace-player.component';
 import { haptic } from '../../core/haptics';
+import { isOnHiddenPage } from '../../core/page-keys';
 import { ProgressService } from '../../core/progress.service';
 
 const LANGUAGE_KEY = 'grasp.code.language';
@@ -74,6 +76,7 @@ type Panel = 'tests' | 'trace';
 export class WorkspacePage {
   private readonly runner = inject(RunnerService);
   private readonly progress = inject(ProgressService);
+  private readonly host: Element = inject(ElementRef).nativeElement;
 
   readonly id = input.required<string>();
   readonly problem = computed(() => getCodingProblem(this.id()));
@@ -238,7 +241,8 @@ export class WorkspacePage {
 
   @HostListener('document:keydown', ['$event'])
   onKeydown(e: KeyboardEvent) {
-    if (!(e.metaKey || e.ctrlKey) || e.key !== 'Enter') return;
+    // Unlike other page keys, this shortcut is meant for typing: it runs the code straight from the editor.
+    if (!(e.metaKey || e.ctrlKey) || e.key !== 'Enter' || isOnHiddenPage(this.host)) return;
     e.preventDefault();
     void (e.shiftKey ? this.submit() : this.run());
   }

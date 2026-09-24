@@ -1,9 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import type { TableView } from '@grasp/engine';
+import type { TableLegend, TableView } from '@grasp/engine';
 
-type CellRole = 'active' | 'dep' | 'path' | null;
+type CellRole = 'active' | 'deps' | 'path' | null;
 
 const key = ([r, c]: [number, number]) => `${r},${c}`;
+
+const DP_LEGEND: TableLegend = { active: 'current cell', deps: 'reads from', path: 'answer path' };
 
 @Component({
   selector: 'g-table-view',
@@ -26,9 +28,9 @@ const key = ([r, c]: [number, number]) => `${r},${c}`;
     </div>
     @if (legend()) {
       <div class="legend">
-        <span><i data-role="active"></i>current cell</span>
-        <span><i data-role="dep"></i>reads from</span>
-        <span><i data-role="path"></i>answer path</span>
+        @for (entry of legendEntries(); track entry[0]) {
+          <span><i [attr.data-role]="entry[0]"></i>{{ entry[1] }}</span>
+        }
       </div>
     }
   `,
@@ -79,7 +81,7 @@ const key = ([r, c]: [number, number]) => `${r},${c}`;
       border-style: dashed;
       border-color: var(--g-line);
     }
-    .cell[data-role='dep'] {
+    .cell[data-role='deps'] {
       border-color: var(--g-pointer);
       box-shadow: inset 0 0 0 1px var(--g-pointer);
       color: var(--g-pointer);
@@ -119,7 +121,7 @@ const key = ([r, c]: [number, number]) => `${r},${c}`;
       background: var(--g-active);
       border-color: var(--g-active);
     }
-    .legend i[data-role='dep'] {
+    .legend i[data-role='deps'] {
       border-color: var(--g-pointer);
     }
     .legend i[data-role='path'] {
@@ -136,10 +138,12 @@ export class TableViewComponent {
     const v = this.view();
     const roles = new Map<string, CellRole>();
     for (const cell of v.path ?? []) roles.set(key(cell), 'path');
-    for (const cell of v.deps ?? []) roles.set(key(cell), 'dep');
+    for (const cell of v.deps ?? []) roles.set(key(cell), 'deps');
     if (v.active) roles.set(key(v.active), 'active');
     return roles;
   });
+
+  readonly legendEntries = computed(() => Object.entries(this.view().legend ?? DP_LEGEND));
 
   readonly activeRow = computed(() => this.view().active?.[0] ?? null);
   readonly activeCol = computed(() => this.view().active?.[1] ?? null);

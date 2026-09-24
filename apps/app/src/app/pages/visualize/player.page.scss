@@ -167,15 +167,23 @@
     color: var(--g-accent);
     margin-top: 1px;
   }
+  .body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+  }
   p {
     margin: 0;
-    flex: 1;
+    flex: 1 1 22em;
     line-height: 1.55;
     font-size: 15px;
   }
   .result {
-    flex: none;
-    align-self: center;
+    max-width: 100%;
+    overflow-wrap: anywhere;
     font-weight: 600;
     color: var(--g-found);
     background: rgba(61, 220, 151, 0.12);
@@ -453,7 +461,8 @@
     }
   }
   input,
-  textarea {
+  textarea,
+  select {
     width: 100%;
     background: var(--g-bg);
     border: 1px solid var(--g-line);
@@ -462,11 +471,24 @@
     padding: 9px 10px;
     font-size: 13px;
     outline: none;
+  }
+  input,
+  textarea {
     resize: vertical;
     &:read-only {
       color: var(--g-muted);
     }
     &:focus:not(:read-only) {
+      border-color: var(--g-accent);
+    }
+  }
+  // A select always matches :read-only, so it is dimmed while disabled instead.
+  select {
+    &:disabled {
+      color: var(--g-muted);
+      opacity: 1;
+    }
+    &:focus {
       border-color: var(--g-accent);
     }
   }

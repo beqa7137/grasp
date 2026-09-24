@@ -27,7 +27,10 @@ export interface GridView {
   distances: (number | null)[][];
 }
 
-/** A dynamic-programming table; null cells are not computed yet. */
+/** What each table highlight means, for the legend. */
+export type TableLegend = Partial<Record<'active' | 'deps' | 'path', string>>;
+
+/** A table of values, such as a DP table; null cells are not computed yet. */
 export interface TableView {
   rowLabels: string[];
   colLabels: string[];
@@ -37,6 +40,8 @@ export interface TableView {
   deps?: [number, number][];
   /** Cells on the reconstructed answer. */
   path?: [number, number][];
+  /** Without it the legend reads as a DP table. */
+  legend?: TableLegend;
 }
 
 export type NodeState = 'idle' | 'frontier' | 'active' | 'done';
@@ -66,9 +71,14 @@ export interface GraphView {
   edges: GraphEdge[];
 }
 
-/** A rooted forest (heap, trie, union-find); the component lays it out. */
+/** What each node style means, in legend order. */
+export type TreeLegend = Partial<Record<NodeState | 'marked', string>>;
+
+/** A rooted forest (heap, trie, union-find, binary tree, recursion tree); the component lays it out. */
 export interface TreeView {
   nodes: { id: string; label: string; parent: string | null; state?: NodeState; badge?: string; marked?: boolean }[];
+  /** Without it the tree has no legend. */
+  legend?: TreeLegend;
 }
 
 export interface Prediction {
@@ -94,13 +104,16 @@ export interface Frame {
   predict?: Prediction;
 }
 
-export type InputKind = 'numbers' | 'sortedNumbers' | 'number' | 'text' | 'grid' | 'edges' | 'directedEdges' | 'weightedEdges' | 'words';
+export type InputKind =
+  'numbers' | 'sortedNumbers' | 'number' | 'text' | 'grid' | 'edges' | 'directedEdges' | 'weightedEdges' | 'words' | 'intervals';
 
 export interface InputField {
   key: string;
   label: string;
   kind: InputKind;
   hint?: string;
+  /** The only values a text field accepts; the player offers them as a picker. */
+  options?: string[];
 }
 
 export type Difficulty = 'easy' | 'medium' | 'hard';

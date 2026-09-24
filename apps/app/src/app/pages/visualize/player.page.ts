@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  ElementRef,
   HostListener,
   computed,
   effect,
@@ -39,6 +40,7 @@ import {
   sparkles,
 } from 'ionicons/icons';
 import { haptic } from '../../core/haptics';
+import { isKeyForPage } from '../../core/page-keys';
 import { ProgressService } from '../../core/progress.service';
 import { ArrayViewComponent } from '../../viz/array-view.component';
 import { CodePanelComponent } from '../../viz/code-panel.component';
@@ -79,6 +81,7 @@ const SPEEDS = [0.5, 1, 2, 4];
 export class PlayerPage {
   readonly id = input.required<string>();
   private readonly progress = inject(ProgressService);
+  private readonly host: Element = inject(ElementRef).nativeElement;
 
   readonly algo = computed(() => getAlgorithm(this.id()) as AlgorithmDef | undefined);
   readonly problem = computed(() => CODING_PROBLEMS.find((p) => p.algorithmId === this.id()));
@@ -250,7 +253,7 @@ export class PlayerPage {
 
   @HostListener('document:keydown', ['$event'])
   onKey(e: KeyboardEvent) {
-    if ((e.target as HTMLElement).closest('input, textarea')) return;
+    if (!isKeyForPage(this.host, e)) return;
     const p = this.pending();
     if (p && p.choice === null && /^[1-4]$/.test(e.key)) {
       this.choose(Number(e.key) - 1);

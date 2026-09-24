@@ -4,14 +4,14 @@ const MAX_ARRAY = 24;
 const MAX_TEXT = 24;
 const MAX_GRID = 12;
 
-export function asNumbers(value: unknown, key: string, { sorted = false } = {}): number[] {
+export function asNumbers(value: unknown, key: string, { sorted = false, min = -999, max = 999 } = {}): number[] {
   const arr = Array.isArray(value) ? value : typeof value === 'string' ? splitList(value) : null;
   if (!arr) throw new InputError(`${key} must be a list of numbers`);
   const nums = arr.map((v) => Number(v));
   if (nums.length === 0) throw new InputError(`${key} must not be empty`);
   if (nums.length > MAX_ARRAY) throw new InputError(`${key} can hold at most ${MAX_ARRAY} numbers`);
-  if (nums.some((n) => !Number.isInteger(n) || Math.abs(n) > 999)) {
-    throw new InputError(`${key} must contain integers between -999 and 999`);
+  if (nums.some((n) => !Number.isInteger(n) || n < min || n > max)) {
+    throw new InputError(`${key} must contain integers between ${min} and ${max}`);
   }
   return sorted ? [...nums].sort((a, b) => a - b) : nums;
 }
@@ -103,6 +103,8 @@ export function parseField(kind: InputKind, text: string): unknown {
         const m = EDGE_PATTERNS[kind].exec(item);
         return m ? m.slice(1).map(Number) : [item];
       });
+    case 'intervals':
+      return parseField('edges', text);
     case 'words':
       return splitList(text);
     case 'numbers':
@@ -127,6 +129,8 @@ export function formatField(kind: InputKind, value: unknown): string {
       return (value as Edge[]).map(([a, b]) => `${a}${EDGE_SEPARATOR[kind]}${b}`).join(', ');
     case 'weightedEdges':
       return (value as Edge[]).map(([a, b, w]) => `${a}-${b}:${w}`).join(', ');
+    case 'intervals':
+      return formatField('edges', value);
     case 'words':
       return (value as string[]).join(', ');
     case 'numbers':
@@ -163,4 +167,13 @@ export function mulberry32(seed: number): () => number {
 
 export function randInt(rand: () => number, min: number, max: number): number {
   return min + Math.floor(rand() * (max - min + 1));
+}
+
+/** Shuffles `items` in place (Fisher–Yates) and returns it. */
+export function shuffle<T>(rand: () => number, items: T[]): T[] {
+  for (let k = items.length - 1; k > 0; k--) {
+    const j = randInt(rand, 0, k);
+    [items[k], items[j]] = [items[j], items[k]];
+  }
+  return items;
 }

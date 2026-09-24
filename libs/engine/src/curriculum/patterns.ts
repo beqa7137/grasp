@@ -150,7 +150,7 @@ export const PATTERNS: Pattern[] = [
     ],
     complexity: 'O(n log n)',
     pitfalls: ['Sorting by end when you need start (or vice versa)', 'Touching endpoints: overlap or not?'],
-    algorithmIds: [],
+    algorithmIds: ['merge-intervals'],
   },
   {
     id: 'heap',
@@ -201,7 +201,7 @@ export const PATTERNS: Pattern[] = [
     ],
     complexity: 'Exponential; pruning is everything',
     pitfalls: ['Pushing a reference instead of a copy', 'Forgetting to undo'],
-    algorithmIds: [],
+    algorithmIds: ['subsets-backtracking'],
   },
   {
     id: 'topo-sort',
@@ -276,7 +276,7 @@ export const PATTERNS: Pattern[] = [
     ],
     complexity: 'O(n)',
     pitfalls: ['Returning one thing but needing two (global vs local answer)', 'BST validation with only parent comparison'],
-    algorithmIds: [],
+    algorithmIds: ['tree-traversal'],
   },
   {
     id: 'trie',
@@ -343,7 +343,7 @@ export const PATTERNS: Pattern[] = [
     ],
     complexity: 'Usually O(n) or O(n log n)',
     pitfalls: ['No exchange argument → probably needs DP'],
-    algorithmIds: [],
+    algorithmIds: ['jump-game'],
   },
   {
     id: 'bit-manipulation',
@@ -355,7 +355,7 @@ export const PATTERNS: Pattern[] = [
     template: ['let x = 0;', 'for (const n of nums) x ^= n;', 'return x;'],
     complexity: 'O(n), O(1) space',
     pitfalls: ['Sign bit and >> vs >>> in JavaScript'],
-    algorithmIds: [],
+    algorithmIds: ['single-number-xor'],
   },
 ];
 
