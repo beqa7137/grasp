@@ -22,6 +22,13 @@
       "when": 1790205401409,
       "tag": "0002_accounts",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790212209074,
+      "tag": "0003_coordination",
+      "breakpoints": true
     }
   ]
 }

@@ -1,14 +1,55 @@
-import { Global, Inject, Logger, Module, type OnApplicationShutdown } from '@nestjs/common';
+import { Global, Inject, Injectable, Logger, Module, type OnApplicationBootstrap, type OnApplicationShutdown } from '@nestjs/common';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
 import { APP_CONFIG, loadConfig, type AppConfig } from '../config.js';
-import { MemoryAuthStore, MemoryFeedbackStore, MemoryInterviewStore, MemoryProgressStore } from './memory.stores.js';
-import { PostgresAuthStore, PostgresFeedbackStore, PostgresInterviewStore, PostgresProgressStore, type Db } from './postgres.stores.js';
+import {
+  MemoryAuthStore,
+  MemoryCoordinationStore,
+  MemoryFeedbackStore,
+  MemoryInterviewStore,
+  MemoryProgressStore,
+} from './memory.stores.js';
+import {
+  PostgresAuthStore,
+  PostgresCoordinationStore,
+  PostgresFeedbackStore,
+  PostgresInterviewStore,
+  PostgresProgressStore,
+  type Db,
+} from './postgres.stores.js';
 import * as schema from './schema.js';
-import { AuthStore, FeedbackStore, InterviewStore, ProgressStore } from './stores.js';
+import { AuthStore, CoordinationStore, FeedbackStore, InterviewStore, ProgressStore } from './stores.js';
 
 export const PG_POOL = Symbol('PG_POOL');
 const DB = Symbol('DB');
+const SWEEP_INTERVAL_MS = 10 * 60_000;
+
+/** Deletes expired rate windows and leases now and then; every instance may run it, deletes are idempotent. */
+@Injectable()
+export class CoordinationSweeper implements OnApplicationBootstrap, OnApplicationShutdown {
+  private readonly log = new Logger(CoordinationSweeper.name);
+  private timer: ReturnType<typeof setInterval> | undefined;
+
+  constructor(private readonly store: CoordinationStore) {}
+
+  onApplicationBootstrap() {
+    this.timer = setInterval(() => void this.sweep(), SWEEP_INTERVAL_MS);
+    this.timer.unref();
+  }
+
+  onApplicationShutdown() {
+    clearInterval(this.timer);
+  }
+
+  async sweep() {
+    try {
+      const removed = await this.store.sweep();
+      if (removed) this.log.debug(`Swept ${removed} expired counters and leases`);
+    } catch (error) {
+      this.log.warn(`Sweep failed, will retry: ${String(error)}`);
+    }
+  }
+}
 
 @Global()
 @Module({
@@ -48,8 +89,14 @@ const DB = Symbol('DB');
       inject: [DB],
       useFactory: (db: Db | null) => (db ? new PostgresAuthStore(db) : new MemoryAuthStore()),
     },
+    {
+      provide: CoordinationStore,
+      inject: [DB],
+      useFactory: (db: Db | null) => (db ? new PostgresCoordinationStore(db) : new MemoryCoordinationStore()),
+    },
+    CoordinationSweeper,
   ],
-  exports: [APP_CONFIG, PG_POOL, ProgressStore, InterviewStore, FeedbackStore, AuthStore],
+  exports: [APP_CONFIG, PG_POOL, ProgressStore, InterviewStore, FeedbackStore, AuthStore, CoordinationStore],
 })
 export class PersistenceModule implements OnApplicationShutdown {
   constructor(@Inject(PG_POOL) private readonly pool: pg.Pool | null) {}

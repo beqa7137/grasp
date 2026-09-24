@@ -55,3 +55,26 @@ export abstract class AuthStore {
   abstract markRotated(id: string, at: string): Promise<void>;
   abstract revokeFamily(familyId: string, at: string): Promise<void>;
 }
+
+export interface WindowTotal {
+  total: number;
+  /** Milliseconds until the current window ends and the total starts again from zero. */
+  resetsInMs: number;
+}
+
+/**
+ * State that every API instance must agree on. Windows are fixed and aligned to the Unix epoch, so a
+ * one-day window is exactly a UTC day. With Postgres behind it, any number of instances can share it.
+ */
+export abstract class CoordinationStore {
+  /** Adds `amount` to the current window's total and returns the new total. */
+  abstract add(key: string, windowMs: number, amount: number, retainMs?: number): Promise<WindowTotal>;
+  /** Adds one only while the total is below `limit`; null once the limit is reached. */
+  abstract take(key: string, windowMs: number, limit: number): Promise<WindowTotal | null>;
+  abstract read(key: string, windowMs: number): Promise<number>;
+  /** True if `holder` now holds `key` for `ttlMs`; an expired lease can be taken over. */
+  abstract acquireLease(key: string, holder: string, ttlMs: number): Promise<boolean>;
+  abstract releaseLease(key: string, holder: string): Promise<void>;
+  /** Deletes expired windows and leases; returns how many rows went. */
+  abstract sweep(): Promise<number>;
+}

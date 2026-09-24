@@ -1,4 +1,4 @@
-import { index, integer, jsonb, pgTable, smallint, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { doublePrecision, index, integer, jsonb, pgTable, primaryKey, smallint, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 export const learners = pgTable('learners', {
   id: uuid('id').primaryKey(),
@@ -94,4 +94,30 @@ export const refreshTokens = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).notNull(),
   },
   (t) => [index('refresh_tokens_user').on(t.userId), index('refresh_tokens_family').on(t.familyId)],
+);
+
+/**
+ * Totals per fixed time window, shared by every API instance: AI spend per UTC day, interview quotas,
+ * request rate limits. Keys are opaque; rate-limit keys are hashes, so no IP address is stored.
+ */
+export const counters = pgTable(
+  'counters',
+  {
+    key: text('key').notNull(),
+    windowStart: timestamp('window_start', { withTimezone: true }).notNull(),
+    total: doublePrecision('total').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.key, t.windowStart] }), index('counters_expires_at').on(t.expiresAt)],
+);
+
+/** Short exclusive holds with an expiry, so a crashed instance cannot keep one forever. */
+export const leases = pgTable(
+  'leases',
+  {
+    key: text('key').primaryKey(),
+    holder: text('holder').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [index('leases_expires_at').on(t.expiresAt)],
 );

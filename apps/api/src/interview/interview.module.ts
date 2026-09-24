@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { Logger, Module } from '@nestjs/common';
 import { APP_CONFIG, type AppConfig } from '../config.js';
+import { CoordinationStore } from '../persistence/stores.js';
 import { ClaudeInterviewer } from './claude.interviewer.js';
 import { InterviewController } from './interview.controller.js';
 import { InterviewService } from './interview.service.js';
@@ -15,8 +16,8 @@ import { SpendGuard } from './spend-guard.js';
     InterviewService,
     {
       provide: SpendGuard,
-      inject: [APP_CONFIG],
-      useFactory: (config: AppConfig) => new SpendGuard(config.aiDailyBudgetUsd),
+      inject: [APP_CONFIG, CoordinationStore],
+      useFactory: (config: AppConfig, store: CoordinationStore) => new SpendGuard(config.aiDailyBudgetUsd, store),
     },
     {
       provide: Interviewer,

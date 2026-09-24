@@ -46,7 +46,7 @@ Refresh tokens sit in Capacitor Preferences: `localStorage` on the web, app-priv
 
 ## Rate limits
 
-Every route has a global limit of `RATE_LIMIT_PER_MINUTE` requests. The limit is counted per signed-in user, across their devices and networks, and per IP for anonymous callers. Sign-in routes have stricter per-IP limits:
+Every route has a global limit of `RATE_LIMIT_PER_MINUTE` requests. The limit is counted per signed-in user, across their devices and networks, and per IP for anonymous callers. Counters live in Postgres in fixed one-minute windows, so every API instance enforces the same limit; only hashed keys are stored, never IP addresses. If the counter store fails, limiting pauses (fail open) and an error is logged once a minute. Sign-in routes have stricter per-IP limits:
 
 | Route          | Limit per IP      |
 | -------------- | ----------------- |
