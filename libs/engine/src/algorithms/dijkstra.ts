@@ -135,7 +135,7 @@ export const dijkstra: AlgorithmDef<Input> = {
       settled.add(u);
       snap(5, `Closest unsettled node is ${u} at distance ${d}. No later path can beat it, because every edge weight is non-negative.`);
       for (const [v, w] of adj[u]) {
-        // A settled neighbour can never improve, so only the first one gets a question and later ones are skipped.
+        // Settled neighbours always fail the check: ask about the first one, skip the rest.
         if (settled.has(v) && askedSettled) continue;
         askedSettled ||= settled.has(v);
         const candidate = dist[u] + w;

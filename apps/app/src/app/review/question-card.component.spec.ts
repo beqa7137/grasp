@@ -44,6 +44,12 @@ describe('QuestionCardComponent', () => {
     expect(el.querySelectorAll('.choice.right').length).toBe(1);
   });
 
+  it('sets cloze choices as code, which keeps the mono font from drawing ligatures', () => {
+    const q = generateQuestion('cloze:bfs:1', 3);
+    const el: HTMLElement = render(q).nativeElement;
+    expect(Array.from(el.querySelectorAll('.choices.mono .choice .text code'), (code) => code.textContent)).toEqual(q.choices);
+  });
+
   it('marks a wrong answer', () => {
     const q = generateQuestion('rec:tp1', 11);
     const wrong = (q.answer + 1) % q.choices.length;

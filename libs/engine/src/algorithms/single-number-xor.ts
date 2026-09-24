@@ -22,11 +22,15 @@ function bitTable(width: number, rows: (number | null)[], extra: Partial<TableVi
 const wholeRow = (row: number, width: number): Cell[] => Array.from({ length: width + 1 }, (_, c): Cell => [row, c]);
 
 /** Distractors follow the XOR cloze's wrong operators (|, &, +); values wider than the table are dropped, since the extra digit would give them away. */
-function xorChoices(x: number, n: number, width: number, shift: number) {
+function xorQuestion(x: number, n: number, width: number) {
   const next = x ^ n;
   const show = (v: number) => `${binary(v, width)} (${v})`;
   const distractors = [x | n, x & n, x + n, x, n, next ^ 1, next ^ 2].filter((v) => v < 2 ** width);
-  return rotatedChoices(show(next), distractors.map(show), shift);
+  return rotatedChoices(
+    `\`x = ${x}\` (${binary(x, width)}), \`n = ${n}\` (${binary(n, width)}). What is x after \`x ^= n\`?`,
+    show(next),
+    distractors.map(show),
+  );
 }
 
 export const singleNumberXor: AlgorithmDef<Input> = {
@@ -106,7 +110,6 @@ export const singleNumberXor: AlgorithmDef<Input> = {
       snap(3, `Read \`n = nums[${i}] = ${n}\`, which is ${binary(n, width)} in binary.`, bitTable(width, [x, n, null]));
 
       if (i > 0) {
-        const { choices, answer } = xorChoices(x, n, width, i);
         const reason =
           partner !== undefined
             ? `${n} is already folded into x, so this copy cancels it (\`${n} ^ ${n} = 0\`).`
@@ -117,9 +120,7 @@ export const singleNumberXor: AlgorithmDef<Input> = {
                 : 'No column has a 1 in both, so each 1 bit of n switches on in x.';
         snap(4, `XOR \`x = ${binary(x, width)}\` with \`n = ${binary(n, width)}\`, one column at a time.`, bitTable(width, [x, n, null]), {
           predict: {
-            prompt: `\`x = ${x}\` (${binary(x, width)}), \`n = ${n}\` (${binary(n, width)}). What is x after \`x ^= n\`?`,
-            choices,
-            answer,
+            ...xorQuestion(x, n, width),
             explain: `XOR keeps a 1 only where the two bits differ: \`${binary(x, width)} ^ ${binary(n, width)}\` = ${binary(x ^ n, width)}, which is ${x ^ n}. ${reason}`,
           },
         });

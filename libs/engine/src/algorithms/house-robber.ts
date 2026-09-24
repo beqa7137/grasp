@@ -56,13 +56,12 @@ function robOrSkip(step: Step): Prediction {
 }
 
 /** Slips, likeliest first since rotatedChoices keeps only three distinct: rob next to dp[i - 1], take the smaller option, forget dp[i - 2], stop at dp[i - 2], reach back to dp[i - 3]. */
-function dpValue(step: Step, threeBack: number | null, shift: number): Prediction | null {
+function dpValue(step: Step, threeBack: number | null): Prediction | null {
   const { i, money, twoBack, skip, take } = step;
   const slips = [skip + money, Math.min(skip, take), Math.max(skip, money), twoBack, ...(threeBack === null ? [] : [threeBack + money])];
-  const options = rotatedChoices(String(Math.max(skip, take)), slips.map(String), shift);
+  const options = rotatedChoices(`${givens(step)} What is \`dp[${i}]\`?`, String(Math.max(skip, take)), slips.map(String));
   if (options.choices.length < 2) return null;
   return {
-    prompt: `${givens(step)} What is \`dp[${i}]\`?`,
     ...options,
     explain: take > skip ? `${verdict(step)} ${neighbour(step)}` : verdict(step),
   };
@@ -110,7 +109,6 @@ export const houseRobber: AlgorithmDef<Input> = {
     let i: number | null = null;
     let robbed: number[] = [];
     let asked = 0;
-    let valueQuestions = 0;
 
     const known = (k: number) => (k < filled ? dp[k] : null);
 
@@ -167,11 +165,9 @@ export const houseRobber: AlgorithmDef<Input> = {
       snap(6, `\`i = ${i}\`: \`dp[${i}]\` covers houses 0 to ${house}, and the newest one, house ${house}, holds ${money}.`);
 
       const decide = asked % 2 === 0 && take !== skip;
-      // Counting from 0 alone would always put the first value question's answer first, so n offsets it between inputs.
-      const predict = decide ? robOrSkip(step) : dpValue(step, i >= 3 ? dp[i - 3] : null, n + valueQuestions);
+      const predict = decide ? robOrSkip(step) : dpValue(step, i >= 3 ? dp[i - 3] : null);
       if (predict) {
         asked++;
-        if (!decide) valueQuestions++;
         snap(7, `Weigh skipping house ${house} against robbing it.`, { predict });
       }
 

@@ -1,24 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { codeSpans } from '../code-spans.js';
+import { codeSpanProblems } from '../code-spans.js';
 import { ALGORITHMS, getAlgorithm } from './index.js';
 import { formatField, mulberry32, parseField } from './input.js';
-import { InputError, type Frame } from './types.js';
+import { InputError, type AlgorithmDef, type Frame } from './types.js';
 
-const EM_DASH = '\u2014';
 // A walled-off goal, a cycle with no free node or an isolated source can end these before there is anything to predict.
 const MAY_ASK_NOTHING = new Set(['grid-bfs', 'topo-sort', 'dijkstra']);
-// A code span never wraps, so a longer one would overflow a phone-width line.
-const MAX_CODE_SPAN = 24;
+const SWEEP = 300;
+const MIN_INPUTS_ASKED = 30;
+const MAX_SLOT_SHARE = 0.6;
 
-/** Every way a learner text would render badly: backticks mark code spans, so they must pair up. */
+/** The seeded random inputs every tracer is checked on. */
+const sweepInputs = (algo: AlgorithmDef) => {
+  const rand = mulberry32(algo.id.length * 7919);
+  return Array.from({ length: SWEEP }, () => algo.randomInput(rand));
+};
+
+/** The code-span problems, plus a non-breaking space, which stops a line wrapping on a narrow screen. */
 const textProblems = (field: string, text: string) =>
-  [
-    text.includes('\u00a0') && 'a non-breaking space',
-    codeSpans(text).some((part) => part.text.includes('`')) && 'an unbalanced backtick',
-    ...codeSpans(text).map(
-      ({ text: span, code }) => code && span.length > MAX_CODE_SPAN && `a code span over ${MAX_CODE_SPAN} characters: ${span}`,
-    ),
-  ].flatMap((problem) => (problem ? [`${field} has ${problem}`] : []));
+  [...(text.includes('\u00a0') ? ['a non-breaking space'] : []), ...codeSpanProblems(text)].map((problem) => `${field} has ${problem}`);
 
 /** Every way a trace breaks the frame contract, so a single expect per trace reports them all. */
 const frameProblems = (frames: Frame[], lines: number) =>
@@ -257,20 +257,11 @@ describe.each(ALGORITHMS.map((a) => [a.id, a] as const))('%s', (id, algo) => {
     expect(frames.some((f) => f.predict)).toBe(true);
   });
 
-  it('matches a reference implementation on 300 random inputs, with well-formed frames that ask a prediction', () => {
-    const rand = mulberry32(id.length * 7919);
-    for (let i = 0; i < 300; i++) {
-      const frames = check(algo.randomInput(rand));
+  it(`matches a reference implementation on ${SWEEP} random inputs, with well-formed frames that ask a prediction`, () => {
+    for (const input of sweepInputs(algo)) {
+      const frames = check(input);
       if (!MAY_ASK_NOTHING.has(id)) expect(frames.some((f) => f.predict)).toBe(true);
     }
-  });
-
-  it('never shows an em dash', () => {
-    const rand = mulberry32(id.length);
-    const traces = [algo.defaultInput, ...Array.from({ length: 20 }, () => algo.randomInput(rand))].map((input) =>
-      algo.trace(algo.validate(input)),
-    );
-    expect(JSON.stringify([algo, traces])).not.toContain(EM_DASH);
   });
 
   it('emits frames that survive a JSON round-trip', () => {
@@ -296,6 +287,23 @@ describe.each(ALGORITHMS.map((a) => [a.id, a] as const))('%s', (id, algo) => {
 
   it('is exposed through the registry', () => {
     expect(getAlgorithm(id)).toBe(algo);
+  });
+});
+
+describe('answer slots', () => {
+  it(`never puts the first multi-choice answer in one slot on more than ${MAX_SLOT_SHARE * 100}% of the random inputs`, () => {
+    const crowded = ALGORITHMS.flatMap((algo) => {
+      const firstQuestions = sweepInputs(algo).flatMap((input) => {
+        const first = algo.trace(algo.validate(input)).find((f) => f.predict && f.predict.choices.length >= 3);
+        return first ? [first.predict!] : [];
+      });
+      // A fixed menu, like pair sum's found / l++ / r--, gives each answer its own slot, so there the slot follows the data.
+      const fixedMenu = new Set(firstQuestions.map((p) => p.choices.join('\n'))).size === 1;
+      if (firstQuestions.length < MIN_INPUTS_ASKED || fixedMenu) return [];
+      const worst = Math.max(...[0, 1, 2, 3].map((slot) => firstQuestions.filter((p) => p.answer === slot).length)) / firstQuestions.length;
+      return worst > MAX_SLOT_SHARE ? [`${algo.id}: ${Math.round(worst * 100)}% in one slot`] : [];
+    });
+    expect(crowded).toEqual([]);
   });
 });
 

@@ -104,23 +104,18 @@ describe('two-sum-hash', () => {
     for (const input of SAMPLES) expect(answersConfirmed(traceOf(input))).toBe(true);
   });
 
-  it('draws inputs with at most one pair and covers both outcomes, every kind of lookup and varied answer positions', () => {
+  it('draws inputs with at most one pair and covers both outcomes and every kind of lookup', () => {
     const outcomes = new Set<string>();
     const lookups = new Set<string>();
-    const storePositions = new Set<number>();
-    const pairPositions = new Set<number>();
     for (const input of randomInputs(7, 150)) {
       const frames = traceOf(input);
       expect(pairCount(input.nums, input.target)).toBeLessThanOrEqual(1);
       outcomes.add(resultOf(frames) === '[]' ? 'none' : 'pair');
-      for (const { prompt, answer, explain } of predictions(frames)) {
-        if (prompt.endsWith('after this step?')) storePositions.add(answer);
-        if (prompt.endsWith('return?')) pairPositions.add(answer);
+      for (const { prompt, explain } of predictions(frames)) {
         if (prompt.endsWith('in seen?')) lookups.add(LOOKUP_KINDS.find(([phrase]) => explain.includes(phrase))?.[1] ?? 'miss');
       }
     }
     expect([...outcomes].sort()).toEqual(['none', 'pair']);
     expect([...lookups].sort()).toEqual(['hit', 'later', 'miss', 'self']);
-    expect(storePositions.size >= 3 && pairPositions.size >= 3).toBe(true);
   });
 });

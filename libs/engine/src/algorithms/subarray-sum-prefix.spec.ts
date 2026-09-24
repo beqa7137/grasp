@@ -97,7 +97,7 @@ describe('subarray-sum-prefix', () => {
     expect(none.some((f) => f.array!.window)).toBe(false);
   });
 
-  it('covers every kind of answer on random inputs, in varying positions', () => {
+  it('covers every kind of answer on random inputs', () => {
     const seen = new Set<string>();
     for (const input of randomInputs(7, 80)) {
       const frames = traceOf(input);
@@ -105,24 +105,12 @@ describe('subarray-sum-prefix', () => {
       for (const f of frames) {
         if (!f.predict) continue;
         const { choices, answer, explain } = f.predict;
-        seen.add(`position ${answer}`);
         if (f.line === 5) seen.add(explain.includes('sums to 0') ? 'prefix repeats' : 'prefix new');
         else seen.add(`count ${Math.min(Number(choices[answer]), 2)}${explain.includes('seed') ? ' with seed' : ''}`);
       }
     }
     expect([...seen]).toEqual(
-      expect.arrayContaining([
-        'count 0',
-        'count 1',
-        'count 1 with seed',
-        'count 2',
-        'position 0',
-        'position 1',
-        'position 2',
-        'position 3',
-        'prefix new',
-        'prefix repeats',
-      ]),
+      expect.arrayContaining(['count 0', 'count 1', 'count 1 with seed', 'count 2', 'prefix new', 'prefix repeats']),
     );
   });
 

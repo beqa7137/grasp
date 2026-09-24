@@ -83,7 +83,7 @@ export const nextGreater: AlgorithmDef<Input> = {
                   answer: pop ? 0 : 1,
                   explain: pop
                     ? `${nums[i]} > ${nums[top]}, so ${nums[i]} is the first bigger value to the right of index ${top}. Resolve it and pop.`
-                    : `${nums[i]} ≤ ${nums[top]}. It cannot resolve the top, or anything below it (those values are at least as large). Push and move on.`,
+                    : `${nums[i]} ≤ ${nums[top]}. It cannot resolve the top or anything below it, since those values are at least as large. Push and move on.`,
                 },
               },
         );

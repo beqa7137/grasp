@@ -53,7 +53,7 @@ function percent(p: number): string {
 }
 
 const concept = (id: string, topic: string, index: number, prompt: string, correct: string, distractors: string[], explain: string) =>
-  item(id, topic, prompt.replaceAll('`', ''), index, (rand) => ({ prompt, ...withChoices(rand, correct, distractors), explain }));
+  item(id, topic, prompt, index, (rand) => ({ prompt, ...withChoices(rand, correct, distractors), explain }));
 
 const responseTime = item('response-time', 'sd-latency', 'Response time at a given utilization', 0, (rand) => {
   const s = pick(rand, [4, 8, 10, 20]);

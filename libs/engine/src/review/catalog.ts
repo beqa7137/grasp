@@ -20,7 +20,8 @@ export function generateQuestion(itemId: string, seed: number): Question {
   return def.generate(seed);
 }
 
+/** The item as it leaves the engine. Labels show as plain text, so the code-span backticks some borrow from a prompt are dropped. */
 export function describeItem(def: ItemDef): ReviewItem {
   const { id, kind, topic, label, order, algorithmId } = def;
-  return { id, kind, topic, label, order, ...(algorithmId ? { algorithmId } : {}) };
+  return { id, kind, topic, label: label.replaceAll('`', ''), order, ...(algorithmId ? { algorithmId } : {}) };
 }

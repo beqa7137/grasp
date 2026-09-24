@@ -1,14 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { codeSpans } from '../code-spans.js';
+import { codeSpanProblems } from '../code-spans.js';
 import { PATTERNS } from '../curriculum/patterns.js';
 import { SD_TOPICS } from '../curriculum/sd-topics.js';
-import { REVIEW_ITEMS, generateQuestion, getReviewItem, itemsForTopic } from './catalog.js';
+import { REVIEW_ITEMS, describeItem, generateQuestion, getReviewItem, itemsForTopic } from './catalog.js';
 
 const SEEDS = Array.from({ length: 40 }, (_, i) => i * 104_729 + 17);
-// A code span never wraps, so a longer one would overflow a phone-width line.
-const MAX_CODE_SPAN = 24;
-const badSpans = (text: string) =>
-  codeSpans(text).some((part) => part.text.includes('`') || (part.code && part.text.length > MAX_CODE_SPAN));
 
 describe('review item catalog', () => {
   it('has unique ids and valid topics', () => {
@@ -32,7 +28,7 @@ describe('review item catalog', () => {
       expect(q.itemId).toBe(itemId);
       expect(q.prompt.length).toBeGreaterThan(10);
       expect(q.explain.length).toBeGreaterThan(10);
-      expect([q.prompt, q.explain].filter(badSpans), 'backticks pair up and every code span fits a phone line').toEqual([]);
+      expect([q.prompt, q.explain].flatMap(codeSpanProblems)).toEqual([]);
       expect(q.choices.length).toBeGreaterThanOrEqual(q.kind === 'predict' ? 2 : 3);
       expect(new Set(q.choices).size).toBe(q.choices.length);
       expect(q.answer).toBeGreaterThanOrEqual(0);
@@ -75,6 +71,12 @@ describe('review item catalog', () => {
       const q = generateQuestion(item.id, 1);
       expect(q.choices[q.answer]).toBe(q.code!.lines[q.code!.blank!].trim());
     }
+  });
+
+  it('describes every item with a plain-text label, even one taken from a prompt with code spans', () => {
+    expect(getReviewItem('sd:reshard')!.label).toContain('`hash(key) % N`');
+    expect(describeItem(getReviewItem('sd:reshard')!).label).toContain('instead of hash(key) % N?');
+    expect(REVIEW_ITEMS.map(describeItem).filter((item) => item.label.includes('`'))).toEqual([]);
   });
 
   it('exposes lookups', () => {

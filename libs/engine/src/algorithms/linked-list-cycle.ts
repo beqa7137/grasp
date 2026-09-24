@@ -64,7 +64,6 @@ export const linkedListCycle: AlgorithmDef<Input> = {
     let slow = 0;
     let fast: number | null = 0;
     let steps = 0;
-    let questions = 0;
     let skipPlain = false;
     let explained = false;
 
@@ -101,9 +100,7 @@ export const linkedListCycle: AlgorithmDef<Input> = {
       const path = `${name(from)} → ${name(ahead)} → ${name(to)}`;
       const distractors = [ahead, from + 2 < n ? from + 2 : null, ...(to === null ? [] : [next(to)]), slowTo, from].map(name);
       return {
-        prompt: `fast is on ${name(from)}. Where is fast after \`fast = fast.next.next\`?`,
-        // Counting from 0 alone would always put the first answer first, so the length offsets it between inputs.
-        ...rotatedChoices(name(to), distractors, n + questions++),
+        ...rotatedChoices(`fast is on ${name(from)}. Where is fast after \`fast = fast.next.next\`?`, name(to), distractors),
         explain:
           to === null
             ? `fast steps from ${name(from)} to ${name(ahead)}, the last node, whose next is null. So fast becomes null: it ran off the end.`

@@ -131,8 +131,11 @@ export const twoSumHash: AlgorithmDef<Input> = {
         const answer = `[${j}, ${i}]`;
         snap(5, `\`seen.has(${need})\` is true: an earlier number completes the pair.`, {
           predict: {
-            prompt: `\`target = ${target}\`, \`x = nums[${i}] = ${x}\`, and \`need = ${need}\` is in seen = ${mapText()}. What does twoSum return?`,
-            ...rotatedChoices(answer, [`[${need}, ${x}]`, `[${need}, ${i}]`, `[${i}, ${i}]`], nums.length + i),
+            ...rotatedChoices(
+              `\`target = ${target}\`, \`x = nums[${i}] = ${x}\`, and \`need = ${need}\` is in seen = ${mapText()}. What does twoSum return?`,
+              answer,
+              [`[${need}, ${x}]`, `[${need}, ${i}]`, `[${i}, ${i}]`],
+            ),
             explain: `\`seen.get(${need}) = ${j}\` is the index where ${need} was stored, and \`i = ${i}\` is the index of x. twoSum returns indices, not values: ${answer}.`,
           },
         });
@@ -153,11 +156,13 @@ export const twoSumHash: AlgorithmDef<Input> = {
           : `\`seen.has(${need})\` is false: no number before index ${i} is ${need}.`,
       );
       if (i === 0) {
-        // This question always comes first, so offsetting by the length moves its answer between inputs.
         snap(6, 'No partner yet, so remember x for the numbers still to come.', {
           predict: {
-            prompt: `\`target = ${target}\`, \`x = nums[0] = ${x}\`, and \`need = ${need}\` is not in the empty seen. What does seen hold after this step?`,
-            ...rotatedChoices(`{${entry(x, 0)}}`, [`{${entry(need, 0)}}`, `{${entry(0, x)}}`, '{}'], nums.length),
+            ...rotatedChoices(
+              `\`target = ${target}\`, \`x = nums[0] = ${x}\`, and \`need = ${need}\` is not in the empty seen. What does seen hold after this step?`,
+              `{${entry(x, 0)}}`,
+              [`{${entry(need, 0)}}`, `{${entry(0, x)}}`, '{}'],
+            ),
             explain: `\`seen.set(x, i)\` uses the number as the key and its index as the value, so seen becomes {${entry(x, 0)}}. A later number that needs ${x} looks it up by value and reads back index 0.`,
           },
         });

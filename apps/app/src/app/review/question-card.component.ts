@@ -120,7 +120,13 @@ const REASON_LABELS: Record<CardReason, string> = {
             (click)="choose.emit($index)"
           >
             <span class="key">{{ $index + 1 }}</span>
-            <span class="text">{{ c }}</span>
+            @if (q.kind === 'cloze') {
+              <span class="text">
+                <code>{{ c }}</code>
+              </span>
+            } @else {
+              <span class="text">{{ c }}</span>
+            }
           </button>
         }
       </div>
