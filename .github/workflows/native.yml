@@ -55,6 +55,7 @@ jobs:
           GRASP_API_URL: ${{ inputs.api_url }}
           GRASP_RELEASE: ${{ inputs.api_url && '1' || '' }}
           GRASP_VERSION: ${{ github.sha }}
+          GRASP_SENTRY_DSN: ${{ inputs.api_url && secrets.SENTRY_WEB_DSN || '' }}
         run: |
           npm run build -w @grasp/engine
           npm run cap:sync -w @grasp/app
@@ -90,6 +91,7 @@ jobs:
           GRASP_API_URL: ${{ inputs.api_url }}
           GRASP_RELEASE: ${{ inputs.api_url && '1' || '' }}
           GRASP_VERSION: ${{ github.sha }}
+          GRASP_SENTRY_DSN: ${{ inputs.api_url && secrets.SENTRY_WEB_DSN || '' }}
         run: |
           npm run build -w @grasp/engine
           npm run cap:sync -w @grasp/app
