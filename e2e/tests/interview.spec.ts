@@ -7,6 +7,8 @@ test('a mock interview runs to a scorecard', async ({ page }) => {
   await expect(page.getByText(/daily temperatures/)).toBeVisible();
 
   const input = page.getByRole('textbox', { name: /Think out loud/ });
+  const [box, composer] = await Promise.all([input.boundingBox(), page.locator('.composer').boundingBox()]);
+  expect(box!.width, 'the answer box keeps most of the composer, even on a phone').toBeGreaterThan(composer!.width * 0.6);
   const say = async (text: string) => {
     await input.fill(text);
     await page.getByRole('button', { name: 'Send', exact: true }).click();

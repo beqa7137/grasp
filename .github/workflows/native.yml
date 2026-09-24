@@ -113,3 +113,29 @@ jobs:
           name: grasp-simulator-app
           path: App.app.zip
           retention-days: 7
+
+  # Hand-run builds for a deployment are also published as the `test-build` pre-release, so testers and
+  # tools can fetch them with `gh release download test-build` instead of through the Actions UI.
+  publish:
+    name: Publish test builds
+    if: inputs.api_url != ''
+    needs: [android, ios]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: builds
+          merge-multiple: true
+
+      - name: Replace the test-build pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          API_URL: ${{ inputs.api_url }}
+        run: |
+          gh release delete test-build --yes --cleanup-tag -R "$GITHUB_REPOSITORY" || true
+          gh release create test-build builds/app-debug.apk builds/App.app.zip -R "$GITHUB_REPOSITORY" \
+            --prerelease --target "$GITHUB_SHA" --title "Test builds (${GITHUB_SHA::7})" \
+            --notes "Debug builds that call ${API_URL}. For emulators and simulators only; not signed."
