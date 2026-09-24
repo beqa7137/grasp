@@ -194,22 +194,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Name the release
-        id: release
-        run: echo "sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
-
-      - uses: docker/setup-buildx-action@v4
-
-      # Layers come from the Actions cache, so the npm installs only rerun when the lockfile changes.
       - name: Build image
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          build-args: RELEASE=${{ steps.release.outputs.sha }}
-          tags: grasp:ci
-          load: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+        run: docker build --build-arg RELEASE="${GITHUB_SHA::7}" -t grasp:ci .
 
       - name: Run migrations the way the release step does
         run: docker run --rm --network host -e DATABASE_URL grasp:ci node apps/api/dist/migrate.js
