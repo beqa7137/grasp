@@ -119,30 +119,30 @@ image. See [DEPLOYMENT.md](DEPLOYMENT.md) and [decisions/0001-hosting.md](decisi
 
 ## 4. Roadmap
 
-**M0 — Vertical slice (this repo).** Engine with 11 visualizers, sandbox with 5 scenarios,
+**M0: Vertical slice (this repo).** Engine with 11 visualizers, sandbox with 5 scenarios,
 20 patterns, 131 FSRS review items, 18 coding problems, mission revisits, AI interviewer (8 problems),
 accounts, local-first sync, Ionic tabs app.
 
-**M1 — Accounts & polish (2–3 wks).** Done: email-code accounts with learner linking, haptics,
+**M1: Accounts & polish (2–3 wks).** Done: Google and GitHub sign-in with learner linking, haptics,
 Design Lab pinch-zoom and pan, study settings (target recall, session length, new cards/day), daily
 reminders from the forecast, native projects with CI builds, an onboarding placement check that puts
 weak patterns first in the review queue. Next: passkeys, per-learner FSRS parameter optimization,
 dark/light polish.
 
-**M2 — Content depth (4–6 wks).** Visualizers for all 20 patterns. Done: heap, union-find, DP table
+**M2: Content depth (4–6 wks).** Visualizers for all 20 patterns. Done: heap, union-find, DP table
 fill, trie, Dijkstra and topo sort, with table, graph and tree views. Next: backtracking tree, tree
 traversals, intervals, greedy, bit manipulation. Content authoring as data (JSON/MDX) validated by
 the engine in CI.
 
-**M3 — Code runner (3–4 wks).** In-browser TS/Python execution (WebWorker + Pyodide) with
+**M3: Code runner (3–4 wks).** In-browser TS/Python execution (WebWorker + Pyodide) with
 hidden tests; _auto-trace the user's own code_ into the visualizer by instrumenting it.
 
-**M4 — System design depth (4 wks).** Done: sharding with shard keys and hot shards, rate limiters
+**M4: System design depth (4 wks).** Done: sharding with shard keys and hot shards, rate limiters
 against bot traffic. Next: consistent hashing ring, geo-regions, cache stampede and hot-key simulation,
 back-pressure; AI interviewer can _read
 the sandbox graph_ and interrogate your design; estimation calculator.
 
-**M5 — Growth.** Streaks, weekly plan generated from weak patterns, company-specific loops,
+**M5: Growth.** Streaks, weekly plan generated from weak patterns, company-specific loops,
 shareable "design replays", paid tier gated on AI interview minutes.
 
 ## 5. Quality bar
