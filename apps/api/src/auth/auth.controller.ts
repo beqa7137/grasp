@@ -23,7 +23,6 @@ export class AuthController {
     private readonly github: GitHubOAuthClient,
   ) {}
 
-  /** Which sign-in providers this server offers, with the public client ids the app needs to start them. */
   @Get('config')
   @SkipIdentity()
   config() {

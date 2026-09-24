@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
+import type { GitHubUser as User } from './github';
 
 /**
  * A stand-in for github.com and api.github.com in the browser tests, started by playwright.config.ts.
@@ -7,12 +8,6 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
  * and secret, a single-use code, the same redirect_uri and the PKCE verifier. Each browser picks its own
  * signed-in user through POST /_control/session (a cookie), so tests running in parallel never mix users.
  */
-
-interface User {
-  id: number;
-  login: string;
-  emails: { email: string; primary: boolean; verified: boolean }[];
-}
 
 interface Authorization {
   redirectUri: string;

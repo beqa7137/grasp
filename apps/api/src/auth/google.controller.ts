@@ -28,7 +28,6 @@ export class GoogleController {
     return { nonce: await this.google.newNonce() };
   }
 
-  /** The anonymous device learner (x-learner-id), if any, is folded into the account. */
   @Post()
   @HttpCode(200)
   @SkipIdentity()

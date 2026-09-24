@@ -12,6 +12,12 @@ export interface ProviderConfig {
   github: { clientId: string; authorizeUrl: string } | null;
 }
 
+/** The API redeems the ticket only with the PKCE verifier of the sign-in that earned it. */
+export interface GitHubCredential {
+  ticket: string;
+  codeVerifier: string;
+}
+
 export type SocialLoginApi = Pick<typeof SocialLogin, 'initialize' | 'login' | 'logout'>;
 
 export const SOCIAL_LOGIN = new InjectionToken<() => Promise<SocialLoginApi>>('social login plugin', {
@@ -25,8 +31,8 @@ const USER_CANCELLED = 'USER_CANCELLED';
 
 /**
  * Google and GitHub sign-in through `@capgo/capacitor-social-login`, on the web and in the native apps.
- * Returns the credential the API redeems (a Google ID token, a Grasp ticket for GitHub), or null when
- * the person cancelled. The plugin is loaded and initialized on first use, never at app start.
+ * Returns the credential the API redeems (a Google ID token; for GitHub, a Grasp ticket and its PKCE
+ * verifier), or null when the person cancelled. The plugin is loaded and initialized on first use, never at app start.
  */
 @Injectable({ providedIn: 'root' })
 export class SocialSignInService {
@@ -70,14 +76,17 @@ export class SocialSignInService {
     return idToken;
   }
 
-  async github(): Promise<string | null> {
+  async github(): Promise<GitHubCredential | null> {
     const plugin = await this.ready();
-    const signedIn = await ifNotCancelled(this.withWebCleanup(() => plugin.login({ provider: 'oauth2', options: { providerId: GITHUB } })));
+    const codeVerifier = newCodeVerifier();
+    const signedIn = await ifNotCancelled(
+      this.withWebCleanup(() => plugin.login({ provider: 'oauth2', options: { providerId: GITHUB, codeVerifier } })),
+    );
     if (!signedIn) return null;
     plugin.logout({ provider: 'oauth2', providerId: GITHUB }).catch(() => undefined);
     const ticket = signedIn.result.accessToken?.token;
     if (!ticket) throw new Error('GitHub sign-in returned no ticket.');
-    return ticket;
+    return { ticket, codeVerifier };
   }
 
   private async withWebCleanup<T>(login: () => Promise<T>): Promise<T> {
@@ -156,6 +165,14 @@ function isCancel(error: unknown): boolean {
   if ((error as { code?: unknown } | null)?.code === USER_CANCELLED) return true;
   // The plugin reports a refusal at GitHub as a plain error: its web and iOS flows pass on only GitHub's description.
   return error instanceof Error && /access_denied|denied your application access/i.test(error.message);
+}
+
+function newCodeVerifier(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  return btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
 }
 
 /** The ID token's `nonce` claim. Reading it needs no signature check: the API verifies the token itself. */

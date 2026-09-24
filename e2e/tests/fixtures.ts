@@ -6,6 +6,9 @@ export { expect };
 /** Against a deployment, tests only read: every API call that could write data is blocked. */
 export const readOnly = !!process.env.E2E_BASE_URL;
 
+/** A client address of its own, as separate testers have, so per-IP rate limits don't carry over between tests. */
+export const newClientIp = () => `198.18.${randomInt(256)}.${randomInt(1, 255)}`;
+
 interface Options {
   /** Start as a returning visitor who has already dismissed the pilot welcome. */
   pilotNoticeSeen: boolean;
@@ -22,9 +25,8 @@ export const test = base.extend<Options & { guard: void }>({
       await page.addInitScript(() => localStorage.setItem('CapacitorStorage.grasp.pilotNotice.v1', new Date().toISOString()));
     }
     if (!readOnly) {
-      // Each test is its own client, as separate testers are, so per-IP rate limits don't carry over.
       // Set on the context so sign-in popups belong to the same client.
-      await page.context().setExtraHTTPHeaders({ 'x-forwarded-for': `198.18.${randomInt(256)}.${randomInt(1, 255)}` });
+      await page.context().setExtraHTTPHeaders({ 'x-forwarded-for': newClientIp() });
     } else {
       await page.route('**/api/**', (route) => (route.request().method() === 'GET' ? route.continue() : route.abort('blockedbyclient')));
     }

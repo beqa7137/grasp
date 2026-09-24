@@ -41,7 +41,7 @@ describe.each(cases)('Accounts (%s storage, %s sign-in)', (storage, provider) =>
         ? ['/api/auth/google', await fakes.googleCredential(http, { sub: `google-${person}`, email })]
         : [
             '/api/auth/github',
-            { ticket: await fakes.githubTicket(http, { id: githubId(person), emails: [{ email, primary: true, verified: true }] }) },
+            await fakes.githubTicket(http, { id: githubId(person), emails: [{ email, primary: true, verified: true }] }),
           ];
     const req = http().post(path).set('X-Forwarded-For', freshIp());
     if (device) req.set('x-learner-id', device);

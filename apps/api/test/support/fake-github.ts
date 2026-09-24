@@ -22,7 +22,6 @@ const s256 = (verifier: string) => createHash('sha256').update(verifier).digest(
 export class FakeGitHub {
   readonly clientId = 'Ov23liFakeGrasp';
   readonly clientSecret = 'fake-github-secret';
-  /** Revoked access tokens, in order. */
   readonly revoked: string[] = [];
   /** The next token exchange answers with this HTTP status instead. */
   failNextExchange: number | null = null;

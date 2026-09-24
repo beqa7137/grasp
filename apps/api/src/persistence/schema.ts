@@ -96,7 +96,7 @@ export const authIdentities = pgTable(
   (t) => [unique('auth_identities_provider_subject').on(t.provider, t.subject), index('auth_identities_user').on(t.userId)],
 );
 
-/** Google sign-in nonces and GitHub sign-in tickets. Only a SHA-256 hash of each value is stored. */
+/** Google sign-in nonces and GitHub sign-in tickets. */
 export const authOneTime = pgTable(
   'auth_one_time',
   {

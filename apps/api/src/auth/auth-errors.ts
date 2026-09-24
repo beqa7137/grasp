@@ -10,6 +10,11 @@ export const notSignedIn = () => new UnauthorizedException('Not signed in');
 
 export const sessionEnded = () => new UnauthorizedException('Your session has ended. Please sign in again.');
 
+export const tokenInvalid = (message: string) => error(HttpStatus.UNAUTHORIZED, 'token_invalid', message);
+
+export const signInRequired = () =>
+  error(HttpStatus.UNAUTHORIZED, 'sign_in_required', 'This progress belongs to an account. Sign in to continue.');
+
 export const providerDisabled = (provider: Provider) =>
   error(HttpStatus.NOT_FOUND, 'provider_disabled', `${NAMES[provider]} sign-in isn't available on this server.`);
 
