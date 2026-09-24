@@ -1,4 +1,4 @@
-import { BOARD, MIN_VIEW_W, clampView, fitView, initialView, panBy, toBoard, zoomAt } from './viewport';
+import { BOARD, MIN_VIEW_W, clampView, fitView, freeSpot, initialView, panBy, toBoard, zoomAt } from './viewport';
 
 const WIDE = BOARD.h / BOARD.w;
 const TALL = 1.3;
@@ -61,5 +61,29 @@ describe('design board viewport', () => {
     const rect = { left: 10, top: 20, width: 900, height: 480 };
     expect(toBoard(view, rect, { x: 10, y: 20 })).toEqual({ x: 100, y: 50 });
     expect(toBoard(view, rect, { x: 460, y: 260 })).toEqual({ x: 325, y: 170 });
+  });
+
+  it('drops new components on the nearest free spot, never on top of another one', () => {
+    const size = { w: 132, h: 70 };
+    const overlaps = (a: { x: number; y: number }, b: { x: number; y: number }) =>
+      Math.abs(a.x - b.x) < size.w && Math.abs(a.y - b.y) < size.h;
+    expect(freeSpot([], { x: 450, y: 240 }, size)).toEqual({ x: 450, y: 240 });
+
+    const starter = [
+      { x: 70, y: 240 },
+      { x: 360, y: 240 },
+      { x: 640, y: 240 },
+    ];
+    const placed = [...starter];
+    for (let i = 0; i < 12; i++) {
+      const spot = freeSpot(placed, { x: 365, y: 240 }, size);
+      expect(placed.some((p) => overlaps(p, spot))).toBe(false);
+      expect(spot.x).toBeGreaterThanOrEqual(size.w / 2);
+      expect(spot.x).toBeLessThanOrEqual(BOARD.w - size.w / 2);
+      expect(spot.y).toBeGreaterThanOrEqual(size.h / 2);
+      expect(spot.y).toBeLessThanOrEqual(BOARD.h - size.h / 2);
+      placed.push(spot);
+    }
+    expect(Math.hypot(placed[3].x - 365, placed[3].y - 240)).toBeLessThan(size.h + 30);
   });
 });

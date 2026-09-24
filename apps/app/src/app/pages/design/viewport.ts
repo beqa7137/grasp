@@ -71,3 +71,29 @@ export function toBoard(view: ViewBox, rect: { left: number; top: number; width:
 
 export const sameView = (a: ViewBox, b: ViewBox) =>
   Math.abs(a.x - b.x) < 0.5 && Math.abs(a.y - b.y) < 0.5 && Math.abs(a.w - b.w) < 0.5 && Math.abs(a.h - b.h) < 0.5;
+
+/**
+ * Where to drop a new component: the free grid spot closest to `near`, so it never lands on top of
+ * another one. Candidates sit one component (plus a gap) apart, in growing rings around `near`.
+ */
+export function freeSpot(taken: readonly Point[], near: Point, size: { w: number; h: number }, gap = 24): Point {
+  const within = (p: Point): Point => ({
+    x: Math.min(Math.max(p.x, size.w / 2), BOARD.w - size.w / 2),
+    y: Math.min(Math.max(p.y, size.h / 2), BOARD.h - size.h / 2),
+  });
+  const isFree = (p: Point) => taken.every((t) => Math.abs(t.x - p.x) >= size.w + gap || Math.abs(t.y - p.y) >= size.h + gap);
+  const step = { x: size.w + gap, y: size.h + gap };
+  const rings = Math.ceil(Math.max(BOARD.w / step.x, BOARD.h / step.y));
+  for (let ring = 0; ring <= rings; ring++) {
+    const candidates: Point[] = [];
+    for (let dy = -ring; dy <= ring; dy++) {
+      for (let dx = -ring; dx <= ring; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) === ring) candidates.push(within({ x: near.x + dx * step.x, y: near.y + dy * step.y }));
+      }
+    }
+    candidates.sort((a, b) => Math.hypot(a.x - near.x, a.y - near.y) - Math.hypot(b.x - near.x, b.y - near.y));
+    const spot = candidates.find(isFree);
+    if (spot) return { x: Math.round(spot.x), y: Math.round(spot.y) };
+  }
+  return within(near);
+}
