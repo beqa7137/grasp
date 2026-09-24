@@ -19,6 +19,8 @@ export async function createTestApp(
   );
   const app = (await builder.compile()).createNestApplication<NestExpressApplication>({ logger: false, bodyParser: false });
   configureApp(app, config);
-  await app.init();
+  // Listen on loopback, where the OS keeps ports unique. Left to itself, supertest listens on every interface,
+  // and on macOS that port can also belong to another program's 127.0.0.1 listener, which then answers instead.
+  await app.listen(0, '127.0.0.1');
   return app;
 }
