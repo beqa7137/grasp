@@ -19,6 +19,19 @@ CI builds this image on every push and smoke-tests it against Postgres: migratio
 
 ## First deploy on Fly.io
 
+There are two ways to set up the Fly app: from GitHub Actions, with no local tooling, or with `flyctl` on your machine.
+
+### From GitHub Actions
+
+`.github/workflows/provision.yml` (run by hand from the Actions tab) creates the app named in `fly.toml` if it doesn't exist, then stages its secrets from the repository's secrets. It is safe to re-run after adding or rotating a secret.
+
+1. In the Fly dashboard, create an organization token (a deploy token cannot create apps) and add it as the repository secret `FLY_API_TOKEN`.
+2. Create a Postgres database, for example a free Neon project in AWS US East, near the `ewr` region. Add its connection string as the secret `DATABASE_URL`.
+3. Add the secrets `JWT_SECRET` and `ADMIN_TOKEN` (`openssl rand -hex 32` each; keep a copy of the admin token for `npm run pilot:report`). Optional secrets: `ANTHROPIC_API_KEY`, `RESEND_API_KEY`, `SENTRY_DSN`, `SENTRY_WEB_DSN`. Optional variables: `AI_DAILY_BUDGET_USD`, `MAIL_FROM`, and `FLY_ORG` (default `personal`).
+4. Run **Provision Fly**, set the variables from _Continuous deployment_ below, and run **Deploy**.
+
+### With flyctl
+
 Prerequisites: `flyctl` installed and `fly auth login` done.
 
 ```bash
@@ -50,8 +63,8 @@ fly logs
 
 `.github/workflows/deploy.yml` deploys `main` after CI passes on a push. It can also be run by hand from the Actions tab. It stays inactive until you:
 
-1. Create a deploy token: `fly tokens create deploy -x 999999h`
-2. Add it as the repository secret `FLY_API_TOKEN`
+1. Create a deploy token: `fly tokens create deploy -x 999999h`, and add it as the repository secret `FLY_API_TOKEN`. (If you provisioned from Actions, the organization token already there works too; swap it for a deploy token scoped to the app once provisioning is done.)
+2. Make sure `DATABASE_URL` and `JWT_SECRET` are set on the app (above)
 3. Add the repository variables `FLY_DEPLOY_ENABLED=true` and `PUBLIC_URL=https://<app>.fly.dev`
 4. Optionally add protection rules to the `production` environment, such as required reviewers
 
