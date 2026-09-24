@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  ElementRef,
   HostListener,
   computed,
   effect,
@@ -14,6 +15,7 @@ import type { Frame } from '@grasp/engine';
 import { IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { pause, play, playSkipBack, playSkipForward, refresh } from 'ionicons/icons';
+import { isKeyForPage } from '../core/page-keys';
 import { ArrayViewComponent } from '../viz/array-view.component';
 import { GridViewComponent } from '../viz/grid-view.component';
 import { ListViewComponent } from '../viz/list-view.component';
@@ -193,6 +195,7 @@ export class TracePlayerComponent {
     return new Set(Object.keys(cur.vars).filter((k) => prev.vars[k] !== cur.vars[k]));
   });
 
+  private readonly host: Element = inject(ElementRef).nativeElement;
   private timer: ReturnType<typeof setInterval> | undefined;
 
   constructor() {
@@ -232,8 +235,7 @@ export class TracePlayerComponent {
 
   @HostListener('document:keydown', ['$event'])
   onKey(e: KeyboardEvent) {
-    const target = e.target as HTMLElement | null;
-    if (target?.closest('.cm-editor, input, textarea, select')) return;
+    if (!isKeyForPage(this.host, e)) return;
     if (e.key === 'ArrowRight') this.step(1);
     else if (e.key === 'ArrowLeft') this.step(-1);
     else return;

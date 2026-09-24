@@ -110,6 +110,46 @@ const reference: Record<string, (input: any) => unknown> = {
     }
     return dist.get(goal) ?? -1;
   },
+  // Walks the number line in half steps instead of sorting, so [1, 3] and [3, 5] join while [1, 3] and [4, 5] stay apart.
+  'merge-intervals': ({ intervals }) => {
+    const covered = (x: number) => intervals.some(([s, e]: number[]) => s <= x && x <= e);
+    const merged: string[] = [];
+    for (let x = 0; x <= 99; x += 0.5)
+      if (covered(x) && !covered(x - 0.5)) {
+        let end = x;
+        while (covered(end + 0.5)) end += 0.5;
+        merged.push(`[${x}, ${end}]`);
+      }
+    return `[${merged.join(', ')}]`;
+  },
+  'subsets-backtracking': ({ nums }) => {
+    const all = (rest: number[]): number[][] => {
+      if (rest.length === 0) return [[]];
+      const tail = all(rest.slice(1));
+      return [...tail.map((subset) => [rest[0], ...subset]), ...tail];
+    };
+    return `[${all(nums)
+      .map((subset) => `[${subset.join(', ')}]`)
+      .join(', ')}]`;
+  },
+  // The first value inserted is the root, and the smaller and larger values form its subtrees in the same relative order.
+  'tree-traversal': ({ values, order }) => {
+    const walk = (vals: number[]): number[] => {
+      if (!vals.length) return [];
+      const [root, ...rest] = vals;
+      const left = walk(rest.filter((v) => v < root));
+      const right = walk(rest.filter((v) => v > root));
+      return order === 'preorder' ? [root, ...left, ...right] : order === 'inorder' ? [...left, root, ...right] : [...left, ...right, root];
+    };
+    return `[${walk(values).join(', ')}]`;
+  },
+  'jump-game': ({ nums }) => {
+    const reachable = nums.map((_: number, i: number) => i === 0);
+    for (let i = 0; i < nums.length; i++)
+      if (reachable[i]) for (let j = i + 1; j <= Math.min(i + nums[i], nums.length - 1); j++) reachable[j] = true;
+    return reachable[nums.length - 1];
+  },
+  'single-number-xor': ({ nums }) => nums.reduce((x: number, n: number) => x ^ n, 0),
 };
 
 describe.each(ALGORITHMS.map((a) => [a.id, a] as const))('%s', (id, algo) => {

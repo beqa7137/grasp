@@ -63,6 +63,14 @@ test('Python runs in the browser on Pyodide', { tag: '@smoke' }, async ({ page }
   await expect(page.getByText('3 / 3 examples passed')).toBeVisible({ timeout: 60_000 });
 });
 
+test('Ctrl/⌘ + Enter runs the examples straight from the editor', async ({ page }) => {
+  await page.goto('/code/two-sum');
+  await page.getByRole('radio', { name: 'JavaScript' }).click();
+  await write(page, JS_TWO_SUM);
+  await page.keyboard.press('ControlOrMeta+Enter');
+  await expect(page.getByText('3 / 3 examples passed')).toBeVisible();
+});
+
 test('Trace steps through your own JavaScript', async ({ page }) => {
   await page.goto('/code/two-sum');
   await page.getByRole('radio', { name: 'JavaScript' }).click();
@@ -70,4 +78,8 @@ test('Trace steps through your own JavaScript', async ({ page }) => {
   await page.getByRole('button', { name: 'Trace' }).click();
   await expect(page.getByRole('tab', { name: 'Trace' })).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByRole('slider', { name: 'Timeline' })).toBeVisible();
+  const count = page.locator('app-trace-player .count');
+  await expect(count).toHaveText(/^1 \/ \d+$/);
+  await page.keyboard.press('ArrowRight');
+  await expect(count).toHaveText(/^2 \/ \d+$/);
 });

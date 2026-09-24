@@ -1,11 +1,16 @@
 import { binarySearch } from './binary-search.js';
 import { dijkstra } from './dijkstra.js';
 import { gridBfs } from './grid-bfs.js';
+import { jumpGame } from './jump-game.js';
 import { kthLargest } from './kth-largest.js';
 import { lcs } from './lcs.js';
+import { mergeIntervals } from './merge-intervals.js';
 import { nextGreater } from './monotonic-stack.js';
+import { singleNumberXor } from './single-number-xor.js';
 import { longestUnique } from './sliding-window.js';
+import { subsetsBacktracking } from './subsets-backtracking.js';
 import { topoSort } from './topo-sort.js';
+import { treeTraversal } from './tree-traversal.js';
 import { trie } from './trie.js';
 import { pairSum } from './two-pointers.js';
 import { unionFind } from './union-find.js';
@@ -26,6 +31,11 @@ export const ALGORITHMS: AlgorithmDef<any>[] = [
   topoSort,
   trie,
   dijkstra,
+  mergeIntervals,
+  subsetsBacktracking,
+  treeTraversal,
+  jumpGame,
+  singleNumberXor,
 ];
 
 export function getAlgorithm(id: string): AlgorithmDef<any> | undefined {

@@ -65,6 +65,10 @@ export const NODE_STYLES = `
     border-radius: 50%;
     border: 1.5px solid;
   }
+  .legend i[data-state='idle'] {
+    background: var(--g-raised);
+    border-color: var(--g-line-strong);
+  }
   .legend i[data-state='active'] {
     background: var(--g-active);
     border-color: var(--g-active);

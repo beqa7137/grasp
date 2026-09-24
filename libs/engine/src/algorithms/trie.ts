@@ -1,5 +1,5 @@
 import { asText, asWords, randInt } from './input.js';
-import type { AlgorithmDef, Frame, TreeView } from './types.js';
+import type { AlgorithmDef, Frame, TreeLegend, TreeView } from './types.js';
 
 type Input = { words: string[]; query: string };
 
@@ -12,6 +12,7 @@ interface TrieNode {
 }
 
 const INSERT = ['Follow the existing child', 'Create a new node'];
+const LEGEND: TreeLegend = { active: 'current', marked: 'end of a word' };
 const VOCABULARY = ['car', 'card', 'care', 'cart', 'cat', 'do', 'dog', 'dot', 'dove', 'bat', 'bath', 'bad'];
 
 export const trie: AlgorithmDef<Input> = {
@@ -83,6 +84,7 @@ export const trie: AlgorithmDef<Input> = {
 
     const tree = (): TreeView => ({
       nodes: all.map((t) => ({ id: t.id, label: t.label, parent: t.parent, state: t === node ? 'active' : 'idle', marked: t.end })),
+      legend: LEGEND,
     });
     const snap = (line: number, note: string, extra: Partial<Frame> = {}) =>
       frames.push({

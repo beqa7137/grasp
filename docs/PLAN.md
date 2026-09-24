@@ -51,7 +51,7 @@ grasp/
 ├─ libs/engine        @grasp/engine — pure TypeScript, zero deps, ESM
 │   ├─ algorithms/    tracers → Frame[] (line, vars, array/stack/grid view, narration, predict)
 │   ├─ sysdesign/     component catalog, queueing simulator, scenarios & goal evaluation
-│   ├─ review/        117 review items that generate a fresh variant per review
+│   ├─ review/        136 review items that generate a fresh variant per review
 │   ├─ srs/           FSRS scheduler, event upcasting, progress reducer, session builder
 │   └─ curriculum/    patterns, drill cards, template clozes, complexity facts, SD topics
 ├─ apps/api           NestJS 12 (ESM) — curriculum, progress sync, AI interviewer (SSE)
@@ -119,8 +119,8 @@ image. See [DEPLOYMENT.md](DEPLOYMENT.md) and [decisions/0001-hosting.md](decisi
 
 ## 4. Roadmap
 
-**M0: Vertical slice (this repo).** Engine with 11 visualizers, sandbox with 5 scenarios,
-20 patterns, 131 FSRS review items, 18 coding problems, mission revisits, AI interviewer (8 problems),
+**M0: Vertical slice (this repo).** Engine with 16 visualizers, sandbox with 5 scenarios,
+20 patterns, 136 FSRS review items, 18 coding problems, mission revisits, AI interviewer (8 problems),
 accounts, local-first sync, Ionic tabs app.
 
 **M1: Accounts & polish (2–3 wks).** Done: Google and GitHub sign-in with learner linking, haptics,
@@ -130,9 +130,9 @@ weak patterns first in the review queue. Next: passkeys, per-learner FSRS parame
 dark/light polish.
 
 **M2: Content depth (4–6 wks).** Visualizers for all 20 patterns. Done: heap, union-find, DP table
-fill, trie, Dijkstra and topo sort, with table, graph and tree views. Next: backtracking tree, tree
-traversals, intervals, greedy, bit manipulation. Content authoring as data (JSON/MDX) validated by
-the engine in CI.
+fill, trie, Dijkstra, topo sort, merge intervals, subsets by backtracking, tree traversals, jump game
+(greedy) and single number (XOR), with table, graph and tree views. Next: arrays & hashing, prefix
+sums, fast/slow pointers, 1-D DP. Content authoring as data (JSON/MDX) validated by the engine in CI.
 
 **M3: Code runner (3–4 wks).** In-browser TS/Python execution (WebWorker + Pyodide) with
 hidden tests; _auto-trace the user's own code_ into the visualizer by instrumenting it.

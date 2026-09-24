@@ -122,10 +122,12 @@
             } @else {
               <div class="narration" aria-live="polite">
                 <span class="line mono">L{{ f.line }}</span>
-                <p>{{ f.note }}</p>
-                @if (result() !== undefined) {
-                  <span class="result mono">→ {{ result() ?? 'null' }}</span>
-                }
+                <div class="body">
+                  <p>{{ f.note }}</p>
+                  @if (result() !== undefined) {
+                    <span class="result mono">→ {{ result() ?? 'null' }}</span>
+                  }
+                </div>
               </div>
             }
           }
@@ -218,6 +220,17 @@
                     [ngModel]="drafts()[field.key]"
                     (ngModelChange)="setDraft(field.key, $event)"
                   ></textarea>
+                } @else if (field.options) {
+                  <select
+                    class="mono"
+                    [disabled]="!editing()"
+                    [ngModel]="drafts()[field.key]"
+                    (ngModelChange)="setDraft(field.key, $event)"
+                  >
+                    @for (option of field.options; track option) {
+                      <option [value]="option">{{ option }}</option>
+                    }
+                  </select>
                 } @else {
                   <input
                     class="mono"

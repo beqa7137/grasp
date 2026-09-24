@@ -486,6 +486,7 @@ export const CODING_PROBLEMS: CodingProblem[] = [
     title: 'Merge Intervals',
     difficulty: 'medium',
     patternIds: ['intervals'],
+    algorithmId: 'merge-intervals',
     statement: [
       'Given intervals [start, end], merge all overlapping ones and return the result sorted by start. Touching intervals like [1,4] and [4,5] overlap.',
     ],

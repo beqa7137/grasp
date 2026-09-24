@@ -86,10 +86,11 @@ export function layoutForest(tree: TreeView): { nodes: PlacedNode[]; links: Link
         </g>
       }
     </svg>
-    @if (legend() && hasMarks()) {
+    @if (legend() && legendEntries().length) {
       <div class="legend">
-        <span><i data-state="active"></i>current</span>
-        <span><i data-state="marked"></i>end of a word</span>
+        @for (entry of legendEntries(); track entry[0]) {
+          <span><i [attr.data-state]="entry[0]"></i>{{ entry[1] }}</span>
+        }
       </div>
     }
   `,
@@ -120,7 +121,7 @@ export class TreeViewComponent {
   protected readonly radius = RADIUS;
 
   readonly layout = computed(() => layoutForest(this.view()));
-  readonly hasMarks = computed(() => this.view().nodes.some((n) => n.marked));
+  readonly legendEntries = computed(() => Object.entries(this.view().legend ?? {}));
 
   readonly ariaLabel = computed(() => {
     const nodes = this.view().nodes;
