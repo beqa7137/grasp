@@ -76,13 +76,26 @@ jobs:
         env:
           PUBLIC_URL: ${{ vars.PUBLIC_URL }}
         run: |
+          release="\"release\":\"${SHA::7}\""
+          fetch() { curl -sS --max-time 30 -w '\nHTTP %{http_code}' "$@" 2>&1 || true; }
+          failed=0
+          expect() {
+            local name=$1 pattern=$2 out
+            shift 2
+            out=$(fetch "$@")
+            grep -q -- "$pattern" <<< "$out" && return 0
+            echo "::error title=$name::expected $pattern, got: $(head -c 1000 <<< "$out" | tr '\n' ' ')"
+            failed=1
+          }
+
           for i in $(seq 1 20); do
-            curl -fsS "$PUBLIC_URL/api/health" | grep -q "\"release\":\"${SHA::7}\"" && break
-            [ "$i" = 20 ] && { echo "The deployed release did not report ${SHA::7}"; exit 1; }
+            grep -q -- "$release" <<< "$(fetch "$PUBLIC_URL/api/health")" && break
             sleep 3
           done
-          curl -fsS "$PUBLIC_URL/api/health/ready" | grep -q '"database":"ok"'
-          curl -fsS -H 'Accept: text/html' "$PUBLIC_URL/learn" | grep -q '<app-root'
-          curl -fsS "$PUBLIC_URL/config.json" | grep -q "\"release\":\"${SHA::7}\""
-          curl -fsS -o /dev/null "$PUBLIC_URL/pyodide/pyodide.asm.wasm"
+          expect 'Health reports the new release' "$release" "$PUBLIC_URL/api/health"
+          expect 'Database is reachable' '"database":"ok"' "$PUBLIC_URL/api/health/ready"
+          expect 'Deep links serve the app' '<app-root' -H 'Accept: text/html' "$PUBLIC_URL/learn"
+          expect 'Runtime config reports the new release' "$release" "$PUBLIC_URL/config.json"
+          expect 'Python runtime is served' 'HTTP 200' -o /dev/null "$PUBLIC_URL/pyodide/pyodide.asm.wasm"
+          [ "$failed" = 0 ] || exit 1
           echo "Verified ${SHA::7} at $PUBLIC_URL" >> "$GITHUB_STEP_SUMMARY"
