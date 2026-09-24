@@ -1,18 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { houseRobber as algo } from './house-robber.js';
-import { mulberry32 } from './input.js';
+import { correctChoices, predictions, resultOf, tracerFixture } from './tracer.fixture.js';
 import { InputError, type Frame } from './types.js';
 
-const EM_DASH = '\u2014';
-
-const traceOf = (input: unknown) => algo.trace(algo.validate(input));
-const resultOf = (frames: Frame[]) => frames[frames.length - 1].vars['result'];
-const predictions = (frames: Frame[]) => frames.flatMap((f) => (f.predict ? [f.predict] : []));
-const correctChoices = (frames: Frame[]) => predictions(frames).map((p) => p.choices[p.answer]);
-const randomInputs = (seed: number, count: number) => {
-  const rand = mulberry32(seed);
-  return Array.from({ length: count }, () => algo.randomInput(rand));
-};
+const { traceOf, randomInputs } = tracerFixture(algo);
 
 const SAMPLES = [
   algo.defaultInput,
@@ -94,13 +85,11 @@ describe('house-robber', () => {
     for (const input of SAMPLES) expect(lootAddsUp(algo.validate(input).nums, traceOf(input))).toBe(true);
   });
 
-  it('covers robbing, skipping, ties and varied answer positions on random inputs, always asking something', () => {
+  it('covers robbing, skipping, ties and varied answer positions on random inputs', () => {
     const seen = new Set<string>();
     const valuePositions = new Set<number>();
     for (const input of randomInputs(7, 80)) {
-      const asked = predictions(traceOf(input));
-      expect(asked.length).toBeGreaterThan(0);
-      for (const { choices, answer, explain } of asked) {
+      for (const { choices, answer, explain } of predictions(traceOf(input))) {
         const chosen = choices[answer];
         if (chosen.startsWith('Rob')) seen.add('rob');
         else if (chosen.startsWith('Skip')) seen.add('skip');
@@ -129,11 +118,5 @@ describe('house-robber', () => {
     expect(() => algo.validate({ nums: [3, -1] })).toThrow(new InputError('nums must contain integers between 0 and 99'));
     expect(() => algo.validate({ nums: [3, 100] })).toThrow(new InputError('nums must contain integers between 0 and 99'));
     expect(algo.validate({ nums: Array(10).fill(99) }).nums).toHaveLength(10);
-  });
-
-  it('never shows an em dash', () => {
-    const rand = mulberry32(1);
-    const traces = [algo.defaultInput, ...Array.from({ length: 20 }, () => algo.randomInput(rand))].map(traceOf);
-    expect(JSON.stringify([algo, traces])).not.toContain(EM_DASH);
   });
 });

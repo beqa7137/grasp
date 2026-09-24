@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import type { TableLegend, TableView } from '@grasp/engine';
+import { LegendComponent } from './legend.component';
 
 type CellRole = keyof TableLegend;
 
@@ -8,6 +9,7 @@ const key = ([r, c]: [number, number]) => `${r},${c}`;
 @Component({
   selector: 'g-table-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [LegendComponent],
   template: `
     @let v = view();
     <div class="table" role="table" [attr.aria-label]="ariaLabel()" [style.--cols]="v.colLabels.length + 1">
@@ -24,12 +26,8 @@ const key = ([r, c]: [number, number]) => `${r},${c}`;
         }
       }
     </div>
-    @if (legend() && legendEntries().length) {
-      <div class="legend">
-        @for (entry of legendEntries(); track entry[0]) {
-          <span><i [attr.data-role]="entry[0]"></i>{{ entry[1] }}</span>
-        }
-      </div>
+    @if (legend()) {
+      <g-legend [legend]="view().legend" swatch="role" />
     }
   `,
   styles: `
@@ -95,36 +93,8 @@ const key = ([r, c]: [number, number]) => `${r},${c}`;
       border-color: var(--g-found);
       color: var(--g-found);
     }
-    .legend {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 14px;
-      justify-content: center;
-      margin-top: 14px;
-      font-size: 12px;
-      color: var(--g-muted);
-    }
-    .legend span {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .legend i {
-      width: 12px;
-      height: 12px;
-      border-radius: 3px;
-      border: 1px solid;
-    }
-    .legend i[data-role='active'] {
-      background: var(--g-active);
-      border-color: var(--g-active);
-    }
-    .legend i[data-role='deps'] {
-      border-color: var(--g-pointer);
-    }
-    .legend i[data-role='path'] {
-      background: rgba(61, 220, 151, 0.22);
-      border-color: var(--g-found);
+    g-legend {
+      --g-legend-gap: 14px;
     }
   `,
 })
@@ -140,8 +110,6 @@ export class TableViewComponent {
     if (v.active) roles.set(key(v.active), 'active');
     return roles;
   });
-
-  readonly legendEntries = computed(() => Object.entries(this.view().legend ?? {}));
 
   readonly activeRow = computed(() => this.view().active?.[0] ?? null);
   readonly activeCol = computed(() => this.view().active?.[1] ?? null);

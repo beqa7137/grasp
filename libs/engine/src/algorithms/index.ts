@@ -22,6 +22,7 @@ import type { AlgorithmDef, AlgorithmMeta } from './types.js';
 
 export * from './types.js';
 export { parseField, formatField, mulberry32 } from './input.js';
+export { GRAPH_BOX, GRAPH_NODE_RADIUS } from './layout.js';
 
 export const ALGORITHMS: AlgorithmDef<any>[] = [
   binarySearch,

@@ -1,24 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { mulberry32 } from './input.js';
 import { singleNumberXor } from './single-number-xor.js';
-import { InputError, type Frame } from './types.js';
+import { predictions, resultOf, tracerFixture } from './tracer.fixture.js';
+import { InputError } from './types.js';
 
-const EM_DASH = '\u2014';
-
+const { traceOf, randomInputs } = tracerFixture(singleNumberXor);
 const xorAll = (nums: number[]) => nums.reduce((x, n) => x ^ n, 0);
-const trace = (input: unknown) => singleNumberXor.trace(singleNumberXor.validate(input));
-const resultOf = (frames: Frame[]) => frames[frames.length - 1].vars['result'];
-
-function randomInputs(seed: number, count: number) {
-  const rand = mulberry32(seed);
-  return Array.from({ length: count }, () => singleNumberXor.randomInput(rand));
-}
 
 const sampleInputs = [singleNumberXor.defaultInput, { nums: [0, 7, 7] }, { nums: [3, 5, 6] }, { nums: [9] }, ...randomInputs(1, 30)];
 
 describe('single-number-xor', () => {
   it('traces the default input: the 1s and 2s cancel and 4 survives', () => {
-    const frames = trace(singleNumberXor.defaultInput);
+    const frames = traceOf(singleNumberXor.defaultInput);
     expect(frames).toHaveLength(16);
     expect(frames[0].line).toBe(2);
     expect(frames.at(-1)!.line).toBe(6);
@@ -29,10 +21,8 @@ describe('single-number-xor', () => {
   });
 
   it('asks for the running XOR after every number except the first', () => {
-    const asked = trace(singleNumberXor.defaultInput)
-      .filter((f) => f.predict)
-      .map((f) => f.predict!);
-    expect(asked[0].prompt).toBe('x = 4 (100), n = 1 (001). What is x after x\u00a0^=\u00a0n?');
+    const asked = predictions(traceOf(singleNumberXor.defaultInput));
+    expect(asked[0].prompt).toBe('`x = 4` (100), `n = 1` (001). What is x after `x ^= n`?');
     expect(asked.map((p) => p.choices[p.answer])).toEqual(['101 (5)', '111 (7)', '110 (6)', '100 (4)']);
     expect(asked[2].explain).toContain('1 ^ 1 = 0');
   });
@@ -51,7 +41,7 @@ describe('single-number-xor', () => {
 
   it('keeps the array pointers in range and every bit table row equal to its value', () => {
     for (const input of sampleInputs) {
-      const consistent = trace(input).every(({ array, table }) => {
+      const consistent = traceOf(input).every(({ array, table }) => {
         const { pointers, window } = array!;
         const inRange = Object.values(pointers).every((index) => index < input.nums.length) && (!window || window[0] <= window[1]);
         const bitsMatch = table!.cells.every(
@@ -66,7 +56,7 @@ describe('single-number-xor', () => {
   it('asks for the real x ^ n, which the next frame shows, with the answer in varying positions', () => {
     const positions = new Set<number>();
     for (const input of sampleInputs) {
-      const frames = trace(input);
+      const frames = traceOf(input);
       const confirmed = frames.every((f, k) => !f.predict || f.predict.choices[f.predict.answer].endsWith(`(${frames[k + 1].vars['x']})`));
       expect(confirmed).toBe(true);
       for (const f of frames) if (f.predict) positions.add(f.predict.answer);
@@ -77,11 +67,5 @@ describe('single-number-xor', () => {
   it('rejects negative numbers', () => {
     expect(() => singleNumberXor.validate({ nums: [4, -1, 4] })).toThrow(InputError);
     expect(() => singleNumberXor.validate({ nums: [4, -1, 4] })).toThrow(/between 0 and 999/);
-  });
-
-  it('never shows an em dash', () => {
-    const rand = mulberry32(1);
-    const traces = [singleNumberXor.defaultInput, ...Array.from({ length: 20 }, () => singleNumberXor.randomInput(rand))].map(trace);
-    expect(JSON.stringify([singleNumberXor, traces])).not.toContain(EM_DASH);
   });
 });

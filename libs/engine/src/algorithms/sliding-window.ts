@@ -1,4 +1,5 @@
-import { asText, randInt } from './input.js';
+import { InputError } from './types.js';
+import { asText, randInt, rangeOf } from './input.js';
 import type { AlgorithmDef, Frame } from './types.js';
 
 type Input = { s: string };
@@ -38,7 +39,10 @@ export const longestUnique: AlgorithmDef<Input> = {
 
   validate(input) {
     const raw = (input ?? {}) as Record<string, unknown>;
-    return { s: asText(raw['s'], 's') };
+    const s = asText(raw['s'], 's');
+    // The notes quote characters back, and a backtick there would open a code span.
+    if (s.includes('`')) throw new InputError('s cannot contain a backtick');
+    return { s };
   },
 
   trace({ s }) {
@@ -61,9 +65,9 @@ export const longestUnique: AlgorithmDef<Input> = {
           values: [...chars],
           pointers,
           window: right >= left ? [left, right] : undefined,
-          settled: chars.map((_, i) => i).filter((i) => i < left),
+          settled: rangeOf(0, left - 1),
           active: right >= 0 ? [right] : [],
-          found: bestRange ? rangeOf(bestRange) : [],
+          found: bestRange ? rangeOf(...bestRange) : [],
         },
         set: { label: 'seen', entries: [...seen], active: right >= 0 ? chars[right] : undefined },
         ...extra,
@@ -109,9 +113,3 @@ export const longestUnique: AlgorithmDef<Input> = {
     return frames;
   },
 };
-
-function rangeOf([a, b]: [number, number]): number[] {
-  const out: number[] = [];
-  for (let i = a; i <= b; i++) out.push(i);
-  return out;
-}

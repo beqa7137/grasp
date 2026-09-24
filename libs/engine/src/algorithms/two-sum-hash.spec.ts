@@ -1,21 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { mulberry32 } from './input.js';
+import { correctChoices, predictions, resultOf, tracerFixture } from './tracer.fixture.js';
 import { twoSumHash as algo } from './two-sum-hash.js';
 import type { Frame } from './types.js';
 
-type Input = { nums: number[]; target: number };
+type Input = ReturnType<typeof algo.validate>;
 
-const EM_DASH = '\u2014';
 const YES = 'Yes: return the pair';
 const NO = 'No: store x and keep scanning';
+const LOOKUP_KINDS = [
+  ['is a key', 'hit'],
+  ['with itself', 'self'],
+  ['is in nums', 'later'],
+] as const;
 
-const traceOf = (input: unknown) => algo.trace(algo.validate(input));
-const resultOf = (frames: Frame[]) => frames[frames.length - 1].vars['result'];
-const correctChoices = (frames: Frame[]) => frames.flatMap((f) => (f.predict ? [f.predict.choices[f.predict.answer]] : []));
-const randomInputs = (seed: number, count: number) => {
-  const rand = mulberry32(seed);
-  return Array.from({ length: count }, () => algo.randomInput(rand));
-};
+const { traceOf, randomInputs } = tracerFixture(algo);
 const pairCount = (nums: number[], target: number) =>
   nums.reduce((count, x, i) => count + nums.slice(i + 1).filter((y) => x + y === target).length, 0);
 
@@ -82,7 +80,7 @@ describe('two-sum-hash', () => {
     const asked = traceOf({ nums: [2, 3, 4], target: 6 });
     const firstLookup = asked.find((f) => f.predict?.prompt.endsWith('in seen?'))!.predict!;
     expect(resultOf(asked)).toBe('[0, 2]');
-    expect(firstLookup.prompt).toContain('x = nums[1] = 3, so need = 3');
+    expect(firstLookup.prompt).toContain('`x = nums[1] = 3`, so `need = 3`');
     expect(firstLookup.choices[firstLookup.answer]).toBe(NO);
     expect(firstLookup.explain).toContain('keeps 3 from pairing with itself');
 
@@ -113,31 +111,16 @@ describe('two-sum-hash', () => {
     const pairPositions = new Set<number>();
     for (const input of randomInputs(7, 150)) {
       const frames = traceOf(input);
-      expect(pairCount(input.nums, input.target) <= 1 && frames.some((f) => f.predict)).toBe(true);
+      expect(pairCount(input.nums, input.target)).toBeLessThanOrEqual(1);
       outcomes.add(resultOf(frames) === '[]' ? 'none' : 'pair');
-      for (const { prompt, answer, explain } of frames.flatMap((f) => f.predict ?? [])) {
+      for (const { prompt, answer, explain } of predictions(frames)) {
         if (prompt.endsWith('after this step?')) storePositions.add(answer);
         if (prompt.endsWith('return?')) pairPositions.add(answer);
-        if (!prompt.endsWith('in seen?')) continue;
-        lookups.add(
-          explain.includes('is a key')
-            ? 'hit'
-            : explain.includes('with itself')
-              ? 'self'
-              : explain.includes('is in nums')
-                ? 'later'
-                : 'miss',
-        );
+        if (prompt.endsWith('in seen?')) lookups.add(LOOKUP_KINDS.find(([phrase]) => explain.includes(phrase))?.[1] ?? 'miss');
       }
     }
     expect([...outcomes].sort()).toEqual(['none', 'pair']);
     expect([...lookups].sort()).toEqual(['hit', 'later', 'miss', 'self']);
     expect(storePositions.size >= 3 && pairPositions.size >= 3).toBe(true);
-  });
-
-  it('never shows an em dash', () => {
-    const rand = mulberry32(1);
-    const traces = [algo.defaultInput, ...Array.from({ length: 20 }, () => algo.randomInput(rand))].map(traceOf);
-    expect(JSON.stringify([algo, traces])).not.toContain(EM_DASH);
   });
 });

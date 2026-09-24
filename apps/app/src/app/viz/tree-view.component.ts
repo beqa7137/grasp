@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import type { NodeState, TreeView } from '@grasp/engine';
+import { LegendComponent } from './legend.component';
 import { NODE_STYLES } from './node-styles';
 
 const SLOT = 46;
@@ -67,6 +68,7 @@ export function layoutForest(tree: TreeView): { nodes: PlacedNode[]; links: Link
 @Component({
   selector: 'g-tree-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [LegendComponent],
   template: `
     @let l = layout();
     <svg [attr.viewBox]="'0 0 ' + l.width + ' ' + l.height" [style.max-width.px]="l.width" role="img" [attr.aria-label]="ariaLabel()">
@@ -86,12 +88,8 @@ export function layoutForest(tree: TreeView): { nodes: PlacedNode[]; links: Link
         </g>
       }
     </svg>
-    @if (legend() && legendEntries().length) {
-      <div class="legend">
-        @for (entry of legendEntries(); track entry[0]) {
-          <span><i [attr.data-state]="entry[0]"></i>{{ entry[1] }}</span>
-        }
-      </div>
+    @if (legend()) {
+      <g-legend [legend]="view().legend" swatch="state" />
     }
   `,
   styles: [
@@ -121,7 +119,6 @@ export class TreeViewComponent {
   protected readonly radius = RADIUS;
 
   readonly layout = computed(() => layoutForest(this.view()));
-  readonly legendEntries = computed(() => Object.entries(this.view().legend ?? {}));
 
   readonly ariaLabel = computed(() => {
     const nodes = this.view().nodes;

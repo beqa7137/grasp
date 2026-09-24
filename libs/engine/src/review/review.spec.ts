@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { codeSpans } from '../code-spans.js';
 import { PATTERNS } from '../curriculum/patterns.js';
 import { SD_TOPICS } from '../curriculum/sd-topics.js';
 import { REVIEW_ITEMS, generateQuestion, getReviewItem, itemsForTopic } from './catalog.js';
 
 const SEEDS = Array.from({ length: 40 }, (_, i) => i * 104_729 + 17);
+const unbalanced = (text: string) => codeSpans(text).some((part) => part.text.includes('`'));
 
 describe('review item catalog', () => {
   it('has unique ids and valid topics', () => {
@@ -27,6 +29,7 @@ describe('review item catalog', () => {
       expect(q.itemId).toBe(itemId);
       expect(q.prompt.length).toBeGreaterThan(10);
       expect(q.explain.length).toBeGreaterThan(10);
+      expect([q.prompt, q.explain].filter(unbalanced), 'backticks mark code spans, so they pair up').toEqual([]);
       expect(q.choices.length).toBeGreaterThanOrEqual(q.kind === 'predict' ? 2 : 3);
       expect(new Set(q.choices).size).toBe(q.choices.length);
       expect(q.answer).toBeGreaterThanOrEqual(0);

@@ -34,9 +34,11 @@ export interface Question {
   topic: string;
   seed: number;
   eyebrow: string;
+  /** Learner text: backticks mark code spans. */
   prompt: string;
   choices: string[];
   answer: number;
+  /** Learner text: backticks mark code spans. */
   explain: string;
   frame?: Frame;
   code?: { lines: string[]; blank?: number; highlight?: number };

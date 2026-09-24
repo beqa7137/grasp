@@ -6,6 +6,7 @@ import { addIcons } from 'ionicons';
 import { checkmarkCircle, closeCircle } from 'ionicons/icons';
 import { ArrayViewComponent } from '../viz/array-view.component';
 import { CodePanelComponent } from '../viz/code-panel.component';
+import { CodeTextComponent } from '../viz/code-text.component';
 import { GraphViewComponent } from '../viz/graph-view.component';
 import { GridViewComponent } from '../viz/grid-view.component';
 import { ListViewComponent } from '../viz/list-view.component';
@@ -36,6 +37,7 @@ const REASON_LABELS: Record<CardReason, string> = {
     TreeViewComponent,
     ListViewComponent,
     CodePanelComponent,
+    CodeTextComponent,
   ],
   template: `
     @let q = question();
@@ -45,7 +47,7 @@ const REASON_LABELS: Record<CardReason, string> = {
         <span class="reason" [attr.data-reason]="reason()">{{ reasonLabel() }}</span>
       </header>
 
-      <p class="prompt">{{ q.prompt }}</p>
+      <p class="prompt"><g-code-text [text]="q.prompt" /></p>
 
       @if (q.frame; as f) {
         <div class="visual">
@@ -128,7 +130,7 @@ const REASON_LABELS: Record<CardReason, string> = {
           <ion-icon [name]="chosen() === q.answer ? 'checkmark-circle' : 'close-circle'" />
           <div>
             <p class="verdict">{{ chosen() === q.answer ? 'Correct' : 'Not quite' }}</p>
-            <p class="why">{{ q.explain }}</p>
+            <p class="why"><g-code-text [text]="q.explain" /></p>
             @if (q.link; as link) {
               <a [routerLink]="link.path">{{ link.label }} →</a>
             }

@@ -1,6 +1,6 @@
 import { InputError } from './types.js';
 import { rotatedChoices } from './choices.js';
-import { asNumber, asNumbers, randInt } from './input.js';
+import { asNumber, asNumbers, randInt, rangeOf } from './input.js';
 import type { AlgorithmDef, Frame, Prediction, TableLegend, TableView } from './types.js';
 
 type Input = { nums: number[]; k: number };
@@ -27,7 +27,7 @@ export const subarraySumPrefix: AlgorithmDef<Input> = {
   patternId: 'prefix-sum',
   difficulty: 'medium',
   summary:
-    'Keep a running prefix sum p and count how often each prefix appeared: the subarrays ending here that sum to k are the earlier prefixes equal to p - k.',
+    'Keep a running prefix sum p and count how often each prefix appeared: the subarrays ending here that sum to k are the earlier prefixes equal to `p - k`.',
   complexity: { time: 'O(n)', space: 'O(n)' },
   code: [
     'function subarraySum(nums, k) {',
@@ -42,7 +42,7 @@ export const subarraySumPrefix: AlgorithmDef<Input> = {
     '}',
   ],
   fields: [
-    { key: 'nums', label: 'Numbers', kind: 'numbers', hint: `Up to ${MAX_NUMS}, from -9 to 9` },
+    { key: 'nums', label: 'Numbers', kind: 'numbers', hint: `Up to ${MAX_NUMS}, from ${VALUE_RANGE.minValue} to ${VALUE_RANGE.maxValue}` },
     { key: 'k', label: 'Target k', kind: 'number' },
   ],
   defaultInput: { nums: [1, 2, 1, -1, 2, 1], k: 3 },
@@ -62,8 +62,7 @@ export const subarraySumPrefix: AlgorithmDef<Input> = {
 
   trace({ nums, k }) {
     const frames: Frame[] = [];
-    // Each prefix sum maps to every j with pre[j] equal to it. The algorithm needs only how many there are;
-    // keeping the js lets the trace show which subarrays it counted.
+    // Keeps every j per prefix, not just the count the algorithm needs, so the trace can show which subarrays it counted.
     const startsOf = new Map<number, number[]>([[0, [0]]]);
     const countOf = (value: number) => startsOf.get(value)?.length ?? 0;
     const found: string[] = [];
@@ -81,7 +80,7 @@ export const subarraySumPrefix: AlgorithmDef<Input> = {
         colLabels: keys.map(String),
         cells: [keys.map(countOf)],
         active: wrote === undefined ? undefined : cell(wrote),
-        deps: read !== undefined && startsOf.has(read) ? [cell(read)] : [],
+        deps: read === undefined ? [] : [cell(read)],
         legend: LEGEND,
       };
     };
@@ -98,8 +97,8 @@ export const subarraySumPrefix: AlgorithmDef<Input> = {
           pointers: reading ? { i } : {},
           window: start === undefined ? undefined : [start, i],
           active: reading ? [i] : [],
-          settled: nums.flatMap((_, t) => (t > i ? [t] : [])),
-          found: start === undefined ? [] : nums.flatMap((_, t) => (t >= start && t <= i ? [t] : [])),
+          settled: rangeOf(i + 1, nums.length - 1),
+          found: start === undefined ? [] : rangeOf(start, i),
         },
         table: table(focus),
         output: { label: 'subarrays found', items: [...found] },
@@ -110,51 +109,51 @@ export const subarraySumPrefix: AlgorithmDef<Input> = {
     const zeroRun = (value: number) => {
       const j = startsOf.get(value)?.at(-1);
       if (j === undefined) return null;
-      return `p was ${value} ${j === 0 ? 'before any number was read' : `after index ${j - 1}`} too, so nums[${j}..${i}] sums to 0.`;
+      return `p was ${value} ${j === 0 ? 'before any number was read' : `after index ${j - 1}`} too, so \`nums[${j}..${i}]\` sums to 0.`;
     };
 
     const prefixQuestion = (x: number): Prediction => {
       const next = p + x;
       const repeat = zeroRun(next);
       return {
-        prompt: `p = ${p} ${i === 0 ? 'before any number' : `after index ${i - 1}`}, and nums[${i}] = ${x}. What is p after p += nums[${i}]?`,
+        prompt: `\`p = ${p}\` ${i === 0 ? 'before any number' : `after index ${i - 1}`}, and \`nums[${i}] = ${x}\`. What is p after \`p += nums[${i}]\`?`,
         ...rotatedChoices(String(next), [p - x, x, p].map(String), questions++),
         explain: repeat
           ? `${p} + ${plus(x)} = ${next}. ${repeat}`
           : x < 0
             ? `${p} + ${plus(x)} = ${next}. A negative number pulls p down, so prefix sums are not sorted and a sliding window cannot find these subarrays. The count map can.`
-            : `${p} + ${x} = ${next}. p always holds the sum of nums[0..${i}], carried forward one number at a time instead of re-adding the prefix.`,
+            : `${p} + ${x} = ${next}. p always holds the sum of \`nums[0..${i}]\`, carried forward one number at a time instead of re-adding the prefix.`,
       };
     };
 
     const countQuestion = (lookup: number, matches: number): Prediction => {
-      const rule = `nums[j..${i}] sums to p - pre[j], so it equals ${k} exactly when pre[j] = ${p} - ${plus(k)} = ${lookup}.`;
+      const rule = `\`nums[j..${i}]\` sums to \`p - pre[j]\`, so it equals ${k} exactly when \`pre[j]\` = ${p} - ${plus(k)} = ${lookup}.`;
       // Likely slips first, since only three distinct distractors are kept: dropping the seed, looking up p itself, subtracting the wrong way round.
       const distractors = [lookup === 0 ? matches - 1 : -1, countOf(p), countOf(k - p), matches + 1, matches - 1, matches + 2];
       return {
-        prompt: `p = ${p} after index ${i}, and k = ${k}. How many subarrays ending at index ${i} sum to k?`,
+        prompt: `\`p = ${p}\` after index ${i}, and \`k = ${k}\`. How many subarrays ending at index ${i} sum to k?`,
         ...rotatedChoices(String(matches), distractors.filter((d) => d >= 0).map(String), questions++),
         explain:
           matches === 0
-            ? `${rule} No prefix so far was ${lookup}, so count[${lookup}] is missing and adds 0.`
+            ? `${rule} No prefix so far was ${lookup}, so \`count[${lookup}]\` is missing and adds 0.`
             : lookup === 0
-              ? `${rule} count[0] = ${matches}${matches === 1 ? ': only the seed, which stands for the subarray that starts at index 0' : ', and the seed is the one for the subarray that starts at index 0'}.`
-              : `${rule} Prefix ${lookup} has appeared ${matches === 1 ? 'once' : `${matches} times, each the start of a different subarray`}, so count[${lookup}] = ${matches}.`,
+              ? `${rule} \`count[0] = ${matches}\`${matches === 1 ? ': only the seed, which stands for the subarray that starts at index 0' : ', and the seed is the one for the subarray that starts at index 0'}.`
+              : `${rule} Prefix ${lookup} has appeared ${matches === 1 ? 'once' : `${matches} times, each the start of a different subarray`}, so \`count[${lookup}] = ${matches}\`.`,
       };
     };
 
     const matchNote = (lookup: number, j: number, m: number, matches: number) => {
       const origin = j === 0 ? ', counted by the seed since it starts at index 0' : `, since p was ${lookup} after index ${j - 1}`;
-      const sentence = `nums[${j}..${i}] = ${addition(nums.slice(j, i + 1))} = ${k}${origin}.`;
-      if (matches === 1) return `total += count[${lookup}] = 1, so total is ${total}. ${sentence}`;
-      if (m === 0) return `total += count[${lookup}] = ${matches}, so total is ${total}. Subarray 1 of ${matches}: ${sentence}`;
+      const sentence = `\`nums[${j}..${i}]\` = ${addition(nums.slice(j, i + 1))} = ${k}${origin}.`;
+      if (matches === 1) return `\`total += count[${lookup}]\` = 1, so total is ${total}. ${sentence}`;
+      if (m === 0) return `\`total += count[${lookup}]\` = ${matches}, so total is ${total}. Subarray 1 of ${matches}: ${sentence}`;
       const last = m === matches - 1 ? ` The map never stored these ranges, only that prefix ${lookup} appeared ${matches} times.` : '';
       return `Subarray ${m + 1} of ${matches}: ${sentence}${last}`;
     };
 
     snap(
       2,
-      'count maps each prefix sum to how many times it has appeared. The seed count[0] = 1 is the empty prefix before nums[0]: a subarray starting at index 0 sums to p - 0, so without it those subarrays would be missed.',
+      'count maps each prefix sum to how many times it has appeared. The seed `count[0] = 1` is the empty prefix before `nums[0]`: a subarray starting at index 0 sums to `p - 0`, so without it those subarrays would be missed.',
       { wrote: 0 },
     );
     snap(3, 'p is the running prefix sum and total counts the subarrays found so far. Both start at 0.');
@@ -163,24 +162,24 @@ export const subarraySumPrefix: AlgorithmDef<Input> = {
       const x = nums[i];
       key = null;
       if (x < 0 || (i === 1 && x > 0)) {
-        snap(5, `Add nums[${i}] = ${x} to the running prefix.`, {}, { predict: prefixQuestion(x) });
+        snap(5, `Add \`nums[${i}] = ${x}\` to the running prefix.`, {}, { predict: prefixQuestion(x) });
       }
       const before = p;
       p += x;
       const repeat = zeroRun(p);
-      snap(5, `p = ${before} + ${plus(x)} = ${p}, the sum of nums[0..${i}].${repeat ? ` ${repeat}` : ''}`);
+      snap(5, `\`p = ${before} + ${plus(x)} = ${p}\`, the sum of \`nums[0..${i}]\`.${repeat ? ` ${repeat}` : ''}`);
 
       const lookup = p - k;
-      const matches = countOf(lookup);
-      snap(6, `Look up how many earlier prefixes pair with p = ${p}.`, {}, { predict: countQuestion(lookup, matches) });
+      const starts = startsOf.get(lookup) ?? [];
+      const matches = starts.length;
+      snap(6, `Look up how many earlier prefixes pair with \`p = ${p}\`.`, {}, { predict: countQuestion(lookup, matches) });
       key = lookup;
       total += matches;
-      const starts = startsOf.get(lookup) ?? [];
       found.push(...starts.map((j) => `${j}..${i}`));
       if (matches === 0) {
         snap(
           6,
-          `p - k = ${p} - ${plus(k)} = ${lookup}, and no earlier prefix was ${lookup}. No subarray ending at index ${i} sums to ${k}; total stays ${total}.`,
+          `\`p - k\` = ${p} - ${plus(k)} = ${lookup}, and no earlier prefix was ${lookup}. No subarray ending at index ${i} sums to ${k}; total stays ${total}.`,
         );
       }
       starts.forEach((j, m) => snap(6, matchNote(lookup, j, m, matches), { read: lookup, start: j }));
@@ -191,8 +190,8 @@ export const subarraySumPrefix: AlgorithmDef<Input> = {
       snap(
         7,
         seen === 0
-          ? `count[${p}] = 1: prefix ${p} is recorded, so a later index whose p - k is ${p} can pair with it.${keepsNonEmpty}`
-          : `Prefix ${p} appeared before, so count[${p}] rises to ${seen + 1}. A later index that looks up ${p} counts ${seen + 1} subarrays at once.${keepsNonEmpty}`,
+          ? `\`count[${p}] = 1\`: prefix ${p} is recorded, so a later index whose \`p - k\` is ${p} can pair with it.${keepsNonEmpty}`
+          : `Prefix ${p} appeared before, so \`count[${p}]\` rises to ${seen + 1}. A later index that looks up ${p} counts ${seen + 1} subarrays at once.${keepsNonEmpty}`,
         { wrote: p },
       );
     }

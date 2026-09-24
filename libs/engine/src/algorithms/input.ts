@@ -169,6 +169,11 @@ export function randInt(rand: () => number, min: number, max: number): number {
   return min + Math.floor(rand() * (max - min + 1));
 }
 
+/** The indices from `a` to `b` inclusive, or none when `b` < `a`. */
+export function rangeOf(a: number, b: number): number[] {
+  return Array.from({ length: Math.max(0, b - a + 1) }, (_, k) => a + k);
+}
+
 /** A shuffled copy of `items` (Fisher–Yates); `items` itself is left alone. */
 export function shuffle<T>(rand: () => number, items: readonly T[]): T[] {
   const out = [...items];

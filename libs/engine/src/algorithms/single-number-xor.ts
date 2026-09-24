@@ -34,7 +34,7 @@ export const singleNumberXor: AlgorithmDef<Input> = {
   title: 'Single Number (XOR)',
   patternId: 'bit-manipulation',
   difficulty: 'easy',
-  summary: 'XOR every number into one accumulator: equal numbers cancel (n ^ n = 0), so only the unpaired one survives.',
+  summary: 'XOR every number into one accumulator: equal numbers cancel (`n ^ n = 0`), so only the unpaired one survives.',
   complexity: { time: 'O(n)', space: 'O(1)' },
   code: [
     'function singleNumber(nums) {',
@@ -95,7 +95,7 @@ export const singleNumberXor: AlgorithmDef<Input> = {
 
     snap(
       2,
-      'Start with x = 0, since 0 ^ n = n. x will hold the XOR of every number read so far, and because n ^ n = 0, that equals the XOR of the numbers still waiting for a partner.',
+      'Start with `x = 0`, since `0 ^ n = n`. x will hold the XOR of every number read so far, and because `n ^ n = 0`, that equals the XOR of the numbers still waiting for a partner.',
       bitTable(width, [x, null, null]),
     );
 
@@ -103,24 +103,24 @@ export const singleNumberXor: AlgorithmDef<Input> = {
       const n = nums[i];
       const before = x;
       const partner = unpaired.get(n);
-      snap(3, `Read n = nums[${i}] = ${n}, which is ${binary(n, width)} in binary.`, bitTable(width, [x, n, null]));
+      snap(3, `Read \`n = nums[${i}] = ${n}\`, which is ${binary(n, width)} in binary.`, bitTable(width, [x, n, null]));
 
       if (i > 0) {
         const { choices, answer } = xorChoices(x, n, width, i);
         const reason =
           partner !== undefined
-            ? `${n} is already folded into x, so this copy cancels it (${n} ^ ${n} = 0).`
+            ? `${n} is already folded into x, so this copy cancels it (\`${n} ^ ${n} = 0\`).`
             : n === 0
               ? 'XOR with 0 changes nothing.'
               : (x & n) !== 0
                 ? 'Columns with a 1 in both become 0, which is where XOR differs from OR and +.'
                 : 'No column has a 1 in both, so each 1 bit of n switches on in x.';
-        snap(4, `XOR x = ${binary(x, width)} with n = ${binary(n, width)}, one column at a time.`, bitTable(width, [x, n, null]), {
+        snap(4, `XOR \`x = ${binary(x, width)}\` with \`n = ${binary(n, width)}\`, one column at a time.`, bitTable(width, [x, n, null]), {
           predict: {
-            prompt: `x = ${x} (${binary(x, width)}), n = ${n} (${binary(n, width)}). What is x after x\u00a0^=\u00a0n?`,
+            prompt: `\`x = ${x}\` (${binary(x, width)}), \`n = ${n}\` (${binary(n, width)}). What is x after \`x ^= n\`?`,
             choices,
             answer,
-            explain: `XOR keeps a 1 only where the two bits differ: ${binary(x, width)} ^ ${binary(n, width)} = ${binary(x ^ n, width)}, which is ${x ^ n}. ${reason}`,
+            explain: `XOR keeps a 1 only where the two bits differ: \`${binary(x, width)} ^ ${binary(n, width)}\` = ${binary(x ^ n, width)}, which is ${x ^ n}. ${reason}`,
           },
         });
       }
@@ -133,12 +133,12 @@ export const singleNumberXor: AlgorithmDef<Input> = {
       x ^= n;
       folded = i + 1;
 
-      const step = `${binary(before, width)} ^ ${binary(n, width)} = ${binary(x, width)}, so x = ${x}.`;
+      const step = `\`${binary(before, width)} ^ ${binary(n, width)}\` = ${binary(x, width)}, so \`x = ${x}\`.`;
       const flips = [...binary(n, width)].flatMap((bit, c): Cell[] => (bit === '1' ? [[1, c]] : []));
       snap(
         4,
         partner !== undefined
-          ? `${step} This ${n} meets the earlier ${n} at nums[${partner}], and n ^ n = 0, so the pair cancels out of x.`
+          ? `${step} This ${n} meets the earlier ${n} at \`nums[${partner}]\`, and \`n ^ n = 0\`, so the pair cancels out of x.`
           : n === 0
             ? `${step} XOR with 0 changes nothing.`
             : `${step} Each 1 in n flips the matching bit of x, and ${n} now waits for a partner.`,
@@ -152,9 +152,9 @@ export const singleNumberXor: AlgorithmDef<Input> = {
     snap(
       6,
       survivors.length === 1
-        ? `${settled.length ? 'Every pair cancelled' : 'There were no pairs to cancel'}, so x = ${x}: the one number without a partner. ${cost}`
+        ? `${settled.length ? 'Every pair cancelled' : 'There were no pairs to cancel'}, so \`x = ${x}\`: the one number without a partner. ${cost}`
         : survivors.length === 0
-          ? `Every number had a partner, so everything cancelled and x = 0. ${cost}`
+          ? `Every number had a partner, so everything cancelled and \`x = 0\`. ${cost}`
           : `${survivors.join(', ')} have no partner, so x is their XOR, ${x}. The trick names the single number only when exactly one value is unpaired. ${cost}`,
       bitTable(width, [x, null, null], { path: wholeRow(0, width) }),
     );
