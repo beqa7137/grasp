@@ -80,25 +80,17 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4]
 
-    services:
-      postgres:
-        image: postgres:17-alpine
-        env:
-          POSTGRES_USER: grasp
-          POSTGRES_PASSWORD: grasp
-          POSTGRES_DB: grasp_e2e
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U grasp"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-
     env:
       DATABASE_URL: postgresql://grasp:grasp@localhost:5432/grasp_e2e
 
     steps:
+      # Not a service container: the job would wait 15-20 s for it to download and start, where this way it
+      # starts during setup and the build.
+      - name: Start Postgres in the background
+        run: |
+          docker run -d --name postgres -p 5432:5432 -e POSTGRES_USER=grasp -e POSTGRES_PASSWORD=grasp \
+            -e POSTGRES_DB=grasp_e2e postgres:17-alpine > "$RUNNER_TEMP/postgres.log" 2>&1 &
+
       - uses: actions/checkout@v7
 
       - uses: ./.github/actions/setup
@@ -127,6 +119,12 @@ jobs:
           name: web
           path: apps/app/dist/app/browser
           retention-days: 7
+
+      # Over TCP: the image's temporary setup server only listens on a socket, so it cannot pass for ready.
+      - name: Wait for Postgres
+        run: |
+          timeout 60 bash -c 'until docker exec postgres pg_isready -h 127.0.0.1 -U grasp -d grasp_e2e; do sleep 1; done' ||
+            { cat "$RUNNER_TEMP/postgres.log"; docker logs postgres; exit 1; }
 
       - name: Run the learner flows on desktop and phone
         run: npm run e2e -- --shard=${{ matrix.shard }}/${{ strategy.job-total }} --workers=100% --reporter=github,blob
