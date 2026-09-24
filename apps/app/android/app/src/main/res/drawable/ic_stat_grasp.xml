@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Monochrome status-bar icon for reminders: three connected nodes. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:pathData="M6,6L18,6M6,6L12,18M18,6L12,18" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M6,3a3,3 0,1 1,0 6a3,3 0,1 1,0 -6zM18,3a3,3 0,1 1,0 6a3,3 0,1 1,0 -6zM12,15a3,3 0,1 1,0 6a3,3 0,1 1,0 -6z" />
+</vector>

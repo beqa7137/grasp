@@ -7,11 +7,12 @@ import { LearnerService } from '../../core/learner.service';
 import { ProgressService } from '../../core/progress.service';
 import { RuntimeConfigService } from '../../core/runtime-config.service';
 import { PilotService } from '../../pilot/pilot.service';
+import { StudySettingsComponent } from './study-settings.component';
 
 @Component({
   selector: 'app-settings',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle, IonContent],
+  imports: [FormsModule, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle, IonContent, StudySettingsComponent],
   template: `
     <ion-header [translucent]="true">
       <ion-toolbar>
@@ -85,6 +86,8 @@ import { PilotService } from '../../pilot/pilot.service';
             }
           }
         </section>
+
+        <app-study-settings />
 
         <section class="panel block">
           <h2>Your data</h2>

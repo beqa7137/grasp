@@ -160,6 +160,24 @@ describe.each(storages)('API (%s storage, offline interviewer)', (storage) => {
     expect(snap.body.state.coding['daily-temperatures']).toMatchObject({ attempts: 1, bestPassed: 20, solvedAt: null });
   });
 
+  it('syncs study settings and rejects values outside the offered options', async () => {
+    const at = new Date().toISOString();
+    const change = (settings: object) =>
+      request(app.getHttpServer())
+        .post('/api/progress/events')
+        .set('x-learner-id', learner)
+        .send({ events: [{ id: `set-${Math.random().toString(36).slice(2, 10)}`, at, type: 'settings.changed', settings }] });
+
+    await change({ retention: 0.95, newPerDay: 5 }).expect(200);
+    await change({ retention: 0.5 }).expect(400);
+    await change({ budgetMinutes: 7 }).expect(400);
+    await change({}).expect(400);
+    await change({ theme: 'dark' }).expect(400);
+
+    const snap = await request(app.getHttpServer()).get('/api/progress').set('x-learner-id', learner).expect(200);
+    expect(snap.body.state.settings).toEqual({ retention: 0.95, budgetMinutes: 10, newPerDay: 5 });
+  });
+
   it('keeps code the candidate shares with an interview message', async () => {
     const start = await request(app.getHttpServer())
       .post('/api/interview/sessions')

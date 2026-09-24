@@ -4,8 +4,9 @@ import { SD_TOPICS, getSdTopic } from '../curriculum/sd-topics.js';
 import { getReviewItem, itemsForTopic } from '../review/catalog.js';
 import type { ItemKind, ReviewItem } from '../review/types.js';
 import { SCENARIOS } from '../sysdesign/scenarios.js';
-import { sortEvents, upcast, type StoredEvent } from './events.js';
+import { sortEvents, upcast, type StoredEvent, type StudySettings } from './events.js';
 import { pullForward, retrievability, review, type CardPhase, type CardState, type ReviewRating } from './scheduler.js';
+import { DEFAULT_STUDY_SETTINGS, mergeSettings } from './settings.js';
 
 const DAY_MS = 86_400_000;
 
@@ -63,6 +64,7 @@ export interface ProgressState {
   streak: { current: number; longest: number; lastDay: string | null };
   xp: number;
   eventCount: number;
+  settings: StudySettings;
 }
 
 export const emptyProgress = (): ProgressState => ({
@@ -80,6 +82,7 @@ export const emptyProgress = (): ProgressState => ({
   streak: { current: 0, longest: 0, lastDay: null },
   xp: 0,
   eventCount: 0,
+  settings: { ...DEFAULT_STUDY_SETTINGS },
 });
 
 /** Pure reducer: the same event log yields the same state on every device and on the server. */
@@ -91,7 +94,7 @@ export function applyEvent(state: ProgressState, stored: StoredEvent): ProgressS
     cards: { ...state.cards },
     boosts: { ...state.boosts },
     introduced: { ...state.introduced },
-    streak: bumpStreak(state.streak, event.at.slice(0, 10)),
+    streak: event.type === 'settings.changed' ? state.streak : bumpStreak(state.streak, event.at.slice(0, 10)),
     eventCount: state.eventCount + 1,
   };
   const introduce = (topic: string) => {
@@ -103,7 +106,7 @@ export function applyEvent(state: ProgressState, stored: StoredEvent): ProgressS
       const def = getReviewItem(event.itemId);
       if (!def) break;
       const prev = state.cards[event.itemId];
-      next.cards[event.itemId] = review(event.itemId, prev, event.rating, at);
+      next.cards[event.itemId] = review(event.itemId, prev, event.rating, at, state.settings.retention);
       delete next.boosts[event.itemId];
       introduce(def.topic);
       next.recent = [...state.recent, { at: event.at, itemId: event.itemId, phase: prev?.phase ?? 'new', rating: event.rating }].slice(
@@ -198,6 +201,9 @@ export function applyEvent(state: ProgressState, stored: StoredEvent): ProgressS
       next.xp += solved ? (prev?.solvedAt ? 5 : 50) : 2;
       break;
     }
+    case 'settings.changed':
+      next.settings = mergeSettings(state.settings, event.settings);
+      break;
   }
   return next;
 }

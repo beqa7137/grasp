@@ -1,4 +1,4 @@
-import { StrategyMode, createEmptyCard, fsrs, generatorParameters, type Card, type Grade } from 'ts-fsrs';
+import { StrategyMode, createEmptyCard, fsrs, generatorParameters, type Card, type FSRS, type Grade } from 'ts-fsrs';
 
 export type ReviewRating = 1 | 2 | 3 | 4;
 
@@ -20,6 +20,9 @@ export interface CardState {
   firstReview: string;
 }
 
+/** Target recall probabilities a learner can pick; higher means shorter intervals and more reviews. */
+export const RETENTION_OPTIONS = [0.8, 0.85, 0.9, 0.95] as const;
+
 export const SCHEDULER_CONFIG = {
   requestRetention: 0.9,
   maximumIntervalDays: 365,
@@ -36,18 +39,40 @@ type SeededCard = Card & { cid: string };
  * Fuzz is seeded from the item id and repetition count (not from float math or wall-clock),
  * so replaying the same event log yields identical schedules on every device and on the server.
  */
-const scheduler = fsrs(
-  generatorParameters({
-    request_retention: SCHEDULER_CONFIG.requestRetention,
-    maximum_interval: SCHEDULER_CONFIG.maximumIntervalDays,
-    enable_fuzz: true,
-    enable_short_term: true,
-    learning_steps: SCHEDULER_CONFIG.learningSteps,
-    relearning_steps: SCHEDULER_CONFIG.relearningSteps,
-  }),
-).useStrategy(StrategyMode.SEED, function () {
-  return `${String(Reflect.get(this.current, 'cid'))}:${this.current.reps}`;
-});
+const schedulers = new Map<number, FSRS>();
+
+function schedulerFor(retention: number = SCHEDULER_CONFIG.requestRetention): FSRS {
+  let s = schedulers.get(retention);
+  if (!s) {
+    s = fsrs(
+      generatorParameters({
+        request_retention: retention,
+        maximum_interval: SCHEDULER_CONFIG.maximumIntervalDays,
+        enable_fuzz: true,
+        enable_short_term: true,
+        learning_steps: SCHEDULER_CONFIG.learningSteps,
+        relearning_steps: SCHEDULER_CONFIG.relearningSteps,
+      }),
+    ).useStrategy(StrategyMode.SEED, function () {
+      return `${String(Reflect.get(this.current, 'cid'))}:${this.current.reps}`;
+    });
+    schedulers.set(retention, s);
+  }
+  return s;
+}
+
+export function isRetentionOption(value: unknown): value is (typeof RETENTION_OPTIONS)[number] {
+  return RETENTION_OPTIONS.includes(value as (typeof RETENTION_OPTIONS)[number]);
+}
+
+/**
+ * Review load at a target retention relative to the default, for cards past their learning phase:
+ * intervals scale with FSRS's interval modifier, and review count with the inverse of the interval.
+ */
+export function relativeWorkload(retention: number): number {
+  const base = schedulerFor();
+  return base.calculate_interval_modifier(SCHEDULER_CONFIG.requestRetention) / base.calculate_interval_modifier(retention);
+}
 
 function toFsrs(itemId: string, card: CardState | undefined, now: Date): SeededCard {
   if (!card) return { ...createEmptyCard(now), cid: itemId };
@@ -81,14 +106,26 @@ function fromFsrs(card: Card, firstReview: string): CardState {
   };
 }
 
-export function review(itemId: string, prev: CardState | undefined, rating: ReviewRating, at: Date): CardState {
-  const next = scheduler.next(toFsrs(itemId, prev, at), at, rating as Grade);
+export function review(
+  itemId: string,
+  prev: CardState | undefined,
+  rating: ReviewRating,
+  at: Date,
+  retention: number = SCHEDULER_CONFIG.requestRetention,
+): CardState {
+  const next = schedulerFor(retention).next(toFsrs(itemId, prev, at), at, rating as Grade);
   return fromFsrs(next.card, prev?.firstReview ?? at.toISOString());
 }
 
 /** Due date each rating would produce — shown to the learner before they commit to a rating. */
-export function previewDue(itemId: string, prev: CardState | undefined, at: Date): Record<ReviewRating, string> {
+export function previewDue(
+  itemId: string,
+  prev: CardState | undefined,
+  at: Date,
+  retention: number = SCHEDULER_CONFIG.requestRetention,
+): Record<ReviewRating, string> {
   const card = toFsrs(itemId, prev, at);
+  const scheduler = schedulerFor(retention);
   const out = {} as Record<ReviewRating, string>;
   for (const r of [1, 2, 3, 4] as ReviewRating[]) out[r] = scheduler.next(card, at, r as Grade).card.due.toISOString();
   return out;
@@ -97,7 +134,7 @@ export function previewDue(itemId: string, prev: CardState | undefined, at: Date
 /** Probability (0–1) the learner can still recall the item right now. */
 export function retrievability(itemId: string, card: CardState | undefined, now: Date): number {
   if (!card || card.phase === 'new') return 0;
-  return scheduler.get_retrievability(toFsrs(itemId, card, now), now, false);
+  return schedulerFor().get_retrievability(toFsrs(itemId, card, now), now, false);
 }
 
 /**

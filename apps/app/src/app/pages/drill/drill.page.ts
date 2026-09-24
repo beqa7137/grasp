@@ -77,7 +77,8 @@ export class DrillPage {
     const slot = this.current();
     if (!slot || this.chosen() === null || this.practice()) return null;
     const now = new Date();
-    const due = previewDue(slot.itemId, this.progress.state().cards[slot.itemId], now);
+    const state = this.progress.state();
+    const due = previewDue(slot.itemId, state.cards[slot.itemId], now, state.settings.retention);
     return {
       again: formatInterval(now, due[1]),
       hard: formatInterval(now, due[2]),

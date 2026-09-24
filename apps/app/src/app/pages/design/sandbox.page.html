@@ -77,21 +77,23 @@
                 <button class="g-btn ghost" (click)="connectFrom.set(null)">Cancel</button>
               </div>
             }
-            <div class="scroller">
+            <div class="viewport">
               <svg
                 #canvas
-                [attr.viewBox]="viewBox"
-                (pointerdown)="onBackground()"
+                [attr.viewBox]="viewBox()"
+                (pointerdown)="onCanvasDown($event)"
                 (pointermove)="onMove($event)"
                 (pointerup)="onUp($event)"
-                (pointercancel)="drag.set(null)"
+                (pointercancel)="onCancel($event)"
+                (wheel)="onWheel($event)"
               >
                 <defs>
                   <pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse">
                     <circle cx="1" cy="1" r="1" fill="#252a37" />
                   </pattern>
                 </defs>
-                <rect width="100%" height="100%" fill="url(#dots)" />
+                <rect x="-2000" y="-2000" width="5000" height="5000" fill="url(#dots)" />
+                <rect class="board-edge" x="0" y="0" [attr.width]="board.w" [attr.height]="board.h" rx="16" />
 
                 @for (e of edges(); track e.key) {
                   <g
@@ -157,8 +159,20 @@
                   </g>
                 }
               </svg>
+              <div class="zoom" role="group" aria-label="Zoom">
+                <button class="g-btn icon" (click)="zoom(1)" aria-label="Zoom in"><ion-icon name="add" /></button>
+                <button class="g-btn icon" (click)="zoom(-1)" [disabled]="!zoomedIn()" aria-label="Zoom out">
+                  <ion-icon name="remove" />
+                </button>
+                <button class="g-btn icon" (click)="fitBoard()" [disabled]="!zoomedIn()" aria-label="Show whole board">
+                  <ion-icon name="scan-outline" />
+                </button>
+              </div>
             </div>
-            <p class="help muted">Drag to move · drag the ● port onto another component to connect · tap to inspect</p>
+            <p class="help muted">
+              Drag to move · drag the ● port onto another component to connect · tap to inspect · pinch or Ctrl/⌘ + scroll to zoom, drag the
+              background to pan
+            </p>
           </div>
 
           @if (isFree()) {

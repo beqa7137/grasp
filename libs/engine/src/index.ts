@@ -6,4 +6,6 @@ export * from './srs/scheduler.js';
 export * from './srs/events.js';
 export * from './srs/progress.js';
 export * from './srs/session.js';
+export * from './srs/settings.js';
+export * from './srs/reminders.js';
 export * from './coding/index.js';

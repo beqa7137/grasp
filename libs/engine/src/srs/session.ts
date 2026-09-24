@@ -64,7 +64,13 @@ export function newIntroducedToday(state: ProgressState, now: Date, tzOffsetMinu
  * within a daily cap, all inside a time budget — then interleaved so consecutive items differ in topic and kind.
  */
 export function buildSession(state: ProgressState, opts: SessionOptions): SessionPlan {
-  const { now, tzOffsetMinutes = 0, budgetMinutes = 10, newPerDay = 10, maxItems = 40 } = opts;
+  const {
+    now,
+    tzOffsetMinutes = 0,
+    budgetMinutes = state.settings.budgetMinutes,
+    newPerDay = state.settings.newPerDay,
+    maxItems = 40,
+  } = opts;
   const budget = budgetMinutes * 60;
   const nowMs = now.getTime();
 

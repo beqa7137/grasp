@@ -44,6 +44,7 @@ import {
   informationCircle,
   refresh,
   remove,
+  scanOutline,
   skullOutline,
   trashOutline,
   trophy,
@@ -52,11 +53,19 @@ import {
 import { haptic } from '../../core/haptics';
 import { ProgressService } from '../../core/progress.service';
 import { FREE_BUILD } from './free-build';
+import { BOARD, type Point, type ViewBox, clampView, fitView, initialView, panBy, sameView, toBoard, zoomAt } from './viewport';
 
 const W = 132;
 const H = 70;
-const VIEW_W = 900;
-const VIEW_H = 480;
+const VIEW_W = BOARD.w;
+const VIEW_H = BOARD.h;
+const ZOOM_STEP = 1.35;
+/** Screen pixels a background drag must travel before it pans instead of counting as a tap. */
+const PAN_SLOP_PX = 6;
+
+type Gesture =
+  | { kind: 'pan'; id: number; start: Point; view: ViewBox; moved: boolean }
+  | { kind: 'pinch'; ids: [number, number]; distance: number; mid: Point; view: ViewBox };
 
 type Drag =
   | { kind: 'move'; id: string; dx: number; dy: number; startX: number; startY: number; moved: boolean }
@@ -80,7 +89,18 @@ export class SandboxPage {
 
   readonly W = W;
   readonly H = H;
-  readonly viewBox = `0 0 ${VIEW_W} ${VIEW_H}`;
+  readonly board = BOARD;
+  readonly view = signal<ViewBox>(fitView(BOARD.h / BOARD.w));
+  readonly viewBox = computed(() => {
+    const v = this.view();
+    return `${v.x} ${v.y} ${v.w} ${v.h}`;
+  });
+  readonly zoomedIn = computed(() => !sameView(this.view(), fitView(this.aspect)));
+  private aspect = BOARD.h / BOARD.w;
+  private placedView = false;
+  private canvasWidth = 0;
+  private readonly pointers = new Map<number, Point>();
+  private gesture: Gesture | null = null;
   readonly palette = PALETTE.map((k) => COMPONENTS[k]);
   readonly specs = COMPONENTS;
   readonly shardKeys = (Object.keys(SHARD_KEYS) as ShardKey[]).map((id) => ({ id, ...SHARD_KEYS[id] }));
@@ -166,6 +186,7 @@ export class SandboxPage {
       bulbOutline,
       trophy,
       flash,
+      scanOutline,
     });
 
     effect(() => {
@@ -198,11 +219,121 @@ export class SandboxPage {
         void this.progress.record({ type: 'scenario.completed', scenarioId: s.id, monthlyCost: cost, ...(variant ? { variant } : {}) });
     });
 
-    inject(DestroyRef).onDestroy(() => clearTimeout(this.saveTimer));
+    const resize = new ResizeObserver(([entry]) => this.onResize(entry.contentRect.width, entry.contentRect.height));
+    effect(() => {
+      const el = this.svg()?.nativeElement;
+      if (el) resize.observe(el);
+    });
+    effect(() => {
+      if (this.loaded()) untracked(() => this.placeView());
+    });
+
+    inject(DestroyRef).onDestroy(() => {
+      clearTimeout(this.saveTimer);
+      resize.disconnect();
+    });
+  }
+
+  private onResize(width: number, height: number) {
+    if (!width || !height) return;
+    this.aspect = height / width;
+    this.canvasWidth = width;
+    if (!this.placedView) {
+      this.placeView();
+      return;
+    }
+    const v = this.view();
+    const w = v.w;
+    const h = w * this.aspect;
+    this.view.set(clampView({ x: v.x, y: v.y + (v.h - h) / 2, w, h }, this.aspect));
+  }
+
+  /** Opens each design at a sensible zoom once both the design and the canvas size are known. */
+  private placeView() {
+    if (this.placedView || !this.loaded() || !this.canvasWidth) return;
+    this.placedView = true;
+    this.view.set(initialView(this.aspect, this.canvasWidth, this.design().nodes));
+  }
+
+  zoom(direction: 1 | -1) {
+    const v = this.view();
+    this.view.set(zoomAt(v, { x: v.x + v.w / 2, y: v.y + v.h / 2 }, direction > 0 ? 1 / ZOOM_STEP : ZOOM_STEP, this.aspect));
+  }
+
+  fitBoard() {
+    this.view.set(fitView(this.aspect));
+  }
+
+  onWheel(e: WheelEvent) {
+    // Trackpad pinches arrive as ctrl+wheel; a plain wheel keeps scrolling the page.
+    if (!e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+    const factor = Math.min(1.25, Math.max(0.8, Math.exp(e.deltaY * 0.005)));
+    this.view.set(zoomAt(this.view(), toBoard(this.view(), this.rect(), { x: e.clientX, y: e.clientY }), factor, this.aspect));
+  }
+
+  onCanvasDown(e: PointerEvent) {
+    this.svg()?.nativeElement.setPointerCapture?.(e.pointerId);
+    this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    this.startGesture();
+  }
+
+  private startGesture() {
+    const [a, b] = [...this.pointers.entries()];
+    if (a && b) {
+      this.gesture = {
+        kind: 'pinch',
+        ids: [a[0], b[0]],
+        distance: Math.max(1, Math.hypot(a[1].x - b[1].x, a[1].y - b[1].y)),
+        mid: { x: (a[1].x + b[1].x) / 2, y: (a[1].y + b[1].y) / 2 },
+        view: this.view(),
+      };
+    } else if (a) {
+      this.gesture = { kind: 'pan', id: a[0], start: a[1], view: this.view(), moved: false };
+    } else {
+      this.gesture = null;
+    }
+  }
+
+  private moveGesture() {
+    const g = this.gesture;
+    if (!g) return;
+    const rect = this.rect();
+    if (g.kind === 'pan') {
+      const p = this.pointers.get(g.id);
+      if (!p) return;
+      g.moved ||= Math.hypot(p.x - g.start.x, p.y - g.start.y) > PAN_SLOP_PX;
+      if (!g.moved) return;
+      const scale = g.view.w / rect.width;
+      this.view.set(panBy(g.view, (g.start.x - p.x) * scale, (g.start.y - p.y) * scale, this.aspect));
+      return;
+    }
+    const a = this.pointers.get(g.ids[0]);
+    const b = this.pointers.get(g.ids[1]);
+    if (!a || !b) return;
+    const distance = Math.max(1, Math.hypot(a.x - b.x, a.y - b.y));
+    const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    const zoomed = zoomAt(g.view, toBoard(g.view, rect, g.mid), g.distance / distance, this.aspect);
+    const scale = zoomed.w / rect.width;
+    this.view.set(panBy(zoomed, (g.mid.x - mid.x) * scale, (g.mid.y - mid.y) * scale, this.aspect));
+  }
+
+  private endPointer(e: PointerEvent, cancelled: boolean) {
+    this.pointers.delete(e.pointerId);
+    const g = this.gesture;
+    if (!cancelled && g?.kind === 'pan' && !g.moved && this.pointers.size === 0) this.onBackground();
+    // Lifting one finger of a pinch continues as a pan with the other.
+    this.startGesture();
+    if (this.gesture?.kind === 'pan') this.gesture.moved = true;
+  }
+
+  private rect() {
+    return this.svg()!.nativeElement.getBoundingClientRect();
   }
 
   private async restore(s: Scenario) {
     this.loaded.set(false);
+    this.placedView = false;
     const { value } = await Preferences.get({ key: this.storageKey() });
     const saved = value ? (JSON.parse(value) as { design: Design; workload: Workload }) : null;
     this.design.set(saved?.design ?? structuredClone(s.starter));
@@ -231,7 +362,11 @@ export class SandboxPage {
   addComponent(kind: ComponentKind) {
     const d = this.design();
     const count = d.nodes.length;
-    const node = createNode(d, kind, 420 + ((count * 53) % 260), 70 + ((count * 97) % 340));
+    const v = this.view();
+    // Drop it where the learner is looking, nudged so repeated adds do not stack exactly.
+    const x = clamp(v.x + v.w / 2 + ((count * 53) % 120) - 60, W / 2, VIEW_W - W / 2);
+    const y = clamp(v.y + v.h / 2 + ((count * 97) % 120) - 60, H / 2, VIEW_H - H / 2);
+    const node = createNode(d, kind, Math.round(x), Math.round(y));
     this.patch((draft) => draft.nodes.push(node));
     this.selectedId.set(node.id);
     this.selectedEdge.set(null);
@@ -331,6 +466,11 @@ export class SandboxPage {
   }
 
   onMove(e: PointerEvent) {
+    if (this.pointers.has(e.pointerId)) {
+      this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      this.moveGesture();
+      return;
+    }
     const d = this.drag();
     if (!d) return;
     const p = this.toSvg(e);
@@ -352,7 +492,16 @@ export class SandboxPage {
     });
   }
 
+  onCancel(e: PointerEvent) {
+    if (this.pointers.has(e.pointerId)) this.endPointer(e, true);
+    else this.drag.set(null);
+  }
+
   onUp(e: PointerEvent) {
+    if (this.pointers.has(e.pointerId)) {
+      this.endPointer(e, false);
+      return;
+    }
     const d = this.drag();
     this.drag.set(null);
     if (!d) return;
