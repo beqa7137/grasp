@@ -1,0 +1,20 @@
+name: Start Postgres
+description: >-
+  Starts Postgres on port 5432 in the background, so it downloads and starts while the job sets up and
+  builds; a service container would hold the job up for 15-20 s first. Use wait-for-postgres before the
+  first step that needs it.
+
+inputs:
+  database:
+    description: Database to create, owned by the user grasp (password grasp)
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        DATABASE: ${{ inputs.database }}
+      run: |
+        docker run -d --name postgres -p 5432:5432 -e POSTGRES_USER=grasp -e POSTGRES_PASSWORD=grasp \
+          -e POSTGRES_DB="$DATABASE" postgres:17-alpine > "$RUNNER_TEMP/postgres.log" 2>&1 &

@@ -42,28 +42,19 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
-    services:
-      postgres:
-        image: postgres:17-alpine
-        env:
-          POSTGRES_USER: grasp
-          POSTGRES_PASSWORD: grasp
-          POSTGRES_DB: grasp_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U grasp"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-
     env:
       TEST_DATABASE_URL: postgresql://grasp:grasp@localhost:5432/grasp_test
 
     steps:
       - uses: actions/checkout@v7
 
+      - uses: ./.github/actions/start-postgres
+        with:
+          database: grasp_test
+
       - uses: ./.github/actions/setup
+
+      - uses: ./.github/actions/wait-for-postgres
 
       - name: Test (engine, API against memory + Postgres, app)
         run: npm test
@@ -84,14 +75,11 @@ jobs:
       DATABASE_URL: postgresql://grasp:grasp@localhost:5432/grasp_e2e
 
     steps:
-      # Not a service container: the job would wait 15-20 s for it to download and start, where this way it
-      # starts during setup and the build.
-      - name: Start Postgres in the background
-        run: |
-          docker run -d --name postgres -p 5432:5432 -e POSTGRES_USER=grasp -e POSTGRES_PASSWORD=grasp \
-            -e POSTGRES_DB=grasp_e2e postgres:17-alpine > "$RUNNER_TEMP/postgres.log" 2>&1 &
-
       - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/start-postgres
+        with:
+          database: grasp_e2e
 
       - uses: ./.github/actions/setup
 
@@ -121,11 +109,7 @@ jobs:
           path: apps/app/dist/app/browser
           retention-days: 7
 
-      # Over TCP: the image's temporary setup server only listens on a socket, so it cannot pass for ready.
-      - name: Wait for Postgres
-        run: |
-          timeout 60 bash -c 'until docker exec postgres pg_isready -h 127.0.0.1 -U grasp -d grasp_e2e; do sleep 1; done' ||
-            { cat "$RUNNER_TEMP/postgres.log"; docker logs postgres; exit 1; }
+      - uses: ./.github/actions/wait-for-postgres
 
       - name: Run the learner flows on desktop and phone
         run: npm run e2e -- --shard=${{ matrix.shard }}/${{ strategy.job-total }} --workers=100% --reporter=github,blob
@@ -172,21 +156,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
-    services:
-      postgres:
-        image: postgres:17-alpine
-        env:
-          POSTGRES_USER: grasp
-          POSTGRES_PASSWORD: grasp
-          POSTGRES_DB: grasp
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U grasp"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-
     env:
       DATABASE_URL: postgresql://grasp:grasp@localhost:5432/grasp
       JWT_SECRET: ci-only-secret-for-the-smoke-test-0123456789
@@ -194,8 +163,14 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - uses: ./.github/actions/start-postgres
+        with:
+          database: grasp
+
       - name: Build image
         run: docker build --build-arg RELEASE="${GITHUB_SHA::7}" -t grasp:ci .
+
+      - uses: ./.github/actions/wait-for-postgres
 
       - name: Run migrations the way the release step does
         run: docker run --rm --network host -e DATABASE_URL grasp:ci node apps/api/dist/migrate.js
@@ -223,21 +198,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
-    services:
-      postgres:
-        image: postgres:17-alpine
-        env:
-          POSTGRES_USER: grasp
-          POSTGRES_PASSWORD: grasp
-          POSTGRES_DB: grasp
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U grasp"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-
     env:
       VERCEL_CLI: vercel@59.26.0
       VERCEL_TELEMETRY_DISABLED: '1'
@@ -248,6 +208,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/start-postgres
+        with:
+          database: grasp
 
       - uses: actions/setup-node@v7
         with:
@@ -260,6 +224,8 @@ jobs:
           mkdir -p .vercel
           echo '{"projectId":"prj_ci","orgId":"team_ci","settings":{"framework":null}}' > .vercel/project.json
           npx --yes "$VERCEL_CLI" build --prod --yes
+
+      - uses: ./.github/actions/wait-for-postgres
 
       - name: Migrate the test database
         run: node apps/api/dist/migrate.js
