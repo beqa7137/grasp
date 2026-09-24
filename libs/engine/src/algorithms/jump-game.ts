@@ -1,14 +1,10 @@
+import { rotatedChoices } from './choices.js';
 import { asNumbers, randInt } from './input.js';
 import type { AlgorithmDef, Frame } from './types.js';
 
 type Input = { nums: number[] };
 
 const CHECK = ['Continue: this index is reachable', 'Return false: nothing reaches this index'];
-
-function rotate<T>(items: T[], by: number): T[] {
-  const k = by % items.length;
-  return [...items.slice(k), ...items.slice(0, k)];
-}
 
 export const jumpGame: AlgorithmDef<Input> = {
   id: 'jump-game',
@@ -37,7 +33,7 @@ export const jumpGame: AlgorithmDef<Input> = {
 
   validate(input) {
     const raw = (input ?? {}) as Record<string, unknown>;
-    return { nums: asNumbers(raw['nums'], 'nums', { min: 0 }) };
+    return { nums: asNumbers(raw['nums'], 'nums', { minValue: 0 }) };
   },
 
   trace({ nums }) {
@@ -110,14 +106,12 @@ export const jumpGame: AlgorithmDef<Input> = {
       const prev = reach;
       const jump = i + nums[i];
       const next = Math.max(reach, jump);
-      const options = [...new Set([next, jump, reach + nums[i], Math.max(reach, nums[i]), reach])];
-      if (i > 0 && options.length > 1) {
-        const choices = rotate(options, i).map(String);
+      const options = rotatedChoices(String(next), [jump, reach + nums[i], Math.max(reach, nums[i]), reach].map(String), i);
+      if (i > 0 && options.choices.length > 1) {
         snap(5, `Update reach using the jump from index ${i}.`, {
           predict: {
             prompt: `i = ${i}, nums[${i}] = ${nums[i]}, reach = ${reach}. What is the new farthest reach?`,
-            choices,
-            answer: choices.indexOf(String(next)),
+            ...options,
             explain:
               jump > reach
                 ? `From index ${i} you can jump to ${i} + ${nums[i]} = ${jump}, past ${reach}. Math.max keeps the farther point, so reach becomes ${jump}.`

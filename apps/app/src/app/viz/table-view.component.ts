@@ -1,11 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import type { TableLegend, TableView } from '@grasp/engine';
 
-type CellRole = 'active' | 'deps' | 'path' | null;
+type CellRole = keyof TableLegend;
 
 const key = ([r, c]: [number, number]) => `${r},${c}`;
-
-const DP_LEGEND: TableLegend = { active: 'current cell', deps: 'reads from', path: 'answer path' };
 
 @Component({
   selector: 'g-table-view',
@@ -26,7 +24,7 @@ const DP_LEGEND: TableLegend = { active: 'current cell', deps: 'reads from', pat
         }
       }
     </div>
-    @if (legend()) {
+    @if (legend() && legendEntries().length) {
       <div class="legend">
         @for (entry of legendEntries(); track entry[0]) {
           <span><i [attr.data-role]="entry[0]"></i>{{ entry[1] }}</span>
@@ -143,7 +141,7 @@ export class TableViewComponent {
     return roles;
   });
 
-  readonly legendEntries = computed(() => Object.entries(this.view().legend ?? DP_LEGEND));
+  readonly legendEntries = computed(() => Object.entries(this.view().legend ?? {}));
 
   readonly activeRow = computed(() => this.view().active?.[0] ?? null);
   readonly activeCol = computed(() => this.view().active?.[1] ?? null);

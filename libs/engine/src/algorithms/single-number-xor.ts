@@ -1,3 +1,4 @@
+import { rotatedChoices } from './choices.js';
 import { asNumbers, randInt, shuffle } from './input.js';
 import type { AlgorithmDef, Frame, SetView, TableLegend, TableView } from './types.js';
 
@@ -20,17 +21,12 @@ function bitTable(width: number, rows: (number | null)[], extra: Partial<TableVi
 
 const wholeRow = (row: number, width: number): Cell[] => Array.from({ length: width + 1 }, (_, c): Cell => [row, c]);
 
-/**
- * The XOR plus the results of the cloze's wrong operators (|, &, +), de-duplicated and rotated so the answer moves around.
- * Values wider than the table are dropped, since an extra digit would give them away.
- */
+/** Distractors follow the XOR cloze's wrong operators (|, &, +); values wider than the table are dropped, since the extra digit would give them away. */
 function xorChoices(x: number, n: number, width: number, shift: number) {
   const next = x ^ n;
-  const candidates = [next, x | n, x & n, x + n, x, n, next ^ 1, next ^ 2].filter((v) => v < 2 ** width);
-  const values = [...new Set(candidates)].slice(0, 4);
-  const start = shift % values.length;
-  const rotated = [...values.slice(start), ...values.slice(0, start)];
-  return { choices: rotated.map((v) => `${binary(v, width)} (${v})`), answer: rotated.indexOf(next) };
+  const show = (v: number) => `${binary(v, width)} (${v})`;
+  const distractors = [x | n, x & n, x + n, x, n, next ^ 1, next ^ 2].filter((v) => v < 2 ** width);
+  return rotatedChoices(show(next), distractors.map(show), shift);
 }
 
 export const singleNumberXor: AlgorithmDef<Input> = {
@@ -63,7 +59,7 @@ export const singleNumberXor: AlgorithmDef<Input> = {
 
   validate(input) {
     const raw = (input ?? {}) as Record<string, unknown>;
-    return { nums: asNumbers(raw['nums'], 'nums', { min: 0 }) };
+    return { nums: asNumbers(raw['nums'], 'nums', { minValue: 0 }) };
   },
 
   trace({ nums }) {

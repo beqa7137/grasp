@@ -1,7 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import { ALGORITHMS, getAlgorithm } from './index.js';
-import { mulberry32 } from './input.js';
-import { InputError } from './types.js';
+import { formatField, mulberry32, parseField } from './input.js';
+import { InputError, type Frame } from './types.js';
+
+/** Every way a trace breaks the frame contract, so a single expect per trace reports them all. */
+const frameProblems = (frames: Frame[], lines: number) =>
+  frames.flatMap((f, k) => {
+    const p = f.predict;
+    return [
+      (f.line < 1 || f.line > lines) && `line ${f.line} is outside the code`,
+      !f.note && 'empty note',
+      p && k === frames.length - 1 && 'the last frame asks a prediction',
+      p && (p.choices.length < 2 || p.choices.length > 4) && `${p.choices.length} choices`,
+      p && new Set(p.choices).size !== p.choices.length && 'repeated choices',
+      p && !(p.answer >= 0 && p.answer < p.choices.length) && `answer ${p.answer} is not a choice`,
+      p && (p.prompt.length <= 10 || p.explain.length <= 10) && 'prompt or explain too short',
+    ].flatMap((problem) => (problem ? [`frame ${k}: ${problem}`] : []));
+  });
 
 const reference: Record<string, (input: any) => unknown> = {
   'kth-largest': ({ nums, k }) => [...nums].sort((a: number, b: number) => b - a)[k - 1],
@@ -157,15 +172,7 @@ describe.each(ALGORITHMS.map((a) => [a.id, a] as const))('%s', (id, algo) => {
     const frames = algo.trace(algo.validate(input));
     expect(frames.length).toBeGreaterThan(1);
     expect(frames.length).toBeLessThan(600);
-    for (const f of frames) {
-      expect(f.line).toBeGreaterThanOrEqual(1);
-      expect(f.line).toBeLessThanOrEqual(algo.code.length);
-      expect(f.note.length).toBeGreaterThan(0);
-      if (f.predict) {
-        expect(f.predict.answer).toBeGreaterThanOrEqual(0);
-        expect(f.predict.answer).toBeLessThan(f.predict.choices.length);
-      }
-    }
+    expect(frameProblems(frames, algo.code.length)).toEqual([]);
     const result = frames[frames.length - 1].vars['result'];
     const expected = reference[id](algo.validate(input));
     if (id === 'pair-sum-sorted') {
@@ -197,9 +204,30 @@ describe.each(ALGORITHMS.map((a) => [a.id, a] as const))('%s', (id, algo) => {
     expect(frames.some((f) => f.predict)).toBe(true);
   });
 
-  it('matches a reference implementation on 300 random inputs', () => {
+  it('matches a reference implementation on 300 random inputs, with well-formed frames', () => {
     const rand = mulberry32(id.length * 7919);
     for (let i = 0; i < 300; i++) check(algo.randomInput(rand));
+  });
+
+  it('emits frames that survive a JSON round-trip', () => {
+    const rand = mulberry32(id.length);
+    for (const input of [algo.defaultInput, ...Array.from({ length: 20 }, () => algo.randomInput(rand))]) {
+      const frames = algo.trace(algo.validate(input));
+      expect(JSON.parse(JSON.stringify(frames))).toEqual(frames);
+    }
+  });
+
+  it('gives the same input and trace for the same seed', () => {
+    const run = () => {
+      const input = algo.randomInput(mulberry32(99));
+      return [input, algo.trace(algo.validate(input))];
+    };
+    expect(run()).toEqual(run());
+  });
+
+  it('keeps the default input through the text the input fields show', () => {
+    const drafts = algo.fields.map((f) => [f.key, parseField(f.kind, formatField(f.kind, algo.defaultInput[f.key]))]);
+    expect(algo.validate(Object.fromEntries(drafts))).toEqual(algo.defaultInput);
   });
 
   it('is exposed through the registry', () => {

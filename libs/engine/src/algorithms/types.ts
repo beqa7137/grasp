@@ -27,7 +27,7 @@ export interface GridView {
   distances: (number | null)[][];
 }
 
-/** What each table highlight means, for the legend. */
+/** What each table highlight means, in legend order. */
 export type TableLegend = Partial<Record<'active' | 'deps' | 'path', string>>;
 
 /** A table of values, such as a DP table; null cells are not computed yet. */
@@ -36,11 +36,11 @@ export interface TableView {
   colLabels: string[];
   cells: (Scalar | null)[][];
   active?: [number, number];
-  /** Cells the active cell reads from. */
+  /** Highlighted cells, such as those the active cell reads from; the legend says what they mean. */
   deps?: [number, number][];
-  /** Cells on the reconstructed answer. */
+  /** Highlighted cells, such as the reconstructed answer; the legend says what they mean. */
   path?: [number, number][];
-  /** Without it the legend reads as a DP table. */
+  /** Without it the table has no legend. */
   legend?: TableLegend;
 }
 
@@ -74,7 +74,7 @@ export interface GraphView {
 /** What each node style means, in legend order. */
 export type TreeLegend = Partial<Record<NodeState | 'marked', string>>;
 
-/** A rooted forest (heap, trie, union-find, binary tree, recursion tree); the component lays it out. */
+/** A rooted forest; the component lays it out. */
 export interface TreeView {
   nodes: { id: string; label: string; parent: string | null; state?: NodeState; badge?: string; marked?: boolean }[];
   /** Without it the tree has no legend. */
@@ -112,7 +112,7 @@ export interface InputField {
   label: string;
   kind: InputKind;
   hint?: string;
-  /** The only values a text field accepts; the player offers them as a picker. */
+  /** Values the player offers in a picker instead of a text box. */
   options?: string[];
 }
 

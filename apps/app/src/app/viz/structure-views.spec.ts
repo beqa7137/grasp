@@ -1,3 +1,4 @@
+import type { Type } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { getAlgorithm } from '@grasp/engine';
 import { GraphViewComponent } from './graph-view.component';
@@ -44,29 +45,33 @@ describe('layoutForest', () => {
 
 const legendOf = (el: HTMLElement) => [...el.querySelectorAll('.legend span')].map((span) => span.textContent!.trim());
 
+function render(component: Type<unknown>, view: unknown, legend = true): HTMLElement {
+  const fixture = TestBed.createComponent(component);
+  fixture.componentRef.setInput('view', view);
+  fixture.componentRef.setInput('legend', legend);
+  fixture.detectChanges();
+  return fixture.nativeElement;
+}
+
 describe('structure views render real traces', () => {
-  it('table: marks the active cell and its dependencies, with the DP legend by default', () => {
+  it('table: marks the active cell and its dependencies, and names them in the legend LCS gives', () => {
     const frames = getAlgorithm('lcs')!.trace({ a: 'AB', b: 'B' });
     const frame = frames.find((f) => f.table?.active && f.table.deps?.length)!;
-    const fixture = TestBed.createComponent(TableViewComponent);
-    fixture.componentRef.setInput('view', frame.table);
-    fixture.detectChanges();
-    const el: HTMLElement = fixture.nativeElement;
+    const el = render(TableViewComponent, frame.table);
     expect(el.querySelectorAll('.cell[data-role="active"]')).toHaveLength(1);
     expect(el.querySelectorAll('.cell[data-role="deps"]').length).toBe(frame.table!.deps!.length);
     expect(legendOf(el)).toEqual(['current cell', 'reads from', 'answer path']);
   });
 
-  it('table: names its highlights with the legend the tracer gives', () => {
-    const frame = getAlgorithm('single-number-xor')!
+  it('table: shows the legend a tracer gives, and none without one or when turned off', () => {
+    const bits = getAlgorithm('single-number-xor')!
       .trace({ nums: [4, 1, 4] })
-      .find((f) => f.table?.deps?.length)!;
-    const fixture = TestBed.createComponent(TableViewComponent);
-    fixture.componentRef.setInput('view', frame.table);
-    fixture.detectChanges();
-    const el: HTMLElement = fixture.nativeElement;
+      .find((f) => f.table?.deps?.length)!.table!;
+    const el = render(TableViewComponent, bits);
     expect(legendOf(el)).toEqual(['bits of n that flip x', 'result']);
     expect(el.querySelector('.legend i[data-role="deps"]')).not.toBeNull();
+    expect(render(TableViewComponent, bits, false).querySelector('.legend')).toBeNull();
+    expect(render(TableViewComponent, { ...bits, legend: undefined }).querySelector('.legend')).toBeNull();
   });
 
   it('graph: draws every node and edge with arrowheads only on directed edges', () => {
@@ -106,18 +111,14 @@ describe('structure views render real traces', () => {
   });
 
   it('tree: shows the legend a tracer gives, and none without one or when turned off', () => {
-    const render = (view: unknown, legend = true) => {
-      const fixture = TestBed.createComponent(TreeViewComponent);
-      fixture.componentRef.setInput('view', view);
-      fixture.componentRef.setInput('legend', legend);
-      fixture.detectChanges();
-      return fixture.nativeElement as HTMLElement;
-    };
     const calls = getAlgorithm('subsets-backtracking')!.trace({ nums: [1, 2] })[3].tree;
-    expect(legendOf(render(calls))).toEqual(['running', 'on the call stack', 'returned']);
-    expect(render(calls).querySelector('.legend i[data-state="frontier"]')).not.toBeNull();
-    expect(render(calls, false).querySelector('.legend')).toBeNull();
+    const el = render(TreeViewComponent, calls);
+    expect(legendOf(el)).toEqual(['running', 'on the call stack', 'returned']);
+    expect(el.querySelector('.legend i[data-state="frontier"]')).not.toBeNull();
+    expect(render(TreeViewComponent, calls, false).querySelector('.legend')).toBeNull();
+    const bst = getAlgorithm('tree-traversal')!.trace({ values: [2, 1], order: 'inorder' })[0].tree;
+    expect(render(TreeViewComponent, bst).querySelector('.legend i[data-state="idle"]')).not.toBeNull();
     const heap = getAlgorithm('kth-largest')!.trace({ nums: [3, 1, 2], k: 2 })[1].tree;
-    expect(render(heap).querySelector('.legend')).toBeNull();
+    expect(render(TreeViewComponent, heap).querySelector('.legend')).toBeNull();
   });
 });

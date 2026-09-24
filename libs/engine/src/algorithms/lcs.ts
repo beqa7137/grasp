@@ -1,11 +1,12 @@
 import { InputError } from './types.js';
 import { randInt } from './input.js';
-import type { AlgorithmDef, Frame, TableView } from './types.js';
+import type { AlgorithmDef, Frame, TableLegend, TableView } from './types.js';
 
 type Input = { a: string; b: string };
 
 const MAX_LENGTH = 9;
 const RULES = ['Diagonal + 1 — the characters match', 'Max of the cell above and the cell to the left'];
+const LEGEND: TableLegend = { active: 'current cell', deps: 'reads from', path: 'answer path' };
 
 function asWord(value: unknown, key: string): string {
   const text = typeof value === 'string' ? value.trim().toUpperCase() : '';
@@ -59,6 +60,7 @@ export const lcs: AlgorithmDef<Input> = {
       rowLabels: ['∅', ...a],
       colLabels: ['∅', ...b],
       cells: dp.map((row) => [...row]),
+      legend: LEGEND,
       ...extra,
     });
 

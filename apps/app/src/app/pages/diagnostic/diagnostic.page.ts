@@ -81,7 +81,7 @@ export class DiagnosticPage {
   @HostListener('document:keydown', ['$event'])
   onKey(e: KeyboardEvent) {
     const slot = this.current();
-    if (!slot || !isKeyForPage(this.host, e) || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (!slot || !isKeyForPage(this.host, e)) return;
     const choice = Number(e.key) - 1;
     if (choice >= 0 && choice < slot.question.choices.length) this.choose(choice);
     else if (e.key.toLowerCase() === 's') this.skip();

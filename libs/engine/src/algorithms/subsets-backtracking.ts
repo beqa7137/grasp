@@ -1,5 +1,6 @@
 import { InputError } from './types.js';
-import { asNumbers, randInt } from './input.js';
+import { rotatedChoices } from './choices.js';
+import { asNumbers, shuffle } from './input.js';
 import type { AlgorithmDef, Frame, NodeState, Prediction, TreeLegend, TreeView } from './types.js';
 
 type Input = { nums: number[] };
@@ -13,17 +14,10 @@ interface CallNode {
 
 const MAX_NUMS = 3;
 // A leaf's badge lists its whole subset, so values stay two characters wide to keep neighbouring badges apart.
-const VALUE_RANGE = { min: -9, max: 99 };
+const VALUE_RANGE = { minValue: -9, maxValue: 99 };
 const LEGEND: TreeLegend = { active: 'running', frontier: 'on the call stack', done: 'returned' };
 
 const bracket = (items: (number | string)[]) => `[${items.join(', ')}]`;
-
-function placeAnswer(answer: string, distractors: string[], position: number): Pick<Prediction, 'choices' | 'answer'> {
-  const choices = [...new Set(distractors)].filter((c) => c !== answer).slice(0, 3);
-  const at = position % (choices.length + 1);
-  choices.splice(at, 0, answer);
-  return { choices, answer: at };
-}
 
 export const subsetsBacktracking: AlgorithmDef<Input> = {
   id: 'subsets-backtracking',
@@ -49,10 +43,8 @@ export const subsetsBacktracking: AlgorithmDef<Input> = {
   defaultInput: { nums: [1, 2, 3] },
 
   randomInput(rand = Math.random) {
-    const pool = [1, 2, 3, 4, 5, 6, 7, 8, 9];
     const size = rand() < 0.75 ? 3 : 2;
-    const nums: number[] = [];
-    while (nums.length < size) nums.push(pool.splice(randInt(rand, 0, pool.length - 1), 1)[0]);
+    const nums = shuffle(rand, [1, 2, 3, 4, 5, 6, 7, 8, 9]).slice(0, size);
     return { nums: nums.sort((a, b) => a - b) };
   },
 
@@ -105,10 +97,12 @@ export const subsetsBacktracking: AlgorithmDef<Input> = {
       });
     };
 
-    const enter = (label: string) => {
+    const call = (label: string, run: () => void) => {
       const id = `call${nodes.length}`;
       nodes.push({ id, label, parent: calls.length ? calls[calls.length - 1] : null });
       calls.push(id);
+      run();
+      calls.pop();
     };
 
     const recordNext = (mask: number): Prediction => {
@@ -117,7 +111,7 @@ export const subsetsBacktracking: AlgorithmDef<Input> = {
       const nearby = [mask - 2, mask - 3, mask + 1].filter((m) => m >= 0).map(subsetOf);
       return {
         prompt: `nums = ${bracket(nums)}. The search just recorded ${bracket(path)}. Which subset does it record next?`,
-        ...placeAnswer(bracket(next), [path.slice(0, -1), ...nearby].map(bracket), ++questions),
+        ...rotatedChoices(bracket(next), [path.slice(0, -1), ...nearby].map(bracket), questions++),
         explain: `Every call deeper than go(${j}) is finished, so control returns to go(${j}). It pops ${nums[j]} and skips it, and each call below takes its number first: ${bracket(next)}.`,
       };
     };
@@ -134,7 +128,6 @@ export const subsetsBacktracking: AlgorithmDef<Input> = {
             : `Every number is decided: record ${bracket(path)} (subset ${out.length} of ${total}) and return.`,
           mask > 0 && !taken[n - 1] ? { predict: recordNext(mask) } : {},
         );
-        calls.pop();
         return;
       }
 
@@ -142,8 +135,7 @@ export const subsetsBacktracking: AlgorithmDef<Input> = {
       path.push(x);
       taken[i] = true;
       snap(5, `go(${i}) takes ${x} first: push it, so path is ${bracket(path)}, and call go(${i + 1}).`);
-      enter(String(x));
-      go(i + 1);
+      call(String(x), () => go(i + 1));
 
       if (!askedUndo) {
         askedUndo = true;
@@ -166,26 +158,25 @@ export const subsetsBacktracking: AlgorithmDef<Input> = {
 
       taken[i] = false;
       snap(6, `Now skip ${x}: call go(${i + 1}) with path ${bracket(path)} unchanged (a dash in the tree).`);
-      enter('–');
-      go(i + 1);
+      call('–', () => go(i + 1));
       taken[i] = null;
-      calls.pop();
     };
 
     snap(2, 'path holds the numbers taken so far and out collects finished subsets. Every number gets two branches: take it, or skip it.');
-    enter('[]');
-    snap(
-      8,
-      'Call go(0) with an empty path. In the tree, blue is the running call, amber calls wait for it to return, and green calls are finished.',
-      {
-        predict: {
-          prompt: `nums = ${bracket(nums)}. go(0) starts with an empty path. Which subset is recorded first?`,
-          ...placeAnswer(bracket(nums), [[], [nums[0]], nums.slice(0, -1)].map(bracket), ++questions),
-          explain: `Each call takes its number before it tries skipping it, so the first path takes everything on the way down: ${bracket(nums)}. Nothing is recorded until every number is decided.`,
+    call('[]', () => {
+      snap(
+        8,
+        'Call go(0) with an empty path. In the tree, blue is the running call, amber calls wait for it to return, and green calls are finished.',
+        {
+          predict: {
+            prompt: `nums = ${bracket(nums)}. go(0) starts with an empty path. Which subset is recorded first?`,
+            ...rotatedChoices(bracket(nums), [[], [nums[0]], nums.slice(0, -1)].map(bracket), questions++),
+            explain: `Each call takes its number before it tries skipping it, so the first path takes everything on the way down: ${bracket(nums)}. Nothing is recorded until every number is decided.`,
+          },
         },
-      },
-    );
-    go(0);
+      );
+      go(0);
+    });
 
     snap(
       9,

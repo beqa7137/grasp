@@ -80,8 +80,7 @@ export const mergeIntervals: AlgorithmDef<Input> = {
     let rows = intervals;
     const out: Interval[] = [];
     let last: Interval | null = null;
-    // The rows that supply each out entry's start and end; their cells are drawn as the answer so far.
-    const outRows: Interval[] = [];
+    const outRows: [startRow: number, endRow: number][] = [];
     let i = -1;
 
     const table = (focus: Partial<TableView> = {}): TableView => ({

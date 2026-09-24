@@ -9,7 +9,6 @@ const VISUALIZER_TITLES = [
   'Single Number (XOR)',
 ];
 
-/** Steps forward with predict mode on until the player pauses at a checkpoint. */
 async function stepToCheckpoint(page: Page) {
   const prompt = page.getByText('Your call');
   const total = Number((await page.locator('app-player .scrub .count').textContent())!.split('/')[1]);
@@ -76,7 +75,7 @@ test('number keys answer only the page in view, not a checkpoint left open on th
   const recorded = await page.evaluate(() => JSON.parse(localStorage.getItem('CapacitorStorage.grasp.events') ?? '[]'));
   expect(recorded.map((e: { type: string }) => e.type)).not.toContain('predict.answered');
 
-  // A hidden page does not re-render, so the checkpoint is checked once the player is back in view.
+  // The hidden player does not re-render, so look for a stray answer only once it is back in view.
   await page.getByRole('tab', { name: 'Visualize' }).click();
   await expect(player.getByText('Your call')).toBeVisible();
   await expect(player.locator('.predict .verdict')).toHaveCount(0);
