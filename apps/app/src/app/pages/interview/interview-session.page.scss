@@ -300,6 +300,7 @@ ion-footer {
 
   textarea {
     flex: 1;
+    min-width: 0;
     resize: none;
     background: var(--g-surface);
     border: 1px solid var(--g-line-strong);
@@ -325,6 +326,20 @@ ion-footer {
   }
   .send {
     border-radius: 50%;
+  }
+
+  // On phones the buttons would squeeze the text box to a sliver, so they move to their own row.
+  @media (max-width: 560px) {
+    flex-wrap: wrap;
+    textarea {
+      flex-basis: 100%;
+    }
+    .buttons {
+      width: 100%;
+    }
+    .send {
+      margin-left: auto;
+    }
   }
 }
 
