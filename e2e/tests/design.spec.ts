@@ -37,8 +37,9 @@ test('new components never land on top of existing ones', { tag: '@smoke' }, asy
   await page.goto('/design/first-scale-up');
   const toolbar = page.getByRole('toolbar', { name: 'Add component' });
   for (const kind of ['LB', 'Cache', 'Replica', 'Queue']) await toolbar.getByRole('button', { name: kind, exact: true }).click();
-  const boxes = await page.locator('g.node rect.body').evaluateAll((rects) => rects.map((r) => r.getBoundingClientRect().toJSON()));
-  expect(boxes).toHaveLength(7);
+  const nodes = page.locator('g.node rect.body');
+  await expect(nodes).toHaveCount(7);
+  const boxes = await nodes.evaluateAll((rects) => rects.map((r) => r.getBoundingClientRect().toJSON()));
   for (const [i, a] of boxes.entries()) {
     for (const b of boxes.slice(i + 1)) {
       const overlap = a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
