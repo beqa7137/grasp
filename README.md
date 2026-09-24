@@ -97,12 +97,12 @@ Production runs on Vercel with Neon Postgres: the web app from Vercel's CDN, the
 | `npm run typecheck`               | `tsc` for engine and API; `ngc` for the app, including templates |
 | `npm test`                        | Engine, API and app unit tests                                   |
 | `npm run build`                   | Production builds of all three packages                          |
-| `npm run verify`                  | All of the above, in the same order CI runs them                 |
+| `npm run verify`                  | All of the above, one after another (CI runs them in parallel)   |
 | `npm run e2e`                     | Browser tests of every learner flow, after `npm run build`       |
 | `npm run eval:interviewer`        | Live eval of the AI interviewer (needs `ANTHROPIC_API_KEY`)      |
 | `npm run pilot:report`            | Markdown pilot report from `/api/admin/metrics` (`ADMIN_TOKEN`)  |
 
-CI (`.github/workflows/ci.yml`) runs `verify` on every push to `main` and every pull request, with a Postgres service so the API e2e suite runs against both in-memory and Postgres storage. It also audits production dependencies, runs the browser tests on desktop and phone viewports, and builds the Docker image and the Vercel output and smoke-tests both against Postgres. `deploy.yml` ships `main` to Vercel once enabled and then runs the `@smoke` browser tests against the live site. Dependabot proposes grouped dependency updates weekly.
+CI (`.github/workflows/ci.yml`) runs every `verify` step on every push to `main` and every pull request, in parallel jobs: lint, formatting and typecheck in one; the tests in another, with Postgres so the API e2e suite runs against both in-memory and Postgres storage; and the build in each of four shards of the browser tests, which run on desktop and phone viewports. It also audits production dependencies, and builds the Docker image and the Vercel output and smoke-tests both against Postgres. `node_modules` and Chromium come from the Actions cache. `deploy.yml` ships `main` to Vercel once enabled and then runs the `@smoke` browser tests against the live site. Dependabot proposes grouped dependency updates weekly.
 
 ### Tests
 

@@ -1,0 +1,29 @@
+name: Set up Node and dependencies
+description: Node from .nvmrc, and node_modules for the exact lockfile, runner and Node version.
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v7
+      id: node
+      with:
+        node-version-file: .nvmrc
+
+    # Restoring node_modules takes a few seconds; npm ci takes over twenty. The key covers everything npm ci
+    # depends on, including the Node version that native modules were built for.
+    - uses: actions/cache/restore@v6
+      id: cache
+      with:
+        path: node_modules
+        key: node-modules-${{ runner.os }}-${{ runner.arch }}-${{ steps.node.outputs.node-version }}-${{ hashFiles('package-lock.json') }}
+
+    - if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: npm ci
+
+    # Saved straight after npm ci, before builds or tests can write into node_modules.
+    - if: steps.cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v6
+      with:
+        path: node_modules
+        key: ${{ steps.cache.outputs.cache-primary-key }}

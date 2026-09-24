@@ -12,6 +12,7 @@ coverage/
 eval-results/
 test-results/
 playwright-report/
+blob-report/
 
 # Environment
 .env

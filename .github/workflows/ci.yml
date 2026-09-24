@@ -6,47 +6,24 @@ on:
   pull_request:
   workflow_dispatch:
 
+# A newer push stops the run it supersedes, except on main, where every commit gets a verdict before it deploys.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 permissions:
   contents: read
 
 jobs:
-  verify:
-    name: Lint, typecheck, test, build
+  static:
+    name: Lint, format, typecheck
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-
-    services:
-      postgres:
-        image: postgres:17-alpine
-        env:
-          POSTGRES_USER: grasp
-          POSTGRES_PASSWORD: grasp
-          POSTGRES_DB: grasp_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U grasp"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-
-    env:
-      TEST_DATABASE_URL: postgresql://grasp:grasp@localhost:5432/grasp_test
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-
-      - name: Install
-        run: npm ci
+      - uses: ./.github/actions/setup
 
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
@@ -60,38 +37,39 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+  test:
+    name: Unit and API tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      TEST_DATABASE_URL: postgresql://grasp:grasp@localhost:5432/grasp_test
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/start-postgres
+        with:
+          database: grasp_test
+
+      - uses: ./.github/actions/setup
+
+      - uses: ./.github/actions/wait-for-postgres
+
       - name: Test (engine, API against memory + Postgres, app)
         run: npm test
 
-      - name: Build
-        run: npm run build
-
-      - name: Upload web build
-        uses: actions/upload-artifact@v7
-        with:
-          name: web
-          path: apps/app/dist/app/browser
-          retention-days: 7
-
+  # The runners have two cores, so the suite is split across four of them. Each shard builds the app itself,
+  # which is quicker than waiting for a separate build job.
   e2e:
-    name: Browser end-to-end tests
+    name: Browser end-to-end tests (${{ matrix.shard }}/${{ strategy.job-total }})
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
 
-    services:
-      postgres:
-        image: postgres:17-alpine
-        env:
-          POSTGRES_USER: grasp
-          POSTGRES_PASSWORD: grasp
-          POSTGRES_DB: grasp_e2e
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U grasp"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
 
     env:
       DATABASE_URL: postgresql://grasp:grasp@localhost:5432/grasp_e2e
@@ -99,52 +77,84 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v7
+      - uses: ./.github/actions/start-postgres
         with:
-          node-version-file: .nvmrc
-          cache: npm
+          database: grasp_e2e
 
-      - name: Install
-        run: npm ci
+      - uses: ./.github/actions/setup
+
+      - name: Read the Playwright version
+        id: playwright
+        run: echo "version=$(node -p "require('playwright-core/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.version }}
+
+      # Only the headless shell, since the tests run headless. No --with-deps: the runner image already has
+      # Chromium's libraries (it ships Google Chrome), the app brings its own fonts, and the apt run took
+      # 15-30 s a shard.
+      - name: Install Chromium
+        run: npx -w @grasp/e2e playwright install --only-shell chromium
 
       - name: Build
         run: npm run build
 
-      - name: Install Chromium
-        run: npx -w @grasp/e2e playwright install --with-deps chromium
+      - name: Upload web build
+        if: matrix.shard == 1
+        uses: actions/upload-artifact@v7
+        with:
+          name: web
+          path: apps/app/dist/app/browser
+          retention-days: 7
 
-      - name: Run every learner flow on desktop and phone
-        run: npm run e2e
+      - uses: ./.github/actions/wait-for-postgres
 
-      - name: Upload the report
+      - name: Run the learner flows on desktop and phone
+        run: npm run e2e -- --shard=${{ matrix.shard }}/${{ strategy.job-total }} --workers=100% --reporter=github,blob
+
+      - name: Upload the blob report
         if: failure()
         uses: actions/upload-artifact@v7
         with:
+          name: blob-report-${{ matrix.shard }}
+          path: e2e/blob-report
+          retention-days: 1
+
+  # One HTML report for every failed shard, with traces and screenshots.
+  e2e-report:
+    name: Browser test report
+    needs: e2e
+    if: failure()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/setup
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: blob-report-*
+          path: e2e/all-blob-reports
+          merge-multiple: true
+
+      - name: Merge the shard reports
+        run: npx -w @grasp/e2e playwright merge-reports --reporter html all-blob-reports
+
+      - name: Upload the report
+        uses: actions/upload-artifact@v7
+        with:
           name: playwright-report
-          path: |
-            e2e/playwright-report
-            e2e/test-results
+          path: e2e/playwright-report
           retention-days: 7
 
   image:
     name: Docker image smoke test
     runs-on: ubuntu-latest
     timeout-minutes: 20
-
-    services:
-      postgres:
-        image: postgres:17-alpine
-        env:
-          POSTGRES_USER: grasp
-          POSTGRES_PASSWORD: grasp
-          POSTGRES_DB: grasp
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U grasp"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
 
     env:
       DATABASE_URL: postgresql://grasp:grasp@localhost:5432/grasp
@@ -153,8 +163,14 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - uses: ./.github/actions/start-postgres
+        with:
+          database: grasp
+
       - name: Build image
         run: docker build --build-arg RELEASE="${GITHUB_SHA::7}" -t grasp:ci .
+
+      - uses: ./.github/actions/wait-for-postgres
 
       - name: Run migrations the way the release step does
         run: docker run --rm --network host -e DATABASE_URL grasp:ci node apps/api/dist/migrate.js
@@ -182,21 +198,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
-    services:
-      postgres:
-        image: postgres:17-alpine
-        env:
-          POSTGRES_USER: grasp
-          POSTGRES_PASSWORD: grasp
-          POSTGRES_DB: grasp
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U grasp"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-
     env:
       VERCEL_CLI: vercel@59.26.0
       VERCEL_TELEMETRY_DISABLED: '1'
@@ -207,6 +208,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/start-postgres
+        with:
+          database: grasp
 
       - uses: actions/setup-node@v7
         with:
@@ -219,6 +224,8 @@ jobs:
           mkdir -p .vercel
           echo '{"projectId":"prj_ci","orgId":"team_ci","settings":{"framework":null}}' > .vercel/project.json
           npx --yes "$VERCEL_CLI" build --prod --yes
+
+      - uses: ./.github/actions/wait-for-postgres
 
       - name: Migrate the test database
         run: node apps/api/dist/migrate.js
