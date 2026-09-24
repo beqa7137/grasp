@@ -1,15 +1,7 @@
-import { randInt } from '../algorithms/input.js';
+import { randInt, shuffle } from '../algorithms/input.js';
 import type { Args, CodingProblem } from './types.js';
 
 const ints = (rand: () => number, n: number, lo: number, hi: number) => Array.from({ length: n }, () => randInt(rand, lo, hi));
-const shuffle = <T>(rand: () => number, items: T[]) => {
-  const a = [...items];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = randInt(rand, 0, i);
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-};
 const distinctSorted = (rand: () => number, n: number, lo: number, hi: number) => {
   const set = new Set<number>();
   while (set.size < n) set.add(randInt(rand, lo, hi));

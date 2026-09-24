@@ -1,5 +1,6 @@
 import { InputError } from './types.js';
-import { asNumbers, randInt } from './input.js';
+import { rotatedChoices } from './choices.js';
+import { asNumbers, randInt, shuffle } from './input.js';
 import type { AlgorithmDef, Frame, NodeState, Prediction, TreeLegend, TreeView } from './types.js';
 
 type Order = 'preorder' | 'inorder' | 'postorder';
@@ -27,8 +28,9 @@ interface Turn {
 
 const ORDERS: Order[] = ['preorder', 'inorder', 'postorder'];
 const MAX_NODES = 9;
+const VALUE_POOL = Array.from({ length: 40 }, (_, i) => i + 1);
 const EMPTY = '·';
-const LEGEND: TreeLegend = { active: 'running', frontier: 'on the call stack', done: 'returned' };
+const LEGEND: TreeLegend = { active: 'running', frontier: 'on the call stack', done: 'returned', idle: 'not visited yet' };
 
 function asOrder(value: unknown): Order {
   const name = `${String(value ?? '')
@@ -60,14 +62,6 @@ function walk(node: TreeNode | null, order: Order, out: number[] = []): number[]
 const label = (node: TreeNode | null) => (node ? String(node.val) : 'null');
 const nodeId = (node: TreeNode | null, parentId: string, side: Side) => (node ? `n${node.val}` : `${parentId}.${side}`);
 
-function choicesFor(answer: number, distractors: number[], shift: number): Pick<Prediction, 'choices' | 'answer'> | null {
-  const options = [answer, ...distractors.filter((d, i) => d !== answer && distractors.indexOf(d) === i)].slice(0, 4).map(String);
-  if (options.length < 2) return null;
-  const start = shift % options.length;
-  const choices = [...options.slice(start), ...options.slice(0, start)];
-  return { choices, answer: choices.indexOf(String(answer)) };
-}
-
 export const treeTraversal: AlgorithmDef<Input> = {
   id: 'tree-traversal',
   title: 'Tree DFS: Preorder, Inorder, Postorder',
@@ -98,10 +92,8 @@ export const treeTraversal: AlgorithmDef<Input> = {
   defaultInput: { values: [5, 2, 8, 1, 4, 9, 3], order: 'inorder' },
 
   randomInput(rand = Math.random) {
-    const pool = Array.from({ length: 40 }, (_, i) => i + 1);
-    const values: number[] = [];
     const count = randInt(rand, 5, 8);
-    while (values.length < count) values.push(pool.splice(randInt(rand, 0, pool.length - 1), 1)[0]);
+    const values = shuffle(rand, VALUE_POOL).slice(0, count);
     return { values, order: ORDERS[randInt(rand, 0, ORDERS.length - 1)] };
   },
 
@@ -121,12 +113,12 @@ export const treeTraversal: AlgorithmDef<Input> = {
     const entryOrder = walk(root, 'preorder');
     const orderName = order[0].toUpperCase() + order.slice(1);
     const out: number[] = [];
-    const entered: number[] = [];
     const stack: Call[] = [];
     const returned = new Set<string>();
+    let enteredCount = 0;
     let asked = 0;
-    let preferVisit = false;
-    // Sizes of out and entered at the last question of each kind: until they grow, asking again repeats the same answer.
+    let lastKind: QuestionKind | null = null;
+    // out.length and enteredCount at the last question of each kind: until they grow, asking again repeats the same answer.
     const askedAt: Record<QuestionKind, number> = { append: -1, visit: -1 };
 
     const stateOf = (id: string): NodeState => {
@@ -180,6 +172,11 @@ export const treeTraversal: AlgorithmDef<Input> = {
       return null;
     };
 
+    const optionsFor = (answer: number, distractors: number[]) => {
+      const options = rotatedChoices(String(answer), distractors.map(String), asked + values.length);
+      return options.choices.length > 1 ? options : null;
+    };
+
     const appendReason = (x: TreeNode, answer: number, turn: Turn | null): string => {
       const waiting = stack.slice(0, -1).find((c) => c.node?.val === answer)?.node;
       if (waiting && order === 'inorder') {
@@ -195,14 +192,13 @@ export const treeTraversal: AlgorithmDef<Input> = {
         : `Returning unwinds to dfs(${at.val}), which now goes right into the subtree of ${right.val}. Postorder appends nothing there until a call has finished both subtrees, and ${answer} is the first to do so.`;
     };
 
-    const appendQuestion = (x: TreeNode, caller: TreeNode): Prediction | null => {
+    const appendQuestion = (x: TreeNode, caller: TreeNode, turn: Turn | null): Prediction | null => {
       if (out.length === askedAt.append || out.length === sequence.length) return null;
       const answer = sequence[out.length];
-      const turn = pendingTurn();
       const distractors = [caller.val, ...(turn ? [turn.right.val] : []), ...sequence.slice(out.length + 1)].filter(
         (v) => !out.includes(v),
       );
-      const options = choicesFor(answer, distractors, asked + values.length);
+      const options = optionsFor(answer, distractors);
       if (!options) return null;
       askedAt.append = out.length;
       return {
@@ -212,17 +208,12 @@ export const treeTraversal: AlgorithmDef<Input> = {
       };
     };
 
-    const visitQuestion = (x: TreeNode, caller: TreeNode): Prediction | null => {
-      const turn = pendingTurn();
-      if (!turn || entered.length === askedAt.visit) return null;
+    const visitQuestion = (x: TreeNode, caller: TreeNode, turn: Turn | null): Prediction | null => {
+      if (!turn || enteredCount === askedAt.visit) return null;
       const answer = turn.right.val;
-      const options = choicesFor(
-        answer,
-        entryOrder.filter((v) => !entered.includes(v)),
-        asked + values.length,
-      );
+      const options = optionsFor(answer, entryOrder.slice(enteredCount));
       if (!options) return null;
-      askedAt.visit = entered.length;
+      askedAt.visit = enteredCount;
       return {
         prompt: `${orderName}. dfs(${x.val}) is about to return to dfs(${caller.val}). Which node will dfs enter next for the first time?`,
         ...options,
@@ -232,12 +223,13 @@ export const treeTraversal: AlgorithmDef<Input> = {
 
     const returnQuestion = (x: TreeNode, caller: TreeNode | null): Partial<Frame> => {
       if (!caller) return {};
+      const turn = pendingTurn();
       // Preorder appends on entry, so "next new node" and "next appended value" would be the same question.
-      const kinds: QuestionKind[] = order === 'preorder' ? ['append'] : preferVisit ? ['visit', 'append'] : ['append', 'visit'];
+      const kinds: QuestionKind[] = order === 'preorder' ? ['append'] : lastKind === 'append' ? ['visit', 'append'] : ['append', 'visit'];
       for (const kind of kinds) {
-        const predict = kind === 'append' ? appendQuestion(x, caller) : visitQuestion(x, caller);
+        const predict = kind === 'append' ? appendQuestion(x, caller, turn) : visitQuestion(x, caller, turn);
         if (!predict) continue;
-        preferVisit = kind === 'append';
+        lastKind = kind;
         asked++;
         return { predict };
       }
@@ -246,7 +238,7 @@ export const treeTraversal: AlgorithmDef<Input> = {
 
     const firstQuestion = (): Partial<Frame> => {
       const answer = sequence[0];
-      const options = choicesFor(answer, [...ORDERS.map((o) => walk(root, o)[0]), ...entryOrder], asked + values.length);
+      const options = optionsFor(answer, [...ORDERS.map((o) => walk(root, o)[0]), ...entryOrder]);
       if (!options) return {};
       askedAt.append = 0;
       asked++;
@@ -273,7 +265,7 @@ export const treeTraversal: AlgorithmDef<Input> = {
         return;
       }
       const v = node.val;
-      entered.push(v);
+      enteredCount++;
       snap(4, `dfs(${v}): the node is not null, so the call goes on.`);
       if (order === 'preorder') {
         out.push(v);

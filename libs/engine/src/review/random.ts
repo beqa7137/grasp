@@ -1,4 +1,6 @@
-import { mulberry32 } from '../algorithms/input.js';
+import { mulberry32, shuffle } from '../algorithms/input.js';
+
+export { shuffle };
 
 export type Rand = () => number;
 
@@ -10,15 +12,6 @@ export function newSeed(): number {
 
 export function pick<T>(rand: Rand, items: readonly T[]): T {
   return items[Math.floor(rand() * items.length)];
-}
-
-export function shuffle<T>(rand: Rand, items: readonly T[]): T[] {
-  const out = [...items];
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(rand() * (i + 1));
-    [out[i], out[j]] = [out[j], out[i]];
-  }
-  return out;
 }
 
 /** Shuffles the correct answer in with distractors, de-duplicating, and reports where it landed. */

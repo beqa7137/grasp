@@ -4,14 +4,14 @@ const MAX_ARRAY = 24;
 const MAX_TEXT = 24;
 const MAX_GRID = 12;
 
-export function asNumbers(value: unknown, key: string, { sorted = false, min = -999, max = 999 } = {}): number[] {
+export function asNumbers(value: unknown, key: string, { sorted = false, minValue = -999, maxValue = 999 } = {}): number[] {
   const arr = Array.isArray(value) ? value : typeof value === 'string' ? splitList(value) : null;
   if (!arr) throw new InputError(`${key} must be a list of numbers`);
   const nums = arr.map((v) => Number(v));
   if (nums.length === 0) throw new InputError(`${key} must not be empty`);
   if (nums.length > MAX_ARRAY) throw new InputError(`${key} can hold at most ${MAX_ARRAY} numbers`);
-  if (nums.some((n) => !Number.isInteger(n) || n < min || n > max)) {
-    throw new InputError(`${key} must contain integers between ${min} and ${max}`);
+  if (nums.some((n) => !Number.isInteger(n) || n < minValue || n > maxValue)) {
+    throw new InputError(`${key} must contain integers between ${minValue} and ${maxValue}`);
   }
   return sorted ? [...nums].sort((a, b) => a - b) : nums;
 }
@@ -169,11 +169,12 @@ export function randInt(rand: () => number, min: number, max: number): number {
   return min + Math.floor(rand() * (max - min + 1));
 }
 
-/** Shuffles `items` in place (Fisher–Yates) and returns it. */
-export function shuffle<T>(rand: () => number, items: T[]): T[] {
-  for (let k = items.length - 1; k > 0; k--) {
+/** A shuffled copy of `items` (Fisher–Yates); `items` itself is left alone. */
+export function shuffle<T>(rand: () => number, items: readonly T[]): T[] {
+  const out = [...items];
+  for (let k = out.length - 1; k > 0; k--) {
     const j = randInt(rand, 0, k);
-    [items[k], items[j]] = [items[j], items[k]];
+    [out[k], out[j]] = [out[j], out[k]];
   }
-  return items;
+  return out;
 }
