@@ -47,7 +47,7 @@ Everything runs from GitHub Actions; no local Vercel or Neon tooling is needed.
 Vercel's own Git deployments are off (`git.deploymentEnabled: false` in `vercel.json`), so nothing reaches production without CI. `.github/workflows/deploy.yml` runs after CI passes on a push to `main`, or by hand:
 
 1. Link the project and pull its production settings.
-2. `vercel build --prod`: the same build CI smoke-tests (`vercel` job in `ci.yml`, which builds with a placeholder project link, then serves the built function against Postgres and checks pages, CSP, config, JSON bodies and streaming).
+2. `vercel build --prod`: the same build CI smoke-tests (`vercel` job in `ci.yml`, which builds with a placeholder project link, then runs the built function as Vercel does (outside the repo, unable to `require()` ES modules) against Postgres and checks pages, CSP, config, JSON bodies and streaming).
 3. Migrate the database with `DATABASE_URL_UNPOOLED` (or `DATABASE_URL`).
 4. `vercel deploy --prebuilt --prod`, tagged with the commit's short SHA as `RELEASE`.
 5. If `PUBLIC_URL` is set, wait until `/api/health` reports the new release, then check readiness, a deep link, `/config.json` and the Python runtime.

@@ -171,4 +171,4 @@ jobs:
         run: node apps/api/dist/migrate.js
 
       - name: Smoke-test the function and the static output
-        run: node scripts/smoke-vercel-output.mjs
+        run: node --no-experimental-require-module scripts/smoke-vercel-output.mjs

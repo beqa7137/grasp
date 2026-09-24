@@ -1,10 +1,19 @@
 // Checks a `vercel build` output before it is deployed: the build settings Vercel will run with, the
 // static output, and the function itself, served locally as plain Node against a real database.
-// Needs DATABASE_URL (migrated) and JWT_SECRET; run from the repo root after `vercel build --prod`.
+// Needs DATABASE_URL (migrated) and JWT_SECRET; run from the repo root after `vercel build --prod`, with
+// `node --no-experimental-require-module`: Vercel's runtime cannot require() ES modules.
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { randomUUID } from 'node:crypto';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+if (process.features.require_module) {
+  console.error('Run with node --no-experimental-require-module, as Vercel runs the function.');
+  process.exit(1);
+}
 
 const output = new URL('../.vercel/output/', import.meta.url);
 const fn = new URL('functions/api/index.func/', output);
@@ -34,11 +43,17 @@ await check('CDN output has the app but not the page shell or the development co
   assert.ok(!existsSync(new URL('config.json', statics)), 'config.json must come from the function');
 });
 
-// Vercel ships includeFiles by path (filePathMap), not inside the function folder, so point at the project copy.
-process.env.WEB_DIST_DIR = new URL('../apps/app/dist/app/server', import.meta.url).pathname;
+// Assemble the function the way Vercel does, outside the repo so nothing resolves from its node_modules:
+// the traced files, plus the files it ships by path (filePathMap), such as the page shell and workspace links.
+const task = mkdtempSync(join(tmpdir(), 'grasp-function-'));
+cpSync(fileURLToPath(fn), task, { recursive: true, verbatimSymlinks: true });
+const { filePathMap = {} } = JSON.parse(readFileSync(new URL('.vc-config.json', fn), 'utf8'));
+for (const [target, source] of Object.entries(filePathMap)) {
+  cpSync(fileURLToPath(new URL(`../${source}`, import.meta.url)), join(task, target), { recursive: true, verbatimSymlinks: true });
+}
 process.env.NODE_ENV = 'production';
 process.env.LOG_LEVEL ??= 'error';
-const { default: handler } = await import(new URL('api/index.js', fn).href);
+const { default: handler } = await import(pathToFileURL(join(task, 'api/index.js')).href);
 const server = createServer((req, res) => void handler(req, res));
 await new Promise((resolve) => server.listen(0, resolve));
 const base = `http://localhost:${server.address().port}`;
@@ -94,5 +109,6 @@ await check('streams interview replies as server-sent events', async () => {
 });
 
 server.close();
+rmSync(task, { recursive: true, force: true });
 console.log(checks.join('\n'));
 process.exit(checks.some((c) => c.startsWith('FAIL')) ? 1 : 0);

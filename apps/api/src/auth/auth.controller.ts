@@ -1,8 +1,8 @@
 import { Body, Controller, Get, HttpCode, Post, Req, UnauthorizedException } from '@nestjs/common';
-import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
 import { z } from 'zod';
 import { UserId } from '../common/learner-id.decorator.js';
+import { RateLimit } from '../common/rate-limit.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { AuthService } from './auth.service.js';
 import { SkipIdentity } from './identity.guard.js';
@@ -28,7 +28,7 @@ export class AuthController {
   @Post('email/start')
   @HttpCode(202)
   @SkipIdentity()
-  @Throttle({ default: { limit: 5, ttl: QUARTER_HOUR } })
+  @RateLimit({ limit: 5, windowMs: QUARTER_HOUR })
   async start(@Body(new ZodValidationPipe(startSchema)) body: z.infer<typeof startSchema>) {
     await this.auth.startEmail(body.email);
     return { sent: true };
@@ -38,7 +38,7 @@ export class AuthController {
   @Post('email/verify')
   @HttpCode(200)
   @SkipIdentity()
-  @Throttle({ default: { limit: 10, ttl: QUARTER_HOUR } })
+  @RateLimit({ limit: 10, windowMs: QUARTER_HOUR })
   verify(@Body(new ZodValidationPipe(verifySchema)) body: z.infer<typeof verifySchema>, @Req() req: Request) {
     const device = req.header('x-learner-id');
     return this.auth.verifyEmail(body.email, body.code, device && UUID.test(device) ? device.toLowerCase() : null);
@@ -47,7 +47,7 @@ export class AuthController {
   @Post('refresh')
   @HttpCode(200)
   @SkipIdentity()
-  @Throttle({ default: { limit: 30, ttl: QUARTER_HOUR } })
+  @RateLimit({ limit: 30, windowMs: QUARTER_HOUR })
   refresh(@Body(new ZodValidationPipe(tokenSchema)) body: z.infer<typeof tokenSchema>) {
     return this.auth.refresh(body.refreshToken);
   }

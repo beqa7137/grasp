@@ -1,8 +1,8 @@
 import { Body, Controller, Post } from '@nestjs/common';
-import { Throttle } from '@nestjs/throttler';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { LearnerId } from '../common/learner-id.decorator.js';
+import { RateLimit } from '../common/rate-limit.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { FeedbackStore } from '../persistence/stores.js';
 import { FEEDBACK_KINDS } from './feedback.types.js';
@@ -23,7 +23,7 @@ export class FeedbackController {
   constructor(private readonly store: FeedbackStore) {}
 
   @Post()
-  @Throttle({ default: { limit: 20, ttl: 3_600_000 } })
+  @RateLimit({ limit: 20, windowMs: 3_600_000 })
   async submit(@LearnerId() learnerId: string, @Body(new ZodValidationPipe(feedbackSchema)) body: z.infer<typeof feedbackSchema>) {
     const entry = { id: randomUUID(), learnerId, createdAt: new Date().toISOString(), ...body };
     await this.store.add(entry);

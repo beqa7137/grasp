@@ -28,9 +28,10 @@ Grasp is a NestJS API plus a static Angular web app, with a 14 MB Python runtime
 
 ## Consequences
 
-- Every request writes its rate-limit counter to Postgres. That costs one round trip, measured at about 1 ms locally. The throttler fails open if the database is down, and the spend guard fails closed.
+- Every request writes its rate-limit counter to Postgres. That costs one round trip, measured at about 1 ms locally. The rate limiter fails open if the database is down, and the spend guard fails closed.
 - Serverless instances come and go, so the pool is attached with `attachDatabasePool` and the connection goes through Neon's pooler.
 - `vercel.json` repeats the asset caching and header policy that `asset-policy.ts` defines for the Docker server. `vercel-config.spec.ts` compiles `vercel.json` with Vercel's routing library and fails if the two drift apart.
+- Vercel's Node runtime cannot `require()` ES modules, which Node itself can. Nest 12 is ESM-only, so no CommonJS package may `require()` it. `@nestjs/throttler` did, so rate limiting is now a small guard of our own (`common/rate-limit.ts`) on the same coordination store. The CI smoke test runs the function the way Vercel does, outside the repo and with `--no-experimental-require-module`, so a dependency like that fails CI instead of production.
 - The function is built with `NODEJS_HELPERS=0` so that Vercel's request helpers don't shadow Express's own methods. The CI smoke test checks this setting.
 - Interview scoring must finish within the function's 300-second limit.
 - Migrations run before the new code takes traffic, so each one must stay compatible with the release still running.
