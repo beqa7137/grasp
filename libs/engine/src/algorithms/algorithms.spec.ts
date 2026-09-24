@@ -5,19 +5,6 @@ import { formatField, mulberry32, parseField } from './input.js';
 import { InputError, type Frame } from './types.js';
 
 const EM_DASH = '\u2014';
-// Tracers written before the no-em-dash rule. The check below fails once one is cleaned up, so the set stays exact.
-const LEGACY_EM_DASH = new Set([
-  'binary-search',
-  'pair-sum-sorted',
-  'longest-unique-substring',
-  'next-greater-element',
-  'grid-bfs',
-  'kth-largest',
-  'lcs',
-  'union-find',
-  'topo-sort',
-  'dijkstra',
-]);
 // A walled-off goal, a cycle with no free node or an isolated source can end these before there is anything to predict.
 const MAY_ASK_NOTHING = new Set(['grid-bfs', 'topo-sort', 'dijkstra']);
 // A code span never wraps, so a longer one would overflow a phone-width line.
@@ -278,12 +265,12 @@ describe.each(ALGORITHMS.map((a) => [a.id, a] as const))('%s', (id, algo) => {
     }
   });
 
-  it(LEGACY_EM_DASH.has(id) ? 'still shows a legacy em dash' : 'never shows an em dash', () => {
+  it('never shows an em dash', () => {
     const rand = mulberry32(id.length);
     const traces = [algo.defaultInput, ...Array.from({ length: 20 }, () => algo.randomInput(rand))].map((input) =>
       algo.trace(algo.validate(input)),
     );
-    expect(JSON.stringify([algo, traces]).includes(EM_DASH)).toBe(LEGACY_EM_DASH.has(id));
+    expect(JSON.stringify([algo, traces])).not.toContain(EM_DASH);
   });
 
   it('emits frames that survive a JSON round-trip', () => {

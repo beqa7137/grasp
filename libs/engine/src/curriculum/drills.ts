@@ -19,7 +19,7 @@ export const DRILL_CARDS: DrillCard[] = [
     'h1',
     'hashing',
     'Given a list of transaction amounts and a target refund, return two transactions that add up exactly to the refund. The list is unsorted.',
-    'Unsorted + "pair that complements" → store each value and look up target − x in O(1).',
+    'Unsorted + "pair that complements" → store each value and look up `target - x` in O(1).',
     ['two-pointers', 'binary-search', 'sliding-window'],
   ),
   card(
@@ -114,7 +114,7 @@ export const DRILL_CARDS: DrillCard[] = [
     'ps2',
     'prefix-sum',
     'Count the number of contiguous subarrays whose sum equals K. The array contains negative numbers.',
-    'Negatives break sliding windows. Count prefix sums in a map: how many earlier prefixes equal current − K?',
+    'Negatives break sliding windows. Count prefix sums in a map: how many earlier prefixes equal `current - K`?',
     ['sliding-window', 'two-pointers', 'dp-1d'],
   ),
 
@@ -329,7 +329,7 @@ export const DRILL_CARDS: DrillCard[] = [
     'd1c',
     'dp-1d',
     'Decide whether a string can be split into words from a dictionary.',
-    'ok[i] = some j < i where ok[j] and s[j..i) is a word.',
+    '`ok[i]` = some `j < i` where `ok[j]` and `s[j..i)` is a word.',
     ['trie', 'dfs-backtracking', 'two-pointers'],
   ),
 
@@ -337,7 +337,7 @@ export const DRILL_CARDS: DrillCard[] = [
     'd2a',
     'dp-2d',
     'Compute the minimum number of single-character edits to turn one word into another.',
-    'Two strings → dp[i][j] over prefixes of both.',
+    'Two strings → `dp[i][j]` over prefixes of both.',
     ['two-pointers', 'bfs', 'greedy'],
   ),
   card(
@@ -359,7 +359,7 @@ export const DRILL_CARDS: DrillCard[] = [
     'g2',
     'greedy',
     'Gas stations sit on a circular route. Find the starting station from which you can complete the loop, if any.',
-    'If the tank goes negative, no station in that stretch can be the start — jump past it.',
+    'If the tank goes negative, no station in that stretch can be the start, so jump past it.',
     ['dp-1d', 'prefix-sum', 'two-pointers'],
   ),
 
@@ -367,10 +367,10 @@ export const DRILL_CARDS: DrillCard[] = [
     'bm1',
     'bit-manipulation',
     'Every ID in a list appears exactly twice except one. Find it in O(n) time and O(1) space.',
-    'x ^ x = 0 → XOR everything.',
+    '`x ^ x = 0` → XOR everything.',
     ['hashing', 'fast-slow', 'binary-search'],
   ),
-  card('bm2', 'bit-manipulation', 'For every number from 0 to n, return how many 1-bits it has.', 'bits[i] = bits[i >> 1] + (i & 1).', [
+  card('bm2', 'bit-manipulation', 'For every number from 0 to n, return how many 1-bits it has.', '`bits[i]` = `bits[i >> 1] + (i & 1)`.', [
     'dp-2d',
     'hashing',
     'greedy',

@@ -28,7 +28,7 @@ describe('jump-game', () => {
   });
 
   it('offers the Math.max traps as distractors when reach should not shrink', () => {
-    const shrink = predictions(traceOf(jumpGame.defaultInput)).find((p) => p.prompt.startsWith('i = 2,'))!;
+    const shrink = predictions(traceOf(jumpGame.defaultInput)).find((p) => p.prompt.startsWith('`i = 2`,'))!;
     expect(shrink.choices[shrink.answer]).toBe('4');
     expect([...shrink.choices].sort()).toEqual(['3', '4', '5']);
   });

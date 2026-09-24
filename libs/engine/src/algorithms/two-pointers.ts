@@ -1,9 +1,10 @@
+import { rotatedChoices } from './choices.js';
 import { asNumber, asNumbers, randInt } from './input.js';
 import type { AlgorithmDef, Frame } from './types.js';
 
 type Input = { nums: number[]; target: number };
 
-const CHOICES = ['Found — return [l, r]', 'l++ (need a bigger sum)', 'r-- (need a smaller sum)'];
+const CHOICES = ['Found: return [l, r]', 'l++ (need a bigger sum)', 'r-- (need a smaller sum)'];
 
 export const pairSum: AlgorithmDef<Input> = {
   id: 'pair-sum-sorted',
@@ -48,6 +49,7 @@ export const pairSum: AlgorithmDef<Input> = {
     const frames: Frame[] = [];
     let l = 0;
     let r = nums.length - 1;
+    let asked = 0;
 
     const snap = (line: number, note: string, extra: Partial<Frame> = {}) => {
       const settled = nums.map((_, i) => i).filter((i) => i < l || i > r);
@@ -68,15 +70,19 @@ export const pairSum: AlgorithmDef<Input> = {
       const answer = sum === target ? 0 : sum < target ? 1 : 2;
       snap(5, `Compare sum ${sum} with target ${target}.`, {
         predict: {
-          prompt: `sum = ${sum}, target = ${target}. Which move is safe?`,
-          choices: CHOICES,
-          answer,
+          prompt: `\`sum = ${sum}\`, \`target = ${target}\`. Which move is safe?`,
+          // Counting from 0 alone would always put the first answer first, so the length offsets it between inputs.
+          ...rotatedChoices(
+            CHOICES[answer],
+            CHOICES.filter((_, k) => k !== answer),
+            nums.length + asked++,
+          ),
           explain:
             answer === 0
               ? 'Exact match.'
               : answer === 1
-                ? `Too small. nums[${l}] = ${nums[l]} paired with the largest remaining value still falls short, so it can never be in a valid pair — drop it.`
-                : `Too big. nums[${r}] = ${nums[r]} paired with the smallest remaining value already overshoots, so it can never be in a valid pair — drop it.`,
+                ? `Too small. \`nums[${l}] = ${nums[l]}\` paired with the largest remaining value still falls short, so it can never be in a valid pair: drop it.`
+                : `Too big. \`nums[${r}] = ${nums[r]}\` paired with the smallest remaining value already overshoots, so it can never be in a valid pair: drop it.`,
         },
       });
       if (answer === 0) {
@@ -84,7 +90,7 @@ export const pairSum: AlgorithmDef<Input> = {
         frames.push({
           ...last,
           predict: undefined,
-          note: `Found it: nums[${l}] + nums[${r}] = ${target}. Each step discarded one value, so this took at most n − 1 steps.`,
+          note: `Found it: \`nums[${l}] + nums[${r}]\` = ${target}. Each step discarded one value, so this took at most n − 1 steps.`,
           vars: { ...last.vars, result: `[${l}, ${r}]` },
           array: { ...last.array!, found: [l, r] },
         });
@@ -99,7 +105,7 @@ export const pairSum: AlgorithmDef<Input> = {
       }
     }
 
-    snap(9, 'Pointers met without a match — no pair sums to the target.');
+    snap(9, 'Pointers met without a match: no pair sums to the target.');
     frames[frames.length - 1].vars['result'] = null;
     return frames;
   },

@@ -17,7 +17,10 @@
       @if (s.revisit; as r) {
         <section class="revisit-banner">
           <span class="tag">Revisit {{ r.number }} of {{ r.of }}</span>
-          <p><strong>Conditions changed.</strong> {{ r.twist }} Rebuild from the starter design — from memory, without the hint ladder.</p>
+          <p>
+            <strong>Conditions changed.</strong> {{ r.twist }} Start over from the starter design and rebuild from memory, without the hint
+            ladder.
+          </p>
         </section>
       }
       <section class="metrics">
@@ -27,11 +30,11 @@
           [class.good]="!isFree() && m.p99Ms <= s.goals.maxP99Ms && m.errorRate < 1"
         >
           <span class="label">p99 latency</span>
-          <span class="value">{{ m.errorRate >= 1 ? '—' : (m.p99Ms | number: '1.0-0') }}<small>ms</small></span>
+          <span class="value">{{ m.errorRate >= 1 ? '–' : (m.p99Ms | number: '1.0-0') }}<small>ms</small></span>
         </div>
         <div class="metric">
           <span class="label">p50</span>
-          <span class="value">{{ m.errorRate >= 1 ? '—' : (m.p50Ms | number: '1.0-0') }}<small>ms</small></span>
+          <span class="value">{{ m.errorRate >= 1 ? '–' : (m.p50Ms | number: '1.0-0') }}<small>ms</small></span>
         </div>
         <div
           class="metric"

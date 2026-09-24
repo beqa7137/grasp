@@ -299,7 +299,7 @@ export function masteryByTopic(state: ProgressState, now: Date): TopicMastery[] 
 }
 
 /**
- * Share of reviews of already-learned items (phase 'review') answered correctly — the number FSRS
+ * Share of reviews of already-learned items (phase 'review') answered correctly: the number FSRS
  * steers toward the target retention. Null until there is enough data to mean anything.
  */
 export function trueRetention(state: ProgressState, now: Date, days = 30, minSamples = 10): number | null {

@@ -29,7 +29,7 @@ export const SCENARIOS: Scenario[] = [
     hints: [
       'Tap the App node: how many requests per second can one instance handle?',
       'Stateless servers scale horizontally. Something needs to spread traffic across them.',
-      'Watch the p99 as you add instances — latency explodes as utilization approaches 100%.',
+      'Watch the p99 as you add instances: latency explodes as utilization approaches 100%.',
     ],
     takeaway: 'Horizontal scaling + a load balancer is the first move for a stateless tier. Aim for ≤ 70% utilization so p99 stays flat.',
     variants: [
@@ -117,7 +117,7 @@ export const SCENARIOS: Scenario[] = [
     hints: [
       'You cannot make one primary take 10.5k writes/s. Can you accept orders now and write them a bit later?',
       'A queue acknowledges writes in milliseconds. Workers drain it into the database.',
-      'More workers drain faster — until they overload the database. Find the balance.',
+      'More workers drain faster, until they overload the database. Find the balance.',
     ],
     takeaway:
       'Queues decouple accepting work from doing it. Size consumers to what the slowest downstream dependency can sustain, not to peak inflow.',
@@ -135,7 +135,7 @@ export const SCENARIOS: Scenario[] = [
         },
       },
       {
-        twist: 'Last sale the queue broker died mid-spike. Same load — now with no single point of failure.',
+        twist: 'Last sale the queue broker died mid-spike. Same load, now with no single point of failure.',
         workload: { rps: 15_000, readRatio: 0.3 },
         goals: {
           maxP99Ms: 250,
@@ -217,7 +217,7 @@ export const SCENARIOS: Scenario[] = [
     title: 'The Write Wall',
     tagline: '7,200 messages a second, forever. One primary takes 2,500.',
     brief:
-      'A chat service stores 12,000 RPS, 60% of them new messages — all day, not in a spike. Each write costs the database 2 ops, so one primary tops out near 2,500 writes/s. The messages table is partitioned by created_at. Keep p99 under 200 ms, errors under 0.1%, the queue (if any) keeping up, and spend at most $9,000/month.',
+      'A chat service stores 12,000 RPS, 60% of them new messages (all day, not in a spike). Each write costs the database 2 ops, so one primary tops out near 2,500 writes/s. The messages table is partitioned by created_at. Keep p99 under 200 ms, errors under 0.1%, the queue (if any) keeping up, and spend at most $9,000/month.',
     workload: { rps: 12_000, readRatio: 0.4 },
     goals: { maxP99Ms: 200, maxErrorRate: 0.001, maxMonthlyCost: 9_000, requireDurableWrites: true, noBacklog: true },
     starter: {
@@ -242,7 +242,7 @@ export const SCENARIOS: Scenario[] = [
       'Pick a shard key that spreads writes evenly, then size the shard count for ~70% utilization.',
     ],
     takeaway:
-      'Sustained write load needs more primaries: shard. The shard key decides everything — it must spread writes evenly (hash of a high-cardinality key), or one hot shard caps the whole system.',
+      'Sustained write load needs more primaries: shard. The shard key decides everything. It must spread writes evenly (hash of a high-cardinality key), or one hot shard caps the whole system.',
     variants: [
       {
         twist: 'Read receipts shipped: 16,000 RPS at 45% reads, still sustained. Budget $10,500.',

@@ -5,7 +5,7 @@ import type { AlgorithmDef, EdgeState, Frame, GraphLegend, GraphView, NodeState 
 
 type Input = { n: number; edges: Edge[]; source: number };
 
-const RELAX = ['Yes — a shorter path was found', 'No — keep the current distance'];
+const RELAX = ['Yes: a shorter path was found', 'No: keep the current distance'];
 const LEGEND: GraphLegend = { active: 'current', frontier: 'queued', done: 'done' };
 const fmt = (d: number) => (d === Infinity ? '∞' : String(d));
 
@@ -91,6 +91,7 @@ export const dijkstra: AlgorithmDef<Input> = {
     const settled = new Set<number>();
     let pq: [number, number][] = [];
     let u: number | null = null;
+    let askedSettled = false;
     dist[source] = 0;
 
     const key = (a: number, b: number) => `${Math.min(a, b)}-${Math.max(a, b)}`;
@@ -128,13 +129,15 @@ export const dijkstra: AlgorithmDef<Input> = {
       const [d, next] = pq.shift()!;
       u = next;
       if (d > dist[u]) {
-        snap(6, `Popped ${d}@${u}, but dist[${u}] is already ${dist[u]}: a stale entry left behind by a later improvement. Skip it.`);
+        snap(6, `Popped ${d}@${u}, but \`dist[${u}]\` is already ${dist[u]}: a stale entry left behind by a later improvement. Skip it.`);
         continue;
       }
       settled.add(u);
       snap(5, `Closest unsettled node is ${u} at distance ${d}. No later path can beat it, because every edge weight is non-negative.`);
       for (const [v, w] of adj[u]) {
-        if (settled.has(v)) continue;
+        // A settled neighbour can never improve, so only the first one gets a question and later ones are skipped.
+        if (settled.has(v) && askedSettled) continue;
+        askedSettled ||= settled.has(v);
         const candidate = dist[u] + w;
         const better = candidate < dist[v];
         snap(
@@ -142,12 +145,14 @@ export const dijkstra: AlgorithmDef<Input> = {
           `Edge ${u}–${v} (weight ${w}): via ${u} costs ${dist[u]} + ${w} = ${candidate}.`,
           {
             predict: {
-              prompt: `Going through ${u} reaches ${v} in ${candidate}; dist[${v}] is ${fmt(dist[v])}. Update?`,
+              prompt: `Going through ${u} reaches ${v} in ${candidate}; \`dist[${v}]\` is ${fmt(dist[v])}. Update?`,
               choices: RELAX,
               answer: better ? 0 : 1,
               explain: better
                 ? `${candidate} < ${fmt(dist[v])}: record the shorter distance and push ${v} with its new priority.`
-                : `${candidate} ≥ ${fmt(dist[v])}: the path through ${u} is no shortcut, so nothing changes.`,
+                : settled.has(v)
+                  ? `${candidate} ≥ ${dist[v]}: node ${v} is already settled, and a settled distance never improves because every edge weight is non-negative. From here on, the trace skips edges back to settled nodes: they always fail this check.`
+                  : `${candidate} ≥ ${fmt(dist[v])}: the path through ${u} is no shortcut, so nothing changes.`,
             },
           },
           key(u, v),
@@ -156,7 +161,7 @@ export const dijkstra: AlgorithmDef<Input> = {
         dist[v] = candidate;
         via[v] = u;
         pq.push([candidate, v]);
-        snap(10, `dist[${v}] = ${candidate}; push ${candidate}@${v}.`, {}, key(u, v));
+        snap(10, `\`dist[${v}] = ${candidate}\`; push ${candidate}@${v}.`, {}, key(u, v));
       }
     }
 

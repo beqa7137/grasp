@@ -72,7 +72,7 @@ export const PATTERNS: Pattern[] = [
     name: 'Binary Search',
     track: 'foundations',
     order: 4,
-    oneLiner: 'Any monotonic yes/no question can be answered in O(log n) — including "is the answer ≤ x?".',
+    oneLiner: 'Any monotonic yes/no question can be answered in O(log n), including "is the answer at most x?"',
     cues: ['Sorted input', '"Minimum capacity / speed / days such that…"', 'Rotated sorted array', 'Answer space is large but checkable'],
     template: [
       'let lo = min, hi = max;',
@@ -112,7 +112,7 @@ export const PATTERNS: Pattern[] = [
       '  stack.push(i);',
       '}',
     ],
-    complexity: 'O(n) — each index pushed and popped once',
+    complexity: 'O(n): each index pushed and popped once',
     pitfalls: ['Storing values when you need indices', 'Strict vs non-strict comparison with duplicates'],
     algorithmIds: ['next-greater-element'],
   },
@@ -327,7 +327,7 @@ export const PATTERNS: Pattern[] = [
     name: 'Greedy',
     track: 'advanced',
     order: 19,
-    oneLiner: 'Take the locally best choice — only when you can argue it never hurts later.',
+    oneLiner: 'Take the locally best choice, but only when you can argue it never hurts later.',
     cues: [
       'Can you reach the end? (jump game)',
       'Gas station circuit',

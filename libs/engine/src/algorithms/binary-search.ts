@@ -3,7 +3,7 @@ import type { AlgorithmDef, Frame } from './types.js';
 
 type Input = { nums: number[]; target: number };
 
-const CHOICES = ['Found it — return mid', 'Go right: lo = mid + 1', 'Go left: hi = mid − 1'];
+const CHOICES = ['Found it: return mid', 'Go right: lo = mid + 1', 'Go left: hi = mid − 1'];
 
 function range(from: number, to: number): number[] {
   const out: number[] = [];
@@ -86,15 +86,15 @@ export const binarySearch: AlgorithmDef<Input> = {
       const answer = nums[mid] === target ? 0 : nums[mid] < target ? 1 : 2;
       snap(
         5,
-        `Compare nums[mid] = ${nums[mid]} with target ${target}.`,
+        `Compare \`nums[mid] = ${nums[mid]}\` with target ${target}.`,
         {
           predict: {
-            prompt: `nums[mid] = ${nums[mid]}, target = ${target}. What happens next?`,
+            prompt: `\`nums[mid] = ${nums[mid]}\`, \`target = ${target}\`. What happens next?`,
             choices: CHOICES,
             answer,
             explain:
               answer === 0
-                ? 'Equal values — the search is over.'
+                ? 'Equal values: the search is over.'
                 : answer === 1
                   ? `${nums[mid]} < ${target}. Since the array is sorted, everything at or left of mid is too small, so discard it.`
                   : `${nums[mid]} > ${target}. Everything at or right of mid is too big, so discard it.`,
@@ -123,7 +123,7 @@ export const binarySearch: AlgorithmDef<Input> = {
       }
     }
 
-    snap(9, `lo (${lo}) passed hi (${hi}). ${target} is not in the array — return -1.`);
+    snap(9, `lo (${lo}) passed hi (${hi}). ${target} is not in the array: return -1.`);
     frames[frames.length - 1].vars['result'] = -1;
     return frames;
   },

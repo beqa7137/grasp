@@ -8,13 +8,13 @@ interface Stage {
 }
 
 const OFFLINE_SUMMARY =
-  'Offline heuristic scoring (no ANTHROPIC_API_KEY configured). It checks which rubric areas you covered, not whether your answers were right — add an API key for a real evaluation.';
+  'Offline heuristic scoring (no ANTHROPIC_API_KEY configured). It checks which rubric areas you covered, not whether your answers were right. Add an API key for a real evaluation.';
 
 const WRAP_UP = 'Thanks, that is time. Hit "End & score" whenever you are ready.';
 
 const CODING_STAGES: Stage[] = [
   {
-    ask: 'Good. Before we go further — what input sizes and edge cases would you want to confirm with me?',
+    ask: 'Good. Before we go further, what input sizes and edge cases would you want to confirm with me?',
     skipIf: /constraint|input size|how large|empty|clarif|assum/i,
   },
   {

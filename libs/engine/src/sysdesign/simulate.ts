@@ -716,7 +716,7 @@ function overloadAdvice(kind: ComponentKind, st: NodeStats): string {
         : 'Writes dominate. You cannot replicate your way out of write load: buffer short spikes through a queue, and shard the data (add instances) for sustained write load.';
     }
     case 'replica':
-      return 'Add more replicas — but remember each replica also replays every write.';
+      return 'Add more replicas, but remember each replica also replays every write.';
     case 'cache':
       return 'Add cache nodes (sharded by key) or raise the hit rate with longer TTLs.';
     case 'lb':

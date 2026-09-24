@@ -20,7 +20,7 @@ export const SD_TOPICS: SdTopic[] = [
   {
     id: 'sd-replication',
     name: 'Replication & Databases',
-    oneLiner: "What replicas fix — and what they don't.",
+    oneLiner: "What replicas fix, and what they don't.",
     scenarioIds: ['viral-feed'],
   },
   { id: 'sd-queues', name: 'Queues & Async Work', oneLiner: 'Absorbing spikes and sizing consumers.', scenarioIds: ['flash-sale'] },

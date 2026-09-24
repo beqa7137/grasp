@@ -40,7 +40,7 @@ export type SyncStatus = 'idle' | 'syncing' | 'synced' | 'offline';
 
 /**
  * Local-first learning progress. Every action is an immutable event applied locally and pushed to
- * the API in the background; state is always `replay(events)` — the same reducer the server runs.
+ * the API in the background; state is always `replay(events)`, the same reducer the server runs.
  */
 @Injectable({ providedIn: 'root' })
 export class ProgressService {

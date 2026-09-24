@@ -1,3 +1,4 @@
+import { rotatedChoices } from './choices.js';
 import { asGrid, randInt } from './input.js';
 import type { AlgorithmDef, CellState, Frame } from './types.js';
 
@@ -114,23 +115,21 @@ export const gridBfs: AlgorithmDef<Input> = {
     snap(2, `Start at ${label(start)} with distance 0. The queue is the frontier of cells we have discovered but not expanded.`);
 
     let dequeues = 0;
+    let asked = 0;
     while (queue.length) {
       let predict: Frame['predict'];
       if (queue.length >= 2 && dequeues % 3 === 1) {
         const front = queue[0];
         const back = queue[queue.length - 1];
         const middle = queue[Math.floor(queue.length / 2)];
-        const options = [front, back, middle].filter((c, i, arr) => arr.findIndex((o) => key(o) === key(c)) === i);
-        const order = options.map((c, i) => ({ c, i, sort: (i * 7 + dequeues) % options.length }));
-        order.sort((a, b) => a.sort - b.sort);
         predict = {
           prompt: `Queue is [${queue.map(label).join(', ')}]. Which cell is expanded next?`,
-          choices: order.map((o) => label(o.c)),
-          answer: order.findIndex((o) => key(o.c) === key(front)),
+          // Every grid asks its first question at the same dequeue, so offsetting by the width moves its answer between inputs.
+          ...rotatedChoices(label(front), [back, middle].map(label), cols + asked++),
           explain: `A queue is FIFO: ${label(front)} was discovered earliest, so it is closest to the start. That ordering is exactly why BFS finds shortest paths.`,
         };
       }
-      if (predict) snap(4, 'The queue is not empty — take the next cell.', { predict });
+      if (predict) snap(4, 'The queue is not empty: take the next cell.', { predict });
 
       current = queue.shift()!;
       dequeues++;
@@ -174,7 +173,7 @@ export const gridBfs: AlgorithmDef<Input> = {
     }
 
     current = null;
-    snap(13, 'The queue emptied without reaching the goal — it is walled off. Return -1.');
+    snap(13, 'The queue emptied without reaching the goal: it is walled off. Return -1.');
     frames[frames.length - 1].vars['result'] = -1;
     return frames;
   },

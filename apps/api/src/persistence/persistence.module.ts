@@ -65,7 +65,7 @@ export class ExpiredRowSweeper implements OnApplicationBootstrap, OnApplicationS
       useFactory: (config: AppConfig) => {
         const log = new Logger('Persistence');
         if (!config.databaseUrl) {
-          log.warn('DATABASE_URL not set — using in-memory stores (data resets on restart).');
+          log.warn('DATABASE_URL not set; using in-memory stores (data resets on restart).');
           return null;
         }
         log.log('Using Postgres.');

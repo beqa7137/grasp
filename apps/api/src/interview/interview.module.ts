@@ -25,7 +25,7 @@ import { SpendGuard } from './spend-guard.js';
       useFactory: (config: AppConfig) => {
         const log = new Logger('Interviewer');
         if (!config.anthropicApiKey) {
-          log.warn('ANTHROPIC_API_KEY not set — using the offline scripted interviewer.');
+          log.warn('ANTHROPIC_API_KEY not set; using the offline scripted interviewer.');
           return new OfflineInterviewer();
         }
         if (!priceFor(config.anthropicModel)) {

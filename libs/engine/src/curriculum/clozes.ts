@@ -11,7 +11,7 @@ export const CLOZES: Record<string, Cloze[]> = {
     {
       line: 3,
       distractors: ['seen.set(need(x), i);', 'seen.set(i, x);', 'seen.clear();'],
-      why: 'Store the value after checking, keyed by value, so a later element can find its partner — and an element never pairs with itself.',
+      why: 'Store the value after checking, keyed by value, so a later element can find its partner, and an element never pairs with itself.',
     },
   ],
   'two-pointers': [
@@ -30,7 +30,7 @@ export const CLOZES: Record<string, Cloze[]> = {
     {
       line: 4,
       distractors: ['best = Math.max(best, right - left);', 'best = right - left + 1;', 'best = Math.max(best, left - right + 1);'],
-      why: 'The window [left, right] is inclusive, so its length is right − left + 1 — and it only counts once the window is valid.',
+      why: 'The window [left, right] is inclusive, so its length is `right - left + 1`, and it only counts once the window is valid.',
     },
   ],
   'binary-search': [
@@ -41,14 +41,14 @@ export const CLOZES: Record<string, Cloze[]> = {
         'if (feasible(mid)) lo = mid; else hi = mid;',
         'if (feasible(mid)) return mid; else lo = mid + 1;',
       ],
-      why: 'Searching for the first feasible value: a feasible mid stays a candidate (hi = mid); an infeasible one is ruled out (lo = mid + 1). Setting lo = mid can loop forever.',
+      why: 'Searching for the first feasible value: a feasible mid stays a candidate (`hi = mid`); an infeasible one is ruled out (`lo = mid + 1`). Setting `lo = mid` can loop forever.',
     },
   ],
   'prefix-sum': [
     {
       line: 2,
       distractors: ['// sum(i..j) = pre[j] - pre[i]', '// sum(i..j) = pre[j] - pre[i - 1]', '// sum(i..j) = pre[j + 1] - pre[i + 1]'],
-      why: 'pre[k] holds the sum of the first k elements, so elements i..j sum to pre[j + 1] − pre[i]. The leading 0 removes the i = 0 edge case.',
+      why: '`pre[k]` holds the sum of the first k elements, so elements i..j sum to `pre[j + 1] - pre[i]`. The leading 0 removes the `i = 0` edge case.',
     },
   ],
   'monotonic-stack': [
@@ -59,7 +59,7 @@ export const CLOZES: Record<string, Cloze[]> = {
         'while (stack.length && a[stack.at(-1)] > a[i]) resolve(stack.pop(), i);',
         'while (stack.length && a[stack[0]] < a[i]) resolve(stack.shift(), i);',
       ],
-      why: 'Pop every smaller index from the top — a loop, not a single check. The comparison direction decides next greater vs next smaller.',
+      why: 'Pop every smaller index from the top: a loop, not a single check. The comparison direction decides next greater vs next smaller.',
     },
   ],
   'fast-slow': [
@@ -73,12 +73,12 @@ export const CLOZES: Record<string, Cloze[]> = {
     {
       line: 0,
       distractors: ['intervals.sort((a, b) => a[1] - b[1]);', 'intervals.sort();', 'intervals.reverse();'],
-      why: 'Merging sweeps by start time, so sort by start. (Sorting by end is for greedy selection, e.g. fewest removals.) Bare .sort() compares as strings.',
+      why: 'Merging sweeps by start time, so sort by start. (Sorting by end is for greedy selection, e.g. fewest removals.) Bare `.sort()` compares as strings.',
     },
     {
       line: 2,
       distractors: ['if (s <= last[1]) last[1] = e;', 'if (e <= last[1]) last[0] = s;', 'if (s < last[0]) last[1] = Math.max(last[1], e);'],
-      why: 'Overlap when the new start is at or before the current end. Take the max end — a contained interval must not shrink the merge.',
+      why: 'Overlap when the new start is at or before the current end. Take the max end: a contained interval must not shrink the merge.',
     },
   ],
   heap: [
@@ -102,12 +102,12 @@ export const CLOZES: Record<string, Cloze[]> = {
         'for (const v of adj(u)) if (!seen.has(v)) q.push(v);',
         'for (const v of adj(u)) if (!seen.has(v)) { seen.add(v); q.unshift(v); }',
       ],
-      why: 'Mark seen when enqueuing, or a node can enter the queue many times. Push to the back — FIFO order is what makes distances correct.',
+      why: 'Mark seen when enqueuing, or a node can enter the queue many times. Push to the back: FIFO order is what makes distances correct.',
     },
     {
       line: 2,
       distractors: ['for (let k = 0; k < q.length; k++) {', 'while (q.length) {', 'for (let k = d; k > 0; k--) {'],
-      why: 'Snapshot the queue length so exactly one level is processed per d. Reading q.length live mixes levels as you push.',
+      why: 'Snapshot the queue length so exactly one level is processed per d. Reading `q.length` live mixes levels as you push.',
       hint: 'level by level',
     },
   ],
@@ -124,7 +124,7 @@ export const CLOZES: Record<string, Cloze[]> = {
         'if (done(state)) out.push(copy(state));',
         'if (!done(state)) { out.push(copy(state)); return; }',
       ],
-      why: "Push a copy — state keeps mutating after this call — and return so a finished answer isn't extended further.",
+      why: "Push a copy (state keeps mutating after this call) and return so a finished answer isn't extended further.",
     },
   ],
   'topo-sort': [
@@ -144,7 +144,7 @@ export const CLOZES: Record<string, Cloze[]> = {
         'const q = [nodes[0]];',
         'const q = nodes.filter((n) => indeg[n] > 0);',
       ],
-      why: 'Start from every node with no prerequisites — there can be several, in different components.',
+      why: 'Start from every node with no prerequisites: there can be several, in different components.',
     },
   ],
   'union-find': [
@@ -165,14 +165,14 @@ export const CLOZES: Record<string, Cloze[]> = {
         'const union = (a, b) => { a = find(a); b = find(b); p[a] = a; };',
         'const union = (a, b) => { if (a !== b) p[b] = a; };',
       ],
-      why: 'Link roots, not the original nodes — rewiring a non-root node detaches it from its old set.',
+      why: 'Link roots, not the original nodes: rewiring a non-root node detaches it from its old set.',
     },
   ],
   dijkstra: [
     {
       line: 3,
       distractors: ['if (d < dist[u]) continue;', 'if (seen.has(u)) break;', 'if (d > dist[u]) break;'],
-      why: 'The heap can hold stale, longer entries for u. Skip them with continue — break would abandon nodes still waiting.',
+      why: 'The heap can hold stale, longer entries for u. Skip them with `continue`; `break` would abandon nodes still waiting.',
     },
     {
       line: 4,
@@ -195,7 +195,7 @@ export const CLOZES: Record<string, Cloze[]> = {
     {
       line: 2,
       distractors: ['root.end = true;', 'node = root;', 'node[ch].end = true;'],
-      why: 'Mark the node where the word ends — otherwise "app" looks present just because "apple" was inserted.',
+      why: 'Mark the node where the word ends; otherwise "app" looks present just because "apple" was inserted.',
     },
     {
       line: 1,
@@ -226,7 +226,7 @@ export const CLOZES: Record<string, Cloze[]> = {
         '    dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] + 1 : 0;',
         '    dp[i][j] = a[i - 1] === b[j - 1] ? dp[i][j - 1] + 1 : Math.max(dp[i - 1][j], dp[i][j - 1]);',
       ],
-      why: 'dp is 1-indexed over prefixes (hence a[i − 1]); a match extends the diagonal, a mismatch drops a character from either string. Resetting to 0 computes the longest common substring instead.',
+      why: 'dp is 1-indexed over prefixes (hence `a[i - 1]`); a match extends the diagonal, a mismatch drops a character from either string. Resetting to 0 computes the longest common substring instead.',
       hint: 'longest common subsequence',
     },
   ],
@@ -246,7 +246,7 @@ export const CLOZES: Record<string, Cloze[]> = {
     {
       line: 1,
       distractors: ['for (const n of nums) x |= n;', 'for (const n of nums) x &= n;', 'for (const n of nums) x += n;'],
-      why: 'XOR cancels pairs (n ^ n = 0) and 0 ^ n = n, so only the unpaired value survives.',
+      why: 'XOR cancels pairs (`n ^ n = 0`) and `0 ^ n = n`, so only the unpaired value survives.',
     },
   ],
 };

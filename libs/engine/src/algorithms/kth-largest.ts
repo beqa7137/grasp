@@ -4,8 +4,8 @@ import type { AlgorithmDef, Frame, TreeView } from './types.js';
 
 type Input = { nums: number[]; k: number };
 
-const ENTER = ['Yes — replace the root and sift down', 'No — skip it'];
-const SIFT = ['Swap with the smaller child', 'Stop — heap order holds'];
+const ENTER = ['Yes: replace the root and sift down', 'No: skip it'];
+const SIFT = ['Swap with the smaller child', 'Stop: heap order holds'];
 
 function treeOf(heap: number[], active: number | null, settled = false): TreeView {
   return {

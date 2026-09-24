@@ -173,7 +173,8 @@ export const treeTraversal: AlgorithmDef<Input> = {
     };
 
     const optionsFor = (answer: number, distractors: number[]) => {
-      const options = rotatedChoices(String(answer), distractors.map(String), asked + values.length);
+      // Trees of one size ask at much the same steps, so offsetting by the root's value moves each answer between inputs.
+      const options = rotatedChoices(String(answer), distractors.map(String), asked + root.val);
       return options.choices.length > 1 ? options : null;
     };
 

@@ -5,7 +5,10 @@ import { SD_TOPICS } from '../curriculum/sd-topics.js';
 import { REVIEW_ITEMS, generateQuestion, getReviewItem, itemsForTopic } from './catalog.js';
 
 const SEEDS = Array.from({ length: 40 }, (_, i) => i * 104_729 + 17);
-const unbalanced = (text: string) => codeSpans(text).some((part) => part.text.includes('`'));
+// A code span never wraps, so a longer one would overflow a phone-width line.
+const MAX_CODE_SPAN = 24;
+const badSpans = (text: string) =>
+  codeSpans(text).some((part) => part.text.includes('`') || (part.code && part.text.length > MAX_CODE_SPAN));
 
 describe('review item catalog', () => {
   it('has unique ids and valid topics', () => {
@@ -29,7 +32,7 @@ describe('review item catalog', () => {
       expect(q.itemId).toBe(itemId);
       expect(q.prompt.length).toBeGreaterThan(10);
       expect(q.explain.length).toBeGreaterThan(10);
-      expect([q.prompt, q.explain].filter(unbalanced), 'backticks mark code spans, so they pair up').toEqual([]);
+      expect([q.prompt, q.explain].filter(badSpans), 'backticks pair up and every code span fits a phone line').toEqual([]);
       expect(q.choices.length).toBeGreaterThanOrEqual(q.kind === 'predict' ? 2 : 3);
       expect(new Set(q.choices).size).toBe(q.choices.length);
       expect(q.answer).toBeGreaterThanOrEqual(0);
