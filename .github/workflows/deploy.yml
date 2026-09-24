@@ -66,6 +66,7 @@ jobs:
         run: node apps/api/dist/migrate.js
 
       - name: Deploy
+        id: deploy
         run: |
           npx --yes "$VERCEL_CLI" deploy --prebuilt --prod --env RELEASE="${SHA::7}" \
             --token "$VERCEL_TOKEN" ${VERCEL_SCOPE:+--scope "$VERCEL_SCOPE"} | tee deployment-url.txt
@@ -99,3 +100,12 @@ jobs:
           expect 'Python runtime is served' 'HTTP 200' -o /dev/null "$PUBLIC_URL/pyodide/pyodide.asm.wasm"
           [ "$failed" = 0 ] || exit 1
           echo "Verified ${SHA::7} at $PUBLIC_URL" >> "$GITHUB_STEP_SUMMARY"
+
+      # Puts the function's own errors next to the failed check.
+      - name: Show the deployment's runtime errors
+        if: failure() && steps.deploy.outcome == 'success'
+        run: |
+          npx --yes "$VERCEL_CLI" logs "$(cat deployment-url.txt)" --since 15m --status-code 5xx --expand --limit 20 \
+            --no-color --token "$VERCEL_TOKEN" ${VERCEL_SCOPE:+--scope "$VERCEL_SCOPE"} > runtime-errors.txt 2>&1 || true
+          cat runtime-errors.txt
+          echo "::error title=Runtime errors::$(head -c 6000 runtime-errors.txt | sed ':a;N;$!ba;s/%/%25/g;s/\r//g;s/\n/%0A/g')"
