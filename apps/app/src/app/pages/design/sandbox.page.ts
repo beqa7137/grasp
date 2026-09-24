@@ -53,7 +53,7 @@ import {
 import { haptic } from '../../core/haptics';
 import { ProgressService } from '../../core/progress.service';
 import { FREE_BUILD } from './free-build';
-import { BOARD, type Point, type ViewBox, clampView, fitView, initialView, panBy, sameView, toBoard, zoomAt } from './viewport';
+import { BOARD, type Point, type ViewBox, clampView, fitView, freeSpot, initialView, panBy, sameView, toBoard, zoomAt } from './viewport';
 
 const W = 132;
 const H = 70;
@@ -361,12 +361,10 @@ export class SandboxPage {
 
   addComponent(kind: ComponentKind) {
     const d = this.design();
-    const count = d.nodes.length;
     const v = this.view();
-    // Drop it where the learner is looking, nudged so repeated adds do not stack exactly.
-    const x = clamp(v.x + v.w / 2 + ((count * 53) % 120) - 60, W / 2, VIEW_W - W / 2);
-    const y = clamp(v.y + v.h / 2 + ((count * 97) % 120) - 60, H / 2, VIEW_H - H / 2);
-    const node = createNode(d, kind, Math.round(x), Math.round(y));
+    // Where the learner is looking, but never on top of another component.
+    const { x, y } = freeSpot(d.nodes, { x: v.x + v.w / 2, y: v.y + v.h / 2 }, { w: W, h: H });
+    const node = createNode(d, kind, x, y);
     this.patch((draft) => draft.nodes.push(node));
     this.selectedId.set(node.id);
     this.selectedEdge.set(null);
