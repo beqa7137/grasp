@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { StoredEvent } from '@grasp/engine';
 import type { LearnerEvent } from '../admin/cohort-metrics.js';
-import type { LoginCode, RefreshTokenRecord, User } from '../auth/auth.types.js';
+import type { AuthIdentity, OneTimePurpose, OneTimeRecord, Provider, RefreshTokenRecord, User } from '../auth/auth.types.js';
 import type { FeedbackEntry } from '../feedback/feedback.types.js';
 import type { InterviewSession } from '../interview/interview.types.js';
 import {
@@ -109,42 +109,29 @@ export class MemoryFeedbackStore extends FeedbackStore {
 
 @Injectable()
 export class MemoryAuthStore extends AuthStore {
-  private readonly codes: LoginCode[] = [];
   private readonly users = new Map<string, User>();
+  private readonly identities = new Map<string, AuthIdentity>();
+  private readonly oneTime = new Map<string, OneTimeRecord>();
   private readonly tokens = new Map<string, RefreshTokenRecord>();
 
-  async addCode(code: LoginCode): Promise<void> {
-    this.codes.push({ ...code });
-  }
-
-  async countCodesSince(email: string, since: string): Promise<number> {
-    return this.codes.filter((c) => c.email === email && c.createdAt >= since).length;
-  }
-
-  async latestCode(email: string): Promise<LoginCode | null> {
-    const code = this.codes.filter((c) => c.email === email && !c.consumedAt).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
-    return code ? { ...code } : null;
-  }
-
-  async updateCode(id: string, patch: Partial<Pick<LoginCode, 'attempts' | 'consumedAt'>>): Promise<void> {
-    const code = this.codes.find((c) => c.id === id);
-    if (code) Object.assign(code, patch);
-  }
-
   async userByEmail(email: string): Promise<User | null> {
-    return this.copy([...this.users.values()].find((u) => u.email === email));
+    return copy([...this.users.values()].find((u) => u.email === email));
   }
 
   async userById(id: string): Promise<User | null> {
-    return this.copy(this.users.get(id));
+    return copy(this.users.get(id));
   }
 
   async userByLearner(learnerId: string): Promise<User | null> {
-    return this.copy([...this.users.values()].find((u) => u.learnerId === learnerId));
+    return copy([...this.users.values()].find((u) => u.learnerId === learnerId));
   }
 
-  async createUser(user: User): Promise<void> {
+  async createUser(user: User, identity?: AuthIdentity): Promise<boolean> {
+    if ([...this.users.values()].some((u) => u.email === user.email)) return false;
+    if (identity && this.identities.has(identityKey(identity.provider, identity.subject))) return false;
     this.users.set(user.id, { ...user });
+    if (identity) this.identities.set(identityKey(identity.provider, identity.subject), { ...identity });
+    return true;
   }
 
   async touchLogin(userId: string, at: string): Promise<void> {
@@ -157,7 +144,50 @@ export class MemoryAuthStore extends AuthStore {
       if (user.learnerId !== learnerId) continue;
       this.users.delete(id);
       for (const [tokenId, token] of this.tokens) if (token.userId === id) this.tokens.delete(tokenId);
+      for (const [key, identity] of this.identities) if (identity.userId === id) this.identities.delete(key);
     }
+  }
+
+  async identity(provider: Provider, subject: string): Promise<AuthIdentity | null> {
+    return copy(this.identities.get(identityKey(provider, subject)));
+  }
+
+  async linkIdentity(identity: AuthIdentity): Promise<AuthIdentity> {
+    const key = identityKey(identity.provider, identity.subject);
+    if (!this.identities.has(key)) this.identities.set(key, { ...identity });
+    return { ...this.identities.get(key)! };
+  }
+
+  async touchIdentity(id: string, email: string | null, at: string): Promise<void> {
+    const identity = [...this.identities.values()].find((i) => i.id === id);
+    if (!identity) return;
+    identity.lastLoginAt = at;
+    if (email) identity.email = email;
+  }
+
+  async identitiesForUser(userId: string): Promise<AuthIdentity[]> {
+    return [...this.identities.values()]
+      .filter((i) => i.userId === userId)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+      .map((i) => ({ ...i }));
+  }
+
+  async addOneTime(record: OneTimeRecord): Promise<void> {
+    this.oneTime.set(record.hash, structuredClone(record));
+  }
+
+  async consumeOneTime(hash: string, purpose: OneTimePurpose, at: string): Promise<OneTimeRecord | null> {
+    const record = this.oneTime.get(hash);
+    if (!record || record.purpose !== purpose || record.consumedAt || record.expiresAt <= at) return null;
+    record.consumedAt = at;
+    return structuredClone(record);
+  }
+
+  async sweepExpired(): Promise<number> {
+    const now = new Date().toISOString();
+    let removed = 0;
+    for (const [hash, record] of this.oneTime) if (record.expiresAt < now && this.oneTime.delete(hash)) removed++;
+    return removed;
   }
 
   async addRefreshToken(token: RefreshTokenRecord): Promise<void> {
@@ -177,11 +207,10 @@ export class MemoryAuthStore extends AuthStore {
   async revokeFamily(familyId: string, at: string): Promise<void> {
     for (const token of this.tokens.values()) if (token.familyId === familyId && !token.revokedAt) token.revokedAt = at;
   }
-
-  private copy(user: User | undefined): User | null {
-    return user ? { ...user } : null;
-  }
 }
+
+const copy = <T extends object>(value: T | undefined): T | null => (value ? { ...value } : null);
+const identityKey = (provider: Provider, subject: string) => `${provider}:${subject}`;
 
 /** Single-process coordination: correct for one instance, which is all the in-memory mode supports anyway. */
 export class MemoryCoordinationStore extends CoordinationStore {

@@ -1,4 +1,4 @@
-import { doublePrecision, index, integer, jsonb, pgTable, primaryKey, smallint, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { doublePrecision, index, integer, jsonb, pgTable, primaryKey, smallint, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
 
 export const learners = pgTable('learners', {
   id: uuid('id').primaryKey(),
@@ -65,6 +65,7 @@ export const users = pgTable('users', {
   lastLoginAt: timestamp('last_login_at', { withTimezone: true, mode: 'string' }),
 });
 
+/** Unused since email sign-in was removed; kept for the release still running during a deploy, drop it in a later release. */
 export const loginCodes = pgTable(
   'login_codes',
   {
@@ -77,6 +78,36 @@ export const loginCodes = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).notNull(),
   },
   (t) => [index('login_codes_email_time').on(t.email, t.createdAt)],
+);
+
+export const authIdentities = pgTable(
+  'auth_identities',
+  {
+    id: uuid('id').primaryKey(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    provider: text('provider').notNull(),
+    subject: text('subject').notNull(),
+    email: text('email'),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).notNull(),
+    lastLoginAt: timestamp('last_login_at', { withTimezone: true, mode: 'string' }),
+  },
+  (t) => [unique('auth_identities_provider_subject').on(t.provider, t.subject), index('auth_identities_user').on(t.userId)],
+);
+
+/** Google sign-in nonces and GitHub sign-in tickets. Only a SHA-256 hash of each value is stored. */
+export const authOneTime = pgTable(
+  'auth_one_time',
+  {
+    hash: text('hash').primaryKey(),
+    purpose: text('purpose').notNull(),
+    payload: jsonb('payload'),
+    expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'string' }).notNull(),
+    consumedAt: timestamp('consumed_at', { withTimezone: true, mode: 'string' }),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).notNull(),
+  },
+  (t) => [index('auth_one_time_expires_at').on(t.expiresAt)],
 );
 
 export const refreshTokens = pgTable(

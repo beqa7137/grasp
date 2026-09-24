@@ -1,11 +1,11 @@
 import { type CanActivate, type ExecutionContext, Injectable, SetMetadata, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Request as HttpRequest } from 'express';
+import { deviceLearnerIdOf } from '../common/learner-id.decorator.js';
 import { AuthStore } from '../persistence/stores.js';
 import type { Identity } from './auth.types.js';
 import { InvalidTokenError, TokenService } from './tokens.js';
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SKIP_IDENTITY = 'grasp:skip-identity';
 
 /** For routes that authenticate differently (operator token) or read the device id themselves (sign-in). */
@@ -47,17 +47,16 @@ export class IdentityGuard implements CanActivate {
       }
     }
 
-    const learnerId = req.header('x-learner-id');
-    if (learnerId && UUID.test(learnerId)) {
-      const id = learnerId.toLowerCase();
-      if (await this.store.userByLearner(id)) {
+    const learnerId = deviceLearnerIdOf(req);
+    if (learnerId) {
+      if (await this.store.userByLearner(learnerId)) {
         throw new UnauthorizedException({
           statusCode: 401,
           message: 'This progress belongs to an account. Sign in to continue.',
           code: 'sign_in_required',
         });
       }
-      req.identity = { learnerId: id, userId: null };
+      req.identity = { learnerId, userId: null };
     }
     return true;
   }

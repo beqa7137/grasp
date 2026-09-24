@@ -51,7 +51,8 @@ Open http://localhost:4200.
 cp apps/api/.env.example apps/api/.env
 # set ANTHROPIC_API_KEY=...  → AI interviewer (default model claude-sonnet-5)
 # set AI_DAILY_BUDGET_USD=5  → optional daily Claude spend ceiling
-# set RESEND_API_KEY=...      → send sign-in codes by email (dev prints them to the log)
+# set GOOGLE_WEB_CLIENT_ID=... → sign in with Google (see docs/ACCOUNTS.md)
+# set OAUTH_GITHUB_ID=... and OAUTH_GITHUB_SECRET=... → sign in with GitHub
 # set DATABASE_URL=...       → Postgres persistence
 
 npm run db:up        # Postgres 17 via docker compose
@@ -68,11 +69,11 @@ npm run cap:sync       # build web assets + sync to native
 npm run cap:ios        # opens Xcode (or cap:android → Android Studio)
 ```
 
-Native dev builds call the API at `http://localhost:3000/api`, or `10.0.2.2` on the Android emulator, and allow cleartext HTTP. To point a build at another API, set `GRASP_API_URL` when syncing. Store builds need https: `GRASP_RELEASE=1 GRASP_API_URL=https://<host>/api npm run cap:sync`. See [docs/MOBILE.md](docs/MOBILE.md) for reminders, native CI and the release checklist.
+Native dev builds call the API at `http://localhost:3000/api`, or `10.0.2.2` on the Android emulator, and allow cleartext HTTP. To point a build at another API, set `GRASP_API_URL` when syncing. Store builds need https: `GRASP_RELEASE=1 GRASP_API_URL=https://<host>/api npm run cap:sync`. See [docs/MOBILE.md](docs/MOBILE.md) for Google sign-in on iOS (`GRASP_GOOGLE_IOS_CLIENT_ID`), reminders, native CI and the release checklist.
 
 ## Accounts
 
-Optional passwordless sign-in with emailed codes. Signing in folds the device's anonymous progress into the account, syncs every device, and protects the progress from anonymous access. Sessions use short-lived JWTs and rotating refresh tokens with reuse detection. Rate limits count per user once signed in. See [docs/ACCOUNTS.md](docs/ACCOUNTS.md).
+Optional sign-in with Google or GitHub, with no passwords. Signing in folds the device's anonymous progress into the account, syncs every device, and protects the progress from anonymous access. Sessions use short-lived JWTs and rotating refresh tokens with reuse detection. Rate limits count per user once signed in. See [docs/ACCOUNTS.md](docs/ACCOUNTS.md).
 
 ## Pilot
 
@@ -114,7 +115,7 @@ CI (`.github/workflows/ci.yml`) runs `verify` on every push to `main` and every 
   ```
 
 - **App:** Vitest via `ng test`. It covers components, the JS/TS runner (compilation, error lines, sandboxed globals), the code instrumenter and trace-to-frame conversion, and Python traceback cleanup. The in-browser runner (Pyodide under the production CSP, time limits, infinite-loop recovery) was checked end to end with Playwright against the built app.
-- **Browser (`e2e/`):** Playwright drives the built app, served by the built API as in production, on a desktop and a phone viewport. It walks every learner flow: the pilot welcome, a pattern page, predicting in a visualizer, a full review session, practice, JavaScript and Python solutions (including one too slow for the performance test) and tracing, an interview to its scorecard, solving the first Design Lab mission, study settings, export and delete, and feedback. Each flow checks that its events reach the API, and any page error or console error fails the test. Tests tagged `@smoke` also run against a deployment, read-only: every API call that could write data is blocked.
+- **Browser (`e2e/`):** Playwright drives the built app, served by the built API as in production, on a desktop and a phone viewport. It walks every learner flow: the pilot welcome, a pattern page, predicting in a visualizer, a full review session, practice, JavaScript and Python solutions (including one too slow for the performance test) and tracing, an interview to its scorecard, solving the first Design Lab mission, study settings, export and delete, feedback, and signing in: GitHub end to end against a local fake GitHub (`e2e/support/fake-github.ts`), keeping the progress made before, with a slow token exchange, after pressing Cancel and against a crafted callback URL, and the Google popup under the site's real security headers, including closing it. Each flow checks that its events reach the API, and any page error or console error fails the test. Tests tagged `@smoke` also run against a deployment, read-only: every API call that could write data is blocked.
 
   ```bash
   npm run build

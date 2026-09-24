@@ -40,8 +40,12 @@ const envSchema = z
 
     ADMIN_TOKEN: optional(z.string().min(32, 'must be at least 32 characters')),
     JWT_SECRET: optional(z.string().min(32, 'must be at least 32 characters')),
-    RESEND_API_KEY: optional(z.string().min(10)),
-    MAIL_FROM: z.string().min(3).default('Grasp <login@grasp.dev>'),
+    GOOGLE_WEB_CLIENT_ID: optional(z.string()),
+    GOOGLE_IOS_CLIENT_ID: optional(z.string()),
+    OAUTH_GITHUB_ID: optional(z.string()),
+    OAUTH_GITHUB_SECRET: optional(z.string()),
+    OAUTH_GITHUB_URL: optional(z.url({ protocol: /^https?$/ })),
+    OAUTH_GITHUB_API_URL: optional(z.url({ protocol: /^https?$/ })),
 
     SENTRY_DSN: optional(z.url()),
     SENTRY_WEB_DSN: optional(z.url()),
@@ -51,7 +55,11 @@ const envSchema = z
     VERCEL_ENV: optional(z.string()),
     VERCEL_GIT_COMMIT_SHA: optional(z.string()),
   })
-  .refine((e) => e.NODE_ENV !== 'production' || e.JWT_SECRET, { path: ['JWT_SECRET'], message: 'is required in production' });
+  .refine((e) => e.NODE_ENV !== 'production' || e.JWT_SECRET, { path: ['JWT_SECRET'], message: 'is required in production' })
+  .refine((e) => !e.OAUTH_GITHUB_ID === !e.OAUTH_GITHUB_SECRET, {
+    path: ['OAUTH_GITHUB_ID'],
+    message: 'must be set together with OAUTH_GITHUB_SECRET',
+  });
 
 export interface AppConfig {
   env: 'development' | 'production' | 'test';
@@ -77,7 +85,10 @@ export interface AppConfig {
   adminToken: string | null;
   /** Signs access tokens. Outside production a random per-process secret is used when unset. */
   jwtSecret: string | null;
-  mail: { resendApiKey: string | null; from: string };
+  /** Google sign-in; null when GOOGLE_WEB_CLIENT_ID is unset. Client ids are public and served to the app. */
+  google: { webClientId: string; iosClientId: string | null } | null;
+  /** GitHub sign-in; null unless both the OAuth app id and secret are set. */
+  github: { clientId: string; clientSecret: string; webUrl: string; apiUrl: string } | null;
   sentryDsn: string | null;
   sentryEnvironment: string;
   /** Values the served web app receives through `/config.json`. */
@@ -112,11 +123,22 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     interviewMessagesPerHour: e.INTERVIEW_MESSAGES_PER_HOUR,
     adminToken: e.ADMIN_TOKEN ?? null,
     jwtSecret: e.JWT_SECRET ?? null,
-    mail: { resendApiKey: e.RESEND_API_KEY ?? null, from: e.MAIL_FROM },
+    google: e.GOOGLE_WEB_CLIENT_ID ? { webClientId: e.GOOGLE_WEB_CLIENT_ID, iosClientId: e.GOOGLE_IOS_CLIENT_ID ?? null } : null,
+    github:
+      e.OAUTH_GITHUB_ID && e.OAUTH_GITHUB_SECRET
+        ? {
+            clientId: e.OAUTH_GITHUB_ID,
+            clientSecret: e.OAUTH_GITHUB_SECRET,
+            webUrl: withoutTrailingSlash(e.OAUTH_GITHUB_URL ?? 'https://github.com'),
+            apiUrl: withoutTrailingSlash(e.OAUTH_GITHUB_API_URL ?? 'https://api.github.com'),
+          }
+        : null,
     sentryDsn: e.SENTRY_DSN ?? null,
     sentryEnvironment: e.SENTRY_ENVIRONMENT ?? e.VERCEL_ENV ?? e.NODE_ENV,
     web: { sentryDsn: e.SENTRY_WEB_DSN ?? null },
   };
 }
+
+const withoutTrailingSlash = (url: string) => url.replace(/\/+$/, '');
 
 export const APP_CONFIG = Symbol('APP_CONFIG');

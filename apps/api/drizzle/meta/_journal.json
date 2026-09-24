@@ -29,6 +29,13 @@
       "when": 1790212209074,
       "tag": "0003_coordination",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790231834099,
+      "tag": "0004_auth_identities",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,6 @@
 import type { StoredEvent } from '@grasp/engine';
 import type { LearnerEvent } from '../admin/cohort-metrics.js';
-import type { LoginCode, RefreshTokenRecord, User } from '../auth/auth.types.js';
+import type { AuthIdentity, OneTimePurpose, OneTimeRecord, Provider, RefreshTokenRecord, User } from '../auth/auth.types.js';
 import type { FeedbackEntry } from '../feedback/feedback.types.js';
 import type { InterviewSession } from '../interview/interview.types.js';
 
@@ -36,19 +36,32 @@ export abstract class FeedbackStore {
 }
 
 export abstract class AuthStore {
-  abstract addCode(code: LoginCode): Promise<void>;
-  abstract countCodesSince(email: string, since: string): Promise<number>;
-  /** Newest code for the email that has not been used yet. */
-  abstract latestCode(email: string): Promise<LoginCode | null>;
-  abstract updateCode(id: string, patch: Partial<Pick<LoginCode, 'attempts' | 'consumedAt'>>): Promise<void>;
-
   abstract userByEmail(email: string): Promise<User | null>;
   abstract userById(id: string): Promise<User | null>;
   abstract userByLearner(learnerId: string): Promise<User | null>;
-  abstract createUser(user: User): Promise<void>;
+  /**
+   * Stores the account and its first sign-in method together, atomically. False, and nothing stored, when an
+   * account with this email exists or that provider account is already linked. Without `identity`, the account
+   * has no sign-in method, like those the earlier email-code sign-in created.
+   */
+  abstract createUser(user: User, identity?: AuthIdentity): Promise<boolean>;
   abstract touchLogin(userId: string, at: string): Promise<void>;
-  /** Removes the account attached to a learner, with its tokens. */
+  /** Removes the account attached to a learner, with its tokens and linked identities. */
   abstract deleteByLearner(learnerId: string): Promise<void>;
+
+  abstract identity(provider: Provider, subject: string): Promise<AuthIdentity | null>;
+  /** Stores the link unless that provider account is already linked; returns the link that holds either way. */
+  abstract linkIdentity(identity: AuthIdentity): Promise<AuthIdentity>;
+  /** Records a sign-in; a null email keeps the last verified one. */
+  abstract touchIdentity(id: string, email: string | null, at: string): Promise<void>;
+  /** Oldest first. */
+  abstract identitiesForUser(userId: string): Promise<AuthIdentity[]>;
+
+  abstract addOneTime(record: OneTimeRecord): Promise<void>;
+  /** Marks an unused, unexpired value as used and returns it, atomically; null when unknown, expired or already used. */
+  abstract consumeOneTime(hash: string, purpose: OneTimePurpose, at: string): Promise<OneTimeRecord | null>;
+  /** Deletes expired one-time values; returns how many went. */
+  abstract sweepExpired(): Promise<number>;
 
   abstract addRefreshToken(token: RefreshTokenRecord): Promise<void>;
   abstract refreshTokenByHash(tokenHash: string): Promise<RefreshTokenRecord | null>;

@@ -7,12 +7,44 @@ export interface User {
   lastLoginAt: string | null;
 }
 
-export interface LoginCode {
+export type Provider = 'google' | 'github';
+
+/** A provider account linked to a user, keyed on the provider's stable subject id, never on email. */
+export interface AuthIdentity {
   id: string;
-  email: string;
-  codeHash: string;
+  userId: string;
+  provider: Provider;
+  subject: string;
+  /** Last verified email the provider reported, lowercased; informational only. */
+  email: string | null;
+  createdAt: string;
+  lastLoginAt: string | null;
+}
+
+export interface IdentitySummary {
+  provider: Provider;
+  email: string | null;
+  linkedAt: string;
+}
+
+/** Who a provider says is signing in, after its credential has been verified. */
+export interface VerifiedIdentity {
+  provider: Provider;
+  subject: string;
+  /** Only an address the provider verified; null otherwise. */
+  email: string | null;
+  /** True when the provider owns the email's domain, so it may be linked to an existing account with that email. */
+  authoritative: boolean;
+}
+
+export type OneTimePurpose = 'google_nonce' | 'github_ticket';
+
+/** A single-use random value, stored only as a hash. */
+export interface OneTimeRecord {
+  hash: string;
+  purpose: OneTimePurpose;
+  payload: unknown;
   expiresAt: string;
-  attempts: number;
   consumedAt: string | null;
   createdAt: string;
 }

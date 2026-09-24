@@ -79,7 +79,15 @@ describe('vercel.json', () => {
   });
 
   it('sends everything that is not a static file to the API function, which serves the page shell', () => {
-    for (const path of ['/', '/learn', '/design/viral-feed', '/config.json', '/api/health', '/api/interview/sessions/x/messages']) {
+    for (const path of [
+      '/',
+      '/learn',
+      '/auth/callback',
+      '/design/viral-feed',
+      '/config.json',
+      '/api/health',
+      '/api/interview/sessions/x/messages',
+    ]) {
       expect(rewriteFor(path), path).toBe('/api');
     }
     expect(vercel.functions['api/index.js'].includeFiles).toBe('apps/app/dist/app/server/**');

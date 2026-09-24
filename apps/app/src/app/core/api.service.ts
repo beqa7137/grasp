@@ -8,6 +8,8 @@ export class ApiError extends Error {
     readonly status: number,
     message: string,
     readonly code?: string,
+    /** The whole error body, for errors that carry more than a code. */
+    readonly details: Record<string, unknown> = {},
   ) {
     super(message);
   }
@@ -90,7 +92,8 @@ export class ApiService {
       .json()
       .then((b: { code?: string }) => b.code)
       .catch(() => undefined);
-    if ((code !== 'token_invalid' && code !== 'sign_in_required') || path.startsWith('/auth/') || !this.tokens.refresher) return false;
+    // The refresh call itself must never wait on a refresh.
+    if ((code !== 'token_invalid' && code !== 'sign_in_required') || path === '/auth/refresh' || !this.tokens.refresher) return false;
     const renewed = await this.tokens.refresher();
     if (!renewed && code === 'sign_in_required') this.tokens.signInRequired.set(true);
     return renewed;
@@ -108,7 +111,12 @@ export class ApiService {
   private async toError(res: Response): Promise<ApiError> {
     try {
       const body = await res.json();
-      return new ApiError(res.status, Array.isArray(body.message) ? body.message.join(', ') : (body.message ?? res.statusText), body.code);
+      return new ApiError(
+        res.status,
+        Array.isArray(body.message) ? body.message.join(', ') : (body.message ?? res.statusText),
+        body.code,
+        body,
+      );
     } catch {
       return new ApiError(res.status, res.statusText);
     }

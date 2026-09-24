@@ -43,13 +43,14 @@ describe('HTTP platform', () => {
     expect(replaced.headers['x-request-id']).toMatch(UUID);
   });
 
-  it('answers CORS preflights for the app origins only', async () => {
+  it('answers CORS preflights for the app origins only, including signed-in requests', async () => {
     const ok = await request(app.getHttpServer())
       .options('/api/progress')
       .set('Origin', 'capacitor://localhost')
       .set('Access-Control-Request-Method', 'GET')
-      .set('Access-Control-Request-Headers', 'x-learner-id');
+      .set('Access-Control-Request-Headers', 'authorization,content-type,x-learner-id');
     expect(ok.headers['access-control-allow-origin']).toBe('capacitor://localhost');
+    expect(ok.headers['access-control-allow-headers']?.split(',')).toEqual(expect.arrayContaining(['authorization', 'x-learner-id']));
     const denied = await request(app.getHttpServer())
       .options('/api/progress')
       .set('Origin', 'https://evil.example')
@@ -63,6 +64,11 @@ describe('HTTP platform', () => {
       .set('x-learner-id', '6f1c1c1e-8a4b-4c1d-9e3f-2a7b8c9d0e1f')
       .set('content-type', 'application/json')
       .send(JSON.stringify({ events: [], pad: 'x'.repeat(300_000) }))
+      .expect(413);
+    await request(app.getHttpServer())
+      .post('/api/auth/github/token')
+      .type('form')
+      .send({ grant_type: 'authorization_code', pad: 'x'.repeat(20_000) })
       .expect(413);
   });
 });
@@ -113,6 +119,16 @@ describe('Serving the web app', () => {
       const res = await request(app.getHttpServer()).get(path).set('Accept', 'text/html').expect(200);
       expect(res.text).toContain('<title>Grasp</title>');
       expect(res.headers['cache-control']).toBe('no-cache');
+    }
+  });
+
+  it('lets the sign-in popup keep its link to the app window on the callback page only', async () => {
+    const callback = await request(app.getHttpServer()).get('/auth/callback?code=c&state=s').set('Accept', 'text/html').expect(200);
+    expect(callback.text).toContain('<title>Grasp</title>');
+    expect(callback.headers['cross-origin-opener-policy']).toBe('unsafe-none');
+    for (const path of ['/', '/learn', '/auth/callback/elsewhere']) {
+      const page = await request(app.getHttpServer()).get(path).set('Accept', 'text/html').expect(200);
+      expect(page.headers['cross-origin-opener-policy'], path).toBe('same-origin-allow-popups');
     }
   });
 

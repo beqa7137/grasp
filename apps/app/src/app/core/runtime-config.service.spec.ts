@@ -30,6 +30,6 @@ describe('RuntimeConfigService', () => {
       throw new TypeError('Failed to fetch');
     });
     expect(offline.apiBase()).toBe('/api');
-    expect(offline.config().sentryDsn).toBeNull();
+    expect(offline.config()).toMatchObject({ sentryDsn: null, googleIosClientId: null });
   });
 });

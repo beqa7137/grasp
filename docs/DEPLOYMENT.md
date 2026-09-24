@@ -38,8 +38,8 @@ Everything runs from GitHub Actions; no local Vercel or Neon tooling is needed.
 
 1. **Vercel token.** Create one in Vercel account settings → Tokens, scoped to your account or team, and add it as the repository secret `VERCEL_TOKEN`. For a team, add the repository variable `VERCEL_SCOPE` (team slug). The project name defaults to `grasp`; override it with the variable `VERCEL_PROJECT`.
 2. **Database.** Add the secrets `DATABASE_URL` (pooled) and, optionally, `DATABASE_URL_UNPOOLED` (direct).
-3. **App secrets.** `JWT_SECRET` and `ADMIN_TOKEN` (`openssl rand -hex 32` each; keep a copy of the admin token for `npm run pilot:report`). Optional secrets: `ANTHROPIC_API_KEY`, `RESEND_API_KEY`, `SENTRY_DSN`, `SENTRY_WEB_DSN`. Optional variables: `AI_DAILY_BUDGET_USD` (recommended once `ANTHROPIC_API_KEY` is set), `MAIL_FROM`.
-4. Run **Set up Vercel** (Actions tab). It creates the project if needed and loads the production environment: secrets as Vercel "sensitive" variables, which cannot be read back, and settings as plain ones. It is safe to re-run after adding or rotating a secret.
+3. **App secrets.** `JWT_SECRET` and `ADMIN_TOKEN` (`openssl rand -hex 32` each; keep a copy of the admin token for `npm run pilot:report`). Optional secrets: `ANTHROPIC_API_KEY`, `SENTRY_DSN`, `SENTRY_WEB_DSN`, and for sign-in `GOOGLE_WEB_CLIENT_ID`, `GOOGLE_IOS_CLIENT_ID`, `OAUTH_GITHUB_ID` and `OAUTH_GITHUB_SECRET` (set the two GitHub ones together; [ACCOUNTS.md](ACCOUNTS.md#configuration) says how to create the Google and GitHub clients, and that the Google consent screen must be published). `GOOGLE_WEB_CLIENT_SECRET` is not needed. Optional variable: `AI_DAILY_BUDGET_USD` (recommended once `ANTHROPIC_API_KEY` is set).
+4. Run **Set up Vercel** (Actions tab). It creates the project if needed and loads the production environment: secrets as Vercel "sensitive" variables, which cannot be read back, and settings as plain ones. The public Google and GitHub client ids count as settings; `OAUTH_GITHUB_SECRET` is sensitive. It is safe to re-run after adding or rotating a secret.
 5. Add the repository variable `VERCEL_DEPLOY_ENABLED=true` and run **Deploy**. Its summary shows the deployment; add the production domain as the variable `PUBLIC_URL` (for example `https://grasp-yourname.vercel.app`) so later deploys verify it.
 
 ### Continuous deployment
@@ -70,6 +70,7 @@ The Hobby plan is free but for personal, non-commercial projects. A product run 
 - **Multi-stage build.** It builds the engine, API and web app, then installs only the API's production dependencies into a `node:24-slim` runtime. It runs as the unprivileged `node` user.
 - **Web app.** It serves the web app from `/srv/web` with the same asset policy as the Vercel CDN (`asset-policy.ts`). Deep links fall back to `index.html`.
 - **Runtime config.** It generates `/config.json` from the environment, so the same image works in every environment.
+- **Behind a proxy.** Set `TRUST_PROXY` to the number of proxy hops in front of the container, usually `1` behind a host or load balancer that terminates TLS. The server takes the client IP and the request's scheme from those hops. Without it, per-IP rate limits count the proxy's address, and every web GitHub sign-in fails with `invalid_request`: the API accepts only `https://<host>/auth/callback` as the web callback, but sees `http`.
 - **Migrations.** `node apps/api/dist/migrate.js` applies them; run it as a release step before new containers take traffic.
 - **Health.** `GET /api/health` is liveness: storage, interviewer mode and release. `GET /api/health/ready` is readiness: it checks the database and returns 503 when it is unreachable. Point a platform's routing check at liveness, so a database outage returns the API's own 503s and a scale-to-zero database can sleep between visits.
 - **Shutdown.** SIGTERM closes the HTTP server and the Postgres pool.
@@ -78,7 +79,7 @@ CI builds this image on every push and smoke-tests it against Postgres: migratio
 
 ## Both platforms
 
-- **Hardening.** Helmet sets the security headers, including a CSP with no inline scripts. The server rejects JSON bodies over 256 kB and rate-limits each caller (`RATE_LIMIT_PER_MINUTE` per signed-in user or client IP, health checks exempt). It trusts `TRUST_PROXY` hops for the client IP.
+- **Hardening.** Helmet sets the security headers, including a CSP with no inline scripts. `Cross-Origin-Opener-Policy` is `same-origin-allow-popups` rather than `same-origin`, so the web sign-in popup can report back to the page that opened it. The popup's landing page, `/auth/callback`, gets `unsafe-none`: it arrives there from Google or GitHub, whose pages send no such header, and a COOP on the landing page would cut the popup off from the app window waiting for its result. The server rejects JSON bodies over 256 kB and URL-encoded bodies (only the GitHub token endpoint takes them) over 16 kB, and rate-limits each caller (`RATE_LIMIT_PER_MINUTE` per signed-in user or client IP, health checks exempt). It trusts `TRUST_PROXY` hops for the client IP and the request's scheme, which web GitHub sign-in depends on.
 - **Logs.** Structured JSON logs, one access line per request with a request id. An incoming well-formed `X-Request-Id` is reused and echoed back.
 - **Config validation.** Environment variables are checked at startup, and every invalid one is reported. On Vercel, a function that cannot start answers 503 and retries on the next request.
 
@@ -88,31 +89,35 @@ Native builds read `config.json` from the bundled web assets. `cap:sync` writes 
 
 ```bash
 cd apps/app
-GRASP_RELEASE=1 GRASP_API_URL=https://<your-domain>/api GRASP_VERSION=1.0.0 npm run cap:sync
+GRASP_RELEASE=1 GRASP_API_URL=https://<your-domain>/api GRASP_VERSION=1.0.0 GRASP_GOOGLE_IOS_CLIENT_ID=<id>.apps.googleusercontent.com npm run cap:sync
 ```
 
-`GRASP_RELEASE=1` turns off cleartext HTTP and requires an `https` API URL. `GRASP_SENTRY_DSN` enables error reporting in the app. The app uses Sentry's Capacitor SDK, so native crashes on iOS and Android are reported too, next to JavaScript errors. The API's default `CORS_ORIGINS` already allows the Capacitor origins on iOS and Android, and native apps download the Python runtime from the same domain.
+`GRASP_RELEASE=1` turns off cleartext HTTP and requires an `https` API URL. `GRASP_GOOGLE_IOS_CLIENT_ID`, the same value as the server's `GOOGLE_IOS_CLIENT_ID`, is all the iOS app needs for Google sign-in: `cap:sync` writes it to `config.json` and derives the URL scheme that GoogleSignIn requires for the Xcode build (see [MOBILE.md](MOBILE.md#sign-in-google-and-github)). Without it, the iOS app does not offer Google. `GRASP_SENTRY_DSN` enables error reporting in the app. The app uses Sentry's Capacitor SDK, so native crashes on iOS and Android are reported too, next to JavaScript errors. The API's default `CORS_ORIGINS` already allows the Capacitor origins on iOS and Android, and native apps download the Python runtime from the same domain.
 
 ## Environment reference
 
 Every variable is validated at startup. See `apps/api/.env.example` for the full list with comments.
 
-| Variable                        | Production value                                                           |
-| ------------------------------- | -------------------------------------------------------------------------- |
-| `NODE_ENV`                      | `production` (set by Vercel and by the image)                              |
-| `DATABASE_URL`                  | secret; Neon's pooled string on Vercel                                     |
-| `DATABASE_URL_UNPOOLED`         | optional secret, used only for migrations                                  |
-| `JWT_SECRET`                    | secret, required in production                                             |
-| `TRUST_PROXY`                   | `1` (set by `api/index.js` on Vercel)                                      |
-| `CORS_ORIGINS`                  | Capacitor origins; the web app is same-origin and needs no entry           |
-| `RATE_LIMIT_PER_MINUTE`         | `300` per user or IP                                                       |
-| `LOG_FORMAT` / `LOG_LEVEL`      | `json` / `log`                                                             |
-| `ANTHROPIC_API_KEY`             | secret; unset runs the offline interviewer                                 |
-| `AI_DAILY_BUDGET_USD`           | recommended for any public deployment                                      |
-| `SENTRY_DSN` / `SENTRY_WEB_DSN` | optional; the web app receives its DSN through `/config.json`              |
-| `RELEASE`                       | the deploy's short SHA; on Vercel it falls back to `VERCEL_GIT_COMMIT_SHA` |
-| `WEB_DIST_DIR`, `PORT`          | set by the image; on Vercel `WEB_DIST_DIR` is set by `api/index.js`        |
-| `NODEJS_HELPERS`                | `0` at Vercel build time (set by the workflows and by **Set up Vercel**)   |
+| Variable                                    | Production value                                                                             |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `NODE_ENV`                                  | `production` (set by Vercel and by the image)                                                |
+| `DATABASE_URL`                              | secret; Neon's pooled string on Vercel                                                       |
+| `DATABASE_URL_UNPOOLED`                     | optional secret, used only for migrations                                                    |
+| `JWT_SECRET`                                | secret, required in production                                                               |
+| `TRUST_PROXY`                               | `1` (set by `api/index.js` on Vercel); the image needs its proxy hops for web GitHub sign-in |
+| `CORS_ORIGINS`                              | Capacitor origins; the web app is same-origin and needs no entry                             |
+| `RATE_LIMIT_PER_MINUTE`                     | `300` per user or IP                                                                         |
+| `LOG_FORMAT` / `LOG_LEVEL`                  | `json` / `log`                                                                               |
+| `ANTHROPIC_API_KEY`                         | secret; unset runs the offline interviewer                                                   |
+| `GOOGLE_WEB_CLIENT_ID`                      | the Google web client id; unset turns Google sign-in off                                     |
+| `GOOGLE_IOS_CLIENT_ID`                      | optional; the Google iOS client id                                                           |
+| `OAUTH_GITHUB_ID` / `OAUTH_GITHUB_SECRET`   | the GitHub OAuth app, set together (the secret is sensitive); unset turns GitHub sign-in off |
+| `OAUTH_GITHUB_URL` / `OAUTH_GITHUB_API_URL` | unset in production (GitHub Enterprise only)                                                 |
+| `AI_DAILY_BUDGET_USD`                       | recommended for any public deployment                                                        |
+| `SENTRY_DSN` / `SENTRY_WEB_DSN`             | optional; the web app receives its DSN through `/config.json`                                |
+| `RELEASE`                                   | the deploy's short SHA; on Vercel it falls back to `VERCEL_GIT_COMMIT_SHA`                   |
+| `WEB_DIST_DIR`, `PORT`                      | set by the image; on Vercel `WEB_DIST_DIR` is set by `api/index.js`                          |
+| `NODEJS_HELPERS`                            | `0` at Vercel build time (set by the workflows and by **Set up Vercel**)                     |
 
 ## Privacy notes for error reporting
 

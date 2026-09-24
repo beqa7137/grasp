@@ -35,11 +35,17 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          OAUTH_GITHUB_ID: ${{ secrets.OAUTH_GITHUB_ID }}
+          OAUTH_GITHUB_SECRET: ${{ secrets.OAUTH_GITHUB_SECRET }}
         run: |
           missing=()
           for name in VERCEL_TOKEN DATABASE_URL JWT_SECRET; do [ -n "${!name}" ] || missing+=("$name"); done
           if [ ${#missing[@]} -gt 0 ]; then
             echo "::error::Add these repository secrets first: ${missing[*]}"
+            exit 1
+          fi
+          if [ "${OAUTH_GITHUB_ID:+set}" != "${OAUTH_GITHUB_SECRET:+set}" ]; then
+            echo "::error::Set both OAUTH_GITHUB_ID and OAUTH_GITHUB_SECRET, or neither: the API refuses to start with one"
             exit 1
           fi
 
@@ -61,11 +67,13 @@ jobs:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          OAUTH_GITHUB_SECRET: ${{ secrets.OAUTH_GITHUB_SECRET }}
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
           SENTRY_WEB_DSN: ${{ secrets.SENTRY_WEB_DSN }}
           AI_DAILY_BUDGET_USD: ${{ vars.AI_DAILY_BUDGET_USD }}
-          MAIL_FROM: ${{ vars.MAIL_FROM }}
+          GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_WEB_CLIENT_ID }}
+          GOOGLE_IOS_CLIENT_ID: ${{ secrets.GOOGLE_IOS_CLIENT_ID }}
+          OAUTH_GITHUB_ID: ${{ secrets.OAUTH_GITHUB_ID }}
           NODEJS_HELPERS: '0'
         run: |
           vc() { npx --yes "$VERCEL_CLI" "$@" --token "$VERCEL_TOKEN" ${VERCEL_SCOPE:+--scope "$VERCEL_SCOPE"}; }
@@ -76,10 +84,10 @@ jobs:
             loaded+=("$name")
           }
           loaded=()
-          for name in DATABASE_URL JWT_SECRET ADMIN_TOKEN ANTHROPIC_API_KEY RESEND_API_KEY SENTRY_DSN SENTRY_WEB_DSN; do
+          for name in DATABASE_URL JWT_SECRET ADMIN_TOKEN ANTHROPIC_API_KEY OAUTH_GITHUB_SECRET SENTRY_DSN SENTRY_WEB_DSN; do
             set_env "$name" --sensitive
           done
-          for name in AI_DAILY_BUDGET_USD MAIL_FROM NODEJS_HELPERS; do
+          for name in AI_DAILY_BUDGET_USD GOOGLE_WEB_CLIENT_ID GOOGLE_IOS_CLIENT_ID OAUTH_GITHUB_ID NODEJS_HELPERS; do
             set_env "$name" --no-sensitive
           done
           echo "Production environment for $PROJECT: ${loaded[*]}"

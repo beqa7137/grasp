@@ -18,15 +18,19 @@ export function configureApp(app: NestExpressApplication, config: AppConfig) {
           'upgrade-insecure-requests': null,
         },
       },
+      // The web sign-in popup reports back to the page that opened it; `same-origin` would cut that link.
+      crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
     }),
   );
   app.enableCors({
     origin: config.corsOrigins,
-    allowedHeaders: ['content-type', 'x-learner-id', 'x-request-id'],
+    allowedHeaders: ['authorization', 'content-type', 'x-learner-id', 'x-request-id'],
     exposedHeaders: ['x-request-id'],
     maxAge: 600,
   });
   app.useBodyParser('json', { limit: '256kb' });
+  // The GitHub sign-in token endpoint is posted to like any OAuth token endpoint, as a URL-encoded form.
+  app.useBodyParser('urlencoded', { extended: false, limit: '16kb' });
   app.setGlobalPrefix('api');
   app.useGlobalFilters(new ReportExceptionsFilter(app.getHttpAdapter()));
   serveWebApp(app, config);

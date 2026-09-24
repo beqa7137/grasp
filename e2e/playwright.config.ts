@@ -1,10 +1,12 @@
 import { defineConfig, devices } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
+import { fakeGitHubUrl, githubApp } from './support/github';
 
 /**
  * Two ways to run:
- * - Locally and in CI: starts the built API, which also serves the built web app, like the Docker image.
- *   Run `npm run build` first. Uses Postgres when DATABASE_URL is set, in-memory storage otherwise.
+ * - Locally and in CI: starts the built API, which also serves the built web app, like the Docker image,
+ *   and a fake GitHub for sign-in. Run `npm run build` first. Uses Postgres when DATABASE_URL is set,
+ *   in-memory storage otherwise.
  * - Against a deployment: set E2E_BASE_URL. Only tests tagged @smoke run, and they never write data.
  */
 const deployed = process.env.E2E_BASE_URL;
@@ -33,20 +35,35 @@ export default defineConfig({
   ],
   webServer: deployed
     ? undefined
-    : {
-        command: `${process.env.DATABASE_URL ? 'node apps/api/dist/migrate.js && ' : ''}node apps/api/dist/main.js`,
-        cwd: root,
-        url: `http://localhost:${port}/api/health/ready`,
-        reuseExistingServer: !process.env.CI,
-        timeout: 60_000,
-        env: {
-          PORT: String(port),
-          NODE_ENV: 'production',
-          WEB_DIST_DIR: `${root}apps/app/dist/app/browser`,
-          JWT_SECRET: process.env.JWT_SECRET ?? 'e2e-only-secret-e2e-only-secret-e2e-only',
-          TRUST_PROXY: '1',
-          LOG_LEVEL: 'warn',
-          ...(process.env.DATABASE_URL ? { DATABASE_URL: process.env.DATABASE_URL } : {}),
+    : [
+        {
+          command: 'node e2e/support/fake-github.ts',
+          cwd: root,
+          port: githubApp.port,
+          reuseExistingServer: !process.env.CI,
+          env: { PORT: String(githubApp.port), CLIENT_ID: githubApp.clientId, CLIENT_SECRET: githubApp.clientSecret },
         },
-      },
+        {
+          command: `${process.env.DATABASE_URL ? 'node apps/api/dist/migrate.js && ' : ''}node apps/api/dist/main.js`,
+          cwd: root,
+          url: `http://localhost:${port}/api/health/ready`,
+          reuseExistingServer: !process.env.CI,
+          timeout: 60_000,
+          env: {
+            PORT: String(port),
+            NODE_ENV: 'production',
+            WEB_DIST_DIR: `${root}apps/app/dist/app/browser`,
+            JWT_SECRET: process.env.JWT_SECRET ?? 'e2e-only-secret-e2e-only-secret-e2e-only',
+            TRUST_PROXY: '1',
+            LOG_LEVEL: 'warn',
+            OAUTH_GITHUB_ID: githubApp.clientId,
+            OAUTH_GITHUB_SECRET: githubApp.clientSecret,
+            OAUTH_GITHUB_URL: fakeGitHubUrl,
+            OAUTH_GITHUB_API_URL: `${fakeGitHubUrl}/api`,
+            // Google's side is replaced in the browser (see sign-in.spec.ts); no real client exists.
+            GOOGLE_WEB_CLIENT_ID: 'e2e-only.apps.googleusercontent.com',
+            ...(process.env.DATABASE_URL ? { DATABASE_URL: process.env.DATABASE_URL } : {}),
+          },
+        },
+      ],
 });
