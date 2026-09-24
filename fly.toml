@@ -1,6 +1,6 @@
 # Fly.io deployment: one machine serves the API and the web app. See docs/DEPLOYMENT.md.
-# Change `app` to your own app name before the first `fly launch --copy-config --no-deploy`.
-app = "grasp"
+# App names are global on Fly; `app` below is this deployment's. Change it when deploying your own copy.
+app = "grasp-beqa"
 primary_region = "ewr"
 
 [build]
