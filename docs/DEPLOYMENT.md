@@ -91,7 +91,7 @@ cd apps/app
 GRASP_RELEASE=1 GRASP_API_URL=https://<your-domain>/api GRASP_VERSION=1.0.0 npm run cap:sync
 ```
 
-`GRASP_RELEASE=1` turns off cleartext HTTP and requires an `https` API URL. `GRASP_SENTRY_DSN` enables error reporting in the app. The API's default `CORS_ORIGINS` already allows the Capacitor origins on iOS and Android, and native apps download the Python runtime from the same domain.
+`GRASP_RELEASE=1` turns off cleartext HTTP and requires an `https` API URL. `GRASP_SENTRY_DSN` enables error reporting in the app. The app uses Sentry's Capacitor SDK, so native crashes on iOS and Android are reported too, next to JavaScript errors. The API's default `CORS_ORIGINS` already allows the Capacitor origins on iOS and Android, and native apps download the Python runtime from the same domain.
 
 ## Environment reference
 
@@ -116,4 +116,4 @@ Every variable is validated at startup. See `apps/api/.env.example` for the full
 
 ## Privacy notes for error reporting
 
-Sentry is loaded only when a DSN is set. Both the API and the web app turn off collection of user info, cookies, request and response bodies, query strings and stack-frame variables. The API also turns off database query data and AI prompt inputs and outputs, and strips the `x-learner-id` header. Interview transcripts and learner answers never reach Sentry. 503s from a busy AI provider are expected and aren't reported.
+Sentry is loaded only when a DSN is set, as two projects: `grasp-api` (`SENTRY_DSN`) and `grasp-app` (`SENTRY_WEB_DSN`, used by the web app and the native apps). Both turn off collection of user info, cookies, request and response bodies, query strings and stack-frame variables; the app strips query strings from the request and from navigation and fetch breadcrumbs. The API also turns off database query data and AI prompt inputs and outputs, and strips the `x-learner-id` header. Interview transcripts and learner answers never reach Sentry. 503s from a busy AI provider are expected and aren't reported.
