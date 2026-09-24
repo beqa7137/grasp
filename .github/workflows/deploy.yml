@@ -107,7 +107,7 @@ jobs:
         env:
           E2E_BASE_URL: ${{ vars.PUBLIC_URL }}
         run: |
-          npx -w @grasp/e2e playwright install --with-deps chromium
+          npx -w @grasp/e2e playwright install --with-deps --only-shell chromium
           npm run e2e
 
       - name: Upload the browser test report
