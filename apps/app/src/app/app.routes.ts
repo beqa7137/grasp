@@ -12,6 +12,7 @@ export const routes: Routes = [
       { path: 'design', loadComponent: () => import('./pages/design/design-list.page').then((m) => m.DesignListPage) },
       { path: 'design/:id', loadComponent: () => import('./pages/design/sandbox.page').then((m) => m.SandboxPage) },
       { path: 'drill', loadComponent: () => import('./pages/drill/drill.page').then((m) => m.DrillPage) },
+      { path: 'diagnostic', loadComponent: () => import('./pages/diagnostic/diagnostic.page').then((m) => m.DiagnosticPage) },
       { path: 'interview', loadComponent: () => import('./pages/interview/interview-home.page').then((m) => m.InterviewHomePage) },
       {
         path: 'interview/:id',

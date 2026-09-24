@@ -1,4 +1,15 @@
-import { ChangeDetectionStrategy, Component, HostListener, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  HostListener,
+  computed,
+  effect,
+  inject,
+  input,
+  signal,
+  untracked,
+} from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
@@ -18,6 +29,7 @@ import {
 import { addIcons } from 'ionicons';
 import { arrowForward, flame, gitNetworkOutline, leafOutline, pulseOutline, timeOutline } from 'ionicons/icons';
 import { haptic } from '../../core/haptics';
+import { isKeyForPage } from '../../core/page-keys';
 import { ProgressService } from '../../core/progress.service';
 import { ForecastComponent } from '../../review/forecast.component';
 import { QuestionCardComponent, type CardReason } from '../../review/question-card.component';
@@ -63,6 +75,7 @@ export class DrillPage {
   readonly plan = signal<{ due: number; fresh: number; minutes: number } | null>(null);
   private shownAt = Date.now();
   private sessionStart = Date.now();
+  private readonly host: Element = inject(ElementRef).nativeElement;
 
   readonly practice = computed(() => Boolean(this.pattern()));
   readonly current = computed(() => this.queue()[this.position()] ?? null);
@@ -169,7 +182,7 @@ export class DrillPage {
 
   @HostListener('document:keydown', ['$event'])
   onKey(e: KeyboardEvent) {
-    if (!this.current() || (e.target as HTMLElement).closest('input, textarea')) return;
+    if (!this.current() || !isKeyForPage(this.host, e)) return;
     if (this.chosen() === null) {
       if (/^[1-4]$/.test(e.key)) this.answer(Number(e.key) - 1);
       return;

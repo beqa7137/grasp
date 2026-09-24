@@ -12,7 +12,7 @@ import { ListViewComponent } from '../viz/list-view.component';
 import { TableViewComponent } from '../viz/table-view.component';
 import { TreeViewComponent } from '../viz/tree-view.component';
 
-export type CardReason = SessionReason | 'practice';
+export type CardReason = SessionReason | 'practice' | 'diagnostic';
 
 const REASON_LABELS: Record<CardReason, string> = {
   due: 'Review',
@@ -20,6 +20,7 @@ const REASON_LABELS: Record<CardReason, string> = {
   boosted: 'Flagged for you',
   new: 'New',
   practice: 'Practice',
+  diagnostic: 'Placement check',
 };
 
 @Component({

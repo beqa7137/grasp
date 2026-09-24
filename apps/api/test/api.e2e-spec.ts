@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { createTestApp } from './support/app.js';
@@ -19,6 +20,12 @@ describe.each(storages)('API (%s storage, offline interviewer)', (storage) => {
   afterAll(async () => {
     await app.close();
   });
+
+  const postEvent = (event: Record<string, unknown>, learnerId = learner) =>
+    request(app.getHttpServer())
+      .post('/api/progress/events')
+      .set('x-learner-id', learnerId)
+      .send({ events: [{ id: `evt-${randomUUID()}`, at: new Date().toISOString(), ...event }] });
 
   it('reports health and active integrations', async () => {
     const res = await request(app.getHttpServer()).get('/api/health').expect(200);
@@ -142,14 +149,7 @@ describe.each(storages)('API (%s storage, offline interviewer)', (storage) => {
   });
 
   it('ingests coding submissions and validates them against the problem bank', async () => {
-    const at = new Date().toISOString();
-    const submit = (event: Record<string, unknown>) =>
-      request(app.getHttpServer())
-        .post('/api/progress/events')
-        .set('x-learner-id', learner)
-        .send({
-          events: [{ id: `code-${Math.random().toString(36).slice(2, 10)}`, at, type: 'code.submitted', language: 'python', ...event }],
-        });
+    const submit = (event: Record<string, unknown>) => postEvent({ type: 'code.submitted', language: 'python', ...event });
 
     await submit({ problemId: 'daily-temperatures', passed: 20, total: 28 }).expect(200);
     await submit({ problemId: 'daily-temperatures', passed: 29, total: 28 }).expect(400);
@@ -161,12 +161,7 @@ describe.each(storages)('API (%s storage, offline interviewer)', (storage) => {
   });
 
   it('syncs study settings and rejects values outside the offered options', async () => {
-    const at = new Date().toISOString();
-    const change = (settings: object) =>
-      request(app.getHttpServer())
-        .post('/api/progress/events')
-        .set('x-learner-id', learner)
-        .send({ events: [{ id: `set-${Math.random().toString(36).slice(2, 10)}`, at, type: 'settings.changed', settings }] });
+    const change = (settings: object) => postEvent({ type: 'settings.changed', settings });
 
     await change({ retention: 0.95, newPerDay: 5 }).expect(200);
     await change({ retention: 0.5 }).expect(400);
@@ -176,6 +171,25 @@ describe.each(storages)('API (%s storage, offline interviewer)', (storage) => {
 
     const snap = await request(app.getHttpServer()).get('/api/progress').set('x-learner-id', learner).expect(200);
     expect(snap.body.state.settings).toEqual({ retention: 0.95, budgetMinutes: 10, newPerDay: 5 });
+  });
+
+  it('derives a placement from a placement check and rejects answers it could not have asked', async () => {
+    const placementLearner = randomUUID();
+    const at = new Date().toISOString();
+    const check = (answers: object[]) => postEvent({ at, type: 'diagnostic.completed', answers }, placementLearner);
+    const answer = (itemId: string, outcome = 'correct') => ({ itemId, outcome, durationMs: 9_000 });
+
+    await check([answer('cx:hash-pair')]).expect(400);
+    await check([answer('rec:no-such-card')]).expect(400);
+    await check([answer('rec:h1'), answer('rec:h1', 'wrong')]).expect(400);
+    await check([answer('rec:h1', 'maybe')]).expect(400);
+    await check([]).expect(400);
+    await check([answer('rec:h1'), answer('rec:tp1', 'skipped')]).expect(200);
+
+    const snap = await request(app.getHttpServer()).get('/api/progress').set('x-learner-id', placementLearner).expect(200);
+    expect(snap.body.state.placement).toEqual({ hashing: 'strong', 'two-pointers': 'weak' });
+    expect(snap.body.state.diagnosedAt).toBe(at);
+    expect(snap.body.state.cards).toEqual({});
   });
 
   it('keeps code the candidate shares with an interview message', async () => {

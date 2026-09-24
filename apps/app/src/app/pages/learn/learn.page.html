@@ -54,6 +54,19 @@
 
     <section class="plan">
       <p class="eyebrow">Today's loop</p>
+      @if (offerDiagnostic()) {
+        <aside class="panel diagnostic" aria-labelledby="diagnostic-title">
+          <ion-icon name="compass-outline" />
+          <div class="copy">
+            <h3 id="diagnostic-title">Find your starting point</h3>
+            <p>{{ patternCount }} quick questions, about 5 minutes. Your reviews then start with the patterns you don't know yet.</p>
+          </div>
+          <div class="diagnostic-actions">
+            <a class="g-btn primary" routerLink="/diagnostic">Take the placement check</a>
+            <button class="g-btn ghost" (click)="diagnosticPrompt.dismiss()">Not now</button>
+          </div>
+        </aside>
+      }
       <div class="tiles">
         <a class="panel card-link tile drill" routerLink="/drill">
           <ion-icon name="flash-outline" />

@@ -124,6 +124,10 @@ ion-tab-button {
   padding: 16px 16px 40px;
 }
 
+.narrow {
+  max-width: 760px;
+}
+
 .panel {
   background: var(--g-surface);
   border: 1px solid var(--g-line);
@@ -184,6 +188,7 @@ ion-tab-button {
   align-items: center;
   justify-content: center;
   gap: 8px;
+  text-decoration: none;
   transition:
     background 0.15s,
     border-color 0.15s,

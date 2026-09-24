@@ -56,12 +56,12 @@ Tests enforce the following:
 
 An item enters rotation only after its idea has been met somewhere else:
 
-| Kind                    | Unlocks when                                                                             |
-| ----------------------- | ---------------------------------------------------------------------------------------- |
-| Recognition             | Always                                                                                   |
-| Complexity and template | The pattern has been engaged with (any review, visualizer prediction, or interview flag) |
-| Predict checkpoints     | The learner has used that algorithm's visualizer                                         |
-| System design           | The Design Lab mission linked to that topic is complete                                  |
+| Kind                    | Unlocks when                                                                                                                    |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Recognition             | Always                                                                                                                          |
+| Complexity and template | The pattern has been engaged with (any review, visualizer prediction, interview flag, or a right answer in the placement check) |
+| Predict checkpoints     | The learner has used that algorithm's visualizer                                                                                |
+| System design           | The Design Lab mission linked to that topic is complete                                                                         |
 
 ## 3. Signals from the rest of the app
 
@@ -75,12 +75,23 @@ Signals move due dates. They never edit FSRS memory state. The next real review 
 
 Boosted new items bypass the daily new-item cap, with a cap of their own.
 
+### Placement check
+
+Learn invites every learner who hasn't taken the placement check yet, and Settings → Study offers it any time. It asks one recognition question per pattern, 20 in all, in curriculum order. Each question offers **I haven't learned this** so nobody has to guess, and no answers are shown along the way. The raw answers are stored as one `diagnostic.completed` event and the reducer derives a placement per pattern from them, so the rule can change later and every stored check is reinterpreted on replay.
+
+| Placement               | Effect                                                                                                                                            |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Weak (wrong or skipped) | The pattern's new cards come first, within the normal daily cap. A learner who is new to everything keeps the curriculum order.                   |
+| Strong (answered right) | The pattern counts as engaged with, which unlocks its template and complexity cards. Its recognition cards move to the end of the new-card order. |
+
+One right answer is enough because a wrong placement is cheap: a lucky guess (one in four) only moves that pattern's first cards later. The check never creates cards or edits memory state, and it doesn't count toward the new-card cap. A retake replaces the placement, while patterns already engaged with stay unlocked. Answer times feed the per-kind time estimate, as review answers do.
+
 ## 4. Sessions: short, interleaved, time-boxed
 
 `buildSession()` in `libs/engine/src/srs/session.ts` builds each sitting in five steps:
 
 1. **Due items, most at risk first.** Sorted by lowest current retrievability. Learning items due within 20 minutes are pulled in.
-2. **New items.** Boosted items first, then curriculum order, alternating between deepening a known pattern and recognizing a new one. The cap is the learner's new-cards-per-day setting (default 10) per local day. Boosted items are exempt.
+2. **New items.** Boosted items first, then patterns the placement check found weak, then curriculum order, alternating between deepening a known pattern and recognizing a new one. Recognition cards of patterns it found strong come last. The cap is the learner's new-cards-per-day setting (default 10) per local day. Boosted items are exempt.
 3. **Time budget.** The learner's daily session setting (default 10 minutes), estimated from the learner's own moving-average answer time per item kind. First exposures count ×1.5.
 4. **Interleaving.** Neighbouring items differ in topic and, where possible, kind. It feels harder but transfers better, and interviews never say which pattern is coming.
 5. **Misses come back in the same sitting,** at most twice per item. After that the item waits for the next session instead of looping.
@@ -98,6 +109,7 @@ Everything is an immutable event, applied by one pure reducer on the device and 
 - `interview.scored`
 - `code.submitted`
 - `settings.changed`
+- `diagnostic.completed`
 
 Legacy v1 `drill.reviewed` events (SM-2 grades) are upcast on read, so old logs still replay.
 

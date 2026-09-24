@@ -3,6 +3,7 @@ import { Preferences } from '@capacitor/preferences';
 import {
   buildSession,
   type CodeSubmittedEvent,
+  type DiagnosticCompletedEvent,
   forecast,
   masteryByTopic,
   missionRevisits,
@@ -32,7 +33,8 @@ export type NewEvent =
   | Draft<ScenarioCompletedEvent>
   | Draft<InterviewScoredEvent>
   | Draft<CodeSubmittedEvent>
-  | Draft<SettingsChangedEvent>;
+  | Draft<SettingsChangedEvent>
+  | Draft<DiagnosticCompletedEvent>;
 
 export type SyncStatus = 'idle' | 'syncing' | 'synced' | 'offline';
 

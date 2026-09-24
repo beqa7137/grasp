@@ -134,22 +134,30 @@ export function buildSession(state: ProgressState, opts: SessionOptions): Sessio
   };
 }
 
-/**
- * Unseen, unlocked items in the order they should be introduced: boosted items first (most recent
- * signal first), then alternating between deepening known topics and recognizing new patterns.
- */
+/** Unseen, unlocked items in the order they should be introduced. */
 export function newCandidates(state: ProgressState): ItemDef[] {
   const fresh = REVIEW_ITEMS.filter((def) => !state.cards[def.id] && isUnlocked(def, state));
   const boosted = fresh.filter((d) => state.boosts[d.id]).sort((a, b) => state.boosts[b.id].at.localeCompare(state.boosts[a.id].at));
   const rest = fresh.filter((d) => !state.boosts[d.id]);
-  const deepen = rest.filter((d) => d.kind !== 'recognition');
-  const recognize = interleaveByTopic(rest.filter((d) => d.kind === 'recognition'));
+  const placement = (d: ItemDef) => state.placement[d.topic];
+  const alreadyKnown = (d: ItemDef) => placement(d) === 'strong' && d.kind === 'recognition';
+  return [
+    ...boosted,
+    ...mixDeepenAndRecognize(rest.filter((d) => placement(d) === 'weak')),
+    ...mixDeepenAndRecognize(rest.filter((d) => placement(d) !== 'weak' && !alreadyKnown(d))),
+    ...mixDeepenAndRecognize(rest.filter(alreadyKnown)),
+  ];
+}
+
+function mixDeepenAndRecognize(defs: ItemDef[]): ItemDef[] {
+  const deepen = defs.filter((d) => d.kind !== 'recognition');
+  const recognize = interleaveByTopic(defs.filter((d) => d.kind === 'recognition'));
   const mixed: ItemDef[] = [];
   for (let i = 0; i < Math.max(deepen.length, recognize.length); i++) {
     if (deepen[i]) mixed.push(deepen[i]);
     if (recognize[i]) mixed.push(recognize[i]);
   }
-  return [...boosted, ...mixed];
+  return mixed;
 }
 
 function interleaveByTopic(defs: ItemDef[]): ItemDef[] {

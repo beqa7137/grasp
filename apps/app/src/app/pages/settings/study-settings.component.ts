@@ -1,4 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { DatePipe } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { STUDY_OPTIONS, relativeWorkload, type StudySettings } from '@grasp/engine';
 import { ProgressService } from '../../core/progress.service';
 import { ReminderService } from '../../reminders/reminder.service';
@@ -13,6 +15,7 @@ const pct = (r: number) => `${Math.round(r * 100)}%`;
 @Component({
   selector: 'app-study-settings',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [RouterLink, DatePipe],
   template: `
     <section class="panel block">
       <h2>Study</h2>
@@ -59,6 +62,20 @@ const pct = (r: number) => `${Math.round(r * 100)}%`;
           }
         </div>
         <p class="hint small">{{ retentionHint() }}</p>
+      </div>
+
+      <div class="setting toggle-row">
+        <div class="label">
+          <strong>Placement check</strong>
+          <span class="muted small">
+            @if (diagnosedAt(); as last) {
+              Taken {{ last | date: 'MMM d' }}. Retake it to reorder which patterns your new cards start with.
+            } @else {
+              Answer one question per pattern so your new cards start with the ones you don't know yet.
+            }
+          </span>
+        </div>
+        <a class="g-btn" routerLink="/diagnostic">{{ diagnosedAt() ? 'Retake' : 'Take it' }}</a>
       </div>
     </section>
 
@@ -158,6 +175,9 @@ const pct = (r: number) => `${Math.round(r * 100)}%`;
       border-color: var(--g-accent);
       color: #0b0d12;
     }
+    a.g-btn {
+      flex: none;
+    }
     .hint {
       margin: 10px 0 0;
       color: var(--g-muted);
@@ -224,6 +244,7 @@ export class StudySettingsComponent {
   private readonly progress = inject(ProgressService);
   readonly reminders = inject(ReminderService);
   readonly settings = this.progress.settings;
+  readonly diagnosedAt = computed(() => this.progress.state().diagnosedAt);
   readonly denied = computed(() => this.reminders.permission() === 'denied');
   private readonly declined = signal(false);
 

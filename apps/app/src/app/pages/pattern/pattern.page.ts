@@ -91,9 +91,6 @@ import { MasteryRingComponent } from '../../viz/mastery-ring.component';
     </ion-content>
   `,
   styles: `
-    .narrow {
-      max-width: 760px;
-    }
     .head {
       display: flex;
       align-items: center;

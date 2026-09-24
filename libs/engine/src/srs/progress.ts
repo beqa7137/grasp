@@ -4,6 +4,7 @@ import { SD_TOPICS, getSdTopic } from '../curriculum/sd-topics.js';
 import { getReviewItem, itemsForTopic } from '../review/catalog.js';
 import type { ItemKind, ReviewItem } from '../review/types.js';
 import { SCENARIOS } from '../sysdesign/scenarios.js';
+import { placementFromAnswers, type Placement } from './diagnostic.js';
 import { sortEvents, upcast, type StoredEvent, type StudySettings } from './events.js';
 import { pullForward, retrievability, review, type CardPhase, type CardState, type ReviewRating } from './scheduler.js';
 import { DEFAULT_STUDY_SETTINGS, mergeSettings } from './settings.js';
@@ -56,6 +57,9 @@ export interface ProgressState {
   predictions: Record<string, { correct: number; total: number }>;
   missions: Record<string, MissionState>;
   interviews: { total: number; lastVerdict: string | null };
+  /** Pattern → placement from the latest placement check. */
+  placement: Record<string, Placement>;
+  diagnosedAt: string | null;
   coding: Record<string, CodingRecord>;
   practice: { correct: number; total: number };
   /** Moving average of answer time per item kind, in ms. */
@@ -75,6 +79,8 @@ export const emptyProgress = (): ProgressState => ({
   predictions: {},
   missions: {},
   interviews: { total: 0, lastVerdict: null },
+  placement: {},
+  diagnosedAt: null,
   coding: {},
   practice: { correct: 0, total: 0 },
   durations: {},
@@ -204,6 +210,17 @@ export function applyEvent(state: ProgressState, stored: StoredEvent): ProgressS
     case 'settings.changed':
       next.settings = mergeSettings(state.settings, event.settings);
       break;
+    case 'diagnostic.completed': {
+      next.placement = placementFromAnswers(event.answers);
+      next.diagnosedAt = event.at;
+      for (const [topic, placement] of Object.entries(next.placement)) if (placement === 'strong') introduce(topic);
+      for (const answer of event.answers) {
+        const def = getReviewItem(answer.itemId);
+        if (def && answer.outcome !== 'skipped') next.durations = updateDuration(next.durations, def.kind, answer.durationMs);
+      }
+      next.xp += 2 * event.answers.filter((a) => a.outcome === 'correct').length;
+      break;
+    }
   }
   return next;
 }

@@ -16,7 +16,14 @@ export interface Ratio {
 export interface CohortMetrics {
   generatedAt: string;
   learners: { total: number; active1d: number; active7d: number; newLast7d: number };
-  activation: { reviewed: Ratio; predicted: Ratio; completedMission: Ratio; startedInterview: Ratio; scoredInterview: Ratio };
+  activation: {
+    tookPlacementCheck: Ratio;
+    reviewed: Ratio;
+    predicted: Ratio;
+    completedMission: Ratio;
+    startedInterview: Ratio;
+    scoredInterview: Ratio;
+  };
   retention: { d1: Ratio; d7: Ratio };
   engagement: { activeDaysPerLearnerLast7d: number | null; medianSessionMinutes: number | null };
   reviews: {
@@ -178,6 +185,7 @@ export function cohortMetrics(
       newLast7d: learnerIds.filter((id) => firstDay.get(id)! >= last7).length,
     },
     activation: {
+      tookPlacementCheck: did((e) => e.type === 'diagnostic.completed'),
       reviewed: did((e) => e.type === 'review.graded' || e.type === 'drill.reviewed'),
       predicted: did((e) => e.type === 'predict.answered'),
       completedMission: did((e) => e.type === 'scenario.completed'),

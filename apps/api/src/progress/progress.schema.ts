@@ -1,4 +1,15 @@
-import { ALGORITHMS, CODING_PROBLEMS, DRILL_CARDS, LANGUAGES, PATTERNS, SCENARIOS, STUDY_OPTIONS, getReviewItem } from '@grasp/engine';
+import {
+  ALGORITHMS,
+  CODING_PROBLEMS,
+  DIAGNOSTIC_OUTCOMES,
+  DRILL_CARDS,
+  LANGUAGES,
+  PATTERNS,
+  SCENARIOS,
+  STUDY_OPTIONS,
+  getReviewItem,
+  isDiagnosticItem,
+} from '@grasp/engine';
 import { z } from 'zod';
 
 const cardIds = new Set(DRILL_CARDS.map((c) => c.id));
@@ -83,6 +94,20 @@ export const learningEventSchema = z.discriminatedUnion('type', [
       })
       .partial()
       .refine((change) => Object.keys(change).length > 0, 'Empty settings change'),
+  }),
+  z.object({
+    ...base,
+    type: z.literal('diagnostic.completed'),
+    answers: z
+      .array(
+        z.object({
+          itemId: z.string().max(80).refine(isDiagnosticItem, 'Not a placement check item'),
+          outcome: z.enum(DIAGNOSTIC_OUTCOMES),
+          durationMs,
+        }),
+      )
+      .min(1)
+      .refine((answers) => new Set(answers.map((a) => a.itemId)).size === answers.length, 'Each item can be answered once'),
   }),
   z.object({
     ...base,
