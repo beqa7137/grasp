@@ -60,6 +60,17 @@ jobs:
           npm run build -w @grasp/engine
           npm run cap:sync -w @grasp/app
 
+      # One stable signing key for test builds, so Google sign-in can trust its fingerprint. Without the
+      # secret (e.g. forks), Gradle's throwaway debug key is used.
+      - name: Use the shared test signing key
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_TEST_KEYSTORE }}
+        run: |
+          if [ -n "$KEYSTORE" ]; then
+            mkdir -p ~/.android
+            printf '%s' "$KEYSTORE" | base64 -d > ~/.android/debug.keystore
+          fi
+
       - name: Assemble debug APK
         working-directory: apps/app/android
         run: ./gradlew assembleDebug --no-daemon --stacktrace

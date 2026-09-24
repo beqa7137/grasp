@@ -55,7 +55,7 @@ python3 apps/app/scripts/generate-native-assets.py
 - **Android:** JDK 21 on Ubuntu, `cap:sync`, then `./gradlew assembleDebug`. The debug APK is uploaded as an artifact for 7 days, so a reviewer can sideload it.
 - **iOS:** the `macos-26` runner (Xcode 26), `cap:sync`, then an unsigned `xcodebuild` for the iOS Simulator. The zipped `App.app` is uploaded too; unzip it and drag it onto a running simulator to install.
 
-Neither job signs or publishes anything. By default the apps call a local development API. To test against a deployment on emulators, run **Native builds** by hand with its API URL (for example `https://grasp-rho-taupe.vercel.app/api`): both builds then use release settings (https only) and that API. Those runs also replace the `test-build` pre-release with both files, so they can be fetched without the Actions UI: `gh release download test-build`.
+Neither job publishes to a store. The Android APK is signed with a shared test key from the `ANDROID_TEST_KEYSTORE` secret (SHA-1 `3E:E1:11:6A:13:18:B7:B4:C9:92:5C:9A:85:6E:65:FF:90:45:E1:B8`), so its fingerprint is stable for Google sign-in; release builds use their own key. By default the apps call a local development API. To test against a deployment on emulators, run **Native builds** by hand with its API URL (for example `https://grasp-rho-taupe.vercel.app/api`): both builds then use release settings (https only) and that API. Those runs also replace the `test-build` pre-release with both files, so they can be fetched without the Actions UI: `gh release download test-build`.
 
 ## Release checklist
 
