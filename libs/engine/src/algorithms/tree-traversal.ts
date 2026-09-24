@@ -116,7 +116,6 @@ export const treeTraversal: AlgorithmDef<Input> = {
     const stack: Call[] = [];
     const returned = new Set<string>();
     let enteredCount = 0;
-    let asked = 0;
     let lastKind: QuestionKind | null = null;
     // out.length and enteredCount at the last question of each kind: until they grow, asking again repeats the same answer.
     const askedAt: Record<QuestionKind, number> = { append: -1, visit: -1 };
@@ -172,9 +171,8 @@ export const treeTraversal: AlgorithmDef<Input> = {
       return null;
     };
 
-    const optionsFor = (answer: number, distractors: number[]) => {
-      // Trees of one size ask at much the same steps, so offsetting by the root's value moves each answer between inputs.
-      const options = rotatedChoices(String(answer), distractors.map(String), asked + root.val);
+    const optionsFor = (prompt: string, answer: number, distractors: number[]) => {
+      const options = rotatedChoices(prompt, String(answer), distractors.map(String));
       return options.choices.length > 1 ? options : null;
     };
 
@@ -199,11 +197,14 @@ export const treeTraversal: AlgorithmDef<Input> = {
       const distractors = [caller.val, ...(turn ? [turn.right.val] : []), ...sequence.slice(out.length + 1)].filter(
         (v) => !out.includes(v),
       );
-      const options = optionsFor(answer, distractors);
+      const options = optionsFor(
+        `${orderName}, out = [${out.join(', ')}]. dfs(${x.val}) is about to return to dfs(${caller.val}). Which value is appended next?`,
+        answer,
+        distractors,
+      );
       if (!options) return null;
       askedAt.append = out.length;
       return {
-        prompt: `${orderName}, out = [${out.join(', ')}]. dfs(${x.val}) is about to return to dfs(${caller.val}). Which value is appended next?`,
         ...options,
         explain: appendReason(x, answer, turn),
       };
@@ -212,11 +213,14 @@ export const treeTraversal: AlgorithmDef<Input> = {
     const visitQuestion = (x: TreeNode, caller: TreeNode, turn: Turn | null): Prediction | null => {
       if (!turn || enteredCount === askedAt.visit) return null;
       const answer = turn.right.val;
-      const options = optionsFor(answer, entryOrder.slice(enteredCount));
+      const options = optionsFor(
+        `${orderName}. dfs(${x.val}) is about to return to dfs(${caller.val}). Which node will dfs enter next for the first time?`,
+        answer,
+        entryOrder.slice(enteredCount),
+      );
       if (!options) return null;
       askedAt.visit = enteredCount;
       return {
-        prompt: `${orderName}. dfs(${x.val}) is about to return to dfs(${caller.val}). Which node will dfs enter next for the first time?`,
         ...options,
         explain: `Returning unwinds the stack to dfs(${turn.at.val}), the nearest call that has not gone right yet, so dfs(${answer}) is the next new call. Every order enters nodes in this same sequence; only the append line moves.`,
       };
@@ -231,7 +235,6 @@ export const treeTraversal: AlgorithmDef<Input> = {
         const predict = kind === 'append' ? appendQuestion(x, caller, turn) : visitQuestion(x, caller, turn);
         if (!predict) continue;
         lastKind = kind;
-        asked++;
         return { predict };
       }
       return {};
@@ -239,13 +242,15 @@ export const treeTraversal: AlgorithmDef<Input> = {
 
     const firstQuestion = (): Partial<Frame> => {
       const answer = sequence[0];
-      const options = optionsFor(answer, [...ORDERS.map((o) => walk(root, o)[0]), ...entryOrder]);
+      const options = optionsFor(
+        `${orderName} walk of this BST. dfs(${root.val}) is about to start. Which value is appended to out first?`,
+        answer,
+        [...ORDERS.map((o) => walk(root, o)[0]), ...entryOrder],
+      );
       if (!options) return {};
       askedAt.append = 0;
-      asked++;
       return {
         predict: {
-          prompt: `${orderName} walk of this BST. dfs(${root.val}) is about to start. Which value is appended to out first?`,
           ...options,
           explain:
             order === 'preorder'

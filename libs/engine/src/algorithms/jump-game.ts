@@ -41,8 +41,6 @@ export const jumpGame: AlgorithmDef<Input> = {
     const last = nums.length - 1;
     let reach = 0;
     let i = -1;
-    // Four distinct reach options only come up at one early index, so adding the total moves that answer between inputs.
-    const jumpTotal = nums.reduce((sum, x) => sum + x, 0);
 
     const snap = (line: number, note: string, extra: Partial<Frame> = {}) => {
       const scanning = i >= 0 && i <= last;
@@ -108,11 +106,14 @@ export const jumpGame: AlgorithmDef<Input> = {
       const prev = reach;
       const jump = i + nums[i];
       const next = Math.max(reach, jump);
-      const options = rotatedChoices(String(next), [jump, reach + nums[i], Math.max(reach, nums[i]), reach].map(String), jumpTotal + i);
+      const options = rotatedChoices(
+        `\`i = ${i}\`, \`nums[${i}] = ${nums[i]}\`, \`reach = ${reach}\`. What is the new farthest reach?`,
+        String(next),
+        [jump, reach + nums[i], Math.max(reach, nums[i]), reach].map(String),
+      );
       if (i > 0 && options.choices.length > 1) {
         snap(5, `Update reach using the jump from index ${i}.`, {
           predict: {
-            prompt: `\`i = ${i}\`, \`nums[${i}] = ${nums[i]}\`, \`reach = ${reach}\`. What is the new farthest reach?`,
             ...options,
             explain:
               jump > reach

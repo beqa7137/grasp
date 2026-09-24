@@ -1,4 +1,3 @@
-import { rotatedChoices } from './choices.js';
 import { asNumber, asNumbers, randInt } from './input.js';
 import type { AlgorithmDef, Frame } from './types.js';
 
@@ -49,7 +48,6 @@ export const pairSum: AlgorithmDef<Input> = {
     const frames: Frame[] = [];
     let l = 0;
     let r = nums.length - 1;
-    let asked = 0;
 
     const snap = (line: number, note: string, extra: Partial<Frame> = {}) => {
       const settled = nums.map((_, i) => i).filter((i) => i < l || i > r);
@@ -71,12 +69,8 @@ export const pairSum: AlgorithmDef<Input> = {
       snap(5, `Compare sum ${sum} with target ${target}.`, {
         predict: {
           prompt: `\`sum = ${sum}\`, \`target = ${target}\`. Which move is safe?`,
-          // Counting from 0 alone would always put the first answer first, so the length offsets it between inputs.
-          ...rotatedChoices(
-            CHOICES[answer],
-            CHOICES.filter((_, k) => k !== answer),
-            nums.length + asked++,
-          ),
+          choices: CHOICES,
+          answer,
           explain:
             answer === 0
               ? 'Exact match.'

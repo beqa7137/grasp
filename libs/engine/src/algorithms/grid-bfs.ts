@@ -115,7 +115,6 @@ export const gridBfs: AlgorithmDef<Input> = {
     snap(2, `Start at ${label(start)} with distance 0. The queue is the frontier of cells we have discovered but not expanded.`);
 
     let dequeues = 0;
-    let asked = 0;
     while (queue.length) {
       let predict: Frame['predict'];
       if (queue.length >= 2 && dequeues % 3 === 1) {
@@ -123,9 +122,11 @@ export const gridBfs: AlgorithmDef<Input> = {
         const back = queue[queue.length - 1];
         const middle = queue[Math.floor(queue.length / 2)];
         predict = {
-          prompt: `Queue is [${queue.map(label).join(', ')}]. Which cell is expanded next?`,
-          // Every grid asks its first question at the same dequeue, so offsetting by the width moves its answer between inputs.
-          ...rotatedChoices(label(front), [back, middle].map(label), cols + asked++),
+          ...rotatedChoices(
+            `Queue is [${queue.map(label).join(', ')}]. Which cell is expanded next?`,
+            label(front),
+            [back, middle].map(label),
+          ),
           explain: `A queue is FIFO: ${label(front)} was discovered earliest, so it is closest to the start. That ordering is exactly why BFS finds shortest paths.`,
         };
       }

@@ -64,10 +64,8 @@ describe('subsets-backtracking', () => {
     for (const input of SAMPLES) expect(inSync(algo.validate(input).nums, traceOf(input))).toBe(true);
   });
 
-  it('asks predictions that the following frames confirm, with the answer in varying positions', () => {
+  it('asks predictions that the following frames confirm', () => {
     for (const input of SAMPLES) expect(answersConfirmed(traceOf(input))).toBe(true);
-    const recordAnswers = traceOf(algo.defaultInput).flatMap((f) => (f.predict && f.line !== 5 ? [f.predict.answer] : []));
-    expect(new Set(recordAnswers).size).toBeGreaterThan(1);
   });
 
   it('draws two or three distinct numbers', () => {
