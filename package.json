@@ -4,7 +4,8 @@
   "type": "module",
   "workspaces": [
     "libs/*",
-    "apps/*"
+    "apps/*",
+    "e2e"
   ],
   "engines": {
     "node": "^24.15.0"
@@ -15,7 +16,7 @@
     "dev:app": "npm run build:engine && npm start -w @grasp/app",
     "build": "npm run build:engine && npm run build -w @grasp/api && npm run build -w @grasp/app",
     "build:vercel": "npm run build && node scripts/prepare-vercel-output.mjs",
-    "lint": "oxlint -c .oxlintrc.json --deny-warnings api apps/api/src apps/api/test apps/app/src apps/app/scripts libs/engine/src scripts",
+    "lint": "oxlint -c .oxlintrc.json --deny-warnings api apps/api/src apps/api/test apps/app/src apps/app/scripts libs/engine/src scripts e2e",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "npm run build:engine && npm run typecheck --workspaces --if-present",
@@ -24,7 +25,8 @@
     "db:up": "docker compose up -d postgres",
     "db:migrate": "npm run db:migrate -w @grasp/api",
     "eval:interviewer": "npm run eval:interviewer -w @grasp/api",
-    "pilot:report": "node scripts/pilot-report.mjs"
+    "pilot:report": "node scripts/pilot-report.mjs",
+    "e2e": "npm run e2e -w @grasp/e2e --"
   },
   "allowScripts": {
     "esbuild@0.28.2": true,

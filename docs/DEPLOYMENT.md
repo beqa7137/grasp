@@ -51,6 +51,7 @@ Vercel's own Git deployments are off (`git.deploymentEnabled: false` in `vercel.
 3. Migrate the database with `DATABASE_URL_UNPOOLED` (or `DATABASE_URL`).
 4. `vercel deploy --prebuilt --prod`, tagged with the commit's short SHA as `RELEASE`.
 5. If `PUBLIC_URL` is set, wait until `/api/health` reports the new release, then check readiness, a deep link, `/config.json` and the Python runtime.
+6. Run the `@smoke` browser tests against `PUBLIC_URL` on desktop and phone viewports. They only read: every API call that could write data is blocked, so the pilot metrics stay clean. If a check fails, the function's recent 5xx logs are attached to the run.
 
 Migrations run before the new code takes traffic, so each one must work with the release still running: add tables and columns first, remove them in a later release.
 

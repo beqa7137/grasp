@@ -101,6 +101,25 @@ jobs:
           [ "$failed" = 0 ] || exit 1
           echo "Verified ${SHA::7} at $PUBLIC_URL" >> "$GITHUB_STEP_SUMMARY"
 
+      # The @smoke browser tests, read-only: they block every API call that could write data.
+      - name: Walk through the main flows in a browser
+        if: vars.PUBLIC_URL != ''
+        env:
+          E2E_BASE_URL: ${{ vars.PUBLIC_URL }}
+        run: |
+          npx -w @grasp/e2e playwright install --with-deps chromium
+          npm run e2e
+
+      - name: Upload the browser test report
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: |
+            e2e/playwright-report
+            e2e/test-results
+          retention-days: 7
+
       # Puts the function's own errors next to the failed check.
       - name: Show the deployment's runtime errors
         if: failure() && steps.deploy.outcome == 'success'
