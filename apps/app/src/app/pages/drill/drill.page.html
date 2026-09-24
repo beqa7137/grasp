@@ -114,6 +114,9 @@
             Nothing scheduled yet.
           }
         </p>
+        @if (progress.settings().newPerDay === 0) {
+          <p class="muted small">New cards are paused. <a routerLink="/settings">Change it in Settings</a>.</p>
+        }
         <div class="coming">
           <p class="eyebrow">Coming up</p>
           <g-forecast [days]="progress.forecast()" />

@@ -1,4 +1,4 @@
-import { ALGORITHMS, CODING_PROBLEMS, DRILL_CARDS, LANGUAGES, PATTERNS, SCENARIOS, getReviewItem } from '@grasp/engine';
+import { ALGORITHMS, CODING_PROBLEMS, DRILL_CARDS, LANGUAGES, PATTERNS, SCENARIOS, STUDY_OPTIONS, getReviewItem } from '@grasp/engine';
 import { z } from 'zod';
 
 const cardIds = new Set(DRILL_CARDS.map((c) => c.id));
@@ -21,6 +21,7 @@ const itemId = z
   .max(80)
   .refine((id) => Boolean(getReviewItem(id)), 'Unknown review item');
 const durationMs = z.number().int().min(0).max(3_600_000);
+const oneOf = (options: readonly number[]) => z.number().refine((v) => options.includes(v), `Must be one of ${options.join(', ')}`);
 
 export const learningEventSchema = z.discriminatedUnion('type', [
   z.object({
@@ -71,6 +72,18 @@ export const learningEventSchema = z.discriminatedUnion('type', [
       total: z.number().int().min(1).max(1_000),
     })
     .refine((e) => e.passed <= e.total, 'passed cannot exceed total'),
+  z.object({
+    ...base,
+    type: z.literal('settings.changed'),
+    settings: z
+      .strictObject({
+        retention: oneOf(STUDY_OPTIONS.retention),
+        budgetMinutes: oneOf(STUDY_OPTIONS.budgetMinutes),
+        newPerDay: oneOf(STUDY_OPTIONS.newPerDay),
+      })
+      .partial()
+      .refine((change) => Object.keys(change).length > 0, 'Empty settings change'),
+  }),
   z.object({
     ...base,
     type: z.literal('drill.reviewed'),

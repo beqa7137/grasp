@@ -7,6 +7,7 @@ import { ReportingErrorHandler, initErrorReporting } from './core/error-reportin
 import { LearnerService } from './core/learner.service';
 import { ProgressService } from './core/progress.service';
 import { PilotService } from './pilot/pilot.service';
+import { ReminderService } from './reminders/reminder.service';
 import { RuntimeConfigService } from './core/runtime-config.service';
 
 export const appConfig: ApplicationConfig = {
@@ -22,12 +23,14 @@ export const appConfig: ApplicationConfig = {
       const progress = inject(ProgressService);
       const pilot = inject(PilotService);
       const auth = inject(AuthService);
+      const reminders = inject(ReminderService);
       await runtime.load();
       void initErrorReporting(runtime);
       await learner.init();
       await auth.init();
       await progress.init();
       await pilot.init();
+      await reminders.init();
     }),
   ],
 };

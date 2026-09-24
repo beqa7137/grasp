@@ -1,3 +1,7 @@
 * text=auto eol=lf
 *.png binary
 *.ico binary
+
+# Windows batch files need CRLF; the POSIX Gradle wrapper needs LF.
+*.bat text eol=crlf
+gradlew text eol=lf

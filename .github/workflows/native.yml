@@ -1,0 +1,93 @@
+name: Native builds
+
+# Compiles the Capacitor shells so native breakage (plugins, SDK or Xcode bumps) shows up in review
+# instead of on a release day. Debug builds only; nothing is signed or published.
+on:
+  push:
+    branches: [main]
+    paths: &native-paths
+      - apps/app/**
+      - libs/engine/**
+      - package.json
+      - package-lock.json
+      - .github/workflows/native.yml
+  pull_request:
+    paths: *native-paths
+  workflow_dispatch:
+
+concurrency:
+  group: native-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    name: Android debug build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # Capacitor 8 uses Android Gradle Plugin 8.13, which runs on JDK 21.
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Install
+        run: npm ci
+
+      - name: Build web app and sync native projects
+        run: |
+          npm run build -w @grasp/engine
+          npm run cap:sync -w @grasp/app
+
+      - name: Assemble debug APK
+        working-directory: apps/app/android
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: grasp-debug-apk
+          path: apps/app/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 7
+
+  ios:
+    name: iOS simulator build
+    # Capacitor 8 requires Xcode 26, the default on this image.
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Build web app and sync native projects
+        run: |
+          npm run build -w @grasp/engine
+          npm run cap:sync -w @grasp/app
+
+      - name: Build for the iOS simulator
+        working-directory: apps/app/ios/App
+        run: >-
+          xcodebuild build
+          -project App.xcodeproj
+          -scheme App
+          -configuration Debug
+          -destination 'generic/platform=iOS Simulator'
+          -derivedDataPath build
+          CODE_SIGNING_ALLOWED=NO

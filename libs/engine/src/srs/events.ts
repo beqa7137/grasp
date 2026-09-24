@@ -56,8 +56,27 @@ export interface CodeSubmittedEvent extends BaseEvent {
   total: number;
 }
 
+/** Study preferences, synced like everything else so every device schedules the same way. */
+export interface StudySettings {
+  /** FSRS target recall probability; applies to reviews graded after the change. */
+  retention: number;
+  budgetMinutes: number;
+  newPerDay: number;
+}
+
+export interface SettingsChangedEvent extends BaseEvent {
+  type: 'settings.changed';
+  settings: Partial<StudySettings>;
+}
+
 export type LearningEvent =
-  ReviewGradedEvent | PracticeAnsweredEvent | PredictAnsweredEvent | ScenarioCompletedEvent | InterviewScoredEvent | CodeSubmittedEvent;
+  | ReviewGradedEvent
+  | PracticeAnsweredEvent
+  | PredictAnsweredEvent
+  | ScenarioCompletedEvent
+  | InterviewScoredEvent
+  | CodeSubmittedEvent
+  | SettingsChangedEvent;
 
 /** v1 (SM-2) drill review, still accepted from older clients and stored logs. */
 export interface LegacyDrillReviewedEvent extends BaseEvent {

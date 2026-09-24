@@ -13,7 +13,9 @@ import {
   type PredictAnsweredEvent,
   type ReviewGradedEvent,
   type ScenarioCompletedEvent,
+  type SettingsChangedEvent,
   type StoredEvent,
+  type StudySettings,
 } from '@grasp/engine';
 import { ApiService } from './api.service';
 
@@ -29,7 +31,8 @@ export type NewEvent =
   | Draft<PredictAnsweredEvent>
   | Draft<ScenarioCompletedEvent>
   | Draft<InterviewScoredEvent>
-  | Draft<CodeSubmittedEvent>;
+  | Draft<CodeSubmittedEvent>
+  | Draft<SettingsChangedEvent>;
 
 export type SyncStatus = 'idle' | 'syncing' | 'synced' | 'offline';
 
@@ -49,6 +52,7 @@ export class ProgressService {
   readonly syncStatus = signal<SyncStatus>('idle');
 
   readonly state = computed(() => replay(this.events()));
+  readonly settings = computed(() => this.state().settings, { equal: sameSettings });
   readonly mastery = computed(() => masteryByTopic(this.state(), this.now()));
   readonly session = computed(() => buildSession(this.state(), { now: this.now(), tzOffsetMinutes: this.now().getTimezoneOffset() }));
   readonly retention = computed(() => trueRetention(this.state(), this.now()));
@@ -103,6 +107,13 @@ export class ProgressService {
     this.syncStatus.set('idle');
   }
 
+  /** Study settings are events too, so they sync and every device schedules identically. */
+  updateSettings(change: Partial<StudySettings>): Promise<void> {
+    const current = this.settings();
+    const changed = Object.fromEntries(Object.entries(change).filter(([k, v]) => current[k as keyof StudySettings] !== v));
+    return Object.keys(changed).length ? this.record({ type: 'settings.changed', settings: changed }) : Promise.resolve();
+  }
+
   masteryOf(topic: string) {
     return this.mastery().find((m) => m.topic === topic);
   }
@@ -151,4 +162,8 @@ export class ProgressService {
   private persist() {
     return Preferences.set({ key: EVENTS_KEY, value: JSON.stringify(this.events()) });
   }
+}
+
+function sameSettings(a: StudySettings, b: StudySettings) {
+  return a.retention === b.retention && a.budgetMinutes === b.budgetMinutes && a.newPerDay === b.newPerDay;
 }

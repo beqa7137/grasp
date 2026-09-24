@@ -1,0 +1,73 @@
+/** The visible part of the design board, in board units (an SVG viewBox). */
+export interface ViewBox {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export interface Point {
+  x: number;
+  y: number;
+}
+
+export const BOARD = { w: 900, h: 480 };
+/** Narrowest view: about 3.5× the fitted zoom on a desktop canvas. */
+export const MIN_VIEW_W = 260;
+/** How far past the board edge a zoomed-in view may be dragged. */
+const MARGIN = 80;
+/** Board units per screen pixel on phones: the density of the old fixed-width canvas. */
+const PHONE_UNITS_PER_PX = 900 / 760;
+const PHONE_MAX_WIDTH_PX = 700;
+
+/** Height ÷ width of the canvas element; the view keeps it so nothing stretches. */
+export type Aspect = number;
+
+/** The whole board, centred, with extra space on whichever axis the element is longer in. */
+export function fitView(aspect: Aspect): ViewBox {
+  const w = Math.max(BOARD.w, BOARD.h / aspect);
+  const h = w * aspect;
+  return { x: (BOARD.w - w) / 2, y: (BOARD.h - h) / 2, w, h };
+}
+
+export function clampView(view: ViewBox, aspect: Aspect): ViewBox {
+  const maxW = fitView(aspect).w;
+  const w = Math.min(maxW, Math.max(MIN_VIEW_W, view.w));
+  const h = w * aspect;
+  const axis = (start: number, size: number, board: number) =>
+    size >= board ? (board - size) / 2 : Math.min(board + MARGIN - size, Math.max(-MARGIN, start));
+  return { x: axis(view.x, w, BOARD.w), y: axis(view.y, h, BOARD.h), w, h };
+}
+
+/** Zooms by `factor` (< 1 zooms in) keeping the board point under `anchor` where it is. */
+export function zoomAt(view: ViewBox, anchor: Point, factor: number, aspect: Aspect): ViewBox {
+  const w = Math.min(fitView(aspect).w, Math.max(MIN_VIEW_W, view.w * factor));
+  const scale = w / view.w;
+  return clampView({ x: anchor.x - (anchor.x - view.x) * scale, y: anchor.y - (anchor.y - view.y) * scale, w, h: w * aspect }, aspect);
+}
+
+export function panBy(view: ViewBox, dx: number, dy: number, aspect: Aspect): ViewBox {
+  return clampView({ ...view, x: view.x + dx, y: view.y + dy }, aspect);
+}
+
+/**
+ * Where a canvas opens. Wide screens see the whole board; phones start at a readable zoom on the
+ * left end of the design (where traffic enters) and pinch out for the rest.
+ */
+export function initialView(aspect: Aspect, widthPx: number, nodes: Point[]): ViewBox {
+  const fit = fitView(aspect);
+  if (widthPx >= PHONE_MAX_WIDTH_PX || !nodes.length) return fit;
+  const w = Math.min(fit.w, Math.max(MIN_VIEW_W, widthPx * PHONE_UNITS_PER_PX));
+  const h = w * aspect;
+  const left = Math.min(...nodes.map((n) => n.x)) - 90;
+  const middle = nodes.reduce((sum, n) => sum + n.y, 0) / nodes.length;
+  return clampView({ x: left, y: middle - h / 2, w, h }, aspect);
+}
+
+/** Board point under a screen point, given the canvas element's box. */
+export function toBoard(view: ViewBox, rect: { left: number; top: number; width: number; height: number }, client: Point): Point {
+  return { x: view.x + ((client.x - rect.left) / rect.width) * view.w, y: view.y + ((client.y - rect.top) / rect.height) * view.h };
+}
+
+export const sameView = (a: ViewBox, b: ViewBox) =>
+  Math.abs(a.x - b.x) < 0.5 && Math.abs(a.y - b.y) < 0.5 && Math.abs(a.w - b.w) < 0.5 && Math.abs(a.h - b.h) < 0.5;

@@ -4,9 +4,9 @@ Interactive prep for algorithm and system design interviews. Web, iOS and Androi
 
 - **Step-through visualizers.** Eleven algorithms, from two pointers to Dijkstra. Scrub forward and back through real execution, with code, variables and narration kept in sync. Structures are drawn as they are: arrays with pointers, grids, DP tables that show which cells each one reads, graphs with distances and in-degrees, and trees (heaps, tries, union-find forests). Edit the input and the trace regenerates on-device.
 - **Predict mode.** At each decision point the player stops and asks what happens next. Your answers count toward mastery.
-- **Design Lab.** Wire up CDN, rate limiter, LB, app tier, cache, sharded primaries and replicas, queue and workers. A queueing simulator shows utilization, p50/p99, errors, cost and backlog live. It models bot traffic that bypasses caches, and shard keys that create hot shards. You can kill instances to test failure. Five missions, from a first scale-up to a bot storm and a sustained write wall, each with goals to hit and three revisits under changed conditions.
+- **Design Lab.** Wire up CDN, rate limiter, LB, app tier, cache, sharded primaries and replicas, queue and workers. A queueing simulator shows utilization, p50/p99, errors, cost and backlog live. It models bot traffic that bypasses caches, and shard keys that create hot shards. You can kill instances to test failure. Pinch or Ctrl/⌘-scroll to zoom and drag to pan, so it works on a phone. Five missions, from a first scale-up to a bot storm and a sustained write wall, each with goals to hit and three revisits under changed conditions.
 - **Coding practice.** Eighteen problems tied to the pattern curriculum, solved in Python, JavaScript or TypeScript right in the browser. Each one runs against hidden tests plus a large performance input that only the right complexity finishes in time. **Trace** steps through _your own_ JavaScript/TypeScript line by line in the visualizer, with arrays, pointers, stacks and grids drawn live. A failed first attempt brings that pattern's template cards forward in review. See [docs/CODE_RUNNER.md](docs/CODE_RUNNER.md).
-- **Spaced review (FSRS).** 131 small, auto-graded items in 5 kinds: pattern recognition, predict-the-next-step, template recall, complexity, and system design cases. Every review shows a fresh variant. Missed visualizer predictions, weak patterns from interview scorecards and completed Design Lab missions all feed the schedule. See [docs/SPACED_REPETITION.md](docs/SPACED_REPETITION.md).
+- **Spaced review (FSRS).** 131 small, auto-graded items in 5 kinds: pattern recognition, predict-the-next-step, template recall, complexity, and system design cases. Every review shows a fresh variant. Missed visualizer predictions, weak patterns from interview scorecards and completed Design Lab missions all feed the schedule. Target recall, session length and new cards per day are learner settings that sync across devices, and the mobile app sends a daily reminder only on days with something due. See [docs/SPACED_REPETITION.md](docs/SPACED_REPETITION.md).
 - **AI interviewer.** Claude runs coding or system design interviews: it streams replies, hints on request, reads the code you write in the built-in editor, and scores you with a rubric scorecard. Prompt caching, per-session cost tracking, a daily spend ceiling and graceful failure handling are built in. See [docs/AI_INTERVIEWER.md](docs/AI_INTERVIEWER.md). If no API key is set, a scripted offline interviewer takes its place.
 
 See [docs/PLAN.md](docs/PLAN.md) for the product vision, architecture and roadmap.
@@ -59,14 +59,15 @@ npm run db:migrate   # apply Drizzle migrations
 
 ### Mobile
 
+The iOS and Android projects are committed under `apps/app/ios` and `apps/app/android`. Building needs Xcode 26+ or Android Studio with JDK 21.
+
 ```bash
 cd apps/app
-npx cap add ios        # or android (first time only)
 npm run cap:sync       # build web assets + sync to native
 npm run cap:ios        # opens Xcode (or cap:android → Android Studio)
 ```
 
-Native dev builds call the API at `http://localhost:3000/api`, or `10.0.2.2` on the Android emulator, and allow cleartext HTTP. To point a build at another API, set `GRASP_API_URL` when syncing. Store builds need https: `GRASP_RELEASE=1 GRASP_API_URL=https://<host>/api npm run cap:sync`.
+Native dev builds call the API at `http://localhost:3000/api`, or `10.0.2.2` on the Android emulator, and allow cleartext HTTP. To point a build at another API, set `GRASP_API_URL` when syncing. Store builds need https: `GRASP_RELEASE=1 GRASP_API_URL=https://<host>/api npm run cap:sync`. See [docs/MOBILE.md](docs/MOBILE.md) for reminders, native CI and the release checklist.
 
 ## Accounts
 

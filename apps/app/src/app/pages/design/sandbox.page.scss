@@ -182,17 +182,39 @@
   position: relative;
   overflow: hidden;
 
-  .scroller {
-    overflow: auto;
-    touch-action: pan-x pan-y;
+  .viewport {
+    position: relative;
   }
-  svg {
+  .viewport > svg {
     display: block;
     width: 100%;
-    min-width: 760px;
-    height: auto;
+    aspect-ratio: 900 / 480;
+    touch-action: none;
     user-select: none;
     -webkit-user-select: none;
+
+    @media (max-width: 720px) {
+      aspect-ratio: auto;
+      height: min(62vh, 460px);
+    }
+  }
+  .board-edge {
+    fill: none;
+    stroke: var(--g-line);
+    stroke-dasharray: 6 6;
+    pointer-events: none;
+  }
+  .zoom {
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+    display: flex;
+    gap: 6px;
+    .g-btn.icon {
+      width: 36px;
+      height: 36px;
+      background: var(--g-surface);
+    }
   }
   .help {
     margin: 0;
