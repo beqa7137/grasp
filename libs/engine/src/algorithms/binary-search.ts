@@ -91,6 +91,7 @@ export const binarySearch: AlgorithmDef<Input> = {
           predict: {
             prompt: `\`nums[mid] = ${nums[mid]}\`, \`target = ${target}\`. What happens next?`,
             choices: CHOICES,
+            ordered: true,
             answer,
             explain:
               answer === 0

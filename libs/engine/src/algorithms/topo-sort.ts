@@ -135,6 +135,7 @@ export const topoSort: AlgorithmDef<Input> = {
             predict: {
               prompt: `Removing ${u}→${v} drops ${v}'s in-degree from ${indeg[v]} to ${next}. Does ${v} join the queue?`,
               choices: CHOICES,
+              ordered: true,
               answer: next === 0 ? 0 : 1,
               explain:
                 next === 0

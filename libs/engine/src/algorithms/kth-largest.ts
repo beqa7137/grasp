@@ -100,6 +100,7 @@ export const kthLargest: AlgorithmDef<Input> = {
         predict: {
           prompt: `The heap keeps the ${k} largest so far; its smallest is ${heap[0]}. Does ${x} get in?`,
           choices: ENTER,
+          ordered: true,
           answer: enters ? 0 : 1,
           explain: enters
             ? `${x} > ${heap[0]}, so ${heap[0]} is no longer among the ${k} largest. Replace the root and restore heap order.`
@@ -131,6 +132,7 @@ export const kthLargest: AlgorithmDef<Input> = {
                     .map((c) => heap[c])
                     .join(' and ')}. What happens next?`,
                   choices: SIFT,
+                  ordered: true,
                   answer: swapDown ? 0 : 1,
                   explain: swapDown
                     ? `A parent must not be larger than its children. Swap with the smaller child ${heap[child]} so the new parent is the minimum of the three.`

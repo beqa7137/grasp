@@ -130,6 +130,21 @@ describe('structure views render real traces', () => {
     expect(legendOf(el)).toEqual(['current cell', 'reads from', 'answer path']);
   });
 
+  it('table: groups its headers and cells into rows, as a table role requires', () => {
+    const table = getAlgorithm('lcs')!
+      .trace({ a: 'AB', b: 'B' })
+      .find((f) => f.table)!.table!;
+    const el = render(TableViewComponent, table);
+    const rows = Array.from(el.querySelectorAll('[role="table"] > [role="row"]'));
+    expect(rows).toHaveLength(table.rowLabels.length + 1);
+    expect(rows[0].querySelectorAll('[role="columnheader"]')).toHaveLength(table.colLabels.length);
+    for (const row of rows.slice(1)) {
+      expect(row.querySelectorAll('[role="rowheader"]')).toHaveLength(1);
+      expect(row.querySelectorAll('[role="cell"]')).toHaveLength(table.colLabels.length);
+    }
+    expect(el.querySelectorAll('[role="table"] > :not([role="row"])')).toHaveLength(0);
+  });
+
   it('table: shows the legend a tracer gives, and none without one or when turned off', () => {
     const bits = getAlgorithm('single-number-xor')!
       .trace({ nums: [4, 1, 4] })

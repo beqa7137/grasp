@@ -26,7 +26,9 @@ import type { InterviewSession, InterviewTrack, ProblemSummary } from './intervi
         </p>
         @if (mode(); as m) {
           <span class="mode" [class.ai]="m === 'ai'"
-            ><ion-icon name="sparkles" />{{ m === 'ai' ? 'AI interviewer' : 'Offline interviewer (set ANTHROPIC_API_KEY for AI)' }}</span
+            ><ion-icon name="sparkles" aria-hidden="true" />{{
+              m === 'ai' ? 'AI interviewer' : 'Offline interviewer (set ANTHROPIC_API_KEY for AI)'
+            }}</span
           >
         }
 
@@ -36,12 +38,12 @@ import type { InterviewSession, InterviewTrack, ProblemSummary } from './intervi
 
         <div class="tracks">
           @for (t of tracks; track t.id) {
-            <button class="panel track" [class.on]="track() === t.id" (click)="track.set(t.id)">
-              <ion-icon [name]="t.icon" />
-              <div>
-                <h2>{{ t.title }}</h2>
-                <p class="muted">{{ t.blurb }}</p>
-              </div>
+            <button class="panel track" [class.on]="track() === t.id" [attr.aria-pressed]="track() === t.id" (click)="track.set(t.id)">
+              <ion-icon [name]="t.icon" aria-hidden="true" />
+              <span>
+                <span class="title display">{{ t.title }}</span>
+                <span class="muted blurb">{{ t.blurb }}</span>
+              </span>
             </button>
           }
         </div>
@@ -49,14 +51,14 @@ import type { InterviewSession, InterviewTrack, ProblemSummary } from './intervi
         <div class="problems">
           @for (p of visible(); track p.id) {
             <button class="panel card-link problem" [disabled]="!!starting()" (click)="start(p.id)">
-              <div>
-                <h3>{{ p.title }}</h3>
-                <div class="chips">
+              <span>
+                <span class="title display">{{ p.title }}</span>
+                <span class="chips">
                   @for (id of p.patternIds; track id) {
                     <span class="chip">{{ patternName(id) }}</span>
                   }
-                </div>
-              </div>
+                </span>
+              </span>
               @if (starting() === p.id) {
                 <ion-spinner name="crescent" />
               } @else {
@@ -65,7 +67,7 @@ import type { InterviewSession, InterviewTrack, ProblemSummary } from './intervi
             </button>
           }
           <button class="g-btn surprise" [disabled]="!!starting() || !visible().length" (click)="start()">
-            <ion-icon name="shuffle" />Surprise me
+            <ion-icon name="shuffle" aria-hidden="true" />Surprise me
           </button>
         </div>
 
@@ -90,7 +92,7 @@ import type { InterviewSession, InterviewTrack, ProblemSummary } from './intervi
   `,
   styles: `
     h1 {
-      font-size: clamp(26px, 5vw, 38px);
+      font-size: clamp(1.625rem, 5vw, 2.375rem);
       margin: 6px 0 8px;
     }
     .lead {
@@ -99,10 +101,12 @@ import type { InterviewSession, InterviewTrack, ProblemSummary } from './intervi
       margin: 0 0 12px;
     }
     .mode {
+      max-width: 100%;
+      overflow-wrap: anywhere;
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      font-size: 12.5px;
+      font-size: 0.78125rem;
       color: var(--g-muted);
       padding: 5px 10px;
       border-radius: 999px;
@@ -138,13 +142,19 @@ import type { InterviewSession, InterviewTrack, ProblemSummary } from './intervi
         color: var(--g-muted);
         flex: none;
       }
-      h2 {
-        margin: 0 0 4px;
-        font-size: 17px;
+      > span {
+        min-width: 0;
       }
-      p {
-        margin: 0;
-        font-size: 13.5px;
+      .title {
+        display: block;
+        margin: 0 0 4px;
+        font-size: 1.0625rem;
+        font-weight: 500;
+        line-height: 1.2;
+      }
+      .blurb {
+        display: block;
+        font-size: 0.84375rem;
         line-height: 1.45;
       }
       &.on {
@@ -163,6 +173,7 @@ import type { InterviewSession, InterviewTrack, ProblemSummary } from './intervi
     .problem {
       appearance: none;
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
@@ -170,9 +181,12 @@ import type { InterviewSession, InterviewTrack, ProblemSummary } from './intervi
       color: var(--g-text);
       font: inherit;
       text-align: left;
-      h3 {
+      .title {
+        display: block;
         margin: 0 0 6px;
-        font-size: 16px;
+        font-size: 1rem;
+        font-weight: 500;
+        line-height: 1.2;
       }
       .chips {
         display: flex;
@@ -182,7 +196,7 @@ import type { InterviewSession, InterviewTrack, ProblemSummary } from './intervi
       .go {
         color: var(--g-accent);
         font-weight: 600;
-        font-size: 13.5px;
+        font-size: 0.84375rem;
         white-space: nowrap;
       }
     }
@@ -191,7 +205,7 @@ import type { InterviewSession, InterviewTrack, ProblemSummary } from './intervi
       margin-top: 4px;
     }
     .recent-title {
-      font-size: 18px;
+      font-size: 1.125rem;
       margin: 30px 0 10px;
     }
     .recent {
@@ -205,12 +219,12 @@ import type { InterviewSession, InterviewTrack, ProblemSummary } from './intervi
       gap: 14px;
       align-items: center;
       padding: 12px 14px;
-      font-size: 14px;
+      font-size: 0.875rem;
     }
     .verdict {
       font-weight: 600;
       text-transform: capitalize;
-      font-size: 13px;
+      font-size: 0.8125rem;
       color: var(--g-warn);
     }
     .verdict[data-verdict='hire'],

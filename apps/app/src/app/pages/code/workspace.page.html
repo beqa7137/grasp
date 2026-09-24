@@ -15,7 +15,7 @@
             <a class="chip accent" [routerLink]="['/learn/pattern', id]">{{ patternName(id) }}</a>
           }
           @if (record()?.solvedAt) {
-            <span class="chip solved"><ion-icon name="checkmark-circle" /> solved</span>
+            <span class="chip solved"><ion-icon name="checkmark-circle" aria-hidden="true" /> solved</span>
           }
         </div>
         <h1>{{ p.title }}</h1>
@@ -62,7 +62,7 @@
             }
           </div>
           <button class="g-btn ghost icon" (click)="resetCode()" title="Reset to the starter code" aria-label="Reset code">
-            <ion-icon name="refresh-outline" />
+            <ion-icon name="refresh-outline" aria-hidden="true" />
           </button>
           <span class="spacer"></span>
           <button
@@ -71,13 +71,13 @@
             [disabled]="!!running() || !canTrace()"
             [title]="canTrace() ? 'Step through your code on an example' : 'Tracing is available for JavaScript and TypeScript'"
           >
-            <ion-icon name="footsteps-outline" /> Trace
+            <ion-icon name="footsteps-outline" aria-hidden="true" /> Trace
           </button>
           <button class="g-btn" (click)="run()" [disabled]="!!running()" title="Run the examples (Ctrl/⌘ + Enter)">
-            <ion-icon name="play-outline" /> Run
+            <ion-icon name="play-outline" aria-hidden="true" /> Run
           </button>
           <button class="g-btn primary" (click)="submit()" [disabled]="!!running()" title="Run every test (Ctrl/⌘ + Shift + Enter)">
-            <ion-icon name="rocket-outline" /> Submit
+            <ion-icon name="rocket-outline" aria-hidden="true" /> Submit
           </button>
         </div>
 
@@ -93,120 +93,146 @@
         </div>
 
         <div class="results panel">
-          <div class="tabs" role="tablist">
-            <button role="tab" [attr.aria-selected]="panel() === 'tests'" [class.on]="panel() === 'tests'" (click)="panel.set('tests')">
-              Tests
-            </button>
-            <button role="tab" [attr.aria-selected]="panel() === 'trace'" [class.on]="panel() === 'trace'" (click)="panel.set('trace')">
-              Trace
-            </button>
-            @if (running(); as r) {
-              <span class="status muted" aria-live="polite">{{ loadingMessage() ?? (r === 'trace' ? 'Tracing…' : 'Running…') }}</span>
-            }
+          <div class="tabs">
+            <div class="tablist" role="tablist" aria-label="Results" (keydown)="onTabKey($event)">
+              <button
+                role="tab"
+                [id]="panelsId + '-tests'"
+                [attr.aria-controls]="panelsId"
+                [attr.aria-selected]="panel() === 'tests'"
+                [tabIndex]="panel() === 'tests' ? 0 : -1"
+                [class.on]="panel() === 'tests'"
+                (click)="panel.set('tests')"
+              >
+                Tests
+              </button>
+              <button
+                role="tab"
+                [id]="panelsId + '-trace'"
+                [attr.aria-controls]="panelsId"
+                [attr.aria-selected]="panel() === 'trace'"
+                [tabIndex]="panel() === 'trace' ? 0 : -1"
+                [class.on]="panel() === 'trace'"
+                (click)="panel.set('trace')"
+              >
+                Trace
+              </button>
+            </div>
+            <span class="status muted" role="status">
+              @if (running(); as r) {
+                {{ loadingMessage() ?? (r === 'trace' ? 'Tracing…' : 'Running…') }}
+              } @else if (outcome(); as done) {
+                <span class="visually-hidden">{{ done }}</span>
+              }
+            </span>
           </div>
 
-          @if (panel() === 'tests') {
-            @if (report(); as r) {
-              @if (r.compileError; as err) {
-                <div class="outcome bad">
-                  <ion-icon name="alert-circle" />
-                  <strong>{{ err.location ? 'Error on line ' + err.location.line : 'Error' }}</strong>
-                </div>
-                <pre class="error mono">{{ err.message }}</pre>
-              } @else {
-                <div class="outcome" [class.good]="allPassed()" [class.bad]="!running() && !allPassed()">
-                  <ion-icon [name]="allPassed() ? 'checkmark-circle' : 'close-circle'" />
-                  <strong>{{ r.passed }} / {{ r.total }} {{ reportKind() === 'run' ? 'examples' : 'tests' }} passed</strong>
-                  @if (allPassed() && reportKind() === 'run') {
-                    <span class="muted">Now submit to run the hidden and performance tests.</span>
-                  }
-                </div>
-                <div class="dots" aria-hidden="true">
-                  @for (t of r.tests; track t.index) {
-                    <i [attr.data-status]="t.status" [attr.data-kind]="t.kind" [title]="testLabel(t) + ': ' + t.status"></i>
-                  }
-                </div>
-
-                @if (reportKind() === 'submit' && allPassed()) {
-                  <div class="success">
-                    <p><strong>Accepted.</strong> {{ problem()!.approach }}</p>
-                    <p class="mono small">Expected: time {{ problem()!.complexity.time }} · space {{ problem()!.complexity.space }}</p>
+          <div role="tabpanel" [id]="panelsId" [attr.aria-labelledby]="panelsId + '-' + panel()">
+            @if (panel() === 'tests') {
+              @if (report(); as r) {
+                @if (r.compileError; as err) {
+                  <div class="outcome bad">
+                    <ion-icon name="alert-circle" aria-hidden="true" />
+                    <strong>{{ err.location ? 'Error on line ' + err.location.line : 'Error' }}</strong>
                   </div>
-                }
+                  <pre class="error mono">{{ err.message }}</pre>
+                } @else {
+                  <div class="outcome" [class.good]="allPassed()" [class.bad]="!running() && !allPassed()">
+                    <ion-icon [name]="allPassed() ? 'checkmark-circle' : 'close-circle'" aria-hidden="true" />
+                    <strong>{{ r.passed }} / {{ r.total }} {{ reportKind() === 'run' ? 'examples' : 'tests' }} passed</strong>
+                    @if (allPassed() && reportKind() === 'run') {
+                      <span class="muted">Now submit to run the hidden and performance tests.</span>
+                    }
+                  </div>
+                  <div class="dots" aria-hidden="true">
+                    @for (t of r.tests; track t.index) {
+                      <i [attr.data-status]="t.status" [attr.data-kind]="t.kind" [title]="testLabel(t) + ': ' + t.status"></i>
+                    }
+                  </div>
 
-                @for (t of reportKind() === 'run' ? r.tests : focusTest() ? [focusTest()!] : []; track t.index) {
-                  <div class="test" [attr.data-status]="t.status">
-                    <div class="test-head">
-                      <strong>{{ testLabel(t) }}</strong>
-                      <span class="badge" [attr.data-status]="t.status">{{ t.status }}</span>
-                      @if (t.ms !== undefined) {
-                        <span class="muted mono small"><ion-icon name="stopwatch-outline" /> {{ t.ms.toFixed(1) }} ms</span>
+                  @if (reportKind() === 'submit' && allPassed()) {
+                    <div class="success">
+                      <p><strong>Accepted.</strong> {{ problem()!.approach }}</p>
+                      <p class="mono small">Expected: time {{ problem()!.complexity.time }} · space {{ problem()!.complexity.space }}</p>
+                    </div>
+                  }
+
+                  @for (t of reportKind() === 'run' ? r.tests : focusTest() ? [focusTest()!] : []; track t.index) {
+                    <div class="test" [attr.data-status]="t.status">
+                      <div class="test-head">
+                        <strong>{{ testLabel(t) }}</strong>
+                        <span class="badge" [attr.data-status]="t.status">{{ t.status }}</span>
+                        @if (t.ms !== undefined) {
+                          <span class="muted mono small"
+                            ><ion-icon name="stopwatch-outline" aria-hidden="true" /> {{ t.ms.toFixed(1) }} ms</span
+                          >
+                        }
+                      </div>
+                      <dl class="io mono">
+                        <dt>Input</dt>
+                        <dd>
+                          @for (line of describeArgs(t); track $index) {
+                            <div>{{ line }}</div>
+                          }
+                        </dd>
+                        @if (t.status !== 'skipped') {
+                          <dt>Expected</dt>
+                          <dd>{{ show(t, t.expected) }}</dd>
+                        }
+                        @if (t.status === 'passed' || t.status === 'failed') {
+                          <dt>Output</dt>
+                          <dd>{{ show(t, t.output) }}</dd>
+                        }
+                      </dl>
+                      @if (t.error; as err) {
+                        <pre class="error mono">{{ err.message }}</pre>
+                      }
+                      @if (t.logs.length) {
+                        <p class="eyebrow">Output log</p>
+                        <pre class="logs mono">{{ t.logs.join('\n') }}</pre>
                       }
                     </div>
-                    <dl class="io mono">
-                      <dt>Input</dt>
-                      <dd>
-                        @for (line of describeArgs(t); track $index) {
-                          <div>{{ line }}</div>
-                        }
-                      </dd>
-                      @if (t.status !== 'skipped') {
-                        <dt>Expected</dt>
-                        <dd>{{ show(t, t.expected) }}</dd>
-                      }
-                      @if (t.status === 'passed' || t.status === 'failed') {
-                        <dt>Output</dt>
-                        <dd>{{ show(t, t.output) }}</dd>
-                      }
-                    </dl>
-                    @if (t.error; as err) {
-                      <pre class="error mono">{{ err.message }}</pre>
-                    }
-                    @if (t.logs.length) {
-                      <p class="eyebrow">Output log</p>
-                      <pre class="logs mono">{{ t.logs.join('\n') }}</pre>
+                  }
+                }
+              } @else if (!running()) {
+                <p class="muted hint">
+                  <strong>Run</strong> checks the examples. <strong>Submit</strong> runs every test, including edge cases and one large
+                  input that only an efficient solution finishes in time.
+                </p>
+              }
+            } @else {
+              @if (!canTrace()) {
+                <p class="muted hint">
+                  Tracing steps through JavaScript and TypeScript line by line.
+                  <button class="g-btn ghost small-btn" (click)="setLanguage('javascript')">Switch to JavaScript</button>
+                </p>
+              } @else {
+                @if (p.examples.length > 1) {
+                  <div class="examples-pick">
+                    <span class="muted small">Trace on</span>
+                    @for (ex of p.examples; track $index) {
+                      <button class="chip" [class.accent]="traceExample() === $index" (click)="pickTraceExample($index)">
+                        Example {{ $index + 1 }}
+                      </button>
                     }
                   </div>
                 }
-              }
-            } @else if (!running()) {
-              <p class="muted hint">
-                <strong>Run</strong> checks the examples. <strong>Submit</strong> runs every test, including edge cases and one large input
-                that only an efficient solution finishes in time.
-              </p>
-            }
-          } @else {
-            @if (!canTrace()) {
-              <p class="muted hint">
-                Tracing steps through JavaScript and TypeScript line by line.
-                <button class="g-btn ghost small-btn" (click)="setLanguage('javascript')">Switch to JavaScript</button>
-              </p>
-            } @else {
-              @if (p.examples.length > 1) {
-                <div class="examples-pick">
-                  <span class="muted small">Trace on</span>
-                  @for (ex of p.examples; track $index) {
-                    <button class="chip" [class.accent]="traceExample() === $index" (click)="pickTraceExample($index)">
-                      Example {{ $index + 1 }}
-                    </button>
-                  }
-                </div>
-              }
-              @if (traceError(); as err) {
-                <pre class="error mono">{{ err.location ? 'Line ' + err.location.line + ': ' : '' }}{{ err.message }}</pre>
-              }
-              @if (traceTruncated()) {
-                <p class="muted small">Showing the first 2,000 steps.</p>
-              }
-              @if (traceFrames(); as frames) {
-                <app-trace-player [frames]="frames" (lineChange)="traceLine.set($event)" />
-              } @else if (!traceError() && !running()) {
-                <p class="muted hint">
-                  Press <strong>Trace</strong> to watch your own code run on an example, with its variables and arrays drawn live.
-                </p>
+                @if (traceError(); as err) {
+                  <pre class="error mono">{{ err.location ? 'Line ' + err.location.line + ': ' : '' }}{{ err.message }}</pre>
+                }
+                @if (traceTruncated()) {
+                  <p class="muted small">Showing the first 2,000 steps.</p>
+                }
+                @if (traceFrames(); as frames) {
+                  <app-trace-player [frames]="frames" (lineChange)="traceLine.set($event)" />
+                } @else if (!traceError() && !running()) {
+                  <p class="muted hint">
+                    Press <strong>Trace</strong> to watch your own code run on an example, with its variables and arrays drawn live.
+                  </p>
+                }
               }
             }
-          }
+          </div>
         </div>
       </section>
     </div>

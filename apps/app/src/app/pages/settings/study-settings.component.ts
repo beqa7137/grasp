@@ -3,6 +3,7 @@ import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { STUDY_OPTIONS, relativeWorkload, type StudySettings } from '@grasp/engine';
 import { ProgressService } from '../../core/progress.service';
+import { RadioGroupDirective } from '../../core/radio-group.directive';
 import { ReminderService } from '../../reminders/reminder.service';
 
 interface Choice<T> {
@@ -15,7 +16,7 @@ const pct = (r: number) => `${Math.round(r * 100)}%`;
 @Component({
   selector: 'app-study-settings',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, DatePipe],
+  imports: [RouterLink, DatePipe, RadioGroupDirective],
   template: `
     <section class="panel block">
       <h2>Study</h2>
@@ -89,7 +90,7 @@ const pct = (r: number) => `${Math.round(r * 100)}%`;
             <strong>Daily reminder</strong>
             <span class="muted small">Only on days with something to review, and it says how much.</span>
           </div>
-          <label class="switch">
+          <label class="g-switch">
             <input
               type="checkbox"
               [checked]="reminders.prefs().enabled"
@@ -126,14 +127,14 @@ const pct = (r: number) => `${Math.round(r * 100)}%`;
       margin-bottom: 16px;
     }
     h2 {
-      font: 600 17px/1.2 var(--g-font-display);
+      font: 600 1.0625rem/1.2 var(--g-font-display);
       margin: 0 0 6px;
     }
     .intro {
       margin: 0 0 8px;
     }
     .small {
-      font-size: 13px;
+      font-size: 0.8125rem;
     }
     .setting {
       padding: 12px 0;
@@ -147,11 +148,14 @@ const pct = (r: number) => `${Math.round(r * 100)}%`;
     }
     .toggle-row {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
       gap: 16px;
     }
     .toggle-row .label {
+      flex: 1 1 0;
+      min-width: min(8em, 100%);
       margin: 0;
     }
     .chips {
@@ -167,13 +171,17 @@ const pct = (r: number) => `${Math.round(r * 100)}%`;
       border: 1px solid var(--g-line-strong);
       background: var(--g-raised);
       color: var(--g-text);
-      font: 600 14px var(--g-font-mono);
+      font: 600 0.875rem var(--g-font-mono);
       cursor: pointer;
     }
     .chips button[aria-checked='true'] {
       background: var(--g-accent);
       border-color: var(--g-accent);
       color: #0b0d12;
+    }
+    .chips button:focus-visible {
+      outline: 2px solid var(--g-accent);
+      outline-offset: 2px;
     }
     a.g-btn {
       flex: none;
@@ -189,7 +197,7 @@ const pct = (r: number) => `${Math.round(r * 100)}%`;
       border: 1px solid var(--g-line-strong);
       border-radius: 10px;
       padding: 8px 10px;
-      font-size: 15px;
+      font-size: 0.9375rem;
       color-scheme: dark;
     }
     .notice {
@@ -197,46 +205,6 @@ const pct = (r: number) => `${Math.round(r * 100)}%`;
       border-radius: 10px;
       background: rgba(255, 181, 71, 0.12);
       color: var(--g-warn);
-    }
-    .switch {
-      position: relative;
-      flex: none;
-      cursor: pointer;
-    }
-    .switch input {
-      position: absolute;
-      opacity: 0;
-      inset: 0;
-      margin: 0;
-      cursor: pointer;
-    }
-    .track {
-      display: block;
-      width: 46px;
-      height: 28px;
-      border-radius: 14px;
-      background: var(--g-line-strong);
-      transition: background 0.2s;
-    }
-    .knob {
-      position: absolute;
-      top: 3px;
-      left: 3px;
-      width: 22px;
-      height: 22px;
-      border-radius: 50%;
-      background: var(--g-text);
-      transition: transform 0.2s;
-    }
-    .switch input:checked + .track {
-      background: var(--g-accent);
-    }
-    .switch input:checked + .track .knob {
-      transform: translateX(18px);
-    }
-    .switch input:focus-visible + .track {
-      outline: 2px solid var(--g-accent);
-      outline-offset: 2px;
     }
   `,
 })

@@ -23,7 +23,7 @@
         <p class="muted"><g-code-text [text]="a.summary" /></p>
         @if (problem(); as c) {
           <a class="code-it" [routerLink]="['/code', c.id]"
-            ><ion-icon name="code-slash-outline" /> Now write it yourself: {{ c.title }} →</a
+            ><ion-icon name="code-slash-outline" aria-hidden="true" /> Now write it yourself: {{ c.title }} →</a
           >
         }
       </section>
@@ -38,7 +38,7 @@
             </label>
             @if (score().total > 0) {
               <span class="score" [class.perfect]="score().correct === score().total">
-                <ion-icon name="sparkles" /> {{ score().correct }}/{{ score().total }} predicted
+                <ion-icon name="sparkles" aria-hidden="true" /> {{ score().correct }}/{{ score().total }} predicted
               </span>
             }
           </header>
@@ -86,12 +86,12 @@
 
             @if (pending(); as p) {
               @let q = frames()[p.frame].predict!;
-              <div class="predict" [class.revealed]="p.choice !== null">
+              <div class="predict" [class.revealed]="p.choice !== null" #predictPanel>
                 <div class="predict-head">
-                  <ion-icon name="help-circle-outline" />
+                  <ion-icon name="help-circle-outline" aria-hidden="true" />
                   <span>Your call</span>
                 </div>
-                <p class="prompt"><g-code-text [text]="q.prompt" /></p>
+                <p class="prompt" tabindex="-1" #predictPrompt><g-code-text [text]="q.prompt" /></p>
                 <div class="choices">
                   @for (c of q.choices; track $index) {
                     <button
@@ -103,12 +103,21 @@
                     >
                       <span class="key">{{ $index + 1 }}</span
                       >{{ c }}
+                      @if (p.choice !== null && ($index === q.answer || $index === p.choice)) {
+                        <ion-icon
+                          class="mark"
+                          [name]="$index === q.answer ? 'checkmark-circle' : 'close-circle'"
+                          [attr.aria-label]="
+                            $index === q.answer ? ($index === p.choice ? 'your answer, correct' : 'correct answer') : 'your answer, wrong'
+                          "
+                        />
+                      }
                     </button>
                   }
                 </div>
                 @if (p.choice !== null) {
-                  <div class="verdict" [class.ok]="p.choice === q.answer">
-                    <ion-icon [name]="p.choice === q.answer ? 'checkmark-circle' : 'close-circle'" />
+                  <div class="verdict" [class.ok]="p.choice === q.answer" tabindex="-1" #verdict>
+                    <ion-icon [name]="p.choice === q.answer ? 'checkmark-circle' : 'close-circle'" aria-hidden="true" />
                     <p>
                       <strong>{{ p.choice === q.answer ? 'Exactly.' : 'Not quite.' }}</strong
                       >&ngsp;<g-code-text [text]="q.explain" />&ngsp;
@@ -121,7 +130,7 @@
                 }
               </div>
             } @else {
-              <div class="narration" aria-live="polite">
+              <div class="narration" aria-live="polite" tabindex="-1" #narration>
                 <span class="line mono">L{{ f.line }}</span>
                 <div class="body">
                   <p><g-code-text [text]="f.note" /></p>
@@ -133,11 +142,13 @@
             }
           }
 
-          <div class="controls">
+          <div class="controls" #controls>
             <div class="buttons">
-              <button class="g-btn ghost icon" (click)="reset()" aria-label="Restart"><ion-icon name="refresh" /></button>
+              <button class="g-btn ghost icon" (click)="reset()" aria-label="Restart">
+                <ion-icon name="refresh" aria-hidden="true" />
+              </button>
               <button class="g-btn icon" (click)="prev()" [disabled]="index() === 0" aria-label="Step back">
-                <ion-icon name="play-skip-back" />
+                <ion-icon name="play-skip-back" aria-hidden="true" />
               </button>
               <button
                 class="g-btn primary play"
@@ -145,7 +156,7 @@
                 [disabled]="!!pending()"
                 [attr.aria-label]="playing() ? 'Pause' : 'Play'"
               >
-                <ion-icon [name]="playing() ? 'pause' : 'play'" />
+                <ion-icon [name]="playing() ? 'pause' : 'play'" aria-hidden="true" />
               </button>
               <button
                 class="g-btn icon"
@@ -153,9 +164,11 @@
                 [disabled]="!!pending() || (index() === last() && !frame()?.predict)"
                 aria-label="Step forward"
               >
-                <ion-icon name="play-skip-forward" />
+                <ion-icon name="play-skip-forward" aria-hidden="true" />
               </button>
-              <button class="g-btn ghost speed mono" (click)="cycleSpeed()" aria-label="Playback speed">{{ speed() }}×</button>
+              <button class="g-btn ghost speed mono" (click)="cycleSpeed()" [attr.aria-label]="'Playback speed ' + speed() + '×'">
+                {{ speed() }}×
+              </button>
             </div>
             <div class="scrub">
               <div class="marks">
@@ -170,21 +183,22 @@
                 [value]="index()"
                 (input)="seek(+$any($event.target).value)"
                 aria-label="Timeline"
+                [attr.aria-valuetext]="'Step ' + (index() + 1) + ' of ' + frames().length"
               />
               <span class="count mono">{{ index() + 1 }} / {{ frames().length }}</span>
             </div>
-            <p class="keys muted">← → step · space play · 1–4 answer</p>
+            <p class="keys muted">← → step · space play{{ shortcuts.characterKeys() ? ' · 1–4 answer' : '' }}</p>
           </div>
         </section>
 
         <aside class="side">
           <section class="panel code">
-            <header class="eyebrow">Code</header>
+            <header><h2 class="eyebrow">Code</h2></header>
             <g-code-panel [code]="a.code" [active]="frame()?.line ?? 0" />
           </section>
 
           <section class="panel vars">
-            <header class="eyebrow">Variables</header>
+            <header><h2 class="eyebrow">Variables</h2></header>
             <dl>
               @for (v of varEntries(); track v[0]) {
                 <div>
@@ -197,9 +211,9 @@
 
           <section class="panel input">
             <header>
-              <span class="eyebrow">Input</span>
+              <h2 class="eyebrow">Input</h2>
               <div class="input-actions">
-                <button class="g-btn ghost" (click)="randomize()"><ion-icon name="dice-outline" />Random</button>
+                <button class="g-btn ghost" (click)="randomize()"><ion-icon name="dice-outline" aria-hidden="true" />Random</button>
                 @if (!editing()) {
                   <button class="g-btn ghost" (click)="editing.set(true)">Edit</button>
                 }

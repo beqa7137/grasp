@@ -99,10 +99,11 @@ const POINTER_COLORS: Record<string, string> = {
       border-top-color: var(--c);
       border-bottom: 0;
     }
+    /* Columns share the track exactly, so a long array on a narrow phone never widens the page. */
     .cells {
       position: relative;
       display: grid;
-      grid-template-columns: repeat(var(--n), 1fr);
+      grid-template-columns: repeat(var(--n), minmax(0, 1fr));
       gap: 0;
     }
     .window {
@@ -121,7 +122,7 @@ const POINTER_COLORS: Record<string, string> = {
     .cell {
       position: relative;
       aspect-ratio: 1;
-      margin: 3px;
+      margin: clamp(1px, 0.5vw, 3px);
       max-height: 54px;
       border-radius: 10px;
       background: var(--g-raised);
@@ -136,11 +137,16 @@ const POINTER_COLORS: Record<string, string> = {
         box-shadow 0.25s;
     }
     .val {
+      white-space: nowrap;
       font: 600 clamp(11px, 2.6vw, 16px) / 1 var(--g-font-mono);
       color: var(--g-text);
     }
     .cell.settled {
-      opacity: 0.28;
+      background: transparent;
+      border-color: var(--g-line);
+    }
+    .cell.settled .val {
+      color: var(--g-faint);
     }
     .cell.active {
       border-color: var(--g-active);
@@ -157,10 +163,11 @@ const POINTER_COLORS: Record<string, string> = {
     }
     .indices {
       display: grid;
-      grid-template-columns: repeat(var(--n), 1fr);
+      grid-template-columns: repeat(var(--n), minmax(0, 1fr));
       margin-top: 6px;
     }
     .indices span {
+      white-space: nowrap;
       text-align: center;
       font: 11px/1 var(--g-font-mono);
       color: var(--g-faint);

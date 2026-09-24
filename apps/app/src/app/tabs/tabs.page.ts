@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, Injector, afterNextRender, computed, inject } from '@angular/core';
 import { IonBadge, IonIcon, IonLabel, IonModal, IonTabBar, IonTabButton, IonTabs } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
@@ -9,6 +9,8 @@ import {
   gitNetworkOutline,
   playCircleOutline,
 } from 'ionicons/icons';
+import { refocus } from '../core/focus';
+import { isOnHiddenPage } from '../core/page-keys';
 import { ProgressService } from '../core/progress.service';
 import { FeedbackSheetComponent } from '../pilot/feedback-sheet.component';
 import { PilotNoticeComponent } from '../pilot/pilot-notice.component';
@@ -19,31 +21,33 @@ import { PilotService } from '../pilot/pilot.service';
   imports: [IonTabs, IonTabBar, IonTabButton, IonIcon, IonLabel, IonBadge, IonModal, FeedbackSheetComponent, PilotNoticeComponent],
   template: `
     <ion-tabs>
-      <ion-tab-bar slot="bottom">
-        <ion-tab-button tab="learn" href="/learn">
-          <ion-icon name="compass-outline" />
-          <ion-label>Learn</ion-label>
-        </ion-tab-button>
-        <ion-tab-button tab="visualize" href="/visualize">
-          <ion-icon name="play-circle-outline" />
-          <ion-label>Visualize</ion-label>
-        </ion-tab-button>
-        <ion-tab-button tab="design" href="/design">
-          <ion-icon name="git-network-outline" />
-          <ion-label>Design Lab</ion-label>
-        </ion-tab-button>
-        <ion-tab-button tab="drill" href="/drill">
-          <ion-icon name="flash-outline" />
-          <ion-label>Review</ion-label>
-          @if (due() > 0) {
-            <ion-badge>{{ due() }}</ion-badge>
-          }
-        </ion-tab-button>
-        <ion-tab-button tab="interview" href="/interview">
-          <ion-icon name="chatbubbles-outline" />
-          <ion-label>Interview</ion-label>
-        </ion-tab-button>
-      </ion-tab-bar>
+      <nav aria-label="Main">
+        <ion-tab-bar slot="bottom">
+          <ion-tab-button tab="learn" href="/learn">
+            <ion-icon name="compass-outline" aria-hidden="true" />
+            <ion-label>Learn</ion-label>
+          </ion-tab-button>
+          <ion-tab-button tab="visualize" href="/visualize">
+            <ion-icon name="play-circle-outline" aria-hidden="true" />
+            <ion-label>Visualize</ion-label>
+          </ion-tab-button>
+          <ion-tab-button tab="design" href="/design">
+            <ion-icon name="git-network-outline" aria-hidden="true" />
+            <ion-label>Design Lab</ion-label>
+          </ion-tab-button>
+          <ion-tab-button tab="drill" href="/drill">
+            <ion-icon name="flash-outline" aria-hidden="true" />
+            <ion-label>Review</ion-label>
+            @if (due() > 0) {
+              <ion-badge>{{ due() }}</ion-badge>
+            }
+          </ion-tab-button>
+          <ion-tab-button tab="interview" href="/interview">
+            <ion-icon name="chatbubbles-outline" aria-hidden="true" />
+            <ion-label>Interview</ion-label>
+          </ion-tab-button>
+        </ion-tab-bar>
+      </nav>
     </ion-tabs>
 
     <button class="feedback-tab" (click)="pilot.feedbackOpen.set(true)" aria-label="Send feedback">
@@ -51,13 +55,19 @@ import { PilotService } from '../pilot/pilot.service';
       <span>Feedback</span>
     </button>
 
-    <ion-modal class="g-dialog" [isOpen]="pilot.feedbackOpen()" (didDismiss)="pilot.feedbackOpen.set(false)">
+    <ion-modal class="g-dialog" aria-label="Send feedback" [isOpen]="pilot.feedbackOpen()" (didDismiss)="pilot.feedbackOpen.set(false)">
       <ng-template>
         <app-feedback-sheet (closed)="pilot.feedbackOpen.set(false)" />
       </ng-template>
     </ion-modal>
 
-    <ion-modal class="g-dialog" [isOpen]="pilot.noticeOpen()" [backdropDismiss]="false">
+    <ion-modal
+      class="g-dialog"
+      aria-label="Welcome to the Grasp pilot"
+      [isOpen]="pilot.noticeOpen()"
+      [backdropDismiss]="false"
+      (didDismiss)="focusPageHeading()"
+    >
       <ng-template>
         <app-pilot-notice (acknowledged)="pilot.acknowledgeNotice()" />
       </ng-template>
@@ -80,10 +90,9 @@ import { PilotService } from '../pilot/pilot.service';
       border-radius: 8px 0 0 8px;
       background: var(--g-raised);
       color: var(--g-muted);
-      font: 500 11px/1 var(--ion-font-family);
+      font: 500 min(0.6875rem, 14px) / 1 var(--ion-font-family);
       letter-spacing: 0.04em;
       cursor: pointer;
-      opacity: 0.85;
     }
     .feedback-tab ion-icon {
       font-size: 14px;
@@ -91,7 +100,7 @@ import { PilotService } from '../pilot/pilot.service';
     }
     @media (max-width: 600px) {
       .feedback-tab {
-        padding: 10px 3px;
+        padding: 10px 5px;
       }
       .feedback-tab span {
         display: none;
@@ -99,7 +108,6 @@ import { PilotService } from '../pilot/pilot.service';
     }
     .feedback-tab:hover,
     .feedback-tab:focus-visible {
-      opacity: 1;
       color: var(--g-text);
     }
     ion-badge {
@@ -113,6 +121,7 @@ import { PilotService } from '../pilot/pilot.service';
 export class TabsPage {
   private readonly progress = inject(ProgressService);
   readonly pilot = inject(PilotService);
+  private readonly injector = inject(Injector);
   readonly due = computed(() => {
     const session = this.progress.session();
     return session.dueTotal + session.boostedIncluded + this.progress.dueMissions().length;
@@ -120,5 +129,21 @@ export class TabsPage {
 
   constructor() {
     addIcons({ compassOutline, playCircleOutline, gitNetworkOutline, flashOutline, chatbubblesOutline, chatbubbleEllipsesOutline });
+  }
+
+  /**
+   * The welcome dialog opens on load, so no control opened it to take focus back: the page's heading takes it instead.
+   * Ionic still traps focus in the dialog while didDismiss runs, hence the wait for the next render.
+   */
+  focusPageHeading() {
+    afterNextRender(
+      () => {
+        const heading = [...document.querySelectorAll<HTMLElement>('ion-router-outlet h1')].find((h) => !isOnHiddenPage(h));
+        if (!heading) return;
+        heading.tabIndex = -1;
+        refocus(heading);
+      },
+      { injector: this.injector },
+    );
   }
 }

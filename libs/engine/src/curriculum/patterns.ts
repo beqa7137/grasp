@@ -83,7 +83,7 @@ export const PATTERNS: Pattern[] = [
       'return lo;',
     ],
     complexity: 'O(log n) × cost of check',
-    pitfalls: ['Off-by-one between lo<hi and lo<=hi', 'Infinite loop when mid rounds toward lo and you set lo = mid'],
+    pitfalls: ['Off-by-one between `lo < hi` and `lo <= hi`', 'Infinite loop when mid rounds toward lo and you set `lo = mid`'],
     algorithmIds: ['binary-search'],
   },
   {
@@ -95,7 +95,7 @@ export const PATTERNS: Pattern[] = [
     cues: ['Many range-sum queries', '"Subarray sums to k" (with a hash map of prefix counts)', '2-D region sums'],
     template: ['const pre = [0];', 'for (const x of a) pre.push(pre.at(-1) + x);', '// sum(i..j) = pre[j + 1] - pre[i]'],
     complexity: 'O(n) build, O(1) query',
-    pitfalls: ['Off-by-one on the leading zero', 'Forgetting count[0] = 1 when counting subarrays'],
+    pitfalls: ['Off-by-one on the leading zero', 'Forgetting `count[0] = 1` when counting subarrays'],
     algorithmIds: ['subarray-sum-prefix'],
   },
   {
@@ -131,7 +131,7 @@ export const PATTERNS: Pattern[] = [
       '}',
     ],
     complexity: 'O(n) time, O(1) space',
-    pitfalls: ['Null checks on fast.next', 'Finding the cycle start needs a second phase'],
+    pitfalls: ['Null checks on `fast.next`', 'Finding the cycle start needs a second phase'],
     algorithmIds: ['linked-list-cycle'],
   },
   {
@@ -218,7 +218,7 @@ export const PATTERNS: Pattern[] = [
       '}',
     ],
     complexity: 'O(V + E)',
-    pitfalls: ['Edge direction reversed', 'Not checking order.length === V for cycles'],
+    pitfalls: ['Edge direction reversed', 'Not checking `order.length === V` for cycles'],
     algorithmIds: ['topo-sort'],
   },
   {
@@ -351,10 +351,10 @@ export const PATTERNS: Pattern[] = [
     track: 'advanced',
     order: 20,
     oneLiner: 'XOR cancels pairs, masks encode subsets, shifts multiply.',
-    cues: ['Every number appears twice except one', 'Count set bits', 'Enumerate subsets of a small set', 'Sum without +'],
+    cues: ['Every number appears twice except one', 'Count set bits', 'Enumerate subsets of a small set', 'Sum without `+`'],
     template: ['let x = 0;', 'for (const n of nums) x ^= n;', 'return x;'],
     complexity: 'O(n), O(1) space',
-    pitfalls: ['Sign bit and >> vs >>> in JavaScript'],
+    pitfalls: ['Sign bit and `>>` vs `>>>` in JavaScript'],
     algorithmIds: ['single-number-xor'],
   },
 ];

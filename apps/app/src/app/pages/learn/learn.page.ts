@@ -20,6 +20,7 @@ import {
 import { AuthService } from '../../core/auth.service';
 import { ProgressService } from '../../core/progress.service';
 import { DiagnosticPromptService } from '../diagnostic/diagnostic-prompt.service';
+import { CodeTextComponent } from '../../viz/code-text.component';
 import { MasteryRingComponent } from '../../viz/mastery-ring.component';
 
 const TRACKS: { id: Track; title: string; blurb: string }[] = [
@@ -32,7 +33,7 @@ const TRACKS: { id: Track; title: string; blurb: string }[] = [
 @Component({
   selector: 'app-learn',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, IonHeader, IonToolbar, IonTitle, IonContent, IonIcon, MasteryRingComponent],
+  imports: [RouterLink, IonHeader, IonToolbar, IonTitle, IonContent, IonIcon, CodeTextComponent, MasteryRingComponent],
   templateUrl: './learn.page.html',
   styleUrl: './learn.page.scss',
 })

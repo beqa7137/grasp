@@ -10,7 +10,7 @@
     @switch (phase()) {
       @case ('intro') {
         <section class="panel intro">
-          <ion-icon class="mark" name="compass-outline" />
+          <ion-icon class="mark" name="compass-outline" aria-hidden="true" />
           <p class="eyebrow">Placement check</p>
           <h1>Find your starting point</h1>
           <p class="lead">
@@ -28,7 +28,7 @@
             <p class="muted small">Last taken {{ last | date: 'MMM d' }}. A retake replaces that placement.</p>
           }
           <div class="actions">
-            <button class="g-btn primary" (click)="start()"><ion-icon name="time-outline" />Start · about 5 min</button>
+            <button class="g-btn primary" (click)="start()"><ion-icon name="time-outline" aria-hidden="true" />Start · about 5 min</button>
             <a class="g-btn ghost" routerLink="/learn">Not now</a>
           </div>
         </section>
@@ -36,10 +36,10 @@
 
       @case ('questions') {
         @if (current(); as slot) {
-          <header class="head">
-            <p class="eyebrow">Placement check</p>
+          <div class="head">
+            <h1 class="eyebrow">Placement check</h1>
             <span class="mono muted count">{{ answers().length + 1 }}/{{ questionCount }}</span>
-          </header>
+          </div>
           <div
             class="bar"
             role="progressbar"
@@ -53,7 +53,9 @@
           </div>
           <g-question-card [question]="slot.question" reason="diagnostic" (choose)="choose($event)" />
           <button class="g-btn ghost skip" (click)="skip()">I haven't learned this</button>
-          <p class="keys muted">Press 1–{{ slot.question.choices.length }} to answer · S if you haven't learned it</p>
+          @if (shortcuts.characterKeys()) {
+            <p class="keys muted">Press 1–{{ slot.question.choices.length }} to answer · S if you haven't learned it</p>
+          }
         }
       }
 
@@ -93,7 +95,7 @@
           }
 
           <div class="actions">
-            <a class="g-btn primary" routerLink="/drill">Start your first review <ion-icon name="arrow-forward" /></a>
+            <a class="g-btn primary" routerLink="/drill">Start your first review <ion-icon name="arrow-forward" aria-hidden="true" /></a>
             @if (result.weak[0]; as first) {
               <a class="g-btn ghost" [routerLink]="['/learn/pattern', first.id]">Learn {{ first.name }} first</a>
             }

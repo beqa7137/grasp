@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { getAlgorithm } from '../algorithms/index.js';
 import { codeSpanProblems } from '../code-spans.js';
 import { PATTERNS } from '../curriculum/patterns.js';
 import { SD_TOPICS } from '../curriculum/sd-topics.js';
@@ -44,6 +45,23 @@ describe('review item catalog', () => {
       const positions = new Set(SEEDS.map((s) => generateQuestion(item.id, s).answer));
       expect(positions.size, item.id).toBeGreaterThanOrEqual(3);
     }
+  });
+
+  it.each(['binary-search', 'pair-sum-sorted', 'dijkstra', 'lcs'])('keeps the %s menu in the order the visualizer shows it', (id) => {
+    const algo = getAlgorithm(id)!;
+    const menu = algo.trace(algo.validate(algo.defaultInput)).find((f) => f.predict)!.predict!.choices;
+    for (const seed of SEEDS) expect(generateQuestion(`pred:${id}`, seed).choices).toEqual(menu);
+  });
+
+  it('keeps a fixed menu in order beside questions whose choices move around', () => {
+    const algo = getAlgorithm('two-sum-hash')!;
+    const menu = algo.trace(algo.validate(algo.defaultInput)).find((f) => f.predict?.ordered)!.predict!.choices;
+    const questions = SEEDS.map((seed) => generateQuestion('pred:two-sum-hash', seed));
+    const fromMenu = questions.filter((q) => q.choices.every((c) => menu.includes(c)));
+    expect(fromMenu.length).toBeGreaterThan(0);
+    for (const q of fromMenu) expect(q.choices).toEqual(menu);
+    const rotating = questions.filter((q) => !fromMenu.includes(q));
+    expect(new Set(rotating.map((q) => q.answer)).size).toBeGreaterThanOrEqual(3);
   });
 
   it('generates genuinely different variants for predict and numeric design items', () => {

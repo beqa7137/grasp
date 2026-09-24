@@ -70,6 +70,7 @@ export const pairSum: AlgorithmDef<Input> = {
         predict: {
           prompt: `\`sum = ${sum}\`, \`target = ${target}\`. Which move is safe?`,
           choices: CHOICES,
+          ordered: true,
           answer,
           explain:
             answer === 0

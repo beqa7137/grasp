@@ -17,25 +17,32 @@ import { RouterLink } from '@angular/router';
         </li>
         <li>Interview transcripts are sent to Anthropic's Claude API to run and score the AI interviewer.</li>
         <li>Use the <strong>Feedback</strong> tab on the right edge any time. Bugs, confusion and ideas are all useful.</li>
-        <li>You can export or delete everything we store from <a routerLink="/settings" (click)="acknowledged.emit()">Settings</a>.</li>
+        <li>
+          You can export or delete everything we store from
+          <!-- Ionic's focus trap only cycles through elements it recognizes, and a plain link is not one of them. -->
+          <a routerLink="/settings" tabindex="0" (click)="acknowledged.emit()">Settings</a>.
+        </li>
       </ul>
-      <button class="g-btn primary" (click)="acknowledged.emit()">Got it, let's start</button>
+      <div class="g-dialog-footer">
+        <button class="g-btn primary" (click)="acknowledged.emit()">Got it, let's start</button>
+      </div>
     </div>
   `,
   styles: `
     .notice {
-      padding: 24px 22px 30px;
+      --g-dialog-inset: 22px;
+      padding: 24px var(--g-dialog-inset) 0;
       max-width: 560px;
       margin: 0 auto;
       line-height: 1.5;
     }
     h2 {
-      font: 600 22px/1.2 var(--g-font-display);
+      font: 600 1.375rem/1.2 var(--g-font-display);
       margin: 6px 0 12px;
     }
     ul {
       padding-left: 18px;
-      margin: 12px 0 22px;
+      margin: 12px 0 10px;
     }
     li {
       margin-bottom: 8px;

@@ -147,6 +147,7 @@ export const dijkstra: AlgorithmDef<Input> = {
             predict: {
               prompt: `Going through ${u} reaches ${v} in ${candidate}; \`dist[${v}]\` is ${fmt(dist[v])}. Update?`,
               choices: RELAX,
+              ordered: true,
               answer: better ? 0 : 1,
               explain: better
                 ? `${candidate} < ${fmt(dist[v])}: record the shorter distance and push ${v} with its new priority.`

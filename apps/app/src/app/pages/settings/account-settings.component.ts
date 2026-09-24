@@ -90,16 +90,17 @@ const EXPLAINED_ERRORS = new Set(['account_exists', 'email_unverified', 'identit
       margin-bottom: 16px;
     }
     h2 {
-      font: 600 17px/1.2 var(--g-font-display);
+      font: 600 1.0625rem/1.2 var(--g-font-display);
       margin: 0 0 8px;
     }
     h3 {
-      font: 600 14px/1.2 var(--g-font-display);
+      font: 600 0.875rem/1.2 var(--g-font-display);
       color: var(--g-muted);
       margin: 12px 0 8px;
     }
     .row {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
       gap: 16px;
@@ -113,7 +114,7 @@ const EXPLAINED_ERRORS = new Set(['account_exists', 'email_unverified', 'identit
       flex: none;
     }
     .small {
-      font-size: 13px;
+      font-size: 0.8125rem;
     }
     .intro {
       margin: 0 0 12px;
@@ -163,11 +164,11 @@ const EXPLAINED_ERRORS = new Set(['account_exists', 'email_unverified', 'identit
       border-radius: 10px;
       background: rgba(255, 181, 71, 0.12);
       color: var(--g-warn);
-      font-size: 14px;
+      font-size: 0.875rem;
     }
     .error {
       color: var(--g-danger);
-      font-size: 14px;
+      font-size: 0.875rem;
       line-height: 1.45;
       margin: 0 0 12px;
     }

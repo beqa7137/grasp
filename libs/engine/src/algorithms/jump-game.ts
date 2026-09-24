@@ -84,6 +84,7 @@ export const jumpGame: AlgorithmDef<Input> = {
           predict: {
             prompt: `\`i = ${i}\`, \`reach = ${reach}\`, \`nums[${i}] = ${nums[i]}\`. Can you still continue?`,
             choices: CHECK,
+            ordered: true,
             answer: stuck ? 1 : 0,
             explain: stuck
               ? `${i} > ${reach}: no index before ${i} jumps this far, so you can never get here. Return false.`

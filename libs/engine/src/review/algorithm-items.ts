@@ -104,11 +104,13 @@ const predictItems: ItemDef[] = ALGORITHMS.map((algo) => ({
       if (decisions.length === 0) continue;
       const frame = decisions[Math.floor(rand() * decisions.length)];
       const p = frame.predict!;
-      const { choices, answer } = withChoices(
-        rand,
-        p.choices[p.answer],
-        p.choices.filter((_, i) => i !== p.answer),
-      );
+      const { choices, answer } = p.ordered
+        ? p
+        : withChoices(
+            rand,
+            p.choices[p.answer],
+            p.choices.filter((_, i) => i !== p.answer),
+          );
       return {
         itemId: this.id,
         kind: 'predict',

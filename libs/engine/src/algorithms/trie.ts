@@ -115,6 +115,7 @@ export const trie: AlgorithmDef<Input> = {
                 predict: {
                   prompt: `Inserting "${w}": at ${prefix ? `"${prefix}"` : 'the root'}, is there already a child for "${ch}"?`,
                   choices: INSERT,
+                  ordered: true,
                   answer: exists ? 0 : 1,
                   explain: exists
                     ? `An earlier word already starts with "${prefix}${ch}", so the path is shared: no new node.`

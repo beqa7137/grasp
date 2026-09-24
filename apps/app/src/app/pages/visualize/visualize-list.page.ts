@@ -47,7 +47,7 @@ import { CodeTextComponent } from '../../viz/code-text.component';
   `,
   styles: `
     h1 {
-      font-size: clamp(26px, 5vw, 38px);
+      font-size: clamp(1.625rem, 5vw, 2.375rem);
       margin: 6px 0 8px;
     }
     .lead {
@@ -68,16 +68,17 @@ import { CodeTextComponent } from '../../viz/code-text.component';
     }
     .top {
       display: flex;
+      flex-wrap: wrap;
       gap: 6px;
     }
     h2 {
-      font-size: 19px;
+      font-size: 1.1875rem;
       margin: 6px 0 0;
     }
     p {
       margin: 0;
       line-height: 1.5;
-      font-size: 14px;
+      font-size: 0.875rem;
       flex: 1;
     }
     .bottom {
@@ -85,7 +86,7 @@ import { CodeTextComponent } from '../../viz/code-text.component';
       justify-content: space-between;
       align-items: center;
       margin-top: 8px;
-      font-size: 13px;
+      font-size: 0.8125rem;
     }
     .acc {
       color: var(--g-predict);

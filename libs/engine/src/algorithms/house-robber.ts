@@ -50,6 +50,7 @@ function robOrSkip(step: Step): Prediction {
   return {
     prompt: `${givens(step)} Rob house ${house} or skip it?`,
     choices: [`Rob house ${house}`, `Skip house ${house}`],
+    ordered: true,
     answer: step.take > step.skip ? 0 : 1,
     explain: `${verdict(step)} ${neighbour(step)}`,
   };

@@ -83,6 +83,7 @@ export const longestUnique: AlgorithmDef<Input> = {
         predict: {
           prompt: `'${c}' wants to join window {${[...seen].join(', ')}}. What happens?`,
           choices: CHOICES,
+          ordered: true,
           answer: dup ? 1 : 0,
           explain: dup
             ? `'${c}' is already inside, so the window would contain a repeat. Evict from the left until the old '${c}' is gone.`

@@ -58,7 +58,7 @@ const patternName = new Map(PATTERNS.map((p) => [p.id, p.name]));
   `,
   styles: `
     h1 {
-      font-size: clamp(26px, 5vw, 38px);
+      font-size: clamp(1.625rem, 5vw, 2.375rem);
       margin: 6px 0 8px;
     }
     .lead {
@@ -68,7 +68,7 @@ const patternName = new Map(PATTERNS.map((p) => [p.id, p.name]));
     }
     .progress {
       color: var(--g-muted);
-      font-size: 13px;
+      font-size: 0.8125rem;
       margin: 0 0 18px;
     }
     .list {
@@ -92,7 +92,7 @@ const patternName = new Map(PATTERNS.map((p) => [p.id, p.name]));
       color: var(--g-found);
     }
     h2 {
-      font-size: 16px;
+      font-size: 1rem;
       margin: 0 0 8px;
     }
     .chips {

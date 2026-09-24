@@ -5,6 +5,7 @@ import { AuthService } from '../../core/auth.service';
 import { LearnerService } from '../../core/learner.service';
 import { ProgressService } from '../../core/progress.service';
 import { RuntimeConfigService } from '../../core/runtime-config.service';
+import { ShortcutsService } from '../../core/shortcuts.service';
 import { PilotService } from '../../pilot/pilot.service';
 import { AccountSettingsComponent } from './account-settings.component';
 import { StudySettingsComponent } from './study-settings.component';
@@ -22,9 +23,32 @@ import { StudySettingsComponent } from './study-settings.component';
     </ion-header>
     <ion-content [fullscreen]="true">
       <div class="page narrow">
+        <h1 class="visually-hidden">Settings</h1>
         <app-account-settings />
 
         <app-study-settings />
+
+        <section class="panel block">
+          <h2>Keyboard</h2>
+          <div class="row">
+            <div>
+              <strong>Single-key shortcuts</strong>
+              <p class="muted small" id="character-keys-hint">
+                Keys such as 1–4 to answer and G or E to grade. Turn them off if you use speech input. On this device only.
+              </p>
+            </div>
+            <label class="g-switch">
+              <input
+                type="checkbox"
+                aria-label="Single-key shortcuts"
+                aria-describedby="character-keys-hint"
+                [checked]="shortcuts.characterKeys()"
+                (change)="shortcuts.setCharacterKeys($any($event.target).checked)"
+              />
+              <span class="track"><span class="knob"></span></span>
+            </label>
+          </div>
+        </section>
 
         <section class="panel block">
           <h2>Your data</h2>
@@ -77,22 +101,28 @@ import { StudySettingsComponent } from './study-settings.component';
       margin-bottom: 16px;
     }
     h2 {
-      font: 600 17px/1.2 var(--g-font-display);
+      font: 600 1.0625rem/1.2 var(--g-font-display);
       margin: 0 0 8px;
     }
     .row {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
       gap: 16px;
       padding: 12px 0;
       border-top: 1px solid var(--g-line);
     }
+    /* The text shrinks beside its button until large text needs a line of its own for it. */
+    .row > div {
+      flex: 1 1 0;
+      min-width: min(8em, 100%);
+    }
     .row p {
       margin: 2px 0 0;
     }
     .small {
-      font-size: 13px;
+      font-size: 0.8125rem;
     }
     .g-btn.danger {
       color: var(--g-danger);
@@ -109,6 +139,7 @@ export class SettingsPage {
   readonly runtime = inject(RuntimeConfigService);
   readonly pilot = inject(PilotService);
   readonly auth = inject(AuthService);
+  readonly shortcuts = inject(ShortcutsService);
   readonly busy = signal(false);
 
   async exportData() {

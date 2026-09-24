@@ -3,6 +3,9 @@ import {
   Component,
   DestroyRef,
   ElementRef,
+  HostListener,
+  Injector,
+  afterNextRender,
   computed,
   effect,
   inject,
@@ -50,10 +53,26 @@ import {
   trophy,
   warning,
 } from 'ionicons/icons';
+import { refocus } from '../../core/focus';
 import { haptic } from '../../core/haptics';
+import { isKeyForPage } from '../../core/page-keys';
 import { ProgressService } from '../../core/progress.service';
+import { RadioGroupDirective } from '../../core/radio-group.directive';
 import { FREE_BUILD } from './free-build';
-import { BOARD, type Point, type ViewBox, clampView, fitView, freeSpot, initialView, panBy, sameView, toBoard, zoomAt } from './viewport';
+import {
+  BOARD,
+  type Point,
+  type ViewBox,
+  clampView,
+  fitView,
+  freeSpot,
+  initialView,
+  panBy,
+  reveal,
+  sameView,
+  toBoard,
+  zoomAt,
+} from './viewport';
 
 const W = 132;
 const H = 70;
@@ -62,6 +81,8 @@ const VIEW_H = BOARD.h;
 const ZOOM_STEP = 1.35;
 /** Screen pixels a background drag must travel before it pans instead of counting as a tap. */
 const PAN_SLOP_PX = 6;
+
+let sandboxes = 0;
 
 type Gesture =
   | { kind: 'pan'; id: number; start: Point; view: ViewBox; moved: boolean }
@@ -74,7 +95,7 @@ type Drag =
 @Component({
   selector: 'app-sandbox',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DecimalPipe, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle, IonContent, IonIcon],
+  imports: [DecimalPipe, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle, IonContent, IonIcon, RadioGroupDirective],
   templateUrl: './sandbox.page.html',
   styleUrl: './sandbox.page.scss',
 })
@@ -85,7 +106,16 @@ export class SandboxPage {
   });
   private readonly progress = inject(ProgressService);
   private readonly toasts = inject(ToastController);
+  private readonly host: HTMLElement = inject(ElementRef).nativeElement;
   private readonly svg = viewChild<ElementRef<SVGSVGElement>>('canvas');
+  private readonly connectButton = viewChild<ElementRef<HTMLElement>>('connectButton');
+  private readonly killButton = viewChild<ElementRef<HTMLElement>>('killButton');
+  private readonly recoverButton = viewChild<ElementRef<HTMLElement>>('recoverButton');
+  private readonly targets = viewChild<ElementRef<HTMLElement>>('targets');
+  private readonly injector = inject(Injector);
+  readonly targetsLabelId = `sandbox-targets-${++sandboxes}`;
+  /** What the last action did, for screen readers: the canvas and metrics change silently. */
+  readonly announcement = signal('');
 
   readonly W = W;
   readonly H = H;
@@ -159,6 +189,14 @@ export class SandboxPage {
         },
       ];
     });
+  });
+
+  readonly outgoing = computed(() => this.edges().filter((e) => e.from === this.selectedId()));
+  /** Where the component being connected can send traffic, for choosing without a pointer. */
+  readonly connectTargets = computed(() => {
+    const from = this.connectFrom();
+    const design = this.design();
+    return from ? design.nodes.filter((n) => canConnect(design, from, n.id).ok) : [];
   });
 
   readonly linkPreview = computed(() => {
@@ -368,6 +406,7 @@ export class SandboxPage {
     this.patch((draft) => draft.nodes.push(node));
     this.selectedId.set(node.id);
     this.selectedEdge.set(null);
+    this.announce(`Added ${this.nodeName(node.id)}`);
     void haptic.tap();
   }
 
@@ -382,27 +421,66 @@ export class SandboxPage {
     const max = COMPONENTS[n.kind].maxInstances;
     const instances = Math.min(max, Math.max(1, n.instances + delta));
     this.updateNode(n.id, { instances, failed: Math.min(n.failed ?? 0, instances) });
+    this.announce(this.nodeLabel(this.selected()!));
     void haptic.tap();
   }
 
   failInstance(n: DesignNode) {
     this.updateNode(n.id, { failed: Math.min(n.instances, (n.failed ?? 0) + 1) });
+    this.announce(this.nodeLabel(this.selected()!));
+    this.focusAfterRender(() => this.killButton()?.nativeElement ?? this.recoverButton()?.nativeElement);
     void haptic.error();
   }
 
+  recover(n: DesignNode) {
+    this.updateNode(n.id, { failed: 0 });
+    this.announce(this.nodeLabel(this.selected()!));
+    this.focusAfterRender(() => this.killButton()?.nativeElement);
+  }
+
   deleteNode(id: string) {
+    const name = this.nodeName(id);
     this.patch((draft) => {
       draft.nodes = draft.nodes.filter((n) => n.id !== id);
       draft.edges = draft.edges.filter((e) => e.from !== id && e.to !== id);
     });
     this.clearSelection();
+    this.announce(`Removed ${name}`);
+    this.focusAfterRender(() => this.svg()?.nativeElement);
   }
 
   deleteEdge(key: string) {
+    const edge = this.edges().find((e) => e.key === key);
     this.patch((draft) => {
       draft.edges = draft.edges.filter((e) => `${e.from}->${e.to}` !== key);
     });
     this.selectedEdge.set(null);
+    if (edge) this.announce(`Removed the connection from ${this.nodeName(edge.from)} to ${this.nodeName(edge.to)}`);
+    this.focusAfterRender(() => this.connectButton()?.nativeElement ?? this.nodeElement(edge?.from));
+  }
+
+  closeInspector() {
+    const node = this.selectedId() ?? this.edges().find((e) => e.key === this.selectedEdge())?.from;
+    this.clearSelection();
+    this.focusAfterRender(() => this.nodeElement(node));
+  }
+
+  startConnect(id: string) {
+    this.connectFrom.set(id);
+    const list = () => this.targets()?.nativeElement;
+    this.focusAfterRender(() => list()?.querySelector('button') ?? list(), this.connectButton()?.nativeElement);
+  }
+
+  cancelConnect() {
+    this.connectFrom.set(null);
+    this.focusAfterRender(() => this.connectButton()?.nativeElement);
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  onKey(e: KeyboardEvent) {
+    if (e.key !== 'Escape' || !this.connectFrom() || !isKeyForPage(this.host, e)) return;
+    e.preventDefault();
+    this.cancelConnect();
   }
 
   setRps(sliderValue: number) {
@@ -432,9 +510,59 @@ export class SandboxPage {
     this.selectedEdge.set(null);
   }
 
+  /** A component's short name, numbered when the board has more than one of its kind. */
+  nodeName(id: string) {
+    const nodes = this.design().nodes;
+    const node = nodes.find((n) => n.id === id);
+    if (!node) return id;
+    const same = nodes.filter((n) => n.kind === node.kind);
+    const short = COMPONENTS[node.kind].short;
+    return same.length > 1 ? `${short} ${same.indexOf(node) + 1}` : short;
+  }
+
+  /** What a screen reader says for a component on the canvas: what it is and how it is coping. */
+  nodeLabel(n: DesignNode) {
+    const spec = COMPONENTS[n.kind];
+    const name = spec.name === spec.short ? this.nodeName(n.id) : `${this.nodeName(n.id)}, ${spec.name}`;
+    if (n.kind === 'client') {
+      const reads = Math.round(this.workload().readRatio * 100);
+      return `${name}, ${fmt(this.result().metrics.offeredRps)} requests per second, ${reads}% reads`;
+    }
+    const unit = n.kind === 'db' ? 'shard' : 'instance';
+    const size = `${n.instances} ${unit}${n.instances === 1 ? '' : 's'}${n.failed ? `, ${n.failed} down` : ''}`;
+    const st = this.result().nodes[n.id];
+    const load = st?.status === 'down' ? 'down' : `${this.utilPct(n.id)}% utilized, ${Math.round(st?.latencyMs ?? 0)} ms`;
+    return `${name}, ${size}, ${load}`;
+  }
+
+  /**
+   * A component can take keyboard focus while off screen on a zoomed-in phone canvas, so the board follows it. A tap
+   * also focuses it, but moving the board under a finger that starts a drag would be jarring.
+   */
+  revealNode(e: FocusEvent, node: DesignNode) {
+    if (!(e.target as Element).matches(':focus-visible')) return;
+    this.view.set(reveal(this.view(), { x: node.x - W / 2, y: node.y - H / 2, w: W, h: H }, this.aspect));
+  }
+
+  activateNode(e: Event, node: DesignNode) {
+    e.preventDefault();
+    const from = this.connectFrom();
+    if (from) void this.connect(from, node.id);
+    else {
+      this.selectedId.set(node.id);
+      this.selectedEdge.set(null);
+    }
+  }
+
+  connectTo(to: string) {
+    const from = this.connectFrom();
+    if (from) void this.connect(from, to);
+  }
+
   private async connect(from: string, to: string) {
     const check = canConnect(this.design(), from, to);
     this.connectFrom.set(null);
+    this.focusAfterRender(() => this.connectButton()?.nativeElement);
     if (!check.ok) {
       void haptic.error();
       const toast = await this.toasts.create({ message: check.reason, duration: 2200, position: 'top', cssClass: 'g-toast' });
@@ -442,6 +570,7 @@ export class SandboxPage {
       return;
     }
     this.patch((draft) => draft.edges.push({ from, to }));
+    this.announce(`Connected ${this.nodeName(from)} to ${this.nodeName(to)}`);
     void haptic.tap();
   }
 
@@ -531,6 +660,21 @@ export class SandboxPage {
 
   utilPct(id: string) {
     return Math.round(Math.min(9.99, this.result().nodes[id]?.utilization ?? 0) * 100);
+  }
+
+  /** Once an action has rendered, focus goes to `target` if the action removed the control that had it (see refocus). */
+  private focusAfterRender(target: () => HTMLElement | SVGElement | null | undefined, within?: Element) {
+    afterNextRender(() => refocus(target(), within), { injector: this.injector });
+  }
+
+  private nodeElement(id: string | null | undefined) {
+    return id ? this.svg()?.nativeElement.querySelector<SVGElement>(`[data-node="${CSS.escape(id)}"]`) : null;
+  }
+
+  private announce(action: string) {
+    const checks = this.checks();
+    const met = checks.filter((c) => c.pass).length;
+    this.announcement.set(checks.length ? `${action}. ${met} of ${checks.length} goals met.` : `${action}.`);
   }
 
   private patch(mutate: (draft: Design) => void) {

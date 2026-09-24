@@ -10,7 +10,7 @@
 
 @media (max-width: 900px) {
   .workspace {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -20,7 +20,7 @@
   line-height: 1.55;
 
   h1 {
-    font: 600 24px/1.2 var(--g-font-display);
+    font: 600 1.5rem/1.2 var(--g-font-display);
     margin: 12px 0 10px;
   }
   p {
@@ -52,7 +52,7 @@
   border: 1px solid var(--g-line);
   border-radius: var(--g-radius-sm);
   padding: 10px 12px;
-  font-size: 13px;
+  font-size: 0.8125rem;
   white-space: pre-wrap;
   word-break: break-word;
   margin: 0 0 8px;
@@ -61,7 +61,7 @@
 .constraints {
   margin: 0;
   padding-left: 18px;
-  font-size: 13px;
+  font-size: 0.8125rem;
   color: var(--g-muted);
 }
 
@@ -72,12 +72,12 @@
 
   .link {
     color: var(--g-accent);
-    font-size: 14px;
+    font-size: 0.875rem;
   }
 }
 
 .small {
-  font-size: 12.5px;
+  font-size: 0.78125rem;
 }
 
 .work {
@@ -100,6 +100,8 @@
 
 .langs {
   display: inline-flex;
+  flex-wrap: wrap;
+  max-width: 100%;
   border: 1px solid var(--g-line-strong);
   border-radius: 10px;
   overflow: hidden;
@@ -110,7 +112,7 @@
     background: transparent;
     color: var(--g-muted);
     padding: 8px 12px;
-    font: 500 13px/1 var(--ion-font-family);
+    font: 500 0.8125rem/1 var(--ion-font-family);
     cursor: pointer;
   }
   button.on {
@@ -145,13 +147,18 @@
   margin-bottom: 12px;
   border-bottom: 1px solid var(--g-line);
 
+  .tablist {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
   button {
     appearance: none;
     border: none;
     background: none;
     color: var(--g-muted);
     padding: 6px 10px 9px;
-    font: 500 14px/1 var(--ion-font-family);
+    font: 500 0.875rem/1 var(--ion-font-family);
     cursor: pointer;
     border-bottom: 2px solid transparent;
     margin-bottom: -1px;
@@ -162,7 +169,7 @@
   }
   .status {
     margin-left: auto;
-    font-size: 13px;
+    font-size: 0.8125rem;
   }
 }
 
@@ -231,6 +238,7 @@
 
 .test-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   margin-bottom: 8px;
@@ -241,7 +249,7 @@
 }
 
 .badge {
-  font-size: 11px;
+  font-size: 0.6875rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   padding: 2px 7px;
@@ -287,7 +295,7 @@
 }
 
 .hint {
-  font-size: 14px;
+  font-size: 0.875rem;
   line-height: 1.5;
 }
 

@@ -80,6 +80,7 @@ export const nextGreater: AlgorithmDef<Input> = {
                 predict: {
                   prompt: `Incoming ${nums[i]}, stack top is ${nums[top]}. Pop or push?`,
                   choices: CHOICES,
+                  ordered: true,
                   answer: pop ? 0 : 1,
                   explain: pop
                     ? `${nums[i]} > ${nums[top]}, so ${nums[i]} is the first bigger value to the right of index ${top}. Resolve it and pop.`

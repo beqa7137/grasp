@@ -1,4 +1,4 @@
-import { BOARD, MIN_VIEW_W, clampView, fitView, freeSpot, initialView, panBy, toBoard, zoomAt } from './viewport';
+import { BOARD, MIN_VIEW_W, clampView, fitView, freeSpot, initialView, panBy, reveal, toBoard, zoomAt } from './viewport';
 
 const WIDE = BOARD.h / BOARD.w;
 const TALL = 1.3;
@@ -40,6 +40,17 @@ describe('design board viewport', () => {
     expect(far.x + far.w).toBeLessThanOrEqual(BOARD.w + 80);
     expect(far.y + far.h).toBeLessThanOrEqual(BOARD.h + 80);
     expect(panBy(fitView(WIDE), 300, 0, WIDE)).toEqual(fitView(WIDE));
+  });
+
+  it('pans just enough to reveal a component that takes focus off screen, and leaves a visible one alone', () => {
+    const zoomed = zoomAt(fitView(WIDE), { x: 200, y: 240 }, 0.4, WIDE);
+    const offRight = { x: zoomed.x + zoomed.w + 100, y: zoomed.y + 20, w: 132, h: 70 };
+    const shown = reveal(zoomed, offRight, WIDE);
+    expect(shown.w).toBe(zoomed.w);
+    expect(shown.x + shown.w).toBeCloseTo(offRight.x + offRight.w + 12);
+    expect(shown.y).toBe(zoomed.y);
+    const inside = { x: zoomed.x + 30, y: zoomed.y + 30, w: 50, h: 20 };
+    expect(reveal(zoomed, inside, WIDE)).toBe(zoomed);
   });
 
   it('opens phones at a readable zoom on the left of the design and desktops on the whole board', () => {

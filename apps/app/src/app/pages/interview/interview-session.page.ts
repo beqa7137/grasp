@@ -1,4 +1,17 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, input, signal, viewChild } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  ElementRef,
+  Injector,
+  afterNextRender,
+  computed,
+  effect,
+  inject,
+  input,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { IonBackButton, IonButtons, IonContent, IonFooter, IonHeader, IonIcon, IonSpinner, IonTitle, IonToolbar } from '@ionic/angular';
@@ -8,6 +21,7 @@ import { addIcons } from 'ionicons';
 import { arrowUp, bulbOutline, codeSlashOutline, flagOutline, ribbonOutline } from 'ionicons/icons';
 import { CodeEditorComponent } from '../../code/code-editor.component';
 import { ApiError, ApiService } from '../../core/api.service';
+import { refocus } from '../../core/focus';
 import { ProgressService } from '../../core/progress.service';
 import type { InterviewMessage, InterviewSession } from './interview.types';
 
@@ -36,6 +50,8 @@ export class InterviewSessionPage {
   private readonly api = inject(ApiService);
   private readonly progress = inject(ProgressService);
   private readonly content = viewChild(IonContent);
+  private readonly composer = viewChild<ElementRef<HTMLTextAreaElement>>('composer');
+  private readonly injector = inject(Injector);
 
   readonly session = signal<InterviewSession | null>(null);
   readonly streaming = signal<string | null>(null);
@@ -44,6 +60,8 @@ export class InterviewSessionPage {
   readonly busy = signal(false);
   readonly scoring = signal(false);
   readonly error = signal<string | null>(null);
+  /** The interviewer's latest reply, or why it failed, for screen readers: the chat itself is not a live region. */
+  readonly announcement = signal('');
   private abort: AbortController | null = null;
 
   readonly languages = LANGUAGES;
@@ -115,6 +133,8 @@ export class InterviewSessionPage {
     });
     this.draft.set('');
     this.streaming.set('');
+    // The Send and Hint buttons are disabled while the interviewer replies, which would drop focus to the page.
+    afterNextRender(() => refocus(this.composer()?.nativeElement), { injector: this.injector });
     this.abort = new AbortController();
     try {
       const done = await this.api.stream<{ message: InterviewMessage }>(
@@ -128,9 +148,11 @@ export class InterviewSessionPage {
       this.session.update((cur) =>
         cur ? { ...cur, hintsUsed: cur.hintsUsed + (hint ? 1 : 0), messages: [...cur.messages, candidate, done.message] } : cur,
       );
+      this.announcement.set(`Interviewer: ${done.message.content}`);
     } catch (e) {
       this.draft.set(content);
       this.error.set(e instanceof ApiError ? e.message : 'The interviewer did not respond. Try again.');
+      this.announcement.set(this.error()!);
     } finally {
       this.pendingCandidate.set(null);
       this.streaming.set(null);

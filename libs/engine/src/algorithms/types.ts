@@ -91,6 +91,8 @@ export interface Prediction {
   prompt: string;
   choices: string[];
   answer: number;
+  /** The choices are a fixed menu, such as Yes / No, whose order means something, so review keeps it instead of shuffling. */
+  ordered?: boolean;
   /** Learner text: backticks mark code spans. */
   explain: string;
 }
