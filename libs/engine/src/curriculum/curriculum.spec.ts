@@ -32,8 +32,11 @@ describe('curriculum content', () => {
     }
   });
 
-  it('links every visualizer from its own pattern', () => {
-    for (const p of PATTERNS) for (const id of p.algorithmIds) expect(getAlgorithm(id)?.patternId, id).toBe(p.id);
+  it('links every pattern to at least one visualizer, and every visualizer from its own pattern', () => {
+    for (const p of PATTERNS) {
+      expect(p.algorithmIds.length, p.id).toBeGreaterThan(0);
+      for (const id of p.algorithmIds) expect(getAlgorithm(id)?.patternId, id).toBe(p.id);
+    }
     for (const a of ALGORITHMS) expect(PATTERNS.find((p) => p.id === a.patternId)?.algorithmIds, a.id).toContain(a.id);
   });
 

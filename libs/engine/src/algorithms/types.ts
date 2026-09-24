@@ -56,6 +56,8 @@ export interface GraphNode {
   state?: NodeState;
   /** Small value drawn next to the node: a distance, an in-degree. */
   badge?: string;
+  /** Draws the badge above the node instead of below it, clear of edges that arrive from below. */
+  badgeAbove?: boolean;
 }
 
 export interface GraphEdge {
@@ -66,9 +68,14 @@ export interface GraphEdge {
   state?: EdgeState;
 }
 
+/** What each node style means, in legend order. */
+export type GraphLegend = Partial<Record<NodeState, string>>;
+
 export interface GraphView {
   nodes: GraphNode[];
   edges: GraphEdge[];
+  /** Without it the graph has no legend. */
+  legend?: GraphLegend;
 }
 
 /** What each node style means, in legend order. */

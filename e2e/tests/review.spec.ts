@@ -21,7 +21,7 @@ test('a review session grades every card and schedules the next review', async (
 
 test('practice for one pattern stays outside the schedule', async ({ page }) => {
   await page.goto('/learn/pattern/hashing');
-  await page.getByRole('link', { name: /Practice 5 items/ }).click();
+  await page.getByRole('link', { name: /Practice 6 items/ }).click();
   await expect(page).toHaveURL(/\/drill\?pattern=hashing/);
   await page.locator('g-question-card .choice').first().click();
   await expect(page.getByRole('button', { name: /^Next/ })).toBeVisible();

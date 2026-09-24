@@ -104,6 +104,7 @@ export const CODING_PROBLEMS: CodingProblem[] = [
     title: 'Two Sum',
     difficulty: 'easy',
     patternIds: ['hashing'],
+    algorithmId: 'two-sum-hash',
     statement: [
       'Given an array of integers nums and an integer target, return the indices of the two numbers that add up to target.',
       'Exactly one pair adds up to target, and you may not use the same element twice. Return the two indices in any order.',
@@ -379,6 +380,7 @@ export const CODING_PROBLEMS: CodingProblem[] = [
     title: 'Subarrays Summing to K',
     difficulty: 'medium',
     patternIds: ['prefix-sum', 'hashing'],
+    algorithmId: 'subarray-sum-prefix',
     statement: ['Return how many contiguous, non-empty subarrays of nums add up to exactly k. Values can be negative.'],
     constraints: ['1 ≤ nums.length ≤ 10^5', '-1000 ≤ nums[i] ≤ 1000', '-10^7 ≤ k ≤ 10^7'],
     entry: 'subarraySum',
@@ -599,6 +601,7 @@ export const CODING_PROBLEMS: CodingProblem[] = [
     title: 'House Robber',
     difficulty: 'medium',
     patternIds: ['dp-1d'],
+    algorithmId: 'house-robber',
     statement: ['Each house on a street holds some money. You cannot take from two adjacent houses. Return the most money you can take.'],
     constraints: ['1 ≤ nums.length ≤ 10^5', '0 ≤ nums[i] ≤ 400'],
     entry: 'rob',

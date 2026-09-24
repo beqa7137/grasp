@@ -1,18 +1,22 @@
 import { binarySearch } from './binary-search.js';
 import { dijkstra } from './dijkstra.js';
 import { gridBfs } from './grid-bfs.js';
+import { houseRobber } from './house-robber.js';
 import { jumpGame } from './jump-game.js';
 import { kthLargest } from './kth-largest.js';
 import { lcs } from './lcs.js';
+import { linkedListCycle } from './linked-list-cycle.js';
 import { mergeIntervals } from './merge-intervals.js';
 import { nextGreater } from './monotonic-stack.js';
 import { singleNumberXor } from './single-number-xor.js';
 import { longestUnique } from './sliding-window.js';
+import { subarraySumPrefix } from './subarray-sum-prefix.js';
 import { subsetsBacktracking } from './subsets-backtracking.js';
 import { topoSort } from './topo-sort.js';
 import { treeTraversal } from './tree-traversal.js';
 import { trie } from './trie.js';
 import { pairSum } from './two-pointers.js';
+import { twoSumHash } from './two-sum-hash.js';
 import { unionFind } from './union-find.js';
 import type { AlgorithmDef, AlgorithmMeta } from './types.js';
 
@@ -36,6 +40,10 @@ export const ALGORITHMS: AlgorithmDef<any>[] = [
   treeTraversal,
   jumpGame,
   singleNumberXor,
+  twoSumHash,
+  subarraySumPrefix,
+  linkedListCycle,
+  houseRobber,
 ];
 
 export function getAlgorithm(id: string): AlgorithmDef<any> | undefined {

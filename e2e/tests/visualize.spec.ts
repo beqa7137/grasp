@@ -7,6 +7,10 @@ const VISUALIZER_TITLES = [
   'Tree DFS: Preorder, Inorder, Postorder',
   'Jump Game',
   'Single Number (XOR)',
+  'Two Sum (Hash Map)',
+  'Subarray Sum Equals K',
+  'Linked List Cycle (Floyd)',
+  'House Robber',
 ];
 
 async function stepToCheckpoint(page: Page) {
