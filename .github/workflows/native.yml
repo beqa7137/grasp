@@ -1,7 +1,8 @@
 name: Native builds
 
 # Compiles the Capacitor shells so native breakage (plugins, SDK or Xcode bumps) shows up in review
-# instead of on a release day. Debug builds only; nothing is signed or published.
+# instead of on a release day. Debug builds only; nothing is signed or published. Run it by hand with an
+# API URL to get an APK and a simulator app that talk to that deployment, e.g. for testing on emulators.
 on:
   push:
     branches: [main]
@@ -14,6 +15,10 @@ on:
   pull_request:
     paths: *native-paths
   workflow_dispatch:
+    inputs:
+      api_url:
+        description: API the apps call, e.g. https://grasp-rho-taupe.vercel.app/api (empty for a development build)
+        default: ''
 
 concurrency:
   group: native-${{ github.ref }}
@@ -46,6 +51,10 @@ jobs:
         run: npm ci
 
       - name: Build web app and sync native projects
+        env:
+          GRASP_API_URL: ${{ inputs.api_url }}
+          GRASP_RELEASE: ${{ inputs.api_url && '1' || '' }}
+          GRASP_VERSION: ${{ github.sha }}
         run: |
           npm run build -w @grasp/engine
           npm run cap:sync -w @grasp/app
@@ -77,6 +86,10 @@ jobs:
         run: npm ci
 
       - name: Build web app and sync native projects
+        env:
+          GRASP_API_URL: ${{ inputs.api_url }}
+          GRASP_RELEASE: ${{ inputs.api_url && '1' || '' }}
+          GRASP_VERSION: ${{ github.sha }}
         run: |
           npm run build -w @grasp/engine
           npm run cap:sync -w @grasp/app
@@ -91,3 +104,12 @@ jobs:
           -destination 'generic/platform=iOS Simulator'
           -derivedDataPath build
           CODE_SIGNING_ALLOWED=NO
+
+      - name: Package the simulator app
+        run: ditto -c -k --keepParent apps/app/ios/App/build/Build/Products/Debug-iphonesimulator/App.app App.app.zip
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: grasp-simulator-app
+          path: App.app.zip
+          retention-days: 7
