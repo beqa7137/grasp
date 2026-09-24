@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { Capacitor } from '@capacitor/core';
 import { ApiError, ApiService } from '../core/api.service';
 import { haptic } from '../core/haptics';
+import { RadioGroupDirective } from '../core/radio-group.directive';
 import { RuntimeConfigService } from '../core/runtime-config.service';
 
 type Kind = 'bug' | 'confusing' | 'idea' | 'praise';
@@ -19,7 +20,7 @@ const MAX_LENGTH = 2000;
 @Component({
   selector: 'app-feedback-sheet',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule],
+  imports: [FormsModule, RadioGroupDirective],
   template: `
     <div class="sheet">
       @if (sent()) {
@@ -76,7 +77,7 @@ const MAX_LENGTH = 2000;
         @if (error(); as e) {
           <p class="error" role="alert">{{ e }}</p>
         }
-        <div class="actions">
+        <div class="g-dialog-footer actions">
           <button class="g-btn ghost" (click)="closed.emit()">Cancel</button>
           <button class="g-btn primary" [disabled]="!canSend()" (click)="send()">{{ sending() ? 'Sending…' : 'Send' }}</button>
         </div>
@@ -85,12 +86,13 @@ const MAX_LENGTH = 2000;
   `,
   styles: `
     .sheet {
-      padding: 20px 20px 28px;
+      --g-dialog-inset: 20px;
+      padding: 20px var(--g-dialog-inset) 0;
       max-width: 560px;
       margin: 0 auto;
     }
     h2 {
-      font: 600 20px/1.2 var(--g-font-display);
+      font: 600 1.25rem/1.2 var(--g-font-display);
       margin: 0 0 14px;
     }
     .kinds {
@@ -101,7 +103,7 @@ const MAX_LENGTH = 2000;
     }
     .kinds .chip {
       cursor: pointer;
-      font-size: 13px;
+      font-size: 0.8125rem;
       padding: 6px 12px;
     }
     textarea {
@@ -112,7 +114,7 @@ const MAX_LENGTH = 2000;
       border: 1px solid var(--g-line-strong);
       border-radius: var(--g-radius-sm);
       padding: 12px;
-      font: 15px/1.45 var(--ion-font-family);
+      font: 0.9375rem/1.45 var(--ion-font-family);
     }
     textarea:focus {
       outline: 2px solid var(--g-accent);
@@ -122,12 +124,12 @@ const MAX_LENGTH = 2000;
       display: flex;
       justify-content: space-between;
       gap: 12px;
-      font-size: 12px;
+      font-size: 0.75rem;
       margin-top: 6px;
     }
     .rating-label {
       margin: 18px 0 8px;
-      font-size: 14px;
+      font-size: 0.875rem;
     }
     .rating {
       display: flex;
@@ -150,17 +152,17 @@ const MAX_LENGTH = 2000;
     }
     .error {
       color: var(--g-danger);
-      font-size: 14px;
+      font-size: 0.875rem;
     }
     .actions {
       display: flex;
       justify-content: flex-end;
       gap: 10px;
-      margin-top: 20px;
+      margin-top: 8px;
     }
     .done {
       text-align: center;
-      padding: 12px 0;
+      padding: 12px 0 28px;
     }
   `,
 })

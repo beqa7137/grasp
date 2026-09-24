@@ -1,9 +1,20 @@
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  afterRenderEffect,
+  computed,
+  inject,
+  input,
+  output,
+  viewChild,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { IonIcon } from '@ionic/angular';
 import type { Question, SessionReason } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import { checkmarkCircle, closeCircle } from 'ionicons/icons';
+import { refocus } from '../core/focus';
 import { ArrayViewComponent } from '../viz/array-view.component';
 import { CodePanelComponent } from '../viz/code-panel.component';
 import { CodeTextComponent } from '../viz/code-text.component';
@@ -47,7 +58,7 @@ const REASON_LABELS: Record<CardReason, string> = {
         <span class="reason" [attr.data-reason]="reason()">{{ reasonLabel() }}</span>
       </header>
 
-      <p class="prompt"><g-code-text [text]="q.prompt" /></p>
+      <p class="prompt" tabindex="-1" #prompt><g-code-text [text]="q.prompt" /></p>
 
       @if (q.frame; as f) {
         <div class="visual">
@@ -127,13 +138,22 @@ const REASON_LABELS: Record<CardReason, string> = {
             } @else {
               <span class="text">{{ c }}</span>
             }
+            @if (chosen() !== null && ($index === q.answer || $index === chosen())) {
+              <ion-icon
+                class="mark"
+                [name]="$index === q.answer ? 'checkmark-circle' : 'close-circle'"
+                [attr.aria-label]="
+                  $index === q.answer ? ($index === chosen() ? 'your answer, correct' : 'correct answer') : 'your answer, wrong'
+                "
+              />
+            }
           </button>
         }
       </div>
 
       @if (chosen() !== null) {
-        <div class="reveal" [class.ok]="chosen() === q.answer">
-          <ion-icon [name]="chosen() === q.answer ? 'checkmark-circle' : 'close-circle'" />
+        <div class="reveal" [class.ok]="chosen() === q.answer" tabindex="-1" #reveal>
+          <ion-icon [name]="chosen() === q.answer ? 'checkmark-circle' : 'close-circle'" aria-hidden="true" />
           <div>
             <p class="verdict">{{ chosen() === q.answer ? 'Correct' : 'Not quite' }}</p>
             <p class="why"><g-code-text [text]="q.explain" /></p>
@@ -153,6 +173,11 @@ export class QuestionCardComponent {
   readonly chosen = input<number | null>(null);
   readonly choose = output<number>();
 
+  private readonly host: HTMLElement = inject(ElementRef).nativeElement;
+  private readonly prompt = viewChild.required<ElementRef<HTMLElement>>('prompt');
+  private readonly reveal = viewChild<ElementRef<HTMLElement>>('reveal');
+  private shown: { question: Question; answered: boolean } | null = null;
+
   readonly reasonLabel = computed(() => REASON_LABELS[this.reason()]);
   readonly activeLine = computed(() => {
     const code = this.question().code;
@@ -168,5 +193,16 @@ export class QuestionCardComponent {
 
   constructor() {
     addIcons({ checkmarkCircle, closeCircle });
+    // A new question or the answer's reveal replaces what focus was on, so focus follows the content.
+    afterRenderEffect(() => {
+      const question = this.question();
+      const answered = this.chosen() !== null;
+      const before = this.shown;
+      this.shown = { question, answered };
+      const page = this.host.closest('.ion-page');
+      if (!before) refocus(this.prompt().nativeElement);
+      else if (question !== before.question) refocus(this.prompt().nativeElement, page);
+      else if (answered && !before.answered) refocus(this.reveal()?.nativeElement, page);
+    });
   }
 }

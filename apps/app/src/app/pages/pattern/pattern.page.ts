@@ -6,6 +6,7 @@ import { addIcons } from 'ionicons';
 import { alertCircleOutline, codeSlashOutline, flashOutline, playCircle, searchOutline } from 'ionicons/icons';
 import { ProgressService } from '../../core/progress.service';
 import { CodePanelComponent } from '../../viz/code-panel.component';
+import { CodeTextComponent } from '../../viz/code-text.component';
 import { MasteryRingComponent } from '../../viz/mastery-ring.component';
 
 @Component({
@@ -21,6 +22,7 @@ import { MasteryRingComponent } from '../../viz/mastery-ring.component';
     IonContent,
     IonIcon,
     CodePanelComponent,
+    CodeTextComponent,
     MasteryRingComponent,
   ],
   template: `
@@ -37,43 +39,49 @@ import { MasteryRingComponent } from '../../viz/mastery-ring.component';
           <section class="head">
             <g-mastery-ring [value]="m?.mastery ?? 0" [size]="64" />
             <div>
-              <p class="eyebrow">Pattern {{ p.order }} of 20 · {{ p.complexity }}</p>
+              <p class="eyebrow">
+                Pattern {{ p.order }} of 20 · <span class="complexity">{{ p.complexity }}</span>
+              </p>
               <h1>{{ p.name }}</h1>
             </div>
           </section>
-          <p class="one">{{ p.oneLiner }}</p>
+          <p class="one"><g-code-text [text]="p.oneLiner" /></p>
 
           <div class="actions">
             @for (a of algorithms(); track a.id) {
-              <a class="g-btn primary" [routerLink]="['/visualize', a.id]"><ion-icon name="play-circle" />Visualize: {{ a.title }}</a>
+              <a class="g-btn primary" [routerLink]="['/visualize', a.id]"
+                ><ion-icon name="play-circle" aria-hidden="true" />Visualize: {{ a.title }}</a
+              >
             }
             <a class="g-btn" routerLink="/drill" [queryParams]="{ pattern: p.id }"
-              ><ion-icon name="flash-outline" />Practice {{ itemCount() }} items</a
+              ><ion-icon name="flash-outline" aria-hidden="true" />Practice {{ itemCount() }} items</a
             >
             @for (c of problems(); track c.id) {
-              <a class="g-btn" [routerLink]="['/code', c.id]"><ion-icon name="code-slash-outline" />Code: {{ c.title }}</a>
+              <a class="g-btn" [routerLink]="['/code', c.id]"
+                ><ion-icon name="code-slash-outline" aria-hidden="true" />Code: {{ c.title }}</a
+              >
             }
           </div>
 
           <section class="panel block">
-            <h2><ion-icon name="search-outline" />Cues: how you spot it</h2>
+            <h2><ion-icon name="search-outline" aria-hidden="true" />Cues: how you spot it</h2>
             <ul>
               @for (c of p.cues; track c) {
-                <li>{{ c }}</li>
+                <li><g-code-text [text]="c" /></li>
               }
             </ul>
           </section>
 
           <section class="panel block code">
             <h2>Template</h2>
-            <g-code-panel [code]="p.template" />
+            <g-code-panel [code]="p.template" label="Template" />
           </section>
 
           <section class="panel block">
-            <h2><ion-icon name="alert-circle-outline" />Pitfalls</h2>
+            <h2><ion-icon name="alert-circle-outline" aria-hidden="true" />Pitfalls</h2>
             <ul>
               @for (c of p.pitfalls; track c) {
-                <li>{{ c }}</li>
+                <li><g-code-text [text]="c" /></li>
               }
             </ul>
           </section>
@@ -96,13 +104,20 @@ import { MasteryRingComponent } from '../../viz/mastery-ring.component';
       align-items: center;
       gap: 16px;
       margin-top: 8px;
+      > div {
+        min-width: 0;
+      }
     }
     h1 {
-      font-size: clamp(26px, 5vw, 36px);
+      font-size: clamp(1.625rem, 5vw, 2.25rem);
       margin: 4px 0 0;
     }
+    /* Uppercase would change the notation: O(log n) is not O(LOG N). */
+    .complexity {
+      text-transform: none;
+    }
     .one {
-      font-size: 17px;
+      font-size: 1.0625rem;
       line-height: 1.55;
       margin: 16px 0 18px;
     }
@@ -129,7 +144,7 @@ import { MasteryRingComponent } from '../../viz/mastery-ring.component';
       display: flex;
       align-items: center;
       gap: 8px;
-      font-size: 16px;
+      font-size: 1rem;
       margin: 0 0 10px;
       ion-icon {
         color: var(--g-accent);
@@ -142,10 +157,10 @@ import { MasteryRingComponent } from '../../viz/mastery-ring.component';
     li {
       line-height: 1.6;
       margin-bottom: 4px;
-      font-size: 14.5px;
+      font-size: 0.90625rem;
     }
     .foot {
-      font-size: 13px;
+      font-size: 0.8125rem;
     }
   `,
 })

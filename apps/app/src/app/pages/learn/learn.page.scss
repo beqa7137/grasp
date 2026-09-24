@@ -17,11 +17,12 @@
   }
 }
 
+// Toolbar chrome grows with the text size only up to a cap, like the Ionic title beside it, so they never overlap.
 .sync {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 12px;
+  font-size: min(0.75rem, 14px);
   color: var(--g-faint);
   padding-right: 4px;
   ion-icon {
@@ -47,7 +48,7 @@
   }
 
   h1 {
-    font-size: clamp(32px, 7vw, 56px);
+    font-size: clamp(2rem, 7vw, 3.5rem);
     line-height: 1.02;
     margin: 8px 0 22px;
     font-weight: 700;
@@ -84,16 +85,19 @@
   }
   strong {
     display: block;
-    font: 600 18px/1.1 var(--g-font-display);
+    font: 600 1.125rem/1.1 var(--g-font-display);
   }
   span {
-    font-size: 12px;
+    font-size: 0.75rem;
     color: var(--g-muted);
   }
 }
 
 .plan {
   margin-top: 28px;
+  > .eyebrow {
+    margin: 1em 0;
+  }
 }
 
 .tiles {
@@ -112,13 +116,13 @@
       padding: 12px;
     }
     .tile h3 {
-      font-size: 16px;
+      font-size: 1rem;
     }
     .tile p {
-      font-size: 12.5px;
+      font-size: 0.78125rem;
     }
     .tile .cta {
-      font-size: 12px;
+      font-size: 0.75rem;
     }
   }
 }
@@ -138,17 +142,17 @@
   }
   h3 {
     margin: 0;
-    font-size: 18px;
+    font-size: 1.125rem;
   }
   p {
     margin: 0;
     color: var(--g-muted);
-    font-size: 14px;
+    font-size: 0.875rem;
     flex: 1;
   }
   .cta {
     margin-top: 12px;
-    font-size: 13px;
+    font-size: 0.8125rem;
     font-weight: 600;
     color: var(--tile);
   }
@@ -201,12 +205,13 @@
   flex-wrap: wrap;
   margin-bottom: 10px;
   h2 {
+    min-width: 0;
     margin: 0;
-    font-size: 20px;
+    font-size: 1.25rem;
   }
   p {
     margin: 0;
-    font-size: 13.5px;
+    font-size: 0.84375rem;
   }
 }
 
@@ -229,11 +234,11 @@
   }
   h3 {
     margin: 0 0 3px;
-    font-size: 15.5px;
+    font-size: 0.96875rem;
   }
   p {
     margin: 0;
-    font-size: 12.5px;
+    font-size: 0.78125rem;
     line-height: 1.4;
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -253,7 +258,7 @@
   margin-bottom: 14px;
   color: var(--g-warn);
   text-decoration: none;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .diagnostic {
@@ -276,18 +281,19 @@
   }
   h3 {
     margin: 0 0 4px;
-    font-size: 18px;
+    font-size: 1.125rem;
   }
   p {
     margin: 0;
     color: var(--g-muted);
-    font-size: 14px;
+    font-size: 0.875rem;
     line-height: 1.45;
   }
 }
 
 .diagnostic-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   @media (max-width: 560px) {
     width: 100%;

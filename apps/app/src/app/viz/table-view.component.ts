@@ -13,17 +13,21 @@ const key = ([r, c]: [number, number]) => `${r},${c}`;
   template: `
     @let v = view();
     <div class="table" role="table" [attr.aria-label]="ariaLabel()" [style.--cols]="v.colLabels.length + 1">
-      <div class="corner" role="columnheader"></div>
-      @for (label of v.colLabels; track $index) {
-        <div class="head col" role="columnheader" [class.hot]="activeCol() === $index">{{ label }}</div>
-      }
-      @for (row of v.cells; track r; let r = $index) {
-        <div class="head row" role="rowheader" [class.hot]="activeRow() === r">{{ v.rowLabels[r] }}</div>
-        @for (cell of row; track c; let c = $index) {
-          <div class="cell" role="cell" [attr.data-role]="roles().get(r + ',' + c)" [class.empty]="cell === null">
-            {{ cell ?? '' }}
-          </div>
+      <div role="row">
+        <div class="corner" role="cell"></div>
+        @for (label of v.colLabels; track $index) {
+          <div class="head col" role="columnheader" [class.hot]="activeCol() === $index">{{ label }}</div>
         }
+      </div>
+      @for (row of v.cells; track r; let r = $index) {
+        <div role="row">
+          <div class="head row" role="rowheader" [class.hot]="activeRow() === r">{{ v.rowLabels[r] }}</div>
+          @for (cell of row; track c; let c = $index) {
+            <div class="cell" role="cell" [attr.data-role]="roles().get(r + ',' + c)" [class.empty]="cell === null">
+              {{ cell ?? '' }}
+            </div>
+          }
+        </div>
       }
     </div>
     @if (legend()) {
@@ -42,8 +46,13 @@ const key = ([r, c]: [number, number]) => `${r},${c}`;
       max-width: calc(var(--cols) * 46px);
       margin: 0 auto;
     }
+    /* Rows exist for assistive tech; the cells lay out on the table's grid. */
+    [role='row'] {
+      display: contents;
+    }
     .head,
     .corner {
+      white-space: nowrap;
       display: grid;
       place-items: center;
       font: 600 12px/1 var(--g-font-mono);
@@ -59,6 +68,7 @@ const key = ([r, c]: [number, number]) => `${r},${c}`;
       background: rgba(76, 201, 240, 0.1);
     }
     .cell {
+      white-space: nowrap;
       aspect-ratio: 1;
       display: grid;
       place-items: center;

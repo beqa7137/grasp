@@ -12,7 +12,6 @@ describe('CodeTextComponent', () => {
   it('sets backtick spans as code and the rest as prose, adding no spaces of its own', () => {
     const el = render('What is x after `x ^= n`?');
     expect([...el.querySelectorAll('code')].map((code) => code.textContent)).toEqual(['x ^= n']);
-    expect([...el.querySelectorAll('span')].map((span) => span.textContent)).toEqual(['What is x after ', '?']);
     expect(el.textContent).toBe('What is x after x ^= n?');
   });
 
@@ -20,6 +19,12 @@ describe('CodeTextComponent', () => {
     const el = render('`p - k`, then `dp[i]`.');
     expect(el.textContent).toBe('p - k, then dp[i].');
     expect(el.querySelectorAll('code')).toHaveLength(2);
+  });
+
+  it('keeps a code span and the punctuation after it together, apart from the prose', () => {
+    const el = render('equal to `p - k`. Then `x`');
+    expect([...el.querySelectorAll('.run')].map((run) => run.textContent)).toEqual(['p - k.', 'x']);
+    expect([...el.querySelectorAll('span:not(.run)')].map((span) => span.textContent)).toEqual(['equal to ', ' Then ']);
   });
 
   it('shows an unbalanced backtick literally', () => {

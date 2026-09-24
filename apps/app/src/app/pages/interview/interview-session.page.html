@@ -8,7 +8,7 @@
           @if (scoring()) {
             <ion-spinner name="crescent" />
           } @else {
-            <ion-icon name="flag-outline" />
+            <ion-icon name="flag-outline" aria-hidden="true" />
           }
           End & score
         </button>
@@ -38,7 +38,9 @@
           <p>{{ m.content }}</p>
           @if (m.code; as c) {
             <details class="shared-code">
-              <summary><ion-icon name="code-slash-outline" /> {{ languageLabels[c.language] }} · {{ lineCount(c.source) }} lines</summary>
+              <summary>
+                <ion-icon name="code-slash-outline" aria-hidden="true" /> {{ languageLabels[c.language] }} · {{ lineCount(c.source) }} lines
+              </summary>
               <pre class="mono">{{ c.source }}</pre>
             </details>
           }
@@ -61,11 +63,12 @@
     @if (error(); as e) {
       <p class="error">{{ e }}</p>
     }
+    <p class="visually-hidden" role="status">{{ announcement() }}</p>
 
     @if (session()?.scorecard; as card) {
       <section class="panel scorecard">
         <header>
-          <ion-icon name="ribbon-outline" />
+          <ion-icon name="ribbon-outline" aria-hidden="true" />
           <div>
             <p class="eyebrow">Scorecard · {{ card.mode === 'ai' ? 'AI calibrated' : 'offline heuristic' }}</p>
             <h2 class="verdict" [attr.data-verdict]="card.verdict">{{ verdictLabel(card.verdict) }}</h2>
@@ -150,12 +153,13 @@
     }
     <div class="composer">
       <textarea
+        #composer
         rows="2"
         placeholder="Think out loud… (⌘/Ctrl + Enter to send)"
         [ngModel]="draft()"
         (ngModelChange)="draft.set($event)"
         (keydown)="onKeydown($event)"
-        [disabled]="busy()"
+        [readonly]="busy()"
       ></textarea>
       <div class="buttons">
         @if (session()?.track === 'coding') {
@@ -166,11 +170,11 @@
             [attr.aria-pressed]="codeOpen()"
             title="Write code the interviewer can read"
           >
-            <ion-icon name="code-slash-outline" />Code
+            <ion-icon name="code-slash-outline" aria-hidden="true" />Code
           </button>
         }
         <button class="g-btn ghost hint" (click)="send(true)" [disabled]="busy()" title="Ask for a hint (costs a little on the scorecard)">
-          <ion-icon name="bulb-outline" />Hint
+          <ion-icon name="bulb-outline" aria-hidden="true" />Hint
         </button>
         <button
           class="g-btn primary icon send"
@@ -178,7 +182,7 @@
           [disabled]="busy() || (!draft().trim() && !codeChanged())"
           aria-label="Send"
         >
-          <ion-icon name="arrow-up" />
+          <ion-icon name="arrow-up" aria-hidden="true" />
         </button>
       </div>
     </div>

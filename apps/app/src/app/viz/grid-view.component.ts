@@ -84,9 +84,11 @@ import type { GridView } from '@grasp/engine';
       border-color: var(--g-text);
     }
     .tag {
+      white-space: nowrap;
       font: 700 13px/1 var(--g-font-display);
     }
     .d {
+      white-space: nowrap;
       font: 11px/1 var(--g-font-mono);
       color: var(--g-muted);
     }
@@ -96,7 +98,7 @@ import type { GridView } from '@grasp/engine';
       gap: 14px;
       justify-content: center;
       margin-top: 14px;
-      font-size: 12px;
+      font-size: 0.75rem;
       color: var(--g-muted);
     }
     .legend span {

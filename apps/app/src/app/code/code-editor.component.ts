@@ -36,18 +36,20 @@ const highlight = HighlightStyle.define([
   { tag: [tags.function(tags.variableName), tags.function(tags.propertyName)], color: '#82aaff' },
   { tag: [tags.string, tags.special(tags.string)], color: '#c3e88d' },
   { tag: [tags.number, tags.bool, tags.null], color: '#f78c6c' },
-  { tag: tags.comment, color: '#5b6377', fontStyle: 'italic' },
+  { tag: tags.comment, color: 'var(--g-faint)', fontStyle: 'italic' },
   { tag: [tags.typeName, tags.className], color: '#ffcb6b' },
   { tag: tags.operator, color: '#89ddff' },
 ]);
 
 const theme = EditorView.theme(
   {
-    '&': { color: 'var(--g-text)', backgroundColor: 'var(--g-surface)', height: '100%', fontSize: '14px' },
+    '&': { color: 'var(--g-text)', backgroundColor: 'var(--g-surface)', height: '100%', fontSize: '0.875rem' },
     '.cm-content': { fontFamily: 'var(--g-font-mono)', caretColor: 'var(--g-accent)', padding: '10px 0' },
     '.cm-scroller': { fontFamily: 'var(--g-font-mono)', lineHeight: '1.6' },
     '.cm-gutters': { backgroundColor: 'var(--g-surface)', color: 'var(--g-faint)', border: 'none' },
     '.cm-activeLine, .cm-activeLineGutter': { backgroundColor: 'rgba(157, 140, 255, 0.07)' },
+    '.cm-activeLineGutter': { color: 'var(--g-muted)' },
+    '&.cm-focused': { outline: '2px solid var(--g-accent)', outlineOffset: '-2px' },
     '&.cm-focused .cm-cursor': { borderLeftColor: 'var(--g-accent)' },
     '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection': { backgroundColor: 'rgba(157, 140, 255, 0.28)' },
     '.cm-error-line': { backgroundColor: 'rgba(255, 93, 115, 0.14)' },
@@ -80,17 +82,33 @@ const marks = StateField.define<DecorationSet>({
 const languageExtension = (language: Language): Extension =>
   language === 'python' ? python() : javascript({ typescript: language === 'typescript' });
 
+let instances = 0;
+
 @Component({
   selector: 'app-code-editor',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<div #host class="host"></div>`,
+  // Tab indents inside the editor, so it says how to move on with the keyboard.
+  template: `
+    <div #host class="host"></div>
+    <p class="keys" [id]="keysId">Tab indents · Esc, then Tab, moves on</p>
+  `,
   styles: `
     :host {
-      display: block;
+      display: flex;
+      flex-direction: column;
       min-height: 0;
     }
     .host {
-      height: 100%;
+      flex: 1;
+      min-height: 0;
+    }
+    .keys {
+      flex: none;
+      margin: 0;
+      padding: 5px 12px;
+      border-top: 1px solid var(--g-line);
+      font-size: 0.75rem;
+      color: var(--g-muted);
     }
   `,
 })
@@ -101,6 +119,8 @@ export class CodeEditorComponent implements OnDestroy {
   readonly traceLine = input<number | null>(null);
   readonly label = input('Code editor');
   readonly valueChange = output<string>();
+
+  readonly keysId = `code-editor-keys-${++instances}`;
 
   private readonly host = viewChild.required<ElementRef<HTMLElement>>('host');
   private readonly languageSlot = new Compartment();
@@ -169,7 +189,8 @@ export class CodeEditorComponent implements OnDestroy {
           theme,
           marks,
           this.languageSlot.of(languageExtension(untracked(this.language))),
-          EditorView.contentAttributes.of({ 'aria-label': untracked(this.label) }),
+          // tabindex only makes explicit that the contenteditable takes focus, which checkers such as axe otherwise miss.
+          EditorView.contentAttributes.of({ 'aria-label': untracked(this.label), 'aria-describedby': this.keysId, tabindex: '0' }),
           EditorView.updateListener.of((update) => update.docChanged && this.valueChange.emit(update.state.doc.toString())),
         ],
       }),

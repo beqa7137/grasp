@@ -113,6 +113,7 @@ export const linkedListCycle: AlgorithmDef<Input> = {
     const meetQuestion = (gap: number, slowTo: number, to: number): Prediction => ({
       prompt: `slow is on ${name(slow)} and fast is on ${name(fast)}, both in the loop. Do slow and fast meet on this step?`,
       choices: MEET,
+      ordered: true,
       answer: gap === 1 ? 0 : 1,
       explain:
         gap === 1

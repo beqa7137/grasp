@@ -43,7 +43,8 @@ import { FREE_BUILD } from './free-build';
               </div>
               @if (done) {
                 <span class="badge"
-                  ><ion-icon name="checkmark-circle" />best \${{ fmt(done.bestCost) }}/mo · {{ done.revisitsDone }}/3 revisits</span
+                  ><ion-icon name="checkmark-circle" aria-hidden="true" />best \${{ fmt(done.bestCost) }}/mo · {{ done.revisitsDone }}/3
+                  revisits</span
                 >
               }
             </a>
@@ -54,7 +55,7 @@ import { FREE_BUILD } from './free-build';
                 [routerLink]="['/design', s.id]"
                 [queryParams]="{ revisit: revisit.variant }"
               >
-                <ion-icon name="refresh-circle-outline" />
+                <ion-icon name="refresh-circle-outline" aria-hidden="true" />
                 <span>
                   <strong>Revisit {{ revisit.variant }} {{ revisit.due ? 'is due' : 'unlocks ' + (revisit.dueAt | date: 'MMM d') }}</strong>
                   <span class="muted">{{ twist(s.id, revisit.variant) }}</span>
@@ -63,7 +64,7 @@ import { FREE_BUILD } from './free-build';
             }
           }
           <a class="panel card-link mission free" [routerLink]="['/design', free.id]">
-            <span class="num"><ion-icon name="construct-outline" /></span>
+            <span class="num"><ion-icon name="construct-outline" aria-hidden="true" /></span>
             <div class="body">
               <h2>{{ free.title }}</h2>
               <p class="muted">{{ free.tagline }}</p>
@@ -75,7 +76,7 @@ import { FREE_BUILD } from './free-build';
   `,
   styles: `
     h1 {
-      font-size: clamp(26px, 5vw, 38px);
+      font-size: clamp(1.625rem, 5vw, 2.375rem);
       margin: 6px 0 8px;
     }
     .lead {
@@ -120,12 +121,12 @@ import { FREE_BUILD } from './free-build';
       min-width: 0;
     }
     h2 {
-      font-size: 18px;
+      font-size: 1.125rem;
       margin: 2px 0 4px;
     }
     p {
       margin: 0 0 10px;
-      font-size: 14px;
+      font-size: 0.875rem;
     }
     .chips {
       display: flex;
@@ -140,7 +141,7 @@ import { FREE_BUILD } from './free-build';
       align-items: center;
       gap: 4px;
       color: var(--g-found);
-      font-size: 12px;
+      font-size: 0.75rem;
       font-weight: 600;
     }
     .revisit {
@@ -149,7 +150,7 @@ import { FREE_BUILD } from './free-build';
       align-items: flex-start;
       padding: 12px 16px;
       margin: -6px 0 0 24px;
-      font-size: 13.5px;
+      font-size: 0.84375rem;
       ion-icon {
         font-size: 22px;
         color: var(--g-muted);

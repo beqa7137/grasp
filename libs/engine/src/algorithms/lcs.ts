@@ -91,6 +91,7 @@ export const lcs: AlgorithmDef<Input> = {
                 predict: {
                   prompt: `\`a[${i - 1}] = '${a[i - 1]}'\`, \`b[${j - 1}] = '${b[j - 1]}'\`. Which rule fills \`dp[${i}][${j}]\`?`,
                   choices: RULES,
+                  ordered: true,
                   answer: match ? 0 : 1,
                   explain: match
                     ? `Both prefixes end in ${a[i - 1]}, so that letter extends the best answer for the prefixes without it: \`dp[${i - 1}][${j - 1}] + 1\`.`

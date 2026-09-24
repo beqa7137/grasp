@@ -70,20 +70,30 @@ const SPEEDS = [1, 2, 4];
 
     <div class="controls">
       <div class="buttons">
-        <button class="g-btn ghost icon" (click)="seek(0)" aria-label="Restart"><ion-icon name="refresh" /></button>
+        <button class="g-btn ghost icon" (click)="seek(0)" aria-label="Restart"><ion-icon name="refresh" aria-hidden="true" /></button>
         <button class="g-btn icon" (click)="step(-1)" [disabled]="index() === 0" aria-label="Step back">
-          <ion-icon name="play-skip-back" />
+          <ion-icon name="play-skip-back" aria-hidden="true" />
         </button>
         <button class="g-btn primary play" (click)="togglePlay()" [attr.aria-label]="playing() ? 'Pause' : 'Play'">
-          <ion-icon [name]="playing() ? 'pause' : 'play'" />
+          <ion-icon [name]="playing() ? 'pause' : 'play'" aria-hidden="true" />
         </button>
         <button class="g-btn icon" (click)="step(1)" [disabled]="index() === last()" aria-label="Step forward">
-          <ion-icon name="play-skip-forward" />
+          <ion-icon name="play-skip-forward" aria-hidden="true" />
         </button>
-        <button class="g-btn ghost speed mono" (click)="cycleSpeed()" aria-label="Playback speed">{{ speed() }}×</button>
+        <button class="g-btn ghost speed mono" (click)="cycleSpeed()" [attr.aria-label]="'Playback speed ' + speed() + '×'">
+          {{ speed() }}×
+        </button>
       </div>
       <div class="scrub">
-        <input type="range" min="0" [max]="last()" [value]="index()" (input)="seek(+$any($event.target).value)" aria-label="Timeline" />
+        <input
+          type="range"
+          min="0"
+          [max]="last()"
+          [value]="index()"
+          (input)="seek(+$any($event.target).value)"
+          aria-label="Timeline"
+          [attr.aria-valuetext]="'Step ' + (index() + 1) + ' of ' + frames().length"
+        />
         <span class="count mono">{{ index() + 1 }} / {{ frames().length }}</span>
       </div>
     </div>
@@ -114,7 +124,7 @@ const SPEEDS = [1, 2, 4];
       border-radius: 7px;
       background: var(--g-raised);
       border: 1px solid var(--g-line);
-      font-size: 12.5px;
+      font-size: 0.78125rem;
       transition: border-color 0.2s;
     }
     .vars div.changed {
@@ -135,12 +145,12 @@ const SPEEDS = [1, 2, 4];
     }
     .narration p {
       margin: 0;
-      font-size: 14px;
+      font-size: 0.875rem;
       line-height: 1.45;
       word-break: break-word;
     }
     .line {
-      font-size: 11px;
+      font-size: 0.6875rem;
       padding: 3px 7px;
       border-radius: 6px;
       background: var(--g-raised);
@@ -171,7 +181,7 @@ const SPEEDS = [1, 2, 4];
       accent-color: var(--g-accent);
     }
     .count {
-      font-size: 12px;
+      font-size: 0.75rem;
       color: var(--g-muted);
       min-width: 70px;
       text-align: right;

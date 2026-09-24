@@ -29,8 +29,8 @@ import {
 import { addIcons } from 'ionicons';
 import { arrowForward, flame, gitNetworkOutline, leafOutline, pulseOutline, timeOutline } from 'ionicons/icons';
 import { haptic } from '../../core/haptics';
-import { isKeyForPage } from '../../core/page-keys';
 import { ProgressService } from '../../core/progress.service';
+import { ShortcutsService } from '../../core/shortcuts.service';
 import { ForecastComponent } from '../../review/forecast.component';
 import { QuestionCardComponent, type CardReason } from '../../review/question-card.component';
 
@@ -63,6 +63,7 @@ const MAX_REQUEUES_PER_ITEM = 2;
 export class DrillPage {
   readonly pattern = input<string>();
   readonly progress = inject(ProgressService);
+  readonly shortcuts = inject(ShortcutsService);
 
   readonly queue = signal<Slot[]>([]);
   readonly position = signal(0);
@@ -182,7 +183,7 @@ export class DrillPage {
 
   @HostListener('document:keydown', ['$event'])
   onKey(e: KeyboardEvent) {
-    if (!this.current() || !isKeyForPage(this.host, e)) return;
+    if (!this.current() || !this.shortcuts.handles(this.host, e)) return;
     if (this.chosen() === null) {
       if (/^[1-4]$/.test(e.key)) this.answer(Number(e.key) - 1);
       return;

@@ -57,4 +57,31 @@ describe('QuestionCardComponent', () => {
     expect(el.querySelector('.choice.wrong')).not.toBeNull();
     expect(el.querySelector('.reveal.ok')).toBeNull();
   });
+
+  it('names the pick and the right answer, not only colors them', () => {
+    const q = generateQuestion('rec:tp1', 11);
+    const wrong = (q.answer + 1) % q.choices.length;
+    const choices = Array.from((render(q, wrong).nativeElement as HTMLElement).querySelectorAll('.choice'));
+    const labels = choices.map((c) => c.querySelector('.mark')?.getAttribute('aria-label') ?? null);
+    expect(labels[q.answer]).toBe('correct answer');
+    expect(labels[wrong]).toBe('your answer, wrong');
+    expect(labels.filter((l) => l === null)).toHaveLength(q.choices.length - 2);
+  });
+
+  it('moves focus to the reveal once answered, and to the next prompt after that', () => {
+    const fixture = render(generateQuestion('rec:h1', 7));
+    document.body.appendChild(fixture.nativeElement);
+    const el: HTMLElement = fixture.nativeElement;
+    const choice = el.querySelector('.choice') as HTMLButtonElement;
+    choice.focus();
+    fixture.componentRef.setInput('chosen', 0);
+    fixture.detectChanges();
+    expect(document.activeElement).toBe(el.querySelector('.reveal'));
+
+    fixture.componentRef.setInput('question', generateQuestion('rec:h1', 8));
+    fixture.componentRef.setInput('chosen', null);
+    fixture.detectChanges();
+    expect(document.activeElement).toBe(el.querySelector('.prompt'));
+    el.remove();
+  });
 });

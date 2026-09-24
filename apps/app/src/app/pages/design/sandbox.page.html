@@ -5,7 +5,7 @@
     </ion-buttons>
     <ion-title>{{ scenario()?.title ?? 'Design Lab' }}</ion-title>
     <ion-buttons slot="end">
-      <button class="g-btn ghost reset" (click)="resetDesign()"><ion-icon name="refresh" />Reset</button>
+      <button class="g-btn ghost reset" (click)="resetDesign()"><ion-icon name="refresh" aria-hidden="true" />Reset</button>
     </ion-buttons>
   </ion-toolbar>
 </ion-header>
@@ -14,6 +14,8 @@
   @if (scenario(); as s) {
     @let m = result().metrics;
     <div class="page wide">
+      <h1 class="visually-hidden">{{ s.title }}</h1>
+      <p class="visually-hidden" role="status">{{ announcement() }}</p>
       @if (s.revisit; as r) {
         <section class="revisit-banner">
           <span class="tag">Revisit {{ r.number }} of {{ r.of }}</span>
@@ -65,10 +67,10 @@
 
       <div class="workbench">
         <section class="board">
-          <div class="palette" role="toolbar" aria-label="Add component">
+          <div class="palette" role="group" aria-label="Add component">
             @for (c of palette; track c.kind) {
               <button class="tool" [attr.data-kind]="c.kind" (click)="addComponent(c.kind)" [title]="c.description">
-                <ion-icon name="add" />{{ c.short }}
+                <ion-icon name="add" aria-hidden="true" />{{ c.short }}
               </button>
             }
           </div>
@@ -77,12 +79,15 @@
             @if (connectFrom(); as from) {
               <div class="banner">
                 Tap a component to receive traffic from <strong>{{ specs[selected()?.kind ?? 'app'].short }}</strong>
-                <button class="g-btn ghost" (click)="connectFrom.set(null)">Cancel</button>
+                <button class="g-btn ghost" (click)="cancelConnect()">Cancel</button>
               </div>
             }
             <div class="viewport">
               <svg
                 #canvas
+                tabindex="-1"
+                role="group"
+                aria-label="Design canvas"
                 [attr.viewBox]="viewBox()"
                 (pointerdown)="onCanvasDown($event)"
                 (pointermove)="onMove($event)"
@@ -122,12 +127,21 @@
                   @let spec = specs[n.kind];
                   <g
                     class="node"
+                    tabindex="0"
+                    role="button"
+                    [attr.data-node]="n.id"
+                    [attr.aria-label]="nodeLabel(n)"
+                    [attr.aria-pressed]="selectedId() === n.id"
                     [attr.data-kind]="n.kind"
                     [attr.data-status]="st?.status"
                     [class.selected]="selectedId() === n.id"
                     [attr.transform]="'translate(' + (n.x - W / 2) + ',' + (n.y - H / 2) + ')'"
                     (pointerdown)="onNodeDown($event, n)"
+                    (keydown.enter)="activateNode($event, n)"
+                    (keydown.space)="activateNode($event, n)"
+                    (focus)="revealNode($event, n)"
                   >
+                    <rect class="ring" x="-5" y="-5" [attr.width]="W + 10" [attr.height]="H + 10" rx="16" />
                     <rect class="body" [attr.width]="W" [attr.height]="H" rx="12" />
                     <rect class="stripe" width="4" [attr.height]="H - 20" x="0" y="10" rx="2" />
                     <text class="kind" x="14" y="22">{{ spec.short }}</text>
@@ -163,12 +177,12 @@
                 }
               </svg>
               <div class="zoom" role="group" aria-label="Zoom">
-                <button class="g-btn icon" (click)="zoom(1)" aria-label="Zoom in"><ion-icon name="add" /></button>
+                <button class="g-btn icon" (click)="zoom(1)" aria-label="Zoom in"><ion-icon name="add" aria-hidden="true" /></button>
                 <button class="g-btn icon" (click)="zoom(-1)" [disabled]="!zoomedIn()" aria-label="Zoom out">
-                  <ion-icon name="remove" />
+                  <ion-icon name="remove" aria-hidden="true" />
                 </button>
                 <button class="g-btn icon" (click)="fitBoard()" [disabled]="!zoomedIn()" aria-label="Show whole board">
-                  <ion-icon name="scan-outline" />
+                  <ion-icon name="scan-outline" aria-hidden="true" />
                 </button>
               </div>
             </div>
@@ -226,9 +240,9 @@
         <aside class="sidebar">
           @if (passed()) {
             <section class="panel cleared">
-              <ion-icon name="trophy" />
+              <ion-icon name="trophy" aria-hidden="true" />
               <div>
-                <h3>{{ s.revisit ? 'Revisit ' + s.revisit.number + ' cleared' : 'Scenario cleared' }}</h3>
+                <h2>{{ s.revisit ? 'Revisit ' + s.revisit.number + ' cleared' : 'Scenario cleared' }}</h2>
                 <p>{{ s.takeaway }}</p>
                 @if (!s.revisit) {
                   <p class="muted small">Revisits with changed conditions will come back in 3, 10 and 30 days.</p>
@@ -245,10 +259,10 @@
               <header>
                 <div>
                   <p class="eyebrow">{{ n.kind === 'client' ? 'Traffic source' : 'Component' }}</p>
-                  <h3>{{ spec.name }}</h3>
+                  <h2>{{ spec.name }}</h2>
                 </div>
-                <button class="g-btn ghost icon" (click)="clearSelection()" aria-label="Close">
-                  <ion-icon name="close-circle-outline" />
+                <button class="g-btn ghost icon" (click)="closeInspector()" aria-label="Close">
+                  <ion-icon name="close-circle-outline" aria-hidden="true" />
                 </button>
               </header>
               <p class="muted desc">{{ spec.description }}</p>
@@ -292,17 +306,22 @@
                 <div class="row">
                   <span>{{ n.kind === 'db' ? 'Shards' : 'Instances' }}</span>
                   <div class="stepper">
-                    <button class="g-btn icon" (click)="stepInstances(n, -1)" [disabled]="n.instances <= 1" aria-label="Fewer">
-                      <ion-icon name="remove" />
+                    <button
+                      class="g-btn icon"
+                      (click)="stepInstances(n, -1)"
+                      [disabled]="n.instances <= 1"
+                      [attr.aria-label]="n.kind === 'db' ? 'Fewer shards' : 'Fewer instances'"
+                    >
+                      <ion-icon name="remove" aria-hidden="true" />
                     </button>
                     <span class="mono">{{ n.instances }}</span>
                     <button
                       class="g-btn icon"
                       (click)="stepInstances(n, 1)"
                       [disabled]="n.instances >= spec.maxInstances"
-                      aria-label="More"
+                      [attr.aria-label]="n.kind === 'db' ? 'More shards' : 'More instances'"
                     >
-                      <ion-icon name="add" />
+                      <ion-icon name="add" aria-hidden="true" />
                     </button>
                   </div>
                 </div>
@@ -352,34 +371,71 @@
                 }
               }
 
+              @if (outgoing().length) {
+                <ul class="links" aria-label="Sends traffic to">
+                  @for (e of outgoing(); track e.key) {
+                    <li>
+                      <span>→ {{ nodeName(e.to) }}</span>
+                      <span class="mono muted">{{ fmt(e.rps) }} rps</span>
+                      <button
+                        class="g-btn ghost icon"
+                        (click)="deleteEdge(e.key)"
+                        [attr.aria-label]="'Remove connection to ' + nodeName(e.to)"
+                      >
+                        <ion-icon name="trash-outline" aria-hidden="true" />
+                      </button>
+                    </li>
+                  }
+                </ul>
+              }
+
               <div class="actions">
                 @if (spec.connectsTo.length) {
-                  <button class="g-btn" (click)="connectFrom.set(n.id)"><ion-icon name="git-commit-outline" />Connect to…</button>
+                  <button class="g-btn" #connectButton (click)="startConnect(n.id)">
+                    <ion-icon name="git-commit-outline" aria-hidden="true" />Connect to…
+                  </button>
                 }
                 @if (n.kind !== 'client') {
                   @if ((n.failed ?? 0) < n.instances) {
-                    <button class="g-btn chaos" (click)="failInstance(n)"><ion-icon name="skull-outline" />Kill an instance</button>
+                    <button class="g-btn chaos" #killButton (click)="failInstance(n)">
+                      <ion-icon name="skull-outline" aria-hidden="true" />Kill an instance
+                    </button>
                   }
                   @if (n.failed) {
-                    <button class="g-btn" (click)="updateNode(n.id, { failed: 0 })"><ion-icon name="flash" />Recover</button>
+                    <button class="g-btn" #recoverButton (click)="recover(n)"><ion-icon name="flash" aria-hidden="true" />Recover</button>
                   }
-                  <button class="g-btn ghost danger" (click)="deleteNode(n.id)"><ion-icon name="trash-outline" />Remove</button>
+                  <button class="g-btn ghost danger" (click)="deleteNode(n.id)">
+                    <ion-icon name="trash-outline" aria-hidden="true" />Remove
+                  </button>
                 }
               </div>
+
+              @if (connectFrom() === n.id) {
+                <div class="targets" role="group" [attr.aria-labelledby]="targetsLabelId" tabindex="-1" #targets>
+                  <span class="eyebrow caption" [id]="targetsLabelId">Send traffic to</span>
+                  @for (t of connectTargets(); track t.id) {
+                    <button class="g-btn" (click)="connectTo(t.id)">{{ nodeName(t.id) }}</button>
+                  } @empty {
+                    <p class="muted small">Nothing on the board can take its traffic. Add a component it connects to first.</p>
+                  }
+                </div>
+              }
             </section>
           } @else if (selectedEdge(); as key) {
             <section class="panel inspector">
               <header>
                 <div>
                   <p class="eyebrow">Connection</p>
-                  <h3 class="mono">{{ fmt(result().edges[key] ?? 0) }} rps</h3>
+                  <h2 class="mono">{{ fmt(result().edges[key] ?? 0) }} rps</h2>
                 </div>
-                <button class="g-btn ghost icon" (click)="clearSelection()" aria-label="Close">
-                  <ion-icon name="close-circle-outline" />
+                <button class="g-btn ghost icon" (click)="closeInspector()" aria-label="Close">
+                  <ion-icon name="close-circle-outline" aria-hidden="true" />
                 </button>
               </header>
               <div class="actions">
-                <button class="g-btn ghost danger" (click)="deleteEdge(key)"><ion-icon name="trash-outline" />Remove connection</button>
+                <button class="g-btn ghost danger" (click)="deleteEdge(key)">
+                  <ion-icon name="trash-outline" aria-hidden="true" />Remove connection
+                </button>
               </div>
             </section>
           }
@@ -396,7 +452,10 @@
               <ul class="goals">
                 @for (c of checks(); track c.id) {
                   <li [class.pass]="c.pass">
-                    <ion-icon [name]="c.pass ? 'checkmark-circle' : 'close-circle-outline'" />
+                    <ion-icon
+                      [name]="c.pass ? 'checkmark-circle' : 'close-circle-outline'"
+                      [attr.aria-label]="c.pass ? 'Met:' : 'Not met:'"
+                    />
                     <span>{{ c.label }}</span>
                     <span class="actual mono">{{ c.actual }}</span>
                   </li>
@@ -405,11 +464,11 @@
               @if (s.hints.length) {
                 <div class="hints">
                   @for (h of s.hints.slice(0, hintsShown()); track $index) {
-                    <p><ion-icon name="bulb-outline" />{{ h }}</p>
+                    <p><ion-icon name="bulb-outline" aria-hidden="true" />{{ h }}</p>
                   }
                   @if (hintsShown() < s.hints.length) {
                     <button class="g-btn ghost" (click)="showHint()">
-                      <ion-icon name="bulb-outline" />{{ hintsShown() ? 'Another hint' : 'Need a hint?' }}
+                      <ion-icon name="bulb-outline" aria-hidden="true" />{{ hintsShown() ? 'Another hint' : 'Need a hint?' }}
                     </button>
                   }
                 </div>
@@ -423,6 +482,7 @@
               <button class="insight" [attr.data-severity]="i.severity" (click)="focusInsight(i.nodeId)">
                 <ion-icon
                   [name]="i.severity === 'critical' ? 'alert-circle' : i.severity === 'warning' ? 'warning' : 'information-circle'"
+                  [attr.aria-label]="i.severity === 'critical' ? 'Critical:' : i.severity === 'warning' ? 'Warning:' : 'Tip:'"
                 />
                 <span>
                   <strong>{{ i.title }}</strong>

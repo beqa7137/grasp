@@ -2,9 +2,10 @@
   max-width: 1320px;
 }
 
+// Toolbar chrome grows with the text size only up to a cap, like the Ionic title beside it, so they never overlap.
 .reset {
   padding: 6px 10px;
-  font-size: 13px;
+  font-size: min(0.8125rem, 15.6px);
 }
 
 .revisit-banner {
@@ -19,7 +20,7 @@
 
   .tag {
     flex: none;
-    font: 600 11px/1 var(--ion-font-family);
+    font: 600 0.6875rem/1 var(--ion-font-family);
     padding: 6px 9px;
     border-radius: 999px;
     background: var(--g-warn);
@@ -27,7 +28,7 @@
   }
   p {
     margin: 0;
-    font-size: 14px;
+    font-size: 0.875rem;
     line-height: 1.5;
   }
 }
@@ -39,7 +40,8 @@
   margin-bottom: 14px;
 
   @media (max-width: 720px) {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    // Three across on a phone, fewer once large text needs the room.
+    grid-template-columns: repeat(auto-fit, minmax(min(5.5em, 100%), 1fr));
     .metric:nth-child(n + 4) {
       display: none;
     }
@@ -47,7 +49,7 @@
 }
 
 .metric .bots {
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: #ff8a5c;
   margin-top: 2px;
 }
@@ -63,19 +65,19 @@
   transition: border-color 0.2s;
 
   .label {
-    font-size: 11px;
+    font-size: 0.6875rem;
     color: var(--g-muted);
     text-transform: uppercase;
     letter-spacing: 0.08em;
     font-weight: 600;
   }
   .value {
-    font: 600 clamp(18px, 3vw, 24px) / 1.1 var(--g-font-display);
+    font: 600 clamp(1.125rem, 3vw, 1.5rem) / 1.1 var(--g-font-display);
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
   small {
-    font: 500 12px var(--ion-font-family);
+    font: 500 0.75rem var(--ion-font-family);
     color: var(--g-muted);
     margin-left: 2px;
   }
@@ -113,10 +115,8 @@
 
 .palette {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
-  overflow-x: auto;
-  padding-bottom: 2px;
-  scrollbar-width: none;
 }
 
 .tool {
@@ -130,7 +130,7 @@
   border: 1px solid var(--g-line-strong);
   background: var(--g-surface);
   color: var(--g-text);
-  font: 500 13px/1 var(--ion-font-family);
+  font: 500 0.8125rem/1 var(--ion-font-family);
   cursor: pointer;
   transition:
     border-color 0.15s,
@@ -219,7 +219,7 @@
   .help {
     margin: 0;
     padding: 8px 12px 10px;
-    font-size: 12px;
+    font-size: 0.75rem;
     border-top: 1px solid var(--g-line);
   }
   &.connecting .node {
@@ -239,11 +239,11 @@
     border-radius: 999px;
     background: var(--g-raised);
     border: 1px solid var(--g-accent);
-    font-size: 13px;
+    font-size: 0.8125rem;
     white-space: nowrap;
     .g-btn {
       padding: 5px 10px;
-      font-size: 12px;
+      font-size: 0.75rem;
     }
   }
 }
@@ -251,6 +251,16 @@
 .node {
   cursor: grab;
   touch-action: none;
+  outline: none;
+
+  .ring {
+    fill: none;
+    stroke: none;
+  }
+  &:focus-visible .ring {
+    stroke: var(--g-text);
+    stroke-width: 2;
+  }
 
   .body {
     fill: var(--g-raised);
@@ -404,7 +414,7 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-    font-size: 13px;
+    font-size: 0.8125rem;
     color: var(--g-muted);
   }
   strong {
@@ -415,6 +425,7 @@
 
 input[type='range'] {
   width: 100%;
+  height: 24px;
   accent-color: var(--g-accent);
 }
 
@@ -440,17 +451,17 @@ input[type='range'] {
     color: var(--g-found);
     flex: none;
   }
-  h3 {
+  h2 {
     margin: 0 0 4px;
-    font-size: 17px;
+    font-size: 1.0625rem;
   }
   p {
     margin: 0 0 6px;
     line-height: 1.5;
-    font-size: 14px;
+    font-size: 0.875rem;
   }
   .small {
-    font-size: 12.5px;
+    font-size: 0.78125rem;
   }
 }
 
@@ -462,19 +473,22 @@ input[type='range'] {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
+    > div {
+      min-width: 0;
+    }
   }
-  h3 {
+  h2 {
     margin: 4px 0 0;
-    font-size: 18px;
+    font-size: 1.125rem;
   }
   .desc {
-    font-size: 13px;
+    font-size: 0.8125rem;
     line-height: 1.5;
     margin: 8px 0 12px;
   }
   .stats {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px;
     margin: 0 0 12px;
     div {
@@ -483,12 +497,12 @@ input[type='range'] {
       padding: 7px 9px;
     }
     dt {
-      font-size: 11px;
+      font-size: 0.6875rem;
       color: var(--g-muted);
     }
     dd {
       margin: 3px 0 0;
-      font: 600 13px var(--g-font-mono);
+      font: 600 0.8125rem var(--g-font-mono);
     }
     dd[data-status='hot'] {
       color: var(--g-warn);
@@ -501,12 +515,13 @@ input[type='range'] {
   }
   .row {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
     padding: 8px 0;
     border-top: 1px solid var(--g-line);
-    font-size: 14px;
+    font-size: 0.875rem;
   }
   .row.slider {
     flex-direction: column;
@@ -531,7 +546,7 @@ input[type='range'] {
       flex-wrap: wrap;
     }
     button {
-      font: 600 12px var(--g-font-mono);
+      font: 600 0.75rem var(--g-font-mono);
       color: var(--g-muted);
       background: var(--g-raised);
       border: 1px solid var(--g-line-strong);
@@ -547,7 +562,7 @@ input[type='range'] {
     p {
       flex-basis: 100%;
       margin: 0;
-      font-size: 12px;
+      font-size: 0.75rem;
       line-height: 1.45;
     }
   }
@@ -562,7 +577,7 @@ input[type='range'] {
       grid-template-columns: 26px 1fr 44px;
       align-items: center;
       gap: 8px;
-      font-size: 12px;
+      font-size: 0.75rem;
       color: var(--g-muted);
     }
     .bar {
@@ -599,7 +614,7 @@ input[type='range'] {
     .mono {
       min-width: 24px;
       text-align: center;
-      font-size: 16px;
+      font-size: 1rem;
       font-weight: 600;
     }
     .g-btn.icon {
@@ -607,14 +622,52 @@ input[type='range'] {
       height: 34px;
     }
   }
-  .actions {
+  .links {
+    list-style: none;
+    margin: 0;
+    padding: 8px 0 0;
+    border-top: 1px solid var(--g-line);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    li {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.84375rem;
+    }
+    li > span:first-child {
+      flex: 1;
+    }
+    .mono {
+      font-size: 0.75rem;
+    }
+    .g-btn.icon {
+      width: 32px;
+      height: 32px;
+      padding: 6px;
+    }
+  }
+  .actions,
+  .targets {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
     margin-top: 12px;
     .g-btn {
-      font-size: 13px;
+      font-size: 0.8125rem;
       padding: 8px 11px;
+    }
+  }
+  .targets {
+    padding-top: 10px;
+    border-top: 1px dashed var(--g-accent);
+    .caption {
+      flex-basis: 100%;
+    }
+    p {
+      margin: 0;
+      font-size: 0.78125rem;
     }
   }
   .chaos {
@@ -628,7 +681,7 @@ input[type='range'] {
 
 .mission {
   .brief {
-    font-size: 14px;
+    font-size: 0.875rem;
     line-height: 1.55;
     margin: 8px 0 12px;
   }
@@ -642,19 +695,19 @@ input[type='range'] {
   }
   li {
     display: grid;
-    grid-template-columns: 20px 1fr auto;
+    grid-template-columns: 20px minmax(0, 1fr) auto;
     align-items: center;
     gap: 8px;
     padding: 8px 10px;
     border-radius: 9px;
     background: var(--g-raised);
-    font-size: 13.5px;
+    font-size: 0.84375rem;
     ion-icon {
       font-size: 18px;
       color: var(--g-danger);
     }
     .actual {
-      font-size: 12px;
+      font-size: 0.75rem;
       color: var(--g-muted);
     }
     &.pass {
@@ -668,7 +721,7 @@ input[type='range'] {
     p {
       display: flex;
       gap: 8px;
-      font-size: 13.5px;
+      font-size: 0.84375rem;
       line-height: 1.5;
       margin: 0 0 8px;
       color: #f3e6b3;
@@ -679,7 +732,7 @@ input[type='range'] {
       }
     }
     .g-btn {
-      font-size: 13px;
+      font-size: 0.8125rem;
       padding: 7px 11px;
     }
   }
@@ -693,7 +746,7 @@ input[type='range'] {
     margin: 0 0 4px;
   }
   .calm {
-    font-size: 13.5px;
+    font-size: 0.84375rem;
     line-height: 1.5;
     margin: 0;
   }
@@ -719,11 +772,11 @@ input[type='range'] {
   }
   strong {
     display: block;
-    font-size: 13.5px;
+    font-size: 0.84375rem;
     margin-bottom: 3px;
   }
   .muted {
-    font-size: 12.5px;
+    font-size: 0.78125rem;
     line-height: 1.45;
   }
   &[data-severity='critical'] {

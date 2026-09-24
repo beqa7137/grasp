@@ -4,12 +4,14 @@ import {
   DestroyRef,
   ElementRef,
   HostListener,
+  afterRenderEffect,
   computed,
   effect,
   inject,
   input,
   signal,
   untracked,
+  viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -39,9 +41,10 @@ import {
   refresh,
   sparkles,
 } from 'ionicons/icons';
+import { refocus } from '../../core/focus';
 import { haptic } from '../../core/haptics';
-import { isKeyForPage } from '../../core/page-keys';
 import { ProgressService } from '../../core/progress.service';
+import { ShortcutsService } from '../../core/shortcuts.service';
 import { ArrayViewComponent } from '../../viz/array-view.component';
 import { CodePanelComponent } from '../../viz/code-panel.component';
 import { CodeTextComponent } from '../../viz/code-text.component';
@@ -83,7 +86,13 @@ const SPEEDS = [0.5, 1, 2, 4];
 export class PlayerPage {
   readonly id = input.required<string>();
   private readonly progress = inject(ProgressService);
+  readonly shortcuts = inject(ShortcutsService);
   private readonly host: Element = inject(ElementRef).nativeElement;
+  private readonly predictPanel = viewChild<ElementRef<HTMLElement>>('predictPanel');
+  private readonly predictPrompt = viewChild<ElementRef<HTMLElement>>('predictPrompt');
+  private readonly verdict = viewChild<ElementRef<HTMLElement>>('verdict');
+  private readonly narration = viewChild<ElementRef<HTMLElement>>('narration');
+  private readonly controls = viewChild<ElementRef<HTMLElement>>('controls');
 
   readonly algo = computed(() => getAlgorithm(this.id()) as AlgorithmDef | undefined);
   readonly problem = computed(() => CODING_PROBLEMS.find((p) => p.algorithmId === this.id()));
@@ -132,6 +141,7 @@ export class PlayerPage {
   readonly result = computed(() => (this.index() === this.last() ? this.frame()?.vars['result'] : undefined));
 
   private timer: ReturnType<typeof setInterval> | undefined;
+  private shownPending: PredictState | null = null;
 
   constructor() {
     addIcons({
@@ -158,6 +168,18 @@ export class PlayerPage {
       clearInterval(this.timer);
       if (!this.playing()) return;
       this.timer = setInterval(() => this.next(), 1100 / this.speed());
+    });
+
+    // A checkpoint takes over the playback controls, answering disables its choices and continuing removes it, so focus
+    // follows each change instead of falling back to the top of the page or staying on a control that no longer plays.
+    afterRenderEffect(() => {
+      const p = this.pending();
+      const before = this.shownPending;
+      this.shownPending = p;
+      if (p === before) return;
+      if (!p) refocus(this.narration()?.nativeElement);
+      else if (p.choice === null) refocus(this.predictPrompt()?.nativeElement, this.controls()?.nativeElement);
+      else refocus(this.verdict()?.nativeElement, this.predictPanel()?.nativeElement);
     });
 
     inject(DestroyRef).onDestroy(() => clearInterval(this.timer));
@@ -255,7 +277,7 @@ export class PlayerPage {
 
   @HostListener('document:keydown', ['$event'])
   onKey(e: KeyboardEvent) {
-    if (!isKeyForPage(this.host, e)) return;
+    if (!this.shortcuts.handles(this.host, e)) return;
     const p = this.pending();
     if (p && p.choice === null && /^[1-4]$/.test(e.key)) {
       this.choose(Number(e.key) - 1);

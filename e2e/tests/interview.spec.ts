@@ -13,7 +13,7 @@ test('a mock interview runs to a scorecard', async ({ page }) => {
     await input.fill(text);
     await page.getByRole('button', { name: 'Send', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Send', exact: true })).toBeDisabled();
-    await expect(input).toBeEnabled({ timeout: 30_000 });
+    await expect(input).toBeEditable({ timeout: 30_000 });
   };
   await say('Can temperatures repeat, and how long can the array get?');
   await say(

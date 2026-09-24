@@ -15,9 +15,11 @@ function highlight(line: string): string {
   );
 }
 
+/** Long lines scroll sideways on a phone, so the panel takes focus for keyboard scrolling. */
 @Component({
   selector: 'g-code-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { tabindex: '0', role: 'region', '[attr.aria-label]': 'label()' },
   template: `
     <ol>
       @for (line of html(); track $index) {
@@ -34,6 +36,10 @@ function highlight(line: string): string {
       overflow: auto;
       max-height: var(--code-max-height, none);
     }
+    :host(:focus-visible) {
+      outline: 2px solid var(--g-accent);
+      outline-offset: -2px;
+    }
     ol {
       list-style: none;
       margin: 0;
@@ -45,7 +51,7 @@ function highlight(line: string): string {
       gap: 14px;
       padding: 2px 14px 2px 10px;
       border-left: 3px solid transparent;
-      font: 12.5px/1.65 var(--g-font-mono);
+      font: 0.78125rem/1.65 var(--g-font-mono);
       color: #b9bfd0;
       transition:
         background 0.2s,
@@ -56,6 +62,10 @@ function highlight(line: string): string {
       background: rgba(157, 140, 255, 0.13);
       border-left-color: var(--g-accent);
       color: var(--g-text);
+    }
+    li.on .n,
+    li.on ::ng-deep .cm {
+      color: var(--g-muted);
     }
     .n {
       width: 18px;
@@ -73,7 +83,7 @@ function highlight(line: string): string {
       color: #82aaff;
     }
     :host ::ng-deep .cm {
-      color: #5b6377;
+      color: var(--g-faint);
       font-style: italic;
     }
   `,
@@ -81,6 +91,7 @@ function highlight(line: string): string {
 export class CodePanelComponent {
   readonly code = input.required<string[]>();
   readonly active = input<number>(0);
+  readonly label = input('Code');
   readonly html = computed(() => this.code().map(highlight));
   private readonly rows = viewChildren<ElementRef<HTMLElement>>('row');
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);

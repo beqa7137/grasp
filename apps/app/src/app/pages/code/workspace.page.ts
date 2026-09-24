@@ -45,6 +45,7 @@ import { toFrames } from '../../code/trace-frames';
 import { TracePlayerComponent } from '../../code/trace-player.component';
 import { haptic } from '../../core/haptics';
 import { isOnHiddenPage } from '../../core/page-keys';
+import { RadioGroupDirective } from '../../core/radio-group.directive';
 import { ProgressService } from '../../core/progress.service';
 
 const LANGUAGE_KEY = 'grasp.code.language';
@@ -54,6 +55,10 @@ const LANGUAGE_LABELS: Record<Language, string> = { python: 'Python', javascript
 const patternNames = new Map(PATTERNS.map((p) => [p.id, p.name]));
 
 type Panel = 'tests' | 'trace';
+const PANELS: Panel[] = ['tests', 'trace'];
+const TAB_STEPS: Record<string, number> = { ArrowRight: 1, ArrowLeft: -1 };
+
+let instances = 0;
 
 @Component({
   selector: 'app-code-workspace',
@@ -69,6 +74,7 @@ type Panel = 'tests' | 'trace';
     IonIcon,
     CodeEditorComponent,
     TracePlayerComponent,
+    RadioGroupDirective,
   ],
   templateUrl: './workspace.page.html',
   styleUrl: './workspace.page.scss',
@@ -90,6 +96,7 @@ export class WorkspacePage {
   readonly report = signal<RunReport | null>(null);
   readonly reportKind = signal<'run' | 'submit' | null>(null);
   readonly panel = signal<Panel>('tests');
+  readonly panelsId = `workspace-panels-${++instances}`;
 
   readonly traceExample = signal(0);
   readonly traceFrames = signal<Frame[] | null>(null);
@@ -103,6 +110,13 @@ export class WorkspacePage {
   readonly allPassed = computed(() => {
     const r = this.report();
     return !!r && !r.compileError && r.total > 0 && r.passed === r.total;
+  });
+  /** What a finished run found, worded for screen readers: the results panel shows it on screen. */
+  readonly outcome = computed(() => {
+    const r = this.report();
+    if (!r) return null;
+    if (r.compileError) return `The code has an error${r.compileError.location ? ` on line ${r.compileError.location.line}` : ''}`;
+    return `${r.passed} of ${r.total} ${this.reportKind() === 'run' ? 'examples' : 'tests'} passed`;
   });
   readonly errorLine = computed(() => {
     if (this.panel() === 'trace') return this.traceError()?.location?.line ?? null;
@@ -150,6 +164,17 @@ export class WorkspacePage {
     this.code.set(value);
     clearTimeout(this.saveTimer);
     this.saveTimer = setTimeout(() => this.flushDraft(), 600);
+  }
+
+  /** The ARIA tabs keyboard pattern: the arrow keys, Home and End move between the result tabs and show them. */
+  onTabKey(e: KeyboardEvent) {
+    const from = PANELS.indexOf(this.panel());
+    const to = e.key === 'Home' ? 0 : e.key === 'End' ? PANELS.length - 1 : e.key in TAB_STEPS ? from + TAB_STEPS[e.key] : null;
+    if (to === null) return;
+    e.preventDefault();
+    const next = PANELS[(to + PANELS.length) % PANELS.length];
+    this.panel.set(next);
+    document.getElementById(`${this.panelsId}-${next}`)?.focus();
   }
 
   setLanguage(language: Language) {

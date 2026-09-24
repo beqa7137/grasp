@@ -50,6 +50,15 @@ export function panBy(view: ViewBox, dx: number, dy: number, aspect: Aspect): Vi
   return clampView({ ...view, x: view.x + dx, y: view.y + dy }, aspect);
 }
 
+/** Pans as little as possible to bring a box, such as a component taking keyboard focus, into view. */
+export function reveal(view: ViewBox, box: ViewBox, aspect: Aspect, pad = 12): ViewBox {
+  const shift = (start: number, size: number, from: number, to: number) =>
+    from - pad < start ? from - pad - start : to + pad > start + size ? to + pad - (start + size) : 0;
+  const dx = shift(view.x, view.w, box.x, box.x + box.w);
+  const dy = shift(view.y, view.h, box.y, box.y + box.h);
+  return dx || dy ? panBy(view, dx, dy, aspect) : view;
+}
+
 /**
  * Where a canvas opens. Wide screens see the whole board; phones start at a readable zoom on the
  * left end of the design (where traffic enters) and pinch out for the rest.

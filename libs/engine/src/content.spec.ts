@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ALGORITHMS, mulberry32, type AlgorithmDef } from './algorithms/index.js';
+import { codeSpanProblems, codeSpans } from './code-spans.js';
 import { CODING_PROBLEMS } from './coding/problems.js';
 import { CLOZES } from './curriculum/clozes.js';
 import { COMPLEXITY_FACTS } from './curriculum/complexity.js';
@@ -15,6 +16,8 @@ const BANNED: [name: string, char: string][] = [
   ['an em dash', '\u2014'],
   ['a non-breaking space', '\u00a0'],
 ];
+/** A comparison or assignment between operands, a property access or an index: the code a pattern's prose names. */
+const CODE_OUTSIDE_SPANS = /\w\s*(?:[=!<>]=?=?|>>>?)\s*\w|\w\.\w|\w\[\w*\]/;
 const RANDOM_TRACES = 20;
 const REVIEW_SEEDS = Array.from({ length: 20 }, (_, i) => i * 7_919 + 3);
 
@@ -61,6 +64,20 @@ describe('learner-facing content', () => {
       const json = JSON.stringify(value);
       return BANNED.filter(([, char]) => json.includes(char)).map(([problem]) => `${name} has ${problem}`);
     });
+    expect(problems).toEqual([]);
+  });
+
+  it('marks the code in pattern one-liners, cues and pitfalls as code spans the pattern page can set', () => {
+    const problems = PATTERNS.flatMap((pattern) =>
+      [pattern.oneLiner, ...pattern.cues, ...pattern.pitfalls]
+        .flatMap((text) => [
+          ...codeSpanProblems(text),
+          ...codeSpans(text)
+            .filter((part) => !part.code && CODE_OUTSIDE_SPANS.test(part.text))
+            .map((part) => `code outside a code span: ${part.text}`),
+        ])
+        .map((problem) => `pattern ${pattern.id} has ${problem}`),
+    );
     expect(problems).toEqual([]);
   });
 });

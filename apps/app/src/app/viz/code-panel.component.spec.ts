@@ -14,4 +14,15 @@ describe('CodePanelComponent', () => {
     expect(lines[1].querySelector('.cm')!.textContent).toBe('// done');
     expect(lines[0].querySelector('.kw')!.textContent).toBe('const');
   });
+
+  it('takes keyboard focus as a named region, so its long lines can be scrolled without a pointer', () => {
+    const fixture = TestBed.createComponent(CodePanelComponent);
+    fixture.componentRef.setInput('code', ['return x;']);
+    fixture.componentRef.setInput('label', 'Template');
+    fixture.detectChanges();
+    const host: HTMLElement = fixture.nativeElement;
+    expect(host.tabIndex).toBe(0);
+    expect(host.getAttribute('role')).toBe('region');
+    expect(host.getAttribute('aria-label')).toBe('Template');
+  });
 });

@@ -25,7 +25,7 @@ export type LegendSwatch = 'state' | 'role';
       gap: 14px;
       justify-content: center;
       margin-top: var(--g-legend-gap, 10px);
-      font-size: 12px;
+      font-size: 0.75rem;
       color: var(--g-muted);
     }
     span {

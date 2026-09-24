@@ -19,7 +19,7 @@ import type { Scalar } from '@grasp/engine';
       display: block;
     }
     .label {
-      font: 600 10.5px/1 var(--ion-font-family);
+      font: 600 0.65625rem/1 var(--ion-font-family);
       letter-spacing: 0.1em;
       text-transform: uppercase;
       color: var(--g-muted);
@@ -35,7 +35,7 @@ import type { Scalar } from '@grasp/engine';
       align-items: stretch;
     }
     .item {
-      font: 600 12px/1 var(--g-font-mono);
+      font: 600 0.75rem/1 var(--g-font-mono);
       padding: 7px 9px;
       border-radius: 8px;
       background: var(--g-raised);
@@ -48,7 +48,7 @@ import type { Scalar } from '@grasp/engine';
       color: var(--g-active);
     }
     .empty {
-      font: 12px/1 var(--g-font-mono);
+      font: 0.75rem/1 var(--g-font-mono);
       color: var(--g-faint);
       padding: 7px 0;
     }

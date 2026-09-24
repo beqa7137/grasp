@@ -132,6 +132,7 @@ export const unionFind: AlgorithmDef<Input> = {
         predict: {
           prompt: `\`find(${a}) = ${ra}\` and \`find(${b}) = ${rb}\`. What does union do?`,
           choices: CHOICES,
+          ordered: true,
           answer: same ? 1 : 0,
           explain: same
             ? `Both nodes already share the root ${ra}: this edge adds no new connection (in a graph it would close a cycle).`

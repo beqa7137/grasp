@@ -9,15 +9,22 @@
 
 header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
   margin-bottom: 12px;
+
+  // The eyebrow wraps within its own box first, so the chip drops to a line of its own only when one word leaves no room.
+  .eyebrow {
+    flex: 1 1 0;
+  }
 }
 
 .reason {
   flex: none;
-  font: 600 11px/1 var(--ion-font-family);
+  max-width: 100%;
+  font: 600 0.6875rem/1 var(--ion-font-family);
   padding: 5px 8px;
   border-radius: 999px;
   background: var(--g-raised);
@@ -47,7 +54,7 @@ header {
 }
 
 .prompt {
-  font: 500 clamp(16px, 2.4vw, 20px) / 1.5 var(--ion-font-family);
+  font: 500 clamp(1rem, 2.4vw, 1.25rem) / 1.5 var(--ion-font-family);
   margin: 0 0 18px;
 }
 
@@ -104,13 +111,13 @@ header {
     top: 50%;
     transform: translateY(-50%);
     color: var(--g-faint);
-    font-size: 12px;
+    font-size: 0.75rem;
   }
   strong {
-    font: 600 13px var(--g-font-display);
+    font: 600 0.8125rem var(--g-font-display);
   }
   span {
-    font: 11.5px var(--g-font-mono);
+    font: 0.71875rem var(--g-font-mono);
     color: var(--g-muted);
   }
 }
@@ -127,12 +134,12 @@ header {
     background: var(--g-raised);
   }
   dt {
-    font-size: 11px;
+    font-size: 0.6875rem;
     color: var(--g-muted);
   }
   dd {
     margin: 3px 0 0;
-    font: 600 14px var(--g-font-mono);
+    font: 600 0.875rem var(--g-font-mono);
   }
 }
 
@@ -144,7 +151,7 @@ header {
   &.mono {
     grid-template-columns: 1fr;
     .text {
-      font: 13px/1.45 var(--g-font-mono);
+      font: 0.8125rem/1.45 var(--g-font-mono);
     }
   }
 }
@@ -160,7 +167,7 @@ header {
   background: var(--g-raised);
   border: 1px solid var(--g-line-strong);
   color: var(--g-text);
-  font: 500 14.5px/1.4 var(--ion-font-family);
+  font: 500 0.90625rem/1.4 var(--ion-font-family);
   cursor: pointer;
   transition:
     border-color 0.15s,
@@ -193,17 +200,26 @@ header {
 
   .key {
     flex: none;
-    width: 24px;
-    height: 24px;
+    width: 2em;
+    height: 2em;
     border-radius: 7px;
     display: grid;
     place-items: center;
     background: var(--g-surface);
     color: var(--g-muted);
-    font: 600 12px var(--g-font-mono);
+    font: 600 0.75rem var(--g-font-mono);
   }
   .text {
     overflow-wrap: anywhere;
+  }
+  .mark {
+    flex: none;
+    margin-left: auto;
+    font-size: 20px;
+    color: var(--g-found);
+  }
+  &.wrong .mark {
+    color: var(--g-danger);
   }
 }
 
@@ -221,6 +237,9 @@ header {
     color: var(--g-danger);
     flex: none;
   }
+  > div {
+    min-width: 0;
+  }
   &.ok {
     background: rgba(61, 220, 151, 0.08);
     ion-icon {
@@ -230,16 +249,16 @@ header {
   .verdict {
     margin: 0 0 6px;
     font-weight: 600;
-    font-size: 16px;
+    font-size: 1rem;
   }
   .why {
     margin: 0 0 8px;
     line-height: 1.55;
-    font-size: 14.5px;
+    font-size: 0.90625rem;
   }
   a {
     color: var(--g-accent);
-    font-size: 13.5px;
+    font-size: 0.84375rem;
     text-decoration: none;
   }
 }

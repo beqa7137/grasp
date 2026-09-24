@@ -4,10 +4,12 @@
       ><span class="wordmark">grasp<i>.</i></span></ion-title
     >
     <div slot="end" class="sync" [attr.data-status]="progress.syncStatus()">
-      <ion-icon [name]="progress.syncStatus() === 'offline' ? 'cloud-offline-outline' : 'cloud-done-outline'" />
+      <ion-icon [name]="progress.syncStatus() === 'offline' ? 'cloud-offline-outline' : 'cloud-done-outline'" aria-hidden="true" />
       <span>{{ progress.syncStatus() === 'offline' ? 'Offline' : 'Synced' }}</span>
     </div>
-    <a slot="end" class="settings-link" routerLink="/settings" aria-label="Settings"><ion-icon name="settings-outline" /></a>
+    <a slot="end" class="settings-link" routerLink="/settings" aria-label="Settings"
+      ><ion-icon name="settings-outline" aria-hidden="true"
+    /></a>
   </ion-toolbar>
 </ion-header>
 
@@ -23,14 +25,14 @@
       <h1>Build intuition,<br />not a problem count.</h1>
       <div class="stats">
         <div class="stat">
-          <ion-icon name="flame" class="flame" />
+          <ion-icon name="flame" class="flame" aria-hidden="true" />
           <div>
             <strong>{{ st.streak.current }}</strong
             ><span>day streak</span>
           </div>
         </div>
         <div class="stat">
-          <ion-icon name="sparkles" class="xp" />
+          <ion-icon name="sparkles" class="xp" aria-hidden="true" />
           <div>
             <strong>{{ st.xp }}</strong
             ><span>XP</span>
@@ -43,7 +45,7 @@
           </div>
         </div>
         <div class="stat" title="Share of learned items you still recalled at review time, last 30 days. The scheduler aims for 90%.">
-          <ion-icon name="pulse-outline" class="ret" />
+          <ion-icon name="pulse-outline" class="ret" aria-hidden="true" />
           <div>
             <strong>{{ progress.retention() === null ? '–' : (progress.retention()! * 100).toFixed(0) + '%' }}</strong>
             <span>retention · target 90%</span>
@@ -53,10 +55,10 @@
     </section>
 
     <section class="plan">
-      <p class="eyebrow">Today's loop</p>
+      <h2 class="eyebrow">Today's loop</h2>
       @if (offerDiagnostic()) {
         <aside class="panel diagnostic" aria-labelledby="diagnostic-title">
-          <ion-icon name="compass-outline" />
+          <ion-icon name="compass-outline" aria-hidden="true" />
           <div class="copy">
             <h3 id="diagnostic-title">Find your starting point</h3>
             <p>{{ patternCount }} quick questions, about 5 minutes. Your reviews then start with the patterns you don't know yet.</p>
@@ -69,7 +71,7 @@
       }
       <div class="tiles">
         <a class="panel card-link tile drill" routerLink="/drill">
-          <ion-icon name="flash-outline" />
+          <ion-icon name="flash-outline" aria-hidden="true" />
           <h3>Review</h3>
           @if (session.items.length) {
             <p>{{ session.dueTotal }} due · {{ session.newIncluded }} new · ~{{ session.estimatedMinutes }} min</p>
@@ -80,34 +82,34 @@
           }
         </a>
         <a class="panel card-link tile viz" [routerLink]="['/visualize', nextAlgorithm().id]">
-          <ion-icon name="play-circle-outline" />
+          <ion-icon name="play-circle-outline" aria-hidden="true" />
           <h3>Visualize</h3>
           <p>{{ nextAlgorithm().title }}</p>
           <span class="cta">Predict every step →</span>
         </a>
         @if (revisit(); as r) {
           <a class="panel card-link tile lab" [routerLink]="['/design', r.scenarioId]" [queryParams]="{ revisit: r.variant }">
-            <ion-icon name="git-network-outline" />
+            <ion-icon name="git-network-outline" aria-hidden="true" />
             <h3>Mission revisit</h3>
             <p>{{ r.title }} · revisit {{ r.variant }}</p>
             <span class="cta">Rebuild from memory →</span>
           </a>
         } @else {
           <a class="panel card-link tile lab" [routerLink]="['/design', nextScenario().id]">
-            <ion-icon name="git-network-outline" />
+            <ion-icon name="git-network-outline" aria-hidden="true" />
             <h3>Design Lab</h3>
             <p>{{ nextScenario().title }}</p>
             <span class="cta">Take the mission →</span>
           </a>
         }
         <a class="panel card-link tile code" [routerLink]="['/code', nextProblem().id]">
-          <ion-icon name="code-slash-outline" />
+          <ion-icon name="code-slash-outline" aria-hidden="true" />
           <h3>Code</h3>
           <p>{{ nextProblem().title }}</p>
           <span class="cta">Solve and trace it →</span>
         </a>
         <a class="panel card-link tile mock" routerLink="/interview">
-          <ion-icon name="chatbubbles-outline" />
+          <ion-icon name="chatbubbles-outline" aria-hidden="true" />
           <h3>Mock interview</h3>
           <p>Coding or system design</p>
           <span class="cta">Face the interviewer →</span>
@@ -132,10 +134,12 @@
                 <g-mastery-ring [value]="mastery(p.id)" />
                 <div class="info">
                   <h3>{{ p.name }}</h3>
-                  <p class="muted">{{ p.oneLiner }}</p>
+                  <p class="muted"><g-code-text [text]="p.oneLiner" /></p>
                 </div>
                 @if (p.algorithmIds.length) {
-                  <span class="has-viz" title="Has a visualizer"><ion-icon name="play-circle-outline" /></span>
+                  <span class="has-viz" title="Has a visualizer"
+                    ><ion-icon name="play-circle-outline" aria-label="Has a visualizer"
+                  /></span>
                 }
               </a>
             }

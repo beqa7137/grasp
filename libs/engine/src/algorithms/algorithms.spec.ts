@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { codeSpanProblems } from '../code-spans.js';
+import { rotatedChoices } from './choices.js';
 import { ALGORITHMS, getAlgorithm } from './index.js';
 import { formatField, mulberry32, parseField } from './input.js';
 import { InputError, type AlgorithmDef, type Frame } from './types.js';
@@ -257,6 +258,18 @@ describe.each(ALGORITHMS.map((a) => [a.id, a] as const))('%s', (id, algo) => {
     expect(frames.some((f) => f.predict)).toBe(true);
   });
 
+  it('asks each question from an ordered, fixed menu or with its answer placed by rotatedChoices', () => {
+    const unplaced = sweepInputs(algo).flatMap((input) =>
+      algo.trace(algo.validate(input)).flatMap(({ predict: p }) => {
+        if (!p || p.ordered) return [];
+        const options = [...p.choices.slice(p.answer), ...p.choices.slice(0, p.answer)];
+        const placed = rotatedChoices(p.prompt, options[0], options.slice(1));
+        return placed.choices.join('\n') === p.choices.join('\n') ? [] : [p.prompt];
+      }),
+    );
+    expect(unplaced).toEqual([]);
+  });
+
   it(`matches a reference implementation on ${SWEEP} random inputs, with well-formed frames that ask a prediction`, () => {
     for (const input of sweepInputs(algo)) {
       const frames = check(input);
@@ -298,7 +311,7 @@ describe('answer slots', () => {
         return first ? [first.predict!] : [];
       });
       // A fixed menu, like pair sum's found / l++ / r--, gives each answer its own slot, so there the slot follows the data.
-      const fixedMenu = new Set(firstQuestions.map((p) => p.choices.join('\n'))).size === 1;
+      const fixedMenu = firstQuestions.every((p) => p.ordered);
       if (firstQuestions.length < MIN_INPUTS_ASKED || fixedMenu) return [];
       const worst = Math.max(...[0, 1, 2, 3].map((slot) => firstQuestions.filter((p) => p.answer === slot).length)) / firstQuestions.length;
       return worst > MAX_SLOT_SHARE ? [`${algo.id}: ${Math.round(worst * 100)}% in one slot`] : [];

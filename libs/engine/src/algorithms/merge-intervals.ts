@@ -135,6 +135,7 @@ export const mergeIntervals: AlgorithmDef<Input> = {
         predict: {
           prompt: `\`last = [${start}, ${end}]\`, next interval [${s}, ${e}]. Does it overlap last?`,
           choices: OVERLAP,
+          ordered: true,
           answer: overlaps ? 0 : 1,
           explain: overlaps
             ? `${s} ≤ ${end}: it starts ${s === end ? 'exactly where last ends, and touching endpoints count as overlapping' : 'before last ends'}. Sorting already guarantees ${s} ≥ ${start}, so checking the end is enough.`
@@ -157,6 +158,7 @@ export const mergeIntervals: AlgorithmDef<Input> = {
           predict: {
             prompt: `[${s}, ${e}] overlaps \`last = [${start}, ${end}]\`. What is the merged end after this step?`,
             choices: [String(end), String(e)],
+            ordered: true,
             answer: merged === end ? 0 : 1,
             explain:
               e < end

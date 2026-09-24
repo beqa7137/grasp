@@ -18,7 +18,7 @@
   --g-line-strong: #343b4d;
   --g-text: #e9ebf2;
   --g-muted: #8b93a8;
-  --g-faint: #5b6377;
+  --g-faint: #7c8498;
 
   --g-accent: #9d8cff;
   --g-accent-soft: rgba(157, 140, 255, 0.14);
@@ -78,6 +78,34 @@ body {
   background: var(--g-bg);
   font-variant-ligatures: none;
   -webkit-font-smoothing: antialiased;
+  // At the largest text sizes one word can be wider than a phone; it breaks rather than push the page sideways. Unlike
+  // `anywhere`, `break-word` leaves flex items their full words, so a row that runs out of room wraps instead.
+  overflow-wrap: break-word;
+}
+
+// Browsers size form controls at 13.33px; the same size in rem follows the user's text size.
+button,
+input,
+select,
+textarea {
+  font-size: 0.8333rem;
+}
+
+// iOS zooms the page into a focused field whose text is under 16px, which the viewport no longer prevents.
+@media (pointer: coarse) {
+  input,
+  select,
+  textarea,
+  .cm-editor {
+    font-size: max(16px, 1rem) !important;
+  }
+}
+
+// Fullscreen content scrolls under the translucent toolbar and the tab bar, so a control scrolled into view for keyboard
+// focus has to stop clear of them.
+ion-content::part(scroll) {
+  scroll-padding-top: calc(var(--offset-top) + 8px);
+  scroll-padding-bottom: calc(var(--offset-bottom) + 8px);
 }
 
 h1,
@@ -112,9 +140,13 @@ ion-tab-bar {
   padding-top: 2px;
 }
 
+// Tab bar and toolbar chrome grows with the text size only up to a cap, like Ionic's own titles, so labels still fit.
 ion-tab-button {
   --ripple-color: transparent;
-  font-size: 11px;
+  // Ionic lays this focus tint over the button, so it stays light enough for the focus ring below it to show.
+  --background-focused: var(--g-accent);
+  --background-focused-opacity: 0.12;
+  font-size: min(0.6875rem, 14px);
   font-weight: 500;
 }
 
@@ -135,8 +167,10 @@ ion-tab-button {
 }
 
 .eyebrow {
-  font-size: 11px;
+  font-family: inherit;
+  font-size: 0.6875rem;
   font-weight: 600;
+  line-height: inherit;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--g-muted);
@@ -152,12 +186,12 @@ ion-tab-button {
   gap: 6px;
   padding: 3px 10px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 500;
   background: var(--g-raised);
   border: 1px solid var(--g-line);
   color: var(--g-muted);
-  white-space: nowrap;
+  max-width: 100%;
 
   &.accent {
     color: var(--g-accent);
@@ -175,6 +209,11 @@ ion-tab-button {
   }
 }
 
+a.chip,
+button.chip {
+  min-height: 24px;
+}
+
 .g-btn {
   appearance: none;
   border: 1px solid var(--g-line-strong);
@@ -182,7 +221,7 @@ ion-tab-button {
   color: var(--g-text);
   border-radius: 10px;
   padding: 9px 14px;
-  font: 500 14px/1 var(--ion-font-family);
+  font: 500 0.875rem/1 var(--ion-font-family);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -266,13 +305,118 @@ ion-toast.g-toast {
 ion-modal.g-dialog {
   --width: min(560px, calc(100vw - 24px));
   --height: auto;
-  --max-height: calc(100vh - 48px);
+  --max-height: calc(100dvh - 48px);
   --border-radius: 16px;
   --background: var(--g-surface);
   --backdrop-opacity: 0.6;
 
   &::part(content) {
     border: 1px solid var(--g-line-strong);
+  }
+
+  // Ionic contains the layout of a modal's page, so its overflow never reaches the modal: the page itself has to scroll.
+  .ion-page {
     overflow-y: auto;
+  }
+
+  // A dialog's closing buttons stay in view while large text scrolls its body. The footer spans the dialog's side
+  // padding too (--g-dialog-inset), so nothing scrolls past beside it.
+  .g-dialog-footer {
+    position: sticky;
+    bottom: 0;
+    margin-inline: calc(-1 * var(--g-dialog-inset, 0px));
+    padding: 12px var(--g-dialog-inset, 0px) 28px;
+    background: var(--g-surface);
+  }
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+// Where focus lands for keyboard and screen reader users after the content changes. These are not controls, so no ring.
+[tabindex='-1']:focus {
+  outline: none;
+}
+
+// Ionic marks keyboard focus with .ion-focused but only tints the background, too faintly to see on this palette. A tab
+// button's native element paints over its host, so the ring goes on that part.
+ion-tab-button.ion-focused::part(native),
+ion-back-button.ion-focused,
+ion-alert .alert-button.ion-focused {
+  outline: 2px solid var(--g-accent);
+  outline-offset: -2px;
+}
+
+.g-switch {
+  position: relative;
+  flex: none;
+  cursor: pointer;
+
+  input {
+    position: absolute;
+    opacity: 0;
+    inset: 0;
+    margin: 0;
+    cursor: pointer;
+  }
+  .track {
+    display: block;
+    width: 46px;
+    height: 28px;
+    border-radius: 14px;
+    background: var(--g-line-strong);
+    transition: background 0.2s;
+  }
+  .knob {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--g-text);
+    transition: transform 0.2s;
+  }
+  input:checked + .track {
+    background: var(--g-accent);
+  }
+  input:checked + .track .knob {
+    transform: translateX(18px);
+  }
+  input:focus-visible + .track {
+    outline: 2px solid var(--g-accent);
+    outline-offset: 2px;
+  }
+}
+
+@media (forced-colors: active) {
+  // Switches are drawn with backgrounds, which forced colors remove.
+  .g-switch .track {
+    border: 1px solid CanvasText;
+  }
+  .g-switch .knob {
+    background: CanvasText;
+  }
+  .g-switch input:checked + .track {
+    background: Highlight;
+  }
+  // Pill radios and the current tab show their state with color alone, which forced colors flatten. The system colors
+  // are kept without adjustment, since the text backplate would hide HighlightText, and component styles are more
+  // specific, hence !important.
+  [role='radio'][aria-checked='true'],
+  ion-tab-button.tab-selected::part(native) {
+    forced-color-adjust: none;
+    background: Highlight !important;
+    border-color: Highlight !important;
+    color: HighlightText !important;
   }
 }

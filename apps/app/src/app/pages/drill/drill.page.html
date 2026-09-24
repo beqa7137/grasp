@@ -6,23 +6,27 @@
 
 <ion-content [fullscreen]="true">
   <div class="page narrow">
-    <header class="head">
+    <div class="head">
       <div>
         <p class="eyebrow">{{ practice() ? 'Practice · not scheduled' : 'Spaced review' }}</p>
         <h1>{{ practice() ? focusName() : "Today's review" }}</h1>
         @if (plan(); as p) {
           @if (started() && !finished()) {
-            <p class="plan muted"><ion-icon name="time-outline" />{{ p.due }} due · {{ p.fresh }} new · ~{{ p.minutes }} min</p>
+            <p class="plan muted">
+              <ion-icon name="time-outline" aria-hidden="true" />{{ p.due }} due · {{ p.fresh }} new · ~{{ p.minutes }} min
+            </p>
           }
         }
       </div>
       <div class="stats">
-        <span class="streak" title="Day streak"><ion-icon name="flame" />{{ progress.state().streak.current }}</span>
+        <span class="streak" title="Day streak"
+          ><ion-icon name="flame" aria-label="Day streak" />{{ progress.state().streak.current }}</span
+        >
         @if (current()) {
           <span class="mono muted">{{ position() + 1 }}/{{ queue().length }}</span>
         }
       </div>
-    </header>
+    </div>
 
     @if (practice()) {
       <p class="banner">Practice answers don't change your review schedule. Use this to cram a topic before an interview.</p>
@@ -38,7 +42,7 @@
       @if (chosen() !== null) {
         <div class="actions">
           @if (practice()) {
-            <button class="g-btn primary grow" (click)="rate(3)">Next <ion-icon name="arrow-forward" /></button>
+            <button class="g-btn primary grow" (click)="rate(3)">Next <ion-icon name="arrow-forward" aria-hidden="true" /></button>
           } @else if (isCorrect()) {
             <button class="g-btn ghost" (click)="rate(2)" title="Right answer, but you weren't sure (G)">
               I guessed <span class="interval">{{ previews()?.hard }}</span>
@@ -55,8 +59,10 @@
             </button>
           }
         </div>
-        <p class="keys muted">Enter to continue{{ isCorrect() && !practice() ? ' · G guessed · E easy' : '' }}</p>
-      } @else {
+        <p class="keys muted">
+          Enter to continue{{ isCorrect() && !practice() && shortcuts.characterKeys() ? ' · G guessed · E easy' : '' }}
+        </p>
+      } @else if (shortcuts.characterKeys()) {
         <p class="keys muted">Press 1–{{ slot.question.choices.length }} to answer</p>
       }
     } @else if (finished()) {
@@ -105,7 +111,7 @@
       </section>
     } @else {
       <section class="panel summary">
-        <ion-icon class="leaf" name="leaf-outline" />
+        <ion-icon class="leaf" name="leaf-outline" aria-hidden="true" />
         <p class="big display">All caught up</p>
         <p class="muted">
           @if (progress.session().nextDueAt; as next) {
@@ -123,8 +129,12 @@
         </div>
         <p class="sub">Unlock more kinds of review:</p>
         <div class="unlocks">
-          <a class="g-btn" routerLink="/visualize"><ion-icon name="pulse-outline" />Visualize an algorithm → predict checkpoints</a>
-          <a class="g-btn" routerLink="/design"><ion-icon name="git-network-outline" />Finish a Design Lab mission → system design cards</a>
+          <a class="g-btn" routerLink="/visualize"
+            ><ion-icon name="pulse-outline" aria-hidden="true" />Visualize an algorithm → predict checkpoints</a
+          >
+          <a class="g-btn" routerLink="/design"
+            ><ion-icon name="git-network-outline" aria-hidden="true" />Finish a Design Lab mission → system design cards</a
+          >
         </div>
       </section>
     }
@@ -134,9 +144,9 @@
         <p class="eyebrow">Mission revisits due</p>
         @for (m of progress.dueMissions(); track m.scenarioId) {
           <a class="mission" [routerLink]="['/design', m.scenarioId]" [queryParams]="{ revisit: m.variant }">
-            <ion-icon name="git-network-outline" />
+            <ion-icon name="git-network-outline" aria-hidden="true" />
             <span>{{ scenarioTitle(m.scenarioId) }} · revisit {{ m.variant }}</span>
-            <ion-icon name="arrow-forward" />
+            <ion-icon name="arrow-forward" aria-hidden="true" />
           </a>
         }
       </section>

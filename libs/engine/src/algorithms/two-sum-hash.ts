@@ -121,6 +121,7 @@ export const twoSumHash: AlgorithmDef<Input> = {
           predict: {
             prompt: `\`target = ${target}\`, \`x = nums[${i}] = ${x}\`, so \`need = ${need}\`. seen = ${mapText()}. Is ${need} in seen?`,
             choices: LOOKUP,
+            ordered: true,
             answer: j !== undefined ? 0 : 1,
             explain: lookupExplain(x, need),
           },
