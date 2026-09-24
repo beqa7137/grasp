@@ -45,14 +45,14 @@ The exit interviews explain the numbers; they don't replace them.
 
 ## Timeline
 
-| When      | What                                                                                                                                                               |
-| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Week 0    | Deploy (see [DEPLOYMENT.md](DEPLOYMENT.md)), set `ADMIN_TOKEN` and `AI_DAILY_BUDGET_USD`, run `npm run eval:interviewer`, walk through every flow on each platform |
-| Day 1     | 15-minute onboarding call per tester; baseline survey; send the welcome message below                                                                              |
-| Days 1–14 | Testers use Grasp on their own; operator checks run daily                                                                                                          |
-| Day 7     | Short check-in message; first weekly report                                                                                                                        |
-| Day 14    | Exit survey and a 30-minute exit interview; final report                                                                                                           |
-| Day 15–17 | Synthesis and decision against the success criteria                                                                                                                |
+| When      | What                                                                                                                                                                                                                                                          |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Week 0    | Deploy (see [DEPLOYMENT.md](DEPLOYMENT.md)), set `ADMIN_TOKEN` and `AI_DAILY_BUDGET_USD`, run `npm run eval:interviewer`, walk through every flow on each platform (the web flows are automated in `e2e/`; the native apps still need a pass on real devices) |
+| Day 1     | 15-minute onboarding call per tester; baseline survey; send the welcome message below                                                                                                                                                                         |
+| Days 1–14 | Testers use Grasp on their own; operator checks run daily                                                                                                                                                                                                     |
+| Day 7     | Short check-in message; first weekly report                                                                                                                                                                                                                   |
+| Day 14    | Exit survey and a 30-minute exit interview; final report                                                                                                                                                                                                      |
+| Day 15–17 | Synthesis and decision against the success criteria                                                                                                                                                                                                           |
 
 ### Welcome message
 

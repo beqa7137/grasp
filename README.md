@@ -24,6 +24,7 @@ See [docs/PLAN.md](docs/PLAN.md) for the product vision, architecture and roadma
 apps/app      Angular + Ionic client (web, iOS, Android)
 apps/api      NestJS API
 libs/engine   Shared learning engine (no dependencies)
+e2e           Browser end-to-end tests (Playwright)
 docs/PLAN.md  Product & architecture plan
 ```
 
@@ -96,10 +97,11 @@ Production runs on Vercel with Neon Postgres: the web app from Vercel's CDN, the
 | `npm test`                        | Engine, API and app unit tests                                   |
 | `npm run build`                   | Production builds of all three packages                          |
 | `npm run verify`                  | All of the above, in the same order CI runs them                 |
+| `npm run e2e`                     | Browser tests of every learner flow, after `npm run build`       |
 | `npm run eval:interviewer`        | Live eval of the AI interviewer (needs `ANTHROPIC_API_KEY`)      |
 | `npm run pilot:report`            | Markdown pilot report from `/api/admin/metrics` (`ADMIN_TOKEN`)  |
 
-CI (`.github/workflows/ci.yml`) runs `verify` on every push to `main` and every pull request, with a Postgres service so the API e2e suite runs against both in-memory and Postgres storage. It also audits production dependencies, then builds the Docker image and the Vercel output and smoke-tests both against Postgres. `deploy.yml` ships `main` to Vercel once enabled. Dependabot proposes grouped dependency updates weekly.
+CI (`.github/workflows/ci.yml`) runs `verify` on every push to `main` and every pull request, with a Postgres service so the API e2e suite runs against both in-memory and Postgres storage. It also audits production dependencies, runs the browser tests on desktop and phone viewports, and builds the Docker image and the Vercel output and smoke-tests both against Postgres. `deploy.yml` ships `main` to Vercel once enabled and then runs the `@smoke` browser tests against the live site. Dependabot proposes grouped dependency updates weekly.
 
 ### Tests
 
@@ -112,6 +114,14 @@ CI (`.github/workflows/ci.yml`) runs `verify` on every push to `main` and every 
   ```
 
 - **App:** Vitest via `ng test`. It covers components, the JS/TS runner (compilation, error lines, sandboxed globals), the code instrumenter and trace-to-frame conversion, and Python traceback cleanup. The in-browser runner (Pyodide under the production CSP, time limits, infinite-loop recovery) was checked end to end with Playwright against the built app.
+- **Browser (`e2e/`):** Playwright drives the built app, served by the built API as in production, on a desktop and a phone viewport. It walks every learner flow: the pilot welcome, a pattern page, predicting in a visualizer, a full review session, practice, JavaScript and Python solutions (including one too slow for the performance test) and tracing, an interview to its scorecard, solving the first Design Lab mission, study settings, export and delete, and feedback. Each flow checks that its events reach the API, and any page error or console error fails the test. Tests tagged `@smoke` also run against a deployment, read-only: every API call that could write data is blocked.
+
+  ```bash
+  npm run build
+  npx -w @grasp/e2e playwright install chromium
+  DATABASE_URL=postgresql://grasp:grasp@localhost:5432/grasp npm run e2e   # or without DATABASE_URL, in memory
+  E2E_BASE_URL=https://grasp-rho-taupe.vercel.app npm run e2e             # @smoke only, against a deployment
+  ```
 
 ## How progress sync works
 
