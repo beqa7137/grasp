@@ -46,6 +46,10 @@ const envSchema = z
     SENTRY_DSN: optional(z.url()),
     SENTRY_WEB_DSN: optional(z.url()),
     SENTRY_ENVIRONMENT: optional(z.string()),
+
+    // Set by Vercel on every deployment.
+    VERCEL_ENV: optional(z.string()),
+    VERCEL_GIT_COMMIT_SHA: optional(z.string()),
   })
   .refine((e) => e.NODE_ENV !== 'production' || e.JWT_SECRET, { path: ['JWT_SECRET'], message: 'is required in production' });
 
@@ -98,7 +102,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     logLevel: e.LOG_LEVEL,
     logFormat: e.LOG_FORMAT ?? (e.NODE_ENV === 'production' ? 'json' : 'pretty'),
     webDistDir: e.WEB_DIST_DIR ?? null,
-    release: e.RELEASE ?? null,
+    release: e.RELEASE ?? e.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? null,
     databaseUrl: e.DATABASE_URL ?? null,
     anthropicApiKey: e.ANTHROPIC_API_KEY ?? null,
     anthropicModel: e.ANTHROPIC_MODEL,
@@ -110,7 +114,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     jwtSecret: e.JWT_SECRET ?? null,
     mail: { resendApiKey: e.RESEND_API_KEY ?? null, from: e.MAIL_FROM },
     sentryDsn: e.SENTRY_DSN ?? null,
-    sentryEnvironment: e.SENTRY_ENVIRONMENT ?? e.NODE_ENV,
+    sentryEnvironment: e.SENTRY_ENVIRONMENT ?? e.VERCEL_ENV ?? e.NODE_ENV,
     web: { sentryDsn: e.SENTRY_WEB_DSN ?? null },
   };
 }

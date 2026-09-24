@@ -1,7 +1,8 @@
 name: Deploy
 
-# Deploys main to Fly.io after CI passes. Stays inactive until the repository variable
-# FLY_DEPLOY_ENABLED is "true" and the FLY_API_TOKEN secret exists (see docs/DEPLOYMENT.md).
+# Deploys main to Vercel after CI passes on a push, or by hand from the Actions tab. Inactive until the
+# repository variable VERCEL_DEPLOY_ENABLED is 'true'. Vercel's own Git deployments are off (vercel.json),
+# so nothing reaches production without CI. See docs/DEPLOYMENT.md.
 on:
   workflow_run:
     workflows: [CI]
@@ -18,9 +19,9 @@ permissions:
 
 jobs:
   deploy:
-    name: Deploy to Fly.io
+    name: Deploy to Vercel
     if: >-
-      vars.FLY_DEPLOY_ENABLED == 'true' &&
+      vars.VERCEL_DEPLOY_ENABLED == 'true' &&
       (github.event_name == 'workflow_dispatch' ||
        (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
     runs-on: ubuntu-latest
@@ -29,7 +30,13 @@ jobs:
       name: production
       url: ${{ vars.PUBLIC_URL }}
     env:
-      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      VERCEL_CLI: vercel@59.26.0
+      VERCEL_TELEMETRY_DISABLED: '1'
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_SCOPE: ${{ vars.VERCEL_SCOPE }}
+      PROJECT: ${{ vars.VERCEL_PROJECT || 'grasp' }}
+      # Express handles req/res itself; Vercel's helpers would shadow res.json and friends.
+      NODEJS_HELPERS: '0'
       SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
 
     steps:
@@ -37,16 +44,45 @@ jobs:
         with:
           ref: ${{ env.SHA }}
 
-      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
 
-      - name: Deploy (migrations run as the release command)
-        run: flyctl deploy --remote-only --build-arg RELEASE="${SHA::7}"
+      - name: Link the project and pull its production settings
+        run: |
+          vc() { npx --yes "$VERCEL_CLI" "$@" --token "$VERCEL_TOKEN" ${VERCEL_SCOPE:+--scope "$VERCEL_SCOPE"}; }
+          vc link --yes --project "$PROJECT"
+          vc pull --yes --environment=production
+
+      - name: Build
+        run: npx --yes "$VERCEL_CLI" build --prod --token "$VERCEL_TOKEN"
+
+      # Before the new code takes traffic. Migrations must stay compatible with the release still running
+      # (add columns and tables first, drop them in a later release).
+      - name: Migrate the database
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_UNPOOLED || secrets.DATABASE_URL }}
+        run: node apps/api/dist/migrate.js
+
+      - name: Deploy
+        run: |
+          npx --yes "$VERCEL_CLI" deploy --prebuilt --prod --env RELEASE="${SHA::7}" \
+            --token "$VERCEL_TOKEN" ${VERCEL_SCOPE:+--scope "$VERCEL_SCOPE"} | tee deployment-url.txt
+          echo "Deployed $(cat deployment-url.txt)" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Verify the new release is live
         if: vars.PUBLIC_URL != ''
+        env:
+          PUBLIC_URL: ${{ vars.PUBLIC_URL }}
         run: |
           for i in $(seq 1 20); do
-            curl -fsS "${{ vars.PUBLIC_URL }}/api/health" | grep -q "\"release\":\"${SHA::7}\"" && exit 0
+            curl -fsS "$PUBLIC_URL/api/health" | grep -q "\"release\":\"${SHA::7}\"" && break
+            [ "$i" = 20 ] && { echo "The deployed release did not report ${SHA::7}"; exit 1; }
             sleep 3
           done
-          echo "The deployed release did not report ${SHA::7}" && exit 1
+          curl -fsS "$PUBLIC_URL/api/health/ready" | grep -q '"database":"ok"'
+          curl -fsS -H 'Accept: text/html' "$PUBLIC_URL/learn" | grep -q '<app-root'
+          curl -fsS "$PUBLIC_URL/config.json" | grep -q "\"release\":\"${SHA::7}\""
+          curl -fsS -o /dev/null "$PUBLIC_URL/pyodide/pyodide.asm.wasm"
+          echo "Verified ${SHA::7} at $PUBLIC_URL" >> "$GITHUB_STEP_SUMMARY"

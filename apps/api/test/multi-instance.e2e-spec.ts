@@ -10,7 +10,7 @@ import { fakeAnthropic, type FakeResponse } from './support/fake-anthropic.js';
 const testDatabaseUrl = process.env['TEST_DATABASE_URL'];
 
 /**
- * Two API instances on one database, as two Fly machines would run. Each limit and lock is exercised by
+ * Two API instances on one database, as two serverless instances or containers would run. Each limit and lock is exercised by
  * alternating requests between them: with process-local state every one of these would pass through.
  */
 describe.runIf(testDatabaseUrl)('Several API instances sharing Postgres', () => {

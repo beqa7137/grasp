@@ -7,14 +7,15 @@
     "apps/*"
   ],
   "engines": {
-    "node": ">=24.15"
+    "node": "^24.15.0"
   },
   "scripts": {
     "build:engine": "npm run build -w @grasp/engine",
     "dev:api": "npm run build:engine && npm run start:dev -w @grasp/api",
     "dev:app": "npm run build:engine && npm start -w @grasp/app",
     "build": "npm run build:engine && npm run build -w @grasp/api && npm run build -w @grasp/app",
-    "lint": "oxlint -c .oxlintrc.json --deny-warnings apps/api/src apps/api/test apps/app/src apps/app/scripts libs/engine/src scripts",
+    "build:vercel": "npm run build && node scripts/prepare-vercel-output.mjs",
+    "lint": "oxlint -c .oxlintrc.json --deny-warnings api apps/api/src apps/api/test apps/app/src apps/app/scripts libs/engine/src scripts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "npm run build:engine && npm run typecheck --workspaces --if-present",

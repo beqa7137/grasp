@@ -5,7 +5,7 @@ const release = process.env.GRASP_RELEASE === '1';
 const apiUrl = process.env.GRASP_API_URL || null;
 
 if (release && !apiUrl?.startsWith('https://')) {
-  console.error('Release builds need GRASP_API_URL set to an https URL, e.g. GRASP_API_URL=https://grasp.fly.dev/api');
+  console.error('Release builds need GRASP_API_URL set to an https URL, e.g. GRASP_API_URL=https://grasp.example.com/api');
   process.exit(1);
 }
 

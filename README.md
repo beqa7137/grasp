@@ -84,7 +84,7 @@ Optional passwordless sign-in with emailed codes. Signing in folds the device's 
 
 ## Deployment
 
-A single Docker image serves the API and the web app. [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) covers the Fly.io setup (`fly.toml`, release-time migrations, health checks), continuous deployment from GitHub Actions, rollback, Sentry and the environment reference.
+Production runs on Vercel with Neon Postgres: the web app from Vercel's CDN, the API and page shell from one Vercel Function. The same code also ships as a Docker image for any container host. [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) covers the Vercel and Neon setup, release-time migrations, continuous deployment from GitHub Actions, rollback, Sentry and the environment reference.
 
 ## Development workflow
 
@@ -99,7 +99,7 @@ A single Docker image serves the API and the web app. [docs/DEPLOYMENT.md](docs/
 | `npm run eval:interviewer`        | Live eval of the AI interviewer (needs `ANTHROPIC_API_KEY`)      |
 | `npm run pilot:report`            | Markdown pilot report from `/api/admin/metrics` (`ADMIN_TOKEN`)  |
 
-CI (`.github/workflows/ci.yml`) runs `verify` on every push to `main` and every pull request, with a Postgres service so the API e2e suite runs against both in-memory and Postgres storage. It also audits production dependencies, then builds the Docker image and smoke-tests it against Postgres. `deploy.yml` ships `main` to Fly.io once enabled. Dependabot proposes grouped dependency updates weekly.
+CI (`.github/workflows/ci.yml`) runs `verify` on every push to `main` and every pull request, with a Postgres service so the API e2e suite runs against both in-memory and Postgres storage. It also audits production dependencies, then builds the Docker image and the Vercel output and smoke-tests both against Postgres. `deploy.yml` ships `main` to Vercel once enabled. Dependabot proposes grouped dependency updates weekly.
 
 ### Tests
 

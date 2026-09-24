@@ -33,3 +33,6 @@ Thumbs.db
 apps/app/android/app/src/main/assets/public/
 apps/app/ios/App/App/public/
 apps/app/public/pyodide/
+
+# Vercel CLI project link and build output
+.vercel/
