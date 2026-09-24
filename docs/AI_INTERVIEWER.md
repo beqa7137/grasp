@@ -97,7 +97,7 @@ ANTHROPIC_API_KEY=... npm run eval:interviewer                       # default c
 ANTHROPIC_API_KEY=... ANTHROPIC_MODEL=claude-opus-5-5 npm run eval:interviewer
 ```
 
-It prints a table with verdict, average score, token classes, cost and time to first token for each scenario. Full transcripts and scorecards go to `apps/api/eval-results/` (gitignored) for review.
+It prints a table with verdict, average score, token classes, cost and time to first token for each scenario. Full transcripts and scorecards go to `apps/api/eval-results/` (gitignored) for review. Without a local key, run **Interviewer eval** from the Actions tab: it uses the repository's `ANTHROPIC_API_KEY` secret, puts the table in the run summary and keeps the transcripts as a downloadable artifact for 30 days.
 
 ## Configuration
 
