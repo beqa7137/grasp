@@ -20,7 +20,7 @@
           <span class="chip mono">space {{ a.complexity.space }}</span>
         </div>
         <h1>{{ a.title }}</h1>
-        <p class="muted">{{ a.summary }}</p>
+        <p class="muted"><g-code-text [text]="a.summary" /></p>
         @if (problem(); as c) {
           <a class="code-it" [routerLink]="['/code', c.id]"
             ><ion-icon name="code-slash-outline" /> Now write it yourself: {{ c.title }} →</a
@@ -91,7 +91,7 @@
                   <ion-icon name="help-circle-outline" />
                   <span>Your call</span>
                 </div>
-                <p class="prompt">{{ q.prompt }}</p>
+                <p class="prompt"><g-code-text [text]="q.prompt" /></p>
                 <div class="choices">
                   @for (c of q.choices; track $index) {
                     <button
@@ -110,7 +110,8 @@
                   <div class="verdict" [class.ok]="p.choice === q.answer">
                     <ion-icon [name]="p.choice === q.answer ? 'checkmark-circle' : 'close-circle'" />
                     <p>
-                      <strong>{{ p.choice === q.answer ? 'Exactly.' : 'Not quite.' }}</strong> {{ q.explain }}
+                      <strong>{{ p.choice === q.answer ? 'Exactly.' : 'Not quite.' }}</strong
+                      >&ngsp;<g-code-text [text]="q.explain" />&ngsp;
                       @if (p.choice !== q.answer) {
                         <span class="scheduled">A fresh version of this checkpoint will show up in your review within a day.</span>
                       }
@@ -123,7 +124,7 @@
               <div class="narration" aria-live="polite">
                 <span class="line mono">L{{ f.line }}</span>
                 <div class="body">
-                  <p>{{ f.note }}</p>
+                  <p><g-code-text [text]="f.note" /></p>
                   @if (result() !== undefined) {
                     <span class="result mono">→ {{ result() ?? 'null' }}</span>
                   }

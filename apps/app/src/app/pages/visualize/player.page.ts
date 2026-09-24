@@ -44,6 +44,7 @@ import { isKeyForPage } from '../../core/page-keys';
 import { ProgressService } from '../../core/progress.service';
 import { ArrayViewComponent } from '../../viz/array-view.component';
 import { CodePanelComponent } from '../../viz/code-panel.component';
+import { CodeTextComponent } from '../../viz/code-text.component';
 import { GraphViewComponent } from '../../viz/graph-view.component';
 import { GridViewComponent } from '../../viz/grid-view.component';
 import { ListViewComponent } from '../../viz/list-view.component';
@@ -73,6 +74,7 @@ const SPEEDS = [0.5, 1, 2, 4];
     GraphViewComponent,
     TreeViewComponent,
     CodePanelComponent,
+    CodeTextComponent,
     ListViewComponent,
   ],
   templateUrl: './player.page.html',

@@ -1,17 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { formatField, mulberry32, parseField } from './input.js';
+import { formatField, parseField } from './input.js';
 import { mergeIntervals } from './merge-intervals.js';
+import { correctChoices, predictions, resultOf, tracerFixture } from './tracer.fixture.js';
 import { InputError, type Frame } from './types.js';
 
 type Interval = [number, number];
 
-const EM_DASH = '\u2014';
 const OVERLAPS = 'Overlaps: merge it into last';
 const NO_OVERLAP = 'No overlap: push it as a new interval';
 
-const traceOf = (input: unknown) => mergeIntervals.trace(mergeIntervals.validate(input));
-const resultOf = (frames: Frame[]) => frames[frames.length - 1].vars['result'];
-const correctChoices = (frames: Frame[]) => frames.flatMap((f) => (f.predict ? [f.predict.choices[f.predict.answer]] : []));
+const { traceOf, randomInputs } = tracerFixture(mergeIntervals);
 const endOf = (last: unknown) => (JSON.parse(String(last)) as Interval)[1];
 
 const cellsInRange = (frames: Frame[]) =>
@@ -54,13 +52,12 @@ describe('merge-intervals', () => {
     expect(frames[frames.length - 1].output!.items).toEqual(['[1, 6]', '[8, 10]', '[15, 20]']);
   });
 
-  it('asks on every random input, answers what the next frame shows and covers every branch', () => {
-    const rand = mulberry32(2026);
+  it('answers what the next frame shows on random inputs and covers every branch', () => {
     const seen = new Set<string>();
-    for (let n = 0; n < 60; n++) {
-      const frames = traceOf(mergeIntervals.randomInput(rand));
-      expect(frames.some((f) => f.predict) && cellsInRange(frames) && answersMatchTheTrace(frames)).toBe(true);
-      for (const { choices, answer, explain } of frames.flatMap((f) => f.predict ?? [])) {
+    for (const input of randomInputs(2026, 60)) {
+      const frames = traceOf(input);
+      expect(cellsInRange(frames) && answersMatchTheTrace(frames)).toBe(true);
+      for (const { choices, answer, explain } of predictions(frames)) {
         if (choices[answer] === NO_OVERLAP) seen.add('gap');
         else if (choices[answer] === OVERLAPS) seen.add(explain.includes('touching') ? 'touching' : 'overlap');
         else seen.add(answer === 0 ? 'contained' : 'extends');
@@ -133,11 +130,5 @@ describe('merge-intervals', () => {
       [2, 6],
       [8, 10],
     ]);
-  });
-
-  it('never shows an em dash', () => {
-    const rand = mulberry32(1);
-    const traces = [mergeIntervals.defaultInput, ...Array.from({ length: 20 }, () => mergeIntervals.randomInput(rand))].map(traceOf);
-    expect(JSON.stringify([mergeIntervals, traces])).not.toContain(EM_DASH);
   });
 });

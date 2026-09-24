@@ -1,7 +1,8 @@
 import type { Type } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { getAlgorithm } from '@grasp/engine';
+import { GRAPH_NODE_RADIUS, getAlgorithm, mulberry32 } from '@grasp/engine';
 import { GraphViewComponent } from './graph-view.component';
+import { LegendComponent } from './legend.component';
 import { TableViewComponent } from './table-view.component';
 import { TreeViewComponent, layoutForest } from './tree-view.component';
 
@@ -44,6 +45,72 @@ describe('layoutForest', () => {
 });
 
 const legendOf = (el: HTMLElement) => [...el.querySelectorAll('.legend span')].map((span) => span.textContent!.trim());
+
+/** Points along a drawn edge, M…L… or M…Q…, close enough together that none can skip past a badge. */
+function pathPoints(d: string) {
+  const [sx, sy, ...rest] = d.match(/-?\d+(?:\.\d+)?/g)!.map(Number);
+  const [cx, cy, ex, ey] = rest.length === 4 ? rest : [(sx + rest[0]) / 2, (sy + rest[1]) / 2, rest[0], rest[1]];
+  return Array.from({ length: 201 }, (_, k) => {
+    const t = k / 200;
+    return { x: (1 - t) ** 2 * sx + 2 * (1 - t) * t * cx + t ** 2 * ex, y: (1 - t) ** 2 * sy + 2 * (1 - t) * t * cy + t ** 2 * ey };
+  });
+}
+
+// A badge is 11px monospace text, about 0.6em per character.
+const badgeHalfWidth = (badge: string) => badge.length * 3.3;
+const BADGE_HALF_HEIGHT = 5.5;
+
+/** Badges on an edge, from the positions the graph view draws. */
+function badgesOnEdges(id: string): string[] {
+  const algo = getAlgorithm(id)!;
+  return algo.trace(algo.defaultInput).flatMap((frame, k) => {
+    const fixture = TestBed.createComponent(GraphViewComponent);
+    fixture.componentRef.setInput('view', frame.graph);
+    const { nodes, edges } = fixture.componentInstance;
+    const paths = edges().map((e) => pathPoints(e.d));
+    const onEdge = (x: number, y: number, badge: string) =>
+      paths.some((points) => points.some((p) => Math.abs(p.x - x) <= badgeHalfWidth(badge) && Math.abs(p.y - y) <= BADGE_HALF_HEIGHT));
+    return nodes().flatMap(({ x, badge, badgeY, label }) =>
+      badge && onEdge(x, badgeY, badge) ? [`${id} frame ${k}: badge ${badge} of node ${label}`] : [],
+    );
+  });
+}
+
+/** Badges drawn over another badge, or moved above their node onto another node, across random inputs. */
+function crowdedBadges(id: string, count: number): string[] {
+  const algo = getAlgorithm(id)!;
+  const rand = mulberry32(777);
+  const fixture = TestBed.createComponent(GraphViewComponent);
+  return Array.from({ length: count }, () => algo.randomInput(rand)).flatMap((input) =>
+    algo.trace(algo.validate(input)).flatMap((frame, k) => {
+      fixture.componentRef.setInput('view', frame.graph);
+      const nodes = fixture.componentInstance.nodes();
+      const where = `${id} ${JSON.stringify(input)} frame ${k}`;
+      return nodes.flatMap((a, i) => {
+        const { badge } = a;
+        if (!badge) return [];
+        const overBadges = nodes
+          .slice(i + 1)
+          .flatMap((b) =>
+            b.badge &&
+            Math.abs(a.x - b.x) < badgeHalfWidth(badge) + badgeHalfWidth(b.badge) &&
+            Math.abs(a.badgeY - b.badgeY) < 2 * BADGE_HALF_HEIGHT
+              ? [`${where}: badges of nodes ${a.label} and ${b.label} overlap`]
+              : [],
+          );
+        const overNodes = nodes.flatMap((b) =>
+          a.badgeY < a.y &&
+          b !== a &&
+          Math.abs(a.x - b.x) < badgeHalfWidth(badge) + GRAPH_NODE_RADIUS &&
+          Math.abs(a.badgeY - b.y) < BADGE_HALF_HEIGHT + GRAPH_NODE_RADIUS
+            ? [`${where}: badge of node ${a.label} moved onto node ${b.label}`]
+            : [],
+        );
+        return [...overBadges, ...overNodes];
+      });
+    }),
+  );
+}
 
 function render(component: Type<unknown>, view: unknown, legend = true): HTMLElement {
   const fixture = TestBed.createComponent(component);
@@ -108,17 +175,48 @@ describe('structure views render real traces', () => {
     expect(legendOf(render(GraphViewComponent, queue))).toEqual(['current', 'queued', 'done']);
   });
 
-  it('graph: draws a badge below its node, or above it when the tracer asks', () => {
+  it('graph: draws a badge below its node, or above it when an edge runs through the spot below and not the one above', () => {
     const el = render(GraphViewComponent, {
       nodes: [
-        { id: 'a', label: '1', x: 0, y: 0.5, badge: 'below' },
-        { id: 'b', label: '2', x: 1, y: 0.5, badge: 'above', badgeAbove: true },
+        { id: 'a', label: 'top', x: 0.2, y: 0, badge: 'in 0' },
+        { id: 'b', label: 'middle', x: 0.2, y: 0.5, badge: 'in 1' },
+        { id: 'c', label: 'bottom', x: 0.2, y: 1, badge: 'in 1' },
+        { id: 'd', label: 'alone', x: 0.8, y: 0.5, badge: 'in 0' },
       ],
-      edges: [],
+      edges: [
+        { from: 'a', to: 'b', directed: true },
+        { from: 'b', to: 'c', directed: true },
+      ],
     });
-    const centre = Number(el.querySelector('circle.body')!.getAttribute('cy'));
-    const [below, above] = [...el.querySelectorAll('text.badge')].map((badge) => Number(badge.getAttribute('y')));
-    expect(below > centre && above < centre).toBe(true);
+    const sides = [...el.querySelectorAll('g.node')].map((node) => {
+      const offset = Number(node.querySelector('text.badge')!.getAttribute('y')) - Number(node.querySelector('circle')!.getAttribute('cy'));
+      return `${node.querySelector('text.label')!.textContent} ${offset < 0 ? 'above' : 'below'}`;
+    });
+    expect(sides).toEqual(['top above', 'middle below', 'bottom below', 'alone below']);
+  });
+
+  it('graph: keeps badges off the edges of the linked list, Dijkstra and topological sort default traces', () => {
+    expect(['linked-list-cycle', 'dijkstra', 'topo-sort'].flatMap(badgesOnEdges)).toEqual([]);
+  });
+
+  it('graph: never moves a badge onto another badge or node, even when stacked layers crowd a column', () => {
+    expect(crowdedBadges('topo-sort', 50)).toEqual([]);
+  });
+
+  it('legend: marks each swatch with the attribute its view styles, and shows nothing without entries', () => {
+    const fixture = TestBed.createComponent(LegendComponent);
+    fixture.componentRef.setInput('legend', { active: 'current cell', deps: 'reads from' });
+    fixture.componentRef.setInput('swatch', 'role');
+    fixture.detectChanges();
+    const el: HTMLElement = fixture.nativeElement;
+    const swatches = [...el.querySelectorAll('i')].map((i) => [i.getAttribute('data-role'), i.getAttribute('data-state')]);
+    expect(swatches).toEqual([
+      ['active', null],
+      ['deps', null],
+    ]);
+    fixture.componentRef.setInput('legend', {});
+    fixture.detectChanges();
+    expect(el.querySelector('.legend')).toBeNull();
   });
 
   it('tree: rings word ends in a trie and explains the ring in its legend', () => {

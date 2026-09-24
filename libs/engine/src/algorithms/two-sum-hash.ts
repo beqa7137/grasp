@@ -1,5 +1,5 @@
 import { rotatedChoices } from './choices.js';
-import { asNumber, asNumbers, randInt, shuffle } from './input.js';
+import { asNumber, asNumbers, randInt, rangeOf, shuffle } from './input.js';
 import type { AlgorithmDef, Frame, SetView } from './types.js';
 
 type Input = { nums: number[]; target: number };
@@ -77,7 +77,7 @@ export const twoSumHash: AlgorithmDef<Input> = {
           pointers: scanning ? { i } : {},
           window: stored > 0 ? [0, stored - 1] : undefined,
           active: scanning ? [i] : [],
-          settled: pair ? nums.map((_, k) => k).filter((k) => k > i) : [],
+          settled: pair ? rangeOf(i + 1, nums.length - 1) : [],
           found: pair ? [...pair] : [],
         },
         set: seenView(),
@@ -95,7 +95,7 @@ export const twoSumHash: AlgorithmDef<Input> = {
         return `need equals x, but seen only holds numbers before index ${i}, and x is stored after this check. Checking first keeps ${x} from pairing with itself.${partner}`;
       }
       if (later >= 0) {
-        return `${complement} is in nums, but at index ${later}, after i = ${i}. seen only holds numbers the scan has passed, so the ${complement} will find this ${x} once the scan reaches it.`;
+        return `${complement} is in nums, but at index ${later}, after \`i = ${i}\`. seen only holds numbers the scan has passed, so the ${complement} will find this ${x} once the scan reaches it.`;
       }
       return `${complement} is not a key in seen, so no number before index ${i} pairs with ${x}.`;
     };
@@ -108,18 +108,18 @@ export const twoSumHash: AlgorithmDef<Input> = {
     for (i = 0; i < nums.length; i++) {
       const x = nums[i];
       need = null;
-      snap(3, i === 0 ? `The scan starts at i = 0 with x = ${x}.` : `Move to i = ${i}: x = ${x}.`);
+      snap(3, i === 0 ? `The scan starts at \`i = 0\` with \`x = ${x}\`.` : `Move to \`i = ${i}\`: \`x = ${x}\`.`);
       need = target - x;
-      snap(4, `x = ${x} needs a partner of target - x = ${target} - ${x} = ${need}.`);
+      snap(4, `\`x = ${x}\` needs a partner of \`target - x\` = ${target} - ${x} = ${need}.`);
 
       const j = seen.get(need);
       const partnerInNums = nums.includes(need);
-      // Lookups whose partner is somewhere in nums (already seen, x itself, or later) always teach something; a plain miss is asked once.
+      // Ask every lookup whose partner is in nums (already seen, x itself, or later), but only one plain miss.
       if (i > 0 && (partnerInNums || !askedPlainMiss)) {
         askedPlainMiss ||= !partnerInNums;
-        snap(5, `Look up need = ${need} in seen.`, {
+        snap(5, `Look up \`need = ${need}\` in seen.`, {
           predict: {
-            prompt: `target = ${target}, x = nums[${i}] = ${x}, so need = ${need}. seen = ${mapText()}. Is ${need} in seen?`,
+            prompt: `\`target = ${target}\`, \`x = nums[${i}] = ${x}\`, so \`need = ${need}\`. seen = ${mapText()}. Is ${need} in seen?`,
             choices: LOOKUP,
             answer: j !== undefined ? 0 : 1,
             explain: lookupExplain(x, need),
@@ -129,17 +129,17 @@ export const twoSumHash: AlgorithmDef<Input> = {
 
       if (j !== undefined) {
         const answer = `[${j}, ${i}]`;
-        snap(5, `seen.has(${need}) is true: an earlier number completes the pair.`, {
+        snap(5, `\`seen.has(${need})\` is true: an earlier number completes the pair.`, {
           predict: {
-            prompt: `target = ${target}, x = nums[${i}] = ${x}, and need = ${need} is in seen = ${mapText()}. What does twoSum return?`,
+            prompt: `\`target = ${target}\`, \`x = nums[${i}] = ${x}\`, and \`need = ${need}\` is in seen = ${mapText()}. What does twoSum return?`,
             ...rotatedChoices(answer, [`[${need}, ${x}]`, `[${need}, ${i}]`, `[${i}, ${i}]`], nums.length + i),
-            explain: `seen.get(${need}) = ${j} is the index where ${need} was stored, and i = ${i} is the index of x. twoSum returns indices, not values: ${answer}.`,
+            explain: `\`seen.get(${need}) = ${j}\` is the index where ${need} was stored, and \`i = ${i}\` is the index of x. twoSum returns indices, not values: ${answer}.`,
           },
         });
         pair = [j, i];
         snap(
           5,
-          `Return ${answer}: nums[${j}] + nums[${i}] = ${need} + ${x} = ${target}.${i < nums.length - 1 ? ' The scan stops here, so the rest of nums is never read.' : ''} Each step was one O(1) lookup and at most one O(1) store: O(n) time, O(n) space.`,
+          `Return ${answer}: \`nums[${j}] + nums[${i}]\` = ${need} + ${x} = ${target}.${i < nums.length - 1 ? ' The scan stops here, so the rest of nums is never read.' : ''} Each step was one O(1) lookup and at most one O(1) store: O(n) time, O(n) space.`,
           { set: seenView(entry(need, j)) },
         );
         frames[frames.length - 1].vars['result'] = answer;
@@ -150,15 +150,15 @@ export const twoSumHash: AlgorithmDef<Input> = {
         5,
         i === 0
           ? `seen is empty, so ${need} is not there: nothing can pair with ${x} yet.${need === x ? ` Checking before storing is what stops ${x} from pairing with itself.` : ''}`
-          : `seen.has(${need}) is false: no number before index ${i} is ${need}.`,
+          : `\`seen.has(${need})\` is false: no number before index ${i} is ${need}.`,
       );
       if (i === 0) {
         // This question always comes first, so offsetting by the length moves its answer between inputs.
         snap(6, 'No partner yet, so remember x for the numbers still to come.', {
           predict: {
-            prompt: `target = ${target}, x = nums[0] = ${x}, and need = ${need} is not in the empty seen. What does seen hold after this step?`,
+            prompt: `\`target = ${target}\`, \`x = nums[0] = ${x}\`, and \`need = ${need}\` is not in the empty seen. What does seen hold after this step?`,
             ...rotatedChoices(`{${entry(x, 0)}}`, [`{${entry(need, 0)}}`, `{${entry(0, x)}}`, '{}'], nums.length),
-            explain: `seen.set(x, i) uses the number as the key and its index as the value, so seen becomes {${entry(x, 0)}}. A later number that needs ${x} looks it up by value and reads back index 0.`,
+            explain: `\`seen.set(x, i)\` uses the number as the key and its index as the value, so seen becomes {${entry(x, 0)}}. A later number that needs ${x} looks it up by value and reads back index 0.`,
           },
         });
       }

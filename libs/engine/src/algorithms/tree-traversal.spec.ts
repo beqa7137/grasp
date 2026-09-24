@@ -1,19 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { mulberry32 } from './input.js';
+import { resultOf, tracerFixture } from './tracer.fixture.js';
 import { treeTraversal } from './tree-traversal.js';
 import { InputError, type Frame } from './types.js';
 
 type Input = ReturnType<typeof treeTraversal.validate>;
 
-const EM_DASH = '\u2014';
 const ORDERS = ['preorder', 'inorder', 'postorder'] as const;
 
-const randomInputs = (seed: number, count: number) => {
-  const rand = mulberry32(seed);
-  return Array.from({ length: count }, () => treeTraversal.randomInput(rand));
-};
-
-const traceOf = (input: unknown) => treeTraversal.trace(treeTraversal.validate(input));
+const { traceOf, randomInputs } = tracerFixture(treeTraversal);
 
 const SAMPLES: Input[] = [
   ...ORDERS.map((order) => ({ ...treeTraversal.defaultInput, order })),
@@ -40,7 +34,7 @@ describe('tree-traversal', () => {
     const frames = traceOf(treeTraversal.defaultInput);
     expect(frames[0].line).toBe(2);
     expect(frames[frames.length - 1].line).toBe(12);
-    expect(frames[frames.length - 1].vars['result']).toBe('[1, 2, 3, 4, 5, 8, 9]');
+    expect(resultOf(frames)).toBe('[1, 2, 3, 4, 5, 8, 9]');
     expect(frames.filter((f) => f.predict).length).toBeGreaterThanOrEqual(2);
     expect(frames[0].tree!.nodes).toHaveLength(15);
   });
@@ -52,15 +46,11 @@ describe('tree-traversal', () => {
   ] as const)('walks the default tree in %s and asks something', (order, result) => {
     const frames = traceOf({ ...treeTraversal.defaultInput, order });
     expect(frames.some((f) => f.predict)).toBe(true);
-    expect(frames[frames.length - 1].vars['result']).toBe(result);
+    expect(resultOf(frames)).toBe(result);
   });
 
   it('asks predictions that the following frames confirm', () => {
     for (const input of SAMPLES) expect(answersConfirmed(input, traceOf(input))).toBe(true);
-  });
-
-  it('gives every random input at least one prediction, as review generation needs', () => {
-    expect(randomInputs(7, 200).every((input) => traceOf(input).some((f) => f.predict))).toBe(true);
   });
 
   it('never rewrites out, and draws the whole tree with at most one running call', () => {
@@ -95,12 +85,6 @@ describe('tree-traversal', () => {
         });
       expect(ordered).toBe(true);
     }
-  });
-
-  it('never shows an em dash', () => {
-    const rand = mulberry32(1);
-    const traces = [treeTraversal.defaultInput, ...Array.from({ length: 20 }, () => treeTraversal.randomInput(rand))].map(traceOf);
-    expect(JSON.stringify([treeTraversal, traces])).not.toContain(EM_DASH);
   });
 });
 

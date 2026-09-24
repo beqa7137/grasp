@@ -129,10 +129,7 @@ reminders from the forecast, native projects with CI builds, an onboarding place
 weak patterns first in the review queue. Next: passkeys, per-learner FSRS parameter optimization,
 dark/light polish.
 
-**M2: Content depth (4–6 wks).** Done: visualizers now cover all 20 patterns, adding heap, union-find,
-DP table fill, trie, Dijkstra, topo sort, merge intervals, subsets by backtracking, tree traversals,
-jump game (greedy), single number (XOR), two sum with a hash map, subarray sums with prefix counts,
-linked list cycle (fast/slow pointers) and house robber (1-D DP), with table, graph and tree views.
+**M2: Content depth (4–6 wks).** Done: visualizers for all 20 patterns, with table, graph and tree views.
 Next: content authoring as data (JSON/MDX) validated by the engine in CI.
 
 **M3: Code runner (3–4 wks).** In-browser TS/Python execution (WebWorker + Pyodide) with

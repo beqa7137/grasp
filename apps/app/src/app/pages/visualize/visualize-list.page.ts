@@ -3,11 +3,12 @@ import { RouterLink } from '@angular/router';
 import { IonContent, IonHeader, IonTitle, IonToolbar } from '@ionic/angular';
 import { ALGORITHMS, getPattern } from '@grasp/engine';
 import { ProgressService } from '../../core/progress.service';
+import { CodeTextComponent } from '../../viz/code-text.component';
 
 @Component({
   selector: 'app-visualize-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, IonHeader, IonToolbar, IonTitle, IonContent],
+  imports: [RouterLink, IonHeader, IonToolbar, IonTitle, IonContent, CodeTextComponent],
   template: `
     <ion-header [translucent]="true">
       <ion-toolbar><ion-title>Visualize</ion-title></ion-toolbar>
@@ -29,7 +30,7 @@ import { ProgressService } from '../../core/progress.service';
                 <span class="chip" [class]="a.difficulty">{{ a.difficulty }}</span>
               </div>
               <h2>{{ a.title }}</h2>
-              <p class="muted">{{ a.summary }}</p>
+              <p class="muted"><g-code-text [text]="a.summary" /></p>
               <div class="bottom">
                 <span class="mono muted">{{ a.complexity.time }}</span>
                 @if (acc) {

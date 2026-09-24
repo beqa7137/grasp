@@ -1,5 +1,5 @@
 import { rotatedChoices } from './choices.js';
-import { asNumbers, randInt } from './input.js';
+import { asNumbers, randInt, rangeOf } from './input.js';
 import type { AlgorithmDef, Frame } from './types.js';
 
 type Input = { nums: number[] };
@@ -56,7 +56,7 @@ export const jumpGame: AlgorithmDef<Input> = {
           pointers,
           window: [0, Math.min(reach, last)],
           active: scanning ? [i] : [],
-          settled: nums.map((_, k) => k).filter((k) => k < i),
+          settled: rangeOf(0, i - 1),
           found: reach >= last ? [last] : [],
         },
         ...extra,

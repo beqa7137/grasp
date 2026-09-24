@@ -1,16 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { mulberry32 } from './input.js';
 import { subsetsBacktracking as algo } from './subsets-backtracking.js';
+import { resultOf, tracerFixture } from './tracer.fixture.js';
 import type { Frame } from './types.js';
 
-const EM_DASH = '\u2014';
-
-const traceOf = (input: unknown) => algo.trace(algo.validate(input));
-const resultOf = (frames: Frame[]) => frames[frames.length - 1].vars['result'];
-const randomInputs = (seed: number, count: number) => {
-  const rand = mulberry32(seed);
-  return Array.from({ length: count }, () => algo.randomInput(rand));
-};
+const { traceOf, randomInputs } = tracerFixture(algo);
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
 const SAMPLES = [algo.defaultInput, { nums: [7] }, { nums: [-9, 12, 99] }, ...randomInputs(2024, 30)];
@@ -77,11 +70,9 @@ describe('subsets-backtracking', () => {
     expect(new Set(recordAnswers).size).toBeGreaterThan(1);
   });
 
-  it('draws two or three distinct numbers that always ask something', () => {
-    for (const input of randomInputs(7, 100)) {
-      const { nums } = input;
-      const small = nums.length >= 2 && nums.length <= 3 && new Set(nums).size === nums.length;
-      expect(small && traceOf(input).some((f) => f.predict)).toBe(true);
+  it('draws two or three distinct numbers', () => {
+    for (const { nums } of randomInputs(7, 100)) {
+      expect(nums.length >= 2 && nums.length <= 3 && new Set(nums).size === nums.length).toBe(true);
     }
   });
 
@@ -90,11 +81,5 @@ describe('subsets-backtracking', () => {
     expect(() => algo.validate({ nums: [2, 5, 2] })).toThrow('nums must not repeat a value');
     expect(() => algo.validate({ nums: [4, 100] })).toThrow('nums must contain integers between -9 and 99');
     expect(() => algo.validate({ nums: [-10, 4] })).toThrow('nums must contain integers between -9 and 99');
-  });
-
-  it('never shows an em dash', () => {
-    const rand = mulberry32(1);
-    const traces = [algo.defaultInput, ...Array.from({ length: 20 }, () => algo.randomInput(rand))].map(traceOf);
-    expect(JSON.stringify([algo, traces])).not.toContain(EM_DASH);
   });
 });

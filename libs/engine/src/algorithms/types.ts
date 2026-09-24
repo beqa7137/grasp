@@ -56,8 +56,6 @@ export interface GraphNode {
   state?: NodeState;
   /** Small value drawn next to the node: a distance, an in-degree. */
   badge?: string;
-  /** Draws the badge above the node instead of below it, clear of edges that arrive from below. */
-  badgeAbove?: boolean;
 }
 
 export interface GraphEdge {
@@ -89,15 +87,18 @@ export interface TreeView {
 }
 
 export interface Prediction {
+  /** Learner text: backticks mark code spans. */
   prompt: string;
   choices: string[];
   answer: number;
+  /** Learner text: backticks mark code spans. */
   explain: string;
 }
 
 export interface Frame {
   line: number;
   vars: Record<string, Scalar>;
+  /** Learner text: backticks mark code spans. */
   note: string;
   array?: ArrayView;
   stack?: StackView;
@@ -130,6 +131,7 @@ export interface AlgorithmMeta {
   title: string;
   patternId: string;
   difficulty: Difficulty;
+  /** Learner text: backticks mark code spans. */
   summary: string;
   complexity: { time: string; space: string };
   code: string[];

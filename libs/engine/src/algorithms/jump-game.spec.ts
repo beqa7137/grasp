@@ -1,13 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { mulberry32 } from './input.js';
 import { jumpGame } from './jump-game.js';
+import { correctChoices, predictions, resultOf, tracerFixture } from './tracer.fixture.js';
 import { InputError, type Frame } from './types.js';
 
-const EM_DASH = '\u2014';
-
-const traceOf = (input: unknown) => jumpGame.trace(jumpGame.validate(input));
-const predictions = (frames: Frame[]) => frames.flatMap((f) => (f.predict ? [f.predict] : []));
-const correctChoices = (frames: Frame[]) => predictions(frames).map((p) => p.choices[p.answer]);
+const { traceOf, randomInputs } = tracerFixture(jumpGame);
 
 /** Every frame draws all n values, keeps its pointers on them and shades a reachable window that starts at index 0. */
 const arrayInSync = (frames: Frame[], n: number) =>
@@ -25,7 +21,7 @@ describe('jump-game', () => {
     expect(correctChoices(frames)).toEqual(['4', '4', '4', 'Continue: this index is reachable', '8']);
     const end = frames.at(-1)!;
     expect(end.line).toBe(7);
-    expect(end.vars['result']).toBe(true);
+    expect(resultOf(frames)).toBe(true);
     expect(end.vars['reach']).toBe(8);
     expect(end.array!.pointers).toEqual({ reach: 4 });
     expect(end.array!.found).toEqual([4]);
@@ -43,7 +39,7 @@ describe('jump-game', () => {
     expect(correctChoices(frames).slice(-2)).toEqual(['Continue: this index is reachable', 'Return false: nothing reaches this index']);
     const end = frames.at(-1)!;
     expect(end.line).toBe(4);
-    expect(end.vars['result']).toBe(false);
+    expect(resultOf(frames)).toBe(false);
     expect(end.array!.pointers).toEqual({ i: 4, reach: 3 });
     expect(end.array!.window).toEqual([0, 3]);
     expect(end.array!.found).toEqual([]);
@@ -52,18 +48,16 @@ describe('jump-game', () => {
   it('handles a single index without asking anything', () => {
     const frames = traceOf({ nums: [0] });
     expect(arrayInSync(frames, 1)).toBe(true);
-    expect(frames.at(-1)!.vars['result']).toBe(true);
+    expect(resultOf(frames)).toBe(true);
     expect(predictions(frames)).toEqual([]);
   });
 
-  it('keeps the array in sync and asks something on random inputs, both reachable and not', () => {
-    const rand = mulberry32(2026);
+  it('keeps the array in sync on random inputs, both reachable and not', () => {
     const outcomes = new Set<unknown>();
-    for (let k = 0; k < 60; k++) {
-      const { nums } = jumpGame.validate(jumpGame.randomInput(rand));
-      const frames = traceOf({ nums });
-      expect(arrayInSync(frames, nums.length) && predictions(frames).length > 0).toBe(true);
-      outcomes.add(frames.at(-1)!.vars['result']);
+    for (const input of randomInputs(2026, 60)) {
+      const frames = traceOf(input);
+      expect(arrayInSync(frames, input.nums.length)).toBe(true);
+      outcomes.add(resultOf(frames));
     }
     expect(outcomes).toEqual(new Set([true, false]));
   });
@@ -78,11 +72,5 @@ describe('jump-game', () => {
 
   it('rejects negative jump lengths', () => {
     expect(() => jumpGame.validate({ nums: [2, -1, 3] })).toThrow(new InputError('nums must contain integers between 0 and 999'));
-  });
-
-  it('never shows an em dash', () => {
-    const rand = mulberry32(1);
-    const traces = [jumpGame.defaultInput, ...Array.from({ length: 20 }, () => jumpGame.randomInput(rand))].map(traceOf);
-    expect(JSON.stringify([jumpGame, traces])).not.toContain(EM_DASH);
   });
 });

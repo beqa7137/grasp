@@ -1,7 +1,37 @@
 import { describe, expect, it } from 'vitest';
+import { codeSpans } from '../code-spans.js';
 import { ALGORITHMS, getAlgorithm } from './index.js';
 import { formatField, mulberry32, parseField } from './input.js';
 import { InputError, type Frame } from './types.js';
+
+const EM_DASH = '\u2014';
+// Tracers written before the no-em-dash rule. The check below fails once one is cleaned up, so the set stays exact.
+const LEGACY_EM_DASH = new Set([
+  'binary-search',
+  'pair-sum-sorted',
+  'longest-unique-substring',
+  'next-greater-element',
+  'grid-bfs',
+  'kth-largest',
+  'lcs',
+  'union-find',
+  'topo-sort',
+  'dijkstra',
+]);
+// A walled-off goal, a cycle with no free node or an isolated source can end these before there is anything to predict.
+const MAY_ASK_NOTHING = new Set(['grid-bfs', 'topo-sort', 'dijkstra']);
+// A code span never wraps, so a longer one would overflow a phone-width line.
+const MAX_CODE_SPAN = 24;
+
+/** Every way a learner text would render badly: backticks mark code spans, so they must pair up. */
+const textProblems = (field: string, text: string) =>
+  [
+    text.includes('\u00a0') && 'a non-breaking space',
+    codeSpans(text).some((part) => part.text.includes('`')) && 'an unbalanced backtick',
+    ...codeSpans(text).map(
+      ({ text: span, code }) => code && span.length > MAX_CODE_SPAN && `a code span over ${MAX_CODE_SPAN} characters: ${span}`,
+    ),
+  ].flatMap((problem) => (problem ? [`${field} has ${problem}`] : []));
 
 /** Every way a trace breaks the frame contract, so a single expect per trace reports them all. */
 const frameProblems = (frames: Frame[], lines: number) =>
@@ -15,6 +45,8 @@ const frameProblems = (frames: Frame[], lines: number) =>
       p && new Set(p.choices).size !== p.choices.length && 'repeated choices',
       p && !(p.answer >= 0 && p.answer < p.choices.length) && `answer ${p.answer} is not a choice`,
       p && (p.prompt.length <= 10 || p.explain.length <= 10) && 'prompt or explain too short',
+      ...textProblems('note', f.note),
+      ...(p ? [...textProblems('prompt', p.prompt), ...textProblems('explain', p.explain)] : []),
     ].flatMap((problem) => (problem ? [`frame ${k}: ${problem}`] : []));
   });
 
@@ -179,7 +211,6 @@ const reference: Record<string, (input: any) => unknown> = {
       }
     return count;
   },
-  // Follows next pointers and remembers every node it visits: the O(n) memory approach Floyd avoids.
   'linked-list-cycle': ({ values, pos }) => {
     const next = (node: number) => (node + 1 < values.length ? node + 1 : pos >= 0 ? pos : null);
     const seen = new Set<number>();
@@ -230,14 +261,29 @@ describe.each(ALGORITHMS.map((a) => [a.id, a] as const))('%s', (id, algo) => {
     return frames;
   };
 
+  it('writes a summary the player can render', () => {
+    expect(textProblems('summary', algo.summary)).toEqual([]);
+  });
+
   it('traces the default input correctly and asks at least one prediction', () => {
     const frames = check(algo.defaultInput);
     expect(frames.some((f) => f.predict)).toBe(true);
   });
 
-  it('matches a reference implementation on 300 random inputs, with well-formed frames', () => {
+  it('matches a reference implementation on 300 random inputs, with well-formed frames that ask a prediction', () => {
     const rand = mulberry32(id.length * 7919);
-    for (let i = 0; i < 300; i++) check(algo.randomInput(rand));
+    for (let i = 0; i < 300; i++) {
+      const frames = check(algo.randomInput(rand));
+      if (!MAY_ASK_NOTHING.has(id)) expect(frames.some((f) => f.predict)).toBe(true);
+    }
+  });
+
+  it(LEGACY_EM_DASH.has(id) ? 'still shows a legacy em dash' : 'never shows an em dash', () => {
+    const rand = mulberry32(id.length);
+    const traces = [algo.defaultInput, ...Array.from({ length: 20 }, () => algo.randomInput(rand))].map((input) =>
+      algo.trace(algo.validate(input)),
+    );
+    expect(JSON.stringify([algo, traces]).includes(EM_DASH)).toBe(LEGACY_EM_DASH.has(id));
   });
 
   it('emits frames that survive a JSON round-trip', () => {
@@ -271,6 +317,9 @@ describe('input validation', () => {
     expect(() => getAlgorithm('binary-search')!.validate({ nums: 'a,b', target: 1 })).toThrow(InputError);
     expect(() => getAlgorithm('grid-bfs')!.validate({ grid: ['S..', '..'] })).toThrow(InputError);
     expect(() => getAlgorithm('longest-unique-substring')!.validate({ s: '' })).toThrow(InputError);
+    expect(() => getAlgorithm('longest-unique-substring')!.validate({ s: 'a`bc`d' })).toThrow(
+      new InputError('s cannot contain a backtick'),
+    );
   });
 
   it('sorts inputs that must be sorted', () => {

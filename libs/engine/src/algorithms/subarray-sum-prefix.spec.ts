@@ -1,19 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { mulberry32 } from './input.js';
 import { subarraySumPrefix as algo } from './subarray-sum-prefix.js';
+import { correctChoices, resultOf, tracerFixture } from './tracer.fixture.js';
 import { InputError, type Frame } from './types.js';
 
 type Input = ReturnType<typeof algo.validate>;
 
-const EM_DASH = '\u2014';
-
-const traceOf = (input: unknown) => algo.trace(algo.validate(input));
-const resultOf = (frames: Frame[]) => frames[frames.length - 1].vars['result'];
-const correctChoices = (frames: Frame[]) => frames.flatMap((f) => (f.predict ? [f.predict.choices[f.predict.answer]] : []));
-const randomInputs = (seed: number, count: number) => {
-  const rand = mulberry32(seed);
-  return Array.from({ length: count }, () => algo.randomInput(rand));
-};
+const { traceOf, randomInputs } = tracerFixture(algo);
 const prefixesOf = (nums: number[]) => nums.reduce((pre, x) => [...pre, pre[pre.length - 1] + x], [0]);
 
 const SAMPLES: Input[] = [
@@ -109,7 +101,7 @@ describe('subarray-sum-prefix', () => {
     const seen = new Set<string>();
     for (const input of randomInputs(7, 80)) {
       const frames = traceOf(input);
-      expect(frames.some((f) => f.predict) && Number(resultOf(frames)) >= 1).toBe(true);
+      expect(Number(resultOf(frames))).toBeGreaterThanOrEqual(1);
       for (const f of frames) {
         if (!f.predict) continue;
         const { choices, answer, explain } = f.predict;
@@ -140,11 +132,5 @@ describe('subarray-sum-prefix', () => {
     );
     expect(() => algo.validate({ nums: [1, 10], k: 3 })).toThrow('nums must contain integers between -9 and 9');
     expect(() => algo.validate({ nums: [1, 2], k: 1.5 })).toThrow('k must be an integer');
-  });
-
-  it('never shows an em dash', () => {
-    const rand = mulberry32(1);
-    const traces = [algo.defaultInput, ...Array.from({ length: 20 }, () => algo.randomInput(rand))].map(traceOf);
-    expect(JSON.stringify([algo, traces])).not.toContain(EM_DASH);
   });
 });

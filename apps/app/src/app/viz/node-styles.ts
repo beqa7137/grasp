@@ -1,4 +1,4 @@
-/** Node and legend styling shared by the SVG graph and tree views. */
+/** Node styling shared by the SVG graph and tree views. */
 export const NODE_STYLES = `
   .node .body {
     fill: var(--g-raised);
@@ -44,45 +44,5 @@ export const NODE_STYLES = `
     stroke: var(--g-surface);
     stroke-width: 3px;
     stroke-linejoin: round;
-  }
-  .legend {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 14px;
-    justify-content: center;
-    margin-top: 10px;
-    font-size: 12px;
-    color: var(--g-muted);
-  }
-  .legend span {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .legend i {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    border: 1.5px solid;
-  }
-  .legend i[data-state='idle'] {
-    background: var(--g-raised);
-    border-color: var(--g-line-strong);
-  }
-  .legend i[data-state='active'] {
-    background: var(--g-active);
-    border-color: var(--g-active);
-  }
-  .legend i[data-state='frontier'] {
-    background: rgba(255, 181, 71, 0.16);
-    border-color: var(--g-warn);
-  }
-  .legend i[data-state='done'] {
-    background: rgba(61, 220, 151, 0.16);
-    border-color: var(--g-found);
-  }
-  .legend i[data-state='marked'] {
-    border-color: var(--g-found);
-    box-shadow: 0 0 0 2px var(--g-surface), 0 0 0 3.5px var(--g-found);
   }
 `;
