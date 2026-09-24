@@ -6,11 +6,13 @@ import { AuthModule } from './auth/auth.module.js';
 import { IdentityGuard } from './auth/identity.guard.js';
 import { UserThrottlerGuard } from './auth/user-throttler.guard.js';
 import { APP_CONFIG, type AppConfig } from './config.js';
+import { SharedThrottlerStorage } from './common/shared-throttler.storage.js';
 import { CurriculumController } from './curriculum/curriculum.controller.js';
 import { FeedbackController } from './feedback/feedback.controller.js';
 import { HealthController } from './health/health.controller.js';
 import { InterviewModule } from './interview/interview.module.js';
 import { PersistenceModule } from './persistence/persistence.module.js';
+import { CoordinationStore } from './persistence/stores.js';
 import { MyDataController } from './privacy/my-data.controller.js';
 import { ProgressController } from './progress/progress.controller.js';
 import { ProgressService } from './progress/progress.service.js';
@@ -22,10 +24,11 @@ import { ProgressService } from './progress/progress.service.js';
     InterviewModule,
     ThrottlerModule.forRootAsync({
       imports: [PersistenceModule],
-      inject: [APP_CONFIG],
-      useFactory: (config: AppConfig) => ({
+      inject: [APP_CONFIG, CoordinationStore],
+      useFactory: (config: AppConfig, store: CoordinationStore) => ({
         throttlers: [{ ttl: 60_000, limit: config.rateLimitPerMinute }],
         errorMessage: 'Too many requests. Please wait a moment and try again.',
+        storage: new SharedThrottlerStorage(store),
       }),
     }),
   ],

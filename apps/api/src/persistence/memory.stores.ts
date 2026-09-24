@@ -4,7 +4,15 @@ import type { LearnerEvent } from '../admin/cohort-metrics.js';
 import type { LoginCode, RefreshTokenRecord, User } from '../auth/auth.types.js';
 import type { FeedbackEntry } from '../feedback/feedback.types.js';
 import type { InterviewSession } from '../interview/interview.types.js';
-import { AuthStore, FeedbackStore, InterviewStore, ProgressStore, type AppendResult } from './stores.js';
+import {
+  AuthStore,
+  CoordinationStore,
+  FeedbackStore,
+  InterviewStore,
+  ProgressStore,
+  type AppendResult,
+  type WindowTotal,
+} from './stores.js';
 
 @Injectable()
 export class MemoryProgressStore extends ProgressStore {
@@ -174,3 +182,63 @@ export class MemoryAuthStore extends AuthStore {
     return user ? { ...user } : null;
   }
 }
+
+/** Single-process coordination: correct for one instance, which is all the in-memory mode supports anyway. */
+export class MemoryCoordinationStore extends CoordinationStore {
+  private readonly windows = new Map<string, { start: number; total: number; expiresAt: number }>();
+  private readonly leases = new Map<string, { holder: string; expiresAt: number }>();
+
+  constructor(private readonly now: () => number = Date.now) {
+    super();
+  }
+
+  async add(key: string, windowMs: number, amount: number, retainMs = 0): Promise<WindowTotal> {
+    const w = this.current(key, windowMs, retainMs);
+    w.total += amount;
+    return { total: w.total, resetsInMs: w.start + windowMs - this.now() };
+  }
+
+  async take(key: string, windowMs: number, limit: number): Promise<WindowTotal | null> {
+    const w = this.current(key, windowMs, 0);
+    if (w.total >= limit) return null;
+    w.total += 1;
+    return { total: w.total, resetsInMs: w.start + windowMs - this.now() };
+  }
+
+  async read(key: string, windowMs: number): Promise<number> {
+    const start = windowStart(this.now(), windowMs);
+    const w = this.windows.get(key);
+    return w && w.start === start ? w.total : 0;
+  }
+
+  async acquireLease(key: string, holder: string, ttlMs: number): Promise<boolean> {
+    const lease = this.leases.get(key);
+    if (lease && lease.expiresAt > this.now() && lease.holder !== holder) return false;
+    this.leases.set(key, { holder, expiresAt: this.now() + ttlMs });
+    return true;
+  }
+
+  async releaseLease(key: string, holder: string): Promise<void> {
+    if (this.leases.get(key)?.holder === holder) this.leases.delete(key);
+  }
+
+  async sweep(): Promise<number> {
+    const now = this.now();
+    let removed = 0;
+    for (const [key, w] of this.windows) if (w.expiresAt <= now && this.windows.delete(key)) removed++;
+    for (const [key, l] of this.leases) if (l.expiresAt <= now && this.leases.delete(key)) removed++;
+    return removed;
+  }
+
+  private current(key: string, windowMs: number, retainMs: number) {
+    const start = windowStart(this.now(), windowMs);
+    let w = this.windows.get(key);
+    if (!w || w.start !== start) {
+      w = { start, total: 0, expiresAt: start + windowMs + retainMs };
+      this.windows.set(key, w);
+    }
+    return w;
+  }
+}
+
+export const windowStart = (at: number, windowMs: number) => Math.floor(at / windowMs) * windowMs;

@@ -9,8 +9,8 @@ Grasp ships as one Docker image that serves the API under `/api` and the web app
 - **Python runtime.** The image serves Pyodide (about 14 MB) from `/pyodide/`. The code-runner worker gets its own CSP that allows `eval`, while the page keeps a strict one (see [CODE_RUNNER.md](CODE_RUNNER.md)).
 - **Runtime config.** It generates `/config.json` from the environment, so the same image works in every environment.
 - **Migrations.** `node apps/api/dist/migrate.js` applies migrations. On Fly this runs as the release command before new machines take traffic.
-- **Health.** `GET /api/health` is liveness: it reports storage, interviewer mode and release. `GET /api/health/ready` is readiness: it checks the database and returns 503 when the database is unreachable. The Docker `HEALTHCHECK` uses liveness; Fly's check uses readiness.
-- **Hardening.** Helmet sets the security headers, including a CSP with no inline scripts. The server rejects JSON bodies over 256 kB and rate-limits each client IP (`RATE_LIMIT_PER_MINUTE`, health checks exempt). It trusts `TRUST_PROXY` hops for the client IP.
+- **Health.** `GET /api/health` is liveness: it reports storage, interviewer mode and release. `GET /api/health/ready` is readiness: it checks the database and returns 503 when the database is unreachable. The Docker `HEALTHCHECK` and Fly's routing check use liveness, so a database outage returns the API's own 503s instead of the proxy dropping every machine, and a scale-to-zero database such as Neon's free tier can sleep between visits. CI and the deploy workflow check readiness.
+- **Hardening.** Helmet sets the security headers, including a CSP with no inline scripts. The server rejects JSON bodies over 256 kB and rate-limits each caller (`RATE_LIMIT_PER_MINUTE` per signed-in user or client IP, health checks exempt). It trusts `TRUST_PROXY` hops for the client IP.
 - **Logs.** Structured JSON logs, one access line per request with a request id. An incoming well-formed `X-Request-Id` is reused and echoed back.
 - **Shutdown.** SIGTERM closes the HTTP server and the Postgres pool.
 - **Config validation.** Environment variables are checked at startup, and every invalid one is reported before the process exits.
@@ -57,7 +57,9 @@ curl https://<app>.fly.dev/api/health
 fly logs
 ```
 
-`fly.toml` keeps exactly one machine running, with auto-stop off. The AI spend ceiling, per-learner quotas and per-session interview locks live in process memory, so running more machines would multiply the spend ceiling and weaken those locks. Keep one machine until that state moves into Postgres. One `shared-cpu-1x`/512 MB machine is plenty for a pilot.
+State every instance must agree on lives in Postgres: the AI spend ceiling and its daily totals, per-learner interview quotas and rate-limit counters (`counters`), and per-session interview locks (`leases`, which expire after 15 minutes if a machine dies mid-call). So any number of machines can run. `fly.toml` keeps at least one running with auto-stop off; `fly scale count 2` adds a second in the same region for zero-downtime deploys and failover, at the price of one more machine. Every request writes its rate-limit counter, which costs one database round trip (about 1 ms on a local network). Without `DATABASE_URL`, the in-memory fallback keeps this state per process, so run a single instance in that mode.
+
+**Neon free tier.** It allows 100 compute-hours a month at the smallest size and sleeps after 5 idle minutes. That is why Fly's health check avoids the database. Real traffic keeps it awake while people use the app, which fits comfortably for a pilot; watch the usage page in the Neon console as the cohort grows.
 
 ## Continuous deployment
 

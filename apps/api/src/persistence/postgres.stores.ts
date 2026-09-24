@@ -7,7 +7,15 @@ import type { LoginCode, RefreshTokenRecord, User } from '../auth/auth.types.js'
 import type { FeedbackContext, FeedbackEntry, FeedbackKind } from '../feedback/feedback.types.js';
 import type { InterviewSession } from '../interview/interview.types.js';
 import * as schema from './schema.js';
-import { AuthStore, FeedbackStore, InterviewStore, ProgressStore, type AppendResult } from './stores.js';
+import {
+  AuthStore,
+  CoordinationStore,
+  FeedbackStore,
+  InterviewStore,
+  ProgressStore,
+  type AppendResult,
+  type WindowTotal,
+} from './stores.js';
 
 export type Db = NodePgDatabase<typeof schema>;
 
@@ -263,3 +271,77 @@ function toEntry(row: typeof schema.feedback.$inferSelect): FeedbackEntry {
     createdAt: new Date(row.createdAt).toISOString(),
   };
 }
+
+/** Start of the fixed window containing now(), aligned to the Unix epoch, on the database clock. */
+const windowStartSql = (windowMs: number) =>
+  sql`to_timestamp(floor(extract(epoch from now()) * 1000 / ${windowMs}::double precision) * ${windowMs}::double precision / 1000)`;
+const msSql = (ms: number) => sql`make_interval(secs => ${ms}::double precision / 1000)`;
+
+interface WindowRow extends Record<string, unknown> {
+  total: number;
+  resets_in_ms: number;
+}
+
+/**
+ * Every statement is a single atomic upsert, so concurrent instances never lose an update and `take`
+ * can never exceed its limit, without explicit transactions or locks.
+ */
+export class PostgresCoordinationStore extends CoordinationStore {
+  constructor(private readonly db: Db) {
+    super();
+  }
+
+  async add(key: string, windowMs: number, amount: number, retainMs = 0): Promise<WindowTotal> {
+    const { rows } = await this.db.execute<WindowRow>(sql`
+      with w as (select ${windowStartSql(windowMs)} as start)
+      insert into counters (key, window_start, total, expires_at)
+      select ${key}, w.start, ${amount}::double precision, w.start + ${msSql(windowMs + retainMs)} from w
+      on conflict (key, window_start) do update set total = counters.total + excluded.total
+      returning total, ${resetsInMsSql(windowMs)} as resets_in_ms`);
+    return toWindowTotal(rows[0]);
+  }
+
+  async take(key: string, windowMs: number, limit: number): Promise<WindowTotal | null> {
+    if (limit <= 0) return null;
+    const { rows } = await this.db.execute<WindowRow>(sql`
+      with w as (select ${windowStartSql(windowMs)} as start)
+      insert into counters (key, window_start, total, expires_at)
+      select ${key}, w.start, 1, w.start + ${msSql(windowMs)} from w
+      on conflict (key, window_start) do update set total = counters.total + 1
+        where counters.total < ${limit}::double precision
+      returning total, ${resetsInMsSql(windowMs)} as resets_in_ms`);
+    return rows[0] ? toWindowTotal(rows[0]) : null;
+  }
+
+  async read(key: string, windowMs: number): Promise<number> {
+    const { rows } = await this.db.execute<{ total: number }>(sql`
+      select total from counters where key = ${key} and window_start = ${windowStartSql(windowMs)}`);
+    return rows[0]?.total ?? 0;
+  }
+
+  async acquireLease(key: string, holder: string, ttlMs: number): Promise<boolean> {
+    const { rows } = await this.db.execute(sql`
+      insert into leases (key, holder, expires_at) values (${key}, ${holder}, now() + ${msSql(ttlMs)})
+      on conflict (key) do update set holder = excluded.holder, expires_at = excluded.expires_at
+        where leases.expires_at <= now() or leases.holder = excluded.holder
+      returning holder`);
+    return rows.length === 1;
+  }
+
+  async releaseLease(key: string, holder: string): Promise<void> {
+    await this.db.delete(schema.leases).where(and(eq(schema.leases.key, key), eq(schema.leases.holder, holder)));
+  }
+
+  async sweep(): Promise<number> {
+    const counters = await this.db.delete(schema.counters).where(lt(schema.counters.expiresAt, sql`now()`));
+    const leases = await this.db.delete(schema.leases).where(lt(schema.leases.expiresAt, sql`now()`));
+    return (counters.rowCount ?? 0) + (leases.rowCount ?? 0);
+  }
+}
+
+const resetsInMsSql = (windowMs: number) => sql`(extract(epoch from (window_start + ${msSql(windowMs)} - now())) * 1000)::double precision`;
+
+const toWindowTotal = (row: WindowRow): WindowTotal => ({
+  total: Number(row.total),
+  resetsInMs: Math.max(0, Math.round(Number(row.resets_in_ms))),
+});

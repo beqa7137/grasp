@@ -1,7 +1,7 @@
 import { ConflictException, HttpException, HttpStatus, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { APP_CONFIG, type AppConfig } from '../config.js';
-import { InterviewStore, ProgressStore } from '../persistence/stores.js';
+import { CoordinationStore, InterviewStore, ProgressStore } from '../persistence/stores.js';
 import { Interviewer } from './interviewer.js';
 import type { CodeSnapshot, InterviewSession, InterviewTrack, PublicInterviewSession, TokenUsage } from './interview.types.js';
 import { addUsage } from './pricing.js';
@@ -9,6 +9,11 @@ import { PROBLEMS, pickProblem } from './problems.js';
 import { SpendGuard } from './spend-guard.js';
 
 const HOUR_MS = 3_600_000;
+/**
+ * Upper bound on one reply or scoring call, retries included. The lease is released as soon as the call
+ * ends; the expiry only matters if an instance dies mid-call, and then frees the session after this long.
+ */
+const SESSION_LEASE_MS = 15 * 60_000;
 
 export const interviewEventId = (sessionId: string) => `interview-${sessionId}`;
 const MAX_CANDIDATE_TURNS = 30;
@@ -16,14 +21,13 @@ const MAX_CANDIDATE_TURNS = 30;
 @Injectable()
 export class InterviewService {
   private readonly log = new Logger(InterviewService.name);
-  private readonly quota = new Map<string, number[]>();
-  private readonly inFlight = new Set<string>();
 
   constructor(
     private readonly store: InterviewStore,
     private readonly progress: ProgressStore,
     private readonly interviewer: Interviewer,
     private readonly spend: SpendGuard,
+    private readonly coordination: CoordinationStore,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
@@ -75,8 +79,8 @@ export class InterviewService {
       if (session.messages.filter((m) => m.role === 'candidate').length >= MAX_CANDIDATE_TURNS) {
         throw new ConflictException('Turn limit reached — end the interview to get your scorecard');
       }
-      this.spend.assertAvailable();
-      this.consumeQuota(learnerId);
+      await this.spend.assertAvailable();
+      await this.consumeQuota(learnerId);
 
       const code = input.code?.source.trim() ? { language: input.code.language, source: input.code.source.replace(/\s+$/, '') } : undefined;
       session.messages.push({
@@ -89,7 +93,7 @@ export class InterviewService {
       if (input.hint) session.hintsUsed += 1;
 
       const reply = await this.interviewer.reply(session, onDelta, signal);
-      this.track(session, reply.usage ? [reply.usage] : []);
+      await this.track(session, reply.usage ? [reply.usage] : []);
       const message = { role: 'interviewer' as const, content: reply.text, at: new Date().toISOString() };
       session.messages.push(message);
       await this.store.save(session);
@@ -101,10 +105,10 @@ export class InterviewService {
     return this.exclusive(id, async () => {
       const session = await this.load(learnerId, id);
       if (session.scorecard) return this.toPublic(session);
-      this.spend.assertAvailable();
-      this.consumeQuota(learnerId);
+      await this.spend.assertAvailable();
+      await this.consumeQuota(learnerId);
       const result = await this.interviewer.score(session);
-      this.track(session, result.usage ?? []);
+      await this.track(session, result.usage ?? []);
       session.scorecard = result.scorecard;
       session.status = 'scored';
       session.scoredAt = new Date().toISOString();
@@ -133,21 +137,26 @@ export class InterviewService {
     });
   }
 
-  /** One model call per session at a time; a second request would race the first one's save. */
+  /** One model call per session at a time, across all instances; a second request would race the first one's save. */
   private async exclusive<T>(sessionId: string, run: () => Promise<T>): Promise<T> {
-    if (this.inFlight.has(sessionId)) throw new ConflictException('The interviewer is still working on your last message');
-    this.inFlight.add(sessionId);
+    const key = `interview-session:${sessionId}`;
+    const holder = randomUUID();
+    if (!(await this.coordination.acquireLease(key, holder, SESSION_LEASE_MS))) {
+      throw new ConflictException('The interviewer is still working on your last message');
+    }
     try {
       return await run();
     } finally {
-      this.inFlight.delete(sessionId);
+      await this.coordination.releaseLease(key, holder).catch((error: unknown) => {
+        this.log.warn(`Could not release the lease on ${sessionId}; it expires on its own: ${String(error)}`);
+      });
     }
   }
 
-  private track(session: InterviewSession, usage: TokenUsage[]) {
+  private async track(session: InterviewSession, usage: TokenUsage[]) {
     for (const u of usage) {
       session.usage = addUsage(session.usage, u);
-      this.spend.record(u.costUsd);
+      await this.spend.record(u.costUsd);
     }
   }
 
@@ -157,14 +166,10 @@ export class InterviewService {
     return session;
   }
 
-  private consumeQuota(learnerId: string) {
-    const now = Date.now();
-    const recent = (this.quota.get(learnerId) ?? []).filter((t) => now - t < HOUR_MS);
-    if (recent.length >= this.config.interviewMessagesPerHour) {
-      throw new HttpException('Interview rate limit reached, try again later', HttpStatus.TOO_MANY_REQUESTS);
-    }
-    recent.push(now);
-    this.quota.set(learnerId, recent);
+  /** Fixed hourly windows: a learner gets `interviewMessagesPerHour` model calls per clock hour. */
+  private async consumeQuota(learnerId: string) {
+    const taken = await this.coordination.take(`interview-quota:${learnerId}`, HOUR_MS, this.config.interviewMessagesPerHour);
+    if (!taken) throw new HttpException('Interview rate limit reached, try again later', HttpStatus.TOO_MANY_REQUESTS);
   }
 
   private toPublic(s: InterviewSession): PublicInterviewSession {

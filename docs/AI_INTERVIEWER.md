@@ -57,7 +57,7 @@ The service stores the running total on the session as `session.usage` (calls, t
 
 A rough budget with Sonnet 5 ($2 in, $10 out, $0.20 cache read, $2.50 cache write per million tokens): a 12-turn interview plus scoring costs a few cents. `npm run eval:interviewer` prints the measured figures.
 
-`AI_DAILY_BUDGET_USD` sets a daily ceiling in UTC days. Once it is reached, new replies and scoring return 503 with a clear message until the next UTC day. The counter lives in process memory, so with several API instances the effective ceiling is the budget times the number of instances, and a restart resets it. If a model has no price entry, its cost is `null` and the ceiling can't apply; a warning is logged at startup.
+`AI_DAILY_BUDGET_USD` sets a daily ceiling in UTC days. Once it is reached, new replies and scoring return 503 with a clear message until the next UTC day. The daily total is stored in Postgres (`counters`) and shared by every API instance, and daily totals are kept for 90 days as a spend history. Checking and charging are separate steps, so calls already running when the ceiling is reached can overshoot it by their own cost. If the total cannot be read, paid calls are refused; a failure to record a cost is logged but never fails the learner's request. Without a database the total is per process and resets on restart. If a model has no price entry, its cost is `null` and the ceiling can't apply; a warning is logged at startup.
 
 ## Failure handling
 
@@ -75,8 +75,8 @@ What remains after those retries is mapped in `anthropic-errors.ts`:
 - **Errors before the first streamed token** return a JSON error response. **Errors after it** arrive as an SSE `error` event. In both cases the candidate's turn is not saved, so the app puts the text back in the input and the learner can resend it.
 - **A refusal or empty reply** is replaced by a neutral prompt to continue the interview.
 - **Scoring** retries once if the output fails validation or stops with `max_tokens`/`refusal`. If the second attempt fails too, the offline heuristic scorer produces the card with `mode: "offline"` and a summary that says so, and the app labels it "offline heuristic". API errors during scoring are not replaced by the heuristic: they return 503, and the learner can score again later.
-- **Concurrent requests** for the same session (a double-tap, two tabs) get 409 while a reply or scoring call is in flight, so two writes can't race. The lock is per process.
-- **Per-learner quota:** `INTERVIEW_MESSAGES_PER_HOUR` (default 120). Each session allows at most 30 candidate turns of up to 4,000 characters.
+- **Concurrent requests** for the same session (a double-tap, two tabs) get 409 while a reply or scoring call is in flight, so two writes can't race. The lock is a lease in Postgres, so it holds across API instances; it is released when the call ends and expires after 15 minutes if an instance dies mid-call.
+- **Per-learner quota:** `INTERVIEW_MESSAGES_PER_HOUR` (default 120) replies and scorings per clock hour, counted across instances. Each session allows at most 30 candidate turns of up to 4,000 characters.
 
 ## Testing
 
