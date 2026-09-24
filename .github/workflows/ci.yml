@@ -68,8 +68,8 @@ jobs:
       - name: Test (engine, API against memory + Postgres, app)
         run: npm test
 
-  # The runners have two cores, so the suite is split across four of them. Each shard builds the app itself:
-  # that overlaps with installing Chromium and is quicker than waiting for a separate build job.
+  # The runners have two cores, so the suite is split across four of them. Each shard builds the app itself,
+  # which is quicker than waiting for a separate build job.
   e2e:
     name: Browser end-to-end tests (${{ matrix.shard }}/${{ strategy.job-total }})
     runs-on: ubuntu-latest
@@ -99,18 +99,19 @@ jobs:
         id: playwright
         run: echo "version=$(node -p "require('playwright-core/package.json').version")" >> "$GITHUB_OUTPUT"
 
-      # With the browser cached, the install below only adds its system libraries.
       - uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.version }}
 
-      # Headless tests only need Chromium's headless shell, not the full browser.
-      - name: Build, and install Chromium alongside
-        run: |
-          npx -w @grasp/e2e playwright install --with-deps --only-shell chromium > "$RUNNER_TEMP/chromium.log" 2>&1 &
-          npm run build
-          wait $! || { cat "$RUNNER_TEMP/chromium.log"; exit 1; }
+      # Only the headless shell, since the tests run headless. No --with-deps: the runner image already has
+      # Chromium's libraries (it ships Google Chrome), the app brings its own fonts, and the apt run took
+      # 15-30 s a shard.
+      - name: Install Chromium
+        run: npx -w @grasp/e2e playwright install --only-shell chromium
+
+      - name: Build
+        run: npm run build
 
       - name: Upload web build
         if: matrix.shard == 1
