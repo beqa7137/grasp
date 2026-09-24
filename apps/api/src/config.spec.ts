@@ -40,6 +40,15 @@ describe('loadConfig', () => {
     });
   });
 
+  it('takes the release and environment from Vercel unless set explicitly', () => {
+    const vercel = { VERCEL_ENV: 'preview', VERCEL_GIT_COMMIT_SHA: '0123456789abcdef0123456789abcdef01234567' };
+    expect(loadConfig(vercel)).toMatchObject({ release: '0123456', sentryEnvironment: 'preview' });
+    expect(loadConfig({ ...vercel, RELEASE: 'v1.2.3', SENTRY_ENVIRONMENT: 'staging' })).toMatchObject({
+      release: 'v1.2.3',
+      sentryEnvironment: 'staging',
+    });
+  });
+
   it('requires a JWT secret in production only', () => {
     expect(() => loadConfig({ NODE_ENV: 'production' })).toThrow(/JWT_SECRET: is required in production/);
     expect(loadConfig({ NODE_ENV: 'development' }).jwtSecret).toBeNull();

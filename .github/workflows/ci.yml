@@ -123,3 +123,52 @@ jobs:
       - name: Container logs
         if: always()
         run: docker logs grasp || true
+
+  vercel:
+    name: Vercel build smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: grasp
+          POSTGRES_PASSWORD: grasp
+          POSTGRES_DB: grasp
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U grasp"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      VERCEL_CLI: vercel@59.26.0
+      VERCEL_TELEMETRY_DISABLED: '1'
+      # Express handles req/res itself; Vercel's helpers would shadow res.json and friends.
+      NODEJS_HELPERS: '0'
+      DATABASE_URL: postgresql://grasp:grasp@localhost:5432/grasp
+      JWT_SECRET: ci-only-secret-for-the-smoke-test-0123456789
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # The same `vercel build` the deploy runs, with a placeholder project link: no Vercel account needed.
+      - name: Build the Vercel output
+        run: |
+          mkdir -p .vercel
+          echo '{"projectId":"prj_ci","orgId":"team_ci","settings":{"framework":null}}' > .vercel/project.json
+          npx --yes "$VERCEL_CLI" build --prod --yes
+
+      - name: Migrate the test database
+        run: node apps/api/dist/migrate.js
+
+      - name: Smoke-test the function and the static output
+        run: node scripts/smoke-vercel-output.mjs

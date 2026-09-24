@@ -1,4 +1,5 @@
 import { Global, Inject, Injectable, Logger, Module, type OnApplicationBootstrap, type OnApplicationShutdown } from '@nestjs/common';
+import { attachDatabasePool } from '@vercel/functions';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
 import { APP_CONFIG, loadConfig, type AppConfig } from '../config.js';
@@ -65,7 +66,10 @@ export class CoordinationSweeper implements OnApplicationBootstrap, OnApplicatio
           return null;
         }
         log.log('Using Postgres.');
-        return new pg.Pool({ connectionString: config.databaseUrl, max: 10 });
+        const pool = new pg.Pool({ connectionString: config.databaseUrl, max: 10 });
+        // On Vercel, keeps a suspended instance alive just long enough to close idle connections; a no-op elsewhere.
+        attachDatabasePool(pool);
+        return pool;
       },
     },
     { provide: DB, inject: [PG_POOL], useFactory: (pool: pg.Pool | null) => (pool ? drizzle(pool, { schema }) : null) },

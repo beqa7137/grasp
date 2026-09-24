@@ -1,5 +1,5 @@
 // Fetches /api/admin/metrics and prints a Markdown pilot report with targets from docs/PILOT.md.
-// Usage: ADMIN_TOKEN=... node scripts/pilot-report.mjs --url https://grasp.fly.dev [--out reports/week-1.md]
+// Usage: ADMIN_TOKEN=... node scripts/pilot-report.mjs --url https://grasp.example.com [--out reports/week-1.md]
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { parseArgs } from 'node:util';

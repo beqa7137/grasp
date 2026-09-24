@@ -1,0 +1,85 @@
+name: Set up Vercel
+
+# One-time and idempotent: creates the Vercel project if it is missing and loads its production
+# environment from this repository's secrets and variables. Re-run after adding or rotating a secret.
+# Deploys stay in deploy.yml. See docs/DEPLOYMENT.md.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  setup:
+    name: Create project and load environment
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      VERCEL_CLI: vercel@59.26.0
+      VERCEL_TELEMETRY_DISABLED: '1'
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_SCOPE: ${{ vars.VERCEL_SCOPE }}
+      PROJECT: ${{ vars.VERCEL_PROJECT || 'grasp' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      - name: Check required secrets
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        run: |
+          missing=()
+          for name in VERCEL_TOKEN DATABASE_URL JWT_SECRET; do [ -n "${!name}" ] || missing+=("$name"); done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Add these repository secrets first: ${missing[*]}"
+            exit 1
+          fi
+
+      - name: Create and link the project
+        run: |
+          vc() { npx --yes "$VERCEL_CLI" "$@" --token "$VERCEL_TOKEN" ${VERCEL_SCOPE:+--scope "$VERCEL_SCOPE"}; }
+          if vc project inspect "$PROJECT" > /dev/null 2>&1; then
+            echo "Project $PROJECT already exists"
+          else
+            vc project add "$PROJECT"
+          fi
+          vc link --yes --project "$PROJECT"
+
+      # Values are piped on stdin, never passed as arguments, so they cannot show up in logs. Secrets are
+      # stored as Vercel "sensitive" variables, which cannot be read back; plain settings stay readable.
+      - name: Load the production environment
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          SENTRY_WEB_DSN: ${{ secrets.SENTRY_WEB_DSN }}
+          AI_DAILY_BUDGET_USD: ${{ vars.AI_DAILY_BUDGET_USD }}
+          MAIL_FROM: ${{ vars.MAIL_FROM }}
+          NODEJS_HELPERS: '0'
+        run: |
+          vc() { npx --yes "$VERCEL_CLI" "$@" --token "$VERCEL_TOKEN" ${VERCEL_SCOPE:+--scope "$VERCEL_SCOPE"}; }
+          set_env() {
+            local name=$1 kind=$2
+            [ -n "${!name}" ] || return 0
+            printf '%s' "${!name}" | vc env add "$name" production --force "$kind" > /dev/null
+            loaded+=("$name")
+          }
+          loaded=()
+          for name in DATABASE_URL JWT_SECRET ADMIN_TOKEN ANTHROPIC_API_KEY RESEND_API_KEY SENTRY_DSN SENTRY_WEB_DSN; do
+            set_env "$name" --sensitive
+          done
+          for name in AI_DAILY_BUDGET_USD MAIL_FROM NODEJS_HELPERS; do
+            set_env "$name" --no-sensitive
+          done
+          echo "Production environment for $PROJECT: ${loaded[*]}"

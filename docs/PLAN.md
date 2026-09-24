@@ -84,8 +84,9 @@ now is.)
 
 **Coding practice.** Learner code runs in a Web Worker on the device (JS/TS natively, Python on Pyodide), with per-test time limits and statement-level tracing into the visualizer. See [CODE_RUNNER.md](CODE_RUNNER.md).
 
-**Deployment.** One Docker image serves the API and the web app, with runtime config and
-release-time migrations. See [DEPLOYMENT.md](DEPLOYMENT.md).
+**Deployment.** Vercel serves the web app from its CDN and the API from one function, with Neon
+Postgres holding every piece of state instances must share. The same build also ships as one Docker
+image. See [DEPLOYMENT.md](DEPLOYMENT.md) and [decisions/0001-hosting.md](decisions/0001-hosting.md).
 
 ### Data model (Drizzle, `apps/api/src/persistence/schema.ts`)
 
