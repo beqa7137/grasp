@@ -1,0 +1,11 @@
+name: Wait for Postgres
+description: Waits until the Postgres from start-postgres accepts connections, for up to a minute.
+
+runs:
+  using: composite
+  steps:
+    # Over TCP: the image's temporary setup server only listens on a socket, so it cannot pass for ready.
+    - shell: bash
+      run: |
+        timeout 60 bash -c 'until docker exec postgres pg_isready -h 127.0.0.1 -U grasp; do sleep 1; done' ||
+          { cat "$RUNNER_TEMP/postgres.log"; docker logs postgres; exit 1; }
