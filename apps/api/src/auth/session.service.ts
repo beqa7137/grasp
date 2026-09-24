@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { AuthStore } from '../persistence/stores.js';
 import { sessionEnded } from './auth-errors.js';
 import type { User } from './auth.types.js';
-import { ACCESS_TOKEN_SECONDS, TokenService, hashToken, newRefreshToken } from './tokens.js';
+import { ACCESS_TOKEN_SECONDS, TokenService, hashToken, newOpaqueToken } from './tokens.js';
 
 const REFRESH_TTL_MS = 30 * 24 * 60 * 60_000;
 /** Two tabs refreshing with the same token at once is normal; reuse after this looks like theft. */
@@ -52,7 +52,7 @@ export class SessionService {
   }
 
   private async issue(user: User, familyId: string, now: Date): Promise<AuthSession> {
-    const refreshToken = newRefreshToken();
+    const refreshToken = newOpaqueToken();
     await this.store.addRefreshToken({
       id: randomUUID(),
       userId: user.id,

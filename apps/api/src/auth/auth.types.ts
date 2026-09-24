@@ -27,7 +27,6 @@ export interface IdentitySummary {
   linkedAt: string;
 }
 
-/** Who a provider says is signing in, after its credential has been verified. */
 export interface VerifiedIdentity {
   provider: Provider;
   subject: string;
@@ -39,7 +38,6 @@ export interface VerifiedIdentity {
 
 export type OneTimePurpose = 'google_nonce' | 'github_ticket';
 
-/** A single-use random value, stored only as a hash. */
 export interface OneTimeRecord {
   hash: string;
   purpose: OneTimePurpose;

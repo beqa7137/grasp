@@ -1,8 +1,8 @@
 import type { BrowserContext, Page } from '@playwright/test';
 import { createHmac, randomBytes, randomInt } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
-import { type GitHubUser, signInToGitHub } from '../support/github';
-import { expect, synced, test } from './fixtures';
+import { type GitHubUser, collectGitHubResults, signInToGitHub } from '../support/github';
+import { expect, newClientIp, synced, test } from './fixtures';
 
 const CALLBACK_OPENERS_KEY = 'e2e.callbackOpeners';
 
@@ -36,6 +36,22 @@ async function recordCallbackOpeners(context: BrowserContext): Promise<(page: Pa
     localStorage.setItem(key, JSON.stringify([...seen, window.opener !== null]));
   }, CALLBACK_OPENERS_KEY);
   return (page) => page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? '[]') as boolean[], CALLBACK_OPENERS_KEY);
+}
+
+/** Records every request, from any page, that redeems a GitHub sign-in ticket. */
+function recordRedemptions(context: BrowserContext): string[] {
+  const redeemed: string[] = [];
+  context.on('request', (request) => {
+    if (request.method() === 'POST' && /\/api\/auth\/github(\/link)?$/.test(new URL(request.url()).pathname)) {
+      redeemed.push(request.url());
+    }
+  });
+  return redeemed;
+}
+
+/** The sign-in plugin finishes a pending sign-in as soon as it loads, and afterwards whenever the fragment changes. */
+async function waitForSignInPlugin(page: Page) {
+  await page.waitForFunction(() => 'SocialLogin' in ((window as { Capacitor?: { Plugins?: object } }).Capacitor?.Plugins ?? {}));
 }
 
 /** Keeps the tab open whatever its scripts do, and counts their attempts to close it. */
@@ -144,12 +160,7 @@ test('pressing Cancel on GitHub leaves the person signed out, silently', async (
 test('a crafted sign-in result sent to /auth/callback while a GitHub sign-in is pending signs no one in', async ({ page, context }) => {
   const user = newGitHubUser({ verified: true });
   await signInToGitHub(context, user);
-  const redeemed: string[] = [];
-  context.on('request', (request) => {
-    if (request.method() === 'POST' && /\/api\/auth\/github(\/link)?$/.test(new URL(request.url()).pathname)) {
-      redeemed.push(request.url());
-    }
-  });
+  const redeemed = recordRedemptions(context);
 
   await page.goto('/settings');
   const popup = await openGitHubConsent(page);
@@ -165,6 +176,44 @@ test('a crafted sign-in result sent to /auth/callback while a GitHub sign-in is 
   await expect(account.getByRole('button', { name: 'Sign out' })).toHaveCount(0);
   await answerGitHub(popup, 'Authorize');
   await expect(account.getByText(user.emails[0].email, { exact: true })).toBeVisible();
+});
+
+test("another person's GitHub code or ticket in a Grasp tab's address while a GitHub sign-in is pending signs no one in", async ({
+  page,
+  context,
+  playwright,
+  baseURL,
+}) => {
+  const client = await playwright.request.newContext({ extraHTTPHeaders: { 'x-forwarded-for': newClientIp() } });
+  const theirs = await collectGitHubResults(client, baseURL!, newGitHubUser({ verified: true }));
+  await client.dispose();
+  const user = newGitHubUser({ verified: true });
+  await signInToGitHub(context, user);
+  const redeemed = recordRedemptions(context);
+
+  await page.goto('/settings');
+  const popup = await openGitHubConsent(page);
+  await expect(popup.getByRole('button', { name: 'Authorize' })).toBeVisible();
+
+  // What another site could do while the popup waits on GitHub: open Grasp pages whose address carries a result of its own.
+  const tab = await context.newPage();
+  for (const planted of [
+    `/settings#access_token=${theirs.ticket}&token_type=bearer`,
+    `/settings?code=${theirs.code}&state=${randomBytes(16).toString('hex')}`,
+  ]) {
+    await tab.goto(planted);
+    await waitForSignInPlugin(tab);
+    await expect(tab).toHaveURL(/\/settings$/);
+  }
+  await tab.evaluate((ticket) => (location.hash = `access_token=${ticket}&token_type=bearer`), theirs.ticket);
+  await expect(tab).toHaveURL(/\/settings$/);
+  expect(redeemed, 'no sign-in ticket was redeemed').toEqual([]);
+
+  const account = page.locator('app-account-settings');
+  await expect(account.getByRole('button', { name: 'Sign out' })).toHaveCount(0);
+  await answerGitHub(popup, 'Authorize');
+  await expect(account.getByText(user.emails[0].email, { exact: true })).toBeVisible();
+  expect(redeemed).toHaveLength(1);
 });
 
 test('after the Google window is closed, reloading keeps the tab open and GitHub sign-in still works', async ({ page, context }) => {

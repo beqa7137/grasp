@@ -39,7 +39,8 @@ export class JoseGoogleIdTokenVerifier extends GoogleIdTokenVerifier {
 
   constructor(
     readonly clients: GoogleClients,
-    private readonly keys: JWTVerifyGetKey = createRemoteJWKSet(GOOGLE_KEYS_URL),
+    // An unknown key id still forces a refetch, so Google's key rotation never waits out the 6-hour cache.
+    private readonly keys: JWTVerifyGetKey = createRemoteJWKSet(GOOGLE_KEYS_URL, { cacheMaxAge: 6 * 60 * 60_000 }),
   ) {
     super();
     this.audiences = [clients.webClientId, ...(clients.iosClientId ? [clients.iosClientId] : [])];

@@ -8,8 +8,6 @@ export class ApiError extends Error {
     readonly status: number,
     message: string,
     readonly code?: string,
-    /** The whole error body, for errors that carry more than a code. */
-    readonly details: Record<string, unknown> = {},
   ) {
     super(message);
   }
@@ -111,12 +109,7 @@ export class ApiService {
   private async toError(res: Response): Promise<ApiError> {
     try {
       const body = await res.json();
-      return new ApiError(
-        res.status,
-        Array.isArray(body.message) ? body.message.join(', ') : (body.message ?? res.statusText),
-        body.code,
-        body,
-      );
+      return new ApiError(res.status, Array.isArray(body.message) ? body.message.join(', ') : (body.message ?? res.statusText), body.code);
     } catch {
       return new ApiError(res.status, res.statusText);
     }

@@ -5,16 +5,19 @@ import type { VerifiedIdentity } from './auth.types.js';
 import { GitHubOAuthClient, type GitHubApp, type GitHubIdentity } from './github-oauth.client.js';
 import { OneTimeValues } from './one-time-values.js';
 import { InvalidCredentialError, ProviderUnavailableError } from './provider-errors.js';
+import { hashToken, sameHash } from './tokens.js';
 
 export const NATIVE_REDIRECT_URI = 'dev.grasp.app://oauth/github';
 const TICKET_TTL_SECONDS = 5 * 60;
+
+export const codeVerifierSchema = z.string().regex(/^[\w.~-]{43,128}$/);
 
 const tokenRequestSchema = z.object({
   grant_type: z.literal('authorization_code'),
   client_id: z.string().min(1).max(256),
   code: z.string().min(1).max(512),
   redirect_uri: z.string().min(1).max(2048),
-  code_verifier: z.string().regex(/^[\w.~-]{43,128}$/),
+  code_verifier: codeVerifierSchema,
 });
 
 export interface TicketResponse {
@@ -24,10 +27,14 @@ export interface TicketResponse {
   scope: string;
 }
 
+interface TicketPayload extends GitHubIdentity {
+  verifierHash: string;
+}
+
 /**
  * The app runs GitHub's authorization-code flow (PKCE and state) and posts the code here, as to an OAuth
  * token endpoint. The server adds the client secret, learns who signed in and answers with a single-use
- * Grasp ticket in place of GitHub's token, which never leaves the server and is revoked straight away.
+ * Grasp ticket in place of GitHub's token, which never leaves the server.
  */
 @Injectable()
 export class GitHubSignInService {
@@ -38,7 +45,7 @@ export class GitHubSignInService {
     private readonly oneTime: OneTimeValues,
   ) {}
 
-  /** `webRedirectUri` is this site's own callback page; the only other accepted target is the native app. */
+  /** `webRedirectUri` is this site's own callback page. */
   async token(form: unknown, webRedirectUri: string, now = new Date()): Promise<TicketResponse> {
     const app = this.requireApp();
     const parsed = tokenRequestSchema.safeParse(form);
@@ -62,17 +69,21 @@ export class GitHubSignInService {
       }
       throw e;
     }
-    const ticket = await this.oneTime.issue('github_ticket', TICKET_TTL_SECONDS * 1000, identity, now);
+    const payload: TicketPayload = { ...identity, verifierHash: hashToken(codeVerifier) };
+    const ticket = await this.oneTime.issue('github_ticket', TICKET_TTL_SECONDS * 1000, payload, now);
     return { access_token: ticket, token_type: 'bearer', expires_in: TICKET_TTL_SECONDS, scope: 'user:email' };
   }
 
-  /** Whether the GitHub account has a usable email is judged here, when the ticket is spent, not at the token endpoint. */
-  async redeem(ticket: string, now = new Date()): Promise<VerifiedIdentity> {
+  /**
+   * Takes the PKCE verifier the app chose for this sign-in, so a ticket issued to someone else's sign-in cannot be
+   * slipped into it; a mismatch still spends the ticket. A missing email is not refused here: linking accepts it,
+   * and AccountService refuses it only for a new account.
+   */
+  async redeem(ticket: string, codeVerifier: string, now = new Date()): Promise<VerifiedIdentity> {
     this.requireApp();
-    const record = await this.oneTime.consume('github_ticket', ticket, now);
-    if (!record) throw invalidTicket();
-    const { subject, email } = record.payload as GitHubIdentity;
-    return { provider: 'github', subject, email, authoritative: false };
+    const payload = (await this.oneTime.consume('github_ticket', ticket, now))?.payload as TicketPayload | undefined;
+    if (!payload || !sameHash(hashToken(codeVerifier), payload.verifierHash)) throw invalidTicket();
+    return { provider: 'github', subject: payload.subject, email: payload.email, authoritative: false };
   }
 
   private requireApp(): GitHubApp {

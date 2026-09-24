@@ -4,6 +4,7 @@ const LOG_LEVELS = ['fatal', 'error', 'warn', 'log', 'debug', 'verbose'] as cons
 export type LogLevel = (typeof LOG_LEVELS)[number];
 
 const optional = <T extends z.ZodType>(schema: T) => z.preprocess((v) => (v === '' ? undefined : v), schema.optional());
+const trimmed = optional(z.string().trim()).transform((s) => s || undefined);
 const list = z.string().transform((s) =>
   s
     .split(',')
@@ -40,10 +41,10 @@ const envSchema = z
 
     ADMIN_TOKEN: optional(z.string().min(32, 'must be at least 32 characters')),
     JWT_SECRET: optional(z.string().min(32, 'must be at least 32 characters')),
-    GOOGLE_WEB_CLIENT_ID: optional(z.string()),
-    GOOGLE_IOS_CLIENT_ID: optional(z.string()),
-    OAUTH_GITHUB_ID: optional(z.string()),
-    OAUTH_GITHUB_SECRET: optional(z.string()),
+    GOOGLE_WEB_CLIENT_ID: trimmed,
+    GOOGLE_IOS_CLIENT_ID: trimmed,
+    OAUTH_GITHUB_ID: trimmed,
+    OAUTH_GITHUB_SECRET: trimmed,
     OAUTH_GITHUB_URL: optional(z.url({ protocol: /^https?$/ })),
     OAUTH_GITHUB_API_URL: optional(z.url({ protocol: /^https?$/ })),
 
@@ -65,7 +66,7 @@ export interface AppConfig {
   env: 'development' | 'production' | 'test';
   port: number;
   corsOrigins: string[];
-  /** Number of reverse-proxy hops to trust for the client IP (Express `trust proxy`). */
+  /** Number of reverse-proxy hops to trust for the client IP and scheme (Express `trust proxy`). */
   trustProxy: number;
   rateLimitPerMinute: number;
   logLevel: LogLevel;
@@ -85,7 +86,7 @@ export interface AppConfig {
   adminToken: string | null;
   /** Signs access tokens. Outside production a random per-process secret is used when unset. */
   jwtSecret: string | null;
-  /** Google sign-in; null when GOOGLE_WEB_CLIENT_ID is unset. Client ids are public and served to the app. */
+  /** Google sign-in; null when GOOGLE_WEB_CLIENT_ID is unset. */
   google: { webClientId: string; iosClientId: string | null } | null;
   /** GitHub sign-in; null unless both the OAuth app id and secret are set. */
   github: { clientId: string; clientSecret: string; webUrl: string; apiUrl: string } | null;

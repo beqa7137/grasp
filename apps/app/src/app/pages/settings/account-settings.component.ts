@@ -8,8 +8,8 @@ import { AuthService, SIGN_IN_PROVIDERS, type SignInProvider } from '../../core/
 const LABELS: Record<SignInProvider, string> = { google: 'Google', github: 'GitHub' };
 const ICONS: Record<SignInProvider, string> = { google: 'logo-google', github: 'logo-github' };
 const GENERIC_ERROR = "Sign-in didn't complete. Please try again.";
-const LEGACY_ACCOUNT_ERROR =
-  'This email belongs to an account from the earlier email sign-in. Sign in with Google using this address to recover it.';
+/** Errors whose wording the API owns and the person can act on. */
+const EXPLAINED_ERRORS = new Set(['account_exists', 'email_unverified', 'identity_in_use']);
 
 @Component({
   selector: 'app-account-settings',
@@ -200,11 +200,11 @@ export class AccountSettingsComponent {
   }
 
   signIn(provider: SignInProvider) {
-    return this.attempt(provider, () => this.auth.signIn(provider), 'Signed in. Your progress is now synced to your account.');
+    return this.attempt(() => this.auth.signIn(provider), 'Signed in. Your progress is now synced to your account.');
   }
 
   connect(provider: SignInProvider) {
-    return this.attempt(provider, () => this.auth.connect(provider), `You can now sign in with ${LABELS[provider]} too.`);
+    return this.attempt(() => this.auth.connect(provider), `You can now sign in with ${LABELS[provider]} too.`);
   }
 
   async confirmSignOut() {
@@ -231,13 +231,13 @@ export class AccountSettingsComponent {
     }
   }
 
-  private async attempt(provider: SignInProvider, action: () => Promise<boolean>, success: string) {
+  private async attempt(action: () => Promise<boolean>, success: string) {
     this.error.set(null);
     this.busy.set(true);
     try {
       if (await action()) await this.toast(success);
     } catch (e) {
-      this.error.set(errorMessage(e, provider));
+      this.error.set(errorMessage(e));
       // API errors are reported by the server; plugin failures (such as a misconfigured client) are only visible here.
       if (!(e instanceof ApiError)) this.errors.handleError(e);
     } finally {
@@ -251,31 +251,6 @@ export class AccountSettingsComponent {
   }
 }
 
-function errorMessage(error: unknown, provider: SignInProvider): string {
-  if (!(error instanceof ApiError)) return GENERIC_ERROR;
-  const name = LABELS[provider];
-  switch (error.code) {
-    case 'account_exists':
-      if (hasNoLinkedProvider(error)) return LEGACY_ACCOUNT_ERROR;
-      return `This email already has a Grasp account. Sign in with ${previousProvider(error, provider)} first, then connect ${name} under Sign-in methods.`;
-    case 'email_unverified':
-      return `${name} didn't share a verified email address. Verify one with ${name}, then try again.`;
-    case 'identity_in_use':
-      return `That ${name} account is already linked to a different Grasp account.`;
-    default:
-      return GENERIC_ERROR;
-  }
-}
-
-/** Accounts from the removed email-code sign-in have no linked provider. */
-function hasNoLinkedProvider(error: ApiError): boolean {
-  const linked = error.details['providers'];
-  return Array.isArray(linked) && linked.length === 0;
-}
-
-function previousProvider(error: ApiError, attempted: SignInProvider): string {
-  const linked = error.details['providers'];
-  const known = SIGN_IN_PROVIDERS.filter((provider) => Array.isArray(linked) && linked.includes(provider));
-  const previous = known.find((provider) => provider !== attempted) ?? known[0];
-  return previous ? LABELS[previous] : 'the provider you used before';
+function errorMessage(error: unknown): string {
+  return error instanceof ApiError && error.code !== undefined && EXPLAINED_ERRORS.has(error.code) ? error.message : GENERIC_ERROR;
 }

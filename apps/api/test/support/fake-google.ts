@@ -5,7 +5,6 @@ export interface GoogleAccount {
   sub: string;
   email: string;
   emailVerified?: boolean;
-  hd?: string;
 }
 
 /** Signs ID tokens the way Google does, with a key the app under test trusts in place of Google's. */
@@ -32,12 +31,7 @@ export class FakeGoogle {
 
   idToken(account: GoogleAccount, nonce: string): Promise<string> {
     const now = Math.floor(Date.now() / 1000);
-    return new SignJWT({
-      email: account.email,
-      email_verified: account.emailVerified ?? true,
-      nonce,
-      ...(account.hd ? { hd: account.hd } : {}),
-    })
+    return new SignJWT({ email: account.email, email_verified: account.emailVerified ?? true, nonce })
       .setProtectedHeader({ alg: 'RS256', kid: 'fake-google', typ: 'JWT' })
       .setIssuer('https://accounts.google.com')
       .setAudience(this.webClientId)

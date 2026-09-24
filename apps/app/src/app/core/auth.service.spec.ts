@@ -4,7 +4,7 @@ import { AuthTokens } from './auth-tokens.service';
 import { AuthService } from './auth.service';
 import { LearnerService } from './learner.service';
 import { ProgressService } from './progress.service';
-import { type ProviderConfig, SocialSignInService } from './social-sign-in.service';
+import { type GitHubCredential, type ProviderConfig, SocialSignInService } from './social-sign-in.service';
 
 const session = (n: number, learnerId = 'account-learner') => ({
   accessToken: `access-${n}`,
@@ -15,6 +15,8 @@ const session = (n: number, learnerId = 'account-learner') => ({
 
 const identity = (provider: 'google' | 'github') => ({ provider, email: 'ada@example.com', linkedAt: '2026-09-24T00:00:00.000Z' });
 
+const githubCredential: GitHubCredential = { ticket: 'github-ticket', codeVerifier: 'github-verifier' };
+
 const bothProviders: ProviderConfig = {
   google: { webClientId: 'web.apps.googleusercontent.com', iosClientId: null },
   github: { clientId: 'Ov23abc', authorizeUrl: 'https://github.com/login/oauth/authorize' },
@@ -24,7 +26,7 @@ interface Options {
   post?: (path: string, body: unknown) => Promise<unknown>;
   config?: () => Promise<ProviderConfig>;
   google?: string | null;
-  github?: string | null;
+  github?: GitHubCredential | null;
 }
 
 function setup(opts: Options = {}) {
@@ -70,7 +72,7 @@ function setup(opts: Options = {}) {
           providers: opts.config ?? (async () => bothProviders),
           prepare: () => calls.push('prepare'),
           google: async (nonce: string) => (calls.push(`google ${nonce}`), opts.google === undefined ? 'google-id-token' : opts.google),
-          github: async () => (calls.push('github'), opts.github === undefined ? 'github-ticket' : opts.github),
+          github: async () => (calls.push('github'), opts.github === undefined ? githubCredential : opts.github),
         },
       },
     ],
@@ -98,11 +100,11 @@ describe('AuthService (app)', () => {
     expect(localStorage.getItem('CapacitorStorage.grasp.auth.refresh')).toBe(session(1).refreshToken);
   });
 
-  it('signs in with GitHub by redeeming the ticket through the same sequence', async () => {
+  it('signs in with GitHub by redeeming the ticket with its PKCE verifier through the same sequence', async () => {
     const { auth, calls, bodies } = setup();
     expect(await auth.signIn('github')).toBe(true);
     expect(calls).toEqual(['github', 'flush', 'post /auth/github', 'learner account-learner', 'resync', 'get /auth/me']);
-    expect(bodies['/auth/github']).toEqual({ ticket: 'github-ticket' });
+    expect(bodies['/auth/github']).toEqual({ ticket: 'github-ticket', codeVerifier: 'github-verifier' });
   });
 
   it('after a session ended, clears the local copy when signing in to a different account', async () => {
@@ -135,12 +137,12 @@ describe('AuthService (app)', () => {
   it('rejects with the API error code and keeps the device anonymous', async () => {
     const { auth, calls } = setup({
       post: async () => {
-        throw new ApiError(409, 'This email already has an account.', 'account_exists', { providers: ['google'] });
+        throw new ApiError(409, 'This email already has an account.', 'account_exists');
       },
     });
     const error = await auth.signIn('github').catch((e: unknown) => e);
     expect(error).toBeInstanceOf(ApiError);
-    expect(error).toMatchObject({ code: 'account_exists', details: { providers: ['google'] } });
+    expect(error).toMatchObject({ code: 'account_exists' });
     expect(auth.signedIn()).toBe(false);
     expect(calls).toEqual(['github', 'flush', 'post /auth/github']);
   });
@@ -153,6 +155,23 @@ describe('AuthService (app)', () => {
     expect(calls).toEqual(['post /auth/google/nonce', 'google nonce-1', 'post /auth/google/link']);
     expect(bodies['/auth/google/link']).toEqual({ idToken: 'google-id-token', nonce: 'nonce-1' });
     expect(auth.identities()).toEqual([identity('google'), identity('github')]);
+  });
+
+  it('connects GitHub by sending the ticket with its PKCE verifier', async () => {
+    const { auth, calls, bodies } = setup();
+    await auth.signIn('google');
+    calls.length = 0;
+    expect(await auth.connect('github')).toBe(true);
+    expect(calls).toEqual(['github', 'post /auth/github/link']);
+    expect(bodies['/auth/github/link']).toEqual({ ticket: 'github-ticket', codeVerifier: 'github-verifier' });
+  });
+
+  it('connects nothing when the person cancels at the provider', async () => {
+    const { auth, calls } = setup({ github: null });
+    await auth.signIn('google');
+    calls.length = 0;
+    expect(await auth.connect('github')).toBe(false);
+    expect(calls).toEqual(['github']);
   });
 
   it('lists the providers this device offers and warms up the plugin for them', async () => {

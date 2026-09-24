@@ -154,11 +154,17 @@ describe('SocialSignInService', () => {
     expect(log.filter(([call]) => call === 'logout')).toEqual([]);
   });
 
-  it('returns the Grasp ticket from the GitHub flow and clears it from the plugin', async () => {
+  it('hands the plugin a fresh PKCE verifier for each GitHub sign-in and returns it with the ticket, which it clears from the plugin', async () => {
     const { social, log } = setup();
-    expect(await social.github()).toBe('grasp-ticket');
+    const first = await social.github();
+    const second = await social.github();
+    expect(first?.ticket).toBe('grasp-ticket');
+    expect(first?.codeVerifier).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(second?.codeVerifier).not.toBe(first?.codeVerifier);
     expect(log.slice(1)).toEqual([
-      ['login', { provider: 'oauth2', options: { providerId: 'github' } }],
+      ['login', { provider: 'oauth2', options: { providerId: 'github', codeVerifier: first?.codeVerifier } }],
+      ['logout', { provider: 'oauth2', providerId: 'github' }],
+      ['login', { provider: 'oauth2', options: { providerId: 'github', codeVerifier: second?.codeVerifier } }],
       ['logout', { provider: 'oauth2', providerId: 'github' }],
     ]);
   });
@@ -222,6 +228,7 @@ describe('SocialSignInService web storage', () => {
       capgo_social_login_google_state: '{"accessToken":"a","idToken":"i"}',
       'social_login_oauth_result_nonce-0': '{"type":"oauth-error"}',
       'social_login_oauth_result_state-0': '{"type":"oauth-response"}',
+      'capgo_social_login_oauth2_state_state-0': '{"providerId":"github","codeVerifier":"abandoned-verifier"}',
       capgo_social_login_oauth2_config_github: '{"appId":"Ov23abc"}',
       'grasp.local': 'kept',
     },
@@ -255,7 +262,7 @@ describe('SocialSignInService web storage', () => {
     expect(deliveredAtLogin).toBeNull();
   });
 
-  it('drops the markers, Google tokens and relayed results after a sign-in, leaving the finished flow to the plugin', async () => {
+  it('drops the markers, Google tokens, relayed results and abandoned PKCE verifiers after a sign-in, leaving the finished flow to the plugin', async () => {
     for (const provider of ['google', 'github'] as const) {
       const { social } = setup();
       expect(await (provider === 'google' ? social.google('nonce-1') : social.github())).toBeTruthy();
@@ -296,7 +303,7 @@ describe('SocialSignInService web storage', () => {
     vi.spyOn(Storage.prototype, 'key').mockImplementation(blocked);
     try {
       const { social } = setup();
-      expect(await social.github()).toBe('grasp-ticket');
+      expect(await social.github()).toMatchObject({ ticket: 'grasp-ticket' });
     } finally {
       vi.restoreAllMocks();
     }

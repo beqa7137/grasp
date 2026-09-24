@@ -11,12 +11,7 @@ export const toIdentitySummary = (identity: AuthIdentity): IdentitySummary => ({
   linkedAt: identity.createdAt,
 });
 
-/**
- * Decides which account a verified provider identity signs in to, creating or linking as needed, and
- * folds the device's anonymous progress into it. Identities are matched on the provider's subject id.
- * An email picks an existing account only when the provider is authoritative for it and the account has
- * no sign-in method yet (it comes from the earlier email-code sign-in).
- */
+/** Decides which account a verified provider identity signs in to, matched on the provider's subject id, creating or linking as needed. */
 @Injectable()
 export class AccountService {
   private readonly log = new Logger(AccountService.name);
@@ -97,7 +92,6 @@ export class AccountService {
     return created;
   }
 
-  /** Links idempotently: a concurrent link of the same identity to the same user is not an error. */
   private async attach(userId: string, verified: VerifiedIdentity, lastLoginAt: Date | null, now: Date): Promise<void> {
     const holder = await this.store.linkIdentity(identityRecord(userId, verified, lastLoginAt, now));
     if (holder.userId !== userId) throw identityInUse(verified.provider);

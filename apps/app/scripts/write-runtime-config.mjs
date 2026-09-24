@@ -1,5 +1,5 @@
-// Writes config.json into the built web assets before `cap sync`, so native apps know which API to call, and the
-// iOS build's Google sign-in URL scheme.
+// Before `cap sync`: writes config.json into the built web assets, so native apps know which API to call, and ios/google-signin.xcconfig
+// with the iOS Google sign-in URL scheme.
 import { rmSync, writeFileSync } from 'node:fs';
 
 const release = process.env.GRASP_RELEASE === '1';
@@ -21,7 +21,6 @@ if (googleIosClientId && !googleIosClientPrefix) {
 const config = {
   apiUrl,
   sentryDsn: process.env.GRASP_SENTRY_DSN || null,
-  // iOS offers Google only when this matches the server's iOS client, whose reversed id this build registered.
   googleIosClientId,
   environment: release ? 'production' : 'development',
   release: process.env.GRASP_VERSION || null,

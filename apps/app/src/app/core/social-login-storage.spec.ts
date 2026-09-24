@@ -1,3 +1,5 @@
+import { GoogleSocialLogin } from '@capgo/capacitor-social-login/dist/esm/google-provider.js';
+import { OAuth2SocialLogin } from '@capgo/capacitor-social-login/dist/esm/oauth2-provider.js';
 import { clearAfterLogin, clearBeforeLogin, clearPopupMarkers, readPendingSignIn } from './social-login-storage';
 
 describe('social login storage', () => {
@@ -21,6 +23,17 @@ describe('social login storage', () => {
     expect(readPendingSignIn()).toBeNull();
     localStorage.setItem('social_login_oauth_pending', '{"provider":"google"}');
     expect(readPendingSignIn()).toBe('{"provider":"google"}');
+  });
+
+  it("drops the Google tokens and the PKCE verifiers under the plugin's own private keys, and keeps its provider config", () => {
+    const googleTokensKey: string = new GoogleSocialLogin()['GOOGLE_STATE_KEY'];
+    const pendingLoginPrefix: string = new OAuth2SocialLogin()['STATE_PREFIX'];
+    localStorage.setItem(googleTokensKey, '{"idToken":"i"}');
+    localStorage.setItem(`${pendingLoginPrefix}state-1`, '{"codeVerifier":"v1"}');
+    localStorage.setItem(`${pendingLoginPrefix}state-2`, '{"codeVerifier":"v2"}');
+    localStorage.setItem('capgo_social_login_oauth2_config_github', '{"appId":"Ov23abc"}');
+    clearAfterLogin({ rejected: false });
+    expect({ ...localStorage }).toEqual({ capgo_social_login_oauth2_config_github: '{"appId":"Ov23abc"}' });
   });
 
   it('carries on when the browser blocks storage', () => {

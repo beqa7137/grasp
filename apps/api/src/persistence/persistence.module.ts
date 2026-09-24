@@ -25,7 +25,7 @@ export const PG_POOL = Symbol('PG_POOL');
 const DB = Symbol('DB');
 const SWEEP_INTERVAL_MS = 10 * 60_000;
 
-/** Deletes expired rate windows, leases and one-time sign-in values now and then; every instance may run it, deletes are idempotent. */
+/** Deletes expired rows now and then; every instance may run it, deletes are idempotent. */
 @Injectable()
 export class ExpiredRowSweeper implements OnApplicationBootstrap, OnApplicationShutdown {
   private readonly log = new Logger(ExpiredRowSweeper.name);

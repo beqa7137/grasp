@@ -10,7 +10,6 @@ export interface GitHubApp {
 export interface GitHubSettings {
   clientId: string;
   clientSecret: string;
-  /** github.com, or a GitHub Enterprise host. */
   webUrl: string;
   apiUrl: string;
 }
@@ -24,7 +23,6 @@ export interface GitHubGrant {
 export interface GitHubIdentity {
   /** GitHub's numeric user id, which never changes (unlike the login or emails). */
   subject: string;
-  /** A verified, deliverable address, preferring the primary one; null when there is none. */
   email: string | null;
 }
 
@@ -65,7 +63,7 @@ export class HttpGitHubOAuthClient extends GitHubOAuthClient {
     try {
       const [user, emails] = await Promise.all([this.api('/user', token), this.api('/user/emails', token)]);
       const id = (user as { id?: unknown } | null)?.id;
-      if (typeof id !== 'number' || !Number.isSafeInteger(id)) throw new ProviderUnavailableError('GitHub returned a user without an id');
+      if (!Number.isSafeInteger(id)) throw new ProviderUnavailableError('GitHub returned a user without an id');
       return { subject: String(id), email: pickEmail(emails) };
     } finally {
       await this.revoke(token);
@@ -113,7 +111,7 @@ export class HttpGitHubOAuthClient extends GitHubOAuthClient {
         body: JSON.stringify({ access_token: token }),
       });
       await res.body?.cancel();
-      if (!res.ok) this.log.warn(`Could not revoke a GitHub token: status ${res.status}`);
+      if (!res.ok) throw new Error(`status ${res.status}`);
     } catch (e) {
       this.log.warn(`Could not revoke a GitHub token: ${e instanceof Error ? e.message : String(e)}`);
     }

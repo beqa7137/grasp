@@ -1,12 +1,15 @@
 import { bootstrapApplication } from '@angular/platform-browser';
 import { appConfig } from './app/app.config';
 import { App } from './app/app';
-import { SIGN_IN_CALLBACK_PATH, answersPendingSignIn } from './app/core/sign-in-callback';
+import { SIGN_IN_CALLBACK_PATH, answersPendingSignIn, stripOAuthResponse } from './app/core/sign-in-callback';
 import { clearPopupMarkers } from './app/core/social-login-storage';
 
 const CALLBACK_FALLBACK_MS = 2_000;
 
 if (location.pathname !== SIGN_IN_CALLBACK_PATH) {
+  dropOAuthResponse();
+  // The plugin also looks on hashchange. A fragment change fires popstate first, and this listener runs before the router's.
+  addEventListener('popstate', dropOAuthResponse);
   clearPopupMarkers();
   bootstrapApplication(App, appConfig).catch((err) => console.error(err));
 } else if (answersPendingSignIn(new URL(location.href))) {
@@ -21,4 +24,9 @@ if (location.pathname !== SIGN_IN_CALLBACK_PATH) {
   window.close();
 } else {
   location.replace('/settings');
+}
+
+function dropOAuthResponse() {
+  const stripped = stripOAuthResponse(new URL(location.href));
+  if (stripped) history.replaceState(history.state, '', stripped);
 }

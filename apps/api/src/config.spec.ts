@@ -75,6 +75,25 @@ describe('loadConfig', () => {
     });
   });
 
+  it('trims the sign-in client ids and secret, and treats blank ones as unset', () => {
+    expect(
+      loadConfig({
+        GOOGLE_WEB_CLIENT_ID: ' web \n',
+        GOOGLE_IOS_CLIENT_ID: '  ',
+        OAUTH_GITHUB_ID: ' Ov23li ',
+        OAUTH_GITHUB_SECRET: 'shh\n',
+      }),
+    ).toMatchObject({
+      google: { webClientId: 'web', iosClientId: null },
+      github: { clientId: 'Ov23li', clientSecret: 'shh' },
+    });
+    expect(loadConfig({ GOOGLE_WEB_CLIENT_ID: ' ', OAUTH_GITHUB_ID: '\t', OAUTH_GITHUB_SECRET: '  ' })).toMatchObject({
+      google: null,
+      github: null,
+    });
+    expect(() => loadConfig({ OAUTH_GITHUB_ID: 'Ov23li', OAUTH_GITHUB_SECRET: ' ' })).toThrow(/OAUTH_GITHUB_ID/);
+  });
+
   it('turns sign-in providers on only when their client ids are set', () => {
     expect(loadConfig({})).toMatchObject({ google: null, github: null });
     expect(loadConfig({ GOOGLE_WEB_CLIENT_ID: 'web.apps.googleusercontent.com' }).google).toEqual({

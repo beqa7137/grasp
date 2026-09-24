@@ -4,7 +4,7 @@ import { ApiError, ApiService } from './api.service';
 import { AuthTokens } from './auth-tokens.service';
 import { LearnerService } from './learner.service';
 import { ProgressService } from './progress.service';
-import { SocialSignInService } from './social-sign-in.service';
+import { type GitHubCredential, SocialSignInService } from './social-sign-in.service';
 
 const REFRESH_KEY = 'grasp.auth.refresh';
 const USER_KEY = 'grasp.auth.user';
@@ -30,7 +30,7 @@ interface Session {
   learnerId: string;
 }
 
-type ProviderCredential = { idToken: string; nonce: string } | { ticket: string };
+type ProviderCredential = { idToken: string; nonce: string } | GitHubCredential;
 
 /**
  * Optional accounts on top of local-first progress, signed in with Google or GitHub. Signing in folds
@@ -96,7 +96,7 @@ export class AuthService {
     return true;
   }
 
-  /** Links another provider to the signed-in account. Resolves false when the person cancelled. */
+  /** Resolves false when the person cancelled. */
   async connect(provider: SignInProvider): Promise<boolean> {
     const credential = await this.credential(provider);
     if (!credential) return false;
@@ -139,10 +139,7 @@ export class AuthService {
   }
 
   private async credential(provider: SignInProvider): Promise<ProviderCredential | null> {
-    if (provider === 'github') {
-      const ticket = await this.social.github();
-      return ticket ? { ticket } : null;
-    }
+    if (provider === 'github') return this.social.github();
     const { nonce } = await this.api.post<{ nonce: string }>('/auth/google/nonce');
     const idToken = await this.social.google(nonce);
     return idToken ? { idToken, nonce } : null;

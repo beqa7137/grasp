@@ -1,4 +1,4 @@
-import { SIGN_IN_CALLBACK_PATH, answersPendingSignIn } from './sign-in-callback';
+import { SIGN_IN_CALLBACK_PATH, answersPendingSignIn, stripOAuthResponse } from './sign-in-callback';
 
 const PENDING_KEY = 'social_login_oauth_pending';
 const githubPending = JSON.stringify({ provider: 'oauth2', providerId: 'github', state: 'victim-state' });
@@ -78,5 +78,42 @@ describe('answersPendingSignIn', () => {
       expect(answers(googlePending, '#error=access_denied&id_token=i')).toBe(false);
       expect(answers(googlePending, '')).toBe(false);
     });
+  });
+});
+
+describe('stripOAuthResponse', () => {
+  const origin = 'https://grasp.example';
+  const strip = (path: string) => stripOAuthResponse(new URL(`${origin}${path}`));
+
+  it('leaves a URL without an OAuth response alone', () => {
+    expect(strip('/settings')).toBeNull();
+    expect(strip('/drill?pattern=two-pointers#top')).toBeNull();
+    expect(strip('/settings?#')).toBeNull();
+  });
+
+  it('removes an authorization code or refusal from the query, keeping the rest', () => {
+    expect(strip('/settings?code=c&state=s')).toBe(`${origin}/settings`);
+    expect(strip('/drill?pattern=two-pointers&code=c&state=s#top')).toBe(`${origin}/drill?pattern=two-pointers#top`);
+    expect(strip('/settings?error=access_denied&error_description=denied&error_uri=https%3A%2F%2Fdocs.github.com')).toBe(
+      `${origin}/settings`,
+    );
+  });
+
+  it('removes tokens, codes and refusals from the fragment, keeping the rest', () => {
+    expect(strip('/settings#access_token=t&token_type=bearer&expires_in=300&scope=user%3Aemail&state=s')).toBe(`${origin}/settings`);
+    expect(strip('/settings?pattern=p#id_token=i&keep=1&access_token=a')).toBe(`${origin}/settings?pattern=p#keep=1`);
+    expect(strip('/settings#error=access_denied')).toBe(`${origin}/settings`);
+    expect(strip('/settings#code=c&state=s')).toBe(`${origin}/settings`);
+  });
+
+  it("removes tokens from the query too, since the plugin's GitHub flow reads the query and the fragment as one", () => {
+    expect(strip('/settings?access_token=t&token_type=bearer')).toBe(`${origin}/settings`);
+    expect(strip('/settings?pattern=p&id_token=i')).toBe(`${origin}/settings?pattern=p`);
+  });
+
+  it('recognizes encoded keys, and keeps the exact text of everything else', () => {
+    expect(strip('/settings?acc%65ss_token=t')).toBe(`${origin}/settings`);
+    expect(strip('/settings#%63ode=c')).toBe(`${origin}/settings`);
+    expect(strip('/drill?q=a%20b+c&code=c&pattern=%E2%9C%93')).toBe(`${origin}/drill?q=a%20b+c&pattern=%E2%9C%93`);
   });
 });

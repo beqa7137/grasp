@@ -48,12 +48,12 @@ describe('ApiService', () => {
     expect(refreshes).toBe(0);
   });
 
-  it('keeps the whole error body next to the code', async () => {
+  it("rejects with the API's status, code and message", async () => {
     const { api } = setup(() =>
       json(409, { statusCode: 409, message: 'This email already has a Grasp account.', code: 'account_exists', providers: ['google'] }),
     );
-    const error = await api.post('/auth/github', { ticket: 't' }).catch((e: unknown) => e);
+    const error = await api.post('/auth/github', { ticket: 't', codeVerifier: 'v' }).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ApiError);
     expect(error).toMatchObject({ status: 409, code: 'account_exists', message: 'This email already has a Grasp account.' });
-    expect((error as ApiError).details['providers']).toEqual(['google']);
   });
 });

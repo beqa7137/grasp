@@ -42,16 +42,17 @@ export class OAuthFakes {
     return { idToken: await this.google.idToken(account, nonce), nonce };
   }
 
-  /** Runs the app's side of GitHub's code flow against the token endpoint and returns the Grasp ticket. */
-  async githubTicket(http: Http, account: GitHubAccount, redirectUri = NATIVE_REDIRECT_URI): Promise<string> {
+  /** What the app's sign-in plugin posts to the token endpoint once GitHub has approved `account`, with a fresh PKCE verifier. */
+  githubTokenForm(account: GitHubAccount, redirectUri = NATIVE_REDIRECT_URI) {
     const verifier = randomBytes(32).toString('base64url');
     const code = this.github.authorize(account, redirectUri, verifier);
-    const res = await http()
-      .post('/api/auth/github/token')
-      .set('X-Forwarded-For', freshIp())
-      .type('form')
-      .send({ grant_type: 'authorization_code', client_id: this.github.clientId, code, redirect_uri: redirectUri, code_verifier: verifier })
-      .expect(200);
-    return res.body.access_token;
+    return { grant_type: 'authorization_code', client_id: this.github.clientId, code, redirect_uri: redirectUri, code_verifier: verifier };
+  }
+
+  /** What the app posts for `account` after the token endpoint: the Grasp ticket and the verifier it was issued for. */
+  async githubTicket(http: Http, account: GitHubAccount): Promise<{ ticket: string; codeVerifier: string }> {
+    const form = this.githubTokenForm(account);
+    const res = await http().post('/api/auth/github/token').set('X-Forwarded-For', freshIp()).type('form').send(form).expect(200);
+    return { ticket: res.body.access_token, codeVerifier: form.code_verifier };
   }
 }

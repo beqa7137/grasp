@@ -150,36 +150,32 @@ describe('AccountSettingsComponent', () => {
     expect(reported).toEqual([]);
   });
 
-  it('names the provider to use first when the email already has an account', async () => {
-    const { click, alert } = setup({
-      outcome: async () => {
-        throw new ApiError(409, 'Conflict', 'account_exists', { providers: ['google'] });
-      },
-    });
-    await click('Continue with GitHub');
-    expect(alert()).toBe('This email already has a Grasp account. Sign in with Google first, then connect GitHub under Sign-in methods.');
+  it("shows the API's explanation of what to do next", async () => {
+    for (const [status, code] of [
+      [409, 'account_exists'],
+      [403, 'email_unverified'],
+      [409, 'identity_in_use'],
+    ] as const) {
+      const { click, alert, reported } = setup({
+        outcome: async () => {
+          throw new ApiError(status, `What to do about ${code}.`, code);
+        },
+      });
+      await click('Continue with GitHub');
+      expect(alert()).toBe(`What to do about ${code}.`);
+      expect(reported).toEqual([]);
+      TestBed.resetTestingModule();
+    }
   });
 
-  it('points an account from the earlier email sign-in to Google, the one way to recover it', async () => {
+  it('shows the generic message for any other API error', async () => {
     const { click, alert } = setup({
       outcome: async () => {
-        throw new ApiError(409, 'Conflict', 'account_exists', { providers: [] });
+        throw new ApiError(401, 'That GitHub sign-in has expired or was already used. Please try again.', 'invalid_ticket');
       },
     });
     await click('Continue with GitHub');
-    expect(alert()).toBe(
-      'This email belongs to an account from the earlier email sign-in. Sign in with Google using this address to recover it.',
-    );
-  });
-
-  it('explains a missing verified email', async () => {
-    const { click, alert } = setup({
-      outcome: async () => {
-        throw new ApiError(403, 'Forbidden', 'email_unverified');
-      },
-    });
-    await click('Continue with GitHub');
-    expect(alert()).toBe("GitHub didn't share a verified email address. Verify one with GitHub, then try again.");
+    expect(alert()).toBe("Sign-in didn't complete. Please try again.");
   });
 
   it('shows a generic message for anything else and reports failures the server never saw', async () => {
@@ -233,7 +229,7 @@ describe('AccountSettingsComponent', () => {
       user: ada,
       identities: [googleIdentity],
       outcome: async () => {
-        throw new ApiError(409, 'Conflict', 'identity_in_use');
+        throw new ApiError(409, 'That GitHub account is already linked to a different Grasp account.', 'identity_in_use');
       },
     });
     await inUse.click('Connect GitHub');
