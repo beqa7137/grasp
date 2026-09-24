@@ -69,6 +69,21 @@ export interface SettingsChangedEvent extends BaseEvent {
   settings: Partial<StudySettings>;
 }
 
+export const DIAGNOSTIC_OUTCOMES = ['correct', 'wrong', 'skipped'] as const;
+export type DiagnosticOutcome = (typeof DIAGNOSTIC_OUTCOMES)[number];
+
+export interface DiagnosticAnswer {
+  itemId: string;
+  outcome: DiagnosticOutcome;
+  durationMs: number;
+}
+
+/** Raw answers, not a placement: the reducer derives it, so a rule change reinterprets every stored check on replay. */
+export interface DiagnosticCompletedEvent extends BaseEvent {
+  type: 'diagnostic.completed';
+  answers: DiagnosticAnswer[];
+}
+
 export type LearningEvent =
   | ReviewGradedEvent
   | PracticeAnsweredEvent
@@ -76,7 +91,8 @@ export type LearningEvent =
   | ScenarioCompletedEvent
   | InterviewScoredEvent
   | CodeSubmittedEvent
-  | SettingsChangedEvent;
+  | SettingsChangedEvent
+  | DiagnosticCompletedEvent;
 
 /** v1 (SM-2) drill review, still accepted from older clients and stored logs. */
 export interface LegacyDrillReviewedEvent extends BaseEvent {

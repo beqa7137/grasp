@@ -80,7 +80,7 @@ const feedback = (learnerId: string, kind: FeedbackEntry['kind'], rating: number
 describe('cohortMetrics', () => {
   // ada: joined 10 days ago, came back next day and on day 8, reviews the same item across days.
   // bob: joined 3 days ago, one visit only, did an interview.
-  // cy: joined today, predicted and completed a mission.
+  // cy: joined today, took the placement check, predicted and completed a mission.
   const events: LearnerEvent[] = [
     review('ada', at(10), 'rec:a', true),
     review('ada', at(10, 5), 'rec:b', false),
@@ -90,6 +90,7 @@ describe('cohortMetrics', () => {
     review('ada', at(2, 20), 'rec:c', true, 2),
     other('bob', { at: at(3), type: 'interview.scored', sessionId: 's', track: 'coding', verdict: 'hire', weakPatterns: [] }),
     other('cy', { at: at(0), type: 'predict.answered', algorithmId: 'binary-search', patternId: 'binary-search', correct: true }),
+    other('cy', { at: at(0, 5), type: 'diagnostic.completed', answers: [{ itemId: 'rec:h1', outcome: 'correct', durationMs: 9_000 }] }),
     other('cy', { at: at(0, 10), type: 'predict.answered', algorithmId: 'binary-search', patternId: 'binary-search', correct: false }),
     other('cy', { at: at(0, 12), type: 'scenario.completed', scenarioId: 'first-scale-up', monthlyCost: 400 }),
     other('cy', { at: at(0, 14), type: 'scenario.completed', scenarioId: 'first-scale-up', monthlyCost: 380, variant: 1 }),
@@ -107,6 +108,7 @@ describe('cohortMetrics', () => {
   });
 
   it('measures activation per learner', () => {
+    expect(m.activation.tookPlacementCheck).toEqual({ count: 1, of: 3, rate: 1 / 3 });
     expect(m.activation.reviewed).toEqual({ count: 1, of: 3, rate: 1 / 3 });
     expect(m.activation.predicted.count).toBe(1);
     expect(m.activation.completedMission.count).toBe(1);

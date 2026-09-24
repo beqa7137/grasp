@@ -6,6 +6,7 @@ import { AuthService } from './core/auth.service';
 import { ReportingErrorHandler, initErrorReporting } from './core/error-reporting';
 import { LearnerService } from './core/learner.service';
 import { ProgressService } from './core/progress.service';
+import { DiagnosticPromptService } from './pages/diagnostic/diagnostic-prompt.service';
 import { PilotService } from './pilot/pilot.service';
 import { ReminderService } from './reminders/reminder.service';
 import { RuntimeConfigService } from './core/runtime-config.service';
@@ -22,6 +23,7 @@ export const appConfig: ApplicationConfig = {
       const learner = inject(LearnerService);
       const progress = inject(ProgressService);
       const pilot = inject(PilotService);
+      const diagnosticPrompt = inject(DiagnosticPromptService);
       const auth = inject(AuthService);
       const reminders = inject(ReminderService);
       await runtime.load();
@@ -29,8 +31,7 @@ export const appConfig: ApplicationConfig = {
       await learner.init();
       await auth.init();
       await progress.init();
-      await pilot.init();
-      await reminders.init();
+      await Promise.all([pilot.init(), diagnosticPrompt.init(), reminders.init()]);
     }),
   ],
 };

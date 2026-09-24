@@ -40,6 +40,10 @@ header {
     color: var(--g-predict);
     border-color: rgba(212, 245, 60, 0.4);
   }
+  &[data-reason='diagnostic'] {
+    color: var(--g-accent);
+    border-color: rgba(157, 140, 255, 0.45);
+  }
 }
 
 .prompt {
@@ -163,8 +167,11 @@ header {
     background 0.15s,
     transform 0.08s;
 
-  &:hover:not(:disabled) {
-    border-color: var(--g-accent);
+  // Touch browsers keep :hover on the last tapped element, which would look like a preselected choice on the next question.
+  @media (hover: hover) {
+    &:hover:not(:disabled) {
+      border-color: var(--g-accent);
+    }
   }
   &:active:not(:disabled) {
     transform: scale(0.985);

@@ -255,3 +255,44 @@
   text-decoration: none;
   font-size: 14px;
 }
+
+.diagnostic {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  padding: 16px;
+  border-color: rgba(157, 140, 255, 0.45);
+  background: linear-gradient(120deg, var(--g-accent-soft), var(--g-surface) 70%);
+
+  > ion-icon {
+    font-size: 28px;
+    color: var(--g-accent);
+  }
+  .copy {
+    flex: 1 1 260px;
+    min-width: 0;
+  }
+  h3 {
+    margin: 0 0 4px;
+    font-size: 18px;
+  }
+  p {
+    margin: 0;
+    color: var(--g-muted);
+    font-size: 14px;
+    line-height: 1.45;
+  }
+}
+
+.diagnostic-actions {
+  display: flex;
+  gap: 8px;
+  @media (max-width: 560px) {
+    width: 100%;
+    .g-btn.primary {
+      flex: 1;
+    }
+  }
+}

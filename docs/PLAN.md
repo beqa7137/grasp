@@ -125,8 +125,9 @@ accounts, local-first sync, Ionic tabs app.
 
 **M1 — Accounts & polish (2–3 wks).** Done: email-code accounts with learner linking, haptics,
 Design Lab pinch-zoom and pan, study settings (target recall, session length, new cards/day), daily
-reminders from the forecast, native projects with CI builds. Next: passkeys, onboarding diagnostic that
-seeds the review queue, per-learner FSRS parameter optimization, dark/light polish.
+reminders from the forecast, native projects with CI builds, an onboarding placement check that puts
+weak patterns first in the review queue. Next: passkeys, per-learner FSRS parameter optimization,
+dark/light polish.
 
 **M2 — Content depth (4–6 wks).** Visualizers for all 20 patterns. Done: heap, union-find, DP table
 fill, trie, Dijkstra and topo sort, with table, graph and tree views. Next: backtracking tree, tree

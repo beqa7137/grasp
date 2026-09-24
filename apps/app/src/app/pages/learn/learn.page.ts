@@ -8,6 +8,7 @@ import {
   cloudDoneOutline,
   codeSlashOutline,
   cloudOfflineOutline,
+  compassOutline,
   flame,
   flashOutline,
   gitNetworkOutline,
@@ -18,6 +19,7 @@ import {
 } from 'ionicons/icons';
 import { AuthService } from '../../core/auth.service';
 import { ProgressService } from '../../core/progress.service';
+import { DiagnosticPromptService } from '../diagnostic/diagnostic-prompt.service';
 import { MasteryRingComponent } from '../../viz/mastery-ring.component';
 
 const TRACKS: { id: Track; title: string; blurb: string }[] = [
@@ -37,6 +39,8 @@ const TRACKS: { id: Track; title: string; blurb: string }[] = [
 export class LearnPage {
   readonly progress = inject(ProgressService);
   readonly auth = inject(AuthService);
+  readonly diagnosticPrompt = inject(DiagnosticPromptService);
+  readonly patternCount = PATTERNS.length;
   readonly tracks = TRACKS.map((t) => ({ ...t, patterns: PATTERNS.filter((p) => p.track === t.id) }));
 
   readonly sdTopics = SD_TOPICS;
@@ -51,6 +55,7 @@ export class LearnPage {
   });
   readonly nextProblem = computed(() => CODING_PROBLEMS.find((p) => !this.progress.state().coding[p.id]?.solvedAt) ?? CODING_PROBLEMS[0]);
   readonly nextScenario = computed(() => SCENARIOS.find((s) => !this.progress.state().missions[s.id]) ?? SCENARIOS[0]);
+  readonly offerDiagnostic = computed(() => !this.progress.state().diagnosedAt && !this.diagnosticPrompt.dismissed());
   readonly revisit = computed(() => {
     const m = this.progress.dueMissions()[0];
     return m ? { ...m, title: getScenario(m.scenarioId)!.title } : null;
@@ -72,6 +77,7 @@ export class LearnPage {
       chatbubblesOutline,
       cloudDoneOutline,
       cloudOfflineOutline,
+      compassOutline,
       pulseOutline,
     });
   }

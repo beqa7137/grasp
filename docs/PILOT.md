@@ -56,7 +56,7 @@ The exit interviews explain the numbers; they don't replace them.
 
 ### Welcome message
 
-> Thanks for joining the Grasp pilot! For the next two weeks, try to spend 10–15 minutes a day. Start with **Review**, then learn or visualize one pattern. Over the two weeks, aim for at least **two mock interviews** and **two Design Lab missions**. When something breaks, confuses you or sparks an idea, tap **Feedback** on the right edge of the screen. It takes 20 seconds and we read everything. You can export or delete your data at any time in Settings. Link: https://…
+> Thanks for joining the Grasp pilot! For the next two weeks, try to spend 10–15 minutes a day. Start with the 5-minute **placement check** on the Learn tab, then **Review**, then learn or visualize one pattern. Over the two weeks, aim for at least **two mock interviews** and **two Design Lab missions**. When something breaks, confuses you or sparks an idea, tap **Feedback** on the right edge of the screen. It takes 20 seconds and we read everything. You can export or delete your data at any time in Settings. Link: https://…
 
 ## Surveys
 
@@ -119,7 +119,7 @@ All days are UTC. A learner is **active** on a day if they recorded a learning e
 
 - **D1 / D7 retention:** among learners whose first active day is at least 1 (or 7) days ago, the share who were active again on or after day 1 (or day 7).
 - **Active days per learner (7d):** the average number of distinct active days in the last 7 days, over learners active in that window.
-- **Activation steps:** the share of all learners who ever did each thing (a review, a visualizer prediction, a completed mission, a started interview, a scored interview).
+- **Activation steps:** the share of all learners who ever did each thing (the placement check, a review, a visualizer prediction, a completed mission, a started interview, a scored interview).
 - **Recall after at least a day:** among graded reviews of an item the same learner had reviewed at least 24 hours earlier, the share answered correctly. This is the observable counterpart of the FSRS retention target.
 - **Interview completion:** scored sessions divided by started sessions.
 - **AI cost per scored interview:** total Claude spend across all sessions, including unscored ones, divided by scored sessions.

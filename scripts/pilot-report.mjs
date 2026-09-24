@@ -58,6 +58,7 @@ const lines = [
   '',
   '| Step | Learners |',
   '| --- | --- |',
+  `| Took the placement check | ${pct(m.activation.tookPlacementCheck)} |`,
   `| Did a spaced review | ${pct(m.activation.reviewed)} |`,
   `| Answered a visualizer prediction | ${pct(m.activation.predicted)} |`,
   `| Completed a Design Lab mission | ${pct(m.activation.completedMission)} |`,
