@@ -170,7 +170,7 @@ jobs:
           curl -fsS -H 'Accept: text/html' localhost:3000/tabs/learn | grep -q '<app-root'
           curl -fsS localhost:3000/config.json | grep -q '"apiUrl":null'
           curl -fsS localhost:3000/api/curriculum/patterns | grep -q 'sliding-window'
-          curl -fsS localhost:3000/api/auth/config | grep -q '"email":false'
+          curl -fsS localhost:3000/api/auth/config | jq -e '. == {google: null, github: null}' > /dev/null
           curl -fsS -o /dev/null localhost:3000/pyodide/pyodide.asm.wasm
 
       - name: Container logs

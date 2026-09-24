@@ -98,6 +98,8 @@ Review the targets table and the daily activity, then tag each feedback note as 
 - A confusing flow is fixed within the week.
 - Ideas are collected and considered after the pilot.
 
+**Before releasing Google and GitHub sign-in:** accounts from the old email-code sign-in have no Google or GitHub sign-in method. List them with the query in [ACCOUNTS.md](ACCOUNTS.md#accounts-from-the-old-email-code-sign-in) and ask those testers to connect one under Settings → Sign-in methods while they are still signed in. Once signed out, only a Gmail or Google Workspace address gets back in unaided; the same section describes the operator's remedy for everyone else.
+
 ## Data and privacy
 
 - **What is stored:**
@@ -105,9 +107,9 @@ Review the targets table and the daily activity, then tag each feedback note as 
   - interview transcripts and scorecards
   - feedback notes, each with the screen and app version it was sent from
 
-  All of it sits under a random learner id generated on the device. Testers who choose to sign in also give an email address, which is used only to send sign-in codes.
+  All of it sits under a random learner id generated on the device. Testers who choose to sign in do so with Google or GitHub; Grasp keeps only the account's verified email address and its Google or GitHub account id, to recognize the tester on their next sign-in.
 
-- **Third parties:** interview transcripts are sent to Anthropic's Claude API to run and score interviews. Error reports go to Sentry with request bodies, headers and learner ids stripped.
+- **Third parties:** interview transcripts are sent to Anthropic's Claude API to run and score interviews. Error reports go to Sentry with request bodies, headers and learner ids stripped. Sign-in goes through Google or GitHub, whichever the tester picks.
 - **Consent:** testers see a pilot notice on first launch that explains the above, and the onboarding message repeats it.
 - **Access:** only the operator holding `ADMIN_TOKEN` can see aggregate metrics and feedback. The metrics never include learner ids.
 - **Tester control:** Settings → Export downloads everything stored for that learner. Settings → Delete erases it from the server and the device.

@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import type { StoredEvent } from '@grasp/engine';
-import { and, desc, eq, gte, isNull, lt, sql } from 'drizzle-orm';
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { and, asc, desc, eq, gt, isNull, lt, sql, TransactionRollbackError } from 'drizzle-orm';
+import type { NodePgDatabase, NodePgQueryResultHKT } from 'drizzle-orm/node-postgres';
+import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { LearnerEvent } from '../admin/cohort-metrics.js';
-import type { LoginCode, RefreshTokenRecord, User } from '../auth/auth.types.js';
+import type { AuthIdentity, OneTimePurpose, OneTimeRecord, Provider, RefreshTokenRecord, User } from '../auth/auth.types.js';
 import type { FeedbackContext, FeedbackEntry, FeedbackKind } from '../feedback/feedback.types.js';
 import type { InterviewSession } from '../interview/interview.types.js';
 import * as schema from './schema.js';
@@ -18,8 +19,10 @@ import {
 } from './stores.js';
 
 export type Db = NodePgDatabase<typeof schema>;
+/** The database, or a transaction open on it. */
+type Executor = PgDatabase<NodePgQueryResultHKT, typeof schema>;
 
-async function ensureLearner(db: Db, learnerId: string) {
+async function ensureLearner(db: Executor, learnerId: string) {
   await db.insert(schema.learners).values({ id: learnerId }).onConflictDoNothing();
 }
 
@@ -174,33 +177,6 @@ export class PostgresAuthStore extends AuthStore {
     super();
   }
 
-  async addCode(code: LoginCode): Promise<void> {
-    await this.db.delete(schema.loginCodes).where(lt(schema.loginCodes.expiresAt, new Date(Date.now() - 86_400_000).toISOString()));
-    await this.db.insert(schema.loginCodes).values(code);
-  }
-
-  async countCodesSince(email: string, since: string): Promise<number> {
-    const [row] = await this.db
-      .select({ n: sql<number>`count(*)::int` })
-      .from(schema.loginCodes)
-      .where(and(eq(schema.loginCodes.email, email), gte(schema.loginCodes.createdAt, since)));
-    return row?.n ?? 0;
-  }
-
-  async latestCode(email: string): Promise<LoginCode | null> {
-    const [row] = await this.db
-      .select()
-      .from(schema.loginCodes)
-      .where(and(eq(schema.loginCodes.email, email), isNull(schema.loginCodes.consumedAt)))
-      .orderBy(desc(schema.loginCodes.createdAt))
-      .limit(1);
-    return row ? { ...row, expiresAt: iso(row.expiresAt)!, consumedAt: iso(row.consumedAt), createdAt: iso(row.createdAt)! } : null;
-  }
-
-  async updateCode(id: string, patch: Partial<Pick<LoginCode, 'attempts' | 'consumedAt'>>): Promise<void> {
-    await this.db.update(schema.loginCodes).set(patch).where(eq(schema.loginCodes.id, id));
-  }
-
   async userByEmail(email: string): Promise<User | null> {
     return this.oneUser(eq(schema.users.email, email));
   }
@@ -213,9 +189,30 @@ export class PostgresAuthStore extends AuthStore {
     return this.oneUser(eq(schema.users.learnerId, learnerId));
   }
 
-  async createUser(user: User): Promise<void> {
-    await ensureLearner(this.db, user.learnerId);
-    await this.db.insert(schema.users).values(user);
+  /** A concurrent insert of the same email or identity makes this wait for that transaction, then give way to it. */
+  async createUser(user: User, identity?: AuthIdentity): Promise<boolean> {
+    try {
+      await this.db.transaction(async (tx) => {
+        await ensureLearner(tx, user.learnerId);
+        const created = await tx
+          .insert(schema.users)
+          .values(user)
+          .onConflictDoNothing({ target: schema.users.email })
+          .returning({ id: schema.users.id });
+        if (created.length === 0) tx.rollback();
+        if (!identity) return;
+        const linked = await tx
+          .insert(schema.authIdentities)
+          .values(identity)
+          .onConflictDoNothing()
+          .returning({ id: schema.authIdentities.id });
+        if (linked.length === 0) tx.rollback();
+      });
+      return true;
+    } catch (e) {
+      if (e instanceof TransactionRollbackError) return false;
+      throw e;
+    }
   }
 
   async touchLogin(userId: string, at: string): Promise<void> {
@@ -224,6 +221,68 @@ export class PostgresAuthStore extends AuthStore {
 
   async deleteByLearner(learnerId: string): Promise<void> {
     await this.db.delete(schema.users).where(eq(schema.users.learnerId, learnerId));
+  }
+
+  async identity(provider: Provider, subject: string): Promise<AuthIdentity | null> {
+    const [row] = await this.db
+      .select()
+      .from(schema.authIdentities)
+      .where(and(eq(schema.authIdentities.provider, provider), eq(schema.authIdentities.subject, subject)));
+    return row ? toIdentity(row) : null;
+  }
+
+  async linkIdentity(identity: AuthIdentity): Promise<AuthIdentity> {
+    await this.db.insert(schema.authIdentities).values(identity).onConflictDoNothing();
+    return (await this.identity(identity.provider, identity.subject))!;
+  }
+
+  async touchIdentity(id: string, email: string | null, at: string): Promise<void> {
+    await this.db
+      .update(schema.authIdentities)
+      .set(email ? { lastLoginAt: at, email } : { lastLoginAt: at })
+      .where(eq(schema.authIdentities.id, id));
+  }
+
+  async identitiesForUser(userId: string): Promise<AuthIdentity[]> {
+    const rows = await this.db
+      .select()
+      .from(schema.authIdentities)
+      .where(eq(schema.authIdentities.userId, userId))
+      .orderBy(asc(schema.authIdentities.createdAt));
+    return rows.map(toIdentity);
+  }
+
+  async addOneTime(record: OneTimeRecord): Promise<void> {
+    await this.db.insert(schema.authOneTime).values(record);
+  }
+
+  async consumeOneTime(hash: string, purpose: OneTimePurpose, at: string): Promise<OneTimeRecord | null> {
+    const [row] = await this.db
+      .update(schema.authOneTime)
+      .set({ consumedAt: at })
+      .where(
+        and(
+          eq(schema.authOneTime.hash, hash),
+          eq(schema.authOneTime.purpose, purpose),
+          isNull(schema.authOneTime.consumedAt),
+          gt(schema.authOneTime.expiresAt, at),
+        ),
+      )
+      .returning();
+    return row
+      ? {
+          ...row,
+          purpose: row.purpose as OneTimePurpose,
+          expiresAt: iso(row.expiresAt)!,
+          consumedAt: iso(row.consumedAt),
+          createdAt: iso(row.createdAt)!,
+        }
+      : null;
+  }
+
+  async sweepExpired(): Promise<number> {
+    const removed = await this.db.delete(schema.authOneTime).where(lt(schema.authOneTime.expiresAt, sql`now()`));
+    return removed.rowCount ?? 0;
   }
 
   async addRefreshToken(token: RefreshTokenRecord): Promise<void> {
@@ -261,6 +320,15 @@ export class PostgresAuthStore extends AuthStore {
     const [row] = await this.db.select().from(schema.users).where(where);
     return row ? { ...row, createdAt: iso(row.createdAt)!, lastLoginAt: iso(row.lastLoginAt) } : null;
   }
+}
+
+function toIdentity(row: typeof schema.authIdentities.$inferSelect): AuthIdentity {
+  return {
+    ...row,
+    provider: row.provider as Provider,
+    createdAt: iso(row.createdAt)!,
+    lastLoginAt: iso(row.lastLoginAt),
+  };
 }
 
 function toEntry(row: typeof schema.feedback.$inferSelect): FeedbackEntry {

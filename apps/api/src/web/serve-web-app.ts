@@ -3,6 +3,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { SIGN_IN_CALLBACK_PATH } from '../auth/sign-in-callback.js';
 import type { AppConfig } from '../config.js';
 import { HASHED_ASSET, IMMUTABLE_CACHE, PYODIDE_ASSET, PYODIDE_CORP, REVALIDATE_CACHE, WORKER_CSP, WORKER_SCRIPT } from './asset-policy.js';
 
@@ -46,6 +47,9 @@ export function serveWebApp(app: NestExpressApplication, config: AppConfig) {
     const wantsPage = (req.method === 'GET' || req.method === 'HEAD') && req.accepts('html') === 'html';
     if (!wantsPage || req.path.startsWith('/api/') || req.path === '/api' || /\.[a-z0-9]+$/i.test(req.path)) return next();
     res.setHeader('Cache-Control', 'no-cache');
+    // The sign-in popup lands here from Google or GitHub, whose pages send no COOP. Arriving on a page with a COOP
+    // would move the popup into a new browsing context group and cut it off from the app window awaiting its result.
+    if (req.path === SIGN_IN_CALLBACK_PATH) res.setHeader('Cross-Origin-Opener-Policy', 'unsafe-none');
     res.sendFile(index, (err) => err && next());
   });
 

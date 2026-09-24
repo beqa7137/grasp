@@ -1,4 +1,4 @@
-import { createHash, createHmac, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { SignJWT, errors, jwtVerify } from 'jose';
 
 const ISSUER = 'grasp-api';
@@ -46,16 +46,3 @@ export class TokenService {
 
 export const newRefreshToken = () => randomBytes(32).toString('base64url');
 export const hashToken = (token: string) => createHash('sha256').update(token).digest('hex');
-
-export const newLoginCode = () => String(randomInt(0, 1_000_000)).padStart(6, '0');
-
-/** Keyed hash, so a leaked database does not let anyone brute-force the six-digit codes offline. */
-export function hashLoginCode(secret: string, email: string, code: string): string {
-  return createHmac('sha256', secret).update(`${email}\n${code}`).digest('hex');
-}
-
-export function sameHash(a: string, b: string): boolean {
-  const x = Buffer.from(a, 'hex');
-  const y = Buffer.from(b, 'hex');
-  return x.length === y.length && timingSafeEqual(x, y);
-}

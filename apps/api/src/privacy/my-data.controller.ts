@@ -1,4 +1,5 @@
 import { Controller, Delete, Get, Header, HttpCode } from '@nestjs/common';
+import { toIdentitySummary } from '../auth/account.service.js';
 import { LearnerId } from '../common/learner-id.decorator.js';
 import { RateLimit } from '../common/rate-limit.js';
 import { AuthStore, FeedbackStore, InterviewStore, ProgressStore } from '../persistence/stores.js';
@@ -24,10 +25,18 @@ export class MyDataController {
       this.feedback.list(learnerId),
       this.auth.userByLearner(learnerId),
     ]);
+    const identities = account ? await this.auth.identitiesForUser(account.id) : [];
     return {
       exportedAt: new Date().toISOString(),
       learnerId,
-      account: account ? { email: account.email, createdAt: account.createdAt, lastLoginAt: account.lastLoginAt } : null,
+      account: account
+        ? {
+            email: account.email,
+            createdAt: account.createdAt,
+            lastLoginAt: account.lastLoginAt,
+            identities: identities.map(toIdentitySummary),
+          }
+        : null,
       events,
       interviews: interviews.map(({ problem, ...session }) => ({ ...session, problem: { id: problem.id, title: problem.title } })),
       feedback: feedback.map(({ learnerId: _l, ...entry }) => entry),

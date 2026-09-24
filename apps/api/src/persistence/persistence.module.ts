@@ -25,13 +25,16 @@ export const PG_POOL = Symbol('PG_POOL');
 const DB = Symbol('DB');
 const SWEEP_INTERVAL_MS = 10 * 60_000;
 
-/** Deletes expired rate windows and leases now and then; every instance may run it, deletes are idempotent. */
+/** Deletes expired rate windows, leases and one-time sign-in values now and then; every instance may run it, deletes are idempotent. */
 @Injectable()
-export class CoordinationSweeper implements OnApplicationBootstrap, OnApplicationShutdown {
-  private readonly log = new Logger(CoordinationSweeper.name);
+export class ExpiredRowSweeper implements OnApplicationBootstrap, OnApplicationShutdown {
+  private readonly log = new Logger(ExpiredRowSweeper.name);
   private timer: ReturnType<typeof setInterval> | undefined;
 
-  constructor(private readonly store: CoordinationStore) {}
+  constructor(
+    private readonly coordination: CoordinationStore,
+    private readonly auth: AuthStore,
+  ) {}
 
   onApplicationBootstrap() {
     this.timer = setInterval(() => void this.sweep(), SWEEP_INTERVAL_MS);
@@ -44,8 +47,8 @@ export class CoordinationSweeper implements OnApplicationBootstrap, OnApplicatio
 
   async sweep() {
     try {
-      const removed = await this.store.sweep();
-      if (removed) this.log.debug(`Swept ${removed} expired counters and leases`);
+      const removed = (await this.coordination.sweep()) + (await this.auth.sweepExpired());
+      if (removed) this.log.debug(`Swept ${removed} expired rows`);
     } catch (error) {
       this.log.warn(`Sweep failed, will retry: ${String(error)}`);
     }
@@ -98,7 +101,7 @@ export class CoordinationSweeper implements OnApplicationBootstrap, OnApplicatio
       inject: [DB],
       useFactory: (db: Db | null) => (db ? new PostgresCoordinationStore(db) : new MemoryCoordinationStore()),
     },
-    CoordinationSweeper,
+    ExpiredRowSweeper,
   ],
   exports: [APP_CONFIG, PG_POOL, ProgressStore, InterviewStore, FeedbackStore, AuthStore, CoordinationStore],
 })

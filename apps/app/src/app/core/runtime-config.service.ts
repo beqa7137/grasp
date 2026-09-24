@@ -9,9 +9,18 @@ export interface RuntimeConfig {
   release: string | null;
   /** Where the Python runtime is downloaded from; null means `pyodide/` next to the app. */
   pyodideUrl: string | null;
+  /** iOS builds only: the Google client whose reversed URL scheme this build registered. */
+  googleIosClientId: string | null;
 }
 
-const DEFAULTS: RuntimeConfig = { apiUrl: null, sentryDsn: null, environment: 'development', release: null, pyodideUrl: null };
+const DEFAULTS: RuntimeConfig = {
+  apiUrl: null,
+  sentryDsn: null,
+  environment: 'development',
+  release: null,
+  pyodideUrl: null,
+  googleIosClientId: null,
+};
 const LOAD_TIMEOUT_MS = 3_000;
 
 /**

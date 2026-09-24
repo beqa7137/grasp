@@ -1,5 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { AlertController, IonBackButton, IonButtons, IonContent, IonHeader, IonTitle, IonToolbar, ToastController } from '@ionic/angular';
 import { ApiError, ApiService } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
@@ -7,12 +6,13 @@ import { LearnerService } from '../../core/learner.service';
 import { ProgressService } from '../../core/progress.service';
 import { RuntimeConfigService } from '../../core/runtime-config.service';
 import { PilotService } from '../../pilot/pilot.service';
+import { AccountSettingsComponent } from './account-settings.component';
 import { StudySettingsComponent } from './study-settings.component';
 
 @Component({
   selector: 'app-settings',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle, IonContent, StudySettingsComponent],
+  imports: [IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle, IonContent, AccountSettingsComponent, StudySettingsComponent],
   template: `
     <ion-header [translucent]="true">
       <ion-toolbar>
@@ -22,70 +22,7 @@ import { StudySettingsComponent } from './study-settings.component';
     </ion-header>
     <ion-content [fullscreen]="true">
       <div class="page narrow">
-        <section class="panel block account">
-          <h2>Account</h2>
-          @if (auth.user(); as user) {
-            <div class="row">
-              <div>
-                <strong>{{ user.email }}</strong>
-                <p class="muted small">Progress syncs across every device where you sign in.</p>
-              </div>
-              <button class="g-btn" [disabled]="busy()" (click)="confirmSignOut()">Sign out</button>
-            </div>
-          } @else {
-            @if (auth.signInRequired()) {
-              <p class="notice">Your session ended. Sign in again to keep syncing this device's progress.</p>
-            }
-            @if (auth.emailAvailable() === false) {
-              <p class="muted">Sign-in isn't available on this server yet.</p>
-            } @else if (step() === 'email') {
-              <p class="muted">
-                Optional. Sign in to sync across devices and keep your progress if you lose this one. What you have learned so far comes
-                with you.
-              </p>
-              <form class="signin" (ngSubmit)="sendCode()">
-                <input
-                  type="email"
-                  name="email"
-                  autocomplete="email"
-                  inputmode="email"
-                  placeholder="you@example.com"
-                  aria-label="Email address"
-                  [ngModel]="email()"
-                  (ngModelChange)="email.set($event)"
-                  required
-                />
-                <button class="g-btn primary" type="submit" [disabled]="busy() || !validEmail()">Email me a code</button>
-              </form>
-            } @else {
-              <p class="muted">
-                We sent a 6-digit code to <strong>{{ email() }}</strong
-                >. It expires in 10 minutes.
-              </p>
-              <form class="signin" (ngSubmit)="verify()">
-                <input
-                  class="code mono"
-                  name="code"
-                  autocomplete="one-time-code"
-                  inputmode="numeric"
-                  maxlength="6"
-                  placeholder="123456"
-                  aria-label="Sign-in code"
-                  [ngModel]="code()"
-                  (ngModelChange)="code.set($event.replace(/D/g, ''))"
-                />
-                <button class="g-btn primary" type="submit" [disabled]="busy() || code().length !== 6">Sign in</button>
-              </form>
-              <p class="small links">
-                <button class="link" type="button" (click)="sendCode()" [disabled]="busy()">Send a new code</button> ·
-                <button class="link" type="button" (click)="step.set('email')">Use a different email</button>
-              </p>
-            }
-            @if (authError(); as e) {
-              <p class="error" role="alert">{{ e }}</p>
-            }
-          }
-        </section>
+        <app-account-settings />
 
         <app-study-settings />
 
@@ -157,59 +94,6 @@ import { StudySettingsComponent } from './study-settings.component';
     .small {
       font-size: 13px;
     }
-    .account .muted {
-      margin: 0 0 12px;
-      line-height: 1.5;
-    }
-    .signin {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-bottom: 10px;
-    }
-    .signin input {
-      flex: 1;
-      min-width: 200px;
-      background: var(--g-raised);
-      color: var(--g-text);
-      border: 1px solid var(--g-line-strong);
-      border-radius: 10px;
-      padding: 10px 12px;
-      font-size: 15px;
-    }
-    .signin input:focus {
-      outline: 2px solid var(--g-accent);
-      outline-offset: 1px;
-    }
-    .signin .code {
-      letter-spacing: 0.4em;
-      max-width: 180px;
-      min-width: 0;
-    }
-    .links {
-      margin: 0 0 10px;
-      color: var(--g-muted);
-    }
-    .link {
-      appearance: none;
-      border: none;
-      background: none;
-      color: var(--g-accent);
-      padding: 0;
-      font: inherit;
-      cursor: pointer;
-    }
-    .notice {
-      padding: 10px 12px;
-      border-radius: 10px;
-      background: rgba(255, 181, 71, 0.12);
-      color: var(--g-warn);
-      font-size: 14px;
-    }
-    .error {
-      color: var(--g-danger);
-      font-size: 14px;
-    }
     .g-btn.danger {
       color: var(--g-danger);
       border-color: color-mix(in srgb, var(--g-danger) 45%, transparent);
@@ -226,58 +110,6 @@ export class SettingsPage {
   readonly pilot = inject(PilotService);
   readonly auth = inject(AuthService);
   readonly busy = signal(false);
-
-  readonly step = signal<'email' | 'code'>('email');
-  readonly email = signal('');
-  readonly code = signal('');
-  readonly authError = signal<string | null>(null);
-  readonly validEmail = computed(() => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.email().trim()));
-
-  constructor() {
-    void this.auth.loadAvailability();
-  }
-
-  async sendCode() {
-    if (!this.validEmail()) return;
-    await this.authStep(async () => {
-      await this.auth.startEmail(this.email().trim());
-      this.code.set('');
-      this.step.set('code');
-    });
-  }
-
-  async verify() {
-    await this.authStep(async () => {
-      await this.auth.verifyEmail(this.email().trim(), this.code());
-      this.step.set('email');
-      this.code.set('');
-      await this.toast('Signed in. Your progress is now synced to your account.');
-    });
-  }
-
-  async confirmSignOut() {
-    const alert = await this.alerts.create({
-      header: 'Sign out?',
-      message: 'Your progress stays in your account. This device starts fresh until you sign in again.',
-      buttons: [
-        { text: 'Cancel', role: 'cancel' },
-        { text: 'Sign out', role: 'destructive', handler: () => void this.run(() => this.auth.signOut(), 'Could not sign out.') },
-      ],
-    });
-    await alert.present();
-  }
-
-  private async authStep(action: () => Promise<void>) {
-    this.authError.set(null);
-    this.busy.set(true);
-    try {
-      await action();
-    } catch (e) {
-      this.authError.set(e instanceof ApiError ? e.message : 'Something went wrong. Please try again.');
-    } finally {
-      this.busy.set(false);
-    }
-  }
 
   async exportData() {
     await this.run(async () => {

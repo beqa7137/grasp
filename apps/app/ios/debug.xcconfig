@@ -1,1 +1,4 @@
 CAPACITOR_DEBUG = true
+
+// GOOGLE_IOS_URL_SCHEME, written by `npm run cap:sync` (scripts/write-runtime-config.mjs).
+#include? "google-signin.xcconfig"

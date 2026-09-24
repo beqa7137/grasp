@@ -78,6 +78,12 @@ await check('serves runtime config and health from the environment', async () =>
   assert.deepEqual(await ready.json(), { status: 'ready', database: 'ok' });
 });
 
+await check('reports sign-in providers as off when their settings are unset', async () => {
+  const res = await fetch(`${base}/api/auth/config`);
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { google: null, github: null });
+});
+
 await check('parses JSON bodies and answers unknown API routes with JSON 404s', async () => {
   const event = { id: `smoke-${randomUUID()}`, at: new Date().toISOString(), type: 'settings.changed', settings: { newPerDay: 5 } };
   const res = await fetch(`${base}/api/progress/events`, { method: 'POST', headers: json, body: JSON.stringify({ events: [event] }) });

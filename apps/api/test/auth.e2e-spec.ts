@@ -1,30 +1,21 @@
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import request from 'supertest';
-import { Mailer, type MailMessage } from '../src/auth/mailer.js';
 import { createTestApp } from './support/app.js';
 import { resetDatabase } from './support/database.js';
-
-class CapturingMailer extends Mailer {
-  readonly enabled = true;
-  readonly sent: MailMessage[] = [];
-  async send(message: MailMessage) {
-    this.sent.push(message);
-  }
-  codeFor(email: string) {
-    const mail = [...this.sent].reverse().find((m) => m.to === email);
-    return /(\d{6})/.exec(mail!.subject)![1];
-  }
-}
+import { freshIp, OAuthFakes } from './support/oauth.js';
 
 const testDatabaseUrl = process.env['TEST_DATABASE_URL'];
 const storages = testDatabaseUrl ? (['memory', 'postgres'] as const) : (['memory'] as const);
+const providers = ['google', 'github'] as const;
 const phone = '3a3a3a3a-3a3a-4a3a-8a3a-3a3a3a3a3a3a';
 const laptop = '4b4b4b4b-4b4b-4b4b-8b4b-4b4b4b4b4b4b';
 const stranger = '5c5c5c5c-5c5c-4c5c-8c5c-5c5c5c5c5c5c';
 
-describe.each(storages)('Accounts (%s storage)', (storage) => {
+const cases = storages.flatMap((storage) => providers.map((provider) => [storage, provider] as const));
+
+describe.each(cases)('Accounts (%s storage, %s sign-in)', (storage, provider) => {
   let app: NestExpressApplication;
-  const mailer = new CapturingMailer();
+  let fakes: OAuthFakes;
   const http = () => request(app.getHttpServer());
   const bearer = (token: string) => ({ Authorization: `Bearer ${token}` });
   const event = (id: string) => ({
@@ -36,40 +27,44 @@ describe.each(storages)('Accounts (%s storage)', (storage) => {
     correct: true,
   });
 
-  let client = 0;
-  /** Each sign-in comes from its own address so the strict per-IP limits on sign-in routes don't interfere. */
+  const githubIds = new Map<string, number>();
+  const githubId = (person: string) => {
+    if (!githubIds.has(person)) githubIds.set(person, 1000 + githubIds.size);
+    return githubIds.get(person)!;
+  };
+
+  /** Signs in through the provider's whole flow, as the provider account of the person who owns `email`. */
   const signIn = async (email: string, device?: string) => {
-    const ip = `198.51.100.${++client}`;
-    await http().post('/api/auth/email/start').set('X-Forwarded-For', ip).send({ email }).expect(202);
-    const req = http().post('/api/auth/email/verify').set('X-Forwarded-For', ip);
+    const person = email.toLowerCase();
+    const [path, body] =
+      provider === 'google'
+        ? ['/api/auth/google', await fakes.googleCredential(http, { sub: `google-${person}`, email })]
+        : [
+            '/api/auth/github',
+            { ticket: await fakes.githubTicket(http, { id: githubId(person), emails: [{ email, primary: true, verified: true }] }) },
+          ];
+    const req = http().post(path).set('X-Forwarded-For', freshIp());
     if (device) req.set('x-learner-id', device);
-    return (await req.send({ email, code: mailer.codeFor(email.trim().toLowerCase()) }).expect(200)).body;
+    return (await req.send(body).expect(200)).body;
   };
 
   beforeAll(async () => {
     if (storage === 'postgres') await resetDatabase(testDatabaseUrl!);
-    app = await createTestApp({ DATABASE_URL: storage === 'postgres' ? testDatabaseUrl : undefined, TRUST_PROXY: '1' }, (b) =>
-      b.overrideProvider(Mailer).useValue(mailer),
+    fakes = await OAuthFakes.start();
+    app = await createTestApp(
+      { DATABASE_URL: storage === 'postgres' ? testDatabaseUrl : undefined, TRUST_PROXY: '1', ...fakes.env() },
+      fakes.customize,
     );
   });
 
   afterAll(async () => {
     await app.close();
+    await fakes.close();
   });
 
-  it('reports that email sign-in is available', async () => {
-    expect((await http().get('/api/auth/config').expect(200)).body).toEqual({ email: true });
-  });
-
-  it('validates input and never reveals whether an account exists', async () => {
-    await http().post('/api/auth/email/start').send({ email: 'not-an-email' }).expect(400);
-    const a = await http().post('/api/auth/email/start').send({ email: 'Nobody@Example.com ' }).expect(202);
-    expect(a.body).toEqual({ sent: true });
-    expect(mailer.sent.at(-1)!.to).toBe('nobody@example.com');
-    await http().post('/api/auth/email/verify').send({ email: 'nobody@example.com', code: '12' }).expect(400);
-    const wrong = mailer.codeFor('nobody@example.com') === '000000' ? '111111' : '000000';
-    const res = await http().post('/api/auth/email/verify').send({ email: 'nobody@example.com', code: wrong }).expect(401);
-    expect(res.body.message).toMatch(/invalid or has expired/);
+  it('no longer offers email-code sign-in', async () => {
+    await http().post('/api/auth/email/start').send({ email: 'ada@example.com' }).expect(404);
+    await http().post('/api/auth/email/verify').send({ email: 'ada@example.com', code: '123456' }).expect(404);
   });
 
   it('turns an anonymous device into an account and protects its progress', async () => {
@@ -89,6 +84,7 @@ describe.each(storages)('Accounts (%s storage)', (storage) => {
     expect((await http().get('/api/auth/me').set(bearer(session.accessToken)).expect(200)).body).toMatchObject({
       user: { email: 'ada@example.com' },
       learnerId: phone,
+      identities: [{ provider, email: 'ada@example.com', linkedAt: expect.any(String) }],
     });
     await http().get('/api/auth/me').set('x-learner-id', stranger).expect(401);
   });
@@ -114,11 +110,21 @@ describe.each(storages)('Accounts (%s storage)', (storage) => {
     expect(events.body.events.map((e: { id: string }) => e.id).sort()).toEqual(['evt-laptop-01', 'evt-phone-0001']);
     await http().get(`/api/interview/sessions/${interview.body.id}`).set(auth).expect(200);
     const exported = await http().get('/api/me/export').set(auth).expect(200);
-    expect(exported.body.account.email).toBe('ada@example.com');
+    expect(exported.body.account).toMatchObject({
+      email: 'ada@example.com',
+      identities: [{ provider, email: 'ada@example.com', linkedAt: expect.any(String) }],
+    });
     expect(exported.body.feedback.map((f: { message: string }) => f.message)).toEqual(['from the laptop']);
 
     const orphan = await http().get('/api/progress/events').set('x-learner-id', laptop).expect(200);
     expect(orphan.body.events).toEqual([]);
+  });
+
+  it('gives a device that already belongs to an account a fresh learner instead of taking it over', async () => {
+    const other = await signIn('bea@example.com', phone);
+    expect(other.learnerId).not.toBe(phone);
+    const mine = await http().get('/api/progress/events').set(bearer(other.accessToken)).expect(200);
+    expect(mine.body.events).toEqual([]);
   });
 
   it('rotates refresh tokens, and logging out ends the session', async () => {
@@ -136,7 +142,7 @@ describe.each(storages)('Accounts (%s storage)', (storage) => {
     expect(res.body.code).toBe('token_invalid');
   });
 
-  it('deletes the whole account on request', async () => {
+  it('deletes the whole account, with its sign-in method, on request', async () => {
     const device = '6d6d6d6d-6d6d-4d6d-8d6d-6d6d6d6d6d6d';
     const session = await signIn('cy@example.com', device);
     await http().delete('/api/me').set(bearer(session.accessToken)).expect(204);
@@ -151,26 +157,28 @@ describe.each(storages)('Accounts (%s storage)', (storage) => {
 
 describe('Per-user rate limits', () => {
   let app: NestExpressApplication;
-  const mailer = new CapturingMailer();
+  let fakes: OAuthFakes;
 
   beforeAll(async () => {
-    app = await createTestApp({ RATE_LIMIT_PER_MINUTE: '4' }, (b) => b.overrideProvider(Mailer).useValue(mailer));
+    fakes = await OAuthFakes.start();
+    app = await createTestApp({ RATE_LIMIT_PER_MINUTE: '4', TRUST_PROXY: '1', ...fakes.env() }, fakes.customize);
   });
 
   afterAll(async () => {
     await app.close();
+    await fakes.close();
   });
 
   it('gives each signed-in user their own budget, separate from the shared IP', async () => {
     const http = () => request(app.getHttpServer());
+    const ip = '203.0.113.9';
     const tokens: string[] = [];
     for (const email of ['u1@example.com', 'u2@example.com']) {
-      await http().post('/api/auth/email/start').send({ email }).expect(202);
-      const code = /(\d{6})/.exec(mailer.sent.at(-1)!.subject)![1];
-      tokens.push((await http().post('/api/auth/email/verify').send({ email, code }).expect(200)).body.accessToken);
+      const credential = await fakes.googleCredential(http, { sub: email, email });
+      tokens.push((await http().post('/api/auth/google').set('X-Forwarded-For', freshIp()).send(credential).expect(200)).body.accessToken);
     }
     const hit = (token?: string) => {
-      const req = http().get('/api/curriculum/patterns');
+      const req = http().get('/api/curriculum/patterns').set('X-Forwarded-For', ip);
       return token ? req.set('Authorization', `Bearer ${token}`) : req.set('x-learner-id', phone);
     };
     for (let i = 0; i < 4; i++) await hit(tokens[0]).expect(200);
