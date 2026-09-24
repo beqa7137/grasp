@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ClaudeInterviewer } from '../../src/interview/claude.interviewer.js';
 import type { InterviewSession, InterviewTrack, Scorecard, SessionUsage } from '../../src/interview/interview.types.js';
@@ -189,17 +189,17 @@ function report() {
     const ttft = Math.round(r.replies.reduce((s, x) => s + x.firstTokenMs, 0) / r.replies.length);
     return `| ${r.scenario} | ${r.scorecard.verdict} (${r.scorecard.mode}) | ${r.average.toFixed(1)} | ${u.inputTokens} / ${u.cacheReadTokens} / ${u.cacheWriteTokens} / ${u.outputTokens} | $${u.costUsd?.toFixed(4) ?? 'n/a'} | ${ttft} ms | ${r.warnings.join('; ') || '-'} |`;
   });
-  process.stdout.write(
-    [
-      '',
-      `Interviewer eval (${model})`,
-      '| Scenario | Verdict | Avg | Tokens in / cache read / cache write / out | Cost | Avg first token | Warnings |',
-      '| --- | --- | --- | --- | --- | --- | --- |',
-      ...rows,
-      `Transcripts and scorecards: ${file}`,
-      '',
-    ].join('\n'),
-  );
+  const table = [
+    `Interviewer eval (${model})`,
+    '| Scenario | Verdict | Avg | Tokens in / cache read / cache write / out | Cost | Avg first token | Warnings |',
+    '| --- | --- | --- | --- | --- | --- | --- |',
+    ...rows,
+  ];
+  process.stdout.write(['', ...table, `Transcripts and scorecards: ${file}`, ''].join('\n'));
+  if (process.env['GITHUB_STEP_SUMMARY']) appendFileSync(process.env['GITHUB_STEP_SUMMARY'], `### ${table.join('\n')}\n`);
+  if (process.env['GITHUB_ACTIONS']) {
+    for (const [i, r] of results.entries()) process.stdout.write(`::notice title=${r.scenario}::${rows[i].replaceAll('|', ' ').trim()}\n`);
+  }
 }
 
 describe.runIf(apiKey)(`AI interviewer live eval (${model})`, () => {

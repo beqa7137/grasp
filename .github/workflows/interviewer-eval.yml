@@ -1,0 +1,47 @@
+name: Interviewer eval
+
+# Runs the live AI interviewer eval against the real model: scripted strong and weak candidates on both
+# tracks, verdicts, score separation, caching, cost and latency. Run it before changing prompts, the
+# model or effort. Four short interviews: well under a dollar. See docs/AI_INTERVIEWER.md.
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: Anthropic model id
+        default: claude-sonnet-5
+
+permissions:
+  contents: read
+
+jobs:
+  eval:
+    name: Live eval
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Build the engine
+        run: npm run build:engine
+
+      - name: Run the eval
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_MODEL: ${{ inputs.model }}
+        run: npm run eval:interviewer
+
+      - name: Upload transcripts and scorecards
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: interviewer-eval
+          path: apps/api/eval-results
+          retention-days: 30
