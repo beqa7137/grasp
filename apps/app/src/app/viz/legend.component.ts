@@ -44,16 +44,17 @@ export type LegendSwatch = 'state' | 'role';
       border-color: var(--g-stroke);
     }
     i[data-state='active'] {
-      background: var(--g-active);
-      border-color: var(--g-active);
+      background: var(--g-state-current);
+      border-color: var(--g-state-current);
     }
     i[data-state='frontier'] {
-      background: rgba(var(--g-warn-rgb), 0.16);
-      border-color: var(--g-warn);
+      background: var(--g-state-frontier-fill);
+      border-color: var(--g-state-frontier-line);
+      border-style: dashed;
     }
     i[data-state='done'] {
-      background: rgba(var(--g-found-rgb), 0.16);
-      border-color: var(--g-found);
+      background: var(--g-state-done-fill);
+      border-color: var(--g-state-done-line);
     }
     i[data-state='marked'] {
       border-color: var(--g-found);
@@ -66,15 +67,15 @@ export type LegendSwatch = 'state' | 'role';
       border-width: 1px;
     }
     i[data-role='active'] {
-      background: var(--g-active);
-      border-color: var(--g-active);
+      background: var(--g-state-current);
+      border-color: var(--g-state-current);
     }
     i[data-role='deps'] {
       border-color: var(--g-pointer);
     }
     i[data-role='path'] {
-      background: rgba(var(--g-found-rgb), 0.22);
-      border-color: var(--g-found);
+      background: var(--g-state-path-fill);
+      border-color: var(--g-state-path-line);
     }
   `,
 })

@@ -60,7 +60,11 @@ export function layoutForest(tree: TreeView): { nodes: PlacedNode[]; links: Link
     if (n.parent === null || !slot.has(n.parent) || !slot.has(n.id) || n.parent === n.id) return [];
     const from = position(n.parent);
     const to = position(n.id);
-    return [{ id: `${n.parent}>${n.id}`, x1: from.x, y1: from.y, x2: to.x, y2: to.y }];
+    // Links stop at each node's edge, or they would show through the see-through state fills and cross the labels.
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const trim = RADIUS / Math.hypot(dx, dy);
+    return [{ id: `${n.parent}>${n.id}`, x1: from.x + dx * trim, y1: from.y + dy * trim, x2: to.x - dx * trim, y2: to.y - dy * trim }];
   });
   return { nodes, links, width: Math.max(1, next) * SLOT + 2 * PAD, height: (levels - 1) * LEVEL + 2 * RADIUS + 2 * PAD };
 }

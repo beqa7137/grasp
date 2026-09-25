@@ -17,10 +17,7 @@
   --g-raised: #f0f2f6;
   --g-line: #dfe2ea;
   --g-line-strong: #c6cbd6;
-  // Borders of form fields. Fields recessed on --g-bg take --g-field-line, which keeps dark at its old value; the dark
-  // contrast fix will merge it into --g-stroke.
   --g-stroke: #707889;
-  --g-field-line: var(--g-stroke);
   --g-tab-bar: rgba(255, 255, 255, 0.92);
   --g-backdrop-opacity: 0.4;
   // Light surfaces differ little from the page, so cards and overlays get the depth dark takes from its layered surfaces.
@@ -35,10 +32,12 @@
   --g-predict-ink: #3d5000;
   --g-warn-ink: #6e4200;
   --g-danger-ink: #9d1630;
+  --g-found-ink: #02583f;
 
   @include rgb-token(accent, #5846dc);
   --g-accent-soft: rgba(var(--g-accent-rgb), 0.14);
   --g-window: rgba(var(--g-accent-rgb), 0.16);
+  --g-window-line: rgba(var(--g-accent-rgb), 0.7);
   @include rgb-token(active, #0268a0);
   @include rgb-token(found, #036b4c);
   @include rgb-token(danger, #c3203d);
@@ -46,6 +45,19 @@
   --g-pointer: var(--g-warn);
   --g-pointer-alt: #9a2a08;
   @include rgb-token(predict, #536d00);
+
+  // Visualizer states: one look per state across the graph, tree, grid, table and array views and their legends.
+  --g-state-current: var(--g-active);
+  --g-state-current-ink: var(--g-on-fill);
+  --g-state-frontier-fill: rgba(var(--g-warn-rgb), 0.16);
+  --g-state-frontier-line: var(--g-warn);
+  --g-state-done-fill: rgba(var(--g-found-rgb), 0.16);
+  --g-state-done-line: var(--g-found);
+  --g-state-path-fill: rgba(var(--g-found-rgb), 0.22);
+  --g-state-path-line: var(--g-found);
+  // Expanded cells are the most common state, so their outline stays quiet; their distance number marks them.
+  --g-state-visited-fill: rgba(var(--g-accent-rgb), 0.14);
+  --g-state-visited-line: rgba(var(--g-accent-rgb), 0.35);
 
   --g-wall: #5d6577;
   --g-wall-hatch: rgba(255, 255, 255, 0.12);
@@ -61,6 +73,7 @@
   --g-syntax-number: #9c3a0a;
   --g-syntax-type: #7a5000;
   --g-syntax-operator: #0a6580;
+  --g-syntax-comment: var(--g-faint);
   // Lighter than dark's tints: at dark's alphas no readable light syntax colour reaches 4.5:1 on the selection.
   --g-code-active-line: rgba(var(--g-accent-rgb), 0.06);
   --g-code-line-on: rgba(var(--g-accent-rgb), 0.1);
@@ -77,8 +90,7 @@
   --g-raised: #181c26;
   --g-line: #252a37;
   --g-line-strong: #343b4d;
-  --g-stroke: var(--g-line-strong);
-  --g-field-line: var(--g-line);
+  --g-stroke: #6b7387;
   --g-tab-bar: rgba(14, 16, 22, 0.92);
   --g-backdrop-opacity: 0.6;
   --g-shadow: none;
@@ -92,6 +104,7 @@
   --g-predict-ink: #e8f5a8;
   --g-warn-ink: #f3e6b3;
   --g-danger-ink: #ffb3bd;
+  --g-found-ink: var(--g-found);
 
   @include rgb-token(accent, #9d8cff);
   @include rgb-token(active, #4cc9f0);
@@ -101,8 +114,7 @@
   --g-pointer-alt: #ff8a5c;
   @include rgb-token(predict, #d4f53c);
 
-  --g-wall: #2a2f3d;
-  --g-wall-hatch: rgba(255, 255, 255, 0.04);
+  --g-wall: var(--g-stroke);
   --g-kind-lb: #7aa2ff;
   --g-kind-cache: #ff7eb6;
   --g-kind-replica: #ffd28a;
@@ -115,6 +127,8 @@
   --g-syntax-number: #f78c6c;
   --g-syntax-type: #ffcb6b;
   --g-syntax-operator: #89ddff;
+  // Lighter than --g-muted, so comments keep 4.5:1 on the trace, error and selection highlights.
+  --g-syntax-comment: #9ca4b8;
   --g-code-active-line: rgba(var(--g-accent-rgb), 0.07);
   --g-code-line-on: rgba(var(--g-accent-rgb), 0.13);
   --g-code-selection: rgba(var(--g-accent-rgb), 0.28);

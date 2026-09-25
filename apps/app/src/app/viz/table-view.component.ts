@@ -93,15 +93,15 @@ const key = ([r, c]: [number, number]) => `${r},${c}`;
       color: var(--g-pointer);
     }
     .cell[data-role='active'] {
-      background: var(--g-active);
-      border-color: var(--g-active);
-      color: var(--g-on-fill);
+      background: var(--g-state-current);
+      border-color: var(--g-state-current);
+      color: var(--g-state-current-ink);
       transform: scale(1.06);
     }
     .cell[data-role='path'] {
-      background: rgba(var(--g-found-rgb), 0.22);
-      border-color: var(--g-found);
-      color: var(--g-found);
+      background: var(--g-state-path-fill);
+      border-color: var(--g-state-path-line);
+      color: var(--g-found-ink);
     }
     g-legend {
       --g-legend-gap: 14px;

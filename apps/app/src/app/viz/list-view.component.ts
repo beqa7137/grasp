@@ -44,8 +44,8 @@ import type { Scalar } from '@grasp/engine';
       animation: pop 0.25s ease-out;
     }
     .item.hot {
-      border-color: var(--g-active);
-      color: var(--g-active);
+      border-color: var(--g-state-current);
+      color: var(--g-state-current);
     }
     .empty {
       font: 0.75rem/1 var(--g-font-mono);

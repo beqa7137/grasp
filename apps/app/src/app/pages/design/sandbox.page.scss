@@ -372,7 +372,6 @@
   .base {
     fill: none;
     stroke: var(--g-stroke);
-    opacity: 0.8;
   }
   .flow {
     fill: none;
@@ -391,7 +390,6 @@
   }
   &.idle .base {
     stroke-dasharray: 4 5;
-    opacity: 0.5;
   }
   &.selected .base {
     stroke: var(--g-text);
