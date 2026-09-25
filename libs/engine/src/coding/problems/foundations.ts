@@ -1,5 +1,5 @@
-import { randInt, shuffle } from '../../algorithms/input.js';
-import type { Args, CodingProblem } from '../types.js';
+import { distinctInts, randInt, shuffle } from '../../algorithms/input.js';
+import type { Args, CodingProblemDefinition } from '../types.js';
 import { distinctSorted, ints } from './inputs.js';
 
 /** Two indices whose values sum to target; exactly one such pair exists. */
@@ -46,8 +46,7 @@ function sortedPairCase(rand: () => number, n: number, range: number): Args {
  */
 function uniquePairAtScale(rand: () => number, n: number, sorted: boolean): Args {
   const quarter = 250_000_000;
-  const values = new Set<number>();
-  while (values.size < n - 2) values.add(4 * randInt(rand, -quarter, quarter - 1));
+  const values = distinctInts(rand, n - 2, -quarter, quarter - 1).map((v) => 4 * v);
   const a = 4 * randInt(rand, -quarter, quarter - 1) + 1;
   let b = a;
   while (b === a) b = 4 * randInt(rand, -quarter, quarter - 1) + 1;
@@ -55,15 +54,10 @@ function uniquePairAtScale(rand: () => number, n: number, sorted: boolean): Args
   return [sorted ? nums.sort((x, y) => x - y) : shuffle(rand, nums), a + b];
 }
 
-export const twoSum: CodingProblem = {
-  id: 'two-sum',
-  title: 'Two Sum',
-  difficulty: 'easy',
-  patternIds: ['hashing'],
-  algorithmId: 'two-sum-hash',
+export const twoSum: CodingProblemDefinition = {
   statement: [
-    'Given an array of integers nums and an integer target, return the indices of the two numbers that add up to target.',
-    'Exactly one pair adds up to target, and you may not use the same element twice. Return the two indices in any order.',
+    'Given an array of integers `nums` and an integer `target`, return the indices of the two numbers that add up to `target`.',
+    'Exactly one pair adds up to `target`, and you may not use the same element twice. Return the two indices in any order.',
   ],
   constraints: ['2 ≤ nums.length ≤ 10^5', '-10^9 ≤ nums[i], target ≤ 10^9', 'Exactly one valid answer exists'],
   entry: 'twoSum',
@@ -94,14 +88,9 @@ export const twoSum: CodingProblem = {
   complexity: { time: 'O(n)', space: 'O(n)' },
 };
 
-export const pairSumSorted: CodingProblem = {
-  id: 'pair-sum-sorted',
-  title: 'Two Sum in a Sorted Array',
-  difficulty: 'easy',
-  patternIds: ['two-pointers'],
-  algorithmId: 'pair-sum-sorted',
+export const pairSumSorted: CodingProblemDefinition = {
   statement: [
-    'nums is sorted in non-decreasing order. Return the indices [i, j] with i < j of the only pair whose values add up to target.',
+    '`nums` is sorted in non-decreasing order. Return the indices `[i, j]` with `i < j` of the only pair whose values add up to `target`.',
     'Aim for constant extra space.',
   ],
   constraints: ['2 ≤ nums.length ≤ 10^5', 'nums is sorted', 'Exactly one valid answer exists'],
@@ -134,13 +123,9 @@ export const pairSumSorted: CodingProblem = {
   complexity: { time: 'O(n)', space: 'O(1)' },
 };
 
-export const containerMostWater: CodingProblem = {
-  id: 'container-most-water',
-  title: 'Container With Most Water',
-  difficulty: 'medium',
-  patternIds: ['two-pointers', 'greedy'],
+export const containerMostWater: CodingProblemDefinition = {
   statement: [
-    'height[i] is the height of a vertical line at position i. Pick two lines that, together with the x-axis, hold the most water.',
+    '`height[i]` is the height of a vertical line at position `i`. Pick two lines that, together with the x-axis, hold the most water.',
     'Return the maximum area: the distance between the lines times the shorter line.',
   ],
   constraints: ['2 ≤ height.length ≤ 10^5', '0 ≤ height[i] ≤ 10^4'],
@@ -167,13 +152,8 @@ export const containerMostWater: CodingProblem = {
   complexity: { time: 'O(n)', space: 'O(1)' },
 };
 
-export const longestUniqueSubstring: CodingProblem = {
-  id: 'longest-unique-substring',
-  title: 'Longest Substring Without Repeating Characters',
-  difficulty: 'medium',
-  patternIds: ['sliding-window'],
-  algorithmId: 'longest-unique-substring',
-  statement: ['Given a string s, return the length of the longest substring that contains no repeated characters.'],
+export const longestUniqueSubstring: CodingProblemDefinition = {
+  statement: ['Given a string `s`, return the length of the longest substring that contains no repeated characters.'],
   constraints: ['0 ≤ s.length ≤ 10^5', 's consists of printable ASCII characters'],
   entry: 'lengthOfLongestSubstring',
   params: [{ name: 's', type: 'string' }],
@@ -203,14 +183,9 @@ export const longestUniqueSubstring: CodingProblem = {
   complexity: { time: 'O(n)', space: 'O(k) for k distinct characters' },
 };
 
-export const binarySearch: CodingProblem = {
-  id: 'binary-search',
-  title: 'Binary Search',
-  difficulty: 'easy',
-  patternIds: ['binary-search'],
-  algorithmId: 'binary-search',
+export const binarySearch: CodingProblemDefinition = {
   statement: [
-    'nums is sorted in ascending order with distinct values. Return the index of target, or -1 if it is not present.',
+    '`nums` is sorted in ascending order with distinct values. Return the index of `target`, or -1 if it is not present.',
     'Aim for O(log n).',
   ],
   constraints: ['1 ≤ nums.length ≤ 10^5', 'values are distinct and sorted'],
@@ -251,14 +226,10 @@ export const binarySearch: CodingProblem = {
   complexity: { time: 'O(log n)', space: 'O(1)' },
 };
 
-export const kokoBananas: CodingProblem = {
-  id: 'koko-bananas',
-  title: 'Minimum Eating Speed',
-  difficulty: 'medium',
-  patternIds: ['binary-search'],
+export const kokoBananas: CodingProblemDefinition = {
   statement: [
-    'There are piles of bananas; piles[i] is the size of pile i. Each hour you pick one pile and eat up to k bananas from it. If the pile has fewer than k, you finish it and wait for the next hour.',
-    'Return the smallest integer speed k that lets you finish every pile within h hours.',
+    'There are piles of bananas; `piles[i]` is the size of pile `i`. Each hour you pick one pile and eat up to `k` bananas from it. If the pile has fewer than `k`, you finish it and wait for the next hour.',
+    'Return the smallest integer speed `k` that lets you finish every pile within `h` hours.',
   ],
   constraints: ['1 ≤ piles.length ≤ 10^4', 'piles.length ≤ h ≤ 10^9', '1 ≤ piles[i] ≤ 10^9'],
   entry: 'minEatingSpeed',
@@ -296,6 +267,6 @@ export const kokoBananas: CodingProblem = {
     }
     return lo;
   },
-  approach: 'Binary search on the answer: finishing in time is monotonic in k, so find the first speed that works.',
+  approach: 'Binary search on the answer: finishing in time is monotonic in `k`, so find the first speed that works.',
   complexity: { time: 'O(n log max(piles))', space: 'O(1)' },
 };

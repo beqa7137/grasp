@@ -1,5 +1,5 @@
 import type { ActivatedRouteSnapshot, Routes } from '@angular/router';
-import { getAlgorithm, getCodingProblem, getPattern, getScenario } from '@grasp/engine';
+import { getAlgorithm, getPattern, getProblemSummary, getScenario } from '@grasp/engine';
 import { FREE_BUILD } from './pages/design/free-build';
 
 const idOf = (route: ActivatedRouteSnapshot) => route.paramMap.get('id') ?? '';
@@ -58,7 +58,7 @@ export const routes: Routes = [
       { path: 'code', title: 'Code', loadComponent: () => import('./pages/code/code-list.page').then((m) => m.CodeListPage) },
       {
         path: 'code/:id',
-        title: (route) => getCodingProblem(idOf(route))?.title ?? 'Code',
+        title: (route) => getProblemSummary(idOf(route))?.title ?? 'Code',
         loadComponent: () => import('./pages/code/workspace.page').then((m) => m.WorkspacePage),
       },
       { path: 'settings', title: 'Settings', loadComponent: () => import('./pages/settings/settings.page').then((m) => m.SettingsPage) },

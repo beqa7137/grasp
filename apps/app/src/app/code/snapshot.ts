@@ -23,6 +23,8 @@ export interface TreeSnapNode {
 
 export type TreeSnap = Extract<Snap, { kind: 'tree' }>;
 
+export const isTree = (snap: Snap | undefined): snap is TreeSnap => typeof snap === 'object' && snap !== null && snap.kind === 'tree';
+
 export interface TraceStep {
   line: number;
   vars: Record<string, Snap>;
@@ -58,10 +60,7 @@ function isTreeNode(value: object): value is NodeLike {
   return !Array.isArray(value) && 'val' in value && 'left' in value && 'right' in value && isLink(value.left) && isLink(value.right);
 }
 
-/**
- * A variable's node and the nodes below it in level order, up to a bound. A node inside an array, set or map keeps only
- * itself: the tree is drawn from the variables, and a stack of 64 nodes must not copy 64 subtrees on every step.
- */
+/** A node nested inside another value keeps only itself: a stack of 64 nodes must not copy 64 subtrees on every step. */
 function treeSnap(root: NodeLike, ids: NodeIds, depth: number): TreeSnap {
   const limit = depth === 0 ? MAX_TREE_NODES : 1;
   const nodes: TreeSnapNode[] = [];

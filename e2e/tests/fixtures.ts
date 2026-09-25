@@ -87,3 +87,24 @@ export async function stepToCheckpoint(page: Page, press = () => page.getByRole(
     await expect(page.getByText(`${step + 1} / ${total}`, { exact: true }).or(prompt)).toBeVisible();
   }
 }
+
+export const JS_DIAMETER = `function diameterOfBinaryTree(root) {
+  let best = 0;
+  const height = (node) => {
+    if (!node) return 0;
+    const left = height(node.left);
+    const right = height(node.right);
+    best = Math.max(best, left + right);
+    return 1 + Math.max(left, right);
+  };
+  height(root);
+  return best;
+}`;
+
+/** Replaces the code in the editor of the problem with this title. */
+export async function write(page: Page, code: string, title = 'Two Sum') {
+  const editor = page.getByRole('textbox', { name: `${title} solution` });
+  await editor.click();
+  await page.keyboard.press('ControlOrMeta+a');
+  await page.keyboard.insertText(code);
+}

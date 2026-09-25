@@ -1,5 +1,4 @@
-import type { Page } from '@playwright/test';
-import { expect, synced, test } from './fixtures';
+import { JS_DIAMETER, expect, synced, test, write } from './fixtures';
 
 const JS_TWO_SUM = `function twoSum(nums, target) {
   const seen = new Map();
@@ -20,19 +19,6 @@ const PY_TWO_SUM = `def two_sum(nums, target):
         if target - x in seen:
             return [seen[target - x], i]
         seen[x] = i`;
-
-const JS_DIAMETER = `function diameterOfBinaryTree(root) {
-  let best = 0;
-  const height = (node) => {
-    if (!node) return 0;
-    const left = height(node.left);
-    const right = height(node.right);
-    best = Math.max(best, left + right);
-    return 1 + Math.max(left, right);
-  };
-  height(root);
-  return best;
-}`;
 
 const TS_DIAMETER = `interface TreeNode {
   val: number;
@@ -68,13 +54,6 @@ def diameter_of_binary_tree(root: Optional[TreeNode]) -> int:
 
     height(root)
     return best`;
-
-async function write(page: Page, code: string, title = 'Two Sum') {
-  const editor = page.getByRole('textbox', { name: `${title} solution` });
-  await editor.click();
-  await page.keyboard.press('ControlOrMeta+a');
-  await page.keyboard.insertText(code);
-}
 
 test('an efficient JavaScript solution passes the examples, then every test', { tag: '@smoke' }, async ({ page }) => {
   await page.goto('/code/two-sum');

@@ -1,15 +1,10 @@
 import { randInt, rangeOf, shuffle } from '../../algorithms/input.js';
-import type { CodingProblem } from '../types.js';
+import type { CodingProblemDefinition } from '../types.js';
 import { distinctSorted, ints, nearMiddle } from './inputs.js';
 
-export const dailyTemperatures: CodingProblem = {
-  id: 'daily-temperatures',
-  title: 'Days Until Warmer',
-  difficulty: 'medium',
-  patternIds: ['monotonic-stack'],
-  algorithmId: 'next-greater-element',
+export const dailyTemperatures: CodingProblemDefinition = {
   statement: [
-    'Given daily temperatures, return an array where answer[i] is the number of days after day i until a strictly warmer temperature. Use 0 if no warmer day comes.',
+    'Given daily temperatures, return an array where `answer[i]` is the number of days after day `i` until a strictly warmer temperature. Use 0 if no warmer day comes.',
   ],
   constraints: ['1 ≤ temperatures.length ≤ 10^5', '30 ≤ temperatures[i] ≤ 100'],
   entry: 'dailyTemperatures',
@@ -36,13 +31,8 @@ export const dailyTemperatures: CodingProblem = {
   complexity: { time: 'O(n)', space: 'O(n)' },
 };
 
-export const subarraySumK: CodingProblem = {
-  id: 'subarray-sum-k',
-  title: 'Subarrays Summing to K',
-  difficulty: 'medium',
-  patternIds: ['prefix-sum', 'hashing'],
-  algorithmId: 'subarray-sum-prefix',
-  statement: ['Return how many contiguous, non-empty subarrays of nums add up to exactly k. Values can be negative.'],
+export const subarraySumK: CodingProblemDefinition = {
+  statement: ['Return how many contiguous, non-empty subarrays of `nums` add up to exactly `k`. Values can be negative.'],
   constraints: ['1 ≤ nums.length ≤ 10^5', '-1000 ≤ nums[i] ≤ 1000', '-10^7 ≤ k ≤ 10^7'],
   entry: 'subarraySum',
   params: [
@@ -70,16 +60,11 @@ export const subarraySumK: CodingProblem = {
     }
     return count;
   },
-  approach: 'Running prefix sums in a hash map: every earlier prefix equal to sum − k closes a subarray summing to k.',
+  approach: 'Running prefix sums in a hash map: every earlier prefix equal to `sum - k` closes a subarray summing to `k`.',
   complexity: { time: 'O(n)', space: 'O(n)' },
 };
 
-export const findDuplicate: CodingProblem = {
-  id: 'find-duplicate',
-  title: 'Find the Duplicate Number',
-  difficulty: 'medium',
-  patternIds: ['fast-slow'],
-  algorithmId: 'linked-list-cycle',
+export const findDuplicate: CodingProblemDefinition = {
   statement: [
     '`nums` holds `n + 1` integers, each between 1 and `n`, so some value must repeat. Exactly one value does. Return it.',
     'It may appear more than twice. Solve it without modifying `nums`, using O(1) extra space.',
@@ -135,14 +120,9 @@ export const findDuplicate: CodingProblem = {
   complexity: { time: 'O(n)', space: 'O(1)' },
 };
 
-export const mergeIntervals: CodingProblem = {
-  id: 'merge-intervals',
-  title: 'Merge Intervals',
-  difficulty: 'medium',
-  patternIds: ['intervals'],
-  algorithmId: 'merge-intervals',
+export const mergeIntervals: CodingProblemDefinition = {
   statement: [
-    'Given intervals [start, end], merge all overlapping ones and return the result sorted by start. Touching intervals like [1,4] and [4,5] overlap.',
+    'Given intervals `[start, end]`, merge all overlapping ones and return the result sorted by `start`. Touching intervals like `[1,4]` and `[4,5]` overlap.',
   ],
   constraints: ['1 ≤ intervals.length ≤ 10^5', '0 ≤ start ≤ end ≤ 10^6'],
   entry: 'merge',
@@ -212,16 +192,12 @@ export const mergeIntervals: CodingProblem = {
     }
     return out;
   },
-  approach: 'Sort by start, then sweep: extend the current interval while the next one starts before it ends.',
+  approach: 'Sort by `start`, then sweep: extend the current interval while the next one starts before it ends.',
   complexity: { time: 'O(n log n)', space: 'O(n)' },
 };
 
-export const topKFrequent: CodingProblem = {
-  id: 'top-k-frequent',
-  title: 'Top K Frequent Elements',
-  difficulty: 'medium',
-  patternIds: ['heap', 'hashing'],
-  statement: ['Return the k most frequent values in nums, in any order. The answer is unique.'],
+export const topKFrequent: CodingProblemDefinition = {
+  statement: ['Return the `k` most frequent values in `nums`, in any order. The answer is unique.'],
   constraints: ['1 ≤ nums.length ≤ 10^5', '1 ≤ k ≤ number of distinct values'],
   entry: 'topKFrequent',
   params: [
@@ -254,17 +230,12 @@ export const topKFrequent: CodingProblem = {
       .slice(0, k)
       .map(([v]) => v);
   },
-  approach: 'Count with a hash map, then keep the k largest counts with a size-k min-heap (or bucket by frequency for O(n)).',
+  approach: 'Count with a hash map, then keep the `k` largest counts with a min-heap of size `k` (or bucket by frequency for O(n)).',
   complexity: { time: 'O(n log k)', space: 'O(n)' },
 };
 
-export const kthLargestElement: CodingProblem = {
-  id: 'kth-largest-element',
-  title: 'K-th Largest Element',
-  difficulty: 'medium',
-  patternIds: ['heap'],
-  algorithmId: 'kth-largest',
-  statement: ['Return the k-th largest value in nums (counting duplicates). Try doing it without sorting the whole array.'],
+export const kthLargestElement: CodingProblemDefinition = {
+  statement: ['Return the `k`-th largest value in `nums` (counting duplicates). Try doing it without sorting the whole array.'],
   constraints: ['1 ≤ k ≤ nums.length ≤ 10^5', '-10^4 ≤ nums[i] ≤ 10^4'],
   entry: 'findKthLargest',
   params: [
@@ -290,6 +261,6 @@ export const kthLargestElement: CodingProblem = {
   solve(nums: number[], k: number) {
     return [...nums].sort((a, b) => b - a)[k - 1];
   },
-  approach: 'Keep a min-heap of the k largest values seen; its root is the answer (O(n log k)). Quickselect averages O(n).',
+  approach: 'Keep a min-heap of the `k` largest values seen; its root is the answer (O(n log k)). Quickselect averages O(n).',
   complexity: { time: 'O(n log k)', space: 'O(k)' },
 };

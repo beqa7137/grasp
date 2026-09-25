@@ -16,7 +16,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
 import {
-  CODING_PROBLEMS,
+  CODING_CATALOG,
   InputError,
   formatField,
   getAlgorithm,
@@ -96,7 +96,7 @@ export class PlayerPage {
   private readonly controls = viewChild<ElementRef<HTMLElement>>('controls');
 
   readonly algo = computed(() => getAlgorithm(this.id()) as AlgorithmDef | undefined);
-  readonly problem = computed(() => CODING_PROBLEMS.find((p) => p.algorithmId === this.id()));
+  readonly problem = computed(() => CODING_CATALOG.find((p) => p.algorithmId === this.id()));
   readonly pattern = computed(() => (this.algo() ? getPattern(this.algo()!.patternId) : undefined));
 
   readonly input = signal<Record<string, unknown> | null>(null);

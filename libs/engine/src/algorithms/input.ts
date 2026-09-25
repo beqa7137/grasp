@@ -169,6 +169,13 @@ export function randInt(rand: () => number, min: number, max: number): number {
   return min + Math.floor(rand() * (max - min + 1));
 }
 
+/** `count` different integers from `lo` to `hi` inclusive, in the order they were first drawn. */
+export function distinctInts(rand: () => number, count: number, lo: number, hi: number): number[] {
+  const values = new Set<number>();
+  while (values.size < count) values.add(randInt(rand, lo, hi));
+  return [...values];
+}
+
 /** The indices from `a` to `b` inclusive, or none when `b` < `a`. */
 export function rangeOf(a: number, b: number): number[] {
   return Array.from({ length: Math.max(0, b - a + 1) }, (_, k) => a + k);

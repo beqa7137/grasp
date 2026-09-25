@@ -1,5 +1,5 @@
 import { fixedChoices } from './choices.js';
-import { asNumber, asNumbers, randInt } from './input.js';
+import { asNumber, asNumbers, distinctInts, randInt } from './input.js';
 import type { AlgorithmDef, Frame } from './types.js';
 
 type Input = { nums: number[]; target: number };
@@ -38,12 +38,9 @@ export const binarySearch: AlgorithmDef<Input> = {
   defaultInput: { nums: [2, 5, 8, 12, 16, 23, 38, 56, 72, 91], target: 23 },
 
   randomInput(rand = Math.random) {
-    const nums = new Set<number>();
-    const size = randInt(rand, 8, 14);
-    while (nums.size < size) nums.add(randInt(rand, 1, 99));
-    const sorted = [...nums].sort((a, b) => a - b);
-    const target = rand() < 0.8 ? sorted[randInt(rand, 0, sorted.length - 1)] : randInt(rand, 1, 99);
-    return { nums: sorted, target };
+    const nums = distinctInts(rand, randInt(rand, 8, 14), 1, 99).sort((a, b) => a - b);
+    const target = rand() < 0.8 ? nums[randInt(rand, 0, nums.length - 1)] : randInt(rand, 1, 99);
+    return { nums, target };
   },
 
   validate(input) {
