@@ -1,42 +1,23 @@
-/// <reference types="node" />
-import { readFileSync } from 'node:fs';
-import { DARK_CLASS } from './core/theme-chrome';
+import { hexChannels, themeTokens } from './core/theme.testing';
 
 type Theme = 'light' | 'dark';
 type Rgb = [number, number, number];
 type Rgba = [number, number, number, number];
 
 interface Check {
-  /** The token in front: text, a line or a knob. */
   fore: string;
-  /** The tokens it is painted over, bottom first. */
+  /** Bottom first; the bottom one must be opaque. */
   over: string[];
   min: number;
 }
 
-const SOURCE = readFileSync('src/_theme.scss', 'utf8');
 const THEMES: Theme[] = ['light', 'dark'];
 const TEXT = 4.5;
 const GRAPHIC = 3;
 
-const channels = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)) as Rgb;
-
-/** The tokens one block of _theme.scss declares, with each rgb-token's -rgb channels written out as CSS sees them. */
-function declared(selector: string): Map<string, string> {
-  const body = SOURCE.match(new RegExp(`^${selector.replaceAll('.', '\\.')} \\{([^}]*)\\}`, 'm'))?.[1];
-  if (body === undefined) throw new Error(`_theme.scss has no ${selector} block`);
-  const tokens = new Map<string, string>();
-  for (const [, name, hex] of body.matchAll(/@include rgb-token\(([\w-]+), (#[\da-f]{6})\);/g)) {
-    tokens.set(name, hex);
-    tokens.set(`${name}-rgb`, channels(hex).join(', '));
-  }
-  for (const [, name, value] of body.matchAll(/^\s*--g-([\w-]+):\s*([^;]+);/gm)) tokens.set(name, value);
-  return tokens;
-}
-
-const light = declared(':root');
+const light = themeTokens(false);
 /** Dark overrides light on the same element, so a token only light declares resolves on dark's channels. */
-const TOKENS: Record<Theme, Map<string, string>> = { light, dark: new Map([...light, ...declared(`:root.${DARK_CLASS}`)]) };
+const TOKENS: Record<Theme, Map<string, string>> = { light, dark: new Map([...light, ...themeTokens(true)]) };
 
 function colour(theme: Theme, token: string): Rgba {
   const lookup = (name: string) => {
@@ -46,13 +27,12 @@ function colour(theme: Theme, token: string): Rgba {
   };
   let value = lookup(token);
   while (value.includes('var(')) value = value.replace(/var\(--g-([\w-]+)\)/g, (_, name: string) => lookup(name));
-  if (/^#[\da-f]{6}$/i.test(value)) return [...channels(value), 1];
+  if (/^#[\da-f]{6}$/i.test(value)) return [...hexChannels(value), 1];
   const rgba = value.match(/^rgba\((\d+), (\d+), (\d+), ([\d.]+)\)$/);
   if (!rgba) throw new Error(`--g-${token} is ${value}, which this check cannot read`);
   return rgba.slice(1).map(Number) as Rgba;
 }
 
-/** What shows where the tokens are painted one over another, bottom first. The bottom one must be opaque. */
 function paint(theme: Theme, layers: string[]): Rgb {
   return layers
     .map((token) => colour(theme, token))
@@ -110,6 +90,7 @@ describe('theme contrast', () => {
     const checks = [
       ...['accent', 'predict', 'warn', 'pointer-alt'].map((fill) => text('on-fill', fill)),
       text('state-current-ink', 'state-current'),
+      text('state-current', 'raised'),
       ...BACKDROPS.flatMap((backdrop) => [
         ...['state-frontier-fill', 'state-done-fill', 'state-path-fill'].map((fill) => text('text', backdrop, fill)),
         text('muted', backdrop, 'state-visited-fill'),
@@ -125,7 +106,11 @@ describe('theme contrast', () => {
   it('keeps code readable on every line highlight', () => {
     const checks = [
       ...CODE_TOKENS.flatMap((fore) => CODE_LINES.map((line) => text(fore, 'surface', ...line))),
-      ...BACKDROPS.map((backdrop) => text('syntax-comment', backdrop, 'code-line-on')),
+      ...BACKDROPS.flatMap((backdrop) =>
+        ['text', 'muted', 'syntax-keyword', 'syntax-function', 'syntax-number', 'syntax-comment'].map((fore) =>
+          text(fore, backdrop, 'code-line-on'),
+        ),
+      ),
     ];
     expect(failures(checks)).toEqual([]);
   });

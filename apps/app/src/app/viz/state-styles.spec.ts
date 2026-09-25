@@ -39,7 +39,7 @@ describe('visualizer state styles', () => {
     expect([...new Set(rules.map((r) => r.file))]).toEqual(expect.arrayContaining(VIEWS_WITH_STATES));
   });
 
-  it('paint each state with its --g-state token, so every view and legend shows it the same way', () => {
+  it('paint each state mark with --g-state tokens, so every view and legend shows a state the same way', () => {
     const ownPaint = rules.flatMap(({ file, selector, body }) =>
       [...body.matchAll(PAINT)]
         .filter(([, , value]) => !STATE_TOKEN.test(value.trim()))

@@ -145,7 +145,7 @@ const POINTER_COLORS: Record<string, string> = {
       background: transparent;
       border-color: var(--g-line);
     }
-    .cell.settled .val {
+    .cell.settled:not(.found) .val {
       color: var(--g-muted);
     }
     .cell.active {
