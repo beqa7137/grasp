@@ -7,3 +7,4 @@ apps/api/drizzle
 apps/app/android
 apps/app/ios
 apps/app/public/pyodide
+.claude
