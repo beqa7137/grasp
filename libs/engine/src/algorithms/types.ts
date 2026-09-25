@@ -79,9 +79,12 @@ export interface GraphView {
 /** What each node style means, in legend order. */
 export type TreeLegend = Partial<Record<NodeState | 'marked', string>>;
 
-/** A rooted forest; the component lays it out. */
+/**
+ * A rooted forest; the component lays it out. A `blank` holds the empty side of a node with one child, so left and right
+ * read correctly; it is drawn faintly and not counted as a node.
+ */
 export interface TreeView {
-  nodes: { id: string; label: string; parent: string | null; state?: NodeState; badge?: string; marked?: boolean }[];
+  nodes: { id: string; label: string; parent: string | null; state?: NodeState; badge?: string; marked?: boolean; blank?: boolean }[];
   /** Without it the tree has no legend. */
   legend?: TreeLegend;
 }

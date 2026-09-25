@@ -8,6 +8,7 @@ const SLOT = 46;
 const LEVEL = 60;
 const PAD = 26;
 const RADIUS = 16;
+const BLANK_GAP = 6;
 
 interface PlacedNode {
   id: string;
@@ -17,6 +18,7 @@ interface PlacedNode {
   state: NodeState;
   badge?: string;
   marked: boolean;
+  blank: boolean;
 }
 
 interface Link {
@@ -25,6 +27,7 @@ interface Link {
   y1: number;
   x2: number;
   y2: number;
+  blank: boolean;
 }
 
 /**
@@ -56,15 +59,23 @@ export function layoutForest(tree: TreeView): { nodes: PlacedNode[]; links: Link
   const position = (id: string) => ({ x: PAD + slot.get(id)! * SLOT + SLOT / 2, y: PAD + depth.get(id)! * LEVEL + RADIUS });
   const nodes = tree.nodes
     .filter((n) => slot.has(n.id))
-    .map((n) => ({ id: n.id, label: n.label, ...position(n.id), state: n.state ?? 'idle', badge: n.badge, marked: !!n.marked }));
+    .map((n) => ({
+      id: n.id,
+      label: n.label,
+      ...position(n.id),
+      state: n.state ?? 'idle',
+      badge: n.badge,
+      marked: !!n.marked,
+      blank: !!n.blank,
+    }));
   const links = tree.nodes.flatMap((n) => {
     if (n.parent === null || !slot.has(n.parent) || !slot.has(n.id) || n.parent === n.id) return [];
     const from = position(n.parent);
     const to = position(n.id);
     // End links at the node edge; the state fills are see-through.
     const start = toward(from, to, RADIUS);
-    const end = toward(to, from, RADIUS);
-    return [{ id: `${n.parent}>${n.id}`, x1: start.x, y1: start.y, x2: end.x, y2: end.y }];
+    const end = toward(to, from, n.blank ? BLANK_GAP : RADIUS);
+    return [{ id: `${n.parent}>${n.id}`, x1: start.x, y1: start.y, x2: end.x, y2: end.y, blank: !!n.blank }];
   });
   return { nodes, links, width: Math.max(1, next) * SLOT + 2 * PAD, height: (levels - 1) * LEVEL + 2 * RADIUS + 2 * PAD };
 }
@@ -77,19 +88,23 @@ export function layoutForest(tree: TreeView): { nodes: PlacedNode[]; links: Link
     @let l = layout();
     <svg [attr.viewBox]="'0 0 ' + l.width + ' ' + l.height" [style.max-width.px]="l.width" role="img" [attr.aria-label]="ariaLabel()">
       @for (link of l.links; track link.id) {
-        <line class="link" [attr.x1]="link.x1" [attr.y1]="link.y1" [attr.x2]="link.x2" [attr.y2]="link.y2" />
+        <line class="link" [class.to-blank]="link.blank" [attr.x1]="link.x1" [attr.y1]="link.y1" [attr.x2]="link.x2" [attr.y2]="link.y2" />
       }
       @for (n of l.nodes; track n.id) {
-        <g class="node" [attr.data-state]="n.state">
-          @if (n.marked) {
-            <circle class="ring" [attr.cx]="n.x" [attr.cy]="n.y" [attr.r]="radius + 4" />
-          }
-          <circle class="body" [attr.cx]="n.x" [attr.cy]="n.y" [attr.r]="radius" />
-          <text class="label" [attr.x]="n.x" [attr.y]="n.y">{{ n.label }}</text>
-          @if (n.badge) {
-            <text class="badge" [attr.x]="n.x" [attr.y]="n.y - radius - 9">{{ n.badge }}</text>
-          }
-        </g>
+        @if (n.blank) {
+          <text class="blank" [attr.x]="n.x" [attr.y]="n.y">{{ n.label }}</text>
+        } @else {
+          <g class="node" [attr.data-state]="n.state">
+            @if (n.marked) {
+              <circle class="ring" [attr.cx]="n.x" [attr.cy]="n.y" [attr.r]="radius + 4" />
+            }
+            <circle class="body" [attr.cx]="n.x" [attr.cy]="n.y" [attr.r]="radius" />
+            <text class="label" [attr.x]="n.x" [attr.y]="n.y">{{ n.label }}</text>
+            @if (n.badge) {
+              <text class="badge" [attr.x]="n.x" [attr.y]="n.y - radius - 9">{{ n.badge }}</text>
+            }
+          </g>
+        }
       }
     </svg>
     @if (legend()) {
@@ -113,6 +128,16 @@ export function layoutForest(tree: TreeView): { nodes: PlacedNode[]; links: Link
         stroke: var(--g-stroke);
         stroke-width: 2;
       }
+      .link.to-blank {
+        stroke: var(--g-faint);
+        stroke-dasharray: 4 4;
+      }
+      .blank {
+        font: 600 12px var(--g-font-mono);
+        fill: var(--g-faint);
+        text-anchor: middle;
+        dominant-baseline: central;
+      }
     `,
   ],
 })
@@ -125,7 +150,7 @@ export class TreeViewComponent {
   readonly layout = computed(() => layoutForest(this.view()));
 
   readonly ariaLabel = computed(() => {
-    const nodes = this.view().nodes;
+    const nodes = this.view().nodes.filter((n) => !n.blank);
     const roots = nodes.filter((n) => n.parent === null).length;
     const active = nodes.find((n) => n.state === 'active');
     const shape = roots > 1 ? `Forest of ${roots} trees` : 'Tree';

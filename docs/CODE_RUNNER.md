@@ -4,16 +4,18 @@ Learners solve problems in Python, JavaScript or TypeScript entirely on their de
 
 ## Pieces
 
-| Piece                                     | Where                                                           |
-| ----------------------------------------- | --------------------------------------------------------------- |
-| Problem bank, suites, comparison, harness | `libs/engine/src/coding/`                                       |
-| Worker (runs code, traces JS/TS)          | `apps/app/src/app/code/runner.worker.ts`                        |
-| JS/TS compile, run and trace              | `apps/app/src/app/code/execute-js.ts`                           |
-| Statement-level instrumentation           | `apps/app/src/app/code/instrument.ts` (acorn + astring)         |
-| Trace → visualizer frames                 | `apps/app/src/app/code/trace-frames.ts`                         |
-| Time limits and worker lifecycle          | `apps/app/src/app/code/runner.service.ts`                       |
-| Editor                                    | `apps/app/src/app/code/code-editor.component.ts` (CodeMirror 6) |
-| Workspace UI                              | `apps/app/src/app/pages/code/`                                  |
+| Piece                                          | Where                                                                                              |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Problem bank                                   | `libs/engine/src/coding/problems/` (one file per curriculum track, ordered in `problems/index.ts`) |
+| Suites, comparison, Python prelude and harness | `libs/engine/src/coding/suite.ts`                                                                  |
+| Tree inputs                                    | `libs/engine/src/coding/tree.ts`                                                                   |
+| Worker (runs code, traces JS/TS)               | `apps/app/src/app/code/runner.worker.ts`                                                           |
+| JS/TS compile, run and trace                   | `apps/app/src/app/code/execute-js.ts`                                                              |
+| Statement-level instrumentation                | `apps/app/src/app/code/instrument.ts` (acorn + astring)                                            |
+| Trace → visualizer frames                      | `apps/app/src/app/code/trace-frames.ts`, with `tree-frames.ts` for trees                           |
+| Time limits and worker lifecycle               | `apps/app/src/app/code/runner.service.ts`                                                          |
+| Editor                                         | `apps/app/src/app/code/code-editor.component.ts` (CodeMirror 6)                                    |
+| Workspace UI                                   | `apps/app/src/app/pages/code/`                                                                     |
 
 ## Test suites
 
@@ -24,9 +26,19 @@ Learners solve problems in Python, JavaScript or TypeScript entirely on their de
 - 20 seeded random cases
 - one **performance case**: a large input sized so that the intended complexity finishes in milliseconds while a quadratic or exponential approach cannot finish within the time limit
 
-Expected values always come from the problem's reference `solve`, so the tests and the reference can't drift apart. The engine tests prove each reference against a brute-force solution on every small case. They also run a CPython reference solution through the same Python harness the browser uses and check that its output matches.
+Expected values always come from the problem's reference `solve`, so the tests and the reference can't drift apart. The engine tests prove each reference against a brute-force solution on every small case. They also run a CPython reference solution through the same Python prelude and harness the browser uses and check that its output matches. For the newer problems, the engine tests also count the steps a named slower approach needs on the performance case, which proves without timing anything that it cannot finish within the limit.
 
 Answers are compared exactly, or as unordered lists where the problem allows any order (`compare: 'unordered'`).
+
+## Tree inputs
+
+A `tree` parameter travels as LeetCode's level order: `[1,2,null,3]` is 1 with left child 2, whose left child is 3. Missing children are `null`, the children of a missing node are not listed, and trailing nulls are trimmed. It is flat JSON, so the suite's clone, `postMessage`, the Python transport and test previews handle it unchanged, at any depth.
+
+The entry function receives linked `TreeNode`s (`val`, `left`, `right`) built right before each call: by `entryArgs` for the reference `solve`, in the worker for JS/TS, and by the Python harness for Python.
+
+Python submissions run after a small prelude that defines `TreeNode` and `Optional`. It has to come first: before Python 3.14, an annotation such as `Optional[TreeNode]` is evaluated when the function is defined. Trees are built from the class the prelude captured, so a learner's own `TreeNode` cannot change how inputs are built. The prelude runs as its own file, so the learner's line numbers and traceback trimming are unchanged.
+
+Trees are inputs only: no problem returns one, and the `returns` type excludes it.
 
 ## Execution
 
@@ -61,6 +73,7 @@ The worker records up to 2,000 steps, each with a JSON-safe snapshot of the vari
 - `lo`/`hi`-style pairs become a window
 - stacks, queues, sets and maps get their own views
 - 0/1 grids are drawn with the current cell
+- a tree parameter is drawn as a tree, with the node each variable points at, the nodes waiting in a stack or queue, and the nodes visited earlier
 - every step's note lists what changed
 
 The editor highlights the executing line as the learner scrubs.

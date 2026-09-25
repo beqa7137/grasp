@@ -20,15 +20,18 @@
         </div>
         <h1>{{ p.title }}</h1>
         @for (paragraph of p.statement; track $index) {
-          <p>{{ paragraph }}</p>
+          <p><g-code-text [text]="paragraph" /></p>
         }
 
-        @for (ex of p.examples; track $index) {
+        @for (ex of p.examples; track $index; let example = $index) {
           <div class="example">
-            <p class="eyebrow">Example {{ $index + 1 }}</p>
+            <p class="eyebrow">Example {{ example + 1 }}</p>
+            @for (tree of exampleTrees()[example]; track $index) {
+              <g-tree-view class="example-tree" [view]="tree" [legend]="false" aria-hidden="true" />
+            }
             <pre class="mono">{{ describeArgs({ args: ex.args, expected: null, kind: 'example' }).join('\n') }}</pre>
             @if (ex.explanation) {
-              <p class="muted small">{{ ex.explanation }}</p>
+              <p class="muted small"><g-code-text [text]="ex.explanation" /></p>
             }
           </div>
         }
@@ -43,7 +46,7 @@
         @if (record()?.solvedAt) {
           <div class="approach">
             <p class="eyebrow">Intended approach</p>
-            <p>{{ p.approach }}</p>
+            <p><g-code-text [text]="p.approach" /></p>
             <p class="mono small">time {{ p.complexity.time }} · space {{ p.complexity.space }}</p>
             @if (p.algorithmId) {
               <a class="link" [routerLink]="['/visualize', p.algorithmId]">Watch the reference solution in the visualizer →</a>
@@ -144,7 +147,7 @@
 
                   @if (reportKind() === 'submit' && allPassed()) {
                     <div class="success">
-                      <p><strong>Accepted.</strong> {{ problem()!.approach }}</p>
+                      <p><strong>Accepted.</strong>&ngsp;<g-code-text [text]="problem()!.approach" /></p>
                       <p class="mono small">Expected: time {{ problem()!.complexity.time }} · space {{ problem()!.complexity.space }}</p>
                     </div>
                   }

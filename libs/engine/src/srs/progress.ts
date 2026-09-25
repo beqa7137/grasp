@@ -1,4 +1,4 @@
-import { getCodingProblem } from '../coding/problems.js';
+import { getCodingProblem } from '../coding/problems/index.js';
 import { PATTERNS } from '../curriculum/patterns.js';
 import { SD_TOPICS, getSdTopic } from '../curriculum/sd-topics.js';
 import { getReviewItem, itemsForTopic } from '../review/catalog.js';
