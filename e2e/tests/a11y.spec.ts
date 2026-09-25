@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import type { Locator, Page } from '@playwright/test';
-import { expect, test } from './fixtures';
+import { expect, recordedEvents, stepToCheckpoint, test } from './fixtures';
 
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice'];
 const BLOCKING = new Set(['serious', 'critical']);
@@ -26,17 +26,6 @@ async function blockingViolations(page: Page): Promise<string[]> {
   return violations
     .filter((v) => BLOCKING.has(v.impact ?? ''))
     .map((v) => `${v.id} (${v.impact}): ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`);
-}
-
-/** Steps with `press` until a checkpoint asks for a prediction, waiting for each step to show before the next. */
-async function stepToCheckpoint(page: Page, press = () => page.getByRole('button', { name: 'Step forward' }).click()) {
-  const prompt = page.getByText('Your call');
-  const total = Number((await page.locator('app-player .scrub .count').textContent())!.split('/')[1]);
-  for (let step = 1; !(await prompt.isVisible()); step++) {
-    expect(step, 'a checkpoint should come up').toBeLessThan(total);
-    await press();
-    await expect(page.getByText(`${step + 1} / ${total}`, { exact: true }).or(prompt)).toBeVisible();
-  }
 }
 
 const PAGES: { name: string; path: string; ready: (page: Page) => Promise<unknown> }[] = [
@@ -66,6 +55,16 @@ const PAGES: { name: string; path: string; ready: (page: Page) => Promise<unknow
     name: 'the code workspace',
     path: '/code/two-sum',
     ready: (page) => expect(page.getByRole('textbox', { name: 'Two Sum solution' })).toBeVisible(),
+  },
+  {
+    name: 'a mock interview with its code drawer open',
+    path: '/interview',
+    ready: async (page) => {
+      await page.getByRole('button', { name: /Days Until Warmer/ }).click();
+      await expect(page.getByText(/daily temperatures/)).toBeVisible();
+      await page.getByRole('button', { name: 'Code', exact: true }).click();
+      await expect(page.getByRole('textbox', { name: 'Interview code' })).toBeVisible();
+    },
   },
 ];
 
@@ -129,7 +128,7 @@ test('a visualizer checkpoint can be answered from the keyboard, with focus alwa
 
   await page.keyboard.press('Space');
   await expect(page.locator('.predict .verdict')).toBeFocused();
-  await expect(page.locator('.predict .choice .mark[aria-label*="correct"]')).toHaveCount(1);
+  await expect(page.locator('.predict .choice .g-answer-mark[aria-label*="correct"]')).toHaveCount(1);
   await page.keyboard.press('Tab');
   await expect(page.getByRole('button', { name: 'Continue →' })).toBeFocused();
   await page.keyboard.press('Enter');
@@ -145,6 +144,5 @@ test('Enter on the link under a reviewed card opens it instead of grading the ca
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/(learn\/pattern|visualize)\//);
 
-  const events: { type: string }[] = await page.evaluate(() => JSON.parse(localStorage.getItem('CapacitorStorage.grasp.events') ?? '[]'));
-  expect(events.map((e) => e.type)).not.toContain('review.graded');
+  expect((await recordedEvents(page)).map((e) => e.type)).not.toContain('review.graded');
 });

@@ -65,3 +65,19 @@ export async function synced(page: Page, type: string): Promise<void> {
   });
   expect(response.status(), `syncing ${type}`).toBe(200);
 }
+
+/** The progress events the app has recorded on this device, synced or not. */
+export async function recordedEvents(page: Page): Promise<{ type: string }[]> {
+  return page.evaluate(() => JSON.parse(localStorage.getItem('CapacitorStorage.grasp.events') ?? '[]'));
+}
+
+/** Steps a visualizer with `press` until a checkpoint asks for a prediction, waiting for each step to show before the next. */
+export async function stepToCheckpoint(page: Page, press = () => page.getByRole('button', { name: 'Step forward' }).click()) {
+  const prompt = page.getByText('Your call');
+  const total = Number((await page.locator('app-player .scrub .count').textContent())!.split('/')[1]);
+  for (let step = 1; !(await prompt.isVisible()); step++) {
+    expect(step, 'a checkpoint should come up').toBeLessThan(total);
+    await press();
+    await expect(page.getByText(`${step + 1} / ${total}`, { exact: true }).or(prompt)).toBeVisible();
+  }
+}

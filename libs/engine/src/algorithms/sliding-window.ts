@@ -1,3 +1,4 @@
+import { fixedChoices } from './choices.js';
 import { InputError } from './types.js';
 import { asText, randInt, rangeOf } from './input.js';
 import type { AlgorithmDef, Frame } from './types.js';
@@ -82,9 +83,7 @@ export const longestUnique: AlgorithmDef<Input> = {
       snap(5, `\`right = ${right}\` brings in '${c}'. Is it already in the window?`, {
         predict: {
           prompt: `'${c}' wants to join window {${[...seen].join(', ')}}. What happens?`,
-          choices: CHOICES,
-          ordered: true,
-          answer: dup ? 1 : 0,
+          ...fixedChoices(CHOICES, dup ? 1 : 0),
           explain: dup
             ? `'${c}' is already inside, so the window would contain a repeat. Evict from the left until the old '${c}' is gone.`
             : `'${c}' is new, so the window stays valid: just extend it.`,

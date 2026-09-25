@@ -1,3 +1,4 @@
+import { fixedChoices } from './choices.js';
 import { InputError } from './types.js';
 import { randInt } from './input.js';
 import type { AlgorithmDef, Frame, TableLegend, TableView } from './types.js';
@@ -90,9 +91,7 @@ export const lcs: AlgorithmDef<Input> = {
             ? {
                 predict: {
                   prompt: `\`a[${i - 1}] = '${a[i - 1]}'\`, \`b[${j - 1}] = '${b[j - 1]}'\`. Which rule fills \`dp[${i}][${j}]\`?`,
-                  choices: RULES,
-                  ordered: true,
-                  answer: match ? 0 : 1,
+                  ...fixedChoices(RULES, match ? 0 : 1),
                   explain: match
                     ? `Both prefixes end in ${a[i - 1]}, so that letter extends the best answer for the prefixes without it: \`dp[${i - 1}][${j - 1}] + 1\`.`
                     : `The last letters differ, so at least one of them is not in the LCS. Take the better of dropping a's (above) or b's (left).`,

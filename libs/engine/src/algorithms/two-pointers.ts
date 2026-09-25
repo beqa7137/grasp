@@ -1,3 +1,4 @@
+import { fixedChoices } from './choices.js';
 import { asNumber, asNumbers, randInt } from './input.js';
 import type { AlgorithmDef, Frame } from './types.js';
 
@@ -69,9 +70,7 @@ export const pairSum: AlgorithmDef<Input> = {
       snap(5, `Compare sum ${sum} with target ${target}.`, {
         predict: {
           prompt: `\`sum = ${sum}\`, \`target = ${target}\`. Which move is safe?`,
-          choices: CHOICES,
-          ordered: true,
-          answer,
+          ...fixedChoices(CHOICES, answer),
           explain:
             answer === 0
               ? 'Exact match.'

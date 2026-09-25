@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { GRAPH_BOX, GRAPH_NODE_RADIUS, type EdgeState, type GraphView, type NodeState } from '@grasp/engine';
+import { uniqueId } from '../core/unique-id';
 import { LegendComponent } from './legend.component';
 import { NODE_STYLES } from './node-styles';
 
@@ -49,8 +50,6 @@ interface DrawnNode {
   badge?: string;
   badgeY: number;
 }
-
-let instances = 0;
 
 const toward = (from: Point, to: Point, distance: number): Point => {
   const dx = to.x - from.x;
@@ -217,7 +216,7 @@ export class GraphViewComponent {
   protected readonly viewBox = `0 0 ${WIDTH} ${HEIGHT}`;
   protected readonly radius = RADIUS;
   protected readonly edgeStates = EDGE_STATES;
-  private readonly uid = `g-graph-${++instances}`;
+  private readonly uid = uniqueId('g-graph');
 
   private readonly placed = computed(() =>
     this.view().nodes.map((n) => ({

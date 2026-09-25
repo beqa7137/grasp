@@ -37,7 +37,6 @@ function highlight(line: string): string {
       max-height: var(--code-max-height, none);
     }
     :host(:focus-visible) {
-      outline: 2px solid var(--g-accent);
       outline-offset: -2px;
     }
     ol {

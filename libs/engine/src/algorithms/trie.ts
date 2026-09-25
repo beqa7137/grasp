@@ -1,3 +1,4 @@
+import { fixedChoices } from './choices.js';
 import { asText, asWords, randInt } from './input.js';
 import type { AlgorithmDef, Frame, TreeLegend, TreeView } from './types.js';
 
@@ -114,9 +115,7 @@ export const trie: AlgorithmDef<Input> = {
             ? {
                 predict: {
                   prompt: `Inserting "${w}": at ${prefix ? `"${prefix}"` : 'the root'}, is there already a child for "${ch}"?`,
-                  choices: INSERT,
-                  ordered: true,
-                  answer: exists ? 0 : 1,
+                  ...fixedChoices(INSERT, exists ? 0 : 1),
                   explain: exists
                     ? `An earlier word already starts with "${prefix}${ch}", so the path is shared: no new node.`
                     : `No earlier word continues "${prefix}" with "${ch}", so the word branches off here.`,

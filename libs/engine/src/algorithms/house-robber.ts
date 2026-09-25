@@ -1,5 +1,5 @@
 import { InputError } from './types.js';
-import { rotatedChoices } from './choices.js';
+import { fixedChoices, rotatedChoices } from './choices.js';
 import { asNumbers, randInt } from './input.js';
 import type { AlgorithmDef, Frame, Prediction, TableLegend } from './types.js';
 
@@ -16,6 +16,7 @@ interface Step {
 
 const MAX_HOUSES = 10;
 const LEGEND: TableLegend = { active: 'being filled', deps: 'reads from', path: 'robbed house i - 1' };
+const ROB_OR_SKIP = ['Rob it', 'Skip it'];
 
 /** Walks back from dp[n]: where dp[k] equals dp[k - 1], house k - 1 was skipped; otherwise it was robbed. */
 function robbedHouses(dp: number[]): number[] {
@@ -49,9 +50,7 @@ function robOrSkip(step: Step): Prediction {
   const house = step.i - 1;
   return {
     prompt: `${givens(step)} Rob house ${house} or skip it?`,
-    choices: [`Rob house ${house}`, `Skip house ${house}`],
-    ordered: true,
-    answer: step.take > step.skip ? 0 : 1,
+    ...fixedChoices(ROB_OR_SKIP, step.take > step.skip ? 0 : 1),
     explain: `${verdict(step)} ${neighbour(step)}`,
   };
 }

@@ -18,7 +18,8 @@
 </ion-header>
 
 <ion-content>
-  <div class="page chat">
+  <!-- The chat scrolls but may hold no control, so it takes focus itself for keyboard scrolling. -->
+  <div class="page chat" role="region" aria-label="Conversation" tabindex="0">
     @if (session(); as s) {
       <div class="meta">
         <span class="chip accent">{{ s.track === 'coding' ? 'Coding' : 'System design' }}</span>
@@ -61,9 +62,9 @@
     }
 
     @if (error(); as e) {
-      <p class="error">{{ e }}</p>
+      <p class="error" role="alert">{{ e }}</p>
     }
-    <p class="visually-hidden" role="status">{{ announcement() }}</p>
+    <p class="visually-hidden" role="status">{{ announcer.message() }}</p>
 
     @if (session()?.scorecard; as card) {
       <section class="panel scorecard">
@@ -126,18 +127,7 @@
     @if (codeOpen()) {
       <div class="code-drawer">
         <div class="code-bar">
-          <div class="langs" role="radiogroup" aria-label="Language">
-            @for (l of languages; track l) {
-              <button
-                role="radio"
-                [attr.aria-checked]="codeLanguage() === l"
-                [class.on]="codeLanguage() === l"
-                (click)="setCodeLanguage(l)"
-              >
-                {{ languageLabels[l] }}
-              </button>
-            }
-          </div>
+          <app-language-picker [language]="codeLanguage()" (languageChange)="setCodeLanguage($event)" />
           <span class="muted small">{{
             codeChanged() ? 'Changes will be shared with your next message' : 'The interviewer has seen this version'
           }}</span>

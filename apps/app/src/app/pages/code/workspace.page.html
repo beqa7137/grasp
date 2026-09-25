@@ -54,13 +54,7 @@
 
       <section class="work">
         <div class="toolbar">
-          <div class="langs" role="radiogroup" aria-label="Language">
-            @for (l of languages; track l) {
-              <button role="radio" [attr.aria-checked]="language() === l" [class.on]="language() === l" (click)="setLanguage(l)">
-                {{ languageLabels[l] }}
-              </button>
-            }
-          </div>
+          <app-language-picker [language]="language()" (languageChange)="setLanguage($event)" />
           <button class="g-btn ghost icon" (click)="resetCode()" title="Reset to the starter code" aria-label="Reset code">
             <ion-icon name="refresh-outline" aria-hidden="true" />
           </button>
@@ -94,13 +88,12 @@
 
         <div class="results panel">
           <div class="tabs">
-            <div class="tablist" role="tablist" aria-label="Results" (keydown)="onTabKey($event)">
+            <div class="tablist" role="tablist" aria-label="Results">
               <button
                 role="tab"
                 [id]="panelsId + '-tests'"
                 [attr.aria-controls]="panelsId"
                 [attr.aria-selected]="panel() === 'tests'"
-                [tabIndex]="panel() === 'tests' ? 0 : -1"
                 [class.on]="panel() === 'tests'"
                 (click)="panel.set('tests')"
               >
@@ -111,7 +104,6 @@
                 [id]="panelsId + '-trace'"
                 [attr.aria-controls]="panelsId"
                 [attr.aria-selected]="panel() === 'trace'"
-                [tabIndex]="panel() === 'trace' ? 0 : -1"
                 [class.on]="panel() === 'trace'"
                 (click)="panel.set('trace')"
               >

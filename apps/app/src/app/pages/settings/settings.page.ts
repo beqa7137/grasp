@@ -30,7 +30,7 @@ import { StudySettingsComponent } from './study-settings.component';
 
         <section class="panel block">
           <h2>Keyboard</h2>
-          <div class="row">
+          <div class="row g-control-row">
             <div>
               <strong>Single-key shortcuts</strong>
               <p class="muted small" id="character-keys-hint">
@@ -57,14 +57,14 @@ import { StudySettingsComponent } from './study-settings.component';
             {{ auth.signedIn() ? 'in your account' : 'under an anonymous id' }}. Interview transcripts are sent to Anthropic's Claude API to
             run and score interviews.
           </p>
-          <div class="row">
+          <div class="row g-control-row">
             <div>
               <strong>Export</strong>
               <p class="muted small">Download everything we store about you as JSON.</p>
             </div>
             <button class="g-btn" [disabled]="busy()" (click)="exportData()">Export</button>
           </div>
-          <div class="row">
+          <div class="row g-control-row">
             <div>
               <strong>Delete</strong>
               <p class="muted small">
@@ -77,7 +77,7 @@ import { StudySettingsComponent } from './study-settings.component';
 
         <section class="panel block">
           <h2>Pilot</h2>
-          <div class="row">
+          <div class="row g-control-row">
             <div>
               <strong>Send feedback</strong>
               <p class="muted small">Bugs, confusing bits and ideas all help.</p>
@@ -105,18 +105,8 @@ import { StudySettingsComponent } from './study-settings.component';
       margin: 0 0 8px;
     }
     .row {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
       padding: 12px 0;
       border-top: 1px solid var(--g-line);
-    }
-    /* The text shrinks beside its button until large text needs a line of its own for it. */
-    .row > div {
-      flex: 1 1 0;
-      min-width: min(8em, 100%);
     }
     .row p {
       margin: 2px 0 0;

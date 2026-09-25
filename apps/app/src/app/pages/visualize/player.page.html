@@ -32,8 +32,10 @@
         <section class="stage panel">
           <header class="stage-bar">
             <label class="toggle">
-              <input type="checkbox" [checked]="predictMode()" (change)="predictMode.set($any($event.target).checked)" />
-              <span class="track"><span class="knob"></span></span>
+              <span class="g-switch">
+                <input type="checkbox" [checked]="predictMode()" (change)="predictMode.set($any($event.target).checked)" />
+                <span class="track"><span class="knob"></span></span>
+              </span>
               Predict mode
             </label>
             @if (score().total > 0) {
@@ -103,14 +105,8 @@
                     >
                       <span class="key">{{ $index + 1 }}</span
                       >{{ c }}
-                      @if (p.choice !== null && ($index === q.answer || $index === p.choice)) {
-                        <ion-icon
-                          class="mark"
-                          [name]="$index === q.answer ? 'checkmark-circle' : 'close-circle'"
-                          [attr.aria-label]="
-                            $index === q.answer ? ($index === p.choice ? 'your answer, correct' : 'correct answer') : 'your answer, wrong'
-                          "
-                        />
+                      @if (answerMark($index, q.answer, p.choice); as mark) {
+                        <ion-icon class="g-answer-mark" [name]="mark.icon" [attr.aria-label]="mark.label" />
                       }
                     </button>
                   }

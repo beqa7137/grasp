@@ -1,3 +1,4 @@
+import { fixedChoices } from './choices.js';
 import { asNumbers, randInt } from './input.js';
 import type { AlgorithmDef, Frame } from './types.js';
 
@@ -79,9 +80,7 @@ export const nextGreater: AlgorithmDef<Input> = {
             : {
                 predict: {
                   prompt: `Incoming ${nums[i]}, stack top is ${nums[top]}. Pop or push?`,
-                  choices: CHOICES,
-                  ordered: true,
-                  answer: pop ? 0 : 1,
+                  ...fixedChoices(CHOICES, pop ? 0 : 1),
                   explain: pop
                     ? `${nums[i]} > ${nums[top]}, so ${nums[i]} is the first bigger value to the right of index ${top}. Resolve it and pop.`
                     : `${nums[i]} ≤ ${nums[top]}. It cannot resolve the top or anything below it, since those values are at least as large. Push and move on.`,

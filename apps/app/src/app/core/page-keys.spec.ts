@@ -1,9 +1,9 @@
-import { isCharacterKey, isKeyForPage, isOnHiddenPage } from './page-keys';
+import { isCharacterKey, isChordForPage, isKeyForPage, isOnHiddenPage } from './page-keys';
 
 /** Presses a key on `target` and asks, as the document-level listeners do, whether it belongs to `host`'s page. */
-const keyOn = (host: Element, target: Element, init: KeyboardEventInit = {}) => {
+const keyOn = (host: Element, target: Element, init: KeyboardEventInit = {}, belongs = isKeyForPage) => {
   let forPage: boolean | undefined;
-  const listen = (e: KeyboardEvent) => (forPage = isKeyForPage(host, e));
+  const listen = (e: KeyboardEvent) => (forPage = belongs(host, e));
   document.addEventListener('keydown', listen);
   target.dispatchEvent(new KeyboardEvent('keydown', { key: '1', bubbles: true, composed: true, ...init }));
   document.removeEventListener('keydown', listen);
@@ -87,5 +87,21 @@ describe('page keys', () => {
       expect(keyOn(host, host, { [modifier]: true }), modifier).toBe(false);
     }
     expect(keyOn(host, host, { key: 'G', shiftKey: true })).toBe(true);
+  });
+
+  it('takes a chord typed into a field, but not one typed into a dialog or on a hidden page', () => {
+    document.body.innerHTML =
+      '<div class="ion-page"><app-code-workspace><textarea></textarea></app-code-workspace></div><ion-modal><textarea></textarea></ion-modal>';
+    const host = document.querySelector('app-code-workspace')!;
+    const page = host.closest('.ion-page')!;
+    const run = { key: 'Enter', metaKey: true };
+    expect(keyOn(host, host.querySelector('textarea')!, run, isChordForPage)).toBe(true);
+    expect(keyOn(host, document.querySelector('ion-modal textarea')!, run, isChordForPage)).toBe(false);
+
+    page.setAttribute('aria-hidden', 'true');
+    expect(keyOn(host, host.querySelector('textarea')!, run, isChordForPage)).toBe(false);
+    page.removeAttribute('aria-hidden');
+    page.classList.add('ion-page-hidden');
+    expect(keyOn(host, host.querySelector('textarea')!, run, isChordForPage)).toBe(false);
   });
 });

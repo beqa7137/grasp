@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { getAlgorithm } from '../algorithms/index.js';
+import { predictions, tracerFixture } from '../algorithms/tracer.fixture.js';
 import { codeSpanProblems } from '../code-spans.js';
 import { PATTERNS } from '../curriculum/patterns.js';
 import { SD_TOPICS } from '../curriculum/sd-topics.js';
@@ -49,13 +50,13 @@ describe('review item catalog', () => {
 
   it.each(['binary-search', 'pair-sum-sorted', 'dijkstra', 'lcs'])('keeps the %s menu in the order the visualizer shows it', (id) => {
     const algo = getAlgorithm(id)!;
-    const menu = algo.trace(algo.validate(algo.defaultInput)).find((f) => f.predict)!.predict!.choices;
+    const menu = predictions(tracerFixture(algo).traceOf(algo.defaultInput))[0].choices;
     for (const seed of SEEDS) expect(generateQuestion(`pred:${id}`, seed).choices).toEqual(menu);
   });
 
   it('keeps a fixed menu in order beside questions whose choices move around', () => {
     const algo = getAlgorithm('two-sum-hash')!;
-    const menu = algo.trace(algo.validate(algo.defaultInput)).find((f) => f.predict?.ordered)!.predict!.choices;
+    const menu = predictions(tracerFixture(algo).traceOf(algo.defaultInput)).find((p) => p.ordered)!.choices;
     const questions = SEEDS.map((seed) => generateQuestion('pred:two-sum-hash', seed));
     const fromMenu = questions.filter((q) => q.choices.every((c) => menu.includes(c)));
     expect(fromMenu.length).toBeGreaterThan(0);

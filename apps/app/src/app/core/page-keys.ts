@@ -8,7 +8,15 @@ export function isOnHiddenPage(host: Element): boolean {
   return host.closest('.ion-page-hidden') !== null;
 }
 
-/** A single printable character, such as 1 or G: speech input can type these by accident, so they can be turned off. */
+function isPageInert(host: Element): boolean {
+  return isOnHiddenPage(host) || host.closest('[aria-hidden="true"], [inert]') !== null;
+}
+
+function composedElements(e: KeyboardEvent): Element[] {
+  return e.composedPath().filter((node): node is Element => node instanceof Element);
+}
+
+/** A printable character such as 1 or G. Space is grouped with the named keys, like Enter. */
 export function isCharacterKey(e: KeyboardEvent): boolean {
   return e.key.length === 1 && e.key !== ' ';
 }
@@ -23,13 +31,21 @@ export function isCharacterKey(e: KeyboardEvent): boolean {
  * tab button, reports its host as the target, not the focused element inside its shadow root.
  */
 export function isKeyForPage(host: Element, e: KeyboardEvent): boolean {
-  const path = e.composedPath().filter((node): node is Element => node instanceof Element);
+  if (e.metaKey || e.ctrlKey || e.altKey || isPageInert(host)) return false;
+  const path = composedElements(e);
   const within = (selector: string) => path.some((el) => el.matches(selector));
-  const ownedByTarget =
+  return !(
     within(FIELD) ||
     within(OVERLAY) ||
     ((e.key === 'Enter' || e.key === ' ') && within(CONTROL)) ||
-    (e.key.startsWith('Arrow') && within(ARROW_WIDGET));
-  const pageInert = isOnHiddenPage(host) || host.closest('[aria-hidden="true"], [inert]') !== null;
-  return !ownedByTarget && !pageInert && !e.metaKey && !e.ctrlKey && !e.altKey;
+    (e.key.startsWith('Arrow') && within(ARROW_WIDGET))
+  );
+}
+
+/**
+ * Whether a Cmd or Ctrl chord meant to work while typing, such as Cmd+Enter to run the code from the editor, belongs to
+ * the page that hosts `host`. Unlike other page keys it may come from a field, but not from a dialog open over the page.
+ */
+export function isChordForPage(host: Element, e: KeyboardEvent): boolean {
+  return !isPageInert(host) && !composedElements(e).some((el) => el.matches(OVERLAY));
 }

@@ -1,3 +1,4 @@
+import { fixedChoices } from './choices.js';
 import { InputError } from './types.js';
 import { asEdges, asNumber, randInt, type Edge } from './input.js';
 import { circleLayout, layeredLayout } from './layout.js';
@@ -134,9 +135,7 @@ export const topoSort: AlgorithmDef<Input> = {
           {
             predict: {
               prompt: `Removing ${u}→${v} drops ${v}'s in-degree from ${indeg[v]} to ${next}. Does ${v} join the queue?`,
-              choices: CHOICES,
-              ordered: true,
-              answer: next === 0 ? 0 : 1,
+              ...fixedChoices(CHOICES, next === 0 ? 0 : 1),
               explain:
                 next === 0
                   ? `Every node that must come before ${v} is placed, so ${v} is free to go.`

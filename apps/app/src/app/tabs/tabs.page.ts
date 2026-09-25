@@ -1,4 +1,4 @@
-import { Component, Injector, afterNextRender, computed, inject } from '@angular/core';
+import { Component, Injector, computed, inject } from '@angular/core';
 import { IonBadge, IonIcon, IonLabel, IonModal, IonTabBar, IonTabButton, IonTabs } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
@@ -9,7 +9,7 @@ import {
   gitNetworkOutline,
   playCircleOutline,
 } from 'ionicons/icons';
-import { refocus } from '../core/focus';
+import { refocusAfterRender } from '../core/focus';
 import { isOnHiddenPage } from '../core/page-keys';
 import { ProgressService } from '../core/progress.service';
 import { FeedbackSheetComponent } from '../pilot/feedback-sheet.component';
@@ -74,6 +74,8 @@ import { PilotService } from '../pilot/pilot.service';
     </ion-modal>
   `,
   styles: `
+    @use '../../chrome' as *;
+
     .feedback-tab {
       position: fixed;
       right: 0;
@@ -90,7 +92,7 @@ import { PilotService } from '../pilot/pilot.service';
       border-radius: 8px 0 0 8px;
       background: var(--g-raised);
       color: var(--g-muted);
-      font: 500 min(0.6875rem, 14px) / 1 var(--ion-font-family);
+      font: 500 #{chrome-font-size(11px)} / 1 var(--ion-font-family);
       letter-spacing: 0.04em;
       cursor: pointer;
     }
@@ -109,6 +111,10 @@ import { PilotService } from '../pilot/pilot.service';
     .feedback-tab:hover,
     .feedback-tab:focus-visible {
       color: var(--g-text);
+    }
+    /* The tab meets the edge of the screen, which would cut off a ring drawn outside it. */
+    .feedback-tab:focus-visible {
+      outline-offset: -2px;
     }
     ion-badge {
       --background: var(--g-predict);
@@ -136,14 +142,10 @@ export class TabsPage {
    * Ionic still traps focus in the dialog while didDismiss runs, hence the wait for the next render.
    */
   focusPageHeading() {
-    afterNextRender(
-      () => {
-        const heading = [...document.querySelectorAll<HTMLElement>('ion-router-outlet h1')].find((h) => !isOnHiddenPage(h));
-        if (!heading) return;
-        heading.tabIndex = -1;
-        refocus(heading);
-      },
-      { injector: this.injector },
-    );
+    refocusAfterRender(this.injector, () => {
+      const heading = [...document.querySelectorAll<HTMLElement>('ion-router-outlet h1')].find((h) => !isOnHiddenPage(h));
+      if (heading) heading.tabIndex = -1;
+      return heading;
+    });
   }
 }

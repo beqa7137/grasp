@@ -23,6 +23,7 @@ import { GridViewComponent } from '../viz/grid-view.component';
 import { ListViewComponent } from '../viz/list-view.component';
 import { TableViewComponent } from '../viz/table-view.component';
 import { TreeViewComponent } from '../viz/tree-view.component';
+import { answerMark } from './answer-mark';
 
 export type CardReason = SessionReason | 'practice' | 'diagnostic';
 
@@ -138,14 +139,8 @@ const REASON_LABELS: Record<CardReason, string> = {
             } @else {
               <span class="text">{{ c }}</span>
             }
-            @if (chosen() !== null && ($index === q.answer || $index === chosen())) {
-              <ion-icon
-                class="mark"
-                [name]="$index === q.answer ? 'checkmark-circle' : 'close-circle'"
-                [attr.aria-label]="
-                  $index === q.answer ? ($index === chosen() ? 'your answer, correct' : 'correct answer') : 'your answer, wrong'
-                "
-              />
+            @if (answerMark($index, q.answer, chosen()); as mark) {
+              <ion-icon class="g-answer-mark" [name]="mark.icon" [attr.aria-label]="mark.label" />
             }
           </button>
         }
@@ -172,6 +167,7 @@ export class QuestionCardComponent {
   readonly reason = input<CardReason>('due');
   readonly chosen = input<number | null>(null);
   readonly choose = output<number>();
+  protected readonly answerMark = answerMark;
 
   private readonly host: HTMLElement = inject(ElementRef).nativeElement;
   private readonly prompt = viewChild.required<ElementRef<HTMLElement>>('prompt');

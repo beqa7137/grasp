@@ -65,7 +65,7 @@ describe('house-robber', () => {
     expect(frames[0].line).toBe(3);
     expect(frames.at(-1)!.line).toBe(9);
     expect(resultOf(frames)).toBe(16);
-    expect(correctChoices(frames)).toEqual(['Rob house 1', '11', 'Skip house 3', '12', 'Rob house 5']);
+    expect(correctChoices(frames)).toEqual(['Rob it', '11', 'Skip it', '12', 'Rob it']);
     expect([...predictions(frames)[1].choices].sort()).toEqual(['11', '16', '7', '9']);
     const end = frames.at(-1)!;
     expect(end.table!.cells).toEqual([[0, 2, 7, 11, 11, 12, 16]]);

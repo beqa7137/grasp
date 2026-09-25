@@ -62,7 +62,7 @@ describe('QuestionCardComponent', () => {
     const q = generateQuestion('rec:tp1', 11);
     const wrong = (q.answer + 1) % q.choices.length;
     const choices = Array.from((render(q, wrong).nativeElement as HTMLElement).querySelectorAll('.choice'));
-    const labels = choices.map((c) => c.querySelector('.mark')?.getAttribute('aria-label') ?? null);
+    const labels = choices.map((c) => c.querySelector('.g-answer-mark')?.getAttribute('aria-label') ?? null);
     expect(labels[q.answer]).toBe('correct answer');
     expect(labels[wrong]).toBe('your answer, wrong');
     expect(labels.filter((l) => l === null)).toHaveLength(q.choices.length - 2);

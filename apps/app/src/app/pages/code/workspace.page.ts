@@ -1,16 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  DestroyRef,
-  ElementRef,
-  HostListener,
-  computed,
-  effect,
-  inject,
-  input,
-  signal,
-  untracked,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Preferences } from '@capacitor/preferences';
 import {
@@ -39,26 +27,23 @@ import {
   stopwatchOutline,
 } from 'ionicons/icons';
 import { CodeEditorComponent } from '../../code/code-editor.component';
+import { LanguagePickerComponent } from '../../code/language-picker.component';
 import type { RunnerError } from '../../code/protocol';
 import { RunnerService, type RunReport, type TestReport } from '../../code/runner.service';
 import { toFrames } from '../../code/trace-frames';
 import { TracePlayerComponent } from '../../code/trace-player.component';
 import { haptic } from '../../core/haptics';
-import { isOnHiddenPage } from '../../core/page-keys';
-import { RadioGroupDirective } from '../../core/radio-group.directive';
+import { onPageKey } from '../../core/on-page-key';
 import { ProgressService } from '../../core/progress.service';
+import { RovingSelectDirective } from '../../core/roving-select.directive';
+import { uniqueId } from '../../core/unique-id';
 
 const LANGUAGE_KEY = 'grasp.code.language';
 const draftKey = (problemId: string, language: Language) => `grasp.code.draft.${problemId}.${language}`;
 const SUITE_SEED = 1;
-const LANGUAGE_LABELS: Record<Language, string> = { python: 'Python', javascript: 'JavaScript', typescript: 'TypeScript' };
 const patternNames = new Map(PATTERNS.map((p) => [p.id, p.name]));
 
 type Panel = 'tests' | 'trace';
-const PANELS: Panel[] = ['tests', 'trace'];
-const TAB_STEPS: Record<string, number> = { ArrowRight: 1, ArrowLeft: -1 };
-
-let instances = 0;
 
 @Component({
   selector: 'app-code-workspace',
@@ -73,8 +58,9 @@ let instances = 0;
     IonContent,
     IonIcon,
     CodeEditorComponent,
+    LanguagePickerComponent,
     TracePlayerComponent,
-    RadioGroupDirective,
+    RovingSelectDirective,
   ],
   templateUrl: './workspace.page.html',
   styleUrl: './workspace.page.scss',
@@ -82,12 +68,9 @@ let instances = 0;
 export class WorkspacePage {
   private readonly runner = inject(RunnerService);
   private readonly progress = inject(ProgressService);
-  private readonly host: Element = inject(ElementRef).nativeElement;
 
   readonly id = input.required<string>();
   readonly problem = computed(() => getCodingProblem(this.id()));
-  readonly languages = LANGUAGES;
-  readonly languageLabels = LANGUAGE_LABELS;
 
   readonly language = signal<Language>('python');
   readonly code = signal('');
@@ -96,7 +79,7 @@ export class WorkspacePage {
   readonly report = signal<RunReport | null>(null);
   readonly reportKind = signal<'run' | 'submit' | null>(null);
   readonly panel = signal<Panel>('tests');
-  readonly panelsId = `workspace-panels-${++instances}`;
+  readonly panelsId = uniqueId('workspace-panels');
 
   readonly traceExample = signal(0);
   readonly traceFrames = signal<Frame[] | null>(null);
@@ -154,6 +137,7 @@ export class WorkspacePage {
       this.runner.cancel();
       this.flushDraft();
     });
+    onPageKey((e) => this.onRunChord(e), { kind: 'chord' });
   }
 
   patternName(id: string) {
@@ -164,17 +148,6 @@ export class WorkspacePage {
     this.code.set(value);
     clearTimeout(this.saveTimer);
     this.saveTimer = setTimeout(() => this.flushDraft(), 600);
-  }
-
-  /** The ARIA tabs keyboard pattern: the arrow keys, Home and End move between the result tabs and show them. */
-  onTabKey(e: KeyboardEvent) {
-    const from = PANELS.indexOf(this.panel());
-    const to = e.key === 'Home' ? 0 : e.key === 'End' ? PANELS.length - 1 : e.key in TAB_STEPS ? from + TAB_STEPS[e.key] : null;
-    if (to === null) return;
-    e.preventDefault();
-    const next = PANELS[(to + PANELS.length) % PANELS.length];
-    this.panel.set(next);
-    document.getElementById(`${this.panelsId}-${next}`)?.focus();
   }
 
   setLanguage(language: Language) {
@@ -264,10 +237,8 @@ export class WorkspacePage {
     );
   }
 
-  @HostListener('document:keydown', ['$event'])
-  onKeydown(e: KeyboardEvent) {
-    // Unlike other page keys, this shortcut is meant for typing: it runs the code straight from the editor.
-    if (!(e.metaKey || e.ctrlKey) || e.key !== 'Enter' || isOnHiddenPage(this.host)) return;
+  private onRunChord(e: KeyboardEvent) {
+    if (!(e.metaKey || e.ctrlKey) || e.key !== 'Enter') return;
     e.preventDefault();
     void (e.shiftKey ? this.submit() : this.run());
   }

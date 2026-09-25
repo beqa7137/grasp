@@ -1,4 +1,4 @@
-import { rotatedChoices } from './choices.js';
+import { fixedChoices, rotatedChoices } from './choices.js';
 import { asNumbers, randInt, rangeOf } from './input.js';
 import type { AlgorithmDef, Frame } from './types.js';
 
@@ -83,9 +83,7 @@ export const jumpGame: AlgorithmDef<Input> = {
         snap(4, `Compare index ${i} with reach ${reach}.`, {
           predict: {
             prompt: `\`i = ${i}\`, \`reach = ${reach}\`, \`nums[${i}] = ${nums[i]}\`. Can you still continue?`,
-            choices: CHECK,
-            ordered: true,
-            answer: stuck ? 1 : 0,
+            ...fixedChoices(CHECK, stuck ? 1 : 0),
             explain: stuck
               ? `${i} > ${reach}: no index before ${i} jumps this far, so you can never get here. Return false.`
               : i === reach

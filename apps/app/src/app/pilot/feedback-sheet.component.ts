@@ -1,10 +1,12 @@
-import { ChangeDetectionStrategy, Component, computed, inject, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, Injector, computed, inject, output, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Capacitor } from '@capacitor/core';
+import { IonContent } from '@ionic/angular';
 import { ApiError, ApiService } from '../core/api.service';
+import { refocusAfterRender } from '../core/focus';
 import { haptic } from '../core/haptics';
-import { RadioGroupDirective } from '../core/radio-group.directive';
+import { RovingSelectDirective } from '../core/roving-select.directive';
 import { RuntimeConfigService } from '../core/runtime-config.service';
 
 type Kind = 'bug' | 'confusing' | 'idea' | 'praise';
@@ -20,11 +22,11 @@ const MAX_LENGTH = 2000;
 @Component({
   selector: 'app-feedback-sheet',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RadioGroupDirective],
+  imports: [FormsModule, IonContent, RovingSelectDirective],
   template: `
-    <div class="sheet">
+    <ion-content [class.form]="!sent()">
       @if (sent()) {
-        <div class="done">
+        <div class="done" tabindex="-1" #done>
           <h2>Thank you</h2>
           <p class="muted">Every note is read. It helps decide what we build next.</p>
           <button class="g-btn primary" (click)="closed.emit()">Close</button>
@@ -77,19 +79,24 @@ const MAX_LENGTH = 2000;
         @if (error(); as e) {
           <p class="error" role="alert">{{ e }}</p>
         }
-        <div class="g-dialog-footer actions">
-          <button class="g-btn ghost" (click)="closed.emit()">Cancel</button>
-          <button class="g-btn primary" [disabled]="!canSend()" (click)="send()">{{ sending() ? 'Sending…' : 'Send' }}</button>
-        </div>
       }
-    </div>
+    </ion-content>
+    @if (!sent()) {
+      <div class="actions">
+        <button class="g-btn ghost" (click)="closed.emit()">Cancel</button>
+        <button class="g-btn primary" [disabled]="!canSend()" (click)="send()">{{ sending() ? 'Sending…' : 'Send' }}</button>
+      </div>
+    }
   `,
   styles: `
-    .sheet {
-      --g-dialog-inset: 20px;
-      padding: 20px var(--g-dialog-inset) 0;
-      max-width: 560px;
-      margin: 0 auto;
+    ion-content {
+      --padding-top: 20px;
+      --padding-start: 20px;
+      --padding-end: 20px;
+    }
+    /* Room below the last rating for its focus ring, which the scroll area would clip. */
+    ion-content.form {
+      --padding-bottom: 8px;
     }
     h2 {
       font: 600 1.25rem/1.2 var(--g-font-display);
@@ -116,16 +123,17 @@ const MAX_LENGTH = 2000;
       padding: 12px;
       font: 0.9375rem/1.45 var(--ion-font-family);
     }
-    textarea:focus {
-      outline: 2px solid var(--g-accent);
-      outline-offset: 1px;
-    }
     .meta {
       display: flex;
+      flex-wrap: wrap;
       justify-content: space-between;
       gap: 12px;
       font-size: 0.75rem;
       margin-top: 6px;
+    }
+    /* The note wraps beside the count, and the count drops below it only when large text leaves no room. */
+    .meta span:first-child {
+      flex: 1;
     }
     .rating-label {
       margin: 18px 0 8px;
@@ -158,7 +166,7 @@ const MAX_LENGTH = 2000;
       display: flex;
       justify-content: flex-end;
       gap: 10px;
-      margin-top: 8px;
+      padding: 12px 20px 28px;
     }
     .done {
       text-align: center;
@@ -170,6 +178,8 @@ export class FeedbackSheetComponent {
   private readonly api = inject(ApiService);
   private readonly router = inject(Router);
   private readonly runtime = inject(RuntimeConfigService);
+  private readonly injector = inject(Injector);
+  private readonly done = viewChild<ElementRef<HTMLElement>>('done');
 
   readonly closed = output<void>();
   readonly kinds = KINDS;
@@ -203,6 +213,7 @@ export class FeedbackSheetComponent {
       });
       void haptic.success();
       this.sent.set(true);
+      refocusAfterRender(this.injector, () => this.done()?.nativeElement);
     } catch (e) {
       this.error.set(e instanceof ApiError ? e.message : 'Could not send your feedback. Check your connection and try again.');
     } finally {

@@ -15,7 +15,7 @@
     @let m = result().metrics;
     <div class="page wide">
       <h1 class="visually-hidden">{{ s.title }}</h1>
-      <p class="visually-hidden" role="status">{{ announcement() }}</p>
+      <p class="visually-hidden" role="status">{{ announcer.message() }}</p>
       @if (s.revisit; as r) {
         <section class="revisit-banner">
           <span class="tag">Revisit {{ r.number }} of {{ r.of }}</span>

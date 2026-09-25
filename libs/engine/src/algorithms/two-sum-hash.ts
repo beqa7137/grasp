@@ -1,4 +1,4 @@
-import { rotatedChoices } from './choices.js';
+import { fixedChoices, rotatedChoices } from './choices.js';
 import { asNumber, asNumbers, randInt, rangeOf, shuffle } from './input.js';
 import type { AlgorithmDef, Frame, SetView } from './types.js';
 
@@ -120,9 +120,7 @@ export const twoSumHash: AlgorithmDef<Input> = {
         snap(5, `Look up \`need = ${need}\` in seen.`, {
           predict: {
             prompt: `\`target = ${target}\`, \`x = nums[${i}] = ${x}\`, so \`need = ${need}\`. seen = ${mapText()}. Is ${need} in seen?`,
-            choices: LOOKUP,
-            ordered: true,
-            answer: j !== undefined ? 0 : 1,
+            ...fixedChoices(LOOKUP, j !== undefined ? 0 : 1),
             explain: lookupExplain(x, need),
           },
         });

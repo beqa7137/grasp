@@ -3,9 +3,7 @@ import {
   Component,
   DestroyRef,
   ElementRef,
-  HostListener,
   Injector,
-  afterNextRender,
   computed,
   effect,
   inject,
@@ -53,11 +51,13 @@ import {
   trophy,
   warning,
 } from 'ionicons/icons';
-import { refocus } from '../../core/focus';
+import { AnnouncerService } from '../../core/announcer.service';
+import { refocusAfterRender } from '../../core/focus';
 import { haptic } from '../../core/haptics';
-import { isKeyForPage } from '../../core/page-keys';
+import { onPageKey } from '../../core/on-page-key';
 import { ProgressService } from '../../core/progress.service';
-import { RadioGroupDirective } from '../../core/radio-group.directive';
+import { RovingSelectDirective } from '../../core/roving-select.directive';
+import { uniqueId } from '../../core/unique-id';
 import { FREE_BUILD } from './free-build';
 import {
   BOARD,
@@ -82,8 +82,6 @@ const ZOOM_STEP = 1.35;
 /** Screen pixels a background drag must travel before it pans instead of counting as a tap. */
 const PAN_SLOP_PX = 6;
 
-let sandboxes = 0;
-
 type Gesture =
   | { kind: 'pan'; id: number; start: Point; view: ViewBox; moved: boolean }
   | { kind: 'pinch'; ids: [number, number]; distance: number; mid: Point; view: ViewBox };
@@ -95,7 +93,8 @@ type Drag =
 @Component({
   selector: 'app-sandbox',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DecimalPipe, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle, IonContent, IonIcon, RadioGroupDirective],
+  imports: [DecimalPipe, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle, IonContent, IonIcon, RovingSelectDirective],
+  providers: [AnnouncerService],
   templateUrl: './sandbox.page.html',
   styleUrl: './sandbox.page.scss',
 })
@@ -106,16 +105,14 @@ export class SandboxPage {
   });
   private readonly progress = inject(ProgressService);
   private readonly toasts = inject(ToastController);
-  private readonly host: HTMLElement = inject(ElementRef).nativeElement;
+  readonly announcer = inject(AnnouncerService);
   private readonly svg = viewChild<ElementRef<SVGSVGElement>>('canvas');
   private readonly connectButton = viewChild<ElementRef<HTMLElement>>('connectButton');
   private readonly killButton = viewChild<ElementRef<HTMLElement>>('killButton');
   private readonly recoverButton = viewChild<ElementRef<HTMLElement>>('recoverButton');
   private readonly targets = viewChild<ElementRef<HTMLElement>>('targets');
   private readonly injector = inject(Injector);
-  readonly targetsLabelId = `sandbox-targets-${++sandboxes}`;
-  /** What the last action did, for screen readers: the canvas and metrics change silently. */
-  readonly announcement = signal('');
+  readonly targetsLabelId = uniqueId('sandbox-targets');
 
   readonly W = W;
   readonly H = H;
@@ -270,6 +267,7 @@ export class SandboxPage {
       clearTimeout(this.saveTimer);
       resize.disconnect();
     });
+    onPageKey((e) => this.onKey(e));
   }
 
   private onResize(width: number, height: number) {
@@ -421,21 +419,21 @@ export class SandboxPage {
     const max = COMPONENTS[n.kind].maxInstances;
     const instances = Math.min(max, Math.max(1, n.instances + delta));
     this.updateNode(n.id, { instances, failed: Math.min(n.failed ?? 0, instances) });
-    this.announce(this.nodeLabel(this.selected()!));
+    this.announceSelected();
     void haptic.tap();
   }
 
   failInstance(n: DesignNode) {
     this.updateNode(n.id, { failed: Math.min(n.instances, (n.failed ?? 0) + 1) });
-    this.announce(this.nodeLabel(this.selected()!));
-    this.focusAfterRender(() => this.killButton()?.nativeElement ?? this.recoverButton()?.nativeElement);
+    this.announceSelected();
+    refocusAfterRender(this.injector, () => this.killButton()?.nativeElement ?? this.recoverButton()?.nativeElement);
     void haptic.error();
   }
 
   recover(n: DesignNode) {
     this.updateNode(n.id, { failed: 0 });
-    this.announce(this.nodeLabel(this.selected()!));
-    this.focusAfterRender(() => this.killButton()?.nativeElement);
+    this.announceSelected();
+    refocusAfterRender(this.injector, () => this.killButton()?.nativeElement);
   }
 
   deleteNode(id: string) {
@@ -446,7 +444,7 @@ export class SandboxPage {
     });
     this.clearSelection();
     this.announce(`Removed ${name}`);
-    this.focusAfterRender(() => this.svg()?.nativeElement);
+    refocusAfterRender(this.injector, () => this.svg()?.nativeElement);
   }
 
   deleteEdge(key: string) {
@@ -456,29 +454,28 @@ export class SandboxPage {
     });
     this.selectedEdge.set(null);
     if (edge) this.announce(`Removed the connection from ${this.nodeName(edge.from)} to ${this.nodeName(edge.to)}`);
-    this.focusAfterRender(() => this.connectButton()?.nativeElement ?? this.nodeElement(edge?.from));
+    refocusAfterRender(this.injector, () => this.connectButton()?.nativeElement ?? this.nodeElement(edge?.from));
   }
 
   closeInspector() {
     const node = this.selectedId() ?? this.edges().find((e) => e.key === this.selectedEdge())?.from;
     this.clearSelection();
-    this.focusAfterRender(() => this.nodeElement(node));
+    refocusAfterRender(this.injector, () => this.nodeElement(node));
   }
 
   startConnect(id: string) {
     this.connectFrom.set(id);
     const list = () => this.targets()?.nativeElement;
-    this.focusAfterRender(() => list()?.querySelector('button') ?? list(), this.connectButton()?.nativeElement);
+    refocusAfterRender(this.injector, () => list()?.querySelector('button') ?? list(), this.connectButton()?.nativeElement);
   }
 
   cancelConnect() {
     this.connectFrom.set(null);
-    this.focusAfterRender(() => this.connectButton()?.nativeElement);
+    refocusAfterRender(this.injector, () => this.connectButton()?.nativeElement);
   }
 
-  @HostListener('document:keydown', ['$event'])
-  onKey(e: KeyboardEvent) {
-    if (e.key !== 'Escape' || !this.connectFrom() || !isKeyForPage(this.host, e)) return;
+  private onKey(e: KeyboardEvent) {
+    if (e.key !== 'Escape' || !this.connectFrom()) return;
     e.preventDefault();
     this.cancelConnect();
   }
@@ -510,7 +507,6 @@ export class SandboxPage {
     this.selectedEdge.set(null);
   }
 
-  /** A component's short name, numbered when the board has more than one of its kind. */
   nodeName(id: string) {
     const nodes = this.design().nodes;
     const node = nodes.find((n) => n.id === id);
@@ -520,7 +516,6 @@ export class SandboxPage {
     return same.length > 1 ? `${short} ${same.indexOf(node) + 1}` : short;
   }
 
-  /** What a screen reader says for a component on the canvas: what it is and how it is coping. */
   nodeLabel(n: DesignNode) {
     const spec = COMPONENTS[n.kind];
     const name = spec.name === spec.short ? this.nodeName(n.id) : `${this.nodeName(n.id)}, ${spec.name}`;
@@ -546,12 +541,8 @@ export class SandboxPage {
 
   activateNode(e: Event, node: DesignNode) {
     e.preventDefault();
-    const from = this.connectFrom();
-    if (from) void this.connect(from, node.id);
-    else {
-      this.selectedId.set(node.id);
-      this.selectedEdge.set(null);
-    }
+    if (this.connectFrom()) this.connectTo(node.id);
+    else this.focusInsight(node.id);
   }
 
   connectTo(to: string) {
@@ -562,7 +553,7 @@ export class SandboxPage {
   private async connect(from: string, to: string) {
     const check = canConnect(this.design(), from, to);
     this.connectFrom.set(null);
-    this.focusAfterRender(() => this.connectButton()?.nativeElement);
+    refocusAfterRender(this.injector, () => this.connectButton()?.nativeElement);
     if (!check.ok) {
       void haptic.error();
       const toast = await this.toasts.create({ message: check.reason, duration: 2200, position: 'top', cssClass: 'g-toast' });
@@ -662,11 +653,6 @@ export class SandboxPage {
     return Math.round(Math.min(9.99, this.result().nodes[id]?.utilization ?? 0) * 100);
   }
 
-  /** Once an action has rendered, focus goes to `target` if the action removed the control that had it (see refocus). */
-  private focusAfterRender(target: () => HTMLElement | SVGElement | null | undefined, within?: Element) {
-    afterNextRender(() => refocus(target(), within), { injector: this.injector });
-  }
-
   private nodeElement(id: string | null | undefined) {
     return id ? this.svg()?.nativeElement.querySelector<SVGElement>(`[data-node="${CSS.escape(id)}"]`) : null;
   }
@@ -674,7 +660,11 @@ export class SandboxPage {
   private announce(action: string) {
     const checks = this.checks();
     const met = checks.filter((c) => c.pass).length;
-    this.announcement.set(checks.length ? `${action}. ${met} of ${checks.length} goals met.` : `${action}.`);
+    this.announcer.announce(checks.length ? `${action}. ${met} of ${checks.length} goals met.` : `${action}.`);
+  }
+
+  private announceSelected() {
+    this.announce(this.nodeLabel(this.selected()!));
   }
 
   private patch(mutate: (draft: Design) => void) {

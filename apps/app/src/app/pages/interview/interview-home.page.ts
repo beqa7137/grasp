@@ -128,6 +128,11 @@ import type { InterviewSession, InterviewTrack, ProblemSummary } from './intervi
       grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
       margin: 20px 0 14px;
     }
+    .title {
+      display: block;
+      font-weight: 500;
+      line-height: 1.2;
+    }
     .track {
       appearance: none;
       text-align: left;
@@ -146,11 +151,8 @@ import type { InterviewSession, InterviewTrack, ProblemSummary } from './intervi
         min-width: 0;
       }
       .title {
-        display: block;
         margin: 0 0 4px;
         font-size: 1.0625rem;
-        font-weight: 500;
-        line-height: 1.2;
       }
       .blurb {
         display: block;
@@ -182,11 +184,8 @@ import type { InterviewSession, InterviewTrack, ProblemSummary } from './intervi
       font: inherit;
       text-align: left;
       .title {
-        display: block;
         margin: 0 0 6px;
         font-size: 1rem;
-        font-weight: 500;
-        line-height: 1.2;
       }
       .chips {
         display: flex;
