@@ -71,6 +71,20 @@ test('Ctrl/⌘ + Enter runs the examples straight from the editor', async ({ pag
   await expect(page.getByText('3 / 3 examples passed')).toBeVisible();
 });
 
+test('Ctrl/⌘ + Enter typed in the feedback dialog does not run the code behind it', async ({ page }) => {
+  await page.goto('/code/two-sum');
+  await page.getByRole('radio', { name: 'JavaScript' }).click();
+  await write(page, JS_TWO_SUM);
+  await page.getByRole('button', { name: 'Send feedback' }).click();
+  const note = page.getByRole('textbox', { name: 'Your feedback' });
+  await note.fill('The run shortcut');
+  await note.press('ControlOrMeta+Enter');
+  await page.getByRole('button', { name: 'Cancel' }).click();
+  await expect(page.getByRole('dialog', { name: 'Send feedback' })).toBeHidden();
+  // The hint gives way as soon as a run starts.
+  await expect(page.getByText(/checks the examples/)).toBeVisible();
+});
+
 test('Trace steps through your own JavaScript', async ({ page }) => {
   await page.goto('/code/two-sum');
   await page.getByRole('radio', { name: 'JavaScript' }).click();

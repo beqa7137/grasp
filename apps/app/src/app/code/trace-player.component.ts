@@ -1,21 +1,9 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  DestroyRef,
-  ElementRef,
-  HostListener,
-  computed,
-  effect,
-  inject,
-  input,
-  output,
-  signal,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, input, output, signal } from '@angular/core';
 import type { Frame } from '@grasp/engine';
 import { IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { pause, play, playSkipBack, playSkipForward, refresh } from 'ionicons/icons';
-import { isKeyForPage } from '../core/page-keys';
+import { onPageKey } from '../core/on-page-key';
 import { ArrayViewComponent } from '../viz/array-view.component';
 import { GridViewComponent } from '../viz/grid-view.component';
 import { ListViewComponent } from '../viz/list-view.component';
@@ -205,7 +193,6 @@ export class TracePlayerComponent {
     return new Set(Object.keys(cur.vars).filter((k) => prev.vars[k] !== cur.vars[k]));
   });
 
-  private readonly host: Element = inject(ElementRef).nativeElement;
   private timer: ReturnType<typeof setInterval> | undefined;
 
   constructor() {
@@ -221,6 +208,7 @@ export class TracePlayerComponent {
       if (this.playing()) this.timer = setInterval(() => this.step(1), 700 / this.speed());
     });
     inject(DestroyRef).onDestroy(() => clearInterval(this.timer));
+    onPageKey((e) => this.onKey(e));
   }
 
   step(delta: number) {
@@ -243,9 +231,7 @@ export class TracePlayerComponent {
     this.speed.update((s) => SPEEDS[(SPEEDS.indexOf(s) + 1) % SPEEDS.length]);
   }
 
-  @HostListener('document:keydown', ['$event'])
-  onKey(e: KeyboardEvent) {
-    if (!isKeyForPage(this.host, e)) return;
+  private onKey(e: KeyboardEvent) {
     if (e.key === 'ArrowRight') this.step(1);
     else if (e.key === 'ArrowLeft') this.step(-1);
     else return;

@@ -12,7 +12,7 @@ function hash(text: string): number {
 /**
  * The question with its answer and up to three distinct distractors, rotated by a hash of the prompt and answer. The
  * answer's slot comes from the question itself, so it varies across questions and inputs without a pattern a learner
- * can follow. Choices with an order of their own, such as Yes / No, keep that order instead.
+ * can follow. A menu with an order of its own, such as Yes / No, keeps it instead: see `fixedChoices`.
  */
 export function rotatedChoices(
   prompt: string,
@@ -23,4 +23,9 @@ export function rotatedChoices(
   const start = hash(`${prompt}\u0000${answer}`) % options.length;
   const choices = [...options.slice(start), ...options.slice(0, start)];
   return { prompt, choices, answer: choices.indexOf(answer) };
+}
+
+/** A fixed menu, such as Yes / No, whose order means something: the player shows it as it is, and review keeps it. */
+export function fixedChoices(choices: string[], answer: number): Pick<Prediction, 'choices' | 'answer' | 'ordered'> {
+  return { choices, answer, ordered: true };
 }

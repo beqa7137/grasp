@@ -1,3 +1,4 @@
+import { fixedChoices } from './choices.js';
 import { asNumber, asNumbers, randInt } from './input.js';
 import type { AlgorithmDef, Frame } from './types.js';
 
@@ -90,9 +91,7 @@ export const binarySearch: AlgorithmDef<Input> = {
         {
           predict: {
             prompt: `\`nums[mid] = ${nums[mid]}\`, \`target = ${target}\`. What happens next?`,
-            choices: CHOICES,
-            ordered: true,
-            answer,
+            ...fixedChoices(CHOICES, answer),
             explain:
               answer === 0
                 ? 'Equal values: the search is over.'

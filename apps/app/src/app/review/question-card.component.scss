@@ -212,15 +212,6 @@ header {
   .text {
     overflow-wrap: anywhere;
   }
-  .mark {
-    flex: none;
-    margin-left: auto;
-    font-size: 20px;
-    color: var(--g-found);
-  }
-  &.wrong .mark {
-    color: var(--g-danger);
-  }
 }
 
 .reveal {

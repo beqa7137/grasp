@@ -1,3 +1,4 @@
+import { fixedChoices, rotatedChoices } from './choices.js';
 import { InputError } from './types.js';
 import { randInt, shuffle } from './input.js';
 import type { AlgorithmDef, Frame, TableLegend, TableView } from './types.js';
@@ -134,9 +135,7 @@ export const mergeIntervals: AlgorithmDef<Input> = {
         table: table({ deps: [endCell] }),
         predict: {
           prompt: `\`last = [${start}, ${end}]\`, next interval [${s}, ${e}]. Does it overlap last?`,
-          choices: OVERLAP,
-          ordered: true,
-          answer: overlaps ? 0 : 1,
+          ...fixedChoices(OVERLAP, overlaps ? 0 : 1),
           explain: overlaps
             ? `${s} ≤ ${end}: it starts ${s === end ? 'exactly where last ends, and touching endpoints count as overlapping' : 'before last ends'}. Sorting already guarantees ${s} ≥ ${start}, so checking the end is enough.`
             : `${s} > ${end}: it starts after last ends. Every later interval starts at ${s} or later, so nothing can reach last again: it is final.`,
@@ -156,10 +155,11 @@ export const mergeIntervals: AlgorithmDef<Input> = {
         snap(6, `${s} ≤ ${end}: they overlap, so [${s}, ${e}] merges into last. Now settle its end.`, {
           table: table({ active: [i, 1], deps: [endCell] }),
           predict: {
-            prompt: `[${s}, ${e}] overlaps \`last = [${start}, ${end}]\`. What is the merged end after this step?`,
-            choices: [String(end), String(e)],
-            ordered: true,
-            answer: merged === end ? 0 : 1,
+            ...rotatedChoices(
+              `[${s}, ${e}] overlaps \`last = [${start}, ${end}]\`. What is the merged end after this step?`,
+              String(merged),
+              [String(merged === end ? e : end)],
+            ),
             explain:
               e < end
                 ? `\`max(${end}, ${e}) = ${end}\`. [${s}, ${e}] sits inside last, so setting \`last[1] = e\` would wrongly shrink [${start}, ${end}] to [${start}, ${e}].`

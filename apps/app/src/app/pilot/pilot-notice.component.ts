@@ -1,12 +1,13 @@
 import { ChangeDetectionStrategy, Component, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { IonContent } from '@ionic/angular';
 
 @Component({
   selector: 'app-pilot-notice',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink],
+  imports: [RouterLink, IonContent],
   template: `
-    <div class="notice">
+    <ion-content>
       <p class="eyebrow">Pilot</p>
       <h2>Welcome to the Grasp pilot</h2>
       <p>You're one of a small group trying Grasp before anyone else. A few things to know:</p>
@@ -23,18 +24,20 @@ import { RouterLink } from '@angular/router';
           <a routerLink="/settings" tabindex="0" (click)="acknowledged.emit()">Settings</a>.
         </li>
       </ul>
-      <div class="g-dialog-footer">
-        <button class="g-btn primary" (click)="acknowledged.emit()">Got it, let's start</button>
-      </div>
+    </ion-content>
+    <div class="footer">
+      <button class="g-btn primary" (click)="acknowledged.emit()">Got it, let's start</button>
     </div>
   `,
   styles: `
-    .notice {
-      --g-dialog-inset: 22px;
-      padding: 24px var(--g-dialog-inset) 0;
-      max-width: 560px;
-      margin: 0 auto;
+    ion-content {
+      --padding-top: 24px;
+      --padding-start: 22px;
+      --padding-end: 22px;
       line-height: 1.5;
+    }
+    .footer {
+      padding: 12px 22px 28px;
     }
     h2 {
       font: 600 1.375rem/1.2 var(--g-font-display);

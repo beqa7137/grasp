@@ -1,3 +1,4 @@
+import { fixedChoices } from './choices.js';
 import { InputError } from './types.js';
 import { asNumber, asNumbers, randInt } from './input.js';
 import type { AlgorithmDef, Frame, TreeView } from './types.js';
@@ -99,9 +100,7 @@ export const kthLargest: AlgorithmDef<Input> = {
       snap(5, `Heap is full. Compare ${x} with the root ${heap[0]}, the smallest of the top ${k}.`, 0, {
         predict: {
           prompt: `The heap keeps the ${k} largest so far; its smallest is ${heap[0]}. Does ${x} get in?`,
-          choices: ENTER,
-          ordered: true,
-          answer: enters ? 0 : 1,
+          ...fixedChoices(ENTER, enters ? 0 : 1),
           explain: enters
             ? `${x} > ${heap[0]}, so ${heap[0]} is no longer among the ${k} largest. Replace the root and restore heap order.`
             : `${x} ≤ ${heap[0]}. It cannot be among the ${k} largest, so the heap is unchanged.`,
@@ -131,9 +130,7 @@ export const kthLargest: AlgorithmDef<Input> = {
                     .filter((c) => c < heap.length)
                     .map((c) => heap[c])
                     .join(' and ')}. What happens next?`,
-                  choices: SIFT,
-                  ordered: true,
-                  answer: swapDown ? 0 : 1,
+                  ...fixedChoices(SIFT, swapDown ? 0 : 1),
                   explain: swapDown
                     ? `A parent must not be larger than its children. Swap with the smaller child ${heap[child]} so the new parent is the minimum of the three.`
                     : `${heap[p]} is not larger than either child, so the heap is valid again.`,

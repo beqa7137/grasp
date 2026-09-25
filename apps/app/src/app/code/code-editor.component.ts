@@ -30,6 +30,7 @@ import {
 } from '@codemirror/view';
 import type { Language } from '@grasp/engine';
 import { tags } from '@lezer/highlight';
+import { uniqueId } from '../core/unique-id';
 
 const highlight = HighlightStyle.define([
   { tag: [tags.keyword, tags.controlKeyword, tags.definitionKeyword, tags.moduleKeyword], color: '#c792ea' },
@@ -49,7 +50,7 @@ const theme = EditorView.theme(
     '.cm-gutters': { backgroundColor: 'var(--g-surface)', color: 'var(--g-faint)', border: 'none' },
     '.cm-activeLine, .cm-activeLineGutter': { backgroundColor: 'rgba(157, 140, 255, 0.07)' },
     '.cm-activeLineGutter': { color: 'var(--g-muted)' },
-    '&.cm-focused': { outline: '2px solid var(--g-accent)', outlineOffset: '-2px' },
+    '&.cm-focused': { outline: 'var(--g-focus-ring)', outlineOffset: '-2px' },
     '&.cm-focused .cm-cursor': { borderLeftColor: 'var(--g-accent)' },
     '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection': { backgroundColor: 'rgba(157, 140, 255, 0.28)' },
     '.cm-error-line': { backgroundColor: 'rgba(255, 93, 115, 0.14)' },
@@ -81,8 +82,6 @@ const marks = StateField.define<DecorationSet>({
 
 const languageExtension = (language: Language): Extension =>
   language === 'python' ? python() : javascript({ typescript: language === 'typescript' });
-
-let instances = 0;
 
 @Component({
   selector: 'app-code-editor',
@@ -120,7 +119,7 @@ export class CodeEditorComponent implements OnDestroy {
   readonly label = input('Code editor');
   readonly valueChange = output<string>();
 
-  readonly keysId = `code-editor-keys-${++instances}`;
+  readonly keysId = uniqueId('code-editor-keys');
 
   private readonly host = viewChild.required<ElementRef<HTMLElement>>('host');
   private readonly languageSlot = new Compartment();

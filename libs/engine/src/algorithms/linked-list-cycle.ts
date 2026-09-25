@@ -1,5 +1,5 @@
 import { InputError } from './types.js';
-import { rotatedChoices } from './choices.js';
+import { fixedChoices, rotatedChoices } from './choices.js';
 import { asNumber, asNumbers, randInt, shuffle } from './input.js';
 import { listLayout } from './layout.js';
 import type { AlgorithmDef, Frame, GraphEdge, GraphLegend, GraphNode, GraphView, Prediction } from './types.js';
@@ -112,9 +112,7 @@ export const linkedListCycle: AlgorithmDef<Input> = {
 
     const meetQuestion = (gap: number, slowTo: number, to: number): Prediction => ({
       prompt: `slow is on ${name(slow)} and fast is on ${name(fast)}, both in the loop. Do slow and fast meet on this step?`,
-      choices: MEET,
-      ordered: true,
-      answer: gap === 1 ? 0 : 1,
+      ...fixedChoices(MEET, gap === 1 ? 0 : 1),
       explain:
         gap === 1
           ? `fast is 1 node behind slow. slow steps to ${name(slowTo)} and fast's two steps land there too, so \`slow === fast\`. A gap of 1 always closes to 0: fast cannot jump over slow.`

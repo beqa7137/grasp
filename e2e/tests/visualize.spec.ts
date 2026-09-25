@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { expect, synced, test } from './fixtures';
+import { expect, recordedEvents, stepToCheckpoint, synced, test } from './fixtures';
 
 const VISUALIZER_TITLES = [
   'Merge Intervals',
@@ -12,16 +12,6 @@ const VISUALIZER_TITLES = [
   'Linked List Cycle (Floyd)',
   'House Robber',
 ];
-
-async function stepToCheckpoint(page: Page) {
-  const prompt = page.getByText('Your call');
-  const total = Number((await page.locator('app-player .scrub .count').textContent())!.split('/')[1]);
-  for (let step = 1; !(await prompt.isVisible()); step++) {
-    expect(step, 'a checkpoint should come up').toBeLessThan(total);
-    await page.getByRole('button', { name: 'Step forward' }).click();
-    await expect(page.getByText(`${step + 1} / ${total}`, { exact: true }).or(prompt)).toBeVisible();
-  }
-}
 
 async function answerCheckpoint(page: Page) {
   const sync = synced(page, 'predict.answered');
@@ -76,8 +66,7 @@ test('number keys answer only the page in view, not a checkpoint left open on th
   await expect(player).toBeHidden();
   await page.keyboard.press('1');
   await expect(review.locator('g-question-card .reveal')).toHaveCount(1);
-  const recorded = await page.evaluate(() => JSON.parse(localStorage.getItem('CapacitorStorage.grasp.events') ?? '[]'));
-  expect(recorded.map((e: { type: string }) => e.type)).not.toContain('predict.answered');
+  expect((await recordedEvents(page)).map((e) => e.type)).not.toContain('predict.answered');
 
   // The hidden player does not re-render, so look for a stray answer only once it is back in view.
   await page.getByRole('tab', { name: 'Visualize' }).click();

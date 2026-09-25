@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ElementRef, HostListener, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
@@ -15,6 +15,7 @@ import {
 import { addIcons } from 'ionicons';
 import { arrowForward, compassOutline, timeOutline } from 'ionicons/icons';
 import { haptic } from '../../core/haptics';
+import { onPageKey } from '../../core/on-page-key';
 import { ProgressService } from '../../core/progress.service';
 import { ShortcutsService } from '../../core/shortcuts.service';
 import { QuestionCardComponent } from '../../review/question-card.component';
@@ -36,7 +37,6 @@ interface Slot {
 export class DiagnosticPage {
   readonly progress = inject(ProgressService);
   readonly shortcuts = inject(ShortcutsService);
-  private readonly host: Element = inject(ElementRef).nativeElement;
   readonly questionCount = PATTERNS.length;
 
   readonly slots = signal<Slot[]>([]);
@@ -55,6 +55,7 @@ export class DiagnosticPage {
 
   constructor() {
     addIcons({ arrowForward, compassOutline, timeOutline });
+    onPageKey((e) => this.onKey(e), { kind: 'shortcuts' });
   }
 
   /** Ionic reuses this view on the next visit, and a retake must open on the intro, not the last results. */
@@ -79,10 +80,9 @@ export class DiagnosticPage {
     if (slot) void this.answer(slot, 'skipped');
   }
 
-  @HostListener('document:keydown', ['$event'])
-  onKey(e: KeyboardEvent) {
+  private onKey(e: KeyboardEvent) {
     const slot = this.current();
-    if (!slot || !this.shortcuts.handles(this.host, e)) return;
+    if (!slot) return;
     const choice = Number(e.key) - 1;
     if (choice >= 0 && choice < slot.question.choices.length) this.choose(choice);
     else if (e.key.toLowerCase() === 's') this.skip();

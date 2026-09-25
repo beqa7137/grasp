@@ -72,50 +72,11 @@
   cursor: pointer;
   user-select: none;
 
-  input {
-    position: absolute;
-    opacity: 0;
-    pointer-events: none;
-  }
-  .track {
-    width: 34px;
-    height: 20px;
-    border-radius: 999px;
-    background: var(--g-line-strong);
-    position: relative;
-    transition: background 0.2s;
-  }
-  .knob {
-    position: absolute;
-    top: 3px;
-    left: 3px;
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    background: var(--g-text);
-    transition: transform 0.2s;
-  }
-  input:checked + .track {
-    background: var(--g-predict);
-  }
-  input:checked + .track .knob {
-    transform: translateX(14px);
-    background: #0b0d12;
-  }
-  input:focus-visible + .track {
-    outline: 2px solid var(--g-accent);
-    outline-offset: 2px;
-  }
-  @media (forced-colors: active) {
-    .track {
-      border: 1px solid CanvasText;
-    }
-    .knob {
-      background: CanvasText;
-    }
-    input:checked + .track {
-      background: Highlight;
-    }
+  .g-switch {
+    --g-switch-w: 34px;
+    --g-switch-h: 20px;
+    --g-switch-on: var(--g-predict);
+    --g-switch-knob-on: #0b0d12;
   }
 }
 
@@ -255,7 +216,6 @@
       background 0.15s,
       transform 0.08s;
 
-    // Touch browsers keep :hover on the last tapped element, which would look like a preselected choice.
     @media (hover: hover) {
       &:hover:not(:disabled) {
         border-color: var(--g-predict);
@@ -277,15 +237,6 @@
       opacity: 1;
       border-color: var(--g-danger);
       background: rgba(255, 93, 115, 0.12);
-    }
-    .mark {
-      flex: none;
-      margin-left: auto;
-      font-size: 18px;
-      color: var(--g-found);
-    }
-    &.wrong .mark {
-      color: var(--g-danger);
     }
   }
   .key {
@@ -375,12 +326,7 @@
     height: 24px;
     border-radius: 4px;
     background: linear-gradient(var(--g-line-strong), var(--g-line-strong)) center / 100% 4px no-repeat;
-    outline: none;
 
-    &:focus-visible {
-      outline: 2px solid var(--g-accent);
-      outline-offset: 2px;
-    }
     @media (forced-colors: active) {
       appearance: auto;
     }
@@ -514,6 +460,9 @@
     padding: 9px 10px;
     font-size: 0.8125rem;
     outline: none;
+    &:focus {
+      border-color: var(--g-accent);
+    }
   }
   input,
   textarea {
@@ -521,19 +470,11 @@
     &:read-only {
       color: var(--g-muted);
     }
-    &:focus {
-      border-color: var(--g-accent);
-    }
   }
   // A select always matches :read-only, so it is dimmed while disabled instead.
-  select {
-    &:disabled {
-      color: var(--g-muted);
-      opacity: 1;
-    }
-    &:focus {
-      border-color: var(--g-accent);
-    }
+  select:disabled {
+    color: var(--g-muted);
+    opacity: 1;
   }
   .error {
     color: var(--g-danger);

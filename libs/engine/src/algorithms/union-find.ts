@@ -1,3 +1,4 @@
+import { fixedChoices } from './choices.js';
 import { InputError } from './types.js';
 import { asEdges, asNumber, randInt, type Edge } from './input.js';
 import type { AlgorithmDef, Frame, TreeView } from './types.js';
@@ -131,9 +132,7 @@ export const unionFind: AlgorithmDef<Input> = {
       snap(6, `\`find(${a}) = ${ra}\`, \`find(${b}) = ${rb}\`.`, [ra, rb], {
         predict: {
           prompt: `\`find(${a}) = ${ra}\` and \`find(${b}) = ${rb}\`. What does union do?`,
-          choices: CHOICES,
-          ordered: true,
-          answer: same ? 1 : 0,
+          ...fixedChoices(CHOICES, same ? 1 : 0),
           explain: same
             ? `Both nodes already share the root ${ra}: this edge adds no new connection (in a graph it would close a cycle).`
             : `Different roots mean different components. Linking one root under the other joins them, and the component count drops by one.`,

@@ -9,6 +9,7 @@
 @use '@fontsource-variable/inter';
 @use '@fontsource-variable/space-grotesk';
 @use '@fontsource-variable/jetbrains-mono';
+@use 'chrome' as *;
 
 :root {
   --g-bg: #0b0d12;
@@ -34,6 +35,7 @@
   --g-radius-sm: 9px;
   --g-font-display: 'Space Grotesk Variable', 'Inter Variable', system-ui, sans-serif;
   --g-font-mono: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', Menlo, monospace;
+  --g-focus-ring: 2px solid var(--g-accent);
 }
 
 :root,
@@ -140,13 +142,14 @@ ion-tab-bar {
   padding-top: 2px;
 }
 
-// Tab bar and toolbar chrome grows with the text size only up to a cap, like Ionic's own titles, so labels still fit.
+// Toolbar and tab bar chrome grows with the text size only up to a cap, as Ionic's titles do, so it never crowds or
+// overlaps them. Page toolbar buttons use the same cap.
 ion-tab-button {
   --ripple-color: transparent;
   // Ionic lays this focus tint over the button, so it stays light enough for the focus ring below it to show.
   --background-focused: var(--g-accent);
   --background-focused-opacity: 0.12;
-  font-size: min(0.6875rem, 14px);
+  font-size: chrome-font-size(11px);
   font-weight: 500;
 }
 
@@ -245,10 +248,6 @@ button.chip {
     cursor: default;
     transform: none;
   }
-  &:focus-visible {
-    outline: 2px solid var(--g-accent);
-    outline-offset: 2px;
-  }
 
   &.primary {
     background: var(--g-accent);
@@ -266,6 +265,17 @@ button.chip {
   }
   ion-icon {
     font-size: 18px;
+  }
+}
+
+.g-answer-mark {
+  flex: none;
+  margin-left: auto;
+  font-size: 20px;
+  color: var(--g-found);
+
+  .wrong > & {
+    color: var(--g-danger);
   }
 }
 
@@ -314,19 +324,14 @@ ion-modal.g-dialog {
     border: 1px solid var(--g-line-strong);
   }
 
-  // Ionic contains the layout of a modal's page, so its overflow never reaches the modal: the page itself has to scroll.
-  .ion-page {
-    overflow-y: auto;
+  // With the auto --height, Ionic sizes a dialog to its content, and once the dialog is as tall as it may be, only the
+  // ion-content scrolls, keeping the buttons below it in view. That needs the ion-content to be the modal page's own
+  // child, so the dialog's component element steps out of the layout.
+  .ion-page > * {
+    display: contents;
   }
-
-  // A dialog's closing buttons stay in view while large text scrolls its body. The footer spans the dialog's side
-  // padding too (--g-dialog-inset), so nothing scrolls past beside it.
-  .g-dialog-footer {
-    position: sticky;
-    bottom: 0;
-    margin-inline: calc(-1 * var(--g-dialog-inset, 0px));
-    padding: 12px var(--g-dialog-inset, 0px) 28px;
-    background: var(--g-surface);
+  ion-content {
+    --background: transparent;
   }
 }
 
@@ -342,8 +347,16 @@ ion-modal.g-dialog {
   white-space: nowrap;
 }
 
+// One focus ring for every control. :where() keeps it at zero specificity, so a component can still move it inside with
+// outline-offset, or mark focus its own way.
+:where(:focus-visible) {
+  outline: var(--g-focus-ring);
+  outline-offset: 2px;
+}
+
 // Where focus lands for keyboard and screen reader users after the content changes. These are not controls, so no ring.
-[tabindex='-1']:focus {
+// Radios and tabs off their group's one Tab stop also have tabindex -1, but they are controls and keep the ring.
+[tabindex='-1']:not([role='radio'], [role='tab']):focus {
   outline: none;
 }
 
@@ -352,11 +365,17 @@ ion-modal.g-dialog {
 ion-tab-button.ion-focused::part(native),
 ion-back-button.ion-focused,
 ion-alert .alert-button.ion-focused {
-  outline: 2px solid var(--g-accent);
+  outline: var(--g-focus-ring);
   outline-offset: -2px;
 }
 
+// A page resizes or recolors a switch through its custom properties. The knob sits 3px inside the track, so its size and
+// travel follow from the track's.
 .g-switch {
+  --g-switch-w: 46px;
+  --g-switch-h: 28px;
+  --g-switch-on: var(--g-accent);
+  --g-switch-knob-on: var(--g-text);
   position: relative;
   flex: none;
   cursor: pointer;
@@ -370,9 +389,9 @@ ion-alert .alert-button.ion-focused {
   }
   .track {
     display: block;
-    width: 46px;
-    height: 28px;
-    border-radius: 14px;
+    width: var(--g-switch-w);
+    height: var(--g-switch-h);
+    border-radius: 999px;
     background: var(--g-line-strong);
     transition: background 0.2s;
   }
@@ -380,26 +399,44 @@ ion-alert .alert-button.ion-focused {
     position: absolute;
     top: 3px;
     left: 3px;
-    width: 22px;
-    height: 22px;
+    width: calc(var(--g-switch-h) - 6px);
+    height: calc(var(--g-switch-h) - 6px);
     border-radius: 50%;
     background: var(--g-text);
     transition: transform 0.2s;
   }
   input:checked + .track {
-    background: var(--g-accent);
+    background: var(--g-switch-on);
   }
   input:checked + .track .knob {
-    transform: translateX(18px);
+    transform: translateX(calc(var(--g-switch-w) - var(--g-switch-h)));
+    background: var(--g-switch-knob-on);
   }
   input:focus-visible + .track {
-    outline: 2px solid var(--g-accent);
+    outline: var(--g-focus-ring);
     outline-offset: 2px;
+  }
+}
+
+// A setting's text beside its control. The text shrinks until large text needs a line of its own for the control.
+.g-control-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+
+  > :first-child {
+    flex: 1 1 0;
+    min-width: min(8em, 100%);
   }
 }
 
 @media (forced-colors: active) {
   // Switches are drawn with backgrounds, which forced colors remove.
+  .g-switch {
+    --g-switch-knob-on: CanvasText;
+  }
   .g-switch .track {
     border: 1px solid CanvasText;
   }

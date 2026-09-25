@@ -1,11 +1,12 @@
+@use '../../../chrome' as *;
+
 .page.wide {
   max-width: 1320px;
 }
 
-// Toolbar chrome grows with the text size only up to a cap, like the Ionic title beside it, so they never overlap.
 .reset {
   padding: 6px 10px;
-  font-size: min(0.8125rem, 15.6px);
+  font-size: chrome-font-size(13px);
 }
 
 .revisit-banner {

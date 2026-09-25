@@ -1,3 +1,5 @@
+@use '../../../chrome' as *;
+
 .wordmark {
   font: 700 22px var(--g-font-display);
   letter-spacing: -0.04em;
@@ -17,12 +19,11 @@
   }
 }
 
-// Toolbar chrome grows with the text size only up to a cap, like the Ionic title beside it, so they never overlap.
 .sync {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: min(0.75rem, 14px);
+  font-size: chrome-font-size(12px);
   color: var(--g-faint);
   padding-right: 4px;
   ion-icon {

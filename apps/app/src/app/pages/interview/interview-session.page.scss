@@ -1,14 +1,20 @@
+@use '../../../chrome' as *;
+
 .chat {
   max-width: 780px;
   display: flex;
   flex-direction: column;
   gap: 14px;
+
+  // The chat meets the edges of its scroll area, which would clip a ring drawn outside it.
+  &:focus-visible {
+    outline-offset: -2px;
+  }
 }
 
-// Toolbar chrome grows with the text size only up to a cap, like the Ionic title beside it, so they never overlap.
 .end {
   padding: 7px 11px;
-  font-size: min(0.8125rem, 15.6px);
+  font-size: chrome-font-size(13px);
   ion-spinner {
     width: 16px;
     height: 16px;
@@ -211,10 +217,15 @@ ion-footer {
   border-top: 1px solid var(--g-line);
 }
 
+// Large text can wrap the language bar onto more rows. The editor gives up that height instead of the chat, so the
+// drawer never takes more than half the screen.
 .code-drawer {
   max-width: 780px;
+  max-height: 50vh;
   margin: 0 auto;
   padding: 10px 16px 0;
+  display: flex;
+  flex-direction: column;
 
   .editor {
     height: min(34vh, 300px);
@@ -233,27 +244,6 @@ ion-footer {
 
   .small {
     font-size: 0.75rem;
-  }
-}
-
-.langs {
-  display: inline-flex;
-  border: 1px solid var(--g-line-strong);
-  border-radius: 9px;
-  overflow: hidden;
-
-  button {
-    appearance: none;
-    border: none;
-    background: transparent;
-    color: var(--g-muted);
-    padding: 6px 10px;
-    font: 500 0.78125rem/1 var(--ion-font-family);
-    cursor: pointer;
-  }
-  button.on {
-    background: var(--g-accent-soft);
-    color: var(--g-accent);
   }
 }
 

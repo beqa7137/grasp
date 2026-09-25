@@ -3,7 +3,6 @@ import {
   Component,
   DestroyRef,
   ElementRef,
-  HostListener,
   afterRenderEffect,
   computed,
   effect,
@@ -43,8 +42,10 @@ import {
 } from 'ionicons/icons';
 import { refocus } from '../../core/focus';
 import { haptic } from '../../core/haptics';
+import { onPageKey } from '../../core/on-page-key';
 import { ProgressService } from '../../core/progress.service';
 import { ShortcutsService } from '../../core/shortcuts.service';
+import { answerMark } from '../../review/answer-mark';
 import { ArrayViewComponent } from '../../viz/array-view.component';
 import { CodePanelComponent } from '../../viz/code-panel.component';
 import { CodeTextComponent } from '../../viz/code-text.component';
@@ -87,7 +88,7 @@ export class PlayerPage {
   readonly id = input.required<string>();
   private readonly progress = inject(ProgressService);
   readonly shortcuts = inject(ShortcutsService);
-  private readonly host: Element = inject(ElementRef).nativeElement;
+  protected readonly answerMark = answerMark;
   private readonly predictPanel = viewChild<ElementRef<HTMLElement>>('predictPanel');
   private readonly predictPrompt = viewChild<ElementRef<HTMLElement>>('predictPrompt');
   private readonly verdict = viewChild<ElementRef<HTMLElement>>('verdict');
@@ -183,6 +184,7 @@ export class PlayerPage {
     });
 
     inject(DestroyRef).onDestroy(() => clearInterval(this.timer));
+    onPageKey((e) => this.onKey(e), { kind: 'shortcuts' });
   }
 
   load(raw: unknown) {
@@ -275,9 +277,7 @@ export class PlayerPage {
     this.index.set(Math.min(this.last(), p.frame + 1));
   }
 
-  @HostListener('document:keydown', ['$event'])
-  onKey(e: KeyboardEvent) {
-    if (!this.shortcuts.handles(this.host, e)) return;
+  private onKey(e: KeyboardEvent) {
     const p = this.pending();
     if (p && p.choice === null && /^[1-4]$/.test(e.key)) {
       this.choose(Number(e.key) - 1);

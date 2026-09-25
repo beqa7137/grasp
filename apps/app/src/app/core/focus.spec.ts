@@ -1,4 +1,6 @@
-import { refocus } from './focus';
+import { ApplicationRef, Injector } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
+import { refocus, refocusAfterRender } from './focus';
 
 describe('refocus', () => {
   afterEach(() => (document.body.innerHTML = ''));
@@ -50,6 +52,16 @@ describe('refocus', () => {
     document.dispatchEvent(new KeyboardEvent('keydown', { key: '1' }));
     refocus(reveal);
     expect(focus).toHaveBeenLastCalledWith({ preventScroll: false });
+  });
+
+  it('looks the target up once the change has rendered, since the change may be what creates it', () => {
+    const { card, choice, reveal } = setup();
+    choice.focus();
+    let target: HTMLElement | null = null;
+    refocusAfterRender(TestBed.inject(Injector), () => target, card);
+    target = reveal;
+    TestBed.inject(ApplicationRef).tick();
+    expect(document.activeElement).toBe(reveal);
   });
 
   it('leaves a page Ionic keeps hidden alone', () => {

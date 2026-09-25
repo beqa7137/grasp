@@ -3,7 +3,7 @@ import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { STUDY_OPTIONS, relativeWorkload, type StudySettings } from '@grasp/engine';
 import { ProgressService } from '../../core/progress.service';
-import { RadioGroupDirective } from '../../core/radio-group.directive';
+import { RovingSelectDirective } from '../../core/roving-select.directive';
 import { ReminderService } from '../../reminders/reminder.service';
 
 interface Choice<T> {
@@ -16,7 +16,7 @@ const pct = (r: number) => `${Math.round(r * 100)}%`;
 @Component({
   selector: 'app-study-settings',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, DatePipe, RadioGroupDirective],
+  imports: [RouterLink, DatePipe, RovingSelectDirective],
   template: `
     <section class="panel block">
       <h2>Study</h2>
@@ -65,7 +65,7 @@ const pct = (r: number) => `${Math.round(r * 100)}%`;
         <p class="hint small">{{ retentionHint() }}</p>
       </div>
 
-      <div class="setting toggle-row">
+      <div class="setting g-control-row">
         <div class="label">
           <strong>Placement check</strong>
           <span class="muted small">
@@ -85,7 +85,7 @@ const pct = (r: number) => `${Math.round(r * 100)}%`;
       @if (!reminders.supported) {
         <p class="muted small intro">Daily reminders are available in the iOS and Android app.</p>
       } @else {
-        <div class="setting toggle-row">
+        <div class="setting g-control-row">
           <div class="label">
             <strong>Daily reminder</strong>
             <span class="muted small">Only on days with something to review, and it says how much.</span>
@@ -101,7 +101,7 @@ const pct = (r: number) => `${Math.round(r * 100)}%`;
           </label>
         </div>
         @if (reminders.prefs().enabled) {
-          <div class="setting toggle-row">
+          <div class="setting g-control-row">
             <div class="label">
               <strong>Time</strong>
               <span class="muted small">{{ scheduledText() }}</span>
@@ -146,16 +146,7 @@ const pct = (r: number) => `${Math.round(r * 100)}%`;
       gap: 2px;
       margin-bottom: 10px;
     }
-    .toggle-row {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-    }
-    .toggle-row .label {
-      flex: 1 1 0;
-      min-width: min(8em, 100%);
+    .g-control-row .label {
       margin: 0;
     }
     .chips {
@@ -178,10 +169,6 @@ const pct = (r: number) => `${Math.round(r * 100)}%`;
       background: var(--g-accent);
       border-color: var(--g-accent);
       color: #0b0d12;
-    }
-    .chips button:focus-visible {
-      outline: 2px solid var(--g-accent);
-      outline-offset: 2px;
     }
     a.g-btn {
       flex: none;

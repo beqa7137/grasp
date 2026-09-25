@@ -10,7 +10,8 @@ export function codeSpans(text: string): TextPart[] {
   return parts.flatMap((part, i) => (part ? [{ text: part, code: i % 2 === 1 }] : []));
 }
 
-// A code span never wraps, so a longer one would overflow a phone-width line.
+// A code span moves to the next line whole and breaks inside only when wider than the line, which a longer one would
+// be on a phone.
 const MAX_CODE_SPAN = 24;
 
 /** Every way learner text would render badly: an unbalanced backtick, or a code span too long to fit the line. */

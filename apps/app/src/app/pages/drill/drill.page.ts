@@ -1,15 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  ElementRef,
-  HostListener,
-  computed,
-  effect,
-  inject,
-  input,
-  signal,
-  untracked,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
@@ -29,6 +18,7 @@ import {
 import { addIcons } from 'ionicons';
 import { arrowForward, flame, gitNetworkOutline, leafOutline, pulseOutline, timeOutline } from 'ionicons/icons';
 import { haptic } from '../../core/haptics';
+import { onPageKey } from '../../core/on-page-key';
 import { ProgressService } from '../../core/progress.service';
 import { ShortcutsService } from '../../core/shortcuts.service';
 import { ForecastComponent } from '../../review/forecast.component';
@@ -76,7 +66,6 @@ export class DrillPage {
   readonly plan = signal<{ due: number; fresh: number; minutes: number } | null>(null);
   private shownAt = Date.now();
   private sessionStart = Date.now();
-  private readonly host: Element = inject(ElementRef).nativeElement;
 
   readonly practice = computed(() => Boolean(this.pattern()));
   readonly current = computed(() => this.queue()[this.position()] ?? null);
@@ -118,6 +107,7 @@ export class DrillPage {
       this.pattern();
       untracked(() => this.start());
     });
+    onPageKey((e) => this.onKey(e), { kind: 'shortcuts' });
   }
 
   ionViewWillEnter() {
@@ -181,9 +171,8 @@ export class DrillPage {
     return getScenario(id)?.title ?? id;
   }
 
-  @HostListener('document:keydown', ['$event'])
-  onKey(e: KeyboardEvent) {
-    if (!this.current() || !this.shortcuts.handles(this.host, e)) return;
+  private onKey(e: KeyboardEvent) {
+    if (!this.current()) return;
     if (this.chosen() === null) {
       if (/^[1-4]$/.test(e.key)) this.answer(Number(e.key) - 1);
       return;

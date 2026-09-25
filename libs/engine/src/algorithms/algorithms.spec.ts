@@ -270,6 +270,17 @@ describe.each(ALGORITHMS.map((a) => [a.id, a] as const))('%s', (id, algo) => {
     expect(unplaced).toEqual([]);
   });
 
+  it('flags only a real fixed menu as ordered: the line that asks it offers the same choices whatever the input', () => {
+    const menus = new Map<number, Set<string>>();
+    for (const input of sweepInputs(algo)) {
+      for (const { line, predict: p } of algo.trace(algo.validate(input))) {
+        if (p?.ordered) menus.set(line, (menus.get(line) ?? new Set()).add(p.choices.join(' / ')));
+      }
+    }
+    const varying = [...menus].filter(([, seen]) => seen.size > 1).map(([line, seen]) => `line ${line}: ${[...seen].join(' | ')}`);
+    expect(varying).toEqual([]);
+  });
+
   it(`matches a reference implementation on ${SWEEP} random inputs, with well-formed frames that ask a prediction`, () => {
     for (const input of sweepInputs(algo)) {
       const frames = check(input);
