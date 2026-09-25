@@ -49,9 +49,10 @@ describe('page keys', () => {
   });
 
   it('sees the focused control inside a shadow root, such as Ionic tab and back buttons', () => {
-    document.body.innerHTML = '<app-player></app-player><ion-tab-button></ion-tab-button>';
+    // A plain host: if Ionic has already defined ion-tab-button, that element brings its own shadow root.
+    document.body.innerHTML = '<app-player></app-player><div class="tab-host"></div>';
     const host = document.querySelector('app-player')!;
-    const tab = document.querySelector('ion-tab-button')!.attachShadow({ mode: 'open' });
+    const tab = document.querySelector('.tab-host')!.attachShadow({ mode: 'open' });
     tab.innerHTML = '<a href="/interview" role="tab">Interview</a>';
     const native = tab.querySelector('a')!;
     for (const key of ['Enter', ' ', 'ArrowRight']) {
