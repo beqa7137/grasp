@@ -10,11 +10,12 @@ export const IMMUTABLE_CACHE = 'public, max-age=31536000, immutable';
 export const REVALIDATE_CACHE = 'no-cache';
 
 /**
- * The page's theme script blocks the first paint, so it is kept for a day instead of revalidated on every load. A copy a
- * deploy has outdated can only mispaint that first frame, which the app corrects as it starts.
+ * The page's theme script blocks the first paint, so it is kept for a day instead of revalidated on every load, and for a
+ * week after that it is used while it revalidates in the background. A copy a deploy has outdated can only mispaint that
+ * first frame, which the app corrects as it starts.
  */
 export const THEME_BOOT_SCRIPT = /(?:^|[/\\])theme-boot\.js$/;
-export const THEME_BOOT_CACHE = 'public, max-age=86400';
+export const THEME_BOOT_CACHE = 'public, max-age=86400, stale-while-revalidate=604800';
 
 export function cacheControlFor(path: string): string {
   if (HASHED_ASSET.test(path)) return IMMUTABLE_CACHE;

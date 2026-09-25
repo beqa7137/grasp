@@ -76,14 +76,17 @@ describe('vercel.json', () => {
     }
   });
 
-  it('keeps the theme script, which blocks the first paint, for a day, like the Docker server', () => {
-    expect(THEME_BOOT_SCRIPT.test('/theme-boot.js')).toBe(true);
+  it('caches the theme script for a day and then revalidates it in the background, like the Docker server', () => {
     expect(cacheControlFor('/theme-boot.js')).toBe(THEME_BOOT_CACHE);
     expect(headersFor('/theme-boot.js')['Cache-Control']).toBe(THEME_BOOT_CACHE);
     for (const path of [...hashed, ...revalidated]) {
       expect(THEME_BOOT_SCRIPT.test(path), path).toBe(false);
       expect(headersFor(path)['Cache-Control'], path).not.toBe(THEME_BOOT_CACHE);
     }
+  });
+
+  it('repeats the theme script policy as CDN-Cache-Control, without which Vercel strips stale-while-revalidate for the browser', () => {
+    expect(headersFor('/theme-boot.js')['CDN-Cache-Control']).toBe(THEME_BOOT_CACHE);
   });
 
   it('gives the code runner worker its own CSP and nothing else one', () => {

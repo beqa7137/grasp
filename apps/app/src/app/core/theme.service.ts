@@ -15,8 +15,8 @@ export const PREFERS_DARK = new InjectionToken<MediaQueryList | null>('prefers d
 });
 
 /**
- * The colour theme. System follows the device's light or dark mode as it changes; Light and Dark override it. Stored per
- * device, like the keyboard setting.
+ * System follows the device's light or dark mode as it changes; Light and Dark override it. Stored per device, like the
+ * keyboard setting.
  */
 @Injectable({ providedIn: 'root' })
 export class ThemeService {
@@ -32,7 +32,7 @@ export class ThemeService {
   constructor() {
     const followDevice = (e: MediaQueryListEvent) => {
       this.systemDark.set(e.matches);
-      if (this.preference() === 'system') this.apply({ live: true });
+      if (this.preference() === 'system') this.apply();
     };
     this.prefersDark?.addEventListener('change', followDevice);
     inject(DestroyRef).onDestroy(() => this.prefersDark?.removeEventListener('change', followDevice));
@@ -42,22 +42,21 @@ export class ThemeService {
     const { value } = await Preferences.get({ key: THEME_KEY });
     this.chosen.set(value === 'light' || value === 'dark' ? value : 'system');
     this.rememberForFirstPaint();
-    this.apply({ live: false });
+    this.apply();
   }
 
   async setPreference(preference: ThemePreference): Promise<void> {
     this.chosen.set(preference);
-    this.apply({ live: true });
+    this.apply();
     this.rememberForFirstPaint();
     await (preference === 'system' ? Preferences.remove({ key: THEME_KEY }) : Preferences.set({ key: THEME_KEY, value: preference }));
   }
 
   /**
    * On iOS and Android, Preferences keeps its values outside the web view, where theme-boot.js cannot read them before the
-   * app starts, so the choice is copied to localStorage as well. On the web the Preferences store already is that key.
+   * app starts, so the choice is copied to localStorage as well.
    */
   private rememberForFirstPaint() {
-    if (!this.native) return;
     const preference = this.preference();
     try {
       if (preference === 'system') localStorage.removeItem(FIRST_PAINT_KEY);
@@ -67,9 +66,9 @@ export class ThemeService {
     }
   }
 
-  private apply({ live }: { live: boolean }) {
+  private apply() {
     const dark = this.dark();
-    applyThemeToDocument(dark, { live });
+    applyThemeToDocument(dark);
     if (this.native) void applyThemeToSystemBars(dark, this.systemBars);
   }
 }

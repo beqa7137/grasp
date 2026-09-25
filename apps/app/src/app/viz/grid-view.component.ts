@@ -58,24 +58,30 @@ import type { GridView } from '@grasp/engine';
       border-color: var(--g-wall);
       background-image: repeating-linear-gradient(45deg, transparent 0 5px, var(--g-wall-hatch) 5px 10px);
     }
-    .cell[data-state='frontier'] {
+    .cell[data-state='frontier'],
+    .legend i[data-state='frontier'] {
       background: rgba(var(--g-warn-rgb), 0.16);
       border-color: rgba(var(--g-warn-rgb), 0.7);
     }
-    .cell[data-state='visited'] {
+    .cell[data-state='visited'],
+    .legend i[data-state='visited'] {
       background: rgba(var(--g-accent-rgb), 0.14);
       border-color: rgba(var(--g-accent-rgb), 0.35);
     }
-    .cell[data-state='current'] {
+    .cell[data-state='current'],
+    .legend i[data-state='current'] {
       background: var(--g-active);
       border-color: var(--g-active);
+    }
+    .cell[data-state='current'] {
       transform: scale(1.08);
     }
     .cell[data-state='current'] .d {
       color: var(--g-on-fill);
       font-weight: 700;
     }
-    .cell[data-state='path'] {
+    .cell[data-state='path'],
+    .legend i[data-state='path'] {
       background: rgba(var(--g-found-rgb), 0.28);
       border-color: var(--g-found);
     }
@@ -112,22 +118,6 @@ import type { GridView } from '@grasp/engine';
       border-radius: 3px;
       display: inline-block;
       border: 1px solid;
-    }
-    .legend i[data-state='frontier'] {
-      background: rgba(var(--g-warn-rgb), 0.16);
-      border-color: rgba(var(--g-warn-rgb), 0.7);
-    }
-    .legend i[data-state='visited'] {
-      background: rgba(var(--g-accent-rgb), 0.14);
-      border-color: rgba(var(--g-accent-rgb), 0.35);
-    }
-    .legend i[data-state='current'] {
-      background: var(--g-active);
-      border-color: var(--g-active);
-    }
-    .legend i[data-state='path'] {
-      background: rgba(var(--g-found-rgb), 0.28);
-      border-color: var(--g-found);
     }
   `,
 })

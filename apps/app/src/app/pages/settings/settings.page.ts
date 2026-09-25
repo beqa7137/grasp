@@ -10,7 +10,7 @@ import { ShortcutsService } from '../../core/shortcuts.service';
 import { type ThemePreference, ThemeService } from '../../core/theme.service';
 import { PilotService } from '../../pilot/pilot.service';
 import { AccountSettingsComponent } from './account-settings.component';
-import { StudySettingsComponent } from './study-settings.component';
+import { type Choice, StudySettingsComponent } from './study-settings.component';
 
 @Component({
   selector: 'app-settings',
@@ -146,7 +146,7 @@ import { StudySettingsComponent } from './study-settings.component';
     }
     .g-btn.danger {
       color: var(--g-danger);
-      border-color: color-mix(in srgb, var(--g-danger) 45%, transparent);
+      border-color: rgba(var(--g-danger-rgb), 0.45);
     }
   `,
 })
@@ -161,7 +161,7 @@ export class SettingsPage {
   readonly auth = inject(AuthService);
   readonly shortcuts = inject(ShortcutsService);
   readonly theme = inject(ThemeService);
-  readonly themes: { value: ThemePreference; label: string }[] = [
+  readonly themes: Choice<ThemePreference>[] = [
     { value: 'system', label: 'System' },
     { value: 'light', label: 'Light' },
     { value: 'dark', label: 'Dark' },
