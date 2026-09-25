@@ -1,8 +1,8 @@
 import type { Param, Scalar, TableLegend, TableView } from '@grasp/engine';
-import { describeSnap, isArray, isScalar, type ArraySnap, type Snap, type TraceCall, type TraceStep } from './snapshot';
+import { describeSnap, is2D, isScalar, type ArraySnap, type Snap, type TraceCall, type TraceStep } from './snapshot';
 
-/** Names that make a 2D local, or an int[][] parameter, a grid rather than a list of pairs such as edges or intervals. */
-const GRID_NAME = /grid|board|matrix|^mat$|image|heights|dp|table|seen|visited|^vis$/i;
+const GRID_WORDS = new Set(['grid', 'board', 'matrix', 'mat', 'image', 'heights', 'dp', 'table', 'cells', 'seen', 'visited', 'vis']);
+const LIST_WORDS = new Set(['edges', 'pairs', 'intervals', 'list', 'queue', 'stack', 'points']);
 const CELL_PAIRS: [string, string][] = [
   ['r', 'c'],
   ['row', 'col'],
@@ -10,39 +10,45 @@ const CELL_PAIRS: [string, string][] = [
   ['i', 'j'],
 ];
 
-export const is2D = (s: Snap | undefined): s is ArraySnap => isArray(s) && s.items.length > 0 && s.items.every(isArray);
-
 /**
- * The names of the parameters that are grids, a char[][] or one named like a grid: the problem's name for each, and the
- * name the learner's entry function gives it, matched by position.
+ * A 2D local, or an int[][] parameter, named with a grid word is a grid (`gridCopy`, `DPTable`), unless its last word
+ * names a list (`seenEdges`).
  */
+function isGridName(name: string): boolean {
+  const words = name
+    .replace(/([a-z\d])([A-Z])|([A-Z])([A-Z][a-z])/g, '$1$3_$2$4')
+    .toLowerCase()
+    .split(/[_\d]+/)
+    .filter(Boolean);
+  return words.some((word) => GRID_WORDS.has(word)) && !LIST_WORDS.has(words.at(-1)!);
+}
+
+/** Grid parameters (char[][] or named like a grid), under both the problem's name and the learner's, matched by position. */
 export function gridParams(params: readonly Param[], entry: TraceCall | undefined): ReadonlySet<string> {
   const names = new Set<string>();
   params.forEach((param, i) => {
-    if (param.type !== 'char[][]' && !GRID_NAME.test(param.name)) return;
+    if (param.type !== 'char[][]' && !isGridName(param.name)) return;
     names.add(param.name);
     if (entry?.params[i]) names.add(entry.params[i]);
   });
   return names;
 }
 
-/** A grid parameter is always a grid; any other 2D value is one when its name says so. */
 export const isGrid = (name: string, snap: Snap | undefined, grids: ReadonlySet<string>) =>
-  is2D(snap) && (grids.has(name) || GRID_NAME.test(name));
+  is2D(snap) && (grids.has(name) || isGridName(name));
 
-/** The grid drawn at a step: a grid parameter first, else the first grid the code made. */
-export function gridName(step: TraceStep, grids: ReadonlySet<string>): string | undefined {
+function gridName(step: TraceStep, grids: ReadonlySet<string>): string | undefined {
   return [...grids].find((name) => is2D(step.vars[name])) ?? Object.keys(step.vars).find((name) => isGrid(name, step.vars[name], grids));
 }
 
 function cells(grid: ArraySnap): (Scalar | null)[][] {
   const rows = grid.items as ArraySnap[];
   const width = Math.max(...rows.map((row) => row.items.length));
-  return rows.map((row) =>
-    Array.from({ length: width }, (_, c) =>
-      c < row.items.length ? (isScalar(row.items[c]) ? row.items[c] : describeSnap(row.items[c], 6)) : null,
-    ),
-  );
+  return rows.map((row) => {
+    const values: (Scalar | null)[] = row.items.map((item) => (isScalar(item) ? item : describeSnap(item, 6)));
+    while (values.length < width) values.push(null);
+    return values;
+  });
 }
 
 function pointedCell(step: TraceStep, rows: number, cols: number): { cell: [number, number]; label: string } | undefined {
@@ -58,15 +64,12 @@ function pointedCell(step: TraceStep, rows: number, cols: number): { cell: [numb
   return undefined;
 }
 
-/**
- * Draws the grid variable at each step as a table of its values: the cell a row and column variable point at, and the
- * cells that differ from the grid as the trace first saw it, such as land an island search has sunk.
- */
-export function traceGrids(steps: TraceStep[], grids: ReadonlySet<string>): (TableView | undefined)[] {
+/** Each step's grid as a table, marking the cell a row/column pair points at and the cells that differ from the grid's first snapshot. */
+export function traceGrids(steps: TraceStep[], grids: ReadonlySet<string>): ({ name: string; view: TableView } | undefined)[] {
   const firstSeen = new Map<string, (Scalar | null)[][]>();
   const pointers = new Set<string>();
   let changed = false;
-  const tables = steps.map((step) => {
+  const drawn = steps.map((step) => {
     const name = gridName(step, grids);
     if (!name) return undefined;
     const values = cells(step.vars[name] as ArraySnap);
@@ -77,16 +80,17 @@ export function traceGrids(steps: TraceStep[], grids: ReadonlySet<string>): (Tab
     const pointed = pointedCell(step, values.length, values[0].length);
     if (pointed) pointers.add(`${name}${pointed.label}`);
     changed ||= path.length > 0;
-    return {
+    const view: TableView = {
       rowLabels: values.map((_, r) => String(r)),
       colLabels: values[0].map((_, c) => String(c)),
       cells: values,
       active: pointed?.cell,
       path,
-    } satisfies TableView;
+    };
+    return { name, view };
   });
   const legend: TableLegend = {};
   if (pointers.size) legend.active = pointers.size === 1 ? [...pointers][0] : 'current cell';
   if (changed) legend.path = 'changed by your code';
-  return tables.map((table) => table && { ...table, legend });
+  return drawn.map((grid) => grid && { name: grid.name, view: { ...grid.view, legend } });
 }

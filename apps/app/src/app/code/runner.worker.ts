@@ -2,7 +2,7 @@
 import { PYTHON_PRELUDE, pythonHarness } from '@grasp/engine';
 import type { PyodideAPI } from 'pyodide';
 import { CompileError, compileJs, runJsTest, traceJs, type LogSink } from './execute-js';
-import type { WorkerMessage, WorkerRequest } from './protocol';
+import { MAX_LOG_LINES, type WorkerMessage, type WorkerRequest } from './protocol';
 import { isFatal, pythonCrash, pythonError } from './python-errors';
 
 const post = (message: WorkerMessage) => postMessage(message);
@@ -18,7 +18,7 @@ function loadPython(indexURL: string): Promise<PyodideAPI> {
   return pyodide;
 }
 
-/** Runs the tests; a compile error ends the run early, and an error that killed the interpreter is thrown on. */
+/** Rethrows only an error that killed the interpreter; every other error is reported. */
 function runSolution(py: PyodideAPI, request: Extract<WorkerRequest, { kind: 'run' }>, logs: string[]) {
   const namespace = py.globals['get']('dict')();
   try {
@@ -57,18 +57,22 @@ function runSolution(py: PyodideAPI, request: Extract<WorkerRequest, { kind: 'ru
   }
 }
 
-async function runPython(request: Extract<WorkerRequest, { kind: 'run' }>, indexURL: string) {
+async function runPython(
+  request: Extract<WorkerRequest, { kind: 'run' }>,
+  indexURL: string,
+): Promise<Extract<WorkerMessage, { kind: 'done' | 'crashed' }>> {
   const py = await loadPython(indexURL);
   const logs: string[] = [];
-  py.setStdout({ batched: (s) => logs.length < 100 && logs.push(s) });
-  py.setStderr({ batched: (s) => logs.length < 100 && logs.push(s) });
   try {
+    py.setStdout({ batched: (s) => logs.length < MAX_LOG_LINES && logs.push(s) });
+    py.setStderr({ batched: (s) => logs.length < MAX_LOG_LINES && logs.push(s) });
     runSolution(py, request, logs);
     // Frees what the run built now, so a structure too deep to free crashes this run instead of a later one.
     py.runPython('import gc; gc.collect()');
+    return { kind: 'done' };
   } catch (e) {
     if (!isFatal(e)) throw e;
-    post({ kind: 'crashed', ...pythonCrash(e, logs) });
+    return { kind: 'crashed', ...pythonCrash(e, logs) };
   }
 }
 
@@ -89,19 +93,23 @@ function runJavaScript(request: Extract<WorkerRequest, { kind: 'run' }>) {
 }
 
 addEventListener('message', async ({ data }: MessageEvent<WorkerRequest & { pyodideUrl?: string }>) => {
-  try {
-    if (data.kind === 'trace') {
-      try {
-        post({ kind: 'trace-result', ...traceJs(data.code, data.language, data.entry, data.params, data.args, data.maxSteps) });
-      } catch (e) {
-        post({ kind: 'compile-error', error: e instanceof CompileError ? e.error : { message: String(e) } });
-      }
-      return;
+  if (data.kind === 'trace') {
+    try {
+      post({ kind: 'trace-result', ...traceJs(data.code, data.language, data.entry, data.params, data.args, data.maxSteps) });
+    } catch (e) {
+      post({ kind: 'compile-error', error: e instanceof CompileError ? e.error : { message: String(e) } });
     }
-    if (data.language === 'python') await runPython(data, data.pyodideUrl!);
-    else runJavaScript(data);
-    post({ kind: 'done' });
+    return;
+  }
+  try {
+    if (data.language === 'python') {
+      post(await runPython(data, data.pyodideUrl!));
+    } else {
+      runJavaScript(data);
+      post({ kind: 'done' });
+    }
   } catch (e) {
-    post({ kind: 'compile-error', error: { message: e instanceof Error ? e.message : String(e) } });
+    // An error that escaped the run leaves the worker in an unknown state, so it is replaced.
+    post({ kind: 'crashed', error: { message: e instanceof Error ? e.message : String(e) }, logs: [] });
   }
 });

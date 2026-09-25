@@ -12,6 +12,7 @@ import { uniqueId } from '../core/unique-id';
       [class.vertical]="orientation() === 'vertical'"
       [attr.role]="listed() ? 'list' : null"
       [attr.aria-labelledby]="listed() ? labelId : null"
+      [style.--min-rows]="minRows()"
     >
       @if (more()) {
         <span class="more" role="listitem">+{{ more() }} more</span>
@@ -39,14 +40,13 @@ import { uniqueId } from '../core/unique-id';
       flex-wrap: wrap;
       gap: 6px;
     }
-    /*
-     * One flex line, as wide as the list rather than its longest item, and one text line per item: an item too long for
-     * the list, such as a call with its arguments, is cut short instead of overflowing it.
-     */
+    /* nowrap keeps one column as wide as the list, so the ellipsis below cuts long items such as calls. */
     .items.vertical {
       flex-direction: column-reverse;
       flex-wrap: nowrap;
       align-items: stretch;
+      /* Room for minRows items: each is a 0.75rem line in 16px of padding and border, 6px from the next. */
+      min-height: calc(var(--min-rows) * (0.75rem + 22px) - 6px);
     }
     .item {
       font: 600 0.75rem/1 var(--g-font-mono);
@@ -96,8 +96,10 @@ export class ListViewComponent {
   readonly highlight = input<Scalar | undefined>(undefined);
   /** Items left out before the first one shown: below the bottom of a vertical list. */
   readonly more = input(0);
+  /** Rows a vertical list keeps room for, however few items it shows. */
+  readonly minRows = input(0);
 
   readonly labelId = uniqueId('g-list');
-  /** A list is read by its name, so its label is not read twice; an empty one reads as its label and the word "empty". */
+  /** Only a non-empty list gets list semantics, named by its label, which is then hidden from screen readers so it is not read twice. */
   readonly listed = computed(() => this.items().length > 0 || this.more() > 0);
 }

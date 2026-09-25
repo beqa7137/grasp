@@ -39,11 +39,13 @@ const key = ([r, c]: [number, number]) => `${r},${c}`;
       display: block;
       width: 100%;
     }
+    /* The padding holds the active cell's scale-up, so a table as wide as its container never overflows it. */
     .table {
       display: grid;
       grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
       gap: 3px;
-      max-width: calc(var(--cols) * 46px);
+      padding-inline: 2px;
+      max-width: calc(var(--cols) * 46px + 4px);
       margin: 0 auto;
     }
     /* Rows exist for assistive tech; the cells lay out on the table's grid. */

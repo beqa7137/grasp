@@ -61,14 +61,18 @@ const POINTER_COLORS: Record<string, string> = {
     }
     .track {
       --cell: calc(100% / var(--n));
+      --val-size: clamp(11px, 2.6vw, 16px);
       position: relative;
       width: 100%;
       max-width: calc(var(--n) * 60px);
       margin: 0 auto;
     }
-    /* Values longer than a few characters, such as pairs, widen their cells and scroll rather than overlap. */
+    /*
+     * 0.62em approximates a monospace character: opted in with wideCells, long values such as pairs widen their cells and scroll
+     * instead of overlapping.
+     */
     .track.wide {
-      min-width: calc(var(--n) * (var(--chars) * 0.62 * clamp(11px, 2.6vw, 16px) + 16px));
+      min-width: calc(var(--n) * (var(--chars) * 0.62 * var(--val-size) + 16px));
     }
     .track.wide .cell {
       aspect-ratio: auto;
@@ -146,7 +150,7 @@ const POINTER_COLORS: Record<string, string> = {
     }
     .val {
       white-space: nowrap;
-      font: 600 clamp(11px, 2.6vw, 16px) / 1 var(--g-font-mono);
+      font: 600 var(--val-size) / 1 var(--g-font-mono);
       color: var(--g-text);
     }
     .cell.settled {
@@ -184,6 +188,8 @@ const POINTER_COLORS: Record<string, string> = {
 })
 export class ArrayViewComponent {
   readonly view = input.required<ArrayView>();
+  /** Lets long values widen their cells past the width given, for a container that scrolls sideways. */
+  readonly wideCells = input(false);
 
   readonly settled = computed(() => new Set(this.view().settled ?? []));
   readonly active = computed(() => new Set(this.view().active ?? []));
@@ -199,6 +205,7 @@ export class ArrayViewComponent {
   });
 
   readonly wide = computed(() => {
+    if (!this.wideCells()) return null;
     const longest = Math.max(0, ...this.view().values.map((v) => String(v).length));
     return longest > 3 ? longest : null;
   });

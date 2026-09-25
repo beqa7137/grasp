@@ -1,12 +1,10 @@
 import { parse } from 'acorn';
 import { transform } from 'sucrase';
 import { entryArgs, type Language, type ParamType } from '@grasp/engine';
-import { ENTER_HOOK, EXIT_HOOK, PAUSE_HOOK, TRACE_HOOK, instrument } from './instrument';
-import type { RunnerError } from './protocol';
-import type { Snap, TraceCall, TraceStep } from './snapshot';
+import { ENTER_HOOK, EXIT_HOOK, PAUSE_HOOK, RESUME_HOOK, TRACE_HOOK, instrument } from './instrument';
+import { MAX_LOG_LINES, type RunnerError, type TraceOutcome } from './protocol';
 import { TRACE_LIMIT, TraceRecorder } from './trace-recorder';
 
-const MAX_LOG_LINES = 100;
 const MAX_LOG_CHARS = 2_000;
 
 /** Globals shadowed inside user code so it cannot reach the network or talk to the page. */
@@ -130,15 +128,6 @@ export function runJsTest(fn: (...args: unknown[]) => unknown, params: readonly 
   }
 }
 
-export interface TraceOutcome {
-  steps: TraceStep[];
-  calls: TraceCall[];
-  returned?: Snap;
-  error?: RunnerError;
-  truncated: boolean;
-  logs: string[];
-}
-
 export function traceJs(
   code: string,
   language: Exclude<Language, 'python'>,
@@ -155,6 +144,7 @@ export function traceJs(
     [ENTER_HOOK]: recorder.enter,
     [EXIT_HOOK]: recorder.exit,
     [PAUSE_HOOK]: recorder.pause,
+    [RESUME_HOOK]: recorder.resume,
   });
   const { steps, calls } = recorder;
   const input = entryArgs(params, args);

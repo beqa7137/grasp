@@ -1,8 +1,8 @@
 import type { ArrayView, Frame, Param, Scalar, StackView } from '@grasp/engine';
 import { callLabels, callStackAt, type CallStackView } from './call-stack';
-import type { TraceOutcome } from './execute-js';
-import { gridName, gridParams, is2D, isGrid, traceGrids } from './grid-frames';
-import { describeSnap, isArray, isScalar, isTree, type Snap, type TraceStep } from './snapshot';
+import type { TraceOutcome } from './protocol';
+import { gridParams, isGrid, traceGrids } from './grid-frames';
+import { describeSnap, is2D, isArray, isScalar, isTree, type Snap, type TraceStep } from './snapshot';
 import { narrate } from './trace-notes';
 import { traceTrees } from './tree-frames';
 
@@ -16,14 +16,12 @@ const WINDOWS: [string, string][] = [
 const STACK_NAME = /stack|^stk$|^st$/i;
 const QUEUE_NAME = /queue|^q$|deque|^dq$|frontier/i;
 
-/** A frame of a trace of learner code: a visualizer frame plus the call stack, when the trace makes calls. */
 export interface TraceFrame extends Frame {
   calls?: CallStackView;
 }
 
 const toScalar = (s: Snap): Scalar => (isScalar(s) ? s : describeSnap(s, 24));
 
-/** The array drawn with index pointers: the main parameter when it is an array, a string or a list of pairs, else the first 1D array. */
 function primaryName(step: TraceStep, grid: string | undefined, preferred?: string): string | undefined {
   if (preferred && preferred !== grid && (isArray(step.vars[preferred]) || typeof step.vars[preferred] === 'string')) return preferred;
   return Object.keys(step.vars).find((k) => {
@@ -59,7 +57,7 @@ function listView(label: string, s: Snap): StackView {
 }
 
 /** Turns a trace into the frames the visualizer components already know how to draw, plus the call stack. */
-export function toFrames(trace: Pick<TraceOutcome, 'steps' | 'calls' | 'returned' | 'error'>, params: readonly Param[] = []): TraceFrame[] {
+export function toFrames(trace: Pick<TraceOutcome, 'steps' | 'calls' | 'returned' | 'error'>, params: readonly Param[]): TraceFrame[] {
   const { steps, calls } = trace;
   const entry = steps.length ? calls[steps[0].call] : undefined;
   const inputs = new Set(entry?.params);
@@ -72,14 +70,15 @@ export function toFrames(trace: Pick<TraceOutcome, 'steps' | 'calls' | 'returned
   const notes = narrate(steps, labels);
   const frames = steps.map((step, i): TraceFrame => {
     const frame: TraceFrame = { line: step.line, vars: {}, note: notes[i] };
-    const grid = tables[i] ? gridName(step, grids) : undefined;
+    const table = tables[i];
+    const grid = table?.name;
     const primary = trees ? undefined : primaryName(step, grid, preferred);
     if (primary) frame.array = arrayView(step, primary);
-    if (tables[i]) frame.table = tables[i];
+    if (table) frame.table = table.view;
     if (trees) frame.tree = trees[i];
     if (showCalls) frame.calls = callStackAt(step.call, calls, labels);
 
-    // For the one output list, a value the code made comes before an input, such as the list of edges it was given.
+    // Values the code made take the single output slot before inputs such as a given edge list.
     const extras = Object.entries(step.vars)
       .filter(([k, v]) => k !== primary && k !== grid && !isScalar(v) && !isTree(v) && (typeof v !== 'object' || v?.kind !== 'undefined'))
       .sort(([a], [b]) => Number(inputs.has(a)) - Number(inputs.has(b)));
@@ -102,7 +101,7 @@ export function toFrames(trace: Pick<TraceOutcome, 'steps' | 'calls' | 'returned
   if (last && (trace.returned !== undefined || trace.error)) {
     frames.push({
       ...last,
-      calls: trace.error || !last.calls ? last.calls : { items: [], more: 0 },
+      calls: trace.error ? last.calls : last.calls && { items: [], more: 0 },
       note: trace.error ? `Threw: ${trace.error.message}` : `Returned ${describeSnap(trace.returned!, 80)}`,
     });
   }

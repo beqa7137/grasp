@@ -304,8 +304,9 @@ describe('structure views render real traces', () => {
     expect(render(TreeViewComponent, heap).querySelector('.legend')).toBeNull();
   });
 
-  it('array: widens cells for values longer than three characters', () => {
+  it('array: widens cells for values longer than three characters, when asked to', () => {
     const fixture = TestBed.createComponent(ArrayViewComponent);
+    fixture.componentRef.setInput('wideCells', true);
     fixture.componentRef.setInput('view', { values: ['[2, 1, 1]', '[2, 3, 1]'], pointers: {} });
     fixture.detectChanges();
     const track: HTMLElement = fixture.nativeElement.querySelector('.track');
@@ -313,6 +314,15 @@ describe('structure views render real traces', () => {
     expect(track.style.getPropertyValue('--chars')).toBe('9');
     fixture.componentRef.setInput('view', { values: [7, 42, 100], pointers: {} });
     fixture.detectChanges();
+    expect(track.classList).not.toContain('wide');
+    expect(track.style.getPropertyValue('--chars')).toBe('');
+  });
+
+  it('array: keeps long values within its width unless asked to widen cells', () => {
+    const fixture = TestBed.createComponent(ArrayViewComponent);
+    fixture.componentRef.setInput('view', { values: [-100, -50, 1, 3, 5, 8, 13, 21, 34, 55, 89, 144], pointers: { lo: 0, hi: 11 } });
+    fixture.detectChanges();
+    const track: HTMLElement = fixture.nativeElement.querySelector('.track');
     expect(track.classList).not.toContain('wide');
     expect(track.style.getPropertyValue('--chars')).toBe('');
   });

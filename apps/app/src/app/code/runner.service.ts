@@ -1,8 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { TIME_LIMIT_MS, outputsMatch, paramTypes, type CodingProblem, type Language, type TestCase } from '@grasp/engine';
 import { RuntimeConfigService } from '../core/runtime-config.service';
-import type { TraceOutcome } from './execute-js';
-import type { RunnerError, WorkerMessage, WorkerRequest } from './protocol';
+import type { RunnerError, TraceOutcome, WorkerMessage, WorkerRequest } from './protocol';
 
 export type TestStatus = 'passed' | 'failed' | 'error' | 'timeout' | 'skipped';
 
@@ -44,8 +43,9 @@ const normalize = (code: string) => code.replace(/\u00a0/g, ' ');
 export class RunnerService {
   private readonly runtime = inject(RuntimeConfigService);
   private python: Worker | null = null;
-  private active: Worker | null = null;
-  /** The interpreter crashed, so the next one to load replaces it rather than loading for the first time. */
+  /** The running worker, and how to stop its timer and listeners when it is cancelled. */
+  private active: { worker: Worker; stop: () => void } | null = null;
+  /** A Python worker was discarded, so the next interpreter to load is a restart. */
   private restartingPython = false;
 
   /** Progress text while the Python interpreter loads. */
@@ -61,7 +61,6 @@ export class RunnerService {
   ): Promise<RunReport> {
     this.cancel();
     const worker = language === 'python' ? (this.python ??= this.spawn()) : this.spawn();
-    this.active = worker;
     const report: RunReport = {
       tests: cases.map((c, index) => ({ index, kind: c.kind, args: c.args, expected: c.expected, status: 'skipped', logs: [] })),
       passed: 0,
@@ -75,18 +74,22 @@ export class RunnerService {
         clearTimeout(timer);
         timer = setTimeout(onTimeout, ms);
       };
-      const finish = (keepWorker: boolean) => {
+      const stop = () => {
         clearTimeout(timer);
         listeners.abort();
+      };
+      this.active = { worker, stop };
+      const finish = (keepWorker: boolean) => {
+        stop();
         this.loading.set(null);
         if (!keepWorker) this.discard(worker);
-        if (this.active === worker) this.active = null;
+        if (this.active?.worker === worker) this.active = null;
         report.passed = report.tests.filter((t) => t.status === 'passed').length;
         resolve(report);
       };
       const timeout = (message: string, index?: number) => {
         if (index !== undefined) report.tests[index] = { ...report.tests[index], status: 'timeout', error: { message } };
-        else report.compileError = { message };
+        else report.compileError ??= { message };
         finish(false);
       };
 
@@ -96,15 +99,13 @@ export class RunnerService {
         switch (data.kind) {
           case 'loading':
             this.loading.set(this.restartingPython ? 'Restarting Python…' : data.message);
+            this.restartingPython = false;
             break;
           case 'compile-error':
-            this.restartingPython = false;
             report.compileError = data.error;
-            finish(language === 'python');
             break;
           case 'test-start':
             running = data.index;
-            this.restartingPython = false;
             this.loading.set(null);
             arm(TIME_LIMIT_MS[language], () =>
               timeout(
@@ -132,8 +133,7 @@ export class RunnerService {
           case 'crashed':
             if (running !== undefined)
               report.tests[running] = { ...report.tests[running], status: 'error', error: data.error, logs: data.logs };
-            else if (report.tests.every((t) => t.status === 'skipped')) report.compileError = data.error;
-            this.restartingPython = true;
+            else if (report.tests.every((t) => t.status === 'skipped')) report.compileError ??= data.error;
             finish(false);
             break;
           case 'done':
@@ -143,7 +143,7 @@ export class RunnerService {
       };
       const onError = (e: ErrorEvent) => {
         e.preventDefault();
-        report.compileError = { message: e.message || 'The code runner crashed.' };
+        report.compileError ??= { message: e.message || 'The code runner crashed.' };
         finish(false);
       };
       worker.addEventListener('message', onMessage, { signal: listeners.signal });
@@ -164,18 +164,18 @@ export class RunnerService {
   trace(problem: CodingProblem, language: Exclude<Language, 'python'>, code: string, entry: string, args: unknown[]): Promise<TraceReport> {
     this.cancel();
     const worker = this.spawn();
-    this.active = worker;
     return new Promise((resolve) => {
       const finish = (result: TraceReport) => {
         clearTimeout(timer);
         this.discard(worker);
-        if (this.active === worker) this.active = null;
+        if (this.active?.worker === worker) this.active = null;
         resolve(result);
       };
       const timer = setTimeout(
         () => finish({ ok: false, error: { message: 'Tracing took too long. Look for an infinite loop.' } }),
         TRACE_LIMIT_MS,
       );
+      this.active = { worker, stop: () => clearTimeout(timer) };
       worker.addEventListener('message', ({ data }: MessageEvent<WorkerMessage>) => {
         if (data.kind === 'trace-result') finish({ ok: true, ...data });
         else if (data.kind === 'compile-error') finish({ ok: false, error: data.error });
@@ -194,7 +194,10 @@ export class RunnerService {
 
   /** Stops whatever is running. A warm Python worker survives only if it is idle. */
   cancel() {
-    if (this.active) this.discard(this.active);
+    if (this.active) {
+      this.active.stop();
+      this.discard(this.active.worker);
+    }
     this.active = null;
     this.loading.set(null);
   }
@@ -205,6 +208,9 @@ export class RunnerService {
 
   private discard(worker: Worker) {
     worker.terminate();
-    if (worker === this.python) this.python = null;
+    if (worker === this.python) {
+      this.python = null;
+      this.restartingPython = true;
+    }
   }
 }

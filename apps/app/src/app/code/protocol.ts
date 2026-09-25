@@ -1,6 +1,8 @@
 import type { Language, ParamType } from '@grasp/engine';
 import type { Snap, TraceCall, TraceStep } from './snapshot';
 
+export const MAX_LOG_LINES = 100;
+
 export interface SourceLocation {
   line: number;
   column?: number;
@@ -9,6 +11,15 @@ export interface SourceLocation {
 export interface RunnerError {
   message: string;
   location?: SourceLocation;
+}
+
+export interface TraceOutcome {
+  steps: TraceStep[];
+  calls: TraceCall[];
+  returned?: Snap;
+  error?: RunnerError;
+  truncated: boolean;
+  logs: string[];
 }
 
 export type WorkerRequest =
@@ -29,15 +40,11 @@ export type WorkerMessage =
   | { kind: 'test-start'; index: number }
   | { kind: 'test-result'; index: number; ok: true; output: unknown; ms: number; logs: string[] }
   | { kind: 'test-result'; index: number; ok: false; error: RunnerError; ms: number; logs: string[] }
+  /** Ends a run whose worker can run again. */
   | { kind: 'done' }
-  /** Python's interpreter died, in the test that started last if it has no result yet. The worker cannot run anything again. */
+  /**
+   * Ends a run whose worker is unusable, such as after the Python interpreter died. The crash belongs to the last started
+   * test that has no result.
+   */
   | { kind: 'crashed'; error: RunnerError; logs: string[] }
-  | {
-      kind: 'trace-result';
-      steps: TraceStep[];
-      calls: TraceCall[];
-      returned?: Snap;
-      error?: RunnerError;
-      truncated: boolean;
-      logs: string[];
-    };
+  | ({ kind: 'trace-result' } & TraceOutcome);

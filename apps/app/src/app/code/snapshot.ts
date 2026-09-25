@@ -1,3 +1,5 @@
+import { clip } from '@grasp/engine';
+
 /** JSON-safe copy of a runtime value, as recorded in a trace step. */
 export type Snap =
   | number
@@ -30,7 +32,9 @@ export type ArraySnap = Extract<Snap, { kind: 'array' }>;
 export const isArray = (snap: Snap | undefined): snap is ArraySnap => typeof snap === 'object' && snap !== null && snap.kind === 'array';
 
 export const isScalar = (snap: Snap | undefined): snap is number | string | boolean | null =>
-  snap === null || ['number', 'string', 'boolean'].includes(typeof snap);
+  snap === null || typeof snap === 'number' || typeof snap === 'string' || typeof snap === 'boolean';
+
+export const is2D = (snap: Snap | undefined): snap is ArraySnap => isArray(snap) && snap.items.length > 0 && snap.items.every(isArray);
 
 export interface TraceStep {
   line: number;
@@ -135,8 +139,7 @@ export function snapshot(value: unknown, ids = new NodeIds(), depth = 0): Snap {
 
 /** Compact one-line rendering, used in notes and the variables table. */
 export function describeSnap(snap: Snap, max = 60): string {
-  const text = render(snap);
-  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+  return clip(render(snap), max);
 }
 
 function render(snap: Snap): string {

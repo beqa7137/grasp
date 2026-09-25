@@ -1,5 +1,6 @@
 import { buildTree } from '@grasp/engine';
-import { CompileError, compileJs, runJsTest, traceJs, type LogSink, type TraceOutcome } from './execute-js';
+import { CompileError, compileJs, runJsTest, traceJs, type LogSink } from './execute-js';
+import type { TraceOutcome } from './protocol';
 import { isFatal, pythonCrash, pythonError } from './python-errors';
 import { describeSnap, snapshot, type TreeSnap } from './snapshot';
 import { toFrames } from './trace-frames';
@@ -338,6 +339,16 @@ describe('turning traces into frames', () => {
       legend: { active: 'dp[i][j]' },
     });
   });
+
+  it('draws a 2D local as a grid when its name has a grid word, unless it ends in a list word', () => {
+    const drawn = (name: string) => {
+      const trace = traceJs(`function f() {\n  const ${name} = [[0, 1], [1, 0]];\n  return 0;\n}`, 'javascript', 'f', [], [], 50);
+      return !!toFrames(trace, []).at(-2)!.table;
+    };
+    const grids = ['dpTable', 'DPTable', 'seen', 'visited', 'visitedCells', 'newGrid', 'gridCopy', 'grid2', 'grid2D', 'is_visited', 'DP'];
+    const lists = ['seenEdges', 'gridPairs', 'dp_list', 'format', 'pairs'];
+    expect([...grids, ...lists].filter(drawn)).toEqual(grids);
+  });
 });
 
 describe('the call stack of a trace', () => {
@@ -438,6 +449,22 @@ function f() {
     const trace = traceJs(code, 'javascript', 'f', [], [], 100);
     expect(trace.returned).toBe(2);
     expect(stacks(trace)).toEqual(['f', 'f > start', 'f > start > count', 'f > count', 'f > id']);
+  });
+
+  it('nests a call in the rest of a resumed yield under the generator', () => {
+    const code = `function helper(x) {
+  return x;
+}
+function* g() {
+  helper(yield 1);
+}
+function f() {
+  const it = g();
+  it.next();
+  it.next(5);
+  return 0;
+}`;
+    expect(stacks(traceJs(code, 'javascript', 'f', [], [], 100))).toEqual(['f', 'f > g', 'f > g > helper']);
   });
 
   it('keeps a generator the same call, with its tree argument on the stack, when the same call resumes it', () => {

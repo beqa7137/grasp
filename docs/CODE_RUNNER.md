@@ -75,10 +75,10 @@ Pyodide files are sent with `Cross-Origin-Resource-Policy: cross-origin` and the
 
 The worker records up to 2,000 steps, each with a JSON-safe snapshot of the variables and the call it runs in. `toFrames()` turns those snapshots into the same `Frame` objects the built-in visualizers use:
 
-- the first parameter (an array, a string, or a list of pairs such as edges) is drawn with index pointers
+- the first parameter (an array, a string, or a list of pairs such as edges) is drawn with index pointers; values longer than three characters, such as pairs, widen their cells and scroll sideways, which only the trace player opts in to (`wideCells`), since the visualizer pages have no sideways scroll
 - `lo`/`hi`-style pairs become a window
 - stacks, queues, sets and maps get their own views
-- a grid (a `char[][]` parameter, under whatever name the learner gives it, or a 2D value named like a grid, such as `grid` or `dp`) is drawn as a table, with the cell a `(r, c)` pair points at and the cells the code changed
+- a grid (a `char[][]` parameter, under whatever name the learner gives it, or a 2D value whose name has a grid word, such as `grid`, `dpTable` or `visitedCells`, unless it ends in a list word such as `seenEdges`) is drawn as a table, with the cell a `(r, c)` pair points at and the cells the code changed
 - a tree parameter is drawn as a tree, with the node each variable points at, the nodes on the call stack, the nodes waiting in a list, and the nodes whose call returned or that a loop visited
 - the call stack is shown whenever the code calls a function, at most six calls deep
 - every step's note names the call it enters or comes back to (from a callee, or a generator resuming), and what changed, down to the cells an assignment wrote

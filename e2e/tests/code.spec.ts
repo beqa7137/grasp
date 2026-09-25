@@ -1,5 +1,4 @@
-import type { Page } from '@playwright/test';
-import { JS_DIAMETER, JS_ISLANDS, expect, synced, test, write } from './fixtures';
+import { JS_DIAMETER, JS_ISLANDS, expect, seek, synced, test, trace, write } from './fixtures';
 
 const JS_TWO_SUM = `function twoSum(nums, target) {
   const seen = new Map();
@@ -63,12 +62,6 @@ const PY_CRASH = `def two_sum(nums, target):
         x = [x]
     return [0, 1]`;
 
-/** Moves the trace to a step, and waits for its narration. */
-async function seek(page: Page, step: number, note: string) {
-  await page.getByRole('slider', { name: 'Timeline' }).fill(String(step));
-  await expect(page.locator('app-trace-player .narration')).toContainText(note);
-}
-
 test('an efficient JavaScript solution passes the examples, then every test', { tag: '@smoke' }, async ({ page }) => {
   await page.goto('/code/two-sum');
   await page.getByRole('radio', { name: 'JavaScript' }).click();
@@ -128,9 +121,7 @@ test('Ctrl/⌘ + Enter typed in the feedback dialog does not run the code behind
 
 test('Trace steps through your own JavaScript', async ({ page }) => {
   await page.goto('/code/two-sum');
-  await page.getByRole('radio', { name: 'JavaScript' }).click();
-  await write(page, JS_TWO_SUM);
-  await page.getByRole('button', { name: 'Trace' }).click();
+  await trace(page, JS_TWO_SUM);
   await expect(page.getByRole('tab', { name: 'Trace' })).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByRole('slider', { name: 'Timeline' })).toBeVisible();
   const count = page.locator('app-trace-player .count');
@@ -163,7 +154,7 @@ test('Python has TreeNode and Optional in scope for a tree problem', async ({ pa
 });
 
 test.describe('when Python code crashes the interpreter', () => {
-  // Pyodide reports its own crash on the console, from the worker. One pattern, because Playwright reads a second as options.
+  // Pyodide logs its crash from the worker. One regex: Playwright reads a second array item as fixture options.
   test.use({ expectedConsoleErrors: [/Pyodide has suffered a fatal error|The cause of the fatal error|Maximum call stack size exceeded/] });
 
   test('the run says so, and the next run starts a fresh Python', async ({ page }) => {
@@ -181,9 +172,7 @@ test.describe('when Python code crashes the interpreter', () => {
 
 test('Trace draws the input tree and marks the node being visited', async ({ page }) => {
   await page.goto('/code/tree-diameter');
-  await page.getByRole('radio', { name: 'JavaScript' }).click();
-  await write(page, JS_DIAMETER, 'Diameter of Binary Tree');
-  await page.getByRole('button', { name: 'Trace' }).click();
+  await trace(page, JS_DIAMETER, 'Diameter of Binary Tree');
   const tree = page.locator('app-trace-player g-tree-view');
   await expect(tree.getByRole('img', { name: /^Tree with \d+ nodes/ })).toBeVisible();
   for (let step = 0; step < 4; step++) await page.keyboard.press('ArrowRight');
@@ -192,9 +181,7 @@ test('Trace draws the input tree and marks the node being visited', async ({ pag
 
 test('Trace shows the call stack of a recursive DFS, and the calls waiting on the stack in the tree', async ({ page }) => {
   await page.goto('/code/tree-diameter');
-  await page.getByRole('radio', { name: 'JavaScript' }).click();
-  await write(page, JS_DIAMETER, 'Diameter of Binary Tree');
-  await page.getByRole('button', { name: 'Trace' }).click();
+  await trace(page, JS_DIAMETER, 'Diameter of Binary Tree');
   await seek(page, 7, 'Called height(TreeNode(4))');
   await expect(page.getByRole('list', { name: 'call stack' }).getByRole('listitem')).toHaveText([
     'diameterOfBinaryTree(TreeNode(1))',
@@ -213,9 +200,7 @@ test('Trace shows the call stack of a recursive DFS, and the calls waiting on th
 test('on a narrow phone, a call too long for the call stack is cut short on one line, and nothing scrolls sideways', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 700 });
   await page.goto('/code/tree-diameter');
-  await page.getByRole('radio', { name: 'JavaScript' }).click();
-  await write(page, JS_DIAMETER, 'Diameter of Binary Tree');
-  await page.getByRole('button', { name: 'Trace' }).click();
+  await trace(page, JS_DIAMETER, 'Diameter of Binary Tree');
   await seek(page, 7, 'Called height(TreeNode(4))');
   const calls = page.getByRole('list', { name: 'call stack' }).getByRole('listitem');
   await expect(calls.first()).toHaveText('diameterOfBinaryTree(TreeNode(1))');
@@ -227,9 +212,7 @@ test('on a narrow phone, a call too long for the call stack is cut short on one 
 
 test('a trace that calls nothing beyond the entry function has no call stack', async ({ page }) => {
   await page.goto('/code/two-sum');
-  await page.getByRole('radio', { name: 'JavaScript' }).click();
-  await write(page, JS_TWO_SUM);
-  await page.getByRole('button', { name: 'Trace' }).click();
+  await trace(page, JS_TWO_SUM);
   await expect(page.getByRole('slider', { name: 'Timeline' })).toBeVisible();
   await expect(page.locator('app-trace-player g-array-view')).toBeVisible();
   await expect(page.locator('app-trace-player').getByText('call stack')).toHaveCount(0);
@@ -237,9 +220,7 @@ test('a trace that calls nothing beyond the entry function has no call stack', a
 
 test('Trace draws a grid input as a grid, with the cell (r, c) points at and the land the code sank', async ({ page }) => {
   await page.goto('/code/number-of-islands');
-  await page.getByRole('radio', { name: 'JavaScript' }).click();
-  await write(page, JS_ISLANDS, 'Number of Islands');
-  await page.getByRole('button', { name: 'Trace' }).click();
+  await trace(page, JS_ISLANDS, 'Number of Islands');
   await seek(page, 12, 'grid[1][0] = "0"');
   const grid = page.locator('app-trace-player g-table-view');
   await expect(grid.getByRole('table', { name: 'Table with 4 rows and 5 columns, current cell row 1 column 0' })).toBeVisible();

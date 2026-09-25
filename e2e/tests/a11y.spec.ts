@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import type { Locator, Page } from '@playwright/test';
-import { JS_DIAMETER, JS_ISLANDS, expect, recordedEvents, stepToCheckpoint, test, write } from './fixtures';
+import { JS_DIAMETER, JS_ISLANDS, expect, recordedEvents, seek, stepToCheckpoint, test, trace } from './fixtures';
 
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice'];
 const BLOCKING = new Set(['serious', 'critical']);
@@ -34,13 +34,6 @@ async function seekGrid(page: Page, fraction: number, state: string) {
   const timeline = page.getByRole('slider', { name: 'Timeline' });
   await timeline.fill(String(Math.round(Number(await timeline.getAttribute('max')) * fraction)));
   await expect(page.locator(`g-grid-view .cell[data-state="${state}"]`).first()).toBeVisible();
-}
-
-/** Traces JavaScript in the workspace of the problem with this title. */
-async function trace(page: Page, code: string, title: string) {
-  await page.getByRole('radio', { name: 'JavaScript' }).click();
-  await write(page, code, title);
-  await page.getByRole('button', { name: 'Trace' }).click();
 }
 
 const PAGES: { name: string; path: string; ready: (page: Page) => Promise<unknown> }[] = [
@@ -100,8 +93,7 @@ const PAGES: { name: string; path: string; ready: (page: Page) => Promise<unknow
     path: '/code/number-of-islands',
     ready: async (page) => {
       await trace(page, JS_ISLANDS, 'Number of Islands');
-      await page.getByRole('slider', { name: 'Timeline' }).fill('28');
-      await expect(page.locator('app-trace-player .narration')).toContainText('Called sink(1, 1)');
+      await seek(page, 28, 'Called sink(1, 1)');
     },
   },
   {
