@@ -1,7 +1,15 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
-import { ALGORITHMS, CODING_CATALOG, PATTERNS, SCENARIOS, SD_TOPICS, getScenario, type Track } from '@grasp/engine';
+import {
+  ALGORITHM_CATALOG,
+  CODING_CATALOG,
+  PATTERN_CATALOG,
+  SCENARIO_CATALOG,
+  SD_TOPICS,
+  getScenarioSummary,
+  type Track,
+} from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import {
   chatbubblesOutline,
@@ -41,8 +49,8 @@ export class LearnPage {
   readonly progress = inject(ProgressService);
   readonly auth = inject(AuthService);
   readonly diagnosticPrompt = inject(DiagnosticPromptService);
-  readonly patternCount = PATTERNS.length;
-  readonly tracks = TRACKS.map((t) => ({ ...t, patterns: PATTERNS.filter((p) => p.track === t.id) }));
+  readonly patternCount = PATTERN_CATALOG.length;
+  readonly tracks = TRACKS.map((t) => ({ ...t, patterns: PATTERN_CATALOG.filter((p) => p.track === t.id) }));
 
   readonly sdTopics = SD_TOPICS;
   readonly masteryById = computed(() => new Map(this.progress.mastery().map((m) => [m.topic, m])));
@@ -52,14 +60,14 @@ export class LearnPage {
   });
   readonly nextAlgorithm = computed(() => {
     const preds = this.progress.state().predictions;
-    return [...ALGORITHMS].sort((a, b) => (preds[a.patternId]?.total ?? 0) - (preds[b.patternId]?.total ?? 0))[0];
+    return [...ALGORITHM_CATALOG].sort((a, b) => (preds[a.patternId]?.total ?? 0) - (preds[b.patternId]?.total ?? 0))[0];
   });
   readonly nextProblem = computed(() => CODING_CATALOG.find((p) => !this.progress.state().coding[p.id]?.solvedAt) ?? CODING_CATALOG[0]);
-  readonly nextScenario = computed(() => SCENARIOS.find((s) => !this.progress.state().missions[s.id]) ?? SCENARIOS[0]);
+  readonly nextScenario = computed(() => SCENARIO_CATALOG.find((s) => !this.progress.state().missions[s.id]) ?? SCENARIO_CATALOG[0]);
   readonly offerDiagnostic = computed(() => !this.progress.state().diagnosedAt && !this.diagnosticPrompt.dismissed());
   readonly revisit = computed(() => {
     const m = this.progress.dueMissions()[0];
-    return m ? { ...m, title: getScenario(m.scenarioId)!.title } : null;
+    return m ? { ...m, title: getScenarioSummary(m.scenarioId)!.title } : null;
   });
   readonly greeting = computed(() => {
     const h = new Date().getHours();

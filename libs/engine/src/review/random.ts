@@ -1,4 +1,4 @@
-import { mulberry32, shuffle } from '../algorithms/input.js';
+import { mulberry32, shuffle } from '../algorithms/random.js';
 
 export { shuffle };
 

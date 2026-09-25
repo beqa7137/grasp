@@ -1,3 +1,5 @@
+import type { AlgorithmSummary } from './catalog.js';
+
 export type Scalar = number | string | boolean | null;
 
 export interface ArrayView {
@@ -151,5 +153,8 @@ export interface AlgorithmDef<I extends AlgorithmInput = AlgorithmInput> extends
   validate(input: unknown): I;
   trace(input: I): Frame[];
 }
+
+/** What a tracer module defines: everything but the summary, which lives in the algorithm catalog. */
+export type AlgorithmDefinition<I extends AlgorithmInput = AlgorithmInput> = Omit<AlgorithmDef<I>, keyof AlgorithmSummary>;
 
 export class InputError extends Error {}

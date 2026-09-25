@@ -1,16 +1,13 @@
 import { fixedChoices } from './choices.js';
-import { asNumbers, randInt } from './input.js';
-import type { AlgorithmDef, Frame } from './types.js';
+import { asNumbers } from './input.js';
+import { randInt } from './random.js';
+import type { AlgorithmDefinition, Frame } from './types.js';
 
 type Input = { nums: number[] };
 
 const CHOICES = ['Pop: nums[i] is its next greater', 'Stop popping, push i'];
 
-export const nextGreater: AlgorithmDef<Input> = {
-  id: 'next-greater-element',
-  title: 'Next Greater Element',
-  patternId: 'monotonic-stack',
-  difficulty: 'medium',
+export const nextGreater: AlgorithmDefinition<Input> = {
   summary: 'Keep a stack of indices still waiting for a bigger value; each new value resolves everyone smaller than it.',
   complexity: { time: 'O(n)', space: 'O(n)' },
   code: [

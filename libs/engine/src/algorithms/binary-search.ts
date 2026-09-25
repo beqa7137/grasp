@@ -1,6 +1,7 @@
 import { fixedChoices } from './choices.js';
-import { asNumber, asNumbers, distinctInts, randInt } from './input.js';
-import type { AlgorithmDef, Frame } from './types.js';
+import { asNumber, asNumbers } from './input.js';
+import { distinctInts, randInt } from './random.js';
+import type { AlgorithmDefinition, Frame } from './types.js';
 
 type Input = { nums: number[]; target: number };
 
@@ -12,11 +13,7 @@ function range(from: number, to: number): number[] {
   return out;
 }
 
-export const binarySearch: AlgorithmDef<Input> = {
-  id: 'binary-search',
-  title: 'Binary Search',
-  patternId: 'binary-search',
-  difficulty: 'easy',
+export const binarySearch: AlgorithmDefinition<Input> = {
   summary: 'Halve a sorted search space every step by comparing against the middle element.',
   complexity: { time: 'O(log n)', space: 'O(1)' },
   code: [

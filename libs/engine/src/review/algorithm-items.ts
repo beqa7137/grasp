@@ -4,18 +4,15 @@ import { COMPLEXITY_FACTS } from '../curriculum/complexity.js';
 import { DRILL_CARDS } from '../curriculum/drills.js';
 import { PATTERNS, getPattern } from '../curriculum/patterns.js';
 import { seeded, withChoices } from './random.js';
+import { clozeSummary, complexitySummary, predictSummary, recognitionSummary } from './summaries.js';
 import { KIND_LABELS, type ItemDef } from './types.js';
 
-const patternOrder = (id: string) => (getPattern(id)?.order ?? 99) * 100;
 const patternName = (id: string) => getPattern(id)?.name ?? id;
 const patternLink = (id: string) => ({ label: `Review ${patternName(id)}`, path: ['/learn/pattern', id] });
 
 const recognitionItems: ItemDef[] = DRILL_CARDS.map((card, i) => ({
-  id: `rec:${card.id}`,
-  kind: 'recognition',
-  topic: card.patternId,
+  ...recognitionSummary(card, i),
   label: card.prompt.length > 70 ? `${card.prompt.slice(0, 67)}…` : card.prompt,
-  order: patternOrder(card.patternId) + (i % 10),
   generate(seed) {
     const rand = seeded(seed);
     const names = [card.patternId, ...card.distractors].map(patternName);
@@ -36,11 +33,8 @@ const recognitionItems: ItemDef[] = DRILL_CARDS.map((card, i) => ({
 }));
 
 const complexityItems: ItemDef[] = COMPLEXITY_FACTS.map((fact, i) => ({
-  id: `cx:${fact.id}`,
-  kind: 'complexity',
-  topic: fact.patternId,
+  ...complexitySummary(fact, i),
   label: fact.question,
-  order: patternOrder(fact.patternId) + 10 + (i % 10),
   generate(seed) {
     const { choices, answer } = withChoices(seeded(seed), fact.answer, fact.distractors);
     return {
@@ -59,12 +53,9 @@ const complexityItems: ItemDef[] = COMPLEXITY_FACTS.map((fact, i) => ({
 }));
 
 const clozeItems: ItemDef[] = PATTERNS.flatMap((pattern) =>
-  (CLOZES[pattern.id] ?? []).map((cloze, n): ItemDef => ({
-    id: `cloze:${pattern.id}:${n + 1}`,
-    kind: 'cloze',
-    topic: pattern.id,
+  CLOZES[pattern.id].map((cloze, n): ItemDef => ({
+    ...clozeSummary(pattern.id, n),
     label: `${pattern.name} template, line ${cloze.line + 1}`,
-    order: patternOrder(pattern.id) + 20 + n,
     generate(seed) {
       const correct = pattern.template[cloze.line].trim();
       const { choices, answer } = withChoices(
@@ -90,12 +81,8 @@ const clozeItems: ItemDef[] = PATTERNS.flatMap((pattern) =>
 );
 
 const predictItems: ItemDef[] = ALGORITHMS.map((algo) => ({
-  id: `pred:${algo.id}`,
-  kind: 'predict',
-  topic: algo.patternId,
-  algorithmId: algo.id,
+  ...predictSummary(algo),
   label: `${algo.title}: call the next move`,
-  order: patternOrder(algo.patternId) + 30,
   generate(seed) {
     for (let attempt = 0; attempt < 25; attempt++) {
       const rand = seeded(seed + attempt * 7919);

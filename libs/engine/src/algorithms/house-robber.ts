@@ -1,7 +1,8 @@
 import { InputError } from './types.js';
 import { fixedChoices, rotatedChoices } from './choices.js';
-import { asNumbers, randInt } from './input.js';
-import type { AlgorithmDef, Frame, Prediction, TableLegend } from './types.js';
+import { asNumbers } from './input.js';
+import { randInt } from './random.js';
+import type { AlgorithmDefinition, Frame, Prediction, TableLegend } from './types.js';
 
 type Input = { nums: number[] };
 
@@ -67,11 +68,7 @@ function dpValue(step: Step, threeBack: number | null): Prediction | null {
   };
 }
 
-export const houseRobber: AlgorithmDef<Input> = {
-  id: 'house-robber',
-  title: 'House Robber',
-  patternId: 'dp-1d',
-  difficulty: 'medium',
+export const houseRobber: AlgorithmDefinition<Input> = {
   summary: '`dp[i]` is the most money from the first i houses: skip house `i - 1` and keep `dp[i - 1]`, or rob it on top of `dp[i - 2]`.',
   complexity: { time: 'O(n)', space: 'O(n)' },
   code: [

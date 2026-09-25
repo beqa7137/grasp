@@ -1,6 +1,7 @@
 import { rotatedChoices } from './choices.js';
-import { asNumbers, randInt, shuffle } from './input.js';
-import type { AlgorithmDef, Frame, SetView, TableLegend, TableView } from './types.js';
+import { asNumbers } from './input.js';
+import { randInt, shuffle } from './random.js';
+import type { AlgorithmDefinition, Frame, SetView, TableLegend, TableView } from './types.js';
 
 type Input = { nums: number[] };
 type Cell = [number, number];
@@ -33,11 +34,7 @@ function xorQuestion(x: number, n: number, width: number) {
   );
 }
 
-export const singleNumberXor: AlgorithmDef<Input> = {
-  id: 'single-number-xor',
-  title: 'Single Number (XOR)',
-  patternId: 'bit-manipulation',
-  difficulty: 'easy',
+export const singleNumberXor: AlgorithmDefinition<Input> = {
   summary: 'XOR every number into one accumulator: equal numbers cancel (`n ^ n = 0`), so only the unpaired one survives.',
   complexity: { time: 'O(n)', space: 'O(1)' },
   code: [

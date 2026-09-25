@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { mulberry32 } from '../algorithms/input.js';
-import { getReviewItem, itemsForTopic } from '../review/catalog.js';
+import { mulberry32 } from '../algorithms/random.js';
+import { getReviewItemSummary, itemsForTopic } from '../review/catalog.js';
 import type { StoredEvent } from './events.js';
 import { isUnlocked, replay, trueRetention, type ProgressState } from './progress.js';
 import { RATING, retrievability } from './scheduler.js';
@@ -20,7 +20,7 @@ const graded = (itemId: string, atMs: number, rating: 1 | 2 | 3 | 4 = RATING.goo
 });
 
 const noSameTopicNeighbours = (ids: string[]) =>
-  ids.every((idv, i) => i === 0 || getReviewItem(idv)!.topic !== getReviewItem(ids[i - 1])!.topic);
+  ids.every((idv, i) => i === 0 || getReviewItemSummary(idv)!.topic !== getReviewItemSummary(ids[i - 1])!.topic);
 
 describe('session builder', () => {
   it('starts a brand-new learner on interleaved recognition cards within the daily cap', () => {

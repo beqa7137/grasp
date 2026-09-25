@@ -1,4 +1,4 @@
-import { distinctInts, randInt, shuffle } from '../../algorithms/input.js';
+import { distinctInts, randInt, shuffle } from '../../algorithms/random.js';
 import type { Args, CodingProblemDefinition } from '../types.js';
 import { distinctSorted, ints } from './inputs.js';
 

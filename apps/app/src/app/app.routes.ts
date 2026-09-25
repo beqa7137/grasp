@@ -1,5 +1,5 @@
 import type { ActivatedRouteSnapshot, Routes } from '@angular/router';
-import { getAlgorithm, getPattern, getProblemSummary, getScenario } from '@grasp/engine';
+import { getAlgorithmSummary, getPatternSummary, getProblemSummary, getScenarioSummary } from '@grasp/engine';
 import { FREE_BUILD } from './pages/design/free-build';
 
 const idOf = (route: ActivatedRouteSnapshot) => route.paramMap.get('id') ?? '';
@@ -13,7 +13,7 @@ export const routes: Routes = [
       {
         path: 'learn/pattern/:id',
         title: (route) => {
-          const pattern = getPattern(idOf(route));
+          const pattern = getPatternSummary(idOf(route));
           return pattern ? `${pattern.name} pattern` : 'Pattern';
         },
         loadComponent: () => import('./pages/pattern/pattern.page').then((m) => m.PatternPage),
@@ -25,13 +25,13 @@ export const routes: Routes = [
       },
       {
         path: 'visualize/:id',
-        title: (route) => getAlgorithm(idOf(route))?.title ?? 'Visualizer',
+        title: (route) => getAlgorithmSummary(idOf(route))?.title ?? 'Visualizer',
         loadComponent: () => import('./pages/visualize/player.page').then((m) => m.PlayerPage),
       },
       { path: 'design', title: 'Design Lab', loadComponent: () => import('./pages/design/design-list.page').then((m) => m.DesignListPage) },
       {
         path: 'design/:id',
-        title: (route) => (idOf(route) === FREE_BUILD.id ? FREE_BUILD : getScenario(idOf(route)))?.title ?? 'Design Lab',
+        title: (route) => (idOf(route) === FREE_BUILD.id ? FREE_BUILD : getScenarioSummary(idOf(route)))?.title ?? 'Design Lab',
         loadComponent: () => import('./pages/design/sandbox.page').then((m) => m.SandboxPage),
       },
       {

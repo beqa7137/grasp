@@ -1,17 +1,14 @@
 import { fixedChoices } from './choices.js';
 import { InputError } from './types.js';
-import { asEdges, asNumber, randInt, type Edge } from './input.js';
-import type { AlgorithmDef, Frame, TreeView } from './types.js';
+import { asEdges, asNumber, type Edge } from './input.js';
+import { randInt } from './random.js';
+import type { AlgorithmDefinition, Frame, TreeView } from './types.js';
 
 type Input = { n: number; edges: Edge[] };
 
 const CHOICES = ['Merge the two trees', 'Skip: already connected'];
 
-export const unionFind: AlgorithmDef<Input> = {
-  id: 'union-find',
-  title: 'Union-Find: Counting Components',
-  patternId: 'union-find',
-  difficulty: 'medium',
+export const unionFind: AlgorithmDefinition<Input> = {
   summary: 'Each component is a tree identified by its root; union links roots, and path compression keeps the trees flat.',
   complexity: { time: 'O(E · α(n)) ≈ O(E)', space: 'O(n)' },
   code: [

@@ -1,27 +1,23 @@
-import { ALGORITHM_ITEMS } from './algorithm-items.js';
-import { DESIGN_ITEMS } from './design-items.js';
-import type { ItemDef, Question, ReviewItem } from './types.js';
+import { ALGORITHM_CATALOG } from '../algorithms/catalog.js';
+import { CLOZE_COUNTS, COMPLEXITY_CATALOG, DRILL_CATALOG, PATTERN_CATALOG } from '../curriculum/catalog.js';
+import { DESIGN_ITEM_CATALOG, clozeSummary, complexitySummary, designSummary, predictSummary, recognitionSummary } from './summaries.js';
+import type { ReviewItemSummary } from './types.js';
 
-export const REVIEW_ITEMS: ItemDef[] = [...ALGORITHM_ITEMS, ...DESIGN_ITEMS].sort((a, b) => a.order - b.order);
+/** Every review item without its label or question builder: all that scheduling, sessions and mastery read. */
+export const REVIEW_CATALOG: readonly ReviewItemSummary[] = [
+  ...DRILL_CATALOG.map(recognitionSummary),
+  ...COMPLEXITY_CATALOG.map(complexitySummary),
+  ...PATTERN_CATALOG.flatMap((p) => Array.from({ length: CLOZE_COUNTS[p.id] }, (_, n) => clozeSummary(p.id, n))),
+  ...ALGORITHM_CATALOG.map(predictSummary),
+  ...DESIGN_ITEM_CATALOG.map(designSummary),
+].sort((a, b) => a.order - b.order);
 
-const byId = new Map(REVIEW_ITEMS.map((i) => [i.id, i]));
+const byId = new Map(REVIEW_CATALOG.map((i) => [i.id, i]));
 
-export function getReviewItem(id: string): ItemDef | undefined {
+export function getReviewItemSummary(id: string): ReviewItemSummary | undefined {
   return byId.get(id);
 }
 
-export function itemsForTopic(topic: string): ItemDef[] {
-  return REVIEW_ITEMS.filter((i) => i.topic === topic);
-}
-
-export function generateQuestion(itemId: string, seed: number): Question {
-  const def = byId.get(itemId);
-  if (!def) throw new Error(`Unknown review item ${itemId}`);
-  return def.generate(seed);
-}
-
-/** The item as it leaves the engine. Labels show as plain text, so the code-span backticks some borrow from a prompt are dropped. */
-export function describeItem(def: ItemDef): ReviewItem {
-  const { id, kind, topic, label, order, algorithmId } = def;
-  return { id, kind, topic, label: label.replaceAll('`', ''), order, ...(algorithmId ? { algorithmId } : {}) };
+export function itemsForTopic(topic: string): ReviewItemSummary[] {
+  return REVIEW_CATALOG.filter((i) => i.topic === topic);
 }

@@ -1,4 +1,5 @@
 import { binarySearch } from './binary-search.js';
+import { ALGORITHM_CATALOG, type AlgorithmId } from './catalog.js';
 import { dijkstra } from './dijkstra.js';
 import { gridBfs } from './grid-bfs.js';
 import { houseRobber } from './house-robber.js';
@@ -18,34 +19,38 @@ import { trie } from './trie.js';
 import { pairSum } from './two-pointers.js';
 import { twoSumHash } from './two-sum-hash.js';
 import { unionFind } from './union-find.js';
-import type { AlgorithmDef, AlgorithmMeta } from './types.js';
+import type { AlgorithmDef, AlgorithmDefinition, AlgorithmMeta } from './types.js';
 
 export * from './types.js';
-export { parseField, formatField, mulberry32 } from './input.js';
+export * from './catalog.js';
+export { parseField, formatField } from './input.js';
+export { mulberry32 } from './random.js';
 export { GRAPH_BOX, GRAPH_NODE_RADIUS } from './layout.js';
 
-export const ALGORITHMS: AlgorithmDef<any>[] = [
-  binarySearch,
-  pairSum,
-  longestUnique,
-  nextGreater,
-  gridBfs,
-  kthLargest,
+const DEFINITIONS: Record<AlgorithmId, AlgorithmDefinition<any>> = {
+  'binary-search': binarySearch,
+  'pair-sum-sorted': pairSum,
+  'longest-unique-substring': longestUnique,
+  'next-greater-element': nextGreater,
+  'grid-bfs': gridBfs,
+  'kth-largest': kthLargest,
   lcs,
-  unionFind,
-  topoSort,
+  'union-find': unionFind,
+  'topo-sort': topoSort,
   trie,
   dijkstra,
-  mergeIntervals,
-  subsetsBacktracking,
-  treeTraversal,
-  jumpGame,
-  singleNumberXor,
-  twoSumHash,
-  subarraySumPrefix,
-  linkedListCycle,
-  houseRobber,
-];
+  'merge-intervals': mergeIntervals,
+  'subsets-backtracking': subsetsBacktracking,
+  'tree-traversal': treeTraversal,
+  'jump-game': jumpGame,
+  'single-number-xor': singleNumberXor,
+  'two-sum-hash': twoSumHash,
+  'subarray-sum-prefix': subarraySumPrefix,
+  'linked-list-cycle': linkedListCycle,
+  'house-robber': houseRobber,
+};
+
+export const ALGORITHMS: AlgorithmDef<any>[] = ALGORITHM_CATALOG.map((summary) => ({ ...summary, ...DEFINITIONS[summary.id] }));
 
 export function getAlgorithm(id: string): AlgorithmDef<any> | undefined {
   return ALGORITHMS.find((a) => a.id === id);

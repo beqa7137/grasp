@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { codeSpanProblems } from '../code-spans.js';
 import { rotatedChoices } from './choices.js';
 import { ALGORITHMS, getAlgorithm } from './index.js';
-import { formatField, mulberry32, parseField } from './input.js';
+import { formatField, parseField } from './input.js';
+import { mulberry32 } from './random.js';
 import { InputError, type AlgorithmDef, type Frame } from './types.js';
 
 // A walled-off goal, a cycle with no free node or an isolated source can end these before there is anything to predict.

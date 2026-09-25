@@ -4,7 +4,8 @@ import { predictions, tracerFixture } from '../algorithms/tracer.fixture.js';
 import { codeSpanProblems } from '../code-spans.js';
 import { PATTERNS } from '../curriculum/patterns.js';
 import { SD_TOPICS } from '../curriculum/sd-topics.js';
-import { REVIEW_ITEMS, describeItem, generateQuestion, getReviewItem, itemsForTopic } from './catalog.js';
+import { REVIEW_CATALOG, itemsForTopic } from './catalog.js';
+import { REVIEW_ITEMS, describeItem, generateQuestion, getReviewItem } from './items.js';
 
 const SEEDS = Array.from({ length: 40 }, (_, i) => i * 104_729 + 17);
 
@@ -13,6 +14,15 @@ describe('review item catalog', () => {
     expect(new Set(REVIEW_ITEMS.map((i) => i.id)).size).toBe(REVIEW_ITEMS.length);
     const topics = new Set([...PATTERNS.map((p) => p.id), ...SD_TOPICS.map((t) => t.id)]);
     for (const item of REVIEW_ITEMS) expect(topics.has(item.topic)).toBe(true);
+  });
+
+  it("REVIEW_ITEMS are the catalog's items, in its order, each with a label and a question builder", () => {
+    expect(REVIEW_ITEMS).toHaveLength(REVIEW_CATALOG.length);
+    expect(REVIEW_ITEMS.map(({ label: _label, generate: _generate, ...summary }) => summary)).toEqual(REVIEW_CATALOG);
+    for (const item of REVIEW_ITEMS) {
+      expect(item.label, item.id).toMatch(/\S/);
+      expect(typeof item.generate, item.id).toBe('function');
+    }
   });
 
   it('covers every pattern with several kinds of item and every design topic', () => {

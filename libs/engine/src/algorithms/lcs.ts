@@ -1,7 +1,7 @@
 import { fixedChoices } from './choices.js';
 import { InputError } from './types.js';
-import { randInt } from './input.js';
-import type { AlgorithmDef, Frame, TableLegend, TableView } from './types.js';
+import { randInt } from './random.js';
+import type { AlgorithmDefinition, Frame, TableLegend, TableView } from './types.js';
 
 type Input = { a: string; b: string };
 
@@ -15,11 +15,7 @@ function asWord(value: unknown, key: string): string {
   return text;
 }
 
-export const lcs: AlgorithmDef<Input> = {
-  id: 'lcs',
-  title: 'Longest Common Subsequence',
-  patternId: 'dp-2d',
-  difficulty: 'medium',
+export const lcs: AlgorithmDefinition<Input> = {
   summary: 'Fill a table where each cell answers the problem for two prefixes, using only the three neighbours already filled.',
   complexity: { time: 'O(m·n)', space: 'O(m·n)' },
   code: [

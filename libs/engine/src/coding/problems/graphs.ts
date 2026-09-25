@@ -1,4 +1,4 @@
-import { randInt, shuffle } from '../../algorithms/input.js';
+import { randInt, shuffle } from '../../algorithms/random.js';
 import type { TreeNode } from '../tree.js';
 import type { CodingProblemDefinition } from '../types.js';
 import { randomTree } from './inputs.js';

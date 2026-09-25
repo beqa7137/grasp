@@ -1,7 +1,8 @@
 import { fixedChoices } from './choices.js';
 import { InputError } from './types.js';
-import { asNumber, asNumbers, randInt } from './input.js';
-import type { AlgorithmDef, Frame, TreeView } from './types.js';
+import { asNumber, asNumbers } from './input.js';
+import { randInt } from './random.js';
+import type { AlgorithmDefinition, Frame, TreeView } from './types.js';
 
 type Input = { nums: number[]; k: number };
 
@@ -20,11 +21,7 @@ function treeOf(heap: number[], active: number | null, settled = false): TreeVie
   };
 }
 
-export const kthLargest: AlgorithmDef<Input> = {
-  id: 'kth-largest',
-  title: 'K-th Largest with a Min-Heap',
-  patternId: 'heap',
-  difficulty: 'medium',
+export const kthLargest: AlgorithmDefinition<Input> = {
   summary: 'Keep only the k largest values seen so far in a min-heap; its root is always the k-th largest.',
   complexity: { time: 'O(n log k)', space: 'O(k)' },
   code: [

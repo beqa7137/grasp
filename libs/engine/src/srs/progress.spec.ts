@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { PATTERNS } from '../curriculum/patterns.js';
 import { SD_TOPICS } from '../curriculum/sd-topics.js';
-import { getReviewItem, itemsForTopic } from '../review/catalog.js';
+import { getReviewItemSummary, itemsForTopic } from '../review/catalog.js';
 import type { LegacyDrillReviewedEvent, StoredEvent } from './events.js';
 import {
   MISSION_LADDER_DAYS,
@@ -77,7 +77,7 @@ describe('progress reducer', () => {
     });
     const unseen = replay([miss(t0)]);
     expect(unseen.boosts['pred:grid-bfs']?.reason).toBe('prediction-miss');
-    expect(isUnlocked(getReviewItem('pred:grid-bfs')!, unseen)).toBe(true);
+    expect(isUnlocked(getReviewItemSummary('pred:grid-bfs')!, unseen)).toBe(true);
 
     const learned = [graded('pred:grid-bfs', t0), graded('pred:grid-bfs', t0 + 10 * 60_000)];
     let s = replay(learned);
@@ -166,20 +166,20 @@ describe('progress reducer', () => {
 
   it('unlocks items only after their idea was met elsewhere', () => {
     const fresh = replay([]);
-    expect(isUnlocked(getReviewItem('rec:h1')!, fresh)).toBe(true);
-    expect(isUnlocked(getReviewItem('cloze:hashing:1')!, fresh)).toBe(false);
-    expect(isUnlocked(getReviewItem('pred:binary-search')!, fresh)).toBe(false);
-    expect(isUnlocked(getReviewItem('sd:queue-drain')!, fresh)).toBe(false);
+    expect(isUnlocked(getReviewItemSummary('rec:h1')!, fresh)).toBe(true);
+    expect(isUnlocked(getReviewItemSummary('cloze:hashing:1')!, fresh)).toBe(false);
+    expect(isUnlocked(getReviewItemSummary('pred:binary-search')!, fresh)).toBe(false);
+    expect(isUnlocked(getReviewItemSummary('sd:queue-drain')!, fresh)).toBe(false);
 
     const s = replay([
       graded('rec:h1', t0),
       { id: id(), at: iso(t0), type: 'predict.answered', algorithmId: 'binary-search', patternId: 'binary-search', correct: true },
       { id: id(), at: iso(t0), type: 'scenario.completed', scenarioId: 'flash-sale', monthlyCost: 5_000 },
     ]);
-    expect(isUnlocked(getReviewItem('cloze:hashing:1')!, s)).toBe(true);
-    expect(isUnlocked(getReviewItem('pred:binary-search')!, s)).toBe(true);
-    expect(isUnlocked(getReviewItem('sd:queue-drain')!, s)).toBe(true);
-    expect(isUnlocked(getReviewItem('sd:cache-math')!, s)).toBe(false);
+    expect(isUnlocked(getReviewItemSummary('cloze:hashing:1')!, s)).toBe(true);
+    expect(isUnlocked(getReviewItemSummary('pred:binary-search')!, s)).toBe(true);
+    expect(isUnlocked(getReviewItemSummary('sd:queue-drain')!, s)).toBe(true);
+    expect(isUnlocked(getReviewItemSummary('sd:cache-math')!, s)).toBe(false);
   });
 
   it('computes mastery for every pattern and system design topic', () => {

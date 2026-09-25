@@ -1,4 +1,5 @@
-import { randInt, rangeOf, shuffle } from '../../algorithms/input.js';
+import { rangeOf } from '../../algorithms/input.js';
+import { randInt, shuffle } from '../../algorithms/random.js';
 import type { CodingProblemDefinition } from '../types.js';
 import { distinctSorted, ints, nearMiddle } from './inputs.js';
 

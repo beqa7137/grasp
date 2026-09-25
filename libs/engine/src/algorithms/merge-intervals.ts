@@ -1,7 +1,7 @@
 import { fixedChoices, rotatedChoices } from './choices.js';
 import { InputError } from './types.js';
-import { randInt, shuffle } from './input.js';
-import type { AlgorithmDef, Frame, TableLegend, TableView } from './types.js';
+import { randInt, shuffle } from './random.js';
+import type { AlgorithmDefinition, Frame, TableLegend, TableView } from './types.js';
 
 type Interval = [number, number];
 type Input = { intervals: Interval[] };
@@ -29,11 +29,7 @@ function asIntervals(value: unknown, key: string): Interval[] {
   });
 }
 
-export const mergeIntervals: AlgorithmDef<Input> = {
-  id: 'merge-intervals',
-  title: 'Merge Intervals',
-  patternId: 'intervals',
-  difficulty: 'medium',
+export const mergeIntervals: AlgorithmDefinition<Input> = {
   summary: 'Sort by start, then sweep once: each interval either extends the last merged one or starts a new one.',
   complexity: { time: 'O(n log n)', space: 'O(n)' },
   code: [

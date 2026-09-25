@@ -1,6 +1,7 @@
 import { fixedChoices, rotatedChoices } from './choices.js';
-import { asNumber, asNumbers, randInt, rangeOf, shuffle } from './input.js';
-import type { AlgorithmDef, Frame, SetView } from './types.js';
+import { asNumber, asNumbers, rangeOf } from './input.js';
+import { randInt, shuffle } from './random.js';
+import type { AlgorithmDefinition, Frame, SetView } from './types.js';
 
 type Input = { nums: number[]; target: number };
 
@@ -8,11 +9,7 @@ const LOOKUP = ['Yes: return the pair', 'No: store x and keep scanning'];
 
 const entry = (value: number, index: number) => `${value} → ${index}`;
 
-export const twoSumHash: AlgorithmDef<Input> = {
-  id: 'two-sum-hash',
-  title: 'Two Sum (Hash Map)',
-  patternId: 'hashing',
-  difficulty: 'easy',
+export const twoSumHash: AlgorithmDefinition<Input> = {
   summary: 'Scan once and remember each number with its index; the pair appears the moment a number finds its partner already in the map.',
   complexity: { time: 'O(n)', space: 'O(n)' },
   code: [

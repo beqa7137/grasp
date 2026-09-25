@@ -1,6 +1,7 @@
 import { fixedChoices } from './choices.js';
-import { asText, asWords, randInt } from './input.js';
-import type { AlgorithmDef, Frame, TreeLegend, TreeView } from './types.js';
+import { asText, asWords } from './input.js';
+import { randInt } from './random.js';
+import type { AlgorithmDefinition, Frame, TreeLegend, TreeView } from './types.js';
 
 type Input = { words: string[]; query: string };
 
@@ -16,11 +17,7 @@ const INSERT = ['Follow the existing child', 'Create a new node'];
 const LEGEND: TreeLegend = { active: 'current', marked: 'end of a word' };
 const VOCABULARY = ['car', 'card', 'care', 'cart', 'cat', 'do', 'dog', 'dot', 'dove', 'bat', 'bath', 'bad'];
 
-export const trie: AlgorithmDef<Input> = {
-  id: 'trie',
-  title: 'Trie: Insert and Search',
-  patternId: 'trie',
-  difficulty: 'medium',
+export const trie: AlgorithmDefinition<Input> = {
   summary:
     'Words that share a prefix share a path from the root, so a lookup costs the length of the word, not the size of the dictionary.',
   complexity: { time: 'O(L) per word', space: 'O(total letters)' },

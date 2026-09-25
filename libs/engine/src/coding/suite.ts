@@ -1,4 +1,4 @@
-import { mulberry32 } from '../algorithms/input.js';
+import { mulberry32 } from '../algorithms/random.js';
 import { buildTree, type LevelOrder } from './tree.js';
 import type { Args, CodingProblem, CompareMode, Language, ParamType, TestCase } from './types.js';
 

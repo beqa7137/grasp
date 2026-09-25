@@ -1,6 +1,7 @@
 import { rotatedChoices } from './choices.js';
-import { asGrid, randInt } from './input.js';
-import type { AlgorithmDef, CellState, Frame } from './types.js';
+import { asGrid } from './input.js';
+import { randInt } from './random.js';
+import type { AlgorithmDefinition, CellState, Frame } from './types.js';
 
 type Input = { grid: string[] };
 type Cell = [number, number];
@@ -14,11 +15,7 @@ const DIRS: Cell[] = [
 const key = ([r, c]: Cell) => `${r},${c}`;
 const label = ([r, c]: Cell) => `(${r},${c})`;
 
-export const gridBfs: AlgorithmDef<Input> = {
-  id: 'grid-bfs',
-  title: 'Shortest Path in a Grid (BFS)',
-  patternId: 'bfs',
-  difficulty: 'medium',
+export const gridBfs: AlgorithmDefinition<Input> = {
   summary: 'Explore in rings of equal distance using a FIFO queue; the first time you reach the goal is the shortest path.',
   complexity: { time: 'O(rows × cols)', space: 'O(rows × cols)' },
   code: [

@@ -1,3 +1,6 @@
+import type { FixedLength } from '../fixed-length.js';
+import type { CLOZE_COUNTS, PatternId } from './catalog.js';
+
 /** A template line to recall. The shown line is `template[line]`; distractors are plausible, subtly wrong lines. */
 export interface Cloze {
   line: number;
@@ -249,4 +252,4 @@ export const CLOZES: Record<string, Cloze[]> = {
       why: 'XOR cancels pairs (`n ^ n = 0`) and `0 ^ n = n`, so only the unpaired value survives.',
     },
   ],
-};
+} satisfies { [P in PatternId]: FixedLength<Cloze, (typeof CLOZE_COUNTS)[P]> };

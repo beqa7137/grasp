@@ -1,16 +1,13 @@
 import { fixedChoices, rotatedChoices } from './choices.js';
-import { asNumbers, randInt, rangeOf } from './input.js';
-import type { AlgorithmDef, Frame } from './types.js';
+import { asNumbers, rangeOf } from './input.js';
+import { randInt } from './random.js';
+import type { AlgorithmDefinition, Frame } from './types.js';
 
 type Input = { nums: number[] };
 
 const CHECK = ['Continue: this index is reachable', 'Return false: nothing reaches this index'];
 
-export const jumpGame: AlgorithmDef<Input> = {
-  id: 'jump-game',
-  title: 'Jump Game',
-  patternId: 'greedy',
-  difficulty: 'medium',
+export const jumpGame: AlgorithmDefinition<Input> = {
   summary: 'Keep only the farthest index any jump can reach; you are stuck exactly when the scan walks past it.',
   complexity: { time: 'O(n)', space: 'O(1)' },
   code: [

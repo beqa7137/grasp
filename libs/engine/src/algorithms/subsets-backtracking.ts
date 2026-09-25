@@ -1,7 +1,8 @@
 import { InputError } from './types.js';
 import { rotatedChoices } from './choices.js';
-import { asNumbers, shuffle } from './input.js';
-import type { AlgorithmDef, Frame, NodeState, Prediction, TreeLegend, TreeView } from './types.js';
+import { asNumbers } from './input.js';
+import { shuffle } from './random.js';
+import type { AlgorithmDefinition, Frame, NodeState, Prediction, TreeLegend, TreeView } from './types.js';
 
 type Input = { nums: number[] };
 
@@ -19,11 +20,7 @@ const LEGEND: TreeLegend = { active: 'running', frontier: 'on the call stack', d
 
 const bracket = (items: (number | string)[]) => `[${items.join(', ')}]`;
 
-export const subsetsBacktracking: AlgorithmDef<Input> = {
-  id: 'subsets-backtracking',
-  title: 'Subsets by Backtracking',
-  patternId: 'dfs-backtracking',
-  difficulty: 'medium',
+export const subsetsBacktracking: AlgorithmDefinition<Input> = {
   summary:
     'Each number is a take-or-skip branch: take it, explore, undo, then explore without it, so every leaf of the decision tree is one subset.',
   complexity: { time: 'O(n · 2ⁿ)', space: 'O(n) plus the output' },

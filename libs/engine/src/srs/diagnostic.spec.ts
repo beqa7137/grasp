@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { mulberry32 } from '../algorithms/input.js';
+import { mulberry32 } from '../algorithms/random.js';
 import { PATTERNS } from '../curriculum/patterns.js';
-import { getReviewItem, itemsForTopic } from '../review/catalog.js';
+import { getReviewItemSummary, itemsForTopic } from '../review/catalog.js';
 import { diagnosticItems, isDiagnosticItem, placementFromAnswers } from './diagnostic.js';
 import type { DiagnosticAnswer, DiagnosticOutcome, StoredEvent } from './events.js';
 import { isUnlocked, replay } from './progress.js';
@@ -29,7 +29,7 @@ const checkWith = (strong: string[], otherwise: DiagnosticOutcome = 'wrong') =>
 
 describe('placement check questions', () => {
   it('asks one recognition question per pattern, in curriculum order', () => {
-    const items = diagnosticItems(mulberry32(1)).map((itemId) => getReviewItem(itemId)!);
+    const items = diagnosticItems(mulberry32(1)).map((itemId) => getReviewItemSummary(itemId)!);
     expect(items.map((d) => d.topic)).toEqual(PATTERNS.map((p) => p.id));
     expect(items.every((d) => d.kind === 'recognition')).toBe(true);
   });
@@ -141,8 +141,8 @@ describe('new cards after a placement check', () => {
     const order = newCandidates(s).map((d) => d.id);
     const hashingRecognition = itemsForTopic('hashing').filter((d) => d.kind === 'recognition');
     expect(order.slice(-hashingRecognition.length).sort()).toEqual(hashingRecognition.map((d) => d.id).sort());
-    const firstStrongDeepCard = order.findIndex((itemId) => getReviewItem(itemId)!.topic === 'hashing');
-    expect(getReviewItem(order[firstStrongDeepCard])!.kind).not.toBe('recognition');
+    const firstStrongDeepCard = order.findIndex((itemId) => getReviewItemSummary(itemId)!.topic === 'hashing');
+    expect(getReviewItemSummary(order[firstStrongDeepCard])!.kind).not.toBe('recognition');
     expect(firstStrongDeepCard).toBeLessThan(order.length - hashingRecognition.length);
   });
 

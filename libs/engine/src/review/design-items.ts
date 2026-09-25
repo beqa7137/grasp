@@ -1,27 +1,33 @@
-import { SD_TOPICS, getSdTopic } from '../curriculum/sd-topics.js';
+import { getSdTopic } from '../curriculum/sd-topics.js';
 import { COMPONENTS } from '../sysdesign/catalog.js';
 import { fmt, simulate } from '../sysdesign/simulate.js';
 import type { ComponentKind, Design, DesignNode } from '../sysdesign/types.js';
 import { pick, seeded, shuffle, withChoices, type Rand } from './random.js';
-import { KIND_LABELS, type ItemDef, type PipelineStage, type Question } from './types.js';
+import { DESIGN_ITEM_CATALOG, designSummary, type DesignItemId } from './summaries.js';
+import { KIND_LABELS, type ItemDef, type PipelineStage, type Question, type ReviewItemSummary } from './types.js';
 
 type Spec = Omit<Question, 'itemId' | 'kind' | 'topic' | 'seed' | 'eyebrow'>;
 
-function item(id: string, topic: string, label: string, index: number, build: (rand: Rand) => Spec): ItemDef {
-  const topicIndex = SD_TOPICS.findIndex((t) => t.id === topic);
+interface DesignItemDefinition {
+  label: string;
+  build: (rand: Rand) => Spec;
+}
+
+function item(label: string, build: (rand: Rand) => Spec): DesignItemDefinition {
+  return { label, build };
+}
+
+function designItem(summary: ReviewItemSummary, { label, build }: DesignItemDefinition): ItemDef {
   return {
-    id: `sd:${id}`,
-    kind: 'design',
-    topic,
+    ...summary,
     label,
-    order: 5000 + topicIndex * 100 + index,
     generate(seed) {
       return {
         itemId: this.id,
         kind: 'design',
-        topic,
+        topic: summary.topic,
         seed,
-        eyebrow: `${KIND_LABELS.design} · ${getSdTopic(topic)?.name ?? topic}`,
+        eyebrow: `${KIND_LABELS.design} · ${getSdTopic(summary.topic)?.name ?? summary.topic}`,
         ...build(seeded(seed)),
       };
     },
@@ -52,10 +58,10 @@ function percent(p: number): string {
   return `${Number(pct.toFixed(decimals))}%`;
 }
 
-const concept = (id: string, topic: string, index: number, prompt: string, correct: string, distractors: string[], explain: string) =>
-  item(id, topic, prompt, index, (rand) => ({ prompt, ...withChoices(rand, correct, distractors), explain }));
+const concept = (prompt: string, correct: string, distractors: string[], explain: string) =>
+  item(prompt, (rand) => ({ prompt, ...withChoices(rand, correct, distractors), explain }));
 
-const responseTime = item('response-time', 'sd-latency', 'Response time at a given utilization', 0, (rand) => {
+const responseTime = item('Response time at a given utilization', (rand) => {
   const s = pick(rand, [4, 8, 10, 20]);
   const rho = pick(rand, [0.5, 0.75, 0.8, 0.9, 0.95]);
   const r = s / (1 - rho);
@@ -71,9 +77,6 @@ const responseTime = item('response-time', 'sd-latency', 'Response time at a giv
 });
 
 const headroom = concept(
-  'headroom',
-  'sd-latency',
-  1,
   'Why do teams plan for roughly 60–70% peak utilization instead of running servers at 95%?',
   'Queueing delay grows like 1/(1 − ρ): near 95% requests wait ~20× the service time and small spikes cause overload',
   [
@@ -84,7 +87,7 @@ const headroom = concept(
   'Latency is not linear in load. The last 25% of utilization costs far more in tail latency than the first 70%. Headroom is what absorbs spikes.',
 );
 
-const bottleneck = item('bottleneck', 'sd-capacity', 'Spot the bottleneck', 0, (rand) => {
+const bottleneck = item('Spot the bottleneck', (rand) => {
   for (let attempt = 0; attempt < 60; attempt++) {
     const rps = pick(rand, [3_000, 5_000, 8_000, 12_000, 20_000, 30_000]);
     const readRatio = pick(rand, [0.8, 0.9, 0.95]);
@@ -147,9 +150,6 @@ const bottleneck = item('bottleneck', 'sd-capacity', 'Spot the bottleneck', 0, (
 });
 
 const lbConcept = concept(
-  'load-balancer',
-  'sd-capacity',
-  1,
   'You scale the app tier from 1 to 4 servers, but all traffic still lands on one of them. What is missing?',
   'A load balancer in front of the app tier to spread requests and health-check servers',
   [
@@ -160,7 +160,7 @@ const lbConcept = concept(
   'Clients resolve a single address. A load balancer spreads requests across instances and stops routing to unhealthy ones.',
 );
 
-const qps = item('qps', 'sd-estimation', 'Daily actives → QPS', 0, (rand) => {
+const qps = item('Daily actives → QPS', (rand) => {
   const dau = pick(rand, [10e6, 50e6, 100e6, 300e6]);
   const actions = pick(rand, [5, 10, 20, 50]);
   const avg = (dau * actions) / 86_400;
@@ -171,7 +171,7 @@ const qps = item('qps', 'sd-estimation', 'Daily actives → QPS', 0, (rand) => {
   };
 });
 
-const storage = item('storage', 'sd-estimation', 'Storage over time', 1, (rand) => {
+const storage = item('Storage over time', (rand) => {
   const perDay = pick(rand, [1e6, 10e6, 100e6]);
   const size = pick(rand, [500, 2_000, 10_000]);
   const years = pick(rand, [1, 5]);
@@ -183,7 +183,7 @@ const storage = item('storage', 'sd-estimation', 'Storage over time', 1, (rand) 
   };
 });
 
-const availability = item('availability', 'sd-reliability', 'Availability math', 0, (rand) => {
+const availability = item('Availability math', (rand) => {
   const a = pick(rand, [0.99, 0.995, 0.999]);
   const parallel = rand() < 0.5;
   const series = a * a;
@@ -204,7 +204,7 @@ const availability = item('availability', 'sd-reliability', 'Availability math',
   };
 });
 
-const spof = item('spof', 'sd-reliability', 'Find the single point of failure', 1, (rand) => {
+const spof = item('Find the single point of failure', (rand) => {
   const candidates: { kind: ComponentKind; label: string; redundant: string; single: string }[] = [
     { kind: 'lb', label: 'Load Balancer', redundant: '×2', single: '×1' },
     { kind: 'app', label: 'App Servers', redundant: `×${2 + Math.floor(rand() * 6)}`, single: '×1' },
@@ -230,7 +230,7 @@ const spof = item('spof', 'sd-reliability', 'Find the single point of failure', 
   };
 });
 
-const hitP99 = item('cache-tail', 'sd-caching', 'Cache hit rate vs p99', 0, (rand) => {
+const hitP99 = item('Cache hit rate vs p99', (rand) => {
   const h = pick(rand, [0.9, 0.95, 0.98, 0.995]);
   const hit = 2;
   const miss = 45;
@@ -250,7 +250,7 @@ const hitP99 = item('cache-tail', 'sd-caching', 'Cache hit rate vs p99', 0, (ran
   };
 });
 
-const cacheMath = item('cache-math', 'sd-caching', 'Reads that reach the database', 1, (rand) => {
+const cacheMath = item('Reads that reach the database', (rand) => {
   const reads = pick(rand, [10_000, 20_000, 40_000, 80_000]);
   const h = pick(rand, [0.8, 0.9, 0.95, 0.99]);
   const db = reads * (1 - h);
@@ -262,9 +262,6 @@ const cacheMath = item('cache-math', 'sd-caching', 'Reads that reach the databas
 });
 
 const cdn = concept(
-  'cdn',
-  'sd-caching',
-  2,
   'A CDN caches your cacheable responses at edge locations near users. What does it improve?',
   'Both user latency (short edge round trip) and origin load (hits never reach you)',
   [
@@ -275,7 +272,7 @@ const cdn = concept(
   'Edge hits skip the long trip to your origin (~10 ms instead of ~40+ ms) and never consume origin capacity. Misses still pay the full path.',
 );
 
-const fixDb = item('fix-db', 'sd-replication', 'First move for an overloaded database', 0, (rand) => {
+const fixDb = item('First move for an overloaded database', (rand) => {
   const readShare = pick(rand, [0.95, 0.9, 0.85, 0.3, 0.2, 0.1]);
   const util = pick(rand, [130, 160, 200]);
   const readHeavy = readShare >= 0.5;
@@ -294,7 +291,7 @@ const fixDb = item('fix-db', 'sd-replication', 'First move for an overloaded dat
   };
 });
 
-const replicasWrites = item('replicas-writes', 'sd-replication', 'Do read replicas fix it?', 1, (rand) => {
+const replicasWrites = item('Do read replicas fix it?', (rand) => {
   const writeShare = pick(rand, [0.3, 0.5, 0.6, 0.7]);
   const util = pick(rand, [140, 180]);
   const after = util * (writeShare + (1 - writeShare) / 4);
@@ -311,7 +308,7 @@ const replicasWrites = item('replicas-writes', 'sd-replication', 'Do read replic
   };
 });
 
-const queueDrain = item('queue-drain', 'sd-queues', 'How long until the backlog clears?', 0, (rand) => {
+const queueDrain = item('How long until the backlog clears?', (rand) => {
   const inflow = pick(rand, [6_000, 8_000, 10_000, 12_000]);
   const drain = pick(rand, [1_500, 2_000, 3_000]);
   const spike = pick(rand, [30, 60, 90]);
@@ -329,9 +326,6 @@ const queueDrain = item('queue-drain', 'sd-queues', 'How long until the backlog 
 });
 
 const workerLimit = concept(
-  'worker-limit',
-  'sd-queues',
-  1,
   'You keep adding queue workers to drain a backlog faster. When does that stop helping?',
   'When the database they write to saturates; extra workers then only add failures and retries',
   [
@@ -343,9 +337,6 @@ const workerLimit = concept(
 );
 
 const asyncAck = concept(
-  'async-ack',
-  'sd-queues',
-  2,
   'Why does putting a durable queue in front of order writes lower user-facing latency during a spike?',
   'The API acknowledges once the order is durably enqueued, instead of waiting on the database write',
   [
@@ -356,7 +347,7 @@ const asyncAck = concept(
   'Decoupling acceptance from processing: the user waits for the cheap, highly scalable step; the expensive step happens at a pace the database can handle.',
 );
 
-const tokenBucket = item('token-bucket', 'sd-rate-limiting', 'Token bucket over time', 0, (rand) => {
+const tokenBucket = item('Token bucket over time', (rand) => {
   const burst = pick(rand, [20, 50, 100]);
   const refill = pick(rand, [5, 10, 20]);
   const sent = pick(rand, [50, 100, 200]);
@@ -380,9 +371,6 @@ const tokenBucket = item('token-bucket', 'sd-rate-limiting', 'Token bucket over 
 });
 
 const limiterState = concept(
-  'limiter-state',
-  'sd-rate-limiting',
-  1,
   'Four rate limiter instances sit behind round-robin. Each keeps per-client counters in its own memory with a limit of 100 requests/min. What limit does a client really get?',
   'About 400/min: each instance only sees a quarter of that client’s requests',
   [
@@ -394,9 +382,6 @@ const limiterState = concept(
 );
 
 const botsCache = concept(
-  'bots-cache',
-  'sd-rate-limiting',
-  2,
   'Why does 20k RPS of scraper traffic hurt the database far more than 20k RPS of real users?',
   'Scrapers crawl long-tail and cache-busting URLs, so they miss every cache',
   [
@@ -408,9 +393,6 @@ const botsCache = concept(
 );
 
 const overQuota = concept(
-  'over-quota',
-  'sd-rate-limiting',
-  3,
   'What should an API return to a client that is over its rate limit?',
   '429 Too Many Requests with a Retry-After header',
   [
@@ -421,7 +403,7 @@ const overQuota = concept(
   '429 tells well-behaved clients exactly what happened, and Retry-After tells them when to come back, so retries spread out instead of stampeding. Reject cheaply, before any expensive work.',
 );
 
-const shardCount = item('shard-count', 'sd-sharding', 'How many shards?', 0, (rand) => {
+const shardCount = item('How many shards?', (rand) => {
   const writes = pick(rand, [4_000, 6_000, 9_000, 12_000, 15_000]);
   const target = 0.7;
   const correct = Math.ceil((writes * 2) / (5_000 * target));
@@ -448,9 +430,6 @@ const shardCount = item('shard-count', 'sd-sharding', 'How many shards?', 0, (ra
 });
 
 const timeKey = concept(
-  'time-key',
-  'sd-sharding',
-  1,
   'You range-partition a messages table by created_at across 6 shards. Where do new writes go?',
   'All to the newest shard, while the others only serve older reads',
   [
@@ -462,9 +441,6 @@ const timeKey = concept(
 );
 
 const tenantSkew = concept(
-  'tenant-skew',
-  'sd-sharding',
-  2,
   'You shard by tenant_id and your largest tenant is 40% of all traffic. What does going from 4 to 8 shards do for the busiest shard?',
   'Nothing: that tenant’s keys stay on one shard, still ~40% of load',
   [
@@ -476,9 +452,6 @@ const tenantSkew = concept(
 );
 
 const reshard = concept(
-  'reshard',
-  'sd-sharding',
-  3,
   'Why place keys with consistent hashing (or many fixed virtual partitions) instead of `hash(key) % N`?',
   'Changing N with modulo moves almost every key; consistent hashing moves ~1/N',
   [
@@ -489,29 +462,33 @@ const reshard = concept(
   'With `hash(key) % N`, adding one shard reassigns most keys and triggers a massive migration. Consistent hashing (or pre-splitting into many virtual partitions assigned to nodes) makes resharding incremental.',
 );
 
-export const DESIGN_ITEMS: ItemDef[] = [
-  responseTime,
+const DEFINITIONS: Record<DesignItemId, DesignItemDefinition> = {
+  'response-time': responseTime,
   headroom,
   bottleneck,
-  lbConcept,
+  'load-balancer': lbConcept,
   qps,
   storage,
   availability,
   spof,
-  hitP99,
-  cacheMath,
+  'cache-tail': hitP99,
+  'cache-math': cacheMath,
   cdn,
-  fixDb,
-  replicasWrites,
-  queueDrain,
-  workerLimit,
-  asyncAck,
-  tokenBucket,
-  limiterState,
-  botsCache,
-  overQuota,
-  shardCount,
-  timeKey,
-  tenantSkew,
+  'fix-db': fixDb,
+  'replicas-writes': replicasWrites,
+  'queue-drain': queueDrain,
+  'worker-limit': workerLimit,
+  'async-ack': asyncAck,
+  'token-bucket': tokenBucket,
+  'limiter-state': limiterState,
+  'bots-cache': botsCache,
+  'over-quota': overQuota,
+  'shard-count': shardCount,
+  'time-key': timeKey,
+  'tenant-skew': tenantSkew,
   reshard,
-];
+};
+
+export const DESIGN_ITEMS: ItemDef[] = DESIGN_ITEM_CATALOG.map((summary, i) =>
+  designItem(designSummary(summary, i), DEFINITIONS[summary.id]),
+);

@@ -1,7 +1,8 @@
 import { InputError } from './types.js';
 import { rotatedChoices } from './choices.js';
-import { asNumber, asNumbers, randInt, rangeOf } from './input.js';
-import type { AlgorithmDef, Frame, Prediction, TableLegend, TableView } from './types.js';
+import { asNumber, asNumbers, rangeOf } from './input.js';
+import { randInt } from './random.js';
+import type { AlgorithmDefinition, Frame, Prediction, TableLegend, TableView } from './types.js';
 
 type Input = { nums: number[]; k: number };
 
@@ -21,11 +22,7 @@ const sumOf = (terms: number[]) => terms.reduce((a, b) => a + b, 0);
 const addition = (terms: number[]) => terms.map((x, t) => (t === 0 ? String(x) : x < 0 ? `- ${-x}` : `+ ${x}`)).join(' ');
 const plus = (x: number) => (x < 0 ? `(${x})` : String(x));
 
-export const subarraySumPrefix: AlgorithmDef<Input> = {
-  id: 'subarray-sum-prefix',
-  title: 'Subarray Sum Equals K',
-  patternId: 'prefix-sum',
-  difficulty: 'medium',
+export const subarraySumPrefix: AlgorithmDefinition<Input> = {
   summary:
     'Keep a running prefix sum p and count how often each prefix appeared: the subarrays ending here that sum to k are the earlier prefixes equal to `p - k`.',
   complexity: { time: 'O(n)', space: 'O(n)' },

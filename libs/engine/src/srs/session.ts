@@ -1,6 +1,6 @@
-import { REVIEW_ITEMS, getReviewItem, itemsForTopic } from '../review/catalog.js';
+import { REVIEW_CATALOG, getReviewItemSummary, itemsForTopic } from '../review/catalog.js';
 import { shuffle, type Rand } from '../review/random.js';
-import type { ItemDef, ItemKind } from '../review/types.js';
+import type { ItemKind, ReviewItemSummary } from '../review/types.js';
 import { dayKey, isUnlocked, type ProgressState } from './progress.js';
 import { retrievability } from './scheduler.js';
 
@@ -76,7 +76,7 @@ export function buildSession(state: ProgressState, opts: SessionOptions): Sessio
 
   const due = Object.entries(state.cards)
     .flatMap(([itemId, card]) => {
-      const def = getReviewItem(itemId);
+      const def = getReviewItemSummary(itemId);
       if (!def) return [];
       const dueMs = Date.parse(card.due);
       const learning = card.phase === 'learning' || card.phase === 'relearning';
@@ -87,7 +87,7 @@ export function buildSession(state: ProgressState, opts: SessionOptions): Sessio
     })
     .sort((a, b) => a.item.retrievability - b.item.retrievability);
 
-  const selected: { def: ItemDef; item: SessionItem }[] = [];
+  const selected: { def: ReviewItemSummary; item: SessionItem }[] = [];
   let spent = 0;
   for (const d of due) {
     if (selected.length >= maxItems) break;
@@ -135,12 +135,12 @@ export function buildSession(state: ProgressState, opts: SessionOptions): Sessio
 }
 
 /** Unseen, unlocked items in the order they should be introduced. */
-export function newCandidates(state: ProgressState): ItemDef[] {
-  const fresh = REVIEW_ITEMS.filter((def) => !state.cards[def.id] && isUnlocked(def, state));
+export function newCandidates(state: ProgressState): ReviewItemSummary[] {
+  const fresh = REVIEW_CATALOG.filter((def) => !state.cards[def.id] && isUnlocked(def, state));
   const boosted = fresh.filter((d) => state.boosts[d.id]).sort((a, b) => state.boosts[b.id].at.localeCompare(state.boosts[a.id].at));
   const rest = fresh.filter((d) => !state.boosts[d.id]);
-  const placement = (d: ItemDef) => state.placement[d.topic];
-  const alreadyKnown = (d: ItemDef) => placement(d) === 'strong' && d.kind === 'recognition';
+  const placement = (d: ReviewItemSummary) => state.placement[d.topic];
+  const alreadyKnown = (d: ReviewItemSummary) => placement(d) === 'strong' && d.kind === 'recognition';
   return [
     ...boosted,
     ...mixDeepenAndRecognize(rest.filter((d) => placement(d) === 'weak')),
@@ -149,10 +149,10 @@ export function newCandidates(state: ProgressState): ItemDef[] {
   ];
 }
 
-function mixDeepenAndRecognize(defs: ItemDef[]): ItemDef[] {
+function mixDeepenAndRecognize(defs: ReviewItemSummary[]): ReviewItemSummary[] {
   const deepen = defs.filter((d) => d.kind !== 'recognition');
   const recognize = interleaveByTopic(defs.filter((d) => d.kind === 'recognition'));
-  const mixed: ItemDef[] = [];
+  const mixed: ReviewItemSummary[] = [];
   for (let i = 0; i < Math.max(deepen.length, recognize.length); i++) {
     if (deepen[i]) mixed.push(deepen[i]);
     if (recognize[i]) mixed.push(recognize[i]);
@@ -160,10 +160,10 @@ function mixDeepenAndRecognize(defs: ItemDef[]): ItemDef[] {
   return mixed;
 }
 
-function interleaveByTopic(defs: ItemDef[]): ItemDef[] {
-  const buckets = new Map<string, ItemDef[]>();
+function interleaveByTopic(defs: ReviewItemSummary[]): ReviewItemSummary[] {
+  const buckets = new Map<string, ReviewItemSummary[]>();
   for (const d of defs) buckets.set(d.topic, [...(buckets.get(d.topic) ?? []), d]);
-  const out: ItemDef[] = [];
+  const out: ReviewItemSummary[] = [];
   const lists = [...buckets.values()];
   for (let round = 0; out.length < defs.length; round++) {
     for (const list of lists) if (list[round]) out.push(list[round]);
@@ -175,7 +175,7 @@ function interleaveByTopic(defs: ItemDef[]): ItemDef[] {
  * Greedy reorder so neighbours differ in topic and, where possible, kind. Interleaved practice feels
  * harder but transfers better, and interviews never tell you which pattern is coming.
  */
-export function interleave<T extends { def: Pick<ItemDef, 'topic' | 'kind'> }>(items: T[]): T[] {
+export function interleave<T extends { def: Pick<ReviewItemSummary, 'topic' | 'kind'> }>(items: T[]): T[] {
   const pool = [...items];
   const out: T[] = [];
   while (pool.length) {
@@ -192,7 +192,7 @@ export function interleave<T extends { def: Pick<ItemDef, 'topic' | 'kind'> }>(i
 
 /** Ungraded practice set for one topic: every item, locked or not, interleaved by kind. */
 export function practiceSet(topic: string, rand: Rand): string[] {
-  const byKind = new Map<ItemKind, ItemDef[]>();
+  const byKind = new Map<ItemKind, ReviewItemSummary[]>();
   for (const d of shuffle(rand, itemsForTopic(topic))) byKind.set(d.kind, [...(byKind.get(d.kind) ?? []), d]);
   const lists = [...byKind.values()];
   const out: string[] = [];

@@ -1,19 +1,16 @@
 import { fixedChoices } from './choices.js';
 import { InputError } from './types.js';
-import { asEdges, asNumber, randInt, type Edge } from './input.js';
+import { asEdges, asNumber, type Edge } from './input.js';
+import { randInt } from './random.js';
 import { circleLayout, layeredLayout } from './layout.js';
-import type { AlgorithmDef, EdgeState, Frame, GraphLegend, GraphView, NodeState } from './types.js';
+import type { AlgorithmDefinition, EdgeState, Frame, GraphLegend, GraphView, NodeState } from './types.js';
 
 type Input = { n: number; edges: Edge[] };
 
 const CHOICES = ['Yes: nothing else points to it now', 'Not yet: it still has prerequisites'];
 const LEGEND: GraphLegend = { active: 'current', frontier: 'queued', done: 'done' };
 
-export const topoSort: AlgorithmDef<Input> = {
-  id: 'topo-sort',
-  title: "Topological Sort (Kahn's Algorithm)",
-  patternId: 'topo-sort',
-  difficulty: 'medium',
+export const topoSort: AlgorithmDefinition<Input> = {
   summary: 'Repeatedly take a node with no remaining prerequisites; if some nodes never free up, the graph has a cycle.',
   complexity: { time: 'O(V + E)', space: 'O(V + E)' },
   code: [
