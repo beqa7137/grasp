@@ -62,8 +62,7 @@ function highlight(line: string): string {
       border-left-color: var(--g-accent);
       color: var(--g-text);
     }
-    li.on .n,
-    li.on ::ng-deep .cm {
+    li.on .n {
       color: var(--g-muted);
     }
     .n {
@@ -82,7 +81,7 @@ function highlight(line: string): string {
       color: var(--g-syntax-function);
     }
     :host ::ng-deep .cm {
-      color: var(--g-faint);
+      color: var(--g-syntax-comment);
       font-style: italic;
     }
   `,

@@ -76,7 +76,6 @@
     --g-switch-w: 34px;
     --g-switch-h: 20px;
     --g-switch-on: var(--g-predict);
-    --g-switch-knob-on: var(--g-on-fill);
   }
 }
 
@@ -454,12 +453,11 @@
   select {
     width: 100%;
     background: var(--g-bg);
-    border: 1px solid var(--g-field-line);
+    border: 1px solid var(--g-stroke);
     color: var(--g-text);
     border-radius: 8px;
     padding: 9px 10px;
     font-size: 0.8125rem;
-    outline: none;
     &:focus {
       border-color: var(--g-accent);
     }

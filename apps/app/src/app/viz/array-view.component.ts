@@ -113,7 +113,7 @@ const POINTER_COLORS: Record<string, string> = {
       left: calc(var(--from) * var(--cell));
       width: calc((var(--to) - var(--from) + 1) * var(--cell));
       background: var(--g-window);
-      border: 1px solid rgba(var(--g-accent-rgb), 0.45);
+      border: 1px solid var(--g-window-line);
       border-radius: 12px;
       transition:
         left 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
@@ -146,20 +146,20 @@ const POINTER_COLORS: Record<string, string> = {
       border-color: var(--g-line);
     }
     .cell.settled .val {
-      color: var(--g-faint);
+      color: var(--g-muted);
     }
     .cell.active {
-      border-color: var(--g-active);
+      border-color: var(--g-state-current);
       box-shadow: 0 0 0 3px rgba(var(--g-active-rgb), 0.18);
       transform: translateY(-2px);
     }
     .cell.found {
-      background: rgba(var(--g-found-rgb), 0.18);
-      border-color: var(--g-found);
+      background: var(--g-state-done-fill);
+      border-color: var(--g-state-done-line);
       opacity: 1;
     }
     .cell.found .val {
-      color: var(--g-found);
+      color: var(--g-found-ink);
     }
     .indices {
       display: grid;

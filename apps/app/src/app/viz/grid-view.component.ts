@@ -60,30 +60,31 @@ import type { GridView } from '@grasp/engine';
     }
     .cell[data-state='frontier'],
     .legend i[data-state='frontier'] {
-      background: rgba(var(--g-warn-rgb), 0.16);
-      border-color: rgba(var(--g-warn-rgb), 0.7);
+      background: var(--g-state-frontier-fill);
+      border-color: var(--g-state-frontier-line);
+      border-style: dashed;
     }
     .cell[data-state='visited'],
     .legend i[data-state='visited'] {
-      background: rgba(var(--g-accent-rgb), 0.14);
-      border-color: rgba(var(--g-accent-rgb), 0.35);
+      background: var(--g-state-visited-fill);
+      border-color: var(--g-state-visited-line);
     }
     .cell[data-state='current'],
     .legend i[data-state='current'] {
-      background: var(--g-active);
-      border-color: var(--g-active);
+      background: var(--g-state-current);
+      border-color: var(--g-state-current);
     }
     .cell[data-state='current'] {
       transform: scale(1.08);
     }
     .cell[data-state='current'] .d {
-      color: var(--g-on-fill);
+      color: var(--g-state-current-ink);
       font-weight: 700;
     }
     .cell[data-state='path'],
     .legend i[data-state='path'] {
-      background: rgba(var(--g-found-rgb), 0.28);
-      border-color: var(--g-found);
+      background: var(--g-state-path-fill);
+      border-color: var(--g-state-path-line);
     }
     .cell[data-state='start'],
     .cell[data-state='goal'] {
@@ -97,6 +98,9 @@ import type { GridView } from '@grasp/engine';
       white-space: nowrap;
       font: 11px/1 var(--g-font-mono);
       color: var(--g-muted);
+    }
+    .cell:is([data-state='frontier'], [data-state='path']) .d {
+      color: var(--g-text);
     }
     .legend {
       display: flex;

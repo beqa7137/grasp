@@ -16,19 +16,20 @@ export const NODE_STYLES = `
     pointer-events: none;
   }
   .node[data-state='frontier'] .body {
-    fill: rgba(var(--g-warn-rgb), 0.16);
-    stroke: var(--g-warn);
+    fill: var(--g-state-frontier-fill);
+    stroke: var(--g-state-frontier-line);
+    stroke-dasharray: 4 3;
   }
   .node[data-state='done'] .body {
-    fill: rgba(var(--g-found-rgb), 0.16);
-    stroke: var(--g-found);
+    fill: var(--g-state-done-fill);
+    stroke: var(--g-state-done-line);
   }
   .node[data-state='active'] .body {
-    fill: var(--g-active);
-    stroke: var(--g-active);
+    fill: var(--g-state-current);
+    stroke: var(--g-state-current);
   }
   .node[data-state='active'] .label {
-    fill: var(--g-on-fill);
+    fill: var(--g-state-current-ink);
   }
   .node .ring {
     fill: none;

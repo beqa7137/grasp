@@ -247,6 +247,21 @@ describe('structure views render real traces', () => {
     expect(legendOf(el)).toEqual(['current', 'end of a word']);
   });
 
+  it('tree: ends each link on the edge of a node, so no link shows through a see-through state fill', () => {
+    const el = render(TreeViewComponent, getAlgorithm('tree-traversal')!.trace({ values: [2, 1, 3], order: 'inorder' })[0].tree);
+    const circles = [...el.querySelectorAll('circle.body')].map((c) => ['cx', 'cy', 'r'].map((name) => Number(c.getAttribute(name))));
+    const onAnEdge = ([x, y]: number[]) => circles.some(([cx, cy, r]) => Math.abs(Math.hypot(x - cx, y - cy) - r) < 0.01);
+    const ends = [...el.querySelectorAll('line.link')].flatMap((line) => {
+      const [x1, y1, x2, y2] = ['x1', 'y1', 'x2', 'y2'].map((name) => Number(line.getAttribute(name)));
+      return [
+        [x1, y1],
+        [x2, y2],
+      ];
+    });
+    expect(ends.length).toBeGreaterThan(0);
+    expect(ends.filter((end) => !onAnEdge(end))).toEqual([]);
+  });
+
   it('tree: shows the legend a tracer gives, and none without one or when turned off', () => {
     const calls = getAlgorithm('subsets-backtracking')!.trace({ nums: [1, 2] })[3].tree;
     const el = render(TreeViewComponent, calls);
