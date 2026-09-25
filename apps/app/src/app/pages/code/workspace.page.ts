@@ -11,7 +11,6 @@ import {
   inputSize,
   preview,
   starterCode,
-  type Frame,
   type Language,
   type LevelOrder,
   type TestCase,
@@ -32,7 +31,7 @@ import { CodeEditorComponent } from '../../code/code-editor.component';
 import { LanguagePickerComponent } from '../../code/language-picker.component';
 import type { RunnerError } from '../../code/protocol';
 import { RunnerService, type RunReport, type TestReport } from '../../code/runner.service';
-import { toFrames } from '../../code/trace-frames';
+import { toFrames, type TraceFrame } from '../../code/trace-frames';
 import { TracePlayerComponent } from '../../code/trace-player.component';
 import { exampleTree } from '../../code/tree-frames';
 import { haptic } from '../../core/haptics';
@@ -99,7 +98,7 @@ export class WorkspacePage {
   readonly panelsId = uniqueId('workspace-panels');
 
   readonly traceExample = signal(0);
-  readonly traceFrames = signal<Frame[] | null>(null);
+  readonly traceFrames = signal<TraceFrame[] | null>(null);
   readonly traceError = signal<RunnerError | null>(null);
   readonly traceTruncated = signal(false);
   readonly traceLine = signal<number | null>(null);
@@ -221,9 +220,7 @@ export class WorkspacePage {
       this.traceError.set(result.error ?? { message: 'Nothing to trace yet: the function returned before running any statements.' });
       return;
     }
-    this.traceFrames.set(
-      toFrames(result.steps, { primary: problem.params[0].name, returned: result.returned, error: result.error?.message }),
-    );
+    this.traceFrames.set(toFrames(result, problem.params));
   }
 
   pickTraceExample(index: number) {

@@ -24,7 +24,7 @@ const POINTER_COLORS: Record<string, string> = {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let v = view();
-    <div class="track" [style.--n]="v.values.length">
+    <div class="track" [class.wide]="wide()" [style.--n]="v.values.length" [style.--chars]="wide()">
       <div class="pointers" [style.height.px]="pointers().length ? pointerRows() * 22 + 6 : 0">
         @for (p of pointers(); track p.name) {
           <div class="ptr" [style.--i]="p.index" [style.--row]="p.row" [style.--c]="color(p.name)">
@@ -65,6 +65,14 @@ const POINTER_COLORS: Record<string, string> = {
       width: 100%;
       max-width: calc(var(--n) * 60px);
       margin: 0 auto;
+    }
+    /* Values longer than a few characters, such as pairs, widen their cells and scroll rather than overlap. */
+    .track.wide {
+      min-width: calc(var(--n) * (var(--chars) * 0.62 * clamp(11px, 2.6vw, 16px) + 16px));
+    }
+    .track.wide .cell {
+      aspect-ratio: auto;
+      height: 54px;
     }
     .pointers {
       position: relative;
@@ -188,6 +196,11 @@ export class ArrayViewComponent {
       seen.set(index, row + 1);
       return { name, index, row };
     });
+  });
+
+  readonly wide = computed(() => {
+    const longest = Math.max(0, ...this.view().values.map((v) => String(v).length));
+    return longest > 3 ? longest : null;
   });
 
   readonly pointerRows = computed(() => Math.max(1, ...this.pointers().map((p) => p.row + 1)));

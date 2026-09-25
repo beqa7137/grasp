@@ -3,7 +3,7 @@ import { PYTHON_PRELUDE, pythonHarness } from '@grasp/engine';
 import type { PyodideAPI } from 'pyodide';
 import { CompileError, compileJs, runJsTest, traceJs, type LogSink } from './execute-js';
 import type { WorkerMessage, WorkerRequest } from './protocol';
-import { pythonError } from './python-errors';
+import { isFatal, pythonCrash, pythonError } from './python-errors';
 
 const post = (message: WorkerMessage) => postMessage(message);
 
@@ -18,11 +18,8 @@ function loadPython(indexURL: string): Promise<PyodideAPI> {
   return pyodide;
 }
 
-async function runPython(request: Extract<WorkerRequest, { kind: 'run' }>, indexURL: string) {
-  const py = await loadPython(indexURL);
-  const logs: string[] = [];
-  py.setStdout({ batched: (s) => logs.length < 100 && logs.push(s) });
-  py.setStderr({ batched: (s) => logs.length < 100 && logs.push(s) });
+/** Runs the tests; a compile error ends the run early, and an error that killed the interpreter is thrown on. */
+function runSolution(py: PyodideAPI, request: Extract<WorkerRequest, { kind: 'run' }>, logs: string[]) {
   const namespace = py.globals['get']('dict')();
   try {
     try {
@@ -34,6 +31,7 @@ async function runPython(request: Extract<WorkerRequest, { kind: 'run' }>, index
       }
       py.runPython(pythonHarness(request.entry, request.params), { globals: namespace, filename: 'harness.py' });
     } catch (e) {
+      if (isFatal(e)) throw e;
       post({ kind: 'compile-error', error: pythonError(e) });
       return;
     }
@@ -47,6 +45,7 @@ async function runPython(request: Extract<WorkerRequest, { kind: 'run' }>, index
           const output = JSON.parse(call(JSON.stringify(args)) as string);
           post({ kind: 'test-result', index, ok: true, output, ms: performance.now() - started, logs: [...logs] });
         } catch (e) {
+          if (isFatal(e)) throw e;
           post({ kind: 'test-result', index, ok: false, error: pythonError(e), ms: performance.now() - started, logs: [...logs] });
         }
       }
@@ -55,6 +54,21 @@ async function runPython(request: Extract<WorkerRequest, { kind: 'run' }>, index
     }
   } finally {
     namespace.destroy();
+  }
+}
+
+async function runPython(request: Extract<WorkerRequest, { kind: 'run' }>, indexURL: string) {
+  const py = await loadPython(indexURL);
+  const logs: string[] = [];
+  py.setStdout({ batched: (s) => logs.length < 100 && logs.push(s) });
+  py.setStderr({ batched: (s) => logs.length < 100 && logs.push(s) });
+  try {
+    runSolution(py, request, logs);
+    // Frees what the run built now, so a structure too deep to free crashes this run instead of a later one.
+    py.runPython('import gc; gc.collect()');
+  } catch (e) {
+    if (!isFatal(e)) throw e;
+    post({ kind: 'crashed', ...pythonCrash(e, logs) });
   }
 }
 

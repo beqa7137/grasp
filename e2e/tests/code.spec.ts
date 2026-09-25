@@ -1,4 +1,5 @@
-import { JS_DIAMETER, expect, synced, test, write } from './fixtures';
+import type { Page } from '@playwright/test';
+import { JS_DIAMETER, JS_ISLANDS, expect, synced, test, write } from './fixtures';
 
 const JS_TWO_SUM = `function twoSum(nums, target) {
   const seen = new Map();
@@ -54,6 +55,19 @@ def diameter_of_binary_tree(root: Optional[TreeNode]) -> int:
 
     height(root)
     return best`;
+
+/** A nest of lists far deeper than Pyodide's stack can free, which kills its interpreter. */
+const PY_CRASH = `def two_sum(nums, target):
+    x = []
+    for i in range(100000):
+        x = [x]
+    return [0, 1]`;
+
+/** Moves the trace to a step, and waits for its narration. */
+async function seek(page: Page, step: number, note: string) {
+  await page.getByRole('slider', { name: 'Timeline' }).fill(String(step));
+  await expect(page.locator('app-trace-player .narration')).toContainText(note);
+}
 
 test('an efficient JavaScript solution passes the examples, then every test', { tag: '@smoke' }, async ({ page }) => {
   await page.goto('/code/two-sum');
@@ -148,6 +162,23 @@ test('Python has TreeNode and Optional in scope for a tree problem', async ({ pa
   await expect(page.getByText('3 / 3 examples passed')).toBeVisible({ timeout: 60_000 });
 });
 
+test.describe('when Python code crashes the interpreter', () => {
+  // Pyodide reports its own crash on the console, from the worker. One pattern, because Playwright reads a second as options.
+  test.use({ expectedConsoleErrors: [/Pyodide has suffered a fatal error|The cause of the fatal error|Maximum call stack size exceeded/] });
+
+  test('the run says so, and the next run starts a fresh Python', async ({ page }) => {
+    test.slow();
+    await page.goto('/code/two-sum');
+    await write(page, PY_CRASH);
+    await page.getByRole('button', { name: 'Run', exact: true }).click();
+    await expect(page.getByText(/^Python crashed/)).toBeVisible({ timeout: 60_000 });
+
+    await write(page, PY_TWO_SUM);
+    await page.getByRole('button', { name: 'Run', exact: true }).click();
+    await expect(page.getByText('3 / 3 examples passed')).toBeVisible({ timeout: 60_000 });
+  });
+});
+
 test('Trace draws the input tree and marks the node being visited', async ({ page }) => {
   await page.goto('/code/tree-diameter');
   await page.getByRole('radio', { name: 'JavaScript' }).click();
@@ -157,6 +188,64 @@ test('Trace draws the input tree and marks the node being visited', async ({ pag
   await expect(tree.getByRole('img', { name: /^Tree with \d+ nodes/ })).toBeVisible();
   for (let step = 0; step < 4; step++) await page.keyboard.press('ArrowRight');
   await expect(tree.locator('.node[data-state="active"]')).toHaveCount(1);
+});
+
+test('Trace shows the call stack of a recursive DFS, and the calls waiting on the stack in the tree', async ({ page }) => {
+  await page.goto('/code/tree-diameter');
+  await page.getByRole('radio', { name: 'JavaScript' }).click();
+  await write(page, JS_DIAMETER, 'Diameter of Binary Tree');
+  await page.getByRole('button', { name: 'Trace' }).click();
+  await seek(page, 7, 'Called height(TreeNode(4))');
+  await expect(page.getByRole('list', { name: 'call stack' }).getByRole('listitem')).toHaveText([
+    'diameterOfBinaryTree(TreeNode(1))',
+    'height(TreeNode(1))',
+    'height(TreeNode(2))',
+    'height(TreeNode(4))',
+  ]);
+  const tree = page.locator('app-trace-player g-tree-view');
+  await expect(tree.getByRole('img', { name: 'Tree with 5 nodes, current node 4, 2 on the call stack' })).toBeVisible();
+  await expect(tree.locator('.legend')).toContainText('on the call stack');
+
+  await seek(page, 16, 'Back in height(TreeNode(2)) · left = 1');
+  await expect(tree.getByRole('img', { name: 'Tree with 5 nodes, current node 2, 1 on the call stack, 1 returned' })).toBeVisible();
+});
+
+test('on a narrow phone, a call too long for the call stack is cut short on one line, and nothing scrolls sideways', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 700 });
+  await page.goto('/code/tree-diameter');
+  await page.getByRole('radio', { name: 'JavaScript' }).click();
+  await write(page, JS_DIAMETER, 'Diameter of Binary Tree');
+  await page.getByRole('button', { name: 'Trace' }).click();
+  await seek(page, 7, 'Called height(TreeNode(4))');
+  const calls = page.getByRole('list', { name: 'call stack' }).getByRole('listitem');
+  await expect(calls.first()).toHaveText('diameterOfBinaryTree(TreeNode(1))');
+  const heights = await calls.evaluateAll((items) => items.map((item) => (item as HTMLElement).offsetHeight));
+  expect(new Set(heights).size).toBe(1);
+  const viz = page.locator('app-trace-player .viz');
+  expect(await viz.evaluate((el) => el.scrollWidth - el.clientWidth)).toBe(0);
+});
+
+test('a trace that calls nothing beyond the entry function has no call stack', async ({ page }) => {
+  await page.goto('/code/two-sum');
+  await page.getByRole('radio', { name: 'JavaScript' }).click();
+  await write(page, JS_TWO_SUM);
+  await page.getByRole('button', { name: 'Trace' }).click();
+  await expect(page.getByRole('slider', { name: 'Timeline' })).toBeVisible();
+  await expect(page.locator('app-trace-player g-array-view')).toBeVisible();
+  await expect(page.locator('app-trace-player').getByText('call stack')).toHaveCount(0);
+});
+
+test('Trace draws a grid input as a grid, with the cell (r, c) points at and the land the code sank', async ({ page }) => {
+  await page.goto('/code/number-of-islands');
+  await page.getByRole('radio', { name: 'JavaScript' }).click();
+  await write(page, JS_ISLANDS, 'Number of Islands');
+  await page.getByRole('button', { name: 'Trace' }).click();
+  await seek(page, 12, 'grid[1][0] = "0"');
+  const grid = page.locator('app-trace-player g-table-view');
+  await expect(grid.getByRole('table', { name: 'Table with 4 rows and 5 columns, current cell row 1 column 0' })).toBeVisible();
+  await expect(grid.locator('.cell[data-role="path"]')).toHaveCount(1);
+  await expect(page.locator('app-trace-player g-array-view')).toHaveCount(0);
+  await expect(grid.locator('g-legend')).toContainText('changed by your code');
 });
 
 test('the tree visualizer leads to its coding problem', async ({ page }) => {

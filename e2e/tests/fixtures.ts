@@ -101,6 +101,25 @@ export const JS_DIAMETER = `function diameterOfBinaryTree(root) {
   return best;
 }`;
 
+export const JS_ISLANDS = `function numIslands(grid) {
+  let count = 0;
+  const sink = (r, c) => {
+    if (r < 0 || c < 0 || r >= grid.length || c >= grid[0].length || grid[r][c] !== '1') return;
+    grid[r][c] = '0';
+    sink(r + 1, c);
+    sink(r - 1, c);
+    sink(r, c + 1);
+    sink(r, c - 1);
+  };
+  for (let r = 0; r < grid.length; r++)
+    for (let c = 0; c < grid[0].length; c++)
+      if (grid[r][c] === '1') {
+        count++;
+        sink(r, c);
+      }
+  return count;
+}`;
+
 /** Replaces the code in the editor of the problem with this title. */
 export async function write(page: Page, code: string, title = 'Two Sum') {
   const editor = page.getByRole('textbox', { name: `${title} solution` });

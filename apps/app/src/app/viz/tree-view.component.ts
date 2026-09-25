@@ -150,10 +150,15 @@ export class TreeViewComponent {
   readonly layout = computed(() => layoutForest(this.view()));
 
   readonly ariaLabel = computed(() => {
-    const nodes = this.view().nodes.filter((n) => !n.blank);
+    const { nodes: all, legend } = this.view();
+    const nodes = all.filter((n) => !n.blank);
     const roots = nodes.filter((n) => n.parent === null).length;
     const active = nodes.find((n) => n.state === 'active');
     const shape = roots > 1 ? `Forest of ${roots} trees` : 'Tree';
-    return `${shape} with ${nodes.length} nodes${active ? `, current node ${active.label}` : ''}`;
+    const counts = (['frontier', 'done'] as const).flatMap((state) => {
+      const count = nodes.filter((n) => n.state === state).length;
+      return count && legend?.[state] ? [`${count} ${legend[state]}`] : [];
+    });
+    return [`${shape} with ${nodes.length} nodes`, ...(active ? [`current node ${active.label}`] : []), ...counts].join(', ');
   });
 }

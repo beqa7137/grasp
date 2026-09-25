@@ -1,5 +1,5 @@
 import type { Language, ParamType } from '@grasp/engine';
-import type { Snap, TraceStep } from './snapshot';
+import type { Snap, TraceCall, TraceStep } from './snapshot';
 
 export interface SourceLocation {
   line: number;
@@ -30,4 +30,14 @@ export type WorkerMessage =
   | { kind: 'test-result'; index: number; ok: true; output: unknown; ms: number; logs: string[] }
   | { kind: 'test-result'; index: number; ok: false; error: RunnerError; ms: number; logs: string[] }
   | { kind: 'done' }
-  | { kind: 'trace-result'; steps: TraceStep[]; returned?: Snap; error?: RunnerError; truncated: boolean; logs: string[] };
+  /** Python's interpreter died, in the test that started last if it has no result yet. The worker cannot run anything again. */
+  | { kind: 'crashed'; error: RunnerError; logs: string[] }
+  | {
+      kind: 'trace-result';
+      steps: TraceStep[];
+      calls: TraceCall[];
+      returned?: Snap;
+      error?: RunnerError;
+      truncated: boolean;
+      logs: string[];
+    };
