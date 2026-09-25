@@ -65,7 +65,7 @@ const key = ([r, c]: [number, number]) => `${r},${c}`;
     }
     .head.hot {
       color: var(--g-active);
-      background: rgba(76, 201, 240, 0.1);
+      background: rgba(var(--g-active-rgb), 0.1);
     }
     .cell {
       white-space: nowrap;
@@ -95,11 +95,11 @@ const key = ([r, c]: [number, number]) => `${r},${c}`;
     .cell[data-role='active'] {
       background: var(--g-active);
       border-color: var(--g-active);
-      color: #0b0d12;
+      color: var(--g-on-fill);
       transform: scale(1.06);
     }
     .cell[data-role='path'] {
-      background: rgba(61, 220, 151, 0.22);
+      background: rgba(var(--g-found-rgb), 0.22);
       border-color: var(--g-found);
       color: var(--g-found);
     }

@@ -118,7 +118,7 @@ const MAX_LENGTH = 2000;
       resize: vertical;
       background: var(--g-surface);
       color: var(--g-text);
-      border: 1px solid var(--g-line-strong);
+      border: 1px solid var(--g-stroke);
       border-radius: var(--g-radius-sm);
       padding: 12px;
       font: 0.9375rem/1.45 var(--ion-font-family);
@@ -156,7 +156,7 @@ const MAX_LENGTH = 2000;
     .dot.on {
       background: var(--g-accent);
       border-color: var(--g-accent);
-      color: #0b0d12;
+      color: var(--g-on-fill);
     }
     .error {
       color: var(--g-danger);

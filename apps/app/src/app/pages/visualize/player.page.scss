@@ -76,7 +76,7 @@
     --g-switch-w: 34px;
     --g-switch-h: 20px;
     --g-switch-on: var(--g-predict);
-    --g-switch-knob-on: #0b0d12;
+    --g-switch-knob-on: var(--g-on-fill);
   }
 }
 
@@ -161,7 +161,7 @@
     overflow-wrap: anywhere;
     font-weight: 600;
     color: var(--g-found);
-    background: rgba(61, 220, 151, 0.12);
+    background: rgba(var(--g-found-rgb), 0.12);
     padding: 6px 10px;
     border-radius: 8px;
   }
@@ -170,8 +170,8 @@
 .predict {
   border-radius: 14px;
   padding: 14px;
-  background: linear-gradient(180deg, rgba(212, 245, 60, 0.08), rgba(212, 245, 60, 0.02));
-  border: 1px solid rgba(212, 245, 60, 0.45);
+  background: linear-gradient(180deg, rgba(var(--g-predict-rgb), 0.08), rgba(var(--g-predict-rgb), 0.02));
+  border: 1px solid rgba(var(--g-predict-rgb), 0.45);
   animation: rise 0.25s ease-out;
 
   .predict-head {
@@ -231,12 +231,12 @@
     &.right {
       opacity: 1;
       border-color: var(--g-found);
-      background: rgba(61, 220, 151, 0.12);
+      background: rgba(var(--g-found-rgb), 0.12);
     }
     &.wrong {
       opacity: 1;
       border-color: var(--g-danger);
-      background: rgba(255, 93, 115, 0.12);
+      background: rgba(var(--g-danger-rgb), 0.12);
     }
   }
   .key {
@@ -325,7 +325,7 @@
     appearance: none;
     height: 24px;
     border-radius: 4px;
-    background: linear-gradient(var(--g-line-strong), var(--g-line-strong)) center / 100% 4px no-repeat;
+    background: linear-gradient(var(--g-stroke), var(--g-stroke)) center / 100% 4px no-repeat;
 
     @media (forced-colors: active) {
       appearance: auto;
@@ -454,7 +454,7 @@
   select {
     width: 100%;
     background: var(--g-bg);
-    border: 1px solid var(--g-line);
+    border: 1px solid var(--g-field-line);
     color: var(--g-text);
     border-radius: 8px;
     padding: 9px 10px;

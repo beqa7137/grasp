@@ -162,7 +162,7 @@ const EXPLAINED_ERRORS = new Set(['account_exists', 'email_unverified', 'identit
     .notice {
       padding: 10px 12px;
       border-radius: 10px;
-      background: rgba(255, 181, 71, 0.12);
+      background: rgba(var(--g-warn-rgb), 0.12);
       color: var(--g-warn);
       font-size: 0.875rem;
     }

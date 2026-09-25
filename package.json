@@ -16,7 +16,7 @@
     "dev:app": "npm run build:engine && npm start -w @grasp/app",
     "build": "npm run build:engine && npm run build -w @grasp/api && npm run build -w @grasp/app",
     "build:vercel": "npm run build && node scripts/prepare-vercel-output.mjs",
-    "lint": "oxlint -c .oxlintrc.json --deny-warnings api apps/api/src apps/api/test apps/app/src apps/app/scripts libs/engine/src scripts e2e",
+    "lint": "oxlint -c .oxlintrc.json --deny-warnings api apps/api/src apps/api/test apps/app/src apps/app/scripts apps/app/public/theme-boot.js libs/engine/src scripts e2e",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "npm run build:engine && npm run typecheck --workspaces --if-present",

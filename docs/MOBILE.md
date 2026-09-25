@@ -65,6 +65,14 @@ python3 -m pip install pillow
 python3 apps/app/scripts/generate-native-assets.py
 ```
 
+## Light and dark theme
+
+The theme (Settings → Appearance: System, Light or Dark) is a per-device setting. `ThemeService` copies it to `localStorage`, where `public/theme-boot.js` reads it before the first paint, since the native Preferences store is out of that script's reach.
+
+- **Splash:** it stays dark in both themes, like the `backgroundColor` in `capacitor.config.ts`, so a light-theme launch cuts from the dark splash to the light app. A light splash would need Android `drawable-night` and `values-night` resources and an iOS "Any/Dark" splash image set, and it would still follow the device, not the in-app choice.
+- **Status and navigation bars:** `SystemBars` starts with light icons (`style: 'DARK'` in `capacitor.config.ts`) to suit the dark splash, and `ThemeService` switches them with the theme.
+- **Check on a device:** the bar icons with Light chosen on a dark device and Dark on a light one, a switch while the app runs, and a device light/dark switch with System chosen. If Android's web view misses that last change, System catches up on the next launch.
+
 ## Continuous integration
 
 `.github/workflows/native.yml` runs when the app, the engine or dependencies change:

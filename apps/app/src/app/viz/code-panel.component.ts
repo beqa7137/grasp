@@ -51,14 +51,14 @@ function highlight(line: string): string {
       padding: 2px 14px 2px 10px;
       border-left: 3px solid transparent;
       font: 0.78125rem/1.65 var(--g-font-mono);
-      color: #b9bfd0;
+      color: var(--g-code-text);
       transition:
         background 0.2s,
         border-color 0.2s;
       white-space: pre;
     }
     li.on {
-      background: rgba(157, 140, 255, 0.13);
+      background: var(--g-code-line-on);
       border-left-color: var(--g-accent);
       color: var(--g-text);
     }
@@ -73,13 +73,13 @@ function highlight(line: string): string {
       user-select: none;
     }
     :host ::ng-deep .kw {
-      color: #c792ea;
+      color: var(--g-syntax-keyword);
     }
     :host ::ng-deep .nu {
-      color: #f78c6c;
+      color: var(--g-syntax-number);
     }
     :host ::ng-deep .fn {
-      color: #82aaff;
+      color: var(--g-syntax-function);
     }
     :host ::ng-deep .cm {
       color: var(--g-faint);

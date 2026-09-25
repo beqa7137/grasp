@@ -24,27 +24,27 @@
       <p class="eyebrow">{{ greeting() }}</p>
       <h1>Build intuition,<br />not a problem count.</h1>
       <div class="stats">
-        <div class="stat">
+        <div class="stat panel">
           <ion-icon name="flame" class="flame" aria-hidden="true" />
           <div>
             <strong>{{ st.streak.current }}</strong
             ><span>day streak</span>
           </div>
         </div>
-        <div class="stat">
+        <div class="stat panel">
           <ion-icon name="sparkles" class="xp" aria-hidden="true" />
           <div>
             <strong>{{ st.xp }}</strong
             ><span>XP</span>
           </div>
         </div>
-        <div class="stat">
+        <div class="stat panel">
           <g-mastery-ring [value]="overall()" [size]="34" [showLabel]="false" />
           <div>
             <strong>{{ (overall() * 100).toFixed(0) }}%</strong><span>overall mastery</span>
           </div>
         </div>
-        <div class="stat" title="Share of learned items you still recalled at review time, last 30 days. The scheduler aims for 90%.">
+        <div class="stat panel" title="Share of learned items you still recalled at review time, last 30 days. The scheduler aims for 90%.">
           <ion-icon name="pulse-outline" class="ret" aria-hidden="true" />
           <div>
             <strong>{{ progress.retention() === null ? '–' : (progress.retention()! * 100).toFixed(0) + '%' }}</strong>

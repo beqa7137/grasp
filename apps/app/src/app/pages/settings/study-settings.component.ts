@@ -27,7 +27,7 @@ const pct = (r: number) => `${Math.round(r * 100)}%`;
           <strong id="budget-label">Daily session</strong>
           <span class="muted small">How long a review session aims to take.</span>
         </div>
-        <div class="chips">
+        <div class="g-chip-radios">
           @for (c of budgets; track c.value) {
             <button role="radio" [attr.aria-checked]="settings().budgetMinutes === c.value" (click)="set({ budgetMinutes: c.value })">
               {{ c.label }}
@@ -41,7 +41,7 @@ const pct = (r: number) => `${Math.round(r * 100)}%`;
           <strong id="new-label">New cards per day</strong>
           <span class="muted small">Cards flagged for you by misses and interviews still come through.</span>
         </div>
-        <div class="chips">
+        <div class="g-chip-radios">
           @for (c of newPerDay; track c.value) {
             <button role="radio" [attr.aria-checked]="settings().newPerDay === c.value" (click)="set({ newPerDay: c.value })">
               {{ c.label }}
@@ -55,7 +55,7 @@ const pct = (r: number) => `${Math.round(r * 100)}%`;
           <strong id="retention-label">Target recall</strong>
           <span class="muted small">How likely you should be to remember a card when it comes back.</span>
         </div>
-        <div class="chips">
+        <div class="g-chip-radios">
           @for (c of retention; track c.value) {
             <button role="radio" [attr.aria-checked]="settings().retention === c.value" (click)="set({ retention: c.value })">
               {{ c.label }}
@@ -149,27 +149,6 @@ const pct = (r: number) => `${Math.round(r * 100)}%`;
     .g-control-row .label {
       margin: 0;
     }
-    .chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-    }
-    .chips button {
-      min-width: 52px;
-      min-height: 36px;
-      padding: 0 12px;
-      border-radius: 10px;
-      border: 1px solid var(--g-line-strong);
-      background: var(--g-raised);
-      color: var(--g-text);
-      font: 600 0.875rem var(--g-font-mono);
-      cursor: pointer;
-    }
-    .chips button[aria-checked='true'] {
-      background: var(--g-accent);
-      border-color: var(--g-accent);
-      color: #0b0d12;
-    }
     a.g-btn {
       flex: none;
     }
@@ -181,16 +160,15 @@ const pct = (r: number) => `${Math.round(r * 100)}%`;
     .time {
       background: var(--g-raised);
       color: var(--g-text);
-      border: 1px solid var(--g-line-strong);
+      border: 1px solid var(--g-stroke);
       border-radius: 10px;
       padding: 8px 10px;
       font-size: 0.9375rem;
-      color-scheme: dark;
     }
     .notice {
       padding: 10px 12px;
       border-radius: 10px;
-      background: rgba(255, 181, 71, 0.12);
+      background: rgba(var(--g-warn-rgb), 0.12);
       color: var(--g-warn);
     }
   `,

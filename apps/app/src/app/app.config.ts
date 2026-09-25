@@ -19,6 +19,7 @@ import { PilotService } from './pilot/pilot.service';
 import { ReminderService } from './reminders/reminder.service';
 import { RuntimeConfigService } from './core/runtime-config.service';
 import { ShortcutsService } from './core/shortcuts.service';
+import { ThemeService } from './core/theme.service';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -29,6 +30,8 @@ export const appConfig: ApplicationConfig = {
     provideIonicAngular({ mode: 'ios' }),
     provideRouter(routes, withComponentInputBinding(), withPreloading(PreloadAllModules)),
     provideAppInitializer(async () => {
+      // Started first: loading the runtime config can wait on the network, and the theme should not.
+      const themeReady = inject(ThemeService).init();
       const runtime = inject(RuntimeConfigService);
       const learner = inject(LearnerService);
       const progress = inject(ProgressService);
@@ -42,7 +45,7 @@ export const appConfig: ApplicationConfig = {
       await learner.init();
       await auth.init();
       await progress.init();
-      await Promise.all([pilot.init(), diagnosticPrompt.init(), reminders.init(), shortcuts.init()]);
+      await Promise.all([pilot.init(), diagnosticPrompt.init(), reminders.init(), shortcuts.init(), themeReady]);
     }),
   ],
 };

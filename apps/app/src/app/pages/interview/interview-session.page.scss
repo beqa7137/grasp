@@ -62,14 +62,14 @@
     align-self: flex-end;
     p {
       background: var(--g-accent);
-      color: #0b0d12;
+      color: var(--g-on-fill);
       border-color: var(--g-accent);
       border-radius: 16px 16px 4px 16px;
     }
   }
   &.me.hint p {
-    background: rgba(255, 181, 71, 0.18);
-    border-color: rgba(255, 181, 71, 0.5);
+    background: rgba(var(--g-warn-rgb), 0.18);
+    border-color: rgba(var(--g-warn-rgb), 0.5);
     color: var(--g-text);
   }
 }
@@ -111,7 +111,7 @@
 .scorecard {
   padding: 18px;
   margin-top: 10px;
-  border-color: rgba(157, 140, 255, 0.5);
+  border-color: rgba(var(--g-accent-rgb), 0.5);
   animation: rise 0.3s ease-out;
 
   header {
@@ -293,7 +293,7 @@ ion-footer {
     min-width: 0;
     resize: none;
     background: var(--g-surface);
-    border: 1px solid var(--g-line-strong);
+    border: 1px solid var(--g-stroke);
     border-radius: 14px;
     padding: 11px 14px;
     color: var(--g-text);

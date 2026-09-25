@@ -4,6 +4,7 @@ import {
   ElementRef,
   afterNextRender,
   effect,
+  inject,
   input,
   output,
   signal,
@@ -30,35 +31,33 @@ import {
 } from '@codemirror/view';
 import type { Language } from '@grasp/engine';
 import { tags } from '@lezer/highlight';
+import { ThemeService } from '../core/theme.service';
 import { uniqueId } from '../core/unique-id';
 
 const highlight = HighlightStyle.define([
-  { tag: [tags.keyword, tags.controlKeyword, tags.definitionKeyword, tags.moduleKeyword], color: '#c792ea' },
-  { tag: [tags.function(tags.variableName), tags.function(tags.propertyName)], color: '#82aaff' },
-  { tag: [tags.string, tags.special(tags.string)], color: '#c3e88d' },
-  { tag: [tags.number, tags.bool, tags.null], color: '#f78c6c' },
+  { tag: [tags.keyword, tags.controlKeyword, tags.definitionKeyword, tags.moduleKeyword], color: 'var(--g-syntax-keyword)' },
+  { tag: [tags.function(tags.variableName), tags.function(tags.propertyName)], color: 'var(--g-syntax-function)' },
+  { tag: [tags.string, tags.special(tags.string)], color: 'var(--g-syntax-string)' },
+  { tag: [tags.number, tags.bool, tags.null], color: 'var(--g-syntax-number)' },
   { tag: tags.comment, color: 'var(--g-faint)', fontStyle: 'italic' },
-  { tag: [tags.typeName, tags.className], color: '#ffcb6b' },
-  { tag: tags.operator, color: '#89ddff' },
+  { tag: [tags.typeName, tags.className], color: 'var(--g-syntax-type)' },
+  { tag: tags.operator, color: 'var(--g-syntax-operator)' },
 ]);
 
-const theme = EditorView.theme(
-  {
-    '&': { color: 'var(--g-text)', backgroundColor: 'var(--g-surface)', height: '100%', fontSize: '0.875rem' },
-    '.cm-content': { fontFamily: 'var(--g-font-mono)', caretColor: 'var(--g-accent)', padding: '10px 0' },
-    '.cm-scroller': { fontFamily: 'var(--g-font-mono)', lineHeight: '1.6' },
-    '.cm-gutters': { backgroundColor: 'var(--g-surface)', color: 'var(--g-faint)', border: 'none' },
-    '.cm-activeLine, .cm-activeLineGutter': { backgroundColor: 'rgba(157, 140, 255, 0.07)' },
-    '.cm-activeLineGutter': { color: 'var(--g-muted)' },
-    '&.cm-focused': { outline: 'var(--g-focus-ring)', outlineOffset: '-2px' },
-    '&.cm-focused .cm-cursor': { borderLeftColor: 'var(--g-accent)' },
-    '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection': { backgroundColor: 'rgba(157, 140, 255, 0.28)' },
-    '.cm-error-line': { backgroundColor: 'rgba(255, 93, 115, 0.14)' },
-    '.cm-trace-line': { backgroundColor: 'rgba(76, 201, 240, 0.16)' },
-    '.cm-tooltip': { backgroundColor: 'var(--g-raised)', border: '1px solid var(--g-line-strong)' },
-  },
-  { dark: true },
-);
+const theme = EditorView.theme({
+  '&': { color: 'var(--g-text)', backgroundColor: 'var(--g-surface)', height: '100%', fontSize: '0.875rem' },
+  '.cm-content': { fontFamily: 'var(--g-font-mono)', caretColor: 'var(--g-accent)', padding: '10px 0' },
+  '.cm-scroller': { fontFamily: 'var(--g-font-mono)', lineHeight: '1.6' },
+  '.cm-gutters': { backgroundColor: 'var(--g-surface)', color: 'var(--g-faint)', border: 'none' },
+  '.cm-activeLine, .cm-activeLineGutter': { backgroundColor: 'var(--g-code-active-line)' },
+  '.cm-activeLineGutter': { color: 'var(--g-muted)' },
+  '&.cm-focused': { outline: 'var(--g-focus-ring)', outlineOffset: '-2px' },
+  '&.cm-focused .cm-cursor': { borderLeftColor: 'var(--g-accent)' },
+  '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection': { backgroundColor: 'var(--g-code-selection)' },
+  '.cm-error-line': { backgroundColor: 'var(--g-code-error-line)' },
+  '.cm-trace-line': { backgroundColor: 'var(--g-code-trace-line)' },
+  '.cm-tooltip': { backgroundColor: 'var(--g-raised)', border: '1px solid var(--g-line-strong)' },
+});
 
 const setMarks = StateEffect.define<{ error: number | null; trace: number | null }>();
 const marks = StateField.define<DecorationSet>({
@@ -123,6 +122,9 @@ export class CodeEditorComponent implements OnDestroy {
 
   private readonly host = viewChild.required<ElementRef<HTMLElement>>('host');
   private readonly languageSlot = new Compartment();
+  /** CodeMirror's own light or dark base styles (cursor, panels, tooltips), which follow the app's theme. */
+  private readonly darkSlot = new Compartment();
+  private readonly appTheme = inject(ThemeService);
   private view: EditorView | null = null;
 
   /** Set once the editor exists; the effects below re-run when it appears. */
@@ -143,6 +145,12 @@ export class CodeEditorComponent implements OnDestroy {
       const language = this.language();
       if (!this.ready()) return;
       this.view?.dispatch({ effects: this.languageSlot.reconfigure(languageExtension(language)) });
+    });
+
+    effect(() => {
+      const dark = this.appTheme.dark();
+      if (!this.ready()) return;
+      this.view?.dispatch({ effects: this.darkSlot.reconfigure(EditorView.darkTheme.of(dark)) });
     });
 
     effect(() => {
@@ -186,6 +194,7 @@ export class CodeEditorComponent implements OnDestroy {
           keymap.of([indentWithTab, ...closeBracketsKeymap, ...defaultKeymap, ...searchKeymap, ...historyKeymap, ...completionKeymap]),
           syntaxHighlighting(highlight),
           theme,
+          this.darkSlot.of(EditorView.darkTheme.of(untracked(this.appTheme.dark))),
           marks,
           this.languageSlot.of(languageExtension(untracked(this.language))),
           // tabindex only makes explicit that the contenteditable takes focus, which checkers such as axe otherwise miss.

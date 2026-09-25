@@ -12,17 +12,26 @@ export const newClientIp = () => `198.18.${randomInt(256)}.${randomInt(1, 255)}`
 interface Options {
   /** Start as a returning visitor who has already dismissed the pilot welcome. */
   pilotNoticeSeen: boolean;
+  /**
+   * The theme chosen on this device. Dark by default, since Playwright emulates a light device and the app follows the
+   * device until a theme is chosen; 'system' chooses none.
+   */
+  theme: 'dark' | 'light' | 'system';
   /** Console errors the test causes on purpose, such as the browser reporting an expected 4xx response. */
   expectedConsoleErrors: RegExp[];
 }
 
 export const test = base.extend<Options & { guard: void }>({
   pilotNoticeSeen: [true, { option: true }],
+  theme: ['dark', { option: true }],
   expectedConsoleErrors: [[], { option: true }],
 
-  page: async ({ page, pilotNoticeSeen }, use) => {
+  page: async ({ page, pilotNoticeSeen, theme }, use) => {
     if (pilotNoticeSeen) {
       await page.addInitScript(() => localStorage.setItem('CapacitorStorage.grasp.pilotNotice.v1', new Date().toISOString()));
+    }
+    if (theme !== 'system') {
+      await page.addInitScript((chosen) => localStorage.setItem('CapacitorStorage.grasp.theme', chosen), theme);
     }
     if (!readOnly) {
       // Set on the context so sign-in popups belong to the same client.

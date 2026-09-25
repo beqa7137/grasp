@@ -1,6 +1,16 @@
 import { getTransformedRoutes } from '@vercel/routing-utils';
 import { readFileSync } from 'node:fs';
-import { HASHED_ASSET, IMMUTABLE_CACHE, PYODIDE_ASSET, PYODIDE_CORP, WORKER_CSP, WORKER_SCRIPT } from './asset-policy.js';
+import {
+  HASHED_ASSET,
+  IMMUTABLE_CACHE,
+  PYODIDE_ASSET,
+  PYODIDE_CORP,
+  THEME_BOOT_CACHE,
+  THEME_BOOT_SCRIPT,
+  WORKER_CSP,
+  WORKER_SCRIPT,
+  cacheControlFor,
+} from './asset-policy.js';
 
 /**
  * vercel.json repeats the static-asset policy for Vercel's CDN. These tests compile it with Vercel's own
@@ -63,6 +73,16 @@ describe('vercel.json', () => {
     for (const path of revalidated) {
       expect(HASHED_ASSET.test(path), path).toBe(false);
       expect(headersFor(path)['Cache-Control'], path).not.toBe(IMMUTABLE_CACHE);
+    }
+  });
+
+  it('keeps the theme script, which blocks the first paint, for a day, like the Docker server', () => {
+    expect(THEME_BOOT_SCRIPT.test('/theme-boot.js')).toBe(true);
+    expect(cacheControlFor('/theme-boot.js')).toBe(THEME_BOOT_CACHE);
+    expect(headersFor('/theme-boot.js')['Cache-Control']).toBe(THEME_BOOT_CACHE);
+    for (const path of [...hashed, ...revalidated]) {
+      expect(THEME_BOOT_SCRIPT.test(path), path).toBe(false);
+      expect(headersFor(path)['Cache-Control'], path).not.toBe(THEME_BOOT_CACHE);
     }
   });
 

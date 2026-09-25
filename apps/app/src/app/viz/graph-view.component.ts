@@ -160,7 +160,7 @@ const crossesAny = (edges: DrawnEdge[], box: Box) =>
       }
       .edge {
         fill: none;
-        stroke: var(--g-line-strong);
+        stroke: var(--g-stroke);
         stroke-width: 2;
         transition:
           stroke 0.25s,
@@ -179,7 +179,7 @@ const crossesAny = (edges: DrawnEdge[], box: Box) =>
         stroke-dasharray: 4 4;
       }
       .arrow {
-        fill: var(--g-line-strong);
+        fill: var(--g-stroke);
       }
       .arrow[data-state='active'] {
         fill: var(--g-active);

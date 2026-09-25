@@ -2,7 +2,7 @@
 export const NODE_STYLES = `
   .node .body {
     fill: var(--g-raised);
-    stroke: var(--g-line-strong);
+    stroke: var(--g-stroke);
     stroke-width: 1.5;
     transition:
       fill 0.25s,
@@ -16,11 +16,11 @@ export const NODE_STYLES = `
     pointer-events: none;
   }
   .node[data-state='frontier'] .body {
-    fill: rgba(255, 181, 71, 0.16);
+    fill: rgba(var(--g-warn-rgb), 0.16);
     stroke: var(--g-warn);
   }
   .node[data-state='done'] .body {
-    fill: rgba(61, 220, 151, 0.16);
+    fill: rgba(var(--g-found-rgb), 0.16);
     stroke: var(--g-found);
   }
   .node[data-state='active'] .body {
@@ -28,7 +28,7 @@ export const NODE_STYLES = `
     stroke: var(--g-active);
   }
   .node[data-state='active'] .label {
-    fill: #0b0d12;
+    fill: var(--g-on-fill);
   }
   .node .ring {
     fill: none;

@@ -2,8 +2,9 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
 import { replay, type StoredEvent } from '@grasp/engine';
+import { NATIVE_PLATFORM } from '../core/platform';
 import { ProgressService } from '../core/progress.service';
-import { NATIVE_PLATFORM, NOTIFICATIONS, type NotificationsApi, ReminderService } from './reminder.service';
+import { NOTIFICATIONS, type NotificationsApi, ReminderService } from './reminder.service';
 
 interface Scheduled {
   id: number;

@@ -103,6 +103,7 @@ describe('Serving the web app', () => {
     writeFileSync(join(dir, 'index.html'), '<!doctype html><title>Grasp</title>');
     writeFileSync(join(dir, 'main-ABCD1234.js'), 'console.log(1)');
     writeFileSync(join(dir, 'manifest.webmanifest'), '{}');
+    writeFileSync(join(dir, 'theme-boot.js'), '(function () {})();');
     writeFileSync(join(dir, 'worker-ABCD1234.js'), 'self.onmessage = () => {}');
     mkdirSync(join(dir, 'pyodide'));
     writeFileSync(join(dir, 'pyodide', 'pyodide.mjs'), 'export {}');
@@ -132,9 +133,11 @@ describe('Serving the web app', () => {
     }
   });
 
-  it('caches fingerprinted assets for a year and revalidates the rest', async () => {
+  it('caches fingerprinted assets for a year, the theme script for a day, and revalidates the rest', async () => {
     const hashed = await request(app.getHttpServer()).get('/main-ABCD1234.js').expect(200);
     expect(hashed.headers['cache-control']).toBe('public, max-age=31536000, immutable');
+    const themeBoot = await request(app.getHttpServer()).get('/theme-boot.js').expect(200);
+    expect(themeBoot.headers['cache-control']).toBe('public, max-age=86400');
     const plain = await request(app.getHttpServer()).get('/manifest.webmanifest').expect(200);
     expect(plain.headers['cache-control']).toBe('no-cache');
     await request(app.getHttpServer()).get('/missing-ABCD1234.js').expect(404);

@@ -44,7 +44,7 @@
     inset: -40px -16px auto auto;
     width: 320px;
     height: 220px;
-    background: radial-gradient(closest-side, rgba(157, 140, 255, 0.22), transparent 70%);
+    background: radial-gradient(closest-side, rgba(var(--g-accent-rgb), 0.22), transparent 70%);
     pointer-events: none;
   }
 
@@ -69,8 +69,6 @@
   gap: 10px;
   padding: 10px 14px;
   border-radius: 12px;
-  background: var(--g-surface);
-  border: 1px solid var(--g-line);
 
   ion-icon {
     font-size: 24px;
@@ -269,7 +267,7 @@
   flex-wrap: wrap;
   margin-top: 10px;
   padding: 16px;
-  border-color: rgba(157, 140, 255, 0.45);
+  border-color: rgba(var(--g-accent-rgb), 0.45);
   background: linear-gradient(120deg, var(--g-accent-soft), var(--g-surface) 70%);
 
   > ion-icon {

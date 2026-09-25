@@ -109,7 +109,7 @@ import { FREE_BUILD } from './free-build';
       font-weight: 700;
     }
     .done .num {
-      background: rgba(61, 220, 151, 0.14);
+      background: rgba(var(--g-found-rgb), 0.14);
       color: var(--g-found);
     }
     .free .num {
@@ -164,7 +164,7 @@ import { FREE_BUILD } from './free-build';
         line-height: 1.45;
       }
       &.due {
-        border-color: rgba(255, 181, 71, 0.55);
+        border-color: rgba(var(--g-warn-rgb), 0.55);
         ion-icon,
         strong {
           color: var(--g-warn);

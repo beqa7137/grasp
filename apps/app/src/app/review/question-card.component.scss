@@ -33,23 +33,23 @@ header {
 
   &[data-reason='new'] {
     color: var(--g-active);
-    border-color: rgba(76, 201, 240, 0.4);
+    border-color: rgba(var(--g-active-rgb), 0.4);
   }
   &[data-reason='relearn'] {
     color: var(--g-danger);
-    border-color: rgba(255, 93, 115, 0.4);
+    border-color: rgba(var(--g-danger-rgb), 0.4);
   }
   &[data-reason='boosted'] {
     color: var(--g-warn);
-    border-color: rgba(255, 181, 71, 0.45);
+    border-color: rgba(var(--g-warn-rgb), 0.45);
   }
   &[data-reason='practice'] {
     color: var(--g-predict);
-    border-color: rgba(212, 245, 60, 0.4);
+    border-color: rgba(var(--g-predict-rgb), 0.4);
   }
   &[data-reason='diagnostic'] {
     color: var(--g-accent);
-    border-color: rgba(157, 140, 255, 0.45);
+    border-color: rgba(var(--g-accent-rgb), 0.45);
   }
 }
 
@@ -190,12 +190,12 @@ header {
   &.right {
     opacity: 1;
     border-color: var(--g-found);
-    background: rgba(61, 220, 151, 0.12);
+    background: rgba(var(--g-found-rgb), 0.12);
   }
   &.wrong {
     opacity: 1;
     border-color: var(--g-danger);
-    background: rgba(255, 93, 115, 0.12);
+    background: rgba(var(--g-danger-rgb), 0.12);
   }
 
   .key {
@@ -220,7 +220,7 @@ header {
   margin-top: 16px;
   padding: 14px;
   border-radius: 12px;
-  background: rgba(255, 93, 115, 0.08);
+  background: rgba(var(--g-danger-rgb), 0.08);
   animation: rise 0.2s ease-out;
 
   ion-icon {
@@ -232,7 +232,7 @@ header {
     min-width: 0;
   }
   &.ok {
-    background: rgba(61, 220, 151, 0.08);
+    background: rgba(var(--g-found-rgb), 0.08);
     ion-icon {
       color: var(--g-found);
     }

@@ -114,13 +114,13 @@ import type { InterviewSession, InterviewTrack, ProblemSummary } from './intervi
     }
     .mode.ai {
       color: var(--g-predict);
-      border-color: rgba(212, 245, 60, 0.4);
+      border-color: rgba(var(--g-predict-rgb), 0.4);
     }
     .error {
       padding: 12px 14px;
       margin-top: 14px;
-      border-color: rgba(255, 93, 115, 0.5);
-      color: #ffb3bd;
+      border-color: rgba(var(--g-danger-rgb), 0.5);
+      color: var(--g-danger-ink);
     }
     .tracks {
       display: grid;

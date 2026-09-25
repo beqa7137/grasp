@@ -5,32 +5,14 @@
 @use '@ionic/angular/css/padding.css';
 @use '@ionic/angular/css/flex-utils.css';
 @use '@ionic/angular/css/display.css';
-@use '@ionic/angular/css/palettes/dark.always.css';
+@use '@ionic/angular/css/palettes/dark.class.css';
+@use 'theme';
 @use '@fontsource-variable/inter';
 @use '@fontsource-variable/space-grotesk';
 @use '@fontsource-variable/jetbrains-mono';
 @use 'chrome' as *;
 
 :root {
-  --g-bg: #0b0d12;
-  --g-surface: #12151d;
-  --g-raised: #181c26;
-  --g-line: #252a37;
-  --g-line-strong: #343b4d;
-  --g-text: #e9ebf2;
-  --g-muted: #8b93a8;
-  --g-faint: #7c8498;
-
-  --g-accent: #9d8cff;
-  --g-accent-soft: rgba(157, 140, 255, 0.14);
-  --g-pointer: #ffb547;
-  --g-active: #4cc9f0;
-  --g-window: rgba(157, 140, 255, 0.16);
-  --g-found: #3ddc97;
-  --g-danger: #ff5d73;
-  --g-warn: #ffb547;
-  --g-predict: #d4f53c;
-
   --g-radius: 14px;
   --g-radius-sm: 9px;
   --g-font-display: 'Space Grotesk Variable', 'Inter Variable', system-ui, sans-serif;
@@ -43,12 +25,12 @@
 :root.md {
   --ion-font-family: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --ion-background-color: var(--g-bg);
-  --ion-background-color-rgb: 11, 13, 18;
+  --ion-background-color-rgb: var(--g-bg-rgb);
   --ion-text-color: var(--g-text);
-  --ion-text-color-rgb: 233, 235, 242;
+  --ion-text-color-rgb: var(--g-text-rgb);
   --ion-toolbar-background: var(--g-bg);
   --ion-toolbar-border-color: var(--g-line);
-  --ion-tab-bar-background: rgba(14, 16, 22, 0.92);
+  --ion-tab-bar-background: var(--g-tab-bar);
   --ion-tab-bar-border-color: var(--g-line);
   --ion-tab-bar-color: var(--g-faint);
   --ion-tab-bar-color-selected: var(--g-text);
@@ -56,24 +38,18 @@
   --ion-card-background: var(--g-surface);
   --ion-border-color: var(--g-line);
 
-  --ion-color-primary: #9d8cff;
-  --ion-color-primary-rgb: 157, 140, 255;
-  --ion-color-primary-contrast: #0b0d12;
-  --ion-color-primary-contrast-rgb: 11, 13, 18;
-  --ion-color-primary-shade: #8a7be0;
-  --ion-color-primary-tint: #a797ff;
-
-  --ion-color-success: #3ddc97;
-  --ion-color-success-rgb: 61, 220, 151;
-  --ion-color-success-contrast: #0b0d12;
-  --ion-color-success-contrast-rgb: 11, 13, 18;
-  --ion-color-success-shade: #36c285;
-  --ion-color-success-tint: #50e0a1;
-
-  --ion-color-danger: #ff5d73;
-  --ion-color-danger-rgb: 255, 93, 115;
-  --ion-color-warning: #ffb547;
-  --ion-color-warning-rgb: 255, 181, 71;
+  --ion-color-primary: var(--g-accent);
+  --ion-color-primary-rgb: var(--g-accent-rgb);
+  --ion-color-primary-contrast: var(--g-on-fill);
+  --ion-color-primary-contrast-rgb: var(--g-on-fill-rgb);
+  --ion-color-success: var(--g-found);
+  --ion-color-success-rgb: var(--g-found-rgb);
+  --ion-color-success-contrast: var(--g-on-fill);
+  --ion-color-success-contrast-rgb: var(--g-on-fill-rgb);
+  --ion-color-danger: var(--g-danger);
+  --ion-color-danger-rgb: var(--g-danger-rgb);
+  --ion-color-warning: var(--g-warn);
+  --ion-color-warning-rgb: var(--g-warn-rgb);
 }
 
 body {
@@ -167,6 +143,7 @@ ion-tab-button {
   background: var(--g-surface);
   border: 1px solid var(--g-line);
   border-radius: var(--g-radius);
+  box-shadow: var(--g-shadow);
 }
 
 .eyebrow {
@@ -252,7 +229,7 @@ button.chip {
   &.primary {
     background: var(--g-accent);
     border-color: var(--g-accent);
-    color: #0b0d12;
+    color: var(--g-on-fill);
     font-weight: 600;
   }
   &.ghost {
@@ -303,13 +280,24 @@ button.chip {
   }
 }
 
-ion-toast.g-toast {
+// A theme switch changes every colour at once; without this, elements with colour transitions would fade while the rest snap.
+.g-theme-switching,
+.g-theme-switching * {
+  transition: none !important;
+}
+
+ion-toast {
   --background: var(--g-raised);
   --color: var(--g-text);
-  --border-color: var(--g-danger);
+  --border-color: var(--g-line-strong);
   --border-style: solid;
   --border-width: 1px;
   --border-radius: 12px;
+  --box-shadow: var(--g-shadow-overlay);
+}
+
+ion-toast.g-toast {
+  --border-color: var(--g-danger);
 }
 
 ion-modal.g-dialog {
@@ -318,7 +306,8 @@ ion-modal.g-dialog {
   --max-height: calc(100dvh - 48px);
   --border-radius: 16px;
   --background: var(--g-surface);
-  --backdrop-opacity: 0.6;
+  --backdrop-opacity: var(--g-backdrop-opacity);
+  --box-shadow: var(--g-shadow-overlay);
 
   &::part(content) {
     border: 1px solid var(--g-line-strong);
@@ -375,7 +364,7 @@ ion-alert .alert-button.ion-focused {
   --g-switch-w: 46px;
   --g-switch-h: 28px;
   --g-switch-on: var(--g-accent);
-  --g-switch-knob-on: var(--g-text);
+  --g-switch-knob-on: var(--g-knob);
   position: relative;
   flex: none;
   cursor: pointer;
@@ -392,7 +381,7 @@ ion-alert .alert-button.ion-focused {
     width: var(--g-switch-w);
     height: var(--g-switch-h);
     border-radius: 999px;
-    background: var(--g-line-strong);
+    background: var(--g-stroke);
     transition: background 0.2s;
   }
   .knob {
@@ -402,7 +391,7 @@ ion-alert .alert-button.ion-focused {
     width: calc(var(--g-switch-h) - 6px);
     height: calc(var(--g-switch-h) - 6px);
     border-radius: 50%;
-    background: var(--g-text);
+    background: var(--g-knob);
     transition: transform 0.2s;
   }
   input:checked + .track {
@@ -429,6 +418,30 @@ ion-alert .alert-button.ion-focused {
   > :first-child {
     flex: 1 1 0;
     min-width: min(8em, 100%);
+  }
+}
+
+// A row of pill radios, one selected, inside a role="radiogroup" (RovingSelectDirective gives it the arrow keys).
+.g-chip-radios {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+
+  button {
+    min-width: 52px;
+    min-height: 36px;
+    padding: 0 12px;
+    border-radius: 10px;
+    border: 1px solid var(--g-line-strong);
+    background: var(--g-raised);
+    color: var(--g-text);
+    font: 600 0.875rem var(--g-font-mono);
+    cursor: pointer;
+  }
+  button[aria-checked='true'] {
+    background: var(--g-accent);
+    border-color: var(--g-accent);
+    color: var(--g-on-fill);
   }
 }
 
