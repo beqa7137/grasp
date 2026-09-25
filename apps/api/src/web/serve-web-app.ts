@@ -5,7 +5,7 @@ import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { SIGN_IN_CALLBACK_PATH } from '../auth/sign-in-callback.js';
 import type { AppConfig } from '../config.js';
-import { PYODIDE_ASSET, PYODIDE_CORP, WORKER_CSP, WORKER_SCRIPT, cacheControlFor } from './asset-policy.js';
+import { PYODIDE_ASSET, PYODIDE_CORP, REVALIDATE_CACHE, WORKER_CSP, WORKER_SCRIPT, cacheControlFor } from './asset-policy.js';
 
 /**
  * Serves the built Angular app next to the API: fingerprinted assets are cached for a year, the theme script for a
@@ -22,7 +22,7 @@ export function serveWebApp(app: NestExpressApplication, config: AppConfig) {
   }
 
   app.use('/config.json', (_req: Request, res: Response) => {
-    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Cache-Control', REVALIDATE_CACHE);
     res.json({
       apiUrl: null,
       sentryDsn: config.web.sentryDsn,
@@ -46,7 +46,7 @@ export function serveWebApp(app: NestExpressApplication, config: AppConfig) {
   app.use((req: Request, res: Response, next: NextFunction) => {
     const wantsPage = (req.method === 'GET' || req.method === 'HEAD') && req.accepts('html') === 'html';
     if (!wantsPage || req.path.startsWith('/api/') || req.path === '/api' || /\.[a-z0-9]+$/i.test(req.path)) return next();
-    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Cache-Control', REVALIDATE_CACHE);
     // The sign-in popup lands here from Google or GitHub, whose pages send no COOP. Arriving on a page with a COOP
     // would move the popup into a new browsing context group and cut it off from the app window awaiting its result.
     if (req.path === SIGN_IN_CALLBACK_PATH) res.setHeader('Cross-Origin-Opener-Policy', 'unsafe-none');

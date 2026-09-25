@@ -3,8 +3,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const SRC = 'src';
-const TOKENS = readFileSync(join(SRC, '_theme.scss'), 'utf8');
-/** Where colours are written out: the tokens for both themes, and the page shell's metas, its look without JavaScript. */
+/** The only files that may write a colour out: the tokens, and index.html's metas for the look without JavaScript. */
 const COLOUR_SOURCES = new Set(['_theme.scss', 'index.html']);
 
 /** Comments, where an issue number or a colour named in prose is not styling. `://` is a URL, not a comment. */
@@ -37,17 +36,6 @@ function literalColours(source: string): string[] {
   const lines = source.split('\n');
   const lineOf = (index: number) => source.slice(0, index).split('\n').length;
   return [...new Set(found.map(lineOf))].sort((a, b) => a - b).map((line) => `${line}: ${lines[line - 1].trim()}`);
-}
-
-/** The `--x: #rrggbb` and `--x-rgb: r, g, b` pairs one block of _theme.scss sets. */
-function channelPairs(selector: string) {
-  const body = TOKENS.match(new RegExp(`^${selector.replaceAll('.', '\\.')} \\{([^}]*)\\}`, 'm'))?.[1] ?? '';
-  const hex = new Map([...body.matchAll(/(--[\w-]+): #([\da-f]{6});/g)].map(([, name, value]) => [name, value]));
-  return [...body.matchAll(/(--[\w-]+)-rgb: (\d+), (\d+), (\d+);/g)].map(([, name, ...channels]) => ({
-    name,
-    channels: channels.map(Number),
-    fromHex: [0, 2, 4].map((i) => parseInt(hex.get(name)?.slice(i, i + 2) ?? '', 16)),
-  }));
 }
 
 describe('theme tokens', () => {
@@ -92,13 +80,5 @@ describe('theme tokens', () => {
     ];
     for (const sample of written) expect(literalColours(sample), sample).not.toEqual([]);
     for (const sample of notColours) expect(literalColours(sample), sample).toEqual([]);
-  });
-
-  it('keep every -rgb channel triple in step with its hex colour, in both themes', () => {
-    for (const selector of [':root', ':root.ion-palette-dark']) {
-      const pairs = channelPairs(selector);
-      expect(pairs.length, selector).toBeGreaterThan(0);
-      for (const { name, channels, fromHex } of pairs) expect(channels, `${selector} ${name}-rgb`).toEqual(fromHex);
-    }
   });
 });

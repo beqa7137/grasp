@@ -37,19 +37,13 @@
   --ion-item-background: var(--g-surface);
   --ion-card-background: var(--g-surface);
   --ion-border-color: var(--g-line);
+  --ion-overlay-background-color: var(--g-surface);
+  --ion-backdrop-opacity: var(--g-backdrop-opacity);
 
   --ion-color-primary: var(--g-accent);
   --ion-color-primary-rgb: var(--g-accent-rgb);
   --ion-color-primary-contrast: var(--g-on-fill);
-  --ion-color-primary-contrast-rgb: var(--g-on-fill-rgb);
-  --ion-color-success: var(--g-found);
-  --ion-color-success-rgb: var(--g-found-rgb);
-  --ion-color-success-contrast: var(--g-on-fill);
-  --ion-color-success-contrast-rgb: var(--g-on-fill-rgb);
   --ion-color-danger: var(--g-danger);
-  --ion-color-danger-rgb: var(--g-danger-rgb);
-  --ion-color-warning: var(--g-warn);
-  --ion-color-warning-rgb: var(--g-warn-rgb);
 }
 
 body {
@@ -67,6 +61,12 @@ input,
 select,
 textarea {
   font-size: 0.8333rem;
+}
+
+// Browsers' own placeholder colours miss 4.5:1: WebKit's is 2.35:1 on the light surface, Chromium's 3.96:1 on dark.
+::placeholder {
+  color: var(--g-faint);
+  opacity: 1;
 }
 
 // iOS zooms the page into a focused field whose text is under 16px, which the viewport no longer prevents.
@@ -306,7 +306,6 @@ ion-modal.g-dialog {
   --max-height: calc(100dvh - 48px);
   --border-radius: 16px;
   --background: var(--g-surface);
-  --backdrop-opacity: var(--g-backdrop-opacity);
   --box-shadow: var(--g-shadow-overlay);
 
   &::part(content) {
@@ -421,7 +420,7 @@ ion-alert .alert-button.ion-focused {
   }
 }
 
-// A row of pill radios, one selected, inside a role="radiogroup" (RovingSelectDirective gives it the arrow keys).
+// Pill radios inside a role="radiogroup"; import RovingSelectDirective there for the arrow keys.
 .g-chip-radios {
   display: flex;
   flex-wrap: wrap;

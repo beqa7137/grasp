@@ -3,6 +3,7 @@ import { Preferences } from '@capacitor/preferences';
 import { NATIVE_PLATFORM } from './platform';
 import { DARK_CLASS, SWITCHING_CLASS, SYSTEM_BARS, type SystemBarsApi } from './theme-chrome';
 import { FIRST_PAINT_KEY, PREFERS_DARK, THEME_KEY, ThemeService } from './theme.service';
+import { LOOKS, THEME_RESOLUTIONS, pageLook, resetPage, themeBackground } from './theme.testing';
 
 /** Stands in for matchMedia('(prefers-color-scheme: dark)'), which jsdom lacks. */
 function fakeDevice(dark: boolean) {
@@ -19,25 +20,22 @@ function fakeDevice(dark: boolean) {
   };
 }
 
-function setUp({ deviceDark = true, native = false, bars }: { deviceDark?: boolean; native?: boolean; bars?: SystemBarsApi } = {}) {
+function setUp({
+  deviceDark = true,
+  native = false,
+  bars = { setStyle: async () => undefined },
+}: { deviceDark?: boolean; native?: boolean; bars?: SystemBarsApi } = {}) {
   const device = fakeDevice(deviceDark);
   TestBed.configureTestingModule({
     providers: [
       { provide: PREFERS_DARK, useValue: device },
       { provide: NATIVE_PLATFORM, useValue: native },
-      ...(bars ? [{ provide: SYSTEM_BARS, useValue: bars }] : []),
+      { provide: SYSTEM_BARS, useValue: bars },
     ],
   });
   return { device, theme: TestBed.inject(ThemeService) };
 }
 
-const page = () => ({
-  dark: document.documentElement.classList.contains(DARK_CLASS),
-  scheme: document.querySelector('meta[name="color-scheme"]')?.getAttribute('content'),
-  themeColor: document.querySelector('meta[name="theme-color"]')?.getAttribute('content'),
-});
-
-/** Holds requestAnimationFrame callbacks until the test runs the next frame. */
 function stubFrames() {
   const pending: FrameRequestCallback[] = [];
   vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => pending.push(callback));
@@ -46,39 +44,41 @@ function stubFrames() {
 
 describe('ThemeService', () => {
   beforeEach(() => {
-    // A dark page shell, with the two backgrounds the stylesheet gives --g-bg.
     document.documentElement.className = DARK_CLASS;
     document.head.innerHTML = `
-      <meta name="color-scheme" content="dark"><meta name="theme-color" content="#0b0d12">
-      <style>:root { --g-bg: #f4f5f9; } :root.${DARK_CLASS} { --g-bg: #0b0d12; }</style>`;
+      <meta name="color-scheme" content="dark"><meta name="theme-color" content="${themeBackground(true)}">
+      <style>:root { --g-bg: ${themeBackground(false)}; } :root.${DARK_CLASS} { --g-bg: ${themeBackground(true)}; }</style>`;
   });
 
-  afterEach(() => {
-    vi.unstubAllGlobals();
-    localStorage.clear();
-    document.head.innerHTML = '';
-    document.documentElement.className = '';
+  afterEach(resetPage);
+
+  it.each(THEME_RESOLUTIONS)('resolves $saved saved on a $device device to dark: $dark', async ({ saved, device, dark }) => {
+    if (saved !== 'none') await Preferences.set({ key: THEME_KEY, value: saved });
+    const { theme } = setUp({ deviceDark: device === 'dark' });
+    await theme.init();
+    expect(theme.dark()).toBe(dark);
+    expect(pageLook()).toEqual(dark ? LOOKS.dark : LOOKS.light);
   });
 
   it('follows the device by default, and keeps following it as it changes', async () => {
     const { device, theme } = setUp({ deviceDark: false });
     await theme.init();
     expect(theme.preference()).toBe('system');
-    expect(page()).toEqual({ dark: false, scheme: 'light', themeColor: '#f4f5f9' });
+    expect(pageLook()).toEqual(LOOKS.light);
 
     device.switchTo(true);
     expect(theme.dark()).toBe(true);
-    expect(page()).toEqual({ dark: true, scheme: 'dark', themeColor: '#0b0d12' });
+    expect(pageLook()).toEqual(LOOKS.dark);
   });
 
   it('lets Light and Dark override the device, and remembers them on this device', async () => {
     const { device, theme } = setUp({ deviceDark: true });
     await theme.init();
     await theme.setPreference('light');
-    expect(page()).toEqual({ dark: false, scheme: 'light', themeColor: '#f4f5f9' });
+    expect(pageLook()).toEqual(LOOKS.light);
     device.switchTo(false);
     device.switchTo(true);
-    expect(page().dark).toBe(false);
+    expect(pageLook().dark).toBe(false);
 
     TestBed.resetTestingModule();
     const reloaded = setUp({ deviceDark: true }).theme;
@@ -91,27 +91,31 @@ describe('ThemeService', () => {
     const again = setUp({ deviceDark: false }).theme;
     await again.init();
     expect(again.preference()).toBe('dark');
-    expect(page()).toEqual({ dark: true, scheme: 'dark', themeColor: '#0b0d12' });
+    expect(pageLook()).toEqual(LOOKS.dark);
   });
 
   it('forgets the stored choice when set back to System', async () => {
     const { theme } = setUp({ deviceDark: false });
     await theme.setPreference('dark');
     expect((await Preferences.get({ key: THEME_KEY })).value).toBe('dark');
+    expect(localStorage.getItem(FIRST_PAINT_KEY)).toBe('dark');
 
     await theme.setPreference('system');
     expect((await Preferences.get({ key: THEME_KEY })).value).toBeNull();
-    expect(page().dark).toBe(false);
+    expect(localStorage.getItem(FIRST_PAINT_KEY)).toBeNull();
+    expect(pageLook().dark).toBe(false);
   });
 
-  it('holds colour transitions off for two frames when the theme switches, but not when the app starts', async () => {
+  it('holds colour transitions off for two frames whenever it applies the theme', async () => {
     const nextFrame = stubFrames();
     const { device, theme } = setUp({ deviceDark: true });
-    await theme.init();
-    expect(document.documentElement.classList.contains(SWITCHING_CLASS)).toBe(false);
-
-    for (const switchTheme of [() => theme.setPreference('light'), () => theme.setPreference('system'), () => device.switchTo(false)]) {
-      await switchTheme();
+    for (const applyTheme of [
+      () => theme.init(),
+      () => theme.setPreference('light'),
+      () => theme.setPreference('system'),
+      () => device.switchTo(false),
+    ]) {
+      await applyTheme();
       expect(document.documentElement.classList.contains(SWITCHING_CLASS)).toBe(true);
       nextFrame();
       expect(document.documentElement.classList.contains(SWITCHING_CLASS)).toBe(true);
@@ -130,7 +134,7 @@ describe('ThemeService', () => {
     expect(device.listeners.size).toBe(0);
     device.switchTo(true);
     expect(theme.dark()).toBe(false);
-    expect(page().dark).toBe(false);
+    expect(pageLook().dark).toBe(false);
   });
 
   describe('on iOS and Android', () => {
@@ -157,10 +161,10 @@ describe('ThemeService', () => {
       await Preferences.set({ key: THEME_KEY, value: 'light' });
       expect(localStorage.getItem(FIRST_PAINT_KEY)).toBeNull();
 
-      const { theme } = setUp({ deviceDark: true, native: true, bars: { setStyle: async () => undefined } });
+      const { theme } = setUp({ deviceDark: true, native: true });
       await theme.init();
       expect(localStorage.getItem(FIRST_PAINT_KEY)).toBe('light');
-      expect(page().dark).toBe(false);
+      expect(pageLook().dark).toBe(false);
     });
   });
 });

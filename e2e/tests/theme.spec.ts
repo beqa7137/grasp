@@ -6,7 +6,6 @@ const LOOKS = {
   dark: { dark: true, scheme: 'dark', themeColor: '#0b0d12', accent: '#9d8cff', background: 'rgb(11, 13, 18)' },
 };
 
-/** What decides the theme on the page: the palette class, the two metas, a token and the painted background. */
 function look(page: Page) {
   return page.evaluate(() => ({
     dark: document.documentElement.classList.contains('ion-palette-dark'),

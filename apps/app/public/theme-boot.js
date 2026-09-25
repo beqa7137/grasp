@@ -8,8 +8,6 @@
   } catch {}
   const dark = saved === 'dark' || (saved !== 'light' && (!window.matchMedia || window.matchMedia('(prefers-color-scheme: dark)').matches));
   document.documentElement.classList.toggle('ion-palette-dark', dark);
-  const scheme = document.querySelector('meta[name="color-scheme"]');
-  if (scheme) scheme.setAttribute('content', dark ? 'dark' : 'light');
-  const color = document.querySelector('meta[name="theme-color"]');
-  if (color) color.setAttribute('content', dark ? '#0b0d12' : '#f4f5f9');
+  document.querySelector('meta[name="color-scheme"]')?.setAttribute('content', dark ? 'dark' : 'light');
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#0b0d12' : '#f4f5f9');
 })();

@@ -6,7 +6,7 @@ import { ProgressService } from '../../core/progress.service';
 import { RovingSelectDirective } from '../../core/roving-select.directive';
 import { ReminderService } from '../../reminders/reminder.service';
 
-interface Choice<T> {
+export interface Choice<T> {
   value: T;
   label: string;
 }

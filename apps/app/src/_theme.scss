@@ -1,18 +1,24 @@
-// Colour tokens for both themes. Light is the base and dark the override, keyed on the class Ionic's class palette reads
-// too, so Ionic and these tokens always agree. index.html ships that class, so without JavaScript the app is dark.
-// index.html repeats the dark --g-bg and public/theme-boot.js both, for the theme-color meta (theme-boot.spec.ts keeps
-// them in step), and theme-tokens.spec.ts checks every -rgb channel triple against its hex colour.
+// Light is the base; dark overrides it on .ion-palette-dark, the class Ionic's class palette also keys on, so Ionic
+// and these tokens always agree. index.html ships that class, so without JavaScript the app is dark.
+// Tints use rgba() on the -rgb channels, not color-mix(), which iOS 15 lacks.
+
+@use 'sass:color';
+
+@mixin rgb-token($name, $hex) {
+  --g-#{$name}: #{$hex};
+  --g-#{$name}-rgb: #{color.channel($hex, 'red')}, #{color.channel($hex, 'green')}, #{color.channel($hex, 'blue')};
+}
+
 :root {
   color-scheme: light;
 
-  --g-bg: #f4f5f9;
-  --g-bg-rgb: 244, 245, 249;
+  @include rgb-token(bg, #f4f5f9);
   --g-surface: #ffffff;
   --g-raised: #f0f2f6;
   --g-line: #dfe2ea;
   --g-line-strong: #c6cbd6;
-  // Strokes of graphics and the borders of form fields. Fields recessed on --g-bg, such as the player's input editor,
-  // take --g-field-line instead, which dark keeps quieter because the darker well already sets them apart.
+  // Borders of form fields. Fields recessed on --g-bg take --g-field-line, which keeps dark at its old value; the dark
+  // contrast fix will merge it into --g-stroke.
   --g-stroke: #707889;
   --g-field-line: var(--g-stroke);
   --g-tab-bar: rgba(255, 255, 255, 0.92);
@@ -21,31 +27,25 @@
   --g-shadow: 0 1px 2px rgba(var(--g-text-rgb), 0.06), 0 3px 10px rgba(var(--g-text-rgb), 0.07);
   --g-shadow-overlay: 0 2px 6px rgba(var(--g-text-rgb), 0.08), 0 12px 32px rgba(var(--g-text-rgb), 0.16);
 
-  --g-text: #161a23;
-  --g-text-rgb: 22, 26, 35;
+  @include rgb-token(text, #161a23);
   --g-muted: #4a5263;
   --g-faint: #5c6477;
   --g-on-fill: #ffffff;
-  --g-on-fill-rgb: 255, 255, 255;
   --g-knob: var(--g-on-fill);
   --g-predict-ink: #3d5000;
   --g-warn-ink: #6e4200;
   --g-danger-ink: #9d1630;
 
-  --g-accent: #5846dc;
-  --g-accent-rgb: 88, 70, 220;
-  --g-active: #0268a0;
-  --g-active-rgb: 2, 104, 160;
-  --g-found: #036b4c;
-  --g-found-rgb: 3, 107, 76;
-  --g-danger: #c3203d;
-  --g-danger-rgb: 195, 32, 61;
-  --g-warn: #945800;
-  --g-warn-rgb: 148, 88, 0;
-  --g-pointer: #945800;
+  @include rgb-token(accent, #5846dc);
+  --g-accent-soft: rgba(var(--g-accent-rgb), 0.14);
+  --g-window: rgba(var(--g-accent-rgb), 0.16);
+  @include rgb-token(active, #0268a0);
+  @include rgb-token(found, #036b4c);
+  @include rgb-token(danger, #c3203d);
+  @include rgb-token(warn, #945800);
+  --g-pointer: var(--g-warn);
   --g-pointer-alt: #9a2a08;
-  --g-predict: #536d00;
-  --g-predict-rgb: 83, 109, 0;
+  @include rgb-token(predict, #536d00);
 
   --g-wall: #5d6577;
   --g-wall-hatch: rgba(255, 255, 255, 0.12);
@@ -67,19 +67,12 @@
   --g-code-selection: rgba(var(--g-accent-rgb), 0.16);
   --g-code-trace-line: rgba(var(--g-active-rgb), 0.12);
   --g-code-error-line: rgba(var(--g-danger-rgb), 0.1);
-
-  // Ionic's formula: shade is 0.88 of the colour, tint is 10% toward white.
-  --ion-color-primary-shade: #4d3ec2;
-  --ion-color-primary-tint: #6959e0;
-  --ion-color-success-shade: #035e43;
-  --ion-color-success-tint: #1c7a5e;
 }
 
 :root.ion-palette-dark {
   color-scheme: dark;
 
-  --g-bg: #0b0d12;
-  --g-bg-rgb: 11, 13, 18;
+  @include rgb-token(bg, #0b0d12);
   --g-surface: #12151d;
   --g-raised: #181c26;
   --g-line: #252a37;
@@ -91,31 +84,22 @@
   --g-shadow: none;
   --g-shadow-overlay: none;
 
-  --g-text: #e9ebf2;
-  --g-text-rgb: 233, 235, 242;
+  @include rgb-token(text, #e9ebf2);
   --g-muted: #8b93a8;
   --g-faint: #7c8498;
   --g-on-fill: #0b0d12;
-  --g-on-fill-rgb: 11, 13, 18;
   --g-knob: var(--g-text);
   --g-predict-ink: #e8f5a8;
   --g-warn-ink: #f3e6b3;
   --g-danger-ink: #ffb3bd;
 
-  --g-accent: #9d8cff;
-  --g-accent-rgb: 157, 140, 255;
-  --g-active: #4cc9f0;
-  --g-active-rgb: 76, 201, 240;
-  --g-found: #3ddc97;
-  --g-found-rgb: 61, 220, 151;
-  --g-danger: #ff5d73;
-  --g-danger-rgb: 255, 93, 115;
-  --g-warn: #ffb547;
-  --g-warn-rgb: 255, 181, 71;
-  --g-pointer: #ffb547;
+  @include rgb-token(accent, #9d8cff);
+  @include rgb-token(active, #4cc9f0);
+  @include rgb-token(found, #3ddc97);
+  @include rgb-token(danger, #ff5d73);
+  @include rgb-token(warn, #ffb547);
   --g-pointer-alt: #ff8a5c;
-  --g-predict: #d4f53c;
-  --g-predict-rgb: 212, 245, 60;
+  @include rgb-token(predict, #d4f53c);
 
   --g-wall: #2a2f3d;
   --g-wall-hatch: rgba(255, 255, 255, 0.04);
@@ -136,14 +120,4 @@
   --g-code-selection: rgba(var(--g-accent-rgb), 0.28);
   --g-code-trace-line: rgba(var(--g-active-rgb), 0.16);
   --g-code-error-line: rgba(var(--g-danger-rgb), 0.14);
-
-  --ion-color-primary-shade: #8a7be0;
-  --ion-color-primary-tint: #a797ff;
-  --ion-color-success-shade: #36c285;
-  --ion-color-success-tint: #50e0a1;
-}
-
-:root {
-  --g-accent-soft: rgba(var(--g-accent-rgb), 0.14);
-  --g-window: rgba(var(--g-accent-rgb), 0.16);
 }

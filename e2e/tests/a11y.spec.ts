@@ -20,9 +20,10 @@ async function animationsDone(page: Page) {
 }
 
 /** Serious and critical violations, one line per rule with the elements that break it. */
-async function blockingViolations(page: Page): Promise<string[]> {
+async function blockingViolations(page: Page, { contrastOnly = false } = {}): Promise<string[]> {
   await animationsDone(page);
-  const { violations } = await new AxeBuilder({ page }).withTags(TAGS).analyze();
+  const axe = new AxeBuilder({ page });
+  const { violations } = await (contrastOnly ? axe.withRules(['color-contrast']) : axe.withTags(TAGS)).analyze();
   return violations
     .filter((v) => BLOCKING.has(v.impact ?? ''))
     .map((v) => `${v.id} (${v.impact}): ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`);
@@ -71,12 +72,14 @@ const PAGES: { name: string; path: string; ready: (page: Page) => Promise<unknow
 for (const theme of ['dark', 'light'] as const) {
   test.describe(`in the ${theme} theme`, () => {
     test.use({ theme });
+    // Only colour contrast depends on the theme; the dark pass covers every other rule.
+    const contrastOnly = theme === 'light';
 
     for (const { name, path, ready } of PAGES) {
       test(`${name} has no serious or critical accessibility violations`, async ({ page }) => {
         await page.goto(path);
         await ready(page);
-        expect(await blockingViolations(page)).toEqual([]);
+        expect(await blockingViolations(page, { contrastOnly })).toEqual([]);
       });
     }
 
@@ -86,7 +89,7 @@ for (const theme of ['dark', 'light'] as const) {
       test('the pilot welcome has no serious or critical accessibility violations', async ({ page }) => {
         await page.goto('/learn');
         await expect(page.getByRole('dialog', { name: 'Welcome to the Grasp pilot' })).toBeVisible();
-        expect(await blockingViolations(page)).toEqual([]);
+        expect(await blockingViolations(page, { contrastOnly })).toEqual([]);
       });
     });
   });

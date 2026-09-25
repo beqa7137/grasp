@@ -137,7 +137,7 @@ describe('Serving the web app', () => {
     const hashed = await request(app.getHttpServer()).get('/main-ABCD1234.js').expect(200);
     expect(hashed.headers['cache-control']).toBe('public, max-age=31536000, immutable');
     const themeBoot = await request(app.getHttpServer()).get('/theme-boot.js').expect(200);
-    expect(themeBoot.headers['cache-control']).toBe('public, max-age=86400');
+    expect(themeBoot.headers['cache-control']).toBe('public, max-age=86400, stale-while-revalidate=604800');
     const plain = await request(app.getHttpServer()).get('/manifest.webmanifest').expect(200);
     expect(plain.headers['cache-control']).toBe('no-cache');
     await request(app.getHttpServer()).get('/missing-ABCD1234.js').expect(404);
