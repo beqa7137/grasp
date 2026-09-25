@@ -11,7 +11,6 @@ export interface RunnerError {
   location?: SourceLocation;
 }
 
-/** Both requests carry the parameter types, so the worker can build a tree argument's nodes. */
 export type WorkerRequest =
   | { kind: 'run'; language: Language; code: string; entry: string; params: ParamType[]; tests: unknown[][] }
   | {

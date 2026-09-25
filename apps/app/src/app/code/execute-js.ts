@@ -119,7 +119,7 @@ export function compileJs(code: string, language: Exclude<Language, 'python'>, e
 
 export function runJsTest(fn: (...args: unknown[]) => unknown, params: readonly ParamType[], args: unknown[], sink: LogSink): TestOutcome {
   sink.lines.length = 0;
-  const input = entryArgs(params, structuredClone(args));
+  const input = entryArgs(params, args);
   const started = performance.now();
   try {
     const output = plain(fn(...input));
@@ -166,7 +166,7 @@ export function traceJs(
   const js = toJavaScript(code, language);
   const fn = load(instrument(js), entry, sink, { [TRACE_HOOK]: hook });
   try {
-    const returned = fn(...entryArgs(params, structuredClone(args)));
+    const returned = fn(...entryArgs(params, args));
     return { steps, returned: snapshot(returned, ids), truncated: false, logs: sink.lines };
   } catch (e) {
     if (e === TRACE_LIMIT) return { steps, truncated: true, logs: sink.lines };

@@ -1,4 +1,3 @@
-/** A binary tree node, as learner code and reference solutions receive a `tree` parameter. */
 export class TreeNode {
   val: number;
   left: TreeNode | null;

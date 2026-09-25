@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { CODING_PROBLEMS, PATTERNS } from '@grasp/engine';
+import { CODING_CATALOG, PATTERNS } from '@grasp/engine';
 import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { checkmarkCircle, ellipseOutline, timeOutline } from 'ionicons/icons';
@@ -104,7 +104,7 @@ const patternName = new Map(PATTERNS.map((p) => [p.id, p.name]));
 })
 export class CodeListPage {
   readonly progress = inject(ProgressService);
-  readonly problems = CODING_PROBLEMS;
+  readonly problems = CODING_CATALOG;
   readonly solvedCount = computed(() => Object.values(this.progress.state().coding).filter((c) => c.solvedAt).length);
 
   constructor() {

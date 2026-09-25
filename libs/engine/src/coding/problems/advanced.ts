@@ -1,13 +1,8 @@
-import { randInt, rangeOf, shuffle } from '../../algorithms/input.js';
-import type { CodingProblem } from '../types.js';
+import { distinctInts, randInt, rangeOf, shuffle } from '../../algorithms/input.js';
+import type { CodingProblemDefinition } from '../types.js';
 import { ints, nearMiddle } from './inputs.js';
 
-export const houseRobber: CodingProblem = {
-  id: 'house-robber',
-  title: 'House Robber',
-  difficulty: 'medium',
-  patternIds: ['dp-1d'],
-  algorithmId: 'house-robber',
+export const houseRobber: CodingProblemDefinition = {
   statement: ['Each house on a street holds some money. You cannot take from two adjacent houses. Return the most money you can take.'],
   constraints: ['1 ≤ nums.length ≤ 10^5', '0 ≤ nums[i] ≤ 400'],
   entry: 'rob',
@@ -28,14 +23,9 @@ export const houseRobber: CodingProblem = {
   complexity: { time: 'O(n)', space: 'O(1)' },
 };
 
-export const longestCommonSubsequence: CodingProblem = {
-  id: 'longest-common-subsequence',
-  title: 'Longest Common Subsequence',
-  difficulty: 'medium',
-  patternIds: ['dp-2d'],
-  algorithmId: 'lcs',
+export const longestCommonSubsequence: CodingProblemDefinition = {
   statement: [
-    'Return the length of the longest sequence of characters that appears, in order but not necessarily contiguously, in both text1 and text2.',
+    'Return the length of the longest sequence of characters that appears, in order but not necessarily contiguously, in both `text1` and `text2`.',
   ],
   constraints: ['1 ≤ text1.length, text2.length ≤ 1500', 'lowercase letters'],
   entry: 'longestCommonSubsequence',
@@ -69,16 +59,11 @@ export const longestCommonSubsequence: CodingProblem = {
     return prev[b.length];
   },
   approach:
-    'dp[i][j] is the answer for the prefixes a[:i] and b[:j]: diagonal + 1 on a match, otherwise the better of dropping one letter.',
+    '`dp[i][j]` is the answer for the prefixes `text1[:i]` and `text2[:j]`: diagonal + 1 on a match, otherwise the better of dropping one letter.',
   complexity: { time: 'O(m·n)', space: 'O(n) with one rolling row' },
 };
 
-export const countPrefixes: CodingProblem = {
-  id: 'count-prefixes',
-  title: 'Count Words by Prefix',
-  difficulty: 'medium',
-  patternIds: ['trie'],
-  algorithmId: 'trie',
+export const countPrefixes: CodingProblemDefinition = {
   statement: ['Given a dictionary of words and a list of prefixes, return for each prefix how many words start with it.'],
   constraints: ['1 ≤ words.length, prefixes.length ≤ 3·10^4', '1 ≤ word length ≤ 10', 'lowercase letters'],
   entry: 'countPrefixes',
@@ -128,12 +113,7 @@ export const countPrefixes: CodingProblem = {
   complexity: { time: 'O(total letters)', space: 'O(total letters)' },
 };
 
-export const singleNumber: CodingProblem = {
-  id: 'single-number',
-  title: 'Single Number',
-  difficulty: 'easy',
-  patternIds: ['bit-manipulation'],
-  algorithmId: 'single-number-xor',
+export const singleNumber: CodingProblemDefinition = {
   statement: [
     'Every value in `nums` appears exactly twice, except for one value that appears once. Return that value.',
     'Aim for O(n) time and O(1) extra space.',
@@ -154,9 +134,7 @@ export const singleNumber: CodingProblem = {
     return [shuffle(rand, [single, ...paired, ...paired])];
   },
   performanceCase: (rand) => {
-    const values = new Set<number>();
-    while (values.size < 100_001) values.add(randInt(rand, -1_000_000_000, 1_000_000_000));
-    const [single, ...paired] = values;
+    const [single, ...paired] = distinctInts(rand, 100_001, -1_000_000_000, 1_000_000_000);
     const nums = shuffle(rand, [...paired, ...paired]);
     nums.splice(nearMiddle(rand, nums.length), 0, single);
     return [nums];
@@ -170,11 +148,7 @@ export const singleNumber: CodingProblem = {
   complexity: { time: 'O(n)', space: 'O(1)' },
 };
 
-export const totalHammingDistance: CodingProblem = {
-  id: 'total-hamming-distance',
-  title: 'Total Hamming Distance',
-  difficulty: 'medium',
-  patternIds: ['bit-manipulation'],
+export const totalHammingDistance: CodingProblemDefinition = {
   statement: [
     'The Hamming distance between two integers is the number of bit positions where their binary forms differ.',
     'Return the sum of the Hamming distances over every pair of values in `nums`.',

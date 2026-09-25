@@ -1,6 +1,6 @@
 import { randInt, shuffle } from '../../algorithms/input.js';
 import type { TreeNode } from '../tree.js';
-import type { CodingProblem } from '../types.js';
+import type { CodingProblemDefinition } from '../types.js';
 import { randomTree } from './inputs.js';
 
 function randomEdges(rand: () => number, n: number, count: number, directed: boolean): number[][] {
@@ -40,14 +40,9 @@ function islandGrid(rand: () => number, rows: number, cols: number, density: num
   return Array.from({ length: rows }, () => Array.from({ length: cols }, () => (rand() < density ? '1' : '0')));
 }
 
-export const numberOfIslands: CodingProblem = {
-  id: 'number-of-islands',
-  title: 'Number of Islands',
-  difficulty: 'medium',
-  patternIds: ['bfs', 'dfs-backtracking'],
-  algorithmId: 'grid-bfs',
+export const numberOfIslands: CodingProblemDefinition = {
   statement: [
-    "grid is a map of '1' (land) and '0' (water). An island is land connected horizontally or vertically. Return the number of islands.",
+    "`grid` is a map of `'1'` (land) and `'0'` (water). An island is land connected horizontally or vertically. Return the number of islands.",
   ],
   constraints: ['1 ≤ rows, cols ≤ 300', "grid[r][c] is '0' or '1'"],
   entry: 'numIslands',
@@ -104,13 +99,10 @@ export const numberOfIslands: CodingProblem = {
   complexity: { time: 'O(rows × cols)', space: 'O(rows × cols)' },
 };
 
-export const countComponents: CodingProblem = {
-  id: 'count-components',
-  title: 'Number of Connected Components',
-  difficulty: 'medium',
-  patternIds: ['union-find', 'dfs-backtracking'],
-  algorithmId: 'union-find',
-  statement: ['There are n nodes labelled 0 to n - 1 and a list of undirected edges. Return how many connected components the graph has.'],
+export const countComponents: CodingProblemDefinition = {
+  statement: [
+    'There are `n` nodes labelled 0 to `n - 1` and a list of undirected edges. Return how many connected components the graph has.',
+  ],
   constraints: ['1 ≤ n ≤ 10^5', '0 ≤ edges.length ≤ 10^5', 'no self-loops or repeated edges'],
   entry: 'countComponents',
   params: [
@@ -176,19 +168,14 @@ export const countComponents: CodingProblem = {
     }
     return components;
   },
-  approach: 'Union-find: start with n components and subtract one each time an edge joins two different roots (or count DFS starts).',
+  approach: 'Union-find: start with `n` components and subtract one each time an edge joins two different roots (or count DFS starts).',
   complexity: { time: 'O(n + E·α(n))', space: 'O(n)' },
 };
 
-export const courseSchedule: CodingProblem = {
-  id: 'course-schedule',
-  title: 'Course Schedule',
-  difficulty: 'medium',
-  patternIds: ['topo-sort'],
-  algorithmId: 'topo-sort',
+export const courseSchedule: CodingProblemDefinition = {
   statement: [
-    'You must take numCourses courses labelled 0 to numCourses - 1. Each pair [a, b] in prerequisites means you must take b before a.',
-    'Return true if you can finish every course, or false if the prerequisites are circular.',
+    'You must take `numCourses` courses labelled 0 to `numCourses - 1`. Each pair `[a, b]` in `prerequisites` means you must take `b` before `a`.',
+    'Return `true` if you can finish every course, or `false` if the prerequisites are circular.',
   ],
   constraints: ['1 ≤ numCourses ≤ 10^5', '0 ≤ prerequisites.length ≤ 2·10^5', 'pairs are distinct'],
   entry: 'canFinish',
@@ -255,15 +242,10 @@ export const courseSchedule: CodingProblem = {
   complexity: { time: 'O(V + E)', space: 'O(V + E)' },
 };
 
-export const networkDelay: CodingProblem = {
-  id: 'network-delay',
-  title: 'Network Delay Time',
-  difficulty: 'medium',
-  patternIds: ['dijkstra'],
-  algorithmId: 'dijkstra',
+export const networkDelay: CodingProblemDefinition = {
   statement: [
-    'times[i] = [u, v, w] is a directed link from node u to node v that takes w milliseconds. Nodes are labelled 1 to n.',
-    'A signal is sent from node k. Return how long it takes for every node to receive it, or -1 if some node never does.',
+    '`times[i] = [u, v, w]` is a directed link from node `u` to node `v` that takes `w` milliseconds. Nodes are labelled 1 to `n`.',
+    'A signal is sent from node `k`. Return how long it takes for every node to receive it, or -1 if some node never does.',
   ],
   constraints: ['1 ≤ n ≤ 10^4', '1 ≤ times.length ≤ 5·10^4', '0 ≤ w ≤ 100'],
   entry: 'networkDelayTime',
@@ -352,16 +334,11 @@ export const networkDelay: CodingProblem = {
     const worst = Math.max(...dist.slice(1));
     return worst === Infinity ? -1 : worst;
   },
-  approach: 'Dijkstra from k with a min-heap; the answer is the largest shortest distance, or -1 if any node stays unreachable.',
+  approach: 'Dijkstra from `k` with a min-heap; the answer is the largest shortest distance, or -1 if any node stays unreachable.',
   complexity: { time: 'O(E log V)', space: 'O(V + E)' },
 };
 
-export const treeDiameter: CodingProblem = {
-  id: 'tree-diameter',
-  title: 'Diameter of Binary Tree',
-  difficulty: 'easy',
-  patternIds: ['tree-dfs'],
-  algorithmId: 'tree-traversal',
+export const treeDiameter: CodingProblemDefinition = {
   statement: [
     'Given the `root` of a binary tree, return its diameter: the number of edges on the longest path between any two nodes.',
     'That path may or may not pass through the root.',
@@ -396,11 +373,7 @@ export const treeDiameter: CodingProblem = {
   complexity: { time: 'O(n)', space: 'O(h) for a tree of height h' },
 };
 
-export const houseRobberTree: CodingProblem = {
-  id: 'house-robber-tree',
-  title: 'House Robber on a Tree',
-  difficulty: 'medium',
-  patternIds: ['tree-dfs'],
+export const houseRobberTree: CodingProblemDefinition = {
   statement: [
     'The houses in a neighborhood form a binary tree: each node is a house, and its `val` is the money inside.',
     'Robbing a house and its parent on the same night sets off the alarm. Return the most money you can take.',

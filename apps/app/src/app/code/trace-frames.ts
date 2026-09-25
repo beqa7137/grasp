@@ -1,6 +1,6 @@
 import type { ArrayView, CellState, Frame, GridView, Scalar, StackView } from '@grasp/engine';
-import { describeSnap, type Snap, type TraceStep } from './snapshot';
-import { isTree, traceTrees } from './tree-frames';
+import { describeSnap, isTree, type Snap, type TraceStep } from './snapshot';
+import { traceTrees } from './tree-frames';
 
 const INDEX_NAME = /^(i|j|l|r|lo|hi|left|right|mid|start|end|slow|fast|p|q|idx|index|pos|top)$|(idx|index|ptr|pointer|Idx|Index|Ptr)$/;
 const WINDOWS: [string, string][] = [
@@ -95,14 +95,13 @@ function changes(prev: TraceStep | undefined, step: TraceStep): string {
 /** Turns raw trace steps into the frames the visualizer components already know how to draw. */
 export function toFrames(steps: TraceStep[], options: FrameOptions = {}): Frame[] {
   const trees = traceTrees(steps, options.primary);
-  const treeInput = trees.some(Boolean);
   const frames = steps.map((step, i): Frame => {
     const frame: Frame = { line: step.line, vars: {}, note: changes(steps[i - 1], step) };
-    const primary = treeInput ? undefined : primaryName(step, options.primary);
+    const primary = trees ? undefined : primaryName(step, options.primary);
     const grid = Object.keys(step.vars).find((k) => isGrid(step.vars[k]));
     if (primary) frame.array = arrayView(step, primary);
     if (grid) frame.grid = gridView(step, grid);
-    if (trees[i]) frame.tree = trees[i];
+    if (trees) frame.tree = trees[i];
 
     const extras = Object.entries(step.vars).filter(
       ([k, v]) => k !== primary && k !== grid && !isScalar(v) && !isTree(v) && (typeof v !== 'object' || v?.kind !== 'undefined'),

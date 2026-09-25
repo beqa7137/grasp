@@ -1,5 +1,5 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { TIME_LIMIT_MS, outputsMatch, paramTypes, type CodingProblem, type Language, type ParamType, type TestCase } from '@grasp/engine';
+import { TIME_LIMIT_MS, outputsMatch, paramTypes, type CodingProblem, type Language, type TestCase } from '@grasp/engine';
 import { RuntimeConfigService } from '../core/runtime-config.service';
 import type { TraceOutcome } from './execute-js';
 import type { RunnerError, WorkerMessage, WorkerRequest } from './protocol';
@@ -147,7 +147,7 @@ export class RunnerService {
     });
   }
 
-  trace(language: Exclude<Language, 'python'>, code: string, entry: string, params: ParamType[], args: unknown[]): Promise<TraceReport> {
+  trace(problem: CodingProblem, language: Exclude<Language, 'python'>, code: string, entry: string, args: unknown[]): Promise<TraceReport> {
     this.cancel();
     const worker = this.spawn();
     this.active = worker;
@@ -171,7 +171,7 @@ export class RunnerService {
         language,
         code: normalize(code),
         entry,
-        params,
+        params: paramTypes(problem),
         args,
         maxSteps: MAX_TRACE_STEPS,
       } satisfies WorkerRequest);

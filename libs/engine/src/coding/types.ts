@@ -1,4 +1,4 @@
-import type { Difficulty } from '../algorithms/types.js';
+import type { CodingProblemSummary } from './catalog.js';
 
 export type Language = 'javascript' | 'typescript' | 'python';
 export const LANGUAGES: Language[] = ['python', 'javascript', 'typescript'];
@@ -27,19 +27,12 @@ export interface TestCase {
   kind: 'example' | 'edge' | 'random' | 'performance';
 }
 
-export interface CodingProblem {
-  id: string;
-  title: string;
-  difficulty: Difficulty;
-  patternIds: string[];
-  /** Visualizer showing the canonical solution, when one exists. */
-  algorithmId?: string;
+export interface CodingProblemDefinition {
   statement: string[];
   constraints: string[];
   /** Function name in JavaScript/TypeScript; Python uses the snake_case form. */
   entry: string;
   params: Param[];
-  /** Trees are inputs only: every output travels as JSON and is compared by value. */
   returns: Exclude<ParamType, 'tree'>;
   compare: CompareMode;
   examples: Example[];
@@ -53,3 +46,5 @@ export interface CodingProblem {
   approach: string;
   complexity: { time: string; space: string };
 }
+
+export type CodingProblem = CodingProblemSummary & CodingProblemDefinition;

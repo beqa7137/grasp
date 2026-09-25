@@ -8,7 +8,7 @@ import {
   entryName,
   exampleCases,
   getCodingProblem,
-  paramTypes,
+  inputSize,
   preview,
   starterCode,
   type Frame,
@@ -78,11 +78,11 @@ export class WorkspacePage {
 
   readonly id = input.required<string>();
   readonly problem = computed(() => getCodingProblem(this.id()));
-  /** Each example's tree arguments drawn, since a level-order list is hard to picture. */
   readonly exampleTrees = computed(() => {
     const problem = this.problem();
-    return (problem?.examples ?? []).map((ex) =>
-      problem!.params.flatMap((param, i) => {
+    if (!problem) return [];
+    return problem.examples.map((ex) =>
+      problem.params.flatMap((param, i) => {
         const tree = param.type === 'tree' ? exampleTree(ex.args[i] as LevelOrder) : null;
         return tree ? [tree] : [];
       }),
@@ -209,7 +209,7 @@ export class WorkspacePage {
     this.running.set('trace');
     this.clearTrace();
     const args = problem.examples[this.traceExample()]?.args ?? problem.examples[0].args;
-    const result = await this.runner.trace(language, this.code(), entryName(problem, language), paramTypes(problem), args);
+    const result = await this.runner.trace(problem, language, this.code(), entryName(problem, language), args);
     this.running.set(null);
     if (!result.ok) {
       this.traceError.set(result.error);
@@ -232,22 +232,11 @@ export class WorkspacePage {
   }
 
   describeArgs(test: TestReport | TestCase): string[] {
-    const problem = this.problem()!;
-    return problem.params.map((p, i) => {
+    return this.problem()!.params.map((p, i) => {
       const value = test.args[i];
-      if (test.kind === 'performance') {
-        const size =
-          p.type === 'tree'
-            ? (value as LevelOrder).filter((v) => v !== null).length
-            : Array.isArray(value)
-              ? value.length
-              : typeof value === 'string'
-                ? value.length
-                : null;
-        const unit = p.type === 'tree' ? 'nodes' : 'items';
-        return size !== null ? `${p.name}: large input, ${size.toLocaleString()} ${unit}` : `${p.name} = ${preview(value)}`;
-      }
-      return `${p.name} = ${preview(value, 400)}`;
+      if (test.kind !== 'performance') return `${p.name} = ${preview(value, 400)}`;
+      const size = inputSize(p.type, value);
+      return size ? `${p.name}: large input, ${size}` : `${p.name} = ${preview(value)}`;
     });
   }
 

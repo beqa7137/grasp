@@ -1,4 +1,4 @@
-import { getCodingProblem } from '../coding/problems/index.js';
+import { getProblemSummary } from '../coding/catalog.js';
 import { PATTERNS } from '../curriculum/patterns.js';
 import { SD_TOPICS, getSdTopic } from '../curriculum/sd-topics.js';
 import { getReviewItem, itemsForTopic } from '../review/catalog.js';
@@ -184,7 +184,7 @@ export function applyEvent(state: ProgressState, stored: StoredEvent): ProgressS
       break;
     }
     case 'code.submitted': {
-      const problem = getCodingProblem(event.problemId);
+      const problem = getProblemSummary(event.problemId);
       if (!problem) break;
       const prev = state.coding[event.problemId];
       const solved = event.total > 0 && event.passed === event.total;

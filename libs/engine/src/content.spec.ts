@@ -16,12 +16,17 @@ const BANNED: [name: string, char: string][] = [
   ['an em dash', '\u2014'],
   ['a non-breaking space', '\u00a0'],
 ];
-/** A comparison or assignment between operands, a property access or an index: the code a pattern's prose names. */
+/** A comparison or assignment between operands, a property access or an index: the code a pattern's or a problem's prose names. */
 const CODE_OUTSIDE_SPANS = /\w\s*(?:[=!<>]=?=?|>>>?)\s*\w|\w\.\w|\w\[\w*\]/;
 const RANDOM_TRACES = 20;
 const REVIEW_SEEDS = Array.from({ length: 20 }, (_, i) => i * 7_919 + 3);
 
 type Entry = [name: string, value: unknown];
+
+const codeOutsideSpans = (text: string) =>
+  codeSpans(text)
+    .filter((part) => !part.code && CODE_OUTSIDE_SPANS.test(part.text))
+    .map((part) => `code outside a code span: ${part.text}`);
 
 const byId = (kind: string, items: { id: string }[]) => items.map((item): Entry => [`${kind} ${item.id}`, item]);
 const byKey = (kind: string, record: Record<string, unknown>) =>
@@ -70,18 +75,21 @@ describe('learner-facing content', () => {
   it('marks the code in pattern one-liners, cues and pitfalls as code spans the pattern page can set', () => {
     const problems = PATTERNS.flatMap((pattern) =>
       [pattern.oneLiner, ...pattern.cues, ...pattern.pitfalls]
-        .flatMap((text) => [
-          ...codeSpanProblems(text),
-          ...codeSpans(text)
-            .filter((part) => !part.code && CODE_OUTSIDE_SPANS.test(part.text))
-            .map((part) => `code outside a code span: ${part.text}`),
-        ])
+        .flatMap((text) => [...codeSpanProblems(text), ...codeOutsideSpans(text)])
         .map((problem) => `pattern ${pattern.id} has ${problem}`),
     );
     expect(problems).toEqual([]);
   });
 
-  it('sets the code in coding problem statements, explanations and approaches as code spans that fit the line', () => {
+  // Not example explanations: arithmetic such as `1 + 3 = 4` would match as an assignment.
+  it('marks the code in coding problem statements and approaches as code spans', () => {
+    const problems = CODING_PROBLEMS.flatMap((p) =>
+      [...p.statement, p.approach].flatMap(codeOutsideSpans).map((problem) => `coding problem ${p.id} has ${problem}`),
+    );
+    expect(problems).toEqual([]);
+  });
+
+  it('keeps the code spans in coding problem statements, explanations and approaches balanced and short enough to fit the line', () => {
     const problems = CODING_PROBLEMS.flatMap((p) =>
       [...p.statement, ...p.examples.flatMap((e) => e.explanation ?? []), p.approach]
         .flatMap(codeSpanProblems)

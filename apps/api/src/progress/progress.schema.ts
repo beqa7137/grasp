@@ -1,6 +1,6 @@
 import {
   ALGORITHMS,
-  CODING_PROBLEMS,
+  CODING_CATALOG,
   DIAGNOSTIC_OUTCOMES,
   DRILL_CARDS,
   LANGUAGES,
@@ -16,7 +16,7 @@ const cardIds = new Set(DRILL_CARDS.map((c) => c.id));
 const patternIds = new Set(PATTERNS.map((p) => p.id));
 const algorithmIds = new Set(ALGORITHMS.map((a) => a.id));
 const scenarioIds = new Set(SCENARIOS.map((s) => s.id));
-const problemIds = new Set(CODING_PROBLEMS.map((p) => p.id));
+const problemIds = new Set<string>(CODING_CATALOG.map((p) => p.id));
 
 const base = {
   id: z

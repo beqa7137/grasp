@@ -1,19 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import type { Locator, Page } from '@playwright/test';
-import { expect, recordedEvents, stepToCheckpoint, test } from './fixtures';
-
-const JS_DIAMETER_FOR_A11Y = `function diameterOfBinaryTree(root) {
-  let best = 0;
-  const height = (node) => {
-    if (!node) return 0;
-    const left = height(node.left);
-    const right = height(node.right);
-    best = Math.max(best, left + right);
-    return 1 + Math.max(left, right);
-  };
-  height(root);
-  return best;
-}`;
+import { JS_DIAMETER, expect, recordedEvents, stepToCheckpoint, test, write } from './fixtures';
 
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice'];
 const BLOCKING = new Set(['serious', 'critical']);
@@ -89,9 +76,7 @@ const PAGES: { name: string; path: string; ready: (page: Page) => Promise<unknow
     path: '/code/tree-diameter',
     ready: async (page) => {
       await page.getByRole('radio', { name: 'JavaScript' }).click();
-      await page.getByRole('textbox', { name: 'Diameter of Binary Tree solution' }).click();
-      await page.keyboard.press('ControlOrMeta+a');
-      await page.keyboard.insertText(JS_DIAMETER_FOR_A11Y);
+      await write(page, JS_DIAMETER, 'Diameter of Binary Tree');
       await page.getByRole('button', { name: 'Trace' }).click();
       await expect(page.locator('app-trace-player g-tree-view')).toBeVisible();
     },

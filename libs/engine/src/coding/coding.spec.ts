@@ -1,10 +1,13 @@
 /// <reference types="node" />
 import { describe, expect, it } from 'vitest';
 import { spawnSync } from 'node:child_process';
+import { readFileSync, readdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { PATTERNS } from '../curriculum/patterns.js';
 import { getAlgorithm } from '../algorithms/index.js';
 import { mulberry32, randInt, rangeOf } from '../algorithms/input.js';
-import { CODING_PROBLEMS, getCodingProblem, problemsForPattern } from './problems/index.js';
+import { problemsForPattern } from './catalog.js';
+import { CODING_PROBLEMS, getCodingProblem } from './problems/index.js';
 import { randomTree } from './problems/inputs.js';
 import { PYTHON_REFERENCE } from './python-reference.fixture.js';
 import {
@@ -13,6 +16,7 @@ import {
   entryArgs,
   entryName,
   exampleCases,
+  inputSize,
   outputsMatch,
   paramTypes,
   preview,
@@ -23,7 +27,6 @@ import {
 import { TreeNode, buildTree, levelOrder, type LevelOrder } from './tree.js';
 import { LANGUAGES } from './types.js';
 
-/** Every node of a tree with its parent, in level order. */
 function nodesOf(root: TreeNode | null) {
   const nodes = root ? [root] : [];
   const parent = new Map<TreeNode, TreeNode>();
@@ -249,6 +252,13 @@ const SLOWER: Record<string, (...args: any[]) => number> = {
 const hasPython = spawnSync('python3', ['--version']).status === 0;
 
 describe('coding problems', () => {
+  it('are imported in full only by the coding barrel, so the reducer and first paint read the catalog', () => {
+    const src = fileURLToPath(new URL('..', import.meta.url));
+    const modules = (readdirSync(src, { recursive: true }) as string[]).filter((f) => f.endsWith('.ts') && !f.endsWith('.spec.ts'));
+    const importers = modules.filter((f) => /from '[./]*(?:coding\/)?problems\/index\.js'/.test(readFileSync(src + f, 'utf8')));
+    expect(importers.sort()).toEqual(['coding/index.ts']);
+  });
+
   it('have unique ids, known patterns, visualizers that exist, and a brute-force cross-check', () => {
     expect(new Set(CODING_PROBLEMS.map((p) => p.id)).size).toBe(CODING_PROBLEMS.length);
     const patternIds = new Set(PATTERNS.map((p) => p.id));
@@ -268,7 +278,7 @@ describe('coding problems', () => {
     '%s: the reference agrees with brute force on every small case',
     (_id, problem) => {
       for (const test of buildSuite(problem, { seed: 7, performance: false })) {
-        const brute = BRUTE[problem.id](...entryArgs(paramTypes(problem), structuredClone(test.args)));
+        const brute = BRUTE[problem.id](...entryArgs(paramTypes(problem), test.args));
         expect(outputsMatch(brute, test.expected, problem.compare), `${problem.id} ${preview(test.args)}`).toBe(true);
       }
     },
@@ -296,7 +306,7 @@ describe('coding problems', () => {
   });
 
   it('keeps tree inputs in canonical level order and within the stated 100 levels', () => {
-    for (const problem of CODING_PROBLEMS) {
+    for (const problem of CODING_PROBLEMS.filter((p) => paramTypes(p).includes('tree'))) {
       const types = paramTypes(problem);
       for (const test of buildSuite(problem))
         types.forEach((type, i) => {
@@ -354,14 +364,27 @@ describe('outputsMatch', () => {
 });
 
 describe('entryArgs', () => {
-  it('builds only the tree parameters and leaves the level order it was given alone', () => {
+  it('builds the tree parameters, copies the rest and leaves the arguments it was given alone', () => {
     const args = [[1, null, 2], [3, 4], 5];
     const [root, nums, k] = entryArgs(['tree', 'int[]', 'int'], args);
     expect(root).toBeInstanceOf(TreeNode);
     expect((root as TreeNode).right!.val).toBe(2);
-    expect(nums).toBe(args[1]);
+    expect(nums).toEqual(args[1]);
+    expect(nums).not.toBe(args[1]);
     expect(k).toBe(5);
     expect(args[0]).toEqual([1, null, 2]);
+  });
+});
+
+describe('inputSize', () => {
+  it('counts the nodes of a tree and the items of an array or a string', () => {
+    expect(inputSize('tree', [1, null, 2, 3])).toBe('3 nodes');
+    expect(inputSize('tree', randomTree(mulberry32(1), 100_000, 0, 9))).toBe('100,000 nodes');
+    expect(inputSize('int[]', [7])).toBe('1 item');
+    expect(inputSize('string', 'abcde')).toBe('5 items');
+    expect(inputSize('char[][]', [['1'], ['0']])).toBe('2 items');
+    expect(inputSize('int', 5)).toBeNull();
+    expect(inputSize('bool', true)).toBeNull();
   });
 });
 

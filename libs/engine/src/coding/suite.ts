@@ -7,15 +7,16 @@ export const RANDOM_CASES = 20;
 /** Per-test time limits. Python runs in WebAssembly, several times slower than native CPython. */
 export const TIME_LIMIT_MS: Record<Language, number> = { javascript: 2_000, typescript: 2_000, python: 8_000 };
 
-const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
-
 export function paramTypes(problem: CodingProblem): ParamType[] {
   return problem.params.map((p) => p.type);
 }
 
-/** The arguments as the entry function receives them: a tree arrives as linked `TreeNode`s built from its level order. */
 export function entryArgs(types: readonly ParamType[], args: Args): unknown[] {
-  return args.map((arg, i) => (types[i] === 'tree' ? buildTree(arg as LevelOrder) : arg));
+  return args.map((arg, i) => (types[i] === 'tree' ? buildTree(arg as LevelOrder) : structuredClone(arg)));
+}
+
+function testCase(problem: CodingProblem, args: Args, kind: TestCase['kind']): TestCase {
+  return { args, expected: problem.solve(...entryArgs(paramTypes(problem), args)), kind };
 }
 
 /**
@@ -27,28 +28,17 @@ export function buildSuite(
   { seed = 1, performance = true }: { seed?: number; performance?: boolean } = {},
 ): TestCase[] {
   const rand = mulberry32(seed);
-  const types = paramTypes(problem);
-  const withExpected = (args: unknown[], kind: TestCase['kind']): TestCase => ({
-    args,
-    expected: problem.solve(...entryArgs(types, clone(args))),
-    kind,
-  });
   const cases = [
-    ...problem.examples.map((e) => withExpected(e.args, 'example')),
-    ...problem.edgeCases.map((args) => withExpected(args, 'edge')),
-    ...Array.from({ length: RANDOM_CASES }, () => withExpected(problem.randomCase(rand), 'random')),
+    ...exampleCases(problem),
+    ...problem.edgeCases.map((args) => testCase(problem, args, 'edge')),
+    ...Array.from({ length: RANDOM_CASES }, () => testCase(problem, problem.randomCase(rand), 'random')),
   ];
-  if (performance) cases.push(withExpected(problem.performanceCase(rand), 'performance'));
+  if (performance) cases.push(testCase(problem, problem.performanceCase(rand), 'performance'));
   return cases;
 }
 
 export function exampleCases(problem: CodingProblem): TestCase[] {
-  const types = paramTypes(problem);
-  return problem.examples.map((e) => ({
-    args: e.args,
-    expected: problem.solve(...entryArgs(types, clone(e.args))),
-    kind: 'example' as const,
-  }));
+  return problem.examples.map((e) => testCase(problem, e.args, 'example'));
 }
 
 function canonical(value: unknown): string {
@@ -67,6 +57,19 @@ export function outputsMatch(expected: unknown, actual: unknown, mode: CompareMo
 export function preview(value: unknown, max = 120): string {
   const text = value === undefined ? 'undefined' : canonical(value);
   return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+}
+
+const quantity = (n: number, noun: string) => `${n.toLocaleString('en-US')} ${noun}${n === 1 ? '' : 's'}`;
+
+/** How big an argument is, such as `100,000 nodes` or `5,000 items`, or null for a single value. */
+export function inputSize(type: ParamType, value: unknown): string | null {
+  if (type === 'tree') {
+    const values = value as LevelOrder;
+    let nodes = 0;
+    for (let i = 0; i < values.length; i++) if (values[i] !== null) nodes++;
+    return quantity(nodes, 'node');
+  }
+  return Array.isArray(value) || typeof value === 'string' ? quantity(value.length, 'item') : null;
 }
 
 export function snakeCase(name: string): string {
@@ -99,15 +102,14 @@ const PY_TYPES: Record<ParamType, string> = {
   tree: 'Optional[TreeNode]',
 };
 
-/** Shown above the entry function when a parameter is a tree, so the learner knows the node's fields. */
-const TREE_NODE: Record<Language, string> = {
+const TREE_NODE_HEADER: Record<Language, string> = {
   javascript: '// TreeNode: { val, left, right }, where left and right are a TreeNode or null\n\n',
   typescript: 'interface TreeNode {\n  val: number;\n  left: TreeNode | null;\n  right: TreeNode | null;\n}\n\n',
   python: '# TreeNode (val, left, right) and Optional are predefined; left and right are a TreeNode or None\n\n',
 };
 
 export function starterCode(problem: CodingProblem, language: Language): string {
-  const prefix = paramTypes(problem).includes('tree') ? TREE_NODE[language] : '';
+  const prefix = paramTypes(problem).includes('tree') ? TREE_NODE_HEADER[language] : '';
   return prefix + entryFunction(problem, language);
 }
 
@@ -164,9 +166,8 @@ def __grasp_tree(values):
 `;
 
 /**
- * Appended to Python submissions: calls the entry function with JSON-encoded arguments, building the tree
- * parameters with the prelude, and returns JSON. The same text runs in the browser (Pyodide) and in the engine
- * tests (CPython).
+ * Appended to Python submissions after PYTHON_PRELUDE: calls the entry function with JSON-encoded arguments and returns
+ * JSON. The same text runs in the browser (Pyodide) and in the engine tests (CPython).
  */
 export function pythonHarness(entry: string, types: readonly ParamType[]): string {
   const trees = types.flatMap((type, i) => (type === 'tree' ? [i] : []));

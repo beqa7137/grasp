@@ -6,7 +6,8 @@ Learners solve problems in Python, JavaScript or TypeScript entirely on their de
 
 | Piece                                          | Where                                                                                              |
 | ---------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| Problem bank                                   | `libs/engine/src/coding/problems/` (one file per curriculum track, ordered in `problems/index.ts`) |
+| Problem catalog (ids, titles, order)           | `libs/engine/src/coding/catalog.ts`                                                                |
+| Problem definitions                            | `libs/engine/src/coding/problems/` (one file per curriculum track, indexed in `problems/index.ts`) |
 | Suites, comparison, Python prelude and harness | `libs/engine/src/coding/suite.ts`                                                                  |
 | Tree inputs                                    | `libs/engine/src/coding/tree.ts`                                                                   |
 | Worker (runs code, traces JS/TS)               | `apps/app/src/app/code/runner.worker.ts`                                                           |
@@ -17,6 +18,8 @@ Learners solve problems in Python, JavaScript or TypeScript entirely on their de
 | Editor                                         | `apps/app/src/app/code/code-editor.component.ts` (CodeMirror 6)                                    |
 | Workspace UI                                   | `apps/app/src/app/pages/code/`                                                                     |
 
+A problem is split in two. The catalog holds what lists, links, route titles and progress need: the id, title, difficulty, patterns and visualizer, in the order the code list shows them. It imports no definition, so the app's first load stays small. The definition (statement, parameters, cases, generators and reference `solve`) loads with the workspace page. `problems/index.ts` maps every catalog id to its definition, so a missing or misspelled id fails the type check.
+
 ## Test suites
 
 `buildSuite(problem, { seed })` returns, in order:
@@ -26,15 +29,15 @@ Learners solve problems in Python, JavaScript or TypeScript entirely on their de
 - 20 seeded random cases
 - one **performance case**: a large input sized so that the intended complexity finishes in milliseconds while a quadratic or exponential approach cannot finish within the time limit
 
-Expected values always come from the problem's reference `solve`, so the tests and the reference can't drift apart. The engine tests prove each reference against a brute-force solution on every small case. They also run a CPython reference solution through the same Python prelude and harness the browser uses and check that its output matches. For the newer problems, the engine tests also count the steps a named slower approach needs on the performance case, which proves without timing anything that it cannot finish within the limit.
+Expected values always come from the problem's reference `solve`, so the tests and the reference can't drift apart. The engine tests prove each reference against a brute-force solution on every small case. They also run a CPython reference solution through the same Python prelude and harness the browser uses and check that its output matches. For the problems listed in `SLOWER` (`coding.spec.ts`), the engine tests also count the steps a named slower approach needs on the performance case, which proves without timing anything that it cannot finish within the limit.
 
 Answers are compared exactly, or as unordered lists where the problem allows any order (`compare: 'unordered'`).
 
 ## Tree inputs
 
-A `tree` parameter travels as LeetCode's level order: `[1,2,null,3]` is 1 with left child 2, whose left child is 3. Missing children are `null`, the children of a missing node are not listed, and trailing nulls are trimmed. It is flat JSON, so the suite's clone, `postMessage`, the Python transport and test previews handle it unchanged, at any depth.
+A `tree` parameter travels as LeetCode's level order: `[1,2,null,3]` is 1 with left child 2, whose left child is 3. Missing children are `null`, the children of a missing node are not listed, and trailing nulls are trimmed. It is flat JSON, so the argument copies, `postMessage`, the Python transport and test previews handle it unchanged, at any depth.
 
-The entry function receives linked `TreeNode`s (`val`, `left`, `right`) built right before each call: by `entryArgs` for the reference `solve`, in the worker for JS/TS, and by the Python harness for Python.
+The entry function receives linked `TreeNode`s (`val`, `left`, `right`) built right before each call: by `entryArgs` for the reference `solve` and for JS/TS in the worker, and by the Python harness for Python.
 
 Python submissions run after a small prelude that defines `TreeNode` and `Optional`. It has to come first: before Python 3.14, an annotation such as `Optional[TreeNode]` is evaluated when the function is defined. Trees are built from the class the prelude captured, so a learner's own `TreeNode` cannot change how inputs are built. The prelude runs as its own file, so the learner's line numbers and traceback trimming are unchanged.
 
