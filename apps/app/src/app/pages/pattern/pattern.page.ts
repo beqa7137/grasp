@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
-import { getAlgorithm, getPattern, itemsForTopic, problemsForPattern } from '@grasp/engine';
+import { getAlgorithmSummary, getPattern, itemsForTopic, problemsForPattern } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import { alertCircleOutline, codeSlashOutline, flashOutline, playCircle, searchOutline } from 'ionicons/icons';
 import { ProgressService } from '../../core/progress.service';
@@ -169,7 +169,7 @@ export class PatternPage {
   readonly progress = inject(ProgressService);
   readonly pattern = computed(() => getPattern(this.id()));
   readonly problems = computed(() => problemsForPattern(this.id()));
-  readonly algorithms = computed(() => (this.pattern()?.algorithmIds ?? []).map((id) => getAlgorithm(id)!).filter(Boolean));
+  readonly algorithms = computed(() => (this.pattern()?.algorithmIds ?? []).map((id) => getAlgorithmSummary(id)!).filter(Boolean));
   readonly itemCount = computed(() => itemsForTopic(this.id()).length);
 
   constructor() {

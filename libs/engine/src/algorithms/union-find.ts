@@ -9,8 +9,6 @@ type Input = { n: number; edges: Edge[] };
 const CHOICES = ['Merge the two trees', 'Skip: already connected'];
 
 export const unionFind: AlgorithmDefinition<Input> = {
-  summary: 'Each component is a tree identified by its root; union links roots, and path compression keeps the trees flat.',
-  complexity: { time: 'O(E · α(n)) ≈ O(E)', space: 'O(n)' },
   code: [
     'function countComponents(n, edges) {',
     '  const parent = [...Array(n).keys()], rank = Array(n).fill(0);',

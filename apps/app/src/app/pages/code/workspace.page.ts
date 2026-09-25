@@ -3,11 +3,11 @@ import { RouterLink } from '@angular/router';
 import { Preferences } from '@capacitor/preferences';
 import {
   LANGUAGES,
-  PATTERNS,
   buildSuite,
   entryName,
   exampleCases,
   getCodingProblem,
+  getPatternSummary,
   inputSize,
   preview,
   starterCode,
@@ -45,7 +45,6 @@ import { TreeViewComponent } from '../../viz/tree-view.component';
 const LANGUAGE_KEY = 'grasp.code.language';
 const draftKey = (problemId: string, language: Language) => `grasp.code.draft.${problemId}.${language}`;
 const SUITE_SEED = 1;
-const patternNames = new Map(PATTERNS.map((p) => [p.id, p.name]));
 
 type Panel = 'tests' | 'trace';
 
@@ -157,7 +156,7 @@ export class WorkspacePage {
   }
 
   patternName(id: string) {
-    return patternNames.get(id) ?? id;
+    return getPatternSummary(id)?.name ?? id;
   }
 
   onCodeChange(value: string) {

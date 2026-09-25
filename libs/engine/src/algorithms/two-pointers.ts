@@ -8,8 +8,6 @@ type Input = { nums: number[]; target: number };
 const CHOICES = ['Found: return [l, r]', 'l++ (need a bigger sum)', 'r-- (need a smaller sum)'];
 
 export const pairSum: AlgorithmDefinition<Input> = {
-  summary: 'Squeeze two pointers inward; the sorted order tells you which one to move.',
-  complexity: { time: 'O(n)', space: 'O(1)' },
   code: [
     'function pairSum(nums, target) {',
     '  let l = 0, r = nums.length - 1;',

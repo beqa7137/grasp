@@ -15,7 +15,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { IonBackButton, IonButtons, IonContent, IonFooter, IonHeader, IonIcon, IonSpinner, IonTitle, IonToolbar } from '@ionic/angular';
 import { Preferences } from '@capacitor/preferences';
-import { LANGUAGES, getPattern, itemsForTopic, type Language } from '@grasp/engine';
+import { LANGUAGES, getPatternSummary, itemsForTopic, type Language } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import { arrowUp, bulbOutline, codeSlashOutline, flagOutline, ribbonOutline } from 'ionicons/icons';
 import { CodeEditorComponent } from '../../code/code-editor.component';
@@ -203,7 +203,7 @@ export class InterviewSessionPage {
   }
 
   patternName(id: string) {
-    return getPattern(id)?.name ?? id;
+    return getPatternSummary(id)?.name ?? id;
   }
 
   verdictLabel(v: string) {

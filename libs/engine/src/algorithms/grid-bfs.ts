@@ -16,8 +16,6 @@ const key = ([r, c]: Cell) => `${r},${c}`;
 const label = ([r, c]: Cell) => `(${r},${c})`;
 
 export const gridBfs: AlgorithmDefinition<Input> = {
-  summary: 'Explore in rings of equal distance using a FIFO queue; the first time you reach the goal is the shortest path.',
-  complexity: { time: 'O(rows × cols)', space: 'O(rows × cols)' },
   code: [
     'function shortestPath(grid, start, goal) {',
     '  const queue = [[start, 0]];',

@@ -11,8 +11,6 @@ const CHOICES = ['Yes: nothing else points to it now', 'Not yet: it still has pr
 const LEGEND: GraphLegend = { active: 'current', frontier: 'queued', done: 'done' };
 
 export const topoSort: AlgorithmDefinition<Input> = {
-  summary: 'Repeatedly take a node with no remaining prerequisites; if some nodes never free up, the graph has a cycle.',
-  complexity: { time: 'O(V + E)', space: 'O(V + E)' },
   code: [
     'function topoSort(n, edges) {',
     '  const indeg = Array(n).fill(0), adj = lists(n);',

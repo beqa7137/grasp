@@ -13,9 +13,6 @@ const MEET = ['Yes: slow === fast, return true', 'No: they are still apart'];
 const LEGEND: GraphLegend = { active: 'slow', frontier: 'fast', done: 'slow = fast' };
 
 export const linkedListCycle: AlgorithmDefinition<Input> = {
-  summary:
-    'Move slow one node and fast two per step: fast runs off the end of a list that ends, and inside a loop it gains one node per step until it lands on slow.',
-  complexity: { time: 'O(n)', space: 'O(1)' },
   code: [
     'function hasCycle(head) {',
     '  let slow = head, fast = head;',

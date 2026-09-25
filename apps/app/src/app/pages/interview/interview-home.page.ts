@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { DatePipe } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { IonContent, IonHeader, IonIcon, IonSpinner, IonTitle, IonToolbar } from '@ionic/angular';
-import { getPattern } from '@grasp/engine';
+import { getPatternSummary } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import { codeSlashOutline, gitNetworkOutline, shuffle, sparkles } from 'ionicons/icons';
 import { ApiError, ApiService } from '../../core/api.service';
@@ -290,7 +290,7 @@ export class InterviewHomePage {
   }
 
   patternName(id: string) {
-    return getPattern(id)?.name ?? id;
+    return getPatternSummary(id)?.name ?? id;
   }
 
   async start(problemId?: string) {

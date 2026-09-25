@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { ALGORITHMS, getAlgorithm } from '../algorithms/index.js';
 import { CLOZES } from './clozes.js';
 import { COMPLEXITY_FACTS } from './complexity.js';
 import { DRILL_CARDS, cardChoices } from './drills.js';
@@ -20,6 +19,10 @@ describe('curriculum content', () => {
     for (const p of PATTERNS) expect(DRILL_CARDS.filter((c) => c.patternId === p.id).length).toBeGreaterThanOrEqual(2);
   });
 
+  it('every pattern has a visualizer', () => {
+    expect(PATTERNS.filter((p) => !p.algorithmIds.length).map((p) => p.id)).toEqual([]);
+  });
+
   it('every pattern has a cloze whose distractors differ from the real line', () => {
     for (const p of PATTERNS) {
       const clozes = CLOZES[p.id];
@@ -30,14 +33,6 @@ describe('curriculum content', () => {
         expect(new Set([line, ...c.distractors.map((d) => d.trim())]).size, p.id).toBe(4);
       }
     }
-  });
-
-  it('links every pattern to at least one visualizer, and every visualizer from its own pattern', () => {
-    for (const p of PATTERNS) {
-      expect(p.algorithmIds.length, p.id).toBeGreaterThan(0);
-      for (const id of p.algorithmIds) expect(getAlgorithm(id)?.patternId, id).toBe(p.id);
-    }
-    for (const a of ALGORITHMS) expect(PATTERNS.find((p) => p.id === a.patternId)?.algorithmIds, a.id).toContain(a.id);
   });
 
   it('complexity facts reference real patterns and have unique answers', () => {

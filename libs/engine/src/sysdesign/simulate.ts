@@ -1,4 +1,5 @@
 import { COMPONENTS, monthlyCost } from './catalog.js';
+import { fmt } from './scenario-catalog.js';
 import type {
   ComponentKind,
   Design,
@@ -745,11 +746,4 @@ function dedupe(list: Insight[]): Insight[] {
 function rank(list: Insight[]): Insight[] {
   const order = { critical: 0, warning: 1, tip: 2 } as const;
   return [...list].sort((a, b) => order[a.severity] - order[b.severity]);
-}
-
-export function fmt(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 10_000) return `${Math.round(n / 1000)}k`;
-  if (n >= 1_000) return `${(n / 1000).toFixed(1)}k`;
-  return `${Math.round(n)}`;
 }

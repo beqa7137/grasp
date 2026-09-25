@@ -9,8 +9,6 @@ type Input = { s: string };
 const CHOICES = ['Expand: add it to the window', 'Shrink from the left first'];
 
 export const longestUnique: AlgorithmDefinition<Input> = {
-  summary: 'Grow the window on the right; when a duplicate enters, shrink from the left until the window is valid again.',
-  complexity: { time: 'O(n)', space: 'O(k) distinct chars' },
   code: [
     'function longestUnique(s) {',
     '  const seen = new Set();',

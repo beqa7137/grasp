@@ -16,8 +16,6 @@ function asWord(value: unknown, key: string): string {
 }
 
 export const lcs: AlgorithmDefinition<Input> = {
-  summary: 'Fill a table where each cell answers the problem for two prefixes, using only the three neighbours already filled.',
-  complexity: { time: 'O(m·n)', space: 'O(m·n)' },
   code: [
     'function lcs(a, b) {',
     '  const dp = table(a.length + 1, b.length + 1, 0);',

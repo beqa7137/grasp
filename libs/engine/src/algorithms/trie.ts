@@ -18,9 +18,6 @@ const LEGEND: TreeLegend = { active: 'current', marked: 'end of a word' };
 const VOCABULARY = ['car', 'card', 'care', 'cart', 'cat', 'do', 'dog', 'dot', 'dove', 'bat', 'bath', 'bad'];
 
 export const trie: AlgorithmDefinition<Input> = {
-  summary:
-    'Words that share a prefix share a path from the root, so a lookup costs the length of the word, not the size of the dictionary.',
-  complexity: { time: 'O(L) per word', space: 'O(total letters)' },
   code: [
     'function buildAndSearch(words, query) {',
     '  const root = {};',

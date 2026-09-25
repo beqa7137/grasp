@@ -4,8 +4,15 @@ import { posix } from 'node:path';
 
 const SRC = 'src/';
 
-/** The default route renders the tabs and the learn page, so their chunks load with the first paint too. */
-const FIRST_PAINT = ['main.ts', 'app/tabs/tabs.page.ts', 'app/pages/learn/learn.page.ts'];
+/** The page the empty path redirects to renders inside the tabs, so both chunks load with the first paint too. */
+function defaultPage(): string {
+  const routes = readFileSync(SRC + 'app/app.routes.ts', 'utf8');
+  const [, path] = routes.match(/\{\s*path: '',\s*pathMatch: 'full',\s*redirectTo: '([^']+)'\s*\}/)!;
+  const [, page] = routes.match(new RegExp(String.raw`\{\s*path: '${path}',[^}]*?import\('\./([^']+)'\)`))!;
+  return `app/${page}.ts`;
+}
+
+const FIRST_PAINT = ['main.ts', 'app/tabs/tabs.page.ts', defaultPage()];
 
 function imports(file: string, from: RegExp): RegExpMatchArray[] {
   return [
@@ -37,7 +44,7 @@ function engineNames(file: string): string[] {
 }
 
 describe('first paint', () => {
-  // Each name must come from a module the engine's first-paint spec keeps light; anything else ships content before first paint.
+  // Every name must come from a module in the engine first-paint spec's closure.
   it('takes only the progress reducer and light catalogs from the engine, never tracers, question builders or content', () => {
     const names = new Set(firstPaintFiles().flatMap(engineNames));
     expect([...names].sort()).toEqual([

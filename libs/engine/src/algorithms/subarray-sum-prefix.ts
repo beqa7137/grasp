@@ -23,9 +23,6 @@ const addition = (terms: number[]) => terms.map((x, t) => (t === 0 ? String(x) :
 const plus = (x: number) => (x < 0 ? `(${x})` : String(x));
 
 export const subarraySumPrefix: AlgorithmDefinition<Input> = {
-  summary:
-    'Keep a running prefix sum p and count how often each prefix appeared: the subarrays ending here that sum to k are the earlier prefixes equal to `p - k`.',
-  complexity: { time: 'O(n)', space: 'O(n)' },
   code: [
     'function subarraySum(nums, k) {',
     '  const count = { 0: 1 }; // pre[0] = 0, the empty prefix',

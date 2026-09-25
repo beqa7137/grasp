@@ -20,7 +20,7 @@ Learners solve problems in Python, JavaScript or TypeScript entirely on their de
 | Editor                                         | `apps/app/src/app/code/code-editor.component.ts` (CodeMirror 6)                                    |
 | Workspace UI                                   | `apps/app/src/app/pages/code/`                                                                     |
 
-A problem is split in two. The catalog holds what lists, links, route titles and progress need: the id, title, difficulty, patterns and visualizer, in the order the code list shows them. It imports no definition, so the app's first load stays small. The definition (statement, parameters, cases, generators and reference `solve`) loads with the workspace page. `problems/index.ts` maps every catalog id to its definition, so a missing or misspelled id fails the type check.
+A problem is split in two. The catalog holds what lists, links, route titles and progress need: the id, title, difficulty, patterns and visualizer, in the order the code list shows them. See [Adding content](../README.md#adding-content) for what a catalog may import. The definition (statement, parameters, cases, generators and reference `solve`) loads with the workspace page. `problems/index.ts` maps every catalog id to its definition, so a missing or misspelled id fails the type check.
 
 ## Test suites
 

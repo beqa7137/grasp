@@ -5,7 +5,6 @@ import type { ItemDef, Question, ReviewItem } from './types.js';
 
 const byId = new Map([...ALGORITHM_ITEMS, ...DESIGN_ITEMS].map((i) => [i.id, i]));
 
-/** Every review item with its question builder, in catalog order. */
 export const REVIEW_ITEMS: ItemDef[] = REVIEW_CATALOG.map((summary) => byId.get(summary.id)!);
 
 export function getReviewItem(id: string): ItemDef | undefined {

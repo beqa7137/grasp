@@ -8,8 +8,6 @@ type Input = { nums: number[] };
 const CHECK = ['Continue: this index is reachable', 'Return false: nothing reaches this index'];
 
 export const jumpGame: AlgorithmDefinition<Input> = {
-  summary: 'Keep only the farthest index any jump can reach; you are stuck exactly when the scan walks past it.',
-  complexity: { time: 'O(n)', space: 'O(1)' },
   code: [
     'function canJump(nums) {',
     '  let reach = 0; // farthest index reachable so far',

@@ -1,7 +1,7 @@
 import type { Difficulty } from '../algorithms/types.js';
 
-/** A problem as lists, links and progress see it. This module imports no definition, so the app's first load carries none. */
-export interface CodingProblemSummary<Id extends string = CodingProblemId> {
+/** A coding problem as lists, links, route titles and progress see it. */
+export interface CodingProblemSummary<Id extends string = string> {
   id: Id;
   title: string;
   difficulty: Difficulty;
@@ -82,12 +82,12 @@ const CATALOG = [
   { id: 'count-prefixes', title: 'Count Words by Prefix', difficulty: 'medium', patternIds: ['trie'], algorithmId: 'trie' },
   { id: 'single-number', title: 'Single Number', difficulty: 'easy', patternIds: ['bit-manipulation'], algorithmId: 'single-number-xor' },
   { id: 'total-hamming-distance', title: 'Total Hamming Distance', difficulty: 'medium', patternIds: ['bit-manipulation'] },
-] as const satisfies readonly CodingProblemSummary<string>[];
+] as const satisfies readonly CodingProblemSummary[];
 
 export type CodingProblemId = (typeof CATALOG)[number]['id'];
 
 /** Every problem, in the order the code list shows them; the learn page suggests the first one not yet solved. */
-export const CODING_CATALOG: readonly CodingProblemSummary[] = CATALOG;
+export const CODING_CATALOG: readonly CodingProblemSummary<CodingProblemId>[] = CATALOG;
 
 export function getProblemSummary(id: string): CodingProblemSummary | undefined {
   return CODING_CATALOG.find((p) => p.id === id);

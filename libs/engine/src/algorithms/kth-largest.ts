@@ -22,8 +22,6 @@ function treeOf(heap: number[], active: number | null, settled = false): TreeVie
 }
 
 export const kthLargest: AlgorithmDefinition<Input> = {
-  summary: 'Keep only the k largest values seen so far in a min-heap; its root is always the k-th largest.',
-  complexity: { time: 'O(n log k)', space: 'O(k)' },
   code: [
     'function kthLargest(nums, k) {',
     '  const heap = []; // min-heap of the k largest so far',
