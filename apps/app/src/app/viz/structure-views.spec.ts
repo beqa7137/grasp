@@ -1,8 +1,10 @@
 import type { Type } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { GRAPH_NODE_RADIUS, getAlgorithm, mulberry32 } from '@grasp/engine';
+import { GRAPH_NODE_RADIUS, getAlgorithm, mulberry32, type TreeView } from '@grasp/engine';
+import { ArrayViewComponent } from './array-view.component';
 import { GraphViewComponent } from './graph-view.component';
 import { LegendComponent } from './legend.component';
+import { ListViewComponent } from './list-view.component';
 import { TableViewComponent } from './table-view.component';
 import { TreeViewComponent, layoutForest } from './tree-view.component';
 
@@ -276,6 +278,20 @@ describe('structure views render real traces', () => {
     expect(el.querySelectorAll('line.link.to-blank')).toHaveLength(1);
   });
 
+  it("tree: counts the nodes in each state in its label, in the legend's words", () => {
+    const nodes: TreeView['nodes'] = [
+      { id: 'a', label: '1', parent: null, state: 'frontier' },
+      { id: 'b', label: '2', parent: 'a', state: 'frontier' },
+      { id: 'c', label: '3', parent: 'a', state: 'done' },
+      { id: 'd', label: '4', parent: 'b', state: 'active' },
+      { id: 'e', label: '5', parent: 'b', state: 'idle' },
+    ];
+    const label = (view: TreeView) => render(TreeViewComponent, view).querySelector('svg')!.getAttribute('aria-label');
+    const legend = { active: 'a variable points here', frontier: 'on the call stack', done: 'returned', idle: 'not visited yet' };
+    expect(label({ nodes, legend })).toBe('Tree with 5 nodes, current node 4, 2 on the call stack, 1 returned');
+    expect(label({ nodes })).toBe('Tree with 5 nodes, current node 4');
+  });
+
   it('tree: shows the legend a tracer gives, and none without one or when turned off', () => {
     const calls = getAlgorithm('subsets-backtracking')!.trace({ nums: [1, 2] })[3].tree;
     const el = render(TreeViewComponent, calls);
@@ -286,5 +302,51 @@ describe('structure views render real traces', () => {
     expect(render(TreeViewComponent, bst).querySelector('.legend i[data-state="idle"]')).not.toBeNull();
     const heap = getAlgorithm('kth-largest')!.trace({ nums: [3, 1, 2], k: 2 })[1].tree;
     expect(render(TreeViewComponent, heap).querySelector('.legend')).toBeNull();
+  });
+
+  it('array: widens cells for values longer than three characters', () => {
+    const fixture = TestBed.createComponent(ArrayViewComponent);
+    fixture.componentRef.setInput('view', { values: ['[2, 1, 1]', '[2, 3, 1]'], pointers: {} });
+    fixture.detectChanges();
+    const track: HTMLElement = fixture.nativeElement.querySelector('.track');
+    expect(track.classList).toContain('wide');
+    expect(track.style.getPropertyValue('--chars')).toBe('9');
+    fixture.componentRef.setInput('view', { values: [7, 42, 100], pointers: {} });
+    fixture.detectChanges();
+    expect(track.classList).not.toContain('wide');
+    expect(track.style.getPropertyValue('--chars')).toBe('');
+  });
+
+  it('list: counts the items left out below a vertical list', () => {
+    const fixture = TestBed.createComponent(ListViewComponent);
+    fixture.componentRef.setInput('label', 'call stack');
+    fixture.componentRef.setInput('items', ['f(1)', 'f(0)']);
+    fixture.componentRef.setInput('orientation', 'vertical');
+    fixture.componentRef.setInput('more', 4);
+    fixture.detectChanges();
+    const el: HTMLElement = fixture.nativeElement;
+    expect([...el.querySelectorAll('.items > *')].map((item) => item.textContent!.trim())).toEqual(['+4 more', 'f(1)', 'f(0)']);
+    fixture.componentRef.setInput('more', 0);
+    fixture.detectChanges();
+    expect(el.querySelector('.more')).toBeNull();
+  });
+
+  it('list: is a list named by its label, and reads as its label and "empty" when there is nothing in it', () => {
+    const fixture = TestBed.createComponent(ListViewComponent);
+    fixture.componentRef.setInput('label', 'call stack');
+    fixture.componentRef.setInput('items', ['f(1)', 'f(0)']);
+    fixture.componentRef.setInput('more', 4);
+    fixture.detectChanges();
+    const el: HTMLElement = fixture.nativeElement;
+    const list = el.querySelector('[role="list"]')!;
+    const label = el.querySelector(`#${list.getAttribute('aria-labelledby')}`)!;
+    expect(label.textContent).toBe('call stack');
+    expect(label.getAttribute('aria-hidden')).toBe('true');
+    expect([...list.querySelectorAll('[role="listitem"]')].map((item) => item.textContent!.trim())).toEqual(['+4 more', 'f(1)', 'f(0)']);
+    fixture.componentRef.setInput('items', []);
+    fixture.componentRef.setInput('more', 0);
+    fixture.detectChanges();
+    expect(el.querySelector('[role="list"], [aria-labelledby], [aria-hidden]')).toBeNull();
+    expect(el.querySelector('.empty')!.textContent).toBe('empty');
   });
 });

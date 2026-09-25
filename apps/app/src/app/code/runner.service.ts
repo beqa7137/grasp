@@ -45,6 +45,8 @@ export class RunnerService {
   private readonly runtime = inject(RuntimeConfigService);
   private python: Worker | null = null;
   private active: Worker | null = null;
+  /** The interpreter crashed, so the next one to load replaces it rather than loading for the first time. */
+  private restartingPython = false;
 
   /** Progress text while the Python interpreter loads. */
   readonly loading = signal<string | null>(null);
@@ -88,17 +90,21 @@ export class RunnerService {
         finish(false);
       };
 
+      let running: number | undefined;
       arm(SETUP_LIMIT_MS[language], () => timeout('Setup took too long. Is there an infinite loop outside your function?'));
       const onMessage = ({ data }: MessageEvent<WorkerMessage>) => {
         switch (data.kind) {
           case 'loading':
-            this.loading.set(data.message);
+            this.loading.set(this.restartingPython ? 'Restarting Python…' : data.message);
             break;
           case 'compile-error':
+            this.restartingPython = false;
             report.compileError = data.error;
             finish(language === 'python');
             break;
           case 'test-start':
+            running = data.index;
+            this.restartingPython = false;
             this.loading.set(null);
             arm(TIME_LIMIT_MS[language], () =>
               timeout(
@@ -108,6 +114,7 @@ export class RunnerService {
             );
             break;
           case 'test-result': {
+            running = undefined;
             const test = report.tests[data.index];
             report.tests[data.index] = data.ok
               ? {
@@ -122,6 +129,13 @@ export class RunnerService {
             onUpdate?.({ ...report, tests: [...report.tests] });
             break;
           }
+          case 'crashed':
+            if (running !== undefined)
+              report.tests[running] = { ...report.tests[running], status: 'error', error: data.error, logs: data.logs };
+            else if (report.tests.every((t) => t.status === 'skipped')) report.compileError = data.error;
+            this.restartingPython = true;
+            finish(false);
+            break;
           case 'done':
             finish(language === 'python');
             break;

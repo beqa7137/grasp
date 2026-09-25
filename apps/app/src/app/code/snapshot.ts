@@ -25,9 +25,26 @@ export type TreeSnap = Extract<Snap, { kind: 'tree' }>;
 
 export const isTree = (snap: Snap | undefined): snap is TreeSnap => typeof snap === 'object' && snap !== null && snap.kind === 'tree';
 
+export type ArraySnap = Extract<Snap, { kind: 'array' }>;
+
+export const isArray = (snap: Snap | undefined): snap is ArraySnap => typeof snap === 'object' && snap !== null && snap.kind === 'array';
+
+export const isScalar = (snap: Snap | undefined): snap is number | string | boolean | null =>
+  snap === null || ['number', 'string', 'boolean'].includes(typeof snap);
+
 export interface TraceStep {
   line: number;
   vars: Record<string, Snap>;
+  /** The call running this statement, as an index into the trace's calls. */
+  call: number;
+}
+
+/** A call to a learner function, recorded the first time a step shows it: `caller` is the call beneath it on the stack. */
+export interface TraceCall {
+  name: string;
+  params: string[];
+  caller: number | null;
+  depth: number;
 }
 
 const MAX_ITEMS = 64;

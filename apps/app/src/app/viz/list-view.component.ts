@@ -1,14 +1,23 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import type { Scalar } from '@grasp/engine';
+import { uniqueId } from '../core/unique-id';
 
 @Component({
   selector: 'g-list-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="label">{{ label() }}</div>
-    <div class="items" [class.vertical]="orientation() === 'vertical'">
+    <div class="label" [id]="labelId" [attr.aria-hidden]="listed() || null">{{ label() }}</div>
+    <div
+      class="items"
+      [class.vertical]="orientation() === 'vertical'"
+      [attr.role]="listed() ? 'list' : null"
+      [attr.aria-labelledby]="listed() ? labelId : null"
+    >
+      @if (more()) {
+        <span class="more" role="listitem">+{{ more() }} more</span>
+      }
       @for (item of items(); track $index) {
-        <span class="item" [class.hot]="item === highlight()">{{ item }}</span>
+        <span class="item" role="listitem" [class.hot]="item === highlight()">{{ item }}</span>
       } @empty {
         <span class="empty">empty</span>
       }
@@ -30,8 +39,13 @@ import type { Scalar } from '@grasp/engine';
       flex-wrap: wrap;
       gap: 6px;
     }
+    /*
+     * One flex line, as wide as the list rather than its longest item, and one text line per item: an item too long for
+     * the list, such as a call with its arguments, is cut short instead of overflowing it.
+     */
     .items.vertical {
       flex-direction: column-reverse;
+      flex-wrap: nowrap;
       align-items: stretch;
     }
     .item {
@@ -43,9 +57,20 @@ import type { Scalar } from '@grasp/engine';
       text-align: center;
       animation: pop 0.25s ease-out;
     }
+    .items.vertical .item {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
     .item.hot {
       border-color: var(--g-state-current);
       color: var(--g-state-current);
+    }
+    .more {
+      font: 0.75rem/1 var(--g-font-mono);
+      color: var(--g-muted);
+      padding: 7px 9px;
+      text-align: center;
     }
     .empty {
       font: 0.75rem/1 var(--g-font-mono);
@@ -69,4 +94,10 @@ export class ListViewComponent {
   readonly items = input.required<Scalar[]>();
   readonly orientation = input<'horizontal' | 'vertical'>('horizontal');
   readonly highlight = input<Scalar | undefined>(undefined);
+  /** Items left out before the first one shown: below the bottom of a vertical list. */
+  readonly more = input(0);
+
+  readonly labelId = uniqueId('g-list');
+  /** A list is read by its name, so its label is not read twice; an empty one reads as its label and the word "empty". */
+  readonly listed = computed(() => this.items().length > 0 || this.more() > 0);
 }

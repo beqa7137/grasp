@@ -1,9 +1,10 @@
 import { parse } from 'acorn';
 import { transform } from 'sucrase';
 import { entryArgs, type Language, type ParamType } from '@grasp/engine';
-import { TRACE_HOOK, instrument } from './instrument';
+import { ENTER_HOOK, EXIT_HOOK, PAUSE_HOOK, TRACE_HOOK, instrument } from './instrument';
 import type { RunnerError } from './protocol';
-import { NodeIds, snapshot, type Snap, type TraceStep } from './snapshot';
+import type { Snap, TraceCall, TraceStep } from './snapshot';
+import { TRACE_LIMIT, TraceRecorder } from './trace-recorder';
 
 const MAX_LOG_LINES = 100;
 const MAX_LOG_CHARS = 2_000;
@@ -129,10 +130,9 @@ export function runJsTest(fn: (...args: unknown[]) => unknown, params: readonly 
   }
 }
 
-const TRACE_LIMIT = Symbol('trace-limit');
-
 export interface TraceOutcome {
   steps: TraceStep[];
+  calls: TraceCall[];
   returned?: Snap;
   error?: RunnerError;
   truncated: boolean;
@@ -147,35 +147,32 @@ export function traceJs(
   args: unknown[],
   maxSteps: number,
 ): TraceOutcome {
-  const steps: TraceStep[] = [];
   const sink: LogSink = { lines: [] };
-  const ids = new NodeIds();
-  const hook = (line: number, getters: [string, () => unknown][]) => {
-    if (steps.length >= maxSteps) throw TRACE_LIMIT;
-    const vars: Record<string, Snap> = {};
-    for (const [name, get] of getters) {
-      try {
-        const value = get();
-        if (typeof value !== 'function') vars[name] = snapshot(value, ids);
-      } catch {
-        // Not yet initialized (temporal dead zone) or not in scope on this line.
-      }
-    }
-    steps.push({ line, vars });
-  };
+  const recorder = new TraceRecorder(maxSteps);
   const js = toJavaScript(code, language);
-  const fn = load(instrument(js), entry, sink, { [TRACE_HOOK]: hook });
+  const fn = load(instrument(js), entry, sink, {
+    [TRACE_HOOK]: recorder.step,
+    [ENTER_HOOK]: recorder.enter,
+    [EXIT_HOOK]: recorder.exit,
+    [PAUSE_HOOK]: recorder.pause,
+  });
+  const { steps, calls } = recorder;
+  const input = entryArgs(params, args);
+  recorder.begin();
   try {
-    const returned = fn(...entryArgs(params, args));
-    return { steps, returned: snapshot(returned, ids), truncated: false, logs: sink.lines };
+    const returned = fn(...input);
+    return { steps, calls, returned: recorder.snapshot(returned), truncated: false, logs: sink.lines };
   } catch (e) {
-    if (e === TRACE_LIMIT) return { steps, truncated: true, logs: sink.lines };
+    if (e === TRACE_LIMIT) return { steps, calls, truncated: true, logs: sink.lines };
     const error = describeError(e);
     return {
       steps,
+      calls,
       error: { message: error.message, location: steps.length ? { line: steps[steps.length - 1].line } : undefined },
       truncated: false,
       logs: sink.lines,
     };
+  } finally {
+    recorder.close();
   }
 }

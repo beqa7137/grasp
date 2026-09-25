@@ -1,34 +1,44 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, input, output, signal } from '@angular/core';
-import type { Frame } from '@grasp/engine';
 import { IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { pause, play, playSkipBack, playSkipForward, refresh } from 'ionicons/icons';
 import { onPageKey } from '../core/on-page-key';
 import { ArrayViewComponent } from '../viz/array-view.component';
-import { GridViewComponent } from '../viz/grid-view.component';
 import { ListViewComponent } from '../viz/list-view.component';
+import { TableViewComponent } from '../viz/table-view.component';
 import { TreeViewComponent } from '../viz/tree-view.component';
+import type { TraceFrame } from './trace-frames';
 
 const SPEEDS = [1, 2, 4];
 
 @Component({
   selector: 'app-trace-player',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IonIcon, ArrayViewComponent, GridViewComponent, ListViewComponent, TreeViewComponent],
+  imports: [IonIcon, ArrayViewComponent, ListViewComponent, TableViewComponent, TreeViewComponent],
   template: `
     @if (frame(); as f) {
       <div class="viz">
         @if (f.array) {
           <g-array-view [view]="f.array" />
         }
-        @if (f.grid) {
-          <g-grid-view [view]="f.grid" [legend]="false" />
+        @if (f.table) {
+          <g-table-view [view]="f.table" />
         }
         @if (f.tree) {
           <g-tree-view [view]="f.tree" />
         }
-        @if (f.stack || f.queue || f.set || f.output) {
+        @if (f.calls || f.stack || f.queue || f.set || f.output) {
           <div class="aux">
+            @if (f.calls; as calls) {
+              <g-list-view
+                class="calls"
+                label="call stack"
+                [items]="calls.items"
+                [more]="calls.more"
+                orientation="vertical"
+                [style.--rows]="callRows()"
+              />
+            }
             @if (f.stack) {
               <g-list-view [label]="f.stack.label" [items]="f.stack.items" orientation="vertical" />
             }
@@ -102,6 +112,11 @@ const SPEEDS = [1, 2, 4];
       display: flex;
       flex-wrap: wrap;
       gap: 16px;
+    }
+    /* Room for the deepest stack of the trace, so stepping through calls never moves the controls. */
+    .calls {
+      min-height: calc(var(--rows) * 2.125rem + 1.25rem);
+      max-width: 100%;
     }
     .vars {
       display: flex;
@@ -181,14 +196,17 @@ const SPEEDS = [1, 2, 4];
   `,
 })
 export class TracePlayerComponent {
-  readonly frames = input.required<Frame[]>();
+  readonly frames = input.required<TraceFrame[]>();
   readonly lineChange = output<number | null>();
 
   readonly index = signal(0);
   readonly playing = signal(false);
   readonly speed = signal(1);
   readonly last = computed(() => Math.max(0, this.frames().length - 1));
-  readonly frame = computed<Frame | undefined>(() => this.frames()[this.index()]);
+  readonly frame = computed<TraceFrame | undefined>(() => this.frames()[this.index()]);
+  readonly callRows = computed(() =>
+    Math.max(1, ...this.frames().map((f) => (f.calls ? f.calls.items.length + (f.calls.more ? 1 : 0) : 0))),
+  );
   readonly varNames = computed(() => Object.keys(this.frame()?.vars ?? {}));
   readonly changed = computed(() => {
     const prev = this.frames()[this.index() - 1];

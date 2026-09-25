@@ -12,8 +12,10 @@ Learners solve problems in Python, JavaScript or TypeScript entirely on their de
 | Tree inputs                                    | `libs/engine/src/coding/tree.ts`                                                                   |
 | Worker (runs code, traces JS/TS)               | `apps/app/src/app/code/runner.worker.ts`                                                           |
 | JS/TS compile, run and trace                   | `apps/app/src/app/code/execute-js.ts`                                                              |
+| Trace recording (steps and calls)              | `apps/app/src/app/code/trace-recorder.ts`                                                          |
 | Statement-level instrumentation                | `apps/app/src/app/code/instrument.ts` (acorn + astring)                                            |
 | Trace → visualizer frames                      | `apps/app/src/app/code/trace-frames.ts`, with `tree-frames.ts` for trees                           |
+| Grids, call stack and notes of a trace         | `apps/app/src/app/code/grid-frames.ts`, `call-stack.ts`, `trace-notes.ts`                          |
 | Time limits and worker lifecycle               | `apps/app/src/app/code/runner.service.ts`                                                          |
 | Editor                                         | `apps/app/src/app/code/code-editor.component.ts` (CodeMirror 6)                                    |
 | Workspace UI                                   | `apps/app/src/app/pages/code/`                                                                     |
@@ -53,6 +55,7 @@ Trees are inputs only: no problem returns one, and the `returns` type excludes i
 - **Python** runs on Pyodide (CPython compiled to WebAssembly) in a worker that stays warm between runs, because the interpreter takes about 2 s to load.
   - Each run gets a fresh globals dictionary.
   - Tracebacks are trimmed to the learner's `solution.py` frames.
+  - If learner code crashes the interpreter itself (it runs out of stack while freeing a very deep structure), the worker reports the crash on the running test and is replaced; the next run starts a fresh interpreter. Each run ends with a garbage collection, so the crash belongs to the run that caused it.
   - The runtime ships in the web build under `/pyodide/` (copied from the `pyodide` npm package by `scripts/copy-pyodide.mjs`).
   - Native builds don't bundle it; they fetch it from the API host on first use.
 - **Time limits** are 2 s per test for JS/TS and 8 s for Python, plus a setup limit for code that loops at load time.
@@ -68,16 +71,17 @@ Pyodide files are sent with `Cross-Origin-Resource-Policy: cross-origin` and the
 
 ## Tracing learner code
 
-`instrument()` parses the JavaScript and, before every statement inside a function, inserts a call that reports the source line and a getter for each variable in scope, following block scoping. Getters for variables still in their temporal dead zone throw and are skipped, which keeps the rewrite simple.
+`instrument()` parses the JavaScript and, before every statement inside a function, inserts a call that reports the source line and a getter for each variable in scope, following block scoping. Getters for variables still in their temporal dead zone throw and are skipped, which keeps the rewrite simple. It also reports entering and leaving every function (leaving in a `finally`, so a return or a throw counts), and pausing at `yield` and `await`. From these reports the recorder keeps the call stack, so a generator or async function that paused is never left on top, and records each call once, with its caller.
 
-The worker records up to 2,000 steps, each with a JSON-safe snapshot of the variables. `toFrames()` turns those snapshots into the same `Frame` objects the built-in visualizers use:
+The worker records up to 2,000 steps, each with a JSON-safe snapshot of the variables and the call it runs in. `toFrames()` turns those snapshots into the same `Frame` objects the built-in visualizers use:
 
-- the first parameter (array or string) is drawn with index pointers
+- the first parameter (an array, a string, or a list of pairs such as edges) is drawn with index pointers
 - `lo`/`hi`-style pairs become a window
 - stacks, queues, sets and maps get their own views
-- 0/1 grids are drawn with the current cell
-- a tree parameter is drawn as a tree, with the node each variable points at, the nodes waiting in a stack or queue, and the nodes visited earlier
-- every step's note lists what changed
+- a grid (a `char[][]` parameter, under whatever name the learner gives it, or a 2D value named like a grid, such as `grid` or `dp`) is drawn as a table, with the cell a `(r, c)` pair points at and the cells the code changed
+- a tree parameter is drawn as a tree, with the node each variable points at, the nodes on the call stack, the nodes waiting in a list, and the nodes whose call returned or that a loop visited
+- the call stack is shown whenever the code calls a function, at most six calls deep
+- every step's note names the call it enters or comes back to (from a callee, or a generator resuming), and what changed, down to the cells an assignment wrote
 
 The editor highlights the executing line as the learner scrubs.
 

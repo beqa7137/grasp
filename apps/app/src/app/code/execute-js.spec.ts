@@ -1,6 +1,6 @@
 import { buildTree } from '@grasp/engine';
-import { CompileError, compileJs, runJsTest, traceJs, type LogSink } from './execute-js';
-import { pythonError } from './python-errors';
+import { CompileError, compileJs, runJsTest, traceJs, type LogSink, type TraceOutcome } from './execute-js';
+import { isFatal, pythonCrash, pythonError } from './python-errors';
 import { describeSnap, snapshot, type TreeSnap } from './snapshot';
 import { toFrames } from './trace-frames';
 
@@ -26,6 +26,23 @@ const DIAMETER = `function diameterOfBinaryTree(root) {
   };
   height(root);
   return best;
+}`;
+
+const ISLANDS = `function numIslands(grid) {
+  let count = 0;
+  const sink = (r, c) => {
+    if (r < 0 || c < 0 || r >= grid.length || c >= grid[0].length || grid[r][c] !== '1') return;
+    grid[r][c] = '0';
+    sink(r + 1, c);
+    sink(r, c + 1);
+  };
+  for (let r = 0; r < grid.length; r++)
+    for (let c = 0; c < grid[0].length; c++)
+      if (grid[r][c] === '1') {
+        count++;
+        sink(r, c);
+      }
+  return count;
 }`;
 
 const compileError = (fn: () => unknown) => {
@@ -108,7 +125,11 @@ describe('tracing learner code', () => {
     const trace = traceJs(BINARY_SEARCH, 'javascript', 'search', [], [[1, 3, 5, 7, 9], 7], 500);
     expect(trace.truncated).toBe(false);
     expect(trace.returned).toBe(3);
-    expect(trace.steps[0]).toEqual({ line: 2, vars: { nums: { kind: 'array', items: [1, 3, 5, 7, 9], truncated: 0 }, target: 7 } });
+    expect(trace.steps[0]).toEqual({
+      line: 2,
+      vars: { nums: { kind: 'array', items: [1, 3, 5, 7, 9], truncated: 0 }, target: 7 },
+      call: 0,
+    });
     const lines = trace.steps.map((s) => s.line);
     expect(lines.slice(0, 5)).toEqual([2, 3, 4, 5, 6]);
     const firstMid = trace.steps.find((s) => 'mid' in s.vars)!;
@@ -128,6 +149,14 @@ describe('tracing learner code', () => {
     const inHelper = trace.steps.find((s) => s.line === 3 && 'r' in s.vars)!;
     expect(inHelper.vars).toMatchObject({ n: 1, r: 0 });
     expect(trace.steps.some((s) => s.line === 4 && s.vars['i'] === 3)).toBe(true);
+  });
+
+  it('runs function declarations as the untraced code does, even beside a var of the same name or declared twice', () => {
+    const shared = 'function f() {\n  var g = 1;\n  function g() {}\n  return g;\n}';
+    const twice =
+      "function f() {\n  'use strict';\n  function g() {\n    return 1;\n  }\n  function g() {\n    return 2;\n  }\n  return g();\n}";
+    const closure = 'function f() {\n  let count = 0;\n  add();\n  function add() {\n    count++;\n  }\n  return count;\n}';
+    expect([shared, twice, closure].map((code) => traceJs(code, 'javascript', 'f', [], [], 50).returned)).toEqual([1, 2, 1]);
   });
 
   it('skips variables still in their temporal dead zone', () => {
@@ -196,7 +225,7 @@ describe('turning traces into frames', () => {
   return stack;
 }`;
     const trace = traceJs(code, 'javascript', 'f', [], [[4, 5, 6]], 50);
-    const frames = toFrames(trace.steps, { primary: 'nums', returned: trace.returned });
+    const frames = toFrames(trace, [{ name: 'nums', type: 'int[]' }]);
     const last = frames.at(-2)!;
     expect(last.array).toMatchObject({ values: [4, 5, 6], pointers: { lo: 0, hi: 2 }, window: [0, 2] });
     expect(last.stack).toEqual({ label: 'stack', items: [4] });
@@ -205,33 +234,269 @@ describe('turning traces into frames', () => {
     expect(frames[1].note).toBe('stack = []');
   });
 
-  it('draws strings as arrays and grids of 0/1 as maps with the current cell', () => {
-    const frames = toFrames(
-      [
-        { line: 2, vars: { s: 'abc', left: 0, i: 2 } },
-        {
-          line: 3,
-          vars: {
-            grid: {
-              kind: 'array',
-              truncated: 0,
-              items: [
-                { kind: 'array', truncated: 0, items: ['1', '0'] },
-                { kind: 'array', truncated: 0, items: ['0', '1'] },
-              ],
-            },
-            r: 1,
-            c: 1,
-          },
-        },
-      ],
-      { primary: 's' },
-    );
-    expect(frames[0].array).toMatchObject({ values: ['a', 'b', 'c'], pointers: { left: 0, i: 2 } });
-    expect(frames[1].grid!.cells).toEqual([
-      ['path', 'open'],
-      ['open', 'current'],
+  it('draws strings as arrays', () => {
+    const frames = toFrames(traceJs('function f(s) {\n  let left = 0, i = 2;\n  return i;\n}', 'javascript', 'f', [], ['abc'], 50), [
+      { name: 's', type: 'string' },
     ]);
+    expect(frames[1].array).toMatchObject({ values: ['a', 'b', 'c'], pointers: { left: 0, i: 2 } });
+  });
+
+  it('draws a char[][] grid as a table: the cell (r, c) points at, and the cells the code changed', () => {
+    const trace = traceJs(
+      ISLANDS,
+      'javascript',
+      'numIslands',
+      [],
+      [
+        [
+          ['1', '0'],
+          ['1', '1'],
+        ],
+      ],
+      500,
+    );
+    const frames = toFrames(trace, [{ name: 'grid', type: 'char[][]' }]);
+    const sunk = frames.find((f) => f.note === 'grid[1][0] = "0"')!;
+    expect(sunk.table).toMatchObject({
+      cells: [
+        ['0', '0'],
+        ['0', '1'],
+      ],
+      active: [1, 0],
+      path: [
+        [0, 0],
+        [1, 0],
+      ],
+      legend: { active: 'grid[r][c]', path: 'changed by your code' },
+    });
+    expect(sunk.array).toBeUndefined();
+  });
+
+  it('draws a grid parameter as a table under the name the learner gives it', () => {
+    const trace = traceJs(
+      ISLANDS.replaceAll('grid', 'land'),
+      'javascript',
+      'numIslands',
+      [],
+      [
+        [
+          ['1', '0'],
+          ['1', '1'],
+        ],
+      ],
+      500,
+    );
+    const frames = toFrames(trace, [{ name: 'grid', type: 'char[][]' }]);
+    expect(frames.every((f) => f.table && !f.output)).toBe(true);
+    expect(frames.find((f) => f.note === 'land[1][0] = "0"')!.table).toMatchObject({ active: [1, 0], legend: { active: 'land[r][c]' } });
+  });
+
+  it('keeps a list of pairs such as edges as an array, never as a grid', () => {
+    const trace = traceJs(
+      'function f(times, n) {\n  let total = 0;\n  for (const [u, v, w] of times) total += w;\n  return total;\n}',
+      'javascript',
+      'f',
+      [],
+      [
+        [
+          [2, 1, 1],
+          [2, 3, 1],
+        ],
+        3,
+      ],
+      50,
+    );
+    const frames = toFrames(trace, [
+      { name: 'times', type: 'int[][]' },
+      { name: 'n', type: 'int' },
+    ]);
+    expect(frames[0].array!.values).toEqual(['[2, 1, 1]', '[2, 3, 1]']);
+    expect(frames.some((f) => f.table)).toBe(false);
+  });
+
+  it('gives the output list to a value the code made before an input, such as a list of edges', () => {
+    const code =
+      'function f(n, edges) {\n  const uf = { parent: [0, 1, 2] };\n  for (const [a, b] of edges) uf.parent[a] = b;\n  return uf.parent[0];\n}';
+    const trace = traceJs(code, 'javascript', 'f', [], [3, [[0, 1]]], 50);
+    const frames = toFrames(trace, [
+      { name: 'n', type: 'int' },
+      { name: 'edges', type: 'int[][]' },
+    ]);
+    expect(frames[0].output!.label).toBe('edges');
+    expect(frames.at(-2)!.output).toEqual({ label: 'uf', items: ['{parent: [1, 1, 2]}'] });
+  });
+
+  it('draws a DP table the code builds, named like one', () => {
+    const code =
+      'function f(n) {\n  const dp = [[0, 0], [0, 0]];\n  for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) dp[i][j] = i + j;\n  return dp[1][1];\n}';
+    const frames = toFrames(traceJs(code, 'javascript', 'f', [], [2], 100), [{ name: 'n', type: 'int' }]);
+    expect(frames.at(-2)!.table).toMatchObject({
+      cells: [
+        [0, 1],
+        [1, 2],
+      ],
+      legend: { active: 'dp[i][j]' },
+    });
+  });
+});
+
+describe('the call stack of a trace', () => {
+  const stack = (trace: TraceOutcome, i: number) => {
+    const names: string[] = [];
+    for (let c: number | null = trace.steps[i].call; c !== null; c = trace.calls[c].caller) names.unshift(trace.calls[c].name);
+    return names.join(' > ');
+  };
+  const stacks = (trace: TraceOutcome) => [...new Set(trace.steps.map((_, i) => stack(trace, i)))];
+
+  it('records the call each step runs in, with its caller and depth', () => {
+    const trace = traceJs(DIAMETER, 'javascript', 'diameterOfBinaryTree', ['tree'], [[1, 2]], 500);
+    expect(trace.calls[0]).toEqual({ name: 'diameterOfBinaryTree', params: ['root'], caller: null, depth: 1 });
+    expect(stacks(trace)).toEqual([
+      'diameterOfBinaryTree',
+      'diameterOfBinaryTree > height',
+      'diameterOfBinaryTree > height > height',
+      'diameterOfBinaryTree > height > height > height',
+    ]);
+    expect(stack(trace, trace.steps.length - 1)).toBe('diameterOfBinaryTree');
+  });
+
+  it('names callbacks after the call they are passed to, and constructors after their class', () => {
+    const code = `class Box {
+  constructor(n: number) {
+    this.n = n;
+  }
+  n: number;
+  twice(): number {
+    return 2 * this.n;
+  }
+}
+function f(nums: number[]): number {
+  const boxes = nums.map((n) => new Box(n));
+  boxes.sort((a, b) => a.n - b.n);
+  return boxes[0].twice();
+}`;
+    const trace = traceJs(code, 'typescript', 'f', [], [[2, 1]], 100);
+    expect(stacks(trace)).toEqual([
+      'f',
+      'f > nums.map callback',
+      'f > nums.map callback > new Box',
+      'f > boxes.sort callback',
+      'f > twice',
+    ]);
+  });
+
+  it('leaves a function stored under a computed key anonymous, as a stack trace does', () => {
+    const code =
+      "function f() {\n  const o = {};\n  const k = 'x';\n  o[k] = function () {\n    return 1;\n  };\n  o.y = () => 2;\n  return o.x() + o.y();\n}";
+    expect(stacks(traceJs(code, 'javascript', 'f', [], [], 50))).toEqual(['f', 'f > (anonymous)', 'f > y']);
+  });
+
+  it('takes a paused generator or async function off the stack until it runs again', () => {
+    const code = `function* inorder(node) {
+  if (!node) return;
+  yield* inorder(node.left);
+  yield node.val;
+  yield* inorder(node.right);
+}
+function id(x) {
+  return x;
+}
+async function later(x) {
+  await null;
+  return x;
+}
+function f(root) {
+  const it = inorder(root);
+  const first = id(it.next().value);
+  later(first);
+  const second = id(it.next().value);
+  return first + second;
+}`;
+    const trace = traceJs(code, 'javascript', 'f', ['tree'], [[2, 1]], 200);
+    expect(trace.returned).toBe(3);
+    expect(stacks(trace)).toEqual(['f', 'f > inorder', 'f > inorder > inorder', 'f > inorder > inorder > inorder', 'f > id', 'f > later']);
+    expect(trace.steps.filter((_, i) => stack(trace, i) === 'f > id')).toHaveLength(2);
+  });
+
+  it('resumes a generator on the call that resumes it, not on a paused call that started it', () => {
+    const code = `function* count() {
+  yield 1;
+  yield 2;
+}
+async function start(it) {
+  it.next();
+  await null;
+}
+function id(x) {
+  return x;
+}
+function f() {
+  const it = count();
+  start(it);
+  return id(it.next().value);
+}`;
+    const trace = traceJs(code, 'javascript', 'f', [], [], 100);
+    expect(trace.returned).toBe(2);
+    expect(stacks(trace)).toEqual(['f', 'f > start', 'f > start > count', 'f > count', 'f > id']);
+  });
+
+  it('keeps a generator the same call, with its tree argument on the stack, when the same call resumes it', () => {
+    const code = `function* inorder(node) {
+  if (!node) return;
+  yield* inorder(node.left);
+  yield node.val;
+  yield* inorder(node.right);
+}
+function f(root) {
+  const out = [];
+  for (const v of inorder(root)) out.push(v);
+  return out;
+}`;
+    const trace = traceJs(code, 'javascript', 'f', ['tree'], [[2, 1, 3]], 200);
+    const frames = toFrames(trace, [{ name: 'root', type: 'tree' }]);
+    expect(trace.calls.filter((c) => c.name === 'inorder')).toHaveLength(7);
+    const resumed = frames.filter((f) => f.note === 'Back in inorder(TreeNode(3))').at(-1)!;
+    expect(resumed.calls!.items).toEqual(['f(TreeNode(2))', 'inorder(TreeNode(2))', 'inorder(TreeNode(3))']);
+    expect(resumed.tree!.nodes.find((n) => n.label === '2')!.state).toBe('frontier');
+  });
+
+  it('leaves the stack right when an exception unwinds through calls', () => {
+    const code =
+      'function g(n) {\n  if (n === 0) throw new Error("x");\n  return g(n - 1);\n}\nfunction f() {\n  try {\n    g(2);\n  } catch {\n    return -1;\n  }\n}';
+    const trace = traceJs(code, 'javascript', 'f', [], [], 100);
+    expect(trace.returned).toBe(-1);
+    expect(stack(trace, trace.steps.length - 1)).toBe('f');
+  });
+
+  it('does not trace code that runs while the solution loads', () => {
+    const trace = traceJs('enum Dir { Up, Down }\nfunction f(): number {\n  return Dir.Down;\n}', 'typescript', 'f', [], [], 50);
+    expect(trace.steps).toEqual([{ line: 3, vars: {}, call: 0 }]);
+  });
+
+  it('shows up to six calls, the running one on top, and counts the rest', () => {
+    const trace = traceJs('function f(n) {\n  return n === 0 ? 0 : f(n - 1);\n}', 'javascript', 'f', [], [9], 100);
+    const frames = toFrames(trace, [{ name: 'n', type: 'int' }]);
+    expect(frames[0].calls).toEqual({ items: ['f(9)'], more: 0 });
+    expect(frames.at(-2)!.calls).toEqual({ items: ['f(5)', 'f(4)', 'f(3)', 'f(2)', 'f(1)', 'f(0)'], more: 4 });
+    expect(frames.at(-1)!.calls).toEqual({ items: [], more: 0 });
+    expect(frames[1].note).toBe('Called f(8)');
+  });
+
+  it('narrates a return by naming the call the trace is back in', () => {
+    const trace = traceJs(
+      'function f(n) {\n  const x = g(n);\n  return x;\n}\nfunction g(n) {\n  return n + 1;\n}',
+      'javascript',
+      'f',
+      [],
+      [1],
+      50,
+    );
+    expect(toFrames(trace, []).map((f) => f.note)).toEqual(['Called with n = 1', 'Called g(1)', 'Back in f(1) · x = 2', 'Returned 2']);
+  });
+
+  it('has no call stack when nothing is called beyond the entry function', () => {
+    const trace = traceJs(BINARY_SEARCH, 'javascript', 'search', [], [[1, 3], 3], 100);
+    expect(toFrames(trace, []).some((f) => f.calls)).toBe(false);
   });
 });
 
@@ -253,5 +518,23 @@ IndexError: list index out of range`);
       location: { line: 3 },
     });
     expect(pythonError(new Error('Traceback...\nNameError: boom'))).toEqual({ message: 'NameError: boom', location: undefined });
+  });
+
+  it('knows the error that killed the interpreter, and keeps the crash dump out of the log', () => {
+    const fatal = Object.assign(new RangeError('Maximum call stack size exceeded'), { pyodide_fatal_error: true });
+    expect([fatal, new Error('Pyodide already fatally failed and can no longer be used.'), new Error('boom')].map(isFatal)).toEqual([
+      true,
+      true,
+      false,
+    ]);
+    const crash = pythonCrash(fatal, [
+      'building',
+      'Stack (most recent call first):',
+      '  File "solution.py", line 8 in <module>',
+      '  File "/lib/python314.zip/_pyodide/_base.py", line 366 in run',
+    ]);
+    expect(crash.logs).toEqual(['building']);
+    expect(crash.error.location).toEqual({ line: 8 });
+    expect(crash.error.message).toContain('Python restarts on your next run');
   });
 });
