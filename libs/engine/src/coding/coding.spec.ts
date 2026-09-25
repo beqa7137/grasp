@@ -3,10 +3,40 @@ import { describe, expect, it } from 'vitest';
 import { spawnSync } from 'node:child_process';
 import { PATTERNS } from '../curriculum/patterns.js';
 import { getAlgorithm } from '../algorithms/index.js';
-import { CODING_PROBLEMS, getCodingProblem } from './problems.js';
+import { mulberry32, randInt, rangeOf } from '../algorithms/input.js';
+import { CODING_PROBLEMS, getCodingProblem, problemsForPattern } from './problems/index.js';
+import { randomTree } from './problems/inputs.js';
 import { PYTHON_REFERENCE } from './python-reference.fixture.js';
-import { buildSuite, entryName, exampleCases, outputsMatch, preview, pythonHarness, snakeCase, starterCode } from './suite.js';
+import {
+  PYTHON_PRELUDE,
+  buildSuite,
+  entryArgs,
+  entryName,
+  exampleCases,
+  outputsMatch,
+  paramTypes,
+  preview,
+  pythonHarness,
+  snakeCase,
+  starterCode,
+} from './suite.js';
+import { TreeNode, buildTree, levelOrder, type LevelOrder } from './tree.js';
 import { LANGUAGES } from './types.js';
+
+/** Every node of a tree with its parent, in level order. */
+function nodesOf(root: TreeNode | null) {
+  const nodes = root ? [root] : [];
+  const parent = new Map<TreeNode, TreeNode>();
+  for (let i = 0; i < nodes.length; i++)
+    for (const child of [nodes[i].left, nodes[i].right])
+      if (child) {
+        parent.set(child, nodes[i]);
+        nodes.push(child);
+      }
+  return { nodes, parent };
+}
+
+const height = (node: TreeNode | null): number => (node ? 1 + Math.max(height(node.left), height(node.right)) : 0);
 
 /** Obviously-correct (and slow) solutions to cross-check the references on small inputs. */
 const BRUTE: Record<string, (...args: any[]) => unknown> = {
@@ -138,6 +168,82 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     return worst === Infinity ? -1 : worst;
   },
   'count-prefixes': (words: string[], prefixes: string[]) => prefixes.map((p) => words.filter((w) => w.startsWith(p)).length),
+  'find-duplicate': (nums: number[]) => nums.find((x, i) => nums.indexOf(x) !== i),
+  'tree-diameter': (root: TreeNode | null) => {
+    const { nodes, parent } = nodesOf(root);
+    let best = 0;
+    for (const start of nodes) {
+      const dist = new Map([[start, 0]]);
+      for (const [node, d] of dist)
+        for (const next of [node.left, node.right, parent.get(node)])
+          if (next && !dist.has(next)) {
+            dist.set(next, d + 1);
+            best = Math.max(best, d + 1);
+          }
+    }
+    return best;
+  },
+  'house-robber-tree': (root: TreeNode | null) => {
+    const { nodes, parent } = nodesOf(root);
+    let best = 0;
+    for (let mask = 0; mask < 1 << nodes.length; mask++) {
+      const robbed = new Set(nodes.filter((_, i) => mask & (1 << i)));
+      if ([...robbed].some((node) => parent.has(node) && robbed.has(parent.get(node)!))) continue;
+      best = Math.max(
+        best,
+        [...robbed].reduce((sum, node) => sum + node.val, 0),
+      );
+    }
+    return best;
+  },
+  'single-number': (nums: number[]) => nums.find((x) => nums.filter((y) => y === x).length === 1),
+  'total-hamming-distance': (nums: number[]) => {
+    let total = 0;
+    for (let i = 0; i < nums.length; i++)
+      for (let j = i + 1; j < nums.length; j++) total += [...(nums[i] ^ nums[j]).toString(2)].filter((bit) => bit === '1').length;
+    return total;
+  },
+};
+
+/**
+ * Steps a slower approach needs on the performance case. Past 4·10^9 it cannot finish within the 2 s limit however
+ * its loops are written (the fastest quadratic variant measured, a native `indexOf` scan, still took over 5 s).
+ */
+const SLOWER: Record<string, (...args: any[]) => number> = {
+  // Nested loops stop at a copy of the duplicate, and both copies sit mid-array, so scanning from either end is quadratic.
+  'find-duplicate': (nums: number[]) => {
+    const firstAt = new Map<number, number>();
+    for (const [i, x] of nums.entries()) {
+      const first = firstAt.get(x);
+      if (first !== undefined) return Math.min(first, nums.length - 1 - i) ** 2 / 2;
+      firstAt.set(x, i);
+    }
+    return 0;
+  },
+  // Searching for each value's partner, from the front or from the back, until the single value comes up.
+  'single-number': (nums: number[]) => {
+    const at = new Map<number, number[]>();
+    nums.forEach((x, i) => at.set(x, [...(at.get(x) ?? []), i]));
+    const single = nums.findIndex((x) => at.get(x)!.length === 1);
+    const partner = (i: number) => at.get(nums[i])!.find((j) => j !== i)!;
+    const fromFront = rangeOf(0, single - 1).reduce((steps, i) => steps + partner(i) + 1, 0);
+    const fromBack = rangeOf(single + 1, nums.length - 1).reduce((steps, i) => steps + nums.length - partner(i), 0);
+    return Math.min(fromFront, fromBack);
+  },
+  'total-hamming-distance': (nums: number[]) => (nums.length * (nums.length - 1)) / 2,
+  // A breadth-first search from every node.
+  'tree-diameter': (root: TreeNode | null) => nodesOf(root).nodes.length ** 2,
+  // Recursing into children and grandchildren without a memo evaluates a node once per way down to it in steps of one and two levels.
+  'house-robber-tree': (root: TreeNode | null) => {
+    const calls = new Map<TreeNode, number>(root ? [[root, 1]] : []);
+    let steps = 0;
+    for (const [node, count] of calls) {
+      steps += count;
+      for (const below of [node.left, node.right, node.left?.left, node.left?.right, node.right?.left, node.right?.right])
+        if (below) calls.set(below, (calls.get(below) ?? 0) + count);
+    }
+    return steps;
+  },
 };
 
 const hasPython = spawnSync('python3', ['--version']).status === 0;
@@ -162,7 +268,7 @@ describe('coding problems', () => {
     '%s: the reference agrees with brute force on every small case',
     (_id, problem) => {
       for (const test of buildSuite(problem, { seed: 7, performance: false })) {
-        const brute = BRUTE[problem.id](...structuredClone(test.args));
+        const brute = BRUTE[problem.id](...entryArgs(paramTypes(problem), structuredClone(test.args)));
         expect(outputsMatch(brute, test.expected, problem.compare), `${problem.id} ${preview(test.args)}`).toBe(true);
       }
     },
@@ -175,6 +281,31 @@ describe('coding problems', () => {
     expect(performance.now() - started).toBeLessThan(1_500);
     // LCS stresses the O(m·n) table, not input size: two 1,500-letter strings are only ~3 KB.
     expect(JSON.stringify(perf.args).length).toBeGreaterThan(problem.id === 'longest-common-subsequence' ? 2_000 : 10_000);
+  });
+
+  it('give every pattern at least one problem', () => {
+    expect(PATTERNS.filter((p) => !problemsForPattern(p.id).length).map((p) => p.id)).toEqual([]);
+  });
+
+  it.each(Object.keys(SLOWER))('%s: the performance case is out of reach for the slower approach', (id) => {
+    const problem = getCodingProblem(id)!;
+    for (const seed of [1, 3]) {
+      const [perf] = buildSuite(problem, { seed }).filter((t) => t.kind === 'performance');
+      expect(SLOWER[id](...entryArgs(paramTypes(problem), perf.args))).toBeGreaterThan(4e9);
+    }
+  });
+
+  it('keeps tree inputs in canonical level order and within the stated 100 levels', () => {
+    for (const problem of CODING_PROBLEMS) {
+      const types = paramTypes(problem);
+      for (const test of buildSuite(problem))
+        types.forEach((type, i) => {
+          if (type !== 'tree') return;
+          const values = test.args[i] as LevelOrder;
+          expect(levelOrder(buildTree(values)), `${problem.id} ${preview(values)}`).toEqual(values);
+          expect(height(buildTree(values)), problem.id).toBeLessThanOrEqual(100);
+        });
+    }
   });
 
   it('keeps answers unique where the problem promises it', () => {
@@ -222,6 +353,18 @@ describe('outputsMatch', () => {
   });
 });
 
+describe('entryArgs', () => {
+  it('builds only the tree parameters and leaves the level order it was given alone', () => {
+    const args = [[1, null, 2], [3, 4], 5];
+    const [root, nums, k] = entryArgs(['tree', 'int[]', 'int'], args);
+    expect(root).toBeInstanceOf(TreeNode);
+    expect((root as TreeNode).right!.val).toBe(2);
+    expect(nums).toBe(args[1]);
+    expect(k).toBe(5);
+    expect(args[0]).toEqual([1, null, 2]);
+  });
+});
+
 describe('starter code', () => {
   it('declares the entry function in every language', () => {
     const problem = getCodingProblem('two-sum')!;
@@ -231,12 +374,21 @@ describe('starter code', () => {
     expect(snakeCase('lengthOfLongestSubstring')).toBe('length_of_longest_substring');
     for (const p of CODING_PROBLEMS) for (const lang of LANGUAGES) expect(starterCode(p, lang)).toContain(entryName(p, lang));
   });
+
+  it('declares TreeNode above a function that takes a tree', () => {
+    const problem = getCodingProblem('tree-diameter')!;
+    expect(starterCode(problem, 'javascript')).toContain('function diameterOfBinaryTree(root) {');
+    expect(starterCode(problem, 'typescript')).toContain('interface TreeNode {');
+    expect(starterCode(problem, 'typescript')).toContain('function diameterOfBinaryTree(root: TreeNode | null): number {');
+    expect(starterCode(problem, 'python')).toContain('def diameter_of_binary_tree(root: Optional[TreeNode]) -> int:');
+    expect(starterCode(getCodingProblem('two-sum')!, 'typescript')).not.toContain('TreeNode');
+  });
 });
 
 describe.runIf(hasPython)('Python harness (CPython)', () => {
   it.each(CODING_PROBLEMS.map((p) => [p.id, p] as const))('%s: the Python reference passes the full suite', (_id, problem) => {
     const suite = buildSuite(problem, { seed: 9 });
-    const script = `${PYTHON_REFERENCE[problem.id]}\n${pythonHarness(entryName(problem, 'python'))}
+    const script = `${PYTHON_PRELUDE}\n${PYTHON_REFERENCE[problem.id]}\n${pythonHarness(entryName(problem, 'python'), paramTypes(problem))}
 import sys, json
 for line in sys.stdin:
     print(__grasp_call(line))
@@ -254,5 +406,39 @@ for line in sys.stdin:
     suite.forEach((t, i) =>
       expect(outputsMatch(t.expected, outputs[i], problem.compare), `${problem.id} #${i} ${preview(t.args)}`).toBe(true),
     );
+  });
+
+  it('builds the same trees as buildTree, with TreeNode and Optional in scope for annotations', () => {
+    const rand = mulberry32(5);
+    const trees: LevelOrder[] = [
+      [],
+      [1],
+      [1, null, 2],
+      [1, 2, null, 3, null, 4],
+      ...Array.from({ length: 40 }, () => randomTree(rand, randInt(rand, 1, 20), -9, 9)),
+    ];
+    const script = `${PYTHON_PRELUDE}
+def echo(root: Optional[TreeNode], k: int) -> list:
+    values, queue = [], [root]
+    for node in queue:
+        values.append(node.val if node else None)
+        if node:
+            queue += [node.left, node.right]
+    while values and values[-1] is None:
+        values.pop()
+    return values + [k]
+${pythonHarness('echo', ['tree', 'int'])}
+import sys
+for line in sys.stdin:
+    print(__grasp_call(line))
+`;
+    const run = spawnSync('python3', ['-c', script], { input: trees.map((t, k) => JSON.stringify([t, k])).join('\n'), encoding: 'utf8' });
+    expect(run.stderr).toBe('');
+    expect(
+      run.stdout
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line)),
+    ).toEqual(trees.map((t, k) => [...t, k]));
   });
 });

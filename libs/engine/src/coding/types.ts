@@ -3,7 +3,8 @@ import type { Difficulty } from '../algorithms/types.js';
 export type Language = 'javascript' | 'typescript' | 'python';
 export const LANGUAGES: Language[] = ['python', 'javascript', 'typescript'];
 
-export type ParamType = 'int' | 'int[]' | 'int[][]' | 'string' | 'string[]' | 'char[][]' | 'bool';
+/** `tree` is a binary tree: tests carry it as a `LevelOrder` array, and the entry function receives linked `TreeNode`s. */
+export type ParamType = 'int' | 'int[]' | 'int[][]' | 'string' | 'string[]' | 'char[][]' | 'bool' | 'tree';
 
 export interface Param {
   name: string;
@@ -38,7 +39,8 @@ export interface CodingProblem {
   /** Function name in JavaScript/TypeScript; Python uses the snake_case form. */
   entry: string;
   params: Param[];
-  returns: ParamType;
+  /** Trees are inputs only: every output travels as JSON and is compared by value. */
+  returns: Exclude<ParamType, 'tree'>;
   compare: CompareMode;
   examples: Example[];
   edgeCases: Args[];

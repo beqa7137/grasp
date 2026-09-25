@@ -262,6 +262,20 @@ describe('structure views render real traces', () => {
     expect(ends.filter((end) => !onAnEdge(end))).toEqual([]);
   });
 
+  it('tree: draws a blank faintly and leaves it out of the node count', () => {
+    const el = render(TreeViewComponent, {
+      nodes: [
+        { id: 'a', label: '1', parent: null },
+        { id: 'a.left', label: '·', parent: 'a', blank: true },
+        { id: 'b', label: '2', parent: 'a', state: 'active' },
+      ],
+    });
+    expect(el.querySelector('svg')!.getAttribute('aria-label')).toBe('Tree with 2 nodes, current node 2');
+    expect(el.querySelectorAll('g.node')).toHaveLength(2);
+    expect(el.querySelector('text.blank')!.textContent).toBe('·');
+    expect(el.querySelectorAll('line.link.to-blank')).toHaveLength(1);
+  });
+
   it('tree: shows the legend a tracer gives, and none without one or when turned off', () => {
     const calls = getAlgorithm('subsets-backtracking')!.trace({ nums: [1, 2] })[3].tree;
     const el = render(TreeViewComponent, calls);

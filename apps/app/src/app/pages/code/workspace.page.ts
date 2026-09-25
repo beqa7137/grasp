@@ -8,10 +8,12 @@ import {
   entryName,
   exampleCases,
   getCodingProblem,
+  paramTypes,
   preview,
   starterCode,
   type Frame,
   type Language,
+  type LevelOrder,
   type TestCase,
 } from '@grasp/engine';
 import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
@@ -32,11 +34,14 @@ import type { RunnerError } from '../../code/protocol';
 import { RunnerService, type RunReport, type TestReport } from '../../code/runner.service';
 import { toFrames } from '../../code/trace-frames';
 import { TracePlayerComponent } from '../../code/trace-player.component';
+import { exampleTree } from '../../code/tree-frames';
 import { haptic } from '../../core/haptics';
 import { onPageKey } from '../../core/on-page-key';
 import { ProgressService } from '../../core/progress.service';
 import { RovingSelectDirective } from '../../core/roving-select.directive';
 import { uniqueId } from '../../core/unique-id';
+import { CodeTextComponent } from '../../viz/code-text.component';
+import { TreeViewComponent } from '../../viz/tree-view.component';
 
 const LANGUAGE_KEY = 'grasp.code.language';
 const draftKey = (problemId: string, language: Language) => `grasp.code.draft.${problemId}.${language}`;
@@ -61,6 +66,8 @@ type Panel = 'tests' | 'trace';
     LanguagePickerComponent,
     TracePlayerComponent,
     RovingSelectDirective,
+    CodeTextComponent,
+    TreeViewComponent,
   ],
   templateUrl: './workspace.page.html',
   styleUrl: './workspace.page.scss',
@@ -71,6 +78,16 @@ export class WorkspacePage {
 
   readonly id = input.required<string>();
   readonly problem = computed(() => getCodingProblem(this.id()));
+  /** Each example's tree arguments drawn, since a level-order list is hard to picture. */
+  readonly exampleTrees = computed(() => {
+    const problem = this.problem();
+    return (problem?.examples ?? []).map((ex) =>
+      problem!.params.flatMap((param, i) => {
+        const tree = param.type === 'tree' ? exampleTree(ex.args[i] as LevelOrder) : null;
+        return tree ? [tree] : [];
+      }),
+    );
+  });
 
   readonly language = signal<Language>('python');
   readonly code = signal('');
@@ -192,7 +209,7 @@ export class WorkspacePage {
     this.running.set('trace');
     this.clearTrace();
     const args = problem.examples[this.traceExample()]?.args ?? problem.examples[0].args;
-    const result = await this.runner.trace(language, this.code(), entryName(problem, language), args);
+    const result = await this.runner.trace(language, this.code(), entryName(problem, language), paramTypes(problem), args);
     this.running.set(null);
     if (!result.ok) {
       this.traceError.set(result.error);
@@ -219,8 +236,16 @@ export class WorkspacePage {
     return problem.params.map((p, i) => {
       const value = test.args[i];
       if (test.kind === 'performance') {
-        const size = Array.isArray(value) ? value.length : typeof value === 'string' ? value.length : null;
-        return size !== null ? `${p.name}: large input, ${size.toLocaleString()} items` : `${p.name} = ${preview(value)}`;
+        const size =
+          p.type === 'tree'
+            ? (value as LevelOrder).filter((v) => v !== null).length
+            : Array.isArray(value)
+              ? value.length
+              : typeof value === 'string'
+                ? value.length
+                : null;
+        const unit = p.type === 'tree' ? 'nodes' : 'items';
+        return size !== null ? `${p.name}: large input, ${size.toLocaleString()} ${unit}` : `${p.name} = ${preview(value)}`;
       }
       return `${p.name} = ${preview(value, 400)}`;
     });

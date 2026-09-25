@@ -225,4 +225,55 @@ def count_prefixes(words, prefixes):
         out.append(node['#'] if node else 0)
     return out
 `,
+  'find-duplicate': `
+def find_duplicate(nums):
+    slow, fast = nums[0], nums[nums[0]]
+    while slow != fast:
+        slow, fast = nums[slow], nums[nums[fast]]
+    slow = 0
+    while slow != fast:
+        slow, fast = nums[slow], nums[fast]
+    return slow
+`,
+  'tree-diameter': `
+def diameter_of_binary_tree(root):
+    best = 0
+
+    def height(node):
+        nonlocal best
+        if not node:
+            return 0
+        left, right = height(node.left), height(node.right)
+        best = max(best, left + right)
+        return 1 + max(left, right)
+
+    height(root)
+    return best
+`,
+  'house-robber-tree': `
+def rob(root):
+    def dfs(node):
+        if not node:
+            return 0, 0
+        rob_left, skip_left = dfs(node.left)
+        rob_right, skip_right = dfs(node.right)
+        return node.val + skip_left + skip_right, max(rob_left, skip_left) + max(rob_right, skip_right)
+
+    return max(dfs(root))
+`,
+  'single-number': `
+def single_number(nums):
+    x = 0
+    for n in nums:
+        x ^= n
+    return x
+`,
+  'total-hamming-distance': `
+def total_hamming_distance(nums):
+    total = 0
+    for bit in range(30):
+        ones = sum((x >> bit) & 1 for x in nums)
+        total += ones * (len(nums) - ones)
+    return total
+`,
 };

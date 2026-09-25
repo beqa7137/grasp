@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ALGORITHMS, mulberry32, type AlgorithmDef } from './algorithms/index.js';
 import { codeSpanProblems, codeSpans } from './code-spans.js';
-import { CODING_PROBLEMS } from './coding/problems.js';
+import { CODING_PROBLEMS } from './coding/problems/index.js';
 import { CLOZES } from './curriculum/clozes.js';
 import { COMPLEXITY_FACTS } from './curriculum/complexity.js';
 import { DRILL_CARDS } from './curriculum/drills.js';
@@ -77,6 +77,15 @@ describe('learner-facing content', () => {
             .map((part) => `code outside a code span: ${part.text}`),
         ])
         .map((problem) => `pattern ${pattern.id} has ${problem}`),
+    );
+    expect(problems).toEqual([]);
+  });
+
+  it('sets the code in coding problem statements, explanations and approaches as code spans that fit the line', () => {
+    const problems = CODING_PROBLEMS.flatMap((p) =>
+      [...p.statement, ...p.examples.flatMap((e) => e.explanation ?? []), p.approach]
+        .flatMap(codeSpanProblems)
+        .map((problem) => `coding problem ${p.id} has ${problem}`),
     );
     expect(problems).toEqual([]);
   });

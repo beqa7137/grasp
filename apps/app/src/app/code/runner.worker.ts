@@ -1,5 +1,5 @@
 /// <reference lib="webworker" />
-import { pythonHarness } from '@grasp/engine';
+import { PYTHON_PRELUDE, pythonHarness } from '@grasp/engine';
 import type { PyodideAPI } from 'pyodide';
 import { CompileError, compileJs, runJsTest, traceJs, type LogSink } from './execute-js';
 import type { WorkerMessage, WorkerRequest } from './protocol';
@@ -26,12 +26,13 @@ async function runPython(request: Extract<WorkerRequest, { kind: 'run' }>, index
   const namespace = py.globals['get']('dict')();
   try {
     try {
+      py.runPython(PYTHON_PRELUDE, { globals: namespace, filename: 'prelude.py' });
       py.runPython(request.code, { globals: namespace, filename: 'solution.py' });
       if (!namespace.has(request.entry)) {
         post({ kind: 'compile-error', error: { message: `Define a function named ${request.entry}.` } });
         return;
       }
-      py.runPython(pythonHarness(request.entry), { globals: namespace, filename: 'harness.py' });
+      py.runPython(pythonHarness(request.entry, request.params), { globals: namespace, filename: 'harness.py' });
     } catch (e) {
       post({ kind: 'compile-error', error: pythonError(e) });
       return;
@@ -69,7 +70,7 @@ function runJavaScript(request: Extract<WorkerRequest, { kind: 'run' }>) {
   }
   for (const [index, args] of request.tests.entries()) {
     post({ kind: 'test-start', index });
-    post({ kind: 'test-result', index, ...runJsTest(fn, args, sink) });
+    post({ kind: 'test-result', index, ...runJsTest(fn, request.params, args, sink) });
   }
 }
 
@@ -77,7 +78,7 @@ addEventListener('message', async ({ data }: MessageEvent<WorkerRequest & { pyod
   try {
     if (data.kind === 'trace') {
       try {
-        post({ kind: 'trace-result', ...traceJs(data.code, data.language, data.entry, data.args, data.maxSteps) });
+        post({ kind: 'trace-result', ...traceJs(data.code, data.language, data.entry, data.params, data.args, data.maxSteps) });
       } catch (e) {
         post({ kind: 'compile-error', error: e instanceof CompileError ? e.error : { message: String(e) } });
       }

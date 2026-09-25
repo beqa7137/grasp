@@ -1,4 +1,4 @@
-import type { Language } from '@grasp/engine';
+import type { Language, ParamType } from '@grasp/engine';
 import type { Snap, TraceStep } from './snapshot';
 
 export interface SourceLocation {
@@ -11,9 +11,18 @@ export interface RunnerError {
   location?: SourceLocation;
 }
 
+/** Both requests carry the parameter types, so the worker can build a tree argument's nodes. */
 export type WorkerRequest =
-  | { kind: 'run'; language: Language; code: string; entry: string; tests: unknown[][] }
-  | { kind: 'trace'; language: Exclude<Language, 'python'>; code: string; entry: string; args: unknown[]; maxSteps: number };
+  | { kind: 'run'; language: Language; code: string; entry: string; params: ParamType[]; tests: unknown[][] }
+  | {
+      kind: 'trace';
+      language: Exclude<Language, 'python'>;
+      code: string;
+      entry: string;
+      params: ParamType[];
+      args: unknown[];
+      maxSteps: number;
+    };
 
 export type WorkerMessage =
   | { kind: 'loading'; message: string }

@@ -1,9 +1,9 @@
 import { parse } from 'acorn';
 import { transform } from 'sucrase';
-import type { Language } from '@grasp/engine';
+import { entryArgs, type Language, type ParamType } from '@grasp/engine';
 import { TRACE_HOOK, instrument } from './instrument';
 import type { RunnerError } from './protocol';
-import { snapshot, type Snap, type TraceStep } from './snapshot';
+import { NodeIds, snapshot, type Snap, type TraceStep } from './snapshot';
 
 const MAX_LOG_LINES = 100;
 const MAX_LOG_CHARS = 2_000;
@@ -117,11 +117,12 @@ export function compileJs(code: string, language: Exclude<Language, 'python'>, e
   return load(toJavaScript(code, language), entry, sink);
 }
 
-export function runJsTest(fn: (...args: unknown[]) => unknown, args: unknown[], sink: LogSink): TestOutcome {
+export function runJsTest(fn: (...args: unknown[]) => unknown, params: readonly ParamType[], args: unknown[], sink: LogSink): TestOutcome {
   sink.lines.length = 0;
+  const input = entryArgs(params, structuredClone(args));
   const started = performance.now();
   try {
-    const output = plain(fn(...structuredClone(args)));
+    const output = plain(fn(...input));
     return { ok: true, output, ms: performance.now() - started, logs: [...sink.lines] };
   } catch (e) {
     return { ok: false, error: describeError(e), ms: performance.now() - started, logs: [...sink.lines] };
@@ -142,18 +143,20 @@ export function traceJs(
   code: string,
   language: Exclude<Language, 'python'>,
   entry: string,
+  params: readonly ParamType[],
   args: unknown[],
   maxSteps: number,
 ): TraceOutcome {
   const steps: TraceStep[] = [];
   const sink: LogSink = { lines: [] };
+  const ids = new NodeIds();
   const hook = (line: number, getters: [string, () => unknown][]) => {
     if (steps.length >= maxSteps) throw TRACE_LIMIT;
     const vars: Record<string, Snap> = {};
     for (const [name, get] of getters) {
       try {
         const value = get();
-        if (typeof value !== 'function') vars[name] = snapshot(value);
+        if (typeof value !== 'function') vars[name] = snapshot(value, ids);
       } catch {
         // Not yet initialized (temporal dead zone) or not in scope on this line.
       }
@@ -163,8 +166,8 @@ export function traceJs(
   const js = toJavaScript(code, language);
   const fn = load(instrument(js), entry, sink, { [TRACE_HOOK]: hook });
   try {
-    const returned = fn(...structuredClone(args));
-    return { steps, returned: snapshot(returned), truncated: false, logs: sink.lines };
+    const returned = fn(...entryArgs(params, structuredClone(args)));
+    return { steps, returned: snapshot(returned, ids), truncated: false, logs: sink.lines };
   } catch (e) {
     if (e === TRACE_LIMIT) return { steps, truncated: true, logs: sink.lines };
     const error = describeError(e);

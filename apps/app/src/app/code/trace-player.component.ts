@@ -7,13 +7,14 @@ import { onPageKey } from '../core/on-page-key';
 import { ArrayViewComponent } from '../viz/array-view.component';
 import { GridViewComponent } from '../viz/grid-view.component';
 import { ListViewComponent } from '../viz/list-view.component';
+import { TreeViewComponent } from '../viz/tree-view.component';
 
 const SPEEDS = [1, 2, 4];
 
 @Component({
   selector: 'app-trace-player',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IonIcon, ArrayViewComponent, GridViewComponent, ListViewComponent],
+  imports: [IonIcon, ArrayViewComponent, GridViewComponent, ListViewComponent, TreeViewComponent],
   template: `
     @if (frame(); as f) {
       <div class="viz">
@@ -22,6 +23,9 @@ const SPEEDS = [1, 2, 4];
         }
         @if (f.grid) {
           <g-grid-view [view]="f.grid" [legend]="false" />
+        }
+        @if (f.tree) {
+          <g-tree-view [view]="f.tree" />
         }
         @if (f.stack || f.queue || f.set || f.output) {
           <div class="aux">
