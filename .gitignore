@@ -37,3 +37,7 @@ apps/app/public/pyodide/
 
 # Vercel CLI project link and build output
 .vercel/
+
+# Claude Code local state
+.claude/scheduled_tasks.lock
+.claude/worktrees/
