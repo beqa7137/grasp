@@ -1,8 +1,8 @@
-import { mulberry32 } from './input.js';
-import type { AlgorithmDef, AlgorithmInput, Frame } from './types.js';
+import { mulberry32 } from './random.js';
+import type { AlgorithmDefinition, AlgorithmInput, Frame } from './types.js';
 
 /** Helpers bound to one tracer, shared by the tracer specs. */
-export function tracerFixture<I extends AlgorithmInput>(algo: AlgorithmDef<I>) {
+export function tracerFixture<I extends AlgorithmInput>(algo: AlgorithmDefinition<I>) {
   return {
     traceOf: (input: unknown) => algo.trace(algo.validate(input)),
     randomInputs: (seed: number, count: number) => {

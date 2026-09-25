@@ -1,25 +1,17 @@
-export type Track = 'foundations' | 'core' | 'graphs' | 'advanced';
+import { PATTERN_CATALOG, type PatternId, type PatternSummary } from './catalog.js';
 
-export interface Pattern {
-  id: string;
-  name: string;
-  track: Track;
-  order: number;
-  oneLiner: string;
+export interface PatternDetails {
   cues: string[];
   template: string[];
   complexity: string;
   pitfalls: string[];
-  algorithmIds: string[];
 }
 
-export const PATTERNS: Pattern[] = [
-  {
-    id: 'hashing',
-    name: 'Arrays & Hashing',
-    track: 'foundations',
-    order: 1,
-    oneLiner: 'Trade memory for time: remember what you have seen so each lookup is O(1).',
+/** The id stays a plain string, so callers can still match any id against the full list. */
+export type Pattern = PatternSummary<string> & PatternDetails;
+
+const DETAILS: Record<PatternId, PatternDetails> = {
+  hashing: {
     cues: ['"Have I seen this before?"', 'Counting / frequency', 'Pairs that complement each other', 'Grouping by a canonical key'],
     template: [
       'const seen = new Map();',
@@ -30,26 +22,14 @@ export const PATTERNS: Pattern[] = [
     ],
     complexity: 'O(n) time, O(n) space',
     pitfalls: ['Inserting before checking (matches an element with itself)', 'Using objects as keys without a canonical form'],
-    algorithmIds: ['two-sum-hash'],
   },
-  {
-    id: 'two-pointers',
-    name: 'Two Pointers',
-    track: 'foundations',
-    order: 2,
-    oneLiner: 'Two indices moving through ordered data; each step safely discards one candidate.',
+  'two-pointers': {
     cues: ['Sorted array + pair/triplet', 'Palindromes, reversing in place', 'Merging two sorted sequences', 'Partitioning in place'],
     template: ['let l = 0, r = n - 1;', 'while (l < r) {', '  if (good(l, r)) return [l, r];', '  if (tooSmall(l, r)) l++; else r--;', '}'],
     complexity: 'O(n) time, O(1) space',
     pitfalls: ['Forgetting to sort first', 'Skipping duplicates incorrectly in k-sum'],
-    algorithmIds: ['pair-sum-sorted'],
   },
-  {
-    id: 'sliding-window',
-    name: 'Sliding Window',
-    track: 'foundations',
-    order: 3,
-    oneLiner: 'Maintain a contiguous range; grow right, shrink left, never move backwards.',
+  'sliding-window': {
     cues: [
       'Longest / shortest contiguous subarray or substring',
       '"At most k" distinct / replacements',
@@ -65,14 +45,8 @@ export const PATTERNS: Pattern[] = [
     ],
     complexity: 'O(n) time, O(k) space',
     pitfalls: ['Negative numbers break "shrink when sum too big"', 'Updating the answer before the window is valid'],
-    algorithmIds: ['longest-unique-substring'],
   },
-  {
-    id: 'binary-search',
-    name: 'Binary Search',
-    track: 'foundations',
-    order: 4,
-    oneLiner: 'Any monotonic yes/no question can be answered in O(log n), including "is the answer at most x?"',
+  'binary-search': {
     cues: ['Sorted input', '"Minimum capacity / speed / days such that…"', 'Rotated sorted array', 'Answer space is large but checkable'],
     template: [
       'let lo = min, hi = max;',
@@ -84,26 +58,14 @@ export const PATTERNS: Pattern[] = [
     ],
     complexity: 'O(log n) × cost of check',
     pitfalls: ['Off-by-one between `lo < hi` and `lo <= hi`', 'Infinite loop when mid rounds toward lo and you set `lo = mid`'],
-    algorithmIds: ['binary-search'],
   },
-  {
-    id: 'prefix-sum',
-    name: 'Prefix Sums',
-    track: 'core',
-    order: 5,
-    oneLiner: 'Precompute running totals so any range sum is one subtraction.',
+  'prefix-sum': {
     cues: ['Many range-sum queries', '"Subarray sums to k" (with a hash map of prefix counts)', '2-D region sums'],
     template: ['const pre = [0];', 'for (const x of a) pre.push(pre.at(-1) + x);', '// sum(i..j) = pre[j + 1] - pre[i]'],
     complexity: 'O(n) build, O(1) query',
     pitfalls: ['Off-by-one on the leading zero', 'Forgetting `count[0] = 1` when counting subarrays'],
-    algorithmIds: ['subarray-sum-prefix'],
   },
-  {
-    id: 'monotonic-stack',
-    name: 'Monotonic Stack',
-    track: 'core',
-    order: 6,
-    oneLiner: 'Keep a stack sorted so each new element resolves everything it dominates.',
+  'monotonic-stack': {
     cues: ['Next greater / smaller element', 'Days until a warmer temperature', 'Largest rectangle in a histogram', 'Stock span'],
     template: [
       'const stack = [];',
@@ -114,14 +76,8 @@ export const PATTERNS: Pattern[] = [
     ],
     complexity: 'O(n): each index pushed and popped once',
     pitfalls: ['Storing values when you need indices', 'Strict vs non-strict comparison with duplicates'],
-    algorithmIds: ['next-greater-element'],
   },
-  {
-    id: 'fast-slow',
-    name: 'Fast & Slow Pointers',
-    track: 'core',
-    order: 7,
-    oneLiner: 'Two runners at different speeds detect cycles and find middles without extra memory.',
+  'fast-slow': {
     cues: ['Cycle in a linked list or functional graph', 'Middle of a linked list', '"Happy number"-style repeated transforms'],
     template: [
       'let slow = head, fast = head;',
@@ -132,14 +88,8 @@ export const PATTERNS: Pattern[] = [
     ],
     complexity: 'O(n) time, O(1) space',
     pitfalls: ['Null checks on `fast.next`', 'Finding the cycle start needs a second phase'],
-    algorithmIds: ['linked-list-cycle'],
   },
-  {
-    id: 'intervals',
-    name: 'Intervals',
-    track: 'core',
-    order: 8,
-    oneLiner: 'Sort by start, then sweep: merge, count overlaps, or schedule.',
+  intervals: {
     cues: ['Meeting rooms / calendars', 'Merge overlapping ranges', 'Minimum arrows / removals to avoid overlap'],
     template: [
       'intervals.sort((a, b) => a[0] - b[0]);',
@@ -150,26 +100,14 @@ export const PATTERNS: Pattern[] = [
     ],
     complexity: 'O(n log n)',
     pitfalls: ['Sorting by end when you need start (or vice versa)', 'Touching endpoints: overlap or not?'],
-    algorithmIds: ['merge-intervals'],
   },
-  {
-    id: 'heap',
-    name: 'Heap / Top-K',
-    track: 'core',
-    order: 9,
-    oneLiner: 'A priority queue keeps the best k things in O(log k) per update.',
+  heap: {
     cues: ['k largest / smallest / most frequent', 'Merge k sorted lists', 'Running median', 'Always process the cheapest next'],
     template: ['const heap = new MinHeap();', 'for (const x of stream) {', '  heap.push(x);', '  if (heap.size > k) heap.pop();', '}'],
     complexity: 'O(n log k)',
     pitfalls: ['Min-heap vs max-heap for top-k', 'Sorting everything when k ≪ n'],
-    algorithmIds: ['kth-largest'],
   },
-  {
-    id: 'bfs',
-    name: 'Breadth-First Search',
-    track: 'graphs',
-    order: 10,
-    oneLiner: 'Explore in rings of equal distance; first arrival is the shortest path in an unweighted graph.',
+  bfs: {
     cues: ['Fewest steps / moves / transformations', 'Grid shortest path', 'Level-order traversal', 'Multi-source spread (rotting, fire)'],
     template: [
       'const q = [start]; seen.add(start);',
@@ -182,14 +120,8 @@ export const PATTERNS: Pattern[] = [
     ],
     complexity: 'O(V + E)',
     pitfalls: ['Marking seen on dequeue instead of enqueue (duplicates in queue)', 'Using BFS on weighted edges'],
-    algorithmIds: ['grid-bfs'],
   },
-  {
-    id: 'dfs-backtracking',
-    name: 'DFS & Backtracking',
-    track: 'graphs',
-    order: 11,
-    oneLiner: 'Choose, explore, un-choose: systematically enumerate a decision tree and prune early.',
+  'dfs-backtracking': {
     cues: ['All subsets / permutations / combinations', 'N-Queens, Sudoku', 'Word search in a grid', 'Count connected regions'],
     template: [
       'function go(state) {',
@@ -201,14 +133,8 @@ export const PATTERNS: Pattern[] = [
     ],
     complexity: 'Exponential; pruning is everything',
     pitfalls: ['Pushing a reference instead of a copy', 'Forgetting to undo'],
-    algorithmIds: ['subsets-backtracking'],
   },
-  {
-    id: 'topo-sort',
-    name: 'Topological Sort',
-    track: 'graphs',
-    order: 12,
-    oneLiner: 'Order tasks so every dependency comes first; a leftover node means a cycle.',
+  'topo-sort': {
     cues: ['Prerequisites / build order', '"Can all courses be finished?"', 'Alien dictionary ordering'],
     template: [
       'const q = nodes.filter((n) => indeg[n] === 0);',
@@ -219,14 +145,8 @@ export const PATTERNS: Pattern[] = [
     ],
     complexity: 'O(V + E)',
     pitfalls: ['Edge direction reversed', 'Not checking `order.length === V` for cycles'],
-    algorithmIds: ['topo-sort'],
   },
-  {
-    id: 'union-find',
-    name: 'Union-Find',
-    track: 'graphs',
-    order: 13,
-    oneLiner: 'Merge sets and ask "same group?" in near-constant time.',
+  'union-find': {
     cues: [
       'Dynamic connectivity',
       'Number of components as edges arrive',
@@ -239,14 +159,8 @@ export const PATTERNS: Pattern[] = [
     ],
     complexity: 'O(α(n)) amortized',
     pitfalls: ['Skipping path compression / union by rank', 'Using it for directed graphs'],
-    algorithmIds: ['union-find'],
   },
-  {
-    id: 'dijkstra',
-    name: 'Shortest Paths (Dijkstra)',
-    track: 'graphs',
-    order: 14,
-    oneLiner: 'BFS with a priority queue for non-negative weighted edges.',
+  dijkstra: {
     cues: ['Weighted shortest path / minimum cost', 'Network delay time', 'Cheapest route with constraints'],
     template: [
       'pq.push([0, src]);',
@@ -258,14 +172,8 @@ export const PATTERNS: Pattern[] = [
     ],
     complexity: 'O((V + E) log V)',
     pitfalls: ['Negative weights (use Bellman-Ford)', 'Not skipping stale heap entries'],
-    algorithmIds: ['dijkstra'],
   },
-  {
-    id: 'tree-dfs',
-    name: 'Tree Traversal',
-    track: 'graphs',
-    order: 15,
-    oneLiner: 'Most tree problems are "compute from children, combine at parent".',
+  'tree-dfs': {
     cues: ['Height, diameter, balanced?', 'Path sums', 'Lowest common ancestor', 'Validate / search a BST'],
     template: [
       'function dfs(node) {',
@@ -276,26 +184,14 @@ export const PATTERNS: Pattern[] = [
     ],
     complexity: 'O(n)',
     pitfalls: ['Returning one thing but needing two (global vs local answer)', 'BST validation with only parent comparison'],
-    algorithmIds: ['tree-traversal'],
   },
-  {
-    id: 'trie',
-    name: 'Trie',
-    track: 'advanced',
-    order: 16,
-    oneLiner: 'A tree of characters: prefix queries in O(length).',
+  trie: {
     cues: ['Autocomplete / prefix search', 'Word search with many words', 'Longest common prefix across many strings'],
     template: ['let node = root;', 'for (const ch of word) node = node[ch] ??= {};', 'node.end = true;'],
     complexity: 'O(L) per operation',
     pitfalls: ['Memory blow-up with large alphabets', 'Forgetting the end-of-word marker'],
-    algorithmIds: ['trie'],
   },
-  {
-    id: 'dp-1d',
-    name: '1-D Dynamic Programming',
-    track: 'advanced',
-    order: 17,
-    oneLiner: 'Define the answer for a prefix in terms of smaller prefixes; memoize.',
+  'dp-1d': {
     cues: ['"Number of ways" to reach n', 'Max/min with choices at each step (rob, jump, climb)', 'Decode / partition a string'],
     template: [
       'const dp = Array(n + 1).fill(0);',
@@ -304,14 +200,8 @@ export const PATTERNS: Pattern[] = [
     ],
     complexity: 'O(n) typically',
     pitfalls: ['Unclear state definition', 'Not compressing to O(1) space when only last two states matter'],
-    algorithmIds: ['house-robber'],
   },
-  {
-    id: 'dp-2d',
-    name: '2-D DP & Knapsack',
-    track: 'advanced',
-    order: 18,
-    oneLiner: 'State over two dimensions: two strings, a grid, or items × capacity.',
+  'dp-2d': {
     cues: ['Edit distance / LCS between two strings', 'Unique paths in a grid', 'Pick items under a budget / target sum'],
     template: [
       'for (let i = 1; i <= n; i++)',
@@ -320,14 +210,8 @@ export const PATTERNS: Pattern[] = [
     ],
     complexity: 'O(n × m)',
     pitfalls: ['Iterating capacity the wrong direction in 0/1 knapsack', 'Base row/column'],
-    algorithmIds: ['lcs'],
   },
-  {
-    id: 'greedy',
-    name: 'Greedy',
-    track: 'advanced',
-    order: 19,
-    oneLiner: 'Take the locally best choice, but only when you can argue it never hurts later.',
+  greedy: {
     cues: [
       'Can you reach the end? (jump game)',
       'Gas station circuit',
@@ -343,21 +227,21 @@ export const PATTERNS: Pattern[] = [
     ],
     complexity: 'Usually O(n) or O(n log n)',
     pitfalls: ['No exchange argument → probably needs DP'],
-    algorithmIds: ['jump-game'],
   },
-  {
-    id: 'bit-manipulation',
-    name: 'Bit Manipulation',
-    track: 'advanced',
-    order: 20,
-    oneLiner: 'XOR cancels pairs, masks encode subsets, shifts multiply.',
+  'bit-manipulation': {
     cues: ['Every number appears twice except one', 'Count set bits', 'Enumerate subsets of a small set', 'Sum without `+`'],
     template: ['let x = 0;', 'for (const n of nums) x ^= n;', 'return x;'],
     complexity: 'O(n), O(1) space',
     pitfalls: ['Sign bit and `>>` vs `>>>` in JavaScript'],
-    algorithmIds: ['single-number-xor'],
   },
-];
+};
+
+// The API serves patterns as JSON; putting algorithmIds last keeps the field order it has always had.
+export const PATTERNS: Pattern[] = PATTERN_CATALOG.map(({ algorithmIds, ...summary }) => ({
+  ...summary,
+  ...DETAILS[summary.id],
+  algorithmIds,
+}));
 
 export function getPattern(id: string): Pattern | undefined {
   return PATTERNS.find((p) => p.id === id);

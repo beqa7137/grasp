@@ -1,16 +1,13 @@
 import { fixedChoices } from './choices.js';
-import { asNumber, asNumbers, randInt } from './input.js';
-import type { AlgorithmDef, Frame } from './types.js';
+import { asNumber, asNumbers } from './input.js';
+import { randInt } from './random.js';
+import type { AlgorithmDefinition, Frame } from './types.js';
 
 type Input = { nums: number[]; target: number };
 
 const CHOICES = ['Found: return [l, r]', 'l++ (need a bigger sum)', 'r-- (need a smaller sum)'];
 
-export const pairSum: AlgorithmDef<Input> = {
-  id: 'pair-sum-sorted',
-  title: 'Pair Sum in a Sorted Array',
-  patternId: 'two-pointers',
-  difficulty: 'easy',
+export const pairSum: AlgorithmDefinition<Input> = {
   summary: 'Squeeze two pointers inward; the sorted order tells you which one to move.',
   complexity: { time: 'O(n)', space: 'O(1)' },
   code: [

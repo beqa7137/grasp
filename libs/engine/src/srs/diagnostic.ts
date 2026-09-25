@@ -1,5 +1,5 @@
-import { PATTERNS } from '../curriculum/patterns.js';
-import { getReviewItem, itemsForTopic } from '../review/catalog.js';
+import { PATTERN_CATALOG } from '../curriculum/catalog.js';
+import { getReviewItemSummary, itemsForTopic } from '../review/catalog.js';
 import { pick, type Rand } from '../review/random.js';
 import type { DiagnosticAnswer } from './events.js';
 
@@ -7,12 +7,12 @@ export type Placement = 'weak' | 'strong';
 
 /** Only recognition items are asked: they are unlocked from day one and don't name the pattern in the question. */
 export function isDiagnosticItem(itemId: string): boolean {
-  return getReviewItem(itemId)?.kind === 'recognition';
+  return getReviewItemSummary(itemId)?.kind === 'recognition';
 }
 
 /** Curriculum order, so the check runs from foundations to advanced. */
 export function diagnosticItems(rand: Rand): string[] {
-  return PATTERNS.map((pattern) => {
+  return PATTERN_CATALOG.map((pattern) => {
     const candidates = itemsForTopic(pattern.id).filter((item) => isDiagnosticItem(item.id));
     return pick(rand, candidates).id;
   });
@@ -25,7 +25,7 @@ export function diagnosticItems(rand: Rand): string[] {
 export function placementFromAnswers(answers: readonly DiagnosticAnswer[]): Record<string, Placement> {
   const placement: Record<string, Placement> = {};
   for (const answer of answers) {
-    const topic = getReviewItem(answer.itemId)?.topic;
+    const topic = getReviewItemSummary(answer.itemId)?.topic;
     if (!topic) continue;
     placement[topic] = answer.outcome === 'correct' && placement[topic] !== 'weak' ? 'strong' : 'weak';
   }

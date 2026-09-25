@@ -1,8 +1,9 @@
 import { InputError } from './types.js';
 import { fixedChoices, rotatedChoices } from './choices.js';
-import { asNumber, asNumbers, randInt, shuffle } from './input.js';
+import { asNumber, asNumbers } from './input.js';
+import { randInt, shuffle } from './random.js';
 import { listLayout } from './layout.js';
-import type { AlgorithmDef, Frame, GraphEdge, GraphLegend, GraphNode, GraphView, Prediction } from './types.js';
+import type { AlgorithmDefinition, Frame, GraphEdge, GraphLegend, GraphNode, GraphView, Prediction } from './types.js';
 
 type Input = { values: number[]; pos: number };
 
@@ -11,11 +12,7 @@ const VALUE_POOL = Array.from({ length: 40 }, (_, i) => i + 1);
 const MEET = ['Yes: slow === fast, return true', 'No: they are still apart'];
 const LEGEND: GraphLegend = { active: 'slow', frontier: 'fast', done: 'slow = fast' };
 
-export const linkedListCycle: AlgorithmDef<Input> = {
-  id: 'linked-list-cycle',
-  title: 'Linked List Cycle (Floyd)',
-  patternId: 'fast-slow',
-  difficulty: 'easy',
+export const linkedListCycle: AlgorithmDefinition<Input> = {
   summary:
     'Move slow one node and fast two per step: fast runs off the end of a list that ends, and inside a loop it gains one node per step until it lands on slow.',
   complexity: { time: 'O(n)', space: 'O(1)' },

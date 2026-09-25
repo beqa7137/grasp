@@ -1,5 +1,7 @@
+import type { FixedLength } from '../fixed-length.js';
+import { SCENARIO_CATALOG, type ScenarioId, type ScenarioRevisits } from './scenario-catalog.js';
 import { fmt, simulate } from './simulate.js';
-import type { Design, DesignNode, GoalCheck, Scenario, SimResult } from './types.js';
+import type { Design, DesignNode, GoalCheck, Scenario, ScenarioVariant, SimResult } from './types.js';
 
 const n = (id: string, kind: Design['nodes'][number]['kind'], x: number, y: number, instances = 1, extra: Partial<DesignNode> = {}) => ({
   id,
@@ -10,10 +12,12 @@ const n = (id: string, kind: Design['nodes'][number]['kind'], x: number, y: numb
   ...extra,
 });
 
-export const SCENARIOS: Scenario[] = [
-  {
-    id: 'first-scale-up',
-    title: 'Your First Scale-Up',
+type ScenarioDefinition<Revisits extends number> = Omit<Scenario, 'id' | 'title' | 'variants' | 'revisit'> & {
+  variants: FixedLength<ScenarioVariant, Revisits>;
+};
+
+const DEFINITIONS: { [Id in ScenarioId]: ScenarioDefinition<ScenarioRevisits[Id]> } = {
+  'first-scale-up': {
     tagline: 'One server, one database, and a launch tomorrow.',
     brief:
       "A startup's REST API runs on a single app server. Marketing expects 3,000 requests/second at launch, 90% reads. Keep p99 under 150 ms and errors near zero without blowing the budget.",
@@ -50,9 +54,7 @@ export const SCENARIOS: Scenario[] = [
       },
     ],
   },
-  {
-    id: 'viral-feed',
-    title: 'The Feed Goes Viral',
+  'viral-feed': {
     tagline: '40k RPS, almost all reads, and the database is on fire.',
     brief:
       'A social feed hits the front page. Traffic jumps to 40,000 RPS with 97% reads. Keep p99 under 180 ms, errors under 0.1%, no single point of failure, and spend at most $9,000/month.',
@@ -91,9 +93,7 @@ export const SCENARIOS: Scenario[] = [
       },
     ],
   },
-  {
-    id: 'flash-sale',
-    title: 'Flash Sale at Noon',
+  'flash-sale': {
     tagline: '10k orders/second for one minute. Every order must be kept.',
     brief:
       'A ticketing site opens sales for a stadium tour: 15,000 RPS for 60 seconds, 70% of them writes (orders). The database can take ~2.5k writes/s. Every accepted order must be durable, p99 under 250 ms, errors under 0.5%, and the backlog must clear within 10 minutes of the spike.',
@@ -161,9 +161,7 @@ export const SCENARIOS: Scenario[] = [
       },
     ],
   },
-  {
-    id: 'bot-storm',
-    title: 'Bot Storm',
+  'bot-storm': {
     tagline: 'Your real users are fine. The 24k bots behind them are not.',
     brief:
       'A marketplace serves 6,000 RPS of real users (90% reads). Overnight, scrapers and credential stuffers add 24,000 RPS of bot traffic from thousands of IPs, and it keeps falling over. Keep p99 under 200 ms and real-user errors under 0.1%, with no single point of failure, for at most $5,000/month.',
@@ -212,9 +210,7 @@ export const SCENARIOS: Scenario[] = [
       },
     ],
   },
-  {
-    id: 'write-wall',
-    title: 'The Write Wall',
+  'write-wall': {
     tagline: '7,200 messages a second, forever. One primary takes 2,500.',
     brief:
       'A chat service stores 12,000 RPS, 60% of them new messages (all day, not in a spike). Each write costs the database 2 ops, so one primary tops out near 2,500 writes/s. The messages table is partitioned by created_at. Keep p99 under 200 ms, errors under 0.1%, the queue (if any) keeping up, and spend at most $9,000/month.',
@@ -269,7 +265,12 @@ export const SCENARIOS: Scenario[] = [
       },
     ],
   },
-];
+};
+
+export const SCENARIOS: Scenario[] = SCENARIO_CATALOG.map(({ revisits: _revisits, ...summary }) => ({
+  ...summary,
+  ...DEFINITIONS[summary.id],
+}));
 
 export function getScenario(id: string): Scenario | undefined {
   return SCENARIOS.find((s) => s.id === id);

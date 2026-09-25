@@ -1,3 +1,4 @@
+export * from './catalog.js';
 export * from './patterns.js';
 export * from './drills.js';
 export * from './clozes.js';

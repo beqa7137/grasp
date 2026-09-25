@@ -1,4 +1,4 @@
-import { distinctInts, randInt } from '../../algorithms/input.js';
+import { distinctInts, randInt } from '../../algorithms/random.js';
 import { TreeNode, levelOrder, type LevelOrder } from '../tree.js';
 
 export const ints = (rand: () => number, n: number, lo: number, hi: number) => Array.from({ length: n }, () => randInt(rand, lo, hi));

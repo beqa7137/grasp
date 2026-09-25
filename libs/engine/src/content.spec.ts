@@ -7,7 +7,7 @@ import { COMPLEXITY_FACTS } from './curriculum/complexity.js';
 import { DRILL_CARDS } from './curriculum/drills.js';
 import { PATTERNS } from './curriculum/patterns.js';
 import { SD_TOPICS } from './curriculum/sd-topics.js';
-import { REVIEW_ITEMS, generateQuestion } from './review/catalog.js';
+import { REVIEW_ITEMS, generateQuestion } from './review/items.js';
 import type { ItemDef } from './review/types.js';
 import { COMPONENTS, SHARD_KEYS } from './sysdesign/catalog.js';
 import { SCENARIOS } from './sysdesign/scenarios.js';

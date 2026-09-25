@@ -47,6 +47,9 @@ export interface Question {
   link?: { label: string; path: string[] };
 }
 
+/** A review item without its label or question builder, which scheduling, sessions and mastery never read. */
+export type ReviewItemSummary = Omit<ReviewItem, 'label'>;
+
 export interface ItemDef extends ReviewItem {
   /** Builds a fresh variant. The same seed always yields the same question. */
   generate(seed: number): Question;

@@ -1,8 +1,9 @@
 import { fixedChoices } from './choices.js';
 import { InputError } from './types.js';
-import { asEdges, asNumber, randInt, type Edge } from './input.js';
+import { asEdges, asNumber, type Edge } from './input.js';
+import { randInt } from './random.js';
 import { circleLayout } from './layout.js';
-import type { AlgorithmDef, EdgeState, Frame, GraphLegend, GraphView, NodeState } from './types.js';
+import type { AlgorithmDefinition, EdgeState, Frame, GraphLegend, GraphView, NodeState } from './types.js';
 
 type Input = { n: number; edges: Edge[]; source: number };
 
@@ -10,11 +11,7 @@ const RELAX = ['Yes: a shorter path was found', 'No: keep the current distance']
 const LEGEND: GraphLegend = { active: 'current', frontier: 'queued', done: 'done' };
 const fmt = (d: number) => (d === Infinity ? '∞' : String(d));
 
-export const dijkstra: AlgorithmDef<Input> = {
-  id: 'dijkstra',
-  title: "Dijkstra's Shortest Paths",
-  patternId: 'dijkstra',
-  difficulty: 'hard',
+export const dijkstra: AlgorithmDefinition<Input> = {
   summary: 'Always settle the closest unsettled node next; with non-negative weights its distance can never improve later.',
   complexity: { time: 'O((V + E) log V)', space: 'O(V + E)' },
   code: [

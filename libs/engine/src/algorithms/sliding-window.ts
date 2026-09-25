@@ -1,17 +1,14 @@
 import { fixedChoices } from './choices.js';
 import { InputError } from './types.js';
-import { asText, randInt, rangeOf } from './input.js';
-import type { AlgorithmDef, Frame } from './types.js';
+import { asText, rangeOf } from './input.js';
+import { randInt } from './random.js';
+import type { AlgorithmDefinition, Frame } from './types.js';
 
 type Input = { s: string };
 
 const CHOICES = ['Expand: add it to the window', 'Shrink from the left first'];
 
-export const longestUnique: AlgorithmDef<Input> = {
-  id: 'longest-unique-substring',
-  title: 'Longest Substring Without Repeats',
-  patternId: 'sliding-window',
-  difficulty: 'medium',
+export const longestUnique: AlgorithmDefinition<Input> = {
   summary: 'Grow the window on the right; when a duplicate enters, shrink from the left until the window is valid again.',
   complexity: { time: 'O(n)', space: 'O(k) distinct chars' },
   code: [

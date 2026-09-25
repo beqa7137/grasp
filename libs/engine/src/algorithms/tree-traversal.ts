@@ -1,7 +1,8 @@
 import { InputError } from './types.js';
 import { rotatedChoices } from './choices.js';
-import { asNumbers, randInt, shuffle } from './input.js';
-import type { AlgorithmDef, Frame, NodeState, Prediction, TreeLegend, TreeView } from './types.js';
+import { asNumbers } from './input.js';
+import { randInt, shuffle } from './random.js';
+import type { AlgorithmDefinition, Frame, NodeState, Prediction, TreeLegend, TreeView } from './types.js';
 
 type Order = 'preorder' | 'inorder' | 'postorder';
 type Side = 'left' | 'right';
@@ -62,11 +63,7 @@ function walk(node: TreeNode | null, order: Order, out: number[] = []): number[]
 const label = (node: TreeNode | null) => (node ? String(node.val) : 'null');
 const nodeId = (node: TreeNode | null, parentId: string, side: Side) => (node ? `n${node.val}` : `${parentId}.${side}`);
 
-export const treeTraversal: AlgorithmDef<Input> = {
-  id: 'tree-traversal',
-  title: 'Tree DFS: Preorder, Inorder, Postorder',
-  patternId: 'tree-dfs',
-  difficulty: 'easy',
+export const treeTraversal: AlgorithmDefinition<Input> = {
   summary:
     'One recursive walk enters the nodes in the same sequence every time; the three orders differ only in where the node is appended.',
   complexity: { time: 'O(n)', space: 'O(h)' },

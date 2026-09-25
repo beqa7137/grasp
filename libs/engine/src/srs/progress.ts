@@ -1,9 +1,9 @@
 import { getProblemSummary } from '../coding/catalog.js';
-import { PATTERNS } from '../curriculum/patterns.js';
+import { PATTERN_CATALOG } from '../curriculum/catalog.js';
 import { SD_TOPICS, getSdTopic } from '../curriculum/sd-topics.js';
-import { getReviewItem, itemsForTopic } from '../review/catalog.js';
-import type { ItemKind, ReviewItem } from '../review/types.js';
-import { SCENARIOS } from '../sysdesign/scenarios.js';
+import { getReviewItemSummary, itemsForTopic } from '../review/catalog.js';
+import type { ItemKind, ReviewItemSummary } from '../review/types.js';
+import { SCENARIO_CATALOG } from '../sysdesign/scenario-catalog.js';
 import { placementFromAnswers, type Placement } from './diagnostic.js';
 import { sortEvents, upcast, type StoredEvent, type StudySettings } from './events.js';
 import { pullForward, retrievability, review, type CardPhase, type CardState, type ReviewRating } from './scheduler.js';
@@ -109,7 +109,7 @@ export function applyEvent(state: ProgressState, stored: StoredEvent): ProgressS
 
   switch (event.type) {
     case 'review.graded': {
-      const def = getReviewItem(event.itemId);
+      const def = getReviewItemSummary(event.itemId);
       if (!def) break;
       const prev = state.cards[event.itemId];
       next.cards[event.itemId] = review(event.itemId, prev, event.rating, at, state.settings.retention);
@@ -123,7 +123,7 @@ export function applyEvent(state: ProgressState, stored: StoredEvent): ProgressS
       break;
     }
     case 'practice.answered': {
-      const def = getReviewItem(event.itemId);
+      const def = getReviewItemSummary(event.itemId);
       if (def) introduce(def.topic);
       next.practice = { correct: state.practice.correct + (event.correct ? 1 : 0), total: state.practice.total + 1 };
       next.xp += event.correct ? 2 : 0;
@@ -215,7 +215,7 @@ export function applyEvent(state: ProgressState, stored: StoredEvent): ProgressS
       next.diagnosedAt = event.at;
       for (const [topic, placement] of Object.entries(next.placement)) if (placement === 'strong') introduce(topic);
       for (const answer of event.answers) {
-        const def = getReviewItem(answer.itemId);
+        const def = getReviewItemSummary(answer.itemId);
         if (def && answer.outcome !== 'skipped') next.durations = updateDuration(next.durations, def.kind, answer.durationMs);
       }
       next.xp += 2 * event.answers.filter((a) => a.outcome === 'correct').length;
@@ -249,7 +249,7 @@ function bumpStreak(streak: ProgressState['streak'], day: string): ProgressState
 }
 
 /** An item enters the review rotation only after the learner has met its idea somewhere else first. */
-export function isUnlocked(item: ReviewItem, state: ProgressState): boolean {
+export function isUnlocked(item: ReviewItemSummary, state: ProgressState): boolean {
   switch (item.kind) {
     case 'recognition':
       return true;
@@ -280,7 +280,7 @@ export interface TopicMastery {
 
 export function masteryByTopic(state: ProgressState, now: Date): TopicMastery[] {
   const topics = [
-    ...PATTERNS.map((p) => ({ id: p.id, kind: 'pattern' as const })),
+    ...PATTERN_CATALOG.map((p) => ({ id: p.id, kind: 'pattern' as const })),
     ...SD_TOPICS.map((t) => ({ id: t.id, kind: 'design' as const })),
   ];
   return topics.map(({ id, kind }) => {
@@ -333,9 +333,9 @@ export interface MissionRevisit {
 }
 
 export function missionRevisits(state: ProgressState, now: Date): MissionRevisit[] {
-  return SCENARIOS.flatMap((s) => {
+  return SCENARIO_CATALOG.flatMap((s) => {
     const m = state.missions[s.id];
-    if (!m?.nextRevisitAt || !s.variants?.[m.revisitsDone]) return [];
+    if (!m?.nextRevisitAt || m.revisitsDone >= s.revisits) return [];
     return [{ scenarioId: s.id, variant: m.revisitsDone + 1, dueAt: m.nextRevisitAt, due: Date.parse(m.nextRevisitAt) <= now.getTime() }];
   }).sort((a, b) => a.dueAt.localeCompare(b.dueAt));
 }
