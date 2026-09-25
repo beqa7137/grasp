@@ -43,7 +43,8 @@ export type LegendSwatch = 'state' | 'role';
       background: var(--g-raised);
       border-color: var(--g-stroke);
     }
-    i[data-state='active'] {
+    i[data-state='active'],
+    i[data-role='active'] {
       background: var(--g-state-current);
       border-color: var(--g-state-current);
     }
@@ -65,10 +66,6 @@ export type LegendSwatch = 'state' | 'role';
     i[data-role] {
       border-radius: 3px;
       border-width: 1px;
-    }
-    i[data-role='active'] {
-      background: var(--g-state-current);
-      border-color: var(--g-state-current);
     }
     i[data-role='deps'] {
       border-color: var(--g-pointer);

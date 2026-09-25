@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import type { NodeState, TreeView } from '@grasp/engine';
+import { toward } from './geometry';
 import { LegendComponent } from './legend.component';
 import { NODE_STYLES } from './node-styles';
 
@@ -60,11 +61,10 @@ export function layoutForest(tree: TreeView): { nodes: PlacedNode[]; links: Link
     if (n.parent === null || !slot.has(n.parent) || !slot.has(n.id) || n.parent === n.id) return [];
     const from = position(n.parent);
     const to = position(n.id);
-    // Links stop at each node's edge, or they would show through the see-through state fills and cross the labels.
-    const dx = to.x - from.x;
-    const dy = to.y - from.y;
-    const trim = RADIUS / Math.hypot(dx, dy);
-    return [{ id: `${n.parent}>${n.id}`, x1: from.x + dx * trim, y1: from.y + dy * trim, x2: to.x - dx * trim, y2: to.y - dy * trim }];
+    // End links at the node edge; the state fills are see-through.
+    const start = toward(from, to, RADIUS);
+    const end = toward(to, from, RADIUS);
+    return [{ id: `${n.parent}>${n.id}`, x1: start.x, y1: start.y, x2: end.x, y2: end.y }];
   });
   return { nodes, links, width: Math.max(1, next) * SLOT + 2 * PAD, height: (levels - 1) * LEVEL + 2 * RADIUS + 2 * PAD };
 }

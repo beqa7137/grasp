@@ -97,10 +97,10 @@ import type { GridView } from '@grasp/engine';
     .d {
       white-space: nowrap;
       font: 11px/1 var(--g-font-mono);
-      color: var(--g-muted);
-    }
-    .cell:is([data-state='frontier'], [data-state='path']) .d {
       color: var(--g-text);
+    }
+    .cell[data-state='visited'] .d {
+      color: var(--g-muted);
     }
     .legend {
       display: flex;

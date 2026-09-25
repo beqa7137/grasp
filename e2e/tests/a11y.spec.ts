@@ -29,6 +29,13 @@ async function blockingViolations(page: Page, { contrastOnly = false } = {}): Pr
     .map((v) => `${v.id} (${v.impact}): ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`);
 }
 
+/** Moves the timeline part of the way through and waits for the grid to show a cell in `state`. */
+async function seekGrid(page: Page, fraction: number, state: string) {
+  const timeline = page.getByRole('slider', { name: 'Timeline' });
+  await timeline.fill(String(Math.round(Number(await timeline.getAttribute('max')) * fraction)));
+  await expect(page.locator(`g-grid-view .cell[data-state="${state}"]`).first()).toBeVisible();
+}
+
 const PAGES: { name: string; path: string; ready: (page: Page) => Promise<unknown> }[] = [
   { name: 'Learn', path: '/learn', ready: (page) => expect(page.getByRole('heading', { level: 1 })).toBeVisible() },
   {
@@ -38,6 +45,8 @@ const PAGES: { name: string; path: string; ready: (page: Page) => Promise<unknow
   },
   { name: 'the LCS visualizer and its table', path: '/visualize/lcs', ready: (page) => expect(page.getByRole('table')).toBeVisible() },
   { name: 'a visualizer checkpoint', path: '/visualize/binary-search', ready: (page) => stepToCheckpoint(page) },
+  { name: 'the grid search with cells in its queue', path: '/visualize/grid-bfs', ready: (page) => seekGrid(page, 0.5, 'frontier') },
+  { name: 'the grid search on its shortest path', path: '/visualize/grid-bfs', ready: (page) => seekGrid(page, 1, 'path') },
   {
     name: 'an answered review card',
     path: '/drill',

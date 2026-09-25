@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { GRAPH_BOX, GRAPH_NODE_RADIUS, type EdgeState, type GraphView, type NodeState } from '@grasp/engine';
 import { uniqueId } from '../core/unique-id';
+import { toward, type Point } from './geometry';
 import { LegendComponent } from './legend.component';
 import { NODE_STYLES } from './node-styles';
 
@@ -17,11 +18,6 @@ const BADGE_CHAR_WIDTH = 6.6;
 const BADGE_HALF_HEIGHT = 5.5;
 const BADGE_ROOM = 2;
 const EDGE_STATES: EdgeState[] = ['idle', 'active', 'chosen', 'skipped'];
-
-interface Point {
-  x: number;
-  y: number;
-}
 
 interface Box {
   left: number;
@@ -50,13 +46,6 @@ interface DrawnNode {
   badge?: string;
   badgeY: number;
 }
-
-const toward = (from: Point, to: Point, distance: number): Point => {
-  const dx = to.x - from.x;
-  const dy = to.y - from.y;
-  const length = Math.hypot(dx, dy) || 1;
-  return { x: from.x + (dx / length) * distance, y: from.y + (dy / length) * distance };
-};
 
 const round = (n: number) => Math.round(n * 10) / 10;
 

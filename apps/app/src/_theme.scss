@@ -46,7 +46,7 @@
   --g-pointer-alt: #9a2a08;
   @include rgb-token(predict, #536d00);
 
-  // Visualizer states: one look per state across the graph, tree, grid, table and array views and their legends.
+  // Visualizer states: one look per state in every view and legend.
   --g-state-current: var(--g-active);
   --g-state-current-ink: var(--g-on-fill);
   --g-state-frontier-fill: rgba(var(--g-warn-rgb), 0.16);
@@ -56,7 +56,7 @@
   --g-state-path-fill: rgba(var(--g-found-rgb), 0.22);
   --g-state-path-line: var(--g-found);
   // Expanded cells are the most common state, so their outline stays quiet; their distance number marks them.
-  --g-state-visited-fill: rgba(var(--g-accent-rgb), 0.14);
+  --g-state-visited-fill: var(--g-accent-soft);
   --g-state-visited-line: rgba(var(--g-accent-rgb), 0.35);
 
   --g-wall: #5d6577;
@@ -127,7 +127,7 @@
   --g-syntax-number: #f78c6c;
   --g-syntax-type: #ffcb6b;
   --g-syntax-operator: #89ddff;
-  // Lighter than --g-muted, so comments keep 4.5:1 on the trace, error and selection highlights.
+  // Lighter than --g-muted, which drops under 4.5:1 on the trace and selection highlights.
   --g-syntax-comment: #9ca4b8;
   --g-code-active-line: rgba(var(--g-accent-rgb), 0.07);
   --g-code-line-on: rgba(var(--g-accent-rgb), 0.13);
