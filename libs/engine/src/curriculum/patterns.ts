@@ -1,16 +1,15 @@
 import { PATTERN_CATALOG, type PatternId, type PatternSummary } from './catalog.js';
 
-export interface PatternDetails {
+interface PatternDefinition {
   cues: string[];
   template: string[];
   complexity: string;
   pitfalls: string[];
 }
 
-/** The id stays a plain string, so callers can still match any id against the full list. */
-export type Pattern = PatternSummary<string> & PatternDetails;
+export type Pattern = PatternSummary & PatternDefinition;
 
-const DETAILS: Record<PatternId, PatternDetails> = {
+const DETAILS: Record<PatternId, PatternDefinition> = {
   hashing: {
     cues: ['"Have I seen this before?"', 'Counting / frequency', 'Pairs that complement each other', 'Grouping by a canonical key'],
     template: [
@@ -236,7 +235,7 @@ const DETAILS: Record<PatternId, PatternDetails> = {
   },
 };
 
-// The API serves patterns as JSON; putting algorithmIds last keeps the field order it has always had.
+// algorithmIds stays last, where the curriculum API has always served it.
 export const PATTERNS: Pattern[] = PATTERN_CATALOG.map(({ algorithmIds, ...summary }) => ({
   ...summary,
   ...DETAILS[summary.id],

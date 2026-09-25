@@ -1,7 +1,9 @@
+import { ALGORITHM_CATALOG } from '../algorithms/catalog.js';
+
 export type Track = 'foundations' | 'core' | 'graphs' | 'advanced';
 
-/** A pattern as the pattern map, route titles and progress see it; its cues, template and pitfalls live in patterns.ts. */
-export interface PatternSummary<Id extends string = PatternId> {
+/** A pattern as the pattern map, route titles and progress see it; the rest lives in patterns.ts. */
+export interface PatternSummary<Id extends string = string> {
   id: Id;
   name: string;
   track: Track;
@@ -17,7 +19,6 @@ const PATTERN_LIST = [
     track: 'foundations',
     order: 1,
     oneLiner: 'Trade memory for time: remember what you have seen so each lookup is O(1).',
-    algorithmIds: ['two-sum-hash'],
   },
   {
     id: 'two-pointers',
@@ -25,7 +26,6 @@ const PATTERN_LIST = [
     track: 'foundations',
     order: 2,
     oneLiner: 'Two indices moving through ordered data; each step safely discards one candidate.',
-    algorithmIds: ['pair-sum-sorted'],
   },
   {
     id: 'sliding-window',
@@ -33,7 +33,6 @@ const PATTERN_LIST = [
     track: 'foundations',
     order: 3,
     oneLiner: 'Maintain a contiguous range; grow right, shrink left, never move backwards.',
-    algorithmIds: ['longest-unique-substring'],
   },
   {
     id: 'binary-search',
@@ -41,7 +40,6 @@ const PATTERN_LIST = [
     track: 'foundations',
     order: 4,
     oneLiner: 'Any monotonic yes/no question can be answered in O(log n), including "is the answer at most x?"',
-    algorithmIds: ['binary-search'],
   },
   {
     id: 'prefix-sum',
@@ -49,7 +47,6 @@ const PATTERN_LIST = [
     track: 'core',
     order: 5,
     oneLiner: 'Precompute running totals so any range sum is one subtraction.',
-    algorithmIds: ['subarray-sum-prefix'],
   },
   {
     id: 'monotonic-stack',
@@ -57,7 +54,6 @@ const PATTERN_LIST = [
     track: 'core',
     order: 6,
     oneLiner: 'Keep a stack sorted so each new element resolves everything it dominates.',
-    algorithmIds: ['next-greater-element'],
   },
   {
     id: 'fast-slow',
@@ -65,7 +61,6 @@ const PATTERN_LIST = [
     track: 'core',
     order: 7,
     oneLiner: 'Two runners at different speeds detect cycles and find middles without extra memory.',
-    algorithmIds: ['linked-list-cycle'],
   },
   {
     id: 'intervals',
@@ -73,7 +68,6 @@ const PATTERN_LIST = [
     track: 'core',
     order: 8,
     oneLiner: 'Sort by start, then sweep: merge, count overlaps, or schedule.',
-    algorithmIds: ['merge-intervals'],
   },
   {
     id: 'heap',
@@ -81,7 +75,6 @@ const PATTERN_LIST = [
     track: 'core',
     order: 9,
     oneLiner: 'A priority queue keeps the best k things in O(log k) per update.',
-    algorithmIds: ['kth-largest'],
   },
   {
     id: 'bfs',
@@ -89,7 +82,6 @@ const PATTERN_LIST = [
     track: 'graphs',
     order: 10,
     oneLiner: 'Explore in rings of equal distance; first arrival is the shortest path in an unweighted graph.',
-    algorithmIds: ['grid-bfs'],
   },
   {
     id: 'dfs-backtracking',
@@ -97,7 +89,6 @@ const PATTERN_LIST = [
     track: 'graphs',
     order: 11,
     oneLiner: 'Choose, explore, un-choose: systematically enumerate a decision tree and prune early.',
-    algorithmIds: ['subsets-backtracking'],
   },
   {
     id: 'topo-sort',
@@ -105,7 +96,6 @@ const PATTERN_LIST = [
     track: 'graphs',
     order: 12,
     oneLiner: 'Order tasks so every dependency comes first; a leftover node means a cycle.',
-    algorithmIds: ['topo-sort'],
   },
   {
     id: 'union-find',
@@ -113,7 +103,6 @@ const PATTERN_LIST = [
     track: 'graphs',
     order: 13,
     oneLiner: 'Merge sets and ask "same group?" in near-constant time.',
-    algorithmIds: ['union-find'],
   },
   {
     id: 'dijkstra',
@@ -121,7 +110,6 @@ const PATTERN_LIST = [
     track: 'graphs',
     order: 14,
     oneLiner: 'BFS with a priority queue for non-negative weighted edges.',
-    algorithmIds: ['dijkstra'],
   },
   {
     id: 'tree-dfs',
@@ -129,7 +117,6 @@ const PATTERN_LIST = [
     track: 'graphs',
     order: 15,
     oneLiner: 'Most tree problems are "compute from children, combine at parent".',
-    algorithmIds: ['tree-traversal'],
   },
   {
     id: 'trie',
@@ -137,7 +124,6 @@ const PATTERN_LIST = [
     track: 'advanced',
     order: 16,
     oneLiner: 'A tree of characters: prefix queries in O(length).',
-    algorithmIds: ['trie'],
   },
   {
     id: 'dp-1d',
@@ -145,7 +131,6 @@ const PATTERN_LIST = [
     track: 'advanced',
     order: 17,
     oneLiner: 'Define the answer for a prefix in terms of smaller prefixes; memoize.',
-    algorithmIds: ['house-robber'],
   },
   {
     id: 'dp-2d',
@@ -153,7 +138,6 @@ const PATTERN_LIST = [
     track: 'advanced',
     order: 18,
     oneLiner: 'State over two dimensions: two strings, a grid, or items × capacity.',
-    algorithmIds: ['lcs'],
   },
   {
     id: 'greedy',
@@ -161,7 +145,6 @@ const PATTERN_LIST = [
     track: 'advanced',
     order: 19,
     oneLiner: 'Take the locally best choice, but only when you can argue it never hurts later.',
-    algorithmIds: ['jump-game'],
   },
   {
     id: 'bit-manipulation',
@@ -169,21 +152,23 @@ const PATTERN_LIST = [
     track: 'advanced',
     order: 20,
     oneLiner: 'XOR cancels pairs, masks encode subsets, shifts multiply.',
-    algorithmIds: ['single-number-xor'],
   },
-] as const satisfies readonly PatternSummary<string>[];
+] as const satisfies readonly Omit<PatternSummary, 'algorithmIds'>[];
 
 export type PatternId = (typeof PATTERN_LIST)[number]['id'];
 
 /** Every pattern, in curriculum order. */
-export const PATTERN_CATALOG: readonly PatternSummary[] = PATTERN_LIST;
+export const PATTERN_CATALOG: readonly PatternSummary<PatternId>[] = PATTERN_LIST.map((pattern) => ({
+  ...pattern,
+  algorithmIds: ALGORITHM_CATALOG.filter((a) => a.patternId === pattern.id).map((a) => a.id),
+}));
 
 export function getPatternSummary(id: string): PatternSummary | undefined {
   return PATTERN_CATALOG.find((p) => p.id === id);
 }
 
 /** Recognition cards as the review catalog sees them: which pattern each one drills, in curriculum order. */
-export interface DrillCardSummary<Id extends string = DrillCardId> {
+export interface DrillCardSummary<Id extends string = string> {
   id: Id;
   patternId: string;
 }
@@ -238,14 +223,14 @@ const DRILLS = [
   { id: 'g2', patternId: 'greedy' },
   { id: 'bm1', patternId: 'bit-manipulation' },
   { id: 'bm2', patternId: 'bit-manipulation' },
-] as const satisfies readonly DrillCardSummary<string>[];
+] as const satisfies readonly DrillCardSummary[];
 
 export type DrillCardId = (typeof DRILLS)[number]['id'];
 
-export const DRILL_CATALOG: readonly DrillCardSummary[] = DRILLS;
+export const DRILL_CATALOG: readonly DrillCardSummary<DrillCardId>[] = DRILLS;
 
 /** Complexity facts as the review catalog sees them: which pattern each one is about, in curriculum order. */
-export interface ComplexityFactSummary<Id extends string = ComplexityFactId> {
+export interface ComplexityFactSummary<Id extends string = string> {
   id: Id;
   patternId: string;
 }
@@ -268,11 +253,11 @@ const FACTS = [
   { id: 'trie', patternId: 'trie' },
   { id: 'lcs', patternId: 'dp-2d' },
   { id: 'tree-dfs', patternId: 'tree-dfs' },
-] as const satisfies readonly ComplexityFactSummary<string>[];
+] as const satisfies readonly ComplexityFactSummary[];
 
 export type ComplexityFactId = (typeof FACTS)[number]['id'];
 
-export const COMPLEXITY_CATALOG: readonly ComplexityFactSummary[] = FACTS;
+export const COMPLEXITY_CATALOG: readonly ComplexityFactSummary<ComplexityFactId>[] = FACTS;
 
 /** How many template lines each pattern asks the learner to recall; clozes.ts must define exactly that many. */
 export const CLOZE_COUNTS = {

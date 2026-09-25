@@ -64,9 +64,6 @@ const label = (node: TreeNode | null) => (node ? String(node.val) : 'null');
 const nodeId = (node: TreeNode | null, parentId: string, side: Side) => (node ? `n${node.val}` : `${parentId}.${side}`);
 
 export const treeTraversal: AlgorithmDefinition<Input> = {
-  summary:
-    'One recursive walk enters the nodes in the same sequence every time; the three orders differ only in where the node is appended.',
-  complexity: { time: 'O(n)', space: 'O(h)' },
   code: [
     'function traverse(root, order) {',
     '  const out = [];',

@@ -15,6 +15,7 @@ const FIRST_PAINT = [
   'code-spans.ts',
   'coding/catalog.ts',
   'curriculum/catalog.ts',
+  'curriculum/sd-topics.ts',
   'review/catalog.ts',
   'sysdesign/scenario-catalog.ts',
 ];
@@ -29,12 +30,13 @@ function runtimeImports(file: string): string[] {
   return [...source.matchAll(/^(?:import|export) (?!type\b)[^;]*? from '(\.[^']+)\.js';$/gms)].map((m) => resolve(file, m[1]));
 }
 
-/** Every `export { … } from` in the engine, as [re-exporting file, re-exported module]. */
-function namedReExports(): string[][] {
+type ReExport = [barrel: string, module: string];
+
+function namedReExports(): ReExport[] {
   const files = (readdirSync(SRC, { recursive: true }) as string[]).filter((f) => f.endsWith('.ts') && !f.endsWith('.spec.ts'));
   return files.flatMap((file) => {
     const source = readFileSync(SRC + file, 'utf8');
-    return [...source.matchAll(/^export (?!type\b)\{[^}]*\} from '(\.[^']+)\.js';$/gm)].map((m) => [file, resolve(file, m[1])]);
+    return [...source.matchAll(/^export (?!type\b)\{[^}]*\} from '(\.[^']+)\.js';$/gm)].map((m): ReExport => [file, resolve(file, m[1])]);
   });
 }
 
@@ -77,7 +79,7 @@ describe('first paint', () => {
 
   // A named re-export makes the barrel itself part of every page that imports one of those names, so the page also loads
   // everything else that barrel re-exports. `export *` resolves each name straight to its module.
-  it('modules are re-exported only with export *, so a page importing one light name loads no content beside it', () => {
-    expect(namedReExports().filter(([, module]) => FIRST_PAINT.includes(module))).toEqual([]);
+  it('barrels re-export every module with export *, so a page importing one name loads only the module that defines it', () => {
+    expect(namedReExports()).toEqual([]);
   });
 });

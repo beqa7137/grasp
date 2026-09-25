@@ -1,12 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { CODING_CATALOG, PATTERNS } from '@grasp/engine';
+import { CODING_CATALOG, getPatternSummary } from '@grasp/engine';
 import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { checkmarkCircle, ellipseOutline, timeOutline } from 'ionicons/icons';
 import { ProgressService } from '../../core/progress.service';
-
-const patternName = new Map(PATTERNS.map((p) => [p.id, p.name]));
 
 @Component({
   selector: 'app-code-list',
@@ -112,6 +110,6 @@ export class CodeListPage {
   }
 
   name(id: string) {
-    return patternName.get(id) ?? id;
+    return getPatternSummary(id)?.name ?? id;
   }
 }

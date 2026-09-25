@@ -335,7 +335,7 @@ export interface MissionRevisit {
 export function missionRevisits(state: ProgressState, now: Date): MissionRevisit[] {
   return SCENARIO_CATALOG.flatMap((s) => {
     const m = state.missions[s.id];
-    if (!m?.nextRevisitAt || m.revisitsDone >= s.revisits) return [];
+    if (!m?.nextRevisitAt || m.revisitsDone >= s.variants.length) return [];
     return [{ scenarioId: s.id, variant: m.revisitsDone + 1, dueAt: m.nextRevisitAt, due: Date.parse(m.nextRevisitAt) <= now.getTime() }];
   }).sort((a, b) => a.dueAt.localeCompare(b.dueAt));
 }

@@ -69,8 +69,6 @@ function dpValue(step: Step, threeBack: number | null): Prediction | null {
 }
 
 export const houseRobber: AlgorithmDefinition<Input> = {
-  summary: '`dp[i]` is the most money from the first i houses: skip house `i - 1` and keep `dp[i - 1]`, or rob it on top of `dp[i - 2]`.',
-  complexity: { time: 'O(n)', space: 'O(n)' },
   code: [
     'function rob(nums) {',
     '  const n = nums.length;',

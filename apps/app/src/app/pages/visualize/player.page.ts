@@ -20,7 +20,7 @@ import {
   InputError,
   formatField,
   getAlgorithm,
-  getPattern,
+  getPatternSummary,
   parseField,
   type AlgorithmDef,
   type ArrayView,
@@ -97,7 +97,7 @@ export class PlayerPage {
 
   readonly algo = computed(() => getAlgorithm(this.id()) as AlgorithmDef | undefined);
   readonly problem = computed(() => CODING_CATALOG.find((p) => p.algorithmId === this.id()));
-  readonly pattern = computed(() => (this.algo() ? getPattern(this.algo()!.patternId) : undefined));
+  readonly pattern = computed(() => (this.algo() ? getPatternSummary(this.algo()!.patternId) : undefined));
 
   readonly input = signal<Record<string, unknown> | null>(null);
   readonly drafts = signal<Record<string, string>>({});

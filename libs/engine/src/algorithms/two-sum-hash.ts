@@ -10,8 +10,6 @@ const LOOKUP = ['Yes: return the pair', 'No: store x and keep scanning'];
 const entry = (value: number, index: number) => `${value} → ${index}`;
 
 export const twoSumHash: AlgorithmDefinition<Input> = {
-  summary: 'Scan once and remember each number with its index; the pair appears the moment a number finds its partner already in the map.',
-  complexity: { time: 'O(n)', space: 'O(n)' },
   code: [
     'function twoSum(nums, target) {',
     '  const seen = new Map(); // value -> index',

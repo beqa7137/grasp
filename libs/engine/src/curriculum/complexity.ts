@@ -1,16 +1,15 @@
 import { COMPLEXITY_CATALOG, type ComplexityFactId, type ComplexityFactSummary } from './catalog.js';
 
-export interface ComplexityFactContent {
+interface ComplexityFactDefinition {
   question: string;
   answer: string;
   distractors: [string, string, string];
   why: string;
 }
 
-/** The id stays a plain string, so callers can still match any id against the full list. */
-export type ComplexityFact = ComplexityFactSummary<string> & ComplexityFactContent;
+export type ComplexityFact = ComplexityFactSummary & ComplexityFactDefinition;
 
-const FACTS: Record<ComplexityFactId, ComplexityFactContent> = {
+const FACTS: Record<ComplexityFactId, ComplexityFactDefinition> = {
   'hash-pair': {
     question: 'Pair sum on an unsorted array using a hash map: time and extra space?',
     answer: 'O(n) time, O(n) space',

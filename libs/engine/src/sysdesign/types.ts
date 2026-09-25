@@ -131,7 +131,7 @@ export interface Scenario {
   hints: string[];
   takeaway: string;
   /** Changed conditions used for spaced revisits of a completed mission. */
-  variants?: ScenarioVariant[];
+  variants?: readonly ScenarioVariant[];
   /** Set when this scenario object is a revisit variant. */
   revisit?: { number: number; of: number; twist: string };
 }

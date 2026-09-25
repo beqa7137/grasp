@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { IonContent, IonHeader, IonTitle, IonToolbar } from '@ionic/angular';
-import { ALGORITHMS, getPattern } from '@grasp/engine';
+import { ALGORITHM_CATALOG, getPatternSummary } from '@grasp/engine';
 import { ProgressService } from '../../core/progress.service';
 import { CodeTextComponent } from '../../viz/code-text.component';
 
@@ -99,9 +99,9 @@ import { CodeTextComponent } from '../../viz/code-text.component';
 })
 export class VisualizeListPage {
   readonly progress = inject(ProgressService);
-  readonly algorithms = ALGORITHMS;
+  readonly algorithms = ALGORITHM_CATALOG;
 
   patternName(id: string) {
-    return getPattern(id)?.name ?? id;
+    return getPatternSummary(id)?.name ?? id;
   }
 }

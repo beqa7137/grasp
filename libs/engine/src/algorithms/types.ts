@@ -133,14 +133,7 @@ export interface InputField {
 
 export type Difficulty = 'easy' | 'medium' | 'hard';
 
-export interface AlgorithmMeta {
-  id: string;
-  title: string;
-  patternId: string;
-  difficulty: Difficulty;
-  /** Learner text: backticks mark code spans. */
-  summary: string;
-  complexity: { time: string; space: string };
+export interface AlgorithmMeta extends AlgorithmSummary {
   code: string[];
   fields: InputField[];
 }
@@ -154,7 +147,7 @@ export interface AlgorithmDef<I extends AlgorithmInput = AlgorithmInput> extends
   trace(input: I): Frame[];
 }
 
-/** What a tracer module defines: everything but the summary, which lives in the algorithm catalog. */
+/** What a tracer module defines: everything but its catalog entry's fields. */
 export type AlgorithmDefinition<I extends AlgorithmInput = AlgorithmInput> = Omit<AlgorithmDef<I>, keyof AlgorithmSummary>;
 
 export class InputError extends Error {}

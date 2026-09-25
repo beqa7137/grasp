@@ -14,8 +14,6 @@ function range(from: number, to: number): number[] {
 }
 
 export const binarySearch: AlgorithmDefinition<Input> = {
-  summary: 'Halve a sorted search space every step by comparing against the middle element.',
-  complexity: { time: 'O(log n)', space: 'O(1)' },
   code: [
     'function binarySearch(nums, target) {',
     '  let lo = 0, hi = nums.length - 1;',

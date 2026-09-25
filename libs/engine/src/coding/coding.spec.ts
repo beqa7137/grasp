@@ -253,7 +253,7 @@ const SLOWER: Record<string, (...args: any[]) => number> = {
 const hasPython = spawnSync('python3', ['--version']).status === 0;
 
 describe('coding problems', () => {
-  it('are imported in full only by the coding barrel, so the reducer and first paint read the catalog', () => {
+  it('are imported in full only by the coding barrel, so no other engine module pulls them into its chunk', () => {
     const src = fileURLToPath(new URL('..', import.meta.url));
     const modules = (readdirSync(src, { recursive: true }) as string[]).filter((f) => f.endsWith('.ts') && !f.endsWith('.spec.ts'));
     const importers = modules.filter((f) => /from '[./]*(?:coding\/)?problems\/index\.js'/.test(readFileSync(src + f, 'utf8')));

@@ -30,8 +30,6 @@ function asIntervals(value: unknown, key: string): Interval[] {
 }
 
 export const mergeIntervals: AlgorithmDefinition<Input> = {
-  summary: 'Sort by start, then sweep once: each interval either extends the last merged one or starts a new one.',
-  complexity: { time: 'O(n log n)', space: 'O(n)' },
   code: [
     'function merge(intervals) {',
     '  intervals.sort((a, b) => a[0] - b[0]);',

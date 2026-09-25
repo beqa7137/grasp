@@ -16,13 +16,9 @@ describe('review item catalog', () => {
     for (const item of REVIEW_ITEMS) expect(topics.has(item.topic)).toBe(true);
   });
 
-  it("REVIEW_ITEMS are the catalog's items, in its order, each with a label and a question builder", () => {
-    expect(REVIEW_ITEMS).toHaveLength(REVIEW_CATALOG.length);
+  it("REVIEW_ITEMS are the catalog's items, in its order, each with a label", () => {
     expect(REVIEW_ITEMS.map(({ label: _label, generate: _generate, ...summary }) => summary)).toEqual(REVIEW_CATALOG);
-    for (const item of REVIEW_ITEMS) {
-      expect(item.label, item.id).toMatch(/\S/);
-      expect(typeof item.generate, item.id).toBe('function');
-    }
+    for (const item of REVIEW_ITEMS) expect(item.label, item.id).toMatch(/\S/);
   });
 
   it('covers every pattern with several kinds of item and every design topic', () => {

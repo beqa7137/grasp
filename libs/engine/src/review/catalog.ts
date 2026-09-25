@@ -3,7 +3,6 @@ import { CLOZE_COUNTS, COMPLEXITY_CATALOG, DRILL_CATALOG, PATTERN_CATALOG } from
 import { DESIGN_ITEM_CATALOG, clozeSummary, complexitySummary, designSummary, predictSummary, recognitionSummary } from './summaries.js';
 import type { ReviewItemSummary } from './types.js';
 
-/** Every review item without its label or question builder: all that scheduling, sessions and mastery read. */
 export const REVIEW_CATALOG: readonly ReviewItemSummary[] = [
   ...DRILL_CATALOG.map(recognitionSummary),
   ...COMPLEXITY_CATALOG.map(complexitySummary),

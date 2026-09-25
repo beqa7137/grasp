@@ -12,8 +12,6 @@ const LEGEND: GraphLegend = { active: 'current', frontier: 'queued', done: 'done
 const fmt = (d: number) => (d === Infinity ? '∞' : String(d));
 
 export const dijkstra: AlgorithmDefinition<Input> = {
-  summary: 'Always settle the closest unsettled node next; with non-negative weights its distance can never improve later.',
-  complexity: { time: 'O((V + E) log V)', space: 'O(V + E)' },
   code: [
     'function dijkstra(n, edges, source) {',
     '  const dist = Array(n).fill(Infinity); dist[source] = 0;',

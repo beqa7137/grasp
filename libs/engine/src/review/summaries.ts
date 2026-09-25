@@ -4,7 +4,7 @@ import { SD_TOPICS } from '../curriculum/sd-topics.js';
 import type { ReviewItemSummary } from './types.js';
 
 /** A system design case as the review catalog sees it; its question builder lives in design-items.ts. */
-export interface DesignItemSummary<Id extends string = DesignItemId> {
+export interface DesignItemSummary<Id extends string = string> {
   id: Id;
   topic: string;
 }
@@ -34,23 +34,23 @@ const DESIGN = [
   { id: 'time-key', topic: 'sd-sharding' },
   { id: 'tenant-skew', topic: 'sd-sharding' },
   { id: 'reshard', topic: 'sd-sharding' },
-] as const satisfies readonly DesignItemSummary<string>[];
+] as const satisfies readonly DesignItemSummary[];
 
 export type DesignItemId = (typeof DESIGN)[number]['id'];
 
 /** Within each topic, the order its cases are introduced. */
-export const DESIGN_ITEM_CATALOG: readonly DesignItemSummary[] = DESIGN;
+export const DESIGN_ITEM_CATALOG: readonly DesignItemSummary<DesignItemId>[] = DESIGN;
 
 const patternOrder = (id: string) => (getPatternSummary(id)?.order ?? 99) * 100;
 
-export const recognitionSummary = (card: DrillCardSummary<string>, i: number): ReviewItemSummary => ({
+export const recognitionSummary = (card: DrillCardSummary, i: number): ReviewItemSummary => ({
   id: `rec:${card.id}`,
   kind: 'recognition',
   topic: card.patternId,
   order: patternOrder(card.patternId) + (i % 10),
 });
 
-export const complexitySummary = (fact: ComplexityFactSummary<string>, i: number): ReviewItemSummary => ({
+export const complexitySummary = (fact: ComplexityFactSummary, i: number): ReviewItemSummary => ({
   id: `cx:${fact.id}`,
   kind: 'complexity',
   topic: fact.patternId,
@@ -64,7 +64,7 @@ export const clozeSummary = (patternId: string, n: number): ReviewItemSummary =>
   order: patternOrder(patternId) + 20 + n,
 });
 
-export const predictSummary = (algorithm: AlgorithmSummary<string>): ReviewItemSummary => ({
+export const predictSummary = (algorithm: AlgorithmSummary): ReviewItemSummary => ({
   id: `pred:${algorithm.id}`,
   kind: 'predict',
   topic: algorithm.patternId,
@@ -72,7 +72,7 @@ export const predictSummary = (algorithm: AlgorithmSummary<string>): ReviewItemS
   order: patternOrder(algorithm.patternId) + 30,
 });
 
-export function designSummary(item: DesignItemSummary<string>, i: number): ReviewItemSummary {
+export function designSummary(item: DesignItemSummary, i: number): ReviewItemSummary {
   const index = DESIGN_ITEM_CATALOG.slice(0, i).filter((d) => d.topic === item.topic).length;
   return {
     id: `sd:${item.id}`,

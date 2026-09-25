@@ -8,8 +8,6 @@ type Input = { nums: number[] };
 const CHOICES = ['Pop: nums[i] is its next greater', 'Stop popping, push i'];
 
 export const nextGreater: AlgorithmDefinition<Input> = {
-  summary: 'Keep a stack of indices still waiting for a bigger value; each new value resolves everyone smaller than it.',
-  complexity: { time: 'O(n)', space: 'O(n)' },
   code: [
     'function nextGreater(nums) {',
     '  const res = new Array(nums.length).fill(-1);',

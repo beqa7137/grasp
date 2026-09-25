@@ -1,17 +1,16 @@
 import { DRILL_CATALOG, type DrillCardId, type DrillCardSummary } from './catalog.js';
 
-export interface DrillCardContent {
+interface DrillCardDefinition {
   prompt: string;
   tell: string;
   distractors: [string, string, string];
 }
 
-/** The id stays a plain string, so callers can still match any id against the full list. */
-export type DrillCard = DrillCardSummary<string> & DrillCardContent;
+export type DrillCard = DrillCardSummary & DrillCardDefinition;
 
-const card = (prompt: string, tell: string, distractors: [string, string, string]): DrillCardContent => ({ prompt, tell, distractors });
+const card = (prompt: string, tell: string, distractors: [string, string, string]): DrillCardDefinition => ({ prompt, tell, distractors });
 
-const CARDS: Record<DrillCardId, DrillCardContent> = {
+const CARDS: Record<DrillCardId, DrillCardDefinition> = {
   h1: card(
     'Given a list of transaction amounts and a target refund, return two transactions that add up exactly to the refund. The list is unsorted.',
     'Unsorted + "pair that complements" → store each value and look up `target - x` in O(1).',

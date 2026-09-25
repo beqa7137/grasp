@@ -35,8 +35,6 @@ function xorQuestion(x: number, n: number, width: number) {
 }
 
 export const singleNumberXor: AlgorithmDefinition<Input> = {
-  summary: 'XOR every number into one accumulator: equal numbers cancel (`n ^ n = 0`), so only the unpaired one survives.',
-  complexity: { time: 'O(n)', space: 'O(1)' },
   code: [
     'function singleNumber(nums) {',
     '  let x = 0; // 0 ^ n = n',

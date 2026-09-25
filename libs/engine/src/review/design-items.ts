@@ -1,6 +1,7 @@
 import { getSdTopic } from '../curriculum/sd-topics.js';
 import { COMPONENTS } from '../sysdesign/catalog.js';
-import { fmt, simulate } from '../sysdesign/simulate.js';
+import { fmt } from '../sysdesign/scenario-catalog.js';
+import { simulate } from '../sysdesign/simulate.js';
 import type { ComponentKind, Design, DesignNode } from '../sysdesign/types.js';
 import { pick, seeded, shuffle, withChoices, type Rand } from './random.js';
 import { DESIGN_ITEM_CATALOG, designSummary, type DesignItemId } from './summaries.js';

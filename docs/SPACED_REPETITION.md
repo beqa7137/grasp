@@ -35,7 +35,7 @@ The screen shows what a target costs, computed from FSRS's interval modifier (`r
 
 140 items in 5 kinds (`libs/engine/src/review/`). Each generates a fresh variant from a seed on every review, so learners recall the idea rather than the card.
 
-Scheduling, sessions and mastery read only each item's id, kind, topic, order and, for predict items, `algorithmId` from the light `review/catalog.ts`, which is what the app loads before its first paint; `libs/engine/src/first-paint.spec.ts` keeps it free of question builders and content.
+Scheduling, sessions and mastery read only the light summaries in `review/catalog.ts`, never the question builders.
 
 | Kind                  | Count | Variation per review                                                                                                                                                                                                             |
 | --------------------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

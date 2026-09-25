@@ -3,7 +3,7 @@ import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
 import {
-  PATTERNS,
+  PATTERN_CATALOG,
   diagnosticItems,
   generateQuestion,
   newSeed,
@@ -37,7 +37,7 @@ interface Slot {
 export class DiagnosticPage {
   readonly progress = inject(ProgressService);
   readonly shortcuts = inject(ShortcutsService);
-  readonly questionCount = PATTERNS.length;
+  readonly questionCount = PATTERN_CATALOG.length;
 
   readonly slots = signal<Slot[]>([]);
   readonly answers = signal<DiagnosticAnswer[]>([]);
@@ -48,8 +48,8 @@ export class DiagnosticPage {
   readonly placed = computed(() => {
     const placement = placementFromAnswers(this.answers());
     return {
-      weak: PATTERNS.filter((p) => placement[p.id] === 'weak'),
-      strong: PATTERNS.filter((p) => placement[p.id] === 'strong'),
+      weak: PATTERN_CATALOG.filter((p) => placement[p.id] === 'weak'),
+      strong: PATTERN_CATALOG.filter((p) => placement[p.id] === 'strong'),
     };
   });
 

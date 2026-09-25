@@ -6,8 +6,8 @@ import {
   RATING,
   formatInterval,
   generateQuestion,
-  getPattern,
-  getScenario,
+  getPatternSummary,
+  getScenarioSummary,
   getSdTopic,
   newSeed,
   practiceSet,
@@ -72,7 +72,7 @@ export class DrillPage {
   readonly finished = computed(() => this.started() && this.position() >= this.queue().length);
   readonly focusName = computed(() => {
     const id = this.pattern();
-    return id ? (getPattern(id)?.name ?? getSdTopic(id)?.name ?? id) : null;
+    return id ? (getPatternSummary(id)?.name ?? getSdTopic(id)?.name ?? id) : null;
   });
   readonly correctCount = computed(() => this.results().filter((r) => r.correct).length);
 
@@ -98,7 +98,7 @@ export class DrillPage {
           .map((r) => r.topic),
       ),
     ];
-    return topics.map((t) => ({ id: t, name: getPattern(t)?.name ?? getSdTopic(t)?.name ?? t }));
+    return topics.map((t) => ({ id: t, name: getPatternSummary(t)?.name ?? getSdTopic(t)?.name ?? t }));
   });
 
   constructor() {
@@ -168,7 +168,7 @@ export class DrillPage {
   }
 
   scenarioTitle(id: string) {
-    return getScenario(id)?.title ?? id;
+    return getScenarioSummary(id)?.title ?? id;
   }
 
   private onKey(e: KeyboardEvent) {

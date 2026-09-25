@@ -21,9 +21,6 @@ const LEGEND: TreeLegend = { active: 'running', frontier: 'on the call stack', d
 const bracket = (items: (number | string)[]) => `[${items.join(', ')}]`;
 
 export const subsetsBacktracking: AlgorithmDefinition<Input> = {
-  summary:
-    'Each number is a take-or-skip branch: take it, explore, undo, then explore without it, so every leaf of the decision tree is one subset.',
-  complexity: { time: 'O(n · 2ⁿ)', space: 'O(n) plus the output' },
   code: [
     'function subsets(nums) {',
     '  const out = [], path = [];',

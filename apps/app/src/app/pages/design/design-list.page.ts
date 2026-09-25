@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
-import { SCENARIOS, fmt, getScenario } from '@grasp/engine';
+import { SCENARIO_CATALOG, fmt, getScenarioSummary } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import { checkmarkCircle, constructOutline, refreshCircleOutline } from 'ionicons/icons';
 import { ProgressService } from '../../core/progress.service';
@@ -43,7 +43,9 @@ import { FREE_BUILD } from './free-build';
               </div>
               @if (done) {
                 <span class="badge"
-                  ><ion-icon name="checkmark-circle" aria-hidden="true" />best \${{ fmt(done.bestCost) }}/mo · {{ done.revisitsDone }}/3
+                  ><ion-icon name="checkmark-circle" aria-hidden="true" />best \${{ fmt(done.bestCost) }}/mo · {{ done.revisitsDone }}/{{
+                    s.variants.length
+                  }}
                   revisits</span
                 >
               }
@@ -184,7 +186,7 @@ import { FREE_BUILD } from './free-build';
 })
 export class DesignListPage {
   readonly progress = inject(ProgressService);
-  readonly scenarios = SCENARIOS;
+  readonly scenarios = SCENARIO_CATALOG;
   readonly free = FREE_BUILD;
   readonly fmt = fmt;
 
@@ -201,6 +203,6 @@ export class DesignListPage {
   }
 
   twist(id: string, variant: number) {
-    return getScenario(id)?.variants?.[variant - 1]?.twist ?? '';
+    return getScenarioSummary(id)?.variants[variant - 1]?.twist ?? '';
   }
 }
