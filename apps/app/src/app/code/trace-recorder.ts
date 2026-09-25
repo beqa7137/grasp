@@ -1,6 +1,5 @@
 import { NodeIds, snapshot, type Snap, type TraceCall, type TraceStep } from './snapshot';
 
-/** A call while it runs; `id` is its index in the recorded calls once a step has shown it. */
 interface LiveFrame {
   readonly name: string;
   readonly params: string[];
@@ -9,19 +8,22 @@ interface LiveFrame {
   done: boolean;
   /** Paused in `yield*`: it pauses and resumes with the generator it delegates to. */
   delegating?: boolean;
+  /** Index in `calls`, set once a step has shown this call. */
   id?: number;
 }
 
 export const TRACE_LIMIT = Symbol('trace-limit');
 
-/** Records the steps of a trace and the calls they run in, from the hooks the instrumented code calls. */
 export class TraceRecorder {
   readonly steps: TraceStep[] = [];
   readonly calls: TraceCall[] = [];
   private readonly ids = new NodeIds();
   private top: LiveFrame | null = null;
-  private started = false;
-  private closed = false;
+  /**
+   * Load-time code, such as a TypeScript enum, is not traced. Code that runs after the entry function returns, such as
+   * an async continuation, is not part of the trace.
+   */
+  private recording = false;
 
   constructor(private readonly maxSteps: number) {}
 
@@ -52,8 +54,14 @@ export class TraceRecorder {
     return value;
   };
 
+  readonly resume = <T>(frame: LiveFrame, value: T): T => {
+    if (this.recording && frame !== this.top) this.resync(frame);
+    frame.delegating = false;
+    return value;
+  };
+
   readonly step = (frame: LiveFrame, line: number, getters: [string, () => unknown][]) => {
-    if (!this.started || this.closed) return;
+    if (!this.recording) return;
     if (this.steps.length >= this.maxSteps) throw TRACE_LIMIT;
     if (frame !== this.top) this.resync(frame);
     frame.delegating = false;
@@ -73,14 +81,12 @@ export class TraceRecorder {
     return snapshot(value, this.ids);
   }
 
-  /** Steps count from the call to the entry function: code that runs while the solution loads, such as a TypeScript enum, is not traced. */
   begin() {
-    this.started = true;
+    this.recording = true;
   }
 
-  /** Code that runs after the entry function returns, such as an async continuation, is not part of the trace. */
   close() {
-    this.closed = true;
+    this.recording = false;
   }
 
   private pop() {
@@ -93,10 +99,8 @@ export class TraceRecorder {
   }
 
   /**
-   * The running frame is not on top: the calls above it were generators or async functions that paused, and they come
-   * off. Or it is a paused generator resuming: it goes back on top, together with the generators that were delegating to
-   * it with `yield*` and paused with it. Each stays the call it was when resumed by the same call as before, and becomes a
-   * new call when another call resumes it.
+   * Pops paused calls above the running frame, or pushes a resumed generator back with the `yield*` chain that paused
+   * with it. A frame resumed under a different caller becomes a new call.
    */
   private resync(frame: LiveFrame) {
     if (frame.onStack) {

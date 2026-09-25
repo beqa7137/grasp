@@ -19,7 +19,7 @@ const SPEEDS = [1, 2, 4];
     @if (frame(); as f) {
       <div class="viz">
         @if (f.array) {
-          <g-array-view [view]="f.array" />
+          <g-array-view [view]="f.array" [wideCells]="true" />
         }
         @if (f.table) {
           <g-table-view [view]="f.table" />
@@ -36,7 +36,7 @@ const SPEEDS = [1, 2, 4];
                 [items]="calls.items"
                 [more]="calls.more"
                 orientation="vertical"
-                [style.--rows]="callRows()"
+                [minRows]="callRows()"
               />
             }
             @if (f.stack) {
@@ -113,9 +113,7 @@ const SPEEDS = [1, 2, 4];
       flex-wrap: wrap;
       gap: 16px;
     }
-    /* Room for the deepest stack of the trace, so stepping through calls never moves the controls. */
     .calls {
-      min-height: calc(var(--rows) * 2.125rem + 1.25rem);
       max-width: 100%;
     }
     .vars {
@@ -204,6 +202,7 @@ export class TracePlayerComponent {
   readonly speed = signal(1);
   readonly last = computed(() => Math.max(0, this.frames().length - 1));
   readonly frame = computed<TraceFrame | undefined>(() => this.frames()[this.index()]);
+  /** Room for the deepest stack of the trace, so stepping through calls never moves the controls. */
   readonly callRows = computed(() =>
     Math.max(1, ...this.frames().map((f) => (f.calls ? f.calls.items.length + (f.calls.more ? 1 : 0) : 0))),
   );

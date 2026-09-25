@@ -127,3 +127,15 @@ export async function write(page: Page, code: string, title = 'Two Sum') {
   await page.keyboard.press('ControlOrMeta+a');
   await page.keyboard.insertText(code);
 }
+
+/** Traces JavaScript in the workspace of the problem with this title. */
+export async function trace(page: Page, code: string, title = 'Two Sum') {
+  await page.getByRole('radio', { name: 'JavaScript' }).click();
+  await write(page, code, title);
+  await page.getByRole('button', { name: 'Trace' }).click();
+}
+
+export async function seek(page: Page, step: number, note: string) {
+  await page.getByRole('slider', { name: 'Timeline' }).fill(String(step));
+  await expect(page.locator('app-trace-player .narration')).toContainText(note);
+}

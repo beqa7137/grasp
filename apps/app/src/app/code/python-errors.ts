@@ -1,5 +1,7 @@
 import type { RunnerError } from './protocol';
 
+const SOLUTION_LINE = /File "solution\.py", line (\d+)/;
+
 /** Keeps only the traceback frames from the learner's file, plus the exception itself. */
 export function pythonError(error: unknown): RunnerError {
   const lines = (error instanceof Error ? error.message : String(error)).trimEnd().split('\n');
@@ -12,7 +14,10 @@ export function pythonError(error: unknown): RunnerError {
     if (!skipping) kept.push(line);
   }
   if (first === -1) kept.push(lines[lines.length - 1]);
-  const at = [...lines.join('\n').matchAll(/File "solution\.py", line (\d+)/g)].pop();
+  const at = lines
+    .map((line) => SOLUTION_LINE.exec(line))
+    .filter(Boolean)
+    .pop();
   return { message: kept.join('\n'), location: at ? { line: Number(at[1]) } : undefined };
 }
 
@@ -27,20 +32,20 @@ export function isFatal(error: unknown): boolean {
   );
 }
 
-/**
- * Explains a crash of the interpreter itself. Pyodide prints the Python stack of the crash to the output, which is dropped
- * from the learner's log after its innermost line in their file is kept.
- */
+/** Pyodide prints the crashed Python stack to the output: the learner's innermost line is read from it, then it is dropped from the log. */
 export function pythonCrash(error: unknown, logs: string[]): { error: RunnerError; logs: string[] } {
   const dump = logs.findIndex((line) => line.trim() === DUMP_START);
-  const stack = dump === -1 ? [] : logs.slice(dump);
-  const at = stack.map((line) => /File "solution\.py", line (\d+)/.exec(line)).find(Boolean);
+  const end = dump === -1 ? logs.length : dump;
+  const at = logs
+    .slice(end)
+    .map((line) => SOLUTION_LINE.exec(line))
+    .find(Boolean);
   const cause = error instanceof Error ? error.message : String(error);
   return {
     error: {
       message: `Python crashed (${cause}). Very deep recursion or a very long chain of linked objects can do this. Python restarts on your next run.`,
       location: at ? { line: Number(at[1]) } : undefined,
     },
-    logs: dump === -1 ? logs : logs.slice(0, dump),
+    logs: logs.slice(0, end),
   };
 }

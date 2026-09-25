@@ -53,10 +53,13 @@ export function outputsMatch(expected: unknown, actual: unknown, mode: CompareMo
   return canonical(expected) === canonical(actual);
 }
 
+export function clip(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+}
+
 /** Short, single-line rendering of a value for test results. */
 export function preview(value: unknown, max = 120): string {
-  const text = value === undefined ? 'undefined' : canonical(value);
-  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+  return clip(value === undefined ? 'undefined' : canonical(value), max);
 }
 
 const quantity = (n: number, noun: string) => `${n.toLocaleString('en-US')} ${noun}${n === 1 ? '' : 's'}`;
