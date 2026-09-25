@@ -68,22 +68,32 @@ const PAGES: { name: string; path: string; ready: (page: Page) => Promise<unknow
   },
 ];
 
-for (const { name, path, ready } of PAGES) {
-  test(`${name} has no serious or critical accessibility violations`, async ({ page }) => {
-    await page.goto(path);
-    await ready(page);
-    expect(await blockingViolations(page)).toEqual([]);
+for (const theme of ['dark', 'light'] as const) {
+  test.describe(`in the ${theme} theme`, () => {
+    test.use({ theme });
+
+    for (const { name, path, ready } of PAGES) {
+      test(`${name} has no serious or critical accessibility violations`, async ({ page }) => {
+        await page.goto(path);
+        await ready(page);
+        expect(await blockingViolations(page)).toEqual([]);
+      });
+    }
+
+    test.describe('on a first visit', () => {
+      test.use({ pilotNoticeSeen: false });
+
+      test('the pilot welcome has no serious or critical accessibility violations', async ({ page }) => {
+        await page.goto('/learn');
+        await expect(page.getByRole('dialog', { name: 'Welcome to the Grasp pilot' })).toBeVisible();
+        expect(await blockingViolations(page)).toEqual([]);
+      });
+    });
   });
 }
 
 test.describe('on a first visit', () => {
   test.use({ pilotNoticeSeen: false });
-
-  test('the pilot welcome has no serious or critical accessibility violations', async ({ page }) => {
-    await page.goto('/learn');
-    await expect(page.getByRole('dialog', { name: 'Welcome to the Grasp pilot' })).toBeVisible();
-    expect(await blockingViolations(page)).toEqual([]);
-  });
 
   test('the pilot welcome keeps its button on screen at twice the text size', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });

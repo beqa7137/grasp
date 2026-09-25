@@ -118,7 +118,7 @@ import { PilotService } from '../pilot/pilot.service';
     }
     ion-badge {
       --background: var(--g-predict);
-      --color: #0b0d12;
+      --color: var(--g-on-fill);
       font-size: 10px;
       min-width: 16px;
     }

@@ -41,18 +41,18 @@ export type LegendSwatch = 'state' | 'role';
     }
     i[data-state='idle'] {
       background: var(--g-raised);
-      border-color: var(--g-line-strong);
+      border-color: var(--g-stroke);
     }
     i[data-state='active'] {
       background: var(--g-active);
       border-color: var(--g-active);
     }
     i[data-state='frontier'] {
-      background: rgba(255, 181, 71, 0.16);
+      background: rgba(var(--g-warn-rgb), 0.16);
       border-color: var(--g-warn);
     }
     i[data-state='done'] {
-      background: rgba(61, 220, 151, 0.16);
+      background: rgba(var(--g-found-rgb), 0.16);
       border-color: var(--g-found);
     }
     i[data-state='marked'] {
@@ -73,7 +73,7 @@ export type LegendSwatch = 'state' | 'role';
       border-color: var(--g-pointer);
     }
     i[data-role='path'] {
-      background: rgba(61, 220, 151, 0.22);
+      background: rgba(var(--g-found-rgb), 0.22);
       border-color: var(--g-found);
     }
   `,

@@ -5,11 +5,11 @@ import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { SIGN_IN_CALLBACK_PATH } from '../auth/sign-in-callback.js';
 import type { AppConfig } from '../config.js';
-import { HASHED_ASSET, IMMUTABLE_CACHE, PYODIDE_ASSET, PYODIDE_CORP, REVALIDATE_CACHE, WORKER_CSP, WORKER_SCRIPT } from './asset-policy.js';
+import { PYODIDE_ASSET, PYODIDE_CORP, WORKER_CSP, WORKER_SCRIPT, cacheControlFor } from './asset-policy.js';
 
 /**
- * Serves the built Angular app next to the API: fingerprinted assets are cached for a year,
- * everything else revalidates, and unknown non-API GETs fall back to index.html for client routing.
+ * Serves the built Angular app next to the API: fingerprinted assets are cached for a year, the theme script for a
+ * day, everything else revalidates, and unknown non-API GETs fall back to index.html for client routing.
  * `/config.json` is generated from the server environment so one build runs in every environment.
  */
 export function serveWebApp(app: NestExpressApplication, config: AppConfig) {
@@ -36,7 +36,7 @@ export function serveWebApp(app: NestExpressApplication, config: AppConfig) {
     express.static(root, {
       index: false,
       setHeaders: (res, path) => {
-        res.setHeader('Cache-Control', HASHED_ASSET.test(path) ? IMMUTABLE_CACHE : REVALIDATE_CACHE);
+        res.setHeader('Cache-Control', cacheControlFor(path));
         if (WORKER_SCRIPT.test(path)) res.setHeader('Content-Security-Policy', WORKER_CSP);
         if (PYODIDE_ASSET.test(path)) res.setHeader('Cross-Origin-Resource-Policy', PYODIDE_CORP);
       },

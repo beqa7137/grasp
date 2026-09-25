@@ -106,7 +106,7 @@ export function layoutForest(tree: TreeView): { nodes: PlacedNode[]; links: Link
         overflow: visible;
       }
       .link {
-        stroke: var(--g-line-strong);
+        stroke: var(--g-stroke);
         stroke-width: 2;
       }
     `,

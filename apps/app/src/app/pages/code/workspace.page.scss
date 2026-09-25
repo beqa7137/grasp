@@ -174,7 +174,7 @@
     width: 12px;
     height: 12px;
     border-radius: 3px;
-    background: var(--g-line-strong);
+    background: var(--g-stroke);
   }
   i[data-kind='performance'] {
     width: 24px;
@@ -192,8 +192,8 @@
 }
 
 .success {
-  border: 1px solid rgba(61, 220, 151, 0.35);
-  background: rgba(61, 220, 151, 0.08);
+  border: 1px solid rgba(var(--g-found-rgb), 0.35);
+  background: rgba(var(--g-found-rgb), 0.08);
   border-radius: var(--g-radius-sm);
   padding: 10px 12px;
   margin-bottom: 12px;
@@ -258,7 +258,7 @@
 
 .error {
   color: var(--g-danger);
-  border-color: rgba(255, 93, 115, 0.35);
+  border-color: rgba(var(--g-danger-rgb), 0.35);
 }
 
 .logs {

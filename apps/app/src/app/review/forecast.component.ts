@@ -37,7 +37,7 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
       max-width: 28px;
       min-height: 3px;
       border-radius: 5px 5px 2px 2px;
-      background: var(--g-line-strong);
+      background: var(--g-stroke);
       transition: height 0.4s ease;
     }
     i.today {

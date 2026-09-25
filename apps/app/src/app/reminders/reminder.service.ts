@@ -1,9 +1,9 @@
 import { DestroyRef, Injectable, InjectionToken, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
-import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Preferences } from '@capacitor/preferences';
 import { planReminders } from '@grasp/engine';
+import { NATIVE_PLATFORM } from '../core/platform';
 import { ProgressService } from '../core/progress.service';
 import { type ClockTime, parseClockTime, upcomingTimes } from './reminder-times';
 
@@ -28,7 +28,6 @@ export type NotificationsApi = Pick<
 >;
 
 export const NOTIFICATIONS = new InjectionToken<NotificationsApi>('local notifications', { factory: () => LocalNotifications });
-export const NATIVE_PLATFORM = new InjectionToken<boolean>('native platform', { factory: () => Capacitor.isNativePlatform() });
 
 /**
  * Daily study reminders as local notifications, planned from the review forecast: each of the next

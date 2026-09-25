@@ -8,15 +8,15 @@ interface PointerTag {
 }
 
 const POINTER_COLORS: Record<string, string> = {
-  lo: '#ffb547',
-  hi: '#ff8a5c',
-  mid: '#4cc9f0',
-  l: '#ffb547',
-  r: '#ff8a5c',
-  left: '#ffb547',
-  right: '#4cc9f0',
-  i: '#4cc9f0',
-  top: '#9d8cff',
+  lo: 'var(--g-pointer)',
+  hi: 'var(--g-pointer-alt)',
+  mid: 'var(--g-active)',
+  l: 'var(--g-pointer)',
+  r: 'var(--g-pointer-alt)',
+  left: 'var(--g-pointer)',
+  right: 'var(--g-active)',
+  i: 'var(--g-active)',
+  top: 'var(--g-accent)',
 };
 
 @Component({
@@ -83,7 +83,7 @@ const POINTER_COLORS: Record<string, string> = {
     .ptr span {
       font: 600 11px/1 var(--g-font-mono);
       white-space: nowrap;
-      color: #0b0d12;
+      color: var(--g-on-fill);
       background: var(--c);
       padding: 4px 6px 3px;
       border-radius: 6px;
@@ -113,7 +113,7 @@ const POINTER_COLORS: Record<string, string> = {
       left: calc(var(--from) * var(--cell));
       width: calc((var(--to) - var(--from) + 1) * var(--cell));
       background: var(--g-window);
-      border: 1px solid rgba(157, 140, 255, 0.45);
+      border: 1px solid rgba(var(--g-accent-rgb), 0.45);
       border-radius: 12px;
       transition:
         left 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
@@ -150,11 +150,11 @@ const POINTER_COLORS: Record<string, string> = {
     }
     .cell.active {
       border-color: var(--g-active);
-      box-shadow: 0 0 0 3px rgba(76, 201, 240, 0.18);
+      box-shadow: 0 0 0 3px rgba(var(--g-active-rgb), 0.18);
       transform: translateY(-2px);
     }
     .cell.found {
-      background: rgba(61, 220, 151, 0.18);
+      background: rgba(var(--g-found-rgb), 0.18);
       border-color: var(--g-found);
       opacity: 1;
     }
@@ -193,6 +193,6 @@ export class ArrayViewComponent {
   readonly pointerRows = computed(() => Math.max(1, ...this.pointers().map((p) => p.row + 1)));
 
   color(name: string) {
-    return POINTER_COLORS[name] ?? '#9d8cff';
+    return POINTER_COLORS[name] ?? 'var(--g-accent)';
   }
 }

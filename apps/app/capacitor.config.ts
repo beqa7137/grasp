@@ -16,6 +16,11 @@ const config: CapacitorConfig = {
       smallIcon: 'ic_stat_grasp',
       iconColor: '#9D8CFF',
     },
+    // Light bar icons from the first frame, over the dark splash and web view background; ThemeService switches them
+    // with the theme once the app runs. Both platforms read this, though the CLI's typing says Android only.
+    SystemBars: {
+      style: 'DARK',
+    },
     // Read at `cap sync` by the plugin's hook: only Google's SDK is bundled, which keeps the Facebook SDK (and
     // its AD_ID permission) and Alamofire out. GitHub uses the plugin's built-in OAuth2 engine, which needs no flag.
     SocialLogin: {

@@ -4,8 +4,10 @@ import { ApiError, ApiService } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
 import { LearnerService } from '../../core/learner.service';
 import { ProgressService } from '../../core/progress.service';
+import { RovingSelectDirective } from '../../core/roving-select.directive';
 import { RuntimeConfigService } from '../../core/runtime-config.service';
 import { ShortcutsService } from '../../core/shortcuts.service';
+import { type ThemePreference, ThemeService } from '../../core/theme.service';
 import { PilotService } from '../../pilot/pilot.service';
 import { AccountSettingsComponent } from './account-settings.component';
 import { StudySettingsComponent } from './study-settings.component';
@@ -13,7 +15,17 @@ import { StudySettingsComponent } from './study-settings.component';
 @Component({
   selector: 'app-settings',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle, IonContent, AccountSettingsComponent, StudySettingsComponent],
+  imports: [
+    IonHeader,
+    IonToolbar,
+    IonButtons,
+    IonBackButton,
+    IonTitle,
+    IonContent,
+    AccountSettingsComponent,
+    StudySettingsComponent,
+    RovingSelectDirective,
+  ],
   template: `
     <ion-header [translucent]="true">
       <ion-toolbar>
@@ -27,6 +39,21 @@ import { StudySettingsComponent } from './study-settings.component';
         <app-account-settings />
 
         <app-study-settings />
+
+        <section class="panel block">
+          <h2>Appearance</h2>
+          <div class="row" role="radiogroup" aria-labelledby="theme-label" aria-describedby="theme-hint">
+            <strong id="theme-label">Theme</strong>
+            <p class="muted small" id="theme-hint">System follows your device's light or dark mode. On this device only.</p>
+            <div class="g-chip-radios">
+              @for (t of themes; track t.value) {
+                <button role="radio" [attr.aria-checked]="theme.preference() === t.value" (click)="theme.setPreference(t.value)">
+                  {{ t.label }}
+                </button>
+              }
+            </div>
+          </div>
+        </section>
 
         <section class="panel block">
           <h2>Keyboard</h2>
@@ -111,6 +138,9 @@ import { StudySettingsComponent } from './study-settings.component';
     .row p {
       margin: 2px 0 0;
     }
+    .g-chip-radios {
+      margin-top: 10px;
+    }
     .small {
       font-size: 0.8125rem;
     }
@@ -130,6 +160,12 @@ export class SettingsPage {
   readonly pilot = inject(PilotService);
   readonly auth = inject(AuthService);
   readonly shortcuts = inject(ShortcutsService);
+  readonly theme = inject(ThemeService);
+  readonly themes: { value: ThemePreference; label: string }[] = [
+    { value: 'system', label: 'System' },
+    { value: 'light', label: 'Light' },
+    { value: 'dark', label: 'Dark' },
+  ];
   readonly busy = signal(false);
 
   async exportData() {

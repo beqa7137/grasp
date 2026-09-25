@@ -54,17 +54,17 @@ import type { GridView } from '@grasp/engine';
         transform 0.3s;
     }
     .cell[data-state='wall'] {
-      background: #2a2f3d;
-      border-color: #2a2f3d;
-      background-image: repeating-linear-gradient(45deg, transparent 0 5px, rgba(255, 255, 255, 0.04) 5px 10px);
+      background: var(--g-wall);
+      border-color: var(--g-wall);
+      background-image: repeating-linear-gradient(45deg, transparent 0 5px, var(--g-wall-hatch) 5px 10px);
     }
     .cell[data-state='frontier'] {
-      background: rgba(255, 181, 71, 0.16);
-      border-color: rgba(255, 181, 71, 0.7);
+      background: rgba(var(--g-warn-rgb), 0.16);
+      border-color: rgba(var(--g-warn-rgb), 0.7);
     }
     .cell[data-state='visited'] {
-      background: rgba(157, 140, 255, 0.14);
-      border-color: rgba(157, 140, 255, 0.35);
+      background: rgba(var(--g-accent-rgb), 0.14);
+      border-color: rgba(var(--g-accent-rgb), 0.35);
     }
     .cell[data-state='current'] {
       background: var(--g-active);
@@ -72,11 +72,11 @@ import type { GridView } from '@grasp/engine';
       transform: scale(1.08);
     }
     .cell[data-state='current'] .d {
-      color: #0b0d12;
+      color: var(--g-on-fill);
       font-weight: 700;
     }
     .cell[data-state='path'] {
-      background: rgba(61, 220, 151, 0.28);
+      background: rgba(var(--g-found-rgb), 0.28);
       border-color: var(--g-found);
     }
     .cell[data-state='start'],
@@ -114,19 +114,19 @@ import type { GridView } from '@grasp/engine';
       border: 1px solid;
     }
     .legend i[data-state='frontier'] {
-      background: rgba(255, 181, 71, 0.16);
-      border-color: rgba(255, 181, 71, 0.7);
+      background: rgba(var(--g-warn-rgb), 0.16);
+      border-color: rgba(var(--g-warn-rgb), 0.7);
     }
     .legend i[data-state='visited'] {
-      background: rgba(157, 140, 255, 0.14);
-      border-color: rgba(157, 140, 255, 0.35);
+      background: rgba(var(--g-accent-rgb), 0.14);
+      border-color: rgba(var(--g-accent-rgb), 0.35);
     }
     .legend i[data-state='current'] {
       background: var(--g-active);
       border-color: var(--g-active);
     }
     .legend i[data-state='path'] {
-      background: rgba(61, 220, 151, 0.28);
+      background: rgba(var(--g-found-rgb), 0.28);
       border-color: var(--g-found);
     }
   `,
