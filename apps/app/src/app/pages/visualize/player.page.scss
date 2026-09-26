@@ -91,23 +91,17 @@
   }
 }
 
+.scene {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 .viz {
-  min-height: 180px;
-  padding: 18px 4px 8px;
+  padding: 8px 4px;
   display: flex;
   flex-direction: column;
   gap: 22px;
-  justify-content: center;
-}
-
-.aligned {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: -8px;
-  .eyebrow {
-    text-align: center;
-  }
 }
 
 .aux {

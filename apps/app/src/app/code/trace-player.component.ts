@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, injec
 import { IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { pause, play, playSkipBack, playSkipForward, refresh } from 'ionicons/icons';
+import { HoldHeightDirective } from '../core/hold-height.directive';
 import { onPageKey } from '../core/on-page-key';
 import { ArrayViewComponent } from '../viz/array-view.component';
 import { ListViewComponent } from '../viz/list-view.component';
@@ -14,62 +15,8 @@ const SPEEDS = [1, 2, 4];
 @Component({
   selector: 'app-trace-player',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IonIcon, ArrayViewComponent, ListViewComponent, TableViewComponent, TreeViewComponent],
+  imports: [IonIcon, HoldHeightDirective, ArrayViewComponent, ListViewComponent, TableViewComponent, TreeViewComponent],
   template: `
-    @if (frame(); as f) {
-      <div class="viz">
-        @if (f.array) {
-          <g-array-view [view]="f.array" [wideCells]="true" />
-        }
-        @if (f.table) {
-          <g-table-view [view]="f.table" />
-        }
-        @if (f.tree) {
-          <g-tree-view [view]="f.tree" />
-        }
-        @if (f.calls || f.stack || f.queue || f.set || f.output) {
-          <div class="aux">
-            @if (f.calls; as calls) {
-              <g-list-view
-                class="calls"
-                label="call stack"
-                [items]="calls.items"
-                [more]="calls.more"
-                orientation="vertical"
-                [minRows]="callRows()"
-              />
-            }
-            @if (f.stack) {
-              <g-list-view [label]="f.stack.label" [items]="f.stack.items" orientation="vertical" />
-            }
-            @if (f.queue) {
-              <g-list-view [label]="f.queue.label" [items]="f.queue.items" />
-            }
-            @if (f.set) {
-              <g-list-view [label]="f.set.label" [items]="f.set.entries" />
-            }
-            @if (f.output) {
-              <g-list-view [label]="f.output.label" [items]="f.output.items" />
-            }
-          </div>
-        }
-        @if (varNames().length) {
-          <dl class="vars mono">
-            @for (name of varNames(); track name) {
-              <div [class.changed]="changed().has(name)">
-                <dt>{{ name }}</dt>
-                <dd>{{ f.vars[name] ?? 'null' }}</dd>
-              </div>
-            }
-          </dl>
-        }
-      </div>
-      <div class="narration" aria-live="polite">
-        <span class="line mono">L{{ f.line }}</span>
-        <p>{{ f.note }}</p>
-      </div>
-    }
-
     <div class="controls">
       <div class="buttons">
         <button class="g-btn ghost icon" (click)="seek(0)" aria-label="Restart"><ion-icon name="refresh" aria-hidden="true" /></button>
@@ -98,6 +45,55 @@ const SPEEDS = [1, 2, 4];
         />
         <span class="count mono">{{ index() + 1 }} / {{ frames().length }}</span>
       </div>
+    </div>
+
+    <div [gHoldHeight]="frame()">
+      @if (frame(); as f) {
+        <div class="viz">
+          @if (f.array) {
+            <g-array-view [view]="f.array" />
+          }
+          @if (f.table) {
+            <g-table-view [view]="f.table" />
+          }
+          @if (f.tree) {
+            <g-tree-view [view]="f.tree" />
+          }
+          @if (f.calls || f.stack || f.queue || f.set || f.output) {
+            <div class="aux">
+              @if (f.calls; as calls) {
+                <g-list-view class="calls" label="call stack" [items]="calls.items" [more]="calls.more" orientation="vertical" />
+              }
+              @if (f.stack) {
+                <g-list-view [label]="f.stack.label" [items]="f.stack.items" orientation="vertical" />
+              }
+              @if (f.queue) {
+                <g-list-view [label]="f.queue.label" [items]="f.queue.items" />
+              }
+              @if (f.set) {
+                <g-list-view [label]="f.set.label" [items]="f.set.entries" />
+              }
+              @if (f.output) {
+                <g-list-view [label]="f.output.label" [items]="f.output.items" />
+              }
+            </div>
+          }
+          @if (varNames().length) {
+            <dl class="vars mono">
+              @for (name of varNames(); track name) {
+                <div [class.changed]="changed().has(name)">
+                  <dt>{{ name }}</dt>
+                  <dd>{{ f.vars[name] ?? 'null' }}</dd>
+                </div>
+              }
+            </dl>
+          }
+        </div>
+        <div class="narration" aria-live="polite">
+          <span class="line mono">L{{ f.line }}</span>
+          <p>{{ f.note }}</p>
+        </div>
+      }
     </div>
   `,
   styles: `
@@ -145,7 +141,7 @@ const SPEEDS = [1, 2, 4];
       display: flex;
       align-items: flex-start;
       gap: 10px;
-      margin: 14px 0 6px;
+      margin-top: 14px;
       min-height: 40px;
     }
     .narration p {
@@ -166,6 +162,7 @@ const SPEEDS = [1, 2, 4];
       display: flex;
       flex-direction: column;
       gap: 10px;
+      margin-bottom: 10px;
     }
     .buttons {
       display: flex;
@@ -202,10 +199,6 @@ export class TracePlayerComponent {
   readonly speed = signal(1);
   readonly last = computed(() => Math.max(0, this.frames().length - 1));
   readonly frame = computed<TraceFrame | undefined>(() => this.frames()[this.index()]);
-  /** Room for the deepest stack of the trace, so stepping through calls never moves the controls. */
-  readonly callRows = computed(() =>
-    Math.max(1, ...this.frames().map((f) => (f.calls ? f.calls.items.length + (f.calls.more ? 1 : 0) : 0))),
-  );
   readonly varNames = computed(() => Object.keys(this.frame()?.vars ?? {}));
   readonly changed = computed(() => {
     const prev = this.frames()[this.index() - 1];

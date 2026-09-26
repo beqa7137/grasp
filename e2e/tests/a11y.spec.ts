@@ -48,6 +48,17 @@ const PAGES: { name: string; path: string; ready: (page: Page) => Promise<unknow
   { name: 'the grid search with cells in its queue', path: '/visualize/grid-bfs', ready: (page) => seekGrid(page, 0.5, 'frontier') },
   { name: 'the grid search on its shortest path', path: '/visualize/grid-bfs', ready: (page) => seekGrid(page, 1, 'path') },
   {
+    name: 'a visualizer with an array too long for its width, which scrolls sideways',
+    path: '/visualize/binary-search',
+    ready: async (page) => {
+      await page.locator('app-player .input').getByRole('button', { name: 'Edit' }).click();
+      const numbers = Array.from({ length: 24 }, (_, i) => -999 + i).join(', ');
+      await page.getByRole('textbox', { name: /^Sorted numbers/ }).fill(numbers);
+      await page.getByRole('button', { name: 'Run with this input' }).click();
+      await expect(page.getByRole('region', { name: 'Array' })).toBeVisible();
+    },
+  },
+  {
     name: 'an answered review card',
     path: '/drill',
     ready: async (page) => {
@@ -186,6 +197,28 @@ test('a visualizer checkpoint can be answered from the keyboard, with focus alwa
   await page.keyboard.press('Enter');
   await expect(prompt).toBeHidden();
   await expect(page.locator('.narration')).toBeFocused();
+});
+
+test('on a narrow phone, Continue from the keyboard moves focus to the narration and keeps Step forward on screen', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 700 });
+  await page.goto('/visualize/dijkstra');
+  const forward = page.getByRole('button', { name: 'Step forward' });
+  await forward.focus();
+  await stepToCheckpoint(page, () => page.keyboard.press('Enter'));
+  await page.keyboard.press('1');
+  await expect(page.locator('.predict .verdict')).toBeFocused();
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.narration')).toBeFocused();
+  const [top, bottom] = await page.evaluate(() => [
+    document.querySelector('app-player ion-header')!.getBoundingClientRect().bottom,
+    document.querySelector('ion-tab-bar')!.getBoundingClientRect().top,
+  ]);
+  await expect(async () => {
+    const box = (await forward.boundingBox())!;
+    expect(box.y, 'Step forward is below the toolbar').toBeGreaterThanOrEqual(top);
+    expect(box.y + box.height, 'Step forward is above the tab bar').toBeLessThanOrEqual(bottom);
+  }).toPass();
 });
 
 test('Enter on the link under a reviewed card opens it instead of grading the card', async ({ page }) => {

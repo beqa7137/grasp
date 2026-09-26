@@ -12,7 +12,6 @@ import { uniqueId } from '../core/unique-id';
       [class.vertical]="orientation() === 'vertical'"
       [attr.role]="listed() ? 'list' : null"
       [attr.aria-labelledby]="listed() ? labelId : null"
-      [style.--min-rows]="minRows()"
     >
       @if (more()) {
         <span class="more" role="listitem">+{{ more() }} more</span>
@@ -45,8 +44,6 @@ import { uniqueId } from '../core/unique-id';
       flex-direction: column-reverse;
       flex-wrap: nowrap;
       align-items: stretch;
-      /* Room for minRows items: each is a 0.75rem line in 16px of padding and border, 6px from the next. */
-      min-height: calc(var(--min-rows) * (0.75rem + 22px) - 6px);
     }
     .item {
       font: 600 0.75rem/1 var(--g-font-mono);
@@ -96,8 +93,6 @@ export class ListViewComponent {
   readonly highlight = input<Scalar | undefined>(undefined);
   /** Items left out before the first one shown: below the bottom of a vertical list. */
   readonly more = input(0);
-  /** Rows a vertical list keeps room for, however few items it shows. */
-  readonly minRows = input(0);
 
   readonly labelId = uniqueId('g-list');
   /** Only a non-empty list gets list semantics, named by its label, which is then hidden from screen readers so it is not read twice. */

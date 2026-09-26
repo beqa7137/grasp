@@ -1,4 +1,26 @@
+import type { Page } from '@playwright/test';
 import { expect, synced, test } from './fixtures';
+
+/** Opens a coding interview and answers twice, which brings up End & score. */
+async function interviewUntilScorable(page: Page, problem: RegExp) {
+  await page.goto('/interview');
+  await page.getByRole('button', { name: problem }).click();
+  await expect(page).toHaveURL(/\/interview\/[0-9a-f-]{36}$/);
+  const input = page.getByRole('textbox', { name: /Think out loud/ });
+  const replies = page.locator('app-interview-session .msg:not(.me)');
+  for (const text of [
+    'Can the input be empty, and how long can it get?',
+    'I would slide a window and track the most frequent value in it.',
+  ]) {
+    const before = await replies.count();
+    await input.fill(text);
+    await page.getByRole('button', { name: 'Send', exact: true }).click();
+    // The reply shows while it streams in, and the box stays read-only until it has.
+    await expect(replies).toHaveCount(before + 1, { timeout: 30_000 });
+    await expect(input).toBeEditable({ timeout: 30_000 });
+  }
+  await expect(page.getByRole('button', { name: 'End & score' })).toBeVisible({ timeout: 30_000 });
+}
 
 test('a mock interview runs to a scorecard', async ({ page }) => {
   await page.goto('/interview');
@@ -33,3 +55,26 @@ test('the interview list shows both tracks', { tag: '@smoke' }, async ({ page })
   await expect(page.getByRole('button', { name: /^System design/ })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Surprise me' })).toBeVisible();
 });
+
+// 640 px is 200% zoom on a 1280 px window, and 320 px is 400%; the doubled text size is the browser's own setting.
+for (const { name, width, height, textSize } of [
+  { name: '200% zoom', width: 640, height: 500, textSize: '100%' },
+  { name: '200% zoom with 200% text', width: 640, height: 500, textSize: '200%' },
+  { name: 'a 320 px screen', width: 320, height: 700, textSize: '100%' },
+]) {
+  test(`at ${name}, End & score sits beside the interview title, never over it`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    await interviewUntilScorable(page, /Longest Repeating Run With K Changes/);
+    await page.addStyleTag({ content: `html { font-size: ${textSize}; }` });
+    const end = await page.getByRole('button', { name: 'End & score' }).boundingBox();
+    // What shows of the title is its text clipped to its box, which an ellipsis ends.
+    const title = await page.locator('app-interview-session ion-title').evaluate((el) => {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const text = range.getBoundingClientRect();
+      const box = el.shadowRoot!.querySelector('.toolbar-title')!.getBoundingClientRect();
+      return { left: Math.max(text.left, box.left), right: Math.min(text.right, box.right) };
+    });
+    expect(title.right, 'the title ends before End & score starts').toBeLessThanOrEqual(end!.x);
+  });
+}

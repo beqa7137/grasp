@@ -3,13 +3,13 @@
     <ion-title
       ><span class="wordmark">grasp<i>.</i></span></ion-title
     >
-    <div slot="end" class="sync" [attr.data-status]="progress.syncStatus()">
-      <ion-icon [name]="progress.syncStatus() === 'offline' ? 'cloud-offline-outline' : 'cloud-done-outline'" aria-hidden="true" />
-      <span>{{ progress.syncStatus() === 'offline' ? 'Offline' : 'Synced' }}</span>
+    <div slot="end" class="toolbar-end">
+      <div class="sync" [attr.data-status]="progress.syncStatus()">
+        <ion-icon [name]="progress.syncStatus() === 'offline' ? 'cloud-offline-outline' : 'cloud-done-outline'" aria-hidden="true" />
+        <span>{{ progress.syncStatus() === 'offline' ? 'Offline' : 'Synced' }}</span>
+      </div>
+      <a class="settings-link" routerLink="/settings" aria-label="Settings"><ion-icon name="settings-outline" aria-hidden="true" /></a>
     </div>
-    <a slot="end" class="settings-link" routerLink="/settings" aria-label="Settings"
-      ><ion-icon name="settings-outline" aria-hidden="true"
-    /></a>
   </ion-toolbar>
 </ion-header>
 

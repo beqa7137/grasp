@@ -112,6 +112,28 @@ ion-title {
   letter-spacing: -0.01em;
 }
 
+// Ionic's iOS title is centred over the whole toolbar with a fixed 90px gutter either side, so an end control wider than
+// that (End & score, Reset) covers it on a narrow screen or at high zoom. On a grid the title keeps the middle column:
+// centred while each side fits in an equal share, and squeezed between the controls, never under them, when not.
+ion-toolbar::part(container) {
+  display: grid;
+  grid-template-columns: minmax(max-content, 1fr) minmax(0, max-content) minmax(max-content, 1fr);
+}
+ion-toolbar::part(content) {
+  grid-column: 2;
+}
+ion-toolbar > [slot='start'] {
+  grid-column: 1;
+}
+ion-toolbar > [slot='end'] {
+  grid-column: 3;
+  justify-self: end;
+}
+ion-title {
+  position: static;
+  padding-inline: 8px;
+}
+
 ion-tab-bar {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);

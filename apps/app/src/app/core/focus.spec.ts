@@ -54,6 +54,23 @@ describe('refocus', () => {
     expect(focus).toHaveBeenLastCalledWith({ preventScroll: false });
   });
 
+  it('leaves bringing the new focus into view after a key press to the page, when it asks to', () => {
+    const { reveal } = setup();
+    const focus = vi.spyOn(reveal, 'focus');
+    const bringIntoView = vi.fn();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    refocus(reveal, undefined, bringIntoView);
+    expect(bringIntoView).toHaveBeenCalledWith(reveal);
+    expect(focus).toHaveBeenLastCalledWith({ preventScroll: true });
+
+    reveal.blur();
+    bringIntoView.mockClear();
+    document.dispatchEvent(new Event('pointerdown'));
+    refocus(reveal, undefined, bringIntoView);
+    expect(bringIntoView).not.toHaveBeenCalled();
+    expect(focus).toHaveBeenLastCalledWith({ preventScroll: true });
+  });
+
   it('looks the target up once the change has rendered, since the change may be what creates it', () => {
     const { card, choice, reveal } = setup();
     choice.focus();

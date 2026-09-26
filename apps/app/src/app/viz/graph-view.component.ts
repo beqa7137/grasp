@@ -17,6 +17,7 @@ const BADGE_OFFSET = RADIUS + 10;
 const BADGE_CHAR_WIDTH = 6.6;
 const BADGE_HALF_HEIGHT = 5.5;
 const BADGE_ROOM = 2;
+const BADGE_REACH = BADGE_OFFSET + BADGE_HALF_HEIGHT;
 const EDGE_STATES: EdgeState[] = ['idle', 'active', 'chosen', 'skipped'];
 
 interface Box {
@@ -92,7 +93,7 @@ const crossesAny = (edges: DrawnEdge[], box: Box) =>
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [LegendComponent],
   template: `
-    <svg [attr.viewBox]="viewBox" role="img" [attr.aria-label]="ariaLabel()">
+    <svg [attr.viewBox]="viewBox()" role="img" [attr.aria-label]="ariaLabel()">
       <defs>
         @for (state of edgeStates; track state) {
           <marker
@@ -202,7 +203,17 @@ export class GraphViewComponent {
   readonly view = input.required<GraphView>();
   readonly legend = input(true);
 
-  protected readonly viewBox = `0 0 ${WIDTH} ${HEIGHT}`;
+  /**
+   * The box's full width, so every graph draws at one scale, but only the height its node rows and their badges reach: a
+   * layout with flat rows, such as layers or a list, leaves no empty band above and below it.
+   */
+  protected readonly viewBox = computed(() => {
+    const ys = this.placed().map((n) => n.y);
+    if (!ys.length) return `0 0 ${WIDTH} ${HEIGHT}`;
+    const top = Math.max(0, Math.min(...ys) - BADGE_REACH);
+    const bottom = Math.min(HEIGHT, Math.max(...ys) + BADGE_REACH);
+    return `0 ${round(top)} ${WIDTH} ${round(bottom - top)}`;
+  });
   protected readonly radius = RADIUS;
   protected readonly edgeStates = EDGE_STATES;
   private readonly uid = uniqueId('g-graph');

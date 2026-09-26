@@ -1,4 +1,4 @@
-import { JS_DIAMETER, JS_ISLANDS, expect, seek, synced, test, trace, write } from './fixtures';
+import { JS_DIAMETER, JS_ISLANDS, expect, seek, synced, test, trace, viewportTop, write } from './fixtures';
 
 const JS_TWO_SUM = `function twoSum(nums, target) {
   const seen = new Map();
@@ -54,6 +54,16 @@ def diameter_of_binary_tree(root: Optional[TreeNode]) -> int:
 
     height(root)
     return best`;
+
+const JS_MERGE = `function merge(intervals) {
+  intervals.sort((a, b) => a[0] - b[0]);
+  const out = [];
+  for (const [s, e] of intervals) {
+    if (out.length && out[out.length - 1][1] >= s) out[out.length - 1][1] = Math.max(out[out.length - 1][1], e);
+    else out.push([s, e]);
+  }
+  return out;
+}`;
 
 /** A nest of lists far deeper than Pyodide's stack can free, which kills its interpreter. */
 const PY_CRASH = `def two_sum(nums, target):
@@ -208,6 +218,76 @@ test('on a narrow phone, a call too long for the call stack is cut short on one 
   expect(new Set(heights).size).toBe(1);
   const viz = page.locator('app-trace-player .viz');
   expect(await viz.evaluate((el) => el.scrollWidth - el.clientWidth)).toBe(0);
+});
+
+test('Step forward stays under the finger through a whole trace, as the call stack grows and shrinks', async ({ page }) => {
+  await page.goto('/code/tree-diameter');
+  await trace(page, JS_DIAMETER, 'Diameter of Binary Tree');
+  const player = page.locator('app-trace-player');
+  const forward = player.getByRole('button', { name: 'Step forward' });
+  const count = player.locator('.count');
+  await forward.scrollIntoViewIfNeeded();
+  const home = await viewportTop(forward);
+  const total = Number((await count.textContent())!.split('/')[1]);
+  for (let step = 2; step <= total; step++) {
+    await forward.click();
+    await expect(count).toHaveText(`${step} / ${total}`);
+    expect(Math.abs((await viewportTop(forward)) - home), `Step forward at step ${step}`).toBeLessThan(1);
+  }
+});
+
+test('with the page scrolled to its end, Step forward stays put as the call stack unwinds and the drawing shrinks', async ({ page }) => {
+  // On a phone the trace ends the page; on a wide screen the problem statement beside it runs on further.
+  await page.setViewportSize({ width: 412, height: 839 });
+  await page.goto('/code/tree-diameter');
+  await trace(page, JS_DIAMETER, 'Diameter of Binary Tree');
+  const player = page.locator('app-trace-player');
+  const forward = player.getByRole('button', { name: 'Step forward' });
+  const count = player.locator('.count');
+  await player.getByRole('slider', { name: 'Timeline' }).fill('17');
+  await expect(player.locator('g-list-view.calls .item')).toHaveCount(4);
+  await page.locator('ion-content', { has: player }).evaluate((content) => {
+    const scroller = content.shadowRoot!.querySelector('.inner-scroll')!;
+    scroller.scrollTop = scroller.scrollHeight;
+  });
+  const home = await viewportTop(forward);
+  const total = Number((await count.textContent())!.split('/')[1]);
+  for (let step = 19; step <= total; step++) {
+    await forward.click();
+    await expect(count).toHaveText(`${step} / ${total}`);
+    expect(Math.abs((await viewportTop(forward)) - home), `Step forward at step ${step}`).toBeLessThan(1);
+  }
+});
+
+test('the call stack keeps no empty room above its calls for deeper frames still to come', async ({ page }) => {
+  await page.goto('/code/tree-diameter');
+  await trace(page, JS_DIAMETER, 'Diameter of Binary Tree');
+  const stack = page.locator('app-trace-player g-list-view.calls');
+  await expect(stack.getByRole('listitem')).toHaveText(['diameterOfBinaryTree(TreeNode(1))']);
+  const gap = await stack.evaluate((list) => {
+    const label = list.querySelector('.label')!.getBoundingClientRect();
+    return Math.min(...[...list.querySelectorAll('.item')].map((item) => item.getBoundingClientRect().top)) - label.bottom;
+  });
+  // Each reserved row was 34px, so anything past the label's own margin and the pop-in of the call is empty room.
+  expect(gap).toBeLessThan(20);
+});
+
+test('a trace of pairs gives each value a cell wide enough for it, over its own index', async ({ page }) => {
+  await page.goto('/code/merge-intervals');
+  await trace(page, JS_MERGE, 'Merge Intervals');
+  const array = page.locator('app-trace-player g-array-view');
+  await expect(array.locator('.cell').first()).toHaveText('[1, 3]');
+  const misplaced = await array.evaluate((view) => {
+    const indices = [...view.querySelectorAll('.indices span')].map((index) => index.getBoundingClientRect());
+    return [...view.querySelectorAll('.cells .cell')].flatMap((cell, i) => {
+      const box = cell.getBoundingClientRect();
+      const text = cell.querySelector('.val')!.getBoundingClientRect();
+      const fits = text.left >= box.left + 1 && text.right <= box.right - 1;
+      const centred = Math.abs(box.left + box.width / 2 - (indices[i].left + indices[i].width / 2)) < 1;
+      return fits && centred ? [] : [cell.textContent!.trim()];
+    });
+  });
+  expect(misplaced, 'values spilling out of their cells, or cells off their index').toEqual([]);
 });
 
 test('a trace that calls nothing beyond the entry function has no call stack', async ({ page }) => {
