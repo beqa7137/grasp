@@ -4,6 +4,7 @@ import { Preferences } from '@capacitor/preferences';
 import {
   LANGUAGES,
   buildSuite,
+  clip,
   entryName,
   exampleCases,
   getCodingProblem,
@@ -230,9 +231,9 @@ export class WorkspacePage {
   describeArgs(test: TestReport | TestCase): string[] {
     return this.problem()!.params.map((p, i) => {
       const value = test.args[i];
-      if (test.kind !== 'performance') return `${p.name} = ${preview(value, 400)}`;
-      const size = inputSize(p.type, value);
-      return size ? `${p.name}: large input, ${size}` : `${p.name} = ${preview(value)}`;
+      const text = preview(value, Infinity);
+      const size = test.kind === 'performance' && text.length > 400 ? inputSize(p.type, value) : null;
+      return size ? `${p.name}: large input, ${size}` : `${p.name} = ${clip(text, 400)}`;
     });
   }
 

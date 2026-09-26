@@ -26,7 +26,7 @@ import {
   starterCode,
 } from './suite.js';
 import { TreeNode, buildTree, levelOrder, type LevelOrder } from './tree.js';
-import { LANGUAGES } from './types.js';
+import { LANGUAGES, type TestCase } from './types.js';
 
 function nodesOf(root: TreeNode | null) {
   const nodes = root ? [root] : [];
@@ -57,10 +57,24 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     for (let i = 0; i < h.length; i++) for (let j = i + 1; j < h.length; j++) best = Math.max(best, Math.min(h[i], h[j]) * (j - i));
     return best;
   },
+  'jump-game': (nums: number[]) => {
+    const reachesEnd = (i: number): boolean =>
+      i === nums.length - 1 || rangeOf(i + 1, Math.min(i + nums[i], nums.length - 1)).some(reachesEnd);
+    return reachesEnd(0);
+  },
   'longest-unique-substring': (s: string) => {
     let best = 0;
     for (let i = 0; i < s.length; i++)
       for (let j = i; j < s.length; j++) if (new Set(s.slice(i, j + 1)).size === j - i + 1) best = Math.max(best, j - i + 1);
+    return best;
+  },
+  'min-size-subarray-sum': (target: number, nums: number[]) => {
+    let best = 0;
+    for (let i = 0; i < nums.length; i++)
+      for (let j = i; j < nums.length; j++) {
+        const sum = nums.slice(i, j + 1).reduce((s, x) => s + x, 0);
+        if (sum >= target && (!best || j - i + 1 < best)) best = j - i + 1;
+      }
     return best;
   },
   'binary-search': (nums: number[], t: number) => nums.indexOf(t),
@@ -95,6 +109,21 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     g.forEach((row, r) => row.forEach((cell, c) => cell === '1' && (n++, sink(r, c))));
     return n;
   },
+  'rotting-oranges': (grid: number[][]) => {
+    let g = grid;
+    for (let minutes = 0; ; minutes++) {
+      if (!g.flat().includes(1)) return minutes;
+      const next = g.map((row, r) =>
+        row.map((cell, c) => (cell === 1 && [g[r - 1]?.[c], g[r + 1]?.[c], row[c - 1], row[c + 1]].includes(2) ? 2 : cell)),
+      );
+      if (JSON.stringify(next) === JSON.stringify(g)) return -1;
+      g = next;
+    }
+  },
+  subsets: (nums: number[]) => {
+    const sorted = [...nums].sort((a, b) => a - b);
+    return rangeOf(0, 2 ** nums.length - 1).map((mask) => sorted.filter((_, i) => mask & (1 << i)));
+  },
   'merge-intervals': (intervals: number[][]) => {
     let list = intervals.map((i) => [...i]);
     for (let changed = true; changed;) {
@@ -121,6 +150,16 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
   'house-robber': (nums: number[]) => {
     const best = (i: number): number => (i < 0 ? 0 : Math.max(best(i - 1), best(i - 2) + nums[i]));
     return best(nums.length - 1);
+  },
+  'coin-change': (coins: number[], amount: number) => {
+    const fewest = (i: number, rest: number): number => {
+      if (i === coins.length) return rest === 0 ? 0 : Infinity;
+      let best = Infinity;
+      for (let count = 0; count * coins[i] <= rest; count++) best = Math.min(best, count + fewest(i + 1, rest - count * coins[i]));
+      return best;
+    };
+    const best = fewest(0, amount);
+    return best === Infinity ? -1 : best;
   },
   'kth-largest-element': (nums: number[], k: number) =>
     nums.find((x) => nums.filter((y) => y > x).length < k && nums.filter((y) => y >= x).length >= k),
@@ -155,6 +194,21 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
       }
     }
     return components;
+  },
+  'redundant-connection': (edges: number[][]) => {
+    const connects = (rest: number[][]) => {
+      const reached = new Set([1]);
+      for (let grew = true; grew;) {
+        grew = false;
+        for (const [a, b] of rest)
+          if (reached.has(a) !== reached.has(b)) {
+            reached.add(a).add(b);
+            grew = true;
+          }
+      }
+      return reached.size === edges.length;
+    };
+    return [...edges].reverse().find((edge) => connects(edges.filter((e) => e !== edge)));
   },
   'course-schedule': (_n: number, prerequisites: number[][]) => {
     const reaches = (from: number, to: number, seen: Set<number>): boolean => {
@@ -214,6 +268,65 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
  * its loops are written (the fastest quadratic variant measured, a native `indexOf` scan, still took over 5 s).
  */
 const SLOWER: Record<string, (...args: any[]) => number> = {
+  // From the back, trying each jump from an index until one lands where the end is reachable.
+  'jump-game': (nums: number[]) => {
+    const last = nums.length - 1;
+    let nearestGood = last;
+    let steps = 0;
+    for (let i = last - 1; i >= 0; i--) {
+      const far = Math.min(i + nums[i], last);
+      steps += Math.min(nearestGood, far) - i;
+      if (nearestGood <= far) nearestGood = i;
+    }
+    return steps;
+  },
+  // Growing a window from every start until its sum reaches the target.
+  'min-size-subarray-sum': (target: number, nums: number[]) => {
+    let steps = 0;
+    let sum = 0;
+    for (let lo = 0, hi = 0; lo < nums.length; lo++) {
+      while (hi < nums.length && sum < target) sum += nums[hi++];
+      steps += (sum >= target ? hi : nums.length) - lo;
+      sum -= nums[lo];
+    }
+    return steps;
+  },
+  // Scanning the whole grid once a minute for fresh oranges next to rotten ones.
+  'rotting-oranges': (grid: number[][]) =>
+    ((getCodingProblem('rotting-oranges')!.solve(grid) as number) + 1) * grid.length * grid[0].length,
+  // Extending every subset found so far by the next number, and looking through the list for a copy before adding one.
+  subsets: (nums: number[]) => {
+    let steps = 0;
+    for (let found = 1; found < 2 ** nums.length; found *= 2) steps += found * found + (found * (found - 1)) / 2;
+    return steps;
+  },
+  // Recursing on every coin without a memo.
+  'coin-change': (coins: number[], amount: number) => {
+    const calls = [1];
+    for (let a = 1; a <= amount; a++) calls.push(Math.min(1e12, 1 + coins.reduce((sum, c) => sum + (c <= a ? calls[a - c] : 0), 0)));
+    return calls[amount];
+  },
+  // Searching the graph built so far from one end of each edge for the other, which visits that end's whole component,
+  // always from the first end or always from the second.
+  'redundant-connection': (edges: number[][]) => {
+    const parent = rangeOf(0, edges.length);
+    const size = parent.map(() => 1);
+    const find = (x: number): number => {
+      while (parent[x] !== x) x = parent[x] = parent[parent[x]];
+      return x;
+    };
+    let fromFirst = 0;
+    let fromSecond = 0;
+    for (const [a, b] of edges) {
+      const [ra, rb] = [find(a), find(b)];
+      if (ra === rb) break;
+      fromFirst += size[ra];
+      fromSecond += size[rb];
+      parent[ra] = rb;
+      size[rb] += size[ra];
+    }
+    return Math.min(fromFirst, fromSecond);
+  },
   // Nested loops stop at a copy of the duplicate, and both copies sit mid-array, so scanning from either end is quadratic.
   'find-duplicate': (nums: number[]) => {
     const firstAt = new Map<number, number>();
@@ -248,6 +361,16 @@ const SLOWER: Record<string, (...args: any[]) => number> = {
     }
     return steps;
   },
+};
+
+/**
+ * What a performance case stresses when its input is small: the table the reference fills, or the answer it builds. Two
+ * 1,500-letter strings are only ~3 KB, but their LCS table has 2.25 million cells.
+ */
+const PERFORMANCE_LOAD: Record<string, (test: TestCase) => number> = {
+  'longest-common-subsequence': ({ args: [a, b] }) => (a as string).length * (b as string).length,
+  'coin-change': ({ args: [coins, amount] }) => (coins as number[]).length * (amount as number),
+  subsets: ({ expected }) => (expected as unknown[]).length,
 };
 
 const hasPython = spawnSync('python3', ['--version']).status === 0;
@@ -290,8 +413,8 @@ describe('coding problems', () => {
     const [perf] = buildSuite(problem, { seed: 3 }).filter((t) => t.kind === 'performance');
     expect(perf).toBeDefined();
     expect(performance.now() - started).toBeLessThan(1_500);
-    // LCS stresses the O(m·n) table, not input size: two 1,500-letter strings are only ~3 KB.
-    expect(JSON.stringify(perf.args).length).toBeGreaterThan(problem.id === 'longest-common-subsequence' ? 2_000 : 10_000);
+    const load = PERFORMANCE_LOAD[problem.id]?.(perf) ?? JSON.stringify(perf.args).length;
+    expect(load).toBeGreaterThan(10_000);
   });
 
   it('give every pattern at least one problem', () => {
@@ -341,6 +464,54 @@ describe('coding problems', () => {
     }
   });
 
+  it('gives Subsets distinct values and Redundant Connection a tree plus one edge, so each has one right answer', () => {
+    for (const test of buildSuite(getCodingProblem('subsets')!, { seed: 11 })) {
+      const [nums] = test.args as [number[]];
+      expect(new Set(nums).size, preview(nums)).toBe(nums.length);
+    }
+    for (const test of buildSuite(getCodingProblem('redundant-connection')!, { seed: 11 })) {
+      const [edges] = test.args as [number[][]];
+      const n = edges.length;
+      const parent = rangeOf(0, n);
+      const find = (x: number): number => {
+        while (parent[x] !== x) x = parent[x] = parent[parent[x]];
+        return x;
+      };
+      let joins = 0;
+      for (const [a, b] of edges) {
+        const [ra, rb] = [find(a), find(b)];
+        if (ra !== rb) {
+          parent[ra] = rb;
+          joins++;
+        }
+      }
+      const label = preview(edges);
+      expect(
+        edges.every(([a, b]) => a !== b && Math.min(a, b) >= 1 && Math.max(a, b) <= n),
+        label,
+      ).toBe(true);
+      expect(new Set(edges.map(([a, b]) => `${Math.min(a, b)}-${Math.max(a, b)}`)).size, label).toBe(n);
+      expect(joins, `connected: ${label}`).toBe(n - 1);
+    }
+  });
+
+  it('gives Rotting Oranges thousands of rotten oranges that each reach every fresh one, so a BFS from each is too slow', () => {
+    const [perf] = buildSuite(getCodingProblem('rotting-oranges')!).filter((t) => t.kind === 'performance');
+    const [grid] = perf.args as [number[][]];
+    const cols = grid[0].length;
+    const cells = grid.flat();
+    const neighbors = (k: number) =>
+      [k - cols, k + cols, k % cols ? k - 1 : -1, (k + 1) % cols ? k + 1 : -1].filter((n) => n >= 0 && n < cells.length);
+    const rotten = cells.flatMap((cell, k) => (cell === 2 ? [k] : []));
+    const fresh = cells.filter((cell) => cell === 1).length;
+    expect(rotten.every((k) => neighbors(k).some((n) => cells[n] === 1))).toBe(true);
+    const reached = new Set([cells.indexOf(1)]);
+    for (const k of reached) for (const n of neighbors(k)) if (cells[n] === 1) reached.add(n);
+    expect(reached.size).toBe(fresh);
+    // A BFS from each rotten orange makes rotten × fresh visits; the tightest one measured, on typed arrays, took 4.6 s.
+    expect(rotten.length * fresh).toBeGreaterThan(1e9);
+  });
+
   it('builds the same suite for the same seed and a different one for another seed', () => {
     const problem = getCodingProblem('daily-temperatures')!;
     expect(buildSuite(problem, { seed: 5 })).toEqual(buildSuite(problem, { seed: 5 }));
@@ -361,6 +532,8 @@ describe('outputsMatch', () => {
     expect(outputsMatch(3, '3', 'exact')).toBe(false);
     expect(outputsMatch(true, true, 'exact')).toBe(true);
     expect(outputsMatch([1], undefined, 'unordered')).toBe(false);
+    expect(outputsMatch([[1, 3], []], [[], [3, 1]], 'unordered-nested')).toBe(true);
+    expect(outputsMatch([[1], [2]], [[1], [1]], 'unordered-nested')).toBe(false);
   });
 });
 

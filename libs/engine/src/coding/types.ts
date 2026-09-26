@@ -11,8 +11,8 @@ export interface Param {
   type: ParamType;
 }
 
-/** How a returned value is checked: exactly, or as a list whose order does not matter. */
-export type CompareMode = 'exact' | 'unordered';
+/** How a returned value is checked: exactly, as a list in any order, or as a list of lists where neither level's order matters. */
+export type CompareMode = 'exact' | 'unordered' | 'unordered-nested';
 
 export type Args = unknown[];
 
