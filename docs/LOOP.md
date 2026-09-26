@@ -16,7 +16,7 @@ any follow-ups it found. Keep entries short and factual, with numbers where they
 | 11     | Playback controls stay put: the drawing holds its height, the page anchors what the learner is reading (controls, the Code panel below, side columns beside), array cells keep one width for the whole trace, toolbar titles stay clear; phone Code panel moves while stepping 0 (was 370), keyboard focus never fully hidden up to 300% zoom, forced layouts per step 4.0 to 1.9 | `4bb2e65`, `7b92df0` |
 | 12     | Tree badges stay off the links: a leaf's badge sits below it, others above, else below, else beside; badge placement shared with the graph view. Badges on a link 3,403 of 4,559 in Subsets by Backtracking and 387 in measured code traces, now 0; audit covers a tree visualizer                                                                                                | `2ccfb88`, `b32fbae` |
 | 13     | CI and deploys spend minutes once per commit: on `main`, CI and the native builds reuse the branch's passing runs and the deploy skips a commit production already runs; native builds run only for native changes. A loop release went from about 50 Linux and 4 macOS minutes to about 25 Linux minutes (the Actions budget ran out on 2026-09-26)                              | `28788a3`            |
-| 14     | Long pointer names stay off the links: a tree drawing leaves room at each side for the trace's longest badge, a badge may also sit below and beside its node, and one with no clear spot takes the least bad. Long-name code traces: 935 badges on a link and 159 outside of 14,661, now 224, all where no spot is clear                                                          | (this change)        |
+| 14     | Long pointer names stay off the links: a badge naming several pointers wraps onto two lines past 13 characters, a drawing keeps only the side room its badges use, and a badge may also sit below and beside its node or take the least bad spot. Long-name code traces: 950 badges on a link and 163 outside of 14,716, now 87; problem examples: 252 clashes, now 0             | (this change)        |
 
 ## Open follow-ups
 
@@ -58,13 +58,13 @@ Known issues and deferred work, most valuable first.
 - Dependabot's `@sentry/angular` update fails CI.
 - The tree view's side spot (a badge above and beside its node) is covered by a unit test and the code-trace measure, but
   no audit state shows it; a traced skewed tree (such as `[1,2,null,3]`) in `tools/verify` would.
-- Tree badges naming several long pointers at once (18 to 32 characters, such as `current_node, previous_node`) widen a
-  trace's drawing by 236 to 328 px, since it leaves room for its longest badge beside an edge node: a phone draws 89 of 90
-  such measured traces smaller, at 0.53 to 0.96 of their size before (mean 0.68 to 0.74). One long name such as
-  `currentNode` costs 51 px (mean 0.96, worst 0.88). In full trees such a badge still finds no clear spot and crosses one
-  link (224 of 14,661 in the long-name traces; a search of every spot combination finds no clean one). Stacking the names on
-  two lines would cut both. Badge placement on synthetic trees with every node badged and no clear spot anywhere is 3.3 to
-  3.8x slower (255 nodes: 15 to 56 ms), from its second round; real traces are unchanged.
+- Tree badges with long pointer names still cross a link where neighbouring badges crowd a lopsided tree: 87 of 14,716 in
+  the long-name code traces (`current_node` and `previous_node` in random trees of 7 to 46 nodes); the problem examples
+  draw 0. A badge naming several pointers wraps past 13 characters even where one line would fit (`treeRootNode, node`
+  above a root). The side room comes from laying out every frame once per trace: 0.2 to 0.3 ms for the problem examples,
+  20 to 37 ms for a 63-node tree over 448 frames. Layout per frame in real traces stays within about 10% of `main`;
+  synthetic trees with every node badged `current_node, previous_node` are 4.7 to 5.4x slower (255 nodes: 68 ms), from the
+  second round of placement.
 - A cloud run of this loop cannot finish a release: its container could not reach the production URL (egress proxy), its
   Node is 22.22.2 (the Angular CLI needs 24, per `.nvmrc`) and its Chromium is 141 (pinned 153). Iteration 12 was
   finished and verified from a local session.

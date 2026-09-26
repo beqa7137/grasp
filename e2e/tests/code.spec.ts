@@ -1,3 +1,4 @@
+import type { Locator } from '@playwright/test';
 import { JS_DIAMETER, JS_ISLANDS, expect, expectUnmoved, seek, stepTotal, synced, test, trace, viewportTop, write } from './fixtures';
 
 const JS_TWO_SUM = `function twoSum(nums, target) {
@@ -66,6 +67,22 @@ const JS_DIAMETER_LONG_NAME = `function diameterOfBinaryTree(root) {
   }
   depth(root);
   return best;
+}`;
+
+const JS_INORDER_LONG_NAMES = `function diameterOfBinaryTree(root) {
+  const stack = [];
+  let current_node = root;
+  let previous_node = null;
+  while (current_node || stack.length) {
+    while (current_node) {
+      stack.push(current_node);
+      current_node = current_node.left;
+    }
+    current_node = stack.pop();
+    previous_node = current_node;
+    current_node = current_node.right;
+  }
+  return 0;
 }`;
 
 const JS_MERGE = `function merge(intervals) {
@@ -220,6 +237,16 @@ test('Trace shows the call stack of a recursive DFS, and the calls waiting on th
   await expect(tree.getByRole('img', { name: 'Tree with 5 nodes, current node 2, 1 on the call stack, 1 returned' })).toBeVisible();
 });
 
+/** Every line of the badge lies inside the drawing: its words, since Playwright's box for a text also takes in its outline. */
+async function expectWordsInside(drawing: Locator, badge: Locator) {
+  const box = (await drawing.boundingBox())!;
+  for (const line of await badge.locator('tspan').all()) {
+    const text = (await line.boundingBox())!;
+    expect(text.x).toBeGreaterThanOrEqual(box.x);
+    expect(text.x + text.width).toBeLessThanOrEqual(box.x + box.width);
+  }
+}
+
 test('Trace keeps the tree one width as a long pointer name comes and goes, with its badge inside the tree', async ({ page }) => {
   await page.goto('/code/tree-diameter');
   await trace(page, JS_DIAMETER_LONG_NAME, 'Diameter of Binary Tree');
@@ -229,9 +256,21 @@ test('Trace keeps the tree one width as a long pointer name comes and goes, with
   const badge = tree.locator('text.badge');
   await expect(badge).toHaveText('currentNode');
   expect(await tree.getAttribute('viewBox')).toBe(unbadged);
-  const [drawing, text] = [(await tree.boundingBox())!, (await badge.boundingBox())!];
-  expect(text.x).toBeGreaterThanOrEqual(drawing.x);
-  expect(text.x + text.width).toBeLessThanOrEqual(drawing.x + drawing.width);
+  await expectWordsInside(tree, badge);
+});
+
+test('on a narrow phone, two long pointer names on one node stack on two lines, and the tree keeps its full size', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 700 });
+  await page.goto('/code/tree-diameter');
+  await trace(page, JS_INORDER_LONG_NAMES, 'Diameter of Binary Tree');
+  const tree = page.locator('app-trace-player g-tree-view svg');
+  const first = (await tree.getAttribute('viewBox'))!;
+  await seek(page, 13, 'previous_node = TreeNode(4)');
+  const badge = tree.locator('text.badge');
+  await expect(badge.locator('tspan')).toHaveText(['current_node,', 'previous_node']);
+  expect(await tree.getAttribute('viewBox')).toBe(first);
+  expect((await tree.boundingBox())!.width).toBeCloseTo(Number(first.split(' ')[2]), 0);
+  await expectWordsInside(tree, badge);
 });
 
 test('on a narrow phone, a call too long for the call stack is cut short on one line, and nothing scrolls sideways', async ({ page }) => {

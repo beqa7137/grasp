@@ -54,7 +54,7 @@ import { GraphViewComponent } from '../../viz/graph-view.component';
 import { GridViewComponent } from '../../viz/grid-view.component';
 import { ListViewComponent } from '../../viz/list-view.component';
 import { TableViewComponent } from '../../viz/table-view.component';
-import { TreeViewComponent, longestBadgeIn } from '../../viz/tree-view.component';
+import { TreeViewComponent, sideRoomFor } from '../../viz/tree-view.component';
 
 type PredictState = { frame: number; choice: number | null };
 
@@ -146,7 +146,7 @@ export class PlayerPage {
   readonly longestArrayValue = computed(() =>
     longestValue(this.frames().flatMap((f) => [...(f.array?.values ?? []), ...(alignedRow(f)?.values ?? [])])),
   );
-  readonly longestTreeBadge = computed(() => longestBadgeIn(this.frames().map((f) => f.tree)));
+  readonly treeRoom = computed(() => sideRoomFor(this.frames().map((f) => f.tree)));
 
   readonly varEntries = computed(() => Object.entries(this.frame()?.vars ?? {}).filter(([k]) => k !== 'result'));
   readonly result = computed(() => (this.index() === this.last() ? this.frame()?.vars['result'] : undefined));

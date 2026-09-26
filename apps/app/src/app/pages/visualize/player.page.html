@@ -150,7 +150,7 @@
                   <g-graph-view [view]="f.graph" />
                 }
                 @if (f.tree) {
-                  <g-tree-view [view]="f.tree" [longest]="longestTreeBadge()" />
+                  <g-tree-view [view]="f.tree" [room]="treeRoom()" />
                 }
                 @if (f.stack || f.queue || f.set || (f.output && !alignedOutput())) {
                   <div class="aux">
