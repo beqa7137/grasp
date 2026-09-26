@@ -6,10 +6,9 @@ any follow-ups it found. Keep entries short and factual, with numbers where they
 
 ## In progress
 
-- Tree badges (`loop/tree-badges`): live in production since 12:43 UTC on 2026-09-26 (release `bc54b3d`; the deploy
-  workflow's live checks and read-only `@smoke` walk passed). Left: the `READONLY=1` production audits in both themes, then
-  fast-forward `main`. The run's container could not reach grasp-rho-taupe.vercel.app (egress proxy `connect_rejected`,
-  and the Vercel connector was denied), so it stopped before those steps.
+- Tree badges: merged into `feature/improvements`, not `main`, at the owner's request (2026-09-26). Production
+  deploy and verification are skipped while this environment cannot reach grasp-rho-taupe.vercel.app. Release `bc54b3d`
+  is still the one live in production.
 
 ## Shipped
 
