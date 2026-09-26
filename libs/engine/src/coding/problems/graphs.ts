@@ -50,31 +50,30 @@ function combOverSnake(rows: number, cols: number, combRows: number): number[][]
   return rangeOf(0, rows - 1).map((r) =>
     rangeOf(0, cols - 1).map((c) => {
       if (r < combRows) return r % 2 === 0 && c < cols - 1 ? 2 : 1;
-      const s = r - combRows;
-      if (s % 2 === 0) return 1;
-      return c === ((s >> 1) % 2 === 0 ? cols - 1 : 0) ? 1 : 0;
+      const snakeRow = r - combRows;
+      if (snakeRow % 2 === 0) return 1;
+      return c === (snakeRow % 4 === 1 ? cols - 1 : 0) ? 1 : 0;
     }),
   );
 }
 
-const edgeKey = (a: number, b: number) => `${Math.min(a, b)}-${Math.max(a, b)}`;
-
 /** Two different nodes from `nodes` that no edge in `edges` joins yet. */
 function unjoinedPair(rand: () => number, nodes: readonly number[], edges: readonly number[][]): number[] {
-  const joined = new Set(edges.map(([a, b]) => edgeKey(a, b)));
   for (;;) {
     const a = nodes[randInt(rand, 0, nodes.length - 1)];
     const b = nodes[randInt(rand, 0, nodes.length - 1)];
-    if (a !== b && !joined.has(edgeKey(a, b))) return [a, b];
+    if (a !== b && !edges.some(([x, y]) => (x === a && y === b) || (x === b && y === a))) return [a, b];
   }
 }
+
+const eitherWay = (rand: () => number, a: number, b: number) => (rand() < 0.5 ? [a, b] : [b, a]);
 
 /** A random tree on the nodes 1 to n plus one extra edge, shuffled, each edge written in a random direction. */
 function treePlusEdge(rand: () => number, n: number): number[][] {
   const labels = shuffle(rand, rangeOf(1, n));
   const edges = labels.slice(1).map((v, i) => [labels[randInt(rand, 0, i)], v]);
   edges.push(unjoinedPair(rand, labels, edges));
-  return shuffle(rand, edges).map(([a, b]) => (rand() < 0.5 ? [a, b] : [b, a]));
+  return shuffle(rand, edges).map(([a, b]) => eitherWay(rand, a, b));
 }
 
 /**
@@ -85,14 +84,13 @@ function treePlusEdge(rand: () => number, n: number): number[][] {
 function joinedPairs(rand: () => number, n: number): number[][] {
   const labels = shuffle(rand, rangeOf(1, n));
   const pairs: number[][] = [];
-  for (let i = 0; i < n; i += 2) pairs.push(rand() < 0.5 ? [labels[i], labels[i + 1]] : [labels[i + 1], labels[i]]);
+  for (let i = 0; i < n; i += 2) pairs.push(eitherWay(rand, labels[i], labels[i + 1]));
   const tree = labels.slice(0, 2);
   const joins: number[][] = [];
   const extraAt = Math.floor(0.95 * (n / 2));
   for (let i = 1; i < n / 2; i++) {
     if (i === extraAt) joins.push(unjoinedPair(rand, tree, [...pairs, ...joins]));
-    const join = [tree[randInt(rand, 0, tree.length - 1)], labels[2 * i + randInt(rand, 0, 1)]];
-    joins.push(rand() < 0.5 ? join : join.reverse());
+    joins.push(eitherWay(rand, tree[randInt(rand, 0, tree.length - 1)], labels[2 * i + randInt(rand, 0, 1)]));
     tree.push(labels[2 * i], labels[2 * i + 1]);
   }
   return [...pairs, ...joins];
