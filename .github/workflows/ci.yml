@@ -2,14 +2,14 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, feature/improvements]
   pull_request:
   workflow_dispatch:
 
-# A newer push stops the run it supersedes, except on main, where every commit gets a verdict before it deploys.
+# A newer push stops the run it supersedes, except on main and feature/improvements, where every commit gets a verdict.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/feature/improvements' }}
 
 permissions:
   contents: read

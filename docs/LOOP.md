@@ -1,14 +1,9 @@
 # Improvement loop
 
 The loop's memory between runs. Each run reads this first, picks one item, ships it through the full release sequence in
-`CLAUDE.md`, and updates this file in the same change: add a line to **Shipped**, remove or edit what it resolved, and add
-any follow-ups it found. Keep entries short and factual, with numbers where they exist.
-
-## In progress
-
-- Tree badges: merged into `feature/improvements`, not `main`, at the owner's request (2026-09-26). Production
-  deploy and verification are skipped while this environment cannot reach grasp-rho-taupe.vercel.app. Release `bc54b3d`
-  is still the one live in production.
+`CLAUDE.md` into `feature/improvements` (the loop's base branch; production and `main` only on the owner's request), and
+updates this file in the same change: add a line to **Shipped**, remove or edit what it resolved, and add any follow-ups
+it found. Keep entries short and factual, with numbers where they exist.
 
 ## Shipped
 
