@@ -1,8 +1,9 @@
 import type { Point } from './geometry';
 
-// A badge is one line of 11px monospace text, about 0.6em per character.
+// A badge is 11px monospace text, about 0.6em per character, with a line for each '\n'.
 const BADGE_CHAR_WIDTH = 6.6;
 export const BADGE_HALF_HEIGHT = 5.5;
+export const BADGE_LINE_HEIGHT = 11;
 const BADGE_ROOM = 2;
 const BADGE_SIDE_GAP = 2;
 const UNBOUNDED = { left: -Infinity, right: Infinity, top: -Infinity, bottom: Infinity };
@@ -44,16 +45,34 @@ function segmentCrosses(a: Point, b: Point, box: Box): boolean {
   return enter <= exit;
 }
 
-const halfWidthOf = (badge: string) => (badge.length * BADGE_CHAR_WIDTH) / 2;
+export const badgeLines = (badge: string) => badge.split('\n');
 
-/** How far from its node's centre a badge of this many characters reaches when it sits beside the node. */
-export const besideReach = (chars: number) => BADGE_SIDE_GAP + chars * BADGE_CHAR_WIDTH;
+const UNBADGED = { halfWidth: 0, halfHeight: BADGE_HALF_HEIGHT };
 
-const badgeBox = (badge: string, { x, y }: Point, room: number): Box => {
-  const halfWidth = halfWidthOf(badge) + room;
-  const halfHeight = BADGE_HALF_HEIGHT + room;
-  return { left: x - halfWidth, right: x + halfWidth, top: y - halfHeight, bottom: y + halfHeight };
+const sizeOf = (badge: string) => {
+  const lines = badgeLines(badge);
+  return {
+    halfWidth: (Math.max(...lines.map((line) => line.length)) * BADGE_CHAR_WIDTH) / 2,
+    halfHeight: BADGE_HALF_HEIGHT + ((lines.length - 1) * BADGE_LINE_HEIGHT) / 2,
+  };
 };
+
+export const badgeHalfWidth = (badge: string) => sizeOf(badge).halfWidth;
+
+/** How far from its node's centre a badge reaches when it sits beside the node. */
+export const besideReach = (badge: string) => BADGE_SIDE_GAP + 2 * badgeHalfWidth(badge);
+
+/** The badge on two lines when it is longer than `maxLine` characters, broken at the space that leaves the longer line shortest. */
+export function wrapBadge(badge: string, maxLine: number): string {
+  if (badge.length <= maxLine) return badge;
+  let wrapped = badge;
+  let longest = badge.length;
+  for (let space = badge.indexOf(' '); space >= 0; space = badge.indexOf(' ', space + 1)) {
+    const longer = Math.max(space, badge.length - space - 1);
+    if (longer < longest) [wrapped, longest] = [`${badge.slice(0, space)}\n${badge.slice(space + 1)}`, longer];
+  }
+  return wrapped;
+}
 
 const inside = (box: Box, bounds: Box) =>
   box.left >= bounds.left && box.right <= bounds.right && box.top >= bounds.top && box.bottom <= bounds.bottom;
@@ -73,27 +92,32 @@ export function placeBadges<N extends Badged>(
   spotsOf: (node: N) => readonly Spot[],
   { bounds = UNBOUNDED, leastBad = false }: { bounds?: Box; leastBad?: boolean } = {},
 ): Point[] {
+  const sizes = nodes.map(({ badge }) => (badge ? sizeOf(badge) : UNBADGED));
   const nodeBox = ({ x, y }: Point): Box => ({ left: x - radius, right: x + radius, top: y - radius, bottom: y + radius });
+  const badgeBox = (i: number, { x, y }: Point, room: number): Box => {
+    const halfWidth = sizes[i].halfWidth + room;
+    const halfHeight = sizes[i].halfHeight + room;
+    return { left: x - halfWidth, right: x + halfWidth, top: y - halfHeight, bottom: y + halfHeight };
+  };
   const crosses = (points: readonly Point[], box: Box) => points.slice(1).some((point, k) => segmentCrosses(points[k], point, box));
-  const at = (n: Badged, { dy, side }: Spot): Point => ({
-    x: side ? n.x + side * (halfWidthOf(n.badge ?? '') + BADGE_SIDE_GAP) : n.x,
-    y: n.y + dy,
+  // A badge of several lines grows away from its node, so the line nearest the node sits where a one-line badge would.
+  const at = (i: number, { dy, side }: Spot): Point => ({
+    x: side ? nodes[i].x + side * (sizes[i].halfWidth + BADGE_SIDE_GAP) : nodes[i].x,
+    y: nodes[i].y + dy + Math.sign(dy) * (sizes[i].halfHeight - BADGE_HALF_HEIGHT),
   });
-  const centres = nodes.map((n) => at(n, spotsOf(n)[0]));
+  const centres = nodes.map((n, i) => at(i, spotsOf(n)[0]));
   let settled = true;
   const place = (i: number) => {
-    const n = nodes[i];
-    const { badge } = n;
-    if (!badge) return;
-    const taken = nodes.flatMap((o, j) => (j === i ? [] : [nodeBox(o), ...(o.badge ? [badgeBox(o.badge, centres[j], 0)] : [])]));
+    if (!nodes[i].badge) return;
+    const taken = nodes.flatMap((o, j) => (j === i ? [] : [nodeBox(o), ...(o.badge ? [badgeBox(j, centres[j], 0)] : [])]));
     const clear = (centre: Point, room: number) => {
-      const box = badgeBox(badge, centre, room);
+      const box = badgeBox(i, centre, room);
       return !lines.some((points) => crosses(points, box)) && !taken.some((other) => overlaps(box, other));
     };
     const leastBadOf = (options: Point[]) =>
       options
         .map((centre) => {
-          const box = badgeBox(badge, centre, 0);
+          const box = badgeBox(i, centre, 0);
           return {
             centre,
             lines: lines.filter((points) => crosses(points, box)).length,
@@ -101,9 +125,9 @@ export function placeBadges<N extends Badged>(
           };
         })
         .sort((a, b) => a.lines - b.lines || a.covered - b.covered)[0]?.centre;
-    const candidates = spotsOf(n)
-      .map((spot) => at(n, spot))
-      .filter((centre) => inside(badgeBox(badge, centre, 0), bounds));
+    const candidates = spotsOf(nodes[i])
+      .map((spot) => at(i, spot))
+      .filter((centre) => inside(badgeBox(i, centre, 0), bounds));
     const clearSpot = candidates.find((c) => clear(c, BADGE_ROOM)) ?? candidates.find((c) => clear(c, 0));
     settled &&= clearSpot !== undefined;
     centres[i] = clearSpot ?? (leastBad ? leastBadOf(candidates) : undefined) ?? centres[i];

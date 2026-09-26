@@ -5,13 +5,13 @@ import { traceJs } from '../code/execute-js';
 import { toFrames } from '../code/trace-frames';
 import { exampleTree } from '../code/tree-frames';
 import { ArrayViewComponent, longestValue } from './array-view.component';
-import { placeBadges, type Badged, type Spot } from './badges';
+import { placeBadges, wrapBadge, type Badged, type Spot } from './badges';
 import { GraphViewComponent } from './graph-view.component';
 import { LegendComponent } from './legend.component';
 import { ListViewComponent } from './list-view.component';
 import { TableViewComponent } from './table-view.component';
 import type { Point } from './geometry';
-import { TreeViewComponent, layoutForest, longestBadgeIn } from './tree-view.component';
+import { TreeViewComponent, layoutForest, sideRoomFor, type SideRoom } from './tree-view.component';
 
 describe('layoutForest', () => {
   it('centres parents over their children and keeps sibling order', () => {
@@ -50,16 +50,52 @@ describe('layoutForest', () => {
     expect(cyclic.nodes).toHaveLength(0);
   });
 
-  it('leaves room at each side for the longest badge beside an edge node, and only the usual margin without one', () => {
+  it('leaves the room it is given past the usual margin at each side, and only the margin without any', () => {
     const tree = treeOf(['a', null], ['b', 'a'], ['c', 'a']);
     const usual = layoutForest(tree);
     expect([usual.width, ...usual.nodes.map((n) => n.x)]).toEqual([144, 72, 49, 95]);
-    expect(layoutForest(tree, { longestBadge: 'node'.length })).toEqual(usual);
-    const roomy = layoutForest(tree, { longestBadge: 'currentNode'.length });
-    const [, left, right] = roomy.nodes;
-    expect(left.x).toBeCloseTo(2 + 2 * badgeHalfWidth('currentNode'));
-    expect(roomy.width - right.x).toBeCloseTo(left.x);
-    expect(right.x - left.x).toBe(95 - 49);
+    expect(layoutForest(tree, { room: { left: 0, right: 0 } })).toEqual(usual);
+    const roomy = layoutForest(tree, { room: { left: 10, right: 30 } });
+    expect([roomy.width, ...roomy.nodes.map((n) => n.x)]).toEqual([184, 82, 59, 105]);
+  });
+});
+
+describe('sideRoomFor', () => {
+  const offsets = (tree: TreeView, room: SideRoom) =>
+    layoutForest(tree, { room }).nodes.flatMap((n) => (n.badge ? [[n.badgeAt.x - n.x, n.badgeAt.y - n.y].map((d) => d.toFixed(6))] : []));
+
+  it('leaves no room for badges that stay within the usual margin, however long', () => {
+    expect(sideRoomFor([treeOf(['a', null, 'treeRootNode'], ['b', 'a'], ['c', 'a']), undefined])).toEqual({ left: 0, right: 0 });
+    expect(sideRoomFor([exampleTree([1, 2, 3])!])).toEqual({ left: 0, right: 0 });
+    expect(sideRoomFor([])).toEqual({ left: 0, right: 0 });
+  });
+
+  it('leaves room only at the side a badge beside an edge node reaches, over every tree it is given', () => {
+    const right = treeOf(['a', null], ['b', 'a', 'currentNode'], ['c', 'b']);
+    const left = treeOf(['a', null], ['b', 'a', 'currentNode'], ['c', 'b'], ['d', 'a']);
+    const reach = Math.ceil(2 + 2 * badgeHalfWidth('currentNode') - 49 + 0.5);
+    expect(sideRoomFor([right])).toEqual({ left: 0, right: reach });
+    expect(sideRoomFor([right, left])).toEqual({ left: reach, right: reach });
+  });
+
+  it('keeps every badge where room for the widest badge at both sides would put it', () => {
+    const trees = [
+      codeTree([1, 2, null, 3], '2', 'currentNode'),
+      codeTree([1, 2, 3, 4, 5], '3', 'current_node, previous_node'),
+      codeTree([1, 2, 3, 4, 5], '3', 'node, theDeepestRightmostLeaf'),
+      treeOf(['a', null, 'root'], ['b', 'a', 'currentNode'], ['c', 'b', 'lastVisited'], ['d', 'a']),
+    ];
+    const room = sideRoomFor(trees);
+    for (const tree of trees) expect(offsets(tree, room)).toEqual(offsets(tree, { left: 200, right: 200 }));
+  });
+});
+
+describe('wrapBadge', () => {
+  it('breaks a badge longer than a line at the space that leaves the longer line shortest, into two lines at most', () => {
+    expect(wrapBadge('current_node, previous_node', 13)).toBe('current_node,\nprevious_node');
+    expect(wrapBadge('parent, grandparent, first, last', 13)).toBe('parent, grandparent,\nfirst, last');
+    expect(wrapBadge('node, current', 13)).toBe('node, current');
+    expect(wrapBadge('theDeepestRightmostLeaf', 13)).toBe('theDeepestRightmostLeaf');
   });
 });
 
@@ -93,6 +129,14 @@ describe('placeBadges', () => {
     expect(placeBadges([node(0)], lines, 16, () => [ABOVE, BELOW], { leastBad: true, bounds })).toEqual([{ x: 0, y: -25 }]);
   });
 
+  it('grows a badge of two lines away from its node, and moves it when its second line would cross a line', () => {
+    const twoLines = { x: 0, y: 0, badge: 'ab\ncd' };
+    expect(placeBadges([twoLines], [], 16, () => [ABOVE])).toEqual([{ x: 0, y: -30.5 }]);
+    expect(placeBadges([twoLines], [], 16, () => [BELOW])).toEqual([{ x: 0, y: 30.5 }]);
+    expect(placeBadges([node(0)], [across(-40)], 16, () => [ABOVE, BELOW])).toEqual([{ x: 0, y: -25 }]);
+    expect(placeBadges([twoLines], [across(-40)], 16, () => [ABOVE, BELOW])).toEqual([{ x: 0, y: 30.5 }]);
+  });
+
   it('moves a badge that a least bad spot covers to a clear spot of its own', () => {
     const [first, second] = [node(0), node(50)];
     expect(placeBadges([first, second], [across(75)], 16, () => [BELOW, ABOVE], { leastBad: true })).toEqual([
@@ -115,20 +159,22 @@ function pathPoints(d: string) {
   });
 }
 
-// A badge is 11px monospace text, about 0.6em per character.
-const badgeHalfWidth = (badge: string) => badge.length * 3.3;
-const BADGE_HALF_HEIGHT = 5.5;
+// A badge is 11px monospace text, about 0.6em per character, on a line 11px high for each '\n'.
+const badgeHalfWidth = (badge: string) => Math.max(...badge.split('\n').map((line) => line.length)) * 3.3;
+const badgeHalfHeight = (badge: string) => badge.split('\n').length * 5.5;
 
 interface DrawnBadge extends Point {
   badge: string;
 }
 
 const onPath = (paths: Point[][], { x, y, badge }: DrawnBadge) =>
-  paths.some((points) => points.some((p) => Math.abs(p.x - x) <= badgeHalfWidth(badge) && Math.abs(p.y - y) <= BADGE_HALF_HEIGHT));
+  paths.some((points) => points.some((p) => Math.abs(p.x - x) <= badgeHalfWidth(badge) && Math.abs(p.y - y) <= badgeHalfHeight(badge)));
 const badgesOverlap = (a: DrawnBadge, b: DrawnBadge) =>
-  Math.abs(a.x - b.x) < badgeHalfWidth(a.badge) + badgeHalfWidth(b.badge) && Math.abs(a.y - b.y) < 2 * BADGE_HALF_HEIGHT;
+  Math.abs(a.x - b.x) < badgeHalfWidth(a.badge) + badgeHalfWidth(b.badge) &&
+  Math.abs(a.y - b.y) < badgeHalfHeight(a.badge) + badgeHalfHeight(b.badge);
 const onNode = (a: DrawnBadge, node: Point) =>
-  Math.abs(a.x - node.x) < badgeHalfWidth(a.badge) + GRAPH_NODE_RADIUS && Math.abs(a.y - node.y) < BADGE_HALF_HEIGHT + GRAPH_NODE_RADIUS;
+  Math.abs(a.x - node.x) < badgeHalfWidth(a.badge) + GRAPH_NODE_RADIUS &&
+  Math.abs(a.y - node.y) < badgeHalfHeight(a.badge) + GRAPH_NODE_RADIUS;
 
 /** Badges on an edge, from the positions the graph view draws. */
 function badgesOnEdges(id: string): string[] {
@@ -175,19 +221,19 @@ function crowdedBadges(id: string, count: number): string[] {
 }
 
 /** Tree badges on a link, over a node or another badge, or outside the drawing, from the layout the tree view draws. */
-function treeBadgeClashes(tree: TreeView, longest: number): string[] {
-  const { nodes, links, width, height } = layoutForest(tree, { longestBadge: longest });
+function treeBadgeClashes(tree: TreeView, room: SideRoom): string[] {
+  const { nodes, links, width, height } = layoutForest(tree, { room });
   const paths = links.map(({ x1, y1, x2, y2 }) => pathPoints(`M${x1},${y1} L${x2},${y2}`));
   return nodes.flatMap((a, i) => {
     const { badge, badgeAt } = a;
     if (!badge) return [];
     const drawn = { ...badgeAt, badge };
-    const w = badgeHalfWidth(badge);
+    const [w, h] = [badgeHalfWidth(badge), badgeHalfHeight(badge)];
     const clashes = {
       'on a link': onPath(paths, drawn),
       'over a node': nodes.some((b) => b !== a && onNode(drawn, b)),
       'over a badge': nodes.slice(i + 1).some((b) => b.badge && badgesOverlap(drawn, { ...b.badgeAt, badge: b.badge })),
-      outside: drawn.x - w < 0 || drawn.x + w > width || drawn.y - BADGE_HALF_HEIGHT < 0 || drawn.y + BADGE_HALF_HEIGHT > height,
+      outside: drawn.x - w < 0 || drawn.x + w > width || drawn.y - h < 0 || drawn.y + h > height,
     };
     return Object.entries(clashes).flatMap(([clash, found]) => (found ? [`badge ${badge} of node ${a.label} ${clash}`] : []));
   });
@@ -289,7 +335,7 @@ const TRACED_TREE_CODE: [entry: string, code: string][] = [
 }`,
   ],
 ];
-/** Pointers whose names together are too long for any clear spot among the nodes of a full tree. */
+/** Pointers with long names, which wrap onto two lines when they meet on one node. */
 const CROWDED_TREE_CODE = `function inorder(root) {
   const pending_nodes = [];
   let current_node = root;
@@ -305,13 +351,15 @@ const CROWDED_TREE_CODE = `function inorder(root) {
   }
   return previous_node;
 }`;
-const TRACED_TREES = [
+const TRACED_TREES: LevelOrder[] = [
   [1, 2, 3, 4, 5],
   [1, 2, null, 3, 4, 5, null, null, 6],
   [3, 9, 20, null, null, 15, 7],
   [1, null, 2, null, 3],
   [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
 ];
+/** A lopsided tree whose nodes crowd the long pointer names, so that some find no clear spot. */
+const CROWDED_TREE: LevelOrder = [1, 3, 2, 7, 4, null, 5, null, null, 6];
 
 /** jsdom lays nothing out, so it has no ResizeObserver: this one reports only when a test says the view resized. */
 class FakeResizeObserver {
@@ -345,7 +393,8 @@ function badgeSpots(tree: TreeView): string[] {
     if (!badge) return [];
     const [x, y] = ['cx', 'cy'].map((name) => Number(node.querySelector('circle.body')!.getAttribute(name)));
     const [badgeX, badgeY] = ['x', 'y'].map((name) => Number(badge.getAttribute(name)));
-    return [spotOf(node.querySelector('text.label')!.textContent!, { x, y }, { x: badgeX, y: badgeY, badge: badge.textContent!.trim() })];
+    const lines = [...badge.querySelectorAll('tspan')].map((line) => line.textContent).join('\n');
+    return [spotOf(node.querySelector('text.label')!.textContent!, { x, y }, { x: badgeX, y: badgeY, badge: lines })];
   });
 }
 
@@ -560,7 +609,7 @@ describe('structure views render real traces', () => {
   for (const { rule, tree, spots } of [
     {
       rule: 'beside a node when the spot above sticks out of the drawing',
-      tree: treeOf(['r1', null, 'root, node, curr'], ['r2', null], ['r3', null]),
+      tree: treeOf(['r1', null, 'currentTreeNode'], ['r2', null], ['r3', null]),
       spots: ['r1 above right'],
     },
     {
@@ -570,7 +619,7 @@ describe('structure views render real traces', () => {
     },
     {
       rule: 'at its first spot, on a link, when no spot fits inside the drawing',
-      tree: treeOf(['a', null], ['b', 'a', 'current_node, previous'], ['c', 'b']),
+      tree: treeOf(['a', null], ['b', 'a', 'currentTreeNode'], ['c', 'b']),
       spots: ['b above'],
     },
   ]) {
@@ -579,24 +628,38 @@ describe('structure views render real traces', () => {
     });
   }
 
-  it('tree: keeps one width for a whole trace, with room for the longest badge in any of its frames', () => {
+  it('tree: keeps one width for a whole trace, with the room its badges use in any of its frames', () => {
     const fixture = TestBed.createComponent(TreeViewComponent);
     const width = () => fixture.nativeElement.querySelector('svg').getAttribute('viewBox').split(' ')[2];
-    const pointed = codeTree([1, 2, 3], '2', 'currentNode');
+    const pointed = codeTree([1, 2, null, 3], '2', 'currentNode');
     fixture.componentRef.setInput('view', pointed);
     fixture.detectChanges();
     const roomy = width();
-    fixture.componentRef.setInput('view', exampleTree([1, 2, 3]));
+    fixture.componentRef.setInput('view', exampleTree([1, 2, null, 3]));
     fixture.detectChanges();
     expect(width()).not.toBe(roomy);
-    fixture.componentRef.setInput('longest', longestBadgeIn([pointed]));
+    fixture.componentRef.setInput('room', sideRoomFor([pointed]));
     fixture.detectChanges();
     expect(width()).toBe(roomy);
   });
 
-  it('tree: measures the longest badge in any of the trees in characters', () => {
-    expect(longestBadgeIn([treeOf(['a', null, 'node']), undefined, treeOf(['a', null], ['b', 'a', 'slow, fast'])])).toBe(10);
-    expect(longestBadgeIn([])).toBe(0);
+  it('tree: draws a badge naming several long pointers on two lines, one above the other around its centre', () => {
+    const el = render(TreeViewComponent, codeTree([1, 2, 3], '3', 'current_node, previous_node'));
+    const badge = el.querySelector('text.badge')!;
+    const lines = [...badge.querySelectorAll('tspan')].map((line) => [line.textContent, Number(line.getAttribute('y'))] as const);
+    const centre = Number(badge.getAttribute('y'));
+    expect(lines).toEqual([
+      ['current_node,', centre - 5.5],
+      ['previous_node', centre + 5.5],
+    ]);
+    expect([...badge.querySelectorAll('tspan')].every((line) => line.getAttribute('x') === badge.getAttribute('x'))).toBe(true);
+  });
+
+  it('tree: keeps a badge of up to 13 characters on one line, and wraps a longer one of short names too', () => {
+    const lines = (badge: string) =>
+      [...render(TreeViewComponent, codeTree([1, 2, 3], '3', badge)).querySelectorAll('text.badge tspan')].map((line) => line.textContent);
+    expect(lines('node, current')).toEqual(['node, current']);
+    expect(lines('prev, curr, node')).toEqual(['prev,', 'curr, node']);
   });
 
   it('tree: keeps badges off links, nodes and other badges, and inside the drawing, in every tree visualizer', () => {
@@ -605,35 +668,35 @@ describe('structure views render real traces', () => {
     const clashes = ALGORITHMS.filter((algo) => algo.trace(algo.defaultInput).some((frame) => frame.tree)).flatMap((algo) =>
       [algo.defaultInput, ...Array.from({ length: 20 }, () => algo.validate(algo.randomInput(rand)))].flatMap((input) => {
         const frames = algo.trace(input);
-        const longest = longestBadgeIn(frames.map((f) => f.tree));
+        const room = sideRoomFor(frames.map((f) => f.tree));
         return frames.flatMap((frame, k) => {
-          const key = `${longest} ${JSON.stringify(frame.tree)}`;
+          const key = `${JSON.stringify(room)} ${JSON.stringify(frame.tree)}`;
           if (!frame.tree || seen.has(key)) return [];
           seen.add(key);
-          return treeBadgeClashes(frame.tree, longest).map((clash) => `${algo.id} ${JSON.stringify(input)} frame ${k}: ${clash}`);
+          return treeBadgeClashes(frame.tree, room).map((clash) => `${algo.id} ${JSON.stringify(input)} frame ${k}: ${clash}`);
         });
       }),
     );
     expect(clashes).toEqual([]);
   });
 
-  const tracedClashes = (entry: string, code: string) =>
-    TRACED_TREES.flatMap((input) => {
+  const tracedClashes = (entry: string, code: string, trees = TRACED_TREES) =>
+    trees.flatMap((input) => {
       const frames = toFrames(traceJs(code, 'javascript', entry, ['tree'], [input], 2000), [{ name: 'root', type: 'tree' }]);
-      const longest = longestBadgeIn(frames.map((f) => f.tree));
+      const room = sideRoomFor(frames.map((f) => f.tree));
       return frames.flatMap((frame, k) =>
-        frame.tree ? treeBadgeClashes(frame.tree, longest).map((clash) => `${entry} ${JSON.stringify(input)} frame ${k}: ${clash}`) : [],
+        frame.tree ? treeBadgeClashes(frame.tree, room).map((clash) => `${entry} ${JSON.stringify(input)} frame ${k}: ${clash}`) : [],
       );
     });
 
   it('tree: keeps badges off links, nodes and other badges, and inside the drawing, in traced code and a crowded forest', () => {
-    const traced = TRACED_TREE_CODE.flatMap(([entry, code]) => tracedClashes(entry, code));
+    const traced = [...TRACED_TREE_CODE, ['inorder', CROWDED_TREE_CODE]].flatMap(([entry, code]) => tracedClashes(entry, code));
     const forest = treeOf(...['r1', 'r2', 'r3', 'r4'].map((id): [string, null, string] => [id, null, 'slow, fast']));
-    expect([...traced, ...treeBadgeClashes(forest, longestBadgeIn([forest]))]).toEqual([]);
+    expect([...traced, ...treeBadgeClashes(forest, sideRoomFor([forest]))]).toEqual([]);
   });
 
   it('tree: keeps badges off nodes and other badges, and inside the drawing, even where pointer names leave no clear spot', () => {
-    const clashes = tracedClashes('inorder', CROWDED_TREE_CODE);
+    const clashes = tracedClashes('inorder', CROWDED_TREE_CODE, [CROWDED_TREE]);
     expect(clashes.some((clash) => clash.endsWith('on a link'))).toBe(true);
     expect(clashes.filter((clash) => !clash.endsWith('on a link'))).toEqual([]);
   });
