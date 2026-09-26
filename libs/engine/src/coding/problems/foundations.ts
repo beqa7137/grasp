@@ -178,7 +178,7 @@ export const jumpGame: CodingProblemDefinition = {
   performanceCase: (rand) => {
     const n = 200_000;
     const wall = n - 1 - randInt(rand, 1, 500);
-    return [Array.from({ length: n }, (_, i) => (i < wall ? Math.min(i + 1, wall - i) : i === wall ? 0 : randInt(rand, 0, 100_000)))];
+    return [Array.from({ length: n }, (_, i) => (i <= wall ? Math.min(i + 1, wall - i) : randInt(rand, 0, 100_000)))];
   },
   solve(nums: number[]) {
     let reach = 0;

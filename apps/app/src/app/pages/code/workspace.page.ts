@@ -46,6 +46,7 @@ import { TreeViewComponent } from '../../viz/tree-view.component';
 const LANGUAGE_KEY = 'grasp.code.language';
 const draftKey = (problemId: string, language: Language) => `grasp.code.draft.${problemId}.${language}`;
 const SUITE_SEED = 1;
+const PREVIEW_CHARS = 400;
 
 type Panel = 'tests' | 'trace';
 
@@ -231,15 +232,19 @@ export class WorkspacePage {
   describeArgs(test: TestReport | TestCase): string[] {
     return this.problem()!.params.map((p, i) => {
       const value = test.args[i];
-      const text = preview(value, Infinity);
-      const size = test.kind === 'performance' && text.length > 400 ? inputSize(p.type, value) : null;
-      return size ? `${p.name}: large input, ${size}` : `${p.name} = ${clip(text, 400)}`;
+      const size = test.kind === 'performance' ? inputSize(p.type, value) : null;
+      // Performance inputs reach 3 MB and the template calls this on every change detection, such as each keystroke. Each
+      // item renders to at least one character, so an input with more items cannot fit and is summarized unrendered.
+      const text = size && (value as ArrayLike<unknown>).length > PREVIEW_CHARS ? null : preview(value, Infinity);
+      return text === null || (size && text.length > PREVIEW_CHARS)
+        ? `${p.name}: large input, ${size}`
+        : `${p.name} = ${clip(text, PREVIEW_CHARS)}`;
     });
   }
 
   show(test: TestReport, value: unknown): string {
     if (test.kind === 'performance' && Array.isArray(value)) return `[${value.length.toLocaleString()} items]`;
-    return value === undefined ? 'undefined' : preview(value, 400);
+    return value === undefined ? 'undefined' : preview(value, PREVIEW_CHARS);
   }
 
   testLabel(test: TestReport): string {

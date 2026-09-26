@@ -41,13 +41,15 @@ export function exampleCases(problem: CodingProblem): TestCase[] {
   return problem.examples.map((e) => testCase(problem, e.args, 'example'));
 }
 
+// No replacer: calling one per value doubles the cost of comparing a large output, such as Subsets' 131,072 lists.
+// Only a bare undefined (or function) stringifies to undefined, and it reads as null, as it does inside an array.
 function canonical(value: unknown): string {
-  return JSON.stringify(value, (_key, v) => (v === undefined ? null : v));
+  return JSON.stringify(value) ?? 'null';
 }
 
 export function outputsMatch(expected: unknown, actual: unknown, mode: CompareMode): boolean {
   if (mode === 'unordered-nested' && Array.isArray(expected) && Array.isArray(actual)) {
-    const sortInner = (list: unknown[]) => list.map((item) => (Array.isArray(item) ? [...item].sort((a, b) => a - b) : item));
+    const sortInner = (list: unknown[]) => list.map((item) => (Array.isArray(item) ? [...item].sort() : item));
     return outputsMatch(sortInner(expected), sortInner(actual), 'unordered');
   }
   if (mode === 'unordered' && Array.isArray(expected) && Array.isArray(actual)) {
