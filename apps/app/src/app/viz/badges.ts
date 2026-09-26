@@ -6,7 +6,7 @@ export const BADGE_HALF_HEIGHT = 5.5;
 const BADGE_ROOM = 2;
 const BADGE_SIDE_GAP = 2;
 
-export interface Box {
+interface Box {
   left: number;
   right: number;
   top: number;
@@ -81,9 +81,11 @@ export function placeBadges<N extends Badged>(
     const taken = nodes.flatMap((o, j) => (j === i ? [] : [nodeBox(o), ...(o.badge ? [badgeBox(o.badge, centres[j], 0)] : [])]));
     const clear = (centre: Point, room: number) => {
       const box = badgeBox(badge, centre, room);
-      return inside(badgeBox(badge, centre, 0), bounds) && !crossesLine(box) && !taken.some((other) => overlaps(box, other));
+      return !crossesLine(box) && !taken.some((other) => overlaps(box, other));
     };
-    const candidates = spotsOf(n).map((spot) => at(n, spot));
+    const candidates = spotsOf(n)
+      .map((spot) => at(n, spot))
+      .filter((centre) => inside(badgeBox(badge, centre, 0), bounds));
     centres[i] = candidates.find((c) => clear(c, BADGE_ROOM)) ?? candidates.find((c) => clear(c, 0)) ?? centres[i];
   });
   return centres;

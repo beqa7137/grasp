@@ -187,7 +187,6 @@ export class GraphViewComponent {
     })),
   );
 
-  /** Each badge sits below its node, or above it when the spot below is blocked and the spot above is clear. */
   readonly nodes = computed<DrawnNode[]>(() => {
     const placed = this.placed();
     const edges = this.edges().map((e) => e.points);
