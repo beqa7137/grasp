@@ -4,6 +4,10 @@ The loop's memory between runs. Each run reads this first, picks one item, ships
 `CLAUDE.md`, and updates this file in the same change: add a line to **Shipped**, remove or edit what it resolved, and add
 any follow-ups it found. Keep entries short and factual, with numbers where they exist.
 
+## In progress
+
+- Tree view badges move below a node when the spot above sits on its incoming link (`loop/tree-badges`).
+
 ## Shipped
 
 | #      | What                                                                                                                                                                                                                                                                                                                                                                              | Commits              |
