@@ -45,7 +45,7 @@ Everything runs from GitHub Actions; no local Vercel or Neon tooling is needed.
 
 ### Continuous deployment
 
-Vercel's own Git deployments are off (`git.deploymentEnabled: false` in `vercel.json`), so nothing reaches production without CI. `.github/workflows/deploy.yml` runs after CI passes on a push to `main`, or by hand:
+Vercel's own Git deployments are off (`git.deploymentEnabled: false` in `vercel.json`), so nothing reaches production without CI. `.github/workflows/deploy.yml` runs after CI passes on a push to `main`, or by hand. A push to `main` of a commit that production already reports as its release (one deployed by hand from its branch before the fast-forward) deploys nothing; CI likewise reuses a passing run of the same commit. Otherwise:
 
 1. Link the project and pull its production settings.
 2. `vercel build --prod`: the same build CI smoke-tests (`vercel` job in `ci.yml`, which builds with a placeholder project link, then runs the built function as Vercel does (outside the repo, unable to `require()` ES modules) against Postgres and checks pages, CSP, config, JSON bodies and streaming).

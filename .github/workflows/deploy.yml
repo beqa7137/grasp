@@ -18,10 +18,34 @@ permissions:
   contents: read
 
 jobs:
+  # A commit fast-forwarded onto main is usually live already, deployed from its branch; then nothing is deployed again.
+  # A deploy by hand always runs.
+  live:
+    name: Check the live release
+    if: >-
+      vars.VERCEL_DEPLOY_ENABLED == 'true' && vars.PUBLIC_URL != '' && github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      already: ${{ steps.health.outputs.already }}
+    steps:
+      - id: health
+        env:
+          PUBLIC_URL: ${{ vars.PUBLIC_URL }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          health=$(curl -fsS --max-time 30 "$PUBLIC_URL/api/health" || true)
+          if grep -q "\"release\":\"${SHA::7}\"" <<< "$health"; then
+            echo "already=true" >> "$GITHUB_OUTPUT"
+            echo "Production already runs ${SHA::7}." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
   deploy:
     name: Deploy to Vercel
+    needs: live
     if: >-
-      vars.VERCEL_DEPLOY_ENABLED == 'true' &&
+      !cancelled() && needs.live.outputs.already != 'true' && vars.VERCEL_DEPLOY_ENABLED == 'true' &&
       (github.event_name == 'workflow_dispatch' ||
        (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
     runs-on: ubuntu-latest

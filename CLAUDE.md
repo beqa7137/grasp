@@ -37,13 +37,15 @@ Production is https://grasp-rho-taupe.vercel.app; `/api/health` reports the live
 1. Work on a branch from `main`. Commit with the owner's identity: Vercel blocks deployments whose head commit has any
    other author. Before the first commit run
    `git config user.name "Beka Goderdzishvili" && git config user.email beqa.goder@gmail.com`.
-2. Run CI on the branch: `gh workflow run ci.yml --ref <branch>` and `gh workflow run native.yml --ref <branch>`, then
-   watch them (`gh run watch <id> --exit-status`). CI takes about two to three minutes.
+2. Run CI on the branch: `gh workflow run ci.yml --ref <branch>`, then watch it (`gh run watch <id> --exit-status`). CI
+   takes about three minutes. Run `gh workflow run native.yml --ref <branch>` too only when the change touches a path in
+   `native.yml`'s `paths` list: the iOS build runs on macOS, whose minutes cost about ten times as much.
 3. Deploy the branch to production: `gh workflow run deploy.yml --ref <branch>`. The workflow builds, migrates, deploys,
    checks the release is live and walks the main flows in a browser.
 4. Verify production yourself (see below). If anything is wrong, redeploy `main` and fix on the branch.
 5. Fast-forward `main`: `git push origin <sha>:main`, only when `git merge-base --is-ancestor origin/main <sha>` holds.
-   Never force-push `main`. Pushing `main` runs CI and redeploys the same commit.
+   Never force-push `main`. On `main`, CI and the native builds reuse the branch's passing runs of the same commit, and the
+   deploy skips when production already reports it, so the push costs about a minute.
 
 ## Verifying
 
