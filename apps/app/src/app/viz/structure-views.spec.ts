@@ -1,7 +1,7 @@
 import { ErrorHandler, type Type } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { GRAPH_NODE_RADIUS, getAlgorithm, mulberry32, type TreeView } from '@grasp/engine';
-import { ArrayViewComponent } from './array-view.component';
+import { ArrayViewComponent, longestValue } from './array-view.component';
 import { GraphViewComponent } from './graph-view.component';
 import { LegendComponent } from './legend.component';
 import { ListViewComponent } from './list-view.component';
@@ -320,7 +320,7 @@ describe('structure views render real traces', () => {
     expect(render(TreeViewComponent, heap).querySelector('.legend')).toBeNull();
   });
 
-  it('array: sizes every cell for the longest value, in either row', () => {
+  it('array: sizes every cell for the longest value, in either row or in any frame the page will show', () => {
     const fixture = TestBed.createComponent(ArrayViewComponent);
     fixture.componentRef.setInput('view', { values: [-100, -50, 1, 3, 5, 8, 13, 21, 34, 55, 89, 144], pointers: { lo: 0, hi: 11 } });
     fixture.detectChanges();
@@ -332,6 +332,14 @@ describe('structure views render real traces', () => {
     fixture.componentRef.setInput('aligned', { label: 'next greater', values: [-1, -1] });
     fixture.detectChanges();
     expect(track.style.getPropertyValue('--chars')).toBe('2');
+    fixture.componentRef.setInput('longest', 4);
+    fixture.detectChanges();
+    expect(track.style.getPropertyValue('--chars')).toBe('4');
+  });
+
+  it('array: measures the longest of any values in characters', () => {
+    expect(longestValue([7, -100, 'ab', null, true])).toBe(4);
+    expect(longestValue([])).toBe(1);
   });
 
   it('array: draws an aligned output under the array, lit where the array is settled', () => {

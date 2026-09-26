@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { expect, synced, test } from './fixtures';
 
 /** Opens a coding interview and answers twice, which brings up End & score. */
@@ -56,25 +56,50 @@ test('the interview list shows both tracks', { tag: '@smoke' }, async ({ page })
   await expect(page.getByRole('button', { name: 'Surprise me' })).toBeVisible();
 });
 
-// 640 px is 200% zoom on a 1280 px window, and 320 px is 400%; the doubled text size is the browser's own setting.
-for (const { name, width, height, textSize } of [
-  { name: '200% zoom', width: 640, height: 500, textSize: '100%' },
-  { name: '200% zoom with 200% text', width: 640, height: 500, textSize: '200%' },
-  { name: 'a 320 px screen', width: 320, height: 700, textSize: '100%' },
-]) {
-  test(`at ${name}, End & score sits beside the interview title, never over it`, async ({ page }) => {
-    await page.setViewportSize({ width, height });
-    await interviewUntilScorable(page, /Longest Repeating Run With K Changes/);
-    await page.addStyleTag({ content: `html { font-size: ${textSize}; }` });
-    const end = await page.getByRole('button', { name: 'End & score' }).boundingBox();
-    // What shows of the title is its text clipped to its box, which an ellipsis ends.
-    const title = await page.locator('app-interview-session ion-title').evaluate((el) => {
-      const range = document.createRange();
-      range.selectNodeContents(el);
-      const text = range.getBoundingClientRect();
-      const box = el.shadowRoot!.querySelector('.toolbar-title')!.getBoundingClientRect();
-      return { left: Math.max(text.left, box.left), right: Math.min(text.right, box.right) };
-    });
-    expect(title.right, 'the title ends before End & score starts').toBeLessThanOrEqual(end!.x);
+/** Expects what shows of the toolbar's title, its text clipped to its box, which an ellipsis ends, to end before `control`. */
+async function expectTitleBefore(title: Locator, control: Locator, message: string) {
+  const titleEnd = await title.evaluate((el) => {
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    return Math.min(range.getBoundingClientRect().right, el.shadowRoot!.querySelector('.toolbar-title')!.getBoundingClientRect().right);
   });
+  expect(titleEnd, message).toBeLessThanOrEqual((await control.boundingBox())!.x);
 }
+
+// 640 px is 200% zoom on a 1280 px window; the doubled text size is the browser's own setting.
+test('at 200% zoom, with the text at its size or doubled, End & score sits beside the interview title, never over it', async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, 'Zoom is a desktop browser setting; a phone is checked at 320 px.');
+  await page.setViewportSize({ width: 640, height: 500 });
+  await interviewUntilScorable(page, /Longest Repeating Run With K Changes/);
+  for (const textSize of ['100%', '200%']) {
+    await page.evaluate((size) => (document.documentElement.style.fontSize = size), textSize);
+    await expectTitleBefore(
+      page.locator('app-interview-session ion-title'),
+      page.getByRole('button', { name: 'End & score' }),
+      `with ${textSize} text, the title ends before End & score starts`,
+    );
+  }
+});
+
+test('on a 320 px phone, End & score and the Design Lab Reset sit beside their titles, never over them', async ({ page, isMobile }) => {
+  test.skip(!isMobile, 'A 320 px screen is a phone.');
+  await page.setViewportSize({ width: 320, height: 700 });
+  await interviewUntilScorable(page, /Longest Repeating Run With K Changes/);
+  await expectTitleBefore(
+    page.locator('app-interview-session ion-title'),
+    page.getByRole('button', { name: 'End & score' }),
+    'the interview title ends before End & score starts',
+  );
+
+  await page.goto('/design/first-scale-up');
+  const toolbar = page.locator('app-sandbox ion-toolbar');
+  await expect(toolbar.locator('ion-title')).toHaveText('Your First Scale-Up');
+  await expectTitleBefore(
+    toolbar.locator('ion-title'),
+    toolbar.getByRole('button', { name: 'Reset' }),
+    'the mission title ends before Reset starts',
+  );
+});

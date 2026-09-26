@@ -138,7 +138,7 @@
 
               <div class="viz">
                 @if (f.array) {
-                  <g-array-view [view]="f.array" [aligned]="alignedOutput()" />
+                  <g-array-view [view]="f.array" [aligned]="alignedOutput()" [longest]="longestArrayValue()" />
                 }
                 @if (f.grid) {
                   <g-grid-view [view]="f.grid" />

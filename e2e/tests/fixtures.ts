@@ -78,12 +78,19 @@ export async function recordedEvents(page: Page): Promise<{ type: string }[]> {
 }
 
 /** Where an element's top edge sits in the viewport, to tell whether it moved under a finger resting on it. */
-export const viewportTop = (locator: Locator) => locator.evaluate((el) => el.getBoundingClientRect().top);
+export const viewportTop = async (locator: Locator) => (await locator.boundingBox())!.y;
+
+export async function expectUnmoved(locator: Locator, top: number, message: string) {
+  expect(Math.abs((await viewportTop(locator)) - top), message).toBeLessThan(1);
+}
+
+/** The number of steps a player's "3 / 26" count counts to. */
+export const stepTotal = async (count: Locator) => Number((await count.textContent())!.split('/')[1]);
 
 /** Steps a visualizer with `press` until a checkpoint asks for a prediction, waiting for each step to show before the next. */
 export async function stepToCheckpoint(page: Page, press = () => page.getByRole('button', { name: 'Step forward' }).click()) {
   const prompt = page.getByText('Your call');
-  const total = Number((await page.locator('app-player .scrub .count').textContent())!.split('/')[1]);
+  const total = await stepTotal(page.locator('app-player .scrub .count'));
   for (let step = 1; !(await prompt.isVisible()); step++) {
     expect(step, 'a checkpoint should come up').toBeLessThan(total);
     await press();

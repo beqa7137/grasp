@@ -1,5 +1,5 @@
-import type { Page } from '@playwright/test';
-import { expect, recordedEvents, stepToCheckpoint, synced, test, viewportTop } from './fixtures';
+import type { Locator, Page } from '@playwright/test';
+import { expect, expectUnmoved, recordedEvents, stepToCheckpoint, stepTotal, synced, test, viewportTop } from './fixtures';
 
 const VISUALIZER_TITLES = [
   'Merge Intervals',
@@ -84,7 +84,7 @@ test('Step forward stays under the finger through every step and checkpoint, how
   const forward = player.getByRole('button', { name: 'Step forward' });
   const count = player.locator('.scrub .count');
   const prompt = player.getByText('Your call');
-  const total = Number((await count.textContent())!.split('/')[1]);
+  const total = await stepTotal(count);
   const home = await viewportTop(forward);
   let checkpoints = 0;
   for (let step = 1; step < total; step = Number((await count.textContent())!.split('/')[0])) {
@@ -97,7 +97,7 @@ test('Step forward stays under the finger through every step and checkpoint, how
       await player.getByRole('button', { name: 'Continue →' }).click();
       await expect(prompt).toBeHidden();
     }
-    expect(Math.abs((await viewportTop(forward)) - home), `Step forward after step ${step}`).toBeLessThan(1);
+    await expectUnmoved(forward, home, `Step forward after step ${step}`);
   }
   expect(checkpoints).toBeGreaterThan(0);
 });
@@ -115,8 +115,79 @@ test('an answered checkpoint also continues from Step forward, which stays where
   await forward.click();
   await expect(page.getByText('Your call')).toBeHidden();
   await expect(page.locator('app-player .scrub .count')).not.toHaveText(step!);
-  expect(Math.abs((await viewportTop(forward)) - before)).toBeLessThan(1);
+  await expectUnmoved(forward, before, 'Step forward after continuing with it');
 });
+
+test('on a phone held sideways, tapping an answer whose verdict opens below the fold leaves Step forward where it is', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.setViewportSize({ width: 915, height: 412 });
+  await page.goto('/visualize/two-sum-hash');
+  await stepToCheckpoint(page);
+  const player = page.locator('app-player');
+  const forward = player.getByRole('button', { name: 'Step forward' });
+  // Step forward just under the toolbar: as much of the checkpoint in view as there can be with the controls on screen.
+  await player.locator('ion-content').evaluate((content) => {
+    const toolbar = content.closest('.ion-page')!.querySelector('ion-header')!.getBoundingClientRect().bottom;
+    const button = content.querySelector('[aria-label="Step forward"]')!.getBoundingClientRect().top;
+    content.shadowRoot!.querySelector('.inner-scroll')!.scrollBy(0, button - toolbar - 4);
+  });
+  const choice = player.locator('.predict .choice').first();
+  await choice.scrollIntoViewIfNeeded();
+  const home = await viewportTop(forward);
+  await choice.click();
+  await expect(player.locator('.predict .verdict')).toBeVisible();
+  await expectUnmoved(forward, home, 'Step forward after tapping an answer');
+});
+
+async function stepKeepingStill(page: Page, watched: Locator, name: string) {
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  const count = page.locator('app-player .scrub .count');
+  const home = await viewportTop(watched);
+  const total = await stepTotal(count);
+  for (let step = 2; step <= total; step++) {
+    await page.keyboard.press('ArrowRight');
+    await expect(count).toHaveText(`${step} / ${total}`);
+    await expectUnmoved(watched, home, `${name} after step ${step}`);
+  }
+}
+
+test('on a phone scrolled to the Code panel under the drawing, stepping from the keyboard leaves the panel where it is', async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(!isMobile, 'The Code panel sits beside the drawing on a wide screen.');
+  await page.goto('/visualize/dijkstra');
+  const player = page.locator('app-player');
+  await player.getByText('Predict mode').click();
+  const panel = player.locator('.side .code');
+  await panel.evaluate((el) => el.scrollIntoView({ block: 'start' }));
+  // Just under the toolbar, with the end of the drawing above it still in view.
+  await player.locator('ion-content').evaluate((content) => content.shadowRoot!.querySelector('.inner-scroll')!.scrollBy(0, -40));
+  await stepKeepingStill(page, panel, 'the Code panel');
+});
+
+// Beside the drawing, the Code panel does not move with it, so the page must not scroll by the drawing's change, and the page
+// end must not scroll back as the drawing shrinks. Under it, a panel changing height in the same step must not cut the scroll.
+for (const { where, viewport, id } of [
+  { where: 'beside the drawing on a laptop', viewport: { width: 1280, height: 720 }, id: 'tree-traversal' },
+  { where: 'under the drawing in a narrow window', viewport: { width: 800, height: 900 }, id: 'lcs' },
+]) {
+  test(`with the page scrolled to its end, stepping from the keyboard leaves the Code panel ${where} where it is`, async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, 'A desktop window.');
+    await page.setViewportSize(viewport);
+    await page.goto(`/visualize/${id}`);
+    const player = page.locator('app-player');
+    await player.getByText('Predict mode').click();
+    await player.locator('ion-content').evaluate((content) => {
+      const scroller = content.shadowRoot!.querySelector('.inner-scroll')!;
+      scroller.scrollTop = scroller.scrollHeight;
+    });
+    await stepKeepingStill(page, player.locator('.side .code'), 'the Code panel');
+  });
+}
 
 test('on a phone, a shorter step leaves no empty room under the drawing and its narration', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 700 });
@@ -125,7 +196,7 @@ test('on a phone, a shorter step leaves no empty room under the drawing and its 
   await player.getByText('Predict mode').click();
   const forward = player.getByRole('button', { name: 'Step forward' });
   const count = player.locator('.scrub .count');
-  const total = Number((await count.textContent())!.split('/')[1]);
+  const total = await stepTotal(count);
   for (let step = 2; step <= total; step++) {
     await forward.click();
     await expect(count).toHaveText(`${step} / ${total}`);

@@ -1,6 +1,6 @@
 import { ApplicationRef, Injector } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { refocus, refocusAfterRender } from './focus';
+import { byPointer, refocus, refocusAfterRender } from './focus';
 
 describe('refocus', () => {
   afterEach(() => (document.body.innerHTML = ''));
@@ -52,6 +52,13 @@ describe('refocus', () => {
     document.dispatchEvent(new KeyboardEvent('keydown', { key: '1' }));
     refocus(reveal);
     expect(focus).toHaveBeenLastCalledWith({ preventScroll: false });
+  });
+
+  it('tells a tap or click from a key press as the latest input', () => {
+    document.dispatchEvent(new Event('pointerdown'));
+    expect(byPointer()).toBe(true);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '1' }));
+    expect(byPointer()).toBe(false);
   });
 
   it('leaves bringing the new focus into view after a key press to the page, when it asks to', () => {

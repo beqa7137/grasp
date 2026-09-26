@@ -106,15 +106,10 @@ ion-toolbar {
   --padding-end: 12px;
 }
 
-ion-title {
-  font-family: var(--g-font-display);
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
 // Ionic's iOS title is centred over the whole toolbar with a fixed 90px gutter either side, so an end control wider than
 // that (End & score, Reset) covers it on a narrow screen or at high zoom. On a grid the title keeps the middle column:
-// centred while each side fits in an equal share, and squeezed between the controls, never under them, when not.
+// centred while each side fits in an equal share, and squeezed between the controls, never under them, when not. Each slot
+// holds one element, since a second would take a grid cell of its own: several controls share one ion-buttons.
 ion-toolbar::part(container) {
   display: grid;
   grid-template-columns: minmax(max-content, 1fr) minmax(0, max-content) minmax(max-content, 1fr);
@@ -132,6 +127,9 @@ ion-toolbar > [slot='end'] {
 ion-title {
   position: static;
   padding-inline: 8px;
+  font-family: var(--g-font-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 ion-tab-bar {
@@ -267,9 +265,13 @@ button.chip {
   }
 }
 
+// Sized before the icon loads, so the choice's text wraps where it will once it has: a checkpoint's verdict below it is
+// revealed by its height when answered.
 .g-answer-mark {
   flex: none;
   margin-left: auto;
+  width: 1em;
+  height: 1em;
   font-size: 20px;
   color: var(--g-found);
 

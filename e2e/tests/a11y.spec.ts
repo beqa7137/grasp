@@ -199,26 +199,54 @@ test('a visualizer checkpoint can be answered from the keyboard, with focus alwa
   await expect(page.locator('.narration')).toBeFocused();
 });
 
-test('on a narrow phone, Continue from the keyboard moves focus to the narration and keeps Step forward on screen', async ({ page }) => {
+/** How an element sits in the player's view, between its toolbar and the tab bar: px shown, and whether all of it shows. */
+async function inView(page: Page, target: Locator) {
+  const [toolbar, tabs, box] = await Promise.all([
+    page.locator('app-player ion-header').boundingBox(),
+    page.locator('ion-tab-bar').boundingBox(),
+    target.boundingBox(),
+  ]);
+  const top = toolbar!.y + toolbar!.height;
+  const shown = Math.min(box!.y + box!.height, tabs!.y) - Math.max(box!.y, top);
+  return { shown, height: box!.height, whole: box!.y >= top && box!.y + box!.height <= tabs!.y };
+}
+
+/** Expects the focused element not hidden (WCAG 2.4.11): at least a strip of it in view, or all of a shorter one. */
+async function expectFocusShown(page: Page, target: Locator, name: string) {
+  await expect(target).toBeFocused();
+  const { shown, height } = await inView(page, target);
+  expect(shown, `px of ${name} in view`).toBeGreaterThanOrEqual(Math.min(height, 16));
+}
+
+// Motion is reduced in this file, so a reveal has finished scrolling by the time focus lands.
+test('on a narrow phone, answering and continuing from the keyboard keep Step forward and the focused element on screen', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 320, height: 700 });
   await page.goto('/visualize/dijkstra');
   const forward = page.getByRole('button', { name: 'Step forward' });
   await forward.focus();
   await stepToCheckpoint(page, () => page.keyboard.press('Enter'));
   await page.keyboard.press('1');
-  await expect(page.locator('.predict .verdict')).toBeFocused();
+  await expectFocusShown(page, page.locator('.predict .verdict'), 'the verdict');
+  expect((await inView(page, forward)).whole, 'Step forward on screen after the answer').toBe(true);
   await page.keyboard.press('Tab');
   await page.keyboard.press('Enter');
-  await expect(page.locator('.narration')).toBeFocused();
-  const [top, bottom] = await page.evaluate(() => [
-    document.querySelector('app-player ion-header')!.getBoundingClientRect().bottom,
-    document.querySelector('ion-tab-bar')!.getBoundingClientRect().top,
-  ]);
-  await expect(async () => {
-    const box = (await forward.boundingBox())!;
-    expect(box.y, 'Step forward is below the toolbar').toBeGreaterThanOrEqual(top);
-    expect(box.y + box.height, 'Step forward is above the tab bar').toBeLessThanOrEqual(bottom);
-  }).toPass();
+  await expectFocusShown(page, page.locator('.narration'), 'the narration');
+  expect((await inView(page, forward)).whole, 'Step forward on screen after Continue').toBe(true);
+});
+
+test('at 400% zoom, answering and continuing from the keyboard never leave the focused element out of view', async ({ page }) => {
+  // 1280 x 1024 at 400% lays out as 320 x 256, too short for the controls and the verdict or narration together.
+  await page.setViewportSize({ width: 320, height: 256 });
+  await page.goto('/visualize/dijkstra');
+  await page.getByRole('button', { name: 'Step forward' }).focus();
+  await stepToCheckpoint(page, () => page.keyboard.press('Enter'));
+  await page.keyboard.press('1');
+  await expectFocusShown(page, page.locator('.predict .verdict'), 'the verdict');
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Enter');
+  await expectFocusShown(page, page.locator('.narration'), 'the narration');
 });
 
 test('Enter on the link under a reviewed card opens it instead of grading the card', async ({ page }) => {

@@ -4,7 +4,7 @@ import { addIcons } from 'ionicons';
 import { pause, play, playSkipBack, playSkipForward, refresh } from 'ionicons/icons';
 import { HoldHeightDirective } from '../core/hold-height.directive';
 import { onPageKey } from '../core/on-page-key';
-import { ArrayViewComponent } from '../viz/array-view.component';
+import { ArrayViewComponent, longestValue } from '../viz/array-view.component';
 import { ListViewComponent } from '../viz/list-view.component';
 import { TableViewComponent } from '../viz/table-view.component';
 import { TreeViewComponent } from '../viz/tree-view.component';
@@ -51,7 +51,7 @@ const SPEEDS = [1, 2, 4];
       @if (frame(); as f) {
         <div class="viz">
           @if (f.array) {
-            <g-array-view [view]="f.array" />
+            <g-array-view [view]="f.array" [longest]="longestArrayValue()" />
           }
           @if (f.table) {
             <g-table-view [view]="f.table" />
@@ -199,6 +199,7 @@ export class TracePlayerComponent {
   readonly speed = signal(1);
   readonly last = computed(() => Math.max(0, this.frames().length - 1));
   readonly frame = computed<TraceFrame | undefined>(() => this.frames()[this.index()]);
+  readonly longestArrayValue = computed(() => longestValue(this.frames().flatMap((f) => f.array?.values ?? [])));
   readonly varNames = computed(() => Object.keys(this.frame()?.vars ?? {}));
   readonly changed = computed(() => {
     const prev = this.frames()[this.index() - 1];

@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
+import { IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
 import {
   ALGORITHM_CATALOG,
   CODING_CATALOG,
@@ -41,7 +41,7 @@ const TRACKS: { id: Track; title: string; blurb: string }[] = [
 @Component({
   selector: 'app-learn',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, IonHeader, IonToolbar, IonTitle, IonContent, IonIcon, CodeTextComponent, MasteryRingComponent],
+  imports: [RouterLink, IonHeader, IonToolbar, IonButtons, IonTitle, IonContent, IonIcon, CodeTextComponent, MasteryRingComponent],
   templateUrl: './learn.page.html',
   styleUrl: './learn.page.scss',
 })

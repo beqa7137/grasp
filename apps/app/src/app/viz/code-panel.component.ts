@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, input, viewChildren } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, afterRenderEffect, computed, inject, input, viewChildren } from '@angular/core';
 
 const KEYWORDS = /\b(function|const|let|for|while|if|else|return|new|of|continue|null|true|false)\b/g;
 
@@ -95,7 +95,9 @@ export class CodePanelComponent {
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
   constructor() {
-    effect(() => {
+    // After rendering, not during it: a layout read while the page is half updated can find it shorter than it is and cut
+    // the page's scroll position.
+    afterRenderEffect(() => {
       const row = this.rows()[this.active() - 1]?.nativeElement;
       const box = this.host.nativeElement;
       if (!row || box.scrollHeight <= box.clientHeight) return;

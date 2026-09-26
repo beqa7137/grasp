@@ -9,6 +9,8 @@ import {
   inject,
   input,
   signal,
+  viewChild,
+  viewChildren,
 } from '@angular/core';
 import type { ArrayView, Scalar } from '@grasp/engine';
 
@@ -22,6 +24,13 @@ interface PointerTag {
 export interface AlignedRow {
   label: string;
   values: Scalar[];
+}
+
+/** The longest of these values in characters, which every cell of a view showing any of them is wide enough to hold. */
+export function longestValue(values: Iterable<Scalar>): number {
+  let longest = 1;
+  for (const value of values) longest = Math.max(longest, String(value).length);
+  return longest;
 }
 
 const POINTER_COLORS: Record<string, string> = {
@@ -46,7 +55,7 @@ const POINTER_COLORS: Record<string, string> = {
   },
   template: `
     @let v = view();
-    <div class="track" [style.--n]="v.values.length" [style.--chars]="chars()">
+    <div class="track" #track [style.--n]="v.values.length" [style.--chars]="chars()">
       <div class="pointers" [style.height.px]="pointers().length ? pointerRows() * 22 + 6 : 0">
         @for (p of pointers(); track p.name) {
           <div
@@ -67,6 +76,7 @@ const POINTER_COLORS: Record<string, string> = {
         }
         @for (value of v.values; track $index) {
           <div
+            #cell
             class="cell"
             [class.settled]="settled().has($index)"
             [class.active]="active().has($index)"
@@ -100,9 +110,8 @@ const POINTER_COLORS: Record<string, string> = {
   `,
   styles: `
     /*
-     * Every cell holds the longest value: the text first shrinks to fit, down to 11px, then the cells widen and the array scrolls
-     * sideways here, never cutting a value short or widening the page. The block padding is room inside the scroller for the
-     * active cell's lift and glow and the window's rim, given back to the layout by the margin.
+     * The array scrolls sideways here rather than cut a value short or widen the page. The block padding keeps the active cell's
+     * lift and glow and the window's rim inside the scroller; the margin gives it back.
      */
     :host {
       display: block;
@@ -123,8 +132,8 @@ const POINTER_COLORS: Record<string, string> = {
       outline-offset: -2px;
     }
     /*
-     * 0.62em is a monospace character with a little to spare; each cell adds its margins, its border and 2px on either side,
-     * which makes --col-min the narrowest column that holds the longest value.
+     * 0.62em is a monospace character with a little to spare; --chrome is a cell's two margins, two 1px borders and 2px
+     * either side.
      */
     .track {
       --cell: calc(100% / var(--n));
@@ -182,7 +191,7 @@ const POINTER_COLORS: Record<string, string> = {
       border-top-color: var(--c);
       border-bottom: 0;
     }
-    /* Columns share the track exactly, so a long array on a narrow phone never widens the page. */
+    /* Columns share the track exactly; its min-width makes room for the longest value. */
     .cells {
       position: relative;
       display: grid;
@@ -203,8 +212,8 @@ const POINTER_COLORS: Record<string, string> = {
         width 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
     }
     /*
-     * Square up to 54px, and wider only for a value that needs it, then 54px tall. The width is set, not left automatic: an
-     * automatic width takes the 54px height cap through the aspect ratio, so a long value would spill out of its cell.
+     * The width is set, not automatic: an automatic width takes the 54px height cap through the aspect ratio, so a long
+     * value would spill out.
      */
     .cell {
       position: relative;
@@ -276,7 +285,11 @@ const POINTER_COLORS: Record<string, string> = {
 export class ArrayViewComponent {
   readonly view = input.required<ArrayView>();
   readonly aligned = input<AlignedRow | null>(null);
+  /** The longest value in any frame the page will show here, so that cells keep one width from frame to frame. */
+  readonly longest = input(1);
   private readonly host: HTMLElement = inject(ElementRef).nativeElement;
+  private readonly track = viewChild.required<ElementRef<HTMLElement>>('track');
+  private readonly cells = viewChildren<ElementRef<HTMLElement>>('cell');
   /** Whether the array is wider than its view, which then scrolls, so a keyboard can scroll it too. */
   readonly scrolls = signal(false);
 
@@ -293,13 +306,12 @@ export class ArrayViewComponent {
     });
   });
 
-  /** The longest value in either row, which every cell is wide enough to hold. */
-  readonly chars = computed(() => Math.max(1, ...[...this.view().values, ...(this.aligned()?.values ?? [])].map((v) => String(v).length)));
+  readonly chars = computed(() => Math.max(this.longest(), longestValue([...this.view().values, ...(this.aligned()?.values ?? [])])));
 
   readonly pointerRows = computed(() => Math.max(1, ...this.pointers().map((p) => p.row + 1)));
 
   /** The cells a step works on, which a scrolled array keeps in view: its active cells, pointers and window. */
-  private readonly focus = computed(() => {
+  private readonly followed = computed(() => {
     const v = this.view();
     const cell = (i: number) => i >= 0 && i < v.values.length;
     const at = [...(v.active ?? []), ...Object.values(v.pointers), ...(v.window ?? [])].filter(cell);
@@ -310,19 +322,22 @@ export class ArrayViewComponent {
     const overflow = new ResizeObserver(() => this.scrolls.set(this.host.scrollWidth > this.host.clientWidth));
     afterNextRender(() => {
       overflow.observe(this.host);
-      overflow.observe(this.host.querySelector('.track')!);
+      overflow.observe(this.track().nativeElement);
     });
     inject(DestroyRef).onDestroy(() => overflow.disconnect());
 
     // Scrolls as little as shows them all, or, when they are wider than the view, the active cell or else the first of them.
     afterRenderEffect(() => {
-      const focus = this.focus();
-      const cells = this.host.querySelector('.cells')?.querySelectorAll<HTMLElement>(':scope > .cell');
-      if (!focus || !cells?.[focus.to]) return;
-      const edges = (i: number) => [cells[i].offsetLeft, cells[i].offsetLeft + cells[i].offsetWidth];
-      let [left, right] = [edges(focus.from)[0], edges(focus.to)[1]];
+      const followed = this.followed();
+      if (!followed) return;
+      const cells = this.cells();
+      const edges = (i: number) => {
+        const cell = cells[i].nativeElement;
+        return [cell.offsetLeft, cell.offsetLeft + cell.offsetWidth];
+      };
+      let [left, right] = [edges(followed.from)[0], edges(followed.to)[1]];
       const { scrollLeft, clientWidth } = this.host;
-      if (right - left > clientWidth && focus.active !== undefined) [left, right] = edges(focus.active);
+      if (right - left > clientWidth && followed.active !== undefined) [left, right] = edges(followed.active);
       if (left < scrollLeft) this.host.scrollLeft = left;
       else if (right > scrollLeft + clientWidth) this.host.scrollLeft = Math.min(left, right - clientWidth);
     });
