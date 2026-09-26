@@ -4,6 +4,13 @@ The loop's memory between runs. Each run reads this first, picks one item, ships
 `CLAUDE.md`, and updates this file in the same change: add a line to **Shipped**, remove or edit what it resolved, and add
 any follow-ups it found. Keep entries short and factual, with numbers where they exist.
 
+## In progress
+
+- Tree badges (`loop/tree-badges`): live in production since 12:43 UTC on 2026-09-26 (release `bc54b3d`; the deploy
+  workflow's live checks and read-only `@smoke` walk passed). Left: the `READONLY=1` production audits in both themes, then
+  fast-forward `main`. The run's container could not reach grasp-rho-taupe.vercel.app (egress proxy `connect_rejected`,
+  and the Vercel connector was denied), so it stopped before those steps.
+
 ## Shipped
 
 | #      | What                                                                                                                                                                                                                                                                                                                                                                              | Commits              |
