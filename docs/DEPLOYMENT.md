@@ -45,7 +45,7 @@ Everything runs from GitHub Actions; no local Vercel or Neon tooling is needed.
 
 ### Continuous deployment
 
-Vercel's own Git deployments are off (`git.deploymentEnabled: false` in `vercel.json`), so nothing reaches production without CI. `.github/workflows/deploy.yml` runs after CI passes on a push to `main`, or by hand. A push to `main` of a commit that production already reports as its release (one deployed by hand from its branch before the fast-forward) deploys nothing; CI likewise reuses a passing run of the same commit. Otherwise:
+Vercel's own Git deployments are off (`git.deploymentEnabled: false` in `vercel.json`), so nothing reaches production without CI. `.github/workflows/deploy.yml` runs after CI passes on a push to `main`, or by hand. A push to `main` deploys nothing when production already reports that commit as its release after a passing hand deploy from its branch. Otherwise:
 
 1. Link the project and pull its production settings.
 2. `vercel build --prod`: the same build CI smoke-tests (`vercel` job in `ci.yml`, which builds with a placeholder project link, then runs the built function as Vercel does (outside the repo, unable to `require()` ES modules) against Postgres and checks pages, CSP, config, JSON bodies and streaming).
@@ -76,7 +76,7 @@ The Hobby plan is free but for personal, non-commercial projects. A product run 
 - **Health.** `GET /api/health` is liveness: storage, interviewer mode and release. `GET /api/health/ready` is readiness: it checks the database and returns 503 when it is unreachable. Point a platform's routing check at liveness, so a database outage returns the API's own 503s and a scale-to-zero database can sleep between visits.
 - **Shutdown.** SIGTERM closes the HTTP server and the Postgres pool.
 
-CI builds this image on every push and smoke-tests it against Postgres: migrations, readiness, deep-link fallback, runtime config and a real API call.
+CI builds this image and smoke-tests it against Postgres: migrations, readiness, deep-link fallback, runtime config and a real API call.
 
 ## Both platforms
 

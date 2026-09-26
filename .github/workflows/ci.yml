@@ -15,8 +15,7 @@ permissions:
   contents: read
 
 jobs:
-  # A commit fast-forwarded onto main already passed CI on its branch, and the same tree gives the same verdict, so the
-  # other jobs skip. Every other event runs them.
+  # A commit fast-forwarded onto main has usually passed CI on its branch, and the same tree gives the same verdict.
   verdict:
     name: Earlier verdict for this commit
     if: github.event_name == 'push'
@@ -31,12 +30,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # A failed lookup counts as no verdict, so the jobs run.
+          # A failed lookup prints nothing, so the jobs run. A pull request run tested a merge commit, not this one.
           earlier=$(gh run list -R "$GITHUB_REPOSITORY" --workflow ci.yml --commit "$GITHUB_SHA" --status success \
-            --json databaseId --jq "map(select(.databaseId != $GITHUB_RUN_ID)) | length") || earlier=0
-          if [ "$earlier" -gt 0 ]; then
+            --json url,headSha,event \
+            --jq "map(select(.headSha == \"$GITHUB_SHA\" and .event != \"pull_request\")) | .[0].url // empty") || true
+          if [ -n "$earlier" ]; then
             echo "passed=true" >> "$GITHUB_OUTPUT"
-            echo "CI already passed for ${GITHUB_SHA::7}; its jobs are not run again." >> "$GITHUB_STEP_SUMMARY"
+            echo "Passed already for ${GITHUB_SHA::7}: $earlier" >> "$GITHUB_STEP_SUMMARY"
           fi
 
   static:
@@ -156,7 +156,7 @@ jobs:
   e2e-report:
     name: Browser test report
     needs: e2e
-    if: failure()
+    if: ${{ failure() && needs.e2e.result == 'failure' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
 

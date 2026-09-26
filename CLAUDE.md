@@ -45,7 +45,8 @@ Production is https://grasp-rho-taupe.vercel.app; `/api/health` reports the live
 4. Verify production yourself (see below). If anything is wrong, redeploy `main` and fix on the branch.
 5. Fast-forward `main`: `git push origin <sha>:main`, only when `git merge-base --is-ancestor origin/main <sha>` holds.
    Never force-push `main`. On `main`, CI and the native builds reuse the branch's passing runs of the same commit, and the
-   deploy skips when production already reports it, so the push costs about a minute.
+   deploy skips when production already reports it after a passing hand deploy, so the push bills about two minutes. A
+   commit made after step 2, even to `docs/LOOP.md`, needs CI again, and after step 3 it also deploys again from `main`.
 
 ## Verifying
 
@@ -64,5 +65,6 @@ Every change is verified end to end, not only by tests:
 
 `docs/LOOP.md` is the loop's memory: what has shipped, the open follow-ups, and the next candidates. Each run reads it
 first, picks one improvement, takes it through build, verify, commit, a simplify review (reuse, simplification and
-comments, efficiency, altitude), verify again, CI, a production deploy and verification, and the fast-forward of `main`,
-then records the outcome and any new follow-ups in `docs/LOOP.md` in the same change set.
+comments, efficiency, altitude), verify again, its `docs/LOOP.md` entry (the outcome and any new follow-ups), CI, a
+production deploy and verification, and the fast-forward of `main`. Anything production verification finds goes into the
+next run's entry.
