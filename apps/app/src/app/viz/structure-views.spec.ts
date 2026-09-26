@@ -6,6 +6,7 @@ import { GraphViewComponent } from './graph-view.component';
 import { LegendComponent } from './legend.component';
 import { ListViewComponent } from './list-view.component';
 import { TableViewComponent } from './table-view.component';
+import type { Point } from './geometry';
 import { TreeViewComponent, layoutForest } from './tree-view.component';
 
 describe('layoutForest', () => {
@@ -48,12 +49,13 @@ describe('layoutForest', () => {
 
 const legendOf = (el: HTMLElement) => [...el.querySelectorAll('.legend span')].map((span) => span.textContent!.trim());
 
-/** Points along a drawn edge, M…L… or M…Q…, close enough together that none can skip past a badge. */
+/** Points along a drawn edge, M…L… or M…Q…, at most 2 px apart, so none can skip past a badge. */
 function pathPoints(d: string) {
   const [sx, sy, ...rest] = d.match(/-?\d+(?:\.\d+)?/g)!.map(Number);
   const [cx, cy, ex, ey] = rest.length === 4 ? rest : [(sx + rest[0]) / 2, (sy + rest[1]) / 2, rest[0], rest[1]];
-  return Array.from({ length: 201 }, (_, k) => {
-    const t = k / 200;
+  const pieces = Math.max(1, Math.ceil((Math.hypot(cx - sx, cy - sy) + Math.hypot(ex - cx, ey - cy)) / 2));
+  return Array.from({ length: pieces + 1 }, (_, k) => {
+    const t = k / pieces;
     return { x: (1 - t) ** 2 * sx + 2 * (1 - t) * t * cx + t ** 2 * ex, y: (1 - t) ** 2 * sy + 2 * (1 - t) * t * cy + t ** 2 * ey };
   });
 }
@@ -61,6 +63,17 @@ function pathPoints(d: string) {
 // A badge is 11px monospace text, about 0.6em per character.
 const badgeHalfWidth = (badge: string) => badge.length * 3.3;
 const BADGE_HALF_HEIGHT = 5.5;
+
+interface DrawnBadge extends Point {
+  badge: string;
+}
+
+const onPath = (paths: Point[][], { x, y, badge }: DrawnBadge) =>
+  paths.some((points) => points.some((p) => Math.abs(p.x - x) <= badgeHalfWidth(badge) && Math.abs(p.y - y) <= BADGE_HALF_HEIGHT));
+const badgesOverlap = (a: DrawnBadge, b: DrawnBadge) =>
+  Math.abs(a.x - b.x) < badgeHalfWidth(a.badge) + badgeHalfWidth(b.badge) && Math.abs(a.y - b.y) < 2 * BADGE_HALF_HEIGHT;
+const onNode = (a: DrawnBadge, node: Point) =>
+  Math.abs(a.x - node.x) < badgeHalfWidth(a.badge) + GRAPH_NODE_RADIUS && Math.abs(a.y - node.y) < BADGE_HALF_HEIGHT + GRAPH_NODE_RADIUS;
 
 /** Badges on an edge, from the positions the graph view draws. */
 function badgesOnEdges(id: string): string[] {
@@ -70,10 +83,8 @@ function badgesOnEdges(id: string): string[] {
     fixture.componentRef.setInput('view', frame.graph);
     const { nodes, edges } = fixture.componentInstance;
     const paths = edges().map((e) => pathPoints(e.d));
-    const onEdge = (x: number, y: number, badge: string) =>
-      paths.some((points) => points.some((p) => Math.abs(p.x - x) <= badgeHalfWidth(badge) && Math.abs(p.y - y) <= BADGE_HALF_HEIGHT));
     return nodes().flatMap(({ x, badge, badgeY, label }) =>
-      badge && onEdge(x, badgeY, badge) ? [`${id} frame ${k}: badge ${badge} of node ${label}`] : [],
+      badge && onPath(paths, { x, y: badgeY, badge }) ? [`${id} frame ${k}: badge ${badge} of node ${label}`] : [],
     );
   });
 }
@@ -91,22 +102,16 @@ function crowdedBadges(id: string, count: number): string[] {
       return nodes.flatMap((a, i) => {
         const { badge } = a;
         if (!badge) return [];
+        const drawn = { x: a.x, y: a.badgeY, badge };
         const overBadges = nodes
           .slice(i + 1)
           .flatMap((b) =>
-            b.badge &&
-            Math.abs(a.x - b.x) < badgeHalfWidth(badge) + badgeHalfWidth(b.badge) &&
-            Math.abs(a.badgeY - b.badgeY) < 2 * BADGE_HALF_HEIGHT
+            b.badge && badgesOverlap(drawn, { x: b.x, y: b.badgeY, badge: b.badge })
               ? [`${where}: badges of nodes ${a.label} and ${b.label} overlap`]
               : [],
           );
         const overNodes = nodes.flatMap((b) =>
-          a.badgeY < a.y &&
-          b !== a &&
-          Math.abs(a.x - b.x) < badgeHalfWidth(badge) + GRAPH_NODE_RADIUS &&
-          Math.abs(a.badgeY - b.y) < BADGE_HALF_HEIGHT + GRAPH_NODE_RADIUS
-            ? [`${where}: badge of node ${a.label} moved onto node ${b.label}`]
-            : [],
+          a.badgeY < a.y && b !== a && onNode(drawn, b) ? [`${where}: badge of node ${a.label} moved onto node ${b.label}`] : [],
         );
         return [...overBadges, ...overNodes];
       });
@@ -115,25 +120,21 @@ function crowdedBadges(id: string, count: number): string[] {
 }
 
 /** Tree badges on a link, over a node or another badge, or outside the drawing, from the layout the tree view draws. */
-function treeBadgeClashes(tree: TreeView, where: string): string[] {
+function treeBadgeClashes(tree: TreeView): string[] {
   const { nodes, links, width, height } = layoutForest(tree);
-  const lines = links.map(({ x1, y1, x2, y2 }) =>
-    Array.from({ length: 101 }, (_, k) => ({ x: x1 + ((x2 - x1) * k) / 100, y: y1 + ((y2 - y1) * k) / 100 })),
-  );
+  const paths = links.map(({ x1, y1, x2, y2 }) => pathPoints(`M${x1},${y1} L${x2},${y2}`));
   return nodes.flatMap((a, i) => {
-    const { badge, badgeX: x, badgeY: y } = a;
+    const { badge, badgeAt } = a;
     if (!badge) return [];
+    const drawn = { ...badgeAt, badge };
     const w = badgeHalfWidth(badge);
-    const onLink = lines.some((points) => points.some((p) => Math.abs(p.x - x) <= w && Math.abs(p.y - y) <= BADGE_HALF_HEIGHT));
-    const overNode = nodes.some(
-      (b) => b !== a && Math.abs(b.x - x) < w + GRAPH_NODE_RADIUS && Math.abs(b.y - y) < BADGE_HALF_HEIGHT + GRAPH_NODE_RADIUS,
-    );
-    const overBadge = nodes
-      .slice(i + 1)
-      .some((b) => b.badge && Math.abs(b.badgeX - x) < w + badgeHalfWidth(b.badge) && Math.abs(b.badgeY - y) < 2 * BADGE_HALF_HEIGHT);
-    const outside = x - w < 0 || x + w > width || y - BADGE_HALF_HEIGHT < 0 || y + BADGE_HALF_HEIGHT > height;
-    const clashes = { 'on a link': onLink, 'over a node': overNode, 'over a badge': overBadge, outside };
-    return Object.entries(clashes).flatMap(([clash, found]) => (found ? [`${where}: badge ${badge} of node ${a.label} ${clash}`] : []));
+    const clashes = {
+      'on a link': onPath(paths, drawn),
+      'over a node': nodes.some((b) => b !== a && onNode(drawn, b)),
+      'over a badge': nodes.slice(i + 1).some((b) => b.badge && badgesOverlap(drawn, { ...b.badgeAt, badge: b.badge })),
+      outside: drawn.x - w < 0 || drawn.x + w > width || drawn.y - BADGE_HALF_HEIGHT < 0 || drawn.y + BADGE_HALF_HEIGHT > height,
+    };
+    return Object.entries(clashes).flatMap(([clash, found]) => (found ? [`badge ${badge} of node ${a.label} ${clash}`] : []));
   });
 }
 
@@ -298,11 +299,15 @@ describe('structure views render real traces', () => {
 
   it('tree: keeps badges off links, nodes and other badges, and inside the drawing, in every tree visualizer', () => {
     const rand = mulberry32(777);
-    const clashes = ALGORITHMS.flatMap((algo) =>
+    const seen = new Set<string>();
+    const clashes = ALGORITHMS.filter((algo) => algo.trace(algo.defaultInput).some((frame) => frame.tree)).flatMap((algo) =>
       [algo.defaultInput, ...Array.from({ length: 20 }, () => algo.validate(algo.randomInput(rand)))].flatMap((input) =>
-        algo
-          .trace(input)
-          .flatMap((frame, k) => (frame.tree ? treeBadgeClashes(frame.tree, `${algo.id} ${JSON.stringify(input)} frame ${k}`) : [])),
+        algo.trace(input).flatMap((frame, k) => {
+          const key = JSON.stringify(frame.tree);
+          if (!frame.tree || seen.has(key)) return [];
+          seen.add(key);
+          return treeBadgeClashes(frame.tree).map((clash) => `${algo.id} ${JSON.stringify(input)} frame ${k}: ${clash}`);
+        }),
       ),
     );
     expect(clashes).toEqual([]);
