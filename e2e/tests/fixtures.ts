@@ -1,4 +1,4 @@
-import { type Page, test as base, expect } from '@playwright/test';
+import { type Locator, type Page, test as base, expect } from '@playwright/test';
 import { randomInt } from 'node:crypto';
 
 export { expect };
@@ -76,6 +76,9 @@ export async function synced(page: Page, type: string): Promise<void> {
 export async function recordedEvents(page: Page): Promise<{ type: string }[]> {
   return page.evaluate(() => JSON.parse(localStorage.getItem('CapacitorStorage.grasp.events') ?? '[]'));
 }
+
+/** Where an element's top edge sits in the viewport, to tell whether it moved under a finger resting on it. */
+export const viewportTop = (locator: Locator) => locator.evaluate((el) => el.getBoundingClientRect().top);
 
 /** Steps a visualizer with `press` until a checkpoint asks for a prediction, waiting for each step to show before the next. */
 export async function stepToCheckpoint(page: Page, press = () => page.getByRole('button', { name: 'Step forward' }).click()) {

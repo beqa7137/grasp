@@ -1,4 +1,4 @@
-import type { Type } from '@angular/core';
+import { ErrorHandler, type Type } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { GRAPH_NODE_RADIUS, getAlgorithm, mulberry32, type TreeView } from '@grasp/engine';
 import { ArrayViewComponent } from './array-view.component';
@@ -114,6 +114,16 @@ function crowdedBadges(id: string, count: number): string[] {
   );
 }
 
+/** jsdom lays nothing out, so it has no ResizeObserver: this one reports only when a test says the view resized. */
+class FakeResizeObserver {
+  static observers: FakeResizeObserver[] = [];
+  constructor(readonly report: () => void) {
+    FakeResizeObserver.observers.push(this);
+  }
+  observe() {}
+  disconnect() {}
+}
+
 function render(component: Type<unknown>, view: unknown, legend = true): HTMLElement {
   const fixture = TestBed.createComponent(component);
   fixture.componentRef.setInput('view', view);
@@ -123,6 +133,12 @@ function render(component: Type<unknown>, view: unknown, legend = true): HTMLEle
 }
 
 describe('structure views render real traces', () => {
+  beforeEach(() => {
+    FakeResizeObserver.observers = [];
+    vi.stubGlobal('ResizeObserver', FakeResizeObserver);
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
   it('table: marks the active cell and its dependencies, and names them in the legend LCS gives', () => {
     const frames = getAlgorithm('lcs')!.trace({ a: 'AB', b: 'B' });
     const frame = frames.find((f) => f.table?.active && f.table.deps?.length)!;
@@ -304,27 +320,65 @@ describe('structure views render real traces', () => {
     expect(render(TreeViewComponent, heap).querySelector('.legend')).toBeNull();
   });
 
-  it('array: widens cells for values longer than three characters, when asked to', () => {
-    const fixture = TestBed.createComponent(ArrayViewComponent);
-    fixture.componentRef.setInput('wideCells', true);
-    fixture.componentRef.setInput('view', { values: ['[2, 1, 1]', '[2, 3, 1]'], pointers: {} });
-    fixture.detectChanges();
-    const track: HTMLElement = fixture.nativeElement.querySelector('.track');
-    expect(track.classList).toContain('wide');
-    expect(track.style.getPropertyValue('--chars')).toBe('9');
-    fixture.componentRef.setInput('view', { values: [7, 42, 100], pointers: {} });
-    fixture.detectChanges();
-    expect(track.classList).not.toContain('wide');
-    expect(track.style.getPropertyValue('--chars')).toBe('');
-  });
-
-  it('array: keeps long values within its width unless asked to widen cells', () => {
+  it('array: sizes every cell for the longest value, in either row', () => {
     const fixture = TestBed.createComponent(ArrayViewComponent);
     fixture.componentRef.setInput('view', { values: [-100, -50, 1, 3, 5, 8, 13, 21, 34, 55, 89, 144], pointers: { lo: 0, hi: 11 } });
     fixture.detectChanges();
     const track: HTMLElement = fixture.nativeElement.querySelector('.track');
-    expect(track.classList).not.toContain('wide');
-    expect(track.style.getPropertyValue('--chars')).toBe('');
+    expect(track.style.getPropertyValue('--chars')).toBe('4');
+    fixture.componentRef.setInput('view', { values: [7, 2], pointers: {} });
+    fixture.detectChanges();
+    expect(track.style.getPropertyValue('--chars')).toBe('1');
+    fixture.componentRef.setInput('aligned', { label: 'next greater', values: [-1, -1] });
+    fixture.detectChanges();
+    expect(track.style.getPropertyValue('--chars')).toBe('2');
+  });
+
+  it('array: draws an aligned output under the array, lit where the array is settled', () => {
+    const fixture = TestBed.createComponent(ArrayViewComponent);
+    fixture.componentRef.setInput('view', { values: [4, 2, 5], pointers: { i: 1 }, settled: [0] });
+    fixture.componentRef.setInput('aligned', { label: 'next greater', values: [5, -1, -1] });
+    fixture.detectChanges();
+    const el: HTMLElement = fixture.nativeElement;
+    const [array, output] = [...el.querySelectorAll('.cells')];
+    expect(el.querySelector('.row-label')!.textContent).toBe('next greater');
+    expect([...output.querySelectorAll('.cell')].map((c) => c.textContent!.trim())).toEqual(['5', '-1', '-1']);
+    expect([...output.querySelectorAll('.cell')].map((c) => c.classList.contains('found'))).toEqual([true, false, false]);
+    expect(array.querySelector('.cell.settled')!.textContent!.trim()).toBe('4');
+    expect(el.querySelectorAll('.ptr')).toHaveLength(1);
+  });
+
+  it('array: takes keyboard focus as a labelled region only while it is wider than its view, which then scrolls', () => {
+    const fixture = TestBed.createComponent(ArrayViewComponent);
+    fixture.componentRef.setInput('view', { values: [-999, -998, -997], pointers: {} });
+    fixture.detectChanges();
+    const host: HTMLElement = fixture.nativeElement;
+    const resize = (scrollWidth: number) => {
+      Object.defineProperty(host, 'scrollWidth', { value: scrollWidth, configurable: true });
+      Object.defineProperty(host, 'clientWidth', { value: 250, configurable: true });
+      FakeResizeObserver.observers.forEach((observer) => observer.report());
+      fixture.detectChanges();
+    };
+    resize(250);
+    expect(host.hasAttribute('tabindex')).toBe(false);
+    expect(host.hasAttribute('role')).toBe(false);
+    resize(626);
+    expect(host.getAttribute('tabindex')).toBe('0');
+    expect(host.getAttribute('role')).toBe('region');
+    expect(host.getAttribute('aria-label')).toBe('Array');
+    resize(250);
+    expect(host.hasAttribute('tabindex')).toBe(false);
+  });
+
+  it('array: leaves out a pointer or active cell beyond its ends when it follows the cells a step works on', () => {
+    const errors: unknown[] = [];
+    TestBed.configureTestingModule({ providers: [{ provide: ErrorHandler, useValue: { handleError: (e: unknown) => errors.push(e) } }] });
+    const fixture = TestBed.createComponent(ArrayViewComponent);
+    fixture.componentRef.setInput('view', { values: [1, 2, 3], pointers: { lo: 1, hi: -1 } });
+    TestBed.tick();
+    fixture.componentRef.setInput('view', { values: [1, 2, 3], pointers: { i: 2 }, active: [-1] });
+    TestBed.tick();
+    expect(errors).toEqual([]);
   });
 
   it('list: counts the items left out below a vertical list', () => {

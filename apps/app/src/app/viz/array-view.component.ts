@@ -1,10 +1,27 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import type { ArrayView } from '@grasp/engine';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  ElementRef,
+  afterNextRender,
+  afterRenderEffect,
+  computed,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
+import type { ArrayView, Scalar } from '@grasp/engine';
 
 interface PointerTag {
   name: string;
   index: number;
   row: number;
+}
+
+/** An output built index by index under the array, each value lit once the array's cell above it is settled. */
+export interface AlignedRow {
+  label: string;
+  values: Scalar[];
 }
 
 const POINTER_COLORS: Record<string, string> = {
@@ -22,12 +39,24 @@ const POINTER_COLORS: Record<string, string> = {
 @Component({
   selector: 'g-array-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    '[attr.tabindex]': 'scrolls() ? 0 : null',
+    '[attr.role]': "scrolls() ? 'region' : null",
+    '[attr.aria-label]': "scrolls() ? 'Array' : null",
+  },
   template: `
     @let v = view();
-    <div class="track" [class.wide]="wide()" [style.--n]="v.values.length" [style.--chars]="wide()">
+    <div class="track" [style.--n]="v.values.length" [style.--chars]="chars()">
       <div class="pointers" [style.height.px]="pointers().length ? pointerRows() * 22 + 6 : 0">
         @for (p of pointers(); track p.name) {
-          <div class="ptr" [style.--i]="p.index" [style.--row]="p.row" [style.--c]="color(p.name)">
+          <div
+            class="ptr"
+            [class.first]="p.index === 0"
+            [class.last]="p.index === v.values.length - 1"
+            [style.--i]="p.index"
+            [style.--row]="p.row"
+            [style.--c]="color(p.name)"
+          >
             <span>{{ p.name }}</span>
           </div>
         }
@@ -52,31 +81,63 @@ const POINTER_COLORS: Record<string, string> = {
           <span>{{ $index }}</span>
         }
       </div>
+      @if (aligned(); as row) {
+        <span class="eyebrow row-label">{{ row.label }}</span>
+        <div class="cells">
+          @for (value of row.values; track $index) {
+            <div class="cell" [class.found]="settled().has($index)">
+              <span class="val">{{ value }}</span>
+            </div>
+          }
+        </div>
+        <div class="indices">
+          @for (value of row.values; track $index) {
+            <span>{{ $index }}</span>
+          }
+        </div>
+      }
     </div>
   `,
   styles: `
+    /*
+     * Every cell holds the longest value: the text first shrinks to fit, down to 11px, then the cells widen and the array scrolls
+     * sideways here, never cutting a value short or widening the page. The block padding is room inside the scroller for the
+     * active cell's lift and glow and the window's rim, given back to the layout by the margin.
+     */
     :host {
       display: block;
       width: 100%;
+      container-type: inline-size;
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding-block: 6px;
+      margin-block: -6px;
     }
-    .track {
-      --cell: calc(100% / var(--n));
-      --val-size: clamp(11px, 2.6vw, 16px);
-      position: relative;
-      width: 100%;
-      max-width: calc(var(--n) * 60px);
-      margin: 0 auto;
+    @media (prefers-reduced-motion: no-preference) {
+      :host {
+        scroll-behavior: smooth;
+      }
+    }
+    /* Inside, since a parent that scrolls would cut off a ring drawn around it. */
+    :host(:focus-visible) {
+      outline-offset: -2px;
     }
     /*
-     * 0.62em approximates a monospace character: opted in with wideCells, long values such as pairs widen their cells and scroll
-     * instead of overlapping.
+     * 0.62em is a monospace character with a little to spare; each cell adds its margins, its border and 2px on either side,
+     * which makes --col-min the narrowest column that holds the longest value.
      */
-    .track.wide {
-      min-width: calc(var(--n) * (var(--chars) * 0.62 * var(--val-size) + 16px));
-    }
-    .track.wide .cell {
-      aspect-ratio: auto;
-      height: 54px;
+    .track {
+      --cell: calc(100% / var(--n));
+      --gap: clamp(1px, 0.5vw, 3px);
+      --chrome: calc(2 * var(--gap) + 6px);
+      --fit: calc((100cqi / var(--n) - var(--chrome)) / (var(--chars) * 0.62));
+      --val-size: clamp(11px, min(2.6vw, var(--fit)), 16px);
+      --col-min: calc(var(--chars) * 0.62 * var(--val-size) + var(--chrome));
+      position: relative;
+      width: 100%;
+      min-width: calc(var(--n) * var(--col-min));
+      max-width: calc(var(--n) * 60px);
+      margin: 0 auto;
     }
     .pointers {
       position: relative;
@@ -92,16 +153,26 @@ const POINTER_COLORS: Record<string, string> = {
         left 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
         bottom 0.2s;
     }
+    /*
+     * Auto margins centre a tag that fits its cell. One wider than its cell drops them and falls back on justify-content,
+     * which at either end of the array lines it up with that end, so the scroller never cuts it off.
+     */
+    .ptr.first {
+      justify-content: flex-start;
+    }
+    .ptr.last {
+      justify-content: flex-end;
+    }
     .ptr span {
+      margin-inline: auto;
       font: 600 11px/1 var(--g-font-mono);
       white-space: nowrap;
       color: var(--g-on-fill);
       background: var(--c);
       padding: 4px 6px 3px;
       border-radius: 6px;
-      position: relative;
     }
-    .ptr span::after {
+    .ptr::after {
       content: '';
       position: absolute;
       left: 50%;
@@ -131,10 +202,17 @@ const POINTER_COLORS: Record<string, string> = {
         left 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
         width 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
     }
+    /*
+     * Square up to 54px, and wider only for a value that needs it, then 54px tall. The width is set, not left automatic: an
+     * automatic width takes the 54px height cap through the aspect ratio, so a long value would spill out of its cell.
+     */
     .cell {
       position: relative;
+      width: calc(100% - 2 * var(--gap));
+      max-width: max(54px, var(--col-min) - 2 * var(--gap));
+      justify-self: center;
       aspect-ratio: 1;
-      margin: clamp(1px, 0.5vw, 3px);
+      margin: var(--gap);
       max-height: 54px;
       border-radius: 10px;
       background: var(--g-raised);
@@ -184,12 +262,23 @@ const POINTER_COLORS: Record<string, string> = {
       font: 11px/1 var(--g-font-mono);
       color: var(--g-faint);
     }
+    /* Centred in the part of the track in view, however far it is scrolled. */
+    .row-label {
+      position: sticky;
+      left: 0;
+      display: block;
+      width: min(100%, 100cqi);
+      margin: 14px 0 8px;
+      text-align: center;
+    }
   `,
 })
 export class ArrayViewComponent {
   readonly view = input.required<ArrayView>();
-  /** Lets long values widen their cells past the width given, for a container that scrolls sideways. */
-  readonly wideCells = input(false);
+  readonly aligned = input<AlignedRow | null>(null);
+  private readonly host: HTMLElement = inject(ElementRef).nativeElement;
+  /** Whether the array is wider than its view, which then scrolls, so a keyboard can scroll it too. */
+  readonly scrolls = signal(false);
 
   readonly settled = computed(() => new Set(this.view().settled ?? []));
   readonly active = computed(() => new Set(this.view().active ?? []));
@@ -204,13 +293,40 @@ export class ArrayViewComponent {
     });
   });
 
-  readonly wide = computed(() => {
-    if (!this.wideCells()) return null;
-    const longest = Math.max(0, ...this.view().values.map((v) => String(v).length));
-    return longest > 3 ? longest : null;
-  });
+  /** The longest value in either row, which every cell is wide enough to hold. */
+  readonly chars = computed(() => Math.max(1, ...[...this.view().values, ...(this.aligned()?.values ?? [])].map((v) => String(v).length)));
 
   readonly pointerRows = computed(() => Math.max(1, ...this.pointers().map((p) => p.row + 1)));
+
+  /** The cells a step works on, which a scrolled array keeps in view: its active cells, pointers and window. */
+  private readonly focus = computed(() => {
+    const v = this.view();
+    const cell = (i: number) => i >= 0 && i < v.values.length;
+    const at = [...(v.active ?? []), ...Object.values(v.pointers), ...(v.window ?? [])].filter(cell);
+    return at.length ? { from: Math.min(...at), to: Math.max(...at), active: v.active?.find(cell) } : null;
+  });
+
+  constructor() {
+    const overflow = new ResizeObserver(() => this.scrolls.set(this.host.scrollWidth > this.host.clientWidth));
+    afterNextRender(() => {
+      overflow.observe(this.host);
+      overflow.observe(this.host.querySelector('.track')!);
+    });
+    inject(DestroyRef).onDestroy(() => overflow.disconnect());
+
+    // Scrolls as little as shows them all, or, when they are wider than the view, the active cell or else the first of them.
+    afterRenderEffect(() => {
+      const focus = this.focus();
+      const cells = this.host.querySelector('.cells')?.querySelectorAll<HTMLElement>(':scope > .cell');
+      if (!focus || !cells?.[focus.to]) return;
+      const edges = (i: number) => [cells[i].offsetLeft, cells[i].offsetLeft + cells[i].offsetWidth];
+      let [left, right] = [edges(focus.from)[0], edges(focus.to)[1]];
+      const { scrollLeft, clientWidth } = this.host;
+      if (right - left > clientWidth && focus.active !== undefined) [left, right] = edges(focus.active);
+      if (left < scrollLeft) this.host.scrollLeft = left;
+      else if (right > scrollLeft + clientWidth) this.host.scrollLeft = Math.min(left, right - clientWidth);
+    });
+  }
 
   color(name: string) {
     return POINTER_COLORS[name] ?? 'var(--g-accent)';
