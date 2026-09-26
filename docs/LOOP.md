@@ -4,10 +4,6 @@ The loop's memory between runs. Each run reads this first, picks one item, ships
 `CLAUDE.md`, and updates this file in the same change: add a line to **Shipped**, remove or edit what it resolved, and add
 any follow-ups it found. Keep entries short and factual, with numbers where they exist.
 
-## In progress
-
-- Tree view badges move below a node when the spot above sits on its incoming link (`loop/tree-badges`).
-
 ## Shipped
 
 | #      | What                                                                                                                                                                                                                                                                                                                                                                              | Commits              |
@@ -18,6 +14,7 @@ any follow-ups it found. Keep entries short and factual, with numbers where they
 | 9      | The code trace shows the call stack, on-the-stack and returned tree states, and grids drawn as tables; Python recovers from a fatal crash without a reload; trace frames 3.6 to 5x faster on large 2D values                                                                                                                                                                      | `c8a7570`, `eb623e9` |
 | 10     | Light catalogs keep engine content out of first paint: initial bundle 974 kB to 822 kB, the learn page about 0.3 to 0.55 s sooner on a throttled phone, every tab tap as fast as before; every engine barrel uses `export *`                                                                                                                                                      | `eb3865b`, `ffcb6ee` |
 | 11     | Playback controls stay put: the drawing holds its height, the page anchors what the learner is reading (controls, the Code panel below, side columns beside), array cells keep one width for the whole trace, toolbar titles stay clear; phone Code panel moves while stepping 0 (was 370), keyboard focus never fully hidden up to 300% zoom, forced layouts per step 4.0 to 1.9 | `4bb2e65`, `7b92df0` |
+| 12     | Tree badges stay off the links: a leaf's badge sits below it, others above, else below, else beside; badge placement shared with the graph view. Badges on a link 3,403 of 4,559 in Subsets by Backtracking and 387 in measured code traces, now 0; audit covers a tree visualizer                                                                                                | `2ccfb88`, `b32fbae` |
 
 ## Open follow-ups
 
@@ -57,6 +54,11 @@ Known issues and deferred work, most valuable first.
   "returned" while it is off the stack.
 - Native: the splash screen stays dark in the light theme; status bar icons on a light launch need a check on a device.
 - Dependabot's `@sentry/angular` update fails CI.
+- The tree view's side spot (a badge above and beside its node) is covered by a unit test and the code-trace measure, but
+  no audit state shows it; a traced skewed tree (such as `[1,2,null,3]`) in `tools/verify` would.
+- Local verification in the cloud container: its Node is 22.22.2, which the Angular CLI refuses (`.nvmrc` says 24), and
+  its Chromium is 141 while the pinned 153 cannot be downloaded. Runs used Node 24 from nodejs.org and pointed
+  `PLAYWRIGHT_BROWSERS_PATH` at a folder that links the preinstalled Chromium under the expected names.
 - CI: the four end-to-end shards are uneven (118, 136, 175 and 185 s after iteration 11; CI 191 s wall, was 159 to 169 s).
   Playwright 1.63 splits by test count, not duration. Record per-test durations (`--reporter=json`, 336 s over 222 tests
   locally) and feed each shard a balanced `--test-list`.
