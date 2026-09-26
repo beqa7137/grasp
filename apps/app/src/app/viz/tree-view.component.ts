@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { GRAPH_NODE_RADIUS, type NodeState, type TreeView } from '@grasp/engine';
-import { BADGE_LINE_HEIGHT, badgeHalfWidth, badgeLines, besideReach, placeBadges, wrapBadge, type Spot } from './badges';
+import { BADGE_LINE_HEIGHT, BADGE_ROOM, badgeHalfWidth, badgeLines, besideReach, placeBadges, wrapBadge, type Spot } from './badges';
 import { toward, type Point } from './geometry';
 import { LegendComponent } from './legend.component';
 import { NODE_STYLES } from './node-styles';
@@ -56,8 +56,9 @@ export interface SideRoom {
 
 const NO_ROOM: SideRoom = { left: 0, right: 0 };
 
-// Whole pixels with half a pixel to spare, so that rounding never tips a badge sized to fit out of the drawing.
-const roomFor = (reach: number) => (reach > 0 ? Math.ceil(reach + 0.5) : 0);
+// Whole pixels, with the room a badge keeps from lines to spare: text can render a pixel or so wider than its 0.6em estimate,
+// as Chromium on Linux draws it.
+const roomFor = (reach: number) => (reach > 0 ? Math.ceil(reach + BADGE_ROOM) : 0);
 
 /**
  * The room at each side that the badges of these trees reach into, found by laying each tree out with room for its widest badge
