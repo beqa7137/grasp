@@ -54,15 +54,15 @@ describe('layoutForest', () => {
     const tree = treeOf(['a', null], ['b', 'a'], ['c', 'a']);
     const usual = layoutForest(tree);
     expect([usual.width, ...usual.nodes.map((n) => n.x)]).toEqual([144, 72, 49, 95]);
-    expect(layoutForest(tree, { room: { left: 0, right: 0 } })).toEqual(usual);
-    const roomy = layoutForest(tree, { room: { left: 10, right: 30 } });
+    expect(layoutForest(tree, { left: 0, right: 0 })).toEqual(usual);
+    const roomy = layoutForest(tree, { left: 10, right: 30 });
     expect([roomy.width, ...roomy.nodes.map((n) => n.x)]).toEqual([184, 82, 59, 105]);
   });
 });
 
 describe('sideRoomFor', () => {
   const offsets = (tree: TreeView, room: SideRoom) =>
-    layoutForest(tree, { room }).nodes.flatMap((n) => (n.badge ? [[n.badgeAt.x - n.x, n.badgeAt.y - n.y].map((d) => d.toFixed(6))] : []));
+    layoutForest(tree, room).nodes.flatMap((n) => (n.badge ? [[n.badgeAt.x - n.x, n.badgeAt.y - n.y].map((d) => d.toFixed(6))] : []));
 
   it('leaves no room for badges that stay within the usual margin, however long', () => {
     expect(sideRoomFor([treeOf(['a', null, 'treeRootNode'], ['b', 'a'], ['c', 'a']), undefined])).toEqual({ left: 0, right: 0 });
@@ -159,7 +159,7 @@ function pathPoints(d: string) {
   });
 }
 
-// A badge is 11px monospace text, about 0.6em per character, on a line 11px high for each '\n'.
+// A badge is 11px monospace text, about 0.6em per character, on lines 11px high, broken at each '\n'.
 const badgeHalfWidth = (badge: string) => Math.max(...badge.split('\n').map((line) => line.length)) * 3.3;
 const badgeHalfHeight = (badge: string) => badge.split('\n').length * 5.5;
 
@@ -222,7 +222,7 @@ function crowdedBadges(id: string, count: number): string[] {
 
 /** Tree badges on a link, over a node or another badge, or outside the drawing, from the layout the tree view draws. */
 function treeBadgeClashes(tree: TreeView, room: SideRoom): string[] {
-  const { nodes, links, width, height } = layoutForest(tree, { room });
+  const { nodes, links, width, height } = layoutForest(tree, room);
   const paths = links.map(({ x1, y1, x2, y2 }) => pathPoints(`M${x1},${y1} L${x2},${y2}`));
   return nodes.flatMap((a, i) => {
     const { badge, badgeAt } = a;
@@ -399,7 +399,7 @@ function badgeSpots(tree: TreeView): string[] {
 }
 
 /** Where a layout with no room beside its edge nodes puts each badge. */
-const unroomySpots = (tree: TreeView) =>
+const spotsWithoutRoom = (tree: TreeView) =>
   layoutForest(tree).nodes.flatMap((n) => (n.badge ? [spotOf(n.label, n, { ...n.badgeAt, badge: n.badge })] : []));
 
 describe('structure views render real traces', () => {
@@ -624,7 +624,7 @@ describe('structure views render real traces', () => {
     },
   ]) {
     it(`tree layout without room beside its edge nodes: puts a badge ${rule}`, () => {
-      expect(unroomySpots(tree)).toEqual(spots);
+      expect(spotsWithoutRoom(tree)).toEqual(spots);
     });
   }
 

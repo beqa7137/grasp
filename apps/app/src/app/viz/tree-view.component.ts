@@ -72,7 +72,7 @@ export function sideRoomFor(trees: readonly (TreeView | undefined)[]): SideRoom 
   if (!full) return NO_ROOM;
   const reach = { left: 0, right: 0 };
   for (const tree of drawn) {
-    const { nodes, width } = layoutForest(tree, { room: { left: full, right: full } });
+    const { nodes, width } = layoutForest(tree, { left: full, right: full });
     for (const n of nodes) {
       if (!n.badge || n.blank) continue;
       const half = badgeHalfWidth(n.badge);
@@ -87,10 +87,7 @@ export function sideRoomFor(trees: readonly (TreeView | undefined)[]): SideRoom 
  * Leaves take consecutive slots left to right and every parent sits centred over its children,
  * so siblings keep their input order (a heap's left child stays on the left).
  */
-export function layoutForest(
-  tree: TreeView,
-  { room = NO_ROOM }: { room?: SideRoom } = {},
-): { nodes: PlacedNode[]; links: Link[]; width: number; height: number } {
+export function layoutForest(tree: TreeView, room = NO_ROOM): { nodes: PlacedNode[]; links: Link[]; width: number; height: number } {
   const ids = new Set(tree.nodes.map((n) => n.id));
   const children = new Map<string, string[]>();
   const roots: string[] = [];
@@ -133,7 +130,7 @@ export function layoutForest(
     const end = toward(to, from, n.blank ? BLANK_GAP : RADIUS);
     return [{ id: `${n.parent}>${n.id}`, x1: start.x, y1: start.y, x2: end.x, y2: end.y, blank: !!n.blank }];
   });
-  const width = (Math.max(1, next) - 1) * SLOT + 2 * MARGIN + room.left + room.right;
+  const width = Math.max(1, next) * SLOT + 2 * PAD + room.left + room.right;
   const height = (levels - 1) * LEVEL + 2 * RADIUS + 2 * PAD;
   const isLeaf = (id: string) => !children.has(id) && !roots.includes(id);
   const lines = links.map(({ x1, y1, x2, y2 }) => [
@@ -222,7 +219,7 @@ export class TreeViewComponent {
   protected readonly radius = RADIUS;
   protected readonly lineHeight = BADGE_LINE_HEIGHT;
 
-  readonly layout = computed(() => layoutForest(this.view(), { room: this.room() ?? sideRoomFor([this.view()]) }));
+  readonly layout = computed(() => layoutForest(this.view(), this.room() ?? sideRoomFor([this.view()])));
 
   readonly ariaLabel = computed(() => {
     const { nodes: all, legend } = this.view();
