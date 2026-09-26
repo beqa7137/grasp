@@ -152,6 +152,47 @@ export const containerMostWater: CodingProblemDefinition = {
   complexity: { time: 'O(n)', space: 'O(1)' },
 };
 
+export const jumpGame: CodingProblemDefinition = {
+  statement: [
+    '`nums[i]` is the longest jump you can make forward from index `i`; any shorter jump works too. You start at index 0.',
+    'Return `true` if you can reach the last index, or `false` if you get stuck before it.',
+  ],
+  constraints: ['1 ≤ nums.length ≤ 2·10^5', '0 ≤ nums[i] ≤ 10^5'],
+  entry: 'canJump',
+  params: [{ name: 'nums', type: 'int[]' }],
+  returns: 'bool',
+  compare: 'exact',
+  examples: [
+    { args: [[2, 3, 1, 1, 4]], explanation: 'Jump 1 step to index 1, then 3 steps to the last index' },
+    { args: [[3, 2, 1, 0, 4]], explanation: 'Indices 0, 1 and 2 each reach index 3 at most, and nums[3] is 0' },
+  ],
+  edgeCases: [[[0]], [[0, 1]], [[2, 0, 0]], [[1, 1, 0, 1]], [[1, 2, 0, 1]], [[2, 3, 0, 0, 1]]],
+  randomCase: (rand) => {
+    const nums = Array.from({ length: randInt(rand, 1, 10) }, () => (rand() < 0.3 ? 0 : randInt(rand, 1, 3)));
+    nums[0] = randInt(rand, 1, 3);
+    return [nums];
+  },
+  // Before a 0 near the end, index i jumps up to i + 1 steps but never past the 0: trying every jump from each index, or
+  // scanning from index 0 for the first index that reaches each one, is quadratic. Looking back from the nearest index
+  // first is not, since every index up to the 0 is reached from the one just before it.
+  performanceCase: (rand) => {
+    const n = 200_000;
+    const wall = n - 1 - randInt(rand, 1, 500);
+    return [Array.from({ length: n }, (_, i) => (i < wall ? Math.min(i + 1, wall - i) : i === wall ? 0 : randInt(rand, 0, 100_000)))];
+  },
+  solve(nums: number[]) {
+    let reach = 0;
+    for (let i = 0; i < nums.length; i++) {
+      if (i > reach) return false;
+      reach = Math.max(reach, i + nums[i]);
+    }
+    return true;
+  },
+  approach:
+    'Scan left to right and keep `reach`, the farthest index any jump so far can land on. Every index up to it is reachable too, so you are stuck exactly when the scan passes it.',
+  complexity: { time: 'O(n)', space: 'O(1)' },
+};
+
 export const longestUniqueSubstring: CodingProblemDefinition = {
   statement: ['Given a string `s`, return the length of the longest substring that contains no repeated characters.'],
   constraints: ['0 ≤ s.length ≤ 10^5', 's consists of printable ASCII characters'],
@@ -181,6 +222,56 @@ export const longestUniqueSubstring: CodingProblemDefinition = {
   },
   approach: 'Grow a window to the right and jump its left edge past the previous copy of any repeated character.',
   complexity: { time: 'O(n)', space: 'O(k) for k distinct characters' },
+};
+
+export const minSizeSubarraySum: CodingProblemDefinition = {
+  statement: [
+    'Return the length of the shortest contiguous subarray of `nums` whose sum is at least `target`, or 0 if no subarray reaches it. Every value is positive.',
+  ],
+  constraints: ['1 ≤ nums.length ≤ 2·10^5', '1 ≤ nums[i] ≤ 10^4', '1 ≤ target ≤ 10^9'],
+  entry: 'minSubArrayLen',
+  params: [
+    { name: 'target', type: 'int' },
+    { name: 'nums', type: 'int[]' },
+  ],
+  returns: 'int',
+  compare: 'exact',
+  examples: [
+    { args: [7, [2, 3, 1, 2, 4, 3]], explanation: '[4,3] adds up to 7, and no single value reaches it' },
+    { args: [4, [1, 4, 4]] },
+    { args: [11, [1, 1, 1, 1, 1, 1, 1, 1]], explanation: 'All eight values add up to only 8' },
+  ],
+  edgeCases: [
+    [1, [1]],
+    [3, [1, 1]],
+    [6, [1, 2, 3]],
+    [5, [10, 1, 1]],
+    [11, [1, 2, 3, 4, 5]],
+  ],
+  randomCase: (rand) => {
+    const nums = ints(rand, randInt(rand, 1, 12), 1, 9);
+    return [randInt(rand, 1, nums.reduce((sum, x) => sum + x, 0) + 3), nums];
+  },
+  // With half the total as the target, the shortest window spans half the array, so growing a window from every start is quadratic.
+  performanceCase: (rand) => {
+    const nums = ints(rand, 200_000, 1, 10_000);
+    return [Math.floor(nums.reduce((sum, x) => sum + x, 0) / 2), nums];
+  },
+  solve(target: number, nums: number[]) {
+    let best = Infinity;
+    let sum = 0;
+    for (let lo = 0, hi = 0; hi < nums.length; hi++) {
+      sum += nums[hi];
+      while (sum >= target) {
+        best = Math.min(best, hi - lo + 1);
+        sum -= nums[lo++];
+      }
+    }
+    return best === Infinity ? 0 : best;
+  },
+  approach:
+    'Slide a window: extend it on the right, and while its sum reaches `target`, record its length and drop values from the left. With positive values, dropping one only lowers the sum, so each index enters and leaves the window once.',
+  complexity: { time: 'O(n)', space: 'O(1)' },
 };
 
 export const binarySearch: CodingProblemDefinition = {

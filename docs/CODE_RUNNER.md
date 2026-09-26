@@ -33,7 +33,7 @@ A problem is split in two. The catalog holds what lists, links, route titles and
 
 Expected values always come from the problem's reference `solve`, so the tests and the reference can't drift apart. The engine tests prove each reference against a brute-force solution on every small case. They also run a CPython reference solution through the same Python prelude and harness the browser uses and check that its output matches. For the problems listed in `SLOWER` (`coding.spec.ts`), the engine tests also count the steps a named slower approach needs on the performance case, which proves without timing anything that it cannot finish within the limit.
 
-Answers are compared exactly, or as unordered lists where the problem allows any order (`compare: 'unordered'`).
+Answers are compared exactly, as unordered lists where the problem allows any order (`compare: 'unordered'`), or as lists of lists where neither level's order matters (`compare: 'unordered-nested'`, for Subsets).
 
 ## Tree inputs
 

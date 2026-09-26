@@ -3,6 +3,50 @@ import { distinctInts, randInt, shuffle } from '../../algorithms/random.js';
 import type { CodingProblemDefinition } from '../types.js';
 import { ints, nearMiddle } from './inputs.js';
 
+export const subsets: CodingProblemDefinition = {
+  statement: [
+    'The values in `nums` are distinct. Return every subset of `nums`, the empty one included, each exactly once.',
+    'The subsets, and the numbers inside each one, can come in any order.',
+  ],
+  constraints: ['0 ≤ nums.length ≤ 17', '-10 ≤ nums[i] ≤ 10', 'values are distinct'],
+  entry: 'subsets',
+  params: [{ name: 'nums', type: 'int[]' }],
+  returns: 'int[][]',
+  compare: 'unordered-nested',
+  examples: [
+    { args: [[1, 2, 3]], explanation: 'Each number is in or out of a subset, so 3 numbers make 2 × 2 × 2 = 8 subsets' },
+    { args: [[0]] },
+    {
+      args: [[3, -1]],
+      explanation: 'Order does not matter inside a subset or between subsets: [3,-1] and [-1,3] are the same subset',
+    },
+  ],
+  edgeCases: [[[]], [[-5]], [[10, -10]], [[2, 1, 3, 0]]],
+  randomCase: (rand) => [distinctInts(rand, randInt(rand, 0, 6), -10, 10)],
+  // 2^17 subsets: comparing each new subset with the ones already found, to skip a copy, is quadratic in that count.
+  performanceCase: (rand) => [distinctInts(rand, 17, -10, 10)],
+  solve(nums: number[]) {
+    const sorted = [...nums].sort((a, b) => a - b);
+    const out: number[][] = [];
+    const path: number[] = [];
+    const go = (i: number) => {
+      if (i === sorted.length) {
+        out.push([...path]);
+        return;
+      }
+      path.push(sorted[i]);
+      go(i + 1);
+      path.pop();
+      go(i + 1);
+    };
+    go(0);
+    return out;
+  },
+  approach:
+    'Backtrack: at each index take the number, explore, undo, and explore again without it. Every leaf of this take-or-skip tree is one subset.',
+  complexity: { time: 'O(n · 2ⁿ)', space: 'O(n) plus the output' },
+};
+
 export const houseRobber: CodingProblemDefinition = {
   statement: ['Each house on a street holds some money. You cannot take from two adjacent houses. Return the most money you can take.'],
   constraints: ['1 ≤ nums.length ≤ 10^5', '0 ≤ nums[i] ≤ 400'],
@@ -22,6 +66,46 @@ export const houseRobber: CodingProblemDefinition = {
   },
   approach: 'At each house keep two values, best total if you take it and if you skip it; each depends only on the previous house.',
   complexity: { time: 'O(n)', space: 'O(1)' },
+};
+
+export const coinChange: CodingProblemDefinition = {
+  statement: [
+    'You have as many coins of each value in `coins` as you need. Return the fewest coins that add up to exactly `amount`, or -1 if no combination does.',
+  ],
+  constraints: ['1 ≤ coins.length ≤ 12', '1 ≤ coins[i] ≤ 10^4', 'coin values are distinct', '0 ≤ amount ≤ 10^4'],
+  entry: 'coinChange',
+  params: [
+    { name: 'coins', type: 'int[]' },
+    { name: 'amount', type: 'int' },
+  ],
+  returns: 'int',
+  compare: 'exact',
+  examples: [
+    { args: [[1, 2, 5], 11], explanation: '11 = 5 + 5 + 1' },
+    { args: [[2], 3], explanation: 'Coins of 2 only add up to even amounts' },
+    { args: [[1], 0], explanation: 'An amount of 0 takes no coins' },
+  ],
+  edgeCases: [
+    [[7], 7],
+    [[3, 7], 5],
+    [[1, 3, 4], 6],
+    [[1, 5, 6, 9], 11],
+    [[2, 5, 10, 1], 18],
+    [[1, 3, 4], 10],
+  ],
+  randomCase: (rand) => [distinctInts(rand, randInt(rand, 2, 4), 1, 12), randInt(rand, 0, 24)],
+  // Every coin is a multiple of 3 and the amount is not, so no mix adds up to it. Recursing on each coin without a memo,
+  // or a search that stops a branch once it cannot beat the best count so far, has to try every mix: exponential.
+  performanceCase: (rand) => [distinctInts(rand, 12, 10, 200).map((c) => 3 * c), 3 * randInt(rand, 3_000, 3_332) + randInt(rand, 1, 2)],
+  solve(coins: number[], amount: number) {
+    const fewest = Array<number>(amount + 1).fill(Infinity);
+    fewest[0] = 0;
+    for (let a = 1; a <= amount; a++) for (const c of coins) if (c <= a) fewest[a] = Math.min(fewest[a], fewest[a - c] + 1);
+    return fewest[amount] === Infinity ? -1 : fewest[amount];
+  },
+  approach:
+    '`dp[a]` is the fewest coins that make `a`: the best `dp[a - c] + 1` over the coins `c`, filled from 1 up to `amount`. An amount no mix of coins reaches stays infinite, which gives -1. Taking the largest coin first is not safe here: with coins [1, 3, 4] and amount 6 it takes 4 + 1 + 1, while 3 + 3 needs two.',
+  complexity: { time: 'O(amount × coins)', space: 'O(amount)' },
 };
 
 export const longestCommonSubsequence: CodingProblemDefinition = {

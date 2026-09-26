@@ -46,6 +46,10 @@ function canonical(value: unknown): string {
 }
 
 export function outputsMatch(expected: unknown, actual: unknown, mode: CompareMode): boolean {
+  if (mode === 'unordered-nested' && Array.isArray(expected) && Array.isArray(actual)) {
+    const sortInner = (list: unknown[]) => list.map((item) => (Array.isArray(item) ? [...item].sort((a, b) => a - b) : item));
+    return outputsMatch(sortInner(expected), sortInner(actual), 'unordered');
+  }
   if (mode === 'unordered' && Array.isArray(expected) && Array.isArray(actual)) {
     const sort = (list: unknown[]) => list.map(canonical).sort();
     return canonical(sort(expected)) === canonical(sort(actual));
