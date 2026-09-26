@@ -5,7 +5,7 @@ name: Native builds
 # API URL to get an APK and a simulator app that talk to that deployment, e.g. for testing on emulators.
 on:
   push:
-    branches: [main]
+    branches: [main, feature/improvements]
     paths: &native-paths
       - apps/app/**
       - libs/engine/**
@@ -21,10 +21,10 @@ on:
         description: API the apps call, e.g. https://grasp-rho-taupe.vercel.app/api (empty for a development build)
         default: ''
 
-# A newer push stops the run it supersedes, except on main, where every commit gets a verdict.
+# A newer push stops the run it supersedes, except on main and feature/improvements, where every commit gets a verdict.
 concurrency:
   group: native-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/feature/improvements' }}
 
 permissions:
   contents: read

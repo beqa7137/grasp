@@ -32,18 +32,20 @@ characters> LOG_LEVEL=warn node apps/api/dist/main.js`.
 
 ## Releasing a change
 
-Production is https://grasp-rho-taupe.vercel.app; `/api/health` reports the live `release` (a short commit sha).
+Production is https://grasp-rho-taupe.vercel.app; `/api/health` reports the live `release` (a short commit sha). The
+integration branch is `feature/improvements`: work lands there, and only the owner promotes it to `main` and production.
 
-1. Work on a branch from `main`. Commit with the owner's identity: Vercel blocks deployments whose head commit has any
-   other author. Before the first commit run
+1. Work on a branch from `feature/improvements`. Commit with the owner's identity: Vercel blocks deployments whose head
+   commit has any other author. Before the first commit run
    `git config user.name "Beka Goderdzishvili" && git config user.email beqa.goder@gmail.com`.
-2. Run CI on the branch: `gh workflow run ci.yml --ref <branch>` and `gh workflow run native.yml --ref <branch>`, then
-   watch them (`gh run watch <id> --exit-status`). CI takes about two to three minutes.
-3. Deploy the branch to production: `gh workflow run deploy.yml --ref <branch>`. The workflow builds, migrates, deploys,
-   checks the release is live and walks the main flows in a browser.
-4. Verify production yourself (see below). If anything is wrong, redeploy `main` and fix on the branch.
-5. Fast-forward `main`: `git push origin <sha>:main`, only when `git merge-base --is-ancestor origin/main <sha>` holds.
-   Never force-push `main`. Pushing `main` runs CI and redeploys the same commit.
+2. Run CI on the branch where `gh` is available: `gh workflow run ci.yml --ref <branch>` and
+   `gh workflow run native.yml --ref <branch>`, then watch them (`gh run watch <id> --exit-status`). CI takes about two
+   to three minutes. Pushing `feature/improvements` runs both as well.
+3. Fast-forward `feature/improvements`: `git push origin <sha>:feature/improvements`, only when
+   `git merge-base --is-ancestor origin/feature/improvements <sha>` holds. Never force-push it or `main`.
+4. Do not deploy, test against production or push `main` unless the owner asks. When they do, deploy with
+   `gh workflow run deploy.yml --ref <branch>`, verify production (see below), and fast-forward `main` the same way; if
+   production is wrong, redeploy `main` and fix on the branch.
 
 ## Verifying
 
@@ -52,9 +54,10 @@ Every change is verified end to end, not only by tests:
 - `npm run verify` and `npm run e2e` pass.
 - `tools/verify/` holds the browser tools (see its README): screenshots plus axe plus page errors for every page state
   (`audit.mjs`), pixel diffs between two screenshot sets (`pixdiff.mjs`), and first-paint and first-tap timing on a
-  throttled phone (`timing.mjs`). Compare against a build of `main` for anything visual or performance related, in both
-  themes, on desktop and a phone profile, and read the screenshots that differ.
-- Against production: `E2E_BASE_URL=https://grasp-rho-taupe.vercel.app npm run e2e -- --grep @smoke`, then
+  throttled phone (`timing.mjs`). Compare against a build of `feature/improvements` for anything visual or performance
+  related, in both themes, on desktop and a phone profile, and read the screenshots that differ.
+- Against production, only when the owner asks for a release:
+  `E2E_BASE_URL=https://grasp-rho-taupe.vercel.app npm run e2e -- --grep @smoke`, then
   `READONLY=1 BASE=https://grasp-rho-taupe.vercel.app THEME=dark node tools/verify/audit.mjs` (and `THEME=light`).
   `READONLY=1` blocks every API write, so production data stays clean. Never seed events into production.
 
@@ -62,5 +65,5 @@ Every change is verified end to end, not only by tests:
 
 `docs/LOOP.md` is the loop's memory: what has shipped, the open follow-ups, and the next candidates. Each run reads it
 first, picks one improvement, takes it through build, verify, commit, a simplify review (reuse, simplification and
-comments, efficiency, altitude), verify again, CI, a production deploy and verification, and the fast-forward of `main`,
-then records the outcome and any new follow-ups in `docs/LOOP.md` in the same change set.
+comments, efficiency, altitude), verify again, CI, and the fast-forward of `feature/improvements`, then records the
+outcome and any new follow-ups in `docs/LOOP.md` in the same change set.
