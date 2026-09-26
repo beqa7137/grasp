@@ -41,3 +41,6 @@ apps/app/public/pyodide/
 # Claude Code local state
 .claude/scheduled_tasks.lock
 .claude/worktrees/
+
+# Browser verification output (tools/verify)
+verify-out/
