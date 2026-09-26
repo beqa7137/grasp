@@ -1,6 +1,9 @@
 import { ErrorHandler, type Type } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { ALGORITHMS, GRAPH_NODE_RADIUS, getAlgorithm, mulberry32, type TreeView } from '@grasp/engine';
+import { ALGORITHMS, GRAPH_NODE_RADIUS, getAlgorithm, mulberry32, type LevelOrder, type TreeView } from '@grasp/engine';
+import { traceJs } from '../code/execute-js';
+import { toFrames } from '../code/trace-frames';
+import { exampleTree } from '../code/tree-frames';
 import { ArrayViewComponent, longestValue } from './array-view.component';
 import { GraphViewComponent } from './graph-view.component';
 import { LegendComponent } from './legend.component';
@@ -138,6 +141,72 @@ function treeBadgeClashes(tree: TreeView): string[] {
   });
 }
 
+const treeOf = (...nodes: [id: string, parent: string | null, badge?: string][]): TreeView => ({
+  nodes: nodes.map(([id, parent, badge]) => ({ id, label: id, parent, badge })),
+});
+
+/** The tree a code trace draws for these values, with one pointer badge on the node labelled `label`. */
+const codeTree = (values: LevelOrder, label: string, badge: string): TreeView => ({
+  nodes: exampleTree(values)!.nodes.map((n) => (n.label === label ? { ...n, badge } : n)),
+});
+
+const TRACED_TREE_CODE: [entry: string, code: string][] = [
+  [
+    'diameterOfBinaryTree',
+    `function diameterOfBinaryTree(root) {
+  let best = 0;
+  const height = (node) => {
+    if (!node) return 0;
+    const left = height(node.left);
+    const right = height(node.right);
+    best = Math.max(best, left + right);
+    return 1 + Math.max(left, right);
+  };
+  height(root);
+  return best;
+}`,
+  ],
+  [
+    'inorderTraversal',
+    `function inorderTraversal(root) {
+  const out = [];
+  const stack = [];
+  let curr = root;
+  while (curr || stack.length) {
+    while (curr) {
+      stack.push(curr);
+      curr = curr.left;
+    }
+    curr = stack.pop();
+    out.push(curr.val);
+    curr = curr.right;
+  }
+  return out;
+}`,
+  ],
+  [
+    'lowestCommonAncestor',
+    `function lowestCommonAncestor(root) {
+  const p = root.left;
+  const q = root.right;
+  const walk = (node) => {
+    if (!node || node === p || node === q) return node;
+    const left = walk(node.left);
+    const right = walk(node.right);
+    return left && right ? node : left || right;
+  };
+  return walk(root);
+}`,
+  ],
+];
+const TRACED_TREES = [
+  [1, 2, 3, 4, 5],
+  [1, 2, null, 3, 4, 5, null, null, 6],
+  [3, 9, 20, null, null, 15, 7],
+  [1, null, 2, null, 3],
+  [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+];
+
 /** jsdom lays nothing out, so it has no ResizeObserver: this one reports only when a test says the view resized. */
 class FakeResizeObserver {
   static observers: FakeResizeObserver[] = [];
@@ -154,6 +223,19 @@ function render(component: Type<unknown>, view: unknown, legend = true): HTMLEle
   fixture.componentRef.setInput('legend', legend);
   fixture.detectChanges();
   return fixture.nativeElement;
+}
+
+/** Where the tree view draws each badge: above or below its node, and left or right only when the whole badge clears the node's centre. */
+function badgeSpots(tree: TreeView): string[] {
+  return [...render(TreeViewComponent, tree).querySelectorAll('g.node')].flatMap((node) => {
+    const badge = node.querySelector('text.badge');
+    if (!badge) return [];
+    const [x, y] = ['cx', 'cy'].map((name) => Number(node.querySelector('circle.body')!.getAttribute(name)));
+    const [badgeX, badgeY] = ['x', 'y'].map((name) => Number(badge.getAttribute(name)));
+    const half = badgeHalfWidth(badge.textContent!.trim());
+    const side = badgeX + half < x ? ' left' : badgeX - half > x ? ' right' : badgeX === x ? '' : ' off centre';
+    return [`${node.querySelector('text.label')!.textContent} ${badgeY < y ? 'above' : 'below'}${side}`];
+  });
 }
 
 describe('structure views render real traces', () => {
@@ -276,26 +358,47 @@ describe('structure views render real traces', () => {
     expect(el.querySelector('.legend')).toBeNull();
   });
 
-  it('tree: draws a badge below a leaf, and above any other node, else below it, else above and to the side away from links', () => {
-    const el = render(TreeViewComponent, {
-      nodes: [
-        { id: 'r', label: 'r', parent: null, badge: 'root' },
-        { id: 'a', label: 'a', parent: 'r', badge: 'node' },
-        { id: 'b', label: 'b', parent: 'r' },
-        { id: 'a1', label: 'a1', parent: 'a', badge: 'leaf' },
-        { id: 'a2', label: 'a2', parent: 'a' },
-      ],
+  for (const { rule, tree, spots } of [
+    {
+      rule: 'above a node, else beside it away from its link, and below a leaf',
+      tree: treeOf(['r', null, 'root'], ['a', 'r', 'node'], ['b', 'r'], ['a1', 'a', 'leaf'], ['a2', 'a']),
+      spots: ['r above', 'a above left', 'a1 below'],
+    },
+    {
+      rule: 'below a leaf even when its link leaves room above',
+      tree: treeOf(['r', null], ['a', 'r', 'x'], ['b', 'r']),
+      spots: ['a below'],
+    },
+    {
+      rule: 'below a node when its link crosses the spot above and its children leave room below',
+      tree: treeOf(['r', null], ['l', 'r'], ['a', 'r', 'ab'], ['m', 'r'], ['b', 'a'], ['c', 'a'], ['b1', 'b'], ['b2', 'b']),
+      spots: ['a below'],
+    },
+    {
+      rule: 'beside a node rather than above it when its link only just misses the badge',
+      tree: treeOf(['r', null], ['a', 'r', 'ab'], ['b', 'r'], ['a1', 'a']),
+      spots: ['a above left'],
+    },
+    {
+      rule: 'beside a node when the spot above sticks out of the drawing',
+      tree: treeOf(['r1', null, 'root, node, curr'], ['r2', null], ['r3', null]),
+      spots: ['r1 above right'],
+    },
+    {
+      rule: 'at its first spot, on a link, when every spot inside the drawing crosses one',
+      tree: codeTree([1, 2, null, 3], '2', 'currentNode'),
+      spots: ['2 above'],
+    },
+    {
+      rule: 'at its first spot, past the edge of the drawing, when every spot inside it crosses a link',
+      tree: codeTree([1, 2, null, 3], '3', 'prev, curr, node'),
+      spots: ['3 below'],
+    },
+  ]) {
+    it(`tree: draws a badge ${rule}`, () => {
+      expect(badgeSpots(tree)).toEqual(spots);
     });
-    const spots = [...el.querySelectorAll('g.node')].flatMap((node) => {
-      const badge = node.querySelector('text.badge');
-      if (!badge) return [];
-      const [x, y] = ['cx', 'cy'].map((name) => Number(node.querySelector('circle.body')!.getAttribute(name)));
-      const [badgeX, badgeY] = ['x', 'y'].map((name) => Number(badge.getAttribute(name)));
-      const side = badgeX < x ? ' left' : badgeX > x ? ' right' : '';
-      return [`${node.querySelector('text.label')!.textContent} ${badgeY < y ? 'above' : 'below'}${side}`];
-    });
-    expect(spots).toEqual(['r above', 'a above left', 'a1 below']);
-  });
+  }
 
   it('tree: keeps badges off links, nodes and other badges, and inside the drawing, in every tree visualizer', () => {
     const rand = mulberry32(777);
@@ -311,6 +414,18 @@ describe('structure views render real traces', () => {
       ),
     );
     expect(clashes).toEqual([]);
+  });
+
+  it('tree: keeps badges off links, nodes and other badges, and inside the drawing, in traced code and a crowded forest', () => {
+    const traced = TRACED_TREE_CODE.flatMap(([entry, code]) =>
+      TRACED_TREES.flatMap((input) =>
+        toFrames(traceJs(code, 'javascript', entry, ['tree'], [input], 2000), [{ name: 'root', type: 'tree' }]).flatMap((frame, k) =>
+          frame.tree ? treeBadgeClashes(frame.tree).map((clash) => `${entry} ${JSON.stringify(input)} frame ${k}: ${clash}`) : [],
+        ),
+      ),
+    );
+    const forest = treeOf(...['r1', 'r2', 'r3', 'r4'].map((id): [string, null, string] => [id, null, 'slow, fast']));
+    expect([...traced, ...treeBadgeClashes(forest)]).toEqual([]);
   });
 
   it('tree: rings word ends in a trie and explains the ring in its legend', () => {

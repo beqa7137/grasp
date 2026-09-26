@@ -4,13 +4,6 @@ The loop's memory between runs. Each run reads this first, picks one item, ships
 `CLAUDE.md`, and updates this file in the same change: add a line to **Shipped**, remove or edit what it resolved, and add
 any follow-ups it found. Keep entries short and factual, with numbers where they exist.
 
-## In progress
-
-- Tree badges (`loop/tree-badges`): live in production since 12:43 UTC on 2026-09-26 (release `bc54b3d`; the deploy
-  workflow's live checks and read-only `@smoke` walk passed). Left: the `READONLY=1` production audits in both themes, then
-  fast-forward `main`. The run's container could not reach grasp-rho-taupe.vercel.app (egress proxy `connect_rejected`,
-  and the Vercel connector was denied), so it stopped before those steps.
-
 ## Shipped
 
 | #      | What                                                                                                                                                                                                                                                                                                                                                                              | Commits              |
@@ -51,8 +44,8 @@ Known issues and deferred work, most valuable first.
 - Arrow keys on the focused, scrollable Array region both step the player and scroll the region.
 - The checkpoint's "Your call" icon shifts the panel 5 px when it loads.
 - The interview title is truncated at 320 px.
-- At 320 px in the light theme, content scrolled under the toolbar shows faintly through it behind the title (the Predict
-  mode switch reads through on an answered Subsets checkpoint); the same on `main`.
+- At 320 px, in both themes, content scrolled under the toolbar shows faintly through it behind the title (the Predict mode
+  switch reads through on an answered Subsets checkpoint); the same on `main`.
 - Preloading: `PreloadAllModules` fetches every lazy chunk right after first paint and competes with the first tap. An
   idle-time or tabs-first preloading strategy would let a quick first tap win the network.
 - The pattern page's first tap is 44 to 133 ms slower than before iteration 10, because the full pattern content now loads
@@ -63,9 +56,14 @@ Known issues and deferred work, most valuable first.
 - Dependabot's `@sentry/angular` update fails CI.
 - The tree view's side spot (a badge above and beside its node) is covered by a unit test and the code-trace measure, but
   no audit state shows it; a traced skewed tree (such as `[1,2,null,3]`) in `tools/verify` would.
-- Local verification in the cloud container: its Node is 22.22.2, which the Angular CLI refuses (`.nvmrc` says 24), and
-  its Chromium is 141 while the pinned 153 cannot be downloaded. Runs used Node 24 from nodejs.org and pointed
-  `PLAYWRIGHT_BROWSERS_PATH` at a folder that links the preinstalled Chromium under the expected names.
+- Tree badges with long pointer names (11 or more characters, such as `currentNode`) can still sit on a link or just past
+  the drawing's edge when no spot is free, since a badge then stays at its first spot: 474 on a link and 85 outside of
+  3,970 in a long-name inorder trace (`main`: 2,996 and 85). Size the drawing's side room for the longest badge over the
+  whole trace, as array cells are, so a beside spot always fits. Two badges that both fall back can also overlap (only in
+  synthetic crowded forests; 0 in real traces).
+- A cloud run of this loop cannot finish a release: its container could not reach the production URL (egress proxy), its
+  Node is 22.22.2 (the Angular CLI needs 24, per `.nvmrc`) and its Chromium is 141 (pinned 153). Iteration 12 was
+  finished and verified from a local session.
 - CI: the four end-to-end shards are uneven (118, 136, 175 and 185 s after iteration 11; CI 191 s wall, was 159 to 169 s).
   Playwright 1.63 splits by test count, not duration. Record per-test durations (`--reporter=json`, 336 s over 222 tests
   locally) and feed each shard a balanced `--test-list`.
