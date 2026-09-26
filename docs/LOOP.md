@@ -47,11 +47,12 @@ Known issues and deferred work, most valuable first.
 - Arrow keys on the focused, scrollable Array region both step the player and scroll the region.
 - The checkpoint's "Your call" icon shifts the panel 5 px when it loads.
 - The interview title is truncated at 320 px.
+- At 320 px in the light theme, content scrolled under the toolbar shows faintly through it behind the title (the Predict
+  mode switch reads through on an answered Subsets checkpoint); the same on `main`.
 - Preloading: `PreloadAllModules` fetches every lazy chunk right after first paint and competes with the first tap. An
   idle-time or tabs-first preloading strategy would let a quick first tap win the network.
 - The pattern page's first tap is 44 to 133 ms slower than before iteration 10, because the full pattern content now loads
   on tap (about 3 kB brotli). Faster from page load overall.
-- Tree view: a badge above a child node can sit on its incoming link; the graph view already avoids this.
 - Trace: a generator resumed by a different call becomes a new call in the call stack, and a paused generator's node reads
   "returned" while it is off the stack.
 - Native: the splash screen stays dark in the light theme; status bar icons on a light launch need a check on a device.
