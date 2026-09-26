@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { GRAPH_NODE_RADIUS, type NodeState, type TreeView } from '@grasp/engine';
-import { placeBadges, type Spot } from './badges';
+import { besideReach, placeBadges, type Spot } from './badges';
 import { toward, type Point } from './geometry';
 import { LegendComponent } from './legend.component';
 import { NODE_STYLES } from './node-styles';
@@ -16,6 +16,8 @@ const BELOW: Spot = { dy: BADGE_OFFSET };
 const BESIDE: Spot[] = [
   { dy: -BADGE_OFFSET, side: 1 },
   { dy: -BADGE_OFFSET, side: -1 },
+  { dy: BADGE_OFFSET, side: 1 },
+  { dy: BADGE_OFFSET, side: -1 },
 ];
 const BADGE_SPOTS = [ABOVE, BELOW, ...BESIDE];
 // A leaf's badge goes below it, where no link runs, so a row of leaf results reads as one line.
@@ -42,11 +44,22 @@ interface Link {
   blank: boolean;
 }
 
+/** The longest badge in these trees in characters, which a drawing showing any of them makes room for. */
+export function longestBadgeIn(trees: readonly (TreeView | undefined)[]): number {
+  let longest = 0;
+  for (const tree of trees) for (const n of tree?.nodes ?? []) longest = Math.max(longest, n.badge?.length ?? 0);
+  return longest;
+}
+
 /**
  * Leaves take consecutive slots left to right and every parent sits centred over its children,
- * so siblings keep their input order (a heap's left child stays on the left).
+ * so siblings keep their input order (a heap's left child stays on the left). Each side leaves room for a badge of
+ * `longestBadge` characters beside the node at that edge.
  */
-export function layoutForest(tree: TreeView): { nodes: PlacedNode[]; links: Link[]; width: number; height: number } {
+export function layoutForest(
+  tree: TreeView,
+  { longestBadge = 0 } = {},
+): { nodes: PlacedNode[]; links: Link[]; width: number; height: number } {
   const ids = new Set(tree.nodes.map((n) => n.id));
   const children = new Map<string, string[]>();
   const roots: string[] = [];
@@ -68,7 +81,8 @@ export function layoutForest(tree: TreeView): { nodes: PlacedNode[]; links: Link
   for (const root of roots) place(root, 0);
 
   const levels = Math.max(0, ...depth.values()) + 1;
-  const position = (id: string) => ({ x: PAD + slot.get(id)! * SLOT + SLOT / 2, y: PAD + depth.get(id)! * LEVEL + RADIUS });
+  const side = Math.max(PAD + SLOT / 2, besideReach(longestBadge));
+  const position = (id: string) => ({ x: side + slot.get(id)! * SLOT, y: PAD + depth.get(id)! * LEVEL + RADIUS });
   const placed = tree.nodes
     .filter((n) => slot.has(n.id))
     .map((n) => ({
@@ -89,7 +103,7 @@ export function layoutForest(tree: TreeView): { nodes: PlacedNode[]; links: Link
     const end = toward(to, from, n.blank ? BLANK_GAP : RADIUS);
     return [{ id: `${n.parent}>${n.id}`, x1: start.x, y1: start.y, x2: end.x, y2: end.y, blank: !!n.blank }];
   });
-  const width = Math.max(1, next) * SLOT + 2 * PAD;
+  const width = (Math.max(1, next) - 1) * SLOT + 2 * side;
   const height = (levels - 1) * LEVEL + 2 * RADIUS + 2 * PAD;
   const isLeaf = (id: string) => !children.has(id) && !roots.includes(id);
   const lines = links.map(({ x1, y1, x2, y2 }) => [
@@ -97,10 +111,8 @@ export function layoutForest(tree: TreeView): { nodes: PlacedNode[]; links: Link
     { x: x2, y: y2 },
   ]);
   const centres = placeBadges(placed, lines, RADIUS, (n) => (isLeaf(n.id) ? LEAF_BADGE_SPOTS : BADGE_SPOTS), {
-    left: 0,
-    right: width,
-    top: 0,
-    bottom: height,
+    bounds: { left: 0, right: width, top: 0, bottom: height },
+    leastBad: true,
   });
   const nodes = placed.map((n, i) => ({ ...n, badgeAt: centres[i] }));
   return { nodes, links, width, height };
@@ -170,10 +182,12 @@ export function layoutForest(tree: TreeView): { nodes: PlacedNode[]; links: Link
 export class TreeViewComponent {
   readonly view = input.required<TreeView>();
   readonly legend = input(true);
+  /** The longest badge in any frame the page will show here, so that the drawing keeps one width from frame to frame. */
+  readonly longest = input(0);
 
   protected readonly radius = RADIUS;
 
-  readonly layout = computed(() => layoutForest(this.view()));
+  readonly layout = computed(() => layoutForest(this.view(), { longestBadge: Math.max(this.longest(), longestBadgeIn([this.view()])) }));
 
   readonly ariaLabel = computed(() => {
     const { nodes: all, legend } = this.view();

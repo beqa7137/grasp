@@ -55,6 +55,19 @@ def diameter_of_binary_tree(root: Optional[TreeNode]) -> int:
     height(root)
     return best`;
 
+const JS_DIAMETER_LONG_NAME = `function diameterOfBinaryTree(root) {
+  let best = 0;
+  function depth(currentNode) {
+    if (!currentNode) return 0;
+    const leftDepth = depth(currentNode.left);
+    const rightDepth = depth(currentNode.right);
+    best = Math.max(best, leftDepth + rightDepth);
+    return 1 + Math.max(leftDepth, rightDepth);
+  }
+  depth(root);
+  return best;
+}`;
+
 const JS_MERGE = `function merge(intervals) {
   intervals.sort((a, b) => a[0] - b[0]);
   const out = [];
@@ -205,6 +218,20 @@ test('Trace shows the call stack of a recursive DFS, and the calls waiting on th
 
   await seek(page, 16, 'Back in height(TreeNode(2)) · left = 1');
   await expect(tree.getByRole('img', { name: 'Tree with 5 nodes, current node 2, 1 on the call stack, 1 returned' })).toBeVisible();
+});
+
+test('Trace keeps the tree one width as a long pointer name comes and goes, with its badge inside the tree', async ({ page }) => {
+  await page.goto('/code/tree-diameter');
+  await trace(page, JS_DIAMETER_LONG_NAME, 'Diameter of Binary Tree');
+  const tree = page.locator('app-trace-player g-tree-view svg');
+  const unbadged = await tree.getAttribute('viewBox');
+  await seek(page, 4, 'Called depth(TreeNode(2))');
+  const badge = tree.locator('text.badge');
+  await expect(badge).toHaveText('currentNode');
+  expect(await tree.getAttribute('viewBox')).toBe(unbadged);
+  const [drawing, text] = [(await tree.boundingBox())!, (await badge.boundingBox())!];
+  expect(text.x).toBeGreaterThanOrEqual(drawing.x);
+  expect(text.x + text.width).toBeLessThanOrEqual(drawing.x + drawing.width);
 });
 
 test('on a narrow phone, a call too long for the call stack is cut short on one line, and nothing scrolls sideways', async ({ page }) => {
