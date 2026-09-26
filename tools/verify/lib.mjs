@@ -80,6 +80,16 @@ export async function toPredict(page) {
   return false;
 }
 
+/** Turns predict mode off and steps to the last frame, where a tree visualizer shows every badge. */
+export async function toEnd(page) {
+  await page.getByText('Predict mode').click();
+  const [shown, total] = (await page.locator('app-player .scrub .count').textContent()).match(/\d+/g).map(Number);
+  const step = page.getByRole('button', { name: 'Step forward' });
+  for (let i = shown; i < total; i++) await step.click();
+  await page.locator('app-player .scene').scrollIntoViewIfNeeded();
+  await settle(page, 500);
+}
+
 const answerFirst = async (p, selector) => {
   await p.locator(selector).first().click();
   await settle(p, 500);
@@ -100,6 +110,7 @@ export function states() {
     { id: 'learn', path: '/learn' },
     { id: 'visualize-list', path: '/visualize' },
     ...players,
+    { id: 'player-subsets-backtracking-end', path: '/visualize/subsets-backtracking', setup: toEnd },
     { id: 'review-question', path: '/drill' },
     { id: 'review-answered', path: '/drill', setup: (p) => answerFirst(p, 'g-question-card .choice') },
     { id: 'practice-question', path: '/drill?pattern=binary-search' },

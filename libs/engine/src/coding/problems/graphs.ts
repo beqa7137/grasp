@@ -1,3 +1,4 @@
+import { rangeOf } from '../../algorithms/input.js';
 import { randInt, shuffle } from '../../algorithms/random.js';
 import type { TreeNode } from '../tree.js';
 import type { CodingProblemDefinition } from '../types.js';
@@ -38,6 +39,61 @@ function randomWeighted(rand: () => number, n: number, count: number): number[][
 
 function islandGrid(rand: () => number, rows: number, cols: number, density: number): string[][] {
   return Array.from({ length: rows }, () => Array.from({ length: cols }, () => (rand() < density ? '1' : '0')));
+}
+
+/**
+ * `combRows` rows that alternate rotten and fresh, the fresh ones joined by a fresh last column, above one corridor of
+ * fresh oranges that snakes through every other row. Every rotten orange touches the fresh rows, so a search from any
+ * of them reaches every fresh orange, and the corridor's far end rots last.
+ */
+function combOverSnake(rows: number, cols: number, combRows: number): number[][] {
+  return rangeOf(0, rows - 1).map((r) =>
+    rangeOf(0, cols - 1).map((c) => {
+      if (r < combRows) return r % 2 === 0 && c < cols - 1 ? 2 : 1;
+      const snakeRow = r - combRows;
+      if (snakeRow % 2 === 0) return 1;
+      return c === (snakeRow % 4 === 1 ? cols - 1 : 0) ? 1 : 0;
+    }),
+  );
+}
+
+/** Two different nodes from `nodes` that no edge in `edges` joins yet. */
+function unjoinedPair(rand: () => number, nodes: readonly number[], edges: readonly number[][]): number[] {
+  for (;;) {
+    const a = nodes[randInt(rand, 0, nodes.length - 1)];
+    const b = nodes[randInt(rand, 0, nodes.length - 1)];
+    if (a !== b && !edges.some(([x, y]) => (x === a && y === b) || (x === b && y === a))) return [a, b];
+  }
+}
+
+const eitherWay = (rand: () => number, a: number, b: number) => (rand() < 0.5 ? [a, b] : [b, a]);
+
+/** A random tree on the nodes 1 to n plus one extra edge, shuffled, each edge written in a random direction. */
+function treePlusEdge(rand: () => number, n: number): number[][] {
+  const labels = shuffle(rand, rangeOf(1, n));
+  const edges = labels.slice(1).map((v, i) => [labels[randInt(rand, 0, i)], v]);
+  edges.push(unjoinedPair(rand, labels, edges));
+  return shuffle(rand, edges).map(([a, b]) => eitherWay(rand, a, b));
+}
+
+/**
+ * n / 2 separate pairs, then edges that join one pair at a time to a growing tree, each written in a random direction;
+ * the extra edge comes after 95% of the joins. Searching the graph built so far from the same end of every edge, first or
+ * second, then visits about (n / 2)² / 2 nodes, even when it searches only once both nodes already have an edge.
+ */
+function joinedPairs(rand: () => number, n: number): number[][] {
+  const labels = shuffle(rand, rangeOf(1, n));
+  const pairs: number[][] = [];
+  for (let i = 0; i < n; i += 2) pairs.push(eitherWay(rand, labels[i], labels[i + 1]));
+  const tree = labels.slice(0, 2);
+  const joins: number[][] = [];
+  const extraAt = Math.floor(0.95 * (n / 2));
+  for (let i = 1; i < n / 2; i++) {
+    if (i === extraAt) joins.push(unjoinedPair(rand, tree, [...pairs, ...joins]));
+    joins.push(eitherWay(rand, tree[randInt(rand, 0, tree.length - 1)], labels[2 * i + randInt(rand, 0, 1)]));
+    tree.push(labels[2 * i], labels[2 * i + 1]);
+  }
+  return [...pairs, ...joins];
 }
 
 export const numberOfIslands: CodingProblemDefinition = {
@@ -96,6 +152,89 @@ export const numberOfIslands: CodingProblemDefinition = {
     return islands;
   },
   approach: 'Scan every cell; each unvisited land cell starts a new island, and a BFS or DFS marks the rest of it.',
+  complexity: { time: 'O(rows × cols)', space: 'O(rows × cols)' },
+};
+
+export const rottingOranges: CodingProblemDefinition = {
+  statement: [
+    'In `grid`, 0 is an empty cell, 1 a fresh orange and 2 a rotten one. Every minute, each fresh orange next to a rotten one, horizontally or vertically, turns rotten.',
+    'Return how many minutes pass until no fresh orange is left, or -1 if some fresh orange never rots.',
+  ],
+  constraints: ['1 ≤ rows, cols ≤ 500', 'grid[r][c] is 0, 1 or 2'],
+  entry: 'orangesRotting',
+  params: [{ name: 'grid', type: 'int[][]' }],
+  returns: 'int',
+  compare: 'exact',
+  examples: [
+    {
+      args: [
+        [
+          [2, 1, 1],
+          [1, 1, 0],
+          [0, 1, 1],
+        ],
+      ],
+      explanation: 'The rot spreads from the top-left corner and reaches the bottom-right orange in minute 4',
+    },
+    {
+      args: [
+        [
+          [2, 1, 1],
+          [0, 1, 1],
+          [1, 0, 1],
+        ],
+      ],
+      explanation: 'The bottom-left orange touches only empty cells, so it never rots',
+    },
+    { args: [[[0, 2]]], explanation: 'No orange is fresh, so no time passes' },
+  ],
+  edgeCases: [
+    [[[0]]],
+    [[[1]]],
+    [[[1], [2], [1]]],
+    [[[2, 0, 1]]],
+    [
+      [
+        [2, 2],
+        [1, 1],
+      ],
+    ],
+  ],
+  randomCase: (rand) => {
+    const cols = randInt(rand, 1, 6);
+    return [
+      Array.from({ length: randInt(rand, 1, 6) }, () => Array.from({ length: cols }, () => [0, 1, 1, 1, 1, 2, 2][randInt(rand, 0, 6)])),
+    ];
+  },
+  // About 10^4 rotten oranges each reach all 1.25·10^5 fresh ones, so a BFS from each rotten orange is too slow. The rot
+  // takes over 10^5 minutes to reach the corridor's far end, so scanning the whole grid once a minute is too.
+  performanceCase: () => [combOverSnake(500, 500, 40)],
+  solve(grid: number[][]) {
+    const cells = grid.map((row) => [...row]);
+    let fresh = cells.flat().filter((cell) => cell === 1).length;
+    let rotten = cells.flatMap((row, r) => row.flatMap((cell, c) => (cell === 2 ? [[r, c]] : [])));
+    let minutes = 0;
+    while (fresh && rotten.length) {
+      const next: number[][] = [];
+      for (const [r, c] of rotten)
+        for (const [y, x] of [
+          [r + 1, c],
+          [r - 1, c],
+          [r, c + 1],
+          [r, c - 1],
+        ])
+          if (cells[y]?.[x] === 1) {
+            cells[y][x] = 2;
+            fresh--;
+            next.push([y, x]);
+          }
+      rotten = next;
+      minutes++;
+    }
+    return fresh ? -1 : minutes;
+  },
+  approach:
+    'Multi-source BFS: start the queue with every rotten orange, and let each round rot the fresh neighbors of the oranges the last round rotted. The answer is the number of rounds, or -1 if a fresh orange is left over.',
   complexity: { time: 'O(rows × cols)', space: 'O(rows × cols)' },
 };
 
@@ -170,6 +309,88 @@ export const countComponents: CodingProblemDefinition = {
   },
   approach: 'Union-find: start with `n` components and subtract one each time an edge joins two different roots (or count DFS starts).',
   complexity: { time: 'O(n + E·α(n))', space: 'O(n)' },
+};
+
+export const redundantConnection: CodingProblemDefinition = {
+  statement: [
+    '`edges` holds the n undirected edges of a graph on the nodes 1 to n, so n is `edges.length`. The graph is a tree plus one extra edge, which gives it exactly one cycle.',
+    'Return an edge whose removal leaves a tree, written exactly as it appears in `edges`. Every edge on the cycle works, so return the one of them that comes last in `edges`.',
+  ],
+  constraints: ['3 ≤ n ≤ 2·10^5', 'edges.length = n', 'edges[i] = [a, b] with a ≠ b', '1 ≤ a, b ≤ n', 'no edge is repeated'],
+  entry: 'findRedundantConnection',
+  params: [{ name: 'edges', type: 'int[][]' }],
+  returns: 'int[]',
+  compare: 'exact',
+  examples: [
+    {
+      args: [
+        [
+          [1, 2],
+          [1, 3],
+          [2, 3],
+        ],
+      ],
+      explanation: 'Removing any edge of the triangle leaves a tree, and [2,3] comes last',
+    },
+    {
+      args: [
+        [
+          [1, 2],
+          [2, 3],
+          [3, 4],
+          [1, 4],
+          [1, 5],
+        ],
+      ],
+      explanation: 'The cycle is 1, 2, 3, 4, and [1,4] is the last of its edges in the list',
+    },
+  ],
+  edgeCases: [
+    [
+      [
+        [1, 2],
+        [2, 3],
+        [3, 1],
+      ],
+    ],
+    [
+      [
+        [1, 4],
+        [3, 4],
+        [1, 3],
+        [1, 2],
+        [4, 5],
+      ],
+    ],
+    [
+      [
+        [4, 3],
+        [5, 4],
+        [2, 1],
+        [1, 5],
+        [3, 1],
+      ],
+    ],
+  ],
+  randomCase: (rand) => [treePlusEdge(rand, randInt(rand, 3, 10))],
+  performanceCase: (rand) => [joinedPairs(rand, 200_000)],
+  solve(edges: number[][]) {
+    const parent = rangeOf(0, edges.length);
+    const find = (x: number): number => {
+      while (parent[x] !== x) x = parent[x] = parent[parent[x]];
+      return x;
+    };
+    for (const edge of edges) {
+      const ra = find(edge[0]);
+      const rb = find(edge[1]);
+      if (ra === rb) return edge;
+      parent[ra] = rb;
+    }
+    return [];
+  },
+  approach:
+    'Union-find: add the edges in order. The first edge whose two nodes already share a root closes the cycle, and the rest of the cycle came before it, so it is the last cycle edge in the list. With path compression and union by size, each find takes nearly constant time.',
+  complexity: { time: 'O(n·α(n))', space: 'O(n)' },
 };
 
 export const courseSchedule: CodingProblemDefinition = {

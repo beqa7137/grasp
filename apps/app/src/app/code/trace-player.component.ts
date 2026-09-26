@@ -7,7 +7,7 @@ import { onPageKey } from '../core/on-page-key';
 import { ArrayViewComponent, longestValue } from '../viz/array-view.component';
 import { ListViewComponent } from '../viz/list-view.component';
 import { TableViewComponent } from '../viz/table-view.component';
-import { TreeViewComponent } from '../viz/tree-view.component';
+import { TreeViewComponent, sideRoomFor } from '../viz/tree-view.component';
 import type { TraceFrame } from './trace-frames';
 
 const SPEEDS = [1, 2, 4];
@@ -57,7 +57,7 @@ const SPEEDS = [1, 2, 4];
             <g-table-view [view]="f.table" />
           }
           @if (f.tree) {
-            <g-tree-view [view]="f.tree" />
+            <g-tree-view [view]="f.tree" [room]="treeRoom()" />
           }
           @if (f.calls || f.stack || f.queue || f.set || f.output) {
             <div class="aux">
@@ -200,6 +200,7 @@ export class TracePlayerComponent {
   readonly last = computed(() => Math.max(0, this.frames().length - 1));
   readonly frame = computed<TraceFrame | undefined>(() => this.frames()[this.index()]);
   readonly longestArrayValue = computed(() => longestValue(this.frames().flatMap((f) => f.array?.values ?? [])));
+  readonly treeRoom = computed(() => sideRoomFor(this.frames().map((f) => f.tree)));
   readonly varNames = computed(() => Object.keys(this.frame()?.vars ?? {}));
   readonly changed = computed(() => {
     const prev = this.frames()[this.index() - 1];
