@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { GRAPH_BOX, GRAPH_NODE_RADIUS, type EdgeState, type GraphView, type NodeState } from '@grasp/engine';
 import { uniqueId } from '../core/unique-id';
+import { BADGE_HALF_HEIGHT, placeBadges, type Spot } from './badges';
 import { toward, type Point } from './geometry';
 import { LegendComponent } from './legend.component';
 import { NODE_STYLES } from './node-styles';
@@ -13,19 +14,9 @@ const ARROW = 4;
 const BEND = 22;
 const CURVE_PIECES = 8;
 const BADGE_OFFSET = RADIUS + 10;
-// A badge is one line of 11px monospace text, about 0.6em per character.
-const BADGE_CHAR_WIDTH = 6.6;
-const BADGE_HALF_HEIGHT = 5.5;
-const BADGE_ROOM = 2;
 const BADGE_REACH = BADGE_OFFSET + BADGE_HALF_HEIGHT;
+const BADGE_SPOTS: Spot[] = [{ dy: BADGE_OFFSET }, { dy: -BADGE_OFFSET }];
 const EDGE_STATES: EdgeState[] = ['idle', 'active', 'chosen', 'skipped'];
-
-interface Box {
-  left: number;
-  right: number;
-  top: number;
-  bottom: number;
-}
 
 interface DrawnEdge {
   id: string;
@@ -54,39 +45,6 @@ const curveAt = (start: Point, control: Point, end: Point, t: number): Point => 
   x: (1 - t) ** 2 * start.x + 2 * (1 - t) * t * control.x + t ** 2 * end.x,
   y: (1 - t) ** 2 * start.y + 2 * (1 - t) * t * control.y + t ** 2 * end.y,
 });
-
-/** Liang–Barsky clipping: the segment crosses the box when the stretch of it inside all four sides is not empty. */
-function segmentCrosses(a: Point, b: Point, box: Box): boolean {
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  const sides: [number, number][] = [
-    [-dx, a.x - box.left],
-    [dx, box.right - a.x],
-    [-dy, a.y - box.top],
-    [dy, box.bottom - a.y],
-  ];
-  let enter = 0;
-  let exit = 1;
-  for (const [p, q] of sides) {
-    if (p === 0 && q < 0) return false;
-    if (p < 0) enter = Math.max(enter, q / p);
-    if (p > 0) exit = Math.min(exit, q / p);
-  }
-  return enter <= exit;
-}
-
-const badgeBox = (badge: string, x: number, y: number, room: number): Box => {
-  const halfWidth = (badge.length * BADGE_CHAR_WIDTH) / 2 + room;
-  const halfHeight = BADGE_HALF_HEIGHT + room;
-  return { left: x - halfWidth, right: x + halfWidth, top: y - halfHeight, bottom: y + halfHeight };
-};
-
-const nodeBox = ({ x, y }: Point): Box => ({ left: x - RADIUS, right: x + RADIUS, top: y - RADIUS, bottom: y + RADIUS });
-
-const overlaps = (a: Box, b: Box) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
-
-const crossesAny = (edges: DrawnEdge[], box: Box) =>
-  edges.some(({ points }) => points.slice(1).some((point, k) => segmentCrosses(points[k], point, box)));
 
 @Component({
   selector: 'g-graph-view',
@@ -229,26 +187,12 @@ export class GraphViewComponent {
     })),
   );
 
-  /**
-   * Each badge starts below its node and moves above only when the spot below is blocked and the spot above is clear: no
-   * edge runs through it and it covers no other node or badge. A spot with room to spare around the badge wins over one an
-   * edge only just misses. Badges are placed one at a time against where the others sit, so a move never lands on one.
-   */
+  /** Each badge sits below its node, or above it when the spot below is blocked and the spot above is clear. */
   readonly nodes = computed<DrawnNode[]>(() => {
-    const edges = this.edges();
-    const drawn = this.placed().map((n) => ({ ...n, badgeY: n.y + BADGE_OFFSET }));
-    for (const n of drawn) {
-      const { badge } = n;
-      if (!badge) continue;
-      const taken = drawn.flatMap((o) => (o === n ? [] : [nodeBox(o), ...(o.badge ? [badgeBox(o.badge, o.x, o.badgeY, 0)] : [])]));
-      const clear = (y: number, room: number) => {
-        const box = badgeBox(badge, n.x, y, room);
-        return !crossesAny(edges, box) && !taken.some((other) => overlaps(box, other));
-      };
-      const spots = [n.y + BADGE_OFFSET, n.y - BADGE_OFFSET];
-      n.badgeY = spots.find((y) => clear(y, BADGE_ROOM)) ?? spots.find((y) => clear(y, 0)) ?? n.badgeY;
-    }
-    return drawn;
+    const placed = this.placed();
+    const edges = this.edges().map((e) => e.points);
+    const centres = placeBadges(placed, edges, RADIUS, () => BADGE_SPOTS);
+    return placed.map((n, i) => ({ ...n, badgeY: centres[i].y }));
   });
 
   readonly edges = computed<DrawnEdge[]>(() => {

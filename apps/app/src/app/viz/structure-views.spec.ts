@@ -1,6 +1,6 @@
 import { ErrorHandler, type Type } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { GRAPH_NODE_RADIUS, getAlgorithm, mulberry32, type TreeView } from '@grasp/engine';
+import { ALGORITHMS, GRAPH_NODE_RADIUS, getAlgorithm, mulberry32, type TreeView } from '@grasp/engine';
 import { ArrayViewComponent, longestValue } from './array-view.component';
 import { GraphViewComponent } from './graph-view.component';
 import { LegendComponent } from './legend.component';
@@ -112,6 +112,29 @@ function crowdedBadges(id: string, count: number): string[] {
       });
     }),
   );
+}
+
+/** Tree badges on a link, over a node or another badge, or outside the drawing, from the layout the tree view draws. */
+function treeBadgeClashes(tree: TreeView, where: string): string[] {
+  const { nodes, links, width, height } = layoutForest(tree);
+  const lines = links.map(({ x1, y1, x2, y2 }) =>
+    Array.from({ length: 101 }, (_, k) => ({ x: x1 + ((x2 - x1) * k) / 100, y: y1 + ((y2 - y1) * k) / 100 })),
+  );
+  return nodes.flatMap((a, i) => {
+    const { badge, badgeX: x, badgeY: y } = a;
+    if (!badge) return [];
+    const w = badgeHalfWidth(badge);
+    const onLink = lines.some((points) => points.some((p) => Math.abs(p.x - x) <= w && Math.abs(p.y - y) <= BADGE_HALF_HEIGHT));
+    const overNode = nodes.some(
+      (b) => b !== a && Math.abs(b.x - x) < w + GRAPH_NODE_RADIUS && Math.abs(b.y - y) < BADGE_HALF_HEIGHT + GRAPH_NODE_RADIUS,
+    );
+    const overBadge = nodes
+      .slice(i + 1)
+      .some((b) => b.badge && Math.abs(b.badgeX - x) < w + badgeHalfWidth(b.badge) && Math.abs(b.badgeY - y) < 2 * BADGE_HALF_HEIGHT);
+    const outside = x - w < 0 || x + w > width || y - BADGE_HALF_HEIGHT < 0 || y + BADGE_HALF_HEIGHT > height;
+    const clashes = { 'on a link': onLink, 'over a node': overNode, 'over a badge': overBadge, outside };
+    return Object.entries(clashes).flatMap(([clash, found]) => (found ? [`${where}: badge ${badge} of node ${a.label} ${clash}`] : []));
+  });
 }
 
 /** jsdom lays nothing out, so it has no ResizeObserver: this one reports only when a test says the view resized. */
@@ -250,6 +273,39 @@ describe('structure views render real traces', () => {
     fixture.componentRef.setInput('legend', {});
     fixture.detectChanges();
     expect(el.querySelector('.legend')).toBeNull();
+  });
+
+  it('tree: draws a badge below a leaf, and above any other node, else below it, else above and to the side away from links', () => {
+    const el = render(TreeViewComponent, {
+      nodes: [
+        { id: 'r', label: 'r', parent: null, badge: 'root' },
+        { id: 'a', label: 'a', parent: 'r', badge: 'node' },
+        { id: 'b', label: 'b', parent: 'r' },
+        { id: 'a1', label: 'a1', parent: 'a', badge: 'leaf' },
+        { id: 'a2', label: 'a2', parent: 'a' },
+      ],
+    });
+    const spots = [...el.querySelectorAll('g.node')].flatMap((node) => {
+      const badge = node.querySelector('text.badge');
+      if (!badge) return [];
+      const [x, y] = ['cx', 'cy'].map((name) => Number(node.querySelector('circle.body')!.getAttribute(name)));
+      const [badgeX, badgeY] = ['x', 'y'].map((name) => Number(badge.getAttribute(name)));
+      const side = badgeX < x ? ' left' : badgeX > x ? ' right' : '';
+      return [`${node.querySelector('text.label')!.textContent} ${badgeY < y ? 'above' : 'below'}${side}`];
+    });
+    expect(spots).toEqual(['r above', 'a above left', 'a1 below']);
+  });
+
+  it('tree: keeps badges off links, nodes and other badges, and inside the drawing, in every tree visualizer', () => {
+    const rand = mulberry32(777);
+    const clashes = ALGORITHMS.flatMap((algo) =>
+      [algo.defaultInput, ...Array.from({ length: 20 }, () => algo.validate(algo.randomInput(rand)))].flatMap((input) =>
+        algo
+          .trace(input)
+          .flatMap((frame, k) => (frame.tree ? treeBadgeClashes(frame.tree, `${algo.id} ${JSON.stringify(input)} frame ${k}`) : [])),
+      ),
+    );
+    expect(clashes).toEqual([]);
   });
 
   it('tree: rings word ends in a trie and explains the ring in its legend', () => {

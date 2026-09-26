@@ -87,7 +87,7 @@ const answerFirst = async (p, selector) => {
 
 /** Every page state the audits and screenshots cover: a path plus the steps that bring the page into that state. */
 export function states() {
-  const players = ['binary-search', 'lcs', 'dijkstra', 'two-sum-hash'].flatMap((id) => [
+  const players = ['binary-search', 'lcs', 'dijkstra', 'two-sum-hash', 'subsets-backtracking'].flatMap((id) => [
     { id: `player-${id}`, path: `/visualize/${id}` },
     { id: `player-${id}-predict`, path: `/visualize/${id}`, setup: async (p) => ((await toPredict(p)) ? settle(p, 500) : 'no predict') },
     {

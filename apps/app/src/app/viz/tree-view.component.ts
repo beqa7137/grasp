@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import type { NodeState, TreeView } from '@grasp/engine';
+import { placeBadges, type Spot } from './badges';
 import { toward } from './geometry';
 import { LegendComponent } from './legend.component';
 import { NODE_STYLES } from './node-styles';
@@ -9,6 +10,9 @@ const LEVEL = 60;
 const PAD = 26;
 const RADIUS = 16;
 const BLANK_GAP = 6;
+const BADGE_OFFSET = RADIUS + 9;
+const BADGE_SPOTS: Spot[] = [{ dy: -BADGE_OFFSET }, { dy: BADGE_OFFSET }, { dy: -BADGE_OFFSET, side: 1 }, { dy: -BADGE_OFFSET, side: -1 }];
+const LEAF_BADGE_SPOTS: Spot[] = [{ dy: BADGE_OFFSET }, ...BADGE_SPOTS];
 
 interface PlacedNode {
   id: string;
@@ -17,6 +21,8 @@ interface PlacedNode {
   y: number;
   state: NodeState;
   badge?: string;
+  badgeX: number;
+  badgeY: number;
   marked: boolean;
   blank: boolean;
 }
@@ -32,7 +38,9 @@ interface Link {
 
 /**
  * Leaves take consecutive slots left to right and every parent sits centred over its children,
- * so siblings keep their input order (a heap's left child stays on the left).
+ * so siblings keep their input order (a heap's left child stays on the left). A leaf's badge sits below it, where no link
+ * runs; any other badge sits above its node, else below it, else above and to one side, whichever is first clear of links,
+ * nodes and other badges.
  */
 export function layoutForest(tree: TreeView): { nodes: PlacedNode[]; links: Link[]; width: number; height: number } {
   const ids = new Set(tree.nodes.map((n) => n.id));
@@ -57,7 +65,7 @@ export function layoutForest(tree: TreeView): { nodes: PlacedNode[]; links: Link
 
   const levels = Math.max(0, ...depth.values()) + 1;
   const position = (id: string) => ({ x: PAD + slot.get(id)! * SLOT + SLOT / 2, y: PAD + depth.get(id)! * LEVEL + RADIUS });
-  const nodes = tree.nodes
+  const placed = tree.nodes
     .filter((n) => slot.has(n.id))
     .map((n) => ({
       id: n.id,
@@ -77,7 +85,20 @@ export function layoutForest(tree: TreeView): { nodes: PlacedNode[]; links: Link
     const end = toward(to, from, n.blank ? BLANK_GAP : RADIUS);
     return [{ id: `${n.parent}>${n.id}`, x1: start.x, y1: start.y, x2: end.x, y2: end.y, blank: !!n.blank }];
   });
-  return { nodes, links, width: Math.max(1, next) * SLOT + 2 * PAD, height: (levels - 1) * LEVEL + 2 * RADIUS + 2 * PAD };
+  const width = Math.max(1, next) * SLOT + 2 * PAD;
+  const height = (levels - 1) * LEVEL + 2 * RADIUS + 2 * PAD;
+  const lines = links.map(({ x1, y1, x2, y2 }) => [
+    { x: x1, y: y1 },
+    { x: x2, y: y2 },
+  ]);
+  const centres = placeBadges(placed, lines, RADIUS, (n) => (children.has(n.id) ? BADGE_SPOTS : LEAF_BADGE_SPOTS), {
+    left: 0,
+    right: width,
+    top: 0,
+    bottom: height,
+  });
+  const nodes = placed.map((n, i) => ({ ...n, badgeX: centres[i].x, badgeY: centres[i].y }));
+  return { nodes, links, width, height };
 }
 
 @Component({
@@ -101,7 +122,7 @@ export function layoutForest(tree: TreeView): { nodes: PlacedNode[]; links: Link
             <circle class="body" [attr.cx]="n.x" [attr.cy]="n.y" [attr.r]="radius" />
             <text class="label" [attr.x]="n.x" [attr.y]="n.y">{{ n.label }}</text>
             @if (n.badge) {
-              <text class="badge" [attr.x]="n.x" [attr.y]="n.y - radius - 9">{{ n.badge }}</text>
+              <text class="badge" [attr.x]="n.badgeX" [attr.y]="n.badgeY">{{ n.badge }}</text>
             }
           </g>
         }
