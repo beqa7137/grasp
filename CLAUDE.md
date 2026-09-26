@@ -38,14 +38,17 @@ integration branch is `feature/improvements`: work lands there, and only the own
 1. Work on a branch from `feature/improvements`. Commit with the owner's identity: Vercel blocks deployments whose head
    commit has any other author. Before the first commit run
    `git config user.name "Beka Goderdzishvili" && git config user.email beqa.goder@gmail.com`.
-2. Run CI on the branch where `gh` is available: `gh workflow run ci.yml --ref <branch>` and
-   `gh workflow run native.yml --ref <branch>`, then watch them (`gh run watch <id> --exit-status`). CI takes about two
-   to three minutes. Pushing `feature/improvements` runs both as well.
+2. Verify the change locally (see below). CI runs on the integration branch: pushing `feature/improvements` runs it, and
+   it reuses a passing run of the same commit (for example `gh workflow run ci.yml --ref <branch>` before the merge)
+   instead of running again. Dispatch `gh workflow run native.yml --ref <branch>` only when the change touches a path in
+   `native.yml`'s `paths` list: the iOS build runs on macOS, whose minutes cost about ten times as much.
 3. Fast-forward `feature/improvements`: `git push origin <sha>:feature/improvements`, only when
-   `git merge-base --is-ancestor origin/feature/improvements <sha>` holds. Never force-push it or `main`.
+   `git merge-base --is-ancestor origin/feature/improvements <sha>` holds. Never force-push it or `main`. Write the
+   change's `docs/LOOP.md` entry before this push: a later commit needs CI again.
 4. Do not deploy, test against production or push `main` unless the owner asks. When they do, deploy with
    `gh workflow run deploy.yml --ref <branch>`, verify production (see below), and fast-forward `main` the same way; if
-   production is wrong, redeploy `main` and fix on the branch.
+   production is wrong, redeploy `main` and fix on the branch. On `main`, CI and the native builds reuse the branch's
+   passing runs of the same commit, and the deploy skips when production already reports it after a passing hand deploy.
 
 ## Verifying
 
@@ -65,5 +68,6 @@ Every change is verified end to end, not only by tests:
 
 `docs/LOOP.md` is the loop's memory: what has shipped, the open follow-ups, and the next candidates. Each run reads it
 first, picks one improvement, takes it through build, verify, commit, a simplify review (reuse, simplification and
-comments, efficiency, altitude), verify again, CI, and the fast-forward of `feature/improvements`, then records the
-outcome and any new follow-ups in `docs/LOOP.md` in the same change set.
+comments, efficiency, altitude), verify again, its `docs/LOOP.md` entry (the outcome and any new follow-ups), and the
+fast-forward of `feature/improvements`. Codex (gpt-6-sol, reasoning effort ultra) builds and fixes; Claude agents do the
+independent reviews: content, adversarial test data and edge cases, and the browser checks Codex's sandbox cannot run.

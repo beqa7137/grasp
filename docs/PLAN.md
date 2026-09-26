@@ -120,7 +120,7 @@ image. See [DEPLOYMENT.md](DEPLOYMENT.md) and [decisions/0001-hosting.md](decisi
 ## 4. Roadmap
 
 **M0: Vertical slice (this repo).** Engine with 20 visualizers, sandbox with 5 scenarios,
-20 patterns, 140 FSRS review items, 23 coding problems, mission revisits, AI interviewer (8 problems),
+20 patterns, 140 FSRS review items, 29 coding problems, mission revisits, AI interviewer (8 problems),
 accounts, local-first sync, Ionic tabs app.
 
 **M1: Accounts & polish (2–3 wks).** Done: Google and GitHub sign-in with learner linking, haptics,

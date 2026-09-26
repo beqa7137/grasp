@@ -15,8 +15,35 @@ permissions:
   contents: read
 
 jobs:
+  # A commit fast-forwarded onto main or feature/improvements has usually passed CI on its branch, and the same tree gives
+  # the same verdict.
+  verdict:
+    name: Earlier verdict for this commit
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+    outputs:
+      passed: ${{ steps.find.outputs.passed }}
+    steps:
+      - id: find
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # A failed lookup prints nothing, so the jobs run. A pull request run tested a merge commit, not this one.
+          earlier=$(gh run list -R "$GITHUB_REPOSITORY" --workflow ci.yml --commit "$GITHUB_SHA" --status success \
+            --json url,headSha,event \
+            --jq "map(select(.headSha == \"$GITHUB_SHA\" and .event != \"pull_request\")) | .[0].url // empty") || true
+          if [ -n "$earlier" ]; then
+            echo "passed=true" >> "$GITHUB_OUTPUT"
+            echo "Passed already for ${GITHUB_SHA::7}: $earlier" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
   static:
     name: Lint, format, typecheck
+    needs: verdict
+    if: ${{ !cancelled() && needs.verdict.outputs.passed != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -39,6 +66,8 @@ jobs:
 
   test:
     name: Unit and API tests
+    needs: verdict
+    if: ${{ !cancelled() && needs.verdict.outputs.passed != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -63,6 +92,8 @@ jobs:
   # which is quicker than waiting for a separate build job.
   e2e:
     name: Browser end-to-end tests (${{ matrix.shard }}/${{ strategy.job-total }})
+    needs: verdict
+    if: ${{ !cancelled() && needs.verdict.outputs.passed != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -126,7 +157,7 @@ jobs:
   e2e-report:
     name: Browser test report
     needs: e2e
-    if: failure()
+    if: ${{ failure() && needs.e2e.result == 'failure' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -153,6 +184,8 @@ jobs:
 
   image:
     name: Docker image smoke test
+    needs: verdict
+    if: ${{ !cancelled() && needs.verdict.outputs.passed != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -195,6 +228,8 @@ jobs:
 
   vercel:
     name: Vercel build smoke test
+    needs: verdict
+    if: ${{ !cancelled() && needs.verdict.outputs.passed != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
 

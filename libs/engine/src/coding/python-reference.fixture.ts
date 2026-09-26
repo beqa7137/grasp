@@ -32,6 +32,15 @@ def max_area(height):
             hi -= 1
     return best
 `,
+  'jump-game': `
+def can_jump(nums):
+    reach = 0
+    for i, x in enumerate(nums):
+        if i > reach:
+            return False
+        reach = max(reach, i + x)
+    return True
+`,
   'longest-unique-substring': `
 def length_of_longest_substring(s):
     last, start, best = {}, 0, 0
@@ -40,6 +49,18 @@ def length_of_longest_substring(s):
             start = last[ch] + 1
         last[ch] = i
         best = max(best, i - start + 1)
+    return best
+`,
+  'min-size-subarray-sum': `
+def min_sub_array_len(target, nums):
+    best, total, lo = 0, 0, 0
+    for hi, x in enumerate(nums):
+        total += x
+        while total >= target:
+            if not best or hi - lo + 1 < best:
+                best = hi - lo + 1
+            total -= nums[lo]
+            lo += 1
     return best
 `,
   'binary-search': `
@@ -103,6 +124,41 @@ def num_islands(grid):
                         stack.append((ny, nx))
     return count
 `,
+  'rotting-oranges': `
+def oranges_rotting(grid):
+    rows, cols = len(grid), len(grid[0])
+    rotten = [(r, c) for r in range(rows) for c in range(cols) if grid[r][c] == 2]
+    fresh = sum(row.count(1) for row in grid)
+    minutes = 0
+    while fresh and rotten:
+        next_rotten = []
+        for r, c in rotten:
+            for y, x in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):
+                if 0 <= y < rows and 0 <= x < cols and grid[y][x] == 1:
+                    grid[y][x] = 2
+                    fresh -= 1
+                    next_rotten.append((y, x))
+        rotten = next_rotten
+        minutes += 1
+    return -1 if fresh else minutes
+`,
+  subsets: `
+def subsets(nums):
+    nums = sorted(nums)
+    out, path = [], []
+
+    def go(i):
+        if i == len(nums):
+            out.append(path[:])
+            return
+        path.append(nums[i])
+        go(i + 1)
+        path.pop()
+        go(i + 1)
+
+    go(0)
+    return out
+`,
   'merge-intervals': `
 def merge(intervals):
     out = []
@@ -126,6 +182,15 @@ def rob(nums):
     for x in nums:
         take, skip = skip + x, max(take, skip)
     return max(take, skip)
+`,
+  'coin-change': `
+def coin_change(coins, amount):
+    fewest = [0] + [float('inf')] * amount
+    for a in range(1, amount + 1):
+        for c in coins:
+            if c <= a and fewest[a - c] + 1 < fewest[a]:
+                fewest[a] = fewest[a - c] + 1
+    return -1 if fewest[amount] == float('inf') else fewest[amount]
 `,
   'kth-largest-element': `
 import heapq
@@ -165,6 +230,23 @@ def count_components(n, edges):
             parent[ra] = rb
             components -= 1
     return components
+`,
+  'redundant-connection': `
+def find_redundant_connection(edges):
+    parent = list(range(len(edges) + 1))
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    for a, b in edges:
+        ra, rb = find(a), find(b)
+        if ra == rb:
+            return [a, b]
+        parent[ra] = rb
+    return []
 `,
   'course-schedule': `
 from collections import deque
