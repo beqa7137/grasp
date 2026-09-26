@@ -4,7 +4,7 @@ import type { Point } from './geometry';
 const BADGE_CHAR_WIDTH = 6.6;
 export const BADGE_LINE_HEIGHT = 11;
 export const BADGE_HALF_HEIGHT = BADGE_LINE_HEIGHT / 2;
-const BADGE_ROOM = 2;
+export const BADGE_ROOM = 2;
 const BADGE_SIDE_GAP = 2;
 const UNBOUNDED = { left: -Infinity, right: Infinity, top: -Infinity, bottom: Infinity };
 

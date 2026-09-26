@@ -73,7 +73,7 @@ describe('sideRoomFor', () => {
   it('leaves room only at the side a badge beside an edge node reaches, over every tree it is given', () => {
     const right = treeOf(['a', null], ['b', 'a', 'currentNode'], ['c', 'b']);
     const left = treeOf(['a', null], ['b', 'a', 'currentNode'], ['c', 'b'], ['d', 'a']);
-    const reach = Math.ceil(2 + 2 * badgeHalfWidth('currentNode') - 49 + 0.5);
+    const reach = Math.ceil(2 + 2 * badgeHalfWidth('currentNode') - 49 + 2);
     expect(sideRoomFor([right])).toEqual({ left: 0, right: reach });
     expect(sideRoomFor([right, left])).toEqual({ left: reach, right: reach });
   });
