@@ -1,4 +1,4 @@
-import { JS_DIAMETER, JS_ISLANDS, expect, seek, synced, test, trace, viewportTop, write } from './fixtures';
+import { JS_DIAMETER, JS_ISLANDS, expect, expectUnmoved, seek, stepTotal, synced, test, trace, viewportTop, write } from './fixtures';
 
 const JS_TWO_SUM = `function twoSum(nums, target) {
   const seen = new Map();
@@ -228,17 +228,43 @@ test('Step forward stays under the finger through a whole trace, as the call sta
   const count = player.locator('.count');
   await forward.scrollIntoViewIfNeeded();
   const home = await viewportTop(forward);
-  const total = Number((await count.textContent())!.split('/')[1]);
+  const total = await stepTotal(count);
   for (let step = 2; step <= total; step++) {
     await forward.click();
     await expect(count).toHaveText(`${step} / ${total}`);
-    expect(Math.abs((await viewportTop(forward)) - home), `Step forward at step ${step}`).toBeLessThan(1);
+    await expectUnmoved(forward, home, `Step forward at step ${step}`);
   }
 });
 
-test('with the page scrolled to its end, Step forward stays put as the call stack unwinds and the drawing shrinks', async ({ page }) => {
-  // On a phone the trace ends the page; on a wide screen the problem statement beside it runs on further.
-  await page.setViewportSize({ width: 412, height: 839 });
+test('widening the window mid-trace, from one column back to two, leaves Step forward where it was', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'A desktop window.');
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto('/code/tree-diameter');
+  await trace(page, JS_DIAMETER, 'Diameter of Binary Tree');
+  const player = page.locator('app-trace-player');
+  const forward = player.getByRole('button', { name: 'Step forward' });
+  const count = player.locator('.count');
+  const total = await stepTotal(count);
+  for (let step = 2; step <= 7; step++) {
+    await forward.click();
+    await expect(count).toHaveText(`${step} / ${total}`);
+  }
+  await page.setViewportSize({ width: 700, height: 720 });
+  await forward.evaluate((button) => button.scrollIntoView({ block: 'center' }));
+  const home = await viewportTop(forward);
+  await page.setViewportSize({ width: 1280, height: 720 });
+  // The trace takes up its new width a frame after the window does.
+  await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
+  await expectUnmoved(forward, home, 'Step forward in the wider window');
+});
+
+test('with the page scrolled to its end, Step forward stays put as the call stack unwinds and the drawing shrinks', async ({
+  page,
+  isMobile,
+}) => {
+  // On a laptop the problem statement beside the trace also sets where the page ends, so the page gives back less than the
+  // drawing does.
+  if (!isMobile) await page.setViewportSize({ width: 1280, height: 1000 });
   await page.goto('/code/tree-diameter');
   await trace(page, JS_DIAMETER, 'Diameter of Binary Tree');
   const player = page.locator('app-trace-player');
@@ -251,25 +277,55 @@ test('with the page scrolled to its end, Step forward stays put as the call stac
     scroller.scrollTop = scroller.scrollHeight;
   });
   const home = await viewportTop(forward);
-  const total = Number((await count.textContent())!.split('/')[1]);
+  const total = await stepTotal(count);
   for (let step = 19; step <= total; step++) {
     await forward.click();
     await expect(count).toHaveText(`${step} / ${total}`);
-    expect(Math.abs((await viewportTop(forward)) - home), `Step forward at step ${step}`).toBeLessThan(1);
+    await expectUnmoved(forward, home, `Step forward at step ${step}`);
+  }
+});
+
+test('on a laptop scrolled to the page end, stepping a trace from the keyboard leaves the problem statement beside it where it is', async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, 'The problem statement sits above the trace on a phone.');
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto('/code/tree-diameter');
+  await trace(page, JS_DIAMETER, 'Diameter of Binary Tree');
+  const player = page.locator('app-trace-player');
+  const count = player.locator('.count');
+  const total = await stepTotal(count);
+  await page.locator('ion-content', { has: player }).evaluate((content) => {
+    const scroller = content.shadowRoot!.querySelector('.inner-scroll')!;
+    scroller.scrollTop = scroller.scrollHeight;
+  });
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  const constraints = page.locator('.problem .constraints');
+  const home = await viewportTop(constraints);
+  for (let step = 2; step <= total; step++) {
+    await page.keyboard.press('ArrowRight');
+    await expect(count).toHaveText(`${step} / ${total}`);
+    await expectUnmoved(constraints, home, `the constraints after step ${step}`);
   }
 });
 
 test('the call stack keeps no empty room above its calls for deeper frames still to come', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/code/tree-diameter');
   await trace(page, JS_DIAMETER, 'Diameter of Binary Tree');
   const stack = page.locator('app-trace-player g-list-view.calls');
-  await expect(stack.getByRole('listitem')).toHaveText(['diameterOfBinaryTree(TreeNode(1))']);
-  const gap = await stack.evaluate((list) => {
-    const label = list.querySelector('.label')!.getBoundingClientRect();
-    return Math.min(...[...list.querySelectorAll('.item')].map((item) => item.getBoundingClientRect().top)) - label.bottom;
-  });
-  // Each reserved row was 34px, so anything past the label's own margin and the pop-in of the call is empty room.
-  expect(gap).toBeLessThan(20);
+  const calls = stack.getByRole('listitem');
+  const gapUnderLabel = () =>
+    stack.evaluate((list) => {
+      const label = list.querySelector('.label')!.getBoundingClientRect();
+      return Math.min(...[...list.querySelectorAll('.item')].map((item) => item.getBoundingClientRect().top)) - label.bottom;
+    });
+  await expect(calls).toHaveCount(1);
+  const oneDeep = await gapUnderLabel();
+  await seek(page, 7, 'Called height(TreeNode(4))');
+  await expect(calls).toHaveCount(4);
+  expect(Math.abs((await gapUnderLabel()) - oneDeep), 'the top call sits as far under the label one call deep as four').toBeLessThan(1);
 });
 
 test('a trace of pairs gives each value a cell wide enough for it, over its own index', async ({ page }) => {

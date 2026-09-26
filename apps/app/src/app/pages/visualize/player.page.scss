@@ -248,7 +248,10 @@
     gap: 10px;
     margin-top: 12px;
     color: var(--g-danger);
+    // Sized before the icon loads, as the answer marks are, so the verdict is revealed at its final height.
     ion-icon {
+      width: 1em;
+      height: 1em;
       font-size: 22px;
       flex: none;
       margin-top: 1px;

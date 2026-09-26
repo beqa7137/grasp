@@ -3,6 +3,7 @@ import {
   Component,
   DestroyRef,
   ElementRef,
+  afterNextRender,
   afterRenderEffect,
   computed,
   effect,
@@ -39,14 +40,14 @@ import {
   refresh,
   sparkles,
 } from 'ionicons/icons';
-import { refocus } from '../../core/focus';
+import { byPointer, refocus } from '../../core/focus';
 import { HoldHeightDirective } from '../../core/hold-height.directive';
 import { haptic } from '../../core/haptics';
 import { onPageKey } from '../../core/on-page-key';
 import { ProgressService } from '../../core/progress.service';
 import { ShortcutsService } from '../../core/shortcuts.service';
 import { answerMark } from '../../review/answer-mark';
-import { ArrayViewComponent, type AlignedRow } from '../../viz/array-view.component';
+import { ArrayViewComponent, longestValue, type AlignedRow } from '../../viz/array-view.component';
 import { CodePanelComponent } from '../../viz/code-panel.component';
 import { CodeTextComponent } from '../../viz/code-text.component';
 import { GraphViewComponent } from '../../viz/graph-view.component';
@@ -57,7 +58,15 @@ import { TreeViewComponent } from '../../viz/tree-view.component';
 
 type PredictState = { frame: number; choice: number | null };
 
+function alignedRow(f: Frame | undefined): AlignedRow | null {
+  // Structural views carry their own layout; an output list that happens to match the array's length is not per-index there.
+  if (!f?.output || !f.array || f.tree || f.graph || f.table || f.output.items.length !== f.array.values.length) return null;
+  return { label: f.output.label, values: f.output.items };
+}
+
 const SPEEDS = [0.5, 1, 2, 4];
+/** How much of a focused verdict or narration, in px, must show for the learner to see where focus is. */
+const MIN_SHOWN = 16;
 
 @Component({
   selector: 'app-player',
@@ -95,7 +104,7 @@ export class PlayerPage {
   private readonly verdict = viewChild<ElementRef<HTMLElement>>('verdict');
   private readonly narration = viewChild<ElementRef<HTMLElement>>('narration');
   private readonly controls = viewChild<ElementRef<HTMLElement>>('controls');
-  private readonly content = viewChild(IonContent);
+  private readonly content = viewChild.required(IonContent);
 
   readonly algo = computed(() => getAlgorithm(this.id()) as AlgorithmDef | undefined);
   readonly problem = computed(() => CODING_CATALOG.find((p) => p.algorithmId === this.id()));
@@ -133,21 +142,19 @@ export class PlayerPage {
     return { correct: values.filter(Boolean).length, total: values.length };
   });
 
-  readonly alignedOutput = computed<AlignedRow | null>(() => {
-    const f = this.frame();
-    // Structural views carry their own layout; an output list that happens to match the array's length is not per-index there.
-    if (!f?.output || !f.array || f.tree || f.graph || f.table || f.output.items.length !== f.array.values.length) return null;
-    return { label: f.output.label, values: f.output.items };
-  });
+  readonly alignedOutput = computed(() => alignedRow(this.frame()));
+  readonly longestArrayValue = computed(() =>
+    longestValue(this.frames().flatMap((f) => [...(f.array?.values ?? []), ...(alignedRow(f)?.values ?? [])])),
+  );
 
   readonly varEntries = computed(() => Object.entries(this.frame()?.vars ?? {}).filter(([k]) => k !== 'result'));
   readonly result = computed(() => (this.index() === this.last() ? this.frame()?.vars['result'] : undefined));
 
   private timer: ReturnType<typeof setInterval> | undefined;
+  private scroller: HTMLElement | undefined;
   private shownPending: PredictState | null = null;
   /** Where the page was scrolled and the controls sat when the open checkpoint appeared, for Continue to return to. */
-  private checkpointScroll = 0;
-  private checkpointTop = 0;
+  private checkpointStart = { scrollTop: 0, controlsTop: 0 };
   private continued = false;
 
   constructor() {
@@ -163,6 +170,10 @@ export class PlayerPage {
       closeCircle,
       helpCircleOutline,
       codeSlashOutline,
+    });
+
+    afterNextRender(async () => {
+      this.scroller = await this.content().getScrollElement();
     });
 
     effect(() => {
@@ -184,11 +195,15 @@ export class PlayerPage {
       const before = this.shownPending;
       this.shownPending = p;
       if (p === before) return;
-      if (!p) void this.returnAfterContinue().then(() => refocus(this.narration()?.nativeElement, null, (el) => void this.reveal(el)));
-      else if (p.choice === null) refocus(this.predictPrompt()?.nativeElement, this.controls()?.nativeElement);
+      if (!p) {
+        this.returnAfterContinue();
+        refocus(this.narration()?.nativeElement, null, (el) => this.reveal(el));
+      } else if (p.choice === null) refocus(this.predictPrompt()?.nativeElement, this.controls()?.nativeElement);
       else {
-        refocus(this.verdict()?.nativeElement, this.predictPanel()?.nativeElement);
-        void this.reveal(this.verdict()?.nativeElement);
+        // Revealed after a tap as well as a key press, so focusing it must not scroll again.
+        const verdict = this.verdict()?.nativeElement;
+        this.reveal(verdict);
+        refocus(verdict, this.predictPanel()?.nativeElement, () => undefined);
       }
     });
 
@@ -241,7 +256,7 @@ export class PlayerPage {
     const f = this.frames()[i];
     if (this.predictMode() && f?.predict && !this.answered().has(i)) {
       this.playing.set(false);
-      void this.rememberCheckpointStart();
+      this.rememberCheckpointStart();
       this.pending.set({ frame: i, choice: null });
       return;
     }
@@ -296,38 +311,42 @@ export class PlayerPage {
     this.index.set(Math.min(this.last(), p.frame + 1));
   }
 
-  // Scrolls `el` into view, but only as far as keeps the controls on screen, so Step forward stays in reach. On a small phone
-  // an answer's verdict opens below the fold; Continue, below the verdict, is left where it is, so a second tap on the answer
-  // cannot land on it. After Continue, a keyboard user's focus moves to the narration, below the drawing, the same way.
-  private async reveal(el: Element | undefined) {
-    const scroller = await this.content()?.getScrollElement();
+  // Scrolls el into view only as far as keeps the controls on screen, unless a key press moved focus to it and that would
+  // leave it hidden but for a sliver, as in a short window or at high zoom: its focus must show, so then it is shown from its
+  // top instead. It stops at el, never at Continue below it, so a second tap on an answer cannot land on Continue.
+  private reveal(el: Element | undefined) {
+    const scroller = this.scroller;
     const controls = this.controls()?.nativeElement;
     if (!scroller || !el || !controls) return;
     const view = scroller.getBoundingClientRect();
     const padding = getComputedStyle(scroller);
-    const below = el.getBoundingClientRect().bottom - (view.bottom - parseFloat(padding.scrollPaddingBottom));
-    const room = controls.getBoundingClientRect().top - (view.top + parseFloat(padding.scrollPaddingTop));
-    const by = Math.min(below, room);
+    const visibleTop = view.top + parseFloat(padding.scrollPaddingTop);
+    const visibleBottom = view.bottom - parseFloat(padding.scrollPaddingBottom);
+    const box = el.getBoundingClientRect();
+    const below = box.bottom - visibleBottom;
+    const kept = Math.max(0, Math.min(below, controls.getBoundingClientRect().top - visibleTop));
+    const shown = visibleBottom - (box.top - kept);
+    const by = byPointer() || shown >= Math.min(box.height, MIN_SHOWN) ? kept : Math.min(below, box.top - visibleTop);
     if (by >= 1) scroller.scrollBy({ top: by, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
   }
 
-  private async rememberCheckpointStart() {
-    this.checkpointTop = this.controls()?.nativeElement.getBoundingClientRect().top ?? 0;
-    this.checkpointScroll = (await this.content()?.getScrollElement())?.scrollTop ?? 0;
+  private rememberCheckpointStart() {
+    this.checkpointStart = {
+      scrollTop: this.scroller?.scrollTop ?? 0,
+      controlsTop: this.controls()?.nativeElement.getBoundingClientRect().top ?? 0,
+    };
   }
 
-  // A checkpoint opens below the controls, and on a phone its verdict and Continue can end below the fold, so reaching them
-  // scrolls the controls up, often off screen. Continue scrolls the page back, leaving Step forward where the finger last
-  // found it; restoring the scroll position, not just the distance, also brings back a sticky stage. Step forward itself also
-  // continues, and is left where it was tapped.
-  private async returnAfterContinue() {
+  // Puts Step forward back where it was when the checkpoint opened. Restoring the scroll position, not the distance, also
+  // brings back a sticky stage. Only Continue returns; Step forward continues where it was tapped.
+  private returnAfterContinue() {
     if (!this.continued) return;
     this.continued = false;
-    const scroller = await this.content()?.getScrollElement();
+    const scroller = this.scroller;
     const controls = this.controls()?.nativeElement;
     if (!scroller || !controls) return;
-    scroller.scrollTop = this.checkpointScroll;
-    scroller.scrollTop += controls.getBoundingClientRect().top - this.checkpointTop;
+    scroller.scrollTop = this.checkpointStart.scrollTop;
+    scroller.scrollTop += controls.getBoundingClientRect().top - this.checkpointStart.controlsTop;
   }
 
   private onKey(e: KeyboardEvent) {
