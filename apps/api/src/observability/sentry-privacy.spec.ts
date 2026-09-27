@@ -128,7 +128,7 @@ it('ignores request IDs from scope and rejects dynamic filenames, function names
 });
 
 it.each([PRIVATE, 'malformed-request-id', '00000000-0000-0000-0000-000000000000'])('drops invalid correlation: %s', (requestId) => {
-  const { privacy } = setup();
+  const privacy = createSentryPrivacy(loadConfig({}), defaultStackParser);
   const [event] = privacy.capture(new Error(PRIVATE), requestId);
   expect(event.tags).not.toHaveProperty('requestId');
 });
