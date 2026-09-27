@@ -22,7 +22,7 @@ The function entry is `api/index.js`. It builds the Nest app once per instance a
 
 ### Shared state and scaling
 
-Vercel runs as many function instances as traffic needs. State they must agree on lives in Postgres: the AI spend ceiling and its daily totals, per-learner interview quotas and rate-limit counters (`counters`), and per-session interview locks (`leases`, which expire after 15 minutes if an instance dies mid-call). Every request writes its rate-limit counter, which costs one database round trip. The Postgres pool is attached with `attachDatabasePool`, so a suspended instance closes its idle connections instead of leaking them. Without `DATABASE_URL`, the in-memory fallback keeps this state per process; that mode is only for local development.
+Vercel runs as many function instances as traffic needs. State they must agree on lives in Postgres: the AI spend ceiling and its daily totals, per-learner interview quotas and rate-limit counters (`counters`), session families used to revoke access tokens, erased learner tombstones, and per-session interview locks (`leases`, which expire after 15 minutes if an instance dies mid-call). Every request writes its rate-limit counter; signed-in requests check the session family in that same database statement. The Postgres pool is attached with `attachDatabasePool`, so a suspended instance closes its idle connections instead of leaking them. Without `DATABASE_URL`, the in-memory fallback keeps this state per process; that mode is only for local development.
 
 The pool bounds connection waits to 4 seconds and query waits to 3 seconds. An idle disconnect is logged with its error code and pool counts, then the next request opens a connection. During an outage, routes that need the database return 503 while `/api/health` stays live and `/api/health/ready` reports the failure. The app allows 8 seconds for ordinary API calls and 20 seconds for a progress history pull. Admin metrics still share the 3-second query limit and can return 503 on a large cohort until reporting is rewritten with SQL aggregates. A client query timeout limits the API wait; it does not guarantee cancellation of work already running in Postgres.
 
@@ -56,11 +56,15 @@ Vercel's own Git deployments are off (`git.deploymentEnabled: false` in `vercel.
 5. If `PUBLIC_URL` is set, wait until `/api/health` reports the new release, then check readiness, a deep link, `/config.json` and the Python runtime.
 6. Run the `@smoke` browser tests against `PUBLIC_URL` on desktop and phone viewports. They only read: every API call that could write data is blocked, so the pilot metrics stay clean. If a check fails, the function's recent 5xx logs are attached to the run.
 
-Migrations run before the new code takes traffic, so each one must work with the release still running: add tables and columns first, remove them in a later release.
+Migrations run before the new code takes traffic, so each one must work with the release still running: add tables and columns first, remove them in a later release. The iteration 18 migrations use a 5-second lock wait limit, so a contended schema change fails and can be retried instead of waiting without a bound. Migration `0007` adds refresh-token compatibility triggers for old API instances; drop those triggers and their function in a later contract release, after old instances and rollback candidates are retired.
+
+Drain API instances from releases before iteration 18 when promoting this change. Those instances cannot check revoked access tokens and their deletion handler does not write a tombstone. The migration backfills existing refresh-token families and covers refresh tokens created by old instances during the transition, but it cannot change an old instance's request guard. Old Vercel deployment URLs remain reachable after the production alias moves and still accept revoked tokens. Enable [Standard Deployment Protection](https://vercel.com/docs/deployment-protection) with Vercel Authentication, which covers generated deployment URLs while leaving the production domain public, and verify an old URL rejects an unauthenticated request before promotion.
 
 ### Rollback
 
 Vercel keeps every deployment. **Instant Rollback** in the dashboard, or `vercel rollback` with the CLI, points production back at the previous deployment in seconds, with no rebuild. Migrations only move forward, which is why they must stay backward-compatible (above).
+
+Rolling back to a release before iteration 18 also restores its old access-token behavior. Previously revoked JWTs can work again until their 15-minute expiry. The old deletion handler writes no erasure tombstone, so a later guest write can recreate data under that deleted learner ID. The old API also returns 500 for a guest write to a learner erased by the new release because it does not recognize the erasure trigger's error. If that rollback is necessary, rotate `JWT_SECRET` to invalidate outstanding access tokens, keep old deployment URLs protected, and expect clients to refresh or sign in again. Do not use the old deletion path for account erasure.
 
 ### Plans
 

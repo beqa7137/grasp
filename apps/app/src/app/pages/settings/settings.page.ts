@@ -3,7 +3,6 @@ import { AlertController, IonBackButton, IonButtons, IonContent, IonHeader, IonT
 import { ApiError, ApiService } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
 import { LearnerService } from '../../core/learner.service';
-import { ProgressService } from '../../core/progress.service';
 import { RovingSelectDirective } from '../../core/roving-select.directive';
 import { RuntimeConfigService } from '../../core/runtime-config.service';
 import { ShortcutsService } from '../../core/shortcuts.service';
@@ -152,7 +151,6 @@ import { type Choice, StudySettingsComponent } from './study-settings.component'
 })
 export class SettingsPage {
   private readonly api = inject(ApiService);
-  private readonly progress = inject(ProgressService);
   private readonly alerts = inject(AlertController);
   private readonly toasts = inject(ToastController);
   readonly learner = inject(LearnerService);
@@ -196,22 +194,30 @@ export class SettingsPage {
   }
 
   private async deleteData() {
-    await this.run(async () => {
-      await this.api.delete('/me');
-      await this.auth.forget();
-      await this.progress.clearLocal();
-      await this.learner.reset();
-      await this.toast('Your data was deleted. You are starting fresh.');
-    }, 'Could not delete your data. Nothing was removed; please try again.');
+    let erasedOnServer = false;
+    await this.run(
+      async () => {
+        await this.api.delete('/me');
+        erasedOnServer = true;
+        await this.auth.startFreshAfterDeletion();
+        await this.toast('Your data was deleted. You are starting fresh.');
+      },
+      () =>
+        erasedOnServer
+          ? 'Your server data was deleted, but this device could not finish clearing it. Try Delete again.'
+          : 'Could not delete your data. Nothing was removed; please try again.',
+    );
   }
 
-  private async run(action: () => Promise<void>, failure: string) {
+  private async run(action: () => Promise<void>, failure: string | (() => string)) {
     this.busy.set(true);
     try {
       await action();
     } catch (e) {
-      if (!(e instanceof DOMException && e.name === 'AbortError'))
-        await this.toast(e instanceof ApiError ? `${failure} (${e.message})` : failure);
+      if (!(e instanceof DOMException && e.name === 'AbortError')) {
+        const message = typeof failure === 'string' ? failure : failure();
+        await this.toast(e instanceof ApiError ? `${message} (${e.message})` : message);
+      }
     } finally {
       this.busy.set(false);
     }

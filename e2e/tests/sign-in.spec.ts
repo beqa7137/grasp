@@ -108,6 +108,78 @@ test('signing in with GitHub keeps the progress made before, and signing back in
   await expect(learner).toHaveText(anonymousLearner);
 });
 
+test('a second device starts fresh after the account was deleted elsewhere and it reloads', async ({ page, context, browser }) => {
+  test.setTimeout(90_000);
+  const user = newGitHubUser({ verified: true });
+  await signInToGitHub(context, user);
+
+  await page.goto('/drill');
+  const graded = synced(page, 'review.graded');
+  await page.locator('g-question-card .choice').first().click();
+  await page.getByRole('button', { name: /^(Got it|Continue)/ }).click();
+  await graded;
+  await page.goto('/settings');
+  const firstSignIn = page.waitForResponse(
+    (response) => response.request().method() === 'POST' && response.url().endsWith('/api/auth/github'),
+  );
+  await continueWithGitHub(page);
+  const oldLearner = ((await (await firstSignIn).json()) as { learnerId: string }).learnerId;
+
+  const other = await browser.newContext({ baseURL: new URL(page.url()).origin });
+  try {
+    await other.addInitScript(() => localStorage.setItem('CapacitorStorage.grasp.pilotNotice.v1', new Date().toISOString()));
+    await other.setExtraHTTPHeaders({ 'x-forwarded-for': newClientIp() });
+    await signInToGitHub(other, user);
+    const secondPage = await other.newPage();
+    await secondPage.goto('/settings');
+    const secondSignIn = secondPage.waitForResponse(
+      (response) => response.request().method() === 'POST' && response.url().endsWith('/api/auth/github'),
+    );
+    await continueWithGitHub(secondPage);
+    expect(((await (await secondSignIn).json()) as { learnerId: string }).learnerId).toBe(oldLearner);
+    await expect
+      .poll(() => secondPage.evaluate(() => JSON.parse(localStorage.getItem('CapacitorStorage.grasp.events') ?? '[]').length))
+      .toBeGreaterThan(0);
+
+    await page.getByRole('button', { name: 'Delete…' }).click();
+    const deleted = page.waitForResponse((response) => response.request().method() === 'DELETE' && response.url().endsWith('/api/me'));
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
+    expect((await deleted).status()).toBe(204);
+
+    const readStatuses: number[] = [];
+    secondPage.on('response', (response) => {
+      if (response.request().method() === 'GET' && response.url().endsWith('/api/progress/events')) {
+        readStatuses.push(response.status());
+      }
+    });
+    await secondPage.reload();
+    await expect.poll(() => readStatuses.includes(410)).toBe(true);
+    await expect(secondPage.getByText("This learner's data was deleted on another device.")).toBeVisible();
+    await expect.poll(() => secondPage.evaluate(() => localStorage.getItem('CapacitorStorage.grasp.learnerId'))).not.toBe(oldLearner);
+    const freshLearner = await secondPage.evaluate(() => localStorage.getItem('CapacitorStorage.grasp.learnerId'));
+    await expect
+      .poll(() => secondPage.evaluate(() => JSON.parse(localStorage.getItem('CapacitorStorage.grasp.events') ?? '[]').length))
+      .toBe(0);
+
+    await secondPage.reload();
+    expect(await secondPage.evaluate(() => localStorage.getItem('CapacitorStorage.grasp.learnerId'))).toBe(freshLearner);
+    await secondPage.goto('/settings');
+    const newSignIn = secondPage.waitForResponse(
+      (response) => response.request().method() === 'POST' && response.url().endsWith('/api/auth/github'),
+    );
+    await continueWithGitHub(secondPage);
+    const newSession = (await (await newSignIn).json()) as { accessToken: string; learnerId: string };
+    expect(newSession.learnerId).not.toBe(oldLearner);
+    const progress = await secondPage.request.get('/api/progress/events', {
+      headers: { authorization: `Bearer ${newSession.accessToken}` },
+    });
+    expect(progress.status()).toBe(200);
+    expect(((await progress.json()) as { events: unknown[] }).events).toEqual([]);
+  } finally {
+    await other.close();
+  }
+});
+
 test.describe('a GitHub account without a verified email', () => {
   test.use({ expectedConsoleErrors: [/the server responded with a status of 403/] });
 

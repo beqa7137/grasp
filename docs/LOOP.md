@@ -21,6 +21,7 @@ it found. Keep entries short and factual, with numbers where they exist.
 | 15     | A second coding problem for five patterns and a first real backtracking one, 29 in all: Jump Game and Subsets, which their visualizers now link to, Minimum Size Subarray Sum, Rotting Oranges, Coin Change and Redundant Connection, each right after its pattern's problems, except Jump Game, which sits before the bit manipulation problems as greedy does in the curriculum. Subsets accepts any order inside and between subsets (new `unordered-nested` check). Each has a brute-force check, a CPython reference and a performance case its slower approaches cannot finish: naive JavaScript takes 5.2 s to over 30 s, and in the browser times out on that one test (2 s limit) while the references pass in all three languages                                                                                                                                                  | `b758b14`            |
 | 16     | A second coding problem for all eight one-problem patterns, 37 in all: Product of Array Except Self, Largest Rectangle in Histogram, Circular Array Loop, Non-overlapping Intervals, Parallel Courses, Path With Minimum Effort, Replace Words and Edit Distance. Each has brute-force, CPython, hidden wrong-approach and measured performance checks. The code list follows curriculum order, moving Subarrays Summing to K, Merge Intervals, heap and DP problems and Course Schedule; that also changes the Learn page's next-problem suggestion. The grid and graph-input move left all 87 original suites byte-identical over three seeds before new cases were added. LCS uses a 1,000-letter limit and Edit Distance supports 500; the Python runner raises its recursion limit and explains cached-recursion crashes. Performance results summarize long strings and grids by size. | (this change)        |
 | 17     | Production requires Postgres; missing configuration serves liveness and 503. Idle disconnects recover with scrubbed warnings. Database connect and query waits are bounded at 4 and 3 seconds; a local 500-event push passed. Learn keeps its retry alert and focus stable, with 20 seconds for large progress pulls. Local browser tests use memory without a database, while Docker probes liveness.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | working tree         |
+| 18     | Atomic deletion and guest merge retire learner IDs, so delayed AI replies cannot restore erased data. Session families revoke access JWTs on logout and deletion across instances. Erased device IDs receive a coded 410 and start fresh without reuploading old progress; merged IDs reload shared storage without clearing data. The reviewer replayed a 1.2-million-token migration in 3.0 s with exact backfill and a 615 ms maximum writer wait. Two-instance races, restart checks and private-route revocation passed. A clean signed progress read changed from 5,796 to 5,668 req/s (2.2% lower), p95 37 to 38 ms; write runs varied.                                                                                                                                                                                                                                               | working tree         |
 
 ## Production readiness backlog
 
@@ -30,7 +31,7 @@ The local audit of `4beccbd` used an isolated Postgres fixture with 25,000 learn
 | --------- | ---------- | -------------------------------------------------------------------------------------------------------------------- |
 | 1         | Done in 17 | Require Postgres in production, refuse traffic without its URL, and recover after an idle connection drops.          |
 | 2         | Done in 17 | Bound database connect and query waits, return 503 for dependent routes, and let learners retry timed-out calls.     |
-| 3         | Next, P0   | Make account deletion atomic against in-flight interviews and revoke old access tokens across instances.             |
+| 3         | Done in 18 | Make account deletion atomic against in-flight interviews and revoke old access tokens across instances.             |
 | 4         | P0         | Keep learner text, IDs and tokens out of database error logs and Sentry envelopes.                                   |
 | 5         | P0, P1     | Reserve paid AI spend before calls and bind guest trials to a robust identity; avoid blocking a class behind one IP. |
 | 6         | P1         | Gate hand deploys on CI, rehearse additive migrations and restore, and roll back failed postflights.                 |
@@ -54,6 +55,18 @@ Known issues and deferred work, most valuable first.
   current 3-second query limit; iteration 12 needs SQL aggregates before that report can serve a cohort of this size.
 - A client query timeout ends the API wait but may leave a write running in Postgres. Progress event IDs make its retry
   idempotent; other write paths need an explicit outcome or idempotency plan before automatic retries are added.
+- Session families now make access tokens revocable. Iteration 12 should prune expired refresh tokens and their families
+  after the last possible access token and refresh reuse window.
+- Before promoting iteration 18, enable Vercel Standard Deployment Protection and verify a past generated deployment URL
+  rejects unauthenticated requests. Old URLs otherwise bypass access-token revocation, and a pre-18 rollback can erase
+  without a tombstone.
+- Remove migration `0007`'s refresh-token compatibility triggers and function in a later contract release after pre-18
+  instances and rollback candidates are inaccessible.
+- Run the deleted-on-another-device and reload browser case after this fix; the local sandbox cannot start browsers.
+- The signed progress read was 2.2% slower in the clean local comparison (p95 37 to 38 ms); write runs varied under
+  autovacuum. Repeat both at audit-sized data and with pooled production-style connections before wider rollout.
+- Deleting during an AI reply discards the result, but the provider call can keep running and stream buffered text. Add
+  upstream cancellation on deletion alongside iteration 9's stream and disconnect work.
 - Visualizer at 320 px: some verdicts (about 40 of 144 checkpoints) are taller than the space above the playback controls,
   so the reveal keeps the controls on screen and the verdict's end sits under them until the learner scrolls. The first
   question can also open under the tab bar at 320 px.

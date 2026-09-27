@@ -5,7 +5,7 @@ import { deviceLearnerIdOf } from '../common/learner-id.decorator.js';
 import { AuthStore } from '../persistence/stores.js';
 import { signInRequired, tokenInvalid } from './auth-errors.js';
 import type { Identity } from './auth.types.js';
-import { InvalidTokenError, TokenService } from './tokens.js';
+import { InvalidTokenError, TokenService, type AccessClaims } from './tokens.js';
 
 const SKIP_IDENTITY = 'grasp:skip-identity';
 
@@ -15,6 +15,7 @@ export const SkipIdentity = () => SetMetadata(SKIP_IDENTITY, true);
 declare module 'express-serve-static-core' {
   interface Request {
     identity?: Identity;
+    accessClaims?: AccessClaims;
   }
 }
 
@@ -40,6 +41,7 @@ export class IdentityGuard implements CanActivate {
     if (authorization?.startsWith('Bearer ')) {
       try {
         const claims = await this.tokens.verify(authorization.slice(7));
+        req.accessClaims = claims;
         req.identity = { learnerId: claims.learnerId, userId: claims.userId };
         return true;
       } catch (e) {

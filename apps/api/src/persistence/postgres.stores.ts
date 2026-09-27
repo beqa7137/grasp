@@ -1,14 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import type { StoredEvent } from '@grasp/engine';
-import { and, asc, desc, eq, gt, isNull, lt, sql, TransactionRollbackError } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, isNull, lt, sql, TransactionRollbackError, type SQL } from 'drizzle-orm';
 import { DrizzleQueryError } from 'drizzle-orm/errors';
 import type { NodePgDatabase, NodePgQueryResultHKT } from 'drizzle-orm/node-postgres';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { LearnerEvent } from '../admin/cohort-metrics.js';
 import type { AuthIdentity, OneTimePurpose, OneTimeRecord, Provider, RefreshTokenRecord, User } from '../auth/auth.types.js';
+import type { AccessClaims } from '../auth/tokens.js';
 import type { FeedbackContext, FeedbackEntry, FeedbackKind } from '../feedback/feedback.types.js';
 import type { InterviewSession } from '../interview/interview.types.js';
 import { databaseUnavailable, safeDatabaseErrorCategory } from './database-errors.js';
+import { learnerMoved, retiredLearner, retirementDestination } from './learner-errors.js';
 import * as schema from './schema.js';
 import {
   AuthStore,
@@ -25,7 +27,24 @@ export type Db = NodePgDatabase<typeof schema>;
 type Executor = PgDatabase<NodePgQueryResultHKT, typeof schema>;
 
 async function ensureLearner(db: Executor, learnerId: string) {
-  await db.insert(schema.learners).values({ id: learnerId }).onConflictDoNothing();
+  await db.execute(sql`
+    insert into learners (id)
+    select ${learnerId}::uuid
+    where not exists (select 1 from learners where id = ${learnerId}::uuid)
+    on conflict (id) do nothing`);
+}
+
+async function rethrowLearnerWriteError(db: Db, learnerId: string, error: unknown): Promise<never> {
+  const cause = error instanceof DrizzleQueryError ? error.cause : error;
+  const databaseError = cause && typeof cause === 'object' ? (cause as { code?: string; constraint?: string }) : null;
+  if (
+    databaseError?.code === 'P4100' ||
+    (databaseError?.code === '23503' && databaseError.constraint?.endsWith('_learner_id_learners_id_fk'))
+  ) {
+    const mergedInto = await retirementDestination(db, learnerId);
+    if (mergedInto !== undefined) throw retiredLearner(mergedInto);
+  }
+  throw error;
 }
 
 @Injectable()
@@ -36,13 +55,17 @@ export class PostgresProgressStore extends ProgressStore {
 
   async append(learnerId: string, events: StoredEvent[]): Promise<AppendResult> {
     if (events.length === 0) return { accepted: 0, duplicates: 0 };
-    await ensureLearner(this.db, learnerId);
-    const inserted = await this.db
-      .insert(schema.learningEvents)
-      .values(events.map((e) => ({ id: `${learnerId}:${e.id}`, learnerId, type: e.type, payload: e, occurredAt: e.at })))
-      .onConflictDoNothing()
-      .returning({ id: schema.learningEvents.id });
-    return { accepted: inserted.length, duplicates: events.length - inserted.length };
+    try {
+      await ensureLearner(this.db, learnerId);
+      const inserted = await this.db
+        .insert(schema.learningEvents)
+        .values(events.map((e) => ({ id: `${learnerId}:${e.id}`, learnerId, type: e.type, payload: e, occurredAt: e.at })))
+        .onConflictDoNothing()
+        .returning({ id: schema.learningEvents.id });
+      return { accepted: inserted.length, duplicates: events.length - inserted.length };
+    } catch (error) {
+      return rethrowLearnerWriteError(this.db, learnerId, error);
+    }
   }
 
   async list(learnerId: string): Promise<StoredEvent[]> {
@@ -66,16 +89,6 @@ export class PostgresProgressStore extends ProgressStore {
   async deleteLearner(learnerId: string): Promise<void> {
     await this.db.delete(schema.learners).where(eq(schema.learners.id, learnerId));
   }
-
-  async moveLearner(from: string, to: string): Promise<void> {
-    await ensureLearner(this.db, to);
-    await this.db.execute(sql`
-      insert into learning_events (id, learner_id, type, payload, occurred_at, received_at)
-      select ${to}::text || ':' || (payload->>'id'), ${to}::uuid, type, payload, occurred_at, received_at
-      from learning_events where learner_id = ${from}::uuid
-      on conflict (id) do nothing`);
-    await this.db.delete(schema.learningEvents).where(eq(schema.learningEvents.learnerId, from));
-  }
 }
 
 @Injectable()
@@ -85,20 +98,30 @@ export class PostgresInterviewStore extends InterviewStore {
   }
 
   async save(session: InterviewSession): Promise<void> {
-    await ensureLearner(this.db, session.learnerId);
-    const row = {
-      id: session.id,
-      learnerId: session.learnerId,
-      track: session.track,
-      problemId: session.problem.id,
-      status: session.status,
-      session,
-      createdAt: session.createdAt,
-    };
-    await this.db
-      .insert(schema.interviewSessions)
-      .values(row)
-      .onConflictDoUpdate({ target: schema.interviewSessions.id, set: { status: row.status, session, updatedAt: new Date() } });
+    try {
+      await ensureLearner(this.db, session.learnerId);
+      const row = {
+        id: session.id,
+        learnerId: session.learnerId,
+        track: session.track,
+        problemId: session.problem.id,
+        status: session.status,
+        session,
+        createdAt: session.createdAt,
+      };
+      const saved = await this.db
+        .insert(schema.interviewSessions)
+        .values(row)
+        .onConflictDoUpdate({
+          target: schema.interviewSessions.id,
+          set: { status: row.status, session, updatedAt: new Date() },
+          setWhere: eq(schema.interviewSessions.learnerId, session.learnerId),
+        })
+        .returning({ id: schema.interviewSessions.id });
+      if (!saved.length) throw learnerMoved();
+    } catch (error) {
+      return rethrowLearnerWriteError(this.db, session.learnerId, error);
+    }
   }
 
   async get(learnerId: string, id: string): Promise<InterviewSession | null> {
@@ -127,14 +150,6 @@ export class PostgresInterviewStore extends InterviewStore {
   async deleteLearner(learnerId: string): Promise<void> {
     await this.db.delete(schema.interviewSessions).where(eq(schema.interviewSessions.learnerId, learnerId));
   }
-
-  async moveLearner(from: string, to: string): Promise<void> {
-    await ensureLearner(this.db, to);
-    await this.db.execute(sql`
-      update interview_sessions
-      set learner_id = ${to}::uuid, session = jsonb_set(session, '{learnerId}', to_jsonb(${to}::text))
-      where learner_id = ${from}::uuid`);
-  }
 }
 
 @Injectable()
@@ -144,8 +159,12 @@ export class PostgresFeedbackStore extends FeedbackStore {
   }
 
   async add(entry: FeedbackEntry): Promise<void> {
-    await ensureLearner(this.db, entry.learnerId);
-    await this.db.insert(schema.feedback).values(entry);
+    try {
+      await ensureLearner(this.db, entry.learnerId);
+      await this.db.insert(schema.feedback).values(entry);
+    } catch (error) {
+      return rethrowLearnerWriteError(this.db, entry.learnerId, error);
+    }
   }
 
   async list(learnerId: string): Promise<FeedbackEntry[]> {
@@ -163,11 +182,6 @@ export class PostgresFeedbackStore extends FeedbackStore {
 
   async deleteLearner(learnerId: string): Promise<void> {
     await this.db.delete(schema.feedback).where(eq(schema.feedback.learnerId, learnerId));
-  }
-
-  async moveLearner(from: string, to: string): Promise<void> {
-    await ensureLearner(this.db, to);
-    await this.db.update(schema.feedback).set({ learnerId: to }).where(eq(schema.feedback.learnerId, from));
   }
 }
 
@@ -195,6 +209,7 @@ export class PostgresAuthStore extends AuthStore {
   async createUser(user: User, identity?: AuthIdentity): Promise<boolean> {
     try {
       await this.db.transaction(async (tx) => {
+        await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${user.learnerId}::uuid::text, 0))`);
         await ensureLearner(tx, user.learnerId);
         const created = await tx
           .insert(schema.users)
@@ -213,6 +228,9 @@ export class PostgresAuthStore extends AuthStore {
       return true;
     } catch (e) {
       if (e instanceof TransactionRollbackError) return false;
+      if (e instanceof DrizzleQueryError && (e.cause as { code?: string })?.code === 'P4100') {
+        return rethrowLearnerWriteError(this.db, user.learnerId, e);
+      }
       if (!(e instanceof DrizzleQueryError) && safeDatabaseErrorCategory(e) !== 'unknown') throw databaseUnavailable();
       throw e;
     }
@@ -288,8 +306,49 @@ export class PostgresAuthStore extends AuthStore {
     return removed.rowCount ?? 0;
   }
 
-  async addRefreshToken(token: RefreshTokenRecord): Promise<void> {
-    await this.db.insert(schema.refreshTokens).values(token);
+  async createFamily(userId: string, familyId: string, at: string): Promise<boolean> {
+    const { rows } = await this.db.execute(sql`
+      insert into session_families (id, user_id, created_at)
+      select ${familyId}::uuid, id, ${at}::timestamptz from users where id = ${userId}::uuid for key share
+      on conflict do nothing returning id`);
+    return rows.length === 1;
+  }
+
+  async activeFamily(userId: string, learnerId: string, familyId: string): Promise<boolean> {
+    const [row] = await this.db
+      .select({ id: schema.sessionFamilies.id })
+      .from(schema.sessionFamilies)
+      .innerJoin(schema.users, eq(schema.sessionFamilies.userId, schema.users.id))
+      .where(
+        and(
+          eq(schema.sessionFamilies.id, familyId),
+          eq(schema.sessionFamilies.userId, userId),
+          eq(schema.users.learnerId, learnerId),
+          isNull(schema.sessionFamilies.revokedAt),
+        ),
+      );
+    return !!row;
+  }
+
+  async addRefreshToken(token: RefreshTokenRecord): Promise<boolean> {
+    return this.db.transaction(async (tx) => {
+      const [user] = await tx.select({ id: schema.users.id }).from(schema.users).where(eq(schema.users.id, token.userId)).for('key share');
+      if (!user) return false;
+      const [family] = await tx
+        .select({ id: schema.sessionFamilies.id })
+        .from(schema.sessionFamilies)
+        .where(
+          and(
+            eq(schema.sessionFamilies.id, token.familyId),
+            eq(schema.sessionFamilies.userId, token.userId),
+            isNull(schema.sessionFamilies.revokedAt),
+          ),
+        )
+        .for('update');
+      if (!family) return false;
+      await tx.insert(schema.refreshTokens).values(token);
+      return true;
+    });
   }
 
   async refreshTokenByHash(tokenHash: string): Promise<RefreshTokenRecord | null> {
@@ -313,10 +372,20 @@ export class PostgresAuthStore extends AuthStore {
   }
 
   async revokeFamily(familyId: string, at: string): Promise<void> {
-    await this.db
-      .update(schema.refreshTokens)
-      .set({ revokedAt: at })
-      .where(and(eq(schema.refreshTokens.familyId, familyId), isNull(schema.refreshTokens.revokedAt)));
+    await this.db.transaction(async (tx) => {
+      const [family] = await tx
+        .select({ userId: schema.sessionFamilies.userId })
+        .from(schema.sessionFamilies)
+        .where(eq(schema.sessionFamilies.id, familyId));
+      if (!family) return;
+      const [user] = await tx.select({ id: schema.users.id }).from(schema.users).where(eq(schema.users.id, family.userId)).for('key share');
+      if (!user) return;
+      await tx
+        .update(schema.refreshTokens)
+        .set({ revokedAt: at })
+        .where(and(eq(schema.refreshTokens.familyId, familyId), isNull(schema.refreshTokens.revokedAt)));
+      await tx.update(schema.sessionFamilies).set({ revokedAt: at }).where(eq(schema.sessionFamilies.id, familyId));
+    });
   }
 
   private async oneUser(where: ReturnType<typeof eq>): Promise<User | null> {
@@ -363,13 +432,26 @@ export class PostgresCoordinationStore extends CoordinationStore {
   }
 
   async add(key: string, windowMs: number, amount: number, retainMs = 0): Promise<WindowTotal> {
+    return (await this.addWhen(key, windowMs, amount, retainMs, sql`true`))!;
+  }
+
+  async addForSession(key: string, windowMs: number, amount: number, claims: AccessClaims): Promise<WindowTotal | null> {
+    // The family FK cascades on account deletion, and an account's learner ID never changes after creation.
+    const active = sql`exists (
+      select 1 from session_families f
+      where f.id = ${claims.familyId}::uuid and f.user_id = ${claims.userId}::uuid
+        and f.revoked_at is null)`;
+    return this.addWhen(key, windowMs, amount, 0, active);
+  }
+
+  private async addWhen(key: string, windowMs: number, amount: number, retainMs: number, condition: SQL): Promise<WindowTotal | null> {
     const { rows } = await this.db.execute<WindowRow>(sql`
       with w as (select ${windowStartSql(windowMs)} as start)
       insert into counters (key, window_start, total, expires_at)
-      select ${key}, w.start, ${amount}::double precision, w.start + ${msSql(windowMs + retainMs)} from w
+      select ${key}, w.start, ${amount}::double precision, w.start + ${msSql(windowMs + retainMs)} from w where ${condition}
       on conflict (key, window_start) do update set total = counters.total + excluded.total
       returning total, ${resetsInMsSql(windowMs)} as resets_in_ms`);
-    return toWindowTotal(rows[0]);
+    return rows[0] ? toWindowTotal(rows[0]) : null;
   }
 
   async take(key: string, windowMs: number, limit: number): Promise<WindowTotal | null> {

@@ -120,6 +120,38 @@ export function authStoreContract(name: string, make: () => AuthStore) {
       expect(await store.identity('github', earlier.subject)).toBeNull();
     });
 
+    it('ends a session family without affecting another and cascades account deletion', async () => {
+      const store = make();
+      const user = newUser();
+      await store.createUser(user);
+      const ended = randomUUID();
+      const active = randomUUID();
+      expect(await store.createFamily(user.id, ended, iso())).toBe(true);
+      expect(await store.createFamily(user.id, active, iso())).toBe(true);
+      expect(await store.activeFamily(user.id, user.learnerId, ended)).toBe(true);
+      expect(await store.activeFamily(user.id, randomUUID(), ended)).toBe(false);
+
+      await store.revokeFamily(ended, iso());
+      expect(await store.activeFamily(user.id, user.learnerId, ended)).toBe(false);
+      expect(await store.activeFamily(user.id, user.learnerId, active)).toBe(true);
+      expect(
+        await store.addRefreshToken({
+          id: randomUUID(),
+          userId: user.id,
+          familyId: ended,
+          tokenHash: randomUUID(),
+          expiresAt: iso(HOUR),
+          rotatedAt: null,
+          revokedAt: null,
+          createdAt: iso(),
+        }),
+      ).toBe(false);
+
+      await store.deleteByLearner(user.learnerId);
+      expect(await store.activeFamily(user.id, user.learnerId, active)).toBe(false);
+      expect(await store.createFamily(user.id, randomUUID(), iso())).toBe(false);
+    });
+
     it('hands out a one-time value exactly once, even to concurrent callers', async () => {
       const store = make();
       const record = oneTime();

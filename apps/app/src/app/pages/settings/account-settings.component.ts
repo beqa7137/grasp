@@ -226,7 +226,7 @@ export class AccountSettingsComponent {
     try {
       await this.auth.signOut();
     } catch {
-      await this.toast('Could not sign out.');
+      await this.toast('Could not finish signing out. Please try again.');
     } finally {
       this.busy.set(false);
     }

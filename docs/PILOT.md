@@ -112,8 +112,8 @@ Review the targets table and the daily activity, then tag each feedback note as 
 - **Third parties:** interview transcripts are sent to Anthropic's Claude API to run and score interviews. Error reports go to Sentry with request bodies, headers and learner ids stripped. Sign-in goes through Google or GitHub, whichever the tester picks.
 - **Consent:** testers see a pilot notice on first launch that explains the above, and the onboarding message repeats it.
 - **Access:** only the operator holding `ADMIN_TOKEN` can see aggregate metrics and feedback. The metrics never include learner ids.
-- **Tester control:** Settings → Export downloads everything stored for that learner. Settings → Delete erases it from the server and the device.
-- **Retention:** delete the pilot database 90 days after the pilot ends, unless a tester explicitly asks to keep their progress.
+- **Tester control:** Settings → Export downloads everything stored for that learner. Settings → Delete erases progress, interviews, feedback, the account and sign-in methods from the server, then clears the device. If device cleanup fails, the app asks the tester to try Delete again. A tombstone keeps the random learner ID and deletion time so a stale device cannot restore erased data. It contains no learning content, email or provider identity.
+- **Retention:** tombstones remain while the service runs to reject stale devices. A merged guest learner tombstone may also hold its destination learner ID until that destination is erased. Delete the pilot database, including tombstones, 90 days after the pilot ends, unless a tester explicitly asks to keep their progress.
 
 ## Metric definitions
 

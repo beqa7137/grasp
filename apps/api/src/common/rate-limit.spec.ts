@@ -3,7 +3,7 @@ import { Reflector } from '@nestjs/core';
 import { DrizzleQueryError } from 'drizzle-orm/errors';
 import type { ExecutionContext } from '@nestjs/common';
 import type { AppConfig } from '../config.js';
-import { MemoryCoordinationStore } from '../persistence/memory.stores.js';
+import { MemoryAuthStore, MemoryCoordinationStore } from '../persistence/memory.stores.js';
 import type { CoordinationStore } from '../persistence/stores.js';
 import { RateLimit, RateLimitGuard, SkipRateLimit } from './rate-limit.js';
 
@@ -35,10 +35,14 @@ describe('RateLimitGuard', () => {
   const config = { rateLimitPerMinute: 2 } as AppConfig;
   let now: number;
   let guard: RateLimitGuard;
+  let auth: MemoryAuthStore;
+  let coordination: MemoryCoordinationStore;
 
   beforeEach(() => {
     now = Date.parse('2026-09-24T10:00:00Z');
-    guard = new RateLimitGuard(new Reflector(), new MemoryCoordinationStore(() => now), config);
+    auth = new MemoryAuthStore();
+    coordination = new MemoryCoordinationStore(() => now, auth);
+    guard = new RateLimitGuard(new Reflector(), coordination, config, auth);
   });
 
   it('applies the default limit per route and caller, and reports it in headers', async () => {
@@ -73,10 +77,30 @@ describe('RateLimitGuard', () => {
     }
   });
 
+  it('checks signed sessions before counting, including skipped routes', async () => {
+    const userId = '11111111-1111-4111-8111-111111111111';
+    const learnerId = '22222222-2222-4222-8222-222222222222';
+    const familyId = '33333333-3333-4333-8333-333333333333';
+    await auth.createUser({
+      id: userId,
+      learnerId,
+      email: 'signed@example.com',
+      createdAt: new Date(now).toISOString(),
+      lastLoginAt: null,
+    });
+    await auth.createFamily(userId, familyId, new Date(now).toISOString());
+    const signed = { ip: '203.0.113.1', identity: { userId, learnerId }, accessClaims: { userId, learnerId, familyId } };
+    await expect(call(guard, Routes.prototype.send, signed).result).resolves.toBe(true);
+    await auth.revokeFamily(familyId, new Date(now).toISOString());
+    await expect(call(guard, Routes.prototype.send, signed).result).rejects.toMatchObject({ status: 401 });
+    await expect(call(guard, Routes.prototype.health, signed).result).rejects.toMatchObject({ status: 401 });
+    expect(await coordination.read(`rate:Routes.send:user:${userId}`, 60_000)).toBe(1);
+  });
+
   it('lets requests through when the counter store fails, logging at most once a minute', async () => {
     const failing = { add: () => Promise.reject(new Error('connection refused')) } as unknown as CoordinationStore;
     const error = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
-    guard = new RateLimitGuard(new Reflector(), failing, config);
+    guard = new RateLimitGuard(new Reflector(), failing, config, auth);
     for (let i = 0; i < 3; i++) await expect(call(guard, Routes.prototype.list).result).resolves.toBe(true);
     expect(error).toHaveBeenCalledTimes(1);
     error.mockRestore();
@@ -90,7 +114,7 @@ describe('RateLimitGuard', () => {
     );
     const failing = { add: () => Promise.reject(failure) } as unknown as CoordinationStore;
     const error = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
-    guard = new RateLimitGuard(new Reflector(), failing, { ...config, databaseUrl: 'postgresql://user:secret@localhost/test' });
+    guard = new RateLimitGuard(new Reflector(), failing, { ...config, databaseUrl: 'postgresql://user:secret@localhost/test' }, auth);
 
     await expect(call(guard, Routes.prototype.list).result).rejects.toMatchObject({ status: 503 });
     expect(error).toHaveBeenCalledTimes(1);
@@ -104,7 +128,7 @@ describe('RateLimitGuard', () => {
     const failure = Object.assign(new Error('other network call failed'), { code: 'ECONNRESET' });
     const failing = { add: () => Promise.reject(failure) } as unknown as CoordinationStore;
     const error = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
-    guard = new RateLimitGuard(new Reflector(), failing, { ...config, databaseUrl: 'postgresql://localhost/test' });
+    guard = new RateLimitGuard(new Reflector(), failing, { ...config, databaseUrl: 'postgresql://localhost/test' }, auth);
 
     await expect(call(guard, Routes.prototype.list).result).rejects.toBe(failure);
     expect(error.mock.calls[0]![0]).toContain('category=connection');

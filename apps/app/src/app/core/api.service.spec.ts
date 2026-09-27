@@ -58,6 +58,57 @@ describe('ApiService', () => {
     expect(error).toMatchObject({ status: 409, code: 'account_exists', message: 'This email already has a Grasp account.' });
   });
 
+  it('routes bearerless retired learner codes to recovery without replaying the rejected write', async () => {
+    for (const code of ['learner_erased', 'learner_moved'] as const) {
+      const { api, tokens, requests } = setup(() => json(410, { statusCode: 410, message: 'Learner retired', code }));
+      const recovered = vi.fn(async () => undefined);
+      tokens.learnerRetired = recovered;
+
+      await expect(api.post('/progress/events', { events: [] })).rejects.toMatchObject({ status: 410, code });
+      expect(recovered).toHaveBeenCalledExactlyOnceWith(code, 'device-learner');
+      expect(requests).toEqual(['/api/progress/events anonymous']);
+      TestBed.resetTestingModule();
+    }
+  });
+
+  it('does not reset a learner when a bearer request receives 410', async () => {
+    const { api, tokens } = setup(() => json(410, { statusCode: 410, message: 'Learner retired', code: 'learner_erased' }));
+    const recovered = vi.fn(async () => undefined);
+    tokens.accessToken.set('account-token');
+    tokens.learnerRetired = recovered;
+
+    await expect(api.post('/progress/events', { events: [] })).rejects.toMatchObject({ status: 410, code: 'learner_erased' });
+    expect(recovered).not.toHaveBeenCalled();
+  });
+
+  it('recovers from an anonymous retired learner read without a pending write', async () => {
+    const { api, tokens, requests } = setup(() => json(410, { statusCode: 410, message: 'Learner erased', code: 'learner_erased' }));
+    const recovered = vi.fn(async () => undefined);
+    tokens.learnerRetired = recovered;
+
+    await expect(api.get('/progress/events')).rejects.toMatchObject({ status: 410, code: 'learner_erased' });
+    expect(recovered).toHaveBeenCalledWith('learner_erased', 'device-learner');
+    expect(requests).toEqual(['/api/progress/events anonymous']);
+  });
+
+  it('handles a coded learner move after an interview stream has started', async () => {
+    const event = 'event: error\ndata: {"status":410,"message":"Learner moved","code":"learner_moved"}\n\n';
+    const { api, tokens } = setup(
+      () =>
+        new Response(
+          new ReadableStream({ start: (controller) => (controller.enqueue(new TextEncoder().encode(event)), controller.close()) }),
+        ),
+    );
+    const recovered = vi.fn(async () => undefined);
+    tokens.learnerRetired = recovered;
+
+    await expect(api.stream('/interview/sessions/one/messages', {}, { delta: () => undefined })).rejects.toMatchObject({
+      status: 410,
+      code: 'learner_moved',
+    });
+    expect(recovered).toHaveBeenCalledWith('learner_moved', 'device-learner');
+  });
+
   it('aborts a stalled request by its deadline and allows the learner to retry', async () => {
     vi.useFakeTimers();
     const { api } = setup(() => json(200, { events: [] }));

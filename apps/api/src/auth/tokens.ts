@@ -3,11 +3,13 @@ import { SignJWT, errors, jwtVerify } from 'jose';
 
 const ISSUER = 'grasp-api';
 const AUDIENCE = 'grasp-app';
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const ACCESS_TOKEN_SECONDS = 15 * 60;
 
 export interface AccessClaims {
   userId: string;
   learnerId: string;
+  familyId: string;
 }
 
 export class InvalidTokenError extends Error {}
@@ -22,7 +24,7 @@ export class TokenService {
 
   async sign(claims: AccessClaims, now = new Date()): Promise<string> {
     const iat = Math.floor(now.getTime() / 1000);
-    return new SignJWT({ lid: claims.learnerId })
+    return new SignJWT({ lid: claims.learnerId, fid: claims.familyId })
       .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
       .setSubject(claims.userId)
       .setIssuer(ISSUER)
@@ -35,8 +37,17 @@ export class TokenService {
   async verify(token: string, now = new Date()): Promise<AccessClaims> {
     try {
       const { payload } = await jwtVerify(token, this.key, { issuer: ISSUER, audience: AUDIENCE, algorithms: ['HS256'], currentDate: now });
-      if (typeof payload.sub !== 'string' || typeof payload['lid'] !== 'string') throw new InvalidTokenError('Malformed token');
-      return { userId: payload.sub, learnerId: payload['lid'] };
+      if (
+        typeof payload.sub !== 'string' ||
+        typeof payload['lid'] !== 'string' ||
+        typeof payload['fid'] !== 'string' ||
+        !UUID.test(payload.sub) ||
+        !UUID.test(payload['lid']) ||
+        !UUID.test(payload['fid'])
+      ) {
+        throw new InvalidTokenError('Malformed token');
+      }
+      return { userId: payload.sub, learnerId: payload['lid'], familyId: payload['fid'] };
     } catch (e) {
       if (e instanceof InvalidTokenError) throw e;
       throw new InvalidTokenError(e instanceof errors.JWTExpired ? 'Token expired' : 'Invalid token');

@@ -3,6 +3,7 @@ import type { LearnerEvent } from '../admin/cohort-metrics.js';
 import type { AuthIdentity, OneTimePurpose, OneTimeRecord, Provider, RefreshTokenRecord, User } from '../auth/auth.types.js';
 import type { FeedbackEntry } from '../feedback/feedback.types.js';
 import type { InterviewSession } from '../interview/interview.types.js';
+import type { AccessClaims } from '../auth/tokens.js';
 
 export interface AppendResult {
   accepted: number;
@@ -14,8 +15,6 @@ export abstract class ProgressStore {
   abstract list(learnerId: string): Promise<StoredEvent[]>;
   abstract all(): Promise<LearnerEvent[]>;
   abstract deleteLearner(learnerId: string): Promise<void>;
-  /** Re-homes every event of `from` under `to`; safe to repeat if interrupted. */
-  abstract moveLearner(from: string, to: string): Promise<void>;
 }
 
 export abstract class InterviewStore {
@@ -24,7 +23,6 @@ export abstract class InterviewStore {
   abstract recent(learnerId: string, limit: number): Promise<InterviewSession[]>;
   abstract all(): Promise<InterviewSession[]>;
   abstract deleteLearner(learnerId: string): Promise<void>;
-  abstract moveLearner(from: string, to: string): Promise<void>;
 }
 
 export abstract class FeedbackStore {
@@ -32,7 +30,6 @@ export abstract class FeedbackStore {
   abstract list(learnerId: string): Promise<FeedbackEntry[]>;
   abstract all(): Promise<FeedbackEntry[]>;
   abstract deleteLearner(learnerId: string): Promise<void>;
-  abstract moveLearner(from: string, to: string): Promise<void>;
 }
 
 export abstract class AuthStore {
@@ -63,7 +60,12 @@ export abstract class AuthStore {
   /** Deletes expired one-time values; returns how many went. */
   abstract sweepExpired(): Promise<number>;
 
-  abstract addRefreshToken(token: RefreshTokenRecord): Promise<void>;
+  /** False when the account vanished before the session could start. */
+  abstract createFamily(userId: string, familyId: string, at: string): Promise<boolean>;
+  /** Verifies the session and its account for every bearer request. */
+  abstract activeFamily(userId: string, learnerId: string, familyId: string): Promise<boolean>;
+  /** False when logout or account deletion won the race against issuance. */
+  abstract addRefreshToken(token: RefreshTokenRecord): Promise<boolean>;
   abstract refreshTokenByHash(tokenHash: string): Promise<RefreshTokenRecord | null>;
   abstract markRotated(id: string, at: string): Promise<void>;
   abstract revokeFamily(familyId: string, at: string): Promise<void>;
@@ -82,6 +84,8 @@ export interface WindowTotal {
 export abstract class CoordinationStore {
   /** Adds `amount` to the current window's total and returns the new total. */
   abstract add(key: string, windowMs: number, amount: number, retainMs?: number): Promise<WindowTotal>;
+  /** Null when the account or session was revoked; a denied call does not increment the counter. */
+  abstract addForSession(key: string, windowMs: number, amount: number, claims: AccessClaims): Promise<WindowTotal | null>;
   /** Adds one only while the total is below `limit`; null once the limit is reached. */
   abstract take(key: string, windowMs: number, limit: number): Promise<WindowTotal | null>;
   abstract read(key: string, windowMs: number): Promise<number>;

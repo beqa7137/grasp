@@ -1,5 +1,6 @@
 import { HttpException, Logger } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
+import { MemoryErasureStore, MemoryLearnerState } from '../persistence/erasure.stores.js';
 import { MemoryAuthStore, MemoryFeedbackStore, MemoryInterviewStore, MemoryProgressStore } from '../persistence/memory.stores.js';
 import { AccountService } from './account.service.js';
 import type { User, VerifiedIdentity } from './auth.types.js';
@@ -12,15 +13,17 @@ const phone = '11111111-1111-4111-8111-111111111111';
 const laptop = '22222222-2222-4222-8222-222222222222';
 
 function setup() {
+  const state = new MemoryLearnerState();
   const stores = {
-    auth: new MemoryAuthStore(),
-    progress: new MemoryProgressStore(),
-    interviews: new MemoryInterviewStore(),
-    feedback: new MemoryFeedbackStore(),
+    auth: new MemoryAuthStore(state),
+    progress: new MemoryProgressStore(state),
+    interviews: new MemoryInterviewStore(state),
+    feedback: new MemoryFeedbackStore(state),
   };
+  const erasure = new MemoryErasureStore(state, stores.progress, stores.interviews, stores.feedback, stores.auth);
   const sessions = new SessionService(stores.auth, new TokenService('unit-test-secret-0123456789abcdef-0123456789'));
-  const accounts = new AccountService(stores.auth, stores.progress, stores.interviews, stores.feedback, sessions);
-  return { accounts, ...stores };
+  const accounts = new AccountService(stores.auth, sessions, erasure);
+  return { accounts, erasure, ...stores };
 }
 
 const google = (subject: string, email: string | null, authoritative = email?.endsWith('@gmail.com') ?? false): VerifiedIdentity => ({
@@ -64,11 +67,20 @@ const event = (id: string) => ({
 beforeAll(() => Logger.overrideLogger(false));
 
 describe('AccountService sign-in', () => {
+  it('starts a fresh learner after the device learner was erased', async () => {
+    const { accounts, erasure } = setup();
+    await erasure.erase(phone);
+    const session = await accounts.signIn(github('erased-device', 'new@example.com'), phone, t0);
+    expect(session.learnerId).not.toBe(phone);
+    expect(session.deviceLearnerErased).toBe(true);
+  });
+
   it('creates an account for a new identity with its verified email, normalized, and adopts the device learner', async () => {
     const { accounts, auth } = setup();
     const session = await accounts.signIn(github('101', '  Ada@Example.COM '), phone, t0);
     expect(session.user.email).toBe('ada@example.com');
     expect(session.learnerId).toBe(phone);
+    expect(session.deviceLearnerErased).toBeUndefined();
     expect(await auth.identitiesForUser(session.user.id)).toEqual([
       expect.objectContaining({ provider: 'github', subject: '101', email: 'ada@example.com', lastLoginAt: t0.toISOString() }),
     ]);

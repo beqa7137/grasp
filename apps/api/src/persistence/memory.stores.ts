@@ -2,8 +2,10 @@ import { Injectable } from '@nestjs/common';
 import type { StoredEvent } from '@grasp/engine';
 import type { LearnerEvent } from '../admin/cohort-metrics.js';
 import type { AuthIdentity, OneTimePurpose, OneTimeRecord, Provider, RefreshTokenRecord, User } from '../auth/auth.types.js';
+import type { AccessClaims } from '../auth/tokens.js';
 import type { FeedbackEntry } from '../feedback/feedback.types.js';
 import type { InterviewSession } from '../interview/interview.types.js';
+import { MemoryLearnerState } from './erasure.stores.js';
 import {
   AuthStore,
   CoordinationStore,
@@ -18,7 +20,12 @@ import {
 export class MemoryProgressStore extends ProgressStore {
   private readonly events = new Map<string, Map<string, StoredEvent>>();
 
+  constructor(private readonly learnerState = new MemoryLearnerState()) {
+    super();
+  }
+
   async append(learnerId: string, events: StoredEvent[]): Promise<AppendResult> {
+    this.learnerState.assertActive(learnerId);
     const log = this.events.get(learnerId) ?? new Map<string, StoredEvent>();
     this.events.set(learnerId, log);
     let accepted = 0;
@@ -43,6 +50,7 @@ export class MemoryProgressStore extends ProgressStore {
   }
 
   async moveLearner(from: string, to: string): Promise<void> {
+    this.learnerState.assertActive(to);
     await this.append(to, [...(this.events.get(from)?.values() ?? [])]);
     this.events.delete(from);
   }
@@ -52,7 +60,12 @@ export class MemoryProgressStore extends ProgressStore {
 export class MemoryInterviewStore extends InterviewStore {
   private readonly sessions = new Map<string, InterviewSession>();
 
+  constructor(private readonly learnerState = new MemoryLearnerState()) {
+    super();
+  }
+
   async save(session: InterviewSession): Promise<void> {
+    this.learnerState.assertActive(session.learnerId);
     this.sessions.set(session.id, structuredClone(session));
   }
 
@@ -78,6 +91,7 @@ export class MemoryInterviewStore extends InterviewStore {
   }
 
   async moveLearner(from: string, to: string): Promise<void> {
+    this.learnerState.assertActive(to);
     for (const s of this.sessions.values()) if (s.learnerId === from) s.learnerId = to;
   }
 }
@@ -86,7 +100,12 @@ export class MemoryInterviewStore extends InterviewStore {
 export class MemoryFeedbackStore extends FeedbackStore {
   private readonly entries: FeedbackEntry[] = [];
 
+  constructor(private readonly learnerState = new MemoryLearnerState()) {
+    super();
+  }
+
   async add(entry: FeedbackEntry): Promise<void> {
+    this.learnerState.assertActive(entry.learnerId);
     this.entries.push(structuredClone(entry));
   }
 
@@ -103,6 +122,7 @@ export class MemoryFeedbackStore extends FeedbackStore {
   }
 
   async moveLearner(from: string, to: string): Promise<void> {
+    this.learnerState.assertActive(to);
     for (const e of this.entries) if (e.learnerId === from) e.learnerId = to;
   }
 }
@@ -113,6 +133,11 @@ export class MemoryAuthStore extends AuthStore {
   private readonly identities = new Map<string, AuthIdentity>();
   private readonly oneTime = new Map<string, OneTimeRecord>();
   private readonly tokens = new Map<string, RefreshTokenRecord>();
+  private readonly families = new Map<string, { userId: string; revokedAt: string | null }>();
+
+  constructor(private readonly learnerState?: MemoryLearnerState) {
+    super();
+  }
 
   async userByEmail(email: string): Promise<User | null> {
     return copy([...this.users.values()].find((u) => u.email === email));
@@ -127,6 +152,7 @@ export class MemoryAuthStore extends AuthStore {
   }
 
   async createUser(user: User, identity?: AuthIdentity): Promise<boolean> {
+    this.learnerState?.assertActive(user.learnerId);
     if ([...this.users.values()].some((u) => u.email === user.email)) return false;
     if (identity && this.identities.has(identityKey(identity.provider, identity.subject))) return false;
     this.users.set(user.id, { ...user });
@@ -144,6 +170,7 @@ export class MemoryAuthStore extends AuthStore {
       if (user.learnerId !== learnerId) continue;
       this.users.delete(id);
       for (const [tokenId, token] of this.tokens) if (token.userId === id) this.tokens.delete(tokenId);
+      for (const [familyId, family] of this.families) if (family.userId === id) this.families.delete(familyId);
       for (const [key, identity] of this.identities) if (identity.userId === id) this.identities.delete(key);
     }
   }
@@ -190,8 +217,22 @@ export class MemoryAuthStore extends AuthStore {
     return removed;
   }
 
-  async addRefreshToken(token: RefreshTokenRecord): Promise<void> {
+  async createFamily(userId: string, familyId: string, _at: string): Promise<boolean> {
+    if (!this.users.has(userId) || this.families.has(familyId)) return false;
+    this.families.set(familyId, { userId, revokedAt: null });
+    return true;
+  }
+
+  async activeFamily(userId: string, learnerId: string, familyId: string): Promise<boolean> {
+    const family = this.families.get(familyId);
+    return family?.userId === userId && !family.revokedAt && this.users.get(userId)?.learnerId === learnerId;
+  }
+
+  async addRefreshToken(token: RefreshTokenRecord): Promise<boolean> {
+    const family = this.families.get(token.familyId);
+    if (family?.userId !== token.userId || family.revokedAt) return false;
     this.tokens.set(token.id, { ...token });
+    return true;
   }
 
   async refreshTokenByHash(tokenHash: string): Promise<RefreshTokenRecord | null> {
@@ -205,6 +246,8 @@ export class MemoryAuthStore extends AuthStore {
   }
 
   async revokeFamily(familyId: string, at: string): Promise<void> {
+    const family = this.families.get(familyId);
+    if (family && !family.revokedAt) family.revokedAt = at;
     for (const token of this.tokens.values()) if (token.familyId === familyId && !token.revokedAt) token.revokedAt = at;
   }
 }
@@ -217,7 +260,10 @@ export class MemoryCoordinationStore extends CoordinationStore {
   private readonly windows = new Map<string, { start: number; total: number; expiresAt: number }>();
   private readonly leases = new Map<string, { holder: string; expiresAt: number }>();
 
-  constructor(private readonly now: () => number = Date.now) {
+  constructor(
+    private readonly now: () => number = Date.now,
+    private readonly auth?: AuthStore,
+  ) {
     super();
   }
 
@@ -225,6 +271,11 @@ export class MemoryCoordinationStore extends CoordinationStore {
     const w = this.current(key, windowMs, retainMs);
     w.total += amount;
     return { total: w.total, resetsInMs: w.start + windowMs - this.now() };
+  }
+
+  async addForSession(key: string, windowMs: number, amount: number, claims: AccessClaims): Promise<WindowTotal | null> {
+    if (!this.auth || !(await this.auth.activeFamily(claims.userId, claims.learnerId, claims.familyId))) return null;
+    return this.add(key, windowMs, amount);
   }
 
   async take(key: string, windowMs: number, limit: number): Promise<WindowTotal | null> {

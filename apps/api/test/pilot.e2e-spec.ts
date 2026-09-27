@@ -105,8 +105,8 @@ describe.each(storages)('Pilot tooling (%s storage)', (storage) => {
 
     const exported = await http().get('/api/me/export').set('x-learner-id', ada).expect(200);
     expect(exported.body).toMatchObject({ events: [], interviews: [], feedback: [] });
-    const progress = await http().get('/api/progress/events').set('x-learner-id', ada).expect(200);
-    expect(progress.body.events).toEqual([]);
+    const progress = await http().get('/api/progress/events').set('x-learner-id', ada).expect(410);
+    expect(progress.body.code).toBe('learner_erased');
 
     const kept = await http().get('/api/me/export').set('x-learner-id', bob).expect(200);
     expect(kept.body.events).toHaveLength(1);

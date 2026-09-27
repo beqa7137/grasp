@@ -50,12 +50,19 @@ export class ApiService {
     signal?.addEventListener('abort', abort, { once: true });
     if (signal?.aborted) controller.abort();
     try {
+      let sentHeaders = this.headers();
       const streamBody = await this.withDeadline(STREAM_CONNECT_TIMEOUT_MS, controller, async (requestSignal) => {
-        const send = () =>
-          fetch(this.base + path, { method: 'POST', headers: this.headers(), body: JSON.stringify(body), signal: requestSignal });
+        const send = () => {
+          sentHeaders = this.headers();
+          return fetch(this.base + path, { method: 'POST', headers: sentHeaders, body: JSON.stringify(body), signal: requestSignal });
+        };
         let response = await send();
         if (response.status === 401 && (await this.renewAfter(response.clone(), path))) response = await send();
-        if (!response.ok || !response.body) throw await this.toError(response);
+        if (!response.ok || !response.body) {
+          const error = await this.toError(response);
+          await this.handleRetired(error, sentHeaders);
+          throw error;
+        }
         return response.body;
       });
 
@@ -73,7 +80,11 @@ export class ApiService {
           const data = JSON.parse(/^data: (.+)$/m.exec(raw)?.[1] ?? 'null');
           if (event === 'delta') handlers.delta(data.text);
           else if (event === 'done') return data as T;
-          else if (event === 'error') throw new ApiError(data.status, data.message);
+          else if (event === 'error') {
+            const error = new ApiError(data.status, data.message, data.code);
+            await this.handleRetired(error, sentHeaders);
+            throw error;
+          }
         }
       }
       throw new ApiError(0, 'Stream ended unexpectedly');
@@ -85,11 +96,13 @@ export class ApiService {
 
   private request<T>(method: string, path: string, body?: unknown, timeoutMs = REQUEST_TIMEOUT_MS): Promise<T> {
     return this.withDeadline(timeoutMs, new AbortController(), async (signal) => {
+      let sentHeaders = this.headers();
       const send = async () => {
         try {
+          sentHeaders = this.headers();
           return await fetch(this.base + path, {
             method,
-            headers: this.headers(),
+            headers: sentHeaders,
             body: body === undefined ? undefined : JSON.stringify(body),
             signal,
           });
@@ -99,7 +112,11 @@ export class ApiService {
       };
       let res = await send();
       if (res.status === 401 && (await this.renewAfter(res.clone(), path))) res = await send();
-      if (!res.ok) throw await this.toError(res);
+      if (!res.ok) {
+        const error = await this.toError(res);
+        await this.handleRetired(error, sentHeaders);
+        throw error;
+      }
       return (res.status === 204 ? undefined : await res.json()) as T;
     });
   }
@@ -139,6 +156,12 @@ export class ApiService {
       'x-learner-id': this.learner.id(),
       ...(token ? { authorization: `Bearer ${token}` } : {}),
     };
+  }
+
+  private async handleRetired(error: ApiError, headers: Record<string, string>): Promise<void> {
+    if (error.status !== 410 || headers['authorization']) return;
+    if (error.code !== 'learner_erased' && error.code !== 'learner_moved') return;
+    await this.tokens.learnerRetired?.(error.code, headers['x-learner-id']);
   }
 
   private async toError(res: Response): Promise<ApiError> {
