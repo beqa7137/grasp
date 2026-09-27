@@ -63,7 +63,7 @@ export class AuthService {
   readonly identities = signal<IdentitySummary[] | null>(null);
 
   async init(): Promise<void> {
-    this.tokens.refresher = () => this.refresh();
+    this.tokens.refresher = () => this.renewSession();
     this.tokens.learnerRetired = (code, learnerId) => this.recoverRetiredLearner(code, learnerId);
     const [refresh, user] = await Promise.all([Preferences.get({ key: REFRESH_KEY }), Preferences.get({ key: USER_KEY })]);
     if (!refresh.value) return;
@@ -112,8 +112,12 @@ export class AuthService {
     return true;
   }
 
-  /** Single-flight: concurrent 401s share one refresh. Keeps the session on network errors. */
   refresh(): Promise<boolean> {
+    return this.renewSession().catch(() => false);
+  }
+
+  /** Share renewal across callers; temporary failures reach the requesting page without ending the session. */
+  private renewSession(): Promise<boolean> {
     if (this.endingSession) return Promise.resolve(false);
     this.refreshing ??= (async () => {
       const { value } = await Preferences.get({ key: REFRESH_KEY });
@@ -122,7 +126,8 @@ export class AuthService {
         await this.adopt(await this.api.post<Session>('/auth/refresh', { refreshToken: value }));
         return true;
       } catch (e) {
-        if (e instanceof ApiError && e.status === 401) await this.expire();
+        if (!(e instanceof ApiError && e.status === 401)) throw e;
+        await this.expire();
         return false;
       }
     })().finally(() => (this.refreshing = null));
@@ -132,7 +137,7 @@ export class AuthService {
   async signOut(): Promise<void> {
     this.endingSession = true;
     try {
-      await this.refreshing;
+      await this.refreshing?.catch(() => false);
       const { value } = await Preferences.get({ key: REFRESH_KEY });
       if (!value && this.tokens.accessToken()) throw new Error('The session cannot be revoked without its refresh token');
       if (value) await this.api.post('/auth/logout', { refreshToken: value });

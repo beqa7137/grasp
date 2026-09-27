@@ -1,6 +1,7 @@
 import { type ArgumentsHost, Logger } from '@nestjs/common';
 import { BaseExceptionFilter } from '@nestjs/core';
 import { DrizzleQueryError } from 'drizzle-orm/errors';
+import { RateLimitExceeded } from '../common/rate-limit-exceeded.js';
 import { reportError } from './error-reporting.js';
 import { ReportExceptionsFilter } from './report-exceptions.filter.js';
 
@@ -14,6 +15,24 @@ describe('ReportExceptionsFilter', () => {
     vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
   });
   afterEach(() => vi.restoreAllMocks());
+
+  it('returns the principal limit headers instead of the wider network limit', () => {
+    const rendered = vi.spyOn(BaseExceptionFilter.prototype, 'catch').mockImplementation(() => undefined);
+    const setHeader = vi.fn();
+    const limitedHost = {
+      switchToHttp: () => ({ getRequest: () => ({}), getResponse: () => ({ setHeader }) }),
+    } as unknown as ArgumentsHost;
+    const failure = new RateLimitExceeded(10, 1250);
+    new ReportExceptionsFilter().catch(failure, limitedHost);
+    expect(setHeader.mock.calls).toEqual([
+      ['X-RateLimit-Limit', 10],
+      ['X-RateLimit-Remaining', 0],
+      ['X-RateLimit-Reset', 2],
+      ['Retry-After', 2],
+    ]);
+    expect(rendered).toHaveBeenCalledWith(failure, limitedHost);
+    expect(reportError).not.toHaveBeenCalled();
+  });
 
   it('reports unrelated network errors as unexpected failures', () => {
     const rendered = vi.spyOn(BaseExceptionFilter.prototype, 'catch').mockImplementation(() => undefined);

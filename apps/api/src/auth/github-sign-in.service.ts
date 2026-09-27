@@ -2,6 +2,7 @@ import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { z } from 'zod';
 import { safeErrorDetails } from '../observability/safe-error.js';
 import { invalidTicket, oauthError, providerDisabled } from './auth-errors.js';
+import { AuthRateLimitService } from './auth-rate-limit.service.js';
 import type { VerifiedIdentity } from './auth.types.js';
 import { GitHubOAuthClient, type GitHubApp, type GitHubIdentity } from './github-oauth.client.js';
 import { OneTimeValues } from './one-time-values.js';
@@ -44,6 +45,7 @@ export class GitHubSignInService {
   constructor(
     private readonly github: GitHubOAuthClient,
     private readonly oneTime: OneTimeValues,
+    private readonly limits: AuthRateLimitService,
   ) {}
 
   /** `webRedirectUri` is this site's own callback page. */
@@ -70,6 +72,7 @@ export class GitHubSignInService {
       }
       throw e;
     }
+    await this.limits.githubTicket(identity.subject);
     const payload: TicketPayload = { ...identity, verifierHash: hashToken(codeVerifier) };
     const ticket = await this.oneTime.issue('github_ticket', TICKET_TTL_SECONDS * 1000, payload, now);
     return { access_token: ticket, token_type: 'bearer', expires_in: TICKET_TTL_SECONDS, scope: 'user:email' };

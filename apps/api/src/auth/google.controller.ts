@@ -5,6 +5,7 @@ import { RateLimit } from '../common/rate-limit.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { AccountService } from './account.service.js';
 import { notSignedIn } from './auth-errors.js';
+import { AUTH_NETWORK_LIMIT, AuthRateLimitService } from './auth-rate-limit.service.js';
 import { GoogleSignInService } from './google-sign-in.service.js';
 import { SkipIdentity } from './identity.guard.js';
 
@@ -14,16 +15,17 @@ const credentialSchema = z.object({ idToken: z.string().min(1).max(4096), nonce:
 type Credential = z.infer<typeof credentialSchema>;
 
 @Controller('auth/google')
+@RateLimit(AUTH_NETWORK_LIMIT)
 export class GoogleController {
   constructor(
     private readonly google: GoogleSignInService,
     private readonly accounts: AccountService,
+    private readonly limits: AuthRateLimitService,
   ) {}
 
   @Post('nonce')
   @HttpCode(200)
   @SkipIdentity()
-  @RateLimit({ limit: 20, windowMs: QUARTER_HOUR })
   async nonce() {
     return { nonce: await this.google.newNonce() };
   }
@@ -31,9 +33,10 @@ export class GoogleController {
   @Post()
   @HttpCode(200)
   @SkipIdentity()
-  @RateLimit({ limit: 10, windowMs: QUARTER_HOUR })
   async signIn(@Body(new ZodValidationPipe(credentialSchema)) body: Credential, @DeviceLearnerId() device: string | null) {
-    return this.accounts.signIn(await this.google.identify(body.idToken, body.nonce), device);
+    const identity = await this.google.identify(body.idToken, body.nonce);
+    await this.limits.signIn(identity);
+    return this.accounts.signIn(identity, device);
   }
 
   @Post('link')

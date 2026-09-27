@@ -137,22 +137,30 @@ Refresh tokens sit in Capacitor Preferences: `localStorage` on the web, app-priv
 
 ## Rate limits
 
-Every route has a global limit of `RATE_LIMIT_PER_MINUTE` requests. The limit is counted per signed-in user, across their devices and networks, and per IP for anonymous callers. Counters live in Postgres in fixed one-minute windows, so every API instance enforces the same limit; only hashed keys are stored, never IP addresses. If the counter store fails, limiting pauses (fail open) and an error is logged once a minute. Sign-in routes have stricter limits:
+Ordinary routes each default to `RATE_LIMIT_PER_MINUTE` requests in a fixed one-minute window. Signed-in callers share a bucket per account across devices and networks; guests share a bucket per IP. These are per-route limits, not one application-wide allowance.
 
-| Route                        | Limit                       |
-| ---------------------------- | --------------------------- |
-| `google/nonce`               | 20 per 15 minutes, per IP   |
-| `google`                     | 10 per 15 minutes, per IP   |
-| `github/token`               | 20 per 15 minutes, per IP   |
-| `github`                     | 10 per 15 minutes, per IP   |
-| `google/link`, `github/link` | 10 per 15 minutes, per user |
-| `refresh`                    | 30 per 15 minutes, per IP   |
+Authentication uses two layers. Before checking any credential, each public auth endpoint permits 1,200 requests per minute per IP. This network safeguard covers `config`, `google/nonce`, `google`, `github/token`, `github`, `refresh` and `logout`, including malformed requests. It allows a school or office to share an address without sharing an individual sign-in allowance. It is a bounded capacity choice, not a denial-of-service guarantee; upstream traffic controls and provider quotas still apply.
 
-Nonces and tickets are 256-bit, so these limits bound cost and outbound calls rather than guessing. AI interview messages keep their own per-learner hourly quota.
+| Operation                    | Verified principal limit                                                   |
+| ---------------------------- | -------------------------------------------------------------------------- |
+| `google`, `github`           | 10 per 15 minutes per provider subject, after nonce or ticket verification |
+| `github/token`               | 20 per 15 minutes per GitHub subject, after provider verification          |
+| `google/link`, `github/link` | 10 per 15 minutes per signed-in account                                    |
+| `refresh`                    | 30 per 15 minutes per account, shared across its session families          |
+
+Changing an email, learner header, network or refresh token does not renew a verified principal's allowance. Google proofs and GitHub tickets are still single-use, including a proof that reaches a full sign-in bucket. Refresh tokens are checked for expiry and late reuse before the principal limit: late reuse still revokes its family even when the account is throttled. A throttled refresh does not rotate its token, so it remains usable after the window ends. Logout is independent of the refresh allowance.
+
+All counters use the shared coordination store and fixed windows aligned to the Unix epoch. Limits can admit up to twice their allowance across a window boundary. Counter keys hash the caller or verified principal; these hashes pseudonymize identifiers, not anonymize them. This replaces older route keys that contained raw IPs or account IDs, resetting existing route allowances once. Old rows expire at their original window end and are removed by cleanup. During a mixed-version rollout, old and new instances count different route keys and older auth instances still enforce the former small per-IP limits; retire old instances before relying on the new behavior.
+
+Configured Postgres failures stop dependent requests. Recognized database availability failures return 503; unexpected failures use the sanitized error path. Verified auth limits also fail closed in development. The ordinary anonymous route guard alone retains its development-only fail-open behavior when no database is configured.
+
+A limit response returns 429 with `code: "rate_limited"`, a readable wait, `retryAfterSeconds`, and `Retry-After`. Rate-limit headers on a denial describe the exhausted bucket; successful auth responses describe the network bucket. Account Settings displays the wait and keeps sign-in available to retry. A rejected sign-in preserves guest progress, and a 429 refresh preserves saved credentials and local progress.
+
+Nonces and tickets are 256-bit, so network limits bound cost and outbound calls rather than guessing. AI interview messages keep their separate per-learner hourly quota; this change does not make renewable guest UUIDs a robust paid-trial identity.
 
 ## Error codes
 
-Sign-in errors have the usual body `{ statusCode, message, code }`. The API owns the wording (`apps/api/src/auth/auth-errors.ts`): the app shows the API's `message` for `account_exists`, `email_unverified` and `identity_in_use`, and "Sign-in didn't complete. Please try again." for anything else.
+Sign-in errors have the usual body `{ statusCode, message, code }`. The API owns the wording (`apps/api/src/auth/auth-errors.ts`): the app shows the API's `message` for `account_exists`, `email_unverified`, `identity_in_use` and `rate_limited`, and "Sign-in didn't complete. Please try again." for anything else.
 
 | Status | `code`                 | Meaning                                                                                                        |
 | ------ | ---------------------- | -------------------------------------------------------------------------------------------------------------- |
@@ -162,6 +170,7 @@ Sign-in errors have the usual body `{ statusCode, message, code }`. The API owns
 | 409    | `account_exists`       | Another account has this email; `providers` lists how to sign in to it, and is empty for an email-code account |
 | 409    | `identity_in_use`      | The provider account is linked to a different Grasp account                                                    |
 | 404    | `provider_disabled`    | That provider is not configured on this server                                                                 |
+| 429    | `rate_limited`         | A network or verified principal allowance is full; retry after the returned wait                               |
 | 503    | `provider_unavailable` | Google's signing keys could not be fetched                                                                     |
 
 ## Configuration

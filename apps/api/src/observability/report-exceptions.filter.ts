@@ -1,7 +1,8 @@
 import { ArgumentsHost, Catch, HttpException, Logger } from '@nestjs/common';
 import { BaseExceptionFilter } from '@nestjs/core';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import { STATUS_CODES } from 'node:http';
+import { RateLimitExceeded } from '../common/rate-limit-exceeded.js';
 import { databaseUnavailable, isDatabaseUnavailable } from '../persistence/database-errors.js';
 import { reportError } from './error-reporting.js';
 import { safeErrorDetails } from './safe-error.js';
@@ -19,6 +20,13 @@ export class ReportExceptionsFilter extends BaseExceptionFilter {
     const requestId = host.switchToHttp().getRequest<Request>()?.id;
     if (status >= 500 && !(exception instanceof HttpException && status === 503)) {
       reportError(exception, requestId);
+    }
+    if (exception instanceof RateLimitExceeded) {
+      const response = host.switchToHttp().getResponse<Response>();
+      response.setHeader('X-RateLimit-Limit', exception.limit);
+      response.setHeader('X-RateLimit-Remaining', 0);
+      response.setHeader('X-RateLimit-Reset', exception.retryAfterSeconds);
+      response.setHeader('Retry-After', exception.retryAfterSeconds);
     }
     if (exception instanceof HttpException) {
       super.catch(exception, host);

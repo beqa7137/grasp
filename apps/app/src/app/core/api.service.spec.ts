@@ -41,6 +41,19 @@ describe('ApiService', () => {
     expect(requests).toEqual(['/api/auth/me Bearer stale', '/api/auth/me Bearer fresh']);
   });
 
+  it.each(['request', 'stream'])('shows a temporary renewal failure without marking the session ended for %s', async (kind) => {
+    const { api, tokens, requests } = setup(() => json(401, { message: 'Sign in to continue.', code: 'sign_in_required' }));
+    const failure = new ApiError(429, 'Please try again in 2 minutes.', 'rate_limited');
+    tokens.refresher = async () => {
+      throw failure;
+    };
+    const attempt =
+      kind === 'request' ? api.get('/progress/events') : api.stream('/interview/sessions/one/messages', {}, { delta: () => undefined });
+    await expect(attempt).rejects.toBe(failure);
+    expect(tokens.signInRequired()).toBe(false);
+    expect(requests).toHaveLength(1);
+  });
+
   it('never renews around the refresh call itself', async () => {
     let refreshes = 0;
     const { api, tokens } = setup(() => json(401, { statusCode: 401, message: 'Expired', code: 'token_invalid' }));

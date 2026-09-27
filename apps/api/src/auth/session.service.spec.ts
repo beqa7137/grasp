@@ -1,5 +1,6 @@
+import { AuthRateLimitService } from './auth-rate-limit.service.js';
 import { HttpException, Logger } from '@nestjs/common';
-import { MemoryAuthStore } from '../persistence/memory.stores.js';
+import { MemoryAuthStore, MemoryCoordinationStore } from '../persistence/memory.stores.js';
 import type { User } from './auth.types.js';
 import { SessionService } from './session.service.js';
 import { TokenService } from './tokens.js';
@@ -22,7 +23,12 @@ async function setup() {
     lastLoginAt: null,
   };
   await store.createUser(user);
-  return { sessions: new SessionService(store, tokens), store, tokens, user };
+  return {
+    sessions: new SessionService(store, tokens, new AuthRateLimitService(new MemoryCoordinationStore(() => t0.getTime(), store))),
+    store,
+    tokens,
+    user,
+  };
 }
 
 beforeAll(() => Logger.overrideLogger(false));

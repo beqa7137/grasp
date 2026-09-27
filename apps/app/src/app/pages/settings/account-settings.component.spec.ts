@@ -152,6 +152,7 @@ describe('AccountSettingsComponent', () => {
 
   it("shows the API's explanation of what to do next", async () => {
     for (const [status, code] of [
+      [429, 'rate_limited'],
       [409, 'account_exists'],
       [403, 'email_unverified'],
       [409, 'identity_in_use'],

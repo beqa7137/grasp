@@ -240,6 +240,30 @@ describe('AuthService (app)', () => {
     expect(auth.identities()).toBeNull();
   });
 
+  it.each([429, 503, 0])('preserves credentials and exposes a temporary %s renewal failure to API callers', async (status) => {
+    const failure = new ApiError(status, 'Please try again shortly.', status === 429 ? 'rate_limited' : undefined);
+    let unavailable = false;
+    const { auth, tokens, calls } = setup({
+      post: async (path) => {
+        if (path === '/auth/refresh' && unavailable) throw failure;
+        return session(1);
+      },
+    });
+    await auth.init();
+    await auth.signIn('google');
+    unavailable = true;
+    const before = localStorage.getItem('CapacitorStorage.grasp.auth.refresh');
+    calls.length = 0;
+    await expect(tokens.refresher!()).rejects.toBe(failure);
+    expect(await auth.refresh()).toBe(false);
+    expect(auth.signedIn()).toBe(true);
+    expect(tokens.signInRequired()).toBe(false);
+    expect(localStorage.getItem('CapacitorStorage.grasp.auth.refresh')).toBe(before);
+    expect(calls).not.toContain('clearLocal');
+    unavailable = false;
+    await expect(tokens.refresher!()).resolves.toBe(true);
+  });
+
   it('shares one refresh between concurrent callers', async () => {
     let refreshes = 0;
     const { auth, tokens } = setup({

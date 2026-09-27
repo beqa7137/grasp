@@ -100,12 +100,13 @@ describe.runIf(databaseUrl)('Access token revocation across instances', () => {
       Number(
         (
           await pool.query<{ total: string }>('select coalesce(sum(total), 0) as total from counters where key like $1', [
-            `%:user:${session.user.id}`,
+            `rate:%:${hashToken(`user:${session.user.id}`)}`,
           ])
         ).rows[0]?.total,
       );
     try {
       const before = await counted();
+      expect(before).toBeGreaterThan(0);
       await request(second.getHttpServer()).post('/api/auth/logout').send({ refreshToken: session.refreshToken }).expect(204);
       await Promise.all([
         assertPrivateRoutesReject(first, session.accessToken, interview.body.id),

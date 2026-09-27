@@ -5,6 +5,7 @@ import type { ExecutionContext } from '@nestjs/common';
 import type { AppConfig } from '../config.js';
 import { MemoryAuthStore, MemoryCoordinationStore } from '../persistence/memory.stores.js';
 import type { CoordinationStore } from '../persistence/stores.js';
+import { hashToken } from '../auth/tokens.js';
 import { RateLimit, RateLimitGuard, SkipRateLimit } from './rate-limit.js';
 
 class Routes {
@@ -94,7 +95,7 @@ describe('RateLimitGuard', () => {
     await auth.revokeFamily(familyId, new Date(now).toISOString());
     await expect(call(guard, Routes.prototype.send, signed).result).rejects.toMatchObject({ status: 401 });
     await expect(call(guard, Routes.prototype.health, signed).result).rejects.toMatchObject({ status: 401 });
-    expect(await coordination.read(`rate:Routes.send:user:${userId}`, 60_000)).toBe(1);
+    expect(await coordination.read(`rate:Routes.send:${hashToken(`user:${userId}`)}`, 60_000)).toBe(1);
   });
 
   it('lets requests through when the counter store fails, logging at most once a minute', async () => {
