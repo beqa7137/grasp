@@ -1,20 +1,40 @@
-import { withoutQueryStrings } from './error-reporting';
+import { vi } from 'vitest';
+import { initErrorReporting, reportClientError, ReportingErrorHandler } from './error-reporting';
+import { RuntimeConfigService } from './runtime-config.service';
 
-describe('error reports', () => {
-  it('drop query strings and fragments from the request and navigation breadcrumbs', () => {
-    const event = withoutQueryStrings({
-      request: { url: 'https://grasp.example/drill?pattern=hashing#top', query_string: 'pattern=hashing' },
-      breadcrumbs: [
-        { category: 'navigation', data: { from: '/learn?x=1', to: '/drill?pattern=hashing' } },
-        { category: 'fetch', data: { url: '/api/progress?since=2026', method: 'GET' } },
-        { category: 'ui.click', message: 'button' },
-      ],
-    });
-    expect(event.request).toEqual({ url: 'https://grasp.example/drill' });
-    expect(event.breadcrumbs).toEqual([
-      { category: 'navigation', data: { from: '/learn', to: '/drill' } },
-      { category: 'fetch', data: { url: '/api/progress', method: 'GET' } },
-      { category: 'ui.click', message: 'button' },
-    ]);
-  });
+const PRIVATE = 'private-learner-answer-token';
+
+beforeEach(async () => {
+  await initErrorReporting(new RuntimeConfigService());
+});
+
+afterEach(() => vi.restoreAllMocks());
+
+it.each([
+  [new TypeError(PRIVATE), 'type'],
+  [new RangeError(PRIVATE), 'range'],
+  [new SyntaxError(PRIVATE), 'syntax'],
+  [new Error(PRIVATE, { cause: new Error(PRIVATE) }), 'unknown'],
+  [{ message: PRIVATE, learnerId: PRIVATE, stack: PRIVATE }, 'unknown'],
+  [PRIVATE, 'unknown'],
+  [null, 'unknown'],
+])('logs only the fixed application category for %s', (error, category) => {
+  const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  new ReportingErrorHandler().handleError(error);
+  expect(log).toHaveBeenCalledExactlyOnceWith({ operation: 'application', category });
+  expect(JSON.stringify(log.mock.calls)).not.toContain(PRIVATE);
+});
+
+it('labels bootstrap failures without exposing the original exception', () => {
+  const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  reportClientError(new TypeError(PRIVATE), 'bootstrap');
+  expect(log).toHaveBeenCalledExactlyOnceWith({ operation: 'bootstrap', category: 'type' });
+});
+
+it('does not load the asset manifest or send reports without a configured DSN', async () => {
+  const fetch = vi.spyOn(globalThis, 'fetch');
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  await initErrorReporting(new RuntimeConfigService());
+  reportClientError(new Error(PRIVATE));
+  expect(fetch).not.toHaveBeenCalled();
 });
