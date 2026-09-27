@@ -9,6 +9,7 @@ import {
   inject,
   input,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -24,7 +25,8 @@ import { ApiError, ApiService } from '../../core/api.service';
 import { AnnouncerService } from '../../core/announcer.service';
 import { refocusAfterRender } from '../../core/focus';
 import { ProgressService } from '../../core/progress.service';
-import type { InterviewMessage, InterviewSession } from './interview.types';
+import { SignInOptionsComponent } from '../../core/sign-in-options.component';
+import type { CodeSnapshot, InterviewMessage, InterviewMode, InterviewSession } from './interview.types';
 
 const SCORING_TIMEOUT_MS = 290_000;
 
@@ -45,6 +47,7 @@ const SCORING_TIMEOUT_MS = 290_000;
     IonSpinner,
     CodeEditorComponent,
     LanguagePickerComponent,
+    SignInOptionsComponent,
   ],
   providers: [AnnouncerService],
   templateUrl: './interview-session.page.html',
@@ -56,6 +59,7 @@ export class InterviewSessionPage {
   private readonly progress = inject(ProgressService);
   private readonly content = viewChild(IonContent);
   private readonly composer = viewChild<ElementRef<HTMLTextAreaElement>>('composer');
+  private readonly signInHeading = viewChild<ElementRef<HTMLHeadingElement>>('signInHeading');
   private readonly injector = inject(Injector);
   readonly announcer = inject(AnnouncerService);
 
@@ -66,15 +70,23 @@ export class InterviewSessionPage {
   readonly busy = signal(false);
   readonly scoring = signal(false);
   readonly error = signal<string | null>(null);
+  readonly notice = signal<string | null>(null);
+  readonly changingMode = signal(false);
+  readonly checkingAccess = signal(false);
+  readonly accessCheckFailed = signal(false);
+  readonly signInOpen = signal(false);
+  readonly pending = computed(() => this.busy() || this.scoring() || this.changingMode() || this.checkingAccess() || this.signInOpen());
   private abort: AbortController | null = null;
 
   readonly languageLabels = LANGUAGE_LABELS;
   readonly codeOpen = signal(false);
   readonly codeLanguage = signal<Language>('python');
   readonly code = signal('');
-  /** The code as the interviewer last saw it; only changes are sent again. */
-  private readonly sharedCode = signal('');
-  readonly codeChanged = computed(() => this.code().trim().length > 0 && this.code() !== this.sharedCode());
+  private readonly sharedCode = signal<CodeSnapshot | null>(null);
+  readonly codeChanged = computed(
+    () =>
+      this.code().trim().length > 0 && (this.code() !== this.sharedCode()?.source || this.codeLanguage() !== this.sharedCode()?.language),
+  );
 
   readonly messages = computed(() => {
     const list = [...(this.session()?.messages ?? [])];
@@ -95,36 +107,50 @@ export class InterviewSessionPage {
     });
     effect(() => {
       const id = this.id();
-      void this.load(id);
+      untracked(() => void this.load(id));
     });
     effect(() => {
       this.messages();
       this.streaming();
-      queueMicrotask(() => void this.content()?.scrollToBottom(200));
+      if (this.signInOpen()) return;
+      queueMicrotask(() => {
+        if (!this.signInOpen()) void this.content()?.scrollToBottom();
+      });
     });
     inject(DestroyRef).onDestroy(() => this.abort?.abort());
   }
 
   private async load(id: string) {
+    this.checkingAccess.set(true);
     try {
       const session = await this.api.get<InterviewSession>(`/interview/sessions/${id}`);
       this.session.set(session);
+      this.accessCheckFailed.set(false);
+      this.error.set(null);
       const lastCode = [...session.messages].reverse().find((m) => m.code)?.code;
       if (lastCode) {
         this.code.set(lastCode.source);
-        this.sharedCode.set(lastCode.source);
+        this.sharedCode.set(lastCode);
         this.codeLanguage.set(lastCode.language);
       }
     } catch (e) {
-      this.error.set(e instanceof ApiError ? e.message : 'Could not load the interview.');
+      this.handleError(e, 'Could not load the interview.');
+    } finally {
+      this.checkingAccess.set(false);
     }
+  }
+
+  retryLoad() {
+    if (this.pending() || this.session()) return;
+    return this.load(this.id());
   }
 
   async send(hint = false) {
     const s = this.session();
-    const content = this.draft().trim();
+    const draft = this.draft();
+    const content = draft.trim();
     const code = this.codeChanged() ? { language: this.codeLanguage(), source: this.code() } : undefined;
-    if (!s || this.busy() || (!hint && !content && !code)) return;
+    if (!s || !this.active() || this.pending() || (!hint && !content && !code) || !this.canUseInterviewer()) return;
     this.busy.set(true);
     this.error.set(null);
     this.pendingCandidate.set({
@@ -147,15 +173,15 @@ export class InterviewSessionPage {
         this.abort.signal,
       );
       const candidate = this.pendingCandidate()!;
-      if (code) this.sharedCode.set(code.source);
+      if (code) this.sharedCode.set(code);
       this.session.update((cur) =>
         cur ? { ...cur, hintsUsed: cur.hintsUsed + (hint ? 1 : 0), messages: [...cur.messages, candidate, done.message] } : cur,
       );
       // The interviewer's reply, for screen readers: the chat itself is not a live region.
       this.announcer.announce(`Interviewer: ${done.message.content}`);
     } catch (e) {
-      this.draft.set(content);
-      this.error.set(e instanceof ApiError ? e.message : 'The interviewer did not respond. Try again.');
+      this.draft.set(draft);
+      this.handleError(e, 'The interviewer did not respond. Try again.');
     } finally {
       this.pendingCandidate.set(null);
       this.streaming.set(null);
@@ -165,7 +191,7 @@ export class InterviewSessionPage {
 
   async score() {
     const s = this.session();
-    if (!s || this.scoring()) return;
+    if (!s || !this.active() || this.pending() || !this.canUseInterviewer()) return;
     this.scoring.set(true);
     this.error.set(null);
     try {
@@ -183,9 +209,99 @@ export class InterviewSessionPage {
         });
       }
     } catch (e) {
-      this.error.set(e instanceof ApiError ? e.message : 'Scoring failed. Try again.');
+      this.handleError(e, 'Scoring failed. Try again.');
     } finally {
       this.scoring.set(false);
+    }
+  }
+
+  async chooseMode(mode: InterviewMode) {
+    const session = this.session();
+    if (!session || !this.active() || this.pending()) return;
+    if (mode === 'ai' && !this.canUseAi()) return;
+    if (session.mode === mode) return;
+    this.changingMode.set(true);
+    this.error.set(null);
+    this.notice.set(null);
+    try {
+      const changed = await this.api.post<InterviewSession>(`/interview/sessions/${session.id}/mode`, { mode });
+      this.session.set(changed);
+      this.notice.set(
+        `${changed.mode === 'ai' ? 'AI' : 'Scripted practice'} will handle future replies and the final score. Your conversation and draft are unchanged.`,
+      );
+    } catch (error) {
+      this.handleError(error, 'Could not change the interviewer. Please try again.');
+    } finally {
+      this.changingMode.set(false);
+    }
+  }
+
+  signedIn() {
+    this.signInOpen.set(false);
+    return this.checkAccess();
+  }
+
+  async checkAccess() {
+    if (this.checkingAccess()) return;
+    const session = this.session();
+    if (!session) return this.load(this.id());
+    this.checkingAccess.set(true);
+    try {
+      this.session.set(await this.api.get<InterviewSession>(`/interview/sessions/${session.id}`));
+      this.accessCheckFailed.set(false);
+      this.error.set(null);
+      this.notice.set('Signed in. Your draft is unchanged. Choose your interviewer and continue when you’re ready.');
+    } catch (error) {
+      this.accessCheckFailed.set(true);
+      this.handleError(error, 'Could not check interview access. Your draft is still here.');
+    } finally {
+      this.checkingAccess.set(false);
+    }
+  }
+
+  closeSignIn() {
+    this.signInOpen.set(false);
+    refocusAfterRender(this.injector, () => this.composer()?.nativeElement);
+  }
+
+  private canUseInterviewer() {
+    return this.session()?.mode !== 'ai' || this.canUseAi();
+  }
+
+  private canUseAi() {
+    if (this.accessCheckFailed()) return false;
+    const access = this.session()?.aiAccess;
+    if (access === 'available') return true;
+    if (access === 'sign-in-required') this.openSignIn();
+    else this.error.set('AI is unavailable right now. You can switch to scripted practice.');
+    return false;
+  }
+
+  private openSignIn() {
+    this.signInOpen.set(true);
+    refocusAfterRender(
+      this.injector,
+      () => {
+        const heading = this.signInHeading()?.nativeElement;
+        heading?.scrollIntoView({ block: 'nearest' });
+        return heading;
+      },
+      this.composer()?.nativeElement,
+    );
+  }
+
+  private handleError(error: unknown, fallback: string) {
+    this.error.set(error instanceof ApiError ? error.message : fallback);
+    if (!(error instanceof ApiError)) return;
+    if (
+      error.code === 'ai_sign_in_required' ||
+      (error.status === 401 && (error.code === 'token_invalid' || error.code === 'sign_in_required'))
+    ) {
+      this.accessCheckFailed.set(false);
+      this.session.update((session) => (session ? { ...session, aiAccess: 'sign-in-required' } : session));
+      this.openSignIn();
+    } else if (error.code === 'ai_unavailable') {
+      this.session.update((session) => (session ? { ...session, aiAccess: 'unavailable' } : session));
     }
   }
 

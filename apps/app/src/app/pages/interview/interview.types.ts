@@ -1,4 +1,12 @@
 export type InterviewTrack = 'coding' | 'system-design';
+export type InterviewMode = 'ai' | 'offline';
+export type AiAccess = 'available' | 'sign-in-required' | 'unavailable';
+
+export interface InterviewCatalog {
+  mode: InterviewMode;
+  aiAccess: AiAccess;
+  problems: ProblemSummary[];
+}
 
 export interface ProblemSummary {
   id: string;
@@ -27,7 +35,7 @@ export interface Scorecard {
   strengths: string[];
   improvements: string[];
   weakPatterns: string[];
-  mode: 'ai' | 'offline';
+  mode: InterviewMode;
 }
 
 export interface InterviewSession {
@@ -40,5 +48,6 @@ export interface InterviewSession {
   createdAt: string;
   scorecard?: Scorecard;
   scoredAt?: string;
-  mode: 'ai' | 'offline';
+  mode: InterviewMode;
+  aiAccess: AiAccess;
 }

@@ -1,8 +1,10 @@
 import { ErrorHandler, computed, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { AlertController, ToastController } from '@ionic/angular';
 import { ApiError } from '../../core/api.service';
 import { type AccountUser, AuthService, type IdentitySummary, type SignInProvider } from '../../core/auth.service';
+import { SignInOptionsComponent } from '../../core/sign-in-options.component';
 import { AccountSettingsComponent } from './account-settings.component';
 
 interface Options {
@@ -84,12 +86,14 @@ const googleIdentity: IdentitySummary = { provider: 'google', email: 'ada@gmail.
 describe('AccountSettingsComponent', () => {
   it('loads the providers and the linked methods when it opens', () => {
     const { calls } = setup();
-    expect(calls).toEqual(['loadProviders', 'loadIdentities']);
+    expect(calls).toEqual(['loadIdentities', 'loadProviders']);
   });
 
   it('offers every provider this device can sign in with', () => {
     const { el, buttons } = setup();
-    expect(el.textContent).toContain('Optional. Sign in to sync your progress across devices and keep it if you lose this one.');
+    expect(el.textContent).toContain(
+      'Study and scripted practice work without an account. Sign in to sync progress and use AI interviews.',
+    );
     expect(buttons()).toEqual(['Continue with Google', 'Continue with GitHub']);
   });
 
@@ -100,7 +104,7 @@ describe('AccountSettingsComponent', () => {
 
   it('explains when the server has no sign-in', () => {
     const { el, buttons } = setup({ providers: [] });
-    expect(el.textContent).toContain("Sign-in isn't available on this server yet.");
+    expect(el.textContent).toContain("Sign-in isn't available on this device.");
     expect(buttons()).toEqual([]);
   });
 
@@ -120,7 +124,7 @@ describe('AccountSettingsComponent', () => {
     expect(buttons()).toEqual(['Try again']);
 
     await click('Try again');
-    expect(calls).toEqual(['loadProviders', 'loadIdentities', 'loadProviders']);
+    expect(calls).toEqual(['loadIdentities', 'loadProviders', 'loadProviders']);
     expect(el.textContent).toContain("Couldn't load sign-in options.");
 
     answer = ['github'];
@@ -140,6 +144,25 @@ describe('AccountSettingsComponent', () => {
     expect(calls).toContain('signIn github');
     expect(toasts).toEqual(['Signed in. Your progress is now synced to your account.']);
     expect(alert()).toBeUndefined();
+  });
+
+  it('keeps the chooser alive while the adopted account finishes syncing', async () => {
+    let resolve!: (value: boolean) => void;
+    const result = new Promise<boolean>((done) => (resolve = done));
+    const { fixture, auth, el, toasts } = setup({ outcome: () => result });
+    const chooser = fixture.debugElement.query(By.directive(SignInOptionsComponent)).componentInstance as SignInOptionsComponent;
+    const signingIn = chooser.signIn('google');
+    auth.user.set(ada);
+    fixture.detectChanges();
+    expect(el.textContent).toContain('Waiting for sign-in');
+    expect(el.textContent).not.toContain('ada@example.com');
+    resolve(true);
+    await signingIn;
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(el.textContent).toContain('ada@example.com');
+    expect(el.textContent).not.toContain('Waiting for sign-in');
+    expect(toasts).toEqual(['Signed in. Your progress is now synced to your account.']);
   });
 
   it('stays quiet when the person cancels', async () => {

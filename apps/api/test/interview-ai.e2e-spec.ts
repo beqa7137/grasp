@@ -10,6 +10,8 @@ import { CoordinationStore, InterviewStore } from '../src/persistence/stores.js'
 import { fakeAnthropic, type FakeResponse } from './support/fake-anthropic.js';
 import { createTestApp } from './support/app.js';
 import { resetDatabase } from './support/database.js';
+import { OAuthFakes } from './support/oauth.js';
+import { signInLearner } from './support/signed-learner.js';
 
 const learner = '9b2f3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d';
 const testDatabaseUrl = process.env['TEST_DATABASE_URL'];
@@ -26,41 +28,42 @@ const scorecard = JSON.stringify({
 
 describe.each(storages)('AI interviewer over HTTP (%s storage, scripted Claude API)', (storage) => {
   let app: NestExpressApplication;
+  let fakes: OAuthFakes;
+  let auth: Awaited<ReturnType<typeof signInLearner>>['headers'];
   let replies: FakeResponse[] = [];
 
   beforeAll(async () => {
     if (storage === 'postgres') await resetDatabase(testDatabaseUrl!);
+    fakes = await OAuthFakes.start();
     const { client } = fakeAnthropic((body) =>
       body['output_config']?.['format']
         ? { text: scorecard, usage: { input_tokens: 2500, output_tokens: 600 } }
         : (replies.shift() ?? { stream: ['Okay.'] }),
     );
     app = await createTestApp(
-      { DATABASE_URL: storage === 'postgres' ? testDatabaseUrl : undefined, AI_DAILY_BUDGET_USD: '100' },
+      { DATABASE_URL: storage === 'postgres' ? testDatabaseUrl : undefined, AI_DAILY_BUDGET_USD: '100', ...fakes.env() },
       (builder) =>
-        builder.overrideProvider(Interviewer).useFactory({
-          factory: (spend: SpendGuard) => new ClaudeInterviewer(client, { model: 'claude-sonnet-5' }, spend),
-          inject: [SpendGuard],
-        }),
+        fakes
+          .customize(builder)
+          .overrideProvider(Interviewer)
+          .useFactory({
+            factory: (spend: SpendGuard) => new ClaudeInterviewer(client, { model: 'claude-sonnet-5' }, spend),
+            inject: [SpendGuard],
+          }),
     );
+    auth = (await signInLearner(app, fakes, learner)).headers;
   });
 
   afterAll(async () => {
-    await app.close();
+    await Promise.all([app?.close(), fakes?.close()]);
   });
   afterEach(() => vi.restoreAllMocks());
 
   const http = () => request(app.getHttpServer());
   const start = async () =>
-    (
-      await http()
-        .post('/api/interview/sessions')
-        .set('x-learner-id', learner)
-        .send({ track: 'coding', problemId: 'warmer-days' })
-        .expect(201)
-    ).body;
-  const say = (id: string, content: string) =>
-    http().post(`/api/interview/sessions/${id}/messages`).set('x-learner-id', learner).send({ content });
+    (await http().post('/api/interview/sessions').set(auth).send({ track: 'coding', problemId: 'warmer-days', mode: 'ai' }).expect(201))
+      .body;
+  const say = (id: string, content: string) => http().post(`/api/interview/sessions/${id}/messages`).set(auth).send({ content });
 
   it('streams Claude replies over SSE and keeps token usage server-side', async () => {
     const session = await start();
@@ -76,7 +79,7 @@ describe.each(storages)('AI interviewer over HTTP (%s storage, scripted Claude A
     expect(res.text).toContain('event: delta\ndata: {"text":"What is the "}');
     expect(res.text).toContain('"content":"What is the input size?"');
 
-    const pub = (await http().get(`/api/interview/sessions/${session.id}`).set('x-learner-id', learner).expect(200)).body;
+    const pub = (await http().get(`/api/interview/sessions/${session.id}`).set(auth).expect(200)).body;
     expect(pub.messages).toHaveLength(3);
     expect(pub.usage).toBeUndefined();
 
@@ -89,12 +92,12 @@ describe.each(storages)('AI interviewer over HTTP (%s storage, scripted Claude A
     const session = await start();
     await say(session.id, 'Brute force is O(n^2); a monotonic stack makes it O(n).').expect(200);
 
-    const scored = (await http().post(`/api/interview/sessions/${session.id}/score`).set('x-learner-id', learner).expect(201)).body;
+    const scored = (await http().post(`/api/interview/sessions/${session.id}/score`).set(auth).expect(201)).body;
     expect(scored.scorecard).toMatchObject({ mode: 'ai', verdict: 'lean-hire', weakPatterns: ['monotonic-stack'] });
 
     const stored = await app.get(InterviewStore).get(learner, session.id);
     expect(stored!.usage!.calls).toBe(2);
-    const log = (await http().get('/api/progress/events').set('x-learner-id', learner).expect(200)).body;
+    const log = (await http().get('/api/progress/events').set(auth).expect(200)).body;
     expect(log.events.find((e: { id: string }) => e.id === `interview-${session.id}`)).toMatchObject({ weakPatterns: ['monotonic-stack'] });
   });
 
@@ -104,7 +107,7 @@ describe.each(storages)('AI interviewer over HTTP (%s storage, scripted Claude A
     const res = await say(session.id, 'Here is my approach.').expect(503);
     expect(res.body.message).toMatch(/busy/);
 
-    const pub = (await http().get(`/api/interview/sessions/${session.id}`).set('x-learner-id', learner).expect(200)).body;
+    const pub = (await http().get(`/api/interview/sessions/${session.id}`).set(auth).expect(200)).body;
     expect(pub.messages).toHaveLength(1);
     await say(session.id, 'Here is my approach.').expect(200);
   });
@@ -157,7 +160,7 @@ describe.each(storages)('AI interviewer over HTTP (%s storage, scripted Claude A
       ),
     );
 
-    const scored = await http().post(`/api/interview/sessions/${session.id}/score`).set('x-learner-id', learner).expect(201);
+    const scored = await http().post(`/api/interview/sessions/${session.id}/score`).set(auth).expect(201);
 
     expect(scored.body.status).toBe('scored');
     expect(logged.mock.calls).toEqual([[{ operation: 'interview.release-lease', category: 'database', code: '23503' }]]);
@@ -178,6 +181,6 @@ describe.each(storages)('AI interviewer over HTTP (%s storage, scripted Claude A
     await app.get(CoordinationStore).add('ai-spend-usd', 86_400_000, 100);
     const res = await say(session.id, 'Anything else?').expect(503);
     expect(res.body.message).toMatch(/usage limit/);
-    await http().post(`/api/interview/sessions/${session.id}/score`).set('x-learner-id', learner).expect(503);
+    await http().post(`/api/interview/sessions/${session.id}/score`).set(auth).expect(503);
   });
 });

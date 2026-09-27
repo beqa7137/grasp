@@ -1,13 +1,15 @@
 import { Body, Controller, Get, HttpException, Logger, Param, ParseUUIDPipe, Post, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
-import { LearnerId } from '../common/learner-id.decorator.js';
+import { LearnerId, UserId } from '../common/learner-id.decorator.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { reportError } from '../observability/error-reporting.js';
 import { safeErrorDetails } from '../observability/safe-error.js';
+import { databaseUnavailable, isDatabaseUnavailable } from '../persistence/database-errors.js';
 import { InterviewService } from './interview.service.js';
 
-const startSchema = z.object({
+const modeSchema = z.object({ mode: z.enum(['ai', 'offline']) });
+const startSchema = modeSchema.partial().extend({
   track: z.enum(['coding', 'system-design']),
   problemId: z.string().max(64).optional(),
 });
@@ -27,23 +29,33 @@ export class InterviewController {
   constructor(private readonly interviews: InterviewService) {}
 
   @Get('problems')
-  problems() {
-    return { mode: this.interviews.mode, problems: this.interviews.catalog() };
+  problems(@UserId() userId: string | null) {
+    return { mode: this.interviews.mode, aiAccess: this.interviews.aiAccess(userId), problems: this.interviews.catalog() };
   }
 
   @Get('sessions')
-  recent(@LearnerId() learnerId: string) {
-    return this.interviews.recent(learnerId);
+  recent(@LearnerId() learnerId: string, @UserId() userId: string | null) {
+    return this.interviews.recent(learnerId, userId);
   }
 
   @Post('sessions')
-  start(@LearnerId() learnerId: string, @Body(new ZodValidationPipe(startSchema)) body: z.infer<typeof startSchema>) {
-    return this.interviews.start(learnerId, body.track, body.problemId);
+  start(@LearnerId() learnerId: string, @Body(new ZodValidationPipe(startSchema)) body: z.infer<typeof startSchema>, @Req() req: Request) {
+    return this.interviews.start(learnerId, body.track, body.problemId, body.mode, req.accessClaims);
   }
 
   @Get('sessions/:id')
-  get(@LearnerId() learnerId: string, @Param('id', ParseUUIDPipe) id: string) {
-    return this.interviews.get(learnerId, id);
+  get(@LearnerId() learnerId: string, @Param('id', ParseUUIDPipe) id: string, @UserId() userId: string | null) {
+    return this.interviews.get(learnerId, id, userId);
+  }
+
+  @Post('sessions/:id/mode')
+  setMode(
+    @LearnerId() learnerId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(modeSchema)) body: z.infer<typeof modeSchema>,
+    @Req() req: Request,
+  ) {
+    return this.interviews.setMode(learnerId, id, body.mode, req.accessClaims);
   }
 
   /** Streams the interviewer's reply as Server-Sent Events: `delta` chunks, then `done` (or `error`). */
@@ -73,15 +85,16 @@ export class InterviewController {
     };
 
     try {
-      const message = await this.interviews.respond(learnerId, id, body, (text) => emit('delta', { text }), abort.signal);
+      const message = await this.interviews.respond(learnerId, id, body, (text) => emit('delta', { text }), abort.signal, req.accessClaims);
       emit('done', { message });
     } catch (err) {
       if (abort.signal.aborted) return void res.end();
-      const status = err instanceof HttpException ? err.getStatus() : 502;
-      const msg = err instanceof HttpException ? err.message : 'The interviewer is unavailable right now. Please try again.';
-      const response = err instanceof HttpException ? err.getResponse() : null;
+      const failure = isDatabaseUnavailable(err) ? databaseUnavailable() : err;
+      const status = failure instanceof HttpException ? failure.getStatus() : 502;
+      const msg = failure instanceof HttpException ? failure.message : 'The interviewer is unavailable right now. Please try again.';
+      const response = failure instanceof HttpException ? failure.getResponse() : null;
       const code = response && typeof response === 'object' && 'code' in response ? { code: response.code } : {};
-      if (!(err instanceof HttpException)) this.log.error({ operation: 'interview.respond', ...safeErrorDetails(err) });
+      if (!(failure instanceof HttpException)) this.log.error({ operation: 'interview.respond', ...safeErrorDetails(err) });
       if (status >= 500 && status !== 503) reportError(err, req.id);
       if (started) emit('error', { status, message: msg, ...code });
       else res.status(status).json({ statusCode: status, message: msg, ...code });
@@ -90,7 +103,7 @@ export class InterviewController {
   }
 
   @Post('sessions/:id/score')
-  score(@LearnerId() learnerId: string, @Param('id', ParseUUIDPipe) id: string) {
-    return this.interviews.score(learnerId, id);
+  score(@LearnerId() learnerId: string, @Param('id', ParseUUIDPipe) id: string, @Req() req: Request) {
+    return this.interviews.score(learnerId, id, req.accessClaims);
   }
 }

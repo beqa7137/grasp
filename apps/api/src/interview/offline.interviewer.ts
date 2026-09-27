@@ -8,7 +8,7 @@ interface Stage {
 }
 
 const OFFLINE_SUMMARY =
-  'Offline heuristic scoring (no ANTHROPIC_API_KEY configured). It checks which rubric areas you covered, not whether your answers were right. Add an API key for a real evaluation.';
+  'Scripted practice checks which rubric areas you covered, not whether your answers were right. Use this scorecard to guide your next practice session.';
 
 const WRAP_UP = 'Thanks, that is time. Hit "End & score" whenever you are ready.';
 

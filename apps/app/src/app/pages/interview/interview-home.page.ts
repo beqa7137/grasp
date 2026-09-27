@@ -6,12 +6,13 @@ import { getPatternSummary } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import { codeSlashOutline, gitNetworkOutline, shuffle, sparkles } from 'ionicons/icons';
 import { ApiError, ApiService } from '../../core/api.service';
-import type { InterviewSession, InterviewTrack, ProblemSummary } from './interview.types';
+import { SignInOptionsComponent } from '../../core/sign-in-options.component';
+import type { AiAccess, InterviewCatalog, InterviewMode, InterviewSession, InterviewTrack, ProblemSummary } from './interview.types';
 
 @Component({
   selector: 'app-interview-home',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, DatePipe, IonHeader, IonToolbar, IonTitle, IonContent, IonIcon, IonSpinner],
+  imports: [RouterLink, DatePipe, IonHeader, IonToolbar, IonTitle, IonContent, IonIcon, IonSpinner, SignInOptionsComponent],
   template: `
     <ion-header [translucent]="true">
       <ion-toolbar><ion-title>Interview</ion-title></ion-toolbar>
@@ -21,24 +22,62 @@ import type { InterviewSession, InterviewTrack, ProblemSummary } from './intervi
         <p class="eyebrow">Mock interviews</p>
         <h1>Say it out loud.</h1>
         <p class="muted lead">
-          An interviewer that asks clarifying questions, nudges instead of telling, pushes on trade-offs, and scores you against the rubric
-          real hiring committees use.
+          Practice explaining your thinking, exploring trade-offs, and reviewing feedback. Start with scripted practice or choose an AI
+          interview.
         </p>
-        @if (mode(); as m) {
-          <span class="mode" [class.ai]="m === 'ai'"
-            ><ion-icon name="sparkles" aria-hidden="true" />{{
-              m === 'ai' ? 'AI interviewer' : 'Offline interviewer (set ANTHROPIC_API_KEY for AI)'
-            }}</span
+        <div class="mode-options" role="group" aria-label="Interviewer">
+          <button class="g-btn" [attr.aria-pressed]="mode() === 'offline'" [disabled]="pending()" (click)="chooseMode('offline')">
+            Scripted practice
+          </button>
+          <button
+            class="g-btn"
+            [attr.aria-pressed]="mode() === 'ai'"
+            [disabled]="pending() || accessCheckFailed() || !aiAccess() || aiAccess() === 'unavailable'"
+            (click)="chooseMode('ai')"
           >
+            <ion-icon name="sparkles" aria-hidden="true" />{{ aiAccess() === 'sign-in-required' ? 'Sign in for AI' : 'AI interview' }}
+          </button>
+        </div>
+        <p class="muted mode-description">
+          {{
+            mode() === 'ai'
+              ? 'AI follow-ups and AI feedback. Your replies and shared code are sent to the AI service.'
+              : 'Guided prompts and a practice estimate. No AI or sign-in needed.'
+          }}
+        </p>
+        @if (aiAccess() === 'unavailable') {
+          <p class="muted">AI interviews aren't available on this server. You can use scripted practice.</p>
+        }
+        @if (signInOpen()) {
+          <section class="panel sign-in-panel" aria-label="Sign in for AI interviews">
+            <h2>Sign in for AI interviews</h2>
+            <p class="muted">Your study progress stays with you. After signing in, choose AI when you're ready.</p>
+            <app-sign-in-options cancelLabel="Keep practicing without AI" (cancelled)="signInOpen.set(false)" (signedIn)="signedIn()" />
+          </section>
+        }
+        @if (notice(); as message) {
+          <p class="muted" role="status">{{ message }}</p>
         }
 
         @if (error(); as e) {
-          <div class="panel error">{{ e }}</div>
+          <div class="panel error" role="alert">{{ e }}</div>
+          @if (!aiAccess() && !accessCheckFailed()) {
+            <button class="g-btn" [disabled]="pending()" (click)="ionViewWillEnter()">Retry interviews</button>
+          }
+        }
+        @if (accessCheckFailed()) {
+          <button class="g-btn" [disabled]="pending()" (click)="checkAccess()">Retry access check</button>
         }
 
         <div class="tracks">
           @for (t of tracks; track t.id) {
-            <button class="panel track" [class.on]="track() === t.id" [attr.aria-pressed]="track() === t.id" (click)="track.set(t.id)">
+            <button
+              class="panel track"
+              [class.on]="track() === t.id"
+              [attr.aria-pressed]="track() === t.id"
+              [disabled]="pending()"
+              (click)="track.set(t.id)"
+            >
               <ion-icon [name]="t.icon" aria-hidden="true" />
               <span>
                 <span class="title display">{{ t.title }}</span>
@@ -50,7 +89,7 @@ import type { InterviewSession, InterviewTrack, ProblemSummary } from './intervi
 
         <div class="problems">
           @for (p of visible(); track p.id) {
-            <button class="panel card-link problem" [disabled]="!!starting()" (click)="start(p.id)">
+            <button class="panel card-link problem" [disabled]="pending()" (click)="start(p.id)">
               <span>
                 <span class="title display">{{ p.title }}</span>
                 <span class="chips">
@@ -66,7 +105,7 @@ import type { InterviewSession, InterviewTrack, ProblemSummary } from './intervi
               }
             </button>
           }
-          <button class="g-btn surprise" [disabled]="!!starting() || !visible().length" (click)="start()">
+          <button class="g-btn surprise" [disabled]="pending() || !visible().length" (click)="start()">
             <ion-icon name="shuffle" aria-hidden="true" />Surprise me
           </button>
         </div>
@@ -76,7 +115,10 @@ import type { InterviewSession, InterviewTrack, ProblemSummary } from './intervi
           <div class="recent">
             @for (s of recent(); track s.id) {
               <a class="panel card-link session" [routerLink]="['/interview', s.id]">
-                <span>{{ s.problem.title }}</span>
+                <span
+                  >{{ s.problem.title
+                  }}<small class="recent-mode">{{ s.mode === 'ai' ? 'AI interview' : 'Scripted practice' }}</small></span
+                >
                 <span class="muted">{{ s.createdAt | date: 'MMM d, h:mm a' }}</span>
                 @if (s.scorecard) {
                   <span class="verdict" [attr.data-verdict]="s.scorecard.verdict">{{ s.scorecard.verdict.replace('-', ' ') }}</span>
@@ -100,21 +142,35 @@ import type { InterviewSession, InterviewTrack, ProblemSummary } from './intervi
       line-height: 1.5;
       margin: 0 0 12px;
     }
-    .mode {
-      max-width: 100%;
-      overflow-wrap: anywhere;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 0.78125rem;
-      color: var(--g-muted);
-      padding: 5px 10px;
-      border-radius: 999px;
-      border: 1px solid var(--g-line);
+    .mode-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
     }
-    .mode.ai {
-      color: var(--g-predict);
-      border-color: rgba(var(--g-predict-rgb), 0.4);
+    .mode-options [aria-pressed='true'] {
+      border-color: var(--g-accent);
+      background: var(--g-accent-soft);
+    }
+    .mode-description {
+      line-height: 1.5;
+      margin: 10px 0;
+    }
+    .sign-in-panel {
+      padding: 16px;
+      margin: 14px 0;
+    }
+    .sign-in-panel h2 {
+      margin: 0 0 8px;
+      font-size: 1.125rem;
+    }
+    .sign-in-panel p {
+      line-height: 1.5;
+      margin: 0 0 12px;
+    }
+    .recent-mode {
+      display: block;
+      color: var(--g-muted);
+      margin-top: 4px;
     }
     .error {
       padding: 12px 14px;
@@ -265,43 +321,99 @@ export class InterviewHomePage {
   readonly track = signal<InterviewTrack>('coding');
   readonly problems = signal<ProblemSummary[]>([]);
   readonly recent = signal<InterviewSession[]>([]);
-  readonly mode = signal<'ai' | 'offline' | null>(null);
+  readonly mode = signal<InterviewMode>('offline');
+  readonly aiAccess = signal<AiAccess | null>(null);
   readonly error = signal<string | null>(null);
+  readonly notice = signal<string | null>(null);
   readonly starting = signal<string | null>(null);
+  readonly signInOpen = signal(false);
+  readonly checkingAccess = signal(false);
+  readonly accessCheckFailed = signal(false);
+  readonly pending = computed(() => !!this.starting() || this.signInOpen() || this.checkingAccess());
   readonly visible = computed(() => this.problems().filter((p) => p.track === this.track()));
 
   constructor() {
     addIcons({ codeSlashOutline, gitNetworkOutline, shuffle, sparkles });
   }
 
-  async ionViewWillEnter() {
-    try {
-      const [catalog, recent] = await Promise.all([
-        this.api.get<{ mode: 'ai' | 'offline'; problems: ProblemSummary[] }>('/interview/problems'),
-        this.api.get<InterviewSession[]>('/interview/sessions'),
-      ]);
-      this.mode.set(catalog.mode);
-      this.problems.set(catalog.problems);
-      this.recent.set(recent);
-      this.error.set(null);
-    } catch (e) {
-      this.error.set(e instanceof ApiError ? e.message : 'Could not load interviews.');
-    }
+  ionViewWillEnter() {
+    return this.loadInterviews();
   }
 
   patternName(id: string) {
     return getPatternSummary(id)?.name ?? id;
   }
 
+  chooseMode(mode: InterviewMode) {
+    if (this.pending()) return;
+    this.notice.set(null);
+    if (mode === 'ai' && this.accessCheckFailed()) return;
+    if (mode === 'ai' && this.aiAccess() !== 'available') {
+      if (this.aiAccess() === 'sign-in-required') this.signInOpen.set(true);
+      return;
+    }
+    this.mode.set(mode);
+  }
+
+  signedIn() {
+    this.signInOpen.set(false);
+    return this.checkAccess();
+  }
+
+  checkAccess() {
+    return this.loadInterviews('Interview access refreshed. Choose AI when you’re ready, or keep practicing with scripted prompts.');
+  }
+
+  private async loadInterviews(successNotice: string | null = null) {
+    if (this.checkingAccess()) return;
+    this.checkingAccess.set(true);
+    this.notice.set(null);
+    try {
+      const [catalog, recent] = await Promise.all([
+        this.api.get<InterviewCatalog>('/interview/problems'),
+        this.api.get<InterviewSession[]>('/interview/sessions'),
+      ]);
+      this.aiAccess.set(catalog.aiAccess);
+      this.problems.set(catalog.problems);
+      this.recent.set(recent);
+      this.accessCheckFailed.set(false);
+      this.error.set(null);
+      this.notice.set(successNotice);
+    } catch (error) {
+      this.accessCheckFailed.set(true);
+      this.handleError(error, 'Could not load interviews. Please try again.');
+    } finally {
+      this.checkingAccess.set(false);
+    }
+  }
+
   async start(problemId?: string) {
+    if (this.pending()) return;
+    if (this.mode() === 'ai' && (this.accessCheckFailed() || this.aiAccess() !== 'available')) {
+      this.chooseMode('ai');
+      return;
+    }
     this.starting.set(problemId ?? 'random');
     try {
-      const session = await this.api.post<InterviewSession>('/interview/sessions', { track: this.track(), problemId });
+      const session = await this.api.post<InterviewSession>('/interview/sessions', { track: this.track(), problemId, mode: this.mode() });
       await this.router.navigate(['/interview', session.id]);
     } catch (e) {
-      this.error.set(e instanceof ApiError ? e.message : 'Could not start the interview.');
+      this.handleError(e, 'Could not start the interview.');
     } finally {
       this.starting.set(null);
+    }
+  }
+
+  private handleError(error: unknown, fallback: string) {
+    this.error.set(error instanceof ApiError ? error.message : fallback);
+    if (
+      error instanceof ApiError &&
+      (error.code === 'ai_sign_in_required' ||
+        (error.status === 401 && (error.code === 'token_invalid' || error.code === 'sign_in_required')))
+    ) {
+      this.accessCheckFailed.set(false);
+      this.aiAccess.set('sign-in-required');
+      this.signInOpen.set(true);
     }
   }
 }

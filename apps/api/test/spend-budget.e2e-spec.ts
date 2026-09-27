@@ -1,6 +1,5 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import { randomUUID } from 'node:crypto';
 import pg from 'pg';
 import request from 'supertest';
 import { ClaudeInterviewer } from '../src/interview/claude.interviewer.js';
@@ -11,11 +10,14 @@ import { SpendStore } from '../src/persistence/spend.store.js';
 import { fakeAnthropic } from './support/fake-anthropic.js';
 import { createTestApp } from './support/app.js';
 import { resetDatabase } from './support/database.js';
+import { OAuthFakes } from './support/oauth.js';
+import { signInLearner } from './support/signed-learner.js';
 
 const databaseUrl = process.env['TEST_DATABASE_URL'];
 const model = 'claude-sonnet-5';
 const replyMaximum = maximumCostUsd(model, 2048, true);
 const scoreMaximum = maximumCostUsd(model, 16_000, false);
+const jwtSecret = 'spend-budget-test-secret-shared-by-all-instances';
 
 function barrier() {
   let release!: () => void;
@@ -27,6 +29,15 @@ function barrier() {
 
 describe.skipIf(!databaseUrl)('Paid AI reservations over HTTP with Postgres', () => {
   const apps: NestExpressApplication[] = [];
+  let fakes: OAuthFakes;
+
+  beforeAll(async () => {
+    fakes = await OAuthFakes.start();
+  });
+
+  afterAll(async () => {
+    await fakes?.close();
+  });
 
   beforeEach(async () => {
     await resetDatabase(databaseUrl!);
@@ -38,39 +49,41 @@ describe.skipIf(!databaseUrl)('Paid AI reservations over HTTP with Postgres', ()
   });
 
   async function instance(client: Anthropic, budget: number) {
-    const app = await createTestApp({ DATABASE_URL: databaseUrl, AI_DAILY_BUDGET_USD: String(budget) }, (builder) =>
-      builder.overrideProvider(Interviewer).useFactory({
-        inject: [SpendGuard],
-        factory: (spend: SpendGuard) => new ClaudeInterviewer(client, { model }, spend),
-      }),
+    const app = await createTestApp(
+      { DATABASE_URL: databaseUrl, JWT_SECRET: jwtSecret, AI_DAILY_BUDGET_USD: String(budget), ...fakes.env() },
+      (builder) =>
+        fakes
+          .customize(builder)
+          .overrideProvider(Interviewer)
+          .useFactory({
+            inject: [SpendGuard],
+            factory: (spend: SpendGuard) => new ClaudeInterviewer(client, { model }, spend),
+          }),
     );
     apps.push(app);
     return app;
   }
 
   async function session(app: NestExpressApplication) {
-    const learnerId = randomUUID();
+    const learner = await signInLearner(app, fakes);
     const response = await request(app.getHttpServer())
       .post('/api/interview/sessions')
-      .set('x-learner-id', learnerId)
-      .send({ track: 'coding', problemId: 'warmer-days' })
+      .set(learner.headers)
+      .send({ track: 'coding', problemId: 'warmer-days', mode: 'ai' })
       .expect(201);
-    return { id: response.body.id as string, learnerId };
+    return { id: response.body.id as string, ...learner };
   }
 
   function message(app: NestExpressApplication, target: Awaited<ReturnType<typeof session>>) {
     return request(app.getHttpServer())
       .post(`/api/interview/sessions/${target.id}/messages`)
-      .set('x-learner-id', target.learnerId)
+      .set(target.headers)
       .send({ content: 'I would scan from the right with a monotonic stack.' })
       .timeout({ deadline: 5_000 });
   }
 
   function score(app: NestExpressApplication, target: Awaited<ReturnType<typeof session>>) {
-    return request(app.getHttpServer())
-      .post(`/api/interview/sessions/${target.id}/score`)
-      .set('x-learner-id', target.learnerId)
-      .timeout({ deadline: 5_000 });
+    return request(app.getHttpServer()).post(`/api/interview/sessions/${target.id}/score`).set(target.headers).timeout({ deadline: 5_000 });
   }
 
   it('admits only one racing session across instances before either provider response settles', async () => {
@@ -177,10 +190,7 @@ describe.skipIf(!databaseUrl)('Paid AI reservations over HTTP with Postgres', ()
 
     expect(provider.requests).toHaveLength(2);
     expect(await app.get(SpendGuard).spentToday()).toBeCloseTo(0.0024, 6);
-    const current = await request(app.getHttpServer())
-      .get(`/api/interview/sessions/${target.id}`)
-      .set('x-learner-id', target.learnerId)
-      .expect(200);
+    const current = await request(app.getHttpServer()).get(`/api/interview/sessions/${target.id}`).set(target.headers).expect(200);
     expect(current.body.status).toBe('active');
     expect(current.body.scorecard).toBeUndefined();
   });

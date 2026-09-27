@@ -14,6 +14,7 @@ import { SpendGuard } from './spend-guard.js';
   controllers: [InterviewController],
   providers: [
     InterviewService,
+    OfflineInterviewer,
     {
       provide: SpendGuard,
       inject: [APP_CONFIG, SpendStore],

@@ -44,7 +44,7 @@ test('a mock interview runs to a scorecard', async ({ page }) => {
 
   const sync = synced(page, 'interview.scored');
   await page.getByRole('button', { name: 'End & score' }).click();
-  await expect(page.getByText(/Scorecard · offline heuristic|Scorecard · AI calibrated/)).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByText(/Scorecard · scripted practice estimate|Scorecard · AI feedback/)).toBeVisible({ timeout: 60_000 });
   await expect(page.locator('.scorecard .verdict')).not.toBeEmpty();
   await sync;
 });
@@ -54,6 +54,49 @@ test('the interview list shows both tracks', { tag: '@smoke' }, async ({ page })
   await expect(page.getByRole('button', { name: /^Coding/ })).toBeVisible();
   await expect(page.getByRole('button', { name: /^System design/ })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Surprise me' })).toBeVisible();
+});
+
+test.describe('interview access recovery', () => {
+  test.use({ expectedConsoleErrors: [/Failed to load resource: the server responded with a status of 403/] });
+
+  test('keeps sign-in focused and visible after a rejected reply finishes scrolling', async ({ page }) => {
+    await page.route('**/api/interview/sessions/*', async (route) => {
+      const response = await route.fetch();
+      const session = await response.json();
+      await route.fulfill({
+        response,
+        json: {
+          ...session,
+          mode: 'ai',
+          aiAccess: 'available',
+          messages: Array.from({ length: 8 }, () => session.messages[0]),
+        },
+      });
+    });
+    await page.route('**/api/interview/sessions/*/messages', async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      await route.fulfill({ status: 403, json: { code: 'ai_sign_in_required', message: 'Sign in to continue with AI.' } });
+    });
+    await page.goto('/interview');
+    await page.getByRole('button', { name: /Days Until Warmer/ }).click();
+    const input = page.getByRole('textbox', { name: /Think out loud/ });
+    await page.getByRole('button', { name: 'Code', exact: true }).click();
+    await input.fill('My unsent explanation must stay here.');
+    await page.getByRole('button', { name: 'Send', exact: true }).click();
+    const heading = page.getByRole('heading', { name: 'Sign in for AI interviews' });
+    await expect(heading).toBeVisible();
+    await page.waitForTimeout(400);
+    await expect(heading).toBeFocused();
+    const bounds = await heading.evaluate(async (element) => {
+      const content = element.closest('ion-content') as HTMLElement & { getScrollElement(): Promise<HTMLElement> };
+      const viewport = (await content.getScrollElement()).getBoundingClientRect();
+      const title = element.getBoundingClientRect();
+      return { top: title.top, bottom: title.bottom, visibleTop: viewport.top, visibleBottom: viewport.bottom };
+    });
+    expect(bounds.top).toBeGreaterThanOrEqual(bounds.visibleTop);
+    expect(bounds.bottom).toBeLessThanOrEqual(bounds.visibleBottom);
+    await expect(input).toHaveValue('My unsent explanation must stay here.');
+  });
 });
 
 /** Expects what shows of the toolbar's title, its text clipped to its box, which an ellipsis ends, to end before `control`. */
