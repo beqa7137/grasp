@@ -11,7 +11,7 @@ export class SpendGuard {
   private readonly budgetMicros: number | null;
 
   constructor(
-    readonly budgetUsd: number | null,
+    budgetUsd: number | null,
     private readonly store: SpendStore,
   ) {
     this.budgetMicros = budgetUsd === null ? null : Math.floor(budgetUsd * MICROS_PER_USD);

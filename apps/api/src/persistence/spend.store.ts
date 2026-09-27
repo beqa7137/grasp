@@ -1,7 +1,7 @@
 export const SPEND_DAY_MS = 86_400_000;
 export const SPEND_HISTORY_MS = 90 * SPEND_DAY_MS;
 export const LEGACY_SPEND_KEY = 'ai-spend-usd';
-export const MAX_SPEND_MICROS = BigInt(Number.MAX_SAFE_INTEGER);
+const MAX_SPEND_MICROS = BigInt(Number.MAX_SAFE_INTEGER);
 
 export interface SpendReservation {
   id: string;
