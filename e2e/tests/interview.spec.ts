@@ -56,6 +56,55 @@ test('the interview list shows both tracks', { tag: '@smoke' }, async ({ page })
   await expect(page.getByRole('button', { name: 'Surprise me' })).toBeVisible();
 });
 
+test.describe('interview score recovery', () => {
+  test.use({ expectedConsoleErrors: [/net::ERR_FAILED/] });
+
+  test('recovers a lost scoring response from the committed card and its single progress event', async ({ page }) => {
+    await interviewUntilScorable(page, /Days Until Warmer/);
+    const id = new URL(page.url()).pathname.split('/').at(-1)!;
+    const path = `/api/interview/sessions/${id}/score`;
+    let committedScore: Record<string, unknown> | undefined;
+    await page.route(`**${path}`, async (route) => {
+      const response = await route.fetch();
+      expect(response.status()).toBe(201);
+      committedScore = await response.json();
+      await route.abort('failed');
+    });
+
+    await page.getByRole('button', { name: 'End & score' }).click();
+    await expect(page.getByRole('alert')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'End & score' })).toBeEnabled();
+    await expect(page.locator('.scorecard')).toHaveCount(0);
+    const learnerId = await page.evaluate(() => localStorage.getItem('CapacitorStorage.grasp.learnerId')!);
+    const headers = { 'x-learner-id': learnerId };
+    const readProgress = async () => {
+      const response = await page.request.get('/api/progress/events', { headers });
+      expect(response.status()).toBe(200);
+      return (await response.json()).events as { id: string; at: string }[];
+    };
+    const committedEvents = await readProgress();
+    expect(committedEvents.filter((event) => event.id === `interview-${id}`)).toHaveLength(1);
+    expect(committedEvents.find((event) => event.id === `interview-${id}`)?.at).toBe(committedScore?.['scoredAt']);
+    const localEvents = await page.evaluate(() => JSON.parse(localStorage.getItem('CapacitorStorage.grasp.events') ?? '[]'));
+    expect(localEvents.some((event: { id: string }) => event.id === `interview-${id}`)).toBe(false);
+
+    await page.unroute(`**${path}`);
+    const retry = page.waitForResponse((response) => response.request().method() === 'POST' && new URL(response.url()).pathname === path);
+    const sync = synced(page, 'interview.scored');
+    await page.getByRole('button', { name: 'End & score' }).click();
+    const recovered = await retry;
+    expect(recovered.status()).toBe(201);
+    expect(await recovered.json()).toEqual(committedScore);
+    await expect(page.locator('.scorecard')).toBeVisible();
+    await expect(page.getByRole('alert')).toHaveCount(0);
+    await sync;
+    expect(await readProgress()).toEqual(committedEvents);
+    await page.reload();
+    await expect(page.locator('.scorecard')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'End & score' })).toHaveCount(0);
+  });
+});
+
 test.describe('interview access recovery', () => {
   test.use({ expectedConsoleErrors: [/Failed to load resource: the server responded with a status of 403/] });
 

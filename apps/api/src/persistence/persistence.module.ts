@@ -92,8 +92,9 @@ export class ExpiredRowSweeper implements OnApplicationBootstrap, OnApplicationS
     },
     {
       provide: InterviewStore,
-      inject: [DB, MemoryLearnerState],
-      useFactory: (db: Db | null, state: MemoryLearnerState) => (db ? new PostgresInterviewStore(db) : new MemoryInterviewStore(state)),
+      inject: [DB, MemoryLearnerState, ProgressStore],
+      useFactory: (db: Db | null, state: MemoryLearnerState, progress: ProgressStore) =>
+        db ? new PostgresInterviewStore(db) : new MemoryInterviewStore(state, progress as MemoryProgressStore),
     },
     {
       provide: FeedbackStore,

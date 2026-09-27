@@ -19,6 +19,7 @@ export abstract class ProgressStore {
 
 export abstract class InterviewStore {
   abstract save(session: InterviewSession): Promise<void>;
+  abstract completeScore(candidate: InterviewSession): Promise<InterviewSession>;
   abstract get(learnerId: string, id: string): Promise<InterviewSession | null>;
   abstract recent(learnerId: string, limit: number): Promise<InterviewSession[]>;
   abstract all(): Promise<InterviewSession[]>;

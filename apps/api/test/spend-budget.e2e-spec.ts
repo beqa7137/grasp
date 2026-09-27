@@ -5,7 +5,9 @@ import request from 'supertest';
 import { ClaudeInterviewer } from '../src/interview/claude.interviewer.js';
 import { Interviewer } from '../src/interview/interviewer.js';
 import { maximumCostUsd } from '../src/interview/pricing.js';
+import { RUBRICS } from '../src/interview/prompts.js';
 import { SpendGuard } from '../src/interview/spend-guard.js';
+import { PG_POOL } from '../src/persistence/persistence.module.js';
 import { SpendStore } from '../src/persistence/spend.store.js';
 import { fakeAnthropic } from './support/fake-anthropic.js';
 import { createTestApp } from './support/app.js';
@@ -207,6 +209,60 @@ describe.skipIf(!databaseUrl)('Paid AI reservations over HTTP with Postgres', ()
 
     expect(provider.requests).toHaveLength(0);
     expect(await app.get(SpendGuard).spentToday()).toBe(0);
+  });
+
+  it('keeps paid scoring charges when completion rolls back and avoids another charge after committed retry', async () => {
+    const card = {
+      verdict: 'hire',
+      summary: 'The candidate explained the stack invariant and its complexity.',
+      dimensions: RUBRICS.coding.map(({ name }) => ({ name, score: 3, evidence: 'The transcript explains the reasoning.' })),
+      strengths: ['Explained the invariant.'],
+      improvements: ['Check repeated temperatures.'],
+      weakPatterns: ['monotonic-stack'],
+    };
+    const provider = fakeAnthropic(() => ({ text: JSON.stringify(card), usage: { input_tokens: 1000, output_tokens: 40 } }));
+    const first = await instance(provider.client, 2 * scoreMaximum);
+    const target = await session(first);
+    const pool = first.get<pg.Pool>(PG_POOL);
+    await pool.query(`
+      create function reject_paid_score_event() returns trigger language plpgsql as $$
+      begin raise exception 'injected score event failure'; end;
+      $$;
+      create trigger reject_paid_score_event before insert on learning_events
+      for each row execute function reject_paid_score_event()`);
+    try {
+      await score(first, target).expect(500);
+      const current = await request(first.getHttpServer()).get(`/api/interview/sessions/${target.id}`).set(target.headers).expect(200);
+      expect(current.body.status).toBe('active');
+      expect(current.body.scorecard).toBeUndefined();
+      const progress = await request(first.getHttpServer()).get('/api/progress/events').set(target.headers).expect(200);
+      expect(progress.body.events).toEqual([]);
+      expect(provider.requests).toHaveLength(1);
+      expect(await first.get(SpendGuard).spentToday()).toBeCloseTo(0.0024, 6);
+    } finally {
+      await pool.query('drop trigger reject_paid_score_event on learning_events; drop function reject_paid_score_event()');
+    }
+
+    const second = await instance(provider.client, 2 * scoreMaximum);
+    expect(await second.get(SpendGuard).spentToday()).toBeCloseTo(0.0024, 6);
+    const retried = await score(second, target).expect(201);
+    expect(retried.body.scorecard).toMatchObject(card);
+    const progress = await request(second.getHttpServer()).get('/api/progress/events').set(target.headers).expect(200);
+    expect(progress.body.events).toEqual([
+      {
+        id: `interview-${target.id}`,
+        at: retried.body.scoredAt,
+        type: 'interview.scored',
+        sessionId: target.id,
+        track: 'coding',
+        verdict: card.verdict,
+        weakPatterns: card.weakPatterns,
+      },
+    ]);
+    expect((await score(first, target).expect(201)).body).toEqual(retried.body);
+    expect(provider.requests).toHaveLength(2);
+    expect(await first.get(SpendGuard).spentToday()).toBeCloseTo(0.0048, 6);
+    expect(await second.get(SpendGuard).spentToday()).toBeCloseTo(0.0048, 6);
   });
 
   it('returns the completed response and retains its full hold when settlement fails', async () => {

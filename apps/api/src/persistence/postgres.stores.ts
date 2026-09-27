@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { isDeepStrictEqual } from 'node:util';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import type { StoredEvent } from '@grasp/engine';
 import { and, asc, desc, eq, gt, isNull, lt, sql, TransactionRollbackError, type SQL } from 'drizzle-orm';
 import { DrizzleQueryError } from 'drizzle-orm/errors';
@@ -119,12 +120,112 @@ export class PostgresInterviewStore extends InterviewStore {
         .onConflictDoUpdate({
           target: schema.interviewSessions.id,
           set: { status: row.status, session, updatedAt: new Date() },
-          setWhere: eq(schema.interviewSessions.learnerId, session.learnerId),
+          setWhere: and(eq(schema.interviewSessions.learnerId, session.learnerId), eq(schema.interviewSessions.status, 'active')),
         })
         .returning({ id: schema.interviewSessions.id });
-      if (!saved.length) throw learnerMoved();
+      if (!saved.length) {
+        const mergedInto = await retirementDestination(this.db, session.learnerId);
+        if (mergedInto !== undefined) throw retiredLearner(mergedInto);
+        const [stored] = await this.db
+          .select({ learnerId: schema.interviewSessions.learnerId })
+          .from(schema.interviewSessions)
+          .where(eq(schema.interviewSessions.id, session.id));
+        if (stored?.learnerId === session.learnerId) throw new ConflictException('Interview already scored');
+        throw learnerMoved();
+      }
     } catch (error) {
       return rethrowLearnerWriteError(this.db, session.learnerId, error);
+    }
+  }
+
+  async completeScore(candidate: InterviewSession): Promise<InterviewSession> {
+    try {
+      return await this.db.transaction(async (tx) => {
+        await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${candidate.learnerId}::uuid::text, 0))`);
+        const [retirement] = await tx
+          .select({ mergedInto: schema.erasedLearners.mergedInto })
+          .from(schema.erasedLearners)
+          .where(eq(schema.erasedLearners.learnerId, candidate.learnerId));
+        if (retirement) throw retiredLearner(retirement.mergedInto);
+        const [row] = await tx
+          .select({ learnerId: schema.interviewSessions.learnerId, session: schema.interviewSessions.session })
+          .from(schema.interviewSessions)
+          .where(eq(schema.interviewSessions.id, candidate.id))
+          .for('update');
+        if (!row) throw new NotFoundException('Interview not found');
+        if (row.learnerId !== candidate.learnerId) throw learnerMoved();
+        const stored = row.session as InterviewSession;
+        let completed = stored;
+        if (stored.status === 'active') {
+          if (
+            !isDeepStrictEqual(stored.messages, candidate.messages) ||
+            stored.hintsUsed !== candidate.hintsUsed ||
+            (stored.mode ?? 'offline') !== (candidate.mode ?? 'offline') ||
+            stored.track !== candidate.track ||
+            !isDeepStrictEqual(stored.problem, candidate.problem)
+          ) {
+            throw new ConflictException('Interview changed while scoring; try again');
+          }
+          completed = {
+            ...stored,
+            status: candidate.status,
+            scorecard: structuredClone(candidate.scorecard),
+            scoredAt: candidate.scoredAt,
+            usage: structuredClone(candidate.usage),
+          };
+        }
+        if (
+          completed.status !== 'scored' ||
+          !completed.scorecard ||
+          typeof completed.scoredAt !== 'string' ||
+          !Number.isFinite(Date.parse(completed.scoredAt))
+        ) {
+          throw new ConflictException('Interview score is incomplete');
+        }
+        const event: StoredEvent = {
+          id: `interview-${completed.id}`,
+          at: completed.scoredAt!,
+          type: 'interview.scored',
+          sessionId: completed.id,
+          track: completed.track,
+          verdict: completed.scorecard.verdict,
+          weakPatterns: completed.scorecard.weakPatterns,
+        };
+        if (stored.status === 'active') {
+          await tx
+            .update(schema.interviewSessions)
+            .set({ status: completed.status, session: completed, updatedAt: new Date() })
+            .where(eq(schema.interviewSessions.id, completed.id));
+        }
+        const eventId = `${completed.learnerId}:${event.id}`;
+        const inserted = await tx
+          .insert(schema.learningEvents)
+          .values({ id: eventId, learnerId: completed.learnerId, type: event.type, payload: event, occurredAt: event.at })
+          .onConflictDoNothing()
+          .returning({ id: schema.learningEvents.id });
+        if (!inserted.length) {
+          const [existing] = await tx
+            .select({ payload: schema.learningEvents.payload })
+            .from(schema.learningEvents)
+            .where(eq(schema.learningEvents.id, eventId));
+          const saved = existing?.payload as StoredEvent | undefined;
+          if (
+            saved?.type !== 'interview.scored' ||
+            saved.id !== event.id ||
+            Date.parse(saved.at) !== Date.parse(event.at) ||
+            saved.sessionId !== event.sessionId ||
+            saved.track !== event.track ||
+            saved.verdict !== event.verdict ||
+            !isDeepStrictEqual(saved.weakPatterns, event.weakPatterns)
+          ) {
+            throw new ConflictException('Interview score conflicts with saved progress');
+          }
+        }
+        return completed;
+      });
+    } catch (error) {
+      if (!(error instanceof DrizzleQueryError) && safeDatabaseErrorCategory(error) !== 'unknown') throw databaseUnavailable();
+      throw error;
     }
   }
 
