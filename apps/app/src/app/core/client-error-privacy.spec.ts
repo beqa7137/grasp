@@ -1,4 +1,4 @@
-import { BrowserClient, Scope, createTransport, defaultStackParser, type Event, type StackFrame } from '@sentry/angular';
+import { BrowserClient, Scope, createTransport, dedupeIntegration, defaultStackParser, type Event, type StackFrame } from '@sentry/angular';
 import { createClientErrorPrivacy } from './client-error-privacy';
 
 const PRIVATE = 'private-learner-answer-token';
@@ -18,7 +18,7 @@ function setup() {
   const bodies: string[] = [];
   const client = new BrowserClient({
     dsn: 'https://public@errors.example/1',
-    integrations: [],
+    integrations: [dedupeIntegration()],
     stackParser: defaultStackParser,
     beforeSend: privacy.beforeSend,
     sendClientReports: false,
@@ -34,6 +34,23 @@ function setup() {
   clients.push(client);
   return { privacy, client, bodies };
 }
+
+it('suppresses consecutive equivalent failures while preserving distinct diagnostics', async () => {
+  const { privacy, client, bodies } = setup();
+  for (const [category, line] of [
+    ['type', 12],
+    ['type', 12],
+    ['range', 12],
+    ['range', 13],
+  ] as const) {
+    const error = category === 'type' ? new TypeError(PRIVATE) : new RangeError(PRIVATE);
+    error.stack = `${PRIVATE}\n    at ${PRIVATE} (${ASSET_URL}:${line}:9)`;
+    client.captureEvent(...privacy.capture(error));
+    await client.flush(2_000);
+  }
+  expect(bodies).toHaveLength(3);
+  expect(bodies.join('')).not.toContain(PRIVATE);
+});
 
 it('serializes only trusted diagnostics after dirty scope, attachments and late SDK enrichment', async () => {
   const { privacy, client, bodies } = setup();
