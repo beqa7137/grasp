@@ -55,10 +55,6 @@ export class InterviewService {
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
-  get mode() {
-    return this.interviewer.mode;
-  }
-
   aiAccess(userId: string | null): AiAccess {
     if (this.interviewer.mode !== 'ai') return 'unavailable';
     return userId ? 'available' : 'sign-in-required';

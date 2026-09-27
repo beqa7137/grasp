@@ -21,7 +21,7 @@ Every new interview defaults to scripted practice (`mode: "offline"`), including
 
 AI requires both an explicit choice and an active account. `POST /api/interview/sessions` accepts `mode: "ai"`; `POST /api/interview/sessions/:id/mode` changes an active session to `"ai"` or `"offline"`. Mode changes preserve the transcript and affect future replies and the final score. They share the reply/scoring lease, so switching while work is in flight returns 409. Scored interviews cannot change mode.
 
-The catalog and each public session include `aiAccess: "available" | "sign-in-required" | "unavailable"`. This describes the current caller's access on this server; the session's `mode` describes the selected practice mode. The catalog's older `mode` field still describes server AI availability for compatibility. The mutation endpoint always rechecks access, even if the client has an earlier capability response.
+The catalog and each public session include `aiAccess: "available" | "sign-in-required" | "unavailable"`. This describes the current caller's access on this server; the session's `mode` describes the selected practice mode. The mutation endpoint always rechecks access, even if the client has an earlier capability response.
 
 Before any AI reply, hint or uncached score consumes the interview quota or changes the transcript, the service requires verified access claims and rechecks their session family in shared storage. A guest receives `403 ai_sign_in_required`, without a provider call or paid reservation. An unavailable AI provider returns `503 ai_unavailable`; the learner can explicitly switch to scripted practice. Storage failures fail closed. A cached scorecard returns without fresh paid admission and preserves its own historical `mode`.
 

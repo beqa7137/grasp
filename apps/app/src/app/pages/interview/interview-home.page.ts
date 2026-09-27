@@ -61,9 +61,6 @@ import type { AiAccess, InterviewCatalog, InterviewMode, InterviewSession, Inter
 
         @if (error(); as e) {
           <div class="panel error" role="alert">{{ e }}</div>
-          @if (!aiAccess() && !accessCheckFailed()) {
-            <button class="g-btn" [disabled]="pending()" (click)="ionViewWillEnter()">Retry interviews</button>
-          }
         }
         @if (accessCheckFailed()) {
           <button class="g-btn" [disabled]="pending()" (click)="checkAccess()">Retry access check</button>

@@ -30,7 +30,7 @@ export class InterviewController {
 
   @Get('problems')
   problems(@UserId() userId: string | null) {
-    return { mode: this.interviews.mode, aiAccess: this.interviews.aiAccess(userId), problems: this.interviews.catalog() };
+    return { aiAccess: this.interviews.aiAccess(userId), problems: this.interviews.catalog() };
   }
 
   @Get('sessions')

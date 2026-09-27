@@ -108,7 +108,7 @@ image. See [DEPLOYMENT.md](DEPLOYMENT.md) and [decisions/0001-hosting.md](decisi
 | GET    | `/api/curriculum/scenarios`                       | sandbox components + scenarios                 |
 | POST   | `/api/progress/events`                            | idempotent batch ingest                        |
 | GET    | `/api/progress`                                   | derived card states + mastery per pattern      |
-| GET    | `/api/interview/problems`                         | interview problem catalog + mode               |
+| GET    | `/api/interview/problems`                         | interview problem catalog + AI access          |
 | GET    | `/api/interview/sessions`                         | recent sessions                                |
 | POST   | `/api/interview/sessions`                         | start a session                                |
 | POST   | `/api/interview/sessions/:id/messages`            | send answer, stream interviewer reply (SSE)    |

@@ -6,7 +6,6 @@ import type { AiAccess, InterviewCatalog, InterviewSession } from './interview.t
 
 function setup(access: AiAccess = 'sign-in-required') {
   const catalog: InterviewCatalog = {
-    mode: 'ai',
     aiAccess: access,
     problems: [{ id: 'problem', title: 'Practice', track: 'coding', patternIds: [] }],
   };

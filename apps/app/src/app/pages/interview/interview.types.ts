@@ -3,7 +3,6 @@ export type InterviewMode = 'ai' | 'offline';
 export type AiAccess = 'available' | 'sign-in-required' | 'unavailable';
 
 export interface InterviewCatalog {
-  mode: InterviewMode;
   aiAccess: AiAccess;
   problems: ProblemSummary[];
 }

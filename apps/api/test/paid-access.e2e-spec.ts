@@ -3,6 +3,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { randomUUID } from 'node:crypto';
 import pg from 'pg';
 import request from 'supertest';
+import type { AuthSession } from '../src/auth/session.service.js';
 import { TokenService } from '../src/auth/tokens.js';
 import { ClaudeInterviewer } from '../src/interview/claude.interviewer.js';
 import type { InterviewSession, Scorecard } from '../src/interview/interview.types.js';
@@ -30,14 +31,7 @@ const scorecard: Scorecard = {
   weakPatterns: ['monotonic-stack'],
 };
 
-interface Account {
-  accessToken: string;
-  refreshToken: string;
-  learnerId: string;
-  user: { id: string };
-}
-
-const bearer = (account: Account) => ({ Authorization: `Bearer ${account.accessToken}` });
+const bearer = (account: AuthSession) => ({ Authorization: `Bearer ${account.accessToken}` });
 const guest = (learnerId: string) => ({ 'x-learner-id': learnerId });
 
 function barrier() {
@@ -107,7 +101,7 @@ describe.each(storages)('Paid interview access over HTTP (%s storage)', (storage
         ? await fakes.googleCredential(http, { sub: email, email })
         : await fakes.githubTicket(http, { id: githubIds.get(email)!, emails: [{ email, primary: true, verified: true }] });
     return (await http().post(`/api/auth/${method}`).set(guest(learnerId)).set('X-Forwarded-For', freshIp()).send(body).expect(200))
-      .body as Account;
+      .body as AuthSession;
   }
 
   async function start(app: NestExpressApplication, headers: Record<string, string>, mode?: 'ai' | 'offline') {
@@ -135,11 +129,10 @@ describe.each(storages)('Paid interview access over HTTP (%s storage)', (storage
     const app = await instance();
     const guestId = randomUUID();
     const catalog = await request(app.getHttpServer()).get('/api/interview/problems').set(guest(guestId)).expect(200);
-    expect(catalog.body).toMatchObject({ mode: 'ai', aiAccess: 'sign-in-required' });
+    expect(catalog.body).toMatchObject({ aiAccess: 'sign-in-required' });
     expect(await start(app, guest(guestId))).toMatchObject({ mode: 'offline', aiAccess: 'sign-in-required' });
     const account = await signIn(app, 'defaults@example.com');
     expect((await request(app.getHttpServer()).get('/api/interview/problems').set(bearer(account)).expect(200)).body).toMatchObject({
-      mode: 'ai',
       aiAccess: 'available',
     });
     expect(await start(app, bearer(account))).toMatchObject({ mode: 'offline', aiAccess: 'available' });
