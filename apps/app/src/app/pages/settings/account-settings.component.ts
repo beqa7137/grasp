@@ -160,8 +160,18 @@ export class AccountSettingsComponent {
     return this.toast('Signed in. Your progress is now synced to your account.');
   }
 
-  connect(provider: SignInProvider) {
-    return this.attempt(() => this.auth.connect(provider), `You can now sign in with ${SIGN_IN_LABELS[provider]} too.`);
+  async connect(provider: SignInProvider) {
+    this.error.set(null);
+    this.busy.set(true);
+    try {
+      if (await this.auth.connect(provider)) await this.toast(`You can now sign in with ${SIGN_IN_LABELS[provider]} too.`);
+    } catch (e) {
+      this.error.set(signInErrorMessage(e));
+      // API errors are reported by the server; plugin failures (such as a misconfigured client) are only visible here.
+      if (!(e instanceof ApiError)) this.errors.handleError(e);
+    } finally {
+      this.busy.set(false);
+    }
   }
 
   async confirmSignOut() {
@@ -183,20 +193,6 @@ export class AccountSettingsComponent {
       await this.auth.signOut();
     } catch {
       await this.toast('Could not finish signing out. Please try again.');
-    } finally {
-      this.busy.set(false);
-    }
-  }
-
-  private async attempt(action: () => Promise<boolean>, success: string) {
-    this.error.set(null);
-    this.busy.set(true);
-    try {
-      if (await action()) await this.toast(success);
-    } catch (e) {
-      this.error.set(signInErrorMessage(e));
-      // API errors are reported by the server; plugin failures (such as a misconfigured client) are only visible here.
-      if (!(e instanceof ApiError)) this.errors.handleError(e);
     } finally {
       this.busy.set(false);
     }
