@@ -58,6 +58,7 @@ function schemaKeywords(schema: unknown, found = new Set<string>()): Set<string>
 beforeAll(() => {
   Logger.overrideLogger(false);
 });
+afterEach(() => vi.restoreAllMocks());
 
 describe('ClaudeInterviewer.reply', () => {
   it('streams text and sends a cache-friendly request', async () => {
@@ -181,6 +182,44 @@ describe('ClaudeInterviewer.reply', () => {
     expect(requests).toHaveLength(2);
   });
 
+  it.each([
+    [429, 'warn', 'anthropic.busy'],
+    [500, 'warn', 'anthropic.unavailable'],
+    [401, 'error', 'anthropic.rejected'],
+  ] as const)('does not log provider payloads or request identifiers on HTTP %s', async (status, level, operation) => {
+    const logged = vi.spyOn(Logger.prototype, level).mockImplementation(() => {});
+    const { interviewer } = setup(() => ({
+      status,
+      error: { type: 'private-provider-type', message: 'private-transcript api-key-secret' },
+      headers: { 'request-id': 'private-provider-request' },
+    }));
+
+    await expect(interviewer.reply(session('coding', [{ content: 'private-candidate-answer' }]), () => {}, signal())).rejects.toThrow();
+
+    expect(logged.mock.calls).toEqual([[{ operation, category: 'unknown', code: 'unknown' }]]);
+  });
+
+  it('keeps untrusted streamed error fields out of logs', async () => {
+    const logged = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
+    const { interviewer } = setup(() => ({
+      stream: ['Partial'],
+      errorAfter: { type: 'private-stream-type', message: 'private-stream-message' },
+    }));
+
+    await expect(interviewer.reply(session(), () => {}, signal())).rejects.toBeInstanceOf(BadGatewayException);
+
+    expect(logged.mock.calls).toEqual([[{ operation: 'anthropic.rejected', category: 'unknown', code: 'unknown' }]]);
+  });
+
+  it('keeps untrusted reply stop reasons out of logs', async () => {
+    const logged = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+    const { interviewer } = setup(() => ({ stream: [], stopReason: 'private-provider-stop-reason' }));
+
+    expect((await interviewer.reply(session(), () => {}, signal())).text).toBe(REDIRECT_REPLY);
+
+    expect(logged.mock.calls).toEqual([[{ operation: 'interview.empty-reply' }]]);
+  });
+
   it('passes client disconnects through as aborts', async () => {
     const { interviewer } = setup(() => ({ stream: ['one ', 'two ', 'three'], delayMs: 20 }));
     const abort = new AbortController();
@@ -244,5 +283,17 @@ describe('ClaudeInterviewer.score', () => {
   it('surfaces API failures instead of silently degrading', async () => {
     const { interviewer } = setup(() => ({ status: 529, error: { type: 'overloaded_error', message: 'Overloaded' } }));
     await expect(interviewer.score(session('coding', [{ content: 'hi' }]))).rejects.toBeInstanceOf(ServiceUnavailableException);
+  });
+
+  it('does not log provider text when rejecting a scorecard', async () => {
+    const logged = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+    const { interviewer } = setup(() => ({ text: 'private-scorecard-content', stopReason: 'private-provider-stop-reason' }));
+
+    expect((await interviewer.score(session())).scorecard.mode).toBe('offline');
+
+    expect(logged.mock.calls).toEqual([
+      [{ operation: 'interview.invalid-scorecard', attempt: 1, category: 'unknown', code: 'unknown' }],
+      [{ operation: 'interview.invalid-scorecard', attempt: 2, category: 'unknown', code: 'unknown' }],
+    ]);
   });
 });

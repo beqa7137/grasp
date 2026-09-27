@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { ErasureStore } from '../persistence/erasure.stores.js';
 import { AuthStore } from '../persistence/stores.js';
@@ -15,8 +15,6 @@ export const toIdentitySummary = (identity: AuthIdentity): IdentitySummary => ({
 /** Decides which account a verified provider identity signs in to, matched on the provider's subject id, creating or linking as needed. */
 @Injectable()
 export class AccountService {
-  private readonly log = new Logger(AccountService.name);
-
   constructor(
     private readonly store: AuthStore,
     private readonly sessions: SessionService,
@@ -36,7 +34,7 @@ export class AccountService {
     const unclaimedDevice =
       deviceLearnerId && retirement === undefined && !(await this.store.userByLearner(deviceLearnerId)) ? deviceLearnerId : null;
     const user = await this.accountFor(normalized(verified), unclaimedDevice, now);
-    if (unclaimedDevice && unclaimedDevice !== user.learnerId) await this.mergeLearner(unclaimedDevice, user.learnerId);
+    if (unclaimedDevice && unclaimedDevice !== user.learnerId) await this.erasure.merge(unclaimedDevice, user.learnerId);
     await this.store.touchLogin(user.id, now.toISOString());
     const session = await this.sessions.start(user, now);
     return retirement === null ? { ...session, deviceLearnerErased: true } : session;
@@ -94,18 +92,12 @@ export class AccountService {
     if (!(await this.store.createUser(created, identityRecord(created.id, verified, now, now)))) {
       return this.accountFor(verified, unclaimedDevice, now);
     }
-    this.log.log(`New account ${created.id}`);
     return created;
   }
 
   private async attach(userId: string, verified: VerifiedIdentity, lastLoginAt: Date | null, now: Date): Promise<void> {
     const holder = await this.store.linkIdentity(identityRecord(userId, verified, lastLoginAt, now));
     if (holder.userId !== userId) throw identityInUse(verified.provider);
-  }
-
-  private async mergeLearner(from: string, into: string) {
-    await this.erasure.merge(from, into);
-    this.log.log(`Merged anonymous learner into account learner ${into}`);
   }
 }
 

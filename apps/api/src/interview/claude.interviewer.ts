@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { Logger } from '@nestjs/common';
+import { safeErrorDetails } from '../observability/safe-error.js';
 import { toHttpError } from './anthropic-errors.js';
 import { Interviewer, type ReplyResult, type ScoreResult } from './interviewer.js';
 import type { InterviewSession, TokenUsage } from './interview.types.js';
@@ -52,7 +53,7 @@ export class ClaudeInterviewer extends Interviewer {
       stream.on('text', onDelta);
       const message = await stream.finalMessage();
       const text = message.stop_reason === 'refusal' ? '' : textOf(message);
-      if (!text) this.log.warn(`Empty interviewer reply (stop_reason=${message.stop_reason}); redirecting`);
+      if (!text) this.log.warn({ operation: 'interview.empty-reply' });
       return { text: text || REDIRECT_REPLY, usage: this.usage(message.usage) };
     } catch (err) {
       throw toHttpError(err, this.log);
@@ -83,7 +84,7 @@ export class ClaudeInterviewer extends Interviewer {
         return { scorecard: { ...normalizeScorecard(session.track, textOf(message)), mode: 'ai' }, usage };
       } catch (err) {
         if (!(err instanceof InvalidScorecardError)) throw err;
-        this.log.warn(`Scorecard attempt ${attempt}/${SCORE_ATTEMPTS} rejected: ${err.message}`);
+        this.log.warn({ operation: 'interview.invalid-scorecard', attempt, ...safeErrorDetails(err) });
       }
     }
     return { scorecard: this.offline.scorecard(session, FALLBACK_SCORE_SUMMARY), usage };

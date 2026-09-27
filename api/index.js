@@ -2,6 +2,7 @@
 // Static assets are served by Vercel's CDN; see vercel.json and docs/DEPLOYMENT.md.
 import { fileURLToPath } from 'node:url';
 import { createRequestHandler } from '../apps/api/dist/serverless.js';
+import { safeErrorDetails } from '../apps/api/dist/observability/safe-error.js';
 
 process.env.NODE_ENV = 'production';
 
@@ -24,7 +25,7 @@ export default async function handler(req, res) {
   try {
     handle = await ready;
   } catch (error) {
-    console.error('Failed to start the API:', error);
+    console.error('Failed to start the API:', safeErrorDetails(error));
     res.statusCode = 503;
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Retry-After', '5');

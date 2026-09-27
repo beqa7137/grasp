@@ -1,6 +1,7 @@
 import { ConflictException, HttpException, HttpStatus, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { APP_CONFIG, type AppConfig } from '../config.js';
+import { safeErrorDetails } from '../observability/safe-error.js';
 import { ErasureStore } from '../persistence/erasure.stores.js';
 import { CoordinationStore, InterviewStore, ProgressStore } from '../persistence/stores.js';
 import { Interviewer } from './interviewer.js';
@@ -117,14 +118,6 @@ export class InterviewService {
       session.status = 'scored';
       session.scoredAt = new Date().toISOString();
       await this.store.save(session);
-      if (session.usage) {
-        const u = session.usage;
-        this.log.log(
-          `Interview ${session.id} scored (${session.track}, ${result.scorecard.mode}): ${u.calls} calls, ` +
-            `${u.inputTokens} in / ${u.cacheReadTokens} cached / ${u.cacheWriteTokens} cache-write / ${u.outputTokens} out, ` +
-            `$${u.costUsd?.toFixed(4) ?? 'n/a'}`,
-        );
-      }
       // Weak patterns feed the learner's review schedule. The id is deterministic so the client's copy dedupes.
       await this.progress.append(learnerId, [
         {
@@ -152,7 +145,7 @@ export class InterviewService {
       return await run();
     } finally {
       await this.coordination.releaseLease(key, holder).catch((error: unknown) => {
-        this.log.warn(`Could not release the lease on ${sessionId}; it expires on its own: ${String(error)}`);
+        this.log.warn({ operation: 'interview.release-lease', ...safeErrorDetails(error) });
       });
     }
   }

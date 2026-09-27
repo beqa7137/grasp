@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { BadGatewayException, HttpException, ServiceUnavailableException, type Logger } from '@nestjs/common';
+import { safeErrorDetails } from '../observability/safe-error.js';
 
 const BUSY = 'The interviewer is busy right now. Try again in a moment.';
 const UNAVAILABLE = 'The interviewer is unavailable right now. Please try again.';
@@ -17,20 +18,20 @@ function errorType(err: InstanceType<typeof Anthropic.APIError>): string | undef
 export function toHttpError(err: unknown, log: Logger): unknown {
   if (err instanceof HttpException || err instanceof Anthropic.APIUserAbortError) return err;
   if (!(err instanceof Anthropic.APIError)) {
-    log.error(err);
+    log.error({ operation: 'anthropic.request', ...safeErrorDetails(err) });
     return new BadGatewayException(UNAVAILABLE);
   }
 
   const type = errorType(err);
   if (err.status === 429 || err.status === 529 || type === 'rate_limit_error' || type === 'overloaded_error') {
-    log.warn(`Claude API ${type ?? err.status} (request ${err.requestID ?? 'n/a'})`);
+    log.warn({ operation: 'anthropic.busy', ...safeErrorDetails(err) });
     return new ServiceUnavailableException(BUSY);
   }
   if (err instanceof Anthropic.APIConnectionError || (err.status ?? 0) >= 500 || type === 'api_error') {
-    log.warn(`Claude API unreachable: ${err.message}`);
+    log.warn({ operation: 'anthropic.unavailable', ...safeErrorDetails(err) });
     return new ServiceUnavailableException(UNAVAILABLE);
   }
   // 400/401/403/404 mean our request or configuration is wrong: loud in logs, generic to the learner.
-  log.error(`Claude API rejected the request (${err.status ?? type}, request ${err.requestID ?? 'n/a'}): ${err.message}`);
+  log.error({ operation: 'anthropic.rejected', ...safeErrorDetails(err) });
   return new BadGatewayException(UNAVAILABLE);
 }

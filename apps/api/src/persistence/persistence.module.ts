@@ -3,6 +3,7 @@ import { attachDatabasePool } from '@vercel/functions';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
 import { APP_CONFIG, ConfigError, loadConfig, type AppConfig } from '../config.js';
+import { safeErrorDetails } from '../observability/safe-error.js';
 import { createDatabasePool } from './database-pool.js';
 import { ErasureStore, MemoryErasureStore, MemoryLearnerState, PostgresErasureStore } from './erasure.stores.js';
 import {
@@ -52,7 +53,7 @@ export class ExpiredRowSweeper implements OnApplicationBootstrap, OnApplicationS
       const removed = (await this.coordination.sweep()) + (await this.auth.sweepExpired());
       if (removed) this.log.debug(`Swept ${removed} expired rows`);
     } catch (error) {
-      this.log.warn(`Sweep failed, will retry: ${String(error)}`);
+      this.log.warn({ operation: 'persistence.sweep', ...safeErrorDetails(error) });
     }
   }
 }

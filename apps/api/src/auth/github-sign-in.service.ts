@@ -1,5 +1,6 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { z } from 'zod';
+import { safeErrorDetails } from '../observability/safe-error.js';
 import { invalidTicket, oauthError, providerDisabled } from './auth-errors.js';
 import type { VerifiedIdentity } from './auth.types.js';
 import { GitHubOAuthClient, type GitHubApp, type GitHubIdentity } from './github-oauth.client.js';
@@ -64,7 +65,7 @@ export class GitHubSignInService {
     } catch (e) {
       if (e instanceof InvalidCredentialError) throw oauthError(HttpStatus.BAD_REQUEST, 'invalid_grant', 'GitHub did not accept the code.');
       if (e instanceof ProviderUnavailableError) {
-        this.log.warn(e.message);
+        this.log.warn({ operation: 'auth.github-identify', ...safeErrorDetails(e) });
         throw oauthError(HttpStatus.SERVICE_UNAVAILABLE, 'temporarily_unavailable', "GitHub can't be reached right now.");
       }
       throw e;

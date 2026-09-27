@@ -51,6 +51,7 @@ const hang: Route = (_, signal) =>
   new Promise<Response>((_resolve, reject) => signal?.addEventListener('abort', () => reject(signal.reason)));
 
 beforeAll(() => Logger.overrideLogger(false));
+afterEach(() => vi.restoreAllMocks());
 
 describe('HttpGitHubOAuthClient', () => {
   it('exposes what the app needs to start the flow', () => {
@@ -124,6 +125,30 @@ describe('HttpGitHubOAuthClient', () => {
     const { client, calls } = fakeGitHub({ 'GET /user': hang });
     await expect(client.identify(grant)).rejects.toBeInstanceOf(ProviderUnavailableError);
     expect(calls.at(-1)?.method).toBe('DELETE');
+  });
+
+  it('never logs untrusted authorization error fields', async () => {
+    const logged = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+    const { client } = fakeGitHub({
+      'POST /login/oauth/access_token': () => json({ error: 'private-auth-code', error_description: 'private-client-secret' }),
+    });
+
+    await expect(client.identify(grant)).rejects.toBeInstanceOf(InvalidCredentialError);
+
+    expect(logged.mock.calls).toEqual([[{ operation: 'auth.github-exchange-rejected' }]]);
+  });
+
+  it('never logs token revocation error names or messages', async () => {
+    const logged = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+    const { client } = fakeGitHub({
+      'DELETE /applications/Ov23liTest/token': () => {
+        throw Object.assign(new TypeError('private-token'), { name: 'private-error-name' });
+      },
+    });
+
+    await expect(client.identify(grant)).resolves.toMatchObject({ subject: '583231' });
+
+    expect(logged.mock.calls).toEqual([[{ operation: 'auth.github-revoke', category: 'unknown', code: 'unknown' }]]);
   });
 });
 

@@ -1,41 +1,43 @@
 import { Logger } from '@nestjs/common';
 import type { AppConfig } from '../config.js';
+import { createSentryPrivacy } from './sentry-privacy.js';
 
 type Sentry = typeof import('@sentry/node');
 let sentry: Sentry | null = null;
+let privacy: ReturnType<typeof createSentryPrivacy> | null = null;
 
-/** Loads Sentry only when a DSN is configured. Learner content (bodies, learner ids) is never sent. */
 export async function initErrorReporting(config: AppConfig) {
   if (!config.sentryDsn) return;
   sentry = await import('@sentry/node');
+  privacy = createSentryPrivacy(config, sentry.defaultStackParser);
+  const boundary = privacy;
   sentry.init({
     dsn: config.sentryDsn,
     environment: config.sentryEnvironment,
     release: config.release ?? undefined,
+    defaultIntegrations: false,
+    debug: false,
+    spotlight: false,
+    sendClientReports: false,
+    tracesSampleRate: 0,
     dataCollection: {
       userInfo: false,
       cookies: false,
-      httpHeaders: { request: { deny: ['x-learner-id', 'authorization', 'cookie'] }, response: false },
+      httpHeaders: false,
       httpBodies: [],
       urlQueryParams: false,
       genAI: { inputs: false, outputs: false },
       databaseQueryData: false,
       stackFrameVariables: false,
     },
-    beforeSend(event) {
-      if (event.request) {
-        delete event.request.data;
-        delete event.request.cookies;
-        if (event.request.headers) delete event.request.headers['x-learner-id'];
-      }
-      return event;
-    },
+    beforeSend: boundary.beforeSend,
+    transport: (options) => boundary.transport(sentry!.makeNodeTransport(options)),
   });
   new Logger('ErrorReporting').log('Sentry error reporting enabled.');
 }
 
 export function reportError(error: unknown, requestId?: string) {
-  sentry?.captureException(error, requestId ? { tags: { requestId } } : undefined);
+  if (sentry && privacy) sentry.captureEvent(...privacy.capture(error, requestId));
 }
 
 export async function flushErrorReporting() {

@@ -13,6 +13,7 @@ const NETWORK_CODES = new Set([
   'ETIMEDOUT',
 ]);
 const POSTGRES_CODES = new Set(['53300', '53400', '57014', '57P01', '57P02', '57P03']);
+const QUERY_CODES = new Set(['22001', '22P02', '23502', '23503', '23505', '23514', '40001', '40P01', '42501', '42601', '42703', '42P01']);
 const CONNECTION_MESSAGES = new Set([
   'Client has encountered a connection error and is not queryable',
   'Connection terminated',
@@ -40,7 +41,11 @@ function* errorChain(error: unknown) {
 
 export function safeDatabaseErrorCode(error: unknown): string {
   for (const { code } of errorChain(error)) {
-    if (typeof code === 'string' && (NETWORK_CODES.has(code) || POSTGRES_CODES.has(code) || /^08[A-Z0-9]{3}$/.test(code))) return code;
+    if (
+      typeof code === 'string' &&
+      (NETWORK_CODES.has(code) || POSTGRES_CODES.has(code) || QUERY_CODES.has(code) || /^08[A-Z0-9]{3}$/.test(code))
+    )
+      return code;
   }
   return 'unknown';
 }

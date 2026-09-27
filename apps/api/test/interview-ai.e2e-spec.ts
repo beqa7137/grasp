@@ -1,10 +1,12 @@
 import request from 'supertest';
+import { Logger } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
+import { DrizzleQueryError } from 'drizzle-orm/errors';
 import { ClaudeInterviewer } from '../src/interview/claude.interviewer.js';
 import { Interviewer } from '../src/interview/interviewer.js';
 import { RUBRICS } from '../src/interview/prompts.js';
 import { SpendGuard } from '../src/interview/spend-guard.js';
-import { InterviewStore } from '../src/persistence/stores.js';
+import { CoordinationStore, InterviewStore } from '../src/persistence/stores.js';
 import { fakeAnthropic, type FakeResponse } from './support/fake-anthropic.js';
 import { createTestApp } from './support/app.js';
 import { resetDatabase } from './support/database.js';
@@ -41,6 +43,7 @@ describe.each(storages)('AI interviewer over HTTP (%s storage, scripted Claude A
   afterAll(async () => {
     await app.close();
   });
+  afterEach(() => vi.restoreAllMocks());
 
   const http = () => request(app.getHttpServer());
   const start = async () =>
@@ -107,6 +110,52 @@ describe.each(storages)('AI interviewer over HTTP (%s storage, scripted Claude A
     const res = await say(session.id, 'Thoughts?').expect(200);
     expect(res.text).toContain('event: error');
     expect(res.text).toContain('"status":503');
+  });
+
+  it.each(['before streaming', 'after streaming'] as const)('keeps unexpected database failures private %s', async (phase) => {
+    const session = await start();
+    const logged = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
+    const failure = new DrizzleQueryError(
+      'select private_interview_payload from private_sessions where learner = $1',
+      [learner, 'private-transcript'],
+      Object.assign(new Error('private-database-detail'), { code: '42P01' }),
+    );
+    const store = app.get(InterviewStore);
+    if (phase === 'before streaming') vi.spyOn(store, 'get').mockRejectedValueOnce(failure);
+    else vi.spyOn(store, 'save').mockRejectedValueOnce(failure);
+
+    const res = await say(session.id, 'private-candidate-answer').expect(phase === 'before streaming' ? 502 : 200);
+
+    if (phase === 'before streaming') expect(res.body.statusCode).toBe(502);
+    else {
+      expect(res.text).toContain('event: delta');
+      expect(res.text).toContain('event: error');
+      expect(res.text).toContain('"status":502');
+      expect(res.text).not.toContain('event: done');
+    }
+    expect(res.text).not.toMatch(/private-|select |42P01/);
+    expect(logged.mock.calls[0]).toEqual([{ operation: 'interview.respond', category: 'database', code: '42P01' }]);
+    const diagnostics = JSON.stringify(logged.mock.calls);
+    expect(diagnostics).not.toMatch(/private-|select /);
+    expect(diagnostics).not.toContain(session.id);
+    expect(diagnostics).not.toContain(learner);
+  });
+
+  it('returns the score when lease cleanup fails without logging session identifiers or SQL', async () => {
+    const session = await start();
+    const logged = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+    vi.spyOn(app.get(CoordinationStore), 'releaseLease').mockRejectedValueOnce(
+      new DrizzleQueryError(
+        'delete from private_leases where key = $1',
+        [session.id],
+        Object.assign(new Error('private-lease-detail'), { code: '23503' }),
+      ),
+    );
+
+    const scored = await http().post(`/api/interview/sessions/${session.id}/score`).set('x-learner-id', learner).expect(201);
+
+    expect(scored.body.status).toBe('scored');
+    expect(logged.mock.calls).toEqual([[{ operation: 'interview.release-lease', category: 'database', code: '23503' }]]);
   });
 
   it('rejects a second message while the interviewer is still replying', async () => {
