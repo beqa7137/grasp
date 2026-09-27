@@ -6,12 +6,10 @@ import { RateLimit } from '../common/rate-limit.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { AccountService } from './account.service.js';
 import { notSignedIn } from './auth-errors.js';
-import { AUTH_NETWORK_LIMIT, AuthRateLimitService } from './auth-rate-limit.service.js';
+import { AUTH_NETWORK_LIMIT, AUTH_WINDOW_MS, AuthRateLimitService } from './auth-rate-limit.service.js';
 import { codeVerifierSchema, GitHubSignInService } from './github-sign-in.service.js';
 import { SkipIdentity } from './identity.guard.js';
 import { SIGN_IN_CALLBACK_PATH } from './sign-in-callback.js';
-
-const QUARTER_HOUR = 15 * 60_000;
 
 const redemptionSchema = z.object({ ticket: z.string().min(43).max(128), codeVerifier: codeVerifierSchema });
 type Redemption = z.infer<typeof redemptionSchema>;
@@ -45,7 +43,7 @@ export class GitHubController {
 
   @Post('link')
   @HttpCode(200)
-  @RateLimit({ limit: 10, windowMs: QUARTER_HOUR })
+  @RateLimit({ limit: 10, windowMs: AUTH_WINDOW_MS })
   async link(@Body(new ZodValidationPipe(redemptionSchema)) body: Redemption, @UserId() userId: string | null) {
     if (!userId) throw notSignedIn();
     return { identities: await this.accounts.link(userId, await this.github.redeem(body.ticket, body.codeVerifier)) };
