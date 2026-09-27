@@ -161,20 +161,44 @@ test('a second device starts fresh after the account was deleted elsewhere and i
       .poll(() => secondPage.evaluate(() => JSON.parse(localStorage.getItem('CapacitorStorage.grasp.events') ?? '[]').length))
       .toBe(0);
 
+    await secondPage.goto('/drill');
+    const freshSynced = synced(secondPage, 'review.graded');
+    await secondPage.locator('g-question-card .choice').first().click();
+    await secondPage.getByRole('button', { name: /^(Got it|Continue)/ }).click();
+    await freshSynced;
+    const freshEvents = await secondPage.evaluate(
+      () => JSON.parse(localStorage.getItem('CapacitorStorage.grasp.events') ?? '[]') as { id: string }[],
+    );
+    expect(freshEvents).toHaveLength(1);
+    const freshEventId = freshEvents[0].id;
+
+    const reloadedRead = secondPage.waitForResponse(
+      (response) => response.request().method() === 'GET' && response.url().endsWith('/api/progress/events'),
+    );
     await secondPage.reload();
-    expect(await secondPage.evaluate(() => localStorage.getItem('CapacitorStorage.grasp.learnerId'))).toBe(freshLearner);
+    const reloadedResponse = await reloadedRead;
+    expect(reloadedResponse.request().headers()['x-learner-id']).toBe(freshLearner);
+    expect(reloadedResponse.status()).toBe(200);
+    await expect.poll(() => secondPage.evaluate(() => localStorage.getItem('CapacitorStorage.grasp.learnerId'))).toBe(freshLearner);
+    await expect
+      .poll(() =>
+        secondPage.evaluate(() =>
+          (JSON.parse(localStorage.getItem('CapacitorStorage.grasp.events') ?? '[]') as { id: string }[]).map((event) => event.id),
+        ),
+      )
+      .toEqual([freshEventId]);
     await secondPage.goto('/settings');
     const newSignIn = secondPage.waitForResponse(
       (response) => response.request().method() === 'POST' && response.url().endsWith('/api/auth/github'),
     );
     await continueWithGitHub(secondPage);
     const newSession = (await (await newSignIn).json()) as { accessToken: string; learnerId: string };
-    expect(newSession.learnerId).not.toBe(oldLearner);
+    expect(newSession.learnerId).toBe(freshLearner);
     const progress = await secondPage.request.get('/api/progress/events', {
       headers: { authorization: `Bearer ${newSession.accessToken}` },
     });
     expect(progress.status()).toBe(200);
-    expect(((await progress.json()) as { events: unknown[] }).events).toEqual([]);
+    expect(((await progress.json()) as { events: { id: string }[] }).events.map((event) => event.id)).toEqual([freshEventId]);
   } finally {
     await other.close();
   }

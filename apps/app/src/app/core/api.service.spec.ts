@@ -7,7 +7,7 @@ import { RuntimeConfigService } from './runtime-config.service';
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
-function setup(respond: (path: string, token: string | null) => Response) {
+function setup(respond: (path: string, token: string | null) => Response, learnerId = () => 'device-learner') {
   const requests: string[] = [];
   globalThis.fetch = (async (url: string, init: RequestInit) => {
     const token = (init.headers as Record<string, string>)['authorization'] ?? null;
@@ -16,7 +16,7 @@ function setup(respond: (path: string, token: string | null) => Response) {
   }) as typeof fetch;
   TestBed.configureTestingModule({
     providers: [
-      { provide: LearnerService, useValue: { id: () => 'device-learner' } },
+      { provide: LearnerService, useValue: { id: learnerId } },
       { provide: RuntimeConfigService, useValue: { apiBase: () => '/api' } },
     ],
   });
@@ -89,6 +89,34 @@ describe('ApiService', () => {
     await expect(api.get('/progress/events')).rejects.toMatchObject({ status: 410, code: 'learner_erased' });
     expect(recovered).toHaveBeenCalledWith('learner_erased', 'device-learner');
     expect(requests).toEqual(['/api/progress/events anonymous']);
+  });
+
+  it('does not replay a cached 410 after recovery changes the learner id', async () => {
+    let learnerId = 'retired-learner';
+    let cached: Response | null = null;
+    const requestedLearners: string[] = [];
+    const { api, tokens } = setup(
+      () => json(200, { events: [] }),
+      () => learnerId,
+    );
+    tokens.learnerRetired = async (_code, requestedId) => {
+      expect(requestedId).toBe('retired-learner');
+      learnerId = 'fresh-learner';
+    };
+    globalThis.fetch = ((_url, init) => {
+      requestedLearners.push((init?.headers as Record<string, string> | undefined)?.['x-learner-id'] ?? '');
+      if (init?.cache !== 'no-store' && cached) return Promise.resolve(cached.clone());
+      const response = json(
+        learnerId === 'retired-learner' ? 410 : 200,
+        learnerId === 'retired-learner' ? { statusCode: 410, message: 'Learner erased', code: 'learner_erased' } : { events: [] },
+      );
+      if (init?.cache !== 'no-store') cached = response.clone();
+      return Promise.resolve(response);
+    }) as typeof fetch;
+
+    await expect(api.get('/progress/events')).rejects.toMatchObject({ status: 410, code: 'learner_erased' });
+    await expect(api.get('/progress/events')).resolves.toEqual({ events: [] });
+    expect(requestedLearners).toEqual(['retired-learner', 'fresh-learner']);
   });
 
   it('handles a coded learner move after an interview stream has started', async () => {

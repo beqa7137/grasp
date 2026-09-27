@@ -1,15 +1,22 @@
 import type { NestExpressApplication } from '@nestjs/platform-express';
+import type { NextFunction, Request, Response } from 'express';
 import helmet from 'helmet';
 import type { AppConfig } from './config.js';
 import { requestContext } from './observability/request-context.js';
 import { ReportExceptionsFilter } from './observability/report-exceptions.filter.js';
 import { serveWebApp } from './web/serve-web-app.js';
 
+const PRIVATE_API = /^\/api\/(?:admin|auth|feedback|interview|me|progress)(?:\/|$)/;
+
 /** HTTP pipeline shared by the server entry point and the e2e tests. */
 export function configureApp(app: NestExpressApplication, config: AppConfig) {
   app.set('trust proxy', config.trustProxy);
   app.disable('x-powered-by');
   app.use(requestContext());
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (PRIVATE_API.test(req.path)) res.setHeader('Cache-Control', 'no-store');
+    next();
+  });
   app.use(
     helmet({
       contentSecurityPolicy: {
@@ -24,7 +31,7 @@ export function configureApp(app: NestExpressApplication, config: AppConfig) {
   );
   app.enableCors({
     origin: config.corsOrigins,
-    allowedHeaders: ['authorization', 'content-type', 'x-learner-id', 'x-request-id'],
+    allowedHeaders: ['authorization', 'cache-control', 'content-type', 'pragma', 'x-learner-id', 'x-request-id'],
     exposedHeaders: ['x-request-id'],
     maxAge: 600,
   });

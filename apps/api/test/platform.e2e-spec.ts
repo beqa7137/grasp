@@ -21,8 +21,15 @@ describe('HTTP platform', () => {
   it('reports liveness with the release and readiness without a database', async () => {
     const live = await request(app.getHttpServer()).get('/api/health').expect(200);
     expect(live.body).toMatchObject({ status: 'ok', storage: 'memory', release: 'abc1234' });
+    expect(live.headers['cache-control']).toBeUndefined();
     const ready = await request(app.getHttpServer()).get('/api/health/ready').expect(200);
     expect(ready.body).toEqual({ status: 'ready', database: 'memory' });
+    expect(ready.headers['cache-control']).toBeUndefined();
+  });
+
+  it('leaves public curriculum responses eligible for caching', async () => {
+    const res = await request(app.getHttpServer()).get('/api/curriculum/patterns').expect(200);
+    expect(res.headers['cache-control']).toBeUndefined();
   });
 
   it('sets security headers and hides the framework', async () => {
@@ -48,9 +55,11 @@ describe('HTTP platform', () => {
       .options('/api/progress')
       .set('Origin', 'capacitor://localhost')
       .set('Access-Control-Request-Method', 'GET')
-      .set('Access-Control-Request-Headers', 'authorization,content-type,x-learner-id');
+      .set('Access-Control-Request-Headers', 'authorization,cache-control,content-type,pragma,x-learner-id');
     expect(ok.headers['access-control-allow-origin']).toBe('capacitor://localhost');
-    expect(ok.headers['access-control-allow-headers']?.split(',')).toEqual(expect.arrayContaining(['authorization', 'x-learner-id']));
+    expect(ok.headers['access-control-allow-headers']?.split(',')).toEqual(
+      expect.arrayContaining(['authorization', 'cache-control', 'pragma', 'x-learner-id']),
+    );
     const denied = await request(app.getHttpServer())
       .options('/api/progress')
       .set('Origin', 'https://evil.example')
