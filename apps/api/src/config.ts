@@ -57,6 +57,10 @@ const envSchema = z
     VERCEL_GIT_COMMIT_SHA: optional(z.string()),
   })
   .refine((e) => e.NODE_ENV !== 'production' || e.JWT_SECRET, { path: ['JWT_SECRET'], message: 'is required in production' })
+  .refine((e) => e.NODE_ENV !== 'production' || e.DATABASE_URL, {
+    path: ['DATABASE_URL'],
+    message: 'is required in production',
+  })
   .refine((e) => !e.OAUTH_GITHUB_ID === !e.OAUTH_GITHUB_SECRET, {
     path: ['OAUTH_GITHUB_ID'],
     message: 'must be set together with OAUTH_GITHUB_SECRET',
@@ -97,6 +101,10 @@ export interface AppConfig {
 }
 
 export class ConfigError extends Error {}
+
+export function isMissingProductionDatabase(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.NODE_ENV === 'production' && !env.DATABASE_URL?.trim();
+}
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const parsed = envSchema.safeParse(env);

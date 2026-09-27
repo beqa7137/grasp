@@ -26,6 +26,8 @@ import { refocusAfterRender } from '../../core/focus';
 import { ProgressService } from '../../core/progress.service';
 import type { InterviewMessage, InterviewSession } from './interview.types';
 
+const SCORING_TIMEOUT_MS = 290_000;
+
 @Component({
   selector: 'app-interview-session',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -167,7 +169,7 @@ export class InterviewSessionPage {
     this.scoring.set(true);
     this.error.set(null);
     try {
-      const scored = await this.api.post<InterviewSession>(`/interview/sessions/${s.id}/score`);
+      const scored = await this.api.post<InterviewSession>(`/interview/sessions/${s.id}/score`, undefined, SCORING_TIMEOUT_MS);
       this.session.set(scored);
       if (scored.scorecard) {
         await this.progress.record({

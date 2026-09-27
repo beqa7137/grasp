@@ -3,6 +3,8 @@
 import { fileURLToPath } from 'node:url';
 import { createRequestHandler } from '../apps/api/dist/serverless.js';
 
+process.env.NODE_ENV = 'production';
+
 // The page shell is moved out of the CDN output at build time (scripts/prepare-vercel-output.mjs), so it
 // is served here with the API's security headers. Vercel's edge is the one proxy hop in front of us.
 process.env.WEB_DIST_DIR ??= fileURLToPath(new URL('../apps/app/dist/app/server', import.meta.url));

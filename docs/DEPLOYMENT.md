@@ -24,6 +24,8 @@ The function entry is `api/index.js`. It builds the Nest app once per instance a
 
 Vercel runs as many function instances as traffic needs. State they must agree on lives in Postgres: the AI spend ceiling and its daily totals, per-learner interview quotas and rate-limit counters (`counters`), and per-session interview locks (`leases`, which expire after 15 minutes if an instance dies mid-call). Every request writes its rate-limit counter, which costs one database round trip. The Postgres pool is attached with `attachDatabasePool`, so a suspended instance closes its idle connections instead of leaking them. Without `DATABASE_URL`, the in-memory fallback keeps this state per process; that mode is only for local development.
 
+The pool bounds connection waits to 4 seconds and query waits to 3 seconds. An idle disconnect is logged with its error code and pool counts, then the next request opens a connection. During an outage, routes that need the database return 503 while `/api/health` stays live and `/api/health/ready` reports the failure. The app allows 8 seconds for ordinary API calls and 20 seconds for a progress history pull. Admin metrics still share the 3-second query limit and can return 503 on a large cohort until reporting is rewritten with SQL aggregates. A client query timeout limits the API wait; it does not guarantee cancellation of work already running in Postgres.
+
 ### Database: Neon
 
 Create the project in **AWS US East 1**, next to the function. Neon gives two connection strings: a pooled one (host contains `-pooler`) and a direct one.
@@ -73,7 +75,7 @@ The Hobby plan is free but for personal, non-commercial projects. A product run 
 - **Runtime config.** It generates `/config.json` from the environment, so the same image works in every environment.
 - **Behind a proxy.** Set `TRUST_PROXY` to the number of proxy hops in front of the container, usually `1` behind a host or load balancer that terminates TLS. The server takes the client IP and the request's scheme from those hops. Without it, per-IP rate limits count the proxy's address, and every web GitHub sign-in fails with `invalid_request`: the API accepts only `https://<host>/auth/callback` as the web callback, but sees `http`.
 - **Migrations.** `node apps/api/dist/migrate.js` applies them; run it as a release step before new containers take traffic.
-- **Health.** `GET /api/health` is liveness: storage, interviewer mode and release. `GET /api/health/ready` is readiness: it checks the database and returns 503 when it is unreachable. Point a platform's routing check at liveness, so a database outage returns the API's own 503s and a scale-to-zero database can sleep between visits.
+- **Health.** `GET /api/health` is liveness; a configured app reports storage, interviewer mode and release. `GET /api/health/ready` is readiness: it checks the database and returns 503 when it is unreachable. Without `DATABASE_URL`, production serves only liveness and 503 responses. The Docker health check uses liveness, so it does not wake a sleeping database or replace a healthy process during a database outage. Probe readiness separately when checking storage.
 - **Shutdown.** SIGTERM closes the HTTP server and the Postgres pool.
 
 CI builds this image and smoke-tests it against Postgres: migrations, readiness, deep-link fallback, runtime config and a real API call.

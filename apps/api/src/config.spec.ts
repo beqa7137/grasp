@@ -1,4 +1,4 @@
-import { ConfigError, loadConfig } from './config.js';
+import { ConfigError, isMissingProductionDatabase, loadConfig } from './config.js';
 
 describe('loadConfig', () => {
   it('applies defaults for an empty environment', () => {
@@ -49,10 +49,23 @@ describe('loadConfig', () => {
     });
   });
 
-  it('requires a JWT secret in production only', () => {
+  it('requires a JWT secret and database URL in production only', () => {
     expect(() => loadConfig({ NODE_ENV: 'production' })).toThrow(/JWT_SECRET: is required in production/);
+    expect(() => loadConfig({ NODE_ENV: 'production', JWT_SECRET: 'a-very-long-secret-used-only-in-this-test-000' })).toThrow(
+      /DATABASE_URL: is required in production/,
+    );
+    expect(() =>
+      loadConfig({ NODE_ENV: 'production', JWT_SECRET: 'a-very-long-secret-used-only-in-this-test-000', DATABASE_URL: '' }),
+    ).toThrow(/DATABASE_URL: is required in production/);
     expect(loadConfig({ NODE_ENV: 'development' }).jwtSecret).toBeNull();
     expect(() => loadConfig({ JWT_SECRET: 'short' })).toThrow(/JWT_SECRET/);
+  });
+
+  it('identifies missing production database configuration at both server entries', () => {
+    expect(isMissingProductionDatabase({ NODE_ENV: 'production' })).toBe(true);
+    expect(isMissingProductionDatabase({ NODE_ENV: 'production', DATABASE_URL: '  ' })).toBe(true);
+    expect(isMissingProductionDatabase({ NODE_ENV: 'production', DATABASE_URL: 'postgres://localhost/grasp' })).toBe(false);
+    expect(isMissingProductionDatabase({ NODE_ENV: 'development' })).toBe(false);
   });
 
   it('treats empty strings as unset, as .env files often contain them', () => {

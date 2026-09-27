@@ -1,12 +1,19 @@
 import { Logger } from '@nestjs/common';
 import { existsSync } from 'node:fs';
-import { ConfigError, loadConfig } from './config.js';
+import { createServer } from 'node:http';
+import { ConfigError, isMissingProductionDatabase, loadConfig } from './config.js';
 import { createApp } from './create-app.js';
+import { handleMissingDatabase } from './missing-database-handler.js';
 import { flushErrorReporting } from './observability/error-reporting.js';
 
 if (existsSync('.env')) process.loadEnvFile('.env');
 
 async function bootstrap() {
+  if (isMissingProductionDatabase()) {
+    console.error('DATABASE_URL is required in production');
+    createServer(handleMissingDatabase).listen(Number(process.env.PORT ?? '3000'), '0.0.0.0');
+    return;
+  }
   let config;
   try {
     config = loadConfig();

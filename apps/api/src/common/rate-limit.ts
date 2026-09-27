@@ -11,6 +11,12 @@ import {
 import { Reflector } from '@nestjs/core';
 import type { Request, Response } from 'express';
 import { APP_CONFIG, type AppConfig } from '../config.js';
+import {
+  databaseUnavailable,
+  isDatabaseUnavailable,
+  safeDatabaseErrorCategory,
+  safeDatabaseErrorCode,
+} from '../persistence/database-errors.js';
 import { CoordinationStore } from '../persistence/stores.js';
 
 export interface RateLimitRule {
@@ -59,11 +65,15 @@ export class RateLimitGuard implements CanActivate {
     try {
       counted = await this.store.add(key, rule.windowMs, 1);
     } catch (error) {
-      // Fail open: a database hiccup should not turn every request into an error. Real outages still
-      // surface through the endpoints that need the database.
       if (Date.now() - this.lastErrorLog > ERROR_LOG_INTERVAL_MS) {
         this.lastErrorLog = Date.now();
-        this.log.error(`Rate limiting is paused, the counter store failed: ${String(error)}`);
+        this.log.error(
+          `Rate limiting counter store failed (category=${safeDatabaseErrorCategory(error)}, code=${safeDatabaseErrorCode(error)})`,
+        );
+      }
+      if (this.config.databaseUrl) {
+        if (isDatabaseUnavailable(error)) throw databaseUnavailable();
+        throw error;
       }
       return true;
     }

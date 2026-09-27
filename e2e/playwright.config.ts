@@ -10,6 +10,7 @@ import { fakeGitHubUrl, githubApp } from './support/github';
  * - Against a deployment: set E2E_BASE_URL. Only tests tagged @smoke run, and they never write data.
  */
 const deployed = process.env.E2E_BASE_URL;
+const databaseUrl = process.env.DATABASE_URL;
 const port = Number(process.env.E2E_PORT ?? 4310);
 const root = fileURLToPath(new URL('..', import.meta.url));
 
@@ -44,14 +45,14 @@ export default defineConfig({
           env: { PORT: String(githubApp.port), CLIENT_ID: githubApp.clientId, CLIENT_SECRET: githubApp.clientSecret },
         },
         {
-          command: `${process.env.DATABASE_URL ? 'node apps/api/dist/migrate.js && ' : ''}node apps/api/dist/main.js`,
+          command: `${databaseUrl ? 'node apps/api/dist/migrate.js && ' : ''}node apps/api/dist/main.js`,
           cwd: root,
           url: `http://localhost:${port}/api/health/ready`,
           reuseExistingServer: !process.env.CI,
           timeout: 60_000,
           env: {
             PORT: String(port),
-            NODE_ENV: 'production',
+            NODE_ENV: databaseUrl ? 'production' : 'development',
             WEB_DIST_DIR: `${root}apps/app/dist/app/browser`,
             JWT_SECRET: process.env.JWT_SECRET ?? 'e2e-only-secret-e2e-only-secret-e2e-only',
             TRUST_PROXY: '1',
@@ -62,7 +63,7 @@ export default defineConfig({
             OAUTH_GITHUB_API_URL: `${fakeGitHubUrl}/api`,
             // Google's side is replaced in the browser (see sign-in.spec.ts); no real client exists.
             GOOGLE_WEB_CLIENT_ID: 'e2e-only.apps.googleusercontent.com',
-            ...(process.env.DATABASE_URL ? { DATABASE_URL: process.env.DATABASE_URL } : {}),
+            ...(databaseUrl ? { DATABASE_URL: databaseUrl } : {}),
           },
         },
       ],

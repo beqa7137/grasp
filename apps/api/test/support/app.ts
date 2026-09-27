@@ -4,6 +4,7 @@ import { Test, type TestingModuleBuilder } from '@nestjs/testing';
 import { AppModule } from '../../src/app.module.js';
 import { configureApp } from '../../src/bootstrap.js';
 import { APP_CONFIG, loadConfig } from '../../src/config.js';
+import { nextTestPort } from './test-port.js';
 
 /** Builds the app exactly as main.ts does, with environment overrides (undefined unsets a variable). */
 export async function createTestApp(
@@ -21,6 +22,6 @@ export async function createTestApp(
   configureApp(app, config);
   // Listen on loopback, where the OS keeps ports unique. Left to itself, supertest listens on every interface,
   // and on macOS that port can also belong to another program's 127.0.0.1 listener, which then answers instead.
-  await app.listen(0, '127.0.0.1');
+  await app.listen(nextTestPort(), '127.0.0.1');
   return app;
 }

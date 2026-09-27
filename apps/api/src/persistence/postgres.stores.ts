@@ -1,12 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import type { StoredEvent } from '@grasp/engine';
 import { and, asc, desc, eq, gt, isNull, lt, sql, TransactionRollbackError } from 'drizzle-orm';
+import { DrizzleQueryError } from 'drizzle-orm/errors';
 import type { NodePgDatabase, NodePgQueryResultHKT } from 'drizzle-orm/node-postgres';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { LearnerEvent } from '../admin/cohort-metrics.js';
 import type { AuthIdentity, OneTimePurpose, OneTimeRecord, Provider, RefreshTokenRecord, User } from '../auth/auth.types.js';
 import type { FeedbackContext, FeedbackEntry, FeedbackKind } from '../feedback/feedback.types.js';
 import type { InterviewSession } from '../interview/interview.types.js';
+import { databaseUnavailable, safeDatabaseErrorCategory } from './database-errors.js';
 import * as schema from './schema.js';
 import {
   AuthStore,
@@ -211,6 +213,7 @@ export class PostgresAuthStore extends AuthStore {
       return true;
     } catch (e) {
       if (e instanceof TransactionRollbackError) return false;
+      if (!(e instanceof DrizzleQueryError) && safeDatabaseErrorCategory(e) !== 'unknown') throw databaseUnavailable();
       throw e;
     }
   }
