@@ -21,6 +21,13 @@ export class LearnerService {
     this.current.set(id);
   }
 
+  async reload(): Promise<boolean> {
+    const { value } = await Preferences.get({ key: KEY });
+    if (!value || value === this.current()) return false;
+    this.current.set(value);
+    return true;
+  }
+
   /** Starts over as a brand-new anonymous learner. */
   async reset(): Promise<void> {
     await Preferences.remove({ key: KEY });

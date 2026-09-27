@@ -78,10 +78,12 @@ export class InterviewController {
       if (abort.signal.aborted) return void res.end();
       const status = err instanceof HttpException ? err.getStatus() : 502;
       const msg = err instanceof HttpException ? err.message : 'The interviewer is unavailable right now. Please try again.';
+      const response = err instanceof HttpException ? err.getResponse() : null;
+      const code = response && typeof response === 'object' && 'code' in response ? { code: response.code } : {};
       if (!(err instanceof HttpException)) this.log.error(err);
       if (status >= 500 && status !== 503) reportError(err, req.id);
-      if (started) emit('error', { status, message: msg });
-      else res.status(status).json({ statusCode: status, message: msg });
+      if (started) emit('error', { status, message: msg, ...code });
+      else res.status(status).json({ statusCode: status, message: msg, ...code });
     }
     res.end();
   }

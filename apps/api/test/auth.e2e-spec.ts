@@ -75,6 +75,7 @@ describe.each(cases)('Accounts (%s storage, %s sign-in)', (storage, provider) =>
       .expect(200);
     const session = await signIn('Ada@Example.com', phone);
     expect(session).toMatchObject({ user: { email: 'ada@example.com' }, learnerId: phone, expiresIn: 900 });
+    expect(session).not.toHaveProperty('deviceLearnerErased');
 
     const mine = await http().get('/api/progress/events').set(bearer(session.accessToken)).expect(200);
     expect(mine.body.events.map((e: { id: string }) => e.id)).toEqual(['evt-phone-0001']);
@@ -116,8 +117,11 @@ describe.each(cases)('Accounts (%s storage, %s sign-in)', (storage, provider) =>
     });
     expect(exported.body.feedback.map((f: { message: string }) => f.message)).toEqual(['from the laptop']);
 
-    const orphan = await http().get('/api/progress/events').set('x-learner-id', laptop).expect(200);
-    expect(orphan.body.events).toEqual([]);
+    const moved = await http().get('/api/progress/events').set('x-learner-id', laptop).expect(410);
+    expect(moved.body.code).toBe('learner_moved');
+    const afterMove = await signIn('ada@example.com', laptop);
+    expect(afterMove.learnerId).toBe(phone);
+    expect(afterMove).not.toHaveProperty('deviceLearnerErased');
   });
 
   it('gives a device that already belongs to an account a fresh learner instead of taking it over', async () => {
@@ -148,10 +152,13 @@ describe.each(cases)('Accounts (%s storage, %s sign-in)', (storage, provider) =>
     await http().delete('/api/me').set(bearer(session.accessToken)).expect(204);
     await http().get('/api/auth/me').set(bearer(session.accessToken)).expect(401);
     await http().post('/api/auth/refresh').send({ refreshToken: session.refreshToken }).expect(401);
-    await http().get('/api/progress/events').set('x-learner-id', device).expect(200);
+    const erased = await http().get('/api/progress/events').set('x-learner-id', device).expect(410);
+    expect(erased.body.code).toBe('learner_erased');
 
-    const fresh = await signIn('cy@example.com');
+    const fresh = await signIn('cy@example.com', device);
     expect(fresh.user.id).not.toBe(session.user.id);
+    expect(fresh.learnerId).not.toBe(device);
+    expect(fresh.deviceLearnerErased).toBe(true);
   });
 });
 

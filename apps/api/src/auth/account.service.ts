@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { AuthStore, FeedbackStore, InterviewStore, ProgressStore } from '../persistence/stores.js';
+import { ErasureStore } from '../persistence/erasure.stores.js';
+import { AuthStore } from '../persistence/stores.js';
 import { accountExists, emailUnverified, identityInUse, sessionEnded } from './auth-errors.js';
 import type { AuthIdentity, IdentitySummary, Provider, User, VerifiedIdentity } from './auth.types.js';
 import { type AuthSession, SessionService } from './session.service.js';
@@ -18,22 +19,27 @@ export class AccountService {
 
   constructor(
     private readonly store: AuthStore,
-    private readonly progress: ProgressStore,
-    private readonly interviews: InterviewStore,
-    private readonly feedback: FeedbackStore,
     private readonly sessions: SessionService,
+    private readonly erasure: ErasureStore,
   ) {}
 
   /**
    * A new account adopts the device's anonymous learner; an existing account absorbs it, so nothing
    * learned before signing in is lost. A learner that already belongs to an account is never taken over.
    */
-  async signIn(verified: VerifiedIdentity, deviceLearnerId: string | null, now = new Date()): Promise<AuthSession> {
-    const unclaimedDevice = deviceLearnerId && !(await this.store.userByLearner(deviceLearnerId)) ? deviceLearnerId : null;
+  async signIn(
+    verified: VerifiedIdentity,
+    deviceLearnerId: string | null,
+    now = new Date(),
+  ): Promise<AuthSession & { deviceLearnerErased?: true }> {
+    const retirement = deviceLearnerId ? await this.erasure.retirementDestination(deviceLearnerId) : undefined;
+    const unclaimedDevice =
+      deviceLearnerId && retirement === undefined && !(await this.store.userByLearner(deviceLearnerId)) ? deviceLearnerId : null;
     const user = await this.accountFor(normalized(verified), unclaimedDevice, now);
     if (unclaimedDevice && unclaimedDevice !== user.learnerId) await this.mergeLearner(unclaimedDevice, user.learnerId);
     await this.store.touchLogin(user.id, now.toISOString());
-    return this.sessions.start(user, now);
+    const session = await this.sessions.start(user, now);
+    return retirement === null ? { ...session, deviceLearnerErased: true } : session;
   }
 
   /** Connects another provider account to a signed-in user. Repeating it is harmless. */
@@ -98,10 +104,7 @@ export class AccountService {
   }
 
   private async mergeLearner(from: string, into: string) {
-    await this.feedback.moveLearner(from, into);
-    await this.interviews.moveLearner(from, into);
-    await this.progress.moveLearner(from, into);
-    await this.progress.deleteLearner(from);
+    await this.erasure.merge(from, into);
     this.log.log(`Merged anonymous learner into account learner ${into}`);
   }
 }

@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { ToastController } from '@ionic/angular';
 import { ApiError, ApiService } from './api.service';
 import { AuthTokens } from './auth-tokens.service';
 import { AuthService } from './auth.service';
@@ -33,6 +34,7 @@ function setup(opts: Options = {}) {
   localStorage.clear();
   const calls: string[] = [];
   const bodies: Record<string, unknown> = {};
+  const toasts: string[] = [];
   const learnerId = { value: 'device-learner' };
   const post =
     opts.post ??
@@ -63,8 +65,19 @@ function setup(opts: Options = {}) {
         useValue: {
           id: () => learnerId.value,
           setId: async (id: string) => ((learnerId.value = id), calls.push(`learner ${id}`)),
+          reload: async () => {
+            const stored = localStorage.getItem('CapacitorStorage.grasp.learnerId');
+            if (!stored || stored === learnerId.value) return false;
+            learnerId.value = stored;
+            calls.push(`learner reload ${stored}`);
+            return true;
+          },
           reset: async () => ((learnerId.value = 'fresh'), calls.push('learner reset')),
         },
+      },
+      {
+        provide: ToastController,
+        useValue: { create: async ({ message }: { message: string }) => ({ present: async () => toasts.push(message) }) },
       },
       {
         provide: SocialSignInService,
@@ -77,7 +90,7 @@ function setup(opts: Options = {}) {
       },
     ],
   });
-  return { auth: TestBed.inject(AuthService), tokens: TestBed.inject(AuthTokens), calls, bodies, learnerId };
+  return { auth: TestBed.inject(AuthService), tokens: TestBed.inject(AuthTokens), calls, bodies, learnerId, toasts };
 }
 
 describe('AuthService (app)', () => {
@@ -283,5 +296,173 @@ describe('AuthService (app)', () => {
     expect(auth.signedIn()).toBe(false);
     expect(auth.identities()).toBeNull();
     expect(localStorage.getItem('CapacitorStorage.grasp.auth.refresh')).toBeNull();
+  });
+
+  it('keeps the session for retry when the server cannot revoke it', async () => {
+    const { auth, tokens, calls } = setup({
+      post: async (path) => {
+        if (path === '/auth/logout') throw new Error('Logout unavailable');
+        return session(1);
+      },
+    });
+    await auth.signIn('github');
+    calls.length = 0;
+
+    await expect(auth.signOut()).rejects.toThrow('Logout unavailable');
+    expect(calls).toEqual(['post /auth/logout']);
+    expect(auth.signedIn()).toBe(true);
+    expect(tokens.accessToken()).toBe('access-1');
+    expect(localStorage.getItem('CapacitorStorage.grasp.auth.refresh')).toBe(session(1).refreshToken);
+  });
+
+  it('does not claim sign-out succeeded when the refresh token is missing', async () => {
+    const { auth, tokens, calls } = setup();
+    await auth.signIn('github');
+    localStorage.removeItem('CapacitorStorage.grasp.auth.refresh');
+    calls.length = 0;
+
+    await expect(auth.signOut()).rejects.toThrow('The session cannot be revoked');
+    expect(calls).toEqual([]);
+    expect(auth.signedIn()).toBe(true);
+    expect(tokens.accessToken()).toBe('access-1');
+  });
+
+  it('revokes the latest refresh token when a renewal overlaps sign-out', async () => {
+    let releaseRefresh!: () => void;
+    const refreshGate = new Promise<void>((resolve) => (releaseRefresh = resolve));
+    const { auth, calls, bodies } = setup({
+      post: async (path) => {
+        if (path === '/auth/refresh') {
+          await refreshGate;
+          return session(2);
+        }
+        return session(1);
+      },
+    });
+    await auth.signIn('github');
+    calls.length = 0;
+
+    const refresh = auth.refresh();
+    const signOut = auth.signOut();
+    expect(await auth.refresh()).toBe(false);
+    releaseRefresh();
+    await Promise.all([refresh, signOut]);
+
+    expect(calls).toEqual(['post /auth/refresh', 'post /auth/logout', 'clearLocal', 'learner reset']);
+    expect(bodies['/auth/logout']).toEqual({ refreshToken: session(2).refreshToken });
+    expect(auth.signedIn()).toBe(false);
+  });
+
+  it('clears a refresh that finishes after server deletion', async () => {
+    let releaseRefresh!: () => void;
+    const refreshGate = new Promise<void>((resolve) => (releaseRefresh = resolve));
+    const { auth, tokens } = setup({
+      post: async (path) => {
+        if (path === '/auth/refresh') {
+          await refreshGate;
+          return session(2);
+        }
+        return session(1);
+      },
+    });
+    await auth.signIn('github');
+
+    const refresh = auth.refresh();
+    const deleted = auth.startFreshAfterDeletion();
+    expect(await auth.refresh()).toBe(false);
+    releaseRefresh();
+    await Promise.all([refresh, deleted]);
+
+    expect(auth.signedIn()).toBe(false);
+    expect(tokens.accessToken()).toBeNull();
+    expect(localStorage.getItem('CapacitorStorage.grasp.auth.refresh')).toBeNull();
+  });
+
+  it('starts fresh once when the account learner was erased on another device', async () => {
+    const { auth, tokens, calls, learnerId, toasts } = setup();
+    await auth.init();
+    await auth.signIn('github');
+    calls.length = 0;
+    tokens.accessToken.set(null);
+    tokens.signInRequired.set(true);
+
+    await Promise.all([
+      tokens.learnerRetired!('learner_erased', 'account-learner'),
+      tokens.learnerRetired!('learner_erased', 'account-learner'),
+    ]);
+
+    expect(calls).toEqual(['clearLocal', 'learner reset']);
+    expect(learnerId.value).toBe('fresh');
+    expect(auth.signedIn()).toBe(false);
+    expect(tokens.signInRequired()).toBe(false);
+    expect(localStorage.getItem('CapacitorStorage.grasp.auth.refresh')).toBeNull();
+    expect(toasts).toEqual(["This learner's data was deleted on another device."]);
+  });
+
+  it('keeps local progress and adopts stored account credentials for a moved learner', async () => {
+    const { auth, tokens, calls, learnerId, toasts } = setup({
+      post: async (path) => session(path === '/auth/refresh' ? 2 : 1, 'new-account-learner'),
+    });
+    await auth.init();
+    learnerId.value = 'merged-guest';
+    localStorage.setItem('CapacitorStorage.grasp.learnerId', 'new-account-learner');
+    localStorage.setItem('CapacitorStorage.grasp.auth.refresh', session(1).refreshToken);
+
+    await tokens.learnerRetired!('learner_moved', 'merged-guest');
+
+    expect(calls).toEqual(['learner reload new-account-learner', 'post /auth/refresh']);
+    expect(learnerId.value).toBe('new-account-learner');
+    expect(tokens.accessToken()).toBe('access-2');
+    expect(calls).not.toContain('clearLocal');
+    expect(toasts).toEqual([]);
+  });
+
+  it('does not carry already-synced erased events into a new account when sign-in wins the startup race', async () => {
+    localStorage.clear();
+    const pushes: string[][] = [];
+    const pulledWith: { learnerId: string; localEvents: string | null }[] = [];
+    let releaseStartupPull!: () => void;
+    const startupPull = new Promise<void>((resolve) => (releaseStartupPull = resolve));
+    let pullCount = 0;
+    let learner!: LearnerService;
+    const api = {
+      get: async (path: string) => {
+        if (path === '/auth/me') return { identities: [] };
+        if (++pullCount === 1) await startupPull;
+        pulledWith.push({ learnerId: learner.id(), localEvents: localStorage.getItem('CapacitorStorage.grasp.events') });
+        return { events: [] };
+      },
+      post: async (path: string, body: { events?: { id: string }[] }) => {
+        if (path === '/progress/events') {
+          pushes.push(body.events!.map((event) => event.id));
+          return;
+        }
+        return { ...session(1, 'fresh-account'), deviceLearnerErased: true };
+      },
+    };
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: ApiService, useValue: api },
+        { provide: ToastController, useValue: { create: async () => ({ present: async () => undefined }) } },
+        { provide: SocialSignInService, useValue: { github: async () => githubCredential } },
+      ],
+    });
+    learner = TestBed.inject(LearnerService);
+    const progress = TestBed.inject(ProgressService);
+    const auth = TestBed.inject(AuthService);
+    await learner.init();
+    await auth.init();
+    await progress.init();
+    await progress.record({ type: 'settings.changed', settings: { newPerDay: 5 }, id: 'erased-event' });
+    await progress.flush();
+    expect(pushes).toEqual([['erased-event']]);
+
+    await auth.signIn('github');
+    releaseStartupPull();
+
+    expect(pushes).toEqual([['erased-event']]);
+    expect(learner.id()).toBe('fresh-account');
+    expect(pulledWith.at(-1)).toEqual({ learnerId: 'fresh-account', localEvents: null });
+    expect(localStorage.getItem('CapacitorStorage.grasp.events')).toBeNull();
   });
 });

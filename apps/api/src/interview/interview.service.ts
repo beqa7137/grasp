@@ -1,6 +1,7 @@
 import { ConflictException, HttpException, HttpStatus, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { APP_CONFIG, type AppConfig } from '../config.js';
+import { ErasureStore } from '../persistence/erasure.stores.js';
 import { CoordinationStore, InterviewStore, ProgressStore } from '../persistence/stores.js';
 import { Interviewer } from './interviewer.js';
 import type { CodeSnapshot, InterviewSession, InterviewTrack, PublicInterviewSession, TokenUsage } from './interview.types.js';
@@ -28,6 +29,7 @@ export class InterviewService {
     private readonly interviewer: Interviewer,
     private readonly spend: SpendGuard,
     private readonly coordination: CoordinationStore,
+    private readonly erasure: ErasureStore,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
@@ -94,6 +96,7 @@ export class InterviewService {
 
       const reply = await this.interviewer.reply(session, onDelta, signal);
       await this.track(session, reply.usage ? [reply.usage] : []);
+      await this.erasure.assertActive(learnerId);
       const message = { role: 'interviewer' as const, content: reply.text, at: new Date().toISOString() };
       session.messages.push(message);
       await this.store.save(session);
@@ -109,6 +112,7 @@ export class InterviewService {
       await this.consumeQuota(learnerId);
       const result = await this.interviewer.score(session);
       await this.track(session, result.usage ?? []);
+      await this.erasure.assertActive(learnerId);
       session.scorecard = result.scorecard;
       session.status = 'scored';
       session.scoredAt = new Date().toISOString();

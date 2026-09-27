@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Request, Response } from 'express';
+import { tokenInvalid } from '../auth/auth-errors.js';
 import { APP_CONFIG, type AppConfig } from '../config.js';
 import {
   databaseUnavailable,
@@ -17,7 +18,7 @@ import {
   safeDatabaseErrorCategory,
   safeDatabaseErrorCode,
 } from '../persistence/database-errors.js';
-import { CoordinationStore } from '../persistence/stores.js';
+import { AuthStore, CoordinationStore } from '../persistence/stores.js';
 
 export interface RateLimitRule {
   limit: number;
@@ -46,6 +47,7 @@ export class RateLimitGuard implements CanActivate {
     private readonly reflector: Reflector,
     private readonly store: CoordinationStore,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    private readonly auth: AuthStore,
   ) {}
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
@@ -54,16 +56,21 @@ export class RateLimitGuard implements CanActivate {
       limit: this.config.rateLimitPerMinute,
       windowMs: DEFAULT_WINDOW_MS,
     };
-    if (rule === false) return true;
-
     const http = ctx.switchToHttp();
     const req = http.getRequest<Request>();
+    const claims = req.accessClaims;
+    if (rule === false) {
+      if (claims && !(await this.auth.activeFamily(claims.userId, claims.learnerId, claims.familyId))) {
+        throw tokenInvalid('Session ended');
+      }
+      return true;
+    }
     const caller = req.identity?.userId ? `user:${req.identity.userId}` : `ip:${req.ip}`;
     const key = `rate:${ctx.getClass().name}.${ctx.getHandler().name}:${caller}`;
 
     let counted;
     try {
-      counted = await this.store.add(key, rule.windowMs, 1);
+      counted = claims ? await this.store.addForSession(key, rule.windowMs, 1, claims) : await this.store.add(key, rule.windowMs, 1);
     } catch (error) {
       if (Date.now() - this.lastErrorLog > ERROR_LOG_INTERVAL_MS) {
         this.lastErrorLog = Date.now();
@@ -75,8 +82,10 @@ export class RateLimitGuard implements CanActivate {
         if (isDatabaseUnavailable(error)) throw databaseUnavailable();
         throw error;
       }
+      if (claims) throw databaseUnavailable();
       return true;
     }
+    if (!counted) throw tokenInvalid('Session ended');
 
     const resetSeconds = Math.max(1, Math.ceil(counted.resetsInMs / 1000));
     const res = http.getResponse<Response>();

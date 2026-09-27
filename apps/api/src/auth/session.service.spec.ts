@@ -14,9 +14,15 @@ const status = (e: unknown) => (e instanceof HttpException ? e.getStatus() : e);
 async function setup() {
   const store = new MemoryAuthStore();
   const tokens = new TokenService(SECRET);
-  const user: User = { id: 'u-eve', email: 'eve@example.com', learnerId: 'l-eve', createdAt: t0.toISOString(), lastLoginAt: null };
+  const user: User = {
+    id: '11111111-1111-4111-8111-111111111111',
+    email: 'eve@example.com',
+    learnerId: '22222222-2222-4222-8222-222222222222',
+    createdAt: t0.toISOString(),
+    lastLoginAt: null,
+  };
   await store.createUser(user);
-  return { sessions: new SessionService(store, tokens), tokens, user };
+  return { sessions: new SessionService(store, tokens), store, tokens, user };
 }
 
 beforeAll(() => Logger.overrideLogger(false));
@@ -26,7 +32,11 @@ describe('SessionService', () => {
     const { sessions, tokens, user } = await setup();
     const session = await sessions.start(user, t0);
     expect(session).toMatchObject({ user: { id: user.id, email: user.email }, learnerId: user.learnerId, expiresIn: 900 });
-    expect(await tokens.verify(session.accessToken, at(MIN))).toEqual({ userId: user.id, learnerId: user.learnerId });
+    expect(await tokens.verify(session.accessToken, at(MIN))).toEqual({
+      userId: user.id,
+      learnerId: user.learnerId,
+      familyId: expect.any(String),
+    });
   });
 
   it('rotates refresh tokens and treats late reuse of an old one as theft', async () => {
@@ -45,22 +55,51 @@ describe('SessionService', () => {
   });
 
   it('ends the session family on logout and rejects expired refresh tokens', async () => {
-    const { sessions, user } = await setup();
+    const { sessions, store, tokens, user } = await setup();
     const session = await sessions.start(user, t0);
     await sessions.logout(session.refreshToken, at(MIN));
     expect(await sessions.refresh(session.refreshToken, at(MIN)).catch(status)).toBe(401);
+    const claims = await tokens.verify(session.accessToken, at(MIN));
+    expect(await store.activeFamily(claims.userId, claims.learnerId, claims.familyId)).toBe(false);
 
     const again = await sessions.start(user, at(2 * MIN));
     expect(await sessions.refresh(again.refreshToken, at(31 * 24 * 60 * MIN)).catch(status)).toBe(401);
+  });
+
+  it('does not issue a new token when logout wins a refresh race', async () => {
+    const { sessions, store, user } = await setup();
+    const session = await sessions.start(user, t0);
+    let reachedIssue!: () => void;
+    let resumeIssue!: () => void;
+    const issuing = new Promise<void>((resolve) => (reachedIssue = resolve));
+    const paused = new Promise<void>((resolve) => (resumeIssue = resolve));
+    const addRefreshToken = store.addRefreshToken.bind(store);
+    store.addRefreshToken = async (token) => {
+      reachedIssue();
+      await paused;
+      return addRefreshToken(token);
+    };
+
+    const refresh = sessions.refresh(session.refreshToken, at(MIN)).catch(status);
+    await issuing;
+    await sessions.logout(session.refreshToken, at(MIN));
+    resumeIssue();
+    expect(await refresh).toBe(401);
   });
 });
 
 describe('TokenService', () => {
   it('rejects expired, tampered and foreign tokens', async () => {
     const tokens = new TokenService(SECRET);
-    const token = await tokens.sign({ userId: 'u1', learnerId: 'l1' }, t0);
-    await expect(tokens.verify(token, at(14 * MIN))).resolves.toEqual({ userId: 'u1', learnerId: 'l1' });
+    const claims = {
+      userId: '11111111-1111-4111-8111-111111111111',
+      learnerId: '22222222-2222-4222-8222-222222222222',
+      familyId: '33333333-3333-4333-8333-333333333333',
+    };
+    const token = await tokens.sign(claims, t0);
+    await expect(tokens.verify(token, at(14 * MIN))).resolves.toEqual(claims);
     await expect(tokens.verify(token, at(16 * MIN))).rejects.toThrow('Token expired');
+    await expect(tokens.verify(await tokens.sign({ ...claims, familyId: 'not-a-uuid' }, t0), t0)).rejects.toThrow('Malformed token');
     await expect(tokens.verify(`${token.slice(0, -2)}xx`, t0)).rejects.toThrow('Invalid token');
     await expect(new TokenService(`${SECRET}-other`).verify(token, t0)).rejects.toThrow('Invalid token');
   });

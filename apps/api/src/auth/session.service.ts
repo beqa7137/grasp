@@ -28,8 +28,10 @@ export class SessionService {
   ) {}
 
   /** Starts a new session family for someone who just signed in. */
-  start(user: User, now = new Date()): Promise<AuthSession> {
-    return this.issue(user, randomUUID(), now);
+  async start(user: User, now = new Date()): Promise<AuthSession> {
+    const familyId = randomUUID();
+    if (!(await this.store.createFamily(user.id, familyId, now.toISOString()))) throw sessionEnded();
+    return this.issue(user, familyId, now);
   }
 
   async refresh(refreshToken: string, now = new Date()): Promise<AuthSession> {
@@ -53,7 +55,7 @@ export class SessionService {
 
   private async issue(user: User, familyId: string, now: Date): Promise<AuthSession> {
     const refreshToken = newOpaqueToken();
-    await this.store.addRefreshToken({
+    const added = await this.store.addRefreshToken({
       id: randomUUID(),
       userId: user.id,
       familyId,
@@ -63,8 +65,9 @@ export class SessionService {
       revokedAt: null,
       createdAt: now.toISOString(),
     });
+    if (!added) throw sessionEnded();
     return {
-      accessToken: await this.tokens.sign({ userId: user.id, learnerId: user.learnerId }, now),
+      accessToken: await this.tokens.sign({ userId: user.id, learnerId: user.learnerId, familyId }, now),
       expiresIn: ACCESS_TOKEN_SECONDS,
       refreshToken,
       user: { id: user.id, email: user.email },

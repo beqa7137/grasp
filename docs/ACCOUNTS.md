@@ -95,10 +95,9 @@ The device sends its anonymous learner id (`x-learner-id`) with every sign-in, w
 
 - **New account:** the account adopts that learner, so all earlier progress becomes the account's with no copying.
 - **Existing account, new device:** the device learner is merged into the account's learner.
-  - Events are copied under the account; event ids are unique, so re-running is harmless.
+  - Events are copied under the account; event ids stay unique.
   - Interview sessions and feedback are re-assigned to the account.
-  - The anonymous learner is then deleted.
-  - Every step is idempotent, so an interrupted merge completes on the next sign-in.
+  - The anonymous learner is retired. The merge commits all transfers together, or none of them.
 - **A device learner that already belongs to an account** is never taken over: signing in to a different account from it starts that account on a fresh learner.
 - **After sign-in:** the app pushes its pending events first, switches to the account's learner id and pulls the merged log.
 
@@ -106,19 +105,21 @@ Once a learner belongs to an account, anonymous requests for it get `401 { code:
 
 ## Sessions
 
-| Token   | Form                                   | Lifetime   | Stored                                                       |
-| ------- | -------------------------------------- | ---------- | ------------------------------------------------------------ |
-| Access  | HS256 JWT (`sub`, `lid`), `JWT_SECRET` | 15 minutes | Memory only (app)                                            |
-| Refresh | 256-bit random, opaque                 | 30 days    | SHA-256 hash on the server, Capacitor Preferences in the app |
+| Token   | Form                                          | Lifetime   | Stored                                                       |
+| ------- | --------------------------------------------- | ---------- | ------------------------------------------------------------ |
+| Access  | HS256 JWT (`sub`, `lid`, `fid`), `JWT_SECRET` | 15 minutes | Memory only (app)                                            |
+| Refresh | 256-bit random, opaque                        | 30 days    | SHA-256 hash on the server, Capacitor Preferences in the app |
 
 - **Rotation:** every refresh replaces the refresh token. Presenting an already-rotated token more than 10 seconds after its rotation is treated as theft: the whole session family is revoked and every device in that chain must sign in again. The 10-second window allows two tabs refreshing at the same moment.
 - **Sign-out** (`POST /api/auth/logout`) revokes the session family. The app then clears local progress and continues as a new anonymous device. The progress itself stays in the account.
-- **Deleting an account:** `DELETE /api/me` while signed in erases the progress, interviews, feedback, the account, its tokens and its linked sign-in methods. `GET /api/me/export` includes the linked methods (`account.identities`).
+- **Deleting an account:** `DELETE /api/me` while signed in erases the progress, interviews, feedback, the account, its tokens and its linked sign-in methods. A durable tombstone keeps only the random learner ID and deletion time to reject stale device writes; any merged guest IDs remain retired, with their destination link cleared. `GET /api/me/export` includes the linked methods (`account.identities`).
 - **App behaviour:**
   - It refreshes once on a `token_invalid` 401 and retries the request.
   - Concurrent 401s share one refresh.
   - Network errors keep the session.
   - A `401` on refresh ends the session but keeps local progress. The app asks the learner to sign in again, and no data is lost.
+  - An anonymous request with `410 { code: 'learner_erased' }` clears local progress, starts with a new learner ID, and shows a short deletion notice. It does not upload the erased learner's events.
+  - `410 { code: 'learner_moved' }` keeps local progress and reloads the learner ID and refresh token from shared storage. The next action uses that identity.
 
 Refresh tokens sit in Capacitor Preferences: `localStorage` on the web, app-private storage on iOS and Android. That storage is not encrypted. A Keychain/Keystore plugin would be the next hardening step before handling anything more sensitive than learning progress.
 

@@ -50,6 +50,8 @@ export class ProgressService {
   private synced = new Set<string>();
   private pullFailed = false;
   private syncTimer: ReturnType<typeof setTimeout> | undefined;
+  private generation = 0;
+  private storageWrites: Promise<void> = Promise.resolve();
 
   /** Wall clock as a signal, so due counts and recall estimates refresh while the app stays open. */
   readonly now = signal(new Date());
@@ -82,12 +84,13 @@ export class ProgressService {
   }
 
   async record(event: NewEvent): Promise<void> {
+    const generation = this.generation;
     const full = { ...event, id: event.id ?? crypto.randomUUID(), at: event.at ?? new Date().toISOString() } as StoredEvent;
     if (this.events().some((e) => e.id === full.id)) return;
     this.events.update((list) => [...list, full]);
     this.now.set(new Date());
     await this.persist();
-    this.scheduleSync();
+    if (generation === this.generation) this.scheduleSync();
   }
 
   /** Pushes everything not yet on the server, now rather than after the usual debounce. */
@@ -98,19 +101,28 @@ export class ProgressService {
 
   /** Pulls events from other devices (for example after signing in) and pushes local ones. */
   async resync(): Promise<void> {
+    const generation = this.generation;
     this.syncStatus.set('syncing');
     const pulled = await this.pull();
+    if (generation !== this.generation) return;
     const pushed = await this.push();
-    this.syncStatus.set(pulled && pushed ? 'synced' : 'offline');
+    if (generation === this.generation) this.syncStatus.set(pulled && pushed ? 'synced' : 'offline');
   }
 
   /** Forgets all local progress, e.g. after the learner erased their server-side data. */
   async clearLocal(): Promise<void> {
+    this.generation++;
     clearTimeout(this.syncTimer);
     this.events.set([]);
     this.synced = new Set();
     this.pullFailed = false;
-    await Promise.all([Preferences.remove({ key: EVENTS_KEY }), Preferences.remove({ key: SYNCED_KEY })]);
+    const clearStorage = this.storageWrites
+      .catch(() => undefined)
+      .then(async () => {
+        await Promise.all([Preferences.remove({ key: EVENTS_KEY }), Preferences.remove({ key: SYNCED_KEY })]);
+      });
+    this.storageWrites = clearStorage;
+    await clearStorage;
     this.syncStatus.set('idle');
   }
 
@@ -131,22 +143,27 @@ export class ProgressService {
   }
 
   private async push(): Promise<boolean> {
+    const generation = this.generation;
     const pending = this.events().filter((e) => !this.synced.has(e.id));
     if (pending.length === 0) {
-      if (this.syncStatus() !== 'offline') this.syncStatus.set(this.pullFailed ? 'offline' : 'synced');
+      if (generation === this.generation && this.syncStatus() !== 'offline') this.syncStatus.set(this.pullFailed ? 'offline' : 'synced');
       return true;
     }
     this.syncStatus.set('syncing');
     try {
       for (let i = 0; i < pending.length; i += 500) {
+        if (generation !== this.generation) return true;
         const batch = pending.slice(i, i + 500);
         await this.api.post('/progress/events', { events: batch });
+        if (generation !== this.generation) return true;
         batch.forEach((e) => this.synced.add(e.id));
       }
-      await Preferences.set({ key: SYNCED_KEY, value: JSON.stringify([...this.synced]) });
+      await this.write(SYNCED_KEY, JSON.stringify([...this.synced]), generation);
+      if (generation !== this.generation) return true;
       this.syncStatus.set(this.pullFailed ? 'offline' : 'synced');
       return true;
     } catch {
+      if (generation !== this.generation) return true;
       this.syncStatus.set('offline');
       return false;
     }
@@ -154,8 +171,10 @@ export class ProgressService {
 
   /** Merges events recorded on other devices; the log is a grow-only set keyed by event id. */
   private async pull(): Promise<boolean> {
+    const generation = this.generation;
     try {
       const { events } = await this.api.get<{ events: StoredEvent[] }>('/progress/events', PROGRESS_PULL_TIMEOUT_MS);
+      if (generation !== this.generation) return true;
       const known = new Set(this.events().map((e) => e.id));
       const incoming = events.filter((e) => !known.has(e.id));
       events.forEach((e) => this.synced.add(e.id));
@@ -163,9 +182,11 @@ export class ProgressService {
         this.events.update((list) => [...list, ...incoming]);
         await this.persist();
       }
+      if (generation !== this.generation) return true;
       this.pullFailed = false;
       return true;
     } catch {
+      if (generation !== this.generation) return true;
       this.pullFailed = true;
       this.syncStatus.set('offline');
       return false;
@@ -173,7 +194,17 @@ export class ProgressService {
   }
 
   private persist() {
-    return Preferences.set({ key: EVENTS_KEY, value: JSON.stringify(this.events()) });
+    return this.write(EVENTS_KEY, JSON.stringify(this.events()), this.generation);
+  }
+
+  private write(key: string, value: string, generation: number): Promise<void> {
+    const write = this.storageWrites
+      .catch(() => undefined)
+      .then(async () => {
+        if (generation === this.generation) await Preferences.set({ key, value });
+      });
+    this.storageWrites = write;
+    return write;
   }
 }
 

@@ -4,6 +4,7 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
 import { APP_CONFIG, ConfigError, loadConfig, type AppConfig } from '../config.js';
 import { createDatabasePool } from './database-pool.js';
+import { ErasureStore, MemoryErasureStore, MemoryLearnerState, PostgresErasureStore } from './erasure.stores.js';
 import {
   MemoryAuthStore,
   MemoryCoordinationStore,
@@ -78,34 +79,57 @@ export class ExpiredRowSweeper implements OnApplicationBootstrap, OnApplicationS
       },
     },
     { provide: DB, inject: [PG_POOL], useFactory: (pool: pg.Pool | null) => (pool ? drizzle(pool, { schema }) : null) },
+    MemoryLearnerState,
     {
       provide: ProgressStore,
-      inject: [DB],
-      useFactory: (db: Db | null) => (db ? new PostgresProgressStore(db) : new MemoryProgressStore()),
+      inject: [DB, MemoryLearnerState],
+      useFactory: (db: Db | null, state: MemoryLearnerState) => (db ? new PostgresProgressStore(db) : new MemoryProgressStore(state)),
     },
     {
       provide: InterviewStore,
-      inject: [DB],
-      useFactory: (db: Db | null) => (db ? new PostgresInterviewStore(db) : new MemoryInterviewStore()),
+      inject: [DB, MemoryLearnerState],
+      useFactory: (db: Db | null, state: MemoryLearnerState) => (db ? new PostgresInterviewStore(db) : new MemoryInterviewStore(state)),
     },
     {
       provide: FeedbackStore,
-      inject: [DB],
-      useFactory: (db: Db | null) => (db ? new PostgresFeedbackStore(db) : new MemoryFeedbackStore()),
+      inject: [DB, MemoryLearnerState],
+      useFactory: (db: Db | null, state: MemoryLearnerState) => (db ? new PostgresFeedbackStore(db) : new MemoryFeedbackStore(state)),
     },
     {
       provide: AuthStore,
-      inject: [DB],
-      useFactory: (db: Db | null) => (db ? new PostgresAuthStore(db) : new MemoryAuthStore()),
+      inject: [DB, MemoryLearnerState],
+      useFactory: (db: Db | null, state: MemoryLearnerState) => (db ? new PostgresAuthStore(db) : new MemoryAuthStore(state)),
+    },
+    {
+      provide: ErasureStore,
+      inject: [DB, MemoryLearnerState, ProgressStore, InterviewStore, FeedbackStore, AuthStore],
+      useFactory: (
+        db: Db | null,
+        state: MemoryLearnerState,
+        progress: ProgressStore,
+        interviews: InterviewStore,
+        feedback: FeedbackStore,
+        auth: AuthStore,
+      ) =>
+        db
+          ? new PostgresErasureStore(db)
+          : new MemoryErasureStore(
+              state,
+              progress as MemoryProgressStore,
+              interviews as MemoryInterviewStore,
+              feedback as MemoryFeedbackStore,
+              auth,
+            ),
     },
     {
       provide: CoordinationStore,
-      inject: [DB],
-      useFactory: (db: Db | null) => (db ? new PostgresCoordinationStore(db) : new MemoryCoordinationStore()),
+      inject: [DB, AuthStore],
+      useFactory: (db: Db | null, auth: AuthStore) =>
+        db ? new PostgresCoordinationStore(db) : new MemoryCoordinationStore(Date.now, auth),
     },
     ExpiredRowSweeper,
   ],
-  exports: [APP_CONFIG, PG_POOL, ProgressStore, InterviewStore, FeedbackStore, AuthStore, CoordinationStore],
+  exports: [APP_CONFIG, PG_POOL, ProgressStore, InterviewStore, FeedbackStore, AuthStore, ErasureStore, CoordinationStore],
 })
 export class PersistenceModule implements OnApplicationShutdown {
   constructor(@Inject(PG_POOL) private readonly pool: pg.Pool | null) {}

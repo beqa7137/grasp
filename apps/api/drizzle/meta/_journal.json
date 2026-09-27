@@ -36,6 +36,41 @@
       "when": 1790231834099,
       "tag": "0004_auth_identities",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790472573906,
+      "tag": "0005_exotic_adam_warlock",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790472598978,
+      "tag": "0006_mighty_katie_power",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790473491546,
+      "tag": "0007_session_family_compat",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790473789293,
+      "tag": "0008_lying_spitfire",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790476445409,
+      "tag": "0009_aspiring_power_man",
+      "breakpoints": true
     }
   ]
 }

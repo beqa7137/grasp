@@ -1,5 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Preferences } from '@capacitor/preferences';
+import { ToastController } from '@ionic/angular';
 import { ApiError, ApiService } from './api.service';
 import { AuthTokens } from './auth-tokens.service';
 import { LearnerService } from './learner.service';
@@ -28,6 +29,7 @@ interface Session {
   refreshToken: string;
   user: AccountUser;
   learnerId: string;
+  deviceLearnerErased?: true;
 }
 
 type ProviderCredential = { idToken: string; nonce: string } | GitHubCredential;
@@ -44,7 +46,11 @@ export class AuthService {
   private readonly learner = inject(LearnerService);
   private readonly progress = inject(ProgressService);
   private readonly social = inject(SocialSignInService);
+  private readonly toasts = inject(ToastController);
   private refreshing: Promise<boolean> | null = null;
+  private recoveringErased: Promise<void> | null = null;
+  private readonly noticedErasedLearners = new Set<string>();
+  private endingSession = false;
 
   readonly user = signal<AccountUser | null>(null);
   readonly signedIn = computed(() => this.user() !== null);
@@ -58,6 +64,7 @@ export class AuthService {
 
   async init(): Promise<void> {
     this.tokens.refresher = () => this.refresh();
+    this.tokens.learnerRetired = (code, learnerId) => this.recoverRetiredLearner(code, learnerId);
     const [refresh, user] = await Promise.all([Preferences.get({ key: REFRESH_KEY }), Preferences.get({ key: USER_KEY })]);
     if (!refresh.value) return;
     if (user.value) this.user.set(JSON.parse(user.value) as AccountUser);
@@ -107,6 +114,7 @@ export class AuthService {
 
   /** Single-flight: concurrent 401s share one refresh. Keeps the session on network errors. */
   refresh(): Promise<boolean> {
+    if (this.endingSession) return Promise.resolve(false);
     this.refreshing ??= (async () => {
       const { value } = await Preferences.get({ key: REFRESH_KEY });
       if (!value) return false;
@@ -122,20 +130,66 @@ export class AuthService {
   }
 
   async signOut(): Promise<void> {
-    const { value } = await Preferences.get({ key: REFRESH_KEY });
-    if (value) await this.api.post('/auth/logout', { refreshToken: value }).catch(() => undefined);
-    await this.forget();
-    await this.progress.clearLocal();
-    await this.learner.reset();
+    this.endingSession = true;
+    try {
+      await this.refreshing;
+      const { value } = await Preferences.get({ key: REFRESH_KEY });
+      if (!value && this.tokens.accessToken()) throw new Error('The session cannot be revoked without its refresh token');
+      if (value) await this.api.post('/auth/logout', { refreshToken: value });
+      await this.clearDevice();
+    } finally {
+      this.endingSession = false;
+    }
   }
 
-  /** After the account was deleted on the server: drop the session and start fresh. */
-  async forget(): Promise<void> {
+  async startFreshAfterDeletion(): Promise<void> {
+    this.endingSession = true;
+    try {
+      await this.refreshing?.catch(() => false);
+      await this.clearDevice();
+    } finally {
+      this.endingSession = false;
+    }
+  }
+
+  private async forget(): Promise<void> {
     this.tokens.accessToken.set(null);
     this.tokens.signInRequired.set(false);
     this.user.set(null);
     this.identities.set(null);
     await Promise.all([Preferences.remove({ key: REFRESH_KEY }), Preferences.remove({ key: USER_KEY })]);
+  }
+
+  private async recoverRetiredLearner(code: 'learner_erased' | 'learner_moved', learnerId: string): Promise<void> {
+    if (this.learner.id() !== learnerId) return;
+    if (code === 'learner_moved') {
+      await this.learner.reload();
+      const { value } = await Preferences.get({ key: REFRESH_KEY });
+      if (value) await this.refresh();
+      return;
+    }
+    this.recoveringErased ??= (async () => {
+      await this.startFreshAfterDeletion();
+      await this.showErasedNotice(learnerId);
+    })().finally(() => (this.recoveringErased = null));
+    await this.recoveringErased;
+  }
+
+  private async showErasedNotice(learnerId: string): Promise<void> {
+    if (this.noticedErasedLearners.has(learnerId)) return;
+    this.noticedErasedLearners.add(learnerId);
+    const toast = await this.toasts.create({
+      message: "This learner's data was deleted on another device.",
+      duration: 3500,
+      position: 'bottom',
+    });
+    await toast.present();
+  }
+
+  private async clearDevice(): Promise<void> {
+    await this.forget();
+    await this.progress.clearLocal();
+    await this.learner.reset();
   }
 
   private async credential(provider: SignInProvider): Promise<ProviderCredential | null> {
@@ -148,9 +202,12 @@ export class AuthService {
   private async finishSignIn(request: () => Promise<Session>) {
     // Push offline progress first so the server can fold it into the account.
     if (!this.tokens.signInRequired()) await this.progress.flush();
+    const deviceLearnerId = this.learner.id();
     const session = await request();
-    if (this.tokens.signInRequired() && session.learnerId !== this.learner.id()) await this.progress.clearLocal();
+    const erasedDeviceLearner = session.deviceLearnerErased && this.learner.id() === deviceLearnerId;
+    if (erasedDeviceLearner || (this.tokens.signInRequired() && session.learnerId !== this.learner.id())) await this.progress.clearLocal();
     await this.adopt(session);
+    if (erasedDeviceLearner) await this.showErasedNotice(deviceLearnerId);
     await this.progress.resync();
   }
 

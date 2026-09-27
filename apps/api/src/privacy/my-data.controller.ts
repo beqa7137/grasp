@@ -2,6 +2,7 @@ import { Controller, Delete, Get, Header, HttpCode } from '@nestjs/common';
 import { toIdentitySummary } from '../auth/account.service.js';
 import { LearnerId } from '../common/learner-id.decorator.js';
 import { RateLimit } from '../common/rate-limit.js';
+import { ErasureStore } from '../persistence/erasure.stores.js';
 import { AuthStore, FeedbackStore, InterviewStore, ProgressStore } from '../persistence/stores.js';
 
 /** Self-service export and erasure of everything stored for the calling learner, including their account. */
@@ -12,6 +13,7 @@ export class MyDataController {
     private readonly interviews: InterviewStore,
     private readonly feedback: FeedbackStore,
     private readonly auth: AuthStore,
+    private readonly erasure: ErasureStore,
   ) {}
 
   @Get('export')
@@ -47,9 +49,6 @@ export class MyDataController {
   @HttpCode(204)
   @RateLimit({ limit: 5, windowMs: 3_600_000 })
   async erase(@LearnerId() learnerId: string) {
-    await this.feedback.deleteLearner(learnerId);
-    await this.interviews.deleteLearner(learnerId);
-    await this.auth.deleteByLearner(learnerId);
-    await this.progress.deleteLearner(learnerId);
+    await this.erasure.erase(learnerId);
   }
 }

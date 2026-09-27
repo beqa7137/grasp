@@ -1,9 +1,24 @@
+import { sql } from 'drizzle-orm';
 import { doublePrecision, index, integer, jsonb, pgTable, primaryKey, smallint, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
 
 export const learners = pgTable('learners', {
   id: uuid('id').primaryKey(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const erasedLearners = pgTable(
+  'erased_learners',
+  {
+    learnerId: uuid('learner_id').primaryKey(),
+    mergedInto: uuid('merged_into'),
+    erasedAt: timestamp('erased_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('erased_learners_merged_into')
+      .on(t.mergedInto)
+      .where(sql`${t.mergedInto} is not null`),
+  ],
+);
 
 /** Immutable, client-generated events. State is derived by replaying them through @grasp/engine. */
 export const learningEvents = pgTable(
@@ -64,6 +79,19 @@ export const users = pgTable('users', {
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).notNull(),
   lastLoginAt: timestamp('last_login_at', { withTimezone: true, mode: 'string' }),
 });
+
+export const sessionFamilies = pgTable(
+  'session_families',
+  {
+    id: uuid('id').primaryKey(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    revokedAt: timestamp('revoked_at', { withTimezone: true, mode: 'string' }),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).notNull(),
+  },
+  (t) => [index('session_families_user').on(t.userId)],
+);
 
 /** Unused since email sign-in was removed; kept for the release still running during a deploy, drop it in a later release. */
 export const loginCodes = pgTable(
