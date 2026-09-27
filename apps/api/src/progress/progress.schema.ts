@@ -118,7 +118,10 @@ export const learningEventSchema = z.discriminatedUnion('type', [
 ]);
 
 export const appendEventsSchema = z.object({
-  events: z.array(learningEventSchema).max(500),
+  events: z
+    .array(learningEventSchema)
+    .max(500)
+    .refine((events) => new Set(events.map((event) => event.id)).size === events.length, 'Event IDs must be unique within a request'),
 });
 
 export type AppendEventsDto = z.infer<typeof appendEventsSchema>;

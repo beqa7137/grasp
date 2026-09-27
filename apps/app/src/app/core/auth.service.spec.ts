@@ -58,6 +58,7 @@ function setup(opts: Options = {}) {
           flush: async () => calls.push('flush'),
           resync: async () => calls.push('resync'),
           clearLocal: async () => calls.push('clearLocal'),
+          invalidateSync: () => calls.push('invalidateSync'),
         },
       },
       {
@@ -102,6 +103,7 @@ describe('AuthService (app)', () => {
       'google nonce-1',
       'flush',
       'post /auth/google',
+      'invalidateSync',
       'learner account-learner',
       'resync',
       'get /auth/me',
@@ -116,7 +118,7 @@ describe('AuthService (app)', () => {
   it('signs in with GitHub by redeeming the ticket with its PKCE verifier through the same sequence', async () => {
     const { auth, calls, bodies } = setup();
     expect(await auth.signIn('github')).toBe(true);
-    expect(calls).toEqual(['github', 'flush', 'post /auth/github', 'learner account-learner', 'resync', 'get /auth/me']);
+    expect(calls).toEqual(['github', 'flush', 'post /auth/github', 'invalidateSync', 'learner account-learner', 'resync', 'get /auth/me']);
     expect(bodies['/auth/github']).toEqual({ ticket: 'github-ticket', codeVerifier: 'github-verifier' });
   });
 
@@ -124,7 +126,15 @@ describe('AuthService (app)', () => {
     const { auth, tokens, calls } = setup();
     tokens.signInRequired.set(true);
     await auth.signIn('github');
-    expect(calls).toEqual(['github', 'post /auth/github', 'clearLocal', 'learner account-learner', 'resync', 'get /auth/me']);
+    expect(calls).toEqual([
+      'github',
+      'post /auth/github',
+      'clearLocal',
+      'invalidateSync',
+      'learner account-learner',
+      'resync',
+      'get /auth/me',
+    ]);
     expect(tokens.signInRequired()).toBe(false);
   });
 
@@ -132,7 +142,7 @@ describe('AuthService (app)', () => {
     const { auth, tokens, calls } = setup({ post: async () => session(1, 'device-learner') });
     tokens.signInRequired.set(true);
     await auth.signIn('github');
-    expect(calls).toEqual(['github', 'post /auth/github', 'resync', 'get /auth/me']);
+    expect(calls).toEqual(['github', 'post /auth/github', 'invalidateSync', 'resync', 'get /auth/me']);
   });
 
   it('does nothing further when the person cancels at the provider', async () => {
@@ -316,7 +326,7 @@ describe('AuthService (app)', () => {
     await auth.signIn('github');
     calls.length = 0;
     await auth.signOut();
-    expect(calls).toEqual(['post /auth/logout', 'clearLocal', 'learner reset']);
+    expect(calls).toEqual(['post /auth/logout', 'invalidateSync', 'clearLocal', 'learner reset']);
     expect(auth.signedIn()).toBe(false);
     expect(auth.identities()).toBeNull();
     expect(localStorage.getItem('CapacitorStorage.grasp.auth.refresh')).toBeNull();
@@ -372,7 +382,7 @@ describe('AuthService (app)', () => {
     releaseRefresh();
     await Promise.all([refresh, signOut]);
 
-    expect(calls).toEqual(['post /auth/refresh', 'post /auth/logout', 'clearLocal', 'learner reset']);
+    expect(calls).toEqual(['post /auth/refresh', 'post /auth/logout', 'invalidateSync', 'clearLocal', 'learner reset']);
     expect(bodies['/auth/logout']).toEqual({ refreshToken: session(2).refreshToken });
     expect(auth.signedIn()).toBe(false);
   });
@@ -415,7 +425,7 @@ describe('AuthService (app)', () => {
       tokens.learnerRetired!('learner_erased', 'account-learner'),
     ]);
 
-    expect(calls).toEqual(['clearLocal', 'learner reset']);
+    expect(calls).toEqual(['invalidateSync', 'clearLocal', 'learner reset']);
     expect(learnerId.value).toBe('fresh');
     expect(auth.signedIn()).toBe(false);
     expect(tokens.signInRequired()).toBe(false);
@@ -434,7 +444,7 @@ describe('AuthService (app)', () => {
 
     await tokens.learnerRetired!('learner_moved', 'merged-guest');
 
-    expect(calls).toEqual(['learner reload new-account-learner', 'post /auth/refresh']);
+    expect(calls).toEqual(['learner reload new-account-learner', 'invalidateSync', 'post /auth/refresh', 'resync']);
     expect(learnerId.value).toBe('new-account-learner');
     expect(tokens.accessToken()).toBe('access-2');
     expect(calls).not.toContain('clearLocal');
@@ -459,7 +469,7 @@ describe('AuthService (app)', () => {
       post: async (path: string, body: { events?: { id: string }[] }) => {
         if (path === '/progress/events') {
           pushes.push(body.events!.map((event) => event.id));
-          return;
+          return { acknowledgedIds: body.events!.map((event) => event.id), deferredFutureIds: [], serverTime: new Date().toISOString() };
         }
         return { ...session(1, 'fresh-account'), deviceLearnerErased: true };
       },

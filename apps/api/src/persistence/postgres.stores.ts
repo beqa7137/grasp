@@ -54,7 +54,11 @@ export class PostgresProgressStore extends ProgressStore {
   }
 
   async append(learnerId: string, events: StoredEvent[]): Promise<AppendResult> {
-    if (events.length === 0) return { accepted: 0, duplicates: 0 };
+    if (events.length === 0) {
+      const mergedInto = await retirementDestination(this.db, learnerId);
+      if (mergedInto !== undefined) throw retiredLearner(mergedInto);
+      return { accepted: 0, duplicates: 0 };
+    }
     try {
       await ensureLearner(this.db, learnerId);
       const inserted = await this.db

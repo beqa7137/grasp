@@ -1,5 +1,5 @@
 import { createRequire } from 'node:module';
-import { randomInt } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 
 const require = createRequire(new URL('../../e2e/package.json', import.meta.url));
@@ -29,6 +29,11 @@ export async function newContext(browser, profile, { noticeSeen = true, extra = 
   const context = await browser.newContext({ ...PROFILES[profile], ...(SYSTEM_SCHEME ? { colorScheme: SYSTEM_SCHEME } : {}), ...extra });
   // A fresh address per context keeps the API's per-IP rate limit out of long runs against a local server.
   await context.setExtraHTTPHeaders({ 'x-forwarded-for': `198.18.${randomInt(256)}.${randomInt(1, 255)}` });
+  await context.addInitScript((learnerId) => {
+    if (!localStorage.getItem('CapacitorStorage.grasp.learnerId')) {
+      localStorage.setItem('CapacitorStorage.grasp.learnerId', learnerId);
+    }
+  }, randomUUID());
   if (!SYSTEM_SCHEME) await context.addInitScript((theme) => localStorage.setItem('CapacitorStorage.grasp.theme', theme), THEME);
   if (MASK_CSS) {
     await context.addInitScript((css) => {

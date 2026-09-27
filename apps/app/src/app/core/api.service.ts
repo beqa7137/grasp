@@ -31,12 +31,12 @@ export class ApiService {
     return this.runtime.apiBase();
   }
 
-  get<T>(path: string, timeoutMs = REQUEST_TIMEOUT_MS): Promise<T> {
-    return this.request<T>('GET', path, undefined, timeoutMs);
+  get<T>(path: string, timeoutMs = REQUEST_TIMEOUT_MS, signal?: AbortSignal): Promise<T> {
+    return this.request<T>('GET', path, undefined, timeoutMs, signal);
   }
 
-  post<T>(path: string, body?: unknown, timeoutMs = REQUEST_TIMEOUT_MS): Promise<T> {
-    return this.request<T>('POST', path, body, timeoutMs);
+  post<T>(path: string, body?: unknown, timeoutMs = REQUEST_TIMEOUT_MS, signal?: AbortSignal): Promise<T> {
+    return this.request<T>('POST', path, body, timeoutMs, signal);
   }
 
   delete(path: string): Promise<void> {
@@ -51,8 +51,11 @@ export class ApiService {
     if (signal?.aborted) controller.abort();
     try {
       let sentHeaders = this.headers();
+      const learnerId = sentHeaders['x-learner-id'];
       const streamBody = await this.withDeadline(STREAM_CONNECT_TIMEOUT_MS, controller, async (requestSignal) => {
         const send = () => {
+          requestSignal.throwIfAborted();
+          if (learnerId !== this.learner.id()) throw new DOMException('Learner changed', 'AbortError');
           sentHeaders = this.headers();
           return fetch(this.base + path, {
             method: 'POST',
@@ -63,7 +66,9 @@ export class ApiService {
           });
         };
         let response = await send();
-        if (response.status === 401 && (await this.renewAfter(response.clone(), path))) response = await send();
+        requestSignal.throwIfAborted();
+        if (response.status === 401 && (await this.renewAfter(response.clone(), path, requestSignal, learnerId))) response = await send();
+        requestSignal.throwIfAborted();
         if (!response.ok || !response.body) {
           const error = await this.toError(response);
           await this.handleRetired(error, sentHeaders);
@@ -100,36 +105,60 @@ export class ApiService {
     }
   }
 
-  private request<T>(method: string, path: string, body?: unknown, timeoutMs = REQUEST_TIMEOUT_MS): Promise<T> {
-    return this.withDeadline(timeoutMs, new AbortController(), async (signal) => {
-      let sentHeaders = this.headers();
-      const send = async () => {
-        try {
-          sentHeaders = this.headers();
-          return await fetch(this.base + path, {
-            method,
-            headers: sentHeaders,
-            body: body === undefined ? undefined : JSON.stringify(body),
-            cache: 'no-store',
-            signal,
-          });
-        } catch {
-          throw new ApiError(0, 'Cannot reach the Grasp server. Check your connection.');
+  private async request<T>(method: string, path: string, body?: unknown, timeoutMs = REQUEST_TIMEOUT_MS, signal?: AbortSignal): Promise<T> {
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    signal?.addEventListener('abort', abort, { once: true });
+    if (signal?.aborted) controller.abort();
+    try {
+      return await this.withDeadline(timeoutMs, controller, async (requestSignal) => {
+        const serialized = body === undefined ? undefined : JSON.stringify(body);
+        let sentHeaders = this.headers();
+        const learnerId = sentHeaders['x-learner-id'];
+        const send = async () => {
+          requestSignal.throwIfAborted();
+          if (learnerId !== this.learner.id()) throw new DOMException('Learner changed', 'AbortError');
+          try {
+            sentHeaders = this.headers();
+            return await fetch(this.base + path, {
+              method,
+              headers: sentHeaders,
+              body: serialized,
+              cache: 'no-store',
+              signal: requestSignal,
+            });
+          } catch {
+            requestSignal.throwIfAborted();
+            throw new ApiError(0, 'Cannot reach the Grasp server. Check your connection.');
+          }
+        };
+        let res = await send();
+        requestSignal.throwIfAborted();
+        if (res.status === 401 && (await this.renewAfter(res.clone(), path, requestSignal, learnerId))) res = await send();
+        requestSignal.throwIfAborted();
+        if (!res.ok) {
+          const error = await this.toError(res);
+          requestSignal.throwIfAborted();
+          await this.handleRetired(error, sentHeaders);
+          throw error;
         }
-      };
-      let res = await send();
-      if (res.status === 401 && (await this.renewAfter(res.clone(), path))) res = await send();
-      if (!res.ok) {
-        const error = await this.toError(res);
-        await this.handleRetired(error, sentHeaders);
-        throw error;
-      }
-      return (res.status === 204 ? undefined : await res.json()) as T;
-    });
+        const result = res.status === 204 ? undefined : await res.json();
+        requestSignal.throwIfAborted();
+        return result as T;
+      });
+    } finally {
+      signal?.removeEventListener('abort', abort);
+    }
   }
 
   private async withDeadline<T>(timeoutMs: number, controller: AbortController, work: (signal: AbortSignal) => Promise<T>): Promise<T> {
+    controller.signal.throwIfAborted();
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let cancelled!: () => void;
+    const cancellation = new Promise<never>((_, reject) => {
+      cancelled = () => reject(controller.signal.reason);
+      controller.signal.addEventListener('abort', cancelled, { once: true });
+    });
     const deadline = new Promise<never>((_, reject) => {
       timer = setTimeout(() => {
         reject(new ApiError(0, TIMEOUT_MESSAGE, 'request_timeout'));
@@ -137,21 +166,26 @@ export class ApiService {
       }, timeoutMs);
     });
     try {
-      return await Promise.race([work(controller.signal), deadline]);
+      return await Promise.race([work(controller.signal), deadline, cancellation]);
     } finally {
       clearTimeout(timer);
+      controller.signal.removeEventListener('abort', cancelled);
     }
   }
 
   /** On an expired session (or progress that needs a session), refreshes once so the caller can retry. */
-  private async renewAfter(res: Response, path: string): Promise<boolean> {
+  private async renewAfter(res: Response, path: string, signal: AbortSignal, learnerId: string): Promise<boolean> {
     const code = await res
       .json()
       .then((b: { code?: string }) => b.code)
       .catch(() => undefined);
+    signal.throwIfAborted();
+    if (learnerId !== this.learner.id()) throw new DOMException('Learner changed', 'AbortError');
     // The refresh call itself must never wait on a refresh.
     if ((code !== 'token_invalid' && code !== 'sign_in_required') || path === '/auth/refresh' || !this.tokens.refresher) return false;
     const renewed = await this.tokens.refresher();
+    signal.throwIfAborted();
+    if (learnerId !== this.learner.id()) throw new DOMException('Learner changed', 'AbortError');
     if (!renewed && code === 'sign_in_required') this.tokens.signInRequired.set(true);
     return renewed;
   }

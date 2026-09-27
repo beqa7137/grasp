@@ -99,7 +99,7 @@ The device sends its anonymous learner id (`x-learner-id`) with every sign-in, w
   - Interview sessions and feedback are re-assigned to the account.
   - The anonymous learner is retired. The merge commits all transfers together, or none of them.
 - **A device learner that already belongs to an account** is never taken over: signing in to a different account from it starts that account on a fresh learner.
-- **After sign-in:** the app pushes its pending events first, switches to the account's learner id and pulls the merged log.
+- **After sign-in:** the app first attempts to upload pending events, cancels the prior sync scope, adopts the account and pulls the merged log. This also starts a fresh sync when a new account keeps the same learner ID. Unacknowledged events remain local for the account sync. A delayed refresh from the previous session cannot overwrite the new sign-in.
 
 Once a learner belongs to an account, anonymous requests for it get `401 { code: 'sign_in_required' }`. Knowing a learner id is then no longer enough to read or write that progress.
 
@@ -119,7 +119,7 @@ Once a learner belongs to an account, anonymous requests for it get `401 { code:
   - Network errors keep the session.
   - A `401` on refresh ends the session but keeps local progress. The app asks the learner to sign in again, and no data is lost.
   - An anonymous request with `410 { code: 'learner_erased' }` clears local progress, starts with a new learner ID, and shows a short deletion notice. It does not upload the erased learner's events.
-  - `410 { code: 'learner_moved' }` keeps local progress and reloads the learner ID and refresh token from shared storage. The next action uses that identity.
+  - `410 { code: 'learner_moved' }` keeps local progress and reloads the learner ID and refresh token from shared storage. If the learner ID changes, a fresh progress sync starts after the credentials are reloaded.
 
 Refresh tokens sit in Capacitor Preferences: `localStorage` on the web, app-private storage on iOS and Android. That storage is not encrypted. A Keychain/Keystore plugin would be the next hardening step before handling anything more sensitive than learning progress.
 

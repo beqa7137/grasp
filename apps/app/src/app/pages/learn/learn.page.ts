@@ -12,18 +12,21 @@ import {
 } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import {
+  alertCircleOutline,
   chatbubblesOutline,
   cloudDoneOutline,
   codeSlashOutline,
-  cloudOfflineOutline,
   compassOutline,
   flame,
   flashOutline,
   gitNetworkOutline,
   pulseOutline,
   playCircleOutline,
+  saveOutline,
   settingsOutline,
   sparkles,
+  syncOutline,
+  timeOutline,
 } from 'ionicons/icons';
 import { AuthService } from '../../core/auth.service';
 import { refocusAfterRender } from '../../core/focus';
@@ -56,7 +59,38 @@ export class LearnPage {
   readonly auth = inject(AuthService);
   readonly diagnosticPrompt = inject(DiagnosticPromptService);
   readonly retrying = signal(false);
-  readonly showSyncFailure = computed(() => !this.auth.signInRequired() && (this.retrying() || this.progress.syncStatus() === 'offline'));
+  private readonly retryNotice = signal<string | null>(null);
+  readonly showSyncNotice = computed(
+    () =>
+      !this.auth.signInRequired() &&
+      (this.retrying() || this.progress.syncStatus() === 'offline' || this.progress.syncStatus() === 'pending'),
+  );
+  readonly syncIcon = computed(() => {
+    switch (this.progress.syncStatus()) {
+      case 'offline':
+        return 'alert-circle-outline';
+      case 'pending':
+        return 'time-outline';
+      case 'syncing':
+        return 'sync-outline';
+      case 'idle':
+        return 'save-outline';
+      default:
+        return 'cloud-done-outline';
+    }
+  });
+  readonly syncNotice = computed(() => {
+    if (this.retrying()) {
+      const retryNotice = this.retryNotice();
+      if (retryNotice) return retryNotice;
+    }
+    if (this.progress.syncStatus() === 'offline') return 'Sync is unavailable. Your progress is saved on this device.';
+    const { future, oversized } = this.progress.pendingSync();
+    if (future > 0 && oversized > 0) return 'Some progress has a future date, and some is too large to sync. It is saved on this device.';
+    if (future > 0) return 'Some progress has a future date and cannot sync yet. It is saved on this device.';
+    if (oversized > 0) return 'Some progress is too large to sync. It is saved on this device.';
+    return 'Some progress is waiting to sync. It is saved on this device.';
+  });
   readonly patternCount = PATTERN_CATALOG.length;
   readonly tracks = TRACKS.map((t) => ({ ...t, patterns: PATTERN_CATALOG.filter((p) => p.track === t.id) }));
 
@@ -84,6 +118,7 @@ export class LearnPage {
 
   constructor() {
     addIcons({
+      alertCircleOutline,
       settingsOutline,
       codeSlashOutline,
       flame,
@@ -93,9 +128,11 @@ export class LearnPage {
       gitNetworkOutline,
       chatbubblesOutline,
       cloudDoneOutline,
-      cloudOfflineOutline,
       compassOutline,
       pulseOutline,
+      saveOutline,
+      syncOutline,
+      timeOutline,
     });
   }
 
@@ -110,18 +147,20 @@ export class LearnPage {
   async retrySync(): Promise<void> {
     if (this.retrying()) return;
     const alert = this.syncAlert()?.nativeElement;
+    this.retryNotice.set(this.syncNotice());
     this.retrying.set(true);
     refocusAfterRender(this.injector, () => this.syncAlert()?.nativeElement, alert);
     try {
       await this.progress.resync();
     } finally {
       this.retrying.set(false);
+      this.retryNotice.set(null);
       refocusAfterRender(
         this.injector,
         () =>
           this.auth.signInRequired()
             ? this.sessionResume()?.nativeElement
-            : this.progress.syncStatus() === 'offline'
+            : this.progress.syncStatus() === 'offline' || this.progress.syncStatus() === 'pending'
               ? this.retryButton()?.nativeElement
               : this.syncStatus()?.nativeElement,
         alert,
