@@ -231,7 +231,7 @@ describe('ProgressService sync', () => {
     const { progress, api } = setup();
     await progress.init();
     await progress.resync();
-    expect(api.post.mock.calls.flatMap((call) => call[1].events.map((item) => item.id))).toEqual(['before', 'after']);
+    expect(api.post.mock.calls.map((call) => call[1].events.map((item) => item.id))).toEqual([['before', 'after']]);
     expect(checkpoint()).toEqual(['before', 'after']);
     expect(progress.pendingSync()).toEqual({ future: 0, oversized: 1 });
     expect(progress.syncStatus()).toBe('pending');

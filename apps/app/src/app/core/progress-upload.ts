@@ -22,11 +22,6 @@ export function* packProgressEvents(events: Iterable<StoredEvent>): Generator<Pr
     const eventBytes = encoder.encode(serialized).byteLength;
 
     if (EMPTY_REQUEST_BYTES + eventBytes > MAX_REQUEST_BYTES) {
-      if (batch.length) {
-        yield { kind: 'batch', events: batch };
-        batch = [];
-        batchBytes = EMPTY_REQUEST_BYTES;
-      }
       yield { kind: 'oversized', id: event.id };
       continue;
     }

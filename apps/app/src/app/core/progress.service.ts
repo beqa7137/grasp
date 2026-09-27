@@ -43,7 +43,6 @@ export type NewEvent =
 export type SyncStatus = 'idle' | 'syncing' | 'synced' | 'offline' | 'pending';
 
 interface SyncScope {
-  epoch: number;
   generation: number;
   learnerId: string;
   controller: AbortController;
@@ -67,7 +66,6 @@ export class ProgressService {
   private readonly oversized = new Set<string>();
   private acknowledgementVersion = 0;
   private checkpointVersion = 0;
-  private syncEpoch = 0;
   private scope: SyncScope | undefined;
   private syncTimer: ReturnType<typeof setTimeout> | undefined;
   private generation = 0;
@@ -168,10 +166,10 @@ export class ProgressService {
   }
 
   invalidateSync(): void {
-    this.syncEpoch++;
     clearTimeout(this.syncTimer);
-    this.scope?.controller.abort();
+    const scope = this.scope;
     this.scope = undefined;
+    scope?.controller.abort();
     this.updateStatus();
   }
 
@@ -226,7 +224,6 @@ export class ProgressService {
     if (this.scope && this.isCurrent(this.scope)) return this.scope;
     this.invalidateSync();
     this.scope = {
-      epoch: this.syncEpoch,
       generation: this.generation,
       learnerId: this.learner.id(),
       controller: new AbortController(),
@@ -237,13 +234,7 @@ export class ProgressService {
   }
 
   private isCurrent(scope: SyncScope): boolean {
-    return (
-      !this.destroyed &&
-      this.scope === scope &&
-      scope.epoch === this.syncEpoch &&
-      scope.generation === this.generation &&
-      scope.learnerId === this.learner.id()
-    );
+    return !this.destroyed && this.scope === scope && scope.generation === this.generation && scope.learnerId === this.learner.id();
   }
 
   private push(scope: SyncScope): Promise<void> {
@@ -289,11 +280,7 @@ export class ProgressService {
     } catch {
       if (this.isCurrent(scope)) {
         scope.pushFailed = true;
-        try {
-          await this.checkpoint(scope);
-        } catch {
-          scope.pushFailed = true;
-        }
+        await this.checkpoint(scope).catch(() => undefined);
       }
     } finally {
       if (scope.upload === operation) scope.upload = undefined;

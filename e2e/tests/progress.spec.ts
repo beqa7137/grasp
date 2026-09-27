@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Page, Request } from '@playwright/test';
 import { diagnosticItems } from '@grasp/engine';
-import { expect, readOnly, test } from './fixtures';
+import { expect, expectUnmoved, readOnly, test, viewportTop } from './fixtures';
 
 type ProgressEvent = { id: string; at: string; type: string; [key: string]: unknown };
 
@@ -99,15 +99,15 @@ test.describe('progress sync retention', () => {
     };
     const last = prediction();
     const learnerId = await seedProgress(page, [first, oversized, last]);
-    const uploadedIds: string[] = [];
+    const uploadedIds: string[][] = [];
     page.on('request', (request) => {
-      if (isUpload(request)) uploadedIds.push(...(request.postDataJSON() as { events: ProgressEvent[] }).events.map((event) => event.id));
+      if (isUpload(request)) uploadedIds.push((request.postDataJSON() as { events: ProgressEvent[] }).events.map((event) => event.id));
     });
 
     await page.goto('/learn');
     await expect(page.locator('.sync')).toHaveAttribute('data-status', 'pending');
     await expect(page.getByRole('alert')).toContainText('too large to sync');
-    expect(uploadedIds).toEqual([first.id, last.id]);
+    expect(uploadedIds).toEqual([[first.id, last.id]]);
     expect((await serverEvents(page, learnerId)).map((event) => event.id).sort()).toEqual([first.id, last.id].sort());
     expect((await acknowledgedIds(page)).sort()).toEqual([first.id, last.id].sort());
     expect((await localEvents(page)).map((event) => event.id)).toEqual([first.id, oversized.id, last.id]);
@@ -231,14 +231,14 @@ test.describe('progress sync retention', () => {
         await expect(alert).toBeVisible();
         expect(await acknowledgedIds(page)).not.toContain(event.id);
         expect(await serverEvents(page, learnerId)).toEqual([]);
-        const heroTop = (await hero.boundingBox())!.y;
+        const heroTop = await viewportTop(hero);
 
         await retry.focus();
         await page.keyboard.press('Enter');
         await expect(page.locator('.sync')).toHaveAttribute('data-status', 'syncing');
         await expect(alert).toBeFocused();
         await expect(retry).toBeDisabled();
-        expect(Math.abs((await hero.boundingBox())!.y - heroTop)).toBeLessThan(1);
+        await expectUnmoved(hero, heroTop, 'the hero while retrying progress sync');
 
         releaseRetry();
         await expect(page.locator('.sync')).toHaveAttribute('data-status', 'synced');
