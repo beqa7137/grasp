@@ -21,6 +21,7 @@ export async function initErrorReporting(config: RuntimeConfigService): Promise<
       release: release ?? undefined,
       sendDefaultPii: false,
       defaultIntegrations: false,
+      integrations: [sdk.dedupeIntegration()],
       sendClientReports: false,
       tracesSampleRate: 0,
       beforeSend: privacy.beforeSend,
