@@ -5,11 +5,9 @@ import { RateLimit } from '../common/rate-limit.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { AccountService } from './account.service.js';
 import { notSignedIn } from './auth-errors.js';
-import { AUTH_NETWORK_LIMIT, AuthRateLimitService } from './auth-rate-limit.service.js';
+import { AUTH_NETWORK_LIMIT, AUTH_WINDOW_MS, AuthRateLimitService } from './auth-rate-limit.service.js';
 import { GoogleSignInService } from './google-sign-in.service.js';
 import { SkipIdentity } from './identity.guard.js';
-
-const QUARTER_HOUR = 15 * 60_000;
 
 const credentialSchema = z.object({ idToken: z.string().min(1).max(4096), nonce: z.string().regex(/^[\w-]{43}$/) });
 type Credential = z.infer<typeof credentialSchema>;
@@ -41,7 +39,7 @@ export class GoogleController {
 
   @Post('link')
   @HttpCode(200)
-  @RateLimit({ limit: 10, windowMs: QUARTER_HOUR })
+  @RateLimit({ limit: 10, windowMs: AUTH_WINDOW_MS })
   async link(@Body(new ZodValidationPipe(credentialSchema)) body: Credential, @UserId() userId: string | null) {
     if (!userId) throw notSignedIn();
     return { identities: await this.accounts.link(userId, await this.google.identify(body.idToken, body.nonce)) };

@@ -53,8 +53,7 @@ describe('RateLimitGuard', () => {
     await call(guard, Routes.prototype.list).result;
 
     const limited = call(guard, Routes.prototype.list);
-    await expect(limited.result).rejects.toMatchObject({ status: 429 });
-    expect(limited.headers).toMatchObject({ 'X-RateLimit-Remaining': 0, 'Retry-After': 60 });
+    await expect(limited.result).rejects.toMatchObject({ status: 429, limit: 2, retryAfterSeconds: 60 });
 
     await expect(call(guard, Routes.prototype.list, { ip: '203.0.113.2' }).result).resolves.toBe(true);
     await expect(call(guard, Routes.prototype.send).result).resolves.toBe(true);

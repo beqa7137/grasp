@@ -80,13 +80,11 @@ export class RateLimitGuard implements CanActivate {
     }
     if (!counted) throw tokenInvalid('Session ended');
 
-    const resetSeconds = Math.max(1, Math.ceil(counted.resetsInMs / 1000));
+    if (counted.total > rule.limit) throw new RateLimitExceeded(rule.limit, counted.resetsInMs);
     const res = http.getResponse<Response>();
     res.setHeader('X-RateLimit-Limit', rule.limit);
-    res.setHeader('X-RateLimit-Remaining', Math.max(0, rule.limit - counted.total));
-    res.setHeader('X-RateLimit-Reset', resetSeconds);
-    if (counted.total <= rule.limit) return true;
-    res.setHeader('Retry-After', resetSeconds);
-    throw new RateLimitExceeded(rule.limit, counted.resetsInMs);
+    res.setHeader('X-RateLimit-Remaining', rule.limit - counted.total);
+    res.setHeader('X-RateLimit-Reset', Math.max(1, Math.ceil(counted.resetsInMs / 1000)));
+    return true;
   }
 }
