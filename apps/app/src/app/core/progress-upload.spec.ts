@@ -67,16 +67,15 @@ describe('packProgressEvents', () => {
     expect(requestBytes([first, oneByteOver])).toBe(MAX_BYTES + 1);
   });
 
-  it('retains valid neighbors around oversized first, middle, and final events', () => {
+  it('packs valid neighbors together around oversized first, middle, and final events', () => {
     const oversized = (id: string) => practice(id, 'a'.repeat(MAX_BYTES));
     const uploads = [...packProgressEvents([oversized('first'), practice('a'), oversized('middle'), practice('b'), oversized('last')])];
 
     expect(uploads).toEqual([
       { kind: 'oversized', id: 'first' },
-      { kind: 'batch', events: [practice('a')] },
       { kind: 'oversized', id: 'middle' },
-      { kind: 'batch', events: [practice('b')] },
       { kind: 'oversized', id: 'last' },
+      { kind: 'batch', events: [practice('a'), practice('b')] },
     ]);
   });
 

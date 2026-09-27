@@ -58,8 +58,8 @@ export class LearnPage {
   readonly progress = inject(ProgressService);
   readonly auth = inject(AuthService);
   readonly diagnosticPrompt = inject(DiagnosticPromptService);
-  readonly retrying = signal(false);
   private readonly retryNotice = signal<string | null>(null);
+  readonly retrying = computed(() => this.retryNotice() !== null);
   readonly showSyncNotice = computed(
     () =>
       !this.auth.signInRequired() &&
@@ -80,10 +80,8 @@ export class LearnPage {
     }
   });
   readonly syncNotice = computed(() => {
-    if (this.retrying()) {
-      const retryNotice = this.retryNotice();
-      if (retryNotice) return retryNotice;
-    }
+    const retryNotice = this.retryNotice();
+    if (retryNotice !== null) return retryNotice;
     if (this.progress.syncStatus() === 'offline') return 'Sync is unavailable. Your progress is saved on this device.';
     const { future, oversized } = this.progress.pendingSync();
     if (future > 0 && oversized > 0) return 'Some progress has a future date, and some is too large to sync. It is saved on this device.';
@@ -148,12 +146,10 @@ export class LearnPage {
     if (this.retrying()) return;
     const alert = this.syncAlert()?.nativeElement;
     this.retryNotice.set(this.syncNotice());
-    this.retrying.set(true);
     refocusAfterRender(this.injector, () => this.syncAlert()?.nativeElement, alert);
     try {
       await this.progress.resync();
     } finally {
-      this.retrying.set(false);
       this.retryNotice.set(null);
       refocusAfterRender(
         this.injector,

@@ -54,8 +54,7 @@ export class ApiService {
       const learnerId = sentHeaders['x-learner-id'];
       const streamBody = await this.withDeadline(STREAM_CONNECT_TIMEOUT_MS, controller, async (requestSignal) => {
         const send = () => {
-          requestSignal.throwIfAborted();
-          if (learnerId !== this.learner.id()) throw new DOMException('Learner changed', 'AbortError');
+          this.assertRequestCurrent(requestSignal, learnerId);
           sentHeaders = this.headers();
           return fetch(this.base + path, {
             method: 'POST',
@@ -116,8 +115,7 @@ export class ApiService {
         let sentHeaders = this.headers();
         const learnerId = sentHeaders['x-learner-id'];
         const send = async () => {
-          requestSignal.throwIfAborted();
-          if (learnerId !== this.learner.id()) throw new DOMException('Learner changed', 'AbortError');
+          this.assertRequestCurrent(requestSignal, learnerId);
           try {
             sentHeaders = this.headers();
             return await fetch(this.base + path, {
@@ -151,6 +149,11 @@ export class ApiService {
     }
   }
 
+  private assertRequestCurrent(signal: AbortSignal, learnerId: string): void {
+    signal.throwIfAborted();
+    if (learnerId !== this.learner.id()) throw new DOMException('Learner changed', 'AbortError');
+  }
+
   private async withDeadline<T>(timeoutMs: number, controller: AbortController, work: (signal: AbortSignal) => Promise<T>): Promise<T> {
     controller.signal.throwIfAborted();
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -179,13 +182,11 @@ export class ApiService {
       .json()
       .then((b: { code?: string }) => b.code)
       .catch(() => undefined);
-    signal.throwIfAborted();
-    if (learnerId !== this.learner.id()) throw new DOMException('Learner changed', 'AbortError');
+    this.assertRequestCurrent(signal, learnerId);
     // The refresh call itself must never wait on a refresh.
     if ((code !== 'token_invalid' && code !== 'sign_in_required') || path === '/auth/refresh' || !this.tokens.refresher) return false;
     const renewed = await this.tokens.refresher();
-    signal.throwIfAborted();
-    if (learnerId !== this.learner.id()) throw new DOMException('Learner changed', 'AbortError');
+    this.assertRequestCurrent(signal, learnerId);
     if (!renewed && code === 'sign_in_required') this.tokens.signInRequired.set(true);
     return renewed;
   }
