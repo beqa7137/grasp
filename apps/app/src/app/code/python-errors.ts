@@ -43,7 +43,7 @@ export function pythonCrash(error: unknown, logs: string[]): { error: RunnerErro
   const cause = error instanceof Error ? error.message : String(error);
   return {
     error: {
-      message: `Python crashed (${cause}). Very deep recursion or a very long chain of linked objects can do this. Python restarts on your next run.`,
+      message: `Python crashed (${cause}). Deep recursion, especially with functools.cache or functools.lru_cache, can exhaust the browser stack. Try a dict memo or a bottom-up table. Python restarts on your next run.`,
       location: at ? { line: Number(at[1]) } : undefined,
     },
     logs: logs.slice(0, end),

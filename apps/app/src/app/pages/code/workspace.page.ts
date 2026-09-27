@@ -233,9 +233,10 @@ export class WorkspacePage {
     return this.problem()!.params.map((p, i) => {
       const value = test.args[i];
       const size = test.kind === 'performance' ? inputSize(p.type, value) : null;
-      // Performance inputs reach 3 MB and the template calls this on every change detection, such as each keystroke. Each
-      // item renders to at least one character, so an input with more items cannot fit and is summarized unrendered.
-      const text = size && (value as ArrayLike<unknown>).length > PREVIEW_CHARS ? null : preview(value, Infinity);
+      // Performance inputs can span several megabytes and this runs on every change detection, so count nested cells before serializing.
+      const length = (value as ArrayLike<unknown>).length;
+      const nestedLength = Array.isArray(value) && Array.isArray(value[0]) ? value[0].length : 1;
+      const text = size && length * nestedLength > PREVIEW_CHARS ? null : preview(value, Infinity);
       return text === null || (size && text.length > PREVIEW_CHARS)
         ? `${p.name}: large input, ${size}`
         : `${p.name} = ${clip(text, PREVIEW_CHARS)}`;
@@ -244,6 +245,8 @@ export class WorkspacePage {
 
   show(test: TestReport, value: unknown): string {
     if (test.kind === 'performance' && Array.isArray(value)) return `[${value.length.toLocaleString()} items]`;
+    if (test.kind === 'performance' && typeof value === 'string' && value.length > PREVIEW_CHARS)
+      return `[${value.length.toLocaleString()} characters]`;
     return value === undefined ? 'undefined' : preview(value, PREVIEW_CHARS);
   }
 

@@ -78,7 +78,11 @@ export function inputSize(type: ParamType, value: unknown): string | null {
     for (let i = 0; i < values.length; i++) if (values[i] !== null) nodes++;
     return quantity(nodes, 'node');
   }
-  return Array.isArray(value) || typeof value === 'string' ? quantity(value.length, 'item') : null;
+  if (typeof value === 'string') return quantity(value.length, 'character');
+  // The other 2-D inputs are lists of pairs or triples, so wide rows identify performance grids.
+  if ((type === 'int[][]' || type === 'char[][]') && Array.isArray(value) && Array.isArray(value[0]) && value[0].length > 4)
+    return `${value.length.toLocaleString('en-US')} × ${value[0].length.toLocaleString('en-US')} grid`;
+  return Array.isArray(value) ? quantity(value.length, 'item') : null;
 }
 
 export function snakeCase(name: string): string {
@@ -139,7 +143,10 @@ function entryFunction(problem: CodingProblem, language: Language): string {
  * evaluated when the function is defined, so both names must exist first. Trees are built from the class captured
  * here, so a learner's own `TreeNode` cannot change how inputs are built.
  */
-export const PYTHON_PRELUDE = `from typing import Optional
+export const PYTHON_PRELUDE = `import sys
+from typing import Optional
+
+sys.setrecursionlimit(10_000)
 
 
 class TreeNode:

@@ -112,7 +112,7 @@ export const longestCommonSubsequence: CodingProblemDefinition = {
   statement: [
     'Return the length of the longest sequence of characters that appears, in order but not necessarily contiguously, in both `text1` and `text2`.',
   ],
-  constraints: ['1 ≤ text1.length, text2.length ≤ 1500', 'lowercase letters'],
+  constraints: ['1 ≤ text1.length, text2.length ≤ 1000', 'lowercase letters'],
   entry: 'longestCommonSubsequence',
   params: [
     { name: 'text1', type: 'string' },
@@ -131,7 +131,7 @@ export const longestCommonSubsequence: CodingProblemDefinition = {
     return [word(), word()];
   },
   performanceCase: (rand) => {
-    const word = () => Array.from({ length: 1_500 }, () => 'abcdefghij'[randInt(rand, 0, 9)]).join('');
+    const word = () => Array.from({ length: 1000 }, () => 'abcdefghij'[randInt(rand, 0, 9)]).join('');
     return [word(), word()];
   },
   solve(a: string, b: string) {
@@ -144,8 +144,62 @@ export const longestCommonSubsequence: CodingProblemDefinition = {
     return prev[b.length];
   },
   approach:
-    '`dp[i][j]` is the answer for the prefixes `text1[:i]` and `text2[:j]`: diagonal + 1 on a match, otherwise the better of dropping one letter.',
+    '`dp[i][j]` is the answer for the prefixes `text1[:i]` and `text2[:j]`: diagonal + 1 on a match, otherwise the better of dropping one letter. Fill the table bottom-up in browser Python: `@cache` and `@lru_cache` can exhaust its stack at these lengths.',
   complexity: { time: 'O(m·n)', space: 'O(n) with one rolling row' },
+};
+
+export const editDistance: CodingProblemDefinition = {
+  statement: [
+    'Return the fewest single-letter edits needed to turn `word1` into `word2`. An edit inserts, deletes or replaces one letter.',
+    'Either word may be empty.',
+  ],
+  constraints: ['0 ≤ word1.length, word2.length ≤ 500', 'lowercase letters'],
+  entry: 'minDistance',
+  params: [
+    { name: 'word1', type: 'string' },
+    { name: 'word2', type: 'string' },
+  ],
+  returns: 'int',
+  compare: 'exact',
+  examples: [
+    { args: ['horse', 'ros'], explanation: 'Replace h with r, delete the later r, then delete e: three edits' },
+    {
+      args: ['intention', 'execution'],
+      explanation: 'intention → inention → enention → exention → exection → execution: one deletion, three replacements and one insertion',
+    },
+    { args: ['', 'abc'], explanation: 'Insert a, b and c' },
+  ],
+  edgeCases: [
+    ['', ''],
+    ['abc', ''],
+    ['a', 'a'],
+    ['a', 'b'],
+    ['ab', 'ba'],
+    ['kitten', 'sitting'],
+    ['aaaa', 'bbbb'],
+  ],
+  randomCase: (rand) => {
+    const word = () => Array.from({ length: randInt(rand, 0, 5) }, () => 'abc'[randInt(rand, 0, 2)]).join('');
+    return [word(), word()];
+  },
+  performanceCase: (rand) => {
+    const word = () => Array.from({ length: 500 }, () => 'abcd'[randInt(rand, 0, 3)]).join('');
+    return [word(), word()];
+  },
+  solve(word1: string, word2: string) {
+    let previous = Array.from({ length: word2.length + 1 }, (_, i) => i);
+    for (let i = 1; i <= word1.length; i++) {
+      const current = Array<number>(word2.length + 1);
+      current[0] = i;
+      for (let j = 1; j <= word2.length; j++)
+        current[j] = word1[i - 1] === word2[j - 1] ? previous[j - 1] : 1 + Math.min(previous[j - 1], previous[j], current[j - 1]);
+      previous = current;
+    }
+    return previous[word2.length];
+  },
+  approach:
+    '`dp[i][j]` is the fewest edits that turn the first `i` letters of `word1` into the first `j` of `word2`; an empty prefix needs one edit per letter of the other. On a match take the diagonal; otherwise add one to the least of the diagonal (replace), the cell above (delete) and the cell to the left (insert). Only the previous row is needed. Fill the table bottom-up in browser Python: `@cache` and `@lru_cache` can exhaust its stack at these lengths.',
+  complexity: { time: 'O(word1.length × word2.length)', space: 'O(word2.length)' },
 };
 
 export const countPrefixes: CodingProblemDefinition = {
@@ -196,6 +250,111 @@ export const countPrefixes: CodingProblemDefinition = {
   approach:
     'Insert every word into a trie, counting at each node how many words pass through it; each query is then a walk of its own length.',
   complexity: { time: 'O(total letters)', space: 'O(total letters)' },
+};
+
+const letters = 'abcdefghijklmnopqrstuvwxyz';
+
+function suffix(value: number): string {
+  let word = '';
+  for (let i = 0; i < 4; i++) {
+    word = letters[value % 26] + word;
+    value = Math.floor(value / 26);
+  }
+  return word;
+}
+
+export const replaceWords: CodingProblemDefinition = {
+  statement: [
+    'Each word in `dictionary` is a root. In `sentence`, shorten each word that starts with a root to the shortest root it starts with.',
+    'Leave a word unchanged if no root matches. Words are lowercase and separated by one space; return the new sentence with the same spacing.',
+  ],
+  constraints: [
+    '1 ≤ dictionary.length ≤ 6·10^4',
+    '1 ≤ root length ≤ 10',
+    'roots are distinct',
+    '1 ≤ sentence.length ≤ 2·10^5',
+    'lowercase words separated by single spaces, with no space at either end',
+  ],
+  entry: 'replaceWords',
+  params: [
+    { name: 'dictionary', type: 'string[]' },
+    { name: 'sentence', type: 'string' },
+  ],
+  returns: 'string',
+  compare: 'exact',
+  examples: [
+    {
+      args: [['cat', 'bat', 'rat'], 'the cattle was rattled by the battery'],
+      explanation: 'cattle, rattled and battery start with the roots cat, rat and bat; no root starts the other words',
+    },
+    { args: [['a', 'b', 'c'], 'aadsfasf absbs bbab cadsfafs'], explanation: 'Each word is shortened to its first-letter root' },
+    {
+      args: [['cat', 'ca', 'dog'], 'catalog scat dogma'],
+      explanation: 'Both cat and ca start catalog, so the shorter ca wins; scat only contains cat, so it stays',
+    },
+  ],
+  edgeCases: [
+    [['a', 'ab', 'abc'], 'abcd ab a'],
+    [['ab', 'abc', 'a'], 'abcd ab a'],
+    [['cat'], 'scat cat cattle'],
+    [['abc'], 'xyz'],
+    [['abc'], 'abc'],
+    [['b', 'ba', 'bat', 'c'], 'batman cat'],
+  ],
+  randomCase: (rand) => {
+    const word = (max: number) => Array.from({ length: randInt(rand, 1, max) }, () => 'abc'[randInt(rand, 0, 2)]).join('');
+    const dictionary = new Set<string>();
+    const count = randInt(rand, 1, 6);
+    while (dictionary.size < count) dictionary.add(word(4));
+    const roots = [...dictionary];
+    const sentence = Array.from({ length: randInt(rand, 1, 7) }, () =>
+      rand() < 0.5 ? roots[randInt(rand, 0, roots.length - 1)] + word(2) : word(6),
+    ).join(' ');
+    return [roots, sentence];
+  },
+  performanceCase: () => {
+    const common = 'a';
+    const dictionary = Array.from({ length: 60_000 }, (_, i) => common + suffix(i));
+    const sentence = Array.from(
+      { length: 28_500 },
+      (_, i) => common + suffix(i % 4 === 0 ? 58_000 + ((i / 4) % 2_000) : 60_000 + i) + 'z',
+    ).join(' ');
+    return [dictionary, sentence];
+  },
+  solve(dictionary: string[], sentence: string) {
+    const children: Map<string, number>[] = [new Map()];
+    const terminal: boolean[] = [false];
+    for (const root of dictionary) {
+      let node = 0;
+      for (const letter of root) {
+        let next = children[node].get(letter);
+        if (next === undefined) {
+          next = children.length;
+          children[node].set(letter, next);
+          children.push(new Map());
+          terminal.push(false);
+        }
+        node = next;
+      }
+      terminal[node] = true;
+    }
+    return sentence
+      .split(' ')
+      .map((word) => {
+        let node = 0;
+        for (let i = 0; i < word.length; i++) {
+          const next = children[node].get(word[i]);
+          if (next === undefined) break;
+          node = next;
+          if (terminal[node]) return word.slice(0, i + 1);
+        }
+        return word;
+      })
+      .join(' ');
+  },
+  approach:
+    "Put the roots in a trie and walk each word down it letter by letter. The first node that ends a root gives the shortest matching root; falling off the trie first means no root matches, so the word stays. Since roots have at most 10 letters, checking each word's first 1 to 10 letters against a set of roots also works.",
+  complexity: { time: 'O(total dictionary letters + sentence.length)', space: 'O(total dictionary letters + sentence.length)' },
 };
 
 export const singleNumber: CodingProblemDefinition = {

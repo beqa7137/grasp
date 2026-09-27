@@ -562,6 +562,8 @@ IndexError: list index out of range`);
     ]);
     expect(crash.logs).toEqual(['building']);
     expect(crash.error.location).toEqual({ line: 8 });
+    expect(crash.error.message).toContain('functools.cache or functools.lru_cache');
+    expect(crash.error.message).toContain('dict memo or a bottom-up table');
     expect(crash.error.message).toContain('Python restarts on your next run');
   });
 });
