@@ -4,21 +4,21 @@ Learners solve problems in Python, JavaScript or TypeScript entirely on their de
 
 ## Pieces
 
-| Piece                                          | Where                                                                                              |
-| ---------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| Problem catalog (ids, titles, order)           | `libs/engine/src/coding/catalog.ts`                                                                |
-| Problem definitions                            | `libs/engine/src/coding/problems/` (one file per curriculum track, indexed in `problems/index.ts`) |
-| Suites, comparison, Python prelude and harness | `libs/engine/src/coding/suite.ts`                                                                  |
-| Tree inputs                                    | `libs/engine/src/coding/tree.ts`                                                                   |
-| Worker (runs code, traces JS/TS)               | `apps/app/src/app/code/runner.worker.ts`                                                           |
-| JS/TS compile, run and trace                   | `apps/app/src/app/code/execute-js.ts`                                                              |
-| Trace recording (steps and calls)              | `apps/app/src/app/code/trace-recorder.ts`                                                          |
-| Statement-level instrumentation                | `apps/app/src/app/code/instrument.ts` (acorn + astring)                                            |
-| Trace → visualizer frames                      | `apps/app/src/app/code/trace-frames.ts`, with `tree-frames.ts` for trees                           |
-| Grids, call stack and notes of a trace         | `apps/app/src/app/code/grid-frames.ts`, `call-stack.ts`, `trace-notes.ts`                          |
-| Time limits and worker lifecycle               | `apps/app/src/app/code/runner.service.ts`                                                          |
-| Editor                                         | `apps/app/src/app/code/code-editor.component.ts` (CodeMirror 6)                                    |
-| Workspace UI                                   | `apps/app/src/app/pages/code/`                                                                     |
+| Piece                                          | Where                                                                                                  |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Problem catalog (ids, titles, order)           | `libs/engine/src/coding/catalog.ts`                                                                    |
+| Problem definitions                            | `libs/engine/src/coding/problems/` (grouped by track and input family, indexed in `problems/index.ts`) |
+| Suites, comparison, Python prelude and harness | `libs/engine/src/coding/suite.ts`                                                                      |
+| Tree inputs                                    | `libs/engine/src/coding/tree.ts`                                                                       |
+| Worker (runs code, traces JS/TS)               | `apps/app/src/app/code/runner.worker.ts`                                                               |
+| JS/TS compile, run and trace                   | `apps/app/src/app/code/execute-js.ts`                                                                  |
+| Trace recording (steps and calls)              | `apps/app/src/app/code/trace-recorder.ts`                                                              |
+| Statement-level instrumentation                | `apps/app/src/app/code/instrument.ts` (acorn + astring)                                                |
+| Trace → visualizer frames                      | `apps/app/src/app/code/trace-frames.ts`, with `tree-frames.ts` for trees                               |
+| Grids, call stack and notes of a trace         | `apps/app/src/app/code/grid-frames.ts`, `call-stack.ts`, `trace-notes.ts`                              |
+| Time limits and worker lifecycle               | `apps/app/src/app/code/runner.service.ts`                                                              |
+| Editor                                         | `apps/app/src/app/code/code-editor.component.ts` (CodeMirror 6)                                        |
+| Workspace UI                                   | `apps/app/src/app/pages/code/`                                                                         |
 
 A problem is split in two. The catalog holds what lists, links, route titles and progress need: the id, title, difficulty, patterns and visualizer, in the order the code list shows them. See [Adding content](../README.md#adding-content) for what a catalog may import. The definition (statement, parameters, cases, generators and reference `solve`) loads with the workspace page. `problems/index.ts` maps every catalog id to its definition, so a missing or misspelled id fails the type check.
 
@@ -29,9 +29,9 @@ A problem is split in two. The catalog holds what lists, links, route titles and
 - the examples
 - hand-picked edge cases
 - 20 seeded random cases
-- one **performance case**: a large input sized so that the intended complexity finishes in milliseconds while a quadratic or exponential approach cannot finish within the time limit
+- one **performance case**: a large input that the reference solves quickly and that rejects measured slower approaches
 
-Expected values always come from the problem's reference `solve`, so the tests and the reference can't drift apart. The engine tests prove each reference against a brute-force solution on every small case. They also run a CPython reference solution through the same Python prelude and harness the browser uses and check that its output matches. For the problems listed in `SLOWER` (`coding.spec.ts`), the engine tests also count the steps a named slower approach needs on the performance case, which proves without timing anything that it cannot finish within the limit.
+Expected values always come from the problem's reference `solve`, so the tests and the reference can't drift apart. The engine tests prove each reference against a brute-force solution on every small case. They also run a CPython reference solution through the same Python prelude and harness the browser uses and check that its output matches. For the problems listed in `SLOWER` (`coding-slower.fixture.ts`), `coding.spec.ts` counts a named slower approach's work at seeds 1 and 3. Most cases require over 4 billion steps; `SLOWER_MIN_STEPS` records calibrated lower bars for heavier work, and `SLOWER_VARIANTS` checks additional approaches. `coding-quality.spec.ts` confirms that the app's seed-1 hidden cases reject named wrong solutions before the performance case.
 
 Answers are compared exactly, as unordered lists where the problem allows any order (`compare: 'unordered'`), or as lists of lists where neither level's order matters (`compare: 'unordered-nested'`, for Subsets).
 
@@ -41,7 +41,7 @@ A `tree` parameter travels as LeetCode's level order: `[1,2,null,3]` is 1 with l
 
 The entry function receives linked `TreeNode`s (`val`, `left`, `right`) built right before each call: by `entryArgs` for the reference `solve` and for JS/TS in the worker, and by the Python harness for Python.
 
-Python submissions run after a small prelude that defines `TreeNode` and `Optional`. It has to come first: before Python 3.14, an annotation such as `Optional[TreeNode]` is evaluated when the function is defined. Trees are built from the class the prelude captured, so a learner's own `TreeNode` cannot change how inputs are built. The prelude runs as its own file, so the learner's line numbers and traceback trimming are unchanged.
+Python submissions run after a small prelude that defines `TreeNode` and `Optional` and raises the recursion limit to 10,000. It has to come first: before Python 3.14, an annotation such as `Optional[TreeNode]` is evaluated when the function is defined. Trees are built from the class the prelude captured, so a learner's own `TreeNode` cannot change how inputs are built. The prelude runs as its own file, so the learner's line numbers and traceback trimming are unchanged. Deep recursion through `functools.cache` or `lru_cache` can still crash Pyodide; the workspace directs learners to a dict memo or a bottom-up table when that happens.
 
 Trees are inputs only: no problem returns one, and the `returns` type excludes it.
 

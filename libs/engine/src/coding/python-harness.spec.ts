@@ -11,6 +11,16 @@ import type { LevelOrder } from './tree.js';
 const hasPython = spawnSync('python3', ['--version']).status === 0;
 
 describe.runIf(hasPython)('Python harness (CPython)', () => {
+  it('allows plain recursive solutions deeper than Python defaults to', () => {
+    const script = `${PYTHON_PRELUDE}
+def descend(n):
+    return 0 if n == 0 else 1 + descend(n - 1)
+print(descend(3000))`;
+    const run = spawnSync('python3', ['-c', script], { encoding: 'utf8' });
+    expect(run.stderr).toBe('');
+    expect(run.stdout.trim()).toBe('3000');
+  });
+
   it.each(CODING_PROBLEMS.map((p) => [p.id, p] as const))('%s: the Python reference passes the full suite', (_id, problem) => {
     const suite = buildSuite(problem, { seed: 9 });
     const script = `${PYTHON_PRELUDE}\n${PYTHON_REFERENCE[problem.id]}\n${pythonHarness(entryName(problem, 'python'), paramTypes(problem))}

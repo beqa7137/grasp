@@ -10,6 +10,7 @@ import { problemsForPattern } from './catalog.js';
 import { CODING_PROBLEMS, getCodingProblem } from './problems/index.js';
 import { randomTree } from './problems/inputs.js';
 import { PYTHON_REFERENCE } from './python-reference.fixture.js';
+import { nodesOf, SLOWER, SLOWER_MIN_STEPS, SLOWER_VARIANTS } from './coding-slower.fixture.js';
 import {
   buildSuite,
   entryArgs,
@@ -24,18 +25,6 @@ import {
 } from './suite.js';
 import { TreeNode, buildTree, levelOrder, type LevelOrder } from './tree.js';
 import { LANGUAGES, type TestCase } from './types.js';
-
-function nodesOf(root: TreeNode | null) {
-  const nodes = root ? [root] : [];
-  const parent = new Map<TreeNode, TreeNode>();
-  for (let i = 0; i < nodes.length; i++)
-    for (const child of [nodes[i].left, nodes[i].right])
-      if (child) {
-        parent.set(child, nodes[i]);
-        nodes.push(child);
-      }
-  return { nodes, parent };
-}
 
 const height = (node: TreeNode | null): number => (node ? 1 + Math.max(height(node.left), height(node.right)) : 0);
 
@@ -84,6 +73,17 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
       const j = t.findIndex((y, k) => k > i && y > x);
       return j === -1 ? 0 : j - i;
     }),
+  'largest-rectangle-in-histogram': (heights: number[]) => {
+    let best = 0;
+    for (let left = 0; left < heights.length; left++) {
+      let shortest = Infinity;
+      for (let right = left; right < heights.length; right++) {
+        shortest = Math.min(shortest, heights[right]);
+        best = Math.max(best, shortest * (right - left + 1));
+      }
+    }
+    return best;
+  },
   'subarray-sum-k': (nums: number[], k: number) => {
     let count = 0;
     for (let i = 0; i < nums.length; i++) {
@@ -92,6 +92,8 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     }
     return count;
   },
+  'product-of-array-except-self': (nums: number[]) =>
+    nums.map((_, excluded) => nums.reduce((product, value, i) => (i === excluded ? product : product * value), 1)),
   'number-of-islands': (grid: string[][]) => {
     const g = grid.map((r) => [...r]);
     const sink = (r: number, c: number): void => {
@@ -136,6 +138,14 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     }
     return list.sort((a, b) => a[0] - b[0]);
   },
+  'non-overlapping-intervals': (intervals: number[][]) => {
+    let kept = 0;
+    for (let mask = 0; mask < 2 ** intervals.length; mask++) {
+      const chosen = intervals.filter((_, i) => mask & (1 << i)).sort((a, b) => a[0] - b[0]);
+      if (chosen.every(([start], i) => i === 0 || chosen[i - 1][1] <= start)) kept = Math.max(kept, chosen.length);
+    }
+    return intervals.length - kept;
+  },
   'top-k-frequent': (nums: number[], k: number) => {
     const counts = new Map<number, number>();
     nums.forEach((x) => counts.set(x, (counts.get(x) ?? 0) + 1));
@@ -168,6 +178,15 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     };
     const inB = subsequences(b);
     return Math.max(...[...subsequences(a)].filter((s) => inB.has(s)).map((s) => s.length));
+  },
+  'edit-distance': (a: string, b: string) => {
+    const distance = (i: number, j: number): number => {
+      if (i === a.length) return b.length - j;
+      if (j === b.length) return a.length - i;
+      if (a[i] === b[j]) return distance(i + 1, j + 1);
+      return 1 + Math.min(distance(i + 1, j), distance(i, j + 1), distance(i + 1, j + 1));
+    };
+    return distance(0, 0);
   },
   'count-components': (n: number, edges: number[][]) => {
     const seen = new Set<number>();
@@ -215,6 +234,27 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     };
     return !prerequisites.some(([a, b]) => reaches(a, b, new Set()));
   },
+  'parallel-courses': (n: number, relations: number[][]) => {
+    const prerequisites = Array.from({ length: n }, () => new Set<number>());
+    for (const [before, after] of relations) prerequisites[after - 1].add(before - 1);
+    const full = (1 << n) - 1;
+    const fewest = (completed: number): number => {
+      if (completed === full) return 0;
+      const available = Array.from({ length: n }, (_, i) => i).filter(
+        (course) => !(completed & (1 << course)) && [...prerequisites[course]].every((before) => completed & (1 << before)),
+      );
+      if (!available.length) return Infinity;
+      let best = Infinity;
+      for (let subset = 1; subset < 1 << available.length; subset++) {
+        let next = completed;
+        for (let i = 0; i < available.length; i++) if (subset & (1 << i)) next |= 1 << available[i];
+        best = Math.min(best, 1 + fewest(next));
+      }
+      return best;
+    };
+    const answer = fewest(0);
+    return answer === Infinity ? -1 : answer;
+  },
   'network-delay': (times: number[][], n: number, k: number) => {
     const dist = Array<number>(n + 1).fill(Infinity);
     dist[k] = 0;
@@ -222,8 +262,53 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     const worst = Math.max(...dist.slice(1));
     return worst === Infinity ? -1 : worst;
   },
+  'path-with-minimum-effort': (heights: number[][]) => {
+    const rows = heights.length;
+    const cols = heights[0].length;
+    const costs = new Set([0]);
+    for (let r = 0; r < rows; r++)
+      for (let c = 0; c < cols; c++) {
+        if (r + 1 < rows) costs.add(Math.abs(heights[r][c] - heights[r + 1][c]));
+        if (c + 1 < cols) costs.add(Math.abs(heights[r][c] - heights[r][c + 1]));
+      }
+    for (const limit of [...costs].sort((a, b) => a - b)) {
+      const seen = new Set([0]);
+      for (const cell of seen) {
+        const r = Math.floor(cell / cols);
+        const c = cell % cols;
+        for (const [y, x] of [
+          [r - 1, c],
+          [r + 1, c],
+          [r, c - 1],
+          [r, c + 1],
+        ])
+          if (y >= 0 && y < rows && x >= 0 && x < cols && Math.abs(heights[r][c] - heights[y][x]) <= limit) seen.add(y * cols + x);
+      }
+      if (seen.has(rows * cols - 1)) return limit;
+    }
+    return 0;
+  },
   'count-prefixes': (words: string[], prefixes: string[]) => prefixes.map((p) => words.filter((w) => w.startsWith(p)).length),
+  'replace-words': (dictionary: string[], sentence: string) =>
+    sentence
+      .split(' ')
+      .map((word) => dictionary.filter((root) => word.startsWith(root)).sort((a, b) => a.length - b.length)[0] ?? word)
+      .join(' '),
   'find-duplicate': (nums: number[]) => nums.find((x, i) => nums.indexOf(x) !== i),
+  'circular-array-loop': (nums: number[]) => {
+    const n = nums.length;
+    for (let start = 0; start < n; start++) {
+      const direction = Math.sign(nums[start]);
+      const seen = new Map<number, number>();
+      let at = start;
+      while (Math.sign(nums[at]) === direction && !seen.has(at)) {
+        seen.set(at, seen.size);
+        at = (((at + nums[at]) % n) + n) % n;
+      }
+      if (Math.sign(nums[at]) === direction && seen.has(at) && seen.size - seen.get(at)! > 1) return true;
+    }
+    return false;
+  },
   'tree-diameter': (root: TreeNode | null) => {
     const { nodes, parent } = nodesOf(root);
     let best = 0;
@@ -261,111 +346,11 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
 };
 
 /**
- * Steps a slower approach needs on the performance case. Past 4·10^9 it cannot finish within the 2 s limit however
- * its loops are written (the fastest quadratic variant measured, a native `indexOf` scan, still took over 5 s).
- */
-const SLOWER: Record<string, (...args: any[]) => number> = {
-  // From the back, trying each jump from an index until one lands where the end is reachable.
-  'jump-game': (nums: number[]) => {
-    const last = nums.length - 1;
-    let nearestGood = last;
-    let steps = 0;
-    for (let i = last - 1; i >= 0; i--) {
-      const far = Math.min(i + nums[i], last);
-      steps += Math.min(nearestGood, far) - i;
-      if (nearestGood <= far) nearestGood = i;
-    }
-    return steps;
-  },
-  // Growing a window from every start until its sum reaches the target.
-  'min-size-subarray-sum': (target: number, nums: number[]) => {
-    let steps = 0;
-    let sum = 0;
-    for (let lo = 0, hi = 0; lo < nums.length; lo++) {
-      while (hi < nums.length && sum < target) sum += nums[hi++];
-      steps += (sum >= target ? hi : nums.length) - lo;
-      sum -= nums[lo];
-    }
-    return steps;
-  },
-  // Scanning the whole grid once a minute for fresh oranges next to rotten ones.
-  'rotting-oranges': (grid: number[][]) =>
-    ((getCodingProblem('rotting-oranges')!.solve(grid) as number) + 1) * grid.length * grid[0].length,
-  // Extending every subset found so far by the next number, and looking through the list for a copy before adding one.
-  subsets: (nums: number[]) => {
-    let steps = 0;
-    for (let found = 1; found < 2 ** nums.length; found *= 2) steps += found * found + (found * (found - 1)) / 2;
-    return steps;
-  },
-  // Recursing on every coin without a memo.
-  'coin-change': (coins: number[], amount: number) => {
-    const calls = [1];
-    for (let a = 1; a <= amount; a++) calls.push(Math.min(1e12, 1 + coins.reduce((sum, c) => sum + (c <= a ? calls[a - c] : 0), 0)));
-    return calls[amount];
-  },
-  // Searching the graph built so far from one end of each edge for the other, which visits that end's whole component,
-  // always from the first end or always from the second.
-  'redundant-connection': (edges: number[][]) => {
-    const parent = rangeOf(0, edges.length);
-    const size = parent.map(() => 1);
-    const find = (x: number): number => {
-      while (parent[x] !== x) x = parent[x] = parent[parent[x]];
-      return x;
-    };
-    let fromFirst = 0;
-    let fromSecond = 0;
-    for (const [a, b] of edges) {
-      const [ra, rb] = [find(a), find(b)];
-      if (ra === rb) break;
-      fromFirst += size[ra];
-      fromSecond += size[rb];
-      parent[ra] = rb;
-      size[rb] += size[ra];
-    }
-    return Math.min(fromFirst, fromSecond);
-  },
-  // Nested loops stop at a copy of the duplicate, and both copies sit mid-array, so scanning from either end is quadratic.
-  'find-duplicate': (nums: number[]) => {
-    const firstAt = new Map<number, number>();
-    for (const [i, x] of nums.entries()) {
-      const first = firstAt.get(x);
-      if (first !== undefined) return Math.min(first, nums.length - 1 - i) ** 2 / 2;
-      firstAt.set(x, i);
-    }
-    return 0;
-  },
-  // Searching for each value's partner, from the front or from the back, until the single value comes up.
-  'single-number': (nums: number[]) => {
-    const at = new Map<number, number[]>();
-    nums.forEach((x, i) => at.set(x, [...(at.get(x) ?? []), i]));
-    const single = nums.findIndex((x) => at.get(x)!.length === 1);
-    const partner = (i: number) => at.get(nums[i])!.find((j) => j !== i)!;
-    const fromFront = rangeOf(0, single - 1).reduce((steps, i) => steps + partner(i) + 1, 0);
-    const fromBack = rangeOf(single + 1, nums.length - 1).reduce((steps, i) => steps + nums.length - partner(i), 0);
-    return Math.min(fromFront, fromBack);
-  },
-  'total-hamming-distance': (nums: number[]) => (nums.length * (nums.length - 1)) / 2,
-  // A breadth-first search from every node.
-  'tree-diameter': (root: TreeNode | null) => nodesOf(root).nodes.length ** 2,
-  // Recursing into children and grandchildren without a memo evaluates a node once per way down to it in steps of one and two levels.
-  'house-robber-tree': (root: TreeNode | null) => {
-    const calls = new Map<TreeNode, number>(root ? [[root, 1]] : []);
-    let steps = 0;
-    for (const [node, count] of calls) {
-      steps += count;
-      for (const below of [node.left, node.right, node.left?.left, node.left?.right, node.right?.left, node.right?.right])
-        if (below) calls.set(below, (calls.get(below) ?? 0) + count);
-    }
-    return steps;
-  },
-};
-
-/**
- * What a performance case stresses when its input is small: the table the reference fills, or the answer it builds. Two
- * 1,500-letter strings are only ~3 KB, but their LCS table has 2.25 million cells.
+ * What a performance case stresses when its input is small: the table the reference fills or the answer it builds.
  */
 const PERFORMANCE_LOAD: Record<string, (test: TestCase) => number> = {
   'longest-common-subsequence': ({ args: [a, b] }) => (a as string).length * (b as string).length,
+  'edit-distance': ({ args: [a, b] }) => (a as string).length * (b as string).length,
   'coin-change': ({ args: [coins, amount] }) => (coins as number[]).length * (amount as number),
   subsets: ({ expected }) => (expected as unknown[]).length,
 };
@@ -412,15 +397,28 @@ describe('coding problems', () => {
     expect(load).toBeGreaterThan(10_000);
   });
 
-  it('give every pattern at least one problem', () => {
-    expect(PATTERNS.filter((p) => !problemsForPattern(p.id).length).map((p) => p.id)).toEqual([]);
+  it('gives every pattern at least two problems', () => {
+    expect(PATTERNS.filter((p) => problemsForPattern(p.id).length < 2).map((p) => p.id)).toEqual([]);
   });
 
   it.each(Object.keys(SLOWER))('%s: the performance case is out of reach for the slower approach', (id) => {
     const problem = getCodingProblem(id)!;
     for (const seed of [1, 3]) {
       const [perf] = buildSuite(problem, { seed }).filter((t) => t.kind === 'performance');
-      expect(SLOWER[id](...entryArgs(paramTypes(problem), perf.args))).toBeGreaterThan(4e9);
+      const args = entryArgs(paramTypes(problem), perf.args);
+      // The expected value is available to counters that need the reference answer.
+      expect(SLOWER[id](...args, perf.expected), `${id}, seed ${seed}`).toBeGreaterThan(SLOWER_MIN_STEPS[id] ?? 4e9);
+      for (const [name, steps] of Object.entries(SLOWER_VARIANTS[id] ?? {}))
+        expect(steps(...args, perf.expected), `${id}: ${name}, seed ${seed}`).toBeGreaterThan(4e9);
+    }
+  });
+
+  it('caps Parallel Courses prerequisite depth for recursive solutions in performance cases', () => {
+    const problem = getCodingProblem('parallel-courses')!;
+    for (const seed of [1, 3]) {
+      const [performanceCase] = buildSuite(problem, { seed }).filter((test) => test.kind === 'performance');
+      expect(performanceCase.expected).toBe(37);
+      expect((performanceCase.args[1] as number[][]).length).toBeLessThanOrEqual(200_000);
     }
   });
 
@@ -551,8 +549,26 @@ describe('inputSize', () => {
     expect(inputSize('tree', [1, null, 2, 3])).toBe('3 nodes');
     expect(inputSize('tree', randomTree(mulberry32(1), 100_000, 0, 9))).toBe('100,000 nodes');
     expect(inputSize('int[]', [7])).toBe('1 item');
-    expect(inputSize('string', 'abcde')).toBe('5 items');
+    expect(inputSize('string', 'abcde')).toBe('5 characters');
     expect(inputSize('char[][]', [['1'], ['0']])).toBe('2 items');
+    expect(
+      inputSize(
+        'char[][]',
+        Array.from({ length: 300 }, () => Array<string>(300).fill('0')),
+      ),
+    ).toBe('300 × 300 grid');
+    expect(
+      inputSize(
+        'int[][]',
+        Array.from({ length: 400 }, () => Array<number>(400).fill(0)),
+      ),
+    ).toBe('400 × 400 grid');
+    expect(
+      inputSize('int[][]', [
+        [1, 2],
+        [3, 4],
+      ]),
+    ).toBe('2 items');
     expect(inputSize('int', 5)).toBeNull();
     expect(inputSize('bool', true)).toBeNull();
   });
