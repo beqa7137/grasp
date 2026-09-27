@@ -21,10 +21,11 @@ const laptop = '22222222-2222-4222-8222-222222222222';
 
 function setup() {
   const state = new MemoryLearnerState();
+  const progress = new MemoryProgressStore(state);
   const stores = {
     auth: new MemoryAuthStore(state),
-    progress: new MemoryProgressStore(state),
-    interviews: new MemoryInterviewStore(state),
+    progress,
+    interviews: new MemoryInterviewStore(state, progress),
     feedback: new MemoryFeedbackStore(state),
   };
   const erasure = new MemoryErasureStore(state, stores.progress, stores.interviews, stores.feedback, stores.auth);

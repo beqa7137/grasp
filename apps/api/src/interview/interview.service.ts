@@ -15,7 +15,7 @@ import type { AccessClaims } from '../auth/tokens.js';
 import { APP_CONFIG, type AppConfig } from '../config.js';
 import { safeErrorDetails } from '../observability/safe-error.js';
 import { ErasureStore } from '../persistence/erasure.stores.js';
-import { AuthStore, CoordinationStore, InterviewStore, ProgressStore } from '../persistence/stores.js';
+import { AuthStore, CoordinationStore, InterviewStore } from '../persistence/stores.js';
 import { Interviewer } from './interviewer.js';
 import type {
   AiAccess,
@@ -37,7 +37,6 @@ const HOUR_MS = 3_600_000;
  */
 const SESSION_LEASE_MS = 15 * 60_000;
 
-export const interviewEventId = (sessionId: string) => `interview-${sessionId}`;
 const MAX_CANDIDATE_TURNS = 30;
 
 @Injectable()
@@ -46,7 +45,6 @@ export class InterviewService {
 
   constructor(
     private readonly store: InterviewStore,
-    private readonly progress: ProgressStore,
     private readonly interviewer: Interviewer,
     private readonly offline: OfflineInterviewer,
     private readonly coordination: CoordinationStore,
@@ -150,7 +148,9 @@ export class InterviewService {
   async score(learnerId: string, id: string, claims?: AccessClaims): Promise<PublicInterviewSession> {
     return this.exclusive(id, async () => {
       const session = await this.load(learnerId, id);
-      if (session.scorecard) return this.toPublic(session, claims?.userId);
+      if (session.scorecard || session.status === 'scored') {
+        return this.toPublic(await this.store.completeScore(session), claims?.userId);
+      }
       const interviewer = await this.interviewerFor(session.mode ?? 'offline', claims);
       await this.consumeQuota(learnerId);
       const result = await interviewer.score(session);
@@ -159,20 +159,7 @@ export class InterviewService {
       session.scorecard = result.scorecard;
       session.status = 'scored';
       session.scoredAt = new Date().toISOString();
-      await this.store.save(session);
-      // Weak patterns feed the learner's review schedule. The id is deterministic so the client's copy dedupes.
-      await this.progress.append(learnerId, [
-        {
-          id: interviewEventId(session.id),
-          at: session.scoredAt,
-          type: 'interview.scored',
-          sessionId: session.id,
-          track: session.track,
-          verdict: session.scorecard.verdict,
-          weakPatterns: session.scorecard.weakPatterns,
-        },
-      ]);
-      return this.toPublic(session, claims?.userId);
+      return this.toPublic(await this.store.completeScore(session), claims?.userId);
     });
   }
 
