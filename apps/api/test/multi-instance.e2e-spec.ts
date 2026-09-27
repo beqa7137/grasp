@@ -2,6 +2,7 @@ import request from 'supertest';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { ClaudeInterviewer } from '../src/interview/claude.interviewer.js';
 import { Interviewer } from '../src/interview/interviewer.js';
+import { CoordinationStore } from '../src/persistence/stores.js';
 import { SpendGuard } from '../src/interview/spend-guard.js';
 import { createTestApp } from './support/app.js';
 import { resetDatabase } from './support/database.js';
@@ -27,9 +28,13 @@ describe.runIf(testDatabaseUrl)('Several API instances sharing Postgres', () => 
         TRUST_PROXY: '1',
         RATE_LIMIT_PER_MINUTE: '6',
         INTERVIEW_MESSAGES_PER_HOUR: '3',
-        AI_DAILY_BUDGET_USD: '1',
+        AI_DAILY_BUDGET_USD: '10',
       },
-      (builder) => builder.overrideProvider(Interviewer).useValue(new ClaudeInterviewer(client, { model: 'claude-sonnet-5' })),
+      (builder) =>
+        builder.overrideProvider(Interviewer).useFactory({
+          factory: (spend: SpendGuard) => new ClaudeInterviewer(client, { model: 'claude-sonnet-5' }, spend),
+          inject: [SpendGuard],
+        }),
     );
   };
 
@@ -103,9 +108,9 @@ describe.runIf(testDatabaseUrl)('Several API instances sharing Postgres', () => 
     await resetDatabase(testDatabaseUrl!);
     const client = ip();
     const session = await startInterview(client);
-    await a.get(SpendGuard).record(1.5);
+    await a.get(CoordinationStore).add('ai-spend-usd', 86_400_000, 15);
     const res = await on(b, client).post(`/api/interview/sessions/${session.id}/messages`).send({ content: 'Hello?' }).expect(503);
     expect(res.body.message).toMatch(/usage limit/);
-    expect(await b.get(SpendGuard).spentToday()).toBeCloseTo(1.5);
+    expect(await b.get(SpendGuard).spentToday()).toBeCloseTo(15);
   });
 });

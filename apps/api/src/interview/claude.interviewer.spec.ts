@@ -5,6 +5,8 @@ import { ClaudeInterviewer, FALLBACK_SCORE_SUMMARY, REDIRECT_REPLY } from './cla
 import type { InterviewSession, InterviewTrack } from './interview.types.js';
 import { PROBLEMS } from './problems.js';
 import { RUBRICS } from './prompts.js';
+import { maximumCostUsd } from './pricing.js';
+import type { SpendGuard } from './spend-guard.js';
 
 const MODEL = 'claude-sonnet-5';
 
@@ -25,9 +27,13 @@ function session(track: InterviewTrack = 'coding', said: { content: string; hint
   };
 }
 
-function setup(respond: (body: Record<string, any>, index: number) => FakeResponse, maxRetries = 0) {
+function setup(respond: (body: Record<string, any>, index: number) => FakeResponse, maxRetries = 0, model = MODEL) {
   const fake = fakeAnthropic(respond, { maxRetries });
-  return { ...fake, interviewer: new ClaudeInterviewer(fake.client, { model: MODEL }) };
+  const spend = {
+    reserve: vi.fn(async (maximum: number) => ({ id: crypto.randomUUID(), maximum })),
+    settle: vi.fn(async (_reservation: unknown, _cost: number | null) => {}),
+  };
+  return { ...fake, spend, interviewer: new ClaudeInterviewer(fake.client, { model }, spend as unknown as SpendGuard) };
 }
 
 const signal = () => new AbortController().signal;
@@ -88,7 +94,8 @@ describe('ClaudeInterviewer.reply', () => {
       model: MODEL,
       stream: true,
       max_tokens: 2048,
-      cache_control: { type: 'ephemeral' },
+      cache_control: { type: 'ephemeral', ttl: '5m' },
+      service_tier: 'standard_only',
       output_config: { effort: 'low' },
     });
     expect(req.body['system']).toContain(s.problem.referenceNotes);
@@ -169,8 +176,8 @@ describe('ClaudeInterviewer.reply', () => {
     expect((error as Error).message).not.toMatch(/x-api-key|model: nope/);
   });
 
-  it('lets the SDK retry transient failures before giving up', async () => {
-    const { interviewer, requests } = setup(
+  it('reserves each retry before dispatch, refunds provider errors, and disables hidden SDK retries', async () => {
+    const { interviewer, requests, spend } = setup(
       (_body, i) =>
         i === 0
           ? { status: 529, error: { type: 'overloaded_error', message: 'Overloaded' }, headers: { 'retry-after-ms': '1' } }
@@ -180,6 +187,164 @@ describe('ClaudeInterviewer.reply', () => {
     const result = await interviewer.reply(session('coding', [{ content: 'hi' }]), () => {}, signal());
     expect(result.text).toBe('Back.');
     expect(requests).toHaveLength(2);
+    expect(spend.reserve.mock.calls).toEqual([[maximumCostUsd(MODEL, 2048, true)], [maximumCostUsd(MODEL, 2048, true)]]);
+    expect(spend.settle.mock.calls.map(([, cost]) => cost)).toEqual([0, 0.0024]);
+    expect(requests.map((request) => request.headers['x-stainless-retry-count'])).toEqual(['0', '0']);
+    expect(requests.every((request) => request.url.endsWith('/v1/messages'))).toBe(true);
+  });
+
+  it('retains a lost attempt while reserving its successful retry separately', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(1);
+    const { interviewer, spend, requests } = setup(
+      (_body, index) => (index === 0 ? { networkError: true } : { stream: ['Recovered.'] }),
+      1,
+    );
+    await interviewer.reply(session(), () => {}, signal());
+    expect(requests).toHaveLength(2);
+    expect(spend.settle.mock.calls.map(([, cost]) => cost)).toEqual([null, 0.0024]);
+    expect(spend.reserve).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not dispatch a retry when its reservation fails', async () => {
+    const { interviewer, spend, requests } = setup(
+      () => ({
+        status: 529,
+        error: { type: 'overloaded_error', message: 'busy' },
+        headers: { 'retry-after-ms': '1' },
+      }),
+      2,
+    );
+    spend.reserve.mockRejectedValueOnce(new ServiceUnavailableException('Budget unavailable.'));
+    await expect(interviewer.reply(session(), () => {}, signal())).rejects.toBeInstanceOf(ServiceUnavailableException);
+    expect(requests).toHaveLength(0);
+    spend.reserve
+      .mockResolvedValueOnce({ id: crypto.randomUUID(), maximum: 3 })
+      .mockRejectedValueOnce(new ServiceUnavailableException('Budget unavailable.'));
+    await expect(interviewer.reply(session(), () => {}, signal())).rejects.toBeInstanceOf(ServiceUnavailableException);
+    expect(requests).toHaveLength(1);
+    expect(spend.settle.mock.calls.map(([, cost]) => cost)).toEqual([0]);
+  });
+
+  it.each([
+    { stream: ['partial'], errorAfter: { type: 'overloaded_error', message: 'busy' } },
+    { stream: ['partial'], incomplete: true },
+  ])('retains interrupted streams without retrying them', async (response) => {
+    const { interviewer, spend, requests } = setup(() => response, 2);
+    await expect(interviewer.reply(session(), () => {}, signal())).rejects.toThrow();
+    expect(requests).toHaveLength(1);
+    expect(spend.settle.mock.calls.map(([, cost]) => cost)).toEqual([null]);
+  });
+
+  it('cancels before reservation or dispatch without leaving a paid hold', async () => {
+    const { interviewer, spend, requests } = setup(() => ({ stream: ['unused'] }));
+    const before = new AbortController();
+    before.abort();
+    await expect(interviewer.reply(session(), () => {}, before.signal)).rejects.toBeInstanceOf(Anthropic.APIUserAbortError);
+    expect(spend.reserve).not.toHaveBeenCalled();
+    const during = new AbortController();
+    spend.reserve.mockImplementationOnce(async (maximum) => {
+      during.abort();
+      return { id: crypto.randomUUID(), maximum };
+    });
+    await expect(interviewer.reply(session(), () => {}, during.signal)).rejects.toBeInstanceOf(Anthropic.APIUserAbortError);
+    expect(requests).toHaveLength(0);
+    expect(spend.settle.mock.calls.map(([, cost]) => cost)).toEqual([0]);
+  });
+
+  it('prices the actual geography without overriding workspace residency', async () => {
+    const { interviewer, spend, requests } = setup(() => ({ stream: ['Ready.'], usage: { inference_geo: 'us' } }));
+    const result = await interviewer.reply(session(), () => {}, signal());
+    expect(result.usage?.costUsd).toBeCloseTo(0.00264, 10);
+    expect(spend.settle.mock.calls[0][1]).toBeCloseTo(0.00264, 10);
+    expect(requests[0].body).not.toHaveProperty('inference_geo');
+  });
+
+  it.each([
+    { usage: { inference_geo: null } },
+    { usage: { inference_geo: 'unknown' } },
+    { usage: { service_tier: 'priority' as const } },
+    { usage: { input_tokens: -1 } },
+    { usage: { output_tokens: 2049 } },
+    { usage: { cache_creation_input_tokens: 1, cache_creation: { ephemeral_1h_input_tokens: 1, ephemeral_5m_input_tokens: 0 } } },
+    { usage: { server_tool_use: { web_search_requests: 1, web_fetch_requests: 0 } } },
+    { usage: { unknown_billable_feature: 1 } },
+    { model: 'claude-opus-5-5' },
+  ])('keeps the full hold for unverified final billing metadata: %j', async (metadata) => {
+    const { interviewer, spend } = setup(() => ({ stream: ['A useful reply.'], ...metadata }));
+    const result = await interviewer.reply(session(), () => {}, signal());
+    expect(result.text).toBe('A useful reply.');
+    expect(result.usage?.costUsd).toBeNull();
+    expect(spend.settle.mock.calls.map(([, cost]) => cost)).toEqual([null]);
+  });
+
+  it.each([
+    { unknown_billable_feature: 1 },
+    { inference_geo: 'us' },
+    { service_tier: 'priority' as const },
+    { speed: 'fast' },
+    { cache_creation: { ephemeral_5m_input_tokens: 0, ephemeral_1h_input_tokens: 1000 } },
+  ])('retains billing metadata the SDK discards from late stream deltas: %j', async (delta) => {
+    const { interviewer, spend } = setup(() => ({ stream: ['A useful reply.'], usageDeltas: [delta, {}] }));
+    const received: string[] = [];
+    const result = await interviewer.reply(session(), (text) => received.push(text), signal());
+    expect(result.text).toBe('A useful reply.');
+    expect(received.join('')).toBe('A useful reply.');
+    expect(result.usage?.costUsd).toBeNull();
+    expect(spend.settle.mock.calls.map(([, cost]) => cost)).toEqual([null]);
+  });
+
+  it.each([
+    { usageDeltas: [{ output_tokens: 1000 }, { output_tokens: 0 }] },
+    { usageDeltas: [{ input_tokens: 0 }] },
+    { usage: { cache_read_input_tokens: 20 }, usageDeltas: [{ cache_read_input_tokens: 0 }] },
+    { usage: { cache_creation_input_tokens: 20 }, usageDeltas: [{ cache_creation_input_tokens: 0 }] },
+    { usageDeltas: [{ input_tokens: -1 }, { input_tokens: 1000 }] },
+    { usageDeltas: [{ server_tool_use: { web_search_requests: 1, web_fetch_requests: 0 } }, { server_tool_use: null }] },
+    { usageDeltas: [{ output_tokens_details: { thinking_tokens: 41 } }, { output_tokens_details: null }] },
+    { usage: { input_tokens: -1 }, usageDeltas: [{ input_tokens: 1000 }] },
+    {
+      usage: { server_tool_use: { web_search_requests: 1, web_fetch_requests: 0 } },
+      usageDeltas: [{ server_tool_use: { web_search_requests: 0, web_fetch_requests: 0 } }],
+    },
+  ])('retains contradictory billing metadata even when later events overwrite it: %j', async (metadata) => {
+    const { interviewer, spend } = setup(() => ({ stream: ['A useful reply.'], ...metadata }));
+    const result = await interviewer.reply(session(), () => {}, signal());
+    expect(result.text).toBe('A useful reply.');
+    expect(result.usage?.costUsd).toBeNull();
+    expect(spend.settle.mock.calls.map(([, cost]) => cost)).toEqual([null]);
+  });
+
+  it('uses documented cumulative usage fields from the final stream delta', async () => {
+    const { interviewer, spend } = setup(() => ({
+      stream: ['A useful reply.'],
+      usageDeltas: [
+        {
+          input_tokens: 1500,
+          output_tokens: 50,
+          cache_read_input_tokens: 30,
+          cache_creation_input_tokens: 0,
+          server_tool_use: { web_search_requests: 0, web_fetch_requests: 0 },
+          output_tokens_details: { thinking_tokens: 5 },
+        },
+      ],
+    }));
+    const result = await interviewer.reply(session(), () => {}, signal());
+    expect(result.usage).toEqual({ inputTokens: 1500, outputTokens: 50, cacheReadTokens: 30, cacheWriteTokens: 0, costUsd: 0.003506 });
+    expect(spend.settle.mock.calls.map(([, cost]) => cost)).toEqual([0.003506]);
+  });
+
+  it('pins Haiku to its supported snapshot and omits unsupported effort', async () => {
+    const { interviewer, requests, spend } = setup(() => ({ stream: ['Ready.'], usage: { inference_geo: null } }), 0, 'claude-haiku-4-5');
+    const result = await interviewer.reply(session(), () => {}, signal());
+    expect(requests[0].body).toMatchObject({ model: 'claude-haiku-4-5-20251001', service_tier: 'standard_only' });
+    expect(requests[0].body).not.toHaveProperty('output_config');
+    expect(requests[0].body).not.toHaveProperty('inference_geo');
+    expect(result.usage?.costUsd).toBe(0.0012);
+    expect(spend.reserve).toHaveBeenCalledWith(maximumCostUsd('claude-haiku-4-5', 2048, true));
+  });
+
+  it('rejects unverified models before any paid call', () => {
+    expect(() => setup(() => ({ stream: ['unused'] }), 0, 'claude-sonnet-5-20990101')).toThrow('verified pricing');
   });
 
   it.each([
@@ -221,14 +386,41 @@ describe('ClaudeInterviewer.reply', () => {
   });
 
   it('passes client disconnects through as aborts', async () => {
-    const { interviewer } = setup(() => ({ stream: ['one ', 'two ', 'three'], delayMs: 20 }));
+    const { interviewer, spend } = setup(() => ({ stream: ['one ', 'two ', 'three'], delayMs: 20 }));
     const abort = new AbortController();
     const pending = interviewer.reply(session('coding', [{ content: 'hi' }]), () => abort.abort(), abort.signal);
     await expect(pending).rejects.toBeInstanceOf(Anthropic.APIUserAbortError);
+    expect(spend.settle.mock.calls.map(([, cost]) => cost)).toEqual([null]);
   });
 });
 
 describe('ClaudeInterviewer.score', () => {
+  it('settles an invalid scorecard before the next attempt can fail', async () => {
+    const { interviewer, spend, requests } = setup((_body, index) => {
+      if (index === 0) return { text: 'invalid json' };
+      expect(spend.settle.mock.calls.map(([, cost]) => cost)).toEqual([0.0024]);
+      return { networkError: true };
+    });
+    await expect(interviewer.score(session())).rejects.toBeInstanceOf(ServiceUnavailableException);
+    expect(requests).toHaveLength(2);
+    expect(spend.reserve.mock.calls).toEqual([[maximumCostUsd(MODEL, 16000, false)], [maximumCostUsd(MODEL, 16000, false)]]);
+    expect(spend.settle.mock.calls.map(([, cost]) => cost)).toEqual([0.0024, null]);
+  });
+
+  it('keeps a malformed successful response charged conservatively without retrying it', async () => {
+    const { interviewer, requests, spend } = setup(() => ({ malformed: '{not-json' }), 2);
+    await expect(interviewer.score(session())).rejects.toBeInstanceOf(BadGatewayException);
+    expect(requests).toHaveLength(1);
+    expect(spend.settle.mock.calls.map(([, cost]) => cost)).toEqual([null]);
+  });
+
+  it('uses structured outputs without unsupported effort on Haiku', async () => {
+    const { interviewer, requests } = setup(() => ({ text: validCard('coding'), usage: { inference_geo: null } }), 0, 'claude-haiku-4-5');
+    await interviewer.score(session());
+    expect(requests[0].body.output_config).toHaveProperty('format');
+    expect(requests[0].body.output_config).not.toHaveProperty('effort');
+    expect(requests[0].body).not.toHaveProperty('cache_control');
+  });
   it('requests a strict JSON schema that uses only supported keywords', async () => {
     const { interviewer, requests } = setup(() => ({ text: validCard('system-design', { weakPatterns: [] }) }));
     await interviewer.score(session('system-design', [{ content: 'We need 10k QPS.' }]));

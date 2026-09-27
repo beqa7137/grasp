@@ -1,3 +1,6 @@
+import { SpendGuard } from '../../src/interview/spend-guard.js';
+import { MemorySpendStore } from '../../src/persistence/memory-spend.store.js';
+import { MemoryCoordinationStore } from '../../src/persistence/memory.stores.js';
 import Anthropic from '@anthropic-ai/sdk';
 import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -203,7 +206,11 @@ function report() {
 }
 
 describe.runIf(apiKey)(`AI interviewer live eval (${model})`, () => {
-  const interviewer = new ClaudeInterviewer(new Anthropic({ apiKey, maxRetries: 3 }), { model });
+  const interviewer = new ClaudeInterviewer(
+    new Anthropic({ apiKey, maxRetries: 3 }),
+    { model },
+    new SpendGuard(null, new MemorySpendStore(new MemoryCoordinationStore())),
+  );
 
   afterAll(() => {
     if (results.length) report();

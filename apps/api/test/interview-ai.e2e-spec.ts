@@ -35,8 +35,13 @@ describe.each(storages)('AI interviewer over HTTP (%s storage, scripted Claude A
         ? { text: scorecard, usage: { input_tokens: 2500, output_tokens: 600 } }
         : (replies.shift() ?? { stream: ['Okay.'] }),
     );
-    app = await createTestApp({ DATABASE_URL: storage === 'postgres' ? testDatabaseUrl : undefined, AI_DAILY_BUDGET_USD: '5' }, (builder) =>
-      builder.overrideProvider(Interviewer).useValue(new ClaudeInterviewer(client, { model: 'claude-sonnet-5' })),
+    app = await createTestApp(
+      { DATABASE_URL: storage === 'postgres' ? testDatabaseUrl : undefined, AI_DAILY_BUDGET_USD: '100' },
+      (builder) =>
+        builder.overrideProvider(Interviewer).useFactory({
+          factory: (spend: SpendGuard) => new ClaudeInterviewer(client, { model: 'claude-sonnet-5' }, spend),
+          inject: [SpendGuard],
+        }),
     );
   });
 
@@ -170,7 +175,7 @@ describe.each(storages)('AI interviewer over HTTP (%s storage, scripted Claude A
 
   it('pauses the AI interviewer once the daily budget is spent', async () => {
     const session = await start();
-    await app.get(SpendGuard).record(10);
+    await app.get(CoordinationStore).add('ai-spend-usd', 86_400_000, 100);
     const res = await say(session.id, 'Anything else?').expect(503);
     expect(res.body.message).toMatch(/usage limit/);
     await http().post(`/api/interview/sessions/${session.id}/score`).set('x-learner-id', learner).expect(503);

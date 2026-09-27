@@ -8,7 +8,6 @@ import { Interviewer } from './interviewer.js';
 import type { CodeSnapshot, InterviewSession, InterviewTrack, PublicInterviewSession, TokenUsage } from './interview.types.js';
 import { addUsage } from './pricing.js';
 import { PROBLEMS, pickProblem } from './problems.js';
-import { SpendGuard } from './spend-guard.js';
 
 const HOUR_MS = 3_600_000;
 /**
@@ -28,7 +27,6 @@ export class InterviewService {
     private readonly store: InterviewStore,
     private readonly progress: ProgressStore,
     private readonly interviewer: Interviewer,
-    private readonly spend: SpendGuard,
     private readonly coordination: CoordinationStore,
     private readonly erasure: ErasureStore,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
@@ -82,7 +80,6 @@ export class InterviewService {
       if (session.messages.filter((m) => m.role === 'candidate').length >= MAX_CANDIDATE_TURNS) {
         throw new ConflictException('Turn limit reached: end the interview to get your scorecard');
       }
-      await this.spend.assertAvailable();
       await this.consumeQuota(learnerId);
 
       const code = input.code?.source.trim() ? { language: input.code.language, source: input.code.source.replace(/\s+$/, '') } : undefined;
@@ -96,7 +93,7 @@ export class InterviewService {
       if (input.hint) session.hintsUsed += 1;
 
       const reply = await this.interviewer.reply(session, onDelta, signal);
-      await this.track(session, reply.usage ? [reply.usage] : []);
+      this.track(session, reply.usage ? [reply.usage] : []);
       await this.erasure.assertActive(learnerId);
       const message = { role: 'interviewer' as const, content: reply.text, at: new Date().toISOString() };
       session.messages.push(message);
@@ -109,10 +106,9 @@ export class InterviewService {
     return this.exclusive(id, async () => {
       const session = await this.load(learnerId, id);
       if (session.scorecard) return this.toPublic(session);
-      await this.spend.assertAvailable();
       await this.consumeQuota(learnerId);
       const result = await this.interviewer.score(session);
-      await this.track(session, result.usage ?? []);
+      this.track(session, result.usage ?? []);
       await this.erasure.assertActive(learnerId);
       session.scorecard = result.scorecard;
       session.status = 'scored';
@@ -150,10 +146,9 @@ export class InterviewService {
     }
   }
 
-  private async track(session: InterviewSession, usage: TokenUsage[]) {
+  private track(session: InterviewSession, usage: TokenUsage[]) {
     for (const u of usage) {
       session.usage = addUsage(session.usage, u);
-      await this.spend.record(u.costUsd);
     }
   }
 
