@@ -1,16 +1,8 @@
-import {
-  type CanActivate,
-  type ExecutionContext,
-  HttpException,
-  HttpStatus,
-  Inject,
-  Injectable,
-  Logger,
-  SetMetadata,
-} from '@nestjs/common';
+import { type CanActivate, type ExecutionContext, Inject, Injectable, Logger, SetMetadata } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Request, Response } from 'express';
 import { tokenInvalid } from '../auth/auth-errors.js';
+import { hashToken } from '../auth/tokens.js';
 import { APP_CONFIG, type AppConfig } from '../config.js';
 import {
   databaseUnavailable,
@@ -19,6 +11,7 @@ import {
   safeDatabaseErrorCode,
 } from '../persistence/database-errors.js';
 import { AuthStore, CoordinationStore } from '../persistence/stores.js';
+import { RateLimitExceeded } from './rate-limit-exceeded.js';
 
 export interface RateLimitRule {
   limit: number;
@@ -66,7 +59,7 @@ export class RateLimitGuard implements CanActivate {
       return true;
     }
     const caller = req.identity?.userId ? `user:${req.identity.userId}` : `ip:${req.ip}`;
-    const key = `rate:${ctx.getClass().name}.${ctx.getHandler().name}:${caller}`;
+    const key = `rate:${ctx.getClass().name}.${ctx.getHandler().name}:${hashToken(caller)}`;
 
     let counted;
     try {
@@ -94,6 +87,6 @@ export class RateLimitGuard implements CanActivate {
     res.setHeader('X-RateLimit-Reset', resetSeconds);
     if (counted.total <= rule.limit) return true;
     res.setHeader('Retry-After', resetSeconds);
-    throw new HttpException('Too many requests. Please wait a moment and try again.', HttpStatus.TOO_MANY_REQUESTS);
+    throw new RateLimitExceeded(rule.limit, counted.resetsInMs);
   }
 }

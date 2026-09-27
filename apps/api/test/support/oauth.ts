@@ -9,7 +9,7 @@ import { FakeGoogle, type GoogleAccount } from './fake-google.js';
 type Http = () => { post(path: string): Request };
 
 let lastIp = 0;
-/** Sign-in routes have strict per-IP limits, so each flow in a test comes from its own address. */
+/** Keeps unrelated authentication flows from sharing a network budget. */
 export const freshIp = () => {
   lastIp++;
   return `10.${(lastIp >> 16) & 255}.${(lastIp >> 8) & 255}.${lastIp & 255}`;
@@ -37,8 +37,8 @@ export class OAuthFakes {
   }
 
   /** What the app posts for `account`: an ID token carrying a nonce freshly issued by the server, and that nonce. */
-  async googleCredential(http: Http, account: GoogleAccount): Promise<{ idToken: string; nonce: string }> {
-    const { nonce } = (await http().post('/api/auth/google/nonce').set('X-Forwarded-For', freshIp()).expect(200)).body;
+  async googleCredential(http: Http, account: GoogleAccount, ip = freshIp()): Promise<{ idToken: string; nonce: string }> {
+    const { nonce } = (await http().post('/api/auth/google/nonce').set('X-Forwarded-For', ip).expect(200)).body;
     return { idToken: await this.google.idToken(account, nonce), nonce };
   }
 
@@ -50,9 +50,9 @@ export class OAuthFakes {
   }
 
   /** What the app posts for `account` after the token endpoint: the Grasp ticket and the verifier it was issued for. */
-  async githubTicket(http: Http, account: GitHubAccount): Promise<{ ticket: string; codeVerifier: string }> {
+  async githubTicket(http: Http, account: GitHubAccount, ip = freshIp()): Promise<{ ticket: string; codeVerifier: string }> {
     const form = this.githubTokenForm(account);
-    const res = await http().post('/api/auth/github/token').set('X-Forwarded-For', freshIp()).type('form').send(form).expect(200);
+    const res = await http().post('/api/auth/github/token').set('X-Forwarded-For', ip).type('form').send(form).expect(200);
     return { ticket: res.body.access_token, codeVerifier: form.code_verifier };
   }
 }

@@ -3,6 +3,7 @@ import { randomBytes } from 'node:crypto';
 import { APP_CONFIG, type AppConfig } from '../config.js';
 import { AccountService } from './account.service.js';
 import { AuthController } from './auth.controller.js';
+import { AuthRateLimitService } from './auth-rate-limit.service.js';
 import { GitHubController } from './github.controller.js';
 import { DisabledGitHubOAuthClient, GitHubOAuthClient, HttpGitHubOAuthClient } from './github-oauth.client.js';
 import { GitHubSignInService } from './github-sign-in.service.js';
@@ -18,6 +19,7 @@ import { TokenService } from './tokens.js';
   controllers: [AuthController, GoogleController, GitHubController],
   providers: [
     SessionService,
+    AuthRateLimitService,
     AccountService,
     OneTimeValues,
     GoogleSignInService,

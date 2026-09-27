@@ -1,7 +1,14 @@
+import { AuthRateLimitService } from './auth-rate-limit.service.js';
 import { HttpException, Logger } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { MemoryErasureStore, MemoryLearnerState } from '../persistence/erasure.stores.js';
-import { MemoryAuthStore, MemoryFeedbackStore, MemoryInterviewStore, MemoryProgressStore } from '../persistence/memory.stores.js';
+import {
+  MemoryAuthStore,
+  MemoryCoordinationStore,
+  MemoryFeedbackStore,
+  MemoryInterviewStore,
+  MemoryProgressStore,
+} from '../persistence/memory.stores.js';
 import { AccountService } from './account.service.js';
 import type { User, VerifiedIdentity } from './auth.types.js';
 import { SessionService } from './session.service.js';
@@ -21,7 +28,11 @@ function setup() {
     feedback: new MemoryFeedbackStore(state),
   };
   const erasure = new MemoryErasureStore(state, stores.progress, stores.interviews, stores.feedback, stores.auth);
-  const sessions = new SessionService(stores.auth, new TokenService('unit-test-secret-0123456789abcdef-0123456789'));
+  const sessions = new SessionService(
+    stores.auth,
+    new TokenService('unit-test-secret-0123456789abcdef-0123456789'),
+    new AuthRateLimitService(new MemoryCoordinationStore(() => t0.getTime(), stores.auth)),
+  );
   const accounts = new AccountService(stores.auth, sessions, erasure);
   return { accounts, erasure, ...stores };
 }

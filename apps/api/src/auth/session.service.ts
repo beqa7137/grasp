@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { AuthStore } from '../persistence/stores.js';
 import { sessionEnded } from './auth-errors.js';
+import { AuthRateLimitService } from './auth-rate-limit.service.js';
 import type { User } from './auth.types.js';
 import { ACCESS_TOKEN_SECONDS, TokenService, hashToken, newOpaqueToken } from './tokens.js';
 
@@ -25,6 +26,7 @@ export class SessionService {
   constructor(
     private readonly store: AuthStore,
     private readonly tokens: TokenService,
+    private readonly limits: AuthRateLimitService,
   ) {}
 
   /** Starts a new session family for someone who just signed in. */
@@ -44,6 +46,7 @@ export class SessionService {
     }
     const user = await this.store.userById(record.userId);
     if (!user) throw sessionEnded();
+    await this.limits.refresh({ userId: user.id, learnerId: user.learnerId, familyId: record.familyId });
     await this.store.markRotated(record.id, now.toISOString());
     return this.issue(user, record.familyId, now);
   }

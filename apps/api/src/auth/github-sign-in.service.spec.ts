@@ -1,5 +1,6 @@
+import { AuthRateLimitService } from './auth-rate-limit.service.js';
 import { HttpException, Logger } from '@nestjs/common';
-import { MemoryAuthStore } from '../persistence/memory.stores.js';
+import { MemoryAuthStore, MemoryCoordinationStore } from '../persistence/memory.stores.js';
 import { DisabledGitHubOAuthClient, GitHubOAuthClient, type GitHubIdentity } from './github-oauth.client.js';
 import { GitHubSignInService, NATIVE_REDIRECT_URI } from './github-sign-in.service.js';
 import { OneTimeValues } from './one-time-values.js';
@@ -27,7 +28,14 @@ const tokenForm = (codeVerifier: string) => ({
 
 function setup(github: GitHubOAuthClient = new StubGitHub()) {
   const store = new MemoryAuthStore();
-  return { github: new GitHubSignInService(github, new OneTimeValues(store)), store };
+  return {
+    github: new GitHubSignInService(
+      github,
+      new OneTimeValues(store),
+      new AuthRateLimitService(new MemoryCoordinationStore(() => t0.getTime())),
+    ),
+    store,
+  };
 }
 
 const rejection = async (promise: Promise<unknown>) => {

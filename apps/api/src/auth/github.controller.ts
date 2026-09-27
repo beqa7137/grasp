@@ -6,6 +6,7 @@ import { RateLimit } from '../common/rate-limit.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { AccountService } from './account.service.js';
 import { notSignedIn } from './auth-errors.js';
+import { AUTH_NETWORK_LIMIT, AuthRateLimitService } from './auth-rate-limit.service.js';
 import { codeVerifierSchema, GitHubSignInService } from './github-sign-in.service.js';
 import { SkipIdentity } from './identity.guard.js';
 import { SIGN_IN_CALLBACK_PATH } from './sign-in-callback.js';
@@ -16,10 +17,12 @@ const redemptionSchema = z.object({ ticket: z.string().min(43).max(128), codeVer
 type Redemption = z.infer<typeof redemptionSchema>;
 
 @Controller('auth/github')
+@RateLimit(AUTH_NETWORK_LIMIT)
 export class GitHubController {
   constructor(
     private readonly github: GitHubSignInService,
     private readonly accounts: AccountService,
+    private readonly limits: AuthRateLimitService,
   ) {}
 
   /** OAuth token endpoint for the app's sign-in plugin. */
@@ -27,7 +30,6 @@ export class GitHubController {
   @HttpCode(200)
   @Header('Cache-Control', 'no-store')
   @SkipIdentity()
-  @RateLimit({ limit: 20, windowMs: QUARTER_HOUR })
   token(@Body() form: unknown, @Req() req: Request) {
     return this.github.token(form, `${req.protocol}://${req.get('host')}${SIGN_IN_CALLBACK_PATH}`);
   }
@@ -35,9 +37,10 @@ export class GitHubController {
   @Post()
   @HttpCode(200)
   @SkipIdentity()
-  @RateLimit({ limit: 10, windowMs: QUARTER_HOUR })
   async signIn(@Body(new ZodValidationPipe(redemptionSchema)) body: Redemption, @DeviceLearnerId() device: string | null) {
-    return this.accounts.signIn(await this.github.redeem(body.ticket, body.codeVerifier), device);
+    const identity = await this.github.redeem(body.ticket, body.codeVerifier);
+    await this.limits.signIn(identity);
+    return this.accounts.signIn(identity, device);
   }
 
   @Post('link')

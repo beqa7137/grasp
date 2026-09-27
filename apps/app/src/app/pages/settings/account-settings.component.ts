@@ -9,7 +9,7 @@ const LABELS: Record<SignInProvider, string> = { google: 'Google', github: 'GitH
 const ICONS: Record<SignInProvider, string> = { google: 'logo-google', github: 'logo-github' };
 const GENERIC_ERROR = "Sign-in didn't complete. Please try again.";
 /** Errors whose wording the API owns and the person can act on. */
-const EXPLAINED_ERRORS = new Set(['account_exists', 'email_unverified', 'identity_in_use']);
+const EXPLAINED_ERRORS = new Set(['account_exists', 'email_unverified', 'identity_in_use', 'rate_limited']);
 
 @Component({
   selector: 'app-account-settings',
