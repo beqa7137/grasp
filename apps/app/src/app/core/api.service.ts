@@ -54,7 +54,13 @@ export class ApiService {
       const streamBody = await this.withDeadline(STREAM_CONNECT_TIMEOUT_MS, controller, async (requestSignal) => {
         const send = () => {
           sentHeaders = this.headers();
-          return fetch(this.base + path, { method: 'POST', headers: sentHeaders, body: JSON.stringify(body), signal: requestSignal });
+          return fetch(this.base + path, {
+            method: 'POST',
+            headers: sentHeaders,
+            body: JSON.stringify(body),
+            cache: 'no-store',
+            signal: requestSignal,
+          });
         };
         let response = await send();
         if (response.status === 401 && (await this.renewAfter(response.clone(), path))) response = await send();
@@ -104,6 +110,7 @@ export class ApiService {
             method,
             headers: sentHeaders,
             body: body === undefined ? undefined : JSON.stringify(body),
+            cache: 'no-store',
             signal,
           });
         } catch {

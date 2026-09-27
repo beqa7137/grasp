@@ -101,12 +101,16 @@ describe.each(storages)('Pilot tooling (%s storage)', (storage) => {
   });
 
   it('erases a learner completely and leaves others intact', async () => {
+    const active = await http().get('/api/progress/events').set('x-learner-id', ada).expect(200);
+    expect(active.headers['cache-control']).toBe('no-store');
+
     await http().delete('/api/me').set('x-learner-id', ada).expect(204);
 
     const exported = await http().get('/api/me/export').set('x-learner-id', ada).expect(200);
     expect(exported.body).toMatchObject({ events: [], interviews: [], feedback: [] });
     const progress = await http().get('/api/progress/events').set('x-learner-id', ada).expect(410);
     expect(progress.body.code).toBe('learner_erased');
+    expect(progress.headers['cache-control']).toBe('no-store');
 
     const kept = await http().get('/api/me/export').set('x-learner-id', bob).expect(200);
     expect(kept.body.events).toHaveLength(1);

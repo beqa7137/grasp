@@ -61,7 +61,7 @@ export class InterviewController {
       if (!started) {
         res.status(200).set({
           'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache, no-transform',
+          'Cache-Control': 'no-store, no-transform',
           Connection: 'keep-alive',
           'X-Accel-Buffering': 'no',
         });

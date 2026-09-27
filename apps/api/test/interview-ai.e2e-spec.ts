@@ -64,6 +64,7 @@ describe.each(storages)('AI interviewer over HTTP (%s storage, scripted Claude A
 
     const res = await say(session.id, 'I would scan from the right with a stack.').expect(200);
     expect(res.headers['content-type']).toContain('text/event-stream');
+    expect(res.headers['cache-control']).toBe('no-store, no-transform');
     expect(res.text).toContain('event: delta\ndata: {"text":"What is the "}');
     expect(res.text).toContain('"content":"What is the input size?"');
 
