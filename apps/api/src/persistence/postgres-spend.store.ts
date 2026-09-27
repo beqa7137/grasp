@@ -2,8 +2,6 @@ import { sql } from 'drizzle-orm';
 import type { Db } from './postgres.stores.js';
 import { assertReservationId, assertSpendMicros, safeSpendTotal, SpendStore, type SpendReservation } from './spend.store.js';
 
-type Transaction = Parameters<Parameters<Db['transaction']>[0]>[0];
-
 export class PostgresSpendStore extends SpendStore {
   constructor(private readonly db: Db) {
     super();
@@ -32,7 +30,8 @@ export class PostgresSpendStore extends SpendStore {
   }
 
   async sweep(): Promise<number> {
-    return this.transaction(async (tx) => {
+    return this.db.transaction(async (tx) => {
+      await tx.execute(sql`select set_config('statement_timeout', '2500ms', true), set_config('lock_timeout', '1500ms', true)`);
       const result = await tx.execute<{ removed: string }>(sql`
         with expired as (
           select day from ai_spend_days where expires_at <= now() order by day for update
@@ -43,13 +42,6 @@ export class PostgresSpendStore extends SpendStore {
         )
         select ((select count(*) from deleted) + (select reservations from counts))::text as removed`);
       return Number(result.rows[0].removed);
-    });
-  }
-
-  private async transaction<T>(run: (tx: Transaction) => Promise<T>): Promise<T> {
-    return this.db.transaction(async (tx) => {
-      await tx.execute(sql`select set_config('statement_timeout', '2500ms', true), set_config('lock_timeout', '1500ms', true)`);
-      return run(tx);
     });
   }
 }

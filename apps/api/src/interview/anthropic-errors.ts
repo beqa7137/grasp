@@ -11,10 +11,7 @@ function errorType(err: InstanceType<typeof Anthropic.APIError>): string | undef
   return body?.error?.type ?? body?.type;
 }
 
-/**
- * Maps Claude API failures to client-safe HTTP errors after metered retries finish.
- * Aborts pass through untouched so the caller can tell a closed connection from a failure.
- */
+/** Preserve abort errors so callers can distinguish a closed connection from a failure. */
 export function toHttpError(err: unknown, log: Logger): unknown {
   if (err instanceof HttpException || err instanceof Anthropic.APIUserAbortError) return err;
   if (!(err instanceof Anthropic.APIError)) {

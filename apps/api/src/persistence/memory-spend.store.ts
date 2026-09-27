@@ -1,4 +1,5 @@
 import type { CoordinationStore } from './stores.js';
+import { windowStart } from './memory.stores.js';
 import {
   assertReservationId,
   assertSpendMicros,
@@ -84,7 +85,7 @@ export class MemorySpendStore extends SpendStore {
   }
 
   private async current(): Promise<{ day: string; state: SpendDay }> {
-    const start = Math.floor(this.now() / SPEND_DAY_MS) * SPEND_DAY_MS;
+    const start = windowStart(this.now(), SPEND_DAY_MS);
     const day = new Date(start).toISOString().slice(0, 10);
     const legacy = legacySpendMicros(await this.coordination.read(LEGACY_SPEND_KEY, SPEND_DAY_MS));
     let state = this.days.get(day);
