@@ -91,9 +91,7 @@ describe('GitHub sign-in', () => {
     vi.spyOn(client, 'identify').mockRejectedValue(new ProviderUnavailableError('private-github-token'));
     const { github } = setup(client);
 
-    const failure = await github.token(tokenForm(verifierA), webCallback, t0).catch((error: unknown) => error);
-    expect(failure).toBeInstanceOf(HttpException);
-    expect((failure as HttpException).getStatus()).toBe(503);
+    expect(await rejection(github.token(tokenForm(verifierA), webCallback, t0))).toMatchObject({ status: 503 });
     expect(logged.mock.calls).toEqual([[{ operation: 'auth.github-identify', category: 'unknown', code: 'unknown' }]]);
   });
 });
