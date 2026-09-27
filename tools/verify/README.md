@@ -25,7 +25,8 @@ BASE=https://grasp-rho-taupe.vercel.app THEME=light OUT=verify-out/prod READONLY
 ```
 
 - `PROFILES` (default `desktop,pixel7`; also `w320`), and an optional state regex as the first argument.
-- `STABLE=1` fixes the clock, `Math.random` and UUIDs, so two builds can be compared pixel for pixel.
+- Each context starts with a fresh learner ID so server progress cannot leak between captured states.
+- `STABLE=1` fixes the clock, `Math.random` and event UUIDs, so two builds can be compared pixel for pixel.
 - `READONLY=1` blocks every API write; always use it against production.
 
 ## pixdiff.mjs

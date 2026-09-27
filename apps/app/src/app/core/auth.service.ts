@@ -51,6 +51,8 @@ export class AuthService {
   private recoveringErased: Promise<void> | null = null;
   private readonly noticedErasedLearners = new Set<string>();
   private endingSession = false;
+  private sessionEpoch = 0;
+  private sessionWrites: Promise<void> = Promise.resolve();
 
   readonly user = signal<AccountUser | null>(null);
   readonly signedIn = computed(() => this.user() !== null);
@@ -119,13 +121,21 @@ export class AuthService {
   /** Share renewal across callers; temporary failures reach the requesting page without ending the session. */
   private renewSession(): Promise<boolean> {
     if (this.endingSession) return Promise.resolve(false);
+    const epoch = this.sessionEpoch;
     this.refreshing ??= (async () => {
       const { value } = await Preferences.get({ key: REFRESH_KEY });
+      if (epoch !== this.sessionEpoch) return this.tokens.accessToken() !== null;
       if (!value) return false;
       try {
-        await this.adopt(await this.api.post<Session>('/auth/refresh', { refreshToken: value }));
-        return true;
+        const session = await this.api.post<Session>('/auth/refresh', { refreshToken: value });
+        if (epoch !== this.sessionEpoch) return this.tokens.accessToken() !== null;
+        const learnerChanged = session.learnerId !== this.learner.id();
+        if (learnerChanged) this.progress.invalidateSync();
+        await this.adopt(session);
+        if (learnerChanged && epoch === this.sessionEpoch) void this.progress.resync();
+        return this.tokens.accessToken() !== null;
       } catch (e) {
+        if (epoch !== this.sessionEpoch) return this.tokens.accessToken() !== null;
         if (!(e instanceof ApiError && e.status === 401)) throw e;
         await this.expire();
         return false;
@@ -157,20 +167,26 @@ export class AuthService {
     }
   }
 
-  private async forget(): Promise<void> {
+  private async forget(): Promise<number> {
+    const epoch = ++this.sessionEpoch;
     this.tokens.accessToken.set(null);
     this.tokens.signInRequired.set(false);
     this.user.set(null);
     this.identities.set(null);
-    await Promise.all([Preferences.remove({ key: REFRESH_KEY }), Preferences.remove({ key: USER_KEY })]);
+    await this.writeSession(async () => {
+      await Promise.all([Preferences.remove({ key: REFRESH_KEY }), Preferences.remove({ key: USER_KEY })]);
+    });
+    return epoch;
   }
 
   private async recoverRetiredLearner(code: 'learner_erased' | 'learner_moved', learnerId: string): Promise<void> {
     if (this.learner.id() !== learnerId) return;
     if (code === 'learner_moved') {
-      await this.learner.reload();
+      const learnerChanged = await this.learner.reload();
+      if (learnerChanged) this.progress.invalidateSync();
       const { value } = await Preferences.get({ key: REFRESH_KEY });
       if (value) await this.refresh();
+      if (learnerChanged) void this.progress.resync();
       return;
     }
     this.recoveringErased ??= (async () => {
@@ -192,9 +208,11 @@ export class AuthService {
   }
 
   private async clearDevice(): Promise<void> {
+    this.progress.invalidateSync();
     await this.forget();
     await this.progress.clearLocal();
     await this.learner.reset();
+    this.tokens.signInRequired.set(false);
   }
 
   private async credential(provider: SignInProvider): Promise<ProviderCredential | null> {
@@ -211,25 +229,37 @@ export class AuthService {
     const session = await request();
     const erasedDeviceLearner = session.deviceLearnerErased && this.learner.id() === deviceLearnerId;
     if (erasedDeviceLearner || (this.tokens.signInRequired() && session.learnerId !== this.learner.id())) await this.progress.clearLocal();
+    this.sessionEpoch++;
+    this.progress.invalidateSync();
     await this.adopt(session);
     if (erasedDeviceLearner) await this.showErasedNotice(deviceLearnerId);
     await this.progress.resync();
   }
 
   private async adopt(session: Session) {
+    const epoch = this.sessionEpoch;
     this.tokens.accessToken.set(session.accessToken);
     this.tokens.signInRequired.set(false);
     this.user.set(session.user);
-    await Promise.all([
-      Preferences.set({ key: REFRESH_KEY, value: session.refreshToken }),
-      Preferences.set({ key: USER_KEY, value: JSON.stringify(session.user) }),
-    ]);
-    if (session.learnerId !== this.learner.id()) await this.learner.setId(session.learnerId);
+    await this.writeSession(async () => {
+      if (epoch !== this.sessionEpoch) return;
+      await Promise.all([
+        Preferences.set({ key: REFRESH_KEY, value: session.refreshToken }),
+        Preferences.set({ key: USER_KEY, value: JSON.stringify(session.user) }),
+      ]);
+      if (epoch === this.sessionEpoch && session.learnerId !== this.learner.id()) await this.learner.setId(session.learnerId);
+    });
+  }
+
+  private writeSession(write: () => Promise<void>): Promise<void> {
+    const next = this.sessionWrites.catch(() => undefined).then(write);
+    this.sessionWrites = next;
+    return next;
   }
 
   /** The session ended on the server; keep local progress but ask to sign in again before syncing. */
   private async expire() {
-    await this.forget();
-    this.tokens.signInRequired.set(true);
+    const epoch = await this.forget();
+    if (epoch === this.sessionEpoch) this.tokens.signInRequired.set(true);
   }
 }

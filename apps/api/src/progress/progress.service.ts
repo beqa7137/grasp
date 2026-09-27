@@ -18,10 +18,22 @@ export class ProgressService {
   constructor(private readonly store: ProgressStore) {}
 
   async ingest(learnerId: string, events: StoredEvent[]) {
-    const limit = Date.now() + FUTURE_TOLERANCE_MS;
-    const accepted = events.filter((e) => Date.parse(e.at) <= limit);
-    const result = await this.store.append(learnerId, accepted);
-    return { ...result, rejectedFuture: events.length - accepted.length };
+    const serverTime = new Date();
+    const limit = serverTime.getTime() + FUTURE_TOLERANCE_MS;
+    const eligible: StoredEvent[] = [];
+    const deferredFutureIds: string[] = [];
+    for (const event of events) {
+      if (Date.parse(event.at) <= limit) eligible.push(event);
+      else deferredFutureIds.push(event.id);
+    }
+    const result = await this.store.append(learnerId, eligible);
+    return {
+      ...result,
+      rejectedFuture: deferredFutureIds.length,
+      acknowledgedIds: eligible.map((event) => event.id),
+      deferredFutureIds,
+      serverTime: serverTime.toISOString(),
+    };
   }
 
   async events(learnerId: string) {
