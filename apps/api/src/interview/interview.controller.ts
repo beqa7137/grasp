@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { LearnerId } from '../common/learner-id.decorator.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { reportError } from '../observability/error-reporting.js';
+import { safeErrorDetails } from '../observability/safe-error.js';
 import { InterviewService } from './interview.service.js';
 
 const startSchema = z.object({
@@ -80,7 +81,7 @@ export class InterviewController {
       const msg = err instanceof HttpException ? err.message : 'The interviewer is unavailable right now. Please try again.';
       const response = err instanceof HttpException ? err.getResponse() : null;
       const code = response && typeof response === 'object' && 'code' in response ? { code: response.code } : {};
-      if (!(err instanceof HttpException)) this.log.error(err);
+      if (!(err instanceof HttpException)) this.log.error({ operation: 'interview.respond', ...safeErrorDetails(err) });
       if (status >= 500 && status !== 503) reportError(err, req.id);
       if (started) emit('error', { status, message: msg, ...code });
       else res.status(status).json({ statusCode: status, message: msg, ...code });

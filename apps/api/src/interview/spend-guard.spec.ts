@@ -1,7 +1,10 @@
 import { Logger, ServiceUnavailableException } from '@nestjs/common';
+import { DrizzleQueryError } from 'drizzle-orm/errors';
 import { MemoryCoordinationStore } from '../persistence/memory.stores.js';
 import type { CoordinationStore } from '../persistence/stores.js';
 import { SpendGuard } from './spend-guard.js';
+
+afterEach(() => vi.restoreAllMocks());
 
 describe('SpendGuard', () => {
   it('blocks once the daily budget is spent and reopens the next UTC day', async () => {
@@ -48,5 +51,26 @@ describe('SpendGuard', () => {
     await expect(guard.assertAvailable()).rejects.toThrow(/temporarily unavailable/);
     await expect(guard.record(0.5)).resolves.toBeUndefined();
     await expect(new SpendGuard(null, broken).assertAvailable()).resolves.toBeUndefined();
+  });
+
+  it('keeps query text, parameters and nested error details out of spend failure logs', async () => {
+    const logged = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
+    const failure = new DrizzleQueryError(
+      'select private_spend from learner_secrets where token = $1',
+      ['private-learner-token'],
+      Object.assign(new Error('private-query-details'), { code: '42P01' }),
+    );
+    const store = new MemoryCoordinationStore();
+    vi.spyOn(store, 'read').mockRejectedValue(failure);
+    vi.spyOn(store, 'add').mockRejectedValue(failure);
+    const guard = new SpendGuard(1, store);
+
+    await expect(guard.assertAvailable()).rejects.toThrow(ServiceUnavailableException);
+    await expect(guard.record(0.5)).resolves.toBeUndefined();
+
+    expect(logged.mock.calls).toEqual([
+      [{ operation: 'interview.read-spend', category: 'database', code: '42P01' }],
+      [{ operation: 'interview.record-spend', category: 'database', code: '42P01' }],
+    ]);
   });
 });

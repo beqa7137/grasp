@@ -2,7 +2,7 @@ import { Logger } from '@nestjs/common';
 import type { NextFunction, Request as HttpRequest, Response } from 'express';
 import { randomUUID } from 'node:crypto';
 
-const INCOMING_ID = /^[\w.:-]{1,128}$/;
+const METHODS = new Set(['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']);
 const QUIET_PATHS = /^\/api\/health(\/|$)/;
 
 declare module 'express-serve-static-core' {
@@ -11,20 +11,18 @@ declare module 'express-serve-static-core' {
   }
 }
 
-/** Tags each request with an id (reusing a well-formed upstream X-Request-Id) and writes one access-log line per request. */
 export function requestContext() {
   const log = new Logger('HTTP');
   return (req: HttpRequest, res: Response, next: NextFunction) => {
-    const incoming = req.get('x-request-id');
-    req.id = incoming && INCOMING_ID.test(incoming) ? incoming : randomUUID();
+    req.id = randomUUID();
     res.setHeader('x-request-id', req.id);
     const started = process.hrtime.bigint();
     res.on('finish', () => {
       if (QUIET_PATHS.test(req.path) && res.statusCode < 400) return;
       const entry = {
         requestId: req.id,
-        method: req.method,
-        path: req.path,
+        method: METHODS.has(req.method) ? req.method : 'OTHER',
+        path: typeof req.route?.path === 'string' ? req.route.path : 'unmatched',
         status: res.statusCode,
         ms: Math.round(Number(process.hrtime.bigint() - started) / 1e6),
       };

@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { safeErrorDetails } from '../observability/safe-error.js';
 import { invalidCredential, providerDisabled, providerUnavailable } from './auth-errors.js';
 import type { VerifiedIdentity } from './auth.types.js';
 import { GoogleIdTokenVerifier, type GoogleIdToken } from './google-id-token.verifier.js';
@@ -33,7 +34,7 @@ export class GoogleSignInService {
       token = await this.verifier.verify(idToken, now);
     } catch (e) {
       if (e instanceof ProviderUnavailableError) {
-        this.log.warn(e.message);
+        this.log.warn({ operation: 'auth.google-identify', ...safeErrorDetails(e) });
         throw providerUnavailable('google');
       }
       if (e instanceof InvalidCredentialError) throw invalidCredential('google');

@@ -10,7 +10,7 @@ test('study settings sync as events', async ({ page }) => {
   await expect(page.getByRole('radiogroup', { name: 'Daily session' }).getByRole('radio', { name: '20 min' })).toBeChecked();
 });
 
-test('learners can export their data, then delete it', async ({ page }) => {
+test('learners can export their data, then delete it', async ({ page }, testInfo) => {
   await page.goto('/settings');
   const sync = synced(page, 'settings.changed');
   await page.getByRole('radiogroup', { name: 'New cards per day' }).getByRole('radio', { name: '5', exact: true }).click();
@@ -18,7 +18,8 @@ test('learners can export their data, then delete it', async ({ page }) => {
 
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Export' }).click();
-  const file = await (await download).path();
+  const file = testInfo.outputPath('export.json');
+  await (await download).saveAs(file);
   const exported = JSON.parse(await readFile(file, 'utf8'));
   expect(JSON.stringify(exported)).toContain('settings.changed');
 

@@ -87,7 +87,7 @@ CI builds this image and smoke-tests it against Postgres: migrations, readiness,
 ## Both platforms
 
 - **Hardening.** Helmet sets the security headers, including a CSP with no inline scripts. `Cross-Origin-Opener-Policy` is `same-origin-allow-popups` rather than `same-origin`, so the web sign-in popup can report back to the page that opened it. The popup's landing page, `/auth/callback`, gets `unsafe-none`: it arrives there from Google or GitHub, whose pages send no such header, and a COOP on the landing page would cut the popup off from the app window waiting for its result. The server rejects JSON bodies over 256 kB and URL-encoded bodies (only the GitHub token endpoint takes them) over 16 kB, and rate-limits each caller (`RATE_LIMIT_PER_MINUTE` per signed-in user or client IP, health checks exempt). It trusts `TRUST_PROXY` hops for the client IP and the request's scheme, which web GitHub sign-in depends on.
-- **Logs.** Structured JSON logs, one access line per request with a request id. An incoming well-formed `X-Request-Id` is reused and echoed back.
+- **Logs.** Structured JSON logs, one access line per request with a server-generated request id returned in `X-Request-Id`. Incoming request ids are ignored. Access lines contain route templates, not path parameters or query strings. Failure diagnostics retain a static operation, error category and recognized code, without SQL, bound parameters, exception messages or learner identifiers.
 - **Config validation.** Environment variables are checked at startup, and every invalid one is reported. On Vercel, a function that cannot start answers 503 and retries on the next request.
 
 ## Native apps against a deployed API
@@ -128,4 +128,8 @@ Every variable is validated at startup. See `apps/api/.env.example` for the full
 
 ## Privacy notes for error reporting
 
-Sentry is loaded only when a DSN is set, as two projects: `grasp-api` (`SENTRY_DSN`) and `grasp-app` (`SENTRY_WEB_DSN`, used by the web app and the native apps). Both turn off collection of user info, cookies, request and response bodies, query strings and stack-frame variables; the app strips query strings from the request and from navigation and fetch breadcrumbs. The API also turns off database query data and AI prompt inputs and outputs, and strips the `x-learner-id` header. Interview transcripts and learner answers never reach Sentry. 503s from a busy AI provider are expected and aren't reported.
+Sentry is loaded only when a DSN is set, as two projects: `grasp-api` (`SENTRY_DSN`) and `grasp-app` (`SENTRY_WEB_DSN`, used by the web app and the native apps).
+
+The API reports explicit unexpected request and interview failures. Before any event reaches the SDK, it retains only the error category, a recognized error code, server-generated request correlation, release, environment, timestamp and static application stack locations. A second allowlist at the transport boundary drops all other envelope data, including attachments and SDK enrichment. Raw exception messages, SQL, parameters, causes, request data, user data and breadcrumbs are excluded. Automatic SDK integrations are disabled, so unhandled process failures are not automatically sent to Sentry. Startup failures use safe local diagnostics. Expected provider 503s are not reported.
+
+The app disables SDK collection of user info, cookies, bodies, query strings and stack variables, and strips query strings from navigation and fetch breadcrumbs. Those settings do not cover arbitrary exception messages or console breadcrumbs. The client needs an equivalent transport privacy boundary before its reporting can meet the API's guarantee; this remains in `docs/LOOP.md`.

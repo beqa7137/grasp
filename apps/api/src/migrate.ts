@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 import { z } from 'zod';
+import { safeErrorDetails } from './observability/safe-error.js';
 
 /** Applies pending Drizzle migrations. Runs as the deploy release step, before new machines take traffic. */
 if (existsSync('.env')) process.loadEnvFile('.env');
@@ -24,6 +25,6 @@ try {
     await pool.end();
   }
 } catch (err) {
-  console.error(err);
+  console.error({ operation: 'persistence.migrate', ...safeErrorDetails(err) });
   process.exit(1);
 }

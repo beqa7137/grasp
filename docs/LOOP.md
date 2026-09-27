@@ -23,6 +23,8 @@ it found. Keep entries short and factual, with numbers where they exist.
 | 17     | Production requires Postgres; missing configuration serves liveness and 503. Idle disconnects recover with scrubbed warnings. Database connect and query waits are bounded at 4 and 3 seconds; a local 500-event push passed. Learn keeps its retry alert and focus stable, with 20 seconds for large progress pulls. Local browser tests use memory without a database, while Docker probes liveness.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | working tree         |
 | 18     | Atomic deletion and guest merge retire learner IDs, so delayed AI replies cannot restore erased data. Session families revoke access JWTs on logout and deletion across instances. Erased device IDs receive a coded 410 and start fresh without reuploading old progress; merged IDs reload shared storage without clearing data. The reviewer replayed a 1.2-million-token migration in 3.0 s with exact backfill and a 615 ms maximum writer wait. Two-instance races, restart checks and private-route revocation passed. A clean signed progress read changed from 5,796 to 5,668 req/s (2.2% lower), p95 37 to 38 ms; write runs varied.                                                                                                                                                                                                                                               | `19582e3`            |
 
+| 19 | API error reporting retains static operations, safe categories/codes and generated request IDs; SQL, parameters, causes, learner IDs and provider payloads stay out of request, stream, cleanup and startup logs. Sentry rebuilds explicit reports and outbound envelopes from an allowlist. Real Postgres and SDK serialization privacy probes pass. Full verification: 1,346 tests; browser suite: 223 passed, 7 platform-specific skips; browser audit: 140 states clean in both themes on desktop and phone; 24 baseline comparisons match except nine pixels with one-level antialiasing noise. | this change |
+
 The iteration 18 browser replay found that Chromium cached a `410 learner_erased` response by URL and replayed it after a
 fresh learner ID was stored. The follow-up sets `no-store` for learner-specific API responses and app requests,
 and checks that a fresh event survives another reload.
@@ -31,25 +33,28 @@ and checks that a fresh event survives another reload.
 
 The local audit of `4beccbd` used an isolated Postgres fixture with 25,000 learners and 3.18 million events. Its 200-client runs found no ordinary-route errors, but failure probes found the risks below. Work through the remaining iterations in order before a wider release.
 
-| Iteration | Status     | Work                                                                                                                 |
-| --------- | ---------- | -------------------------------------------------------------------------------------------------------------------- |
-| 1         | Done in 17 | Require Postgres in production, refuse traffic without its URL, and recover after an idle connection drops.          |
-| 2         | Done in 17 | Bound database connect and query waits, return 503 for dependent routes, and let learners retry timed-out calls.     |
-| 3         | Done in 18 | Make account deletion atomic against in-flight interviews and revoke old access tokens across instances.             |
-| 4         | P0         | Keep learner text, IDs and tokens out of database error logs and Sentry envelopes.                                   |
-| 5         | P0, P1     | Reserve paid AI spend before calls and bind guest trials to a robust identity; avoid blocking a class behind one IP. |
-| 6         | P1         | Gate hand deploys on CI, rehearse additive migrations and restore, and roll back failed postflights.                 |
-| 7         | P1, P2     | Retain clock-skewed progress until accepted and split offline batches below the body limit.                          |
-| 8         | P1         | Sync active devices on reconnect and visibility; save interview scorecards and their progress events atomically.     |
-| 9         | P1         | Bound whole AI streams and scoring, and cancel upstream work when clients disconnect.                                |
-| 10        | P1         | Alert on grouped slow-database and AI failures without logging every success or private data.                        |
-| 11        | P1         | Add cursor-based progress sync and a bounded local checkpoint instead of replaying full history on every visit.      |
-| 12        | P1, P2     | Aggregate cohort metrics without a global event sort; paginate feedback and expire old refresh tokens.               |
-| 13        | P2         | Cache stable public reads without counter writes and measure pooled connections across many warm instances.          |
-| 14        | P2         | Version and compress Pyodide, preload routes after idle or likely use, and cache safe startup responses.             |
-| 15        | P2, P3     | Export all account data, mark private reads `no-store`, and prompt stale tabs to reload safely.                      |
+| Iteration | Status                    | Work                                                                                                                 |
+| --------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| 1         | Done in 17                | Require Postgres in production, refuse traffic without its URL, and recover after an idle connection drops.          |
+| 2         | Done in 17                | Bound database connect and query waits, return 503 for dependent routes, and let learners retry timed-out calls.     |
+| 3         | Done in 18                | Make account deletion atomic against in-flight interviews and revoke old access tokens across instances.             |
+| 4         | API done in 19; client P0 | Keep learner text, IDs and tokens out of database error logs and Sentry envelopes.                                   |
+| 5         | P0, P1                    | Reserve paid AI spend before calls and bind guest trials to a robust identity; avoid blocking a class behind one IP. |
+| 6         | P1                        | Gate hand deploys on CI, rehearse additive migrations and restore, and roll back failed postflights.                 |
+| 7         | P1, P2                    | Retain clock-skewed progress until accepted and split offline batches below the body limit.                          |
+| 8         | P1                        | Sync active devices on reconnect and visibility; save interview scorecards and their progress events atomically.     |
+| 9         | P1                        | Bound whole AI streams and scoring, and cancel upstream work when clients disconnect.                                |
+| 10        | P1                        | Alert on grouped slow-database and AI failures without logging every success or private data.                        |
+| 11        | P1                        | Add cursor-based progress sync and a bounded local checkpoint instead of replaying full history on every visit.      |
+| 12        | P1, P2                    | Aggregate cohort metrics without a global event sort; paginate feedback and expire old refresh tokens.               |
+| 13        | P2                        | Cache stable public reads without counter writes and measure pooled connections across many warm instances.          |
+| 14        | P2                        | Version and compress Pyodide, preload routes after idle or likely use, and cache safe startup responses.             |
+| 15        | P2, P3                    | Export all account data, mark private reads `no-store`, and prompt stale tabs to reload safely.                      |
 
 ## Open follow-ups
+
+- This Codex loop targets `feature/improvements-codex` by owner instruction. Its priority is production readiness for thousands of learners, followed by deeper, reviewed algorithms and system-design lessons and practice. Wider-release claims require measured workload evidence.
+- The web/native Sentry path still passes arbitrary exception messages and console breadcrumbs through SDK defaults. Add a client transport allowlist before enabling its reporting for a wider release. The API now uses explicit sanitized reports only, so automatic unhandled-process Sentry capture is disabled.
 
 Known issues and deferred work, most valuable first.
 
@@ -66,7 +71,6 @@ Known issues and deferred work, most valuable first.
   without a tombstone.
 - Remove migration `0007`'s refresh-token compatibility triggers and function in a later contract release after pre-18
   instances and rollback candidates are inaccessible.
-- Re-run the deleted-on-another-device and reload browser case after the cache fix; the local sandbox cannot start browsers.
 - The signed progress read was 2.2% slower in the clean local comparison (p95 37 to 38 ms); write runs varied under
   autovacuum. Repeat both at audit-sized data and with pooled production-style connections before wider rollout.
 - Deleting during an AI reply discards the result, but the provider call can keep running and stream buffered text. Add

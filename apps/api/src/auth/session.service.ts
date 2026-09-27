@@ -39,7 +39,7 @@ export class SessionService {
     if (!record || record.revokedAt || record.expiresAt <= now.toISOString()) throw sessionEnded();
     if (record.rotatedAt && now.getTime() - Date.parse(record.rotatedAt) > REFRESH_REUSE_LEEWAY_MS) {
       await this.store.revokeFamily(record.familyId, now.toISOString());
-      this.log.warn(`Refresh token reuse for user ${record.userId}; signed out that session family`);
+      this.log.warn({ operation: 'auth.refresh-reuse' });
       throw sessionEnded();
     }
     const user = await this.store.userById(record.userId);

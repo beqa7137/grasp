@@ -9,6 +9,7 @@ import {
 } from './google-id-token.verifier.js';
 import { GoogleSignInService } from './google-sign-in.service.js';
 import { OneTimeValues } from './one-time-values.js';
+import { ProviderUnavailableError } from './provider-errors.js';
 
 const clients: GoogleClients = {
   webClientId: 'web-client.apps.googleusercontent.com',
@@ -55,6 +56,7 @@ const rejection = async (promise: Promise<unknown>) => {
 };
 
 beforeAll(() => Logger.overrideLogger(false));
+afterEach(() => vi.restoreAllMocks());
 
 describe('Google sign-in', () => {
   it('accepts a valid ID token carrying a fresh server nonce, for the web or iOS client', async () => {
@@ -152,5 +154,19 @@ describe('Google sign-in', () => {
     const google = setup(new DisabledGoogleIdTokenVerifier());
     expect(await rejection(google.newNonce(t0))).toEqual({ status: 404, code: 'provider_disabled' });
     expect(await rejection(google.identify('x', 'n'.repeat(43), t0))).toEqual({ status: 404, code: 'provider_disabled' });
+  });
+
+  it('keeps provider failure details out of sign-in logs', async () => {
+    const logged = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+    const verifier = new JoseGoogleIdTokenVerifier(clients, keys);
+    vi.spyOn(verifier, 'verify').mockRejectedValue(new ProviderUnavailableError('private-google-token'));
+    const google = setup(verifier);
+
+    expect(await rejection(google.identify('private-id-token', 'private-nonce', t0))).toEqual({
+      status: 503,
+      code: 'provider_unavailable',
+    });
+
+    expect(logged.mock.calls).toEqual([[{ operation: 'auth.google-identify', category: 'unknown', code: 'unknown' }]]);
   });
 });

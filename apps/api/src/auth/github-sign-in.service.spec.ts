@@ -1,8 +1,9 @@
-import { HttpException } from '@nestjs/common';
+import { HttpException, Logger } from '@nestjs/common';
 import { MemoryAuthStore } from '../persistence/memory.stores.js';
 import { DisabledGitHubOAuthClient, GitHubOAuthClient, type GitHubIdentity } from './github-oauth.client.js';
 import { GitHubSignInService, NATIVE_REDIRECT_URI } from './github-sign-in.service.js';
 import { OneTimeValues } from './one-time-values.js';
+import { ProviderUnavailableError } from './provider-errors.js';
 import { hashToken } from './tokens.js';
 
 class StubGitHub extends GitHubOAuthClient {
@@ -37,6 +38,8 @@ const rejection = async (promise: Promise<unknown>) => {
   if (!(e instanceof HttpException)) throw new Error(`Expected an HTTP error, got ${String(e)}`);
   return { status: e.getStatus(), code: (e.getResponse() as { code?: string }).code };
 };
+
+afterEach(() => vi.restoreAllMocks());
 
 describe('GitHub sign-in', () => {
   it("binds the ticket to the app's verifier, storing only the verifier's hash", async () => {
@@ -80,5 +83,17 @@ describe('GitHub sign-in', () => {
     const { github } = setup(new DisabledGitHubOAuthClient());
     expect(await rejection(github.token(tokenForm(verifierA), webCallback, t0))).toEqual({ status: 404, code: 'provider_disabled' });
     expect(await rejection(github.redeem('x'.repeat(43), verifierA, t0))).toEqual({ status: 404, code: 'provider_disabled' });
+  });
+
+  it('keeps provider failure details out of sign-in logs', async () => {
+    const logged = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+    const client = new StubGitHub();
+    vi.spyOn(client, 'identify').mockRejectedValue(new ProviderUnavailableError('private-github-token'));
+    const { github } = setup(client);
+
+    const failure = await github.token(tokenForm(verifierA), webCallback, t0).catch((error: unknown) => error);
+    expect(failure).toBeInstanceOf(HttpException);
+    expect((failure as HttpException).getStatus()).toBe(503);
+    expect(logged.mock.calls).toEqual([[{ operation: 'auth.github-identify', category: 'unknown', code: 'unknown' }]]);
   });
 });

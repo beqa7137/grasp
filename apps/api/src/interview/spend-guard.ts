@@ -1,4 +1,5 @@
 import { Logger, ServiceUnavailableException } from '@nestjs/common';
+import { safeErrorDetails } from '../observability/safe-error.js';
 import type { CoordinationStore } from '../persistence/stores.js';
 
 const DAY_MS = 86_400_000;
@@ -26,7 +27,7 @@ export class SpendGuard {
       spent = await this.spentToday();
     } catch (error) {
       // Fail closed: without the shared total, the only safe answer for a paid call is no.
-      this.log.error(`Could not read today's AI spend: ${String(error)}`);
+      this.log.error({ operation: 'interview.read-spend', ...safeErrorDetails(error) });
       throw new ServiceUnavailableException('The AI interviewer is temporarily unavailable. Please try again shortly.');
     }
     if (spent >= this.budgetUsd) {
@@ -40,7 +41,7 @@ export class SpendGuard {
     try {
       await this.store.add(SPEND_KEY, DAY_MS, costUsd, HISTORY_MS);
     } catch (error) {
-      this.log.error(`Could not record $${costUsd.toFixed(4)} of AI spend: ${String(error)}`);
+      this.log.error({ operation: 'interview.record-spend', ...safeErrorDetails(error) });
     }
   }
 

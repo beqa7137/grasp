@@ -26,6 +26,7 @@ async function setup() {
 }
 
 beforeAll(() => Logger.overrideLogger(false));
+afterEach(() => vi.restoreAllMocks());
 
 describe('SessionService', () => {
   it('issues an access token for the user and learner', async () => {
@@ -40,6 +41,7 @@ describe('SessionService', () => {
   });
 
   it('rotates refresh tokens and treats late reuse of an old one as theft', async () => {
+    const logged = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
     const { sessions, user } = await setup();
     const first = await sessions.start(user, t0);
 
@@ -52,6 +54,7 @@ describe('SessionService', () => {
     expect(await sessions.refresh(first.refreshToken, at(2 * MIN)).catch(status)).toBe(401);
     expect(await sessions.refresh(second.refreshToken, at(2 * MIN)).catch(status)).toBe(401);
     expect(await sessions.refresh(sibling.refreshToken, at(2 * MIN)).catch(status)).toBe(401);
+    expect(logged.mock.calls).toEqual([[{ operation: 'auth.refresh-reuse' }]]);
   });
 
   it('ends the session family on logout and rejects expired refresh tokens', async () => {

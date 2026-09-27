@@ -1,4 +1,5 @@
 import { Logger } from '@nestjs/common';
+import { safeErrorDetails } from '../observability/safe-error.js';
 import { InvalidCredentialError, ProviderUnavailableError } from './provider-errors.js';
 
 /** Public values the app needs to start GitHub sign-in. */
@@ -87,7 +88,7 @@ export class HttpGitHubOAuthClient extends GitHubOAuthClient {
     if (res.ok && typeof body?.access_token === 'string') return body.access_token;
     // GitHub answers 200 with an `error` for bad, expired or reused codes, and for app misconfiguration.
     const reason = typeof body?.error === 'string' ? body.error : `status ${res.status}`;
-    this.log.warn(`GitHub rejected an authorization code: ${reason}`);
+    this.log.warn({ operation: 'auth.github-exchange-rejected' });
     throw new InvalidCredentialError(`GitHub rejected the authorization code: ${reason}`);
   }
 
@@ -113,7 +114,7 @@ export class HttpGitHubOAuthClient extends GitHubOAuthClient {
       await res.body?.cancel();
       if (!res.ok) throw new Error(`status ${res.status}`);
     } catch (e) {
-      this.log.warn(`Could not revoke a GitHub token: ${e instanceof Error ? e.message : String(e)}`);
+      this.log.warn({ operation: 'auth.github-revoke', ...safeErrorDetails(e) });
     }
   }
 

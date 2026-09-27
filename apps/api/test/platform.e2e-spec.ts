@@ -41,11 +41,12 @@ describe('HTTP platform', () => {
     expect(res.headers['strict-transport-security']).toBeDefined();
   });
 
-  it('assigns request ids, reusing only well-formed upstream ids', async () => {
+  it('generates request ids without accepting caller-controlled correlation data', async () => {
     const fresh = await request(app.getHttpServer()).get('/api/health');
     expect(fresh.headers['x-request-id']).toMatch(UUID);
     const reused = await request(app.getHttpServer()).get('/api/health').set('x-request-id', 'fly-req-42');
-    expect(reused.headers['x-request-id']).toBe('fly-req-42');
+    expect(reused.headers['x-request-id']).toMatch(UUID);
+    expect(reused.headers['x-request-id']).not.toBe(fresh.headers['x-request-id']);
     const replaced = await request(app.getHttpServer()).get('/api/health').set('x-request-id', '<script>alert(1)</script>');
     expect(replaced.headers['x-request-id']).toMatch(UUID);
   });
