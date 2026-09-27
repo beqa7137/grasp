@@ -4,10 +4,13 @@ import { safeErrorDetails } from '../observability/safe-error.js';
 import { toHttpError } from './anthropic-errors.js';
 import { Interviewer, type ReplyResult, type ScoreResult } from './interviewer.js';
 import type { InterviewSession, TokenUsage } from './interview.types.js';
+import { meteredRequest } from './metered-request.js';
 import { OfflineInterviewer } from './offline.interviewer.js';
-import { costUsd } from './pricing.js';
+import { maximumCostUsd, messageUsage, priceFor } from './pricing.js';
 import { candidateTurn, interviewerSystemPrompt, scorerSystemPrompt, transcriptText } from './prompts.js';
 import { InvalidScorecardError, normalizeScorecard, scorecardJsonSchema } from './scorecard.schema.js';
+import type { SpendGuard } from './spend-guard.js';
+import { StreamUsage } from './stream-usage.js';
 
 export interface ClaudeInterviewerOptions {
   model: string;
@@ -29,32 +32,56 @@ export class ClaudeInterviewer extends Interviewer {
   readonly mode = 'ai' as const;
   private readonly log = new Logger(ClaudeInterviewer.name);
   private readonly offline = new OfflineInterviewer();
+  private readonly model;
+  private readonly replyMaxTokens: number;
+  private readonly scoreMaxTokens: number;
 
   constructor(
     private readonly client: Anthropic,
     private readonly options: ClaudeInterviewerOptions,
+    private readonly spend: SpendGuard,
   ) {
     super();
+    const model = priceFor(options.model);
+    if (!model) throw new RangeError('The AI model has no verified pricing and limits.');
+    this.model = model;
+    this.replyMaxTokens = options.replyMaxTokens ?? 2048;
+    this.scoreMaxTokens = options.scoreMaxTokens ?? 16_000;
+    maximumCostUsd(model.model, this.replyMaxTokens, true);
+    maximumCostUsd(model.model, this.scoreMaxTokens, false);
   }
 
   async reply(session: InterviewSession, onDelta: (text: string) => void, signal: AbortSignal): Promise<ReplyResult> {
     try {
-      const stream = this.client.messages.stream(
-        {
-          model: this.options.model,
-          max_tokens: this.options.replyMaxTokens ?? 2048,
-          system: interviewerSystemPrompt(session),
-          messages: toClaudeMessages(session),
-          cache_control: { type: 'ephemeral' },
-          output_config: { effort: 'low' },
+      const params: Anthropic.MessageCreateParams = {
+        model: this.model.model,
+        max_tokens: this.replyMaxTokens,
+        system: interviewerSystemPrompt(session),
+        messages: toClaudeMessages(session),
+        cache_control: { type: 'ephemeral', ttl: '5m' },
+        service_tier: 'standard_only',
+        ...(this.model.supportsEffort ? { output_config: { effort: 'low' } } : {}),
+      };
+      const { message, usage } = await meteredRequest({
+        spend: this.spend,
+        maximumCostUsd: maximumCostUsd(this.model.model, this.replyMaxTokens, true),
+        maxRetries: this.client.maxRetries,
+        signal,
+        request: async (connected) => {
+          const streamUsage = new StreamUsage(this.model.model, this.replyMaxTokens);
+          const stream = this.client.messages.stream(params, { signal, maxRetries: 0 });
+          stream.on('connect', connected);
+          stream.on('text', onDelta);
+          stream.on('streamEvent', (event) => streamUsage.observe(event));
+          const final = await stream.finalMessage();
+          const finalUsage = messageUsage(this.model.model, this.replyMaxTokens, true, final);
+          return { message: final, usage: streamUsage.supported ? finalUsage : { ...finalUsage, costUsd: null } };
         },
-        { signal },
-      );
-      stream.on('text', onDelta);
-      const message = await stream.finalMessage();
+        costUsd: (result) => result.usage.costUsd,
+      });
       const text = message.stop_reason === 'refusal' ? '' : textOf(message);
       if (!text) this.log.warn({ operation: 'interview.empty-reply' });
-      return { text: text || REDIRECT_REPLY, usage: this.usage(message.usage) };
+      return { text: text || REDIRECT_REPLY, usage };
     } catch (err) {
       throw toHttpError(err, this.log);
     }
@@ -65,20 +92,31 @@ export class ClaudeInterviewer extends Interviewer {
     for (let attempt = 1; attempt <= SCORE_ATTEMPTS; attempt++) {
       let message: Anthropic.Message;
       try {
-        message = await this.client.messages.create(
-          {
-            model: this.options.model,
-            max_tokens: this.options.scoreMaxTokens ?? 16_000,
-            system: scorerSystemPrompt(session),
-            messages: [{ role: 'user', content: `Score this interview.\n\n<transcript>\n${transcriptText(session)}\n</transcript>` }],
-            output_config: { effort: 'medium', format: { type: 'json_schema', schema: scorecardJsonSchema(session.track) } },
-          },
-          { timeout: this.options.scoreTimeoutMs ?? 180_000 },
-        );
+        message = await meteredRequest({
+          spend: this.spend,
+          maximumCostUsd: maximumCostUsd(this.model.model, this.scoreMaxTokens, false),
+          maxRetries: this.client.maxRetries,
+          request: async () =>
+            this.client.messages.create(
+              {
+                model: this.model.model,
+                max_tokens: this.scoreMaxTokens,
+                system: scorerSystemPrompt(session),
+                messages: [{ role: 'user', content: `Score this interview.\n\n<transcript>\n${transcriptText(session)}\n</transcript>` }],
+                service_tier: 'standard_only',
+                output_config: {
+                  ...(this.model.supportsEffort ? { effort: 'medium' } : {}),
+                  format: { type: 'json_schema', schema: scorecardJsonSchema(session.track) },
+                },
+              },
+              { timeout: this.options.scoreTimeoutMs ?? 180_000, maxRetries: 0 },
+            ),
+          costUsd: (result) => messageUsage(this.model.model, this.scoreMaxTokens, false, result).costUsd,
+        });
       } catch (err) {
         throw toHttpError(err, this.log);
       }
-      usage.push(this.usage(message.usage));
+      usage.push(messageUsage(this.model.model, this.scoreMaxTokens, false, message));
       try {
         if (message.stop_reason !== 'end_turn') throw new InvalidScorecardError(`Scorer stopped with ${message.stop_reason}`);
         return { scorecard: { ...normalizeScorecard(session.track, textOf(message)), mode: 'ai' }, usage };
@@ -88,16 +126,6 @@ export class ClaudeInterviewer extends Interviewer {
       }
     }
     return { scorecard: this.offline.scorecard(session, FALLBACK_SCORE_SUMMARY), usage };
-  }
-
-  private usage(u: Anthropic.Usage): TokenUsage {
-    const tokens = {
-      inputTokens: u.input_tokens,
-      outputTokens: u.output_tokens,
-      cacheReadTokens: u.cache_read_input_tokens ?? 0,
-      cacheWriteTokens: u.cache_creation_input_tokens ?? 0,
-    };
-    return { ...tokens, costUsd: costUsd(this.options.model, tokens) };
   }
 }
 

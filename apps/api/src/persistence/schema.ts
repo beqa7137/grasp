@@ -1,5 +1,20 @@
 import { sql } from 'drizzle-orm';
-import { doublePrecision, index, integer, jsonb, pgTable, primaryKey, smallint, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
+import {
+  bigint,
+  check,
+  date,
+  doublePrecision,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  primaryKey,
+  smallint,
+  text,
+  timestamp,
+  unique,
+  uuid,
+} from 'drizzle-orm/pg-core';
 
 export const learners = pgTable('learners', {
   id: uuid('id').primaryKey(),
@@ -179,4 +194,44 @@ export const leases = pgTable(
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   },
   (t) => [index('leases_expires_at').on(t.expiresAt)],
+);
+
+export const aiSpendDays = pgTable(
+  'ai_spend_days',
+  {
+    day: date('day', { mode: 'string' }).primaryKey(),
+    legacyMicros: bigint('legacy_micros', { mode: 'bigint' })
+      .notNull()
+      .default(sql`0`),
+    settledMicros: bigint('settled_micros', { mode: 'bigint' })
+      .notNull()
+      .default(sql`0`),
+    reservedMicros: bigint('reserved_micros', { mode: 'bigint' })
+      .notNull()
+      .default(sql`0`),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    index('ai_spend_days_expires_at').on(t.expiresAt),
+    check('ai_spend_days_legacy_range', sql`${t.legacyMicros} between 0 and 9007199254740991`),
+    check('ai_spend_days_settled_nonnegative', sql`${t.settledMicros} >= 0`),
+    check('ai_spend_days_reserved_nonnegative', sql`${t.reservedMicros} >= 0`),
+  ],
+);
+
+export const aiSpendReservations = pgTable(
+  'ai_spend_reservations',
+  {
+    id: uuid('id').primaryKey(),
+    day: date('day', { mode: 'string' })
+      .notNull()
+      .references(() => aiSpendDays.day, { onDelete: 'cascade' }),
+    reservedMicros: bigint('reserved_micros', { mode: 'bigint' }).notNull(),
+    actualMicros: bigint('actual_micros', { mode: 'bigint' }),
+  },
+  (t) => [
+    index('ai_spend_reservations_day').on(t.day),
+    check('ai_spend_reservations_reserved_range', sql`${t.reservedMicros} between 1 and 9007199254740991`),
+    check('ai_spend_reservations_actual_range', sql`${t.actualMicros} between 0 and 9007199254740991`),
+  ],
 );

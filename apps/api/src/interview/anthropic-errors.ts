@@ -12,7 +12,7 @@ function errorType(err: InstanceType<typeof Anthropic.APIError>): string | undef
 }
 
 /**
- * Maps Claude API failures to client-safe HTTP errors. The SDK has already retried transient ones.
+ * Maps Claude API failures to client-safe HTTP errors after metered retries finish.
  * Aborts pass through untouched so the caller can tell a closed connection from a failure.
  */
 export function toHttpError(err: unknown, log: Logger): unknown {

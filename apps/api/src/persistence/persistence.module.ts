@@ -5,6 +5,9 @@ import pg from 'pg';
 import { APP_CONFIG, ConfigError, loadConfig, type AppConfig } from '../config.js';
 import { safeErrorDetails } from '../observability/safe-error.js';
 import { createDatabasePool } from './database-pool.js';
+import { MemorySpendStore } from './memory-spend.store.js';
+import { PostgresSpendStore } from './postgres-spend.store.js';
+import { SpendStore } from './spend.store.js';
 import { ErasureStore, MemoryErasureStore, MemoryLearnerState, PostgresErasureStore } from './erasure.stores.js';
 import {
   MemoryAuthStore,
@@ -37,6 +40,7 @@ export class ExpiredRowSweeper implements OnApplicationBootstrap, OnApplicationS
   constructor(
     private readonly coordination: CoordinationStore,
     private readonly auth: AuthStore,
+    private readonly spend: SpendStore,
   ) {}
 
   onApplicationBootstrap() {
@@ -50,7 +54,7 @@ export class ExpiredRowSweeper implements OnApplicationBootstrap, OnApplicationS
 
   async sweep() {
     try {
-      const removed = (await this.coordination.sweep()) + (await this.auth.sweepExpired());
+      const removed = (await this.coordination.sweep()) + (await this.auth.sweepExpired()) + (await this.spend.sweep());
       if (removed) this.log.debug(`Swept ${removed} expired rows`);
     } catch (error) {
       this.log.warn({ operation: 'persistence.sweep', ...safeErrorDetails(error) });
@@ -128,9 +132,15 @@ export class ExpiredRowSweeper implements OnApplicationBootstrap, OnApplicationS
       useFactory: (db: Db | null, auth: AuthStore) =>
         db ? new PostgresCoordinationStore(db) : new MemoryCoordinationStore(Date.now, auth),
     },
+    {
+      provide: SpendStore,
+      inject: [DB, CoordinationStore],
+      useFactory: (db: Db | null, coordination: CoordinationStore) =>
+        db ? new PostgresSpendStore(db) : new MemorySpendStore(coordination),
+    },
     ExpiredRowSweeper,
   ],
-  exports: [APP_CONFIG, PG_POOL, ProgressStore, InterviewStore, FeedbackStore, AuthStore, ErasureStore, CoordinationStore],
+  exports: [APP_CONFIG, PG_POOL, ProgressStore, InterviewStore, FeedbackStore, AuthStore, ErasureStore, CoordinationStore, SpendStore],
 })
 export class PersistenceModule implements OnApplicationShutdown {
   constructor(@Inject(PG_POOL) private readonly pool: pg.Pool | null) {}

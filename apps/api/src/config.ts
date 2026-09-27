@@ -36,7 +36,12 @@ const envSchema = z
     ANTHROPIC_MODEL: z.string().min(1).default('claude-sonnet-5'),
     ANTHROPIC_TIMEOUT_MS: z.coerce.number().int().min(1_000).default(60_000),
     ANTHROPIC_MAX_RETRIES: z.coerce.number().int().min(0).max(10).default(2),
-    AI_DAILY_BUDGET_USD: optional(z.coerce.number().positive()),
+    AI_DAILY_BUDGET_USD: optional(
+      z.coerce
+        .number()
+        .positive()
+        .refine((value) => Number.isSafeInteger(Math.floor(value * 1_000_000)), 'must fit a safe integer number of microdollars'),
+    ),
     INTERVIEW_MESSAGES_PER_HOUR: z.coerce.number().int().positive().default(120),
 
     ADMIN_TOKEN: optional(z.string().min(32, 'must be at least 32 characters')),

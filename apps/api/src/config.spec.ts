@@ -160,4 +160,10 @@ describe('loadConfig', () => {
     })();
     for (const key of ['PORT', 'DATABASE_URL', 'LOG_LEVEL', 'AI_DAILY_BUDGET_USD']) expect(message).toContain(key);
   });
+
+  it('rejects a budget that cannot be represented safely in microdollars', () => {
+    expect(() => loadConfig({ AI_DAILY_BUDGET_USD: '9007199255' })).toThrow(/AI_DAILY_BUDGET_USD/);
+    expect(() => loadConfig({ AI_DAILY_BUDGET_USD: String(Number.MAX_SAFE_INTEGER / 1_000_000) })).toThrow(/AI_DAILY_BUDGET_USD/);
+    expect(loadConfig({ AI_DAILY_BUDGET_USD: '9007199254' }).aiDailyBudgetUsd).toBe(9_007_199_254);
+  });
 });

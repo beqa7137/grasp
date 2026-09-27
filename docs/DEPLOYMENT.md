@@ -126,6 +126,30 @@ Every variable is validated at startup. See `apps/api/.env.example` for the full
 | `WEB_DIST_DIR`, `PORT`                      | set by the image; on Vercel `WEB_DIST_DIR` is set by `api/index.js`                          |
 | `NODEJS_HELPERS`                            | `0` at Vercel build time (set by the workflows and by **Set up Vercel**)                     |
 
+## AI spend reservations
+
+`AI_DAILY_BUDGET_USD` caps shared liability for paid attempts admitted on each UTC day, across API instances using the same database. Before contacting Claude, the API atomically reserves an upper bound for that attempt. Complete, verified usage replaces the hold with actual cost, rounded up to a microdollar. The ledger keeps opaque reservation IDs and amounts without learner IDs, transcripts or provider responses. Account deletion does not erase incurred spend. Offline practice does not reserve paid budget.
+
+The upper bound uses the model's full context limit and requested output limit because Anthropic describes [token counting as an estimate](https://platform.claude.com/docs/en/build-with-claude/token-counting), including possible hidden prompt overhead. Replies explicitly use 5-minute caching; scoring is uncached. Both request `standard_only` service. Workspace inference geography is preserved, with the possible US premium reserved before the response confirms the actual geography. Fast mode, server tools, unknown model versions, custom Anthropic headers and alternate API endpoints are unsupported. SDK diagnostic logging is disabled. Verify [model pricing](https://platform.claude.com/docs/en/about-claude/pricing), [model limits](https://platform.claude.com/docs/en/about-claude/models/overview) and [geography pricing](https://platform.claude.com/docs/en/manage-claude/data-residency) before changing this policy.
+
+Default per-attempt reservations, verified September 2026:
+
+| Model                       | Reply (2,048 output tokens) | Score (16,000 output tokens) |
+| --------------------------- | --------------------------: | ---------------------------: |
+| `claude-sonnet-5`           |                   $2.772528 |                    $2.376000 |
+| `claude-opus-5-5`           |                   $5.545056 |                    $4.752000 |
+| `claude-haiku-4-5-20251001` |                   $0.260240 |                    $0.280000 |
+
+The Haiku alias resolves to that exact snapshot. These holds are deliberately much larger than a normal short interview's actual cost. Leave enough headroom for concurrent attempts and retries: a $10 Sonnet budget can initially admit three simultaneous replies, then regain unused headroom as they settle. The next attempt is refused whenever its whole reservation does not fit, even if some budget remains. An unset ceiling still records reservations and requires available storage.
+
+Each retry gets its own reservation; automatic SDK retries are disabled. A definite failed HTTP response releases that attempt's hold, following [Anthropic's billing policy](https://support.claude.com/en/articles/8977456-how-do-i-pay-for-my-claude-api-usage). A disconnected, timed-out, interrupted or malformed successful response can still have incurred charges, so it retains its full hold. Missing or unfamiliar billing metadata and failed settlements also retain the hold. Streams are never retried after connection. Valid final usage settles before scorecard validation, so a later scoring retry or session-save failure cannot erase the charge. Database admission errors prevent provider dispatch.
+
+Reservations and their settlements belong to the day admission began, even if completion crosses midnight. Unresolved holds reduce only that day's allowance and remain in the ledger until its history expires, 90 days after the day ends. This is an admission control limit based on published token rates, not an invoice total or an account-wide provider cap. Taxes, contract-specific rates, unrelated API clients and price changes are outside it. Whole-call deadlines and cancellation on account deletion remain separate follow-ups.
+
+Migration `0010` adds the ledger and its short atomic Postgres functions. Admission and settlement each use one database round trip; the functions bound lock waits to 1.5 seconds, while the pool bounds the client's query wait to 3 seconds. A client timeout does not cancel the SQL statement: an ambiguous admission can leave an unused hold, but cannot authorize provider dispatch. Existing daily spend is imported conservatively, then refreshed monotonically during rollout. The new version never writes charges to the old spend counter, avoiding double counting.
+
+Before enabling paid traffic on this release, drain or disable every older paid API instance, let its provider calls finish, and protect all older deployment URLs. Older code cannot see reservations or new ledger charges, so the shared ceiling does not hold while it can still admit requests. Migration is additive and compatible with old writes, but cannot make old admission logic atomic. A rollback to older code also loses this protection: disable its paid provider configuration until returning to a compatible release. Do not delete unknown holds merely to restore headroom without independently confirming that no billable request occurred.
+
 ## Privacy notes for error reporting
 
 Sentry is loaded only when a DSN is set, as two projects: `grasp-api` (`SENTRY_DSN`) and `grasp-app` (`SENTRY_WEB_DSN`, used by the web app and the native apps).
