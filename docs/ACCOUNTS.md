@@ -1,6 +1,6 @@
 # Accounts
 
-Accounts are optional. Grasp stays local-first: an anonymous device keeps working without ever signing in. Signing in adds cross-device sync and a way to keep your progress if you lose the device.
+Accounts are optional for studying and scripted interview practice. Grasp stays local-first: an anonymous device can keep learning without signing in. Signing in adds cross-device sync and access to AI interviews when available; using AI also requires an explicit mode choice.
 
 There are exactly two ways to sign in: **Google** and **GitHub**. There are no passwords and no email codes. On the web, iOS and Android the app uses [`@capgo/capacitor-social-login`](https://github.com/Cap-go/capacitor-social-login) for both. The API decides who is signing in; the app never holds a provider secret.
 
@@ -156,7 +156,7 @@ Configured Postgres failures stop dependent requests. Recognized database availa
 
 A limit response returns 429 with `code: "rate_limited"`, a readable wait, `retryAfterSeconds`, and `Retry-After`. Rate-limit headers on a denial describe the exhausted bucket; successful auth responses describe the network bucket. Account Settings displays the wait and keeps sign-in available to retry. A rejected sign-in preserves guest progress, and a 429 refresh preserves saved credentials and local progress.
 
-Nonces and tickets are 256-bit, so network limits bound cost and outbound calls rather than guessing. AI interview messages keep their separate per-learner hourly quota; this change does not make renewable guest UUIDs a robust paid-trial identity.
+Nonces and tickets are 256-bit, so network limits bound cost and outbound calls rather than guessing. Interview actions keep their separate per-learner hourly quota. Paid AI also requires an active account and an explicit AI mode choice, so rotating guest UUIDs cannot obtain paid calls. Guests can use scripted practice. The account learner is stable across devices, headers and networks; this is not a lifetime or one-human-per-account entitlement. See [interview access](AI_INTERVIEWER.md#practice-modes-and-paid-access) for admission and rollout details.
 
 ## Error codes
 

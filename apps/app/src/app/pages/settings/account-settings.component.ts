@@ -4,21 +4,16 @@ import { addIcons } from 'ionicons';
 import { logoGithub, logoGoogle } from 'ionicons/icons';
 import { ApiError } from '../../core/api.service';
 import { AuthService, SIGN_IN_PROVIDERS, type SignInProvider } from '../../core/auth.service';
-
-const LABELS: Record<SignInProvider, string> = { google: 'Google', github: 'GitHub' };
-const ICONS: Record<SignInProvider, string> = { google: 'logo-google', github: 'logo-github' };
-const GENERIC_ERROR = "Sign-in didn't complete. Please try again.";
-/** Errors whose wording the API owns and the person can act on. */
-const EXPLAINED_ERRORS = new Set(['account_exists', 'email_unverified', 'identity_in_use', 'rate_limited']);
+import { SIGN_IN_ICONS, SIGN_IN_LABELS, SignInOptionsComponent, signInErrorMessage } from '../../core/sign-in-options.component';
 
 @Component({
   selector: 'app-account-settings',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IonIcon],
+  imports: [IonIcon, SignInOptionsComponent],
   template: `
     <section class="panel block">
       <h2>Account</h2>
-      @if (auth.user(); as user) {
+      @if (account(); as user) {
         <div class="row">
           <div>
             <strong>{{ user.email }}</strong>
@@ -58,26 +53,8 @@ const EXPLAINED_ERRORS = new Set(['account_exists', 'email_unverified', 'identit
         @if (auth.signInRequired()) {
           <p class="notice">Your session ended. Sign in again to keep syncing this device's progress.</p>
         }
-        @if (auth.providers(); as providers) {
-          @if (providers.length) {
-            <p class="muted intro">Optional. Sign in to sync your progress across devices and keep it if you lose this one.</p>
-            <div class="sign-in">
-              @for (provider of providers; track provider) {
-                <button class="g-btn" [disabled]="busy()" (click)="signIn(provider)">
-                  <ion-icon [name]="icons[provider]" aria-hidden="true" />
-                  Continue with {{ labels[provider] }}
-                </button>
-              }
-            </div>
-          } @else {
-            <p class="muted intro">Sign-in isn't available on this server yet.</p>
-          }
-        } @else if (auth.providersFailed()) {
-          <div class="load-failed">
-            <p class="muted">Couldn't load sign-in options.</p>
-            <button class="g-btn" (click)="auth.loadProviders()">Try again</button>
-          </div>
-        }
+        <p class="muted intro">Study and scripted practice work without an account. Sign in to sync progress and use AI interviews.</p>
+        <app-sign-in-options [disabled]="busy()" (busyChange)="signingIn.set($event)" (signedIn)="confirmSignedIn()" />
       }
       @if (error(); as message) {
         <p class="error" role="alert">{{ message }}</p>
@@ -136,29 +113,6 @@ const EXPLAINED_ERRORS = new Set(['account_exists', 'email_unverified', 'identit
       flex: none;
       font-size: 20px;
     }
-    .load-failed {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      margin-bottom: 12px;
-    }
-    .load-failed p {
-      margin: 0;
-    }
-    .load-failed .g-btn {
-      flex: none;
-    }
-    .sign-in {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-    .sign-in .g-btn {
-      flex: 1 1 220px;
-      padding: 12px 14px;
-    }
     .notice {
       padding: 10px 12px;
       border-radius: 10px;
@@ -180,9 +134,11 @@ export class AccountSettingsComponent {
   private readonly errors = inject(ErrorHandler);
   readonly auth = inject(AuthService);
   readonly busy = signal(false);
+  readonly signingIn = signal(false);
+  readonly account = computed(() => (this.signingIn() ? null : this.auth.user()));
   readonly error = signal<string | null>(null);
-  readonly labels = LABELS;
-  readonly icons = ICONS;
+  readonly labels = SIGN_IN_LABELS;
+  readonly icons = SIGN_IN_ICONS;
 
   /** Linked providers, plus the ones this device could connect. Empty until the account's identities load. */
   readonly methods = computed(() => {
@@ -196,16 +152,16 @@ export class AccountSettingsComponent {
 
   constructor() {
     addIcons({ logoGoogle, logoGithub });
-    void this.auth.loadProviders();
+    if (this.auth.signedIn()) void this.auth.loadProviders();
     void this.auth.loadIdentities();
   }
 
-  signIn(provider: SignInProvider) {
-    return this.attempt(() => this.auth.signIn(provider), 'Signed in. Your progress is now synced to your account.');
+  confirmSignedIn() {
+    return this.toast('Signed in. Your progress is now synced to your account.');
   }
 
   connect(provider: SignInProvider) {
-    return this.attempt(() => this.auth.connect(provider), `You can now sign in with ${LABELS[provider]} too.`);
+    return this.attempt(() => this.auth.connect(provider), `You can now sign in with ${SIGN_IN_LABELS[provider]} too.`);
   }
 
   async confirmSignOut() {
@@ -238,7 +194,7 @@ export class AccountSettingsComponent {
     try {
       if (await action()) await this.toast(success);
     } catch (e) {
-      this.error.set(errorMessage(e));
+      this.error.set(signInErrorMessage(e));
       // API errors are reported by the server; plugin failures (such as a misconfigured client) are only visible here.
       if (!(e instanceof ApiError)) this.errors.handleError(e);
     } finally {
@@ -250,8 +206,4 @@ export class AccountSettingsComponent {
     const toast = await this.toasts.create({ message, duration: 3500, position: 'bottom' });
     await toast.present();
   }
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof ApiError && error.code !== undefined && EXPLAINED_ERRORS.has(error.code) ? error.message : GENERIC_ERROR;
 }

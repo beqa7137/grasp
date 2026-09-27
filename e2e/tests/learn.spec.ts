@@ -40,6 +40,27 @@ test('deep links load directly, and unknown paths land on Learn', { tag: '@smoke
   await expect(page).toHaveURL(/\/learn$/);
 });
 
+test.describe('warmed offline lessons', () => {
+  test.use({ expectedConsoleErrors: [/ERR_INTERNET_DISCONNECTED/] });
+
+  test('opens an unvisited pattern and steps through an unvisited visualizer after disconnecting', async ({ page, context }) => {
+    await page.goto('/learn', { waitUntil: 'networkidle' });
+    await context.setOffline(true);
+
+    await page.locator('a.pattern[href="/learn/pattern/two-pointers"]').click();
+    await expect(page.getByRole('heading', { name: 'Two Pointers', level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Template' })).toBeVisible();
+
+    await page.locator('ion-tab-button[tab="visualize"]').click();
+    await page.locator('a.item[href="/visualize/binary-search"]').click();
+    await expect(page.getByRole('heading', { name: 'Binary Search', level: 1 })).toBeVisible();
+    const counter = page.locator('app-player .scrub .count');
+    const initial = await counter.textContent();
+    await page.getByRole('button', { name: 'Step forward' }).click();
+    await expect(counter).not.toHaveText(initial!);
+  });
+});
+
 test.describe('progress sync recovery', () => {
   test.use({ expectedConsoleErrors: [/Failed to load resource/] });
 

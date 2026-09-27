@@ -16,7 +16,7 @@ import { IonContent } from '@ionic/angular';
           We store your learning activity (reviews, predictions, missions) under an anonymous id so progress syncs and we can see what
           works.
         </li>
-        <li>Interview transcripts are sent to Anthropic's Claude API to run and score the AI interviewer.</li>
+        <li>In AI mode, interview transcripts and shared code are sent to Anthropic's Claude API for replies and scoring.</li>
         <li>Use the <strong>Feedback</strong> tab on the right edge any time. Bugs, confusion and ideas are all useful.</li>
         <li>
           You can export or delete everything we store from

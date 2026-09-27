@@ -12,8 +12,26 @@ Code lives in `apps/api/src/interview/`.
 | `anthropic-errors.ts`    | Maps API failures to client-safe HTTP errors                               |
 | `pricing.ts`             | Per-model prices, per-call cost, per-session totals                        |
 | `spend-guard.ts`         | Daily spend ceiling                                                        |
-| `offline.interviewer.ts` | Scripted interviewer used without an API key, and as the scoring fallback  |
-| `interview.service.ts`   | Session lifecycle, quotas, per-session locking, usage accounting           |
+| `offline.interviewer.ts` | Guest and account scripted practice, plus the AI scoring fallback          |
+| `interview.service.ts`   | Session lifecycle, access checks, mode selection, quotas and locking       |
+
+## Practice modes and paid access
+
+Every new interview defaults to scripted practice (`mode: "offline"`), including on a server with AI configured and for signed-in learners. The opening prompt, replies, hints and heuristic scorecard are available to guests. Scripted scoring checks rubric coverage, not answer correctness. Learning, code execution, visualizers and reviews also remain available without an account.
+
+AI requires both an explicit choice and an active account. `POST /api/interview/sessions` accepts `mode: "ai"`; `POST /api/interview/sessions/:id/mode` changes an active session to `"ai"` or `"offline"`. Mode changes preserve the transcript and affect future replies and the final score. They share the reply/scoring lease, so switching while work is in flight returns 409. Scored interviews cannot change mode.
+
+The catalog and each public session include `aiAccess: "available" | "sign-in-required" | "unavailable"`. This describes the current caller's access on this server; the session's `mode` describes the selected practice mode. The catalog's older `mode` field still describes server AI availability for compatibility. The mutation endpoint always rechecks access, even if the client has an earlier capability response.
+
+Before any AI reply, hint or uncached score consumes the interview quota or changes the transcript, the service requires verified access claims and rechecks their session family in shared storage. A guest receives `403 ai_sign_in_required`, without a provider call or paid reservation. An unavailable AI provider returns `503 ai_unavailable`; the learner can explicitly switch to scripted practice. Storage failures fail closed. A cached scorecard returns without fresh paid admission and preserves its own historical `mode`.
+
+The active-family check is the paid operation's admission point. Logout before that check rejects the operation. An operation already admitted can finish after logout; this does not promise cancellation of incurred provider work. Account erasure still prevents the result from being persisted. Each provider attempt retains the separate monetary reservation check described below.
+
+Signed-in calls use the account's server-resolved learner ID, so changing a device UUID, IP or browser does not renew that account's hourly quota. Scripted and AI actions retain their existing shared hourly interview allowance. This is an account-based limit, not proof of one human per account or a lifetime trial: account deletion/recreation or additional verified accounts can obtain a new allowance. The shared monetary ceiling still bounds admitted paid liability.
+
+Sign-in happens inside the interview UI. It does not upgrade or send an answer automatically. Cancellation or failure leaves the answer and code draft in place; successful guest adoption or merge retains the session ID. The learner then explicitly chooses AI and submits their next action. Provider loading failure has a retry; disabled or device-incompatible sign-in still leaves scripted practice available. Existing active accounts do not lose AI access merely because new sign-in providers are disabled.
+
+Session mode is stored in the existing JSONB session, with no schema migration. Legacy active records without a selected mode use scripted practice until explicitly changed; completed unmarked records use their historical scorecard mode for the session label. Existing scorecards retain their scoring mode and content. Before rollout, retire older paid instances and protect their deployment URLs: old code ignores session mode and does not require an account for paid calls. Older cached clients also do not send mode and therefore start scripted sessions on this API. A rollback to older code requires disabling paid provider configuration first.
 
 ## Request design
 
@@ -53,15 +71,15 @@ Every call's `usage` is converted to tokens and dollars with the prices in `pric
 - input, output, cache write (5-minute) and cache read
 - dated snapshot ids resolve to their base model
 
-The service stores the running total on the session as `session.usage` (calls, token classes, `costUsd`). It is persisted with the session and removed from every API response. When an interview is scored, one log line records its totals.
+The service stores the running total on the session as `session.usage` (calls, token classes, `costUsd`). It is persisted with the session and removed from every API response.
 
 A rough budget with Sonnet 5 ($2 in, $10 out, $0.20 cache read, $2.50 cache write per million tokens): a 12-turn interview plus scoring costs a few cents. `npm run eval:interviewer` prints the measured figures.
 
-`AI_DAILY_BUDGET_USD` sets a daily ceiling in UTC days. Once it is reached, new replies and scoring return 503 with a clear message until the next UTC day. The daily total is stored in Postgres (`counters`) and shared by every API instance, and daily totals are kept for 90 days as a spend history. Checking and charging are separate steps, so calls already running when the ceiling is reached can overshoot it by their own cost. If the total cannot be read, paid calls are refused; a failure to record a cost is logged but never fails the learner's request. Without a database the total is per process and resets on restart. If a model has no price entry, its cost is `null` and the ceiling can't apply; a warning is logged at startup.
+`AI_DAILY_BUDGET_USD` caps shared liability for attempts admitted on each UTC day. Before every provider attempt, including retries, the API atomically reserves its maximum verified cost in Postgres. Complete usage settles the hold to actual cost; uncertain transport, metadata or settlement retains the full hold. Admission errors prevent provider dispatch. Reservations settle independently of session persistence, and account deletion does not erase incurred charges. Offline practice makes no paid reservation. Unknown models are refused at startup. See [AI spend reservations](DEPLOYMENT.md#ai-spend-reservations) for bounds, concurrency headroom, day rollover, retention and rollout restrictions.
 
 ## Failure handling
 
-The SDK retries 408, 409, 429 and 5xx responses and connection errors, with backoff that honours `retry-after`. `ANTHROPIC_MAX_RETRIES` sets how many times (default 2). `ANTHROPIC_TIMEOUT_MS` sets the time to first byte (default 60 s).
+The metered request wrapper retries eligible 408, 409, 429 and 5xx responses and connection errors, with backoff that honours `retry-after`. Each attempt reserves separately; automatic SDK retries are disabled, and connected streams are not retried. `ANTHROPIC_MAX_RETRIES` sets the maximum retry count (default 2). `ANTHROPIC_TIMEOUT_MS` sets the time to first byte (default 60 s).
 
 What remains after those retries is mapped in `anthropic-errors.ts`:
 
@@ -74,8 +92,8 @@ What remains after those retries is mapped in `anthropic-errors.ts`:
 
 - **Errors before the first streamed token** return a JSON error response. **Errors after it** arrive as an SSE `error` event. In both cases the candidate's turn is not saved, so the app puts the text back in the input and the learner can resend it.
 - **A refusal or empty reply** is replaced by a neutral prompt to continue the interview.
-- **Scoring** retries once if the output fails validation or stops with `max_tokens`/`refusal`. If the second attempt fails too, the offline heuristic scorer produces the card with `mode: "offline"` and a summary that says so, and the app labels it "offline heuristic". API errors during scoring are not replaced by the heuristic: they return 503, and the learner can score again later.
-- **Concurrent requests** for the same session (a double-tap, two tabs) get 409 while a reply or scoring call is in flight, so two writes can't race. The lock is a lease in Postgres, so it holds across API instances; it is released when the call ends and expires after 15 minutes if an instance dies mid-call.
+- **Scoring** retries once if the output fails validation or stops with `max_tokens`/`refusal`. If the second attempt fails too, the offline heuristic scorer produces the card with `mode: "offline"` and a summary that says so, and the app labels it "scripted practice estimate". API errors during scoring are not replaced by the heuristic: they return 503, and the learner can score again later.
+- **Concurrent requests** for the same session (a double-tap, two tabs) get 409 while a reply, scoring call or mode switch is in flight, so two writes can't race. The lock is a lease in Postgres, so it holds across API instances; it is released when the call ends and expires after 15 minutes if an instance dies mid-call.
 - **Per-learner quota:** `INTERVIEW_MESSAGES_PER_HOUR` (default 120) replies and scorings per clock hour, counted across instances. Each session allows at most 30 candidate turns of up to 4,000 characters.
 
 ## Testing
@@ -86,6 +104,7 @@ What remains after those retries is mapped in `anthropic-errors.ts`:
 | `src/interview/scorecard.schema.spec.ts`               | Repair and rejection rules                                                                                                                                                                                                           | nothing             |
 | `src/interview/pricing.spec.ts`, `spend-guard.spec.ts` | Cost maths, day rollover, budget ceiling                                                                                                                                                                                             | nothing             |
 | `test/interview-ai.e2e-spec.ts`                        | The full HTTP path with the real SDK: SSE streaming, usage persisted but not exposed, AI scoring into progress events, 503 before and during a stream, 409 on concurrent turns, the budget ceiling. Runs against memory and Postgres | optional Postgres   |
+| `test/paid-access.e2e-spec.ts`                         | Guest UUID rotation cannot dispatch paid work; explicit mode choice, authenticated admission, logout races, stable account quotas, guest merge and legacy sessions                                                                   | optional Postgres   |
 | `test/live/interviewer.live-spec.ts`                   | The real model: scripted strong and weak candidates on both tracks, verdict direction, a gap of at least 1.0 between strong and weak averages, expected weak patterns, cache hits, reply length, no headings, no solution leak       | `ANTHROPIC_API_KEY` |
 
 The contract and e2e suites use a real `Anthropic` client whose `fetch` is scripted (`test/support/fake-anthropic.ts`). That means the SDK's own request serialization, SSE parser, retry logic and error classes are all exercised, and the suites run offline in CI.
@@ -101,11 +120,11 @@ It prints a table with verdict, average score, token classes, cost and time to f
 
 ## Configuration
 
-| Variable                      | Default           | Purpose                                         |
-| ----------------------------- | ----------------- | ----------------------------------------------- |
-| `ANTHROPIC_API_KEY`           | unset (offline)   | Turns on the AI interviewer                     |
-| `ANTHROPIC_MODEL`             | `claude-sonnet-5` | Any model with a price entry gets cost tracking |
-| `ANTHROPIC_TIMEOUT_MS`        | `60000`           | Time to first byte per request (scoring: 180 s) |
-| `ANTHROPIC_MAX_RETRIES`       | `2`               | SDK retries for transient failures              |
-| `AI_DAILY_BUDGET_USD`         | unset             | Daily spend ceiling per API instance            |
-| `INTERVIEW_MESSAGES_PER_HOUR` | `120`             | Per-learner message and scoring quota           |
+| Variable                      | Default           | Purpose                                                |
+| ----------------------------- | ----------------- | ------------------------------------------------------ |
+| `ANTHROPIC_API_KEY`           | unset (offline)   | Makes AI available to signed-in learners who select it |
+| `ANTHROPIC_MODEL`             | `claude-sonnet-5` | A model with verified pricing and request bounds       |
+| `ANTHROPIC_TIMEOUT_MS`        | `60000`           | Time to first byte per request (scoring: 180 s)        |
+| `ANTHROPIC_MAX_RETRIES`       | `2`               | Metered retries for transient failures                 |
+| `AI_DAILY_BUDGET_USD`         | unset             | Shared daily liability ceiling with Postgres           |
+| `INTERVIEW_MESSAGES_PER_HOUR` | `120`             | Per-learner message and scoring quota                  |

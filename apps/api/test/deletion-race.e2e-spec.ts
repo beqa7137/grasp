@@ -123,8 +123,9 @@ describe.runIf(testDatabaseUrl)('Account erasure during a reply across API insta
       .set(auth)
       .send({ kind: 'idea', message: 'Erase this feedback.', rating: null, context: { route: '/', release: null, platform: 'web' } })
       .expect(201);
-    const session = (await on(a).post('/api/interview/sessions').set(auth).send({ track: 'coding', problemId: 'warmer-days' }).expect(201))
-      .body;
+    const session = (
+      await on(a).post('/api/interview/sessions').set(auth).send({ track: 'coding', problemId: 'warmer-days', mode: 'ai' }).expect(201)
+    ).body;
     const beforeFailedErase = await remaining(account.user.id);
     expect(beforeFailedErase).toMatchObject({ learners: 1, events: 1, sessions: 1, feedback: 1, accounts: 1, tombstones: 0 });
 

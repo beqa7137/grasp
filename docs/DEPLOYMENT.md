@@ -126,6 +126,12 @@ Every variable is validated at startup. See `apps/api/.env.example` for the full
 | `WEB_DIST_DIR`, `PORT`                      | set by the image; on Vercel `WEB_DIST_DIR` is set by `api/index.js`                          |
 | `NODEJS_HELPERS`                            | `0` at Vercel build time (set by the workflows and by **Set up Vercel**)                     |
 
+## AI interview access
+
+Paid AI requires an active Grasp account and explicit AI mode selection. Configure a usable Google or GitHub sign-in provider before inviting new AI learners. A server without a usable sign-in provider still offers guest scripted practice; existing active accounts can still choose AI. New and legacy-unmarked sessions default to scripted practice, and sign-in never upgrades an existing session automatically.
+
+This release stores session mode in existing JSONB, without DDL. Retire older paid API instances and protect generated deployment URLs before relying on the account boundary. Old code ignores mode and can still dispatch guest paid calls. Older cached clients omit mode and start scripted sessions until updated. Disable paid provider configuration before rolling back to older code. Detailed access, quota and admission semantics are in [AI_INTERVIEWER.md](AI_INTERVIEWER.md#practice-modes-and-paid-access).
+
 ## AI spend reservations
 
 `AI_DAILY_BUDGET_USD` caps shared liability for paid attempts admitted on each UTC day, across API instances using the same database and configured ceiling. Before contacting Claude, the API atomically reserves an upper bound for that attempt. Complete, verified usage replaces the hold with actual cost, rounded up to a microdollar. The ledger keeps opaque reservation IDs and amounts without learner IDs, transcripts or provider responses. Account deletion does not erase incurred spend. Offline practice does not reserve paid budget.

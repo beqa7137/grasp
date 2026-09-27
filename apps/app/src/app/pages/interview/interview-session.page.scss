@@ -27,6 +27,34 @@
   gap: 6px;
 }
 
+.mode-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  [aria-pressed='true'] {
+    border-color: var(--g-accent);
+    background: var(--g-accent-soft);
+  }
+}
+
+.interviewer-choice p,
+.sign-in-panel p {
+  margin: 10px 0 0;
+  line-height: 1.5;
+  font-size: 0.875rem;
+}
+
+.sign-in-panel {
+  padding: 16px;
+  h2 {
+    margin: 0;
+    font-size: 1.125rem;
+  }
+  app-sign-in-options {
+    margin-top: 14px;
+  }
+}
+
 .msg {
   display: flex;
   gap: 10px;

@@ -4,7 +4,7 @@
     <ion-title>{{ session()?.problem?.title ?? 'Interview' }}</ion-title>
     @if (active() && candidateTurns() >= 2) {
       <ion-buttons slot="end">
-        <button class="g-btn ghost end" (click)="score()" [disabled]="scoring() || busy()">
+        <button class="g-btn ghost end" (click)="score()" [disabled]="pending()">
           @if (scoring()) {
             <ion-spinner name="crescent" />
           } @else {
@@ -23,11 +23,48 @@
     @if (session(); as s) {
       <div class="meta">
         <span class="chip accent">{{ s.track === 'coding' ? 'Coding' : 'System design' }}</span>
-        <span class="chip">{{ s.mode === 'ai' ? 'AI interviewer' : 'Offline interviewer' }}</span>
+        <span class="chip">{{ s.mode === 'ai' ? 'AI interviewer' : 'Scripted practice' }}</span>
         @if (s.hintsUsed) {
           <span class="chip">{{ s.hintsUsed }} hint{{ s.hintsUsed > 1 ? 's' : '' }} used</span>
         }
       </div>
+      @if (active()) {
+        <section class="interviewer-choice" aria-label="Interviewer choice">
+          <div class="mode-options" role="group" aria-label="Interviewer">
+            <button class="g-btn" [attr.aria-pressed]="s.mode === 'offline'" [disabled]="pending()" (click)="chooseMode('offline')">
+              Scripted practice
+            </button>
+            <button
+              class="g-btn"
+              [attr.aria-pressed]="s.mode === 'ai'"
+              [disabled]="pending() || accessCheckFailed() || s.aiAccess === 'unavailable'"
+              (click)="chooseMode('ai')"
+            >
+              {{ s.aiAccess === 'sign-in-required' ? 'Sign in for AI' : 'AI interviewer' }}
+            </button>
+          </div>
+          <p class="muted">Changing the interviewer affects future replies and the final score. Your conversation stays here.</p>
+          @if (s.mode === 'offline') {
+            <p class="muted">Scripted prompts and a practice estimate. No AI or sign-in needed.</p>
+          } @else {
+            <p class="muted">Your replies and shared code are sent to the AI service.</p>
+          }
+          @if (s.aiAccess === 'unavailable') {
+            <p class="muted">AI is unavailable right now. Scripted practice is still available.</p>
+          }
+        </section>
+      }
+    }
+
+    @if (signInOpen()) {
+      <section class="panel sign-in-panel" aria-label="Sign in for AI interviews">
+        <h2 #signInHeading tabindex="-1">Sign in for AI interviews</h2>
+        <p class="muted">Your conversation, answer and code stay here. Signing in won't send a reply or score your interview.</p>
+        <app-sign-in-options cancelLabel="Cancel sign-in" (cancelled)="closeSignIn()" (signedIn)="signedIn()" />
+      </section>
+    }
+    @if (notice(); as message) {
+      <p class="muted" role="status">{{ message }}</p>
     }
 
     @for (m of messages(); track $index) {
@@ -63,6 +100,12 @@
 
     @if (error(); as e) {
       <p class="error" role="alert">{{ e }}</p>
+      @if (!session()) {
+        <button class="g-btn" [disabled]="pending()" (click)="retryLoad()">Retry interview</button>
+      }
+    }
+    @if (accessCheckFailed()) {
+      <button class="g-btn" [disabled]="pending()" (click)="checkAccess()">Retry access check</button>
     }
     <p class="visually-hidden" role="status">{{ announcer.message() }}</p>
 
@@ -71,7 +114,7 @@
         <header>
           <ion-icon name="ribbon-outline" aria-hidden="true" />
           <div>
-            <p class="eyebrow">Scorecard · {{ card.mode === 'ai' ? 'AI calibrated' : 'offline heuristic' }}</p>
+            <p class="eyebrow">Scorecard · {{ card.mode === 'ai' ? 'AI feedback' : 'scripted practice estimate' }}</p>
             <h2 class="verdict" [attr.data-verdict]="card.verdict">{{ verdictLabel(card.verdict) }}</h2>
           </div>
         </header>
@@ -163,13 +206,18 @@
             <ion-icon name="code-slash-outline" aria-hidden="true" />Code
           </button>
         }
-        <button class="g-btn ghost hint" (click)="send(true)" [disabled]="busy()" title="Ask for a hint (costs a little on the scorecard)">
+        <button
+          class="g-btn ghost hint"
+          (click)="send(true)"
+          [disabled]="pending()"
+          title="Ask for a hint (costs a little on the scorecard)"
+        >
           <ion-icon name="bulb-outline" aria-hidden="true" />Hint
         </button>
         <button
           class="g-btn primary icon send"
           (click)="send()"
-          [disabled]="busy() || (!draft().trim() && !codeChanged())"
+          [disabled]="pending() || (!draft().trim() && !codeChanged())"
           aria-label="Send"
         >
           <ion-icon name="arrow-up" aria-hidden="true" />

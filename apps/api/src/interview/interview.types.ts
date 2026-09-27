@@ -1,4 +1,6 @@
 export type InterviewTrack = 'coding' | 'system-design';
+export type InterviewMode = 'ai' | 'offline';
+export type AiAccess = 'available' | 'sign-in-required' | 'unavailable';
 
 export interface InterviewProblem {
   id: string;
@@ -64,6 +66,8 @@ export interface InterviewSession {
   hintsUsed: number;
   status: 'active' | 'scored';
   createdAt: string;
+  /** Legacy active sessions without a chosen mode use scripted practice. */
+  mode?: InterviewMode;
   scorecard?: Scorecard;
   scoredAt?: string;
   usage?: SessionUsage;
@@ -71,5 +75,6 @@ export interface InterviewSession {
 
 export type PublicInterviewSession = Omit<InterviewSession, 'problem' | 'learnerId' | 'usage'> & {
   problem: Pick<InterviewProblem, 'id' | 'title' | 'track' | 'patternIds'>;
-  mode: 'ai' | 'offline';
+  mode: InterviewMode;
+  aiAccess: AiAccess;
 };

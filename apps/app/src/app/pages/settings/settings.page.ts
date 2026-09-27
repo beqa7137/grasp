@@ -80,8 +80,8 @@ import { type Choice, StudySettingsComponent } from './study-settings.component'
           <h2>Your data</h2>
           <p class="muted">
             Grasp stores your learning events, interview sessions and feedback
-            {{ auth.signedIn() ? 'in your account' : 'under an anonymous id' }}. Interview transcripts are sent to Anthropic's Claude API to
-            run and score interviews.
+            {{ auth.signedIn() ? 'in your account' : 'under an anonymous id' }}. In AI mode, interview transcripts and shared code are sent
+            to Anthropic's Claude API for replies and scoring.
           </p>
           <div class="row g-control-row">
             <div>
