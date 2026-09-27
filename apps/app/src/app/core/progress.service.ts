@@ -23,6 +23,7 @@ import { ApiService } from './api.service';
 const EVENTS_KEY = 'grasp.events';
 const SYNCED_KEY = 'grasp.synced';
 const CLOCK_TICK_MS = 60_000;
+const PROGRESS_PULL_TIMEOUT_MS = 20_000;
 
 type Draft<T> = Omit<T, 'id' | 'at'> & { id?: string; at?: string };
 
@@ -47,6 +48,7 @@ export class ProgressService {
   private readonly api = inject(ApiService);
   private readonly events = signal<StoredEvent[]>([]);
   private synced = new Set<string>();
+  private pullFailed = false;
   private syncTimer: ReturnType<typeof setTimeout> | undefined;
 
   /** Wall clock as a signal, so due counts and recall estimates refresh while the app stays open. */
@@ -76,7 +78,7 @@ export class ProgressService {
     const [events, synced] = await Promise.all([Preferences.get({ key: EVENTS_KEY }), Preferences.get({ key: SYNCED_KEY })]);
     this.events.set(events.value ? JSON.parse(events.value) : []);
     this.synced = new Set(synced.value ? JSON.parse(synced.value) : []);
-    void this.pull().then(() => this.push());
+    void this.resync();
   }
 
   async record(event: NewEvent): Promise<void> {
@@ -96,8 +98,10 @@ export class ProgressService {
 
   /** Pulls events from other devices (for example after signing in) and pushes local ones. */
   async resync(): Promise<void> {
-    await this.pull();
-    await this.push();
+    this.syncStatus.set('syncing');
+    const pulled = await this.pull();
+    const pushed = await this.push();
+    this.syncStatus.set(pulled && pushed ? 'synced' : 'offline');
   }
 
   /** Forgets all local progress, e.g. after the learner erased their server-side data. */
@@ -105,6 +109,7 @@ export class ProgressService {
     clearTimeout(this.syncTimer);
     this.events.set([]);
     this.synced = new Set();
+    this.pullFailed = false;
     await Promise.all([Preferences.remove({ key: EVENTS_KEY }), Preferences.remove({ key: SYNCED_KEY })]);
     this.syncStatus.set('idle');
   }
@@ -125,11 +130,11 @@ export class ProgressService {
     this.syncTimer = setTimeout(() => void this.push(), 1500);
   }
 
-  private async push() {
+  private async push(): Promise<boolean> {
     const pending = this.events().filter((e) => !this.synced.has(e.id));
     if (pending.length === 0) {
-      if (this.syncStatus() !== 'offline') this.syncStatus.set('synced');
-      return;
+      if (this.syncStatus() !== 'offline') this.syncStatus.set(this.pullFailed ? 'offline' : 'synced');
+      return true;
     }
     this.syncStatus.set('syncing');
     try {
@@ -139,16 +144,18 @@ export class ProgressService {
         batch.forEach((e) => this.synced.add(e.id));
       }
       await Preferences.set({ key: SYNCED_KEY, value: JSON.stringify([...this.synced]) });
-      this.syncStatus.set('synced');
+      this.syncStatus.set(this.pullFailed ? 'offline' : 'synced');
+      return true;
     } catch {
       this.syncStatus.set('offline');
+      return false;
     }
   }
 
   /** Merges events recorded on other devices; the log is a grow-only set keyed by event id. */
-  private async pull() {
+  private async pull(): Promise<boolean> {
     try {
-      const { events } = await this.api.get<{ events: StoredEvent[] }>('/progress/events');
+      const { events } = await this.api.get<{ events: StoredEvent[] }>('/progress/events', PROGRESS_PULL_TIMEOUT_MS);
       const known = new Set(this.events().map((e) => e.id));
       const incoming = events.filter((e) => !known.has(e.id));
       events.forEach((e) => this.synced.add(e.id));
@@ -156,8 +163,12 @@ export class ProgressService {
         this.events.update((list) => [...list, ...incoming]);
         await this.persist();
       }
+      this.pullFailed = false;
+      return true;
     } catch {
+      this.pullFailed = true;
       this.syncStatus.set('offline');
+      return false;
     }
   }
 

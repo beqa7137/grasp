@@ -4,9 +4,24 @@
       ><span class="wordmark">grasp<i>.</i></span></ion-title
     >
     <ion-buttons slot="end">
-      <div class="sync" [attr.data-status]="progress.syncStatus()">
+      <div #syncStatus class="sync" tabindex="-1" [attr.data-status]="progress.syncStatus()">
         <ion-icon [name]="progress.syncStatus() === 'offline' ? 'cloud-offline-outline' : 'cloud-done-outline'" aria-hidden="true" />
-        <span>{{ progress.syncStatus() === 'offline' ? 'Offline' : 'Synced' }}</span>
+        <span>
+          @switch (progress.syncStatus()) {
+            @case ('offline') {
+              Offline
+            }
+            @case ('syncing') {
+              Syncing
+            }
+            @case ('idle') {
+              Saved locally
+            }
+            @default {
+              Synced
+            }
+          }
+        </span>
       </div>
       <a class="settings-link" routerLink="/settings" aria-label="Settings"><ion-icon name="settings-outline" aria-hidden="true" /></a>
     </ion-buttons>
@@ -18,7 +33,15 @@
   @let session = progress.session();
   <div class="page">
     @if (auth.signInRequired()) {
-      <a class="resume panel" routerLink="/settings">Your session ended. Sign in to keep syncing your progress →</a>
+      <a #sessionResume class="resume panel" routerLink="/settings">Your session ended. Sign in to keep syncing your progress →</a>
+    }
+    @if (showSyncFailure()) {
+      <aside #syncAlert class="sync-error panel" role="alert" tabindex="-1">
+        <span>Sync is unavailable. Your progress is saved on this device.</span>
+        <button #retryButton class="g-btn ghost" [disabled]="retrying()" (click)="retrySync()">
+          {{ retrying() ? 'Trying again' : 'Try again' }}
+        </button>
+      </aside>
     }
     <section class="hero">
       <p class="eyebrow">{{ greeting() }}</p>

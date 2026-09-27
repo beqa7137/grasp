@@ -39,3 +39,51 @@ test('deep links load directly, and unknown paths land on Learn', { tag: '@smoke
   await page.goto('/no-such-page');
   await expect(page).toHaveURL(/\/learn$/);
 });
+
+test.describe('progress sync recovery', () => {
+  test.use({ expectedConsoleErrors: [/Failed to load resource/] });
+
+  test('keeps the retry alert and keyboard focus in place until sync recovers', async ({ page }) => {
+    let pulls = 0;
+    let releaseRetry!: () => void;
+    const retryResponse = new Promise<void>((resolve) => (releaseRetry = resolve));
+    await page.route('**/api/progress/events', async (route) => {
+      if (route.request().method() !== 'GET') return route.continue();
+      pulls++;
+      if (pulls === 2) await retryResponse;
+      if (pulls <= 2) {
+        return route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ message: 'Database unavailable' }) });
+      }
+      return route.continue();
+    });
+
+    await page.goto('/learn');
+    const alert = page.getByRole('alert').filter({ hasText: 'Sync is unavailable' });
+    const retry = alert.getByRole('button');
+    const hero = page.locator('.hero');
+    await expect(alert).toBeVisible();
+    await expect(page.getByRole('link', { name: /Your session ended/ })).toHaveCount(0);
+    const heroTop = (await hero.boundingBox())!.y;
+
+    await retry.focus();
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.sync[data-status="syncing"]')).toBeVisible();
+    await expect(alert).toBeVisible();
+    await expect(retry).toBeDisabled();
+    await expect(retry).toHaveText('Trying again');
+    await expect(alert).toBeFocused();
+    expect(Math.abs((await hero.boundingBox())!.y - heroTop)).toBeLessThan(1);
+
+    releaseRetry();
+    await expect(page.locator('.sync[data-status="offline"]')).toBeVisible();
+    await expect(retry).toBeEnabled();
+    await expect(retry).toHaveText('Try again');
+    await expect(retry).toBeFocused();
+
+    await page.keyboard.press('Enter');
+    const synced = page.locator('.sync[data-status="synced"]');
+    await expect(synced).toBeVisible();
+    await expect(alert).toHaveCount(0);
+    await expect(synced).toBeFocused();
+  });
+});

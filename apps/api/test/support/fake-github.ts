@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { nextTestPort } from './test-port.js';
 
 export interface GitHubAccount {
   id: number;
@@ -35,7 +36,7 @@ export class FakeGitHub {
     const server = createServer();
     const fake = new FakeGitHub(server);
     server.on('request', (req, res) => void fake.handle(req, res));
-    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    await new Promise<void>((resolve) => server.listen(nextTestPort(), '127.0.0.1', resolve));
     return fake;
   }
 

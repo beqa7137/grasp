@@ -1,9 +1,10 @@
-import { Controller, Get, Inject, ServiceUnavailableException } from '@nestjs/common';
+import { Controller, Get, Inject } from '@nestjs/common';
 import { SkipIdentity } from '../auth/identity.guard.js';
 import { SkipRateLimit } from '../common/rate-limit.js';
 import type pg from 'pg';
 import { APP_CONFIG, type AppConfig } from '../config.js';
 import { Interviewer } from '../interview/interviewer.js';
+import { databaseUnavailable } from '../persistence/database-errors.js';
 import { PG_POOL } from '../persistence/persistence.module.js';
 
 @SkipRateLimit()
@@ -34,7 +35,7 @@ export class HealthController {
       try {
         await this.pool.query('select 1');
       } catch {
-        throw new ServiceUnavailableException({ status: 'unavailable', database: 'unreachable' });
+        throw databaseUnavailable();
       }
     }
     return { status: 'ready', database: this.pool ? 'ok' : 'memory' };

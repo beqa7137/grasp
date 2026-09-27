@@ -2,7 +2,8 @@ import { Global, Inject, Injectable, Logger, Module, type OnApplicationBootstrap
 import { attachDatabasePool } from '@vercel/functions';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
-import { APP_CONFIG, loadConfig, type AppConfig } from '../config.js';
+import { APP_CONFIG, ConfigError, loadConfig, type AppConfig } from '../config.js';
+import { createDatabasePool } from './database-pool.js';
 import {
   MemoryAuthStore,
   MemoryCoordinationStore,
@@ -65,11 +66,12 @@ export class ExpiredRowSweeper implements OnApplicationBootstrap, OnApplicationS
       useFactory: (config: AppConfig) => {
         const log = new Logger('Persistence');
         if (!config.databaseUrl) {
+          if (config.env === 'production') throw new ConfigError('DATABASE_URL is required in production');
           log.warn('DATABASE_URL not set; using in-memory stores (data resets on restart).');
           return null;
         }
         log.log('Using Postgres.');
-        const pool = new pg.Pool({ connectionString: config.databaseUrl, max: 10 });
+        const pool = createDatabasePool(config.databaseUrl, log);
         // On Vercel, keeps a suspended instance alive just long enough to close idle connections; a no-op elsewhere.
         attachDatabasePool(pool);
         return pool;

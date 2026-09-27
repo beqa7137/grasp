@@ -20,11 +20,40 @@ it found. Keep entries short and factual, with numbers where they exist.
 | 14     | Long pointer names stay off the links: a badge naming several pointers wraps onto two lines past 13 characters, a drawing keeps only the side room its badges use, and a badge may also sit below and beside its node or take the least bad spot. Long-name code traces: 950 badges on a link and 163 outside of 14,716, now 87; problem examples: 252 clashes, now 0                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | `5e2a644`, `0a5df62` |
 | 15     | A second coding problem for five patterns and a first real backtracking one, 29 in all: Jump Game and Subsets, which their visualizers now link to, Minimum Size Subarray Sum, Rotting Oranges, Coin Change and Redundant Connection, each right after its pattern's problems, except Jump Game, which sits before the bit manipulation problems as greedy does in the curriculum. Subsets accepts any order inside and between subsets (new `unordered-nested` check). Each has a brute-force check, a CPython reference and a performance case its slower approaches cannot finish: naive JavaScript takes 5.2 s to over 30 s, and in the browser times out on that one test (2 s limit) while the references pass in all three languages                                                                                                                                                  | `b758b14`            |
 | 16     | A second coding problem for all eight one-problem patterns, 37 in all: Product of Array Except Self, Largest Rectangle in Histogram, Circular Array Loop, Non-overlapping Intervals, Parallel Courses, Path With Minimum Effort, Replace Words and Edit Distance. Each has brute-force, CPython, hidden wrong-approach and measured performance checks. The code list follows curriculum order, moving Subarrays Summing to K, Merge Intervals, heap and DP problems and Course Schedule; that also changes the Learn page's next-problem suggestion. The grid and graph-input move left all 87 original suites byte-identical over three seeds before new cases were added. LCS uses a 1,000-letter limit and Edit Distance supports 500; the Python runner raises its recursion limit and explains cached-recursion crashes. Performance results summarize long strings and grids by size. | (this change)        |
+| 17     | Production requires Postgres; missing configuration serves liveness and 503. Idle disconnects recover with scrubbed warnings. Database connect and query waits are bounded at 4 and 3 seconds; a local 500-event push passed. Learn keeps its retry alert and focus stable, with 20 seconds for large progress pulls. Local browser tests use memory without a database, while Docker probes liveness.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | working tree         |
+
+## Production readiness backlog
+
+The local audit of `4beccbd` used an isolated Postgres fixture with 25,000 learners and 3.18 million events. Its 200-client runs found no ordinary-route errors, but failure probes found the risks below. Work through the remaining iterations in order before a wider release.
+
+| Iteration | Status     | Work                                                                                                                 |
+| --------- | ---------- | -------------------------------------------------------------------------------------------------------------------- |
+| 1         | Done in 17 | Require Postgres in production, refuse traffic without its URL, and recover after an idle connection drops.          |
+| 2         | Done in 17 | Bound database connect and query waits, return 503 for dependent routes, and let learners retry timed-out calls.     |
+| 3         | Next, P0   | Make account deletion atomic against in-flight interviews and revoke old access tokens across instances.             |
+| 4         | P0         | Keep learner text, IDs and tokens out of database error logs and Sentry envelopes.                                   |
+| 5         | P0, P1     | Reserve paid AI spend before calls and bind guest trials to a robust identity; avoid blocking a class behind one IP. |
+| 6         | P1         | Gate hand deploys on CI, rehearse additive migrations and restore, and roll back failed postflights.                 |
+| 7         | P1, P2     | Retain clock-skewed progress until accepted and split offline batches below the body limit.                          |
+| 8         | P1         | Sync active devices on reconnect and visibility; save interview scorecards and their progress events atomically.     |
+| 9         | P1         | Bound whole AI streams and scoring, and cancel upstream work when clients disconnect.                                |
+| 10        | P1         | Alert on grouped slow-database and AI failures without logging every success or private data.                        |
+| 11        | P1         | Add cursor-based progress sync and a bounded local checkpoint instead of replaying full history on every visit.      |
+| 12        | P1, P2     | Aggregate cohort metrics without a global event sort; paginate feedback and expire old refresh tokens.               |
+| 13        | P2         | Cache stable public reads without counter writes and measure pooled connections across many warm instances.          |
+| 14        | P2         | Version and compress Pyodide, preload routes after idle or likely use, and cache safe startup responses.             |
+| 15        | P2, P3     | Export all account data, mark private reads `no-store`, and prompt stale tabs to reload safely.                      |
 
 ## Open follow-ups
 
 Known issues and deferred work, most valuable first.
 
+- The 20-second progress pull budget is temporary: the audit's 4,777-event response was about 850 kB and took about 9
+  seconds on 3G. Iteration 11 should transfer only new events, then the client deadline can shrink.
+- Admin metrics still load and sort every event. The audit's 3.18-million-event report took 14.45 seconds, beyond the
+  current 3-second query limit; iteration 12 needs SQL aggregates before that report can serve a cohort of this size.
+- A client query timeout ends the API wait but may leave a write running in Postgres. Progress event IDs make its retry
+  idempotent; other write paths need an explicit outcome or idempotency plan before automatic retries are added.
 - Visualizer at 320 px: some verdicts (about 40 of 144 checkpoints) are taller than the space above the playback controls,
   so the reveal keeps the controls on screen and the verdict's end sits under them until the learner scrolls. The first
   question can also open under the tab bar at 320 px.

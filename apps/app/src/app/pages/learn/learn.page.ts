@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, Injector, computed, inject, signal, viewChild } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
 import {
@@ -26,6 +26,7 @@ import {
   sparkles,
 } from 'ionicons/icons';
 import { AuthService } from '../../core/auth.service';
+import { refocusAfterRender } from '../../core/focus';
 import { ProgressService } from '../../core/progress.service';
 import { DiagnosticPromptService } from '../diagnostic/diagnostic-prompt.service';
 import { CodeTextComponent } from '../../viz/code-text.component';
@@ -46,9 +47,16 @@ const TRACKS: { id: Track; title: string; blurb: string }[] = [
   styleUrl: './learn.page.scss',
 })
 export class LearnPage {
+  private readonly injector = inject(Injector);
+  private readonly syncAlert = viewChild<ElementRef<HTMLElement>>('syncAlert');
+  private readonly retryButton = viewChild<ElementRef<HTMLButtonElement>>('retryButton');
+  private readonly syncStatus = viewChild<ElementRef<HTMLElement>>('syncStatus');
+  private readonly sessionResume = viewChild<ElementRef<HTMLAnchorElement>>('sessionResume');
   readonly progress = inject(ProgressService);
   readonly auth = inject(AuthService);
   readonly diagnosticPrompt = inject(DiagnosticPromptService);
+  readonly retrying = signal(false);
+  readonly showSyncFailure = computed(() => !this.auth.signInRequired() && (this.retrying() || this.progress.syncStatus() === 'offline'));
   readonly patternCount = PATTERN_CATALOG.length;
   readonly tracks = TRACKS.map((t) => ({ ...t, patterns: PATTERN_CATALOG.filter((p) => p.track === t.id) }));
 
@@ -97,5 +105,27 @@ export class LearnPage {
 
   mastery(topic: string) {
     return this.masteryById().get(topic)?.mastery ?? 0;
+  }
+
+  async retrySync(): Promise<void> {
+    if (this.retrying()) return;
+    const alert = this.syncAlert()?.nativeElement;
+    this.retrying.set(true);
+    refocusAfterRender(this.injector, () => this.syncAlert()?.nativeElement, alert);
+    try {
+      await this.progress.resync();
+    } finally {
+      this.retrying.set(false);
+      refocusAfterRender(
+        this.injector,
+        () =>
+          this.auth.signInRequired()
+            ? this.sessionResume()?.nativeElement
+            : this.progress.syncStatus() === 'offline'
+              ? this.retryButton()?.nativeElement
+              : this.syncStatus()?.nativeElement,
+        alert,
+      );
+    }
   }
 }
