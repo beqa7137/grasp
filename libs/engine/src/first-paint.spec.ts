@@ -12,6 +12,7 @@ const FIRST_PAINT = [
   'srs/session.ts',
   'srs/reminders.ts',
   'algorithms/catalog.ts',
+  'behavioral/catalog.ts',
   'code-spans.ts',
   'coding/catalog.ts',
   'curriculum/catalog.ts',
@@ -59,6 +60,7 @@ describe('first paint', () => {
     expect(closure(FIRST_PAINT)).toEqual([
       'algorithms/catalog.ts',
       'algorithms/random.ts',
+      'behavioral/catalog.ts',
       'code-spans.ts',
       'coding/catalog.ts',
       'curriculum/catalog.ts',

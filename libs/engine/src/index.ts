@@ -11,3 +11,4 @@ export * from './srs/settings.js';
 export * from './srs/diagnostic.js';
 export * from './srs/reminders.js';
 export * from './coding/index.js';
+export * from './behavioral/index.js';

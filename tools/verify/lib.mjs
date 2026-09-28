@@ -126,6 +126,24 @@ export function states() {
     { id: 'sandbox-inspector', path: '/design/first-scale-up', setup: (p) => answerFirst(p, '.palette .tool') },
     { id: 'sandbox-free', path: '/design/free-build' },
     { id: 'interview-home', path: '/interview' },
+    { id: 'behavioral-list', path: '/behavioral' },
+    { id: 'behavioral-competency', path: '/behavioral/conflict' },
+    { id: 'behavioral-question', path: '/behavioral/question/conflict-1' },
+    {
+      id: 'behavioral-question-drafted',
+      path: '/behavioral/question/ownership-1',
+      setup: async (p) => {
+        const fields = p.locator('app-star-practice textarea');
+        await fields.nth(0).fill('Our nightly billing export failed silently for a week before finance noticed the gap.');
+        await fields.nth(1).fill('Nobody owned the export, and I had the most context on the pipeline that fed it.');
+        await fields
+          .nth(2)
+          .fill(
+            'I traced the failure to an expired credential, I rotated it, I added an alert on missing files and I wrote the runbook. I then asked the data team to own the export and walked them through it.',
+          );
+        await fields.nth(3).fill('Exports have run for 14 months without a gap, and finance closes the month 2 days sooner.');
+      },
+    },
     { id: 'settings', path: '/settings' },
     { id: 'code-list', path: '/code' },
     { id: 'code-two-sum', path: '/code/two-sum' },

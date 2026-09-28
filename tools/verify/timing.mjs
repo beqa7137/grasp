@@ -50,7 +50,7 @@ const median = (xs) => {
   return Math.round(s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2);
 };
 
-const browser = await chromium.launch();
+const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 const labels = Object.keys(TARGETS);
 for (const tap of TAPS) {
   const runs = Object.fromEntries(labels.map((l) => [l, []]));

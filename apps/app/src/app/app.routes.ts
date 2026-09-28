@@ -1,5 +1,5 @@
 import type { ActivatedRouteSnapshot, Routes } from '@angular/router';
-import { getAlgorithmSummary, getPatternSummary, getProblemSummary, getScenarioSummary } from '@grasp/engine';
+import { getAlgorithmSummary, getCompetencySummary, getPatternSummary, getProblemSummary, getScenarioSummary } from '@grasp/engine';
 import { FREE_BUILD } from './pages/design/free-build';
 
 const idOf = (route: ActivatedRouteSnapshot) => route.paramMap.get('id') ?? '';
@@ -54,6 +54,21 @@ export const routes: Routes = [
         path: 'interview/:id',
         title: 'Mock interview',
         loadComponent: () => import('./pages/interview/interview-session.page').then((m) => m.InterviewSessionPage),
+      },
+      {
+        path: 'behavioral',
+        title: 'Behavioral',
+        loadComponent: () => import('./pages/behavioral/behavioral-list.page').then((m) => m.BehavioralListPage),
+      },
+      {
+        path: 'behavioral/question/:id',
+        title: 'Behavioral practice',
+        loadComponent: () => import('./pages/behavioral/star-practice.page').then((m) => m.StarPracticePage),
+      },
+      {
+        path: 'behavioral/:id',
+        title: (route) => getCompetencySummary(idOf(route))?.name ?? 'Behavioral',
+        loadComponent: () => import('./pages/behavioral/competency.page').then((m) => m.CompetencyPage),
       },
       { path: 'code', title: 'Code', loadComponent: () => import('./pages/code/code-list.page').then((m) => m.CodeListPage) },
       {
