@@ -29,6 +29,16 @@ import { LANGUAGES, type TestCase } from './types.js';
 
 const height = (node: TreeNode | null): number => (node ? 1 + Math.max(height(node.left), height(node.right)) : 0);
 
+function safePlacements(n: number, columns = 0, left = 0, right = 0): number {
+  const full = (1 << n) - 1;
+  let count = 1;
+  for (let free = full & ~(columns | left | right); free; free &= free - 1) {
+    const bit = free & -free;
+    count += safePlacements(n, columns | bit, ((left | bit) << 1) & full, (right | bit) >> 1);
+  }
+  return count;
+}
+
 /** Obviously-correct (and slow) solutions to cross-check the references on small inputs. */
 const BRUTE: Record<string, (...args: any[]) => unknown> = {
   'two-sum': (nums: number[], t: number) => {
@@ -44,6 +54,11 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
         return length;
       }),
     ),
+  'four-sum-count': (a: number[], b: number[], c: number[], d: number[]) => {
+    let count = 0;
+    for (const w of a) for (const x of b) for (const y of c) for (const z of d) if (w + x + y + z === 0) count++;
+    return count;
+  },
   'pair-sum-sorted': (nums: number[], t: number) => {
     for (let i = 0; i < nums.length; i++) for (let j = i + 1; j < nums.length; j++) if (nums[i] + nums[j] === t) return [i, j];
     return [];
@@ -64,6 +79,8 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
           }
     return [...found.values()];
   },
+  'trapping-rain-water': (bars: number[]) =>
+    bars.reduce((water, h, i) => water + Math.min(Math.max(...bars.slice(0, i + 1)), Math.max(...bars.slice(i))) - h, 0),
   'jump-game': (nums: number[]) => {
     const reachesEnd = (i: number): boolean =>
       i === nums.length - 1 || rangeOf(i + 1, Math.min(i + nums[i], nums.length - 1)).some(reachesEnd);
@@ -79,6 +96,16 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
       return true;
     };
     return rangeOf(0, gas.length - 1).find(drivesLoop) ?? -1;
+  },
+  'partition-labels': (s: string) => {
+    const sizes: number[] = [];
+    let start = 0;
+    for (let cut = 1; cut <= s.length; cut++)
+      if (![...s].slice(0, cut).some((letter) => s.slice(cut).includes(letter))) {
+        sizes.push(cut - start);
+        start = cut;
+      }
+    return sizes;
   },
   'longest-unique-substring': (s: string) => {
     let best = 0;
@@ -105,12 +132,40 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
       }
     return best;
   },
+  'permutation-in-string': (s1: string, s2: string) => {
+    const sorted = (s: string) => [...s].sort().join('');
+    return rangeOf(0, s2.length - s1.length).some((i) => sorted(s2.slice(i, i + s1.length)) === sorted(s1));
+  },
+  'minimum-window-substring': (s: string, t: string) => {
+    const covers = (window: string) => {
+      const left = [...window];
+      return [...t].every((ch) => {
+        const k = left.indexOf(ch);
+        return k >= 0 && left.splice(k, 1).length === 1;
+      });
+    };
+    for (let length = 1; length <= s.length; length++)
+      for (let i = 0; i + length <= s.length; i++) if (covers(s.slice(i, i + length))) return s.slice(i, i + length);
+    return '';
+  },
   'binary-search': (nums: number[], t: number) => nums.indexOf(t),
   'koko-bananas': (piles: number[], h: number) => {
     const lowerBound = Math.max(1, Math.ceil(piles.reduce((s, p) => s + p, 0) / h));
     for (let k = lowerBound; ; k++) if (piles.reduce((s, p) => s + Math.ceil(p / k), 0) <= h) return k;
   },
   'search-rotated-array': (nums: number[], t: number) => nums.indexOf(t),
+  'find-min-rotated': (nums: number[]) => Math.min(...nums),
+  'split-array-largest-sum': (nums: number[], k: number) => {
+    const sum = (part: number[]) => part.reduce((s, x) => s + x, 0);
+    const cheapest = (from: number, parts: number): number => {
+      if (parts === 1) return sum(nums.slice(from));
+      let best = Infinity;
+      for (let end = from + 1; end <= nums.length - parts + 1; end++)
+        best = Math.min(best, Math.max(sum(nums.slice(from, end)), cheapest(end, parts - 1)));
+      return best;
+    };
+    return cheapest(0, k);
+  },
   'daily-temperatures': (t: number[]) =>
     t.map((x, i) => {
       const j = t.findIndex((y, k) => k > i && y > x);
@@ -135,6 +190,9 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     }
     return total % 1_000_000_007;
   },
+  'sliding-window-maximum': (nums: number[], k: number) => rangeOf(0, nums.length - k).map((i) => Math.max(...nums.slice(i, i + k))),
+  'car-fleet': (target: number, position: number[], speed: number[]) =>
+    position.filter((p, i) => position.every((q, j) => q <= p || (target - q) * speed[i] < (target - p) * speed[j])).length,
   'subarray-sum-k': (nums: number[], k: number) => {
     let count = 0;
     for (let i = 0; i < nums.length; i++) {
@@ -153,6 +211,14 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
         if (part.filter((x) => x === 0).length === part.filter((x) => x === 1).length) best = Math.max(best, part.length);
       }
     return best;
+  },
+  'subarray-sums-divisible-k': (nums: number[], k: number) => {
+    let count = 0;
+    for (let i = 0; i < nums.length; i++) {
+      let sum = 0;
+      for (let j = i; j < nums.length; j++) if ((sum += nums[j]) % k === 0) count++;
+    }
+    return count;
   },
   'number-of-islands': (grid: string[][]) => {
     const g = grid.map((r) => [...r]);
@@ -198,6 +264,24 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     }
     return cells[n - 1][n - 1] === Infinity ? -1 : cells[n - 1][n - 1];
   },
+  'word-ladder': (beginWord: string, endWord: string, wordList: string[]) => {
+    const differByOne = (a: string, b: string) => [...a].filter((letter, i) => letter !== b[i]).length === 1;
+    const length = new Map([[beginWord, 1]]);
+    for (let changed = true; changed;) {
+      changed = false;
+      for (const word of wordList)
+        for (const [from, words] of length)
+          if (differByOne(from, word) && words + 1 < (length.get(word) ?? Infinity)) {
+            length.set(word, words + 1);
+            changed = true;
+          }
+    }
+    return length.get(endWord) ?? 0;
+  },
+  'zero-one-matrix': (mat: number[][]) => {
+    const zeros = mat.flatMap((row, r) => row.flatMap((cell, c) => (cell ? [] : [[r, c]])));
+    return mat.map((row, r) => row.map((_, c) => Math.min(...zeros.map(([y, x]) => Math.abs(y - r) + Math.abs(x - c)))));
+  },
   subsets: (nums: number[]) => {
     const sorted = [...nums].sort((a, b) => a - b);
     return rangeOf(0, 2 ** nums.length - 1).map((mask) => sorted.filter((_, i) => mask & (1 << i)));
@@ -228,6 +312,29 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
       ].some(([y, x]) => walk(y, x, spelled, next));
     };
     return board.some((row, r) => row.some((_, c) => walk(r, c, '', new Set())));
+  },
+  permutations: (nums: number[]) =>
+    nums.reduce<number[][]>(
+      (found, x) => found.flatMap((p) => rangeOf(0, p.length).map((i) => [...p.slice(0, i), x, ...p.slice(i)])),
+      [[]],
+    ),
+  'n-queens-count': (n: number) => {
+    const columns: number[] = [];
+    const count = (): number => {
+      if (columns.length === n) {
+        const attacks = columns.some((c, i) => columns.some((d, j) => i < j && Math.abs(c - d) === j - i));
+        return attacks ? 0 : 1;
+      }
+      let total = 0;
+      for (let c = 0; c < n; c++)
+        if (!columns.includes(c)) {
+          columns.push(c);
+          total += count();
+          columns.pop();
+        }
+      return total;
+    };
+    return count();
   },
   'merge-intervals': (intervals: number[][]) => {
     let list = intervals.map((i) => [...i]);
@@ -262,6 +369,17 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
       else out.push([x / 2, x / 2]);
     return out;
   },
+  'meeting-rooms-ii': (intervals: number[][]) =>
+    Math.max(...intervals.map(([at]) => intervals.filter(([start, end]) => start <= at && at < end).length)),
+  'min-arrows-balloons': (points: number[][]) => {
+    const spots = [...new Set(points.map(([, end]) => end))];
+    let fewest = Infinity;
+    for (let mask = 1; mask < 2 ** spots.length; mask++) {
+      const arrows = spots.filter((_, i) => mask & (1 << i));
+      if (points.every(([start, end]) => arrows.some((x) => start <= x && x <= end))) fewest = Math.min(fewest, arrows.length);
+    }
+    return fewest;
+  },
   'top-k-frequent': (nums: number[], k: number) => {
     const counts = new Map<number, number>();
     nums.forEach((x) => counts.set(x, (counts.get(x) ?? 0) + 1));
@@ -289,12 +407,57 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
       rest === '' || rangeOf(1, rest.length).some((k) => wordDict.includes(rest.slice(0, k)) && splits(rest.slice(k)));
     return splits(s);
   },
+  'partition-equal-subset': (nums: number[]) => {
+    const total = nums.reduce((sum, x) => sum + x, 0);
+    return rangeOf(0, 2 ** nums.length - 1).some((mask) => 2 * nums.reduce((sum, x, i) => (mask & (1 << i) ? sum + x : sum), 0) === total);
+  },
+  'longest-increasing-subsequence': (nums: number[]) => {
+    let best = 0;
+    for (let mask = 1; mask < 2 ** nums.length; mask++) {
+      const picked = nums.filter((_, i) => mask & (1 << i));
+      if (picked.every((x, i) => i === 0 || picked[i - 1] < x)) best = Math.max(best, picked.length);
+    }
+    return best;
+  },
+  'decode-ways': (s: string) => {
+    const memo = new Map<number, bigint>();
+    const count = (i: number): bigint => {
+      if (i === s.length) return 1n;
+      if (!memo.has(i))
+        memo.set(
+          i,
+          [1, 2]
+            .filter((size) => i + size <= s.length && s[i] !== '0' && Number(s.slice(i, i + size)) <= 26)
+            .reduce((sum, size) => sum + count(i + size), 0n),
+        );
+      return memo.get(i)!;
+    };
+    return Number(count(0) % 1_000_000_007n);
+  },
   'kth-largest-element': (nums: number[], k: number) =>
     nums.find((x) => nums.filter((y) => y > x).length < k && nums.filter((y) => y >= x).length >= k),
   'k-closest-points': (points: number[][], k: number) => {
     const distance = ([x, y]: number[]) => Math.hypot(x, y);
     return points.filter((p) => points.filter((q) => distance(q) < distance(p)).length < k);
   },
+  'task-scheduler': (tasks: string[], n: number) => {
+    const kinds = [...new Set(tasks)];
+    const start = JSON.stringify([kinds.map((kind) => tasks.filter((t) => t === kind).length), kinds.map(() => 0)]);
+    const units = new Map([[start, 0]]);
+    for (const [state, time] of units) {
+      const [left, wait] = JSON.parse(state) as number[][];
+      if (left.every((count) => count === 0)) return time;
+      const cooled = wait.map((w) => Math.max(0, w - 1));
+      const moves = [[left, cooled]];
+      kinds.forEach((_, i) => {
+        if (left[i] && !wait[i])
+          moves.push([left.map((count, j) => (j === i ? count - 1 : count)), cooled.map((w, j) => (j === i ? n : w))]);
+      });
+      for (const next of moves.map((move) => JSON.stringify(move))) if (!units.has(next)) units.set(next, time + 1);
+    }
+    return -1;
+  },
+  'kth-smallest-sorted-matrix': (matrix: number[][], k: number) => matrix.flat().sort((a, b) => a - b)[k - 1],
   'longest-common-subsequence': (a: string, b: string) => {
     const subsequences = (s: string) => {
       const out = new Set<string>(['']);
@@ -321,6 +484,11 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     }
     return best;
   },
+  'interleaving-string': (s1: string, s2: string, s3: string) =>
+    s3.length === s1.length + s2.length &&
+    rangeOf(0, 2 ** s3.length - 1).some(
+      (mask) => [...s3].filter((_, i) => mask & (1 << i)).join('') === s1 && [...s3].filter((_, i) => !(mask & (1 << i))).join('') === s2,
+    ),
   'count-components': (n: number, edges: number[][]) => {
     const seen = new Set<number>();
     let components = 0;
@@ -365,6 +533,15 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     for (let via = 0; via < n; via++)
       for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) reach[i][j] ||= reach[i][via] && reach[via][j];
     return new Set(reach.map((row) => row.join())).size;
+  },
+  'equality-equations': (equations: string[]) => {
+    const letters = [...'abcdefghijklmnopqrstuvwxyz'];
+    const equal = letters.map((x) => letters.map((y) => x === y));
+    for (const e of equations)
+      if (e[1] === '=') equal[e.charCodeAt(0) - 97][e.charCodeAt(3) - 97] = equal[e.charCodeAt(3) - 97][e.charCodeAt(0) - 97] = true;
+    for (let via = 0; via < 26; via++)
+      for (let i = 0; i < 26; i++) for (let j = 0; j < 26; j++) equal[i][j] ||= equal[i][via] && equal[via][j];
+    return equations.every((e) => e[1] === '=' || !equal[e.charCodeAt(0) - 97][e.charCodeAt(3) - 97]);
   },
   'course-schedule': (_n: number, prerequisites: number[][]) => {
     const reaches = (from: number, to: number, seen: Set<number>): boolean => {
@@ -411,6 +588,20 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
       );
     return Math.max(...matrix.flatMap((row, r) => row.map((_, c) => longestFrom(r, c))));
   },
+  'minimum-height-trees': (n: number, edges: number[][]) => {
+    const heightFrom = (root: number) => {
+      const depth = new Map([[root, 0]]);
+      for (const [node, d] of depth)
+        for (const [a, b] of edges) {
+          const other = a === node ? b : b === node ? a : -1;
+          if (other >= 0 && !depth.has(other)) depth.set(other, d + 1);
+        }
+      return Math.max(...depth.values());
+    };
+    const heights = rangeOf(0, n - 1).map(heightFrom);
+    const least = Math.min(...heights);
+    return rangeOf(0, n - 1).filter((node) => heights[node] === least);
+  },
   'network-delay': (times: number[][], n: number, k: number) => {
     const dist = Array<number>(n + 1).fill(Infinity);
     dist[k] = 0;
@@ -455,6 +646,23 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     const best = cheapest(src, k + 1);
     return best === Infinity ? -1 : best;
   },
+  'swim-rising-water': (grid: number[][]) => {
+    const n = grid.length;
+    for (let t = 0; ; t++) {
+      const reached = new Set(grid[0][0] <= t ? ['0,0'] : []);
+      for (const key of reached) {
+        const [r, c] = key.split(',').map(Number);
+        for (const [y, x] of [
+          [r - 1, c],
+          [r + 1, c],
+          [r, c - 1],
+          [r, c + 1],
+        ])
+          if ((grid[y]?.[x] ?? Infinity) <= t) reached.add(`${y},${x}`);
+      }
+      if (reached.has(`${n - 1},${n - 1}`)) return t;
+    }
+  },
   'count-prefixes': (words: string[], prefixes: string[]) => prefixes.map((p) => words.filter((w) => w.startsWith(p)).length),
   'replace-words': (dictionary: string[], sentence: string) =>
     sentence
@@ -475,6 +683,10 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     };
     return words.filter((word) => board.some((row, r) => row.some((_, c) => spells(word, r, c, 0, new Set()))));
   },
+  'longest-word-in-dictionary': (words: string[]) =>
+    words
+      .filter((word) => rangeOf(1, word.length - 1).every((k) => words.includes(word.slice(0, k))))
+      .sort((a, b) => b.length - a.length || (a < b ? -1 : 1))[0] ?? '',
   'find-duplicate': (nums: number[]) => nums.find((x, i) => nums.indexOf(x) !== i),
   'circular-array-loop': (nums: number[]) => {
     const n = nums.length;
@@ -547,6 +759,33 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
       }
     return best;
   },
+  'validate-bst': (root: TreeNode | null) => {
+    const values = (node: TreeNode | null): number[] => (node ? [node.val, ...values(node.left), ...values(node.right)] : []);
+    return nodesOf(root).nodes.every(
+      (node) => values(node.left).every((v) => v < node.val) && values(node.right).every((v) => v > node.val),
+    );
+  },
+  'lowest-common-ancestor': (root: TreeNode, p: number, q: number) => {
+    const { nodes, parent } = nodesOf(root);
+    const upFrom = (value: number) => {
+      const chain = [nodes.find((node) => node.val === value)!];
+      while (parent.has(chain[chain.length - 1])) chain.push(parent.get(chain[chain.length - 1])!);
+      return chain;
+    };
+    const aboveQ = upFrom(q);
+    return upFrom(p).find((node) => aboveQ.includes(node))!.val;
+  },
+  'right-side-view': (root: TreeNode | null) => {
+    const { nodes, parent } = nodesOf(root);
+    const depth = new Map<TreeNode, number>();
+    const view: number[] = [];
+    for (const node of nodes) {
+      const d = parent.has(node) ? depth.get(parent.get(node)!)! + 1 : 0;
+      depth.set(node, d);
+      view[d] = node.val;
+    }
+    return view;
+  },
   'single-number': (nums: number[]) => nums.find((x) => nums.filter((y) => y === x).length === 1),
   'total-hamming-distance': (nums: number[]) => {
     let total = 0;
@@ -555,6 +794,11 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     return total;
   },
   'counting-bits': (n: number) => rangeOf(0, n).map((i) => [...i.toString(2)].filter((bit) => bit === '1').length),
+  'maximum-xor-pair': (nums: number[]) => {
+    let best = 0;
+    for (let i = 0; i < nums.length; i++) for (let j = i; j < nums.length; j++) best = Math.max(best, nums[i] ^ nums[j]);
+    return best;
+  },
 };
 
 /**
@@ -565,9 +809,14 @@ const PERFORMANCE_LOAD: Record<string, (test: TestCase) => number> = {
   'edit-distance': ({ args: [a, b] }) => (a as string).length * (b as string).length,
   'longest-palindromic-subsequence': ({ args: [s] }) => (s as string).length ** 2,
   'coin-change': ({ args: [coins, amount] }) => (coins as number[]).length * (amount as number),
+  'partition-equal-subset': ({ args: [nums] }) => ((nums as number[]).length * (nums as number[]).reduce((sum, x) => sum + x, 0)) / 2,
+  'interleaving-string': ({ args: [s1, s2] }) => (s1 as string).length * (s2 as string).length,
   subsets: ({ expected }) => (expected as unknown[]).length,
   'combination-sum': ({ expected }) => (expected as number[][]).flat().length,
   'counting-bits': ({ args: [n] }) => n as number,
+  permutations: ({ expected }) => (expected as unknown[]).length,
+  // The board positions a backtracking search reaches: every placement of queens in the first rows that no two attack.
+  'n-queens-count': ({ args: [n] }) => safePlacements(n as number),
 };
 
 describe('coding problems', () => {

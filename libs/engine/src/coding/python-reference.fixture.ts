@@ -20,6 +20,13 @@ def longest_consecutive(nums):
             best = max(best, end - x + 1)
     return best
 `,
+  'four-sum-count': `
+from collections import Counter
+
+def four_sum_count(nums1, nums2, nums3, nums4):
+    pair_sums = Counter(a + b for a in nums1 for b in nums2)
+    return sum(pair_sums[-c - d] for c in nums3 for d in nums4)
+`,
   'pair-sum-sorted': `
 def pair_sum(nums, target):
     lo, hi = 0, len(nums) - 1
@@ -67,6 +74,21 @@ def three_sum(nums):
                 lo += 1
                 hi -= 1
     return triplets
+`,
+  'trapping-rain-water': `
+def trap(height):
+    lo, hi = 0, len(height) - 1
+    left_max = right_max = water = 0
+    while lo < hi:
+        if height[lo] < height[hi]:
+            left_max = max(left_max, height[lo])
+            water += left_max - height[lo]
+            lo += 1
+        else:
+            right_max = max(right_max, height[hi])
+            water += right_max - height[hi]
+            hi -= 1
+    return water
 `,
   'jump-game': `
 def can_jump(nums):
@@ -122,6 +144,46 @@ def character_replacement(s, k):
         best = max(best, hi - lo + 1)
     return best
 `,
+  'permutation-in-string': `
+from collections import Counter
+
+def check_inclusion(s1, s2):
+    m = len(s1)
+    if m > len(s2):
+        return False
+    need, window = Counter(s1), Counter(s2[:m])
+    if window == need:
+        return True
+    for i in range(m, len(s2)):
+        window[s2[i]] += 1
+        window[s2[i - m]] -= 1
+        if window[s2[i - m]] == 0:
+            del window[s2[i - m]]
+        if window == need:
+            return True
+    return False
+`,
+  'minimum-window-substring': `
+from collections import Counter
+
+def min_window(s, t):
+    need = Counter(t)
+    missing = len(t)
+    best_start, best_len = 0, float("inf")
+    lo = 0
+    for hi, ch in enumerate(s):
+        if need[ch] > 0:
+            missing -= 1
+        need[ch] -= 1
+        while missing == 0:
+            if hi - lo + 1 < best_len:
+                best_start, best_len = lo, hi - lo + 1
+            need[s[lo]] += 1
+            if need[s[lo]] > 0:
+                missing += 1
+            lo += 1
+    return "" if best_len == float("inf") else s[best_start:best_start + best_len]
+`,
   'binary-search': `
 def search(nums, target):
     lo, hi = 0, len(nums) - 1
@@ -163,6 +225,17 @@ def search(nums, target):
         else:
             hi = mid - 1
     return -1
+`,
+  'find-min-rotated': `
+def find_min(nums):
+    lo, hi = 0, len(nums) - 1
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if nums[mid] > nums[hi]:
+            lo = mid + 1
+        else:
+            hi = mid
+    return nums[lo]
 `,
   'daily-temperatures': `
 def daily_temperatures(temperatures):
@@ -291,6 +364,43 @@ def shortest_path_binary_matrix(grid):
                     queue.append((y, x, length + 1))
     return -1
 `,
+  'word-ladder': `
+from collections import deque
+from string import ascii_lowercase
+
+def ladder_length(begin_word, end_word, word_list):
+    unseen = set(word_list)
+    if end_word not in unseen:
+        return 0
+    unseen.discard(begin_word)
+    queue = deque([(begin_word, 1)])
+    while queue:
+        word, length = queue.popleft()
+        for i in range(len(word)):
+            for letter in ascii_lowercase:
+                nxt = word[:i] + letter + word[i + 1:]
+                if nxt in unseen:
+                    if nxt == end_word:
+                        return length + 1
+                    unseen.remove(nxt)
+                    queue.append((nxt, length + 1))
+    return 0
+`,
+  'zero-one-matrix': `
+from collections import deque
+
+def update_matrix(mat):
+    rows, cols = len(mat), len(mat[0])
+    dist = [[0 if cell == 0 else -1 for cell in row] for row in mat]
+    queue = deque((r, c) for r in range(rows) for c in range(cols) if mat[r][c] == 0)
+    while queue:
+        r, c = queue.popleft()
+        for y, x in ((r - 1, c), (r + 1, c), (r, c - 1), (r, c + 1)):
+            if 0 <= y < rows and 0 <= x < cols and dist[y][x] < 0:
+                dist[y][x] = dist[r][c] + 1
+                queue.append((y, x))
+    return dist
+`,
   subsets: `
 def subsets(nums):
     nums = sorted(nums)
@@ -343,6 +453,44 @@ def exist(board, word):
 
     return any(spells(r, c, 0) for r in range(rows) for c in range(cols))
 `,
+  permutations: `
+def permute(nums):
+    out = []
+
+    def go(i):
+        if i == len(nums):
+            out.append(nums[:])
+            return
+        for j in range(i, len(nums)):
+            nums[i], nums[j] = nums[j], nums[i]
+            go(i + 1)
+            nums[i], nums[j] = nums[j], nums[i]
+
+    go(0)
+    return out
+`,
+  'n-queens-count': `
+def total_n_queens(n):
+    columns, down, up = set(), set(), set()
+
+    def place(r):
+        if r == n:
+            return 1
+        count = 0
+        for c in range(n):
+            if c in columns or r - c in down or r + c in up:
+                continue
+            columns.add(c)
+            down.add(r - c)
+            up.add(r + c)
+            count += place(r + 1)
+            columns.remove(c)
+            down.remove(r - c)
+            up.remove(r + c)
+        return count
+
+    return place(0)
+`,
   'merge-intervals': `
 def merge(intervals):
     out = []
@@ -380,6 +528,15 @@ def insert(intervals, new_interval):
     out.extend(intervals[i:])
     return out
 `,
+  'min-arrows-balloons': `
+def find_min_arrow_shots(points):
+    arrows, at = 0, None
+    for start, end in sorted(points, key=lambda p: p[1]):
+        if at is None or start > at:
+            arrows += 1
+            at = end
+    return arrows
+`,
   'top-k-frequent': `
 import heapq
 from collections import Counter
@@ -415,6 +572,17 @@ def word_break(s, word_dict):
                 break
     return ok[-1]
 `,
+  'decode-ways': `
+def num_decodings(s):
+    mod = 10**9 + 7
+    before, last = 0, 1
+    for i, digit in enumerate(s):
+        ways = 0 if digit == '0' else last
+        if i and (s[i - 1] == '1' or (s[i - 1] == '2' and digit <= '6')):
+            ways += before
+        before, last = last, ways % mod
+    return last
+`,
   'kth-largest-element': `
 import heapq
 
@@ -438,6 +606,22 @@ def k_closest(points, k):
         elif entry > heap[0]:
             heapq.heapreplace(heap, entry)
     return [[x, y] for _, x, y in heap]
+`,
+  'task-scheduler': `
+from collections import Counter
+
+def least_interval(tasks, n):
+    counts = Counter(tasks).values()
+    most = max(counts)
+    tied = sum(1 for c in counts if c == most)
+    return max(len(tasks), (most - 1) * (n + 1) + tied)
+`,
+  'kth-smallest-sorted-matrix': `
+import heapq
+from itertools import islice
+
+def kth_smallest(matrix, k):
+    return next(islice(heapq.merge(*matrix), k - 1, None))
 `,
   'longest-common-subsequence': `
 def longest_common_subsequence(text1, text2):
@@ -525,6 +709,22 @@ def find_circle_num(is_connected):
                     stack.append(other)
     return provinces
 `,
+  'equality-equations': `
+def equations_possible(equations):
+    parent = {}
+
+    def find(x):
+        parent.setdefault(x, x)
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    for a, op, _, b in equations:
+        if op == '=':
+            parent[find(a)] = find(b)
+    return all(find(a) != find(b) for a, op, _, b in equations if op == '!')
+`,
   'course-schedule': `
 from collections import deque
 
@@ -583,6 +783,28 @@ def longest_increasing_path(matrix):
 
     return max(longest(r, c) for r in range(rows) for c in range(cols))
 `,
+  'minimum-height-trees': `
+def find_min_height_trees(n, edges):
+    if n == 1:
+        return [0]
+    neighbors = [[] for _ in range(n)]
+    for a, b in edges:
+        neighbors[a].append(b)
+        neighbors[b].append(a)
+    degree = [len(nodes) for nodes in neighbors]
+    leaves = [node for node in range(n) if degree[node] == 1]
+    remaining = n
+    while remaining > 2:
+        remaining -= len(leaves)
+        next_leaves = []
+        for leaf in leaves:
+            for node in neighbors[leaf]:
+                degree[node] -= 1
+                if degree[node] == 1:
+                    next_leaves.append(node)
+        leaves = next_leaves
+    return leaves
+`,
   'network-delay': `
 import heapq
 
@@ -637,6 +859,22 @@ def find_cheapest_price(n, flights, src, dst, k):
                 next_cost[b] = cost[a] + price
         cost = next_cost
     return -1 if cost[dst] == float('inf') else cost[dst]
+`,
+  'swim-rising-water': `
+import heapq
+
+def swim_in_water(grid):
+    n = len(grid)
+    seen = {(0, 0)}
+    heap = [(grid[0][0], 0, 0)]
+    while True:
+        time, r, c = heapq.heappop(heap)
+        if r == c == n - 1:
+            return time
+        for y, x in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):
+            if 0 <= y < n and 0 <= x < n and (y, x) not in seen:
+                seen.add((y, x))
+                heapq.heappush(heap, (max(time, grid[y][x]), y, x))
 `,
   'count-prefixes': `
 def count_prefixes(words, prefixes):
@@ -711,6 +949,16 @@ def find_words(board, words):
         for c in range(cols):
             visit(r, c, root)
     return found
+`,
+  'longest-word-in-dictionary': `
+def longest_word(words):
+    built, best = {''}, ''
+    for word in sorted(words):
+        if word[:-1] in built:
+            built.add(word)
+            if len(word) > len(best):
+                best = word
+    return best
 `,
   'find-duplicate': `
 def find_duplicate(nums):
@@ -813,6 +1061,33 @@ def max_path_sum(root):
     gain(root)
     return best
 `,
+  'validate-bst': `
+def is_valid_bst(root):
+    def valid(node, lo, hi):
+        if not node:
+            return True
+        return lo < node.val < hi and valid(node.left, lo, node.val) and valid(node.right, node.val, hi)
+
+    return valid(root, float('-inf'), float('inf'))
+`,
+  'lowest-common-ancestor': `
+def lowest_common_ancestor(root, p, q):
+    def find(node):
+        if not node or node.val in (p, q):
+            return node
+        left, right = find(node.left), find(node.right)
+        return node if left and right else left or right
+
+    return find(root).val
+`,
+  'right-side-view': `
+def right_side_view(root):
+    view, level = [], [root] if root else []
+    while level:
+        view.append(level[-1].val)
+        level = [child for node in level for child in (node.left, node.right) if child]
+    return view
+`,
   'single-number': `
 def single_number(nums):
     x = 0
@@ -834,5 +1109,136 @@ def count_bits(n):
     for i in range(1, n + 1):
         ans[i] = ans[i >> 1] + (i & 1)
     return ans
+`,
+  'split-array-largest-sum': `
+def split_array(nums, k):
+    def parts(limit):
+        count, total = 1, 0
+        for x in nums:
+            if total + x > limit:
+                count += 1
+                total = x
+            else:
+                total += x
+        return count
+
+    lo, hi = max(nums), sum(nums)
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if parts(mid) <= k:
+            hi = mid
+        else:
+            lo = mid + 1
+    return lo
+`,
+  'subarray-sums-divisible-k': `
+def subarrays_div_by_k(nums, k):
+    seen = [0] * k
+    seen[0] = 1
+    remainder = count = 0
+    for x in nums:
+        remainder = (remainder + x) % k
+        count += seen[remainder]
+        seen[remainder] += 1
+    return count
+`,
+  'sliding-window-maximum': `
+from collections import deque
+
+
+def max_sliding_window(nums, k):
+    window = deque()
+    out = []
+    for i, x in enumerate(nums):
+        while window and nums[window[-1]] <= x:
+            window.pop()
+        window.append(i)
+        if window[0] <= i - k:
+            window.popleft()
+        if i >= k - 1:
+            out.append(nums[window[0]])
+    return out
+`,
+  'car-fleet': `
+def car_fleet(target, position, speed):
+    fleets = []
+    for p, s in sorted(zip(position, speed), reverse=True):
+        distance = target - p
+        if not fleets or distance * fleets[-1][1] > fleets[-1][0] * s:
+            fleets.append((distance, s))
+    return len(fleets)
+`,
+  'meeting-rooms-ii': `
+import heapq
+
+
+def min_meeting_rooms(intervals):
+    ends = []
+    for start, end in sorted(intervals):
+        if ends and ends[0] <= start:
+            heapq.heapreplace(ends, end)
+        else:
+            heapq.heappush(ends, end)
+    return len(ends)
+`,
+  'partition-labels': `
+def partition_labels(s):
+    last = {letter: i for i, letter in enumerate(s)}
+    sizes, start, end = [], 0, 0
+    for i, letter in enumerate(s):
+        end = max(end, last[letter])
+        if i == end:
+            sizes.append(end - start + 1)
+            start = i + 1
+    return sizes
+`,
+  'partition-equal-subset': `
+def can_partition(nums):
+    total = sum(nums)
+    if total % 2:
+        return False
+    reachable = 1
+    for x in nums:
+        reachable |= reachable << x
+    return bool(reachable >> (total // 2) & 1)
+`,
+  'longest-increasing-subsequence': `
+from bisect import bisect_left
+
+
+def length_of_lis(nums):
+    tails = []
+    for x in nums:
+        k = bisect_left(tails, x)
+        if k == len(tails):
+            tails.append(x)
+        else:
+            tails[k] = x
+    return len(tails)
+`,
+  'interleaving-string': `
+def is_interleave(s1, s2, s3):
+    m, n = len(s1), len(s2)
+    if len(s3) != m + n:
+        return False
+    dp = [True] + [False] * n
+    for j in range(1, n + 1):
+        dp[j] = dp[j - 1] and s2[j - 1] == s3[j - 1]
+    for i in range(1, m + 1):
+        dp[0] = dp[0] and s1[i - 1] == s3[i - 1]
+        for j in range(1, n + 1):
+            letter = s3[i + j - 1]
+            dp[j] = (dp[j] and s1[i - 1] == letter) or (dp[j - 1] and s2[j - 1] == letter)
+    return dp[n]
+`,
+  'maximum-xor-pair': `
+def find_maximum_xor(nums):
+    best = 0
+    for bit in range(30, -1, -1):
+        best <<= 1
+        prefixes = {x >> bit for x in nums}
+        if any((best | 1) ^ p in prefixes for p in prefixes):
+            best |= 1
+    return best
 `,
 };
