@@ -88,10 +88,11 @@ jobs:
       - name: Test (engine, API against memory + Postgres, app)
         run: npm test
 
-  # The runners have two cores, so the suite is split across four of them. Each shard builds the app itself,
-  # which is quicker than waiting for a separate build job.
+  # The runners have two cores, so the suite is split across six of them. Sharding the whole suite at once handed the
+  # last shard nearly all the WebKit tests, which run about twice as slow, so each device gets its own shards, sized
+  # to its share of the time. Each shard builds the app itself, which is quicker than waiting for a separate build job.
   e2e:
-    name: Browser end-to-end tests (${{ matrix.shard }}/${{ strategy.job-total }})
+    name: Browser end-to-end tests (${{ matrix.project }} ${{ matrix.shard }}/${{ matrix.of }})
     needs: verdict
     if: ${{ !cancelled() && needs.verdict.outputs.passed != 'true' }}
     runs-on: ubuntu-latest
@@ -100,7 +101,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        include:
+          - { project: desktop, shard: 1, of: 1 }
+          - { project: phone, shard: 1, of: 2 }
+          - { project: phone, shard: 2, of: 2 }
+          - { project: iphone, shard: 1, of: 3 }
+          - { project: iphone, shard: 2, of: 3 }
+          - { project: iphone, shard: 3, of: 3 }
 
     env:
       DATABASE_URL: postgresql://grasp:grasp@localhost:5432/grasp_e2e
@@ -121,21 +128,24 @@ jobs:
       - uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-webkit-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.version }}
+          key: playwright-${{ matrix.project == 'iphone' && 'webkit' || 'chromium' }}-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.version }}
 
       # Only Chromium's headless shell, since the tests run headless. Chromium needs no --with-deps: the runner
       # image already has its libraries (it ships Google Chrome), and the app brings its own fonts. WebKit's
       # libraries are not on the image.
-      - name: Install Chromium and WebKit
+      - name: Install the browser
         run: |
-          npx -w @grasp/e2e playwright install --only-shell chromium
-          npx -w @grasp/e2e playwright install --with-deps webkit
+          if [ "${{ matrix.project }}" = iphone ]; then
+            npx -w @grasp/e2e playwright install --with-deps webkit
+          else
+            npx -w @grasp/e2e playwright install --only-shell chromium
+          fi
 
       - name: Build
         run: npm run build
 
       - name: Upload web build
-        if: matrix.shard == 1
+        if: matrix.project == 'desktop'
         uses: actions/upload-artifact@v7
         with:
           name: web
@@ -144,14 +154,14 @@ jobs:
 
       - uses: ./.github/actions/wait-for-postgres
 
-      - name: Run the learner flows on desktop, Android and iPhone
-        run: npm run e2e -- --shard=${{ matrix.shard }}/${{ strategy.job-total }} --workers=100% --reporter=github,blob
+      - name: Run the learner flows
+        run: npm run e2e -- --project=${{ matrix.project }} --shard=${{ matrix.shard }}/${{ matrix.of }} --workers=100% --reporter=github,blob
 
       - name: Upload the blob report
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: blob-report-${{ matrix.shard }}
+          name: blob-report-${{ matrix.project }}-${{ matrix.shard }}
           path: e2e/blob-report
           retention-days: 1
 
