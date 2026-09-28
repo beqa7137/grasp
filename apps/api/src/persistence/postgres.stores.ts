@@ -1,4 +1,3 @@
-import { isDeepStrictEqual } from 'node:util';
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import type { StoredEvent } from '@grasp/engine';
 import { and, asc, desc, eq, gt, isNull, lt, sql, TransactionRollbackError, type SQL } from 'drizzle-orm';
@@ -10,6 +9,7 @@ import type { AuthIdentity, OneTimePurpose, OneTimeRecord, Provider, RefreshToke
 import type { AccessClaims } from '../auth/tokens.js';
 import type { FeedbackContext, FeedbackEntry, FeedbackKind } from '../feedback/feedback.types.js';
 import type { InterviewSession } from '../interview/interview.types.js';
+import { completedScore, scoredEvent } from '../interview/score-completion.js';
 import { databaseUnavailable, safeDatabaseErrorCategory } from './database-errors.js';
 import { learnerMoved, retiredLearner, retirementDestination } from './learner-errors.js';
 import * as schema from './schema.js';
@@ -155,72 +155,24 @@ export class PostgresInterviewStore extends InterviewStore {
         if (!row) throw new NotFoundException('Interview not found');
         if (row.learnerId !== candidate.learnerId) throw learnerMoved();
         const stored = row.session as InterviewSession;
-        let completed = stored;
-        if (stored.status === 'active') {
-          if (
-            !isDeepStrictEqual(stored.messages, candidate.messages) ||
-            stored.hintsUsed !== candidate.hintsUsed ||
-            (stored.mode ?? 'offline') !== (candidate.mode ?? 'offline') ||
-            stored.track !== candidate.track ||
-            !isDeepStrictEqual(stored.problem, candidate.problem)
-          ) {
-            throw new ConflictException('Interview changed while scoring; try again');
-          }
-          completed = {
-            ...stored,
-            status: candidate.status,
-            scorecard: structuredClone(candidate.scorecard),
-            scoredAt: candidate.scoredAt,
-            usage: structuredClone(candidate.usage),
-          };
-        }
-        if (
-          completed.status !== 'scored' ||
-          !completed.scorecard ||
-          typeof completed.scoredAt !== 'string' ||
-          !Number.isFinite(Date.parse(completed.scoredAt))
-        ) {
-          throw new ConflictException('Interview score is incomplete');
-        }
-        const event: StoredEvent = {
-          id: `interview-${completed.id}`,
-          at: completed.scoredAt!,
-          type: 'interview.scored',
-          sessionId: completed.id,
-          track: completed.track,
-          verdict: completed.scorecard.verdict,
-          weakPatterns: completed.scorecard.weakPatterns,
-        };
+        const completed = completedScore(stored, candidate);
         if (stored.status === 'active') {
           await tx
             .update(schema.interviewSessions)
             .set({ status: completed.status, session: completed, updatedAt: new Date() })
             .where(eq(schema.interviewSessions.id, completed.id));
         }
-        const eventId = `${completed.learnerId}:${event.id}`;
-        const inserted = await tx
+        const event = scoredEvent(completed);
+        await tx
           .insert(schema.learningEvents)
-          .values({ id: eventId, learnerId: completed.learnerId, type: event.type, payload: event, occurredAt: event.at })
-          .onConflictDoNothing()
-          .returning({ id: schema.learningEvents.id });
-        if (!inserted.length) {
-          const [existing] = await tx
-            .select({ payload: schema.learningEvents.payload })
-            .from(schema.learningEvents)
-            .where(eq(schema.learningEvents.id, eventId));
-          const saved = existing?.payload as StoredEvent | undefined;
-          if (
-            saved?.type !== 'interview.scored' ||
-            saved.id !== event.id ||
-            Date.parse(saved.at) !== Date.parse(event.at) ||
-            saved.sessionId !== event.sessionId ||
-            saved.track !== event.track ||
-            saved.verdict !== event.verdict ||
-            !isDeepStrictEqual(saved.weakPatterns, event.weakPatterns)
-          ) {
-            throw new ConflictException('Interview score conflicts with saved progress');
-          }
-        }
+          .values({
+            id: `${completed.learnerId}:${event.id}`,
+            learnerId: completed.learnerId,
+            type: event.type,
+            payload: event,
+            occurredAt: event.at,
+          })
+          .onConflictDoNothing();
         return completed;
       });
     } catch (error) {
