@@ -18,7 +18,6 @@ import { Preferences } from '@capacitor/preferences';
 import {
   COMPONENTS,
   PALETTE,
-  SHARD_KEYS,
   canConnect,
   createNode,
   evaluate,
@@ -32,7 +31,6 @@ import {
   type Design,
   type DesignNode,
   type Scenario,
-  type ShardKey,
   type Workload,
 } from '@grasp/engine';
 import { addIcons } from 'ionicons';
@@ -42,13 +40,10 @@ import {
   bulbOutline,
   checkmarkCircle,
   closeCircleOutline,
-  flash,
-  gitCommitOutline,
   informationCircle,
   refresh,
   remove,
   scanOutline,
-  skullOutline,
   trashOutline,
   trophy,
   warning,
@@ -58,9 +53,9 @@ import { refocusAfterRender } from '../../core/focus';
 import { haptic } from '../../core/haptics';
 import { onPageKey } from '../../core/on-page-key';
 import { ProgressService } from '../../core/progress.service';
-import { RovingSelectDirective } from '../../core/roving-select.directive';
 import { uniqueId } from '../../core/unique-id';
 import { FREE_BUILD } from './free-build';
+import { NodeInspectorComponent } from './node-inspector.component';
 import {
   BOARD,
   type Point,
@@ -95,7 +90,7 @@ type Drag =
 @Component({
   selector: 'app-sandbox',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DecimalPipe, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle, IonContent, IonIcon, RovingSelectDirective],
+  imports: [DecimalPipe, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle, IonContent, IonIcon, NodeInspectorComponent],
   providers: [AnnouncerService],
   templateUrl: './sandbox.page.html',
   styleUrl: './sandbox.page.scss',
@@ -110,10 +105,7 @@ export class SandboxPage {
   private readonly toasts = inject(ToastController);
   readonly announcer = inject(AnnouncerService);
   private readonly svg = viewChild<ElementRef<SVGSVGElement>>('canvas');
-  private readonly connectButton = viewChild<ElementRef<HTMLElement>>('connectButton');
-  private readonly killButton = viewChild<ElementRef<HTMLElement>>('killButton');
-  private readonly recoverButton = viewChild<ElementRef<HTMLElement>>('recoverButton');
-  private readonly targets = viewChild<ElementRef<HTMLElement>>('targets');
+  private readonly inspector = viewChild(NodeInspectorComponent);
   private readonly injector = inject(Injector);
   readonly targetsLabelId = uniqueId('sandbox-targets');
 
@@ -133,7 +125,6 @@ export class SandboxPage {
   private gesture: Gesture | null = null;
   readonly palette = PALETTE.map((k) => COMPONENTS[k]);
   readonly specs = COMPONENTS;
-  readonly shardKeys = (Object.keys(SHARD_KEYS) as ShardKey[]).map((id) => ({ id, ...SHARD_KEYS[id] }));
   readonly fmt = fmt;
 
   /** A case study's reference build, opened as a free build under the load the case estimates. */
@@ -209,12 +200,16 @@ export class SandboxPage {
     });
   });
 
-  readonly outgoing = computed(() => this.edges().filter((e) => e.from === this.selectedId()));
+  readonly outgoing = computed(() =>
+    this.edges()
+      .filter((e) => e.from === this.selectedId())
+      .map((e) => ({ key: e.key, name: this.nodeName(e.to), rps: e.rps })),
+  );
   /** Where the component being connected can send traffic, for choosing without a pointer. */
   readonly connectTargets = computed(() => {
     const from = this.connectFrom();
     const design = this.design();
-    return from ? design.nodes.filter((n) => canConnect(design, from, n.id).ok) : [];
+    return from ? design.nodes.filter((n) => canConnect(design, from, n.id).ok).map((n) => ({ id: n.id, name: this.nodeName(n.id) })) : [];
   });
 
   readonly linkPreview = computed(() => {
@@ -232,8 +227,6 @@ export class SandboxPage {
       remove,
       refresh,
       trashOutline,
-      skullOutline,
-      gitCommitOutline,
       checkmarkCircle,
       closeCircleOutline,
       alertCircle,
@@ -241,7 +234,6 @@ export class SandboxPage {
       informationCircle,
       bulbOutline,
       trophy,
-      flash,
       scanOutline,
     });
 
@@ -447,14 +439,14 @@ export class SandboxPage {
   failInstance(n: DesignNode) {
     this.updateNode(n.id, { failed: Math.min(n.instances, (n.failed ?? 0) + 1) });
     this.announceSelected();
-    refocusAfterRender(this.injector, () => this.killButton()?.nativeElement ?? this.recoverButton()?.nativeElement);
+    refocusAfterRender(this.injector, () => (this.inspector()?.killButton() ?? this.inspector()?.recoverButton())?.nativeElement);
     void haptic.error();
   }
 
   recover(n: DesignNode) {
     this.updateNode(n.id, { failed: 0 });
     this.announceSelected();
-    refocusAfterRender(this.injector, () => this.killButton()?.nativeElement);
+    refocusAfterRender(this.injector, () => this.inspector()?.killButton()?.nativeElement);
   }
 
   deleteNode(id: string) {
@@ -475,7 +467,7 @@ export class SandboxPage {
     });
     this.selectedEdge.set(null);
     if (edge) this.announce(`Removed the connection from ${this.nodeName(edge.from)} to ${this.nodeName(edge.to)}`);
-    refocusAfterRender(this.injector, () => this.connectButton()?.nativeElement ?? this.nodeElement(edge?.from));
+    refocusAfterRender(this.injector, () => this.inspector()?.connectButton()?.nativeElement ?? this.nodeElement(edge?.from));
   }
 
   closeInspector() {
@@ -486,13 +478,13 @@ export class SandboxPage {
 
   startConnect(id: string) {
     this.connectFrom.set(id);
-    const list = () => this.targets()?.nativeElement;
-    refocusAfterRender(this.injector, () => list()?.querySelector('button') ?? list(), this.connectButton()?.nativeElement);
+    const list = () => this.inspector()?.targets()?.nativeElement;
+    refocusAfterRender(this.injector, () => list()?.querySelector('button') ?? list(), this.inspector()?.connectButton()?.nativeElement);
   }
 
   cancelConnect() {
     this.connectFrom.set(null);
-    refocusAfterRender(this.injector, () => this.connectButton()?.nativeElement);
+    refocusAfterRender(this.injector, () => this.inspector()?.connectButton()?.nativeElement);
   }
 
   private onKey(e: KeyboardEvent) {
@@ -511,11 +503,6 @@ export class SandboxPage {
 
   setBotRps(rps: number) {
     this.workload.update((w) => ({ ...w, botRps: rps }));
-  }
-
-  shardKeyDetail(n: DesignNode) {
-    const key = SHARD_KEYS[n.shardKey ?? 'hash'];
-    return `${key.label}: ${key.detail}`;
   }
 
   showHint() {
@@ -574,7 +561,7 @@ export class SandboxPage {
   private async connect(from: string, to: string) {
     const check = canConnect(this.design(), from, to);
     this.connectFrom.set(null);
-    refocusAfterRender(this.injector, () => this.connectButton()?.nativeElement);
+    refocusAfterRender(this.injector, () => this.inspector()?.connectButton()?.nativeElement);
     if (!check.ok) {
       void haptic.error();
       const toast = await this.toasts.create({ message: check.reason, duration: 2200, position: 'top', cssClass: 'g-toast' });
