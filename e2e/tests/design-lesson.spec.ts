@@ -84,3 +84,47 @@ test('the capacity lesson moves the bottleneck when the database gets a second i
   await expect(readout('Bottleneck')).toHaveText('App servers');
   await expect(readout('Dropped')).toHaveText('2,000/s');
 });
+
+test('the consistency lesson shows a stale read once R + W no longer exceeds N, and a failed write when too few replicas are up', async ({
+  page,
+}) => {
+  await page.goto('/learn/design/sd-consistency');
+  const readout = (name: string) => page.locator('.readouts div').filter({ hasText: name }).locator('dd');
+  await expect(readout('R + W vs N')).toHaveText('4 > 3');
+  await expect(readout('The read sees')).toHaveText('the new value');
+  await page.getByRole('button', { name: 'Lower Read quorum' }).click();
+  await expect(readout('R + W vs N')).toHaveText('3 ≤ 3');
+  await expect(readout('The read sees')).toHaveText('possibly the old value');
+  await page.getByRole('button', { name: /^Replica 1,/ }).click();
+  await page.getByRole('button', { name: /^Replica 2,/ }).click();
+  await expect(page.getByRole('button', { name: /^Replica 1, down/ })).toHaveAttribute('aria-pressed', 'true');
+  await expect(readout('Write')).toHaveText('fails');
+});
+
+test('the consensus lesson lets only a majority commit, and an even split stops writes everywhere', async ({ page }) => {
+  await page.goto('/learn/design/sd-consensus');
+  const writes = page.locator('.readouts div').filter({ hasText: 'Writes' }).locator('dd');
+  await expect(writes).toHaveText('commit on the right');
+  await expect(page.getByText('Left: old leader cannot commit')).toBeVisible();
+  await page.getByRole('radio', { name: '4', exact: true }).click();
+  await expect(writes).toHaveText('stop everywhere');
+  const slider = page.getByRole('slider', { name: /Nodes on the left/ });
+  await slider.focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(writes).toHaveText('commit on the left');
+  await expect(page.getByText('Left: majority, leader stays')).toBeVisible();
+});
+
+test('the unique ids lesson trades timestamp years for generator bits, and weighs random ids by the birthday bound', async ({ page }) => {
+  await page.goto('/learn/design/sd-ids');
+  const readout = (name: string) => page.locator('.readouts div').filter({ hasText: name }).locator('dd');
+  await expect(readout('Lasts')).toHaveText('69.7 years');
+  await expect(readout('Generators')).toHaveText('1,024');
+  const generators = page.getByRole('slider', { name: /Generator bits/ });
+  await generators.focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(readout('Lasts')).toHaveText('34.8 years');
+  await expect(readout('Chance of any repeat')).toHaveText('about 9.4 × 10^-20');
+  await page.getByRole('radio', { name: '64 random bits' }).click();
+  await expect(readout('Chance of any repeat')).toHaveText('2.7%');
+});

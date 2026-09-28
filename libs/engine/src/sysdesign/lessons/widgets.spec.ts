@@ -1,14 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import {
   cacheOutcome,
+  collisionChance,
+  idLayout,
   chainAvailability,
   hashRing,
   moduloOwner,
+  partition,
   movedKeys,
   pipeline,
   place,
   queueBacklog,
   queueLatency,
+  quorumRound,
   replicaRead,
   ringOwner,
   runLimiter,
@@ -160,5 +164,43 @@ describe('pipeline', () => {
     expect(capped.throughput).toBe(15_000);
     expect(capped.bottleneck).toBe(1);
     expect(capped.utilization).toEqual([0.4, 1, 0.375]);
+  });
+});
+
+describe('quorum round', () => {
+  it('guarantees a fresh read exactly when r + w > n', () => {
+    expect(quorumRound(3, 2, 2, [])).toMatchObject({ overlap: true, fresh: true, writeSet: [0, 1], readSet: [2, 0] });
+    expect(quorumRound(3, 1, 1, [])).toMatchObject({ overlap: false, fresh: false, readSet: [1] });
+    expect(quorumRound(5, 3, 2, [])).toMatchObject({ overlap: false, fresh: false });
+  });
+
+  it('fails a write or read that cannot gather its quorum', () => {
+    expect(quorumRound(3, 2, 2, [0, 1])).toMatchObject({ writeOk: false, readOk: false, fresh: false });
+    expect(quorumRound(5, 3, 3, [4, 3])).toMatchObject({ writeOk: true, readOk: true, fresh: true });
+    expect(quorumRound(3, 3, 1, [2])).toMatchObject({ writeOk: false, readOk: true });
+  });
+});
+
+describe('partition', () => {
+  it('lets only a majority side elect, and neither side of an even split', () => {
+    expect(partition(5, 2, 'left')).toEqual({ majority: 3, tolerates: 2, quorumSide: 'right', leaderKept: false });
+    expect(partition(5, 3, 'left')).toMatchObject({ quorumSide: 'left', leaderKept: true });
+    expect(partition(4, 2, 'left')).toMatchObject({ majority: 3, tolerates: 1, quorumSide: null, leaderKept: false });
+    expect(partition(3, 0, 'right')).toMatchObject({ quorumSide: 'right', leaderKept: true });
+  });
+});
+
+describe('id layout', () => {
+  it('matches the classic Snowflake split of 41, 10 and 12 bits', () => {
+    const l = idLayout(10, 12, 1);
+    expect(l.timeBits).toBe(41);
+    expect(l.years).toBeCloseTo(69.7, 1);
+    expect(l.generators).toBe(1024);
+    expect(l.perGeneratorPerSecond).toBe(4_096_000);
+  });
+
+  it('puts the birthday bound near 50% at about 1.18 times the square root of the space', () => {
+    expect(collisionChance(64, 1.177 * 2 ** 32)).toBeCloseTo(0.5, 2);
+    expect(collisionChance(122, 1e9)).toBeCloseTo(9.4e-20, 21);
   });
 });

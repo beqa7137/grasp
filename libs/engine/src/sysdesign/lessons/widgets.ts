@@ -221,3 +221,69 @@ export function pipeline(offered: number, tiers: readonly { instances: number; p
   const bottleneck = capacities.reduce((b, c, i) => (c < capacities[b] ? i : b), 0);
   return { capacities, arriving, throughput: flow, bottleneck, utilization: capacities.map((c, i) => Math.min(1, arriving[i] / c)) };
 }
+
+export interface QuorumRound {
+  /** Replicas the write reached: the first `w` that are up. */
+  writeSet: number[];
+  /** Replicas the read asked, in the worst case: up replicas outside the write set first. */
+  readSet: number[];
+  writeOk: boolean;
+  readOk: boolean;
+  /** Whether every possible read set meets every possible write set, which is what `r + w > n` guarantees. */
+  overlap: boolean;
+  /** Whether the worst-case read still sees the write. */
+  fresh: boolean;
+}
+
+/** A leaderless store with `n` replicas: a write needs `w` acknowledgments and a read asks `r` replicas. */
+export function quorumRound(n: number, w: number, r: number, down: readonly number[]): QuorumRound {
+  const up = Array.from({ length: n }, (_, i) => i).filter((i) => !down.includes(i));
+  const writeOk = up.length >= w;
+  const readOk = up.length >= r;
+  const writeSet = writeOk ? up.slice(0, w) : [];
+  const readSet = readOk ? [...up.filter((i) => !writeSet.includes(i)), ...writeSet].slice(0, r) : [];
+  return { writeSet, readSet, writeOk, readOk, overlap: r + w > n, fresh: writeOk && readSet.some((i) => writeSet.includes(i)) };
+}
+
+export interface Partition {
+  majority: number;
+  /** Nodes that can fail while a majority still stands. */
+  tolerates: number;
+  /** The side holding a majority, which can elect a leader and commit; null when neither side has one. */
+  quorumSide: 'left' | 'right' | null;
+  /** Whether the old leader keeps leading: only when it sits on the majority side. */
+  leaderKept: boolean;
+}
+
+/** A consensus cluster of `n` nodes cut in two, with `left` nodes on one side and the old leader on `leaderSide`. */
+export function partition(n: number, left: number, leaderSide: 'left' | 'right'): Partition {
+  const majority = Math.floor(n / 2) + 1;
+  const quorumSide = left >= majority ? 'left' : n - left >= majority ? 'right' : null;
+  return { majority, tolerates: n - majority, quorumSide, leaderKept: quorumSide === leaderSide };
+}
+
+export interface IdLayout {
+  timeBits: number;
+  /** Years the timestamp lasts from its epoch before it wraps. */
+  years: number;
+  generators: number;
+  perGeneratorPerSecond: number;
+}
+
+const YEAR_MS = 365.25 * 24 * 3600 * 1000;
+
+/** A Snowflake-style 64-bit id: a sign bit, then a timestamp in `tickMs` ticks, a generator id and a per-tick sequence. */
+export function idLayout(generatorBits: number, sequenceBits: number, tickMs: number): IdLayout {
+  const timeBits = 63 - generatorBits - sequenceBits;
+  return {
+    timeBits,
+    years: (2 ** timeBits * tickMs) / YEAR_MS,
+    generators: 2 ** generatorBits,
+    perGeneratorPerSecond: 2 ** sequenceBits * (1000 / tickMs),
+  };
+}
+
+/** The birthday bound: the chance that `count` ids drawn uniformly from `2 ** bits` values hold at least one repeat. */
+export function collisionChance(bits: number, count: number): number {
+  return -Math.expm1(-(count * count) / 2 ** (bits + 1));
+}

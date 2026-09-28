@@ -34,6 +34,15 @@ const DESIGN = [
   { id: 'time-key', topic: 'sd-sharding' },
   { id: 'tenant-skew', topic: 'sd-sharding' },
   { id: 'reshard', topic: 'sd-sharding' },
+  { id: 'quorum-overlap', topic: 'sd-consistency' },
+  { id: 'quorum-failures', topic: 'sd-consistency' },
+  { id: 'partition-choice', topic: 'sd-consistency' },
+  { id: 'majority-size', topic: 'sd-consensus' },
+  { id: 'even-cluster', topic: 'sd-consensus' },
+  { id: 'fencing-token', topic: 'sd-consensus' },
+  { id: 'id-range', topic: 'sd-ids' },
+  { id: 'shard-counters', topic: 'sd-ids' },
+  { id: 'random-keys', topic: 'sd-ids' },
 ] as const satisfies readonly DesignItemSummary[];
 
 export type DesignItemId = (typeof DESIGN)[number]['id'];
