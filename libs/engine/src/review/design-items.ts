@@ -463,6 +463,136 @@ const reshard = concept(
   'With `hash(key) % N`, adding one shard reassigns most keys and triggers a massive migration. Consistent hashing (or pre-splitting into many virtual partitions assigned to nodes) makes resharding incremental.',
 );
 
+const quorumOverlap = item('Is a quorum read guaranteed fresh?', (rand) => {
+  const [n, w, r] = pick(rand, [
+    [3, 2, 2],
+    [3, 1, 3],
+    [3, 1, 1],
+    [3, 2, 1],
+    [5, 3, 3],
+    [5, 3, 2],
+    [5, 4, 2],
+    [5, 1, 5],
+    [5, 2, 2],
+  ] as const);
+  const fresh = r + w > n;
+  return {
+    prompt: `A leaderless store keeps ${n} replicas of each key. A write waits for ${w} acknowledgment${w > 1 ? 's' : ''} and a read asks ${r} replica${r > 1 ? 's' : ''} and keeps the newest value. Is every read that starts after a write is acknowledged guaranteed to reach at least one replica holding that write?`,
+    facts: [
+      { label: 'Replicas N', value: `${n}` },
+      { label: 'Write quorum W', value: `${w}` },
+      { label: 'Read quorum R', value: `${r}` },
+    ],
+    ...withChoices(rand, fresh ? `Yes: R + W = ${r + w} > ${n}` : `No: R + W = ${r + w} ≤ ${n}`, [
+      fresh ? `No: R + W = ${r + w} ≤ ${n}` : `Yes: R + W = ${r + w} > ${n}`,
+      `Only if W > N / 2, whatever R is`,
+      `Only if R > N / 2, whatever W is`,
+    ]),
+    explain: fresh
+      ? `Any ${r} replica${r > 1 ? 's' : ''} and any ${w} replica${w > 1 ? 's' : ''} out of ${n} must share at least one (${r} + ${w} > ${n}), so every read reaches a replica holding the write. Sloppy quorums and concurrent writes can still surprise you, but the overlap holds.`
+      : `${r} + ${w} ≤ ${n}, so a read can ask ${r} replica${r > 1 ? 's' : ''} that the write never reached and return the old value. Raise R or W until R + W > N.`,
+  };
+});
+
+const quorumFailures = item('How many replicas can fail?', (rand) => {
+  const n = pick(rand, [3, 5, 7]);
+  const w = pick(rand, n === 3 ? [2, 3] : n === 5 ? [3, 4, 5] : [4, 5, 6]);
+  const failures = (v: number) => `${v} replica${v === 1 ? '' : 's'}`;
+  return {
+    prompt: `A store keeps ${n} replicas of each key and a write waits for ${w} acknowledgments. How many replicas can be down while writes still succeed?`,
+    ...withChoices(
+      rand,
+      failures(n - w),
+      [...new Set([w - 1, Math.floor((n - 1) / 2), n - w + 1, 0, w, n].filter((v) => v !== n - w))].slice(0, 3).map(failures),
+    ),
+    explain: `A write needs ${w} of ${n} replicas up, so it survives ${n} − ${w} = ${n - w} down. Every replica added to W buys consistency at the cost of availability: W = N stops writes when any single replica fails.`,
+  };
+});
+
+const partitionChoice = concept(
+  'A network partition cuts your replicas in two. A client on the minority side asks to update its cart. What does a system that chooses consistency (CP) do?',
+  'Reject or stall the write until the partition heals, so no two sides accept conflicting versions',
+  [
+    'Accept the write locally and merge the two sides when the partition heals',
+    'Accept the write on every replica it can reach, even if that is only one',
+    'Route the write to the majority side through the partitioned link',
+  ],
+  'During a partition a replica must either refuse (consistent, not available) or answer with what it has (available, possibly stale or conflicting). Carts often choose availability and merge; balances and bookings choose consistency. With no partition, the real trade is latency against consistency.',
+);
+
+const majoritySize = item('Failures a consensus cluster survives', (rand) => {
+  const n = pick(rand, [3, 4, 5, 6, 7, 9]);
+  const tolerates = n - (Math.floor(n / 2) + 1);
+  const nodes = (v: number) => `${v} node${v === 1 ? '' : 's'}`;
+  return {
+    prompt: `A Raft cluster has ${n} nodes. How many can fail while it still elects a leader and commits writes?`,
+    ...withChoices(
+      rand,
+      nodes(tolerates),
+      [...new Set([Math.floor(n / 2), n - 1, tolerates + 1, tolerates - 1, n].filter((v) => v >= 0 && v !== tolerates))]
+        .slice(0, 3)
+        .map(nodes),
+    ),
+    explain: `Every decision needs a majority, ${Math.floor(n / 2) + 1} of ${n}, so ${n} − ${Math.floor(n / 2) + 1} = ${tolerates} can fail.${n % 2 === 0 ? ` An even cluster tolerates no more than a ${n - 1}-node cluster would, and it can split evenly with no majority on either side.` : ''}`,
+  };
+});
+
+const evenCluster = concept(
+  'Why do teams run consensus clusters of 3 or 5 nodes rather than 4?',
+  'A 4-node cluster still needs 3 votes, so it tolerates 1 failure like 3 nodes, and a 2–2 split leaves no majority',
+  [
+    'Raft and Paxos cannot elect a leader when the node count is even',
+    'An even cluster doubles the replication traffic for every committed write',
+    'With 4 nodes every write must reach all four before it commits',
+  ],
+  'A majority of 4 is 3, the same failure budget as 3 nodes but one more machine to pay for and one more vote to wait on. 5 nodes tolerate 2 failures, which is why 3 and 5 are the common sizes.',
+);
+
+const fencingToken = concept(
+  'A lock holder pauses for 30 s in garbage collection. Its lease expires, another node takes the lock and writes. Then the first node wakes and writes too. What stops the stale write?',
+  'A fencing token: each grant carries a rising number, and storage rejects writes with a lower one than it has seen',
+  [
+    'A shorter lease, so the paused node loses the lock before it can pause',
+    'A heartbeat, so the lock service knows the first node was only paused',
+    'Checking that the lease is still valid just before the write',
+  ],
+  'A pause can strike between any check and the write, so no client-side check is safe. The resource itself must reject stale holders: the lock service hands out an increasing token (an etcd revision or a Raft log index, a ZooKeeper zxid), and storage refuses anything older than the newest token it has accepted.',
+);
+
+const idRange = item('How long does the timestamp last?', (rand) => {
+  const bits = pick(rand, [39, 41, 42]);
+  const tickMs = pick(rand, [1, 10]);
+  const years = (2 ** bits * tickMs) / (365.25 * 24 * 3600 * 1000);
+  const y = (v: number) => (v < 10 ? `about ${Math.round(v * 10) / 10} years` : `about ${Math.round(v)} years`);
+  return {
+    prompt: `A 64-bit id gives the timestamp ${bits} bits, counting ${tickMs === 1 ? 'milliseconds' : '10 ms ticks'} from a custom epoch. How long until the timestamp runs out?`,
+    ...withChoices(rand, y(years), [y(years * 2), y(years / 2), y(years * (tickMs === 1 ? 10 : 0.1))]),
+    explain: `2^${bits} ticks × ${tickMs} ms ≈ ${(2 ** bits * tickMs).toExponential(1).replace('e+', ' × 10^')} ms, and a year is about 3.16 × 10^10 ms, so ${y(years)}. Each extra bit doubles it; start the epoch at launch, not 1970, to use all of it.`,
+  };
+});
+
+const shardCounters = concept(
+  'Rows now live on 8 database shards, each with its own auto-increment counter. What goes wrong with the ids?',
+  'Every shard counts 1, 2, 3…, so the same id appears on several shards',
+  [
+    'The counters drift apart in speed, so ids stop being sortable by shard',
+    'Auto-increment stops working entirely once a table is sharded',
+    'Every insert must lock all 8 counters, so writes serialize',
+  ],
+  'Independent counters collide. Fixes: give each shard an offset and step (shard k issues k, k + 8, k + 16…), hand out ranges from a central allocator, or generate ids without coordination: Snowflake-style (time, generator, sequence) or random 128-bit ids.',
+);
+
+const randomKeys = concept(
+  'Why can random UUIDv4 primary keys slow inserts into a large B-tree table compared with time-ordered ids?',
+  'Each insert lands on a random leaf page, so the working set is the whole index and pages split everywhere',
+  [
+    'UUIDs are strings, and B-trees cannot index string keys efficiently',
+    'Random ids collide often enough that every insert must retry',
+    'The database must lock the whole index to check a random id is unique',
+  ],
+  'Sequential keys append at the right edge of the index, so recent pages stay in memory. Random keys touch pages all over it, missing cache and splitting half-full pages. Time-ordered 128-bit ids (UUIDv7, ULID) keep uniqueness without coordination and restore locality.',
+);
+
 const DEFINITIONS: Record<DesignItemId, DesignItemDefinition> = {
   'response-time': responseTime,
   headroom,
@@ -488,6 +618,15 @@ const DEFINITIONS: Record<DesignItemId, DesignItemDefinition> = {
   'time-key': timeKey,
   'tenant-skew': tenantSkew,
   reshard,
+  'quorum-overlap': quorumOverlap,
+  'quorum-failures': quorumFailures,
+  'partition-choice': partitionChoice,
+  'majority-size': majoritySize,
+  'even-cluster': evenCluster,
+  'fencing-token': fencingToken,
+  'id-range': idRange,
+  'shard-counters': shardCounters,
+  'random-keys': randomKeys,
 };
 
 export const DESIGN_ITEMS: ItemDef[] = DESIGN_ITEM_CATALOG.map((summary, i) =>

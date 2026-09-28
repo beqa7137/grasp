@@ -10,7 +10,10 @@ export type SdWidget =
   | 'rate-limiter'
   | 'availability'
   | 'estimate-drill'
-  | 'pipeline';
+  | 'pipeline'
+  | 'quorum'
+  | 'partition'
+  | 'id-layout';
 
 export interface SdLesson {
   /** Why the topic decides interviews and outages, in two or three sentences. */

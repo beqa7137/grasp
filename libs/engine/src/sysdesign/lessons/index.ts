@@ -1,6 +1,9 @@
 import { CACHING_LESSON } from './caching.js';
 import { CAPACITY_LESSON } from './capacity.js';
+import { CONSENSUS_LESSON } from './consensus.js';
+import { CONSISTENCY_LESSON } from './consistency.js';
 import { ESTIMATION_LESSON } from './estimation.js';
+import { IDS_LESSON } from './ids.js';
 import { LATENCY_LESSON } from './latency.js';
 import { QUEUES_LESSON } from './queues.js';
 import { RATE_LIMITING_LESSON } from './rate-limiting.js';
@@ -22,6 +25,9 @@ export const SD_LESSONS: Readonly<Record<string, SdLesson>> = {
   'sd-queues': QUEUES_LESSON,
   'sd-rate-limiting': RATE_LIMITING_LESSON,
   'sd-sharding': SHARDING_LESSON,
+  'sd-consistency': CONSISTENCY_LESSON,
+  'sd-consensus': CONSENSUS_LESSON,
+  'sd-ids': IDS_LESSON,
 };
 
 export function getSdLesson(topicId: string): SdLesson | undefined {

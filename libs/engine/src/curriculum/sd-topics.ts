@@ -36,6 +36,19 @@ export const SD_TOPICS: SdTopic[] = [
     oneLiner: 'Scaling writes, choosing a shard key and avoiding hot shards.',
     scenarioIds: ['write-wall'],
   },
+  {
+    id: 'sd-consistency',
+    name: 'Consistency & Quorums',
+    oneLiner: 'Which reads can be stale, and what a quorum guarantees.',
+    scenarioIds: ['viral-feed'],
+  },
+  {
+    id: 'sd-consensus',
+    name: 'Consensus & Leaders',
+    oneLiner: 'Majorities, leader election and surviving a split brain.',
+    scenarioIds: ['first-scale-up'],
+  },
+  { id: 'sd-ids', name: 'Unique IDs', oneLiner: 'Generating ids at scale without a central counter.', scenarioIds: ['write-wall'] },
 ];
 
 export function getSdTopic(id: string): SdTopic | undefined {

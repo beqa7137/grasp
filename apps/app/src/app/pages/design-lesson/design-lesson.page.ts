@@ -21,10 +21,13 @@ import { WorkedExampleComponent } from '../pattern/worked-example.component';
 import { AvailabilityWidgetComponent } from './availability-widget.component';
 import { CacheWidgetComponent } from './cache-widget.component';
 import { EstimateDrillComponent } from './estimate-drill.component';
+import { IdLayoutWidgetComponent } from './id-layout-widget.component';
 import { LatencyWidgetComponent } from './latency-widget.component';
 import { LimiterWidgetComponent } from './limiter-widget.component';
+import { PartitionWidgetComponent } from './partition-widget.component';
 import { PipelineWidgetComponent } from './pipeline-widget.component';
 import { QueueWidgetComponent } from './queue-widget.component';
+import { QuorumWidgetComponent } from './quorum-widget.component';
 import { ReplicaWidgetComponent } from './replica-widget.component';
 import { RingWidgetComponent } from './ring-widget.component';
 
@@ -53,6 +56,9 @@ import { RingWidgetComponent } from './ring-widget.component';
     LimiterWidgetComponent,
     AvailabilityWidgetComponent,
     PipelineWidgetComponent,
+    QuorumWidgetComponent,
+    PartitionWidgetComponent,
+    IdLayoutWidgetComponent,
     EstimateDrillComponent,
   ],
   template: `
@@ -106,6 +112,15 @@ import { RingWidgetComponent } from './ring-widget.component';
                 }
                 @case ('pipeline') {
                   <app-pipeline-widget />
+                }
+                @case ('quorum') {
+                  <app-quorum-widget />
+                }
+                @case ('partition') {
+                  <app-partition-widget />
+                }
+                @case ('id-layout') {
+                  <app-id-layout-widget />
                 }
                 @case ('estimate-drill') {
                   <app-estimate-drill [drill]="l.widget.drill ?? []" />
