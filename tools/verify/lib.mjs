@@ -128,6 +128,17 @@ export function states() {
     { id: 'interview-home', path: '/interview' },
     { id: 'behavioral-list', path: '/behavioral' },
     { id: 'behavioral-competency', path: '/behavioral/conflict' },
+    {
+      id: 'behavioral-examples-checked',
+      path: '/behavioral/conflict',
+      setup: async (p) => {
+        await p.getByRole('button', { name: 'Show why it works' }).click();
+        const exercise = p.locator('app-spot-flaws');
+        await exercise.getByRole('checkbox', { name: 'Blames others' }).check();
+        await exercise.getByRole('checkbox', { name: 'No measurable result' }).check();
+        await exercise.getByRole('button', { name: 'Check' }).click();
+      },
+    },
     { id: 'behavioral-question', path: '/behavioral/question/conflict-1' },
     {
       id: 'behavioral-question-drafted',

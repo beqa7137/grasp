@@ -1,15 +1,36 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
-import { getCompetency, getCompetencySummary } from '@grasp/engine';
+import { examplesFor, getCompetency, getCompetencySummary } from '@grasp/engine';
 import { addIcons } from 'ionicons';
-import { alertCircleOutline, checkmarkCircle, checkmarkCircleOutline, chevronForward, ribbonOutline } from 'ionicons/icons';
+import {
+  alertCircleOutline,
+  checkmarkCircle,
+  checkmarkCircleOutline,
+  chevronForward,
+  ribbonOutline,
+  searchOutline,
+  sparklesOutline,
+} from 'ionicons/icons';
+import { ExampleAnswerComponent } from './example-answer.component';
+import { SpotFlawsComponent } from './spot-flaws.component';
 import { StarDraftsService } from './star-drafts.service';
 
 @Component({
   selector: 'app-competency',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle, IonContent, IonIcon],
+  imports: [
+    RouterLink,
+    IonHeader,
+    IonToolbar,
+    IonButtons,
+    IonBackButton,
+    IonTitle,
+    IonContent,
+    IonIcon,
+    ExampleAnswerComponent,
+    SpotFlawsComponent,
+  ],
   template: `
     <ion-header [translucent]="true">
       <ion-toolbar>
@@ -40,6 +61,19 @@ import { StarDraftsService } from './star-drafts.service';
               }
             </ul>
           </section>
+
+          @if (examples(); as e) {
+            <section class="panel block example" id="example">
+              <h2><ion-icon name="sparkles-outline" aria-hidden="true" />See it done</h2>
+              <p class="asked">"{{ prompt(e.strong.questionId) }}"</p>
+              <app-example-answer [answer]="e.strong" [notes]="e.strong.notes" />
+            </section>
+            <section class="panel block example">
+              <h2><ion-icon name="search-outline" aria-hidden="true" />Spot the problems</h2>
+              <p class="asked">"{{ prompt(e.weak.questionId) }}"</p>
+              <app-spot-flaws [example]="e.weak" />
+            </section>
+          }
 
           <h2 class="list-title">Questions to practice</h2>
           <ul class="questions">
@@ -87,6 +121,11 @@ import { StarDraftsService } from './star-drafts.service';
       ion-icon {
         color: var(--g-accent);
       }
+    }
+    .asked {
+      font-style: italic;
+      line-height: 1.5;
+      margin: 0 0 12px;
     }
     .list-title {
       margin-top: 20px;
@@ -136,9 +175,22 @@ export class CompetencyPage {
   readonly drafts = inject(StarDraftsService);
   readonly summary = computed(() => getCompetencySummary(this.id()));
   readonly competency = computed(() => getCompetency(this.id()));
+  readonly examples = computed(() => examplesFor(this.id()));
 
   constructor() {
-    addIcons({ ribbonOutline, alertCircleOutline, checkmarkCircle, checkmarkCircleOutline, chevronForward });
+    addIcons({
+      ribbonOutline,
+      alertCircleOutline,
+      checkmarkCircle,
+      checkmarkCircleOutline,
+      chevronForward,
+      sparklesOutline,
+      searchOutline,
+    });
+  }
+
+  prompt(questionId: string) {
+    return this.competency()?.questions.find((q) => q.id === questionId)?.prompt ?? '';
   }
 
   ionViewWillEnter() {
