@@ -1,3 +1,8 @@
+import { SEARCH_ENGINE } from './search-engine.js';
+import { FILE_SYNC } from './file-sync.js';
+import { LEADERBOARD } from './leaderboard.js';
+import { AD_CLICK_AGGREGATOR } from './ad-click-aggregator.js';
+import { JOB_SCHEDULER } from './job-scheduler.js';
 import { VIDEO_STREAMING } from './video-streaming.js';
 import { PAYMENTS } from './payments.js';
 import { RIDE_SHARING } from './ride-sharing.js';
@@ -29,6 +34,11 @@ export const CASE_STUDIES: readonly CaseStudy[] = [
   RIDE_SHARING,
   DISTRIBUTED_CACHE,
   TICKETING,
+  SEARCH_ENGINE,
+  FILE_SYNC,
+  LEADERBOARD,
+  AD_CLICK_AGGREGATOR,
+  JOB_SCHEDULER,
 ];
 
 export function getCaseStudy(id: string): CaseStudy | undefined {

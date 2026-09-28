@@ -72,6 +72,40 @@ export const CASE_BRIEFS: readonly CaseBrief[] = [
       "Design a ticketing site like Ticketmaster, where a popular concert's seats go on sale at a fixed time and sell out in minutes.",
     summary: 'A virtual waiting room, seat holds with expiry, conditional updates against double booking, and payment failures.',
   },
+  {
+    id: 'search-engine',
+    question: 'Design the indexing and query serving of a web search engine over billions of pages, answering in under 200 ms.',
+    summary:
+      'A compressed inverted index sharded by document, fan-out with hedged requests, ranking in stages, a fresh index and result caching.',
+  },
+  {
+    id: 'file-sync',
+    question:
+      'Design a file storage and sync service like Dropbox or Google Drive that keeps files in step across every device a user owns.',
+    summary:
+      'Content-defined chunking and dedup, metadata apart from blobs, a change journal with cursors, conflicted copies and shared namespaces.',
+  },
+  {
+    id: 'leaderboard',
+    question:
+      'Design a real-time leaderboard for a mobile game with tens of millions of players: the top of the board, your own rank and the players around you.',
+    summary:
+      'Sorted sets, server-reported scores, ties packed into the score, sharding a global ranking, daily and weekly boards and cheaters.',
+  },
+  {
+    id: 'ad-click-aggregator',
+    question:
+      'Design a system that records ad clicks, redirects users to the advertiser, and counts clicks per ad per minute for dashboards and billing.',
+    summary:
+      'A click log, event-time windows and watermarks, exactly-once counting, dedup and fraud, batch reconciliation and an OLAP store.',
+  },
+  {
+    id: 'job-scheduler',
+    question:
+      'Design a distributed job scheduler that runs cron schedules and delayed jobs for many teams, like the scheduler behind Airflow or a delayed-job service.',
+    summary:
+      'A precomputed next fire time, bucketed scanning with leases, queues to workers, heartbeats, retries with backoff and time zones.',
+  },
 ];
 
 export function getCaseBrief(id: string): CaseBrief | undefined {

@@ -40,6 +40,36 @@ export const CASE_CATALOG: readonly CaseSummary[] = [
     level: 'advanced',
     topics: ['sd-consistency', 'sd-rate-limiting', 'sd-sharding', 'sd-caching'],
   },
+  {
+    id: 'search-engine',
+    title: 'Web Search Engine',
+    level: 'advanced',
+    topics: ['sd-search', 'sd-sharding', 'sd-caching', 'sd-estimation'],
+  },
+  {
+    id: 'file-sync',
+    title: 'File Storage & Sync',
+    level: 'advanced',
+    topics: ['sd-consistency', 'sd-cdn', 'sd-estimation', 'sd-queues'],
+  },
+  {
+    id: 'leaderboard',
+    title: 'Game Leaderboard',
+    level: 'core',
+    topics: ['sd-caching', 'sd-sharding', 'sd-estimation', 'sd-consistency'],
+  },
+  {
+    id: 'ad-click-aggregator',
+    title: 'Ad Click Aggregator',
+    level: 'advanced',
+    topics: ['sd-streams', 'sd-queues', 'sd-estimation', 'sd-storage'],
+  },
+  {
+    id: 'job-scheduler',
+    title: 'Distributed Job Scheduler',
+    level: 'advanced',
+    topics: ['sd-queues', 'sd-consensus', 'sd-reliability', 'sd-sharding'],
+  },
 ];
 
 export function getCaseSummary(id: string): CaseSummary | undefined {
