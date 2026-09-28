@@ -54,7 +54,7 @@ Vercel's own Git deployments are off (`git.deploymentEnabled: false` in `vercel.
 3. Migrate the database with `DATABASE_URL_UNPOOLED` (or `DATABASE_URL`).
 4. `vercel deploy --prebuilt --prod`, tagged with the commit's short SHA as `RELEASE`.
 5. If `PUBLIC_URL` is set, wait until `/api/health` reports the new release, then check readiness, a deep link, `/config.json` and the Python runtime.
-6. Run the `@smoke` browser tests against `PUBLIC_URL` on desktop, Android and iPhone profiles. They only read: every API call that could write data is blocked, so the pilot metrics stay clean. If a check fails, the function's recent 5xx logs are attached to the run.
+6. Run the `@smoke` browser tests against `PUBLIC_URL` on desktop and phone viewports. They only read: every API call that could write data is blocked, so the pilot metrics stay clean. If a check fails, the function's recent 5xx logs are attached to the run.
 
 Migrations run before the new code takes traffic, so each one must work with the release still running: add tables and columns first, remove them in a later release. The iteration 18 migrations use a 5-second lock wait limit, so a contended schema change fails and can be retried instead of waiting without a bound. Migration `0007` adds refresh-token compatibility triggers for old API instances; drop those triggers and their function in a later contract release, after old instances and rollback candidates are retired.
 
