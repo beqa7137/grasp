@@ -131,10 +131,14 @@ export const JS_ISLANDS = `function numIslands(grid) {
 }`;
 
 /** Replaces the code in the editor of the problem with this title. */
+/** The modifier the page's own platform uses for shortcuts: Meta on Apple devices, as the editor reads it, else Control. */
+export const modifierKey = async (page: Page) =>
+  (await page.evaluate(() => /Mac|iPhone|iPad/.test(`${navigator.platform} ${navigator.userAgent}`))) ? 'Meta' : 'Control';
+
 export async function write(page: Page, code: string, title = 'Two Sum') {
   const editor = page.getByRole('textbox', { name: `${title} solution` });
   await editor.click();
-  await page.keyboard.press('ControlOrMeta+a');
+  await page.keyboard.press(`${await modifierKey(page)}+a`);
   await page.keyboard.insertText(code);
 }
 

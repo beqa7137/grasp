@@ -13,6 +13,7 @@ const deployed = process.env.E2E_BASE_URL;
 const databaseUrl = process.env.DATABASE_URL;
 const port = Number(process.env.E2E_PORT ?? 4310);
 const root = fileURLToPath(new URL('..', import.meta.url));
+const chromium = { executablePath: process.env.CHROMIUM_PATH || undefined };
 
 export default defineConfig({
   testDir: './tests',
@@ -28,11 +29,12 @@ export default defineConfig({
     baseURL: deployed ?? `http://localhost:${port}`,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
-    launchOptions: { executablePath: process.env.CHROMIUM_PATH || undefined },
   },
   projects: [
-    { name: 'desktop', use: { ...devices['Desktop Chrome'] } },
-    { name: 'phone', use: { ...devices['Pixel 7'] } },
+    { name: 'desktop', use: { ...devices['Desktop Chrome'], launchOptions: chromium } },
+    { name: 'phone', use: { ...devices['Pixel 7'], launchOptions: chromium } },
+    // The iOS app runs in WKWebView, so its engine is checked on an iPhone.
+    { name: 'iphone', use: { ...devices['iPhone 17'] } },
   ],
   webServer: deployed
     ? undefined
