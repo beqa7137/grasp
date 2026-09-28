@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
-import { CASE_CATALOG, SCENARIO_CATALOG, fmt, getScenarioSummary, getSdTopic } from '@grasp/engine';
+import { CASE_CATALOG, SCENARIO_CATALOG, getCaseBrief, fmt, getScenarioSummary, getSdTopic } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import { checkmarkCircle, constructOutline, documentTextOutline, refreshCircleOutline } from 'ionicons/icons';
 import { ProgressService } from '../../core/progress.service';
@@ -84,7 +84,7 @@ import { FREE_BUILD } from './free-build';
               <span class="num"><ion-icon name="document-text-outline" aria-hidden="true" /></span>
               <div class="body">
                 <h3>{{ c.title }}</h3>
-                <p class="muted">{{ c.summary }}</p>
+                <p class="muted">{{ brief(c.id) }}</p>
                 <div class="chips">
                   <span class="chip">{{ c.level === 'core' ? 'Core' : 'Advanced' }}</span>
                   @for (t of c.topics; track t) {
@@ -229,6 +229,10 @@ export class DesignListPage {
 
   topicName(id: string) {
     return getSdTopic(id)?.name ?? id;
+  }
+
+  brief(id: string) {
+    return getCaseBrief(id)?.summary;
   }
 
   ionViewWillEnter() {
