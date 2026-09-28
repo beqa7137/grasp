@@ -1,0 +1,162 @@
+@let n = node();
+@let st = stats();
+<section class="panel inspector">
+  <header>
+    <div>
+      <p class="eyebrow">{{ n.kind === 'client' ? 'Traffic source' : 'Component' }}</p>
+      <h2>{{ spec().name }}</h2>
+    </div>
+    <button class="g-btn ghost icon" (click)="close.emit()" aria-label="Close">
+      <ion-icon name="close-circle-outline" aria-hidden="true" />
+    </button>
+  </header>
+  <p class="muted desc">{{ spec().description }}</p>
+
+  @if (n.kind !== 'client') {
+    <dl class="stats">
+      <div>
+        <dt>Load</dt>
+        <dd>{{ fmt(st.loadOps) }} ops/s</dd>
+      </div>
+      <div>
+        <dt>Capacity</dt>
+        <dd>{{ fmt(st.capacityOps) }} ops/s</dd>
+      </div>
+      <div>
+        <dt>Utilization</dt>
+        <dd [attr.data-status]="st.status">
+          {{ st.status === 'down' ? 'down' : (st.utilization * 100 | number: '1.0-0') + '%' }}
+        </dd>
+      </div>
+      <div>
+        <dt>Latency</dt>
+        <dd>{{ st.latencyMs | number: '1.0-1' }} ms</dd>
+      </div>
+      <div>
+        <dt>Reads · writes</dt>
+        <dd>{{ fmt(st.readRps) }} · {{ fmt(st.writeRps + st.backgroundRps) }}</dd>
+      </div>
+      <div>
+        <dt>Dropped</dt>
+        <dd [class.bad]="st.droppedRps > 0">{{ fmt(st.droppedRps) }} rps</dd>
+      </div>
+      @if (st.botRps > 0) {
+        <div class="wide">
+          <dt>Bot traffic</dt>
+          <dd class="warn">{{ fmt(st.botRps) }} rps · {{ (st.botRps / st.loadOps) * 100 | number: '1.0-0' }}% of load</dd>
+        </div>
+      }
+    </dl>
+
+    <div class="row">
+      <span>{{ n.kind === 'db' ? 'Shards' : 'Instances' }}</span>
+      <div class="stepper">
+        <button
+          class="g-btn icon"
+          (click)="stepInstances.emit(-1)"
+          [disabled]="n.instances <= 1"
+          [attr.aria-label]="n.kind === 'db' ? 'Fewer shards' : 'Fewer instances'"
+        >
+          <ion-icon name="remove" aria-hidden="true" />
+        </button>
+        <span class="mono">{{ n.instances }}</span>
+        <button
+          class="g-btn icon"
+          (click)="stepInstances.emit(1)"
+          [disabled]="n.instances >= spec().maxInstances"
+          [attr.aria-label]="n.kind === 'db' ? 'More shards' : 'More instances'"
+        >
+          <ion-icon name="add" aria-hidden="true" />
+        </button>
+      </div>
+    </div>
+    @if (n.kind === 'db') {
+      <div class="row shard-key">
+        <span>Shard key</span>
+        <div class="choices" role="radiogroup" aria-label="Shard key">
+          @for (k of shardKeys; track k.id) {
+            <button
+              role="radio"
+              [attr.aria-checked]="(n.shardKey ?? 'hash') === k.id"
+              [class.on]="(n.shardKey ?? 'hash') === k.id"
+              [title]="k.detail"
+              (click)="update.emit({ shardKey: k.id })"
+            >
+              {{ k.short }}
+            </button>
+          }
+        </div>
+        <p class="muted small">{{ shardKeyDetail(n) }}</p>
+      </div>
+      @if (st.shards; as shards) {
+        <ol class="shards" aria-label="Load per shard">
+          @for (sh of shards; track $index) {
+            <li [attr.data-status]="sh.down ? 'down' : sh.utilization > 1 ? 'overloaded' : sh.utilization > 0.8 ? 'hot' : 'ok'">
+              <span class="mono">S{{ $index + 1 }}</span>
+              <span class="bar"><i [style.width.%]="sh.down ? 100 : sh.utilization > 1 ? 100 : sh.utilization * 100"></i></span>
+              <span class="mono pct">{{ sh.down ? 'down' : (sh.utilization * 100 | number: '1.0-0') + '%' }}</span>
+            </li>
+          }
+        </ol>
+      }
+    }
+    @if (spec().hitRate !== undefined) {
+      <label class="row slider">
+        <span
+          >Hit rate <strong class="mono">{{ (n.hitRate ?? 0) * 100 | number: '1.0-0' }}%</strong></span
+        >
+        <input
+          type="range"
+          min="0"
+          max="99"
+          [value]="(n.hitRate ?? 0) * 100"
+          (input)="update.emit({ hitRate: +$any($event.target).value / 100 })"
+        />
+      </label>
+    }
+  }
+
+  @if (outgoing().length) {
+    <ul class="links" aria-label="Sends traffic to">
+      @for (e of outgoing(); track e.key) {
+        <li>
+          <span>→ {{ e.name }}</span>
+          <span class="mono muted">{{ fmt(e.rps) }} rps</span>
+          <button class="g-btn ghost icon" (click)="deleteEdge.emit(e.key)" [attr.aria-label]="'Remove connection to ' + e.name">
+            <ion-icon name="trash-outline" aria-hidden="true" />
+          </button>
+        </li>
+      }
+    </ul>
+  }
+
+  <div class="actions">
+    @if (spec().connectsTo.length) {
+      <button class="g-btn" #connectButton (click)="startConnect.emit()">
+        <ion-icon name="git-commit-outline" aria-hidden="true" />Connect to…
+      </button>
+    }
+    @if (n.kind !== 'client') {
+      @if ((n.failed ?? 0) < n.instances) {
+        <button class="g-btn chaos" #killButton (click)="failInstance.emit()">
+          <ion-icon name="skull-outline" aria-hidden="true" />Kill an instance
+        </button>
+      }
+      @if (n.failed) {
+        <button class="g-btn" #recoverButton (click)="recover.emit()"><ion-icon name="flash" aria-hidden="true" />Recover</button>
+      }
+      <button class="g-btn ghost danger" (click)="remove.emit()"><ion-icon name="trash-outline" aria-hidden="true" />Remove</button>
+    }
+  </div>
+
+  @if (connecting()) {
+    <div class="targets" role="group" [attr.aria-labelledby]="targetsLabelId()" tabindex="-1" #targets>
+      <span class="eyebrow caption" [id]="targetsLabelId()">Send traffic to</span>
+      @for (t of connectTargets(); track t.id) {
+        <button class="g-btn" (click)="connectTo.emit(t.id)">{{ t.name }}</button>
+      } @empty {
+        <p class="muted small">Nothing on the board can take its traffic. Add a component it connects to first.</p>
+      }
+    </div>
+  }
+</section>
