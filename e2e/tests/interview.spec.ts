@@ -1,5 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
-import { expect, synced, test } from './fixtures';
+import { expect, recordedEvents, synced, test } from './fixtures';
 
 /** Opens a coding interview and answers twice, which brings up End & score. */
 async function interviewUntilScorable(page: Page, problem: RegExp) {
@@ -85,7 +85,7 @@ test.describe('interview score recovery', () => {
     const committedEvents = await readProgress();
     expect(committedEvents.filter((event) => event.id === `interview-${id}`)).toHaveLength(1);
     expect(committedEvents.find((event) => event.id === `interview-${id}`)?.at).toBe(committedScore?.['scoredAt']);
-    const localEvents = await page.evaluate(() => JSON.parse(localStorage.getItem('CapacitorStorage.grasp.events') ?? '[]'));
+    const localEvents = await recordedEvents(page);
     expect(localEvents.some((event: { id: string }) => event.id === `interview-${id}`)).toBe(false);
 
     await page.unroute(`**${path}`);

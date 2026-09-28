@@ -21,7 +21,7 @@ describe('HTTP diagnostic privacy', () => {
   beforeAll(async () => {
     app = await createTestApp({}, (builder) =>
       builder.overrideProvider(ProgressStore).useValue({
-        list: async () => {
+        listReceivedAfter: async () => {
           throw new DrizzleQueryError('select private_query', [learner, token, transcript], failure);
         },
       }),
@@ -70,9 +70,9 @@ describe('HTTP diagnostic privacy', () => {
     const database = drizzle(pool);
     const postgresApp = await createTestApp({}, (builder) =>
       builder.overrideProvider(ProgressStore).useValue({
-        list: async () => {
+        listReceivedAfter: async () => {
           await database.execute(sql`select ${token}::integer`);
-          return [];
+          return { events: [], latest: null };
         },
       }),
     );

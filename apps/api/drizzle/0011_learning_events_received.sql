@@ -1,0 +1,1 @@
+CREATE INDEX "learning_events_learner_received" ON "learning_events" USING btree ("learner_id","received_at");

@@ -42,6 +42,65 @@ describe.each(storages)('Progress append contract (%s)', (storage) => {
     expect(rows[0]?.count).toBe(0);
   };
 
+  describe('incremental pulls', () => {
+    const since = (learnerId: string, cursor: string) =>
+      request(app.getHttpServer()).get('/api/progress/events').query({ since: cursor }).set('x-learner-id', learnerId);
+    const backdate = async (learnerId: string, minutes: number) =>
+      pool?.query(`update learning_events set received_at = received_at - make_interval(mins => $2) where learner_id = $1`, [
+        learnerId,
+        minutes,
+      ]);
+
+    it('returns everything with a cursor first, then what arrived since, keeping the cursor when nothing did', async () => {
+      const learnerId = randomUUID();
+      const first = event('evt-first');
+      await post(learnerId, [first]).expect(200);
+      const full = (await stored(learnerId).expect(200)).body;
+      expect(full.events).toEqual([first]);
+      expect(Date.parse(full.cursor)).not.toBeNaN();
+
+      const second = event('evt-second');
+      await post(learnerId, [second]).expect(200);
+      const next = (await since(learnerId, full.cursor).expect(200)).body;
+      expect(next.events.map((e: { id: string }) => e.id)).toContain('evt-second');
+      expect(Date.parse(next.cursor)).toBeGreaterThanOrEqual(Date.parse(full.cursor));
+
+      const later = new Date(Date.now() + 10 * 60_000).toISOString();
+      expect((await since(learnerId, later).expect(200)).body).toEqual({ events: [], cursor: later });
+    });
+
+    it('rejects a cursor that is not a timestamp', async () => {
+      await since(randomUUID(), 'yesterday').expect(400);
+    });
+
+    it.runIf(storage === 'postgres')('leaves out what arrived before the cursor, less a minute of overlap', async () => {
+      const learnerId = randomUUID();
+      await post(learnerId, [event('evt-older')]).expect(200);
+      const cursor = (await stored(learnerId).expect(200)).body.cursor;
+      await backdate(learnerId, 10);
+      await post(learnerId, [event('evt-newer')]).expect(200);
+      expect((await since(learnerId, cursor).expect(200)).body.events.map((e: { id: string }) => e.id)).toEqual(['evt-newer']);
+    });
+
+    it.runIf(storage === 'postgres')("brings a merged guest's history to a device that already holds a cursor", async () => {
+      const account = randomUUID();
+      const guest = randomUUID();
+      await post(account, [event('evt-account')]).expect(200);
+      await post(guest, [event('evt-guest', new Date(Date.now() - 86_400_000).toISOString())]).expect(200);
+      await backdate(guest, 10);
+      const cursor = (await stored(account).expect(200)).body.cursor;
+      await backdate(account, 10);
+      await pool!.query(`insert into users (id, email, learner_id, created_at) values ($1, $2, $3, now())`, [
+        randomUUID(),
+        `${account}@example.com`,
+        account,
+      ]);
+      await app.get(ErasureStore).merge(guest, account);
+      const after = new Date(Date.parse(cursor) - 60_000);
+      expect((await app.get(ProgressStore).listReceivedAfter(account, after)).events.map((e) => e.id)).toEqual(['evt-guest']);
+    });
+  });
+
   it('acknowledges eligible IDs and defers future IDs without persisting them', async () => {
     const learnerId = randomUUID();
     const eligible = event('evt-eligible', new Date().toISOString());

@@ -185,7 +185,7 @@ describe('Progress and authentication integration', () => {
     guestReply.resolve(json(200, { events: [staleEvent] }));
     await oldSync;
     const { value } = await Preferences.get({ key: 'grasp.events' });
-    expect((JSON.parse(value ?? '[]') as { id: string }[]).map(({ id }) => id)).toEqual([localEvent.id, accountEvent.id]);
+    expect((JSON.parse(value!).events as { id: string }[]).map(({ id }) => id)).toEqual([localEvent.id, accountEvent.id]);
     expect(progress.syncStatus()).toBe('synced');
   });
 
@@ -287,7 +287,7 @@ describe('Progress and authentication integration', () => {
       calls.filter((call) => call.path === '/progress/events' && call.method === 'POST' && call.learnerId === 'account-learner'),
     ).toHaveLength(1);
     const { value } = await Preferences.get({ key: 'grasp.events' });
-    expect((JSON.parse(value ?? '[]') as { id: string }[]).map(({ id }) => id)).toEqual([localEvent.id, accountEvent.id]);
+    expect((JSON.parse(value!).events as { id: string }[]).map(({ id }) => id)).toEqual([localEvent.id, accountEvent.id]);
     expect(progress.syncStatus()).toBe('synced');
   });
 

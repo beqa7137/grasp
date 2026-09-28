@@ -88,7 +88,7 @@ test.describe('progress sync recovery', () => {
     let pulls = 0;
     let releaseRetry!: () => void;
     const retryResponse = new Promise<void>((resolve) => (releaseRetry = resolve));
-    await page.route('**/api/progress/events', async (route) => {
+    await page.route('**/api/progress/events*', async (route) => {
       if (route.request().method() !== 'GET') return route.continue();
       pulls++;
       if (pulls === 2) await retryResponse;

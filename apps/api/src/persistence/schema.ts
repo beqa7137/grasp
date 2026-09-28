@@ -48,7 +48,10 @@ export const learningEvents = pgTable(
     occurredAt: timestamp('occurred_at', { withTimezone: true, mode: 'string' }).notNull(),
     receivedAt: timestamp('received_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index('learning_events_learner_time').on(t.learnerId, t.occurredAt)],
+  (t) => [
+    index('learning_events_learner_time').on(t.learnerId, t.occurredAt),
+    index('learning_events_learner_received').on(t.learnerId, t.receivedAt),
+  ],
 );
 
 export const interviewSessions = pgTable(
