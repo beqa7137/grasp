@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { codeSpanProblems } from '../../code-spans.js';
 import { SD_TOPICS } from '../../curriculum/sd-topics.js';
+import { CASE_BRIEFS } from '../case-briefs.js';
 import { CASE_CATALOG } from '../case-catalog.js';
 import { COMPONENTS } from '../catalog.js';
 import { SCENARIOS } from '../scenarios.js';
@@ -20,10 +21,11 @@ const texts = (study: CaseStudy): string[] => [
 ];
 
 describe('system design case studies', () => {
-  it('lists every study once, each with a Design Lab build', () => {
+  it('lists every study once, each with a brief and a Design Lab build', () => {
     const ids = CASE_CATALOG.map((c) => c.id);
     expect(new Set(ids).size).toBe(ids.length);
     expect(CASE_STUDIES.map((s) => s.id)).toEqual(ids);
+    expect(CASE_BRIEFS.map((b) => b.id)).toEqual(ids);
     expect(Object.keys(CASE_LABS).sort()).toEqual([...ids].sort());
   });
 

@@ -15,7 +15,7 @@ import {
 import { RouterLink } from '@angular/router';
 import { Preferences } from '@capacitor/preferences';
 import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
-import { CASE_CATALOG, getCaseStudy, getCaseSummary, type CaseStageKind } from '@grasp/engine';
+import { CASE_CATALOG, getCaseBrief, getCaseStudy, getCaseSummary, type CaseStageKind } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import { alertCircleOutline, arrowForward, chatbubblesOutline } from 'ionicons/icons';
 import { refocus } from '../../../core/focus';
@@ -61,8 +61,10 @@ const KIND_LABELS: Record<CaseStageKind, string> = {
         <div class="page narrow">
           <p class="eyebrow">System design case study</p>
           <h1>{{ s.title }}</h1>
-          <blockquote class="question">{{ s.question }}</blockquote>
-          <p class="muted lead">{{ s.summary }}</p>
+          @if (brief(); as b) {
+            <blockquote class="question">{{ b.question }}</blockquote>
+            <p class="muted lead">{{ b.summary }}</p>
+          }
 
           <ol class="stages">
             @for (stage of study.stages; track round() + ':' + $index; let i = $index) {
@@ -222,6 +224,7 @@ export class CaseStudyPage {
   readonly id = input.required<string>();
   readonly kinds = KIND_LABELS;
   readonly summary = computed(() => getCaseSummary(this.id()));
+  readonly brief = computed(() => getCaseBrief(this.id()));
   readonly study = computed(() => getCaseStudy(this.id()));
   readonly reached = signal(0);
   readonly round = signal(0);

@@ -148,6 +148,8 @@ export function states() {
       },
     },
     { id: 'case-build', path: '/design/free-build?case=news-feed' },
+    { id: 'case-ticketing', path: '/design/case/ticketing' },
+    { id: 'case-build-ticketing', path: '/design/free-build?case=ticketing' },
     { id: 'lesson-latency', path: '/learn/design/sd-latency', setup: (p) => p.locator('#try').scrollIntoViewIfNeeded() },
     {
       id: 'lesson-caching-flushed',
