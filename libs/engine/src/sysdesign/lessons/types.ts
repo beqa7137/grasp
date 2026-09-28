@@ -16,7 +16,8 @@ export type SdWidget =
   | 'id-layout'
   | 'inverted-index'
   | 'stream-windows'
-  | 'storage-engine';
+  | 'storage-engine'
+  | 'cdn';
 
 export interface SdLesson {
   /** Why the topic decides interviews and outages, in two or three sentences. */

@@ -208,6 +208,14 @@ export function states() {
       },
     },
     { id: 'lesson-storage', path: '/learn/design/sd-storage', setup: (p) => p.locator('#try').scrollIntoViewIfNeeded() },
+    {
+      id: 'lesson-cdn-shield',
+      path: '/learn/design/sd-cdn',
+      setup: async (p) => {
+        await p.locator('#try').scrollIntoViewIfNeeded();
+        await p.getByRole('checkbox', { name: /Origin shield/ }).check();
+      },
+    },
     { id: 'interview-home', path: '/interview' },
     { id: 'lesson-binary-search', path: '/learn/pattern/binary-search' },
     {

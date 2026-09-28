@@ -66,7 +66,7 @@ export const SEARCH_LESSON: SdLesson = {
         'At about 30 GB per shard today, 480 / 30 gives 16 primaries; in two years they hold 45 GB each, still under 50 GB. Starting with 4 primaries would reach 180 GB per shard, too large to move or recover quickly.',
         'Every query fans out to one copy of each of the 16 shards: 3,000 times 16 is 48,000 shard searches a second. At 5 ms each that is 240 CPU seconds per second, 240 cores busy.',
         'Keep CPU near 50% to absorb spikes and a lost node: 480 cores, so 15 nodes of 32 cores. With 1 replica there are 32 shards and 960 GB, about 64 GB per node, which fits in memory for the file cache on nodes with 128 GB.',
-        'More shards would not cut total CPU, since each query still touches every shard; more replicas would, by spreading those shard searches over more copies. If query load doubles, add replicas and nodes, not primaries.',
+        'More shards would not cut total CPU, since each query still touches every shard; more replicas on more nodes add cores to spread those shard searches over, without reducing the total. If query load doubles, add replicas and nodes, not primaries.',
       ],
     },
     {

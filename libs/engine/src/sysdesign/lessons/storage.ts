@@ -50,7 +50,7 @@ export const STORAGE_LESSON: SdLesson = {
       steps: [
         'B-tree with 4 KB pages: each 100-byte update rewrites a 4 KB page plus a log record, 4,096 / 100 + 1, about 42 times the data. 20 MB/s times 42 is about 840 MB/s: most of the drive, with nothing left for reads or checkpoints.',
         'Leveled LSM at ratio 10 with a 64 MB memtable: 1,000 GB / 64 MB is about 16,000, which needs 5 levels of ratio 10. Log and flush cost 2, each level about (10 + 1) / 2 = 5.5, so 2 + 5 times 5.5 = 29.5, and 20 MB/s becomes 590 MB/s. Compaction also reads roughly what it writes.',
-        'Endurance: 590 MB/s for 86,400 seconds is about 51 TB a day, against a rating of 7.68 TB a day. The drive would wear out in weeks, not years.',
+        'Endurance: 590 MB/s for 86,400 seconds is about 51 TB a day, against a rating of 7.68 TB a day. A five-year rating is about 14,000 TB written, so the drive would use it up in about nine months.',
         'Metrics arrive in time order and are not updated. Time-window compaction (Cassandra TWCS, or one table per day) merges files only within their window, so each point is written a few times instead of once per level; if that averages about 4, 20 MB/s is 80 MB/s, about 6.9 TB a day, just inside the rating.',
         'Retention becomes cheap too: when a window expires, the engine drops its files whole instead of writing a tombstone per point and compacting them away.',
       ],
@@ -76,7 +76,7 @@ export const STORAGE_LESSON: SdLesson = {
       insight: 'Every byte of compaction you save is paid for in reads, space or money; pick the cost the workload can afford.',
       steps: [
         '100 GB / 64 MB is 1,600 memtables, which needs 4 levels at ratio 10. Write amplification is 2 + 4 times 5.5 = 24, so 10 MB/s becomes 240 MB/s of writes, 96% of the cap before compaction reads anything. Compaction cannot keep up.',
-        'Lower the ratio to 5: 5 levels of 3 rewrites each, 2 + 15 = 17, so 170 MB/s. Going to 4 buys nothing here: 6 levels of 2.5 is still 17. Going up to 20 makes it worse: 3 levels of 10.5 is 33.5.',
+        'Lower the ratio to 5: 5 levels of 3 rewrites each, 2 + 15 = 17, so 170 MB/s. That leaves room only if compaction reads mostly come from cache; if reads count against the same cap, even ratio 5 needs more throughput or tiered compaction. Going to 4 buys nothing here: 6 levels of 2.5 is still 17. Going up to 20 makes it worse: 3 levels of 10.5 is 33.5.',
         'The price of ratio 5: the last level now holds about 80% of the data instead of 90%, so space overhead in the worst case rises from about 11% to about 25%, and a range scan merges one more level. Point lookups stay at about one read thanks to bloom filters.',
         'Tiered (universal) compaction would cut rewrites further, but a full merge can briefly need about twice the data size on disk, and reads check more runs. A compaction rate limiter only smooths bursts: it cannot lower the total, and if it throttles below the steady rate, stalls come back.',
         'Compare with simply buying bandwidth: if the volume can be provisioned higher for a modest cost, that keeps the read path and space unchanged. Tune the ratio when space is cheap and throughput is not; buy throughput when reads matter most.',

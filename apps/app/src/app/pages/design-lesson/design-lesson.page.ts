@@ -20,6 +20,7 @@ import { QuickCheckComponent } from '../pattern/quick-check.component';
 import { WorkedExampleComponent } from '../pattern/worked-example.component';
 import { AvailabilityWidgetComponent } from './availability-widget.component';
 import { CacheWidgetComponent } from './cache-widget.component';
+import { CdnWidgetComponent } from './cdn-widget.component';
 import { EstimateDrillComponent } from './estimate-drill.component';
 import { IdLayoutWidgetComponent } from './id-layout-widget.component';
 import { IndexWidgetComponent } from './index-widget.component';
@@ -65,6 +66,7 @@ import { StreamWidgetComponent } from './stream-widget.component';
     IndexWidgetComponent,
     StreamWidgetComponent,
     StorageWidgetComponent,
+    CdnWidgetComponent,
     EstimateDrillComponent,
   ],
   template: `
@@ -136,6 +138,9 @@ import { StreamWidgetComponent } from './stream-widget.component';
                 }
                 @case ('storage-engine') {
                   <app-storage-widget />
+                }
+                @case ('cdn') {
+                  <app-cdn-widget />
                 }
                 @case ('estimate-drill') {
                   <app-estimate-drill [drill]="l.widget.drill ?? []" />

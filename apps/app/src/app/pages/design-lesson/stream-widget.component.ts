@@ -26,7 +26,7 @@ const KINDS: { kind: WindowKind; label: string }[] = [
 
 const x = (s: number) => (Math.min(Math.max(s, 0), SPAN) / SPAN) * W;
 
-/** Twelve events on an event-time line: pick a window kind, its size and the allowed lateness, and see what is counted. */
+/** Twelve events on an event-time line: pick a window kind, its size and the watermark delay, and see what is counted. */
 @Component({
   selector: 'app-stream-widget',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -54,9 +54,9 @@ const x = (s: number) => (Math.min(Math.max(s, 0), SPAN) / SPAN) * W;
     </label>
     <label class="slider">
       <span
-        >Allowed lateness <strong class="mono">{{ lateness() }} s</strong></span
+        >Watermark delay <strong class="mono">{{ delay() }} s</strong></span
       >
-      <input type="range" min="0" max="10" step="1" [value]="lateness()" (input)="lateness.set(+$any($event.target).value)" />
+      <input type="range" min="0" max="10" step="1" [value]="delay()" (input)="delay.set(+$any($event.target).value)" />
     </label>
 
     <svg [attr.viewBox]="'-6 -14 ' + (w + 12) + ' ' + (height() + 24)" role="img" [attr.aria-label]="summary()">
@@ -139,8 +139,8 @@ export class StreamWidgetComponent {
   readonly ticks = [0, 10, 20, 30, 40].map((s) => ({ x: x(s), label: `${s}s` }));
   readonly kind = signal<WindowKind>('tumbling');
   readonly size = signal(10);
-  readonly lateness = signal(2);
-  readonly run = computed(() => streamWindows(EVENTS, this.kind(), this.size(), this.lateness(), this.size() / 2));
+  readonly delay = signal(2);
+  readonly run = computed(() => streamWindows(EVENTS, this.kind(), this.size(), this.delay(), this.size() / 2));
   readonly dots = computed(() => {
     const late = new Set(this.run().late);
     return EVENTS.map((e, n) => ({ n, x: x(e.at), late: late.has(n), delayed: !late.has(n) && e.arrives > e.at + 1 }));

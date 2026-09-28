@@ -1,5 +1,6 @@
 import { CACHING_LESSON } from './caching.js';
 import { CAPACITY_LESSON } from './capacity.js';
+import { CDN_LESSON } from './cdn.js';
 import { CONSENSUS_LESSON } from './consensus.js';
 import { CONSISTENCY_LESSON } from './consistency.js';
 import { ESTIMATION_LESSON } from './estimation.js';
@@ -34,6 +35,7 @@ export const SD_LESSONS: Readonly<Record<string, SdLesson>> = {
   'sd-search': SEARCH_LESSON,
   'sd-streams': STREAMS_LESSON,
   'sd-storage': STORAGE_LESSON,
+  'sd-cdn': CDN_LESSON,
 };
 
 export function getSdLesson(topicId: string): SdLesson | undefined {
