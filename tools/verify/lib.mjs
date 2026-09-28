@@ -218,7 +218,7 @@ export function states() {
       path: '/behavioral/conflict',
       setup: async (p) => {
         await p.getByRole('button', { name: 'Show why it works' }).click();
-        const exercise = p.locator('app-spot-flaws');
+        const exercise = p.locator('app-spot-flaws').first();
         await exercise.getByRole('checkbox', { name: 'Blames others' }).check();
         await exercise.getByRole('checkbox', { name: 'No measurable result' }).check();
         await exercise.getByRole('button', { name: 'Check' }).click();

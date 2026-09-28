@@ -31,7 +31,11 @@ export interface ExampleAnswer {
   reflection: string;
 }
 
+/** The career stage an answer speaks from, since the bar for scope and impact rises with it. */
+export type Seniority = 'early' | 'mid' | 'senior';
+
 export interface StrongExample extends ExampleAnswer {
+  level: Seniority;
   /** Why each part works, in one or two sentences. */
   notes: { situation: string; task: string; action: string; result: string; reflection: string };
 }
@@ -47,6 +51,7 @@ export interface WeakExample extends ExampleAnswer {
 
 export interface CompetencyExamples {
   competencyId: string;
-  strong: StrongExample;
-  weak: WeakExample;
+  /** One per career stage, each answering a different question. */
+  strong: readonly StrongExample[];
+  weak: readonly WeakExample[];
 }

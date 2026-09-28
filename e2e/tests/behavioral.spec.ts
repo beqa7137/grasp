@@ -37,12 +37,20 @@ test('a behavioral answer is checked as it is written, kept on this device, and 
   await expect(page.getByRole('link', { name: /^Ownership/ })).not.toContainText('drafted');
 });
 
-test('a competency teaches with a worked answer and a weak one to diagnose', async ({ page }) => {
+test('a competency teaches with a worked answer per career stage and weak ones to diagnose', async ({ page }) => {
   await page.goto('/behavioral/conflict');
   await page.getByRole('button', { name: 'Show why it works' }).click();
   await expect(page.getByRole('button', { name: 'Hide why it works' })).toHaveAttribute('aria-expanded', 'true');
 
-  const exercise = page.locator('app-spot-flaws');
+  const levels = page.getByRole('radiogroup', { name: 'Career stage' });
+  await expect(levels.getByRole('radio', { name: 'Mid-level' })).toHaveAttribute('aria-checked', 'true');
+  const asked = page.locator('#example .asked');
+  const midQuestion = await asked.textContent();
+  await levels.getByRole('radio', { name: 'Senior' }).click();
+  await expect(asked).not.toHaveText(midQuestion ?? '');
+  await expect(page.locator('app-spot-flaws')).toHaveCount(2);
+
+  const exercise = page.locator('app-spot-flaws').first();
   const check = exercise.getByRole('button', { name: 'Check' });
   await expect(check).toBeDisabled();
   await exercise.getByRole('checkbox', { name: 'Blames others' }).check();

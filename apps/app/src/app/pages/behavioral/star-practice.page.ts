@@ -260,7 +260,8 @@ export class StarPracticePage {
   readonly next = computed(() => QUESTIONS[QUESTIONS.findIndex((q) => q.id === this.id()) + 1]);
   readonly backHref = computed(() => (this.competency() ? `/behavioral/${this.competency()!.id}` : '/behavioral'));
   readonly worked = computed(() => {
-    const example = examplesFor(this.question()?.competencyId ?? '')?.strong;
+    const strong = examplesFor(this.question()?.competencyId ?? '')?.strong ?? [];
+    const example = strong.find((s) => s.questionId === this.id()) ?? strong.find((s) => s.level === 'mid');
     const prompt = QUESTIONS.find((q) => q.id === example?.questionId)?.prompt;
     return example && prompt ? { example, prompt } : null;
   });
