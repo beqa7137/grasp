@@ -198,6 +198,16 @@ export function states() {
     },
     { id: 'lesson-consensus', path: '/learn/design/sd-consensus', setup: (p) => p.locator('#try').scrollIntoViewIfNeeded() },
     { id: 'lesson-ids', path: '/learn/design/sd-ids', setup: (p) => p.locator('#try').scrollIntoViewIfNeeded() },
+    { id: 'lesson-search', path: '/learn/design/sd-search', setup: (p) => p.locator('#try').scrollIntoViewIfNeeded() },
+    {
+      id: 'lesson-streams-sliding',
+      path: '/learn/design/sd-streams',
+      setup: async (p) => {
+        await p.locator('#try').scrollIntoViewIfNeeded();
+        await p.getByRole('radio', { name: 'Sliding' }).click();
+      },
+    },
+    { id: 'lesson-storage', path: '/learn/design/sd-storage', setup: (p) => p.locator('#try').scrollIntoViewIfNeeded() },
     { id: 'interview-home', path: '/interview' },
     { id: 'lesson-binary-search', path: '/learn/pattern/binary-search' },
     {

@@ -3,6 +3,7 @@ import {
   cacheOutcome,
   collisionChance,
   idLayout,
+  invertedIndex,
   chainAvailability,
   hashRing,
   moduloOwner,
@@ -16,6 +17,9 @@ import {
   replicaRead,
   ringOwner,
   runLimiter,
+  searchIndex,
+  storageCost,
+  streamWindows,
 } from './widgets.js';
 
 describe('queue latency', () => {
@@ -202,5 +206,83 @@ describe('id layout', () => {
   it('puts the birthday bound near 50% at about 1.18 times the square root of the space', () => {
     expect(collisionChance(64, 1.177 * 2 ** 32)).toBeCloseTo(0.5, 2);
     expect(collisionChance(122, 1e9)).toBeCloseTo(9.4e-20, 21);
+  });
+});
+
+describe('search index', () => {
+  const docs = ['the cat sat', 'the cat ran fast', 'a dog ran'];
+
+  it('lists each term with the ascending documents that hold it', () => {
+    expect(invertedIndex(docs).get('ran')).toEqual([1, 2]);
+    expect(invertedIndex(['Cat cat', 'CAT']).get('cat')).toEqual([0, 1]);
+  });
+
+  it('intersects for and, unions for or, and ranks by TF-IDF', () => {
+    expect(searchIndex(docs, 'cat ran', 'and').map((h) => h.doc)).toEqual([1]);
+    const or = searchIndex(docs, 'cat ran', 'or');
+    expect(or.map((h) => h.doc)).toEqual([1, 0, 2]);
+    expect(or[0].score).toBeCloseTo(2 * Math.log(3 / 2));
+    expect(searchIndex(['a cat', 'the cat'], 'cat', 'or').map((h) => h.score)).toEqual([0, 0]);
+    expect(searchIndex(docs, 'zebra', 'or')).toEqual([]);
+  });
+});
+
+describe('stream windows', () => {
+  const events = [
+    { at: 1, arrives: 1 },
+    { at: 12, arrives: 13 },
+    { at: 5, arrives: 14 },
+  ];
+
+  it('drops an event whose tumbling window closed before it arrived, unless the watermark allows for it', () => {
+    expect(streamWindows(events, 'tumbling', 10, 0)).toEqual({
+      windows: [
+        { start: 0, end: 10, events: [0] },
+        { start: 10, end: 20, events: [1] },
+      ],
+      late: [2],
+    });
+    expect(streamWindows(events, 'tumbling', 10, 5).late).toEqual([]);
+  });
+
+  it('counts a late event only in the sliding windows still open', () => {
+    const run = streamWindows(events, 'sliding', 10, 0, 5);
+    expect(run.windows.find((w) => w.start === 0)?.events).toEqual([0]);
+    expect(run.windows.find((w) => w.start === 5)?.events).toEqual([2, 1]);
+    expect(run.late).toEqual([]);
+  });
+
+  it('merges events closer than the gap into one session', () => {
+    const run = streamWindows(
+      [
+        { at: 1, arrives: 1 },
+        { at: 3, arrives: 3 },
+        { at: 12, arrives: 12 },
+      ],
+      'session',
+      4,
+      100,
+    );
+    expect(run.windows).toEqual([
+      { start: 1, end: 7, events: [0, 1] },
+      { start: 12, end: 16, events: [2] },
+    ]);
+  });
+});
+
+describe('storage cost', () => {
+  const options = { dataGB: 100, recordBytes: 100, pageKB: 4, memtableMB: 64, ratio: 10, writeMBps: 10, bloom: true };
+
+  it('rewrites a whole page per random B-tree update', () => {
+    const b = storageCost('btree', options);
+    expect(b.levels).toBe(5);
+    expect(b.writeAmplification).toBeCloseTo(41.96);
+    expect(b.diskWriteMBps).toBeCloseTo(419.6);
+  });
+
+  it('compacts an LSM tree level by level, with bloom filters keeping a lookup to one read', () => {
+    const l = storageCost('lsm', options);
+    expect(l).toMatchObject({ levels: 4, writeAmplification: 24, lookupReads: 1 });
+    expect(storageCost('lsm', { ...options, bloom: false }).lookupReads).toBe(5);
   });
 });

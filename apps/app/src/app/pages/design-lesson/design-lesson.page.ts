@@ -22,6 +22,7 @@ import { AvailabilityWidgetComponent } from './availability-widget.component';
 import { CacheWidgetComponent } from './cache-widget.component';
 import { EstimateDrillComponent } from './estimate-drill.component';
 import { IdLayoutWidgetComponent } from './id-layout-widget.component';
+import { IndexWidgetComponent } from './index-widget.component';
 import { LatencyWidgetComponent } from './latency-widget.component';
 import { LimiterWidgetComponent } from './limiter-widget.component';
 import { PartitionWidgetComponent } from './partition-widget.component';
@@ -30,6 +31,8 @@ import { QueueWidgetComponent } from './queue-widget.component';
 import { QuorumWidgetComponent } from './quorum-widget.component';
 import { ReplicaWidgetComponent } from './replica-widget.component';
 import { RingWidgetComponent } from './ring-widget.component';
+import { StorageWidgetComponent } from './storage-widget.component';
+import { StreamWidgetComponent } from './stream-widget.component';
 
 /** A system design topic taught hands-on: a widget to experiment with, the ideas to name, worked examples and a quick check. */
 @Component({
@@ -59,6 +62,9 @@ import { RingWidgetComponent } from './ring-widget.component';
     QuorumWidgetComponent,
     PartitionWidgetComponent,
     IdLayoutWidgetComponent,
+    IndexWidgetComponent,
+    StreamWidgetComponent,
+    StorageWidgetComponent,
     EstimateDrillComponent,
   ],
   template: `
@@ -121,6 +127,15 @@ import { RingWidgetComponent } from './ring-widget.component';
                 }
                 @case ('id-layout') {
                   <app-id-layout-widget />
+                }
+                @case ('inverted-index') {
+                  <app-index-widget />
+                }
+                @case ('stream-windows') {
+                  <app-stream-widget />
+                }
+                @case ('storage-engine') {
+                  <app-storage-widget />
                 }
                 @case ('estimate-drill') {
                   <app-estimate-drill [drill]="l.widget.drill ?? []" />

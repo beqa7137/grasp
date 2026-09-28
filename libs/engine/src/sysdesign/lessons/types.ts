@@ -13,7 +13,10 @@ export type SdWidget =
   | 'pipeline'
   | 'quorum'
   | 'partition'
-  | 'id-layout';
+  | 'id-layout'
+  | 'inverted-index'
+  | 'stream-windows'
+  | 'storage-engine';
 
 export interface SdLesson {
   /** Why the topic decides interviews and outages, in two or three sentences. */
