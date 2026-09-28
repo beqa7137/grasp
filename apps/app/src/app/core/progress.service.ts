@@ -334,7 +334,7 @@ export class ProgressService {
     const scope = this.scope;
     if (scope?.pull || scope?.upload) this.syncStatus.set('syncing');
     else if (scope?.pullFailed || scope?.pushFailed) this.syncStatus.set('offline');
-    else if (this.events().some((event) => !this.acknowledged.has(event.id))) this.syncStatus.set('pending');
+    else if (this.deferredFuture.size || this.oversized.size) this.syncStatus.set('pending');
     else this.syncStatus.set(scope ? 'synced' : 'idle');
   }
 

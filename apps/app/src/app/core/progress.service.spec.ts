@@ -168,6 +168,16 @@ describe('ProgressService sync', () => {
     expect(progress.syncStatus()).toBe('idle');
     expect(api.post).not.toHaveBeenCalled();
   });
+  it('does not report an event waiting for the upload debounce as pending', async () => {
+    vi.useFakeTimers();
+    const { progress, api } = setup();
+    await progress.resync();
+    await progress.record(settingsEvent('one'));
+    expect(progress.syncStatus()).toBe('synced');
+    await vi.advanceTimersByTimeAsync(1500);
+    expect(api.post).toHaveBeenCalledTimes(1);
+    expect(progress.syncStatus()).toBe('synced');
+  });
   it('keeps deferred future events pending, acknowledges valid neighbors, and retries the same immutable event', async () => {
     let future = true;
     const { progress, api } = setup({ post: async (events) => acknowledgement(events, future ? ['future'] : []) });
