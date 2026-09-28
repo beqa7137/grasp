@@ -57,6 +57,20 @@ export const GRAPHS_ADVANCED_LESSONS: Record<
           'From `dog` we reach `cog`, the target, at level 5. The answer is 5: `hit`, `hot`, `dot`, `dog`, `cog`.',
         ],
       },
+      {
+        title: 'Number of Islands',
+        problem:
+          'In the grid with rows `11000`, `11000`, `00100` and `00011`, 1 is land and 0 is water. Land cells touching up, down, left or right form one island. How many islands are there?',
+        insight:
+          'Scan every cell; each unvisited land cell starts a new island, and a BFS from it marks the whole island visited so it is never counted again.',
+        steps: [
+          'Scan from (0,0): it is unvisited land, so the count becomes 1. BFS from it marks (1,0), (0,1) and (1,1).',
+          'The scan meets (0,1), (1,0) and (1,1) later, but they are already marked, so they start nothing.',
+          '(2,2) is unvisited land: the count becomes 2. BFS finds no land neighbor, so this island is one cell.',
+          '(3,3) is unvisited land: the count becomes 3. BFS marks (3,4), which the scan then skips.',
+          'Answer 3. Each cell is scanned once and enqueued at most once, so it is O(R·C). A recursive flood fill works the same way.',
+        ],
+      },
     ],
     variations: [
       {
@@ -605,6 +619,20 @@ export const GRAPHS_ADVANCED_LESSONS: Record<
           '`dp[5]` is 1 plus the min of `dp[4]`, `dp[2]` and `dp[1]`, which is 1 + 1 = 2, as 4 + 1.',
           '`dp[6]` is 1 plus the min of `dp[5] = 2`, `dp[3] = 1` and `dp[2] = 2`, which is 2, as 3 + 3.',
           'The answer is 2. Greedy would take 4 first and need 4 + 1 + 1, three coins, which is why this needs DP.',
+        ],
+      },
+      {
+        title: 'Longest Increasing Subsequence in O(n log n)',
+        problem: 'Return the length of the longest strictly increasing subsequence of [10, 9, 2, 5, 3, 7, 101, 18].',
+        insight:
+          '`tails[k]` is the smallest possible last value of an increasing subsequence of length k + 1. Binary search the first tail at least x and replace it, or append x when none is.',
+        steps: [
+          '10 starts `tails = [10]`. 9 replaces 10, and 2 replaces 9: a subsequence of length 1 ending lower is easier to extend.',
+          '5 is larger than every tail, so append: `[2, 5]`.',
+          '3 replaces 5, the first tail at least 3: `[2, 3]`. A subsequence of length 2 can now end at 3.',
+          '7 and 101 both append: `[2, 3, 7, 101]`.',
+          '18 replaces 101: `[2, 3, 7, 18]`. The length stays 4.',
+          'The answer is the length of tails, 4. The tails array is not always a real subsequence (3, 4, 1 leaves `[1, 4]`), but its length is always right, in O(n log n).',
         ],
       },
     ],

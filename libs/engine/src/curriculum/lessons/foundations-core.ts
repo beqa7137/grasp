@@ -119,6 +119,19 @@ export const FOUNDATIONS_CORE_LESSONS: Record<
           'Fix 0, need 0: 1 + 2 = 3 is too big and r passes l. Result: two triplets, O(n²) total.',
         ],
       },
+      {
+        title: 'Trapping Rain Water',
+        problem: 'Bars have heights `[3, 1, 2, 4, 0, 2]`. How much rain water is trapped between them?',
+        insight:
+          'Water at i is the smaller of leftMax and rightMax, minus `h[i]`. Move the side with the smaller max: that max is the limit there, whatever lies between.',
+        steps: [
+          '`l = 0`, `r = 5`: leftMax 3, rightMax 2. The right max is smaller, so move r to 4: height 0 holds 2 - 0 = 2. Total 2.',
+          'rightMax 2 is still smaller: move r to 3. Height 4 raises rightMax to 4 and holds nothing.',
+          'Now leftMax 3 is smaller: move l to 1. Height 1 holds 3 - 1 = 2, since a wall of at least 4 waits on the right. Total 4.',
+          'Move l to 2: height 2 holds 3 - 2 = 1. Total 5. Then l reaches r and the scan ends.',
+          'Answer 5, in one pass with O(1) extra space instead of two prefix-max arrays.',
+        ],
+      },
     ],
     variations: [
       {
@@ -194,6 +207,34 @@ export const FOUNDATIONS_CORE_LESSONS: Record<
           'Answer 4, from "AABA" or "BABB".',
         ],
       },
+      {
+        title: 'Minimum Window Substring',
+        problem: 'Return the shortest substring of `"ADOBECODEBANC"` that contains every character of `"ABC"`.',
+        insight:
+          'Count what t needs and track how many distinct characters of t are fully covered. Expand right until all are, then shrink left while they still are.',
+        steps: [
+          'Need one each of A, B and C, so `have = 0` of 3. Expand right through "ADOBEC": at index 5 the C makes `have = 3`. Best is "ADOBEC", length 6.',
+          'Shrink: dropping the A at index 0 leaves A uncovered, so `have = 2` and left stops at 1.',
+          'Expand to the A at index 10: valid again as "DOBECODEBA". Shrink while valid past D, O, B (the second B still covers it) and E, down to "CODEBA", length 6, no better.',
+          'Dropping the C at index 5 breaks it. Expand through N to the C at index 12: "ODEBANC" is valid.',
+          'Shrink past O, D and E to "BANC", length 4, the new best. Dropping B breaks it, and right is at the end.',
+          'Answer "BANC". Each index enters and leaves once, and `have` changes only when a count crosses its need, so it is O(n).',
+        ],
+      },
+      {
+        title: 'Sliding Window Maximum',
+        problem: 'Given `[1, 3, -1, -3, 5, 3]` and `k = 3`, return the maximum of every window of 3 consecutive numbers.',
+        insight:
+          'Keep a deque of indices whose values decrease. Drop the front once it leaves the window, and pop smaller values off the back, since they can never be a maximum again.',
+        steps: [
+          'Index 0 (value 1) enters. Index 1 (value 3) pops it, since 1 can never beat 3. Index 2 (value -1) is smaller, so the deque holds indices `[1, 2]`.',
+          'The first window is full: the front, value 3, is its maximum.',
+          'Index 3 (value -3) joins the back: `[1, 2, 3]`. Index 1 is still inside the window, so the maximum is 3 again.',
+          'Index 4 (value 5): index 1 has left the window, so drop it from the front. 5 then pops -3 and -1 off the back, leaving `[4]`. Maximum 5.',
+          'Index 5 (value 3) is smaller, so the deque is `[4, 5]` and the maximum is 5.',
+          'Answer `[3, 3, 5, 5]`. Each index is pushed and popped at most once, so it is O(n) instead of O(n·k).',
+        ],
+      },
     ],
     variations: [
       {
@@ -264,6 +305,18 @@ export const FOUNDATIONS_CORE_LESSONS: Record<
           '`mid = 5` holds 1. The left half `[0, 1]` is sorted and 0 is inside it: `hi = 4`.',
           '`mid = 4` holds 0: found, return 4.',
           'Each step still discards half, so it stays O(log n).',
+        ],
+      },
+      {
+        title: 'Find Minimum in Rotated Sorted Array',
+        problem: 'Return the minimum of `[6, 7, 9, 15, 19, 2, 3]`, a sorted array rotated at an unknown point, in O(log n).',
+        insight:
+          'Compare mid with the right end: if `a[mid] > a[hi]`, the drop to the minimum lies right of mid; otherwise the minimum is mid or left of it.',
+        steps: [
+          '`lo = 0`, `hi = 6`, `mid = 3` holds 15 > 3, so the rotation point is right of mid: `lo = 4`.',
+          '`mid = 5` holds 2 < 3, so indices 5 to 6 are sorted and 2 is the smallest of them. Keep mid: `hi = 5`.',
+          '`mid = 4` holds 19 > 2, so the minimum is right of it: `lo = 5`.',
+          '`lo = hi = 5`: return 2 after 3 checks. Comparing with the left end fails on an unrotated array, where `a[mid] > a[lo]` yet the minimum is at 0.',
         ],
       },
     ],

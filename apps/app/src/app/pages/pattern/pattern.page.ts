@@ -17,6 +17,7 @@ import { ProgressService } from '../../core/progress.service';
 import { CodePanelComponent } from '../../viz/code-panel.component';
 import { CodeTextComponent } from '../../viz/code-text.component';
 import { MasteryRingComponent } from '../../viz/mastery-ring.component';
+import { QuickCheckComponent } from './quick-check.component';
 import { WorkedExampleComponent } from './worked-example.component';
 
 @Component({
@@ -35,6 +36,7 @@ import { WorkedExampleComponent } from './worked-example.component';
     CodeTextComponent,
     MasteryRingComponent,
     WorkedExampleComponent,
+    QuickCheckComponent,
   ],
   template: `
     <ion-header [translucent]="true">
@@ -134,6 +136,11 @@ import { WorkedExampleComponent } from './worked-example.component';
               }
             </section>
           }
+
+          <section class="panel block">
+            <h2><ion-icon name="flash-outline" aria-hidden="true" />Quick check</h2>
+            <app-quick-check [topic]="p.id" />
+          </section>
 
           @if (m) {
             <p class="muted foot">

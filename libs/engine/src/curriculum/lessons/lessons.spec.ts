@@ -15,12 +15,12 @@ const texts = (id: string) => {
 };
 
 describe('pattern lessons', () => {
-  it('cover every pattern with two or three worked examples, three variations and three follow-ups', () => {
+  it('cover every pattern with two to five worked examples, three variations and three follow-ups', () => {
     for (const p of PATTERN_CATALOG) {
       const lesson = LESSONS[p.id];
       expect(lesson, p.id).toBeDefined();
       expect(lesson.examples.length, p.id).toBeGreaterThanOrEqual(2);
-      expect(lesson.examples.length, p.id).toBeLessThanOrEqual(3);
+      expect(lesson.examples.length, p.id).toBeLessThanOrEqual(5);
       expect(lesson.variations, p.id).toHaveLength(3);
       expect(lesson.followUps, p.id).toHaveLength(3);
       for (const e of lesson.examples) {
