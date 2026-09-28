@@ -52,6 +52,9 @@ const DESIGN = [
   { id: 'page-write-amp', topic: 'sd-storage' },
   { id: 'lsm-vs-btree', topic: 'sd-storage' },
   { id: 'bloom-filter', topic: 'sd-storage' },
+  { id: 'cdn-pulls', topic: 'sd-cdn' },
+  { id: 'cdn-shield', topic: 'sd-cdn' },
+  { id: 'edge-tls', topic: 'sd-cdn' },
 ] as const satisfies readonly DesignItemSummary[];
 
 export type DesignItemId = (typeof DESIGN)[number]['id'];

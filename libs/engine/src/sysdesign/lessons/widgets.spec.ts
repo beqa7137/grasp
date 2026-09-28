@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   cacheOutcome,
+  cdnOutcome,
   collisionChance,
   idLayout,
   invertedIndex,
@@ -284,5 +285,24 @@ describe('storage cost', () => {
     const l = storageCost('lsm', options);
     expect(l).toMatchObject({ levels: 4, writeAmplification: 24, lookupReads: 1 });
     expect(storageCost('lsm', { ...options, bloom: false }).lookupReads).toBe(5);
+  });
+});
+
+describe('cdn outcome', () => {
+  const options = { rps: 10000, objects: 100000, zipf: 1, pops: 20, ttlSec: 60, shield: false, edgeMs: 10, shieldMs: 30, originMs: 120 };
+
+  it('hits less at each edge as traffic spreads over more locations', () => {
+    expect(cdnOutcome(options).edgeHitRate).toBeCloseTo(0.692, 3);
+    expect(cdnOutcome(options).originRps).toBeCloseTo(3077, 0);
+    expect(cdnOutcome({ ...options, pops: 100 }).edgeHitRate).toBeCloseTo(0.561, 3);
+    expect(cdnOutcome({ ...options, pops: 1 }).edgeHitRate).toBeCloseTo(0.909, 3);
+  });
+
+  it('lets a shield absorb the misses of every location', () => {
+    const shielded = cdnOutcome({ ...options, shield: true });
+    expect(shielded.edgeHitRate).toBeCloseTo(0.692, 3);
+    expect(shielded.originShare).toBeCloseTo(0.089, 3);
+    expect(shielded.meanMs).toBeCloseTo(29.9, 1);
+    expect(cdnOutcome({ ...options, pops: 100, shield: true }).originShare).toBeCloseTo(0.091, 3);
   });
 });

@@ -67,6 +67,12 @@ export const SD_TOPICS: SdTopic[] = [
     oneLiner: 'B-trees, LSM trees and what each costs on disk.',
     scenarioIds: ['write-wall'],
   },
+  {
+    id: 'sd-cdn',
+    name: 'CDNs & Edge',
+    oneLiner: 'Edge locations, origin shields, TTLs and purges.',
+    scenarioIds: ['viral-feed'],
+  },
 ];
 
 export function getSdTopic(id: string): SdTopic | undefined {

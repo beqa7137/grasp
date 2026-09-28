@@ -141,12 +141,12 @@ test('the search lesson intersects posting lists for AND and ranks every match f
   await expect(page.getByText('No document matches.')).toBeVisible();
 });
 
-test('the stream lesson drops an event that arrives after its window closed, until the lateness allows for it', async ({ page }) => {
+test('the stream lesson drops an event that arrives after its window closed, until the watermark delay allows for it', async ({ page }) => {
   await page.goto('/learn/design/sd-streams');
   const dropped = page.locator('.readouts div').filter({ hasText: 'Dropped' }).locator('dd');
   await expect(dropped).toHaveText('event at 8 s');
-  const lateness = page.getByRole('slider', { name: /Allowed lateness/ });
-  await lateness.focus();
+  const delay = page.getByRole('slider', { name: /Watermark delay/ });
+  await delay.focus();
   for (let i = 0; i < 6; i++) await page.keyboard.press('ArrowRight');
   await expect(dropped).toHaveText('none');
   await page.getByRole('radio', { name: 'Session' }).click();
@@ -162,4 +162,16 @@ test('the storage lesson compares write amplification, and bloom filters keep an
   await expect(readout('LSM tree', 'Reads per lookup')).toHaveText('1');
   await page.getByRole('checkbox', { name: /Bloom filters/ }).uncheck();
   await expect(readout('LSM tree', 'Reads per lookup')).toHaveText('5');
+});
+
+test('the CDN lesson shows a shield absorbing the misses that more edge locations cause', async ({ page }) => {
+  await page.goto('/learn/design/sd-cdn');
+  const readout = (label: string) => page.locator('.readouts div').filter({ hasText: label }).locator('dd');
+  await expect(readout('Edge hits')).toHaveText('69.2%');
+  await expect(readout('Origin load')).toHaveText('3,077/s');
+  await page.getByRole('checkbox', { name: /Origin shield/ }).check();
+  await expect(readout('Origin load')).toHaveText('886/s');
+  await page.getByRole('radio', { name: '1 h' }).click();
+  await expect(readout('Edge hits')).toHaveText('95.8%');
+  await expect(readout('Origin load')).toHaveText('26/s');
 });

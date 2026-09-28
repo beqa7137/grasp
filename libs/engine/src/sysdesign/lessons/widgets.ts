@@ -351,16 +351,16 @@ export interface WindowRun {
 }
 
 /**
- * Groups events by event time. The watermark trails the latest arrival seen by `lateness` seconds; a window closes once
- * the watermark passes its end, so an event counts only in the windows still open when it arrives.
+ * Groups events by event time. The watermark trails the largest event time seen so far by `delay` seconds; a window
+ * closes once the watermark passes its end, so an event counts only in the windows still open when it arrives.
  */
-export function streamWindows(events: readonly StreamEvent[], kind: WindowKind, size: number, lateness: number, slide = size): WindowRun {
+export function streamWindows(events: readonly StreamEvent[], kind: WindowKind, size: number, delay: number, slide = size): WindowRun {
   const order = events.map((_, i) => i).sort((a, b) => events[a].arrives - events[b].arrives || a - b);
   const watermarkAt: number[] = [];
-  let watermark = -Infinity;
+  let latest = -Infinity;
   for (const i of order) {
-    watermarkAt[i] = watermark;
-    watermark = Math.max(watermark, events[i].arrives - lateness);
+    watermarkAt[i] = latest - delay;
+    latest = Math.max(latest, events[i].at);
   }
   const byTime = events.map((_, i) => i).sort((a, b) => events[a].at - events[b].at || a - b);
   const windows: StreamWindow[] = [];
@@ -418,4 +418,48 @@ export function storageCost(
   const levels = Math.max(1, Math.ceil(Math.log((dataGB * 1024) / memtableMB) / Math.log(ratio)));
   const writeAmplification = 2 + (levels * (ratio + 1)) / 2;
   return { writeAmplification, lookupReads: bloom ? 1 : levels + 1, levels, diskWriteMBps: writeMBps * writeAmplification };
+}
+
+export interface CdnOutcome {
+  /** Fraction of requests answered by the PoP that received them. */
+  edgeHitRate: number;
+  /** Fraction of requests that reach the origin. */
+  originShare: number;
+  originRps: number;
+  meanMs: number;
+}
+
+/**
+ * A CDN in front of an origin. Requests spread evenly over `pops` edge locations and over `objects` objects by a
+ * Zipf law. Each cache keeps an object for `ttlSec` after fetching it, so an object requested at rate r hits with
+ * probability rT / (1 + rT). With a shield, one mid tier absorbs the edges' misses before the origin.
+ */
+export function cdnOutcome(options: {
+  rps: number;
+  objects: number;
+  zipf: number;
+  pops: number;
+  ttlSec: number;
+  shield: boolean;
+  edgeMs: number;
+  shieldMs: number;
+  originMs: number;
+}): CdnOutcome {
+  const { rps, objects, zipf, pops, ttlSec, shield, edgeMs, shieldMs, originMs } = options;
+  const weights = Array.from({ length: objects }, (_, i) => 1 / (i + 1) ** zipf);
+  const total = weights.reduce((a, b) => a + b, 0);
+  const hit = (rate: number) => (rate * ttlSec) / (1 + rate * ttlSec);
+  let edgeHits = 0;
+  let shieldHits = 0;
+  for (const w of weights) {
+    const rate = (rps * w) / total;
+    const edgeHit = hit(rate / pops);
+    const missRate = rate * (1 - edgeHit);
+    edgeHits += rate * edgeHit;
+    if (shield) shieldHits += missRate * hit(missRate);
+  }
+  const originRps = rps - edgeHits - shieldHits;
+  const edgeHitRate = edgeHits / rps;
+  const meanMs = edgeMs + (1 - edgeHitRate) * (shield ? shieldMs : 0) + (originRps / rps) * originMs;
+  return { edgeHitRate, originShare: originRps / rps, originRps, meanMs };
 }
