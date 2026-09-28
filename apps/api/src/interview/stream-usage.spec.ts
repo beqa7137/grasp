@@ -50,4 +50,14 @@ describe('stream billing protocol', () => {
     tracking.observe(delta({ input_tokens: null, output_tokens: 40, cache_read_input_tokens: null, cache_creation_input_tokens: null }));
     expect(tracking.supported).toBe(true);
   });
+
+  it('bounds an interrupted stream by its reported input and every allowed output token', () => {
+    const tracking = new StreamUsage('claude-sonnet-5', 2048);
+    expect(tracking.costBoundUsd()).toBeNull();
+    tracking.observe(start());
+    tracking.observe(delta({ input_tokens: 1500, output_tokens: 40, cache_read_input_tokens: 100 }));
+    expect(tracking.costBoundUsd()).toBeCloseTo(((1500 * 2 + 100 * 0.2 + 2048 * 10) * 1.1) / 1_000_000, 10);
+    tracking.observe(start());
+    expect(tracking.costBoundUsd()).toBeNull();
+  });
 });

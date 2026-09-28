@@ -1,4 +1,4 @@
-import { addUsage, costUsd, maximumCostUsd, messageUsage, priceFor } from './pricing.js';
+import { addUsage, costUsd, inputTokenBound, maximumCostUsd, messageUsage, priceFor } from './pricing.js';
 
 const tokens = { inputTokens: 1_000_000, outputTokens: 1_000_000, cacheReadTokens: 1_000_000, cacheWriteTokens: 1_000_000 };
 
@@ -25,6 +25,13 @@ describe('pricing', () => {
   ] as const)('bounds each %s attempt by full context, requested output and worst allowed geography', (model, reply, score) => {
     expect(maximumCostUsd(model, 2048, true)).toBeCloseTo(reply, 10);
     expect(maximumCostUsd(model, 16000, false)).toBeCloseTo(score, 10);
+  });
+
+  it('bounds input by the request size when it is below the context window', () => {
+    const request = { system: 'Interviewer', messages: [{ role: 'user', content: 'héllo' }] };
+    expect(inputTokenBound(request)).toBe(Buffer.byteLength(JSON.stringify(request)) + 8192);
+    expect(maximumCostUsd('claude-sonnet-5', 2048, true, 10_000)).toBeCloseTo(((10_000 * 2.5 + 2048 * 10) * 1.1) / 1_000_000, 10);
+    expect(maximumCostUsd('claude-sonnet-5', 2048, true, 10_000_000)).toBe(maximumCostUsd('claude-sonnet-5', 2048, true));
   });
 
   it.each([0, -1, 1.5, NaN, Infinity, 128001])('rejects invalid output limit %s before dispatch', (maxTokens) => {

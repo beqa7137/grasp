@@ -54,15 +54,23 @@ export function priceFor(model: string): ModelPrice | null {
   return Object.hasOwn(PRICES, key) ? PRICES[key] : null;
 }
 
-export function maximumCostUsd(model: string, maxTokens: number, cacheEnabled: boolean): number {
+// Allowance for what the provider adds to a request beyond its body, such as a structured-output format prompt.
+const HIDDEN_PROMPT_TOKENS = 8_192;
+
+/** An upper bound on a request's input tokens: a token always spans at least one byte of the text it encodes. */
+export function inputTokenBound(request: unknown): number {
+  return Buffer.byteLength(JSON.stringify(request), 'utf8') + HIDDEN_PROMPT_TOKENS;
+}
+
+export function maximumCostUsd(model: string, maxTokens: number, cacheEnabled: boolean, inputTokens = Infinity): number {
   const price = priceFor(model);
   if (!price) throw new RangeError('The AI model has no verified pricing and limits.');
   if (!Number.isSafeInteger(maxTokens) || maxTokens < 1 || maxTokens > price.maxOutputTokens) {
     throw new RangeError('The AI output limit is outside the supported model range.');
   }
-  // Token counting is an estimate. The provider context ceiling covers hidden format prompts too.
+  const input = Math.min(inputTokens, price.contextTokens);
   const inputRate = cacheEnabled ? price.cacheWrite5m : price.input;
-  return ((price.contextTokens * inputRate + maxTokens * price.output) * (price.supportsInferenceGeo ? 1.1 : 1)) / 1_000_000;
+  return ((input * inputRate + maxTokens * price.output) * (price.supportsInferenceGeo ? 1.1 : 1)) / 1_000_000;
 }
 
 export function costUsd(model: string, usage: Omit<TokenUsage, 'costUsd'>, inferenceGeo: 'global' | 'us' = 'global'): number | null {

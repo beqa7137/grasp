@@ -6,7 +6,7 @@ import { Interviewer, type ReplyResult, type ScoreResult } from './interviewer.j
 import type { InterviewSession, TokenUsage } from './interview.types.js';
 import { meteredRequest } from './metered-request.js';
 import { OfflineInterviewer } from './offline.interviewer.js';
-import { maximumCostUsd, messageUsage, priceFor } from './pricing.js';
+import { inputTokenBound, maximumCostUsd, messageUsage, priceFor } from './pricing.js';
 import { candidateTurn, interviewerSystemPrompt, scorerSystemPrompt, transcriptText } from './prompts.js';
 import { InvalidScorecardError, normalizeScorecard, scorecardJsonSchema } from './scorecard.schema.js';
 import type { SpendGuard } from './spend-guard.js';
@@ -62,22 +62,25 @@ export class ClaudeInterviewer extends Interviewer {
         service_tier: 'standard_only',
         ...(this.model.supportsEffort ? { output_config: { effort: 'low' } } : {}),
       };
+      let streamUsage: StreamUsage | undefined;
       const { message, usage } = await meteredRequest({
         spend: this.spend,
-        maximumCostUsd: maximumCostUsd(this.model.model, this.replyMaxTokens, true),
+        maximumCostUsd: maximumCostUsd(this.model.model, this.replyMaxTokens, true, inputTokenBound(params)),
         maxRetries: this.client.maxRetries,
         signal,
         request: async (connected) => {
-          const streamUsage = new StreamUsage(this.model.model, this.replyMaxTokens);
+          streamUsage = new StreamUsage(this.model.model, this.replyMaxTokens);
+          const attempt = streamUsage;
           const stream = this.client.messages.stream(params, { signal, maxRetries: 0 });
           stream.on('connect', connected);
           stream.on('text', onDelta);
-          stream.on('streamEvent', (event) => streamUsage.observe(event));
+          stream.on('streamEvent', (event) => attempt.observe(event));
           const final = await stream.finalMessage();
           const finalUsage = messageUsage(this.model.model, this.replyMaxTokens, true, final);
-          return { message: final, usage: streamUsage.supported ? finalUsage : { ...finalUsage, costUsd: null } };
+          return { message: final, usage: attempt.supported ? finalUsage : { ...finalUsage, costUsd: null } };
         },
         costUsd: (result) => result.usage.costUsd,
+        costBoundAfterStart: () => streamUsage?.costBoundUsd() ?? null,
       });
       const text = message.stop_reason === 'refusal' ? '' : textOf(message);
       if (!text) this.log.warn({ operation: 'interview.empty-reply' });
@@ -92,25 +95,22 @@ export class ClaudeInterviewer extends Interviewer {
     for (let attempt = 1; attempt <= SCORE_ATTEMPTS; attempt++) {
       let message: Anthropic.Message;
       try {
+        const params: Anthropic.MessageCreateParamsNonStreaming = {
+          model: this.model.model,
+          max_tokens: this.scoreMaxTokens,
+          system: scorerSystemPrompt(session),
+          messages: [{ role: 'user', content: `Score this interview.\n\n<transcript>\n${transcriptText(session)}\n</transcript>` }],
+          service_tier: 'standard_only',
+          output_config: {
+            ...(this.model.supportsEffort ? { effort: 'medium' } : {}),
+            format: { type: 'json_schema', schema: scorecardJsonSchema(session.track) },
+          },
+        };
         message = await meteredRequest({
           spend: this.spend,
-          maximumCostUsd: maximumCostUsd(this.model.model, this.scoreMaxTokens, false),
+          maximumCostUsd: maximumCostUsd(this.model.model, this.scoreMaxTokens, false, inputTokenBound(params)),
           maxRetries: this.client.maxRetries,
-          request: async () =>
-            this.client.messages.create(
-              {
-                model: this.model.model,
-                max_tokens: this.scoreMaxTokens,
-                system: scorerSystemPrompt(session),
-                messages: [{ role: 'user', content: `Score this interview.\n\n<transcript>\n${transcriptText(session)}\n</transcript>` }],
-                service_tier: 'standard_only',
-                output_config: {
-                  ...(this.model.supportsEffort ? { effort: 'medium' } : {}),
-                  format: { type: 'json_schema', schema: scorecardJsonSchema(session.track) },
-                },
-              },
-              { timeout: this.options.scoreTimeoutMs ?? 180_000, maxRetries: 0 },
-            ),
+          request: async () => this.client.messages.create(params, { timeout: this.options.scoreTimeoutMs ?? 180_000, maxRetries: 0 }),
           costUsd: (result) => messageUsage(this.model.model, this.scoreMaxTokens, false, result).costUsd,
         });
       } catch (err) {

@@ -8,6 +8,8 @@ interface MeteredRequest<T> {
   maxRetries: number;
   request: (streamConnected: () => void) => Promise<T>;
   costUsd: (result: T) => number | null;
+  /** The most a request that fails after its stream started can have cost, when the stream reported enough to say. */
+  costBoundAfterStart?: () => number | null;
   signal?: AbortSignal;
 }
 
@@ -29,7 +31,7 @@ export async function meteredRequest<T>(options: MeteredRequest<T>): Promise<T> 
     } catch (error) {
       const failedResponse =
         !streaming && error instanceof Anthropic.APIError && typeof error.status === 'number' && error.status >= 400 && error.status < 600;
-      await options.spend.settle(reservation, failedResponse ? 0 : null);
+      await options.spend.settle(reservation, failedResponse ? 0 : streaming ? (options.costBoundAfterStart?.() ?? null) : null);
       if (streaming || attempt >= options.maxRetries || !retryable(error)) throw error;
       throwIfAborted(options.signal);
       try {
