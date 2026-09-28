@@ -61,7 +61,7 @@ test('an answer waiting for its upload never shows progress as waiting to sync',
 });
 
 test.describe('warmed offline lessons', () => {
-  test.use({ expectedConsoleErrors: [/ERR_INTERNET_DISCONNECTED/] });
+  test.use({ expectedConsoleErrors: [/ERR_INTERNET_DISCONNECTED|WebKit encountered an internal error/] });
 
   test('opens an unvisited pattern and steps through an unvisited visualizer after disconnecting', async ({ page, context }) => {
     await page.goto('/learn', { waitUntil: 'networkidle' });
