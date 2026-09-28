@@ -176,11 +176,11 @@
       <div class="track">
         <div class="track-head">
           <h2>System design</h2>
-          <p class="muted">Unlocked by Design Lab missions, then kept fresh with generated cases.</p>
+          <p class="muted">Hands-on lessons, then Design Lab missions and case studies, kept fresh with generated cases.</p>
         </div>
         <div class="patterns">
           @for (t of sdTopics; track t.id) {
-            <a class="panel card-link pattern" routerLink="/drill" [queryParams]="{ pattern: t.id }">
+            <a class="panel card-link pattern" [routerLink]="['/learn/design', t.id]">
               <g-mastery-ring [value]="mastery(t.id)" />
               <div class="info">
                 <h3>{{ t.name }}</h3>

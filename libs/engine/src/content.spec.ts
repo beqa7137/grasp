@@ -15,6 +15,7 @@ import type { ItemDef } from './review/types.js';
 import { COMPONENTS, SHARD_KEYS } from './sysdesign/catalog.js';
 import { CASE_CATALOG } from './sysdesign/case-catalog.js';
 import { CASE_STUDIES } from './sysdesign/cases/index.js';
+import { SD_LESSONS } from './sysdesign/lessons/index.js';
 import { SCENARIOS } from './sysdesign/scenarios.js';
 
 const BANNED: [name: string, char: string][] = [
@@ -64,6 +65,7 @@ function learnerContent(): Entry[] {
     ...byKey('shard key', SHARD_KEYS),
     ...byId('case summary', [...CASE_CATALOG]),
     ...byId('case study', [...CASE_STUDIES]),
+    ...byKey('design lesson', SD_LESSONS),
     ...byId('coding problem', CODING_PROBLEMS),
     ...byId('competency summary', [...COMPETENCY_CATALOG]),
     ...byId('competency', [...COMPETENCIES]),
