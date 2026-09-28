@@ -43,6 +43,15 @@ const DESIGN = [
   { id: 'id-range', topic: 'sd-ids' },
   { id: 'shard-counters', topic: 'sd-ids' },
   { id: 'random-keys', topic: 'sd-ids' },
+  { id: 'idf-rank', topic: 'sd-search' },
+  { id: 'index-refresh', topic: 'sd-search' },
+  { id: 'index-sharding', topic: 'sd-search' },
+  { id: 'window-assign', topic: 'sd-streams' },
+  { id: 'watermark', topic: 'sd-streams' },
+  { id: 'exactly-once', topic: 'sd-streams' },
+  { id: 'page-write-amp', topic: 'sd-storage' },
+  { id: 'lsm-vs-btree', topic: 'sd-storage' },
+  { id: 'bloom-filter', topic: 'sd-storage' },
 ] as const satisfies readonly DesignItemSummary[];
 
 export type DesignItemId = (typeof DESIGN)[number]['id'];

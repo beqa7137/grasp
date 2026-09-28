@@ -593,6 +593,124 @@ const randomKeys = concept(
   'Sequential keys append at the right edge of the index, so recent pages stay in memory. Random keys touch pages all over it, missing cache and splitting half-full pages. Time-ordered 128-bit ids (UUIDv7, ULID) keep uniqueness without coordination and restore locality.',
 );
 
+const idfRank = item('Which document ranks first?', (rand) => {
+  const n = 1_000_000;
+  const commonDf = pick(rand, [600_000, 800_000, 950_000]);
+  const rareDf = pick(rand, [500, 2_000, 10_000]);
+  const [commonA, rareA] = [pick(rand, [12, 20, 30]), 1];
+  const [commonB, rareB] = [pick(rand, [2, 3, 4]), pick(rand, [2, 3])];
+  const idf = (df: number) => Math.log(n / df);
+  const a = commonA * idf(commonDf) + rareA * idf(rareDf);
+  const b = commonB * idf(commonDf) + rareB * idf(rareDf);
+  const first = a > b ? 'Document A' : 'Document B';
+  const other = a > b ? 'Document B' : 'Document A';
+  return {
+    prompt: `An index holds 1,000,000 documents. The query is "the raft": "the" appears in ${fmt(commonDf)} of them and "raft" in ${fmt(rareDf)}. Document A has "the" ${commonA} times and "raft" once; document B has "the" ${commonB} times and "raft" ${rareB} times. Ranking by TF-IDF (count times ln(N / documents with the term)), which ranks first?`,
+    ...withChoices(rand, first, [other, 'They tie, since both hold both terms', 'Neither: "the" is a stop word, so the query is empty']),
+    explain: `IDF is ln(1,000,000 / ${fmt(commonDf)}) ≈ ${idf(commonDf).toFixed(2)} for "the" and ln(1,000,000 / ${fmt(rareDf)}) ≈ ${idf(rareDf).toFixed(2)} for "raft". A scores ${a.toFixed(1)}, B scores ${b.toFixed(1)}. A rare term outweighs many copies of a common one; real engines use BM25, which also caps how much repeating a term helps.`,
+  };
+});
+
+const indexRefresh = concept(
+  'A search engine indexes new documents in immutable segments. Why is a just-written document not searchable for about a second?',
+  'New documents sit in an in-memory buffer until a refresh writes them into a new searchable segment',
+  [
+    'Each write must first be replicated to every shard before any shard can search it',
+    'The inverted index is rebuilt from scratch for every new document',
+    'Documents wait in the queue until the nightly compaction merges them in',
+  ],
+  'Engines like Lucene buffer writes and periodically refresh (by default about every second in Elasticsearch), turning the buffer into a new small segment; background merges later combine segments. Refreshing more often costs throughput, so freshness is a tunable trade.',
+);
+
+const indexSharding = concept(
+  'You shard a search index by document (each shard indexes a subset of documents) rather than by term. What does every query cost?',
+  'It fans out to every shard, and the results are merged by score',
+  [
+    'It reads one shard, the one owning the rarest query term',
+    'It reads only the shard holding the document with the highest score',
+    'It reads two shards, since each term lives on exactly one',
+  ],
+  'Document partitioning keeps writes local and shards independent, but every query scatters to all shards and gathers the top results, so tail latency is set by the slowest shard. Term partitioning makes a query touch only its terms but makes writes and multi-term queries costly, which is why document partitioning is the common choice.',
+);
+
+const windowAssign = item('Is the event counted?', (rand) => {
+  const size = pick(rand, [10, 30, 60]);
+  const t = pick(rand, [3, 7, 12, 25, 41, 58]) % (size * 2);
+  const start = Math.floor(t / size) * size;
+  const end = start + size;
+  const watermark = pick(rand, [end - 2, end, end + 5, end - size + 1]);
+  const counted = end > watermark;
+  return {
+    prompt: `A stream counts events in tumbling ${size}-second windows by event time. The watermark stands at ${watermark} s when an event with event time ${t} s arrives. Is it counted?`,
+    ...withChoices(
+      rand,
+      counted ? `Yes: its window [${start}, ${end}) is still open` : `No: its window [${start}, ${end}) closed at the watermark`,
+      [
+        counted ? `No: its window [${start}, ${end}) closed at the watermark` : `Yes: its window [${start}, ${end}) is still open`,
+        'Yes: every event is counted in the window of its arrival time',
+        'No: events are only counted when they arrive in order',
+      ],
+    ),
+    explain: `A window closes once the watermark passes its end. The window [${start}, ${end}) ${counted ? `is still open at ${watermark} s, so the event counts` : `closed when the watermark reached ${end} s, so the event is late: dropped, or sent to a side output for correction`}.`,
+  };
+});
+
+const watermark = concept(
+  'What does a stream processor trade by holding its watermark further behind the newest events it has seen?',
+  'Fewer late events dropped, but each window result is emitted later and more state is kept',
+  [
+    'Higher throughput, since events can be processed in any order',
+    'Exactly-once output, since late events are retried until they fit',
+    'Less memory, since fewer windows are open at once',
+  ],
+  'The watermark is the promise that no older events are coming. Holding it back tolerates more delay (mobile clients, retries) at the cost of latency and state; pushing it forward is fast but drops more events. Many systems add allowed lateness to update a closed window with stragglers.',
+);
+
+const exactlyOnce = concept(
+  'A stream job crashes and restarts from its last checkpoint, replaying events since then. How does it avoid double-counting in the output?',
+  'Commit output with the checkpoint (transactional sink) or write idempotently, keyed so a replay overwrites',
+  [
+    'Deliver every event at most once, so replays never happen',
+    'Checkpoint after every single event, so nothing is replayed',
+    'Rely on the message broker, which removes duplicates by content',
+  ],
+  'Replay makes processing at least once. The effect becomes exactly once when state and output commit together (Flink two-phase commit sinks, Kafka transactions) or when writes are idempotent upserts by a key such as window and user.',
+);
+
+const pageWriteAmp = item('Write amplification of a B-tree update', (rand) => {
+  const page = pick(rand, [4, 8, 16]);
+  const record = pick(rand, [64, 100, 200, 500]);
+  const wa = (page * 1024) / record;
+  const times = (v: number) => `about ${Math.round(v)} times`;
+  return {
+    prompt: `A B-tree stores ${record}-byte records in ${page} KB pages. Each random update changes one record, and its page is written back alone. Roughly how many bytes reach disk per byte of data changed (ignoring the log)?`,
+    ...withChoices(rand, times(wa), [times(wa / 4), times(wa * 4), 'about 1 time']),
+    explain: `A ${page} KB page is ${fmt(page * 1024)} bytes, rewritten for a ${record}-byte change: ${fmt(page * 1024)} / ${record} ≈ ${Math.round(wa)}. Batching updates to the same page, or an LSM tree that writes sequentially, cuts this.`,
+  };
+});
+
+const lsmVsBtree = concept(
+  'A service ingests 200,000 small events a second and mostly reads recent ones by key. Which storage engine fits better, and why?',
+  'An LSM tree: writes are sequential appends and compaction, so it absorbs high write rates cheaply',
+  [
+    'A B-tree: every write updates the page in place, which is fastest for heavy ingest',
+    'A B-tree: LSM trees cannot serve point lookups by key',
+    'An LSM tree: it never needs to rewrite data once written',
+  ],
+  'LSM trees (RocksDB, Cassandra) turn random writes into sequential ones and batch them, at the cost of compaction rewrites and reads that may check several levels (bloom filters help). B-trees (Postgres, InnoDB) give steady read latency and in-place updates but pay a page write per random update.',
+);
+
+const bloomFilter = concept(
+  'Why does an LSM tree keep a bloom filter for each sorted file?',
+  'To skip files that certainly lack the key, so a point lookup reads about one file instead of every level',
+  [
+    'To sort keys inside each file without comparing them',
+    'To compress values so more of each file fits in memory',
+    'To find the newest version of a key without reading the log',
+  ],
+  'A bloom filter answers "definitely not here" or "maybe here" with a small false positive rate (about 1% at 10 bits per key). Checking it in memory avoids a disk read for most levels. It does not help range scans, which must merge every level.',
+);
+
 const DEFINITIONS: Record<DesignItemId, DesignItemDefinition> = {
   'response-time': responseTime,
   headroom,
@@ -627,6 +745,15 @@ const DEFINITIONS: Record<DesignItemId, DesignItemDefinition> = {
   'id-range': idRange,
   'shard-counters': shardCounters,
   'random-keys': randomKeys,
+  'idf-rank': idfRank,
+  'index-refresh': indexRefresh,
+  'index-sharding': indexSharding,
+  'window-assign': windowAssign,
+  watermark,
+  'exactly-once': exactlyOnce,
+  'page-write-amp': pageWriteAmp,
+  'lsm-vs-btree': lsmVsBtree,
+  'bloom-filter': bloomFilter,
 };
 
 export const DESIGN_ITEMS: ItemDef[] = DESIGN_ITEM_CATALOG.map((summary, i) =>

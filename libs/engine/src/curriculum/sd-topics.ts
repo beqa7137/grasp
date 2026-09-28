@@ -49,6 +49,24 @@ export const SD_TOPICS: SdTopic[] = [
     scenarioIds: ['first-scale-up'],
   },
   { id: 'sd-ids', name: 'Unique IDs', oneLiner: 'Generating ids at scale without a central counter.', scenarioIds: ['write-wall'] },
+  {
+    id: 'sd-search',
+    name: 'Search & Indexing',
+    oneLiner: 'Inverted indexes, ranking and keeping an index fresh.',
+    scenarioIds: ['viral-feed'],
+  },
+  {
+    id: 'sd-streams',
+    name: 'Stream Processing',
+    oneLiner: 'Windows, watermarks and late events at scale.',
+    scenarioIds: ['flash-sale'],
+  },
+  {
+    id: 'sd-storage',
+    name: 'Storage Engines',
+    oneLiner: 'B-trees, LSM trees and what each costs on disk.',
+    scenarioIds: ['write-wall'],
+  },
 ];
 
 export function getSdTopic(id: string): SdTopic | undefined {

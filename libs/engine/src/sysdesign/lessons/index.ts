@@ -9,7 +9,10 @@ import { QUEUES_LESSON } from './queues.js';
 import { RATE_LIMITING_LESSON } from './rate-limiting.js';
 import { RELIABILITY_LESSON } from './reliability.js';
 import { REPLICATION_LESSON } from './replication.js';
+import { SEARCH_LESSON } from './search.js';
 import { SHARDING_LESSON } from './sharding.js';
+import { STORAGE_LESSON } from './storage.js';
+import { STREAMS_LESSON } from './streams.js';
 import type { SdLesson } from './types.js';
 
 export type { SdLesson, SdWidget } from './types.js';
@@ -28,6 +31,9 @@ export const SD_LESSONS: Readonly<Record<string, SdLesson>> = {
   'sd-consistency': CONSISTENCY_LESSON,
   'sd-consensus': CONSENSUS_LESSON,
   'sd-ids': IDS_LESSON,
+  'sd-search': SEARCH_LESSON,
+  'sd-streams': STREAMS_LESSON,
+  'sd-storage': STORAGE_LESSON,
 };
 
 export function getSdLesson(topicId: string): SdLesson | undefined {

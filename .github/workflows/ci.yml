@@ -88,9 +88,10 @@ jobs:
       - name: Test (engine, API against memory + Postgres, app)
         run: npm test
 
-  # The runners have two cores, so the suite is split across six of them. Sharding the whole suite at once handed the
+  # The runners have two cores, so the suite is split across seven of them. Sharding the whole suite at once handed the
   # last shard nearly all the WebKit tests, which run about twice as slow, so each device gets its own shards, sized
-  # to its share of the time. Each shard builds the app itself, which is quicker than waiting for a separate build job.
+  # to its share of the time; rebalance when one shard runs well past the others. Each shard builds the app itself,
+  # which is quicker than waiting for a separate build job.
   e2e:
     name: Browser end-to-end tests (${{ matrix.project }} ${{ matrix.shard }}/${{ matrix.of }})
     needs: verdict
@@ -102,7 +103,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { project: desktop, shard: 1, of: 1 }
+          - { project: desktop, shard: 1, of: 2 }
+          - { project: desktop, shard: 2, of: 2 }
           - { project: phone, shard: 1, of: 2 }
           - { project: phone, shard: 2, of: 2 }
           - { project: iphone, shard: 1, of: 3 }
@@ -123,29 +125,52 @@ jobs:
 
       - name: Read the Playwright version
         id: playwright
-        run: echo "version=$(node -p "require('playwright-core/package.json').version")" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "version=$(node -p "require('playwright-core/package.json').version")" >> "$GITHUB_OUTPUT"
+          echo "image=$ImageOS-$ImageVersion" >> "$GITHUB_OUTPUT"
 
       - uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ matrix.project == 'iphone' && 'webkit' || 'chromium' }}-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.version }}
 
+      # WebKit's libraries are not on the runner image and come from the Ubuntu mirror, which once took ten minutes.
+      # The downloaded packages are kept per image, so later runs install them from disk.
+      - if: matrix.project == 'iphone'
+        id: webkit-debs
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/webkit-debs
+          key: webkit-debs-${{ steps.playwright.outputs.image }}-${{ runner.arch }}-${{ steps.playwright.outputs.version }}
+
       # Only Chromium's headless shell, since the tests run headless. Chromium needs no --with-deps: the runner
-      # image already has its libraries (it ships Google Chrome), and the app brings its own fonts. WebKit's
-      # libraries are not on the image.
+      # image already has its libraries (it ships Google Chrome), and the app brings its own fonts. Any failure to
+      # install the cached WebKit packages falls back to the mirror.
       - name: Install the browser
         run: |
-          if [ "${{ matrix.project }}" = iphone ]; then
-            npx -w @grasp/e2e playwright install --with-deps webkit
-          else
+          if [ "${{ matrix.project }}" != iphone ]; then
             npx -w @grasp/e2e playwright install --only-shell chromium
+            exit 0
           fi
+          if ! { ls ~/webkit-debs/*.deb > /dev/null 2>&1 && sudo apt-get install -y --no-download ~/webkit-debs/*.deb; }; then
+            echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' | sudo tee /etc/apt/apt.conf.d/99keep-debs > /dev/null
+            npx -w @grasp/e2e playwright install-deps webkit
+            mkdir -p ~/webkit-debs
+            cp /var/cache/apt/archives/*.deb ~/webkit-debs/
+          fi
+          npx -w @grasp/e2e playwright install webkit
+
+      - if: matrix.project == 'iphone' && steps.webkit-debs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ~/webkit-debs
+          key: ${{ steps.webkit-debs.outputs.cache-primary-key }}
 
       - name: Build
         run: npm run build
 
       - name: Upload web build
-        if: matrix.project == 'desktop'
+        if: matrix.project == 'desktop' && matrix.shard == 1
         uses: actions/upload-artifact@v7
         with:
           name: web

@@ -287,3 +287,135 @@ export function idLayout(generatorBits: number, sequenceBits: number, tickMs: nu
 export function collisionChance(bits: number, count: number): number {
   return -Math.expm1(-(count * count) / 2 ** (bits + 1));
 }
+
+export interface SearchHit {
+  doc: number;
+  score: number;
+}
+
+/** Lowercase runs of letters and digits: no stemming and no stop words, so every word is searchable. */
+export const searchTokens = (text: string) => text.toLowerCase().match(/[a-z0-9]+/g) ?? [];
+
+/** An inverted index: each term maps to the ascending ids of the documents holding it. */
+export function invertedIndex(docs: readonly string[]): Map<string, number[]> {
+  const index = new Map<string, number[]>();
+  docs.forEach((doc, id) => {
+    for (const term of new Set(searchTokens(doc))) index.set(term, [...(index.get(term) ?? []), id]);
+  });
+  return index;
+}
+
+/**
+ * Documents matching every query term (and) or any (or), ranked by TF-IDF: each term counts its occurrences in the
+ * document times log(N / documents holding it), so a term in every document adds nothing.
+ */
+export function searchIndex(docs: readonly string[], query: string, mode: 'and' | 'or'): SearchHit[] {
+  const index = invertedIndex(docs);
+  const terms = [...new Set(searchTokens(query))];
+  if (!terms.length) return [];
+  const lists = terms.map((t) => index.get(t) ?? []);
+  const candidates =
+    mode === 'and' ? lists.reduce((acc, list) => acc.filter((d) => list.includes(d))) : [...new Set(lists.flat())].sort((a, b) => a - b);
+  const counts = docs.map((d) => searchTokens(d));
+  return candidates
+    .map((doc) => ({
+      doc,
+      score: terms.reduce((s, t, i) => {
+        const df = lists[i].length;
+        return df ? s + counts[doc].filter((w) => w === t).length * Math.log(docs.length / df) : s;
+      }, 0),
+    }))
+    .sort((a, b) => b.score - a.score || a.doc - b.doc);
+}
+
+export type WindowKind = 'tumbling' | 'sliding' | 'session';
+
+export interface StreamEvent {
+  /** When it happened, in seconds. */
+  at: number;
+  /** When the processor received it, in seconds. */
+  arrives: number;
+}
+
+export interface StreamWindow {
+  start: number;
+  end: number;
+  /** Indexes of the events counted in it. */
+  events: number[];
+}
+
+export interface WindowRun {
+  windows: StreamWindow[];
+  /** Events that arrived after the watermark had passed the end of every window they belong to. */
+  late: number[];
+}
+
+/**
+ * Groups events by event time. The watermark trails the latest arrival seen by `lateness` seconds; a window closes once
+ * the watermark passes its end, so an event counts only in the windows still open when it arrives.
+ */
+export function streamWindows(events: readonly StreamEvent[], kind: WindowKind, size: number, lateness: number, slide = size): WindowRun {
+  const order = events.map((_, i) => i).sort((a, b) => events[a].arrives - events[b].arrives || a - b);
+  const watermarkAt: number[] = [];
+  let watermark = -Infinity;
+  for (const i of order) {
+    watermarkAt[i] = watermark;
+    watermark = Math.max(watermark, events[i].arrives - lateness);
+  }
+  const byTime = events.map((_, i) => i).sort((a, b) => events[a].at - events[b].at || a - b);
+  const windows: StreamWindow[] = [];
+  if (kind === 'session') {
+    // A session is a run of events less than `size` apart; an event is late once its own gap has closed.
+    for (const i of byTime.filter((j) => events[j].at + size > watermarkAt[j])) {
+      const last = windows.at(-1);
+      if (last && events[i].at < last.end) {
+        last.events.push(i);
+        last.end = events[i].at + size;
+      } else windows.push({ start: events[i].at, end: events[i].at + size, events: [i] });
+    }
+  } else {
+    const step = kind === 'tumbling' ? size : slide;
+    const starts = new Set<number>();
+    for (const i of byTime) for (let s = Math.floor(events[i].at / step) * step; s > events[i].at - size; s -= step) starts.add(s);
+    for (const start of [...starts].sort((a, b) => a - b)) {
+      const end = start + size;
+      const inside = byTime.filter((i) => events[i].at >= start && events[i].at < end && end > watermarkAt[i]);
+      if (inside.length) windows.push({ start, end, events: inside });
+    }
+  }
+  const counted = new Set(windows.flatMap((w) => w.events));
+  return { windows, late: events.map((_, i) => i).filter((i) => !counted.has(i)) };
+}
+
+export interface StorageCost {
+  /** Bytes written to disk per byte of new data. */
+  writeAmplification: number;
+  /** Disk reads for one point lookup, with the index's upper levels cached. */
+  lookupReads: number;
+  /** B-tree height, or the number of LSM levels. */
+  levels: number;
+  diskWriteMBps: number;
+}
+
+/**
+ * Rough costs for random single-record writes at `writeMBps` into `dataGB` of data. A B-tree rewrites a whole page
+ * (plus its log record) per update and caches all but the leaf level. A leveled LSM tree writes the log, flushes the
+ * memtable, then rewrites each record about (ratio + 1) / 2 times per level as it is compacted down; bloom filters
+ * keep a lookup to about one read, and without them a lookup may read every level.
+ */
+export function storageCost(
+  engine: 'btree' | 'lsm',
+  options: { dataGB: number; recordBytes: number; pageKB: number; memtableMB: number; ratio: number; writeMBps: number; bloom: boolean },
+): StorageCost {
+  const { dataGB, recordBytes, pageKB, memtableMB, ratio, writeMBps, bloom } = options;
+  if (engine === 'btree') {
+    const fanout = Math.max(2, Math.floor((pageKB * 1024) / 16));
+    const leaves = Math.max(1, (dataGB * 1024 ** 3) / (pageKB * 1024));
+    const levels = 1 + Math.ceil(Math.log(leaves) / Math.log(fanout));
+    const writeAmplification = (pageKB * 1024) / recordBytes + 1;
+    return { writeAmplification, lookupReads: 1, levels, diskWriteMBps: writeMBps * writeAmplification };
+  }
+  const levels = Math.max(1, Math.ceil(Math.log((dataGB * 1024) / memtableMB) / Math.log(ratio)));
+  const writeAmplification = 2 + (levels * (ratio + 1)) / 2;
+  return { writeAmplification, lookupReads: bloom ? 1 : levels + 1, levels, diskWriteMBps: writeMBps * writeAmplification };
+}
