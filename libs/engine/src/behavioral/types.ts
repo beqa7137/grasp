@@ -18,3 +18,35 @@ export interface Competency {
   redFlags: readonly string[];
   questions: readonly BehavioralQuestion[];
 }
+
+export type AnswerFlaw = 'we-not-i' | 'no-result' | 'long-setup' | 'no-reflection' | 'vague' | 'blame';
+
+export interface ExampleAnswer {
+  /** The question in the competency's list that this answer responds to. */
+  questionId: string;
+  situation: string;
+  task: string;
+  action: string;
+  result: string;
+  reflection: string;
+}
+
+export interface StrongExample extends ExampleAnswer {
+  /** Why each part works, in one or two sentences. */
+  notes: { situation: string; task: string; action: string; result: string; reflection: string };
+}
+
+export interface WeakExample extends ExampleAnswer {
+  /** What is wrong with it; the learner tries to spot these before they are shown. */
+  flaws: readonly AnswerFlaw[];
+  /** Why each flagged flaw hurts this answer. */
+  why: Partial<Record<AnswerFlaw, string>>;
+  /** How the answer would read once fixed, in two or three sentences. */
+  fix: string;
+}
+
+export interface CompetencyExamples {
+  competencyId: string;
+  strong: StrongExample;
+  weak: WeakExample;
+}

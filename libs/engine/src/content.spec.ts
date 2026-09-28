@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ALGORITHMS, mulberry32, type AlgorithmDef } from './algorithms/index.js';
 import { COMPETENCY_CATALOG } from './behavioral/catalog.js';
 import { COMPETENCIES } from './behavioral/competencies.js';
+import { EXAMPLES } from './behavioral/examples.js';
 import { codeSpanProblems, codeSpans } from './code-spans.js';
 import { CODING_PROBLEMS } from './coding/problems/index.js';
 import { CLOZES } from './curriculum/clozes.js';
@@ -62,6 +63,7 @@ function learnerContent(): Entry[] {
     ...byId('coding problem', CODING_PROBLEMS),
     ...byId('competency summary', [...COMPETENCY_CATALOG]),
     ...byId('competency', [...COMPETENCIES]),
+    ...EXAMPLES.map((e): Entry => [`behavioral examples for ${e.competencyId}`, e]),
     ...ALGORITHMS.map((algo): Entry => [`tracer ${algo.id}`, { ...algo, traces: traces(algo) }]),
     ...REVIEW_ITEMS.map((item): Entry => [`review item ${item.id}`, { ...item, questions: questions(item) }]),
   ];

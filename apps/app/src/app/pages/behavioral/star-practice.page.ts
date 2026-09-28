@@ -1,9 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
-import { COMPETENCIES, countWords, getCompetencySummary, reviewStar, type StarDraft, type StarPart } from '@grasp/engine';
+import { COMPETENCIES, countWords, examplesFor, getCompetencySummary, reviewStar, type StarDraft, type StarPart } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import { alertCircle, arrowForward, checkmarkCircle, chatbubblesOutline, eyeOutline } from 'ionicons/icons';
+import { ExampleAnswerComponent } from './example-answer.component';
 import { EMPTY_DRAFT, StarDraftsService } from './star-drafts.service';
 
 const PARTS: readonly { part: StarPart; label: string; hint: string }[] = [
@@ -19,7 +20,7 @@ const QUESTIONS = COMPETENCIES.flatMap((c) => c.questions);
 @Component({
   selector: 'app-star-practice',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle, IonContent, IonIcon],
+  imports: [RouterLink, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle, IonContent, IonIcon, ExampleAnswerComponent],
   template: `
     <ion-header [translucent]="true">
       <ion-toolbar>
@@ -36,6 +37,13 @@ const QUESTIONS = COMPETENCIES.flatMap((c) => c.questions);
             <ion-icon name="eye-outline" aria-hidden="true" /><span><b>What they check:</b> {{ q.probes }}</span>
           </p>
 
+          @if (worked(); as w) {
+            <details class="panel worked">
+              <summary>See a worked answer to "{{ w.prompt }}"</summary>
+              <app-example-answer [answer]="w.example" [notes]="w.example.notes" />
+            </details>
+          }
+
           <div class="layout">
             <form class="star" (submit)="$event.preventDefault()">
               @for (p of parts; track p.part) {
@@ -44,6 +52,7 @@ const QUESTIONS = COMPETENCIES.flatMap((c) => c.questions);
                     >{{ p.label }} <span class="count muted">{{ words()[p.part] }} words</span></span
                   >
                   <textarea
+                    [attr.aria-label]="p.label"
                     [value]="draft()[p.part]"
                     (input)="edit(p.part, $any($event.target).value)"
                     [placeholder]="p.hint"
@@ -105,6 +114,19 @@ const QUESTIONS = COMPETENCIES.flatMap((c) => c.questions);
         flex: none;
         margin-top: 3px;
         color: var(--g-accent);
+      }
+    }
+    .worked {
+      padding: 12px 16px;
+      margin: 0 0 16px;
+      summary {
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.9375rem;
+        line-height: 1.45;
+      }
+      &[open] summary {
+        margin-bottom: 12px;
       }
     }
     .layout {
@@ -237,6 +259,11 @@ export class StarPracticePage {
   readonly total = computed(() => this.siblings().length);
   readonly next = computed(() => QUESTIONS[QUESTIONS.findIndex((q) => q.id === this.id()) + 1]);
   readonly backHref = computed(() => (this.competency() ? `/behavioral/${this.competency()!.id}` : '/behavioral'));
+  readonly worked = computed(() => {
+    const example = examplesFor(this.question()?.competencyId ?? '')?.strong;
+    const prompt = QUESTIONS.find((q) => q.id === example?.questionId)?.prompt;
+    return example && prompt ? { example, prompt } : null;
+  });
   readonly review = computed(() => reviewStar(this.draft()));
   readonly passing = computed(() => this.review().checks.filter((c) => c.ok).length);
   readonly words = computed(() => {
