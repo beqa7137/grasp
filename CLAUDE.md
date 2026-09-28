@@ -28,7 +28,7 @@ spaced repetition, coding problems, Design Lab simulator) in `libs/engine`. Play
 - `npm run build:engine` after engine edits: the app resolves `@grasp/engine` from `libs/engine/dist`.
 - Serve a production build: `PORT=4310 NODE_ENV=production WEB_DIST_DIR=$PWD/apps/app/dist/app/browser JWT_SECRET=<any 40
 characters> LOG_LEVEL=warn node apps/api/dist/main.js`.
-- Bundle stats: `cd apps/app && npx ng build --stats-json`. The initial bundle budget is 850 kB warning, 900 kB error.
+- Bundle stats: `cd apps/app && npx ng build --stats-json`. The initial bundle budget is 860 kB warning, 900 kB error.
 
 ## Releasing a change
 
