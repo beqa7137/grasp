@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { Logger, Module } from '@nestjs/common';
-import { APP_CONFIG, ConfigError, type AppConfig } from '../config.js';
+import { APP_CONFIG, type AppConfig } from '../config.js';
 import { SpendStore } from '../persistence/spend.store.js';
 import { ClaudeInterviewer } from './claude.interviewer.js';
 import { InterviewController } from './interview.controller.js';
@@ -29,14 +29,18 @@ import { SpendGuard } from './spend-guard.js';
           log.warn('ANTHROPIC_API_KEY not set; using the offline scripted interviewer.');
           return new OfflineInterviewer();
         }
-        if (!priceFor(config.anthropicModel)) {
-          throw new ConfigError('ANTHROPIC_MODEL must have verified pricing and request limits.');
-        }
-        if (process.env['ANTHROPIC_CUSTOM_HEADERS']?.trim()) {
-          throw new ConfigError('ANTHROPIC_CUSTOM_HEADERS is incompatible with verified AI spend limits.');
-        }
-        if (process.env['ANTHROPIC_BASE_URL'] && process.env['ANTHROPIC_BASE_URL'].replace(/\/$/, '') !== 'https://api.anthropic.com') {
-          throw new ConfigError('ANTHROPIC_BASE_URL must use the standard Anthropic endpoint for verified AI spend limits.');
+        const baseUrl = process.env['ANTHROPIC_BASE_URL']?.replace(/\/$/, '');
+        const unsafe = !priceFor(config.anthropicModel)
+          ? 'ANTHROPIC_MODEL must have verified pricing and request limits.'
+          : process.env['ANTHROPIC_CUSTOM_HEADERS']?.trim()
+            ? 'ANTHROPIC_CUSTOM_HEADERS is incompatible with verified AI spend limits.'
+            : baseUrl && baseUrl !== 'https://api.anthropic.com'
+              ? 'ANTHROPIC_BASE_URL must use the standard Anthropic endpoint for verified AI spend limits.'
+              : null;
+        // A misconfigured paid interviewer must not take sign-in and progress down with it.
+        if (unsafe) {
+          log.error(`${unsafe} Using the offline scripted interviewer.`);
+          return new OfflineInterviewer();
         }
         const client = new Anthropic({
           apiKey: config.anthropicApiKey,

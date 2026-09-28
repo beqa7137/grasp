@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Interviewer } from '../src/interview/interviewer.js';
 import { createTestApp } from './support/app.js';
@@ -14,6 +15,7 @@ describe('paid interviewer configuration', () => {
     await app?.close();
     app = undefined;
     vi.unstubAllEnvs();
+    vi.restoreAllMocks();
   });
 
   it('starts with a verified model and the official endpoint without making a paid request', async () => {
@@ -22,18 +24,16 @@ describe('paid interviewer configuration', () => {
     expect(app.get(Interviewer).mode).toBe('ai');
   });
 
-  it('rejects models without a verified reservation bound', async () => {
-    await expect(createTestApp({ ANTHROPIC_API_KEY: 'test-only-no-provider-request', ANTHROPIC_MODEL: 'unpriced-model' })).rejects.toThrow(
-      'ANTHROPIC_MODEL must have verified pricing and request limits.',
-    );
-  });
-
   it.each([
+    ['ANTHROPIC_MODEL', 'unpriced-model', 'ANTHROPIC_MODEL must have verified pricing'],
     ['ANTHROPIC_BASE_URL', 'https://another-provider.example', 'ANTHROPIC_BASE_URL must use the standard Anthropic endpoint'],
     ['ANTHROPIC_CUSTOM_HEADERS', 'anthropic-beta: fast-mode', 'ANTHROPIC_CUSTOM_HEADERS is incompatible'],
-  ])('rejects %s overrides that could change billing', async (key, value, message) => {
+  ])('falls back to offline practice and logs when %s could change billing', async (key, value, message) => {
+    const error = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
     vi.stubEnv(key, value);
-    await expect(createTestApp({ ANTHROPIC_API_KEY: 'test-only-no-provider-request' })).rejects.toThrow(message);
+    app = await createTestApp({ ANTHROPIC_API_KEY: 'test-only-no-provider-request', [key]: value });
+    expect(app.get(Interviewer).mode).toBe('offline');
+    expect(error).toHaveBeenCalledWith(expect.stringContaining(message));
   });
 
   it('keeps offline practice available without paid provider configuration', async () => {

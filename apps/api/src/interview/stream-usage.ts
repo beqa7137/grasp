@@ -1,5 +1,5 @@
 import type Anthropic from '@anthropic-ai/sdk';
-import { providerUsage, supportedAuxiliaryUsage } from './pricing.js';
+import { costUsd, providerUsage, supportedAuxiliaryUsage } from './pricing.js';
 
 const COUNTERS = ['input_tokens', 'output_tokens', 'cache_read_input_tokens', 'cache_creation_input_tokens'] as const;
 const DELTA_FIELDS = new Set<string>([...COUNTERS, 'server_tool_use', 'output_tokens_details']);
@@ -15,6 +15,21 @@ export class StreamUsage {
 
   get supported(): boolean {
     return this.verified && this.previous !== null;
+  }
+
+  /** Once the stream has reported its input, the most the request can cost: that input and every allowed output token. */
+  costBoundUsd(): number | null {
+    if (!this.verified || !this.previous) return null;
+    return costUsd(
+      this.model,
+      {
+        inputTokens: this.previous.input_tokens,
+        outputTokens: this.maxTokens,
+        cacheReadTokens: this.previous.cache_read_input_tokens,
+        cacheWriteTokens: this.previous.cache_creation_input_tokens,
+      },
+      'us',
+    );
   }
 
   observe(event: Anthropic.MessageStreamEvent): void {

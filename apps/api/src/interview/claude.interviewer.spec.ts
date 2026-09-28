@@ -5,7 +5,7 @@ import { ClaudeInterviewer, FALLBACK_SCORE_SUMMARY, REDIRECT_REPLY } from './cla
 import type { InterviewSession, InterviewTrack } from './interview.types.js';
 import { PROBLEMS } from './problems.js';
 import { RUBRICS } from './prompts.js';
-import { maximumCostUsd } from './pricing.js';
+import { inputTokenBound, maximumCostUsd } from './pricing.js';
 import type { SpendGuard } from './spend-guard.js';
 
 const MODEL = 'claude-sonnet-5';
@@ -65,6 +65,12 @@ beforeAll(() => {
   Logger.overrideLogger(false);
 });
 afterEach(() => vi.restoreAllMocks());
+
+/** What a request reserves: its own input bound, not the model's whole context. */
+const reservedFor = (body: Record<string, unknown>, maxTokens: number, cache: boolean, model = MODEL) => {
+  const { stream: _stream, ...params } = body;
+  return maximumCostUsd(model, maxTokens, cache, inputTokenBound(params));
+};
 
 describe('ClaudeInterviewer.reply', () => {
   it('streams text and sends a cache-friendly request', async () => {
@@ -187,7 +193,8 @@ describe('ClaudeInterviewer.reply', () => {
     const result = await interviewer.reply(session('coding', [{ content: 'hi' }]), () => {}, signal());
     expect(result.text).toBe('Back.');
     expect(requests).toHaveLength(2);
-    expect(spend.reserve.mock.calls).toEqual([[maximumCostUsd(MODEL, 2048, true)], [maximumCostUsd(MODEL, 2048, true)]]);
+    expect(spend.reserve.mock.calls).toEqual(requests.map((request) => [reservedFor(request.body, 2048, true)]));
+    expect(spend.reserve.mock.calls[0][0]).toBeLessThan(maximumCostUsd(MODEL, 2048, true) / 20);
     expect(spend.settle.mock.calls.map(([, cost]) => cost)).toEqual([0, 0.0024]);
     expect(requests.map((request) => request.headers['x-stainless-retry-count'])).toEqual(['0', '0']);
     expect(requests.every((request) => request.url.endsWith('/v1/messages'))).toBe(true);
@@ -232,7 +239,9 @@ describe('ClaudeInterviewer.reply', () => {
     const { interviewer, spend, requests } = setup(() => response, 2);
     await expect(interviewer.reply(session(), () => {}, signal())).rejects.toThrow();
     expect(requests).toHaveLength(1);
-    expect(spend.settle.mock.calls.map(([, cost]) => cost)).toEqual([null]);
+    const [[, settled]] = spend.settle.mock.calls;
+    expect(settled).toBeGreaterThan(0);
+    expect(settled).toBeLessThanOrEqual(spend.reserve.mock.calls[0][0]);
   });
 
   it('cancels before reservation or dispatch without leaving a paid hold', async () => {
@@ -340,7 +349,7 @@ describe('ClaudeInterviewer.reply', () => {
     expect(requests[0].body).not.toHaveProperty('output_config');
     expect(requests[0].body).not.toHaveProperty('inference_geo');
     expect(result.usage?.costUsd).toBe(0.0012);
-    expect(spend.reserve).toHaveBeenCalledWith(maximumCostUsd('claude-haiku-4-5', 2048, true));
+    expect(spend.reserve).toHaveBeenCalledWith(reservedFor(requests[0].body, 2048, true, 'claude-haiku-4-5'));
   });
 
   it('rejects unverified models before any paid call', () => {
@@ -390,7 +399,9 @@ describe('ClaudeInterviewer.reply', () => {
     const abort = new AbortController();
     const pending = interviewer.reply(session('coding', [{ content: 'hi' }]), () => abort.abort(), abort.signal);
     await expect(pending).rejects.toBeInstanceOf(Anthropic.APIUserAbortError);
-    expect(spend.settle.mock.calls.map(([, cost]) => cost)).toEqual([null]);
+    const [[, settled]] = spend.settle.mock.calls;
+    expect(settled).toBeGreaterThan(0);
+    expect(settled).toBeLessThanOrEqual(spend.reserve.mock.calls[0][0]);
   });
 });
 
@@ -403,7 +414,7 @@ describe('ClaudeInterviewer.score', () => {
     });
     await expect(interviewer.score(session())).rejects.toBeInstanceOf(ServiceUnavailableException);
     expect(requests).toHaveLength(2);
-    expect(spend.reserve.mock.calls).toEqual([[maximumCostUsd(MODEL, 16000, false)], [maximumCostUsd(MODEL, 16000, false)]]);
+    expect(spend.reserve.mock.calls).toEqual(requests.map((request) => [reservedFor(request.body, 16000, false)]));
     expect(spend.settle.mock.calls.map(([, cost]) => cost)).toEqual([0.0024, null]);
   });
 

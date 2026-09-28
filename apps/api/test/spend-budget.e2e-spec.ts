@@ -17,8 +17,6 @@ import { signInLearner } from './support/signed-learner.js';
 
 const databaseUrl = process.env['TEST_DATABASE_URL'];
 const model = 'claude-sonnet-5';
-const replyMaximum = maximumCostUsd(model, 2048, true);
-const scoreMaximum = maximumCostUsd(model, 16_000, false);
 const jwtSecret = 'spend-budget-test-secret-shared-by-all-instances';
 
 function barrier() {
@@ -41,7 +39,15 @@ describe.skipIf(!databaseUrl)('Paid AI reservations over HTTP with Postgres', ()
     await fakes?.close();
   });
 
+  let replyMaximum: number;
+  let scoreMaximum: number;
+
   beforeEach(async () => {
+    await resetDatabase(databaseUrl!);
+    replyMaximum = await reservedMaximum('reply');
+    scoreMaximum = await reservedMaximum('score');
+    vi.restoreAllMocks();
+    await Promise.all(apps.splice(0).map((app) => app.close()));
     await resetDatabase(databaseUrl!);
   });
 
@@ -86,6 +92,16 @@ describe.skipIf(!databaseUrl)('Paid AI reservations over HTTP with Postgres', ()
 
   function score(app: NestExpressApplication, target: Awaited<ReturnType<typeof session>>) {
     return request(app.getHttpServer()).post(`/api/interview/sessions/${target.id}/score`).set(target.headers).timeout({ deadline: 5_000 });
+  }
+
+  async function reservedMaximum(kind: 'reply' | 'score') {
+    const provider = fakeAnthropic(() => ({ stream: ['This must not be dispatched.'] }));
+    const app = await instance(provider.client, 0.000001);
+    const target = await session(app);
+    const reserve = vi.spyOn(app.get(SpendStore), 'reserve');
+    await (kind === 'reply' ? message(app, target) : score(app, target)).expect(503);
+    expect(provider.requests).toHaveLength(0);
+    return reserve.mock.calls[0]![1] / 1_000_000;
   }
 
   it('admits only one racing session across instances before either provider response settles', async () => {
@@ -150,20 +166,25 @@ describe.skipIf(!databaseUrl)('Paid AI reservations over HTTP with Postgres', ()
   }, 15_000);
 
   it.each([
-    { kind: 'reply', maximum: replyMaximum, expected: 2.772528 },
-    { kind: 'score', maximum: scoreMaximum, expected: 2.376 },
-  ] as const)('denies a $kind whose maximum exceeds the remaining budget by one microdollar', async ({ kind, maximum, expected }) => {
-    expect(maximum).toBeCloseTo(expected, 10);
-    const provider = fakeAnthropic(() => ({ stream: ['This must not be dispatched.'] }));
-    const app = await instance(provider.client, maximum - 0.000001);
-    const target = await session(app);
+    { kind: 'reply', maxTokens: 2048, cache: true },
+    { kind: 'score', maxTokens: 16_000, cache: false },
+  ] as const)(
+    'denies a $kind whose request-sized maximum exceeds the remaining budget by one microdollar',
+    async ({ kind, maxTokens, cache }) => {
+      const maximum = kind === 'reply' ? replyMaximum : scoreMaximum;
+      expect(maximum).toBeGreaterThan((maxTokens * 10 * 1.1) / 1_000_000);
+      expect(maximum).toBeLessThan(maximumCostUsd(model, maxTokens, cache) / 10);
+      const provider = fakeAnthropic(() => ({ stream: ['This must not be dispatched.'] }));
+      const app = await instance(provider.client, maximum - 0.000001);
+      const target = await session(app);
 
-    const response = await (kind === 'reply' ? message(app, target) : score(app, target)).expect(503);
+      const response = await (kind === 'reply' ? message(app, target) : score(app, target)).expect(503);
 
-    expect(response.body.message).toMatch(/usage limit/);
-    expect(provider.requests).toHaveLength(0);
-    expect(await app.get(SpendGuard).spentToday()).toBe(0);
-  });
+      expect(response.body.message).toMatch(/usage limit/);
+      expect(provider.requests).toHaveLength(0);
+      expect(await app.get(SpendGuard).spentToday()).toBe(0);
+    },
+  );
 
   it('keeps unknown transport liability and denies a later request from another instance', async () => {
     const provider = fakeAnthropic(() => ({ networkError: true }));
