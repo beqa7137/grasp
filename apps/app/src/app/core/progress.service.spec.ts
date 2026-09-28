@@ -50,7 +50,7 @@ function setup(
 ) {
   const learner = { value: 'learner-one' };
   const api = {
-    get: vi.fn(options.get ?? (async () => ({ events: [] }))),
+    get: vi.fn((_path: string) => (options.get ?? (async () => ({ events: [] as StoredEvent[] })))()),
     post: vi.fn(async (_path: string, body: { events: StoredEvent[] }) =>
       options.post ? options.post(body.events) : acknowledgement(body.events),
     ),
@@ -63,6 +63,10 @@ function setup(
   });
   return { progress: TestBed.inject(ProgressService), api, learner };
 }
+const storedEvents = (): StoredEvent[] => {
+  const log = JSON.parse(localStorage.getItem(EVENTS_KEY)!);
+  return Array.isArray(log) ? log : log.events;
+};
 const checkpoint = (): string[] => JSON.parse(localStorage.getItem(ACK_KEY) ?? '[]');
 
 describe('ProgressService sync', () => {
@@ -183,6 +187,41 @@ describe('ProgressService sync', () => {
     expect(api.post).toHaveBeenCalledTimes(1);
     expect(progress.syncStatus()).toBe('synced');
   });
+  it('pulls everything once, then only what arrived since its cursor, for the same learner only', async () => {
+    const cursor = '2026-09-28T05:00:00.000Z';
+    const first = setup({ get: async () => ({ events: [settingsEvent('remote')], cursor }) as { events: StoredEvent[] } });
+    await first.progress.init();
+    await vi.waitFor(() => expect(first.progress.syncStatus()).toBe('synced'));
+    expect(first.api.get.mock.calls[0][0]).toBe('/progress/events');
+
+    await first.progress.resync();
+    expect(first.api.get.mock.calls[1][0]).toBe(`/progress/events?since=${encodeURIComponent(cursor)}`);
+
+    TestBed.resetTestingModule();
+    const reload = setup();
+    await reload.progress.init();
+    await vi.waitFor(() => expect(reload.api.get).toHaveBeenCalled());
+    expect(reload.api.get.mock.calls[0][0]).toContain('?since=');
+
+    reload.learner.value = 'learner-two';
+    await reload.progress.resync();
+    expect(reload.api.get.mock.calls.at(-1)![0]).toBe('/progress/events');
+  });
+
+  it('pulls in full after another tab saves a log from before this one pulled, since the cursor travels with its events', async () => {
+    const cursor = '2026-09-28T05:00:00.000Z';
+    const first = setup({ get: async () => ({ events: [settingsEvent('remote')], cursor }) as { events: StoredEvent[] } });
+    await first.progress.init();
+    await vi.waitFor(() => expect(storedEvents().map((e) => e.id)).toEqual(['remote']));
+    localStorage.setItem(EVENTS_KEY, JSON.stringify({ events: [settingsEvent('other-tab')], cursor: null }));
+
+    TestBed.resetTestingModule();
+    const reload = setup();
+    await reload.progress.init();
+    await vi.waitFor(() => expect(reload.api.get).toHaveBeenCalled());
+    expect(reload.api.get.mock.calls[0][0]).toBe('/progress/events');
+  });
+
   it('keeps deferred future events pending, acknowledges valid neighbors, and retries the same immutable event', async () => {
     let future = true;
     const { progress, api } = setup({ post: async (events) => acknowledgement(events, future ? ['future'] : []) });
@@ -250,7 +289,7 @@ describe('ProgressService sync', () => {
     expect(checkpoint()).toEqual(['before', 'after']);
     expect(progress.pendingSync()).toEqual({ future: 0, oversized: 1 });
     expect(progress.syncStatus()).toBe('pending');
-    expect(JSON.parse(localStorage.getItem(EVENTS_KEY)!).find((item: StoredEvent) => item.id === 'large')).toEqual(oversized);
+    expect(storedEvents().find((item: StoredEvent) => item.id === 'large')).toEqual(oversized);
   });
 
   it('reconciles legacy checkpoints without discarding historical event formats', async () => {
@@ -269,7 +308,7 @@ describe('ProgressService sync', () => {
     await progress.resync();
     expect(api.post).not.toHaveBeenCalled();
     expect(checkpoint()).toEqual(['remote']);
-    expect(JSON.parse(localStorage.getItem(EVENTS_KEY)!)).toEqual([settingsEvent('remote')]);
+    expect(storedEvents()).toEqual([settingsEvent('remote')]);
     TestBed.resetTestingModule();
     const reload = setup({
       get: async () => {
@@ -353,7 +392,7 @@ describe('ProgressService sync', () => {
     progress.invalidateSync();
     release.resolve();
     await Promise.all([first, second, flush]);
-    expect(JSON.parse(localStorage.getItem(EVENTS_KEY)!).map((item: StoredEvent) => item.id)).toEqual(['one', 'two']);
+    expect(storedEvents().map((item: StoredEvent) => item.id)).toEqual(['one', 'two']);
     await progress.resync();
     expect(checkpoint()).toEqual(['one', 'two']);
   });
@@ -401,7 +440,7 @@ describe('ProgressService sync', () => {
     const uploading = progress.flush();
     release.resolve();
     await Promise.all([oldRecord, clearing, newRecord, uploading]);
-    expect(JSON.parse(localStorage.getItem(EVENTS_KEY)!).map((item: StoredEvent) => item.id)).toEqual(['new']);
+    expect(storedEvents().map((item: StoredEvent) => item.id)).toEqual(['new']);
     expect(checkpoint()).toEqual(['new']);
     expect(progress.syncStatus()).toBe('synced');
   });
@@ -446,7 +485,7 @@ describe('ProgressService sync', () => {
     await progress.flush();
     expect(api.get).toHaveBeenCalledTimes(1);
     expect(api.post.mock.calls.flatMap((call) => call[1].events.map((item) => item.id))).toEqual(['stored', 'during-read']);
-    expect(JSON.parse(localStorage.getItem(EVENTS_KEY)!).map((item: StoredEvent) => item.id)).toEqual(['stored', 'during-read']);
+    expect(storedEvents().map((item: StoredEvent) => item.id)).toEqual(['stored', 'during-read']);
     expect(checkpoint()).toEqual(['stored', 'during-read']);
     expect(progress.syncStatus()).toBe('synced');
   });
@@ -476,7 +515,7 @@ describe('ProgressService sync', () => {
     expect(api.post).toHaveBeenCalledTimes(1);
     expect(checkpoint()).toEqual([]);
     expect(progress.syncStatus()).toBe('offline');
-    expect(JSON.parse(localStorage.getItem(EVENTS_KEY)!).map((item: StoredEvent) => item.id)).toEqual(['one', 'two']);
+    expect(storedEvents().map((item: StoredEvent) => item.id)).toEqual(['one', 'two']);
     failure = false;
     await progress.flush();
     expect(api.post.mock.calls[1][1].events.map((item) => item.id)).toEqual(['one', 'two']);
@@ -509,6 +548,6 @@ describe('ProgressService sync', () => {
     await vi.advanceTimersByTimeAsync(10_000);
     expect(api.get).not.toHaveBeenCalled();
     expect(api.post).not.toHaveBeenCalled();
-    expect(JSON.parse(localStorage.getItem(EVENTS_KEY)!)).toEqual([settingsEvent('saved')]);
+    expect(storedEvents()).toEqual([settingsEvent('saved')]);
   });
 });

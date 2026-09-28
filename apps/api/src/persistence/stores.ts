@@ -10,9 +10,15 @@ export interface AppendResult {
   duplicates: number;
 }
 
+export interface ReceivedEvents {
+  events: StoredEvent[];
+  latest: string | null;
+}
+
 export abstract class ProgressStore {
   abstract append(learnerId: string, events: StoredEvent[]): Promise<AppendResult>;
   abstract list(learnerId: string): Promise<StoredEvent[]>;
+  abstract listReceivedAfter(learnerId: string, after: Date | null): Promise<ReceivedEvents>;
   abstract all(): Promise<LearnerEvent[]>;
   abstract deleteLearner(learnerId: string): Promise<void>;
 }

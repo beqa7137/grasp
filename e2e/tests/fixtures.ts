@@ -73,8 +73,11 @@ export async function synced(page: Page, type: string): Promise<void> {
 }
 
 /** The progress events the app has recorded on this device, synced or not. */
-export async function recordedEvents(page: Page): Promise<{ type: string }[]> {
-  return page.evaluate(() => JSON.parse(localStorage.getItem('CapacitorStorage.grasp.events') ?? '[]'));
+export async function recordedEvents(page: Page): Promise<{ id: string; type: string }[]> {
+  return page.evaluate(() => {
+    const log = JSON.parse(localStorage.getItem('CapacitorStorage.grasp.events') ?? '[]');
+    return Array.isArray(log) ? log : log.events;
+  });
 }
 
 /** Where an element's top edge sits in the viewport, to tell whether it moved under a finger resting on it. */

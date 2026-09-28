@@ -68,7 +68,7 @@ export class PostgresErasureStore extends ErasureStore {
         where learner_id = ${from}::uuid`);
       await tx.execute(sql`
         insert into learning_events (id, learner_id, type, payload, occurred_at, received_at)
-        select ${into}::text || ':' || (payload->>'id'), ${into}::uuid, type, payload, occurred_at, received_at
+        select ${into}::text || ':' || (payload->>'id'), ${into}::uuid, type, payload, occurred_at, now()
         from learning_events where learner_id = ${from}::uuid
         on conflict (id) do nothing`);
       await tx.delete(schema.learners).where(eq(schema.learners.id, from));

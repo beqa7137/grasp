@@ -15,12 +15,18 @@ import {
   InterviewStore,
   ProgressStore,
   type AppendResult,
+  type ReceivedEvents,
   type WindowTotal,
 } from './stores.js';
 
+interface Received {
+  event: StoredEvent;
+  at: number;
+}
+
 @Injectable()
 export class MemoryProgressStore extends ProgressStore {
-  private readonly events = new Map<string, Map<string, StoredEvent>>();
+  private readonly events = new Map<string, Map<string, Received>>();
 
   constructor(private readonly learnerState = new MemoryLearnerState()) {
     super();
@@ -28,12 +34,11 @@ export class MemoryProgressStore extends ProgressStore {
 
   async append(learnerId: string, events: StoredEvent[]): Promise<AppendResult> {
     this.learnerState.assertActive(learnerId);
-    const log = this.events.get(learnerId) ?? new Map<string, StoredEvent>();
-    this.events.set(learnerId, log);
+    const log = this.log(learnerId);
     let accepted = 0;
-    for (const e of events) {
-      if (log.has(e.id)) continue;
-      log.set(e.id, e);
+    for (const event of events) {
+      if (log.has(event.id)) continue;
+      log.set(event.id, { event, at: Date.now() });
       accepted++;
     }
     return { accepted, duplicates: events.length - accepted };
@@ -41,17 +46,33 @@ export class MemoryProgressStore extends ProgressStore {
 
   insertScoreEvent(learnerId: string, event: InterviewScoredEvent): void {
     this.learnerState.assertActive(learnerId);
-    const log = this.events.get(learnerId) ?? new Map<string, StoredEvent>();
+    const log = this.log(learnerId);
+    if (!log.has(event.id)) log.set(event.id, { event: structuredClone(event), at: Date.now() });
+  }
+
+  private log(learnerId: string) {
+    const log = this.events.get(learnerId) ?? new Map<string, Received>();
     this.events.set(learnerId, log);
-    if (!log.has(event.id)) log.set(event.id, structuredClone(event));
+    return log;
   }
 
   async list(learnerId: string): Promise<StoredEvent[]> {
-    return [...(this.events.get(learnerId)?.values() ?? [])];
+    return [...(this.events.get(learnerId)?.values() ?? [])].map(({ event }) => event);
+  }
+
+  async listReceivedAfter(learnerId: string, after: Date | null): Promise<ReceivedEvents> {
+    const events: StoredEvent[] = [];
+    let latest: number | null = null;
+    for (const { event, at } of this.events.get(learnerId)?.values() ?? []) {
+      if (after && at <= after.getTime()) continue;
+      events.push(event);
+      latest = Math.max(latest ?? at, at);
+    }
+    return { events, latest: latest === null ? null : new Date(latest).toISOString() };
   }
 
   async all(): Promise<LearnerEvent[]> {
-    return [...this.events].flatMap(([learnerId, log]) => [...log.values()].map((event) => ({ learnerId, event })));
+    return [...this.events].flatMap(([learnerId, log]) => [...log.values()].map(({ event }) => ({ learnerId, event })));
   }
 
   async deleteLearner(learnerId: string): Promise<void> {
@@ -60,7 +81,7 @@ export class MemoryProgressStore extends ProgressStore {
 
   async moveLearner(from: string, to: string): Promise<void> {
     this.learnerState.assertActive(to);
-    await this.append(to, [...(this.events.get(from)?.values() ?? [])]);
+    await this.append(to, await this.list(from));
     this.events.delete(from);
   }
 }

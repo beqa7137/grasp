@@ -34,7 +34,10 @@ async function seedProgress(page: Page, events: ProgressEvent[]): Promise<string
 }
 
 async function localEvents(page: Page): Promise<ProgressEvent[]> {
-  return page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? '[]') as ProgressEvent[], eventsKey);
+  return page.evaluate((key) => {
+    const log = JSON.parse(localStorage.getItem(key) ?? '[]');
+    return (Array.isArray(log) ? log : log.events) as ProgressEvent[];
+  }, eventsKey);
 }
 
 async function acknowledgedIds(page: Page): Promise<string[]> {
@@ -125,7 +128,7 @@ test.describe('progress sync retention', () => {
     const events = Array.from({ length: 500 }, (): ProgressEvent => ({ id: randomUUID(), at, type: 'diagnostic.completed', answers }));
     const learnerId = await seedProgress(page, events);
     const uploads: { bytes: number; sent: string[]; acknowledged: string[]; deferred: string[] }[] = [];
-    await page.route('**/api/progress/events', async (route) => {
+    await page.route('**/api/progress/events*', async (route) => {
       if (!isUpload(route.request())) return route.continue();
       const request = route.request();
       const response = await route.fetch();
@@ -158,7 +161,7 @@ test.describe('progress sync retention', () => {
     const events = [prediction(), prediction()];
     const learnerId = await seedProgress(page, events);
     let uploads = 0;
-    await page.route('**/api/progress/events', async (route) => {
+    await page.route('**/api/progress/events*', async (route) => {
       if (!isUpload(route.request())) return route.continue();
       uploads++;
       if (uploads === 1) return route.fulfill({ status: 200, json: { accepted: 2 } });
@@ -187,7 +190,7 @@ test.describe('progress sync retention', () => {
       const event = prediction();
       const learnerId = await seedProgress(page, [event]);
       let uploads = 0;
-      await page.route('**/api/progress/events', async (route) => {
+      await page.route('**/api/progress/events*', async (route) => {
         if (!isUpload(route.request())) return route.continue();
         uploads++;
         if (uploads > 1) return route.continue();
@@ -216,7 +219,7 @@ test.describe('progress sync retention', () => {
         let uploads = 0;
         let releaseRetry!: () => void;
         const retryGate = new Promise<void>((resolve) => (releaseRetry = resolve));
-        await page.route('**/api/progress/events', async (route) => {
+        await page.route('**/api/progress/events*', async (route) => {
           if (!isUpload(route.request())) return route.continue();
           uploads++;
           if (uploads === 1) return route.fulfill({ status, json: { message: 'Sync unavailable' } });

@@ -125,3 +125,5 @@ export const appendEventsSchema = z.object({
 });
 
 export type AppendEventsDto = z.infer<typeof appendEventsSchema>;
+
+export const sinceSchema = z.iso.datetime({ offset: true }).optional();

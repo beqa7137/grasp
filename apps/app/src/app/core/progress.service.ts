@@ -63,6 +63,7 @@ export class ProgressService {
   private readonly learner = inject(LearnerService);
   private readonly events = signal<StoredEvent[]>([]);
   private acknowledged = new Set<string>();
+  private pullCursor: PullCursor | null = null;
   private readonly deferredFuture = new Set<string>();
   private readonly oversized = new Set<string>();
   private acknowledgementVersion = 0;
@@ -106,9 +107,11 @@ export class ProgressService {
     const generation = this.generation;
     let loaded = false;
     const initializing = Promise.all([Preferences.get({ key: EVENTS_KEY }), Preferences.get({ key: ACKNOWLEDGED_KEY })])
-      .then(([events, acknowledged]) => {
+      .then(([log, acknowledged]) => {
         if (generation !== this.generation || this.destroyed) return;
-        this.events.set(events.value ? JSON.parse(events.value) : []);
+        const stored = readLog(log.value);
+        this.events.set(stored.events);
+        this.pullCursor = stored.cursor;
         this.acknowledged = new Set(acknowledged.value ? JSON.parse(acknowledged.value) : []);
         loaded = true;
       })
@@ -180,6 +183,7 @@ export class ProgressService {
     this.invalidateSync();
     this.events.set([]);
     this.acknowledged = new Set();
+    this.pullCursor = null;
     this.deferredFuture.clear();
     this.oversized.clear();
     this.acknowledgementVersion = 0;
@@ -292,8 +296,9 @@ export class ProgressService {
 
   private async pull(scope: SyncScope): Promise<void> {
     try {
-      const { events } = await this.api.get<{ events: StoredEvent[] }>(
-        '/progress/events',
+      const since = this.pullCursor?.learnerId === scope.learnerId ? this.pullCursor.cursor : null;
+      const { events, cursor } = await this.api.get<{ events: StoredEvent[]; cursor: string | null }>(
+        since ? `/progress/events?since=${encodeURIComponent(since)}` : '/progress/events',
         PROGRESS_PULL_TIMEOUT_MS,
         scope.controller.signal,
       );
@@ -301,10 +306,9 @@ export class ProgressService {
       const known = new Set(this.events().map((event) => event.id));
       const incoming = events.filter((event) => !known.has(event.id));
       this.acknowledge(events.map((event) => event.id));
-      if (incoming.length) {
-        this.events.update((list) => [...list, ...incoming]);
-        await this.persist();
-      }
+      if (incoming.length) this.events.update((list) => [...list, ...incoming]);
+      if (cursor && cursor !== since) this.pullCursor = { learnerId: scope.learnerId, cursor };
+      if (incoming.length || (cursor && cursor !== since)) await this.persist();
       if (!this.isCurrent(scope)) return;
       await this.checkpoint(scope);
       if (this.isCurrent(scope)) scope.pullFailed = false;
@@ -340,8 +344,10 @@ export class ProgressService {
     else this.syncStatus.set(scope ? 'synced' : 'idle');
   }
 
+  // The cursor is stored in the same value as the events it covers: tabs share storage on the web, and a tab that has not
+  // pulled could otherwise save a log without events that a cursor saved by another tab already counts as received.
   private persist() {
-    return this.write(EVENTS_KEY, JSON.stringify(this.events()), this.generation);
+    return this.write(EVENTS_KEY, JSON.stringify({ events: this.events(), cursor: this.pullCursor }), this.generation);
   }
 
   private write(key: string, value: string, generation: number): Promise<void> {
@@ -353,6 +359,16 @@ export class ProgressService {
     this.storageWrites = write;
     return write;
   }
+}
+
+interface PullCursor {
+  learnerId: string;
+  cursor: string;
+}
+
+function readLog(value: string | null): { events: StoredEvent[]; cursor: PullCursor | null } {
+  const log = value ? (JSON.parse(value) as StoredEvent[] | { events: StoredEvent[]; cursor: PullCursor | null }) : [];
+  return Array.isArray(log) ? { events: log, cursor: null } : log;
 }
 
 function sameSettings(a: StudySettings, b: StudySettings) {

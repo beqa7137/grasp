@@ -2,7 +2,7 @@ import type { BrowserContext, Page } from '@playwright/test';
 import { createHmac, randomBytes, randomInt } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import { type GitHubUser, collectGitHubResults, signInToGitHub } from '../support/github';
-import { expect, newClientIp, synced, test } from './fixtures';
+import { expect, newClientIp, recordedEvents, synced, test } from './fixtures';
 
 const CALLBACK_OPENERS_KEY = 'e2e.callbackOpeners';
 
@@ -137,9 +137,7 @@ test('a second device starts fresh after the account was deleted elsewhere and i
     );
     await continueWithGitHub(secondPage);
     expect(((await (await secondSignIn).json()) as { learnerId: string }).learnerId).toBe(oldLearner);
-    await expect
-      .poll(() => secondPage.evaluate(() => JSON.parse(localStorage.getItem('CapacitorStorage.grasp.events') ?? '[]').length))
-      .toBeGreaterThan(0);
+    await expect.poll(async () => (await recordedEvents(secondPage)).length).toBeGreaterThan(0);
 
     await page.getByRole('button', { name: 'Delete…' }).click();
     const deleted = page.waitForResponse((response) => response.request().method() === 'DELETE' && response.url().endsWith('/api/me'));
@@ -148,7 +146,7 @@ test('a second device starts fresh after the account was deleted elsewhere and i
 
     const readStatuses: number[] = [];
     secondPage.on('response', (response) => {
-      if (response.request().method() === 'GET' && response.url().endsWith('/api/progress/events')) {
+      if (response.request().method() === 'GET' && new URL(response.url()).pathname === '/api/progress/events') {
         readStatuses.push(response.status());
       }
     });
@@ -157,36 +155,26 @@ test('a second device starts fresh after the account was deleted elsewhere and i
     await expect(secondPage.getByText("This learner's data was deleted on another device.")).toBeVisible();
     await expect.poll(() => secondPage.evaluate(() => localStorage.getItem('CapacitorStorage.grasp.learnerId'))).not.toBe(oldLearner);
     const freshLearner = await secondPage.evaluate(() => localStorage.getItem('CapacitorStorage.grasp.learnerId'));
-    await expect
-      .poll(() => secondPage.evaluate(() => JSON.parse(localStorage.getItem('CapacitorStorage.grasp.events') ?? '[]').length))
-      .toBe(0);
+    await expect.poll(async () => (await recordedEvents(secondPage)).length).toBe(0);
 
     await secondPage.goto('/drill');
     const freshSynced = synced(secondPage, 'review.graded');
     await secondPage.locator('g-question-card .choice').first().click();
     await secondPage.getByRole('button', { name: /^(Got it|Continue)/ }).click();
     await freshSynced;
-    const freshEvents = await secondPage.evaluate(
-      () => JSON.parse(localStorage.getItem('CapacitorStorage.grasp.events') ?? '[]') as { id: string }[],
-    );
+    const freshEvents = await recordedEvents(secondPage);
     expect(freshEvents).toHaveLength(1);
     const freshEventId = freshEvents[0].id;
 
     const reloadedRead = secondPage.waitForResponse(
-      (response) => response.request().method() === 'GET' && response.url().endsWith('/api/progress/events'),
+      (response) => response.request().method() === 'GET' && new URL(response.url()).pathname === '/api/progress/events',
     );
     await secondPage.reload();
     const reloadedResponse = await reloadedRead;
     expect(reloadedResponse.request().headers()['x-learner-id']).toBe(freshLearner);
     expect(reloadedResponse.status()).toBe(200);
     await expect.poll(() => secondPage.evaluate(() => localStorage.getItem('CapacitorStorage.grasp.learnerId'))).toBe(freshLearner);
-    await expect
-      .poll(() =>
-        secondPage.evaluate(() =>
-          (JSON.parse(localStorage.getItem('CapacitorStorage.grasp.events') ?? '[]') as { id: string }[]).map((event) => event.id),
-        ),
-      )
-      .toEqual([freshEventId]);
+    await expect.poll(async () => (await recordedEvents(secondPage)).map((event) => event.id)).toEqual([freshEventId]);
     await secondPage.goto('/settings');
     const newSignIn = secondPage.waitForResponse(
       (response) => response.request().method() === 'POST' && response.url().endsWith('/api/auth/github'),

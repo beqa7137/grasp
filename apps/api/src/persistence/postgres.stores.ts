@@ -20,6 +20,7 @@ import {
   InterviewStore,
   ProgressStore,
   type AppendResult,
+  type ReceivedEvents,
   type WindowTotal,
 } from './stores.js';
 
@@ -80,6 +81,19 @@ export class PostgresProgressStore extends ProgressStore {
       .where(eq(schema.learningEvents.learnerId, learnerId))
       .orderBy(schema.learningEvents.occurredAt);
     return rows.map((r) => r.payload as StoredEvent);
+  }
+
+  async listReceivedAfter(learnerId: string, after: Date | null): Promise<ReceivedEvents> {
+    const rows = await this.db
+      .select({ payload: schema.learningEvents.payload, receivedAt: schema.learningEvents.receivedAt })
+      .from(schema.learningEvents)
+      .where(
+        after
+          ? and(eq(schema.learningEvents.learnerId, learnerId), gt(schema.learningEvents.receivedAt, after))
+          : eq(schema.learningEvents.learnerId, learnerId),
+      );
+    const latest = rows.reduce<Date | null>((max, r) => (max && max >= r.receivedAt ? max : r.receivedAt), null);
+    return { events: rows.map((r) => r.payload as StoredEvent), latest: latest?.toISOString() ?? null };
   }
 
   async all(): Promise<LearnerEvent[]> {
