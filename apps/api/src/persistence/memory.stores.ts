@@ -1,11 +1,11 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import type { InterviewScoredEvent, StoredEvent } from '@grasp/engine';
-import { isDeepStrictEqual } from 'node:util';
 import type { LearnerEvent } from '../admin/cohort-metrics.js';
 import type { AuthIdentity, OneTimePurpose, OneTimeRecord, Provider, RefreshTokenRecord, User } from '../auth/auth.types.js';
 import type { AccessClaims } from '../auth/tokens.js';
 import type { FeedbackEntry } from '../feedback/feedback.types.js';
 import type { InterviewSession } from '../interview/interview.types.js';
+import { completedScore, scoredEvent } from '../interview/score-completion.js';
 import { MemoryLearnerState } from './erasure.stores.js';
 import { learnerMoved } from './learner-errors.js';
 import {
@@ -41,25 +41,9 @@ export class MemoryProgressStore extends ProgressStore {
 
   insertScoreEvent(learnerId: string, event: InterviewScoredEvent): void {
     this.learnerState.assertActive(learnerId);
-    const log = this.events.get(learnerId);
-    const existing = log?.get(event.id);
-    if (existing) {
-      if (
-        existing.type !== 'interview.scored' ||
-        existing.id !== event.id ||
-        Date.parse(existing.at) !== Date.parse(event.at) ||
-        existing.sessionId !== event.sessionId ||
-        existing.track !== event.track ||
-        existing.verdict !== event.verdict ||
-        !isDeepStrictEqual(existing.weakPatterns, event.weakPatterns)
-      ) {
-        throw new ConflictException('Interview score conflicts with saved progress');
-      }
-      return;
-    }
-    const stored = structuredClone(event);
-    if (log) log.set(event.id, stored);
-    else this.events.set(learnerId, new Map([[event.id, stored]]));
+    const log = this.events.get(learnerId) ?? new Map<string, StoredEvent>();
+    this.events.set(learnerId, log);
+    if (!log.has(event.id)) log.set(event.id, structuredClone(event));
   }
 
   async list(learnerId: string): Promise<StoredEvent[]> {
@@ -107,48 +91,10 @@ export class MemoryInterviewStore extends InterviewStore {
       if (!stored) throw new NotFoundException('Interview not found');
       if (stored.learnerId !== candidate.learnerId) throw learnerMoved();
 
-      let completed = stored;
-      if (stored.status === 'active') {
-        if (
-          !isDeepStrictEqual(stored.messages, candidate.messages) ||
-          stored.hintsUsed !== candidate.hintsUsed ||
-          (stored.mode ?? 'offline') !== (candidate.mode ?? 'offline') ||
-          stored.track !== candidate.track ||
-          !isDeepStrictEqual(stored.problem, candidate.problem)
-        ) {
-          throw new ConflictException('Interview changed while scoring; try again');
-        }
-        completed = {
-          ...stored,
-          status: candidate.status,
-          scorecard: candidate.scorecard,
-          scoredAt: candidate.scoredAt,
-          usage: candidate.usage,
-        };
-      }
-      if (
-        completed.status !== 'scored' ||
-        !completed.scorecard ||
-        typeof completed.scoredAt !== 'string' ||
-        !Number.isFinite(Date.parse(completed.scoredAt))
-      ) {
-        throw new ConflictException('Interview score is incomplete');
-      }
-
-      const result = structuredClone(completed);
-      const event: InterviewScoredEvent = {
-        id: `interview-${result.id}`,
-        at: result.scoredAt!,
-        type: 'interview.scored',
-        sessionId: result.id,
-        track: result.track,
-        verdict: result.scorecard!.verdict,
-        weakPatterns: result.scorecard!.weakPatterns,
-      };
-      const returned = structuredClone(result);
-      this.progress.insertScoreEvent(result.learnerId, event);
+      const result = structuredClone(completedScore(stored, candidate));
+      this.progress.insertScoreEvent(result.learnerId, scoredEvent(result));
       if (stored.status === 'active') this.sessions.set(result.id, result);
-      return returned;
+      return structuredClone(result);
     });
   }
 

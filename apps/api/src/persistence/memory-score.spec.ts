@@ -173,27 +173,14 @@ describe('MemoryInterviewStore.completeScore', () => {
     ['timestamp', { at: '2026-09-27T12:00:01.000Z' }],
     ['ordered weak patterns', { weakPatterns: [...scorecard.weakPatterns].reverse() }],
     ['session', { sessionId: 'different-session' }],
-  ])('rejects a conflicting %s without publishing a card', async (_name, change) => {
+  ])('publishes the card and keeps an existing event with a different %s', async (_name, change) => {
     const { interviews, progress } = setup();
     const existing = scoredEvent(change);
     await interviews.save(active());
     await progress.append(learnerId, [existing]);
 
-    await expect(interviews.completeScore(scored())).rejects.toMatchObject({
-      status: 409,
-      message: 'Interview score conflicts with saved progress',
-    });
-    expect(await interviews.get(learnerId, sessionId)).toEqual(active());
-    expect(await progress.list(learnerId)).toEqual([existing]);
-  });
-
-  it('rejects a different event type at the deterministic ID', async () => {
-    const { interviews, progress } = setup();
-    const existing = { id: `interview-${sessionId}`, at: scoredAt, type: 'settings.changed' as const, settings: { newPerDay: 5 } };
-    await interviews.save(active());
-    await progress.append(learnerId, [existing]);
-    await expect(interviews.completeScore(scored())).rejects.toMatchObject({ status: 409 });
-    expect(await interviews.get(learnerId, sessionId)).toEqual(active());
+    expect(await interviews.completeScore(scored())).toMatchObject({ status: 'scored' });
+    expect(await interviews.get(learnerId, sessionId)).toMatchObject({ status: 'scored' });
     expect(await progress.list(learnerId)).toEqual([existing]);
   });
 

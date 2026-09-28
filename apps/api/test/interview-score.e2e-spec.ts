@@ -314,9 +314,8 @@ describe.each(storages)('Atomic interview score over HTTP (%s storage)', (storag
     ['event type', (event) => ({ id: event.id, at: event.at, type: 'settings.changed', settings: { newPerDay: 5 } })],
   ];
 
-  it.each(collisions)('rolls back a new score on an existing event with a different %s', async (_field, collision) => {
+  it.each(collisions)('saves a new score and keeps an existing event with a different %s', async (_field, collision) => {
     const session = await start();
-    const before = (await get(session).expect(200)).body;
     vi.spyOn(app.get(OfflineInterviewer), 'score').mockResolvedValueOnce({ scorecard: card });
     const store = app.get(InterviewStore);
     const complete = store.completeScore.bind(store);
@@ -326,12 +325,11 @@ describe.each(storages)('Atomic interview score over HTTP (%s storage)', (storag
       await app.get(ProgressStore).append(session.learnerId, [existing]);
       return complete(candidate);
     });
-    await score(session).expect(409);
-    expect((await get(session).expect(200)).body).toEqual(before);
+    expect((await score(session).expect(201)).body).toMatchObject({ status: 'scored', scorecard: card });
     expect((await events(session.learnerId).expect(200)).body.events).toEqual([existing]);
   });
 
-  it('rejects a conflicting cached event without changing its score or admitting more work', async () => {
+  it('returns a cached score beside a conflicting event without admitting more work', async () => {
     const session = await start();
     const cached = await seedScored(session);
     const existing = { ...scoredEvent(cached), verdict: 'no-hire' };
@@ -339,7 +337,7 @@ describe.each(storages)('Atomic interview score over HTTP (%s storage)', (storag
     const before = (await get(session).expect(200)).body;
     const provider = vi.spyOn(other.get(OfflineInterviewer), 'score');
     const quota = vi.spyOn(other.get(CoordinationStore), 'take');
-    await score(session, other).expect(409);
+    await score(session, other).expect(201);
     expect((await get(session).expect(200)).body).toEqual(before);
     expect((await events(session.learnerId).expect(200)).body.events).toEqual([existing]);
     expect(provider).not.toHaveBeenCalled();
