@@ -9,6 +9,7 @@ import { mulberry32 } from '../algorithms/random.js';
 import { problemsForPattern } from './catalog.js';
 import { CODING_PROBLEMS, getCodingProblem } from './problems/index.js';
 import { randomTree } from './problems/inputs.js';
+import { gasStationStarts } from './problems/batch-e.js';
 import { PYTHON_REFERENCE } from './python-reference.fixture.js';
 import { nodesOf, SLOWER, SLOWER_MIN_STEPS, SLOWER_VARIANTS } from './coding-slower.fixture.js';
 import {
@@ -34,6 +35,15 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     for (let i = 0; i < nums.length; i++) for (let j = i + 1; j < nums.length; j++) if (nums[i] + nums[j] === t) return [i, j];
     return [];
   },
+  'longest-consecutive-sequence': (nums: number[]) =>
+    Math.max(
+      0,
+      ...nums.map((x) => {
+        let length = 1;
+        while (nums.includes(x + length)) length++;
+        return length;
+      }),
+    ),
   'pair-sum-sorted': (nums: number[], t: number) => {
     for (let i = 0; i < nums.length; i++) for (let j = i + 1; j < nums.length; j++) if (nums[i] + nums[j] === t) return [i, j];
     return [];
@@ -43,10 +53,32 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     for (let i = 0; i < h.length; i++) for (let j = i + 1; j < h.length; j++) best = Math.max(best, Math.min(h[i], h[j]) * (j - i));
     return best;
   },
+  'three-sum': (nums: number[]) => {
+    const found = new Map<string, number[]>();
+    for (let i = 0; i < nums.length; i++)
+      for (let j = i + 1; j < nums.length; j++)
+        for (let k = j + 1; k < nums.length; k++)
+          if (nums[i] + nums[j] + nums[k] === 0) {
+            const triplet = [nums[i], nums[j], nums[k]].sort((a, b) => a - b);
+            found.set(triplet.join(), triplet);
+          }
+    return [...found.values()];
+  },
   'jump-game': (nums: number[]) => {
     const reachesEnd = (i: number): boolean =>
       i === nums.length - 1 || rangeOf(i + 1, Math.min(i + nums[i], nums.length - 1)).some(reachesEnd);
     return reachesEnd(0);
+  },
+  'gas-station': (gas: number[], cost: number[]) => {
+    const drivesLoop = (start: number) => {
+      let tank = 0;
+      for (let k = 0; k < gas.length; k++) {
+        const i = (start + k) % gas.length;
+        if ((tank += gas[i] - cost[i]) < 0) return false;
+      }
+      return true;
+    };
+    return rangeOf(0, gas.length - 1).find(drivesLoop) ?? -1;
   },
   'longest-unique-substring': (s: string) => {
     let best = 0;
@@ -63,11 +95,22 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
       }
     return best;
   },
+  'character-replacement': (s: string, k: number) => {
+    let best = 0;
+    for (let i = 0; i < s.length; i++)
+      for (let j = i; j < s.length; j++) {
+        const window = s.slice(i, j + 1);
+        const most = Math.max(...[...window].map((ch) => window.split(ch).length - 1));
+        if (window.length - most <= k) best = Math.max(best, window.length);
+      }
+    return best;
+  },
   'binary-search': (nums: number[], t: number) => nums.indexOf(t),
   'koko-bananas': (piles: number[], h: number) => {
     const lowerBound = Math.max(1, Math.ceil(piles.reduce((s, p) => s + p, 0) / h));
     for (let k = lowerBound; ; k++) if (piles.reduce((s, p) => s + Math.ceil(p / k), 0) <= h) return k;
   },
+  'search-rotated-array': (nums: number[], t: number) => nums.indexOf(t),
   'daily-temperatures': (t: number[]) =>
     t.map((x, i) => {
       const j = t.findIndex((y, k) => k > i && y > x);
@@ -84,6 +127,14 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     }
     return best;
   },
+  'sum-subarray-minimums': (arr: number[]) => {
+    let total = 0;
+    for (let i = 0; i < arr.length; i++) {
+      let smallest = Infinity;
+      for (let j = i; j < arr.length; j++) total += smallest = Math.min(smallest, arr[j]);
+    }
+    return total % 1_000_000_007;
+  },
   'subarray-sum-k': (nums: number[], k: number) => {
     let count = 0;
     for (let i = 0; i < nums.length; i++) {
@@ -94,6 +145,15 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
   },
   'product-of-array-except-self': (nums: number[]) =>
     nums.map((_, excluded) => nums.reduce((product, value, i) => (i === excluded ? product : product * value), 1)),
+  'contiguous-array': (nums: number[]) => {
+    let best = 0;
+    for (let i = 0; i < nums.length; i++)
+      for (let j = i; j < nums.length; j++) {
+        const part = nums.slice(i, j + 1);
+        if (part.filter((x) => x === 0).length === part.filter((x) => x === 1).length) best = Math.max(best, part.length);
+      }
+    return best;
+  },
   'number-of-islands': (grid: string[][]) => {
     const g = grid.map((r) => [...r]);
     const sink = (r: number, c: number): void => {
@@ -119,9 +179,55 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
       g = next;
     }
   },
+  'shortest-path-binary-matrix': (grid: number[][]) => {
+    const n = grid.length;
+    const cells = grid.map((row) => row.map(() => Infinity));
+    if (grid[0][0] === 0) cells[0][0] = 1;
+    for (let changed = true; changed;) {
+      changed = false;
+      for (let r = 0; r < n; r++)
+        for (let c = 0; c < n; c++)
+          for (let dr = -1; dr <= 1; dr++)
+            for (let dc = -1; dc <= 1; dc++) {
+              const from = cells[r + dr]?.[c + dc] ?? Infinity;
+              if (grid[r][c] === 0 && from + 1 < cells[r][c]) {
+                cells[r][c] = from + 1;
+                changed = true;
+              }
+            }
+    }
+    return cells[n - 1][n - 1] === Infinity ? -1 : cells[n - 1][n - 1];
+  },
   subsets: (nums: number[]) => {
     const sorted = [...nums].sort((a, b) => a - b);
     return rangeOf(0, 2 ** nums.length - 1).map((mask) => sorted.filter((_, i) => mask & (1 << i)));
+  },
+  'combination-sum': (candidates: number[], target: number) => {
+    const found = new Map<string, number[]>();
+    const extend = (sequence: number[], rest: number): void => {
+      if (rest === 0) {
+        const combination = [...sequence].sort((a, b) => a - b);
+        found.set(combination.join(','), combination);
+      }
+      for (const c of candidates) if (c <= rest) extend([...sequence, c], rest - c);
+    };
+    extend([], target);
+    return [...found.values()];
+  },
+  'word-search': (board: string[][], word: string) => {
+    const walk = (r: number, c: number, path: string, used: Set<string>): boolean => {
+      if (board[r]?.[c] === undefined || used.has(`${r},${c}`)) return false;
+      const spelled = path + board[r][c];
+      if (spelled.length === word.length) return spelled === word;
+      const next = new Set(used).add(`${r},${c}`);
+      return [
+        [r + 1, c],
+        [r - 1, c],
+        [r, c + 1],
+        [r, c - 1],
+      ].some(([y, x]) => walk(y, x, spelled, next));
+    };
+    return board.some((row, r) => row.some((_, c) => walk(r, c, '', new Set())));
   },
   'merge-intervals': (intervals: number[][]) => {
     let list = intervals.map((i) => [...i]);
@@ -146,6 +252,16 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     }
     return intervals.length - kept;
   },
+  'insert-interval': (intervals: number[][], newInterval: number[]) => {
+    const covered = new Set<number>();
+    for (const [start, end] of [...intervals, newInterval]) for (let x = 2 * start; x <= 2 * end; x++) covered.add(x);
+    const points = [...covered].sort((a, b) => a - b);
+    const out: number[][] = [];
+    for (const x of points)
+      if (covered.has(x - 1)) out[out.length - 1][1] = x / 2;
+      else out.push([x / 2, x / 2]);
+    return out;
+  },
   'top-k-frequent': (nums: number[], k: number) => {
     const counts = new Map<number, number>();
     nums.forEach((x) => counts.set(x, (counts.get(x) ?? 0) + 1));
@@ -168,8 +284,17 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     const best = fewest(0, amount);
     return best === Infinity ? -1 : best;
   },
+  'word-break': (s: string, wordDict: string[]) => {
+    const splits = (rest: string): boolean =>
+      rest === '' || rangeOf(1, rest.length).some((k) => wordDict.includes(rest.slice(0, k)) && splits(rest.slice(k)));
+    return splits(s);
+  },
   'kth-largest-element': (nums: number[], k: number) =>
     nums.find((x) => nums.filter((y) => y > x).length < k && nums.filter((y) => y >= x).length >= k),
+  'k-closest-points': (points: number[][], k: number) => {
+    const distance = ([x, y]: number[]) => Math.hypot(x, y);
+    return points.filter((p) => points.filter((q) => distance(q) < distance(p)).length < k);
+  },
   'longest-common-subsequence': (a: string, b: string) => {
     const subsequences = (s: string) => {
       const out = new Set<string>(['']);
@@ -187,6 +312,14 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
       return 1 + Math.min(distance(i + 1, j), distance(i, j + 1), distance(i + 1, j + 1));
     };
     return distance(0, 0);
+  },
+  'longest-palindromic-subsequence': (s: string) => {
+    let best = 0;
+    for (let mask = 1; mask < 2 ** s.length; mask++) {
+      const picked = [...s].filter((_, i) => mask & (1 << i));
+      if (picked.join('') === [...picked].reverse().join('')) best = Math.max(best, picked.length);
+    }
+    return best;
   },
   'count-components': (n: number, edges: number[][]) => {
     const seen = new Set<number>();
@@ -226,6 +359,13 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     };
     return [...edges].reverse().find((edge) => connects(edges.filter((e) => e !== edge)));
   },
+  'number-of-provinces': (isConnected: number[][]) => {
+    const n = isConnected.length;
+    const reach = isConnected.map((row) => row.map(Boolean));
+    for (let via = 0; via < n; via++)
+      for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) reach[i][j] ||= reach[i][via] && reach[via][j];
+    return new Set(reach.map((row) => row.join())).size;
+  },
   'course-schedule': (_n: number, prerequisites: number[][]) => {
     const reaches = (from: number, to: number, seen: Set<number>): boolean => {
       if (from === to) return true;
@@ -254,6 +394,22 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     };
     const answer = fewest(0);
     return answer === Infinity ? -1 : answer;
+  },
+  'longest-increasing-path': (matrix: number[][]) => {
+    const longestFrom = (r: number, c: number): number =>
+      1 +
+      Math.max(
+        0,
+        ...[
+          [r - 1, c],
+          [r + 1, c],
+          [r, c - 1],
+          [r, c + 1],
+        ]
+          .filter(([y, x]) => (matrix[y]?.[x] ?? -Infinity) > matrix[r][c])
+          .map(([y, x]) => longestFrom(y, x)),
+      );
+    return Math.max(...matrix.flatMap((row, r) => row.map((_, c) => longestFrom(r, c))));
   },
   'network-delay': (times: number[][], n: number, k: number) => {
     const dist = Array<number>(n + 1).fill(Infinity);
@@ -288,12 +444,37 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     }
     return 0;
   },
+  'cheapest-flights': (_n: number, flights: number[][], src: number, dst: number, k: number) => {
+    const cheapest = (city: number, flightsLeft: number): number =>
+      city === dst
+        ? 0
+        : Math.min(
+            Infinity,
+            ...flights.filter(([from]) => from === city && flightsLeft > 0).map(([, to, price]) => price + cheapest(to, flightsLeft - 1)),
+          );
+    const best = cheapest(src, k + 1);
+    return best === Infinity ? -1 : best;
+  },
   'count-prefixes': (words: string[], prefixes: string[]) => prefixes.map((p) => words.filter((w) => w.startsWith(p)).length),
   'replace-words': (dictionary: string[], sentence: string) =>
     sentence
       .split(' ')
       .map((word) => dictionary.filter((root) => word.startsWith(root)).sort((a, b) => a.length - b.length)[0] ?? word)
       .join(' '),
+  'word-search-ii': (board: string[][], words: string[]) => {
+    const spells = (word: string, r: number, c: number, i: number, used: Set<string>): boolean => {
+      if (board[r]?.[c] !== word[i] || used.has(`${r},${c}`)) return false;
+      if (i === word.length - 1) return true;
+      const next = new Set(used).add(`${r},${c}`);
+      return [
+        [r - 1, c],
+        [r + 1, c],
+        [r, c - 1],
+        [r, c + 1],
+      ].some(([y, x]) => spells(word, y, x, i + 1, next));
+    };
+    return words.filter((word) => board.some((row, r) => row.some((_, c) => spells(word, r, c, 0, new Set()))));
+  },
   'find-duplicate': (nums: number[]) => nums.find((x, i) => nums.indexOf(x) !== i),
   'circular-array-loop': (nums: number[]) => {
     const n = nums.length;
@@ -309,6 +490,15 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     }
     return false;
   },
+  'happy-numbers': (nums: number[]) =>
+    nums.filter((n) => {
+      const seen = new Set<number>();
+      while (n !== 1 && !seen.has(n)) {
+        seen.add(n);
+        n = [...String(n)].reduce((sum, digit) => sum + Number(digit) ** 2, 0);
+      }
+      return n === 1;
+    }),
   'tree-diameter': (root: TreeNode | null) => {
     const { nodes, parent } = nodesOf(root);
     let best = 0;
@@ -336,6 +526,27 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     }
     return best;
   },
+  'max-path-sum': (root: TreeNode | null) => {
+    const { nodes, parent } = nodesOf(root);
+    const upFrom = (node: TreeNode) => {
+      const chain = [node];
+      while (parent.has(chain[chain.length - 1])) chain.push(parent.get(chain[chain.length - 1])!);
+      return chain;
+    };
+    let best = -Infinity;
+    for (const a of nodes)
+      for (const b of nodes) {
+        const fromA = upFrom(a);
+        const fromB = upFrom(b);
+        const meet = fromA.find((node) => fromB.includes(node))!;
+        const path = [...fromA.slice(0, fromA.indexOf(meet) + 1), ...fromB.slice(0, fromB.indexOf(meet))];
+        best = Math.max(
+          best,
+          path.reduce((sum, node) => sum + node.val, 0),
+        );
+      }
+    return best;
+  },
   'single-number': (nums: number[]) => nums.find((x) => nums.filter((y) => y === x).length === 1),
   'total-hamming-distance': (nums: number[]) => {
     let total = 0;
@@ -343,6 +554,7 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
       for (let j = i + 1; j < nums.length; j++) total += [...(nums[i] ^ nums[j]).toString(2)].filter((bit) => bit === '1').length;
     return total;
   },
+  'counting-bits': (n: number) => rangeOf(0, n).map((i) => [...i.toString(2)].filter((bit) => bit === '1').length),
 };
 
 /**
@@ -351,8 +563,11 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
 const PERFORMANCE_LOAD: Record<string, (test: TestCase) => number> = {
   'longest-common-subsequence': ({ args: [a, b] }) => (a as string).length * (b as string).length,
   'edit-distance': ({ args: [a, b] }) => (a as string).length * (b as string).length,
+  'longest-palindromic-subsequence': ({ args: [s] }) => (s as string).length ** 2,
   'coin-change': ({ args: [coins, amount] }) => (coins as number[]).length * (amount as number),
   subsets: ({ expected }) => (expected as unknown[]).length,
+  'combination-sum': ({ expected }) => (expected as number[][]).flat().length,
+  'counting-bits': ({ args: [n] }) => n as number,
 };
 
 describe('coding problems', () => {
@@ -457,6 +672,15 @@ describe('coding problems', () => {
     }
   });
 
+  it('gives Gas Station at most one start that drives the whole loop, as its statement promises', () => {
+    for (const seed of [1, 3, 11])
+      for (const test of buildSuite(getCodingProblem('gas-station')!, { seed })) {
+        const starts = gasStationStarts(...(test.args as [number[], number[]]));
+        expect(starts.length, preview(test.args)).toBeLessThanOrEqual(1);
+        expect(test.expected, preview(test.args)).toBe(starts[0] ?? -1);
+      }
+  });
+
   it('gives Subsets distinct values and Redundant Connection a tree plus one edge, so each has one right answer', () => {
     for (const test of buildSuite(getCodingProblem('subsets')!, { seed: 11 })) {
       const [nums] = test.args as [number[]];
@@ -485,6 +709,19 @@ describe('coding problems', () => {
       ).toBe(true);
       expect(new Set(edges.map(([a, b]) => `${Math.min(a, b)}-${Math.max(a, b)}`)).size, label).toBe(n);
       expect(joins, `connected: ${label}`).toBe(n - 1);
+    }
+  });
+
+  it('keeps the promises K Closest Points and Combination Sum make about their answers', () => {
+    for (const test of buildSuite(getCodingProblem('k-closest-points')!, { seed: 11 })) {
+      const [points, k] = test.args as [number[][], number];
+      const distances = points.map(([x, y]) => x * x + y * y).sort((a, b) => a - b);
+      expect(k === points.length || distances[k - 1] < distances[k], preview(test.args)).toBe(true);
+    }
+    for (const test of buildSuite(getCodingProblem('combination-sum')!, { seed: 11 })) {
+      const [candidates] = test.args as [number[]];
+      expect(new Set(candidates).size, preview(candidates)).toBe(candidates.length);
+      expect((test.expected as number[][]).length).toBeLessThanOrEqual(1_000);
     }
   });
 

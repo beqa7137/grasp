@@ -8,6 +8,18 @@ def two_sum(nums, target):
             return [seen[target - x], i]
         seen[x] = i
 `,
+  'longest-consecutive-sequence': `
+def longest_consecutive(nums):
+    values = set(nums)
+    best = 0
+    for x in values:
+        if x - 1 not in values:
+            end = x
+            while end + 1 in values:
+                end += 1
+            best = max(best, end - x + 1)
+    return best
+`,
   'pair-sum-sorted': `
 def pair_sum(nums, target):
     lo, hi = 0, len(nums) - 1
@@ -32,6 +44,30 @@ def max_area(height):
             hi -= 1
     return best
 `,
+  'three-sum': `
+def three_sum(nums):
+    nums = sorted(nums)
+    triplets = []
+    for i in range(len(nums) - 2):
+        if nums[i] > 0:
+            break
+        if i and nums[i] == nums[i - 1]:
+            continue
+        lo, hi = i + 1, len(nums) - 1
+        while lo < hi:
+            total = nums[i] + nums[lo] + nums[hi]
+            if total < 0:
+                lo += 1
+            elif total > 0:
+                hi -= 1
+            else:
+                triplets.append([nums[i], nums[lo], nums[hi]])
+                while lo < hi and nums[lo] == nums[lo + 1]:
+                    lo += 1
+                lo += 1
+                hi -= 1
+    return triplets
+`,
   'jump-game': `
 def can_jump(nums):
     reach = 0
@@ -40,6 +76,16 @@ def can_jump(nums):
             return False
         reach = max(reach, i + x)
     return True
+`,
+  'gas-station': `
+def can_complete_circuit(gas, cost):
+    total = tank = start = 0
+    for i, (g, c) in enumerate(zip(gas, cost)):
+        total += g - c
+        tank += g - c
+        if tank < 0:
+            start, tank = i + 1, 0
+    return start if total >= 0 else -1
 `,
   'longest-unique-substring': `
 def length_of_longest_substring(s):
@@ -61,6 +107,19 @@ def min_sub_array_len(target, nums):
                 best = hi - lo + 1
             total -= nums[lo]
             lo += 1
+    return best
+`,
+  'character-replacement': `
+def character_replacement(s, k):
+    counts = {}
+    most = best = lo = 0
+    for hi, ch in enumerate(s):
+        counts[ch] = counts.get(ch, 0) + 1
+        most = max(most, counts[ch])
+        while hi - lo + 1 - most > k:
+            counts[s[lo]] -= 1
+            lo += 1
+        best = max(best, hi - lo + 1)
     return best
 `,
   'binary-search': `
@@ -86,6 +145,24 @@ def min_eating_speed(piles, h):
         else:
             lo = mid + 1
     return lo
+`,
+  'search-rotated-array': `
+def search(nums, target):
+    lo, hi = 0, len(nums) - 1
+    while lo <= hi:
+        mid = (lo + hi) // 2
+        if nums[mid] == target:
+            return mid
+        if nums[lo] <= nums[mid]:
+            if nums[lo] <= target < nums[mid]:
+                hi = mid - 1
+            else:
+                lo = mid + 1
+        elif nums[mid] < target <= nums[hi]:
+            lo = mid + 1
+        else:
+            hi = mid - 1
+    return -1
 `,
   'daily-temperatures': `
 def daily_temperatures(temperatures):
@@ -119,6 +196,18 @@ def product_except_self(nums):
         suffix *= nums[i]
     return out
 `,
+  'contiguous-array': `
+def find_max_length(nums):
+    first = {0: -1}
+    balance = best = 0
+    for i, x in enumerate(nums):
+        balance += 1 if x == 1 else -1
+        if balance in first:
+            best = max(best, i - first[balance])
+        else:
+            first[balance] = i
+    return best
+`,
   'largest-rectangle-in-histogram': `
 def largest_rectangle_area(heights):
     stack = []
@@ -131,6 +220,20 @@ def largest_rectangle_area(heights):
             best = max(best, h * (i - left - 1))
         stack.append(i)
     return best
+`,
+  'sum-subarray-minimums': `
+def sum_subarray_mins(arr):
+    mod = 10**9 + 7
+    stack = []
+    total = 0
+    for i in range(len(arr) + 1):
+        current = arr[i] if i < len(arr) else 0
+        while stack and arr[stack[-1]] >= current:
+            j = stack.pop()
+            left = stack[-1] if stack else -1
+            total += arr[j] * (j - left) * (i - j)
+        stack.append(i)
+    return total % mod
 `,
   'number-of-islands': `
 def num_islands(grid):
@@ -168,6 +271,26 @@ def oranges_rotting(grid):
         minutes += 1
     return -1 if fresh else minutes
 `,
+  'shortest-path-binary-matrix': `
+from collections import deque
+
+def shortest_path_binary_matrix(grid):
+    n = len(grid)
+    if grid[0][0] or grid[n - 1][n - 1]:
+        return -1
+    grid[0][0] = 1
+    queue = deque([(0, 0, 1)])
+    while queue:
+        r, c, length = queue.popleft()
+        if r == n - 1 and c == n - 1:
+            return length
+        for y in range(max(0, r - 1), min(n, r + 2)):
+            for x in range(max(0, c - 1), min(n, c + 2)):
+                if grid[y][x] == 0:
+                    grid[y][x] = 1
+                    queue.append((y, x, length + 1))
+    return -1
+`,
   subsets: `
 def subsets(nums):
     nums = sorted(nums)
@@ -184,6 +307,41 @@ def subsets(nums):
 
     go(0)
     return out
+`,
+  'combination-sum': `
+def combination_sum(candidates, target):
+    candidates = sorted(candidates)
+    out, path = [], []
+
+    def go(start, rest):
+        if rest == 0:
+            out.append(path[:])
+            return
+        for i in range(start, len(candidates)):
+            if candidates[i] > rest:
+                break
+            path.append(candidates[i])
+            go(i, rest - candidates[i])
+            path.pop()
+
+    go(0, target)
+    return out
+`,
+  'word-search': `
+def exist(board, word):
+    rows, cols = len(board), len(board[0])
+
+    def spells(r, c, i):
+        if not (0 <= r < rows and 0 <= c < cols) or board[r][c] != word[i]:
+            return False
+        if i == len(word) - 1:
+            return True
+        board[r][c] = '#'
+        found = spells(r + 1, c, i + 1) or spells(r - 1, c, i + 1) or spells(r, c + 1, i + 1) or spells(r, c - 1, i + 1)
+        board[r][c] = word[i]
+        return found
+
+    return any(spells(r, c, 0) for r in range(rows) for c in range(cols))
 `,
   'merge-intervals': `
 def merge(intervals):
@@ -205,6 +363,22 @@ def erase_overlap_intervals(intervals):
         else:
             end = finish
     return removed
+`,
+  'insert-interval': `
+def insert(intervals, new_interval):
+    start, end = new_interval
+    out = []
+    i, n = 0, len(intervals)
+    while i < n and intervals[i][1] < start:
+        out.append(intervals[i])
+        i += 1
+    while i < n and intervals[i][0] <= end:
+        start = min(start, intervals[i][0])
+        end = max(end, intervals[i][1])
+        i += 1
+    out.append([start, end])
+    out.extend(intervals[i:])
+    return out
 `,
   'top-k-frequent': `
 import heapq
@@ -229,6 +403,18 @@ def coin_change(coins, amount):
                 fewest[a] = fewest[a - c] + 1
     return -1 if fewest[amount] == float('inf') else fewest[amount]
 `,
+  'word-break': `
+def word_break(s, word_dict):
+    words = set(word_dict)
+    longest = max(map(len, word_dict))
+    ok = [True] + [False] * len(s)
+    for end in range(1, len(s) + 1):
+        for start in range(max(0, end - longest), end):
+            if ok[start] and s[start:end] in words:
+                ok[end] = True
+                break
+    return ok[-1]
+`,
   'kth-largest-element': `
 import heapq
 
@@ -239,6 +425,19 @@ def find_kth_largest(nums, k):
         if x > heap[0]:
             heapq.heapreplace(heap, x)
     return heap[0]
+`,
+  'k-closest-points': `
+import heapq
+
+def k_closest(points, k):
+    heap = []
+    for x, y in points:
+        entry = (-(x * x + y * y), x, y)
+        if len(heap) < k:
+            heapq.heappush(heap, entry)
+        elif entry > heap[0]:
+            heapq.heapreplace(heap, entry)
+    return [[x, y] for _, x, y in heap]
 `,
   'longest-common-subsequence': `
 def longest_common_subsequence(text1, text2):
@@ -259,6 +458,18 @@ def min_distance(word1, word2):
             row.append(prev[j - 1] if a == b else 1 + min(prev[j], row[j - 1], prev[j - 1]))
         prev = row
     return prev[-1]
+`,
+  'longest-palindromic-subsequence': `
+def longest_palindrome_subseq(s):
+    n = len(s)
+    below = [0] * n
+    for i in range(n - 1, -1, -1):
+        row = [0] * n
+        row[i] = 1
+        for j in range(i + 1, n):
+            row[j] = below[j - 1] + 2 if s[i] == s[j] else max(below[j], row[j - 1])
+        below = row
+    return below[-1]
 `,
   'count-components': `
 def count_components(n, edges):
@@ -294,6 +505,25 @@ def find_redundant_connection(edges):
             return [a, b]
         parent[ra] = rb
     return []
+`,
+  'number-of-provinces': `
+def find_circle_num(is_connected):
+    n = len(is_connected)
+    seen = [False] * n
+    provinces = 0
+    for start in range(n):
+        if seen[start]:
+            continue
+        provinces += 1
+        seen[start] = True
+        stack = [start]
+        while stack:
+            city = stack.pop()
+            for other, linked in enumerate(is_connected[city]):
+                if linked and not seen[other]:
+                    seen[other] = True
+                    stack.append(other)
+    return provinces
 `,
   'course-schedule': `
 from collections import deque
@@ -336,6 +566,22 @@ def minimum_semesters(n, relations):
                 if indeg[nxt] == 0:
                     queue.append(nxt)
     return semesters if taken == n else -1
+`,
+  'longest-increasing-path': `
+from functools import cache
+
+def longest_increasing_path(matrix):
+    rows, cols = len(matrix), len(matrix[0])
+
+    @cache
+    def longest(r, c):
+        best = 1
+        for y, x in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):
+            if 0 <= y < rows and 0 <= x < cols and matrix[y][x] > matrix[r][c]:
+                best = max(best, 1 + longest(y, x))
+        return best
+
+    return max(longest(r, c) for r in range(rows) for c in range(cols))
 `,
   'network-delay': `
 import heapq
@@ -380,6 +626,18 @@ def minimum_effort_path(heights):
                     heapq.heappush(heap, (next_cost, y, x))
     return 0
 `,
+  'cheapest-flights': `
+def find_cheapest_price(n, flights, src, dst, k):
+    cost = [float('inf')] * n
+    cost[src] = 0
+    for _ in range(k + 1):
+        next_cost = cost[:]
+        for a, b, price in flights:
+            if cost[a] + price < next_cost[b]:
+                next_cost[b] = cost[a] + price
+        cost = next_cost
+    return -1 if cost[dst] == float('inf') else cost[dst]
+`,
   'count-prefixes': `
 def count_prefixes(words, prefixes):
     root = {}
@@ -418,6 +676,41 @@ def replace_words(dictionary, sentence):
         return word
 
     return ' '.join(replace(word) for word in sentence.split(' '))
+`,
+  'word-search-ii': `
+def find_words(board, words):
+    root = {}
+    for word in words:
+        node = root
+        for letter in word:
+            node = node.setdefault(letter, {})
+        node['$'] = word
+    rows, cols = len(board), len(board[0])
+    found = []
+
+    def visit(r, c, parent):
+        letter = board[r][c]
+        node = parent.get(letter)
+        if node is None:
+            return
+        word = node.pop('$', None)
+        if word is not None:
+            found.append(word)
+        board[r][c] = '#'
+        if r > 0:
+            visit(r - 1, c, node)
+        if r + 1 < rows:
+            visit(r + 1, c, node)
+        if c > 0:
+            visit(r, c - 1, node)
+        if c + 1 < cols:
+            visit(r, c + 1, node)
+        board[r][c] = letter
+
+    for r in range(rows):
+        for c in range(cols):
+            visit(r, c, root)
+    return found
 `,
   'find-duplicate': `
 def find_duplicate(nums):
@@ -462,6 +755,23 @@ def circular_array_loop(nums):
             i = nxt
     return False
 `,
+  'happy-numbers': `
+def happy_numbers(nums):
+    def step(n):
+        total = 0
+        while n:
+            n, digit = divmod(n, 10)
+            total += digit * digit
+        return total
+
+    def is_happy(n):
+        slow, fast = n, step(n)
+        while fast != 1 and slow != fast:
+            slow, fast = step(slow), step(step(fast))
+        return fast == 1
+
+    return [n for n in nums if is_happy(n)]
+`,
   'tree-diameter': `
 def diameter_of_binary_tree(root):
     best = 0
@@ -488,6 +798,21 @@ def rob(root):
 
     return max(dfs(root))
 `,
+  'max-path-sum': `
+def max_path_sum(root):
+    best = root.val
+
+    def gain(node):
+        nonlocal best
+        if not node:
+            return 0
+        left, right = max(gain(node.left), 0), max(gain(node.right), 0)
+        best = max(best, node.val + left + right)
+        return node.val + max(left, right)
+
+    gain(root)
+    return best
+`,
   'single-number': `
 def single_number(nums):
     x = 0
@@ -502,5 +827,12 @@ def total_hamming_distance(nums):
         ones = sum((x >> bit) & 1 for x in nums)
         total += ones * (len(nums) - ones)
     return total
+`,
+  'counting-bits': `
+def count_bits(n):
+    ans = [0] * (n + 1)
+    for i in range(1, n + 1):
+        ans[i] = ans[i >> 1] + (i & 1)
+    return ans
 `,
 };

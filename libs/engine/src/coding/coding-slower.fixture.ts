@@ -72,12 +72,16 @@ function frontierScanWork(heights: number[][]): number {
 export const SLOWER: Record<string, (...args: any[]) => number> = {
   // Recomputing every answer by multiplying all other elements.
   'product-of-array-except-self': (nums: number[]) => nums.length * (nums.length - 1),
+  // Counting 0s and 1s from every start to every end.
+  'contiguous-array': (nums: number[]) => (nums.length * (nums.length + 1)) / 2,
   // Scanning left from every local peak to find the widest rectangle.
   'largest-rectangle-in-histogram': (heights: number[]) => {
     let steps = 0;
     for (let i = 0; i < heights.length; i++) if (i === heights.length - 1 || heights[i] > heights[i + 1]) steps += i + 1;
     return steps;
   },
+  // Keeping a running minimum from every start to every end.
+  'sum-subarray-minimums': (arr: number[]) => (arr.length * (arr.length + 1)) / 2,
   // Starting Floyd's cycle search independently from every index without marking completed paths.
   'circular-array-loop': (nums: number[]) => (nums.length * (nums.length - 1)) / 2,
   // Scanning backward through end-sorted intervals for each DP predecessor.
@@ -96,6 +100,12 @@ export const SLOWER: Record<string, (...args: any[]) => number> = {
     }
     return steps;
   },
+  // Rescanning from the start for an interval that overlaps or touches the growing new one, then splicing it out, once per
+  // absorbed interval: each pass looks at the intervals before it and shifts the ones after it. Measured at 20 seconds in Node.
+  'insert-interval': (intervals: number[][], newInterval: number[]) => {
+    const absorbed = intervals.filter(([start, end]) => start <= newInterval[1] && newInterval[0] <= end).length;
+    return absorbed * intervals.length - (absorbed * (absorbed - 1)) / 2;
+  },
   // Scanning roots in dictionary order for every word until the first matching root.
   'replace-words': (dictionary: string[], sentence: string) => {
     const position = new Map(dictionary.map((root, i) => [root, i]));
@@ -105,6 +115,51 @@ export const SLOWER: Record<string, (...args: any[]) => number> = {
         first = Math.min(first, position.get(word.slice(0, length)) ?? dictionary.length);
       return steps + Math.min(first + 1, dictionary.length);
     }, 0);
+  },
+  // Searching for each word on its own: a word not on the board walks every path that spells one of its proper
+  // prefixes, checking four neighbors at each step. A trie counts the paths to each prefix once.
+  'word-search-ii': (board: string[][], words: string[], found: string[]) => {
+    const children: Map<string, number>[] = [new Map()];
+    const parent = [0];
+    const ends = words.map((word) => {
+      let node = 0;
+      for (const letter of word) {
+        let next = children[node].get(letter);
+        if (next === undefined) {
+          next = children.length;
+          children[node].set(letter, next);
+          children.push(new Map());
+          parent.push(node);
+        }
+        node = next;
+      }
+      return node;
+    });
+    const paths = Array<number>(children.length).fill(0);
+    const visit = (r: number, c: number, at: number): void => {
+      const letter = board[r]?.[c];
+      const node = letter === undefined ? undefined : children[at].get(letter);
+      if (node === undefined) return;
+      paths[node]++;
+      board[r][c] = '#';
+      visit(r - 1, c, node);
+      visit(r + 1, c, node);
+      visit(r, c - 1, node);
+      visit(r, c + 1, node);
+      board[r][c] = letter!;
+    };
+    board.forEach((row, r) => row.forEach((_, c) => visit(r, c, 0)));
+    const throughPrefixes = paths.map(() => 0);
+    for (let node = 1; node < paths.length; node++) throughPrefixes[node] = throughPrefixes[parent[node]] + paths[node];
+    const onBoard = new Set(found);
+    return words.reduce((steps, word, i) => (onBoard.has(word) ? steps : steps + 4 * throughPrefixes[parent[ends[i]]]), 0);
+  },
+  // Recursing on every dictionary word that fits at a position, without remembering the positions that already failed.
+  'word-break': (s: string, wordDict: string[]) => {
+    const calls = Array<number>(s.length + 1).fill(1);
+    for (let i = s.length - 1; i >= 0; i--)
+      calls[i] = Math.min(1e12, 1 + wordDict.reduce((sum, word) => sum + (s.startsWith(word, i) ? calls[i + word.length] : 0), 0));
+    return calls[0];
   },
   // Recursing into all three edits on mismatches without memoization.
   'edit-distance': (a: string, b: string) => {
@@ -121,6 +176,17 @@ export const SLOWER: Record<string, (...args: any[]) => number> = {
       for (let j = b.length - 1; j >= 0; j--)
         calls[i][j] = Math.min(1e12, 1 + (a[i] === b[j] ? calls[i + 1][j + 1] : calls[i + 1][j] + calls[i][j + 1]));
     return calls[0][0];
+  },
+  // Recursing on both shorter ranges when the ends differ, without memoization.
+  'longest-palindromic-subsequence': (s: string) => {
+    let below = Array<number>(s.length).fill(1);
+    for (let i = s.length - 2; i >= 0; i--) {
+      const row = Array<number>(s.length).fill(1);
+      for (let j = i + 1; j < s.length; j++)
+        row[j] = Math.min(1e12, 1 + (s[i] === s[j] ? (j - 1 > i ? below[j - 1] : 1) : below[j] + row[j - 1]));
+      below = row;
+    }
+    return below[s.length - 1];
   },
   // Trying each edge-height threshold below the answer with a fresh BFS.
   'path-with-minimum-effort': (heights: number[][], expectedEffort: number) => {
@@ -143,6 +209,41 @@ export const SLOWER: Record<string, (...args: any[]) => number> = {
     });
     return firstPrerequisite.slice(1).reduce((checks, i) => checks + Math.min(i + 1, relations.length), 0);
   },
+  // A DFS from every cell without a memo, which follows every increasing path to its end.
+  'longest-increasing-path': (matrix: number[][]) => {
+    const cols = matrix[0].length;
+    const value = (cell: number) => matrix[Math.floor(cell / cols)][cell % cols];
+    const calls = new Float64Array(matrix.length * cols);
+    let total = 0;
+    for (const cell of rangeOf(0, calls.length - 1).sort((a, b) => value(b) - value(a))) {
+      const row = Math.floor(cell / cols);
+      const larger = [
+        row > 0 ? cell - cols : -1,
+        row + 1 < matrix.length ? cell + cols : -1,
+        cell % cols ? cell - 1 : -1,
+        (cell + 1) % cols ? cell + 1 : -1,
+      ];
+      calls[cell] = Math.min(
+        1e12,
+        larger.reduce((sum, next) => sum + (next >= 0 && value(next) > value(cell) ? calls[next] : 0), 1),
+      );
+      total = Math.min(1e12, total + calls[cell]);
+    }
+    return total;
+  },
+  // A DFS from src along every flight, ending a route at dst or after k + 1 flights.
+  'cheapest-flights': (n: number, flights: number[][], src: number, dst: number, k: number) => {
+    let routes = Array<number>(n).fill(0);
+    routes[src] = 1;
+    let calls = 1;
+    for (let taken = 0; taken <= k; taken++) {
+      const next = Array<number>(n).fill(0);
+      for (const [from, to] of flights) if (from !== dst) next[to] = Math.min(1e12, next[to] + routes[from]);
+      routes = next;
+      calls = Math.min(1e12, calls + next.reduce((sum, count) => sum + count, 0));
+    }
+    return calls;
+  },
   // From the back, trying each jump from an index until one lands where the end is reachable.
   'jump-game': (nums: number[]) => {
     const last = nums.length - 1;
@@ -155,6 +256,21 @@ export const SLOWER: Record<string, (...args: any[]) => number> = {
     }
     return steps;
   },
+  // Driving the loop from each start in turn, from the front or from the back, until one completes it.
+  'gas-station': (gas: number[], cost: number[], answer: number) => {
+    const n = gas.length;
+    const tank = [0];
+    for (let k = 0; k < 2 * n; k++) tank.push(tank[k] + gas[k % n] - cost[k % n]);
+    const legs = Array<number>(n).fill(n);
+    const lower: number[] = [];
+    for (let k = 2 * n; k >= 0; k--) {
+      while (lower.length && tank[lower[lower.length - 1]] >= tank[k]) lower.pop();
+      if (k < n && lower.length) legs[k] = Math.min(n, lower[lower.length - 1] - k);
+      lower.push(k);
+    }
+    const tried = (starts: number[]) => starts.reduce((sum, start) => sum + legs[start], 0);
+    return answer < 0 ? tried(rangeOf(0, n - 1)) : Math.min(tried(rangeOf(0, answer - 1)), tried(rangeOf(answer + 1, n - 1)));
+  },
   // Growing a window from every start until its sum reaches the target.
   'min-size-subarray-sum': (target: number, nums: number[]) => {
     let steps = 0;
@@ -166,13 +282,57 @@ export const SLOWER: Record<string, (...args: any[]) => number> = {
     }
     return steps;
   },
+  // Extending a window from every start until it needs more than k changes: past that point it never needs fewer.
+  'character-replacement': (s: string, k: number) => {
+    let steps = 0;
+    const reach = Array<number>(s.length).fill(0);
+    for (const letter of new Set(s)) {
+      const others = [...s].flatMap((ch, i) => (ch === letter ? [] : [i]));
+      for (let i = 0, next = 0; i < s.length; i++) {
+        while (next < others.length && others[next] < i) next++;
+        reach[i] = Math.max(reach[i], others[next + k] ?? s.length);
+      }
+    }
+    for (let i = 0; i < s.length; i++) steps += reach[i] - i;
+    return steps;
+  },
+  // Counting upward from every value, not only from the start of each run.
+  'longest-consecutive-sequence': (nums: number[]) => {
+    const values = [...new Set(nums)].sort((a, b) => a - b);
+    let steps = 0;
+    for (let i = 0, run = 1; i < values.length; i++, run++) {
+      if (i + 1 < values.length && values[i + 1] === values[i] + 1) continue;
+      steps += (run * (run + 1)) / 2;
+      run = 0;
+    }
+    return steps;
+  },
+  // Trying every triple of indices.
+  'three-sum': (nums: number[]) => (nums.length * (nums.length - 1) * (nums.length - 2)) / 6,
+  // Picking the closest remaining point with a full scan, k times.
+  'k-closest-points': (points: number[][], k: number) => k * points.length - (k * (k - 1)) / 2,
   // Scanning the whole grid once a minute for fresh oranges next to rotten ones.
   'rotting-oranges': (grid: number[][]) => ((rottingOranges.solve(grid) as number) + 1) * grid.length * grid[0].length,
+  // Scanning the whole grid once per step of the path for open cells next to the last step's cells.
+  'shortest-path-binary-matrix': (grid: number[][], expectedLength: number) => expectedLength * grid.length ** 2,
   // Extending every subset found so far by the next number, and looking through the list for a copy before adding one.
   subsets: (nums: number[]) => {
     let steps = 0;
     for (let found = 1; found < 2 ** nums.length; found *= 2) steps += found * found + (found * (found - 1)) / 2;
     return steps;
+  },
+  // Trying every candidate at every step, so each ordering of a combination is searched, then dropping the repeats.
+  'combination-sum': (candidates: number[], target: number) => {
+    const calls = [1];
+    for (let rest = 1; rest <= target; rest++)
+      calls.push(Math.min(1e12, 1 + candidates.reduce((sum, c) => sum + (c <= rest ? calls[rest - c] : 0), 0)));
+    return calls[target];
+  },
+  // Building every path as long as the word and comparing only then: from each cell with room for the word to the right
+  // and below, the paths that only step right or down already number 2^(L-1).
+  'word-search': (board: string[][], word: string) => {
+    const room = (size: number) => Math.max(0, size - word.length + 1);
+    return room(board.length) * room(board[0].length) * 2 ** (word.length - 1);
   },
   // Recursing on every coin without a memo.
   'coin-change': (coins: number[], amount: number) => {
@@ -235,6 +395,8 @@ export const SLOWER: Record<string, (...args: any[]) => number> = {
     }
     return steps;
   },
+  // A search from every node across the whole tree, through parents too, for the best path that ends there.
+  'max-path-sum': (root: TreeNode | null) => nodesOf(root).nodes.length ** 2,
 };
 
 export const SLOWER_MIN_STEPS: Record<string, number> = {
@@ -245,6 +407,37 @@ export const SLOWER_MIN_STEPS: Record<string, number> = {
 };
 
 export const SLOWER_VARIANTS: Record<string, Record<string, (...args: any[]) => number>> = {
+  'sum-subarray-minimums': {
+    // Walking out from each value to the nearest smaller one on either side, with ties stopping the walk on one side.
+    'expand around each value': (arr: number[]) => {
+      const walk = (stopLeft: (a: number, b: number) => boolean, stopRight: (a: number, b: number) => boolean) => {
+        let steps = 0;
+        const stack: number[] = [];
+        for (let i = 0; i < arr.length; i++) {
+          while (stack.length && !stopLeft(arr[stack[stack.length - 1]], arr[i])) stack.pop();
+          steps += i - (stack.length ? stack[stack.length - 1] : -1);
+          stack.push(i);
+        }
+        stack.length = 0;
+        for (let i = arr.length - 1; i >= 0; i--) {
+          while (stack.length && !stopRight(arr[stack[stack.length - 1]], arr[i])) stack.pop();
+          steps += (stack.length ? stack[stack.length - 1] : arr.length) - i;
+          stack.push(i);
+        }
+        return steps;
+      };
+      return Math.min(
+        walk(
+          (other, value) => other <= value,
+          (other, value) => other < value,
+        ),
+        walk(
+          (other, value) => other < value,
+          (other, value) => other <= value,
+        ),
+      );
+    },
+  },
   'path-with-minimum-effort': {
     // A heap reproduces the relaxations while counting the entries a linear frontier minimum scan examines.
     'linear minimum over frontier': (heights: number[][]) => frontierScanWork(heights),
@@ -296,5 +489,20 @@ export const SLOWER_VARIANTS: Record<string, Record<string, (...args: any[]) => 
       return steps;
     },
     'scan once per distinct height': (heights: number[]) => heights.length * new Set(heights).size,
+  },
+  'three-sum': {
+    'sorted triple loop that stops once the sum passes zero': (nums: number[]) => {
+      const sorted = [...nums].sort((a, b) => a - b);
+      const n = sorted.length;
+      let steps = 0;
+      for (let i = 0; i < n - 2 && sorted[i] <= 0; i++) {
+        let firstOver = n;
+        for (let j = i + 1; j < n - 1; j++) {
+          while (firstOver - 1 > j && sorted[firstOver - 1] > -(sorted[i] + sorted[j])) firstOver--;
+          steps += firstOver < n ? Math.max(firstOver, j + 1) - j : n - 1 - j;
+        }
+      }
+      return steps;
+    },
   },
 };

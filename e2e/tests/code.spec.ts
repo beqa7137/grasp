@@ -392,21 +392,23 @@ test('the call stack keeps no empty room above its calls for deeper frames still
   await trace(page, JS_DIAMETER, 'Diameter of Binary Tree');
   const stack = page.locator('app-trace-player g-list-view.calls');
   const calls = stack.getByRole('listitem');
+  // Layout offsets, not client rects: each call pops in from 70% scale, and a scaled box's rect sits lower until it ends.
   const gapUnderLabel = () =>
     stack.evaluate((list) => {
-      const label = list.querySelector('.label')!.getBoundingClientRect();
-      return Math.min(...[...list.querySelectorAll('.item')].map((item) => item.getBoundingClientRect().top)) - label.bottom;
+      const top = (el: Element) => {
+        let y = 0;
+        for (let node = el as HTMLElement | null; node && node !== list; node = node.offsetParent as HTMLElement | null)
+          y += node.offsetTop;
+        return y;
+      };
+      const label = list.querySelector<HTMLElement>('.label')!;
+      return Math.min(...[...list.querySelectorAll('.item')].map(top)) - (top(label) + label.offsetHeight);
     });
   await expect(calls).toHaveCount(1);
   const oneDeep = await gapUnderLabel();
   await seek(page, 7, 'Called height(TreeNode(4))');
   await expect(calls).toHaveCount(4);
-  // Four calls are in the list before WebKit under load has laid them out, so wait for the layout to settle.
-  await expect
-    .poll(async () => Math.abs((await gapUnderLabel()) - oneDeep), {
-      message: 'the top call sits as far under the label one call deep as four',
-    })
-    .toBeLessThan(1);
+  expect(Math.abs((await gapUnderLabel()) - oneDeep), 'the top call sits as far under the label one call deep as four').toBeLessThan(1);
 });
 
 test('a trace of pairs gives each value a cell wide enough for it, over its own index', async ({ page }) => {
