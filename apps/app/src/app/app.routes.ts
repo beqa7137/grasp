@@ -6,6 +6,7 @@ import {
   getPatternSummary,
   getProblemSummary,
   getScenarioSummary,
+  getSdTopic,
 } from '@grasp/engine';
 import { FREE_BUILD } from './pages/design/free-build';
 
@@ -24,6 +25,11 @@ export const routes: Routes = [
           return pattern ? `${pattern.name} pattern` : 'Pattern';
         },
         loadComponent: () => import('./pages/pattern/pattern.page').then((m) => m.PatternPage),
+      },
+      {
+        path: 'learn/design/:id',
+        title: (route) => getSdTopic(idOf(route))?.name ?? 'System design',
+        loadComponent: () => import('./pages/design-lesson/design-lesson.page').then((m) => m.DesignLessonPage),
       },
       {
         path: 'visualize',

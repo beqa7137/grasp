@@ -5,3 +5,4 @@ export * from './scenario-catalog.js';
 export * from './scenarios.js';
 export * from './case-catalog.js';
 export * from './cases/index.js';
+export * from './lessons/index.js';

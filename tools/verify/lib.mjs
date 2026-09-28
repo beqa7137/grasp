@@ -148,6 +148,24 @@ export function states() {
       },
     },
     { id: 'case-build', path: '/design/free-build?case=news-feed' },
+    { id: 'lesson-latency', path: '/learn/design/sd-latency', setup: (p) => p.locator('#try').scrollIntoViewIfNeeded() },
+    {
+      id: 'lesson-caching-flushed',
+      path: '/learn/design/sd-caching',
+      setup: async (p) => {
+        await p.locator('#try').scrollIntoViewIfNeeded();
+        await p.getByRole('button', { name: 'Flush the cache' }).click();
+      },
+    },
+    {
+      id: 'lesson-sharding-added',
+      path: '/learn/design/sd-sharding',
+      setup: async (p) => {
+        await p.locator('#try').scrollIntoViewIfNeeded();
+        await p.getByRole('button', { name: 'Add node E' }).click();
+      },
+    },
+    { id: 'lesson-queues', path: '/learn/design/sd-queues', setup: (p) => p.locator('#try').scrollIntoViewIfNeeded() },
     { id: 'interview-home', path: '/interview' },
     { id: 'lesson-binary-search', path: '/learn/pattern/binary-search' },
     {

@@ -62,6 +62,7 @@ describe('first paint', () => {
       'getPatternSummary',
       'getProblemSummary',
       'getScenarioSummary',
+      'getSdTopic',
       'masteryByTopic',
       'missionRevisits',
       'planReminders',
