@@ -21,7 +21,7 @@ test('the first Design Lab mission can be solved from the inspector', async ({ p
 
   // The starter's direct Users → App link is the first connection on the board.
   await page.locator('g.edge').first().dispatchEvent('pointerdown');
-  await sidebar.getByRole('button', { name: 'Remove connection' }).click();
+  await sidebar.getByRole('button', { name: 'Remove connection', exact: true }).click();
 
   await node('app').click();
   for (let i = 0; i < 3; i++) await sidebar.getByRole('button', { name: 'More instances', exact: true }).click();

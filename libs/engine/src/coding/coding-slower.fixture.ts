@@ -1,4 +1,6 @@
 import { rangeOf } from '../algorithms/input.js';
+import { removalCounts } from './problems/batch-p.js';
+import { lockNeighbors } from './problems/batch-n.js';
 import { rottingOranges } from './problems/grids.js';
 import { MinHeap } from './problems/min-heap.js';
 import type { TreeNode } from './tree.js';
@@ -110,6 +112,29 @@ function interleavingCalls(s1: string, s2: string, s3: string): number {
   return below[0];
 }
 
+/** Calls a recursion makes that matches t's letters in s from the front, without a memo, stopping when too little of s is left. */
+function distinctCalls(s: string, t: string): number {
+  let below = new Float64Array(t.length + 1).fill(1);
+  for (let i = s.length - 1; i >= 0; i--) {
+    const row = new Float64Array(t.length + 1).fill(1);
+    for (let j = 0; j < t.length; j++)
+      if (s.length - i >= t.length - j) row[j] = Math.min(1e12, 1 + below[j] + (s[i] === t[j] ? below[j + 1] : 0));
+    below = row;
+  }
+  return below[0];
+}
+
+/** The length of the strictly rising run that ends at each index, read from the front or from the back. */
+function slopeRuns(ratings: number[], fromEnd: boolean): number[] {
+  const n = ratings.length;
+  const runs = Array<number>(n).fill(1);
+  for (let k = 1; k < n; k++) {
+    const [i, previous] = fromEnd ? [n - 1 - k, n - k] : [k, k - 1];
+    if (ratings[i] > ratings[previous]) runs[i] = runs[previous] + 1;
+  }
+  return runs;
+}
+
 /** Steps patience sorting takes when it scans the tails for each value's place instead of binary searching them. */
 function tailScans(nums: number[], fromEnd: boolean): number {
   const tails: number[] = [];
@@ -162,6 +187,17 @@ export const SLOWER: Record<string, (...args: any[]) => number> = {
     const lowest = Math.max(largest, Math.ceil(total / k));
     return (answer - lowest) * Math.min(nums.length, k * Math.floor(lowest / largest));
   },
+  // The same count for trying each capacity upward: a failing check fills every day before it runs out.
+  'ship-within-days': (weights: number[], days: number, answer: number) => {
+    let heaviest = 0;
+    let total = 0;
+    for (const w of weights) {
+      heaviest = Math.max(heaviest, w);
+      total += w;
+    }
+    const lowest = Math.max(heaviest, Math.ceil(total / days));
+    return (answer - lowest) * Math.min(weights.length, days * Math.floor(lowest / heaviest));
+  },
   // Recomputing every answer by multiplying all other elements.
   'product-of-array-except-self': (nums: number[]) => nums.length * (nums.length - 1),
   // Counting 0s and 1s from every start to every end.
@@ -169,6 +205,19 @@ export const SLOWER: Record<string, (...args: any[]) => number> = {
   // Scanning left from every local peak to find the widest rectangle.
   // Summing every subarray from every start.
   'subarray-sums-divisible-k': (nums: number[]) => (nums.length * (nums.length + 1)) / 2,
+  // Extending every start until it passes k odd values, or reaches the end.
+  'count-nice-subarrays': (nums: number[], k: number) => {
+    const odd = nums.flatMap((x, i) => (x % 2 ? [i] : []));
+    let before = 0;
+    let steps = 0;
+    nums.forEach((x, i) => {
+      steps += (odd[before + k] ?? nums.length - 1) - i + 1;
+      before += x % 2;
+    });
+    return steps;
+  },
+  // Counting tiring days from every start to every end.
+  'longest-well-performing-interval': (hours: number[]) => (hours.length * (hours.length + 1)) / 2,
   'largest-rectangle-in-histogram': (heights: number[]) => {
     let steps = 0;
     for (let i = 0; i < heights.length; i++) if (i === heights.length - 1 || heights[i] > heights[i + 1]) steps += i + 1;
@@ -193,6 +242,36 @@ export const SLOWER: Record<string, (...args: any[]) => number> = {
     });
     return steps;
   },
+  // Rescanning from the front for the first digit bigger than the next and cutting it out, once per removal: the scan
+  // reaches the top of the falling-free stack the linear solution keeps, and a removal left over at the end scans it all.
+  'remove-k-digits': (num: string, k: number) => {
+    const kept: string[] = [];
+    let steps = 0;
+    for (const digit of num) {
+      while (k > 0 && kept.length && kept[kept.length - 1] > digit) {
+        steps += kept.length;
+        kept.pop();
+        k--;
+      }
+      kept.push(digit);
+    }
+    for (; k > 0; k--) steps += kept.length--;
+    return steps;
+  },
+  // Walking forward from every value, wrapping around, until a greater one comes up.
+  'next-greater-element-ii': (nums: number[]) => {
+    const n = nums.length;
+    const reach = Array<number>(n).fill(n - 1);
+    const stack: number[] = [];
+    for (let i = 0; i < 2 * n; i++) {
+      while (stack.length && nums[stack[stack.length - 1]] < nums[i % n]) {
+        const j = stack.pop()!;
+        reach[j] = i - j;
+      }
+      if (i < n) stack.push(i);
+    }
+    return reach.reduce((a, b) => a + b, 0);
+  },
   'circular-array-loop': (nums: number[]) => (nums.length * (nums.length - 1)) / 2,
   // Scanning backward through end-sorted intervals for each DP predecessor.
   'non-overlapping-intervals': (intervals: number[][]) => {
@@ -216,6 +295,8 @@ export const SLOWER: Record<string, (...args: any[]) => number> = {
     const absorbed = intervals.filter(([start, end]) => start <= newInterval[1] && newInterval[0] <= end).length;
     return absorbed * intervals.length - (absorbed * (absorbed - 1)) / 2;
   },
+  // Intersecting every pair of intervals.
+  'interval-list-intersections': (firstList: number[][], secondList: number[][]) => firstList.length * secondList.length,
   // Shooting at the smallest end among the balloons left, then filtering the burst ones out: each arrow scans every
   // balloon still flying. A balloon bursts at the first arrow at or after its start.
   'min-arrows-balloons': (points: number[][]) => {
@@ -316,6 +397,33 @@ export const SLOWER: Record<string, (...args: any[]) => number> = {
   'longest-increasing-subsequence': (nums: number[]) => (nums.length * (nums.length - 1)) / 2,
   // Recursing on taking the next letter from s1 or from s2 without a memo.
   'interleaving-string': (s1: string, s2: string, s3: string) => interleavingCalls(s1, s2, s3),
+  // Recursing on skipping or using each letter of s without a memo.
+  'distinct-subsequences': (s: string, t: string) => distinctCalls(s, t),
+  // Walking every path from the top-left cell without a memo: one call per way into each open cell.
+  'unique-paths-ii': (grid: number[][]) => {
+    let steps = 0;
+    const ways = Array<number>(grid[0].length).fill(0);
+    ways[0] = 1;
+    for (const row of grid)
+      row.forEach((cell, c) => {
+        ways[c] = cell ? 0 : Math.min(1e12, ways[c] + (c > 0 ? ways[c - 1] : 0));
+        steps = Math.min(1e12, steps + ways[c]);
+      });
+    return steps;
+  },
+  // Checking every substring from its ends inward, stopping at the first pair of letters that differ.
+  'count-palindromic-substrings': (s: string) => {
+    let steps = 0;
+    for (let center = 0; center < 2 * s.length - 1; center++) {
+      let left = Math.floor((center - 1) / 2);
+      let right = Math.floor(center / 2) + 1;
+      for (let pairs = 1, lastMismatch = 0; left >= 0 && right < s.length; pairs++, left--, right++) {
+        if (s[left] !== s[right]) lastMismatch = pairs;
+        steps += lastMismatch ? pairs - lastMismatch + 1 : pairs;
+      }
+    }
+    return steps;
+  },
   // Searching from the end of s for the last index of the letter at every index.
   'partition-labels': (s: string) => {
     const last = new Map<string, number>();
@@ -323,6 +431,12 @@ export const SLOWER: Record<string, (...args: any[]) => number> = {
     let steps = 0;
     for (const letter of s) steps += s.length - last.get(letter)!;
     return steps;
+  },
+  // Walking out from every child to the ends of the slopes it sits on.
+  candy: (ratings: number[]) => {
+    const rising = slopeRuns(ratings, false);
+    const falling = slopeRuns(ratings, true);
+    return rising.reduce((steps, run, i) => steps + run - 1 + falling[i] - 1, 0);
   },
   // Recursing on the one-digit and the two-digit letter at each position without a memo.
   'decode-ways': (s: string) => {
@@ -333,6 +447,20 @@ export const SLOWER: Record<string, (...args: any[]) => number> = {
       calls[i] = Math.min(1e12, 1 + (s[i] === '0' ? 0 : calls[i + 1] + (pair && i + 1 < s.length ? calls[i + 2] : 0)));
     }
     return calls[0];
+  },
+  // Every subarray, each stopped at the first 0 it reaches.
+  'maximum-product-subarray': (nums: number[]) => {
+    let steps = 0;
+    let run = 0;
+    for (const x of nums) steps += run = x ? run + 1 : 0;
+    return steps;
+  },
+  // Recursing on every value without a memo.
+  'combination-sum-iv': (nums: number[], target: number) => {
+    const calls = [1];
+    for (let rest = 1; rest <= target; rest++)
+      calls.push(Math.min(1e12, 1 + nums.reduce((sum, x) => sum + (x <= rest ? calls[rest - x] : 0), 0)));
+    return calls[target];
   },
   // Recursing into all three edits on mismatches without memoization.
   'edit-distance': (a: string, b: string) => {
@@ -406,6 +534,8 @@ export const SLOWER: Record<string, (...args: any[]) => number> = {
   },
   // A breadth-first search from every node, to find the height of the tree rooted there.
   'minimum-height-trees': (n: number) => n * n,
+  // Scanning the values not yet placed for the one with nothing left before it, at each step.
+  'sequence-reconstruction': (nums: number[]) => (nums.length * (nums.length + 1)) / 2,
   // A DFS from src along every flight, ending a route at dst or after k + 1 flights.
   'cheapest-flights': (n: number, flights: number[][], src: number, dst: number, k: number) => {
     let routes = Array<number>(n).fill(0);
@@ -421,6 +551,12 @@ export const SLOWER: Record<string, (...args: any[]) => number> = {
   },
   // Raising the water one step at a time and searching again from the start, which visits the start's open region.
   'swim-rising-water': (grid: number[][], answer: number) => startRegionSizes(grid, answer).reduce((steps, size) => steps + size, 0),
+  // Dijkstra that finds the next cell to settle by scanning every cell: each cell needing fewer removals than the far
+  // corner settles before it.
+  'minimum-obstacle-removal': (grid: number[][], answer: number) => {
+    const removed = removalCounts(grid);
+    return removed.filter((count) => count < answer).length * removed.length;
+  },
   // From the back, trying each jump from an index until one lands where the end is reachable.
   'jump-game': (nums: number[]) => {
     const last = nums.length - 1;
@@ -456,6 +592,18 @@ export const SLOWER: Record<string, (...args: any[]) => number> = {
       while (hi < nums.length && sum < target) sum += nums[hi++];
       steps += (sum >= target ? hi : nums.length) - lo;
       sum -= nums[lo];
+    }
+    return steps;
+  },
+  // Growing a window from every start until it would need one flip more than k.
+  'max-consecutive-ones-iii': (nums: number[], k: number) => {
+    let steps = 0;
+    let zeros = 0;
+    for (let lo = 0, hi = 0; lo < nums.length; lo++) {
+      while (hi < nums.length && zeros + (nums[hi] === 0 ? 1 : 0) <= k) zeros += nums[hi++] === 0 ? 1 : 0;
+      steps += hi - lo;
+      if (hi > lo && nums[lo] === 0) zeros--;
+      if (hi === lo) hi++;
     }
     return steps;
   },
@@ -527,12 +675,65 @@ export const SLOWER: Record<string, (...args: any[]) => number> = {
   'three-sum': (nums: number[]) => (nums.length * (nums.length - 1) * (nums.length - 2)) / 6,
   // Scanning the whole array for the tallest bars on each side of every bar.
   'trapping-rain-water': (height: number[]) => height.length ** 2,
+  // Sorted, but scanning everyone still waiting for the heaviest partner that fits the heaviest person, once per boat.
+  'boats-to-save-people': (people: number[], limit: number) => {
+    const sorted = [...people].sort((a, b) => a - b);
+    let steps = 0;
+    for (let lo = 0, hi = sorted.length - 1; lo <= hi; hi--) {
+      steps += hi - lo + 1;
+      if (sorted[lo] + sorted[hi] <= limit) lo++;
+    }
+    return steps;
+  },
   // Picking the closest remaining point with a full scan, k times.
   'k-closest-points': (points: number[][], k: number) => k * points.length - (k * (k - 1)) / 2,
   // Stepping through the units one at a time, looking over the 26 kinds in each for the ready one with the most left.
   'task-scheduler': (_tasks: string[], _n: number, units: number) => 26 * units,
   // Picking the smallest value not yet taken with a scan of the whole matrix, k times.
   'kth-smallest-sorted-matrix': (matrix: number[][], k: number) => k * matrix.length ** 2,
+  // Finding the two heaviest stones with a scan of every stone left, each turn.
+  'last-stone-weight': (stones: number[]) => {
+    const heap = new MinHeap();
+    for (const stone of stones) heap.push([-stone, 0]);
+    let steps = 0;
+    while (heap.size > 1) {
+      steps += heap.size;
+      const y = -heap.pop()[0];
+      const x = -heap.pop()[0];
+      if (x !== y) heap.push([x - y, 0]);
+    }
+    return steps;
+  },
+  // Picking each next value with a scan of the next value of every array not yet used up. An array stays open at least
+  // until every value smaller than its last one is out.
+  'merge-k-sorted-arrays': (arrays: number[][]) => {
+    const values = arrays.flat().sort((a, b) => a - b);
+    const smaller = (value: number) => {
+      let lo = 0;
+      for (let hi = values.length; lo < hi;) {
+        const mid = (lo + hi) >> 1;
+        if (values[mid] < value) lo = mid + 1;
+        else hi = mid;
+      }
+      return lo;
+    };
+    return arrays.reduce((steps, array) => (array.length ? steps + smaller(array[array.length - 1]) + 1 : steps), 0);
+  },
+  // Scanning every project left for the most profitable one the capital reaches, once per project done and once more
+  // when none is left to do.
+  ipo: (k: number, w: number, profits: number[], capital: number[]) => {
+    const byCapital = rangeOf(0, profits.length - 1).sort((a, b) => capital[a] - capital[b]);
+    const open = new MinHeap();
+    let next = 0;
+    let steps = 0;
+    for (let done = 0; done < k; done++) {
+      steps += profits.length - done;
+      while (next < byCapital.length && capital[byCapital[next]] <= w) open.push([-profits[byCapital[next++]], 0]);
+      if (!open.size) break;
+      w -= open.pop()[0];
+    }
+    return steps;
+  },
   // Scanning the whole grid once a minute for fresh oranges next to rotten ones.
   'rotting-oranges': (grid: number[][]) => ((rottingOranges.solve(grid) as number) + 1) * grid.length * grid[0].length,
   // Scanning the whole grid once per step of the path for open cells next to the last step's cells.
@@ -563,6 +764,24 @@ export const SLOWER: Record<string, (...args: any[]) => number> = {
     const zeros = mat.flat().filter((cell) => cell === 0).length;
     return zeros * (mat.length * mat[0].length - zeros);
   },
+  // A BFS that never remembers the codes it has queued queues every deadend-free walk from 0000 shorter than the answer.
+  'open-the-lock': (deadends: string[], _target: string, turns: number) => {
+    const dead = new Set(deadends.map(Number));
+    let walks = new Float64Array(10_000);
+    walks[0] = dead.has(0) ? 0 : 1;
+    let steps = 0;
+    for (let length = 0; length < turns; length++) {
+      const next = new Float64Array(10_000);
+      walks.forEach((count, code) => {
+        steps += count;
+        if (count) for (const to of lockNeighbors(code)) if (!dead.has(to)) next[to] += count;
+      });
+      walks = next;
+    }
+    return steps;
+  },
+  // A BFS that never remembers the squares it has queued puts all 8^d paths of d moves on level d.
+  'minimum-knight-moves': (_x: number, _y: number, moves: number) => (8 ** moves - 1) / 7,
   // Extending every subset found so far by the next number, and looking through the list for a copy before adding one.
   subsets: (nums: number[]) => {
     let steps = 0;
@@ -594,6 +813,10 @@ export const SLOWER: Record<string, (...args: any[]) => number> = {
     for (let placed = 1, orderings = 1; placed <= n; placed++) calls += orderings *= n - placed + 1;
     return calls;
   },
+  // Building every string of n opening and n closing brackets, one character per call, and keeping the well-formed ones.
+  'generate-parentheses': (n: number) => 2 ** (2 * n + 1) - 1,
+  // Building every combination and searching the list found so far for a copy before adding it.
+  'letter-combinations': (_digits: string, expected: string[]) => (expected.length * (expected.length - 1)) / 2,
   // Recursing on every coin without a memo.
   'coin-change': (coins: number[], amount: number) => {
     const calls = [1];
@@ -632,6 +855,20 @@ export const SLOWER: Record<string, (...args: any[]) => number> = {
     for (const e of equations) if (e[1] === '=') inGroup[find(letter(e, 0))]++;
     return equations.reduce((steps, e) => (e[1] === '!' ? steps + 2 * inGroup[find(letter(e, 0))] : steps), 0);
   },
+  // A separate search from every position to gather the letters of its group.
+  'smallest-string-with-swaps': (s: string, pairs: number[][]) => {
+    const parent = rangeOf(0, s.length - 1);
+    const find = (x: number): number => {
+      while (parent[x] !== x) x = parent[x] = parent[parent[x]];
+      return x;
+    };
+    for (const [a, b] of pairs) parent[find(a)] = find(b);
+    const size = Array<number>(s.length).fill(0);
+    for (let i = 0; i < s.length; i++) size[find(i)]++;
+    return size.reduce((steps, k) => steps + k * k, 0);
+  },
+  // Comparing every pair of stones for a shared row or column.
+  'most-stones-removed': (stones: number[][]) => (stones.length * (stones.length - 1)) / 2,
   // Nested loops stop at a copy of the duplicate, and both copies sit mid-array, so scanning from either end is quadratic.
   'find-duplicate': (nums: number[]) => {
     const firstAt = new Map<number, number>();
@@ -655,6 +892,15 @@ export const SLOWER: Record<string, (...args: any[]) => number> = {
   'total-hamming-distance': (nums: number[]) => (nums.length * (nums.length - 1)) / 2,
   // Trying every pair of indices.
   'maximum-xor-pair': (nums: number[]) => (nums.length * (nums.length + 1)) / 2,
+  // Trying each candidate from 0 up, or from n down, and scanning the list for it from either end.
+  'missing-number': (nums: number[]) => {
+    const n = nums.length;
+    const at = Array<number>(n + 1).fill(-1);
+    nums.forEach((x, i) => (at[x] = i));
+    const missing = at.indexOf(-1);
+    const scans = (candidates: number[]) => candidates.reduce(([front, back], x) => [front + at[x] + 1, back + n - at[x]], [n, n]);
+    return Math.min(...scans(rangeOf(0, missing - 1)), ...scans(rangeOf(missing + 1, n)));
+  },
   // A breadth-first search from every node.
   'tree-diameter': (root: TreeNode | null) => nodesOf(root).nodes.length ** 2,
   // Recursing into children and grandchildren without a memo evaluates a node once per way down to it in steps of one and two levels.
@@ -682,11 +928,39 @@ export const SLOWER_MIN_STEPS: Record<string, number> = {
   'word-ladder': 3e8,
   // 11! = 39,916,800 orderings; building and checking them took 3.7 seconds in Node, against a 2 second limit.
   'n-queens-count': 1e8,
+  // 2^25 calls; building the 4^12 strings of 24 brackets that way and checking each took 4.2 seconds in Node.
+  'generate-parentheses': 3e7,
   // Each step is a hash lookup of a three-value sum; the 10^9 of them in the performance case took 27 seconds in Node.
   'four-sum-count': 9e8,
+  // Each step compares two letters; the 1.0e9 of them in the performance case took over 4 seconds in Node, even with
+  // charCodeAt and no substring copies, against a 2 second limit.
+  'count-palindromic-substrings': 9e8,
 };
 
 export const SLOWER_VARIANTS: Record<string, Record<string, (...args: any[]) => number>> = {
+  'longest-well-performing-interval': {
+    // Trying every length from the longest down, each over every window with prefix sums, until one works.
+    'longest lengths first': (hours: number[], answer: number) => ((hours.length - answer) * (hours.length - answer + 1)) / 2,
+  },
+  'interval-list-intersections': {
+    // For each interval of the first list, scanning the second from its start until an interval starts past its end.
+    'rescan the second list for each interval': (firstList: number[][], secondList: number[][]) => {
+      let steps = 0;
+      let j = 0;
+      for (const [, end] of firstList) {
+        while (j < secondList.length && secondList[j][0] <= end) j++;
+        steps += Math.min(j + 1, secondList.length);
+      }
+      return steps;
+    },
+  },
+  'merge-k-sorted-arrays': {
+    // Merging each array into the result in turn copies everything merged so far each time.
+    'merge the arrays into the result one at a time': (arrays: number[][]) => {
+      let merged = 0;
+      return arrays.reduce((steps, array) => steps + (merged += array.length), 0);
+    },
+  },
   'split-array-largest-sum': {
     // The best cost of the first i values in p parts, from every earlier end of p - 1 parts.
     'dynamic programming over parts and ends': (nums: number[], k: number) => ((k - 1) * nums.length * (nums.length - 1)) / 2,
@@ -724,6 +998,17 @@ export const SLOWER_VARIANTS: Record<string, Record<string, (...args: any[]) => 
   'interleaving-string': {
     'recurse from the ends without a memo': (s1: string, s2: string, s3: string) =>
       interleavingCalls([...s1].reverse().join(''), [...s2].reverse().join(''), [...s3].reverse().join('')),
+  },
+  'distinct-subsequences': {
+    'recurse from the ends without a memo': (s: string, t: string) => distinctCalls([...s].reverse().join(''), [...t].reverse().join('')),
+  },
+  candy: {
+    // A pass that raises each child above whichever neighbor it beats settles a slope running against the pass one
+    // child at a time, so passes in one direction repeat once per child on the longest such slope.
+    'repeat one-way passes until nothing changes': (ratings: number[]) => {
+      const longest = (fromEnd: boolean) => slopeRuns(ratings, fromEnd).reduce((a, b) => Math.max(a, b));
+      return ratings.length * Math.min(longest(false), longest(true));
+    },
   },
   'longest-word-in-dictionary': {
     // Scanning for prefixes too, but longest words first, stopping at the first one that can be built.
@@ -791,6 +1076,20 @@ export const SLOWER_VARIANTS: Record<string, Record<string, (...args: any[]) => 
         }
       }
       return total;
+    },
+  },
+  'sequence-reconstruction': {
+    // Looking through the adjacent pairs of the lists, in order, for each adjacent pair of nums.
+    'search the lists for each pair of nums': (nums: number[], sequences: number[][]) => {
+      const firstAt = new Map<string, number>();
+      let at = 0;
+      for (const list of sequences)
+        for (let i = 1; i < list.length; i++) {
+          const key = `${list[i - 1]},${list[i]}`;
+          if (!firstAt.has(key)) firstAt.set(key, at);
+          at++;
+        }
+      return nums.slice(1).reduce((steps, value, i) => steps + (firstAt.get(`${nums[i]},${value}`) ?? at) + 1, 0);
     },
   },
   'largest-rectangle-in-histogram': {
