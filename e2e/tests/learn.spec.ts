@@ -1,4 +1,4 @@
-import { expect, test } from './fixtures';
+import { expect, synced, test } from './fixtures';
 
 test.describe('first visit', () => {
   test.use({ pilotNoticeSeen: false });
@@ -38,6 +38,26 @@ test('deep links load directly, and unknown paths land on Learn', { tag: '@smoke
   await expect(page.getByRole('heading', { name: 'Binary Search', level: 1 })).toBeVisible();
   await page.goto('/no-such-page');
   await expect(page).toHaveURL(/\/learn$/);
+});
+
+test('an answer waiting for its upload never shows progress as waiting to sync', async ({ page }) => {
+  await page.goto('/learn');
+  const status = page.locator('app-learn .sync');
+  await expect(status).toHaveAttribute('data-status', 'synced');
+  await status.evaluate((element) => {
+    const seen = new Set([element.getAttribute('data-status')]);
+    new MutationObserver(() => seen.add(element.getAttribute('data-status'))).observe(element, { attributes: true });
+    Object.assign(window, { syncStatuses: seen });
+  });
+
+  await page.getByRole('tab', { name: 'Review' }).click();
+  const sync = synced(page, 'review.graded');
+  await page.locator('g-question-card .choice').first().click();
+  await page.getByRole('button', { name: /^(Got it|Continue)/ }).click();
+  await page.getByRole('tab', { name: 'Learn' }).click();
+  await sync;
+  await expect(status).toHaveAttribute('data-status', 'synced');
+  expect(await page.evaluate(() => [...(window as unknown as { syncStatuses: Set<string> }).syncStatuses])).not.toContain('pending');
 });
 
 test.describe('warmed offline lessons', () => {
@@ -102,9 +122,9 @@ test.describe('progress sync recovery', () => {
     await expect(retry).toBeFocused();
 
     await page.keyboard.press('Enter');
-    const synced = page.locator('.sync[data-status="synced"]');
-    await expect(synced).toBeVisible();
+    const syncedStatus = page.locator('.sync[data-status="synced"]');
+    await expect(syncedStatus).toBeVisible();
     await expect(alert).toHaveCount(0);
-    await expect(synced).toBeFocused();
+    await expect(syncedStatus).toBeFocused();
   });
 });
