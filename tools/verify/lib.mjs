@@ -126,6 +126,18 @@ export function states() {
     { id: 'sandbox-inspector', path: '/design/first-scale-up', setup: (p) => answerFirst(p, '.palette .tool') },
     { id: 'sandbox-free', path: '/design/free-build' },
     { id: 'interview-home', path: '/interview' },
+    { id: 'lesson-binary-search', path: '/learn/pattern/binary-search' },
+    {
+      id: 'lesson-dp-2d-revealed',
+      path: '/learn/pattern/dp-2d',
+      setup: async (p) => {
+        const example = p.locator('app-worked-example').first();
+        await example.getByRole('button', { name: /key move/ }).click();
+        await example.getByRole('button', { name: 'Walk through it' }).click();
+        await example.getByRole('button', { name: 'Show all' }).click();
+        await p.locator('details.follow-up summary').first().click();
+      },
+    },
     { id: 'behavioral-list', path: '/behavioral' },
     { id: 'behavioral-competency', path: '/behavioral/conflict' },
     {

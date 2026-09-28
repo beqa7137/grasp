@@ -4,3 +4,4 @@ export * from './drills.js';
 export * from './clozes.js';
 export * from './complexity.js';
 export * from './sd-topics.js';
+export * from './lessons/index.js';

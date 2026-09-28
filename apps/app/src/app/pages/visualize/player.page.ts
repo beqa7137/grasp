@@ -96,6 +96,17 @@ const MIN_SHOWN = 16;
 })
 export class PlayerPage {
   readonly id = input.required<string>();
+  /** An input to replay, as JSON in the `input` query parameter, from a lesson's worked example. */
+  readonly inputQuery = input<string | undefined>(undefined, { alias: 'input' });
+  private readonly given = computed(() => {
+    const json = this.inputQuery();
+    if (!json) return null;
+    try {
+      return JSON.parse(json) as unknown;
+    } catch {
+      return null;
+    }
+  });
   private readonly progress = inject(ProgressService);
   readonly shortcuts = inject(ShortcutsService);
   protected readonly answerMark = answerMark;
@@ -179,8 +190,12 @@ export class PlayerPage {
 
     effect(() => {
       const algo = this.algo();
+      const given = this.given();
       if (!algo) return;
-      untracked(() => this.load(algo.defaultInput));
+      untracked(() => {
+        this.load(given ?? algo.defaultInput);
+        if (given && this.inputError()) this.load(algo.defaultInput);
+      });
     });
 
     effect(() => {

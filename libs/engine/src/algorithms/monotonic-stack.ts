@@ -60,7 +60,7 @@ export const nextGreater: AlgorithmDefinition<Input> = {
       });
     };
 
-    snap(3, 'The stack holds indices whose next greater element we have not seen yet. Values on it only decrease.');
+    snap(3, 'The stack holds indices whose next greater element we have not seen yet. Values on it never increase from bottom to top.');
 
     for (i = 0; i < nums.length; i++) {
       let asked = false;

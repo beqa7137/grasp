@@ -148,9 +148,9 @@ export const singleNumberXor: AlgorithmDefinition<Input> = {
     snap(
       6,
       survivors.length === 1
-        ? `${settled.length ? 'Every pair cancelled' : 'There were no pairs to cancel'}, so \`x = ${x}\`: the one number without a partner. ${cost}`
+        ? `${settled.length ? 'Every pair canceled' : 'There were no pairs to cancel'}, so \`x = ${x}\`: the one number without a partner. ${cost}`
         : survivors.length === 0
-          ? `Every number had a partner, so everything cancelled and \`x = 0\`. ${cost}`
+          ? `Every number had a partner, so everything canceled and \`x = 0\`. ${cost}`
           : `${survivors.join(', ')} have no partner, so x is their XOR, ${x}. The trick names the single number only when exactly one value is unpaired. ${cost}`,
       bitTable(width, [x, null, null], { path: wholeRow(0, width) }),
     );

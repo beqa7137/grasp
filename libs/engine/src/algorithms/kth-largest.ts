@@ -9,6 +9,11 @@ type Input = { nums: number[]; k: number };
 const ENTER = ['Yes: replace the root and sift down', 'No: skip it'];
 const SIFT = ['Swap with the smaller child', 'Stop: heap order holds'];
 
+function ordinal(n: number): string {
+  const suffix = n % 100 >= 11 && n % 100 <= 13 ? 'th' : (['th', 'st', 'nd', 'rd'][n % 10] ?? 'th');
+  return `${n}${suffix}`;
+}
+
 function treeOf(heap: number[], active: number | null, settled = false): TreeView {
   return {
     nodes: heap.map((value, i) => ({
@@ -141,7 +146,7 @@ export const kthLargest: AlgorithmDefinition<Input> = {
     }
 
     i = nums.length;
-    snap(10, `Done. The root ${heap[0]} is the ${k}-th largest value. Each of the n values cost at most one O(log k) sift.`, 0);
+    snap(10, `Done. The root ${heap[0]} is the ${ordinal(k)} largest value. Each of the n values cost at most one O(log k) sift.`, 0);
     frames[frames.length - 1].tree = treeOf(heap, null, true);
     frames[frames.length - 1].vars['result'] = heap[0];
     return frames;

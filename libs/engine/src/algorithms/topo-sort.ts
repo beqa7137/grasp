@@ -110,10 +110,11 @@ export const topoSort: AlgorithmDefinition<Input> = {
 
     snap(3, `Count prerequisites: in-degree is the number of arrows pointing into a node.`);
     for (let v = 0; v < n; v++) if (indeg[v] === 0) queue.push(v);
+    const single = queue.length === 1;
     snap(
       4,
       queue.length
-        ? `Nodes ${queue.join(', ')} have no prerequisites: they can go first.`
+        ? `${single ? 'Node' : 'Nodes'} ${queue.join(', ')} ${single ? 'has' : 'have'} no prerequisites: ${single ? 'it' : 'they'} can go first.`
         : 'No node is free of prerequisites: there must be a cycle.',
     );
 
@@ -151,7 +152,7 @@ export const topoSort: AlgorithmDefinition<Input> = {
     snap(
       12,
       cyclic
-        ? `Only ${order.length} of ${n} nodes were placed. The rest wait on each other forever: a cycle, so no valid order exists.`
+        ? `Only ${order.length} of ${n} nodes ${order.length === 1 ? 'was' : 'were'} placed. The rest wait on each other forever: a cycle, so no valid order exists.`
         : `All ${n} nodes placed: ${order.join(' → ')}. Each node and edge was handled once, O(V + E).`,
     );
     frames[frames.length - 1].vars['result'] = cyclic ? 'cycle' : order.join(' → ');
