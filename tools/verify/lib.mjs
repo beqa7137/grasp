@@ -166,6 +166,26 @@ export function states() {
       },
     },
     { id: 'lesson-queues', path: '/learn/design/sd-queues', setup: (p) => p.locator('#try').scrollIntoViewIfNeeded() },
+    {
+      id: 'lesson-replication-pinned',
+      path: '/learn/design/sd-replication',
+      setup: async (p) => {
+        await p.locator('#try').scrollIntoViewIfNeeded();
+        await p.getByRole('checkbox', { name: /Read your own writes/ }).check();
+      },
+    },
+    { id: 'lesson-rate-limiting', path: '/learn/design/sd-rate-limiting', setup: (p) => p.locator('#try').scrollIntoViewIfNeeded() },
+    { id: 'lesson-reliability', path: '/learn/design/sd-reliability', setup: (p) => p.locator('#try').scrollIntoViewIfNeeded() },
+    {
+      id: 'lesson-estimation-answered',
+      path: '/learn/design/sd-estimation',
+      setup: async (p) => {
+        await p.locator('#try').scrollIntoViewIfNeeded();
+        await p.locator('app-estimate-drill input').fill('6k');
+        await p.getByRole('button', { name: 'Check', exact: true }).click();
+      },
+    },
+    { id: 'lesson-capacity', path: '/learn/design/sd-capacity', setup: (p) => p.locator('#try').scrollIntoViewIfNeeded() },
     { id: 'interview-home', path: '/interview' },
     { id: 'lesson-binary-search', path: '/learn/pattern/binary-search' },
     {

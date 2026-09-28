@@ -14,7 +14,7 @@ import {
 import { DecimalPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { IonIcon } from '@ionic/angular';
-import { estimateVerdict, type CaseStage, type EstimateVerdict } from '@grasp/engine';
+import { estimateVerdict, parseAmount, type CaseStage, type EstimateVerdict } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import { arrowForward, checkmarkCircle, closeCircle, constructOutline } from 'ionicons/icons';
 import { refocus, refocusAfterRender } from '../../../core/focus';
@@ -297,13 +297,4 @@ export class CaseStageComponent {
       { injector: this.injector },
     );
   }
-}
-
-/** Reads 120000, 120,000, 120k, 1.2M or 3B. */
-export function parseAmount(raw: string): number | null {
-  const m = /^\s*([0-9][0-9,]*(?:\.[0-9]+)?)\s*([kmb])?\s*$/i.exec(raw);
-  if (!m) return null;
-  const scale = { k: 1e3, m: 1e6, b: 1e9 }[(m[2] ?? '').toLowerCase() as 'k' | 'm' | 'b'] ?? 1;
-  const value = Number(m[1].replaceAll(',', '')) * scale;
-  return Number.isFinite(value) && value > 0 ? value : null;
 }

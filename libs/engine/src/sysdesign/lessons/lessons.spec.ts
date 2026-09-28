@@ -6,6 +6,7 @@ import { SD_LESSONS } from './index.js';
 const texts = (l: (typeof SD_LESSONS)[string]) => [
   l.why,
   ...l.widget.tryThis,
+  ...(l.widget.drill ?? []).flatMap((d) => [d.question, ...d.working]),
   ...l.concepts.flatMap((c) => [c.title, c.body]),
   ...l.examples.flatMap((e) => [e.title, e.problem, e.insight, ...e.steps]),
   ...l.pitfalls,
@@ -25,6 +26,17 @@ describe('system design lessons', () => {
       expect(l.pitfalls.length, id).toBeGreaterThanOrEqual(3);
       expect(l.followUps.length, id).toBeGreaterThanOrEqual(2);
       expect(new Set(Object.values(SD_LESSONS).map((x) => x.widget.kind)).size).toBe(Object.keys(SD_LESSONS).length);
+    }
+  });
+
+  it('teach every design topic, and give the estimate drill positive answers with their working', () => {
+    expect(Object.keys(SD_LESSONS).sort()).toEqual(SD_TOPICS.map((t) => t.id).sort());
+    for (const [id, l] of Object.entries(SD_LESSONS)) {
+      expect(!!l.widget.drill, id).toBe(l.widget.kind === 'estimate-drill');
+      for (const d of l.widget.drill ?? []) {
+        expect(d.answer, d.question).toBeGreaterThan(0);
+        expect(d.working.length, d.question).toBeGreaterThanOrEqual(2);
+      }
     }
   });
 

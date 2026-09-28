@@ -1,5 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { cacheOutcome, hashRing, moduloOwner, movedKeys, place, queueBacklog, queueLatency, ringOwner } from './widgets.js';
+import {
+  cacheOutcome,
+  chainAvailability,
+  hashRing,
+  moduloOwner,
+  movedKeys,
+  pipeline,
+  place,
+  queueBacklog,
+  queueLatency,
+  replicaRead,
+  ringOwner,
+  runLimiter,
+} from './widgets.js';
 
 describe('queue latency', () => {
   it('doubles at half load and grows tenfold at 90%, with p99 about 4.6 times the mean', () => {
@@ -73,5 +86,79 @@ describe('queue backlog', () => {
     const b = queueBacklog({ ...spike, consumers: 3, perConsumer: 1000 });
     expect(Math.max(...b.depth)).toBe(0);
     expect(b.drainSeconds).toBe(1);
+  });
+});
+
+describe('replica reads', () => {
+  it('are stale inside the lag unless read-your-writes pins the user to the primary', () => {
+    expect(replicaRead(500, 200, false, 1000)).toEqual({ stale: true, servedBy: 'replica' });
+    expect(replicaRead(500, 800, false, 1000)).toEqual({ stale: false, servedBy: 'replica' });
+    expect(replicaRead(500, 200, true, 1000)).toEqual({ stale: false, servedBy: 'primary' });
+    expect(replicaRead(3000, 1500, true, 1000)).toEqual({ stale: true, servedBy: 'replica' });
+  });
+});
+
+describe('rate limiters', () => {
+  // 10 requests a second allowed; a burst of 20 at 900 to 1,100 ms straddles a window edge.
+  const burst = Array.from({ length: 20 }, (_, i) => 900 + i * 10);
+
+  it('let a fixed window pass twice the limit across a window edge', () => {
+    const run = runLimiter('fixed-window', burst, 10, 10);
+    expect(run.accepted.filter(Boolean)).toHaveLength(20);
+    expect(run.worstSecond).toBe(20);
+  });
+
+  it('hold a sliding window to the limit in every second', () => {
+    const run = runLimiter('sliding-window', burst, 10, 10);
+    expect(run.accepted.filter(Boolean)).toHaveLength(10);
+    expect(run.worstSecond).toBe(10);
+  });
+
+  it('let a token bucket spend its saved burst, then refill at the rate', () => {
+    const run = runLimiter('token-bucket', burst, 10, 10);
+    // 10 saved tokens, plus about 1.9 refilled over the 190 ms of the burst.
+    expect(run.accepted.filter(Boolean)).toHaveLength(11);
+    expect(runLimiter('token-bucket', [0, 100, 200], 10, 1).accepted).toEqual([true, true, true]);
+  });
+});
+
+describe('chain availability', () => {
+  it('multiplies series parts and lets replicas cut each part downtime', () => {
+    const single = chainAvailability([
+      { availability: 0.999, copies: 1 },
+      { availability: 0.99, copies: 1 },
+    ]);
+    expect(single.availability).toBeCloseTo(0.98901, 5);
+    expect(single.weakest).toBe(1);
+    const replicated = chainAvailability([
+      { availability: 0.999, copies: 1 },
+      { availability: 0.99, copies: 2 },
+    ]);
+    expect(replicated.availability).toBeCloseTo(0.9989, 4);
+    expect(replicated.weakest).toBe(0);
+    expect(chainAvailability([{ availability: 0.999, copies: 1 }]).downtimeMinutesPerYear).toBeCloseTo(525.6, 1);
+  });
+});
+
+describe('pipeline', () => {
+  it('serves what its smallest tier can, and adding to that tier moves the bottleneck', () => {
+    const tiers = [
+      { instances: 2, perInstance: 5000 },
+      { instances: 4, perInstance: 1500 },
+      { instances: 1, perInstance: 4000 },
+    ];
+    const p = pipeline(8000, tiers);
+    expect(p.throughput).toBe(4000);
+    expect(p.bottleneck).toBe(2);
+    expect(pipeline(8000, [tiers[0], tiers[1], { instances: 3, perInstance: 4000 }]).bottleneck).toBe(1);
+    // Behind the app tier's cap, the database sees only what the app servers pass on.
+    const capped = pipeline(20_000, [
+      { instances: 10, perInstance: 5000 },
+      { instances: 10, perInstance: 1500 },
+      { instances: 10, perInstance: 4000 },
+    ]);
+    expect(capped.throughput).toBe(15_000);
+    expect(capped.bottleneck).toBe(1);
+    expect(capped.utilization).toEqual([0.4, 1, 0.375]);
   });
 });

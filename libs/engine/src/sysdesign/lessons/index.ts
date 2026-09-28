@@ -1,6 +1,11 @@
 import { CACHING_LESSON } from './caching.js';
+import { CAPACITY_LESSON } from './capacity.js';
+import { ESTIMATION_LESSON } from './estimation.js';
 import { LATENCY_LESSON } from './latency.js';
 import { QUEUES_LESSON } from './queues.js';
+import { RATE_LIMITING_LESSON } from './rate-limiting.js';
+import { RELIABILITY_LESSON } from './reliability.js';
+import { REPLICATION_LESSON } from './replication.js';
 import { SHARDING_LESSON } from './sharding.js';
 import type { SdLesson } from './types.js';
 
@@ -9,9 +14,14 @@ export * from './widgets.js';
 
 export const SD_LESSONS: Readonly<Record<string, SdLesson>> = {
   'sd-latency': LATENCY_LESSON,
+  'sd-capacity': CAPACITY_LESSON,
+  'sd-estimation': ESTIMATION_LESSON,
+  'sd-reliability': RELIABILITY_LESSON,
   'sd-caching': CACHING_LESSON,
-  'sd-sharding': SHARDING_LESSON,
+  'sd-replication': REPLICATION_LESSON,
   'sd-queues': QUEUES_LESSON,
+  'sd-rate-limiting': RATE_LIMITING_LESSON,
+  'sd-sharding': SHARDING_LESSON,
 };
 
 export function getSdLesson(topicId: string): SdLesson | undefined {
