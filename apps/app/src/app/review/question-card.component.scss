@@ -157,45 +157,15 @@ header {
 }
 
 .choice {
-  appearance: none;
   display: flex;
   align-items: center;
   gap: 12px;
-  text-align: left;
   padding: 12px 14px;
   border-radius: 12px;
-  background: var(--g-raised);
-  border: 1px solid var(--g-line-strong);
-  color: var(--g-text);
   font: 500 0.90625rem/1.4 var(--ion-font-family);
-  cursor: pointer;
-  transition:
-    border-color 0.15s,
-    background 0.15s,
-    transform 0.08s;
 
-  // Touch browsers keep :hover on the last tapped element, which would look like a preselected choice on the next question.
-  @media (hover: hover) {
-    &:hover:not(:disabled) {
-      border-color: var(--g-accent);
-    }
-  }
   &:active:not(:disabled) {
     transform: scale(0.985);
-  }
-  &:disabled {
-    cursor: default;
-    opacity: 0.5;
-  }
-  &.right {
-    opacity: 1;
-    border-color: var(--g-found);
-    background: rgba(var(--g-found-rgb), 0.12);
-  }
-  &.wrong {
-    opacity: 1;
-    border-color: var(--g-danger);
-    background: rgba(var(--g-danger-rgb), 0.12);
   }
 
   .key {

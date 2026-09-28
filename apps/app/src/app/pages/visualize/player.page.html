@@ -106,7 +106,7 @@
                   <div class="choices">
                     @for (c of q.choices; track $index) {
                       <button
-                        class="choice"
+                        class="g-choice choice"
                         [disabled]="p.choice !== null"
                         [class.right]="p.choice !== null && $index === q.answer"
                         [class.wrong]="p.choice === $index && $index !== q.answer"

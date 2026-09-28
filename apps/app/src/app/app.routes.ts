@@ -1,5 +1,12 @@
 import type { ActivatedRouteSnapshot, Routes } from '@angular/router';
-import { getAlgorithmSummary, getCompetencySummary, getPatternSummary, getProblemSummary, getScenarioSummary } from '@grasp/engine';
+import {
+  getAlgorithmSummary,
+  getCaseSummary,
+  getCompetencySummary,
+  getPatternSummary,
+  getProblemSummary,
+  getScenarioSummary,
+} from '@grasp/engine';
 import { FREE_BUILD } from './pages/design/free-build';
 
 const idOf = (route: ActivatedRouteSnapshot) => route.paramMap.get('id') ?? '';
@@ -30,8 +37,17 @@ export const routes: Routes = [
       },
       { path: 'design', title: 'Design Lab', loadComponent: () => import('./pages/design/design-list.page').then((m) => m.DesignListPage) },
       {
+        path: 'design/case/:id',
+        title: (route) => getCaseSummary(idOf(route))?.title ?? 'Case study',
+        loadComponent: () => import('./pages/design/case/case-study.page').then((m) => m.CaseStudyPage),
+      },
+      {
         path: 'design/:id',
-        title: (route) => (idOf(route) === FREE_BUILD.id ? FREE_BUILD : getScenarioSummary(idOf(route)))?.title ?? 'Design Lab',
+        title: (route) => {
+          if (idOf(route) !== FREE_BUILD.id) return getScenarioSummary(idOf(route))?.title ?? 'Design Lab';
+          const study = getCaseSummary(route.queryParamMap.get('case') ?? '');
+          return study ? `${study.title} build` : FREE_BUILD.title;
+        },
         loadComponent: () => import('./pages/design/sandbox.page').then((m) => m.SandboxPage),
       },
       {

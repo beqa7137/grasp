@@ -410,6 +410,13 @@
   gap: 14px;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 
+  .case-brief {
+    grid-column: 1 / -1;
+    margin: 0;
+    font-size: 0.875rem;
+    line-height: 1.55;
+  }
+
   label {
     display: flex;
     flex-direction: column;

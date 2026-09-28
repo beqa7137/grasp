@@ -267,6 +267,45 @@ button.chip {
 
 // Sized before the icon loads, so the choice's text wraps where it will once it has: a checkpoint's verdict below it is
 // revealed by its height when answered.
+// An answer choice: checkpoints, review cards and case study decisions each set their own size and spacing. A list item is a
+// choice shown after answering, so it neither hovers nor looks pressable.
+.g-choice {
+  appearance: none;
+  text-align: left;
+  border: 1px solid var(--g-line-strong);
+  background: var(--g-choice-bg, var(--g-raised));
+  color: var(--g-text);
+  cursor: pointer;
+  &:is(li) {
+    cursor: default;
+  }
+  transition:
+    border-color 0.15s,
+    background 0.15s,
+    transform 0.08s;
+
+  // Touch browsers keep :hover on the last tapped element, which would look like a preselected choice on the next question.
+  @media (hover: hover) {
+    &:hover:not(:disabled, li) {
+      border-color: var(--g-choice-hover, var(--g-accent));
+    }
+  }
+  &:disabled {
+    cursor: default;
+  }
+  &:disabled:not(.right, .wrong) {
+    opacity: var(--g-choice-dim, 0.5);
+  }
+  &.right {
+    border-color: var(--g-found);
+    background: rgba(var(--g-found-rgb), 0.12);
+  }
+  &.wrong {
+    border-color: var(--g-danger);
+    background: rgba(var(--g-danger-rgb), 0.12);
+  }
+}
+
 .g-answer-mark {
   flex: none;
   margin-left: auto;

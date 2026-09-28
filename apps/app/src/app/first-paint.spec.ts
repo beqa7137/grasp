@@ -57,6 +57,7 @@ describe('first paint', () => {
       'codeSpans',
       'forecast',
       'getAlgorithmSummary',
+      'getCaseSummary',
       'getCompetencySummary',
       'getPatternSummary',
       'getProblemSummary',

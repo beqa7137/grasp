@@ -2,9 +2,9 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
-import { SCENARIO_CATALOG, fmt, getScenarioSummary } from '@grasp/engine';
+import { CASE_CATALOG, SCENARIO_CATALOG, fmt, getScenarioSummary, getSdTopic } from '@grasp/engine';
 import { addIcons } from 'ionicons';
-import { checkmarkCircle, constructOutline, refreshCircleOutline } from 'ionicons/icons';
+import { checkmarkCircle, constructOutline, documentTextOutline, refreshCircleOutline } from 'ionicons/icons';
 import { ProgressService } from '../../core/progress.service';
 import { FREE_BUILD } from './free-build';
 
@@ -73,6 +73,28 @@ import { FREE_BUILD } from './free-build';
             </div>
           </a>
         </div>
+
+        <h2 class="section-title" id="cases">Interview case studies</h2>
+        <p class="muted section-lead">
+          Classic questions worked the way a strong candidate runs the interview: clarify, estimate, design, then defend the trade-offs.
+        </p>
+        <div class="list">
+          @for (c of cases; track c.id) {
+            <a class="panel card-link mission" [routerLink]="['/design/case', c.id]">
+              <span class="num"><ion-icon name="document-text-outline" aria-hidden="true" /></span>
+              <div class="body">
+                <h3>{{ c.title }}</h3>
+                <p class="muted">{{ c.summary }}</p>
+                <div class="chips">
+                  <span class="chip">{{ c.level === 'core' ? 'Core' : 'Advanced' }}</span>
+                  @for (t of c.topics; track t) {
+                    <span class="chip">{{ topicName(t) }}</span>
+                  }
+                </div>
+              </div>
+            </a>
+          }
+        </div>
       </div>
     </ion-content>
   `,
@@ -114,6 +136,15 @@ import { FREE_BUILD } from './free-build';
       background: rgba(var(--g-found-rgb), 0.14);
       color: var(--g-found);
     }
+    .section-title {
+      font-size: 1.25rem;
+      margin: 32px 0 6px;
+    }
+    .section-lead {
+      max-width: 62ch;
+      line-height: 1.5;
+      margin: 0 0 14px;
+    }
     .free .num {
       background: var(--g-raised);
       color: var(--g-muted);
@@ -122,7 +153,8 @@ import { FREE_BUILD } from './free-build';
       flex: 1;
       min-width: 0;
     }
-    h2 {
+    h2,
+    h3 {
       font-size: 1.125rem;
       margin: 2px 0 4px;
     }
@@ -188,10 +220,15 @@ export class DesignListPage {
   readonly progress = inject(ProgressService);
   readonly scenarios = SCENARIO_CATALOG;
   readonly free = FREE_BUILD;
+  readonly cases = CASE_CATALOG;
   readonly fmt = fmt;
 
   constructor() {
-    addIcons({ checkmarkCircle, constructOutline, refreshCircleOutline });
+    addIcons({ checkmarkCircle, constructOutline, documentTextOutline, refreshCircleOutline });
+  }
+
+  topicName(id: string) {
+    return getSdTopic(id)?.name ?? id;
   }
 
   ionViewWillEnter() {

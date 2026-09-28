@@ -125,6 +125,29 @@ export function states() {
     { id: 'sandbox', path: '/design/first-scale-up' },
     { id: 'sandbox-inspector', path: '/design/first-scale-up', setup: (p) => answerFirst(p, '.palette .tool') },
     { id: 'sandbox-free', path: '/design/free-build' },
+    { id: 'case-study', path: '/design/case/url-shortener' },
+    {
+      id: 'case-study-decided',
+      path: '/design/case/url-shortener',
+      setup: async (p) => {
+        await p.getByRole('button', { name: /Can users pick a custom alias/ }).click();
+        await p.getByRole('button', { name: 'Show the model answer' }).click();
+        await p.getByRole('button', { name: 'Show all' }).click();
+      },
+    },
+    {
+      id: 'case-study-estimated',
+      path: '/design/case/url-shortener',
+      setup: async (p) => {
+        await p.getByRole('button', { name: /How many links are created per day/ }).click();
+        await p.getByRole('button', { name: 'Show the model answer' }).click();
+        await p.getByRole('button', { name: 'Show all' }).click();
+        await p.getByRole('button', { name: 'Next: Estimate the traffic' }).click();
+        await p.getByRole('textbox', { name: 'Average redirects per second' }).fill('30k');
+        await p.getByRole('button', { name: 'Check', exact: true }).click();
+      },
+    },
+    { id: 'case-build', path: '/design/free-build?case=news-feed' },
     { id: 'interview-home', path: '/interview' },
     { id: 'lesson-binary-search', path: '/learn/pattern/binary-search' },
     {
