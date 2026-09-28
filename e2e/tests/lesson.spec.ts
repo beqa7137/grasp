@@ -1,4 +1,4 @@
-import { expect, test } from './fixtures';
+import { expect, recordedEvents, test } from './fixtures';
 
 test('a pattern lesson reveals a worked example step by step, then replays it in the visualizer', async ({ page }) => {
   await page.goto('/learn/pattern/two-pointers');
@@ -27,4 +27,19 @@ test('a pattern lesson reveals a worked example step by step, then replays it in
   const followUp = page.locator('details.follow-up').first();
   await followUp.locator('summary').click();
   await expect(followUp.locator('p')).toBeVisible();
+});
+
+test('a lesson ends with a quick check of three questions that count as practice', async ({ page }) => {
+  await page.goto('/learn/pattern/binary-search');
+  const check = page.locator('app-quick-check');
+  for (let n = 1; n <= 3; n++) {
+    await expect(check).toContainText(`Question ${n} of 3`);
+    await check.locator('g-question-card .choice').first().click();
+    await check.getByRole('button', { name: n < 3 ? 'Next question' : 'See how you did' }).click();
+  }
+  await expect(check.getByRole('status')).toContainText(/You got \d of 3 right\./);
+  const practiced = await recordedEvents(page);
+  expect(practiced.filter((e) => e.type === 'practice.answered')).toHaveLength(3);
+  await check.getByRole('button', { name: 'Check again' }).click();
+  await expect(check).toContainText('Question 1 of 3');
 });
