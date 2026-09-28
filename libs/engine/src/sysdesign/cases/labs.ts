@@ -206,6 +206,85 @@ export const CASE_LABS: Record<string, CaseLab> = {
       edges: [...chain('users', 'edge', 'limiter', 'lb', 'app', 'cache', 'db', 'replica'), { from: 'app', to: 'db' }],
     },
   },
+  'search-engine': {
+    workload: { rps: 40_000, readRatio: 0.98 },
+    design: {
+      nodes: [
+        n('users', 'client', 70, 240),
+        n('lb', 'lb', 250, 240, 2),
+        n('app', 'app', 430, 240, 30),
+        n('cache', 'cache', 610, 110, 2, { hitRate: 0.5 }),
+        n('queue', 'queue', 610, 370, 2),
+        n('worker', 'worker', 790, 380, 2),
+        n('db', 'db', 790, 240, 4, { shardKey: 'hash' }),
+        n('replica', 'replica', 790, 100, 4),
+      ],
+      edges: [...chain('users', 'lb', 'app', 'cache', 'db', 'replica'), ...chain('app', 'queue', 'worker', 'db')],
+    },
+  },
+  'file-sync': {
+    workload: { rps: 60_000, readRatio: 0.9 },
+    design: {
+      nodes: [
+        n('devices', 'client', 70, 240),
+        n('cdn', 'cdn', 220, 240, 1, { hitRate: 0.3 }),
+        n('lb', 'lb', 370, 240, 2),
+        n('app', 'app', 520, 240, 32),
+        n('cache', 'cache', 650, 100, 2, { hitRate: 0.85 }),
+        n('db', 'db', 790, 240, 4, { shardKey: 'hash' }),
+        n('replica', 'replica', 790, 390, 4),
+      ],
+      edges: [...chain('devices', 'cdn', 'lb', 'app', 'cache', 'db', 'replica'), { from: 'app', to: 'db' }],
+    },
+  },
+  leaderboard: {
+    workload: { rps: 50_000, readRatio: 0.83 },
+    design: {
+      nodes: [
+        n('players', 'client', 70, 240),
+        n('lb', 'lb', 240, 240, 2),
+        n('app', 'app', 410, 240, 38),
+        n('cache', 'cache', 580, 100, 2, { hitRate: 0.95 }),
+        n('queue', 'queue', 580, 380, 2),
+        n('worker', 'worker', 760, 380, 8),
+        n('db', 'db', 760, 240, 6, { shardKey: 'hash' }),
+        n('replica', 'replica', 760, 100, 6),
+      ],
+      edges: [...chain('players', 'lb', 'app', 'cache', 'db', 'replica'), ...chain('app', 'queue', 'worker', 'db')],
+    },
+  },
+  'ad-click-aggregator': {
+    workload: { rps: 12_500, readRatio: 0.04 },
+    design: {
+      nodes: [
+        n('users', 'client', 70, 240),
+        n('lb', 'lb', 240, 240, 2),
+        n('app', 'app', 410, 240, 10),
+        n('cache', 'cache', 580, 100, 2, { hitRate: 0.8 }),
+        n('queue', 'queue', 580, 380, 2),
+        n('worker', 'worker', 760, 380, 12),
+        n('db', 'db', 760, 240, 8, { shardKey: 'hash' }),
+        n('replica', 'replica', 760, 100, 8),
+      ],
+      edges: [...chain('users', 'lb', 'app', 'cache', 'db', 'replica'), ...chain('app', 'queue', 'worker', 'db')],
+    },
+  },
+  'job-scheduler': {
+    workload: { rps: 35_000, readRatio: 0.6 },
+    design: {
+      nodes: [
+        n('services', 'client', 70, 240),
+        n('lb', 'lb', 240, 240, 2),
+        n('app', 'app', 410, 240, 24),
+        n('cache', 'cache', 580, 100, 2, { hitRate: 0.9 }),
+        n('queue', 'queue', 580, 380, 2),
+        n('worker', 'worker', 760, 380, 12),
+        n('db', 'db', 760, 240, 8, { shardKey: 'hash' }),
+        n('replica', 'replica', 760, 100, 8),
+      ],
+      edges: [...chain('services', 'lb', 'app', 'cache', 'db', 'replica'), ...chain('app', 'queue', 'worker', 'db')],
+    },
+  },
 };
 
 export function getCaseLab(id: string): CaseLab | undefined {
