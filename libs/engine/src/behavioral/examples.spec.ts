@@ -23,36 +23,41 @@ describe('behavioral examples', () => {
     expect(examplesFor('missing')).toBeUndefined();
   });
 
-  it.each(EXAMPLES)('$competencyId answers two different questions of its own competency', ({ competencyId, strong, weak }) => {
-    const ids = getCompetency(competencyId)?.questions.map((q) => q.id);
-    expect(ids).toContain(strong.questionId);
-    expect(ids).toContain(weak.questionId);
-    expect(strong.questionId).not.toBe(weak.questionId);
+  const strongs = EXAMPLES.flatMap((e) => e.strong.map((answer) => ({ ...answer, competencyId: e.competencyId })));
+  const weaks = EXAMPLES.flatMap((e) => e.weak.map((answer) => ({ ...answer, competencyId: e.competencyId })));
+
+  it.each(EXAMPLES)('$competencyId has a strong answer per career stage and two weak ones, each to a different question', (e) => {
+    expect(e.strong.map((a) => a.level)).toEqual(['early', 'mid', 'senior']);
+    expect(e.weak).toHaveLength(2);
+    const ids = getCompetency(e.competencyId)?.questions.map((q) => q.id);
+    const asked = [...e.strong, ...e.weak].map((a) => a.questionId);
+    for (const id of asked) expect(ids).toContain(id);
+    expect(new Set(asked).size).toBe(asked.length);
   });
 
-  it.each(EXAMPLES)('$competencyId strong answer passes every check at a speakable length', ({ strong }) => {
+  it.each(strongs)('$competencyId $level strong answer passes every check at a speakable length', (strong) => {
     const { seconds } = review(strong);
     expect(failing(strong)).toEqual([]);
     expect(seconds).toBeGreaterThanOrEqual(90);
     expect(seconds).toBeLessThanOrEqual(180);
   });
 
-  it.each(EXAMPLES)('$competencyId weak answer fails exactly the checks of its mapped flaws', ({ weak }) => {
+  it.each(weaks)('$competencyId weak answer to $questionId fails exactly the checks of its mapped flaws', (weak) => {
     const failed = failing(weak);
     expect(failed).not.toContain('complete');
     for (const [flaw, check] of MAPPED) expect([flaw, failed.includes(check)]).toEqual([flaw, weak.flaws.includes(flaw)]);
   });
 
-  it.each(EXAMPLES)('$competencyId weak answer explains each of its 2 or 3 flaws', ({ weak }) => {
+  it.each(weaks)('$competencyId weak answer to $questionId explains each of its 2 or 3 flaws', (weak) => {
     expect(weak.flaws.length).toBeGreaterThanOrEqual(2);
     expect(weak.flaws.length).toBeLessThanOrEqual(3);
     expect(Object.keys(weak.why).sort()).toEqual([...weak.flaws].sort());
     expect(weak.fix).not.toBe('');
   });
 
-  it('uses every flaw in at least 3 weak answers', () => {
-    const uses = ANSWER_FLAWS.map(({ id }) => [id, EXAMPLES.filter((e) => e.weak.flaws.includes(id)).length] as const);
-    expect(uses.filter(([, n]) => n < 3)).toEqual([]);
+  it('uses every flaw in at least 5 weak answers', () => {
+    const uses = ANSWER_FLAWS.map(({ id }) => [id, weaks.filter((w) => w.flaws.includes(id)).length] as const);
+    expect(uses.filter(([, n]) => n < 5)).toEqual([]);
   });
 
   it('never uses an em dash or a non-breaking space', () => {

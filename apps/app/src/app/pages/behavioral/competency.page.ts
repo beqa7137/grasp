@@ -1,7 +1,7 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
-import { examplesFor, getCompetency, getCompetencySummary } from '@grasp/engine';
+import { examplesFor, getCompetency, getCompetencySummary, type Seniority } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import {
   alertCircleOutline,
@@ -12,15 +12,23 @@ import {
   searchOutline,
   sparklesOutline,
 } from 'ionicons/icons';
+import { RovingSelectDirective } from '../../core/roving-select.directive';
 import { ExampleAnswerComponent } from './example-answer.component';
 import { SpotFlawsComponent } from './spot-flaws.component';
 import { StarDraftsService } from './star-drafts.service';
+
+const LEVELS: { level: Seniority; label: string }[] = [
+  { level: 'early', label: 'Early career' },
+  { level: 'mid', label: 'Mid-level' },
+  { level: 'senior', label: 'Senior' },
+];
 
 @Component({
   selector: 'app-competency',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     RouterLink,
+    RovingSelectDirective,
     IonHeader,
     IonToolbar,
     IonButtons,
@@ -65,14 +73,35 @@ import { StarDraftsService } from './star-drafts.service';
           @if (examples(); as e) {
             <section class="panel block example" id="example">
               <h2><ion-icon name="sparkles-outline" aria-hidden="true" />See it done</h2>
-              <p class="asked">"{{ prompt(e.strong.questionId) }}"</p>
-              <app-example-answer [answer]="e.strong" [notes]="e.strong.notes" />
+              <div class="levels" role="radiogroup" aria-label="Career stage">
+                @for (l of levels; track l.level) {
+                  <button
+                    class="g-btn"
+                    role="radio"
+                    [attr.aria-checked]="level() === l.level"
+                    [class.primary]="level() === l.level"
+                    (click)="level.set(l.level)"
+                  >
+                    {{ l.label }}
+                  </button>
+                }
+              </div>
+              @if (strong(); as s) {
+                <p class="asked">"{{ prompt(s.questionId) }}"</p>
+                <app-example-answer [answer]="s" [notes]="s.notes" />
+              }
             </section>
-            <section class="panel block example">
-              <h2><ion-icon name="search-outline" aria-hidden="true" />Spot the problems</h2>
-              <p class="asked">"{{ prompt(e.weak.questionId) }}"</p>
-              <app-spot-flaws [example]="e.weak" />
-            </section>
+            @for (w of e.weak; track w.questionId) {
+              <section class="panel block example">
+                <h2>
+                  <ion-icon name="search-outline" aria-hidden="true" />Spot the problems{{
+                    e.weak.length > 1 ? ' (' + ($index + 1) + ' of ' + e.weak.length + ')' : ''
+                  }}
+                </h2>
+                <p class="asked">"{{ prompt(w.questionId) }}"</p>
+                <app-spot-flaws [example]="w" />
+              </section>
+            }
           }
 
           <h2 class="list-title">Questions to practice</h2>
@@ -121,6 +150,12 @@ import { StarDraftsService } from './star-drafts.service';
       ion-icon {
         color: var(--g-accent);
       }
+    }
+    .levels {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
     }
     .asked {
       font-style: italic;
@@ -176,6 +211,9 @@ export class CompetencyPage {
   readonly summary = computed(() => getCompetencySummary(this.id()));
   readonly competency = computed(() => getCompetency(this.id()));
   readonly examples = computed(() => examplesFor(this.id()));
+  readonly levels = LEVELS;
+  readonly level = signal<Seniority>('mid');
+  readonly strong = computed(() => this.examples()?.strong.find((s) => s.level === this.level()));
 
   constructor() {
     addIcons({
