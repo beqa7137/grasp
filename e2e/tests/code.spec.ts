@@ -401,7 +401,12 @@ test('the call stack keeps no empty room above its calls for deeper frames still
   const oneDeep = await gapUnderLabel();
   await seek(page, 7, 'Called height(TreeNode(4))');
   await expect(calls).toHaveCount(4);
-  expect(Math.abs((await gapUnderLabel()) - oneDeep), 'the top call sits as far under the label one call deep as four').toBeLessThan(1);
+  // Four calls are in the list before WebKit under load has laid them out, so wait for the layout to settle.
+  await expect
+    .poll(async () => Math.abs((await gapUnderLabel()) - oneDeep), {
+      message: 'the top call sits as far under the label one call deep as four',
+    })
+    .toBeLessThan(1);
 });
 
 test('a trace of pairs gives each value a cell wide enough for it, over its own index', async ({ page }) => {
