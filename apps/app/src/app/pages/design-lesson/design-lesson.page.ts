@@ -18,9 +18,14 @@ import { CodeTextComponent } from '../../viz/code-text.component';
 import { MasteryRingComponent } from '../../viz/mastery-ring.component';
 import { QuickCheckComponent } from '../pattern/quick-check.component';
 import { WorkedExampleComponent } from '../pattern/worked-example.component';
+import { AvailabilityWidgetComponent } from './availability-widget.component';
 import { CacheWidgetComponent } from './cache-widget.component';
+import { EstimateDrillComponent } from './estimate-drill.component';
 import { LatencyWidgetComponent } from './latency-widget.component';
+import { LimiterWidgetComponent } from './limiter-widget.component';
+import { PipelineWidgetComponent } from './pipeline-widget.component';
 import { QueueWidgetComponent } from './queue-widget.component';
+import { ReplicaWidgetComponent } from './replica-widget.component';
 import { RingWidgetComponent } from './ring-widget.component';
 
 /** A system design topic taught hands-on: a widget to experiment with, the ideas to name, worked examples and a quick check. */
@@ -44,6 +49,11 @@ import { RingWidgetComponent } from './ring-widget.component';
     CacheWidgetComponent,
     RingWidgetComponent,
     QueueWidgetComponent,
+    ReplicaWidgetComponent,
+    LimiterWidgetComponent,
+    AvailabilityWidgetComponent,
+    PipelineWidgetComponent,
+    EstimateDrillComponent,
   ],
   template: `
     <ion-header [translucent]="true">
@@ -84,6 +94,21 @@ import { RingWidgetComponent } from './ring-widget.component';
                 }
                 @case ('queue-backlog') {
                   <app-queue-widget />
+                }
+                @case ('replica-lag') {
+                  <app-replica-widget />
+                }
+                @case ('rate-limiter') {
+                  <app-limiter-widget />
+                }
+                @case ('availability') {
+                  <app-availability-widget />
+                }
+                @case ('pipeline') {
+                  <app-pipeline-widget />
+                }
+                @case ('estimate-drill') {
+                  <app-estimate-drill [drill]="l.widget.drill ?? []" />
                 }
               }
               <h3>Things to try</h3>

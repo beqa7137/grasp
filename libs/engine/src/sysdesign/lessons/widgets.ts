@@ -124,3 +124,100 @@ export function queueBacklog(options: {
   }
   return { depth, drainSeconds, capacity };
 }
+
+export interface ReplicaRead {
+  stale: boolean;
+  /** Where the read went: the replica, or the primary under read-your-writes. */
+  servedBy: 'replica' | 'primary';
+}
+
+/**
+ * A user writes, then reads `readAfterMs` later. A replica has applied the write only once `lagMs` has passed; with
+ * read-your-writes, the user's reads go to the primary for `pinMs` after their own write.
+ */
+export function replicaRead(lagMs: number, readAfterMs: number, readYourWrites: boolean, pinMs: number): ReplicaRead {
+  if (readYourWrites && readAfterMs < pinMs) return { stale: false, servedBy: 'primary' };
+  return { stale: readAfterMs < lagMs, servedBy: 'replica' };
+}
+
+export type Limiter = 'token-bucket' | 'fixed-window' | 'sliding-window';
+
+export interface LimiterRun {
+  accepted: boolean[];
+  /** The most requests accepted in any one-second span, which is what the protected service actually has to take. */
+  worstSecond: number;
+}
+
+/**
+ * Requests arrive at the given times in milliseconds, sorted. Each limiter allows `limit` requests a second:
+ * the token bucket holds up to `burst` tokens refilled at `limit` a second; the fixed window counts per calendar second;
+ * the sliding window counts the requests accepted in the last 1,000 ms.
+ */
+export function runLimiter(kind: Limiter, arrivals: readonly number[], limit: number, burst: number): LimiterRun {
+  const accepted: boolean[] = [];
+  const kept: number[] = [];
+  let tokens = burst;
+  let last = 0;
+  for (const t of arrivals) {
+    let ok: boolean;
+    if (kind === 'token-bucket') {
+      tokens = Math.min(burst, tokens + ((t - last) / 1000) * limit);
+      last = t;
+      ok = tokens >= 1;
+      if (ok) tokens -= 1;
+    } else if (kind === 'fixed-window') {
+      const windowStart = Math.floor(t / 1000) * 1000;
+      ok = kept.filter((k) => k >= windowStart).length < limit;
+    } else {
+      ok = kept.filter((k) => k > t - 1000).length < limit;
+    }
+    accepted.push(ok);
+    if (ok) kept.push(t);
+  }
+  let worstSecond = 0;
+  for (let i = 0, j = 0; i < kept.length; i++) {
+    while (kept[i] - kept[j] >= 1000) j++;
+    worstSecond = Math.max(worstSecond, i - j + 1);
+  }
+  return { accepted, worstSecond };
+}
+
+export interface Availability {
+  availability: number;
+  downtimeMinutesPerYear: number;
+  /** The component that loses the most availability, the one to fix first. */
+  weakest: number;
+}
+
+/** Components in series, each with `copies` independent replicas of which one must be up. */
+export function chainAvailability(parts: readonly { availability: number; copies: number }[]): Availability {
+  const each = parts.map((p) => 1 - (1 - p.availability) ** p.copies);
+  const availability = each.reduce((a, b) => a * b, 1);
+  const weakest = each.reduce((w, a, i) => (a < each[w] ? i : w), 0);
+  return { availability, downtimeMinutesPerYear: (1 - availability) * 365 * 24 * 60, weakest };
+}
+
+export interface Pipeline {
+  /** Requests a second each tier can serve: instances times per-instance capacity. */
+  capacities: number[];
+  /** Requests a second reaching each tier: what the tiers before it passed on. */
+  arriving: number[];
+  throughput: number;
+  /** The tier with the least capacity: it caps the throughput, though tiers before it may drop requests too. */
+  bottleneck: number;
+  /** Busy fraction of each tier, capped at 1. */
+  utilization: number[];
+}
+
+/** Requests pass the tiers in order, and each passes on only what it can serve, so tiers behind a bottleneck see less. */
+export function pipeline(offered: number, tiers: readonly { instances: number; perInstance: number }[]): Pipeline {
+  const capacities = tiers.map((t) => t.instances * t.perInstance);
+  const arriving: number[] = [];
+  let flow = offered;
+  for (const capacity of capacities) {
+    arriving.push(flow);
+    flow = Math.min(flow, capacity);
+  }
+  const bottleneck = capacities.reduce((b, c, i) => (c < capacities[b] ? i : b), 0);
+  return { capacities, arriving, throughput: flow, bottleneck, utilization: capacities.map((c, i) => Math.min(1, arriving[i] / c)) };
+}

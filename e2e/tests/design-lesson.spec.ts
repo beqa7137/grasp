@@ -45,3 +45,42 @@ test('the queue lesson drains the backlog sooner with more consumers', async ({ 
   await page.getByRole('button', { name: 'Fewer consumers' }).click();
   await expect(drained).toHaveText('never');
 });
+
+test('the rate limiting lesson shows a fixed window passing twice the limit at a window edge', async ({ page }) => {
+  await page.goto('/learn/design/sd-rate-limiting');
+  await expect(page.getByRole('radio', { name: 'Edge burst' })).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByText('20 of 20 accepted · worst second 20')).toBeVisible();
+  await expect(page.getByText('10 of 20 accepted · worst second 10')).toBeVisible();
+  await page.getByRole('radio', { name: 'Steady' }).click();
+  await expect(page.getByText('24 of 24 accepted · worst second 8')).toHaveCount(3);
+});
+
+test('the reliability lesson shows a second database copy removing almost all downtime', async ({ page }) => {
+  await page.goto('/learn/design/sd-reliability');
+  const whole = page.locator('.readouts div').filter({ hasText: 'Whole request' }).locator('dd');
+  await expect(whole).toHaveText('99.950%');
+  await page.getByRole('button', { name: 'More Database copies' }).click();
+  await expect(whole).toHaveText('99.99997%');
+  await expect(page.locator('.readouts div').filter({ hasText: 'Down a year' }).locator('dd')).toHaveText('8 s');
+});
+
+test('the estimation drill judges a typed estimate and shows the working', async ({ page }) => {
+  await page.goto('/learn/design/sd-estimation');
+  const drill = page.locator('app-estimate-drill');
+  await drill.getByRole('textbox').fill('6k');
+  await drill.getByRole('button', { name: 'Check', exact: true }).click();
+  await expect(drill.getByRole('status')).toContainText('Spot on.');
+  await drill.getByRole('button', { name: 'Next question' }).click();
+  await expect(drill.getByText('Question 2 of 6')).toBeVisible();
+  await expect(drill.getByRole('textbox')).toBeFocused();
+});
+
+test('the capacity lesson moves the bottleneck when the database gets a second instance', async ({ page }) => {
+  await page.goto('/learn/design/sd-capacity');
+  const readout = (name: string) => page.locator('.readouts div').filter({ hasText: name }).locator('dd');
+  await expect(readout('Bottleneck')).toHaveText('Database');
+  await expect(readout('Dropped')).toHaveText('4,000/s');
+  await page.getByRole('button', { name: 'More Database' }).click();
+  await expect(readout('Bottleneck')).toHaveText('App servers');
+  await expect(readout('Dropped')).toHaveText('2,000/s');
+});
