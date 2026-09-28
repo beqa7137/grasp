@@ -164,9 +164,11 @@ test.describe('on a first visit', () => {
         box.y >= outer.y && box.y + box.height <= outer.y + outer.height && box.x >= outer.x && box.x + box.width <= outer.x + outer.width
       );
     };
-    const dialogBox = (await dialog.boundingBox())!;
-    expect(await within(dialog, { x: 0, y: 0, width: 390, height: 844 }), 'the dialog fits the screen').toBe(true);
-    expect(await within(button, dialogBox), 'the button shows inside the dialog').toBe(true);
+    // WebKit lays the modal out again a moment after the larger text applies, so the geometry is read until it settles.
+    await expect.poll(() => within(dialog, { x: 0, y: 0, width: 390, height: 844 }), { message: 'the dialog fits the screen' }).toBe(true);
+    await expect
+      .poll(async () => within(button, (await dialog.boundingBox())!), { message: 'the button shows inside the dialog' })
+      .toBe(true);
     await button.click();
     await expect(dialog).toBeHidden();
   });

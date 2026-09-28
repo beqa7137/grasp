@@ -237,13 +237,23 @@ test('Trace shows the call stack of a recursive DFS, and the calls waiting on th
   await expect(tree.getByRole('img', { name: 'Tree with 5 nodes, current node 2, 1 on the call stack, 1 returned' })).toBeVisible();
 });
 
-/** Every line of the badge lies inside the drawing: its words, since Playwright's box for a text also takes in its outline. */
-async function expectWordsInside(drawing: Locator, badge: Locator) {
-  const box = (await drawing.boundingBox())!;
-  for (const line of await badge.locator('tspan').all()) {
-    const text = (await line.boundingBox())!;
-    expect(text.x).toBeGreaterThanOrEqual(box.x);
-    expect(text.x + text.width).toBeLessThanOrEqual(box.x + box.width);
+/**
+ * Every line of the badge lies inside the drawing: its words, measured from where the glyphs start and end, since a
+ * rendered box for a text or a line of it also takes in its outline, and WebKit's takes in more of it than Chromium's.
+ */
+async function expectWordsInside(badge: Locator) {
+  const lines = await badge.evaluate((text: SVGTextElement) => {
+    const view = text.ownerSVGElement!.viewBox.baseVal;
+    return [...text.querySelectorAll('tspan')].map((line) => ({
+      start: line.getStartPositionOfChar(0).x,
+      end: line.getEndPositionOfChar(line.getNumberOfChars() - 1).x,
+      left: view.x,
+      right: view.x + view.width,
+    }));
+  });
+  for (const { start, end, left, right } of lines) {
+    expect(start).toBeGreaterThanOrEqual(left);
+    expect(end).toBeLessThanOrEqual(right);
   }
 }
 
@@ -256,7 +266,7 @@ test('Trace keeps the tree one width as a long pointer name comes and goes, with
   const badge = tree.locator('text.badge');
   await expect(badge).toHaveText('currentNode');
   expect(await tree.getAttribute('viewBox')).toBe(unbadged);
-  await expectWordsInside(tree, badge);
+  await expectWordsInside(badge);
 });
 
 test('on a narrow phone, two long pointer names on one node stack on two lines, and the tree keeps its full size', async ({ page }) => {
@@ -270,7 +280,7 @@ test('on a narrow phone, two long pointer names on one node stack on two lines, 
   await expect(badge.locator('tspan')).toHaveText(['current_node,', 'previous_node']);
   expect(await tree.getAttribute('viewBox')).toBe(first);
   expect((await tree.boundingBox())!.width).toBeCloseTo(Number(first.split(' ')[2]), 0);
-  await expectWordsInside(tree, badge);
+  await expectWordsInside(badge);
 });
 
 test('on a narrow phone, a call too long for the call stack is cut short on one line, and nothing scrolls sideways', async ({ page }) => {
@@ -329,8 +339,8 @@ test('with the page scrolled to its end, Step forward stays put as the call stac
   isMobile,
 }) => {
   // On a laptop the problem statement beside the trace also sets where the page ends, so the page gives back less than the
-  // drawing does.
-  if (!isMobile) await page.setViewportSize({ width: 1280, height: 1000 });
+  // drawing does. A phone is given the height of a large one, where Step forward is still on screen at the page end.
+  await page.setViewportSize(isMobile ? { width: page.viewportSize()!.width, height: 840 } : { width: 1280, height: 1000 });
   await page.goto('/code/tree-diameter');
   await trace(page, JS_DIAMETER, 'Diameter of Binary Tree');
   const player = page.locator('app-trace-player');
