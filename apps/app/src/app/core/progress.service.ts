@@ -20,6 +20,7 @@ import {
 } from '@grasp/engine';
 import { ApiService } from './api.service';
 import { LearnerService } from './learner.service';
+import { clearDrafts } from './local-drafts';
 import { packProgressEvents, readProgressAcknowledgement } from './progress-upload';
 
 const EVENTS_KEY = 'grasp.events';
@@ -192,6 +193,7 @@ export class ProgressService {
           Preferences.remove({ key: EVENTS_KEY }),
           Preferences.remove({ key: ACKNOWLEDGED_KEY }),
           Preferences.remove({ key: LEGACY_SYNCED_KEY }),
+          clearDrafts(),
         ]);
       });
     this.storageWrites = clearStorage;

@@ -36,6 +36,7 @@ import { toFrames, type TraceFrame } from '../../code/trace-frames';
 import { TracePlayerComponent } from '../../code/trace-player.component';
 import { exampleTree } from '../../code/tree-frames';
 import { haptic } from '../../core/haptics';
+import { CODE_DRAFT_PREFIX } from '../../core/local-drafts';
 import { onPageKey } from '../../core/on-page-key';
 import { ProgressService } from '../../core/progress.service';
 import { RovingSelectDirective } from '../../core/roving-select.directive';
@@ -44,7 +45,7 @@ import { CodeTextComponent } from '../../viz/code-text.component';
 import { TreeViewComponent } from '../../viz/tree-view.component';
 
 const LANGUAGE_KEY = 'grasp.code.language';
-const draftKey = (problemId: string, language: Language) => `grasp.code.draft.${problemId}.${language}`;
+const draftKey = (problemId: string, language: Language) => `${CODE_DRAFT_PREFIX}${problemId}.${language}`;
 const SUITE_SEED = 1;
 const PREVIEW_CHARS = 400;
 

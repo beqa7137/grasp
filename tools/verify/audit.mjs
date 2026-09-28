@@ -5,7 +5,7 @@ import { AxeBuilder, OUT, THEME, chromium, goto, newContext, readOnly, states } 
 
 const only = process.argv[2] ? new RegExp(process.argv[2]) : null;
 const profiles = (process.env.PROFILES ?? 'desktop,pixel7').split(',');
-const browser = await chromium.launch();
+const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 const results = [];
 let failing = 0;
 

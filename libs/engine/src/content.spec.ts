@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ALGORITHMS, mulberry32, type AlgorithmDef } from './algorithms/index.js';
+import { COMPETENCY_CATALOG } from './behavioral/catalog.js';
+import { COMPETENCIES } from './behavioral/competencies.js';
 import { codeSpanProblems, codeSpans } from './code-spans.js';
 import { CODING_PROBLEMS } from './coding/problems/index.js';
 import { CLOZES } from './curriculum/clozes.js';
@@ -43,8 +45,8 @@ const questions = (item: ItemDef) =>
   (item.kind === 'predict' ? REVIEW_SEEDS.slice(0, 1) : REVIEW_SEEDS).map((seed) => generateQuestion(item.id, seed));
 
 /**
- * All learner-facing content, one entry per item so a failure names the one to fix: the curriculum, design and coding
- * catalogs; every tracer's metadata with its default trace and seeded random ones; and every review item with its
+ * All learner-facing content, one entry per item so a failure names the one to fix: the curriculum, design, coding and
+ * behavioral catalogs; every tracer's metadata with its default trace and seeded random ones; and every review item with its
  * generated questions.
  */
 function learnerContent(): Entry[] {
@@ -58,6 +60,8 @@ function learnerContent(): Entry[] {
     ...byKey('component', COMPONENTS),
     ...byKey('shard key', SHARD_KEYS),
     ...byId('coding problem', CODING_PROBLEMS),
+    ...byId('competency summary', [...COMPETENCY_CATALOG]),
+    ...byId('competency', [...COMPETENCIES]),
     ...ALGORITHMS.map((algo): Entry => [`tracer ${algo.id}`, { ...algo, traces: traces(algo) }]),
     ...REVIEW_ITEMS.map((item): Entry => [`review item ${item.id}`, { ...item, questions: questions(item) }]),
   ];

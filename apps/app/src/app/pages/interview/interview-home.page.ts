@@ -2,9 +2,9 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { DatePipe } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { IonContent, IonHeader, IonIcon, IonSpinner, IonTitle, IonToolbar } from '@ionic/angular';
-import { getPatternSummary } from '@grasp/engine';
+import { COMPETENCY_CATALOG, getPatternSummary } from '@grasp/engine';
 import { addIcons } from 'ionicons';
-import { codeSlashOutline, gitNetworkOutline, shuffle, sparkles } from 'ionicons/icons';
+import { codeSlashOutline, gitNetworkOutline, peopleOutline, shuffle, sparkles } from 'ionicons/icons';
 import { ApiError, ApiService } from '../../core/api.service';
 import { SignInOptionsComponent } from '../../core/sign-in-options.component';
 import type { AiAccess, InterviewCatalog, InterviewMode, InterviewSession, InterviewTrack, ProblemSummary } from './interview.types';
@@ -107,6 +107,15 @@ import type { AiAccess, InterviewCatalog, InterviewMode, InterviewSession, Inter
           </button>
         </div>
 
+        <a class="panel card-link behavioral" routerLink="/behavioral">
+          <ion-icon name="people-outline" aria-hidden="true" />
+          <span>
+            <span class="title display">Behavioral</span>
+            <span class="muted blurb">{{ behavioralBlurb }}</span>
+          </span>
+          <span class="go">Practice →</span>
+        </a>
+
         @if (recent().length) {
           <h2 class="recent-title">Recent</h2>
           <div class="recent">
@@ -175,6 +184,14 @@ import type { AiAccess, InterviewCatalog, InterviewMode, InterviewSession, Inter
       border-color: rgba(var(--g-danger-rgb), 0.5);
       color: var(--g-danger-ink);
     }
+    .behavioral {
+      align-items: center;
+      margin-top: 14px;
+      text-decoration: none;
+      > span:nth-of-type(1) {
+        flex: 1;
+      }
+    }
     .tracks {
       display: grid;
       gap: 10px;
@@ -186,7 +203,8 @@ import type { AiAccess, InterviewCatalog, InterviewMode, InterviewSession, Inter
       font-weight: 500;
       line-height: 1.2;
     }
-    .track {
+    .track,
+    .behavioral {
       appearance: none;
       text-align: left;
       display: flex;
@@ -245,12 +263,12 @@ import type { AiAccess, InterviewCatalog, InterviewMode, InterviewSession, Inter
         gap: 6px;
         flex-wrap: wrap;
       }
-      .go {
-        color: var(--g-accent);
-        font-weight: 600;
-        font-size: 0.84375rem;
-        white-space: nowrap;
-      }
+    }
+    .go {
+      color: var(--g-accent);
+      font-weight: 600;
+      font-size: 0.84375rem;
+      white-space: nowrap;
     }
     .surprise {
       align-self: flex-start;
@@ -300,6 +318,7 @@ export class InterviewHomePage {
   private readonly api = inject(ApiService);
   private readonly router = inject(Router);
 
+  readonly behavioralBlurb = `STAR answers with a live check, across ${COMPETENCY_CATALOG.length} competencies interviewers score.`;
   readonly tracks = [
     {
       id: 'coding' as const,
@@ -330,7 +349,7 @@ export class InterviewHomePage {
   readonly visible = computed(() => this.problems().filter((p) => p.track === this.track()));
 
   constructor() {
-    addIcons({ codeSlashOutline, gitNetworkOutline, shuffle, sparkles });
+    addIcons({ codeSlashOutline, gitNetworkOutline, peopleOutline, shuffle, sparkles });
   }
 
   ionViewWillEnter() {
