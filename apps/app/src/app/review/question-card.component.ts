@@ -125,7 +125,7 @@ const REASON_LABELS: Record<CardReason, string> = {
       <div class="choices" [class.mono]="q.kind === 'cloze'">
         @for (c of q.choices; track $index) {
           <button
-            class="choice"
+            class="g-choice choice"
             [disabled]="chosen() !== null"
             [class.right]="chosen() !== null && $index === q.answer"
             [class.wrong]="chosen() === $index && $index !== q.answer"

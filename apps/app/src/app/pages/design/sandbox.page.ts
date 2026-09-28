@@ -23,6 +23,8 @@ import {
   createNode,
   evaluate,
   fmt,
+  getCaseLab,
+  getCaseSummary,
   getScenario,
   scenarioVariant,
   simulate,
@@ -100,6 +102,7 @@ type Drag =
 })
 export class SandboxPage {
   readonly id = input.required<string>();
+  readonly caseId = input<string | undefined>(undefined, { alias: 'case' });
   readonly revisit = input(undefined, {
     transform: (v: string | number | undefined) => (v === undefined || v === '' ? undefined : Number(v)),
   });
@@ -133,12 +136,30 @@ export class SandboxPage {
   readonly shardKeys = (Object.keys(SHARD_KEYS) as ShardKey[]).map((id) => ({ id, ...SHARD_KEYS[id] }));
   readonly fmt = fmt;
 
+  /** A case study's reference build, opened as a free build under the load the case estimates. */
+  protected readonly caseBuild = computed<Scenario | undefined>(() => {
+    const id = this.caseId();
+    const lab = id ? getCaseLab(id) : undefined;
+    const title = id ? getCaseSummary(id)?.title : undefined;
+    if (!lab || !title) return undefined;
+    return {
+      ...FREE_BUILD,
+      title: `${title} build`,
+      tagline: `The reference design from the ${title} case study.`,
+      brief: `The ${title} case study's design at ${fmt(lab.workload.rps)} requests per second. Push the traffic up, kill a node, and see what gives first.`,
+      starter: lab.design,
+      workload: lab.workload,
+    };
+  });
+
   readonly scenario = computed<Scenario | undefined>(() => {
-    if (this.id() === FREE_BUILD.id) return FREE_BUILD;
+    if (this.id() === FREE_BUILD.id) return this.caseBuild() ?? FREE_BUILD;
     const n = this.revisit();
     return n ? scenarioVariant(this.id(), n) : getScenario(this.id());
   });
-  readonly storageKey = computed(() => `grasp.design.${this.id()}${this.revisit() ? `.r${this.revisit()}` : ''}`);
+  readonly storageKey = computed(() =>
+    this.caseBuild() ? `grasp.design.case.${this.caseId()}` : `grasp.design.${this.id()}${this.revisit() ? `.r${this.revisit()}` : ''}`,
+  );
   readonly isFree = computed(() => this.id() === FREE_BUILD.id);
 
   readonly design = signal<Design>({ nodes: [], edges: [] });

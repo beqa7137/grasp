@@ -19,6 +19,7 @@ const FIRST_PAINT = [
   'curriculum/sd-topics.ts',
   'review/catalog.ts',
   'sysdesign/scenario-catalog.ts',
+  'sysdesign/case-catalog.ts',
 ];
 
 function resolve(file: string, specifier: string): string {
@@ -75,6 +76,7 @@ describe('first paint', () => {
       'srs/scheduler.ts',
       'srs/session.ts',
       'srs/settings.ts',
+      'sysdesign/case-catalog.ts',
       'sysdesign/scenario-catalog.ts',
     ]);
   });

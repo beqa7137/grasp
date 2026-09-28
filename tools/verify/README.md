@@ -11,7 +11,9 @@ npm run build
 PORT=4310 NODE_ENV=production WEB_DIST_DIR=$PWD/apps/app/dist/app/browser JWT_SECRET=local-only-secret-local-only-secret-12 LOG_LEVEL=warn node apps/api/dist/main.js
 ```
 
-For a baseline, build `main` in a git worktree outside the repo and serve it on another port.
+For a baseline, build `main` in a git worktree outside the repo and serve it on another port. Stop any server on 4310 before
+`npm run e2e`: Playwright reuses a server already on its port, and one started here lacks the e2e's fake sign-in
+providers, so every sign-in test times out.
 
 ## audit.mjs
 

@@ -194,6 +194,9 @@
 
           @if (isFree()) {
             <div class="panel workload">
+              @if (caseBuild()) {
+                <p class="brief case-brief">{{ s.brief }}</p>
+              }
               <label>
                 <span
                   >Traffic <strong class="mono">{{ fmt(workload().rps) }} rps</strong></span

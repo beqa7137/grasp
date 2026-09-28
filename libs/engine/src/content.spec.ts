@@ -13,6 +13,8 @@ import { SD_TOPICS } from './curriculum/sd-topics.js';
 import { REVIEW_ITEMS, generateQuestion } from './review/items.js';
 import type { ItemDef } from './review/types.js';
 import { COMPONENTS, SHARD_KEYS } from './sysdesign/catalog.js';
+import { CASE_CATALOG } from './sysdesign/case-catalog.js';
+import { CASE_STUDIES } from './sysdesign/cases/index.js';
 import { SCENARIOS } from './sysdesign/scenarios.js';
 
 const BANNED: [name: string, char: string][] = [
@@ -60,6 +62,8 @@ function learnerContent(): Entry[] {
     ...byId('scenario', SCENARIOS),
     ...byKey('component', COMPONENTS),
     ...byKey('shard key', SHARD_KEYS),
+    ...byId('case summary', [...CASE_CATALOG]),
+    ...byId('case study', [...CASE_STUDIES]),
     ...byId('coding problem', CODING_PROBLEMS),
     ...byId('competency summary', [...COMPETENCY_CATALOG]),
     ...byId('competency', [...COMPETENCIES]),
