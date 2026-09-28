@@ -121,15 +121,13 @@ jobs:
       - uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-webkit-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.version }}
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.version }}
 
-      # Only Chromium's headless shell, since the tests run headless. Chromium needs no --with-deps: the runner
-      # image already has its libraries (it ships Google Chrome), and the app brings its own fonts. WebKit's
-      # libraries are not on the image.
-      - name: Install Chromium and WebKit
-        run: |
-          npx -w @grasp/e2e playwright install --only-shell chromium
-          npx -w @grasp/e2e playwright install --with-deps webkit
+      # Only the headless shell, since the tests run headless. No --with-deps: the runner image already has
+      # Chromium's libraries (it ships Google Chrome), the app brings its own fonts, and the apt run took
+      # 15-30 s a shard.
+      - name: Install Chromium
+        run: npx -w @grasp/e2e playwright install --only-shell chromium
 
       - name: Build
         run: npm run build
@@ -144,7 +142,7 @@ jobs:
 
       - uses: ./.github/actions/wait-for-postgres
 
-      - name: Run the learner flows on desktop, Android and iPhone
+      - name: Run the learner flows on desktop and phone
         run: npm run e2e -- --shard=${{ matrix.shard }}/${{ strategy.job-total }} --workers=100% --reporter=github,blob
 
       - name: Upload the blob report
