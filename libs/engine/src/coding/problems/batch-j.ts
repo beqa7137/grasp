@@ -8,7 +8,7 @@ const INT_MIN = -(2 ** 31);
 const INT_MAX = 2 ** 31 - 1;
 
 /** The tree `shape` with `sorted` written into its nodes in order, so it is a search tree exactly when `sorted` strictly rises. */
-function inorderFill(shape: LevelOrder, sorted: number[]): LevelOrder {
+export function inorderFill(shape: LevelOrder, sorted: number[]): LevelOrder {
   const root = buildTree(shape);
   let k = 0;
   const fill = (node: TreeNode | null): void => {

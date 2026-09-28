@@ -59,6 +59,18 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     for (const w of a) for (const x of b) for (const y of c) for (const z of d) if (w + x + y + z === 0) count++;
     return count;
   },
+  'valid-sudoku': (board: string[][]) => {
+    const cells = board.flatMap((row, r) => row.flatMap((digit, c) => (digit === '.' ? [] : [{ r, c, digit }])));
+    return cells.every((a, i) =>
+      cells
+        .slice(i + 1)
+        .every(
+          (b) =>
+            a.digit !== b.digit ||
+            (a.r !== b.r && a.c !== b.c && (Math.floor(a.r / 3) !== Math.floor(b.r / 3) || Math.floor(a.c / 3) !== Math.floor(b.c / 3))),
+        ),
+    );
+  },
   'pair-sum-sorted': (nums: number[], t: number) => {
     for (let i = 0; i < nums.length; i++) for (let j = i + 1; j < nums.length; j++) if (nums[i] + nums[j] === t) return [i, j];
     return [];
@@ -81,6 +93,18 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
   },
   'trapping-rain-water': (bars: number[]) =>
     bars.reduce((water, h, i) => water + Math.min(Math.max(...bars.slice(0, i + 1)), Math.max(...bars.slice(i))) - h, 0),
+  'boats-to-save-people': (people: number[], limit: number) => {
+    const fewest = (left: number[]): number => {
+      if (!left.length) return 0;
+      const [first, ...rest] = left;
+      let best = 1 + fewest(rest);
+      rest.forEach((other, i) => {
+        if (first + other <= limit) best = Math.min(best, 1 + fewest(rest.filter((_, j) => j !== i)));
+      });
+      return best;
+    };
+    return fewest(people);
+  },
   'jump-game': (nums: number[]) => {
     const reachesEnd = (i: number): boolean =>
       i === nums.length - 1 || rangeOf(i + 1, Math.min(i + nums[i], nums.length - 1)).some(reachesEnd);
@@ -106,6 +130,20 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
         start = cut;
       }
     return sizes;
+  },
+  candy: (ratings: number[]) => {
+    const candies = ratings.map(() => 1);
+    for (let changed = true; changed;) {
+      changed = false;
+      ratings.forEach((rating, i) => {
+        for (const j of [i - 1, i + 1])
+          if (j >= 0 && j < ratings.length && rating > ratings[j] && candies[i] <= candies[j]) {
+            candies[i] = candies[j] + 1;
+            changed = true;
+          }
+      });
+    }
+    return candies.reduce((sum, c) => sum + c, 0);
   },
   'longest-unique-substring': (s: string) => {
     let best = 0;
@@ -148,6 +186,12 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
       for (let i = 0; i + length <= s.length; i++) if (covers(s.slice(i, i + length))) return s.slice(i, i + length);
     return '';
   },
+  'max-consecutive-ones-iii': (nums: number[], k: number) => {
+    let best = 0;
+    for (let i = 0; i < nums.length; i++)
+      for (let j = i; j < nums.length; j++) if (nums.slice(i, j + 1).filter((x) => x === 0).length <= k) best = Math.max(best, j - i + 1);
+    return best;
+  },
   'binary-search': (nums: number[], t: number) => nums.indexOf(t),
   'koko-bananas': (piles: number[], h: number) => {
     const lowerBound = Math.max(1, Math.ceil(piles.reduce((s, p) => s + p, 0) / h));
@@ -166,6 +210,19 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     };
     return cheapest(0, k);
   },
+  'ship-within-days': (weights: number[], days: number) => {
+    const sum = (part: number[]) => part.reduce((s, x) => s + x, 0);
+    const cheapest = (from: number, daysLeft: number): number => {
+      if (from === weights.length) return 0;
+      if (daysLeft === 0) return Infinity;
+      let best = Infinity;
+      for (let end = from + 1; end <= weights.length; end++)
+        best = Math.min(best, Math.max(sum(weights.slice(from, end)), cheapest(end, daysLeft - 1)));
+      return best;
+    };
+    return cheapest(0, days);
+  },
+  'search-2d-matrix': (matrix: number[][], target: number) => matrix.flat().includes(target),
   'daily-temperatures': (t: number[]) =>
     t.map((x, i) => {
       const j = t.findIndex((y, k) => k > i && y > x);
@@ -193,6 +250,23 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
   'sliding-window-maximum': (nums: number[], k: number) => rangeOf(0, nums.length - k).map((i) => Math.max(...nums.slice(i, i + k))),
   'car-fleet': (target: number, position: number[], speed: number[]) =>
     position.filter((p, i) => position.every((q, j) => q <= p || (target - q) * speed[i] < (target - p) * speed[j])).length,
+  'remove-k-digits': (num: string, k: number) => {
+    let best: string | undefined;
+    for (let mask = 0; mask < 1 << num.length; mask++) {
+      const kept = [...num].filter((_, i) => mask & (1 << i));
+      if (kept.length !== num.length - k) continue;
+      const value = kept.join('').replace(/^0+/, '') || '0';
+      if (best === undefined || value.length < best.length || (value.length === best.length && value < best)) best = value;
+    }
+    return best;
+  },
+  'next-greater-element-ii': (nums: number[]) =>
+    nums.map(
+      (x, i) =>
+        rangeOf(1, nums.length - 1)
+          .map((step) => nums[(i + step) % nums.length])
+          .find((y) => y > x) ?? -1,
+    ),
   'subarray-sum-k': (nums: number[], k: number) => {
     let count = 0;
     for (let i = 0; i < nums.length; i++) {
@@ -219,6 +293,21 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
       for (let j = i; j < nums.length; j++) if ((sum += nums[j]) % k === 0) count++;
     }
     return count;
+  },
+  'count-nice-subarrays': (nums: number[], k: number) => {
+    let count = 0;
+    for (let i = 0; i < nums.length; i++)
+      for (let j = i; j < nums.length; j++) if (nums.slice(i, j + 1).filter((x) => x % 2 === 1).length === k) count++;
+    return count;
+  },
+  'longest-well-performing-interval': (hours: number[]) => {
+    let best = 0;
+    for (let i = 0; i < hours.length; i++)
+      for (let j = i; j < hours.length; j++) {
+        const days = hours.slice(i, j + 1);
+        if (days.filter((h) => h > 8).length > days.filter((h) => h <= 8).length) best = Math.max(best, days.length);
+      }
+    return best;
   },
   'number-of-islands': (grid: string[][]) => {
     const g = grid.map((r) => [...r]);
@@ -282,6 +371,42 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     const zeros = mat.flatMap((row, r) => row.flatMap((cell, c) => (cell ? [] : [[r, c]])));
     return mat.map((row, r) => row.map((_, c) => Math.min(...zeros.map(([y, x]) => Math.abs(y - r) + Math.abs(x - c)))));
   },
+  'open-the-lock': (deadends: string[], target: string) => {
+    const from = rangeOf(0, 9_999).map((code) => {
+      const text = String(code).padStart(4, '0');
+      return [0, 1, 2, 3].flatMap((i) =>
+        [1, 9].map((step) => Number(text.slice(0, i) + ((Number(text[i]) + step) % 10) + text.slice(i + 1))),
+      );
+    });
+    const dead = new Set(deadends.map(Number));
+    const turns = from.map((_, code) => (code === 0 && !dead.has(0) ? 0 : Infinity));
+    for (let changed = true; changed;) {
+      changed = false;
+      from.forEach((neighbors, code) => {
+        if (dead.has(code)) return;
+        for (const other of neighbors)
+          if (turns[other] + 1 < turns[code]) {
+            turns[code] = turns[other] + 1;
+            changed = true;
+          }
+      });
+    }
+    const answer = turns[Number(target)];
+    return answer === Infinity ? -1 : answer;
+  },
+  'minimum-knight-moves': (x: number, y: number) => {
+    const steps = [1, 2, -1, -2].flatMap((da) => [1, 2, -1, -2].filter((db) => Math.abs(da) !== Math.abs(db)).map((db) => [da, db]));
+    const key = (a: number, b: number) => (a + 1_000) * 2_000 + b + 1_000;
+    const moves = new Map([[key(0, 0), 0]]);
+    for (const [square, count] of moves) {
+      const [a, b] = [Math.floor(square / 2_000) - 1_000, (square % 2_000) - 1_000];
+      if (a === x && b === y) return count;
+      for (const [da, db] of steps)
+        if (Math.abs(a + da) <= Math.abs(x) + 8 && Math.abs(b + db) <= Math.abs(y) + 8 && !moves.has(key(a + da, b + db)))
+          moves.set(key(a + da, b + db), count + 1);
+    }
+    return -1;
+  },
   subsets: (nums: number[]) => {
     const sorted = [...nums].sort((a, b) => a - b);
     return rangeOf(0, 2 ** nums.length - 1).map((mask) => sorted.filter((_, i) => mask & (1 << i)));
@@ -336,6 +461,27 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     };
     return count();
   },
+  'generate-parentheses': (n: number) =>
+    rangeOf(0, 4 ** n - 1)
+      .map((mask) =>
+        rangeOf(0, 2 * n - 1)
+          .map((i) => ((mask >> i) & 1 ? '(' : ')'))
+          .join(''),
+      )
+      .filter((s) => {
+        let rest = s;
+        while (rest.includes('()')) rest = rest.replaceAll('()', '');
+        return rest === '';
+      }),
+  'letter-combinations': (digits: string) => {
+    const keys = [...digits].map((d) => ['abc', 'def', 'ghi', 'jkl', 'mno', 'pqrs', 'tuv', 'wxyz'][Number(d) - 2]);
+    const count = digits ? keys.reduce((product, letters) => product * letters.length, 1) : 0;
+    return rangeOf(0, count - 1).map((index) =>
+      keys
+        .map((letters, i) => letters[Math.floor(index / keys.slice(i + 1).reduce((product, l) => product * l.length, 1)) % letters.length])
+        .join(''),
+    );
+  },
   'merge-intervals': (intervals: number[][]) => {
     let list = intervals.map((i) => [...i]);
     for (let changed = true; changed;) {
@@ -371,6 +517,11 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
   },
   'meeting-rooms-ii': (intervals: number[][]) =>
     Math.max(...intervals.map(([at]) => intervals.filter(([start, end]) => start <= at && at < end).length)),
+  'interval-list-intersections': (firstList: number[][], secondList: number[][]) =>
+    firstList
+      .flatMap(([a, b]) => secondList.map(([c, d]) => [Math.max(a, c), Math.min(b, d)]))
+      .filter(([start, end]) => start <= end)
+      .sort((x, y) => x[0] - y[0]),
   'min-arrows-balloons': (points: number[][]) => {
     const spots = [...new Set(points.map(([, end]) => end))];
     let fewest = Infinity;
@@ -434,6 +585,30 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     };
     return Number(count(0) % 1_000_000_007n);
   },
+  'maximum-product-subarray': (nums: number[]) => {
+    let best = -Infinity;
+    for (let i = 0; i < nums.length; i++)
+      for (let j = i + 1; j <= nums.length; j++)
+        best = Math.max(
+          best,
+          nums.slice(i, j).reduce((product, x) => product * x, 1),
+        );
+    return best;
+  },
+  // Each multiset of values that adds up to the target, times the number of orders of it.
+  'combination-sum-iv': (nums: number[], target: number) => {
+    const factorial = (k: number): bigint => (k <= 1 ? 1n : BigInt(k) * factorial(k - 1));
+    let total = 0n;
+    const pick = (i: number, rest: number, counts: number[]) => {
+      if (i === nums.length) {
+        if (rest === 0) total += counts.reduce((orders, c) => orders / factorial(c), factorial(counts.reduce((a, b) => a + b, 0)));
+        return;
+      }
+      for (let c = 0; c * nums[i] <= rest; c++) pick(i + 1, rest - c * nums[i], [...counts, c]);
+    };
+    pick(0, target, []);
+    return Number(total);
+  },
   'kth-largest-element': (nums: number[], k: number) =>
     nums.find((x) => nums.filter((y) => y > x).length < k && nums.filter((y) => y >= x).length >= k),
   'k-closest-points': (points: number[][], k: number) => {
@@ -458,6 +633,26 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     return -1;
   },
   'kth-smallest-sorted-matrix': (matrix: number[][], k: number) => matrix.flat().sort((a, b) => a - b)[k - 1],
+  'last-stone-weight': (stones: number[]) => {
+    const left = [...stones];
+    while (left.length > 1) {
+      left.sort((a, b) => a - b);
+      const y = left.pop()!;
+      const x = left.pop()!;
+      if (x !== y) left.push(y - x);
+    }
+    return left[0] ?? 0;
+  },
+  'merge-k-sorted-arrays': (arrays: number[][]) => arrays.flat().sort((a, b) => a - b),
+  ipo: (k: number, w: number, profits: number[], capital: number[]) => {
+    const best = (money: number, left: number, used: number): number =>
+      profits.reduce(
+        (most, profit, i) =>
+          left && !(used & (1 << i)) && capital[i] <= money ? Math.max(most, best(money + profit, left - 1, used | (1 << i))) : most,
+        money,
+      );
+    return best(w, k, 0);
+  },
   'longest-common-subsequence': (a: string, b: string) => {
     const subsequences = (s: string) => {
       const out = new Set<string>(['']);
@@ -489,6 +684,38 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     rangeOf(0, 2 ** s3.length - 1).some(
       (mask) => [...s3].filter((_, i) => mask & (1 << i)).join('') === s1 && [...s3].filter((_, i) => !(mask & (1 << i))).join('') === s2,
     ),
+  'unique-paths-ii': (grid: number[][]) => {
+    const memo = new Map<string, bigint>();
+    const paths = (r: number, c: number): bigint => {
+      if (r === grid.length || c === grid[0].length || grid[r][c]) return 0n;
+      if (r === grid.length - 1 && c === grid[0].length - 1) return 1n;
+      const key = `${r},${c}`;
+      if (!memo.has(key)) memo.set(key, paths(r + 1, c) + paths(r, c + 1));
+      return memo.get(key)!;
+    };
+    return Number(paths(0, 0) % 1_000_000_007n);
+  },
+  // The position in s of each letter of t in turn, trying every later match.
+  'distinct-subsequences': (s: string, t: string) => {
+    const memo = new Map<string, bigint>();
+    const ways = (from: number, j: number): bigint => {
+      if (j === t.length) return 1n;
+      const key = `${from},${j}`;
+      if (!memo.has(key)) {
+        let total = 0n;
+        for (let k = from; k < s.length; k++) if (s[k] === t[j]) total += ways(k + 1, j + 1);
+        memo.set(key, total);
+      }
+      return memo.get(key)!;
+    };
+    return Number(ways(0, 0));
+  },
+  'count-palindromic-substrings': (s: string) => {
+    let count = 0;
+    for (let i = 0; i < s.length; i++)
+      for (let j = i + 1; j <= s.length; j++) if (s.slice(i, j) === s.slice(i, j).split('').reverse().join('')) count++;
+    return count;
+  },
   'count-components': (n: number, edges: number[][]) => {
     const seen = new Set<number>();
     let components = 0;
@@ -542,6 +769,30 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     for (let via = 0; via < 26; via++)
       for (let i = 0; i < 26; i++) for (let j = 0; j < 26; j++) equal[i][j] ||= equal[i][via] && equal[via][j];
     return equations.every((e) => e[1] === '=' || !equal[e.charCodeAt(0) - 97][e.charCodeAt(3) - 97]);
+  },
+  'smallest-string-with-swaps': (s: string, pairs: number[][]) => {
+    const reached = new Set([s]);
+    for (const text of reached)
+      for (const [a, b] of pairs) {
+        const letters = [...text];
+        [letters[a], letters[b]] = [letters[b], letters[a]];
+        reached.add(letters.join(''));
+      }
+    return [...reached].sort()[0];
+  },
+  'most-stones-removed': (stones: number[][]) => {
+    const best = new Map<number, number>();
+    const removals = (left: number): number => {
+      if (best.has(left)) return best.get(left)!;
+      let most = 0;
+      stones.forEach(([x, y], i) => {
+        const shares = stones.some(([u, v], j) => j !== i && left & (1 << j) && (u === x || v === y));
+        if (left & (1 << i) && shares) most = Math.max(most, 1 + removals(left & ~(1 << i)));
+      });
+      best.set(left, most);
+      return most;
+    };
+    return removals((1 << stones.length) - 1);
   },
   'course-schedule': (_n: number, prerequisites: number[][]) => {
     const reaches = (from: number, to: number, seen: Set<number>): boolean => {
@@ -601,6 +852,19 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     const heights = rangeOf(0, n - 1).map(heightFrom);
     const least = Math.min(...heights);
     return rangeOf(0, n - 1).filter((node) => heights[node] === least);
+  },
+  'sequence-reconstruction': (nums: number[], sequences: number[][]) => {
+    const values = [...new Set(sequences.flat())];
+    const orders = values.reduce<number[][]>(
+      (found, x) => found.flatMap((p) => rangeOf(0, p.length).map((i) => [...p.slice(0, i), x, ...p.slice(i)])),
+      [[]],
+    );
+    const contains = (order: number[], list: number[]) => {
+      let at = 0;
+      for (const x of order) if (x === list[at]) at++;
+      return at === list.length;
+    };
+    return values.length === nums.length && orders.filter((order) => sequences.every((list) => contains(order, list))).length === 1;
   },
   'network-delay': (times: number[][], n: number, k: number) => {
     const dist = Array<number>(n + 1).fill(Infinity);
@@ -662,6 +926,28 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
       }
       if (reached.has(`${n - 1},${n - 1}`)) return t;
     }
+  },
+  'minimum-obstacle-removal': (grid: number[][]) => {
+    const cost = grid.map((row) => row.map(() => Infinity));
+    cost[0][0] = 0;
+    for (let changed = true; changed;) {
+      changed = false;
+      grid.forEach((row, r) =>
+        row.forEach((_, c) => {
+          for (const [y, x] of [
+            [r - 1, c],
+            [r + 1, c],
+            [r, c - 1],
+            [r, c + 1],
+          ])
+            if (y >= 0 && y < grid.length && x >= 0 && x < row.length && cost[r][c] + grid[y][x] < cost[y][x]) {
+              cost[y][x] = cost[r][c] + grid[y][x];
+              changed = true;
+            }
+        }),
+      );
+    }
+    return cost[grid.length - 1][grid[0].length - 1];
   },
   'count-prefixes': (words: string[], prefixes: string[]) => prefixes.map((p) => words.filter((w) => w.startsWith(p)).length),
   'replace-words': (dictionary: string[], sentence: string) =>
@@ -786,6 +1072,24 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     }
     return view;
   },
+  'path-sum-iii': (root: TreeNode | null, targetSum: number) => {
+    const { nodes, parent } = nodesOf(root);
+    let count = 0;
+    for (const end of nodes)
+      for (let node: TreeNode | undefined = end, sum = 0; node; node = parent.get(node)) if ((sum += node.val) === targetSum) count++;
+    return count;
+  },
+  'kth-smallest-bst': (root: TreeNode | null, k: number) =>
+    nodesOf(root)
+      .nodes.map((node) => node.val)
+      .sort((a, b) => a - b)[k - 1],
+  'count-good-nodes': (root: TreeNode | null) => {
+    const { nodes, parent } = nodesOf(root);
+    return nodes.filter((node) => {
+      for (let above = parent.get(node); above; above = parent.get(above)) if (above.val > node.val) return false;
+      return true;
+    }).length;
+  },
   'single-number': (nums: number[]) => nums.find((x) => nums.filter((y) => y === x).length === 1),
   'total-hamming-distance': (nums: number[]) => {
     let total = 0;
@@ -799,6 +1103,7 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     for (let i = 0; i < nums.length; i++) for (let j = i; j < nums.length; j++) best = Math.max(best, nums[i] ^ nums[j]);
     return best;
   },
+  'missing-number': (nums: number[]) => rangeOf(0, nums.length).find((x) => !nums.includes(x)),
 };
 
 /**
@@ -811,12 +1116,21 @@ const PERFORMANCE_LOAD: Record<string, (test: TestCase) => number> = {
   'coin-change': ({ args: [coins, amount] }) => (coins as number[]).length * (amount as number),
   'partition-equal-subset': ({ args: [nums] }) => ((nums as number[]).length * (nums as number[]).reduce((sum, x) => sum + x, 0)) / 2,
   'interleaving-string': ({ args: [s1, s2] }) => (s1 as string).length * (s2 as string).length,
+  'combination-sum-iv': ({ args: [nums, target] }) => (nums as number[]).length * (target as number),
+  'distinct-subsequences': ({ args: [s, t] }) => (s as string).length * (t as string).length,
+  'count-palindromic-substrings': ({ args: [s] }) => (s as string).length ** 2,
   subsets: ({ expected }) => (expected as unknown[]).length,
   'combination-sum': ({ expected }) => (expected as number[][]).flat().length,
   'counting-bits': ({ args: [n] }) => n as number,
   permutations: ({ expected }) => (expected as unknown[]).length,
   // The board positions a backtracking search reaches: every placement of queens in the first rows that no two attack.
   'n-queens-count': ({ args: [n] }) => safePlacements(n as number),
+  // A BFS visits every square fewer moves away than the target, more than (|x| + |y|)² of them.
+  'minimum-knight-moves': ({ args: [x, y] }) => (Math.abs(x as number) + Math.abs(y as number)) ** 2,
+  'generate-parentheses': ({ expected }) => (expected as unknown[]).length,
+  'letter-combinations': ({ expected }) => (expected as unknown[]).length,
+  // Every board is 9 × 9: there is no larger input and no slower approach to rule out.
+  'valid-sudoku': () => Infinity,
 };
 
 describe('coding problems', () => {
