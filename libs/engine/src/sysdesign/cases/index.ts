@@ -1,3 +1,8 @@
+import { WEB_CRAWLER } from './web-crawler.js';
+import { NOTIFICATIONS } from './notifications.js';
+import { CHAT } from './chat.js';
+import { TYPEAHEAD } from './typeahead.js';
+import { RATE_LIMITER } from './rate-limiter.js';
 import { NEWS_FEED } from './news-feed.js';
 import type { CaseStudy } from './types.js';
 import { URL_SHORTENER } from './url-shortener.js';
@@ -6,7 +11,7 @@ export type { CaseDecision, CaseEstimate, CaseOption, CaseStage, CaseStageKind, 
 export * from './estimate.js';
 export * from './labs.js';
 
-export const CASE_STUDIES: readonly CaseStudy[] = [URL_SHORTENER, NEWS_FEED];
+export const CASE_STUDIES: readonly CaseStudy[] = [URL_SHORTENER, RATE_LIMITER, TYPEAHEAD, NEWS_FEED, CHAT, NOTIFICATIONS, WEB_CRAWLER];
 
 export function getCaseStudy(id: string): CaseStudy | undefined {
   return CASE_STUDIES.find((c) => c.id === id);
