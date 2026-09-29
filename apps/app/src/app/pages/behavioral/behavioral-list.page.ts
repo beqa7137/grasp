@@ -3,7 +3,7 @@ import { RouterLink } from '@angular/router';
 import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
 import { COMPETENCY_CATALOG } from '@grasp/engine';
 import { addIcons } from 'ionicons';
-import { chevronForward, libraryOutline } from 'ionicons/icons';
+import { chatbubblesOutline, chevronForward, libraryOutline } from 'ionicons/icons';
 import { StarDraftsService } from './star-drafts.service';
 import { StoryBankService } from './story-bank.service';
 
@@ -50,6 +50,14 @@ import { StoryBankService } from './story-bank.service';
             <li>Bring two or three questions for the interviewer.</li>
           </ul>
         </section>
+        <a class="panel item bank" routerLink="/behavioral/mock">
+          <ion-icon class="lead-icon" name="chatbubbles-outline" aria-hidden="true" />
+          <span class="text">
+            <span class="name">Mock behavioral interview</span>
+            <span class="one">Three questions from different competencies, the follow-ups an interviewer asks, then a debrief.</span>
+          </span>
+          <ion-icon name="chevron-forward" aria-hidden="true" />
+        </a>
         <a class="panel item bank" routerLink="/behavioral/stories">
           <ion-icon class="lead-icon" name="library-outline" aria-hidden="true" />
           <span class="text">
@@ -123,7 +131,10 @@ import { StoryBankService } from './story-bank.service';
       margin: 0;
     }
     .bank {
-      margin-bottom: 20px;
+      margin-bottom: 8px;
+      &:last-of-type {
+        margin-bottom: 20px;
+      }
       .lead-icon {
         font-size: 22px;
         color: var(--g-accent);
@@ -184,7 +195,7 @@ export class BehavioralListPage {
   });
 
   constructor() {
-    addIcons({ chevronForward, libraryOutline });
+    addIcons({ chatbubblesOutline, chevronForward, libraryOutline });
   }
 
   ionViewWillEnter() {

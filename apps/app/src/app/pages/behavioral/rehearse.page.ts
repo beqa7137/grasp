@@ -1,7 +1,16 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injector, computed, inject, signal, viewChild } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
-import { dueStories, getCompetencySummary, rehearsalQuestion, storyTitle, whenNext, type StarPart, type Story } from '@grasp/engine';
+import {
+  dueStories,
+  formatClock,
+  getCompetencySummary,
+  rehearsalQuestion,
+  storyTitle,
+  whenNext,
+  type StarPart,
+  type Story,
+} from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import { checkmarkCircle, playOutline, refreshOutline, stopOutline } from 'ionicons/icons';
 import { refocusAfterRender } from '../../core/focus';
@@ -16,8 +25,6 @@ const OUTLINE: readonly { part: StarPart; label: string }[] = [
 ];
 const MIN_SECONDS = 90;
 const MAX_SECONDS = 180;
-
-const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 
 @Component({
   selector: 'app-rehearse',
@@ -196,13 +203,13 @@ export class RehearsePage {
     const story = this.current();
     return story ? rehearsalQuestion(story) : undefined;
   });
-  readonly elapsed = computed(() => clock(this.seconds()));
+  readonly elapsed = computed(() => formatClock(this.seconds()));
   readonly verdict = computed(() => {
     const s = this.seconds();
     if (this.running() || !s) return null;
-    if (s < MIN_SECONDS) return `${clock(s)} is short: interviewers want the Action in detail. Add what you did and why.`;
-    if (s > MAX_SECONDS) return `${clock(s)} runs long: cut the Situation to two sentences and get to what you did sooner.`;
-    return `${clock(s)} is a good length.`;
+    if (s < MIN_SECONDS) return `${formatClock(s)} is short: interviewers want the Action in detail. Add what you did and why.`;
+    if (s > MAX_SECONDS) return `${formatClock(s)} runs long: cut the Situation to two sentences and get to what you did sooner.`;
+    return `${formatClock(s)} is a good length.`;
   });
   readonly next = computed(() => {
     const now = new Date();

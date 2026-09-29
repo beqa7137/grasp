@@ -93,6 +93,11 @@ export const routes: Routes = [
         loadComponent: () => import('./pages/behavioral/story-bank.page').then((m) => m.StoryBankPage),
       },
       {
+        path: 'behavioral/mock',
+        title: 'Mock behavioral interview',
+        loadComponent: () => import('./pages/behavioral/behavioral-mock.page').then((m) => m.BehavioralMockPage),
+      },
+      {
         path: 'behavioral/rehearse',
         title: 'Rehearse stories',
         loadComponent: () => import('./pages/behavioral/rehearse.page').then((m) => m.RehearsePage),

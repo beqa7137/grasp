@@ -132,3 +132,36 @@ test('a story is rehearsed aloud against the clock and comes back after a longer
   await expect(page.getByRole('link', { name: /The billing export/ })).toContainText('Rehearse tomorrow');
   await expect(page.getByRole('link', { name: /due$/ })).toHaveCount(0);
 });
+
+test('a mock behavioral interview asks three questions with follow-ups, then debriefs each answer', async ({ page }) => {
+  await page.goto('/behavioral');
+  await page.getByRole('link', { name: /Mock behavioral interview/ }).click();
+  const mock = page.locator('app-behavioral-mock');
+  const next = mock.getByRole('button', { name: /^(Answer|Finish and see the debrief)$/ });
+  const long = 'I would have load tested the client earlier, because the retry storm only showed up under real traffic.';
+
+  for (let question = 1; question <= 3; question++) {
+    await expect(mock.getByText(`Question ${question} of 3`, { exact: true })).toBeVisible();
+    await expect(mock.getByRole('complementary', { name: 'Answer check' })).toHaveCount(0);
+    await expect(next).toBeDisabled();
+    for (const [part, text] of Object.entries(STORY)) await mock.getByLabel(part, { exact: true }).fill(text);
+    await next.click();
+    for (const followUp of [1, 2]) {
+      await expect(mock.getByText(`Question ${question} of 3 · follow-up ${followUp} of 2`)).toBeVisible();
+      await expect(mock.getByRole('heading', { level: 1 })).toBeFocused();
+      await mock.getByLabel('Your answer').fill(followUp === 1 ? 'Not sure.' : long);
+      await next.click();
+    }
+  }
+
+  await expect(mock.getByRole('heading', { name: 'Debrief' })).toBeVisible();
+  await expect(mock.getByText(/^\d+ of 24 checks pass/)).toBeVisible();
+  await expect(mock.getByText('Fix first:')).toBeVisible();
+  await expect(mock.getByRole('region')).toHaveCount(3);
+  await expect(mock.getByText('needs a real answer')).toHaveCount(3);
+
+  await mock.getByRole('button', { name: 'Add to story bank' }).first().click();
+  await expect(mock.getByRole('button', { name: 'In your story bank' })).toBeDisabled();
+  await page.goto('/behavioral/stories');
+  await expect(page.getByRole('link', { name: /Our nightly billing export failed silently/ })).toBeVisible();
+});
