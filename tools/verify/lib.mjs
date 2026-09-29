@@ -95,6 +95,34 @@ export async function toEnd(page) {
   await settle(page, 500);
 }
 
+const STORIES = [
+  {
+    id: 'a1',
+    title: 'The billing export',
+    competencyIds: ['ownership', 'delivery'],
+    draft: {
+      situation: 'Our nightly billing export failed silently for a week before finance noticed the gap.',
+      task: 'Nobody owned the export, and I had the most context on the pipeline that fed it.',
+      action:
+        'I traced the failure to an expired credential, I rotated it, I added an alert on missing files and I wrote the runbook. I then asked the data team to own the export and walked them through it.',
+      result: 'Exports have run for 14 months without a gap, and finance closes the month 2 days sooner.',
+      reflection: '',
+    },
+  },
+  {
+    id: 'a2',
+    title: 'Pushing back on the launch date',
+    competencyIds: ['conflict', 'tradeoffs', 'influence', 'customer'],
+    draft: { situation: '', task: '', action: '', result: '', reflection: '' },
+  },
+];
+
+const seedStories = async (p) => {
+  await p.evaluate((stories) => localStorage.setItem('CapacitorStorage.grasp.behavioral.stories', JSON.stringify(stories)), STORIES);
+  await p.reload();
+  await p.getByRole('link', { name: /The billing export/ }).waitFor();
+};
+
 const answerFirst = async (p, selector) => {
   await p.locator(selector).first().click();
   await settle(p, 500);
@@ -330,6 +358,17 @@ export function states() {
             'I traced the failure to an expired credential, I rotated it, I added an alert on missing files and I wrote the runbook. I then asked the data team to own the export and walked them through it.',
           );
         await fields.nth(3).fill('Exports have run for 14 months without a gap, and finance closes the month 2 days sooner.');
+      },
+    },
+    { id: 'behavioral-stories-empty', path: '/behavioral/stories' },
+    { id: 'behavioral-stories', path: '/behavioral/stories', setup: seedStories },
+    {
+      id: 'behavioral-story',
+      path: '/behavioral/stories',
+      setup: async (p) => {
+        await seedStories(p);
+        await p.getByRole('link', { name: /The billing export/ }).click();
+        await p.getByLabel('Title').waitFor();
       },
     },
     { id: 'settings', path: '/settings' },

@@ -60,3 +60,44 @@ test('a competency teaches with a worked answer per career stage and weak ones t
   await exercise.getByRole('button', { name: 'Try again' }).click();
   await expect(exercise.getByRole('checkbox', { name: 'Blames others' })).not.toBeChecked();
 });
+
+test('a story written once in the bank covers its competencies, starts answers to their questions, and is erased with the learner data', async ({
+  page,
+}) => {
+  await page.goto('/behavioral');
+  await page.getByRole('link', { name: /Your story bank/ }).click();
+  await expect(page.getByRole('heading', { name: '0 of 13 competencies have a story' })).toBeVisible();
+  await page.getByRole('button', { name: 'New story' }).click();
+
+  await page.getByLabel('Title').fill('The billing export');
+  await page.getByRole('button', { name: 'Ownership', exact: true }).click();
+  await page.getByRole('button', { name: 'Delivering Results' }).click();
+  await expect(page.getByRole('button', { name: 'Ownership', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  for (const [part, text] of Object.entries(STORY)) await page.getByLabel(part, { exact: true }).fill(text);
+  await expect(page.getByRole('complementary', { name: 'Answer check' })).toContainText('4 of 6 checks pass');
+
+  await page.goto('/behavioral/stories');
+  await expect(page.getByRole('heading', { name: '2 of 13 competencies have a story' })).toBeVisible();
+  await expect(page.getByRole('link', { name: /The billing export/ })).toContainText('Ownership, Delivering Results');
+  await expect(page.getByText('"The billing export" has 2 checks to fix before you tell it.')).toBeVisible();
+
+  await page.goto('/behavioral/question/ownership-2');
+  await page.getByRole('button', { name: 'The billing export' }).click();
+  await expect(page.getByLabel('Result', { exact: true })).toHaveValue(STORY.Result);
+  await expect(page.getByRole('button', { name: 'The billing export' })).toHaveCount(0);
+  await page.goto('/behavioral/question/conflict-1');
+  await expect(page.getByText('Start from a story in your bank:')).toHaveCount(0);
+
+  await page.goto('/behavioral/stories');
+  await page.getByRole('button', { name: 'New story' }).click();
+  await page.getByLabel('Title').fill('A story to drop');
+  await page.getByRole('button', { name: 'Delete story' }).click();
+  await expect(page.getByRole('heading', { name: '1 story' })).toBeVisible();
+
+  await page.goto('/settings');
+  await page.getByRole('button', { name: 'Delete…' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
+  await expect(page.getByText('Your data was deleted. You are starting fresh.')).toBeVisible();
+  await page.goto('/behavioral/stories');
+  await expect(page.getByRole('heading', { name: '0 of 13 competencies have a story' })).toBeVisible();
+});
