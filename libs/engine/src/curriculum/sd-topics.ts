@@ -85,6 +85,18 @@ export const SD_TOPICS: SdTopic[] = [
     oneLiner: 'Metrics, logs, traces, error budgets and alerts that matter.',
     scenarioIds: ['first-scale-up'],
   },
+  {
+    id: 'sd-api-design',
+    name: 'API Design',
+    oneLiner: 'Pagination, idempotent retries, errors and versioning.',
+    scenarioIds: ['first-scale-up'],
+  },
+  {
+    id: 'sd-security',
+    name: 'Security & Auth',
+    oneLiner: 'Password hashing, sessions and tokens, and least privilege.',
+    scenarioIds: ['bot-storm'],
+  },
 ];
 
 export function getSdTopic(id: string): SdTopic | undefined {

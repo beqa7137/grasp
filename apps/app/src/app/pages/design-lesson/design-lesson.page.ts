@@ -22,11 +22,13 @@ import { AvailabilityWidgetComponent } from './availability-widget.component';
 import { BudgetWidgetComponent } from './budget-widget.component';
 import { CacheWidgetComponent } from './cache-widget.component';
 import { CdnWidgetComponent } from './cdn-widget.component';
+import { CrackWidgetComponent } from './crack-widget.component';
 import { EstimateDrillComponent } from './estimate-drill.component';
 import { IdLayoutWidgetComponent } from './id-layout-widget.component';
 import { IndexWidgetComponent } from './index-widget.component';
 import { LatencyWidgetComponent } from './latency-widget.component';
 import { LimiterWidgetComponent } from './limiter-widget.component';
+import { PaginationWidgetComponent } from './pagination-widget.component';
 import { PartitionWidgetComponent } from './partition-widget.component';
 import { PipelineWidgetComponent } from './pipeline-widget.component';
 import { QueueWidgetComponent } from './queue-widget.component';
@@ -71,6 +73,8 @@ import { StreamWidgetComponent } from './stream-widget.component';
     CdnWidgetComponent,
     RegionWidgetComponent,
     BudgetWidgetComponent,
+    PaginationWidgetComponent,
+    CrackWidgetComponent,
     EstimateDrillComponent,
   ],
   template: `
@@ -151,6 +155,12 @@ import { StreamWidgetComponent } from './stream-widget.component';
                 }
                 @case ('error-budget') {
                   <app-budget-widget />
+                }
+                @case ('pagination') {
+                  <app-pagination-widget />
+                }
+                @case ('password-hash') {
+                  <app-crack-widget />
                 }
                 @case ('estimate-drill') {
                   <app-estimate-drill [drill]="l.widget.drill ?? []" />

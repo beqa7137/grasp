@@ -207,3 +207,29 @@ test('the observability lesson turns an SLO into a budget and pages once errors 
   await expect(readout('Burn rate')).toHaveText('14.4×');
   await expect(alerts.filter({ hasText: 'Pages' })).toHaveCount(2);
 });
+
+test('the API design lesson shows offset paging reading every skipped row, and cursors reading one page', async ({ page }) => {
+  await page.goto('/learn/design/sd-api-design');
+  const readout = (label: string) =>
+    page
+      .locator('.readouts div')
+      .filter({ has: page.locator('dt', { hasText: new RegExp(`^${label}$`) }) })
+      .locator('dd');
+  await expect(readout('Rows read for this page')).toHaveText('500');
+  await expect(readout('Items shown twice')).toHaveText('27');
+  await page.getByRole('radio', { name: 'Cursor' }).click();
+  await expect(readout('Rows read for this page')).toHaveText('51');
+  await expect(readout('Items shown twice')).toHaveText('0');
+});
+
+test('the security lesson shows a fast hash falling in minutes where bcrypt takes centuries', async ({ page }) => {
+  await page.goto('/learn/design/sd-security');
+  const readout = (label: string) =>
+    page
+      .locator('.readouts div')
+      .filter({ has: page.locator('dt', { hasText: new RegExp(`^${label}$`) }) })
+      .locator('dd');
+  await expect(readout('Try them all')).toHaveText('615 years');
+  await page.getByRole('radio', { name: 'SHA-256' }).click();
+  await expect(readout('Try them all')).toHaveText('23 minutes');
+});

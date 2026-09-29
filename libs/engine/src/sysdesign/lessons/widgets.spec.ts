@@ -7,10 +7,12 @@ import {
   idLayout,
   invertedIndex,
   chainAvailability,
+  crackTime,
   hashRing,
   moduloOwner,
   partition,
   movedKeys,
+  pageCost,
   pipeline,
   place,
   queueBacklog,
@@ -355,5 +357,32 @@ describe('error budget', () => {
       true,
     ]);
     expect(errorBudget({ slo: 0.999, windowDays: 30, rps: 1000, errorRate: 0 }).daysToExhaust).toBe(Infinity);
+  });
+});
+
+describe('page cost', () => {
+  it('reads every skipped row with an offset and only the page with a cursor', () => {
+    expect(pageCost('offset', { size: 50, page: 10, insertsPerPage: 3 })).toEqual({ rowsRead: 500, walkRows: 2750, repeats: 27 });
+    expect(pageCost('cursor', { size: 50, page: 10, insertsPerPage: 3 })).toEqual({ rowsRead: 51, walkRows: 510, repeats: 0 });
+    expect(pageCost('offset', { size: 50, page: 1000, insertsPerPage: 0 }).walkRows).toBe(25_025_000);
+  });
+
+  it('repeats at most a page of items per request', () => {
+    expect(pageCost('offset', { size: 20, page: 5, insertsPerPage: 50 }).repeats).toBe(80);
+  });
+});
+
+describe('crack time', () => {
+  const options = { alphabet: 62, length: 8, gpus: 8, bcryptCost: 12 };
+
+  it('exhausts an 8-character password in minutes against SHA-256 and centuries against bcrypt', () => {
+    expect(crackTime('sha256', options).seconds).toBeCloseTo(1364.4, 0);
+    expect(crackTime('bcrypt', options).guessesPerSecond).toBeCloseTo(11_250);
+    expect(crackTime('bcrypt', options).seconds / (365.25 * 86_400)).toBeCloseTo(615.4, 0);
+  });
+
+  it('doubles bcrypt work per cost step and scales with the attacker GPUs', () => {
+    expect(crackTime('bcrypt', { ...options, bcryptCost: 13 }).seconds).toBeCloseTo(crackTime('bcrypt', options).seconds * 2);
+    expect(crackTime('pbkdf2', { ...options, gpus: 800 }).guessesPerSecond).toBe(12_000_000);
   });
 });

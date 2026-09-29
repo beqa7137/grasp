@@ -19,7 +19,9 @@ export type SdWidget =
   | 'storage-engine'
   | 'cdn'
   | 'multi-region'
-  | 'error-budget';
+  | 'error-budget'
+  | 'pagination'
+  | 'password-hash';
 
 export interface SdLesson {
   /** Why the topic decides interviews and outages, in two or three sentences. */

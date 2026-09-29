@@ -231,6 +231,15 @@ export function states() {
     },
     { id: 'lesson-storage', path: '/learn/design/sd-storage', setup: (p) => p.locator('#try').scrollIntoViewIfNeeded() },
     {
+      id: 'lesson-api-design-cursor',
+      path: '/learn/design/sd-api-design',
+      setup: async (p) => {
+        await p.locator('#try').scrollIntoViewIfNeeded();
+        await p.getByRole('radio', { name: 'Cursor' }).click();
+      },
+    },
+    { id: 'lesson-security', path: '/learn/design/sd-security', setup: (p) => p.locator('#try').scrollIntoViewIfNeeded() },
+    {
       id: 'lesson-multi-region-quorum',
       path: '/learn/design/sd-multi-region',
       setup: async (p) => {
