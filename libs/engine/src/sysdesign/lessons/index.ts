@@ -3,9 +3,11 @@ import { BATCH_LESSON } from './batch.js';
 import { CACHING_LESSON } from './caching.js';
 import { CAPACITY_LESSON } from './capacity.js';
 import { CDN_LESSON } from './cdn.js';
+import { CLOCKS_LESSON } from './clocks.js';
 import { CONSENSUS_LESSON } from './consensus.js';
 import { CONSISTENCY_LESSON } from './consistency.js';
 import { DATA_MODELING_LESSON } from './data-modeling.js';
+import { DISCOVERY_LESSON } from './discovery.js';
 import { ESTIMATION_LESSON } from './estimation.js';
 import { GEO_LESSON } from './geo.js';
 import { IDS_LESSON } from './ids.js';
@@ -60,6 +62,8 @@ export const SD_LESSONS: Readonly<Record<string, SdLesson>> = {
   'sd-overload': OVERLOAD_LESSON,
   'sd-locks': LOCKS_LESSON,
   'sd-load-balancing': LOAD_BALANCING_LESSON,
+  'sd-discovery': DISCOVERY_LESSON,
+  'sd-clocks': CLOCKS_LESSON,
 };
 
 export function getSdLesson(topicId: string): SdLesson | undefined {

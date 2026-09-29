@@ -29,7 +29,9 @@ export type SdWidget =
   | 'feed-model'
   | 'overload'
   | 'lease'
-  | 'balancer';
+  | 'balancer'
+  | 'clocks'
+  | 'discovery';
 
 export interface SdLesson {
   /** Why the topic decides interviews and outages, in two or three sentences. */

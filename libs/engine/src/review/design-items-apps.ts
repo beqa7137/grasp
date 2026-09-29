@@ -332,6 +332,75 @@ const fastFailures = concept(
   'Least connections reads few open requests as spare capacity, and nothing finishes faster than an error. Passive health checking (outlier ejection) watches each backend’s error rate and latency and takes it out of rotation for a while; active health checks that exercise the disk would catch it too.',
 );
 
+const clockSkew = item('Worst skew between two synced clocks', (rand) => {
+  const error = pick(rand, [5, 10, 20]);
+  const ppm = pick(rand, [20, 50, 100]);
+  const poll = pick(rand, [64, 256, 1024]);
+  const drift = (ppm * poll) / 1000;
+  const ms = (v: number) => `${v.toFixed(1)} ms`;
+  return {
+    prompt: `Two servers sync to NTP every ${poll} s, each to within ${error} ms, and their clocks drift by up to ${ppm} ppm between syncs. How far apart can their clocks be just before the next sync?`,
+    ...withChoices(rand, ms(2 * (error + drift)), [ms(error), ms(error + drift), ms(2 * error)]),
+    explain: `Each clock can be off by the sync error plus the drift since, ${ppm} ppm × ${poll} s = ${drift.toFixed(1)} ms: up to ${(error + drift).toFixed(1)} ms. One can be ahead and the other behind, so they can be twice that apart, ${(2 * (error + drift)).toFixed(1)} ms. Two writes closer together than that cannot be ordered by timestamp.`,
+  };
+});
+
+const monotonicClock = concept(
+  'A service logs how long each request took by subtracting two wall-clock readings. A few requests report negative durations. Why, and what fixes it?',
+  'NTP stepped the wall clock back mid-request; time durations with a monotonic clock',
+  [
+    'The requests ran on two cores whose clocks differ, so pin each request to one core',
+    'The timer resolution is too coarse, so measure in nanoseconds instead',
+    'Leap seconds shift the clock, so convert both readings to UTC first',
+  ],
+  'The wall clock can jump when NTP corrects it (or be set by hand), so the difference between two readings can be negative or wildly large. A monotonic clock only moves forward at a steady rate and has no meaning as a date, which is exactly what a duration needs.',
+);
+
+const concurrentWrites = concept(
+  'Two replicas of a shopping cart accept writes while partitioned: one adds a book, the other adds a lamp. With last write wins by timestamp, one item vanishes. What keeps both?',
+  'Version vectors that detect the writes as concurrent, kept as siblings and merged',
+  [
+    'Synchronizing the replicas’ clocks more tightly with NTP',
+    'A Lamport clock, whose larger value marks the newer write',
+    'Waiting a few milliseconds before each write to separate them',
+  ],
+  'Neither write saw the other, so neither is newer: any timestamp order, however precise, drops one. A version vector records what each replica has seen, so a reader can tell the writes are concurrent, keep both as siblings, and merge them (here, the union of the items). A Lamport clock orders them too, but cannot say they were concurrent.',
+);
+
+const registryStale = item('Traffic to a dead instance', (rand) => {
+  const heartbeat = pick(rand, [5, 10, 15]);
+  const missed = pick(rand, [2, 3]);
+  const cache = pick(rand, [25, 40]);
+  const sec = (v: number) => `${v} s`;
+  return {
+    prompt: `Instances heartbeat to a registry every ${heartbeat} s and are removed after ${missed} missed heartbeats. Clients refresh their cached list every ${cache} s. At worst, how long do clients keep sending to an instance that crashed?`,
+    ...withChoices(rand, sec(heartbeat * missed + cache), [sec(heartbeat), sec(heartbeat * missed), sec(cache)]),
+    explain: `The registry notices after ${missed} × ${heartbeat} = ${heartbeat * missed} s of silence, and a client that refreshed just before that keeps the old list for up to ${cache} s more: ${heartbeat * missed + cache} s. Shorter heartbeats and refreshes cut it, at the cost of more traffic to the registry and more false removals during pauses.`,
+  };
+});
+
+const readiness = concept(
+  'A service needs 60 s after starting to load its cache, and answers slowly until then. Which check keeps traffic away during that time without restarting it?',
+  'A readiness check that fails until the cache is loaded, taking it out of rotation',
+  [
+    'A liveness check that fails until the cache is loaded, so it restarts cleanly',
+    'A longer client timeout, so the slow answers during warm-up still arrive',
+    'A deep health check that also queries the database the cache loads from',
+  ],
+  'Readiness answers "should I get traffic now?" and liveness answers "should I be restarted?". A failing liveness check during warm-up would restart the instance before it ever finished loading, forever. Readiness removes it from the load balancer until it can serve well.',
+);
+
+const deepCheck = concept(
+  'Every instance’s health check also runs a query against the shared database. The database slows down for a minute. What happens next?',
+  'Every instance fails its check at once and the load balancer removes them all',
+  [
+    'Only the instances whose queries were slow are removed, as intended',
+    'The database recovers sooner because health checks stop querying it',
+    'Nothing changes, since health checks run apart from real traffic',
+  ],
+  'A check that depends on a shared dependency fails everywhere at the same moment, turning a slow database into a full outage. Keep health checks shallow (can this process serve?), and handle a failing dependency inside the request path, by degrading or failing that request.',
+);
+
 export const APP_ITEMS = {
   'offset-rows': offsetRows,
   'idempotency-key': idempotencyKey,
@@ -363,4 +432,10 @@ export const APP_ITEMS = {
   'slow-server-load': slowServerLoad,
   'two-choices': twoChoices,
   'fast-failures': fastFailures,
+  'clock-skew': clockSkew,
+  'monotonic-clock': monotonicClock,
+  'concurrent-writes': concurrentWrites,
+  'registry-stale': registryStale,
+  readiness,
+  'deep-check': deepCheck,
 } satisfies Partial<Record<DesignItemId, DesignItemDefinition>>;
