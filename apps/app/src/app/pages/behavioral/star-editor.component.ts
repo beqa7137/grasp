@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { IonIcon } from '@ionic/angular';
-import { countWords, reviewStar, type StarDraft, type StarPart } from '@grasp/engine';
+import { countWords, formatClock, reviewStar, type StarDraft, type StarPart } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import { alertCircle, checkmarkCircle } from 'ionicons/icons';
 
@@ -17,7 +17,7 @@ const PARTS: readonly { part: StarPart; label: string; hint: string }[] = [
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [IonIcon],
   template: `
-    <div class="layout">
+    <div class="layout" [class.coached]="coached()">
       <form class="star" (submit)="$event.preventDefault()">
         @for (p of parts; track p.part) {
           <label class="field">
@@ -33,24 +33,28 @@ const PARTS: readonly { part: StarPart; label: string; hint: string }[] = [
             ></textarea>
           </label>
         }
-        <p class="saved muted">Saved on this device only.</p>
+        @if (coached()) {
+          <p class="saved muted">Saved on this device only.</p>
+        }
       </form>
 
-      <aside class="panel checks" aria-label="Answer check">
-        <p class="time">
-          <span class="big">{{ spoken() }}</span>
-          <span class="muted">to say aloud, aim for 1:30 to 3:00</span>
-        </p>
-        <p class="score">{{ passing() }} of {{ review().checks.length }} checks pass</p>
-        <ul>
-          @for (c of review().checks; track c.id) {
-            <li [class.ok]="c.ok">
-              <ion-icon [name]="c.ok ? 'checkmark-circle' : 'alert-circle'" [attr.aria-label]="c.ok ? 'Pass' : 'To fix'" role="img" />
-              <span>{{ c.message }}</span>
-            </li>
-          }
-        </ul>
-      </aside>
+      @if (coached()) {
+        <aside class="panel checks" aria-label="Answer check">
+          <p class="time">
+            <span class="big">{{ spoken() }}</span>
+            <span class="muted">to say aloud, aim for 1:30 to 3:00</span>
+          </p>
+          <p class="score">{{ passing() }} of {{ review().checks.length }} checks pass</p>
+          <ul>
+            @for (c of review().checks; track c.id) {
+              <li [class.ok]="c.ok">
+                <ion-icon [name]="c.ok ? 'checkmark-circle' : 'alert-circle'" [attr.aria-label]="c.ok ? 'Pass' : 'To fix'" role="img" />
+                <span>{{ c.message }}</span>
+              </li>
+            }
+          </ul>
+        </aside>
+      }
     </div>
   `,
   styles: `
@@ -63,7 +67,7 @@ const PARTS: readonly { part: StarPart; label: string; hint: string }[] = [
       align-items: start;
     }
     @media (min-width: 720px) {
-      .layout {
+      .layout.coached {
         grid-template-columns: minmax(0, 1fr) 260px;
       }
       .checks {
@@ -149,6 +153,8 @@ const PARTS: readonly { part: StarPart; label: string; hint: string }[] = [
 })
 export class StarEditorComponent {
   readonly draft = input.required<StarDraft>();
+  /** Off in a mock interview, where no one checks the answer as it is given and nothing is kept. */
+  readonly coached = input(true);
   readonly edit = output<{ part: StarPart; text: string }>();
   readonly parts = PARTS;
   readonly review = computed(() => reviewStar(this.draft()));
@@ -157,10 +163,7 @@ export class StarEditorComponent {
     const draft = this.draft();
     return Object.fromEntries(PARTS.map(({ part }) => [part, countWords(draft[part])])) as Record<StarPart, number>;
   });
-  readonly spoken = computed(() => {
-    const seconds = this.review().seconds;
-    return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
-  });
+  readonly spoken = computed(() => formatClock(this.review().seconds));
 
   constructor() {
     addIcons({ checkmarkCircle, alertCircle });

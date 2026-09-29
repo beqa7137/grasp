@@ -37,6 +37,8 @@ const LABELS: Record<StarPart, string> = {
   reflection: 'Reflection',
 };
 
+export const formatClock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+
 export function countWords(text: string): number {
   return text.match(/[\p{L}\p{N}]+(?:['’][\p{L}]+)?/gu)?.length ?? 0;
 }

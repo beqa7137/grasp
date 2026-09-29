@@ -6,3 +6,4 @@ export * from './types.js';
 export * from './star-check.js';
 export * from './stories.js';
 export * from './rehearsal.js';
+export * from './mock.js';

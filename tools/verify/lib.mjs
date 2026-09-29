@@ -381,6 +381,26 @@ export function states() {
       },
     },
     { id: 'behavioral-rehearse-none', path: '/behavioral/rehearse' },
+    { id: 'behavioral-mock', path: '/behavioral/mock' },
+    {
+      id: 'behavioral-mock-debrief',
+      path: '/behavioral/mock',
+      setup: async (p) => {
+        const mock = p.locator('app-behavioral-mock');
+        const next = mock.getByRole('button', { name: /^(Answer|Finish and see the debrief)$/ });
+        for (let question = 0; question < 3; question++) {
+          const draft = STORIES[0].draft;
+          for (const [part, text] of Object.entries(draft))
+            if (text) await mock.getByLabel(part[0].toUpperCase() + part.slice(1), { exact: true }).fill(text);
+          await next.click();
+          await mock.getByLabel('Your answer').fill('I would ask the data team to own it sooner, because an unowned job fails silently.');
+          await next.click();
+          await mock.getByLabel('Your answer').fill('Not sure.');
+          await next.click();
+        }
+        await mock.getByRole('heading', { name: 'Debrief' }).waitFor();
+      },
+    },
     { id: 'settings', path: '/settings' },
     { id: 'code-list', path: '/code' },
     { id: 'code-two-sum', path: '/code/two-sum' },
