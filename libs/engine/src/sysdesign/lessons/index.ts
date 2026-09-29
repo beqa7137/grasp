@@ -1,4 +1,5 @@
 import { API_DESIGN_LESSON } from './api-design.js';
+import { BATCH_LESSON } from './batch.js';
 import { CACHING_LESSON } from './caching.js';
 import { CAPACITY_LESSON } from './capacity.js';
 import { CDN_LESSON } from './cdn.js';
@@ -18,6 +19,7 @@ import { SECURITY_LESSON } from './security.js';
 import { SHARDING_LESSON } from './sharding.js';
 import { STORAGE_LESSON } from './storage.js';
 import { STREAMS_LESSON } from './streams.js';
+import { TRANSACTIONS_LESSON } from './transactions.js';
 import type { SdLesson } from './types.js';
 
 export type { SdLesson, SdWidget } from './types.js';
@@ -44,6 +46,8 @@ export const SD_LESSONS: Readonly<Record<string, SdLesson>> = {
   'sd-observability': OBSERVABILITY_LESSON,
   'sd-api-design': API_DESIGN_LESSON,
   'sd-security': SECURITY_LESSON,
+  'sd-transactions': TRANSACTIONS_LESSON,
+  'sd-batch': BATCH_LESSON,
 };
 
 export function getSdLesson(topicId: string): SdLesson | undefined {

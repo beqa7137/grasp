@@ -233,3 +233,35 @@ test('the security lesson shows a fast hash falling in minutes where bcrypt take
   await page.getByRole('radio', { name: 'SHA-256' }).click();
   await expect(readout('Try them all')).toHaveText('23 minutes');
 });
+
+test('the transactions lesson contrasts locks in two-phase commit with a saga visible half-done state', async ({ page }) => {
+  await page.goto('/learn/design/sd-transactions');
+  const readout = (label: string) =>
+    page
+      .locator('.readouts div')
+      .filter({ has: page.locator('dt', { hasText: new RegExp(`^${label}$`) }) })
+      .locator('dd');
+  await expect(readout('Row locks held')).toHaveText('30 ms');
+  await page.getByRole('checkbox', { name: /Coordinator crashes/ }).check();
+  await expect(readout('Outcome')).toHaveText('blocked');
+  await page.getByRole('radio', { name: 'Saga' }).click();
+  await page.getByRole('radio', { name: 'Step 3' }).click();
+  await expect(readout('Compensations')).toHaveText('2');
+  await expect(readout('Outcome')).toHaveText('rolled back');
+});
+
+test('the batch lesson shows one hot key stalling the job and a combiner shrinking the shuffle', async ({ page }) => {
+  await page.goto('/learn/design/sd-batch');
+  const readout = (label: string) =>
+    page
+      .locator('.readouts div')
+      .filter({ has: page.locator('dt', { hasText: new RegExp(`^${label}$`) }) })
+      .locator('dd');
+  await expect(readout('Whole job')).toHaveText('400 s');
+  await page.getByRole('slider', { name: /hottest key/ }).fill('20');
+  await expect(readout('Busiest reducer')).toHaveText('108 GB');
+  await expect(readout('Reduce')).toHaveText('1,080 s');
+  await page.getByRole('checkbox', { name: /Combiner/ }).check();
+  await expect(readout('Shuffle data')).toHaveText('50 GB');
+  await expect(readout('Shuffle')).toHaveText('10 s');
+});

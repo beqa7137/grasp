@@ -97,6 +97,18 @@ export const SD_TOPICS: SdTopic[] = [
     oneLiner: 'Password hashing, sessions and tokens, and least privilege.',
     scenarioIds: ['bot-storm'],
   },
+  {
+    id: 'sd-transactions',
+    name: 'Distributed Transactions',
+    oneLiner: 'Two-phase commit, sagas and the transactional outbox.',
+    scenarioIds: ['flash-sale'],
+  },
+  {
+    id: 'sd-batch',
+    name: 'Batch Processing',
+    oneLiner: 'Map, shuffle and reduce, skew, and pipelines that rerun safely.',
+    scenarioIds: ['write-wall'],
+  },
 ];
 
 export function getSdTopic(id: string): SdTopic | undefined {

@@ -607,3 +607,80 @@ export function crackTime(hash: PasswordHash, options: { alphabet: number; lengt
   const space = alphabet ** length;
   return { guessesPerSecond, space, seconds: space / guessesPerSecond };
 }
+
+export interface TxnOutcome {
+  /** Time until the client learns the outcome. */
+  latencyMs: number;
+  /** How long each participant holds its row locks. */
+  lockMs: number;
+  /** How long other readers can see some services changed and others not. */
+  partialMs: number;
+  compensations: number;
+  outcome: 'committed' | 'rolled back' | 'blocked';
+}
+
+/**
+ * One business transaction across `services` services, each doing `stepMs` of local work, one network round trip
+ * `rttMs` apart. Two-phase commit prepares every service in parallel, then commits: locks are held from prepare to
+ * commit, and a coordinator that dies after prepare leaves participants blocked holding them. A saga runs local
+ * transactions one after another and undoes the finished ones in reverse if step `failAt` fails (0 means none fails).
+ */
+export function txnOutcome(
+  mode: '2pc' | 'saga',
+  options: { services: number; stepMs: number; rttMs: number; failAt: number; coordinatorCrash: boolean },
+): TxnOutcome {
+  const { services, stepMs, rttMs, failAt, coordinatorCrash } = options;
+  if (mode === '2pc') {
+    if (coordinatorCrash) return { latencyMs: Infinity, lockMs: Infinity, partialMs: 0, compensations: 0, outcome: 'blocked' };
+    const prepare = rttMs + stepMs;
+    if (failAt > 0) return { latencyMs: prepare + rttMs, lockMs: prepare + rttMs, partialMs: 0, compensations: 0, outcome: 'rolled back' };
+    return { latencyMs: prepare + rttMs, lockMs: prepare + rttMs, partialMs: 0, compensations: 0, outcome: 'committed' };
+  }
+  const step = rttMs + stepMs;
+  if (failAt > 0) {
+    const done = failAt - 1;
+    const forward = failAt * step;
+    return {
+      latencyMs: forward + done * step,
+      lockMs: stepMs,
+      // Readers see a half-done order from the first commit until the last compensation lands.
+      partialMs: done > 0 ? forward + done * step - step : 0,
+      compensations: done,
+      outcome: 'rolled back',
+    };
+  }
+  return { latencyMs: services * step, lockMs: stepMs, partialMs: (services - 1) * step, compensations: 0, outcome: 'committed' };
+}
+
+export interface BatchJob {
+  mapSec: number;
+  shuffleGB: number;
+  shuffleSec: number;
+  /** Data the busiest reducer must process. */
+  slowestReducerGB: number;
+  reduceSec: number;
+  totalSec: number;
+}
+
+/**
+ * A MapReduce-style job on `workers` machines that each read, send or reduce 100 MB/s. Map output is half the input, a
+ * combiner shrinks it tenfold, and keys spread evenly over the reducers except one hot key holding `hotKeyShare` of the
+ * records, which all go to a single reducer.
+ */
+export function batchJob(options: {
+  inputGB: number;
+  workers: number;
+  reducers: number;
+  hotKeyShare: number;
+  combiner: boolean;
+}): BatchJob {
+  const { inputGB, workers, reducers, hotKeyShare, combiner } = options;
+  const rate = 0.1;
+  const mapSec = inputGB / (workers * rate);
+  const shuffleGB = inputGB * 0.5 * (combiner ? 0.1 : 1);
+  const shuffleSec = shuffleGB / (workers * rate);
+  const slowestReducerGB = shuffleGB * (hotKeyShare + (1 - hotKeyShare) / reducers);
+  // Reducers beyond the worker count run in waves, so each worker reduces at least its share of the shuffle.
+  const reduceSec = Math.max(slowestReducerGB, shuffleGB / workers) / rate;
+  return { mapSec, shuffleGB, shuffleSec, slowestReducerGB, reduceSec, totalSec: mapSec + shuffleSec + reduceSec };
+}
