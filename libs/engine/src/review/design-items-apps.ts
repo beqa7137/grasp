@@ -199,6 +199,71 @@ const reconnectStorm = concept(
   'Without jitter, every client that lost its connection at the same instant retries at the same instant, and again after each failure. Randomized exponential backoff spreads the retries, and draining a few percent of connections at a time during a deploy keeps the reconnect rate steady instead of a spike.',
 );
 
+const nPlusOne = item('Database wait for an N+1 page', (rand) => {
+  const posts = pick(rand, [10, 20, 50]);
+  const rtt = pick(rand, [1, 2, 5]);
+  const ms = (v: number) => `${fmt(v)} ms`;
+  return {
+    prompt: `An ORM loads a page of ${posts} posts in one query, then loads each post's author in its own query as the page is rendered. Each query is a ${rtt} ms round trip. How long does the page wait on the database?`,
+    ...withChoices(rand, ms((posts + 1) * rtt), [ms(rtt), ms(2 * rtt), ms(posts * posts * rtt)]),
+    explain: `One query for the posts and one per author, one after another: (${posts} + 1) × ${rtt} = ${fmt((posts + 1) * rtt)} ms. A join returns posts and authors in one query (${rtt} ms); batching every author id into one \`WHERE id IN (...)\` query takes two (${2 * rtt} ms).`,
+  };
+});
+
+const renameFanOut = item('Rows written by a denormalized rename', (rand) => {
+  const posts = pick(rand, [500, 5_000, 50_000]);
+  const rows = (v: number) => `${fmt(v)} rows`;
+  return {
+    prompt: `To serve the feed in one read, each post stores a copy of its author's display name. An author with ${fmt(posts)} posts changes their name. How many rows are written?`,
+    ...withChoices(rand, rows(posts + 1), [rows(1), rows(2), rows(posts * 2)]),
+    explain: `The author row, plus every post holding a copy: 1 + ${fmt(posts)} = ${fmt(posts + 1)}. Copying data speeds the read that needs it and moves the cost to every write that changes it; that rewrite usually runs in the background, so some pages show the old name until it finishes.`,
+  };
+});
+
+const compositeIndex = concept(
+  'A timeline query runs `WHERE user_id = ?` ordered by `created_at DESC` with `LIMIT 20`. Which index answers it without reading or sorting the whole user history?',
+  'One index on `(user_id, created_at)`, read backwards from the newest entry',
+  [
+    'One index on `(created_at, user_id)`, filtered by user as it is read',
+    'Two indexes, one on `user_id` and one on `created_at`, combined',
+    'One index on `user_id` alone, since equality filters come first',
+  ],
+  "Columns tested for equality go first and the sort column after them: within one user the entries are already in time order, so the database reads the 20 newest and stops. With `created_at` first it walks everyone's posts in time order, and with `user_id` alone it reads and sorts all of that user's rows.",
+);
+
+const queueBound = item('Largest useful queue', (rand) => {
+  const capacity = pick(rand, [500, 1_000, 2_000]);
+  const timeout = pick(rand, [2, 3, 5]);
+  const reqs = (v: number) => `about ${fmt(v)} requests`;
+  return {
+    prompt: `A service answers ${fmt(capacity)} requests a second, and its clients give up after ${timeout} s. Beyond what queue length is every newly queued request answered only after its client has given up?`,
+    ...withChoices(rand, reqs(capacity * timeout), [reqs(capacity), reqs(capacity * timeout * 10), reqs(Math.round(capacity / timeout))]),
+    explain: `A request that joins a queue of n waits n / ${fmt(capacity)} s. It is still wanted only while that stays under ${timeout} s, so a queue past ${fmt(capacity)} × ${timeout} = ${fmt(capacity * timeout)} holds only work no one is waiting for. Bound it there, or lower, and turn the rest away at once.`,
+  };
+});
+
+const retryStorm = concept(
+  'After a 5-minute outage, every client retries each failed call 3 times at once. The service comes back and falls over again within seconds. What breaks the cycle?',
+  'A retry budget and exponential backoff with jitter, so retries stay a small share of traffic',
+  [
+    'More retries per call, so each request is more likely to get through',
+    'A longer client timeout, so fewer calls count as failed and retried',
+    'Retrying on a fixed 1-second interval, so the load arrives evenly',
+  ],
+  'Immediate retries can multiply traffic by up to 4 when the service is weakest, which keeps it down: a metastable failure. Backoff spreads retries out, jitter stops clients from retrying in step, and a budget (say retries at most 10% of requests) caps the extra load no matter how bad things get.',
+);
+
+const goodput = concept(
+  'During a burst, a service runs at full CPU and answers as many requests a second as ever, yet nearly every user sees a timeout. What is happening?',
+  'Its queue grew so long that it spends its time answering requests whose clients already left',
+  [
+    'Its CPU is too slow, so it answers fewer requests than before the burst',
+    'Its clients time out too early, so the answers are fine but ignored',
+    'Its network is saturated, so the answers never leave the machine',
+  ],
+  'Throughput holds, but goodput, the answers someone still waits for, collapses: an unbounded first-in-first-out queue serves the oldest requests first, and those are the ones that timed out. Bounding the queue, dropping requests past their deadline, or serving newest first under overload keeps the work that still matters.',
+);
+
 export const APP_ITEMS = {
   'offset-rows': offsetRows,
   'idempotency-key': idempotencyKey,
@@ -218,4 +283,10 @@ export const APP_ITEMS = {
   'polling-load': pollingLoad,
   'sse-or-websocket': sseOrWebsocket,
   'reconnect-storm': reconnectStorm,
+  'n-plus-one': nPlusOne,
+  'rename-fan-out': renameFanOut,
+  'composite-index': compositeIndex,
+  'queue-bound': queueBound,
+  'retry-storm': retryStorm,
+  goodput,
 } satisfies Partial<Record<DesignItemId, DesignItemDefinition>>;

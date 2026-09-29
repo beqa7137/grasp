@@ -260,6 +260,15 @@ export function states() {
     { id: 'lesson-storage', path: '/learn/design/sd-storage', setup: (p) => p.locator('#try').scrollIntoViewIfNeeded() },
     { id: 'lesson-geo', path: '/learn/design/sd-geo', setup: (p) => p.locator('#try').scrollIntoViewIfNeeded() },
     {
+      id: 'lesson-data-modeling-denormalized',
+      path: '/learn/design/sd-data-modeling',
+      setup: async (p) => {
+        await p.locator('#try').scrollIntoViewIfNeeded();
+        await p.getByRole('radio', { name: 'Denormalized' }).click();
+      },
+    },
+    { id: 'lesson-overload', path: '/learn/design/sd-overload', setup: (p) => p.locator('#try').scrollIntoViewIfNeeded() },
+    {
       id: 'lesson-realtime-long-polling',
       path: '/learn/design/sd-realtime',
       setup: async (p) => {

@@ -5,12 +5,14 @@ import { CAPACITY_LESSON } from './capacity.js';
 import { CDN_LESSON } from './cdn.js';
 import { CONSENSUS_LESSON } from './consensus.js';
 import { CONSISTENCY_LESSON } from './consistency.js';
+import { DATA_MODELING_LESSON } from './data-modeling.js';
 import { ESTIMATION_LESSON } from './estimation.js';
 import { GEO_LESSON } from './geo.js';
 import { IDS_LESSON } from './ids.js';
 import { LATENCY_LESSON } from './latency.js';
 import { MULTI_REGION_LESSON } from './multi-region.js';
 import { OBSERVABILITY_LESSON } from './observability.js';
+import { OVERLOAD_LESSON } from './overload.js';
 import { QUEUES_LESSON } from './queues.js';
 import { RATE_LIMITING_LESSON } from './rate-limiting.js';
 import { REALTIME_LESSON } from './realtime.js';
@@ -52,6 +54,8 @@ export const SD_LESSONS: Readonly<Record<string, SdLesson>> = {
   'sd-batch': BATCH_LESSON,
   'sd-geo': GEO_LESSON,
   'sd-realtime': REALTIME_LESSON,
+  'sd-data-modeling': DATA_MODELING_LESSON,
+  'sd-overload': OVERLOAD_LESSON,
 };
 
 export function getSdLesson(topicId: string): SdLesson | undefined {
