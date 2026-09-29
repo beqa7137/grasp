@@ -40,6 +40,15 @@ def is_valid_sudoku(board):
             seen.update(keys)
     return True
 `,
+  'group-anagrams': `
+from collections import defaultdict
+
+def group_anagrams(strs):
+    groups = defaultdict(list)
+    for word in strs:
+        groups[''.join(sorted(word))].append(word)
+    return [' '.join(sorted(group)) for group in groups.values()]
+`,
   'pair-sum-sorted': `
 def pair_sum(nums, target):
     lo, hi = 0, len(nums) - 1
@@ -113,6 +122,45 @@ def num_rescue_boats(people, limit):
         hi -= 1
         boats += 1
     return boats
+`,
+  'sort-colors': `
+def sort_colors(nums):
+    lo, mid, hi = 0, 0, len(nums) - 1
+    while mid <= hi:
+        if nums[mid] == 0:
+            nums[lo], nums[mid] = nums[mid], nums[lo]
+            lo += 1
+            mid += 1
+        elif nums[mid] == 2:
+            nums[mid], nums[hi] = nums[hi], nums[mid]
+            hi -= 1
+        else:
+            mid += 1
+    return nums
+`,
+  'squares-of-sorted-array': `
+def sorted_squares(nums):
+    out = [0] * len(nums)
+    lo, hi = 0, len(nums) - 1
+    for k in range(len(nums) - 1, -1, -1):
+        if abs(nums[lo]) > abs(nums[hi]):
+            out[k] = nums[lo] * nums[lo]
+            lo += 1
+        else:
+            out[k] = nums[hi] * nums[hi]
+            hi -= 1
+    return out
+`,
+  'valid-palindrome-ii': `
+def valid_palindrome(s):
+    lo, hi = 0, len(s) - 1
+    while lo < hi:
+        if s[lo] != s[hi]:
+            a, b = s[lo + 1 : hi + 1], s[lo:hi]
+            return a == a[::-1] or b == b[::-1]
+        lo += 1
+        hi -= 1
+    return True
 `,
   'jump-game': `
 def can_jump(nums):
@@ -220,6 +268,40 @@ def longest_ones(nums, k):
             lo += 1
         best = max(best, hi - lo + 1)
     return best
+`,
+  'fruit-into-baskets': `
+from collections import Counter
+
+def total_fruit(fruits):
+    count = Counter()
+    best = lo = 0
+    for hi, fruit in enumerate(fruits):
+        count[fruit] += 1
+        while len(count) > 2:
+            left = fruits[lo]
+            count[left] -= 1
+            if not count[left]:
+                del count[left]
+            lo += 1
+        best = max(best, hi - lo + 1)
+    return best
+`,
+  'min-operations-reduce-x': `
+def min_operations(nums, x):
+    keep = sum(nums) - x
+    if keep < 0:
+        return -1
+    longest = -1
+    total = lo = 0
+    for hi in range(len(nums) + 1):
+        while total > keep:
+            total -= nums[lo]
+            lo += 1
+        if total == keep:
+            longest = max(longest, hi - lo)
+        if hi < len(nums):
+            total += nums[hi]
+    return -1 if longest < 0 else len(nums) - longest
 `,
   'binary-search': `
 def search(nums, target):
@@ -478,6 +560,26 @@ def min_knight_moves(x, y):
                 seen.add(square)
                 queue.append((*square, moves + 1))
 `,
+  'far-from-land': `
+from collections import deque
+
+def max_distance(grid):
+    n = len(grid)
+    queue = deque((r, c) for r in range(n) for c in range(n) if grid[r][c] == 1)
+    if len(queue) in (0, n * n):
+        return -1
+    distance = [[-1] * n for _ in range(n)]
+    for r, c in queue:
+        distance[r][c] = 0
+    farthest = 0
+    while queue:
+        r, c = queue.popleft()
+        for y, x in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):
+            if 0 <= y < n and 0 <= x < n and distance[y][x] < 0:
+                distance[y][x] = farthest = distance[r][c] + 1
+                queue.append((y, x))
+    return farthest
+`,
   subsets: `
 def subsets(nums):
     nums = sorted(nums)
@@ -659,6 +761,25 @@ def interval_intersection(first_list, second_list):
             j += 1
     return out
 `,
+  'remove-covered-intervals': `
+def remove_covered_intervals(intervals):
+    kept, reach = 0, -1
+    for _, end in sorted(intervals, key=lambda iv: (iv[0], -iv[1])):
+        if end > reach:
+            kept += 1
+            reach = end
+    return kept
+`,
+  'car-pooling': `
+def car_pooling(trips, capacity):
+    events = sorted([(start, n) for n, start, _ in trips] + [(end, -n) for n, _, end in trips])
+    load = 0
+    for _, change in events:
+        load += change
+        if load > capacity:
+            return False
+    return True
+`,
   'top-k-frequent': `
 import heapq
 from collections import Counter
@@ -722,6 +843,13 @@ def combination_sum4(nums, target):
     for total in range(1, target + 1):
         ways[total] = sum(ways[total - x] for x in nums if x <= total)
     return ways[target]
+`,
+  'longest-string-chain': `
+def longest_str_chain(words):
+    best = {}
+    for word in sorted(words, key=len):
+        best[word] = 1 + max(best.get(word[:i] + word[i + 1:], 0) for i in range(len(word)))
+    return max(best.values())
 `,
   'kth-largest-element': `
 import heapq
@@ -945,6 +1073,26 @@ def remove_stones(stones):
         parent[find(x)] = find(~y)
     return len(stones) - len({find(x) for x, _ in stones})
 `,
+  'make-network-connected': `
+def make_connected(n, connections):
+    if len(connections) < n - 1:
+        return -1
+    parent = list(range(n))
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    groups = n
+    for a, b in connections:
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[ra] = rb
+            groups -= 1
+    return groups - 1
+`,
   'course-schedule': `
 from collections import deque
 
@@ -1045,6 +1193,57 @@ def sequence_reconstruction(nums, sequences):
                 ready.append(nxt)
     return True
 `,
+  'parallel-courses-iii': `
+from collections import deque
+
+def minimum_time(n, relations, time):
+    following = [[] for _ in range(n + 1)]
+    waiting = [0] * (n + 1)
+    for prev, nxt in relations:
+        following[prev].append(nxt)
+        waiting[nxt] += 1
+    start = [0] * (n + 1)
+    queue = deque(course for course in range(1, n + 1) if waiting[course] == 0)
+    finish = 0
+    while queue:
+        course = queue.popleft()
+        end = start[course] + time[course - 1]
+        finish = max(finish, end)
+        for nxt in following[course]:
+            start[nxt] = max(start[nxt], end)
+            waiting[nxt] -= 1
+            if waiting[nxt] == 0:
+                queue.append(nxt)
+    return finish
+`,
+  'find-all-recipes': `
+from collections import deque
+
+def find_all_recipes(recipes, ingredients, supplies):
+    stocked = set(supplies)
+    index = {name: i for i, name in enumerate(recipes)}
+    waiting = [0] * len(recipes)
+    used_by = [[] for _ in recipes]
+    for i, names in enumerate(ingredients):
+        for name in names.split():
+            if name in stocked:
+                continue
+            if name in index:
+                used_by[index[name]].append(i)
+                waiting[i] += 1
+            else:
+                waiting[i] = float('inf')
+    queue = deque(i for i in range(len(recipes)) if waiting[i] == 0)
+    cooked = []
+    while queue:
+        i = queue.popleft()
+        cooked.append(recipes[i])
+        for nxt in used_by[i]:
+            waiting[nxt] -= 1
+            if waiting[nxt] == 0:
+                queue.append(nxt)
+    return cooked
+`,
   'network-delay': `
 import heapq
 
@@ -1137,6 +1336,56 @@ def minimum_obstacles(grid):
                     queue.appendleft((cost, y, x))
     return best[-1][-1]
 `,
+  'path-max-probability': `
+import heapq
+
+def max_probability(n, edges, start, end):
+    neighbors = [[] for _ in range(n)]
+    for a, b, percent in edges:
+        neighbors[a].append((b, percent / 100))
+        neighbors[b].append((a, percent / 100))
+    best = [0.0] * n
+    best[start] = 1.0
+    heap = [(-1.0, start)]
+    while heap:
+        negative, node = heapq.heappop(heap)
+        chance = -negative
+        if node == end:
+            break
+        if chance < best[node]:
+            continue
+        for nxt, edge in neighbors[node]:
+            if chance * edge > best[nxt]:
+                best[nxt] = chance * edge
+                heapq.heappush(heap, (-best[nxt], nxt))
+    return round(best[end] * 1_000_000)
+`,
+  'ways-to-arrive': `
+import heapq
+
+def count_paths(n, roads):
+    mod = 1_000_000_007
+    neighbors = [[] for _ in range(n)]
+    for u, v, t in roads:
+        neighbors[u].append((v, t))
+        neighbors[v].append((u, t))
+    time = [float('inf')] * n
+    ways = [0] * n
+    time[0], ways[0] = 0, 1
+    heap = [(0, 0)]
+    while heap:
+        t, u = heapq.heappop(heap)
+        if t > time[u]:
+            continue
+        for v, minutes in neighbors[u]:
+            if t + minutes < time[v]:
+                time[v] = t + minutes
+                ways[v] = ways[u]
+                heapq.heappush(heap, (time[v], v))
+            elif t + minutes == time[v]:
+                ways[v] = (ways[v] + ways[u]) % mod
+    return ways[n - 1]
+`,
   'count-prefixes': `
 def count_prefixes(words, prefixes):
     root = {}
@@ -1221,6 +1470,51 @@ def longest_word(words):
                 best = word
     return best
 `,
+  'search-suggestions-system': `
+def suggested_products(products, search_word):
+    root = {}
+    for i in sorted(range(len(products)), key=products.__getitem__):
+        node = root
+        for letter in products[i]:
+            node = node.setdefault(letter, {})
+            top = node.setdefault('', [])
+            if len(top) < 3:
+                top.append(i)
+    answer, node = [], root
+    for letter in search_word:
+        node = node.get(letter) if node is not None else None
+        answer.append(node[''] if node is not None else [])
+    return answer
+`,
+  'maximum-xor-with-element': `
+def maximize_xor(nums, queries):
+    nums = sorted(nums)
+    child = [0, 0]
+    answer = [-1] * len(queries)
+    k = 0
+    for j in sorted(range(len(queries)), key=lambda j: queries[j][1]):
+        x, m = queries[j]
+        while k < len(nums) and nums[k] <= m:
+            node = 0
+            for bit in range(29, -1, -1):
+                slot = 2 * node + (nums[k] >> bit & 1)
+                if not child[slot]:
+                    child[slot] = len(child) // 2
+                    child += (0, 0)
+                node = child[slot]
+            k += 1
+        if k:
+            node = best = 0
+            for bit in range(29, -1, -1):
+                slot = 2 * node + (x >> bit & 1 ^ 1)
+                if child[slot]:
+                    best |= 1 << bit
+                else:
+                    slot ^= 1
+                node = child[slot]
+            answer[j] = best
+    return answer
+`,
   'find-duplicate': `
 def find_duplicate(nums):
     slow, fast = nums[0], nums[nums[0]]
@@ -1280,6 +1574,41 @@ def happy_numbers(nums):
         return fast == 1
 
     return [n for n in nums if is_happy(n)]
+`,
+  'move-zeroes': `
+def move_zeroes(nums):
+    slow = 0
+    for fast, x in enumerate(nums):
+        if x != 0:
+            nums[slow], nums[fast] = x, nums[slow]
+            slow += 1
+    return nums
+`,
+  'remove-duplicates-sorted-ii': `
+def remove_duplicates(nums):
+    kept = 0
+    for x in nums:
+        if kept < 2 or nums[kept - 2] != x:
+            nums[kept] = x
+            kept += 1
+    return nums[:kept]
+`,
+  'linked-list-cycle-ii': `
+def detect_cycle(next):
+    def step(node):
+        return -1 if node == -1 else next[node]
+
+    slow = fast = 0
+    while True:
+        slow, fast = step(slow), step(step(fast))
+        if fast == -1:
+            return -1
+        if slow == fast:
+            break
+    slow = 0
+    while slow != fast:
+        slow, fast = next[slow], next[fast]
+    return slow
 `,
   'tree-diameter': `
 def diameter_of_binary_tree(root):
@@ -1506,6 +1835,28 @@ def longest_wpi(hours):
         first.setdefault(score, i)
     return best
 `,
+  'find-pivot-index': `
+def pivot_index(nums):
+    right = sum(nums)
+    left = 0
+    for i, x in enumerate(nums):
+        right -= x
+        if left == right:
+            return i
+        left += x
+    return -1
+`,
+  'max-size-subarray-sum-k': `
+def max_sub_array_len(nums, k):
+    first = {0: -1}
+    total = best = 0
+    for i, x in enumerate(nums):
+        total += x
+        if total - k in first:
+            best = max(best, i - first[total - k])
+        first.setdefault(total, i)
+    return best
+`,
   'sliding-window-maximum': `
 from collections import deque
 
@@ -1557,6 +1908,32 @@ def next_greater_elements(nums):
             stack.append(i)
     return out
 `,
+  '132-pattern': `
+def find132pattern(nums):
+    stack, third = [], float('-inf')
+    for x in reversed(nums):
+        if x < third:
+            return True
+        while stack and stack[-1] < x:
+            third = stack.pop()
+        stack.append(x)
+    return False
+`,
+  'maximal-rectangle': `
+def maximal_rectangle(matrix):
+    heights = [0] * (len(matrix[0]) + 1)
+    best = 0
+    for row in matrix:
+        for c, cell in enumerate(row):
+            heights[c] = heights[c] + 1 if cell == '1' else 0
+        stack = [-1]
+        for c, h in enumerate(heights):
+            while h < heights[stack[-1]]:
+                height = heights[stack.pop()]
+                best = max(best, height * (c - stack[-1] - 1))
+            stack.append(c)
+    return best
+`,
   'meeting-rooms-ii': `
 import heapq
 
@@ -1592,6 +1969,32 @@ def candy(ratings):
         if ratings[i] > ratings[i + 1]:
             candies[i] = max(candies[i], candies[i + 1] + 1)
     return sum(candies)
+`,
+  'jump-game-ii': `
+def jump(nums):
+    jumps = end = far = 0
+    for i in range(len(nums) - 1):
+        far = max(far, i + nums[i])
+        if i == end:
+            jumps += 1
+            end = far
+    return jumps
+`,
+  'min-refueling-stops': `
+import heapq
+
+def min_refuel_stops(target, start_fuel, stations):
+    passed = []
+    reach, stops, i = start_fuel, 0, 0
+    while reach < target:
+        while i < len(stations) and stations[i][0] <= reach:
+            heapq.heappush(passed, -stations[i][1])
+            i += 1
+        if not passed:
+            return -1
+        reach -= heapq.heappop(passed)
+        stops += 1
+    return stops
 `,
   'partition-equal-subset': `
 def can_partition(nums):
@@ -1665,6 +2068,40 @@ def count_substrings(s):
             right += 1
     return count
 `,
+  'minimum-path-sum': `
+def min_path_sum(grid):
+    best = [float('inf')] * len(grid[0])
+    best[0] = 0
+    for row in grid:
+        for c, cost in enumerate(row):
+            best[c] = cost + (min(best[c], best[c - 1]) if c else best[c])
+    return best[-1]
+`,
+  'maximal-square': `
+def maximal_square(matrix):
+    cols = len(matrix[0])
+    above = [0] * (cols + 1)
+    side = 0
+    for row in matrix:
+        here = [0] * (cols + 1)
+        for c in range(1, cols + 1):
+            if row[c - 1] == '1':
+                here[c] = 1 + min(above[c], above[c - 1], here[c - 1])
+                side = max(side, here[c])
+        above = here
+    return side * side
+`,
+  'burst-balloons': `
+def max_coins(nums):
+    vals = [1] + nums + [1]
+    n = len(vals)
+    best = [[0] * n for _ in range(n)]
+    for left in range(n - 3, -1, -1):
+        for right in range(left + 2, n):
+            edge = vals[left] * vals[right]
+            best[left][right] = max(best[left][k] + best[k][right] + edge * vals[k] for k in range(left + 1, right))
+    return best[0][n - 1]
+`,
   'maximum-xor-pair': `
 def find_maximum_xor(nums):
     best = 0
@@ -1681,5 +2118,21 @@ def missing_number(nums):
     for i, x in enumerate(nums):
         missing ^= i ^ x
     return missing
+`,
+  'single-number-ii': `
+def single_number(nums):
+    ones = twos = 0
+    for x in nums:
+        ones = (ones ^ x) & ~twos
+        twos = (twos ^ x) & ~ones
+    return ones
+`,
+  'minimum-flips-or': `
+def min_flips(a, b, c):
+    flips = 0
+    for bit in range(31):
+        x, y, z = a >> bit & 1, b >> bit & 1, c >> bit & 1
+        flips += 1 - (x | y) if z else x + y
+    return flips
 `,
 };

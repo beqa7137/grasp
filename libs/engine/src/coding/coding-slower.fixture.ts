@@ -1,6 +1,7 @@
 import { rangeOf } from '../algorithms/input.js';
 import { removalCounts } from './problems/batch-p.js';
 import { lockNeighbors } from './problems/batch-n.js';
+import { bestChances, fastestRoutes, landDistances } from './problems/batch-t.js';
 import { rottingOranges } from './problems/grids.js';
 import { MinHeap } from './problems/min-heap.js';
 import type { TreeNode } from './tree.js';
@@ -15,6 +16,31 @@ export function nodesOf(root: TreeNode | null) {
         nodes.push(child);
       }
   return { nodes, parent };
+}
+
+/** The columns each nonzero bar of each row's histogram spans before a lower bar or the edge, summed over the rows. */
+function histogramSpans(matrix: string[][], skipEqualNeighbors: boolean): number {
+  const cols = matrix[0].length;
+  const heights = Array<number>(cols).fill(0);
+  const left = Array<number>(cols);
+  let steps = 0;
+  for (const row of matrix) {
+    row.forEach((cell, c) => (heights[c] = cell === '1' ? heights[c] + 1 : 0));
+    const stack: number[] = [];
+    for (let c = 0; c < cols; c++) {
+      while (stack.length && heights[stack[stack.length - 1]] >= heights[c]) stack.pop();
+      left[c] = stack.length ? stack[stack.length - 1] : -1;
+      stack.push(c);
+    }
+    stack.length = 0;
+    for (let c = cols - 1; c >= 0; c--) {
+      while (stack.length && heights[stack[stack.length - 1]] >= heights[c]) stack.pop();
+      const right = stack.length ? stack[stack.length - 1] : cols;
+      stack.push(c);
+      if (heights[c] && !(skipEqualNeighbors && c > 0 && heights[c] === heights[c - 1])) steps += right - left[c] - 1;
+    }
+  }
+  return steps;
 }
 
 function componentSize(heights: number[][], start: number, maxStep: number): number {
@@ -170,10 +196,53 @@ function prefixScanSteps(words: string[]): (word: string) => number {
   };
 }
 
+/** The side of the largest all-'1' square with its top-left corner at each cell, row by row. */
+function squareSides(matrix: string[][]): number[] {
+  const rows = matrix.length;
+  const cols = matrix[0].length;
+  const side = new Int32Array((rows + 1) * (cols + 1));
+  for (let r = rows - 1; r >= 0; r--)
+    for (let c = cols - 1; c >= 0; c--)
+      if (matrix[r][c] === '1')
+        side[r * (cols + 1) + c] =
+          1 + Math.min(side[(r + 1) * (cols + 1) + c], side[r * (cols + 1) + c + 1], side[(r + 1) * (cols + 1) + c + 1]);
+  return Array.from(side);
+}
+
+/** The fewest stops that reach each station, or undefined past the first station out of reach. */
+function stopsToStations(startFuel: number, stations: number[][]): number[] {
+  const passed = new MinHeap();
+  const stops: number[] = [];
+  let reach = startFuel;
+  let count = 0;
+  for (const [position, fuel] of stations) {
+    for (; reach < position && passed.size; count++) reach -= passed.pop()[0];
+    if (reach < position) break;
+    stops.push(count);
+    passed.push([-fuel, 0]);
+  }
+  return stops;
+}
+
 /**
  * Steps a measured slower approach needs on the performance case. The default 4e9 floor guards against weaker
  * generators; actual timeout measurements still matter because an array scan is cheaper than a BFS visit or string match.
  */
+/** Pairs out of order: the swaps an insertion or bubble sort makes. */
+function inversions(values: number[]): number {
+  if (values.length < 2) return 0;
+  const mid = values.length >> 1;
+  const [left, right] = [values.slice(0, mid), values.slice(mid)];
+  let count = inversions(left) + inversions(right);
+  for (let i = 0, j = 0, k = 0; k < values.length; k++)
+    if (j === right.length || (i < left.length && left[i] <= right[j])) values[k] = left[i++];
+    else {
+      count += left.length - i;
+      values[k] = right[j++];
+    }
+  return count;
+}
+
 export const SLOWER: Record<string, (...args: any[]) => number> = {
   // Trying each limit upward from the larger of the largest value and the average part, with a greedy check each time.
   // Every limit below the answer fails, and a failing check fills k parts first, each holding at least limit / max values.
@@ -218,6 +287,10 @@ export const SLOWER: Record<string, (...args: any[]) => number> = {
   },
   // Counting tiring days from every start to every end.
   'longest-well-performing-interval': (hours: number[]) => (hours.length * (hours.length + 1)) / 2,
+  // Summing both sides again at every index up to the pivot.
+  'find-pivot-index': (nums: number[], answer: number) => (answer < 0 ? nums.length : answer + 1) * (nums.length - 1),
+  // Summing every subarray from every start.
+  'max-size-subarray-sum-k': (nums: number[]) => (nums.length * (nums.length + 1)) / 2,
   'largest-rectangle-in-histogram': (heights: number[]) => {
     let steps = 0;
     for (let i = 0; i < heights.length; i++) if (i === heights.length - 1 || heights[i] > heights[i + 1]) steps += i + 1;
@@ -272,7 +345,31 @@ export const SLOWER: Record<string, (...args: any[]) => number> = {
     }
     return reach.reduce((a, b) => a + b, 0);
   },
+  // Taking each value that has a smaller one to its left as the middle, and scanning everything to its right for a value
+  // between the two; with no pattern in the list, no scan stops early.
+  '132-pattern': (nums: number[]) => {
+    let steps = 0;
+    for (let j = 1, low = nums[0]; j < nums.length; low = Math.min(low, nums[j++])) if (low < nums[j]) steps += nums.length - 1 - j;
+    return steps;
+  },
+  // Expanding every nonzero bar of each row's histogram left and right until a lower bar.
+  'maximal-rectangle': (matrix: string[][]) => histogramSpans(matrix, false),
   'circular-array-loop': (nums: number[]) => (nums.length * (nums.length - 1)) / 2,
+  // Bubbling each 0 past every nonzero value after it; splicing each 0 out and appending it moves at least as many.
+  'move-zeroes': (nums: number[]) => {
+    let zeros = 0;
+    return nums.reduce((steps, x) => (x === 0 ? (zeros++, steps) : steps + zeros), 0);
+  },
+  // Splicing each extra copy out, which shifts every value after it.
+  'remove-duplicates-sorted-ii': (nums: number[]) =>
+    nums.reduce((steps, x, i) => (i >= 2 && nums[i - 2] === x ? steps + nums.length - 1 - i : steps), 0),
+  // Scanning the list of nodes visited so far before each step of the walk.
+  'linked-list-cycle-ii': (next: number[]) => {
+    const seen = new Uint8Array(next.length);
+    let visited = 0;
+    for (let node = 0; node !== -1 && !seen[node]; node = next[node], visited++) seen[node] = 1;
+    return (visited * (visited - 1)) / 2;
+  },
   // Scanning backward through end-sorted intervals for each DP predecessor.
   'non-overlapping-intervals': (intervals: number[][]) => {
     const sorted = [...intervals].sort((a, b) => a[1] - b[1]);
@@ -297,6 +394,10 @@ export const SLOWER: Record<string, (...args: any[]) => number> = {
   },
   // Intersecting every pair of intervals.
   'interval-list-intersections': (firstList: number[][], secondList: number[][]) => firstList.length * secondList.length,
+  // Checking every interval against every other one: an interval nothing covers is compared with all of them.
+  'remove-covered-intervals': (intervals: number[][], answer: number) => answer * (intervals.length - 1),
+  // Adding up the load at every pickup over every trip, which never stops early when the car always has room.
+  'car-pooling': (trips: number[][], _capacity: number, answer: boolean) => (answer ? trips.length ** 2 : 0),
   // Shooting at the smallest end among the balloons left, then filtering the burst ones out: each arrow scans every
   // balloon still flying. A balloon bursts at the first arrow at or after its start.
   'min-arrows-balloons': (points: number[][]) => {
@@ -375,6 +476,10 @@ export const SLOWER: Record<string, (...args: any[]) => number> = {
     const steps = prefixScanSteps(words);
     return words.reduce((total, word) => total + steps(word), 0);
   },
+  // Checking every product against every prefix of the search word.
+  'search-suggestions-system': (products: string[], searchWord: string) => products.length * searchWord.length,
+  // Checking every value against every query.
+  'maximum-xor-with-element': (nums: number[], queries: number[][]) => nums.length * queries.length,
   // Recursing on every dictionary word that fits at a position, without remembering the positions that already failed.
   'word-break': (s: string, wordDict: string[]) => {
     const calls = Array<number>(s.length + 1).fill(1);
@@ -438,6 +543,10 @@ export const SLOWER: Record<string, (...args: any[]) => number> = {
     const falling = slopeRuns(ratings, true);
     return rising.reduce((steps, run, i) => steps + run - 1 + falling[i] - 1, 0);
   },
+  // Relaxing every jump from every index: each index updates the fewest jumps to every index it reaches.
+  'jump-game-ii': (nums: number[]) => nums.reduce((steps, x, i) => steps + Math.min(x, nums.length - 1 - i), 0),
+  // The table of the farthest reach with each number of stops, updated from every count at every station.
+  'min-refueling-stops': (_target: number, _startFuel: number, stations: number[][]) => (stations.length * (stations.length + 1)) / 2,
   // Recursing on the one-digit and the two-digit letter at each position without a memo.
   'decode-ways': (s: string) => {
     const calls = Array<number>(s.length + 2).fill(0);
@@ -462,6 +571,25 @@ export const SLOWER: Record<string, (...args: any[]) => number> = {
       calls.push(Math.min(1e12, 1 + nums.reduce((sum, x) => sum + (x <= rest ? calls[rest - x] : 0), 0)));
     return calls[target];
   },
+  // Comparing every pair of words, checking the lengths before the letters.
+  'longest-string-chain': (words: string[]) => (words.length * (words.length - 1)) / 2,
+  // Walking every path from the top-left cell without a memo: one call per way into each cell.
+  'minimum-path-sum': (grid: number[][]) => {
+    let steps = 0;
+    const ways = Array<number>(grid[0].length).fill(0);
+    ways[0] = 1;
+    for (const row of grid)
+      row.forEach((_, c) => {
+        ways[c] = Math.min(1e12, ways[c] + (c > 0 ? ways[c - 1] : 0));
+        steps = Math.min(1e12, steps + ways[c]);
+      });
+    return steps;
+  },
+  // Growing a square from every cell and checking all its cells at each size, until one is not '1'.
+  'maximal-square': (matrix: string[][]) =>
+    squareSides(matrix).reduce((steps, side) => steps + (side * (side + 1) * (2 * side + 1)) / 6, 0),
+  // Memoizing on the set of balloons left.
+  'burst-balloons': (nums: number[]) => Math.min(1e12, 2 ** nums.length),
   // Recursing into all three edits on mismatches without memoization.
   'edit-distance': (a: string, b: string) => {
     const calls = Array.from({ length: a.length + 1 }, () => Array<number>(b.length + 1).fill(1));
@@ -536,6 +664,49 @@ export const SLOWER: Record<string, (...args: any[]) => number> = {
   'minimum-height-trees': (n: number) => n * n,
   // Scanning the values not yet placed for the one with nothing left before it, at each step.
   'sequence-reconstruction': (nums: number[]) => (nums.length * (nums.length + 1)) / 2,
+  // A DFS from every course for its finish time, without a memo, which follows every chain of prerequisites into it.
+  'parallel-courses-iii': (n: number, relations: number[][]) => {
+    const following: number[][] = Array.from({ length: n + 1 }, () => []);
+    const waiting = Array<number>(n + 1).fill(0);
+    for (const [prev, next] of relations) {
+      following[prev].push(next);
+      waiting[next]++;
+    }
+    const calls = Array<number>(n + 1).fill(1);
+    const queue = rangeOf(1, n).filter((course) => !waiting[course]);
+    let total = 0;
+    for (let head = 0; head < queue.length; head++) {
+      const course = queue[head];
+      total = Math.min(1e12, total + calls[course]);
+      for (const next of following[course]) {
+        calls[next] = Math.min(1e12, calls[next] + calls[course]);
+        if (--waiting[next] === 0) queue.push(next);
+      }
+    }
+    return total;
+  },
+  // Sweeping the list and cooking every recipe whose ingredients are at hand, until a sweep cooks nothing. A sweep cooks
+  // a recipe only after the one that cooks its last recipe ingredient, one sweep later if that ingredient comes later in
+  // the list. Every sweep until then reads the recipe at least once, and a recipe never cooked is read each sweep up to
+  // its first ingredient that is not a supply.
+  'find-all-recipes': (recipes: string[], lists: string[], supplies: string[], cooked: string[]) => {
+    const ingredients = lists.map((list) => list.split(' '));
+    const position = new Map(recipes.map((name, i) => [name, i]));
+    const stocked = new Set(supplies);
+    const sweepOf = new Map<string, number>();
+    for (const name of cooked) {
+      const at = position.get(name)!;
+      let sweep = 1;
+      for (const need of ingredients[at])
+        if (sweepOf.has(need)) sweep = Math.max(sweep, sweepOf.get(need)! + (position.get(need)! > at ? 1 : 0));
+      sweepOf.set(name, sweep);
+    }
+    const sweeps = Math.max(0, ...sweepOf.values()) + 1;
+    return recipes.reduce(
+      (steps, name, i) => steps + (sweepOf.get(name) ?? sweeps * (ingredients[i].findIndex((need) => !stocked.has(need)) + 1)),
+      0,
+    );
+  },
   // A DFS from src along every flight, ending a route at dst or after k + 1 flights.
   'cheapest-flights': (n: number, flights: number[][], src: number, dst: number, k: number) => {
     let routes = Array<number>(n).fill(0);
@@ -556,6 +727,25 @@ export const SLOWER: Record<string, (...args: any[]) => number> = {
   'minimum-obstacle-removal': (grid: number[][], answer: number) => {
     const removed = removalCounts(grid);
     return removed.filter((count) => count < answer).length * removed.length;
+  },
+  // Dijkstra that scans every node for the next one to settle: each node with a better chance than end settles first.
+  'path-max-probability': (n: number, edges: number[][], start: number, end: number) => {
+    const best = bestChances(n, edges, start);
+    return best.filter((chance) => chance > best[end]).length * n;
+  },
+  // Following every fastest route one road at a time, as a DFS without a memo does.
+  'ways-to-arrive': (n: number, roads: number[][]) => {
+    const { time } = fastestRoutes(n, roads);
+    const out: [number, number][][] = Array.from({ length: n }, () => []);
+    for (const [u, v, t] of roads) {
+      out[u].push([v, t]);
+      out[v].push([u, t]);
+    }
+    const routes = new Float64Array(n);
+    routes[0] = 1;
+    for (const node of rangeOf(0, n - 1).sort((a, b) => time[a] - time[b]))
+      for (const [next, t] of out[node]) if (time[node] + t === time[next]) routes[next] = Math.min(1e12, routes[next] + routes[node]);
+    return routes[n - 1];
   },
   // From the back, trying each jump from an index until one lands where the end is reachable.
   'jump-game': (nums: number[]) => {
@@ -604,6 +794,32 @@ export const SLOWER: Record<string, (...args: any[]) => number> = {
       steps += hi - lo;
       if (hi > lo && nums[lo] === 0) zeros--;
       if (hi === lo) hi++;
+    }
+    return steps;
+  },
+  // Growing a run from every tree until it meets a third type.
+  'fruit-into-baskets': (fruits: number[]) => {
+    const count = new Map<number, number>();
+    let steps = 0;
+    for (let lo = 0, hi = 0; lo < fruits.length; lo++) {
+      for (; hi < fruits.length && (count.has(fruits[hi]) || count.size < 2); hi++) count.set(fruits[hi], (count.get(fruits[hi]) ?? 0) + 1);
+      steps += hi - lo;
+      const rest = count.get(fruits[lo])! - 1;
+      if (rest) count.set(fruits[lo], rest);
+      else count.delete(fruits[lo]);
+    }
+    return steps;
+  },
+  // For every count taken from the front, taking values from the back until the total reaches x.
+  'min-operations-reduce-x': (nums: number[], x: number) => {
+    let steps = 0;
+    let front = 0;
+    let back = 0;
+    let fromBack = 0;
+    for (let taken = 0; taken <= nums.length && front <= x; front += nums[taken++]) {
+      while (back > 0 && front + fromBack - nums[nums.length - back] >= x) fromBack -= nums[nums.length - back--];
+      while (taken + back < nums.length && front + fromBack < x) fromBack += nums[nums.length - ++back];
+      steps += back + 1;
     }
     return steps;
   },
@@ -658,6 +874,18 @@ export const SLOWER: Record<string, (...args: any[]) => number> = {
     }
     return steps;
   },
+  // Checking each word against every group found so far, in the order they were found, until one matches.
+  'group-anagrams': (strs: string[]) => {
+    const groupAt = new Map<string, number>();
+    let steps = 0;
+    for (const word of strs) {
+      const key = [...word].sort().join('');
+      const at = groupAt.get(key);
+      steps += at ?? groupAt.size;
+      if (at === undefined) groupAt.set(key, groupAt.size);
+    }
+    return steps;
+  },
   // Counting upward from every value, not only from the start of each run.
   'longest-consecutive-sequence': (nums: number[]) => {
     const values = [...new Set(nums)].sort((a, b) => a - b);
@@ -684,6 +912,21 @@ export const SLOWER: Record<string, (...args: any[]) => number> = {
       if (sorted[lo] + sorted[hi] <= limit) lo++;
     }
     return steps;
+  },
+  // Insertion or bubble sort, one swap per pair out of order.
+  'sort-colors': (nums: number[]) => inversions([...nums]),
+  // Squaring, then inserting each square into place in the sorted prefix.
+  'squares-of-sorted-array': (nums: number[]) => inversions(nums.map((x) => x * x)),
+  // Trying each deletion from the front or from the back, checking each with two pointers that stop at the first
+  // mismatch. No deletion inside the runs that start and end s works, and each one fails only past the shorter run.
+  'valid-palindrome-ii': (s: string) => {
+    const run = (from: number, step: number) => {
+      let i = from;
+      while (i >= 0 && i < s.length && s[i] === s[from]) i += step;
+      return Math.abs(i - from);
+    };
+    const [lead, trail] = [run(0, 1), run(s.length - 1, -1)];
+    return Math.min(lead * Math.min(lead - 1, trail), trail * Math.min(trail - 1, lead));
   },
   // Picking the closest remaining point with a full scan, k times.
   'k-closest-points': (points: number[][], k: number) => k * points.length - (k * (k - 1)) / 2,
@@ -782,6 +1025,11 @@ export const SLOWER: Record<string, (...args: any[]) => number> = {
   },
   // A BFS that never remembers the squares it has queued puts all 8^d paths of d moves on level d.
   'minimum-knight-moves': (_x: number, _y: number, moves: number) => (8 ** moves - 1) / 7,
+  // Measuring every water cell against every land cell.
+  'far-from-land': (grid: number[][]) => {
+    const land = grid.flat().filter((cell) => cell === 1).length;
+    return land * (grid.length ** 2 - land);
+  },
   // Extending every subset found so far by the next number, and looking through the list for a copy before adding one.
   subsets: (nums: number[]) => {
     let steps = 0;
@@ -869,6 +1117,22 @@ export const SLOWER: Record<string, (...args: any[]) => number> = {
   },
   // Comparing every pair of stones for a shared row or column.
   'most-stones-removed': (stones: number[][]) => (stones.length * (stones.length - 1)) / 2,
+  // Relabelling every computer in one group on each join (quick-find) scans all n labels each time.
+  'make-network-connected': (n: number, connections: number[][]) => {
+    const parent = rangeOf(0, n - 1);
+    const find = (x: number): number => {
+      while (parent[x] !== x) x = parent[x] = parent[parent[x]];
+      return x;
+    };
+    let joins = 0;
+    for (const [a, b] of connections) {
+      const [ra, rb] = [find(a), find(b)];
+      if (ra === rb) continue;
+      parent[ra] = rb;
+      joins++;
+    }
+    return joins * n;
+  },
   // Nested loops stop at a copy of the duplicate, and both copies sit mid-array, so scanning from either end is quadratic.
   'find-duplicate': (nums: number[]) => {
     const firstAt = new Map<number, number>();
@@ -901,6 +1165,13 @@ export const SLOWER: Record<string, (...args: any[]) => number> = {
     const scans = (candidates: number[]) => candidates.reduce(([front, back], x) => [front + at[x] + 1, back + n - at[x]], [n, n]);
     return Math.min(...scans(rangeOf(0, missing - 1)), ...scans(rangeOf(missing + 1, n)));
   },
+  // Counting each value's copies with a full scan, from the front or from the back, until the single one comes up.
+  'single-number-ii': (nums: number[]) => {
+    const counts = new Map<number, number>();
+    for (const x of nums) counts.set(x, (counts.get(x) ?? 0) + 1);
+    const single = nums.findIndex((x) => counts.get(x) === 1);
+    return Math.min(single + 1, nums.length - single) * nums.length;
+  },
   // A breadth-first search from every node.
   'tree-diameter': (root: TreeNode | null) => nodesOf(root).nodes.length ** 2,
   // Recursing into children and grandchildren without a memo evaluates a node once per way down to it in steps of one and two levels.
@@ -919,6 +1190,10 @@ export const SLOWER: Record<string, (...args: any[]) => number> = {
 };
 
 export const SLOWER_MIN_STEPS: Record<string, number> = {
+  // Each step checks one product against one prefix; the 1.5e8 of them took 12 seconds in Pyodide under Node, against an
+  // 8 second limit. They take under half a second in Node, but a larger case cannot fix that: products stay at 500
+  // letters so a trie of them can be freed within browser Python's stack, and only far more products would make up for it.
+  'search-suggestions-system': 1.2e8,
   // Root comparisons check strings; 1.70e9 take 5.98 seconds in the measured Node length-first scan.
   'replace-words': 1.5e9,
   // Each BFS visit checks neighbors; at 2.09e9 lower-bound visits, the goal-first scan exceeded 9 seconds in Node.
@@ -938,6 +1213,40 @@ export const SLOWER_MIN_STEPS: Record<string, number> = {
 };
 
 export const SLOWER_VARIANTS: Record<string, Record<string, (...args: any[]) => number>> = {
+  'max-size-subarray-sum-k': {
+    // Trying every length from the longest down, each over every window with prefix sums, until one works.
+    'longest lengths first': (nums: number[], _k: number, answer: number) => ((nums.length - answer) * (nums.length - answer + 1)) / 2,
+  },
+  'min-operations-reduce-x': {
+    // Growing the middle that stays from every start until its sum reaches the total minus x.
+    'grow the middle from every start': (nums: number[], x: number) => {
+      const keep = nums.reduce((sum, v) => sum + v, 0) - x;
+      let steps = 0;
+      let sum = 0;
+      for (let lo = 0, hi = 0; lo < nums.length; lo++) {
+        while (hi < nums.length && sum < keep) sum += nums[hi++];
+        steps += hi - lo + 1;
+        if (hi > lo) sum -= nums[lo];
+        else hi++;
+      }
+      return steps;
+    },
+  },
+  'maximum-xor-with-element': {
+    'sort the values and stop at the first above m': (nums: number[], queries: number[][]) => {
+      const limits = queries.map(([, m]) => m).sort((a, b) => a - b);
+      const sorted = [...nums].sort((a, b) => a - b);
+      let steps = 0;
+      for (let q = 0, k = 0; q < limits.length; q++) {
+        while (k < sorted.length && sorted[k] <= limits[q]) k++;
+        steps += k;
+      }
+      return steps;
+    },
+  },
+  'maximal-rectangle': {
+    'skip bars equal to their left neighbor': (matrix: string[][]) => histogramSpans(matrix, true),
+  },
   'longest-well-performing-interval': {
     // Trying every length from the longest down, each over every window with prefix sums, until one works.
     'longest lengths first': (hours: number[], answer: number) => ((hours.length - answer) * (hours.length - answer + 1)) / 2,
@@ -1009,6 +1318,30 @@ export const SLOWER_VARIANTS: Record<string, Record<string, (...args: any[]) => 
       const longest = (fromEnd: boolean) => slopeRuns(ratings, fromEnd).reduce((a, b) => Math.max(a, b));
       return ratings.length * Math.min(longest(false), longest(true));
     },
+  },
+  'jump-game-ii': {
+    // From the last index back, scanning from index 0 for the leftmost index that reaches the current one.
+    'leftmost index that reaches, found by a scan': (nums: number[]) => {
+      const reach: number[] = [];
+      nums.forEach((x, i) => reach.push(Math.max(reach[i - 1] ?? 0, i + x)));
+      let steps = 0;
+      for (let at = nums.length - 1; at > 0;) {
+        let lo = 0;
+        for (let hi = at; lo < hi;) {
+          const mid = (lo + hi) >> 1;
+          if (reach[mid] >= at) hi = mid;
+          else lo = mid + 1;
+        }
+        steps += lo + 1;
+        at = lo;
+      }
+      return steps;
+    },
+  },
+  'min-refueling-stops': {
+    // The same table, stopping at each station once the counts left cannot reach it.
+    'stop at the first count that cannot reach': (_target: number, startFuel: number, stations: number[][]) =>
+      stopsToStations(startFuel, stations).reduce((steps, stops, i) => steps + i + 2 - stops, 0),
   },
   'longest-word-in-dictionary': {
     // Scanning for prefixes too, but longest words first, stopping at the first one that can be built.
@@ -1125,6 +1458,37 @@ export const SLOWER_VARIANTS: Record<string, Record<string, (...args: any[]) => 
         const reach = Math.min(d - 1, 249);
         return d ? steps + ((reach + 1) * (reach + 2)) / 2 : steps;
       }, 0),
+  },
+  'far-from-land': {
+    // A BFS from each water cell visits every cell closer than its nearest land. From any cell of a 500 × 500 grid, the
+    // quarter of that diamond facing the middle fits up to 249 steps out.
+    'BFS from every water cell until it reaches land': (grid: number[][]) =>
+      landDistances(grid).reduce((steps, d) => {
+        const reach = Math.min(d - 1, 249);
+        return d > 0 ? steps + ((reach + 1) * (reach + 2)) / 2 : steps;
+      }, 0),
+  },
+  'path-max-probability': {
+    // Each Bellman-Ford round relaxes the edges in list order, so the best path advances one edge per round wherever its
+    // next edge comes earlier in the list than the one before.
+    'Bellman-Ford until a round changes nothing': (n: number, edges: number[][], start: number, end: number) => {
+      const via = new Int32Array(n).fill(-1);
+      bestChances(n, edges, start, via);
+      let rounds = 1;
+      for (let node = end; via[node] >= 0;) {
+        const edge = via[node];
+        node = edges[edge][0] === node ? edges[edge][1] : edges[edge][0];
+        if (via[node] >= 0 && via[node] > edge) rounds++;
+      }
+      return rounds * edges.length;
+    },
+  },
+  'ways-to-arrive': {
+    // Every intersection nearer than n - 1 settles before it, each after a scan of all n.
+    'Dijkstra with a linear scan for the nearest': (n: number, roads: number[][]) => {
+      const { time } = fastestRoutes(n, roads);
+      return time.filter((t) => t < time[n - 1]).length * n;
+    },
   },
   'three-sum': {
     'sorted triple loop that stops once the sum passes zero': (nums: number[]) => {

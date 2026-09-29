@@ -39,6 +39,26 @@ function safePlacements(n: number, columns = 0, left = 0, right = 0): number {
   return count;
 }
 
+/** The best chance of any simple path from start to end, as an exact fraction: every path, every product in BigInt. */
+function exactBestChance(edges: number[][], start: number, end: number): [bigint, bigint] {
+  let best: [bigint, bigint] = [0n, 1n];
+  const walk = (node: number, visited: Set<number>, chance: bigint, outOf: bigint) => {
+    if (node === end) {
+      if (chance * best[1] > best[0] * outOf) best = [chance, outOf];
+      return;
+    }
+    for (const [a, b, percent] of edges) {
+      const other = a === node ? b : b === node ? a : -1;
+      if (other < 0 || visited.has(other)) continue;
+      visited.add(other);
+      walk(other, visited, chance * BigInt(percent), outOf * 100n);
+      visited.delete(other);
+    }
+  };
+  walk(start, new Set([start]), 1n, 1n);
+  return best;
+}
+
 /** Obviously-correct (and slow) solutions to cross-check the references on small inputs. */
 const BRUTE: Record<string, (...args: any[]) => unknown> = {
   'two-sum': (nums: number[], t: number) => {
@@ -70,6 +90,19 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
             (a.r !== b.r && a.c !== b.c && (Math.floor(a.r / 3) !== Math.floor(b.r / 3) || Math.floor(a.c / 3) !== Math.floor(b.c / 3))),
         ),
     );
+  },
+  'group-anagrams': (strs: string[]) => {
+    const letterCounts = (word: string) =>
+      [...'abcdefghijklmnopqrstuvwxyz'].map((letter) => [...word].filter((x) => x === letter).length).join();
+    const anagrams = (a: string, b: string) => letterCounts(a) === letterCounts(b);
+    return strs
+      .filter((word, i) => strs.findIndex((other) => anagrams(other, word)) === i)
+      .map((word) =>
+        strs
+          .filter((other) => anagrams(other, word))
+          .sort()
+          .join(' '),
+      );
   },
   'pair-sum-sorted': (nums: number[], t: number) => {
     for (let i = 0; i < nums.length; i++) for (let j = i + 1; j < nums.length; j++) if (nums[i] + nums[j] === t) return [i, j];
@@ -105,6 +138,13 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     };
     return fewest(people);
   },
+  'sort-colors': (nums: number[]) => [0, 1, 2].flatMap((color) => nums.filter((x) => x === color)),
+  'squares-of-sorted-array': (nums: number[]) => nums.map((x) => x * x).sort((a, b) => a - b),
+  'valid-palindrome-ii': (s: string) =>
+    rangeOf(-1, s.length - 1).some((skip) => {
+      const kept = [...s].filter((_, i) => i !== skip).join('');
+      return kept === [...kept].reverse().join('');
+    }),
   'jump-game': (nums: number[]) => {
     const reachesEnd = (i: number): boolean =>
       i === nums.length - 1 || rangeOf(i + 1, Math.min(i + nums[i], nums.length - 1)).some(reachesEnd);
@@ -144,6 +184,31 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
       });
     }
     return candies.reduce((sum, c) => sum + c, 0);
+  },
+  'jump-game-ii': (nums: number[]) => {
+    const fewest = (i: number): number =>
+      i === nums.length - 1 ? 0 : 1 + Math.min(Infinity, ...rangeOf(i + 1, Math.min(i + nums[i], nums.length - 1)).map(fewest));
+    return fewest(0);
+  },
+  'min-refueling-stops': (target: number, startFuel: number, stations: number[][]) => {
+    let best = Infinity;
+    for (let mask = 0; mask < 2 ** stations.length; mask++) {
+      let fuel = startFuel;
+      let position = 0;
+      let stops = 0;
+      let ok = true;
+      stations.forEach(([at, liters], i) => {
+        fuel -= at - position;
+        position = at;
+        if (fuel < 0) ok = false;
+        if (mask & (1 << i)) {
+          fuel += liters;
+          stops++;
+        }
+      });
+      if (ok && fuel >= target - position) best = Math.min(best, stops);
+    }
+    return best === Infinity ? -1 : best;
   },
   'longest-unique-substring': (s: string) => {
     let best = 0;
@@ -191,6 +256,21 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     for (let i = 0; i < nums.length; i++)
       for (let j = i; j < nums.length; j++) if (nums.slice(i, j + 1).filter((x) => x === 0).length <= k) best = Math.max(best, j - i + 1);
     return best;
+  },
+  'fruit-into-baskets': (fruits: number[]) => {
+    let best = 0;
+    for (let i = 0; i < fruits.length; i++)
+      for (let j = i; j < fruits.length; j++) if (new Set(fruits.slice(i, j + 1)).size <= 2) best = Math.max(best, j - i + 1);
+    return best;
+  },
+  'min-operations-reduce-x': (nums: number[], x: number) => {
+    let fewest = Infinity;
+    for (let front = 0; front <= nums.length; front++)
+      for (let back = 0; front + back <= nums.length; back++) {
+        const taken = [...nums.slice(0, front), ...nums.slice(nums.length - back)];
+        if (taken.reduce((sum, v) => sum + v, 0) === x) fewest = Math.min(fewest, front + back);
+      }
+    return fewest === Infinity ? -1 : fewest;
   },
   'binary-search': (nums: number[], t: number) => nums.indexOf(t),
   'koko-bananas': (piles: number[], h: number) => {
@@ -267,6 +347,19 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
           .map((step) => nums[(i + step) % nums.length])
           .find((y) => y > x) ?? -1,
     ),
+  '132-pattern': (nums: number[]) =>
+    nums.some((low, i) => nums.some((high, j) => j > i && nums.some((middle, k) => k > j && low < middle && middle < high))),
+  'maximal-rectangle': (matrix: string[][]) => {
+    let best = 0;
+    for (let top = 0; top < matrix.length; top++)
+      for (let bottom = top; bottom < matrix.length; bottom++)
+        for (let left = 0; left < matrix[0].length; left++)
+          for (let right = left; right < matrix[0].length; right++) {
+            const cells = matrix.slice(top, bottom + 1).flatMap((row) => row.slice(left, right + 1));
+            if (cells.every((cell) => cell === '1')) best = Math.max(best, cells.length);
+          }
+    return best;
+  },
   'subarray-sum-k': (nums: number[], k: number) => {
     let count = 0;
     for (let i = 0; i < nums.length; i++) {
@@ -307,6 +400,16 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
         const days = hours.slice(i, j + 1);
         if (days.filter((h) => h > 8).length > days.filter((h) => h <= 8).length) best = Math.max(best, days.length);
       }
+    return best;
+  },
+  'find-pivot-index': (nums: number[]) => {
+    const total = (values: number[]) => values.reduce((sum, x) => sum + x, 0);
+    return nums.findIndex((_, i) => total(nums.slice(0, i)) === total(nums.slice(i + 1)));
+  },
+  'max-size-subarray-sum-k': (nums: number[], k: number) => {
+    let best = 0;
+    for (let i = 0; i < nums.length; i++)
+      for (let j = i; j < nums.length; j++) if (nums.slice(i, j + 1).reduce((sum, x) => sum + x, 0) === k) best = Math.max(best, j - i + 1);
     return best;
   },
   'number-of-islands': (grid: string[][]) => {
@@ -406,6 +509,13 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
           moves.set(key(a + da, b + db), count + 1);
     }
     return -1;
+  },
+  'far-from-land': (grid: number[][]) => {
+    const cells = grid.flatMap((row, r) => row.map((value, c) => ({ r, c, value })));
+    const land = cells.filter((cell) => cell.value === 1);
+    const water = cells.filter((cell) => cell.value === 0);
+    if (!land.length || !water.length) return -1;
+    return Math.max(...water.map((w) => Math.min(...land.map((l) => Math.abs(w.r - l.r) + Math.abs(w.c - l.c)))));
   },
   subsets: (nums: number[]) => {
     const sorted = [...nums].sort((a, b) => a - b);
@@ -522,6 +632,10 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
       .flatMap(([a, b]) => secondList.map(([c, d]) => [Math.max(a, c), Math.min(b, d)]))
       .filter(([start, end]) => start <= end)
       .sort((x, y) => x[0] - y[0]),
+  'remove-covered-intervals': (intervals: number[][]) =>
+    intervals.filter(([a, b], i) => !intervals.some(([c, d], j) => j !== i && c <= a && b <= d)).length,
+  'car-pooling': (trips: number[][], capacity: number) =>
+    trips.every(([, km]) => trips.reduce((load, [passengers, from, to]) => load + (from <= km && km < to ? passengers : 0), 0) <= capacity),
   'min-arrows-balloons': (points: number[][]) => {
     const spots = [...new Set(points.map(([, end]) => end))];
     let fewest = Infinity;
@@ -608,6 +722,16 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     };
     pick(0, target, []);
     return Number(total);
+  },
+  'longest-string-chain': (words: string[]) => {
+    const isSubsequence = (a: string, b: string) => {
+      let at = 0;
+      for (const letter of b) if (letter === a[at]) at++;
+      return at === a.length;
+    };
+    const chainFrom = (word: string): number =>
+      1 + Math.max(0, ...words.filter((next) => next.length === word.length + 1 && isSubsequence(word, next)).map(chainFrom));
+    return Math.max(...words.map(chainFrom));
   },
   'kth-largest-element': (nums: number[], k: number) =>
     nums.find((x) => nums.filter((y) => y > x).length < k && nums.filter((y) => y >= x).length >= k),
@@ -716,6 +840,28 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
       for (let j = i + 1; j <= s.length; j++) if (s.slice(i, j) === s.slice(i, j).split('').reverse().join('')) count++;
     return count;
   },
+  'minimum-path-sum': (grid: number[][]) => {
+    const cheapest = (r: number, c: number): number =>
+      grid[r][c] +
+      (r === grid.length - 1 && c === grid[0].length - 1
+        ? 0
+        : Math.min(r + 1 < grid.length ? cheapest(r + 1, c) : Infinity, c + 1 < grid[0].length ? cheapest(r, c + 1) : Infinity));
+    return cheapest(0, 0);
+  },
+  'maximal-square': (matrix: string[][]) => {
+    let best = 0;
+    for (let r = 0; r < matrix.length; r++)
+      for (let c = 0; c < matrix[0].length; c++)
+        for (let side = 1; r + side <= matrix.length && c + side <= matrix[0].length; side++)
+          if (matrix.slice(r, r + side).every((row) => row.slice(c, c + side).every((cell) => cell === '1')))
+            best = Math.max(best, side * side);
+    return best;
+  },
+  'burst-balloons': (nums: number[]) => {
+    const most = (left: number[]): number =>
+      Math.max(0, ...left.map((x, i) => (left[i - 1] ?? 1) * x * (left[i + 1] ?? 1) + most(left.filter((_, j) => j !== i))));
+    return most(nums);
+  },
   'count-components': (n: number, edges: number[][]) => {
     const seen = new Set<number>();
     let components = 0;
@@ -794,6 +940,27 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     };
     return removals((1 << stones.length) - 1);
   },
+  'make-network-connected': (n: number, connections: number[][]) => {
+    if (connections.length < n - 1) return -1;
+    const seen = new Set<number>();
+    let groups = 0;
+    for (let start = 0; start < n; start++) {
+      if (seen.has(start)) continue;
+      groups++;
+      seen.add(start);
+      for (const stack = [start]; stack.length;) {
+        const node = stack.pop()!;
+        for (const [a, b] of connections) {
+          const other = a === node ? b : b === node ? a : -1;
+          if (other >= 0 && !seen.has(other)) {
+            seen.add(other);
+            stack.push(other);
+          }
+        }
+      }
+    }
+    return groups - 1;
+  },
   'course-schedule': (_n: number, prerequisites: number[][]) => {
     const reaches = (from: number, to: number, seen: Set<number>): boolean => {
       if (from === to) return true;
@@ -865,6 +1032,24 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
       return at === list.length;
     };
     return values.length === nums.length && orders.filter((order) => sequences.every((list) => contains(order, list))).length === 1;
+  },
+  'parallel-courses-iii': (n: number, relations: number[][], time: number[]) => {
+    const finish = (course: number): number =>
+      time[course - 1] + Math.max(0, ...relations.filter(([, next]) => next === course).map(([prev]) => finish(prev)));
+    return Math.max(...rangeOf(1, n).map(finish));
+  },
+  'find-all-recipes': (recipes: string[], ingredients: string[], supplies: string[]) => {
+    const have = new Set(supplies);
+    for (let changed = true; changed;) {
+      changed = false;
+      recipes.forEach((dish, i) => {
+        if (!have.has(dish) && ingredients[i].split(' ').every((name) => have.has(name))) {
+          have.add(dish);
+          changed = true;
+        }
+      });
+    }
+    return recipes.filter((dish) => have.has(dish));
   },
   'network-delay': (times: number[][], n: number, k: number) => {
     const dist = Array<number>(n + 1).fill(Infinity);
@@ -949,6 +1134,32 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     }
     return cost[grid.length - 1][grid[0].length - 1];
   },
+  'path-max-probability': (_n: number, edges: number[][], start: number, end: number) => {
+    const [chance, outOf] = exactBestChance(edges, start, end);
+    return Number((2n * chance * 1_000_000n + outOf) / (2n * outOf));
+  },
+  'ways-to-arrive': (n: number, roads: number[][]) => {
+    const time = Array<number>(n).fill(Infinity);
+    time[0] = 0;
+    for (let round = 0; round < n; round++)
+      for (const [u, v, t] of roads) {
+        time[v] = Math.min(time[v], time[u] + t);
+        time[u] = Math.min(time[u], time[v] + t);
+      }
+    const memo = new Map<number, bigint>([[0, 1n]]);
+    const routes = (node: number): bigint => {
+      if (!memo.has(node))
+        memo.set(
+          node,
+          roads.reduce((sum, [u, v, t]) => {
+            const other = v === node ? u : u === node ? v : -1;
+            return other >= 0 && time[other] + t === time[node] ? sum + routes(other) : sum;
+          }, 0n),
+        );
+      return memo.get(node)!;
+    };
+    return time[n - 1] === Infinity ? 0 : Number(routes(n - 1) % 1_000_000_007n);
+  },
   'count-prefixes': (words: string[], prefixes: string[]) => prefixes.map((p) => words.filter((w) => w.startsWith(p)).length),
   'replace-words': (dictionary: string[], sentence: string) =>
     sentence
@@ -973,6 +1184,17 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     words
       .filter((word) => rangeOf(1, word.length - 1).every((k) => words.includes(word.slice(0, k))))
       .sort((a, b) => b.length - a.length || (a < b ? -1 : 1))[0] ?? '',
+  'search-suggestions-system': (products: string[], searchWord: string) =>
+    rangeOf(1, searchWord.length).map((length) =>
+      products
+        .map((product, i) => [product, i] as const)
+        .filter(([product]) => product.startsWith(searchWord.slice(0, length)))
+        .sort(([a], [b]) => a.localeCompare(b, 'en'))
+        .slice(0, 3)
+        .map(([, i]) => i),
+    ),
+  'maximum-xor-with-element': (nums: number[], queries: number[][]) =>
+    queries.map(([x, m]) => nums.filter((v) => v <= m).reduce((best, v) => Math.max(best, Number(BigInt(x) ^ BigInt(v))), -1)),
   'find-duplicate': (nums: number[]) => nums.find((x, i) => nums.indexOf(x) !== i),
   'circular-array-loop': (nums: number[]) => {
     const n = nums.length;
@@ -997,6 +1219,17 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
       }
       return n === 1;
     }),
+  'move-zeroes': (nums: number[]) => [...nums.filter((x) => x !== 0), ...nums.filter((x) => x === 0)],
+  'remove-duplicates-sorted-ii': (nums: number[]) => nums.filter((x, i) => nums.slice(0, i).filter((y) => y === x).length < 2),
+  'linked-list-cycle-ii': (next: number[]) => {
+    const seen = new Set<number>();
+    let node = 0;
+    while (node !== -1 && !seen.has(node)) {
+      seen.add(node);
+      node = next[node];
+    }
+    return node;
+  },
   'tree-diameter': (root: TreeNode | null) => {
     const { nodes, parent } = nodesOf(root);
     let best = 0;
@@ -1104,6 +1337,12 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     return best;
   },
   'missing-number': (nums: number[]) => rangeOf(0, nums.length).find((x) => !nums.includes(x)),
+  'single-number-ii': (nums: number[]) => nums.find((x) => nums.filter((y) => y === x).length === 1),
+  'minimum-flips-or': (a: number, b: number, c: number) => {
+    const bits = (x: number) => [...x.toString(2).padStart(31, '0')];
+    const [x, y, z] = [bits(a), bits(b), bits(c)];
+    return z.reduce((flips, bit, i) => flips + (bit === '1' ? (x[i] === '1' || y[i] === '1' ? 0 : 1) : Number(x[i]) + Number(y[i])), 0);
+  },
 };
 
 /**
@@ -1119,6 +1358,7 @@ const PERFORMANCE_LOAD: Record<string, (test: TestCase) => number> = {
   'combination-sum-iv': ({ args: [nums, target] }) => (nums as number[]).length * (target as number),
   'distinct-subsequences': ({ args: [s, t] }) => (s as string).length * (t as string).length,
   'count-palindromic-substrings': ({ args: [s] }) => (s as string).length ** 2,
+  'burst-balloons': ({ args: [nums] }) => (nums as number[]).length ** 3 / 6,
   subsets: ({ expected }) => (expected as unknown[]).length,
   'combination-sum': ({ expected }) => (expected as number[][]).flat().length,
   'counting-bits': ({ args: [n] }) => n as number,
@@ -1131,6 +1371,8 @@ const PERFORMANCE_LOAD: Record<string, (test: TestCase) => number> = {
   'letter-combinations': ({ expected }) => (expected as unknown[]).length,
   // Every board is 9 × 9: there is no larger input and no slower approach to rule out.
   'valid-sudoku': () => Infinity,
+  // Three 31-bit values: there is no larger input and no slower approach to rule out.
+  'minimum-flips-or': () => Infinity,
 };
 
 describe('coding problems', () => {
@@ -1286,6 +1528,16 @@ describe('coding problems', () => {
       expect(new Set(candidates).size, preview(candidates)).toBe(candidates.length);
       expect((test.expected as number[][]).length).toBeLessThanOrEqual(1_000);
     }
+  });
+
+  it('keeps Path with Maximum Probability a thousandth away from a half after scaling, as its statement promises', () => {
+    for (const seed of [1, 3, 7, 9, 11])
+      for (const test of buildSuite(getCodingProblem('path-max-probability')!, { seed, performance: false })) {
+        const [, edges, start, end] = test.args as [number, number[][], number, number];
+        const [chance, outOf] = exactBestChance(edges, start, end);
+        const twoThousandths = (chance * 2_000_000_000n) % (2_000n * outOf);
+        expect(twoThousandths <= 998n * outOf || twoThousandths >= 1_002n * outOf, preview(test.args)).toBe(true);
+      }
   });
 
   it('gives Rotting Oranges thousands of rotten oranges that each reach every fresh one, so a BFS from each is too slow', () => {
