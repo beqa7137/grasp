@@ -1,10 +1,11 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
 import { COMPETENCY_CATALOG } from '@grasp/engine';
 import { addIcons } from 'ionicons';
-import { chevronForward } from 'ionicons/icons';
+import { chevronForward, libraryOutline } from 'ionicons/icons';
 import { StarDraftsService } from './star-drafts.service';
+import { StoryBankService } from './story-bank.service';
 
 @Component({
   selector: 'app-behavioral-list',
@@ -49,6 +50,14 @@ import { StarDraftsService } from './star-drafts.service';
             <li>Bring two or three questions for the interviewer.</li>
           </ul>
         </section>
+        <a class="panel item bank" routerLink="/behavioral/stories">
+          <ion-icon class="lead-icon" name="library-outline" aria-hidden="true" />
+          <span class="text">
+            <span class="name">Your story bank</span>
+            <span class="one">{{ bankSummary() }}</span>
+          </span>
+          <ion-icon name="chevron-forward" aria-hidden="true" />
+        </a>
         <h2 class="list-title">{{ competencies.length }} competencies</h2>
         <ul class="list">
           @for (c of competencies; track c.id) {
@@ -113,6 +122,13 @@ import { StarDraftsService } from './star-drafts.service';
     dd {
       margin: 0;
     }
+    .bank {
+      margin-bottom: 20px;
+      .lead-icon {
+        font-size: 22px;
+        color: var(--g-accent);
+      }
+    }
     .list-title {
       margin-top: 4px;
     }
@@ -158,12 +174,21 @@ import { StarDraftsService } from './star-drafts.service';
 export class BehavioralListPage {
   readonly competencies = COMPETENCY_CATALOG;
   readonly drafts = inject(StarDraftsService);
+  private readonly bank = inject(StoryBankService);
+  readonly bankSummary = computed(() => {
+    const count = this.bank.stories().length;
+    const { covered, coverage } = this.bank.review();
+    return count
+      ? `${count} ${count === 1 ? 'story' : 'stories'}, covering ${covered} of ${coverage.length} competencies.`
+      : 'Write each story once, tag its competencies, and see which ones still need one.';
+  });
 
   constructor() {
-    addIcons({ chevronForward });
+    addIcons({ chevronForward, libraryOutline });
   }
 
   ionViewWillEnter() {
     void this.drafts.load();
+    void this.bank.load();
   }
 }

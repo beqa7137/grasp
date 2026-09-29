@@ -4,6 +4,7 @@ import type { StarDraft } from '@grasp/engine';
 import { STAR_DRAFT_PREFIX, draftKeys } from '../../core/local-drafts';
 
 export const EMPTY_DRAFT: StarDraft = { situation: '', task: '', action: '', result: '', reflection: '' };
+export const isEmptyDraft = (draft: StarDraft) => Object.values(draft).every((text) => !text.trim());
 
 @Injectable({ providedIn: 'root' })
 export class StarDraftsService {
@@ -29,7 +30,7 @@ export class StarDraftsService {
 
   async save(questionId: string, draft: StarDraft): Promise<void> {
     const key = STAR_DRAFT_PREFIX + questionId;
-    const empty = Object.values(draft).every((text) => !text.trim());
+    const empty = isEmptyDraft(draft);
     await (empty ? Preferences.remove({ key }) : Preferences.set({ key, value: JSON.stringify(draft) }));
     this.drafted.update((ids) => {
       const next = new Set(ids);

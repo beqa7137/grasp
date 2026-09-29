@@ -88,6 +88,16 @@ export const routes: Routes = [
         loadComponent: () => import('./pages/behavioral/star-practice.page').then((m) => m.StarPracticePage),
       },
       {
+        path: 'behavioral/stories',
+        title: 'Story bank',
+        loadComponent: () => import('./pages/behavioral/story-bank.page').then((m) => m.StoryBankPage),
+      },
+      {
+        path: 'behavioral/stories/:id',
+        title: 'Story',
+        loadComponent: () => import('./pages/behavioral/story.page').then((m) => m.StoryPage),
+      },
+      {
         path: 'behavioral/:id',
         title: (route) => getCompetencySummary(idOf(route))?.name ?? 'Behavioral',
         loadComponent: () => import('./pages/behavioral/competency.page').then((m) => m.CompetencyPage),
