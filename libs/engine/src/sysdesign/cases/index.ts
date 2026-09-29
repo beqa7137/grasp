@@ -1,3 +1,8 @@
+import { COLLABORATIVE_EDITOR } from './collaborative-editor.js';
+import { METRICS_MONITORING } from './metrics-monitoring.js';
+import { HOTEL_BOOKING } from './hotel-booking.js';
+import { STOCK_EXCHANGE } from './stock-exchange.js';
+import { MESSAGE_QUEUE } from './message-queue.js';
 import { SEARCH_ENGINE } from './search-engine.js';
 import { FILE_SYNC } from './file-sync.js';
 import { LEADERBOARD } from './leaderboard.js';
@@ -39,6 +44,11 @@ export const CASE_STUDIES: readonly CaseStudy[] = [
   LEADERBOARD,
   AD_CLICK_AGGREGATOR,
   JOB_SCHEDULER,
+  COLLABORATIVE_EDITOR,
+  METRICS_MONITORING,
+  HOTEL_BOOKING,
+  STOCK_EXCHANGE,
+  MESSAGE_QUEUE,
 ];
 
 export function getCaseStudy(id: string): CaseStudy | undefined {

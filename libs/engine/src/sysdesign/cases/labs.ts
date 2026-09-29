@@ -285,6 +285,82 @@ export const CASE_LABS: Record<string, CaseLab> = {
       edges: [...chain('services', 'lb', 'app', 'cache', 'db', 'replica'), ...chain('app', 'queue', 'worker', 'db')],
     },
   },
+  'collaborative-editor': {
+    workload: { rps: 10_500, readRatio: 0.05 },
+    design: {
+      nodes: [
+        n('clients', 'client', 70, 240),
+        n('lb', 'lb', 240, 240, 2),
+        n('app', 'app', 410, 240, 8),
+        n('cache', 'cache', 580, 100, 2, { hitRate: 0.9 }),
+        n('db', 'db', 760, 240, 8, { shardKey: 'hash' }),
+        n('replica', 'replica', 760, 390, 8),
+      ],
+      edges: [...chain('clients', 'lb', 'app', 'cache', 'db', 'replica'), { from: 'app', to: 'db' }],
+    },
+  },
+  'metrics-monitoring': {
+    workload: { rps: 10_000, readRatio: 0.3 },
+    design: {
+      nodes: [
+        n('agents', 'client', 70, 240),
+        n('lb', 'lb', 240, 240, 2),
+        n('app', 'app', 410, 240, 12),
+        n('cache', 'cache', 580, 100, 2, { hitRate: 0.8 }),
+        n('queue', 'queue', 580, 380, 2),
+        n('worker', 'worker', 760, 380, 8),
+        n('db', 'db', 760, 240, 8, { shardKey: 'hash' }),
+        n('replica', 'replica', 760, 100, 8),
+      ],
+      edges: [...chain('agents', 'lb', 'app', 'cache', 'db', 'replica'), ...chain('app', 'queue', 'worker', 'db')],
+    },
+  },
+  'hotel-booking': {
+    workload: { rps: 12_000, readRatio: 0.85 },
+    design: {
+      nodes: [
+        n('travelers', 'client', 70, 240),
+        n('lb', 'lb', 240, 240, 2),
+        n('app', 'app', 410, 240, 10),
+        n('cache', 'cache', 580, 100, 2, { hitRate: 0.9 }),
+        n('queue', 'queue', 580, 380, 2),
+        n('worker', 'worker', 760, 380, 4),
+        n('db', 'db', 760, 240, 4, { shardKey: 'hash' }),
+        n('replica', 'replica', 760, 100, 4),
+      ],
+      edges: [...chain('travelers', 'lb', 'app', 'cache', 'db', 'replica'), ...chain('app', 'queue', 'worker', 'db')],
+    },
+  },
+  'stock-exchange': {
+    workload: { rps: 30_000, readRatio: 0.6 },
+    design: {
+      nodes: [
+        n('members', 'client', 70, 240),
+        n('lb', 'lb', 240, 240, 2),
+        n('gateways', 'app', 410, 240, 24),
+        n('cache', 'cache', 580, 100, 2, { hitRate: 0.9 }),
+        n('sequencer', 'queue', 580, 380, 2),
+        n('engines', 'worker', 760, 380, 10),
+        n('db', 'db', 760, 240, 8, { shardKey: 'hash' }),
+        n('replica', 'replica', 760, 100, 8),
+      ],
+      edges: [...chain('members', 'lb', 'gateways', 'cache', 'db', 'replica'), ...chain('gateways', 'sequencer', 'engines', 'db')],
+    },
+  },
+  'message-queue': {
+    workload: { rps: 37_500, readRatio: 0.8 },
+    design: {
+      nodes: [
+        n('clients', 'client', 70, 240),
+        n('lb', 'lb', 240, 240, 2),
+        n('app', 'app', 410, 240, 26),
+        n('cache', 'cache', 580, 120, 2, { hitRate: 0.95 }),
+        n('db', 'db', 760, 240, 8, { shardKey: 'hash' }),
+        n('replica', 'replica', 760, 390, 8),
+      ],
+      edges: [...chain('clients', 'lb', 'app', 'cache', 'db', 'replica'), { from: 'app', to: 'db' }],
+    },
+  },
 };
 
 export function getCaseLab(id: string): CaseLab | undefined {

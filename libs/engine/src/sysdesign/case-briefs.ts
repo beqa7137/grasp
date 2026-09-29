@@ -106,6 +106,41 @@ export const CASE_BRIEFS: readonly CaseBrief[] = [
     summary:
       'A precomputed next fire time, bucketed scanning with leases, queues to workers, heartbeats, retries with backoff and time zones.',
   },
+  {
+    id: 'collaborative-editor',
+    question:
+      'Design a real-time collaborative document editor like Google Docs, where many people edit the same document at once and see each other type.',
+    summary:
+      'Operational transformation versus CRDTs, a fenced session server per document, presence over WebSockets, offline merges and snapshots.',
+  },
+  {
+    id: 'metrics-monitoring',
+    question:
+      'Design a metrics monitoring and alerting system like Prometheus with Alertmanager or Datadog, collecting samples from 100,000 hosts for dashboards and pages.',
+    summary:
+      'Pull versus push, a sharded time series store with Gorilla compression and downsampling, cardinality limits, burn-rate alerts and notification routing.',
+  },
+  {
+    id: 'hotel-booking',
+    question:
+      'Design a hotel reservation system like Booking.com: search hotels by city and dates, then book a room without selling more rooms than the hotel allows.',
+    summary:
+      'Room counts per night, holds with expiry, idempotent bookings, overbooking policies, a cached search path, sharding by hotel and channel manager sync.',
+  },
+  {
+    id: 'stock-exchange',
+    question:
+      'Design the core of a stock exchange: order entry, a matching engine with price-time priority, market data, and recovery without losing an acknowledged order.',
+    summary:
+      'A sequencer and event log, a single-threaded order book per symbol, multicast market data, deterministic replay, hot standbys and microsecond budgets.',
+  },
+  {
+    id: 'message-queue',
+    question:
+      'Design a distributed message queue like Kafka that many services publish events to and consume them from, with ordering, replay and no lost messages.',
+    summary:
+      'Partitioned append-only logs, batching, consumer groups and offsets, in-sync replicas and acks, retention, compaction and exactly once.',
+  },
 ];
 
 export function getCaseBrief(id: string): CaseBrief | undefined {
