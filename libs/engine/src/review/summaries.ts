@@ -79,6 +79,12 @@ const DESIGN = [
   { id: 'polling-load', topic: 'sd-realtime' },
   { id: 'sse-or-websocket', topic: 'sd-realtime' },
   { id: 'reconnect-storm', topic: 'sd-realtime' },
+  { id: 'n-plus-one', topic: 'sd-data-modeling' },
+  { id: 'rename-fan-out', topic: 'sd-data-modeling' },
+  { id: 'composite-index', topic: 'sd-data-modeling' },
+  { id: 'queue-bound', topic: 'sd-overload' },
+  { id: 'retry-storm', topic: 'sd-overload' },
+  { id: 'goodput', topic: 'sd-overload' },
 ] as const satisfies readonly DesignItemSummary[];
 
 export type DesignItemId = (typeof DESIGN)[number]['id'];

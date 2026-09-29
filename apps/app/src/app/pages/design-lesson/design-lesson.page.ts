@@ -25,6 +25,8 @@ import { CacheWidgetComponent } from './cache-widget.component';
 import { CdnWidgetComponent } from './cdn-widget.component';
 import { CrackWidgetComponent } from './crack-widget.component';
 import { DeliveryWidgetComponent } from './delivery-widget.component';
+import { FeedModelWidgetComponent } from './feed-model-widget.component';
+import { OverloadWidgetComponent } from './overload-widget.component';
 import { EstimateDrillComponent } from './estimate-drill.component';
 import { GeoWidgetComponent } from './geo-widget.component';
 import { IdLayoutWidgetComponent } from './id-layout-widget.component';
@@ -83,6 +85,8 @@ import { TxnWidgetComponent } from './txn-widget.component';
     BatchWidgetComponent,
     GeoWidgetComponent,
     DeliveryWidgetComponent,
+    FeedModelWidgetComponent,
+    OverloadWidgetComponent,
     EstimateDrillComponent,
   ],
   template: `
@@ -181,6 +185,12 @@ import { TxnWidgetComponent } from './txn-widget.component';
                 }
                 @case ('delivery') {
                   <app-delivery-widget />
+                }
+                @case ('feed-model') {
+                  <app-feed-model-widget />
+                }
+                @case ('overload') {
+                  <app-overload-widget />
                 }
                 @case ('estimate-drill') {
                   <app-estimate-drill [drill]="l.widget.drill ?? []" />

@@ -121,6 +121,18 @@ export const SD_TOPICS: SdTopic[] = [
     oneLiner: 'Polling, long polling, server-sent events and WebSockets.',
     scenarioIds: ['viral-feed'],
   },
+  {
+    id: 'sd-data-modeling',
+    name: 'Data Modeling',
+    oneLiner: 'Modeling from access patterns: normalize, denormalize, and what each costs.',
+    scenarioIds: ['viral-feed'],
+  },
+  {
+    id: 'sd-overload',
+    name: 'Backpressure & Load Shedding',
+    oneLiner: 'Bounded queues, deadlines and retries when traffic outruns capacity.',
+    scenarioIds: ['flash-sale'],
+  },
 ];
 
 export function getSdTopic(id: string): SdTopic | undefined {

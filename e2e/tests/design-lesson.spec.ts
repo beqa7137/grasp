@@ -293,3 +293,37 @@ test('the real-time lesson shows polling cost and delay against a push connectio
   await expect(readout('Requests a second')).toHaveText('0');
   await expect(readout('Average delay')).toHaveText('50 ms');
 });
+
+test('the data modeling lesson weighs N+1 queries and a join against copying names into posts', async ({ page }) => {
+  await page.goto('/learn/design/sd-data-modeling');
+  const readout = (label: string) =>
+    page
+      .locator('.readouts div')
+      .filter({ has: page.locator('dt', { hasText: new RegExp(`^${label}$`) }) })
+      .locator('dd');
+  await expect(readout('Queries per page')).toHaveText('21');
+  await page.getByRole('radio', { name: 'One join' }).click();
+  await expect(readout('Queries per page')).toHaveText('1');
+  await expect(readout('Rows written per rename')).toHaveText('1');
+  await page.getByRole('radio', { name: 'Denormalized' }).click();
+  await expect(readout('Rows read per page')).toHaveText('20');
+  await expect(readout('Rows written per rename')).toHaveText('501');
+  await expect(readout('After a rename')).toHaveText('Old name until the fan-out ends');
+});
+
+test('the load shedding lesson shows a burst answered too late until the queue is bounded', async ({ page }) => {
+  await page.goto('/learn/design/sd-overload');
+  const readout = (label: string) =>
+    page
+      .locator('.readouts div')
+      .filter({ has: page.locator('dt', { hasText: new RegExp(`^${label}$`) }) })
+      .locator('dd');
+  await expect(readout('Users served in time')).toHaveText('25%');
+  await expect(readout('Recovered')).toHaveText('50 s after the burst');
+  await page.getByRole('radiogroup', { name: 'Retries' }).getByRole('radio', { name: '1' }).click();
+  await expect(readout('Recovered')).toHaveText('Not within a minute');
+  await page.getByRole('radio', { name: 'Bounded queue' }).click();
+  await expect(readout('Users served in time')).toHaveText('85.3%');
+  await expect(readout('Answered too late')).toHaveText('0');
+  await expect(page.getByRole('img', { name: /^Queue over a minute, peaking at/ })).toBeVisible();
+});
