@@ -54,6 +54,7 @@ import { haptic } from '../../core/haptics';
 import { onPageKey } from '../../core/on-page-key';
 import { ProgressService } from '../../core/progress.service';
 import { uniqueId } from '../../core/unique-id';
+import { curve, edgePath } from './edge-path';
 import { FREE_BUILD } from './free-build';
 import { NodeInspectorComponent } from './node-inspector.component';
 import {
@@ -190,7 +191,7 @@ export class SandboxPage {
           key,
           from: e.from,
           to: e.to,
-          d: curve(a.x + W / 2, a.y, b.x - W / 2, b.y),
+          d: edgePath(a, b, { w: W, h: H }, BOARD.h),
           rps,
           status,
           width: 1.5 + Math.log10(rps + 1) * 0.9,
@@ -687,11 +688,6 @@ export class SandboxPage {
     const pt = new DOMPoint(e.clientX, e.clientY).matrixTransform(svg.getScreenCTM()!.inverse());
     return { x: pt.x, y: pt.y };
   }
-}
-
-function curve(x1: number, y1: number, x2: number, y2: number) {
-  const dx = Math.max(40, Math.abs(x2 - x1) / 2);
-  return `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
 }
 
 function clamp(v: number, min: number, max: number) {
