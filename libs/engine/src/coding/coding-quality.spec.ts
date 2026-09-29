@@ -68,6 +68,62 @@ function intersections(
   return out;
 }
 
+function uncoveredCount(intervals: number[][], shorterFirst: boolean, keeps: (end: number, reach: number) => boolean): number {
+  const sorted = [...intervals].sort((x, y) => x[0] - y[0] || (shorterFirst ? x[1] - y[1] : y[1] - x[1]));
+  let reach = -1;
+  let kept = 0;
+  for (const [, end] of sorted) {
+    if (keeps(end, reach)) kept++;
+    reach = Math.max(reach, end);
+  }
+  return kept;
+}
+
+function busiestCar(trips: number[][], dropFirst: boolean): number {
+  const events = trips.flatMap(([passengers, from, to]) => [
+    [from, passengers],
+    [to, -passengers],
+  ]);
+  events.sort((x, y) => x[0] - y[0] || (dropFirst ? x[1] - y[1] : y[1] - x[1]));
+  let load = 0;
+  return Math.max(...events.map(([, change]) => (load += change)));
+}
+
+function pivotWhere(nums: number[], candidates: number[], leftHolds: boolean): number {
+  const total = nums.reduce((sum, x) => sum + x, 0);
+  let left = 0;
+  const prefix = nums.map((x) => (left += x));
+  return candidates.find((i) => (leftHolds ? prefix[i] : prefix[i] - nums[i]) === total - prefix[i]) ?? -1;
+}
+
+function longestSumK(nums: number[], k: number, { keepFirst = true, emptyPrefix = true }): number {
+  const at = new Map<number, number>(emptyPrefix ? [[0, -1]] : []);
+  let sum = 0;
+  let best = 0;
+  nums.forEach((x, i) => {
+    sum += x;
+    if (at.has(sum - k)) best = Math.max(best, i - at.get(sum - k)!);
+    if (!keepFirst || !at.has(sum)) at.set(sum, i);
+  });
+  return best;
+}
+
+function xorWithin(nums: number[], queries: number[][], allowed: (value: number, m: number) => boolean, none: number): number[] {
+  return queries.map(([x, m]) => {
+    const values = nums.filter((v) => allowed(v, m));
+    return values.length ? Math.max(...values.map((v) => x ^ v)) : none;
+  });
+}
+
+function flipsBelow(a: number, b: number, c: number, bits: number): number {
+  let flips = 0;
+  for (let bit = 0; bit < bits; bit++) {
+    const [x, y, z] = [(a >> bit) & 1, (b >> bit) & 1, (c >> bit) & 1];
+    flips += z ? 1 - (x | y) : x + y;
+  }
+  return flips;
+}
+
 const KEYPAD = ['abc', 'def', 'ghi', 'jkl', 'mno', 'pqrs', 'tuv', 'wxyz'];
 
 const adjacentPairs = (sequences: number[][]) => new Set(sequences.flatMap((list) => list.slice(1).map((v, i) => `${list[i]},${v}`)));
@@ -363,6 +419,84 @@ function goodCount(root: TreeNode, { start = -Infinity, ties = true, parentOnly 
 const inorderValues = (node: TreeNode | null): number[] =>
   node ? [...inorderValues(node.left), node.val, ...inorderValues(node.right)] : [];
 
+function anagramGroups(strs: string[], key: (word: string) => string): string[] {
+  const groups = new Map<string, string[]>();
+  for (const word of strs) groups.set(key(word), [...(groups.get(key(word)) ?? []), word]);
+  return [...groups.values()].map((group) => group.sort().join(' '));
+}
+
+const sortedLetters = (word: string) => [...word].sort().join('');
+
+function chainLength(words: string[], precedes: (a: string, b: string) => boolean): number {
+  const best = words.map(() => 1);
+  words.forEach((word, i) =>
+    words.slice(0, i).forEach((previous, j) => {
+      if (precedes(previous, word)) best[i] = Math.max(best[i], best[j] + 1);
+    }),
+  );
+  return Math.max(...best);
+}
+
+const byLength = (words: string[]) => [...words].sort((a, b) => a.length - b.length);
+
+const isSubsequence = (a: string, b: string) => {
+  let at = 0;
+  for (const letter of b) if (letter === a[at]) at++;
+  return at === a.length;
+};
+
+function bestChance(n: number, arcs: number[][], start: number, combine: (chance: number, p: number) => number): number[] {
+  const best = Array<number>(n).fill(0);
+  best[start] = 1;
+  for (let round = 0; round < n; round++)
+    for (const [a, b, percent] of arcs) if (best[a]) best[b] = Math.max(best[b], combine(best[a], percent / 100));
+  return best;
+}
+
+const bothWays = (edges: number[][]) =>
+  edges.flatMap(([a, b, p]) => [
+    [a, b, p],
+    [b, a, p],
+  ]);
+
+function fastestRouteCount(n: number, roads: number[][], { reset, mod }: { reset: boolean; mod: boolean }): number {
+  const time = Array<number>(n).fill(Infinity);
+  const ways = Array<number>(n).fill(0);
+  const settled = new Set<number>();
+  time[0] = 0;
+  ways[0] = 1;
+  while (settled.size < n) {
+    const u = rangeOf(0, n - 1).reduce((best, v) => (!settled.has(v) && (best < 0 || time[v] < time[best]) ? v : best), -1);
+    if (time[u] === Infinity) break;
+    settled.add(u);
+    for (const [a, b, t] of roads) {
+      const v = a === u ? b : b === u ? a : -1;
+      if (v < 0 || settled.has(v) || time[u] + t > time[v]) continue;
+      if (time[u] + t < time[v] && reset) ways[v] = 0;
+      time[v] = time[u] + t;
+      ways[v] = mod ? (ways[v] + ways[u]) % 1_000_000_007 : ways[v] + ways[u];
+    }
+  }
+  return ways[n - 1];
+}
+
+function cableGroups(n: number, connections: number[][]): number {
+  const parent = rangeOf(0, n - 1);
+  const find = (x: number): number => (parent[x] === x ? x : (parent[x] = find(parent[x])));
+  for (const [a, b] of connections) parent[find(a)] = find(b);
+  return rangeOf(0, n - 1).filter((x) => find(x) === x).length;
+}
+
+function farthestWater(grid: number[][], { diagonal = false, none = -1, first = 0 }): number {
+  const cells = grid.flatMap((row, r) => row.map((value, c) => ({ r, c, value })));
+  const land = cells.filter((cell) => cell.value === 1);
+  const water = cells.filter((cell) => cell.value === 0);
+  if (!land.length || !water.length) return none;
+  const distance = (a: { r: number; c: number }, b: { r: number; c: number }) =>
+    diagonal ? Math.max(Math.abs(a.r - b.r), Math.abs(a.c - b.c)) : Math.abs(a.r - b.r) + Math.abs(a.c - b.c);
+  return first + Math.max(...water.map((w) => Math.min(...land.map((l) => distance(w, l)))));
+}
+
 const WRONG: Record<string, WrongSolution[]> = {
   'longest-consecutive-sequence': [
     {
@@ -422,6 +556,17 @@ const WRONG: Record<string, WrongSolution[]> = {
       name: "count '.' as a digit",
       solve: (board: string[][]) => sudokuHolds(board, (r, c) => 3 * Math.floor(r / 3) + Math.floor(c / 3), true),
     },
+  ],
+  'group-anagrams': [
+    {
+      name: 'group words by the set of letters they use',
+      solve: (strs: string[]) => anagramGroups(strs, (word) => [...new Set(word)].sort().join('')),
+    },
+    {
+      name: 'group words by the sum of their letter codes',
+      solve: (strs: string[]) => anagramGroups(strs, (word) => String([...word].reduce((sum, letter) => sum + letter.charCodeAt(0), 0))),
+    },
+    { name: 'drop repeated words', solve: (strs: string[]) => anagramGroups([...new Set(strs)], sortedLetters) },
   ],
   'three-sum': [
     {
@@ -530,6 +675,120 @@ const WRONG: Record<string, WrongSolution[]> = {
       },
     },
   ],
+  'sort-colors': [
+    {
+      name: 'step past the value swapped in from the end',
+      solve: (nums: number[]) => {
+        const swap = (i: number, j: number) => ([nums[i], nums[j]] = [nums[j], nums[i]]);
+        for (let lo = 0, mid = 0, hi = nums.length - 1; mid <= hi; mid++)
+          if (nums[mid] === 0) swap(lo++, mid);
+          else if (nums[mid] === 2) swap(mid, hi--);
+        return nums;
+      },
+    },
+    {
+      name: 'only swap the 0s to the front',
+      solve: (nums: number[]) => {
+        const swap = (i: number, j: number) => ([nums[i], nums[j]] = [nums[j], nums[i]]);
+        for (let lo = 0, i = 0; i < nums.length; i++) if (nums[i] === 0) swap(lo++, i);
+        return nums;
+      },
+    },
+    {
+      name: 'stop before the middle pointer reaches the end pointer',
+      solve: (nums: number[]) => {
+        const swap = (i: number, j: number) => ([nums[i], nums[j]] = [nums[j], nums[i]]);
+        for (let lo = 0, mid = 0, hi = nums.length - 1; mid < hi;)
+          if (nums[mid] === 0) swap(lo++, mid++);
+          else if (nums[mid] === 2) swap(mid, hi--);
+          else mid++;
+        return nums;
+      },
+    },
+  ],
+  'squares-of-sorted-array': [
+    {
+      name: 'sort the squares with the default sort',
+      solve: (nums: number[]) => nums.map((x) => x * x).sort(),
+    },
+    {
+      name: 'fill from the front with the smaller end square',
+      solve: (nums: number[]) => {
+        const out: number[] = [];
+        for (let lo = 0, hi = nums.length - 1; lo <= hi;)
+          out.push(Math.abs(nums[lo]) < Math.abs(nums[hi]) ? nums[lo++] ** 2 : nums[hi--] ** 2);
+        return out;
+      },
+    },
+    {
+      name: 'merge outward from zero but drop what is left of one side',
+      solve: (nums: number[]) => {
+        const out: number[] = [];
+        let right = nums.findIndex((x) => x >= 0);
+        if (right < 0) right = nums.length;
+        for (let left = right - 1; left >= 0 && right < nums.length;)
+          out.push(-nums[left] < nums[right] ? nums[left--] ** 2 : nums[right++] ** 2);
+        return out;
+      },
+    },
+  ],
+  'valid-palindrome-ii': [
+    {
+      name: 'always delete the left letter at the first mismatch',
+      solve: (s: string) => {
+        for (let lo = 0, hi = s.length - 1; lo < hi; lo++, hi--)
+          if (s[lo] !== s[hi]) {
+            const rest = s.slice(lo + 1, hi + 1);
+            return rest === [...rest].reverse().join('');
+          }
+        return true;
+      },
+    },
+    {
+      name: 'delete whichever letter lets the next pair match',
+      solve: (s: string) => {
+        let deleted = false;
+        for (let lo = 0, hi = s.length - 1; lo < hi;)
+          if (s[lo] === s[hi]) {
+            lo++;
+            hi--;
+          } else if (deleted) return false;
+          else {
+            deleted = true;
+            if (s[lo + 1] === s[hi]) lo++;
+            else if (s[lo] === s[hi - 1]) hi--;
+            else return false;
+          }
+        return true;
+      },
+    },
+    {
+      name: 'look two pairs ahead to choose which letter to delete',
+      solve: (s: string) => {
+        let deleted = false;
+        for (let lo = 0, hi = s.length - 1; lo < hi;)
+          if (s[lo] === s[hi]) {
+            lo++;
+            hi--;
+          } else if (deleted) return false;
+          else {
+            deleted = true;
+            if (s[lo + 1] === s[hi] && (lo + 2 > hi - 1 || s[lo + 2] === s[hi - 1])) lo++;
+            else if (s[lo] === s[hi - 1] && (lo + 1 > hi - 2 || s[lo + 1] === s[hi - 2])) hi--;
+            else return false;
+          }
+        return true;
+      },
+    },
+    {
+      name: 'allow one mismatched pair',
+      solve: (s: string) => {
+        let mismatches = 0;
+        for (let lo = 0, hi = s.length - 1; lo < hi; lo++, hi--) if (s[lo] !== s[hi]) mismatches++;
+        return mismatches <= 1;
+      },
+    },
+  ],
   'character-replacement': [
     {
       name: 'add k to the most common letter overall',
@@ -600,6 +859,64 @@ const WRONG: Record<string, WrongSolution[]> = {
                 .map((run) => run.length),
             ),
         ),
+    },
+  ],
+  'fruit-into-baskets': [
+    {
+      name: 'restart just before the third type',
+      solve: (fruits: number[]) => {
+        let best = 0;
+        for (let lo = 0, hi = 0; hi < fruits.length; hi++) {
+          if (new Set(fruits.slice(lo, hi + 1)).size > 2) lo = hi - 1;
+          best = Math.max(best, hi - lo + 1);
+        }
+        return best;
+      },
+    },
+    {
+      name: 'add up the two most common types',
+      solve: (fruits: number[]) => {
+        const count = new Map<number, number>();
+        for (const fruit of fruits) count.set(fruit, (count.get(fruit) ?? 0) + 1);
+        const [first = 0, second = 0] = [...count.values()].sort((a, b) => b - a);
+        return first + second;
+      },
+    },
+  ],
+  'min-operations-reduce-x': [
+    {
+      name: 'take the larger end first',
+      solve: (nums: number[], x: number) => {
+        let operations = 0;
+        for (let lo = 0, hi = nums.length - 1; x > 0 && lo <= hi; operations++) x -= nums[lo] >= nums[hi] ? nums[lo++] : nums[hi--];
+        return x === 0 ? operations : -1;
+      },
+    },
+    {
+      name: 'never remove every value',
+      solve: (nums: number[], x: number) => {
+        const keep = nums.reduce((sum, v) => sum + v, 0) - x;
+        let longest = -1;
+        let sum = 0;
+        for (let lo = 0, hi = 0; hi < nums.length; hi++) {
+          sum += nums[hi];
+          while (sum > keep && lo <= hi) sum -= nums[lo++];
+          if (sum === keep && hi >= lo) longest = Math.max(longest, hi - lo + 1);
+        }
+        return longest < 0 ? -1 : nums.length - longest;
+      },
+    },
+    {
+      name: 'take from one end only',
+      solve: (nums: number[], x: number) => {
+        const reach = (values: number[]) => {
+          let sum = 0;
+          const i = values.findIndex((v) => (sum += v) >= x);
+          return i >= 0 && sum === x ? i + 1 : Infinity;
+        };
+        const fewest = Math.min(reach(nums), reach([...nums].reverse()));
+        return fewest === Infinity ? -1 : fewest;
+      },
     },
   ],
   'search-rotated-array': [
@@ -896,6 +1213,34 @@ const WRONG: Record<string, WrongSolution[]> = {
       solve: (hours: number[]) => wellPerformingLength(hours, 8, false),
     },
   ],
+  'find-pivot-index': [
+    { name: 'count the pivot in the left side', solve: (nums: number[]) => pivotWhere(nums, rangeOf(0, nums.length - 1), true) },
+    {
+      name: 'return the rightmost pivot',
+      solve: (nums: number[]) => pivotWhere(nums, rangeOf(0, nums.length - 1).reverse(), false),
+    },
+    { name: 'skip the two ends', solve: (nums: number[]) => pivotWhere(nums, rangeOf(1, nums.length - 2), false) },
+  ],
+  'max-size-subarray-sum-k': [
+    {
+      name: 'keep the latest index for each running sum',
+      solve: (nums: number[], k: number) => longestSumK(nums, k, { keepFirst: false }),
+    },
+    { name: 'forget the empty prefix', solve: (nums: number[], k: number) => longestSumK(nums, k, { emptyPrefix: false }) },
+    {
+      name: 'slide a window as if every value were positive',
+      solve: (nums: number[], k: number) => {
+        let best = 0;
+        let sum = 0;
+        for (let lo = 0, hi = 0; hi < nums.length; hi++) {
+          sum += nums[hi];
+          while (sum > k && lo <= hi) sum -= nums[lo++];
+          if (sum === k && hi >= lo) best = Math.max(best, hi - lo + 1);
+        }
+        return best;
+      },
+    },
+  ],
   'largest-rectangle-in-histogram': [
     { name: 'use only the tallest bar', solve: (heights: number[]) => Math.max(...heights) },
     {
@@ -1025,6 +1370,90 @@ const WRONG: Record<string, WrongSolution[]> = {
     {
       name: 'wrap around to the first value only',
       solve: (nums: number[]) => nextGreater(nums, 1, (top, x) => top < x).map((y, i) => (y === -1 && nums[0] > nums[i] ? nums[0] : y)),
+    },
+  ],
+  '132-pattern': [
+    {
+      name: 'check adjacent triples only',
+      solve: (nums: number[]) => nums.some((x, i) => i + 2 < nums.length && x < nums[i + 2] && nums[i + 2] < nums[i + 1]),
+    },
+    {
+      name: 'let the first value equal the third',
+      solve: (nums: number[]) => {
+        const stack: number[] = [];
+        let third = -Infinity;
+        for (let i = nums.length - 1; i >= 0; i--) {
+          if (nums[i] <= third) return true;
+          while (stack.length && stack[stack.length - 1] < nums[i]) third = stack.pop()!;
+          stack.push(nums[i]);
+        }
+        return false;
+      },
+    },
+    {
+      name: 'pair the smallest value with the largest after it',
+      solve: (nums: number[]) => {
+        const low = nums.indexOf(Math.min(...nums));
+        const rest = nums.slice(low + 1);
+        if (!rest.length) return false;
+        const high = low + 1 + rest.indexOf(Math.max(...rest));
+        return nums.slice(high + 1).some((x) => nums[low] < x && x < nums[high]);
+      },
+    },
+  ],
+  'maximal-rectangle': [
+    {
+      name: 'look for squares only',
+      solve: (matrix: string[][]) => {
+        const side = matrix.map((row) => row.map(() => 0));
+        let best = 0;
+        matrix.forEach((row, r) =>
+          row.forEach((cell, c) => {
+            if (cell !== '1') return;
+            side[r][c] = r && c ? 1 + Math.min(side[r - 1][c], side[r][c - 1], side[r - 1][c - 1]) : 1;
+            best = Math.max(best, side[r][c] ** 2);
+          }),
+        );
+        return best;
+      },
+    },
+    {
+      name: "use only the last row's histogram",
+      solve: (matrix: string[][]) => {
+        const heights = matrix[0].map((_, c) => {
+          let h = 0;
+          for (let r = matrix.length - 1; r >= 0 && matrix[r][c] === '1'; r--) h++;
+          return h;
+        });
+        let best = 0;
+        heights.forEach((h, i) => {
+          let left = i;
+          let right = i;
+          while (left > 0 && heights[left - 1] >= h) left--;
+          while (right < heights.length - 1 && heights[right + 1] >= h) right++;
+          best = Math.max(best, h * (right - left + 1));
+        });
+        return best;
+      },
+    },
+    {
+      name: 'forget bars left on the stack at the end of a row',
+      solve: (matrix: string[][]) => {
+        const heights = matrix[0].map(() => 0);
+        let best = 0;
+        for (const row of matrix) {
+          row.forEach((cell, c) => (heights[c] = cell === '1' ? heights[c] + 1 : 0));
+          const stack: number[] = [];
+          heights.forEach((h, c) => {
+            while (stack.length && heights[stack[stack.length - 1]] > h) {
+              const height = heights[stack.pop()!];
+              best = Math.max(best, height * (c - (stack.length ? stack[stack.length - 1] : -1) - 1));
+            }
+            stack.push(c);
+          });
+        }
+        return best;
+      },
     },
   ],
   'non-overlapping-intervals': [
@@ -1204,6 +1633,34 @@ const WRONG: Record<string, WrongSolution[]> = {
       },
     },
   ],
+  'remove-covered-intervals': [
+    {
+      name: 'sort equal starts with the shorter interval first',
+      solve: (intervals: number[][]) => uncoveredCount(intervals, true, (end, reach) => end > reach),
+    },
+    {
+      name: 'keep an interval that ends where the reach does',
+      solve: (intervals: number[][]) => uncoveredCount(intervals, false, (end, reach) => end >= reach),
+    },
+    {
+      name: 'compare only with the interval before it',
+      solve: (intervals: number[][]) => {
+        const sorted = [...intervals].sort((x, y) => x[0] - y[0] || y[1] - x[1]);
+        return sorted.filter(([a, b], i) => i === 0 || !(sorted[i - 1][0] <= a && b <= sorted[i - 1][1])).length;
+      },
+    },
+  ],
+  'car-pooling': [
+    {
+      name: 'let passengers in before others get out',
+      solve: (trips: number[][], capacity: number) => busiestCar(trips, false) <= capacity,
+    },
+    { name: 'keep a seat to spare', solve: (trips: number[][], capacity: number) => busiestCar(trips, true) < capacity },
+    {
+      name: 'add up every trip',
+      solve: (trips: number[][], capacity: number) => trips.reduce((sum, [passengers]) => sum + passengers, 0) <= capacity,
+    },
+  ],
   'circular-array-loop': [
     {
       name: 'ignore direction changes',
@@ -1294,6 +1751,89 @@ const WRONG: Record<string, WrongSolution[]> = {
           }
           return slow === 1;
         }),
+    },
+  ],
+  'move-zeroes': [
+    {
+      name: 'swap each 0 with the last value',
+      solve: (nums: number[]) => {
+        for (let i = 0, end = nums.length - 1; i < end; i++)
+          while (nums[i] === 0 && i < end) {
+            [nums[i], nums[end]] = [nums[end], nums[i]];
+            end--;
+          }
+        return nums;
+      },
+    },
+    {
+      name: 'splice out a 0 and move on to the next index',
+      solve: (nums: number[]) => {
+        for (let i = 0; i < nums.length; i++) if (nums[i] === 0) nums.push(...nums.splice(i, 1));
+        return nums;
+      },
+    },
+    {
+      name: 'sort the nonzero values',
+      solve: (nums: number[]) => [...nums.filter((x) => x !== 0).sort((a, b) => a - b), ...nums.filter((x) => x === 0)],
+    },
+  ],
+  'remove-duplicates-sorted-ii': [
+    {
+      name: 'keep one copy of each value',
+      solve: (nums: number[]) => nums.filter((x, i) => i === 0 || nums[i - 1] !== x),
+    },
+    {
+      name: 'compare with two back in the array being overwritten',
+      solve: (nums: number[]) => {
+        let kept = 0;
+        for (let i = 0; i < nums.length; i++) if (i < 2 || nums[i] !== nums[i - 2]) nums[kept++] = nums[i];
+        return nums.slice(0, kept);
+      },
+    },
+    {
+      name: 'drop every copy of a value that appears more than twice',
+      solve: (nums: number[]) => nums.filter((x) => nums.filter((y) => y === x).length <= 2),
+    },
+  ],
+  'linked-list-cycle-ii': [
+    {
+      name: 'return the node where slow and fast meet',
+      solve: (next: number[]) => {
+        const step = (node: number) => (node === -1 ? -1 : next[node]);
+        let slow = 0;
+        let fast = 0;
+        do {
+          slow = step(slow);
+          fast = step(step(fast));
+        } while (fast !== -1 && slow !== fast);
+        return fast;
+      },
+    },
+    {
+      name: 'return the last new node before the walk repeats',
+      solve: (next: number[]) => {
+        const seen = new Set<number>();
+        let last = -1;
+        let node = 0;
+        while (node !== -1 && !seen.has(node)) {
+          seen.add(node);
+          last = node;
+          node = next[node];
+        }
+        return node === -1 ? -1 : last;
+      },
+    },
+    {
+      name: 'return node 0 whenever the walk loops',
+      solve: (next: number[]) => {
+        const seen = new Set<number>();
+        let node = 0;
+        while (node !== -1 && !seen.has(node)) {
+          seen.add(node);
+          node = next[node];
+        }
+        return node === -1 ? -1 : 0;
+      },
     },
   ],
   'k-closest-points': [
@@ -1557,6 +2097,11 @@ const WRONG: Record<string, WrongSolution[]> = {
       solve: (x: number, y: number) =>
         Math.max(Math.ceil(Math.abs(x) / 2), Math.ceil(Math.abs(y) / 2), Math.ceil((Math.abs(x) + Math.abs(y)) / 3)),
     },
+  ],
+  'far-from-land': [
+    { name: 'step diagonally too', solve: (grid: number[][]) => farthestWater(grid, { diagonal: true }) },
+    { name: 'return 0 when there is no land or no water', solve: (grid: number[][]) => farthestWater(grid, { none: 0 }) },
+    { name: 'count the land cell as the first step', solve: (grid: number[][]) => farthestWater(grid, { first: 1 }) },
   ],
   'combination-sum': [
     {
@@ -1850,6 +2395,78 @@ const WRONG: Record<string, WrongSolution[]> = {
       solve: (nums: number[], sequences: number[][]) => adjacentPairs(sequences).size === nums.length - 1,
     },
   ],
+  'parallel-courses-iii': [
+    {
+      name: 'add up the longest course of each semester level',
+      solve: (n: number, relations: number[][], time: number[]) => {
+        const waiting = Array<number>(n + 1).fill(0);
+        for (const [, next] of relations) waiting[next]++;
+        let level = rangeOf(1, n).filter((course) => !waiting[course]);
+        let months = 0;
+        while (level.length) {
+          months += Math.max(...level.map((course) => time[course - 1]));
+          level = level.flatMap((course) =>
+            relations.filter(([prev, next]) => prev === course && --waiting[next] === 0).map(([, next]) => next),
+          );
+        }
+        return months;
+      },
+    },
+    {
+      name: 'skip courses with no relations',
+      solve: (_n: number, relations: number[][], time: number[]) => {
+        const finish = (course: number): number =>
+          time[course - 1] + Math.max(0, ...relations.filter(([, next]) => next === course).map(([prev]) => finish(prev)));
+        return Math.max(0, ...relations.flat().map(finish));
+      },
+    },
+    {
+      name: 'total the times along the chain with the most courses',
+      solve: (n: number, relations: number[][], time: number[]) => {
+        const chain = (course: number): [number, number] =>
+          relations
+            .filter(([, next]) => next === course)
+            .map(([prev]) => chain(prev))
+            .reduce(
+              ([length, months], [l, m]) => (l + 1 > length ? [l + 1, m + time[course - 1]] : [length, months]),
+              [1, time[course - 1]],
+            );
+        return rangeOf(1, n)
+          .map(chain)
+          .reduce((best, next) => (next[0] > best[0] ? next : best))[1];
+      },
+    },
+  ],
+  'find-all-recipes': [
+    {
+      name: 'cook in one pass down the list',
+      solve: (recipes: string[], ingredients: string[], supplies: string[]) => {
+        const have = new Set(supplies);
+        return recipes.filter((dish, i) => ingredients[i].split(' ').every((name) => have.has(name)) && have.add(dish));
+      },
+    },
+    {
+      name: 'count only supplies as ingredients',
+      solve: (recipes: string[], ingredients: string[], supplies: string[]) =>
+        recipes.filter((_, i) => ingredients[i].split(' ').every((name) => supplies.includes(name))),
+    },
+    {
+      name: 'treat a recipe still being checked as cooked',
+      solve: (recipes: string[], ingredients: string[], supplies: string[]) => {
+        const state = new Map<string, boolean>();
+        const cookable = (name: string): boolean => {
+          if (supplies.includes(name) || state.has(name)) return supplies.includes(name) || state.get(name)!;
+          const at = recipes.indexOf(name);
+          if (at < 0) return false;
+          state.set(name, true);
+          const ok = ingredients[at].split(' ').every(cookable);
+          state.set(name, ok);
+          return ok;
+        };
+        return recipes.filter(cookable);
+      },
+    },
+  ],
   'number-of-provinces': [
     {
       name: 'subtract one for every connection',
@@ -1962,6 +2579,19 @@ const WRONG: Record<string, WrongSolution[]> = {
     {
       name: 'remove every stone that shares a line',
       solve: (stones: number[][]) => stones.filter(([x, y], i) => stones.some(([u, v], j) => j !== i && (u === x || v === y))).length,
+    },
+  ],
+  'make-network-connected': [
+    { name: 'skip the check for too few cables', solve: (n: number, connections: number[][]) => cableGroups(n, connections) - 1 },
+    {
+      name: 'count the spare cables',
+      solve: (n: number, connections: number[][]) =>
+        connections.length < n - 1 ? -1 : connections.length - (n - cableGroups(n, connections)),
+    },
+    {
+      name: 'count groups only among computers with a cable',
+      solve: (n: number, connections: number[][]) =>
+        connections.length < n - 1 ? -1 : cableGroups(n, connections) - (n - new Set(connections.flat()).size) - 1,
     },
   ],
   'path-with-minimum-effort': [
@@ -2114,6 +2744,39 @@ const WRONG: Record<string, WrongSolution[]> = {
     },
     { name: 'keep the cost of the first visit in a plain BFS', solve: firstVisitRemovals },
   ],
+  'path-max-probability': [
+    {
+      name: 'follow each edge only from a to b',
+      solve: (n: number, edges: number[][], start: number, end: number) =>
+        Math.round(bestChance(n, edges, start, (chance, p) => chance * p)[end] * 1e6),
+    },
+    {
+      name: 'keep the weakest edge instead of multiplying',
+      solve: (n: number, edges: number[][], start: number, end: number) =>
+        Math.round(bestChance(n, bothWays(edges), start, Math.min)[end] * 1e6),
+    },
+    {
+      name: 'round down instead of to the nearest',
+      solve: (n: number, edges: number[][], start: number, end: number) =>
+        Math.floor(bestChance(n, bothWays(edges), start, (chance, p) => chance * p)[end] * 1e6),
+    },
+  ],
+  'ways-to-arrive': [
+    {
+      name: 'count the routes with the fewest roads',
+      solve: (n: number, roads: number[][]) =>
+        fastestRouteCount(
+          n,
+          roads.map(([u, v]) => [u, v, 1]),
+          { reset: true, mod: true },
+        ),
+    },
+    {
+      name: 'keep adding counts when a faster time turns up',
+      solve: (n: number, roads: number[][]) => fastestRouteCount(n, roads, { reset: false, mod: true }),
+    },
+    { name: 'skip the modulo', solve: (n: number, roads: number[][]) => fastestRouteCount(n, roads, { reset: true, mod: false }) },
+  ],
   'replace-words': [
     {
       name: 'choose the longest matching root',
@@ -2170,6 +2833,49 @@ const WRONG: Record<string, WrongSolution[]> = {
           .filter((word) => rangeOf(2, word.length - 1).every((k) => words.includes(word.slice(0, k))))
           .sort((a, b) => b.length - a.length || (a < b ? -1 : 1))[0] ?? '',
     },
+  ],
+  'search-suggestions-system': [
+    {
+      name: 'keep the first three matches in input order',
+      solve: (products: string[], searchWord: string) =>
+        rangeOf(1, searchWord.length).map((length) =>
+          rangeOf(0, products.length - 1)
+            .filter((i) => products[i].startsWith(searchWord.slice(0, length)))
+            .slice(0, 3),
+        ),
+    },
+    {
+      name: 'stop at the first prefix with no match',
+      solve: (products: string[], searchWord: string) => {
+        const order = rangeOf(0, products.length - 1).sort((a, b) => (products[a] < products[b] ? -1 : 1));
+        const answer: number[][] = [];
+        for (let length = 1; length <= searchWord.length; length++) {
+          const matches = order.filter((i) => products[i].startsWith(searchWord.slice(0, length))).slice(0, 3);
+          if (!matches.length) break;
+          answer.push(matches);
+        }
+        return answer;
+      },
+    },
+    {
+      name: 'put shorter products first',
+      solve: (products: string[], searchWord: string) => {
+        const order = rangeOf(0, products.length - 1).sort(
+          (a, b) => products[a].length - products[b].length || (products[a] < products[b] ? -1 : 1),
+        );
+        return rangeOf(1, searchWord.length).map((length) =>
+          order.filter((i) => products[i].startsWith(searchWord.slice(0, length))).slice(0, 3),
+        );
+      },
+    },
+  ],
+  'maximum-xor-with-element': [
+    { name: 'ignore the limit m', solve: (nums: number[], queries: number[][]) => xorWithin(nums, queries, () => true, -1) },
+    {
+      name: 'answer 0 when no value is allowed',
+      solve: (nums: number[], queries: number[][]) => xorWithin(nums, queries, (v, m) => v <= m, 0),
+    },
+    { name: 'allow only values below m', solve: (nums: number[], queries: number[][]) => xorWithin(nums, queries, (v, m) => v < m, -1) },
   ],
   'word-break': [
     { name: 'take the longest word that fits', solve: (s: string, wordDict: string[]) => greedyWordBreak(s, wordDict, true) },
@@ -2308,6 +3014,20 @@ const WRONG: Record<string, WrongSolution[]> = {
       },
     },
   ],
+  'longest-string-chain': [
+    {
+      name: 'count any shorter subsequence as a predecessor',
+      solve: (words: string[]) => chainLength(byLength(words), (a, b) => a.length < b.length && isSubsequence(a, b)),
+    },
+    {
+      name: 'add letters only at the end',
+      solve: (words: string[]) => chainLength(byLength(words), (a, b) => b.length === a.length + 1 && b.startsWith(a)),
+    },
+    {
+      name: 'take the words in the given order',
+      solve: (words: string[]) => chainLength(words, (a, b) => b.length === a.length + 1 && isSubsequence(a, b)),
+    },
+  ],
   'edit-distance': [
     {
       name: 'use only insertions and deletions',
@@ -2421,6 +3141,91 @@ const WRONG: Record<string, WrongSolution[]> = {
         for (let center = 0; center < s.length; center++)
           for (let left = center, right = center; left >= 0 && right < s.length && s[left] === s[right]; left--, right++) count++;
         return count;
+      },
+    },
+  ],
+  'minimum-path-sum': [
+    {
+      name: 'always step to the cheaper neighbor',
+      solve: (grid: number[][]) => {
+        let [r, c] = [0, 0];
+        let total = grid[0][0];
+        while (r < grid.length - 1 || c < grid[0].length - 1) {
+          if (r === grid.length - 1 || (c < grid[0].length - 1 && grid[r][c + 1] <= grid[r + 1][c])) c++;
+          else r++;
+          total += grid[r][c];
+        }
+        return total;
+      },
+    },
+    {
+      name: 'treat cells outside the grid as costing 0',
+      solve: (grid: number[][]) => {
+        const best = Array<number>(grid[0].length).fill(0);
+        for (const row of grid) row.forEach((cost, c) => (best[c] = cost + Math.min(best[c], c > 0 ? best[c - 1] : 0)));
+        return best[best.length - 1];
+      },
+    },
+  ],
+  'maximal-square': [
+    {
+      name: 'return the side instead of the area',
+      solve: (matrix: string[][]) => {
+        const side = matrix.map((row) => row.map(() => 0));
+        let best = 0;
+        matrix.forEach((row, r) =>
+          row.forEach((cell, c) => {
+            if (cell === '1')
+              best = Math.max(best, (side[r][c] = 1 + Math.min(side[r - 1]?.[c] ?? 0, side[r][c - 1] ?? 0, side[r - 1]?.[c - 1] ?? 0)));
+          }),
+        );
+        return best;
+      },
+    },
+    {
+      name: 'grow from the cells above and to the left only',
+      solve: (matrix: string[][]) => {
+        const side = matrix.map((row) => row.map(() => 0));
+        let best = 0;
+        matrix.forEach((row, r) =>
+          row.forEach((cell, c) => {
+            if (cell === '1') best = Math.max(best, (side[r][c] = 1 + Math.min(side[r - 1]?.[c] ?? 0, side[r][c - 1] ?? 0)));
+          }),
+        );
+        return best * best;
+      },
+    },
+  ],
+  'burst-balloons': [
+    {
+      name: 'burst the smallest number first',
+      solve: (nums: number[]) => {
+        const left = [...nums];
+        let coins = 0;
+        while (left.length) {
+          const i = left.indexOf(Math.min(...left));
+          coins += (left[i - 1] ?? 1) * left[i] * (left[i + 1] ?? 1);
+          left.splice(i, 1);
+        }
+        return coins;
+      },
+    },
+    {
+      name: 'split on the balloon burst first, with its original neighbors',
+      solve: (nums: number[]) => {
+        const memo = new Map<string, number>();
+        const best = (lo: number, hi: number): number => {
+          if (lo > hi) return 0;
+          const key = `${lo},${hi}`;
+          if (!memo.has(key)) {
+            let top = 0;
+            for (let k = lo; k <= hi; k++)
+              top = Math.max(top, (nums[k - 1] ?? 1) * nums[k] * (nums[k + 1] ?? 1) + best(lo, k - 1) + best(k + 1, hi));
+            memo.set(key, top);
+          }
+          return memo.get(key)!;
+        };
+        return best(0, nums.length - 1);
       },
     },
   ],
@@ -2723,6 +3528,83 @@ const WRONG: Record<string, WrongSolution[]> = {
       },
     },
   ],
+  'jump-game-ii': [
+    {
+      name: 'always make the longest jump',
+      solve: (nums: number[]) => {
+        let jumps = 0;
+        for (let i = 0; i < nums.length - 1; jumps++) {
+          if (!nums[i]) return -1;
+          i = Math.min(i + nums[i], nums.length - 1);
+        }
+        return jumps;
+      },
+    },
+    {
+      name: 'jump to the index with the largest value',
+      solve: (nums: number[]) => {
+        let jumps = 0;
+        for (let i = 0; i < nums.length - 1; jumps++) {
+          if (i + nums[i] >= nums.length - 1) return jumps + 1;
+          let next = i + 1;
+          for (let j = i + 2; j <= i + nums[i]; j++) if (nums[j] > nums[next]) next = j;
+          i = next;
+        }
+        return jumps;
+      },
+    },
+    {
+      name: 'let the scan reach the last index too',
+      solve: (nums: number[]) => {
+        let jumps = 0;
+        let end = 0;
+        let far = 0;
+        for (let i = 0; i < nums.length; i++) {
+          far = Math.max(far, i + nums[i]);
+          if (i === end) {
+            jumps++;
+            end = far;
+          }
+        }
+        return jumps;
+      },
+    },
+  ],
+  'min-refueling-stops': [
+    {
+      name: 'stop at the farthest station passed',
+      solve: (target: number, startFuel: number, stations: number[][]) => {
+        const used = new Set<number>();
+        let reach = startFuel;
+        let stops = 0;
+        for (; reach < target; stops++) {
+          let pick = -1;
+          stations.forEach(([position], i) => {
+            if (position <= reach && !used.has(i)) pick = i;
+          });
+          if (pick < 0) return -1;
+          used.add(pick);
+          reach += stations[pick][1];
+        }
+        return stops;
+      },
+    },
+    {
+      name: 'require fuel left over on arrival',
+      solve: (target: number, startFuel: number, stations: number[][]) => {
+        const passed: number[] = [];
+        let reach = startFuel;
+        let stops = 0;
+        for (let i = 0; reach <= target; stops++) {
+          while (i < stations.length && stations[i][0] < reach) passed.push(stations[i++][1]);
+          if (!passed.length) return -1;
+          passed.sort((a, b) => a - b);
+          reach += passed.pop()!;
+        }
+        return stops;
+      },
+    },
+  ],
   'counting-bits': [
     {
       name: 'stop before n',
@@ -2779,6 +3661,30 @@ const WRONG: Record<string, WrongSolution[]> = {
         return gap < 0 ? 0 : sorted[gap - 1] + 1;
       },
     },
+  ],
+  'single-number-ii': [
+    { name: 'XOR every value', solve: (nums: number[]) => nums.reduce((a, b) => a ^ b, 0) },
+    {
+      name: 'count bits 0 to 30 only',
+      solve: (nums: number[]) =>
+        rangeOf(0, 30).reduce((single, bit) => (nums.filter((x) => (x >> bit) & 1).length % 3 ? single | (1 << bit) : single), 0),
+    },
+    {
+      name: 'compare each sorted group of three, else answer the first value',
+      solve: (nums: number[]) => {
+        const sorted = [...nums].sort((a, b) => a - b);
+        for (let i = 0; i + 1 < sorted.length; i += 3) if (sorted[i] !== sorted[i + 1]) return sorted[i];
+        return sorted[0];
+      },
+    },
+  ],
+  'minimum-flips-or': [
+    {
+      name: 'count the bits where a OR b differs from c',
+      solve: (a: number, b: number, c: number) => [...((a | b) ^ c).toString(2)].filter((bit) => bit === '1').length,
+    },
+    { name: 'stop once c has no bits left', solve: (a: number, b: number, c: number) => flipsBelow(a, b, c, c ? 32 - Math.clz32(c) : 0) },
+    { name: 'check bits 0 to 29 only', solve: (a: number, b: number, c: number) => flipsBelow(a, b, c, 30) },
   ],
 };
 
