@@ -1,16 +1,9 @@
-import type { ActivatedRouteSnapshot, Routes } from '@angular/router';
-import {
-  getAlgorithmSummary,
-  getCaseSummary,
-  getCompetencySummary,
-  getPatternSummary,
-  getProblemSummary,
-  getScenarioSummary,
-  getSdTopic,
-} from '@grasp/engine';
-import { FREE_BUILD } from './pages/design/free-build';
+import type { Routes } from '@angular/router';
 
-const idOf = (route: ActivatedRouteSnapshot) => route.paramMap.get('id') ?? '';
+/** Titles need the catalogs, which load with the route rather than with the app. */
+const titles = () => import('./route-titles');
+/** Loads a titled page with its title, so preloading the page also keeps its title for an offline visit. */
+const withTitles = <T>(page: Promise<T>) => Promise.all([page, titles()]).then(([m]) => m);
 
 export const routes: Routes = [
   {
@@ -20,16 +13,13 @@ export const routes: Routes = [
       { path: 'learn', title: 'Learn', loadComponent: () => import('./pages/learn/learn.page').then((m) => m.LearnPage) },
       {
         path: 'learn/pattern/:id',
-        title: (route) => {
-          const pattern = getPatternSummary(idOf(route));
-          return pattern ? `${pattern.name} pattern` : 'Pattern';
-        },
-        loadComponent: () => import('./pages/pattern/pattern.page').then((m) => m.PatternPage),
+        title: (route) => titles().then((t) => t.patternTitle(route)),
+        loadComponent: () => withTitles(import('./pages/pattern/pattern.page')).then((m) => m.PatternPage),
       },
       {
         path: 'learn/design/:id',
-        title: (route) => getSdTopic(idOf(route))?.name ?? 'System design',
-        loadComponent: () => import('./pages/design-lesson/design-lesson.page').then((m) => m.DesignLessonPage),
+        title: (route) => titles().then((t) => t.topicTitle(route)),
+        loadComponent: () => withTitles(import('./pages/design-lesson/design-lesson.page')).then((m) => m.DesignLessonPage),
       },
       {
         path: 'visualize',
@@ -38,23 +28,19 @@ export const routes: Routes = [
       },
       {
         path: 'visualize/:id',
-        title: (route) => getAlgorithmSummary(idOf(route))?.title ?? 'Visualizer',
-        loadComponent: () => import('./pages/visualize/player.page').then((m) => m.PlayerPage),
+        title: (route) => titles().then((t) => t.algorithmTitle(route)),
+        loadComponent: () => withTitles(import('./pages/visualize/player.page')).then((m) => m.PlayerPage),
       },
       { path: 'design', title: 'Design Lab', loadComponent: () => import('./pages/design/design-list.page').then((m) => m.DesignListPage) },
       {
         path: 'design/case/:id',
-        title: (route) => getCaseSummary(idOf(route))?.title ?? 'Case study',
-        loadComponent: () => import('./pages/design/case/case-study.page').then((m) => m.CaseStudyPage),
+        title: (route) => titles().then((t) => t.caseTitle(route)),
+        loadComponent: () => withTitles(import('./pages/design/case/case-study.page')).then((m) => m.CaseStudyPage),
       },
       {
         path: 'design/:id',
-        title: (route) => {
-          if (idOf(route) !== FREE_BUILD.id) return getScenarioSummary(idOf(route))?.title ?? 'Design Lab';
-          const study = getCaseSummary(route.queryParamMap.get('case') ?? '');
-          return study ? `${study.title} build` : FREE_BUILD.title;
-        },
-        loadComponent: () => import('./pages/design/sandbox.page').then((m) => m.SandboxPage),
+        title: (route) => titles().then((t) => t.buildTitle(route)),
+        loadComponent: () => withTitles(import('./pages/design/sandbox.page')).then((m) => m.SandboxPage),
       },
       {
         path: 'drill',
@@ -109,14 +95,14 @@ export const routes: Routes = [
       },
       {
         path: 'behavioral/:id',
-        title: (route) => getCompetencySummary(idOf(route))?.name ?? 'Behavioral',
-        loadComponent: () => import('./pages/behavioral/competency.page').then((m) => m.CompetencyPage),
+        title: (route) => titles().then((t) => t.competencyTitle(route)),
+        loadComponent: () => withTitles(import('./pages/behavioral/competency.page')).then((m) => m.CompetencyPage),
       },
       { path: 'code', title: 'Code', loadComponent: () => import('./pages/code/code-list.page').then((m) => m.CodeListPage) },
       {
         path: 'code/:id',
-        title: (route) => getProblemSummary(idOf(route))?.title ?? 'Code',
-        loadComponent: () => import('./pages/code/workspace.page').then((m) => m.WorkspacePage),
+        title: (route) => titles().then((t) => t.problemTitle(route)),
+        loadComponent: () => withTitles(import('./pages/code/workspace.page')).then((m) => m.WorkspacePage),
       },
       { path: 'settings', title: 'Settings', loadComponent: () => import('./pages/settings/settings.page').then((m) => m.SettingsPage) },
       { path: '', pathMatch: 'full', redirectTo: 'learn' },

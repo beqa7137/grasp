@@ -1,4 +1,4 @@
-import { ALGORITHM_CATALOG } from '../algorithms/catalog.js';
+import { ALGORITHM_PATTERNS, type AlgorithmPatternId } from '../algorithms/patterns.js';
 
 export type Track = 'foundations' | 'core' | 'graphs' | 'advanced';
 
@@ -160,7 +160,7 @@ export type PatternId = (typeof PATTERN_LIST)[number]['id'];
 /** Every pattern, in curriculum order. */
 export const PATTERN_CATALOG: readonly PatternSummary<PatternId>[] = PATTERN_LIST.map((pattern) => ({
   ...pattern,
-  algorithmIds: ALGORITHM_CATALOG.filter((a) => a.patternId === pattern.id).map((a) => a.id),
+  algorithmIds: (Object.keys(ALGORITHM_PATTERNS) as AlgorithmPatternId[]).filter((id) => ALGORITHM_PATTERNS[id] === pattern.id),
 }));
 
 export function getPatternSummary(id: string): PatternSummary | undefined {
