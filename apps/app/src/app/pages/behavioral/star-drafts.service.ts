@@ -1,10 +1,7 @@
 import { Injectable, signal } from '@angular/core';
 import { Preferences } from '@capacitor/preferences';
-import type { StarDraft } from '@grasp/engine';
+import { EMPTY_STAR_DRAFT, isEmptyDraft, type StarDraft } from '@grasp/engine';
 import { STAR_DRAFT_PREFIX, draftKeys } from '../../core/local-drafts';
-
-export const EMPTY_DRAFT: StarDraft = { situation: '', task: '', action: '', result: '', reflection: '' };
-export const isEmptyDraft = (draft: StarDraft) => Object.values(draft).every((text) => !text.trim());
 
 @Injectable({ providedIn: 'root' })
 export class StarDraftsService {
@@ -25,7 +22,7 @@ export class StarDraftsService {
 
   async get(questionId: string): Promise<StarDraft> {
     const { value } = await Preferences.get({ key: STAR_DRAFT_PREFIX + questionId });
-    return value ? { ...EMPTY_DRAFT, ...(JSON.parse(value) as Partial<StarDraft>) } : { ...EMPTY_DRAFT };
+    return value ? { ...EMPTY_STAR_DRAFT, ...(JSON.parse(value) as Partial<StarDraft>) } : { ...EMPTY_STAR_DRAFT };
   }
 
   async save(questionId: string, draft: StarDraft): Promise<void> {

@@ -8,6 +8,9 @@ export interface StarDraft {
 
 export type StarPart = keyof StarDraft;
 
+export const EMPTY_STAR_DRAFT: StarDraft = { situation: '', task: '', action: '', result: '', reflection: '' };
+export const isEmptyDraft = (draft: StarDraft) => Object.values(draft).every((text) => !text.trim());
+
 export interface StarCheck {
   id: 'complete' | 'action-weight' | 'ownership' | 'measured' | 'reflection' | 'length';
   ok: boolean;

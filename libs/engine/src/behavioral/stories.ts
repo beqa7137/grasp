@@ -1,4 +1,5 @@
 import { COMPETENCY_CATALOG } from './catalog.js';
+import type { Rehearsal } from './rehearsal.js';
 import { reviewStar, type StarDraft } from './star-check.js';
 
 /** One real experience, written once and told for every competency it answers. */
@@ -7,6 +8,7 @@ export interface Story {
   title: string;
   competencyIds: string[];
   draft: StarDraft;
+  rehearsal?: Rehearsal;
 }
 
 export interface CompetencyCoverage {

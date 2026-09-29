@@ -5,3 +5,4 @@ export * from './flaws.js';
 export * from './types.js';
 export * from './star-check.js';
 export * from './stories.js';
+export * from './rehearsal.js';

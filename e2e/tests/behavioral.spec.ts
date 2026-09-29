@@ -101,3 +101,34 @@ test('a story written once in the bank covers its competencies, starts answers t
   await page.goto('/behavioral/stories');
   await expect(page.getByRole('heading', { name: '0 of 13 competencies have a story' })).toBeVisible();
 });
+
+test('a story is rehearsed aloud against the clock and comes back after a longer gap when told well', async ({ page }) => {
+  await page.goto('/behavioral/stories');
+  await page.getByRole('button', { name: 'New story' }).click();
+  await page.getByLabel('Title').fill('The billing export');
+  await page.getByRole('button', { name: 'Ownership', exact: true }).click();
+  await page.getByLabel('Action', { exact: true }).fill(STORY.Action);
+
+  await page.goto('/behavioral/stories');
+  await expect(page.getByRole('link', { name: /The billing export/ })).toContainText('Rehearse now');
+  await page.getByRole('link', { name: 'Rehearse 1 due' }).click();
+  await expect(page.getByText('Story 1 of 1 · Ownership')).toBeVisible();
+  await expect(page.locator('app-rehearse h1')).toHaveText(
+    'Tell me about a time you took on a problem that was outside your job description.',
+  );
+  await page.getByText('Peek at your story').click();
+  await expect(page.getByText(STORY.Action)).toBeVisible();
+
+  await page.getByRole('button', { name: 'Start timer' }).click();
+  await expect(page.getByRole('timer')).toHaveText('0:01');
+  await page.getByRole('button', { name: 'Stop' }).click();
+  await expect(page.getByRole('status')).toContainText('is short');
+
+  await page.getByRole('button', { name: 'Told it well' }).click();
+  await expect(page.getByRole('heading', { name: 'All rehearsed' })).toBeVisible();
+  await expect(page.getByText('Next up: The billing export, tomorrow.')).toBeVisible();
+
+  await page.getByRole('link', { name: 'Back to your stories' }).click();
+  await expect(page.getByRole('link', { name: /The billing export/ })).toContainText('Rehearse tomorrow');
+  await expect(page.getByRole('link', { name: /due$/ })).toHaveCount(0);
+});

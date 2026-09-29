@@ -1,12 +1,22 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
-import { COMPETENCIES, examplesFor, getCompetencySummary, storyTitle, type StarDraft, type StarPart, type Story } from '@grasp/engine';
+import {
+  COMPETENCIES,
+  EMPTY_STAR_DRAFT,
+  isEmptyDraft,
+  examplesFor,
+  getCompetencySummary,
+  storyTitle,
+  type StarDraft,
+  type StarPart,
+  type Story,
+} from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import { arrowForward, chatbubblesOutline, eyeOutline } from 'ionicons/icons';
 import { ExampleAnswerComponent } from './example-answer.component';
 import { StarEditorComponent } from './star-editor.component';
-import { EMPTY_DRAFT, StarDraftsService, isEmptyDraft } from './star-drafts.service';
+import { StarDraftsService } from './star-drafts.service';
 import { StoryBankService } from './story-bank.service';
 
 const QUESTIONS = COMPETENCIES.flatMap((c) => c.questions);
@@ -154,7 +164,7 @@ export class StarPracticePage {
   private readonly drafts = inject(StarDraftsService);
   private readonly bank = inject(StoryBankService);
   readonly title = storyTitle;
-  readonly draft = signal<StarDraft>({ ...EMPTY_DRAFT });
+  readonly draft = signal<StarDraft>({ ...EMPTY_STAR_DRAFT });
   private readonly loadedFor = signal<string | null>(null);
 
   readonly question = computed(() => QUESTIONS.find((q) => q.id === this.id()));
@@ -181,7 +191,7 @@ export class StarPracticePage {
       const id = this.id();
       untracked(() => {
         this.loadedFor.set(null);
-        this.draft.set({ ...EMPTY_DRAFT });
+        this.draft.set({ ...EMPTY_STAR_DRAFT });
         void this.drafts.get(id).then((draft) => {
           if (this.id() !== id) return;
           this.draft.set(draft);
