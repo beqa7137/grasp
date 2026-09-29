@@ -17,7 +17,9 @@ export type SdWidget =
   | 'inverted-index'
   | 'stream-windows'
   | 'storage-engine'
-  | 'cdn';
+  | 'cdn'
+  | 'multi-region'
+  | 'error-budget';
 
 export interface SdLesson {
   /** Why the topic decides interviews and outages, in two or three sentences. */

@@ -55,6 +55,12 @@ const DESIGN = [
   { id: 'cdn-pulls', topic: 'sd-cdn' },
   { id: 'cdn-shield', topic: 'sd-cdn' },
   { id: 'edge-tls', topic: 'sd-cdn' },
+  { id: 'quorum-latency', topic: 'sd-multi-region' },
+  { id: 'async-failover', topic: 'sd-multi-region' },
+  { id: 'active-active-conflict', topic: 'sd-multi-region' },
+  { id: 'burn-rate-days', topic: 'sd-observability' },
+  { id: 'average-percentiles', topic: 'sd-observability' },
+  { id: 'label-cardinality', topic: 'sd-observability' },
 ] as const satisfies readonly DesignItemSummary[];
 
 export type DesignItemId = (typeof DESIGN)[number]['id'];

@@ -6,6 +6,8 @@ import { CONSISTENCY_LESSON } from './consistency.js';
 import { ESTIMATION_LESSON } from './estimation.js';
 import { IDS_LESSON } from './ids.js';
 import { LATENCY_LESSON } from './latency.js';
+import { MULTI_REGION_LESSON } from './multi-region.js';
+import { OBSERVABILITY_LESSON } from './observability.js';
 import { QUEUES_LESSON } from './queues.js';
 import { RATE_LIMITING_LESSON } from './rate-limiting.js';
 import { RELIABILITY_LESSON } from './reliability.js';
@@ -36,6 +38,8 @@ export const SD_LESSONS: Readonly<Record<string, SdLesson>> = {
   'sd-streams': STREAMS_LESSON,
   'sd-storage': STORAGE_LESSON,
   'sd-cdn': CDN_LESSON,
+  'sd-multi-region': MULTI_REGION_LESSON,
+  'sd-observability': OBSERVABILITY_LESSON,
 };
 
 export function getSdLesson(topicId: string): SdLesson | undefined {

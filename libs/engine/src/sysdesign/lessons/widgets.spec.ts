@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   cacheOutcome,
   cdnOutcome,
+  errorBudget,
   collisionChance,
   idLayout,
   invertedIndex,
@@ -15,6 +16,7 @@ import {
   queueBacklog,
   queueLatency,
   quorumRound,
+  regionOutcome,
   replicaRead,
   ringOwner,
   runLimiter,
@@ -304,5 +306,54 @@ describe('cdn outcome', () => {
     expect(shielded.originShare).toBeCloseTo(0.089, 3);
     expect(shielded.meanMs).toBeCloseTo(29.9, 1);
     expect(cdnOutcome({ ...options, pops: 100, shield: true }).originShare).toBeCloseTo(0.091, 3);
+  });
+});
+
+describe('region outcome', () => {
+  const options = {
+    users: [0.5, 0.3, 0.2],
+    rtt: [
+      [0, 80, 220],
+      [80, 0, 160],
+      [220, 160, 0],
+    ],
+    primary: 0,
+    accessMs: 20,
+    readShare: 0.9,
+    lagMs: 500,
+  };
+
+  it('pays the trip to the primary for every request from one region, and only for writes with read replicas', () => {
+    expect(regionOutcome('single', options)).toMatchObject({ readMs: 88, writeMs: 88, rpoMs: 3_600_000 });
+    expect(regionOutcome('replicas', options)).toMatchObject({ readMs: 20, writeMs: 88, rpoMs: 500, rtoSec: 60 });
+    expect(regionOutcome('replicas', options).meanMs).toBeCloseTo(26.8);
+    expect(regionOutcome('single', { ...options, primary: 1 }).readMs).toBeCloseTo(92);
+  });
+
+  it('adds the nearest peer to every quorum write, and makes active-active local but open to conflicts', () => {
+    expect(regionOutcome('quorum', options)).toMatchObject({ writeMs: 168, rpoMs: 0, rtoSec: 10 });
+    expect(regionOutcome('active-active', options)).toMatchObject({ readMs: 20, writeMs: 20, conflicts: true });
+  });
+});
+
+describe('error budget', () => {
+  it('turns a 99.9% SLO into 43.2 minutes a month and burns it at the error rate over the budget', () => {
+    const run = errorBudget({ slo: 0.999, windowDays: 30, rps: 1000, errorRate: 0.001 });
+    expect(run).toMatchObject({ allowedFailures: 2_592_000, budgetMinutes: 43.2, burnRate: 1, daysToExhaust: 30 });
+    expect(run.alerts.map((a) => a.fires)).toEqual([false, false, true]);
+  });
+
+  it('fires each alert exactly at its burn rate', () => {
+    expect(errorBudget({ slo: 0.999, windowDays: 30, rps: 1000, errorRate: 0.006 }).alerts.map((a) => a.fires)).toEqual([
+      false,
+      true,
+      true,
+    ]);
+    expect(errorBudget({ slo: 0.999, windowDays: 30, rps: 1000, errorRate: 0.0144 }).alerts.map((a) => a.fires)).toEqual([
+      true,
+      true,
+      true,
+    ]);
+    expect(errorBudget({ slo: 0.999, windowDays: 30, rps: 1000, errorRate: 0 }).daysToExhaust).toBe(Infinity);
   });
 });

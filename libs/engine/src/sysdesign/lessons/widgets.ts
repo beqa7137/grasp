@@ -463,3 +463,94 @@ export function cdnOutcome(options: {
   const meanMs = edgeMs + (1 - edgeHitRate) * (shield ? shieldMs : 0) + (originRps / rps) * originMs;
   return { edgeHitRate, originShare: originRps / rps, originRps, meanMs };
 }
+
+export type RegionMode = 'single' | 'replicas' | 'quorum' | 'active-active';
+
+export interface RegionOutcome {
+  readMs: number;
+  writeMs: number;
+  meanMs: number;
+  /** Writes acknowledged but lost when the primary region is destroyed. */
+  rpoMs: number;
+  /** Time until writes are accepted again after the primary region is lost. */
+  rtoSec: number;
+  conflicts: boolean;
+}
+
+/**
+ * Users in several regions reach their nearest region in `accessMs`; regions are `rtt[i][j]` apart. `primary` is the
+ * region holding the only writable copy (single, replicas) or the consensus leader (quorum). Latencies are means over
+ * users weighted by `users`.
+ */
+export function regionOutcome(
+  mode: RegionMode,
+  options: {
+    users: readonly number[];
+    rtt: readonly (readonly number[])[];
+    primary: number;
+    accessMs: number;
+    readShare: number;
+    lagMs: number;
+  },
+): RegionOutcome {
+  const { users, rtt, primary, accessMs, readShare, lagMs } = options;
+  const toPrimary = users.map((_, r) => accessMs + rtt[r][primary]);
+  const nearestPeer = Math.min(...rtt[primary].filter((_, k) => k !== primary));
+  const perRegion = users.map((_, r) => {
+    if (mode === 'single') return [toPrimary[r], toPrimary[r]];
+    if (mode === 'replicas') return [accessMs, toPrimary[r]];
+    if (mode === 'quorum') return [toPrimary[r], toPrimary[r] + nearestPeer];
+    return [accessMs, accessMs];
+  });
+  const mean = (i: number) => users.reduce((sum, share, r) => sum + share * perRegion[r][i], 0);
+  const readMs = mean(0);
+  const writeMs = mean(1);
+  const outage = { single: [3_600_000, 14_400], replicas: [lagMs, 60], quorum: [0, 10], 'active-active': [lagMs, 30] }[mode];
+  return {
+    readMs,
+    writeMs,
+    meanMs: readShare * readMs + (1 - readShare) * writeMs,
+    rpoMs: outage[0],
+    rtoSec: outage[1],
+    conflicts: mode === 'active-active',
+  };
+}
+
+export interface BurnAlert {
+  label: string;
+  longWindowHours: number;
+  burnRate: number;
+  action: 'page' | 'ticket';
+  fires: boolean;
+}
+
+export interface ErrorBudget {
+  /** Failed requests the SLO allows over the window. */
+  allowedFailures: number;
+  /** Minutes of total outage the budget covers. */
+  budgetMinutes: number;
+  burnRate: number;
+  /** Days until the budget is spent at the current error rate; Infinity when nothing fails. */
+  daysToExhaust: number;
+  alerts: BurnAlert[];
+}
+
+/** An availability SLO over a rolling window, the error rate right now, and the multiwindow burn-rate alerts of the Google SRE workbook. */
+export function errorBudget(options: { slo: number; windowDays: number; rps: number; errorRate: number }): ErrorBudget {
+  const { slo, windowDays, rps, errorRate } = options;
+  const budget = 1 - slo;
+  // Rounded so a rate exactly at a threshold, such as 0.6% against a 99.9% SLO, is not lost to floating point.
+  const burnRate = Math.round((errorRate / budget) * 1e9) / 1e9;
+  const rules: Omit<BurnAlert, 'fires'>[] = [
+    { label: '2% of budget in 1 hour', longWindowHours: 1, burnRate: 14.4, action: 'page' },
+    { label: '5% of budget in 6 hours', longWindowHours: 6, burnRate: 6, action: 'page' },
+    { label: '10% of budget in 3 days', longWindowHours: 72, burnRate: 1, action: 'ticket' },
+  ];
+  return {
+    allowedFailures: Math.round(rps * windowDays * 86_400 * budget),
+    budgetMinutes: Math.round(windowDays * 1440 * budget * 1e6) / 1e6,
+    burnRate,
+    daysToExhaust: burnRate > 0 ? windowDays / burnRate : Infinity,
+    alerts: rules.map((rule) => ({ ...rule, fires: burnRate >= rule.burnRate })),
+  };
+}
