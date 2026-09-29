@@ -70,6 +70,36 @@ export const CASE_CATALOG: readonly CaseSummary[] = [
     level: 'advanced',
     topics: ['sd-queues', 'sd-consensus', 'sd-reliability', 'sd-sharding'],
   },
+  {
+    id: 'collaborative-editor',
+    title: 'Collaborative Editor',
+    level: 'advanced',
+    topics: ['sd-consistency', 'sd-queues', 'sd-sharding', 'sd-multi-region'],
+  },
+  {
+    id: 'metrics-monitoring',
+    title: 'Metrics & Alerting',
+    level: 'advanced',
+    topics: ['sd-observability', 'sd-storage', 'sd-streams', 'sd-estimation'],
+  },
+  {
+    id: 'hotel-booking',
+    title: 'Hotel Booking',
+    level: 'core',
+    topics: ['sd-consistency', 'sd-caching', 'sd-sharding', 'sd-estimation'],
+  },
+  {
+    id: 'stock-exchange',
+    title: 'Stock Exchange',
+    level: 'advanced',
+    topics: ['sd-latency', 'sd-reliability', 'sd-consensus', 'sd-queues'],
+  },
+  {
+    id: 'message-queue',
+    title: 'Distributed Message Queue',
+    level: 'advanced',
+    topics: ['sd-queues', 'sd-replication', 'sd-storage', 'sd-consensus'],
+  },
 ];
 
 export function getCaseSummary(id: string): CaseSummary | undefined {
