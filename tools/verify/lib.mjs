@@ -304,6 +304,7 @@ export function states() {
     },
     { id: 'behavioral-list', path: '/behavioral' },
     { id: 'behavioral-competency', path: '/behavioral/conflict' },
+    { id: 'behavioral-competency-new', path: '/behavioral/feedback' },
     {
       id: 'behavioral-examples-checked',
       path: '/behavioral/conflict',
