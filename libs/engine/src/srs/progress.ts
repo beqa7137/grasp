@@ -1,4 +1,4 @@
-import { getProblemSummary } from '../coding/catalog.js';
+import { problemPatterns } from '../coding/problem-patterns.js';
 import { PATTERN_CATALOG } from '../curriculum/catalog.js';
 import { SD_TOPICS, getSdTopic } from '../curriculum/sd-topics.js';
 import { getReviewItemSummary, itemsForTopic } from '../review/catalog.js';
@@ -184,8 +184,8 @@ export function applyEvent(state: ProgressState, stored: StoredEvent): ProgressS
       break;
     }
     case 'code.submitted': {
-      const problem = getProblemSummary(event.problemId);
-      if (!problem) break;
+      const patterns = problemPatterns(event.problemId);
+      if (!patterns) break;
       const prev = state.coding[event.problemId];
       const solved = event.total > 0 && event.passed === event.total;
       next.coding = {
@@ -197,10 +197,10 @@ export function applyEvent(state: ProgressState, stored: StoredEvent): ProgressS
           total: event.total,
         },
       };
-      problem.patternIds.forEach(introduce);
+      patterns.forEach(introduce);
       // Failing before the first solve suggests the template isn't fluent yet: bring its recall cards forward.
       if (!solved && !prev?.solvedAt) {
-        for (const topic of problem.patternIds) {
+        for (const topic of patterns) {
           for (const def of itemsForTopic(topic)) if (def.kind === 'cloze') next.boosts[def.id] = { at: event.at, reason: 'code' };
         }
       }

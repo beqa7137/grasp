@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 const SRC = fileURLToPath(new URL('.', import.meta.url));
 
-/** What the app runs before its first paint: the progress reducer, plus what route titles and the learn page read. */
+/** What the app runs before its first paint: the progress reducer, plus what the first route's title and the learn page read. */
 const FIRST_PAINT = [
   'srs/progress.ts',
   'srs/session.ts',
@@ -60,10 +60,12 @@ describe('first paint', () => {
   it('loads only the reducer and the light catalogs, never tracers, question builders, content or the simulator', () => {
     expect(closure(FIRST_PAINT)).toEqual([
       'algorithms/catalog.ts',
+      'algorithms/patterns.ts',
       'algorithms/random.ts',
       'behavioral/catalog.ts',
       'code-spans.ts',
       'coding/catalog.ts',
+      'coding/problem-patterns.ts',
       'curriculum/catalog.ts',
       'curriculum/sd-topics.ts',
       'review/catalog.ts',

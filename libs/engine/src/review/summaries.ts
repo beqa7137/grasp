@@ -115,7 +115,7 @@ export const clozeSummary = (patternId: string, n: number): ReviewItemSummary =>
   order: patternOrder(patternId) + 20 + n,
 });
 
-export const predictSummary = (algorithm: AlgorithmSummary): ReviewItemSummary => ({
+export const predictSummary = (algorithm: Pick<AlgorithmSummary, 'id' | 'patternId'>): ReviewItemSummary => ({
   id: `pred:${algorithm.id}`,
   kind: 'predict',
   topic: algorithm.patternId,

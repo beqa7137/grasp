@@ -128,3 +128,19 @@ test.describe('progress sync recovery', () => {
     await expect(syncedStatus).toBeFocused();
   });
 });
+
+test('every page named after its content gets that name as its title, from a direct visit', async ({ page }) => {
+  const titles: [string, RegExp][] = [
+    ['/learn/pattern/hashing', /Arrays & Hashing pattern/],
+    ['/learn/design/sd-overload', /Backpressure & Load Shedding/],
+    ['/visualize/binary-search', /Binary Search/],
+    ['/design/case/url-shortener', /URL Shortener/],
+    ['/design/first-scale-up', /Your First Scale-Up/],
+    ['/behavioral/feedback', /Giving & Receiving Feedback/],
+    ['/code/two-sum', /Two Sum/],
+  ];
+  for (const [path, title] of titles) {
+    await page.goto(path);
+    await expect(page, path).toHaveTitle(title);
+  }
+});
