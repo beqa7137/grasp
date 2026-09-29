@@ -554,3 +554,56 @@ export function errorBudget(options: { slo: number; windowDays: number; rps: num
     alerts: rules.map((rule) => ({ ...rule, fires: burnRate >= rule.burnRate })),
   };
 }
+
+export interface PageCost {
+  /** Index entries read to answer the request for this page. */
+  rowsRead: number;
+  /** Entries read in total to walk from the first page to this one. */
+  walkRows: number;
+  /** Items shown twice while walking to this page, as new rows push older ones down. */
+  repeats: number;
+}
+
+/**
+ * A client pages through a list sorted newest first while `insertsPerPage` new rows arrive between page requests.
+ * Offset paging skips `(page - 1) * size` rows each time and repeats the rows the inserts push across a page boundary;
+ * a cursor (the last seen key) seeks straight to the next row and never repeats. The index seek is counted as one read.
+ */
+export function pageCost(mode: 'offset' | 'cursor', options: { size: number; page: number; insertsPerPage: number }): PageCost {
+  const { size, page, insertsPerPage } = options;
+  if (mode === 'cursor') return { rowsRead: size + 1, walkRows: page * (size + 1), repeats: 0 };
+  return {
+    rowsRead: page * size,
+    walkRows: (size * page * (page + 1)) / 2,
+    repeats: Math.min(insertsPerPage, size) * (page - 1),
+  };
+}
+
+export type PasswordHash = 'sha256' | 'pbkdf2' | 'bcrypt';
+
+/** Guesses a second on one high-end GPU, rounded from published hashcat benchmarks: fast hashes are billions. */
+export const HASH_RATES: Record<PasswordHash, number> = {
+  sha256: 20_000_000_000,
+  pbkdf2: 15_000,
+  bcrypt: 180_000,
+};
+
+export interface CrackTime {
+  guessesPerSecond: number;
+  /** Candidate passwords of this shape. */
+  space: number;
+  /** Seconds to try every candidate against one salted hash. */
+  seconds: number;
+}
+
+/**
+ * Offline cracking of one stolen, salted hash. `bcryptCost` doubles the work per step above 5, the cost the benchmark
+ * rate is quoted at; PBKDF2 is quoted at 600,000 iterations of HMAC-SHA-256.
+ */
+export function crackTime(hash: PasswordHash, options: { alphabet: number; length: number; gpus: number; bcryptCost: number }): CrackTime {
+  const { alphabet, length, gpus, bcryptCost } = options;
+  const perGpu = hash === 'bcrypt' ? HASH_RATES.bcrypt / 2 ** (bcryptCost - 5) : HASH_RATES[hash];
+  const guessesPerSecond = perGpu * gpus;
+  const space = alphabet ** length;
+  return { guessesPerSecond, space, seconds: space / guessesPerSecond };
+}

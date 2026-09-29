@@ -361,6 +361,68 @@ const labelCardinality = concept(
   'Cost grows with the number of label combinations, and a histogram multiplies that by its bucket count. Keep metric labels to small, bounded sets such as route and status code, and find individual users through logs or traces that carry the user id.',
 );
 
+const offsetRows = item('Rows read for a deep page', (rand) => {
+  const size = pick(rand, [20, 25, 50, 100]);
+  const page = pick(rand, [40, 200, 1000, 5000]);
+  const rows = (v: number) => `about ${fmt(v)} rows`;
+  return {
+    prompt: `An API lists orders newest first with \`LIMIT ${size} OFFSET n\`. A client asks for page ${fmt(page)}. Roughly how many index entries does the database read to answer that one request?`,
+    ...withChoices(rand, rows(page * size), [rows(size), rows(page), rows((page * size) / 2)]),
+    explain: `An offset is not a jump: the database walks past every skipped row, so page ${fmt(page)} reads ${fmt(page - 1)} × ${size} skipped rows plus the ${size} it returns, about ${fmt(page * size)}. A cursor (the last \`(created_at, id)\` pair seen) seeks straight to the next row and reads about ${size}.`,
+  };
+});
+
+const idempotencyKey = concept(
+  'A mobile client sends POST /payments, the connection drops before the response arrives, and the client retries. How do you make sure the customer is charged once?',
+  'The client sends the same idempotency key on both tries; the server stores the first result under it and returns it again',
+  [
+    'The server rejects any second payment for the same amount within a minute',
+    'The client waits longer before retrying, so the first request surely finished',
+    'Switch the endpoint to PUT, since PUT requests are never processed twice',
+  ],
+  'The client cannot tell whether the first request failed or only its response was lost. A client-generated key, recorded before the charge and passed on to the card processor, with the outcome stored under it, turns the retry into a lookup. Amount-based deduplication blocks legitimate repeat purchases, and waiting longer never makes the retry safe.',
+);
+
+const compatibleChange = concept(
+  'Which change to a public JSON API is backward compatible for clients that already exist?',
+  'Adding an optional field to a response',
+  ['Adding a required field to a request', 'Renaming a response field to a clearer name', 'Changing an ID field from a number to a string'],
+  'Existing clients ignore fields they do not know, so additive, optional changes are safe. Requiring new input, renaming or retyping a field breaks clients that were written against the old shape; those need a new version or a long deprecation with both shapes served.',
+);
+
+const bcryptCost = item('Raising the bcrypt cost', (rand) => {
+  const from = pick(rand, [10, 11, 12]);
+  const step = pick(rand, [1, 2, 3]);
+  const times = (v: number) => `${fmt(v)} times as long`;
+  return {
+    prompt: `A service raises its bcrypt cost factor from ${from} to ${from + step}. How much longer does an attacker need to try the same list of guesses against a stolen hash?`,
+    ...withChoices(rand, times(2 ** step), [times(3 * step), times(2 ** (step + 1)), times(10 * step)]),
+    explain: `The cost factor is the base-2 logarithm of the number of rounds, so each step doubles the work: ${step} step${step > 1 ? 's' : ''} means 2^${step} = ${2 ** step} times as long, for the attacker and for every login. Choose the highest cost that keeps a login within your latency budget, and raise it as hardware gets faster.`,
+  };
+});
+
+const saltPurpose = concept(
+  'Passwords are hashed with a unique random salt per user. What does the salt protect against?',
+  'Precomputed tables and cracking many users at once: each hash must be attacked separately',
+  [
+    'Guessing one user password, since the salt makes each guess much slower',
+    'A leak of the database, since the salt is kept secret on another server',
+    'Weak passwords, since a salt adds randomness to what the user typed',
+  ],
+  'A salt is stored next to the hash and is not secret. It makes identical passwords hash differently, so rainbow tables are useless and an attacker pays for every guess once per user. It does not slow down an attack on one account: that is the job of a slow hash such as bcrypt, scrypt or Argon2id, and a weak password stays weak.',
+);
+
+const objectOwnership = concept(
+  'A signed-in user changes the URL from /invoices/1041 to /invoices/1042 and sees another customer invoice. What is the fix?',
+  'Check on every request that the invoice belongs to the caller before returning it',
+  [
+    'Replace the numeric IDs with random UUIDs so they cannot be guessed',
+    'Hide the invoice ID from the URL and pass it in the request body',
+    'Require the user to sign in again before viewing any invoice',
+  ],
+  'This is an insecure direct object reference: authentication proved who the user is, but nothing checked what they may read. Unguessable IDs make the hole harder to find, not closed, since IDs leak through links, logs and shared screens. Authorize each object access on the server, ideally by scoping the query to the owner.',
+);
+
 export const INFRA_ITEMS = {
   'quorum-overlap': quorumOverlap,
   'quorum-failures': quorumFailures,
@@ -389,4 +451,10 @@ export const INFRA_ITEMS = {
   'burn-rate-days': burnRateDays,
   'average-percentiles': averagePercentiles,
   'label-cardinality': labelCardinality,
+  'offset-rows': offsetRows,
+  'idempotency-key': idempotencyKey,
+  'compatible-change': compatibleChange,
+  'bcrypt-cost': bcryptCost,
+  'salt-purpose': saltPurpose,
+  'object-ownership': objectOwnership,
 } satisfies Partial<Record<DesignItemId, DesignItemDefinition>>;

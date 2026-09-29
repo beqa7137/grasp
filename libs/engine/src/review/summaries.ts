@@ -61,6 +61,12 @@ const DESIGN = [
   { id: 'burn-rate-days', topic: 'sd-observability' },
   { id: 'average-percentiles', topic: 'sd-observability' },
   { id: 'label-cardinality', topic: 'sd-observability' },
+  { id: 'offset-rows', topic: 'sd-api-design' },
+  { id: 'idempotency-key', topic: 'sd-api-design' },
+  { id: 'compatible-change', topic: 'sd-api-design' },
+  { id: 'bcrypt-cost', topic: 'sd-security' },
+  { id: 'salt-purpose', topic: 'sd-security' },
+  { id: 'object-ownership', topic: 'sd-security' },
 ] as const satisfies readonly DesignItemSummary[];
 
 export type DesignItemId = (typeof DESIGN)[number]['id'];

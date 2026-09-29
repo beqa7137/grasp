@@ -1,3 +1,4 @@
+import { API_DESIGN_LESSON } from './api-design.js';
 import { CACHING_LESSON } from './caching.js';
 import { CAPACITY_LESSON } from './capacity.js';
 import { CDN_LESSON } from './cdn.js';
@@ -13,6 +14,7 @@ import { RATE_LIMITING_LESSON } from './rate-limiting.js';
 import { RELIABILITY_LESSON } from './reliability.js';
 import { REPLICATION_LESSON } from './replication.js';
 import { SEARCH_LESSON } from './search.js';
+import { SECURITY_LESSON } from './security.js';
 import { SHARDING_LESSON } from './sharding.js';
 import { STORAGE_LESSON } from './storage.js';
 import { STREAMS_LESSON } from './streams.js';
@@ -40,6 +42,8 @@ export const SD_LESSONS: Readonly<Record<string, SdLesson>> = {
   'sd-cdn': CDN_LESSON,
   'sd-multi-region': MULTI_REGION_LESSON,
   'sd-observability': OBSERVABILITY_LESSON,
+  'sd-api-design': API_DESIGN_LESSON,
+  'sd-security': SECURITY_LESSON,
 };
 
 export function getSdLesson(topicId: string): SdLesson | undefined {
