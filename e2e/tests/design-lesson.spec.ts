@@ -175,3 +175,35 @@ test('the CDN lesson shows a shield absorbing the misses that more edge location
   await expect(readout('Edge hits')).toHaveText('95.8%');
   await expect(readout('Origin load')).toHaveText('26/s');
 });
+
+test('the multi-region lesson trades read and write latency against what a region outage loses', async ({ page }) => {
+  await page.goto('/learn/design/sd-multi-region');
+  const readout = (label: string) =>
+    page
+      .locator('.readouts div')
+      .filter({ has: page.locator('dt', { hasText: new RegExp(`^${label}$`) }) })
+      .locator('dd');
+  await expect(readout('Read')).toHaveText('88 ms');
+  await page.getByRole('radio', { name: 'Read replicas' }).click();
+  await expect(readout('Read')).toHaveText('20 ms');
+  await expect(readout('Write')).toHaveText('88 ms');
+  await page.getByRole('radio', { name: 'Quorum' }).click();
+  await expect(readout('Write')).toHaveText('168 ms');
+  await expect(readout('Lost if the primary region dies')).toHaveText('nothing');
+});
+
+test('the observability lesson turns an SLO into a budget and pages once errors burn it fast', async ({ page }) => {
+  await page.goto('/learn/design/sd-observability');
+  const readout = (label: string) =>
+    page
+      .locator('.readouts div')
+      .filter({ has: page.locator('dt', { hasText: new RegExp(`^${label}$`) }) })
+      .locator('dd');
+  await expect(readout('Budget')).toHaveText('43.2 min');
+  await expect(readout('Burn rate')).toHaveText('1×');
+  const alerts = page.getByRole('list', { name: 'Burn-rate alerts' }).getByRole('listitem');
+  await expect(alerts.filter({ hasText: 'Pages' })).toHaveCount(0);
+  await page.getByRole('slider', { name: /Requests failing now/ }).fill('144');
+  await expect(readout('Burn rate')).toHaveText('14.4×');
+  await expect(alerts.filter({ hasText: 'Pages' })).toHaveCount(2);
+});

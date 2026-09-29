@@ -19,6 +19,7 @@ import { MasteryRingComponent } from '../../viz/mastery-ring.component';
 import { QuickCheckComponent } from '../pattern/quick-check.component';
 import { WorkedExampleComponent } from '../pattern/worked-example.component';
 import { AvailabilityWidgetComponent } from './availability-widget.component';
+import { BudgetWidgetComponent } from './budget-widget.component';
 import { CacheWidgetComponent } from './cache-widget.component';
 import { CdnWidgetComponent } from './cdn-widget.component';
 import { EstimateDrillComponent } from './estimate-drill.component';
@@ -30,6 +31,7 @@ import { PartitionWidgetComponent } from './partition-widget.component';
 import { PipelineWidgetComponent } from './pipeline-widget.component';
 import { QueueWidgetComponent } from './queue-widget.component';
 import { QuorumWidgetComponent } from './quorum-widget.component';
+import { RegionWidgetComponent } from './region-widget.component';
 import { ReplicaWidgetComponent } from './replica-widget.component';
 import { RingWidgetComponent } from './ring-widget.component';
 import { StorageWidgetComponent } from './storage-widget.component';
@@ -67,6 +69,8 @@ import { StreamWidgetComponent } from './stream-widget.component';
     StreamWidgetComponent,
     StorageWidgetComponent,
     CdnWidgetComponent,
+    RegionWidgetComponent,
+    BudgetWidgetComponent,
     EstimateDrillComponent,
   ],
   template: `
@@ -141,6 +145,12 @@ import { StreamWidgetComponent } from './stream-widget.component';
                 }
                 @case ('cdn') {
                   <app-cdn-widget />
+                }
+                @case ('multi-region') {
+                  <app-region-widget />
+                }
+                @case ('error-budget') {
+                  <app-budget-widget />
                 }
                 @case ('estimate-drill') {
                   <app-estimate-drill [drill]="l.widget.drill ?? []" />

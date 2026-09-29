@@ -1,6 +1,6 @@
 import { fmt } from '../sysdesign/scenario-catalog.js';
 import { concept, item, type DesignItemDefinition } from './design-item-kit.js';
-import { pick, withChoices } from './random.js';
+import { pick, shuffle, withChoices } from './random.js';
 import type { DesignItemId } from './summaries.js';
 
 const quorumOverlap = item('Is a quorum read guaranteed fresh?', (rand) => {
@@ -285,6 +285,82 @@ const edgeTls = concept(
   'A new HTTPS connection costs one round trip for TCP and one for TLS 1.3 before the first request. With a user 200 ms from the origin, that is 400 ms of setup; with an edge 10 ms away, 20 ms, and the edge reuses warm connections to the origin, so the request pays the long round trip once.',
 );
 
+const quorumLatency = item('Write latency of a cross-region quorum', (rand) => {
+  const peers = shuffle(rand, [15, 40, 75, 90, 140, 210])
+    .slice(0, 4)
+    .sort((a, b) => a - b);
+  const answer = peers[1];
+  const ms = (v: number) => `${v} ms`;
+  return {
+    prompt: `A consensus group has five replicas in five regions. The leader's round trips to the other four are ${peers.map(ms).join(', ')}. Ignoring processing time, how long does the leader wait before a write is committed?`,
+    ...withChoices(rand, ms(answer), [ms(peers[0]), ms(peers[3]), ms(peers.reduce((a, b) => a + b, 0))]),
+    explain: `A majority of five is three, and the leader counts itself, so it needs acknowledgements from the two nearest replicas: the slower of those, ${ms(answer)}. Moving the leader or the replicas closer together is what shortens every write.`,
+  };
+});
+
+const asyncFailover = concept(
+  'A database replicates asynchronously from its primary region to a standby region with about 1 second of lag. The primary region goes down and you promote the standby. What happens to recent writes?',
+  'Writes acknowledged in the last second or so before the failure are lost: the RPO is the replication lag',
+  [
+    'Nothing is lost, because every acknowledged write was already on disk in the primary',
+    'Nothing is lost, because the standby replays the primary write-ahead log after promotion',
+    'All writes since the last nightly backup are lost',
+  ],
+  'Asynchronous replication acknowledges a write before the standby has it, so whatever was in flight is gone when the primary region is. Synchronous replication or a cross-region quorum brings the RPO to zero at the cost of a round trip on every write.',
+);
+
+const activeActiveConflict = concept(
+  'Two regions both accept writes and replicate to each other asynchronously, resolving conflicts by last writer wins. A user edits the same profile in both regions within the same second. What happens?',
+  'One edit silently overwrites the other, so an acknowledged write disappears',
+  [
+    'Both edits are merged field by field automatically',
+    'The second write fails with a conflict error that the client can retry',
+    'Replication stops until an operator picks a version',
+  ],
+  'Last writer wins keeps whichever write has the later timestamp and drops the other with no error. Avoid it by giving each user a home region that takes their writes, or by using data types that merge (CRDTs such as counters and sets) where the business allows.',
+);
+
+const burnRateDays = item('How long until the error budget is gone?', (rand) => {
+  const [slo, errorRate] = pick(rand, [
+    [0.999, 0.002],
+    [0.999, 0.005],
+    [0.999, 0.01],
+    [0.995, 0.01],
+    [0.99, 0.02],
+    [0.9995, 0.001],
+  ]);
+  const burn = Math.round((errorRate / (1 - slo)) * 100) / 100;
+  const days = (d: number) => `about ${Number(d.toFixed(1))} days`;
+  const pct = (v: number) => `${Number((v * 100).toFixed(2))}%`;
+  return {
+    prompt: `A service has a ${pct(slo)} availability SLO over 30 days. Since an incident began, ${pct(errorRate)} of its requests fail. If that continues, how long until the whole month of error budget is spent?`,
+    ...withChoices(rand, days(30 / burn), [days(30 * burn), days(30 / burn / 24), days(30 - burn)]),
+    explain: `The budget is ${pct(1 - slo)} of requests. Failing ${pct(errorRate)} burns it ${burn} times faster than the SLO allows, so 30 days of budget lasts 30 / ${burn} = ${Number((30 / burn).toFixed(1))} days. Burn-rate alerts page on exactly this ratio.`,
+  };
+});
+
+const averagePercentiles = concept(
+  'Each of four servers reports its p99 latency every minute. How do you get the p99 of the whole service?',
+  'Merge the four latency histograms, then read the 99th percentile of the result',
+  [
+    'Average the four p99 values, weighting each server equally',
+    'Take the largest of the four p99 values, since it always equals the fleet p99',
+    'Average the four p50 values and double the result to get the tail',
+  ],
+  'Percentiles do not add or average: a server with little traffic counts as much as a busy one in the average, and the tail of the combined traffic depends on the whole distributions. Record histograms with fixed buckets (Prometheus histograms, HDR histograms or t-digests) so they can be merged and queried for any percentile.',
+);
+
+const labelCardinality = concept(
+  'A team adds a `user_id` label to its request latency metric to debug one customer. Why is that a bad idea?',
+  'Each distinct user becomes a new time series, so the metrics store must hold millions of them',
+  [
+    'Labels are not indexed, so queries filtering by one user would be too slow',
+    'Metrics cannot store string values, so the label is silently dropped on write',
+    'It only matters for counters; histograms keep one series whatever the labels',
+  ],
+  'Cost grows with the number of label combinations, and a histogram multiplies that by its bucket count. Keep metric labels to small, bounded sets such as route and status code, and find individual users through logs or traces that carry the user id.',
+);
+
 export const INFRA_ITEMS = {
   'quorum-overlap': quorumOverlap,
   'quorum-failures': quorumFailures,
@@ -307,4 +383,10 @@ export const INFRA_ITEMS = {
   'cdn-pulls': pullsPerMinute,
   'cdn-shield': cdnShield,
   'edge-tls': edgeTls,
+  'quorum-latency': quorumLatency,
+  'async-failover': asyncFailover,
+  'active-active-conflict': activeActiveConflict,
+  'burn-rate-days': burnRateDays,
+  'average-percentiles': averagePercentiles,
+  'label-cardinality': labelCardinality,
 } satisfies Partial<Record<DesignItemId, DesignItemDefinition>>;

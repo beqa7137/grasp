@@ -73,6 +73,18 @@ export const SD_TOPICS: SdTopic[] = [
     oneLiner: 'Edge locations, origin shields, TTLs and purges.',
     scenarioIds: ['viral-feed'],
   },
+  {
+    id: 'sd-multi-region',
+    name: 'Multi-Region',
+    oneLiner: 'Serving users across regions and surviving the loss of one.',
+    scenarioIds: ['viral-feed'],
+  },
+  {
+    id: 'sd-observability',
+    name: 'Observability & SLOs',
+    oneLiner: 'Metrics, logs, traces, error budgets and alerts that matter.',
+    scenarioIds: ['first-scale-up'],
+  },
 ];
 
 export function getSdTopic(id: string): SdTopic | undefined {
