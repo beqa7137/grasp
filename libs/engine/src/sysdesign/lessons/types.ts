@@ -27,7 +27,9 @@ export type SdWidget =
   | 'geohash'
   | 'delivery'
   | 'feed-model'
-  | 'overload';
+  | 'overload'
+  | 'lease'
+  | 'balancer';
 
 export interface SdLesson {
   /** Why the topic decides interviews and outages, in two or three sentences. */

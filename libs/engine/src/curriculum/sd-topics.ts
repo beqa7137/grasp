@@ -133,6 +133,18 @@ export const SD_TOPICS: SdTopic[] = [
     oneLiner: 'Bounded queues, deadlines and retries when traffic outruns capacity.',
     scenarioIds: ['flash-sale'],
   },
+  {
+    id: 'sd-locks',
+    name: 'Distributed Locks & Leases',
+    oneLiner: 'Leases, fencing tokens, and why a paused client can hold a lock it lost.',
+    scenarioIds: ['flash-sale'],
+  },
+  {
+    id: 'sd-load-balancing',
+    name: 'Load Balancing',
+    oneLiner: 'Round-robin, least connections, two random choices, and what a slow server does to each.',
+    scenarioIds: ['first-scale-up'],
+  },
 ];
 
 export function getSdTopic(id: string): SdTopic | undefined {

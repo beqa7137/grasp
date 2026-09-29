@@ -27,6 +27,8 @@ import { CrackWidgetComponent } from './crack-widget.component';
 import { DeliveryWidgetComponent } from './delivery-widget.component';
 import { FeedModelWidgetComponent } from './feed-model-widget.component';
 import { OverloadWidgetComponent } from './overload-widget.component';
+import { LeaseWidgetComponent } from './lease-widget.component';
+import { BalancerWidgetComponent } from './balancer-widget.component';
 import { EstimateDrillComponent } from './estimate-drill.component';
 import { GeoWidgetComponent } from './geo-widget.component';
 import { IdLayoutWidgetComponent } from './id-layout-widget.component';
@@ -87,6 +89,8 @@ import { TxnWidgetComponent } from './txn-widget.component';
     DeliveryWidgetComponent,
     FeedModelWidgetComponent,
     OverloadWidgetComponent,
+    LeaseWidgetComponent,
+    BalancerWidgetComponent,
     EstimateDrillComponent,
   ],
   template: `
@@ -191,6 +195,12 @@ import { TxnWidgetComponent } from './txn-widget.component';
                 }
                 @case ('overload') {
                   <app-overload-widget />
+                }
+                @case ('lease') {
+                  <app-lease-widget />
+                }
+                @case ('balancer') {
+                  <app-balancer-widget />
                 }
                 @case ('estimate-drill') {
                   <app-estimate-drill [drill]="l.widget.drill ?? []" />

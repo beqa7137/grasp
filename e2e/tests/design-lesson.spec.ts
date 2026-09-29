@@ -327,3 +327,34 @@ test('the load shedding lesson shows a burst answered too late until the queue i
   await expect(readout('Answered too late')).toHaveText('0');
   await expect(page.getByRole('img', { name: /^Queue over a minute, peaking at/ })).toBeVisible();
 });
+
+test('the locks lesson shows a paused holder writing after its lease ran out, until fencing rejects it', async ({ page }) => {
+  await page.goto('/learn/design/sd-locks');
+  const readout = (label: string) =>
+    page
+      .locator('.readouts div')
+      .filter({ has: page.locator('dt', { hasText: new RegExp(`^${label}$`) }) })
+      .locator('dd');
+  await expect(readout('Lease runs out at')).toHaveText('28 s');
+  await expect(readout('Its write at 35 s')).toHaveText('Accepted: two holders wrote');
+  await page.getByRole('checkbox', { name: 'Fencing tokens' }).check();
+  await expect(readout('Its write at 35 s')).toHaveText('Rejected: its token is stale');
+  await page.getByRole('radio', { name: 'Crashes' }).click();
+  await expect(readout('No one holds it for')).toHaveText('8 s');
+});
+
+test('the load balancing lesson shows round-robin feeding a slow server while least connections backs off', async ({ page }) => {
+  await page.goto('/learn/design/sd-load-balancing');
+  const readout = (label: string) =>
+    page
+      .locator('.readouts div')
+      .filter({ has: page.locator('dt', { hasText: new RegExp(`^${label}$`) }) })
+      .locator('dd');
+  await expect(readout('p99 latency')).toHaveText('82 ms');
+  await page.getByRole('radio', { name: '5×' }).click();
+  await expect(readout('Sent to the slow server')).toHaveText('10.0%');
+  await expect(readout('p99 latency')).toHaveText('64.7 s');
+  await page.getByRole('radio', { name: 'Least connections' }).click();
+  await expect(readout('p99 latency')).toHaveText('96 ms');
+  await expect(readout('Sent to the slow server')).toHaveText('3.1%');
+});
