@@ -145,6 +145,18 @@ export const SD_TOPICS: SdTopic[] = [
     oneLiner: 'Round-robin, least connections, two random choices, and what a slow server does to each.',
     scenarioIds: ['first-scale-up'],
   },
+  {
+    id: 'sd-clocks',
+    name: 'Time & Clocks',
+    oneLiner: 'Clock skew, last write wins, and logical clocks that keep cause before effect.',
+    scenarioIds: ['write-wall'],
+  },
+  {
+    id: 'sd-discovery',
+    name: 'Service Discovery',
+    oneLiner: 'DNS, registries and health checks: how fast traffic leaves a dead instance.',
+    scenarioIds: ['first-scale-up'],
+  },
 ];
 
 export function getSdTopic(id: string): SdTopic | undefined {

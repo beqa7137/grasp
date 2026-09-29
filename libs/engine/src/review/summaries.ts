@@ -91,6 +91,12 @@ const DESIGN = [
   { id: 'slow-server-load', topic: 'sd-load-balancing' },
   { id: 'two-choices', topic: 'sd-load-balancing' },
   { id: 'fast-failures', topic: 'sd-load-balancing' },
+  { id: 'clock-skew', topic: 'sd-clocks' },
+  { id: 'monotonic-clock', topic: 'sd-clocks' },
+  { id: 'concurrent-writes', topic: 'sd-clocks' },
+  { id: 'registry-stale', topic: 'sd-discovery' },
+  { id: 'readiness', topic: 'sd-discovery' },
+  { id: 'deep-check', topic: 'sd-discovery' },
 ] as const satisfies readonly DesignItemSummary[];
 
 export type DesignItemId = (typeof DESIGN)[number]['id'];

@@ -358,3 +358,32 @@ test('the load balancing lesson shows round-robin feeding a slow server while le
   await expect(readout('p99 latency')).toHaveText('96 ms');
   await expect(readout('Sent to the slow server')).toHaveText('3.1%');
 });
+
+test('the clocks lesson shows last write wins dropping a later write until a hybrid clock has seen the first', async ({ page }) => {
+  await page.goto('/learn/design/sd-clocks');
+  const readout = (label: string) =>
+    page
+      .locator('.readouts div')
+      .filter({ has: page.locator('dt', { hasText: new RegExp(`^${label}$`) }) })
+      .locator('dd');
+  await expect(readout('Worst skew between the two clocks')).toHaveText('26.4 ms');
+  await expect(readout("B's later write")).toHaveText('Can lose to A');
+  await page.getByRole('radio', { name: 'Hybrid logical clock' }).click();
+  await expect(readout("B's later write")).toHaveText('Always wins');
+  await page.getByRole('checkbox', { name: "B read A's write before writing" }).uncheck();
+  await expect(readout("B's later write")).toHaveText('Can lose to A');
+});
+
+test('the discovery lesson shows how long each approach keeps sending to a dead instance', async ({ page }) => {
+  await page.goto('/learn/design/sd-discovery');
+  const readout = (label: string) =>
+    page
+      .locator('.readouts div')
+      .filter({ has: page.locator('dt', { hasText: new RegExp(`^${label}$`) }) })
+      .locator('dd');
+  await expect(readout('Traffic still sent to it for')).toHaveText('60 s');
+  await expect(readout('Requests sent to the dead instance')).toHaveText('30,000');
+  await page.getByRole('radio', { name: 'Load balancer checks' }).click();
+  await expect(readout('Traffic still sent to it for')).toHaveText('15 s');
+  await expect(readout('Checks a second')).toHaveText('4');
+});

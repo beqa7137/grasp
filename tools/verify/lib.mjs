@@ -283,6 +283,22 @@ export function states() {
         await p.getByRole('radio', { name: '5×' }).click();
       },
     },
+    {
+      id: 'lesson-clocks-hybrid',
+      path: '/learn/design/sd-clocks',
+      setup: async (p) => {
+        await p.locator('#try').scrollIntoViewIfNeeded();
+        await p.getByRole('radio', { name: 'Hybrid logical clock' }).click();
+      },
+    },
+    {
+      id: 'lesson-discovery-registry',
+      path: '/learn/design/sd-discovery',
+      setup: async (p) => {
+        await p.locator('#try').scrollIntoViewIfNeeded();
+        await p.getByRole('radio', { name: 'Registry' }).click();
+      },
+    },
     { id: 'lesson-overload', path: '/learn/design/sd-overload', setup: (p) => p.locator('#try').scrollIntoViewIfNeeded() },
     {
       id: 'lesson-realtime-long-polling',
