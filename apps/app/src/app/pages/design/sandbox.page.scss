@@ -176,6 +176,9 @@
 [data-kind='worker'] {
   --kind-color: var(--g-kind-worker);
 }
+[data-kind='blob'] {
+  --kind-color: var(--g-kind-blob);
+}
 
 .canvas {
   position: relative;

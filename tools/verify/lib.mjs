@@ -150,6 +150,8 @@ export function states() {
     { id: 'case-build', path: '/design/free-build?case=news-feed' },
     { id: 'case-ticketing', path: '/design/case/ticketing' },
     { id: 'case-build-ticketing', path: '/design/free-build?case=ticketing' },
+    { id: 'case-build-video-streaming', path: '/design/free-build?case=video-streaming' },
+    { id: 'case-build-web-crawler', path: '/design/free-build?case=web-crawler' },
     { id: 'case-search-engine', path: '/design/case/search-engine' },
     { id: 'case-build-search-engine', path: '/design/free-build?case=search-engine' },
     { id: 'case-file-sync', path: '/design/case/file-sync' },

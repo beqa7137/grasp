@@ -3,8 +3,8 @@
 <section class="panel inspector">
   <header>
     <div>
-      <p class="eyebrow">{{ n.kind === 'client' ? 'Traffic source' : 'Component' }}</p>
-      <h2>{{ spec().name }}</h2>
+      <p class="eyebrow">{{ n.label ? spec().name : n.kind === 'client' ? 'Traffic source' : 'Component' }}</p>
+      <h2>{{ n.label ?? spec().name }}</h2>
     </div>
     <button class="g-btn ghost icon" (click)="close.emit()" aria-label="Close">
       <ion-icon name="close-circle-outline" aria-hidden="true" />
@@ -99,6 +99,20 @@
           }
         </ol>
       }
+    }
+    @if (spec().share !== undefined) {
+      <label class="row slider">
+        <span
+          >Object traffic <strong class="mono">{{ (n.share ?? spec().share ?? 0) * 100 | number: '1.0-0' }}%</strong></span
+        >
+        <input
+          type="range"
+          min="0"
+          max="100"
+          [value]="(n.share ?? spec().share ?? 0) * 100"
+          (input)="update.emit({ share: +$any($event.target).value / 100 })"
+        />
+      </label>
     }
     @if (spec().hitRate !== undefined) {
       <label class="row slider">

@@ -24,7 +24,7 @@ export const COMPONENTS: Record<ComponentKind, ComponentSpec> = {
     maxInstances: 1,
     writeCost: 1,
     hitRate: 0.5,
-    connectsTo: ['limiter', 'lb', 'app'],
+    connectsTo: ['limiter', 'lb', 'app', 'blob'],
   },
   limiter: {
     kind: 'limiter',
@@ -61,7 +61,7 @@ export const COMPONENTS: Record<ComponentKind, ComponentSpec> = {
     monthlyCost: 220,
     maxInstances: 40,
     writeCost: 1,
-    connectsTo: ['cache', 'db', 'queue'],
+    connectsTo: ['cache', 'db', 'queue', 'blob'],
   },
   cache: {
     kind: 'cache',
@@ -119,17 +119,31 @@ export const COMPONENTS: Record<ComponentKind, ComponentSpec> = {
     kind: 'worker',
     name: 'Workers',
     short: 'Worker',
-    description: 'Consume jobs from the queue and write to the database. Each drains ~1.5k jobs/s.',
+    description: 'Consume jobs from the queue and write to the database or object store. Each drains ~1.5k jobs/s.',
     capacityRps: 1_500,
     baseLatencyMs: 20,
     monthlyCost: 180,
     maxInstances: 20,
     writeCost: 1,
-    connectsTo: ['db'],
+    connectsTo: ['db', 'blob'],
+  },
+  blob: {
+    kind: 'blob',
+    name: 'Object Store',
+    short: 'Objects',
+    description:
+      'Managed, durable storage for whole files, images and video segments (S3-like). Takes the share of app requests that fetch or upload objects, ~25 ms to the first byte, and scales far past a database. It stores bytes by key: no queries, no transactions.',
+    capacityRps: 100_000,
+    baseLatencyMs: 25,
+    monthlyCost: 500,
+    maxInstances: 1,
+    writeCost: 1,
+    share: 0.3,
+    connectsTo: [],
   },
 };
 
-export const PALETTE: ComponentKind[] = ['cdn', 'limiter', 'lb', 'app', 'cache', 'db', 'replica', 'queue', 'worker'];
+export const PALETTE: ComponentKind[] = ['cdn', 'limiter', 'lb', 'app', 'cache', 'db', 'replica', 'blob', 'queue', 'worker'];
 
 export const SHARD_KEYS: Record<ShardKey, { label: string; short: string; detail: string }> = {
   hash: { label: 'hash(conversation_id)', short: 'hash', detail: 'A hash of a high-cardinality key spreads reads and writes evenly.' },
@@ -184,6 +198,7 @@ export function createNode(design: Design, kind: ComponentKind, x: number, y: nu
     y,
     instances: 1,
     ...(spec.hitRate !== undefined ? { hitRate: spec.hitRate } : {}),
+    ...(spec.share !== undefined ? { share: spec.share } : {}),
   };
 }
 

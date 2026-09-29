@@ -438,3 +438,39 @@ describe('canConnect', () => {
     expect(canConnect(d, 'a', 'a').ok).toBe(false);
   });
 });
+
+describe('object store', () => {
+  it('takes its share of app reads and writes and keeps those writes durable', () => {
+    const d: Design = {
+      nodes: [n('u', 'client'), n('lb', 'lb'), n('a', 'app', 2), n('o', 'blob', 1, { share: 0.4 }), n('d', 'db')],
+      edges: e(['u', 'lb'], ['lb', 'a'], ['a', 'o'], ['a', 'd']),
+    };
+    const r = simulate(d, { rps: 1000, readRatio: 0.8 });
+    expect(r.metrics.errorRate).toBe(0);
+    expect(r.nodes['o'].readRps).toBeCloseTo(320);
+    expect(r.nodes['o'].writeRps).toBeCloseTo(80);
+    expect(r.nodes['d'].readRps).toBeCloseTo(480);
+    expect(r.nodes['d'].writeRps).toBeCloseTo(120);
+    expect(r.metrics.durableWriteRatio).toBeCloseTo(1);
+  });
+
+  it('serves as a CDN origin and as a destination for workers', () => {
+    const d: Design = {
+      nodes: [
+        n('u', 'client'),
+        n('cdn', 'cdn', 1, { hitRate: 0.9 }),
+        n('o', 'blob'),
+        n('lb', 'lb', 2),
+        n('a', 'app', 2),
+        n('q', 'queue', 2),
+        n('w', 'worker', 2),
+      ],
+      edges: e(['u', 'cdn'], ['cdn', 'o'], ['u', 'lb'], ['lb', 'a'], ['a', 'q'], ['q', 'w'], ['w', 'o']),
+    };
+    const r = simulate(d, { rps: 1000, readRatio: 1 });
+    expect(r.nodes['o'].readRps).toBeGreaterThan(0);
+    expect(r.metrics.errorRate).toBe(0);
+    const writes = simulate(d, { rps: 1000, readRatio: 0 });
+    expect(writes.nodes['o'].backgroundRps).toBeGreaterThan(0);
+  });
+});
