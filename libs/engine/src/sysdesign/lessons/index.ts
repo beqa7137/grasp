@@ -10,6 +10,8 @@ import { ESTIMATION_LESSON } from './estimation.js';
 import { GEO_LESSON } from './geo.js';
 import { IDS_LESSON } from './ids.js';
 import { LATENCY_LESSON } from './latency.js';
+import { LOAD_BALANCING_LESSON } from './load-balancing.js';
+import { LOCKS_LESSON } from './locks.js';
 import { MULTI_REGION_LESSON } from './multi-region.js';
 import { OBSERVABILITY_LESSON } from './observability.js';
 import { OVERLOAD_LESSON } from './overload.js';
@@ -56,6 +58,8 @@ export const SD_LESSONS: Readonly<Record<string, SdLesson>> = {
   'sd-realtime': REALTIME_LESSON,
   'sd-data-modeling': DATA_MODELING_LESSON,
   'sd-overload': OVERLOAD_LESSON,
+  'sd-locks': LOCKS_LESSON,
+  'sd-load-balancing': LOAD_BALANCING_LESSON,
 };
 
 export function getSdLesson(topicId: string): SdLesson | undefined {

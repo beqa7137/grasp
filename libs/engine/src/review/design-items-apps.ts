@@ -264,6 +264,74 @@ const goodput = concept(
   'Throughput holds, but goodput, the answers someone still waits for, collapses: an unbounded first-in-first-out queue serves the oldest requests first, and those are the ones that timed out. Bounding the queue, dropping requests past their deadline, or serving newest first under overload keeps the work that still matters.',
 );
 
+const leaseFailover = item('Lock unheld after a crash', (rand) => {
+  const ttl = pick(rand, [10, 15, 30]);
+  const renew = pick(rand, [2, 3, 4]);
+  const sec = (v: number) => `${v} s`;
+  return {
+    prompt: `A client holds a lock lease of ${ttl} s and renews it every ${renew} s. It crashes just after a renewal. How long before another client can take the lock?`,
+    ...withChoices(rand, sec(ttl), [sec(renew), sec(ttl - renew), sec(2 * ttl)]),
+    explain: `The lock service cannot tell a crash from a slow client, so the lease stays valid for its full ${ttl} s after the last renewal. A shorter lease fails over sooner but expires more often under a pause or a slow network, and costs more renewals.`,
+  };
+});
+
+const efficiencyLock = concept(
+  'A nightly report job runs on three machines, and a lock should stop it running twice. A rare double run only emails a duplicate report. What does the lock need?',
+  'A simple lease on one Redis node: a rare double run costs little, so it need not be airtight',
+  [
+    'A consensus-backed lock with fencing, since any double run is a correctness bug',
+    'No lease at all, so the lock is released only when the job says it has finished',
+    'A lock held on a majority of five Redis nodes, taken with a very long lease',
+  ],
+  'Ask what a double holder costs. A lock for efficiency saves duplicate work, and an occasional failure is acceptable, so one Redis key with a lease is enough. A lock for correctness, where two holders corrupt data, needs a consensus system and fencing tokens checked by the store. A lock with no lease stays held forever if its holder dies.',
+);
+
+const conditionalWrite = concept(
+  'Two workers may update the same account balance at once. Which avoids a lock service and still loses no update?',
+  'A conditional write, such as `WHERE version = 7`, retried when it matches no row',
+  [
+    'Each worker reads the balance and writes the new one straight after',
+    'A lock kept in the worker’s memory, taken before every update',
+    'Updates spaced at least one second apart by the two workers',
+  ],
+  'Compare-and-set makes the database the arbiter: the update applies only if the row is still the version the worker read, and a worker that lost the race rereads and retries. Read-then-write loses one update when both read the same value, and an in-memory lock protects nothing across machines.',
+);
+
+const slowServerLoad = item('A slow server under round-robin', (rand) => {
+  const servers = pick(rand, [5, 10, 20]);
+  const slowdown = pick(rand, [2, 4, 5]);
+  const load = pick(rand, [0.5, 0.6, 0.7]);
+  const busy = load * ((slowdown * (servers - 1) + 1) / servers);
+  const pct = (v: number) => `${Math.round(v * 100)}%`;
+  return {
+    prompt: `${servers} servers sit behind a round-robin balancer. One is ${slowdown} times slower than the rest. The fleet as a whole runs at ${pct(load)} of what it can answer. How busy is the slow server?`,
+    ...withChoices(rand, pct(busy), [pct(load), pct(load / slowdown), pct(load * slowdown * 2)]),
+    explain: `Round-robin sends it 1 / ${servers} of the traffic, the same as every other server, but it can answer only 1 / ${slowdown} as much. Its utilization is ${load} × (${slowdown} × ${servers - 1} + 1) / ${servers} = ${pct(busy)}${busy > 1 ? ': past 100%, so its queue grows until requests time out' : ''}. Balancers that count in-flight requests send it less as its queue builds.`,
+  };
+});
+
+const twoChoices = concept(
+  'Fifty load balancers each send new requests to the backend with the fewest open connections, using load figures that are a second old. Backends take turns being swamped. What fixes it?',
+  'Each balancer picks two backends at random and sends to the less loaded one',
+  [
+    'Each balancer asks every backend for its load before each request',
+    'All fifty balancers switch to plain round-robin across backends',
+    'Each balancer adds more backends to its list of candidates',
+  ],
+  'With stale figures every balancer sees the same least-loaded backend and they all pile onto it at once, a herd. Two random choices keep most of the benefit of picking a lightly loaded backend (the longest queue grows like log log n rather than log n / log log n for one random pick) while spreading balancers across different candidates.',
+);
+
+const fastFailures = concept(
+  'One backend has a full disk and answers every request with an error in 2 ms, while healthy ones take 40 ms. Under least connections it gets more traffic than any other. Why, and what fixes it?',
+  'Failing fast leaves it the fewest open requests; eject backends whose error rate spikes',
+  [
+    'Least connections counts errors as open requests, so drop it for round-robin',
+    'The healthy backends are overloaded, so add more of them to the pool',
+    'The balancer caches its choice, so shorten the cache to one second',
+  ],
+  'Least connections reads few open requests as spare capacity, and nothing finishes faster than an error. Passive health checking (outlier ejection) watches each backend’s error rate and latency and takes it out of rotation for a while; active health checks that exercise the disk would catch it too.',
+);
+
 export const APP_ITEMS = {
   'offset-rows': offsetRows,
   'idempotency-key': idempotencyKey,
@@ -289,4 +357,10 @@ export const APP_ITEMS = {
   'queue-bound': queueBound,
   'retry-storm': retryStorm,
   goodput,
+  'lease-failover': leaseFailover,
+  'efficiency-lock': efficiencyLock,
+  'conditional-write': conditionalWrite,
+  'slow-server-load': slowServerLoad,
+  'two-choices': twoChoices,
+  'fast-failures': fastFailures,
 } satisfies Partial<Record<DesignItemId, DesignItemDefinition>>;

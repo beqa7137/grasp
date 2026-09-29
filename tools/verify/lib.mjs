@@ -267,6 +267,22 @@ export function states() {
         await p.getByRole('radio', { name: 'Denormalized' }).click();
       },
     },
+    {
+      id: 'lesson-locks-fencing',
+      path: '/learn/design/sd-locks',
+      setup: async (p) => {
+        await p.locator('#try').scrollIntoViewIfNeeded();
+        await p.getByRole('checkbox', { name: 'Fencing tokens' }).check();
+      },
+    },
+    {
+      id: 'lesson-load-balancing-slow',
+      path: '/learn/design/sd-load-balancing',
+      setup: async (p) => {
+        await p.locator('#try').scrollIntoViewIfNeeded();
+        await p.getByRole('radio', { name: '5×' }).click();
+      },
+    },
     { id: 'lesson-overload', path: '/learn/design/sd-overload', setup: (p) => p.locator('#try').scrollIntoViewIfNeeded() },
     {
       id: 'lesson-realtime-long-polling',

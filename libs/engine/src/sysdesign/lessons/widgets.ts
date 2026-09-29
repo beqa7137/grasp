@@ -1,6 +1,8 @@
 /** The math behind the system design lesson widgets, kept here so it is tested apart from the drawing. */
 
+export * from './widgets/balancing.js';
 export * from './widgets/data-modeling.js';
+export * from './widgets/leases.js';
 export * from './widgets/overload.js';
 
 export interface Latency {

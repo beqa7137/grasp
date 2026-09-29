@@ -85,6 +85,12 @@ const DESIGN = [
   { id: 'queue-bound', topic: 'sd-overload' },
   { id: 'retry-storm', topic: 'sd-overload' },
   { id: 'goodput', topic: 'sd-overload' },
+  { id: 'lease-failover', topic: 'sd-locks' },
+  { id: 'efficiency-lock', topic: 'sd-locks' },
+  { id: 'conditional-write', topic: 'sd-locks' },
+  { id: 'slow-server-load', topic: 'sd-load-balancing' },
+  { id: 'two-choices', topic: 'sd-load-balancing' },
+  { id: 'fast-failures', topic: 'sd-load-balancing' },
 ] as const satisfies readonly DesignItemSummary[];
 
 export type DesignItemId = (typeof DESIGN)[number]['id'];
