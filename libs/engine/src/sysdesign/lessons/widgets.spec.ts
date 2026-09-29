@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  batchJob,
   cacheOutcome,
   cdnOutcome,
   errorBudget,
@@ -25,6 +26,7 @@ import {
   searchIndex,
   storageCost,
   streamWindows,
+  txnOutcome,
 } from './widgets.js';
 
 describe('queue latency', () => {
@@ -384,5 +386,41 @@ describe('crack time', () => {
   it('doubles bcrypt work per cost step and scales with the attacker GPUs', () => {
     expect(crackTime('bcrypt', { ...options, bcryptCost: 13 }).seconds).toBeCloseTo(crackTime('bcrypt', options).seconds * 2);
     expect(crackTime('pbkdf2', { ...options, gpus: 800 }).guessesPerSecond).toBe(12_000_000);
+  });
+});
+
+describe('transaction outcome', () => {
+  const options = { services: 4, stepMs: 20, rttMs: 5, failAt: 0, coordinatorCrash: false };
+
+  it('holds locks through both phases of two-phase commit, and blocks when the coordinator dies after prepare', () => {
+    expect(txnOutcome('2pc', options)).toEqual({ latencyMs: 30, lockMs: 30, partialMs: 0, compensations: 0, outcome: 'committed' });
+    expect(txnOutcome('2pc', { ...options, coordinatorCrash: true })).toMatchObject({ lockMs: Infinity, outcome: 'blocked' });
+  });
+
+  it('commits saga steps one by one and undoes the finished ones when a later step fails', () => {
+    expect(txnOutcome('saga', options)).toEqual({ latencyMs: 100, lockMs: 20, partialMs: 75, compensations: 0, outcome: 'committed' });
+    expect(txnOutcome('saga', { ...options, failAt: 1 }).partialMs).toBe(0);
+    expect(txnOutcome('saga', { ...options, failAt: 3 })).toEqual({
+      latencyMs: 125,
+      lockMs: 20,
+      partialMs: 100,
+      compensations: 2,
+      outcome: 'rolled back',
+    });
+  });
+});
+
+describe('batch job', () => {
+  const options = { inputGB: 1000, workers: 50, reducers: 50, hotKeyShare: 0, combiner: false };
+
+  it('splits the work evenly without skew, and a combiner shrinks the shuffle tenfold', () => {
+    expect(batchJob(options)).toMatchObject({ mapSec: 200, shuffleGB: 500, shuffleSec: 100, reduceSec: 100, totalSec: 400 });
+    expect(batchJob({ ...options, combiner: true }).totalSec).toBeCloseTo(220);
+    expect(batchJob({ ...options, reducers: 200 }).reduceSec).toBeCloseTo(100);
+  });
+
+  it('leaves one reducer with the hot key, which more reducers cannot fix', () => {
+    expect(batchJob({ ...options, hotKeyShare: 0.2 }).slowestReducerGB).toBeCloseTo(108);
+    expect(batchJob({ ...options, hotKeyShare: 0.2, reducers: 200 }).totalSec).toBeCloseTo(1320);
   });
 });

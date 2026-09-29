@@ -67,6 +67,12 @@ const DESIGN = [
   { id: 'bcrypt-cost', topic: 'sd-security' },
   { id: 'salt-purpose', topic: 'sd-security' },
   { id: 'object-ownership', topic: 'sd-security' },
+  { id: 'coordinator-crash', topic: 'sd-transactions' },
+  { id: 'outbox-pattern', topic: 'sd-transactions' },
+  { id: 'saga-compensations', topic: 'sd-transactions' },
+  { id: 'hot-reducer', topic: 'sd-batch' },
+  { id: 'combiner-use', topic: 'sd-batch' },
+  { id: 'idempotent-rerun', topic: 'sd-batch' },
 ] as const satisfies readonly DesignItemSummary[];
 
 export type DesignItemId = (typeof DESIGN)[number]['id'];

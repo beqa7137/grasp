@@ -231,6 +231,23 @@ export function states() {
     },
     { id: 'lesson-storage', path: '/learn/design/sd-storage', setup: (p) => p.locator('#try').scrollIntoViewIfNeeded() },
     {
+      id: 'lesson-transactions-saga',
+      path: '/learn/design/sd-transactions',
+      setup: async (p) => {
+        await p.locator('#try').scrollIntoViewIfNeeded();
+        await p.getByRole('radio', { name: 'Saga' }).click();
+        await p.getByRole('radio', { name: 'Step 3' }).click();
+      },
+    },
+    {
+      id: 'lesson-batch-skew',
+      path: '/learn/design/sd-batch',
+      setup: async (p) => {
+        await p.locator('#try').scrollIntoViewIfNeeded();
+        await p.getByRole('slider', { name: /hottest key/ }).fill('20');
+      },
+    },
+    {
       id: 'lesson-api-design-cursor',
       path: '/learn/design/sd-api-design',
       setup: async (p) => {

@@ -19,6 +19,7 @@ import { MasteryRingComponent } from '../../viz/mastery-ring.component';
 import { QuickCheckComponent } from '../pattern/quick-check.component';
 import { WorkedExampleComponent } from '../pattern/worked-example.component';
 import { AvailabilityWidgetComponent } from './availability-widget.component';
+import { BatchWidgetComponent } from './batch-widget.component';
 import { BudgetWidgetComponent } from './budget-widget.component';
 import { CacheWidgetComponent } from './cache-widget.component';
 import { CdnWidgetComponent } from './cdn-widget.component';
@@ -38,6 +39,7 @@ import { ReplicaWidgetComponent } from './replica-widget.component';
 import { RingWidgetComponent } from './ring-widget.component';
 import { StorageWidgetComponent } from './storage-widget.component';
 import { StreamWidgetComponent } from './stream-widget.component';
+import { TxnWidgetComponent } from './txn-widget.component';
 
 /** A system design topic taught hands-on: a widget to experiment with, the ideas to name, worked examples and a quick check. */
 @Component({
@@ -75,6 +77,8 @@ import { StreamWidgetComponent } from './stream-widget.component';
     BudgetWidgetComponent,
     PaginationWidgetComponent,
     CrackWidgetComponent,
+    TxnWidgetComponent,
+    BatchWidgetComponent,
     EstimateDrillComponent,
   ],
   template: `
@@ -161,6 +165,12 @@ import { StreamWidgetComponent } from './stream-widget.component';
                 }
                 @case ('password-hash') {
                   <app-crack-widget />
+                }
+                @case ('transactions') {
+                  <app-txn-widget />
+                }
+                @case ('batch-job') {
+                  <app-batch-widget />
                 }
                 @case ('estimate-drill') {
                   <app-estimate-drill [drill]="l.widget.drill ?? []" />

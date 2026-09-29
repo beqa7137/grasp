@@ -21,7 +21,9 @@ export type SdWidget =
   | 'multi-region'
   | 'error-budget'
   | 'pagination'
-  | 'password-hash';
+  | 'password-hash'
+  | 'transactions'
+  | 'batch-job';
 
 export interface SdLesson {
   /** Why the topic decides interviews and outages, in two or three sentences. */

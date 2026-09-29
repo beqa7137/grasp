@@ -423,6 +423,74 @@ const objectOwnership = concept(
   'This is an insecure direct object reference: authentication proved who the user is, but nothing checked what they may read. Unguessable IDs make the hole harder to find, not closed, since IDs leak through links, logs and shared screens. Authorize each object access on the server, ideally by scoping the query to the owner.',
 );
 
+const coordinatorCrash = concept(
+  'In two-phase commit, every participant has voted yes and is prepared. The coordinator crashes before sending the decision. What do the participants do?',
+  'Wait, holding their locks, until the coordinator (or its log) says commit or abort',
+  [
+    'Commit on their own after a timeout, since everyone voted yes',
+    'Abort on their own after a timeout, since no decision arrived',
+    'Ask each other and commit if a majority of participants agrees',
+  ],
+  'A prepared participant has promised to commit if told to, so it may not abort alone, and it cannot commit alone either, because it does not know the other votes and the coordinator may already have decided to abort. It blocks with its locks held. That is the classic weakness of two-phase commit; replicating the coordinator log with consensus (as Spanner does) removes the single point that blocks.',
+);
+
+const outboxPattern = concept(
+  'An order service writes the order to its database and then publishes an OrderPlaced event to Kafka. Sometimes orders exist with no event. What is the standard fix?',
+  'Write the event to an outbox table in the same database transaction, and let a relay or CDC publish it',
+  [
+    'Publish the event first, then write the order, so the event is never missing',
+    'Retry the publish in the request handler until Kafka acknowledges it',
+    'Wrap the database write and the publish in a distributed transaction with the broker',
+  ],
+  'Two separate writes can never be atomic: a crash between them loses one, whichever comes first. The outbox makes the event part of the same local transaction as the order, and a relay (or change data capture on the table) publishes it at least once, so consumers must deduplicate by event id.',
+);
+
+const sagaCompensations = item('Compensations after a saga step fails', (rand) => {
+  const steps = pick(rand, [4, 5, 6]);
+  const failAt = pick(rand, [2, 3, steps]);
+  const n = (v: number) => `${v} compensation${v === 1 ? '' : 's'}`;
+  return {
+    prompt: `An order saga has ${steps} steps, each a local transaction in a different service. Step ${failAt} fails and its own transaction rolls back. How many compensating actions must run?`,
+    ...withChoices(rand, n(failAt - 1), [n(failAt), n(failAt + 1), n(2 * failAt)]),
+    explain: `Steps 1 to ${failAt - 1} already committed, so each needs its compensation, run in reverse order: ${failAt - 1}. Step ${failAt} rolled back locally, and later steps never ran. Until the compensations finish, other readers can see the half-done order, which is why sagas mark records as pending.`,
+  };
+});
+
+const hotReducer = item('Data on the busiest reducer', (rand) => {
+  const data = pick(rand, [100, 500, 1000]);
+  const reducers = pick(rand, [10, 50, 100]);
+  const hot = pick(rand, [0.1, 0.2, 0.3]);
+  const busiest = data * (hot + (1 - hot) / reducers);
+  const gb = (v: number) => `about ${fmt(Math.round(v))} GB`;
+  return {
+    prompt: `A job shuffles ${fmt(data)} GB to ${reducers} reducers by key. One key holds ${Math.round(hot * 100)}% of the records; the rest spread evenly. How much data does the busiest reducer get?`,
+    ...withChoices(rand, gb(busiest), [gb(data / reducers), gb(busiest * 2), gb(data / 2)]),
+    explain: `All ${Math.round(hot * 100)}% of the hot key lands on one reducer (${fmt(Math.round(data * hot))} GB), plus its even share of the rest, ${fmt(Math.round((data * (1 - hot)) / reducers))} GB: about ${fmt(Math.round(busiest))} GB. The job waits for that reducer, and more reducers cannot split one key; salt the key or aggregate in two stages.`,
+  };
+});
+
+const combinerUse = concept(
+  'Which aggregation can safely use a combiner, pre-aggregating on each mapper before the shuffle?',
+  'A count or sum per key, since partial sums add up to the total',
+  [
+    'A median per key, since each mapper can send its own median',
+    'An average per key, sending each mapper average and averaging those',
+    'Any aggregation, since the combiner runs on the same records as the reducer',
+  ],
+  'A combiner must be associative and commutative so partial results merge correctly: sums, counts, min and max work. An average of averages is wrong when mappers hold different counts (send sum and count instead), and a median cannot be merged from medians at all.',
+);
+
+const idempotentRerun = concept(
+  'A daily job that appends the results for yesterday to a table fails halfway and is rerun. Some rows now appear twice. How should the job write its output?',
+  'Build the day in a staging location and replace the partition for that day in one step',
+  [
+    'Append as before, but add a DISTINCT to every query that reads the table',
+    'Retry each failed row individually until it succeeds',
+    'Run the job with fewer workers so it fails less often',
+  ],
+  'A rerun must produce the same result as one clean run. Writing to staging and then overwriting the date partition atomically (or swapping a table pointer) makes the job idempotent: partial output never becomes visible, and a rerun simply replaces it. It also makes backfills safe.',
+);
+
 export const INFRA_ITEMS = {
   'quorum-overlap': quorumOverlap,
   'quorum-failures': quorumFailures,
@@ -457,4 +525,10 @@ export const INFRA_ITEMS = {
   'bcrypt-cost': bcryptCost,
   'salt-purpose': saltPurpose,
   'object-ownership': objectOwnership,
+  'coordinator-crash': coordinatorCrash,
+  'outbox-pattern': outboxPattern,
+  'saga-compensations': sagaCompensations,
+  'hot-reducer': hotReducer,
+  'combiner-use': combinerUse,
+  'idempotent-rerun': idempotentRerun,
 } satisfies Partial<Record<DesignItemId, DesignItemDefinition>>;
