@@ -1,9 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
-import { BANK_TARGET, getCompetencySummary, reviewStar, storyTitle, type Story } from '@grasp/engine';
+import { BANK_TARGET, dueStories, getCompetencySummary, reviewStar, storyTitle, whenNext, type Story } from '@grasp/engine';
 import { addIcons } from 'ionicons';
-import { add, bulbOutline, chevronForward } from 'ionicons/icons';
+import { add, bulbOutline, chevronForward, micOutline } from 'ionicons/icons';
 import { StoryBankService } from './story-bank.service';
 
 @Component({
@@ -24,7 +24,14 @@ import { StoryBankService } from './story-bank.service';
           Write each real experience once, tag the competencies it answers, and tell it for any of their questions.
           {{ target.min }} to {{ target.max }} stories cover a whole loop.
         </p>
-        <button type="button" class="g-btn primary" (click)="create()"><ion-icon name="add" aria-hidden="true" />New story</button>
+        <div class="actions">
+          <button type="button" class="g-btn primary" (click)="create()"><ion-icon name="add" aria-hidden="true" />New story</button>
+          @if (due()) {
+            <a class="g-btn" routerLink="/behavioral/rehearse"
+              ><ion-icon name="mic-outline" aria-hidden="true" />Rehearse {{ due() }} due</a
+            >
+          }
+        </div>
 
         <section class="coverage" aria-labelledby="coverage-title">
           <h2 id="coverage-title">{{ review().covered }} of {{ review().coverage.length }} competencies have a story</h2>
@@ -61,6 +68,7 @@ import { StoryBankService } from './story-bank.service';
                     <span class="name">{{ s.title }}</span>
                     <span class="tags">{{ s.tags || 'No competencies yet' }}</span>
                     <span class="checks" [class.ok]="s.passing === s.total">{{ s.passing }} of {{ s.total }} checks pass</span>
+                    <span class="when">Rehearse {{ s.when }}</span>
                   </span>
                   <ion-icon name="chevron-forward" aria-hidden="true" />
                 </a>
@@ -173,6 +181,15 @@ import { StoryBankService } from './story-bank.service';
       color: var(--g-muted);
       line-height: 1.45;
     }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .when {
+      font-size: 0.8125rem;
+      color: var(--g-muted);
+    }
     .checks {
       font-size: 0.8125rem;
       color: var(--g-warn-ink);
@@ -191,10 +208,14 @@ export class StoryBankPage {
   readonly target = BANK_TARGET;
   readonly stories = this.bank.stories;
   readonly review = this.bank.review;
-  readonly rows = computed(() => this.stories().map((s) => this.row(s)));
+  readonly rows = computed(() => {
+    const now = new Date();
+    return this.stories().map((s) => this.row(s, now));
+  });
+  readonly due = computed(() => dueStories(this.stories(), new Date()).length);
 
   constructor() {
-    addIcons({ add, bulbOutline, chevronForward });
+    addIcons({ add, bulbOutline, chevronForward, micOutline });
   }
 
   ionViewWillEnter() {
@@ -205,7 +226,7 @@ export class StoryBankPage {
     void this.router.navigate(['/behavioral/stories', this.bank.blank().id]);
   }
 
-  private row(story: Story) {
+  private row(story: Story, now: Date) {
     const checks = reviewStar(story.draft).checks;
     return {
       id: story.id,
@@ -213,6 +234,7 @@ export class StoryBankPage {
       tags: story.competencyIds.map((id) => getCompetencySummary(id)?.name ?? id).join(', '),
       passing: checks.filter((c) => c.ok).length,
       total: checks.length,
+      when: whenNext(story, now),
     };
   }
 }

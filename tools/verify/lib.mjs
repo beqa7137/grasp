@@ -371,6 +371,16 @@ export function states() {
         await p.getByLabel('Title').waitFor();
       },
     },
+    {
+      id: 'behavioral-rehearse',
+      path: '/behavioral/stories',
+      setup: async (p) => {
+        await seedStories(p);
+        await p.getByRole('link', { name: 'Rehearse 1 due' }).click();
+        await p.getByText('Peek at your story').click();
+      },
+    },
+    { id: 'behavioral-rehearse-none', path: '/behavioral/rehearse' },
     { id: 'settings', path: '/settings' },
     { id: 'code-list', path: '/code' },
     { id: 'code-two-sum', path: '/code/two-sum' },
