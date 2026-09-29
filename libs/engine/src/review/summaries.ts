@@ -73,6 +73,12 @@ const DESIGN = [
   { id: 'hot-reducer', topic: 'sd-batch' },
   { id: 'combiner-use', topic: 'sd-batch' },
   { id: 'idempotent-rerun', topic: 'sd-batch' },
+  { id: 'geohash-neighbors', topic: 'sd-geo' },
+  { id: 'geohash-precision', topic: 'sd-geo' },
+  { id: 'hot-cell', topic: 'sd-geo' },
+  { id: 'polling-load', topic: 'sd-realtime' },
+  { id: 'sse-or-websocket', topic: 'sd-realtime' },
+  { id: 'reconnect-storm', topic: 'sd-realtime' },
 ] as const satisfies readonly DesignItemSummary[];
 
 export type DesignItemId = (typeof DESIGN)[number]['id'];

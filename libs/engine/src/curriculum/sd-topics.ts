@@ -109,6 +109,18 @@ export const SD_TOPICS: SdTopic[] = [
     oneLiner: 'Map, shuffle and reduce, skew, and pipelines that rerun safely.',
     scenarioIds: ['write-wall'],
   },
+  {
+    id: 'sd-geo',
+    name: 'Geospatial Indexing',
+    oneLiner: 'Geohashes, quadtrees and finding what is nearby.',
+    scenarioIds: ['viral-feed'],
+  },
+  {
+    id: 'sd-realtime',
+    name: 'Real-Time Delivery',
+    oneLiner: 'Polling, long polling, server-sent events and WebSockets.',
+    scenarioIds: ['viral-feed'],
+  },
 ];
 
 export function getSdTopic(id: string): SdTopic | undefined {

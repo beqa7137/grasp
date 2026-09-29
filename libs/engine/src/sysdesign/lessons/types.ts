@@ -23,7 +23,9 @@ export type SdWidget =
   | 'pagination'
   | 'password-hash'
   | 'transactions'
-  | 'batch-job';
+  | 'batch-job'
+  | 'geohash'
+  | 'delivery';
 
 export interface SdLesson {
   /** Why the topic decides interviews and outages, in two or three sentences. */

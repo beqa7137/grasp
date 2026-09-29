@@ -265,3 +265,31 @@ test('the batch lesson shows one hot key stalling the job and a combiner shrinki
   await expect(readout('Shuffle data')).toHaveText('50 GB');
   await expect(readout('Shuffle')).toHaveText('10 s');
 });
+
+test('the geospatial lesson trades cells read against places read as geohash precision changes', async ({ page }) => {
+  await page.goto('/learn/design/sd-geo');
+  const readout = (label: string) =>
+    page
+      .locator('.readouts div')
+      .filter({ has: page.locator('dt', { hasText: new RegExp(`^${label}$`) }) })
+      .locator('dd');
+  await expect(readout('Cell size')).toHaveText('865 m × 611 m');
+  await expect(readout('Cells read')).toHaveText('48');
+  await page.getByRole('slider', { name: /Geohash precision/ }).fill('5');
+  await expect(readout('Cells read')).toHaveText('6');
+  await expect(readout('Reads wasted')).toHaveText('88%');
+});
+
+test('the real-time lesson shows polling cost and delay against a push connection', async ({ page }) => {
+  await page.goto('/learn/design/sd-realtime');
+  const readout = (label: string) =>
+    page
+      .locator('.readouts div')
+      .filter({ has: page.locator('dt', { hasText: new RegExp(`^${label}$`) }) })
+      .locator('dd');
+  await expect(readout('Requests a second')).toHaveText('200,000');
+  await expect(readout('Average delay')).toHaveText('2.6 s');
+  await page.getByRole('radio', { name: 'WebSocket' }).click();
+  await expect(readout('Requests a second')).toHaveText('0');
+  await expect(readout('Average delay')).toHaveText('50 ms');
+});

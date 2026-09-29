@@ -24,7 +24,9 @@ import { BudgetWidgetComponent } from './budget-widget.component';
 import { CacheWidgetComponent } from './cache-widget.component';
 import { CdnWidgetComponent } from './cdn-widget.component';
 import { CrackWidgetComponent } from './crack-widget.component';
+import { DeliveryWidgetComponent } from './delivery-widget.component';
 import { EstimateDrillComponent } from './estimate-drill.component';
+import { GeoWidgetComponent } from './geo-widget.component';
 import { IdLayoutWidgetComponent } from './id-layout-widget.component';
 import { IndexWidgetComponent } from './index-widget.component';
 import { LatencyWidgetComponent } from './latency-widget.component';
@@ -79,6 +81,8 @@ import { TxnWidgetComponent } from './txn-widget.component';
     CrackWidgetComponent,
     TxnWidgetComponent,
     BatchWidgetComponent,
+    GeoWidgetComponent,
+    DeliveryWidgetComponent,
     EstimateDrillComponent,
   ],
   template: `
@@ -171,6 +175,12 @@ import { TxnWidgetComponent } from './txn-widget.component';
                 }
                 @case ('batch-job') {
                   <app-batch-widget />
+                }
+                @case ('geohash') {
+                  <app-geo-widget />
+                }
+                @case ('delivery') {
+                  <app-delivery-widget />
                 }
                 @case ('estimate-drill') {
                   <app-estimate-drill [drill]="l.widget.drill ?? []" />
