@@ -1,4 +1,4 @@
-export type ComponentKind = 'client' | 'cdn' | 'limiter' | 'lb' | 'app' | 'cache' | 'db' | 'replica' | 'queue' | 'worker';
+export type ComponentKind = 'client' | 'cdn' | 'limiter' | 'lb' | 'app' | 'cache' | 'db' | 'replica' | 'queue' | 'worker' | 'blob';
 
 /** How a sharded database assigns keys to shards. */
 export type ShardKey = 'hash' | 'time' | 'tenant';
@@ -14,6 +14,8 @@ export interface ComponentSpec {
   maxInstances: number;
   writeCost: number;
   hitRate?: number;
+  /** Object stores only: the share of app requests that read or write whole objects. */
+  share?: number;
   connectsTo: ComponentKind[];
 }
 
@@ -25,6 +27,9 @@ export interface DesignNode {
   instances: number;
   failed?: number;
   hitRate?: number;
+  share?: number;
+  /** The role this node plays in a case study, shown in place of the component name. */
+  label?: string;
   /** Databases only: with several instances, each instance is a shard owning part of the keys. */
   shardKey?: ShardKey;
 }

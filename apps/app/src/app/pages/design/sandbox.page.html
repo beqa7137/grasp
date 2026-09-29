@@ -144,7 +144,7 @@
                     <rect class="ring" x="-5" y="-5" [attr.width]="W + 10" [attr.height]="H + 10" rx="16" />
                     <rect class="body" [attr.width]="W" [attr.height]="H" rx="12" />
                     <rect class="stripe" width="4" [attr.height]="H - 20" x="0" y="10" rx="2" />
-                    <text class="kind" x="14" y="22">{{ spec.short }}</text>
+                    <text class="kind" x="14" y="22">{{ n.label ?? spec.short }}</text>
                     @if (n.kind !== 'client') {
                       <text class="inst" [attr.x]="W - 12" y="22" text-anchor="end">×{{ n.instances }}</text>
                     }

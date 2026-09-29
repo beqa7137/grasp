@@ -256,19 +256,24 @@ export function simulate(design: Design, workload: Workload): SimResult {
         break;
       }
       case 'app': {
+        const blobs = ofKind('blob');
+        const objects = blobs.length ? (blobs[0].share ?? COMPONENTS.blob.share ?? 0) : 0;
+        const rest = 1 - objects;
+        forward('read', served.read * objects, blobs, served.read);
+        forward('write', served.write * objects, blobs, served.write);
         const readTargets = ofKind('cache').length ? ofKind('cache') : ofKind('db');
         const writeTargets = ofKind('queue').length ? ofKind('queue') : ofKind('db').length ? ofKind('db') : ofKind('cache');
         if (readTargets.length) {
-          forward('read', served.read, readTargets, served.read);
+          forward('read', served.read * rest, readTargets, served.read);
           forwardBots(readTargets);
         } else {
-          terminate('read', served.read, served.read);
+          terminate('read', served.read * rest, served.read);
           absorbBots();
         }
-        if (writeTargets.length) forward('write', served.write, writeTargets, served.write);
+        if (writeTargets.length) forward('write', served.write * rest, writeTargets, served.write);
         else {
-          terminate('write', served.write, served.write);
-          volatileWrites += served.write;
+          terminate('write', served.write * rest, served.write);
+          volatileWrites += served.write * rest;
         }
         if ((!readTargets.length || !writeTargets.length) && total(f) > 0) {
           insights.push({
@@ -320,8 +325,15 @@ export function simulate(design: Design, workload: Workload): SimResult {
         }
         break;
       }
+      case 'blob':
+        terminate('read', served.read, served.read);
+        terminate('write', served.write, served.write);
+        durableWrites += served.write;
+        absorbed += served.bg;
+        absorbBots();
+        break;
       case 'worker': {
-        const dbs = ofKind('db');
+        const dbs = ofKind('db', 'blob');
         if (dbs.length) {
           const w = weights(dbs);
           dbs.forEach((t, i) => send(node, t, { bg: served.bg * w[i] }));
@@ -728,6 +740,8 @@ function overloadAdvice(kind: ComponentKind, st: NodeStats): string {
       return 'Add workers to drain the queue faster.';
     case 'queue':
       return 'Add queue partitions.';
+    case 'blob':
+      return 'Spread keys over more prefixes (object stores scale per prefix), or put a CDN in front for reads.';
     default:
       return 'Add capacity.';
   }

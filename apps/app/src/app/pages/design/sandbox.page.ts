@@ -519,7 +519,8 @@ export class SandboxPage {
     const nodes = this.design().nodes;
     const node = nodes.find((n) => n.id === id);
     if (!node) return id;
-    const same = nodes.filter((n) => n.kind === node.kind);
+    if (node.label) return node.label;
+    const same = nodes.filter((n) => n.kind === node.kind && !n.label);
     const short = COMPONENTS[node.kind].short;
     return same.length > 1 ? `${short} ${same.indexOf(node) + 1}` : short;
   }

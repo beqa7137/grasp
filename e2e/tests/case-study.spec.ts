@@ -39,3 +39,13 @@ test('a case study is worked stage by stage, resumes where the learner left it, 
   await expect(page.getByText(/design at 40k requests per second/)).toBeVisible();
   await expect(page.locator('g.node[data-kind="cache"]')).toBeVisible();
 });
+
+test('a case build names nodes by their role and stores files in an object store', async ({ page }) => {
+  await page.goto('/design/free-build?case=file-sync');
+  const blocks = page.getByRole('button', { name: /^Block store, Object Store/ });
+  await blocks.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('heading', { name: 'Block store' })).toBeVisible();
+  await expect(page.getByRole('slider', { name: /Object traffic/ })).toHaveValue('50');
+  await expect(page.getByRole('button', { name: /^Metadata API, App Servers/ })).toHaveCount(1);
+});
