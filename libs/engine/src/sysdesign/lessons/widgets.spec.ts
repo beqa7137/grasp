@@ -9,6 +9,8 @@ import {
   invertedIndex,
   chainAvailability,
   crackTime,
+  delivery,
+  geoQuery,
   hashRing,
   moduloOwner,
   partition,
@@ -422,5 +424,37 @@ describe('batch job', () => {
   it('leaves one reducer with the hot key, which more reducers cannot fix', () => {
     expect(batchJob({ ...options, hotKeyShare: 0.2 }).slowestReducerGB).toBeCloseTo(108);
     expect(batchJob({ ...options, hotKeyShare: 0.2, reducers: 200 }).totalSec).toBeCloseTo(1320);
+  });
+});
+
+describe('geo query', () => {
+  const options = { precision: 6, radiusKm: 2, latitude: 45, density: 50 };
+
+  it('reads the cells covering the circle and wastes what falls outside it', () => {
+    const run = geoQuery(options);
+    expect(run.cellHeightKm).toBeCloseTo(0.611, 3);
+    expect(run.cellWidthKm).toBeCloseTo(0.865, 3);
+    expect(run.cells).toBe(48);
+    expect(run.matches).toBeCloseTo(628.3, 1);
+    expect(run.candidates).toBeCloseTo(1269, 0);
+  });
+
+  it('trades cells read against places read as the precision changes', () => {
+    expect(geoQuery({ ...options, precision: 5 })).toMatchObject({ cells: 6 });
+    expect(geoQuery({ ...options, precision: 7 }).cells).toBe(1092);
+    expect(geoQuery({ ...options, latitude: 0 }).cellWidthKm).toBeCloseTo(1.223, 3);
+  });
+});
+
+describe('delivery', () => {
+  const options = { clients: 1_000_000, pollSec: 5, eventsPerMinute: 1 };
+
+  it('costs polling a request per client per interval and half an interval of delay', () => {
+    expect(delivery('polling', options)).toMatchObject({ requestsPerSecond: 200_000, delayMs: 2550, headerMBps: 160 });
+  });
+
+  it('answers long polls once per event or timeout, and pushes over one open connection', () => {
+    expect(delivery('long-polling', options)).toMatchObject({ requestsPerSecond: 50_000, delayMs: 50, openConnections: 1_000_000 });
+    expect(delivery('websocket', options)).toMatchObject({ requestsPerSecond: 0, delayMs: 50, openConnections: 1_000_000 });
   });
 });

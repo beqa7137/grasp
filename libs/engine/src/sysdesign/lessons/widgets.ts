@@ -684,3 +684,81 @@ export function batchJob(options: {
   const reduceSec = Math.max(slowestReducerGB, shuffleGB / workers) / rate;
   return { mapSec, shuffleGB, shuffleSec, slowestReducerGB, reduceSec, totalSec: mapSec + shuffleSec + reduceSec };
 }
+
+export interface GeoQuery {
+  cellWidthKm: number;
+  cellHeightKm: number;
+  /** Geohash cells the query reads to cover the circle. */
+  cells: number;
+  /** Places stored in those cells, all read and then filtered by distance. */
+  candidates: number;
+  /** Places actually within the radius. */
+  matches: number;
+}
+
+/**
+ * A radius search over places spread evenly at `density` per km², indexed by geohash prefix. A geohash of `precision`
+ * characters holds 5 bits per character, alternating longitude and latitude, so cells shrink by 4 or 8 per character
+ * and get narrower toward the poles. The query reads every cell the circle's bounding square touches.
+ */
+export function geoQuery(options: { precision: number; radiusKm: number; latitude: number; density: number }): GeoQuery {
+  const { precision, radiusKm, latitude, density } = options;
+  const bits = 5 * precision;
+  const lonBits = Math.ceil(bits / 2);
+  const latBits = Math.floor(bits / 2);
+  const kmPerDegree = 111.32;
+  const cellHeightKm = (180 / 2 ** latBits) * kmPerDegree;
+  const cellWidthKm = (360 / 2 ** lonBits) * kmPerDegree * Math.cos((latitude * Math.PI) / 180);
+  const across = Math.ceil((2 * radiusKm) / cellWidthKm) + 1;
+  const down = Math.ceil((2 * radiusKm) / cellHeightKm) + 1;
+  const cells = across * down;
+  return {
+    cellWidthKm,
+    cellHeightKm,
+    cells,
+    candidates: cells * cellWidthKm * cellHeightKm * density,
+    matches: Math.PI * radiusKm ** 2 * density,
+  };
+}
+
+export type DeliveryMode = 'polling' | 'long-polling' | 'sse' | 'websocket';
+
+export interface Delivery {
+  /** HTTP requests the servers answer each second. */
+  requestsPerSecond: number;
+  /** Average time from an event happening to the client having it. */
+  delayMs: number;
+  /** Connections held open at once. */
+  openConnections: number;
+  /** Bytes of HTTP headers each second, the overhead of asking. */
+  headerMBps: number;
+}
+
+/**
+ * `clients` each waiting for events that arrive `eventsPerMinute` times a minute. Polling asks every `pollSec`; long
+ * polling holds each request open until an event or a 30 s timeout, then asks again; server-sent events and WebSockets
+ * keep one connection open and push. Every HTTP request carries about 800 bytes of headers; a round trip takes 100 ms.
+ */
+export function delivery(mode: DeliveryMode, options: { clients: number; pollSec: number; eventsPerMinute: number }): Delivery {
+  const { clients, pollSec, eventsPerMinute } = options;
+  const eventsPerSec = eventsPerMinute / 60;
+  const rttMs = 100;
+  const headerBytes = 800;
+  let requestsPerSecond: number;
+  let delayMs: number;
+  let openConnections: number;
+  if (mode === 'polling') {
+    requestsPerSecond = clients / pollSec;
+    delayMs = (pollSec * 1000) / 2 + rttMs / 2;
+    openConnections = requestsPerSecond * (rttMs / 1000);
+  } else if (mode === 'long-polling') {
+    requestsPerSecond = clients * (eventsPerSec + 1 / 30);
+    delayMs = rttMs / 2;
+    openConnections = clients;
+  } else {
+    requestsPerSecond = 0;
+    delayMs = rttMs / 2;
+    openConnections = clients;
+  }
+  return { requestsPerSecond, delayMs, openConnections, headerMBps: (requestsPerSecond * headerBytes) / 1e6 };
+}
