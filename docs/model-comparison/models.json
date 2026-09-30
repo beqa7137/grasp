@@ -1,0 +1,666 @@
+{
+  "startedAt": "2026-09-30T08:11:08.702Z",
+  "finishedAt": "2026-09-30T08:11:16.013Z",
+  "budgetUsd": 3,
+  "spentUsd": 0,
+  "stoppedForBudget": false,
+  "models": [
+    {
+      "model": "anthropic/claude-sonnet-5.5",
+      "scoreFormat": "json_schema",
+      "effort": {
+        "reply": "low",
+        "score": "medium"
+      },
+      "scenarios": [
+        {
+          "scenario": "coding / strong",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "coding / weak",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "design / strong",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "design / weak",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "behavioral / strong senior",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "behavioral / we-heavy",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "behavioral / no metric",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "behavioral / blame",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "behavioral / injection",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        }
+      ],
+      "separation": []
+    },
+    {
+      "model": "google/gemini-3-flash",
+      "scoreFormat": "json_schema",
+      "effort": {
+        "reply": "low",
+        "score": "high"
+      },
+      "scenarios": [
+        {
+          "scenario": "coding / strong",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "coding / weak",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "design / strong",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "design / weak",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "behavioral / strong senior",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "behavioral / we-heavy",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "behavioral / no metric",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "behavioral / blame",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "behavioral / injection",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        }
+      ],
+      "separation": []
+    },
+    {
+      "model": "openai/gpt-oss-120b",
+      "scoreFormat": "json_schema",
+      "effort": {
+        "reply": "low",
+        "score": "medium"
+      },
+      "scenarios": [
+        {
+          "scenario": "coding / strong",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "coding / weak",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "design / strong",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "design / weak",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "behavioral / strong senior",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "behavioral / we-heavy",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "behavioral / no metric",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "behavioral / blame",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "behavioral / injection",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        }
+      ],
+      "separation": []
+    },
+    {
+      "model": "deepseek/deepseek-v4-flash",
+      "scoreFormat": "json_schema",
+      "effort": {
+        "reply": "low",
+        "score": "medium"
+      },
+      "scenarios": [
+        {
+          "scenario": "coding / strong",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "coding / weak",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "design / strong",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "design / weak",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "behavioral / strong senior",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "behavioral / we-heavy",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "behavioral / no metric",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "behavioral / blame",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "behavioral / injection",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        }
+      ],
+      "separation": []
+    },
+    {
+      "model": "anthropic/claude-haiku-4.5",
+      "scoreFormat": "json_schema",
+      "effort": {},
+      "scenarios": [
+        {
+          "scenario": "coding / strong",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "coding / weak",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "design / strong",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "design / weak",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "behavioral / strong senior",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "behavioral / we-heavy",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "behavioral / no metric",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "behavioral / blame",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "behavioral / injection",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        }
+      ],
+      "separation": []
+    },
+    {
+      "model": "alibaba/qwen3.7-plus",
+      "scoreFormat": "text",
+      "effort": {
+        "reply": "low",
+        "score": "medium"
+      },
+      "scenarios": [
+        {
+          "scenario": "coding / strong",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "coding / weak",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "design / strong",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "design / weak",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "behavioral / strong senior",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "behavioral / we-heavy",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "behavioral / no metric",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "behavioral / blame",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        },
+        {
+          "scenario": "behavioral / injection",
+          "checks": [
+            {
+              "name": "completed",
+              "pass": false
+            }
+          ],
+          "billedCostUsd": null,
+          "error": "PermissionDeniedError: 403 {\"error\":{\"message\":\"AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.\",\"type\":\"customer_verification_required\"}}"
+        }
+      ],
+      "separation": []
+    }
+  ]
+}
