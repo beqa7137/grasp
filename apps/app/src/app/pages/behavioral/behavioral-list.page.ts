@@ -1,9 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
-import { COMPETENCY_CATALOG } from '@grasp/engine';
+import { COMPETENCY_CATALOG, dueStories } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import { chatbubblesOutline, chevronForward, libraryOutline } from 'ionicons/icons';
+import { ProgressService } from '../../core/progress.service';
 import { StarDraftsService } from './star-drafts.service';
 import { StoryBankService } from './story-bank.service';
 
@@ -66,6 +67,22 @@ import { StoryBankService } from './story-bank.service';
           </span>
           <ion-icon name="chevron-forward" aria-hidden="true" />
         </a>
+        @if (flagged().length) {
+          <h2 class="list-title">Flagged in interviews</h2>
+          <ul class="list flagged">
+            @for (f of flagged(); track f.id) {
+              <li>
+                <a class="panel item" [routerLink]="['/behavioral', f.id]">
+                  <span class="text">
+                    <span class="name">{{ f.name }}</span>
+                    <span class="one">{{ f.note }}</span>
+                  </span>
+                  <ion-icon name="chevron-forward" aria-hidden="true" />
+                </a>
+              </li>
+            }
+          </ul>
+        }
         <h2 class="list-title">{{ competencies.length }} competencies</h2>
         <ul class="list">
           @for (c of competencies; track c.id) {
@@ -143,6 +160,9 @@ import { StoryBankService } from './story-bank.service';
     .list-title {
       margin-top: 4px;
     }
+    .flagged {
+      margin-bottom: 20px;
+    }
     .list {
       list-style: none;
       margin: 0;
@@ -186,6 +206,24 @@ export class BehavioralListPage {
   readonly competencies = COMPETENCY_CATALOG;
   readonly drafts = inject(StarDraftsService);
   private readonly bank = inject(StoryBankService);
+  private readonly progress = inject(ProgressService);
+  /** Competencies an interview flagged as weak and none has cleared since, with the stories to rehearse for each. */
+  readonly flagged = computed(() => {
+    const now = new Date();
+    const behavioral = this.progress.state().behavioral;
+    return this.competencies
+      .filter((c) => behavioral[c.id]?.weakSince)
+      .map((c) => {
+        const covering = this.bank.tagged(c.id);
+        const due = dueStories(covering, now, behavioral).length;
+        const note = !covering.length
+          ? 'No story covers it yet.'
+          : due
+            ? `${due} ${due === 1 ? 'story' : 'stories'} to rehearse now.`
+            : 'Nothing to rehearse right now.';
+        return { id: c.id, name: c.name, note };
+      });
+  });
   readonly bankSummary = computed(() => {
     const count = this.bank.stories().length;
     const { covered, coverage } = this.bank.review();

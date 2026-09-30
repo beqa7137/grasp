@@ -1,5 +1,5 @@
 import { shuffle, type Rand } from '../review/random.js';
-import { COMPETENCIES } from './competencies.js';
+import { COMPETENCIES, getCompetency } from './competencies.js';
 import { countWords, reviewStar, type StarDraft, type StarReview } from './star-check.js';
 import type { BehavioralQuestion } from './types.js';
 
@@ -39,6 +39,24 @@ export function planMock(rand: Rand): MockQuestion[] {
       const question = c.questions[Math.floor(rand() * c.questions.length)];
       return { question, followUps: shuffle(rand, question.followUps).slice(0, MOCK_FOLLOW_UPS) };
     });
+}
+
+/**
+ * One question, by its id or, for a competency id, one of that competency's at random, with two of its follow-ups;
+ * the three-question mock for an id that names neither.
+ */
+export function planQuestion(rand: Rand, id: string): MockQuestion[] {
+  const pool = getCompetency(id)?.questions ?? COMPETENCIES.flatMap((c) => c.questions).filter((q) => q.id === id);
+  if (!pool.length) return planMock(rand);
+  const question = pool[Math.floor(rand() * pool.length)];
+  return [{ question, followUps: shuffle(rand, question.followUps).slice(0, MOCK_FOLLOW_UPS) }];
+}
+
+/** Another question of the same competency as `questionId`, for a fresh attempt; the competency id when it has no other. */
+export function anotherQuestion(rand: Rand, questionId: string): string {
+  const competency = COMPETENCIES.find((c) => c.questions.some((q) => q.id === questionId));
+  const others = competency?.questions.filter((q) => q.id !== questionId) ?? [];
+  return others.length ? others[Math.floor(rand() * others.length)].id : (competency?.id ?? questionId);
 }
 
 export function debriefMock(plan: readonly MockQuestion[], answers: readonly MockAnswer[]): MockDebrief {

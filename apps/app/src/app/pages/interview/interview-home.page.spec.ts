@@ -181,3 +181,41 @@ describe('InterviewHomePage access choice', () => {
     expect(router.navigate).toHaveBeenCalledExactlyOnceWith(['/interview', 'session']);
   });
 });
+
+describe('InterviewHomePage behavioral track', () => {
+  it('sends scripted practice of a competency to the mock on the device, without a session', async () => {
+    const { page, api, router } = setup('available');
+    await page.ionViewWillEnter();
+    page.track.set('behavioral');
+    await page.start('conflict');
+    await page.start();
+    expect(api.post).not.toHaveBeenCalled();
+    expect(router.navigate.mock.calls).toEqual([
+      [['/behavioral/mock'], { queryParams: { question: 'conflict' } }],
+      [['/behavioral/mock'], {}],
+    ]);
+  });
+
+  it('starts an AI interview on a competency once AI is chosen', async () => {
+    const { page, api, router } = setup('available');
+    await page.ionViewWillEnter();
+    page.track.set('behavioral');
+    expect(page.aiNote()).toContain('including any story you start from');
+    expect(page.aiNote()).not.toContain('code');
+    page.chooseMode('ai');
+    await page.start('conflict');
+    expect(api.post).toHaveBeenCalledExactlyOnceWith('/interview/sessions', { track: 'behavioral', problemId: 'conflict', mode: 'ai' });
+    expect(router.navigate).toHaveBeenCalledExactlyOnceWith(['/interview', 'session']);
+  });
+
+  it('opens sign-in instead of starting an AI interview for a guest', async () => {
+    const { page, api, router } = setup('sign-in-required');
+    await page.ionViewWillEnter();
+    page.track.set('behavioral');
+    page.mode.set('ai');
+    await page.start('conflict');
+    expect(page.signInOpen()).toBe(true);
+    expect(api.post).not.toHaveBeenCalled();
+    expect(router.navigate).not.toHaveBeenCalled();
+  });
+});

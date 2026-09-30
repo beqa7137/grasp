@@ -68,6 +68,18 @@ describe('StoryBankService', () => {
     vi.useRealTimers();
   });
 
+  it('keeps an interview answer as a story tagged with its competency and titled by its first sentence', async () => {
+    const { bank } = setup([], false);
+    await bank.load();
+    const answer = { ...EMPTY_STAR_DRAFT, situation: 'Our export failed for a week! Finance noticed.', action: 'I fixed it.' };
+    await bank.saveAnswer(answer, 'ownership', 'Ownership');
+    await bank.saveAnswer({ ...EMPTY_STAR_DRAFT, action: 'I fixed it.' }, 'conflict', 'Tell me about a disagreement.');
+    expect(stored().map((s) => [s.title, s.competencyIds, s.draft.action])).toEqual([
+      ['Our export failed for a week!', ['ownership'], 'I fixed it.'],
+      ['Tell me about a disagreement.', ['conflict'], 'I fixed it.'],
+    ]);
+  });
+
   it('keeps an anonymous bank on the device only, loads stories saved before sync, and deletes without tombstones', async () => {
     localStorage.setItem(
       BANK_KEY,

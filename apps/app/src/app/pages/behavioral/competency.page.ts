@@ -13,6 +13,7 @@ import {
   sparklesOutline,
 } from 'ionicons/icons';
 import { RovingSelectDirective } from '../../core/roving-select.directive';
+import { AiInterviewEntryComponent } from './ai-interview-entry.component';
 import { ExampleAnswerComponent } from './example-answer.component';
 import { SpotFlawsComponent } from './spot-flaws.component';
 import { StarDraftsService } from './star-drafts.service';
@@ -36,6 +37,7 @@ const LEVELS: { level: Seniority; label: string }[] = [
     IonTitle,
     IonContent,
     IonIcon,
+    AiInterviewEntryComponent,
     ExampleAnswerComponent,
     SpotFlawsComponent,
   ],
@@ -103,6 +105,8 @@ const LEVELS: { level: Seniority; label: string }[] = [
               </section>
             }
           }
+
+          <app-ai-interview-entry [problemId]="c.id" />
 
           <h2 class="list-title">Questions to practice</h2>
           <ul class="questions">

@@ -1,9 +1,19 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
-import { BANK_TARGET, dueStories, getCompetencySummary, reviewStar, storyTitle, whenNext, type Story } from '@grasp/engine';
+import {
+  BANK_TARGET,
+  dueStories,
+  getCompetencySummary,
+  reviewStar,
+  storyTitle,
+  whenNext,
+  type FlaggedCompetencies,
+  type Story,
+} from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import { add, bulbOutline, chevronForward, micOutline } from 'ionicons/icons';
+import { ProgressService } from '../../core/progress.service';
 import { STORY_SYNC_NOTES, StoryBankService } from './story-bank.service';
 
 @Component({
@@ -208,6 +218,7 @@ import { STORY_SYNC_NOTES, StoryBankService } from './story-bank.service';
 export class StoryBankPage {
   private readonly bank = inject(StoryBankService);
   private readonly router = inject(Router);
+  private readonly progress = inject(ProgressService);
   readonly target = BANK_TARGET;
   readonly stories = this.bank.stories;
   readonly review = this.bank.review;
@@ -215,9 +226,10 @@ export class StoryBankPage {
   readonly refusals = computed(() => this.bank.refusals().map(({ story, reason }) => ({ id: story.id, title: storyTitle(story), reason })));
   readonly rows = computed(() => {
     const now = new Date();
-    return this.stories().map((s) => this.row(s, now));
+    const flagged = this.progress.state().behavioral;
+    return this.stories().map((s) => this.row(s, now, flagged));
   });
-  readonly due = computed(() => dueStories(this.stories(), new Date()).length);
+  readonly due = computed(() => dueStories(this.stories(), new Date(), this.progress.state().behavioral).length);
 
   constructor() {
     addIcons({ add, bulbOutline, chevronForward, micOutline });
@@ -231,7 +243,7 @@ export class StoryBankPage {
     void this.router.navigate(['/behavioral/stories', this.bank.blank().id]);
   }
 
-  private row(story: Story, now: Date) {
+  private row(story: Story, now: Date, flagged: FlaggedCompetencies) {
     const checks = reviewStar(story.draft).checks;
     return {
       id: story.id,
@@ -239,7 +251,7 @@ export class StoryBankPage {
       tags: story.competencyIds.map((id) => getCompetencySummary(id)?.name ?? id).join(', '),
       passing: checks.filter((c) => c.ok).length,
       total: checks.length,
-      when: whenNext(story, now),
+      when: whenNext(story, now, flagged),
     };
   }
 }

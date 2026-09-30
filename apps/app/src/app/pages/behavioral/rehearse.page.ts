@@ -1,28 +1,14 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injector, computed, inject, signal, viewChild } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
-import {
-  dueStories,
-  formatClock,
-  getCompetencySummary,
-  rehearsalQuestion,
-  storyTitle,
-  whenNext,
-  type StarPart,
-  type Story,
-} from '@grasp/engine';
+import { dueStories, formatClock, getCompetencySummary, rehearsalQuestion, storyTitle, whenNext, type Story } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import { checkmarkCircle, playOutline, refreshOutline, stopOutline } from 'ionicons/icons';
 import { refocusAfterRender } from '../../core/focus';
+import { ProgressService } from '../../core/progress.service';
+import { STAR_PARTS } from './star-parts';
 import { StoryBankService } from './story-bank.service';
 
-const OUTLINE: readonly { part: StarPart; label: string }[] = [
-  { part: 'situation', label: 'Situation' },
-  { part: 'task', label: 'Task' },
-  { part: 'action', label: 'Action' },
-  { part: 'result', label: 'Result' },
-  { part: 'reflection', label: 'Reflection' },
-];
 const MIN_SECONDS = 90;
 const MAX_SECONDS = 180;
 
@@ -181,10 +167,11 @@ const MAX_SECONDS = 180;
 })
 export class RehearsePage {
   private readonly bank = inject(StoryBankService);
+  private readonly progress = inject(ProgressService);
   private readonly injector = inject(Injector);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly heading = viewChild<ElementRef<HTMLElement>>('heading');
-  readonly outline = OUTLINE;
+  readonly outline = STAR_PARTS;
   readonly title = storyTitle;
   readonly loaded = signal(false);
   readonly queue = signal<readonly string[]>([]);
@@ -217,7 +204,7 @@ export class RehearsePage {
       .stories()
       .filter((s) => s.rehearsal && s.competencyIds.length)
       .sort((a, b) => a.rehearsal!.due.localeCompare(b.rehearsal!.due))[0];
-    return upcoming ? { title: storyTitle(upcoming), when: whenNext(upcoming, now) } : null;
+    return upcoming ? { title: storyTitle(upcoming), when: whenNext(upcoming, now, this.progress.state().behavioral) } : null;
   });
 
   constructor() {
@@ -227,7 +214,7 @@ export class RehearsePage {
 
   async ionViewWillEnter() {
     await this.bank.load();
-    this.queue.set(dueStories(this.bank.stories(), new Date()).map((s) => s.id));
+    this.queue.set(dueStories(this.bank.stories(), new Date(), this.progress.state().behavioral).map((s) => s.id));
     this.index.set(0);
     this.graded.set(0);
     this.reset();

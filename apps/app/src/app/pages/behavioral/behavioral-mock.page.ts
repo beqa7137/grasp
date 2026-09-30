@@ -1,15 +1,26 @@
-import { ChangeDetectionStrategy, Component, ElementRef, Injector, computed, inject, signal, viewChild } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  Injector,
+  computed,
+  inject,
+  input,
+  linkedSignal,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
 import {
   EMPTY_STAR_DRAFT,
-  STORY_LIMITS,
   debriefMock,
   formatClock,
   getCompetencySummary,
   isEmptyDraft,
   newSeed,
   planMock,
+  planQuestion,
   seeded,
   type MockAnswer,
   type StarDraft,
@@ -22,12 +33,6 @@ import { StarEditorComponent } from './star-editor.component';
 import { StoryBankService } from './story-bank.service';
 
 type Turn = { question: number; followUp: number | null };
-
-const firstSentence = (text: string) =>
-  text
-    .trim()
-    .split(/(?<=[.!?])\s/)[0]
-    .slice(0, 80);
 
 @Component({
   selector: 'app-behavioral-mock',
@@ -70,7 +75,7 @@ const firstSentence = (text: string) =>
           </button>
         } @else if (debrief(); as d) {
           <h1 tabindex="-1" #heading>Debrief</h1>
-          <p class="score">{{ d.passing }} of {{ d.total }} checks pass across three answers and their follow-ups.</p>
+          <p class="score">{{ d.passing }} of {{ d.total }} checks pass across {{ scope() }}.</p>
           @if (d.focus) {
             <p class="panel focus"><b>Fix first:</b> {{ d.focus }}</p>
           }
@@ -197,11 +202,21 @@ export class BehavioralMockPage {
   private readonly heading = viewChild<ElementRef<HTMLElement>>('heading');
   private readonly content = viewChild(IonContent);
 
-  readonly plan = signal(planMock(seeded(newSeed())));
-  readonly answers = signal<MockAnswer[]>(this.blankAnswers());
-  readonly step = signal(0);
+  /** A question id, or a competency id for one of its questions, to practise alone instead of the three-question mock. */
+  readonly question = input<string>();
+  private readonly seed = signal(newSeed());
+  readonly plan = computed(() => {
+    const rand = seeded(this.seed());
+    const id = this.question();
+    return id ? planQuestion(rand, id) : planMock(rand);
+  });
+  readonly answers = linkedSignal<MockAnswer[]>(() =>
+    this.plan().map(() => ({ answer: { ...EMPTY_STAR_DRAFT } as StarDraft, followUps: [] })),
+  );
+  readonly scope = computed(() => (this.plan().length === 1 ? 'your answer and its follow-ups' : 'three answers and their follow-ups'));
+  readonly step = linkedSignal({ source: this.plan, computation: () => 0 });
   readonly clock = formatClock;
-  readonly saved = signal<ReadonlySet<number>>(new Set());
+  readonly saved = linkedSignal({ source: this.plan, computation: (): ReadonlySet<number> => new Set() });
 
   private readonly turns = computed<Turn[]>(() =>
     this.plan().flatMap((q, question) => [{ question, followUp: null }, ...q.followUps.map((_, followUp) => ({ question, followUp }))]),
@@ -250,27 +265,16 @@ export class BehavioralMockPage {
     const { answer } = this.answers()[index];
     const question = this.plan()[index].question;
     this.saved.update((s) => new Set(s).add(index));
-    await this.bank.save(this.bank.blank().id, {
-      title: (firstSentence(answer.situation) || question.prompt).slice(0, STORY_LIMITS.title),
-      competencyIds: [question.competencyId],
-      draft: answer,
-    });
+    await this.bank.saveAnswer(answer, question.competencyId, question.prompt);
   }
 
   restart() {
-    this.plan.set(planMock(seeded(newSeed())));
-    this.answers.set(this.blankAnswers());
-    this.saved.set(new Set());
-    this.step.set(0);
+    this.seed.set(newSeed());
     this.focusHeading();
   }
 
   private update(question: number, change: (answer: MockAnswer) => MockAnswer) {
     this.answers.update((all) => all.map((a, i) => (i === question ? change(a) : a)));
-  }
-
-  private blankAnswers(): MockAnswer[] {
-    return this.plan().map(() => ({ answer: { ...EMPTY_STAR_DRAFT } as StarDraft, followUps: [] }));
   }
 
   private focusHeading() {

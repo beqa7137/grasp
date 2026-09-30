@@ -8,6 +8,10 @@ import { codeSlashOutline, gitNetworkOutline, peopleOutline, shuffle, sparkles }
 import { ApiError, ApiService } from '../../core/api.service';
 import { SignInOptionsComponent } from '../../core/sign-in-options.component';
 import type { AiAccess, InterviewCatalog, InterviewMode, InterviewSession, InterviewTrack, ProblemSummary } from './interview.types';
+import { needsSignIn, startInterview } from './start-interview';
+
+const AI_NOTE = 'AI follow-ups and AI feedback. Your replies and shared code are sent to the AI service.';
+const AI_BEHAVIORAL_NOTE = 'AI follow-ups and AI feedback. Your answers, including any story you start from, are sent to the AI service.';
 
 @Component({
   selector: 'app-interview-home',
@@ -39,11 +43,7 @@ import type { AiAccess, InterviewCatalog, InterviewMode, InterviewSession, Inter
           </button>
         </div>
         <p class="muted mode-description">
-          {{
-            mode() === 'ai'
-              ? 'AI follow-ups and AI feedback. Your replies and shared code are sent to the AI service.'
-              : 'Guided prompts and a practice estimate. No AI or sign-in needed.'
-          }}
+          {{ mode() === 'ai' ? aiNote() : 'Guided prompts and a practice estimate. No AI or sign-in needed.' }}
         </p>
         @if (aiAccess() === 'unavailable') {
           <p class="muted">AI interviews aren't available on this server. You can use scripted practice.</p>
@@ -85,6 +85,21 @@ import type { AiAccess, InterviewCatalog, InterviewMode, InterviewSession, Inter
         </div>
 
         <div class="problems">
+          @if (track() === 'behavioral') {
+            @for (c of competencies; track c.id) {
+              <button class="panel card-link problem" [disabled]="pending()" (click)="start(c.id)">
+                <span>
+                  <span class="title display">{{ c.name }}</span>
+                  <span class="muted one-liner">{{ c.oneLiner }}</span>
+                </span>
+                @if (starting() === c.id) {
+                  <ion-spinner name="crescent" />
+                } @else {
+                  <span class="go">Start →</span>
+                }
+              </button>
+            }
+          }
           @for (p of visible(); track p.id) {
             <button class="panel card-link problem" [disabled]="pending()" (click)="start(p.id)">
               <span>
@@ -102,7 +117,7 @@ import type { AiAccess, InterviewCatalog, InterviewMode, InterviewSession, Inter
               }
             </button>
           }
-          <button class="g-btn surprise" [disabled]="pending() || !visible().length" (click)="start()">
+          <button class="g-btn surprise" [disabled]="pending() || (track() !== 'behavioral' && !visible().length)" (click)="start()">
             <ion-icon name="shuffle" aria-hidden="true" />Surprise me
           </button>
         </div>
@@ -110,10 +125,10 @@ import type { AiAccess, InterviewCatalog, InterviewMode, InterviewSession, Inter
         <a class="panel card-link behavioral" routerLink="/behavioral">
           <ion-icon name="people-outline" aria-hidden="true" />
           <span>
-            <span class="title display">Behavioral</span>
+            <span class="title display">Guides, story bank and rehearsal</span>
             <span class="muted blurb">{{ behavioralBlurb }}</span>
           </span>
-          <span class="go">Practice →</span>
+          <span class="go">Open →</span>
         </a>
 
         @if (recent().length) {
@@ -258,6 +273,11 @@ import type { AiAccess, InterviewCatalog, InterviewMode, InterviewSession, Inter
         margin: 0 0 6px;
         font-size: 1rem;
       }
+      .one-liner {
+        display: block;
+        font-size: 0.875rem;
+        line-height: 1.45;
+      }
       .chips {
         display: flex;
         gap: 6px;
@@ -318,7 +338,7 @@ export class InterviewHomePage {
   private readonly api = inject(ApiService);
   private readonly router = inject(Router);
 
-  readonly behavioralBlurb = `STAR answers with a live check, across ${COMPETENCY_CATALOG.length} competencies interviewers score.`;
+  readonly behavioralBlurb = `Worked answers for ${COMPETENCY_CATALOG.length} competencies, your story bank, rehearsal and the three-question mock.`;
   readonly tracks = [
     {
       id: 'coding' as const,
@@ -332,7 +352,14 @@ export class InterviewHomePage {
       blurb: 'Requirements, estimates, architecture, deep dives and trade-offs.',
       icon: 'git-network-outline',
     },
+    {
+      id: 'behavioral' as const,
+      title: 'Behavioral',
+      blurb: 'One question, your STAR answer, then the follow-ups a bar raiser asks.',
+      icon: 'people-outline',
+    },
   ];
+  readonly competencies = COMPETENCY_CATALOG;
 
   readonly track = signal<InterviewTrack>('coding');
   readonly problems = signal<ProblemSummary[]>([]);
@@ -346,7 +373,8 @@ export class InterviewHomePage {
   readonly checkingAccess = signal(false);
   readonly accessCheckFailed = signal(false);
   readonly pending = computed(() => !!this.starting() || this.signInOpen() || this.checkingAccess());
-  readonly visible = computed(() => this.problems().filter((p) => p.track === this.track()));
+  readonly visible = computed(() => (this.track() === 'behavioral' ? [] : this.problems().filter((p) => p.track === this.track())));
+  readonly aiNote = computed(() => (this.track() === 'behavioral' ? AI_BEHAVIORAL_NOTE : AI_NOTE));
 
   constructor() {
     addIcons({ codeSlashOutline, gitNetworkOutline, peopleOutline, shuffle, sparkles });
@@ -409,10 +437,13 @@ export class InterviewHomePage {
       this.chooseMode('ai');
       return;
     }
+    if (this.track() === 'behavioral' && this.mode() === 'offline') {
+      await this.router.navigate(['/behavioral/mock'], problemId ? { queryParams: { question: problemId } } : {});
+      return;
+    }
     this.starting.set(problemId ?? 'random');
     try {
-      const session = await this.api.post<InterviewSession>('/interview/sessions', { track: this.track(), problemId, mode: this.mode() });
-      await this.router.navigate(['/interview', session.id]);
+      await startInterview(this.api, this.router, { track: this.track(), problemId, mode: this.mode() });
     } catch (e) {
       this.handleError(e, 'Could not start the interview.');
     } finally {
@@ -422,11 +453,7 @@ export class InterviewHomePage {
 
   private handleError(error: unknown, fallback: string) {
     this.error.set(error instanceof ApiError ? error.message : fallback);
-    if (
-      error instanceof ApiError &&
-      (error.code === 'ai_sign_in_required' ||
-        (error.status === 401 && (error.code === 'token_invalid' || error.code === 'sign_in_required')))
-    ) {
+    if (needsSignIn(error)) {
       this.accessCheckFailed.set(false);
       this.aiAccess.set('sign-in-required');
       this.signInOpen.set(true);

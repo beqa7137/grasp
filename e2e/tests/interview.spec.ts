@@ -50,10 +50,11 @@ test('a mock interview runs to a scorecard', async ({ page }) => {
   await sync;
 });
 
-test('the interview list shows both tracks', { tag: '@smoke' }, async ({ page }) => {
+test('the interview list shows all three tracks', { tag: '@smoke' }, async ({ page }) => {
   await page.goto('/interview');
   await expect(page.getByRole('button', { name: /^Coding/ })).toBeVisible();
   await expect(page.getByRole('button', { name: /^System design/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Behavioral/ })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Surprise me' })).toBeVisible();
 });
 

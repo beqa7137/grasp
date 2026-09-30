@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { starFlaws } from './flaws.js';
-import { countWords, reviewStar, type StarDraft } from './star-check.js';
+import { STAR_ANSWER_LIMIT, countWords, reviewStar, starLength, type StarDraft } from './star-check.js';
 
 const words = (n: number, word = 'detail') => Array.from({ length: n }, () => word).join(' ');
 
@@ -81,5 +81,13 @@ describe('countWords', () => {
   it('counts words, numbers and contractions, not punctuation', () => {
     expect(countWords("I didn't ship v2 until 3 p.m. - on time.")).toBe(10);
     expect(countWords('   ')).toBe(0);
+  });
+});
+
+describe('STAR answer length', () => {
+  it('counts every character of the five parts against the limit', () => {
+    const draft: StarDraft = { situation: 'ab', task: 'c', action: ' d ', result: '', reflection: 'e' };
+    expect(starLength(draft)).toBe(7);
+    expect(STAR_ANSWER_LIMIT).toBe(12_000);
   });
 });

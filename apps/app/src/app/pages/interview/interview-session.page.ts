@@ -16,7 +16,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { IonBackButton, IonButtons, IonContent, IonFooter, IonHeader, IonIcon, IonSpinner, IonTitle, IonToolbar } from '@ionic/angular';
 import { Preferences } from '@capacitor/preferences';
-import { LANGUAGES, getPatternSummary, itemsForTopic, type Language } from '@grasp/engine';
+import { EMPTY_STAR_DRAFT, LANGUAGES, getPatternSummary, itemsForTopic, type Language, type StarDraft } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import { arrowUp, bulbOutline, codeSlashOutline, flagOutline, ribbonOutline } from 'ionicons/icons';
 import { CodeEditorComponent } from '../../code/code-editor.component';
@@ -26,9 +26,23 @@ import { AnnouncerService } from '../../core/announcer.service';
 import { refocusAfterRender } from '../../core/focus';
 import { ProgressService } from '../../core/progress.service';
 import { SignInOptionsComponent } from '../../core/sign-in-options.component';
-import type { CodeSnapshot, InterviewMessage, InterviewMode, InterviewSession } from './interview.types';
+import { BehavioralAnswerComponent } from './behavioral-answer.component';
+import { BehavioralScorecardComponent } from './behavioral-scorecard.component';
+import {
+  BEHAVIORAL_FOLLOW_UPS,
+  type CodeSnapshot,
+  type InterviewMessage,
+  type InterviewMode,
+  type InterviewSession,
+  type InterviewTrack,
+} from './interview.types';
+import { needsSignIn } from './start-interview';
+import { StarAnswerComponent } from './star-answer.component';
 
 const SCORING_TIMEOUT_MS = 290_000;
+const TRACK_LABELS: Record<InterviewTrack, string> = { coding: 'Coding', 'system-design': 'System design', behavioral: 'Behavioral' };
+const AI_NOTICE = 'Your replies and shared code are sent to the AI service.';
+const BEHAVIORAL_AI_NOTICE = 'Your answers, including any story you start from, are sent to the AI service.';
 
 @Component({
   selector: 'app-interview-session',
@@ -48,6 +62,9 @@ const SCORING_TIMEOUT_MS = 290_000;
     CodeEditorComponent,
     LanguagePickerComponent,
     SignInOptionsComponent,
+    BehavioralAnswerComponent,
+    BehavioralScorecardComponent,
+    StarAnswerComponent,
   ],
   providers: [AnnouncerService],
   templateUrl: './interview-session.page.html',
@@ -59,6 +76,8 @@ export class InterviewSessionPage {
   private readonly progress = inject(ProgressService);
   private readonly content = viewChild(IonContent);
   private readonly composer = viewChild<ElementRef<HTMLTextAreaElement>>('composer');
+  private readonly endButton = viewChild<ElementRef<HTMLButtonElement>>('endButton');
+  private readonly answerForm = viewChild(BehavioralAnswerComponent);
   private readonly signInHeading = viewChild<ElementRef<HTMLHeadingElement>>('signInHeading');
   private readonly injector = inject(Injector);
   readonly announcer = inject(AnnouncerService);
@@ -79,6 +98,10 @@ export class InterviewSessionPage {
   private abort: AbortController | null = null;
 
   readonly languageLabels = LANGUAGE_LABELS;
+  readonly trackLabels = TRACK_LABELS;
+  readonly followUps = BEHAVIORAL_FOLLOW_UPS;
+  readonly starDraft = signal<StarDraft>({ ...EMPTY_STAR_DRAFT });
+  readonly answerFromStory = signal(false);
   readonly codeOpen = signal(false);
   readonly codeLanguage = signal<Language>('python');
   readonly code = signal('');
@@ -96,6 +119,11 @@ export class InterviewSessionPage {
   });
   readonly candidateTurns = computed(() => this.messages().filter((m) => m.role === 'candidate').length);
   readonly active = computed(() => this.session()?.status === 'active');
+  readonly behavioral = computed(() => this.session()?.track === 'behavioral');
+  readonly aiNotice = computed(() => (this.behavioral() ? BEHAVIORAL_AI_NOTICE : AI_NOTICE));
+  /** The STAR answer opens a behavioral interview; the chat composer takes the follow-ups after it. */
+  readonly answering = computed(() => this.behavioral() && this.candidateTurns() === 0);
+  readonly closed = computed(() => this.behavioral() && this.candidateTurns() > BEHAVIORAL_FOLLOW_UPS);
   readonly scheduledItems = computed(() =>
     (this.session()?.scorecard?.weakPatterns ?? []).reduce((n, p) => n + itemsForTopic(p).length, 0),
   );
@@ -112,7 +140,7 @@ export class InterviewSessionPage {
     effect(() => {
       this.messages();
       this.streaming();
-      if (this.signInOpen()) return;
+      if (this.signInOpen() || this.answering()) return;
       queueMicrotask(() => {
         if (!this.signInOpen()) void this.content()?.scrollToBottom();
       });
@@ -150,38 +178,67 @@ export class InterviewSessionPage {
     const draft = this.draft();
     const content = draft.trim();
     const code = this.codeChanged() ? { language: this.codeLanguage(), source: this.code() } : undefined;
-    if (!s || !this.active() || this.pending() || (!hint && !content && !code) || !this.canUseInterviewer()) return;
+    if (!s || !this.active() || this.pending() || this.closed() || (!hint && !content && !code) || !this.canUseInterviewer()) return;
+    this.draft.set('');
+    // The Send and Hint buttons are disabled while the interviewer replies, which would drop focus to the page.
+    this.refocusComposer();
+    const sent = await this.converse(
+      s,
+      {
+        role: 'candidate',
+        content: content || (hint ? 'Could I get a hint?' : 'Here is my code.'),
+        at: new Date().toISOString(),
+        hint,
+        ...(code ? { code } : {}),
+      },
+      { content, hint, ...(code ? { code } : {}) },
+    );
+    if (!sent) this.draft.set(draft);
+    else if (code) this.sharedCode.set(code);
+    // The answer to the last follow-up closes the composer, and End & score comes back once the reply has.
+    this.refocusComposer();
+  }
+
+  private refocusComposer() {
+    refocusAfterRender(this.injector, () => (this.closed() ? this.endButton() : this.composer())?.nativeElement);
+  }
+
+  /** Gives the STAR answer that opens a behavioral interview; nothing of it leaves the device before this. */
+  async giveAnswer() {
+    const s = this.session();
+    const star = this.starDraft();
+    if (!s || !this.answering() || this.pending() || !this.canUseInterviewer()) return;
+    // Giving the answer replaces its form with the chat composer, taking the focused button with it.
+    refocusAfterRender(this.injector, () => this.composer()?.nativeElement);
+    if (await this.converse(s, { role: 'candidate', content: '', at: new Date().toISOString(), star }, { star })) {
+      this.starDraft.set({ ...EMPTY_STAR_DRAFT });
+    } else {
+      refocusAfterRender(this.injector, () => this.answerForm()?.focusTarget());
+    }
+  }
+
+  private async converse(s: InterviewSession, candidate: InterviewMessage, body: object): Promise<boolean> {
     this.busy.set(true);
     this.error.set(null);
-    this.pendingCandidate.set({
-      role: 'candidate',
-      content: content || (hint ? 'Could I get a hint?' : 'Here is my code.'),
-      at: new Date().toISOString(),
-      hint,
-      ...(code ? { code } : {}),
-    });
-    this.draft.set('');
+    this.pendingCandidate.set(candidate);
     this.streaming.set('');
-    // The Send and Hint buttons are disabled while the interviewer replies, which would drop focus to the page.
-    refocusAfterRender(this.injector, () => this.composer()?.nativeElement);
     this.abort = new AbortController();
     try {
       const done = await this.api.stream<{ message: InterviewMessage }>(
         `/interview/sessions/${s.id}/messages`,
-        { content, hint, ...(code ? { code } : {}) },
+        body,
         { delta: (t) => this.streaming.update((v) => (v ?? '') + t) },
         this.abort.signal,
       );
-      const candidate = this.pendingCandidate()!;
-      if (code) this.sharedCode.set(code);
       this.session.update((cur) =>
-        cur ? { ...cur, hintsUsed: cur.hintsUsed + (hint ? 1 : 0), messages: [...cur.messages, candidate, done.message] } : cur,
+        cur ? { ...cur, hintsUsed: cur.hintsUsed + (candidate.hint ? 1 : 0), messages: [...cur.messages, candidate, done.message] } : cur,
       );
       // The interviewer's reply, for screen readers: the chat itself is not a live region.
       this.announcer.announce(`Interviewer: ${done.message.content}`);
+      return true;
     } catch (e) {
-      this.draft.set(draft);
       this.handleError(e, 'The interviewer did not respond. Try again.');
+      return false;
     } finally {
       this.pendingCandidate.set(null);
       this.streaming.set(null);
@@ -206,6 +263,9 @@ export class InterviewSessionPage {
           track: scored.track,
           verdict: scored.scorecard.verdict,
           weakPatterns: scored.scorecard.weakPatterns,
+          ...(scored.track === 'behavioral'
+            ? { competencyId: scored.problem.competencyId, weakCompetencies: scored.scorecard.weakCompetencies ?? [] }
+            : {}),
         });
       }
     } catch (e) {
@@ -293,10 +353,7 @@ export class InterviewSessionPage {
   private handleError(error: unknown, fallback: string) {
     this.error.set(error instanceof ApiError ? error.message : fallback);
     if (!(error instanceof ApiError)) return;
-    if (
-      error.code === 'ai_sign_in_required' ||
-      (error.status === 401 && (error.code === 'token_invalid' || error.code === 'sign_in_required'))
-    ) {
+    if (needsSignIn(error)) {
       this.accessCheckFailed.set(false);
       this.session.update((session) => (session ? { ...session, aiAccess: 'sign-in-required' } : session));
       this.openSignIn();

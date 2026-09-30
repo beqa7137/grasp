@@ -10,7 +10,7 @@ const STORY = {
 
 test('a behavioral answer is checked as it is written, kept on this device, and erased with the learner data', async ({ page }) => {
   await page.goto('/interview');
-  await page.getByRole('link', { name: /Behavioral/ }).click();
+  await page.getByRole('link', { name: /Guides, story bank and rehearsal/ }).click();
   await expect(page.getByRole('heading', { name: 'Behavioral interviews' })).toBeVisible();
   await page.getByRole('link', { name: /^Ownership/ }).click();
   await expect(page.getByRole('heading', { name: 'Ownership', level: 1 })).toBeVisible();
