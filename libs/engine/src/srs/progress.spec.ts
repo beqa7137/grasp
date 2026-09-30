@@ -111,6 +111,64 @@ describe('progress reducer', () => {
     expect(reviewed.boosts['rec:ms3']).toBeDefined();
   });
 
+  describe('behavioral interviews', () => {
+    const behavioral = (atMs: number, competencyId: string, weakCompetencies: string[], verdict = 'lean-no-hire'): StoredEvent => ({
+      id: id(),
+      at: iso(atMs),
+      type: 'interview.scored',
+      sessionId: `s-${atMs}`,
+      track: 'behavioral',
+      verdict,
+      weakPatterns: [],
+      competencyId,
+      weakCompetencies,
+    });
+
+    it('flags the asked competency as weak until a later interview on it does not', () => {
+      const flagged = replay([behavioral(t0, 'conflict', ['conflict'])]);
+      expect(flagged.behavioral['conflict']).toEqual({ lastAt: iso(t0), verdict: 'lean-no-hire', weakSince: iso(t0) });
+      const still = replay([behavioral(t0 + DAY, 'conflict', ['conflict'], 'no-hire')], flagged);
+      expect(still.behavioral['conflict']).toEqual({ lastAt: iso(t0 + DAY), verdict: 'no-hire', weakSince: iso(t0) });
+      const cleared = replay([behavioral(t0 + 2 * DAY, 'conflict', [], 'hire')], still);
+      expect(cleared.behavioral['conflict']).toEqual({ lastAt: iso(t0 + 2 * DAY), verdict: 'hire', weakSince: null });
+      expect(cleared.interviews).toEqual({ total: 3, lastVerdict: 'hire' });
+    });
+
+    it('flags other weak competencies without recording them as asked, and ignores ids the catalog does not have', () => {
+      const s = replay([behavioral(t0, 'conflict', ['ownership', 'not-a-competency']), behavioral(t0 + DAY, 'delivery', ['ownership'])]);
+      expect(s.behavioral['ownership']).toEqual({ lastAt: null, verdict: null, weakSince: iso(t0) });
+      expect(s.behavioral['conflict']).toMatchObject({ weakSince: null });
+      expect(s.behavioral).not.toHaveProperty('not-a-competency');
+      const unknown = replay([behavioral(t0, 'not-a-competency', ['not-a-competency'])]);
+      expect(unknown.behavioral).toEqual({});
+    });
+
+    it('reaches the same state whatever order the events arrive in, and leaves pattern cards alone', () => {
+      const events = [
+        graded('rec:ms1', t0),
+        behavioral(t0 + DAY, 'conflict', ['conflict', 'ownership']),
+        behavioral(t0 + 2 * DAY, 'ownership', []),
+        behavioral(t0 + 3 * DAY, 'conflict', ['conflict']),
+      ];
+      const s = replay(events);
+      expect(replay([...events].reverse())).toEqual(s);
+      expect(s.behavioral['conflict'].weakSince).toBe(iso(t0 + DAY));
+      expect(s.behavioral['ownership']).toEqual({ lastAt: iso(t0 + 2 * DAY), verdict: 'lean-no-hire', weakSince: null });
+      expect(s.boosts).toEqual({});
+      expect(s.cards).toEqual(replay([graded('rec:ms1', t0)]).cards);
+      expect(s.xp).toBe(replay([graded('rec:ms1', t0)]).xp + 3 * 20);
+    });
+
+    it('keeps coding and design interviews out of the behavioral slice', () => {
+      const s = replay([
+        { id: id(), at: iso(t0), type: 'interview.scored', sessionId: 'c', track: 'coding', verdict: 'hire', weakPatterns: [] },
+        { id: id(), at: iso(t0), type: 'interview.scored', sessionId: 'd', track: 'system-design', verdict: 'hire', weakPatterns: [] },
+      ]);
+      expect(s.behavioral).toEqual({});
+      expect(s.interviews.total).toBe(2);
+    });
+  });
+
   it('records coding submissions and boosts template recall after a failed first attempt', () => {
     const submit = (atMs: number, passed: number, problemId = 'daily-temperatures'): StoredEvent => ({
       id: id(),

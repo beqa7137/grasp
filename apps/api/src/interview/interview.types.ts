@@ -1,4 +1,6 @@
-export type InterviewTrack = 'coding' | 'system-design';
+import type { AnswerFlaw, Seniority, StarDraft } from '@grasp/engine';
+
+export type InterviewTrack = 'coding' | 'system-design' | 'behavioral';
 export type InterviewMode = 'ai' | 'offline';
 export type AiAccess = 'available' | 'sign-in-required' | 'unavailable';
 
@@ -10,6 +12,8 @@ export interface InterviewProblem {
   referenceNotes: string;
   patternIds: string[];
   hints: string[];
+  /** Behavioral only: the competency the question is about. */
+  competencyId?: string;
 }
 
 export interface CodeSnapshot {
@@ -24,12 +28,21 @@ export interface InterviewMessage {
   hint?: boolean;
   /** Editor contents the candidate shared with this message. */
   code?: CodeSnapshot;
+  /** The STAR answer a behavioral interview opens with; `content` holds it as text. */
+  star?: StarDraft;
 }
 
 export interface ScoreDimension {
   name: string;
   score: number;
   evidence: string;
+}
+
+export interface BehavioralFlaw {
+  id: AnswerFlaw;
+  /** The candidate's own words that show the flaw, verified against the transcript; null when none could be. */
+  quote: string | null;
+  fix: string;
 }
 
 export type Verdict = 'strong-hire' | 'hire' | 'lean-hire' | 'lean-no-hire' | 'no-hire';
@@ -42,6 +55,8 @@ export interface Scorecard {
   improvements: string[];
   weakPatterns: string[];
   mode: 'ai' | 'offline';
+  flaws?: BehavioralFlaw[];
+  weakCompetencies?: string[];
 }
 
 export interface TokenUsage {
@@ -68,13 +83,15 @@ export interface InterviewSession {
   createdAt: string;
   /** Legacy active sessions without a chosen mode use scripted practice. */
   mode?: InterviewMode;
+  /** Behavioral only: the career stage the answer is held to; mid-level when absent. */
+  level?: Seniority;
   scorecard?: Scorecard;
   scoredAt?: string;
   usage?: SessionUsage;
 }
 
 export type PublicInterviewSession = Omit<InterviewSession, 'problem' | 'learnerId' | 'usage'> & {
-  problem: Pick<InterviewProblem, 'id' | 'title' | 'track' | 'patternIds'>;
+  problem: Pick<InterviewProblem, 'id' | 'title' | 'track' | 'patternIds' | 'competencyId'>;
   mode: InterviewMode;
   aiAccess: AiAccess;
 };

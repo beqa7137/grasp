@@ -1,6 +1,11 @@
+import { EMPTY_STAR_DRAFT, FOLLOW_UP_MIN_WORDS } from '@grasp/engine';
+import { behavioralSession, STRONG_STAR } from '../../test/support/behavioral-session.js';
+import { questionFollowUps } from './behavioral-problems.js';
+import { SAY_MORE } from './offline.behavioral.js';
 import { OfflineInterviewer } from './offline.interviewer.js';
 import type { InterviewSession } from './interview.types.js';
 import { PROBLEMS } from './problems.js';
+import { RUBRICS } from './prompts.js';
 
 const session = (said: string[], hintsUsed = 0): InterviewSession => ({
   id: 's',
@@ -61,5 +66,44 @@ describe('OfflineInterviewer with code', () => {
     });
     const { text } = await new OfflineInterviewer().reply(s, () => {}, new AbortController().signal);
     expect(text).toContain('2 lines of python');
+  });
+});
+
+describe('OfflineInterviewer on a behavioral interview', () => {
+  const interviewer = new OfflineInterviewer();
+  const reply = async (s: InterviewSession) => (await interviewer.reply(s, () => {}, new AbortController().signal)).text;
+  const detailed = 'I sent the payments lead a one-page write-up that afternoon and asked for thirty minutes to walk through it.';
+  const followUps = questionFollowUps(behavioralSession().problem);
+
+  it("asks all three of the question's own follow-ups in order, and leaves the closing to the service", async () => {
+    expect(await reply(behavioralSession())).toBe(followUps[0]);
+    expect(await reply(behavioralSession(STRONG_STAR, [detailed], [followUps[0]]))).toBe(followUps[1]);
+    expect(await reply(behavioralSession(STRONG_STAR, [detailed, detailed], [followUps[0], followUps[1]]))).toBe(followUps[2]);
+  });
+
+  it(`asks for more when an answer is under ${FOLLOW_UP_MIN_WORDS} words`, async () => {
+    expect(await reply(behavioralSession(STRONG_STAR, ['I just did it.'], [followUps[0]]))).toBe(SAY_MORE);
+    expect(await reply(behavioralSession({ ...EMPTY_STAR_DRAFT, action: 'I fixed it.' }))).toBe(SAY_MORE);
+  });
+
+  it('scores STAR coverage and follow-up length, capped at 3, with unquoted flaws and the competency when weak', async () => {
+    const { scorecard: strong } = await interviewer.score(behavioralSession(STRONG_STAR, [detailed, detailed, detailed]));
+    expect(strong.dimensions.map((d) => d.score)).toEqual([3, 3, 3, 3, 3]);
+    expect(strong).toMatchObject({ verdict: 'hire', flaws: [], weakCompetencies: [], weakPatterns: [], mode: 'offline' });
+
+    const weakStar = {
+      ...STRONG_STAR,
+      action: 'We capped the retries and we shipped it after a while.',
+      result: 'It went well.',
+      reflection: '',
+    };
+    const { scorecard: weak } = await interviewer.score(behavioralSession(weakStar, ['Not sure.']));
+    expect(weak.dimensions.map((d) => d.score)).toEqual([2, 2, 2, 2, 1]);
+    expect(weak.verdict).toBe('no-hire');
+    expect(weak.flaws!.map((f) => f.id)).toEqual(['we-not-i', 'no-result', 'long-setup', 'no-reflection']);
+    expect(weak.flaws!.every((f) => f.quote === null && f.fix.length > 0)).toBe(true);
+    expect(weak.weakCompetencies).toEqual(['ownership']);
+    expect(weak.weakPatterns).toEqual([]);
+    expect(weak.improvements[0]).toBe(`Competency fit: ${RUBRICS.behavioral[0].lookFor}`);
   });
 });

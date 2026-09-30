@@ -63,6 +63,33 @@ describe('story rehearsal', () => {
   });
 });
 
+describe('rehearsal after an interview flags a competency', () => {
+  const toldAt = new Date(now.getTime() - day / 2);
+  const flaggedAt = (ms: number) => ({ conflict: { weakSince: new Date(ms).toISOString() } });
+
+  it('brings a story forward when a tagged competency was flagged after its last telling, whichever way it was graded, and for nothing else', () => {
+    for (const toldWell of [true, false]) {
+      const told = rehearse(rehearse(story('a', ['ownership', 'conflict']), true, toldAt), toldWell, toldAt);
+      expect(isDue(told, now)).toBe(false);
+      expect(isDue(told, now, flaggedAt(toldAt.getTime() + 1))).toBe(true);
+      expect(isDue(told, now, flaggedAt(toldAt.getTime() - 1))).toBe(false);
+    }
+    expect(isDue(rehearse(story('b', ['ownership']), true, toldAt), now, flaggedAt(now.getTime()))).toBe(false);
+    expect(isDue(rehearse(story('c', ['conflict']), true, toldAt), now, { conflict: { weakSince: null } })).toBe(false);
+    expect(isDue(story('d', ['conflict'], ' '), now, flaggedAt(now.getTime()))).toBe(false);
+  });
+
+  it('lists flagged stories among the due ones, longest scheduled first', () => {
+    const flagged = rehearse(rehearse(story('flagged', ['conflict']), true, toldAt), true, toldAt);
+    const waiting = rehearse(story('waiting', ['ownership']), true, toldAt);
+    const overdue = { ...story('overdue'), rehearsal: { step: 0, told: 1, due: new Date(now.getTime() - day).toISOString() } };
+    expect(dueStories([flagged, waiting, overdue], now, flaggedAt(toldAt.getTime() + day)).map((s) => s.id)).toEqual([
+      'overdue',
+      'flagged',
+    ]);
+  });
+});
+
 function questionId(s: Story) {
   return rehearsalQuestion(s)?.id;
 }

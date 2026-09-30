@@ -1,5 +1,5 @@
 import type { AnswerFlaw } from './types.js';
-import type { StarCheck } from './star-check.js';
+import type { StarCheck, StarReview } from './star-check.js';
 
 export const ANSWER_FLAWS: readonly { id: AnswerFlaw; label: string }[] = [
   { id: 'we-not-i', label: 'Says "we", so what the candidate did is unclear' },
@@ -17,3 +17,12 @@ export const FLAW_CHECKS: Partial<Record<AnswerFlaw, StarCheck['id']>> = {
   'long-setup': 'action-weight',
   'no-reflection': 'reflection',
 };
+
+/** The flaws a STAR review shows: those whose live check failed. */
+export function starFlaws(review: StarReview): AnswerFlaw[] {
+  const failed = new Set(review.checks.filter((c) => !c.ok).map((c) => c.id));
+  return ANSWER_FLAWS.map((f) => f.id).filter((id) => {
+    const check = FLAW_CHECKS[id];
+    return check !== undefined && failed.has(check);
+  });
+}

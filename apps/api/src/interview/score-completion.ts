@@ -43,5 +43,8 @@ export function scoredEvent(completed: InterviewSession): InterviewScoredEvent {
     track: completed.track,
     verdict: completed.scorecard!.verdict,
     weakPatterns: completed.scorecard!.weakPatterns,
+    ...(completed.track === 'behavioral'
+      ? { competencyId: completed.problem.competencyId, weakCompetencies: completed.scorecard!.weakCompetencies ?? [] }
+      : {}),
   };
 }
