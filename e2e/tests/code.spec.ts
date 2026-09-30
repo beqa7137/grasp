@@ -164,6 +164,36 @@ const PY_PRIM_POINTS = `def min_cost_connect_points(points: list[list[int]]) -> 
                 dist[j] = min(dist[j], abs(x - points[j][0]) + abs(y - points[j][1]))
     return total`;
 
+const JS_PARTITION = `function canPartitionKSubsets(nums, k) {
+  const total = nums.reduce((a, b) => a + b, 0);
+  if (total % k) return false;
+  const target = total / k;
+  const n = nums.length;
+  const fill = new Array(1 << n).fill(-1);
+  fill[0] = 0;
+  for (let mask = 0; mask < 1 << n; mask++) {
+    if (fill[mask] < 0) continue;
+    for (let j = 0; j < n; j++)
+      if ((mask & (1 << j)) === 0 && fill[mask] + nums[j] <= target) fill[mask | (1 << j)] = (fill[mask] + nums[j]) % target;
+  }
+  return fill[(1 << n) - 1] === 0;
+}`;
+
+const PY_HATS = `def number_ways(hats: list[list[int]]) -> int:
+    mod = 10**9 + 7
+    n = len(hats)
+    liked = [set(h) for h in hats]
+    ways = [0] * (1 << n)
+    ways[0] = 1
+    for hat in range(1, 41):
+        before = ways[:]
+        for mask in range(1 << n):
+            if before[mask]:
+                for p in range(n):
+                    if not mask & (1 << p) and hat in liked[p]:
+                        ways[mask | (1 << p)] = (ways[mask | (1 << p)] + before[mask]) % mod
+    return ways[-1]`;
+
 /** A nest of lists far deeper than Pyodide's stack can free, which kills its interpreter. */
 const PY_CRASH = `def two_sum(nums, target):
     x = []
@@ -316,6 +346,24 @@ test('a Python Prim with an array of distances is accepted for Min Cost to Conne
   test.slow();
   await page.goto('/code/min-cost-connect-points');
   await write(page, PY_PRIM_POINTS, 'Min Cost to Connect All Points');
+  await page.getByRole('button', { name: 'Submit' }).click();
+  await expect(page.getByText(/^(\d+) \/ \1 tests passed$/)).toBeVisible({ timeout: 120_000 });
+  await expect(page.getByText('Accepted.')).toBeVisible();
+});
+
+test('a JavaScript bitmask DP is accepted for Partition to K Equal Sum Subsets, 16 values included', async ({ page }) => {
+  await page.goto('/code/partition-k-subsets');
+  await page.getByRole('radio', { name: 'JavaScript' }).click();
+  await write(page, JS_PARTITION, 'Partition to K Equal Sum Subsets');
+  await page.getByRole('button', { name: 'Submit' }).click();
+  await expect(page.getByText(/^(\d+) \/ \1 tests passed$/)).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText('Accepted.')).toBeVisible();
+});
+
+test('a Python DP over hats with a mask of people is accepted for the hats problem, ten people included', async ({ page }) => {
+  test.slow();
+  await page.goto('/code/hats-to-people');
+  await write(page, PY_HATS, 'Number of Ways to Wear Different Hats to Each Other');
   await page.getByRole('button', { name: 'Submit' }).click();
   await expect(page.getByText(/^(\d+) \/ \1 tests passed$/)).toBeVisible({ timeout: 120_000 });
   await expect(page.getByText('Accepted.')).toBeVisible();

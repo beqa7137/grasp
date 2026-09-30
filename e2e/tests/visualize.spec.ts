@@ -3,6 +3,7 @@ import { expect, expectUnmoved, recordedEvents, stepToCheckpoint, stepTotal, syn
 
 const VISUALIZER_TITLES = [
   "Kruskal's Minimum Spanning Tree",
+  'Minimum XOR Sum (Bitmask DP)',
   'Merge Intervals',
   'Subsets by Backtracking',
   'Tree DFS: Preorder, Inorder, Postorder',

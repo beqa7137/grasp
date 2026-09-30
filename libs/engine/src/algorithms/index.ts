@@ -7,6 +7,7 @@ import { jumpGame } from './jump-game.js';
 import { kruskalMst } from './kruskal-mst.js';
 import { kthLargest } from './kth-largest.js';
 import { lcs } from './lcs.js';
+import { minimumXorSum } from './minimum-xor-sum.js';
 import { linkedListCycle } from './linked-list-cycle.js';
 import { linkedListReversal } from './linked-list-reversal.js';
 import { mergeIntervals } from './merge-intervals.js';
@@ -52,6 +53,7 @@ const DEFINITIONS: Record<AlgorithmId, AlgorithmDefinition<any>> = {
   'linked-list-cycle': linkedListCycle,
   'linked-list-reversal': linkedListReversal,
   'house-robber': houseRobber,
+  'minimum-xor-sum': minimumXorSum,
 };
 
 export const ALGORITHMS: AlgorithmDef<any>[] = ALGORITHM_CATALOG.map((summary) => ({ ...summary, ...DEFINITIONS[summary.id] }));

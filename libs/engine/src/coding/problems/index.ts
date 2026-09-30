@@ -22,6 +22,7 @@ import { interleavingString, longestIncreasingSubsequence, maximumXorPair, parti
 import { boatsToSavePeople, maxConsecutiveOnesIII, searchMatrix, shipWithinDays, validSudoku } from './batch-l.js';
 import { detectCycle, moveZeroes, removeDuplicatesII, sortColors, sortedSquares, validPalindromeII } from './batch-r.js';
 import { isPalindromeList, reverseBetween, reverseKGroup, reverseList, swapPairs } from './linked-lists.js';
+import { hatsToPeople, maxStudents, minimumXorSum, partitionKSubsets, shortestPathAllNodes } from './bitmask-dp.js';
 import { connectingCities, criticalMstEdges, minCostConnectPoints, waterDistribution } from './spanning-trees.js';
 import { groupAnagrams, jumpGameII, longestStrChain, maxCoins, maximalSquare, minPathSum, minRefuelStops } from './batch-v.js';
 import { candy, combinationSum4, countSubstrings, maximumProductSubarray, numDistinct, uniquePathsWithObstacles } from './batch-q.js';
@@ -228,6 +229,11 @@ const DEFINITIONS: Record<CodingProblemId, CodingProblemDefinition> = {
   'missing-number': missingNumber,
   'single-number-ii': singleNumberII,
   'minimum-flips-or': minFlips,
+  'minimum-xor-sum': minimumXorSum,
+  'partition-k-subsets': partitionKSubsets,
+  'shortest-path-all-nodes': shortestPathAllNodes,
+  'maximum-students': maxStudents,
+  'hats-to-people': hatsToPeople,
 };
 
 export const CODING_PROBLEMS: CodingProblem[] = CODING_CATALOG.map((summary) => ({ ...summary, ...DEFINITIONS[summary.id] }));

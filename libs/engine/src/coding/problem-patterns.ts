@@ -159,6 +159,11 @@ export const PROBLEM_PATTERNS = {
   'missing-number': ['bit-manipulation'],
   'single-number-ii': ['bit-manipulation'],
   'minimum-flips-or': ['bit-manipulation'],
+  'minimum-xor-sum': ['bitmask-dp'],
+  'partition-k-subsets': ['bitmask-dp', 'dfs-backtracking'],
+  'shortest-path-all-nodes': ['bitmask-dp', 'bfs'],
+  'maximum-students': ['bitmask-dp'],
+  'hats-to-people': ['bitmask-dp'],
 } as const satisfies Record<string, readonly string[]>;
 
 export function problemPatterns(id: string): readonly string[] | undefined {

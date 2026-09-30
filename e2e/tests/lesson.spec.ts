@@ -62,6 +62,23 @@ test('the minimum spanning tree lesson replays Kruskal, and its visualizer leads
   await expect(page).toHaveURL(/\/code\/connecting-cities$/);
 });
 
+test('the bitmask DP lesson replays Minimum XOR Sum, and its visualizer leads to the problem', async ({ page }) => {
+  await page.goto('/learn/pattern/bitmask-dp');
+  await expect(page.getByText(`Pattern 23 of ${PATTERN_CATALOG.length}`)).toBeVisible();
+  const example = page.locator('app-worked-example').first();
+  await expect(example).toContainText('Minimum XOR Sum of Two Arrays');
+  await example.getByRole('button', { name: /key move/ }).click();
+  await example.getByRole('button', { name: 'Show all' }).click();
+  await expect(example).toContainText('Return 8: 1 with 5, 0 with 4 and 3 with 3.');
+  await example.getByRole('link', { name: 'Step through it in the visualizer' }).click();
+  await expect(page).toHaveURL(/\/visualize\/minimum-xor-sum\?input=/);
+  await expect(page.getByRole('heading', { name: 'Minimum XOR Sum (Bitmask DP)', level: 1 })).toBeVisible();
+  await expect(page.getByText('Invalid input')).toHaveCount(0);
+  await expect(page.locator('app-player .count')).toHaveText(/^1 \/ 33$/);
+  await page.getByRole('link', { name: /Now write it yourself: Minimum XOR Sum of Two Arrays/ }).click();
+  await expect(page).toHaveURL(/\/code\/minimum-xor-sum$/);
+});
+
 test('a lesson ends with a quick check of three questions that count as practice', async ({ page }) => {
   await page.goto('/learn/pattern/binary-search');
   const check = page.locator('app-quick-check');

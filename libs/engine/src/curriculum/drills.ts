@@ -307,6 +307,22 @@ const CARDS: Record<DrillCardId, DrillCardDefinition> = {
     'hashing',
     'greedy',
   ]),
+
+  bmd1: card(
+    'Give each of 12 couriers a different one of 12 routes, knowing how long each courier takes on each route, so the total time is as small as possible.',
+    'Each courier gets a different route, and n is 12 → `dp[mask]` over the routes taken so far; the next courier is `popcount(mask)`.',
+    ['greedy', 'heap', 'dp-2d'],
+  ),
+  bmd2: card(
+    'A drone must visit 15 drop points once each, in any order, starting from the depot, and you know the flight time between every pair. Find the shortest total flight.',
+    'Visit all of 15 points in the best order → `dp[mask][last]`, O(2ⁿ · n²), instead of all 15! orders.',
+    ['dijkstra', 'minimum-spanning-tree', 'bfs'],
+  ),
+  bmd3: card(
+    'Split 16 weights into 4 piles of exactly equal total weight, or report that it cannot be done.',
+    'Up to 16 items into equal groups → `dp[mask]` holds how full the current group is, and an item may join only if it fits.',
+    ['greedy', 'heap', 'two-pointers'],
+  ),
 };
 
 export const DRILL_CARDS: DrillCard[] = DRILL_CATALOG.map((summary) => ({ ...summary, ...CARDS[summary.id] }));

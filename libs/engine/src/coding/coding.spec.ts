@@ -104,6 +104,27 @@ const weightOf = (edges: readonly number[][], tree: number[]) => tree.reduce((su
 
 const MST_PROBLEMS = ['min-cost-connect-points', 'connecting-cities', 'critical-mst-edges', 'water-distribution'];
 
+/** Every order of items. */
+const arrangements = <T>(items: readonly T[]): T[][] =>
+  items.length ? items.flatMap((x, k) => arrangements([...items.slice(0, k), ...items.slice(k + 1)]).map((rest) => [x, ...rest])) : [[]];
+
+/** The fewest edges from each node to every other, by BFS. */
+const hops = (graph: number[][]) =>
+  graph.map((_, start) => {
+    const dist = graph.map((): number => Infinity);
+    dist[start] = 0;
+    const queue = [start];
+    for (const node of queue)
+      for (const next of graph[node])
+        if (dist[next] === Infinity) {
+          dist[next] = dist[node] + 1;
+          queue.push(next);
+        }
+    return dist;
+  });
+
+const BITMASK_PROBLEMS = ['minimum-xor-sum', 'partition-k-subsets', 'shortest-path-all-nodes', 'maximum-students', 'hats-to-people'];
+
 /** Obviously-correct (and slow) solutions to cross-check the references on small inputs. */
 const LOCK_NEIGHBORS = rangeOf(0, 9_999).map((code) => {
   const text = String(code).padStart(4, '0');
@@ -1437,6 +1458,54 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     const [x, y, z] = [bits(a), bits(b), bits(c)];
     return z.reduce((flips, bit, i) => flips + (bit === '1' ? (x[i] === '1' || y[i] === '1' ? 0 : 1) : Number(x[i]) + Number(y[i])), 0);
   },
+  // Every order of nums2, the smallest XOR sum kept.
+  'minimum-xor-sum': (nums1: number[], nums2: number[]) =>
+    Math.min(...arrangements(nums2).map((order) => order.reduce((sum, x, i) => sum + (nums1[i] ^ x), 0))),
+  // Every way to put each value into one of k groups, looking for one where all the sums are equal.
+  'partition-k-subsets': (nums: number[], k: number) => {
+    const sums: number[] = Array(k).fill(0);
+    const place = (i: number): boolean =>
+      i === nums.length
+        ? sums.every((sum) => sum === sums[0])
+        : rangeOf(0, k - 1).some((group) => {
+            sums[group] += nums[i];
+            const found = place(i + 1);
+            sums[group] -= nums[i];
+            return found;
+          });
+    return place(0);
+  },
+  // Every order in which to reach the nodes first, joined by shortest paths.
+  'shortest-path-all-nodes': (graph: number[][]) => {
+    const dist = hops(graph);
+    return Math.min(
+      ...arrangements(rangeOf(0, graph.length - 1)).map((order) => order.slice(1).reduce((sum, v, i) => sum + dist[order[i]][v], 0)),
+    );
+  },
+  // Every set of good seats, the largest where no two students are side by side or diagonal kept.
+  'maximum-students': (seats: string[][]) => {
+    const good = seats.flatMap((row, r) => row.flatMap((seat, c) => (seat === '.' ? [[r, c]] : [])));
+    const sees = ([r1, c1]: number[], [r2, c2]: number[]) => Math.abs(c1 - c2) === 1 && Math.abs(r1 - r2) <= 1;
+    const apart = (set: number[][]) => set.every((a, i) => set.slice(i + 1).every((b) => !sees(a, b)));
+    return Math.max(...subsets(good).map((set) => (apart(set) ? set.length : 0)));
+  },
+  // Person by person, every hat they like that nobody before them wears, counted exactly and remembered by the hats taken.
+  'hats-to-people': (hats: number[][]) => {
+    const memo = new Map<string, bigint>();
+    const ways = (taken: number[]): bigint => {
+      if (taken.length === hats.length) return 1n;
+      const key = taken.join(',');
+      if (!memo.has(key))
+        memo.set(
+          key,
+          hats[taken.length]
+            .filter((hat) => !taken.includes(hat))
+            .reduce((count, hat) => count + ways([...taken, hat].sort((a, b) => a - b)), 0n),
+        );
+      return memo.get(key)!;
+    };
+    return Number(ways([]) % 1_000_000_007n);
+  },
 };
 
 /**
@@ -1469,6 +1538,12 @@ const PERFORMANCE_LOAD: Record<string, (test: TestCase) => number> = {
   'valid-sudoku': () => Infinity,
   // Three 31-bit values: there is no larger input and no slower approach to rule out.
   'minimum-flips-or': () => Infinity,
+  // A bitmask DP's input is a few numbers; its load is the states it fills times the choices each one tries.
+  'minimum-xor-sum': ({ args: [nums1] }) => 2 ** (nums1 as number[]).length * (nums1 as number[]).length,
+  'partition-k-subsets': ({ args: [nums] }) => 2 ** (nums as number[]).length * (nums as number[]).length,
+  'shortest-path-all-nodes': ({ args: [graph] }) => 2 ** (graph as number[][]).length * (graph as number[][]).length,
+  'maximum-students': ({ args: [seats] }) => (seats as string[][]).length * 4 ** (seats as string[][])[0].length,
+  'hats-to-people': ({ args: [hats] }) => 40 * 2 ** (hats as number[][]).length * (hats as number[][]).length,
 };
 
 describe('coding problems', () => {
@@ -1595,6 +1670,75 @@ describe('coding problems', () => {
           ).toBe(true);
           if (id === 'water-distribution')
             expect((first as number[]).length === n && within(first as number[], 0, 100_000), label).toBe(true);
+        }
+      }
+    }
+  });
+
+  it('keeps every bitmask DP performance case out of reach for the slower approach, whatever the seed', () => {
+    for (const id of BITMASK_PROBLEMS) {
+      const problem = getCodingProblem(id)!;
+      for (let seed = 0; seed < 25; seed++)
+        expect(SLOWER[id](...problem.performanceCase(mulberry32(seed))), `${id}, seed ${seed}`).toBeGreaterThan(4e9);
+    }
+  });
+
+  it('gives Shortest Path Visiting All Nodes performance graphs no path through each node once, and Partition to K near misses', () => {
+    const shortest = getCodingProblem('shortest-path-all-nodes')!;
+    const partition = getCodingProblem('partition-k-subsets')!;
+    for (let seed = 0; seed < 25; seed++) {
+      const [graph] = shortest.performanceCase(mulberry32(seed)) as [number[][]];
+      expect(shortest.solve(graph), `seed ${seed}`).toBeGreaterThanOrEqual(graph.length);
+      const [nums, k] = partition.performanceCase(mulberry32(seed)) as [number[], number];
+      const target = nums.reduce((sum, x) => sum + x, 0) / k;
+      const reach = new Set([0]);
+      for (const x of nums) for (const sum of Array.from(reach)) if (sum + x <= target) reach.add(sum + x);
+      expect(partition.solve(nums, k) === false && reach.has(target), `seed ${seed}`).toBe(true);
+    }
+  });
+
+  it('keeps bitmask DP inputs within the limits their statements give', () => {
+    const within = (values: number[], lo: number, hi: number) => values.every((v) => Number.isInteger(v) && lo <= v && v <= hi);
+    for (const id of BITMASK_PROBLEMS) {
+      for (const { args } of buildSuite(getCodingProblem(id)!, { seed: 11 })) {
+        const label = `${id} ${preview(args)}`;
+        if (id === 'minimum-xor-sum') {
+          const [nums1, nums2] = args as number[][];
+          expect(nums1.length === nums2.length && nums1.length >= 1 && nums1.length <= 14, label).toBe(true);
+          expect(within([...nums1, ...nums2], 0, 10_000_000), label).toBe(true);
+        } else if (id === 'partition-k-subsets') {
+          const [nums, k] = args as [number[], number];
+          expect(k >= 1 && k <= nums.length && nums.length <= 16 && within(nums, 1, 10_000), label).toBe(true);
+          expect(
+            nums.every((x) => nums.filter((y) => y === x).length <= 4),
+            label,
+          ).toBe(true);
+        } else if (id === 'shortest-path-all-nodes') {
+          const [graph] = args as [number[][]];
+          const n = graph.length;
+          expect(n >= 1 && n <= 12 && graph.every((next, i) => within(next, 0, n - 1) && !next.includes(i)), label).toBe(true);
+          expect(
+            graph.every((next, a) => new Set(next).size === next.length && next.every((b) => graph[b].includes(a))),
+            label,
+          ).toBe(true);
+          expect(
+            hops(graph)[0].every((d) => d < Infinity),
+            label,
+          ).toBe(true);
+        } else if (id === 'maximum-students') {
+          const [seats] = args as [string[][]];
+          expect(seats.length >= 1 && seats.length <= 8 && seats[0].length >= 1 && seats[0].length <= 8, label).toBe(true);
+          expect(
+            seats.every((row) => row.length === seats[0].length && row.every((seat) => seat === '.' || seat === '#')),
+            label,
+          ).toBe(true);
+        } else {
+          const [hats] = args as [number[][]];
+          expect(hats.length >= 1 && hats.length <= 10, label).toBe(true);
+          expect(
+            hats.every((liked) => liked.length >= 1 && new Set(liked).size === liked.length && within(liked, 1, 40)),
+            label,
+          ).toBe(true);
         }
       }
     }

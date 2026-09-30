@@ -124,6 +124,18 @@ const FACTS: Record<ComplexityFactId, ComplexityFactDefinition> = {
     distractors: ['O(n + m)', 'O(2ⁿ⁺ᵐ)', 'O(n · m · min(n, m))'],
     why: 'n · m states, each computed in O(1) from three neighbours.',
   },
+  'bitmask-route': {
+    question: 'Bitmask DP over (mask, last) for the shortest route through all n nodes: time, as a tight bound?',
+    answer: 'O(2ⁿ · n²)',
+    distractors: ['O(n!)', 'O(2ⁿ · n)', 'O(n² · log n)'],
+    why: '2ⁿ masks times n last nodes is 2ⁿ · n states, and each tries up to n next nodes. Trying every order would be n!.',
+  },
+  submasks: {
+    question: 'For every mask of n items, loop over its submasks with `sub = (sub - 1) & mask`. Total steps, as a tight bound?',
+    answer: 'O(3ⁿ)',
+    distractors: ['O(4ⁿ)', 'O(2ⁿ · n)', 'O(n · 3ⁿ)'],
+    why: 'Each item is in sub, in mask but not sub, or outside mask: 3 choices per item, so 3ⁿ pairs in all, far fewer than the 4ⁿ pairs of any two masks.',
+  },
   'tree-dfs': {
     question: 'Height of a binary tree with n nodes by recursive DFS: extra space in the worst case?',
     answer: 'O(n) for a degenerate (list-like) tree',

@@ -2306,4 +2306,87 @@ def min_flips(a, b, c):
         flips += 1 - (x | y) if z else x + y
     return flips
 `,
+  'minimum-xor-sum': `
+def minimum_xor_sum(nums1, nums2):
+    n = len(nums1)
+    dp = [float('inf')] * (1 << n)
+    dp[0] = 0
+    for mask in range((1 << n) - 1):
+        i = bin(mask).count('1')
+        for j in range(n):
+            if not mask & (1 << j):
+                to = mask | (1 << j)
+                dp[to] = min(dp[to], dp[mask] + (nums1[i] ^ nums2[j]))
+    return dp[-1]
+`,
+  'partition-k-subsets': `
+def can_partition_k_subsets(nums, k):
+    total = sum(nums)
+    if total % k:
+        return False
+    target = total // k
+    n = len(nums)
+    fill = [-1] * (1 << n)
+    fill[0] = 0
+    for mask in range(1 << n):
+        if fill[mask] < 0:
+            continue
+        for j in range(n):
+            if not mask & (1 << j) and fill[mask] + nums[j] <= target:
+                fill[mask | (1 << j)] = (fill[mask] + nums[j]) % target
+    return fill[-1] == 0
+`,
+  'shortest-path-all-nodes': `
+from collections import deque
+
+def shortest_path_length(graph):
+    n = len(graph)
+    full = (1 << n) - 1
+    seen = {(i, 1 << i) for i in range(n)}
+    queue = deque((i, 1 << i, 0) for i in range(n))
+    while queue:
+        node, mask, steps = queue.popleft()
+        if mask == full:
+            return steps
+        for nxt in graph[node]:
+            state = (nxt, mask | (1 << nxt))
+            if state not in seen:
+                seen.add(state)
+                queue.append((*state, steps + 1))
+`,
+  'maximum-students': `
+def max_students(seats):
+    n = len(seats[0])
+    best = {0: 0}
+    for row in seats:
+        good = sum(1 << c for c, seat in enumerate(row) if seat == '.')
+        nxt = {}
+        for mask in range(1 << n):
+            if mask & ~good or mask & (mask >> 1):
+                continue
+            fits = [v for prev, v in best.items() if not mask & (prev << 1) and not mask & (prev >> 1)]
+            if fits:
+                nxt[mask] = max(fits) + bin(mask).count('1')
+        best = nxt
+    return max(best.values())
+`,
+  'hats-to-people': `
+def number_ways(hats):
+    mod = 10**9 + 7
+    n = len(hats)
+    liked_by = [[] for _ in range(41)]
+    for person, liked in enumerate(hats):
+        for hat in liked:
+            liked_by[hat].append(person)
+    ways = [0] * (1 << n)
+    ways[0] = 1
+    for hat in range(1, 41):
+        before = ways[:]
+        for mask in range(1 << n):
+            if before[mask]:
+                for person in liked_by[hat]:
+                    if not mask & (1 << person):
+                        ways[mask | (1 << person)] = (ways[mask | (1 << person)] + before[mask]) % mod
+    return ways[-1]
+`,
 };

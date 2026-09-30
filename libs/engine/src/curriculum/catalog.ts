@@ -167,6 +167,13 @@ const PATTERN_LIST = [
     order: 22,
     oneLiner: 'XOR cancels pairs, masks encode subsets, shifts multiply.',
   },
+  {
+    id: 'bitmask-dp',
+    name: 'Bitmask DP',
+    track: 'advanced',
+    order: 23,
+    oneLiner: 'For up to about 20 items, let the bits of a number say which are used, and solve each subset once, smallest first.',
+  },
 ] as const satisfies readonly Omit<PatternSummary, 'algorithmIds'>[];
 
 export type PatternId = (typeof PATTERN_LIST)[number]['id'];
@@ -243,6 +250,9 @@ const DRILLS = [
   { id: 'g2', patternId: 'greedy' },
   { id: 'bm1', patternId: 'bit-manipulation' },
   { id: 'bm2', patternId: 'bit-manipulation' },
+  { id: 'bmd1', patternId: 'bitmask-dp' },
+  { id: 'bmd2', patternId: 'bitmask-dp' },
+  { id: 'bmd3', patternId: 'bitmask-dp' },
 ] as const satisfies readonly DrillCardSummary[];
 
 export type DrillCardId = (typeof DRILLS)[number]['id'];
@@ -276,6 +286,8 @@ const FACTS = [
   { id: 'trie', patternId: 'trie' },
   { id: 'lcs', patternId: 'dp-2d' },
   { id: 'tree-dfs', patternId: 'tree-dfs' },
+  { id: 'bitmask-route', patternId: 'bitmask-dp' },
+  { id: 'submasks', patternId: 'bitmask-dp' },
 ] as const satisfies readonly ComplexityFactSummary[];
 
 export type ComplexityFactId = (typeof FACTS)[number]['id'];
@@ -306,4 +318,5 @@ export const CLOZE_COUNTS = {
   'dp-2d': 1,
   greedy: 2,
   'bit-manipulation': 1,
+  'bitmask-dp': 2,
 } as const satisfies Record<PatternId, number>;

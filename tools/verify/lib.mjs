@@ -250,6 +250,7 @@ export function states() {
     'subsets-backtracking',
     'linked-list-reversal',
     'kruskal-mst',
+    'minimum-xor-sum',
   ].flatMap((id) => [
     { id: `player-${id}`, path: `/visualize/${id}` },
     { id: `player-${id}-predict`, path: `/visualize/${id}`, setup: async (p) => ((await toPredict(p)) ? settle(p, 500) : 'no predict') },
@@ -271,6 +272,12 @@ export function states() {
       setup: toEnd,
     },
     { id: 'player-kruskal-mst-end', path: '/visualize/kruskal-mst', setup: toEnd },
+    { id: 'player-minimum-xor-sum-end', path: '/visualize/minimum-xor-sum', setup: toEnd },
+    {
+      id: 'player-minimum-xor-sum-four',
+      path: `/visualize/minimum-xor-sum?input=${encodeURIComponent(JSON.stringify({ nums1: [12, 7, 3, 9], nums2: [5, 14, 8, 1] }))}`,
+      setup: toEnd,
+    },
     {
       id: 'player-kruskal-mst-disconnected',
       path: `/visualize/kruskal-mst?input=${encodeURIComponent(
@@ -293,6 +300,7 @@ export function states() {
     { id: 'pattern-binary-search', path: '/learn/pattern/binary-search' },
     { id: 'pattern-linked-list-reversal', path: '/learn/pattern/linked-list-reversal' },
     { id: 'pattern-minimum-spanning-tree', path: '/learn/pattern/minimum-spanning-tree' },
+    { id: 'pattern-bitmask-dp', path: '/learn/pattern/bitmask-dp' },
     { id: 'design-list', path: '/design' },
     { id: 'sandbox', path: '/design/first-scale-up' },
     { id: 'sandbox-inspector', path: '/design/first-scale-up', setup: (p) => answerFirst(p, '.palette .tool') },
@@ -680,6 +688,7 @@ export function states() {
     { id: 'code-two-sum', path: '/code/two-sum' },
     { id: 'code-reverse-linked-list-ii', path: '/code/reverse-linked-list-ii' },
     { id: 'code-critical-mst-edges', path: '/code/critical-mst-edges' },
+    { id: 'code-maximum-students', path: '/code/maximum-students' },
     {
       id: 'code-two-sum-run',
       path: '/code/two-sum',

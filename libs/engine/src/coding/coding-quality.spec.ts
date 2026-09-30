@@ -42,6 +42,49 @@ function weightOnlyCritical(n: number, edges: number[][]): number[][] {
   return [critical.sort((a, b) => a - b), pseudo.sort((a, b) => a - b)];
 }
 
+/** The fewest edges from start to every node, by BFS. */
+function hopsFrom(graph: number[][], start: number): number[] {
+  const dist = graph.map((): number => Infinity);
+  dist[start] = 0;
+  const queue = [start];
+  for (const node of queue)
+    for (const next of graph[node])
+      if (dist[next] === Infinity) {
+        dist[next] = dist[node] + 1;
+        queue.push(next);
+      }
+  return dist;
+}
+
+/** BFS over (node, visited mask) from the given starts: the steps until some state has every node visited. */
+function visitAllFrom(graph: number[][], starts: number[]): number {
+  const n = graph.length;
+  const full = (1 << n) - 1;
+  const seen = new Set(starts.map((i) => `${i}:${1 << i}`));
+  let frontier = starts.map((i) => [i, 1 << i]);
+  for (let steps = 0; ; steps++) {
+    if (frontier.some(([, mask]) => mask === full)) return steps;
+    frontier = frontier.flatMap(([node, mask]) =>
+      graph[node].flatMap((next) => {
+        const key = `${next}:${mask | (1 << next)}`;
+        if (seen.has(key)) return [];
+        seen.add(key);
+        return [[next, mask | (1 << next)]];
+      }),
+    );
+  }
+}
+
+/** The most students in each row alone, with no two side by side: rows never see each other. */
+const rowByRowMax = (seats: string[][]) =>
+  seats.reduce((total, row) => {
+    let best = 0;
+    for (let mask = 0; mask < 1 << row.length; mask++)
+      if (!(mask & (mask >> 1)) && row.every((seat, c) => seat === '.' || !(mask & (1 << c))))
+        best = Math.max(best, mask.toString(2).split('1').length - 1);
+    return total + best;
+  }, 0);
+
 /** Reverses up to count nodes from head onto prev, and returns the new first node and the node after them. */
 function flip(head: ListNode | null, count: number, prev: ListNode | null = null): [ListNode | null, ListNode | null] {
   let curr = head;
@@ -3999,6 +4042,147 @@ const WRONG: Record<string, WrongSolution[]> = {
     },
     { name: 'stop once c has no bits left', solve: (a: number, b: number, c: number) => flipsBelow(a, b, c, c ? 32 - Math.clz32(c) : 0) },
     { name: 'check bits 0 to 29 only', solve: (a: number, b: number, c: number) => flipsBelow(a, b, c, 30) },
+  ],
+  'minimum-xor-sum': [
+    {
+      name: 'pair the arrays in the order given',
+      solve: (nums1: number[], nums2: number[]) => nums1.reduce((sum, x, i) => sum + (x ^ nums2[i]), 0),
+    },
+    {
+      name: 'give each nums1 value the cheapest nums2 value still free',
+      solve: (nums1: number[], nums2: number[]) => {
+        const free = new Set(rangeOf(0, nums2.length - 1));
+        return nums1.reduce((sum, x) => {
+          const best = [...free].reduce((b, j) => ((x ^ nums2[j]) < (x ^ nums2[b]) ? j : b));
+          free.delete(best);
+          return sum + (x ^ nums2[best]);
+        }, 0);
+      },
+    },
+    {
+      name: 'sort both arrays and pair them in order',
+      solve: (nums1: number[], nums2: number[]) => {
+        const [a, b] = [nums1, nums2].map((nums) => [...nums].sort((x, y) => x - y));
+        return a.reduce((sum, x, i) => sum + (x ^ b[i]), 0);
+      },
+    },
+  ],
+  'partition-k-subsets': [
+    {
+      name: 'check only that the total divides by k',
+      solve: (nums: number[], k: number) => nums.reduce((sum, x) => sum + x, 0) % k === 0,
+    },
+    {
+      name: 'check the total, and that no value is larger than one group',
+      solve: (nums: number[], k: number) => {
+        const total = nums.reduce((sum, x) => sum + x, 0);
+        return total % k === 0 && Math.max(...nums) <= total / k;
+      },
+    },
+    {
+      name: 'put each value, largest first, into the first group it fits, never moving it',
+      solve: (nums: number[], k: number) => {
+        const total = nums.reduce((sum, x) => sum + x, 0);
+        if (total % k) return false;
+        const sums: number[] = Array(k).fill(0);
+        return [...nums]
+          .sort((a, b) => b - a)
+          .every((x) => {
+            const group = sums.findIndex((sum) => sum + x <= total / k);
+            if (group >= 0) sums[group] += x;
+            return group >= 0;
+          });
+      },
+    },
+  ],
+  'shortest-path-all-nodes': [
+    { name: 'assume some path visits each node once: n - 1', solve: (graph: number[][]) => graph.length - 1 },
+    { name: 'start the BFS from node 0 only', solve: (graph: number[][]) => visitAllFrom(graph, [0]) },
+    {
+      name: 'from the best start, keep walking to the nearest node not yet visited',
+      solve: (graph: number[][]) => {
+        const dist = graph.map((_, start) => hopsFrom(graph, start));
+        return Math.min(
+          ...graph.map((_, start) => {
+            const left = new Set(rangeOf(0, graph.length - 1).filter((v) => v !== start));
+            let total = 0;
+            for (let at = start; left.size;) {
+              const next = [...left].reduce((best, v) => (dist[at][v] < dist[at][best] ? v : best));
+              total += dist[at][next];
+              left.delete(next);
+              at = next;
+            }
+            return total;
+          }),
+        );
+      },
+    },
+  ],
+  'maximum-students': [
+    { name: 'check only the seats to the left and right', solve: (seats: string[][]) => rowByRowMax(seats) },
+    {
+      name: 'also keep the seat directly in front free',
+      solve: (seats: string[][]) => {
+        const n = seats[0].length;
+        let best = new Map([[0, 0]]);
+        for (const row of seats) {
+          const next = new Map<number, number>();
+          for (let mask = 0; mask < 1 << n; mask++) {
+            if (mask & (mask >> 1) || row.some((seat, c) => seat === '#' && mask & (1 << c))) continue;
+            for (const [prev, count] of best)
+              if (!(mask & (prev << 1)) && !(mask & (prev >> 1)) && !(mask & prev))
+                next.set(mask, Math.max(next.get(mask) ?? 0, count + mask.toString(2).split('1').length - 1));
+          }
+          best = next;
+        }
+        return Math.max(...best.values());
+      },
+    },
+    {
+      name: 'seat each row left to right wherever no one seated so far is side by side or diagonal',
+      solve: (seats: string[][]) => {
+        const taken = seats.map((row) => row.map(() => false));
+        seats.forEach((row, r) =>
+          row.forEach((seat, c) => {
+            const near = [taken[r][c - 1], taken[r - 1]?.[c - 1], taken[r - 1]?.[c + 1]];
+            taken[r][c] = seat === '.' && !near.some(Boolean);
+          }),
+        );
+        return taken.flat().filter(Boolean).length;
+      },
+    },
+  ],
+  'hats-to-people': [
+    {
+      name: 'leave out the modulo',
+      solve: (hats: number[][]) => {
+        const ways = Array<number>(1 << hats.length).fill(0);
+        ways[0] = 1;
+        for (let hat = 1; hat <= 40; hat++)
+          for (let mask = ways.length - 1; mask >= 0; mask--)
+            hats.forEach((liked, p) => {
+              if (!(mask & (1 << p)) && liked.includes(hat)) ways[mask | (1 << p)] += ways[mask];
+            });
+        return ways[ways.length - 1];
+      },
+    },
+    {
+      name: 'multiply how many hats each person likes',
+      solve: (hats: number[][]) => hats.reduce((product, liked) => (product * liked.length) % 1_000_000_007, 1),
+    },
+    {
+      name: 'update the counts in place with the masks counting up, so one hat can go to two people',
+      solve: (hats: number[][]) => {
+        const ways = Array<number>(1 << hats.length).fill(0);
+        ways[0] = 1;
+        for (let hat = 1; hat <= 40; hat++)
+          for (let mask = 0; mask < ways.length; mask++)
+            hats.forEach((liked, p) => {
+              if (!(mask & (1 << p)) && liked.includes(hat)) ways[mask | (1 << p)] = (ways[mask | (1 << p)] + ways[mask]) % 1_000_000_007;
+            });
+        return ways[ways.length - 1];
+      },
+    },
   ],
 };
 

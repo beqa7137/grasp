@@ -278,4 +278,20 @@ export const CLOZES: Record<string, Cloze[]> = {
       why: 'XOR cancels pairs (`n ^ n = 0`) and `0 ^ n = n`, so only the unpaired value survives.',
     },
   ],
+  'bitmask-dp': [
+    {
+      line: 2,
+      distractors: [
+        'for (let i = 0; i < n; i++) dp[i][i] = 0;',
+        'for (let i = 0; i < n; i++) dp[0][i] = 0;',
+        'for (let i = 0; i < n; i++) dp[1 << i][0] = 0;',
+      ],
+      why: 'A route that starts at item i has used only i and ends there, so its state is mask `1 << i` with last i, at cost 0. The first index is a mask, not an item: `dp[3][3]` would be mask 011, items 0 and 1, which does not even hold item 3.',
+    },
+    {
+      line: 8,
+      distractors: ['const to = mask + next;', 'const to = mask & (1 << next);', 'const to = mask ^ (1 << last);'],
+      why: '`1 << next` has only bit next set, and OR turns that bit on while keeping every bit already in mask. Adding next is not setting a bit, `&` gives 0 for an unused item, and `^` on last would drop an item already used.',
+    },
+  ],
 } satisfies { [P in PatternId]: FixedLength<Cloze, (typeof CLOZE_COUNTS)[P]> };

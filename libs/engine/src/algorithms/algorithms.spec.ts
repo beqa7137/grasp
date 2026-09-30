@@ -238,6 +238,12 @@ const reference: Record<string, (input: any) => unknown> = {
     for (let mask = 0; mask < 1 << nums.length; mask++) if ((mask & (mask << 1)) === 0) best = Math.max(best, loot(mask));
     return best;
   },
+  // Tries every order of nums2 against nums1 and keeps the smallest XOR sum.
+  'minimum-xor-sum': ({ nums1, nums2 }) => {
+    const orders = (rest: number[]): number[][] =>
+      rest.length ? rest.flatMap((x, k) => orders([...rest.slice(0, k), ...rest.slice(k + 1)]).map((order) => [x, ...order])) : [[]];
+    return Math.min(...orders(nums2).map((order) => order.reduce((sum, x, i) => sum + (nums1[i] ^ x), 0)));
+  },
 };
 
 describe.each(ALGORITHMS.map((a) => [a.id, a] as const))('%s', (id, algo) => {

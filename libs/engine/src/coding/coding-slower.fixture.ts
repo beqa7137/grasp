@@ -7,6 +7,8 @@ import { MinHeap } from './problems/min-heap.js';
 import { listValues, type ListNode } from './list.js';
 import type { TreeNode } from './tree.js';
 
+const factorial = (n: number) => rangeOf(1, n).reduce((product, k) => product * k, 1);
+
 export function nodesOf(root: TreeNode | null) {
   const nodes = root ? [root] : [];
   const parent = new Map<TreeNode, TreeNode>();
@@ -1219,6 +1221,40 @@ export const SLOWER: Record<string, (...args: any[]) => number> = {
   },
   // A search from every node across the whole tree, through parents too, for the best path that ends there.
   'max-path-sum': (root: TreeNode | null) => nodesOf(root).nodes.length ** 2,
+  // Every order of nums2, each summed over its n pairs.
+  'minimum-xor-sum': (nums1: number[]) => factorial(nums1.length) * nums1.length,
+  // Trying every group for every value: kⁿ assignments.
+  'partition-k-subsets': (nums: number[], k: number) => k ** nums.length,
+  // Every order in which to reach the nodes first, each summed over n shortest distances.
+  'shortest-path-all-nodes': (graph: number[][]) => factorial(graph.length) * graph.length,
+  // Backtracking seat by seat reaches every seating where no student sees another, counted here row by row.
+  'maximum-students': (seats: string[][]) => {
+    const n = seats[0].length;
+    let count = new Float64Array(1 << n);
+    count[0] = 1;
+    for (const row of seats) {
+      const good = row.reduce((mask, seat, c) => (seat === '.' ? mask | (1 << c) : mask), 0);
+      const next = new Float64Array(1 << n);
+      for (let mask = 0; mask < 1 << n; mask++) {
+        if ((mask & ~good) !== 0 || (mask & (mask >> 1)) !== 0) continue;
+        for (let prev = 0; prev < 1 << n; prev++) if (!(mask & (prev << 1)) && !(mask & (prev >> 1))) next[mask] += count[prev];
+      }
+      count = next;
+    }
+    return count.reduce((sum, c) => sum + c, 0);
+  },
+  // Backtracking person by person reaches every way to give each person a different hat they like, counted here hat by
+  // hat without the modulo.
+  'hats-to-people': (hats: number[][]) => {
+    const ways = new Float64Array(1 << hats.length);
+    ways[0] = 1;
+    for (let hat = 1; hat <= 40; hat++)
+      for (let mask = ways.length - 1; mask >= 0; mask--)
+        hats.forEach((liked, person) => {
+          if (!(mask & (1 << person)) && liked.includes(hat)) ways[mask | (1 << person)] += ways[mask];
+        });
+    return ways[ways.length - 1];
+  },
 };
 
 export const SLOWER_MIN_STEPS: Record<string, number> = {
