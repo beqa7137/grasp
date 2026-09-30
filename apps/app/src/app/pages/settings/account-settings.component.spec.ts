@@ -14,12 +14,19 @@ interface Options {
   identities?: IdentitySummary[] | null;
   signInRequired?: boolean;
   outcome?: () => Promise<boolean>;
+  unsyncedStories?: () => Promise<{ count: number; checked: boolean }>;
+}
+
+interface AlertOptions {
+  message: string;
+  buttons: { text: string; handler?: () => void }[];
 }
 
 function setup(opts: Options = {}) {
   const calls: string[] = [];
   const toasts: string[] = [];
   const reported: unknown[] = [];
+  const alerts: AlertOptions[] = [];
   const user = signal(opts.user ?? null);
   const providers = signal(opts.providers === undefined ? ['google', 'github'] : opts.providers);
   const providersFailed = signal(false);
@@ -41,7 +48,8 @@ function setup(opts: Options = {}) {
     loadIdentities: async () => void calls.push('loadIdentities'),
     signIn: async (provider: SignInProvider) => (calls.push(`signIn ${provider}`), (opts.outcome ?? (async () => true))()),
     connect: async (provider: SignInProvider) => (calls.push(`connect ${provider}`), (opts.outcome ?? (async () => true))()),
-    signOut: async () => void calls.push('signOut'),
+    unsyncedStories: opts.unsyncedStories ?? (async () => ({ count: 0, checked: true })),
+    signOut: async (discardUnsyncedStories: boolean) => void calls.push(`signOut ${discardUnsyncedStories}`),
   };
   TestBed.configureTestingModule({
     imports: [AccountSettingsComponent],
@@ -51,7 +59,10 @@ function setup(opts: Options = {}) {
         provide: ToastController,
         useValue: { create: async ({ message }: { message: string }) => ({ present: async () => toasts.push(message) }) },
       },
-      { provide: AlertController, useValue: {} },
+      {
+        provide: AlertController,
+        useValue: { create: async (options: AlertOptions) => (alerts.push(options), { present: async () => {} }) },
+      },
       { provide: ErrorHandler, useValue: { handleError: (e: unknown) => reported.push(e) } },
     ],
   });
@@ -73,6 +84,7 @@ function setup(opts: Options = {}) {
     calls,
     toasts,
     reported,
+    alerts,
     buttons,
     button,
     click,
@@ -258,5 +270,49 @@ describe('AccountSettingsComponent', () => {
     });
     await inUse.click('Connect GitHub');
     expect(inUse.alert()).toBe('That GitHub account is already linked to a different Grasp account.');
+  });
+
+  it('warns before signing out that stories which have not reached the account leave the device', async () => {
+    const { click, alerts, calls } = setup({
+      user: ada,
+      identities: [googleIdentity],
+      unsyncedStories: async () => ({ count: 2, checked: true }),
+    });
+    await click('Sign out');
+    expect(alerts[0]?.message).toBe('2 stories have not reached your account. Signing out removes them from this device.');
+    alerts[0]!.buttons.find((b) => b.text === 'Sign out')!.handler!();
+    expect(calls).toContain('signOut true');
+  });
+
+  it('says the stories could not be checked when the account could not be asked', async () => {
+    const { click, alerts } = setup({
+      user: ada,
+      identities: [googleIdentity],
+      unsyncedStories: async () => ({ count: 1, checked: false }),
+    });
+    await click('Sign out');
+    expect(alerts[0]?.message).toBe(
+      '1 story on this device could not be checked against your account. Signing out removes it from this device.',
+    );
+  });
+
+  it('asks to try again, signing nothing out, when the stories cannot be read', async () => {
+    const { click, alerts, calls, toasts } = setup({
+      user: ada,
+      identities: [googleIdentity],
+      unsyncedStories: async () => Promise.reject(new SyntaxError('Unexpected token')),
+    });
+    await click('Sign out');
+    expect(alerts).toEqual([]);
+    expect(calls.some((call) => call.startsWith('signOut'))).toBe(false);
+    expect(toasts).toEqual(['Could not check your stories before signing out. Please try again.']);
+  });
+
+  it('signs out without a warning when every story is in the account', async () => {
+    const { click, alerts, calls } = setup({ user: ada, identities: [googleIdentity] });
+    await click('Sign out');
+    expect(alerts[0]?.message).toBe('Your progress stays in your account. This device starts fresh until you sign in again.');
+    alerts[0]!.buttons.find((b) => b.text === 'Sign out')!.handler!();
+    expect(calls).toContain('signOut false');
   });
 });

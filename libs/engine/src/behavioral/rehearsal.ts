@@ -1,6 +1,6 @@
 import { COMPETENCIES } from './competencies.js';
 import { isEmptyDraft } from './star-check.js';
-import type { Story } from './stories.js';
+import { nextChange, type Story } from './stories.js';
 import type { BehavioralQuestion } from './types.js';
 
 const DAY_MS = 86_400_000;
@@ -36,7 +36,11 @@ export function rehearse(story: Story, toldWell: boolean, now: Date): Story {
   const told = (story.rehearsal?.told ?? 0) + 1;
   const step = toldWell ? Math.min((story.rehearsal?.step ?? -1) + 1, REHEARSAL_DAYS.length - 1) : 0;
   const days = toldWell ? REHEARSAL_DAYS[step] : 1;
-  return { ...story, rehearsal: { step, told, due: new Date(now.getTime() + days * DAY_MS).toISOString() } };
+  return {
+    ...story,
+    rehearsal: { step, told, due: new Date(now.getTime() + days * DAY_MS).toISOString() },
+    updatedAt: nextChange(story, now),
+  };
 }
 
 export function whenNext(story: Story, now: Date): string {

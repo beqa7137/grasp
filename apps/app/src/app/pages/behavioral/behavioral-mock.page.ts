@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
 import {
   EMPTY_STAR_DRAFT,
+  STORY_LIMITS,
   debriefMock,
   formatClock,
   getCompetencySummary,
@@ -249,9 +250,8 @@ export class BehavioralMockPage {
     const { answer } = this.answers()[index];
     const question = this.plan()[index].question;
     this.saved.update((s) => new Set(s).add(index));
-    await this.bank.save({
-      ...this.bank.blank(),
-      title: firstSentence(answer.situation) || question.prompt,
+    await this.bank.save(this.bank.blank().id, {
+      title: (firstSentence(answer.situation) || question.prompt).slice(0, STORY_LIMITS.title),
       competencyIds: [question.competencyId],
       draft: answer,
     });

@@ -85,6 +85,13 @@
       "when": 1790572030665,
       "tag": "0011_learning_events_received",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1790737648904,
+      "tag": "0012_stories",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { IonIcon } from '@ionic/angular';
-import { countWords, formatClock, reviewStar, type StarDraft, type StarPart } from '@grasp/engine';
+import { STORY_LIMITS, countWords, formatClock, reviewStar, type StarDraft, type StarPart } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import { alertCircle, checkmarkCircle } from 'ionicons/icons';
 
@@ -30,11 +30,12 @@ const PARTS: readonly { part: StarPart; label: string; hint: string }[] = [
               (input)="edit.emit({ part: p.part, text: $any($event.target).value })"
               [placeholder]="p.hint"
               [rows]="p.part === 'action' ? 6 : 3"
+              [maxLength]="maxLength"
             ></textarea>
           </label>
         }
         @if (coached()) {
-          <p class="saved muted">Saved on this device only.</p>
+          <p class="saved muted">{{ saved() }}</p>
         }
       </form>
 
@@ -155,8 +156,10 @@ export class StarEditorComponent {
   readonly draft = input.required<StarDraft>();
   /** Off in a mock interview, where no one checks the answer as it is given and nothing is kept. */
   readonly coached = input(true);
+  readonly saved = input('Saved on this device only.');
   readonly edit = output<{ part: StarPart; text: string }>();
   readonly parts = PARTS;
+  readonly maxLength = STORY_LIMITS.part;
   readonly review = computed(() => reviewStar(this.draft()));
   readonly passing = computed(() => this.review().checks.filter((c) => c.ok).length);
   readonly words = computed(() => {

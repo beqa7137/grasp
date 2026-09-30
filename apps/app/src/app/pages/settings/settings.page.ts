@@ -80,13 +80,16 @@ import { type Choice, StudySettingsComponent } from './study-settings.component'
           <h2>Your data</h2>
           <p class="muted">
             Grasp stores your learning events, interview sessions and feedback
-            {{ auth.signedIn() ? 'in your account' : 'under an anonymous id' }}. In AI mode, interview transcripts and shared code are sent
-            to Anthropic's Claude API for replies and scoring.
+            {{
+              auth.signedIn()
+                ? 'in your account, and syncs your behavioral stories there too'
+                : 'under an anonymous id; your behavioral stories stay on this device until you sign in'
+            }}. In AI mode, interview transcripts and shared code are sent to Anthropic's Claude API for replies and scoring.
           </p>
           <div class="row g-control-row">
             <div>
               <strong>Export</strong>
-              <p class="muted small">Download everything we store about you as JSON.</p>
+              <p class="muted small">Download everything we store about you as JSON{{ auth.signedIn() ? ', stories included' : '' }}.</p>
             </div>
             <button class="g-btn" [disabled]="busy()" (click)="exportData()">Export</button>
           </div>
@@ -184,7 +187,7 @@ export class SettingsPage {
   async confirmDelete() {
     const alert = await this.alerts.create({
       header: 'Delete all your data?',
-      message: `Your progress, interviews and feedback${this.auth.signedIn() ? ', and your account,' : ''} will be erased from our server and this device. This cannot be undone.`,
+      message: `Your progress, interviews, feedback and stories${this.auth.signedIn() ? ', and your account,' : ''} will be erased from our server and this device. This cannot be undone.`,
       buttons: [
         { text: 'Cancel', role: 'cancel' },
         { text: 'Delete', role: 'destructive', handler: () => void this.deleteData() },

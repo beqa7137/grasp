@@ -9,6 +9,7 @@ import {
   MemoryInterviewStore,
   MemoryProgressStore,
 } from '../persistence/memory.stores.js';
+import { MemoryStoryStore } from '../persistence/memory-story.store.js';
 import { AccountService } from './account.service.js';
 import type { User, VerifiedIdentity } from './auth.types.js';
 import { SessionService } from './session.service.js';
@@ -27,8 +28,9 @@ function setup() {
     progress,
     interviews: new MemoryInterviewStore(state, progress),
     feedback: new MemoryFeedbackStore(state),
+    stories: new MemoryStoryStore(state),
   };
-  const erasure = new MemoryErasureStore(state, stores.progress, stores.interviews, stores.feedback, stores.auth);
+  const erasure = new MemoryErasureStore(state, stores.progress, stores.interviews, stores.feedback, stores.auth, stores.stories);
   const sessions = new SessionService(
     stores.auth,
     new TokenService('unit-test-secret-0123456789abcdef-0123456789'),

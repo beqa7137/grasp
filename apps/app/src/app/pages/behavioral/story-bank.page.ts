@@ -4,7 +4,7 @@ import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, Io
 import { BANK_TARGET, dueStories, getCompetencySummary, reviewStar, storyTitle, whenNext, type Story } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import { add, bulbOutline, chevronForward, micOutline } from 'ionicons/icons';
-import { StoryBankService } from './story-bank.service';
+import { STORY_SYNC_NOTES, StoryBankService } from './story-bank.service';
 
 @Component({
   selector: 'app-story-bank',
@@ -76,7 +76,10 @@ import { StoryBankService } from './story-bank.service';
             }
           </ul>
         }
-        <p class="saved muted">Saved on this device only.</p>
+        <p class="saved muted">{{ saved() }}</p>
+        @for (r of refusals(); track r.id) {
+          <p class="saved muted">"{{ r.title }}" is saved on this device only: the account refused it, as {{ r.reason }}.</p>
+        }
       </div>
     </ion-content>
   `,
@@ -208,6 +211,8 @@ export class StoryBankPage {
   readonly target = BANK_TARGET;
   readonly stories = this.bank.stories;
   readonly review = this.bank.review;
+  readonly saved = computed(() => STORY_SYNC_NOTES[this.bank.sync()]);
+  readonly refusals = computed(() => this.bank.refusals().map(({ story, reason }) => ({ id: story.id, title: storyTitle(story), reason })));
   readonly rows = computed(() => {
     const now = new Date();
     return this.stories().map((s) => this.row(s, now));

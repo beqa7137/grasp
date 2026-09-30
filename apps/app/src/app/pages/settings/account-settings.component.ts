@@ -3,8 +3,16 @@ import { AlertController, IonIcon, ToastController } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { logoGithub, logoGoogle } from 'ionicons/icons';
 import { ApiError } from '../../core/api.service';
-import { AuthService, SIGN_IN_PROVIDERS, type SignInProvider } from '../../core/auth.service';
+import { AuthService, SIGN_IN_PROVIDERS, UnsyncedStories, type SignInProvider } from '../../core/auth.service';
 import { SIGN_IN_ICONS, SIGN_IN_LABELS, SignInOptionsComponent, signInErrorMessage } from '../../core/sign-in-options.component';
+
+function unsyncedWarning(count: number, checked: boolean): string {
+  const stories = count === 1 ? '1 story' : `${count} stories`;
+  const them = count === 1 ? 'it' : 'them';
+  return checked
+    ? `${stories} ${count === 1 ? 'has' : 'have'} not reached your account. Signing out removes ${them} from this device.`
+    : `${stories} on this device could not be checked against your account. Signing out removes ${them} from this device.`;
+}
 
 @Component({
   selector: 'app-account-settings',
@@ -17,7 +25,7 @@ import { SIGN_IN_ICONS, SIGN_IN_LABELS, SignInOptionsComponent, signInErrorMessa
         <div class="row">
           <div>
             <strong>{{ user.email }}</strong>
-            <p class="muted small">Progress syncs across every device where you sign in.</p>
+            <p class="muted small">Progress and behavioral stories sync across every device where you sign in.</p>
           </div>
           <button class="g-btn" [disabled]="busy()" (click)="confirmSignOut()">Sign out</button>
         </div>
@@ -175,24 +183,40 @@ export class AccountSettingsComponent {
   }
 
   async confirmSignOut() {
+    this.busy.set(true);
+    let unsynced;
+    try {
+      unsynced = await this.auth.unsyncedStories();
+    } catch {
+      await this.toast('Could not check your stories before signing out. Please try again.');
+      return;
+    } finally {
+      this.busy.set(false);
+    }
     const alert = await this.alerts.create({
       header: 'Sign out?',
-      message: 'Your progress stays in your account. This device starts fresh until you sign in again.',
+      message: unsynced.count
+        ? unsyncedWarning(unsynced.count, unsynced.checked)
+        : 'Your progress stays in your account. This device starts fresh until you sign in again.',
       buttons: [
         { text: 'Cancel', role: 'cancel' },
-        { text: 'Sign out', role: 'destructive', handler: () => void this.signOut() },
+        { text: 'Sign out', role: 'destructive', handler: () => void this.signOut(unsynced.count > 0) },
       ],
     });
     await alert.present();
   }
 
-  private async signOut() {
+  private async signOut(discardUnsyncedStories: boolean) {
     this.error.set(null);
     this.busy.set(true);
     try {
-      await this.auth.signOut();
-    } catch {
-      await this.toast('Could not finish signing out. Please try again.');
+      await this.auth.signOut(discardUnsyncedStories);
+    } catch (e) {
+      await this.toast(
+        e instanceof UnsyncedStories
+          ? 'Some stories have not reached your account yet, so nothing was removed. Try signing out again.'
+          : 'Could not finish signing out. Please try again.',
+      );
     } finally {
       this.busy.set(false);
     }

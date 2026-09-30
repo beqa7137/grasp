@@ -6,6 +6,9 @@ import { APP_CONFIG, ConfigError, loadConfig, type AppConfig } from '../config.j
 import { safeErrorDetails } from '../observability/safe-error.js';
 import { createDatabasePool } from './database-pool.js';
 import { MemorySpendStore } from './memory-spend.store.js';
+import { MemoryStoryStore } from './memory-story.store.js';
+import { PostgresStoryStore } from './postgres-story.store.js';
+import { StoryStore } from './story.store.js';
 import { PostgresSpendStore } from './postgres-spend.store.js';
 import { SpendStore } from './spend.store.js';
 import { ErasureStore, MemoryErasureStore, MemoryLearnerState, PostgresErasureStore } from './erasure.stores.js';
@@ -107,8 +110,13 @@ export class ExpiredRowSweeper implements OnApplicationBootstrap, OnApplicationS
       useFactory: (db: Db | null, state: MemoryLearnerState) => (db ? new PostgresAuthStore(db) : new MemoryAuthStore(state)),
     },
     {
+      provide: StoryStore,
+      inject: [DB, MemoryLearnerState],
+      useFactory: (db: Db | null, state: MemoryLearnerState) => (db ? new PostgresStoryStore(db) : new MemoryStoryStore(state)),
+    },
+    {
       provide: ErasureStore,
-      inject: [DB, MemoryLearnerState, ProgressStore, InterviewStore, FeedbackStore, AuthStore],
+      inject: [DB, MemoryLearnerState, ProgressStore, InterviewStore, FeedbackStore, AuthStore, StoryStore],
       useFactory: (
         db: Db | null,
         state: MemoryLearnerState,
@@ -116,6 +124,7 @@ export class ExpiredRowSweeper implements OnApplicationBootstrap, OnApplicationS
         interviews: InterviewStore,
         feedback: FeedbackStore,
         auth: AuthStore,
+        stories: StoryStore,
       ) =>
         db
           ? new PostgresErasureStore(db)
@@ -125,6 +134,7 @@ export class ExpiredRowSweeper implements OnApplicationBootstrap, OnApplicationS
               interviews as MemoryInterviewStore,
               feedback as MemoryFeedbackStore,
               auth,
+              stories,
             ),
     },
     {
@@ -141,7 +151,18 @@ export class ExpiredRowSweeper implements OnApplicationBootstrap, OnApplicationS
     },
     ExpiredRowSweeper,
   ],
-  exports: [APP_CONFIG, PG_POOL, ProgressStore, InterviewStore, FeedbackStore, AuthStore, ErasureStore, CoordinationStore, SpendStore],
+  exports: [
+    APP_CONFIG,
+    PG_POOL,
+    ProgressStore,
+    InterviewStore,
+    FeedbackStore,
+    AuthStore,
+    StoryStore,
+    ErasureStore,
+    CoordinationStore,
+    SpendStore,
+  ],
 })
 export class PersistenceModule implements OnApplicationShutdown {
   constructor(@Inject(PG_POOL) private readonly pool: pg.Pool | null) {}

@@ -1,11 +1,13 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, Injector, computed, inject, signal } from '@angular/core';
 import { Preferences } from '@capacitor/preferences';
 import { ToastController } from '@ionic/angular';
 import { ApiError, ApiService } from './api.service';
 import { AuthTokens } from './auth-tokens.service';
 import { LearnerService } from './learner.service';
+import { STORY_BANK_KEY, storyStashKey } from './local-drafts';
 import { ProgressService } from './progress.service';
 import { type GitHubCredential, SocialSignInService } from './social-sign-in.service';
+import type { StoryBankService } from '../pages/behavioral/story-bank.service';
 
 const REFRESH_KEY = 'grasp.auth.refresh';
 const USER_KEY = 'grasp.auth.user';
@@ -14,6 +16,13 @@ const SIGN_IN_TIMEOUT_MS = 30_000;
 
 export type SignInProvider = 'google' | 'github';
 export const SIGN_IN_PROVIDERS: readonly SignInProvider[] = ['google', 'github'];
+
+/** Signing out would remove stories from this device that the account does not have. */
+export class UnsyncedStories extends Error {
+  constructor(readonly count: number) {
+    super(`${count} ${count === 1 ? 'story has' : 'stories have'} not reached the account`);
+  }
+}
 
 export interface AccountUser {
   id: string;
@@ -49,6 +58,7 @@ export class AuthService {
   private readonly progress = inject(ProgressService);
   private readonly social = inject(SocialSignInService);
   private readonly toasts = inject(ToastController);
+  private readonly injector = inject(Injector);
   private refreshing: Promise<boolean> | null = null;
   private recoveringErased: Promise<void> | null = null;
   private readonly noticedErasedLearners = new Set<string>();
@@ -146,12 +156,15 @@ export class AuthService {
     return this.refreshing;
   }
 
-  async signOut(): Promise<void> {
+  /** Rejects with `UnsyncedStories`, changing nothing, while stories on this device have not reached the account. */
+  async signOut(discardUnsyncedStories = false): Promise<void> {
     this.endingSession = true;
     try {
       await this.refreshing?.catch(() => false);
       const { value } = await Preferences.get({ key: REFRESH_KEY });
       if (!value && this.tokens.accessToken()) throw new Error('The session cannot be revoked without its refresh token');
+      const unsynced = value && !discardUnsyncedStories ? (await this.unsyncedStories()).count : 0;
+      if (unsynced) throw new UnsyncedStories(unsynced);
       if (value) await this.api.post('/auth/logout', { refreshToken: value });
       await this.clearDevice();
     } finally {
@@ -166,6 +179,53 @@ export class AuthService {
       await this.clearDevice();
     } finally {
       this.endingSession = false;
+    }
+  }
+
+  /** Loaded on demand to keep it out of first paint; once it exists, the story bank syncs whenever the learner signs in. */
+  private async storyBank(): Promise<StoryBankService> {
+    const { StoryBankService } = await import('../pages/behavioral/story-bank.service');
+    return this.injector.get(StoryBankService);
+  }
+
+  /**
+   * Uploads what it can first, as the device starts fresh after signing out and the rest would be lost. `checked` is
+   * false when the account could not be asked, so the count is every story on the device.
+   */
+  async unsyncedStories(): Promise<{ count: number; checked: boolean }> {
+    await this.refreshing?.catch(() => false);
+    let bank: StoryBankService;
+    try {
+      bank = await this.storyBank();
+    } catch {
+      // A tab from an older deploy may fail to load the story bank; then every story it holds counts as unsynced.
+      const { value } = await Preferences.get({ key: STORY_BANK_KEY });
+      const stories = value ? (JSON.parse(value) as { deleted?: true }[]) : [];
+      return { count: stories.filter((story) => !story.deleted).length, checked: false };
+    }
+    const { stories, checked } = await bank.flush();
+    return { count: stories.length, checked };
+  }
+
+  /**
+   * Through the story bank's queue, so a change still pending there cannot write the old bank back afterwards. With a
+   * learner, the bank kept aside for them goes too.
+   */
+  private async clearStories(learnerId?: string): Promise<void> {
+    try {
+      await (await this.storyBank()).clear(learnerId);
+    } catch {
+      if (learnerId) await Preferences.remove({ key: storyStashKey(learnerId) });
+    }
+  }
+
+  /** Stories written after a session ended would otherwise be lost when another account starts the device fresh. */
+  private async stashStories(learnerId: string): Promise<void> {
+    try {
+      await (await this.storyBank()).stash(learnerId);
+    } catch {
+      const { value } = await Preferences.get({ key: STORY_BANK_KEY });
+      if (value) await Preferences.set({ key: storyStashKey(learnerId), value });
     }
   }
 
@@ -211,7 +271,9 @@ export class AuthService {
 
   private async clearDevice(): Promise<void> {
     this.progress.invalidateSync();
+    const learnerId = this.learner.id();
     await this.forget();
+    await this.clearStories(learnerId);
     await this.progress.clearLocal();
     await this.learner.reset();
     this.tokens.signInRequired.set(false);
@@ -230,11 +292,18 @@ export class AuthService {
     const deviceLearnerId = this.learner.id();
     const session = await request();
     const erasedDeviceLearner = session.deviceLearnerErased && this.learner.id() === deviceLearnerId;
-    if (erasedDeviceLearner || (this.tokens.signInRequired() && session.learnerId !== this.learner.id())) await this.progress.clearLocal();
+    if (erasedDeviceLearner || (this.tokens.signInRequired() && session.learnerId !== this.learner.id())) {
+      if (!erasedDeviceLearner) await this.stashStories(this.learner.id());
+      await this.clearStories();
+      await this.progress.clearLocal();
+    }
     this.sessionEpoch++;
     this.progress.invalidateSync();
     await this.adopt(session);
     if (erasedDeviceLearner) await this.showErasedNotice(deviceLearnerId);
+    await this.storyBank()
+      .then((bank) => bank.restore(session.learnerId))
+      .catch(() => undefined);
     await this.progress.resync();
   }
 
