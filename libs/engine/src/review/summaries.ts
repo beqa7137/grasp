@@ -103,6 +103,12 @@ const DESIGN = [
   { id: 'restore-time', topic: 'sd-recovery' },
   { id: 'replica-not-backup', topic: 'sd-recovery' },
   { id: 'restore-drill', topic: 'sd-recovery' },
+  { id: 'noisy-share', topic: 'sd-tenancy' },
+  { id: 'fair-sharing', topic: 'sd-tenancy' },
+  { id: 'tenant-cells', topic: 'sd-tenancy' },
+  { id: 'introspection-load', topic: 'sd-gateway' },
+  { id: 'jwt-revocation', topic: 'sd-gateway' },
+  { id: 'mesh-cost', topic: 'sd-gateway' },
 ] as const satisfies readonly DesignItemSummary[];
 
 export type DesignItemId = (typeof DESIGN)[number]['id'];

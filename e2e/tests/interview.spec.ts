@@ -8,6 +8,7 @@ async function interviewUntilScorable(page: Page, problem: RegExp) {
   await expect(page).toHaveURL(/\/interview\/[0-9a-f-]{36}$/);
   const input = page.getByRole('textbox', { name: /Think out loud/ });
   const replies = page.locator('app-interview-session .msg:not(.me)');
+  await expect(replies.first()).toBeVisible();
   for (const text of [
     'Can the input be empty, and how long can it get?',
     'I would slide a window and track the most frequent value in it.',

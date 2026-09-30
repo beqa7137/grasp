@@ -22,6 +22,8 @@ import { QUEUES_LESSON } from './queues.js';
 import { RATE_LIMITING_LESSON } from './rate-limiting.js';
 import { REALTIME_LESSON } from './realtime.js';
 import { RECOVERY_LESSON } from './recovery.js';
+import { TENANCY_LESSON } from './tenancy.js';
+import { GATEWAY_LESSON } from './gateway.js';
 import { RELIABILITY_LESSON } from './reliability.js';
 import { REPLICATION_LESSON } from './replication.js';
 import { SEARCH_LESSON } from './search.js';
@@ -67,6 +69,8 @@ export const SD_LESSONS: Readonly<Record<string, SdLesson>> = {
   'sd-discovery': DISCOVERY_LESSON,
   'sd-clocks': CLOCKS_LESSON,
   'sd-recovery': RECOVERY_LESSON,
+  'sd-tenancy': TENANCY_LESSON,
+  'sd-gateway': GATEWAY_LESSON,
   'sd-durability': DURABILITY_LESSON,
 };
 

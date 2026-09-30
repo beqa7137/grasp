@@ -161,10 +161,11 @@ describe('SocialSignInService', () => {
     expect(first?.ticket).toBe('grasp-ticket');
     expect(first?.codeVerifier).toMatch(/^[A-Za-z0-9_-]{43}$/);
     expect(second?.codeVerifier).not.toBe(first?.codeVerifier);
+    const state = expect.stringMatching(/^[A-Za-z0-9_-]{43}$/);
     expect(log.slice(1)).toEqual([
-      ['login', { provider: 'oauth2', options: { providerId: 'github', codeVerifier: first?.codeVerifier } }],
+      ['login', { provider: 'oauth2', options: { providerId: 'github', codeVerifier: first?.codeVerifier, state } }],
       ['logout', { provider: 'oauth2', providerId: 'github' }],
-      ['login', { provider: 'oauth2', options: { providerId: 'github', codeVerifier: second?.codeVerifier } }],
+      ['login', { provider: 'oauth2', options: { providerId: 'github', codeVerifier: second?.codeVerifier, state } }],
       ['logout', { provider: 'oauth2', providerId: 'github' }],
     ]);
   });
@@ -273,6 +274,20 @@ describe('SocialSignInService web storage', () => {
       TestBed.resetTestingModule();
       leaveOldAttempt();
     }
+  });
+
+  it('keeps the GitHub result the popup relayed when the plugin sees the popup close before its message', async () => {
+    let resultKey = '';
+    const { social } = setup({
+      login: async (options) => {
+        resultKey = `social_login_oauth_result_${options.options['state']}`;
+        const relayed = { type: 'oauth-response', provider: 'oauth2', providerId: 'github', accessToken: { token: 'relayed-ticket' } };
+        localStorage.setItem(resultKey, JSON.stringify(relayed));
+        throw cancelled();
+      },
+    });
+    expect((await social.github())?.ticket).toBe('relayed-ticket');
+    expect(stored().local).not.toHaveProperty([resultKey]);
   });
 
   it('also drops the pending flow after a cancel', async () => {
