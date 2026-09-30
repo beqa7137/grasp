@@ -21,6 +21,9 @@ export class HoldHeightDirective {
   private readonly onScroll = () => this.anchorByHandWhileAbove();
 
   constructor() {
+    // The directive scrolls by what the element's content changes, so the browser must not also anchor to something inside
+    // it: two corrections of one change add up to a jump. The WebKit the tests run (26.6) anchors too.
+    this.host.style.overflowAnchor = 'none';
     const destroyRef = inject(DestroyRef);
     void inject(IonContent, { optional: true })
       ?.getScrollElement()
@@ -99,8 +102,8 @@ export class HoldHeightDirective {
     return false;
   }
 
-  // The page is anchored by hand while the element's top is above the view, where a change scrolls it by as much: Safari
-  // before 27 cannot anchor, and Chrome anchors to the element's partly visible container rather than to what follows it,
+  // The page is anchored by hand while the element's top is above the view, where a change scrolls it by as much: older Safari
+  // cannot anchor, and Chrome anchors to the element's partly visible container rather than to what follows it,
   // so its own anchoring would count the change twice. Elsewhere the browser keeps the learner's place, as through a resize.
   // It is switched as the page scrolls: a scroll also drops the anchor Chrome kept, which it would otherwise put back.
   private anchorByHandWhileAbove() {
