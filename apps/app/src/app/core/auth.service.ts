@@ -1,12 +1,14 @@
 import { Injectable, Injector, computed, inject, signal } from '@angular/core';
 import { Preferences } from '@capacitor/preferences';
 import { ToastController } from '@ionic/angular';
+import type { Story } from '@grasp/engine';
 import { ApiError, ApiService } from './api.service';
 import { AuthTokens } from './auth-tokens.service';
 import { LearnerService } from './learner.service';
 import { STORY_BANK_KEY, storyStashKey } from './local-drafts';
 import { ProgressService } from './progress.service';
 import { type GitHubCredential, SocialSignInService } from './social-sign-in.service';
+import { readStoryStash, writeStoryStash } from './story-stash';
 import type { StoryBankService } from '../pages/behavioral/story-bank.service';
 
 const REFRESH_KEY = 'grasp.auth.refresh';
@@ -225,7 +227,10 @@ export class AuthService {
       await (await this.storyBank()).stash(learnerId);
     } catch {
       const { value } = await Preferences.get({ key: STORY_BANK_KEY });
-      if (value) await Preferences.set({ key: storyStashKey(learnerId), value });
+      if (!value) return;
+      // The merge lives with the story bank, so both copies are kept; bringing them back keeps each story's latest change.
+      const now = new Date();
+      await writeStoryStash(learnerId, [...(await readStoryStash(learnerId, now)), ...(JSON.parse(value) as Story[])], now);
     }
   }
 

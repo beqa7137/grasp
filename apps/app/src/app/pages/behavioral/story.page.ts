@@ -128,7 +128,7 @@ export class StoryPage {
       const id = this.id();
       untracked(() => {
         this.story.set(null);
-        void this.bank.load().then(() => {
+        void this.bank.load(id).then(() => {
           if (this.id() === id) this.show(this.bank.find(id) ?? this.bank.blank(id));
         });
       });

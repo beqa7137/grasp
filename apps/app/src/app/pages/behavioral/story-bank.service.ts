@@ -16,6 +16,7 @@ import {
 import { ApiError, ApiService } from '../../core/api.service';
 import { AuthTokens } from '../../core/auth-tokens.service';
 import { STORY_BANK_KEY, storyStashKey } from '../../core/local-drafts';
+import { readStoryStash, sweepStoryStashes, writeStoryStash } from '../../core/story-stash';
 import { VISIBLE_RESYNC_GAP_MS } from '../../core/progress.service';
 
 const PUSH_DELAY_MS = 1_500;
@@ -50,7 +51,7 @@ export interface Unsynced {
   checked: boolean;
 }
 
-const isBlank = (story: Story) => !story.title.trim() && !story.competencyIds.length && isEmptyDraft(story.draft);
+const isBlank = (story: Story) => !story.deleted && !story.title.trim() && !story.competencyIds.length && isEmptyDraft(story.draft);
 
 /**
  * The story bank lives on the device and, while the learner is signed in, syncs with the account: each story keeps its
@@ -86,6 +87,7 @@ export class StoryBankService {
   private syncing: Promise<void> | null = null;
   private next: Promise<void> | null = null;
   private pushTimer: ReturnType<typeof setTimeout> | undefined;
+  private swept = false;
 
   constructor() {
     if (this.sessionSignedIn) void this.push();
@@ -114,8 +116,21 @@ export class StoryBankService {
     });
   }
 
-  load(): Promise<void> {
-    return this.enqueue(() => this.read());
+  /**
+   * The first load also drops expired stashes, and stories left blank when the app closed before their page was left,
+   * except the story whose page is `open`.
+   */
+  load(open?: string): Promise<void> {
+    if (this.swept) return this.enqueue(() => this.read());
+    this.swept = true;
+    const now = new Date();
+    return this.change((stories) => {
+      const blank = stories.filter((s) => s.id !== open && isBlank(s));
+      return blank.length ? blank.reduce((rest, s) => this.without(rest, s.id, now), stories) : stories;
+    }).then((changed) => {
+      if (changed) this.pushSoon();
+      return this.enqueue(() => sweepStoryStashes(now));
+    });
   }
 
   get(id: string): Story | undefined {
@@ -156,7 +171,7 @@ export class StoryBankService {
     const now = new Date();
     return this.edit((stories) => {
       const current = stories.find((s) => s.id === id);
-      return current && !current.deleted && isBlank(current) ? this.without(stories, id, now) : stories;
+      return current && isBlank(current) ? this.without(stories, id, now) : stories;
     });
   }
 
@@ -183,7 +198,8 @@ export class StoryBankService {
     await this.load();
     await this.push();
     const remote = this.remote;
-    return { stories: this.stories().filter((s) => !remote || isNewer(s, remote.get(s.id))), checked: remote !== null };
+    const unsynced = this.stories().filter((s) => !isBlank(s) && (!remote || isNewer(s, remote.get(s.id))));
+    return { stories: unsynced, checked: remote !== null };
   }
 
   /**
@@ -199,23 +215,24 @@ export class StoryBankService {
     });
   }
 
-  /** Keeps the bank aside for a learner whose session ended, so it returns when they sign in on this device again. */
+  /** Keeps the bank aside, with any kept before, for a learner whose session ended, until they sign in here again. */
   stash(learnerId: string): Promise<void> {
     return this.enqueue(async () => {
       await this.read();
-      if (this.stories().length) await Preferences.set({ key: storyStashKey(learnerId), value: JSON.stringify(this.all()) });
+      if (!this.stories().length) return;
+      const now = new Date();
+      await writeStoryStash(learnerId, mergeStories(this.all(), await readStoryStash(learnerId, now)), now);
     });
   }
 
   /** Brings back a bank kept aside for this learner, merged by latest change, and uploads it. */
   async restore(learnerId: string): Promise<void> {
-    const key = storyStashKey(learnerId);
     await this.enqueue(async () => {
-      const { value } = await Preferences.get({ key });
-      if (!value) return;
+      const stashed = await readStoryStash(learnerId, new Date());
+      if (!stashed.length) return;
       await this.read();
-      await this.store(mergeStories(this.all(), JSON.parse(value) as Story[]));
-      await Preferences.remove({ key });
+      await this.store(mergeStories(this.all(), stashed));
+      await Preferences.remove({ key: storyStashKey(learnerId) });
     });
     void this.push();
   }
@@ -239,11 +256,13 @@ export class StoryBankService {
 
   private edit(apply: (stories: readonly Story[]) => readonly Story[]): Promise<void> {
     const edited = this.change(apply);
-    void edited.then(() => {
-      clearTimeout(this.pushTimer);
-      this.pushTimer = setTimeout(() => void this.push(), PUSH_DELAY_MS);
-    });
+    void edited.then(() => this.pushSoon());
     return edited.then(() => undefined);
+  }
+
+  private pushSoon() {
+    clearTimeout(this.pushTimer);
+    this.pushTimer = setTimeout(() => void this.push(), PUSH_DELAY_MS);
   }
 
   /** One sync at a time; a call during one gets the sync after it, which sees every change made meanwhile. */
@@ -275,7 +294,7 @@ export class StoryBankService {
         this.remote = remote;
         if (await this.adopt(stories, remote, session)) this.pulls.update((n) => n + 1);
       }
-      for (const story of this.all().filter((s) => isNewer(s, remote.get(s.id)) && !this.isRefused(s))) {
+      for (const story of this.all().filter((s) => !isBlank(s) && isNewer(s, remote.get(s.id)) && !this.isRefused(s))) {
         let stored: Story;
         try {
           stored = (await this.api.put<{ story: Story }>(`/stories/${encodeURIComponent(story.id)}`, story)).story;

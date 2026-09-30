@@ -14,6 +14,7 @@ vi.mock('@capacitor/preferences', () => ({
     get: vi.fn(async ({ key }: { key: string }) => ({ value: localStorage.getItem(`CapacitorStorage.${key}`) })),
     set: vi.fn(async ({ key, value }: { key: string; value: string }) => localStorage.setItem(`CapacitorStorage.${key}`, value)),
     remove: vi.fn(async ({ key }: { key: string }) => localStorage.removeItem(`CapacitorStorage.${key}`)),
+    keys: vi.fn(async () => ({ keys: [] })),
   },
 }));
 
