@@ -10,7 +10,7 @@ import {
   starText,
 } from './behavioral.prompts.js';
 import { behavioralScorecardJsonSchema } from './behavioral.scorecard.js';
-import { ClaudeInterviewer, FALLBACK_SCORE_SUMMARY, REDIRECT_REPLY } from './claude.interviewer.js';
+import { ClaudeInterviewer, FALLBACK_SCORE_SUMMARY, REDIRECT_REPLY, type ClaudeInterviewerOptions } from './claude.interviewer.js';
 import type { InterviewSession, InterviewTrack } from './interview.types.js';
 import { PROBLEMS } from './problems.js';
 import { RUBRICS } from './prompts.js';
@@ -36,13 +36,18 @@ function session(track: InterviewTrack = 'coding', said: { content: string; hint
   };
 }
 
-function setup(respond: (body: Record<string, any>, index: number) => FakeResponse, maxRetries = 0, model = MODEL) {
+function setup(
+  respond: (body: Record<string, any>, index: number) => FakeResponse,
+  maxRetries = 0,
+  model = MODEL,
+  options: Partial<ClaudeInterviewerOptions> = {},
+) {
   const fake = fakeAnthropic(respond, { maxRetries });
   const spend = {
     reserve: vi.fn(async (maximum: number) => ({ id: crypto.randomUUID(), maximum })),
     settle: vi.fn(async (_reservation: unknown, _cost: number | null) => {}),
   };
-  return { ...fake, spend, interviewer: new ClaudeInterviewer(fake.client, { model }, spend as unknown as SpendGuard) };
+  return { ...fake, spend, interviewer: new ClaudeInterviewer(fake.client, { model, ...options }, spend as unknown as SpendGuard) };
 }
 
 const signal = () => new AbortController().signal;
@@ -439,13 +444,52 @@ describe('ClaudeInterviewer.reply', () => {
   });
 
   it('passes client disconnects through as aborts', async () => {
-    const { interviewer, spend } = setup(() => ({ stream: ['one ', 'two ', 'three'], delayMs: 20 }));
+    const { interviewer, spend, requests } = setup(() => ({ stream: ['one ', 'two ', 'three'], delayMs: 20 }));
     const abort = new AbortController();
     const pending = interviewer.reply(session('coding', [{ content: 'hi' }]), () => abort.abort(), abort.signal);
     await expect(pending).rejects.toBeInstanceOf(Anthropic.APIUserAbortError);
+    expect(requests[0].signal?.aborted).toBe(true);
     const [[, settled]] = spend.settle.mock.calls;
     expect(settled).toBeGreaterThan(0);
     expect(settled).toBeLessThanOrEqual(spend.reserve.mock.calls[0][0]);
+  });
+
+  describe('deadline', () => {
+    beforeEach(() => vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] }));
+    afterEach(() => vi.useRealTimers());
+
+    it('cancels a reply that keeps streaming past its deadline and settles what the stream reported', async () => {
+      const { interviewer, spend, requests } = setup(() => ({ stream: ['Tell '], endless: true, delayMs: 50 }), 0, MODEL, {
+        replyDeadlineMs: 1_000,
+      });
+      const warned = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+      const deltas: string[] = [];
+      const pending = interviewer.reply(session('coding', [{ content: 'hi' }]), (text) => deltas.push(text), signal());
+      const failed = expect(pending).rejects.toBeInstanceOf(ServiceUnavailableException);
+
+      await vi.advanceTimersByTimeAsync(1_000);
+      await failed;
+
+      expect(deltas.length).toBeGreaterThan(5);
+      expect(requests[0].signal?.aborted).toBe(true);
+      expect(spend.settle).toHaveBeenCalledTimes(1);
+      const [[, settled]] = spend.settle.mock.calls;
+      expect(settled).toBeGreaterThan(0);
+      expect(settled).toBeLessThan(spend.reserve.mock.calls[0][0]);
+      expect(warned.mock.calls).toEqual([[{ operation: 'interview.reply-deadline' }]]);
+    });
+
+    it('keeps a budget refusal that settles after the deadline as its own error', async () => {
+      const { interviewer, spend, requests } = setup(() => ({ stream: ['unused'] }), 0, MODEL, { replyDeadlineMs: 1_000 });
+      let refuse!: (error: unknown) => void;
+      spend.reserve.mockImplementationOnce(() => new Promise((_, reject) => (refuse = reject)));
+      const failed = expect(interviewer.reply(session(), () => {}, signal())).rejects.toThrow(/usage limit/);
+
+      await vi.advanceTimersByTimeAsync(1_000);
+      refuse(new ServiceUnavailableException('The AI interviewer has reached its current usage limit. Please try again later.'));
+      await failed;
+      expect(requests).toHaveLength(0);
+    });
   });
 });
 
@@ -525,6 +569,30 @@ describe('ClaudeInterviewer.score', () => {
     expect(scorecard.mode).toBe('offline');
     expect(scorecard.summary).toBe(FALLBACK_SCORE_SUMMARY);
     expect(scorecard.dimensions).toHaveLength(5);
+  });
+
+  it('returns a retryable 503 when scoring outlasts its deadline, keeping the charges it incurred', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      const { interviewer, spend, requests } = setup((_b, i) => (i === 0 ? { text: 'not json' } : { hang: true }), 0, MODEL, {
+        scoreDeadlineMs: 5_000,
+      });
+      const warned = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+      const failed = expect(interviewer.score(session('coding', [{ content: 'not sure' }]))).rejects.toBeInstanceOf(
+        ServiceUnavailableException,
+      );
+
+      await vi.advanceTimersByTimeAsync(5_000);
+      await failed;
+
+      expect(requests).toHaveLength(2);
+      expect(requests[1].signal?.aborted).toBe(true);
+      expect(warned.mock.calls.at(-1)).toEqual([{ operation: 'interview.score-deadline' }]);
+      expect(spend.settle.mock.calls.map(([, cost]) => cost)).toEqual([0.0024, null]);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('surfaces API failures instead of silently degrading', async () => {

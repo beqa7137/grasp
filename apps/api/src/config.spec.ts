@@ -161,6 +161,18 @@ describe('loadConfig', () => {
     for (const key of ['PORT', 'DATABASE_URL', 'LOG_LEVEL', 'AI_DAILY_BUDGET_USD']) expect(message).toContain(key);
   });
 
+  it('keeps the interview deadlines inside the 300 s serverless function limit', () => {
+    expect(loadConfig({})).toMatchObject({ interviewReplyDeadlineMs: 90_000, interviewScoreDeadlineMs: 180_000 });
+    for (const key of ['INTERVIEW_REPLY_DEADLINE_MS', 'INTERVIEW_SCORE_DEADLINE_MS']) {
+      expect(() => loadConfig({ [key]: '280001' })).toThrow(new RegExp(key));
+      expect(() => loadConfig({ [key]: '999' })).toThrow(new RegExp(key));
+    }
+    expect(loadConfig({ INTERVIEW_REPLY_DEADLINE_MS: '280000', INTERVIEW_SCORE_DEADLINE_MS: '280000' })).toMatchObject({
+      interviewReplyDeadlineMs: 280_000,
+      interviewScoreDeadlineMs: 280_000,
+    });
+  });
+
   it('rejects a budget that cannot be represented safely in microdollars', () => {
     expect(() => loadConfig({ AI_DAILY_BUDGET_USD: '9007199255' })).toThrow(/AI_DAILY_BUDGET_USD/);
     expect(() => loadConfig({ AI_DAILY_BUDGET_USD: String(Number.MAX_SAFE_INTEGER / 1_000_000) })).toThrow(/AI_DAILY_BUDGET_USD/);

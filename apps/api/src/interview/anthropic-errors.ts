@@ -11,6 +11,14 @@ function errorType(err: InstanceType<typeof Anthropic.APIError>): string | undef
   return body?.error?.type ?? body?.type;
 }
 
+export function deadlineExceeded(
+  log: Logger,
+  operation: 'interview.reply-deadline' | 'interview.score-deadline',
+): ServiceUnavailableException {
+  log.warn({ operation });
+  return new ServiceUnavailableException(UNAVAILABLE);
+}
+
 /** Preserve abort errors so callers can distinguish a closed connection from a failure. */
 export function toHttpError(err: unknown, log: Logger): unknown {
   if (err instanceof HttpException || err instanceof Anthropic.APIUserAbortError) return err;
