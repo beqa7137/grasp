@@ -2,6 +2,7 @@ import { ANSWER_FLAWS, COMPETENCY_CATALOG, countWords, type AnswerFlaw } from '@
 import { Logger } from '@nestjs/common';
 import { z } from 'zod';
 import type { BehavioralFlaw, InterviewSession, Scorecard } from './interview.types.js';
+import { replaceInventedNumbers } from './invented-numbers.js';
 import {
   cleanList,
   lookup,
@@ -94,9 +95,13 @@ function clampVerdict(verdict: Scorecard['verdict'], dimensions: Scorecard['dime
 
 /**
  * Repairs a behavioral scorecard as normalizeScorecard does, and also keeps its claims about the candidate honest:
- * a quote that is not in their own words is dropped (the flaw stays), and the verdict cannot stray from the scores.
+ * a quote that is not in their own words is dropped (the flaw stays), a number they never said in a fix, improvement
+ * or the summary becomes [number] (counted in `inventedNumbers`), and the verdict cannot stray from the scores.
  */
-export function normalizeBehavioralScorecard(session: InterviewSession, json: string): Omit<Scorecard, 'mode'> {
+export function normalizeBehavioralScorecard(
+  session: InterviewSession,
+  json: string,
+): { scorecard: Omit<Scorecard, 'mode'>; inventedNumbers: number } {
   const card = parseScorecard(json, rawBehavioralScorecard);
   const core = scorecardCore('behavioral', card);
   // The raw STAR parts, not the labelled turn text, so a quote cannot be one of the server's own labels or span two parts.
@@ -104,6 +109,12 @@ export function normalizeBehavioralScorecard(session: InterviewSession, json: st
     .filter((m) => m.role === 'candidate')
     .flatMap((m) => (m.star ? Object.values(m.star) : [m.content]))
     .map(fold);
+  let inventedNumbers = 0;
+  const ownNumbers = (text: string) => {
+    const checked = replaceInventedNumbers(text, answers);
+    inventedNumbers += checked.invented;
+    return checked.text;
+  };
   const flawId = lookup(ANSWER_FLAWS.map((f) => f.id));
   const flaws = new Map<AnswerFlaw, BehavioralFlaw>();
   for (const raw of card.flaws) {
@@ -111,16 +122,19 @@ export function normalizeBehavioralScorecard(session: InterviewSession, json: st
     if (!id || flaws.has(id)) continue;
     const quote = verifiedQuote(raw.quote, answers);
     if (quote === null) log.warn({ operation: 'interview.unquoted-flaw', flaw: id });
-    flaws.set(id, { id, quote, fix: truncate(raw.fix.trim(), FIX_LIMIT) });
+    flaws.set(id, { id, quote, fix: truncate(ownNumbers(raw.fix.trim()), FIX_LIMIT) });
   }
   const competencyId = lookup(COMPETENCY_CATALOG.map((c) => c.id));
-  return {
+  const scorecard = {
     ...core,
+    summary: ownNumbers(core.summary),
     verdict: clampVerdict(core.verdict, core.dimensions),
     strengths: cleanList(card.strengths),
-    improvements: cleanList(card.improvements),
+    improvements: cleanList(card.improvements).map(ownNumbers),
     weakPatterns: [],
     flaws: [...flaws.values()],
     weakCompetencies: [...new Set(card.weakCompetencies.map(competencyId).filter((id): id is string => !!id))],
   };
+  if (inventedNumbers) log.warn({ operation: 'interview.invented-numbers', count: inventedNumbers });
+  return { scorecard, inventedNumbers };
 }

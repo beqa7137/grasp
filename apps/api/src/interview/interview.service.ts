@@ -30,6 +30,7 @@ import type {
   PublicInterviewSession,
   TokenUsage,
 } from './interview.types.js';
+import { learnerScorecard, learnerText } from './learner-text.js';
 import { OfflineInterviewer } from './offline.interviewer.js';
 import { addUsage } from './pricing.js';
 import { PROBLEMS, pickProblem } from './problems.js';
@@ -152,7 +153,7 @@ export class InterviewService {
       const reply = await interviewer.reply(session, onDelta, signal);
       this.track(session, reply.usage ? [reply.usage] : []);
       await this.erasure.assertActive(learnerId);
-      const message = { role: 'interviewer' as const, content: reply.text, at: new Date().toISOString() };
+      const message = { role: 'interviewer' as const, content: learnerText(reply.text), at: new Date().toISOString() };
       session.messages.push(message);
       await this.store.save(session);
       return message;
@@ -181,7 +182,7 @@ export class InterviewService {
       const result = await interviewer.score(session);
       this.track(session, result.usage ?? []);
       await this.erasure.assertActive(learnerId);
-      session.scorecard = result.scorecard;
+      session.scorecard = learnerScorecard(result.scorecard);
       session.status = 'scored';
       session.scoredAt = new Date().toISOString();
       return this.toPublic(await this.store.completeScore(session), claims?.userId);

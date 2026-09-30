@@ -58,5 +58,9 @@ test('settings explain what is stored', { tag: '@smoke' }, async ({ page }) => {
   await expect(page.getByText(/your behavioral stories stay on this device until you sign in/)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Export' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Delete…' })).toBeVisible();
-  await expect(page.getByText(/behavioral answers, including any story you start an answer from, are sent to/)).toBeVisible();
+  await expect(
+    page.getByText(
+      /behavioral answers, including any story you start an answer from, are sent to OpenAI's GPT-6 Luna through Vercel's AI Gateway/,
+    ),
+  ).toBeVisible();
 });

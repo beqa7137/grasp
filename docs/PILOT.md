@@ -109,7 +109,7 @@ Review the targets table and the daily activity, then tag each feedback note as 
 
   All of it sits under a random learner id generated on the device. Testers who choose to sign in do so with Google or GitHub; Grasp keeps only the account's verified email address and its Google or GitHub account id, to recognize the tester on their next sign-in.
 
-- **Third parties:** interview transcripts are sent to Anthropic's Claude API to run and score interviews. Error reports go to Sentry with request bodies, headers and learner ids stripped. Sign-in goes through Google or GitHub, whichever the tester picks.
+- **Third parties:** interview transcripts, shared code and behavioral answers are sent to OpenAI's GPT-6 Luna through Vercel's AI Gateway to run and score interviews. Error reports go to Sentry with request bodies, headers and learner ids stripped. Sign-in goes through Google or GitHub, whichever the tester picks.
 - **Consent:** testers see a pilot notice on first launch that explains the above, and the onboarding message repeats it.
 - **Access:** only the operator holding `ADMIN_TOKEN` can see aggregate metrics and feedback. The metrics never include learner ids.
 - **Tester control:** Settings → Export downloads everything stored for that learner. Settings → Delete erases progress, interviews, feedback, the account and sign-in methods from the server, then clears the device. If device cleanup fails, the app asks the tester to try Delete again. A tombstone keeps the random learner ID and deletion time so a stale device cannot restore erased data. It contains no learning content, email or provider identity.
@@ -124,7 +124,7 @@ All days are UTC. A learner is **active** on a day if they recorded a learning e
 - **Activation steps:** the share of all learners who ever did each thing (the placement check, a review, a visualizer prediction, a completed mission, a started interview, a scored interview).
 - **Recall after at least a day:** among graded reviews of an item the same learner had reviewed at least 24 hours earlier, the share answered correctly. This is the observable counterpart of the FSRS retention target.
 - **Interview completion:** scored sessions divided by started sessions.
-- **AI cost per scored interview:** total Claude spend across all sessions, including unscored ones, divided by scored sessions.
+- **AI cost per scored interview:** total AI spend across all sessions, including unscored ones, divided by scored sessions.
 - **Median session length:** the time between the first and last action of a visit. Visits are separated by 30 minutes of inactivity.
 
 Metrics come from `GET /api/admin/metrics` (`apps/api/src/admin/cohort-metrics.ts`, unit-tested in `cohort-metrics.spec.ts`).

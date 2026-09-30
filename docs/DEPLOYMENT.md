@@ -41,7 +41,7 @@ Everything runs from GitHub Actions; no local Vercel or Neon tooling is needed.
 
 1. **Vercel token.** Create one in Vercel account settings → Tokens, scoped to your account or team, and add it as the repository secret `VERCEL_TOKEN`. For a team, add the repository variable `VERCEL_SCOPE` (team slug). The project name defaults to `grasp`; override it with the variable `VERCEL_PROJECT`.
 2. **Database.** Add the secrets `DATABASE_URL` (pooled) and, optionally, `DATABASE_URL_UNPOOLED` (direct).
-3. **App secrets.** `JWT_SECRET` and `ADMIN_TOKEN` (`openssl rand -hex 32` each; keep a copy of the admin token for `npm run pilot:report`). Optional secrets: `ANTHROPIC_API_KEY`, `SENTRY_DSN`, `SENTRY_WEB_DSN`, and for sign-in `GOOGLE_WEB_CLIENT_ID`, `GOOGLE_IOS_CLIENT_ID`, `OAUTH_GITHUB_ID` and `OAUTH_GITHUB_SECRET` (set the two GitHub ones together; [ACCOUNTS.md](ACCOUNTS.md#configuration) says how to create the Google and GitHub clients, and that the Google consent screen must be published). `GOOGLE_WEB_CLIENT_SECRET` is not needed. Optional variable: `AI_DAILY_BUDGET_USD` (recommended once `ANTHROPIC_API_KEY` is set).
+3. **App secrets.** `JWT_SECRET` and `ADMIN_TOKEN` (`openssl rand -hex 32` each; keep a copy of the admin token for `npm run pilot:report`). Optional secrets: `AI_GATEWAY_API_KEY` (not needed on Vercel, see [AI interviewer provider](#ai-interviewer-provider)), `ANTHROPIC_API_KEY`, `SENTRY_DSN`, `SENTRY_WEB_DSN`, and for sign-in `GOOGLE_WEB_CLIENT_ID`, `GOOGLE_IOS_CLIENT_ID`, `OAUTH_GITHUB_ID` and `OAUTH_GITHUB_SECRET` (set the two GitHub ones together; [ACCOUNTS.md](ACCOUNTS.md#configuration) says how to create the Google and GitHub clients, and that the Google consent screen must be published). `GOOGLE_WEB_CLIENT_SECRET` is not needed. Optional variables: `AI_DAILY_BUDGET_USD` (recommended for any paid interviewer), `INTERVIEW_AI_PROVIDER` and `INTERVIEW_AI_MODEL`.
 4. Run **Set up Vercel** (Actions tab). It creates the project if needed and loads the production environment: secrets as Vercel "sensitive" variables, which cannot be read back, and settings as plain ones. The public Google and GitHub client ids count as settings; `OAUTH_GITHUB_SECRET` is sensitive. It is safe to re-run after adding or rotating a secret.
 5. Add the repository variable `VERCEL_DEPLOY_ENABLED=true` and run **Deploy**. Its summary shows the deployment; add the production domain as the variable `PUBLIC_URL` (for example `https://grasp-yourname.vercel.app`) so later deploys verify it.
 
@@ -115,7 +115,10 @@ Every variable is validated at startup. See `apps/api/.env.example` for the full
 | `CORS_ORIGINS`                              | Capacitor origins; the web app is same-origin and needs no entry                             |
 | `RATE_LIMIT_PER_MINUTE`                     | `300` per user or IP                                                                         |
 | `LOG_FORMAT` / `LOG_LEVEL`                  | `json` / `log`                                                                               |
-| `ANTHROPIC_API_KEY`                         | secret; unset runs the offline interviewer                                                   |
+| `INTERVIEW_AI_PROVIDER`                     | unset: the gateway on Vercel or with `AI_GATEWAY_API_KEY`, else Anthropic with its key       |
+| `INTERVIEW_AI_MODEL`                        | unset: `openai/gpt-6-luna`                                                                   |
+| `AI_GATEWAY_API_KEY`                        | secret; unset on Vercel, which authenticates with the deployment's OIDC token                |
+| `ANTHROPIC_API_KEY`                         | secret; Claude direct when the gateway is not used; with neither, the offline interviewer    |
 | `GOOGLE_WEB_CLIENT_ID`                      | the Google web client id; unset turns Google sign-in off                                     |
 | `GOOGLE_IOS_CLIENT_ID`                      | optional; the Google iOS client id                                                           |
 | `OAUTH_GITHUB_ID` / `OAUTH_GITHUB_SECRET`   | the GitHub OAuth app, set together (the secret is sensitive); unset turns GitHub sign-in off |
@@ -126,6 +129,16 @@ Every variable is validated at startup. See `apps/api/.env.example` for the full
 | `WEB_DIST_DIR`, `PORT`                      | set by the image; on Vercel `WEB_DIST_DIR` is set by `api/index.js`                          |
 | `NODEJS_HELPERS`                            | `0` at Vercel build time (set by the workflows and by **Set up Vercel**)                     |
 
+## AI interviewer provider
+
+Production runs the AI interviewer on OpenAI's GPT-6 Luna through the [Vercel AI Gateway](https://vercel.com/docs/ai-gateway), with no fallback model; [AI_INTERVIEWER.md](AI_INTERVIEWER.md#which-interviewer-runs) has the selection rules. At release the owner sets:
+
+- **Nothing for authentication on Vercel.** The function authenticates with the deployment's OIDC token, which Vercel sends with every request (`x-vercel-oidc-token`) and the gateway accepts as its bearer token. The Vercel team must be able to pay for AI Gateway usage: the model comparison was refused with `customer_verification_required` until the team had a card on file. Elsewhere (the Docker image, local runs), add the secret `AI_GATEWAY_API_KEY`.
+- **`AI_DAILY_BUDGET_USD`**, as before. Holds use GPT-6 Luna's dearest catalog rates (input $0.22, cache write $0.275 and output $0.825 per million tokens), so an early reply holds about half a cent and scoring (16,000 output tokens) about two cents.
+- **Optionally `INTERVIEW_AI_PROVIDER=anthropic`** to stay on Claude direct with `ANTHROPIC_API_KEY`; the app's disclosure (`AI_PROVIDER` in `apps/app/src/app/core/ai-disclosure.ts`) names the gateway and must change with it. `ANTHROPIC_API_KEY` can otherwise stay set (unused) or be removed.
+
+After the deploy, the function log says `Interviewer: openai/gpt-6-luna through the Vercel AI Gateway (oidc).` and `/api/health` reports `interviewer: "ai"`. A warning that the catalog is unreachable means the instance bounds spend with the built-in prices; an error that names the model means it serves scripted practice. **Load the production environment** in **Set up Vercel** also loads `AI_GATEWAY_API_KEY`, `INTERVIEW_AI_PROVIDER` and `INTERVIEW_AI_MODEL` when they are set as repository secrets or variables.
+
 ## AI interview access
 
 Paid AI requires an active Grasp account and explicit AI mode selection. Configure a usable Google or GitHub sign-in provider before inviting new AI learners. A server without a usable sign-in provider still offers guest scripted practice; existing active accounts can still choose AI. New and legacy-unmarked sessions default to scripted practice, and sign-in never upgrades an existing session automatically.
@@ -134,11 +147,13 @@ This release stores session mode in existing JSONB, without DDL. Retire older pa
 
 ## AI spend reservations
 
-`AI_DAILY_BUDGET_USD` caps shared liability for paid attempts admitted on each UTC day, across API instances using the same database and configured ceiling. Before contacting Claude, the API atomically reserves an upper bound for that attempt. Complete, verified usage replaces the hold with actual cost, rounded up to a microdollar. The ledger keeps opaque reservation IDs and amounts without learner IDs, transcripts or provider responses. Account deletion does not erase incurred spend. Offline practice does not reserve paid budget.
+`AI_DAILY_BUDGET_USD` caps shared liability for paid attempts admitted on each UTC day, across API instances using the same database and configured ceiling. Before contacting the model, the API atomically reserves an upper bound for that attempt. Complete, verified usage replaces the hold with actual cost, rounded up to a microdollar. The ledger keeps opaque reservation IDs and amounts without learner IDs, transcripts or provider responses. Account deletion does not erase incurred spend. Offline practice does not reserve paid budget.
 
 The upper bound prices the request's input at its UTF-8 byte length plus 8,192 tokens for prompts the provider adds (a token always spans at least one byte, and Anthropic describes [token counting as an estimate](https://platform.claude.com/docs/en/build-with-claude/token-counting)), capped at the model's context limit, plus the requested output limit. Replies explicitly use 5-minute caching; scoring is uncached. Both request `standard_only` service. Workspace inference geography is preserved, with the possible US premium reserved before the response confirms the actual geography. Fast mode, server tools, unknown model versions, custom Anthropic headers and alternate API endpoints are unsupported. SDK diagnostic logging is disabled. Verify [model pricing](https://platform.claude.com/docs/en/about-claude/pricing), [model limits](https://platform.claude.com/docs/en/about-claude/models/overview) and [geography pricing](https://platform.claude.com/docs/en/manage-claude/data-residency) before changing this policy.
 
-Per-attempt ceilings at a full context window, verified September 2026 (a real hold is far smaller: an early Sonnet reply in a coding interview holds about $0.06 and its scoring about $0.21, growing with the transcript):
+Through the gateway, the bound prices the same input count at the model's dearest catalog rate for input or cache write across tiers and regions, plus the output limit at its dearest output rate, and settles at the cost the gateway reports billing (`provider_metadata.gateway.cost`), or at the catalog rates when it reports none. A stream cut off after it started keeps its whole hold, since chat completions report usage only at the end.
+
+Claude per-attempt ceilings at a full context window, verified September 2026 (a real hold is far smaller: an early Sonnet reply in a coding interview holds about $0.06 and its scoring about $0.21, growing with the transcript):
 
 | Model                       | Reply (2,048 output tokens) | Score (16,000 output tokens) |
 | --------------------------- | --------------------------: | ---------------------------: |

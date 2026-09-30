@@ -67,10 +67,13 @@ jobs:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
           OAUTH_GITHUB_SECRET: ${{ secrets.OAUTH_GITHUB_SECRET }}
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
           SENTRY_WEB_DSN: ${{ secrets.SENTRY_WEB_DSN }}
           AI_DAILY_BUDGET_USD: ${{ vars.AI_DAILY_BUDGET_USD }}
+          INTERVIEW_AI_PROVIDER: ${{ vars.INTERVIEW_AI_PROVIDER }}
+          INTERVIEW_AI_MODEL: ${{ vars.INTERVIEW_AI_MODEL }}
           GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_WEB_CLIENT_ID }}
           GOOGLE_IOS_CLIENT_ID: ${{ secrets.GOOGLE_IOS_CLIENT_ID }}
           OAUTH_GITHUB_ID: ${{ secrets.OAUTH_GITHUB_ID }}
@@ -84,10 +87,10 @@ jobs:
             loaded+=("$name")
           }
           loaded=()
-          for name in DATABASE_URL JWT_SECRET ADMIN_TOKEN ANTHROPIC_API_KEY OAUTH_GITHUB_SECRET SENTRY_DSN SENTRY_WEB_DSN; do
+          for name in DATABASE_URL JWT_SECRET ADMIN_TOKEN ANTHROPIC_API_KEY AI_GATEWAY_API_KEY OAUTH_GITHUB_SECRET SENTRY_DSN SENTRY_WEB_DSN; do
             set_env "$name" --sensitive
           done
-          for name in AI_DAILY_BUDGET_USD GOOGLE_WEB_CLIENT_ID GOOGLE_IOS_CLIENT_ID OAUTH_GITHUB_ID NODEJS_HELPERS; do
+          for name in AI_DAILY_BUDGET_USD INTERVIEW_AI_PROVIDER INTERVIEW_AI_MODEL GOOGLE_WEB_CLIENT_ID GOOGLE_IOS_CLIENT_ID OAUTH_GITHUB_ID NODEJS_HELPERS; do
             set_env "$name" --no-sensitive
           done
           echo "Production environment for $PROJECT: ${loaded[*]}"

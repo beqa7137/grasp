@@ -12,7 +12,15 @@ export async function createTestApp(
   customize: (builder: TestingModuleBuilder) => TestingModuleBuilder = (b) => b,
 ): Promise<NestExpressApplication> {
   Logger.overrideLogger(false);
-  const config = loadConfig({ ...process.env, ANTHROPIC_API_KEY: undefined, DATABASE_URL: undefined, ...env });
+  const config = loadConfig({
+    ...process.env,
+    ANTHROPIC_API_KEY: undefined,
+    AI_GATEWAY_API_KEY: undefined,
+    VERCEL_OIDC_TOKEN: undefined,
+    VERCEL_ENV: undefined,
+    DATABASE_URL: undefined,
+    ...env,
+  });
   const builder = customize(
     Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(APP_CONFIG)

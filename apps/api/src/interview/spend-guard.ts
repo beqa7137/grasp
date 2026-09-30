@@ -5,6 +5,7 @@ import type { SpendReservation, SpendStore } from '../persistence/spend.store.js
 
 const MICROS_PER_USD = 1_000_000;
 const UNAVAILABLE = 'The AI interviewer is temporarily unavailable. Please try again shortly.';
+export const SPEND_LIMIT_REACHED = 'The AI interviewer has reached its current usage limit. Please try again later.';
 
 export class SpendGuard {
   private readonly log = new Logger(SpendGuard.name);
@@ -31,7 +32,7 @@ export class SpendGuard {
       throw new ServiceUnavailableException(UNAVAILABLE);
     }
     if (!reservation) {
-      throw new ServiceUnavailableException('The AI interviewer has reached its current usage limit. Please try again later.');
+      throw new ServiceUnavailableException(SPEND_LIMIT_REACHED);
     }
     return reservation;
   }
