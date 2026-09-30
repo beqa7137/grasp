@@ -49,7 +49,15 @@ import { SpendGuard } from './spend-guard.js';
           timeout: config.anthropicTimeoutMs,
           maxRetries: config.anthropicMaxRetries,
         });
-        return new ClaudeInterviewer(client, { model: config.anthropicModel }, spend);
+        return new ClaudeInterviewer(
+          client,
+          {
+            model: config.anthropicModel,
+            replyDeadlineMs: config.interviewReplyDeadlineMs,
+            scoreDeadlineMs: config.interviewScoreDeadlineMs,
+          },
+          spend,
+        );
       },
     },
   ],

@@ -36,7 +36,8 @@ import { PROBLEMS, pickProblem } from './problems.js';
 
 const HOUR_MS = 3_600_000;
 /**
- * Upper bound on one reply or scoring call, retries included. The lease is released as soon as the call
+ * Longer than any reply or scoring deadline, which config caps at 280 s so the call ends before Vercel's 300 s
+ * function limit could kill it with the lease held. The lease is released as soon as the call
  * ends; the expiry only matters if an instance dies mid-call, and then frees the session after this long.
  */
 const SESSION_LEASE_MS = 15 * 60_000;
@@ -176,6 +177,7 @@ export class InterviewService {
       }
       const interviewer = await this.interviewerFor(session.mode ?? 'offline', claims);
       await this.consumeQuota(learnerId);
+      // Not cancelled on disconnect: the card commits with its progress event, and a retry returns it without another paid call.
       const result = await interviewer.score(session);
       this.track(session, result.usage ?? []);
       await this.erasure.assertActive(learnerId);

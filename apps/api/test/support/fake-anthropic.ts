@@ -12,16 +12,20 @@ export type FakeResponse =
       delayMs?: number;
       errorAfter?: { type: string; message: string };
       incomplete?: boolean;
+      /** Keeps sending text deltas after `stream`, every `delayMs`, until the request is aborted. */
+      endless?: boolean;
     }
   | { text: string; stopReason?: string; usage?: FakeUsage; model?: string }
   | { malformed: string }
   | { status: number; error: { type: string; message: string }; headers?: Record<string, string> }
-  | { networkError: true };
+  | { networkError: true }
+  | { hang: true };
 
 export interface RecordedRequest {
   url: string;
   headers: Record<string, string>;
   body: Record<string, any>;
+  signal?: AbortSignal | null;
 }
 
 const DEFAULT_USAGE: FakeUsage = {
@@ -56,26 +60,28 @@ function streamBody(model: string, r: Extract<FakeResponse, { stream: string[] }
     sse('content_block_start', { index: 0, content_block: { type: 'text', text: '' } }),
     ...r.stream.map((text) => sse('content_block_delta', { index: 0, delta: { type: 'text_delta', text } })),
   ];
-  const tail = r.incomplete
-    ? []
-    : r.errorAfter
-      ? [sse('error', { error: r.errorAfter })]
-      : [
-          sse('content_block_stop', { index: 0 }),
-          ...(r.usageDeltas ?? [{}]).map((delta) =>
-            sse('message_delta', {
-              delta: { stop_reason: r.stopReason ?? 'end_turn', stop_sequence: null },
-              usage: { output_tokens: usage.output_tokens, ...delta },
-            }),
-          ),
-          sse('message_stop', {}),
-        ];
+  const tail =
+    r.incomplete || r.endless
+      ? []
+      : r.errorAfter
+        ? [sse('error', { error: r.errorAfter })]
+        : [
+            sse('content_block_stop', { index: 0 }),
+            ...(r.usageDeltas ?? [{}]).map((delta) =>
+              sse('message_delta', {
+                delta: { stop_reason: r.stopReason ?? 'end_turn', stop_sequence: null },
+                usage: { output_tokens: usage.output_tokens, ...delta },
+              }),
+            ),
+            sse('message_stop', {}),
+          ];
   const chunks = [...events, ...tail].map((e) => new TextEncoder().encode(e));
+  const more = new TextEncoder().encode(sse('content_block_delta', { index: 0, delta: { type: 'text_delta', text: 'more ' } }));
   return new ReadableStream<Uint8Array>({
     async pull(controller) {
       if (signal?.aborted) return controller.error(new DOMException('aborted', 'AbortError'));
       if (r.delayMs) await new Promise((res) => setTimeout(res, r.delayMs));
-      const next = chunks.shift();
+      const next = chunks.shift() ?? (r.endless ? more : undefined);
       if (next) controller.enqueue(next);
       else controller.close();
     },
@@ -90,11 +96,14 @@ export function fakeAnthropic(respond: (body: Record<string, any>, index: number
   const requests: RecordedRequest[] = [];
   const fetch = async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
     const body = JSON.parse(String(init?.body ?? '{}'));
-    requests.push({ url: String(input), headers: Object.fromEntries(new Headers(init?.headers).entries()), body });
+    requests.push({ url: String(input), headers: Object.fromEntries(new Headers(init?.headers).entries()), body, signal: init?.signal });
     if (init?.signal?.aborted) throw new DOMException('aborted', 'AbortError');
     const r = respond(body, requests.length - 1);
     const model = 'model' in r && r.model ? r.model : (body.model as string);
     if ('networkError' in r) throw new TypeError('fetch failed');
+    if ('hang' in r) {
+      return new Promise((_, reject) => init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError'))));
+    }
     if ('status' in r) {
       return new Response(JSON.stringify({ type: 'error', error: r.error }), {
         status: r.status,

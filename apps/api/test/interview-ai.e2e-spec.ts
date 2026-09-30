@@ -31,15 +31,19 @@ describe.each(storages)('AI interviewer over HTTP (%s storage, scripted Claude A
   let fakes: OAuthFakes;
   let auth: Awaited<ReturnType<typeof signInLearner>>['headers'];
   let replies: FakeResponse[] = [];
+  let scores: FakeResponse[] = [];
+  let anthropic: ReturnType<typeof fakeAnthropic>;
+  let upstream: ReturnType<typeof fakeAnthropic>['requests'];
 
   beforeAll(async () => {
     if (storage === 'postgres') await resetDatabase(testDatabaseUrl!);
     fakes = await OAuthFakes.start();
-    const { client } = fakeAnthropic((body) =>
+    anthropic = fakeAnthropic((body) =>
       body['output_config']?.['format']
-        ? { text: scorecard, usage: { input_tokens: 2500, output_tokens: 600 } }
+        ? (scores.shift() ?? { text: scorecard, usage: { input_tokens: 2500, output_tokens: 600 } })
         : (replies.shift() ?? { stream: ['Okay.'] }),
     );
+    upstream = anthropic.requests;
     app = await createTestApp(
       { DATABASE_URL: storage === 'postgres' ? testDatabaseUrl : undefined, AI_DAILY_BUDGET_USD: '100', ...fakes.env() },
       (builder) =>
@@ -47,7 +51,7 @@ describe.each(storages)('AI interviewer over HTTP (%s storage, scripted Claude A
           .customize(builder)
           .overrideProvider(Interviewer)
           .useFactory({
-            factory: (spend: SpendGuard) => new ClaudeInterviewer(client, { model: 'claude-sonnet-5' }, spend),
+            factory: (spend: SpendGuard) => new ClaudeInterviewer(anthropic.client, { model: 'claude-sonnet-5' }, spend),
             inject: [SpendGuard],
           }),
     );
@@ -63,6 +67,16 @@ describe.each(storages)('AI interviewer over HTTP (%s storage, scripted Claude A
   const start = async () =>
     (await http().post('/api/interview/sessions').set(auth).send({ track: 'coding', problemId: 'warmer-days', mode: 'ai' }).expect(201))
       .body;
+  const withOneSecondDeadlines = () => {
+    const short = new ClaudeInterviewer(
+      anthropic.client,
+      { model: 'claude-sonnet-5', replyDeadlineMs: 1_000, scoreDeadlineMs: 1_000 },
+      app.get(SpendGuard),
+    );
+    const live = app.get(Interviewer);
+    vi.spyOn(live, 'reply').mockImplementation(short.reply.bind(short));
+    vi.spyOn(live, 'score').mockImplementation(short.score.bind(short));
+  };
   const say = (id: string, content: string) => http().post(`/api/interview/sessions/${id}/messages`).set(auth).send({ content });
 
   it('streams Claude replies over SSE and keeps token usage server-side', async () => {
@@ -174,6 +188,51 @@ describe.each(storages)('AI interviewer over HTTP (%s storage, scripted Claude A
     const second = await say(session.id, 'Second message.');
     expect(second.status).toBe(409);
     expect((await first).status).toBe(200);
+  });
+
+  it('cancels a reply still streaming at its deadline, drops the turn and frees the session at once', async () => {
+    const session = await start();
+    withOneSecondDeadlines();
+    replies.push({ stream: ['Tell me '], endless: true, delayMs: 50 });
+    const res = await say(session.id, 'Here is my approach.').expect(200);
+    expect(res.text).toContain('event: delta');
+    expect(res.text).toContain('event: error');
+    expect(res.text).toContain('"status":503');
+    expect(res.text).not.toContain('event: done');
+    expect(upstream.at(-1)!.signal?.aborted).toBe(true);
+
+    const pub = (await http().get(`/api/interview/sessions/${session.id}`).set(auth).expect(200)).body;
+    expect(pub.messages).toHaveLength(1);
+    await say(session.id, 'Here is my approach.').expect(200);
+  });
+
+  it('cancels the upstream stream when the learner disconnects and frees the session', async () => {
+    const session = await start();
+    replies.push({ stream: ['Tell me '], endless: true, delayMs: 20 });
+    const abort = new AbortController();
+    const res = await fetch(`${await app.getUrl()}/api/interview/sessions/${session.id}/messages`, {
+      method: 'POST',
+      headers: { ...auth, 'content-type': 'application/json' },
+      body: JSON.stringify({ content: 'Here is my approach.' }),
+      signal: abort.signal,
+    });
+    await res.body!.getReader().read();
+    abort.abort();
+    await vi.waitFor(() => expect(upstream.at(-1)!.signal?.aborted).toBe(true));
+    await vi.waitFor(() => say(session.id, 'Here is my approach.').expect(200));
+  });
+
+  it('answers a scorer that outlasts its deadline with a retryable 503, commits nothing, and scores again at once', async () => {
+    const session = await start();
+    withOneSecondDeadlines();
+    scores.push({ hang: true });
+    const res = await http().post(`/api/interview/sessions/${session.id}/score`).set(auth).expect(503);
+    expect(res.body.message).toMatch(/unavailable/);
+    expect(upstream.at(-1)!.signal?.aborted).toBe(true);
+    expect((await http().get(`/api/interview/sessions/${session.id}`).set(auth).expect(200)).body.status).toBe('active');
+
+    const scored = (await http().post(`/api/interview/sessions/${session.id}/score`).set(auth).expect(201)).body;
+    expect(scored.scorecard).toMatchObject({ mode: 'ai', verdict: 'lean-hire' });
   });
 
   it('pauses the AI interviewer once the daily budget is spent', async () => {

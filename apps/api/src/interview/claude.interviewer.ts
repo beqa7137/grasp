@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { Logger } from '@nestjs/common';
 import { safeErrorDetails } from '../observability/safe-error.js';
-import { toHttpError } from './anthropic-errors.js';
+import { deadlineExceeded, toHttpError } from './anthropic-errors.js';
 import { Interviewer, type ReplyResult, type ScoreResult } from './interviewer.js';
 import type { InterviewSession, TokenUsage } from './interview.types.js';
 import { meteredRequest } from './metered-request.js';
@@ -24,7 +24,8 @@ export interface ClaudeInterviewerOptions {
   model: string;
   replyMaxTokens?: number;
   scoreMaxTokens?: number;
-  scoreTimeoutMs?: number;
+  replyDeadlineMs?: number;
+  scoreDeadlineMs?: number;
 }
 
 export const REDIRECT_REPLY = "Let's keep going with the problem. Could you walk me through where your approach stands right now?";
@@ -43,10 +44,12 @@ export class ClaudeInterviewer extends Interviewer {
   private readonly model;
   private readonly replyMaxTokens: number;
   private readonly scoreMaxTokens: number;
+  private readonly replyDeadlineMs: number;
+  private readonly scoreDeadlineMs: number;
 
   constructor(
     private readonly client: Anthropic,
-    private readonly options: ClaudeInterviewerOptions,
+    options: ClaudeInterviewerOptions,
     private readonly spend: SpendGuard,
   ) {
     super();
@@ -55,11 +58,15 @@ export class ClaudeInterviewer extends Interviewer {
     this.model = model;
     this.replyMaxTokens = options.replyMaxTokens ?? 2048;
     this.scoreMaxTokens = options.scoreMaxTokens ?? 16_000;
+    this.replyDeadlineMs = options.replyDeadlineMs ?? 90_000;
+    this.scoreDeadlineMs = options.scoreDeadlineMs ?? 180_000;
     maximumCostUsd(model.model, this.replyMaxTokens, true);
     maximumCostUsd(model.model, this.scoreMaxTokens, false);
   }
 
-  async reply(session: InterviewSession, onDelta: (text: string) => void, signal: AbortSignal): Promise<ReplyResult> {
+  async reply(session: InterviewSession, onDelta: (text: string) => void, disconnected: AbortSignal): Promise<ReplyResult> {
+    const deadline = deadlineAfter(this.replyDeadlineMs);
+    const signal = AbortSignal.any([disconnected, deadline.signal]);
     try {
       const params: Anthropic.MessageCreateParams = {
         model: this.model.model,
@@ -94,11 +101,24 @@ export class ClaudeInterviewer extends Interviewer {
       if (!text) this.log.warn({ operation: 'interview.empty-reply' });
       return { text: text || (behavioral(session) ? BEHAVIORAL_REDIRECT : REDIRECT_REPLY), usage };
     } catch (err) {
-      throw toHttpError(err, this.log);
+      throw abortedBy(err, deadline.signal) && !disconnected.aborted
+        ? deadlineExceeded(this.log, 'interview.reply-deadline')
+        : toHttpError(err, this.log);
+    } finally {
+      deadline.clear();
     }
   }
 
   async score(session: InterviewSession): Promise<ScoreResult> {
+    const deadline = deadlineAfter(this.scoreDeadlineMs);
+    try {
+      return await this.scoreWithin(session, deadline.signal);
+    } finally {
+      deadline.clear();
+    }
+  }
+
+  private async scoreWithin(session: InterviewSession, deadline: AbortSignal): Promise<ScoreResult> {
     const usage: TokenUsage[] = [];
     for (let attempt = 1; attempt <= SCORE_ATTEMPTS; attempt++) {
       let message: Anthropic.Message;
@@ -118,11 +138,12 @@ export class ClaudeInterviewer extends Interviewer {
           spend: this.spend,
           maximumCostUsd: maximumCostUsd(this.model.model, this.scoreMaxTokens, false, inputTokenBound(params)),
           maxRetries: this.client.maxRetries,
-          request: async () => this.client.messages.create(params, { timeout: this.options.scoreTimeoutMs ?? 180_000, maxRetries: 0 }),
+          signal: deadline,
+          request: async () => this.client.messages.create(params, { timeout: this.scoreDeadlineMs, maxRetries: 0, signal: deadline }),
           costUsd: (result) => messageUsage(this.model.model, this.scoreMaxTokens, false, result).costUsd,
         });
       } catch (err) {
-        throw toHttpError(err, this.log);
+        throw abortedBy(err, deadline) ? deadlineExceeded(this.log, 'interview.score-deadline') : toHttpError(err, this.log);
       }
       usage.push(messageUsage(this.model.model, this.scoreMaxTokens, false, message));
       try {
@@ -136,6 +157,15 @@ export class ClaudeInterviewer extends Interviewer {
     return { scorecard: this.offline.scorecard(session, FALLBACK_SCORE_SUMMARY), usage };
   }
 }
+
+/** The SDK timeout only covers the wait for response headers, so a stream that keeps trickling tokens needs its own bound. */
+function deadlineAfter(ms: number) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  return { signal: controller.signal, clear: () => clearTimeout(timer) };
+}
+
+const abortedBy = (err: unknown, signal: AbortSignal) => err instanceof Anthropic.APIUserAbortError && signal.aborted;
 
 const behavioral = (session: InterviewSession) => session.track === 'behavioral';
 const systemPromptFor = (s: InterviewSession) => (behavioral(s) ? behavioralInterviewerPrompt(s) : interviewerSystemPrompt(s));
