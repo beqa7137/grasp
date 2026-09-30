@@ -152,7 +152,7 @@ export class StoryBankService {
     return this.stories().filter((s) => s.competencyIds.includes(competencyId));
   }
 
-  blank(id = Date.now().toString(36)): Story {
+  blank(id: string = crypto.randomUUID()): Story {
     return { id, title: '', competencyIds: [], draft: { ...EMPTY_STAR_DRAFT }, updatedAt: new Date().toISOString() };
   }
 

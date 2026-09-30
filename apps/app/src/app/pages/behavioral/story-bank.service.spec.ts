@@ -72,8 +72,10 @@ describe('StoryBankService', () => {
     const { bank } = setup([], false);
     await bank.load();
     const answer = { ...EMPTY_STAR_DRAFT, situation: 'Our export failed for a week! Finance noticed.', action: 'I fixed it.' };
+    vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-09-30T12:00:00Z'));
     await bank.saveAnswer(answer, 'ownership', 'Ownership');
     await bank.saveAnswer({ ...EMPTY_STAR_DRAFT, action: 'I fixed it.' }, 'conflict', 'Tell me about a disagreement.');
+    vi.restoreAllMocks();
     expect(stored().map((s) => [s.title, s.competencyIds, s.draft.action])).toEqual([
       ['Our export failed for a week!', ['ownership'], 'I fixed it.'],
       ['Tell me about a disagreement.', ['conflict'], 'I fixed it.'],
