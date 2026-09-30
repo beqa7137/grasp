@@ -9,6 +9,8 @@ const names = RUBRICS.behavioral.map((r) => r.name);
 const FOLLOW_UP = 'I messaged the payments lead directly and we agreed I would own the client change until launch.';
 const session = behavioralSession(STRONG_STAR, [FOLLOW_UP], ['Who did you tell first?']);
 
+const normalized = (...args: Parameters<typeof normalizeBehavioralScorecard>) => normalizeBehavioralScorecard(...args).scorecard;
+
 const card = (overrides: Record<string, unknown> = {}, scores = [3, 3, 3, 3, 3]) =>
   JSON.stringify({
     verdict: 'hire',
@@ -40,7 +42,7 @@ describe('behavioralScorecardJsonSchema', () => {
 describe('normalizeBehavioralScorecard', () => {
   it('keeps a quote in the candidate words despite case, spacing and curly quotes, and returns it as the model wrote it', () => {
     const quote = '“I CAPPED  the retries and added a circuit breaker”';
-    const result = normalizeBehavioralScorecard(session, card({ flaws: [{ id: 'vague', quote, fix: ' Say [number] retries. ' }] }));
+    const result = normalized(session, card({ flaws: [{ id: 'vague', quote, fix: ' Say [number] retries. ' }] }));
     expect(result.flaws).toEqual([
       { id: 'vague', quote: 'I CAPPED  the retries and added a circuit breaker', fix: 'Say [number] retries.' },
     ]);
@@ -48,9 +50,48 @@ describe('normalizeBehavioralScorecard', () => {
     expect(result.summary).toBe('Clear ownership.');
   });
 
+  it('turns numbers the candidate never said in fixes, improvements and the summary into [number], and logs only the count', () => {
+    const logged = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+    const { scorecard, inventedNumbers } = normalizeBehavioralScorecard(
+      session,
+      card({
+        summary: 'Timeouts fell from 2% to 0.1%; now name the 12 pages you avoided.',
+        flaws: [
+          {
+            id: 'vague',
+            quote: 'Timeouts fell from 2% to 0.1%',
+            fix: 'The failure rate dropped from ~33% to <5%, and support tickets dropped by 80%.',
+          },
+        ],
+        improvements: ['Keep the 40% figure.', 'Say it saved $1.2M in 3 weeks.'],
+      }),
+    );
+    expect(scorecard.summary).toBe('Timeouts fell from 2% to 0.1%; now name the [number] pages you avoided.');
+    expect(scorecard.flaws).toEqual([
+      {
+        id: 'vague',
+        quote: 'Timeouts fell from 2% to 0.1%',
+        fix: 'The failure rate dropped from ~[number]% to <[number]%, and support tickets dropped by [number]%.',
+      },
+    ]);
+    expect(scorecard.improvements).toEqual(['Keep the 40% figure.', 'Say it saved $[number]M in [number] weeks.']);
+    expect(inventedNumbers).toBe(6);
+    expect(logged.mock.calls).toEqual([[{ operation: 'interview.invented-numbers', count: 6 }]]);
+    expect(scorecard).not.toHaveProperty('inventedNumbers');
+  });
+
+  it('counts no invented numbers and logs nothing when every number is the candidate’s own', () => {
+    const logged = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+    const fix = 'I cut timeouts from 2% to 0.1% and the next sale took 40% more orders.';
+    const result = normalizeBehavioralScorecard(session, card({ flaws: [{ id: 'vague', quote: 'I traced the slow calls', fix }] }));
+    expect(result.inventedNumbers).toBe(0);
+    expect(result.scorecard.flaws![0].fix).toBe(fix);
+    expect(logged).not.toHaveBeenCalled();
+  });
+
   it('keeps a quote from a follow-up answer, but not one from the interviewer or one the candidate never said', () => {
     const logged = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
-    const result = normalizeBehavioralScorecard(
+    const result = normalized(
       session,
       card({
         flaws: [
@@ -81,13 +122,13 @@ describe('normalizeBehavioralScorecard', () => {
     ['a span across two parts', 'before the next sale, two weeks out. Action: I traced the slow calls'],
     ['words cut inside other words', 'ed the slow cal'],
   ])('does not verify %s as a quote', (_label, quote) => {
-    const result = normalizeBehavioralScorecard(session, card({ flaws: [{ id: 'vague', quote, fix: 'x' }] }));
+    const result = normalized(session, card({ flaws: [{ id: 'vague', quote, fix: 'x' }] }));
     expect(result.flaws![0].quote).toBeNull();
   });
 
   it('verifies a quote of whole words from one STAR part or one follow-up answer', () => {
     for (const quote of ['Timeouts fell from 2% to 0.1%', 'the payments lead directly']) {
-      const result = normalizeBehavioralScorecard(session, card({ flaws: [{ id: 'vague', quote, fix: 'x' }] }));
+      const result = normalized(session, card({ flaws: [{ id: 'vague', quote, fix: 'x' }] }));
       expect(result.flaws![0].quote).toBe(quote);
     }
   });
@@ -95,7 +136,7 @@ describe('normalizeBehavioralScorecard', () => {
   it('dedupes flaws by id, drops unknown ones, and bounds quotes and fixes', () => {
     const long = `${STRONG_STAR.action} ${STRONG_STAR.action}`;
     const s = behavioralSession({ ...STRONG_STAR, action: long });
-    const result = normalizeBehavioralScorecard(
+    const result = normalized(
       s,
       card({
         flaws: [
@@ -117,7 +158,7 @@ describe('normalizeBehavioralScorecard', () => {
   });
 
   it('keeps catalog competencies only, once each', () => {
-    const result = normalizeBehavioralScorecard(session, card({ weakCompetencies: ['Ownership', 'ownership', 'grit', 'conflict'] }));
+    const result = normalized(session, card({ weakCompetencies: ['Ownership', 'ownership', 'grit', 'conflict'] }));
     expect(result.weakCompetencies).toEqual(['ownership', 'conflict']);
   });
 
@@ -128,7 +169,7 @@ describe('normalizeBehavioralScorecard', () => {
     ['lean-no-hire', [3, 3, 3, 3, 3], 'lean-hire'],
     ['lean-hire', [3, 3, 3, 3, 3], 'lean-hire'],
   ])('moves a %s verdict to within one level of the scores %j', (verdict, scores, expected) => {
-    expect(normalizeBehavioralScorecard(session, card({ verdict }, scores)).verdict).toBe(expected);
+    expect(normalized(session, card({ verdict }, scores)).verdict).toBe(expected);
   });
 
   it.each([

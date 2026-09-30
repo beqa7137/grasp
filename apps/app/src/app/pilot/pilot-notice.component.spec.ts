@@ -11,5 +11,6 @@ describe('PilotNoticeComponent', () => {
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
     expect(text).toContain(AI_DISCLOSURE);
     expect(AI_DISCLOSURE).toContain('behavioral answers');
+    expect(text).toContain("are sent to OpenAI's GPT-6 Luna through Vercel's AI Gateway to write replies and scores");
   });
 });

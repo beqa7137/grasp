@@ -9,6 +9,8 @@ export interface ScoreResult {
   scorecard: Scorecard;
   /** One entry per model call; scoring may retry. */
   usage?: TokenUsage[];
+  /** Behavioral AI scoring: numbers the scorer invented before they became [number]. For evals; never stored or shown. */
+  inventedNumbers?: number;
 }
 
 export abstract class Interviewer {

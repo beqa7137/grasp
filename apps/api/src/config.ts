@@ -32,6 +32,9 @@ const envSchema = z
 
     DATABASE_URL: optional(z.url({ protocol: /^postgres(ql)?$/ })),
 
+    INTERVIEW_AI_PROVIDER: optional(z.enum(['anthropic', 'gateway'])),
+    INTERVIEW_AI_MODEL: z.string().min(1).default('openai/gpt-6-luna'),
+    AI_GATEWAY_API_KEY: optional(z.string().min(20)),
     ANTHROPIC_API_KEY: optional(z.string().min(20)),
     ANTHROPIC_MODEL: z.string().min(1).default('claude-sonnet-5'),
     ANTHROPIC_TIMEOUT_MS: z.coerce.number().int().min(1_000).default(60_000),
@@ -62,6 +65,7 @@ const envSchema = z
     // Set by Vercel on every deployment.
     VERCEL_ENV: optional(z.string()),
     VERCEL_GIT_COMMIT_SHA: optional(z.string()),
+    VERCEL_OIDC_TOKEN: optional(z.string()),
   })
   .refine((e) => e.NODE_ENV !== 'production' || e.JWT_SECRET, { path: ['JWT_SECRET'], message: 'is required in production' })
   .refine((e) => e.NODE_ENV !== 'production' || e.DATABASE_URL, {
@@ -86,6 +90,12 @@ export interface AppConfig {
   webDistDir: string | null;
   release: string | null;
   databaseUrl: string | null;
+  /** Null picks the gateway when it has a credential, else Anthropic. */
+  interviewAiProvider: 'anthropic' | 'gateway' | null;
+  interviewAiModel: string;
+  aiGatewayApiKey: string | null;
+  /** Running on Vercel, whose OIDC token the gateway accepts; the token is read per request (a header), since it expires. */
+  vercelOidc: boolean;
   anthropicApiKey: string | null;
   anthropicModel: string;
   anthropicTimeoutMs: number;
@@ -133,6 +143,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     webDistDir: e.WEB_DIST_DIR ?? null,
     release: e.RELEASE ?? e.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? null,
     databaseUrl: e.DATABASE_URL ?? null,
+    interviewAiProvider: e.INTERVIEW_AI_PROVIDER ?? null,
+    interviewAiModel: e.INTERVIEW_AI_MODEL,
+    aiGatewayApiKey: e.AI_GATEWAY_API_KEY ?? null,
+    vercelOidc: !!(e.VERCEL_OIDC_TOKEN || e.VERCEL_ENV),
     anthropicApiKey: e.ANTHROPIC_API_KEY ?? null,
     anthropicModel: e.ANTHROPIC_MODEL,
     anthropicTimeoutMs: e.ANTHROPIC_TIMEOUT_MS,
