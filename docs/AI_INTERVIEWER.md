@@ -226,7 +226,7 @@ Two checks need more than the scorecard:
 
 | Variable                      | Default                               | Purpose                                                                         |
 | ----------------------------- | ------------------------------------- | ------------------------------------------------------------------------------- |
-| `INTERVIEW_AI_PROVIDER`       | `gateway` with a gateway credential   | `gateway` or `anthropic`; see [Which interviewer runs](#which-interviewer-runs) |
+| `INTERVIEW_AI_PROVIDER`       | `gateway`                             | `gateway` or `anthropic`; see [Which interviewer runs](#which-interviewer-runs) |
 | `INTERVIEW_AI_MODEL`          | `openai/gpt-6-luna`                   | The gateway model; it must be in the catalog                                    |
 | `AI_GATEWAY_API_KEY`          | unset (Vercel's OIDC token on Vercel) | Gateway key; not needed on Vercel                                               |
 | `ANTHROPIC_API_KEY`           | unset                                 | Claude direct, used only with `INTERVIEW_AI_PROVIDER=anthropic`                 |
