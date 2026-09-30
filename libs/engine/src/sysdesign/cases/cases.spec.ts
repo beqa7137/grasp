@@ -27,6 +27,7 @@ describe('system design case studies', () => {
     expect(CASE_STUDIES.map((s) => s.id)).toEqual(ids);
     expect(CASE_BRIEFS.map((b) => b.id)).toEqual(ids);
     expect(Object.keys(CASE_LABS).sort()).toEqual([...ids].sort());
+    expect(CASE_CATALOG.map((c) => c.stages)).toEqual(CASE_STUDIES.map((s) => s.stages.length));
   });
 
   it('tags each study with design topics that exist', () => {

@@ -1,11 +1,12 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
-import { CASE_CATALOG, SCENARIO_CATALOG, getCaseBrief, fmt, getScenarioSummary, getSdTopic } from '@grasp/engine';
+import { CASE_CATALOG, SCENARIO_CATALOG, getCaseBrief, fmt, getScenarioSummary, getSdTopic, type CaseSummary } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import { checkmarkCircle, constructOutline, documentTextOutline, refreshCircleOutline } from 'ionicons/icons';
 import { ProgressService } from '../../core/progress.service';
+import { CaseDraftsService } from './case/case-drafts.service';
 import { FREE_BUILD } from './free-build';
 
 @Component({
@@ -80,7 +81,10 @@ import { FREE_BUILD } from './free-build';
         </p>
         <div class="list">
           @for (c of cases; track c.id) {
-            <a class="panel card-link mission" [routerLink]="['/design/case', c.id]">
+            @let draft = drafts.draft(c.id);
+            @let finished = progress.state().cases[c.id];
+            @let stage = stageOf(c);
+            <a class="panel card-link mission case" [routerLink]="['/design/case', c.id]" [class.done]="finished && !stage">
               <span class="num"><ion-icon name="document-text-outline" aria-hidden="true" /></span>
               <div class="body">
                 <h3>{{ c.title }}</h3>
@@ -92,7 +96,26 @@ import { FREE_BUILD } from './free-build';
                   }
                 </div>
               </div>
+              @if (stage) {
+                <span class="badge progress">Stage {{ stage }} of {{ c.stages }}</span>
+              } @else if (finished) {
+                <span class="badge"><ion-icon name="checkmark-circle" aria-hidden="true" />Finished</span>
+              }
             </a>
+            @if (finished && !stage) {
+              <div class="panel case-done">
+                <span class="muted"
+                  >Decisions as recommended: {{ finished.bestChoices }} of {{ finished.decisions }}. Estimates within 2x:
+                  {{ finished.closeEstimates }} of {{ finished.estimates }}.</span
+                >
+                @if (draft) {
+                  <span class="actions">
+                    <a class="g-btn ghost" [routerLink]="['/design/case', c.id]" [attr.aria-label]="'Review: ' + c.title">Review</a>
+                    <button class="g-btn ghost" (click)="restart(c.id)" [attr.aria-label]="'Start over: ' + c.title">Start over</button>
+                  </span>
+                }
+              </div>
+            }
           }
         </div>
       </div>
@@ -205,6 +228,29 @@ import { FREE_BUILD } from './free-build';
         }
       }
     }
+    .badge.progress {
+      color: var(--g-accent);
+    }
+    .case-done {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px 12px;
+      padding: 10px 16px;
+      margin: -6px 0 0 24px;
+      font-size: 0.84375rem;
+      .muted {
+        line-height: 1.45;
+      }
+      .actions {
+        display: flex;
+        gap: 8px;
+      }
+      a {
+        text-decoration: none;
+      }
+    }
     @media (max-width: 560px) {
       .badge {
         position: static;
@@ -213,11 +259,19 @@ import { FREE_BUILD } from './free-build';
       .mission {
         flex-wrap: wrap;
       }
+      .case .body {
+        flex-basis: calc(100% - 60px);
+      }
+      .case .badge {
+        margin-left: 60px;
+      }
     }
   `,
 })
 export class DesignListPage {
   readonly progress = inject(ProgressService);
+  readonly drafts = inject(CaseDraftsService);
+  private readonly router = inject(Router);
   readonly scenarios = SCENARIO_CATALOG;
   readonly free = FREE_BUILD;
   readonly cases = CASE_CATALOG;
@@ -237,6 +291,18 @@ export class DesignListPage {
 
   ionViewWillEnter() {
     this.progress.now.set(new Date());
+    void this.drafts.load();
+  }
+
+  /** The stage a run on this device has open, or null when there is none or it finished the case. */
+  stageOf(c: CaseSummary): number | null {
+    const draft = this.drafts.draft(c.id);
+    if (!draft || (draft.reached >= c.stages && this.progress.state().cases[c.id])) return null;
+    return Math.min(draft.reached + 1, c.stages);
+  }
+
+  restart(caseId: string) {
+    void this.router.navigate(['/design/case', caseId], { state: { startOver: true } });
   }
 
   revisitFor(id: string) {

@@ -25,6 +25,7 @@ import { URL_SHORTENER } from './url-shortener.js';
 export type { CaseDecision, CaseEstimate, CaseOption, CaseStage, CaseStageKind, CaseStudy } from './types.js';
 export * from './estimate.js';
 export * from './labs.js';
+export * from './outcome.js';
 
 export const CASE_STUDIES: readonly CaseStudy[] = [
   URL_SHORTENER,

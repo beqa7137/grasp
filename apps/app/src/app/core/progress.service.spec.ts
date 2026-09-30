@@ -182,6 +182,7 @@ describe('ProgressService sync', () => {
     release();
     await resync;
 
+    expect(progress.cleared()).toBe(1);
     expect(localStorage.getItem('CapacitorStorage.grasp.events')).toBeNull();
     expect(progress.syncStatus()).toBe('idle');
     expect(api.post).not.toHaveBeenCalled();

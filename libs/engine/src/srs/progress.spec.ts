@@ -4,6 +4,8 @@ import { SD_TOPICS } from '../curriculum/sd-topics.js';
 import { getReviewItemSummary, itemsForTopic } from '../review/catalog.js';
 import type { LegacyDrillReviewedEvent, StoredEvent } from './events.js';
 import {
+  CASE_REVIEW_PULL_MS,
+  CASE_REVIEW_REST_MS,
   MISSION_LADDER_DAYS,
   PREDICTION_MISS_PULL_MS,
   forecast,
@@ -220,6 +222,87 @@ describe('progress reducer', () => {
     s = replay([done(t0 + 43 * DAY, 3)], s);
     expect(s.missions['viral-feed'].nextRevisitAt).toBeNull();
     expect(missionRevisits(s, new Date(t0 + 400 * DAY))).toEqual([]);
+  });
+
+  describe('finished case studies', () => {
+    const topics = ['sd-estimation', 'sd-caching', 'sd-sharding'];
+    const finished = (atMs: number, bestChoices = 2, caseTopics = topics): StoredEvent => ({
+      id: id(),
+      at: iso(atMs),
+      type: 'case.completed',
+      caseId: 'url-shortener',
+      topics: caseTopics,
+      bestChoices,
+      decisions: 3,
+      closeEstimates: 1,
+      estimates: 2,
+    });
+
+    it('introduces the case topics, unlocks their design items and boosts the first unseen one of each', () => {
+      const s = replay([finished(t0)]);
+      expect(s.cases['url-shortener']).toEqual({
+        firstCompletedAt: iso(t0),
+        completions: 1,
+        topics,
+        bestChoices: 2,
+        decisions: 3,
+        closeEstimates: 1,
+        estimates: 2,
+      });
+      for (const topic of topics) {
+        expect(s.introduced[topic]).toBe(iso(t0));
+        const items = itemsForTopic(topic);
+        expect(items.length, topic).toBeGreaterThan(1);
+        for (const def of items) expect(isUnlocked(def, s), def.id).toBe(true);
+      }
+      const firsts = topics.map((topic) => itemsForTopic(topic)[0].id);
+      expect(Object.keys(s.boosts).sort()).toEqual([...firsts].sort());
+      expect(s.boosts[firsts[0]]).toEqual({ at: iso(t0), reason: 'case' });
+      expect(isUnlocked(getReviewItemSummary('sd:queue-drain')!, s)).toBe(false);
+      expect(s.xp).toBe(50);
+
+      expect(Object.keys(replay([finished(t0 + DAY)], s).boosts).sort()).toEqual([...firsts].sort());
+      const [first, second] = itemsForTopic('sd-caching');
+      const after = replay([graded(first.id, t0 + DAY), finished(t0 + 2 * DAY)], s);
+      expect(after.boosts[first.id]).toBeUndefined();
+      expect(after.boosts[second.id]).toEqual({ at: iso(t0 + 2 * DAY), reason: 'case' });
+    });
+
+    it('brings scheduled items of its topics back within a day, except those reviewed in the last three days', () => {
+      const [item, recent] = itemsForTopic('sd-caching');
+      let learned = replay([graded(item.id, t0), graded(item.id, t0 + 10 * 60_000)]);
+      for (let i = 0; i < 3; i++) learned = replay([graded(item.id, Date.parse(learned.cards[item.id].due))], learned);
+      const finishAt = Date.parse(learned.cards[item.id].due) - 20 * DAY;
+      expect(Date.parse(learned.cards[item.id].lastReview!)).toBeLessThan(finishAt - CASE_REVIEW_REST_MS);
+      learned = replay([graded(recent.id, finishAt - DAY, RATING.easy)], learned);
+      expect(Date.parse(learned.cards[recent.id].due)).toBeGreaterThan(finishAt + CASE_REVIEW_PULL_MS);
+
+      const s = replay([finished(finishAt)], learned);
+      expect(Date.parse(s.cards[item.id].due)).toBe(finishAt + CASE_REVIEW_PULL_MS);
+      expect(s.cards[item.id].stability).toBe(learned.cards[item.id].stability);
+      expect(s.cards[recent.id]).toEqual(learned.cards[recent.id]);
+      expect(s.boosts[item.id]).toBeUndefined();
+    });
+
+    it('counts a later completion, keeps the first date and every topic covered, skips unknown topics and replays in any order', () => {
+      const events = [finished(t0), finished(t0 + DAY, 3, ['sd-queues', 'no-such-topic'])];
+      const s = replay(events);
+      expect(s.cases).toEqual({
+        'url-shortener': {
+          firstCompletedAt: iso(t0),
+          completions: 2,
+          topics: [...topics, 'sd-queues'],
+          bestChoices: 3,
+          decisions: 3,
+          closeEstimates: 1,
+          estimates: 2,
+        },
+      });
+      expect(s.introduced['no-such-topic']).toBeUndefined();
+      expect(isUnlocked(getReviewItemSummary('sd:queue-drain')!, s)).toBe(true);
+      expect(s.xp).toBe(60);
+      expect(replay([...events].reverse())).toEqual(s);
+    });
   });
 
   it('unlocks items only after their idea was met elsewhere', () => {

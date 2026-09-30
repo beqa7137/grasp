@@ -92,6 +92,28 @@ describe('session builder', () => {
     expect(plan.items.filter((i) => i.reason === 'new')).toHaveLength(0);
   });
 
+  it('a finished case study puts its topics design items in the next session, even with no mission done', () => {
+    const today = ['rec:h1', 'rec:tp1', 'rec:sw1', 'rec:bs1'].map((i, n) => graded(i, t0 + n * 1000));
+    const finished: StoredEvent = {
+      id: 'evt-case-1',
+      at: new Date(t0 + 5_000).toISOString(),
+      type: 'case.completed',
+      caseId: 'rate-limiter',
+      topics: ['sd-rate-limiting', 'sd-estimation', 'sd-reliability'],
+      bestChoices: 5,
+      decisions: 5,
+      closeEstimates: 2,
+      estimates: 2,
+    };
+    const plan = buildSession(replay([...today, finished]), { now: new Date(t0 + 60_000), newPerDay: 4, budgetMinutes: 60 });
+    const boosted = plan.items.filter((i) => i.reason === 'boosted').map((i) => getReviewItemSummary(i.itemId)!);
+    expect(boosted.length).toBeGreaterThan(0);
+    expect(boosted.every((d) => d.kind === 'design' && ['sd-rate-limiting', 'sd-estimation', 'sd-reliability'].includes(d.topic))).toBe(
+      true,
+    );
+    expect(plan.items.filter((i) => i.reason === 'new')).toHaveLength(0);
+  });
+
   it('interleave avoids same-topic neighbours when possible', () => {
     const defs = ['a', 'a', 'a', 'b', 'b', 'c'].map((topic, i) => ({ def: { topic, kind: 'recognition' as const }, i }));
     const out = interleave(defs).map((x) => x.def.topic);

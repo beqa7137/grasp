@@ -10,16 +10,27 @@ import {
   input,
   signal,
   untracked,
+  viewChild,
   viewChildren,
 } from '@angular/core';
-import { RouterLink } from '@angular/router';
-import { Preferences } from '@capacitor/preferences';
+import { Router, RouterLink } from '@angular/router';
 import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
-import { CASE_CATALOG, getCaseBrief, getCaseStudy, getCaseSummary, type CaseStageKind } from '@grasp/engine';
+import {
+  CASE_CATALOG,
+  caseOutcome,
+  stageAnswered,
+  getCaseBrief,
+  getCaseStudy,
+  getCaseSummary,
+  type CaseStageAnswer,
+  type CaseStageKind,
+} from '@grasp/engine';
 import { addIcons } from 'ionicons';
-import { alertCircleOutline, arrowForward, chatbubblesOutline } from 'ionicons/icons';
+import { alertCircleOutline, arrowForward, chatbubblesOutline, checkmarkCircle } from 'ionicons/icons';
 import { refocus } from '../../../core/focus';
+import { ProgressService } from '../../../core/progress.service';
 import { CodeTextComponent } from '../../../viz/code-text.component';
+import { CaseDraftsService, newCaseDraft, type CaseDraft } from './case-drafts.service';
 import { CaseStageComponent } from './case-stage.component';
 
 const KIND_LABELS: Record<CaseStageKind, string> = {
@@ -78,6 +89,8 @@ const KIND_LABELS: Record<CaseStageKind, string> = {
                   <app-case-stage
                     [stage]="stage"
                     [caseId]="s.id"
+                    [answer]="draft().stages[i] ?? unanswered"
+                    (answerChange)="answer(i, $event)"
                     [showNext]="i === reached()"
                     [nextLabel]="i + 1 < study.stages.length ? 'Next: ' + study.stages[i + 1].title : 'Finish the case'"
                     (next)="advance()"
@@ -88,8 +101,26 @@ const KIND_LABELS: Record<CaseStageKind, string> = {
           </ol>
 
           @if (finished()) {
-            <section class="panel block" #endEl>
-              <h2 tabindex="-1"><ion-icon name="alert-circle-outline" aria-hidden="true" />What costs candidates this question</h2>
+            <div class="outcome" tabindex="-1" #outcomeEl>
+              @if (outcome(); as o) {
+                <ion-icon name="checkmark-circle" aria-hidden="true" />
+                <p>
+                  Case finished. Decisions as recommended: {{ o.bestChoices }} of {{ o.decisions }}. Estimates within 2x:
+                  {{ o.closeEstimates }} of {{ o.estimates }}. Its topics are now in your reviews.
+                </p>
+              } @else {
+                <p class="muted">
+                  Answer the decisions and estimates still open above to finish the case and add its topics to your reviews.
+                </p>
+                @if (firstOpen() >= 0) {
+                  <button class="g-btn" (click)="goToStage(firstOpen())">
+                    Go to stage {{ firstOpen() + 1 }}: {{ study.stages[firstOpen()].title }}
+                  </button>
+                }
+              }
+            </div>
+            <section class="panel block">
+              <h2><ion-icon name="alert-circle-outline" aria-hidden="true" />What costs candidates this question</h2>
               <ul>
                 @for (p of study.pitfalls; track p) {
                   <li><g-code-text [text]="p" /></li>
@@ -208,6 +239,26 @@ const KIND_LABELS: Record<CaseStageKind, string> = {
       margin: 8px 0 0;
       line-height: 1.55;
     }
+    .outcome {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: flex-start;
+      margin: 12px 0 0;
+      line-height: 1.5;
+      outline: none;
+      p {
+        flex: 1 1 0;
+        min-width: 12em;
+        margin: 0;
+      }
+      ion-icon {
+        flex: none;
+        margin-top: 0.15em;
+        font-size: 1.125rem;
+        color: var(--g-found);
+      }
+    }
     .end {
       display: flex;
       flex-wrap: wrap;
@@ -223,54 +274,101 @@ const KIND_LABELS: Record<CaseStageKind, string> = {
 export class CaseStudyPage {
   readonly id = input.required<string>();
   readonly kinds = KIND_LABELS;
+  readonly unanswered: CaseStageAnswer = {};
   readonly summary = computed(() => getCaseSummary(this.id()));
   readonly brief = computed(() => getCaseBrief(this.id()));
   readonly study = computed(() => getCaseStudy(this.id()));
-  readonly reached = signal(0);
+  readonly draft = signal<CaseDraft>(newCaseDraft());
+  readonly reached = computed(() => this.draft().reached);
   readonly round = signal(0);
   readonly finished = computed(() => this.reached() >= (this.study()?.stages.length ?? Infinity));
+  readonly outcome = computed(() => {
+    const study = this.study();
+    return study && this.finished() ? caseOutcome(study, this.draft().stages) : null;
+  });
+  readonly firstOpen = computed(() => {
+    const stages = this.study()?.stages ?? [];
+    return stages.findIndex((stage, i) => !stageAnswered(stage, this.draft().stages[i]));
+  });
   readonly nextCase = computed(() => CASE_CATALOG[CASE_CATALOG.findIndex((c) => c.id === this.id()) + 1]);
+  private readonly drafts = inject(CaseDraftsService);
+  private readonly progress = inject(ProgressService);
   private readonly stageEls = viewChildren<ElementRef<HTMLElement>>('stageEl');
-  private readonly endEls = viewChildren<ElementRef<HTMLElement>>('endEl');
+  private readonly outcomeEl = viewChild<ElementRef<HTMLElement>>('outcomeEl');
+  private startOver = inject(Router).currentNavigation()?.extras.state?.['startOver'] === true;
   private readonly injector = inject(Injector);
 
   constructor() {
-    addIcons({ alertCircleOutline, arrowForward, chatbubblesOutline });
+    addIcons({ alertCircleOutline, arrowForward, chatbubblesOutline, checkmarkCircle });
     effect(() => {
-      const key = this.storageKey();
-      untracked(() => this.reached.set(0));
-      void Preferences.get({ key }).then(({ value }) => {
-        const saved = Number(value);
-        if (key === this.storageKey() && Number.isInteger(saved) && saved > 0) this.reached.set(saved);
+      const id = this.id();
+      this.progress.cleared();
+      const fresh = newCaseDraft();
+      untracked(() => this.draft.set(fresh));
+      if (this.startOver) {
+        this.startOver = false;
+        untracked(() => this.restart());
+        return;
+      }
+      void this.drafts.get(id).then((saved) => {
+        if (saved && id === this.id() && this.draft() === fresh) this.draft.set(saved);
       });
+    });
+    // Recording follows the outcome rather than the tap, so a run whose draft was saved but whose event was not is
+    // recorded on its next load; the id per run keeps that idempotent.
+    effect(() => {
+      const outcome = this.outcome();
+      const topics = this.summary()?.topics;
+      if (!outcome || !topics) return;
+      const { attempt } = this.draft();
+      const caseId = this.id();
+      untracked(
+        () =>
+          void this.progress.record({ id: `case-${caseId}-${attempt}`, type: 'case.completed', caseId, topics: [...topics], ...outcome }),
+      );
     });
   }
 
-  private storageKey() {
-    return `grasp.case.${this.id()}`;
+  answer(index: number, answer: CaseStageAnswer) {
+    const { stages } = this.draft();
+    const length = Math.max(stages.length, index + 1);
+    this.save({ ...this.draft(), stages: Array.from({ length }, (_, i) => (i === index ? answer : (stages[i] ?? {}))) });
   }
 
   advance() {
-    this.reached.update((r) => r + 1);
-    void Preferences.set({ key: this.storageKey(), value: String(this.reached()) });
+    this.save({ ...this.draft(), reached: this.reached() + 1 });
     this.focusCurrent();
   }
 
   restart() {
-    this.reached.set(0);
+    this.draft.set(newCaseDraft());
     this.round.update((r) => r + 1);
-    void Preferences.remove({ key: this.storageKey() });
+    void this.drafts.remove(this.id());
     this.focusCurrent(true);
   }
 
-  /** Moves focus to the stage (or closing section) just opened; a restart also scrolls back up to it after a tap. */
+  private save(draft: CaseDraft) {
+    const id = this.id();
+    this.draft.set(draft);
+    void this.drafts.save(id, draft);
+  }
+
+  goToStage(index: number) {
+    const stage = this.stageEls()[index]?.nativeElement;
+    stage?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    stage?.querySelector('h2')?.focus({ preventScroll: true });
+  }
+
+  /** Moves focus to the stage just opened, or to the outcome at the end; a restart also moves it there after a tap. */
   private focusCurrent(always = false) {
     afterNextRender(
       () => {
-        const target = (this.finished() ? this.endEls()[0] : this.stageEls()[this.reached()])?.nativeElement;
-        const reveal = () => target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        if (always) reveal();
-        refocus(target?.querySelector('h2'), null, reveal);
+        const stage = this.finished() ? undefined : this.stageEls()[this.reached()]?.nativeElement;
+        const target = stage ? stage.querySelector('h2') : this.outcomeEl()?.nativeElement;
+        const reveal = () => (stage ?? target)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (!always) return refocus(target, null, reveal);
+        reveal();
+        target?.focus({ preventScroll: true });
       },
       { injector: this.injector },
     );

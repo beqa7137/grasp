@@ -1,4 +1,5 @@
 import type { Language } from '../coding/types.js';
+import type { CaseOutcome } from '../sysdesign/cases/outcome.js';
 import type { ReviewRating } from './scheduler.js';
 
 interface BaseEvent {
@@ -37,6 +38,14 @@ export interface ScenarioCompletedEvent extends BaseEvent {
   monthlyCost: number;
   /** 1-based revisit variant; absent for the original mission. */
   variant?: number;
+}
+
+/** A system design case study worked to its end with every decision and estimate answered. */
+export interface CaseCompletedEvent extends BaseEvent, CaseOutcome {
+  type: 'case.completed';
+  caseId: string;
+  /** The case's design topics when it was finished, carried here so replay does not need the case catalog at startup. */
+  topics: string[];
 }
 
 export interface InterviewScoredEvent extends BaseEvent {
@@ -93,6 +102,7 @@ export type LearningEvent =
   | PracticeAnsweredEvent
   | PredictAnsweredEvent
   | ScenarioCompletedEvent
+  | CaseCompletedEvent
   | InterviewScoredEvent
   | CodeSubmittedEvent
   | SettingsChangedEvent
