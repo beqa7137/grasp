@@ -65,6 +65,11 @@ export default defineConfig({
             OAUTH_GITHUB_API_URL: `${fakeGitHubUrl}/api`,
             // Google's side is replaced in the browser (see sign-in.spec.ts); no real client exists.
             GOOGLE_WEB_CLIENT_ID: 'e2e-only.apps.googleusercontent.com',
+            // Blank so an AI credential in the shell never reaches the paid gateway; the suite fakes the interviewer.
+            ANTHROPIC_API_KEY: '',
+            AI_GATEWAY_API_KEY: '',
+            VERCEL_OIDC_TOKEN: '',
+            VERCEL_ENV: '',
             ...(databaseUrl ? { DATABASE_URL: databaseUrl } : {}),
           },
         },
