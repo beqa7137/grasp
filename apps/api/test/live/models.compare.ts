@@ -112,6 +112,11 @@ async function compare(): Promise<ComparisonRun> {
       } catch (err) {
         if (client.lastError instanceof Anthropic.AuthenticationError)
           throw new Error('The gateway rejected AI_GATEWAY_API_KEY.', { cause: err });
+        if (
+          client.lastError instanceof Anthropic.PermissionDeniedError &&
+          client.lastError.message.includes('customer_verification_required')
+        )
+          throw new Error("The gateway needs a credit card on the key's Vercel team before it serves requests.", { cause: err });
         run.stoppedForBudget = err instanceof ServiceUnavailableException && err.message === SPEND_LIMIT_REACHED;
         modelRun.scenarios.push({
           scenario: scenario.name,
@@ -124,7 +129,7 @@ async function compare(): Promise<ComparisonRun> {
       process.stdout.write(
         `${id} / ${scenario.name}: ${last.error ?? `${last.checks.filter((c) => c.pass).length}/${last.checks.length} checks`}\n`,
       );
-      if (run.stoppedForBudget) break;
+      if (run.stoppedForBudget || client.lastError instanceof Anthropic.PermissionDeniedError) break;
     }
     modelRun.separation = separationChecks(modelRun.scenarios.flatMap((s) => (s.result ? [s.result] : [])));
     if (run.stoppedForBudget) break;
