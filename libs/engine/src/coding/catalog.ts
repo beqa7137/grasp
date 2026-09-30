@@ -265,6 +265,11 @@ const CATALOG = [
   { id: 'missing-number', title: 'Missing Number', difficulty: 'easy' },
   { id: 'single-number-ii', title: 'Single Number II', difficulty: 'medium' },
   { id: 'minimum-flips-or', title: 'Minimum Flips to Make a OR b Equal to c', difficulty: 'medium' },
+  { id: 'minimum-xor-sum', title: 'Minimum XOR Sum of Two Arrays', difficulty: 'hard', algorithmId: 'minimum-xor-sum' },
+  { id: 'partition-k-subsets', title: 'Partition to K Equal Sum Subsets', difficulty: 'medium' },
+  { id: 'shortest-path-all-nodes', title: 'Shortest Path Visiting All Nodes', difficulty: 'hard' },
+  { id: 'maximum-students', title: 'Maximum Students Taking Exam', difficulty: 'hard' },
+  { id: 'hats-to-people', title: 'Number of Ways to Wear Different Hats to Each Other', difficulty: 'hard' },
 ] as const satisfies readonly Omit<CodingProblemSummary, 'patternIds'>[];
 
 export type CodingProblemId = (typeof CATALOG)[number]['id'];

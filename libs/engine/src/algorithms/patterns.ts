@@ -24,6 +24,7 @@ export const ALGORITHM_PATTERNS = {
   'linked-list-cycle': 'fast-slow',
   'linked-list-reversal': 'linked-list-reversal',
   'house-robber': 'dp-1d',
+  'minimum-xor-sum': 'bitmask-dp',
 } as const satisfies Record<string, PatternId>;
 
 export type AlgorithmPatternId = keyof typeof ALGORITHM_PATTERNS;

@@ -176,6 +176,14 @@ const CATALOG = [
     summary: '`dp[i]` is the most money from the first i houses: skip house `i - 1` and keep `dp[i - 1]`, or rob it on top of `dp[i - 2]`.',
     complexity: { time: 'O(n)', space: 'O(n)' },
   },
+  {
+    id: 'minimum-xor-sum',
+    title: 'Minimum XOR Sum (Bitmask DP)',
+    difficulty: 'hard',
+    summary:
+      'Bit j of mask says nums2[j] is used, and `popcount(mask)` says which nums1 value is paired next. Fill the masks from 0 upward: each sets one more bit and keeps the smaller sum.',
+    complexity: { time: 'O(2ⁿ · n)', space: 'O(2ⁿ)' },
+  },
 ] as const satisfies readonly Omit<AlgorithmSummary, 'patternId'>[];
 
 export type AlgorithmId = (typeof CATALOG)[number]['id'];

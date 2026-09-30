@@ -289,6 +289,38 @@ const DETAILS: Record<PatternId, PatternDefinition> = {
     complexity: 'O(n), O(1) space',
     pitfalls: ['Sign bit and `>>` vs `>>>` in JavaScript'],
   },
+  'bitmask-dp': {
+    cues: [
+      'Only about 12 to 20 items, people, nodes or tasks',
+      'Visit every node, or use every item, in the best order',
+      'Assign each task to a different person',
+      'Split the items into groups with equal sums',
+    ],
+    template: [
+      '// dp[mask][last]: best cost to use the items in mask, ending at last',
+      'const dp = [...Array(1 << n)].map(() => Array(n).fill(Infinity));',
+      'for (let i = 0; i < n; i++) dp[1 << i][i] = 0;',
+      'for (let mask = 1; mask < 1 << n; mask++)',
+      '  for (let last = 0; last < n; last++) {',
+      '    if (dp[mask][last] === Infinity) continue;',
+      '    for (let next = 0; next < n; next++) {',
+      '      if (mask & (1 << next)) continue;',
+      '      const to = mask | (1 << next);',
+      '      const cost = dp[mask][last] + w[last][next];',
+      '      dp[to][next] = Math.min(dp[to][next], cost);',
+      '    }',
+      '  }',
+      'return Math.min(...dp[(1 << n) - 1]);',
+    ],
+    complexity: 'O(2ⁿ · n²) with a last item, O(2ⁿ · n) without',
+    pitfalls: [
+      'Filling masks out of order: a mask must come after every mask it is built from, and counting up from 0 does that, since setting a bit makes the number larger',
+      'Precedence: in JavaScript, `mask & 1 << j === 0` means `mask & ((1 << j) === 0)`, since `===` binds tighter than `&`, so the test is always 0. C++ groups `==` the same way and compiles it silently; Java rejects it as `int & boolean`. Write `(mask & (1 << j)) === 0`',
+      'Forgetting the base state: with every entry at Infinity and no `dp[1 << i][i] = 0` (or `dp[0] = 0`), nothing is ever reachable',
+      'Memory: 2ⁿ · n entries is about 21 million for 20 items, so use typed arrays and drop the last item when order does not matter',
+      'Reaching for it when n is large: 2ⁿ doubles with every item, so past about 20 look for a greedy rule, a graph algorithm or another DP',
+    ],
+  },
 };
 
 // algorithmIds stays last, where the curriculum API has always served it.
