@@ -31,6 +31,8 @@ import { LeaseWidgetComponent } from './lease-widget.component';
 import { BalancerWidgetComponent } from './balancer-widget.component';
 import { ClocksWidgetComponent } from './clocks-widget.component';
 import { DiscoveryWidgetComponent } from './discovery-widget.component';
+import { DurabilityWidgetComponent } from './durability-widget.component';
+import { RecoveryWidgetComponent } from './recovery-widget.component';
 import { EstimateDrillComponent } from './estimate-drill.component';
 import { GeoWidgetComponent } from './geo-widget.component';
 import { IdLayoutWidgetComponent } from './id-layout-widget.component';
@@ -95,6 +97,8 @@ import { TxnWidgetComponent } from './txn-widget.component';
     BalancerWidgetComponent,
     ClocksWidgetComponent,
     DiscoveryWidgetComponent,
+    DurabilityWidgetComponent,
+    RecoveryWidgetComponent,
     EstimateDrillComponent,
   ],
   template: `
@@ -211,6 +215,12 @@ import { TxnWidgetComponent } from './txn-widget.component';
                 }
                 @case ('discovery') {
                   <app-discovery-widget />
+                }
+                @case ('durability') {
+                  <app-durability-widget />
+                }
+                @case ('recovery') {
+                  <app-recovery-widget />
                 }
                 @case ('estimate-drill') {
                   <app-estimate-drill [drill]="l.widget.drill ?? []" />

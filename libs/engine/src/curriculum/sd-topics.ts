@@ -162,6 +162,18 @@ export const SD_TOPICS: SdTopic[] = [
     oneLiner: 'DNS, registries and health checks: how fast traffic leaves a dead instance.',
     scenarioIds: ['first-scale-up'],
   },
+  {
+    id: 'sd-durability',
+    name: 'Durability & Erasure Coding',
+    oneLiner: 'Replicas or erasure codes: nines of durability, storage overhead and repair traffic.',
+    scenarioIds: ['write-wall'],
+  },
+  {
+    id: 'sd-recovery',
+    name: 'Backups & Disaster Recovery',
+    oneLiner: 'RPO and RTO: backups, point-in-time recovery and standbys, and what each survives.',
+    scenarioIds: ['write-wall'],
+  },
 ];
 
 export function getSdTopic(id: string): SdTopic | undefined {
