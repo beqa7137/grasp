@@ -51,6 +51,12 @@ export interface Unsynced {
   checked: boolean;
 }
 
+const firstSentence = (text: string) =>
+  text
+    .trim()
+    .split(/(?<=[.!?])\s/)[0]
+    .slice(0, 80);
+
 const isBlank = (story: Story) => !story.deleted && !story.title.trim() && !story.competencyIds.length && isEmptyDraft(story.draft);
 
 /**
@@ -164,6 +170,15 @@ export class StoryBankService {
       saved = { ...base, ...patch, draft: { ...base.draft, ...patch.draft }, updatedAt: nextChange(current, now) };
       return current ? stories.map((s) => (s.id === id ? saved : s)) : [...stories, saved];
     }).then(() => saved);
+  }
+
+  /** Keeps an interview answer as a new story about `competencyId`, titled by its opening sentence or else `fallbackTitle`. */
+  saveAnswer(answer: StarDraft, competencyId: string, fallbackTitle: string): Promise<Story> {
+    return this.save(this.blank().id, {
+      title: (firstSentence(answer.situation) || fallbackTitle).slice(0, STORY_LIMITS.title),
+      competencyIds: [competencyId],
+      draft: answer,
+    });
   }
 
   /** A story left with no title, tags or text is not kept, the way an empty STAR draft is not. */

@@ -14,6 +14,7 @@ import {
 } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import { arrowForward, chatbubblesOutline, eyeOutline } from 'ionicons/icons';
+import { AiInterviewEntryComponent } from './ai-interview-entry.component';
 import { ExampleAnswerComponent } from './example-answer.component';
 import { StarEditorComponent } from './star-editor.component';
 import { StarDraftsService } from './star-drafts.service';
@@ -33,6 +34,7 @@ const QUESTIONS = COMPETENCIES.flatMap((c) => c.questions);
     IonTitle,
     IonContent,
     IonIcon,
+    AiInterviewEntryComponent,
     ExampleAnswerComponent,
     StarEditorComponent,
   ],
@@ -78,6 +80,8 @@ const QUESTIONS = COMPETENCIES.flatMap((c) => c.questions);
               }
             </ul>
           </section>
+
+          <app-ai-interview-entry [problemId]="q.id" />
 
           @if (next(); as n) {
             <a class="g-btn next" [routerLink]="['/behavioral/question', n.id]"

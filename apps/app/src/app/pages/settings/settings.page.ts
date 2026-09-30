@@ -7,6 +7,7 @@ import { RovingSelectDirective } from '../../core/roving-select.directive';
 import { RuntimeConfigService } from '../../core/runtime-config.service';
 import { ShortcutsService } from '../../core/shortcuts.service';
 import { type ThemePreference, ThemeService } from '../../core/theme.service';
+import { AI_DISCLOSURE } from '../../core/ai-disclosure';
 import { PilotService } from '../../pilot/pilot.service';
 import { AccountSettingsComponent } from './account-settings.component';
 import { type Choice, StudySettingsComponent } from './study-settings.component';
@@ -84,7 +85,7 @@ import { type Choice, StudySettingsComponent } from './study-settings.component'
               auth.signedIn()
                 ? 'in your account, and syncs your behavioral stories there too'
                 : 'under an anonymous id; your behavioral stories stay on this device until you sign in'
-            }}. In AI mode, interview transcripts and shared code are sent to Anthropic's Claude API for replies and scoring.
+            }}. {{ aiDisclosure }}
           </p>
           <div class="row g-control-row">
             <div>
@@ -153,6 +154,7 @@ import { type Choice, StudySettingsComponent } from './study-settings.component'
   `,
 })
 export class SettingsPage {
+  readonly aiDisclosure = AI_DISCLOSURE;
   private readonly api = inject(ApiService);
   private readonly alerts = inject(AlertController);
   private readonly toasts = inject(ToastController);

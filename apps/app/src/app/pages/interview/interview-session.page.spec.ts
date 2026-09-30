@@ -304,3 +304,97 @@ describe('InterviewSessionPage access and draft preservation', () => {
     expect(page.signInOpen()).toBe(false);
   });
 });
+
+describe('InterviewSessionPage behavioral track', () => {
+  const opening = { role: 'interviewer' as const, content: 'Tell me about a disagreement.', at: '2026-09-27T00:00:00Z' };
+  const star = {
+    situation: 'The launch slipped.',
+    task: 'I owned the date.',
+    action: 'I brought the data.',
+    result: 'We shipped.',
+    reflection: '',
+  };
+  const behavioral = {
+    track: 'behavioral' as const,
+    problem: { id: 'conflict-1', title: 'Conflict & Disagreement', track: 'behavioral' as const, patternIds: [], competencyId: 'conflict' },
+    messages: [opening],
+    mode: 'ai' as const,
+    aiAccess: 'available' as const,
+  };
+
+  it('sends the STAR answer alone, only on Give answer, and then takes follow-ups in the chat composer', async () => {
+    const { page, api } = await setup(behavioral);
+    expect(page.answering()).toBe(true);
+    page.starDraft.set(star);
+    expect(api.stream).not.toHaveBeenCalled();
+    await page.giveAnswer();
+    expect(api.stream).toHaveBeenCalledExactlyOnceWith(
+      '/interview/sessions/session/messages',
+      { star },
+      expect.anything(),
+      expect.anything(),
+    );
+    expect(page.answering()).toBe(false);
+    expect(page.session()?.messages[1]?.star).toEqual(star);
+    await page.giveAnswer();
+    expect(api.stream).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the STAR answer when giving it fails', async () => {
+    const { page, api } = await setup(behavioral);
+    page.starDraft.set(star);
+    api.stream.mockRejectedValueOnce(new ApiError(503, 'Try again.'));
+    await page.giveAnswer();
+    expect(page.answering()).toBe(true);
+    expect(page.starDraft()).toEqual(star);
+  });
+
+  it('closes the composer after the answer to the third follow-up', async () => {
+    const answer = (content: string) => ({ role: 'candidate' as const, content, at: '2026-09-27T00:01:00Z' });
+    const reply = { ...opening, content: 'Thanks, that gives me what I need. Press End & score when you are ready.' };
+    const messages = [
+      opening,
+      { ...answer('[STAR ANSWER]'), star },
+      opening,
+      answer('one'),
+      opening,
+      answer('two'),
+      opening,
+      answer('three'),
+      reply,
+    ];
+    const { page, api } = await setup({ ...behavioral, messages });
+    expect(page.closed()).toBe(true);
+    page.draft.set('One more thing.');
+    await page.send();
+    expect(api.stream).not.toHaveBeenCalled();
+  });
+
+  it('records the scored event with the competency and the weak competencies, as the server does', async () => {
+    const scorecard = {
+      mode: 'ai' as const,
+      verdict: 'lean-no-hire' as const,
+      summary: 'Say what you did.',
+      dimensions: [],
+      strengths: [],
+      improvements: [],
+      weakPatterns: [],
+      flaws: [],
+      weakCompetencies: ['conflict'],
+    };
+    const { page, api, progress } = await setup(behavioral);
+    api.post.mockResolvedValueOnce({ ...page.session()!, status: 'scored', scorecard, scoredAt: '2026-09-27T00:05:00Z' });
+    await page.score();
+    expect(progress.record).toHaveBeenCalledExactlyOnceWith({
+      id: 'interview-session',
+      at: '2026-09-27T00:05:00Z',
+      type: 'interview.scored',
+      sessionId: 'session',
+      track: 'behavioral',
+      verdict: 'lean-no-hire',
+      weakPatterns: [],
+      competencyId: 'conflict',
+      weakCompetencies: ['conflict'],
+    });
+  });
+});

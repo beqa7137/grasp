@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpException, Logger, Param, ParseUUIDPipe, Post, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import { isEmptyDraft } from '@grasp/engine';
+import { STAR_ANSWER_LIMIT, isEmptyDraft, starLength } from '@grasp/engine';
 import { z } from 'zod';
 import { LearnerId, UserId } from '../common/learner-id.decorator.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
@@ -9,9 +9,6 @@ import { safeErrorDetails } from '../observability/safe-error.js';
 import { databaseUnavailable, isDatabaseUnavailable } from '../persistence/database-errors.js';
 import { storySchema } from '../stories/stories.schema.js';
 import { InterviewService } from './interview.service.js';
-
-/** A STAR answer spoken in about three minutes is far shorter; this bounds what one scoring call reads. */
-const STAR_ANSWER_LIMIT = 12_000;
 
 const modeSchema = z.object({ mode: z.enum(['ai', 'offline']) });
 const startSchema = modeSchema
@@ -24,7 +21,7 @@ const startSchema = modeSchema
   .refine((s) => !s.level || s.track === 'behavioral', 'Only a behavioral interview takes a level');
 
 const starSchema = storySchema.shape.draft
-  .refine((star) => Object.values(star).join('').length <= STAR_ANSWER_LIMIT, `A STAR answer is at most ${STAR_ANSWER_LIMIT} characters`)
+  .refine((star) => starLength(star) <= STAR_ANSWER_LIMIT, `A STAR answer is at most ${STAR_ANSWER_LIMIT} characters`)
   .refine((star) => !isEmptyDraft(star), 'The STAR answer is empty');
 
 const messageSchema = z

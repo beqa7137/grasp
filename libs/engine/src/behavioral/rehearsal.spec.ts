@@ -79,6 +79,12 @@ describe('rehearsal after an interview flags a competency', () => {
     expect(isDue(story('d', ['conflict'], ' '), now, flaggedAt(now.getTime()))).toBe(false);
   });
 
+  it('says a flagged story is told now', () => {
+    const told = rehearse(story('a', ['conflict']), true, toldAt);
+    expect(whenNext(told, now)).toBe('tomorrow');
+    expect(whenNext(told, now, flaggedAt(toldAt.getTime() + 1))).toBe('now');
+  });
+
   it('lists flagged stories among the due ones, longest scheduled first', () => {
     const flagged = rehearse(rehearse(story('flagged', ['conflict']), true, toldAt), true, toldAt);
     const waiting = rehearse(story('waiting', ['ownership']), true, toldAt);

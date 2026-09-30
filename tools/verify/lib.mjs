@@ -153,6 +153,88 @@ const finishNewsFeed = async (p) => {
   await settle(p);
 };
 
+const FOLLOW_UPS = ['What did you do yourself?', 'How did you know it worked?', 'Where does the relationship stand now?'];
+
+/**
+ * Opens a behavioral interview whose AI interviewer is played here (no server needs a key): a STAR answer, up to three
+ * follow-ups, then a scorecard with flaws and a flagged competency. A story tagged with the competency is on the device.
+ */
+async function openBehavioralInterview(p) {
+  const id = randomUUID();
+  const at = () => new Date().toISOString();
+  let session = {
+    id,
+    track: 'behavioral',
+    problem: { id: 'conflict-1', title: 'Conflict & Disagreement', track: 'behavioral', patternIds: [], competencyId: 'conflict' },
+    messages: [{ role: 'interviewer', content: 'Tell me about a time you disagreed with a teammate on a technical decision.', at: at() }],
+    hintsUsed: 0,
+    status: 'active',
+    createdAt: at(),
+    mode: 'ai',
+    aiAccess: 'available',
+  };
+  await p.route(`**/api/interview/sessions/${id}**`, async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith('/messages')) {
+      const body = route.request().postDataJSON();
+      const turns = session.messages.filter((m) => m.role === 'candidate').length;
+      const reply = {
+        role: 'interviewer',
+        content: FOLLOW_UPS[turns] ?? 'Thanks, that gives me what I need. Press End & score when you are ready.',
+        at: at(),
+      };
+      const candidate = body.star
+        ? { role: 'candidate', content: '[STAR ANSWER]', at: at(), star: body.star }
+        : { role: 'candidate', content: body.content, at: at() };
+      session = { ...session, messages: [...session.messages, candidate, reply] };
+      return route.fulfill({
+        contentType: 'text/event-stream',
+        body: `event: done\ndata: ${JSON.stringify({ message: reply })}\n\n`,
+      });
+    }
+    if (path.endsWith('/score')) {
+      session = {
+        ...session,
+        status: 'scored',
+        scoredAt: at(),
+        scorecard: {
+          verdict: 'lean-no-hire',
+          summary: 'Say what you did yourself, and what changed because of it.',
+          dimensions: ['Competency fit', 'Ownership & specificity', 'Impact & results', 'Judgment & reflection', 'Follow-up handling'].map(
+            (name, i) => ({ name, score: 1 + (i % 4), evidence: 'The answer says "we" for most steps.' }),
+          ),
+          strengths: ['Brought data to the disagreement.'],
+          improvements: ['Say "I" for the steps you took.'],
+          weakPatterns: [],
+          mode: 'ai',
+          flaws: [
+            {
+              id: 'we-not-i',
+              quote: 'We agreed to slip the date',
+              fix: 'I proposed slipping the date by one week, and I showed product the [number] failed retries.',
+            },
+            { id: 'no-result', quote: null, fix: 'It cut double charges from [number] to zero.' },
+          ],
+          weakCompetencies: ['conflict', 'ownership'],
+        },
+      };
+    }
+    return route.fulfill({ json: session });
+  });
+  await p.evaluate(
+    (stories) => localStorage.setItem('CapacitorStorage.grasp.behavioral.stories', JSON.stringify(stories)),
+    [{ ...STORIES[1], id: 'a3', title: 'The launch date', draft: { ...STORIES[0].draft } }],
+  );
+  await goto(p, `/interview/${id}`);
+}
+
+async function giveBehavioralAnswer(p) {
+  await p.getByRole('button', { name: 'The launch date' }).click();
+  await p.getByRole('button', { name: 'Give answer' }).click();
+  await p.getByText(FOLLOW_UPS[0], { exact: true }).waitFor();
+  await settle(p, 400);
+}
+
 const answerFirst = async (p, selector) => {
   await p.locator(selector).first().click();
   await settle(p, 500);
@@ -477,6 +559,39 @@ export function states() {
       },
     },
     { id: 'interview-home', path: '/interview' },
+    { id: 'interview-home-behavioral', path: '/interview', setup: (p) => p.getByRole('button', { name: /^Behavioral/ }).click() },
+    { id: 'interview-behavioral-answer', path: '/interview', setup: openBehavioralInterview },
+    {
+      id: 'interview-behavioral-follow-up',
+      path: '/interview',
+      setup: async (p) => {
+        await openBehavioralInterview(p);
+        await giveBehavioralAnswer(p);
+        await p.getByText('Your answer', { exact: true }).click();
+      },
+    },
+    {
+      id: 'interview-behavioral-scorecard',
+      path: '/interview',
+      setup: async (p) => {
+        await openBehavioralInterview(p);
+        await giveBehavioralAnswer(p);
+        const composer = p.getByRole('textbox', { name: 'Your follow-up answer' });
+        const replies = [FOLLOW_UPS[1], FOLLOW_UPS[2], 'Thanks, that gives me what I need. Press End & score when you are ready.'];
+        for (const [i, answer] of [
+          'I ran the load test myself.',
+          'Double charges stayed at zero.',
+          'We still pair on payment changes.',
+        ].entries()) {
+          await composer.fill(answer);
+          await p.getByRole('button', { name: 'Send', exact: true }).click();
+          await p.getByText(replies[i], { exact: true }).waitFor();
+        }
+        await p.getByRole('button', { name: 'End & score' }).click();
+        await p.getByRole('heading', { name: 'What to fix' }).waitFor();
+        await settle(p, 400);
+      },
+    },
     { id: 'lesson-binary-search', path: '/learn/pattern/binary-search' },
     {
       id: 'lesson-dp-2d-revealed',

@@ -11,6 +11,10 @@ export type StarPart = keyof StarDraft;
 export const EMPTY_STAR_DRAFT: StarDraft = { situation: '', task: '', action: '', result: '', reflection: '' };
 export const isEmptyDraft = (draft: StarDraft) => Object.values(draft).every((text) => !text.trim());
 
+/** A STAR answer spoken in about three minutes is far shorter; this bounds what one AI scoring call reads. */
+export const STAR_ANSWER_LIMIT = 12_000;
+export const starLength = (draft: StarDraft) => Object.values(draft).join('').length;
+
 export interface StarCheck {
   id: 'complete' | 'action-weight' | 'ownership' | 'measured' | 'reflection' | 'length';
   ok: boolean;

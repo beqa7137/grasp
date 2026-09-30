@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { seeded } from '../review/random.js';
-import { FOLLOW_UP_MIN_WORDS, MOCK_FOLLOW_UPS, MOCK_QUESTIONS, debriefMock, planMock } from './mock.js';
+import { FOLLOW_UP_MIN_WORDS, MOCK_FOLLOW_UPS, MOCK_QUESTIONS, anotherQuestion, debriefMock, planMock, planQuestion } from './mock.js';
 import { EMPTY_STAR_DRAFT, type StarDraft } from './star-check.js';
 
 const words = (n: number) => Array.from({ length: n }, () => 'detail').join(' ');
@@ -25,6 +25,24 @@ describe('behavioral mock interview', () => {
         for (const f of followUps) expect(question.followUps).toContain(f);
       }
     }
+  });
+
+  it('asks one chosen question, or one of a chosen competency, and the full mock for an unknown id', () => {
+    const [asked, ...rest] = planQuestion(seeded(5), 'conflict-2');
+    expect(rest).toEqual([]);
+    expect(asked.question.id).toBe('conflict-2');
+    expect(asked.followUps).toHaveLength(MOCK_FOLLOW_UPS);
+    for (let seed = 1; seed < 10; seed++) expect(planQuestion(seeded(seed), 'ownership')[0].question.competencyId).toBe('ownership');
+    expect(planQuestion(seeded(5), 'nothing')).toHaveLength(MOCK_QUESTIONS);
+  });
+
+  it('picks another question of the same competency, never the one just asked', () => {
+    for (let seed = 1; seed < 20; seed++) {
+      const next = anotherQuestion(seeded(seed), 'conflict-1');
+      expect(next).toMatch(/^conflict-\d+$/);
+      expect(next).not.toBe('conflict-1');
+    }
+    expect(anotherQuestion(seeded(1), 'nothing')).toBe('nothing');
   });
 
   it('is the same interview for the same seed', () => {

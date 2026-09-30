@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { IonContent } from '@ionic/angular';
+import { AI_DISCLOSURE } from '../core/ai-disclosure';
 
 @Component({
   selector: 'app-pilot-notice',
@@ -16,7 +17,7 @@ import { IonContent } from '@ionic/angular';
           We store your learning activity (reviews, predictions, missions) under an anonymous id so progress syncs and we can see what
           works.
         </li>
-        <li>In AI mode, interview transcripts and shared code are sent to Anthropic's Claude API for replies and scoring.</li>
+        <li>{{ aiDisclosure }}</li>
         <li>Use the <strong>Feedback</strong> tab on the right edge any time. Bugs, confusion and ideas are all useful.</li>
         <li>
           You can export or delete everything we store from
@@ -64,4 +65,5 @@ import { IonContent } from '@ionic/angular';
 })
 export class PilotNoticeComponent {
   readonly acknowledged = output<void>();
+  readonly aiDisclosure = AI_DISCLOSURE;
 }

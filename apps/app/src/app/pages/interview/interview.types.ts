@@ -1,4 +1,6 @@
-export type InterviewTrack = 'coding' | 'system-design';
+import type { AnswerFlaw, StarDraft } from '@grasp/engine';
+
+export type InterviewTrack = 'coding' | 'system-design' | 'behavioral';
 export type InterviewMode = 'ai' | 'offline';
 export type AiAccess = 'available' | 'sign-in-required' | 'unavailable';
 
@@ -12,6 +14,7 @@ export interface ProblemSummary {
   track: InterviewTrack;
   title: string;
   patternIds: string[];
+  competencyId?: string;
 }
 
 export interface CodeSnapshot {
@@ -25,6 +28,13 @@ export interface InterviewMessage {
   at: string;
   hint?: boolean;
   code?: CodeSnapshot;
+  star?: StarDraft;
+}
+
+export interface BehavioralFlaw {
+  id: AnswerFlaw;
+  quote: string | null;
+  fix: string;
 }
 
 export interface Scorecard {
@@ -35,6 +45,8 @@ export interface Scorecard {
   improvements: string[];
   weakPatterns: string[];
   mode: InterviewMode;
+  flaws?: BehavioralFlaw[];
+  weakCompetencies?: string[];
 }
 
 export interface InterviewSession {
@@ -50,3 +62,6 @@ export interface InterviewSession {
   mode: InterviewMode;
   aiAccess: AiAccess;
 }
+
+/** A behavioral interview asks up to this many follow-ups; the server closes it after the answer to the last one. */
+export const BEHAVIORAL_FOLLOW_UPS = 3;

@@ -57,8 +57,8 @@ export function rehearse(story: Story, toldWell: boolean, now: Date): Story {
   };
 }
 
-export function whenNext(story: Story, now: Date): string {
-  if (isDue(story, now)) return 'now';
+export function whenNext(story: Story, now: Date, flagged: FlaggedCompetencies = {}): string {
+  if (isDue(story, now, flagged)) return 'now';
   if (!story.competencyIds.length) return 'once it has a competency';
   if (!story.rehearsal) return 'once some of it is written';
   const days = Math.round((startOfDay(new Date(story.rehearsal.due)) - startOfDay(now)) / DAY_MS);
