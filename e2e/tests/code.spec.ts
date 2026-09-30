@@ -130,6 +130,40 @@ const PY_PALINDROME_COPY = `def is_palindrome(head: Optional[ListNode]) -> bool:
         head, rev = head.next, rev.next
     return True`;
 
+const JS_KRUSKAL = `function minimumCost(n, connections) {
+  const parent = Array.from({ length: n + 1 }, (_, i) => i);
+  const find = (x) => (parent[x] === x ? x : (parent[x] = find(parent[x])));
+  let total = 0;
+  let used = 0;
+  for (const [x, y, cost] of [...connections].sort((a, b) => a[2] - b[2])) {
+    const [rx, ry] = [find(x), find(y)];
+    if (rx === ry) continue;
+    parent[rx] = ry;
+    total += cost;
+    if (++used === n - 1) return total;
+  }
+  return -1;
+}`;
+
+const PY_PRIM_POINTS = `def min_cost_connect_points(points: list[list[int]]) -> int:
+    n = len(points)
+    dist = [float('inf')] * n
+    dist[0] = 0
+    in_tree = [False] * n
+    total = 0
+    for _ in range(n):
+        u = -1
+        for j in range(n):
+            if not in_tree[j] and (u < 0 or dist[j] < dist[u]):
+                u = j
+        in_tree[u] = True
+        total += dist[u]
+        x, y = points[u]
+        for j in range(n):
+            if not in_tree[j]:
+                dist[j] = min(dist[j], abs(x - points[j][0]) + abs(y - points[j][1]))
+    return total`;
+
 /** A nest of lists far deeper than Pyodide's stack can free, which kills its interpreter. */
 const PY_CRASH = `def two_sum(nums, target):
     x = []
@@ -267,6 +301,24 @@ test('Trace shows each list variable as the values it leads to, and the list it 
   await expect(count).toHaveText(/^1 \/ \d+$/);
   await expect(page.locator('app-trace-player .narration')).toContainText('head = 1 → 2 → 3 → 4 → 5');
   await seek(page, (await stepTotal(count)) - 1, 'Returned 5 → 4 → 3 → 2 → 1');
+});
+
+test('a JavaScript Kruskal with union-find is accepted for Connecting Cities, 100,000 roads included', async ({ page }) => {
+  await page.goto('/code/connecting-cities');
+  await page.getByRole('radio', { name: 'JavaScript' }).click();
+  await write(page, JS_KRUSKAL, 'Connecting Cities With Minimum Cost');
+  await page.getByRole('button', { name: 'Submit' }).click();
+  await expect(page.getByText(/^(\d+) \/ \1 tests passed$/)).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText('Accepted.')).toBeVisible();
+});
+
+test('a Python Prim with an array of distances is accepted for Min Cost to Connect All Points, 1,000 points included', async ({ page }) => {
+  test.slow();
+  await page.goto('/code/min-cost-connect-points');
+  await write(page, PY_PRIM_POINTS, 'Min Cost to Connect All Points');
+  await page.getByRole('button', { name: 'Submit' }).click();
+  await expect(page.getByText(/^(\d+) \/ \1 tests passed$/)).toBeVisible({ timeout: 120_000 });
+  await expect(page.getByText('Accepted.')).toBeVisible();
 });
 
 test.describe('when Python code crashes the interpreter', () => {

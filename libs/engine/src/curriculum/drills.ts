@@ -221,6 +221,22 @@ const CARDS: Record<DrillCardId, DrillCardDefinition> = {
     ['bfs', 'dp-2d', 'binary-search'],
   ),
 
+  mst1: card(
+    'Lay fiber between 40 offices so every office can reach every other, given the price of each cable you could lay, at the lowest total price.',
+    'Connect everything at the least total cost → a minimum spanning tree: Kruskal with sorted edges and union-find, or Prim.',
+    ['dijkstra', 'topo-sort', 'bfs'],
+  ),
+  mst2: card(
+    'Wiring two of 1,000 sensors costs the Manhattan distance between them. Find the cheapest way to wire all of them into one network.',
+    'Every pair can be wired, so the graph is dense → Prim with an array of distances to the tree, O(V²), without listing all the pairs.',
+    ['dijkstra', 'intervals', 'dp-2d'],
+  ),
+  mst3: card(
+    'A network has redundant links, each with a yearly upkeep. Shut down links to save as much upkeep as possible while every server can still reach every other.',
+    'Keep the cheapest set of links that still connects everything, a minimum spanning tree, and shut down the rest.',
+    ['topo-sort', 'bfs', 'monotonic-stack'],
+  ),
+
   tr1: card(
     'Find the longest path between any two nodes in a binary tree.',
     'At each node combine left and right heights; track the best globally.',

@@ -2,6 +2,7 @@ import type { Locator, Page } from '@playwright/test';
 import { expect, expectUnmoved, recordedEvents, stepToCheckpoint, stepTotal, synced, test, viewportTop } from './fixtures';
 
 const VISUALIZER_TITLES = [
+  "Kruskal's Minimum Spanning Tree",
   'Merge Intervals',
   'Subsets by Backtracking',
   'Tree DFS: Preorder, Inorder, Postorder',

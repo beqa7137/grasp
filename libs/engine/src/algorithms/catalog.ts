@@ -93,6 +93,14 @@ const CATALOG = [
     complexity: { time: 'O((V + E) log V)', space: 'O(V + E)' },
   },
   {
+    id: 'kruskal-mst',
+    title: "Kruskal's Minimum Spanning Tree",
+    difficulty: 'medium',
+    summary:
+      'Take edges cheapest first and keep one only when union-find says its ends are in different components. Stop after n - 1 edges, or return -1 when the edges run out first.',
+    complexity: { time: 'O(E log E)', space: 'O(V + E)' },
+  },
+  {
     id: 'merge-intervals',
     title: 'Merge Intervals',
     difficulty: 'medium',

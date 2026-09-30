@@ -61,6 +61,49 @@ function exactBestChance(edges: number[][], start: number, end: number): [bigint
   return best;
 }
 
+/** Whether edges [a, b, ...] join every node from first to last into one component. */
+function joinsAll(first: number, last: number, edges: readonly number[][]): boolean {
+  const reached = new Set([first]);
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const [a, b] of edges)
+      if (reached.has(a) !== reached.has(b)) {
+        reached.add(a).add(b);
+        grew = true;
+      }
+  }
+  return reached.size === last - first + 1;
+}
+
+/** Every subset of items, as arrays, keeping their order. */
+const subsets = <T>(items: readonly T[]): T[][] =>
+  items.reduce<T[][]>((all, item) => [...all, ...all.map((subset) => [...subset, item])], [[]]);
+
+/** Every set of n - 1 edge indices whose edges join nodes 0 to n - 1: all the spanning trees. */
+function spanningTrees(n: number, edges: readonly number[][]): number[][] {
+  const trees: number[][] = [];
+  const choose = (from: number, picked: number[]) => {
+    if (picked.length === n - 1) {
+      if (
+        joinsAll(
+          0,
+          n - 1,
+          picked.map((i) => edges[i]),
+        )
+      )
+        trees.push([...picked]);
+      return;
+    }
+    for (let i = from; i <= edges.length - (n - 1 - picked.length); i++) choose(i + 1, [...picked, i]);
+  };
+  choose(0, []);
+  return trees;
+}
+
+const weightOf = (edges: readonly number[][], tree: number[]) => tree.reduce((sum, i) => sum + edges[i][2], 0);
+
+const MST_PROBLEMS = ['min-cost-connect-points', 'connecting-cities', 'critical-mst-edges', 'water-distribution'];
+
 /** Obviously-correct (and slow) solutions to cross-check the references on small inputs. */
 const LOCK_NEIGHBORS = rangeOf(0, 9_999).map((code) => {
   const text = String(code).padStart(4, '0');
@@ -1163,6 +1206,34 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     };
     return time[n - 1] === Infinity ? 0 : Number(routes(n - 1) % 1_000_000_007n);
   },
+  // Every spanning tree of the complete graph on the points, the lightest kept.
+  'min-cost-connect-points': (points: number[][]) => {
+    const pairs = points.flatMap(([x, y], i) => points.slice(0, i).map(([u, v], j) => [i, j, Math.abs(x - u) + Math.abs(y - v)]));
+    return Math.min(...spanningTrees(points.length, pairs).map((tree) => weightOf(pairs, tree)));
+  },
+  // Every set of roads, the cheapest one that joins all the cities kept.
+  'connecting-cities': (n: number, connections: number[][]) => {
+    const costs = subsets(connections)
+      .filter((roads) => joinsAll(1, n, roads))
+      .map((roads) => roads.reduce((sum, [, , cost]) => sum + cost, 0));
+    return costs.length ? Math.min(...costs) : -1;
+  },
+  // Every spanning tree: the lightest ones are the MSTs, and an edge is critical when all of them take it.
+  'critical-mst-edges': (n: number, edges: number[][]) => {
+    const trees = spanningTrees(n, edges);
+    const best = Math.min(...trees.map((tree) => weightOf(edges, tree)));
+    const msts = trees.filter((tree) => weightOf(edges, tree) === best);
+    const taken = (i: number) => msts.filter((tree) => tree.includes(i)).length;
+    const indices = rangeOf(0, edges.length - 1);
+    return [indices.filter((i) => taken(i) === msts.length), indices.filter((i) => taken(i) > 0 && taken(i) < msts.length)];
+  },
+  // Every set of wells and pipes, the cheapest one that brings water to every house kept; a well joins its house to the source 0.
+  'water-distribution': (n: number, wells: number[], pipes: number[][]) =>
+    Math.min(
+      ...subsets([...wells.map((cost, i) => [0, i + 1, cost]), ...pipes])
+        .filter((chosen) => joinsAll(0, n, chosen))
+        .map((chosen) => chosen.reduce((sum, [, , cost]) => sum + cost, 0)),
+    ),
   'count-prefixes': (words: string[], prefixes: string[]) => prefixes.map((p) => words.filter((w) => w.startsWith(p)).length),
   'replace-words': (dictionary: string[], sentence: string) =>
     sentence
@@ -1385,6 +1456,8 @@ const PERFORMANCE_LOAD: Record<string, (test: TestCase) => number> = {
   subsets: ({ expected }) => (expected as unknown[]).length,
   'combination-sum': ({ expected }) => (expected as number[][]).flat().length,
   'counting-bits': ({ args: [n] }) => n as number,
+  // The sets of n - 1 edges a brute force would try to find every minimum spanning tree.
+  'critical-mst-edges': ({ args }) => SLOWER['critical-mst-edges'](...args),
   permutations: ({ expected }) => (expected as unknown[]).length,
   // The board positions a backtracking search reaches: every placement of queens in the first rows that no two attack.
   'n-queens-count': ({ args: [n] }) => safePlacements(n as number),
@@ -1463,6 +1536,67 @@ describe('coding problems', () => {
     for (let seed = 0; seed < 300; seed++) {
       const [head, k] = problem.performanceCase(mulberry32(seed)) as [number[], number];
       expect(SLOWER['reverse-nodes-k-group'](buildList(head), k), `seed ${seed}`).toBeGreaterThan(4e9);
+    }
+  });
+
+  it('keeps every minimum spanning tree performance case out of reach for the slower approach, whatever the seed', () => {
+    for (const id of MST_PROBLEMS) {
+      const problem = getCodingProblem(id)!;
+      for (let seed = 0; seed < 25; seed++)
+        expect(SLOWER[id](...problem.performanceCase(mulberry32(seed))), `${id}, seed ${seed}`).toBeGreaterThan(
+          SLOWER_MIN_STEPS[id] ?? 4e9,
+        );
+    }
+  });
+
+  it('keeps minimum spanning tree inputs within the limits their statements give', () => {
+    const within = (values: number[], lo: number, hi: number) => values.every((v) => Number.isInteger(v) && lo <= v && v <= hi);
+    const pairs = (edges: number[][]) => new Set(edges.map(([a, b]) => `${Math.min(a, b)}-${Math.max(a, b)}`)).size;
+    for (const id of MST_PROBLEMS) {
+      const problem = getCodingProblem(id)!;
+      for (const { args } of buildSuite(problem, { seed: 11 })) {
+        const label = `${id} ${preview(args)}`;
+        if (id === 'min-cost-connect-points') {
+          const [points] = args as [number[][]];
+          expect(points.length >= 1 && points.length <= 1000 && within(points.flat(), -1e6, 1e6), label).toBe(true);
+          expect(new Set(points.map(String)).size, label).toBe(points.length);
+          continue;
+        }
+        const [n, first, second] = args as [number, number[][] | number[], number[][]];
+        const edges = (id === 'water-distribution' ? second : first) as number[][];
+        const nodes = edges.flatMap(([a, b]) => [a, b]);
+        expect(
+          edges.every((edge) => edge.length === 3 && edge[0] !== edge[1]),
+          label,
+        ).toBe(true);
+        if (id === 'critical-mst-edges') {
+          expect(n >= 2 && n <= 100 && edges.length >= 1 && edges.length <= Math.min(200, (n * (n - 1)) / 2), label).toBe(true);
+          expect(
+            edges.every(([a, b]) => a < b) &&
+              within(nodes, 0, n - 1) &&
+              within(
+                edges.map((e) => e[2]),
+                1,
+                1000,
+              ),
+            label,
+          ).toBe(true);
+          expect(pairs(edges) === edges.length && joinsAll(0, n - 1, edges), label).toBe(true);
+        } else {
+          expect(n >= 2 && n <= 100_000 && edges.length >= 1 && edges.length <= 100_000, label).toBe(true);
+          expect(
+            within(nodes, 1, n) &&
+              within(
+                edges.map((e) => e[2]),
+                0,
+                100_000,
+              ),
+            label,
+          ).toBe(true);
+          if (id === 'water-distribution')
+            expect((first as number[]).length === n && within(first as number[], 0, 100_000), label).toBe(true);
+        }
+      }
     }
   });
 

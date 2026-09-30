@@ -1386,6 +1386,104 @@ def count_paths(n, roads):
                 ways[v] = (ways[v] + ways[u]) % mod
     return ways[n - 1]
 `,
+  'min-cost-connect-points': `
+def min_cost_connect_points(points):
+    n = len(points)
+    dist = [float('inf')] * n
+    in_tree = [False] * n
+    dist[0] = 0
+    total = 0
+    for _ in range(n):
+        u = min((j for j in range(n) if not in_tree[j]), key=dist.__getitem__)
+        in_tree[u] = True
+        total += dist[u]
+        x, y = points[u]
+        for j in range(n):
+            if not in_tree[j]:
+                d = abs(x - points[j][0]) + abs(y - points[j][1])
+                if d < dist[j]:
+                    dist[j] = d
+    return total
+`,
+  'connecting-cities': `
+def minimum_cost(n, connections):
+    parent = list(range(n + 1))
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    total = used = 0
+    for x, y, cost in sorted(connections, key=lambda road: road[2]):
+        rx, ry = find(x), find(y)
+        if rx != ry:
+            parent[rx] = ry
+            total += cost
+            used += 1
+            if used == n - 1:
+                break
+    return total if used == n - 1 else -1
+`,
+  'critical-mst-edges': `
+def find_critical_and_pseudo_critical_edges(n, edges):
+    order = sorted(range(len(edges)), key=lambda i: edges[i][2])
+
+    def mst(skip, first):
+        parent = list(range(n))
+
+        def find(x):
+            while parent[x] != x:
+                parent[x] = parent[parent[x]]
+                x = parent[x]
+            return x
+
+        weight = used = 0
+        for i in ([first] if first >= 0 else []) + order:
+            if i == skip:
+                continue
+            a, b, w = edges[i]
+            ra, rb = find(a), find(b)
+            if ra != rb:
+                parent[ra] = rb
+                weight += w
+                used += 1
+        return weight if used == n - 1 else float('inf')
+
+    best = mst(-1, -1)
+    critical, pseudo = [], []
+    for i in range(len(edges)):
+        if mst(i, -1) > best:
+            critical.append(i)
+        elif mst(-1, i) == best:
+            pseudo.append(i)
+    return [critical, pseudo]
+`,
+  'water-distribution': `
+def min_cost_to_supply_water(n, wells, pipes):
+    edges = [(cost, 0, house) for house, cost in enumerate(wells, 1)]
+    edges += [(cost, a, b) for a, b, cost in pipes]
+    edges.sort()
+    parent = list(range(n + 1))
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    total = used = 0
+    for cost, a, b in edges:
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[ra] = rb
+            total += cost
+            used += 1
+            if used == n:
+                break
+    return total
+`,
   'count-prefixes': `
 def count_prefixes(words, prefixes):
     root = {}

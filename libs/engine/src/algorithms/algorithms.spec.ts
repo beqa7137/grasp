@@ -92,6 +92,26 @@ const reference: Record<string, (input: any) => unknown> = {
       }
     return `[${dist.map((d) => (d === Infinity ? '∞' : d)).join(', ')}]`;
   },
+  // Tries every set of n - 1 edges and keeps the lightest one that reaches every node.
+  'kruskal-mst': ({ n, edges }) => {
+    let best = -1;
+    for (let mask = 0; mask < 1 << edges.length; mask++) {
+      const picked = edges.filter((_: number[], i: number) => (mask >> i) & 1);
+      if (picked.length !== n - 1) continue;
+      const reached = new Set([0]);
+      for (let grew = true; grew;) {
+        grew = false;
+        for (const [a, b] of picked)
+          if (reached.has(a) !== reached.has(b)) {
+            reached.add(a).add(b);
+            grew = true;
+          }
+      }
+      const weight = picked.reduce((sum: number, [, , w]: number[]) => sum + w, 0);
+      if (reached.size === n && (best < 0 || weight < best)) best = weight;
+    }
+    return best;
+  },
   'binary-search': ({ nums, target }) => {
     const i = nums.indexOf(target);
     return i;

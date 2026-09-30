@@ -160,7 +160,15 @@ const answerFirst = async (p, selector) => {
 
 /** Every page state the audits and screenshots cover: a path plus the steps that bring the page into that state. */
 export function states() {
-  const players = ['binary-search', 'lcs', 'dijkstra', 'two-sum-hash', 'subsets-backtracking', 'linked-list-reversal'].flatMap((id) => [
+  const players = [
+    'binary-search',
+    'lcs',
+    'dijkstra',
+    'two-sum-hash',
+    'subsets-backtracking',
+    'linked-list-reversal',
+    'kruskal-mst',
+  ].flatMap((id) => [
     { id: `player-${id}`, path: `/visualize/${id}` },
     { id: `player-${id}-predict`, path: `/visualize/${id}`, setup: async (p) => ((await toPredict(p)) ? settle(p, 500) : 'no predict') },
     {
@@ -180,12 +188,29 @@ export function states() {
       path: `/visualize/linked-list-reversal?input=${encodeURIComponent(JSON.stringify({ values: [1, 2, 3, 4, 5], left: 1, right: 5 }))}`,
       setup: toEnd,
     },
+    { id: 'player-kruskal-mst-end', path: '/visualize/kruskal-mst', setup: toEnd },
+    {
+      id: 'player-kruskal-mst-disconnected',
+      path: `/visualize/kruskal-mst?input=${encodeURIComponent(
+        JSON.stringify({
+          n: 5,
+          edges: [
+            [0, 1, 3],
+            [1, 2, 1],
+            [0, 2, 2],
+            [3, 4, 5],
+          ],
+        }),
+      )}`,
+      setup: toEnd,
+    },
     { id: 'review-question', path: '/drill' },
     { id: 'review-answered', path: '/drill', setup: (p) => answerFirst(p, 'g-question-card .choice') },
     { id: 'practice-question', path: '/drill?pattern=binary-search' },
     { id: 'practice-answered', path: '/drill?pattern=binary-search', setup: (p) => answerFirst(p, 'g-question-card .choice') },
     { id: 'pattern-binary-search', path: '/learn/pattern/binary-search' },
     { id: 'pattern-linked-list-reversal', path: '/learn/pattern/linked-list-reversal' },
+    { id: 'pattern-minimum-spanning-tree', path: '/learn/pattern/minimum-spanning-tree' },
     { id: 'design-list', path: '/design' },
     { id: 'sandbox', path: '/design/first-scale-up' },
     { id: 'sandbox-inspector', path: '/design/first-scale-up', setup: (p) => answerFirst(p, '.palette .tool') },
@@ -539,6 +564,7 @@ export function states() {
     { id: 'code-list', path: '/code' },
     { id: 'code-two-sum', path: '/code/two-sum' },
     { id: 'code-reverse-linked-list-ii', path: '/code/reverse-linked-list-ii' },
+    { id: 'code-critical-mst-edges', path: '/code/critical-mst-edges' },
     {
       id: 'code-two-sum-run',
       path: '/code/two-sum',

@@ -100,6 +100,18 @@ const FACTS: Record<ComplexityFactId, ComplexityFactDefinition> = {
     distractors: ['O(V + E)', 'O(V · E)', 'O(E²)'],
     why: 'Up to E heap pushes and pops, each O(log V) (log E ≤ 2 log V).',
   },
+  kruskal: {
+    question: 'Kruskal on V nodes and E edges, sorting the edges and then using union-find: time?',
+    answer: 'O(E log E)',
+    distractors: ['O(V + E)', 'O(V · E)', 'O(E²)'],
+    why: 'Sorting dominates. After it, each find and union is nearly O(1) with path compression and union by rank. O(E log E) is the same as O(E log V), since E ≤ V² makes log E ≤ 2 log V.',
+  },
+  prim: {
+    question: 'Prim with a binary heap on V nodes and E edges: time?',
+    answer: 'O(E log V)',
+    distractors: ['O(V + E)', 'O(V · E)', 'O(V² · E)'],
+    why: 'Each edge pushes at most one heap entry, and each push or pop costs O(log E) = O(log V). On a dense graph, a plain array of distances gives O(V²) instead.',
+  },
   trie: {
     question: 'Insert or look up a word of length L in a trie that already holds N words: time?',
     answer: 'O(L)',

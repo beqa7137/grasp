@@ -22,6 +22,7 @@ import { interleavingString, longestIncreasingSubsequence, maximumXorPair, parti
 import { boatsToSavePeople, maxConsecutiveOnesIII, searchMatrix, shipWithinDays, validSudoku } from './batch-l.js';
 import { detectCycle, moveZeroes, removeDuplicatesII, sortColors, sortedSquares, validPalindromeII } from './batch-r.js';
 import { isPalindromeList, reverseBetween, reverseKGroup, reverseList, swapPairs } from './linked-lists.js';
+import { connectingCities, criticalMstEdges, minCostConnectPoints, waterDistribution } from './spanning-trees.js';
 import { groupAnagrams, jumpGameII, longestStrChain, maxCoins, maximalSquare, minPathSum, minRefuelStops } from './batch-v.js';
 import { candy, combinationSum4, countSubstrings, maximumProductSubarray, numDistinct, uniquePathsWithObstacles } from './batch-q.js';
 import { carPooling, maxSubArrayLen, minOperations, pivotIndex, removeCoveredIntervals, totalFruit } from './batch-s.js';
@@ -176,6 +177,10 @@ const DEFINITIONS: Record<CodingProblemId, CodingProblemDefinition> = {
   'minimum-obstacle-removal': minimumObstacleRemoval,
   'path-max-probability': maxProbability,
   'ways-to-arrive': countPaths,
+  'min-cost-connect-points': minCostConnectPoints,
+  'connecting-cities': connectingCities,
+  'critical-mst-edges': criticalMstEdges,
+  'water-distribution': waterDistribution,
   'tree-diameter': treeDiameter,
   'house-robber-tree': houseRobberTree,
   'max-path-sum': maxPathSum,
