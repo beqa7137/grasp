@@ -71,6 +71,27 @@ describe('normalizeBehavioralScorecard', () => {
     ]);
   });
 
+  it.each([
+    ['a single letter', 'a'],
+    ['a fragment of a word', 'am'],
+    ['one common word', 'we'],
+    ['two words under eight characters', 'I wrote'],
+    ['the server label of the STAR answer', '[STAR ANSWER]'],
+    ['a part label', 'Result: Timeouts fell from 2%'],
+    ['a span across two parts', 'before the next sale, two weeks out. Action: I traced the slow calls'],
+    ['words cut inside other words', 'ed the slow cal'],
+  ])('does not verify %s as a quote', (_label, quote) => {
+    const result = normalizeBehavioralScorecard(session, card({ flaws: [{ id: 'vague', quote, fix: 'x' }] }));
+    expect(result.flaws![0].quote).toBeNull();
+  });
+
+  it('verifies a quote of whole words from one STAR part or one follow-up answer', () => {
+    for (const quote of ['Timeouts fell from 2% to 0.1%', 'the payments lead directly']) {
+      const result = normalizeBehavioralScorecard(session, card({ flaws: [{ id: 'vague', quote, fix: 'x' }] }));
+      expect(result.flaws![0].quote).toBe(quote);
+    }
+  });
+
   it('dedupes flaws by id, drops unknown ones, and bounds quotes and fixes', () => {
     const long = `${STRONG_STAR.action} ${STRONG_STAR.action}`;
     const s = behavioralSession({ ...STRONG_STAR, action: long });
@@ -86,7 +107,11 @@ describe('normalizeBehavioralScorecard', () => {
       }),
     );
     expect(result.flaws!.map((f) => f.id)).toEqual(['vague', 'no-reflection']);
-    expect(result.flaws![0].quote).toBe(long.slice(0, 240).trim());
+    const quote = result.flaws![0].quote!;
+    expect(long.startsWith(quote)).toBe(true);
+    expect(quote.length).toBeLessThanOrEqual(240);
+    expect(quote.length).toBeGreaterThan(220);
+    expect(long.slice(quote.length)).toMatch(/^\W/);
     expect(result.flaws![0].fix).toHaveLength(400);
     expect(result.flaws![1].quote).toBeNull();
   });

@@ -210,6 +210,31 @@ describe.each(storages)('Behavioral AI interviewer over HTTP (%s storage, script
     expect(await spent()).toBe(spentBefore);
   });
 
+  it('closes a scripted interview once, for free, after its three follow-ups, and refuses any turn after a closing', async () => {
+    const learnerId = randomUUID();
+    const guest = { 'x-learner-id': learnerId };
+    const session = (await start(guest, { track: 'behavioral', problemId: 'ownership-3' }).expect(201)).body;
+    await send(guest, session.id, { star: STRONG_STAR }).expect(200);
+    await send(guest, session.id, { content: FOLLOW_UP }).expect(200);
+    await send(guest, session.id, { content: FOLLOW_UP }).expect(200);
+    const taken = await quota(learnerId);
+    await send(guest, session.id, { content: FOLLOW_UP }).expect(200);
+    expect(await quota(learnerId)).toBe(taken);
+    const store = app.get(InterviewStore);
+    const asked = (await store.get(learnerId, session.id))!.messages.filter((m) => m.role === 'interviewer').map((m) => m.content);
+    expect(asked).toEqual([session.messages[0].content, ...questionFollowUps(pickBehavioralProblem('ownership-3')!), BEHAVIORAL_CLOSING]);
+
+    const early = (await start(guest, { track: 'behavioral', problemId: 'ownership-4' }).expect(201)).body;
+    await send(guest, early.id, { star: STRONG_STAR }).expect(200);
+    const stored = (await store.get(learnerId, early.id))!;
+    stored.messages[stored.messages.length - 1].content = BEHAVIORAL_CLOSING;
+    await store.save(stored);
+    const before = await quota(learnerId);
+    await send(guest, early.id, { content: FOLLOW_UP }).expect(409);
+    expect(await quota(learnerId)).toBe(before);
+    expect((await store.get(learnerId, early.id))!.messages).toHaveLength(3);
+  });
+
   it('accepts a behavioral progress event and refuses unknown competencies or weak patterns on it', async () => {
     const post = (event: Record<string, unknown>) =>
       http()

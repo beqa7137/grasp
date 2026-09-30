@@ -136,7 +136,8 @@ export class InterviewService {
       const session = await this.load(learnerId, id);
       if (session.status !== 'active') throw new ConflictException('Interview already scored');
       const turns = session.messages.filter((m) => m.role === 'candidate').length;
-      if (turns >= MAX_CANDIDATE_TURNS[session.track]) {
+      const closed = session.track === 'behavioral' && session.messages.at(-1)?.content === BEHAVIORAL_CLOSING;
+      if (turns >= MAX_CANDIDATE_TURNS[session.track] || closed) {
         throw new ConflictException('Turn limit reached: end the interview to get your scorecard');
       }
       const turn = candidateMessage(session, turns, input);

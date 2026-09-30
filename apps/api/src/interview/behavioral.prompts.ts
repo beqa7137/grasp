@@ -5,6 +5,8 @@ import { RUBRICS } from './prompts.js';
 /** Candidate turns after the STAR answer; the one after the last follow-up gets BEHAVIORAL_CLOSING without a model call. */
 export const BEHAVIORAL_FOLLOW_UPS = 3;
 export const BEHAVIORAL_CLOSING = 'Thanks, that gives me what I need. Press End & score when you are ready.';
+export const BEHAVIORAL_REDIRECT =
+  "Let's stay with the question. Could you walk me through one real example from your work, school or a project, and what you did yourself?";
 
 const STAR_LABELS: [StarPart, string][] = [
   ['situation', 'Situation'],
@@ -32,14 +34,18 @@ const DATA_TAGS = [
   'flaws',
   'scoring_rules',
 ];
-const DATA_TAG = new RegExp(`<(?=\\s*/?\\s*(?:${DATA_TAGS.join('|')})\\b)`, 'gi');
+const DATA_TAG = new RegExp(`<(?=\\s*/?\\s*(?:${DATA_TAGS.map((t) => t.replace('_', '[\\s_-]*')).join('|')})\\b)`, 'giu');
+// Zero-width and other format characters are invisible inside a tag name, and fullwidth brackets read as `<` to a model.
+const FORMAT_CHARACTERS = /\p{Cf}/gu;
+const LOOKALIKE_BRACKETS = /[\uFF1C\uFE64]/gu;
 
 export function starText(star: StarDraft): string {
   return ['[STAR ANSWER]', ...STAR_LABELS.map(([part, label]) => `${label}: ${star[part].trim()}`)].join('\n');
 }
 
 /** Learner text cannot open or close one of the prompt's own data blocks: its tag names lose their `<`. */
-export const neutralizeTags = (text: string) => text.replace(DATA_TAG, '&lt;');
+export const neutralizeTags = (text: string) =>
+  text.replace(FORMAT_CHARACTERS, '').replace(LOOKALIKE_BRACKETS, '<').replace(DATA_TAG, '&lt;');
 
 export const behavioralTurn = (m: InterviewMessage) => `<candidate_turn>\n${neutralizeTags(m.content)}\n</candidate_turn>`;
 

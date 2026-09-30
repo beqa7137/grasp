@@ -1,6 +1,5 @@
 import { EMPTY_STAR_DRAFT, FOLLOW_UP_MIN_WORDS } from '@grasp/engine';
 import { behavioralSession, STRONG_STAR } from '../../test/support/behavioral-session.js';
-import { BEHAVIORAL_CLOSING } from './behavioral.prompts.js';
 import { questionFollowUps } from './behavioral-problems.js';
 import { SAY_MORE } from './offline.behavioral.js';
 import { OfflineInterviewer } from './offline.interviewer.js';
@@ -76,10 +75,10 @@ describe('OfflineInterviewer on a behavioral interview', () => {
   const detailed = 'I sent the payments lead a one-page write-up that afternoon and asked for thirty minutes to walk through it.';
   const followUps = questionFollowUps(behavioralSession().problem);
 
-  it("asks the question's own first two follow-ups in order, then closes", async () => {
+  it("asks all three of the question's own follow-ups in order, and leaves the closing to the service", async () => {
     expect(await reply(behavioralSession())).toBe(followUps[0]);
     expect(await reply(behavioralSession(STRONG_STAR, [detailed], [followUps[0]]))).toBe(followUps[1]);
-    expect(await reply(behavioralSession(STRONG_STAR, [detailed, detailed], [followUps[0], followUps[1]]))).toBe(BEHAVIORAL_CLOSING);
+    expect(await reply(behavioralSession(STRONG_STAR, [detailed, detailed], [followUps[0], followUps[1]]))).toBe(followUps[2]);
   });
 
   it(`asks for more when an answer is under ${FOLLOW_UP_MIN_WORDS} words`, async () => {
@@ -88,7 +87,7 @@ describe('OfflineInterviewer on a behavioral interview', () => {
   });
 
   it('scores STAR coverage and follow-up length, capped at 3, with unquoted flaws and the competency when weak', async () => {
-    const { scorecard: strong } = await interviewer.score(behavioralSession(STRONG_STAR, [detailed, detailed]));
+    const { scorecard: strong } = await interviewer.score(behavioralSession(STRONG_STAR, [detailed, detailed, detailed]));
     expect(strong.dimensions.map((d) => d.score)).toEqual([3, 3, 3, 3, 3]);
     expect(strong).toMatchObject({ verdict: 'hire', flaws: [], weakCompetencies: [], weakPatterns: [], mode: 'offline' });
 

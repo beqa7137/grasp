@@ -7,7 +7,13 @@ import type { InterviewSession, TokenUsage } from './interview.types.js';
 import { meteredRequest } from './metered-request.js';
 import { OfflineInterviewer } from './offline.interviewer.js';
 import { inputTokenBound, maximumCostUsd, messageUsage, priceFor } from './pricing.js';
-import { behavioralInterviewerPrompt, behavioralScorerPrompt, behavioralTranscript, behavioralTurn } from './behavioral.prompts.js';
+import {
+  BEHAVIORAL_REDIRECT,
+  behavioralInterviewerPrompt,
+  behavioralScorerPrompt,
+  behavioralTranscript,
+  behavioralTurn,
+} from './behavioral.prompts.js';
 import { behavioralScorecardJsonSchema, normalizeBehavioralScorecard } from './behavioral.scorecard.js';
 import { candidateTurn, interviewerSystemPrompt, scorerSystemPrompt, transcriptText } from './prompts.js';
 import { InvalidScorecardError, normalizeScorecard, scorecardJsonSchema } from './scorecard.schema.js';
@@ -86,7 +92,7 @@ export class ClaudeInterviewer extends Interviewer {
       });
       const text = message.stop_reason === 'refusal' ? '' : textOf(message);
       if (!text) this.log.warn({ operation: 'interview.empty-reply' });
-      return { text: text || REDIRECT_REPLY, usage };
+      return { text: text || (behavioral(session) ? BEHAVIORAL_REDIRECT : REDIRECT_REPLY), usage };
     } catch (err) {
       throw toHttpError(err, this.log);
     }

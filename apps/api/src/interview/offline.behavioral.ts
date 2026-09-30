@@ -1,14 +1,5 @@
-import {
-  countWords,
-  EMPTY_STAR_DRAFT,
-  FLAW_CHECKS,
-  FOLLOW_UP_MIN_WORDS,
-  MOCK_FOLLOW_UPS,
-  reviewStar,
-  starFlaws,
-  type StarCheck,
-} from '@grasp/engine';
-import { BEHAVIORAL_CLOSING } from './behavioral.prompts.js';
+import { countWords, EMPTY_STAR_DRAFT, FLAW_CHECKS, FOLLOW_UP_MIN_WORDS, reviewStar, starFlaws, type StarCheck } from '@grasp/engine';
+import { BEHAVIORAL_CLOSING, BEHAVIORAL_FOLLOW_UPS } from './behavioral.prompts.js';
 import { questionFollowUps } from './behavioral-problems.js';
 import type { InterviewMessage, InterviewSession, Scorecard } from './interview.types.js';
 import { RUBRICS } from './prompts.js';
@@ -19,14 +10,17 @@ export const SAY_MORE =
 
 const answerWords = (m: InterviewMessage) => countWords(m.star ? Object.values(m.star).join(' ') : m.content);
 
-/** Scripted follow-ups: a fragment is asked for more, otherwise the question's own follow-ups in order, then the closing. */
+/**
+ * Scripted follow-ups: a fragment is asked for more, otherwise the question's own follow-ups in order. There are always
+ * enough for every paid turn, so the service's free closing ends the interview; this closing covers a question since removed.
+ */
 export function behavioralReply(session: InterviewSession): string {
   const last = session.messages.at(-1);
   if (last && last.role === 'candidate' && answerWords(last) < FOLLOW_UP_MIN_WORDS) return SAY_MORE;
   const asked = new Set(session.messages.filter((m) => m.role === 'interviewer').map((m) => m.content));
   return (
     questionFollowUps(session.problem)
-      .slice(0, MOCK_FOLLOW_UPS)
+      .slice(0, BEHAVIORAL_FOLLOW_UPS)
       .find((f) => !asked.has(f)) ?? BEHAVIORAL_CLOSING
   );
 }
@@ -47,7 +41,7 @@ export function behavioralScorecard(session: InterviewSession, summary: string):
     check('ownership').ok ? 3 : fallback,
     check('measured').ok ? 3 : fallback,
     check('reflection').ok ? 3 : fallback,
-    followUps >= MOCK_FOLLOW_UPS ? 3 : followUps > 0 ? 2 : 1,
+    followUps >= BEHAVIORAL_FOLLOW_UPS ? 3 : followUps > 0 ? 2 : 1,
   ];
   const rubric = RUBRICS.behavioral;
   const dimensions = rubric.map((r, i) => ({
