@@ -4,6 +4,7 @@ import { dijkstra } from './dijkstra.js';
 import { gridBfs } from './grid-bfs.js';
 import { houseRobber } from './house-robber.js';
 import { jumpGame } from './jump-game.js';
+import { kruskalMst } from './kruskal-mst.js';
 import { kthLargest } from './kth-largest.js';
 import { lcs } from './lcs.js';
 import { linkedListCycle } from './linked-list-cycle.js';
@@ -40,6 +41,7 @@ const DEFINITIONS: Record<AlgorithmId, AlgorithmDefinition<any>> = {
   'topo-sort': topoSort,
   trie,
   dijkstra,
+  'kruskal-mst': kruskalMst,
   'merge-intervals': mergeIntervals,
   'subsets-backtracking': subsetsBacktracking,
   'tree-traversal': treeTraversal,

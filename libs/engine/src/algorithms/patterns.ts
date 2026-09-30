@@ -13,6 +13,7 @@ export const ALGORITHM_PATTERNS = {
   'topo-sort': 'topo-sort',
   trie: 'trie',
   dijkstra: 'dijkstra',
+  'kruskal-mst': 'minimum-spanning-tree',
   'merge-intervals': 'intervals',
   'subsets-backtracking': 'dfs-backtracking',
   'tree-traversal': 'tree-dfs',

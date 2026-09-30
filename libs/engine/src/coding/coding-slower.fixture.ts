@@ -767,6 +767,18 @@ export const SLOWER: Record<string, (...args: any[]) => number> = {
       for (const [next, t] of out[node]) if (time[node] + t === time[next]) routes[next] = Math.min(1e12, routes[next] + routes[node]);
     return routes[n - 1];
   },
+  // Prim that scans every pair of a tree point and an outside point for the cheapest join, in each of the n - 1 rounds.
+  'min-cost-connect-points': (points: number[][]) => (points.length ** 3 - points.length) / 6,
+  // Prim that scans every road for the cheapest one leaving the tree, once for each of the n - 1 cities it adds.
+  'connecting-cities': (n: number, connections: number[][]) => (n - 1) * connections.length,
+  // Trying every set of n - 1 edges, to find all the minimum spanning trees.
+  'critical-mst-edges': (n: number, edges: number[][]) => {
+    let sets = 1;
+    for (let k = 1; k < n; k++) sets = (sets * (edges.length - n + 1 + k)) / k;
+    return sets;
+  },
+  // Prim from the source that scans every well and pipe for the cheapest one leaving the tree, once for each house it adds.
+  'water-distribution': (n: number, _wells: number[], pipes: number[][]) => n * (n + pipes.length),
   // From the back, trying each jump from an index until one lands where the end is reachable.
   'jump-game': (nums: number[]) => {
     const last = nums.length - 1;
@@ -1210,6 +1222,11 @@ export const SLOWER: Record<string, (...args: any[]) => number> = {
 };
 
 export const SLOWER_MIN_STEPS: Record<string, number> = {
+  // Each step is one Manhattan distance and a comparison. The 1.67e8 of them for 1,000 points took 87 seconds in Pyodide
+  // against an 8 second limit, but only about 3 seconds in Node, and less when written tightly, so the case does not
+  // reliably fail the cubic in JavaScript. More points would fail the correct Kruskal over every pair, as
+  // search-suggestions-system is sized for Pyodide too.
+  'min-cost-connect-points': 1.6e8,
   // Each step checks one product against one prefix; the 1.5e8 of them took 12 seconds in Pyodide under Node, against an
   // 8 second limit. They take under half a second in Node, but a larger case cannot fix that: products stay at 500
   // letters so a trie of them can be freed within browser Python's stack, and only far more products would make up for it.

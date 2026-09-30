@@ -3,12 +3,44 @@ import { rangeOf } from '../algorithms/input.js';
 import { PATTERN_CATALOG } from '../curriculum/catalog.js';
 import { CODING_CATALOG } from './catalog.js';
 import { ladderLengths } from './problems/batch-h.js';
+import { kruskal } from './problems/spanning-trees.js';
 import { getCodingProblem } from './problems/index.js';
 import { buildSuite, entryArgs, outputsMatch, paramTypes, preview } from './suite.js';
 import { ListNode, listValues } from './list.js';
 import type { TreeNode } from './tree.js';
 
 type WrongSolution = { name: string; solve: (...args: any[]) => unknown };
+
+const manhattan = ([x, y]: number[], [u, v]: number[]) => Math.abs(x - u) + Math.abs(y - v);
+const cheapestFirst = (edges: number[][]) => [...edges].sort((a, b) => a[2] - b[2]);
+
+/** The indices of the edges Kruskal takes, cheapest first, over nodes 0 to n - 1. */
+function mstIndices(n: number, edges: number[][]): number[] {
+  const parent = rangeOf(0, n - 1);
+  const find = (x: number): number => (parent[x] === x ? x : (parent[x] = find(parent[x])));
+  return rangeOf(0, edges.length - 1)
+    .sort((i, j) => edges[i][2] - edges[j][2])
+    .filter((i) => {
+      const [a, b] = [find(edges[i][0]), find(edges[i][1])];
+      if (a === b) return false;
+      parent[a] = b;
+      return true;
+    });
+}
+
+/** Critical and pseudo-critical edges, where an edge counts as critical only when leaving it out raises the weight of what Kruskal builds. */
+function weightOnlyCritical(n: number, edges: number[][]): number[][] {
+  const indexed = cheapestFirst(edges.map(([a, b, w], i) => [a, b, w, i]));
+  const best = kruskal(n, indexed).weight;
+  const critical: number[] = [];
+  const pseudo: number[] = [];
+  for (const edge of indexed) {
+    const rest = indexed.filter((other) => other !== edge);
+    if (kruskal(n, rest).weight > best) critical.push(edge[3]);
+    else if (kruskal(n, [edge, ...rest]).weight === best) pseudo.push(edge[3]);
+  }
+  return [critical.sort((a, b) => a - b), pseudo.sort((a, b) => a - b)];
+}
 
 /** Reverses up to count nodes from head onto prev, and returns the new first node and the node after them. */
 function flip(head: ListNode | null, count: number, prev: ListNode | null = null): [ListNode | null, ListNode | null] {
@@ -2952,6 +2984,112 @@ const WRONG: Record<string, WrongSolution[]> = {
       solve: (n: number, roads: number[][]) => fastestRouteCount(n, roads, { reset: false, mod: true }),
     },
     { name: 'skip the modulo', solve: (n: number, roads: number[][]) => fastestRouteCount(n, roads, { reset: true, mod: false }) },
+  ],
+  'min-cost-connect-points': [
+    {
+      name: 'walk from the point added last to its nearest unvisited point',
+      solve: (points: number[][]) => {
+        const left = new Set(rangeOf(1, points.length - 1));
+        let total = 0;
+        for (let at = 0; left.size;) {
+          const next = [...left].reduce((best, j) => (manhattan(points[at], points[j]) < manhattan(points[at], points[best]) ? j : best));
+          total += manhattan(points[at], points[next]);
+          left.delete(next);
+          at = next;
+        }
+        return total;
+      },
+    },
+    {
+      name: 'measure straight-line distance',
+      solve: (points: number[][]) => {
+        const pairs = points.flatMap(([x, y], i) => points.slice(0, i).map(([u, v], j) => [i, j, Math.hypot(x - u, y - v)]));
+        return kruskal(points.length, cheapestFirst(pairs)).weight;
+      },
+    },
+    {
+      name: "add up each point's distance to its nearest other point",
+      solve: (points: number[][]) =>
+        points.reduce((sum, p, i) => sum + Math.min(...points.filter((_, j) => j !== i).map((q) => manhattan(p, q))), 0),
+    },
+  ],
+  'connecting-cities': [
+    {
+      name: 'return the cost of the roads taken even when a city is cut off',
+      solve: (n: number, connections: number[][]) => kruskal(n + 1, cheapestFirst(connections)).weight,
+    },
+    {
+      name: 'build the n - 1 cheapest roads without checking components',
+      solve: (n: number, connections: number[][]) =>
+        connections.length < n - 1
+          ? -1
+          : cheapestFirst(connections)
+              .slice(0, n - 1)
+              .reduce((sum, [, , cost]) => sum + cost, 0),
+    },
+    {
+      name: 'return -1 only when some city has no road',
+      solve: (n: number, connections: number[][]) =>
+        new Set(connections.flatMap(([x, y]) => [x, y])).size < n ? -1 : kruskal(n + 1, cheapestFirst(connections)).weight,
+    },
+  ],
+  'critical-mst-edges': [
+    {
+      name: 'call every edge of one MST critical',
+      solve: (n: number, edges: number[][]) => [mstIndices(n, edges).sort((a, b) => a - b), []],
+    },
+    {
+      name: 'compare weights only when an edge is left out, missing that the graph falls apart',
+      solve: (n: number, edges: number[][]) => weightOnlyCritical(n, edges),
+    },
+    {
+      name: 'take the pseudo-critical edges from one MST only',
+      solve: (n: number, edges: number[][]) => {
+        const [critical] = getCodingProblem('critical-mst-edges')!.solve(n, structuredClone(edges)) as number[][];
+        const pseudo = mstIndices(n, edges).filter((i) => !critical.includes(i));
+        return [critical, pseudo.sort((a, b) => a - b)];
+      },
+    },
+  ],
+  'water-distribution': [
+    {
+      name: 'dig one well in each group of houses the pipes connect, at its cheapest house',
+      solve: (n: number, wells: number[], pipes: number[][]) => {
+        const parent = rangeOf(0, n);
+        const find = (x: number): number => (parent[x] === x ? x : (parent[x] = find(parent[x])));
+        const piped = kruskal(n + 1, cheapestFirst(pipes)).weight;
+        for (const [a, b] of pipes) parent[find(a)] = find(b);
+        const cheapest = new Map<number, number>();
+        wells.forEach((cost, i) => cheapest.set(find(i + 1), Math.min(cost, cheapest.get(find(i + 1)) ?? Infinity)));
+        return piped + [...cheapest.values()].reduce((sum, cost) => sum + cost, 0);
+      },
+    },
+    {
+      name: 'give each house the cheaper of its well and its cheapest pipe',
+      solve: (_n: number, wells: number[], pipes: number[][]) =>
+        wells.reduce(
+          (sum, well, i) => sum + Math.min(well, ...pipes.filter(([a, b]) => a === i + 1 || b === i + 1).map(([, , cost]) => cost)),
+          0,
+        ),
+    },
+    {
+      name: 'stop after n - 1 edges, as if the source were not an extra node',
+      solve: (n: number, wells: number[], pipes: number[][]) => {
+        const edges = cheapestFirst([...wells.map((cost, i) => [0, i + 1, cost]), ...pipes]);
+        const parent = rangeOf(0, n);
+        const find = (x: number): number => (parent[x] === x ? x : (parent[x] = find(parent[x])));
+        let total = 0;
+        let used = 0;
+        for (const [a, b, cost] of edges) {
+          if (used === n - 1) break;
+          if (find(a) === find(b)) continue;
+          parent[find(a)] = find(b);
+          total += cost;
+          used++;
+        }
+        return total;
+      },
+    },
   ],
   'replace-words': [
     {

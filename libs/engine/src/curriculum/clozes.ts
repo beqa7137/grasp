@@ -199,6 +199,20 @@ export const CLOZES: Record<string, Cloze[]> = {
       why: "Relax: push only when going through u strictly improves v's best-known distance.",
     },
   ],
+  'minimum-spanning-tree': [
+    {
+      line: 3,
+      distractors: ['if (find(u) !== find(v)) continue;', 'if (seen[u] && seen[v]) continue;', 'if (u === v) continue;'],
+      why: 'Skip an edge whose ends already share a root: a path joins them, so the edge would close a cycle. Two nodes that each touch a tree edge can still be in different components, so a visited check is not enough.',
+      hint: 'Kruskal',
+    },
+    {
+      line: 11,
+      distractors: ['if (seen[u]) break;', 'if (!seen[u]) continue;', 'if (w > total) continue;'],
+      why: 'The heap can still hold entries for a node that has already joined the tree, none cheaper than the edge that added it. Skip them with `continue`; `break` would stop while other nodes still wait.',
+      hint: 'Prim',
+    },
+  ],
   'tree-dfs': [
     {
       line: 1,
