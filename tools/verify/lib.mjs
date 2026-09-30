@@ -317,6 +317,23 @@ export function states() {
         await p.getByRole('radio', { name: 'A bad delete' }).click();
       },
     },
+    {
+      id: 'lesson-tenancy-fair',
+      path: '/learn/design/sd-tenancy',
+      setup: async (p) => {
+        await p.locator('#try').scrollIntoViewIfNeeded();
+        await p.getByRole('radio', { name: 'Fair sharing' }).click();
+      },
+    },
+    {
+      id: 'lesson-gateway-mesh',
+      path: '/learn/design/sd-gateway',
+      setup: async (p) => {
+        await p.locator('#try').scrollIntoViewIfNeeded();
+        await p.getByRole('radio', { name: 'Introspection' }).click();
+        await p.getByRole('checkbox', { name: 'Service mesh with sidecar proxies' }).check();
+      },
+    },
     { id: 'lesson-overload', path: '/learn/design/sd-overload', setup: (p) => p.locator('#try').scrollIntoViewIfNeeded() },
     {
       id: 'lesson-realtime-long-polling',

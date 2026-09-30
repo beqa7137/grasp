@@ -5,9 +5,11 @@ export * from './widgets/clocks.js';
 export * from './widgets/data-modeling.js';
 export * from './widgets/discovery.js';
 export * from './widgets/durability.js';
+export * from './widgets/gateway.js';
 export * from './widgets/leases.js';
 export * from './widgets/overload.js';
 export * from './widgets/recovery.js';
+export * from './widgets/tenancy.js';
 
 export interface Latency {
   mean: number;

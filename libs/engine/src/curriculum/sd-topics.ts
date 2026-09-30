@@ -174,6 +174,18 @@ export const SD_TOPICS: SdTopic[] = [
     oneLiner: 'RPO and RTO: backups, point-in-time recovery and standbys, and what each survives.',
     scenarioIds: ['write-wall'],
   },
+  {
+    id: 'sd-tenancy',
+    name: 'Multi-Tenancy',
+    oneLiner: 'Noisy neighbors, quotas and fair sharing: keeping one tenant from sinking the rest.',
+    scenarioIds: ['bot-storm'],
+  },
+  {
+    id: 'sd-gateway',
+    name: 'API Gateways & Service Meshes',
+    oneLiner: 'What the edge and the mesh do for every request, and what each costs.',
+    scenarioIds: ['bot-storm'],
+  },
 ];
 
 export function getSdTopic(id: string): SdTopic | undefined {

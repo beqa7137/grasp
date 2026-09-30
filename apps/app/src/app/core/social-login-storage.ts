@@ -3,6 +3,7 @@ import {
   OAUTH_POPUP_SESSION_KEY,
   OAUTH_RESULT_KEY_PREFIX,
   OAUTH_STATE_KEY,
+  getOAuthResultKey,
 } from '@capgo/capacitor-social-login/dist/esm/oauth-popup-bridge.js';
 
 /**
@@ -16,6 +17,15 @@ const OAUTH2_PENDING_LOGIN_PREFIX = 'capgo_social_login_oauth2_state_';
 export function readPendingSignIn(): string | null {
   try {
     return localStorage.getItem(OAUTH_STATE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/** The result the sign-in popup relayed for this flow through local storage, which it writes before it closes. */
+export function readRelayedResult(nonceOrState: string): unknown {
+  try {
+    return JSON.parse(localStorage.getItem(getOAuthResultKey(nonceOrState)) ?? 'null');
   } catch {
     return null;
   }

@@ -33,6 +33,8 @@ import { ClocksWidgetComponent } from './clocks-widget.component';
 import { DiscoveryWidgetComponent } from './discovery-widget.component';
 import { DurabilityWidgetComponent } from './durability-widget.component';
 import { RecoveryWidgetComponent } from './recovery-widget.component';
+import { TenancyWidgetComponent } from './tenancy-widget.component';
+import { GatewayWidgetComponent } from './gateway-widget.component';
 import { EstimateDrillComponent } from './estimate-drill.component';
 import { GeoWidgetComponent } from './geo-widget.component';
 import { IdLayoutWidgetComponent } from './id-layout-widget.component';
@@ -99,6 +101,8 @@ import { TxnWidgetComponent } from './txn-widget.component';
     DiscoveryWidgetComponent,
     DurabilityWidgetComponent,
     RecoveryWidgetComponent,
+    TenancyWidgetComponent,
+    GatewayWidgetComponent,
     EstimateDrillComponent,
   ],
   template: `
@@ -221,6 +225,12 @@ import { TxnWidgetComponent } from './txn-widget.component';
                 }
                 @case ('recovery') {
                   <app-recovery-widget />
+                }
+                @case ('tenancy') {
+                  <app-tenancy-widget />
+                }
+                @case ('gateway') {
+                  <app-gateway-widget />
                 }
                 @case ('estimate-drill') {
                   <app-estimate-drill [drill]="l.widget.drill ?? []" />

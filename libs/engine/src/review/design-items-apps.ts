@@ -468,6 +468,76 @@ const restoreDrill = concept(
   'A backup counts only once it has been restored. Drills find missing tables, expired credentials, backups that silently stopped, and restores that take far longer than anyone assumed, and they give the real RTO to plan around.',
 );
 
+const noisyShare = item('What a quiet tenant gets from a shared pool', (rand) => {
+  const quiet = pick(rand, [40, 50, 60]);
+  const total = pick(rand, [2_000, 2_500, 4_000]);
+  const noisy = total - 9 * quiet;
+  const served = (1_000 / total) * 100;
+  const pct = (v: number) => `${v}%`;
+  const count = (v: number) => v.toLocaleString('en-US');
+  return {
+    prompt: `Ten tenants share a pool that serves 1,000 requests a second, first come, first served. Nine send ${quiet} a second each; one runs a batch job at ${count(noisy)} a second. What share of a quiet tenant's requests get served?`,
+    ...withChoices(rand, pct(served), [pct(100), pct(served / 2), pct(10)]),
+    explain: `Demand is ${count(9 * quiet)} + ${count(noisy)} = ${count(total)} a second against 1,000 of capacity, and first come, first served drops requests in proportion to demand, so every tenant gets 1,000 / ${count(total)} = ${served}%. The quiet tenants asked for far less than a tenth each and still lose the same share as the batch job: the noisy neighbor problem.`,
+  };
+});
+
+const fairSharing = concept(
+  "One tenant's nightly batch job slows every other customer on a shared database. Which policy contains it without leaving capacity idle?",
+  'Fair sharing: each busy tenant gets an equal share, and spare capacity flows to whoever wants it',
+  [
+    'A fixed quota per tenant, enforced even when the rest of the pool is idle',
+    'First come, first served, with a bigger pool sized for the batch job',
+    'Retries with backoff for the quiet tenants, so their requests get through',
+  ],
+  'A hard quota protects the quiet tenants but idles capacity the batch job could have used at night. Fair sharing (weighted fair queuing, per-tenant queues served in turn) gives every quiet tenant all it asks for, up to its equal share, then hands the rest to the batch job. A bigger pool only raises the bar the next burst clears.',
+);
+
+const tenantCells = concept(
+  'Why split customers into cells, each a full copy of the stack serving a slice of the tenants?',
+  'A bad deploy or a poison tenant takes down one cell, not every customer',
+  [
+    'Each cell can skip authentication, since its tenants trust one another',
+    'Cells remove the need for backups, since every cell copies the others',
+    'Requests get faster, since a cell answers from memory instead of disk',
+  ],
+  'A cell caps the blast radius: a tenant whose traffic or data crashes the service, or a deploy rolled out one cell at a time, hurts only that slice. The costs are a routing layer that maps each tenant to its cell and work to move a tenant that outgrows one.',
+);
+
+const introspectionLoad = item('Load a token check puts on the auth server', (rand) => {
+  const rps = pick(rand, [2_000, 5_000, 20_000]);
+  const hit = pick(rand, [90, 99]);
+  const calls = (rps * (100 - hit)) / 100;
+  const perSecond = (v: number) => `${fmt(v)} calls/s`;
+  return {
+    prompt: `A gateway checks each of ${fmt(rps)} requests a second by asking the auth server whether the token is valid (introspection), and caches answers for a minute. ${hit}% of checks hit the cache. How many calls a second reach the auth server?`,
+    ...withChoices(rand, perSecond(calls), [perSecond(rps), perSecond((rps * hit) / 100), perSecond(0)]),
+    explain: `Only misses call out: ${fmt(rps)} × ${100 - hit}% = ${fmt(calls)} a second. The cache trades freshness for load, since a revoked token keeps working until its cached answer expires. A signed JWT checked locally makes no calls at all, with the same trade-off tied to the token's lifetime.`,
+  };
+});
+
+const jwtRevocation = concept(
+  "An admin revokes a user's access. The gateway only checks JWT signatures, and the user's token has 50 minutes left. What happens?",
+  'The token keeps working until it expires, unless something checks a denylist',
+  [
+    'The token stops working at once, since revoking it changes its signature',
+    'The gateway asks the auth server on the next request and rejects it',
+    'The token works for exactly one more request, then the key rotates',
+  ],
+  'A JWT is valid wherever its signature and expiry check out, so revocation needs extra work: short lifetimes (minutes) with refresh tokens, a denylist of revoked token ids that the gateway checks, or introspection for the few routes where instant revocation matters.',
+);
+
+const meshCost = concept(
+  'A request passes through five services, and a service mesh puts a sidecar proxy beside each one. What does that cost?',
+  'Two proxy hops per call, a little latency each, plus CPU and memory per pod',
+  [
+    'Nothing measurable, since sidecars share the kernel with their service',
+    'One extra network round trip for the whole request, at the gateway only',
+    'Only config work, since proxies sit off the path and observe traffic',
+  ],
+  'Every call leaves through one sidecar and enters through another, so five services mean ten proxy passes, each adding a fraction of a millisecond or more under load, and every pod reserves CPU and memory for its proxy. The mesh pays off when many services need mTLS, retries and tracing done the same way.',
+);
+
 export const APP_ITEMS = {
   'offset-rows': offsetRows,
   'idempotency-key': idempotencyKey,
@@ -511,4 +581,10 @@ export const APP_ITEMS = {
   'restore-time': restoreTime,
   'replica-not-backup': replicaNotBackup,
   'restore-drill': restoreDrill,
+  'noisy-share': noisyShare,
+  'fair-sharing': fairSharing,
+  'tenant-cells': tenantCells,
+  'introspection-load': introspectionLoad,
+  'jwt-revocation': jwtRevocation,
+  'mesh-cost': meshCost,
 } satisfies Partial<Record<DesignItemId, DesignItemDefinition>>;

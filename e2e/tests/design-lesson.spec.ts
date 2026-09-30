@@ -418,3 +418,35 @@ test('the recovery lesson shows what each plan loses, and a standby copying a ba
   await page.getByRole('radio', { name: 'A bad delete' }).click();
   await expect(readout('Data comes back')).toHaveText('No: the delete reached the standby too');
 });
+
+test('the tenancy lesson shows a noisy tenant starving everyone until fair sharing protects the quiet ones', async ({ page }) => {
+  await page.goto('/learn/design/sd-tenancy');
+  const readout = (label: string) =>
+    page
+      .locator('.readouts div')
+      .filter({ has: page.locator('dt', { hasText: new RegExp(`^${label}$`) }) })
+      .locator('dd');
+  await expect(readout('Each quiet tenant served')).toHaveText('52%');
+  await expect(readout('Noisy tenant served')).toHaveText('52%');
+  await page.getByRole('radio', { name: 'Fair sharing' }).click();
+  await expect(readout('Each quiet tenant served')).toHaveText('100%');
+  await expect(readout('Noisy tenant served')).toHaveText('30%');
+  await expect(readout('Pool in use')).toHaveText('100%');
+});
+
+test('the gateway lesson shows what introspection and a sidecar mesh add to each request', async ({ page }) => {
+  await page.goto('/learn/design/sd-gateway');
+  const readout = (label: string) =>
+    page
+      .locator('.readouts div')
+      .filter({ has: page.locator('dt', { hasText: new RegExp(`^${label}$`) }) })
+      .locator('dd');
+  await expect(readout('Added to each request')).toHaveText('0.1 ms');
+  await expect(readout('Calls a second to the auth server')).toHaveText('0');
+  await page.getByRole('radio', { name: 'Introspection' }).click();
+  await expect(readout('Added to each request')).toHaveText('0.5 ms');
+  await expect(readout('Calls a second to the auth server')).toHaveText('1,000');
+  await page.getByRole('checkbox', { name: 'Service mesh with sidecar proxies' }).check();
+  await expect(readout('Proxies passed')).toHaveText('8');
+  await expect(readout('Added to each request')).toHaveText('4.5 ms');
+});

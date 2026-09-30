@@ -4,7 +4,7 @@ import type { InitializeOptions, SocialLogin } from '@capgo/capacitor-social-log
 import { ApiService } from './api.service';
 import { RuntimeConfigService } from './runtime-config.service';
 import { SIGN_IN_CALLBACK_PATH } from './sign-in-callback';
-import { clearAfterLogin, clearBeforeLogin } from './social-login-storage';
+import { clearAfterLogin, clearBeforeLogin, readRelayedResult } from './social-login-storage';
 
 /** `GET /auth/config`: the public client ids of the providers the server accepts. */
 export interface ProviderConfig {
@@ -78,9 +78,14 @@ export class SocialSignInService {
 
   async github(): Promise<GitHubCredential | null> {
     const plugin = await this.ready();
-    const codeVerifier = newCodeVerifier();
+    const codeVerifier = newSecret();
+    const state = newSecret();
     const signedIn = await ifNotCancelled(
-      this.withWebCleanup(() => plugin.login({ provider: 'oauth2', options: { providerId: GITHUB, codeVerifier } })),
+      this.withWebCleanup(() =>
+        plugin
+          .login({ provider: 'oauth2', options: { providerId: GITHUB, codeVerifier, state } })
+          .catch((e: unknown) => relayedGitHubLogin(state) ?? Promise.reject(e)),
+      ),
     );
     if (!signedIn) return null;
     plugin.logout({ provider: 'oauth2', providerId: GITHUB }).catch(() => undefined);
@@ -167,7 +172,16 @@ function isCancel(error: unknown): boolean {
   return error instanceof Error && /access_denied|denied your application access/i.test(error.message);
 }
 
-function newCodeVerifier(): string {
+/**
+ * The plugin checks once a second whether the popup has closed, and the popup closes itself as soon as it has
+ * relayed its result. A check that runs after the close but before the relayed message reports a cancel.
+ */
+function relayedGitHubLogin(state: string) {
+  const relayed = readRelayedResult(state) as { type?: unknown; accessToken?: { token?: string } | null } | null;
+  return relayed?.type === 'oauth-response' ? { provider: 'oauth2' as const, result: relayed } : null;
+}
+
+function newSecret(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(32));
   return btoa(String.fromCharCode(...bytes))
     .replace(/\+/g, '-')
