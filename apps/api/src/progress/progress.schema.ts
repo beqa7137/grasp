@@ -1,5 +1,6 @@
 import {
   ALGORITHMS,
+  CASE_CATALOG,
   CODING_CATALOG,
   COMPETENCY_CATALOG,
   DIAGNOSTIC_OUTCOMES,
@@ -8,6 +9,7 @@ import {
   PATTERNS,
   SCENARIOS,
   STUDY_OPTIONS,
+  SD_TOPICS,
   getReviewItem,
   isDiagnosticItem,
 } from '@grasp/engine';
@@ -19,6 +21,8 @@ const algorithmIds = new Set(ALGORITHMS.map((a) => a.id));
 const scenarioIds = new Set(SCENARIOS.map((s) => s.id));
 const problemIds = new Set<string>(CODING_CATALOG.map((p) => p.id));
 const competencyIds = new Set(COMPETENCY_CATALOG.map((c) => c.id));
+const caseIds = new Set(CASE_CATALOG.map((c) => c.id));
+const sdTopicIds = new Set(SD_TOPICS.map((t) => t.id));
 
 const base = {
   id: z
@@ -35,6 +39,7 @@ const itemId = z
   .refine((id) => Boolean(getReviewItem(id)), 'Unknown review item');
 const competencyId = z.string().refine((id) => competencyIds.has(id), 'Unknown competency');
 const durationMs = z.number().int().min(0).max(3_600_000);
+const caseCount = z.number().int().min(0).max(50);
 const oneOf = (options: readonly number[]) => z.number().refine((v) => options.includes(v), `Must be one of ${options.join(', ')}`);
 
 export const learningEventSchema = z.discriminatedUnion('type', [
@@ -68,6 +73,27 @@ export const learningEventSchema = z.discriminatedUnion('type', [
     monthlyCost: z.number().nonnegative(),
     variant: z.number().int().min(1).max(10).optional(),
   }),
+  // Counts are bounded rather than matched to the case's current questions, and topics the catalog no longer has are
+  // dropped, so a later content edit alone does not reject an event recorded before it.
+  z
+    .object({
+      ...base,
+      type: z.literal('case.completed'),
+      caseId: z.string().refine((id) => caseIds.has(id), 'Unknown case study'),
+      topics: z
+        .array(z.string().max(80))
+        .max(50)
+        .transform((topics) => [...new Set(topics.filter((id) => sdTopicIds.has(id)))])
+        .refine((topics) => topics.length > 0, 'A case names at least one known design topic'),
+      bestChoices: caseCount,
+      decisions: caseCount,
+      closeEstimates: caseCount,
+      estimates: caseCount,
+    })
+    .refine(
+      (e) => e.bestChoices <= e.decisions && e.closeEstimates <= e.estimates,
+      'A case outcome cannot have more right answers than questions',
+    ),
   z
     .object({
       ...base,

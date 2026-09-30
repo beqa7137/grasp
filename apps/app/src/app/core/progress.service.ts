@@ -2,6 +2,7 @@ import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core'
 import { Preferences } from '@capacitor/preferences';
 import {
   buildSession,
+  type CaseCompletedEvent,
   type CodeSubmittedEvent,
   type DiagnosticCompletedEvent,
   forecast,
@@ -38,6 +39,7 @@ export type NewEvent =
   | Draft<PracticeAnsweredEvent>
   | Draft<PredictAnsweredEvent>
   | Draft<ScenarioCompletedEvent>
+  | Draft<CaseCompletedEvent>
   | Draft<InterviewScoredEvent>
   | Draft<CodeSubmittedEvent>
   | Draft<SettingsChangedEvent>
@@ -83,6 +85,8 @@ export class ProgressService {
   readonly now = signal(new Date());
   readonly syncStatus = signal<SyncStatus>('idle');
   readonly pendingSync = signal({ future: 0, oversized: 0 });
+  /** Counts finished `clearLocal` calls, so pages holding a learner's drafts in memory can drop them. */
+  readonly cleared = signal(0);
 
   readonly state = computed(() => replay(this.events()));
   readonly settings = computed(() => this.state().settings, { equal: sameSettings });
@@ -219,6 +223,7 @@ export class ProgressService {
       });
     this.storageWrites = clearStorage;
     await clearStorage;
+    this.cleared.update((n) => n + 1);
   }
 
   /** Study settings are events too, so they sync and every device schedules identically. */

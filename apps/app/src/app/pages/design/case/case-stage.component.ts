@@ -7,6 +7,7 @@ import {
   computed,
   inject,
   input,
+  model,
   output,
   signal,
   viewChild,
@@ -14,7 +15,7 @@ import {
 import { DecimalPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { IonIcon } from '@ionic/angular';
-import { estimateVerdict, parseAmount, type CaseStage, type EstimateVerdict } from '@grasp/engine';
+import { chosenOption, estimateVerdict, parseAmount, type CaseStage, type CaseStageAnswer } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import { arrowForward, checkmarkCircle, closeCircle, constructOutline } from 'ionicons/icons';
 import { refocus, refocusAfterRender } from '../../../core/focus';
@@ -72,6 +73,7 @@ const VERDICTS = {
             type="text"
             inputmode="decimal"
             autocomplete="off"
+            [value]="answer().guess ?? ''"
             [disabled]="verdict() !== null"
             [attr.aria-describedby]="inputId() + '-unit'"
           />
@@ -108,12 +110,12 @@ const VERDICTS = {
 
     <div class="controls">
       @if (revealed() < s.points.length) {
-        <button class="g-btn" [class.primary]="attempted()" (click)="revealed.set(revealed() + 1)">
+        <button class="g-btn" [class.primary]="attempted()" (click)="reveal(revealed() + 1)">
           {{ revealed() ? 'Next point' : 'Show the model answer' }}
         </button>
         @if (revealed()) {
           <span class="muted count">{{ revealed() }} of {{ s.points.length }}</span>
-          <button class="g-btn ghost" (click)="revealed.set(s.points.length)">Show all</button>
+          <button class="g-btn ghost" (click)="reveal(s.points.length)">Show all</button>
         }
       } @else {
         @if (s.lab) {
@@ -250,6 +252,7 @@ const VERDICTS = {
 export class CaseStageComponent {
   readonly stage = input.required<CaseStage>();
   readonly caseId = input.required<string>();
+  readonly answer = model<CaseStageAnswer>({});
   readonly nextLabel = input('Next stage');
   readonly showNext = input(true);
   readonly next = output<void>();
@@ -259,10 +262,14 @@ export class CaseStageComponent {
   private readonly result = viewChild<ElementRef<HTMLElement>>('result');
   protected readonly verdicts = VERDICTS;
 
-  readonly chosen = signal<number | null>(null);
-  readonly revealed = signal(0);
+  readonly chosen = computed(() => chosenOption(this.stage(), this.answer()));
+  readonly revealed = computed(() => Math.min(this.answer().revealed ?? 0, this.stage().points.length));
   readonly invalid = signal(false);
-  readonly verdict = signal<EstimateVerdict | null>(null);
+  readonly verdict = computed(() => {
+    const estimate = this.stage().estimate;
+    const guess = parseAmount(this.answer().guess ?? '');
+    return estimate && guess !== null ? estimateVerdict(guess, estimate.answer) : null;
+  });
   readonly inputId = computed(() => `estimate-${this.caseId()}-${this.stage().title.replace(/\W+/g, '-').toLowerCase()}`);
   readonly best = computed(() => this.stage().decision?.options.findIndex((o) => o.best) ?? -1);
   readonly shownPoints = computed(() => this.stage().points.slice(0, this.revealed()));
@@ -277,16 +284,19 @@ export class CaseStageComponent {
 
   choose(index: number) {
     if (this.chosen() !== null) return;
-    this.chosen.set(index);
+    this.answer.update((a) => ({ ...a, chosen: index }));
     refocusAfterRender(this.injector, () => this.answered()?.nativeElement);
+  }
+
+  reveal(count: number) {
+    this.answer.update((a) => ({ ...a, revealed: count }));
   }
 
   check(raw: string) {
     const guess = parseAmount(raw);
-    const e = this.stage().estimate;
     this.invalid.set(guess === null);
-    if (guess === null || !e) return;
-    this.verdict.set(estimateVerdict(guess, e.answer));
+    if (guess === null || !this.stage().estimate) return;
+    this.answer.update((a) => ({ ...a, guess: raw.trim() }));
     afterNextRender(
       () => {
         const result = this.result()?.nativeElement;

@@ -304,7 +304,7 @@ import { TxnWidgetComponent } from './txn-widget.component';
             @if (itemCount()) {
               <app-quick-check [topic]="t.id" />
             } @else {
-              <p class="muted">Review questions for this topic unlock with its Design Lab missions.</p>
+              <p class="muted">Review questions for this topic unlock with its Design Lab missions or a finished case study.</p>
             }
           </section>
         </div>

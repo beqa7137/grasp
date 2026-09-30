@@ -2,7 +2,7 @@ export interface SdTopic {
   id: string;
   name: string;
   oneLiner: string;
-  /** Completing any of these missions unlocks the topic's review items. */
+  /** Completing any of these missions, or finishing a case study tagged with the topic, unlocks its review items. */
   scenarioIds: string[];
 }
 

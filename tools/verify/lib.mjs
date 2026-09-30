@@ -123,6 +123,36 @@ const seedStories = async (p) => {
   await p.getByRole('link', { name: /The billing export/ }).waitFor();
 };
 
+/** News Feed answers: two stages in progress, or every stage answered with the last one open. */
+const NEWS_FEED_POINTS = [4, 2, 2, 5, 5, 5, 3, 4];
+const NEWS_FEED_STARTED = {
+  attempt: 'audit-in-progress',
+  reached: 2,
+  stages: [{ chosen: 1, revealed: 4 }, { guess: '35k', revealed: 2 }, { revealed: 1 }],
+};
+const NEWS_FEED_ANSWERED = {
+  attempt: 'audit-finished',
+  reached: 7,
+  stages: NEWS_FEED_POINTS.map((revealed, i) => ({
+    revealed,
+    ...([0, 4, 6].includes(i) ? { chosen: i === 0 ? 1 : 0 } : {}),
+    ...(i === 1 ? { guess: '35k' } : i === 2 ? { guess: '1' } : {}),
+  })),
+};
+
+const seedCase = async (p, id, draft) => {
+  await p.evaluate(([key, value]) => localStorage.setItem(key, value), [`CapacitorStorage.grasp.case.${id}`, JSON.stringify(draft)]);
+  await p.reload();
+  await p.locator('ion-content').first().waitFor();
+};
+
+const finishNewsFeed = async (p) => {
+  await seedCase(p, 'news-feed', NEWS_FEED_ANSWERED);
+  await p.getByRole('button', { name: 'Finish the case' }).click();
+  await p.locator('.outcome', { hasText: 'Case finished.' }).waitFor();
+  await settle(p);
+};
+
 const answerFirst = async (p, selector) => {
   await p.locator(selector).first().click();
   await settle(p, 500);
@@ -174,6 +204,27 @@ export function states() {
         await p.getByRole('button', { name: 'Next: Estimate the traffic' }).click();
         await p.getByRole('textbox', { name: 'Average redirects per second' }).fill('30k');
         await p.getByRole('button', { name: 'Check', exact: true }).click();
+      },
+    },
+    {
+      id: 'case-study-in-progress',
+      path: '/design/case/news-feed',
+      setup: async (p) => {
+        await seedCase(p, 'news-feed', NEWS_FEED_STARTED);
+        await p.getByRole('textbox', { name: 'Average feed reads per second' }).scrollIntoViewIfNeeded();
+        await settle(p);
+      },
+    },
+    { id: 'case-study-finished', path: '/design/case/news-feed', setup: finishNewsFeed },
+    {
+      id: 'design-list-cases',
+      path: '/design/case/news-feed',
+      setup: async (p) => {
+        await finishNewsFeed(p);
+        await seedCase(p, 'url-shortener', { attempt: 'audit-url', reached: 1, stages: [{ chosen: 0, revealed: 5 }] });
+        await p.goto(`${BASE}/design`);
+        await p.getByRole('link', { name: /^URL Shortener.*Stage 2 of 9/ }).scrollIntoViewIfNeeded();
+        await settle(p);
       },
     },
     { id: 'case-build', path: '/design/free-build?case=news-feed' },

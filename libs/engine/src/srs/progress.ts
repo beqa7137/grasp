@@ -4,9 +4,10 @@ import { PATTERN_CATALOG } from '../curriculum/catalog.js';
 import { SD_TOPICS, getSdTopic } from '../curriculum/sd-topics.js';
 import { getReviewItemSummary, itemsForTopic } from '../review/catalog.js';
 import type { ItemKind, ReviewItemSummary } from '../review/types.js';
+import type { CaseOutcome } from '../sysdesign/cases/outcome.js';
 import { SCENARIO_CATALOG } from '../sysdesign/scenario-catalog.js';
 import { placementFromAnswers, type Placement } from './diagnostic.js';
-import { sortEvents, upcast, type InterviewScoredEvent, type StoredEvent, type StudySettings } from './events.js';
+import { sortEvents, upcast, type CaseCompletedEvent, type InterviewScoredEvent, type StoredEvent, type StudySettings } from './events.js';
 import { pullForward, retrievability, review, type CardPhase, type CardState, type ReviewRating } from './scheduler.js';
 import { DEFAULT_STUDY_SETTINGS, mergeSettings } from './settings.js';
 
@@ -17,6 +18,12 @@ export const MISSION_LADDER_DAYS = [3, 10, 30];
 
 /** A wrong prediction in a visualizer brings that pattern's checkpoint back within this window. */
 export const PREDICTION_MISS_PULL_MS = DAY_MS;
+
+/** Finishing a case study brings the review items of its topics back within this window. */
+export const CASE_REVIEW_PULL_MS = DAY_MS;
+
+/** Items reviewed this recently are left where they are when a case study finishes, so several cases do not flood a day. */
+export const CASE_REVIEW_REST_MS = 3 * DAY_MS;
 
 const RECENT_LOG_LIMIT = 500;
 const DURATION_EMA_ALPHA = 0.2;
@@ -32,7 +39,7 @@ export interface MissionState {
 
 export interface Boost {
   at: string;
-  reason: 'prediction-miss' | 'interview' | 'code';
+  reason: 'prediction-miss' | 'interview' | 'code' | 'case';
 }
 
 export interface CodingRecord {
@@ -50,6 +57,13 @@ export interface CompetencyRecord {
   weakSince: string | null;
 }
 
+export interface CaseRecord extends CaseOutcome {
+  firstCompletedAt: string;
+  completions: number;
+  /** Every design topic a completion covered; their design items stay unlocked. */
+  topics: string[];
+}
+
 export interface ReviewRecord {
   at: string;
   itemId: string;
@@ -65,6 +79,8 @@ export interface ProgressState {
   visualized: Record<string, string>;
   predictions: Record<string, { correct: number; total: number }>;
   missions: Record<string, MissionState>;
+  /** Finished case studies; the outcome is the latest completion's. */
+  cases: Record<string, CaseRecord>;
   interviews: { total: number; lastVerdict: string | null };
   behavioral: Record<string, CompetencyRecord>;
   /** Pattern → placement from the latest placement check. */
@@ -88,6 +104,7 @@ export const emptyProgress = (): ProgressState => ({
   visualized: {},
   predictions: {},
   missions: {},
+  cases: {},
   interviews: { total: 0, lastVerdict: null },
   behavioral: {},
   placement: {},
@@ -181,6 +198,9 @@ export function applyEvent(state: ProgressState, stored: StoredEvent): ProgressS
       for (const t of SD_TOPICS) if (t.scenarioIds.includes(event.scenarioId)) introduce(t.id);
       break;
     }
+    case 'case.completed':
+      completeCase(state, next, event, introduce);
+      break;
     case 'interview.scored': {
       next.interviews = { total: state.interviews.total + 1, lastVerdict: event.verdict };
       if (event.track === 'behavioral') next.behavioral = scoreCompetencies(state.behavioral, event);
@@ -241,6 +261,37 @@ export function replay(events: StoredEvent[], from: ProgressState = emptyProgres
   return sortEvents(events).reduce(applyEvent, from);
 }
 
+function completeCase(state: ProgressState, next: ProgressState, event: CaseCompletedEvent, introduce: (topic: string) => void) {
+  const prev = state.cases[event.caseId];
+  const { bestChoices, decisions, closeEstimates, estimates } = event;
+  const topics = event.topics.filter((topic) => getSdTopic(topic));
+  next.cases = {
+    ...state.cases,
+    [event.caseId]: {
+      firstCompletedAt: prev?.firstCompletedAt ?? event.at,
+      completions: (prev?.completions ?? 0) + 1,
+      topics: [...new Set([...(prev?.topics ?? []), ...topics])],
+      bestChoices,
+      decisions,
+      closeEstimates,
+      estimates,
+    },
+  };
+  const at = Date.parse(event.at);
+  const due = new Date(at + CASE_REVIEW_PULL_MS);
+  for (const topic of topics) {
+    introduce(topic);
+    const items = itemsForTopic(topic).filter((def) => def.kind === 'design');
+    for (const def of items) {
+      const card = next.cards[def.id];
+      if (card && !(card.lastReview && at - Date.parse(card.lastReview) < CASE_REVIEW_REST_MS)) next.cards[def.id] = pullForward(card, due);
+    }
+    const unseen = items.find((def) => !next.cards[def.id]);
+    if (unseen) next.boosts[unseen.id] = { at: event.at, reason: 'case' };
+  }
+  next.xp += prev ? 10 : 50;
+}
+
 function scoreCompetencies(behavioral: ProgressState['behavioral'], event: InterviewScoredEvent): ProgressState['behavioral'] {
   const next = { ...behavioral };
   const weak = new Set((event.weakCompetencies ?? []).filter((id) => getCompetencySummary(id)));
@@ -290,7 +341,10 @@ export function isUnlocked(item: ReviewItemSummary, state: ProgressState): boole
     case 'predict':
       return Boolean(item.algorithmId && state.visualized[item.algorithmId]);
     case 'design':
-      return Boolean(getSdTopic(item.topic)?.scenarioIds.some((id) => state.missions[id]));
+      return (
+        Boolean(getSdTopic(item.topic)?.scenarioIds.some((id) => state.missions[id])) ||
+        Object.values(state.cases).some((c) => c.topics.includes(item.topic))
+      );
   }
 }
 

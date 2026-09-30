@@ -173,6 +173,50 @@ describe.each(storages)('API (%s storage, offline interviewer)', (storage) => {
     expect(snap.body.state.settings).toEqual({ retention: 0.95, budgetMinutes: 10, newPerDay: 5 });
   });
 
+  it('records a finished case study, schedules its topics and rejects unknown cases and impossible outcomes', async () => {
+    const caseLearner = randomUUID();
+    const finish = (fields: object) =>
+      postEvent(
+        {
+          type: 'case.completed',
+          caseId: 'url-shortener',
+          topics: ['sd-estimation', 'sd-caching', 'sd-sharding'],
+          bestChoices: 2,
+          decisions: 3,
+          closeEstimates: 1,
+          estimates: 2,
+          ...fields,
+        },
+        caseLearner,
+      );
+
+    await finish({ caseId: 'no-such-case' }).expect(400);
+    await finish({ topics: [] }).expect(400);
+    await finish({ topics: ['two-pointers', 'sd-retired'] }).expect(400);
+    await finish({ bestChoices: 4 }).expect(400);
+    await finish({ decisions: 51, bestChoices: 0 }).expect(400);
+    await finish({ closeEstimates: 3 }).expect(400);
+    await finish({ closeEstimates: -1 }).expect(400);
+    await finish({ bestChoices: 1.5 }).expect(400);
+    await finish({ decisions: undefined }).expect(400);
+    await finish({ topics: ['sd-estimation', 'sd-retired', 'sd-caching', 'sd-caching', 'sd-sharding'] }).expect(200);
+
+    const snap = await request(app.getHttpServer()).get('/api/progress').set('x-learner-id', caseLearner).expect(200);
+    expect(snap.body.state.cases).toEqual({
+      'url-shortener': {
+        firstCompletedAt: expect.any(String),
+        completions: 1,
+        topics: ['sd-estimation', 'sd-caching', 'sd-sharding'],
+        bestChoices: 2,
+        decisions: 3,
+        closeEstimates: 1,
+        estimates: 2,
+      },
+    });
+    expect(Object.keys(snap.body.state.introduced).sort()).toEqual(['sd-caching', 'sd-estimation', 'sd-sharding']);
+    expect(snap.body.session.items.filter((id: string) => id.startsWith('sd:')).length).toBeGreaterThan(0);
+  });
+
   it('derives a placement from a placement check and rejects answers it could not have asked', async () => {
     const placementLearner = randomUUID();
     const at = new Date().toISOString();
