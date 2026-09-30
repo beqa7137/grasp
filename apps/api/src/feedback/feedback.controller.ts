@@ -23,7 +23,7 @@ export class FeedbackController {
   constructor(private readonly store: FeedbackStore) {}
 
   @Post()
-  @RateLimit({ limit: 20, windowMs: 3_600_000 })
+  @RateLimit({ limit: 20, windowMs: 3_600_000, perAddress: true })
   async submit(@LearnerId() learnerId: string, @Body(new ZodValidationPipe(feedbackSchema)) body: z.infer<typeof feedbackSchema>) {
     const entry = { id: randomUUID(), learnerId, createdAt: new Date().toISOString(), ...body };
     await this.store.add(entry);

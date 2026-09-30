@@ -14,6 +14,8 @@ class Routes {
   send() {}
   @SkipRateLimit()
   health() {}
+  @RateLimit({ limit: 1, windowMs: 60_000, perAddress: true })
+  feedback() {}
 }
 
 @SkipRateLimit()
@@ -66,6 +68,28 @@ describe('RateLimitGuard', () => {
     await call(guard, Routes.prototype.send, user('203.0.113.1')).result;
     await expect(call(guard, Routes.prototype.send, user('198.51.100.7')).result).rejects.toBeInstanceOf(HttpException);
     await expect(call(guard, Routes.prototype.send, { ip: '198.51.100.7' }).result).resolves.toBe(true);
+  });
+
+  it('counts anonymous learners one by one, so learners sharing a network do not use up each other’s limit', async () => {
+    const learner = (id: string) => ({ ip: '203.0.113.9', identity: { learnerId: id, userId: null } });
+    for (let i = 0; i < 2; i++) await expect(call(guard, Routes.prototype.list, learner('a')).result).resolves.toBe(true);
+    await expect(call(guard, Routes.prototype.list, learner('a')).result).rejects.toMatchObject({ status: 429, limit: 2 });
+    await expect(call(guard, Routes.prototype.list, learner('b')).result).resolves.toBe(true);
+  });
+
+  it('still caps a network at twenty learners’ worth, since learner ids cost nothing to make', async () => {
+    const learner = (id: number) => ({ ip: '203.0.113.9', identity: { learnerId: `l${id}`, userId: null } });
+    for (let i = 0; i < 40; i++) await call(guard, Routes.prototype.list, learner(i)).result;
+    await expect(call(guard, Routes.prototype.list, learner(40)).result).rejects.toMatchObject({ status: 429, limit: 40 });
+    await expect(
+      call(guard, Routes.prototype.list, { ip: '203.0.113.10', identity: { learnerId: 'l41', userId: null } }).result,
+    ).resolves.toBe(true);
+  });
+
+  it('keeps counting anonymous callers per address on routes that store what people read', async () => {
+    const learner = (id: string) => ({ ip: '203.0.113.9', identity: { learnerId: id, userId: null } });
+    await expect(call(guard, Routes.prototype.feedback, learner('a')).result).resolves.toBe(true);
+    await expect(call(guard, Routes.prototype.feedback, learner('b')).result).rejects.toMatchObject({ status: 429, limit: 1 });
   });
 
   it('honours route overrides and skips', async () => {
