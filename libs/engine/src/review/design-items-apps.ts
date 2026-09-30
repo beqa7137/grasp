@@ -401,6 +401,73 @@ const deepCheck = concept(
   'A check that depends on a shared dependency fails everywhere at the same moment, turning a slow database into a full outage. Keep health checks shallow (can this process serve?), and handle a failing dependency inside the request path, by degrading or failing that request.',
 );
 
+const erasureOverhead = item('Space and safety of an erasure code', (rand) => {
+  const data = pick(rand, [6, 10, 12]);
+  const parity = pick(rand, [2, 3, 4]);
+  const raw = (data + parity) / data;
+  const answer = (tb: number, survives: number) => `${tb.toFixed(2)} TB, survives any ${survives} lost`;
+  return {
+    prompt: `An object store cuts each object into ${data} data pieces and adds ${parity} parity pieces, each on a different disk; any ${data} of the ${data + parity} rebuild it. For every 1 TB of data, how much raw disk does it use, and how many disk losses does an object survive?`,
+    ...withChoices(rand, answer(raw, parity), [answer(raw, data), answer(3, 2), answer(raw, Math.floor(parity / 2))]),
+    explain: `It stores ${data + parity} pieces the size of 1/${data} of the object: ${data + parity} / ${data} = ${raw.toFixed(2)} TB per TB. Since any ${data} pieces rebuild the object, it survives losing any ${parity}. Three full copies would use 3 TB and survive only 2.`,
+  };
+});
+
+const repairTraffic = concept(
+  'A storage cluster moves cold data from three copies to 10 + 4 erasure coding. Disk failures now keep the network busy for far longer. Why?',
+  'Rebuilding one lost piece reads 10 surviving pieces, where a copy needed one',
+  [
+    'Erasure-coded disks fail more often, since each holds pieces of more objects',
+    'Parity pieces are larger than data pieces, so rebuilding them moves more bytes',
+    'The rebuilt piece must be written to all 14 disks, not just one',
+  ],
+  'To recompute a lost piece the system reads any 10 of the survivors, ten times the bytes of copying one replica. That repair traffic is why codes such as Azure’s locally repairable codes add local parity, so most repairs read a small group instead of the whole stripe.',
+);
+
+const failureDomains = concept(
+  'A team keeps three copies of every object, all on disks in the same rack for fast writes. Why is their real durability far below the nines their model promises?',
+  'One rack failure, a switch or a power feed, loses all three copies at once',
+  [
+    'Disks in one rack wear out faster because they share the same airflow',
+    'Three copies in a rack must be written one after another, so writes get lost',
+    'The model counts parity pieces, which a rack of copies does not have',
+  ],
+  'Durability models assume pieces fail independently. Anything shared, a rack, a power feed, a batch of disks from one factory run, a software bug, fails them together. Spreading pieces across racks, rooms or zones keeps one fault from taking several.',
+);
+
+const restoreTime = item('How long a restore takes', (rand) => {
+  const size = pick(rand, [500, 2_000, 6_000]);
+  const speed = pick(rand, [5, 10, 20]);
+  const min = (v: number) => `${fmt(v)} min`;
+  return {
+    prompt: `A ${fmt(size)} GB database is lost with its disks at 11 pm. The only copy is last night's full backup, which restores at ${speed} GB a minute. How long until the database can serve again, ignoring everything but the restore?`,
+    ...withChoices(rand, min(size / speed), [min(size / speed / 2), min((size / speed) * 2), min(24 * 60)]),
+    explain: `Restoring copies every byte back: ${fmt(size)} / ${speed} = ${fmt(size / speed)} min, the recovery time (RTO). The writes since last night's backup, nearly a day of them, are gone: that is the recovery point (RPO). Measure restores in drills, since real ones add verification and catch-up.`,
+  };
+});
+
+const replicaNotBackup = concept(
+  'Someone runs a delete without a WHERE clause on the primary. The team has a synchronous standby in another zone. What does the standby hold a second later?',
+  'The same empty table, since it copies every change, mistakes included',
+  [
+    'The rows as they were, since standbys ignore deletes they did not start',
+    'The rows as they were, since synchronous replication waits for approval',
+    'Half the rows, since only the committed part of the delete reached it',
+  ],
+  'Replication protects against losing a machine, not against a bad change: the delete is a valid write and replicas apply it faithfully. Undoing it needs a copy from before the mistake, a backup restored to a point in time just before it, or a replica deliberately kept hours behind.',
+);
+
+const restoreDrill = concept(
+  'A company has taken nightly backups for two years and never restored one. What is the most important thing to do?',
+  'Restore one on a schedule, time it, and check the data, since untested backups often fail',
+  [
+    'Keep more backups, so there are more to choose from when one is needed',
+    'Encrypt the backups, since an unencrypted backup is the largest risk',
+    'Move the backups to faster storage, so a future restore is quicker',
+  ],
+  'A backup counts only once it has been restored. Drills find missing tables, expired credentials, backups that silently stopped, and restores that take far longer than anyone assumed, and they give the real RTO to plan around.',
+);
+
 export const APP_ITEMS = {
   'offset-rows': offsetRows,
   'idempotency-key': idempotencyKey,
@@ -438,4 +505,10 @@ export const APP_ITEMS = {
   'registry-stale': registryStale,
   readiness,
   'deep-check': deepCheck,
+  'erasure-overhead': erasureOverhead,
+  'repair-traffic': repairTraffic,
+  'failure-domains': failureDomains,
+  'restore-time': restoreTime,
+  'replica-not-backup': replicaNotBackup,
+  'restore-drill': restoreDrill,
 } satisfies Partial<Record<DesignItemId, DesignItemDefinition>>;

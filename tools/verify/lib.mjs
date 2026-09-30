@@ -300,6 +300,23 @@ export function states() {
         await p.getByRole('radio', { name: 'Registry' }).click();
       },
     },
+    {
+      id: 'lesson-durability-erasure',
+      path: '/learn/design/sd-durability',
+      setup: async (p) => {
+        await p.locator('#try').scrollIntoViewIfNeeded();
+        await p.getByRole('radio', { name: '6 + 3 erasure' }).click();
+      },
+    },
+    {
+      id: 'lesson-recovery-delete',
+      path: '/learn/design/sd-recovery',
+      setup: async (p) => {
+        await p.locator('#try').scrollIntoViewIfNeeded();
+        await p.getByRole('radio', { name: 'Async standby' }).click();
+        await p.getByRole('radio', { name: 'A bad delete' }).click();
+      },
+    },
     { id: 'lesson-overload', path: '/learn/design/sd-overload', setup: (p) => p.locator('#try').scrollIntoViewIfNeeded() },
     {
       id: 'lesson-realtime-long-polling',

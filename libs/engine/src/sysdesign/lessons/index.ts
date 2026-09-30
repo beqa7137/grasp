@@ -8,6 +8,7 @@ import { CONSENSUS_LESSON } from './consensus.js';
 import { CONSISTENCY_LESSON } from './consistency.js';
 import { DATA_MODELING_LESSON } from './data-modeling.js';
 import { DISCOVERY_LESSON } from './discovery.js';
+import { DURABILITY_LESSON } from './durability.js';
 import { ESTIMATION_LESSON } from './estimation.js';
 import { GEO_LESSON } from './geo.js';
 import { IDS_LESSON } from './ids.js';
@@ -20,6 +21,7 @@ import { OVERLOAD_LESSON } from './overload.js';
 import { QUEUES_LESSON } from './queues.js';
 import { RATE_LIMITING_LESSON } from './rate-limiting.js';
 import { REALTIME_LESSON } from './realtime.js';
+import { RECOVERY_LESSON } from './recovery.js';
 import { RELIABILITY_LESSON } from './reliability.js';
 import { REPLICATION_LESSON } from './replication.js';
 import { SEARCH_LESSON } from './search.js';
@@ -64,6 +66,8 @@ export const SD_LESSONS: Readonly<Record<string, SdLesson>> = {
   'sd-load-balancing': LOAD_BALANCING_LESSON,
   'sd-discovery': DISCOVERY_LESSON,
   'sd-clocks': CLOCKS_LESSON,
+  'sd-recovery': RECOVERY_LESSON,
+  'sd-durability': DURABILITY_LESSON,
 };
 
 export function getSdLesson(topicId: string): SdLesson | undefined {

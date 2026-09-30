@@ -31,7 +31,9 @@ export type SdWidget =
   | 'lease'
   | 'balancer'
   | 'clocks'
-  | 'discovery';
+  | 'discovery'
+  | 'durability'
+  | 'recovery';
 
 export interface SdLesson {
   /** Why the topic decides interviews and outages, in two or three sentences. */
