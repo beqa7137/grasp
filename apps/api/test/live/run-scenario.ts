@@ -15,13 +15,16 @@ export interface ScenarioResult {
   usage: SessionUsage;
   replies: { words: number; firstTokenMs: number; totalMs: number; cacheReadTokens: number }[];
   scoreMs: number;
+  /** Behavioral AI scoring only: numbers the scorer invented, before the normalizer replaced them. */
+  inventedNumbers?: number;
   transcript: InterviewSession['messages'];
   warnings: string[];
 }
 
 export interface Check {
   name: string;
-  pass: boolean;
+  /** Null when the provider does not report what the check measures: it then counts neither way. */
+  pass: boolean | null;
 }
 
 export async function runScenario(scenario: Scenario, interviewer: Interviewer, model: string): Promise<ScenarioResult> {
@@ -84,12 +87,20 @@ export async function runScenario(scenario: Scenario, interviewer: Interviewer, 
     usage: usage!,
     replies,
     scoreMs,
+    inventedNumbers: scored.inventedNumbers,
     transcript: session.messages,
     warnings,
   };
 }
 
-export function scenarioChecks(scenario: Scenario, result: ScenarioResult): Check[] {
+/**
+ * Whether cache reads can be judged: the gateway reports none at all for some models (Gemini 3 Flash, Haiku 4.5 in
+ * the first run) although the catalog prices cache reads for every one, so a model counts as reporting them only
+ * when at least one of its calls did.
+ */
+export const reportsCacheReads = (results: ScenarioResult[]) => results.some((r) => r.usage.cacheReadTokens > 0);
+
+export function scenarioChecks(scenario: Scenario, result: ScenarioResult, cacheReadsReported = true): Check[] {
   const { verdict, weakPatterns, mode, flaws, weakCompetencies } = result.scorecard;
   const expected = scenario.verdicts ?? (scenario.quality === 'weak' ? ['no-hire', 'lean-no-hire'] : ['strong-hire', 'hire', 'lean-hire']);
   return [
@@ -98,8 +109,12 @@ export function scenarioChecks(scenario: Scenario, result: ScenarioResult): Chec
     ...(scenario.expectWeakPatterns ?? []).map((id) => ({ name: `weak pattern ${id}`, pass: weakPatterns.includes(id) })),
     ...(scenario.expectFlaws ?? []).map((id) => ({ name: `flaw ${id}`, pass: !!flaws?.some((f) => f.id === id) })),
     ...(scenario.expectWeakCompetencies ?? []).map((id) => ({ name: `weak competency ${id}`, pass: !!weakCompetencies?.includes(id) })),
+    ...(scenario.track === 'behavioral' ? [{ name: 'fixes invent no numbers', pass: !result.inventedNumbers }] : []),
     // Beyond the first turn the conversation prefix is well past the cache minimum, so reads must appear.
-    { name: 'cache reads from reply 3', pass: result.replies.slice(2).some((r) => r.cacheReadTokens > 0) },
+    {
+      name: 'cache reads from reply 3',
+      pass: cacheReadsReported ? result.replies.slice(2).some((r) => r.cacheReadTokens > 0) : null,
+    },
   ];
 }
 

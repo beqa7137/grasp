@@ -535,7 +535,7 @@ describe('ClaudeInterviewer.score', () => {
   it('scores a behavioral interview with its own prompt, transcript and schema, keeping only quotes the candidate said', async () => {
     const flaws = [
       { id: 'we-not-i', quote: 'I capped the retries', fix: 'I capped [number] retries myself.' },
-      { id: 'blame', quote: 'Payments broke it.', fix: 'The client had no owner, so I took it on.' },
+      { id: 'blame', quote: 'Payments broke it.', fix: 'The client had no owner, so I took it on for 3 weeks.' },
     ];
     const card = {
       verdict: 'strong-hire',
@@ -549,7 +549,7 @@ describe('ClaudeInterviewer.score', () => {
     const { interviewer, requests } = setup(() => ({ text: JSON.stringify(card) }));
     const s = behavioralSession(STRONG_STAR, ['I told the payments lead before I started, and they agreed.']);
 
-    const { scorecard } = await interviewer.score(s);
+    const { scorecard, inventedNumbers } = await interviewer.score(s);
 
     const body = requests[0].body;
     expect(body['system']).toBe(behavioralScorerPrompt(s));
@@ -563,8 +563,10 @@ describe('ClaudeInterviewer.score', () => {
     expect(scorecard).toMatchObject({ mode: 'ai', verdict: 'lean-hire', weakPatterns: [], weakCompetencies: ['ownership'] });
     expect(scorecard.flaws).toEqual([
       { ...flaws[0], quote: 'I capped the retries' },
-      { ...flaws[1], quote: null },
+      { ...flaws[1], quote: null, fix: 'The client had no owner, so I took it on for [number] weeks.' },
     ]);
+    expect(inventedNumbers).toBe(1);
+    expect(scorecard).not.toHaveProperty('inventedNumbers');
   });
 
   it('falls back to the scripted behavioral scorecard when both attempts are unusable', async () => {

@@ -127,7 +127,8 @@ export class GatewayInterviewer extends Interviewer {
       usage.push(this.record('score', completion));
       try {
         if (completion.finishReason !== 'stop') throw new InvalidScorecardError(`Scorer stopped with ${completion.finishReason}`);
-        return { scorecard: { ...normalizeScorecardFor(session, jsonObject(completion.text)), mode: 'ai' }, usage };
+        const { scorecard, inventedNumbers } = normalizeScorecardFor(session, jsonObject(completion.text));
+        return { scorecard: { ...scorecard, mode: 'ai' }, usage, inventedNumbers };
       } catch (err) {
         if (!(err instanceof InvalidScorecardError)) throw err;
         this.log.warn({ operation: 'interview.invalid-scorecard', attempt, ...safeErrorDetails(err) });

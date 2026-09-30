@@ -41,6 +41,16 @@ const sonnet: ModelRun = {
       ],
       billedCostUsd: null,
     },
+    {
+      scenario: 'behavioral / we-heavy',
+      result: result('behavioral / we-heavy', 0.03, [2000], { track: 'behavioral', inventedNumbers: 2 }),
+      checks: [
+        { name: 'fixes invent no numbers', pass: false },
+        { name: 'AI scorecard', pass: true },
+        { name: 'cache reads from reply 3', pass: null },
+      ],
+      billedCostUsd: null,
+    },
   ],
   separation: [{ name: 'separates strong from weak (coding)', pass: false }],
 };
@@ -78,11 +88,12 @@ describe('median', () => {
 });
 
 describe('summarize', () => {
-  it('counts every check, averages known costs and takes latency medians over replies', () => {
+  it('counts every judged check and invented number, averages known costs and takes latency medians over replies', () => {
     expect(summarize(sonnet)).toEqual({
       model: 'anthropic/claude-sonnet-5.5',
-      passed: 3,
-      checks: 5,
+      passed: 4,
+      checks: 7,
+      inventedNumbers: 2,
       meanCostUsd: expect.closeTo(0.03, 12),
       meanBilledUsd: 0.021,
       p50FirstTokenMs: 1000,
@@ -92,7 +103,7 @@ describe('summarize', () => {
   });
 
   it('counts a failed scenario as an error and a failed check', () => {
-    expect(summarize(qwen)).toMatchObject({ passed: 0, checks: 1, meanCostUsd: null, p50ReplyMs: null, errors: 1 });
+    expect(summarize(qwen)).toMatchObject({ passed: 0, checks: 1, inventedNumbers: null, meanCostUsd: null, p50ReplyMs: null, errors: 1 });
   });
 });
 
@@ -102,9 +113,9 @@ describe('markdownReport', () => {
   it('opens with the spend and a summary row per model', () => {
     expect(report).toContain('Spent $0.2500 of a $3.0000 budget.');
     expect(report).toContain(
-      '| anthropic/claude-sonnet-5.5 | json_schema | low / medium | 60% (3/5) | $0.0300 | $0.0210 | 1000 ms | 2000 ms | 0 |',
+      '| anthropic/claude-sonnet-5.5 | json_schema | low / medium | 57% (4/7) | 2 | $0.0300 | $0.0210 | 1000 ms | 2000 ms | 0 |',
     );
-    expect(report).toContain('| alibaba/qwen3.7-plus | text | low / medium | 0% (0/1) | n/a | n/a | n/a | n/a | 1 |');
+    expect(report).toContain('| alibaba/qwen3.7-plus | text | low / medium | 0% (0/1) | - | n/a | n/a | n/a | n/a | 1 |');
     expect(report).toContain('| acme/missing | Error: Not in the gateway model catalog | - | n/a |');
     expect(report).toContain('- anthropic/claude-sonnet-5.5: 0/1 (failed: separates strong from weak (coding))');
     expect(report).not.toContain('Stopped early');
@@ -114,10 +125,16 @@ describe('markdownReport', () => {
     expect(report).toContain('## coding / strong');
     expect(report).toContain('## coding / weak');
     expect(report).toContain(
-      '| anthropic/claude-sonnet-5.5 | hire (ai) | 3.2 | 1/2 (failed: weak verdict) | 1000 / 500 / 200 | $0.0400 | n/a | 1000 ms | 4000 ms | Reply 1 is 180 words |',
+      '| anthropic/claude-sonnet-5.5 | hire (ai) | 3.2 | 1/2 (failed: weak verdict) | - | 1000 / 500 / 200 | $0.0400 | n/a | 1000 ms | 4000 ms | Reply 1 is 180 words |',
     );
     expect(report).toContain(
-      '| alibaba/qwen3.7-plus | - | - | 0/1 (failed: completed) | - | - | - | - | - | Error: BadRequestError: 400 bad \\| input |',
+      '| alibaba/qwen3.7-plus | - | - | 0/1 (failed: completed) | - | - | - | - | - | - | Error: BadRequestError: 400 bad \\| input |',
+    );
+  });
+
+  it('shows invented numbers per scenario and leaves an unreported check out of the count', () => {
+    expect(report).toContain(
+      '| anthropic/claude-sonnet-5.5 | hire (ai) | 3.2 | 1/2 (failed: fixes invent no numbers; not reported: cache reads from reply 3) | 2 | 1000 / 500 / 200 | $0.0300 | n/a | 1000 ms | 4000 ms | - |',
     );
   });
 

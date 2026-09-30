@@ -6,7 +6,7 @@ import {
   behavioralTurn,
 } from './behavioral.prompts.js';
 import { behavioralScorecardJsonSchema, normalizeBehavioralScorecard } from './behavioral.scorecard.js';
-import type { InterviewMessage, InterviewSession } from './interview.types.js';
+import type { InterviewMessage, InterviewSession, Scorecard } from './interview.types.js';
 import { candidateTurn, interviewerSystemPrompt, scorerSystemPrompt, transcriptText } from './prompts.js';
 import { normalizeScorecard, scorecardJsonSchema } from './scorecard.schema.js';
 
@@ -21,6 +21,9 @@ export const candidateTurnFor = (s: InterviewSession, m: InterviewMessage) => (b
 export const redirectFor = (s: InterviewSession) => (behavioral(s) ? BEHAVIORAL_REDIRECT : REDIRECT_REPLY);
 export const scorecardJsonSchemaFor = (s: InterviewSession) =>
   behavioral(s) ? behavioralScorecardJsonSchema() : scorecardJsonSchema(s.track);
-export const normalizeScorecardFor = (s: InterviewSession, json: string) =>
-  behavioral(s) ? normalizeBehavioralScorecard(s, json) : normalizeScorecard(s.track, json);
+export const normalizeScorecardFor = (
+  s: InterviewSession,
+  json: string,
+): { scorecard: Omit<Scorecard, 'mode'>; inventedNumbers?: number } =>
+  behavioral(s) ? normalizeBehavioralScorecard(s, json) : { scorecard: normalizeScorecard(s.track, json) };
 export const scoringRequest = (s: InterviewSession) => `Score this interview.\n\n<transcript>\n${transcriptFor(s)}\n</transcript>`;

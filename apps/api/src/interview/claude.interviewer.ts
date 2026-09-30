@@ -128,7 +128,8 @@ export class ClaudeInterviewer extends Interviewer {
       usage.push(messageUsage(this.model.model, this.scoreMaxTokens, false, message));
       try {
         if (message.stop_reason !== 'end_turn') throw new InvalidScorecardError(`Scorer stopped with ${message.stop_reason}`);
-        return { scorecard: { ...normalizeScorecardFor(session, textOf(message)), mode: 'ai' }, usage };
+        const { scorecard, inventedNumbers } = normalizeScorecardFor(session, textOf(message));
+        return { scorecard: { ...scorecard, mode: 'ai' }, usage, inventedNumbers };
       } catch (err) {
         if (!(err instanceof InvalidScorecardError)) throw err;
         this.log.warn({ operation: 'interview.invalid-scorecard', attempt, ...safeErrorDetails(err) });

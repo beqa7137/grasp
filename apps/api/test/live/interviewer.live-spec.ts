@@ -54,7 +54,7 @@ describe.runIf(apiKey)(`AI interviewer live eval (${model})`, () => {
   it.each(SCENARIOS)('$name', async (scenario) => {
     const result = await runScenario(scenario, interviewer, model);
     results.push(result);
-    expect(scenarioChecks(scenario, result).filter((c) => !c.pass)).toEqual([]);
+    expect(scenarioChecks(scenario, result).filter((c) => c.pass === false)).toEqual([]);
   });
 
   it('separates strong from weak candidates on each track', () => {

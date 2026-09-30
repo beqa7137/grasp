@@ -9,7 +9,7 @@ import { SPEND_LIMIT_REACHED, SpendGuard } from '../../src/interview/spend-guard
 import { MemorySpendStore } from '../../src/persistence/memory-spend.store.js';
 import { MemoryCoordinationStore } from '../../src/persistence/memory.stores.js';
 import { markdownReport, summarize, type ComparisonRun, type ModelRun } from './model-report.js';
-import { runScenario, scenarioChecks, separationChecks } from './run-scenario.js';
+import { reportsCacheReads, runScenario, scenarioChecks, separationChecks } from './run-scenario.js';
 import { SCENARIOS } from './scenarios.js';
 
 /**
@@ -131,7 +131,10 @@ async function compare(): Promise<ComparisonRun> {
       );
       if (run.stoppedForBudget || client.lastError instanceof Anthropic.PermissionDeniedError) break;
     }
-    modelRun.separation = separationChecks(modelRun.scenarios.flatMap((s) => (s.result ? [s.result] : [])));
+    const results = modelRun.scenarios.flatMap((s) => (s.result ? [s.result] : []));
+    const cacheReadsReported = reportsCacheReads(results);
+    for (const [i, s] of modelRun.scenarios.entries()) if (s.result) s.checks = scenarioChecks(SCENARIOS[i], s.result, cacheReadsReported);
+    modelRun.separation = separationChecks(results);
     if (run.stoppedForBudget) break;
   }
 

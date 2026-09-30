@@ -30,7 +30,10 @@ export interface ComparisonRun {
 export interface ModelSummary {
   model: string;
   passed: number;
+  /** Checks that could be judged: one the provider gave no data for counts neither way. */
   checks: number;
+  /** Summed over its AI-scored behavioral scenarios; null when there were none. */
+  inventedNumbers: number | null;
   meanCostUsd: number | null;
   meanBilledUsd: number | null;
   p50FirstTokenMs: number | null;
@@ -52,10 +55,12 @@ export function summarize(run: ModelRun): ModelSummary {
   const checks = [...run.scenarios.flatMap((s) => s.checks), ...run.separation];
   const results = run.scenarios.flatMap((s) => (s.result ? [s.result] : []));
   const replies = results.flatMap((r) => r.replies);
+  const invented = known(results.map((r) => r.inventedNumbers));
   return {
     model: run.model,
-    passed: checks.filter((c) => c.pass).length,
-    checks: checks.length,
+    passed: checks.filter((c) => c.pass === true).length,
+    checks: checks.filter((c) => c.pass !== null).length,
+    inventedNumbers: invented.length ? invented.reduce((sum, n) => sum + n, 0) : null,
     meanCostUsd: mean(known(results.map((r) => r.usage.costUsd))),
     meanBilledUsd: mean(known(run.scenarios.filter((s) => s.result).map((s) => s.billedCostUsd))),
     p50FirstTokenMs: median(replies.map((r) => r.firstTokenMs).filter((ms) => ms >= 0)),
@@ -72,19 +77,28 @@ const table = (header: string[], rows: string[][]) => [row(header), `| ${header.
 
 function checkCell(checks: Check[]): string {
   if (!checks.length) return '-';
-  const failed = checks.filter((c) => !c.pass).map((c) => c.name);
-  return `${checks.length - failed.length}/${checks.length}${failed.length ? ` (failed: ${failed.join(', ')})` : ''}`;
+  const names = (pass: boolean | null) => checks.filter((c) => c.pass === pass).map((c) => c.name);
+  const [failed, notReported] = [names(false), names(null)];
+  const notes = [
+    ...(failed.length ? [`failed: ${failed.join(', ')}`] : []),
+    ...(notReported.length ? [`not reported: ${notReported.join(', ')}`] : []),
+  ];
+  const judged = checks.length - notReported.length;
+  return `${judged - failed.length}/${judged}${notes.length ? ` (${notes.join('; ')})` : ''}`;
 }
+
+const count = (value: number | null | undefined) => (typeof value === 'number' ? String(value) : '-');
 
 function scenarioRow(model: string, run: ScenarioRun): string[] {
   const r = run.result;
-  if (!r) return [model, '-', '-', checkCell(run.checks), '-', '-', '-', '-', '-', `Error: ${run.error ?? 'unknown'}`];
+  if (!r) return [model, '-', '-', checkCell(run.checks), '-', '-', '-', '-', '-', '-', `Error: ${run.error ?? 'unknown'}`];
   const u = r.usage;
   return [
     model,
     `${r.scorecard.verdict} (${r.scorecard.mode})`,
     r.average.toFixed(1),
     checkCell(run.checks),
+    count(r.inventedNumbers),
     `${u.inputTokens} / ${u.cacheReadTokens} / ${u.outputTokens}`,
     usd(u.costUsd),
     usd(run.billedCostUsd),
@@ -102,6 +116,7 @@ export function markdownReport(run: ComparisonRun): string {
       'Scoring',
       'Effort (reply / score)',
       'Pass rate',
+      'Invented numbers',
       'Mean cost / session',
       'Mean billed / session',
       'p50 first token',
@@ -115,6 +130,7 @@ export function markdownReport(run: ComparisonRun): string {
         m.error ? `Error: ${m.error}` : (m.scoreFormat ?? '-'),
         m.effort ? `${m.effort.reply ?? 'default'} / ${m.effort.score ?? 'default'}` : '-',
         s.checks ? `${Math.round((s.passed / s.checks) * 100)}% (${s.passed}/${s.checks})` : 'n/a',
+        count(s.inventedNumbers),
         usd(s.meanCostUsd),
         usd(s.meanBilledUsd),
         ms(s.p50FirstTokenMs),
@@ -129,7 +145,19 @@ export function markdownReport(run: ComparisonRun): string {
     `## ${name}`,
     '',
     ...table(
-      ['Model', 'Verdict', 'Avg', 'Checks', 'Tokens in / cache read / out', 'Cost', 'Billed', 'p50 first token', 'Score time', 'Notes'],
+      [
+        'Model',
+        'Verdict',
+        'Avg',
+        'Checks',
+        'Invented numbers',
+        'Tokens in / cache read / out',
+        'Cost',
+        'Billed',
+        'p50 first token',
+        'Score time',
+        'Notes',
+      ],
       run.models.flatMap((m) => m.scenarios.filter((s) => s.scenario === name).map((s) => scenarioRow(m.model, s))),
     ),
   ]);
@@ -141,6 +169,8 @@ export function markdownReport(run: ComparisonRun): string {
     ...(run.stoppedForBudget ? ['', 'Stopped early: the next call could have passed the budget, so later scenarios did not run.'] : []),
     '',
     'Cost is computed from the gateway catalog prices and the reported tokens; Billed is what the gateway reported charging, when it did.',
+    '',
+    'Invented numbers counts the numbers a behavioral scorecard put in a fix, improvement or summary that the candidate never said (each shown to the learner as [number]). A check is not reported, and counts neither way, when the gateway reported no cache reads for any of the model’s calls.',
     '',
     '## Summary',
     '',

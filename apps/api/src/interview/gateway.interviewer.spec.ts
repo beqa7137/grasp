@@ -318,7 +318,7 @@ describe('GatewayInterviewer on the behavioral track', () => {
       dimensions: RUBRICS.behavioral.map((r) => ({ name: r.name, score: 2, evidence: 'Seen.' })),
       flaws: [
         { id: 'we-not-i', quote: 'I capped the retries', fix: 'I capped [number] retries myself.' },
-        { id: 'blame', quote: 'Payments broke it.', fix: 'The client had no owner, so I took it on.' },
+        { id: 'blame', quote: 'Payments broke it.', fix: 'The client had no owner, so I took it on for 3 weeks.' },
       ],
       strengths: ['Named the fix'],
       improvements: ['Say what you set aside'],
@@ -326,7 +326,7 @@ describe('GatewayInterviewer on the behavioral track', () => {
     };
     const { interviewer, requests } = setup(() => ({ json: completion(JSON.stringify(card), usage) }));
     const s = behavioralSession(STRONG_STAR, ['I told the payments lead before I started, and they agreed.']);
-    const { scorecard } = await interviewer.score(s);
+    const { scorecard, inventedNumbers } = await interviewer.score(s);
 
     const body = requests[0].body;
     expect(body['messages']).toEqual([
@@ -337,8 +337,9 @@ describe('GatewayInterviewer on the behavioral track', () => {
     expect(scorecard).toMatchObject({ mode: 'ai', verdict: 'lean-hire', weakPatterns: [], weakCompetencies: ['ownership'] });
     expect(scorecard.flaws).toEqual([
       { ...card.flaws[0], quote: 'I capped the retries' },
-      { ...card.flaws[1], quote: null },
+      { ...card.flaws[1], quote: null, fix: 'The client had no owner, so I took it on for [number] weeks.' },
     ]);
+    expect(inventedNumbers).toBe(1);
   });
 
   it('puts the behavioral schema in the prompt for a model without response_format', async () => {
