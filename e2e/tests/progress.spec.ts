@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Page, Request } from '@playwright/test';
 import { diagnosticItems } from '@grasp/engine';
-import { expect, expectUnmoved, readOnly, test, viewportTop } from './fixtures';
+import { expect, expectUnmoved, readOnly, recordedEvents, test, viewportTop } from './fixtures';
 
 type ProgressEvent = { id: string; at: string; type: string; [key: string]: unknown };
 
@@ -252,5 +252,29 @@ test.describe('progress sync retention', () => {
         expect((await serverEvents(page, learnerId)).map((stored) => stored.id)).toEqual([event.id]);
       });
     }
+  });
+});
+
+test.describe('reconnecting', () => {
+  test.use({ expectedConsoleErrors: [/ERR_INTERNET_DISCONNECTED|Failed to load resource|WebKit encountered an internal error/] });
+
+  test('an answer given offline reaches the server as soon as the device is back online, with nothing else to prompt it', async ({
+    page,
+    context,
+  }) => {
+    test.skip(readOnly, 'It writes progress.');
+    await page.goto('/drill', { waitUntil: 'networkidle' });
+    await context.setOffline(true);
+    await page.locator('g-question-card .choice').first().click();
+    await page.getByRole('button', { name: /^(Got it|Continue)/ }).click();
+    await expect.poll(async () => (await recordedEvents(page)).some((event) => event.type === 'review.graded')).toBe(true);
+    // The upload runs 1.5 s after an answer; waiting past it lets that offline attempt fail, so only reconnecting can send it.
+    await page.waitForTimeout(2_000);
+
+    const uploaded = page.waitForRequest(
+      (request) => isUpload(request) && JSON.stringify(request.postDataJSON()).includes('review.graded'),
+    );
+    await context.setOffline(false);
+    await uploaded;
   });
 });

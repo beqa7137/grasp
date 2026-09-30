@@ -26,6 +26,8 @@ import { packProgressEvents, readProgressAcknowledgement } from './progress-uplo
 const EVENTS_KEY = 'grasp.events';
 const ACKNOWLEDGED_KEY = 'grasp.acknowledged.v1';
 const LEGACY_SYNCED_KEY = 'grasp.synced';
+/** A device brought back into view syncs at most this often, so switching tabs does not pull on every switch. */
+const VISIBLE_RESYNC_GAP_MS = 30_000;
 const CLOCK_TICK_MS = 60_000;
 const PROGRESS_PULL_TIMEOUT_MS = 20_000;
 
@@ -74,6 +76,8 @@ export class ProgressService {
   private storageWrites: Promise<void> = Promise.resolve();
   private initializing: Promise<void> | undefined;
   private destroyed = false;
+  /** Set once the stored log has been read, so a wake-up sync never races the first read. */
+  private loaded = false;
 
   /** Wall clock as a signal, so due counts and recall estimates refresh while the app stays open. */
   readonly now = signal(new Date());
@@ -91,14 +95,24 @@ export class ProgressService {
 
   constructor() {
     const tick = setInterval(() => this.now.set(new Date()), CLOCK_TICK_MS);
-    const onVisible = () => document.visibilityState === 'visible' && this.now.set(new Date());
+    let lastVisibleResync = 0;
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      this.now.set(new Date());
+      if (!this.loaded || Date.now() - lastVisibleResync < VISIBLE_RESYNC_GAP_MS) return;
+      lastVisibleResync = Date.now();
+      void this.resync();
+    };
+    const onOnline = () => this.loaded && void this.resync();
     document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('online', onOnline);
     inject(DestroyRef).onDestroy(() => {
       this.destroyed = true;
       this.initializing = undefined;
       this.invalidateSync();
       clearInterval(tick);
       document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('online', onOnline);
     });
   }
 
@@ -118,7 +132,10 @@ export class ProgressService {
       .finally(() => {
         if (this.initializing !== initializing) return;
         this.initializing = undefined;
-        if (loaded && generation === this.generation) void this.resync();
+        if (loaded && generation === this.generation) {
+          this.loaded = true;
+          void this.resync();
+        }
       });
     this.initializing = initializing;
     return initializing;

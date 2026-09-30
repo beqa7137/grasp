@@ -77,6 +77,33 @@ describe('ProgressService sync', () => {
     vi.useRealTimers();
   });
 
+  it('pulls again when the device comes back online, and when it comes back into view at most every 30 s', async () => {
+    const { progress, api } = setup();
+    window.dispatchEvent(new Event('online'));
+    expect(api.get).not.toHaveBeenCalled();
+    await progress.init();
+    await vi.waitFor(() => expect(progress.syncStatus()).not.toBe('syncing'));
+    expect(api.get).toHaveBeenCalledTimes(1);
+
+    window.dispatchEvent(new Event('online'));
+    await vi.waitFor(() => expect(api.get).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(progress.syncStatus()).not.toBe('syncing'));
+
+    const visible = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+    document.dispatchEvent(new Event('visibilitychange'));
+    await vi.waitFor(() => expect(api.get).toHaveBeenCalledTimes(3));
+    await vi.waitFor(() => expect(progress.syncStatus()).not.toBe('syncing'));
+    document.dispatchEvent(new Event('visibilitychange'));
+    await Promise.resolve();
+    expect(api.get).toHaveBeenCalledTimes(3);
+    const later = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 30_000);
+    document.dispatchEvent(new Event('visibilitychange'));
+    await vi.waitFor(() => expect(api.get).toHaveBeenCalledTimes(4));
+    await vi.waitFor(() => expect(progress.syncStatus()).not.toBe('syncing'));
+    later.mockRestore();
+    visible.mockRestore();
+  });
+
   it('keeps a failed pull visible and clears the failure after a successful retry', async () => {
     let available = false;
     const api = {
