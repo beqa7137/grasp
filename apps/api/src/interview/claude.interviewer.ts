@@ -7,6 +7,8 @@ import type { InterviewSession, TokenUsage } from './interview.types.js';
 import { meteredRequest } from './metered-request.js';
 import { OfflineInterviewer } from './offline.interviewer.js';
 import { inputTokenBound, maximumCostUsd, messageUsage, priceFor } from './pricing.js';
+import { behavioralInterviewerPrompt, behavioralScorerPrompt, behavioralTranscript, behavioralTurn } from './behavioral.prompts.js';
+import { behavioralScorecardJsonSchema, normalizeBehavioralScorecard } from './behavioral.scorecard.js';
 import { candidateTurn, interviewerSystemPrompt, scorerSystemPrompt, transcriptText } from './prompts.js';
 import { InvalidScorecardError, normalizeScorecard, scorecardJsonSchema } from './scorecard.schema.js';
 import type { SpendGuard } from './spend-guard.js';
@@ -56,7 +58,7 @@ export class ClaudeInterviewer extends Interviewer {
       const params: Anthropic.MessageCreateParams = {
         model: this.model.model,
         max_tokens: this.replyMaxTokens,
-        system: interviewerSystemPrompt(session),
+        system: systemPromptFor(session),
         messages: toClaudeMessages(session),
         cache_control: { type: 'ephemeral', ttl: '5m' },
         service_tier: 'standard_only',
@@ -98,12 +100,12 @@ export class ClaudeInterviewer extends Interviewer {
         const params: Anthropic.MessageCreateParamsNonStreaming = {
           model: this.model.model,
           max_tokens: this.scoreMaxTokens,
-          system: scorerSystemPrompt(session),
-          messages: [{ role: 'user', content: `Score this interview.\n\n<transcript>\n${transcriptText(session)}\n</transcript>` }],
+          system: scorerPromptFor(session),
+          messages: [{ role: 'user', content: `Score this interview.\n\n<transcript>\n${transcriptFor(session)}\n</transcript>` }],
           service_tier: 'standard_only',
           output_config: {
             ...(this.model.supportsEffort ? { effort: 'medium' } : {}),
-            format: { type: 'json_schema', schema: scorecardJsonSchema(session.track) },
+            format: { type: 'json_schema', schema: scorecardJsonSchemaFor(session) },
           },
         };
         message = await meteredRequest({
@@ -119,7 +121,7 @@ export class ClaudeInterviewer extends Interviewer {
       usage.push(messageUsage(this.model.model, this.scoreMaxTokens, false, message));
       try {
         if (message.stop_reason !== 'end_turn') throw new InvalidScorecardError(`Scorer stopped with ${message.stop_reason}`);
-        return { scorecard: { ...normalizeScorecard(session.track, textOf(message)), mode: 'ai' }, usage };
+        return { scorecard: { ...normalizeScorecardFor(session, textOf(message)), mode: 'ai' }, usage };
       } catch (err) {
         if (!(err instanceof InvalidScorecardError)) throw err;
         this.log.warn({ operation: 'interview.invalid-scorecard', attempt, ...safeErrorDetails(err) });
@@ -128,6 +130,14 @@ export class ClaudeInterviewer extends Interviewer {
     return { scorecard: this.offline.scorecard(session, FALLBACK_SCORE_SUMMARY), usage };
   }
 }
+
+const behavioral = (session: InterviewSession) => session.track === 'behavioral';
+const systemPromptFor = (s: InterviewSession) => (behavioral(s) ? behavioralInterviewerPrompt(s) : interviewerSystemPrompt(s));
+const scorerPromptFor = (s: InterviewSession) => (behavioral(s) ? behavioralScorerPrompt(s) : scorerSystemPrompt(s));
+const transcriptFor = (s: InterviewSession) => (behavioral(s) ? behavioralTranscript(s) : transcriptText(s));
+const scorecardJsonSchemaFor = (s: InterviewSession) => (behavioral(s) ? behavioralScorecardJsonSchema() : scorecardJsonSchema(s.track));
+const normalizeScorecardFor = (s: InterviewSession, json: string) =>
+  behavioral(s) ? normalizeBehavioralScorecard(s, json) : normalizeScorecard(s.track, json);
 
 function textOf(message: Anthropic.Message): string {
   return message.content
@@ -145,7 +155,7 @@ export function toClaudeMessages(session: InterviewSession): Anthropic.MessagePa
   const out: { role: 'user' | 'assistant'; content: string }[] = [{ role: 'user', content: '(The candidate joins the call.)' }];
   for (const m of session.messages) {
     const role = m.role === 'interviewer' ? 'assistant' : 'user';
-    const content = m.role === 'interviewer' ? m.content : candidateTurn(m);
+    const content = m.role === 'interviewer' ? m.content : behavioral(session) ? behavioralTurn(m) : candidateTurn(m);
     const last = out[out.length - 1];
     if (last.role === role) last.content = `${last.content}\n\n${content}`;
     else out.push({ role, content });

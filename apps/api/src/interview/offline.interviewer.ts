@@ -1,6 +1,8 @@
 import { Interviewer, type ReplyResult, type ScoreResult } from './interviewer.js';
-import type { InterviewSession, Scorecard, Verdict } from './interview.types.js';
+import type { InterviewSession, Scorecard } from './interview.types.js';
+import { behavioralReply, behavioralScorecard } from './offline.behavioral.js';
 import { RUBRICS } from './prompts.js';
+import { verdictForAverage } from './scorecard.schema.js';
 
 interface Stage {
   ask: string;
@@ -73,7 +75,9 @@ export class OfflineInterviewer extends Interviewer {
   async reply(session: InterviewSession, onDelta: (text: string) => void, signal: AbortSignal): Promise<ReplyResult> {
     const last = session.messages[session.messages.length - 1];
     let text: string;
-    if (last?.code && !last.hint) {
+    if (session.track === 'behavioral') {
+      text = behavioralReply(session);
+    } else if (last?.code && !last.hint) {
       const lines = last.code.source.split('\n').filter((l) => l.trim()).length;
       text = `Thanks, I see ${lines} line${lines === 1 ? '' : 's'} of ${last.code.language}. Walk me through it on the first example: what do your variables hold after each step, and what is the time and space complexity?`;
     } else if (last?.hint) {
@@ -109,6 +113,7 @@ export class OfflineInterviewer extends Interviewer {
   }
 
   scorecard(session: InterviewSession, summary = OFFLINE_SUMMARY): Scorecard {
+    if (session.track === 'behavioral') return behavioralScorecard(session, summary);
     const said = session.messages
       .filter((m) => m.role === 'candidate' && !m.hint)
       .map((m) => m.content)
@@ -129,11 +134,8 @@ export class OfflineInterviewer extends Interviewer {
       return { name: r.name, score, evidence: signals[i] ? 'Addressed in your answers.' : 'Little or no evidence in the transcript.' };
     });
     const avg = dimensions.reduce((s, d) => s + d.score, 0) / dimensions.length;
-    const verdict: Verdict =
-      avg >= 3.5 ? 'strong-hire' : avg >= 3 ? 'hire' : avg >= 2.6 ? 'lean-hire' : avg >= 2 ? 'lean-no-hire' : 'no-hire';
-
     return {
-      verdict,
+      verdict: verdictForAverage(avg),
       summary,
       dimensions,
       strengths: dimensions.filter((d) => d.score >= 3).map((d) => d.name),

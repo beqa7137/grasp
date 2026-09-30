@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   HttpException,
@@ -9,6 +10,7 @@ import {
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { COMPETENCY_CATALOG, type Seniority, type StarDraft } from '@grasp/engine';
 import { randomUUID } from 'node:crypto';
 import { tokenInvalid } from '../auth/auth-errors.js';
 import type { AccessClaims } from '../auth/tokens.js';
@@ -16,10 +18,12 @@ import { APP_CONFIG, type AppConfig } from '../config.js';
 import { safeErrorDetails } from '../observability/safe-error.js';
 import { ErasureStore } from '../persistence/erasure.stores.js';
 import { AuthStore, CoordinationStore, InterviewStore } from '../persistence/stores.js';
+import { BEHAVIORAL_CLOSING, BEHAVIORAL_FOLLOW_UPS, starText } from './behavioral.prompts.js';
 import { Interviewer } from './interviewer.js';
 import type {
   AiAccess,
   CodeSnapshot,
+  InterviewMessage,
   InterviewMode,
   InterviewSession,
   InterviewTrack,
@@ -37,7 +41,14 @@ const HOUR_MS = 3_600_000;
  */
 const SESSION_LEASE_MS = 15 * 60_000;
 
-const MAX_CANDIDATE_TURNS = 30;
+const MAX_CANDIDATE_TURNS: Record<InterviewTrack, number> = { coding: 30, 'system-design': 30, behavioral: BEHAVIORAL_FOLLOW_UPS + 1 };
+
+interface CandidateInput {
+  content: string;
+  hint: boolean;
+  code?: CodeSnapshot;
+  star?: StarDraft;
+}
 
 @Injectable()
 export class InterviewService {
@@ -59,7 +70,10 @@ export class InterviewService {
   }
 
   catalog() {
-    return PROBLEMS.map(({ id, track, title, patternIds }) => ({ id, track, title, patternIds }));
+    return [
+      ...PROBLEMS.map(({ id, track, title, patternIds }) => ({ id, track, title, patternIds })),
+      ...COMPETENCY_CATALOG.map(({ id, name }) => ({ id, track: 'behavioral' as const, title: name, patternIds: [], competencyId: id })),
+    ];
   }
 
   async start(
@@ -68,6 +82,7 @@ export class InterviewService {
     problemId?: string,
     mode: InterviewMode = 'offline',
     claims?: AccessClaims,
+    level?: Seniority,
   ): Promise<PublicInterviewSession> {
     const problem = pickProblem(track, problemId);
     if (!problem) throw new NotFoundException('Unknown problem for this track');
@@ -83,6 +98,7 @@ export class InterviewService {
       status: 'active',
       createdAt: now,
       mode,
+      ...(track === 'behavioral' ? { level: level ?? 'mid' } : {}),
     };
     await this.store.save(session);
     return this.toPublic(session, claims?.userId);
@@ -111,7 +127,7 @@ export class InterviewService {
   async respond(
     learnerId: string,
     id: string,
-    input: { content: string; hint: boolean; code?: CodeSnapshot },
+    input: CandidateInput,
     onDelta: (text: string) => void,
     signal: AbortSignal,
     claims?: AccessClaims,
@@ -119,20 +135,16 @@ export class InterviewService {
     return this.exclusive(id, async () => {
       const session = await this.load(learnerId, id);
       if (session.status !== 'active') throw new ConflictException('Interview already scored');
-      if (session.messages.filter((m) => m.role === 'candidate').length >= MAX_CANDIDATE_TURNS) {
+      const turns = session.messages.filter((m) => m.role === 'candidate').length;
+      if (turns >= MAX_CANDIDATE_TURNS[session.track]) {
         throw new ConflictException('Turn limit reached: end the interview to get your scorecard');
       }
+      const turn = candidateMessage(session, turns, input);
+      if (session.track === 'behavioral' && turns === BEHAVIORAL_FOLLOW_UPS) return this.close(session, turn, onDelta);
+
       const interviewer = await this.interviewerFor(session.mode ?? 'offline', claims);
       await this.consumeQuota(learnerId);
-
-      const code = input.code?.source.trim() ? { language: input.code.language, source: input.code.source.replace(/\s+$/, '') } : undefined;
-      session.messages.push({
-        role: 'candidate',
-        content: input.content.trim() || (input.hint ? 'Could I get a hint?' : 'Here is my code.'),
-        at: new Date().toISOString(),
-        ...(input.hint ? { hint: true } : {}),
-        ...(code ? { code } : {}),
-      });
+      session.messages.push(turn);
       if (input.hint) session.hintsUsed += 1;
 
       const reply = await interviewer.reply(session, onDelta, signal);
@@ -143,6 +155,16 @@ export class InterviewService {
       await this.store.save(session);
       return message;
     });
+  }
+
+  /** The answer to the last behavioral follow-up gets the fixed closing: no model call, quota or paid reservation. */
+  private async close(session: InterviewSession, turn: InterviewMessage, onDelta: (text: string) => void) {
+    onDelta(BEHAVIORAL_CLOSING);
+    await this.erasure.assertActive(session.learnerId);
+    const message = { role: 'interviewer' as const, content: BEHAVIORAL_CLOSING, at: new Date().toISOString() };
+    session.messages.push(turn, message);
+    await this.store.save(session);
+    return message;
   }
 
   async score(learnerId: string, id: string, claims?: AccessClaims): Promise<PublicInterviewSession> {
@@ -219,9 +241,39 @@ export class InterviewService {
     const { learnerId: _l, usage: _u, problem, ...rest } = s;
     return {
       ...rest,
-      problem: { id: problem.id, title: problem.title, track: problem.track, patternIds: problem.patternIds },
+      problem: {
+        id: problem.id,
+        title: problem.title,
+        track: problem.track,
+        patternIds: problem.patternIds,
+        ...(problem.competencyId ? { competencyId: problem.competencyId } : {}),
+      },
       mode: s.mode ?? s.scorecard?.mode ?? 'offline',
       aiAccess: this.aiAccess(userId ?? null),
     };
   }
+}
+
+/** A behavioral interview opens with one STAR answer and continues in plain follow-up answers, without hints or code. */
+function candidateMessage(session: InterviewSession, turns: number, input: CandidateInput): InterviewMessage {
+  const at = new Date().toISOString();
+  if (session.track !== 'behavioral') {
+    if (input.star) throw new BadRequestException('Only a behavioral interview takes a STAR answer');
+    const code = input.code?.source.trim() ? { language: input.code.language, source: input.code.source.replace(/\s+$/, '') } : undefined;
+    return {
+      role: 'candidate',
+      content: input.content.trim() || (input.hint ? 'Could I get a hint?' : 'Here is my code.'),
+      at,
+      ...(input.hint ? { hint: true } : {}),
+      ...(code ? { code } : {}),
+    };
+  }
+  if (input.hint || input.code) throw new BadRequestException('A behavioral interview has no hints or code');
+  if (turns === 0) {
+    if (!input.star) throw new BadRequestException('Open a behavioral interview with your STAR answer');
+    return { role: 'candidate', content: starText(input.star), at, star: input.star };
+  }
+  if (input.star) throw new BadRequestException('Answer the follow-up in plain text; the STAR answer comes first');
+  if (!input.content.trim()) throw new BadRequestException('Message cannot be empty');
+  return { role: 'candidate', content: input.content.trim(), at };
 }
