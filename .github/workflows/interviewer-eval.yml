@@ -1,14 +1,15 @@
 name: Interviewer eval
 
-# Runs the live AI interviewer eval against the real model: scripted strong and weak candidates on both
-# tracks, verdicts, score separation, caching, cost and latency. Run it before changing prompts, the
-# model or effort. Four short interviews: well under a dollar. See docs/AI_INTERVIEWER.md.
+# Runs the live AI interviewer eval against the production model through the AI Gateway: scripted strong
+# and weak candidates on every track, verdicts, score separation, caching, cost and latency. Run it before
+# changing prompts, the model or effort. Needs the AI_GATEWAY_API_KEY secret. Well under a dollar.
+# See docs/AI_INTERVIEWER.md.
 on:
   workflow_dispatch:
     inputs:
       model:
-        description: Anthropic model id
-        default: claude-sonnet-5
+        description: AI Gateway model id
+        default: openai/gpt-6-luna
 
 permissions:
   contents: read
@@ -34,8 +35,8 @@ jobs:
 
       - name: Run the eval
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          ANTHROPIC_MODEL: ${{ inputs.model }}
+          AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
+          INTERVIEW_AI_MODEL: ${{ inputs.model }}
         run: npm run eval:interviewer
 
       - name: Upload transcripts and scorecards

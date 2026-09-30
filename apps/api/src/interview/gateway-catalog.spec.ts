@@ -37,6 +37,14 @@ describe('parseGatewayCatalog', () => {
     });
   });
 
+  it('leaves out a model priced at zero, which could not bound spend', () => {
+    const luna = CATALOG.data.find((m) => m.id === 'openai/gpt-6-luna')!;
+    const free = (pricing: object) => parseGatewayCatalog({ data: [{ ...luna, pricing }] }).size;
+    expect(free({ input: '0', output: '0.0000005' })).toBe(0);
+    expect(free({ input: '0.0000001', output: '0' })).toBe(0);
+    expect(free({ input: '0.0000001', output: '0.0000005' })).toBe(1);
+  });
+
   it('rejects a catalog without a data list', () => {
     expect(() => parseGatewayCatalog({ models: [] })).toThrow();
   });

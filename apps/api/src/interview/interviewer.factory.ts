@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { Logger } from '@nestjs/common';
-import { getVercelOidcTokenSync } from '@vercel/oidc';
+import { getVercelOidcToken } from '@vercel/oidc';
 import type { AppConfig } from '../config.js';
 import { ClaudeInterviewer } from './claude.interviewer.js';
 import { GatewayClient } from './gateway-client.js';
@@ -38,11 +38,19 @@ export async function createInterviewer(config: AppConfig, spend: SpendGuard, fe
   }
   if (loaded.source === 'built-in') log.warn(`The AI Gateway catalog is unreachable; ${choice.model} uses its built-in prices.`);
   const apiKey = config.aiGatewayApiKey;
-  const client = new GatewayClient(apiKey ? () => apiKey : getVercelOidcTokenSync, fetchFn);
+  const client = new GatewayClient(apiKey ? () => apiKey : () => getVercelOidcToken(), fetchFn);
+  let interviewer: GatewayInterviewer;
+  try {
+    interviewer = new GatewayInterviewer(client, loaded.model, spend, {
+      timeoutMs: config.anthropicTimeoutMs,
+      maxRetries: config.anthropicMaxRetries,
+      ...deadlines,
+    });
+  } catch (err) {
+    if (!(err instanceof RangeError)) throw err;
+    log.error(`${choice.model} cannot bound its requests (${err.message}) Using the offline scripted interviewer.`);
+    return new OfflineInterviewer();
+  }
   log.log(`Interviewer: ${choice.model} through the Vercel AI Gateway (${choice.credential}).`);
-  return new GatewayInterviewer(client, loaded.model, spend, {
-    timeoutMs: config.anthropicTimeoutMs,
-    maxRetries: config.anthropicMaxRetries,
-    ...deadlines,
-  });
+  return interviewer;
 }

@@ -74,13 +74,13 @@ function ceiling(p: z.infer<typeof catalogModel>['pricing']): TokenRates {
   };
 }
 
-/** Entries without per-token text pricing (image, embedding and video models) are left out. */
+/** Entries without per-token text pricing (image, embedding and video models), or priced at zero, which bounds nothing, are left out. */
 export function parseGatewayCatalog(json: unknown): Map<string, GatewayModel> {
   const data = z.object({ data: z.array(z.unknown()) }).parse(json).data;
   const models = new Map<string, GatewayModel>();
   for (const entry of data) {
     const parsed = catalogModel.safeParse(entry);
-    if (!parsed.success) continue;
+    if (!parsed.success || !(Number(parsed.data.pricing.input) > 0 && Number(parsed.data.pricing.output) > 0)) continue;
     const m = parsed.data;
     models.set(m.id, {
       id: m.id,

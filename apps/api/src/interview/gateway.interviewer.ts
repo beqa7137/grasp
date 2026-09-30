@@ -57,6 +57,8 @@ export class GatewayInterviewer extends Interviewer {
   private readonly scoreMaxTokens: number;
   private readonly replyDeadlineMs: number;
   private readonly scoreDeadlineMs: number;
+  /** The disclosure names OpenAI, so an OpenAI model is never served by another host the gateway routes to. */
+  private readonly pinned: { only?: string[] };
 
   constructor(
     private readonly client: GatewayClient,
@@ -72,6 +74,7 @@ export class GatewayInterviewer extends Interviewer {
     this.scoreMaxTokens = options.scoreMaxTokens ?? 16_000;
     this.replyDeadlineMs = options.replyDeadlineMs ?? 90_000;
     this.scoreDeadlineMs = options.scoreDeadlineMs ?? 180_000;
+    this.pinned = model.id.startsWith('openai/') ? { only: ['openai'] } : {};
     maximumGatewayCostUsd(model, this.replyMaxTokens, 0);
     maximumGatewayCostUsd(model, this.scoreMaxTokens, 0);
   }
@@ -82,7 +85,7 @@ export class GatewayInterviewer extends Interviewer {
       max_tokens: this.replyMaxTokens,
       messages: [{ role: 'system', content: systemPromptFor(session) }, ...toClaudeMessages(session)],
       ...(this.replyEffort ? { reasoning: { effort: this.replyEffort } } : {}),
-      providerOptions: { gateway: { caching: 'auto' } },
+      providerOptions: { gateway: { caching: 'auto', ...this.pinned } },
     };
     const deadline = deadlineAfter(this.replyDeadlineMs);
     const signal = AbortSignal.any([disconnected, deadline.signal]);
@@ -129,6 +132,7 @@ export class GatewayInterviewer extends Interviewer {
       ...(this.scoreFormat === 'json_schema'
         ? { response_format: { type: 'json_schema', json_schema: { name: 'scorecard', strict: true, schema } } }
         : {}),
+      ...(this.pinned.only ? { providerOptions: { gateway: this.pinned } } : {}),
     };
     const usage: TokenUsage[] = [];
     for (let attempt = 1; attempt <= SCORE_ATTEMPTS; attempt++) {

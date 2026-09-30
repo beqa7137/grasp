@@ -3,6 +3,8 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Interviewer } from '../src/interview/interviewer.js';
 import { createTestApp } from './support/app.js';
 
+const PINNED = { INTERVIEW_AI_PROVIDER: 'anthropic', ANTHROPIC_API_KEY: 'test-only-no-provider-request' };
+
 describe('paid interviewer configuration', () => {
   let app: NestExpressApplication | undefined;
 
@@ -20,7 +22,7 @@ describe('paid interviewer configuration', () => {
 
   it('starts with a verified model and the official endpoint without making a paid request', async () => {
     vi.stubEnv('ANTHROPIC_BASE_URL', 'https://api.anthropic.com/');
-    app = await createTestApp({ ANTHROPIC_API_KEY: 'test-only-no-provider-request', ANTHROPIC_MODEL: 'claude-haiku-4-5' });
+    app = await createTestApp({ ...PINNED, ANTHROPIC_MODEL: 'claude-haiku-4-5' });
     expect(app.get(Interviewer).mode).toBe('ai');
   });
 
@@ -31,9 +33,15 @@ describe('paid interviewer configuration', () => {
   ])('falls back to offline practice and logs when %s could change billing', async (key, value, message) => {
     const error = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
     vi.stubEnv(key, value);
-    app = await createTestApp({ ANTHROPIC_API_KEY: 'test-only-no-provider-request', [key]: value });
+    app = await createTestApp({ ...PINNED, [key]: value });
     expect(app.get(Interviewer).mode).toBe('offline');
     expect(error).toHaveBeenCalledWith(expect.stringContaining(message));
+  });
+
+  it('never runs Claude on an Anthropic key alone: the gateway is the only default', async () => {
+    vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    app = await createTestApp({ ANTHROPIC_API_KEY: 'test-only-no-provider-request' });
+    expect(app.get(Interviewer).mode).toBe('offline');
   });
 
   it('keeps offline practice available without paid provider configuration', async () => {
