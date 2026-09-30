@@ -29,7 +29,7 @@ function runSolution(py: PyodideAPI, request: Extract<WorkerRequest, { kind: 'ru
         post({ kind: 'compile-error', error: { message: `Define a function named ${request.entry}.` } });
         return;
       }
-      py.runPython(pythonHarness(request.entry, request.params), { globals: namespace, filename: 'harness.py' });
+      py.runPython(pythonHarness(request.entry, request.params, request.returns), { globals: namespace, filename: 'harness.py' });
     } catch (e) {
       if (isFatal(e)) throw e;
       post({ kind: 'compile-error', error: pythonError(e) });
@@ -88,7 +88,7 @@ function runJavaScript(request: Extract<WorkerRequest, { kind: 'run' }>) {
   }
   for (const [index, args] of request.tests.entries()) {
     post({ kind: 'test-start', index });
-    post({ kind: 'test-result', index, ...runJsTest(fn, request.params, args, sink) });
+    post({ kind: 'test-result', index, ...runJsTest(fn, request.params, request.returns, args, sink) });
   }
 }
 

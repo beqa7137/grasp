@@ -209,6 +209,8 @@ const reference: Record<string, (input: any) => unknown> = {
     }
     return false;
   },
+  'linked-list-reversal': ({ values, left, right }) =>
+    `[${[...values.slice(0, left - 1), ...values.slice(left - 1, right).reverse(), ...values.slice(right)].join(', ')}]`,
   // Tries every set of houses as a bitmask and keeps the richest one with no two neighbours.
   'house-robber': ({ nums }) => {
     const loot = (mask: number) => nums.reduce((sum: number, x: number, k: number) => ((mask >> k) & 1 ? sum + x : sum), 0);

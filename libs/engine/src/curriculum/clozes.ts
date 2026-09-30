@@ -72,6 +72,18 @@ export const CLOZES: Record<string, Cloze[]> = {
       why: 'Fast moves two steps and slow one: inside a cycle the gap closes by one each step, so they must meet.',
     },
   ],
+  'linked-list-reversal': [
+    {
+      line: 3,
+      distractors: ['prev.next = curr;', 'curr.next = next;', 'curr = prev;'],
+      why: 'Turn the current link around so it points back at the reversed part. `prev.next = curr` rewires the wrong node, and `curr.next = next` leaves the link as it was.',
+    },
+    {
+      line: 7,
+      distractors: ['return curr;', 'return head;', 'return prev.next;'],
+      why: 'The loop ends when curr is null, so prev is on the old last node: the new head. `head` is now the last node, pointing to null.',
+    },
+  ],
   intervals: [
     {
       line: 0,

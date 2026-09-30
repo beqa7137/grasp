@@ -154,6 +154,7 @@ export class RunnerService {
         code: normalize(code),
         entry,
         params: paramTypes(problem),
+        returns: problem.returns,
         tests: cases.map((c) => c.args),
         pyodideUrl: this.runtime.pyodideUrl(),
       };

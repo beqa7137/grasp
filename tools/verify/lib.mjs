@@ -160,7 +160,7 @@ const answerFirst = async (p, selector) => {
 
 /** Every page state the audits and screenshots cover: a path plus the steps that bring the page into that state. */
 export function states() {
-  const players = ['binary-search', 'lcs', 'dijkstra', 'two-sum-hash', 'subsets-backtracking'].flatMap((id) => [
+  const players = ['binary-search', 'lcs', 'dijkstra', 'two-sum-hash', 'subsets-backtracking', 'linked-list-reversal'].flatMap((id) => [
     { id: `player-${id}`, path: `/visualize/${id}` },
     { id: `player-${id}-predict`, path: `/visualize/${id}`, setup: async (p) => ((await toPredict(p)) ? settle(p, 500) : 'no predict') },
     {
@@ -174,11 +174,18 @@ export function states() {
     { id: 'visualize-list', path: '/visualize' },
     ...players,
     { id: 'player-subsets-backtracking-end', path: '/visualize/subsets-backtracking', setup: toEnd },
+    { id: 'player-linked-list-reversal-end', path: '/visualize/linked-list-reversal', setup: toEnd },
+    {
+      id: 'player-linked-list-reversal-whole',
+      path: `/visualize/linked-list-reversal?input=${encodeURIComponent(JSON.stringify({ values: [1, 2, 3, 4, 5], left: 1, right: 5 }))}`,
+      setup: toEnd,
+    },
     { id: 'review-question', path: '/drill' },
     { id: 'review-answered', path: '/drill', setup: (p) => answerFirst(p, 'g-question-card .choice') },
     { id: 'practice-question', path: '/drill?pattern=binary-search' },
     { id: 'practice-answered', path: '/drill?pattern=binary-search', setup: (p) => answerFirst(p, 'g-question-card .choice') },
     { id: 'pattern-binary-search', path: '/learn/pattern/binary-search' },
+    { id: 'pattern-linked-list-reversal', path: '/learn/pattern/linked-list-reversal' },
     { id: 'design-list', path: '/design' },
     { id: 'sandbox', path: '/design/first-scale-up' },
     { id: 'sandbox-inspector', path: '/design/first-scale-up', setup: (p) => answerFirst(p, '.palette .tool') },
@@ -531,6 +538,7 @@ export function states() {
     { id: 'settings', path: '/settings' },
     { id: 'code-list', path: '/code' },
     { id: 'code-two-sum', path: '/code/two-sum' },
+    { id: 'code-reverse-linked-list-ii', path: '/code/reverse-linked-list-ii' },
     {
       id: 'code-two-sum-run',
       path: '/code/two-sum',

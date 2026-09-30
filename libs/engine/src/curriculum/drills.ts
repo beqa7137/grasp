@@ -113,6 +113,22 @@ const CARDS: Record<DrillCardId, DrillCardDefinition> = {
     ['bit-manipulation', 'binary-search', 'hashing'],
   ),
 
+  lr1: card(
+    'A playlist is stored as a singly linked list of songs. Put the songs in the opposite order using O(1) extra memory.',
+    'Reverse a list in place → walk it once with prev, curr and next, turning each link around.',
+    ['monotonic-stack', 'fast-slow', 'heap'],
+  ),
+  lr2: card(
+    'Reverse a singly linked list of packets in consecutive groups of k, leaving a last group shorter than k as it is, with O(1) extra memory.',
+    'Reverse fixed-size groups of nodes → reverse each group in place, then link it to the group before and the nodes after.',
+    ['sliding-window', 'heap', 'two-pointers'],
+  ),
+  lr3: card(
+    'Decide whether a singly linked list of characters reads the same forwards and backwards, using O(1) extra memory.',
+    'A palindrome check on a list without copying it → find the middle, reverse the second half in place, compare the halves.',
+    ['hashing', 'monotonic-stack', 'dp-1d'],
+  ),
+
   iv1: card(
     'Given meeting times, what is the minimum number of rooms needed so no meetings clash?',
     'Overlapping time ranges → sort by start, track ends (sweep or min-heap).',

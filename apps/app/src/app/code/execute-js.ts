@@ -1,6 +1,6 @@
 import { parse } from 'acorn';
 import { transform } from 'sucrase';
-import { entryArgs, type Language, type ParamType } from '@grasp/engine';
+import { entryArgs, entryOutput, type Language, type ParamType } from '@grasp/engine';
 import { ENTER_HOOK, EXIT_HOOK, PAUSE_HOOK, RESUME_HOOK, TRACE_HOOK, instrument } from './instrument';
 import { MAX_LOG_LINES, type RunnerError, type TraceOutcome } from './protocol';
 import { TRACE_LIMIT, TraceRecorder } from './trace-recorder';
@@ -116,12 +116,18 @@ export function compileJs(code: string, language: Exclude<Language, 'python'>, e
   return load(toJavaScript(code, language), entry, sink);
 }
 
-export function runJsTest(fn: (...args: unknown[]) => unknown, params: readonly ParamType[], args: unknown[], sink: LogSink): TestOutcome {
+export function runJsTest(
+  fn: (...args: unknown[]) => unknown,
+  params: readonly ParamType[],
+  returns: ParamType,
+  args: unknown[],
+  sink: LogSink,
+): TestOutcome {
   sink.lines.length = 0;
   const input = entryArgs(params, args);
   const started = performance.now();
   try {
-    const output = plain(fn(...input));
+    const output = plain(entryOutput(returns, fn(...input)));
     return { ok: true, output, ms: performance.now() - started, logs: [...sink.lines] };
   } catch (e) {
     return { ok: false, error: describeError(e), ms: performance.now() - started, logs: [...sink.lines] };

@@ -154,6 +154,14 @@ const CATALOG = [
     complexity: { time: 'O(n)', space: 'O(1)' },
   },
   {
+    id: 'linked-list-reversal',
+    title: 'Reverse a Linked List',
+    difficulty: 'medium',
+    summary:
+      'Reverse the nodes from position left to right in one pass: save `curr.next`, point curr back at prev, move both on, then link the two loose ends. With left = 1 and right = n it reverses the whole list.',
+    complexity: { time: 'O(n)', space: 'O(1)' },
+  },
+  {
     id: 'house-robber',
     title: 'House Robber',
     difficulty: 'medium',

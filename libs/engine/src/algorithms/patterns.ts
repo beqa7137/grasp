@@ -21,6 +21,7 @@ export const ALGORITHM_PATTERNS = {
   'two-sum-hash': 'hashing',
   'subarray-sum-prefix': 'prefix-sum',
   'linked-list-cycle': 'fast-slow',
+  'linked-list-reversal': 'linked-list-reversal',
   'house-robber': 'dp-1d',
 } as const satisfies Record<string, PatternId>;
 

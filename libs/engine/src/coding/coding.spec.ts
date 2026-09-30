@@ -16,6 +16,7 @@ import {
   buildSuite,
   entryArgs,
   entryName,
+  entryOutput,
   exampleCases,
   inputSize,
   outputsMatch,
@@ -24,6 +25,7 @@ import {
   snakeCase,
   starterCode,
 } from './suite.js';
+import { ListNode, buildList, listValues } from './list.js';
 import { TreeNode, buildTree, levelOrder, type LevelOrder } from './tree.js';
 import { LANGUAGES, type TestCase } from './types.js';
 
@@ -1231,6 +1233,26 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     }
     return node;
   },
+  'reverse-linked-list': (head: ListNode | null) => listValues(head).reverse(),
+  'reverse-linked-list-ii': (head: ListNode, left: number, right: number) => {
+    const values = listValues(head);
+    return [...values.slice(0, left - 1), ...values.slice(left - 1, right).reverse(), ...values.slice(right)];
+  },
+  'swap-nodes-in-pairs': (head: ListNode | null) => {
+    const values = listValues(head);
+    return values.map((_, i) => (i % 2 ? values[i - 1] : (values[i + 1] ?? values[i])));
+  },
+  'reverse-nodes-k-group': (head: ListNode, k: number) => {
+    const values = listValues(head);
+    return rangeOf(0, Math.ceil(values.length / k) - 1).flatMap((g) => {
+      const group = values.slice(g * k, g * k + k);
+      return group.length === k ? group.reverse() : group;
+    });
+  },
+  'palindrome-linked-list': (head: ListNode) => {
+    const values = listValues(head);
+    return values.join() === [...values].reverse().join();
+  },
   'tree-diameter': (root: TreeNode | null) => {
     const { nodes, parent } = nodesOf(root);
     let best = 0;
@@ -1436,6 +1458,14 @@ describe('coding problems', () => {
     }
   });
 
+  it('keeps every Reverse Nodes in k-Group performance case out of reach for the slower approach, whatever the seed', () => {
+    const problem = getCodingProblem('reverse-nodes-k-group')!;
+    for (let seed = 0; seed < 300; seed++) {
+      const [head, k] = problem.performanceCase(mulberry32(seed)) as [number[], number];
+      expect(SLOWER['reverse-nodes-k-group'](buildList(head), k), `seed ${seed}`).toBeGreaterThan(4e9);
+    }
+  });
+
   it('caps Parallel Courses prerequisite depth for recursive solutions in performance cases', () => {
     const problem = getCodingProblem('parallel-courses')!;
     for (const seed of [1, 3]) {
@@ -1455,6 +1485,24 @@ describe('coding problems', () => {
           expect(levelOrder(buildTree(values)), `${problem.id} ${preview(values)}`).toEqual(values);
           expect(height(buildTree(values)), problem.id).toBeLessThanOrEqual(100);
         });
+    }
+  });
+
+  it('keeps list inputs within the sizes, values and positions their statements give', () => {
+    for (const problem of CODING_PROBLEMS.filter((p) => paramTypes(p).includes('list'))) {
+      const figures = problem.id === 'palindrome-linked-list';
+      for (const test of buildSuite(problem, { seed: 11 })) {
+        const [values, a, b] = test.args as [number[], number?, number?];
+        const label = `${problem.id} ${preview(test.args)}`;
+        expect(values.length, label).toBeLessThanOrEqual(200_000);
+        expect(
+          values.every((v) => Number.isInteger(v) && (figures ? v >= 0 && v <= 9 : Math.abs(v) <= 100_000)),
+          label,
+        ).toBe(true);
+        if (problem.params.length > 1 || figures) expect(values.length, label).toBeGreaterThanOrEqual(1);
+        if (problem.id === 'reverse-linked-list-ii') expect(1 <= a! && a! <= b! && b! <= values.length, label).toBe(true);
+        if (problem.id === 'reverse-nodes-k-group') expect(1 <= a! && a! <= values.length, label).toBe(true);
+      }
     }
   });
 
@@ -1597,12 +1645,46 @@ describe('entryArgs', () => {
     expect(k).toBe(5);
     expect(args[0]).toEqual([1, null, 2]);
   });
+
+  it('builds list parameters as linked ListNodes, and an empty list as null', () => {
+    const [head, empty] = entryArgs(['list', 'list'], [[4, 5, 6], []]);
+    expect(head).toBeInstanceOf(ListNode);
+    expect(listValues(head)).toEqual([4, 5, 6]);
+    expect(empty).toBeNull();
+  });
+});
+
+describe('entryOutput', () => {
+  it('reads a returned list as its values, nothing returned as the empty list, and leaves every other result alone', () => {
+    expect(entryOutput('list', buildList([3, 2, 1]))).toEqual([3, 2, 1]);
+    expect(entryOutput('list', null)).toEqual([]);
+    expect(entryOutput('list', undefined)).toEqual([]);
+    expect(entryOutput('list', { val: 1, next: { val: 2, next: undefined } })).toEqual([1, 2]);
+    expect(entryOutput('int[]', [1, 2])).toEqual([1, 2]);
+    expect(entryOutput('int', undefined)).toBeUndefined();
+  });
+
+  it('rejects a returned array or other value where the head of a list belongs, as the Python harness does', () => {
+    expect(() => entryOutput('list', [1, 2])).toThrow('Return the head ListNode (or null/None), not an array.');
+    expect(() => entryOutput('list', { a: 1 })).toThrow('Return the head ListNode (or null/None), not a value of type object.');
+    expect(() => entryOutput('list', 7)).toThrow('Return the head ListNode (or null/None), not a value of type number.');
+    expect(() => entryOutput('list', { val: 1, next: 5 })).toThrow(
+      'A next link must be a ListNode or null/None, not a value of type number.',
+    );
+  });
+
+  it('reports a returned list that loops instead of walking it forever', () => {
+    const head = buildList([1, 2, 3])!;
+    head.next!.next!.next = head.next;
+    expect(() => entryOutput('list', head)).toThrow('The returned list loops: after 3 nodes it comes back to a node with value 2.');
+  });
 });
 
 describe('inputSize', () => {
   it('counts the nodes of a tree and the items of an array or a string', () => {
     expect(inputSize('tree', [1, null, 2, 3])).toBe('3 nodes');
     expect(inputSize('tree', randomTree(mulberry32(1), 100_000, 0, 9))).toBe('100,000 nodes');
+    expect(inputSize('list', [1, 2, 3])).toBe('3 nodes');
     expect(inputSize('int[]', [7])).toBe('1 item');
     expect(inputSize('string', 'abcde')).toBe('5 characters');
     expect(inputSize('char[][]', [['1'], ['0']])).toBe('2 items');
@@ -1646,5 +1728,15 @@ describe('starter code', () => {
     expect(starterCode(problem, 'typescript')).toContain('function diameterOfBinaryTree(root: TreeNode | null): number {');
     expect(starterCode(problem, 'python')).toContain('def diameter_of_binary_tree(root: Optional[TreeNode]) -> int:');
     expect(starterCode(getCodingProblem('two-sum')!, 'typescript')).not.toContain('TreeNode');
+  });
+
+  it('defines ListNode in JavaScript and TypeScript above a function that takes or returns a list, and names it in Python', () => {
+    const problem = getCodingProblem('reverse-linked-list')!;
+    expect(starterCode(problem, 'javascript')).toContain('class ListNode {\n  constructor(val = 0, next = null) {');
+    expect(starterCode(problem, 'javascript')).toContain('function reverseList(head) {');
+    expect(starterCode(problem, 'typescript')).toContain('function reverseList(head: ListNode | null): ListNode | null {');
+    expect(starterCode(problem, 'python')).toContain('def reverse_list(head: Optional[ListNode]) -> Optional[ListNode]:');
+    expect(starterCode(getCodingProblem('palindrome-linked-list')!, 'typescript')).toContain('class ListNode {');
+    expect(starterCode(getCodingProblem('two-sum')!, 'javascript')).not.toContain('ListNode');
   });
 });

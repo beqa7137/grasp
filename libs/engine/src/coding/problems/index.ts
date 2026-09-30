@@ -21,6 +21,7 @@ import { decodeWays, longestWordInDictionary, lowestCommonAncestor, rightSideVie
 import { interleavingString, longestIncreasingSubsequence, maximumXorPair, partitionEqualSubset, partitionLabels } from './batch-k.js';
 import { boatsToSavePeople, maxConsecutiveOnesIII, searchMatrix, shipWithinDays, validSudoku } from './batch-l.js';
 import { detectCycle, moveZeroes, removeDuplicatesII, sortColors, sortedSquares, validPalindromeII } from './batch-r.js';
+import { isPalindromeList, reverseBetween, reverseKGroup, reverseList, swapPairs } from './linked-lists.js';
 import { groupAnagrams, jumpGameII, longestStrChain, maxCoins, maximalSquare, minPathSum, minRefuelStops } from './batch-v.js';
 import { candy, combinationSum4, countSubstrings, maximumProductSubarray, numDistinct, uniquePathsWithObstacles } from './batch-q.js';
 import { carPooling, maxSubArrayLen, minOperations, pivotIndex, removeCoveredIntervals, totalFruit } from './batch-s.js';
@@ -118,6 +119,11 @@ const DEFINITIONS: Record<CodingProblemId, CodingProblemDefinition> = {
   'move-zeroes': moveZeroes,
   'remove-duplicates-sorted-ii': removeDuplicatesII,
   'linked-list-cycle-ii': detectCycle,
+  'reverse-linked-list': reverseList,
+  'reverse-linked-list-ii': reverseBetween,
+  'swap-nodes-in-pairs': swapPairs,
+  'reverse-nodes-k-group': reverseKGroup,
+  'palindrome-linked-list': isPalindromeList,
   'merge-intervals': mergeIntervals,
   'non-overlapping-intervals': eraseOverlapIntervals,
   'insert-interval': insertInterval,

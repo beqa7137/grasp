@@ -2,7 +2,7 @@ import type { ArrayView, Frame, Param, Scalar, StackView } from '@grasp/engine';
 import { callLabels, callStackAt, type CallStackView } from './call-stack';
 import type { TraceOutcome } from './protocol';
 import { gridParams, isGrid, traceGrids } from './grid-frames';
-import { describeSnap, is2D, isArray, isScalar, isTree, type Snap, type TraceStep } from './snapshot';
+import { describeSnap, is2D, isArray, isList, isScalar, isTree, type Snap, type TraceStep } from './snapshot';
 import { narrate } from './trace-notes';
 import { traceTrees } from './tree-frames';
 
@@ -80,7 +80,10 @@ export function toFrames(trace: Pick<TraceOutcome, 'steps' | 'calls' | 'returned
 
     // Values the code made take the single output slot before inputs such as a given edge list.
     const extras = Object.entries(step.vars)
-      .filter(([k, v]) => k !== primary && k !== grid && !isScalar(v) && !isTree(v) && (typeof v !== 'object' || v?.kind !== 'undefined'))
+      .filter(
+        ([k, v]) =>
+          k !== primary && k !== grid && !isScalar(v) && !isTree(v) && !isList(v) && (typeof v !== 'object' || v?.kind !== 'undefined'),
+      )
       .sort(([a], [b]) => Number(inputs.has(a)) - Number(inputs.has(b)));
     for (const [name, value] of extras) {
       if (STACK_NAME.test(name) && !frame.stack) frame.stack = listView(name, value);
@@ -92,7 +95,7 @@ export function toFrames(trace: Pick<TraceOutcome, 'steps' | 'calls' | 'returned
     }
     for (const [name, value] of Object.entries(step.vars)) {
       if (isScalar(value)) frame.vars[name] = value;
-      else if (isTree(value)) frame.vars[name] = describeSnap(value);
+      else if (isTree(value) || isList(value)) frame.vars[name] = describeSnap(value);
     }
     return frame;
   });

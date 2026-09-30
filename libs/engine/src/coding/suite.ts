@@ -1,4 +1,5 @@
 import { mulberry32 } from '../algorithms/random.js';
+import { buildList, listValues } from './list.js';
 import { buildTree, type LevelOrder } from './tree.js';
 import type { Args, CodingProblem, CompareMode, Language, ParamType, TestCase } from './types.js';
 
@@ -12,11 +13,18 @@ export function paramTypes(problem: CodingProblem): ParamType[] {
 }
 
 export function entryArgs(types: readonly ParamType[], args: Args): unknown[] {
-  return args.map((arg, i) => (types[i] === 'tree' ? buildTree(arg as LevelOrder) : structuredClone(arg)));
+  return args.map((arg, i) =>
+    types[i] === 'tree' ? buildTree(arg as LevelOrder) : types[i] === 'list' ? buildList(arg as number[]) : structuredClone(arg),
+  );
+}
+
+/** What a test compares: a returned list as its values, which throws for anything but a list that ends, and anything else as it is. */
+export function entryOutput(returns: ParamType, value: unknown): unknown {
+  return returns === 'list' ? listValues(value) : value;
 }
 
 function testCase(problem: CodingProblem, args: Args, kind: TestCase['kind']): TestCase {
-  return { args, expected: problem.solve(...entryArgs(paramTypes(problem), args)), kind };
+  return { args, expected: entryOutput(problem.returns, problem.solve(...entryArgs(paramTypes(problem), args))), kind };
 }
 
 /**
@@ -78,6 +86,7 @@ export function inputSize(type: ParamType, value: unknown): string | null {
     for (let i = 0; i < values.length; i++) if (values[i] !== null) nodes++;
     return quantity(nodes, 'node');
   }
+  if (type === 'list') return quantity((value as unknown[]).length, 'node');
   if (typeof value === 'string') return quantity(value.length, 'character');
   // The other 2-D inputs are lists of pairs or triples, so wide rows identify performance grids.
   if ((type === 'int[][]' || type === 'char[][]') && Array.isArray(value) && Array.isArray(value[0]) && value[0].length > 4)
@@ -102,6 +111,7 @@ const TS_TYPES: Record<ParamType, string> = {
   'char[][]': 'string[][]',
   bool: 'boolean',
   tree: 'TreeNode | null',
+  list: 'ListNode | null',
 };
 
 const PY_TYPES: Record<ParamType, string> = {
@@ -113,6 +123,7 @@ const PY_TYPES: Record<ParamType, string> = {
   'char[][]': 'list[list[str]]',
   bool: 'bool',
   tree: 'Optional[TreeNode]',
+  list: 'Optional[ListNode]',
 };
 
 const TREE_NODE_HEADER: Record<Language, string> = {
@@ -121,8 +132,17 @@ const TREE_NODE_HEADER: Record<Language, string> = {
   python: '# TreeNode (val, left, right) and Optional are predefined; left and right are a TreeNode or None\n\n',
 };
 
+// A class in the starter code rather than a runner global, so a solution that declares its own ListNode still loads.
+const LIST_NODE_HEADER: Record<Language, string> = {
+  javascript: 'class ListNode {\n  constructor(val = 0, next = null) {\n    this.val = val;\n    this.next = next;\n  }\n}\n\n',
+  typescript:
+    'class ListNode {\n  val: number;\n  next: ListNode | null;\n\n  constructor(val = 0, next: ListNode | null = null) {\n    this.val = val;\n    this.next = next;\n  }\n}\n\n',
+  python: '# ListNode (val, next) and Optional are predefined; next is a ListNode or None\n\n',
+};
+
 export function starterCode(problem: CodingProblem, language: Language): string {
-  const prefix = paramTypes(problem).includes('tree') ? TREE_NODE_HEADER[language] : '';
+  const types = [...paramTypes(problem), problem.returns];
+  const prefix = (types.includes('tree') ? TREE_NODE_HEADER[language] : '') + (types.includes('list') ? LIST_NODE_HEADER[language] : '');
   return prefix + entryFunction(problem, language);
 }
 
@@ -140,8 +160,13 @@ function entryFunction(problem: CodingProblem, language: Language): string {
 
 /**
  * Runs before a Python submission, in its namespace. Before Python 3.14 an annotation such as `Optional[TreeNode]` is
- * evaluated when the function is defined, so both names must exist first. Trees are built from the class captured
- * here, so a learner's own `TreeNode` cannot change how inputs are built.
+ * evaluated when the function is defined, so both names must exist first. Trees and lists are built from the classes
+ * captured here, so a learner's own `TreeNode` or `ListNode` cannot change how inputs are built.
+ *
+ * Browser Python frees a chain of objects recursively and overflows its stack past a few thousand links, so every list
+ * node made during a call (each ListNode registers itself in `_grasp_made`, a name that is not mangled inside the class)
+ * and every node of the list returned, which may be a learner's own class, is unlinked one at a time before the chain
+ * can be freed.
  */
 export const PYTHON_PRELUDE = `import sys
 from typing import Optional
@@ -179,18 +204,73 @@ def __grasp_tree(values):
             queue.append(parent.right)
         i += 1
     return root
+
+
+_grasp_made = []
+
+
+class ListNode:
+    def __init__(self, val=0, next=None):
+        self.val = val
+        self.next = next
+        _grasp_made.append(self)
+
+    def __repr__(self):
+        return f"ListNode({self.val!r})"
+
+
+__grasp_ListNode = ListNode
+
+
+def __grasp_list(values):
+    head = None
+    for value in reversed(values):
+        head = __grasp_ListNode(value, head)
+    return head
+
+
+def __grasp_kind(value):
+    return "an array" if isinstance(value, (list, tuple)) else f"a value of type {type(value).__name__}"
+
+
+def __grasp_is_node(value):
+    return hasattr(value, "val") and hasattr(value, "next")
+
+
+def __grasp_list_values(head, nodes):
+    if head is not None and not __grasp_is_node(head):
+        raise TypeError(f"Return the head ListNode (or null/None), not {__grasp_kind(head)}.")
+    values, seen = [], set()
+    while head is not None:
+        if not __grasp_is_node(head):
+            raise TypeError(f"A next link must be a ListNode or null/None, not {__grasp_kind(head)}.")
+        if id(head) in seen:
+            raise ValueError(f"The returned list loops: after {len(values)} nodes it comes back to a node with value {head.val!r}.")
+        seen.add(id(head))
+        nodes.append(head)
+        values.append(head.val)
+        head = head.next
+    return values
+
+
+def __grasp_unlink(nodes):
+    for node in nodes:
+        node.next = None
+    nodes.clear()
 `;
 
 /**
  * Appended to Python submissions after PYTHON_PRELUDE: calls the entry function with JSON-encoded arguments and returns
  * JSON. The same text runs in the browser (Pyodide) and in the engine tests (CPython).
  */
-export function pythonHarness(entry: string, types: readonly ParamType[]): string {
-  const trees = types.flatMap((type, i) => (type === 'tree' ? [i] : []));
+export function pythonHarness(entry: string, types: readonly ParamType[], returns: ParamType): string {
+  const indices = (kind: ParamType) => types.flatMap((type, i) => (type === kind ? [i] : [])).join(', ');
   return `
 import json as __grasp_json
 
-__grasp_trees = [${trees.join(', ')}]
+__grasp_trees = [${indices('tree')}]
+__grasp_lists = [${indices('list')}]
+__grasp_returns_list = ${returns === 'list' ? 'True' : 'False'}
 
 def __grasp_default(value):
     if isinstance(value, (set, frozenset)):
@@ -199,8 +279,19 @@ def __grasp_default(value):
 
 def __grasp_call(__grasp_args):
     __grasp_values = __grasp_json.loads(__grasp_args)
+    __grasp_nodes = []
+    _grasp_made.clear()
     for __grasp_i in __grasp_trees:
         __grasp_values[__grasp_i] = __grasp_tree(__grasp_values[__grasp_i])
-    return __grasp_json.dumps(${entry}(*__grasp_values), default=__grasp_default)
+    for __grasp_i in __grasp_lists:
+        __grasp_values[__grasp_i] = __grasp_list(__grasp_values[__grasp_i])
+    try:
+        __grasp_result = ${entry}(*__grasp_values)
+        if __grasp_returns_list:
+            __grasp_result = __grasp_list_values(__grasp_result, __grasp_nodes)
+        return __grasp_json.dumps(__grasp_result, default=__grasp_default)
+    finally:
+        __grasp_unlink(__grasp_nodes)
+        __grasp_unlink(_grasp_made)
 `;
 }

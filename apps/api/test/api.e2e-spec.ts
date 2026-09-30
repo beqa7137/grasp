@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import type { NestExpressApplication } from '@nestjs/platform-express';
+import { PATTERNS } from '@grasp/engine';
 import { createTestApp } from './support/app.js';
 import { resetDatabase } from './support/database.js';
 
@@ -34,7 +35,7 @@ describe.each(storages)('API (%s storage, offline interviewer)', (storage) => {
 
   it('serves the curriculum and traces algorithms server-side', async () => {
     const patterns = await request(app.getHttpServer()).get('/api/curriculum/patterns').expect(200);
-    expect(patterns.body.length).toBe(20);
+    expect(patterns.body.map((p: { id: string }) => p.id)).toEqual(PATTERNS.map((p) => p.id));
     const trace = await request(app.getHttpServer())
       .post('/api/curriculum/algorithms/binary-search/trace')
       .send({ input: { nums: [1, 3, 5, 7, 9], target: 7 } })

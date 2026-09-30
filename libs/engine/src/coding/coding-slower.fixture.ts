@@ -4,6 +4,7 @@ import { lockNeighbors } from './problems/batch-n.js';
 import { bestChances, fastestRoutes, landDistances } from './problems/batch-t.js';
 import { rottingOranges } from './problems/grids.js';
 import { MinHeap } from './problems/min-heap.js';
+import { listValues, type ListNode } from './list.js';
 import type { TreeNode } from './tree.js';
 
 export function nodesOf(root: TreeNode | null) {
@@ -369,6 +370,25 @@ export const SLOWER: Record<string, (...args: any[]) => number> = {
     let visited = 0;
     for (let node = 0; node !== -1 && !seen[node]; node = next[node], visited++) seen[node] = 1;
     return (visited * (visited - 1)) / 2;
+  },
+  // Walking from the head to the node i places from the end, for each i.
+  'reverse-linked-list': (head: ListNode | null) => {
+    const n = listValues(head).length;
+    return (n * (n - 1)) / 2;
+  },
+  // Swapping values from the stretch's two ends inward, walking from the head to both nodes of each pair.
+  'reverse-linked-list-ii': (_head: ListNode, left: number, right: number) => Math.floor((right - left + 1) / 2) * (left + right),
+  // Walking from the head to each pair before swapping it.
+  'swap-nodes-in-pairs': (head: ListNode | null) => {
+    const pairs = Math.floor(listValues(head).length / 2);
+    return pairs * (pairs - 1);
+  },
+  // Reversing each group by swapping values from its two ends inward, walking from the group's start to both nodes of a pair.
+  'reverse-nodes-k-group': (head: ListNode, k: number) => Math.floor(listValues(head).length / k) * Math.floor(k / 2) * (k - 1),
+  // Comparing each value with its mirror, walking from the head to both; the only mismatch, if any, is the middle pair.
+  'palindrome-linked-list': (head: ListNode) => {
+    const n = listValues(head).length;
+    return Math.floor(n / 2) * (n - 1);
   },
   // Scanning backward through end-sorted intervals for each DP predecessor.
   'non-overlapping-intervals': (intervals: number[][]) => {

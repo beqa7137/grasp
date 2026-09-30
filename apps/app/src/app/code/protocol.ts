@@ -23,7 +23,7 @@ export interface TraceOutcome {
 }
 
 export type WorkerRequest =
-  | { kind: 'run'; language: Language; code: string; entry: string; params: ParamType[]; tests: unknown[][] }
+  | { kind: 'run'; language: Language; code: string; entry: string; params: ParamType[]; returns: ParamType; tests: unknown[][] }
   | {
       kind: 'trace';
       language: Exclude<Language, 'python'>;
