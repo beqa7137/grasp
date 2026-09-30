@@ -38,7 +38,7 @@ export async function createInterviewer(config: AppConfig, spend: SpendGuard, fe
   }
   if (loaded.source === 'built-in') log.warn(`The AI Gateway catalog is unreachable; ${choice.model} uses its built-in prices.`);
   const apiKey = config.aiGatewayApiKey;
-  const client = new GatewayClient(apiKey ? () => apiKey : () => getVercelOidcToken(), fetchFn);
+  const client = new GatewayClient(apiKey ? () => apiKey : () => getVercelOidcToken({ expirationBufferMs: 300_000 }), fetchFn);
   let interviewer: GatewayInterviewer;
   try {
     interviewer = new GatewayInterviewer(client, loaded.model, spend, {
