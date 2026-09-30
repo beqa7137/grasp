@@ -152,6 +152,7 @@ export function states() {
     { id: 'design-list', path: '/design' },
     { id: 'sandbox', path: '/design/first-scale-up' },
     { id: 'sandbox-inspector', path: '/design/first-scale-up', setup: (p) => answerFirst(p, '.palette .tool') },
+    { id: 'sandbox-leaderboard', path: '/design/leaderboard-budget' },
     { id: 'sandbox-free', path: '/design/free-build' },
     { id: 'case-study', path: '/design/case/url-shortener' },
     {

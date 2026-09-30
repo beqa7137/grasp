@@ -125,6 +125,26 @@ const DEFINITIONS: Record<ScenarioId, ScenarioDefinition> = {
     takeaway:
       'Sustained write load needs more primaries: shard. The shard key decides everything. It must spread writes evenly (hash of a high-cardinality key), or one hot shard caps the whole system.',
   },
+  'leaderboard-budget': {
+    brief:
+      "A mobile game's leaderboard takes 24,000 RPS all day. 75% are reads of the global top 100, the same page for every player and fine a few seconds stale. The rest are score submissions: 6,000 writes/s at 2 database ops each. Keep p99 under 200 ms and errors under 0.1% for at most $8,500/month.",
+    starter: {
+      nodes: [n('users', 'client', 70, 240), n('lb', 'lb', 250, 240, 2), n('app', 'app', 430, 240, 12), n('db', 'db', 700, 240)],
+      edges: [
+        { from: 'users', to: 'lb' },
+        { from: 'lb', to: 'app' },
+        { from: 'app', to: 'db' },
+      ],
+    },
+    hints: [
+      'Split the load: 18,000 reads/s and 12,000 write ops/s. Which tool fixes each, and which fixes neither?',
+      'Replicas replay every write. Count what 6,000 writes/s leave of a replica before it serves a single read.',
+      'Every player sees the same top 100. The cheapest request is one your servers never receive.',
+      'Price each fix: a shard is $1,100, a cache node $350, a CDN $600, an app server $220. Remove what the cheaper layers made idle.',
+    ],
+    takeaway:
+      'Give each load its cheapest fix. A page every player reads, like the top 100, is ideal to cache at the edge and in memory. Writes need more primaries: replicas replay every write, so only shards add write capacity. Then size every tier to the load it really sees. Adding more of everything meets the latency goal and misses the budget.',
+  },
 };
 
 export const SCENARIOS: Scenario[] = SCENARIO_CATALOG.map(({ id, title, tagline, workload, goals, variants }) => {

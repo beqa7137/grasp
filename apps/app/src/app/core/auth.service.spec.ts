@@ -34,6 +34,7 @@ function setup(opts: Options = {}) {
   localStorage.clear();
   const calls: string[] = [];
   const bodies: Record<string, unknown> = {};
+  const timeouts: Record<string, number | undefined> = {};
   const toasts: string[] = [];
   const learnerId = { value: 'device-learner' };
   const post =
@@ -48,7 +49,12 @@ function setup(opts: Options = {}) {
       {
         provide: ApiService,
         useValue: {
-          post: async (path: string, body: unknown) => (calls.push(`post ${path}`), (bodies[path] = body), post(path, body)),
+          post: async (path: string, body: unknown, timeoutMs?: number) => (
+            calls.push(`post ${path}`),
+            (bodies[path] = body),
+            (timeouts[path] = timeoutMs),
+            post(path, body)
+          ),
           get: async (path: string) => (calls.push(`get ${path}`), { user: session(1).user, identities: [identity('github')] }),
         },
       },
@@ -91,7 +97,7 @@ function setup(opts: Options = {}) {
       },
     ],
   });
-  return { auth: TestBed.inject(AuthService), tokens: TestBed.inject(AuthTokens), calls, bodies, learnerId, toasts };
+  return { auth: TestBed.inject(AuthService), tokens: TestBed.inject(AuthTokens), calls, bodies, timeouts, learnerId, toasts };
 }
 
 describe('AuthService (app)', () => {
@@ -136,6 +142,14 @@ describe('AuthService (app)', () => {
       'get /auth/me',
     ]);
     expect(tokens.signInRequired()).toBe(false);
+  });
+
+  it('gives signing in and connecting longer than an ordinary request, since the server may merge the device history', async () => {
+    const { auth, timeouts } = setup();
+    await auth.signIn('github');
+    await auth.connect('github');
+    expect(timeouts['/auth/github']).toBe(30_000);
+    expect(timeouts['/auth/github/link']).toBe(30_000);
   });
 
   it('keeps the local copy when the ended session comes back to the same learner', async () => {
