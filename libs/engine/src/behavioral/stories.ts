@@ -1,6 +1,6 @@
 import { COMPETENCY_CATALOG } from './catalog.js';
 import type { Rehearsal } from './rehearsal.js';
-import { reviewStar, type StarDraft } from './star-check.js';
+import { EMPTY_STAR_DRAFT, reviewStar, type StarDraft } from './star-check.js';
 
 /** One real experience, written once and told for every competency it answers. */
 export interface Story {
@@ -9,6 +9,10 @@ export interface Story {
   competencyIds: string[];
   draft: StarDraft;
   rehearsal?: Rehearsal;
+  /** When the story last changed, on the clock of the device that changed it; the later change wins when devices sync. */
+  updatedAt: string;
+  /** Stands in for a deleted story until the delete reaches the account, so a stale copy cannot bring it back. */
+  deleted?: true;
 }
 
 export interface CompetencyCoverage {
@@ -26,8 +30,38 @@ export interface BankReview {
 
 export const BANK_TARGET = { min: 8, max: 10 } as const;
 const MAX_TAGS = 3;
+/** What an account stores: `part` bounds each STAR part, generous for an answer told in three minutes. */
+export const STORY_LIMITS = { stories: 100, title: 80, part: 4_000 } as const;
 
 export const storyTitle = (story: Story) => story.title.trim() || 'Untitled story';
+
+export const deletedStory = (id: string, updatedAt: string): Story => ({
+  id,
+  title: '',
+  competencyIds: [],
+  draft: { ...EMPTY_STAR_DRAFT },
+  updatedAt,
+  deleted: true,
+});
+
+// Stories saved before sync have no updatedAt, so any copy from another device is newer.
+const changedAt = (story: Story) => Date.parse(story.updatedAt) || 0;
+
+/** Per story, the later change wins; a tie keeps the remote copy, which the account already holds. */
+export function mergeStories(local: readonly Story[], remote: readonly Story[]): Story[] {
+  const merged = new Map(local.map((story) => [story.id, story]));
+  for (const theirs of remote) {
+    const ours = merged.get(theirs.id);
+    if (!ours || changedAt(theirs) >= changedAt(ours)) merged.set(theirs.id, theirs);
+  }
+  return [...merged.values()];
+}
+
+export const isNewer = (story: Story, than: Story | undefined) => !than || changedAt(story) > changedAt(than);
+
+/** When a change to `story` happens now: never at or before its last change, even on a device whose clock runs behind. */
+export const nextChange = (story: Story | undefined, now: Date) =>
+  new Date(Math.max(now.getTime(), story ? changedAt(story) + 1 : 0)).toISOString();
 
 export function reviewBank(stories: readonly Story[]): BankReview {
   const coverage = COMPETENCY_CATALOG.map((c) => ({

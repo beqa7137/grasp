@@ -1,8 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { ToastController } from '@ionic/angular';
+import { StoryBankService } from '../pages/behavioral/story-bank.service';
 import { ApiError, ApiService } from './api.service';
 import { AuthTokens } from './auth-tokens.service';
-import { AuthService } from './auth.service';
+import { AuthService, UnsyncedStories } from './auth.service';
 import { LearnerService } from './learner.service';
 import { ProgressService } from './progress.service';
 import { type GitHubCredential, type ProviderConfig, SocialSignInService } from './social-sign-in.service';
@@ -28,6 +29,8 @@ interface Options {
   config?: () => Promise<ProviderConfig>;
   google?: string | null;
   github?: GitHubCredential | null;
+  /** The story bank fails to load, as in a tab from an older deploy. */
+  storiesUnavailable?: boolean;
 }
 
 function setup(opts: Options = {}) {
@@ -37,6 +40,13 @@ function setup(opts: Options = {}) {
   const timeouts: Record<string, number | undefined> = {};
   const toasts: string[] = [];
   const learnerId = { value: 'device-learner' };
+  const stories = {
+    unsynced: [] as unknown[],
+    flush: async () => (calls.push('flush stories'), { stories: stories.unsynced, checked: true }),
+    clear: async (learner?: string) => void calls.push(learner ? `clear stories of ${learner}` : 'clear stories'),
+    stash: async (learner: string) => void calls.push(`stash stories of ${learner}`),
+    restore: async (learner: string) => void calls.push(`restore stories of ${learner}`),
+  };
   const post =
     opts.post ??
     (async (path: string) => {
@@ -82,6 +92,14 @@ function setup(opts: Options = {}) {
           reset: async () => ((learnerId.value = 'fresh'), calls.push('learner reset')),
         },
       },
+      opts.storiesUnavailable
+        ? {
+            provide: StoryBankService,
+            useFactory: () => {
+              throw new Error('Failed to fetch dynamically imported module');
+            },
+          }
+        : { provide: StoryBankService, useValue: stories },
       {
         provide: ToastController,
         useValue: { create: async ({ message }: { message: string }) => ({ present: async () => toasts.push(message) }) },
@@ -97,7 +115,7 @@ function setup(opts: Options = {}) {
       },
     ],
   });
-  return { auth: TestBed.inject(AuthService), tokens: TestBed.inject(AuthTokens), calls, bodies, timeouts, learnerId, toasts };
+  return { auth: TestBed.inject(AuthService), tokens: TestBed.inject(AuthTokens), calls, bodies, timeouts, learnerId, toasts, stories };
 }
 
 describe('AuthService (app)', () => {
@@ -111,6 +129,7 @@ describe('AuthService (app)', () => {
       'post /auth/google',
       'invalidateSync',
       'learner account-learner',
+      'restore stories of account-learner',
       'resync',
       'get /auth/me',
     ]);
@@ -124,7 +143,16 @@ describe('AuthService (app)', () => {
   it('signs in with GitHub by redeeming the ticket with its PKCE verifier through the same sequence', async () => {
     const { auth, calls, bodies } = setup();
     expect(await auth.signIn('github')).toBe(true);
-    expect(calls).toEqual(['github', 'flush', 'post /auth/github', 'invalidateSync', 'learner account-learner', 'resync', 'get /auth/me']);
+    expect(calls).toEqual([
+      'github',
+      'flush',
+      'post /auth/github',
+      'invalidateSync',
+      'learner account-learner',
+      'restore stories of account-learner',
+      'resync',
+      'get /auth/me',
+    ]);
     expect(bodies['/auth/github']).toEqual({ ticket: 'github-ticket', codeVerifier: 'github-verifier' });
   });
 
@@ -135,9 +163,12 @@ describe('AuthService (app)', () => {
     expect(calls).toEqual([
       'github',
       'post /auth/github',
+      'stash stories of device-learner',
+      'clear stories',
       'clearLocal',
       'invalidateSync',
       'learner account-learner',
+      'restore stories of account-learner',
       'resync',
       'get /auth/me',
     ]);
@@ -156,7 +187,7 @@ describe('AuthService (app)', () => {
     const { auth, tokens, calls } = setup({ post: async () => session(1, 'device-learner') });
     tokens.signInRequired.set(true);
     await auth.signIn('github');
-    expect(calls).toEqual(['github', 'post /auth/github', 'invalidateSync', 'resync', 'get /auth/me']);
+    expect(calls).toEqual(['github', 'post /auth/github', 'invalidateSync', 'restore stories of device-learner', 'resync', 'get /auth/me']);
   });
 
   it('does nothing further when the person cancels at the provider', async () => {
@@ -340,10 +371,45 @@ describe('AuthService (app)', () => {
     await auth.signIn('github');
     calls.length = 0;
     await auth.signOut();
-    expect(calls).toEqual(['post /auth/logout', 'invalidateSync', 'clearLocal', 'learner reset']);
+    expect(calls).toEqual([
+      'flush stories',
+      'post /auth/logout',
+      'invalidateSync',
+      'clear stories of account-learner',
+      'clearLocal',
+      'learner reset',
+    ]);
     expect(auth.signedIn()).toBe(false);
     expect(auth.identities()).toBeNull();
     expect(localStorage.getItem('CapacitorStorage.grasp.auth.refresh')).toBeNull();
+  });
+
+  it('changes nothing while stories have not reached the account, until the learner chooses to discard them', async () => {
+    const { auth, calls, stories } = setup();
+    stories.unsynced = [{ id: 'refused' }, { id: 'failed' }];
+    await auth.signIn('github');
+    calls.length = 0;
+    await expect(auth.signOut()).rejects.toEqual(new UnsyncedStories(2));
+    expect(calls).toEqual(['flush stories']);
+    expect(auth.signedIn()).toBe(true);
+    expect(localStorage.getItem('CapacitorStorage.grasp.auth.refresh')).toBe(session(1).refreshToken);
+
+    calls.length = 0;
+    await auth.signOut(true);
+    expect(calls).toEqual(['post /auth/logout', 'invalidateSync', 'clear stories of account-learner', 'clearLocal', 'learner reset']);
+  });
+
+  it('counts every story on the device as unsynced when the story bank cannot load', async () => {
+    const { auth, calls } = setup({ storiesUnavailable: true });
+    await auth.signIn('github');
+    localStorage.setItem(
+      'CapacitorStorage.grasp.behavioral.stories',
+      JSON.stringify([{ id: 'a' }, { id: 'b' }, { id: 'c', deleted: true }]),
+    );
+    calls.length = 0;
+    await expect(auth.signOut()).rejects.toEqual(new UnsyncedStories(2));
+    expect(calls).toEqual([]);
+    expect(localStorage.getItem('CapacitorStorage.grasp.behavioral.stories')).not.toBeNull();
   });
 
   it('keeps the session for retry when the server cannot revoke it', async () => {
@@ -357,7 +423,7 @@ describe('AuthService (app)', () => {
     calls.length = 0;
 
     await expect(auth.signOut()).rejects.toThrow('Logout unavailable');
-    expect(calls).toEqual(['post /auth/logout']);
+    expect(calls).toEqual(['flush stories', 'post /auth/logout']);
     expect(auth.signedIn()).toBe(true);
     expect(tokens.accessToken()).toBe('access-1');
     expect(localStorage.getItem('CapacitorStorage.grasp.auth.refresh')).toBe(session(1).refreshToken);
@@ -396,7 +462,15 @@ describe('AuthService (app)', () => {
     releaseRefresh();
     await Promise.all([refresh, signOut]);
 
-    expect(calls).toEqual(['post /auth/refresh', 'post /auth/logout', 'invalidateSync', 'clearLocal', 'learner reset']);
+    expect(calls).toEqual([
+      'post /auth/refresh',
+      'flush stories',
+      'post /auth/logout',
+      'invalidateSync',
+      'clear stories of account-learner',
+      'clearLocal',
+      'learner reset',
+    ]);
     expect(bodies['/auth/logout']).toEqual({ refreshToken: session(2).refreshToken });
     expect(auth.signedIn()).toBe(false);
   });
@@ -439,7 +513,7 @@ describe('AuthService (app)', () => {
       tokens.learnerRetired!('learner_erased', 'account-learner'),
     ]);
 
-    expect(calls).toEqual(['invalidateSync', 'clearLocal', 'learner reset']);
+    expect(calls).toEqual(['invalidateSync', 'clear stories of account-learner', 'clearLocal', 'learner reset']);
     expect(learnerId.value).toBe('fresh');
     expect(auth.signedIn()).toBe(false);
     expect(tokens.signInRequired()).toBe(false);

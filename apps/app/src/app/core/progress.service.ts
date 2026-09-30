@@ -27,7 +27,7 @@ const EVENTS_KEY = 'grasp.events';
 const ACKNOWLEDGED_KEY = 'grasp.acknowledged.v1';
 const LEGACY_SYNCED_KEY = 'grasp.synced';
 /** A device brought back into view syncs at most this often, so switching tabs does not pull on every switch. */
-const VISIBLE_RESYNC_GAP_MS = 30_000;
+export const VISIBLE_RESYNC_GAP_MS = 30_000;
 const CLOCK_TICK_MS = 60_000;
 const PROGRESS_PULL_TIMEOUT_MS = 20_000;
 

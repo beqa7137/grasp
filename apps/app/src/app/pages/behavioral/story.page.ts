@@ -1,10 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar, NavController } from '@ionic/angular';
-import { COMPETENCY_CATALOG, storyTitle, type StarPart, type Story } from '@grasp/engine';
+import { COMPETENCY_CATALOG, STORY_LIMITS, storyTitle, type StarPart, type Story } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import { trashOutline } from 'ionicons/icons';
 import { StarEditorComponent } from './star-editor.component';
-import { StoryBankService } from './story-bank.service';
+import { STORY_SYNC_NOTES, StoryBankService, type StoryPatch } from './story-bank.service';
 
 @Component({
   selector: 'app-story',
@@ -18,7 +18,13 @@ import { StoryBankService } from './story-bank.service';
       </ion-toolbar>
     </ion-header>
     <ion-content [fullscreen]="true">
-      @if (story(); as s) {
+      @if (story()?.deleted) {
+        <div class="page narrow">
+          <p class="eyebrow">Story bank</p>
+          <h1>Story deleted</h1>
+          <p>This story was deleted.</p>
+        </div>
+      } @else if (story(); as s) {
         <div class="page narrow">
           <p class="eyebrow">Story bank</p>
           <h1 class="visually-hidden">{{ heading() }}</h1>
@@ -29,7 +35,7 @@ import { StoryBankService } from './story-bank.service';
               [value]="s.title"
               (input)="update({ title: $any($event.target).value })"
               placeholder="A name you will recognize, like 'The checkout timeouts'"
-              maxlength="80"
+              [maxLength]="titleLength"
             />
           </label>
 
@@ -42,7 +48,7 @@ import { StoryBankService } from './story-bank.service';
             </div>
           </fieldset>
 
-          <app-star-editor [draft]="s.draft" (edit)="edit($event.part, $event.text)" />
+          <app-star-editor [draft]="s.draft" [saved]="saved()" (edit)="edit($event.part, $event.text)" />
 
           <button type="button" class="g-btn ghost delete" (click)="remove()">
             <ion-icon name="trash-outline" aria-hidden="true" />Delete story
@@ -102,7 +108,15 @@ export class StoryPage {
   private readonly bank = inject(StoryBankService);
   private readonly nav = inject(NavController);
   readonly competencies = COMPETENCY_CATALOG;
+  readonly titleLength = STORY_LIMITS.title;
+  readonly saved = computed(() => {
+    const refusal = this.bank.refusals().find((r) => r.story.id === this.id());
+    return refusal ? `Saved on this device only: the account refused it, as ${refusal.reason}.` : STORY_SYNC_NOTES[this.bank.sync()];
+  });
   readonly story = signal<Story | null>(null);
+  /** When the stored story the page shows last changed, so it follows other changes but not its own saves. */
+  private shownAt: string | null = null;
+  private saving = 0;
   readonly heading = computed(() => {
     const story = this.story();
     return story?.title.trim() ? storyTitle(story) : 'New story';
@@ -115,18 +129,28 @@ export class StoryPage {
       untracked(() => {
         this.story.set(null);
         void this.bank.load().then(() => {
-          if (this.id() === id) this.story.set(this.bank.get(id) ?? this.bank.blank(id));
+          if (this.id() === id) this.show(this.bank.find(id) ?? this.bank.blank(id));
         });
       });
     });
+    effect(() => {
+      this.bank.pulled();
+      untracked(() => this.follow());
+    });
   }
 
-  update(change: Partial<Story>) {
+  ionViewWillLeave() {
+    void this.bank.removeIfBlank(this.id());
+  }
+
+  update(patch: StoryPatch) {
     const story = this.story();
-    if (!story) return;
-    const next = { ...story, ...change };
-    this.story.set(next);
-    void this.bank.save(next);
+    if (!story || story.deleted) return;
+    this.story.set({ ...story, ...patch, draft: { ...story.draft, ...patch.draft } });
+    this.saving++;
+    void this.bank.save(story.id, patch).finally(() => {
+      if (--this.saving === 0) this.follow();
+    });
   }
 
   toggle(competencyId: string) {
@@ -135,8 +159,18 @@ export class StoryPage {
   }
 
   edit(part: StarPart, text: string) {
-    const story = this.story();
-    if (story) this.update({ draft: { ...story.draft, [part]: text } });
+    this.update({ draft: { [part]: text } });
+  }
+
+  /** Shows the stored story once it changed from what the page last showed, and no save of the page's is pending. */
+  private follow() {
+    const stored = this.story() && !this.saving ? this.bank.find(this.id()) : undefined;
+    if (stored && stored.updatedAt !== this.shownAt) this.show(stored);
+  }
+
+  private show(story: Story) {
+    this.shownAt = story.updatedAt;
+    this.story.set(story);
   }
 
   async remove() {

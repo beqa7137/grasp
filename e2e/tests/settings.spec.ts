@@ -55,6 +55,7 @@ test('feedback reaches the team with the screen it came from', async ({ page }) 
 test('settings explain what is stored', { tag: '@smoke' }, async ({ page }) => {
   await page.goto('/settings');
   await expect(page.getByRole('heading', { name: 'Your data' })).toBeVisible();
+  await expect(page.getByText(/your behavioral stories stay on this device until you sign in/)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Export' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Delete…' })).toBeVisible();
 });

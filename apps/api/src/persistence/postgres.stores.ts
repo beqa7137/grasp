@@ -36,7 +36,7 @@ async function ensureLearner(db: Executor, learnerId: string) {
     on conflict (id) do nothing`);
 }
 
-async function rethrowLearnerWriteError(db: Db, learnerId: string, error: unknown): Promise<never> {
+export async function rethrowLearnerWriteError(db: Db, learnerId: string, error: unknown): Promise<never> {
   const cause = error instanceof DrizzleQueryError ? error.cause : error;
   const databaseError = cause && typeof cause === 'object' ? (cause as { code?: string; constraint?: string }) : null;
   if (

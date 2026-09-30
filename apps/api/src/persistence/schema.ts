@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import {
   bigint,
+  boolean,
   check,
   date,
   doublePrecision,
@@ -85,6 +86,24 @@ export const feedback = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).notNull(),
   },
   (t) => [index('feedback_created_at').on(t.createdAt)],
+);
+
+/** Behavioral stories of signed-in accounts: the learner's own writing, exported with their data and erased with it. */
+export const stories = pgTable(
+  'stories',
+  {
+    learnerId: uuid('learner_id')
+      .notNull()
+      .references(() => learners.id, { onDelete: 'cascade' }),
+    id: text('id').notNull(),
+    title: text('title').notNull(),
+    competencyIds: text('competency_ids').array().notNull(),
+    draft: jsonb('draft').notNull(),
+    rehearsal: jsonb('rehearsal'),
+    deleted: boolean('deleted').notNull().default(false),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.learnerId, t.id] })],
 );
 
 export const users = pgTable('users', {

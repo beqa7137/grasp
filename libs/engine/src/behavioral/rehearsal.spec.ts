@@ -10,6 +10,7 @@ const story = (id: string, competencyIds = ['ownership'], text = 'I fixed it.'):
   title: id,
   competencyIds,
   draft: { ...EMPTY_STAR_DRAFT, action: text },
+  updatedAt: '2026-09-01T00:00:00.000Z',
 });
 const daysUntil = (s: Story) => (new Date(s.rehearsal!.due).getTime() - now.getTime()) / day;
 
@@ -31,6 +32,7 @@ describe('story rehearsal', () => {
     s = rehearse(s, false, now);
     expect(daysUntil(s)).toBe(1);
     expect(daysUntil(rehearse(s, true, now))).toBe(REHEARSAL_DAYS[1]);
+    expect(Date.parse(s.updatedAt)).toBeGreaterThanOrEqual(now.getTime());
     expect(s.rehearsal?.told).toBe(REHEARSAL_DAYS.length + 2);
   });
 
@@ -64,3 +66,10 @@ describe('story rehearsal', () => {
 function questionId(s: Story) {
   return rehearsalQuestion(s)?.id;
 }
+
+describe('rehearsal on a clock that runs behind', () => {
+  it('still dates the telling after the story last changed', () => {
+    const later = { ...story('a'), updatedAt: '2026-09-29T13:00:00.000Z' };
+    expect(rehearse(later, true, now).updatedAt).toBe('2026-09-29T13:00:00.001Z');
+  });
+});

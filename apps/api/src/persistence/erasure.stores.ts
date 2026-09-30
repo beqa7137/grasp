@@ -4,6 +4,7 @@ import type { MemoryFeedbackStore, MemoryInterviewStore, MemoryProgressStore } f
 import { retiredLearner, retirementDestination } from './learner-errors.js';
 import type { Db } from './postgres.stores.js';
 import * as schema from './schema.js';
+import type { StoryStore } from './story.store.js';
 import { AuthStore } from './stores.js';
 
 export abstract class ErasureStore {
@@ -118,6 +119,7 @@ export class MemoryErasureStore extends ErasureStore {
     private readonly interviews: MemoryInterviewStore,
     private readonly feedback: MemoryFeedbackStore,
     private readonly auth: AuthStore,
+    private readonly stories: StoryStore,
   ) {
     super();
   }
@@ -135,6 +137,7 @@ export class MemoryErasureStore extends ErasureStore {
         this.interviews.deleteLearner(learnerId),
         this.auth.deleteByLearner(learnerId),
         this.progress.deleteLearner(learnerId),
+        this.stories.deleteLearner(learnerId),
       ]);
     });
   }

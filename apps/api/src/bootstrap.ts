@@ -6,7 +6,7 @@ import { requestContext } from './observability/request-context.js';
 import { ReportExceptionsFilter } from './observability/report-exceptions.filter.js';
 import { serveWebApp } from './web/serve-web-app.js';
 
-const PRIVATE_API = /^\/api\/(?:admin|auth|feedback|interview|me|progress)(?:\/|$)/;
+const PRIVATE_API = /^\/api\/(?:admin|auth|feedback|interview|me|progress|stories)(?:\/|$)/;
 
 /** HTTP pipeline shared by the server entry point and the e2e tests. */
 export function configureApp(app: NestExpressApplication, config: AppConfig) {

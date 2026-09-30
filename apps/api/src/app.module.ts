@@ -12,10 +12,19 @@ import { PersistenceModule } from './persistence/persistence.module.js';
 import { MyDataController } from './privacy/my-data.controller.js';
 import { ProgressController } from './progress/progress.controller.js';
 import { ProgressService } from './progress/progress.service.js';
+import { StoriesController } from './stories/stories.controller.js';
 
 @Module({
   imports: [PersistenceModule, AuthModule, InterviewModule],
-  controllers: [HealthController, CurriculumController, ProgressController, FeedbackController, MyDataController, AdminController],
+  controllers: [
+    HealthController,
+    CurriculumController,
+    ProgressController,
+    StoriesController,
+    FeedbackController,
+    MyDataController,
+    AdminController,
+  ],
   // Guards run in this order: identity first, so rate limits can key on the signed-in user.
   providers: [ProgressService, { provide: APP_GUARD, useExisting: IdentityGuard }, { provide: APP_GUARD, useClass: RateLimitGuard }],
 })

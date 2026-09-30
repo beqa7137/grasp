@@ -27,6 +27,7 @@ const erasedRows = {
   events: 0,
   sessions: 0,
   feedback: 0,
+  stories: 0,
   accounts: 0,
   identities: 0,
   refresh_tokens: 0,
@@ -83,6 +84,7 @@ describe.runIf(testDatabaseUrl)('Account erasure during a reply across API insta
          (select count(*)::int from learning_events where learner_id = $1) as events,
          (select count(*)::int from interview_sessions where learner_id = $1) as sessions,
          (select count(*)::int from feedback where learner_id = $1) as feedback,
+         (select count(*)::int from stories where learner_id = $1) as stories,
          (select count(*)::int from users where learner_id = $1 or id = $2 or email = 'deletion-race@example.com') as accounts,
          (select count(*)::int from auth_identities where user_id = $2) as identities,
          (select count(*)::int from refresh_tokens where user_id = $2) as refresh_tokens,
@@ -123,11 +125,21 @@ describe.runIf(testDatabaseUrl)('Account erasure during a reply across API insta
       .set(auth)
       .send({ kind: 'idea', message: 'Erase this feedback.', rating: null, context: { route: '/', release: null, platform: 'web' } })
       .expect(201);
+    await on(b)
+      .put('/api/stories/erase-me')
+      .set(auth)
+      .send({
+        title: 'Erase this story',
+        competencyIds: ['ownership'],
+        draft: { situation: 'A private story.', task: '', action: '', result: '', reflection: '' },
+        updatedAt: new Date().toISOString(),
+      })
+      .expect(200);
     const session = (
       await on(a).post('/api/interview/sessions').set(auth).send({ track: 'coding', problemId: 'warmer-days', mode: 'ai' }).expect(201)
     ).body;
     const beforeFailedErase = await remaining(account.user.id);
-    expect(beforeFailedErase).toMatchObject({ learners: 1, events: 1, sessions: 1, feedback: 1, accounts: 1, tombstones: 0 });
+    expect(beforeFailedErase).toMatchObject({ learners: 1, events: 1, sessions: 1, feedback: 1, stories: 1, accounts: 1, tombstones: 0 });
 
     try {
       await database.query('drop trigger if exists fail_erasure_test on users');
