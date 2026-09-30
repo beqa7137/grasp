@@ -14,6 +14,7 @@
     "test:debug": "vitest --inspect-brk --no-file-parallelism",
     "test:e2e": "vitest run --config ./vitest.config.e2e.ts",
     "eval:interviewer": "vitest run --config ./vitest.config.live.ts",
+    "eval:models": "vitest run --config ./vitest.config.models.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "typecheck": "tsc -p tsconfig.json --noEmit",

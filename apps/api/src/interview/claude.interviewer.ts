@@ -7,18 +7,20 @@ import type { InterviewSession, TokenUsage } from './interview.types.js';
 import { meteredRequest } from './metered-request.js';
 import { OfflineInterviewer } from './offline.interviewer.js';
 import { inputTokenBound, maximumCostUsd, messageUsage, priceFor } from './pricing.js';
-import {
-  BEHAVIORAL_REDIRECT,
-  behavioralInterviewerPrompt,
-  behavioralScorerPrompt,
-  behavioralTranscript,
-  behavioralTurn,
-} from './behavioral.prompts.js';
-import { behavioralScorecardJsonSchema, normalizeBehavioralScorecard } from './behavioral.scorecard.js';
-import { candidateTurn, interviewerSystemPrompt, scorerSystemPrompt, transcriptText } from './prompts.js';
-import { InvalidScorecardError, normalizeScorecard, scorecardJsonSchema } from './scorecard.schema.js';
+import { InvalidScorecardError } from './scorecard.schema.js';
 import type { SpendGuard } from './spend-guard.js';
 import { StreamUsage } from './stream-usage.js';
+import {
+  candidateTurnFor,
+  normalizeScorecardFor,
+  redirectFor,
+  scorecardJsonSchemaFor,
+  scorerPromptFor,
+  scoringRequest,
+  systemPromptFor,
+} from './track-prompts.js';
+
+export { REDIRECT_REPLY } from './track-prompts.js';
 
 export interface ClaudeInterviewerOptions {
   model: string;
@@ -27,7 +29,6 @@ export interface ClaudeInterviewerOptions {
   scoreTimeoutMs?: number;
 }
 
-export const REDIRECT_REPLY = "Let's keep going with the problem. Could you walk me through where your approach stands right now?";
 export const FALLBACK_SCORE_SUMMARY =
   'The AI scorer could not produce a valid scorecard for this interview, so this is the offline heuristic instead. It checks which rubric areas you covered, not whether your answers were right.';
 const SCORE_ATTEMPTS = 2;
@@ -92,7 +93,7 @@ export class ClaudeInterviewer extends Interviewer {
       });
       const text = message.stop_reason === 'refusal' ? '' : textOf(message);
       if (!text) this.log.warn({ operation: 'interview.empty-reply' });
-      return { text: text || (behavioral(session) ? BEHAVIORAL_REDIRECT : REDIRECT_REPLY), usage };
+      return { text: text || redirectFor(session), usage };
     } catch (err) {
       throw toHttpError(err, this.log);
     }
@@ -107,7 +108,7 @@ export class ClaudeInterviewer extends Interviewer {
           model: this.model.model,
           max_tokens: this.scoreMaxTokens,
           system: scorerPromptFor(session),
-          messages: [{ role: 'user', content: `Score this interview.\n\n<transcript>\n${transcriptFor(session)}\n</transcript>` }],
+          messages: [{ role: 'user', content: scoringRequest(session) }],
           service_tier: 'standard_only',
           output_config: {
             ...(this.model.supportsEffort ? { effort: 'medium' } : {}),
@@ -137,14 +138,6 @@ export class ClaudeInterviewer extends Interviewer {
   }
 }
 
-const behavioral = (session: InterviewSession) => session.track === 'behavioral';
-const systemPromptFor = (s: InterviewSession) => (behavioral(s) ? behavioralInterviewerPrompt(s) : interviewerSystemPrompt(s));
-const scorerPromptFor = (s: InterviewSession) => (behavioral(s) ? behavioralScorerPrompt(s) : scorerSystemPrompt(s));
-const transcriptFor = (s: InterviewSession) => (behavioral(s) ? behavioralTranscript(s) : transcriptText(s));
-const scorecardJsonSchemaFor = (s: InterviewSession) => (behavioral(s) ? behavioralScorecardJsonSchema() : scorecardJsonSchema(s.track));
-const normalizeScorecardFor = (s: InterviewSession, json: string) =>
-  behavioral(s) ? normalizeBehavioralScorecard(s, json) : normalizeScorecard(s.track, json);
-
 function textOf(message: Anthropic.Message): string {
   return message.content
     .filter((b) => b.type === 'text')
@@ -161,7 +154,7 @@ export function toClaudeMessages(session: InterviewSession): Anthropic.MessagePa
   const out: { role: 'user' | 'assistant'; content: string }[] = [{ role: 'user', content: '(The candidate joins the call.)' }];
   for (const m of session.messages) {
     const role = m.role === 'interviewer' ? 'assistant' : 'user';
-    const content = m.role === 'interviewer' ? m.content : behavioral(session) ? behavioralTurn(m) : candidateTurn(m);
+    const content = m.role === 'interviewer' ? m.content : candidateTurnFor(session, m);
     const last = out[out.length - 1];
     if (last.role === role) last.content = `${last.content}\n\n${content}`;
     else out.push({ role, content });
