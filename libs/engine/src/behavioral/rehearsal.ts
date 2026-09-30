@@ -18,12 +18,26 @@ export interface Rehearsal {
 /** A story can be rehearsed once it has a tag to draw questions from and something written to tell. */
 export const isRehearsable = (story: Story) => story.competencyIds.length > 0 && !isEmptyDraft(story.draft);
 
-export const isDue = (story: Story, now: Date) =>
-  isRehearsable(story) && (!story.rehearsal || new Date(story.rehearsal.due).getTime() <= now.getTime());
+/** Competency id to when an interview flagged it as weak, as the progress state's `behavioral` slice holds it. */
+export type FlaggedCompetencies = Readonly<Record<string, { weakSince: string | null }>>;
 
-export function dueStories(stories: readonly Story[], now: Date): Story[] {
+// Both grades schedule the next telling REHEARSAL_DAYS[step] days out, so the last telling is recoverable from the due date.
+const lastToldAt = (rehearsal: Rehearsal) => new Date(rehearsal.due).getTime() - REHEARSAL_DAYS[rehearsal.step] * DAY_MS;
+
+const flaggedSinceTold = (story: Story, rehearsal: Rehearsal, flagged: FlaggedCompetencies) =>
+  story.competencyIds.some((id) => {
+    const since = flagged[id]?.weakSince;
+    return since != null && Date.parse(since) > lastToldAt(rehearsal);
+  });
+
+/** Due on its ladder, or sooner when an interview has flagged one of its competencies since it was last told. */
+export const isDue = (story: Story, now: Date, flagged: FlaggedCompetencies = {}) =>
+  isRehearsable(story) &&
+  (!story.rehearsal || new Date(story.rehearsal.due).getTime() <= now.getTime() || flaggedSinceTold(story, story.rehearsal, flagged));
+
+export function dueStories(stories: readonly Story[], now: Date, flagged: FlaggedCompetencies = {}): Story[] {
   const since = (s: Story) => (s.rehearsal ? new Date(s.rehearsal.due).getTime() : 0);
-  return stories.filter((s) => isDue(s, now)).sort((a, b) => since(a) - since(b));
+  return stories.filter((s) => isDue(s, now, flagged)).sort((a, b) => since(a) - since(b));
 }
 
 /** Each telling asks a different question from the story's competencies, so it is practised as a reusable answer. */

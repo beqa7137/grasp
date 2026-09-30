@@ -19,6 +19,19 @@ export const RUBRICS: Record<InterviewTrack, { name: string; lookFor: string }[]
     },
     { name: 'Communication', lookFor: 'Drives the conversation, checks in, adapts to feedback.' },
   ],
+  behavioral: [
+    { name: 'Competency fit', lookFor: 'A real story that shows the competency the question asks about, told as a clear STAR arc.' },
+    {
+      name: 'Ownership & specificity',
+      lookFor: 'Says what they decided and did themselves, with concrete steps and details rather than "we".',
+    },
+    { name: 'Impact & results', lookFor: 'A measured or concrete outcome tied to their own actions, including what happened afterwards.' },
+    {
+      name: 'Judgment & reflection',
+      lookFor: 'Explains why they chose what they did, the trade-offs weighed, and what they would change.',
+    },
+    { name: 'Follow-up handling', lookFor: 'Answers each follow-up directly with new, specific detail instead of repeating the story.' },
+  ],
 };
 
 const rubricLines = (track: InterviewTrack) => RUBRICS[track].map((r) => `- ${r.name}: ${r.lookFor}`).join('\n');

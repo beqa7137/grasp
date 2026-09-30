@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { seeded } from '../review/random.js';
-import { MOCK_FOLLOW_UPS, MOCK_QUESTIONS, debriefMock, planMock } from './mock.js';
+import { FOLLOW_UP_MIN_WORDS, MOCK_FOLLOW_UPS, MOCK_QUESTIONS, debriefMock, planMock } from './mock.js';
 import { EMPTY_STAR_DRAFT, type StarDraft } from './star-check.js';
 
 const words = (n: number) => Array.from({ length: n }, () => 'detail').join(' ');
@@ -50,5 +50,11 @@ describe('behavioral mock interview', () => {
     expect(weak.answers[0].followUps.map((f) => f.ok)).toEqual([false, true]);
     expect(weak.answers[2].followUps.every((f) => !f.ok && f.answer === '')).toBe(true);
     expect(weak.passing).toBeLessThan(weak.total);
+  });
+
+  it(`counts a follow-up of ${FOLLOW_UP_MIN_WORDS} words as answered, and one word fewer as a fragment`, () => {
+    const plan = planMock(seeded(5)).slice(0, 1);
+    const [row] = debriefMock(plan, [{ answer: strong, followUps: [words(FOLLOW_UP_MIN_WORDS), words(FOLLOW_UP_MIN_WORDS - 1)] }]).answers;
+    expect(row.followUps.map((f) => f.ok)).toEqual([true, false]);
   });
 });

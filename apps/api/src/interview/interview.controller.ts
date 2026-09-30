@@ -1,26 +1,41 @@
 import { Body, Controller, Get, HttpException, Logger, Param, ParseUUIDPipe, Post, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { isEmptyDraft } from '@grasp/engine';
 import { z } from 'zod';
 import { LearnerId, UserId } from '../common/learner-id.decorator.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { reportError } from '../observability/error-reporting.js';
 import { safeErrorDetails } from '../observability/safe-error.js';
 import { databaseUnavailable, isDatabaseUnavailable } from '../persistence/database-errors.js';
+import { storySchema } from '../stories/stories.schema.js';
 import { InterviewService } from './interview.service.js';
 
+/** A STAR answer spoken in about three minutes is far shorter; this bounds what one scoring call reads. */
+const STAR_ANSWER_LIMIT = 12_000;
+
 const modeSchema = z.object({ mode: z.enum(['ai', 'offline']) });
-const startSchema = modeSchema.partial().extend({
-  track: z.enum(['coding', 'system-design']),
-  problemId: z.string().max(64).optional(),
-});
+const startSchema = modeSchema
+  .partial()
+  .extend({
+    track: z.enum(['coding', 'system-design', 'behavioral']),
+    problemId: z.string().max(64).optional(),
+    level: z.enum(['early', 'mid', 'senior']).optional(),
+  })
+  .refine((s) => !s.level || s.track === 'behavioral', 'Only a behavioral interview takes a level');
+
+const starSchema = storySchema.shape.draft
+  .refine((star) => Object.values(star).join('').length <= STAR_ANSWER_LIMIT, `A STAR answer is at most ${STAR_ANSWER_LIMIT} characters`)
+  .refine((star) => !isEmptyDraft(star), 'The STAR answer is empty');
 
 const messageSchema = z
   .object({
     content: z.string().max(4000).default(''),
     hint: z.boolean().default(false),
     code: z.object({ language: z.enum(['javascript', 'typescript', 'python']), source: z.string().max(20_000) }).optional(),
+    star: starSchema.optional(),
   })
-  .refine((m) => m.hint || m.content.trim().length > 0 || Boolean(m.code?.source.trim()), 'Message cannot be empty');
+  .refine((m) => !(m.star && m.content.trim()), 'Send the STAR answer or a message, not both')
+  .refine((m) => m.hint || m.content.trim().length > 0 || Boolean(m.code?.source.trim()) || Boolean(m.star), 'Message cannot be empty');
 
 @Controller('interview')
 export class InterviewController {
@@ -40,7 +55,7 @@ export class InterviewController {
 
   @Post('sessions')
   start(@LearnerId() learnerId: string, @Body(new ZodValidationPipe(startSchema)) body: z.infer<typeof startSchema>, @Req() req: Request) {
-    return this.interviews.start(learnerId, body.track, body.problemId, body.mode, req.accessClaims);
+    return this.interviews.start(learnerId, body.track, body.problemId, body.mode, req.accessClaims, body.level);
   }
 
   @Get('sessions/:id')

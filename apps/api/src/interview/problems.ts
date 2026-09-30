@@ -1,3 +1,4 @@
+import { pickBehavioralProblem } from './behavioral-problems.js';
 import type { InterviewProblem, InterviewTrack } from './interview.types.js';
 
 export const PROBLEMS: InterviewProblem[] = [
@@ -124,6 +125,7 @@ export const PROBLEMS: InterviewProblem[] = [
 ];
 
 export function pickProblem(track: InterviewTrack, problemId?: string): InterviewProblem | undefined {
+  if (track === 'behavioral') return pickBehavioralProblem(problemId);
   if (problemId) return PROBLEMS.find((p) => p.id === problemId && p.track === track);
   const pool = PROBLEMS.filter((p) => p.track === track);
   return pool[Math.floor(Math.random() * pool.length)];

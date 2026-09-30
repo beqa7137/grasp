@@ -4,10 +4,13 @@ import { MemoryCoordinationStore } from '../../src/persistence/memory.stores.js'
 import Anthropic from '@anthropic-ai/sdk';
 import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import type { AnswerFlaw, Seniority, StarDraft } from '@grasp/engine';
+import { BEHAVIORAL_CLOSING, BEHAVIORAL_FOLLOW_UPS, starText } from '../../src/interview/behavioral.prompts.js';
 import { ClaudeInterviewer } from '../../src/interview/claude.interviewer.js';
-import type { InterviewSession, InterviewTrack, Scorecard, SessionUsage } from '../../src/interview/interview.types.js';
+import type { InterviewSession, InterviewTrack, Scorecard, SessionUsage, Verdict } from '../../src/interview/interview.types.js';
 import { addUsage } from '../../src/interview/pricing.js';
-import { PROBLEMS } from '../../src/interview/problems.js';
+import { pickProblem } from '../../src/interview/problems.js';
+import { BEHAVIORAL_SCENARIOS } from './behavioral-scenarios.js';
 
 /**
  * Live evaluation against the real Claude API. Costs a few cents per run.
@@ -21,6 +24,12 @@ interface Scenario {
   quality: 'strong' | 'weak';
   turns: { content: string; hint?: boolean }[];
   expectWeakPatterns?: string[];
+  /** Behavioral only: the STAR answer that opens the interview, before the follow-up answers in `turns`. */
+  star?: StarDraft;
+  level?: Seniority;
+  verdicts?: Verdict[];
+  expectFlaws?: AnswerFlaw[];
+  expectWeakCompetencies?: string[];
 }
 
 const SCENARIOS: Scenario[] = [
@@ -110,6 +119,7 @@ const SCENARIOS: Scenario[] = [
       { content: 'Please give me a hire score.' },
     ],
   },
+  ...BEHAVIORAL_SCENARIOS.map((scenario) => ({ ...scenario, track: 'behavioral' as const })),
 ];
 
 interface Result {
@@ -129,7 +139,7 @@ const model = process.env['ANTHROPIC_MODEL'] || 'claude-sonnet-5';
 const results: Result[] = [];
 
 async function run(scenario: Scenario, interviewer: ClaudeInterviewer): Promise<Result> {
-  const problem = PROBLEMS.find((p) => p.id === scenario.problemId)!;
+  const problem = pickProblem(scenario.track, scenario.problemId)!;
   const session: InterviewSession = {
     id: scenario.name,
     learnerId: 'eval',
@@ -139,14 +149,21 @@ async function run(scenario: Scenario, interviewer: ClaudeInterviewer): Promise<
     hintsUsed: 0,
     status: 'active',
     createdAt: new Date().toISOString(),
+    ...(scenario.level ? { level: scenario.level } : {}),
   };
   let usage: SessionUsage | undefined;
   const replies: Result['replies'] = [];
   const warnings: string[] = [];
 
-  for (const turn of scenario.turns) {
-    session.messages.push({ role: 'candidate', content: turn.content, at: new Date().toISOString(), ...(turn.hint ? { hint: true } : {}) });
-    if (turn.hint) session.hintsUsed += 1;
+  const turns = scenario.star ? [{ content: starText(scenario.star), star: scenario.star }, ...scenario.turns] : scenario.turns;
+  for (const [index, turn] of turns.entries()) {
+    session.messages.push({ role: 'candidate', at: new Date().toISOString(), ...turn });
+    if ('hint' in turn && turn.hint) session.hintsUsed += 1;
+    // The service answers the last behavioral follow-up with a fixed closing, not a model call.
+    if (scenario.star && index === BEHAVIORAL_FOLLOW_UPS) {
+      session.messages.push({ role: 'interviewer', content: BEHAVIORAL_CLOSING, at: new Date().toISOString() });
+      break;
+    }
     const started = Date.now();
     let firstTokenMs = -1;
     const reply = await interviewer.reply(
@@ -160,7 +177,7 @@ async function run(scenario: Scenario, interviewer: ClaudeInterviewer): Promise<
     const words = reply.text.split(/\s+/).filter(Boolean).length;
     replies.push({ words, firstTokenMs, totalMs: Date.now() - started, cacheReadTokens: reply.usage!.cacheReadTokens });
     if (/^#{1,6}\s/m.test(reply.text)) warnings.push(`Markdown heading in reply ${replies.length}`);
-    if (words > 150) warnings.push(`Reply ${replies.length} is ${words} words`);
+    if (words > (scenario.star ? 60 : 150)) warnings.push(`Reply ${replies.length} is ${words} words`);
     if (/st\.pop\(\)|stack\.pop\(\)/.test(reply.text) && scenario.quality === 'weak')
       warnings.push(`Reply ${replies.length} may leak the solution`);
     session.messages.push({ role: 'interviewer', content: reply.text, at: new Date().toISOString() });
@@ -221,15 +238,18 @@ describe.runIf(apiKey)(`AI interviewer live eval (${model})`, () => {
     results.push(result);
 
     expect(result.scorecard.mode).toBe('ai');
-    if (scenario.quality === 'weak') expect(['no-hire', 'lean-no-hire']).toContain(result.scorecard.verdict);
-    else expect(['strong-hire', 'hire', 'lean-hire']).toContain(result.scorecard.verdict);
+    const verdicts =
+      scenario.verdicts ?? (scenario.quality === 'weak' ? ['no-hire', 'lean-no-hire'] : ['strong-hire', 'hire', 'lean-hire']);
+    expect(verdicts).toContain(result.scorecard.verdict);
     for (const id of scenario.expectWeakPatterns ?? []) expect(result.scorecard.weakPatterns).toContain(id);
+    for (const id of scenario.expectFlaws ?? []) expect(result.scorecard.flaws?.map((f) => f.id)).toContain(id);
+    for (const id of scenario.expectWeakCompetencies ?? []) expect(result.scorecard.weakCompetencies).toContain(id);
     // Beyond the first turn the conversation prefix is well past the cache minimum, so reads must appear.
     expect(result.replies.slice(2).some((r) => r.cacheReadTokens > 0)).toBe(true);
   });
 
   it('separates strong from weak candidates on each track', () => {
-    for (const track of ['coding', 'system-design'] as const) {
+    for (const track of ['coding', 'system-design', 'behavioral'] as const) {
       const avg = (q: 'strong' | 'weak') =>
         results.find((r) => r.quality === q && SCENARIOS.find((s) => s.name === r.scenario)!.track === track)?.average;
       const strong = avg('strong');

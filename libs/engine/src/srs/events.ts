@@ -42,9 +42,13 @@ export interface ScenarioCompletedEvent extends BaseEvent {
 export interface InterviewScoredEvent extends BaseEvent {
   type: 'interview.scored';
   sessionId: string;
-  track: 'coding' | 'system-design';
+  track: 'coding' | 'system-design' | 'behavioral';
   verdict: string;
   weakPatterns: string[];
+  /** Behavioral only: the competency the question asked about. */
+  competencyId?: string;
+  /** Behavioral only: competencies the answer showed a gap in. */
+  weakCompetencies?: string[];
 }
 
 /** A full-suite submission in the coding workspace. */

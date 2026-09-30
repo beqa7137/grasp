@@ -1,6 +1,7 @@
 import {
   ALGORITHMS,
   CODING_CATALOG,
+  COMPETENCY_CATALOG,
   DIAGNOSTIC_OUTCOMES,
   DRILL_CARDS,
   LANGUAGES,
@@ -17,6 +18,7 @@ const patternIds = new Set(PATTERNS.map((p) => p.id));
 const algorithmIds = new Set(ALGORITHMS.map((a) => a.id));
 const scenarioIds = new Set(SCENARIOS.map((s) => s.id));
 const problemIds = new Set<string>(CODING_CATALOG.map((p) => p.id));
+const competencyIds = new Set(COMPETENCY_CATALOG.map((c) => c.id));
 
 const base = {
   id: z
@@ -31,6 +33,7 @@ const itemId = z
   .string()
   .max(80)
   .refine((id) => Boolean(getReviewItem(id)), 'Unknown review item');
+const competencyId = z.string().refine((id) => competencyIds.has(id), 'Unknown competency');
 const durationMs = z.number().int().min(0).max(3_600_000);
 const oneOf = (options: readonly number[]) => z.number().refine((v) => options.includes(v), `Must be one of ${options.join(', ')}`);
 
@@ -65,14 +68,21 @@ export const learningEventSchema = z.discriminatedUnion('type', [
     monthlyCost: z.number().nonnegative(),
     variant: z.number().int().min(1).max(10).optional(),
   }),
-  z.object({
-    ...base,
-    type: z.literal('interview.scored'),
-    sessionId: z.string().max(64),
-    track: z.enum(['coding', 'system-design']),
-    verdict: z.string().max(32),
-    weakPatterns: z.array(z.string().refine((id) => patternIds.has(id), 'Unknown pattern')).max(20),
-  }),
+  z
+    .object({
+      ...base,
+      type: z.literal('interview.scored'),
+      sessionId: z.string().max(64),
+      track: z.enum(['coding', 'system-design', 'behavioral']),
+      verdict: z.string().max(32),
+      weakPatterns: z.array(z.string().refine((id) => patternIds.has(id), 'Unknown pattern')).max(20),
+      competencyId: competencyId.optional(),
+      weakCompetencies: z.array(competencyId).max(COMPETENCY_CATALOG.length).optional(),
+    })
+    .refine(
+      (e) => (e.track === 'behavioral' ? e.weakPatterns.length === 0 : e.competencyId === undefined && e.weakCompetencies === undefined),
+      'Behavioral interviews name weak competencies, and the other tracks weak patterns',
+    ),
   z
     .object({
       ...base,

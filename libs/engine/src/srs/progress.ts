@@ -1,3 +1,4 @@
+import { getCompetencySummary } from '../behavioral/catalog.js';
 import { problemPatterns } from '../coding/problem-patterns.js';
 import { PATTERN_CATALOG } from '../curriculum/catalog.js';
 import { SD_TOPICS, getSdTopic } from '../curriculum/sd-topics.js';
@@ -5,7 +6,7 @@ import { getReviewItemSummary, itemsForTopic } from '../review/catalog.js';
 import type { ItemKind, ReviewItemSummary } from '../review/types.js';
 import { SCENARIO_CATALOG } from '../sysdesign/scenario-catalog.js';
 import { placementFromAnswers, type Placement } from './diagnostic.js';
-import { sortEvents, upcast, type StoredEvent, type StudySettings } from './events.js';
+import { sortEvents, upcast, type InterviewScoredEvent, type StoredEvent, type StudySettings } from './events.js';
 import { pullForward, retrievability, review, type CardPhase, type CardState, type ReviewRating } from './scheduler.js';
 import { DEFAULT_STUDY_SETTINGS, mergeSettings } from './settings.js';
 
@@ -41,6 +42,14 @@ export interface CodingRecord {
   total: number;
 }
 
+export interface CompetencyRecord {
+  /** When an interview last asked about this competency, and its verdict; null while it has only been flagged. */
+  lastAt: string | null;
+  verdict: string | null;
+  /** Since when an interview has flagged it as weak; a later interview on it that does not flag it clears this. */
+  weakSince: string | null;
+}
+
 export interface ReviewRecord {
   at: string;
   itemId: string;
@@ -57,6 +66,7 @@ export interface ProgressState {
   predictions: Record<string, { correct: number; total: number }>;
   missions: Record<string, MissionState>;
   interviews: { total: number; lastVerdict: string | null };
+  behavioral: Record<string, CompetencyRecord>;
   /** Pattern → placement from the latest placement check. */
   placement: Record<string, Placement>;
   diagnosedAt: string | null;
@@ -79,6 +89,7 @@ export const emptyProgress = (): ProgressState => ({
   predictions: {},
   missions: {},
   interviews: { total: 0, lastVerdict: null },
+  behavioral: {},
   placement: {},
   diagnosedAt: null,
   coding: {},
@@ -172,6 +183,7 @@ export function applyEvent(state: ProgressState, stored: StoredEvent): ProgressS
     }
     case 'interview.scored': {
       next.interviews = { total: state.interviews.total + 1, lastVerdict: event.verdict };
+      if (event.track === 'behavioral') next.behavioral = scoreCompetencies(state.behavioral, event);
       for (const topic of event.weakPatterns) {
         introduce(topic);
         for (const def of itemsForTopic(topic)) {
@@ -227,6 +239,25 @@ export function applyEvent(state: ProgressState, stored: StoredEvent): ProgressS
 
 export function replay(events: StoredEvent[], from: ProgressState = emptyProgress()): ProgressState {
   return sortEvents(events).reduce(applyEvent, from);
+}
+
+function scoreCompetencies(behavioral: ProgressState['behavioral'], event: InterviewScoredEvent): ProgressState['behavioral'] {
+  const next = { ...behavioral };
+  const weak = new Set((event.weakCompetencies ?? []).filter((id) => getCompetencySummary(id)));
+  const asked = event.competencyId && getCompetencySummary(event.competencyId) ? event.competencyId : null;
+  if (asked) {
+    next[asked] = {
+      lastAt: event.at,
+      verdict: event.verdict,
+      weakSince: weak.has(asked) ? (behavioral[asked]?.weakSince ?? event.at) : null,
+    };
+  }
+  for (const id of weak) {
+    if (id === asked) continue;
+    const prev = behavioral[id] ?? { lastAt: null, verdict: null, weakSince: null };
+    next[id] = { ...prev, weakSince: prev.weakSince ?? event.at };
+  }
+  return next;
 }
 
 function updateDuration(durations: ProgressState['durations'], kind: ItemKind, ms: number): ProgressState['durations'] {

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { starFlaws } from './flaws.js';
 import { countWords, reviewStar, type StarDraft } from './star-check.js';
 
 const words = (n: number, word = 'detail') => Array.from({ length: n }, () => word).join(' ');
@@ -59,6 +60,20 @@ describe('reviewStar', () => {
     expect(reviewStar(short).seconds).toBe(60);
     expect(check(short, 'length').message).toContain('Under a minute and a half');
     expect(check({ ...short, action: words(600) }, 'length').message).toContain('Over three minutes');
+  });
+});
+
+describe('starFlaws', () => {
+  it('names the flaw behind each failed check, and none for a story that passes', () => {
+    expect(starFlaws(reviewStar(strong))).toEqual([]);
+    const weak = { ...strong, action: 'We capped the retries and we shipped it.', result: 'It went well.', reflection: '' };
+    expect(starFlaws(reviewStar(weak))).toEqual(['we-not-i', 'no-result', 'long-setup', 'no-reflection']);
+  });
+
+  it('has no flaw for a check that catches none, such as length', () => {
+    const long = { ...strong, action: `${strong.action} ${words(600)}` };
+    expect(reviewStar(long).checks.find((c) => c.id === 'length')!.ok).toBe(false);
+    expect(starFlaws(reviewStar(long))).toEqual([]);
   });
 });
 

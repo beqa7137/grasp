@@ -6,7 +6,7 @@ import type { BehavioralQuestion } from './types.js';
 export const MOCK_QUESTIONS = 3;
 export const MOCK_FOLLOW_UPS = 2;
 /** A follow-up answered in fewer words than this is a sentence fragment, not an answer. */
-const FOLLOW_UP_MIN_WORDS = 12;
+export const FOLLOW_UP_MIN_WORDS = 12;
 
 export interface MockQuestion {
   question: BehavioralQuestion;
