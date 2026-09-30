@@ -9,6 +9,11 @@ vi.mock('@capacitor/preferences', () => ({
     get: vi.fn(async ({ key }: { key: string }) => ({ value: localStorage.getItem(`CapacitorStorage.${key}`) })),
     set: vi.fn(async ({ key, value }: { key: string; value: string }) => localStorage.setItem(`CapacitorStorage.${key}`, value)),
     remove: vi.fn(async ({ key }: { key: string }) => localStorage.removeItem(`CapacitorStorage.${key}`)),
+    keys: vi.fn(async () => ({
+      keys: Object.keys(localStorage)
+        .filter((key) => key.startsWith('CapacitorStorage.'))
+        .map((key) => key.slice('CapacitorStorage.'.length)),
+    })),
   },
 }));
 
@@ -20,6 +25,15 @@ const story = (id: string, title: string, updatedAt: string): Story => ({
   draft: { ...EMPTY_STAR_DRAFT, action: `I fixed ${title}.` },
   updatedAt,
 });
+const blankStory = (id: string, updatedAt: string): Story => ({
+  id,
+  title: '',
+  competencyIds: [],
+  draft: { ...EMPTY_STAR_DRAFT },
+  updatedAt,
+});
+const stashKey = (learnerId: string) => `${BANK_KEY}.${learnerId}`;
+const DAY_MS = 24 * 60 * 60 * 1000;
 const stored = (): Story[] => JSON.parse(localStorage.getItem(BANK_KEY) ?? '[]');
 const keep = (...stories: Story[]) => localStorage.setItem(BANK_KEY, JSON.stringify(stories));
 const titles = (stories: readonly Story[]) => stories.map((s) => (s.deleted ? `${s.id} deleted` : s.title));
@@ -199,6 +213,79 @@ describe('StoryBankService', () => {
     await bank.stash('learner-a');
     await bank.clear('learner-a');
     expect(localStorage.getItem('CapacitorStorage.grasp.behavioral.stories.learner-a')).toBeNull();
+  });
+
+  it('drops a bank kept aside more than 90 days ago when the story bank loads, and dates an undated one', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const start = Date.parse('2026-06-01T00:00:00.000Z');
+    vi.setSystemTime(start);
+    const { bank } = setup([], false);
+    keep(story('a', 'A', '2026-05-01T00:00:00.000Z'));
+    await bank.stash('learner-a');
+    vi.setSystemTime(start + DAY_MS);
+    await bank.stash('learner-b');
+    localStorage.setItem(stashKey('learner-c'), JSON.stringify([story('c', 'C', '2026-05-01T00:00:00.000Z')]));
+    expect(JSON.parse(localStorage.getItem(stashKey('learner-a'))!)).toEqual({
+      savedAt: new Date(start).toISOString(),
+      stories: [expect.objectContaining({ id: 'a' })],
+    });
+
+    vi.setSystemTime(start + 90 * DAY_MS + 1);
+    await bank.load();
+    expect(localStorage.getItem(stashKey('learner-a'))).toBeNull();
+    expect(localStorage.getItem(stashKey('learner-b'))).not.toBeNull();
+    expect(JSON.parse(localStorage.getItem(stashKey('learner-c'))!)).toEqual({
+      savedAt: new Date(start + 90 * DAY_MS + 1).toISOString(),
+      stories: [expect.objectContaining({ id: 'c' })],
+    });
+
+    vi.setSystemTime(start + 91 * DAY_MS + 1);
+    await bank.clear();
+    await bank.restore('learner-b');
+    expect(bank.stories()).toEqual([]);
+    expect(localStorage.getItem(stashKey('learner-b'))).toBeNull();
+  });
+
+  it('drops an unreadable bank kept aside instead of failing to load', async () => {
+    const { bank } = setup([], false);
+    localStorage.setItem(stashKey('learner-a'), '{not json');
+    localStorage.setItem(stashKey('learner-b'), JSON.stringify({ savedAt: new Date().toISOString() }));
+    await bank.load();
+    expect(localStorage.getItem(stashKey('learner-a'))).toBeNull();
+    expect(localStorage.getItem(stashKey('learner-b'))).toBeNull();
+    await bank.restore('learner-a');
+    expect(bank.stories()).toEqual([]);
+  });
+
+  it('merges a second bank kept aside for the same learner into the first, by latest change', async () => {
+    const { bank } = setup([], false);
+    keep(story('a', 'First session', '2026-09-01T00:00:00.000Z'), story('c', 'Only in the first', '2026-09-01T00:00:00.000Z'));
+    await bank.stash('learner-a');
+    await bank.clear();
+    keep(story('a', 'Edited later', '2026-09-02T00:00:00.000Z'), story('b', 'Second session', '2026-09-02T00:00:00.000Z'));
+    await bank.stash('learner-a');
+    await bank.clear();
+
+    await bank.restore('learner-a');
+    expect(titles(bank.stories())).toEqual(['Edited later', 'Second session', 'Only in the first']);
+  });
+
+  it('never uploads a blank story, and sweeps stories left blank when the app closed, except the open one', async () => {
+    keep(
+      story('a', 'A', '2026-09-01T00:00:00.000Z'),
+      blankStory('left', '2026-09-02T00:00:00.000Z'),
+      blankStory('new', '2026-09-02T00:00:00.000Z'),
+      blankStory('open', '2026-09-02T00:00:00.000Z'),
+    );
+    const { bank, api, server } = setup([story('left', 'Left', '2026-09-01T00:00:00.000Z')]);
+    await bank.load('open');
+    expect(titles(bank.stories())).toEqual(['A', '']);
+    expect(stored().map((s) => s.id)).toEqual(['a', 'left', 'open']);
+
+    await bank.save('typed', { title: '' });
+    expect(await bank.flush()).toEqual({ stories: [], checked: true });
+    expect(putIds(api.put)).toEqual(['/stories/a', '/stories/left']);
+    expect(server.get('left')?.deleted).toBe(true);
   });
 
   it("dates an edit after the story's last change on a clock that runs behind, so the edit still wins", async () => {

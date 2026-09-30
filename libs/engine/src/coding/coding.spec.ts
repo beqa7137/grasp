@@ -60,6 +60,11 @@ function exactBestChance(edges: number[][], start: number, end: number): [bigint
 }
 
 /** Obviously-correct (and slow) solutions to cross-check the references on small inputs. */
+const LOCK_NEIGHBORS = rangeOf(0, 9_999).map((code) => {
+  const text = String(code).padStart(4, '0');
+  return [0, 1, 2, 3].flatMap((i) => [1, 9].map((step) => Number(text.slice(0, i) + ((Number(text[i]) + step) % 10) + text.slice(i + 1))));
+});
+
 const BRUTE: Record<string, (...args: any[]) => unknown> = {
   'two-sum': (nums: number[], t: number) => {
     for (let i = 0; i < nums.length; i++) for (let j = i + 1; j < nums.length; j++) if (nums[i] + nums[j] === t) return [i, j];
@@ -475,24 +480,20 @@ const BRUTE: Record<string, (...args: any[]) => unknown> = {
     return mat.map((row, r) => row.map((_, c) => Math.min(...zeros.map(([y, x]) => Math.abs(y - r) + Math.abs(x - c)))));
   },
   'open-the-lock': (deadends: string[], target: string) => {
-    const from = rangeOf(0, 9_999).map((code) => {
-      const text = String(code).padStart(4, '0');
-      return [0, 1, 2, 3].flatMap((i) =>
-        [1, 9].map((step) => Number(text.slice(0, i) + ((Number(text[i]) + step) % 10) + text.slice(i + 1))),
-      );
-    });
-    const dead = new Set(deadends.map(Number));
-    const turns = from.map((_, code) => (code === 0 && !dead.has(0) ? 0 : Infinity));
+    const dead = new Uint8Array(10_000);
+    for (const code of deadends) dead[Number(code)] = 1;
+    const turns = new Float64Array(10_000).fill(Infinity);
+    if (!dead[0]) turns[0] = 0;
     for (let changed = true; changed;) {
       changed = false;
-      from.forEach((neighbors, code) => {
-        if (dead.has(code)) return;
-        for (const other of neighbors)
+      for (let code = 0; code < 10_000; code++) {
+        if (dead[code]) continue;
+        for (const other of LOCK_NEIGHBORS[code])
           if (turns[other] + 1 < turns[code]) {
             turns[code] = turns[other] + 1;
             changed = true;
           }
-      });
+      }
     }
     const answer = turns[Number(target)];
     return answer === Infinity ? -1 : answer;
@@ -1409,10 +1410,12 @@ describe('coding problems', () => {
   );
 
   it.each(CODING_PROBLEMS.map((p) => [p.id, p] as const))('%s: the reference solves the performance case quickly', (_id, problem) => {
-    const started = performance.now();
+    // CPU time, not wall time: under a parallel run the wall clock measures the machine's load, not the reference.
+    const started = process.cpuUsage();
     const [perf] = buildSuite(problem, { seed: 3 }).filter((t) => t.kind === 'performance');
     expect(perf).toBeDefined();
-    expect(performance.now() - started).toBeLessThan(1_500);
+    const { user, system } = process.cpuUsage(started);
+    expect((user + system) / 1_000).toBeLessThan(1_500);
     const load = PERFORMANCE_LOAD[problem.id]?.(perf) ?? JSON.stringify(perf.args).length;
     expect(load).toBeGreaterThan(10_000);
   });
