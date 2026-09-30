@@ -88,6 +88,29 @@ const DETAILS: Record<PatternId, PatternDefinition> = {
     complexity: 'O(n) time, O(1) space',
     pitfalls: ['Null checks on `fast.next`', 'Finding the cycle start needs a second phase'],
   },
+  'linked-list-reversal': {
+    cues: [
+      'Reverse a linked list, or the part between two positions, in place',
+      'Reverse every k nodes, or swap adjacent pairs',
+      'Palindrome checks or reordering a list in O(1) space',
+    ],
+    template: [
+      'let prev = null, curr = head;',
+      'while (curr) {',
+      '  const next = curr.next;',
+      '  curr.next = prev;',
+      '  prev = curr;',
+      '  curr = next;',
+      '}',
+      'return prev;',
+    ],
+    complexity: 'O(n) time, O(1) space',
+    pitfalls: [
+      'Setting `curr.next` before saving it, which loses the rest of the list',
+      'Off by one at the sublist edges: stop `before` on the node just before the sublist, at position `left - 1`',
+      'Leaving the ends loose: link the old first node to the node after the sublist',
+    ],
+  },
   intervals: {
     cues: ['Meeting rooms / calendars', 'Merge overlapping ranges', 'Minimum arrows / removals to avoid overlap'],
     template: [

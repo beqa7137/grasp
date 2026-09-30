@@ -5,9 +5,26 @@ import { CODING_CATALOG } from './catalog.js';
 import { ladderLengths } from './problems/batch-h.js';
 import { getCodingProblem } from './problems/index.js';
 import { buildSuite, entryArgs, outputsMatch, paramTypes, preview } from './suite.js';
+import { ListNode, listValues } from './list.js';
 import type { TreeNode } from './tree.js';
 
 type WrongSolution = { name: string; solve: (...args: any[]) => unknown };
+
+/** Reverses up to count nodes from head onto prev, and returns the new first node and the node after them. */
+function flip(head: ListNode | null, count: number, prev: ListNode | null = null): [ListNode | null, ListNode | null] {
+  let curr = head;
+  for (let i = 0; i < count && curr; i++) [curr.next, prev, curr] = [prev, curr, curr.next];
+  return [prev, curr];
+}
+
+/** A returned list as its values, or a note that it loops, which no expected list matches. */
+function returned(head: ListNode | null): unknown {
+  try {
+    return listValues(head);
+  } catch {
+    return 'a list that loops';
+  }
+}
 
 const longestRun = (sorted: number[], joins: (previous: number, value: number) => boolean) => {
   let best = Math.min(sorted.length, 1);
@@ -1833,6 +1850,165 @@ const WRONG: Record<string, WrongSolution[]> = {
           node = next[node];
         }
         return node === -1 ? -1 : 0;
+      },
+    },
+  ],
+  'reverse-linked-list': [
+    {
+      name: 'return the old head after the loop',
+      solve: (head: ListNode | null) => {
+        flip(head, Infinity);
+        return returned(head);
+      },
+    },
+    {
+      name: 'start with prev on the head, so the old head keeps its link',
+      solve: (head: ListNode | null) => {
+        if (!head) return [];
+        const [prev] = flip(head.next, Infinity, head);
+        return returned(prev);
+      },
+    },
+    {
+      name: 'stop while curr still has a next node',
+      solve: (head: ListNode | null) => {
+        let prev: ListNode | null = null;
+        let curr = head;
+        while (curr?.next) [curr.next, prev, curr] = [prev, curr, curr.next];
+        return returned(prev);
+      },
+    },
+  ],
+  'reverse-linked-list-ii': [
+    {
+      name: 'walk before to position left instead of left - 1',
+      solve: (head: ListNode, left: number, right: number) => {
+        const dummy = new ListNode(0, head);
+        let before = dummy;
+        for (let i = 0; i < left && before.next; i++) before = before.next;
+        const first = before.next;
+        if (!first) return returned(dummy.next);
+        const [prev, after] = flip(first, right - left + 1);
+        first.next = after;
+        before.next = prev;
+        return returned(dummy.next);
+      },
+    },
+    {
+      name: 'never link the old first node to the rest',
+      solve: (head: ListNode, left: number, right: number) => {
+        const dummy = new ListNode(0, head);
+        let before = dummy;
+        for (let i = 1; i < left; i++) before = before.next!;
+        before.next = flip(before.next, right - left + 1)[0];
+        return returned(dummy.next);
+      },
+    },
+    {
+      name: 'start before on the head, with no dummy',
+      solve: (head: ListNode, left: number, right: number) => {
+        let before = head;
+        for (let i = 2; i < left; i++) before = before.next!;
+        const first = before.next;
+        if (!first) return returned(head);
+        const [prev, after] = flip(first, right - left + 1);
+        first.next = after;
+        before.next = prev;
+        return returned(head);
+      },
+    },
+  ],
+  'swap-nodes-in-pairs': [
+    {
+      name: 'link each swapped pair to the next pair before it is swapped',
+      solve: (head: ListNode | null) => {
+        const start = head?.next ?? head;
+        for (let first = head; first?.next;) {
+          const second: ListNode = first.next;
+          const after = second.next;
+          second.next = first;
+          first.next = after;
+          first = after;
+        }
+        return returned(start);
+      },
+    },
+    {
+      name: 'swap only the first pair',
+      solve: (head: ListNode | null) => {
+        if (!head?.next) return returned(head);
+        const second = head.next;
+        head.next = second.next;
+        second.next = head;
+        return returned(second);
+      },
+    },
+    {
+      name: 'return the old head',
+      solve: (head: ListNode | null) => {
+        const dummy = new ListNode(0, head);
+        for (let prev = dummy; prev.next?.next;) {
+          const [first, second] = [prev.next, prev.next.next];
+          [first.next, second.next, prev.next, prev] = [second.next, first, second, first];
+        }
+        return returned(head);
+      },
+    },
+  ],
+  'reverse-nodes-k-group': [
+    {
+      name: 'reverse the last group even when it is short',
+      solve: (head: ListNode, k: number) => {
+        const dummy = new ListNode(0, head);
+        for (let groupPrev = dummy; groupPrev.next;) {
+          const first = groupPrev.next;
+          const [prev, after] = flip(first, k);
+          first.next = after;
+          groupPrev.next = prev;
+          groupPrev = first;
+        }
+        return returned(dummy.next);
+      },
+    },
+    {
+      name: 'link only the first group to the node before it',
+      solve: (head: ListNode, k: number) => {
+        const dummy = new ListNode(0, head);
+        for (let groupPrev = dummy; ;) {
+          let last: ListNode | null = groupPrev;
+          for (let i = 0; i < k && last; i++) last = last.next;
+          if (!last) return returned(dummy.next);
+          const first = groupPrev.next!;
+          const [prev, after] = flip(first, k);
+          first.next = after;
+          if (groupPrev === dummy) groupPrev.next = prev;
+          groupPrev = first;
+        }
+      },
+    },
+    {
+      name: 'reverse only the first group',
+      solve: (head: ListNode, k: number) => {
+        const [prev, after] = flip(head, k);
+        head.next = after;
+        return returned(prev);
+      },
+    },
+  ],
+  'palindrome-linked-list': [
+    {
+      name: 'compare the two halves in the same direction',
+      solve: (head: ListNode) => {
+        const values = listValues(head);
+        const half = Math.floor(values.length / 2);
+        return values.slice(0, half).join() === values.slice(values.length - half).join();
+      },
+    },
+    {
+      name: 'compare only the first and last values',
+      solve: (head: ListNode) => {
+        const values = listValues(head);
+        return values[0] === values[values.length - 1];
       },
     },
   ],

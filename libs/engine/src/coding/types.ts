@@ -3,8 +3,11 @@ import type { CodingProblemSummary } from './catalog.js';
 export type Language = 'javascript' | 'typescript' | 'python';
 export const LANGUAGES: Language[] = ['python', 'javascript', 'typescript'];
 
-/** `tree` is a binary tree: tests carry it as a `LevelOrder` array, and the entry function receives linked `TreeNode`s. */
-export type ParamType = 'int' | 'int[]' | 'int[][]' | 'string' | 'string[]' | 'char[][]' | 'bool' | 'tree';
+/**
+ * `tree` is a binary tree: tests carry it as a `LevelOrder` array, and the entry function receives linked `TreeNode`s.
+ * `list` is a singly linked list: tests carry its values, the entry function receives or returns linked `ListNode`s.
+ */
+export type ParamType = 'int' | 'int[]' | 'int[][]' | 'string' | 'string[]' | 'char[][]' | 'bool' | 'tree' | 'list';
 
 export interface Param {
   name: string;

@@ -7,6 +7,7 @@ import { jumpGame } from './jump-game.js';
 import { kthLargest } from './kth-largest.js';
 import { lcs } from './lcs.js';
 import { linkedListCycle } from './linked-list-cycle.js';
+import { linkedListReversal } from './linked-list-reversal.js';
 import { mergeIntervals } from './merge-intervals.js';
 import { nextGreater } from './monotonic-stack.js';
 import { singleNumberXor } from './single-number-xor.js';
@@ -47,6 +48,7 @@ const DEFINITIONS: Record<AlgorithmId, AlgorithmDefinition<any>> = {
   'two-sum-hash': twoSumHash,
   'subarray-sum-prefix': subarraySumPrefix,
   'linked-list-cycle': linkedListCycle,
+  'linked-list-reversal': linkedListReversal,
   'house-robber': houseRobber,
 };
 

@@ -146,7 +146,9 @@
     <section class="map">
       <div class="map-head">
         <p class="eyebrow">Pattern map</p>
-        <p class="muted">20 patterns cover the vast majority of coding interviews. Master the cue, and the problem names itself.</p>
+        <p class="muted">
+          {{ patternCount }} patterns cover the vast majority of coding interviews. Master the cue, and the problem names itself.
+        </p>
       </div>
       @for (t of tracks; track t.id) {
         <div class="track">

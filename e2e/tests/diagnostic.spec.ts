@@ -1,6 +1,7 @@
+import { PATTERN_CATALOG } from '@grasp/engine';
 import { expect, synced, test } from './fixtures';
 
-const QUESTIONS = 20;
+const QUESTIONS = PATTERN_CATALOG.length;
 
 test('a new learner takes the placement check, reviews start with the patterns they missed, and a retake starts over', async ({ page }) => {
   await page.goto('/learn');

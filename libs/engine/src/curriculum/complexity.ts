@@ -52,6 +52,12 @@ const FACTS: Record<ComplexityFactId, ComplexityFactDefinition> = {
     distractors: ['O(n²)', 'O(n log n)', 'O(n · stack height)'],
     why: 'Amortized: each index is pushed once and popped at most once.',
   },
+  'list-reversal': {
+    question: 'Reverse a singly linked list of n nodes in place with prev, curr and next: time and extra space?',
+    answer: 'O(n) time, O(1) space',
+    distractors: ['O(n) time, O(n) space', 'O(n²) time, O(1) space', 'O(n log n) time, O(1) space'],
+    why: 'Each node is visited once and its link turned in O(1), with three pointers whatever n is. Copying the values to an array, or recursing, would take O(n) space.',
+  },
   'intervals-merge': {
     question: 'Merge n overlapping intervals: time?',
     answer: 'O(n log n)',

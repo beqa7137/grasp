@@ -1,4 +1,4 @@
-import { buildTree } from '@grasp/engine';
+import { buildList, buildTree } from '@grasp/engine';
 import { CompileError, compileJs, runJsTest, traceJs, type LogSink } from './execute-js';
 import type { TraceOutcome } from './protocol';
 import { isFatal, pythonCrash, pythonError } from './python-errors';
@@ -62,20 +62,20 @@ describe('running JavaScript and TypeScript', () => {
   it('runs the entry function on a copy of the arguments and captures console output', () => {
     const fn = compileJs('function f(a) { console.log("len", a.length, { x: 1 }); a.push(9); return a; }', 'javascript', 'f', sink);
     const args = [[1, 2]];
-    const result = runJsTest(fn, [], args, sink);
+    const result = runJsTest(fn, [], 'int', args, sink);
     expect(result).toMatchObject({ ok: true, output: [1, 2, 9], logs: ['len 2 {"x":1}'] });
     expect(args).toEqual([[1, 2]]);
   });
 
   it('accepts arrow functions and strips TypeScript types without moving lines', () => {
     expect(
-      runJsTest(compileJs('const f = (a: number[]): number => a.length;', 'typescript', 'f', sink), [], [[1, 2, 3]], sink),
+      runJsTest(compileJs('const f = (a: number[]): number => a.length;', 'typescript', 'f', sink), [], 'int', [[1, 2, 3]], sink),
     ).toMatchObject({
       ok: true,
       output: 3,
     });
     const fn = compileJs('interface P { x: number }\nfunction f(p: P): number {\n  throw new Error("boom");\n}', 'typescript', 'f', sink);
-    const result = runJsTest(fn, [], [{ x: 1 }], sink);
+    const result = runJsTest(fn, [], 'int', [{ x: 1 }], sink);
     expect(result).toMatchObject({ ok: false, error: { message: 'Error: boom', location: { line: 3 } } });
   });
 
@@ -89,7 +89,7 @@ describe('running JavaScript and TypeScript', () => {
 
   it('hides network and messaging globals from learner code', () => {
     const fn = compileJs('function f() { return [typeof fetch, typeof postMessage, typeof XMLHttpRequest]; }', 'javascript', 'f', sink);
-    expect(runJsTest(fn, [], [], sink)).toMatchObject({ ok: true, output: ['undefined', 'undefined', 'undefined'] });
+    expect(runJsTest(fn, [], 'int', [], sink)).toMatchObject({ ok: true, output: ['undefined', 'undefined', 'undefined'] });
   });
 
   it('turns undefined, Sets and Maps into comparable JSON', () => {
@@ -99,15 +99,15 @@ describe('running JavaScript and TypeScript', () => {
       'f',
       sink,
     );
-    expect(runJsTest(fn, [], [0], sink)).toMatchObject({ ok: true, output: undefined });
-    expect(runJsTest(fn, [], [1], sink)).toMatchObject({ ok: true, output: [1, 2] });
-    expect(runJsTest(fn, [], [2], sink)).toMatchObject({ ok: true, output: { a: 1 } });
+    expect(runJsTest(fn, [], 'int', [0], sink)).toMatchObject({ ok: true, output: undefined });
+    expect(runJsTest(fn, [], 'int', [1], sink)).toMatchObject({ ok: true, output: [1, 2] });
+    expect(runJsTest(fn, [], 'int', [2], sink)).toMatchObject({ ok: true, output: { a: 1 } });
   });
 
   it('hands a tree parameter to the entry function as linked TreeNodes built from its level order', () => {
     const fn = compileJs(DIAMETER, 'javascript', 'diameterOfBinaryTree', sink);
     const args = [[1, 2, null, 3, 4, 5, null, null, 6]];
-    expect(runJsTest(fn, ['tree'], args, sink)).toMatchObject({ ok: true, output: 4 });
+    expect(runJsTest(fn, ['tree'], 'int', args, sink)).toMatchObject({ ok: true, output: 4 });
     expect(args).toEqual([[1, 2, null, 3, 4, 5, null, null, 6]]);
 
     const shape = compileJs(
@@ -116,8 +116,35 @@ describe('running JavaScript and TypeScript', () => {
       'f',
       sink,
     );
-    expect(runJsTest(shape, ['tree', 'int'], [[1, null, 2], 7], sink)).toMatchObject({ ok: true, output: [1, -1, 2, 7] });
-    expect(runJsTest(shape, ['tree', 'int'], [[], 7], sink)).toMatchObject({ ok: true, output: [7] });
+    expect(runJsTest(shape, ['tree', 'int'], 'int', [[1, null, 2], 7], sink)).toMatchObject({ ok: true, output: [1, -1, 2, 7] });
+    expect(runJsTest(shape, ['tree', 'int'], 'int', [[], 7], sink)).toMatchObject({ ok: true, output: [7] });
+  });
+
+  it('hands a list parameter over as linked ListNodes and reads a returned list back as its values', () => {
+    const reverse = compileJs(
+      'class ListNode {\n  constructor(val = 0, next = null) {\n    this.val = val;\n    this.next = next;\n  }\n}\n\nfunction reverseList(head) {\n  let prev = null;\n  while (head) [head.next, prev, head] = [prev, head, head.next];\n  return prev;\n}',
+      'javascript',
+      'reverseList',
+      sink,
+    );
+    expect(runJsTest(reverse, ['list'], 'list', [[1, 2, 3]], sink)).toMatchObject({ ok: true, output: [3, 2, 1] });
+    expect(runJsTest(reverse, ['list'], 'list', [[]], sink)).toMatchObject({ ok: true, output: [] });
+
+    const dummy = compileJs(
+      'class ListNode {\n  val: number;\n  next: ListNode | null;\n\n  constructor(val = 0, next: ListNode | null = null) {\n    this.val = val;\n    this.next = next;\n  }\n}\n\nfunction f(head: ListNode | null): ListNode | null {\n  return new ListNode(0, head);\n}',
+      'typescript',
+      'f',
+      sink,
+    );
+    expect(runJsTest(dummy, ['list'], 'list', [[1, 2]], sink)).toMatchObject({ ok: true, output: [0, 1, 2] });
+  });
+
+  it('fails a test whose returned list loops, saying where it comes back', () => {
+    const loop = compileJs('function f(head) {\n  head.next.next = head;\n  return head;\n}', 'javascript', 'f', sink);
+    expect(runJsTest(loop, ['list'], 'list', [[1, 2, 3]], sink)).toMatchObject({
+      ok: false,
+      error: { message: 'Error: The returned list loops: after 2 nodes it comes back to a node with value 1.' },
+    });
   });
 });
 
@@ -214,6 +241,27 @@ describe('tree snapshots', () => {
     const node: { val: number; left: unknown; right: null } = { val: 1, left: null, right: null };
     node.left = node;
     expect(snapshot(node)).toEqual({ kind: 'tree', nodes: [{ id: 1, val: 1, left: 1, right: null }], clipped: false });
+  });
+});
+
+describe('list snapshots', () => {
+  it('show a list as the values it leads to, cut after eight and marked where it loops', () => {
+    expect(describeSnap(snapshot(buildList([1, 2, 3])))).toBe('1 → 2 → 3');
+    expect(describeSnap(snapshot(buildList([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])))).toBe('1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → …');
+    const head = buildList([1, 2])!;
+    head.next!.next = head;
+    expect(describeSnap(snapshot(head))).toBe('1 → 2 → ↺');
+    expect(describeSnap(snapshot([buildList([4, 5])]))).toBe('[4 → …]');
+  });
+
+  it('show every list variable of a trace as its values, and the returned list', () => {
+    const code =
+      'function reverseList(head) {\n  let prev = null;\n  let curr = head;\n  while (curr) {\n    const next = curr.next;\n    curr.next = prev;\n    prev = curr;\n    curr = next;\n  }\n  return prev;\n}';
+    const frames = toFrames(traceJs(code, 'javascript', 'reverseList', ['list'], [[1, 2, 3]], 200), [{ name: 'head', type: 'list' }]);
+    expect(frames[0].vars['head']).toBe('1 → 2 → 3');
+    expect(frames.some((f) => f.vars['prev'] === '2 → 1' && f.vars['curr'] === '3')).toBe(true);
+    expect(frames.every((f) => !f.output)).toBe(true);
+    expect(frames.at(-1)!.note).toBe('Returned 3 → 2 → 1');
   });
 });
 

@@ -1,4 +1,4 @@
-import { clip } from '@grasp/engine';
+import { clip, isListNode } from '@grasp/engine';
 
 /** JSON-safe copy of a runtime value, as recorded in a trace step. */
 export type Snap =
@@ -13,6 +13,8 @@ export type Snap =
   | { kind: 'set'; items: Snap[]; truncated: number }
   | { kind: 'object'; entries: [string, Snap][]; truncated: number }
   | { kind: 'tree'; nodes: TreeSnapNode[]; clipped: boolean }
+  /** A linked list from a node on: `more` when it goes on past the items, `loops` when it comes back to one of them. */
+  | { kind: 'list'; items: Snap[]; more: boolean; loops: boolean }
   | { kind: 'other'; text: string };
 
 /** A node in a tree snapshot: `left` and `right` are node ids, which may name a node the snapshot did not reach. */
@@ -26,6 +28,10 @@ export interface TreeSnapNode {
 export type TreeSnap = Extract<Snap, { kind: 'tree' }>;
 
 export const isTree = (snap: Snap | undefined): snap is TreeSnap => typeof snap === 'object' && snap !== null && snap.kind === 'tree';
+
+export type ListSnap = Extract<Snap, { kind: 'list' }>;
+
+export const isList = (snap: Snap | undefined): snap is ListSnap => typeof snap === 'object' && snap !== null && snap.kind === 'list';
 
 export type ArraySnap = Extract<Snap, { kind: 'array' }>;
 
@@ -55,6 +61,7 @@ const MAX_ITEMS = 64;
 const MAX_TEXT = 200;
 const MAX_DEPTH = 3;
 const MAX_TREE_NODES = 63;
+const MAX_LIST_NODES = 8;
 
 /** Numbers tree nodes by identity for one trace, so a node variable can be found in the tree drawn from the root. */
 export class NodeIds {
@@ -100,6 +107,20 @@ function treeSnap(root: NodeLike, ids: NodeIds, depth: number): TreeSnap {
   return { kind: 'tree', nodes, clipped: false };
 }
 
+/** A node nested inside another value keeps only itself, as a tree node does. */
+function listSnap(head: { val: unknown; next: unknown }, ids: NodeIds, depth: number): ListSnap {
+  const limit = depth === 0 ? MAX_LIST_NODES : 1;
+  const items: Snap[] = [];
+  const passed = new Set<object>();
+  let node: unknown = head;
+  for (; isListNode(node) && !passed.has(node) && items.length < limit; node = node.next) {
+    passed.add(node);
+    items.push(snapshot(node.val, ids, depth + 1));
+  }
+  const loops = isListNode(node) && passed.has(node);
+  return { kind: 'list', items, more: isListNode(node) && !loops, loops };
+}
+
 export function snapshot(value: unknown, ids = new NodeIds(), depth = 0): Snap {
   if (value === null) return null;
   switch (typeof value) {
@@ -118,6 +139,7 @@ export function snapshot(value: unknown, ids = new NodeIds(), depth = 0): Snap {
       return { kind: 'other', text: typeof value };
   }
   if (isTreeNode(value as object)) return treeSnap(value as NodeLike, ids, depth);
+  if (isListNode(value)) return listSnap(value, ids, depth);
   if (depth >= MAX_DEPTH) return { kind: 'other', text: Array.isArray(value) ? `Array(${value.length})` : '{…}' };
   const take = <T>(items: T[]) => ({ items: items.slice(0, MAX_ITEMS), truncated: Math.max(0, items.length - MAX_ITEMS) });
   if (Array.isArray(value) || ArrayBuffer.isView(value)) {
@@ -163,5 +185,7 @@ function render(snap: Snap): string {
       return `{${snap.entries.map(([k, v]) => `${k}: ${render(v)}`).join(', ')}${more(snap.truncated)}}`;
     case 'tree':
       return `TreeNode(${render(snap.nodes[0].val)})`;
+    case 'list':
+      return [...snap.items.map(render), ...(snap.more ? ['…'] : []), ...(snap.loops ? ['↺'] : [])].join(' → ');
   }
 }

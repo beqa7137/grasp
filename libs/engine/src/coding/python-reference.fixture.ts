@@ -1610,6 +1610,79 @@ def detect_cycle(next):
         slow, fast = next[slow], next[fast]
     return slow
 `,
+  'reverse-linked-list': `
+def reverse_list(head):
+    prev, curr = None, head
+    while curr:
+        nxt = curr.next
+        curr.next = prev
+        prev, curr = curr, nxt
+    return prev
+`,
+  'reverse-linked-list-ii': `
+def reverse_between(head, left, right):
+    dummy = ListNode(0, head)
+    before = dummy
+    for _ in range(left - 1):
+        before = before.next
+    first = before.next
+    prev, curr = None, first
+    for _ in range(right - left + 1):
+        nxt = curr.next
+        curr.next = prev
+        prev, curr = curr, nxt
+    first.next = curr
+    before.next = prev
+    return dummy.next
+`,
+  'swap-nodes-in-pairs': `
+def swap_pairs(head):
+    dummy = ListNode(0, head)
+    prev = dummy
+    while prev.next and prev.next.next:
+        first, second = prev.next, prev.next.next
+        first.next = second.next
+        second.next = first
+        prev.next = second
+        prev = first
+    return dummy.next
+`,
+  'reverse-nodes-k-group': `
+def reverse_k_group(head, k):
+    dummy = ListNode(0, head)
+    group_prev = dummy
+    while True:
+        last = group_prev
+        for _ in range(k):
+            last = last.next
+            if last is None:
+                return dummy.next
+        first = group_prev.next
+        prev, curr = last.next, first
+        for _ in range(k):
+            nxt = curr.next
+            curr.next = prev
+            prev, curr = curr, nxt
+        group_prev.next = prev
+        group_prev = first
+`,
+  'palindrome-linked-list': `
+def is_palindrome(head):
+    slow = fast = head
+    while fast and fast.next:
+        slow, fast = slow.next, fast.next.next
+    prev = None
+    while slow:
+        nxt = slow.next
+        slow.next = prev
+        prev, slow = slow, nxt
+    left, right = head, prev
+    while right:
+        if left.val != right.val:
+            return False
+        left, right = left.next, right.next
+    return True
+`,
   'tree-diameter': `
 def diameter_of_binary_tree(root):
     best = 0

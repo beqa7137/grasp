@@ -10,6 +10,7 @@ const VISUALIZER_TITLES = [
   'Two Sum (Hash Map)',
   'Subarray Sum Equals K',
   'Linked List Cycle (Floyd)',
+  'Reverse a Linked List',
   'House Robber',
 ];
 

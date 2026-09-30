@@ -12,6 +12,7 @@ export const GRAPH_NODE_RADIUS = 16;
 const MAX_LIST_COLUMNS = 6;
 const MAX_LIST_SPACING = 80;
 const LIST_ROW_SPACING = 84;
+const LINK_CLEARANCE = 6;
 
 type Cell = [col: number, row: number];
 
@@ -69,15 +70,38 @@ function listCells(n: number, pos: number): Cell[] {
   return top > MAX_LIST_COLUMNS ? cells.map(([col, row], i): Cell => (i === 0 ? [0, 1] : [col - 1, row])) : cells;
 }
 
-/** A linked list of n nodes whose last node links back to index pos (-1 for none), spaced in GRAPH_BOX units so the grid stays square. */
-export function listLayout(n: number, pos: number): Point[] {
-  const cells = listCells(n, pos);
+const columnSpacing = (cols: number) => (cols > 1 ? Math.min(MAX_LIST_SPACING, GRAPH_BOX.width / (cols - 1)) : 0);
+
+/** Cells centred in the unit box, spaced in GRAPH_BOX units so the grid stays square. */
+function placeCells(cells: Cell[], rowSpacing = LIST_ROW_SPACING): Point[] {
   const cols = Math.max(...cells.map(([col]) => col)) + 1;
   const rows = Math.max(...cells.map(([, row]) => row)) + 1;
-  const spacing = cols > 1 ? Math.min(MAX_LIST_SPACING, GRAPH_BOX.width / (cols - 1)) : 0;
+  const spacing = columnSpacing(cols);
   const round = (v: number) => Math.round(v * 1000) / 1000;
   return cells.map(([col, row]) => ({
     x: round(0.5 + ((col - (cols - 1) / 2) * spacing) / GRAPH_BOX.width),
-    y: round(0.5 + ((row - (rows - 1) / 2) * LIST_ROW_SPACING) / GRAPH_BOX.height),
+    y: round(0.5 + ((row - (rows - 1) / 2) * rowSpacing) / GRAPH_BOX.height),
   }));
+}
+
+/** A linked list of n nodes whose last node links back to index pos (-1 for none). */
+export function listLayout(n: number, pos: number): Point[] {
+  return placeCells(listCells(n, pos));
+}
+
+/**
+ * A list of n nodes, one column each, with nodes first to last dropped to a second row. The rows sit far enough apart
+ * that a link from the node before the dip to its last node, or from its first node to the node after it, clears the
+ * dipped nodes it passes by LINK_CLEARANCE.
+ */
+export function dipLayout(n: number, first: number, last: number): Point[] {
+  const spacing = columnSpacing(n);
+  const clear = GRAPH_NODE_RADIUS + LINK_CLEARANCE;
+  const span = last - first + 1;
+  const needed = spacing > clear ? Math.ceil((clear * span * spacing) / Math.sqrt(spacing ** 2 - clear ** 2)) : 0;
+  const rowSpacing = Math.max(LIST_ROW_SPACING, needed);
+  return placeCells(
+    Array.from({ length: n }, (_, i): Cell => [i, i >= first && i <= last ? 1 : 0]),
+    rowSpacing,
+  );
 }

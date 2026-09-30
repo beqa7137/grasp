@@ -95,6 +95,41 @@ const JS_MERGE = `function merge(intervals) {
   return out;
 }`;
 
+const JS_REVERSE = `function reverseList(head) {
+  let prev = null;
+  let curr = head;
+  while (curr) {
+    const next = curr.next;
+    curr.next = prev;
+    prev = curr;
+    curr = next;
+  }
+  return prev;
+}`;
+
+const PY_REVERSE_BETWEEN = `def reverse_between(head: Optional[ListNode], left: int, right: int) -> Optional[ListNode]:
+    dummy = ListNode(0, head)
+    before = dummy
+    for _ in range(left - 1):
+        before = before.next
+    prev, curr = None, before.next
+    for _ in range(right - left + 1):
+        curr.next, prev, curr = prev, curr, curr.next
+    before.next.next = curr
+    before.next = prev
+    return dummy.next`;
+
+const PY_PALINDROME_COPY = `def is_palindrome(head: Optional[ListNode]) -> bool:
+    rev, node = None, head
+    while node:
+        rev = ListNode(node.val, rev)
+        node = node.next
+    while head:
+        if head.val != rev.val:
+            return False
+        head, rev = head.next, rev.next
+    return True`;
+
 /** A nest of lists far deeper than Pyodide's stack can free, which kills its interpreter. */
 const PY_CRASH = `def two_sum(nums, target):
     x = []
@@ -191,6 +226,47 @@ test('Python has TreeNode and Optional in scope for a tree problem', async ({ pa
   await write(page, PY_DIAMETER, 'Diameter of Binary Tree');
   await page.getByRole('button', { name: 'Run', exact: true }).click();
   await expect(page.getByText('3 / 3 examples passed')).toBeVisible({ timeout: 60_000 });
+});
+
+test('a list problem hands the list over as linked nodes and accepts an in-place JavaScript reversal', async ({ page }) => {
+  await page.goto('/code/reverse-linked-list');
+  await page.getByRole('radio', { name: 'JavaScript' }).click();
+  await write(page, JS_REVERSE, 'Reverse Linked List');
+  await page.getByRole('button', { name: 'Run', exact: true }).click();
+  await expect(page.getByText('3 / 3 examples passed')).toBeVisible();
+
+  const sync = synced(page, 'code.submitted');
+  await page.getByRole('button', { name: 'Submit' }).click();
+  await expect(page.getByText(/^(\d+) \/ \1 tests passed$/)).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText('Accepted.')).toBeVisible();
+  await sync;
+});
+
+test('Python has ListNode in scope for a list problem, and a list of 200,000 nodes does not crash it', async ({ page }) => {
+  test.slow();
+  await page.goto('/code/reverse-linked-list-ii');
+  await write(page, PY_REVERSE_BETWEEN, 'Reverse Linked List II');
+  await page.getByRole('button', { name: 'Submit' }).click();
+  await expect(page.getByText(/^(\d+) \/ \1 tests passed$/)).toBeVisible({ timeout: 120_000 });
+  await expect(page.getByText('Accepted.')).toBeVisible();
+});
+
+test('a Python solution that builds its own 200,000-node copy of a list, never returned, does not crash it', async ({ page }) => {
+  test.slow();
+  await page.goto('/code/palindrome-linked-list');
+  await write(page, PY_PALINDROME_COPY, 'Palindrome Linked List');
+  await page.getByRole('button', { name: 'Submit' }).click();
+  await expect(page.getByText(/^(\d+) \/ \1 tests passed$/)).toBeVisible({ timeout: 120_000 });
+  await expect(page.getByText('Accepted.')).toBeVisible();
+});
+
+test('Trace shows each list variable as the values it leads to, and the list it returns', async ({ page }) => {
+  await page.goto('/code/reverse-linked-list');
+  await trace(page, JS_REVERSE, 'Reverse Linked List');
+  const count = page.locator('app-trace-player .count');
+  await expect(count).toHaveText(/^1 \/ \d+$/);
+  await expect(page.locator('app-trace-player .narration')).toContainText('head = 1 → 2 → 3 → 4 → 5');
+  await seek(page, (await stepTotal(count)) - 1, 'Returned 5 → 4 → 3 → 2 → 1');
 });
 
 test.describe('when Python code crashes the interpreter', () => {

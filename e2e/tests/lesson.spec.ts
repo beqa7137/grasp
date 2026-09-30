@@ -29,6 +29,21 @@ test('a pattern lesson reveals a worked example step by step, then replays it in
   await expect(followUp.locator('p')).toBeVisible();
 });
 
+test('the list reversal lesson replays a sublist reversal, and its visualizer leads to Reverse Linked List II', async ({ page }) => {
+  await page.goto('/learn/pattern/linked-list-reversal');
+  await expect(page.getByText('Pattern 8 of 21')).toBeVisible();
+  const example = page.locator('app-worked-example').nth(1);
+  await expect(example).toContainText('Reverse Linked List II');
+  await example.getByRole('button', { name: /key move/ }).click();
+  await example.getByRole('button', { name: 'Show all' }).click();
+  await example.getByRole('link', { name: 'Step through it in the visualizer' }).click();
+  await expect(page).toHaveURL(/\/visualize\/linked-list-reversal\?input=/);
+  await expect(page.getByRole('heading', { name: 'Reverse a Linked List', level: 1 })).toBeVisible();
+  await expect(page.getByText('Invalid input')).toHaveCount(0);
+  await page.getByRole('link', { name: /Now write it yourself: Reverse Linked List II/ }).click();
+  await expect(page).toHaveURL(/\/code\/reverse-linked-list-ii$/);
+});
+
 test('a lesson ends with a quick check of three questions that count as practice', async ({ page }) => {
   await page.goto('/learn/pattern/binary-search');
   const check = page.locator('app-quick-check');

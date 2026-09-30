@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
-import { getAlgorithmSummary, getLesson, getPattern, itemsForTopic, problemsForPattern } from '@grasp/engine';
+import { PATTERN_CATALOG, getAlgorithmSummary, getLesson, getPattern, itemsForTopic, problemsForPattern } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import {
   alertCircleOutline,
@@ -53,7 +53,7 @@ import { WorkedExampleComponent } from './worked-example.component';
             <g-mastery-ring [value]="m?.mastery ?? 0" [size]="64" />
             <div>
               <p class="eyebrow">
-                Pattern {{ p.order }} of 20 · <span class="complexity">{{ p.complexity }}</span>
+                Pattern {{ p.order }} of {{ patternCount }} · <span class="complexity">{{ p.complexity }}</span>
               </p>
               <h1>{{ p.name }}</h1>
             </div>
@@ -270,6 +270,7 @@ export class PatternPage {
   readonly lesson = computed(() => getLesson(this.id()));
   readonly algorithms = computed(() => (this.pattern()?.algorithmIds ?? []).map((id) => getAlgorithmSummary(id)!).filter(Boolean));
   readonly itemCount = computed(() => itemsForTopic(this.id()).length);
+  readonly patternCount = PATTERN_CATALOG.length;
 
   constructor() {
     addIcons({
