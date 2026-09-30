@@ -36,6 +36,10 @@ function gateway(catalog: object | null = CATALOG) {
   return { fetchFn: fetchFn as unknown as typeof fetch, authorizations };
 }
 
+/** A JWT-shaped token that expires in an hour, as Vercel issues them. */
+const oidcToken = (name: string) =>
+  ['e30', Buffer.from(JSON.stringify({ sub: name, exp: Math.floor(Date.now() / 1000) + 3600 })).toString('base64url'), 'sig'].join('.');
+
 const reply = (interviewer: unknown) => (interviewer as GatewayInterviewer).reply(session, () => {}, new AbortController().signal);
 
 describe('createInterviewer', () => {
@@ -61,12 +65,14 @@ describe('createInterviewer', () => {
 
   it("reads Vercel's OIDC token for each request, since it expires", async () => {
     const { fetchFn, authorizations } = gateway();
-    vi.stubEnv('VERCEL_OIDC_TOKEN', 'first-token');
-    const interviewer = await createInterviewer(loadConfig({ VERCEL_OIDC_TOKEN: 'first-token' }), spend, fetchFn);
+    const first = oidcToken('first');
+    const second = oidcToken('second');
+    vi.stubEnv('VERCEL_OIDC_TOKEN', first);
+    const interviewer = await createInterviewer(loadConfig({ VERCEL_OIDC_TOKEN: first }), spend, fetchFn);
     await reply(interviewer);
-    vi.stubEnv('VERCEL_OIDC_TOKEN', 'second-token');
+    vi.stubEnv('VERCEL_OIDC_TOKEN', second);
     await reply(interviewer);
-    expect(authorizations).toEqual(['Bearer first-token', 'Bearer second-token']);
+    expect(authorizations).toEqual([`Bearer ${first}`, `Bearer ${second}`]);
   });
 
   it('bounds spend with the built-in prices when the catalog is down at startup', async () => {
@@ -87,11 +93,23 @@ describe('createInterviewer', () => {
     );
   });
 
-  it('keeps Anthropic direct without a gateway credential, and scripted practice without any key', async () => {
+  it.each([
+    ['an output limit below the scoring budget', { max_tokens: 8_000 }],
+    ['a zero output price', { pricing: { input: '0.0000001', output: '0' } }],
+    ['a zero input price', { pricing: { input: '0', output: '0.0000005' } }],
+  ])('serves scripted practice, logged as an error, instead of failing startup for %s', async (_name, change) => {
+    const luna = CATALOG.data.find((m) => m.id === 'openai/gpt-6-luna')!;
+    const { fetchFn } = gateway({ data: [{ ...luna, ...change }] });
+    const failed = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
+    const config = loadConfig({ AI_GATEWAY_API_KEY: 'vck_0123456789abcdefghij' });
+    expect(await createInterviewer(config, spend, fetchFn)).toBeInstanceOf(OfflineInterviewer);
+    expect(failed).toHaveBeenCalledWith(expect.stringContaining('Using the offline scripted interviewer.'));
+  });
+
+  it('runs Claude direct only when pinned, and scripted practice without any key', async () => {
     const { fetchFn } = gateway();
-    expect(await createInterviewer(loadConfig({ ANTHROPIC_API_KEY: 'sk-ant-api03-0123456789abcdef' }), spend, fetchFn)).toBeInstanceOf(
-      ClaudeInterviewer,
-    );
+    const pinned = { INTERVIEW_AI_PROVIDER: 'anthropic', ANTHROPIC_API_KEY: 'sk-ant-api03-0123456789abcdef' };
+    expect(await createInterviewer(loadConfig(pinned), spend, fetchFn)).toBeInstanceOf(ClaudeInterviewer);
     expect(await createInterviewer(loadConfig({}), spend, fetchFn)).toBeInstanceOf(OfflineInterviewer);
     expect(vi.mocked(fetchFn)).not.toHaveBeenCalled();
   });

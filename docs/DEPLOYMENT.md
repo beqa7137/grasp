@@ -115,10 +115,10 @@ Every variable is validated at startup. See `apps/api/.env.example` for the full
 | `CORS_ORIGINS`                              | Capacitor origins; the web app is same-origin and needs no entry                             |
 | `RATE_LIMIT_PER_MINUTE`                     | `300` per user or IP                                                                         |
 | `LOG_FORMAT` / `LOG_LEVEL`                  | `json` / `log`                                                                               |
-| `INTERVIEW_AI_PROVIDER`                     | unset: the gateway on Vercel or with `AI_GATEWAY_API_KEY`, else Anthropic with its key       |
+| `INTERVIEW_AI_PROVIDER`                     | unset: the gateway; `anthropic` only to run Claude direct                                    |
 | `INTERVIEW_AI_MODEL`                        | unset: `openai/gpt-6-luna`                                                                   |
 | `AI_GATEWAY_API_KEY`                        | secret; unset on Vercel, which authenticates with the deployment's OIDC token                |
-| `ANTHROPIC_API_KEY`                         | secret; Claude direct when the gateway is not used; with neither, the offline interviewer    |
+| `ANTHROPIC_API_KEY`                         | secret; used only with `INTERVIEW_AI_PROVIDER=anthropic`                                     |
 | `GOOGLE_WEB_CLIENT_ID`                      | the Google web client id; unset turns Google sign-in off                                     |
 | `GOOGLE_IOS_CLIENT_ID`                      | optional; the Google iOS client id                                                           |
 | `OAUTH_GITHUB_ID` / `OAUTH_GITHUB_SECRET`   | the GitHub OAuth app, set together (the secret is sensitive); unset turns GitHub sign-in off |
@@ -133,9 +133,11 @@ Every variable is validated at startup. See `apps/api/.env.example` for the full
 
 Production runs the AI interviewer on OpenAI's GPT-6 Luna through the [Vercel AI Gateway](https://vercel.com/docs/ai-gateway), with no fallback model; [AI_INTERVIEWER.md](AI_INTERVIEWER.md#which-interviewer-runs) has the selection rules. At release the owner sets:
 
-- **Nothing for authentication on Vercel.** The function authenticates with the deployment's OIDC token, which Vercel sends with every request (`x-vercel-oidc-token`) and the gateway accepts as its bearer token. The Vercel team must be able to pay for AI Gateway usage: the model comparison was refused with `customer_verification_required` until the team had a card on file. Elsewhere (the Docker image, local runs), add the secret `AI_GATEWAY_API_KEY`.
+- **Nothing for authentication on Vercel.** The function authenticates with the deployment's OIDC token, which Vercel sends with every request (`x-vercel-oidc-token`) and the gateway accepts as its bearer token. The Vercel team must be able to pay for AI Gateway usage: the model comparison was refused with `customer_verification_required` until the team had a card on file. Elsewhere (the Docker image, local runs), add the secret `AI_GATEWAY_API_KEY`. A token pulled with `vercel env pull` for local development lasts about 12 hours; `@vercel/oidc` refreshes it through the linked project when the Vercel CLI is signed in, otherwise pull it again.
 - **`AI_DAILY_BUDGET_USD`**, as before. Holds use GPT-6 Luna's dearest catalog rates (input $0.22, cache write $0.275 and output $0.825 per million tokens), so an early reply holds about half a cent and scoring (16,000 output tokens) about two cents.
-- **Optionally `INTERVIEW_AI_PROVIDER=anthropic`** to stay on Claude direct with `ANTHROPIC_API_KEY`; the app's disclosure (`AI_PROVIDER` in `apps/app/src/app/core/ai-disclosure.ts`) names the gateway and must change with it. `ANTHROPIC_API_KEY` can otherwise stay set (unused) or be removed.
+- **Optionally `INTERVIEW_AI_PROVIDER=anthropic`** to stay on Claude direct with `ANTHROPIC_API_KEY`; the app's disclosure (`AI_PROVIDER` in `apps/app/src/app/core/ai-disclosure.ts`) names the gateway and must change with it. Without that setting `ANTHROPIC_API_KEY` is never used (the log says so as an error), so it can be removed.
+
+The **Interviewer eval** workflow now needs the repository secret `AI_GATEWAY_API_KEY`.
 
 After the deploy, the function log says `Interviewer: openai/gpt-6-luna through the Vercel AI Gateway (oidc).` and `/api/health` reports `interviewer: "ai"`. A warning that the catalog is unreachable means the instance bounds spend with the built-in prices; an error that names the model means it serves scripted practice. **Load the production environment** in **Set up Vercel** also loads `AI_GATEWAY_API_KEY`, `INTERVIEW_AI_PROVIDER` and `INTERVIEW_AI_MODEL` when they are set as repository secrets or variables.
 

@@ -29,7 +29,7 @@ interface RequestOptions {
 export class GatewayClient {
   /** `credential` runs per request: a Vercel OIDC token comes with each request and expires. */
   constructor(
-    private readonly credential: () => string,
+    private readonly credential: () => string | Promise<string>,
     private readonly fetchFn: typeof fetch = fetch,
     private readonly baseUrl = GATEWAY_URL,
   ) {}
@@ -97,7 +97,7 @@ export class GatewayClient {
     };
     let token: string;
     try {
-      token = this.credential();
+      token = await this.credential();
     } catch {
       done();
       throw Anthropic.APIError.generate(401, { message: 'No AI Gateway credential for this request.' }, undefined, new Headers());

@@ -12,18 +12,21 @@ type Settings = Pick<
 >;
 
 /**
- * The gateway is the default wherever it has a credential, so a Vercel deployment uses it without an API key; a
- * misconfigured paid interviewer falls back to scripted practice rather than taking sign-in and progress down with it.
+ * The gateway is the only default, so Claude runs only when the owner pins it; a Vercel deployment has the gateway's
+ * credential without an API key. A misconfigured paid interviewer falls back to scripted practice rather than taking
+ * sign-in and progress down with it.
  */
 export function chooseInterviewer(config: Settings, env: NodeJS.ProcessEnv = process.env): InterviewerChoice {
   const credential = config.aiGatewayApiKey ? 'api-key' : config.vercelOidc ? 'oidc' : null;
-  const provider = config.interviewAiProvider ?? (credential ? 'gateway' : 'anthropic');
+  const provider = config.interviewAiProvider ?? 'gateway';
   if (provider === 'gateway') {
-    return credential
-      ? { provider, model: config.interviewAiModel, credential }
-      : offline('INTERVIEW_AI_PROVIDER=gateway needs AI_GATEWAY_API_KEY or a Vercel OIDC token.', true);
+    if (credential) return { provider, model: config.interviewAiModel, credential };
+    if (config.interviewAiProvider) return offline('INTERVIEW_AI_PROVIDER=gateway needs AI_GATEWAY_API_KEY or a Vercel OIDC token.', true);
+    return config.anthropicApiKey
+      ? offline('No AI_GATEWAY_API_KEY or Vercel OIDC token; ANTHROPIC_API_KEY is used only with INTERVIEW_AI_PROVIDER=anthropic.', true)
+      : offline('No AI_GATEWAY_API_KEY or Vercel OIDC token.', false);
   }
-  if (!config.anthropicApiKey) return offline('No AI_GATEWAY_API_KEY, Vercel OIDC token or ANTHROPIC_API_KEY.', false);
+  if (!config.anthropicApiKey) return offline('INTERVIEW_AI_PROVIDER=anthropic needs ANTHROPIC_API_KEY.', true);
   const baseUrl = env['ANTHROPIC_BASE_URL']?.replace(/\/$/, '');
   if (!priceFor(config.anthropicModel)) return offline('ANTHROPIC_MODEL must have verified pricing and request limits.', true);
   if (env['ANTHROPIC_CUSTOM_HEADERS']?.trim()) {

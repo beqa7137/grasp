@@ -245,6 +245,15 @@ describe('GatewayInterviewer.reply', () => {
     expect(requests[0].signal!.aborted).toBe(true);
   });
 
+  it('pins an OpenAI model to OpenAI, whose name the disclosure gives, and leaves other models to the gateway', async () => {
+    const luna = setup(() => streamed(['Okay.']), 'openai/gpt-6-luna');
+    await luna.interviewer.reply(session(), () => {}, signal());
+    expect(luna.requests[0].body['providerOptions']).toEqual({ gateway: { caching: 'auto', only: ['openai'] } });
+    const sonnet = setup(() => streamed(['Okay.']));
+    await sonnet.interviewer.reply(session(), () => {}, signal());
+    expect(sonnet.requests[0].body['providerOptions']).toEqual({ gateway: { caching: 'auto' } });
+  });
+
   it('passes an abort through untouched', async () => {
     const { interviewer, requests } = setup(() => streamed(['Okay.']));
     const controller = new AbortController();
@@ -278,6 +287,12 @@ describe('GatewayInterviewer.score', () => {
     });
     expect(result.scorecard).toMatchObject({ verdict: 'hire', mode: 'ai' });
     expect(result.usage).toHaveLength(1);
+  });
+
+  it('pins OpenAI for scoring an OpenAI model too', async () => {
+    const { interviewer, requests } = setup(() => ({ json: completion(validCard('coding'), usage) }), 'openai/gpt-6-luna');
+    await interviewer.score(session());
+    expect(requests[0].body['providerOptions']).toEqual({ gateway: { only: ['openai'] } });
   });
 
   it('puts the schema in the prompt and parses fenced JSON for a model without response_format', async () => {

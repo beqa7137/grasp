@@ -1,20 +1,21 @@
+import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { GatewayClient } from '../../src/interview/gateway-client.js';
+import { loadGatewayModel } from '../../src/interview/gateway-model.js';
+import { GatewayInterviewer } from '../../src/interview/gateway.interviewer.js';
 import { SpendGuard } from '../../src/interview/spend-guard.js';
 import { MemorySpendStore } from '../../src/persistence/memory-spend.store.js';
 import { MemoryCoordinationStore } from '../../src/persistence/memory.stores.js';
-import Anthropic from '@anthropic-ai/sdk';
-import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { ClaudeInterviewer } from '../../src/interview/claude.interviewer.js';
 import { runScenario, scenarioChecks, separationChecks, type ScenarioResult } from './run-scenario.js';
 import { SCENARIOS } from './scenarios.js';
 
 /**
- * Live evaluation against the real Claude API. Costs a few cents per run.
- * Run with: ANTHROPIC_API_KEY=... npm run eval:interviewer
+ * Live evaluation of the production interviewer (GPT-6 Luna through the Vercel AI Gateway). Costs a few cents per run.
+ * Run with: AI_GATEWAY_API_KEY=... npm run eval:interviewer (optional INTERVIEW_AI_MODEL)
  */
 
-const apiKey = process.env['ANTHROPIC_API_KEY'];
-const model = process.env['ANTHROPIC_MODEL'] || 'claude-sonnet-5';
+const apiKey = process.env['AI_GATEWAY_API_KEY'];
+const model = process.env['INTERVIEW_AI_MODEL'] || 'openai/gpt-6-luna';
 const results: ScenarioResult[] = [];
 
 function report() {
@@ -41,11 +42,14 @@ function report() {
 }
 
 describe.runIf(apiKey)(`AI interviewer live eval (${model})`, () => {
-  const interviewer = new ClaudeInterviewer(
-    new Anthropic({ apiKey, maxRetries: 3 }),
-    { model },
-    new SpendGuard(null, new MemorySpendStore(new MemoryCoordinationStore())),
-  );
+  let interviewer: GatewayInterviewer;
+
+  beforeAll(async () => {
+    const loaded = await loadGatewayModel(model);
+    if (!loaded.model) throw new Error(loaded.reason);
+    const spend = new SpendGuard(null, new MemorySpendStore(new MemoryCoordinationStore()));
+    interviewer = new GatewayInterviewer(new GatewayClient(() => apiKey!), loaded.model, spend, { maxRetries: 3 });
+  });
 
   afterAll(() => {
     if (results.length) report();
@@ -63,7 +67,7 @@ describe.runIf(apiKey)(`AI interviewer live eval (${model})`, () => {
 });
 
 describe.skipIf(apiKey)('AI interviewer live eval', () => {
-  it('needs ANTHROPIC_API_KEY', () => {
-    throw new Error('Set ANTHROPIC_API_KEY (and optionally ANTHROPIC_MODEL) to run the live interviewer eval.');
+  it('needs AI_GATEWAY_API_KEY', () => {
+    throw new Error('Set AI_GATEWAY_API_KEY (and optionally INTERVIEW_AI_MODEL) to run the live interviewer eval.');
   });
 });

@@ -33,7 +33,7 @@ const envSchema = z
     DATABASE_URL: optional(z.url({ protocol: /^postgres(ql)?$/ })),
 
     INTERVIEW_AI_PROVIDER: optional(z.enum(['anthropic', 'gateway'])),
-    INTERVIEW_AI_MODEL: z.string().min(1).default('openai/gpt-6-luna'),
+    INTERVIEW_AI_MODEL: optional(z.string().min(1)),
     AI_GATEWAY_API_KEY: optional(z.string().min(20)),
     ANTHROPIC_API_KEY: optional(z.string().min(20)),
     ANTHROPIC_MODEL: z.string().min(1).default('claude-sonnet-5'),
@@ -144,7 +144,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     release: e.RELEASE ?? e.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? null,
     databaseUrl: e.DATABASE_URL ?? null,
     interviewAiProvider: e.INTERVIEW_AI_PROVIDER ?? null,
-    interviewAiModel: e.INTERVIEW_AI_MODEL,
+    interviewAiModel: e.INTERVIEW_AI_MODEL ?? 'openai/gpt-6-luna',
     aiGatewayApiKey: e.AI_GATEWAY_API_KEY ?? null,
     vercelOidc: !!(e.VERCEL_OIDC_TOKEN || e.VERCEL_ENV),
     anthropicApiKey: e.ANTHROPIC_API_KEY ?? null,

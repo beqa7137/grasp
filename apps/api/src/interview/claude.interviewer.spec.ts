@@ -406,9 +406,9 @@ describe('ClaudeInterviewer.reply', () => {
   });
 
   it.each([
-    [429, 'warn', 'anthropic.busy'],
-    [500, 'warn', 'anthropic.unavailable'],
-    [401, 'error', 'anthropic.rejected'],
+    [429, 'warn', 'ai.busy'],
+    [500, 'warn', 'ai.unavailable'],
+    [401, 'error', 'ai.rejected'],
   ] as const)('does not log provider payloads or request identifiers on HTTP %s', async (status, level, operation) => {
     const logged = vi.spyOn(Logger.prototype, level).mockImplementation(() => {});
     const { interviewer } = setup(() => ({
@@ -431,7 +431,7 @@ describe('ClaudeInterviewer.reply', () => {
 
     await expect(interviewer.reply(session(), () => {}, signal())).rejects.toBeInstanceOf(BadGatewayException);
 
-    expect(logged.mock.calls).toEqual([[{ operation: 'anthropic.rejected', category: 'unknown', code: 'unknown' }]]);
+    expect(logged.mock.calls).toEqual([[{ operation: 'ai.rejected', category: 'unknown', code: 'unknown' }]]);
   });
 
   it('keeps untrusted reply stop reasons out of logs', async () => {
