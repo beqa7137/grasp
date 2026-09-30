@@ -16,6 +16,8 @@ export interface GatewayCompletion {
 }
 
 interface RequestOptions {
+  /** From `token()`, fetched before the call reserves any spend. */
+  token: string;
   signal?: AbortSignal;
   timeoutMs?: number;
   /** Sent as `x-session-affinity` so the provider can keep a conversation's prompt cache warm. */
@@ -34,7 +36,7 @@ export class GatewayClient {
     private readonly baseUrl = GATEWAY_URL,
   ) {}
 
-  async complete(body: object, options: RequestOptions = {}): Promise<GatewayCompletion> {
+  async complete(body: object, options: RequestOptions): Promise<GatewayCompletion> {
     const { response, done, failure } = await this.send(body, options);
     try {
       const json = parseJson(await response.text());
@@ -53,7 +55,7 @@ export class GatewayClient {
     }
   }
 
-  async stream(body: object, onDelta: (text: string) => void, options: RequestOptions & { onConnect?: () => void } = {}) {
+  async stream(body: object, onDelta: (text: string) => void, options: RequestOptions & { onConnect?: () => void }) {
     const { response, done, failure } = await this.send({ ...body, stream: true, stream_options: { include_usage: true } }, options);
     done();
     options.onConnect?.();
@@ -84,6 +86,28 @@ export class GatewayClient {
     return result;
   }
 
+  /**
+   * The bearer token for one call. An OIDC refresh makes requests of its own without a timeout, so the wait is bounded
+   * like a request: by the per-try timeout and the caller's deadline or disconnect, which stay a timeout or an abort.
+   */
+  async token(signal?: AbortSignal, timeoutMs = 60_000): Promise<string> {
+    const bound = AbortSignal.any([AbortSignal.timeout(timeoutMs), ...(signal ? [signal] : [])]);
+    let stop = () => {};
+    const stopped = new Promise<never>((_resolve, reject) => {
+      stop = () => reject(signal?.aborted ? new Anthropic.APIUserAbortError() : new Anthropic.APIConnectionTimeoutError());
+    });
+    if (bound.aborted) stop();
+    bound.addEventListener('abort', stop, { once: true });
+    try {
+      return await Promise.race([Promise.resolve().then(this.credential), stopped]);
+    } catch (err) {
+      if (err instanceof Anthropic.APIUserAbortError || err instanceof Anthropic.APIConnectionTimeoutError) throw err;
+      throw Anthropic.APIError.generate(401, { message: 'No AI Gateway credential for this request.' }, undefined, new Headers());
+    } finally {
+      bound.removeEventListener('abort', stop);
+    }
+  }
+
   /** `done` clears the timeout: after the headers for a stream, after the body otherwise. */
   private async send(body: object, options: RequestOptions) {
     const timeout = new AbortController();
@@ -95,19 +119,12 @@ export class GatewayClient {
       if (timeout.signal.aborted) return new Anthropic.APIConnectionTimeoutError();
       return new Anthropic.APIConnectionError({ message: 'The gateway connection failed.', cause: err instanceof Error ? err : undefined });
     };
-    let token: string;
-    try {
-      token = await this.credential();
-    } catch {
-      done();
-      throw Anthropic.APIError.generate(401, { message: 'No AI Gateway credential for this request.' }, undefined, new Headers());
-    }
     let response: Response;
     try {
       response = await this.fetchFn(`${this.baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
-          authorization: `Bearer ${token}`,
+          authorization: `Bearer ${options.token}`,
           'content-type': 'application/json',
           ...(options.affinity ? { 'x-session-affinity': options.affinity } : {}),
         },

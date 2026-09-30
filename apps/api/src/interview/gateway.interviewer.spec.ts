@@ -53,7 +53,8 @@ function setup(
   respond: (body: Record<string, any>, index: number) => FakeGatewayResponse,
   model = SONNET,
   maxRetries = 0,
-  deadlines: { replyDeadlineMs?: number; scoreDeadlineMs?: number } = {},
+  deadlines: { replyDeadlineMs?: number; scoreDeadlineMs?: number; timeoutMs?: number } = {},
+  credential: () => string | Promise<string> = () => 'gw-key',
 ) {
   const gateway = fakeGateway(respond);
   const spend = {
@@ -62,7 +63,7 @@ function setup(
   };
   const calls: GatewayCall[] = [];
   const interviewer = new GatewayInterviewer(
-    new GatewayClient(() => 'gw-key', gateway.fetch),
+    new GatewayClient(credential, gateway.fetch),
     gatewayModel(model),
     spend as unknown as SpendGuard,
     {
@@ -349,6 +350,59 @@ describe('GatewayInterviewer.score', () => {
   it('refuses a model whose output limit is below the scoring budget', () => {
     const tiny = { ...gatewayModel(SONNET), maxOutputTokens: 4096 };
     expect(() => new GatewayInterviewer(new GatewayClient(() => 'k'), tiny, {} as SpendGuard)).toThrow(RangeError);
+  });
+});
+
+describe('GatewayInterviewer while its credential never arrives', () => {
+  const stalled = () => new Promise<string>(() => {});
+  const stuck = (deadlines: { replyDeadlineMs?: number; scoreDeadlineMs?: number; timeoutMs?: number }) =>
+    setup(() => streamed(['Okay.']), SONNET, 0, deadlines, stalled);
+
+  it('gives up at the per-try timeout with a retryable 503, before any request or spend hold', async () => {
+    const { interviewer, requests, spend } = stuck({ timeoutMs: 30 });
+    await expect(interviewer.reply(session(), () => {}, signal())).rejects.toBeInstanceOf(ServiceUnavailableException);
+    expect(requests).toHaveLength(0);
+    expect(spend.reserve).not.toHaveBeenCalled();
+  });
+
+  it('stops at the reply deadline with the deadline 503', async () => {
+    const warned = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+    const { interviewer, spend } = stuck({ replyDeadlineMs: 30 });
+    await expect(interviewer.reply(session(), () => {}, signal())).rejects.toBeInstanceOf(ServiceUnavailableException);
+    expect(warned).toHaveBeenCalledWith({ operation: 'interview.reply-deadline' });
+    expect(spend.reserve).not.toHaveBeenCalled();
+    warned.mockRestore();
+  });
+
+  it('passes a disconnect through as an abort', async () => {
+    const { interviewer, spend } = stuck({});
+    const disconnected = new AbortController();
+    setTimeout(() => disconnected.abort(), 20);
+    await expect(interviewer.reply(session(), () => {}, disconnected.signal)).rejects.toBeInstanceOf(Anthropic.APIUserAbortError);
+    expect(spend.reserve).not.toHaveBeenCalled();
+  });
+
+  it('stops at the scoring deadline with the deadline 503', async () => {
+    const warned = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+    const { interviewer, spend } = stuck({ scoreDeadlineMs: 30 });
+    await expect(interviewer.score(session())).rejects.toBeInstanceOf(ServiceUnavailableException);
+    expect(warned).toHaveBeenCalledWith({ operation: 'interview.score-deadline' });
+    expect(spend.reserve).not.toHaveBeenCalled();
+    warned.mockRestore();
+  });
+
+  it('turns a credential that fails into the rejected-key 502, before any spend hold', async () => {
+    const { interviewer, spend } = setup(
+      () => streamed(['Okay.']),
+      SONNET,
+      0,
+      {},
+      () => {
+        throw new Error('no token');
+      },
+    );
+    await expect(interviewer.reply(session(), () => {}, signal())).rejects.toBeInstanceOf(BadGatewayException);
+    expect(spend.reserve).not.toHaveBeenCalled();
   });
 });
 

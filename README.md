@@ -49,8 +49,8 @@ Open http://localhost:4200.
 
 ```bash
 cp apps/api/.env.example apps/api/.env
-# set ANTHROPIC_API_KEY=...  → AI interviewer (default model claude-sonnet-5)
-# set AI_DAILY_BUDGET_USD=5  → optional daily Claude spend ceiling
+# set AI_GATEWAY_API_KEY=... (or OIDC on Vercel) → AI interviewer (default openai/gpt-6-luna)
+# set AI_DAILY_BUDGET_USD=5  → optional daily AI spend ceiling
 # set GOOGLE_WEB_CLIENT_ID=... → sign in with Google (see docs/ACCOUNTS.md)
 # set OAUTH_GITHUB_ID=... and OAUTH_GITHUB_SECRET=... → sign in with GitHub
 # set DATABASE_URL=...       → Postgres persistence
@@ -99,7 +99,7 @@ Production runs on Vercel with Neon Postgres: the web app from Vercel's CDN, the
 | `npm run build`                   | Production builds of all three packages                          |
 | `npm run verify`                  | All of the above, one after another (CI runs them in parallel)   |
 | `npm run e2e`                     | Browser tests of every learner flow, after `npm run build`       |
-| `npm run eval:interviewer`        | Live eval of the AI interviewer (needs `ANTHROPIC_API_KEY`)      |
+| `npm run eval:interviewer`        | Live eval of the AI interviewer (needs `AI_GATEWAY_API_KEY`)     |
 | `npm run pilot:report`            | Markdown pilot report from `/api/admin/metrics` (`ADMIN_TOKEN`)  |
 
 CI (`.github/workflows/ci.yml`) runs every `verify` step on every push to `main` and every pull request, in parallel jobs: lint, formatting and typecheck in one; the tests in another, with Postgres so the API e2e suite runs against both in-memory and Postgres storage; and the build in each of four shards of the browser tests, which run on desktop Chrome, an Android phone and an iPhone in WebKit. It also audits production dependencies, and builds the Docker image and the Vercel output and smoke-tests both against Postgres. `node_modules`, Chromium and WebKit come from the Actions cache. `deploy.yml` ships `main` to Vercel once enabled and then runs the `@smoke` browser tests against the live site. Dependabot proposes grouped dependency updates weekly.

@@ -90,8 +90,9 @@ export class GatewayInterviewer extends Interviewer {
     const deadline = deadlineAfter(this.replyDeadlineMs);
     const signal = AbortSignal.any([disconnected, deadline.signal]);
     try {
+      const token = await this.client.token(signal, this.options.timeoutMs);
       const completion = await this.metered(this.replyMaxTokens, body, signal, (connected) =>
-        this.client.stream(body, onDelta, { signal, onConnect: connected, affinity: session.id, timeoutMs: this.options.timeoutMs }),
+        this.client.stream(body, onDelta, { token, signal, onConnect: connected, affinity: session.id, timeoutMs: this.options.timeoutMs }),
       );
       const usage = this.record('reply', completion);
       const text = completion.finishReason === 'content_filter' ? '' : completion.text.trim();
@@ -138,8 +139,9 @@ export class GatewayInterviewer extends Interviewer {
     for (let attempt = 1; attempt <= SCORE_ATTEMPTS; attempt++) {
       let completion: GatewayCompletion;
       try {
+        const token = await this.client.token(deadline, this.scoreDeadlineMs);
         completion = await this.metered(this.scoreMaxTokens, body, deadline, () =>
-          this.client.complete(body, { signal: deadline, timeoutMs: this.scoreDeadlineMs }),
+          this.client.complete(body, { token, signal: deadline, timeoutMs: this.scoreDeadlineMs }),
         );
       } catch (err) {
         throw abortedBy(err, deadline) ? deadlineExceeded(this.log, 'interview.score-deadline') : toHttpError(err, this.log);
