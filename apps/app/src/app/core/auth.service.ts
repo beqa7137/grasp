@@ -9,6 +9,8 @@ import { type GitHubCredential, SocialSignInService } from './social-sign-in.ser
 
 const REFRESH_KEY = 'grasp.auth.refresh';
 const USER_KEY = 'grasp.auth.user';
+/** Signing in may merge the device's whole history into the account; failing it at the usual 8 s would send the person through the provider again. */
+const SIGN_IN_TIMEOUT_MS = 30_000;
 
 export type SignInProvider = 'google' | 'github';
 export const SIGN_IN_PROVIDERS: readonly SignInProvider[] = ['google', 'github'];
@@ -100,7 +102,7 @@ export class AuthService {
   async signIn(provider: SignInProvider): Promise<boolean> {
     const credential = await this.credential(provider);
     if (!credential) return false;
-    await this.finishSignIn(() => this.api.post<Session>(`/auth/${provider}`, credential));
+    await this.finishSignIn(() => this.api.post<Session>(`/auth/${provider}`, credential, SIGN_IN_TIMEOUT_MS));
     await this.loadIdentities();
     return true;
   }
@@ -109,7 +111,7 @@ export class AuthService {
   async connect(provider: SignInProvider): Promise<boolean> {
     const credential = await this.credential(provider);
     if (!credential) return false;
-    const { identities } = await this.api.post<{ identities: IdentitySummary[] }>(`/auth/${provider}/link`, credential);
+    const { identities } = await this.api.post<{ identities: IdentitySummary[] }>(`/auth/${provider}/link`, credential, SIGN_IN_TIMEOUT_MS);
     this.identities.set(identities);
     return true;
   }

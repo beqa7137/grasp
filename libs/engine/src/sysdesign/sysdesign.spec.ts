@@ -47,6 +47,7 @@ const SOLUTIONS: Record<string, Design> = {
   },
   'bot-storm': botStorm(2, 5),
   'write-wall': writeWall(10, 5),
+  'leaderboard-budget': leaderboard(12, 4),
 };
 
 function botStorm(limiters: number, apps: number): Design {
@@ -80,6 +81,39 @@ function writeWall(apps: number, shards: number, opts: { key?: ShardKey; replica
       ['lb', 'app'],
       ['app', 'cache'],
       ['cache', 'db'],
+      ...(replicas ? ([['db', 'rep']] as [string, string][]) : []),
+    ),
+  };
+}
+
+function leaderboard(apps: number, shards: number, opts: { cdn?: boolean; caches?: number; replicas?: number; lbs?: number } = {}): Design {
+  const cdn = opts.cdn ?? true;
+  const caches = opts.caches ?? 1;
+  const replicas = opts.replicas ?? 0;
+  return {
+    nodes: [
+      n('users', 'client'),
+      ...(cdn ? [n('cdn', 'cdn')] : []),
+      n('lb', 'lb', opts.lbs ?? 2),
+      n('app', 'app', apps),
+      ...(caches ? [n('cache', 'cache', caches)] : []),
+      n('db', 'db', shards, { shardKey: 'hash' }),
+      ...(replicas ? [n('rep', 'replica', replicas)] : []),
+    ],
+    edges: e(
+      ...((cdn
+        ? [
+            ['users', 'cdn'],
+            ['cdn', 'lb'],
+          ]
+        : [['users', 'lb']]) as [string, string][]),
+      ['lb', 'app'],
+      ...((caches
+        ? [
+            ['app', 'cache'],
+            ['cache', 'db'],
+          ]
+        : [['app', 'db']]) as [string, string][]),
       ...(replicas ? ([['db', 'rep']] as [string, string][]) : []),
     ),
   };
@@ -140,6 +174,24 @@ describe('scenarios', () => {
     const backlog = evaluate(scenario, design).find((g) => g.id === 'backlog')!;
     expect(backlog.pass).toBe(false);
     expect(backlog.actual).toMatch(/^\+/);
+  });
+
+  it('leaderboard-budget: more of everything meets latency but blows the budget, and dropping a cheap layer costs more than it saves', () => {
+    const scenario = getScenario('leaderboard-budget')!;
+    const failed = (design: Design) =>
+      evaluate(scenario, design)
+        .filter((g) => !g.pass)
+        .map((g) => g.id);
+    expect(failed(leaderboard(20, 6, { caches: 2, replicas: 2 }))).toEqual(['cost']);
+    expect(failed(leaderboard(19, 4, { cdn: false }))).toEqual(['cost']);
+    expect(failed(leaderboard(12, 6, { caches: 0 }))).toEqual(['cost']);
+  });
+
+  it('leaderboard-budget: replicas cannot stand in for shards under sustained writes', () => {
+    const scenario = getScenario('leaderboard-budget')!;
+    const result = simulate(leaderboard(12, 1, { replicas: 4 }), scenario.workload);
+    expect(result.nodes['db'].status).toBe('overloaded');
+    expect(evaluate(scenario, leaderboard(12, 1, { replicas: 4 }), result).find((g) => g.id === 'errors')!.pass).toBe(false);
   });
 });
 
@@ -215,6 +267,9 @@ const VARIANT_SOLUTIONS: Record<string, Design> = {
   'write-wall:1': writeWall(12, 6),
   'write-wall:2': writeWall(10, 5, { replicas: 5, caches: 2 }),
   'write-wall:3': writeWall(16, 8),
+  'leaderboard-budget:1': leaderboard(18, 6),
+  'leaderboard-budget:2': leaderboard(13, 4, { caches: 2, replicas: 4 }),
+  'leaderboard-budget:3': leaderboard(12, 6),
   'flash-sale:3': {
     nodes: [n('u', 'client'), n('lb', 'lb', 2), n('app', 'app', 10), n('c', 'cache'), n('db', 'db'), n('q', 'queue'), n('w', 'worker')],
     edges: e(['u', 'lb'], ['lb', 'app'], ['app', 'c'], ['c', 'db'], ['app', 'q'], ['q', 'w'], ['w', 'db']),
@@ -239,6 +294,14 @@ describe('mission revisit variants', () => {
       [1, 2, 3].map((v) => evaluate(scenarioVariant(s.id, v)!, SOLUTIONS[s.id]).some((g) => !g.pass)),
     );
     expect(failing.filter(Boolean).length).toBeGreaterThanOrEqual(6);
+  });
+
+  it('the leaderboard solution fails every one of its revisits', () => {
+    for (const v of [1, 2, 3])
+      expect(
+        evaluate(scenarioVariant('leaderboard-budget', v)!, SOLUTIONS['leaderboard-budget']).some((g) => !g.pass),
+        `${v}`,
+      ).toBe(true);
   });
 
   it('returns undefined for missing variants', () => {

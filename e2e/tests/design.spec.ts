@@ -81,3 +81,14 @@ test('new components never land on top of existing ones', { tag: '@smoke' }, asy
     }
   }
 });
+
+test('the leaderboard mission opens from the list with its budget, and its starter does not clear it', async ({ page }) => {
+  await page.goto('/design');
+  await page
+    .getByRole('link', { name: /Leaderboard on a Budget/ })
+    .first()
+    .click();
+  await expect(page.getByText('p99 latency ≤ 200 ms')).toBeVisible();
+  await expect(page.getByText('Cost ≤ $8.5k/mo')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Scenario cleared' })).toHaveCount(0);
+});

@@ -12,9 +12,14 @@ export const SD_TOPICS: SdTopic[] = [
     id: 'sd-capacity',
     name: 'Capacity & Scaling',
     oneLiner: 'Finding the bottleneck and scaling past it.',
-    scenarioIds: ['first-scale-up'],
+    scenarioIds: ['first-scale-up', 'leaderboard-budget'],
   },
-  { id: 'sd-estimation', name: 'Estimation', oneLiner: 'Back-of-envelope QPS, storage and bandwidth.', scenarioIds: ['first-scale-up'] },
+  {
+    id: 'sd-estimation',
+    name: 'Estimation',
+    oneLiner: 'Back-of-envelope QPS, storage and bandwidth.',
+    scenarioIds: ['first-scale-up', 'leaderboard-budget'],
+  },
   { id: 'sd-reliability', name: 'Reliability', oneLiner: 'Redundancy, failover and availability math.', scenarioIds: ['first-scale-up'] },
   { id: 'sd-caching', name: 'Caching & CDNs', oneLiner: 'Hit rates, tail latency and what to cache where.', scenarioIds: ['viral-feed'] },
   {

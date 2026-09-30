@@ -177,6 +177,31 @@ const CATALOG = [
       },
     ],
   },
+  {
+    id: 'leaderboard-budget',
+    title: 'Leaderboard on a Budget',
+    tagline: '18k reads and 6k score writes a second, on $8,500 a month.',
+    workload: { rps: 24_000, readRatio: 0.75 },
+    goals: { maxP99Ms: 200, maxErrorRate: 0.001, maxMonthlyCost: 8_500 },
+    variants: [
+      {
+        twist: 'A new season launches: 36,000 RPS, still 75% reads, all day. Budget $12,000.',
+        workload: { rps: 36_000, readRatio: 0.75 },
+        goals: { maxP99Ms: 200, maxErrorRate: 0.001, maxMonthlyCost: 12_000 },
+      },
+      {
+        twist:
+          'A shard failed during a tournament and a quarter of the scores vanished for an hour. Same load, now with no single point of failure. Budget $12,500.',
+        workload: { rps: 24_000, readRatio: 0.75 },
+        goals: { maxP99Ms: 200, maxErrorRate: 0.001, maxMonthlyCost: 12_500, noSinglePointOfFailure: true },
+      },
+      {
+        twist: 'A live tournament: every match posts a score, so 20,000 RPS are half writes. Budget $11,000.',
+        workload: { rps: 20_000, readRatio: 0.5 },
+        goals: { maxP99Ms: 200, maxErrorRate: 0.001, maxMonthlyCost: 11_000 },
+      },
+    ],
+  },
 ] as const satisfies readonly ScenarioSummary[];
 
 export type ScenarioId = (typeof CATALOG)[number]['id'];
