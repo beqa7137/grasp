@@ -16,11 +16,18 @@ import { RateLimitExceeded } from './rate-limit-exceeded.js';
 export interface RateLimitRule {
   limit: number;
   windowMs: number;
+  /** Counts anonymous callers per address even when they send a learner id, for routes that store what people read. */
+  perAddress?: boolean;
 }
 
 const RATE_LIMIT = 'grasp:rate-limit';
 const DEFAULT_WINDOW_MS = 60_000;
 const ERROR_LOG_INTERVAL_MS = 60_000;
+/**
+ * A school or office shares one address, so an anonymous learner is counted on its own, while its address may send this
+ * many learners' worth: learner ids cost nothing to make, and the address still caps what one machine can send.
+ */
+const SHARED_NETWORK_LEARNERS = 20;
 
 /** Overrides the default per-minute limit for a route or controller. */
 export const RateLimit = (rule: RateLimitRule) => SetMetadata(RATE_LIMIT, rule);
@@ -28,8 +35,8 @@ export const SkipRateLimit = () => SetMetadata(RATE_LIMIT, false);
 
 /**
  * Fixed-window limits per route, counted in the coordination store so every instance enforces the same
- * limit. Signed-in callers are counted per account (across devices and networks), everyone else per IP,
- * which is why this guard runs after IdentityGuard.
+ * limit. Signed-in callers are counted per account (across devices and networks), anonymous learners per
+ * learner and per network, and everyone else per IP, which is why this guard runs after IdentityGuard.
  */
 @Injectable()
 export class RateLimitGuard implements CanActivate {
@@ -58,12 +65,19 @@ export class RateLimitGuard implements CanActivate {
       }
       return true;
     }
-    const caller = req.identity?.userId ? `user:${req.identity.userId}` : `ip:${req.ip}`;
-    const key = `rate:${ctx.getClass().name}.${ctx.getHandler().name}:${hashToken(caller)}`;
+    const route = `rate:${ctx.getClass().name}.${ctx.getHandler().name}`;
+    const learner = !req.identity?.userId && !rule.perAddress ? req.identity?.learnerId : undefined;
+    const caller = req.identity?.userId ? `user:${req.identity.userId}` : learner ? `learner:${learner}` : `ip:${req.ip}`;
 
     let counted;
+    let network;
     try {
-      counted = claims ? await this.store.addForSession(key, rule.windowMs, 1, claims) : await this.store.add(key, rule.windowMs, 1);
+      counted = claims
+        ? await this.store.addForSession(`${route}:${hashToken(caller)}`, rule.windowMs, 1, claims)
+        : await this.store.add(`${route}:${hashToken(caller)}`, rule.windowMs, 1);
+      if (learner && counted && counted.total <= rule.limit) {
+        network = await this.store.add(`${route}:net:${hashToken(`ip:${req.ip}`)}`, rule.windowMs, 1);
+      }
     } catch (error) {
       if (Date.now() - this.lastErrorLog > ERROR_LOG_INTERVAL_MS) {
         this.lastErrorLog = Date.now();
@@ -80,6 +94,8 @@ export class RateLimitGuard implements CanActivate {
     }
     if (!counted) throw tokenInvalid('Session ended');
 
+    const networkLimit = rule.limit * SHARED_NETWORK_LEARNERS;
+    if (network && network.total > networkLimit) throw new RateLimitExceeded(networkLimit, network.resetsInMs);
     if (counted.total > rule.limit) throw new RateLimitExceeded(rule.limit, counted.resetsInMs);
     const res = http.getResponse<Response>();
     res.setHeader('X-RateLimit-Limit', rule.limit);
