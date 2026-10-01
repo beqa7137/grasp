@@ -195,6 +195,33 @@ describe.each(storages)('API (%s storage, offline interviewer)', (storage) => {
     expect((await state()).plan).toBeNull();
   });
 
+  it('records a finished mock loop and rejects rounds the app does not run', async () => {
+    const loopLearner = randomUUID();
+    const round = (track: string, at: string) => ({ track, sessionId: randomUUID(), verdict: 'lean-hire', at });
+    const loop = {
+      loopId: randomUUID(),
+      verdict: 'lean-hire',
+      rounds: [
+        round('coding', '2026-10-01T09:00:00Z'),
+        round('system-design', '2026-10-01T10:00:00Z'),
+        round('behavioral', '2026-10-01T10:30:00Z'),
+      ],
+    };
+    const finish = (fields: object) => postEvent({ type: 'mock.completed', ...loop, ...fields }, loopLearner);
+
+    await finish({ verdict: 'maybe' }).expect(400);
+    await finish({ rounds: [] }).expect(400);
+    await finish({ rounds: [loop.rounds[0], loop.rounds[0]] }).expect(400);
+    await finish({ rounds: [{ ...loop.rounds[0], track: 'puzzles' }] }).expect(400);
+    await finish({ loopId: 'not a loop id' }).expect(400);
+    await finish({}).expect(200);
+    const { state } = (await request(app.getHttpServer()).get('/api/progress').set('x-learner-id', loopLearner).expect(200)).body;
+    expect(state.mockLoop).toMatchObject({
+      verdict: 'lean-hire',
+      rounds: { coding: '2026-10-01T09:00:00.000Z', 'system-design': '2026-10-01T10:00:00.000Z', behavioral: '2026-10-01T10:30:00.000Z' },
+    });
+  });
+
   it('records a finished case study, schedules its topics and rejects unknown cases and impossible outcomes', async () => {
     const caseLearner = randomUUID();
     const finish = (fields: object) =>

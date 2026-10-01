@@ -5,6 +5,7 @@ import {
   COMPETENCY_CATALOG,
   DIAGNOSTIC_OUTCOMES,
   DRILL_CARDS,
+  INTERVIEW_TRACKS,
   LANGUAGES,
   PATTERNS,
   PLAN_LEVELS,
@@ -13,6 +14,7 @@ import {
   SCENARIOS,
   STUDY_OPTIONS,
   SD_TOPICS,
+  VERDICTS,
   getReviewItem,
   isCalendarDate,
   isDiagnosticItem,
@@ -150,6 +152,24 @@ export const learningEventSchema = z.discriminatedUnion('type', [
         level: z.enum(PLAN_LEVELS),
       })
       .nullable(),
+  }),
+  z.object({
+    ...base,
+    type: z.literal('mock.completed'),
+    loopId: base.id,
+    verdict: z.enum(VERDICTS),
+    rounds: z
+      .array(
+        z.object({
+          track: z.enum(INTERVIEW_TRACKS),
+          sessionId: z.string().max(64),
+          verdict: z.enum(VERDICTS),
+          at: base.at,
+        }),
+      )
+      .min(1)
+      .max(INTERVIEW_TRACKS.length)
+      .refine((rounds) => new Set(rounds.map((r) => r.track)).size === rounds.length, 'One round per track'),
   }),
   z.object({
     ...base,

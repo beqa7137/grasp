@@ -16,7 +16,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { IonBackButton, IonButtons, IonContent, IonFooter, IonHeader, IonIcon, IonSpinner, IonTitle, IonToolbar } from '@ionic/angular';
 import { Preferences } from '@capacitor/preferences';
-import { EMPTY_STAR_DRAFT, LANGUAGES, getPatternSummary, itemsForTopic, type Language, type StarDraft } from '@grasp/engine';
+import { EMPTY_STAR_DRAFT, LANGUAGES, TRACK_NAMES, getPatternSummary, itemsForTopic, type Language, type StarDraft } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import { arrowUp, bulbOutline, codeSlashOutline, flagOutline, ribbonOutline } from 'ionicons/icons';
 import { CodeEditorComponent } from '../../code/code-editor.component';
@@ -34,13 +34,12 @@ import {
   type InterviewMessage,
   type InterviewMode,
   type InterviewSession,
-  type InterviewTrack,
 } from './interview.types';
 import { needsSignIn } from './start-interview';
+import { MockLoopService } from './mock-loop.service';
 import { StarAnswerComponent } from './star-answer.component';
 
 const SCORING_TIMEOUT_MS = 290_000;
-const TRACK_LABELS: Record<InterviewTrack, string> = { coding: 'Coding', 'system-design': 'System design', behavioral: 'Behavioral' };
 const AI_NOTICE = 'Your replies and shared code are sent to the AI service.';
 const BEHAVIORAL_AI_NOTICE = 'Your answers, including any story you start from, are sent to the AI service.';
 
@@ -74,6 +73,7 @@ export class InterviewSessionPage {
   readonly id = input.required<string>();
   private readonly api = inject(ApiService);
   private readonly progress = inject(ProgressService);
+  private readonly loops = inject(MockLoopService);
   private readonly content = viewChild(IonContent);
   private readonly composer = viewChild<ElementRef<HTMLTextAreaElement>>('composer');
   private readonly endButton = viewChild<ElementRef<HTMLButtonElement>>('endButton');
@@ -98,7 +98,7 @@ export class InterviewSessionPage {
   private abort: AbortController | null = null;
 
   readonly languageLabels = LANGUAGE_LABELS;
-  readonly trackLabels = TRACK_LABELS;
+  readonly trackLabels = TRACK_NAMES;
   readonly followUps = BEHAVIORAL_FOLLOW_UPS;
   readonly starDraft = signal<StarDraft>({ ...EMPTY_STAR_DRAFT });
   readonly answerFromStory = signal(false);
@@ -124,6 +124,8 @@ export class InterviewSessionPage {
   /** The STAR answer opens a behavioral interview; the chat composer takes the follow-ups after it. */
   readonly answering = computed(() => this.behavioral() && this.candidateTurns() === 0);
   readonly closed = computed(() => this.behavioral() && this.candidateTurns() > BEHAVIORAL_FOLLOW_UPS);
+  /** This interview's place in the learner's mock loop, if it is one of its rounds. */
+  readonly loopRound = computed(() => this.loops.roundOf(this.id()));
   readonly scheduledItems = computed(() =>
     (this.session()?.scorecard?.weakPatterns ?? []).reduce((n, p) => n + itemsForTopic(p).length, 0),
   );
@@ -137,6 +139,7 @@ export class InterviewSessionPage {
       const id = this.id();
       untracked(() => void this.load(id));
     });
+    void this.loops.load();
     effect(() => {
       this.messages();
       this.streaming();

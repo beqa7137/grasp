@@ -59,6 +59,11 @@ export const routes: Routes = [
         loadComponent: () => import('./pages/interview/interview-home.page').then((m) => m.InterviewHomePage),
       },
       {
+        path: 'interview/loop',
+        title: 'Mock loop',
+        loadComponent: () => import('./pages/interview/mock-loop.page').then((m) => m.MockLoopPage),
+      },
+      {
         path: 'interview/:id',
         title: 'Mock interview',
         loadComponent: () => import('./pages/interview/interview-session.page').then((m) => m.InterviewSessionPage),

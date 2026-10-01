@@ -3,6 +3,7 @@ import { PROBLEM_PATTERNS, problemPatterns } from '../coding/problem-patterns.js
 import { PATTERN_CATALOG } from '../curriculum/catalog.js';
 import { SD_TOPICS, getSdTopic } from '../curriculum/sd-topics.js';
 import { normalizePlan, type StudyPlanInput } from '../plan/options.js';
+import type { InterviewTrack } from '../interview/rubrics.js';
 import { getReviewItemSummary, itemsForTopic } from '../review/catalog.js';
 import type { ItemKind, ReviewItemSummary } from '../review/types.js';
 import type { CaseOutcome } from '../sysdesign/cases/outcome.js';
@@ -70,6 +71,13 @@ export interface CaseRecord extends CaseOutcome {
   topics: string[];
 }
 
+export interface MockLoopRecord {
+  completedAt: string;
+  verdict: string;
+  /** When each of its rounds was scored. */
+  rounds: Partial<Record<InterviewTrack, string>>;
+}
+
 export interface ReviewRecord {
   at: string;
   itemId: string;
@@ -104,6 +112,8 @@ export interface ProgressState {
   eventCount: number;
   settings: StudySettings;
   plan: StudyPlanInput | null;
+  /** The latest mock loop to finish. */
+  mockLoop: MockLoopRecord | null;
 }
 
 export const emptyProgress = (): ProgressState => ({
@@ -128,6 +138,7 @@ export const emptyProgress = (): ProgressState => ({
   eventCount: 0,
   settings: { ...DEFAULT_STUDY_SETTINGS },
   plan: null,
+  mockLoop: null,
 });
 
 /** Pure reducer: the same event log yields the same state on every device and on the server. */
@@ -276,6 +287,13 @@ export function applyEvent(state: ProgressState, stored: StoredEvent): ProgressS
     case 'plan.set':
       // A plan from a newer client with an option this one does not know keeps the plan this one can read.
       next.plan = event.plan === null ? null : (normalizePlan(event.plan) ?? state.plan);
+      break;
+    case 'mock.completed':
+      next.mockLoop = {
+        completedAt: event.at,
+        verdict: event.verdict,
+        rounds: Object.fromEntries(event.rounds.map((r) => [r.track, r.at])),
+      };
       break;
     case 'diagnostic.completed': {
       next.placement = placementFromAnswers(event.answers);

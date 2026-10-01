@@ -1,4 +1,5 @@
 import type { Language } from '../coding/types.js';
+import type { InterviewTrack } from '../interview/rubrics.js';
 import type { StudyPlanInput } from '../plan/options.js';
 import type { CaseOutcome } from '../sysdesign/cases/outcome.js';
 import type { ReviewRating } from './scheduler.js';
@@ -52,7 +53,7 @@ export interface CaseCompletedEvent extends BaseEvent, CaseOutcome {
 export interface InterviewScoredEvent extends BaseEvent {
   type: 'interview.scored';
   sessionId: string;
-  track: 'coding' | 'system-design' | 'behavioral';
+  track: InterviewTrack;
   verdict: string;
   weakPatterns: string[];
   /** Behavioral only: the competency the question asked about. */
@@ -89,6 +90,14 @@ export interface PlanSetEvent extends BaseEvent {
   plan: StudyPlanInput | null;
 }
 
+/** Every round of a mock loop scored: the debrief's practice read. Each round's own flags came with its interview.scored. */
+export interface MockCompletedEvent extends BaseEvent {
+  type: 'mock.completed';
+  loopId: string;
+  verdict: string;
+  rounds: { track: InterviewTrack; sessionId: string; verdict: string; at: string }[];
+}
+
 export const DIAGNOSTIC_OUTCOMES = ['correct', 'wrong', 'skipped'] as const;
 export type DiagnosticOutcome = (typeof DIAGNOSTIC_OUTCOMES)[number];
 
@@ -114,7 +123,8 @@ export type LearningEvent =
   | CodeSubmittedEvent
   | SettingsChangedEvent
   | PlanSetEvent
-  | DiagnosticCompletedEvent;
+  | DiagnosticCompletedEvent
+  | MockCompletedEvent;
 
 /** v1 (SM-2) drill review, still accepted from older clients and stored logs. */
 export interface LegacyDrillReviewedEvent extends BaseEvent {

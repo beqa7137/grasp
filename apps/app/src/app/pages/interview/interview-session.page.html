@@ -23,6 +23,9 @@
     @if (session(); as s) {
       <div class="meta">
         <span class="chip accent">{{ trackLabels[s.track] }}</span>
+        @if (loopRound(); as r) {
+          <span class="chip">Mock loop · round {{ r.index + 1 }} of {{ r.total }}</span>
+        }
         <span class="chip">{{ s.mode === 'ai' ? 'AI interviewer' : 'Scripted practice' }}</span>
         @if (s.hintsUsed) {
           <span class="chip">{{ s.hintsUsed }} hint{{ s.hintsUsed > 1 ? 's' : '' }} used</span>
@@ -127,6 +130,11 @@
     @if (session(); as s) {
       @if (s.scorecard; as card) {
         <section class="panel scorecard">
+          @if (loopRound(); as r) {
+            <a class="g-btn primary loop-link" routerLink="/interview/loop">{{
+              r.index + 1 < r.total ? 'Back to your mock loop' : 'See your loop debrief'
+            }}</a>
+          }
           <header>
             <ion-icon name="ribbon-outline" aria-hidden="true" />
             <div>

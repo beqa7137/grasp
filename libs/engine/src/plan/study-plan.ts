@@ -5,6 +5,7 @@ import { problemsForPattern } from '../coding/catalog.js';
 import { PATTERN_CATALOG } from '../curriculum/catalog.js';
 import { dayKey, type ProgressState } from '../srs/progress.js';
 import { buildSession } from '../srs/session.js';
+import { LOOP_FRESH_DAYS, LOOP_ROUND_MINUTES, PLAN_ROUND_TRACK } from '../interview/loop.js';
 import { CASE_CATALOG } from '../sysdesign/case-catalog.js';
 import {
   PLAN_MAX_DAYS,
@@ -33,7 +34,7 @@ const MIN_SLICE = 10;
 /** Stories saved before creation times were kept count as covered from long ago. */
 const BEFORE_CREATION_TIMES = new Date(0).toISOString();
 
-export type PlanUnitKind = 'pattern' | 'retry' | 'case' | 'story';
+export type PlanUnitKind = 'pattern' | 'retry' | 'case' | 'story' | 'mock';
 
 export interface PlanUnit {
   id: string;
@@ -82,7 +83,7 @@ export interface StudyPlan {
   units: PlanUnit[];
   /** Units with no time at all before the interview; a unit only partly placed is not among them. */
   unscheduled: PlanUnit[];
-  /** The last day with new material, or null when there is none. */
+  /** The last day with new material, not counting the mock loop, or null when there is none. */
   finishDate: string | null;
   /** The smallest offered daily time that fits everything, when the current one does not; null if none does. */
   minutesToFit: number | null;
@@ -98,6 +99,13 @@ export interface PlanContext {
   /** The learner's live stories, which live outside the progress log. */
   stories?: readonly Story[];
 }
+
+const DAY_MS = 86_400_000;
+const MOCK_TITLES: Record<PlanRound, string> = {
+  coding: 'Mock loop: coding round',
+  design: 'Mock loop: system design round',
+  behavioral: 'Mock loop: behavioral round',
+};
 
 const roundTo5 = (minutes: number) => Math.max(5, Math.round(minutes / 5) * 5);
 const earliest = (times: (string | null | undefined)[]) =>
@@ -120,7 +128,7 @@ export function buildStudyPlan(input: StudyPlanInput, state: ProgressState, ctx:
     return { ...base, status: daysLeft === 0 ? 'interview-day' : 'past', days: [], units: [], unscheduled: [], remaining };
   }
 
-  const units = planUnits(input, state, stories).filter((u) => !u.doneAt || dayKey(new Date(u.doneAt), tz) >= today);
+  const units = planUnits(input, state, stories, ctx.now).filter((u) => !u.doneAt || dayKey(new Date(u.doneAt), tz) >= today);
   const dates = Array.from({ length: Math.min(daysLeft, PLAN_MAX_DAYS) }, (_, i) => addCalendarDays(today, i));
   const eve = daysLeft <= PLAN_MAX_DAYS ? dates.length - 1 : -1;
   const fit = (minutesPerDay: number) =>
@@ -139,7 +147,7 @@ export function buildStudyPlan(input: StudyPlanInput, state: ProgressState, ctx:
     days,
     units,
     unscheduled: unplaced,
-    finishDate: days.filter((d) => d.slices.some((s) => !s.done)).at(-1)?.date ?? null,
+    finishDate: days.filter((d) => d.slices.some((s) => !s.done && s.unit.kind !== 'mock')).at(-1)?.date ?? null,
     minutesToFit: status === 'tight' ? (PLAN_MINUTES.find((m) => !fit(m).incomplete.length) ?? null) : null,
     remaining: Object.fromEntries(
       PLAN_ROUNDS.map((r) => {
@@ -160,13 +168,29 @@ function reviewToday(input: StudyPlanInput, state: ProgressState, now: Date, tz:
   return { cards: session.items.length, cardMinutes, stories: due, storyMinutes, minutes: cardMinutes + storyMinutes };
 }
 
-function planUnits(input: StudyPlanInput, state: ProgressState, stories: readonly Story[]): PlanUnit[] {
+function planUnits(input: StudyPlanInput, state: ProgressState, stories: readonly Story[], now: Date): PlanUnit[] {
   const factor = LEVEL_FACTOR[input.level];
   const units: PlanUnit[] = [];
   if (input.rounds.includes('coding')) units.push(...codingUnits(state, input.level, factor));
   if (input.rounds.includes('design')) units.push(...designUnits(state, factor));
   if (input.rounds.includes('behavioral')) units.push(...behavioralUnits(state, stories, factor));
-  return units;
+  return [...units, ...mockUnits(input, state, now)];
+}
+
+/** One unit per round of the plan's mock loop, at the length the round runs; a loop finished recently covers them. */
+function mockUnits(input: StudyPlanInput, state: ProgressState, now: Date): PlanUnit[] {
+  const loop = state.mockLoop;
+  const fresh = loop && now.getTime() - Date.parse(loop.completedAt) <= LOOP_FRESH_DAYS * DAY_MS ? loop : null;
+  return input.rounds.map((round) => ({
+    id: `mock:${round}`,
+    round,
+    kind: 'mock',
+    title: MOCK_TITLES[round],
+    detail: 'A full interview round in a mock loop. Run the rounds back to back or on different days; one debrief follows the last.',
+    minutes: LOOP_ROUND_MINUTES[PLAN_ROUND_TRACK[round]],
+    flagged: false,
+    doneAt: fresh?.rounds[PLAN_ROUND_TRACK[round]] ?? null,
+  }));
 }
 
 function codingUnits(state: ProgressState, level: PlanLevel, factor: number): PlanUnit[] {
@@ -257,23 +281,36 @@ function behavioralUnits(state: ProgressState, stories: readonly Story[], factor
 }
 
 /**
- * Fills each day after its review time. A unit split the day before continues first; otherwise a unit that fits whole
- * is taken from whichever round is furthest behind its share, and only when none fits is the next one split.
+ * Fills each day after its review time. The mock loop's rounds are kept first, on the last days before the interview;
+ * then a unit split the day before continues first; otherwise a unit that fits whole is taken from whichever round is
+ * furthest behind its share, and only when none fits is the next one split.
  */
 function schedule(units: PlanUnit[], dates: string[], eve: number, minutesPerDay: number, todayReview: number) {
   const sum = (list: PlanUnit[]) => list.reduce((s, u) => s + u.minutes, 0);
-  const ofRound = (r: PlanRound) => units.filter((u) => u.round === r);
+  const ofRound = (r: PlanRound) => units.filter((u) => u.round === r && u.kind !== 'mock');
   const queues = new Map(PLAN_ROUNDS.map((r) => [r, ofRound(r).filter((u) => !u.doneAt)]));
   // Work finished today counts as placed, so finishing it does not hand its round's share to another round.
   const total = new Map(PLAN_ROUNDS.map((r) => [r, sum(ofRound(r))]));
   const placed = new Map(PLAN_ROUNDS.map((r) => [r, sum(ofRound(r).filter((u) => u.doneAt))]));
   const left = new Map(units.map((u) => [u.id, u.minutes]));
   const later = Math.round((Math.max(0, minutesPerDay) * REVIEW_SHARE) / 5) * 5;
+  const doneToday = sum(units.filter((u) => u.doneAt));
+  const room = dates.map((_, i) => (i === eve ? 0 : minutesPerDay - (i === 0 ? todayReview + doneToday : later)));
+  const mocks = reserveMocks(
+    units.filter((u) => u.kind === 'mock' && !u.doneAt),
+    room,
+    left,
+  );
   let split: PlanUnit | null = null;
 
   const days: PlanDay[] = dates.map((date, i) => {
     const day: PlanDay = { date, review: i === 0 ? todayReview : later, slices: [], taper: i === eve };
-    let free = minutesPerDay - day.review;
+    fill(day, i, minutesPerDay - day.review - mocks[i].reduce((s, x) => s + x.minutes, 0));
+    day.slices.push(...mocks[i]);
+    return day;
+  });
+
+  function fill(day: PlanDay, i: number, free: number) {
     const place = (unit: PlanUnit, minutes: number) => {
       day.slices.push({ unit, minutes, part: 0, parts: 0, done: false });
       left.set(unit.id, left.get(unit.id)! - minutes);
@@ -292,12 +329,12 @@ function schedule(units: PlanUnit[], dates: string[], eve: number, minutesPerDay
         free -= unit.minutes;
       }
     }
-    if (day.taper) return day;
+    if (day.taper) return;
     if (split) {
       const unit: PlanUnit = split;
       if (whole(unit, true)) free -= place(unit, left.get(unit.id)!);
       else if (free >= MIN_SLICE) free -= place(unit, free);
-      if (split) return day;
+      if (split) return;
     }
     while (free > 0) {
       const heads = PLAN_ROUNDS.filter((r) => queues.get(r)!.length)
@@ -308,8 +345,7 @@ function schedule(units: PlanUnit[], dates: string[], eve: number, minutesPerDay
       else if (heads.length && free >= MIN_SLICE) free -= place(heads[0], free);
       else break;
     }
-    return day;
-  });
+  }
 
   const pieces = days.flatMap((d) => d.slices.filter((s) => !s.done));
   for (const unit of units) {
@@ -322,4 +358,25 @@ function schedule(units: PlanUnit[], dates: string[], eve: number, minutesPerDay
     unplaced: open.filter((u) => left.get(u.id) === u.minutes),
     incomplete: open.filter((u) => left.get(u.id)! > 0),
   };
+}
+
+/** Fills the mock rounds backwards from the last study day, so the loop is the last new work and keeps its order. */
+function reserveMocks(mocks: PlanUnit[], room: number[], left: Map<string, number>): PlanSlice[][] {
+  const reserved: PlanSlice[][] = room.map(() => []);
+  let d = room.length - 1;
+  for (const unit of [...mocks].reverse()) {
+    while (left.get(unit.id)! > 0 && d >= 0) {
+      const need = left.get(unit.id)!;
+      // As forward, a day runs up to MIN_SLICE over to finish a round, so no piece but the last is under MIN_SLICE.
+      const whole = need <= room[d] || (room[d] >= MIN_SLICE && need - room[d] <= MIN_SLICE);
+      const take = whole ? need : room[d] >= MIN_SLICE ? room[d] : 0;
+      if (take) {
+        reserved[d].unshift({ unit, minutes: take, part: 0, parts: 0, done: false });
+        room[d] -= take;
+        left.set(unit.id, need - take);
+      }
+      if (left.get(unit.id)! > 0) d--;
+    }
+  }
+  return reserved;
 }
