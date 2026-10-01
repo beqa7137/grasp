@@ -12,3 +12,5 @@ export * from './srs/diagnostic.js';
 export * from './srs/reminders.js';
 export * from './coding/index.js';
 export * from './behavioral/index.js';
+export * from './plan/options.js';
+export * from './plan/study-plan.js';

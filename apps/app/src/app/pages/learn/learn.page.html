@@ -96,6 +96,17 @@
         </aside>
       }
       <div class="tiles">
+        <a class="panel card-link tile plan" routerLink="/plan">
+          <ion-icon name="calendar-outline" aria-hidden="true" />
+          <h3>Study plan</h3>
+          @if (interview(); as when) {
+            <p>{{ when }}</p>
+            <span class="cta">See today's plan →</span>
+          } @else {
+            <p>Coding, design and behavioral, dated to your interview</p>
+            <span class="cta">Set your date →</span>
+          }
+        </a>
         <a class="panel card-link tile drill" routerLink="/drill">
           <ion-icon name="flash-outline" aria-hidden="true" />
           <h3>Review</h3>

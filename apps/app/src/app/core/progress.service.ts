@@ -11,6 +11,7 @@ import {
   replay,
   trueRetention,
   type InterviewScoredEvent,
+  type PlanSetEvent,
   type PracticeAnsweredEvent,
   type PredictAnsweredEvent,
   type ReviewGradedEvent,
@@ -43,6 +44,7 @@ export type NewEvent =
   | Draft<InterviewScoredEvent>
   | Draft<CodeSubmittedEvent>
   | Draft<SettingsChangedEvent>
+  | Draft<PlanSetEvent>
   | Draft<DiagnosticCompletedEvent>;
 
 export type SyncStatus = 'idle' | 'syncing' | 'synced' | 'offline' | 'pending';

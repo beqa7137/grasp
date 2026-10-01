@@ -7,10 +7,14 @@ import {
   DRILL_CARDS,
   LANGUAGES,
   PATTERNS,
+  PLAN_LEVELS,
+  PLAN_MINUTES,
+  PLAN_ROUNDS,
   SCENARIOS,
   STUDY_OPTIONS,
   SD_TOPICS,
   getReviewItem,
+  isCalendarDate,
   isDiagnosticItem,
 } from '@grasp/engine';
 import { z } from 'zod';
@@ -130,6 +134,22 @@ export const learningEventSchema = z.discriminatedUnion('type', [
       })
       .partial()
       .refine((change) => Object.keys(change).length > 0, 'Empty settings change'),
+  }),
+  z.object({
+    ...base,
+    type: z.literal('plan.set'),
+    plan: z
+      .strictObject({
+        interviewDate: z.string().refine(isCalendarDate, 'Must be a calendar date as YYYY-MM-DD'),
+        minutesPerDay: oneOf(PLAN_MINUTES),
+        rounds: z
+          .array(z.enum(PLAN_ROUNDS))
+          .min(1)
+          .max(PLAN_ROUNDS.length)
+          .refine((rounds) => new Set(rounds).size === rounds.length, 'Each round once'),
+        level: z.enum(PLAN_LEVELS),
+      })
+      .nullable(),
   }),
   z.object({
     ...base,

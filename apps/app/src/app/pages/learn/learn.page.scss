@@ -195,7 +195,8 @@
   &.lab {
     --tile: var(--g-pointer);
   }
-  &.mock {
+  &.mock,
+  &.plan {
     --tile: var(--g-accent);
   }
   &.code {

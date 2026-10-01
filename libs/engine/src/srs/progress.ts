@@ -2,6 +2,7 @@ import { getCompetencySummary } from '../behavioral/catalog.js';
 import { problemPatterns } from '../coding/problem-patterns.js';
 import { PATTERN_CATALOG } from '../curriculum/catalog.js';
 import { SD_TOPICS, getSdTopic } from '../curriculum/sd-topics.js';
+import { normalizePlan, type StudyPlanInput } from '../plan/options.js';
 import { getReviewItemSummary, itemsForTopic } from '../review/catalog.js';
 import type { ItemKind, ReviewItemSummary } from '../review/types.js';
 import type { CaseOutcome } from '../sysdesign/cases/outcome.js';
@@ -83,6 +84,8 @@ export interface ProgressState {
   cases: Record<string, CaseRecord>;
   interviews: { total: number; lastVerdict: string | null };
   behavioral: Record<string, CompetencyRecord>;
+  /** Pattern → when an interview last flagged it as weak. */
+  weakPatterns: Record<string, string>;
   /** Pattern → placement from the latest placement check. */
   placement: Record<string, Placement>;
   diagnosedAt: string | null;
@@ -95,6 +98,7 @@ export interface ProgressState {
   xp: number;
   eventCount: number;
   settings: StudySettings;
+  plan: StudyPlanInput | null;
 }
 
 export const emptyProgress = (): ProgressState => ({
@@ -107,6 +111,7 @@ export const emptyProgress = (): ProgressState => ({
   cases: {},
   interviews: { total: 0, lastVerdict: null },
   behavioral: {},
+  weakPatterns: {},
   placement: {},
   diagnosedAt: null,
   coding: {},
@@ -117,6 +122,7 @@ export const emptyProgress = (): ProgressState => ({
   xp: 0,
   eventCount: 0,
   settings: { ...DEFAULT_STUDY_SETTINGS },
+  plan: null,
 });
 
 /** Pure reducer: the same event log yields the same state on every device and on the server. */
@@ -128,7 +134,7 @@ export function applyEvent(state: ProgressState, stored: StoredEvent): ProgressS
     cards: { ...state.cards },
     boosts: { ...state.boosts },
     introduced: { ...state.introduced },
-    streak: event.type === 'settings.changed' ? state.streak : bumpStreak(state.streak, event.at.slice(0, 10)),
+    streak: event.type === 'settings.changed' || event.type === 'plan.set' ? state.streak : bumpStreak(state.streak, event.at.slice(0, 10)),
     eventCount: state.eventCount + 1,
   };
   const introduce = (topic: string) => {
@@ -204,6 +210,8 @@ export function applyEvent(state: ProgressState, stored: StoredEvent): ProgressS
     case 'interview.scored': {
       next.interviews = { total: state.interviews.total + 1, lastVerdict: event.verdict };
       if (event.track === 'behavioral') next.behavioral = scoreCompetencies(state.behavioral, event);
+      if (event.weakPatterns.length)
+        next.weakPatterns = { ...state.weakPatterns, ...Object.fromEntries(event.weakPatterns.map((p) => [p, event.at])) };
       for (const topic of event.weakPatterns) {
         introduce(topic);
         for (const def of itemsForTopic(topic)) {
@@ -241,6 +249,9 @@ export function applyEvent(state: ProgressState, stored: StoredEvent): ProgressS
     }
     case 'settings.changed':
       next.settings = mergeSettings(state.settings, event.settings);
+      break;
+    case 'plan.set':
+      next.plan = normalizePlan(event.plan);
       break;
     case 'diagnostic.completed': {
       next.placement = placementFromAnswers(event.answers);
