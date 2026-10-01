@@ -106,7 +106,7 @@ for (const theme of ['dark', 'light'] as const) {
   test.describe(`in the ${theme} theme`, () => {
     test.use({ theme });
 
-    test('an interview tomorrow says what will not fit, kindly, and the day itself asks only for rest', async ({ page }) => {
+    test('an interview tomorrow asks only for a light review today, and the day itself only for rest', async ({ page }) => {
       await page.goto('/plan');
       const plan = page.locator('app-plan');
       await expect(plan.getByRole('heading', { name: 'Plan to your interview' })).toBeVisible();
@@ -115,9 +115,9 @@ for (const theme of ['dark', 'light'] as const) {
       await plan.getByLabel('Interview date').fill(await localDay(page, 1));
       await plan.getByRole('button', { name: 'Save plan' }).click();
       await expect(plan.getByRole('heading', { name: 'Interview tomorrow', level: 1 })).toBeVisible();
-      await expect(
-        plan.getByText(/items will not fit before your interview at 30 min a day, so the plan starts with what matters most\./),
-      ).toContainText('Even at 2 h a day it would not all fit, so work from the top of each list; the most important items come first.');
+      await expect(plan.getByText(/will not fit/)).toHaveCount(0);
+      await expect(plan.getByText(/would not all fit/)).toHaveCount(0);
+      await expect(plan.getByText('Tomorrow is the day. Keep today light: a short review, then rest.')).toBeVisible();
       await expect(
         plan
           .getByRole('region', { name: /^Today/ })
