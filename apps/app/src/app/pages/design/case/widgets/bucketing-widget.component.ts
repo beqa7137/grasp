@@ -88,19 +88,19 @@ const SCHEMES: { scheme: Assignment; label: string }[] = [
         @case ('overlap') {
           <li><span class="cell in"></span>In {{ flagA }}</li>
           <li><span class="cell in both"></span>In both flags (dot)</li>
-          <li><span class="cell only-b"></span>Only in {{ flagB.key }} (faint)</li>
+          <li><span class="cell only-b"></span>Only in {{ flagB.key }} (ringed)</li>
         }
         @case ('change') {
           <li><span class="cell in"></span>Stayed in</li>
           <li><span class="cell in joined"></span>Joined (dot)</li>
-          <li><span class="cell left"></span>Left (outline)</li>
+          <li><span class="cell left"></span>Left (slashed)</li>
         }
         @default {
           <li><span class="cell in"></span>In {{ flagA }}</li>
         }
       }
       @if (view() !== 'plain' && settings().scheme === 'random') {
-        <li><span class="cell in flip"></span>Saw both versions (half filled)</li>
+        <li><span class="cell in flip"></span>Saw both versions (corner)</li>
       }
     </ul>
 
@@ -164,27 +164,41 @@ const SCHEMES: { scheme: Assignment; label: string }[] = [
       }
     }
     .cell {
+      position: relative;
       display: inline-block;
       aspect-ratio: 1;
       border-radius: 1px;
-      background: var(--g-line-strong);
+      box-shadow: inset 0 0 0 1px var(--g-stroke);
     }
     .cell.in {
       background: var(--g-accent);
+      box-shadow: none;
     }
     .cell.only-b {
-      background: color-mix(in srgb, var(--g-accent) 35%, var(--g-surface));
+      background: var(--g-line-strong);
+      box-shadow: inset 0 0 0 2px var(--g-accent);
     }
     .cell.both,
     .cell.joined {
       background: radial-gradient(circle, var(--g-surface) 0 26%, transparent 32%), var(--g-accent);
     }
     .cell.left {
-      background: transparent;
-      box-shadow: inset 0 0 0 1.5px var(--g-danger-ink);
+      background: linear-gradient(to top right, transparent 38%, var(--g-danger-ink) 38% 62%, transparent 62%);
+      box-shadow: inset 0 0 0 1px var(--g-danger-ink);
     }
-    .cell.flip {
-      background: linear-gradient(135deg, var(--g-accent) 50%, var(--g-line-strong) 50%);
+    /* Its own layer, so a flickering cell keeps its fill, dot, ring or slash underneath. */
+    .cell.flip::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 55%;
+      height: 55%;
+      background: var(--g-text);
+      clip-path: polygon(0 0, 100% 0, 100% 100%);
+    }
+    .cell.in.flip::after {
+      background: var(--g-on-fill);
     }
     .legend-list {
       list-style: none;
