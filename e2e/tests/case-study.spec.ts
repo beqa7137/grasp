@@ -40,6 +40,9 @@ test('a case study is worked stage by stage, resumes where the learner left it, 
   await expect(page.locator('g.node[data-kind="cache"]')).toBeVisible();
 });
 
+/** The News Feed decisions after the first, answered as recommended; the options are shown in a shuffled order. */
+const RECOMMENDED: Record<number, RegExp> = { 4: /^Hybrid: push for most accounts/, 6: /^A cursor: return the last post ID seen/ };
+
 test('a case study keeps every answer across a reload, and finishing it syncs a progress event and marks it finished', async ({ page }) => {
   await page.goto('/design');
   const card = page.getByRole('link', { name: /^News Feed/ });
@@ -80,8 +83,7 @@ test('a case study keeps every answer across a reload, and finishing it syncs a 
       await estimate.fill('1');
       await stage.getByRole('button', { name: 'Check', exact: true }).click();
     }
-    const options = stage.locator('fieldset button');
-    if (await options.count()) await options.first().click();
+    if (i in RECOMMENDED) await stage.locator('fieldset').getByRole('button', { name: RECOMMENDED[i] }).click();
     if (i > 1) await stage.getByRole('button', { name: 'Show the model answer' }).click();
     await stage.getByRole('button', { name: 'Show all' }).click();
     await stage.getByRole('button', { name: i < 7 ? /^Next: / : 'Finish the case' }).click();

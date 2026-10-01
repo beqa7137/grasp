@@ -1,4 +1,8 @@
+import { getCaseStudy } from '@grasp/engine';
 import { BASE, answerFirst, settle } from '../lib.mjs';
+
+/** The authored index of a decision's recommended option: drafts name options by it, whatever order they are shown in. */
+const recommended = (id, stage) => getCaseStudy(id).stages[stage].decision.options.findIndex((o) => o.best);
 
 /** News Feed answers: two stages in progress, or every stage answered with the last one open. */
 const NEWS_FEED_POINTS = [4, 2, 2, 5, 5, 5, 3, 4];
@@ -12,7 +16,7 @@ const NEWS_FEED_ANSWERED = {
   reached: 7,
   stages: NEWS_FEED_POINTS.map((revealed, i) => ({
     revealed,
-    ...([0, 4, 6].includes(i) ? { chosen: i === 0 ? 1 : 0 } : {}),
+    ...([0, 4, 6].includes(i) ? { chosen: i === 0 ? 1 : recommended('news-feed', i) } : {}),
     ...(i === 1 ? { guess: '35k' } : i === 2 ? { guess: '1' } : {}),
   })),
 };
@@ -30,7 +34,7 @@ const finishNewsFeed = async (p) => {
   await settle(p);
 };
 
-/** A case's estimates and decisions, by stage index; its first options are the recommended ones. */
+/** A case's estimates and decisions, by stage index. */
 const CASE_ANSWERS = {
   'payment-ledger': { guesses: { 1: '18.5k', 2: '30', 7: '17', 9: '72M' }, decided: [0, 3, 4, 6, 8, 10, 11] },
   'feature-flags': { guesses: { 1: '5M', 2: '667' }, decided: [0, 3, 4, 6, 7, 8, 9, 10, 11, 12] },
@@ -43,7 +47,7 @@ const answeredDraft = (id, reached) => {
     attempt: `audit-${id}-${reached}`,
     reached,
     stages: Array.from({ length: reached + 1 }, (_, i) =>
-      i in guesses ? { guess: guesses[i] } : decided.includes(i) ? { chosen: 0 } : {},
+      i in guesses ? { guess: guesses[i] } : decided.includes(i) ? { chosen: recommended(id, i) } : {},
     ),
   };
 };
@@ -103,7 +107,11 @@ export function designStates() {
       path: '/design/case/news-feed',
       setup: async (p) => {
         await finishNewsFeed(p);
-        await seedCase(p, 'url-shortener', { attempt: 'audit-url', reached: 1, stages: [{ chosen: 0, revealed: 5 }] });
+        await seedCase(p, 'url-shortener', {
+          attempt: 'audit-url',
+          reached: 1,
+          stages: [{ chosen: recommended('url-shortener', 0), revealed: 5 }],
+        });
         await p.goto(`${BASE}/design`);
         await p.getByRole('link', { name: /^URL Shortener.*Stage 2 of 9/ }).scrollIntoViewIfNeeded();
         await settle(p);

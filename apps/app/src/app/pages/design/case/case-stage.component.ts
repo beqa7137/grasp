@@ -15,7 +15,15 @@ import {
 import { DecimalPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { IonIcon } from '@ionic/angular';
-import { chosenOption, estimateVerdict, parseAmount, type CaseStage, type CaseStageAnswer, type CaseWidget } from '@grasp/engine';
+import {
+  chosenOption,
+  estimateVerdict,
+  optionOrder,
+  parseAmount,
+  type CaseStage,
+  type CaseStageAnswer,
+  type CaseWidget,
+} from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import { arrowForward, checkmarkCircle, closeCircle, constructOutline } from 'ionicons/icons';
 import { refocus, refocusAfterRender } from '../../../core/focus';
@@ -65,10 +73,11 @@ const WIDGET_TITLES: Record<CaseWidget, string> = {
         <div class="decision" role="group" [attr.aria-label]="d.question" tabindex="-1" #answered>
           <p class="legend">{{ d.question }}</p>
           <ul class="options">
-            @for (o of d.options; track $index) {
-              <li class="g-choice option" [class.right]="$index === best()" [class.wrong]="$index === chosen() && $index !== best()">
+            @for (i of order(); track i) {
+              @let o = d.options[i];
+              <li class="g-choice option" [class.right]="i === best()" [class.wrong]="i === chosen() && i !== best()">
                 <span class="label"><g-code-text [text]="o.label" /></span>
-                @if (answerMark($index, best(), chosen()); as mark) {
+                @if (answerMark(i, best(), chosen()); as mark) {
                   <ion-icon class="g-answer-mark" [name]="mark.icon" [attr.aria-label]="mark.label" role="img" />
                 }
                 <span class="why"><g-code-text [text]="o.why" /></span>
@@ -79,8 +88,8 @@ const WIDGET_TITLES: Record<CaseWidget, string> = {
       } @else {
         <fieldset class="decision">
           <legend class="legend">{{ d.question }}</legend>
-          @for (o of d.options; track $index) {
-            <button class="g-choice option" (click)="choose($index)"><g-code-text [text]="o.label" /></button>
+          @for (i of order(); track i) {
+            <button class="g-choice option" (click)="choose(i)"><g-code-text [text]="d.options[i].label" /></button>
           }
         </fieldset>
       }
@@ -308,6 +317,8 @@ const WIDGET_TITLES: Record<CaseWidget, string> = {
 export class CaseStageComponent {
   readonly stage = input.required<CaseStage>();
   readonly caseId = input.required<string>();
+  /** Names the run and stage, so the options keep one shuffled order for this run. */
+  readonly orderSeed = input.required<string>();
   readonly answer = model<CaseStageAnswer>({});
   readonly nextLabel = input('Next stage');
   readonly showNext = input(true);
@@ -328,6 +339,7 @@ export class CaseStageComponent {
     return estimate && guess !== null ? estimateVerdict(guess, estimate.answer) : null;
   });
   readonly inputId = computed(() => `estimate-${this.caseId()}-${this.stage().title.replace(/\W+/g, '-').toLowerCase()}`);
+  readonly order = computed(() => optionOrder(this.orderSeed(), this.stage().decision?.options.length ?? 0));
   readonly best = computed(() => this.stage().decision?.options.findIndex((o) => o.best) ?? -1);
   readonly shownPoints = computed(() => this.stage().points.slice(0, this.revealed()));
   readonly attempted = computed(() => {

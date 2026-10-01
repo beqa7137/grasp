@@ -89,6 +89,7 @@ const KIND_LABELS: Record<CaseStageKind, string> = {
                   <app-case-stage
                     [stage]="stage"
                     [caseId]="s.id"
+                    [orderSeed]="s.id + ':' + draft().attempt + ':' + i"
                     [answer]="draft().stages[i] ?? unanswered"
                     (answerChange)="answer(i, $event)"
                     [showNext]="i === reached()"
