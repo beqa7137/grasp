@@ -21,7 +21,9 @@ import { arrowForward, checkmarkCircle, closeCircle, constructOutline } from 'io
 import { refocus, refocusAfterRender } from '../../../core/focus';
 import { answerMark } from '../../../review/answer-mark';
 import { CodeTextComponent } from '../../../viz/code-text.component';
+import { BucketingWidgetComponent } from './widgets/bucketing-widget.component';
 import { HotAccountWidgetComponent } from './widgets/hot-account-widget.component';
+import { PropagationWidgetComponent } from './widgets/propagation-widget.component';
 import { ReconcileWidgetComponent } from './widgets/reconcile-widget.component';
 import { RetryWidgetComponent } from './widgets/retry-widget.component';
 
@@ -35,13 +37,25 @@ const WIDGET_TITLES: Record<CaseWidget, string> = {
   retries: 'Try it: retries with and without idempotency keys',
   'hot-account': 'Try it: one hot account at peak',
   reconcile: "Try it: reconcile a day's captures",
+  bucketing: 'Try it: bucket 1,000 users into a rollout',
+  propagation: 'Try it: get a flag change to every SDK',
 };
 
 /** One interview stage: commit to a decision or an estimate first, then reveal the model answer a point at a time. */
 @Component({
   selector: 'app-case-stage',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, DecimalPipe, IonIcon, CodeTextComponent, RetryWidgetComponent, HotAccountWidgetComponent, ReconcileWidgetComponent],
+  imports: [
+    RouterLink,
+    DecimalPipe,
+    IonIcon,
+    CodeTextComponent,
+    RetryWidgetComponent,
+    HotAccountWidgetComponent,
+    ReconcileWidgetComponent,
+    BucketingWidgetComponent,
+    PropagationWidgetComponent,
+  ],
   template: `
     @let s = stage();
     <p class="prompt"><g-code-text [text]="s.prompt" /></p>
@@ -121,6 +135,12 @@ const WIDGET_TITLES: Record<CaseWidget, string> = {
           }
           @case ('reconcile') {
             <app-reconcile-widget />
+          }
+          @case ('bucketing') {
+            <app-bucketing-widget />
+          }
+          @case ('propagation') {
+            <app-propagation-widget />
           }
         }
       </section>

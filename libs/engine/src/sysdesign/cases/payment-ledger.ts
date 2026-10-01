@@ -1,4 +1,4 @@
-import { num } from './ledger/checkpoint.js';
+import { num } from './widget-checkpoint.js';
 import { hotAccount, subAccountsNeeded } from './ledger/contention.js';
 import { expectedEffects } from './ledger/retries.js';
 import type { CaseStudy } from './types.js';

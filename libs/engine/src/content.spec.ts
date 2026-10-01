@@ -19,14 +19,19 @@ import {
   CASE_STUDIES,
   MAX_ATTEMPTS,
   RECON_ACTIONS,
+  ROLLOUT_STAGES,
+  bucketingCheckpoint,
   explainRow,
   hotAccountCheckpoint,
+  propagationCheckpoint,
   reconcile,
   reconciliationDay,
   retryCheckpoint,
   retryRun,
+  type Assignment,
   type AttemptFate,
   type KeyMode,
+  type PollPayload,
 } from './sysdesign/cases/index.js';
 import { SD_LESSONS } from './sysdesign/lessons/index.js';
 import { SCENARIOS } from './sysdesign/scenarios.js';
@@ -80,6 +85,30 @@ function caseWidgetText(): unknown {
   return { retries, contention, days, actions: RECON_ACTIONS };
 }
 
+/** The text the feature flag case's widgets build: each scheme and stage, fresh and after one change, and propagation over a sweep. */
+function flagWidgetText(): unknown {
+  const schemes: Assignment[] = ['flag-salt', 'user-only', 'random'];
+  const bucketing = schemes.flatMap((scheme) =>
+    ROLLOUT_STAGES.flatMap((percent) => [
+      bucketingCheckpoint({ scheme, percent, saltVersion: 1 }, null),
+      bucketingCheckpoint({ scheme, percent, saltVersion: 1 }, { percent: percent === 10 ? 25 : 10, saltVersion: 1 }),
+      bucketingCheckpoint({ scheme, percent, saltVersion: 2 }, { percent, saltVersion: 1 }),
+    ]),
+  );
+  const payloads: PollPayload[] = ['full', 'etag', 'delta'];
+  const propagation = [1_000, 20_000, 100_000].flatMap((instances) =>
+    [5, 30, 300].flatMap((intervalS) =>
+      [0, 1, 2, 30].flatMap((changesPerMin) => [
+        ...payloads.flatMap((payload) =>
+          [false, true].map((cdn) => propagationCheckpoint({ instances, delivery: 'poll', intervalS, payload, cdn, changesPerMin })),
+        ),
+        propagationCheckpoint({ instances, delivery: 'stream', intervalS, payload: 'full', cdn: false, changesPerMin }),
+      ]),
+    ),
+  );
+  return { bucketing, propagation };
+}
+
 // A prediction's frames come from the tracers, which have entries of their own, so one seed covers the text it adds itself.
 const questions = (item: ItemDef) =>
   (item.kind === 'predict' ? REVIEW_SEEDS.slice(0, 1) : REVIEW_SEEDS).map((seed) => generateQuestion(item.id, seed));
@@ -103,6 +132,7 @@ function learnerContent(): Entry[] {
     ...byId('case brief', [...CASE_BRIEFS]),
     ...byId('case study', [...CASE_STUDIES]),
     ['payment ledger case widgets', caseWidgetText()],
+    ['feature flag case widgets', flagWidgetText()],
     ...byKey('design lesson', SD_LESSONS),
     ...byId('coding problem', CODING_PROBLEMS),
     ...byId('competency summary', [...COMPETENCY_CATALOG]),

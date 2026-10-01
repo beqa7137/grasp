@@ -1,13 +1,3 @@
-/** A question a case widget asks about its own settings, answered before the widget shows the result. */
-export interface WidgetCheckpoint {
-  prompt: string;
-  choices: string[];
-  answer: number;
-  explain: string;
-}
-
-export const num = (v: number) => Math.round(v).toLocaleString('en-US');
-
 const EXPONENTS: Readonly<Record<string, number>> = { USD: 2, EUR: 2, GBP: 2, JPY: 0, KRW: 0, KWD: 3, BHD: 3 };
 const SYMBOLS: Readonly<Record<string, string>> = { USD: '$', EUR: '€', GBP: '£', JPY: '¥' };
 

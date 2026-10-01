@@ -1,6 +1,7 @@
 import { hotAccount } from '../sysdesign/cases/ledger/contention.js';
 import { contractFee } from '../sysdesign/cases/ledger/reconcile.js';
-import { formatMinor, minorExponent, num } from '../sysdesign/cases/ledger/checkpoint.js';
+import { formatMinor, minorExponent } from '../sysdesign/cases/ledger/money.js';
+import { num } from '../sysdesign/cases/widget-checkpoint.js';
 import { expectedEffects } from '../sysdesign/cases/ledger/retries.js';
 import { concept, item, type DesignItemDefinition } from './design-item-kit.js';
 import { pick, withChoices } from './random.js';

@@ -148,6 +148,13 @@ export const CASE_BRIEFS: readonly CaseBrief[] = [
     summary:
       'Partitioned append-only logs, batching, consumer groups and offsets, in-sync replicas and acks, retention, compaction and exactly once.',
   },
+  {
+    id: 'feature-flags',
+    question:
+      'Design an in-house feature flag service like LaunchDarkly or Unleash: thousands of flags, hundreds of services and millions of evaluations a second, with gradual rollouts and kill switches.',
+    summary:
+      'Local evaluation from cached rulesets, consistent bucketing by hash, streaming versus polling with CDN snapshots, guarded rollouts, approvals, flag debt and failure modes.',
+  },
 ];
 
 export function getCaseBrief(id: string): CaseBrief | undefined {

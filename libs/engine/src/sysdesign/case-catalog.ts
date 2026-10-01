@@ -135,6 +135,13 @@ export const CASE_CATALOG: readonly CaseSummary[] = [
     stages: 8,
     topics: ['sd-queues', 'sd-replication', 'sd-storage', 'sd-consensus'],
   },
+  {
+    id: 'feature-flags',
+    title: 'Feature Flag Service',
+    level: 'advanced',
+    stages: 14,
+    topics: ['sd-realtime', 'sd-consistency', 'sd-reliability', 'sd-cdn'],
+  },
 ];
 
 export function getCaseSummary(id: string): CaseSummary | undefined {

@@ -1,7 +1,8 @@
-// Screenshots, axe and page errors for every state in lib.mjs.
+// Screenshots, axe and page errors for every state in states/.
 // BASE=<url> THEME=dark|light OUT=<dir> [PROFILES=desktop,pixel7] [STABLE=1] [READONLY=1] node tools/verify/audit.mjs [state regex]
 import { writeFileSync } from 'node:fs';
-import { AxeBuilder, OUT, THEME, chromium, goto, newContext, readOnly, states } from './lib.mjs';
+import { AxeBuilder, OUT, THEME, chromium, goto, newContext, readOnly } from './lib.mjs';
+import { states } from './states/index.mjs';
 
 const only = process.argv[2] ? new RegExp(process.argv[2]) : null;
 const profiles = (process.env.PROFILES ?? 'desktop,pixel7').split(',');
