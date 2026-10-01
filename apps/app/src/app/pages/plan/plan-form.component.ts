@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input, linkedSignal, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, computed, input, linkedSignal, output, signal, viewChild } from '@angular/core';
 import {
   PLAN_LEVELS,
   PLAN_MAX_DAYS,
@@ -12,6 +12,7 @@ import {
   type StudyPlanInput,
 } from '@grasp/engine';
 import { RovingSelectDirective } from '../../core/roving-select.directive';
+import { formatMinutes } from './duration';
 
 const ROUND_LABELS: Record<PlanRound, string> = { coding: 'Coding', design: 'System design', behavioral: 'Behavioral' };
 const LEVELS: Record<PlanLevel, { label: string; hint: string }> = {
@@ -22,7 +23,6 @@ const LEVELS: Record<PlanLevel, { label: string; hint: string }> = {
     hint: 'Units are shorter, and patterns your placement check marked strong count as covered.',
   },
 };
-const minutesLabel = (m: number) => (m < 60 ? `${m} min` : `${m / 60} h`);
 
 @Component({
   selector: 'app-plan-form',
@@ -33,15 +33,20 @@ const minutesLabel = (m: number) => (m < 60 ? `${m} min` : `${m / 60} h`);
       <div class="field">
         <label for="plan-date"><strong>Interview date</strong></label>
         <input
+          #dateInput
           id="plan-date"
           type="date"
           [min]="today()"
           [max]="latest()"
           [value]="date()"
           (input)="date.set($any($event.target).value)"
-          aria-describedby="plan-date-hint"
+          (change)="date.set($any($event.target).value)"
+          [attr.aria-invalid]="error()?.field === 'date' ? 'true' : null"
+          [attr.aria-describedby]="error()?.field === 'date' ? 'plan-date-hint plan-error' : 'plan-date-hint'"
         />
-        <span id="plan-date-hint" class="muted small">Up to a year from today. Your first round, if there are several days.</span>
+        <span id="plan-date-hint" class="muted small"
+          >Up to a year from today. If your rounds are on different days, choose the first.</span
+        >
       </div>
 
       <div class="field" role="radiogroup" aria-labelledby="plan-minutes-label">
@@ -79,8 +84,9 @@ const minutesLabel = (m: number) => (m < 60 ? `${m} min` : `${m / 60} h`);
         <span id="plan-level-hint" class="muted small">{{ levelHint() }}</span>
       </div>
 
-      @if (error(); as e) {
-        <p class="error" role="alert">{{ e }}</p>
+      <!-- Keyed by attempt, so the alert is created afresh and read again even when the message repeats. -->
+      @for (e of errors(); track e.attempt) {
+        <p id="plan-error" class="error" role="alert">{{ e.text }}</p>
       }
       <div class="actions">
         <button type="submit" class="g-btn primary">Save plan</button>
@@ -164,7 +170,7 @@ export class PlanFormComponent {
   readonly saved = output<StudyPlanInput>();
   readonly cancelled = output<void>();
 
-  readonly minuteOptions = PLAN_MINUTES.map((m) => ({ value: m as number, label: minutesLabel(m) }));
+  readonly minuteOptions = PLAN_MINUTES.map((m) => ({ value: m as number, label: formatMinutes(m) }));
   readonly roundOptions = PLAN_ROUNDS.map((r) => ({ value: r, label: ROUND_LABELS[r] }));
   readonly levelOptions = PLAN_LEVELS.map((l) => ({ value: l, label: LEVELS[l].label }));
 
@@ -172,7 +178,13 @@ export class PlanFormComponent {
   readonly minutes = linkedSignal<number>(() => this.initial()?.minutesPerDay ?? 30);
   readonly rounds = linkedSignal<PlanRound[]>(() => this.initial()?.rounds ?? [...PLAN_ROUNDS]);
   readonly level = linkedSignal<PlanLevel>(() => this.initial()?.level ?? 'new');
-  readonly error = signal<string | null>(null);
+  private readonly dateInput = viewChild.required<ElementRef<HTMLInputElement>>('dateInput');
+  readonly error = signal<{ text: string; field: 'date' | 'rounds'; attempt: number } | null>(null);
+  readonly errors = computed(() => {
+    const e = this.error();
+    return e ? [e] : [];
+  });
+  private attempts = 0;
   readonly latest = computed(() => addCalendarDays(this.today(), PLAN_MAX_DAYS));
   readonly levelHint = computed(() => LEVELS[this.level()].hint);
 
@@ -185,11 +197,12 @@ export class PlanFormComponent {
     const date = this.date();
     const ahead = isCalendarDate(date) ? calendarDaysBetween(this.today(), date) : -1;
     if (ahead < 0 || ahead > PLAN_MAX_DAYS) {
-      this.error.set('Choose an interview date from today to a year from now.');
+      this.error.set({ text: 'Choose an interview date from today to a year from now.', field: 'date', attempt: ++this.attempts });
+      this.dateInput().nativeElement.focus();
       return;
     }
     if (!this.rounds().length) {
-      this.error.set('Choose at least one round.');
+      this.error.set({ text: 'Choose at least one round.', field: 'rounds', attempt: ++this.attempts });
       return;
     }
     this.error.set(null);

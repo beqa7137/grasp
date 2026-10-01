@@ -18,17 +18,20 @@ import {
 } from './options.js';
 
 /** Rough sittings for a unit at the "new" level; the page always says "about". */
-const UNIT_MINUTES = { pattern: 30, retry: 20, story: 20, caseStage: 4 };
+const UNIT_MINUTES = { pattern: 40, retry: 20, story: 20, caseStage: 4 };
 const LEVEL_FACTOR: Record<PlanLevel, number> = { new: 1, rusty: 0.75, confident: 0.5 };
 /** Later days keep this share for reviews, which grow as new material turns into cards. */
 const REVIEW_SHARE = 0.2;
 /** Today's reviews take at most this share, so new material still moves forward. */
 const TODAY_REVIEW_CAP = 0.5;
 export const REHEARSAL_MINUTES = 3;
-/** A unit is not split into a piece shorter than this unless the piece finishes it. */
+/**
+ * A unit is never split into a piece shorter than this unless the piece finishes it, and a day runs over by up to this
+ * much to finish a unit rather than leave a short tail for another day.
+ */
 const MIN_SLICE = 10;
-/** With at least this many study days, the last one is kept for review. */
-const TAPER_FROM_DAYS = 3;
+/** Stories saved before creation times were kept count as covered from long ago. */
+const BEFORE_CREATION_TIMES = new Date(0).toISOString();
 
 export type PlanUnitKind = 'pattern' | 'retry' | 'case' | 'story';
 
@@ -62,11 +65,11 @@ export interface PlanDay {
   /** Minutes kept for reviews and story rehearsals. */
   review: number;
   slices: PlanSlice[];
-  /** The last study day before the interview, kept for review. */
+  /** The day before the interview, kept for review. */
   taper: boolean;
 }
 
-export type PlanStatus = 'on-track' | 'tight' | 'covered' | 'no-time' | 'interview-day' | 'past';
+export type PlanStatus = 'on-track' | 'tight' | 'covered' | 'interview-day' | 'past';
 
 export interface StudyPlan {
   status: PlanStatus;
@@ -76,14 +79,15 @@ export interface StudyPlan {
   days: PlanDay[];
   /** What is left to do, in priority order per round, with anything finished today. */
   units: PlanUnit[];
-  /** Units that do not fit, wholly or in part, before the interview. */
+  /** Units with no time at all before the interview; a unit only partly placed is not among them. */
   unscheduled: PlanUnit[];
   /** The last day with new material, or null when there is none. */
   finishDate: string | null;
   /** The smallest offered daily time that fits everything, when the current one does not; null if none does. */
   minutesToFit: number | null;
-  /** Cards ready in today's review and story rehearsals due, each with its estimated minutes. */
-  todayReview: { cards: number; cardMinutes: number; stories: number; minutes: number };
+  /** Cards ready in today's review and story rehearsals due, with the minutes each gets within today's review time. */
+  todayReview: { cards: number; cardMinutes: number; stories: number; storyMinutes: number; minutes: number };
+  /** Null for a round the interview does not have, and for every round once the interview day has come. */
   remaining: Record<PlanRound, { units: number; minutes: number } | null>;
 }
 
@@ -97,6 +101,7 @@ export interface PlanContext {
 const roundTo5 = (minutes: number) => Math.max(5, Math.round(minutes / 5) * 5);
 const earliest = (times: (string | null | undefined)[]) =>
   times.filter((t): t is string => Boolean(t)).sort((a, b) => Date.parse(a) - Date.parse(b))[0] ?? null;
+const reviewCap = (minutesPerDay: number) => Math.floor(Math.max(0, minutesPerDay) * TODAY_REVIEW_CAP);
 
 /**
  * Turns the learner's interview date, daily time and rounds into dated sessions from today, recomputed from actual
@@ -108,43 +113,44 @@ export function buildStudyPlan(input: StudyPlanInput, state: ProgressState, ctx:
   const daysLeft = calendarDaysBetween(today, input.interviewDate);
   const stories = ctx.stories ?? [];
   const todayReview = reviewToday(input, state, ctx.now, tz, stories);
-  const remainingOf = (units: PlanUnit[]) =>
-    Object.fromEntries(
-      PLAN_ROUNDS.map((r) => {
-        const open = units.filter((u) => u.round === r && !u.doneAt);
-        return [r, input.rounds.includes(r) ? { units: open.length, minutes: open.reduce((s, u) => s + u.minutes, 0) } : null];
-      }),
-    ) as StudyPlan['remaining'];
   const base = { today, interviewDate: input.interviewDate, daysLeft, todayReview, finishDate: null, minutesToFit: null };
   if (daysLeft <= 0) {
-    return { ...base, status: daysLeft === 0 ? 'interview-day' : 'past', days: [], units: [], unscheduled: [], remaining: remainingOf([]) };
+    const remaining = Object.fromEntries(PLAN_ROUNDS.map((r) => [r, null])) as StudyPlan['remaining'];
+    return { ...base, status: daysLeft === 0 ? 'interview-day' : 'past', days: [], units: [], unscheduled: [], remaining };
   }
 
   const units = planUnits(input, state, stories).filter((u) => !u.doneAt || dayKey(new Date(u.doneAt), tz) >= today);
   const dates = Array.from({ length: Math.min(daysLeft, PLAN_MAX_DAYS) }, (_, i) => addCalendarDays(today, i));
+  const eve = daysLeft <= PLAN_MAX_DAYS ? dates.length - 1 : -1;
   const fit = (minutesPerDay: number) =>
-    schedule(units, dates, minutesPerDay, Math.min(todayReview.minutes, Math.floor(minutesPerDay * TODAY_REVIEW_CAP)));
-  const { days, unscheduled } = fit(input.minutesPerDay);
-  const covered = units.every((u) => u.doneAt);
-  const status: PlanStatus = covered ? 'covered' : input.minutesPerDay <= 0 ? 'no-time' : unscheduled.length ? 'tight' : 'on-track';
+    schedule(units, dates, eve, minutesPerDay, Math.min(todayReview.minutes, reviewCap(minutesPerDay)));
+  const { days, unplaced, incomplete } = fit(input.minutesPerDay);
+  const status: PlanStatus = units.every((u) => u.doneAt) ? 'covered' : incomplete.length ? 'tight' : 'on-track';
   return {
     ...base,
     status,
     days,
     units,
-    unscheduled,
+    unscheduled: unplaced,
     finishDate: days.filter((d) => d.slices.some((s) => !s.done)).at(-1)?.date ?? null,
-    minutesToFit: status === 'tight' || status === 'no-time' ? (PLAN_MINUTES.find((m) => !fit(m).unscheduled.length) ?? null) : null,
-    remaining: remainingOf(units),
+    minutesToFit: status === 'tight' ? (PLAN_MINUTES.find((m) => !fit(m).incomplete.length) ?? null) : null,
+    remaining: Object.fromEntries(
+      PLAN_ROUNDS.map((r) => {
+        const open = units.filter((u) => u.round === r && !u.doneAt);
+        return [r, input.rounds.includes(r) ? { units: open.length, minutes: open.reduce((s, u) => s + u.minutes, 0) } : null];
+      }),
+    ) as StudyPlan['remaining'],
   };
 }
 
+/** Cards first, then story rehearsals, both within today's review time, so the lines the page shows add up to it. */
 function reviewToday(input: StudyPlanInput, state: ProgressState, now: Date, tz: number, stories: readonly Story[]) {
-  const cap = Math.max(0, Math.floor(input.minutesPerDay * TODAY_REVIEW_CAP));
+  const cap = reviewCap(input.minutesPerDay);
   const session = buildSession(state, { now, tzOffsetMinutes: tz, budgetMinutes: cap });
   const due = input.rounds.includes('behavioral') ? dueStories(stories, now, state.behavioral).length : 0;
-  const cardMinutes = session.items.length ? session.estimatedMinutes : 0;
-  return { cards: session.items.length, cardMinutes, stories: due, minutes: cardMinutes + due * REHEARSAL_MINUTES };
+  const cardMinutes = Math.min(cap, session.items.length ? session.estimatedMinutes : 0);
+  const storyMinutes = Math.min(cap - cardMinutes, due * REHEARSAL_MINUTES);
+  return { cards: session.items.length, cardMinutes, stories: due, storyMinutes, minutes: cardMinutes + storyMinutes };
 }
 
 function planUnits(input: StudyPlanInput, state: ProgressState, stories: readonly Story[]): PlanUnit[] {
@@ -167,42 +173,43 @@ function codingUnits(state: ProgressState, level: PlanLevel, factor: number): Pl
     if (!problems.length) continue;
     const firstSolve = earliest(problems.map((p) => solvedAt(p.id)));
     const placedStrong = state.placement[pattern.id] === 'strong';
-    const flaggedAt = state.weakPatterns[pattern.id];
+    const weak = state.weakPatterns[pattern.id];
+    // Of an interview flag and a placement check calling the pattern strong, the newer one wins.
+    const flag = weak && !(placedStrong && state.diagnosedAt && Date.parse(state.diagnosedAt) > Date.parse(weak.flaggedAt)) ? weak : null;
     const unsolved = problems.find((p) => !solvedAt(p.id));
-    if (flaggedAt && firstSolve && Date.parse(firstSolve) < Date.parse(flaggedAt)) {
-      const retried = problems.find((p) => solvedAt(p.id) && Date.parse(solvedAt(p.id)!) > Date.parse(flaggedAt));
-      const target = retried ?? unsolved;
-      if (target) {
-        flagged.push({
-          id: `retry:${pattern.id}`,
-          round: 'coding',
-          kind: 'retry',
-          title: `${pattern.name}, again`,
-          detail: `An interview flagged this pattern. Solve ${target.title}, one you have not solved before.`,
-          minutes: roundTo5(UNIT_MINUTES.retry * factor),
-          flagged: true,
-          patternId: pattern.id,
-          problemId: target.id,
-          doneAt: retried ? solvedAt(retried.id) : null,
-        });
-      }
+    if (flag && firstSolve && Date.parse(firstSolve) < Date.parse(flag.flaggedAt)) {
+      const target = unsolved ?? problems[0];
+      flagged.push({
+        id: `retry:${pattern.id}`,
+        round: 'coding',
+        kind: 'retry',
+        title: `${pattern.name}, again`,
+        detail: unsolved
+          ? `An interview flagged this pattern. Solve ${target.title}, one you have not solved before.`
+          : `An interview flagged this pattern. Solve ${target.title} again, from a blank editor.`,
+        minutes: roundTo5(UNIT_MINUTES.retry * factor),
+        flagged: true,
+        patternId: pattern.id,
+        problemId: target.id,
+        doneAt: flag.resolvedAt,
+      });
       continue;
     }
-    if (level === 'confident' && placedStrong && !firstSolve) continue;
+    if (level === 'confident' && placedStrong && !firstSolve && !flag) continue;
     const target = problems.find((p) => solvedAt(p.id) === firstSolve) ?? unsolved ?? problems[0];
     const unit: PlanUnit = {
       id: `pattern:${pattern.id}`,
       round: 'coding',
       kind: 'pattern',
       title: `Learn ${pattern.name}`,
-      detail: `${flaggedAt ? 'An interview flagged this pattern. ' : ''}Read the pattern, then solve a problem with it.`,
+      detail: `${flag ? 'An interview flagged this pattern. ' : ''}Read the pattern, then solve a problem with it.`,
       minutes: roundTo5(UNIT_MINUTES.pattern * factor),
-      flagged: Boolean(flaggedAt),
+      flagged: Boolean(flag),
       patternId: pattern.id,
       problemId: target.id,
       doneAt: firstSolve,
     };
-    (flaggedAt ? flagged : placedStrong ? strong : rest).push(unit);
+    (flag ? flagged : placedStrong ? strong : rest).push(unit);
   }
   return [...flagged, ...rest, ...strong];
 }
@@ -231,19 +238,22 @@ function behavioralUnits(state: ProgressState, stories: readonly Story[], factor
       round: 'behavioral',
       kind: 'story',
       title: `A story for ${c.name}`,
-      detail: `${flagged ? 'An interview flagged this competency. ' : ''}Read what interviewers look for, then write a story in your bank and tag it.`,
+      detail: `${flagged ? 'An interview flagged this competency. ' : ''}Read what interviewers look for, then write a story in your story bank and tag it, or tag a story you already have.`,
       minutes: roundTo5(UNIT_MINUTES.story * factor),
       flagged,
       competencyId: c.id,
-      // Stories keep no creation time, so the oldest last change among those covering it stands in for when it was covered.
-      doneAt: earliest(told.filter((s) => s.competencyIds.includes(c.id)).map((s) => s.updatedAt)),
+      // Creation, not the last change: rehearsing or editing a story must not make what it covered look new today.
+      doneAt: earliest(told.filter((s) => s.competencyIds.includes(c.id)).map((s) => s.createdAt ?? BEFORE_CREATION_TIMES)),
     };
   });
   return [...units.filter((u) => u.flagged), ...units.filter((u) => !u.flagged)];
 }
 
-/** Fills each day after its review time, taking the next unit from whichever round is furthest behind its share. */
-function schedule(units: PlanUnit[], dates: string[], minutesPerDay: number, todayReview: number) {
+/**
+ * Fills each day after its review time. A unit split the day before continues first; otherwise a unit that fits whole
+ * is taken from whichever round is furthest behind its share, and only when none fits is the next one split.
+ */
+function schedule(units: PlanUnit[], dates: string[], eve: number, minutesPerDay: number, todayReview: number) {
   const sum = (list: PlanUnit[]) => list.reduce((s, u) => s + u.minutes, 0);
   const ofRound = (r: PlanRound) => units.filter((u) => u.round === r);
   const queues = new Map(PLAN_ROUNDS.map((r) => [r, ofRound(r).filter((u) => !u.doneAt)]));
@@ -251,32 +261,45 @@ function schedule(units: PlanUnit[], dates: string[], minutesPerDay: number, tod
   const total = new Map(PLAN_ROUNDS.map((r) => [r, sum(ofRound(r))]));
   const placed = new Map(PLAN_ROUNDS.map((r) => [r, sum(ofRound(r).filter((u) => u.doneAt))]));
   const left = new Map(units.map((u) => [u.id, u.minutes]));
-  const next = () =>
-    PLAN_ROUNDS.filter((r) => queues.get(r)!.length).sort((a, b) => placed.get(a)! / total.get(a)! - placed.get(b)! / total.get(b)!)[0];
-  const taperDay = dates.length >= TAPER_FROM_DAYS ? dates.length - 1 : -1;
-  const later = Math.round(Math.max(0, minutesPerDay) * REVIEW_SHARE);
+  const later = Math.round((Math.max(0, minutesPerDay) * REVIEW_SHARE) / 5) * 5;
+  let split: PlanUnit | null = null;
 
   const days: PlanDay[] = dates.map((date, i) => {
-    const day: PlanDay = { date, review: i === 0 ? todayReview : later, slices: [], taper: i === taperDay };
+    const day: PlanDay = { date, review: i === 0 ? todayReview : later, slices: [], taper: i === eve };
     let free = minutesPerDay - day.review;
+    const place = (unit: PlanUnit, minutes: number) => {
+      day.slices.push({ unit, minutes, part: 0, parts: 0, done: false });
+      left.set(unit.id, left.get(unit.id)! - minutes);
+      placed.set(unit.round, placed.get(unit.round)! + minutes);
+      if (!left.get(unit.id)) queues.get(unit.round)!.shift();
+      split = left.get(unit.id) ? unit : null;
+      return minutes;
+    };
+    const whole = (unit: PlanUnit, overrun: boolean) => {
+      const rest = left.get(unit.id)!;
+      return free > 0 && (rest <= free || (overrun && rest - free <= MIN_SLICE));
+    };
     if (i === 0) {
       for (const unit of units.filter((u) => u.doneAt)) {
         day.slices.push({ unit, minutes: unit.minutes, part: 1, parts: 1, done: true });
         free -= unit.minutes;
       }
     }
-    while (!day.taper && free > 0) {
-      const round = next();
-      if (!round) break;
-      const unit = queues.get(round)![0];
-      const rest = left.get(unit.id)!;
-      const take = Math.min(free, rest);
-      if (take < rest && take < MIN_SLICE && day.slices.some((s) => !s.done)) break;
-      day.slices.push({ unit, minutes: take, part: 0, parts: 0, done: false });
-      left.set(unit.id, rest - take);
-      placed.set(round, placed.get(round)! + take);
-      free -= take;
-      if (take === rest) queues.get(round)!.shift();
+    if (day.taper) return day;
+    if (split) {
+      const unit: PlanUnit = split;
+      if (whole(unit, true)) free -= place(unit, left.get(unit.id)!);
+      else if (free >= MIN_SLICE) free -= place(unit, free);
+      if (split) return day;
+    }
+    while (free > 0) {
+      const heads = PLAN_ROUNDS.filter((r) => queues.get(r)!.length)
+        .sort((a, b) => placed.get(a)! / total.get(a)! - placed.get(b)! / total.get(b)!)
+        .map((r) => queues.get(r)![0]);
+      const fits = heads.find((u) => whole(u, free >= MIN_SLICE));
+      if (fits) free -= place(fits, left.get(fits.id)!);
+      else if (heads.length && free >= MIN_SLICE) free -= place(heads[0], free);
+      else break;
     }
     return day;
   });
@@ -286,5 +309,10 @@ function schedule(units: PlanUnit[], dates: string[], minutesPerDay: number, tod
     const own = pieces.filter((s) => s.unit === unit);
     own.forEach((s, i) => Object.assign(s, { part: i + 1, parts: own.length }));
   }
-  return { days, unscheduled: units.filter((u) => !u.doneAt && left.get(u.id)! > 0) };
+  const open = units.filter((u) => !u.doneAt);
+  return {
+    days,
+    unplaced: open.filter((u) => left.get(u.id) === u.minutes),
+    incomplete: open.filter((u) => left.get(u.id)! > 0),
+  };
 }

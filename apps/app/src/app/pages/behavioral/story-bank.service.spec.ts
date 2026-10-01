@@ -82,6 +82,19 @@ describe('StoryBankService', () => {
     ]);
   });
 
+  it('dates a new story by its creation, which edits and rehearsals keep', async () => {
+    const { bank } = setup([], false);
+    await bank.load();
+    vi.useFakeTimers({ now: Date.parse('2026-09-01T09:00:00Z') });
+    const saved = await bank.save(bank.blank().id, { title: 'Export', competencyIds: ['ownership'], draft: { action: 'I fixed it.' } });
+    expect(saved.createdAt).toBe('2026-09-01T09:00:00.000Z');
+    vi.setSystemTime(Date.parse('2026-09-20T09:00:00Z'));
+    await bank.save(saved.id, { title: 'Export failure' });
+    await bank.rehearse(saved.id, true);
+    expect(stored()[0]).toMatchObject({ title: 'Export failure', createdAt: '2026-09-01T09:00:00.000Z' });
+    expect(stored()[0].updatedAt > '2026-09-20').toBe(true);
+  });
+
   it('keeps an anonymous bank on the device only, loads stories saved before sync, and deletes without tombstones', async () => {
     localStorage.setItem(
       BANK_KEY,

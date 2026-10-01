@@ -14,6 +14,7 @@ function toStory(row: typeof schema.stories.$inferSelect): Story {
     draft: row.draft as StarDraft,
     ...(row.rehearsal ? { rehearsal: row.rehearsal as Rehearsal } : {}),
     updatedAt: row.updatedAt.toISOString(),
+    ...(row.createdAt ? { createdAt: row.createdAt.toISOString() } : {}),
     ...(row.deleted ? { deleted: true as const } : {}),
   };
 }
@@ -60,6 +61,7 @@ export class PostgresStoryStore extends StoryStore {
           rehearsal: story.rehearsal ?? null,
           deleted: story.deleted ?? false,
           updatedAt: new Date(saved.updatedAt),
+          createdAt: saved.createdAt ? new Date(saved.createdAt) : null,
         };
         await tx
           .insert(schema.stories)

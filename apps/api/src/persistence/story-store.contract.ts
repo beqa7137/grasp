@@ -42,6 +42,19 @@ export function storyStoreContract(name: string, make: () => StoryStoreFixture) 
       expect(await store.list(ada)).toEqual([story('a', 6, 'third')]);
     });
 
+    it('keeps the first creation time, even when a later copy from an older app has none', async () => {
+      const { store, learner } = make();
+      const ada = await learner();
+      const created = { ...story('a', 1), createdAt: at(1) };
+      expect(await store.put(ada, created)).toEqual(created);
+      expect(await store.put(ada, { ...story('a', 2, 'edited'), createdAt: at(2) })).toEqual({
+        ...story('a', 2, 'edited'),
+        createdAt: at(1),
+      });
+      expect(await store.put(ada, story('a', 3, 'from an older app'))).toEqual({ ...story('a', 3, 'from an older app'), createdAt: at(1) });
+      expect(await store.list(ada)).toEqual([{ ...story('a', 3, 'from an older app'), createdAt: at(1) }]);
+    });
+
     it('decides on the device time, then dates the change no later than the server clock and after the copy it replaces', async () => {
       const { store, learner } = make();
       const ada = await learner();

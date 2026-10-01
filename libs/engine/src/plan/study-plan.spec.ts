@@ -51,6 +51,39 @@ const story = (competencyIds: string[], updatedAt = '2026-09-01T00:00:00.000Z', 
   updatedAt,
   rehearsal: { step: 4, told: 5, due: '2027-01-01T00:00:00.000Z' },
 });
+const flag = (when: number, weakPatterns: string[]): StoredEvent => ({
+  id: id(),
+  at: at(when),
+  type: 'interview.scored',
+  sessionId: `s-${seq}`,
+  track: 'coding',
+  verdict: 'lean-no-hire',
+  weakPatterns,
+});
+const MIN_SLICE = 10;
+/** Some solved patterns, a finished case, cards due for review and a story: what a learner a few weeks in has. */
+const typical = () => ({
+  state: replay([
+    solved('two-sum', now.getTime() - 9 * DAY),
+    solved('pair-sum-sorted', now.getTime() - 8 * DAY),
+    caseDone('url-shortener', now.getTime() - 6 * DAY),
+    ...['h1', 'h2', 'tp1', 'tp2'].map((card, i): StoredEvent => ({
+      id: id(),
+      at: at(now.getTime() - 5 * DAY + i),
+      type: 'review.graded',
+      itemId: `rec:${card}`,
+      rating: 1,
+      correct: false,
+      durationMs: 9000,
+    })),
+  ]),
+  stories: [story(['ownership', 'delivery'])],
+});
+const dayIndexesByUnit = (p: StudyPlan) => {
+  const byUnit = new Map<string, number[]>();
+  p.days.forEach((d, i) => d.slices.forEach((s) => byUnit.set(s.unit.id, [...(byUnit.get(s.unit.id) ?? []), i])));
+  return byUnit;
+};
 const everything = (): { state: ProgressState; stories: Story[] } => {
   const events = [
     ...PATTERN_CATALOG.map((p) => solved(CODING_CATALOG.find((c) => c.patternIds.includes(p.id))!.id, now.getTime() - 10 * DAY)),
@@ -95,14 +128,24 @@ describe('study plan dates', () => {
     expect(fall.days.map((d) => d.date)).toEqual(['2026-10-31', '2026-11-01']);
   });
 
-  it('an interview tomorrow leaves today as the one study day, used in full', () => {
+  it('an interview tomorrow keeps today for review only, so the learner arrives rested', () => {
     const p = plan({ interviewDate: '2026-10-02' });
     expect(p.daysLeft).toBe(1);
     expect(p.days).toHaveLength(1);
-    expect(p.days[0].taper).toBe(false);
+    expect(p.days[0].taper).toBe(true);
     expect(p.days[0].review).toBeGreaterThan(0);
-    expect(learning(p) + p.days[0].review).toBe(60);
+    expect(learning(p)).toBe(0);
     expect(p.status).toBe('tight');
+    expect(p.unscheduled).toHaveLength(p.units.length);
+    expect(p.minutesToFit).toBeNull();
+  });
+
+  it('keeps the day before the interview for review whenever it is in the plan', () => {
+    for (const interviewDate of ['2026-10-03', '2026-10-04', '2026-10-15']) {
+      const p = plan({ interviewDate });
+      expect(p.days.map((d) => d.taper)).toEqual(p.days.map((_, i) => i === p.days.length - 1));
+      expect(p.days.at(-1)!.slices.filter((s) => !s.done)).toEqual([]);
+    }
   });
 
   it('an interview a year away fits everything, ends new work well before and keeps the last day for review', () => {
@@ -128,6 +171,7 @@ describe('study plan dates', () => {
     expect(past.daysLeft).toBe(-11);
     expect(past.days).toEqual([]);
     expect(past.unscheduled).toEqual([]);
+    for (const p of [today, past]) expect(p.remaining).toEqual({ coding: null, design: null, behavioral: null });
   });
 });
 
@@ -151,14 +195,14 @@ describe('study plan units', () => {
 
   it('suggests the first unsolved problem of each pattern, primary ones first', () => {
     const first = plan().units[0];
-    expect(first).toMatchObject({ kind: 'pattern', patternId: 'hashing', problemId: 'two-sum', minutes: 30 });
+    expect(first).toMatchObject({ kind: 'pattern', patternId: 'hashing', problemId: 'two-sum', minutes: 40 });
     const after = plan({}, replay([solved('pair-sum-sorted', now.getTime() - 2 * DAY)])).units;
     expect(after.some((u) => u.patternId === 'two-pointers')).toBe(false);
   });
 
   it('scales unit time with the level, in five minute steps', () => {
-    expect(plan({ level: 'rusty' }).units[0].minutes).toBe(25);
-    expect(plan({ level: 'confident' }).units[0].minutes).toBe(15);
+    expect(plan({ level: 'rusty' }).units[0].minutes).toBe(30);
+    expect(plan({ level: 'confident' }).units[0].minutes).toBe(20);
     expect(plan({ level: 'confident' }).units.every((u) => u.minutes >= 5 && u.minutes % 5 === 0)).toBe(true);
   });
 
@@ -175,24 +219,40 @@ describe('study plan units', () => {
     const coding = (level: StudyPlanInput['level']) => plan({ level }, state).units.filter((u) => u.round === 'coding');
     expect(coding('new').at(-1)!.patternId).toBe('hashing');
     expect(coding('confident').some((u) => u.patternId === 'hashing')).toBe(false);
+
+    const flaggedLater = replay([flag(now.getTime() - 1000, ['hashing'])], state);
+    expect(plan({ level: 'confident' }, flaggedLater).units[0]).toMatchObject({ patternId: 'hashing', flagged: true });
+    const placedLater = replay(
+      [
+        {
+          id: id(),
+          at: at(now.getTime() - 500),
+          type: 'diagnostic.completed',
+          answers: [{ itemId: 'rec:h2', outcome: 'correct', durationMs: 5000 }],
+        },
+      ],
+      flaggedLater,
+    );
+    expect(plan({ level: 'confident' }, placedLater).units.some((u) => u.patternId === 'hashing')).toBe(false);
   });
 
   it('puts patterns an interview flagged first, and asks for a fresh solve when one was solved before the flag', () => {
-    const flag = (when: number, weakPatterns: string[]): StoredEvent => ({
-      id: id(),
-      at: at(when),
-      type: 'interview.scored',
-      sessionId: 's1',
-      track: 'coding',
-      verdict: 'lean-no-hire',
-      weakPatterns,
-    });
     const base = [solved('two-sum', now.getTime() - 5 * DAY), flag(now.getTime() - 2 * DAY, ['hashing', 'heap'])];
     const units = plan({}, replay(base)).units;
     expect(units[0]).toMatchObject({ kind: 'retry', patternId: 'hashing', problemId: 'longest-consecutive-sequence', flagged: true });
     expect(units[1]).toMatchObject({ kind: 'pattern', patternId: 'heap', flagged: true });
     const retried = plan({}, replay([...base, solved('group-anagrams', now.getTime() - DAY)])).units;
     expect(retried.some((u) => u.patternId === 'hashing')).toBe(false);
+  });
+
+  it('asks to solve a problem again when every problem of a flagged pattern was solved before the flag', () => {
+    const problems = CODING_CATALOG.filter((c) => c.patternIds.includes('linked-list-reversal'));
+    const base = [...problems.map((c) => solved(c.id, now.getTime() - 5 * DAY)), flag(now.getTime() - 2 * DAY, ['linked-list-reversal'])];
+    const retry = plan({}, replay(base)).units[0];
+    const first = problems.find((c) => c.patternIds[0] === 'linked-list-reversal')!;
+    expect(retry).toMatchObject({ kind: 'retry', patternId: 'linked-list-reversal', problemId: first.id });
+    const again = plan({}, replay([...base, solved(retry.problemId!, now.getTime() - DAY)])).units;
+    expect(again.some((u) => u.patternId === 'linked-list-reversal')).toBe(false);
   });
 
   it('a case study is done once finished, and a competency once a written, tagged story covers it', () => {
@@ -234,11 +294,31 @@ describe('study plan units', () => {
 });
 
 describe('study plan schedule', () => {
-  it('never schedules more learning in a day than the time left after review', () => {
+  it('never schedules more in a day than the time left after review and finished work, but for a short finish', () => {
+    const { state, stories } = typical();
+    const doneToday = replay([solved('binary-search', now.getTime())], state);
     for (const minutesPerDay of PLAN_MINUTES) {
-      for (const interviewDate of ['2026-10-02', '2026-10-05', '2026-11-20']) {
-        const p = plan({ minutesPerDay, interviewDate });
-        for (const d of p.days) expect(learning(p, p.days.indexOf(d)) + d.review).toBeLessThanOrEqual(minutesPerDay);
+      for (const interviewDate of ['2026-10-03', '2026-10-05', '2026-11-20']) {
+        const p = plan({ minutesPerDay, interviewDate }, doneToday, { now: new Date(now.getTime() + 60_000), stories });
+        expect(p.days[0].slices.some((s) => s.done)).toBe(true);
+        expect(p.todayReview.cards).toBeGreaterThan(0);
+        for (const d of p.days) {
+          const done = d.slices.filter((s) => s.done).reduce((t, s) => t + s.minutes, 0);
+          const open = d.slices.filter((s) => !s.done);
+          expect(d.review + open.reduce((t, s) => t + s.minutes, 0)).toBeLessThanOrEqual(Math.max(0, minutesPerDay - done) + MIN_SLICE);
+          for (const s of open) if (s.part < s.parts) expect(s.minutes).toBeGreaterThanOrEqual(MIN_SLICE);
+          if (d !== p.days[0]) expect(d.review % 5).toBe(0);
+        }
+      }
+    }
+  });
+
+  it('keeps the parts of a unit on consecutive days', () => {
+    const { state, stories } = typical();
+    for (const minutesPerDay of [30, 45, 60]) {
+      const p = plan({ minutesPerDay, interviewDate: '2026-12-15' }, state, { stories });
+      for (const [unitId, days] of dayIndexesByUnit(p)) {
+        expect(days, `${unitId} at ${minutesPerDay} min`).toEqual(days.map((_, i) => days[0] + i));
       }
     }
   });
@@ -271,7 +351,7 @@ describe('study plan schedule', () => {
 
   it('with zero minutes schedules nothing and says how many minutes would fit it all', () => {
     const p = plan({ minutesPerDay: 0, interviewDate: '2027-06-01' });
-    expect(p.status).toBe('no-time');
+    expect(p.status).toBe('tight');
     expect(p.days.every((d) => d.slices.length === 0 && d.review === 0)).toBe(true);
     expect(p.unscheduled).toHaveLength(p.units.length);
     expect(PLAN_MINUTES).toContain(p.minutesToFit);
@@ -282,16 +362,24 @@ describe('study plan schedule', () => {
     expect(p.status).toBe('tight');
     expect(p.unscheduled.length).toBeGreaterThan(0);
     expect(scheduledIds(p).has(p.units[0].id)).toBe(true);
+    expect(p.unscheduled.every((u) => !scheduledIds(p).has(u.id))).toBe(true);
     expect(p.minutesToFit).toBe(PLAN_MINUTES.find((m) => plan({ minutesPerDay: m, interviewDate: '2026-10-30' }).unscheduled.length === 0));
     expect(plan({ minutesPerDay: p.minutesToFit!, interviewDate: '2026-10-30' }).status).toBe('on-track');
     expect(plan({ minutesPerDay: 15, interviewDate: '2026-10-03' }).minutesToFit).toBeNull();
   });
 
-  it('a missed day just spreads what is left over the days that remain', () => {
+  it('missed days spread what is left over the days that remain, and say when it no longer fits', () => {
     const early = plan({ minutesPerDay: 60, interviewDate: '2026-12-01' });
-    const later = plan({ minutesPerDay: 60, interviewDate: '2026-12-01' }, emptyProgress(), { now: new Date(now.getTime() + 3 * DAY) });
+    expect(early.status).toBe('on-track');
+    const missed = (days: number) =>
+      plan({ minutesPerDay: 60, interviewDate: '2026-12-01' }, emptyProgress(), { now: new Date(now.getTime() + days * DAY) });
+    const later = missed(3);
     expect(later.days[0].date).toBe('2026-10-04');
     expect(later.days[0].slices.map((s) => s.unit.id)).toEqual(early.days[0].slices.map((s) => s.unit.id));
+    expect(later.finishDate! > early.finishDate!).toBe(true);
+    const much = missed(40);
+    expect(much.status).toBe('tight');
+    expect(much.minutesToFit).toBeGreaterThan(60);
   });
 
   it('keeps what was finished today on today’s list, ticked, so today does not refill', () => {
@@ -305,9 +393,19 @@ describe('study plan schedule', () => {
     expect(yesterday.units.some((u) => u.id === first.unit.id)).toBe(false);
   });
 
-  it('a story written today counts as done today', () => {
-    const p = plan({ rounds: ['behavioral'] }, emptyProgress(), { stories: [story(['ownership'], now.toISOString())] });
+  it('a story created today counts as done today', () => {
+    const today = { ...story(['ownership'], now.toISOString()), createdAt: now.toISOString() };
+    const p = plan({ rounds: ['behavioral'] }, emptyProgress(), { stories: [today] });
     expect(p.days[0].slices.find((s) => s.unit.competencyId === 'ownership')?.done).toBe(true);
+  });
+
+  it('rehearsing or editing an older story today does not put its competencies back on today’s list', () => {
+    const tags = ['ownership', 'delivery', 'conflict', 'influence'];
+    const rehearsed = { ...story(tags, now.toISOString()), createdAt: '2026-09-01T00:00:00.000Z' };
+    const fromBeforeCreationTimes = story(['feedback'], now.toISOString());
+    const p = plan({ rounds: ['behavioral'] }, emptyProgress(), { stories: [rehearsed, fromBeforeCreationTimes] });
+    expect(p.units.filter((u) => [...tags, 'feedback'].includes(u.competencyId!))).toEqual([]);
+    expect(p.days[0].slices.some((s) => s.done)).toBe(false);
   });
 
   it('makes room for due reviews today, but never more than half the day', () => {
@@ -330,7 +428,20 @@ describe('study plan schedule', () => {
     expect(p.todayReview.cards).toBeGreaterThan(0);
     expect(p.days[0].review).toBeGreaterThan(0);
     expect(p.days[0].review).toBeLessThanOrEqual(30);
-    expect(learning(p) + p.days[0].review).toBeLessThanOrEqual(60);
+    expect(learning(p) + p.days[0].review).toBeLessThanOrEqual(60 + MIN_SLICE);
+  });
+
+  it('clamps cards and story rehearsals together to the review time, and the lines add up to it', () => {
+    const due = Array.from({ length: 12 }, (_, i) => ({
+      ...story(['ownership'], undefined, `due-${i}`),
+      rehearsal: { step: 0, told: 1, due: '2026-09-30T00:00:00.000Z' },
+    }));
+    const p = plan({ minutesPerDay: 30 }, typical().state, { stories: due });
+    const r = p.todayReview;
+    expect(r.stories).toBe(12);
+    expect(r.cardMinutes + r.storyMinutes).toBe(r.minutes);
+    expect(r.minutes).toBeLessThanOrEqual(15);
+    expect(p.days[0].review).toBe(r.minutes);
   });
 
   it('counts story rehearsals due today only when the interview has a behavioral round', () => {
@@ -363,5 +474,16 @@ describe('plan inputs', () => {
     expect(state.streak.current).toBe(0);
     expect(replay([set, { id: id(), at: at(now.getTime() + 1), type: 'plan.set', plan: null }]).plan).toBeNull();
     expect(replay([{ ...set, plan: { ...input(), minutesPerDay: 7 } }]).plan).toBeNull();
+  });
+
+  it('keeps a valid plan when a newer client sends options this one does not know', () => {
+    const set: StoredEvent = { id: id(), at: at(now.getTime()), type: 'plan.set', plan: input() };
+    const newer = {
+      id: id(),
+      at: at(now.getTime() + 1),
+      type: 'plan.set',
+      plan: { ...input(), level: 'expert' },
+    } as unknown as StoredEvent;
+    expect(replay([set, newer]).plan).toEqual(input());
   });
 });

@@ -50,6 +50,11 @@ export interface CodingRecord {
   total: number;
 }
 
+export interface WeakPattern {
+  flaggedAt: string;
+  resolvedAt: string | null;
+}
+
 export interface CompetencyRecord {
   /** When an interview last asked about this competency, and its verdict; null while it has only been flagged. */
   lastAt: string | null;
@@ -84,8 +89,8 @@ export interface ProgressState {
   cases: Record<string, CaseRecord>;
   interviews: { total: number; lastVerdict: string | null };
   behavioral: Record<string, CompetencyRecord>;
-  /** Pattern → when an interview last flagged it as weak. */
-  weakPatterns: Record<string, string>;
+  /** Pattern → when an interview last flagged it as weak, and the first full solve of one of its problems since. */
+  weakPatterns: Record<string, WeakPattern>;
   /** Pattern → placement from the latest placement check. */
   placement: Record<string, Placement>;
   diagnosedAt: string | null;
@@ -211,7 +216,10 @@ export function applyEvent(state: ProgressState, stored: StoredEvent): ProgressS
       next.interviews = { total: state.interviews.total + 1, lastVerdict: event.verdict };
       if (event.track === 'behavioral') next.behavioral = scoreCompetencies(state.behavioral, event);
       if (event.weakPatterns.length)
-        next.weakPatterns = { ...state.weakPatterns, ...Object.fromEntries(event.weakPatterns.map((p) => [p, event.at])) };
+        next.weakPatterns = {
+          ...state.weakPatterns,
+          ...Object.fromEntries(event.weakPatterns.map((p) => [p, { flaggedAt: event.at, resolvedAt: null }])),
+        };
       for (const topic of event.weakPatterns) {
         introduce(topic);
         for (const def of itemsForTopic(topic)) {
@@ -238,6 +246,12 @@ export function applyEvent(state: ProgressState, stored: StoredEvent): ProgressS
         },
       };
       patterns.forEach(introduce);
+      const resolved = solved ? patterns.filter((p) => state.weakPatterns[p] && !state.weakPatterns[p].resolvedAt) : [];
+      if (resolved.length)
+        next.weakPatterns = {
+          ...state.weakPatterns,
+          ...Object.fromEntries(resolved.map((p) => [p, { ...state.weakPatterns[p], resolvedAt: event.at }])),
+        };
       // Failing before the first solve suggests the template isn't fluent yet: bring its recall cards forward.
       if (!solved && !prev?.solvedAt) {
         for (const topic of patterns) {
@@ -251,7 +265,8 @@ export function applyEvent(state: ProgressState, stored: StoredEvent): ProgressS
       next.settings = mergeSettings(state.settings, event.settings);
       break;
     case 'plan.set':
-      next.plan = normalizePlan(event.plan);
+      // A plan from a newer client with an option this one does not know keeps the plan this one can read.
+      next.plan = event.plan === null ? null : (normalizePlan(event.plan) ?? state.plan);
       break;
     case 'diagnostic.completed': {
       next.placement = placementFromAnswers(event.answers);

@@ -30,16 +30,24 @@ test('a learner sets an interview date, follows today’s list, changes the roun
   const plan = page.locator('app-plan');
   await expect(plan.getByRole('heading', { name: 'Plan to your interview', level: 1 })).toBeVisible();
 
+  const date = plan.getByLabel('Interview date');
   await plan.getByRole('button', { name: 'Save plan' }).click();
   await expect(plan.getByRole('alert')).toHaveText('Choose an interview date from today to a year from now.');
+  await expect(date).toBeFocused();
+  await expect(date).toHaveAttribute('aria-invalid', 'true');
+  await expect(date).toHaveAccessibleDescription(/If your rounds are on different days, choose the first\. Choose an interview date/);
+  const firstAlert = await plan.getByRole('alert').elementHandle();
+  await plan.getByRole('button', { name: 'Save plan' }).click();
+  await expect(plan.getByRole('alert')).toHaveText('Choose an interview date from today to a year from now.');
+  expect(await plan.getByRole('alert').evaluate((el, first) => el !== first, firstAlert), 'a repeated error is announced again').toBe(true);
 
   await plan.getByLabel('Interview date').fill(await localDay(page, 20));
   const minutes = plan.getByRole('radiogroup', { name: 'Time a day' });
-  await minutes.getByRole('radio', { name: '30 min' }).focus();
+  await minutes.getByRole('radio', { name: '30 min', exact: true }).focus();
   await page.keyboard.press('ArrowRight');
-  await expect(minutes.getByRole('radio', { name: '45 min' })).toHaveAttribute('aria-checked', 'true');
+  await expect(minutes.getByRole('radio', { name: '45 min', exact: true })).toHaveAttribute('aria-checked', 'true');
   await page.keyboard.press('ArrowRight');
-  await expect(minutes.getByRole('radio', { name: '1 h' })).toBeFocused();
+  await expect(minutes.getByRole('radio', { name: '1 h', exact: true })).toBeFocused();
   for (const round of ['Coding', 'System design', 'Behavioral']) await plan.getByRole('checkbox', { name: round }).uncheck();
   await plan.getByRole('button', { name: 'Save plan' }).click();
   await expect(plan.getByRole('alert')).toHaveText('Choose at least one round.');
@@ -109,7 +117,13 @@ for (const theme of ['dark', 'light'] as const) {
       await expect(plan.getByRole('heading', { name: 'Interview tomorrow', level: 1 })).toBeVisible();
       await expect(
         plan.getByText(/items will not fit before your interview at 30 min a day, so the plan starts with what matters most\./),
+      ).toContainText('Even at 2 h a day it would not all fit, so work from the top of each list; the most important items come first.');
+      await expect(
+        plan
+          .getByRole('region', { name: /^Today/ })
+          .getByText('Review only today, so you arrive rested. Leave anything new for after the interview.'),
       ).toBeVisible();
+      await expect(plan.getByText(/· 30 min a day$/)).toBeVisible();
       await expect(plan.getByRole('region', { name: 'Coming up' })).toHaveCount(0);
       expect(await seriousViolations(page)).toEqual([]);
 
@@ -117,8 +131,10 @@ for (const theme of ['dark', 'light'] as const) {
       await plan.getByLabel('Interview date').fill(await localDay(page, 0));
       await plan.getByRole('button', { name: 'Save plan' }).click();
       await expect(plan.getByRole('heading', { name: 'Interview day', level: 1 })).toBeVisible();
-      await expect(plan.getByText('Good luck today. A short review at most, then rest: the work is already done.')).toBeVisible();
+      await expect(plan.getByText('Good luck today. A short review at most, then rest and trust what you have practised.')).toBeVisible();
       await expect(plan.getByRole('region', { name: /^Today/ })).toHaveCount(0);
+      await expect(plan.getByRole('region', { name: 'Still to learn' })).toHaveCount(0);
+      await expect(plan.getByText(/a day$/)).toHaveCount(0);
       expect(await seriousViolations(page)).toEqual([]);
     });
   });

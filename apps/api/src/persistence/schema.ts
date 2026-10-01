@@ -102,6 +102,7 @@ export const stories = pgTable(
     rehearsal: jsonb('rehearsal'),
     deleted: boolean('deleted').notNull().default(false),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }),
   },
   (t) => [primaryKey({ columns: [t.learnerId, t.id] })],
 );
