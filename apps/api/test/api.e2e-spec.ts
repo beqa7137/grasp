@@ -174,6 +174,27 @@ describe.each(storages)('API (%s storage, offline interviewer)', (storage) => {
     expect(snap.body.state.settings).toEqual({ retention: 0.95, budgetMinutes: 10, newPerDay: 5 });
   });
 
+  it('syncs a study plan, clears it, and rejects dates and options the app does not offer', async () => {
+    const planLearner = randomUUID();
+    const plan = { interviewDate: '2026-11-20', minutesPerDay: 45, rounds: ['coding', 'behavioral'], level: 'rusty' };
+    const set = (value: object | null) => postEvent({ type: 'plan.set', plan: value }, planLearner);
+    const state = async () =>
+      (await request(app.getHttpServer()).get('/api/progress').set('x-learner-id', planLearner).expect(200)).body.state;
+
+    await set({ ...plan, interviewDate: '2026-02-30' }).expect(400);
+    await set({ ...plan, interviewDate: '20 Nov 2026' }).expect(400);
+    await set({ ...plan, minutesPerDay: 0 }).expect(400);
+    await set({ ...plan, rounds: [] }).expect(400);
+    await set({ ...plan, rounds: ['coding', 'coding'] }).expect(400);
+    await set({ ...plan, rounds: ['puzzles'] }).expect(400);
+    await set({ ...plan, level: 'expert' }).expect(400);
+    await set({ ...plan, extra: true }).expect(400);
+    await set(plan).expect(200);
+    expect((await state()).plan).toEqual(plan);
+    await set(null).expect(200);
+    expect((await state()).plan).toBeNull();
+  });
+
   it('records a finished case study, schedules its topics and rejects unknown cases and impossible outcomes', async () => {
     const caseLearner = randomUUID();
     const finish = (fields: object) =>

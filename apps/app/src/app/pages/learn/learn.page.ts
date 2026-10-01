@@ -7,12 +7,15 @@ import {
   PATTERN_CATALOG,
   SCENARIO_CATALOG,
   SD_TOPICS,
+  calendarDaysBetween,
+  dayKey,
   getScenarioSummary,
   type Track,
 } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import {
   alertCircleOutline,
+  calendarOutline,
   chatbubblesOutline,
   cloudDoneOutline,
   codeSlashOutline,
@@ -109,6 +112,13 @@ export class LearnPage {
     const m = this.progress.dueMissions()[0];
     return m ? { ...m, title: getScenarioSummary(m.scenarioId)!.title } : null;
   });
+  readonly interview = computed(() => {
+    const plan = this.progress.state().plan;
+    if (!plan) return null;
+    const now = this.progress.now();
+    const days = calendarDaysBetween(dayKey(now, now.getTimezoneOffset()), plan.interviewDate);
+    return days < 0 ? 'Date passed' : days === 0 ? 'Interview today' : days === 1 ? 'Interview tomorrow' : `Interview in ${days} days`;
+  });
   readonly greeting = computed(() => {
     const h = new Date().getHours();
     return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
@@ -117,6 +127,7 @@ export class LearnPage {
   constructor() {
     addIcons({
       alertCircleOutline,
+      calendarOutline,
       settingsOutline,
       codeSlashOutline,
       flame,

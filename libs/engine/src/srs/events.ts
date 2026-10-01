@@ -1,4 +1,5 @@
 import type { Language } from '../coding/types.js';
+import type { StudyPlanInput } from '../plan/options.js';
 import type { CaseOutcome } from '../sysdesign/cases/outcome.js';
 import type { ReviewRating } from './scheduler.js';
 
@@ -82,6 +83,12 @@ export interface SettingsChangedEvent extends BaseEvent {
   settings: Partial<StudySettings>;
 }
 
+/** The interview a study plan works toward; null clears it. */
+export interface PlanSetEvent extends BaseEvent {
+  type: 'plan.set';
+  plan: StudyPlanInput | null;
+}
+
 export const DIAGNOSTIC_OUTCOMES = ['correct', 'wrong', 'skipped'] as const;
 export type DiagnosticOutcome = (typeof DIAGNOSTIC_OUTCOMES)[number];
 
@@ -106,6 +113,7 @@ export type LearningEvent =
   | InterviewScoredEvent
   | CodeSubmittedEvent
   | SettingsChangedEvent
+  | PlanSetEvent
   | DiagnosticCompletedEvent;
 
 /** v1 (SM-2) drill review, still accepted from older clients and stored logs. */

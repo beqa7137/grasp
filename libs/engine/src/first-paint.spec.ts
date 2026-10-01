@@ -68,6 +68,7 @@ describe('first paint', () => {
       'coding/problem-patterns.ts',
       'curriculum/catalog.ts',
       'curriculum/sd-topics.ts',
+      'plan/options.ts',
       'review/catalog.ts',
       'review/random.ts',
       'review/summaries.ts',

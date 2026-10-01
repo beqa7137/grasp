@@ -104,6 +104,7 @@ export const routes: Routes = [
         title: (route) => titles().then((t) => t.problemTitle(route)),
         loadComponent: () => withTitles(import('./pages/code/workspace.page')).then((m) => m.WorkspacePage),
       },
+      { path: 'plan', title: 'Study plan', loadComponent: () => import('./pages/plan/plan.page').then((m) => m.PlanPage) },
       { path: 'settings', title: 'Settings', loadComponent: () => import('./pages/settings/settings.page').then((m) => m.SettingsPage) },
       { path: '', pathMatch: 'full', redirectTo: 'learn' },
     ],
