@@ -4,9 +4,10 @@ import { Router, RouterLink } from '@angular/router';
 import { IonContent, IonHeader, IonIcon, IonSpinner, IonTitle, IonToolbar } from '@ionic/angular';
 import { COMPETENCY_CATALOG, getPatternSummary } from '@grasp/engine';
 import { addIcons } from 'ionicons';
-import { codeSlashOutline, gitNetworkOutline, peopleOutline, shuffle, sparkles } from 'ionicons/icons';
+import { codeSlashOutline, gitNetworkOutline, layersOutline, peopleOutline, shuffle, sparkles } from 'ionicons/icons';
 import { ApiError, ApiService } from '../../core/api.service';
 import { SignInOptionsComponent } from '../../core/sign-in-options.component';
+import { MockLoopService } from './mock-loop.service';
 import type { AiAccess, InterviewCatalog, InterviewMode, InterviewSession, InterviewTrack, ProblemSummary } from './interview.types';
 import { needsSignIn, startInterview } from './start-interview';
 
@@ -121,6 +122,15 @@ const AI_BEHAVIORAL_NOTE = 'AI follow-ups and AI feedback. Your answers, includi
             <ion-icon name="shuffle" aria-hidden="true" />Surprise me
           </button>
         </div>
+
+        <a class="panel card-link behavioral" routerLink="/interview/loop">
+          <ion-icon name="layers-outline" aria-hidden="true" />
+          <span>
+            <span class="title display">Full mock loop</span>
+            <span class="muted blurb">{{ loopBlurb() }}</span>
+          </span>
+          <span class="go">{{ loopActive() ? 'Continue →' : 'Open →' }}</span>
+        </a>
 
         <a class="panel card-link behavioral" routerLink="/behavioral">
           <ion-icon name="people-outline" aria-hidden="true" />
@@ -337,6 +347,18 @@ const AI_BEHAVIORAL_NOTE = 'AI follow-ups and AI feedback. Your answers, includi
 export class InterviewHomePage {
   private readonly api = inject(ApiService);
   private readonly router = inject(Router);
+  private readonly loops = inject(MockLoopService);
+  /** A loop with a round left to score; a finished one keeps its debrief, but there is nothing to continue. */
+  readonly loopActive = computed(() => {
+    const loop = this.loops.loop();
+    return !!loop && !loop.completedAt;
+  });
+  readonly loopBlurb = computed(() => {
+    const loop = this.loops.loop();
+    if (!loop || loop.completedAt) return 'Coding, system design and behavioral rounds back to back, then one debrief across them.';
+    const started = loop.rounds.filter((r) => r.sessionId).length;
+    return `${started} of ${loop.rounds.length} rounds started. Pick up where you left off.`;
+  });
 
   readonly behavioralBlurb = `Worked answers for ${COMPETENCY_CATALOG.length} competencies, your story bank, rehearsal and the three-question mock.`;
   readonly tracks = [
@@ -377,10 +399,11 @@ export class InterviewHomePage {
   readonly aiNote = computed(() => (this.track() === 'behavioral' ? AI_BEHAVIORAL_NOTE : AI_NOTE));
 
   constructor() {
-    addIcons({ codeSlashOutline, gitNetworkOutline, peopleOutline, shuffle, sparkles });
+    addIcons({ codeSlashOutline, gitNetworkOutline, layersOutline, peopleOutline, shuffle, sparkles });
   }
 
   ionViewWillEnter() {
+    void this.loops.load();
     return this.loadInterviews();
   }
 

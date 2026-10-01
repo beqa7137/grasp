@@ -4,6 +4,7 @@ import { EMPTY_STAR_DRAFT } from '../behavioral/star-check.js';
 import type { Story } from '../behavioral/stories.js';
 import { CODING_CATALOG } from '../coding/catalog.js';
 import { PATTERN_CATALOG } from '../curriculum/catalog.js';
+import type { InterviewTrack } from '../interview/rubrics.js';
 import type { StoredEvent } from '../srs/events.js';
 import { emptyProgress, replay, type ProgressState } from '../srs/progress.js';
 import { CASE_CATALOG } from '../sysdesign/case-catalog.js';
@@ -60,6 +61,14 @@ const flag = (when: number, weakPatterns: string[]): StoredEvent => ({
   verdict: 'lean-no-hire',
   weakPatterns,
 });
+const loopDone = (when: number, tracks: InterviewTrack[] = ['coding', 'system-design', 'behavioral']): StoredEvent => ({
+  id: id(),
+  at: at(when),
+  type: 'mock.completed',
+  loopId: `loop-${seq}`,
+  verdict: 'lean-hire',
+  rounds: tracks.map((track, i) => ({ track, sessionId: `${track}-${seq}`, verdict: 'lean-hire', at: at(when - (3 - i) * 60_000) })),
+});
 const MIN_SLICE = 10;
 /** Some solved patterns, a finished case, cards due for review and a story: what a learner a few weeks in has. */
 const typical = () => ({
@@ -88,6 +97,7 @@ const everything = (): { state: ProgressState; stories: Story[] } => {
   const events = [
     ...PATTERN_CATALOG.map((p) => solved(CODING_CATALOG.find((c) => c.patternIds.includes(p.id))!.id, now.getTime() - 10 * DAY)),
     ...CASE_CATALOG.map((c) => caseDone(c.id, now.getTime() - 10 * DAY)),
+    loopDone(now.getTime() - 3 * DAY),
   ];
   return {
     state: replay(events),
@@ -179,18 +189,19 @@ describe('study plan units', () => {
   it('covers every pattern, case study and competency for a new learner, coding in curriculum order', () => {
     const p = plan({ interviewDate: '2027-10-01' });
     const units = p.units;
-    expect(units.filter((u) => u.round === 'coding').map((u) => u.patternId)).toEqual(PATTERN_CATALOG.map((x) => x.id));
-    expect(units.filter((u) => u.round === 'design')).toHaveLength(CASE_CATALOG.length);
-    expect(units.filter((u) => u.round === 'behavioral')).toHaveLength(COMPETENCY_CATALOG.length);
-    const design = units.filter((u) => u.round === 'design').map((u) => CASE_CATALOG.find((c) => c.id === u.caseId)!.level);
+    expect(units.filter((u) => u.kind === 'pattern').map((u) => u.patternId)).toEqual(PATTERN_CATALOG.map((x) => x.id));
+    expect(units.filter((u) => u.kind === 'case')).toHaveLength(CASE_CATALOG.length);
+    expect(units.filter((u) => u.kind === 'story')).toHaveLength(COMPETENCY_CATALOG.length);
+    const design = units.filter((u) => u.kind === 'case').map((u) => CASE_CATALOG.find((c) => c.id === u.caseId)!.level);
     expect(design.indexOf('advanced')).toBeGreaterThan(design.lastIndexOf('core'));
   });
 
-  it('with only a behavioral round plans only stories', () => {
+  it('with only a behavioral round plans only stories and the behavioral round of a mock loop', () => {
     const p = plan({ rounds: ['behavioral'] });
     expect(p.units.every((u) => u.round === 'behavioral')).toBe(true);
+    expect(p.units.filter((u) => u.kind === 'mock').map((u) => u.id)).toEqual(['mock:behavioral']);
     expect(p.status).toBe('on-track');
-    expect(p.remaining).toEqual({ coding: null, design: null, behavioral: { units: COMPETENCY_CATALOG.length, minutes: 260 } });
+    expect(p.remaining).toEqual({ coding: null, design: null, behavioral: { units: COMPETENCY_CATALOG.length + 1, minutes: 280 } });
   });
 
   it('suggests the first unsolved problem of each pattern, primary ones first', () => {
@@ -216,7 +227,8 @@ describe('study plan units', () => {
       },
     ]);
     expect(state.placement['hashing']).toBe('strong');
-    const coding = (level: StudyPlanInput['level']) => plan({ level }, state).units.filter((u) => u.round === 'coding');
+    const coding = (level: StudyPlanInput['level']) =>
+      plan({ level }, state).units.filter((u) => u.round === 'coding' && u.kind !== 'mock');
     expect(coding('new').at(-1)!.patternId).toBe('hashing');
     expect(coding('confident').some((u) => u.patternId === 'hashing')).toBe(false);
 
@@ -375,7 +387,7 @@ describe('study plan schedule', () => {
     expect(later.days[0].date).toBe('2026-10-04');
     expect(later.days[0].slices.map((s) => s.unit.id)).toEqual(early.days[0].slices.map((s) => s.unit.id));
     expect(later.finishDate! > early.finishDate!).toBe(true);
-    const much = missed(40);
+    const much = missed(35);
     expect(much.status).toBe('tight');
     expect(much.minutesToFit).toBeGreaterThan(60);
   });
@@ -450,6 +462,74 @@ describe('study plan schedule', () => {
 
   it('is deterministic', () => {
     expect(plan({ minutesPerDay: 45 })).toEqual(plan({ minutesPerDay: 45 }));
+  });
+});
+
+describe('study plan mock loop', () => {
+  const mockDays = (p: StudyPlan) => p.days.flatMap((d, i) => d.slices.filter((s) => s.unit.kind === 'mock').map(() => i));
+
+  it('ends the plan with a round of a mock loop per interview round, in loop order, before the review-only eve', () => {
+    const p = plan();
+    expect(p.units.filter((u) => u.kind === 'mock')).toMatchObject([
+      { id: 'mock:coding', round: 'coding', minutes: 45, doneAt: null },
+      { id: 'mock:design', round: 'design', minutes: 45, doneAt: null },
+      { id: 'mock:behavioral', round: 'behavioral', minutes: 20, doneAt: null },
+    ]);
+    const order = p.days.flatMap((d) => d.slices.filter((s) => s.unit.kind === 'mock').map((s) => s.unit.id));
+    expect([...new Set(order)]).toEqual(['mock:coding', 'mock:design', 'mock:behavioral']);
+    const lastOther = Math.max(...p.days.flatMap((d, i) => (d.slices.some((s) => s.unit.kind !== 'mock') ? [i] : [])));
+    expect(Math.min(...mockDays(p))).toBeGreaterThanOrEqual(lastOther);
+    expect(Math.max(...mockDays(p))).toBe(p.days.length - 2);
+    expect(p.days.at(-1)!.slices).toEqual([]);
+  });
+
+  it('keeps the mock loop even when time is short, ahead of material that will not fit', () => {
+    const p = plan({ minutesPerDay: 30, interviewDate: '2026-10-30' });
+    expect(p.status).toBe('tight');
+    for (const unitId of ['mock:coding', 'mock:design', 'mock:behavioral']) expect(scheduledIds(p).has(unitId)).toBe(true);
+    expect(p.unscheduled.some((u) => u.kind === 'mock')).toBe(false);
+  });
+
+  it('two days out, today is for the mock loop, latest rounds first, and says what does not fit', () => {
+    const p = plan({ interviewDate: '2026-10-03' });
+    expect(p.days[0].slices.map((s) => [s.unit.id, s.minutes])).toEqual([
+      ['mock:design', 45],
+      ['mock:behavioral', 20],
+    ]);
+    expect(p.days[0].review + learning(p)).toBeLessThanOrEqual(60 + MIN_SLICE);
+    expect(p.status).toBe('tight');
+    expect(p.finishDate).toBeNull();
+  });
+
+  it('a loop finished in the last two weeks covers its rounds; an older one does not', () => {
+    const recent = plan({}, replay([loopDone(now.getTime() - 2 * DAY)]));
+    expect(recent.units.some((u) => u.kind === 'mock')).toBe(false);
+    const old = plan({}, replay([loopDone(now.getTime() - 15 * DAY)]));
+    expect(old.units.filter((u) => u.kind === 'mock')).toHaveLength(3);
+    const partial = plan({}, replay([loopDone(now.getTime() - DAY, ['coding'])]));
+    expect(partial.units.filter((u) => u.kind === 'mock').map((u) => u.id)).toEqual(['mock:design', 'mock:behavioral']);
+  });
+
+  it('ticks a round scored today in a loop finished today on today’s list', () => {
+    const later = new Date(now.getTime() + 60 * 60_000);
+    const p = plan({}, replay([loopDone(later.getTime() - 60_000)]), { now: later });
+    expect(p.days[0].slices.filter((s) => s.unit.kind === 'mock').map((s) => [s.unit.id, s.done])).toEqual([
+      ['mock:coding', true],
+      ['mock:design', true],
+      ['mock:behavioral', true],
+    ]);
+  });
+
+  it('records only the latest loop, with when each of its rounds was scored', () => {
+    const first = loopDone(now.getTime() - 5 * DAY);
+    const second = loopDone(now.getTime() - DAY, ['behavioral']);
+    const state = replay([second, first]);
+    expect(state.mockLoop).toEqual({
+      completedAt: second.at,
+      verdict: 'lean-hire',
+      rounds: { behavioral: at(now.getTime() - DAY - 3 * 60_000) },
+    });
+    expect(state.streak.current).toBe(1);
   });
 });
 

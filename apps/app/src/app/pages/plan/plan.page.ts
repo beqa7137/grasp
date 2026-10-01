@@ -402,8 +402,13 @@ export class PlanPage {
         return `${n ? plural(n, 'item') : 'The last item'} will not ${n ? '' : 'quite '}fit before your interview at ${perDay} a day, so the plan starts with what matters most.${fit}`;
       }
       default: {
-        const sameYear = p.finishDate!.slice(0, 4) === p.today.slice(0, 4);
-        return `At ${perDay} a day you cover everything by ${formatDate(p.finishDate!, sameYear ? 'EEEE, MMMM d' : 'EEEE, MMMM d, y', this.locale)}.`;
+        const mock = p.units.some((u) => u.kind === 'mock' && !u.doneAt);
+        if (!p.finishDate) return 'Everything else is covered. Finish with a mock loop before the interview.';
+        const sameYear = p.finishDate.slice(0, 4) === p.today.slice(0, 4);
+        const by = formatDate(p.finishDate, sameYear ? 'EEEE, MMMM d' : 'EEEE, MMMM d, y', this.locale);
+        return mock
+          ? `At ${perDay} a day you cover everything new by ${by}, then run a mock loop just before the interview.`
+          : `At ${perDay} a day you cover everything by ${by}.`;
       }
     }
   });
@@ -431,6 +436,8 @@ export class PlanPage {
         return ['/design/case', unit.caseId!];
       case 'story':
         return ['/behavioral', unit.competencyId!];
+      case 'mock':
+        return ['/interview/loop'];
     }
   }
 

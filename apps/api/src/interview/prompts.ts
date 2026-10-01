@@ -1,38 +1,7 @@
-import { PATTERNS } from '@grasp/engine';
+import { INTERVIEW_RUBRICS, PATTERNS } from '@grasp/engine';
 import type { InterviewMessage, InterviewSession, InterviewTrack } from './interview.types.js';
 
-export const RUBRICS: Record<InterviewTrack, { name: string; lookFor: string }[]> = {
-  coding: [
-    { name: 'Problem understanding', lookFor: 'Restates the problem, asks about input size, edge cases and constraints before coding.' },
-    { name: 'Approach', lookFor: 'Starts from a baseline, identifies the right pattern, and improves it with a clear rationale.' },
-    { name: 'Complexity analysis', lookFor: 'States and justifies time and space complexity correctly, including amortized arguments.' },
-    { name: 'Correctness & edge cases', lookFor: 'Walks through an example, handles empty/duplicate/boundary inputs, fixes own bugs.' },
-    { name: 'Communication', lookFor: 'Thinks out loud, structures the answer, responds well to hints.' },
-  ],
-  'system-design': [
-    { name: 'Requirements & scope', lookFor: 'Separates functional and non-functional requirements; agrees on scope.' },
-    { name: 'Estimation', lookFor: 'Back-of-envelope QPS, storage and bandwidth that drive later decisions.' },
-    { name: 'High-level design', lookFor: 'Clear components and data flow; APIs and data model that fit the access patterns.' },
-    {
-      name: 'Deep dives & trade-offs',
-      lookFor: 'Identifies bottlenecks, scaling strategy, failure modes; weighs alternatives explicitly.',
-    },
-    { name: 'Communication', lookFor: 'Drives the conversation, checks in, adapts to feedback.' },
-  ],
-  behavioral: [
-    { name: 'Competency fit', lookFor: 'A real story that shows the competency the question asks about, told as a clear STAR arc.' },
-    {
-      name: 'Ownership & specificity',
-      lookFor: 'Says what they decided and did themselves, with concrete steps and details rather than "we".',
-    },
-    { name: 'Impact & results', lookFor: 'A measured or concrete outcome tied to their own actions, including what happened afterwards.' },
-    {
-      name: 'Judgment & reflection',
-      lookFor: 'Explains why they chose what they did, the trade-offs weighed, and what they would change.',
-    },
-    { name: 'Follow-up handling', lookFor: 'Answers each follow-up directly with new, specific detail instead of repeating the story.' },
-  ],
-};
+export const RUBRICS = INTERVIEW_RUBRICS;
 
 const rubricLines = (track: InterviewTrack) => RUBRICS[track].map((r) => `- ${r.name}: ${r.lookFor}`).join('\n');
 
