@@ -55,6 +55,13 @@ export const CASE_BRIEFS: readonly CaseBrief[] = [
     summary: 'Idempotency keys, a payment state machine, a double-entry ledger, unknown outcomes, the outbox pattern and reconciliation.',
   },
   {
+    id: 'payment-ledger',
+    question:
+      'Design the double-entry ledger at the heart of a payments company: every capture, fee, refund, payout and transfer is recorded in it, and balances and statements are read from it.',
+    summary:
+      'Immutable entries that sum to zero, idempotent posting, row locks and hot accounts, sharding with in-transit accounts, snapshots, reconciliation and invariants.',
+  },
+  {
     id: 'ride-sharing',
     question:
       'Design the core of a ride-hailing app like Uber: riders request rides, nearby drivers are matched, and both see each other move on a map.',

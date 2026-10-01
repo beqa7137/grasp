@@ -20,6 +20,9 @@ export interface CaseEstimate {
   working: readonly string[];
 }
 
+/** A model the learner runs inside a stage, opened once the stage's decision and estimate are answered. */
+export type CaseWidget = 'retries' | 'hot-account' | 'reconcile';
+
 export type CaseStageKind = 'requirements' | 'estimation' | 'api' | 'data' | 'design' | 'deep-dive' | 'wrap-up';
 
 export interface CaseStage {
@@ -31,6 +34,7 @@ export interface CaseStage {
   points: readonly string[];
   decision?: CaseDecision;
   estimate?: CaseEstimate;
+  widget?: CaseWidget;
   /** Offers the case's Design Lab build at this stage. */
   lab?: true;
 }

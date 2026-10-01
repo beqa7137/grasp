@@ -6,6 +6,7 @@ import type { ComponentKind, Design, DesignNode } from '../sysdesign/types.js';
 import { concept, item, type DesignItemDefinition } from './design-item-kit.js';
 import { APP_ITEMS } from './design-items-apps.js';
 import { INFRA_ITEMS } from './design-items-infra.js';
+import { LEDGER_ITEMS } from './design-items-ledger.js';
 import { pick, seeded, shuffle, withChoices } from './random.js';
 import { DESIGN_ITEM_CATALOG, designSummary, type DesignItemId } from './summaries.js';
 import { KIND_LABELS, type ItemDef, type PipelineStage, type ReviewItemSummary } from './types.js';
@@ -479,6 +480,7 @@ const DEFINITIONS: Record<DesignItemId, DesignItemDefinition> = {
   reshard,
   ...INFRA_ITEMS,
   ...APP_ITEMS,
+  ...LEDGER_ITEMS,
 };
 
 export const DESIGN_ITEMS: ItemDef[] = DESIGN_ITEM_CATALOG.map((summary, i) =>
