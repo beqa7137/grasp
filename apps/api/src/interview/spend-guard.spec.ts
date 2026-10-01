@@ -2,11 +2,15 @@ import { Logger, ServiceUnavailableException } from '@nestjs/common';
 import { DrizzleQueryError } from 'drizzle-orm/errors';
 import { MemoryCoordinationStore } from '../persistence/memory.stores.js';
 import { MemorySpendStore } from '../persistence/memory-spend.store.js';
+import { recordFailure } from '../observability/failure-signals.js';
 import { SpendGuard } from './spend-guard.js';
+
+vi.mock('../observability/failure-signals.js', () => ({ recordFailure: vi.fn() }));
 
 const DAY_MS = 86_400_000;
 
 beforeEach(() => {
+  vi.mocked(recordFailure).mockClear();
   vi.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
   vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
 });
@@ -28,6 +32,7 @@ it('reserves before work, rejects concurrent overcommitment and frees only prove
   await guard.settle(held, 0.1);
   await peer.reserve(0.4);
   await peer.settle(held, 0);
+  expect(recordFailure).not.toHaveBeenCalled();
   expect(await guard.spentToday()).toBe(0.9);
 });
 
@@ -129,4 +134,8 @@ it('preserves the hold on storage failure without leaking queries, identifiers o
     category: 'database',
     code: '42P01',
   });
+  expect(vi.mocked(recordFailure).mock.calls).toEqual([
+    ['ai.spend-store', failure],
+    ['ai.spend-store', failure],
+  ]);
 });

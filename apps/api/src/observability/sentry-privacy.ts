@@ -4,6 +4,7 @@ import { readdirSync } from 'node:fs';
 import { relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { AppConfig } from '../config.js';
+import type { SignalReport } from './failure-signals.js';
 import { safeErrorDetails } from './safe-error.js';
 
 type Transport = ReturnType<typeof import('@sentry/node').makeNodeTransport>;
@@ -48,19 +49,27 @@ export function createSentryPrivacy(config: AppConfig, parseStack: StackParser) 
   const files = applicationFiles();
   const captures = new WeakMap<object, ErrorEvent>();
   const outbound = new WeakMap<Event, ErrorEvent>();
+  const base = (): ErrorEvent => ({
+    type: undefined,
+    event_id: randomUUID().replaceAll('-', ''),
+    timestamp: Date.now() / 1_000,
+    platform: 'node',
+    level: 'error',
+    environment: config.sentryEnvironment,
+    ...(config.release ? { release: config.release } : {}),
+  });
+  const track = (event: ErrorEvent): [ErrorEvent, EventHint] => {
+    const token = {};
+    captures.set(token, event);
+    return [structuredClone(event), { originalException: token }];
+  };
 
   return {
     capture(error: unknown, requestId?: string): [ErrorEvent, EventHint] {
       const details = safeErrorDetails(error);
       const frames = error instanceof Error && typeof error.stack === 'string' ? safeFrames(parseStack(error.stack), files) : [];
-      const event: ErrorEvent = {
-        type: undefined,
-        event_id: randomUUID().replaceAll('-', ''),
-        timestamp: Date.now() / 1_000,
-        platform: 'node',
-        level: 'error',
-        environment: config.sentryEnvironment,
-        ...(config.release ? { release: config.release } : {}),
+      return track({
+        ...base(),
         tags: {
           category: details.category,
           code: details.code,
@@ -69,10 +78,17 @@ export function createSentryPrivacy(config: AppConfig, parseStack: StackParser) 
         exception: {
           values: [{ type: details.category, value: 'Server operation failed', ...(frames.length ? { stacktrace: { frames } } : {}) }],
         },
-      };
-      const token = {};
-      captures.set(token, event);
-      return [structuredClone(event), { originalException: token }];
+      });
+    },
+
+    signal({ signal, failures, category, code }: SignalReport): [ErrorEvent, EventHint] {
+      return track({
+        ...base(),
+        message: `Failure signal ${signal}`,
+        fingerprint: ['failure-signal', signal],
+        tags: { signal, category, code },
+        extra: { failures },
+      });
     },
 
     beforeSend(_event: ErrorEvent, hint: EventHint): ErrorEvent | null {

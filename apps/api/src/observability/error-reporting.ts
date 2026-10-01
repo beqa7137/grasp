@@ -1,5 +1,8 @@
 import { Logger } from '@nestjs/common';
+import type { EventHint, ErrorEvent } from '@sentry/node';
+import { waitUntil } from '@vercel/functions';
 import type { AppConfig } from '../config.js';
+import type { SignalReport } from './failure-signals.js';
 import { createSentryPrivacy } from './sentry-privacy.js';
 
 type Sentry = typeof import('@sentry/node');
@@ -37,7 +40,17 @@ export async function initErrorReporting(config: AppConfig) {
 }
 
 export function reportError(error: unknown, requestId?: string) {
-  if (sentry && privacy) sentry.captureEvent(...privacy.capture(error, requestId));
+  if (privacy) send(privacy.capture(error, requestId));
+}
+
+export function reportSignal(report: SignalReport) {
+  if (privacy) send(privacy.signal(report));
+}
+
+/** A Vercel instance can be frozen once its response is sent, so the delivery keeps the invocation alive. */
+function send([event, hint]: [ErrorEvent, EventHint]) {
+  sentry!.captureEvent(event, hint);
+  waitUntil(sentry!.flush(2_000));
 }
 
 export async function flushErrorReporting() {

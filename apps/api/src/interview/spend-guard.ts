@@ -1,5 +1,6 @@
 import { Logger, ServiceUnavailableException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
+import { recordFailure } from '../observability/failure-signals.js';
 import { safeErrorDetails } from '../observability/safe-error.js';
 import type { SpendReservation, SpendStore } from '../persistence/spend.store.js';
 
@@ -29,6 +30,7 @@ export class SpendGuard {
       reservation = await this.store.reserve(randomUUID(), amountMicros, this.budgetMicros);
     } catch (error) {
       this.log.error({ operation: 'interview.reserve-spend', ...safeErrorDetails(error) });
+      recordFailure('ai.spend-store', error);
       throw new ServiceUnavailableException(UNAVAILABLE);
     }
     if (!reservation) {
@@ -48,6 +50,7 @@ export class SpendGuard {
       await this.store.settle(reservation.id, actualMicros);
     } catch (error) {
       this.log.error({ operation: 'interview.settle-spend', ...safeErrorDetails(error) });
+      recordFailure('ai.spend-store', error);
     }
   }
 

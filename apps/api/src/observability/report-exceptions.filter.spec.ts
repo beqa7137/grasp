@@ -3,9 +3,11 @@ import { BaseExceptionFilter } from '@nestjs/core';
 import { DrizzleQueryError } from 'drizzle-orm/errors';
 import { RateLimitExceeded } from '../common/rate-limit-exceeded.js';
 import { reportError } from './error-reporting.js';
+import { recordDatabaseFailure } from './failure-signals.js';
 import { ReportExceptionsFilter } from './report-exceptions.filter.js';
 
 vi.mock('./error-reporting.js', () => ({ reportError: vi.fn() }));
+vi.mock('./failure-signals.js', () => ({ recordDatabaseFailure: vi.fn() }));
 
 describe('ReportExceptionsFilter', () => {
   const host = { switchToHttp: () => ({ getRequest: () => ({ id: 'request-1' }) }) } as unknown as ArgumentsHost;
@@ -41,6 +43,7 @@ describe('ReportExceptionsFilter', () => {
     new ReportExceptionsFilter().catch(failure, host);
 
     expect(reportError).toHaveBeenCalledWith(failure, 'request-1');
+    expect(recordDatabaseFailure).not.toHaveBeenCalled();
     expect(rendered).toHaveBeenCalledWith(expect.objectContaining({ status: 500 }), host);
     expect(Logger.prototype.error).toHaveBeenCalledWith({
       operation: 'request_failed',
@@ -50,13 +53,14 @@ describe('ReportExceptionsFilter', () => {
     });
   });
 
-  it('renders a database availability failure as a 503 without reporting it', () => {
+  it('renders a database availability failure as a 503, signalled in its group rather than reported alone', () => {
     const rendered = vi.spyOn(BaseExceptionFilter.prototype, 'catch').mockImplementation(() => undefined);
     const failure = new DrizzleQueryError('select 1', [], new Error('Query read timeout'));
 
     new ReportExceptionsFilter().catch(failure, host);
 
     expect(reportError).not.toHaveBeenCalled();
+    expect(recordDatabaseFailure).toHaveBeenCalledWith(failure);
     expect(rendered).toHaveBeenCalledWith(expect.objectContaining({ status: 503 }), host);
   });
 });

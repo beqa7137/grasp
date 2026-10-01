@@ -10,6 +10,7 @@ import {
   type FakeGatewayResponse,
 } from '../../test/support/fake-gateway.js';
 import { behavioralSession, STRONG_STAR } from '../../test/support/behavioral-session.js';
+import { recordFailure } from '../observability/failure-signals.js';
 import {
   BEHAVIORAL_REDIRECT,
   behavioralInterviewerPrompt,
@@ -31,6 +32,8 @@ import type { SpendGuard } from './spend-guard.js';
 import { scoringRequest } from './track-prompts.js';
 
 const SONNET = 'anthropic/claude-sonnet-5.5';
+
+vi.mock('../observability/failure-signals.js', () => ({ recordFailure: vi.fn() }));
 
 function session(track: InterviewTrack = 'coding', said: { content: string; hint?: boolean }[] = []): InterviewSession {
   const problem = PROBLEMS.find((p) => p.track === track)!;
@@ -403,6 +406,38 @@ describe('GatewayInterviewer while its credential never arrives', () => {
     );
     await expect(interviewer.reply(session(), () => {}, signal())).rejects.toBeInstanceOf(BadGatewayException);
     expect(spend.reserve).not.toHaveBeenCalled();
+  });
+});
+
+describe('GatewayInterviewer failure signals', () => {
+  const usage = { prompt_tokens: 3000, completion_tokens: 400 };
+  beforeEach(() => vi.mocked(recordFailure).mockClear());
+  const signalled = () => vi.mocked(recordFailure).mock.calls.map(([name]) => name);
+
+  it('signals nothing for a reply and a scorecard that succeed', async () => {
+    const { interviewer } = setup((_body, i) => (i === 0 ? streamed(['Okay.']) : { json: completion(validCard('coding'), usage) }));
+    await interviewer.reply(session(), () => {}, signal());
+    await interviewer.score(session());
+    expect(recordFailure).not.toHaveBeenCalled();
+  });
+
+  it('signals a refused key, a provider outage and a timeout where they fail', async () => {
+    await expect(
+      setup(() => ({ status: 401, body: { error: { type: 'authentication_error' } } })).interviewer.score(session()),
+    ).rejects.toThrow();
+    await expect(
+      setup(() => ({ status: 503, body: { error: { type: 'api_error' } } })).interviewer.reply(session(), () => {}, signal()),
+    ).rejects.toThrow();
+    await expect(
+      setup(
+        () => streamed(['Okay.']),
+        SONNET,
+        0,
+        { timeoutMs: 30 },
+        () => new Promise<string>(() => {}),
+      ).interviewer.reply(session(), () => {}, signal()),
+    ).rejects.toThrow();
+    expect(signalled()).toEqual(['ai.rejected', 'ai.unavailable', 'ai.timeout']);
   });
 });
 

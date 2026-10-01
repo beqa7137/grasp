@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { LearnerId, UserId } from '../common/learner-id.decorator.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { reportError } from '../observability/error-reporting.js';
+import { recordDatabaseFailure } from '../observability/failure-signals.js';
 import { safeErrorDetails } from '../observability/safe-error.js';
 import { databaseUnavailable, isDatabaseUnavailable } from '../persistence/database-errors.js';
 import { storySchema } from '../stories/stories.schema.js';
@@ -101,6 +102,7 @@ export class InterviewController {
       emit('done', { message });
     } catch (err) {
       if (abort.signal.aborted) return void res.end();
+      if (isDatabaseUnavailable(err)) recordDatabaseFailure(err);
       const failure = isDatabaseUnavailable(err) ? databaseUnavailable() : err;
       const status = failure instanceof HttpException ? failure.getStatus() : 502;
       const msg = failure instanceof HttpException ? failure.message : 'The interviewer is unavailable right now. Please try again.';

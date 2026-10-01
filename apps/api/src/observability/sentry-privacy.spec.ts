@@ -127,6 +127,35 @@ it('ignores request IDs from scope and rejects dynamic filenames, function names
   await client.close();
 });
 
+it('sends a failure signal as counts and fixed names only, grouped by a stable fingerprint', async () => {
+  const { privacy, client, bodies } = setup();
+  const scope = new Scope();
+  scope.setUser({ id: LEARNER_ID, email: `${PRIVATE}@example.com` });
+  scope.setExtra('answer', PRIVATE);
+  scope.setFingerprint([PRIVATE]);
+  const [event, hint] = privacy.signal({ signal: 'rate-limit.store', failures: 12, category: 'database', code: '57014' });
+  client.captureEvent(event, hint, scope);
+  await client.flush(2_000);
+
+  expect(bodies).toHaveLength(1);
+  expect(bodies[0]).not.toContain(PRIVATE);
+  expect(bodies[0]).not.toContain(LEARNER_ID);
+  const payload = JSON.parse(bodies[0]!.trim().split('\n')[2]!) as Event;
+  expect(payload).toEqual({
+    event_id: expect.stringMatching(/^[a-f0-9]{32}$/),
+    timestamp: expect.any(Number),
+    platform: 'node',
+    level: 'error',
+    environment: 'test',
+    release: 'abc1234',
+    message: 'Failure signal rate-limit.store',
+    fingerprint: ['failure-signal', 'rate-limit.store'],
+    tags: { signal: 'rate-limit.store', category: 'database', code: '57014' },
+    extra: { failures: 12 },
+  });
+  await client.close();
+});
+
 it.each([PRIVATE, 'malformed-request-id', '00000000-0000-0000-0000-000000000000'])('drops invalid correlation: %s', (requestId) => {
   const privacy = createSentryPrivacy(loadConfig({}), defaultStackParser);
   const [event] = privacy.capture(new Error(PRIVATE), requestId);
