@@ -125,7 +125,7 @@ function span(years: number): string {
     }
     .seg {
       flex-basis: 0;
-      min-width: 0;
+      min-width: min-content;
       display: grid;
       place-items: center;
       overflow: hidden;

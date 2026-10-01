@@ -1,7 +1,8 @@
-// Screenshots, axe and page errors for every state in states/.
+// Screenshots, axe, page errors and sideways overflow for every state in states/.
 // BASE=<url> THEME=dark|light OUT=<dir> [PROFILES=desktop,pixel7] [STABLE=1] [READONLY=1] node tools/verify/audit.mjs [state regex]
 import { writeFileSync } from 'node:fs';
 import { AxeBuilder, OUT, THEME, chromium, goto, newContext, readOnly } from './lib.mjs';
+import { findOverflow } from './overflow.mjs';
 import { states } from './states/index.mjs';
 
 const only = process.argv[2] ? new RegExp(process.argv[2]) : null;
@@ -26,20 +27,25 @@ for (const profile of profiles) {
       const blocking = violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
       await page.screenshot({ path: `${OUT}/${name}.png` });
       const overflowX = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      const { overflow, scrollers } = await page.evaluate(findOverflow);
       results.push({
         profile,
         state: state.id,
         note,
         errors,
         overflowX,
+        overflow,
+        scrollers,
         violations: blocking.map((v) => ({ id: v.id, impact: v.impact, targets: v.nodes.map((n) => n.target) })),
       });
-      if (blocking.length || errors.length || overflowX > 0) failing++;
+      if (blocking.length || errors.length || overflowX > 0 || overflow.length) failing++;
       console.log(
         name,
         blocking.map((v) => `${v.id}(${v.nodes.length})`).join(' ') || 'clean',
         errors.length ? `errors ${errors.length}` : '',
         overflowX > 0 ? `overflowX ${overflowX}` : '',
+        overflow.map((o) => `${o.kind} ${o.px}px ${o.selector}`).join('; '),
+        scrollers.length ? `scrollers ${scrollers.map((o) => o.selector).join(', ')}` : '',
         note ?? '',
       );
     } catch (e) {
