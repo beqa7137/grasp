@@ -1,7 +1,7 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { getCaseStudy } from '@grasp/engine';
+import { getCaseStudy, optionOrder } from '@grasp/engine';
 import { ProgressService } from '../../../core/progress.service';
 import { CaseDraftsService, readCaseDraft, type CaseDraft } from './case-drafts.service';
 import { CaseStudyPage } from './case-study.page';
@@ -19,6 +19,12 @@ const study = getCaseStudy('url-shortener')!;
 const KEY = 'CapacitorStorage.grasp.case.url-shortener';
 const stored = () => readCaseDraft(localStorage.getItem(KEY));
 const all = (i: number) => study.stages[i].points.length;
+const labels = (i: number) => study.stages[i].decision!.options.map((o) => o.label.replace(/`/g, ''));
+const shown = (stage: HTMLElement, selector: string) =>
+  [...stage.querySelectorAll<HTMLElement>(selector)].map((o) => o.querySelector('.label')?.textContent?.trim() ?? o.textContent!.trim());
+/** The button for the option authored at `index`, wherever the shuffle shows it. */
+const optionButton = (stage: HTMLElement, i: number, index: number) =>
+  [...stage.querySelectorAll<HTMLButtonElement>('fieldset button')].find((b) => b.textContent!.trim() === labels(i)[index])!;
 /** Every stage answered as recommended, with every point open, the last stage still ahead. */
 const answeredDraft = (): CaseDraft => ({
   attempt: 'attempt-1',
@@ -63,8 +69,7 @@ describe('CaseStudyPage answers', () => {
 
   it('saves each decision, estimate and opened point as the learner goes', async () => {
     const { page, stage, settle } = await open();
-    const options = stage(0).querySelectorAll<HTMLButtonElement>('fieldset button');
-    options[2].click();
+    optionButton(stage(0), 0, 2).click();
     await settle();
     expect(stored()?.stages[0]).toEqual({ chosen: 2 });
 
@@ -92,6 +97,28 @@ describe('CaseStudyPage answers', () => {
     expect(input.value).toBe('120k');
     expect(input.disabled).toBe(true);
     expect(stage(1).querySelector('.result')?.textContent).toContain('Spot on.');
+  });
+
+  it('shows each decision in an order shuffled per run and stage, the same after a reload', async () => {
+    const draft = answeredDraft();
+    const decided = study.stages.flatMap((s, i) => (s.decision ? [i] : []));
+    const order = (attempt: string, i: number) => optionOrder(`url-shortener:${attempt}:${i}`, labels(i).length).map((k) => labels(i)[k]);
+    const { stage } = await open(JSON.stringify({ ...draft, stages: [] }));
+    for (const i of decided) expect(shown(stage(i), 'fieldset button')).toEqual(order('attempt-1', i));
+    expect(new Set(decided.map((i) => order('attempt-1', i).indexOf(labels(i)[0]))).size).toBeGreaterThan(1);
+    expect(decided.some((i) => order('attempt-1', i).join() !== order('attempt-2', i).join())).toBe(true);
+
+    TestBed.resetTestingModule();
+    const reloaded = await open(JSON.stringify(draft));
+    for (const i of decided) expect(shown(reloaded.stage(i), 'li.option')).toEqual(order('attempt-1', i));
+  });
+
+  it('restores the option a draft saved before options were shuffled, which named it by its authored index', async () => {
+    const { stage } = await open('{"attempt":"a-1","reached":0,"stages":[{"chosen":1}]}');
+    expect(stage(0).querySelector('li.option.wrong .label')?.textContent?.trim()).toBe(labels(0)[1]);
+    expect(stage(0).querySelector('li.option.right .label')?.textContent?.trim()).toBe(labels(0)[0]);
+    expect(stage(0).querySelector('li.option.wrong ion-icon')?.getAttribute('aria-label')).toBe('your answer, wrong');
+    expect(stored()?.stages[0]).toEqual({ chosen: 1 });
   });
 
   it('reads the furthest stage a case saved before answers were saved, and ignores unreadable drafts', async () => {
@@ -163,7 +190,7 @@ describe('CaseStudyPage answers', () => {
     await settle();
     expect(record).not.toHaveBeenCalled();
 
-    stage(0).querySelectorAll<HTMLButtonElement>('fieldset button')[0].click();
+    optionButton(stage(0), 0, 0).click();
     await settle();
     expect(stored()?.stages[0]).toEqual({ chosen: 0, revealed: all(0) });
     expect(record).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ bestChoices: 3, decisions: 3 }));

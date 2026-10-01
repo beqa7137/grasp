@@ -29,6 +29,7 @@ export * from './estimate.js';
 export * from './flags/index.js';
 export * from './labs.js';
 export * from './ledger/index.js';
+export * from './option-order.js';
 export * from './outcome.js';
 export * from './widget-checkpoint.js';
 

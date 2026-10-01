@@ -203,6 +203,7 @@ describe('a feature flag stage with a widget', () => {
     const fixture = TestBed.createComponent(CaseStageComponent);
     fixture.componentRef.setInput('stage', stage);
     fixture.componentRef.setInput('caseId', 'feature-flags');
+    fixture.componentRef.setInput('orderSeed', 'feature-flags:attempt-1:0');
     fixture.detectChanges();
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('app-bucketing-widget')).toBeNull();

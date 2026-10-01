@@ -148,6 +148,7 @@ describe('a case stage with a widget', () => {
     const fixture = TestBed.createComponent(CaseStageComponent);
     fixture.componentRef.setInput('stage', stage);
     fixture.componentRef.setInput('caseId', 'payment-ledger');
+    fixture.componentRef.setInput('orderSeed', 'payment-ledger:attempt-1:0');
     fixture.detectChanges();
     const el = fixture.nativeElement as HTMLElement;
     fixture.componentInstance.check('lots');
@@ -165,6 +166,7 @@ describe('a case stage with a widget', () => {
     const fixture = TestBed.createComponent(CaseStageComponent);
     fixture.componentRef.setInput('stage', stage);
     fixture.componentRef.setInput('caseId', 'payment-ledger');
+    fixture.componentRef.setInput('orderSeed', 'payment-ledger:attempt-1:0');
     fixture.detectChanges();
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('app-retry-widget')).toBeNull();
