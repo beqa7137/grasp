@@ -477,8 +477,8 @@ describe('study plan mock loop', () => {
     ]);
     const order = p.days.flatMap((d) => d.slices.filter((s) => s.unit.kind === 'mock').map((s) => s.unit.id));
     expect([...new Set(order)]).toEqual(['mock:coding', 'mock:design', 'mock:behavioral']);
-    const lastOther = Math.max(...p.days.flatMap((d, i) => (d.slices.some((s) => s.unit.kind !== 'mock') ? [i] : [])));
-    expect(Math.min(...mockDays(p))).toBeGreaterThanOrEqual(lastOther);
+    expect(Math.min(...mockDays(p))).toBeGreaterThanOrEqual(p.days.length - 5);
+    expect(p.days.at(-2)!.slices.at(-1)!.unit.id).toBe('mock:behavioral');
     expect(Math.max(...mockDays(p))).toBe(p.days.length - 2);
     expect(p.days.at(-1)!.slices).toEqual([]);
   });
@@ -508,6 +508,29 @@ describe('study plan mock loop', () => {
     expect(old.units.filter((u) => u.kind === 'mock')).toHaveLength(3);
     const partial = plan({}, replay([loopDone(now.getTime() - DAY, ['coding'])]));
     expect(partial.units.filter((u) => u.kind === 'mock').map((u) => u.id)).toEqual(['mock:design', 'mock:behavioral']);
+  });
+
+  it('a loop finished recently does not cover the plan when its rounds were scored weeks before', () => {
+    const stale = loopDone(now.getTime() - DAY);
+    if (stale.type !== 'mock.completed') throw new Error('not a loop');
+    stale.rounds[0].at = at(now.getTime() - 20 * DAY);
+    expect(plan({}, replay([stale])).units.filter((u) => u.kind === 'mock')).toHaveLength(3);
+  });
+
+  it('keeps each mock round whole from its head, and leaves out a round that cannot fit whole', () => {
+    const p = plan({ minutesPerDay: 15, interviewDate: '2026-10-03' });
+    const mock = p.days.flatMap((d) => d.slices.filter((s) => s.unit.kind === 'mock'));
+    expect(mock.map((s) => [s.unit.id, s.minutes, s.part, s.parts])).toEqual([['mock:behavioral', 20, 1, 1]]);
+    expect(p.unscheduled.filter((u) => u.kind === 'mock').map((u) => u.id)).toEqual(['mock:coding', 'mock:design']);
+    for (const minutesPerDay of PLAN_MINUTES) {
+      for (const interviewDate of ['2026-10-04', '2026-10-08', '2026-10-15']) {
+        const q = plan({ minutesPerDay, interviewDate });
+        for (const unit of q.units.filter((u) => u.kind === 'mock')) {
+          const placed = q.days.flatMap((d) => d.slices.filter((s) => s.unit === unit)).reduce((t, s) => t + s.minutes, 0);
+          expect([0, unit.minutes], `${unit.id} at ${minutesPerDay} min to ${interviewDate}`).toContain(placed);
+        }
+      }
+    }
   });
 
   it('ticks a round scored today in a loop finished today on today’s list', () => {

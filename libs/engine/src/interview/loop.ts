@@ -29,15 +29,22 @@ export interface LoopPick {
   reason: LoopPickReason;
 }
 
+/** Whether an interview has flagged a pattern not yet re-solved, or a competency, so the loop has something to aim at. */
+export function hasInterviewFlags(state: ProgressState): boolean {
+  return Object.values(state.weakPatterns).some((w) => !w.resolvedAt) || Object.values(state.behavioral).some((c) => Boolean(c.weakSince));
+}
+
 /**
- * One round per track, in loop order. Coding prefers a problem on a pattern an interview flagged and not yet re-solved;
- * behavioral a flagged competency, then one never asked; design has no flags, so any problem.
+ * One round per track, in loop order. Coding prefers a problem the learner has not had, on a pattern an interview
+ * flagged and not yet re-solved, then any problem not had, then a flagged one; design a problem not had; behavioral a
+ * flagged competency, then one never asked. `seen` holds the problem ids of the learner's earlier interviews.
  */
 export function pickLoop(
   problems: readonly LoopProblem[],
   state: ProgressState,
   rand: Rand,
   rounds: readonly PlanRound[] = PLAN_ROUNDS,
+  seen: ReadonlySet<string> = new Set(),
 ): LoopPick[] {
   const picks: LoopPick[] = [];
   for (const round of PLAN_ROUNDS.filter((r) => rounds.includes(r))) {
@@ -49,7 +56,15 @@ export function pickLoop(
     const pool = problems.filter((p) => p.track === track);
     if (!pool.length) continue;
     const flagged = pool.filter((p) => p.patternIds.some((id) => state.weakPatterns[id] && !state.weakPatterns[id].resolvedAt));
-    picks.push({ track, problemId: pick(rand, flagged.length ? flagged : pool).id, reason: flagged.length ? 'flagged' : 'any' });
+    const fresh = (list: LoopProblem[]) => list.filter((p) => !seen.has(p.id));
+    const [chosen, reason]: [LoopProblem[], LoopPickReason] = fresh(flagged).length
+      ? [fresh(flagged), 'flagged']
+      : fresh(pool).length
+        ? [fresh(pool), 'any']
+        : flagged.length
+          ? [flagged, 'flagged']
+          : [pool, 'any'];
+    picks.push({ track, problemId: pick(rand, chosen).id, reason });
   }
   return picks;
 }

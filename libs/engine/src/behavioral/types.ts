@@ -34,6 +34,12 @@ export interface ExampleAnswer {
 /** The career stage an answer speaks from, since the bar for scope and impact rises with it. */
 export type Seniority = 'early' | 'mid' | 'senior';
 
+export const SENIORITY_LEVELS: readonly { level: Seniority; label: string }[] = [
+  { level: 'early', label: 'Early career' },
+  { level: 'mid', label: 'Mid-level' },
+  { level: 'senior', label: 'Senior' },
+];
+
 export interface StrongExample extends ExampleAnswer {
   level: Seniority;
   /** Why each part works, in one or two sentences. */

@@ -36,6 +36,20 @@ describe('mock loop debrief', () => {
     expect(debriefLoop(loop('hire', 'lean-no-hire', 'hire'))).toMatchObject({ verdict: 'lean-hire', heldBy: null });
   });
 
+  it('names a no-hire round as the first thing to fix when the read itself is not no hire', () => {
+    expect(debriefLoop(loop('strong-hire', 'strong-hire', 'no-hire')).noHire).toBe('behavioral');
+    expect(debriefLoop(loop('no-hire', 'no-hire', 'no-hire')).noHire).toBeNull();
+    expect(debriefLoop(loop('hire', 'lean-no-hire', 'hire')).noHire).toBeNull();
+  });
+
+  it('does not ask to work on what scripted practice already scored as high as it can', () => {
+    const scripted = [
+      card('coding', 'hire', [3, 3, 3, 3, 3], { mode: 'offline' }),
+      card('behavioral', 'lean-hire', [3, 2, 3, 3, 3], { mode: 'offline' }),
+    ];
+    expect(debriefLoop(scripted).focus.map((f) => [f.track, f.dimension])).toEqual([['behavioral', 'Ownership & specificity']]);
+  });
+
   it('counts the rounds scripted practice scored', () => {
     const rounds = loop('hire', 'hire', 'hire');
     expect(debriefLoop(rounds).scripted).toBe(0);
@@ -74,7 +88,12 @@ describe('mock loop debrief', () => {
   });
 
   it('links each item to where to practise it', () => {
-    const coding = card('coding', 'lean-no-hire', [1, 4, 4, 4, 4], { weakPatterns: ['binary-search'] });
+    const understanding = card('coding', 'lean-no-hire', [1, 4, 4, 4, 2], { weakPatterns: ['binary-search'] });
+    expect(debriefLoop([understanding]).focus.map((f) => f.target)).toEqual([
+      { kind: 'round', sessionId: 'session-coding' },
+      { kind: 'round', sessionId: 'session-coding' },
+    ]);
+    const coding = card('coding', 'lean-no-hire', [4, 1, 4, 4, 4], { weakPatterns: ['binary-search'] });
     expect(debriefLoop([coding]).focus[0].target).toEqual({ kind: 'pattern', patternId: 'binary-search' });
     expect(debriefLoop([{ ...coding, weakPatterns: [] }]).focus[0].target).toEqual({ kind: 'pattern', patternId: 'monotonic-stack' });
     expect(debriefLoop([{ ...coding, weakPatterns: [], patternIds: [] }]).focus[0].target).toEqual({
@@ -86,7 +105,8 @@ describe('mock loop debrief', () => {
     expect(debriefLoop([estimation]).focus[0].target).toEqual({ kind: 'design-topic', topicId: 'sd-estimation' });
     const scope = card('system-design', 'lean-hire', [2, 4, 4, 4, 4]);
     expect(debriefLoop([scope]).focus[0].target).toEqual({ kind: 'case', caseId: 'url-shortener' });
-    expect(debriefLoop([{ ...scope, problemId: 'chat-service' }]).focus[0].target).toEqual({
+    expect(debriefLoop([{ ...scope, problemId: 'chat-service' }]).focus[0].target).toEqual({ kind: 'case', caseId: 'chat' });
+    expect(debriefLoop([{ ...scope, problemId: 'unknown-system' }]).focus[0].target).toEqual({
       kind: 'round',
       sessionId: 'session-system-design',
     });

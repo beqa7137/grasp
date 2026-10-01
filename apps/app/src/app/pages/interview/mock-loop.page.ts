@@ -1,18 +1,22 @@
-import { ChangeDetectionStrategy, Component, ElementRef, Injector, computed, inject, signal, viewChild } from '@angular/core';
-import { DatePipe } from '@angular/common';
+import { formatDate } from '@angular/common';
+import { ChangeDetectionStrategy, Component, ElementRef, Injector, LOCALE_ID, computed, inject, signal, viewChild } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonSpinner, IonTitle, IonToolbar } from '@ionic/angular';
 import {
   LOOP_ROUND_MINUTES,
   PLAN_ROUNDS,
   PLAN_ROUND_TRACK,
+  SENIORITY_LEVELS,
   TRACK_NAMES,
   debriefLoop,
   getCompetencySummary,
+  hasInterviewFlags,
   newSeed,
   pickLoop,
   seeded,
+  type InterviewTrack,
   type LoopPick,
+  type Seniority,
 } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import { checkmarkCircle, ellipseOutline, playCircleOutline, sparkles } from 'ionicons/icons';
@@ -20,10 +24,11 @@ import { AnnouncerService } from '../../core/announcer.service';
 import { ApiError, ApiService } from '../../core/api.service';
 import { refocusAfterRender } from '../../core/focus';
 import { ProgressService } from '../../core/progress.service';
+import { RovingSelectDirective } from '../../core/roving-select.directive';
 import { SignInOptionsComponent } from '../../core/sign-in-options.component';
 import type { AiAccess, InterviewCatalog, InterviewMode, InterviewSession } from './interview.types';
 import { LoopDebriefComponent } from './loop-debrief.component';
-import { MockLoopService, type MockLoop } from './mock-loop.service';
+import { MockLoopService, loopCard } from './mock-loop.service';
 import { needsSignIn } from './start-interview';
 
 const REASONS: Record<string, string> = {
@@ -31,13 +36,21 @@ const REASONS: Record<string, string> = {
   'behavioral:flagged': 'A competency an interview flagged.',
   'behavioral:new': 'A competency no interview has asked about yet.',
 };
+/** A round scored this recently is the one just finished, so the page suggests a break rather than welcoming back. */
+const BREAK_WINDOW_MS = 30 * 60_000;
+const ROUND_DETAIL: Record<InterviewTrack, string> = {
+  coding: `about ${LOOP_ROUND_MINUTES.coding} min`,
+  'system-design': `about ${LOOP_ROUND_MINUTES['system-design']} min`,
+  behavioral: `about ${LOOP_ROUND_MINUTES.behavioral} min, one question with follow-ups`,
+};
+
+type Stage = 'loading' | 'setup' | 'running' | 'debrief';
 
 @Component({
   selector: 'app-mock-loop',
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [AnnouncerService],
   imports: [
-    DatePipe,
     RouterLink,
     IonHeader,
     IonToolbar,
@@ -47,6 +60,7 @@ const REASONS: Record<string, string> = {
     IonContent,
     IonIcon,
     IonSpinner,
+    RovingSelectDirective,
     SignInOptionsComponent,
     LoopDebriefComponent,
   ],
@@ -60,32 +74,61 @@ const REASONS: Record<string, string> = {
     <ion-content [fullscreen]="true">
       <div class="page narrow">
         <p class="visually-hidden" role="status">{{ announcer.message() }}</p>
+        <p class="eyebrow">{{ eyebrow() }}</p>
+        <h1 #heading tabindex="-1">{{ title() }}</h1>
+        @if (error(); as e) {
+          <p class="error" role="alert">{{ e }}</p>
+          @if (stage() === 'loading') {
+            <button type="button" class="g-btn" (click)="reload()">Try again</button>
+          }
+        }
+        @if (missingNote(); as note) {
+          <p class="muted">{{ note }}</p>
+        }
         @switch (stage()) {
           @case ('loading') {
-            <h1 #heading tabindex="-1">Mock loop</h1>
             @if (!error()) {
               <ion-spinner name="crescent" />
             }
           }
           @case ('setup') {
-            <p class="eyebrow">Mock loop</p>
-            <h1 #heading tabindex="-1">A full interview loop</h1>
             <p class="lead">
-              {{ setupTracks().length === 1 ? 'One round' : setupTracks().length + ' rounds' }} back to back, then one debrief across them,
-              read the way a hiring committee reads a loop. Questions lean toward what your interviews have flagged.
+              {{ setupTracks().length === 1 ? 'One round' : setupTracks().length + ' rounds' }} back to back, then one debrief across them:
+              a practice read of the whole loop, not a hiring prediction. Real onsites often have more and longer rounds; this runs one of
+              each.
+              @if (flagged()) {
+                Questions lean toward what your interviews have flagged.
+              }
             </p>
             <ol class="plan">
               @for (t of setupTracks(); track t) {
                 <li>
                   <strong>{{ names[t] }}</strong
-                  ><span class="muted"> · about {{ minutes[t] }} min</span>
+                  ><span class="muted"> · {{ details[t] }}</span>
                 </li>
               }
             </ol>
             @if (planRounds()) {
-              <p class="muted">The rounds of your study plan.</p>
+              <p class="muted">These are the rounds in your study plan. <a routerLink="/plan">Change them on the plan page</a>.</p>
             }
             <p class="muted">Take a short break between rounds if you like. You can stop after any round and pick up from here later.</p>
+            @if (setupTracks().includes('behavioral')) {
+              <p class="muted label" id="level-label">Behavioral round, scored at the bar for</p>
+              <div class="mode-options" role="radiogroup" aria-labelledby="level-label">
+                @for (l of levels; track l.level) {
+                  <button
+                    type="button"
+                    class="g-btn"
+                    role="radio"
+                    [attr.aria-checked]="level() === l.level"
+                    [class.primary]="level() === l.level"
+                    (click)="level.set(l.level)"
+                  >
+                    {{ l.label }}
+                  </button>
+                }
+              </div>
+            }
             <div class="mode-options" role="group" aria-label="Interviewer">
               <button class="g-btn" [attr.aria-pressed]="mode() === 'offline'" [disabled]="pending()" (click)="chooseMode('offline')">
                 Scripted practice
@@ -101,20 +144,20 @@ const REASONS: Record<string, string> = {
             </div>
             @if (mode() === 'ai') {
               <p class="muted note">
-                An AI loop is {{ setupTracks().length === 1 ? 'one AI interview' : setupTracks().length + ' AI interviews in a row' }}:
-                every reply and each round's scorecard count toward your hourly AI interview limit, as separate interviews would. Your
-                replies, shared code and answers, including any story you start from, are sent to the AI service. The debrief itself makes
-                no AI call.
+                An AI loop is {{ setupTracks().length === 1 ? 'one AI interview' : setupTracks().length + ' AI interviews in a row' }}. It
+                costs you nothing, but each reply and each scorecard uses your hourly AI allowance, the same one single interviews use. If
+                you reach it mid-round, wait until the next hour and carry on; nothing is lost. Your replies, shared code and answers,
+                including any story you start from, are sent to the AI service. The debrief itself makes no AI call.
               </p>
             } @else {
               <p class="muted note">Guided prompts and a practice estimate for each round. No AI or sign-in needed.</p>
             }
             @if (aiAccess() === 'unavailable') {
-              <p class="muted">AI interviews aren't available on this server. You can use scripted practice.</p>
+              <p class="muted">AI is unavailable right now. Scripted practice is still available.</p>
             }
             @if (signInOpen()) {
-              <section class="panel sign-in-panel" aria-label="Sign in for AI interviews">
-                <h2>Sign in for AI interviews</h2>
+              <section class="panel sign-in-panel" aria-labelledby="sign-in-title">
+                <h2 id="sign-in-title">Sign in for AI interviews</h2>
                 <p class="muted">Your study progress stays with you. After signing in, choose AI when you're ready.</p>
                 <app-sign-in-options cancelLabel="Keep practicing without AI" (cancelled)="signInOpen.set(false)" (signedIn)="signedIn()" />
               </section>
@@ -127,11 +170,7 @@ const REASONS: Record<string, string> = {
             </button>
           }
           @case ('running') {
-            <p class="eyebrow">Mock loop · {{ loop()!.mode === 'ai' ? 'AI interviewer' : 'Scripted practice' }}</p>
-            <h1 #heading tabindex="-1">Round {{ next() + 1 }} of {{ rounds().length }}</h1>
-            @if (next() > 0) {
-              <p class="lead">Round done. Take five minutes away from the screen if you can, as you would between rounds.</p>
-            }
+            <p class="lead">{{ breakNote() }}</p>
             <ol class="rounds">
               @for (r of rounds(); track r.track; let i = $index) {
                 <li class="panel round" [class.current]="i === next()">
@@ -160,35 +199,36 @@ const REASONS: Record<string, string> = {
                 </li>
               }
             </ol>
-            @if (loop()!.mode === 'ai' && aiRefused()) {
+            @if (signInAgain()) {
+              <section class="panel sign-in-panel" aria-labelledby="sign-in-again-title">
+                <h2 id="sign-in-again-title">Sign in again to keep your AI loop</h2>
+                <app-sign-in-options
+                  cancelLabel="Switch the remaining rounds to scripted practice"
+                  (cancelled)="useScripted()"
+                  (signedIn)="signedInAgain()"
+                />
+              </section>
+            } @else if (aiRefused()) {
               <button type="button" class="g-btn" [disabled]="pending()" (click)="useScripted()">
-                Run the remaining rounds as scripted practice
+                Switch the remaining rounds to scripted practice
               </button>
             }
             <div class="end">
               @if (confirmingEnd()) {
-                <p id="end-note">End this loop? Rounds you finished keep their scorecards, but there is no debrief.</p>
-                <button type="button" class="g-btn" aria-describedby="end-note" (click)="endLoop()">End the loop</button>
-                <button type="button" class="g-btn ghost" (click)="confirmingEnd.set(false)">Keep going</button>
+                <p id="end-note">End this loop? Rounds you finished keep their scorecards, but this loop gets no debrief.</p>
+                <button #confirmEnd type="button" class="g-btn" aria-describedby="end-note" (click)="endLoop()">Yes, end it</button>
+                <button type="button" class="g-btn ghost" (click)="keepGoing()">Keep going</button>
               } @else {
-                <button type="button" class="g-btn ghost" [disabled]="pending()" (click)="confirmingEnd.set(true)">End this loop</button>
+                <button #endButton type="button" class="g-btn ghost" [disabled]="pending()" (click)="askToEnd()">End this loop</button>
               }
             </div>
           }
           @case ('debrief') {
-            <p class="eyebrow">Mock loop · finished {{ loop()!.completedAt | date: 'MMM d, h:mm a' }}</p>
-            <h1 #heading tabindex="-1">Loop debrief</h1>
             <app-loop-debrief [debrief]="debrief()!" [sessions]="scoredSessions()" />
             <button type="button" class="g-btn primary again" (click)="newLoop()">Start a new loop</button>
           }
         }
-        @if (error(); as e) {
-          <p class="error" role="alert">{{ e }}</p>
-          @if (stage() === 'loading') {
-            <button type="button" class="g-btn" (click)="reload()">Try again</button>
-          }
-        }
-        <p class="muted footnote"><a routerLink="/interview">Single interviews</a> are still on the interview page.</p>
+        <p class="muted footnote">Want just one round? <a routerLink="/interview">Start a single interview on the interview page</a>.</p>
       </div>
     </ion-content>
   `,
@@ -211,11 +251,14 @@ const REASONS: Record<string, string> = {
     p.muted {
       line-height: 1.5;
     }
+    .label {
+      margin: 16px 0 0;
+    }
     .mode-options {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
-      margin-top: 16px;
+      margin-top: 12px;
     }
     .mode-options [aria-pressed='true'] {
       border-color: var(--g-accent);
@@ -298,24 +341,35 @@ export class MockLoopPage {
   private readonly progress = inject(ProgressService);
   private readonly loops = inject(MockLoopService);
   private readonly injector = inject(Injector);
+  private readonly locale = inject(LOCALE_ID);
   private readonly heading = viewChild<ElementRef<HTMLElement>>('heading');
+  private readonly endButton = viewChild<ElementRef<HTMLElement>>('endButton');
+  private readonly confirmEnd = viewChild<ElementRef<HTMLElement>>('confirmEnd');
   readonly announcer = inject(AnnouncerService);
   readonly names = TRACK_NAMES;
-  readonly minutes = LOOP_ROUND_MINUTES;
+  readonly details = ROUND_DETAIL;
+  readonly levels = SENIORITY_LEVELS;
 
   readonly loop = this.loops.loop;
   readonly catalog = signal<InterviewCatalog | null>(null);
   readonly sessions = signal<Record<string, InterviewSession>>({});
+  /** Problems the learner has had in recent interviews, which the loop avoids repeating. */
+  private readonly seen = signal<ReadonlySet<string>>(new Set());
   readonly loaded = signal(false);
   readonly choosing = signal(false);
   readonly mode = signal<InterviewMode>('offline');
+  readonly level = signal<Seniority>('mid');
   readonly starting = signal(false);
   readonly signInOpen = signal(false);
+  readonly signInAgain = signal(false);
   readonly confirmingEnd = signal(false);
   readonly aiRefused = signal(false);
   readonly error = signal<string | null>(null);
-  readonly pending = computed(() => this.starting() || this.signInOpen());
+  readonly missingNote = signal<string | null>(null);
+  readonly pending = computed(() => this.starting() || this.signInOpen() || this.signInAgain());
   readonly aiAccess = computed<AiAccess | null>(() => this.catalog()?.aiAccess ?? null);
+  readonly flagged = computed(() => hasInterviewFlags(this.progress.state()));
+  private loading: Promise<void> | null = null;
 
   readonly planRounds = computed(() => this.progress.state().plan?.rounds ?? null);
   readonly setupTracks = computed(() => (this.planRounds() ?? PLAN_ROUNDS).map((r) => PLAN_ROUND_TRACK[r]));
@@ -324,26 +378,41 @@ export class MockLoopPage {
   );
   readonly next = computed(() => this.rounds().findIndex((r) => !r.session?.scorecard));
   readonly scoredSessions = computed(() => this.rounds().flatMap((r) => (r.session?.scorecard ? [r.session] : [])));
-  readonly stage = computed(() => {
+  readonly stage = computed<Stage>(() => {
     if (!this.loaded()) return 'loading';
-    if (!this.loop() || this.choosing()) return 'setup';
+    if (!this.loop()?.rounds.length || this.choosing()) return 'setup';
     return this.next() < 0 ? 'debrief' : 'running';
   });
-  readonly debrief = computed(() => {
-    if (this.stage() !== 'debrief') return null;
-    return debriefLoop(
-      this.scoredSessions().map((s) => ({
-        track: s.track,
-        sessionId: s.id,
-        problemId: s.problem.id,
-        patternIds: s.problem.patternIds,
-        competencyId: s.problem.competencyId,
-        mode: s.scorecard!.mode,
-        verdict: s.scorecard!.verdict,
-        dimensions: s.scorecard!.dimensions,
-        weakPatterns: s.scorecard!.weakPatterns,
-      })),
-    );
+  readonly debrief = computed(() => (this.stage() === 'debrief' ? debriefLoop(this.scoredSessions().map(loopCard)) : null));
+  readonly title = computed(() => {
+    switch (this.stage()) {
+      case 'setup':
+        return 'A mock interview loop';
+      case 'running':
+        return `Round ${this.next() + 1} of ${this.rounds().length}`;
+      case 'debrief':
+        return 'Loop debrief';
+      default:
+        return 'Mock loop';
+    }
+  });
+  readonly eyebrow = computed(() => {
+    const loop = this.loop();
+    if (!loop) return 'Mock loop';
+    const date = (at: string) => formatDate(at, 'MMM d, h:mm a', this.locale);
+    if (this.stage() === 'running') {
+      return `Mock loop · ${loop.mode === 'ai' ? 'AI interviewer' : 'Scripted practice'} · started ${date(loop.createdAt)}`;
+    }
+    return this.stage() === 'debrief' && loop.completedAt ? `Mock loop · finished ${date(loop.completedAt)}` : 'Mock loop';
+  });
+  readonly breakNote = computed(() => {
+    const index = this.next();
+    const previous = this.rounds()[index - 1]?.session?.scoredAt;
+    if (previous && Date.now() - Date.parse(previous) < BREAK_WINDOW_MS) {
+      return 'Round done. Take five minutes away from the screen if you can, as you would between rounds.';
+    }
+    const track = this.rounds()[index]?.track;
+    return index > 0 && track ? `Welcome back. Your ${this.names[track].toLowerCase()} round is next.` : '';
   });
 
   constructor() {
@@ -351,57 +420,37 @@ export class MockLoopPage {
   }
 
   ionViewWillEnter() {
-    return this.reload();
+    this.loading = this.reload();
+    return this.loading;
+  }
+
+  async ionViewDidEnter() {
+    await this.loading;
+    this.focusHeading();
+    const round = this.rounds()[this.next()];
+    if (this.stage() === 'running' && round) {
+      this.announcer.announce(`Round ${this.next() + 1} of ${this.rounds().length}: ${this.names[round.track]}`);
+    }
   }
 
   async reload() {
     this.error.set(null);
     try {
-      const [catalog, loop] = await Promise.all([this.api.get<InterviewCatalog>('/interview/problems'), this.loops.load()]);
+      const [catalog, recent, snapshot] = await Promise.all([
+        this.api.get<InterviewCatalog>('/interview/problems'),
+        this.api.get<InterviewSession[]>('/interview/sessions'),
+        this.loops.refresh(),
+      ]);
       this.catalog.set(catalog);
-      if (loop) await this.loadSessions(loop);
+      this.seen.set(new Set(recent.map((s) => s.problem.id)));
+      this.sessions.set(snapshot.sessions);
       this.loaded.set(true);
-      await this.recordCompletion();
+      const gone = snapshot.missing.map((t) => `We couldn't find your ${this.names[t].toLowerCase()} round, so it starts again.`).join(' ');
+      this.missingNote.set(gone || null);
+      if (gone) this.announcer.announce(gone);
     } catch (e) {
       this.error.set(e instanceof ApiError ? e.message : 'Could not load the mock loop. Check your connection and try again.');
     }
-  }
-
-  /** A round whose session is gone (erased, or another learner's) starts again rather than blocking the loop. */
-  private async loadSessions(loop: MockLoop) {
-    const ids = loop.rounds.flatMap((r) => (r.sessionId ? [r.sessionId] : []));
-    const found = await Promise.all(
-      ids.map((id) =>
-        this.api.get<InterviewSession>(`/interview/sessions/${id}`).catch((e: unknown) => {
-          if (e instanceof ApiError && e.status === 404) return null;
-          throw e;
-        }),
-      ),
-    );
-    this.sessions.set(Object.fromEntries(found.flatMap((s) => (s ? [[s.id, s]] : []))));
-    if (found.includes(null)) {
-      await this.loops.update((l) => ({
-        ...l,
-        rounds: l.rounds.map((r) => (r.sessionId && !this.sessions()[r.sessionId] ? { ...r, sessionId: null } : r)),
-      }));
-    }
-  }
-
-  private async recordCompletion() {
-    const loop = this.loop();
-    const debrief = this.debrief();
-    if (!loop || !debrief || loop.completedAt) return;
-    const at = new Date().toISOString();
-    await this.loops.update((l) => ({ ...l, completedAt: at }));
-    await this.progress.record({
-      id: `mock-${loop.id}`,
-      at,
-      type: 'mock.completed',
-      loopId: loop.id,
-      verdict: debrief.verdict,
-      rounds: this.scoredSessions().map((s) => ({ track: s.track, sessionId: s.id, verdict: s.scorecard!.verdict, at: s.scoredAt! })),
-    });
-    this.announcer.announce('Every round is scored. Your loop debrief is ready.');
   }
 
   chooseMode(mode: InterviewMode) {
@@ -420,56 +469,103 @@ export class MockLoopPage {
     if (this.aiAccess() === 'available') this.mode.set('ai');
   }
 
+  async signedInAgain() {
+    this.signInAgain.set(false);
+    this.aiRefused.set(false);
+    this.error.set(null);
+    await this.reload();
+    this.focusHeading();
+  }
+
   async begin() {
     const catalog = this.catalog();
     if (!catalog || this.pending()) return;
-    const picks: LoopPick[] = pickLoop(catalog.problems, this.progress.state(), seeded(newSeed()), this.planRounds() ?? PLAN_ROUNDS);
-    await this.loops.start(this.mode(), picks);
-    this.sessions.set({});
-    this.choosing.set(false);
-    this.aiRefused.set(false);
-    await this.startRound(0);
+    this.starting.set(true);
+    this.error.set(null);
+    try {
+      const picks: LoopPick[] = pickLoop(
+        catalog.problems,
+        this.progress.state(),
+        seeded(newSeed()),
+        this.planRounds() ?? PLAN_ROUNDS,
+        this.seen(),
+      );
+      if (!picks.length) {
+        this.error.set('No interview questions are available for these rounds right now. Please try again later.');
+        return;
+      }
+      await this.loops.start(this.mode(), this.level(), picks);
+      this.sessions.set({});
+      this.missingNote.set(null);
+      this.choosing.set(false);
+      this.aiRefused.set(false);
+      await this.openRound(0);
+    } finally {
+      this.starting.set(false);
+    }
   }
 
   async startRound(index: number) {
+    if (this.pending()) return;
+    this.starting.set(true);
+    try {
+      await this.openRound(index);
+    } finally {
+      this.starting.set(false);
+    }
+  }
+
+  private async openRound(index: number) {
     const loop = this.loop();
     const round = loop?.rounds[index];
-    if (!loop || !round || this.pending()) return;
+    if (!loop || !round) return;
     if (round.sessionId) {
       await this.router.navigate(['/interview', round.sessionId]);
       return;
     }
-    this.starting.set(true);
     this.error.set(null);
     try {
       const session = await this.api.post<InterviewSession>('/interview/sessions', {
         track: round.track,
         problemId: round.problemId,
         mode: loop.mode,
+        ...(round.track === 'behavioral' ? { level: loop.level } : {}),
       });
       this.sessions.update((all) => ({ ...all, [session.id]: session }));
       await this.loops.update((l) => ({ ...l, rounds: l.rounds.map((r, i) => (i === index ? { ...r, sessionId: session.id } : r)) }));
       await this.router.navigate(['/interview', session.id]);
     } catch (e) {
       this.error.set(e instanceof ApiError ? e.message : 'Could not start the round. Please try again.');
-      this.aiRefused.set(needsSignIn(e) || (e instanceof ApiError && e.code === 'ai_unavailable'));
+      this.signInAgain.set(needsSignIn(e));
+      this.aiRefused.set(e instanceof ApiError && e.code === 'ai_unavailable');
       this.focusHeading();
-    } finally {
-      this.starting.set(false);
     }
   }
 
   async useScripted() {
     await this.loops.update((l) => ({ ...l, mode: 'offline' }));
+    this.signInAgain.set(false);
     this.aiRefused.set(false);
     this.error.set(null);
     this.announcer.announce('The remaining rounds use scripted practice.');
+    this.focusHeading();
+  }
+
+  askToEnd() {
+    this.confirmingEnd.set(true);
+    refocusAfterRender(this.injector, () => this.confirmEnd()?.nativeElement, document.body);
+  }
+
+  keepGoing() {
+    this.confirmingEnd.set(false);
+    refocusAfterRender(this.injector, () => this.endButton()?.nativeElement, document.body);
   }
 
   async endLoop() {
     this.confirmingEnd.set(false);
     await this.loops.discard();
     this.sessions.set({});
+    this.missingNote.set(null);
     this.announcer.announce('Loop ended.');
     this.focusHeading();
   }
@@ -483,7 +579,7 @@ export class MockLoopPage {
     const card = round.session?.scorecard;
     if (card) return `Scored: ${card.verdict.replace(/-/g, ' ')}`;
     if (round.sessionId) return 'In progress';
-    return index === this.next() ? `Up next, about ${this.minutes[this.rounds()[index].track]} min` : 'Later';
+    return index === this.next() ? `Up next, ${this.details[this.rounds()[index].track]}` : 'Later';
   }
 
   reason(pick: LoopPick) {

@@ -16,19 +16,24 @@ const verdictLabel = (verdict: string) => verdict.replace(/-/g, ' ');
 /** Where a thing to work on is practised, and what the link says. */
 function practice(target: FocusTarget): { link: string[]; label: string } {
   switch (target.kind) {
-    case 'pattern':
-      return { link: ['/learn/pattern', target.patternId], label: `Study ${getPatternSummary(target.patternId)?.name ?? 'the pattern'}` };
-    case 'design-topic':
-      return { link: ['/learn/design', target.topicId], label: `Read the ${getSdTopic(target.topicId)?.name ?? ''} lesson` };
-    case 'case':
-      return { link: ['/design/case', target.caseId], label: `Work the ${getCaseSummary(target.caseId)?.title ?? ''} case study` };
-    case 'competency':
-      return {
-        link: ['/behavioral', target.competencyId],
-        label: `Read the ${getCompetencySummary(target.competencyId)?.name ?? ''} guide`,
-      };
+    case 'pattern': {
+      const name = getPatternSummary(target.patternId)?.name;
+      return { link: ['/learn/pattern', target.patternId], label: name ? `Study ${name}` : 'Study the pattern' };
+    }
+    case 'design-topic': {
+      const name = getSdTopic(target.topicId)?.name;
+      return { link: ['/learn/design', target.topicId], label: name ? `Read the ${name} lesson` : 'Read the lesson' };
+    }
+    case 'case': {
+      const title = getCaseSummary(target.caseId)?.title;
+      return { link: ['/design/case', target.caseId], label: title ? `Work the ${title} case study` : 'Work the case study' };
+    }
+    case 'competency': {
+      const name = getCompetencySummary(target.competencyId)?.name;
+      return { link: ['/behavioral', target.competencyId], label: name ? `Read the ${name} guide` : 'Read the guide' };
+    }
     case 'round':
-      return { link: ['/interview', target.sessionId], label: 'Read this round again' };
+      return { link: ['/interview', target.sessionId], label: 'Reread how this round went' };
   }
 }
 
@@ -39,23 +44,35 @@ function practice(target: FocusTarget): { link: string[]; label: string } {
   template: `
     @let d = debrief();
     <section class="panel read" aria-labelledby="read-kind read-title">
-      <p id="read-kind" class="eyebrow">Practice read, not a hiring decision</p>
-      <h2 id="read-title" class="verdict" [attr.data-verdict]="d.verdict">{{ label(d.verdict) }}</h2>
-      <p>
-        Read the way a hiring committee reads a loop: the rounds' average, never more than one step above the weakest round.
-        @if (d.heldBy) {
-          Your {{ names[d.heldBy].toLowerCase() }} round held it down.
-        }
-      </p>
-      @if (d.scripted) {
+      @if (allScripted()) {
+        <p id="read-kind" class="eyebrow">Coverage estimate from scripted practice, not a hiring decision</p>
         <p class="muted">
-          Scripted practice scored {{ d.scripted === sessions().length ? 'every round' : d.scripted + ' of the rounds' }}: it checks which
-          rubric areas you covered, not whether your answers were right.
+          Scripted practice scored every round: it checks which rubric areas you covered, not whether your answers were right.
+        </p>
+        <h2 id="read-title" class="verdict neutral">{{ label(d.verdict) }}</h2>
+      } @else {
+        <p id="read-kind" class="eyebrow">Practice read, not a hiring decision</p>
+        <h2 id="read-title" class="verdict" [attr.data-verdict]="d.verdict">{{ label(d.verdict) }}</h2>
+      }
+      <p>
+        A simple practice rule, not how any one company decides: the average of your round verdicts, rounded down, and never more than one
+        step above your weakest round. Real committees differ, and at many companies one clear no hire is enough to stop an offer on its
+        own.
+      </p>
+      @if (d.noHire) {
+        <p>Your {{ names[d.noHire].toLowerCase() }} round was a no hire. Treat it as the first thing to fix.</p>
+      } @else if (d.heldBy) {
+        <p>Your {{ names[d.heldBy].toLowerCase() }} round held the read down.</p>
+      }
+      @if (d.scripted && !allScripted()) {
+        <p class="muted">
+          Scripted practice scored {{ d.scripted }} of your {{ sessions().length }} rounds. Those rounds check which rubric areas you
+          covered, not whether your answers were right, so this read is rougher than an all-AI loop.
         </p>
       }
     </section>
 
-    <h2>Work on next</h2>
+    <h2>Practice next</h2>
     @if (focus().length) {
       <ol class="focus">
         @for (f of focus(); track $index) {
@@ -70,7 +87,7 @@ function practice(target: FocusTarget): { link: string[]; label: string } {
         }
       </ol>
     } @else {
-      <p class="muted">Every rubric area scored 4 of 4. Keep your reviews going until the day.</p>
+      <p class="muted">Nothing below the top score in any round. Keep your reviews going until your interview.</p>
     }
 
     <h2>Rounds</h2>
@@ -80,11 +97,11 @@ function practice(target: FocusTarget): { link: string[]; label: string } {
           <section class="panel round" [attr.aria-labelledby]="'round-' + s.id">
             <p class="eyebrow">{{ names[s.track] }} · {{ card.mode === 'ai' ? 'AI feedback' : 'scripted practice estimate' }}</p>
             <h3 [id]="'round-' + s.id">{{ s.problem.title }}</h3>
-            <p class="verdict" [attr.data-verdict]="card.verdict">{{ label(card.verdict) }}</p>
+            <p class="verdict" [class.neutral]="card.mode === 'offline'" [attr.data-verdict]="card.verdict">{{ label(card.verdict) }}</p>
             <dl>
               @for (dim of card.dimensions; track dim.name) {
                 <dt>{{ dim.name }}</dt>
-                <dd class="mono">{{ dim.score }}/4</dd>
+                <dd>{{ dim.score }} of 4</dd>
               }
             </dl>
             <a [routerLink]="['/interview', s.id]">Scorecard and transcript</a>
@@ -123,6 +140,9 @@ function practice(target: FocusTarget): { link: string[]; label: string } {
     }
     .verdict[data-verdict='no-hire'] {
       color: var(--g-danger-ink);
+    }
+    .verdict.neutral {
+      color: var(--g-text);
     }
     .focus {
       list-style: none;
@@ -175,5 +195,6 @@ export class LoopDebriefComponent {
   readonly sessions = input.required<InterviewSession[]>();
   readonly names = TRACK_NAMES;
   readonly label = verdictLabel;
+  readonly allScripted = computed(() => this.debrief().scripted === this.sessions().length);
   readonly focus = computed(() => this.debrief().focus.map((f) => ({ ...f, practice: practice(f.target) })));
 }

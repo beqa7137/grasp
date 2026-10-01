@@ -5,7 +5,7 @@ import type { Story } from '@grasp/engine';
 import { ApiError, ApiService } from './api.service';
 import { AuthTokens } from './auth-tokens.service';
 import { LearnerService } from './learner.service';
-import { STORY_BANK_KEY, storyStashKey } from './local-drafts';
+import { STORY_BANK_KEY, mockLoopKey, moveMockLoop, storyStashKey } from './local-drafts';
 import { ProgressService } from './progress.service';
 import { type GitHubCredential, SocialSignInService } from './social-sign-in.service';
 import { readStoryStash, writeStoryStash } from './story-stash';
@@ -279,6 +279,7 @@ export class AuthService {
     const learnerId = this.learner.id();
     await this.forget();
     await this.clearStories(learnerId);
+    await Preferences.remove({ key: mockLoopKey(learnerId) });
     await this.progress.clearLocal();
     await this.learner.reset();
     this.tokens.signInRequired.set(false);
@@ -297,7 +298,8 @@ export class AuthService {
     const deviceLearnerId = this.learner.id();
     const session = await request();
     const erasedDeviceLearner = session.deviceLearnerErased && this.learner.id() === deviceLearnerId;
-    if (erasedDeviceLearner || (this.tokens.signInRequired() && session.learnerId !== this.learner.id())) {
+    const startsOver = erasedDeviceLearner || (this.tokens.signInRequired() && session.learnerId !== this.learner.id());
+    if (startsOver) {
       if (!erasedDeviceLearner) await this.stashStories(this.learner.id());
       await this.clearStories();
       await this.progress.clearLocal();
@@ -305,6 +307,7 @@ export class AuthService {
     this.sessionEpoch++;
     this.progress.invalidateSync();
     await this.adopt(session);
+    if (!startsOver) await moveMockLoop(deviceLearnerId, session.learnerId);
     if (erasedDeviceLearner) await this.showErasedNotice(deviceLearnerId);
     await this.storyBank()
       .then((bank) => bank.restore(session.learnerId))
