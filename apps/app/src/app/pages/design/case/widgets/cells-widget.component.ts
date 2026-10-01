@@ -119,6 +119,7 @@ interface Box {
         <li><span class="swatch found"></span>Found</li>
         <li><span class="swatch missed"></span>Missed (cross)</li>
         <li><span class="swatch extra"></span>Read, too far (ring)</li>
+        <li><span class="swatch unread"></span>Not read (small, faint)</li>
       } @else {
         <li><span class="swatch plain"></span>A place</li>
       }
@@ -193,9 +194,11 @@ interface Box {
       stroke: var(--g-text);
       stroke-width: 0.6;
     }
-    .dots.plain,
-    .dots.unread {
+    .dots.plain {
       fill: var(--g-muted);
+    }
+    .dots.unread {
+      fill: var(--g-line-strong);
     }
     .dots.found {
       fill: var(--g-accent);
@@ -203,7 +206,7 @@ interface Box {
     .dots.extra {
       fill: none;
       stroke: var(--g-accent);
-      stroke-width: 0.35;
+      stroke-width: 0.6;
     }
     .cross {
       stroke: var(--g-danger-ink);
@@ -251,6 +254,7 @@ interface Box {
         clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
       }
       &.plain,
+      &.unread,
       &.found,
       &.extra {
         width: 8px;
@@ -260,11 +264,16 @@ interface Box {
       &.plain {
         background: var(--g-muted);
       }
+      &.unread {
+        width: 6px;
+        height: 6px;
+        background: var(--g-line-strong);
+      }
       &.found {
         background: var(--g-accent);
       }
       &.extra {
-        border: 1.5px solid var(--g-accent);
+        border: 2px solid var(--g-accent);
       }
       &.missed {
         width: 10px;

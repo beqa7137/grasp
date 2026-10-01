@@ -6,10 +6,12 @@ import {
   buildQuadtree,
   bytesText,
   nearestPlaces,
+  placesIn,
   quadPlaces,
   quadQueries,
   quadtree,
   quadtreeCheckpoint,
+  quadtreeQueries,
   type QuadNode,
   type QuadtreeSettings,
 } from './quadtree.js';
@@ -28,11 +30,11 @@ describe('quadtree', () => {
       const points = quadPlaces(density);
       for (const capacity of [1, 5, 100]) {
         const leaves = leavesOf(buildQuadtree(points, capacity));
-        expect(leaves.every((l) => l.items.length <= capacity)).toBe(true);
-        const ids = leaves.flatMap((l) => l.items);
+        expect(leaves.every((l) => placesIn(l).length <= capacity)).toBe(true);
+        const ids = leaves.flatMap((l) => [...placesIn(l)]);
         expect(new Set(ids).size).toBe(points.length);
         for (const l of leaves)
-          for (const i of l.items) {
+          for (const i of placesIn(l)) {
             const [x, y] = points[i];
             expect(x >= l.x && x < l.x + l.size && y >= l.y && y < l.y + l.size).toBe(true);
           }
@@ -76,9 +78,21 @@ describe('quadtree', () => {
     }
   });
 
+  it('measures queries apart from the build, as the average over the seeded queries', () => {
+    const s = { capacity: 100, density: 'city' } as const;
+    expect(quadtree(s)).not.toHaveProperty('examined');
+    const points = quadPlaces('city');
+    const root = buildQuadtree(points, 100);
+    const runs = quadQueries('city').map(([x, y]) => nearestPlaces(root, points, x, y, QUADTREE.nearest));
+    const cost = quadtreeQueries(s);
+    expect(cost.examined).toBeCloseTo(runs.reduce((sum, r) => sum + r.examined, 0) / runs.length, 9);
+    expect(cost.visited).toBeCloseTo(runs.reduce((sum, r) => sum + r.visited, 0) / runs.length, 9);
+    expect(quadtreeQueries(s)).toBe(cost);
+  });
+
   it('checks fewer places and walks more nodes as leaves shrink', () => {
-    const big = quadtree({ capacity: 400, density: 'city' });
-    const small = quadtree({ capacity: 5, density: 'city' });
+    const big = quadtreeQueries({ capacity: 400, density: 'city' });
+    const small = quadtreeQueries({ capacity: 5, density: 'city' });
     expect(small.examined).toBeLessThan(big.examined);
     expect(small.visited).toBeGreaterThan(big.visited);
     expect(() => quadtree({ capacity: 0, density: 'even' })).toThrow();
@@ -96,7 +110,7 @@ describe('quadtree checkpoint', () => {
         ? `${run.depth} level${run.depth === 1 ? '' : 's'}`
         : c.prompt.includes('How many nodes')
           ? `${run.nodes.toLocaleString('en-US')} nodes`
-          : `${Math.round(run.examined).toLocaleString('en-US')} places`;
+          : `${Math.round(quadtreeQueries(s).examined).toLocaleString('en-US')} places`;
       expect(right, at).toBe(expected);
       expect(c.choices.length, at).toBeGreaterThanOrEqual(3);
       expect(new Set(c.choices).size, at).toBe(c.choices.length);

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CASE_LABS } from './labs.js';
 import { cellSearch } from './proximity/cells.js';
-import { quadtree } from './proximity/quadtree.js';
+import { quadtree, quadtreeQueries } from './proximity/quadtree.js';
 import { PROXIMITY_SERVICE } from './proximity-service.js';
 
 const estimates = PROXIMITY_SERVICE.stages.flatMap((s) => (s.estimate ? [s.estimate] : []));
@@ -46,7 +46,7 @@ describe('proximity service case', () => {
     expect(text.match(/67 m/g)!.length).toBeGreaterThanOrEqual(3);
     expect(text).not.toMatch(/68 m|66 m/);
 
-    const tree = quadtree({ capacity: 100, density: 'city' });
+    const tree = { ...quadtree({ capacity: 100, density: 'city' }), ...quadtreeQueries({ capacity: 100, density: 'city' }) };
     const tiny = quadtree({ capacity: 5, density: 'city' });
     expect(text).toContain(
       `a tree ${tree.depth} levels deep with ${tree.nodes} nodes, and a search for the nearest 20 visits about ${Math.round(tree.visited)} nodes and checks about ${Math.round(tree.examined)} places`,
@@ -61,6 +61,25 @@ describe('proximity service case', () => {
     expect(text).toContain('at 89° N a precision 5 cell is 85 m by 4.89 km');
     expect(text).toContain('5, 4.89 km by 4.89 km; 6, 1.22 km by 611 m');
     expect(text).toContain('cells are 24% narrower than at the Equator');
+  });
+
+  it('checks open now from hours, not index bits, and gives hot cells, tokens, filters and privacy their real costs', () => {
+    expect(text).not.toMatch(/open-hours flags|\(category, price, open now\)|holding millions|70 to 200 ms|an hour-old opening time/);
+    expect(text).not.toContain('Cache popular cells');
+    expect(text).toContain('(category, price, and coarse hours such as open late or open weekends)');
+    expect(text).toContain('open now is checked against the hours in the cached record for the few hundred candidates');
+    expect(text).toContain('Hot cells (city centres, airports): reading a cell is already a memory lookup, so the cost is the candidates.');
+    expect(text).toContain('cache whole responses only for coarse zoomed-out map views, which many users share');
+    expect(text).toContain(
+      'about 70 ms (New York to London) to 300 ms (Europe to Australia), most or all of the 100 ms budget, or several times it',
+    );
+    expect(text).toContain(
+      'If that version is no longer loaded, the server reruns the search on the current one and still continues after (distance, id)',
+    );
+    expect(text).toContain('With filters, widen until the nearest 20 places that pass them lie within the covered distance');
+    expect(text).toContain('holding hundreds of thousands of businesses each');
+    expect(text).toContain('Searchers rarely notice that a change took a few hours to reach search');
+    expect(text).toContain('Privacy: search servers log coarse cells, not exact coordinates, and keep no location history.');
   });
 
   it('keeps relevance ranking and reviews out of scope', () => {
