@@ -74,6 +74,17 @@ describe('ReportExceptionsFilter', () => {
     expect(rendered).toHaveBeenCalledWith(expect.objectContaining({ status: 503 }), host);
   });
 
+  it('answers a client error that kept a connection code with its own status, not a database outage', () => {
+    const rendered = vi.spyOn(BaseExceptionFilter.prototype, 'catch').mockImplementation(() => undefined);
+    const aborted = Object.assign(new Error('request aborted'), { code: 'ECONNRESET', status: 400, statusCode: 400, expose: true });
+
+    new ReportExceptionsFilter().catch(aborted, host);
+
+    expect(reportSignal).not.toHaveBeenCalled();
+    expect(reportError).not.toHaveBeenCalled();
+    expect(rendered).toHaveBeenCalledWith(expect.objectContaining({ status: 400 }), host);
+  });
+
   it('leaves mapped dependency failures to their signals', () => {
     vi.spyOn(BaseExceptionFilter.prototype, 'catch').mockImplementation(() => undefined);
     new ReportExceptionsFilter().catch(new BadGatewayException('The interviewer is unavailable right now.'), host);

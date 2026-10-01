@@ -24,7 +24,11 @@ export class SpendGuard {
 
   async reserve(maximumCostUsd: number): Promise<SpendReservation> {
     const amountMicros = Math.ceil(maximumCostUsd * MICROS_PER_USD);
-    if (!Number.isSafeInteger(amountMicros) || amountMicros <= 0) throw new ServiceUnavailableException(UNAVAILABLE);
+    if (!Number.isSafeInteger(amountMicros) || amountMicros <= 0) {
+      this.log.error({ operation: 'interview.invalid-spend-bound' });
+      recordFailure('ai.failed');
+      throw new ServiceUnavailableException(UNAVAILABLE);
+    }
     let reservation: SpendReservation | null;
     try {
       reservation = await this.store.reserve(randomUUID(), amountMicros, this.budgetMicros);

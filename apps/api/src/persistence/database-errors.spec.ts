@@ -31,6 +31,12 @@ describe('database availability errors', () => {
     expect(vi.mocked(recordDatabaseFailure).mock.calls).toEqual([[cause]]);
   });
 
+  it('leaves a client error that kept a connection code to its HTTP status', () => {
+    const aborted = Object.assign(new Error('request aborted'), { code: 'ECONNRESET', status: 400, statusCode: 400 });
+    expect(isDatabaseUnavailable(aborted)).toBe(false);
+    expect(isDatabaseUnavailable(Object.assign(new Error('timeout expired'), { statusCode: 408 }))).toBe(false);
+  });
+
   it('leaves unrelated query errors alone', () => {
     expect(isDatabaseUnavailable(new Error('bad input'))).toBe(false);
     expect(isDatabaseUnavailable(Object.assign(new Error('unique violation'), { code: '23505' }))).toBe(false);
