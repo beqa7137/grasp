@@ -160,6 +160,10 @@ jobs:
           fi
           npx -w @grasp/e2e playwright install webkit
 
+      - name: Test the audit's overflow check
+        if: matrix.project == 'desktop' && matrix.shard == 1
+        run: node --test tools/verify/overflow.test.mjs
+
       - if: matrix.project == 'iphone' && steps.webkit-debs.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
         with:
