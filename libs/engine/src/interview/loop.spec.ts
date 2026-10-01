@@ -3,7 +3,7 @@ import { COMPETENCY_CATALOG } from '../behavioral/catalog.js';
 import { seeded } from '../review/random.js';
 import type { StoredEvent } from '../srs/events.js';
 import { emptyProgress, replay } from '../srs/progress.js';
-import { pickLoop, type LoopProblem } from './loop.js';
+import { hasInterviewFlags, pickLoop, type LoopProblem } from './loop.js';
 
 const PROBLEMS: LoopProblem[] = [
   { id: 'warmer-days', track: 'coding', patternIds: ['monotonic-stack'] },
@@ -64,6 +64,29 @@ describe('mock loop rounds', () => {
       scored({ sessionId: 'last', track: 'behavioral', verdict: 'hire', competencyId: COMPETENCY_CATALOG[0].id }),
     ]);
     expect(pickLoop(PROBLEMS, all, seeded(5))[2].reason).toBe('any');
+  });
+
+  it('prefers a problem the learner has not had: flagged first, then any, then the flagged one again', () => {
+    const state = replay([scored({ weakPatterns: ['topo-sort'] })]);
+    const coding = (seen: string[], seed: number) => pickLoop(PROBLEMS, state, seeded(seed), ['coding'], new Set(seen))[0];
+    expect(coding(['course-order'], 1).reason).toBe('any');
+    for (let seed = 0; seed < 20; seed++) expect(coding(['course-order', 'warmer-days'], seed).problemId).toBe('shipping-capacity');
+    expect(coding(['course-order', 'warmer-days', 'shipping-capacity'], 4)).toEqual({
+      track: 'coding',
+      problemId: 'course-order',
+      reason: 'flagged',
+    });
+    for (let seed = 0; seed < 20; seed++) {
+      expect(pickLoop(PROBLEMS, emptyProgress(), seeded(seed), ['design'], new Set(['url-shortener']))[0].problemId).toBe('news-feed');
+    }
+  });
+
+  it('knows whether any interview flag is open', () => {
+    expect(hasInterviewFlags(emptyProgress())).toBe(false);
+    expect(hasInterviewFlags(replay([scored({ weakPatterns: ['topo-sort'] })]))).toBe(true);
+    expect(hasInterviewFlags(replay([scored({ track: 'behavioral', competencyId: 'conflict', weakCompetencies: ['conflict'] })]))).toBe(
+      true,
+    );
   });
 
   it('runs only the rounds asked for, still in loop order, and skips a track the catalog has no problem for', () => {

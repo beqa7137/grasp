@@ -139,7 +139,7 @@ export class InterviewSessionPage {
       const id = this.id();
       untracked(() => void this.load(id));
     });
-    void this.loops.load();
+    void this.loops.load().catch(() => undefined);
     effect(() => {
       this.messages();
       this.streaming();
@@ -270,6 +270,8 @@ export class InterviewSessionPage {
             ? { competencyId: scored.problem.competencyId, weakCompetencies: scored.scorecard.weakCompetencies ?? [] }
             : {}),
         });
+        // The loop's completion is recorded the moment its last round is scored, even if the learner never opens the debrief.
+        if (this.loopRound()) await this.loops.refresh().catch(() => undefined);
       }
     } catch (e) {
       this.handleError(e, 'Scoring failed. Try again.');

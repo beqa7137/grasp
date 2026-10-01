@@ -126,7 +126,7 @@ const AI_BEHAVIORAL_NOTE = 'AI follow-ups and AI feedback. Your answers, includi
         <a class="panel card-link behavioral" routerLink="/interview/loop">
           <ion-icon name="layers-outline" aria-hidden="true" />
           <span>
-            <span class="title display">Full mock loop</span>
+            <span class="title display">Mock loop</span>
             <span class="muted blurb">{{ loopBlurb() }}</span>
           </span>
           <span class="go">{{ loopActive() ? 'Continue →' : 'Open →' }}</span>
@@ -356,8 +356,13 @@ export class InterviewHomePage {
   readonly loopBlurb = computed(() => {
     const loop = this.loops.loop();
     if (!loop || loop.completedAt) return 'Coding, system design and behavioral rounds back to back, then one debrief across them.';
-    const started = loop.rounds.filter((r) => r.sessionId).length;
-    return `${started} of ${loop.rounds.length} rounds started. Pick up where you left off.`;
+    const started = loop.rounds.flatMap((r) => (r.sessionId ? [r.sessionId] : []));
+    if (!started.length) return 'Not started yet.';
+    const known = new Map(this.recent().map((s) => [s.id, s]));
+    if (started.some((id) => !known.has(id))) return 'You have a mock loop in progress. Pick up where you left off.';
+    const scored = started.filter((id) => known.get(id)!.scorecard).length;
+    const total = loop.rounds.length;
+    return `${scored} of ${total} round${total === 1 ? '' : 's'} done. Pick up where you left off.`;
   });
 
   readonly behavioralBlurb = `Worked answers for ${COMPETENCY_CATALOG.length} competencies, your story bank, rehearsal and the three-question mock.`;
@@ -402,9 +407,8 @@ export class InterviewHomePage {
     addIcons({ codeSlashOutline, gitNetworkOutline, layersOutline, peopleOutline, shuffle, sparkles });
   }
 
-  ionViewWillEnter() {
-    void this.loops.load();
-    return this.loadInterviews();
+  async ionViewWillEnter() {
+    await Promise.all([this.loops.load().catch(() => null), this.loadInterviews()]);
   }
 
   patternName(id: string) {

@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
-import { examplesFor, getCompetency, getCompetencySummary, type Seniority } from '@grasp/engine';
+import { SENIORITY_LEVELS, examplesFor, getCompetency, getCompetencySummary, type Seniority } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import {
   alertCircleOutline,
@@ -17,12 +17,6 @@ import { AiInterviewEntryComponent } from './ai-interview-entry.component';
 import { ExampleAnswerComponent } from './example-answer.component';
 import { SpotFlawsComponent } from './spot-flaws.component';
 import { StarDraftsService } from './star-drafts.service';
-
-const LEVELS: { level: Seniority; label: string }[] = [
-  { level: 'early', label: 'Early career' },
-  { level: 'mid', label: 'Mid-level' },
-  { level: 'senior', label: 'Senior' },
-];
 
 @Component({
   selector: 'app-competency',
@@ -215,7 +209,7 @@ export class CompetencyPage {
   readonly summary = computed(() => getCompetencySummary(this.id()));
   readonly competency = computed(() => getCompetency(this.id()));
   readonly examples = computed(() => examplesFor(this.id()));
-  readonly levels = LEVELS;
+  readonly levels = SENIORITY_LEVELS;
   readonly level = signal<Seniority>('mid');
   readonly strong = computed(() => this.examples()?.strong.find((s) => s.level === this.level()));
 

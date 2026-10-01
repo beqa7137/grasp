@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import type { Page, Route } from '@playwright/test';
-import { randomUUID } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
+import { type GitHubUser, signInToGitHub } from '../support/github';
 import { expect, synced, test } from './fixtures';
 
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
@@ -64,20 +65,22 @@ const localDay = (page: Page, days: number) =>
 
 test('a signed-out learner runs a scripted loop of three rounds to one debrief, kept on the device', async ({ page }) => {
   await page.goto('/interview');
-  await page.getByRole('link', { name: /Full mock loop/ }).click();
+  await page.getByRole('link', { name: /^Mock loop/ }).click();
   await expect(page).toHaveURL(/\/interview\/loop$/);
   const loop = page.locator('app-mock-loop');
-  await expect(loop.getByRole('heading', { name: 'A full interview loop', level: 1 })).toBeVisible();
+  await expect(loop.getByRole('heading', { name: 'A mock interview loop', level: 1 })).toBeVisible();
   await expect(loop.locator('.plan li')).toHaveText([
     /^Coding · about 45 min$/,
     /^System design · about 45 min$/,
-    /^Behavioral · about 20 min$/,
+    /^Behavioral · about 20 min, one question with follow-ups$/,
   ]);
+  await expect(loop.getByText(/Questions lean toward/)).toHaveCount(0);
+  await expect(loop.getByRole('radio', { name: 'Mid-level' })).toHaveAttribute('aria-checked', 'true');
   await expect(loop.getByRole('button', { name: 'Scripted practice' })).toHaveAttribute('aria-pressed', 'true');
   await expect(loop.getByText('Guided prompts and a practice estimate for each round. No AI or sign-in needed.')).toBeVisible();
   expect(await seriousViolations(page)).toEqual([]);
 
-  const created: { track: string; mode: string }[] = [];
+  const created: { track: string; mode: string; level?: string }[] = [];
   page.on('request', (r) => {
     if (r.method() === 'POST' && new URL(r.url()).pathname === '/api/interview/sessions') created.push(r.postDataJSON());
   });
@@ -101,13 +104,7 @@ test('a signed-out learner runs a scripted loop of three rounds to one debrief, 
 
   await loop.getByRole('button', { name: 'Start the behavioral round' }).click();
   await expect(page.getByText('Mock loop · round 3 of 3')).toBeVisible();
-  await answerBehavioral(page);
-  expect(created.map((c) => [c.track, c.mode])).toEqual([
-    ['coding', 'offline'],
-    ['system-design', 'offline'],
-    ['behavioral', 'offline'],
-  ]);
-
+  // The loop is complete the moment its last round is scored, before the debrief is opened.
   const completed = synced(page, 'mock.completed');
   const upload = page.waitForRequest(
     (r) =>
@@ -115,21 +112,33 @@ test('a signed-out learner runs a scripted loop of three rounds to one debrief, 
       r.url().endsWith('/api/progress/events') &&
       (r.postDataJSON() as { events: { type: string }[] }).events.some((e) => e.type === 'mock.completed'),
   );
+  await answerBehavioral(page);
+  await completed;
+  expect(created.map((c) => [c.track, c.mode, c.level])).toEqual([
+    ['coding', 'offline', undefined],
+    ['system-design', 'offline', undefined],
+    ['behavioral', 'offline', 'mid'],
+  ]);
+
   await page.getByRole('link', { name: 'See your loop debrief' }).click();
   await expect(loop.getByRole('heading', { name: 'Loop debrief', level: 1 })).toBeVisible();
-  await expect(loop.getByText('Practice read, not a hiring decision')).toBeVisible();
+  await expect(loop.getByText('Coverage estimate from scripted practice, not a hiring decision')).toBeVisible();
   await expect(loop.getByText(/Scripted practice scored every round: it checks which rubric areas you covered/)).toBeVisible();
+  await expect(loop.getByText(/A simple practice rule, not how any one company decides/)).toBeVisible();
+  await expect(loop.getByRole('heading', { name: 'Practice next', level: 2 })).toBeVisible();
   const focus = loop.locator('.focus > li');
   await expect(focus).toHaveCount(3);
   await expect(focus.getByRole('link')).toHaveCount(3);
+  expect((await focus.locator('.eyebrow').allTextContents()).filter((t) => t.includes('3 of 4'))).toEqual([]);
   await expect(loop.locator('.round')).toHaveCount(3);
   await expect(loop.getByRole('link', { name: 'Scorecard and transcript' })).toHaveCount(3);
-  await completed;
   const event = ((await upload).postDataJSON() as { events: Record<string, unknown>[] }).events.find(
     (e) => e['type'] === 'mock.completed',
   )!;
   expect(event['id']).toMatch(/^mock-[0-9a-f-]{36}$/);
-  expect((event['rounds'] as { track: string }[]).map((r) => r.track)).toEqual(['coding', 'system-design', 'behavioral']);
+  const rounds = event['rounds'] as { track: string; at: string }[];
+  expect(rounds.map((r) => r.track)).toEqual(['coding', 'system-design', 'behavioral']);
+  expect(event['at']).toBe(rounds[2].at);
   expect(await seriousViolations(page)).toEqual([]);
 
   await page.reload();
@@ -138,7 +147,7 @@ test('a signed-out learner runs a scripted loop of three rounds to one debrief, 
   expect((Array.isArray(events) ? events : events.events).filter((e: { type: string }) => e.type === 'mock.completed')).toHaveLength(1);
 
   await loop.getByRole('button', { name: 'Start a new loop' }).click();
-  await expect(loop.getByRole('heading', { name: 'A full interview loop', level: 1 })).toBeFocused();
+  await expect(loop.getByRole('heading', { name: 'A mock interview loop', level: 1 })).toBeFocused();
 });
 
 const message = (role: 'interviewer' | 'candidate', content: string) => ({ role, content, at: new Date().toISOString() });
@@ -235,12 +244,14 @@ test('an AI loop says what it costs before starting, and its debrief weighs the 
   const loop = page.locator('app-mock-loop');
   await loop.getByRole('button', { name: 'AI interviewer' }).click();
   await expect(loop.getByRole('button', { name: 'AI interviewer' })).toHaveAttribute('aria-pressed', 'true');
+  await loop.getByRole('radio', { name: 'Senior' }).click();
   await expect(
     loop.getByText(
-      /An AI loop is 3 AI interviews in a row: every reply and each round's scorecard count toward your hourly AI interview limit/,
+      /An AI loop is 3 AI interviews in a row\. It costs you nothing, but each reply and each scorecard uses your hourly AI allowance/,
     ),
   ).toBeVisible();
   await expect(loop.getByText(/The debrief itself makes no AI call\./)).toBeVisible();
+  const completed = synced(page, 'mock.completed');
   await loop.getByRole('button', { name: 'Start the loop' }).click();
 
   for (const round of [1, 2, 3]) {
@@ -253,20 +264,21 @@ test('an AI loop says what it costs before starting, and its debrief weighs the 
   expect(created).toEqual([
     expect.objectContaining({ track: 'coding', mode: 'ai' }),
     expect.objectContaining({ track: 'system-design', mode: 'ai' }),
-    expect.objectContaining({ track: 'behavioral', mode: 'ai' }),
+    expect.objectContaining({ track: 'behavioral', mode: 'ai', level: 'senior' }),
   ]);
 
+  await completed;
   await expect(loop.getByRole('heading', { name: 'Loop debrief', level: 1 })).toBeVisible();
   await expect(loop.getByRole('heading', { name: 'lean no hire', level: 2 })).toBeVisible();
-  await expect(loop.getByText(/Your system design round held it down\./)).toBeVisible();
+  await expect(loop.getByText('Practice read, not a hiring decision')).toBeVisible();
+  await expect(loop.getByText('Your system design round was a no hire. Treat it as the first thing to fix.')).toBeVisible();
   await expect(loop.getByText(/Scripted practice scored/)).toHaveCount(0);
   const focus = loop.locator('.focus > li');
   await expect(focus.locator('h3')).toHaveText(['Estimation', 'Follow-up handling', 'Problem understanding']);
   await expect(focus.locator('.eyebrow')).toHaveText(['System design · 1 of 4', 'Behavioral · 2 of 4', 'Coding · 3 of 4']);
   await expect(focus.getByRole('link', { name: 'Read the Estimation lesson' })).toHaveAttribute('href', '/learn/design/sd-estimation');
-  await expect(focus.getByRole('link', { name: /^Study / })).toHaveAttribute('href', '/learn/pattern/monotonic-stack');
+  await expect(focus.getByRole('link', { name: 'Reread how this round went' })).toHaveAttribute('href', /^\/interview\/[0-9a-f-]{36}$/);
   await expect(focus.getByRole('link', { name: /guide$/ })).toHaveAttribute('href', '/behavioral/conflict');
-  await synced(page, 'mock.completed');
   expect(await seriousViolations(page)).toEqual([]);
 
   await page.goto('/plan');
@@ -286,17 +298,121 @@ for (const theme of ['dark', 'light'] as const) {
     test('the loop setup and a loop in progress pass axe, and a loop can be ended', async ({ page }) => {
       await page.goto('/interview/loop');
       const loop = page.locator('app-mock-loop');
-      await expect(loop.getByRole('heading', { name: 'A full interview loop', level: 1 })).toBeVisible();
+      await expect(loop.getByRole('heading', { name: 'A mock interview loop', level: 1 })).toBeVisible();
       expect(await seriousViolations(page)).toEqual([]);
       await loop.getByRole('button', { name: 'Start the loop' }).click();
       await expect(page).toHaveURL(/\/interview\/[0-9a-f-]{36}$/);
       await page.goto('/interview/loop');
-      await expect(loop.getByRole('heading', { name: 'Round 1 of 3', level: 1 })).toBeVisible();
+      await expect(loop.getByRole('heading', { name: 'Round 1 of 3', level: 1 })).toBeFocused();
+      await expect(loop.getByText(/^Mock loop · Scripted practice · started /)).toBeVisible();
       await expect(loop.getByRole('button', { name: 'Continue the coding round' })).toBeVisible();
       expect(await seriousViolations(page)).toEqual([]);
       await loop.getByRole('button', { name: 'End this loop' }).click();
-      await loop.getByRole('button', { name: 'End the loop' }).click();
-      await expect(loop.getByRole('heading', { name: 'A full interview loop', level: 1 })).toBeFocused();
+      await expect(loop.getByRole('button', { name: 'Yes, end it' })).toBeFocused();
+      await expect(
+        loop.getByText('End this loop? Rounds you finished keep their scorecards, but this loop gets no debrief.'),
+      ).toBeVisible();
+      await loop.getByRole('button', { name: 'Keep going' }).click();
+      await expect(loop.getByRole('button', { name: 'End this loop' })).toBeFocused();
+      await loop.getByRole('button', { name: 'End this loop' }).click();
+      await loop.getByRole('button', { name: 'Yes, end it' }).click();
+      await expect(loop.getByRole('heading', { name: 'A mock interview loop', level: 1 })).toBeFocused();
     });
   });
 }
+
+test.describe('a round whose session is gone', () => {
+  test.use({ expectedConsoleErrors: [/status of 404/] });
+
+  test('starts again, and says so', async ({ page }) => {
+    await page.goto('/interview/loop');
+    const loop = page.locator('app-mock-loop');
+    await loop.getByRole('button', { name: 'Start the loop' }).click();
+    await expect(page).toHaveURL(/\/interview\/[0-9a-f-]{36}$/);
+    const id = new URL(page.url()).pathname.split('/').at(-1)!;
+    await page.route(`**/api/interview/sessions/${id}`, (route) =>
+      route.fulfill({ status: 404, json: { statusCode: 404, message: 'Interview not found' } }),
+    );
+    await page.goto('/interview/loop');
+    await expect(loop.getByText("We couldn't find your coding round, so it starts again.")).toBeVisible();
+    await expect(loop.getByRole('button', { name: 'Start the coding round' })).toBeVisible();
+  });
+});
+
+test.describe('a refused AI start', () => {
+  test.use({ expectedConsoleErrors: [/status of 403/] });
+
+  test('offers to sign in again, or to switch the remaining rounds to scripted practice', async ({ page }) => {
+    let refuse = true;
+    const created: { mode: string }[] = [];
+    await page.route('**/api/interview/problems', async (route) => {
+      const response = await route.fetch();
+      await route.fulfill({ response, json: { ...(await response.json()), aiAccess: 'available' } });
+    });
+    await page.route('**/api/interview/sessions', async (route) => {
+      if (route.request().method() !== 'POST') return route.continue();
+      created.push(route.request().postDataJSON());
+      if (!refuse) return route.continue();
+      return route.fulfill({
+        status: 403,
+        json: { statusCode: 403, message: 'Sign in to use the AI interviewer, or choose scripted practice.', code: 'ai_sign_in_required' },
+      });
+    });
+    await page.goto('/interview/loop');
+    const loop = page.locator('app-mock-loop');
+    await loop.getByRole('button', { name: 'AI interviewer' }).click();
+    await loop.getByRole('button', { name: 'Start the loop' }).click();
+    await expect(loop.getByRole('heading', { name: 'Round 1 of 3', level: 1 })).toBeVisible();
+    await expect(loop.getByRole('alert')).toHaveText('Sign in to use the AI interviewer, or choose scripted practice.');
+    const panel = loop.getByRole('region', { name: 'Sign in again to keep your AI loop' });
+    await expect(panel.getByRole('button', { name: 'Continue with GitHub' })).toBeVisible();
+    expect(await seriousViolations(page)).toEqual([]);
+
+    refuse = false;
+    await panel.getByRole('button', { name: 'Switch the remaining rounds to scripted practice' }).click();
+    await expect(loop.getByRole('heading', { name: 'Round 1 of 3', level: 1 })).toBeFocused();
+    await expect(loop.getByText(/^Mock loop · Scripted practice/)).toBeVisible();
+    await loop.getByRole('button', { name: 'Start the coding round' }).click();
+    await expect(page).toHaveURL(/\/interview\/[0-9a-f-]{36}$/);
+    expect(created.map((c) => c.mode)).toEqual(['ai', 'offline']);
+  });
+});
+
+test.describe('signing in mid-loop', () => {
+  // A signed-in page that loads pulls progress before its session renews, and the API answers 401 once (see LOOP.md).
+  test.use({ expectedConsoleErrors: [/status of 401/] });
+
+  test('signing in to an existing account mid-loop keeps the loop and its scored round', async ({ page, context }) => {
+    const id = randomInt(1, 2 ** 47);
+    const user: GitHubUser = { id, login: `e2e-${id}`, emails: [{ email: `e2e-${id}@example.com`, primary: true, verified: true }] };
+    await signInToGitHub(context, user);
+    const signIn = async () => {
+      await page.goto('/settings');
+      const popup = page.waitForEvent('popup');
+      await page.getByRole('button', { name: 'Continue with GitHub' }).click();
+      const consent = await popup;
+      const closed = consent.waitForEvent('close');
+      await consent.getByRole('button', { name: 'Authorize' }).click();
+      await closed;
+      await expect(page.getByText(user.emails[0].email, { exact: true })).toBeVisible();
+    };
+    await signIn();
+    await page.getByRole('button', { name: 'Sign out' }).click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Sign out' }).click();
+    await expect(page.getByRole('button', { name: 'Continue with GitHub' })).toBeVisible();
+
+    await page.goto('/interview/loop');
+    const loop = page.locator('app-mock-loop');
+    await loop.getByRole('button', { name: 'Start the loop' }).click();
+    await expect(page).toHaveURL(/\/interview\/[0-9a-f-]{36}$/);
+    await talkAndScore(page);
+    await page.getByRole('link', { name: 'Back to your mock loop' }).click();
+    await expect(loop.getByRole('heading', { name: 'Round 2 of 3', level: 1 })).toBeVisible();
+
+    await signIn();
+    await page.goto('/interview/loop');
+    await expect(loop.getByRole('heading', { name: 'Round 2 of 3', level: 1 })).toBeVisible();
+    await expect(loop.locator('.round').first()).toContainText(/Scored: /);
+    await expect(loop.getByText(/We couldn't find/)).toHaveCount(0);
+  });
+});

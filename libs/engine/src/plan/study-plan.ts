@@ -180,13 +180,14 @@ function planUnits(input: StudyPlanInput, state: ProgressState, stories: readonl
 /** One unit per round of the plan's mock loop, at the length the round runs; a loop finished recently covers them. */
 function mockUnits(input: StudyPlanInput, state: ProgressState, now: Date): PlanUnit[] {
   const loop = state.mockLoop;
-  const fresh = loop && now.getTime() - Date.parse(loop.completedAt) <= LOOP_FRESH_DAYS * DAY_MS ? loop : null;
+  const recent = (at: string) => now.getTime() - Date.parse(at) <= LOOP_FRESH_DAYS * DAY_MS;
+  const fresh = loop && Object.values(loop.rounds).every((at) => at && recent(at)) ? loop : null;
   return input.rounds.map((round) => ({
     id: `mock:${round}`,
     round,
     kind: 'mock',
     title: MOCK_TITLES[round],
-    detail: 'A full interview round in a mock loop. Run the rounds back to back or on different days; one debrief follows the last.',
+    detail: 'One round of your mock loop. Its tick appears when the last round is scored and the debrief is ready.',
     minutes: LOOP_ROUND_MINUTES[PLAN_ROUND_TRACK[round]],
     flagged: false,
     doneAt: fresh?.rounds[PLAN_ROUND_TRACK[round]] ?? null,
@@ -360,23 +361,41 @@ function schedule(units: PlanUnit[], dates: string[], eve: number, minutesPerDay
   };
 }
 
-/** Fills the mock rounds backwards from the last study day, so the loop is the last new work and keeps its order. */
+/**
+ * Keeps each mock round whole over consecutive days, placed from its head like any unit and as late as it fits before
+ * the next round, so the loop is the last new work. A round that cannot fit whole is left out, never shown as a tail.
+ */
 function reserveMocks(mocks: PlanUnit[], room: number[], left: Map<string, number>): PlanSlice[][] {
   const reserved: PlanSlice[][] = room.map(() => []);
-  let d = room.length - 1;
+  let end = room.length - 1;
   for (const unit of [...mocks].reverse()) {
-    while (left.get(unit.id)! > 0 && d >= 0) {
-      const need = left.get(unit.id)!;
-      // As forward, a day runs up to MIN_SLICE over to finish a round, so no piece but the last is under MIN_SLICE.
-      const whole = need <= room[d] || (room[d] >= MIN_SLICE && need - room[d] <= MIN_SLICE);
-      const take = whole ? need : room[d] >= MIN_SLICE ? room[d] : 0;
-      if (take) {
-        reserved[d].unshift({ unit, minutes: take, part: 0, parts: 0, done: false });
-        room[d] -= take;
-        left.set(unit.id, need - take);
-      }
-      if (left.get(unit.id)! > 0) d--;
+    for (let start = end; start >= 0; start--) {
+      const pieces = fitFrom(unit.minutes, room, start, end);
+      if (!pieces) continue;
+      pieces.forEach((minutes, i) => {
+        reserved[start + i].push({ unit, minutes, part: 0, parts: 0, done: false });
+        room[start + i] -= minutes;
+      });
+      left.set(unit.id, 0);
+      end = start;
+      break;
     }
   }
+  // Rounds were placed last first, so a day holding two has them backwards.
+  for (const day of reserved) day.reverse();
   return reserved;
+}
+
+/** A round's pieces from `start`, by the forward rules (a day may run MIN_SLICE over to finish it), or null. */
+function fitFrom(minutes: number, room: number[], start: number, end: number): number[] | null {
+  const pieces: number[] = [];
+  let need = minutes;
+  for (let d = start; d <= end && need > 0; d++) {
+    const whole = need <= room[d] || (room[d] >= MIN_SLICE && need - room[d] <= MIN_SLICE);
+    const take = whole ? need : room[d] >= MIN_SLICE ? room[d] : 0;
+    if (!take) return null;
+    pieces.push(take);
+    need -= take;
+  }
+  return need ? null : pieces;
 }
