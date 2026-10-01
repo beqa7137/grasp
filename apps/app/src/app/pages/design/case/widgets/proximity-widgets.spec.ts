@@ -1,7 +1,7 @@
 import { ApplicationRef, type Type } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { cellSearch, cellSearchCheckpoint, getCaseStudy, quadtree, quadtreeCheckpoint } from '@grasp/engine';
+import { cellSearch, cellSearchCheckpoint, getCaseStudy, quadtree, quadtreeCheckpoint, quadtreeQueries } from '@grasp/engine';
 import { CaseStageComponent } from '../case-stage.component';
 import { CellsWidgetComponent } from './cells-widget.component';
 import { QuadtreeWidgetComponent } from './quadtree-widget.component';
@@ -52,7 +52,15 @@ describe('cells widget', () => {
     expect(readout('Found')).toBe(String(run.found));
     expect(readout('Missed')).toBe(String(run.missed));
     expect(el.querySelector('.cross')!.getAttribute('d')).not.toBe('');
-    expect(legend(el)).toContain('Missed (cross)');
+    expect(legend(el)).toEqual([
+      "The user's cell",
+      'Radius',
+      'The user',
+      'Found',
+      'Missed (cross)',
+      'Read, too far (ring)',
+      'Not read (small, faint)',
+    ]);
   });
 
   it('asks again on a new precision or scope, and keeps the answer while the radius slides', () => {
@@ -106,16 +114,19 @@ describe('quadtree widget', () => {
     const { el, readout, answer, widget } = mount(QuadtreeWidgetComponent);
     expect(el.querySelector('.readouts')).toBeNull();
     expect(el.querySelector('svg.map')!.getAttribute('aria-label')).toBe(
-      'Quadtree leaves over 10,000 places around one city, at most 100 a leaf',
+      'Map of 10,000 places around one city; the tree shows once you answer',
     );
+    expect(el.querySelector('.leaves')).toBeNull();
+    expect(legend(el)).toEqual(['A place']);
     answer(quadtreeCheckpoint(widget.settings()).answer);
     expect(marks(el)).toEqual(['your answer, correct']);
     const run = quadtree(widget.settings());
     expect(readout('Deepest leaf')).toBe(`${run.depth} levels`);
     expect(readout('Nodes')).toBe(String(run.nodes));
-    expect(readout('Places checked a query')).toBe(String(Math.round(run.examined)));
+    expect(readout('Places checked a query')).toBe(String(Math.round(quadtreeQueries(widget.settings()).examined)));
     expect(readout('Memory at 200 million')).toBe('6.9 GB');
     expect(el.querySelector('.leaves')!.getAttribute('d')!.match(/M/g)).toHaveLength(run.leaves.length);
+    expect(legend(el)).toEqual(['A place', 'A leaf: at most 100 places']);
   });
 
   it('keeps the answer while the capacity slides, and asks again for a new pattern', () => {

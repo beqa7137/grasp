@@ -53,10 +53,13 @@ export interface QuadtreeRun {
   memoryBytes: number;
   /** The same tree shape scaled to `QUADTREE.scaleTo` places. */
   scaledBytes: number;
-  /** Per query, on average: nodes taken from the search queue, and places whose distance was computed. */
+  points: readonly [number, number][];
+}
+
+/** Per query, on average: nodes taken from the search queue, and places whose distance was computed. */
+export interface QueryCost {
   visited: number;
   examined: number;
-  points: readonly [number, number][];
 }
 
 /** Clusters as [x, y, spread in km, share of places], the rest spread evenly. */
@@ -100,74 +103,115 @@ export const quadQueries = (density: Density) => memo(`q:${density}`, () => scat
 
 export interface QuadNode extends Square {
   depth: number;
-  items: number[];
+  /** The node's places are `order[start]` to `order[end - 1]`, one range of an index array the whole tree shares. */
+  order: Int32Array;
+  start: number;
+  end: number;
   kids: QuadNode[] | null;
 }
 
+/** A node's places, by index. */
+export const placesIn = (n: QuadNode) => n.order.subarray(n.start, n.end);
+
+/**
+ * Splits in place: every node's places are one range of a single index array, and a split sorts its range into its four
+ * quarters' ranges, so building allocates nothing per place.
+ */
 export function buildQuadtree(points: readonly [number, number][], capacity: number): QuadNode {
-  const root: QuadNode = { x: 0, y: 0, size: QUADTREE.regionKm, depth: 0, items: points.map((_, i) => i), kids: null };
+  const count = points.length;
+  const order = new Int32Array(count);
+  const xs = new Float64Array(count);
+  const ys = new Float64Array(count);
+  for (let i = 0; i < count; i++) {
+    order[i] = i;
+    xs[i] = points[i][0];
+    ys[i] = points[i][1];
+  }
+  const scratch = new Int32Array(count);
+  const quarters = new Uint8Array(count);
+  const root: QuadNode = { x: 0, y: 0, size: QUADTREE.regionKm, depth: 0, order, start: 0, end: count, kids: null };
   const stack = [root];
   while (stack.length) {
     const node = stack.pop()!;
-    if (node.items.length <= capacity || node.depth >= QUADTREE.maxDepth) continue;
+    const { start, end } = node;
+    if (end - start <= capacity || node.depth >= QUADTREE.maxDepth) continue;
     const half = node.size / 2;
+    const midX = node.x + half;
+    const midY = node.y + half;
+    const counts = [0, 0, 0, 0];
+    for (let k = start; k < end; k++) {
+      const i = order[k];
+      const q = (xs[i] >= midX ? 1 : 0) + (ys[i] >= midY ? 2 : 0);
+      quarters[k] = q;
+      counts[q]++;
+    }
+    const starts = [start, start + counts[0], start + counts[0] + counts[1], start + counts[0] + counts[1] + counts[2]];
+    const next = [...starts];
+    for (let k = start; k < end; k++) scratch[next[quarters[k]]++] = order[k];
+    for (let k = start; k < end; k++) order[k] = scratch[k];
     node.kids = [0, 1, 2, 3].map((q) => ({
       x: node.x + (q & 1) * half,
       y: node.y + (q >> 1) * half,
       size: half,
       depth: node.depth + 1,
-      items: [],
+      order,
+      start: starts[q],
+      end: starts[q] + counts[q],
       kids: null,
     }));
-    for (const i of node.items) {
-      const [px, py] = points[i];
-      node.kids[(px >= node.x + half ? 1 : 0) + (py >= node.y + half ? 2 : 0)].items.push(i);
-    }
-    node.items = [];
-    stack.push(...node.kids);
+    for (const kid of node.kids) stack.push(kid);
   }
   return root;
 }
 
-/** The distance from a point to the nearest point of a square, 0 inside it. */
-function gap(px: number, py: number, s: Square): number {
+/** The squared distance from a point to the nearest point of a square, 0 inside it. */
+function gap2(px: number, py: number, s: Square): number {
   const dx = Math.max(s.x - px, 0, px - (s.x + s.size));
   const dy = Math.max(s.y - py, 0, py - (s.y + s.size));
-  return Math.hypot(dx, dy);
+  return dx * dx + dy * dy;
 }
 
-/** A binary min-heap keyed by distance. */
+/** A binary min-heap keyed by distance, kept as two parallel arrays. */
 class Queue<T> {
-  private readonly heap: { d: number; v: T }[] = [];
+  private readonly keys: number[] = [];
+  private readonly values: T[] = [];
   get size() {
-    return this.heap.length;
+    return this.keys.length;
   }
   push(d: number, v: T) {
-    const h = this.heap;
-    h.push({ d, v });
-    for (let i = h.length - 1; i > 0;) {
+    const { keys, values } = this;
+    let i = keys.length;
+    keys.push(d);
+    values.push(v);
+    while (i > 0) {
       const parent = (i - 1) >> 1;
-      if (h[parent].d <= h[i].d) break;
-      [h[parent], h[i]] = [h[i], h[parent]];
+      if (keys[parent] <= d) break;
+      keys[i] = keys[parent];
+      values[i] = values[parent];
       i = parent;
     }
+    keys[i] = d;
+    values[i] = v;
   }
-  pop(): { d: number; v: T } {
-    const h = this.heap;
-    const top = h[0];
-    const last = h.pop()!;
-    if (h.length) {
-      h[0] = last;
-      for (let i = 0; ;) {
+  pop(): T {
+    const { keys, values } = this;
+    const top = values[0];
+    const d = keys.pop()!;
+    const v = values.pop()!;
+    const n = keys.length;
+    if (n) {
+      let i = 0;
+      for (;;) {
         const l = 2 * i + 1;
-        const r = l + 1;
-        let m = i;
-        if (l < h.length && h[l].d < h[m].d) m = l;
-        if (r < h.length && h[r].d < h[m].d) m = r;
-        if (m === i) break;
-        [h[m], h[i]] = [h[i], h[m]];
+        if (l >= n) break;
+        const m = l + 1 < n && keys[l + 1] < keys[l] ? l + 1 : l;
+        if (keys[m] >= d) break;
+        keys[i] = keys[m];
+        values[i] = values[m];
         i = m;
       }
+      keys[i] = d;
+      values[i] = v;
     }
     return top;
   }
@@ -181,40 +225,64 @@ export function nearestPlaces(root: QuadNode, points: readonly [number, number][
   let visited = 0;
   let examined = 0;
   while (queue.size && found.length < k) {
-    const { v } = queue.pop();
+    const v = queue.pop();
     if (typeof v === 'number') {
       found.push(v);
       continue;
     }
     visited++;
-    if (v.kids) for (const kid of v.kids) queue.push(gap(qx, qy, kid), kid);
+    if (v.kids) for (const kid of v.kids) queue.push(gap2(qx, qy, kid), kid);
     else
-      for (const i of v.items) {
+      for (let j = v.start; j < v.end; j++) {
+        const i = v.order[j];
+        const dx = points[i][0] - qx;
+        const dy = points[i][1] - qy;
         examined++;
-        queue.push(Math.hypot(points[i][0] - qx, points[i][1] - qy), i);
+        queue.push(dx * dx + dy * dy, i);
       }
   }
   return { found, visited, examined };
 }
 
 const RECENT = 24;
-const recent = new Map<string, QuadtreeRun>();
+const recent = new Map<string, { root: QuadNode; run: QuadtreeRun; cost?: QueryCost }>();
 
-/** Builds and queries the tree; a checkpoint asks about neighbouring settings too, so recent runs are kept. */
-export function quadtree(s: QuadtreeSettings): QuadtreeRun {
+/** A checkpoint asks about neighbouring settings too, so recent trees are kept, and their query cost once measured. */
+function kept(s: QuadtreeSettings) {
   if (!(s.capacity >= 1)) throw new Error('A leaf must hold at least one place');
   const key = `${s.density}:${s.capacity}`;
-  const kept = recent.get(key);
-  if (kept) return kept;
-  const run = measure(s);
-  recent.set(key, run);
-  if (recent.size > RECENT) recent.delete(recent.keys().next().value!);
-  return run;
+  let entry = recent.get(key);
+  if (!entry) {
+    const root = buildQuadtree(quadPlaces(s.density), s.capacity);
+    entry = { root, run: shape(root, s.density) };
+    recent.set(key, entry);
+    if (recent.size > RECENT) recent.delete(recent.keys().next().value!);
+  }
+  return entry;
 }
 
-function measure(s: QuadtreeSettings): QuadtreeRun {
+/** The tree's shape: depth, nodes, leaves, build steps and memory. */
+export const quadtree = (s: QuadtreeSettings): QuadtreeRun => kept(s).run;
+
+/** Runs every seeded query for the nearest places against the tree: slower than the build, so only when asked for. */
+export function quadtreeQueries(s: QuadtreeSettings): QueryCost {
+  const entry = kept(s);
+  if (entry.cost) return entry.cost;
   const points = quadPlaces(s.density);
-  const root = buildQuadtree(points, s.capacity);
+  const queries = quadQueries(s.density);
+  let visited = 0;
+  let examined = 0;
+  for (const [qx, qy] of queries) {
+    const r = nearestPlaces(entry.root, points, qx, qy, QUADTREE.nearest);
+    visited += r.visited;
+    examined += r.examined;
+  }
+  entry.cost = { visited: visited / queries.length, examined: examined / queries.length };
+  return entry.cost;
+}
+
+function shape(root: QuadNode, density: Density): QuadtreeRun {
+  const points = quadPlaces(density);
   const leaves: QuadLeaf[] = [];
   let nodes = 0;
   let buildSteps = 0;
@@ -224,17 +292,9 @@ function measure(s: QuadtreeSettings): QuadtreeRun {
     nodes++;
     if (n.kids) stack.push(...n.kids);
     else {
-      leaves.push({ x: n.x, y: n.y, size: n.size, depth: n.depth, count: n.items.length });
-      buildSteps += n.items.length * n.depth;
+      leaves.push({ x: n.x, y: n.y, size: n.size, depth: n.depth, count: n.end - n.start });
+      buildSteps += (n.end - n.start) * n.depth;
     }
-  }
-  const queries = quadQueries(s.density);
-  let visited = 0;
-  let examined = 0;
-  for (const [qx, qy] of queries) {
-    const r = nearestPlaces(root, points, qx, qy, QUADTREE.nearest);
-    visited += r.visited;
-    examined += r.examined;
   }
   const { entryBytes, nodeBytes, scaleTo, places } = QUADTREE;
   return {
@@ -244,8 +304,6 @@ function measure(s: QuadtreeSettings): QuadtreeRun {
     buildSteps,
     memoryBytes: places * entryBytes + nodes * nodeBytes,
     scaledBytes: scaleTo * entryBytes + nodes * (scaleTo / places) * nodeBytes,
-    visited: visited / queries.length,
-    examined: examined / queries.length,
     points,
   };
 }
@@ -276,15 +334,16 @@ const nodesText = (v: number) => `${num(v)} node${v === 1 ? '' : 's'}`;
  * places a query for the nearest 20 checks. Distractors are what the same question gives under neighbouring settings.
  */
 export function quadtreeCheckpoint(s: QuadtreeSettings, run = quadtree(s)): WidgetCheckpoint {
-  const other = (change: Partial<QuadtreeSettings>) => quadtree({ ...s, ...change });
-  const neighbours = [
-    other({ capacity: s.capacity * 4 }),
-    other({ capacity: Math.max(1, Math.round(s.capacity / 4)) }),
-    ...DENSITIES.filter((d) => d !== s.density).map((density) => other({ density })),
+  // The capacity neighbours first: the query question measures only those, since queries cost more than a build.
+  const nearby: QuadtreeSettings[] = [
+    { ...s, capacity: s.capacity * 4 },
+    { ...s, capacity: Math.max(1, Math.round(s.capacity / 4)) },
+    ...DENSITIES.filter((d) => d !== s.density).map((density) => ({ ...s, density })),
   ];
   const { places, nearest } = QUADTREE;
   const situation = `${num(places)} places ${DENSITY_TEXT[s.density]}, at most ${num(s.capacity)} a leaf`;
   const question = questionFor(s);
+  const neighbours = question === 'examined' ? [] : nearby.map(quadtree);
   if (question === 'depth') {
     const deepest = run.leaves.reduce((a, b) => (b.depth > a.depth ? b : a));
     const even = Math.log(places / s.capacity) / Math.log(4);
@@ -307,9 +366,15 @@ export function quadtreeCheckpoint(s: QuadtreeSettings, run = quadtree(s)): Widg
       explain: `A split turns one leaf into four, so the tree has 1 + 4 × splits nodes: here ${num(run.leaves.length)} leaves and ${num(run.nodes - run.leaves.length)} inner nodes. A leaf holds ${Number(avg.toFixed(1))} places on average, fewer than ${num(s.capacity)}, because a split rarely divides a leaf evenly and some quarters are empty.`,
     };
   }
+  const cost = quadtreeQueries(s);
   return {
     prompt: `Predict: ${situation}. A query asks for the nearest ${nearest}. How many places does it check the distance of, on average?`,
-    ...spacedChoices(Math.round(run.examined), [nearest, ...neighbours.map((n) => Math.round(n.examined))], (v) => `${num(v)} places`, 1),
-    explain: `The search opens the closest node first and checks every place in each leaf it opens, stopping once ${nearest} places are nearer than anything unopened: ${num(run.visited)} nodes and ${num(run.examined)} places a query on average. Big leaves mean fewer nodes but more places checked per leaf; tiny leaves mean more nodes to walk for each place.`,
+    ...spacedChoices(
+      Math.round(cost.examined),
+      [nearest, ...nearby.slice(0, 2).map((n) => Math.round(quadtreeQueries(n).examined))],
+      (v) => `${num(v)} places`,
+      1,
+    ),
+    explain: `The search opens the closest node first and checks every place in each leaf it opens, stopping once ${nearest} places are nearer than anything unopened: ${num(cost.visited)} nodes and ${num(cost.examined)} places a query on average. Big leaves mean fewer nodes but more places checked per leaf; tiny leaves mean more nodes to walk for each place.`,
   };
 }

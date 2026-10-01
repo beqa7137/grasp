@@ -1,6 +1,6 @@
 import { CELL_SEARCH, EDGE_KM, cellPlaces, cellSearch, kmText, radiusText, sharedPrefix } from './proximity/cells.js';
 import { EARTH_RADIUS_KM, geohashBounds, geohashCellKm, geohashEncode, haversineKm } from './proximity/geohash.js';
-import { QUADTREE, bytesText, quadtree } from './proximity/quadtree.js';
+import { QUADTREE, bytesText, quadtree, quadtreeQueries } from './proximity/quadtree.js';
 import type { CaseStudy } from './types.js';
 import { num } from './widget-checkpoint.js';
 
@@ -53,8 +53,8 @@ const coarse = cellSearch({ precision: 5, radiusKm: 1, scope: 'neighbours' });
 const p6 = geohashCellKm(6, lat);
 const p8 = geohashCellKm(8, lat);
 const fineCells = (Math.PI * SMALL_RADIUS_KM ** 2) / (p8.widthKm * p8.heightKm);
-const tree = quadtree({ capacity: 100, density: 'city' });
-const tiny = quadtree({ capacity: 5, density: 'city' });
+const tree = { ...quadtree({ capacity: 100, density: 'city' }), ...quadtreeQueries({ capacity: 100, density: 'city' }) };
+const tiny = { ...quadtree({ capacity: 5, density: 'city' }), ...quadtreeQueries({ capacity: 5, density: 'city' }) };
 const averageDepth = tree.buildSteps / QUADTREE.places;
 const scaledDepth = averageDepth + Math.log(BUSINESSES / QUADTREE.places) / Math.log(4);
 const lonShrink = Math.round((1 - Math.cos((lat * Math.PI) / 180)) * 100);
@@ -73,7 +73,7 @@ export const PROXIMITY_SERVICE: CaseStudy = {
             label:
               'The business page shows the edit as soon as it is saved; search may take up to a day to reflect it, so the location index can be built offline and served from memory',
             best: true,
-            why: 'The owner checks their own page, which is read by id from the business store, so they see the change at once. Searchers rarely notice an hour-old opening time, and a relaxed index lets every search server hold a read-only copy that changes in batches.',
+            why: 'The owner checks their own page, which is read by id from the business store, so they see the change at once. Searchers rarely notice that a change took a few hours to reach search, and a relaxed index lets every search server hold a read-only copy that changes in batches.',
           },
           {
             label: 'Every edit appears in every search, worldwide, within a second',
@@ -132,7 +132,7 @@ export const PROXIMITY_SERVICE: CaseStudy = {
         ],
       },
       points: [
-        `The location index needs far less: an entry is a business id, latitude, longitude and a word of filter bits (category, price, open-hours flags), 8 bytes each, ${QUADTREE.entryBytes} bytes. ${num(BUSINESSES / 1e6)} million × ${QUADTREE.entryBytes} bytes = ${indexGb} GB.`,
+        `The location index needs far less: an entry is a business id, latitude, longitude and a word of filter bits (category, price, and coarse hours such as open late or open weekends), 8 bytes each, ${QUADTREE.entryBytes} bytes. ${num(BUSINESSES / 1e6)} million × ${QUADTREE.entryBytes} bytes = ${indexGb} GB.`,
         `${indexGb} GB fits in the memory of one ordinary server with room to spare, so every search server can hold the whole index and answer a search without touching a disk or another machine.`,
         'The search returns ids and distances; the page fields shown in the list (name, rating badge, photo) come from the business cache by id in one batch.',
       ],
@@ -148,7 +148,7 @@ export const PROXIMITY_SERVICE: CaseStudy = {
             label:
               "A page token from the first response that holds the search (point, radius, filters), the index version it ran on, and the last result's distance and id; the next page continues after that pair",
             best: true,
-            why: 'Distance plus id is a total order, so a page starts exactly after the last one, with no repeats or gaps, and the version lets the server answer from the same index snapshot even if a new one was loaded in between.',
+            why: 'Distance plus id is a total order, so a page starts exactly after the last one, with no repeats or gaps, and the version lets the server answer from the same index snapshot even if a new one was loaded in between. If that version is no longer loaded, the server reruns the search on the current one and still continues after (distance, id), so at worst a moved or edited business repeats or is skipped once.',
           },
           {
             label: 'Offset and limit, such as `page=3&size=20`',
@@ -191,7 +191,7 @@ export const PROXIMITY_SERVICE: CaseStudy = {
           },
           {
             label: 'Two B-trees, one on latitude and one on longitude, intersected',
-            why: 'Each range is a band around the planet or a strip from pole to pole, holding millions of businesses each; intersecting two huge id lists costs far more than the few hundred results.',
+            why: 'Each range is a band around the planet or a strip from pole to pole, holding hundreds of thousands of businesses each; intersecting two huge id lists costs far more than the few hundred results.',
           },
           {
             label: 'No index: compute the distance to every business and keep the close ones',
@@ -326,7 +326,7 @@ export const PROXIMITY_SERVICE: CaseStudy = {
       points: [
         `Haversine: with R = ${num(EARTH_RADIUS_KM)} km, d = 2R × asin(sqrt(sin²(Δφ/2) + cos φ1 × cos φ2 × sin²(Δλ/2))). On a sphere it is exact; the Earth's flattening puts it within about 0.5% of the true distance, close enough for "near me".`,
         'Over a few km an equirectangular approximation, Δλ × cos(φ) and Pythagoras, is cheaper and almost as close; compare squared distances to skip the square root when only the order matters.',
-        'Filters on the bits in the index entry (category, price, open now) run before any record is fetched, so a search touches the business store only for the page it returns.',
+        'Filters on the bits in the index entry (category, price) run before any record is read; open now is checked against the hours in the cached record for the few hundred candidates that remain, so a search never queries the business store directly.',
         `Rank by distance here. A relevance ranking (ratings, reviews, popularity) would take more candidates by distance, a few hundred, and re-rank them in another service: out of scope.`,
         'A search returns a page token; a new location or new filters start a new search.',
       ],
@@ -354,13 +354,13 @@ export const PROXIMITY_SERVICE: CaseStudy = {
           },
           {
             label: 'One central index cluster that every region queries',
-            why: `A round trip between continents takes about 70 to 200 ms, most or all of the ${LATENCY_MS} ms budget, and one cluster's failure stops search everywhere.`,
+            why: `A round trip between continents takes about 70 ms (New York to London) to 300 ms (Europe to Australia), most or all of the ${LATENCY_MS} ms budget, or several times it, and one cluster's failure stops search everywhere.`,
           },
         ],
       },
       points: [
         'Search servers keep no state beyond the snapshot they loaded, so autoscaling adds copies and a load balancer spreads searches; each region runs its own pool near its users, with every region holding the whole world (a few GB).',
-        'Cache popular cells: keep the candidate lists of busy cells (city centres, airports) in each server or a regional cache, keyed by cell and index version, and still compute distances per request, since every user stands somewhere different.',
+        "Hot cells (city centres, airports): reading a cell is already a memory lookup, so the cost is the candidates. Split busy cells finer (a quadtree does this by itself), keep each busy cell's places pre-sorted by category so filters skip most of them, cap the candidates a search measures, and cache whole responses only for coarse zoomed-out map views, which many users share.",
         'Business pages: a cache by id in front of read replicas absorbs most of the page views; the primary takes only the edits.',
         'Shard the index by region only when it outgrows memory, for example with much richer entries: split by cell prefix with hot cities split finer, and send searches near a shard edge to both shards.',
       ],
@@ -427,6 +427,7 @@ export const PROXIMITY_SERVICE: CaseStudy = {
       },
       points: [
         'A quadtree or an R-tree does this natively: best-first search opens the nearest node next, however far that is.',
+        `With filters, widen until the nearest ${NEAREST} places that pass them lie within the covered distance; a rare category widens much further, so cap the radius and say so in the response.`,
         'Antimeridian: a 2 km circle around a point at 179.99° E crosses the 180th meridian, where longitude jumps to -180°. Neighbour cells wrap longitude, and distances use the haversine formula, which handles the wrap; never compare raw longitudes.',
         `Poles: cells become slivers (at ${POLE_LAT}° N a precision 5 cell is ${size(5, POLE_LAT)}) and there is no cell beyond the pole, so a polar circle may need every longitude. Few businesses are there, but the code must not loop or crash; S2's cube cells avoid most of this.`,
         'A moving user: search again only when they move more than a fraction of the radius or leave their cell, debounce map pans, and re-sort the last results on the phone between searches.',
@@ -478,6 +479,7 @@ export const PROXIMITY_SERVICE: CaseStudy = {
         'Index: the version each server serves, its age, build duration and validation results; page when the fleet is split across versions for long or the index is more than a day old.',
         'Freshness: time from an edit to its first appearance in search, sampled with test businesses.',
         'Business pages: cache hit rate, replica lag and database load.',
+        'Privacy: search servers log coarse cells, not exact coordinates, and keep no location history.',
       ],
     },
   ],

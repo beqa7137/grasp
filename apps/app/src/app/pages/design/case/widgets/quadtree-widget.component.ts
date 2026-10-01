@@ -9,6 +9,7 @@ import {
   quadPlaces,
   quadtree,
   quadtreeCheckpoint,
+  quadtreeQueries,
   type Density,
   type QuadtreeSettings,
   type WidgetCheckpoint,
@@ -55,12 +56,16 @@ const DOT = 0.32;
     </label>
 
     <svg class="map" viewBox="0 0 100 100" role="img" [attr.aria-label]="mapLabel()">
-      <path class="places" [attr.d]="places()" />
-      <path class="leaves" [attr.d]="leaves()" />
+      <path class="places" [class.dim]="answered()" [attr.d]="places()" />
+      @if (answered()) {
+        <path class="leaves" [attr.d]="leaves()" />
+      }
     </svg>
     <ul class="legend-list" aria-hidden="true">
       <li><span class="swatch place"></span>A place</li>
-      <li><span class="swatch leaf"></span>A leaf: at most {{ format(settings().capacity) }} places</li>
+      @if (answered()) {
+        <li><span class="swatch leaf"></span>A leaf: at most {{ format(settings().capacity) }} places</li>
+      }
     </ul>
 
     @if (answered()) {
@@ -75,11 +80,11 @@ const DOT = 0.32;
         </div>
         <div>
           <dt>Places checked a query</dt>
-          <dd class="mono">{{ format(run().examined) }}</dd>
+          <dd class="mono">{{ format(cost().examined) }}</dd>
         </div>
         <div>
           <dt>Nodes walked a query</dt>
-          <dd class="mono">{{ format(run().visited) }}</dd>
+          <dd class="mono">{{ format(cost().visited) }}</dd>
         </div>
         <div>
           <dt>Build steps</dt>
@@ -95,7 +100,9 @@ const DOT = 0.32;
         </div>
       </dl>
     } @else {
-      <p class="muted hidden-note">Depth, nodes, memory and the work of a query show once you answer the prediction below.</p>
+      <p class="muted hidden-note">
+        The tree's leaves, depth, nodes, memory and the work of a query show once you answer the prediction below.
+      </p>
     }
     <p class="visually-hidden" role="status">{{ announcement() }}</p>
     <p class="muted note">
@@ -118,9 +125,13 @@ const DOT = 0.32;
     .places {
       fill: var(--g-accent);
     }
+    /* Faded under the leaves, so the smallest squares still show where places are dense. */
+    .places.dim {
+      opacity: 0.4;
+    }
     .leaves {
       fill: none;
-      stroke: var(--g-stroke);
+      stroke: var(--g-text);
       stroke-width: 0.25;
     }
     .legend-list {
@@ -150,7 +161,7 @@ const DOT = 0.32;
       &.leaf {
         width: 12px;
         height: 12px;
-        border: 1.5px solid var(--g-stroke);
+        border: 1.5px solid var(--g-text);
       }
     }
     .readouts {
@@ -185,6 +196,8 @@ export class QuadtreeWidgetComponent {
   readonly baseline = QUADTREE.scaleTo * QUADTREE.entryBytes;
   readonly settings = signal<QuadtreeSettings>({ capacity: 100, density: 'city' });
   readonly run = computed(() => quadtree(this.settings()));
+  /** Running the queries is the slow part, so it happens only for the readouts shown after an answer. */
+  readonly cost = computed(() => quadtreeQueries(this.settings()));
   readonly check = computed(() => quadtreeCheckpoint(this.settings(), this.run()));
   /** A new pattern asks again; the capacity slider only moves the readouts under an answered question. */
   private readonly asked = computed(() => this.settings().density);
@@ -208,9 +221,10 @@ export class QuadtreeWidgetComponent {
   );
   readonly mapLabel = computed(() => {
     const s = this.settings();
-    const head = `Quadtree leaves over ${this.placeCount} places ${DENSITY_TEXT[s.density]}, at most ${num(s.capacity)} a leaf`;
+    const places = `${this.placeCount} places ${DENSITY_TEXT[s.density]}`;
+    if (!this.answered()) return `Map of ${places}; the tree shows once you answer`;
     const run = this.run();
-    return this.answered() ? `${head}: ${run.depth} levels deep, ${num(run.nodes)} nodes` : head;
+    return `Quadtree leaves over ${places}, at most ${num(s.capacity)} a leaf: ${run.depth} levels deep, ${num(run.nodes)} nodes`;
   });
   readonly announcement = settledAnnouncement(() => this.summary());
 
@@ -219,7 +233,7 @@ export class QuadtreeWidgetComponent {
     const head = `${this.placeCount} places ${DENSITY_TEXT[s.density]}, at most ${num(s.capacity)} a leaf.`;
     if (!this.answered()) return `${head} Answer the prediction to see the tree.`;
     const run = this.run();
-    return `${head} ${run.depth} levels deep, ${num(run.nodes)} nodes; a query checks ${num(run.examined)} places.`;
+    return `${head} ${run.depth} levels deep, ${num(run.nodes)} nodes; a query checks ${num(this.cost().examined)} places.`;
   }
 
   set(change: Partial<QuadtreeSettings>) {
