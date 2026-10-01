@@ -22,6 +22,13 @@ Screenshots, serious and critical axe violations, page errors and sideways overf
 code workspace, dialogs), `design.mjs` (Design Lab, case studies and their widgets, design lessons) and `interview.mjs`
 (interviews and behavioral). `lib.mjs` holds the browser helpers they share. Exits non-zero if any state has a problem.
 
+Sideways overflow is checked on the document and inside the page (`overflow.mjs`), since Ionic pages scroll inside
+`ion-content`: in-flow content spilling out of its box, text clipped by an `overflow: hidden` box (an ellipsis or visually
+hidden text is fine), and boxes that stick out of their `ion-content` or the viewport. Each finding names the kind, the
+overflow in px and a selector path. Horizontal scrollers (`overflow-x: auto` or `scroll`) never fail; ones a keyboard
+cannot reach or a screen reader cannot name are listed as `scrollers`. Its tests run a fixture page:
+`node --test tools/verify/overflow.test.mjs`.
+
 ```sh
 BASE=http://localhost:4310 THEME=dark OUT=verify-out/now STABLE=1 node tools/verify/audit.mjs
 BASE=https://grasp-rho-taupe.vercel.app THEME=light OUT=verify-out/prod READONLY=1 node tools/verify/audit.mjs

@@ -71,6 +71,10 @@
     font-weight: 600;
   }
   .value {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 2px;
     font: 600 clamp(1.125rem, 3vw, 1.5rem) / 1.1 var(--g-font-display);
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
@@ -78,7 +82,6 @@
   small {
     font: 500 0.75rem var(--ion-font-family);
     color: var(--g-muted);
-    margin-left: 2px;
   }
   &.good {
     border-color: rgba(var(--g-found-rgb), 0.5);
