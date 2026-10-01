@@ -1,11 +1,10 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
 import {
   FLAG_A,
   FLAG_B,
   POPULATION,
   REQUESTS,
   ROLLOUT_STAGES,
-  SALT_VERSIONS,
   bucketingCheckpoint,
   bucketingRun,
   num,
@@ -15,6 +14,7 @@ import {
   type RolloutState,
 } from '@grasp/engine';
 import { RovingSelectDirective } from '../../../../core/roving-select.directive';
+import { settledAnnouncement } from './settled-announcement';
 import { WidgetCheckComponent } from './widget-check.component';
 
 const SCHEMES: { scheme: Assignment; label: string }[] = [
@@ -22,9 +22,6 @@ const SCHEMES: { scheme: Assignment; label: string }[] = [
   { scheme: 'user-only', label: 'Hash of user id only' },
   { scheme: 'random', label: 'Random on each request' },
 ];
-
-/** How long input must rest before the summary is announced, so stepping through stages does not queue one per step. */
-const SETTLE_MS = 600;
 
 /** A rollout of new-checkout over 1,000 users: which users each scheme picks, who stays when it grows, and its overlap with another flag. */
 @Component({
@@ -64,7 +61,7 @@ const SETTLE_MS = 600;
         <span class="muted"
           >Salt <span class="mono">{{ salt() }}</span></span
         >
-        <button class="g-btn ghost" (click)="change({ saltVersion: (settings().saltVersion % saltVersions) + 1 })">Change the salt</button>
+        <button class="g-btn ghost" (click)="change({ saltVersion: settings().saltVersion + 1 })">Change the salt</button>
       } @else {
         <span class="muted">{{
           settings().scheme === 'random' ? 'No salt: every request rolls a die.' : 'No salt: every flag hashes the user id alone.'
@@ -77,24 +74,33 @@ const SETTLE_MS = 600;
         <span
           class="cell"
           [class.in]="u.inA"
-          [class.b]="answered() && u.inB"
-          [class.left]="answered() && u.wasIn && !u.inA"
-          [class.joined]="answered() && u.wasIn === false && u.inA"
-          [class.flip]="answered() && u.flips"
+          [class.both]="view() === 'overlap' && u.inA && u.inB"
+          [class.only-b]="view() === 'overlap' && !u.inA && u.inB"
+          [class.joined]="view() === 'change' && u.wasIn === false && u.inA"
+          [class.left]="view() === 'change' && u.wasIn && !u.inA"
+          [class.flip]="view() !== 'plain' && u.flips"
         ></span>
       }
     </div>
     <ul class="legend-list" aria-hidden="true">
-      <li><span class="cell in"></span>In {{ flagA }}</li>
-      @if (answered()) {
-        <li><span class="cell b"></span>Also in {{ flagB.key }} ({{ flagB.percent }}%)</li>
-        @if (run().stayed !== null) {
-          <li><span class="cell in joined"></span>Joined in the last change</li>
-          <li><span class="cell left"></span>Left in the last change</li>
+      <li><span class="cell"></span>Not in {{ flagA }}</li>
+      @switch (view()) {
+        @case ('overlap') {
+          <li><span class="cell in"></span>In {{ flagA }}</li>
+          <li><span class="cell in both"></span>In both flags (dot)</li>
+          <li><span class="cell only-b"></span>Only in {{ flagB.key }} (faint)</li>
         }
-        @if (settings().scheme === 'random') {
-          <li><span class="cell in flip"></span>Saw both versions in {{ requests }} requests</li>
+        @case ('change') {
+          <li><span class="cell in"></span>Stayed in</li>
+          <li><span class="cell in joined"></span>Joined (dot)</li>
+          <li><span class="cell left"></span>Left (outline)</li>
         }
+        @default {
+          <li><span class="cell in"></span>In {{ flagA }}</li>
+        }
+      }
+      @if (view() !== 'plain' && settings().scheme === 'random') {
+        <li><span class="cell in flip"></span>Saw both versions (half filled)</li>
       }
     </ul>
 
@@ -147,32 +153,38 @@ const SETTLE_MS = 600;
     }
     .grid {
       display: grid;
-      grid-template-columns: repeat(40, 1fr);
+      grid-template-columns: repeat(40, minmax(0, 1fr));
       gap: 1px;
       max-width: 440px;
       margin: 0 auto 8px;
     }
+    @media (max-width: 400px) {
+      .grid {
+        grid-template-columns: repeat(25, minmax(0, 1fr));
+      }
+    }
     .cell {
       display: inline-block;
       aspect-ratio: 1;
-      min-width: 5px;
       border-radius: 1px;
-      background: var(--g-line);
+      background: var(--g-line-strong);
     }
     .cell.in {
       background: var(--g-accent);
     }
-    .cell.b {
-      box-shadow: inset 0 0 0 1.5px var(--g-text);
+    .cell.only-b {
+      background: color-mix(in srgb, var(--g-accent) 35%, var(--g-surface));
     }
+    .cell.both,
     .cell.joined {
-      background: var(--g-found);
+      background: radial-gradient(circle, var(--g-surface) 0 26%, transparent 32%), var(--g-accent);
     }
     .cell.left {
-      background: var(--g-danger);
+      background: transparent;
+      box-shadow: inset 0 0 0 1.5px var(--g-danger-ink);
     }
     .cell.flip {
-      background: repeating-linear-gradient(45deg, var(--g-accent) 0 2px, var(--g-danger) 2px 4px);
+      background: linear-gradient(135deg, var(--g-accent) 50%, var(--g-line-strong) 50%);
     }
     .legend-list {
       list-style: none;
@@ -209,7 +221,6 @@ const SETTLE_MS = 600;
 export class BucketingWidgetComponent {
   readonly schemes = SCHEMES;
   readonly stages = ROLLOUT_STAGES;
-  readonly saltVersions = SALT_VERSIONS;
   readonly flagA = FLAG_A;
   readonly flagB = FLAG_B;
   readonly requests = REQUESTS;
@@ -219,7 +230,7 @@ export class BucketingWidgetComponent {
   /** The rollout before the last change of stage or salt; a new scheme starts over. */
   readonly previous = signal<RolloutState | null>(null);
   readonly run = computed(() => bucketingRun(this.settings(), this.previous()));
-  readonly check = computed(() => bucketingCheckpoint(this.settings(), this.previous()));
+  readonly check = computed(() => bucketingCheckpoint(this.settings(), this.previous(), this.run()));
   readonly salt = computed(() => saltOf(FLAG_A, this.settings().saltVersion));
   private readonly asked = computed(() => JSON.stringify([this.settings(), this.previous()]));
   private readonly answers = signal<{ asked: string; chosen: number } | null>(null);
@@ -228,22 +239,14 @@ export class BucketingWidgetComponent {
     return a?.asked === this.asked() ? a.chosen : null;
   });
   readonly answered = computed(() => this.chosen() !== null);
+  /** What the grid marks: nothing beyond flag A until answered, then the overlap with flag B, or the last change. */
+  readonly view = computed(() => (!this.answered() ? 'plain' : this.run().stayed === null ? 'overlap' : 'change'));
   readonly gridLabel = computed(() => {
     const run = this.run();
     const base = `${num(run.inA)} of ${this.population} users in ${FLAG_A} at ${this.settings().percent}%`;
     return this.answered() ? `${base}, ${num(run.both)} of them also in ${FLAG_B.key}` : base;
   });
-  readonly announcement = signal('');
-
-  constructor() {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    inject(DestroyRef).onDestroy(() => clearTimeout(timer));
-    effect(() => {
-      const summary = this.summary();
-      clearTimeout(timer);
-      timer = setTimeout(() => this.announcement.set(summary), SETTLE_MS);
-    });
-  }
+  readonly announcement = settledAnnouncement(() => this.summary());
 
   private summary(): string {
     const run = this.run();

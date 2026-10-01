@@ -105,7 +105,7 @@ export const FEATURE_FLAGS: CaseStudy = {
     {
       kind: 'estimation',
       title: 'Estimate naive polling',
-      prompt: `Each SDK needs its environment's ruleset: about 400 flags of 2.5 KB with their rules and segments, ${num(PROPAGATION.rulesetKb / 1000)} MB. If all ${num(instances)} instances download the whole ruleset every ${POLL_S} seconds, how many bytes a second does the flag service send?`,
+      prompt: `Each SDK loads one ruleset, its project's production environment: about 400 flags of 2.5 KB with their rules and segments, ${num(PROPAGATION.rulesetKb / 1000)} MB. Assume pessimistically that every instance reads such a ruleset and that it changes ${CHANGES_A_MIN} times a minute on a busy release day. If all ${num(instances)} instances download the whole ruleset every ${POLL_S} seconds, how many bytes a second does the flag service send?`,
       estimate: {
         question: 'Ruleset bytes a second sent to polling SDKs',
         answer: megabytes(naive.originBytesS),
@@ -169,7 +169,7 @@ export const FEATURE_FLAGS: CaseStudy = {
             label:
               "In the service's own process: the SDK keeps the environment's ruleset in memory, updated by a stream, and evaluates each call locally",
             best: true,
-            why: 'No network on the request path, so evaluation takes microseconds and costs nothing per call; an outage of the flag service only delays changes; and user attributes used for targeting never leave the service.',
+            why: 'No network on the request path, so evaluation takes microseconds and costs nothing per call; an outage of the flag service only delays changes; and evaluating a flag sends no user data anywhere; only exposure events leave the service, with private attributes stripped.',
           },
           {
             label: "Call the flag service's evaluate endpoint for each flag",
@@ -187,9 +187,10 @@ export const FEATURE_FLAGS: CaseStudy = {
       },
       points: [
         'SDK interface: `variation(key, ctx, def)` returns the value, or `def` (the call-site default) when it has none, and never throws; `allFlags(ctx)` returns every value for one context, which a server can pass to its web page.',
-        'SDK to service: `GET /sdk/ruleset` (the whole ruleset with its version and an ETag), `GET /sdk/stream` (server-sent events: the whole ruleset on connect, then each change with its version), and `POST /sdk/events` (evaluation counts and exposures, in batches).',
+        'SDK to service: `GET /sdk/ruleset` (the whole ruleset with its version and an ETag), `GET /sdk/stream` (server-sent events: the current ruleset version on connect, then each change with its version), and `POST /sdk/events` (evaluation counts and exposures, in batches).',
         'Management API for people and tools: create and edit flags with a comment, the version the edit was based on (`If-Match`, so two editors cannot overwrite each other) and, in production, an approval.',
-        "Browsers and phones cannot hold the ruleset: it would expose every rule, segment and targeted user id to anyone who opens the developer tools, and it is far too large. Their SDKs send one context to an evaluation endpoint and receive only that context's values, so those user attributes do reach the service: mark sensitive ones private so they are used for evaluation but never stored or logged.",
+        "Browsers and phones should not hold the server ruleset: it would expose every rule, segment and targeted user id to anyone who opens the developer tools, and it is large for a phone. Their SDKs send one context to an evaluation endpoint and receive only that context's values, so those user attributes do reach the service: mark sensitive ones private so they are used for evaluation but never stored or logged.",
+        'Mobile SDKs cache the last evaluated values on the device, so an app opened offline or before its first fetch shows the values it last had, not call-site defaults. They stream while in the foreground and poll rarely or stop in the background to save battery, re-fetch when the user changes (an identify call), and a kill switch reaches a backgrounded app only when it wakes.',
         'A thin, shared evaluation core keeps four languages honest: the same rules, operators and hashing in every SDK, checked by one shared suite of test cases with expected results.',
       ],
     },
@@ -236,7 +237,7 @@ export const FEATURE_FLAGS: CaseStudy = {
       },
       widget: 'bucketing',
       points: [
-        `bucket = hash(salt + ':' + user id) mod ${num(BUCKETS)}; the user is in when bucket < percentage × ${BUCKETS / 100}. The hash must be stable across languages and releases (Unleash uses MurmurHash3, LaunchDarkly SHA-1 of the flag key, the flag's salt and the user key), so it is part of the SDK specification, not an implementation detail.`,
+        `bucket = hash(salt + ':' + user id) mod ${num(BUCKETS)}; the user is in when bucket < percentage × ${BUCKETS / 100}. The hash must be stable across languages and releases (Unleash: MurmurHash3 of \`groupId:userId\`, the group id defaulting to the flag name, normalized to 1 to 100; LaunchDarkly: SHA-1 of the flag key, the flag's salt and the user key, normalized to 1 in 100,000), so it is part of the SDK specification, not an implementation detail.`,
         'A rollout over several variations gives each a range of buckets: control 0 to 4,999, treatment 5,000 to 9,999. Growing a variation extends its range at the edge; inserting or reordering ranges moves users who were already assigned.',
         'Changing the salt, or the attribute you bucket by, reshuffles everyone. Do it only to start a fresh sample on purpose, never in the middle of a rollout.',
         "Two flags with their own salts are independent: two 10% rollouts share about 1% of users (10% × 10%), not 10%. That keeps two experiments' effects apart.",
@@ -247,7 +248,7 @@ export const FEATURE_FLAGS: CaseStudy = {
     {
       kind: 'deep-dive',
       title: 'Propagate changes in seconds',
-      prompt: `A kill switch must reach all ${num(instances)} instances within seconds, about ${CHANGES_A_MIN} changes a minute arrive across the environment, and the ruleset is ${num(PROPAGATION.rulesetKb / 1000)} MB.`,
+      prompt: `A kill switch must reach all ${num(instances)} instances within seconds, about ${CHANGES_A_MIN} changes a minute arrive in each ruleset, and the ruleset is ${num(PROPAGATION.rulesetKb / 1000)} MB.`,
       decision: {
         question: 'How do changes get from the flag service to every SDK?',
         options: [
@@ -273,7 +274,7 @@ export const FEATURE_FLAGS: CaseStudy = {
       },
       widget: 'propagation',
       points: [
-        "Server-sent events are one long HTTP response the server writes to: one-way, plain HTTP that passes through proxies, with reconnection built into the protocol. Send the whole ruleset as the first event, then one event per change carrying the flag's new version and the ruleset version.",
+        "Server-sent events are one long HTTP response the server writes to: one-way, plain HTTP that passes through most proxies (those that buffer responses must be told not to), with reconnection and resume from the last event id defined by the standard. The first event names the current ruleset version, which the SDK fetches from the CDN if it does not hold it; then one event per change carrying the flag's new version and the ruleset version.",
         'The SDK applies a change only if it is newer than what it holds, and if a version is missing it fetches the snapshot again. Heartbeats every 30 seconds or so let both sides detect a dead connection.',
         `Fan-out: with ${num(PROPAGATION.connectionsPerServer)} connections a server, ${num(instances)} instances need ${stream.streamServers} stream servers, plus spares in each zone; a relay per cluster cuts the connections to the central service to one per cluster.`,
         `Reconnect storms: if the stream servers restart, every SDK reconnects and wants the ruleset at once, ${num(instances)} × ${num(PROPAGATION.rulesetKb / 1000)} MB = ${num(storm)} GB. Reconnect with random jitter and backoff, and serve the snapshot from the CDN, keyed by version, so the origin is not in the path.`,
@@ -326,13 +327,13 @@ export const FEATURE_FLAGS: CaseStudy = {
         options: [
           {
             label:
-              'Staged percentages (1%, 5%, 25%, 50%, 100%) with a hold at each; guardrail metrics compared between the users in the flag and the users out of it; automatic rollback to 0% when a guardrail breaks; and a kill switch anyone on call can flip',
+              'Staged percentages (1%, 5%, 10%, 25%, 50%, 100%) with a hold at each; guardrail metrics compared between the users in the flag and the users out of it; automatic rollback to 0% when a guardrail breaks; and a kill switch anyone on call can flip',
             best: true,
             why: `Comparing the two groups shows ${percentText(NEW_PATH_ERRORS)} against ${percentText(BASE_ERRORS)}, double, even at ${percentText(FIRST_STAGE)}. Rollback is a flag change, so it propagates in seconds, and the hold at each stage limits how many users see a bad version before the metrics have enough data.`,
           },
           {
             label: "Watch the whole service's error rate before and after each step",
-            why: `At ${percentText(FIRST_STAGE)} exposure the service's error rate moves from ${percentText(BASE_ERRORS)} to ${percentText(blended)}, lost in the noise. Only the comparison between the two groups shows it.`,
+            why: `At ${percentText(FIRST_STAGE)} exposure the service's error rate moves from ${percentText(BASE_ERRORS)} to ${percentText(blended)}, easy to miss in normal variation. Only the comparison between the two groups shows it.`,
           },
           {
             label: 'Go straight to 100% at a quiet hour, with the kill switch ready',
@@ -417,7 +418,7 @@ export const FEATURE_FLAGS: CaseStudy = {
       points: [
         'Remove a flag in order: make the winning path unconditional in code, deploy, confirm evaluations of the key drop to zero, then archive the flag. Archived, not deleted, so an evaluation of the key still shows up, as an alert.',
         'Code references: a job scans repositories for flag keys on every merge (LaunchDarkly publishes one, `ld-find-code-refs`), so each flag page lists the files that use it, and a flag with no references and no evaluations is safe to archive.',
-        'Never reuse a flag key for something else. In 2012 Knight Capital repurposed an old flag; one server still had the old code behind it, and the firm lost more than $440 million in about 45 minutes.',
+        "Never reuse a flag key for something else. In 2012 Knight Capital repurposed an old flag; one server still had the old code behind it, and the firm lost about $460 million (by the SEC's account) in about 45 minutes.",
         'Each flag doubles the paths through the code in principle: test the default path and the new path, and remove the flag soon after 100% so the old path stops needing tests.',
         'Dashboards per team: flags past their removal date, stale flags, flags not evaluated in 30 days. Make the cost visible where teams already plan work.',
       ],
@@ -485,6 +486,11 @@ export const FEATURE_FLAGS: CaseStudy = {
       question: 'How would you run experiments on top of this?',
       answer:
         'The flag gives each user a variation by hash and the SDK records an exposure when the value is used. The experimentation platform joins exposures with outcome metrics and compares the groups. The flag service guarantees stable, independent assignment and a record of who saw what; it does not do the statistics.',
+    },
+    {
+      question: 'An experiment is running at 50% and product wants the new variation for more users now. Can you widen it?',
+      answer:
+        'Never move bucket ranges or change the salt of a running experiment: users would switch arms mid-test. Ramp only the release flag in front of it, or stop and restart the experiment.',
     },
     {
       question: 'How do you serve flags across several regions?',

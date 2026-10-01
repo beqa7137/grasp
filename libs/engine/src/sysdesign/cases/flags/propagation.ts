@@ -115,9 +115,11 @@ const describe = (s: PropagationSettings) =>
 
 type Question = 'converge' | 'requests' | 'bandwidth';
 
+/** Picked only from the settings the learner can see: a stream hides the interval, the payload and the CDN. */
 function questionFor(s: PropagationSettings): Question {
-  const pick = (s.instances / 1000 + s.intervalS / 5 + s.changesPerMin * 7 + (s.cdn ? 11 : 0) + s.payload.length * 3) % 3;
-  if (s.delivery === 'stream') return pick === 0 ? 'bandwidth' : 'converge';
+  const shown = s.instances / 1000 + s.changesPerMin * 7;
+  if (s.delivery === 'stream') return shown % 3 === 0 ? 'bandwidth' : 'converge';
+  const pick = (shown + s.intervalS / 5 + (s.cdn ? 11 : 0) + s.payload.length * 3) % 3;
   return (['converge', 'requests', 'bandwidth'] as const)[pick];
 }
 

@@ -4,7 +4,6 @@ import {
   FLAG_A,
   POPULATION,
   ROLLOUT_STAGES,
-  SALT_VERSIONS,
   bucketingCheckpoint,
   bucketingRun,
   flagBucket,
@@ -20,16 +19,17 @@ const MANY = rolloutUsers(100_000);
 const share = (test: (id: string) => boolean) => MANY.filter(test).length / MANY.length;
 const IN_A = new Map(MANY.map((id) => [id, flagBucket(id, FLAG_A)]));
 const SCHEMES: Assignment[] = ['flag-salt', 'user-only', 'random'];
+const SALTS_SWEPT = 5;
 
 /** Every state the widget can reach: a scheme, a stage and a salt, before or after one change of stage or salt. */
 function* reachable(): Generator<[Assignment, RolloutState, RolloutState | null]> {
   for (const scheme of SCHEMES)
     for (const percent of ROLLOUT_STAGES)
-      for (let saltVersion = 1; saltVersion <= (scheme === 'flag-salt' ? SALT_VERSIONS : 1); saltVersion++) {
+      for (let saltVersion = 1; saltVersion <= (scheme === 'flag-salt' ? SALTS_SWEPT : 1); saltVersion++) {
         const now = { percent, saltVersion };
         yield [scheme, now, null];
         for (const before of ROLLOUT_STAGES) if (before !== percent) yield [scheme, now, { percent: before, saltVersion }];
-        if (scheme === 'flag-salt') yield [scheme, now, { percent, saltVersion: (saltVersion % SALT_VERSIONS) + 1 }];
+        if (scheme === 'flag-salt' && saltVersion > 1) yield [scheme, now, { percent, saltVersion: saltVersion - 1 }];
       }
 }
 
@@ -107,8 +107,8 @@ describe('bucketing checkpoint', () => {
   it('has exactly one right answer, the count the run gives, on every reachable state', () => {
     for (const [scheme, now, before] of reachable()) {
       const at = JSON.stringify([scheme, now, before]);
-      const c = bucketingCheckpoint({ scheme, ...now }, before);
       const run = bucketingRun({ scheme, ...now }, before);
+      const c = bucketingCheckpoint({ scheme, ...now }, before, run);
       const counted = before ? run.stayed! : scheme === 'random' ? run.flipped : run.both;
       expect(c.choices[c.answer], at).toBe(`${counted.toLocaleString('en-US')} user${counted === 1 ? '' : 's'}`);
       expect(c.choices.length, at).toBeGreaterThanOrEqual(3);

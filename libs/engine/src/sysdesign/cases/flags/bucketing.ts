@@ -8,7 +8,6 @@ export const ROLLOUT_STAGES = [1, 5, 10, 25, 50, 100] as const;
 export const POPULATION = 1_000;
 /** Requests each user makes in the flicker count. */
 export const REQUESTS = 5;
-export const SALT_VERSIONS = 4;
 export const FLAG_A = 'new-checkout';
 /** A second flag already running, so its users can be compared with the first's. */
 export const FLAG_B = { key: 'search-ranking', percent: 50 } as const;
@@ -113,8 +112,11 @@ function describeChange(previous: RolloutState, s: RolloutState): string {
  * A prediction about the current settings, read from the run: how many users flicker under a random scheme, how many
  * stay in after the last change, or else how many of flag A's users are also in flag B.
  */
-export function bucketingCheckpoint(s: BucketingSettings, previous: RolloutState | null): WidgetCheckpoint {
-  const run = bucketingRun(s, previous);
+export function bucketingCheckpoint(
+  s: BucketingSettings,
+  previous: RolloutState | null,
+  run = bucketingRun(s, previous),
+): WidgetCheckpoint {
   const p = s.percent / 100;
   if (previous && run.stayed !== null) {
     const before = run.stayed + run.left!;

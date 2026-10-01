@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FEATURE_FLAGS } from './feature-flags.js';
+import { ROLLOUT_STAGES } from './flags/bucketing.js';
 import { CASE_LABS } from './labs.js';
 
 const estimates = FEATURE_FLAGS.stages.flatMap((s) => (s.estimate ? [s.estimate] : []));
@@ -40,5 +41,25 @@ describe('feature flag case', () => {
     expect(text).not.toMatch(/fails 2%|fails 0\.1%/);
     expect(text.match(/fails 0\.5% of requests today; the new path, it turns out, fails 1%/g)).toHaveLength(1);
     expect(text).toContain('shows 1% against 0.5%, double, even at 1%');
+  });
+
+  it('stages rollouts the way the bucketing widget does', () => {
+    expect(text).toContain(`Staged percentages (${ROLLOUT_STAGES.map((p) => `${p}%`).join(', ')})`);
+  });
+
+  it('says one thing about what a stream sends on connect, and keeps evaluation data local', () => {
+    expect(text).not.toMatch(/whole ruleset on connect|whole ruleset as the first event/);
+    expect(text).toContain('the current ruleset version on connect');
+    expect(text).toContain('evaluating a flag sends no user data anywhere');
+    expect(text).not.toContain('never leave the service');
+  });
+
+  it('scopes the ruleset to one project environment, covers mobile SDKs and running experiments, and cites the SEC for Knight', () => {
+    expect(text).toContain("its project's production environment");
+    expect(text).toContain('changes a minute arrive in each ruleset');
+    expect(text).toContain('Mobile SDKs cache the last evaluated values on the device');
+    expect(text).toContain('Never move bucket ranges or change the salt of a running experiment');
+    expect(text).toContain("about $460 million (by the SEC's account)");
+    expect(text).toContain('normalized to 1 in 100,000');
   });
 });

@@ -109,12 +109,15 @@ for (const theme of ['dark', 'light'] as const) {
       await page.keyboard.press('Home');
       await expect(delivery.getByRole('radio', { name: 'Stream (server-sent events)' })).toHaveAttribute('aria-checked', 'true');
       await expect(fleet.getByRole('checkbox')).toHaveCount(0);
+      await expect(fleet.locator('.readouts')).toHaveCount(0);
+      await predict(fleet, '0.7 s');
+      await expect(readout(fleet, 'Stream servers')).toHaveText('2');
       const instances = fleet.getByRole('slider', { name: /^SDK instances/ });
       await instances.focus();
       await page.keyboard.press('ArrowRight');
       await expect(instances).toHaveAttribute('aria-valuetext', '21,000 instances');
-      await predict(fleet, '0.7 s');
       await expect(readout(fleet, 'Stream servers')).toHaveText('3');
+      await expect(fleet.locator('app-widget-check fieldset')).toHaveCount(0);
       await expect(fleet.getByRole('status')).toContainText(
         'Streaming to 21,000 instances, 2 changes a minute. Last instance has a change after 0.7 s',
       );
@@ -140,3 +143,28 @@ for (const theme of ['dark', 'light'] as const) {
     });
   });
 }
+
+test.describe('on a 320 px screen', () => {
+  test.use({ viewport: { width: 320, height: 700 } });
+
+  test('the bucketing grid and its legend fit without scrolling sideways', async ({ page }) => {
+    const stages = Array.from({ length: 7 }, (_, i) =>
+      i === 1 ? { guess: '5M' } : i === 2 ? { guess: '667' } : [0, 3, 4, 6].includes(i) ? { chosen: 0 } : {},
+    );
+    await page.addInitScript(
+      (draft) => localStorage.setItem('CapacitorStorage.grasp.case.feature-flags', draft),
+      JSON.stringify({ attempt: 'e2e-320', reached: 6, stages }),
+    );
+    await page.goto('/design/case/feature-flags');
+    const widget = page.locator('app-bucketing-widget');
+    await widget.locator('app-widget-check fieldset button').first().click();
+    await expect(widget.locator('.legend-list li')).toHaveCount(4);
+    for (const part of [widget.locator('.grid'), widget, widget.locator('.legend-list')]) {
+      const { scroll, client } = await part.evaluate((el) => ({ scroll: el.scrollWidth, client: el.clientWidth }));
+      expect(scroll).toBeLessThanOrEqual(client);
+    }
+    const grid = await widget.locator('.grid').boundingBox();
+    const box = await widget.boundingBox();
+    expect(grid!.x + grid!.width).toBeLessThanOrEqual(box!.x + box!.width);
+  });
+});
