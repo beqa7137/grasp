@@ -6,7 +6,10 @@ import type { AppConfig } from '../config.js';
 import { MemoryAuthStore, MemoryCoordinationStore } from '../persistence/memory.stores.js';
 import type { CoordinationStore } from '../persistence/stores.js';
 import { hashToken } from '../auth/tokens.js';
+import { recordFailure } from '../observability/failure-signals.js';
 import { RateLimit, RateLimitGuard, SkipRateLimit } from './rate-limit.js';
+
+vi.mock('../observability/failure-signals.js', () => ({ recordFailure: vi.fn() }));
 
 class Routes {
   list() {}
@@ -42,6 +45,7 @@ describe('RateLimitGuard', () => {
   let coordination: MemoryCoordinationStore;
 
   beforeEach(() => {
+    vi.mocked(recordFailure).mockClear();
     now = Date.parse('2026-09-24T10:00:00Z');
     auth = new MemoryAuthStore();
     coordination = new MemoryCoordinationStore(() => now, auth);
@@ -61,6 +65,7 @@ describe('RateLimitGuard', () => {
     await expect(call(guard, Routes.prototype.send).result).resolves.toBe(true);
     now += 60_000;
     await expect(call(guard, Routes.prototype.list).result).resolves.toBe(true);
+    expect(recordFailure).not.toHaveBeenCalled();
   });
 
   it('counts signed-in callers per account, whatever their IP', async () => {
@@ -141,7 +146,12 @@ describe('RateLimitGuard', () => {
     guard = new RateLimitGuard(new Reflector(), failing, { ...config, databaseUrl: 'postgresql://user:secret@localhost/test' }, auth);
 
     await expect(call(guard, Routes.prototype.list).result).rejects.toMatchObject({ status: 503 });
+    await expect(call(guard, Routes.prototype.list).result).rejects.toMatchObject({ status: 503 });
     expect(error).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(recordFailure).mock.calls).toEqual([
+      ['rate-limit.store', failure],
+      ['rate-limit.store', failure],
+    ]);
     expect(error.mock.calls[0]![0]).toContain('category=timeout');
     expect(error.mock.calls[0]![0]).not.toContain('private learner data');
     expect(error.mock.calls[0]![0]).not.toContain('secret');

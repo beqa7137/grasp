@@ -10,6 +10,7 @@ import {
   safeDatabaseErrorCategory,
   safeDatabaseErrorCode,
 } from '../persistence/database-errors.js';
+import { recordFailure } from '../observability/failure-signals.js';
 import { AuthStore, CoordinationStore } from '../persistence/stores.js';
 import { RateLimitExceeded } from './rate-limit-exceeded.js';
 
@@ -79,6 +80,7 @@ export class RateLimitGuard implements CanActivate {
         network = await this.store.add(`${route}:net:${hashToken(`ip:${req.ip}`)}`, rule.windowMs, 1);
       }
     } catch (error) {
+      recordFailure('rate-limit.store', error);
       if (Date.now() - this.lastErrorLog > ERROR_LOG_INTERVAL_MS) {
         this.lastErrorLog = Date.now();
         this.log.error(

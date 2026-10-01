@@ -5,6 +5,7 @@ import { STATUS_CODES } from 'node:http';
 import { RateLimitExceeded } from '../common/rate-limit-exceeded.js';
 import { databaseUnavailable, isDatabaseUnavailable } from '../persistence/database-errors.js';
 import { reportError } from './error-reporting.js';
+import { recordDatabaseFailure } from './failure-signals.js';
 import { safeErrorDetails } from './safe-error.js';
 
 @Catch()
@@ -13,6 +14,7 @@ export class ReportExceptionsFilter extends BaseExceptionFilter {
 
   override catch(exception: unknown, host: ArgumentsHost) {
     if (isDatabaseUnavailable(exception)) {
+      recordDatabaseFailure(exception);
       super.catch(databaseUnavailable(), host);
       return;
     }

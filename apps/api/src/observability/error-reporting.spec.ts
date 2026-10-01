@@ -1,14 +1,15 @@
 import { Logger } from '@nestjs/common';
 import { loadConfig } from '../config.js';
-import { flushErrorReporting, initErrorReporting, reportError } from './error-reporting.js';
+import { flushErrorReporting, initErrorReporting, reportError, reportSignal } from './error-reporting.js';
 
-const sdk = vi.hoisted(() => ({ init: vi.fn(), captureEvent: vi.fn(), flush: vi.fn() }));
+const sdk = vi.hoisted(() => ({ init: vi.fn(), captureEvent: vi.fn(), flush: vi.fn(async () => true) }));
 vi.mock('@sentry/node', async (original) => ({ ...(await original<typeof import('@sentry/node')>()), ...sdk }));
 
 it('keeps reporting opt-in and applies the privacy boundary to explicitly reported errors', async () => {
   vi.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
   await initErrorReporting(loadConfig({}));
   reportError(new Error('private learner answer'));
+  reportSignal({ signal: 'db.timeout', failures: 1, category: 'database', code: 'unknown' });
   expect(sdk.init).not.toHaveBeenCalled();
   expect(sdk.captureEvent).not.toHaveBeenCalled();
 
@@ -36,6 +37,12 @@ it('keeps reporting opt-in and applies the privacy boundary to explicitly report
   expect(options.beforeSend({ ...event, extra: { answer: 'private learner answer' } }, hint)).toEqual(event);
   expect(options.beforeSend(event, { originalException: error })).toBeNull();
 
+  reportSignal({ signal: 'db.timeout', failures: 3, category: 'database', code: '57014' });
+  const [signal, signalHint] = sdk.captureEvent.mock.calls[1]!;
+  expect(signal).toMatchObject({ fingerprint: ['failure-signal', 'db.timeout'], extra: { failures: 3 } });
+  expect(options.beforeSend(signal, signalHint)).toEqual(signal);
+
+  sdk.flush.mockClear();
   await flushErrorReporting();
   expect(sdk.flush).toHaveBeenCalledWith(2_000);
   vi.restoreAllMocks();
