@@ -69,7 +69,8 @@ export interface PlanDay {
   taper: boolean;
 }
 
-export type PlanStatus = 'on-track' | 'tight' | 'covered' | 'interview-day' | 'past';
+/** 'eve': the interview is tomorrow, so today is review only and nothing new is asked for. */
+export type PlanStatus = 'on-track' | 'tight' | 'covered' | 'eve' | 'interview-day' | 'past';
 
 export interface StudyPlan {
   status: PlanStatus;
@@ -125,7 +126,13 @@ export function buildStudyPlan(input: StudyPlanInput, state: ProgressState, ctx:
   const fit = (minutesPerDay: number) =>
     schedule(units, dates, eve, minutesPerDay, Math.min(todayReview.minutes, reviewCap(minutesPerDay)));
   const { days, unplaced, incomplete } = fit(input.minutesPerDay);
-  const status: PlanStatus = units.every((u) => u.doneAt) ? 'covered' : incomplete.length ? 'tight' : 'on-track';
+  const status: PlanStatus = days.every((d) => d.taper)
+    ? 'eve'
+    : units.every((u) => u.doneAt)
+      ? 'covered'
+      : incomplete.length
+        ? 'tight'
+        : 'on-track';
   return {
     ...base,
     status,

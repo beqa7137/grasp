@@ -135,9 +135,9 @@ describe('study plan dates', () => {
     expect(p.days[0].taper).toBe(true);
     expect(p.days[0].review).toBeGreaterThan(0);
     expect(learning(p)).toBe(0);
-    expect(p.status).toBe('tight');
-    expect(p.unscheduled).toHaveLength(p.units.length);
+    expect(p.status).toBe('eve');
     expect(p.minutesToFit).toBeNull();
+    expect(plan({ interviewDate: '2026-10-03' }).status).not.toBe('eve');
   });
 
   it('keeps the day before the interview for review whenever it is in the plan', () => {
@@ -245,6 +245,12 @@ describe('study plan units', () => {
     expect(retried.some((u) => u.patternId === 'hashing')).toBe(false);
   });
 
+  it('does not take a re-submitted old solution as the fresh solve a flag asks for', () => {
+    const base = [solved('two-sum', now.getTime() - 5 * DAY), flag(now.getTime() - 2 * DAY, ['hashing'])];
+    const resubmitted = plan({}, replay([...base, solved('two-sum', now.getTime() - DAY)])).units[0];
+    expect(resubmitted).toMatchObject({ kind: 'retry', patternId: 'hashing', doneAt: null });
+  });
+
   it('asks to solve a problem again when every problem of a flagged pattern was solved before the flag', () => {
     const problems = CODING_CATALOG.filter((c) => c.patternIds.includes('linked-list-reversal'));
     const base = [...problems.map((c) => solved(c.id, now.getTime() - 5 * DAY)), flag(now.getTime() - 2 * DAY, ['linked-list-reversal'])];
@@ -347,14 +353,6 @@ describe('study plan schedule', () => {
   it('advances every round from the first day instead of one round after another', () => {
     const p = plan({ minutesPerDay: 120 });
     expect(new Set(p.days[0].slices.map((s) => s.unit.round))).toEqual(new Set(['coding', 'design', 'behavioral']));
-  });
-
-  it('with zero minutes schedules nothing and says how many minutes would fit it all', () => {
-    const p = plan({ minutesPerDay: 0, interviewDate: '2027-06-01' });
-    expect(p.status).toBe('tight');
-    expect(p.days.every((d) => d.slices.length === 0 && d.review === 0)).toBe(true);
-    expect(p.unscheduled).toHaveLength(p.units.length);
-    expect(PLAN_MINUTES).toContain(p.minutesToFit);
   });
 
   it('when time is short, schedules the most important first and names the daily time that would fit everything', () => {

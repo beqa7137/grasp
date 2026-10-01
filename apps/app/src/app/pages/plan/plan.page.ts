@@ -390,6 +390,8 @@ export class PlanPage {
         return 'We hope it went well. Set the date of your next interview to plan for it, or clear the plan.';
       case 'interview-day':
         return 'Good luck today. A short review at most, then rest and trust what you have practised.';
+      case 'eve':
+        return 'Tomorrow is the day. Keep today light: a short review, then rest.';
       case 'covered':
         return 'You have worked through everything in this plan. Keep your reviews going until the day.';
       case 'tight': {

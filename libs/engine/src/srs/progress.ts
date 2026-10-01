@@ -1,5 +1,5 @@
 import { getCompetencySummary } from '../behavioral/catalog.js';
-import { problemPatterns } from '../coding/problem-patterns.js';
+import { PROBLEM_PATTERNS, problemPatterns } from '../coding/problem-patterns.js';
 import { PATTERN_CATALOG } from '../curriculum/catalog.js';
 import { SD_TOPICS, getSdTopic } from '../curriculum/sd-topics.js';
 import { normalizePlan, type StudyPlanInput } from '../plan/options.js';
@@ -246,7 +246,16 @@ export function applyEvent(state: ProgressState, stored: StoredEvent): ProgressS
         },
       };
       patterns.forEach(introduce);
-      const resolved = solved ? patterns.filter((p) => state.weakPatterns[p] && !state.weakPatterns[p].resolvedAt) : [];
+      // A flag asks for a fresh solve: a problem first solved after it, or any solve once the pattern has none left unsolved.
+      const fresh = (flaggedAt: string) => !prev?.solvedAt || Date.parse(prev.solvedAt) > Date.parse(flaggedAt);
+      const allSolved = (p: string) =>
+        Object.entries(PROBLEM_PATTERNS).every(([id, of]) => !(of as readonly string[]).includes(p) || state.coding[id]?.solvedAt);
+      const resolved = solved
+        ? patterns.filter((p) => {
+            const flag = state.weakPatterns[p];
+            return flag && !flag.resolvedAt && (fresh(flag.flaggedAt) || allSolved(p));
+          })
+        : [];
       if (resolved.length)
         next.weakPatterns = {
           ...state.weakPatterns,
