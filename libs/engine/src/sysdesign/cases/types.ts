@@ -21,7 +21,7 @@ export interface CaseEstimate {
 }
 
 /** A model the learner runs inside a stage, opened once the stage's decision and estimate are answered. */
-export type CaseWidget = 'retries' | 'hot-account' | 'reconcile';
+export type CaseWidget = 'retries' | 'hot-account' | 'reconcile' | 'bucketing' | 'propagation';
 
 export type CaseStageKind = 'requirements' | 'estimation' | 'api' | 'data' | 'design' | 'deep-dive' | 'wrap-up';
 

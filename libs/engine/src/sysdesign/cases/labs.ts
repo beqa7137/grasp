@@ -387,6 +387,22 @@ export const CASE_LABS: Record<string, CaseLab> = {
       edges: [...chain('clients', 'lb', 'app', 'cache', 'db', 'replica'), { from: 'app', to: 'db' }],
     },
   },
+  'feature-flags': {
+    workload: { rps: 25_700, readRatio: 0.97 },
+    design: {
+      nodes: [
+        n('sdks', 'client', 70, 240, 1, { label: 'Apps and SDKs' }),
+        n('lb', 'lb', 240, 240, 2),
+        n('eval', 'app', 410, 240, 18, { label: 'Evaluation' }),
+        n('cache', 'cache', 580, 100, 2, { hitRate: 0.99, label: 'Rulesets' }),
+        n('queue', 'queue', 580, 380, 2, { label: 'Summaries' }),
+        n('worker', 'worker', 760, 380, 2),
+        n('db', 'db', 760, 240, 1, { label: 'Flag store' }),
+        n('replica', 'replica', 760, 100, 2),
+      ],
+      edges: [...chain('sdks', 'lb', 'eval', 'cache', 'db', 'replica'), ...chain('eval', 'queue', 'worker', 'db')],
+    },
+  },
 };
 
 export function getCaseLab(id: string): CaseLab | undefined {

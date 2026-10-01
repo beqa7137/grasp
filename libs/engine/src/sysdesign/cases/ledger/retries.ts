@@ -1,4 +1,4 @@
-import type { WidgetCheckpoint } from './checkpoint.js';
+import type { WidgetCheckpoint } from '../widget-checkpoint.js';
 
 /**
  * What happens to one attempt of a request to post a capture: the response comes back, the ledger posts the entry but the

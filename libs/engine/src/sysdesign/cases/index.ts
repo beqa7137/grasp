@@ -13,6 +13,7 @@ import { PAYMENTS } from './payments.js';
 import { PAYMENT_LEDGER } from './payment-ledger.js';
 import { RIDE_SHARING } from './ride-sharing.js';
 import { DISTRIBUTED_CACHE } from './distributed-cache.js';
+import { FEATURE_FLAGS } from './feature-flags.js';
 import { TICKETING } from './ticketing.js';
 import { WEB_CRAWLER } from './web-crawler.js';
 import { NOTIFICATIONS } from './notifications.js';
@@ -25,9 +26,11 @@ import { URL_SHORTENER } from './url-shortener.js';
 
 export type { CaseDecision, CaseEstimate, CaseOption, CaseStage, CaseStageKind, CaseStudy, CaseWidget } from './types.js';
 export * from './estimate.js';
+export * from './flags/index.js';
 export * from './labs.js';
 export * from './ledger/index.js';
 export * from './outcome.js';
+export * from './widget-checkpoint.js';
 
 export const CASE_STUDIES: readonly CaseStudy[] = [
   URL_SHORTENER,
@@ -53,6 +56,7 @@ export const CASE_STUDIES: readonly CaseStudy[] = [
   HOTEL_BOOKING,
   STOCK_EXCHANGE,
   MESSAGE_QUEUE,
+  FEATURE_FLAGS,
 ];
 
 export function getCaseStudy(id: string): CaseStudy | undefined {

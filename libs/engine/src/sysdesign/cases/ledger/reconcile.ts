@@ -1,5 +1,5 @@
 import { mulberry32, randInt, shuffle } from '../../../algorithms/random.js';
-import { formatMinor } from './checkpoint.js';
+import { formatMinor } from './money.js';
 
 export type BreakKind = 'matched' | 'timing' | 'missed-capture' | 'fee' | 'duplicate' | 'investigate';
 

@@ -18,8 +18,9 @@ providers, so every sign-in test times out.
 ## audit.mjs
 
 Screenshots, serious and critical axe violations, page errors and sideways overflow for every page state listed in
-`lib.mjs` (tabs, visualizers at a checkpoint and answered, review and practice cards, Design Lab, the code workspace,
-dialogs). Exits non-zero if any state has a problem.
+`states/`, one file per area: `learn.mjs` (tabs, visualizers at a checkpoint and answered, review and practice cards, the
+code workspace, dialogs), `design.mjs` (Design Lab, case studies and their widgets, design lessons) and `interview.mjs`
+(interviews and behavioral). `lib.mjs` holds the browser helpers they share. Exits non-zero if any state has a problem.
 
 ```sh
 BASE=http://localhost:4310 THEME=dark OUT=verify-out/now STABLE=1 node tools/verify/audit.mjs

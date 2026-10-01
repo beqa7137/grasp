@@ -1,4 +1,4 @@
-import { num, type WidgetCheckpoint } from './checkpoint.js';
+import { num, type WidgetCheckpoint } from '../widget-checkpoint.js';
 
 /** One hot ledger account taking postings, every posting transaction holding its row lock until it commits. */
 export interface HotAccountSettings {

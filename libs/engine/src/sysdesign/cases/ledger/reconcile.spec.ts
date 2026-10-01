@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatMinor, minorExponent } from './checkpoint.js';
+import { formatMinor, minorExponent } from './money.js';
 import {
   RECON_ACTIONS,
   classify,
