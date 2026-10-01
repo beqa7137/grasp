@@ -1,8 +1,10 @@
 import { Logger } from '@nestjs/common';
+import { waitUntil } from '@vercel/functions';
 import { loadConfig } from '../config.js';
 import { flushErrorReporting, initErrorReporting, reportError, reportSignal } from './error-reporting.js';
 
 const sdk = vi.hoisted(() => ({ init: vi.fn(), captureEvent: vi.fn(), flush: vi.fn(async () => true) }));
+vi.mock('@vercel/functions', () => ({ waitUntil: vi.fn() }));
 vi.mock('@sentry/node', async (original) => ({ ...(await original<typeof import('@sentry/node')>()), ...sdk }));
 
 it('keeps reporting opt-in and applies the privacy boundary to explicitly reported errors', async () => {
@@ -41,6 +43,11 @@ it('keeps reporting opt-in and applies the privacy boundary to explicitly report
   const [signal, signalHint] = sdk.captureEvent.mock.calls[1]!;
   expect(signal).toMatchObject({ fingerprint: ['failure-signal', 'db.timeout'], extra: { failures: 3 } });
   expect(options.beforeSend(signal, signalHint)).toEqual(signal);
+
+  expect(waitUntil).toHaveBeenCalledTimes(2);
+  sdk.flush.mockRejectedValueOnce(new Error('network down'));
+  reportSignal({ signal: 'ai.busy', failures: 1, category: 'unknown', code: 'unknown' });
+  await expect(vi.mocked(waitUntil).mock.calls[2]![0]).resolves.toBe(false);
 
   sdk.flush.mockClear();
   await flushErrorReporting();

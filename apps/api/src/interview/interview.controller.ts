@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { LearnerId, UserId } from '../common/learner-id.decorator.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { reportError } from '../observability/error-reporting.js';
-import { recordDatabaseFailure } from '../observability/failure-signals.js';
+import { isSignalledResponse } from '../observability/failure-signals.js';
 import { safeErrorDetails } from '../observability/safe-error.js';
 import { databaseUnavailable, isDatabaseUnavailable } from '../persistence/database-errors.js';
 import { storySchema } from '../stories/stories.schema.js';
@@ -102,14 +102,13 @@ export class InterviewController {
       emit('done', { message });
     } catch (err) {
       if (abort.signal.aborted) return void res.end();
-      if (isDatabaseUnavailable(err)) recordDatabaseFailure(err);
-      const failure = isDatabaseUnavailable(err) ? databaseUnavailable() : err;
+      const failure = isDatabaseUnavailable(err) ? databaseUnavailable(err) : err;
       const status = failure instanceof HttpException ? failure.getStatus() : 502;
       const msg = failure instanceof HttpException ? failure.message : 'The interviewer is unavailable right now. Please try again.';
       const response = failure instanceof HttpException ? failure.getResponse() : null;
       const code = response && typeof response === 'object' && 'code' in response ? { code: response.code } : {};
       if (!(failure instanceof HttpException)) this.log.error({ operation: 'interview.respond', ...safeErrorDetails(err) });
-      if (status >= 500 && status !== 503) reportError(err, req.id);
+      if (status >= 500 && !isSignalledResponse(failure)) reportError(err, req.id);
       if (started) emit('error', { status, message: msg, ...code });
       else res.status(status).json({ statusCode: status, message: msg, ...code });
     }

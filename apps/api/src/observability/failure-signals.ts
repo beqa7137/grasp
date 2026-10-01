@@ -1,3 +1,4 @@
+import { HttpException } from '@nestjs/common';
 import { safeDatabaseErrorCategory } from '../persistence/database-errors.js';
 import { reportSignal } from './error-reporting.js';
 import { safeErrorDetails } from './safe-error.js';
@@ -33,7 +34,7 @@ export class FailureSignals {
 
   constructor(
     private readonly send: (report: SignalReport) => void,
-    private readonly now: () => number = Date.now,
+    private readonly now = () => Date.now(),
   ) {}
 
   record(signal: FailureSignal, error?: unknown) {
@@ -54,7 +55,7 @@ export function databaseSignal(error: unknown): FailureSignal | null {
   return category === 'timeout' ? 'db.timeout' : 'db.unavailable';
 }
 
-const signals = new FailureSignals(reportSignal);
+const signals = new FailureSignals((report) => reportSignal(report));
 
 export function recordFailure(signal: FailureSignal, error?: unknown) {
   signals.record(signal, error);
@@ -63,4 +64,9 @@ export function recordFailure(signal: FailureSignal, error?: unknown) {
 export function recordDatabaseFailure(error: unknown) {
   const signal = databaseSignal(error);
   if (signal) signals.record(signal, error);
+}
+
+/** A 502 or 503 is a dependency failure already signalled where it was mapped, so it is not reported again on its own. */
+export function isSignalledResponse(exception: unknown): boolean {
+  return exception instanceof HttpException && (exception.getStatus() === 502 || exception.getStatus() === 503);
 }

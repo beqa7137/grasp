@@ -190,7 +190,7 @@ export class PostgresInterviewStore extends InterviewStore {
         return completed;
       });
     } catch (error) {
-      if (!(error instanceof DrizzleQueryError) && safeDatabaseErrorCategory(error) !== 'unknown') throw databaseUnavailable();
+      if (!(error instanceof DrizzleQueryError) && safeDatabaseErrorCategory(error) !== 'unknown') throw databaseUnavailable(error);
       throw error;
     }
   }
@@ -302,7 +302,7 @@ export class PostgresAuthStore extends AuthStore {
       if (e instanceof DrizzleQueryError && (e.cause as { code?: string })?.code === 'P4100') {
         return rethrowLearnerWriteError(this.db, user.learnerId, e);
       }
-      if (!(e instanceof DrizzleQueryError) && safeDatabaseErrorCategory(e) !== 'unknown') throw databaseUnavailable();
+      if (!(e instanceof DrizzleQueryError) && safeDatabaseErrorCategory(e) !== 'unknown') throw databaseUnavailable(e);
       throw e;
     }
   }

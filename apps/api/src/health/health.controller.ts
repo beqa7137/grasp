@@ -34,8 +34,8 @@ export class HealthController {
     if (this.pool) {
       try {
         await this.pool.query('select 1');
-      } catch {
-        throw databaseUnavailable();
+      } catch (error) {
+        throw databaseUnavailable(error);
       }
     }
     return { status: 'ready', database: this.pool ? 'ok' : 'memory' };

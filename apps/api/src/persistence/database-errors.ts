@@ -1,6 +1,7 @@
 import { ServiceUnavailableException } from '@nestjs/common';
 import { DrizzleQueryError } from 'drizzle-orm/errors';
 import pg from 'pg';
+import { recordDatabaseFailure } from '../observability/failure-signals.js';
 
 const NETWORK_CODES = new Set([
   'EAI_AGAIN',
@@ -63,10 +64,15 @@ export function safeDatabaseErrorCategory(error: unknown): 'timeout' | 'connecti
   return 'unknown';
 }
 
+/** A pool connect or transaction failure reaches callers unwrapped, so a bare timeout or connection error counts too. */
 export function isDatabaseUnavailable(error: unknown): boolean {
-  return (error instanceof DrizzleQueryError || error instanceof pg.DatabaseError) && safeDatabaseErrorCategory(error) !== 'unknown';
+  const category = safeDatabaseErrorCategory(error);
+  if (error instanceof DrizzleQueryError || error instanceof pg.DatabaseError) return category !== 'unknown';
+  return category === 'timeout' || category === 'connection';
 }
 
-export function databaseUnavailable(): ServiceUnavailableException {
+/** Given its cause, also signals the outage; the rate limiter leaves it out because it signals its own store. */
+export function databaseUnavailable(cause?: unknown): ServiceUnavailableException {
+  if (cause !== undefined) recordDatabaseFailure(cause);
   return new ServiceUnavailableException({ status: 'unavailable', database: 'unreachable' });
 }

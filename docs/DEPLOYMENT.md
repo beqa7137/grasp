@@ -177,7 +177,7 @@ Before enabling paid traffic on this release, drain or disable every older paid 
 
 Sentry is loaded only when a DSN is set, as two projects: `grasp-api` (`SENTRY_DSN`) and `grasp-app` (`SENTRY_WEB_DSN`, used by the web app and the native apps).
 
-The API reports explicit unexpected request and interview failures. Before any event reaches the SDK, it retains only the error category, a recognized error code, server-generated request correlation, release, environment, timestamp and static application stack locations. A second allowlist at the transport boundary drops all other envelope data, including attachments and SDK enrichment. Raw exception messages, SQL, parameters, causes, request data, user data and breadcrumbs are excluded. Automatic SDK integrations are disabled, so unhandled process failures are not automatically sent to Sentry. Startup failures use safe local diagnostics. Expected provider 503s are not reported.
+The API reports explicit unexpected request and interview failures. Before any event reaches the SDK, it retains only the error category, a recognized error code, server-generated request correlation, release, environment, timestamp and static application stack locations. A second allowlist at the transport boundary drops all other envelope data, including attachments and SDK enrichment. Raw exception messages, SQL, parameters, causes, request data, user data and breadcrumbs are excluded. Automatic SDK integrations are disabled, so unhandled process failures are not automatically sent to Sentry. Startup failures use safe local diagnostics. Database outages and mapped provider failures (the 502s and 503s) are not reported one by one; they reach Sentry as the failure signals below.
 
 The app reports errors handled by Angular and application bootstrap failures using fixed categories, release, environment, timestamp and verified static JavaScript file locations. The production build generates `error-assets.json` from emitted scripts; only exact asset URL matches contribute stack frames. Missing or invalid manifests omit frames, including during local `ng serve` and deployment overlap. The manifest request is bounded to three seconds and 64 KiB, runs only with a configured DSN, and does not block application startup.
 
@@ -187,28 +187,36 @@ Native crash uploads are disabled: the app initializes the Angular SDK directly,
 
 ## Failure signals and alerts
 
-The API groups the failures an operator must hear about into fixed signals and sends each group to Sentry (`grasp-api`) at most once per instance every five minutes. Successes are never recorded. A signal event holds only the signal name, an error category, an allowlisted error code (such as `57014` or `53300`), release, environment and `failures`, the number of failures on that instance since its previous report of the signal. It never holds messages, SQL, prompts, learner text, ids, tokens or emails. Its fingerprint is `failure-signal` plus the signal, so each signal is one Sentry issue titled `Failure signal <name>` with a `signal` tag.
+The API groups the failures an operator must hear about into fixed signals and sends each group to Sentry (`grasp-api`) at most once per instance every five minutes. Successes are never recorded. A signal event holds only the signal name, an error category, an allowlisted error code (such as `57014` or `53300`), release, environment and `failures`. It never holds messages, SQL, prompts, learner text, ids, tokens or emails. Its fingerprint is `failure-signal` plus the signal, so each signal is one Sentry issue titled `Failure signal <name>` with a `signal` tag.
 
-| Signal             | Recorded when                                                                                   |
-| ------------------ | ----------------------------------------------------------------------------------------------- |
-| `db.timeout`       | A request fails on a database timeout and returns 503.                                          |
-| `db.unavailable`   | A request fails on an unreachable or overloaded database (connection, `53300`) and returns 503. |
-| `rate-limit.store` | The Postgres rate limit counter fails, so the request gets a 503.                               |
-| `ai.spend-store`   | The AI spend ledger cannot reserve (AI turns are refused) or settle (the hold is kept).         |
-| `ai.rejected`      | The provider refuses the request or the key (400, 401, 403, 404): configuration is wrong.       |
-| `ai.busy`          | The provider rate limits or is overloaded after retries.                                        |
-| `ai.unavailable`   | The provider errors (5xx) or drops the connection after retries.                                |
-| `ai.timeout`       | A provider call or its credential exceeds its per-try timeout.                                  |
-| `ai.deadline`      | A whole reply or scoring call exceeds its deadline.                                             |
-| `ai.failed`        | Any other unexpected failure on the AI path.                                                    |
+| Signal             | Recorded when                                                                             |
+| ------------------ | ----------------------------------------------------------------------------------------- |
+| `db.timeout`       | A request, transaction or readiness check fails on a database timeout and returns 503.    |
+| `db.unavailable`   | The same, on an unreachable or overloaded database (a connection error or `53300`).       |
+| `rate-limit.store` | The Postgres rate limit counter fails, so the request gets a 503.                         |
+| `ai.spend-store`   | The AI spend ledger cannot reserve (AI turns are refused) or settle (the hold is kept).   |
+| `ai.rejected`      | The provider refuses the request or the key (400, 401, 403, 404): configuration is wrong. |
+| `ai.busy`          | The provider rate limits or is overloaded after retries.                                  |
+| `ai.unavailable`   | The provider errors (5xx) or drops the connection after retries.                          |
+| `ai.timeout`       | A provider call or its credential exceeds its per-try timeout.                            |
+| `ai.deadline`      | A whole reply or scoring call exceeds its deadline.                                       |
+| `ai.failed`        | Any other unexpected failure on the AI path.                                              |
 
-Vercel instances share no memory, so the grouping is per instance and needs no shared store: the first failure of a signal on an instance reports at once, and later ones in its five-minute window are counted into the next report. One instance that keeps failing therefore sends about one event every five minutes; more events mean longer trouble or more instances. Delivery is held open with `waitUntil`, so an instance frozen after its response does not drop it.
+Vercel instances share no memory, so the grouping is per instance and needs no shared store: the first failure of a signal on an instance reports at once, and later ones in its five-minute window are held and counted into that instance's next report of the signal. Delivery is held open with `waitUntil`, so an instance frozen after its response does not drop it.
+
+How to read an event:
+
+- `failures` is a lower bound of the failures since the instance's previous report, this one included: held failures are lost when the instance is recycled before it fails again.
+- The category, code and timestamp describe only the failure that sent the event, not the held ones.
+- Sentry's event count for a signal counts instance windows, not failures. One instance sends at most one event per signal every five minutes, so it can send at most 3 in 10 minutes and 4 in 15 (one at the start of each window). One instance failing for more than five minutes sends at least 2 events. More events mean more instances or a longer outage.
 
 Create these issue alert rules in the `grasp-api` project (Alerts, Create Alert, Issues; the free plan has them), filtered to the `production` environment, each sending to the owner's email:
 
 1. **Any new failure signal.** When a new issue is created, or an issue changes state from resolved to unresolved; if the event's tag `signal` is set. Action interval 30 minutes. Resolve the issue once fixed so a recurrence alerts again.
-2. **Database or rate limiter failing.** When the issue is seen more than 2 times in 15 minutes; if the tag `signal` is in `db.timeout,db.unavailable,rate-limit.store`. Action interval 30 minutes.
-3. **AI provider degraded.** When the issue is seen more than 4 times in 15 minutes; if the tag `signal` is in `ai.timeout,ai.busy,ai.unavailable,ai.deadline,ai.failed`. Action interval 1 hour.
+2. **Database or rate limiter failing.** When the issue is seen more than 1 time in 10 minutes; if the tag `signal` is in `db.timeout,db.unavailable,rate-limit.store`. Action interval 30 minutes.
+3. **AI provider degraded.** When the issue is seen more than 1 time in 15 minutes; if the tag `signal` is in `ai.timeout,ai.busy,ai.unavailable,ai.deadline,ai.failed`. Action interval 1 hour.
 4. **AI configuration or spend ledger broken.** When the issue is seen more than 1 time in 1 hour; if the tag `signal` is in `ai.rejected,ai.spend-store`. Action interval 1 hour.
 
-Individual unexpected errors are still reported one by one, as above; expected 503s reach Sentry only through these groups.
+Rules 2 to 4 fire on one instance that keeps failing for more than five minutes, so they work on a quiet deployment with a single instance; rule 1 catches the first failure. If the tag filter offers no "is in" operator, add one "The event's tags match `signal` equals ..." filter per signal and set the filters to match any.
+
+Unexpected errors (a 500, or a non-HTTP failure on the interview stream) are still reported one by one, as above, with their stack locations. Database outages, the provider failures mapped to 502 (`ai.rejected`, `ai.failed`) and every 503 reach Sentry only through these groups.

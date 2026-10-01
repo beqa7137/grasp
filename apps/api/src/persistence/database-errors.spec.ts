@@ -1,6 +1,9 @@
 import { DrizzleQueryError } from 'drizzle-orm/errors';
 import pg from 'pg';
+import { recordDatabaseFailure } from '../observability/failure-signals.js';
 import { databaseUnavailable, isDatabaseUnavailable, safeDatabaseErrorCategory, safeDatabaseErrorCode } from './database-errors.js';
+
+vi.mock('../observability/failure-signals.js', () => ({ recordDatabaseFailure: vi.fn() }));
 
 describe('database availability errors', () => {
   it('recognizes connection loss and read timeouts through wrapped query errors', () => {
@@ -15,14 +18,26 @@ describe('database availability errors', () => {
     ).toBe(true);
   });
 
+  it('recognizes a pool connect timeout or refusal that no query wrapped, as a transaction raises it', () => {
+    expect(isDatabaseUnavailable(new Error('timeout exceeded when trying to connect'))).toBe(true);
+    expect(isDatabaseUnavailable(Object.assign(new Error('connect failed'), { code: 'ECONNREFUSED' }))).toBe(true);
+    expect(isDatabaseUnavailable(new Error('Connection terminated unexpectedly'))).toBe(true);
+  });
+
+  it('signals the outage behind a 503 only when given its cause', () => {
+    const cause = new Error('timeout exceeded when trying to connect');
+    expect(databaseUnavailable(cause).getStatus()).toBe(503);
+    expect(databaseUnavailable().getStatus()).toBe(503);
+    expect(vi.mocked(recordDatabaseFailure).mock.calls).toEqual([[cause]]);
+  });
+
   it('leaves unrelated query errors alone', () => {
     expect(isDatabaseUnavailable(new Error('bad input'))).toBe(false);
     expect(isDatabaseUnavailable(Object.assign(new Error('unique violation'), { code: '23505' }))).toBe(false);
     expect(
       isDatabaseUnavailable(new DrizzleQueryError('select 1', [], Object.assign(new Error('unique violation'), { code: '23505' }))),
     ).toBe(false);
-    expect(isDatabaseUnavailable(Object.assign(new Error('other network call failed'), { code: 'ECONNRESET' }))).toBe(false);
-    expect(isDatabaseUnavailable(new Error('other network call failed', { cause: new Error('timeout expired') }))).toBe(false);
+    expect(isDatabaseUnavailable(new Error('other failure', { cause: new Error('private learner answer') }))).toBe(false);
   });
 
   it('returns only known codes, safe categories and a stable response', () => {

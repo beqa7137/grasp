@@ -5,7 +5,7 @@ import { STATUS_CODES } from 'node:http';
 import { RateLimitExceeded } from '../common/rate-limit-exceeded.js';
 import { databaseUnavailable, isDatabaseUnavailable } from '../persistence/database-errors.js';
 import { reportError } from './error-reporting.js';
-import { recordDatabaseFailure } from './failure-signals.js';
+import { isSignalledResponse } from './failure-signals.js';
 import { safeErrorDetails } from './safe-error.js';
 
 @Catch()
@@ -14,13 +14,12 @@ export class ReportExceptionsFilter extends BaseExceptionFilter {
 
   override catch(exception: unknown, host: ArgumentsHost) {
     if (isDatabaseUnavailable(exception)) {
-      recordDatabaseFailure(exception);
-      super.catch(databaseUnavailable(), host);
+      super.catch(databaseUnavailable(exception), host);
       return;
     }
     const status = exception instanceof HttpException ? exception.getStatus() : this.isHttpError(exception) ? exception.statusCode : 500;
     const requestId = host.switchToHttp().getRequest<Request>()?.id;
-    if (status >= 500 && !(exception instanceof HttpException && status === 503)) {
+    if (status >= 500 && !isSignalledResponse(exception)) {
       reportError(exception, requestId);
     }
     if (exception instanceof RateLimitExceeded) {

@@ -79,7 +79,7 @@ export class PostgresStoryStore extends StoryStore {
         return saved;
       });
     } catch (error) {
-      if (!(error instanceof DrizzleQueryError) && safeDatabaseErrorCategory(error) !== 'unknown') throw databaseUnavailable();
+      if (!(error instanceof DrizzleQueryError) && safeDatabaseErrorCategory(error) !== 'unknown') throw databaseUnavailable(error);
       return rethrowLearnerWriteError(this.db, learnerId, error);
     }
   }
