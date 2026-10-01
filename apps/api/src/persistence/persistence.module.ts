@@ -5,7 +5,10 @@ import pg from 'pg';
 import { APP_CONFIG, ConfigError, loadConfig, type AppConfig } from '../config.js';
 import { safeErrorDetails } from '../observability/safe-error.js';
 import { createDatabasePool } from './database-pool.js';
+import { MemoryMetricsStore } from './memory-metrics.store.js';
 import { MemorySpendStore } from './memory-spend.store.js';
+import { MetricsStore } from './metrics.store.js';
+import { PostgresMetricsStore } from './postgres-metrics.store.js';
 import { MemoryStoryStore } from './memory-story.store.js';
 import { PostgresStoryStore } from './postgres-story.store.js';
 import { StoryStore } from './story.store.js';
@@ -149,6 +152,14 @@ export class ExpiredRowSweeper implements OnApplicationBootstrap, OnApplicationS
       useFactory: (db: Db | null, coordination: CoordinationStore) =>
         db ? new PostgresSpendStore(db) : new MemorySpendStore(coordination),
     },
+    {
+      provide: MetricsStore,
+      inject: [PG_POOL, ProgressStore, InterviewStore, FeedbackStore],
+      useFactory: (pool: pg.Pool | null, progress: ProgressStore, interviews: InterviewStore, feedback: FeedbackStore) =>
+        pool
+          ? new PostgresMetricsStore(pool)
+          : new MemoryMetricsStore(progress as MemoryProgressStore, interviews as MemoryInterviewStore, feedback as MemoryFeedbackStore),
+    },
     ExpiredRowSweeper,
   ],
   exports: [
@@ -162,6 +173,7 @@ export class ExpiredRowSweeper implements OnApplicationBootstrap, OnApplicationS
     ErasureStore,
     CoordinationStore,
     SpendStore,
+    MetricsStore,
   ],
 })
 export class PersistenceModule implements OnApplicationShutdown {

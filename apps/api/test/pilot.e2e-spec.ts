@@ -1,5 +1,8 @@
+import { randomUUID } from 'node:crypto';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import request from 'supertest';
+import type { FeedbackEntry } from '../src/feedback/feedback.types.js';
+import { FeedbackStore } from '../src/persistence/stores.js';
 import { createTestApp } from './support/app.js';
 import { resetDatabase } from './support/database.js';
 
@@ -85,7 +88,9 @@ describe.each(storages)('Pilot tooling (%s storage)', (storage) => {
     expect(res.body.feedback).toMatchObject({ total: 2, byKind: { confusing: 1, praise: 1 }, averageRating: 4 });
 
     const all = await http().get('/api/admin/feedback').set('Authorization', `Bearer ${ADMIN_TOKEN}`).expect(200);
-    expect(all.body.map((f: { kind: string }) => f.kind).sort()).toEqual(['confusing', 'praise']);
+    expect(all.headers['cache-control']).toBe('no-store');
+    expect(all.body.entries.map((f: { kind: string }) => f.kind).sort()).toEqual(['confusing', 'praise']);
+    expect(all.body.next).toBeNull();
   });
 
   it('exports everything stored for a learner, and nothing about others', async () => {
@@ -121,6 +126,58 @@ describe.each(storages)('Pilot tooling (%s storage)', (storage) => {
     expect(metrics.body.feedback.total).toBe(1);
 
     await http().delete('/api/me').set('x-learner-id', ada).expect(204);
+  });
+
+  it('pages feedback newest first without repeats or gaps while new feedback arrives', async () => {
+    const store = app.get(FeedbackStore);
+    const entry = (createdAt: string, message: string): FeedbackEntry => ({
+      ...note('idea', message),
+      kind: 'idea',
+      id: randomUUID(),
+      learnerId: bob,
+      createdAt,
+    });
+    // Equal times are ordered by ID, so a page boundary between them still splits cleanly.
+    const older = [
+      ...Array.from({ length: 4 }, (_, i) => entry('2026-01-01T00:00:00.000Z', `tie ${i}`)),
+      ...Array.from({ length: 5 }, (_, i) => entry(`2026-01-0${i + 2}T00:00:00.000Z`, `day ${i}`)),
+    ];
+    for (const e of older) await store.add(e);
+    const page = (query: string) =>
+      http()
+        .get(`/api/admin/feedback${query}`)
+        .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
+        .expect(200)
+        .then((res) => res.body as { entries: { id: string; createdAt: string }[]; next: string | null });
+
+    const before = await page('?limit=200');
+    expect(before.next).toBeNull();
+    const seen: { id: string; createdAt: string }[] = [];
+    let next: string | null = null;
+    do {
+      const body = await page(`?limit=3${next ? `&before=${next}` : ''}`);
+      expect(body.entries.length).toBeLessThanOrEqual(3);
+      seen.push(...body.entries);
+      await store.add(entry(new Date().toISOString(), 'arrived while paging'));
+      next = body.next;
+    } while (next);
+
+    expect(seen).toEqual(before.entries);
+    for (const e of older) expect(seen.map((s) => s.id)).toContain(e.id);
+    const keys = seen.map((e) => `${e.createdAt} ${e.id}`);
+    expect(keys).toEqual([...keys].sort().reverse());
+  });
+
+  it('bounds feedback pages and rejects unknown cursors', async () => {
+    const get = (query: string) => http().get(`/api/admin/feedback${query}`).set('Authorization', `Bearer ${ADMIN_TOKEN}`);
+    expect((await get('').expect(200)).body.entries.length).toBeLessThanOrEqual(50);
+    expect((await get('?limit=200').expect(200)).body.next).toBeNull();
+    await get('?limit=0').expect(400);
+    await get('?limit=201').expect(400);
+    await get('?limit=two').expect(400);
+    await get('?before=not-a-cursor').expect(400);
+    await get(`?before=${Buffer.from(JSON.stringify(['yesterday', 'x'])).toString('base64url')}`).expect(400);
+    await http().get('/api/admin/feedback').expect(401);
   });
 });
 
