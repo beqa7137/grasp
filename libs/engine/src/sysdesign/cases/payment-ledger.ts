@@ -262,7 +262,7 @@ export const PAYMENT_LEDGER: CaseStudy = {
     {
       kind: 'deep-dive',
       title: 'Shard the ledger',
-      prompt: `A year adds ${num(tbAYear)} TB. Seven years is about ${num(tbAYear * 7)} TB and every merchant would share one primary's failure domain. How do you split the ledger so that most entries still commit in one local transaction?`,
+      prompt: `A year adds ${num(tbAYear)} TB. On one database, seven years is about ${num(tbAYear * 7)} TB, and every merchant would share its one primary's failure domain. How do you split the ledger so that most entries still commit in one local transaction?`,
       decision: {
         question: 'What do you shard postings and balances by?',
         options: [
@@ -399,7 +399,7 @@ export const PAYMENT_LEDGER: CaseStudy = {
         'Invariants, checked continuously and paged on: every entry sums to zero per currency; the sum of all postings in the ledger is zero per currency; each cached balance equals its last snapshot plus the postings since; the in-transit accounts add up to the transfers in flight.',
         'Pipeline health: outbox lag, saga steps past their deadline, payment attempts in an unknown state, reconciliation breaks by kind and age, and lock waits on hot accounts.',
         'Period close: at month end, check the invariants for the period, reconcile cash with the bank, then freeze it; later corrections are dated adjustments in the open period.',
-        'Audit: every entry says what created it and why. Access is least privilege, nobody can change a posting: the posting tables refuse updates and deletes, superuser access is break-glass, logged and reviewed, and a hash chain or signed daily digest over entries makes tampering detectable. Auditors can trace any balance to its postings and each posting to its source.',
+        'Audit: every entry says what created it and why. Access is least privilege, and no service or person can change a posting in normal operation: the posting tables refuse updates and deletes, superuser access is break-glass, logged and reviewed, and a hash chain or signed daily digest over entries makes tampering detectable. Auditors can trace any balance to its postings and each posting to its source.',
         'Retention: closed periods move to cheaper, write-once storage, stay queryable for as long as the law requires, then expire on a schedule. An erasure request removes personal details kept around the ledger, not the money records.',
       ],
     },
