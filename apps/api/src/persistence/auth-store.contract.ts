@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import type { AuthIdentity, OneTimeRecord, User } from '../auth/auth.types.js';
+import type { AuthIdentity, OneTimeRecord, RefreshTokenRecord, User } from '../auth/auth.types.js';
 import type { AuthStore } from './stores.js';
 
 const HOUR = 3_600_000;
+const DAY = 24 * HOUR;
 const iso = (offsetMs = 0) => new Date(Date.now() + offsetMs).toISOString();
 
 const newUser = (email = `${randomUUID()}@example.com`): User => ({
@@ -150,6 +151,34 @@ export function authStoreContract(name: string, make: () => AuthStore) {
       await store.deleteByLearner(user.learnerId);
       expect(await store.activeFamily(user.id, user.learnerId, active)).toBe(false);
       expect(await store.createFamily(user.id, randomUUID(), iso())).toBe(false);
+    });
+
+    it('sweeps refresh tokens a day past expiry and the sessions they leave without a live token', async () => {
+      const store = make();
+      const user = newUser();
+      await store.createUser(user);
+      const token = (familyId: string, expiresAt: string): RefreshTokenRecord => ({
+        id: randomUUID(),
+        userId: user.id,
+        familyId,
+        tokenHash: randomUUID(),
+        expiresAt,
+        rotatedAt: null,
+        revokedAt: null,
+        createdAt: iso(),
+      });
+      const [ended, mixed, active, recent] = [randomUUID(), randomUUID(), randomUUID(), randomUUID()];
+      for (const family of [ended, mixed, active, recent]) expect(await store.createFamily(user.id, family, iso())).toBe(true);
+      const swept = [token(ended, iso(-2 * DAY)), token(ended, iso(-DAY - HOUR)), token(mixed, iso(-2 * DAY))];
+      const kept = [token(mixed, iso(HOUR)), token(active, iso(30 * DAY)), token(recent, iso(-HOUR))];
+      for (const t of [...swept, ...kept]) expect(await store.addRefreshToken(t)).toBe(true);
+
+      expect(await store.sweepExpired()).toBeGreaterThanOrEqual(swept.length + 1);
+      for (const t of swept) expect(await store.refreshTokenByHash(t.tokenHash)).toBeNull();
+      for (const t of kept) expect(await store.refreshTokenByHash(t.tokenHash)).toEqual(t);
+      expect(await store.activeFamily(user.id, user.learnerId, ended)).toBe(false);
+      for (const family of [mixed, active, recent]) expect(await store.activeFamily(user.id, user.learnerId, family)).toBe(true);
+      expect(await store.addRefreshToken(token(ended, iso(HOUR)))).toBe(false);
     });
 
     it('hands out a one-time value exactly once, even to concurrent callers', async () => {

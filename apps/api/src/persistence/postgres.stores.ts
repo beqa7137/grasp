@@ -4,7 +4,6 @@ import { and, asc, desc, eq, gt, isNull, lt, sql, TransactionRollbackError, type
 import { DrizzleQueryError } from 'drizzle-orm/errors';
 import type { NodePgDatabase, NodePgQueryResultHKT } from 'drizzle-orm/node-postgres';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
-import type { LearnerEvent } from '../admin/cohort-metrics.js';
 import type { AuthIdentity, OneTimePurpose, OneTimeRecord, Provider, RefreshTokenRecord, User } from '../auth/auth.types.js';
 import type { AccessClaims } from '../auth/tokens.js';
 import type { FeedbackContext, FeedbackEntry, FeedbackKind } from '../feedback/feedback.types.js';
@@ -19,7 +18,9 @@ import {
   FeedbackStore,
   InterviewStore,
   ProgressStore,
+  TOKEN_SWEEP_GRACE_MS,
   type AppendResult,
+  type FeedbackCursor,
   type ReceivedEvents,
   type WindowTotal,
 } from './stores.js';
@@ -94,14 +95,6 @@ export class PostgresProgressStore extends ProgressStore {
       );
     const latest = rows.reduce<Date | null>((max, r) => (max && max >= r.receivedAt ? max : r.receivedAt), null);
     return { events: rows.map((r) => r.payload as StoredEvent), latest: latest?.toISOString() ?? null };
-  }
-
-  async all(): Promise<LearnerEvent[]> {
-    const rows = await this.db
-      .select({ learnerId: schema.learningEvents.learnerId, payload: schema.learningEvents.payload })
-      .from(schema.learningEvents)
-      .orderBy(schema.learningEvents.occurredAt);
-    return rows.map((r) => ({ learnerId: r.learnerId, event: r.payload as StoredEvent }));
   }
 
   /** Removes the learner row; events, interviews, feedback and any account go with it through ON DELETE CASCADE. */
@@ -213,11 +206,6 @@ export class PostgresInterviewStore extends InterviewStore {
     return rows.map((r) => r.session as InterviewSession);
   }
 
-  async all(): Promise<InterviewSession[]> {
-    const rows = await this.db.select({ session: schema.interviewSessions.session }).from(schema.interviewSessions);
-    return rows.map((r) => r.session as InterviewSession);
-  }
-
   async deleteLearner(learnerId: string): Promise<void> {
     await this.db.delete(schema.interviewSessions).where(eq(schema.interviewSessions.learnerId, learnerId));
   }
@@ -247,8 +235,18 @@ export class PostgresFeedbackStore extends FeedbackStore {
     return rows.map(toEntry);
   }
 
-  async all(): Promise<FeedbackEntry[]> {
-    return (await this.db.select().from(schema.feedback).orderBy(schema.feedback.createdAt)).map(toEntry);
+  async page(limit: number, before: FeedbackCursor | null): Promise<FeedbackEntry[]> {
+    const rows = await this.db
+      .select()
+      .from(schema.feedback)
+      .where(
+        before
+          ? sql`(${schema.feedback.createdAt}, ${schema.feedback.id}) < (${before.createdAt}::timestamptz, ${before.id}::uuid)`
+          : undefined,
+      )
+      .orderBy(desc(schema.feedback.createdAt), desc(schema.feedback.id))
+      .limit(limit);
+    return rows.map(toEntry);
   }
 
   async deleteLearner(learnerId: string): Promise<void> {
@@ -257,6 +255,10 @@ export class PostgresFeedbackStore extends FeedbackStore {
 }
 
 const iso = (value: string | null) => (value === null ? null : new Date(value).toISOString());
+
+/** Bounds one sweep; a backlog larger than this drains over the following sweeps. */
+const TOKEN_SWEEP_BATCH = 5_000;
+const TOKEN_SWEEP_BATCHES = 20;
 
 @Injectable()
 export class PostgresAuthStore extends AuthStore {
@@ -373,8 +375,25 @@ export class PostgresAuthStore extends AuthStore {
   }
 
   async sweepExpired(): Promise<number> {
-    const removed = await this.db.delete(schema.authOneTime).where(lt(schema.authOneTime.expiresAt, sql`now()`));
-    return removed.rowCount ?? 0;
+    const oneTime = await this.db.delete(schema.authOneTime).where(lt(schema.authOneTime.expiresAt, sql`now()`));
+    let removed = oneTime.rowCount ?? 0;
+    for (let batch = 0; batch < TOKEN_SWEEP_BATCHES; batch++) {
+      const { rows } = await this.db.execute<{ tokens: number; families: number }>(sql`
+        with tokens as (
+          delete from refresh_tokens where id in (
+            select id from refresh_tokens where expires_at < now() - ${msSql(TOKEN_SWEEP_GRACE_MS)}
+            limit ${TOKEN_SWEEP_BATCH} for update skip locked)
+          returning family_id
+        ), families as (
+          delete from session_families f where f.id in (select family_id from tokens) and not exists (
+            select 1 from refresh_tokens t where t.family_id = f.id and t.expires_at >= now() - ${msSql(TOKEN_SWEEP_GRACE_MS)})
+          returning 1
+        )
+        select (select count(*) from tokens)::int as tokens, (select count(*) from families)::int as families`);
+      removed += rows[0].tokens + rows[0].families;
+      if (rows[0].tokens < TOKEN_SWEEP_BATCH) break;
+    }
+    return removed;
   }
 
   async createFamily(userId: string, familyId: string, at: string): Promise<boolean> {

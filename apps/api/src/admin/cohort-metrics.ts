@@ -60,29 +60,33 @@ export interface CohortMetrics {
 
 const DAY_MS = 86_400_000;
 const SESSION_GAP_MS = 30 * 60_000;
-const RATING_NAMES = ['again', 'hard', 'good', 'easy'] as const;
+export const RATING_NAMES = ['again', 'hard', 'good', 'easy'] as const;
 
 const day = (iso: string) => iso.slice(0, 10);
-const ratio = (count: number, of: number): Ratio => ({ count, of, rate: of ? count / of : null });
-const round = (n: number | null, digits = 2) => (n === null ? null : Math.round(n * 10 ** digits) / 10 ** digits);
+export const utcDaysAgo = (now: Date, n: number) => day(new Date(now.getTime() - n * DAY_MS).toISOString());
+export const ratio = (count: number, of: number): Ratio => ({ count, of, rate: of ? count / of : null });
+export const round = (n: number | null, digits = 2) => (n === null ? null : Math.round(n * 10 ** digits) / 10 ** digits);
 const inc = (map: Record<string, number>, key: string) => (map[key] = (map[key] ?? 0) + 1);
 
-function median(values: number[]): number | null {
+export function median(values: number[]): number | null {
   if (!values.length) return null;
   const sorted = [...values].sort((a, b) => a - b);
   const mid = sorted.length >> 1;
   return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
-/** Pilot metrics over every learner. Days are UTC; activity is any event, interview turn or feedback. */
+/**
+ * Pilot metrics over every learner, from every record in memory; the Postgres store computes the same in SQL. Days are
+ * UTC; activity is any event, interview turn or feedback.
+ */
 export function cohortMetrics(
   events: LearnerEvent[],
   sessions: InterviewSession[],
   feedback: FeedbackEntry[],
   now = new Date(),
 ): CohortMetrics {
-  const today = day(now.toISOString());
-  const daysAgo = (n: number) => day(new Date(now.getTime() - n * DAY_MS).toISOString());
+  const today = utcDaysAgo(now, 0);
+  const daysAgo = (n: number) => utcDaysAgo(now, n);
 
   const activity = new Map<string, string[]>();
   const touch = (learnerId: string, at: string) => {

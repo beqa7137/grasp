@@ -75,6 +75,21 @@ describe('SessionService', () => {
     expect(await sessions.refresh(again.refreshToken, at(31 * 24 * 60 * MIN)).catch(status)).toBe(401);
   });
 
+  it('sweeps a session whose refresh tokens expired over a day ago and keeps an active one', async () => {
+    const { sessions, store, tokens, user } = await setup();
+    const now = new Date();
+    const started = new Date(now.getTime() - 32 * 24 * 60 * MIN);
+    const old = await sessions.start(user, started);
+    const current = await sessions.start(user, now);
+
+    expect(await store.sweepExpired()).toBe(2);
+    expect(await sessions.refresh(old.refreshToken, now).catch(status)).toBe(401);
+    const claims = await tokens.verify(old.accessToken, new Date(started.getTime() + MIN));
+    expect(await store.activeFamily(claims.userId, claims.learnerId, claims.familyId)).toBe(false);
+    expect((await sessions.refresh(current.refreshToken, now)).user.id).toBe(user.id);
+    expect(await store.sweepExpired()).toBe(0);
+  });
+
   it('does not issue a new token when logout wins a refresh race', async () => {
     const { sessions, store, user } = await setup();
     const session = await sessions.start(user, t0);

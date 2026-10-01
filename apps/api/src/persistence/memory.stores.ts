@@ -14,10 +14,15 @@ import {
   FeedbackStore,
   InterviewStore,
   ProgressStore,
+  TOKEN_SWEEP_GRACE_MS,
   type AppendResult,
+  type FeedbackCursor,
   type ReceivedEvents,
   type WindowTotal,
 } from './stores.js';
+
+const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+const newestFirst = (a: FeedbackCursor, b: FeedbackCursor) => compare(b.createdAt, a.createdAt) || compare(b.id, a.id);
 
 interface Received {
   event: StoredEvent;
@@ -167,6 +172,14 @@ export class MemoryFeedbackStore extends FeedbackStore {
     return this.entries.map((e) => structuredClone(e));
   }
 
+  async page(limit: number, before: FeedbackCursor | null): Promise<FeedbackEntry[]> {
+    return this.entries
+      .filter((e) => !before || newestFirst(before, e) < 0)
+      .sort(newestFirst)
+      .slice(0, limit)
+      .map((e) => structuredClone(e));
+  }
+
   async deleteLearner(learnerId: string): Promise<void> {
     for (let i = this.entries.length - 1; i >= 0; i--) if (this.entries[i].learnerId === learnerId) this.entries.splice(i, 1);
   }
@@ -262,8 +275,18 @@ export class MemoryAuthStore extends AuthStore {
 
   async sweepExpired(): Promise<number> {
     const now = new Date().toISOString();
+    const cutoff = new Date(Date.now() - TOKEN_SWEEP_GRACE_MS).toISOString();
     let removed = 0;
     for (const [hash, record] of this.oneTime) if (record.expiresAt < now && this.oneTime.delete(hash)) removed++;
+    const swept = new Set<string>();
+    for (const [id, token] of this.tokens) {
+      if (token.expiresAt >= cutoff) continue;
+      this.tokens.delete(id);
+      swept.add(token.familyId);
+      removed++;
+    }
+    const live = new Set([...this.tokens.values()].filter((t) => t.expiresAt >= cutoff).map((t) => t.familyId));
+    for (const familyId of swept) if (!live.has(familyId) && this.families.delete(familyId)) removed++;
     return removed;
   }
 

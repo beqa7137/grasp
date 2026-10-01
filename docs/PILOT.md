@@ -79,7 +79,8 @@ The exit interviews explain the numbers; they don't replace them.
 
 **Daily (about 5 minutes):**
 
-- Skim new feedback: `curl -H "Authorization: Bearer $ADMIN_TOKEN" https://<host>/api/admin/feedback`
+- Skim new feedback: `curl -H "Authorization: Bearer $ADMIN_TOKEN" https://<host>/api/admin/feedback`. It returns the newest 50
+  (`?limit=` up to 200) and a `next` cursor; pass it back as `?before=<next>` for older entries.
 - Check Sentry for new issues.
 - Check yesterday's AI spend in the report.
 - Fix anything that blocks a tester the same day.
@@ -127,4 +128,6 @@ All days are UTC. A learner is **active** on a day if they recorded a learning e
 - **AI cost per scored interview:** total AI spend across all sessions, including unscored ones, divided by scored sessions.
 - **Median session length:** the time between the first and last action of a visit. Visits are separated by 30 minutes of inactivity.
 
-Metrics come from `GET /api/admin/metrics` (`apps/api/src/admin/cohort-metrics.ts`, unit-tested in `cohort-metrics.spec.ts`).
+Metrics come from `GET /api/admin/metrics`. `apps/api/src/admin/cohort-metrics.ts` defines them over in-memory records
+(unit-tested in `cohort-metrics.spec.ts`); with Postgres, `postgres-metrics.store.ts` computes the same in SQL, checked
+against it on generated cohorts in `test/cohort-metrics.e2e-spec.ts`.

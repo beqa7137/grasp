@@ -1,5 +1,4 @@
 import type { StoredEvent } from '@grasp/engine';
-import type { LearnerEvent } from '../admin/cohort-metrics.js';
 import type { AuthIdentity, OneTimePurpose, OneTimeRecord, Provider, RefreshTokenRecord, User } from '../auth/auth.types.js';
 import type { FeedbackEntry } from '../feedback/feedback.types.js';
 import type { InterviewSession } from '../interview/interview.types.js';
@@ -19,7 +18,6 @@ export abstract class ProgressStore {
   abstract append(learnerId: string, events: StoredEvent[]): Promise<AppendResult>;
   abstract list(learnerId: string): Promise<StoredEvent[]>;
   abstract listReceivedAfter(learnerId: string, after: Date | null): Promise<ReceivedEvents>;
-  abstract all(): Promise<LearnerEvent[]>;
   abstract deleteLearner(learnerId: string): Promise<void>;
 }
 
@@ -28,16 +26,27 @@ export abstract class InterviewStore {
   abstract completeScore(candidate: InterviewSession): Promise<InterviewSession>;
   abstract get(learnerId: string, id: string): Promise<InterviewSession | null>;
   abstract recent(learnerId: string, limit: number): Promise<InterviewSession[]>;
-  abstract all(): Promise<InterviewSession[]>;
   abstract deleteLearner(learnerId: string): Promise<void>;
+}
+
+export interface FeedbackCursor {
+  createdAt: string;
+  id: string;
 }
 
 export abstract class FeedbackStore {
   abstract add(entry: FeedbackEntry): Promise<void>;
   abstract list(learnerId: string): Promise<FeedbackEntry[]>;
-  abstract all(): Promise<FeedbackEntry[]>;
+  /** Newest first, by time then ID, from just after `before`, so paging never repeats or skips an entry. */
+  abstract page(limit: number, before: FeedbackCursor | null): Promise<FeedbackEntry[]>;
   abstract deleteLearner(learnerId: string): Promise<void>;
 }
+
+/**
+ * A refresh racing its token's expiry, or a server clock behind the database's, still finds its session; an expired
+ * token is refused either way, so keeping it a day longer changes nothing else.
+ */
+export const TOKEN_SWEEP_GRACE_MS = 24 * 3_600_000;
 
 export abstract class AuthStore {
   abstract userByEmail(email: string): Promise<User | null>;
@@ -64,7 +73,10 @@ export abstract class AuthStore {
   abstract addOneTime(record: OneTimeRecord): Promise<void>;
   /** Marks an unused, unexpired value as used and returns it, atomically; null when unknown, expired or already used. */
   abstract consumeOneTime(hash: string, purpose: OneTimePurpose, at: string): Promise<OneTimeRecord | null>;
-  /** Deletes expired one-time values; returns how many went. */
+  /**
+   * Deletes expired one-time values, refresh tokens a day past expiry and the session families they leave without a
+   * live token; returns how many rows went.
+   */
   abstract sweepExpired(): Promise<number>;
 
   /** False when the account vanished before the session could start. */

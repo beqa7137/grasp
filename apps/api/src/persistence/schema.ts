@@ -85,7 +85,7 @@ export const feedback = pgTable(
     context: jsonb('context').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).notNull(),
   },
-  (t) => [index('feedback_created_at').on(t.createdAt)],
+  (t) => [index('feedback_created_at_id').on(t.createdAt, t.id)],
 );
 
 /** Behavioral stories of signed-in accounts: the learner's own writing, exported with their data and erased with it. */
@@ -190,7 +190,11 @@ export const refreshTokens = pgTable(
     revokedAt: timestamp('revoked_at', { withTimezone: true, mode: 'string' }),
     createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).notNull(),
   },
-  (t) => [index('refresh_tokens_user').on(t.userId), index('refresh_tokens_family').on(t.familyId)],
+  (t) => [
+    index('refresh_tokens_user').on(t.userId),
+    index('refresh_tokens_family').on(t.familyId),
+    index('refresh_tokens_expires_at').on(t.expiresAt),
+  ],
 );
 
 /**
