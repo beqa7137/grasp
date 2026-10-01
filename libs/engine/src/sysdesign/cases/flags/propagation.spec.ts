@@ -15,10 +15,12 @@ import {
 const fleet: PropagationSettings = { instances: 20_000, delivery: 'poll', intervalS: 30, payload: 'full', cdn: false, changesPerMin: 2 };
 const PAYLOADS: PollPayload[] = ['full', 'etag', 'delta'];
 
+/** Every interval and change rate the sliders allow, at instance counts from the smallest to the largest. */
 function* sweep(): Generator<PropagationSettings> {
-  for (const instances of [1_000, 7_000, 20_000, 100_000])
-    for (const intervalS of [5, 30, 60, 300])
-      for (const changesPerMin of [0, 1, 2, 13, 30])
+  const { intervalS: interval, changesPerMin: changes } = PROPAGATION_LIMITS;
+  for (const instances of [1_000, 2_000, 7_000, 20_000, 50_000, 99_000, 100_000])
+    for (let intervalS = interval.min; intervalS <= interval.max; intervalS += interval.step)
+      for (let changesPerMin = changes.min; changesPerMin <= changes.max; changesPerMin += changes.step)
         for (const cdn of [false, true]) {
           for (const payload of PAYLOADS) yield { instances, delivery: 'poll', intervalS, payload, cdn, changesPerMin };
           yield { instances, delivery: 'stream', intervalS, payload: 'full', cdn, changesPerMin };
@@ -123,6 +125,13 @@ describe('propagation checkpoint', () => {
       expect(c.choices.length, at).toBeGreaterThanOrEqual(3);
       expect(new Set(c.choices).size, at).toBe(c.choices.length);
     }
+  });
+
+  it('asks a streaming fleet only about what its controls show: the instances and the change rate', () => {
+    const stream: PropagationSettings = { ...fleet, delivery: 'stream' };
+    const prompt = propagationCheckpoint(stream).prompt;
+    for (const hidden of [{ cdn: true }, { payload: 'delta' as const }, { payload: 'etag' as const }, { intervalS: 35 }])
+      expect(propagationCheckpoint({ ...stream, ...hidden }).prompt).toBe(prompt);
   });
 
   it('varies the question with the settings and keeps within the sliders', () => {

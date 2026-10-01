@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
 import {
   PROPAGATION,
   PROPAGATION_LIMITS,
@@ -10,8 +10,10 @@ import {
   type FlagDelivery,
   type PollPayload,
   type PropagationSettings,
+  type WidgetCheckpoint,
 } from '@grasp/engine';
 import { RovingSelectDirective } from '../../../../core/roving-select.directive';
+import { settledAnnouncement } from './settled-announcement';
 import { WidgetCheckComponent } from './widget-check.component';
 
 type Slider = 'instances' | 'intervalS' | 'changesPerMin';
@@ -32,9 +34,6 @@ const PAYLOADS: { payload: PollPayload; label: string }[] = [
   { payload: 'etag', label: 'Whole ruleset if changed (ETag)' },
   { payload: 'delta', label: 'Changes since its version' },
 ];
-
-/** How long input must rest before the summary is announced, so dragging a slider does not queue an announcement per step. */
-const SETTLE_MS = 600;
 
 /** Getting flag changes to every SDK: streaming or polling, with a CDN, ETags or deltas, and what each costs in time and bytes. */
 @Component({
@@ -134,7 +133,7 @@ const SETTLE_MS = 600;
       arrive at random; streams send only the changes (heartbeats and reconnects are left out).
     </p>
 
-    <app-widget-check [check]="check()" [chosen]="chosen()" (chosenChange)="answer($event)" />
+    <app-widget-check [check]="shownCheck()" [chosen]="chosen()" (chosenChange)="answer($event)" />
   `,
   styleUrl: '../../../design-lesson/widget.scss',
   styles: `
@@ -183,23 +182,21 @@ export class PropagationWidgetComponent {
   readonly polling = computed(() => this.settings().delivery === 'poll');
   readonly run = computed(() => propagation(this.settings()));
   readonly check = computed(() => propagationCheckpoint(this.settings()));
-  private readonly answers = signal<{ asked: PropagationSettings; chosen: number } | null>(null);
-  readonly chosen = computed(() => {
-    const a = this.answers();
-    return a?.asked === this.settings() ? a.chosen : null;
+  /** The choices a slider cannot make: a new delivery, payload or CDN setting asks again, a slider only moves the readouts. */
+  private readonly asked = computed(() => {
+    const s = this.settings();
+    return s.delivery === 'stream' ? 'stream' : `poll:${s.payload}:${s.cdn}`;
   });
-  readonly announcement = signal('');
+  private readonly answers = signal<{ asked: string; chosen: number; check: WidgetCheckpoint } | null>(null);
+  private readonly current = computed(() => {
+    const a = this.answers();
+    return a?.asked === this.asked() ? a : null;
+  });
+  readonly chosen = computed(() => this.current()?.chosen ?? null);
+  /** The answered question stays as it was asked while sliders move the readouts under it. */
+  readonly shownCheck = computed(() => this.current()?.check ?? this.check());
+  readonly announcement = settledAnnouncement(() => this.summary());
   readonly model = PROPAGATION;
-
-  constructor() {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    inject(DestroyRef).onDestroy(() => clearTimeout(timer));
-    effect(() => {
-      const summary = this.summary();
-      clearTimeout(timer);
-      timer = setTimeout(() => this.announcement.set(summary), SETTLE_MS);
-    });
-  }
 
   requests(v: number) {
     return `${v < 10 ? Number(v.toFixed(1)) : num(v)}/s`;
@@ -225,6 +222,6 @@ export class PropagationWidgetComponent {
   }
 
   answer(chosen: number | null) {
-    if (chosen !== null) this.answers.set({ asked: this.settings(), chosen });
+    if (chosen !== null) this.answers.set({ asked: this.asked(), chosen, check: this.check() });
   }
 }

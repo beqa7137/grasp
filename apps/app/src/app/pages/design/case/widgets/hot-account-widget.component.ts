@@ -1,17 +1,7 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  DestroyRef,
-  ElementRef,
-  Injector,
-  computed,
-  effect,
-  inject,
-  signal,
-  viewChild,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, Injector, computed, inject, signal, viewChild } from '@angular/core';
 import { HOT_ACCOUNT_LIMITS, hotAccount, hotAccountCheckpoint, num, type HotAccountSettings, type WidgetCheckpoint } from '@grasp/engine';
 import { refocusAfterRender } from '../../../../core/focus';
+import { settledAnnouncement } from './settled-announcement';
 import { WidgetCheckComponent } from './widget-check.component';
 
 type Setting = keyof HotAccountSettings;
@@ -22,9 +12,6 @@ const SLIDERS: { key: Setting; label: string; unit: string; spoken: (v: number) 
   { key: 'subAccounts', label: 'Sub-accounts', unit: '', spoken: (v) => `${v} sub-account${v === 1 ? '' : 's'}` },
   { key: 'batch', label: 'Postings per transaction', unit: '', spoken: (v) => `${v} posting${v === 1 ? '' : 's'} a transaction` },
 ];
-
-/** How long input must rest before the summary is announced, so dragging a slider does not queue an announcement per step. */
-const SETTLE_MS = 600;
 
 /** The fee account at peak: one row that every capture locks, and what splitting it and batching postings buy. */
 @Component({
@@ -147,21 +134,11 @@ export class HotAccountWidgetComponent {
     const ms = this.run().latencyMs;
     return ms === null ? 'grows without bound' : `${ms < 10 ? ms.toFixed(1) : num(ms)} ms`;
   });
-  readonly announcement = signal('');
+  readonly announcement = settledAnnouncement(() => this.summary());
 
   readonly format = num;
   private readonly injector = inject(Injector);
   private readonly lastEl = viewChild<ElementRef<HTMLElement>>('lastEl');
-
-  constructor() {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    inject(DestroyRef).onDestroy(() => clearTimeout(timer));
-    effect(() => {
-      const summary = this.summary();
-      clearTimeout(timer);
-      timer = setTimeout(() => this.announcement.set(summary), SETTLE_MS);
-    });
-  }
 
   private summary(): string {
     const run = this.run();

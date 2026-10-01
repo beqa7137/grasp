@@ -85,7 +85,7 @@ const guardrailCohort = item('A bad path at a small rollout', (rand) => {
   return {
     prompt: `A service fails ${percentText(base)} of requests. A new path behind a flag fails ${percentText(treated)}, and it is rolled out to ${percentText(exposure)} of users. What does the whole service's error rate become?`,
     ...withChoices(rand, percentText(overall), [percentText(treated), percentText(base + treated), percentText(base * exposure)]),
-    explain: `${percentText(1 - exposure)} of requests still fail at ${percentText(base)} and ${percentText(exposure)} at ${percentText(treated)}: ${percentText(overall)}, a change lost in normal noise. Comparing the users in the flag with those out of it shows ${percentText(treated)} against ${percentText(base)}, which is why guardrails compare the two groups.`,
+    explain: `${percentText(1 - exposure)} of requests still fail at ${percentText(base)} and ${percentText(exposure)} at ${percentText(treated)}: ${percentText(overall)}, a change easy to miss in normal variation. Comparing the users in the flag with those out of it shows ${percentText(treated)} against ${percentText(base)}, which is why guardrails compare the two groups.`,
   };
 });
 
