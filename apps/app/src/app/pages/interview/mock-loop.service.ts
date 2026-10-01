@@ -92,10 +92,20 @@ export class MockLoopService {
     );
     const sessions = Object.fromEntries(found.flatMap((s) => (s ? [[s.id, s]] : [])));
     const missing = loop.rounds.filter((_, i) => found[i] === null).map((r) => r.track);
+    // A loop started while this read was in flight is left alone: only this loop's own rounds, still on those sessions, reset.
     const kept = missing.length
-      ? await this.update((l) => ({ ...l, rounds: l.rounds.map((r, i) => (found[i] === null ? { ...r, sessionId: null } : r)) }))
+      ? await this.update((l) =>
+          l.id === loop.id
+            ? {
+                ...l,
+                rounds: l.rounds.map((r, i) =>
+                  found[i] === null && r.sessionId === loop.rounds[i].sessionId ? { ...r, sessionId: null } : r,
+                ),
+              }
+            : l,
+        )
       : loop;
-    if (kept) await this.complete(kept, sessions);
+    if (kept?.id === loop.id) await this.complete(kept, sessions);
     return { loop: this.current(), sessions, missing };
   }
 

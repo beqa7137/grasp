@@ -416,3 +416,21 @@ test.describe('signing in mid-loop', () => {
     await expect(loop.getByText(/We couldn't find/)).toHaveCount(0);
   });
 });
+
+test.describe('when the recent interviews cannot be read', () => {
+  test.use({ expectedConsoleErrors: [/status of 500/] });
+
+  test('the loop page still opens and starts a loop', async ({ page }) => {
+    await page.route('**/api/interview/sessions', (route) =>
+      route.request().method() === 'GET'
+        ? route.fulfill({ status: 500, json: { statusCode: 500, message: 'Unavailable' } })
+        : route.continue(),
+    );
+    await page.goto('/interview/loop');
+    const loop = page.locator('app-mock-loop');
+    await expect(loop.getByRole('heading', { name: 'A mock interview loop', level: 1 })).toBeVisible();
+    await expect(loop.getByRole('alert')).toHaveCount(0);
+    await loop.getByRole('button', { name: 'Start the loop' }).click();
+    await expect(page).toHaveURL(/\/interview\/[0-9a-f-]{36}$/);
+  });
+});
