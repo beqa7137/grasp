@@ -1,22 +1,29 @@
-import { type ArgumentsHost, Logger } from '@nestjs/common';
+import { type ArgumentsHost, BadGatewayException, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { BaseExceptionFilter } from '@nestjs/core';
 import { DrizzleQueryError } from 'drizzle-orm/errors';
 import { RateLimitExceeded } from '../common/rate-limit-exceeded.js';
-import { reportError } from './error-reporting.js';
-import { recordDatabaseFailure } from './failure-signals.js';
+import { reportError, reportSignal } from './error-reporting.js';
+import { SIGNAL_WINDOW_MS } from './failure-signals.js';
 import { ReportExceptionsFilter } from './report-exceptions.filter.js';
 
-vi.mock('./error-reporting.js', () => ({ reportError: vi.fn() }));
-vi.mock('./failure-signals.js', () => ({ recordDatabaseFailure: vi.fn() }));
+vi.mock('./error-reporting.js', () => ({ reportError: vi.fn(), reportSignal: vi.fn() }));
+
+let now = Date.parse('2026-10-01T10:00:00Z');
+const signals = () => vi.mocked(reportSignal).mock.calls.map(([report]) => report.signal);
 
 describe('ReportExceptionsFilter', () => {
   const host = { switchToHttp: () => ({ getRequest: () => ({ id: 'request-1' }) }) } as unknown as ArgumentsHost;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime((now += SIGNAL_WINDOW_MS));
     vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
   });
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
 
   it('returns the principal limit headers instead of the wider network limit', () => {
     const rendered = vi.spyOn(BaseExceptionFilter.prototype, 'catch').mockImplementation(() => undefined);
@@ -36,31 +43,41 @@ describe('ReportExceptionsFilter', () => {
     expect(reportError).not.toHaveBeenCalled();
   });
 
-  it('reports unrelated network errors as unexpected failures', () => {
+  it('reports an unexpected failure on its own', () => {
     const rendered = vi.spyOn(BaseExceptionFilter.prototype, 'catch').mockImplementation(() => undefined);
-    const failure = Object.assign(new Error('other network call failed'), { code: 'ECONNRESET' });
+    const failure = new TypeError('private learner answer');
 
     new ReportExceptionsFilter().catch(failure, host);
 
     expect(reportError).toHaveBeenCalledWith(failure, 'request-1');
-    expect(recordDatabaseFailure).not.toHaveBeenCalled();
+    expect(reportSignal).not.toHaveBeenCalled();
     expect(rendered).toHaveBeenCalledWith(expect.objectContaining({ status: 500 }), host);
     expect(Logger.prototype.error).toHaveBeenCalledWith({
       operation: 'request_failed',
       requestId: 'request-1',
-      category: 'connection',
-      code: 'ECONNRESET',
+      category: 'type',
+      code: 'unknown',
     });
   });
 
-  it('renders a database availability failure as a 503, signalled in its group rather than reported alone', () => {
+  it.each([
+    ['a timed-out query', new DrizzleQueryError('select 1', [], new Error('Query read timeout')), 'db.timeout'],
+    ['a pool connect timeout from a transaction', new Error('timeout exceeded when trying to connect'), 'db.timeout'],
+    ['a refused connection from a transaction', Object.assign(new Error('connect failed'), { code: 'ECONNREFUSED' }), 'db.unavailable'],
+  ])('renders %s as a 503, signalled in its group rather than reported alone', (_name, failure, signal) => {
     const rendered = vi.spyOn(BaseExceptionFilter.prototype, 'catch').mockImplementation(() => undefined);
-    const failure = new DrizzleQueryError('select 1', [], new Error('Query read timeout'));
 
     new ReportExceptionsFilter().catch(failure, host);
 
     expect(reportError).not.toHaveBeenCalled();
-    expect(recordDatabaseFailure).toHaveBeenCalledWith(failure);
+    expect(signals()).toEqual([signal]);
     expect(rendered).toHaveBeenCalledWith(expect.objectContaining({ status: 503 }), host);
+  });
+
+  it('leaves mapped dependency failures to their signals', () => {
+    vi.spyOn(BaseExceptionFilter.prototype, 'catch').mockImplementation(() => undefined);
+    new ReportExceptionsFilter().catch(new BadGatewayException('The interviewer is unavailable right now.'), host);
+    new ReportExceptionsFilter().catch(new ServiceUnavailableException(), host);
+    expect(reportError).not.toHaveBeenCalled();
   });
 });

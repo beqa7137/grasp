@@ -50,7 +50,7 @@ export function reportSignal(report: SignalReport) {
 /** A Vercel instance can be frozen once its response is sent, so the delivery keeps the invocation alive. */
 function send([event, hint]: [ErrorEvent, EventHint]) {
   sentry!.captureEvent(event, hint);
-  waitUntil(sentry!.flush(2_000));
+  waitUntil(sentry!.flush(2_000).catch(() => false));
 }
 
 export async function flushErrorReporting() {

@@ -6,10 +6,10 @@ import type { AppConfig } from '../config.js';
 import { MemoryAuthStore, MemoryCoordinationStore } from '../persistence/memory.stores.js';
 import type { CoordinationStore } from '../persistence/stores.js';
 import { hashToken } from '../auth/tokens.js';
-import { recordFailure } from '../observability/failure-signals.js';
+import { recordDatabaseFailure, recordFailure } from '../observability/failure-signals.js';
 import { RateLimit, RateLimitGuard, SkipRateLimit } from './rate-limit.js';
 
-vi.mock('../observability/failure-signals.js', () => ({ recordFailure: vi.fn() }));
+vi.mock('../observability/failure-signals.js', () => ({ recordFailure: vi.fn(), recordDatabaseFailure: vi.fn() }));
 
 class Routes {
   list() {}
@@ -46,6 +46,7 @@ describe('RateLimitGuard', () => {
 
   beforeEach(() => {
     vi.mocked(recordFailure).mockClear();
+    vi.mocked(recordDatabaseFailure).mockClear();
     now = Date.parse('2026-09-24T10:00:00Z');
     auth = new MemoryAuthStore();
     coordination = new MemoryCoordinationStore(() => now, auth);
@@ -152,20 +153,33 @@ describe('RateLimitGuard', () => {
       ['rate-limit.store', failure],
       ['rate-limit.store', failure],
     ]);
+    expect(recordDatabaseFailure).not.toHaveBeenCalled();
     expect(error.mock.calls[0]![0]).toContain('category=timeout');
     expect(error.mock.calls[0]![0]).not.toContain('private learner data');
     expect(error.mock.calls[0]![0]).not.toContain('secret');
     error.mockRestore();
   });
 
-  it('keeps unexpected Postgres counter failures on the error reporting path', async () => {
-    const failure = Object.assign(new Error('other network call failed'), { code: 'ECONNRESET' });
+  it('answers a dropped counter connection with a 503, signalled only as the counter store', async () => {
+    const failure = Object.assign(new Error('connection lost'), { code: 'ECONNRESET' });
     const failing = { add: () => Promise.reject(failure) } as unknown as CoordinationStore;
     const error = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
     guard = new RateLimitGuard(new Reflector(), failing, { ...config, databaseUrl: 'postgresql://localhost/test' }, auth);
 
-    await expect(call(guard, Routes.prototype.list).result).rejects.toBe(failure);
+    await expect(call(guard, Routes.prototype.list).result).rejects.toMatchObject({ status: 503 });
     expect(error.mock.calls[0]![0]).toContain('category=connection');
+    expect(vi.mocked(recordFailure).mock.calls).toEqual([['rate-limit.store', failure]]);
+    expect(recordDatabaseFailure).not.toHaveBeenCalled();
     error.mockRestore();
+  });
+
+  it('keeps unexpected Postgres counter failures on the error reporting path', async () => {
+    const failure = new TypeError('unexpected counter failure');
+    const failing = { add: () => Promise.reject(failure) } as unknown as CoordinationStore;
+    vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    guard = new RateLimitGuard(new Reflector(), failing, { ...config, databaseUrl: 'postgresql://localhost/test' }, auth);
+
+    await expect(call(guard, Routes.prototype.list).result).rejects.toBe(failure);
+    vi.mocked(Logger.prototype.error).mockRestore();
   });
 });
