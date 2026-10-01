@@ -10,6 +10,7 @@ import { AD_CLICK_AGGREGATOR } from './ad-click-aggregator.js';
 import { JOB_SCHEDULER } from './job-scheduler.js';
 import { VIDEO_STREAMING } from './video-streaming.js';
 import { PAYMENTS } from './payments.js';
+import { PAYMENT_LEDGER } from './payment-ledger.js';
 import { RIDE_SHARING } from './ride-sharing.js';
 import { DISTRIBUTED_CACHE } from './distributed-cache.js';
 import { TICKETING } from './ticketing.js';
@@ -22,9 +23,10 @@ import { NEWS_FEED } from './news-feed.js';
 import type { CaseStudy } from './types.js';
 import { URL_SHORTENER } from './url-shortener.js';
 
-export type { CaseDecision, CaseEstimate, CaseOption, CaseStage, CaseStageKind, CaseStudy } from './types.js';
+export type { CaseDecision, CaseEstimate, CaseOption, CaseStage, CaseStageKind, CaseStudy, CaseWidget } from './types.js';
 export * from './estimate.js';
 export * from './labs.js';
+export * from './ledger/index.js';
 export * from './outcome.js';
 
 export const CASE_STUDIES: readonly CaseStudy[] = [
@@ -37,6 +39,7 @@ export const CASE_STUDIES: readonly CaseStudy[] = [
   WEB_CRAWLER,
   VIDEO_STREAMING,
   PAYMENTS,
+  PAYMENT_LEDGER,
   RIDE_SHARING,
   DISTRIBUTED_CACHE,
   TICKETING,

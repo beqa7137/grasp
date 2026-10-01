@@ -171,6 +171,20 @@ export const CASE_LABS: Record<string, CaseLab> = {
       edges: [...chain('users', 'lb', 'app', 'cache', 'db', 'replica'), { from: 'app', to: 'db' }],
     },
   },
+  'payment-ledger': {
+    workload: { rps: 14_000, readRatio: 0.5 },
+    design: {
+      nodes: [
+        n('services', 'client', 70, 240),
+        n('lb', 'lb', 240, 240, 2),
+        n('ledger', 'app', 410, 240, 12),
+        n('cache', 'cache', 580, 100, 2, { hitRate: 0.7 }),
+        n('db', 'db', 760, 240, 8, { shardKey: 'hash' }),
+        n('replica', 'replica', 760, 390, 8),
+      ],
+      edges: [...chain('services', 'lb', 'ledger', 'cache', 'db', 'replica'), { from: 'ledger', to: 'db' }],
+    },
+  },
   'ride-sharing': {
     workload: { rps: 20_000, readRatio: 0.5 },
     design: {

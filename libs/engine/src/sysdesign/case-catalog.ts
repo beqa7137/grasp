@@ -38,6 +38,13 @@ export const CASE_CATALOG: readonly CaseSummary[] = [
     topics: ['sd-consistency', 'sd-reliability', 'sd-queues', 'sd-sharding'],
   },
   {
+    id: 'payment-ledger',
+    title: 'Payment Ledger',
+    level: 'advanced',
+    stages: 13,
+    topics: ['sd-transactions', 'sd-locks', 'sd-sharding', 'sd-api-design'],
+  },
+  {
     id: 'ride-sharing',
     title: 'Ride Sharing',
     level: 'advanced',

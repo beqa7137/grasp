@@ -15,7 +15,19 @@ import type { ItemDef } from './review/types.js';
 import { COMPONENTS, SHARD_KEYS } from './sysdesign/catalog.js';
 import { CASE_BRIEFS } from './sysdesign/case-briefs.js';
 import { CASE_CATALOG } from './sysdesign/case-catalog.js';
-import { CASE_STUDIES } from './sysdesign/cases/index.js';
+import {
+  CASE_STUDIES,
+  MAX_ATTEMPTS,
+  RECON_ACTIONS,
+  explainRow,
+  hotAccountCheckpoint,
+  reconcile,
+  reconciliationDay,
+  retryCheckpoint,
+  retryRun,
+  type AttemptFate,
+  type KeyMode,
+} from './sysdesign/cases/index.js';
 import { SD_LESSONS } from './sysdesign/lessons/index.js';
 import { SCENARIOS } from './sysdesign/scenarios.js';
 
@@ -45,6 +57,29 @@ const traces = (algo: AlgorithmDef) => {
   return inputs.map((input) => algo.trace(algo.validate(input)));
 };
 
+function* attemptSequences(length: number): Generator<AttemptFate[]> {
+  if (!length) return yield [];
+  for (const rest of attemptSequences(length - 1)) for (const fate of ['ok', 'lost', 'dropped'] as const) yield [...rest, fate];
+}
+
+/** The text the payment ledger case's widgets build from their settings: every retry run, and checkpoints and days over a sweep. */
+function caseWidgetText(): unknown {
+  const modes: KeyMode[] = ['none', 'per-attempt', 'per-payment'];
+  const retries = [1, 2, 3, MAX_ATTEMPTS].flatMap((n) =>
+    [...attemptSequences(n)].flatMap((fates) => modes.map((mode) => [retryRun(fates, mode), retryCheckpoint(fates, mode)])),
+  );
+  const contention = [100, 2_300, 20_000].flatMap((offered) =>
+    [1, 5, 20].flatMap((lockMs) =>
+      [1, 64].flatMap((subAccounts) => [1, 50].map((batch) => hotAccountCheckpoint({ offered, lockMs, subAccounts, batch }))),
+    ),
+  );
+  const days = REVIEW_SEEDS.map((seed) => {
+    const day = reconciliationDay(seed);
+    return reconcile(day).map((row) => explainRow(row, day.cutoff));
+  });
+  return { retries, contention, days, actions: RECON_ACTIONS };
+}
+
 // A prediction's frames come from the tracers, which have entries of their own, so one seed covers the text it adds itself.
 const questions = (item: ItemDef) =>
   (item.kind === 'predict' ? REVIEW_SEEDS.slice(0, 1) : REVIEW_SEEDS).map((seed) => generateQuestion(item.id, seed));
@@ -67,6 +102,7 @@ function learnerContent(): Entry[] {
     ...byId('case summary', [...CASE_CATALOG]),
     ...byId('case brief', [...CASE_BRIEFS]),
     ...byId('case study', [...CASE_STUDIES]),
+    ['payment ledger case widgets', caseWidgetText()],
     ...byKey('design lesson', SD_LESSONS),
     ...byId('coding problem', CODING_PROBLEMS),
     ...byId('competency summary', [...COMPETENCY_CATALOG]),

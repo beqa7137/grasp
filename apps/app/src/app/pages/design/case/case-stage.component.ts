@@ -15,12 +15,15 @@ import {
 import { DecimalPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { IonIcon } from '@ionic/angular';
-import { chosenOption, estimateVerdict, parseAmount, type CaseStage, type CaseStageAnswer } from '@grasp/engine';
+import { chosenOption, estimateVerdict, parseAmount, type CaseStage, type CaseStageAnswer, type CaseWidget } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import { arrowForward, checkmarkCircle, closeCircle, constructOutline } from 'ionicons/icons';
 import { refocus, refocusAfterRender } from '../../../core/focus';
 import { answerMark } from '../../../review/answer-mark';
 import { CodeTextComponent } from '../../../viz/code-text.component';
+import { HotAccountWidgetComponent } from './widgets/hot-account-widget.component';
+import { ReconcileWidgetComponent } from './widgets/reconcile-widget.component';
+import { RetryWidgetComponent } from './widgets/retry-widget.component';
 
 const VERDICTS = {
   'spot-on': 'Spot on.',
@@ -28,11 +31,17 @@ const VERDICTS = {
   off: 'Off by more than 2x. Walk through the working below.',
 } as const;
 
+const WIDGET_TITLES: Record<CaseWidget, string> = {
+  retries: 'Try it: retries with and without idempotency keys',
+  'hot-account': 'Try it: one hot account at peak',
+  reconcile: "Try it: reconcile a day's captures",
+};
+
 /** One interview stage: commit to a decision or an estimate first, then reveal the model answer a point at a time. */
 @Component({
   selector: 'app-case-stage',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, DecimalPipe, IonIcon, CodeTextComponent],
+  imports: [RouterLink, DecimalPipe, IonIcon, CodeTextComponent, RetryWidgetComponent, HotAccountWidgetComponent, ReconcileWidgetComponent],
   template: `
     @let s = stage();
     <p class="prompt"><g-code-text [text]="s.prompt" /></p>
@@ -98,6 +107,23 @@ const VERDICTS = {
           </ol>
         </div>
       }
+    }
+
+    @if (s.widget && attempted()) {
+      <section class="widget" [attr.aria-labelledby]="inputId() + '-widget'">
+        <h3 [id]="inputId() + '-widget'">{{ widgetTitles[s.widget] }}</h3>
+        @switch (s.widget) {
+          @case ('retries') {
+            <app-retry-widget />
+          }
+          @case ('hot-account') {
+            <app-hot-account-widget />
+          }
+          @case ('reconcile') {
+            <app-reconcile-widget />
+          }
+        }
+      </section>
     }
 
     @if (revealed() > 0) {
@@ -224,6 +250,16 @@ const VERDICTS = {
         font-size: 0.90625rem;
       }
     }
+    .widget {
+      margin: 0 0 12px;
+      padding: 14px;
+      border: 1px solid var(--g-line);
+      border-radius: 12px;
+      h3 {
+        margin: 0 0 12px;
+        font-size: 0.9375rem;
+      }
+    }
     .points {
       margin: 0 0 12px;
       padding-left: 20px;
@@ -261,6 +297,7 @@ export class CaseStageComponent {
   private readonly answered = viewChild<ElementRef<HTMLElement>>('answered');
   private readonly result = viewChild<ElementRef<HTMLElement>>('result');
   protected readonly verdicts = VERDICTS;
+  protected readonly widgetTitles = WIDGET_TITLES;
 
   readonly chosen = computed(() => chosenOption(this.stage(), this.answer()));
   readonly revealed = computed(() => Math.min(this.answer().revealed ?? 0, this.stage().points.length));
