@@ -210,10 +210,10 @@ How to read an event:
 - The category, code and timestamp describe only the failure that sent the event, not the held ones.
 - Sentry's event count for a signal counts instance windows, not failures. One instance sends at most one event per signal every five minutes, so it can send at most 3 in 10 minutes and 4 in 15 (one at the start of each window). One instance failing for more than five minutes sends at least 2 events. More events mean more instances or a longer outage.
 
-Create these issue alert rules in the `grasp-api` project (Alerts, Create Alert, Issues; the free plan has them), filtered to the `production` environment, each sending to the owner's email:
+These issue alert rules exist in the `grasp-api` project (created 2026-10-01, ids 6095866, 6095868, 6095869 and 6095870), filtered to the `production` environment, each emailing the owner. Sentry offers frequency windows of 1, 5 and 15 minutes and 1 hour, so rule 2 counts over 15 minutes. If they are ever recreated (Alerts, Create Alert, Issues), use:
 
-1. **Any new failure signal.** When a new issue is created, or an issue changes state from resolved to unresolved; if the event's tag `signal` is set. Action interval 30 minutes. Resolve the issue once fixed so a recurrence alerts again.
-2. **Database or rate limiter failing.** When the issue is seen more than 1 time in 10 minutes; if the tag `signal` is in `db.timeout,db.unavailable,rate-limit.store`. Action interval 30 minutes.
+1. **Any new failure signal.** When a new issue is created, regresses or reappears; if the event's tag `signal` is set. Action interval 30 minutes. Resolve the issue once fixed so a recurrence alerts again.
+2. **Database or rate limiter failing.** When the issue is seen more than 1 time in 15 minutes; if the tag `signal` is in `db.timeout,db.unavailable,rate-limit.store`. Action interval 30 minutes.
 3. **AI provider degraded.** When the issue is seen more than 1 time in 15 minutes; if the tag `signal` is in `ai.timeout,ai.busy,ai.unavailable,ai.deadline,ai.failed`. Action interval 1 hour.
 4. **AI configuration or spend ledger broken.** When the issue is seen more than 1 time in 1 hour; if the tag `signal` is in `ai.rejected,ai.spend-store`. Action interval 1 hour.
 
