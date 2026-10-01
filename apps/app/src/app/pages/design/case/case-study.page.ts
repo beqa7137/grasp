@@ -77,29 +77,31 @@ const KIND_LABELS: Record<CaseStageKind, string> = {
             <p class="muted lead">{{ b.summary }}</p>
           }
 
-          <ol class="stages">
-            @for (stage of study.stages; track round() + ':' + $index; let i = $index) {
-              @if (i <= reached()) {
-                <li class="panel stage" #stageEl>
-                  <h2 tabindex="-1">
-                    <span class="num">{{ i + 1 }}</span>
-                    <span class="title">{{ stage.title }}</span>
-                    <span class="kind">{{ kinds[stage.kind] }}</span>
-                  </h2>
-                  <app-case-stage
-                    [stage]="stage"
-                    [caseId]="s.id"
-                    [orderSeed]="s.id + ':' + draft().attempt + ':' + i"
-                    [answer]="draft().stages[i] ?? unanswered"
-                    (answerChange)="answer(i, $event)"
-                    [showNext]="i === reached()"
-                    [nextLabel]="i + 1 < study.stages.length ? 'Next: ' + study.stages[i + 1].title : 'Finish the case'"
-                    (next)="advance()"
-                  />
-                </li>
+          @if (loaded()) {
+            <ol class="stages">
+              @for (stage of study.stages; track round() + ':' + $index; let i = $index) {
+                @if (i <= reached()) {
+                  <li class="panel stage" #stageEl>
+                    <h2 tabindex="-1">
+                      <span class="num">{{ i + 1 }}</span>
+                      <span class="title">{{ stage.title }}</span>
+                      <span class="kind">{{ kinds[stage.kind] }}</span>
+                    </h2>
+                    <app-case-stage
+                      [stage]="stage"
+                      [caseId]="s.id"
+                      [orderSeed]="s.id + ':' + draft().attempt + ':' + i"
+                      [answer]="draft().stages[i] ?? unanswered"
+                      (answerChange)="answer(i, $event)"
+                      [showNext]="i === reached()"
+                      [nextLabel]="i + 1 < study.stages.length ? 'Next: ' + study.stages[i + 1].title : 'Finish the case'"
+                      (next)="advance()"
+                    />
+                  </li>
+                }
               }
-            }
-          </ol>
+            </ol>
+          }
 
           @if (finished()) {
             <div class="outcome" tabindex="-1" #outcomeEl>
@@ -280,6 +282,8 @@ export class CaseStudyPage {
   readonly brief = computed(() => getCaseBrief(this.id()));
   readonly study = computed(() => getCaseStudy(this.id()));
   readonly draft = signal<CaseDraft>(newCaseDraft());
+  /** Stages wait for the saved draft, so its option order is the first one shown and an early tap cannot replace it. */
+  readonly loaded = signal(false);
   readonly reached = computed(() => this.draft().reached);
   readonly round = signal(0);
   readonly finished = computed(() => this.reached() >= (this.study()?.stages.length ?? Infinity));
@@ -305,15 +309,23 @@ export class CaseStudyPage {
       const id = this.id();
       this.progress.cleared();
       const fresh = newCaseDraft();
-      untracked(() => this.draft.set(fresh));
+      untracked(() => {
+        this.draft.set(fresh);
+        this.loaded.set(this.startOver);
+      });
       if (this.startOver) {
         this.startOver = false;
         untracked(() => this.restart());
         return;
       }
-      void this.drafts.get(id).then((saved) => {
-        if (saved && id === this.id() && this.draft() === fresh) this.draft.set(saved);
-      });
+      void this.drafts
+        .get(id)
+        .catch(() => null)
+        .then((saved) => {
+          if (id !== this.id() || this.draft() !== fresh) return;
+          if (saved) this.draft.set(saved);
+          this.loaded.set(true);
+        });
     });
     // Recording follows the outcome rather than the tap, so a run whose draft was saved but whose event was not is
     // recorded on its next load; the id per run keeps that idempotent.

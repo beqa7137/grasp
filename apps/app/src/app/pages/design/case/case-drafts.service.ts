@@ -46,7 +46,10 @@ export class CaseDraftsService {
 
   async get(caseId: string): Promise<CaseDraft | null> {
     const { value } = await Preferences.get({ key: CASE_DRAFT_PREFIX + caseId });
-    return readCaseDraft(value);
+    const draft = readCaseDraft(value);
+    // A bare stage number gets a new attempt id on every read; saving it once keeps that run's option order.
+    if (draft && typeof JSON.parse(value!) === 'number') await this.save(caseId, draft);
+    return draft;
   }
 
   save(caseId: string, draft: CaseDraft): Promise<void> {
