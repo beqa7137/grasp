@@ -45,6 +45,7 @@ export const storySchema = z.object({
     .optional(),
   deleted: z.literal(true).optional(),
   updatedAt: instant,
+  createdAt: instant.optional(),
 });
 
 export type StoryDto = z.infer<typeof storySchema>;

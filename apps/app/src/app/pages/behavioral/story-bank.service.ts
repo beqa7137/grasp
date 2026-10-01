@@ -153,7 +153,8 @@ export class StoryBankService {
   }
 
   blank(id: string = crypto.randomUUID()): Story {
-    return { id, title: '', competencyIds: [], draft: { ...EMPTY_STAR_DRAFT }, updatedAt: new Date().toISOString() };
+    const now = new Date().toISOString();
+    return { id, title: '', competencyIds: [], draft: { ...EMPTY_STAR_DRAFT }, updatedAt: now, createdAt: now };
   }
 
   /**

@@ -3,8 +3,8 @@ import { ChangeDetectionStrategy, Component, ElementRef, Injector, LOCALE_ID, co
 import { RouterLink } from '@angular/router';
 import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
 import {
+  PLAN_MINUTES,
   PLAN_ROUNDS,
-  REHEARSAL_MINUTES,
   buildStudyPlan,
   dayKey,
   getProblemSummary,
@@ -18,16 +18,11 @@ import { AnnouncerService } from '../../core/announcer.service';
 import { refocusAfterRender } from '../../core/focus';
 import { ProgressService } from '../../core/progress.service';
 import { StoryBankService } from '../behavioral/story-bank.service';
+import { formatMinutes } from './duration';
 import { PlanFormComponent } from './plan-form.component';
 
 const ROUND_NAMES: Record<PlanRound, string> = { coding: 'Coding', design: 'System design', behavioral: 'Behavioral' };
 const UPCOMING_DAYS = 6;
-
-const duration = (minutes: number) => {
-  if (minutes < 60) return `${minutes} min`;
-  const rest = minutes % 60;
-  return `${Math.floor(minutes / 60)} h${rest ? ` ${rest} min` : ''}`;
-};
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
@@ -68,7 +63,7 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
                 <h1 #heading tabindex="-1">{{ p.daysLeft === 1 ? 'Interview tomorrow' : 'Interview in ' + p.daysLeft + ' days' }}</h1>
               }
             }
-            <p class="date">{{ p.interviewDate | date: 'EEEE, MMMM d, y' }} · {{ minutesLabel() }} a day</p>
+            <p class="date">{{ p.interviewDate | date: 'EEEE, MMMM d, y' }}{{ p.daysLeft > 0 ? ' · ' + minutesLabel() + ' a day' : '' }}</p>
             <p class="status" [attr.data-status]="p.status">{{ statusText() }}</p>
           </section>
 
@@ -105,8 +100,11 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
                     <span class="text">
                       <a routerLink="/behavioral/rehearse">Rehearse your stories</a>
                       <span class="muted"
-                        >{{ p.todayReview.stories === 1 ? '1 story' : p.todayReview.stories + ' stories' }} due, about
-                        {{ duration(p.todayReview.stories * rehearsalMinutes) }}</span
+                        >{{ p.todayReview.stories === 1 ? '1 story' : p.todayReview.stories + ' stories' }} due{{
+                          p.todayReview.storyMinutes
+                            ? ', about ' + duration(p.todayReview.storyMinutes)
+                            : ', if time allows after your cards'
+                        }}</span
                       >
                     </span>
                   </li>
@@ -133,7 +131,7 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
                 }
               </ul>
               @if (day.taper) {
-                <p class="note">Review only today, so you arrive rested. New material is done.</p>
+                <p class="note">Review only today, so you arrive rested. Leave anything new for after the interview.</p>
               }
             </section>
           }
@@ -357,8 +355,7 @@ export class PlanPage {
   private readonly heading = viewChild<ElementRef<HTMLElement>>('heading');
   private readonly locale = inject(LOCALE_ID);
   readonly announcer = inject(AnnouncerService);
-  readonly rehearsalMinutes = REHEARSAL_MINUTES;
-  readonly duration = duration;
+  readonly duration = formatMinutes;
   readonly plural = plural;
   readonly editing = signal(false);
 
@@ -371,7 +368,7 @@ export class PlanPage {
       ? buildStudyPlan(input, this.progress.state(), { now, tzOffsetMinutes: now.getTimezoneOffset(), stories: this.bank.stories() })
       : null;
   });
-  readonly minutesLabel = computed(() => duration(this.input()?.minutesPerDay ?? 0));
+  readonly minutesLabel = computed(() => formatMinutes(this.input()?.minutesPerDay ?? 0));
   readonly upcoming = computed(() => this.plan()?.days.slice(1, 1 + UPCOMING_DAYS) ?? []);
   readonly laterDays = computed(() => Math.max(0, (this.plan()?.days.length ?? 0) - 1 - UPCOMING_DAYS));
   readonly remaining = computed(() => {
@@ -380,7 +377,7 @@ export class PlanPage {
     return PLAN_ROUNDS.flatMap((round) => {
       const r = p.remaining[round];
       if (!r) return [];
-      const text = r.units ? `${plural(r.units, 'item')}, about ${duration(r.minutes)}` : 'All covered. Keep reviewing.';
+      const text = r.units ? `${plural(r.units, 'item')}, about ${formatMinutes(r.minutes)}` : 'All covered. Keep reviewing.';
       return [{ round, name: ROUND_NAMES[round], text }];
     });
   });
@@ -392,18 +389,20 @@ export class PlanPage {
       case 'past':
         return 'We hope it went well. Set the date of your next interview to plan for it, or clear the plan.';
       case 'interview-day':
-        return 'Good luck today. A short review at most, then rest: the work is already done.';
+        return 'Good luck today. A short review at most, then rest and trust what you have practised.';
       case 'covered':
         return 'You have worked through everything in this plan. Keep your reviews going until the day.';
       case 'tight': {
         const n = p.unscheduled.length;
-        const fit = p.minutesToFit ? ` At ${duration(p.minutesToFit)} a day, everything would fit.` : '';
-        return `${plural(n, 'item')} will not fit before your interview at ${perDay} a day, so the plan starts with what matters most.${fit}`;
+        const fit = p.minutesToFit
+          ? ` At ${formatMinutes(p.minutesToFit)} a day, everything would fit.`
+          : ` Even at ${formatMinutes(PLAN_MINUTES.at(-1)!)} a day it would not all fit, so work from the top of each list; the most important items come first.`;
+        return `${n ? plural(n, 'item') : 'The last item'} will not ${n ? '' : 'quite '}fit before your interview at ${perDay} a day, so the plan starts with what matters most.${fit}`;
       }
-      case 'no-time':
-        return 'Choose some time a day to schedule anything.';
-      default:
-        return `At ${perDay} a day you cover everything by ${formatDate(p.finishDate!, 'EEEE, MMMM d', this.locale)}.`;
+      default: {
+        const sameYear = p.finishDate!.slice(0, 4) === p.today.slice(0, 4);
+        return `At ${perDay} a day you cover everything by ${formatDate(p.finishDate!, sameYear ? 'EEEE, MMMM d' : 'EEEE, MMMM d, y', this.locale)}.`;
+      }
     }
   });
 

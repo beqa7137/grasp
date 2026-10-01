@@ -8,10 +8,15 @@ export const MAX_TOMBSTONES = 100;
  * The winner is decided on the device's own time; the time stored is no later than the server's clock, so a device
  * running ahead cannot outrank later edits, and never at or before the copy it replaces.
  */
-export const storedAt = (story: Story, stored: Story | undefined, now: Date): Story => ({
-  ...story,
-  updatedAt: nextChange(stored, new Date(Math.min(Date.parse(story.updatedAt), now.getTime()))),
-});
+export function storedAt(story: Story, stored: Story | undefined, now: Date): Story {
+  // A story keeps the first creation time the account saw, so a copy from an app too old to send one cannot drop it.
+  const created = stored?.createdAt ?? story.createdAt;
+  return {
+    ...story,
+    ...(created ? { createdAt: new Date(Math.min(Date.parse(created), now.getTime())).toISOString() } : {}),
+    updatedAt: nextChange(stored, new Date(Math.min(Date.parse(story.updatedAt), now.getTime()))),
+  };
+}
 
 export const storyLimitReached = () =>
   new HttpException(

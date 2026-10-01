@@ -11,6 +11,8 @@ export interface Story {
   rehearsal?: Rehearsal;
   /** When the story last changed, on the clock of the device that changed it; the later change wins when devices sync. */
   updatedAt: string;
+  /** When the story was first created; stories from before it was kept have none. */
+  createdAt?: string;
   /** Stands in for a deleted story until the delete reaches the account, so a stale copy cannot bring it back. */
   deleted?: true;
 }
