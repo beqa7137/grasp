@@ -21,9 +21,14 @@ export interface HotAccountRun {
   utilization: number;
   /** Postings a second that join the queue when the account is overloaded. */
   queuedPerSecond: number;
-  /** Average wait for a batch to fill at the offered rate, with arrivals evenly spaced. */
+  /** Average wait for a batch to fill at the offered rate, counted as if arrivals were evenly spaced. */
   batchWaitMs: number;
-  /** Batch wait plus the lock hold, or null when overloaded and the wait keeps growing. */
+  /**
+   * Average wait in line for a row's lock: each row is an M/D/1 queue (random arrivals, a fixed lock hold), so the
+   * wait is utilization × lock / (2 × (1 - utilization)). Null at or above full, where it grows without bound.
+   */
+  queueMs: number | null;
+  /** Batch wait, queueing and the lock hold, or null at or above full. */
   latencyMs: number | null;
   /** Rows a balance read sums. */
   balanceRows: number;
@@ -34,13 +39,15 @@ export function hotAccount({ offered, lockMs, subAccounts, batch }: HotAccountSe
   const capacity = (subAccounts * batch * 1000) / lockMs;
   const utilization = offered / capacity;
   const batchWaitMs = (((batch - 1) / 2) * subAccounts * 1000) / offered;
+  const queueMs = utilization < 1 ? (utilization * lockMs) / (2 * (1 - utilization)) : null;
   return {
     capacity,
     committed: Math.min(offered, capacity),
     utilization,
     queuedPerSecond: Math.max(0, offered - capacity),
     batchWaitMs,
-    latencyMs: utilization <= 1 ? lockMs + batchWaitMs : null,
+    queueMs,
+    latencyMs: queueMs === null ? null : lockMs + batchWaitMs + queueMs,
     balanceRows: subAccounts,
   };
 }

@@ -153,6 +153,26 @@ const finishNewsFeed = async (p) => {
   await settle(p);
 };
 
+/** Payment Ledger answered up to `reached`, its decisions as recommended, so the stage there shows its model. */
+const LEDGER_GUESSES = { 1: '18.5k', 2: '30', 7: '17', 9: '72M' };
+const ledgerDraft = (reached) => ({
+  attempt: `audit-ledger-${reached}`,
+  reached,
+  stages: Array.from({ length: reached + 1 }, (_, i) =>
+    i in LEDGER_GUESSES ? { guess: LEDGER_GUESSES[i] } : [0, 3, 4, 6, 8, 10, 11].includes(i) ? { chosen: 0 } : {},
+  ),
+});
+
+/** Opens the Payment Ledger at the stage of `widget`, answers its prediction with `pick` and brings it into view. */
+const ledgerWidget = (reached, widget, pick) => async (p) => {
+  await seedCase(p, 'payment-ledger', ledgerDraft(reached));
+  const model = p.locator(widget);
+  await model.waitFor();
+  await pick(model);
+  await model.scrollIntoViewIfNeeded();
+  await settle(p);
+};
+
 const FOLLOW_UPS = ['What did you do yourself?', 'How did you know it worked?', 'Where does the relationship stand now?'];
 
 /**
@@ -350,6 +370,25 @@ export function states() {
       },
     },
     { id: 'case-build', path: '/design/free-build?case=news-feed' },
+    { id: 'case-payment-ledger', path: '/design/case/payment-ledger' },
+    { id: 'case-build-payment-ledger', path: '/design/free-build?case=payment-ledger' },
+    {
+      id: 'case-payment-ledger-retries',
+      path: '/design/case/payment-ledger',
+      setup: ledgerWidget(4, 'app-retry-widget', (m) => m.getByRole('button', { name: 'Posted twice' }).click()),
+    },
+    {
+      id: 'case-payment-ledger-hot-account',
+      path: '/design/case/payment-ledger',
+      setup: ledgerWidget(7, 'app-hot-account-widget', (m) => m.locator('fieldset button').first().click()),
+    },
+    {
+      id: 'case-payment-ledger-reconcile',
+      path: '/design/case/payment-ledger',
+      setup: ledgerWidget(11, 'app-reconcile-widget', async (m) => {
+        for (let i = 0; i < 5; i++) await m.locator('app-widget-check').nth(i).getByRole('button', { name: 'Nothing: it matches' }).click();
+      }),
+    },
     { id: 'case-ticketing', path: '/design/case/ticketing' },
     { id: 'case-build-ticketing', path: '/design/free-build?case=ticketing' },
     { id: 'case-build-video-streaming', path: '/design/free-build?case=video-streaming' },

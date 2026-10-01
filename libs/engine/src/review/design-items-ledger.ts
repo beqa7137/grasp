@@ -1,6 +1,7 @@
 import { hotAccount } from '../sysdesign/cases/ledger/contention.js';
+import { contractFee } from '../sysdesign/cases/ledger/reconcile.js';
 import { formatMinor, minorExponent, num } from '../sysdesign/cases/ledger/checkpoint.js';
-import { expectedCharges } from '../sysdesign/cases/ledger/retries.js';
+import { expectedEffects } from '../sysdesign/cases/ledger/retries.js';
 import { concept, item, type DesignItemDefinition } from './design-item-kit.js';
 import { pick, withChoices } from './random.js';
 import type { DesignItemId } from './summaries.js';
@@ -30,7 +31,7 @@ const retryDuplicates = item('Duplicate charges from retries without a key', (ra
   const payments = pick(rand, [10_000, 100_000, 1_000_000]);
   const lost = pick(rand, [0.1, 0.2, 0.25]);
   const retries = pick(rand, [2, 3]);
-  const duplicates = payments * (expectedCharges(lost, 0, retries, 'none') - 1);
+  const duplicates = payments * (expectedEffects(lost, 0, retries, 'none') - 1);
   const charges = (v: number) => `about ${num(v)}`;
   return {
     prompt: `During an incident, ${Math.round(lost * 100)}% of payment attempts are charged but lose their response, and clients retry up to ${retries} times with no idempotency key. Out of ${num(payments)} payments, how many duplicate charges are there?`,
@@ -63,6 +64,7 @@ const minorUnits = item('An amount in minor units', (rand) => {
   const minor = Number(whole + fraction.padEnd(exponent, '0'));
   const others = [
     minor * 10,
+    minor * 100,
     Math.round(minor / 10),
     Number(whole),
     Number(whole + fraction.padEnd(2, '0').slice(0, 2)),
@@ -78,9 +80,8 @@ const minorUnits = item('An amount in minor units', (rand) => {
 });
 
 const postingCloze = item('The missing posting of a capture', (rand) => {
-  const amount = pick(rand, [5_000, 10_000, 25_000, 4_999]);
-  const bps = pick(rand, [250, 290, 300]);
-  const fee = Math.round((amount * bps) / 10_000);
+  const amount = pick(rand, [1_250, 4_999, 5_000, 10_000, 25_000]);
+  const fee = contractFee(amount);
   const merchant = amount - fee;
   const lines = [`+${amount}  processor receivable`, `-${merchant}  merchant payable`, `-${fee}  fee revenue`];
   const blank = pick(rand, [0, 1, 2]);
@@ -89,7 +90,7 @@ const postingCloze = item('The missing posting of a capture', (rand) => {
   const flipped = `${value.startsWith('+') ? '-' : '+'}${value.slice(1)}  ${name.join('  ')}`;
   const wrong = blank === 0 ? merchant : blank === 1 ? amount : merchant;
   return {
-    prompt: `A card capture of ${formatMinor(amount, 'USD')} (${amount} cents) splits into the merchant's share and a ${bps / 100}% fee. Debits are positive and credits negative. Which posting completes the entry?`,
+    prompt: `A card capture of ${formatMinor(amount, 'USD')} (${amount} cents) splits into the merchant's share and the platform's fee at a typical card rate, 2.9% plus 30 cents (${fee} cents). Debits are positive and credits negative. Which posting completes the entry?`,
     code: { lines: ['entry: capture of order 1042', ...lines.map((l) => `  ${l}`)], blank: blank + 1 },
     ...withChoices(rand, answer, [flipped, `${value[0]}${wrong}  ${name.join('  ')}`, `${value[0]}${amount + fee}  ${name.join('  ')}`]),
     explain: `An entry's postings sum to zero: ${amount} - ${merchant} - ${fee} = 0. The processor owes us the whole ${amount} (a debit), and we owe the merchant ${merchant} and keep ${fee} as revenue (credits).`,

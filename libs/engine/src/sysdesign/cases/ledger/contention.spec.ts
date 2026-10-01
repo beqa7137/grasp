@@ -25,13 +25,13 @@ describe('hot account contention', () => {
       capacity: 3_200,
       committed: 2_300,
       queuedPerSecond: 0,
-      latencyMs: 5,
       balanceRows: 16,
     });
+    expect(hotAccount({ ...peak, subAccounts: 16 }).queueMs).toBeCloseTo((0.71875 * 5) / (2 * 0.28125));
     const batched = hotAccount({ ...peak, batch: 20 });
     expect(batched.capacity).toBe(4_000);
     expect(batched.batchWaitMs).toBeCloseTo((9.5 * 1000) / 2_300);
-    expect(batched.latencyMs).toBeCloseTo(5 + (9.5 * 1000) / 2_300);
+    expect(batched.latencyMs).toBeCloseTo(5 + (9.5 * 1000) / 2_300 + (0.575 * 5) / (2 * 0.425));
     expect(hotAccount({ ...peak, subAccounts: 4, batch: 20 }).batchWaitMs).toBeCloseTo((4 * 9.5 * 1000) / 2_300);
   });
 
@@ -42,9 +42,19 @@ describe('hot account contention', () => {
       expect(run.capacity).toBeCloseTo(capacity);
       expect(run.committed).toBeCloseTo(Math.min(s.offered, capacity));
       expect(run.committed + run.queuedPerSecond).toBeCloseTo(Math.max(s.offered, run.committed));
-      expect(run.latencyMs === null).toBe(s.offered > capacity);
+      expect(run.latencyMs === null).toBe(s.offered >= capacity);
     }
-    expect(hotAccount({ offered: 1_000, lockMs: 1, subAccounts: 1, batch: 1 }).latencyMs).toBe(1);
+    expect(hotAccount({ offered: 1_000, lockMs: 1, subAccounts: 1, batch: 1 }).latencyMs).toBeNull();
+  });
+
+  it('queues for the lock as an M/D/1 queue, so the wait climbs steeply as the row nears full', () => {
+    const wait = (busy: number) => hotAccount({ offered: busy * 200, lockMs: 5, subAccounts: 1, batch: 1 });
+    expect(wait(0.1).queueMs).toBeCloseTo(0.5 / 1.8);
+    expect(wait(0.7).queueMs).toBeCloseTo(5.833, 3);
+    expect(wait(0.9).queueMs).toBeCloseTo(22.5);
+    expect(wait(0.995).queueMs).toBeCloseTo(497.5);
+    expect(wait(0.995).latencyMs).toBeCloseTo(502.5);
+    expect(wait(1).queueMs).toBeNull();
   });
 
   it('refuses settings that are not positive', () => {
