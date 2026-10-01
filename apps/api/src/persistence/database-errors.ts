@@ -64,8 +64,13 @@ export function safeDatabaseErrorCategory(error: unknown): 'timeout' | 'connecti
   return 'unknown';
 }
 
-/** A pool connect or transaction failure reaches callers unwrapped, so a bare timeout or connection error counts too. */
+/**
+ * A pool connect or transaction failure reaches callers unwrapped, so a bare timeout or connection error counts too,
+ * unless it carries an HTTP status: body-parser keeps an aborted request's ECONNRESET on its 400.
+ */
 export function isDatabaseUnavailable(error: unknown): boolean {
+  const details = errorDetails(error) as { status?: unknown; statusCode?: unknown } | null;
+  if (details && (details.status !== undefined || details.statusCode !== undefined)) return false;
   const category = safeDatabaseErrorCategory(error);
   if (error instanceof DrizzleQueryError || error instanceof pg.DatabaseError) return category !== 'unknown';
   return category === 'timeout' || category === 'connection';

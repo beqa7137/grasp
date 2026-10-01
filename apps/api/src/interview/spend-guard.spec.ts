@@ -92,6 +92,8 @@ it.each([NaN, Infinity, -1, 0, Number.MAX_SAFE_INTEGER])('never admits an invali
   const reserve = vi.spyOn(store, 'reserve');
   await expect(guard.reserve(cost)).rejects.toThrow(ServiceUnavailableException);
   expect(reserve).not.toHaveBeenCalled();
+  expect(Logger.prototype.error).toHaveBeenCalledWith({ operation: 'interview.invalid-spend-bound' });
+  expect(vi.mocked(recordFailure).mock.calls).toEqual([['ai.failed']]);
 });
 
 it.each([null, NaN, Infinity, -1, Number.MAX_SAFE_INTEGER])('keeps uncertain liability for invalid actual cost %s', async (cost) => {
