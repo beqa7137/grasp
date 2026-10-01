@@ -150,7 +150,10 @@ type Stage = 'loading' | 'setup' | 'running' | 'debrief';
                 including any story you start from, are sent to the AI service. The debrief itself makes no AI call.
               </p>
             } @else {
-              <p class="muted note">Guided prompts and a practice estimate for each round. No AI or sign-in needed.</p>
+              <p class="muted note">
+                Guided prompts and a practice estimate for each round. No AI or sign-in needed. Replies and scorecards still count toward
+                the hourly interview allowance.
+              </p>
             }
             @if (aiAccess() === 'unavailable') {
               <p class="muted">AI is unavailable right now. Scripted practice is still available.</p>
@@ -438,7 +441,7 @@ export class MockLoopPage {
     try {
       const [catalog, recent, snapshot] = await Promise.all([
         this.api.get<InterviewCatalog>('/interview/problems'),
-        this.api.get<InterviewSession[]>('/interview/sessions'),
+        this.api.get<InterviewSession[]>('/interview/sessions').catch(() => []),
         this.loops.refresh(),
       ]);
       this.catalog.set(catalog);

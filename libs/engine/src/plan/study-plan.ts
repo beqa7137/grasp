@@ -303,10 +303,12 @@ function schedule(units: PlanUnit[], dates: string[], eve: number, minutesPerDay
     left,
   );
   let split: PlanUnit | null = null;
+  // New material stops where the loop starts, so the loop is the last new work and no unit is split around it.
+  const loopStarts = mocks.findIndex((day) => day.length);
 
   const days: PlanDay[] = dates.map((date, i) => {
     const day: PlanDay = { date, review: i === 0 ? todayReview : later, slices: [], taper: i === eve };
-    fill(day, i, minutesPerDay - day.review - mocks[i].reduce((s, x) => s + x.minutes, 0));
+    fill(day, i, loopStarts >= 0 && i >= loopStarts ? 0 : minutesPerDay - day.review);
     day.slices.push(...mocks[i]);
     return day;
   });

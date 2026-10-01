@@ -8,7 +8,7 @@ import type { InterviewTrack } from '../interview/rubrics.js';
 import type { StoredEvent } from '../srs/events.js';
 import { emptyProgress, replay, type ProgressState } from '../srs/progress.js';
 import { CASE_CATALOG } from '../sysdesign/case-catalog.js';
-import { PLAN_MAX_DAYS, PLAN_MINUTES, normalizePlan, type StudyPlanInput } from './options.js';
+import { PLAN_LEVELS, PLAN_MAX_DAYS, PLAN_MINUTES, normalizePlan, type PlanRound, type StudyPlanInput } from './options.js';
 import { buildStudyPlan, type StudyPlan } from './study-plan.js';
 
 const DAY = 86_400_000;
@@ -477,7 +477,8 @@ describe('study plan mock loop', () => {
     ]);
     const order = p.days.flatMap((d) => d.slices.filter((s) => s.unit.kind === 'mock').map((s) => s.unit.id));
     expect([...new Set(order)]).toEqual(['mock:coding', 'mock:design', 'mock:behavioral']);
-    expect(Math.min(...mockDays(p))).toBeGreaterThanOrEqual(p.days.length - 5);
+    const lastOther = Math.max(...p.days.flatMap((d, i) => (d.slices.some((s) => s.unit.kind !== 'mock') ? [i] : [])));
+    expect(Math.min(...mockDays(p))).toBeGreaterThanOrEqual(lastOther);
     expect(p.days.at(-2)!.slices.at(-1)!.unit.id).toBe('mock:behavioral');
     expect(Math.max(...mockDays(p))).toBe(p.days.length - 2);
     expect(p.days.at(-1)!.slices).toEqual([]);
@@ -528,6 +529,36 @@ describe('study plan mock loop', () => {
         for (const unit of q.units.filter((u) => u.kind === 'mock')) {
           const placed = q.days.flatMap((d) => d.slices.filter((s) => s.unit === unit)).reduce((t, s) => t + s.minutes, 0);
           expect([0, unit.minutes], `${unit.id} at ${minutesPerDay} min to ${interviewDate}`).toContain(placed);
+        }
+      }
+    }
+  });
+
+  it('keeps every unit’s parts on consecutive days and new material off the loop’s days, across plans', () => {
+    const subsets: PlanRound[][] = [
+      ['coding'],
+      ['design'],
+      ['behavioral'],
+      ['coding', 'design'],
+      ['coding', 'behavioral'],
+      ['design', 'behavioral'],
+      ['coding', 'design', 'behavioral'],
+    ];
+    const dates = ['2026-10-03', '2026-10-04', '2026-10-05', '2026-10-07', '2026-10-10', '2026-10-15', '2026-10-25'];
+    for (const minutesPerDay of PLAN_MINUTES) {
+      for (const level of PLAN_LEVELS) {
+        for (const rounds of subsets) {
+          for (const interviewDate of dates) {
+            const p = plan({ minutesPerDay, level, rounds, interviewDate });
+            const where = `${minutesPerDay} min, ${level}, ${rounds.join('+')}, ${interviewDate}`;
+            for (const [unitId, days] of dayIndexesByUnit(p)) {
+              expect(days, `${unitId} at ${where}`).toEqual(days.map((_, i) => days[0] + i));
+            }
+            const mock = mockDays(p);
+            if (!mock.length) continue;
+            const content = p.days.flatMap((d, i) => (d.slices.some((s) => s.unit.kind !== 'mock' && !s.done) ? [i] : []));
+            expect(Math.max(-1, ...content), where).toBeLessThan(Math.min(...mock));
+          }
         }
       }
     }
