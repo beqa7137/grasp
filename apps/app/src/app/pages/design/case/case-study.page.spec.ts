@@ -1,6 +1,7 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { Preferences } from '@capacitor/preferences';
 import { getCaseStudy, optionOrder } from '@grasp/engine';
 import { ProgressService } from '../../../core/progress.service';
 import { CaseDraftsService, readCaseDraft, type CaseDraft } from './case-drafts.service';
@@ -44,8 +45,7 @@ async function open(draft?: string) {
   const fixture = TestBed.createComponent(CaseStudyPage);
   fixture.componentRef.setInput('id', 'url-shortener');
   fixture.detectChanges();
-  const fresh = fixture.componentInstance.draft();
-  if (draft !== undefined) await vi.waitFor(() => expect(fixture.componentInstance.draft()).not.toBe(fresh));
+  await vi.waitFor(() => expect(fixture.componentInstance.loaded()).toBe(true));
   fixture.detectChanges();
   const el = fixture.nativeElement as HTMLElement;
   const stage = (i: number) => el.querySelectorAll('app-case-stage')[i] as HTMLElement;
@@ -119,6 +119,50 @@ describe('CaseStudyPage answers', () => {
     expect(stage(0).querySelector('li.option.right .label')?.textContent?.trim()).toBe(labels(0)[0]);
     expect(stage(0).querySelector('li.option.wrong ion-icon')?.getAttribute('aria-label')).toBe('your answer, wrong');
     expect(stored()?.stages[0]).toEqual({ chosen: 1 });
+  });
+
+  it('renders no stage until the saved draft has loaded, so neither the order nor a tap can disturb it', async () => {
+    const saved: CaseDraft = { attempt: 'a-1', reached: 1, stages: [{ revealed: 2 }] };
+    localStorage.setItem(KEY, JSON.stringify(saved));
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const read = vi.mocked(Preferences.get).getMockImplementation()!;
+    vi.mocked(Preferences.get).mockImplementationOnce(async (options) => {
+      await gate;
+      return read(options);
+    });
+    TestBed.configureTestingModule({
+      providers: [provideRouter([]), { provide: ProgressService, useValue: { record: vi.fn(), cleared: signal(0) } }],
+    });
+    const fixture = TestBed.createComponent(CaseStudyPage);
+    fixture.componentRef.setInput('id', 'url-shortener');
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('h1')?.textContent).toContain('URL Shortener');
+    expect(el.querySelectorAll('app-case-stage')).toHaveLength(0);
+    expect(el.querySelectorAll('fieldset button')).toHaveLength(0);
+
+    release();
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect(el.querySelectorAll('app-case-stage')).toHaveLength(2);
+    });
+    expect(shown(el.querySelector('app-case-stage')!, 'fieldset button')).toEqual(
+      optionOrder('url-shortener:a-1:0', labels(0).length).map((k) => labels(0)[k]),
+    );
+    expect(stored()).toEqual(saved);
+  });
+
+  it('gives a furthest stage saved before answers were saved one attempt, kept across reloads', async () => {
+    const first = await open('3');
+    const attempt = first.page.draft().attempt;
+    expect(stored()).toEqual({ attempt, reached: 3, stages: [] });
+    const order = shown(first.stage(0), 'fieldset button');
+
+    TestBed.resetTestingModule();
+    const again = await open();
+    expect(again.page.draft().attempt).toBe(attempt);
+    expect(shown(again.stage(0), 'fieldset button')).toEqual(order);
   });
 
   it('reads the furthest stage a case saved before answers were saved, and ignores unreadable drafts', async () => {
