@@ -103,16 +103,20 @@ describe('bucketing widget', () => {
     const { el, click, answerRight, widget } = mount(BucketingWidgetComponent);
     const legend = () => [...el.querySelectorAll('.legend-list li')].map((li) => li.textContent!.trim());
     answerRight(bucketingCheckpoint(widget.settings(), null).answer);
-    expect(legend()).toEqual(['Not in new-checkout', 'In new-checkout', 'In both flags (dot)', 'Only in search-ranking (faint)']);
+    expect(legend()).toEqual(['Not in new-checkout', 'In new-checkout', 'In both flags (dot)', 'Only in search-ranking (ringed)']);
     expect(el.querySelectorAll('.grid .cell.both')).toHaveLength(widget.run().both);
     click('[role="radio"]', '5%');
     answerRight(widget.check().answer);
-    expect(legend()).toEqual(['Not in new-checkout', 'Stayed in', 'Joined (dot)', 'Left (outline)']);
+    expect(legend()).toEqual(['Not in new-checkout', 'Stayed in', 'Joined (dot)', 'Left (slashed)']);
     expect(el.querySelectorAll('.grid .cell.left')).toHaveLength(widget.run().left!);
     expect(el.querySelectorAll('.grid .cell.both')).toHaveLength(0);
     click('[role="radio"]', 'Random on each request');
     answerRight(widget.check().answer);
-    expect(legend()).toContain('Saw both versions (half filled)');
+    expect(legend()).toContain('Saw both versions (corner)');
+    const flipped = el.querySelectorAll('.grid .cell.flip');
+    expect(flipped).toHaveLength(widget.run().flipped);
+    expect(el.querySelectorAll('.grid .cell.flip.both').length).toBe(widget.run().users.filter((u) => u.flips && u.inA && u.inB).length);
+    expect(el.querySelectorAll('.grid .cell.both')).toHaveLength(widget.run().both);
   });
 });
 

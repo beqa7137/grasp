@@ -10,6 +10,14 @@ describe('spaced choices', () => {
     expect(choices[answer]).toBe('100');
   });
 
+  it('pads to three choices when the correct value is below the gap', () => {
+    for (const correct of [0.04, 0.5, 1.9]) {
+      const { choices, answer } = spacedChoices(correct, [], label, 2);
+      expect(choices.length, String(correct)).toBeGreaterThanOrEqual(3);
+      expect(choices[answer]).toBe(label(correct));
+    }
+  });
+
   it('pads to at least three choices when the candidates are too close or repeat', () => {
     for (const correct of [0, 1, 12.5, 667, 2e9]) {
       const { choices, answer } = spacedChoices(correct, [correct, correct * 1.01], label);
