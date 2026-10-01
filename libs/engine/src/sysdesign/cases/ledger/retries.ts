@@ -1,8 +1,8 @@
 import type { WidgetCheckpoint } from './checkpoint.js';
 
 /**
- * What happens to one attempt of a payment request: the response comes back, the server does the work but the response is
- * lost on the way back, or the request never reaches the server. Lost and dropped look the same to the client: a timeout.
+ * What happens to one attempt of a request to post a capture: the response comes back, the ledger posts the entry but the
+ * response is lost on the way back, or the request never reaches the ledger. Lost and dropped look the same to the client: a timeout.
  */
 export type AttemptFate = 'ok' | 'lost' | 'dropped';
 
@@ -13,53 +13,53 @@ export const MAX_ATTEMPTS = 4;
 
 export interface RetryStep {
   attempt: number;
-  /** Whether this attempt charged the card and posted a journal entry. */
-  charged: boolean;
+  /** Whether this attempt posted an entry. */
+  posted: boolean;
   text: string;
 }
 
 export interface RetryRun {
   steps: RetryStep[];
-  charges: number;
+  entries: number;
   /** Whether the client saw a response before running out of attempts. */
   confirmed: boolean;
 }
 
-/** The client sends attempts in order until one gets a response or `fates` runs out; the server charges unless it knows the key. */
+/** The caller sends attempts in order until one gets a response or `fates` runs out; the ledger posts unless it knows the key. */
 export function retryRun(fates: readonly AttemptFate[], mode: KeyMode): RetryRun {
   if (!fates.length || fates.length > MAX_ATTEMPTS) throw new Error(`Between 1 and ${MAX_ATTEMPTS} attempts`);
   const steps: RetryStep[] = [];
-  let charges = 0;
+  let entries = 0;
   let confirmed = false;
   for (const [i, fate] of fates.entries()) {
     const attempt = i + 1;
     const key =
       mode === 'none' ? 'with no key' : mode === 'per-attempt' ? 'with a new key' : attempt === 1 ? 'with its key' : 'with the same key';
     if (fate === 'dropped') {
-      steps.push({ attempt, charged: false, text: `Attempt ${attempt} (${key}) never reaches the server. The client times out.` });
+      steps.push({ attempt, posted: false, text: `Attempt ${attempt} (${key}) never reaches the ledger. The caller times out.` });
       continue;
     }
-    const replay = mode === 'per-payment' && charges > 0;
-    if (!replay) charges++;
+    const replay = mode === 'per-payment' && entries > 0;
+    if (!replay) entries++;
     const work = replay
-      ? 'the server finds the key already done and returns the stored result, charging nothing'
-      : `the server charges the card and posts a journal entry (charge ${charges})`;
-    const back = fate === 'ok' ? 'The client gets the response.' : 'The response is lost and the client times out.';
-    steps.push({ attempt, charged: !replay, text: `Attempt ${attempt} (${key}): ${work}. ${back}` });
+      ? 'the ledger finds the key already done and returns the stored entry, posting nothing'
+      : `the ledger posts the capture entry (entry ${entries})`;
+    const back = fate === 'ok' ? 'The caller gets the response.' : 'The response is lost and the caller times out.';
+    steps.push({ attempt, posted: !replay, text: `Attempt ${attempt} (${key}): ${work}. ${back}` });
     if (fate === 'ok') {
       confirmed = true;
       break;
     }
   }
-  return { steps, charges, confirmed };
+  return { steps, entries, confirmed };
 }
 
 /**
- * Expected charges per payment when every attempt independently loses its response with probability `lost`, never arrives
- * with probability `dropped`, and the client retries up to `retries` times. Without a key every arriving attempt charges;
- * with one key per payment only the first arriving attempt does.
+ * Expected effects per request (entries posted, or cards charged) when every attempt independently loses its response with probability `lost`, never arrives
+ * with probability `dropped`, and the client retries up to `retries` times. Without a key every arriving attempt applies
+ * its effect; with one key per payment only the first arriving attempt does.
  */
-export function expectedCharges(lost: number, dropped: number, retries: number, mode: KeyMode): number {
+export function expectedEffects(lost: number, dropped: number, retries: number, mode: KeyMode): number {
   if (mode === 'per-payment') return 1 - dropped ** (retries + 1);
   const unanswered = lost + dropped;
   let sum = 0;
@@ -67,9 +67,9 @@ export function expectedCharges(lost: number, dropped: number, retries: number, 
   return (1 - dropped) * sum;
 }
 
-const times = (n: number) => (n === 0 ? 'Not charged' : n === 1 ? 'Charged once' : n === 2 ? 'Charged twice' : `Charged ${n} times`);
+const times = (n: number) => (n === 0 ? 'Nothing posted' : n === 1 ? 'Posted once' : n === 2 ? 'Posted twice' : `Posted ${n} times`);
 
-/** Asks how many times the card is charged, from a menu that grows with the attempts so the answer is never the only fit. */
+/** Asks how many entries the ledger posts, from a menu that grows with the attempts so the answer is never the only fit. */
 export function retryCheckpoint(fates: readonly AttemptFate[], mode: KeyMode): WidgetCheckpoint {
   const run = retryRun(fates, mode);
   const options = Math.max(3, run.steps.length + 1);
@@ -78,19 +78,19 @@ export function retryCheckpoint(fates: readonly AttemptFate[], mode: KeyMode): W
   const arrived = run.steps.filter((s) => fates[s.attempt - 1] !== 'dropped').length;
   const later = arrived - 1;
   const why = !arrived
-    ? 'No attempt reached the server, so nothing was charged, and the client cannot tell that from a lost response.'
+    ? 'No attempt reached the ledger, so nothing was posted, and the caller cannot tell that from a lost response.'
     : mode === 'per-payment'
       ? later
-        ? `Every attempt carries the same key, so only the first of the ${arrived} that reached the server charged; the later ${later === 1 ? 'one gets' : `${later} get`} the stored result.`
-        : 'Only one attempt reached the server, and it charged the card.'
-      : `${mode === 'none' ? 'Without a key' : 'With a new key on every attempt'} the server cannot tell a retry from a new payment, so ${arrived === 1 ? 'the one attempt' : `each of the ${arrived} attempts`} that reached it charged the card.`;
+        ? `Every attempt carries the same key, so only the first of the ${arrived} that reached the ledger posted; the later ${later === 1 ? 'one gets' : `${later} get`} the stored entry.`
+        : 'Only one attempt reached the ledger, and it posted the entry.'
+      : `${mode === 'none' ? 'Without a key' : 'With a new key on every attempt'} the ledger cannot tell a retry from a new capture, so ${arrived === 1 ? 'the one attempt' : `each of the ${arrived} attempts`} that reached it posted an entry.`;
   const end = run.confirmed
-    ? `The client sent ${sent} attempt${sent === 1 ? '' : 's'} and got a response on the last.`
-    : `The client gave up after ${sent} attempt${sent === 1 ? '' : 's'} without a response, so it cannot know whether it paid: it should ask the server for the payment's status, not show "failed".`;
+    ? `The caller sent ${sent} attempt${sent === 1 ? '' : 's'} and got a response on the last.`
+    : `The caller gave up after ${sent} attempt${sent === 1 ? '' : 's'} without a response, so it cannot know whether the entry posted: it should look the entry up by its key, not treat the capture as failed.`;
   return {
-    prompt: 'Predict: how many times is the card charged?',
+    prompt: 'Predict: how many capture entries does the ledger post?',
     choices,
-    answer: run.charges,
+    answer: run.entries,
     explain: `${why} ${end}`,
   };
 }

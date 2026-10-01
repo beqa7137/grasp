@@ -48,7 +48,7 @@ describe('payment ledger review items', () => {
       const [, major, currency] = /for ([\d.]+) ([A-Z]{3})\?/.exec(money.q.prompt)!;
       const exponent = { USD: 2, EUR: 2, JPY: 0, KWD: 3, BHD: 3 }[currency]!;
       expect(money.answer).toBe(`\`${Math.round(Number(major) * 10 ** exponent)}\``);
-      expect(money.q.choices.length).toBeGreaterThanOrEqual(3);
+      expect(money.q.choices).toHaveLength(4);
     }
   });
 });

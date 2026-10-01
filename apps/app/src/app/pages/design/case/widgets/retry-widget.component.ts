@@ -22,7 +22,7 @@ const EXAMPLES: { label: string; fates: AttemptFate[] }[] = [
   { label: 'Mixed', fates: ['dropped', 'lost', 'dropped', 'ok'] },
 ];
 
-/** One payment request retried up to three times: what each attempt meets, and how many charges the key scheme lets through. */
+/** One request to post a capture, retried up to three times: what each attempt meets, and how many entries the key scheme lets through. */
 @Component({
   selector: 'app-retry-widget',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -65,7 +65,7 @@ const EXAMPLES: { label: string; fates: AttemptFate[] }[] = [
             }
           </div>
           @if (i >= sent()) {
-            <p class="muted small">Not sent: the client already has its answer.</p>
+            <p class="muted small">Not sent: the caller already has its answer.</p>
           }
         </li>
       }
@@ -74,25 +74,25 @@ const EXAMPLES: { label: string; fates: AttemptFate[] }[] = [
     <app-widget-check [check]="check()" [chosen]="chosen()" (chosenChange)="answer($event)">
       <ol class="steps">
         @for (step of run().steps; track step.attempt) {
-          <li [class.charged]="step.charged">{{ step.text }}</li>
+          <li [class.posted]="step.posted">{{ step.text }}</li>
         }
       </ol>
       <dl class="readouts">
-        <div [class.bad]="run().charges > 1">
-          <dt>Card charged</dt>
-          <dd class="mono">{{ run().charges }}×</dd>
+        <div [class.bad]="run().entries > 1">
+          <dt>Entries posted</dt>
+          <dd class="mono">{{ run().entries }}</dd>
         </div>
         <div [class.bad]="!run().confirmed">
-          <dt>Client saw</dt>
+          <dt>Caller saw</dt>
           <dd class="word">{{ run().confirmed ? 'a response' : 'only timeouts' }}</dd>
         </div>
-        <div [class.bad]="run().charges > 1">
-          <dt>Refunds owed</dt>
-          <dd class="mono">{{ Math.max(0, run().charges - 1) }}</dd>
+        <div [class.bad]="run().entries > 1">
+          <dt>Reversals owed</dt>
+          <dd class="mono">{{ Math.max(0, run().entries - 1) }}</dd>
         </div>
       </dl>
     </app-widget-check>
-    <p class="muted note">Each attempt is sent after the previous one timed out, so the server has finished with it.</p>
+    <p class="muted note">Each attempt is sent after the previous one timed out, so the ledger has finished with it.</p>
   `,
   styleUrl: '../../../design-lesson/widget.scss',
   styles: `
@@ -126,7 +126,7 @@ const EXAMPLES: { label: string; fates: AttemptFate[] }[] = [
       font-size: 0.875rem;
       line-height: 1.5;
     }
-    .charged::marker {
+    .posted::marker {
       color: var(--g-danger-ink);
       font-weight: 700;
     }

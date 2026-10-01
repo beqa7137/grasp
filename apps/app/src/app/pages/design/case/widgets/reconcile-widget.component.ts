@@ -22,8 +22,8 @@ const usd = (cents: number) => formatMinor(cents, 'USD');
   imports: [WidgetCheckComponent],
   template: `
     <p class="intro" tabindex="-1" #intro>
-      Day {{ seed() }}. The report covers captures up to {{ day().cutoff }}, and the contract fee is 2.9% plus 30 cents. Rows are matched by
-      our order reference.
+      Day {{ seed() }}. The report covers captures up to {{ day().cutoff }}, and the contract fee is a typical card rate, 2.9% plus 30
+      cents. Rows are matched by our order reference.
     </p>
     <ol class="rows">
       @for (row of rows(); track row.order; let i = $index) {
@@ -64,18 +64,17 @@ const usd = (cents: number) => formatMinor(cents, 'USD');
       }
     </ol>
 
-    @if (score() !== null) {
-      <div class="summary" role="status">
+    <div class="summary" role="status">
+      @if (score() !== null) {
         <p>
           <strong>{{ score() }} of {{ rows().length }} right.</strong> The ledger captured {{ usd(totals().ledgerCaptured) }} and the report
-          shows {{ usd(totals().reportGross) }}: a gap of {{ usd(totals().reportGross - totals().ledgerCaptured) }}, which the breaks above
-          explain row by row.
+          shows {{ usd(totals().reportGross) }}: {{ gap() }}.
           @if (totals().feeDifference) {
             The processor also took {{ usd(totals().feeDifference) }} more in fees than the contract.
           }
         </p>
-      </div>
-    }
+      }
+    </div>
     <button class="g-btn" (click)="nextDay()">Another day</button>
   `,
   styleUrl: '../../../design-lesson/widget.scss',
@@ -134,6 +133,12 @@ export class ReconcileWidgetComponent {
   readonly rows = computed(() => reconcile(this.day()));
   readonly totals = computed(() => reconTotals(this.day()));
   readonly checks = computed(() => this.rows().map((row) => this.checkFor(row)));
+  readonly gap = computed(() => {
+    const { reportGross, ledgerCaptured } = this.totals();
+    const gap = reportGross - ledgerCaptured;
+    if (!gap) return 'the totals agree, and each break above still needs its own fix';
+    return `the report shows ${usd(Math.abs(gap))} ${gap > 0 ? 'more' : 'less'} than the ledger, which the breaks above explain row by row`;
+  });
   readonly answers = signal<(number | null)[]>([]);
   readonly score = computed(() => {
     const answers = this.answers();

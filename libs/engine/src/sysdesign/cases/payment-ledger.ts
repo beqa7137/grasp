@@ -1,6 +1,6 @@
 import { num } from './ledger/checkpoint.js';
 import { hotAccount, subAccountsNeeded } from './ledger/contention.js';
-import { expectedCharges } from './ledger/retries.js';
+import { expectedEffects } from './ledger/retries.js';
 import type { CaseStudy } from './types.js';
 
 const PAYMENTS_A_DAY = 50_000_000;
@@ -10,6 +10,8 @@ const POSTING_BYTES = 200;
 const LOCK_MS = 5;
 const BUSY = 0.7;
 const MERCHANT_POSTINGS_A_MONTH = 2_000_000;
+const ENTRIES_A_PAYMENT = 3;
+const SHARDS = 8;
 
 const postingsADay = PAYMENTS_A_DAY * POSTINGS_A_PAYMENT;
 const averagePostings = postingsADay / 86_400;
@@ -21,9 +23,12 @@ const oneRow = hotAccount({ offered: feePeak, lockMs: LOCK_MS, subAccounts: 1, b
 const feeRows = subAccountsNeeded(feePeak, LOCK_MS, 1, BUSY);
 const batched = hotAccount({ offered: feePeak, lockMs: LOCK_MS, subAccounts: 1, batch: 20 });
 const lostResponse = 0.001;
-const duplicatesADay = PAYMENTS_A_DAY * (expectedCharges(lostResponse, 0, 3, 'none') - 1);
+const duplicatesADay = PAYMENTS_A_DAY * (expectedEffects(lostResponse, 0, 3, 'none') - 1);
 const merchantRows = MERCHANT_POSTINGS_A_MONTH * 12 * 3;
 const merchantDay = (MERCHANT_POSTINGS_A_MONTH * 12) / 365;
+const peakEntries = (peakPostings / POSTINGS_A_PAYMENT) * ENTRIES_A_PAYMENT;
+const feeRowsPerShard = Math.ceil(feeRows / SHARDS);
+const toThousand = (v: number) => Math.round(v / 1000) * 1000;
 
 export const PAYMENT_LEDGER: CaseStudy = {
   id: 'payment-ledger',
@@ -39,11 +44,11 @@ export const PAYMENT_LEDGER: CaseStudy = {
           {
             label: 'An error it can retry with the same idempotency key, while reads keep working from replicas marked as possibly stale',
             best: true,
-            why: 'Money writes choose consistency over availability. Refusing for 30 seconds costs some retries; accepting writes that nothing checks against current balances can let two withdrawals spend the same money. Callers keep the request in their outbox and retry safely with its key, so the outage delays postings and loses none.',
+            why: 'Money writes choose consistency over availability. Refusing for 30 seconds costs some retries; accepting writes that nothing checks against current balances can let two withdrawals spend the same money. Callers keep the request in their outbox and retry safely with its key, so the outage delays postings and loses none. Meanwhile the synchronous standby is promoted, so the outage lasts seconds.',
           },
           {
-            label: 'Accept it into a buffer on the API server and post it when the primary returns',
-            why: 'The caller hears that money moved when nothing durable says so: a crash loses the entry, and the balance check was skipped, so the buffer can hold entries that overdraw an account.',
+            label: 'Queue it in a durable broker, return success now, and post it when the primary returns',
+            why: 'Durable this time, but the caller hears success before any balance check: a debit that later fails the check was already reported as done, and the money may have been paid out on the strength of it.',
           },
           {
             label: 'Write it to a replica in another region and merge the two histories later',
@@ -61,7 +66,7 @@ export const PAYMENT_LEDGER: CaseStudy = {
         'Correctness over availability for writes: a posting either commits durably, checked against current balances, or fails with an error the caller can retry. Reads may be slightly stale where nothing is decided from them.',
         'Auditability: each entry records what created it (the source system and its idempotency key), when the money moved (effective time) and when it was recorded, so any balance can be explained posting by posting.',
         "Retention: financial records must be kept for years, commonly five to ten depending on the country and the kind of record, and a customer's request to delete their data does not override that duty for the money records themselves.",
-        `Scale (from the interviewer): ${num(PAYMENTS_A_DAY / 1e6)} million payments a day, each touching the ledger about ${POSTINGS_A_PAYMENT} times over its life, with a holiday peak at ${PEAK} times the yearly average.`,
+        `Scale (from the interviewer): ${num(PAYMENTS_A_DAY / 1e6)} million payments a day, each adding about ${POSTINGS_A_PAYMENT} postings over its life, with a holiday peak at ${PEAK} times the yearly average.`,
         'Out of scope: card processing itself, fraud scoring and tax. The ledger records what those systems decide.',
       ],
     },
@@ -82,7 +87,7 @@ export const PAYMENT_LEDGER: CaseStudy = {
       points: [
         `About ${num(peakPostings)} postings a second is well within a sharded relational database. The hard part is keeping every transaction correct and short, and one busy row, not the total.`,
         "Settlements and payouts arrive in daily batches (a processor's settlement file, a payout run), so leave headroom for bursts that do not follow customer traffic.",
-        'Reads outnumber writes: a balance check on every debit, dashboards, statements and reconciliation jobs, most of them servable from replicas.',
+        'Reads at least match writes: a balance check on every debit, dashboards, statements and reconciliation jobs, most of them servable from replicas.',
       ],
     },
     {
@@ -109,7 +114,7 @@ export const PAYMENT_LEDGER: CaseStudy = {
       kind: 'data',
       title: 'Model money as double entry',
       prompt:
-        'A customer pays a merchant $100.00 by card. The merchant is owed $97.10, the platform keeps a $2.90 fee, and the processor will pay us the $100.00 later. Record it so the books always balance and every balance can be explained.',
+        'A customer pays a merchant $100.00 by card. The merchant is owed $96.80, the platform keeps a $3.20 fee (2.9% plus 30 cents, a typical card rate), and the processor will pay us the $100.00 later. Record it so the books always balance and every balance can be explained.',
       decision: {
         question: "Where does an account's balance come from?",
         options: [
@@ -133,19 +138,19 @@ export const PAYMENT_LEDGER: CaseStudy = {
         ],
       },
       points: [
-        'Tables: `accounts` (id, owner, currency, type such as asset or liability), `entries` (id, source, idempotency key, effective time, description) and `postings` (entry id, account id, signed amount in minor units, currency). One common convention makes debits positive and credits negative, so an entry balances when its amounts sum to zero.',
-        "The capture: `+10000` to processor receivable, `-9710` to the merchant's payable, `-290` to fee revenue, which sums to zero. When the processor settles, a second entry clears the receivable into cash at the bank and books the processor's own fee as an expense.",
+        'Tables: `accounts` (id, owner, currency, type such as asset or liability), `entries` (id, source, idempotency key, created by: the service or person that posted it, effective time, recorded time, description), `postings` (entry id, account id, signed amount in minor units, currency, per-account sequence) and `balances` (account id, balance, last per-account sequence). One common convention makes debits positive and credits negative, so an entry balances when its amounts sum to zero.',
+        "The capture: `+10000` to processor receivable, `-9680` to the merchant's payable, `-320` to fee revenue, which sums to zero. When the processor settles, a second entry clears the receivable into cash at the bank and books the processor's own fee as an expense.",
         'An entry balances in each currency separately. A conversion from dollars to euros is four postings: dollars move from the customer to an FX account, and euros move from that FX account to the merchant.',
         'Never update a balance in place without the journal. The posting is the reason the balance changed; without it a wrong balance cannot be explained, corrected or reconciled. Corrections are new entries: a reversal that mirrors the wrong entry, then the right one.',
         "Amounts are integers in the currency's minor unit, never floating point: binary floats cannot hold 0.10 exactly, so sums drift (`0.1 + 0.2` is `0.30000000000000004`). ISO 4217 gives the exponent: 2 for USD and EUR, 0 for JPY, 3 for KWD and BHD.",
-        'Splitting an amount (a fee share, a refund across items) rounds each part, so a fixed rule gives the leftover minor units to one part and the parts still sum to the whole. Store amounts as 64-bit integers or decimals, and send them in JSON as integers or strings: a JavaScript number is exact only up to 2^53.',
+        'Splitting an amount (a fee share, a refund across items) rounds each part, so a fixed rule gives the leftover minor units to one part and the parts still sum to the whole. Store amounts as 64-bit integers or decimals, and send them in JSON as integers or strings: a JavaScript number holds every integer exactly only up to 2^53, about 9 × 10^15.',
       ],
     },
     {
       kind: 'api',
       title: 'Make posting idempotent',
       prompt:
-        'Callers post entries over networks and through queues that deliver at least once, so the same request will arrive twice. Picture the card charged and the response lost: what stops the retry from charging again?',
+        'Callers post entries over networks and through queues that deliver at least once, so the same request will arrive twice. Picture the entry committed and the response lost: what stops the retry from posting it twice?',
       decision: {
         question:
           "The payment service sends 'post this capture' through a queue that can deliver it twice. How does the ledger apply it exactly once?",
@@ -174,7 +179,7 @@ export const PAYMENT_LEDGER: CaseStudy = {
       points: [
         '`POST /v1/entries` with an `Idempotency-Key` header, the effective time and the postings as account, amount and currency. The response is the stored entry; the same key with a different body gets `422`, and a key whose first request is still running gets `409`, so the caller retries later.',
         'The client makes one key per payment and resends it on every retry. A new key on every attempt, an easy bug when the key is made inside the retry loop, is no better than no key.',
-        `With ${num(PAYMENTS_A_DAY / 1e6)} million payments a day, if ${lostResponse * 100}% of attempts lose their response after the server committed and clients retry up to 3 times, no key means about ${num(duplicatesADay)} duplicate charges a day. One key per payment means none.`,
+        `With ${num(PAYMENTS_A_DAY / 1e6)} million payments a day, if ${lostResponse * 100}% of attempts lose their response after the server committed and clients retry up to 3 times, no key means about ${num(toThousand(duplicatesADay))} duplicate entries a day (each a double charge if the payment service retries the processor without its own key). One key per payment means none.`,
         'A key must outlive the longest retry window, which for a queue that redelivers after an outage can be days; kept on the entry row, it lasts as long as the ledger.',
         'Reads: `GET` on `/accounts/{id}/balance`, optionally as of a time, and on `/accounts/{id}/postings` with a cursor for statements.',
       ],
@@ -190,7 +195,7 @@ export const PAYMENT_LEDGER: CaseStudy = {
         'Storage: a relational database such as Postgres, sharded by account owner, each shard with a synchronous standby in another zone so a committed entry survives losing the primary, and asynchronous replicas for statements and dashboards.',
         'A balance that decides something (can this wallet pay?) is read on the primary inside the posting transaction; balances on screens and statements read replicas.',
         "Around the database: the ledger's own outbox (entry posted) for notifications and analytics, nightly balance snapshots, reconciliation jobs against processor and bank files, and an archive of closed months.",
-        'Open the build in the Design Lab: 14,000 requests a second at peak, half of them reads. The cache holds statement pages and balances for display; the sharded database is the ledger, with replicas for statements. The lab draws only the synchronous path; the outbox relay, snapshots and reconciliation hang off the primaries.',
+        `Open the build in the Design Lab: about ${num(toThousand(peakEntries))} entry writes a second at peak (${num(peakPostings)} postings at under 3 postings per entry), with as many reads, ${num(2 * toThousand(peakEntries))} requests a second in all. The cache holds statement pages and balances for display; the sharded database is the ledger, with replicas for statements. The lab draws only the synchronous path; the outbox relay, snapshots and reconciliation hang off the primaries.`,
       ],
     },
     {
@@ -208,11 +213,12 @@ export const PAYMENT_LEDGER: CaseStudy = {
             why: 'The second transfer waits on the row lock until the first commits, then reads the new balance and is refused. Locking in one fixed order means two entries touching the same accounts cannot deadlock, and waiting costs less than aborting and retrying.',
           },
           {
-            label: 'The same transaction at SERIALIZABLE isolation, retried whenever the database reports a serialization failure',
-            why: 'Also correct, and safer when code forgets a lock. But conflicts end in aborts rather than waits: on a busy account many attempts roll back and retry, which wastes work exactly where the load is highest.',
+            label:
+              'The same transaction at SERIALIZABLE isolation with no explicit locks, retried whenever the database reports a serialization failure',
+            why: 'Also correct, and safer when code forgets a lock. But a conflict ends in an abort, usually after waiting anyway: on a busy account many attempts roll back and retry, wasting work exactly where the load is highest.',
           },
           {
-            label: 'Read the balance, check it in the application, then subtract with a relative update (`amount = amount - 80`)',
+            label: 'Read the balance, check it in the application, then subtract with a relative update (`balance = balance - 80`)',
             why: 'At READ COMMITTED both transactions read $100 before either writes, both pass the check, and the wallet ends at -$60. The relative update avoids a lost update, not the stale check.',
           },
           {
@@ -224,8 +230,9 @@ export const PAYMENT_LEDGER: CaseStudy = {
       points: [
         'All postings of an entry, the balance updates and the idempotency key commit in one ACID transaction on one database, so half an entry never exists.',
         'Keep the transaction short: no calls to other services while holding locks. Anything slow (fraud checks, the processor) happens before the transaction or after it, through the outbox.',
-        'A conditional update checks and writes in one statement: subtracting 80 only `WHERE amount >= 80` takes the row lock and checks the condition against the latest committed balance, and zero rows updated means insufficient funds.',
-        'Holds: an authorization reserves money without moving it, as postings to a held balance that the capture releases; the available balance is the posted balance less holds.',
+        'A conditional update checks and writes in one statement: subtracting 80 only `WHERE balance >= 80` takes the row lock and checks the condition against the latest committed balance, and zero rows updated means insufficient funds.',
+        'Holds: for balances we keep (a wallet, a merchant reserve), an authorization records a pending hold without moving money; the capture turns it into postings and a void or expiry releases it, and the available balance is the posted balance less open holds. For card payments the hold lives at the card issuer, and the ledger records nothing until capture.',
+        'Merchant payables may go negative when refunds and disputes exceed incoming funds; the ledger allows it for that account type (it becomes money the merchant owes, recovered from future payouts or a direct debit), while customer wallets refuse it. The rule is per account type, enforced in the posting transaction.',
         `A transaction holds its locks from the first \`FOR UPDATE\` until the commit returns, and with a synchronous standby the commit waits for the standby too: about ${LOCK_MS} ms here, which is what makes one busy account a bottleneck.`,
       ],
     },
@@ -255,15 +262,15 @@ export const PAYMENT_LEDGER: CaseStudy = {
     {
       kind: 'deep-dive',
       title: 'Shard the ledger',
-      prompt: `One database will not hold ${num(tbAYear)} TB a year or ${num(peakPostings)} postings a second at peak. How do you split the ledger so that most entries still commit in one local transaction?`,
+      prompt: `A year adds ${num(tbAYear)} TB. Seven years is about ${num(tbAYear * 7)} TB and every merchant would share one primary's failure domain. How do you split the ledger so that most entries still commit in one local transaction?`,
       decision: {
         question: 'What do you shard postings and balances by?',
         options: [
           {
             label:
-              "The account owner (merchant or customer), so all of an owner's accounts share a shard, with one sub-account of each platform account per shard",
+              "The account owner (merchant or customer), so all of an owner's accounts share a shard, with sub-accounts of each platform account on every shard (as many per shard as its share of the load needs)",
             best: true,
-            why: "A capture touches the merchant's payable and platform accounts. With a sub-account of each platform account on every shard, the whole entry lands on the merchant's shard and commits locally. Platform balances are the sum over shards, read by reports rather than the hot path.",
+            why: `A capture touches the merchant's payable and platform accounts. With a sub-account of each platform account on every shard, the whole entry lands on the merchant's shard and commits locally. Platform balances are the sum over shards, read by reports rather than the hot path. At this peak that is ${feeRows} or more fee rows in total, so with ${SHARDS} shards each shard holds at least ${feeRowsPerShard}.`,
           },
           {
             label: 'A hash of the journal entry id',
@@ -307,6 +314,7 @@ export const PAYMENT_LEDGER: CaseStudy = {
         'Statements page with a cursor on a per-account sequence (`WHERE seq > :last`, `LIMIT 100`), served by an index on (account id, seq). An offset would make the database walk every earlier posting for each deeper page.',
         "A statement's opening balance comes from the snapshot before its period, and its closing balance must equal the opening balance plus the postings listed.",
         'Number postings with the per-account sequence in the posting transaction rather than ordering by timestamp: clocks tie and skew, and a statement must list the same postings in the same order every time.',
+        'Snapshots, sequences and statements follow the time an entry was recorded; a balance as of an effective time (a backdated late capture) is answered from the postings by effective time, and closed periods never change because late entries land in the open period.',
       ],
     },
     {
@@ -341,8 +349,8 @@ export const PAYMENT_LEDGER: CaseStudy = {
         "A payout saga: post 'debit the merchant's payable, credit payouts in transit'; send the bank transfer with the payout id as its idempotency key; when the bank confirms, post 'debit payouts in transit, credit cash'. If the transfer fails or the bank returns it, post a reversal that credits the merchant's payable again.",
         'Order a saga so that steps that can fail come before the ones that cannot be undone: the money is set aside in the ledger before the bank is asked to move it.',
         'Partial failures and retries: each step is retried with backoff until it succeeds or is compensated, so each must be idempotent; a step that keeps failing parks the saga for a person, never drops it.',
-        'Late webhooks: a processor may report a capture minutes or days after we gave up on the attempt. Post it as a new entry when it arrives, effective when the processor captured it, then fulfil or refund; never edit the closed attempt. If its period is already closed, it lands in the open period as a dated adjustment.',
-        'Two-phase commit is not banned: inside one database, or across the shards of a database built for it such as Spanner, it is how a distributed transaction commits. What payment systems avoid is 2PC across independent services and outside parties.',
+        "Late webhooks: a processor may report a capture minutes or days after we gave up on the attempt. Post it as a new entry when it arrives, effective when the processor captured it, then fulfil or refund; never edit the closed attempt. If its period is already closed, it lands in the open period as a dated adjustment. Webhooks arrive at least once and out of order: dedupe by the processor's event id and only move a payment's state forward.",
+        'Two-phase commit is not banned: inside one database, or across the shards of a distributed database such as Spanner or CockroachDB, which replicates the coordinator and each participant with consensus so a crash does not leave locks in doubt, it is how a distributed transaction commits. What payment systems avoid is 2PC across independent services and outside parties.',
       ],
     },
     {
@@ -391,7 +399,7 @@ export const PAYMENT_LEDGER: CaseStudy = {
         'Invariants, checked continuously and paged on: every entry sums to zero per currency; the sum of all postings in the ledger is zero per currency; each cached balance equals its last snapshot plus the postings since; the in-transit accounts add up to the transfers in flight.',
         'Pipeline health: outbox lag, saga steps past their deadline, payment attempts in an unknown state, reconciliation breaks by kind and age, and lock waits on hot accounts.',
         'Period close: at month end, check the invariants for the period, reconcile cash with the bank, then freeze it; later corrections are dated adjustments in the open period.',
-        'Audit: every entry says what created it and why. Access is least privilege, nobody can change a posting (not even administrators: direct writes are revoked and the posting tables refuse updates and deletes), and auditors can trace any balance to its postings and each posting to its source.',
+        'Audit: every entry says what created it and why. Access is least privilege, nobody can change a posting: the posting tables refuse updates and deletes, superuser access is break-glass, logged and reviewed, and a hash chain or signed daily digest over entries makes tampering detectable. Auditors can trace any balance to its postings and each posting to its source.',
         'Retention: closed periods move to cheaper, write-once storage, stay queryable for as long as the law requires, then expire on a schedule. An erasure request removes personal details kept around the ledger, not the money records.',
       ],
     },
@@ -408,7 +416,7 @@ export const PAYMENT_LEDGER: CaseStudy = {
     {
       question: 'How do you support several currencies?',
       answer:
-        "Every account holds one currency, and every entry balances per currency. A conversion posts to FX accounts in both currencies at the rate used, and gains or losses from rates moving are booked when positions are revalued, never by editing old postings. Amounts stay in minor units with each currency's own exponent.",
+        "Every account holds one currency, and every entry balances per currency. A conversion posts to FX accounts in both currencies at the rate used. The rate is a quote from a rate provider, locked for a short expiry when the customer sees the price, and stored on the entry with its source and time; the spread over the mid rate is booked as its own revenue posting. Gains or losses from rates moving are booked when positions are revalued, never by editing old postings. Amounts stay in minor units with each currency's own exponent.",
     },
     {
       question: 'An entry went to the wrong merchant last month. How do you correct it?',

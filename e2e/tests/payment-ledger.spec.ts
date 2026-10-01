@@ -39,6 +39,8 @@ for (const theme of ['dark', 'light'] as const) {
     test.use({ theme });
 
     test('the payment ledger case runs its retry, hot account and reconciliation models and finishes into reviews', async ({ page }) => {
+      // Thirteen stages and three models in one walk take up to a minute on the WebKit iPhone.
+      test.slow();
       await page.goto('/design');
       await page.getByRole('link', { name: /^Payment Ledger/ }).click();
       await expect(page.getByRole('heading', { name: 'Payment Ledger', level: 1 })).toBeVisible();
@@ -58,8 +60,8 @@ for (const theme of ['dark', 'light'] as const) {
       await decide(api, /^The request carries an idempotency key/, 'your answer, correct');
       const retries = api.locator('app-retry-widget');
       await expect(api.getByRole('heading', { name: 'Try it: retries with and without idempotency keys' })).toBeVisible();
-      await retries.getByRole('button', { name: 'Charged twice' }).click();
-      const answered = retries.getByRole('group', { name: 'Predict: how many times is the card charged?' });
+      await retries.getByRole('button', { name: 'Posted twice' }).click();
+      const answered = retries.getByRole('group', { name: 'Predict: how many capture entries does the ledger post?' });
       await expect(answered).toBeFocused();
       await expect(answered.getByRole('img', { name: 'your answer, correct' })).toBeVisible();
       await expect(retries.locator('.steps li')).toHaveCount(2);
@@ -69,11 +71,11 @@ for (const theme of ['dark', 'light'] as const) {
       await keys.getByRole('radio', { name: 'No key' }).focus();
       await page.keyboard.press('End');
       await expect(keys.getByRole('radio', { name: 'One key per payment' })).toHaveAttribute('aria-checked', 'true');
-      await retries.getByRole('button', { name: 'Charged once' }).click();
+      await retries.getByRole('button', { name: 'Posted once' }).click();
       await expect(retries.getByRole('img', { name: 'your answer, correct' })).toBeVisible();
-      await expect(retries.getByText(/returns the stored result, charging nothing/)).toBeVisible();
+      await expect(retries.getByText(/returns the stored entry, posting nothing/)).toBeVisible();
       await retries.getByRole('button', { name: 'Lost every time' }).click();
-      await retries.getByRole('button', { name: 'Charged 4 times' }).click();
+      await retries.getByRole('button', { name: 'Posted 4 times' }).click();
       await expect(retries.getByRole('img', { name: 'your answer, wrong' })).toBeVisible();
       await expect(retries.getByText(/gave up after 4 attempts/)).toBeVisible();
       await finishStage(api, 'Next: Put it together');
@@ -87,18 +89,23 @@ for (const theme of ['dark', 'light'] as const) {
       await estimate(hot, '17', '17 sub-accounts');
       const widget = hot.locator('app-hot-account-widget');
       await expect(readout(widget, 'Capacity')).toHaveText('200/s');
-      await expect(readout(widget, 'Commit wait')).toHaveText('keeps growing');
+      await expect(readout(widget, 'Committed')).toHaveCount(0);
       const rows = widget.getByRole('slider', { name: /^Sub-accounts/ });
       await rows.focus();
       for (let i = 0; i < 15; i++) await page.keyboard.press('ArrowRight');
+      await expect(rows).toHaveAttribute('aria-valuetext', '16 sub-accounts');
       await expect(readout(widget, 'Capacity')).toHaveText('3,200/s');
-      await expect(readout(widget, 'Busy')).toHaveText('72%');
-      await expect(readout(widget, 'Commit wait')).toHaveText('5.0 ms');
       await widget.locator('fieldset button').first().click();
+      await expect(readout(widget, 'Busy')).toHaveText('72%');
+      await expect(readout(widget, 'Wait per posting')).toHaveText('11 ms');
       const right = (await widget.locator('li.right span').first().textContent())!.trim();
       await widget.getByRole('button', { name: 'Apply the change' }).click();
+      const last = widget.getByRole('group', { name: 'Your last prediction' });
+      await expect(last).toBeFocused();
+      await expect(last).toContainText('Applied: Predict: if you split the account into 32 sub-accounts');
+      await widget.locator('fieldset button').first().click();
+      await expect(last).toHaveCount(0);
       await expect(readout(widget, 'Committed')).toHaveText(right.replace(' postings/s', '/s'));
-      await expect(widget.locator('fieldset')).toBeVisible();
       expect(await seriousViolations(page)).toEqual([]);
       await finishStage(hot, 'Next: Shard the ledger');
 
@@ -119,7 +126,7 @@ for (const theme of ['dark', 'light'] as const) {
       expect(await seriousViolations(page)).toEqual([]);
       await day.getByRole('button', { name: 'Another day' }).click();
       await expect(day.getByText(/^\s*Day 2\./)).toBeFocused();
-      await expect(day.getByRole('status')).toHaveCount(0);
+      await expect(day.getByRole('status')).toHaveText('');
       await finishStage(recon, 'Next: Operate and audit it');
 
       const sync = synced(page, 'case.completed');
