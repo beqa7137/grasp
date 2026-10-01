@@ -185,6 +185,20 @@ export const CASE_LABS: Record<string, CaseLab> = {
       edges: [...chain('services', 'lb', 'ledger', 'cache', 'db', 'replica'), { from: 'ledger', to: 'db' }],
     },
   },
+  'proximity-service': {
+    workload: { rps: 34_800, readRatio: 0.998 },
+    design: {
+      nodes: [
+        n('phones', 'client', 70, 240),
+        n('lb', 'lb', 240, 240, 2),
+        n('search', 'app', 410, 240, 26, { label: 'Search servers' }),
+        n('cache', 'cache', 580, 120, 2, { hitRate: 0.95, label: 'Index and pages' }),
+        n('db', 'db', 760, 240, 1, { label: 'Business store' }),
+        n('replica', 'replica', 760, 390, 2),
+      ],
+      edges: [...chain('phones', 'lb', 'search', 'cache', 'db', 'replica'), { from: 'search', to: 'db' }],
+    },
+  },
   'ride-sharing': {
     workload: { rps: 20_000, readRatio: 0.5 },
     design: {

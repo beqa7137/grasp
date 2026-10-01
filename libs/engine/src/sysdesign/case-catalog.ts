@@ -45,6 +45,13 @@ export const CASE_CATALOG: readonly CaseSummary[] = [
     topics: ['sd-transactions', 'sd-locks', 'sd-sharding', 'sd-api-design'],
   },
   {
+    id: 'proximity-service',
+    title: 'Proximity Service',
+    level: 'core',
+    stages: 14,
+    topics: ['sd-geo', 'sd-estimation', 'sd-caching', 'sd-sharding'],
+  },
+  {
     id: 'ride-sharing',
     title: 'Ride Sharing',
     level: 'advanced',

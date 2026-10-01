@@ -38,6 +38,7 @@ const finishNewsFeed = async (p) => {
 const CASE_ANSWERS = {
   'payment-ledger': { guesses: { 1: '18.5k', 2: '30', 7: '17', 9: '72M' }, decided: [0, 3, 4, 6, 8, 10, 11] },
   'feature-flags': { guesses: { 1: '5M', 2: '667' }, decided: [0, 3, 4, 6, 7, 8, 9, 10, 11, 12] },
+  'proximity-service': { guesses: { 1: '17k', 2: '200' }, decided: [0, 3, 4, 6, 7, 8, 9, 10, 11, 12] },
 };
 
 /** A case answered up to `reached`, its decisions as recommended, so the stage there shows its model. */
@@ -151,6 +152,23 @@ export function designStates() {
       id: 'case-feature-flags-propagation',
       path: '/design/case/feature-flags',
       setup: caseWidget('feature-flags', 7, 'app-propagation-widget', (m) => m.locator('app-widget-check fieldset button').first().click()),
+    },
+    { id: 'case-proximity-service', path: '/design/case/proximity-service' },
+    { id: 'case-build-proximity-service', path: '/design/free-build?case=proximity-service' },
+    {
+      id: 'case-proximity-service-cells',
+      path: '/design/case/proximity-service',
+      setup: caseWidget('proximity-service', 6, 'app-cells-widget', async (m) => {
+        await m.getByRole('radio', { name: 'The cell and its 8 neighbours' }).click();
+        await m.locator('app-widget-check fieldset button').first().click();
+      }),
+    },
+    {
+      id: 'case-proximity-service-quadtree',
+      path: '/design/case/proximity-service',
+      setup: caseWidget('proximity-service', 7, 'app-quadtree-widget', (m) =>
+        m.locator('app-widget-check fieldset button').first().click(),
+      ),
     },
     { id: 'case-ticketing', path: '/design/case/ticketing' },
     { id: 'case-build-ticketing', path: '/design/free-build?case=ticketing' },

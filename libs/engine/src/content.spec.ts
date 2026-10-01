@@ -17,13 +17,17 @@ import { CASE_BRIEFS } from './sysdesign/case-briefs.js';
 import { CASE_CATALOG } from './sysdesign/case-catalog.js';
 import {
   CASE_STUDIES,
+  CELL_PRECISIONS,
+  DENSITIES,
   MAX_ATTEMPTS,
   RECON_ACTIONS,
   ROLLOUT_STAGES,
   bucketingCheckpoint,
+  cellSearchCheckpoint,
   explainRow,
   hotAccountCheckpoint,
   propagationCheckpoint,
+  quadtreeCheckpoint,
   reconcile,
   reconciliationDay,
   retryCheckpoint,
@@ -109,6 +113,17 @@ function flagWidgetText(): unknown {
   return { bucketing, propagation };
 }
 
+/** The text the proximity case's widgets build: both scopes at every precision over a range of radii, and the quadtree over capacities. */
+function proximityWidgetText(): unknown {
+  const cells = CELL_PRECISIONS.flatMap((precision) =>
+    [0.1, 0.5, 1, 2.5, 5].flatMap((radiusKm) =>
+      (['own', 'neighbours'] as const).map((scope) => cellSearchCheckpoint({ precision, radiusKm, scope })),
+    ),
+  );
+  const quadtree = DENSITIES.flatMap((density) => [5, 10, 15, 100, 400].map((capacity) => quadtreeCheckpoint({ capacity, density })));
+  return { cells, quadtree };
+}
+
 // A prediction's frames come from the tracers, which have entries of their own, so one seed covers the text it adds itself.
 const questions = (item: ItemDef) =>
   (item.kind === 'predict' ? REVIEW_SEEDS.slice(0, 1) : REVIEW_SEEDS).map((seed) => generateQuestion(item.id, seed));
@@ -133,6 +148,7 @@ function learnerContent(): Entry[] {
     ...byId('case study', [...CASE_STUDIES]),
     ['payment ledger case widgets', caseWidgetText()],
     ['feature flag case widgets', flagWidgetText()],
+    ['proximity case widgets', proximityWidgetText()],
     ...byKey('design lesson', SD_LESSONS),
     ...byId('coding problem', CODING_PROBLEMS),
     ...byId('competency summary', [...COMPETENCY_CATALOG]),

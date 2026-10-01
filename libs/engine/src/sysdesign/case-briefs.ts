@@ -62,6 +62,13 @@ export const CASE_BRIEFS: readonly CaseBrief[] = [
       'Immutable entries that sum to zero, idempotent posting, row locks and hot accounts, sharding with in-transit accounts, snapshots, reconciliation and invariants.',
   },
   {
+    id: 'proximity-service',
+    question:
+      'Design the service behind "near me" in an app like Yelp: find the businesses within a radius of a point, with filters, for 100 million daily users.',
+    summary:
+      'Why latitude and longitude B-trees fail, geohash cells and their edges, quadtrees for uneven density, S2, H3 and R-trees, haversine filtering, replicated in-memory indexes and versioned snapshots.',
+  },
+  {
     id: 'ride-sharing',
     question:
       'Design the core of a ride-hailing app like Uber: riders request rides, nearby drivers are matched, and both see each other move on a map.',

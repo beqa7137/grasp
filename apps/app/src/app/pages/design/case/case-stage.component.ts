@@ -30,8 +30,10 @@ import { refocus, refocusAfterRender } from '../../../core/focus';
 import { answerMark } from '../../../review/answer-mark';
 import { CodeTextComponent } from '../../../viz/code-text.component';
 import { BucketingWidgetComponent } from './widgets/bucketing-widget.component';
+import { CellsWidgetComponent } from './widgets/cells-widget.component';
 import { HotAccountWidgetComponent } from './widgets/hot-account-widget.component';
 import { PropagationWidgetComponent } from './widgets/propagation-widget.component';
+import { QuadtreeWidgetComponent } from './widgets/quadtree-widget.component';
 import { ReconcileWidgetComponent } from './widgets/reconcile-widget.component';
 import { RetryWidgetComponent } from './widgets/retry-widget.component';
 
@@ -47,6 +49,8 @@ const WIDGET_TITLES: Record<CaseWidget, string> = {
   reconcile: "Try it: reconcile a day's captures",
   bucketing: 'Try it: bucket 1,000 users into a rollout',
   propagation: 'Try it: get a flag change to every SDK',
+  cells: 'Try it: search geohash cells around a user',
+  quadtree: 'Try it: build a quadtree over 10,000 places',
 };
 
 /** One interview stage: commit to a decision or an estimate first, then reveal the model answer a point at a time. */
@@ -63,6 +67,8 @@ const WIDGET_TITLES: Record<CaseWidget, string> = {
     ReconcileWidgetComponent,
     BucketingWidgetComponent,
     PropagationWidgetComponent,
+    CellsWidgetComponent,
+    QuadtreeWidgetComponent,
   ],
   template: `
     @let s = stage();
@@ -150,6 +156,12 @@ const WIDGET_TITLES: Record<CaseWidget, string> = {
           }
           @case ('propagation') {
             <app-propagation-widget />
+          }
+          @case ('cells') {
+            <app-cells-widget />
+          }
+          @case ('quadtree') {
+            <app-quadtree-widget />
           }
         }
       </section>

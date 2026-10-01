@@ -11,6 +11,7 @@ import { JOB_SCHEDULER } from './job-scheduler.js';
 import { VIDEO_STREAMING } from './video-streaming.js';
 import { PAYMENTS } from './payments.js';
 import { PAYMENT_LEDGER } from './payment-ledger.js';
+import { PROXIMITY_SERVICE } from './proximity-service.js';
 import { RIDE_SHARING } from './ride-sharing.js';
 import { DISTRIBUTED_CACHE } from './distributed-cache.js';
 import { FEATURE_FLAGS } from './feature-flags.js';
@@ -30,6 +31,7 @@ export * from './flags/index.js';
 export * from './labs.js';
 export * from './ledger/index.js';
 export * from './option-order.js';
+export * from './proximity/index.js';
 export * from './outcome.js';
 export * from './widget-checkpoint.js';
 
@@ -44,6 +46,7 @@ export const CASE_STUDIES: readonly CaseStudy[] = [
   VIDEO_STREAMING,
   PAYMENTS,
   PAYMENT_LEDGER,
+  PROXIMITY_SERVICE,
   RIDE_SHARING,
   DISTRIBUTED_CACHE,
   TICKETING,
