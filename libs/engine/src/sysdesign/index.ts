@@ -1,5 +1,6 @@
 export * from './types.js';
 export * from './catalog.js';
+export * from './object-share.js';
 export * from './simulate.js';
 export * from './shards.js';
 export * from './format.js';

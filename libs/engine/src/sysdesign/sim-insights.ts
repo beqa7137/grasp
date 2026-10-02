@@ -69,6 +69,15 @@ export function addInsights(
     }
 
     if (n.kind === 'db' && hasLoad) dbInsights(design, n, st, insights);
+    const primaries = n.kind === 'replica' ? primariesOf(design, n.id) : 0;
+    if (primaries > 1) {
+      insights.push({
+        severity: 'warning',
+        nodeId: n.id,
+        title: `One replica node copies ${primaries} primaries`,
+        detail: 'A replica copies one primary, so this one is a standby for none of them. Give each primary its own replicas.',
+      });
+    }
   }
 
   if (ctx.backlogGrowth > 1) {
@@ -121,11 +130,16 @@ export function addInsights(
   }
 }
 
+function primariesOf(design: Design, replicaId: string): number {
+  return design.edges.filter((e) => e.to === replicaId && design.nodes.find((x) => x.id === e.from)?.kind === 'db').length;
+}
+
 function dbInsights(design: Design, n: DesignNode, st: NodeStats, insights: Insight[]) {
+  // A replica copies one primary; old boards could link one to several, and then it stands by for none of them.
   const replicas = design.edges
     .filter((e) => e.from === n.id)
     .map((e) => design.nodes.find((x) => x.id === e.to))
-    .filter((x) => x?.kind === 'replica')
+    .filter((x) => x?.kind === 'replica' && primariesOf(design, x.id) === 1)
     .reduce((sum, r) => sum + available(r!), 0);
   const shards = n.instances;
   if (replicas < shards) {

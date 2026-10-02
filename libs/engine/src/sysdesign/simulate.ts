@@ -1,4 +1,5 @@
-import { COMPONENTS, DEFAULT_OBJECT_SHARE, monthlyCost } from './catalog.js';
+import { COMPONENTS, monthlyCost } from './catalog.js';
+import { DEFAULT_OBJECT_SHARE } from './object-share.js';
 import { fmt } from './format.js';
 import { addInsights, dedupe, rank } from './sim-insights.js';
 import { available, shardShares } from './shards.js';
@@ -70,7 +71,8 @@ export function simulate(design: Design, workload: Workload): SimResult {
 
   let syncErrors = 0;
   let backlogGrowth = 0;
-  let queueDrain = 0;
+  const workerSpare = new Map<string, number>();
+  const queueLoads: QueueLoad[] = [];
   let bgFailures = 0;
   let durableWrites = 0;
   let volatileWrites = 0;
@@ -253,7 +255,7 @@ export function simulate(design: Design, workload: Workload): SimResult {
       }
       case 'app': {
         const blobs = ofKind('blob');
-        const objects = blobs.length ? (workload.objectShare === undefined ? DEFAULT_OBJECT_SHARE : objectFrac) : 0;
+        const objects = blobs.length ? (workload.objectShare === undefined ? (blobs[0].share ?? DEFAULT_OBJECT_SHARE) : objectFrac) : 0;
         const rest = 1 - objects;
         const carry = blobs.length ? 0 : objectFrac;
         forward('read', served.read * objects, blobs, served.read);
@@ -311,16 +313,19 @@ export function simulate(design: Design, workload: Workload): SimResult {
         terminate('write', served.write, served.write);
         durableWrites += served.write;
         queuedWrites += served.write;
+        // A worker shared by several queues spends each unit of its capacity once, first on the queue that reaches it first.
         const workers = ofKind('worker');
-        const drainCapacity = workers.reduce((sum, w) => sum + available(w) * COMPONENTS.worker.capacityRps, 0);
+        const spare = workers.map((w) => workerSpare.get(w.id) ?? available(w) * COMPONENTS.worker.capacityRps);
+        const workerCapacity = spare.reduce((a, b) => a + b, 0);
         const incoming = served.write + served.bg;
-        const drain = Math.min(incoming, drainCapacity);
-        queueDrain += drainCapacity;
+        const drain = Math.min(incoming, workerCapacity);
         backlogGrowth += incoming - drain;
-        if (drain > 0) {
-          const w = weights(workers);
-          workers.forEach((t, i) => send(node, t, { bg: drain * w[i] }, objectFrac));
-        }
+        queueLoads.push({ workers: workers.map((w) => w.id), incoming, growth: incoming - drain });
+        workers.forEach((t, i) => {
+          const share = workerCapacity > 0 ? drain * (spare[i] / workerCapacity) : 0;
+          workerSpare.set(t.id, spare[i] - share);
+          if (share > 0) send(node, t, { bg: share }, objectFrac);
+        });
         break;
       }
       case 'blob':
@@ -463,7 +468,7 @@ export function simulate(design: Design, workload: Workload): SimResult {
       writeP99Ms: percentile(writePaths, 0.99),
       monthlyCost: monthlyCost(design),
       backlogGrowthPerSec: backlogGrowth,
-      queueDrainRps: queueDrain,
+      ...queueDrain(queueLoads, (id) => available(byId.get(id)!) * COMPONENTS.worker.capacityRps),
       durableWriteRatio: durableWrites + volatileWrites > 0 ? durableWrites / (durableWrites + volatileWrites) : 1,
       queuedWriteRps: queuedWrites,
       botRps: clients.length ? offeredBots : 0,
@@ -471,6 +476,42 @@ export function simulate(design: Design, workload: Workload): SimResult {
     },
     insights: rank(dedupe(insights)),
   };
+}
+
+interface QueueLoad {
+  workers: string[];
+  incoming: number;
+  growth: number;
+}
+
+/**
+ * Once a spike ends, the queues that share workers drain their backlogs together, so each such group drains at the
+ * capacity of its workers, counted once; the slowest group sets how long the backlog lasts. Queues holding nothing add
+ * no drain.
+ */
+function queueDrain(queues: QueueLoad[], capacity: (workerId: string) => number): { queueDrainRps: number; backlogDrainRatio: number } {
+  const groups: QueueLoad[] = [];
+  for (const q of queues) {
+    const joined = groups.filter((g) => g.workers.some((w) => q.workers.includes(w)));
+    const merged = joined.reduce(
+      (acc, g) => ({
+        workers: [...new Set([...acc.workers, ...g.workers])],
+        incoming: acc.incoming + g.incoming,
+        growth: acc.growth + g.growth,
+      }),
+      q,
+    );
+    groups.splice(0, groups.length, ...groups.filter((g) => !joined.includes(g)), merged);
+  }
+  let queueDrainRps = 0;
+  let backlogDrainRatio = 0;
+  for (const g of groups) {
+    if (g.incoming <= 0) continue;
+    const rate = g.workers.reduce((sum, w) => sum + capacity(w), 0);
+    queueDrainRps += rate;
+    if (g.growth > 0) backlogDrainRatio = Math.max(backlogDrainRatio, rate > 0 ? g.growth / rate : Number.POSITIVE_INFINITY);
+  }
+  return { queueDrainRps, backlogDrainRatio };
 }
 
 interface Pressure {

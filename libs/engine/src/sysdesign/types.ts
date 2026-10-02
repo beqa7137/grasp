@@ -25,6 +25,8 @@ export interface DesignNode {
   instances: number;
   failed?: number;
   hitRate?: number;
+  /** Object stores on boards saved before the workload named its object share: the share an app sent here under the old rule. */
+  share?: number;
   /** The role this node plays in a case study, shown in place of the component name. */
   label?: string;
   /** Databases only: with several instances, each instance is a shard owning part of the keys. */
@@ -94,6 +96,8 @@ export interface SimMetrics {
   monthlyCost: number;
   backlogGrowthPerSec: number;
   queueDrainRps: number;
+  /** The slowest-draining queues' backlog growth over their drain rate: clearing a spike's backlog takes this times its length. */
+  backlogDrainRatio: number;
   durableWriteRatio: number;
   /** User writes a queue acknowledged before any database committed them. */
   queuedWriteRps: number;
