@@ -14,6 +14,10 @@ on:
       - apps/app/capacitor.config.ts
       - apps/app/package.json
       - apps/app/scripts/**
+      # The bundle and style gates are plain node scripts and data, which no native compile reads.
+      - '!apps/app/scripts/*.baseline.json'
+      - '!apps/app/scripts/first-paint-bytes*.mjs'
+      - '!apps/app/scripts/style-tokens*.mjs'
       - package.json
       - package-lock.json
       - .nvmrc

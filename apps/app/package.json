@@ -11,7 +11,7 @@
     "cap:ios": "cap open ios",
     "typecheck": "ngc -p tsconfig.app.json --noEmit && tsc -p tsconfig.worker.json --noEmit",
     "prebuild": "node scripts/copy-pyodide.mjs",
-    "postbuild": "node scripts/write-error-assets.mjs",
+    "postbuild": "node scripts/write-error-assets.mjs && node scripts/first-paint-bytes.mjs",
     "prestart": "node scripts/copy-pyodide.mjs"
   },
   "private": true,
