@@ -80,7 +80,9 @@ describe('first paint', () => {
       'srs/session.ts',
       'srs/settings.ts',
       'sysdesign/case-catalog.ts',
+      'sysdesign/mission-goals.ts',
       'sysdesign/scenario-catalog.ts',
+      'sysdesign/scenario-revisits.ts',
     ]);
   });
 

@@ -1,6 +1,6 @@
 import { getSdTopic } from '../curriculum/sd-topics.js';
 import { COMPONENTS } from '../sysdesign/catalog.js';
-import { fmt } from '../sysdesign/scenario-catalog.js';
+import { fmt } from '../sysdesign/format.js';
 import { simulate } from '../sysdesign/simulate.js';
 import type { ComponentKind, Design, DesignNode } from '../sysdesign/types.js';
 import { concept, item, type DesignItemDefinition } from './design-item-kit.js';

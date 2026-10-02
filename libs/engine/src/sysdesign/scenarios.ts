@@ -1,4 +1,6 @@
-import { SCENARIO_CATALOG, fmt, type ScenarioId, type ScenarioSummary } from './scenario-catalog.js';
+import { fmt } from './format.js';
+import { SCENARIO_CATALOG, type ScenarioId, type ScenarioSummary } from './scenario-catalog.js';
+import { SCENARIO_VARIANTS } from './scenario-variants.js';
 import { simulate } from './simulate.js';
 import type { Design, DesignNode, GoalCheck, Scenario, SimResult } from './types.js';
 
@@ -11,7 +13,7 @@ const n = (id: string, kind: Design['nodes'][number]['kind'], x: number, y: numb
   ...extra,
 });
 
-type ScenarioDefinition = Omit<Scenario, keyof ScenarioSummary | 'revisit'>;
+type ScenarioDefinition = Omit<Scenario, keyof ScenarioSummary | 'variants' | 'revisit'>;
 
 const DEFINITIONS: Record<ScenarioId, ScenarioDefinition> = {
   'first-scale-up': {
@@ -212,9 +214,9 @@ const DEFINITIONS: Record<ScenarioId, ScenarioDefinition> = {
   },
 };
 
-export const SCENARIOS: Scenario[] = SCENARIO_CATALOG.map(({ id, title, tagline, workload, goals, variants }) => {
+export const SCENARIOS: Scenario[] = SCENARIO_CATALOG.map(({ id, title, tagline, workload, goals }) => {
   const { brief, starter, hints, takeaway } = DEFINITIONS[id];
-  return { id, title, tagline, brief, workload, goals, starter, hints, takeaway, variants };
+  return { id, title, tagline, brief, workload, goals, starter, hints, takeaway, variants: SCENARIO_VARIANTS[id] };
 });
 
 export function getScenario(id: string): Scenario | undefined {
