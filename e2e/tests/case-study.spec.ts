@@ -119,6 +119,6 @@ test('a case build names nodes by their role and stores files in an object store
   await blocks.focus();
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Block store' })).toBeVisible();
-  await expect(page.getByRole('slider', { name: /Object traffic/ })).toHaveValue('50');
+  await expect(page.getByRole('slider', { name: /^Files/ })).toHaveValue('50');
   await expect(page.getByRole('button', { name: /^Metadata API, App Servers/ })).toHaveCount(1);
 });

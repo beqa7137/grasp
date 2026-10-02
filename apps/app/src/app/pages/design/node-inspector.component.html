@@ -100,20 +100,6 @@
         </ol>
       }
     }
-    @if (spec().share !== undefined) {
-      <label class="row slider">
-        <span
-          >Object traffic <strong class="mono">{{ (n.share ?? spec().share ?? 0) * 100 | number: '1.0-0' }}%</strong></span
-        >
-        <input
-          type="range"
-          min="0"
-          max="100"
-          [value]="(n.share ?? spec().share ?? 0) * 100"
-          (input)="update.emit({ share: +$any($event.target).value / 100 })"
-        />
-      </label>
-    }
     @if (spec().hitRate !== undefined) {
       <label class="row slider">
         <span

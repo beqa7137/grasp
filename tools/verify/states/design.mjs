@@ -66,6 +66,32 @@ const caseWidget = (id, reached, widget, pick) => async (p) => {
   await settle(p);
 };
 
+/** Attachments Everywhere solved with an object store, so the sidebar shows the cleared mission. */
+const clearAttachments = async (p) => {
+  const design = {
+    nodes: [
+      { id: 'users', kind: 'client', x: 70, y: 240, instances: 1 },
+      { id: 'lb', kind: 'lb', x: 250, y: 240, instances: 2 },
+      { id: 'app', kind: 'app', x: 430, y: 240, instances: 9 },
+      { id: 'db', kind: 'db', x: 700, y: 240, instances: 2 },
+      { id: 'objects', kind: 'blob', x: 430, y: 400, instances: 1 },
+    ],
+    edges: [
+      { from: 'users', to: 'lb' },
+      { from: 'lb', to: 'app' },
+      { from: 'app', to: 'db' },
+      { from: 'app', to: 'objects' },
+    ],
+  };
+  await p.evaluate(
+    (value) => localStorage.setItem('CapacitorStorage.grasp.design.mail-attachments', value),
+    JSON.stringify({ design, workload: { rps: 10_000, readRatio: 0.3, objectShare: 0.5 } }),
+  );
+  await p.reload();
+  await p.getByRole('heading', { name: 'Scenario cleared' }).waitFor();
+  await settle(p);
+};
+
 /** The Design Lab, case studies with their builds and widgets, and design lessons. */
 export function designStates() {
   return [
@@ -73,6 +99,11 @@ export function designStates() {
     { id: 'sandbox', path: '/design/first-scale-up' },
     { id: 'sandbox-inspector', path: '/design/first-scale-up', setup: (p) => answerFirst(p, '.palette .tool') },
     { id: 'sandbox-leaderboard', path: '/design/leaderboard-budget' },
+    { id: 'sandbox-attachments', path: '/design/mail-attachments' },
+    { id: 'sandbox-attachments-cleared', path: '/design/mail-attachments', setup: clearAttachments },
+    { id: 'sandbox-ledger', path: '/design/ledger-month-end' },
+    { id: 'sandbox-ledger-revisit', path: '/design/ledger-month-end?revisit=1' },
+    { id: 'sandbox-deploy-wave', path: '/design/deploy-wave' },
     { id: 'sandbox-free', path: '/design/free-build' },
     { id: 'case-study', path: '/design/case/url-shortener' },
     {

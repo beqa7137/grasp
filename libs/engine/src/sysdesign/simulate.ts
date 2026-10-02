@@ -1,17 +1,8 @@
-import { COMPONENTS, monthlyCost } from './catalog.js';
+import { COMPONENTS, DEFAULT_OBJECT_SHARE, monthlyCost } from './catalog.js';
 import { fmt } from './scenario-catalog.js';
-import type {
-  ComponentKind,
-  Design,
-  DesignNode,
-  Insight,
-  NodeStats,
-  NodeStatus,
-  ShardKey,
-  ShardStats,
-  SimResult,
-  Workload,
-} from './types.js';
+import { addInsights, dedupe, rank } from './sim-insights.js';
+import { available, shardShares } from './shards.js';
+import type { ComponentKind, Design, DesignNode, Insight, NodeStats, NodeStatus, ShardStats, SimResult, Workload } from './types.js';
 
 interface Flow {
   read: number;
@@ -49,36 +40,10 @@ const INTERNET_RTT_MS = 40;
 const EDGE_RTT_MS = 10;
 const CDN_ORIGIN_MS = 30;
 const REPLICATION_COST = 1;
-const SPOF_KINDS: ComponentKind[] = ['limiter', 'lb', 'app', 'cache', 'queue'];
 /** Share of bot traffic a rate limiter rejects; the rest stays under quota by spreading over many IPs. */
 export const BOT_BLOCK_RATE = 0.98;
-const TENANT_SHARE = 0.4;
-const TIME_RECENT_READS = 0.6;
-
 const zero = (): Flow => ({ read: 0, write: 0, bg: 0, repl: 0, bot: 0 });
 const total = (f: Flow) => f.read + f.write + f.bg + f.repl + f.bot;
-
-/** Fraction of reads and writes each shard receives under a shard key, hottest shard first. */
-export function shardShares(key: ShardKey, shards: number): { read: number[]; write: number[] } {
-  if (shards <= 1) return { read: [1], write: [1] };
-  const rest = (share: number) => Array.from({ length: shards - 1 }, () => (1 - share) / (shards - 1));
-  switch (key) {
-    case 'hash': {
-      const even = Array.from({ length: shards }, () => 1 / shards);
-      return { read: even, write: [...even] };
-    }
-    case 'time':
-      return { read: [TIME_RECENT_READS, ...rest(TIME_RECENT_READS)], write: [1, ...rest(1)] };
-    case 'tenant': {
-      const shares = [TENANT_SHARE, ...rest(TENANT_SHARE)].sort((x, y) => y - x);
-      return { read: shares, write: [...shares] };
-    }
-  }
-}
-
-export function available(node: DesignNode): number {
-  return Math.max(0, node.instances - (node.failed ?? 0));
-}
 
 export function simulate(design: Design, workload: Workload): SimResult {
   const byId = new Map(design.nodes.map((n) => [n.id, n]));
@@ -109,6 +74,7 @@ export function simulate(design: Design, workload: Workload): SimResult {
   let bgFailures = 0;
   let durableWrites = 0;
   let volatileWrites = 0;
+  let queuedWrites = 0;
   let botsBlocked = 0;
 
   const clients = design.nodes.filter((n) => n.kind === 'client');
@@ -122,8 +88,11 @@ export function simulate(design: Design, workload: Workload): SimResult {
     f.bot += offeredBots / clients.length;
   }
 
-  const send = (from: DesignNode, to: DesignNode, flow: Partial<Flow>) => {
+  const objectsIn = new Map<string, number>();
+  /** `carry` is the share of the read, write and job traffic sent that are whole objects. */
+  const send = (from: DesignNode, to: DesignNode, flow: Partial<Flow>, carry = 0) => {
     const target = inflow.get(to.id)!;
+    objectsIn.set(to.id, (objectsIn.get(to.id) ?? 0) + ((flow.read ?? 0) + (flow.write ?? 0) + (flow.bg ?? 0)) * carry);
     target.read += flow.read ?? 0;
     target.write += flow.write ?? 0;
     target.bg += flow.bg ?? 0;
@@ -158,6 +127,8 @@ export function simulate(design: Design, workload: Workload): SimResult {
     const spec = COMPONENTS[node.kind];
     const f = inflow.get(node.id)!;
     const avail = clientFed.has(node.id) ? Math.min(1, available(node)) : available(node);
+    const sized = f.read + f.write + f.bg;
+    const objectFrac = node.kind === 'client' ? (workload.objectShare ?? 0) : sized > 0 ? (objectsIn.get(node.id) ?? 0) / sized : 0;
     const capacity = node.kind === 'client' ? Number.POSITIVE_INFINITY : avail * spec.capacityRps;
     const load = f.read + f.bot + (f.write + f.bg) * spec.writeCost + f.repl * REPLICATION_COST;
     const pressure = node.kind === 'db' ? shardPressure(node, f) : poolPressure(spec.baseLatencyMs, load, capacity);
@@ -184,7 +155,7 @@ export function simulate(design: Design, workload: Workload): SimResult {
     let unrouted = 0;
     let unroutedBots = 0;
 
-    const forward = (type: Forwarded, amount: number, targets: DesignNode[], base: number) => {
+    const forward = (type: Forwarded, amount: number, targets: DesignNode[], base: number, carry = objectFrac) => {
       if (amount <= 0 || base <= 0) return;
       if (targets.length === 0) {
         if (type === 'bot') unroutedBots += amount;
@@ -201,13 +172,13 @@ export function simulate(design: Design, workload: Workload): SimResult {
         const replicas = readLike && t.kind === 'db' ? kidsOf.get(t.id)!.filter((k) => k.kind === 'replica') : [];
         const slots = replicas.reduce((sum, r) => sum + available(r), 0);
         if (slots === 0) {
-          send(node, t, { [type]: share });
+          send(node, t, { [type]: share }, carry);
           track(t.id, share / base, hopMs(node, t));
           return;
         }
         // Read routing (driver/proxy) spreads reads over every primary (one per shard) and the live replicas.
         const primary = (share * t.instances) / (t.instances + slots);
-        send(node, t, { [type]: primary });
+        send(node, t, { [type]: primary }, carry);
         track(t.id, primary / base, hopMs(node, t));
         for (const r of replicas) {
           const part = (share - primary) * (available(r) / slots);
@@ -217,6 +188,23 @@ export function simulate(design: Design, workload: Workload): SimResult {
           track(r.id, part / base, hopMs(node, t));
         }
       });
+    };
+    /**
+     * Object stores take the whole objects in this node's traffic and nothing else; the rest leaves without objects.
+     * Boards saved before the workload named its object share split by instance count, and still do.
+     */
+    const objectSplit = (targets: DesignNode[]) => {
+      const stores = targets.filter((t) => t.kind === 'blob');
+      const w = weights(targets);
+      const legacy = targets.reduce((sum, t, i) => sum + (t.kind === 'blob' ? w[i] : 0), 0);
+      const objects = !stores.length ? 0 : workload.objectShare === undefined ? legacy : objectFrac;
+      return {
+        stores,
+        others: targets.filter((t) => t.kind !== 'blob'),
+        objects,
+        records: 1 - objects,
+        carry: stores.length ? 0 : objectFrac,
+      };
     };
     const terminate = (type: ReqType, amount: number, base: number) => {
       if (amount <= 0 || base <= 0) return;
@@ -241,8 +229,11 @@ export function simulate(design: Design, workload: Workload): SimResult {
       case 'cdn': {
         const h = node.hitRate ?? spec.hitRate ?? 0;
         terminate('read', served.read * h, served.read);
-        forward('read', served.read * (1 - h), kids, served.read);
-        forward('write', served.write, kids, served.write);
+        const { stores, others, objects, records, carry } = objectSplit(kids);
+        forward('read', served.read * (1 - h) * objects, stores, served.read);
+        forward('read', served.read * (1 - h) * records, others, served.read, carry);
+        forward('write', served.write * objects, stores, served.write);
+        forward('write', served.write * records, others, served.write, carry);
         forwardBots(kids);
         break;
       }
@@ -257,20 +248,21 @@ export function simulate(design: Design, workload: Workload): SimResult {
       }
       case 'app': {
         const blobs = ofKind('blob');
-        const objects = blobs.length ? (blobs[0].share ?? COMPONENTS.blob.share ?? 0) : 0;
+        const objects = blobs.length ? (workload.objectShare === undefined ? DEFAULT_OBJECT_SHARE : objectFrac) : 0;
         const rest = 1 - objects;
+        const carry = blobs.length ? 0 : objectFrac;
         forward('read', served.read * objects, blobs, served.read);
         forward('write', served.write * objects, blobs, served.write);
         const readTargets = ofKind('cache').length ? ofKind('cache') : ofKind('db');
         const writeTargets = ofKind('queue').length ? ofKind('queue') : ofKind('db').length ? ofKind('db') : ofKind('cache');
         if (readTargets.length) {
-          forward('read', served.read * rest, readTargets, served.read);
+          forward('read', served.read * rest, readTargets, served.read, carry);
           forwardBots(readTargets);
         } else {
           terminate('read', served.read * rest, served.read);
           absorbBots();
         }
-        if (writeTargets.length) forward('write', served.write * rest, writeTargets, served.write);
+        if (writeTargets.length) forward('write', served.write * rest, writeTargets, served.write, carry);
         else {
           terminate('write', served.write * rest, served.write);
           volatileWrites += served.write * rest;
@@ -313,6 +305,7 @@ export function simulate(design: Design, workload: Workload): SimResult {
         absorbBots();
         terminate('write', served.write, served.write);
         durableWrites += served.write;
+        queuedWrites += served.write;
         const workers = ofKind('worker');
         const drainCapacity = workers.reduce((sum, w) => sum + available(w) * COMPONENTS.worker.capacityRps, 0);
         const incoming = served.write + served.bg;
@@ -321,7 +314,7 @@ export function simulate(design: Design, workload: Workload): SimResult {
         backlogGrowth += incoming - drain;
         if (drain > 0) {
           const w = weights(workers);
-          workers.forEach((t, i) => send(node, t, { bg: drain * w[i] }));
+          workers.forEach((t, i) => send(node, t, { bg: drain * w[i] }, objectFrac));
         }
         break;
       }
@@ -333,10 +326,24 @@ export function simulate(design: Design, workload: Workload): SimResult {
         absorbBots();
         break;
       case 'worker': {
-        const dbs = ofKind('db', 'blob');
-        if (dbs.length) {
-          const w = weights(dbs);
-          dbs.forEach((t, i) => send(node, t, { bg: served.bg * w[i] }));
+        const { stores, others: dbs, objects, records } = objectSplit(ofKind('db', 'blob'));
+        if (dbs.length || stores.length) {
+          const spread = (targets: DesignNode[], amount: number) => {
+            if (amount <= 0) return;
+            const w = weights(targets);
+            targets.forEach((t, i) => send(node, t, { bg: amount * w[i] }));
+          };
+          spread(stores, served.bg * objects);
+          spread(dbs, served.bg * records);
+          if (!dbs.length && served.bg * records > 0) {
+            bgFailures += served.bg * records;
+            insights.push({
+              severity: 'critical',
+              nodeId: node.id,
+              title: 'Workers have no database for records',
+              detail: `An object store keeps whole objects by key, with no queries, so it takes only the ${Math.round(objects * 100)}% of jobs that are objects. Connect the workers to the primary database for the rest.`,
+            });
+          }
         } else if (served.bg > 0) {
           bgFailures += served.bg;
           insights.push({
@@ -453,6 +460,7 @@ export function simulate(design: Design, workload: Workload): SimResult {
       backlogGrowthPerSec: backlogGrowth,
       queueDrainRps: queueDrain,
       durableWriteRatio: durableWrites + volatileWrites > 0 ? durableWrites / (durableWrites + volatileWrites) : 1,
+      queuedWriteRps: queuedWrites,
       botRps: clients.length ? offeredBots : 0,
       botsBlockedRps: botsBlocked,
     },
@@ -551,213 +559,4 @@ export function percentile(paths: PathOutcome[], q: number): number {
     else hi = mid;
   }
   return Math.round(hi * 10) / 10;
-}
-
-function addInsights(
-  design: Design,
-  stats: Record<string, NodeStats>,
-  insights: Insight[],
-  workload: Workload,
-  ctx: {
-    backlogGrowth: number;
-    bgFailures: number;
-    volatileWrites: number;
-    durableWrites: number;
-    clients: number;
-    clientFed: Set<string>;
-    offeredBots: number;
-    botsBlocked: number;
-  },
-) {
-  if (ctx.clients === 0) {
-    insights.push({
-      severity: 'critical',
-      title: 'No traffic source',
-      detail: 'Add the Users node so requests have somewhere to come from.',
-    });
-  }
-
-  for (const n of design.nodes) {
-    const st = stats[n.id];
-    const spec = COMPONENTS[n.kind];
-    const pct = Math.round(st.utilization * 100);
-    const hasLoad = st.loadOps > 0;
-
-    if (st.status === 'down' && n.kind !== 'client') {
-      insights.push({
-        severity: hasLoad ? 'critical' : 'warning',
-        nodeId: n.id,
-        title: `${spec.name} is down`,
-        detail: hasLoad
-          ? `Every request routed here fails. Redundancy (2+ instances, or a replica for the database) lets traffic fail over.`
-          : 'No traffic depends on it right now.',
-      });
-      continue;
-    }
-
-    if (st.status === 'overloaded') {
-      insights.push({ severity: 'critical', nodeId: n.id, title: `${spec.name} overloaded (${pct}%)`, detail: overloadAdvice(n.kind, st) });
-    } else if (st.status === 'hot' && !(n.kind === 'worker' && ctx.backlogGrowth > 0)) {
-      insights.push({
-        severity: 'warning',
-        nodeId: n.id,
-        title: `${spec.name} running hot (${pct}%)`,
-        detail:
-          'Queueing delay grows like 1/(1−ρ): at 80% utilization waits are 5× the service time, at 95% they are 20×. Keep headroom for spikes.',
-      });
-    }
-
-    if (hasLoad && SPOF_KINDS.includes(n.kind) && available(n) === 1) {
-      insights.push({
-        severity: 'warning',
-        nodeId: n.id,
-        title: `Single point of failure: ${spec.name}`,
-        detail: `Only one ${spec.short} instance. If it fails, everything behind it goes dark. Run at least 2.`,
-      });
-    }
-
-    if (n.kind === 'db' && hasLoad) dbInsights(design, n, st, insights);
-  }
-
-  if (ctx.backlogGrowth > 1) {
-    insights.push({
-      severity: 'warning',
-      title: `Queue backlog growing ${fmt(ctx.backlogGrowth)} jobs/s`,
-      detail:
-        'Writes are accepted faster than workers drain them. Fine for a short spike; for sustained load add workers (and make sure the DB can take their writes).',
-    });
-  }
-  if (ctx.bgFailures > 1) {
-    insights.push({
-      severity: 'critical',
-      title: 'Background writes are failing',
-      detail: `${fmt(ctx.bgFailures)} jobs/s fail downstream of the queue. They will be retried, but the backlog will keep growing.`,
-    });
-  }
-
-  for (const n of design.nodes) {
-    if (ctx.clientFed.has(n.id) && n.instances > 1) {
-      insights.push({
-        severity: 'warning',
-        nodeId: n.id,
-        title: `Users can only reach one of ${n.instances} app servers`,
-        detail:
-          'Clients connect to a single address, so the extra instances sit idle. Put a load balancer in front: it spreads traffic and stops sending requests to dead servers.',
-      });
-    }
-  }
-  const botsThrough = ctx.offeredBots - ctx.botsBlocked;
-  const appBots = design.nodes.filter((n) => n.kind === 'app').reduce((sum, n) => sum + stats[n.id].botRps, 0);
-  if (ctx.offeredBots > 0 && botsThrough > ctx.offeredBots * 0.5 && appBots > 0) {
-    const appLoad = design.nodes.filter((n) => n.kind === 'app').reduce((sum, n) => sum + stats[n.id].loadOps, 0);
-    insights.push({
-      severity: 'warning',
-      title: `Bots are ${Math.round((appBots / Math.max(1, appLoad)) * 100)}% of your app traffic`,
-      detail:
-        'Scrapers and credential stuffers request long-tail, cache-busting URLs, so every bot request misses the CDN and the cache and lands on the database. Stop them at the edge: a rate limiter rejects clients over quota with 429 before they cost you anything.',
-    });
-  }
-
-  const hasCdn = design.nodes.some((n) => n.kind === 'cdn');
-  if (!hasCdn && workload.readRatio >= 0.9 && workload.rps >= 20_000) {
-    insights.push({
-      severity: 'tip',
-      title: 'Consider a CDN',
-      detail:
-        'Read-heavy traffic at this scale usually has cacheable content. A CDN removes it from your origin and cuts ~30 ms of round-trip for users.',
-    });
-  }
-}
-
-function dbInsights(design: Design, n: DesignNode, st: NodeStats, insights: Insight[]) {
-  const replicas = design.edges
-    .filter((e) => e.from === n.id)
-    .map((e) => design.nodes.find((x) => x.id === e.to))
-    .filter((x) => x?.kind === 'replica')
-    .reduce((sum, r) => sum + available(r!), 0);
-  const shards = n.instances;
-  if (replicas < shards) {
-    insights.push({
-      severity: 'warning',
-      nodeId: n.id,
-      title: `Single point of failure: ${COMPONENTS.db.name}`,
-      detail:
-        shards === 1
-          ? 'One primary with no replica: if it dies, you lose reads and writes until it is restored. Add a replica for failover.'
-          : `${shards} shards but only ${replicas} replica${replicas === 1 ? '' : 's'}: a shard without a replica loses its keys when its primary dies. Give every shard a replica.`,
-    });
-  }
-  if (!st.shards) return;
-
-  const down = st.shards.filter((x) => x.down).length;
-  if (down > 0 && down < shards) {
-    const shares = shardShares(n.shardKey ?? 'hash', shards);
-    const lost = shares.read.slice(shards - down).reduce((a, b) => a + b, 0);
-    insights.push({
-      severity: 'critical',
-      nodeId: n.id,
-      title: `${down} of ${shards} shards down`,
-      detail: `Keys that live on a failed shard are unavailable until it is restored (~${Math.round(lost * 100)}% of reads fail). Other shards cannot take over their data; a per-shard replica can.`,
-    });
-  }
-
-  const live = st.shards.filter((x) => !x.down).map((x) => x.utilization);
-  const mean = live.reduce((a, b) => a + b, 0) / Math.max(1, live.length);
-  const hottest = Math.max(0, ...live);
-  if (live.length > 1 && hottest > 0.8 && hottest > mean * 1.5) {
-    const key = n.shardKey ?? 'hash';
-    insights.push({
-      severity: hottest > 1 ? 'critical' : 'warning',
-      nodeId: n.id,
-      title: `Hot shard: one shard at ${Math.round(hottest * 100)}%, average ${Math.round(mean * 100)}%`,
-      detail:
-        key === 'time'
-          ? 'Range-partitioning by created_at sends every new write to the newest shard while the others sit idle. Shard by a hash of a high-cardinality key (e.g. conversation_id) to spread writes.'
-          : 'One tenant is 40% of all traffic, so its shard never drops below 40% of the load no matter how many shards you add. Shard by a key with more spread (a hash of conversation_id), or split the big tenant across shards.',
-    });
-  }
-}
-
-function overloadAdvice(kind: ComponentKind, st: NodeStats): string {
-  switch (kind) {
-    case 'app':
-      return 'Scale horizontally: add instances. App servers are stateless, so any instance can serve any request.';
-    case 'db': {
-      const readShare = st.readRps / Math.max(1, st.loadOps);
-      return readShare > 0.5
-        ? `Reads are ${Math.round(readShare * 100)}% of DB load. Put a cache in front, or add read replicas.`
-        : 'Writes dominate. You cannot replicate your way out of write load: buffer short spikes through a queue, and shard the data (add instances) for sustained write load.';
-    }
-    case 'replica':
-      return 'Add more replicas, but remember each replica also replays every write.';
-    case 'cache':
-      return 'Add cache nodes (sharded by key) or raise the hit rate with longer TTLs.';
-    case 'lb':
-      return 'Add LB instances.';
-    case 'limiter':
-      return 'Add rate limiter instances; they share counters, so quotas stay per client.';
-    case 'worker':
-      return 'Add workers to drain the queue faster.';
-    case 'queue':
-      return 'Add queue partitions.';
-    case 'blob':
-      return 'Spread keys over more prefixes (object stores scale per prefix), or put a CDN in front for reads.';
-    default:
-      return 'Add capacity.';
-  }
-}
-
-function dedupe(list: Insight[]): Insight[] {
-  const seen = new Set<string>();
-  return list.filter((i) => {
-    const k = `${i.nodeId ?? ''}|${i.title}`;
-    if (seen.has(k)) return false;
-    seen.add(k);
-    return true;
-  });
-}
-
-function rank(list: Insight[]): Insight[] {
-  const order = { critical: 0, warning: 1, tip: 2 } as const;
-  return [...list].sort((a, b) => order[a.severity] - order[b.severity]);
 }

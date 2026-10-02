@@ -12,6 +12,7 @@ import {
   type Design,
   type ShardKey,
 } from './index.js';
+import { CASE_MISSION_SOLUTIONS } from './designs.fixture.js';
 
 const n = (id: string, kind: ComponentKind, instances = 1, extra: object = {}) => ({ id, kind, x: 0, y: 0, instances, ...extra });
 const e = (...pairs: [string, string][]) => pairs.map(([from, to]) => ({ from, to }));
@@ -48,6 +49,7 @@ const SOLUTIONS: Record<string, Design> = {
   'bot-storm': botStorm(2, 5),
   'write-wall': writeWall(10, 5),
   'leaderboard-budget': leaderboard(12, 4),
+  ...Object.fromEntries(Object.entries(CASE_MISSION_SOLUTIONS).filter(([key]) => !key.includes(':'))),
 };
 
 function botStorm(limiters: number, apps: number): Design {
@@ -274,6 +276,7 @@ const VARIANT_SOLUTIONS: Record<string, Design> = {
     nodes: [n('u', 'client'), n('lb', 'lb', 2), n('app', 'app', 10), n('c', 'cache'), n('db', 'db'), n('q', 'queue'), n('w', 'worker')],
     edges: e(['u', 'lb'], ['lb', 'app'], ['app', 'c'], ['c', 'db'], ['app', 'q'], ['q', 'w'], ['w', 'db']),
   },
+  ...Object.fromEntries(Object.entries(CASE_MISSION_SOLUTIONS).filter(([key]) => key.includes(':'))),
 };
 
 describe('mission revisit variants', () => {
@@ -349,7 +352,7 @@ describe('simulate', () => {
   it('failed instances reduce capacity and a fully failed node fails its traffic', () => {
     const d = structuredClone(basic);
     d.nodes[3].failed = 1;
-    const r = simulate(d, { rps: 1000, readRatio: 0.8 });
+    const r = simulate(d, { rps: 1000, readRatio: 0.8, objectShare: 0.4 });
     expect(r.nodes['d'].status).toBe('down');
     expect(r.metrics.errorRate).toBeCloseTo(1);
   });
@@ -505,10 +508,10 @@ describe('canConnect', () => {
 describe('object store', () => {
   it('takes its share of app reads and writes and keeps those writes durable', () => {
     const d: Design = {
-      nodes: [n('u', 'client'), n('lb', 'lb'), n('a', 'app', 2), n('o', 'blob', 1, { share: 0.4 }), n('d', 'db')],
+      nodes: [n('u', 'client'), n('lb', 'lb'), n('a', 'app', 2), n('o', 'blob'), n('d', 'db')],
       edges: e(['u', 'lb'], ['lb', 'a'], ['a', 'o'], ['a', 'd']),
     };
-    const r = simulate(d, { rps: 1000, readRatio: 0.8 });
+    const r = simulate(d, { rps: 1000, readRatio: 0.8, objectShare: 0.4 });
     expect(r.metrics.errorRate).toBe(0);
     expect(r.nodes['o'].readRps).toBeCloseTo(320);
     expect(r.nodes['o'].writeRps).toBeCloseTo(80);

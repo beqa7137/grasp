@@ -236,6 +236,19 @@
                   (input)="setBotRps(+$any($event.target).value)"
                 />
               </label>
+              <label>
+                <span
+                  >Files <strong class="mono">{{ (workload().objectShare ?? defaultObjectShare) * 100 | number: '1.0-0' }}%</strong></span
+                >
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  [value]="(workload().objectShare ?? defaultObjectShare) * 100"
+                  (input)="setObjectShare(+$any($event.target).value)"
+                />
+              </label>
             </div>
           }
         </section>
@@ -299,6 +312,9 @@
                 Mission · {{ fmt(s.workload.rps) }} rps · {{ s.workload.readRatio * 100 | number: '1.0-0' }}% reads
                 @if (s.workload.botRps) {
                   · +{{ fmt(s.workload.botRps) }} bot rps
+                }
+                @if (s.workload.objectShare) {
+                  · {{ s.workload.objectShare * 100 | number: '1.0-0' }}% files
                 }
               </p>
               <p class="brief">{{ s.brief }}</p>

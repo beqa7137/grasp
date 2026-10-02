@@ -38,6 +38,9 @@ import { FREE_BUILD } from './free-build';
                 <div class="chips">
                   <span class="chip mono">{{ fmt(s.workload.rps) }} rps</span>
                   <span class="chip mono">{{ s.workload.readRatio * 100 | number: '1.0-0' }}% reads</span>
+                  @if (s.workload.objectShare) {
+                    <span class="chip mono">{{ s.workload.objectShare * 100 | number: '1.0-0' }}% files</span>
+                  }
                   <span class="chip mono">p99 ≤ {{ s.goals.maxP99Ms }} ms</span>
                   <span class="chip mono">≤ \${{ fmt(s.goals.maxMonthlyCost) }}/mo</span>
                 </div>

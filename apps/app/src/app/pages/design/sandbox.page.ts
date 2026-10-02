@@ -17,6 +17,7 @@ import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, Io
 import { Preferences } from '@capacitor/preferences';
 import {
   COMPONENTS,
+  DEFAULT_OBJECT_SHARE,
   PALETTE,
   canConnect,
   createNode,
@@ -25,11 +26,13 @@ import {
   getCaseLab,
   getCaseSummary,
   getScenario,
+  migrateSavedDesign,
   scenarioVariant,
   simulate,
   type ComponentKind,
   type Design,
   type DesignNode,
+  type SavedDesign,
   type Scenario,
   type Workload,
 } from '@grasp/engine';
@@ -127,6 +130,7 @@ export class SandboxPage {
   readonly palette = PALETTE.map((k) => COMPONENTS[k]);
   readonly specs = COMPONENTS;
   readonly fmt = fmt;
+  readonly defaultObjectShare = DEFAULT_OBJECT_SHARE;
 
   /** A case study's reference build, opened as a free build under the load the case estimates. */
   protected readonly caseBuild = computed<Scenario | undefined>(() => {
@@ -385,7 +389,7 @@ export class SandboxPage {
     this.loaded.set(false);
     this.placedView = false;
     const { value } = await Preferences.get({ key: this.storageKey() });
-    const saved = value ? (JSON.parse(value) as { design: Design; workload: Workload }) : null;
+    const saved = value ? migrateSavedDesign(JSON.parse(value) as SavedDesign) : null;
     this.design.set(saved?.design ?? structuredClone(s.starter));
     this.workload.set(this.isFree() && saved ? saved.workload : s.workload);
     this.celebrated.set(false);
@@ -504,6 +508,10 @@ export class SandboxPage {
 
   setBotRps(rps: number) {
     this.workload.update((w) => ({ ...w, botRps: rps }));
+  }
+
+  setObjectShare(pct: number) {
+    this.workload.update((w) => ({ ...w, objectShare: pct / 100 }));
   }
 
   showHint() {

@@ -132,16 +132,18 @@ export const COMPONENTS: Record<ComponentKind, ComponentSpec> = {
     name: 'Object Store',
     short: 'Objects',
     description:
-      'Managed, durable storage for whole files, images and video segments (S3-like). Takes the share of app requests that fetch or upload objects, ~25 ms to the first byte, and scales far past a database. It stores bytes by key: no queries, no transactions.',
+      'Managed, durable storage for whole files, images and video segments (S3-like). Takes the requests that upload or fetch whole files, ~25 ms to the first byte, and scales far past a database. It stores bytes by key: no queries, no transactions.',
     capacityRps: 100_000,
     baseLatencyMs: 25,
     monthlyCost: 500,
     maxInstances: 1,
     writeCost: 1,
-    share: 0.3,
     connectsTo: [],
   },
 };
+
+/** The workload's object share when it names none. */
+export const DEFAULT_OBJECT_SHARE = 0.3;
 
 export const PALETTE: ComponentKind[] = ['cdn', 'limiter', 'lb', 'app', 'cache', 'db', 'replica', 'blob', 'queue', 'worker'];
 
@@ -198,7 +200,6 @@ export function createNode(design: Design, kind: ComponentKind, x: number, y: nu
     y,
     instances: 1,
     ...(spec.hitRate !== undefined ? { hitRate: spec.hitRate } : {}),
-    ...(spec.share !== undefined ? { share: spec.share } : {}),
   };
 }
 

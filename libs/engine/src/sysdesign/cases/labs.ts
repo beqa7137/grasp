@@ -123,7 +123,7 @@ export const CASE_LABS: Record<string, CaseLab> = {
         n('cache', 'cache', 610, 110, 2, { hitRate: 0.8 }),
         n('queue', 'queue', 610, 370, 2, { label: 'Frontier' }),
         n('worker', 'worker', 790, 380, 2, { label: 'Fetchers' }),
-        n('pages', 'blob', 430, 400, 1, { share: 0, label: 'Page store' }),
+        n('pages', 'blob', 430, 400, 1, { label: 'Page store' }),
         n('db', 'db', 790, 240, 4, { shardKey: 'hash' }),
         n('replica', 'replica', 790, 100, 4),
       ],
@@ -145,7 +145,7 @@ export const CASE_LABS: Record<string, CaseLab> = {
         n('cache', 'cache', 640, 100, 2, { hitRate: 0.9 }),
         n('replica', 'replica', 790, 80, 2),
         n('db', 'db', 790, 240, 2, { shardKey: 'hash' }),
-        n('segments', 'blob', 370, 400, 1, { share: 0, label: 'Segments' }),
+        n('segments', 'blob', 370, 400, 1, { label: 'Segments' }),
         n('queue', 'queue', 640, 380, 2, { label: 'Upload jobs' }),
         n('worker', 'worker', 790, 380, 2, { label: 'Transcoders' }),
       ],
@@ -262,7 +262,7 @@ export const CASE_LABS: Record<string, CaseLab> = {
     },
   },
   'file-sync': {
-    workload: { rps: 60_000, readRatio: 0.9 },
+    workload: { rps: 60_000, readRatio: 0.9, objectShare: 0.5 },
     design: {
       nodes: [
         n('devices', 'client', 70, 240),
@@ -271,7 +271,7 @@ export const CASE_LABS: Record<string, CaseLab> = {
         n('app', 'app', 520, 240, 32, { label: 'Metadata API' }),
         n('cache', 'cache', 650, 100, 2, { hitRate: 0.85 }),
         n('db', 'db', 790, 240, 4, { shardKey: 'hash', label: 'Metadata' }),
-        n('blocks', 'blob', 520, 400, 1, { share: 0.5, label: 'Block store' }),
+        n('blocks', 'blob', 520, 400, 1, { label: 'Block store' }),
         n('replica', 'replica', 790, 390, 4),
       ],
       edges: [...chain('devices', 'cdn', 'lb', 'app', 'cache', 'db', 'replica'), { from: 'app', to: 'db' }, { from: 'app', to: 'blocks' }],
@@ -440,7 +440,7 @@ export const CASE_LABS: Record<string, CaseLab> = {
     },
   },
   'code-deployment': {
-    workload: { rps: 2_500, readRatio: 0.66 },
+    workload: { rps: 2_500, readRatio: 0.66, objectShare: 0.3 },
     design: {
       nodes: [
         n('agents', 'client', 70, 240, 1, { label: 'Host agents' }),

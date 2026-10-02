@@ -28,7 +28,12 @@ export const SD_TOPICS: SdTopic[] = [
     oneLiner: "What replicas fix, and what they don't.",
     scenarioIds: ['viral-feed'],
   },
-  { id: 'sd-queues', name: 'Queues & Async Work', oneLiner: 'Absorbing spikes and sizing consumers.', scenarioIds: ['flash-sale'] },
+  {
+    id: 'sd-queues',
+    name: 'Queues & Async Work',
+    oneLiner: 'Absorbing spikes and sizing consumers.',
+    scenarioIds: ['flash-sale', 'deploy-wave'],
+  },
   {
     id: 'sd-rate-limiting',
     name: 'Rate Limiting & Abuse',
@@ -39,7 +44,7 @@ export const SD_TOPICS: SdTopic[] = [
     id: 'sd-sharding',
     name: 'Sharding & Partitioning',
     oneLiner: 'Scaling writes, choosing a shard key and avoiding hot shards.',
-    scenarioIds: ['write-wall'],
+    scenarioIds: ['write-wall', 'ledger-month-end'],
   },
   {
     id: 'sd-consistency',
@@ -106,7 +111,7 @@ export const SD_TOPICS: SdTopic[] = [
     id: 'sd-transactions',
     name: 'Distributed Transactions',
     oneLiner: 'Two-phase commit, sagas and the transactional outbox.',
-    scenarioIds: ['flash-sale'],
+    scenarioIds: ['flash-sale', 'ledger-month-end'],
   },
   {
     id: 'sd-batch',
@@ -130,13 +135,13 @@ export const SD_TOPICS: SdTopic[] = [
     id: 'sd-data-modeling',
     name: 'Data Modeling',
     oneLiner: 'Modeling from access patterns: normalize, denormalize, and what each costs.',
-    scenarioIds: ['viral-feed'],
+    scenarioIds: ['viral-feed', 'mail-attachments'],
   },
   {
     id: 'sd-overload',
     name: 'Backpressure & Load Shedding',
     oneLiner: 'Bounded queues, deadlines and retries when traffic outruns capacity.',
-    scenarioIds: ['flash-sale'],
+    scenarioIds: ['flash-sale', 'deploy-wave'],
   },
   {
     id: 'sd-locks',
@@ -166,7 +171,7 @@ export const SD_TOPICS: SdTopic[] = [
     id: 'sd-durability',
     name: 'Durability & Erasure Coding',
     oneLiner: 'Replicas or erasure codes: nines of durability, storage overhead and repair traffic.',
-    scenarioIds: ['write-wall'],
+    scenarioIds: ['write-wall', 'mail-attachments'],
   },
   {
     id: 'sd-recovery',
