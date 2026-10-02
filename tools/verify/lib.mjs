@@ -3,7 +3,7 @@ import { randomInt, randomUUID } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 
 const require = createRequire(new URL('../../e2e/package.json', import.meta.url));
-export const { chromium, devices } = require('@playwright/test');
+export const { chromium, devices, webkit } = require('@playwright/test');
 export const AxeBuilder = require('@axe-core/playwright').default;
 export const { PNG } = require('playwright-core/lib/utilsBundle');
 
@@ -13,17 +13,37 @@ mkdirSync(OUT, { recursive: true });
 
 export const PROFILES = {
   desktop: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 1000 } },
+  w1024: { ...devices['Desktop Chrome'], viewport: { width: 1024, height: 768 } },
   pixel7: { ...devices['Pixel 7'] },
   w320: { ...devices['Pixel 7'], viewport: { width: 320, height: 700 } },
+  ipad: { ...devices['iPad Mini'] },
 };
+
+/** Chromium from CHROMIUM_PATH when set; WebKit from the Playwright install (PLAYWRIGHT_BROWSERS_PATH). */
+export const launch = (type = 'chromium') =>
+  ({ chromium, webkit })[type].launch(type === 'chromium' ? { executablePath: process.env.CHROMIUM_PATH || undefined } : {});
 
 /** THEME: 'dark' or 'light' stores that preference; 'system-dark' or 'system-light' stores none and emulates the device mode. */
 export const THEME = process.env.THEME ?? 'dark';
 const SYSTEM_SCHEME = THEME.startsWith('system-') ? THEME.slice('system-'.length) : null;
 /** STABLE=1: seeded Math.random, counter UUIDs and a fixed clock, so two captures of one build match pixel for pixel. */
-const STABLE = process.env.STABLE === '1';
+export const STABLE = process.env.STABLE === '1';
 /** Selectors hidden with their layout kept, for values no init script reaches, such as worker timings. */
-const MASK_CSS = process.env.MASK_CSS;
+export const MASK_CSS = process.env.MASK_CSS;
+
+/**
+ * Motion test mode (3.5): `data-motion="off"` on <html>, so every animation jumps to its end state. Init scripts run
+ * before <html> exists; the observer's callback runs at the microtask checkpoint before the first parser-blocking script.
+ */
+export function motionOff() {
+  const mark = () => document.documentElement?.setAttribute('data-motion', 'off');
+  if (document.documentElement) return mark();
+  new MutationObserver((_, observer) => {
+    if (!document.documentElement) return;
+    mark();
+    observer.disconnect();
+  }).observe(document, { childList: true });
+}
 
 export async function newContext(browser, profile, { noticeSeen = true, extra = {} } = {}) {
   const context = await browser.newContext({ ...PROFILES[profile], ...(SYSTEM_SCHEME ? { colorScheme: SYSTEM_SCHEME } : {}), ...extra });
@@ -34,6 +54,7 @@ export async function newContext(browser, profile, { noticeSeen = true, extra = 
       localStorage.setItem('CapacitorStorage.grasp.learnerId', learnerId);
     }
   }, randomUUID());
+  await context.addInitScript(motionOff);
   if (!SYSTEM_SCHEME) await context.addInitScript((theme) => localStorage.setItem('CapacitorStorage.grasp.theme', theme), THEME);
   if (MASK_CSS) {
     await context.addInitScript((css) => {

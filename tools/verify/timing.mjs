@@ -1,7 +1,7 @@
 // First paint and first tap on a throttled phone (Pixel 7, Fast 3G, 4x CPU, cold cache), builds interleaved, median of RUNS.
 // TARGETS=base=http://localhost:4621,now=http://localhost:4622 [RUNS=5] node tools/verify/timing.mjs
 // Writes are blocked, so a production URL is safe to time.
-import { chromium, devices, readOnly } from './lib.mjs';
+import { devices, launch, readOnly } from './lib.mjs';
 
 const TARGETS = Object.fromEntries(
   (process.env.TARGETS ?? '')
@@ -50,7 +50,7 @@ const median = (xs) => {
   return Math.round(s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2);
 };
 
-const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
+const browser = await launch();
 const labels = Object.keys(TARGETS);
 for (const tap of TAPS) {
   const runs = Object.fromEntries(labels.map((l) => [l, []]));
