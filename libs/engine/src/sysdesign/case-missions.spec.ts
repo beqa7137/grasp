@@ -310,6 +310,23 @@ describe('the object share in the workload', () => {
     expect(legacyObjectShare(idleFirst, simulate(idleFirst, { rps: 1_000, readRatio: 0.5 }).nodes)).toBe(0.7);
     expect(legacyObjectShare(idleFirst)).toBe(0.5);
 
+    // A down app still takes in what is routed to it, but serves none of it.
+    const downFirst = board(
+      [
+        ['c1', 'client'],
+        ['c2', 'client'],
+        ['appDown', 'app', 4, { failed: 4 }],
+        ['appLive', 'app'],
+        ['db', 'db'],
+        ['blobA', 'blob', 1, { share: 0.5 }],
+        ['blobB', 'blob', 1, { share: 0.7 }],
+      ],
+      ['c1>appDown', 'c2>appLive', 'appDown>blobA', 'appDown>db', 'appLive>blobB', 'appLive>db'],
+    );
+    const downRun = simulate(downFirst, { rps: 1_000, readRatio: 0.5 });
+    expect(downRun.nodes['appDown'].status).toBe('down');
+    expect(legacyObjectShare(downFirst, downRun.nodes)).toBe(0.7);
+
     // With no app linked to a store, CDNs and workers split by instance count, which no single share describes.
     expect(legacyObjectShare(appsOnly(2))).toBeUndefined();
     for (const id of ['video-streaming', 'web-crawler']) expect(legacyObjectShare(CASE_LABS[id].design), id).toBeUndefined();

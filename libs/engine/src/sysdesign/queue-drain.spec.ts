@@ -140,6 +140,47 @@ describe('draining queues', () => {
     }
   });
 
+  it('splits nested tiers exactly, where queue i reaches workers 0 to i and every load equals every capacity', () => {
+    const pad = (i: number) => String(i).padStart(2, '0');
+    for (const n of [20, 40]) {
+      const queues = Array.from({ length: n }, (_, i) => ({
+        id: `q${pad(i)}`,
+        incoming: 1_500,
+        workers: [...Array(i + 1).keys()].map((j) => `w${pad(j)}`),
+      }));
+      const r = drainQueues(queues, () => 1_500);
+      expectServed(queues, r, `tiers ${n}`);
+      // Each tier ties with all below it, so the only split sends queue i to worker i alone.
+      for (const [i, q] of queues.entries()) expect([...r.flows.get(q.id)!.keys()], `tiers ${n} ${q.id}`).toEqual([`w${pad(i)}`]);
+    }
+
+    const queues = Array.from({ length: 20 }, (_, i) => `q${pad(i)}`);
+    const workers = queues.map((_, i) => `w${pad(i)}`);
+    const design: Design = {
+      nodes: [
+        { id: 'users', kind: 'client', x: 0, y: 0, instances: 1 },
+        { id: 'lb', kind: 'lb', x: 0, y: 0, instances: 4 },
+        { id: 'app', kind: 'app', x: 0, y: 0, instances: 20 },
+        { id: 'db', kind: 'db', x: 0, y: 0, instances: 8 },
+        ...queues.map((id) => ({ id, kind: 'queue' as const, x: 0, y: 0, instances: 1 })),
+        ...workers.map((id) => ({ id, kind: 'worker' as const, x: 0, y: 0, instances: 1 })),
+      ],
+      edges: [
+        ['users', 'lb'],
+        ['lb', 'app'],
+        ['app', 'db'],
+        ...queues.flatMap((q, i) => [['app', q], ...workers.slice(0, i + 1).map((w) => [q, w])]),
+        ...workers.map((w) => [w, 'db']),
+      ].map(([from, to]) => ({ from, to })),
+    };
+    const sim = simulate(design, { rps: 10_000, readRatio: 0.5 });
+    for (const [i, q] of queues.entries()) {
+      const sent = workers.reduce((total, w) => total + (sim.edges[`${q}->${w}`] ?? 0), 0);
+      expect(Math.abs(sent - sim.edges[`app->${q}`]) <= 1e-9 * sent, `${q} sends ${sent}`).toBe(true);
+      for (const w of workers.slice(0, i)) expect(sim.edges[`${q}->${w}`] ?? 0, `${q}->${w}`).toBe(0);
+    }
+  });
+
   it('returns on loads and capacities too large to compare', () => {
     expect(
       drainQueues([{ id: 'a', incoming: Number.POSITIVE_INFINITY, workers: ['w'] }], () => Number.POSITIVE_INFINITY).blocks,

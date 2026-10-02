@@ -290,8 +290,12 @@ function rebalance(flow: Float64Array[], links: number[][], feeders: number[][],
   const queueFrom = new Int32Array(rows.length);
   const workerFrom = new Int32Array(feeders.length);
   const frontier: number[] = [];
-  for (let round = 0; round < rows.length * (feeders.length + 1); round++) {
-    const start = short.findIndex((gap) => gap > eps);
+  // A queue with no path now may get one once another queue's jobs move, so it is only set aside until then.
+  const stuck = new Set<number>();
+  // Gaps each under eps can still add up along a chain of tied queues, so it is their sum that must stay under it.
+  const gapEps = eps / rows.length;
+  for (let moves = 0; moves < 4 * rows.length * (feeders.length + 1);) {
+    const start = short.findIndex((gap, i) => gap > gapEps && !stuck.has(i));
     if (start < 0) return;
     queueFrom.fill(-2);
     workerFrom.fill(-1);
@@ -305,9 +309,9 @@ function rebalance(flow: Float64Array[], links: number[][], feeders: number[][],
         if (workerFrom[j] >= 0) continue;
         workerFrom[j] = i;
         for (const k of feeders[j]) {
-          if (queueFrom[k] !== -2 || flow[k][j] <= eps) continue;
+          if (queueFrom[k] !== -2 || flow[k][j] <= 0) continue;
           queueFrom[k] = j;
-          if (short[k] < -eps) {
+          if (short[k] < -gapEps) {
             end = k;
             break search;
           }
@@ -315,7 +319,12 @@ function rebalance(flow: Float64Array[], links: number[][], feeders: number[][],
         }
       }
     }
-    if (end < 0) return;
+    if (end < 0) {
+      stuck.add(start);
+      continue;
+    }
+    stuck.clear();
+    moves++;
     let amount = Math.min(short[start], -short[end]);
     for (let k = end; queueFrom[k] !== -1; k = workerFrom[queueFrom[k]]) amount = Math.min(amount, flow[k][queueFrom[k]]);
     for (let k = end; queueFrom[k] !== -1; k = workerFrom[queueFrom[k]]) {
