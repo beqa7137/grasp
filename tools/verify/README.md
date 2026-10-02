@@ -145,15 +145,20 @@ Images never go into git, and CI does not make the set: its Chromium and fonts d
   of `origin/main` also loads the `main` and `styles` files the manifest names.
 - **Compare.** An iteration captures its head with `STABLE=1` on the same profiles and runs `pixdiff.mjs` with the newest
   set first.
-- **Refresh.** After its fast-forward, the iteration copies its own final capture (taken on the exact head that landed,
-  both themes, all four profiles, its last audit line reading "complete") to `/var/tmp/grasp-shots/<sha7 of that head>/`.
-  Keep the two newest sets.
+- **Refresh.** After its fast-forward, the iteration copies its own final capture (both themes, all four profiles, its
+  last audit line reading "complete") to `/var/tmp/grasp-shots/<sha7>/`, named after the commit it was captured on.
+  The check above, run against the landed head, shows the capture still holds when only docs (its LOOP.md entry)
+  followed. Keep the two newest sets.
 - **Recapture** from a build of `main` when the folder is gone, the check above fails, or pixdiff reports another
   browser version.
 - **ipad** is not stored: an iteration that changes navigation captures a build of `main` on `ipad` when it needs the
   comparison.
-- **Noise.** Two captures of one build differ only in the states listed in LOOP.md's R0 entry; ignore those diffs
-  unless they grow.
+- **Noise.** R0 captured one build twice in dark on all four profiles. Most differing images are anti-aliasing (under
+  160 px, channel delta 1 or 2). Others differ for other reasons: `lesson-caching-flushed` (desktop, w1024 and w320: a
+  timed readout), `code-two-sum-run` (desktop and w1024: the run time), `player-*-predict` and `-answered` at w320 (up to
+  63 px, delta 27), and on pixel7 `pattern-minimum-spanning-tree` and `case-study-estimated` (the scroll end lands about
+  20 px apart, so the whole image differs). `behavioral-story`'s three moderate landmark violations do not show on every
+  capture. Read those diffs, but expect them.
 
 ## timing.mjs
 
