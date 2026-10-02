@@ -250,13 +250,11 @@ export class SandboxPage {
 
     effect(() => {
       const d = this.design();
+      const w = this.workload();
       if (!this.loaded()) return;
       const key = untracked(() => this.storageKey());
       clearTimeout(this.saveTimer);
-      this.saveTimer = setTimeout(
-        () => void Preferences.set({ key, value: JSON.stringify({ design: d, workload: untracked(() => this.workload()) }) }),
-        400,
-      );
+      this.saveTimer = setTimeout(() => void Preferences.set({ key, value: JSON.stringify({ design: d, workload: w }) }), 400);
     });
 
     effect(() => {

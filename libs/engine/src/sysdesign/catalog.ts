@@ -142,9 +142,6 @@ export const COMPONENTS: Record<ComponentKind, ComponentSpec> = {
   },
 };
 
-/** The workload's object share when it names none. */
-export const DEFAULT_OBJECT_SHARE = 0.3;
-
 export const PALETTE: ComponentKind[] = ['cdn', 'limiter', 'lb', 'app', 'cache', 'db', 'replica', 'blob', 'queue', 'worker'];
 
 export const SHARD_KEYS: Record<ShardKey, { label: string; short: string; detail: string }> = {
@@ -173,6 +170,9 @@ export function canConnect(design: Design, fromId: string, toId: string): Connec
     return { ok: false, reason: `${COMPONENTS[from.kind].short} can send traffic to: ${allowed}` };
   }
   if (design.edges.some((e) => e.from === fromId && e.to === toId)) return { ok: false, reason: 'Already connected' };
+  if (to.kind === 'replica' && design.edges.some((e) => e.to === toId && design.nodes.find((n) => n.id === e.from)?.kind === 'db')) {
+    return { ok: false, reason: 'A replica copies one primary' };
+  }
   if (reaches(design, toId, fromId)) return { ok: false, reason: 'That would create a cycle' };
   return { ok: true };
 }

@@ -122,4 +122,9 @@ test('a free build sets the share of file requests in its workload, and a board 
   await expect(page.getByRole('slider', { name: 'Files old rule' })).toHaveValue('30');
   await page.getByRole('slider', { name: /^Files/ }).fill('30');
   await expect(page.getByRole('slider', { name: 'Files 30%' })).toBeVisible();
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem('CapacitorStorage.grasp.design.case.email-service') ?? ''))
+    .toContain('"objectShare":0.3');
+  await page.reload();
+  await expect(page.getByRole('slider', { name: 'Files 30%' })).toBeVisible();
 });

@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { canConnect } from './catalog.js';
 import { CASE_LABS } from './cases/labs.js';
 import { CASE_MISSION_SOLUTIONS, stack, type Stack } from './designs.fixture.js';
 import { migrateSavedDesign } from './saved-design.js';
 import { evaluate, getScenario, scenarioVariant } from './scenarios.js';
 import { simulate } from './simulate.js';
-import type { Design, Scenario } from './types.js';
+import type { ComponentKind, Design, DesignNode, Scenario } from './types.js';
 
 const failedChecks = (scenario: Scenario, design: Design) =>
   evaluate(scenario, design)
@@ -24,6 +25,25 @@ function* designs(extra: Partial<Stack>): Generator<Design> {
           for (const cdn of [undefined, { hitRate: 0.99 }, { hitRate: 0.99, count: 2 }])
             yield stack({ lbs: 2, apps, shards, caches, replicas, cdn, ...extra });
 }
+
+type Part = [id: string, kind: ComponentKind, instances?: number, extra?: Partial<DesignNode>];
+
+/** A board from its parts and `from>to` links. */
+const board = (parts: Part[], links: string[]): Design => ({
+  nodes: parts.map(([id, kind, instances = 1, extra = {}]) => ({
+    id,
+    kind,
+    x: 0,
+    y: 0,
+    instances,
+    ...(kind === 'db' ? { shardKey: 'hash' } : {}),
+    ...extra,
+  })),
+  edges: links.map((l) => {
+    const [from, to] = l.split('>');
+    return { from, to };
+  }),
+});
 
 /** Users, load balancers and app servers, with nothing to keep the writes. */
 const appsOnly = (apps: number): Design => ({
@@ -216,6 +236,47 @@ describe('the object share in the workload', () => {
     expect(simulate(savedVideo.design, savedVideo.workload)).toEqual(simulate(video.design, video.workload));
   });
 
+  it('keeps the old rule, with the share of each store, when two app tiers fed stores of different shares', () => {
+    const design = board(
+      [
+        ['users', 'client'],
+        ['lb', 'lb', 2],
+        ['api', 'app', 4],
+        ['uploads', 'app', 4],
+        ['db', 'db', 2],
+        ['meta', 'blob', 1, { share: 0.3 }],
+        ['files', 'blob', 1, { share: 0.9 }],
+      ],
+      ['users>lb', 'lb>api', 'lb>uploads', 'api>db', 'api>meta', 'uploads>db', 'uploads>files'],
+    );
+    const saved = migrateSavedDesign({ design, workload: { rps: 8_000, readRatio: 0.5 } });
+    expect(saved.workload.objectShare).toBeUndefined();
+    const r = simulate(saved.design, saved.workload);
+    expect([r.metrics.p50Ms, r.metrics.p99Ms, r.metrics.monthlyCost]).toEqual([86.4, 149.1, 5_260]);
+    expect(r.edges['api->meta']).toBeCloseTo(1_200);
+    expect(r.edges['uploads->files']).toBeCloseTo(3_600);
+  });
+
+  it('keeps the old rule, with its custom share, for a board whose store workers also feed', () => {
+    const design = board(
+      [
+        ['users', 'client'],
+        ['lb', 'lb', 2],
+        ['app', 'app', 4],
+        ['db', 'db', 2],
+        ['store', 'blob', 1, { share: 0.7 }],
+        ['queue', 'queue', 2],
+        ['worker', 'worker', 2],
+      ],
+      ['users>lb', 'lb>app', 'app>db', 'app>store', 'app>queue', 'queue>worker', 'worker>db', 'worker>store'],
+    );
+    const saved = migrateSavedDesign({ design, workload: { rps: 6_000, readRatio: 0.5 } });
+    expect(saved.workload.objectShare).toBeUndefined();
+    const r = simulate(saved.design, saved.workload);
+    expect(r.edges['app->store']).toBeCloseTo(4_200);
+    expect(r.edges['worker->store']).toBeCloseTo(300);
+  });
+
   it('names the default share on a board whose store only apps feed, which simulates the same under the new rule', () => {
     const { design, workload } = CASE_LABS['code-deployment'];
     const old = { rps: workload.rps, readRatio: workload.readRatio };
@@ -242,5 +303,79 @@ describe('the object share in the workload', () => {
       const objects = r.nodes['objects'];
       expect(objects.readRps + objects.writeRps + objects.backgroundRps, JSON.stringify(s)).toBeCloseTo(4_000);
     }
+  });
+});
+
+describe('queues drain from what they hold', () => {
+  const storm = getScenario('reconnect-storm')!;
+  const onePrimary = (extra: Part[], links: string[]) =>
+    board(
+      [
+        ['users', 'client'],
+        ['lb', 'lb', 2],
+        ['app', 'app', 12],
+        ['cache', 'cache', 2],
+        ['db', 'db', 1],
+        ['replica', 'replica', 1],
+        ['queue', 'queue', 2],
+        ['worker', 'worker', 1],
+        ...extra,
+      ],
+      ['users>lb', 'lb>app', 'app>cache', 'cache>db', 'db>replica', 'app>queue', 'queue>worker', 'worker>db', ...links],
+    );
+
+  it('an empty queue beside a full one adds no drain, whether it shares the workers or has its own', () => {
+    expect(failedChecks(storm, onePrimary([], []))).toEqual(['drain']);
+    expect(failedChecks(storm, onePrimary([['idle', 'queue', 1]], ['idle>worker']))).toContain('drain');
+    expect(
+      failedChecks(
+        storm,
+        onePrimary(
+          [
+            ['idle', 'queue', 1],
+            ['spare', 'worker', 2],
+          ],
+          ['idle>spare', 'spare>db'],
+        ),
+      ),
+    ).toContain('drain');
+  });
+
+  it('two queues sharing workers split them, so the drain time is that of the slower queue', () => {
+    const shared = onePrimary([['second', 'queue', 2]], ['app>second', 'second>worker']);
+    const r = simulate(shared, storm.workload);
+    expect(r.nodes['worker'].backgroundRps).toBeCloseTo(1_500);
+    expect(failedChecks(storm, shared)).toContain('drain');
+  });
+});
+
+describe('a replica copies one primary', () => {
+  const shared = (apps: number, shards: number, replicas: number, extra: Part[] = [], links: string[] = []) =>
+    board(
+      [
+        ['users', 'client'],
+        ['lb', 'lb', 2],
+        ['app', 'app', apps],
+        ['cache', 'cache', 2],
+        ['east', 'db', shards],
+        ['west', 'db', shards],
+        ['replica', 'replica', replicas],
+        ...extra,
+      ],
+      ['users>lb', 'lb>app', 'app>cache', 'cache>east', 'cache>west', 'east>replica', 'west>replica', ...links],
+    );
+
+  it('cannot be connected to a second primary', () => {
+    const design = shared(8, 2, 2);
+    design.edges = design.edges.filter((e) => e.from !== 'west');
+    expect(canConnect(design, 'west', 'replica')).toEqual({ ok: false, reason: 'A replica copies one primary' });
+  });
+
+  it('counts for no primary when an old board shares it, so the shortcut no longer clears a mission', () => {
+    const insights = simulate(shared(8, 2, 2), { rps: 1_000, readRatio: 0.5 }).insights.map((i) => i.title);
+    expect(insights).toContain('One replica node copies 2 primaries');
+    expect(failedChecks(getScenario('reconnect-storm')!, shared(12, 2, 4))).toContain('spof');
+    expect(failedChecks(getScenario('ledger-month-end')!, shared(10, 2, 2))).toContain('spof');
+    expect(failedChecks(scenarioVariant('mail-attachments', 2)!, shared(9, 2, 2))).toContain('spof');
   });
 });

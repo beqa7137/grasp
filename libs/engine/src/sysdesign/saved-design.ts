@@ -1,5 +1,5 @@
-import { DEFAULT_OBJECT_SHARE } from './catalog.js';
-import type { Design, DesignNode, Workload } from './types.js';
+import { DEFAULT_OBJECT_SHARE } from './object-share.js';
+import type { Design, Workload } from './types.js';
 
 /** A Design Lab board as the app stores it between visits. */
 export interface SavedDesign {
@@ -7,27 +7,27 @@ export interface SavedDesign {
   workload: Workload;
 }
 
-type LegacyNode = DesignNode & { share?: number };
-
 /**
  * Boards saved before the object share moved into the workload kept it on the object store node, and each app sent that
- * share to the first object store it was connected to. Such a board gets the share the first app used, which simulates it
- * exactly as before unless a CDN or workers also feed a store: those split by instance count under the old rule, so a
- * board like that keeps the old rule unless the learner had moved the share off its default.
+ * share to the first object store it was connected to. When every app used the same share and only apps feed stores,
+ * that share is named in the workload, which simulates the board exactly as before. Otherwise (a CDN or workers also
+ * feed a store, or two apps used different shares) the board keeps its node shares and the old rule, which reads them,
+ * so it too simulates exactly as before.
  */
 export function migrateSavedDesign({ design, workload }: SavedDesign): SavedDesign {
-  const nodes = design.nodes as LegacyNode[];
-  const stripped = { ...design, nodes: nodes.map(({ share: _share, ...node }) => node) };
+  const stripped = { ...design, nodes: design.nodes.map(({ share: _share, ...node }) => node) };
   if (workload.objectShare !== undefined) return { design: stripped, workload };
-  const byId = new Map(nodes.map((n) => [n.id, n]));
-  const firstStore = nodes
-    .filter((n) => n.kind === 'app')
-    .map((app) => design.edges.map((e) => (e.from === app.id ? byId.get(e.to) : undefined)).find((n) => n?.kind === 'blob'))
-    .find((n) => n !== undefined);
-  const share = firstStore?.share ?? DEFAULT_OBJECT_SHARE;
-  const splitByInstances = design.edges.some(
+  const byId = new Map(design.nodes.map((n) => [n.id, n]));
+  const shares = new Set(
+    design.nodes
+      .filter((n) => n.kind === 'app')
+      .map((app) => design.edges.map((e) => (e.from === app.id ? byId.get(e.to) : undefined)).find((n) => n?.kind === 'blob'))
+      .filter((store) => store !== undefined)
+      .map((store) => store.share ?? DEFAULT_OBJECT_SHARE),
+  );
+  const fedElsewhere = design.edges.some(
     (e) => byId.get(e.to)?.kind === 'blob' && ['cdn', 'worker'].includes(byId.get(e.from)?.kind ?? ''),
   );
-  if (splitByInstances && share === DEFAULT_OBJECT_SHARE) return { design: stripped, workload };
-  return { design: stripped, workload: { ...workload, objectShare: share } };
+  if (fedElsewhere || shares.size > 1) return { design, workload };
+  return { design: stripped, workload: { ...workload, objectShare: [...shares][0] ?? DEFAULT_OBJECT_SHARE } };
 }
