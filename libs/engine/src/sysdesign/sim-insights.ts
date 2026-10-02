@@ -1,5 +1,5 @@
 import { COMPONENTS } from './catalog.js';
-import { fmt } from './scenario-catalog.js';
+import { fmt } from './format.js';
 import { available, shardShares } from './shards.js';
 import type { ComponentKind, Design, DesignNode, Insight, NodeStats, Workload } from './types.js';
 

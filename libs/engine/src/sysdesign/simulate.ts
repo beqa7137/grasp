@@ -1,5 +1,5 @@
 import { COMPONENTS, DEFAULT_OBJECT_SHARE, monthlyCost } from './catalog.js';
-import { fmt } from './scenario-catalog.js';
+import { fmt } from './format.js';
 import { addInsights, dedupe, rank } from './sim-insights.js';
 import { available, shardShares } from './shards.js';
 import type { ComponentKind, Design, DesignNode, Insight, NodeStats, NodeStatus, ShardStats, SimResult, Workload } from './types.js';

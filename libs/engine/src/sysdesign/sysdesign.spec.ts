@@ -4,6 +4,7 @@ import {
   canConnect,
   getScenario,
   SCENARIOS,
+  SCENARIO_REVISITS,
   evaluate,
   scenarioVariant,
   shardShares,
@@ -282,6 +283,10 @@ const VARIANT_SOLUTIONS: Record<string, Design> = {
 describe('mission revisit variants', () => {
   it('every scenario has three revisit variants', () => {
     for (const s of SCENARIOS) expect(s.variants?.length, s.id).toBe(3);
+  });
+
+  it('counts the revisits of every mission, in list order, for progress', () => {
+    expect(Object.entries(SCENARIO_REVISITS)).toEqual(SCENARIOS.map((s) => [s.id, s.variants!.length]));
   });
 
   it.each(Object.keys(VARIANT_SOLUTIONS))('%s: starter fails, reference solution passes', (key) => {

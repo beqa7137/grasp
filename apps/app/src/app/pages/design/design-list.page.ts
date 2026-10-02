@@ -2,7 +2,16 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
-import { CASE_CATALOG, SCENARIO_CATALOG, getCaseBrief, fmt, getScenarioSummary, getSdTopic, type CaseSummary } from '@grasp/engine';
+import {
+  CASE_CATALOG,
+  SCENARIO_CATALOG,
+  SCENARIO_VARIANTS,
+  getCaseBrief,
+  fmt,
+  getSdTopic,
+  type CaseSummary,
+  type ScenarioId,
+} from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import { checkmarkCircle, constructOutline, documentTextOutline, refreshCircleOutline } from 'ionicons/icons';
 import { ProgressService } from '../../core/progress.service';
@@ -48,7 +57,7 @@ import { FREE_BUILD } from './free-build';
               @if (done) {
                 <span class="badge"
                   ><ion-icon name="checkmark-circle" aria-hidden="true" />best \${{ fmt(done.bestCost) }}/mo · {{ done.revisitsDone }}/{{
-                    s.variants.length
+                    variants[s.id].length
                   }}
                   revisits</span
                 >
@@ -276,6 +285,7 @@ export class DesignListPage {
   readonly drafts = inject(CaseDraftsService);
   private readonly router = inject(Router);
   readonly scenarios = SCENARIO_CATALOG;
+  readonly variants = SCENARIO_VARIANTS;
   readonly free = FREE_BUILD;
   readonly cases = CASE_CATALOG;
   readonly fmt = fmt;
@@ -313,6 +323,6 @@ export class DesignListPage {
   }
 
   twist(id: string, variant: number) {
-    return getScenarioSummary(id)?.variants[variant - 1]?.twist ?? '';
+    return SCENARIO_VARIANTS[id as ScenarioId]?.[variant - 1]?.twist ?? '';
   }
 }

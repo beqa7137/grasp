@@ -7,7 +7,7 @@ import type { InterviewTrack } from '../interview/rubrics.js';
 import { getReviewItemSummary, itemsForTopic } from '../review/catalog.js';
 import type { ItemKind, ReviewItemSummary } from '../review/types.js';
 import type { CaseOutcome } from '../sysdesign/cases/outcome.js';
-import { SCENARIO_CATALOG } from '../sysdesign/scenario-catalog.js';
+import { SCENARIO_REVISITS } from '../sysdesign/scenario-revisits.js';
 import { placementFromAnswers, type Placement } from './diagnostic.js';
 import { sortEvents, upcast, type CaseCompletedEvent, type InterviewScoredEvent, type StoredEvent, type StudySettings } from './events.js';
 import { pullForward, retrievability, review, type CardPhase, type CardState, type ReviewRating } from './scheduler.js';
@@ -471,9 +471,11 @@ export interface MissionRevisit {
 }
 
 export function missionRevisits(state: ProgressState, now: Date): MissionRevisit[] {
-  return SCENARIO_CATALOG.flatMap((s) => {
-    const m = state.missions[s.id];
-    if (!m?.nextRevisitAt || m.revisitsDone >= s.variants.length) return [];
-    return [{ scenarioId: s.id, variant: m.revisitsDone + 1, dueAt: m.nextRevisitAt, due: Date.parse(m.nextRevisitAt) <= now.getTime() }];
-  }).sort((a, b) => a.dueAt.localeCompare(b.dueAt));
+  return Object.entries(SCENARIO_REVISITS)
+    .flatMap(([scenarioId, revisits]) => {
+      const m = state.missions[scenarioId];
+      if (!m?.nextRevisitAt || m.revisitsDone >= revisits) return [];
+      return [{ scenarioId, variant: m.revisitsDone + 1, dueAt: m.nextRevisitAt, due: Date.parse(m.nextRevisitAt) <= now.getTime() }];
+    })
+    .sort((a, b) => a.dueAt.localeCompare(b.dueAt));
 }

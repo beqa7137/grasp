@@ -1,4 +1,4 @@
-import { fmt } from '../sysdesign/scenario-catalog.js';
+import { fmt } from '../sysdesign/format.js';
 import { concept, item, type DesignItemDefinition } from './design-item-kit.js';
 import { pick, shuffle, withChoices } from './random.js';
 import type { DesignItemId } from './summaries.js';
