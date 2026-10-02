@@ -17,6 +17,9 @@ const inDays = (p, days) =>
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }, days);
 
+/** The summary and the saved plan keep the scroll of the card or form they replace (a follow-up in LOOP.md). */
+const toTop = (locator) => locator.evaluate((el) => el.closest('ion-content').scrollToTop(0));
+
 /** Answers the whole placement check: every fourth question "I haven't learned this", the rest with the first choice. */
 async function takePlacement(p) {
   await p.getByRole('button', { name: /^Start/ }).click();
@@ -39,6 +42,7 @@ async function finishReview(p) {
     await p.getByRole('button', { name: /^(Got it|Continue)/ }).click();
     await summary.or(p.locator('g-question-card .choice:enabled')).first().waitFor();
   }
+  await toTop(summary);
   await settle(p);
 }
 
@@ -124,7 +128,9 @@ export function learnStates() {
       setup: async (p) => {
         await p.getByLabel('Interview date').fill(await inDays(p, 20));
         await p.getByRole('button', { name: 'Save plan' }).click();
-        await p.getByRole('heading', { name: 'Interview in 20 days' }).waitFor();
+        const heading = p.getByRole('heading', { name: 'Interview in 20 days' });
+        await heading.waitFor();
+        await toTop(heading);
         await settle(p);
       },
     },
@@ -155,6 +161,8 @@ export function learnStates() {
         await p.getByRole('button', { name: 'Submit' }).click();
         const verdict = p.getByText('Accepted.');
         await verdict.waitFor({ timeout: 30_000 });
+        // The editor keeps the horizontal scroll of the long pasted line (a follow-up in LOOP.md).
+        await p.locator('.cm-scroller').evaluate((scroller) => (scroller.scrollLeft = 0));
         await verdict.scrollIntoViewIfNeeded();
         await settle(p);
       },

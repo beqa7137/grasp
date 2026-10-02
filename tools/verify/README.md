@@ -34,26 +34,32 @@ providers, so every sign-in test times out.
     intended change runs `node scripts/first-paint-bytes.mjs --update` in `apps/app`, commits the new baseline and states
     the old and new bytes in LOOP.md. A shrink lowers the baseline the same way, so the freed room never becomes silent
     headroom;
-  - Angular's initial total (main's static closure plus the global stylesheet) passes 855 kB;
   - a closure chunk carries a module under `src/app/viz/` or the engine's `viz/`. Two are allowlisted until they leave
     first paint (`mastery-ring` and `code-text`); one that has left must leave the allowlist too;
   - `stats.json` is not from the build in `browser/` (after a development build, say).
 
   `first-paint-bytes.test.mjs` tests the same logic on fixture metafiles in `npm test`; it reads no build. REDESIGN.md 5.0
-  names the test file as the gate; its R0 note says where the gate runs.
+  names the test file as the gate; its R0 note says where the gate runs. Only `npm run build` runs `postbuild`, so a bare
+  `npx ng build` checks nothing. Angular's own `initial` budget in `apps/app/angular.json` (warning 850 kB, error
+  855 kB) is the backstop for the initial total.
 
 - **Style ratchet.** `apps/app/scripts/style-tokens.test.mjs`, in `npm test`, scans every `.scss`, `.ts` and `.html`
   file under `apps/app/src` except specs, and counts, per file:
   - raw font sizes: `font-size` and the `font` shorthand;
   - raw radii: `border-radius`, its per-corner forms and Ionic's `--border-radius`;
   - literal colors: hex, `rgb()`, `hsl()` and the other color functions with no token inside, and named colors, in color
-    properties, SVG color attributes and custom properties other than `--g-` and `--ion-` ones;
-  - `@media` width queries at any length except the redesign's breakpoints: 560, 1024 and 1280px, and 559.98, 1023.98
-    and 1279.98px.
+    properties (`filter` and `backdrop-filter` included), SVG color attributes, custom properties and SCSS variables;
+  - `@media` width queries at any length except the redesign's viewport breakpoints (560, 1024 and 1280px, and 559.98,
+    1023.98 and 1279.98px), and `@container` width queries except its container breakpoints (640 and 900px, and
+    639.98 and 899.98px). A query on an SCSS variable it cannot resolve in the file counts.
 
-  A size is raw when it still holds a non-zero px or rem once `var(--g-…)` and `chrome-font-size()` are removed. A
-  local custom property defined with a raw size counts in the declaration that uses it. `--g-` and `--ion-` definitions
-  are the tokens and never count. Counts may only fall against `style-tokens.baseline.json`: a rise fails with each
+  It reads declarations in stylesheets and inline styles, template `[style.x]` and `[attr.x]` bindings, `ngStyle`,
+  `host` style bindings and `.style` assignments in TypeScript, taking a binding's value from its string literals (or a
+  number with the binding's unit). A size is raw when it still holds a non-zero px, rem or pt once the theme's
+  `var(--g-…)` and `chrome-font-size()` are removed. Only `_theme.scss` and `styles.scss` define tokens: a `--g-` or
+  `--ion-` property defined anywhere else is a local value like any other, so a literal color in it counts. A custom
+  property or SCSS variable defined with a raw size counts in each declaration that uses it, in its own file or another
+  (unless the theme defines that name). Counts may only fall against `style-tokens.baseline.json`: a rise fails with each
   offending line, and a fall fails until `node scripts/style-tokens.mjs --update` (in `apps/app`) lowers the baseline,
   which it never raises. A file with no entry is held at 0, so new and migrated files stay clean. After moving or
   renaming files, delete the baseline and run `--update` to record it again: the diff shows every raise for review, and
