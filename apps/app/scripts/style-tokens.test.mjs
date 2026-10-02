@@ -37,6 +37,11 @@ test('flags raw font sizes, radii, colors and one-off breakpoints', () => {
     ['.a { filter: drop-shadow(0 0 2px #f00); }', 'color'],
     ['.a { background: url("x.svg") #f00; }', 'color'],
     ['.a { background: url(//x.com/a.png); color: #f00; }', 'color'],
+    ['.a { background: rgba(var(--g-accent-rgb, 255, 0, 0), 0.5); }', 'color'],
+    ['.a { color: rgb(var(--x, 255 0 0)); }', 'color'],
+    ['.a { --o: 0.5; background: rgb(255 0 0 / var(--o)); }', 'color'],
+    ['.a { @include x.tint(#f00); }', 'color'],
+    ['.a { font-size: #{13px}; }', 'font-size'],
   ]) {
     assert.deepEqual(flagged(css), [category], css);
   }
@@ -51,6 +56,7 @@ test('allows tokens, the chrome helper, relative and zero values, token tints an
     '.a { font-size: inherit; font: inherit; font-size: 1.2em; font-size: 90%; }',
     '.a { border-radius: 0; border-radius: 0px; border-radius: 50%; border-radius: var(--g-radius-sm); }',
     '.a { color: var(--g-text); background: rgba(var(--g-found-rgb), 0.12); border-color: transparent; fill: currentColor; }',
+    '.a { color: rgb(var(--g-accent-rgb) / var(--g-dim)); background: rgba(var(--g-found-rgb), 12%); }',
     '.a { background: linear-gradient(180deg, rgba(var(--g-predict-rgb), 0.08), rgba(var(--ion-text-color-rgb), 0.02)); }',
     '.a { background: url(icons/red-dot.svg); }',
     '@media (prefers-reduced-motion: reduce) { .a { transition: none; } }',
@@ -65,11 +71,21 @@ test('allows tokens, the chrome helper, relative and zero values, token tints an
   }
 });
 
-test('the theme files alone define tokens: a --g- or --ion- property elsewhere is a local value', () => {
+test('the theme and the root rules of styles.scss alone define tokens: a --g- or --ion- property elsewhere is a local value', () => {
   const theme = ':root { --g-radius: 14px; --g-accent: #5846dc; --ion-color-primary: #5846dc; }';
   assert.deepEqual(flagged(theme, '_theme.scss'), []);
   assert.deepEqual(flagged(theme, 'styles.scss'), []);
   assert.deepEqual(flagged(theme, 'app/x.scss'), ['border-radius', 'color', 'color']);
+  assert.deepEqual(
+    flagged('@media (prefers-color-scheme: dark) {\n  :root:not(.light), html.ion-palette-dark { --g-accent: #fff; }\n}', 'styles.scss'),
+    [],
+  );
+  assert.deepEqual(flagged('app-tabs { --g-text-s: 9px; --g-accent: #ff0000; --g-radius: 1px; }', 'styles.scss'), [
+    'font-size',
+    'color',
+    'border-radius',
+  ]);
+  assert.deepEqual(flagged(':root { --g-gap: 4px; }\n.chip { color: #f00; }', 'styles.scss'), ['color']);
   for (const [css, file, category] of [
     ['.a { --g-my-red: #ff0000; color: var(--g-my-red); }', 'x.scss', 'color'],
     [':host { --ion-color-base: #ff0000; }', 'x.scss', 'color'],
@@ -90,6 +106,24 @@ test('counts SCSS variables like local custom properties, and resolves them in q
   assert.deepEqual(flagged('$bp: 700px;\n@media (max-width: $bp) { .a { display: none; } }'), ['media']);
   assert.deepEqual(flagged('@use "bp";\n@media (max-width: bp.$wide) { .a { display: none; } }'), ['media']);
   assert.deepEqual(flagged('$bp: 1024px;\n@media (min-width: $bp) { .a { display: none; } }'), []);
+});
+
+test('reads SCSS interpolation, and mixin parameters that size a font, a radius or a width query', () => {
+  for (const [css, categories] of [
+    ['$s: 13px;\n.a { font-size: #{$s}; }', ['font-size']],
+    ['$s: 13px;\n:host { --g-text-s: #{$s}; }', ['font-size']],
+    ['$s: 9px;\n.y { --cell: #{$s}; border-radius: var(--cell); }', ['border-radius']],
+    ['@mixin text($s) { font-size: $s; }\n.z { @include text(11px); }', ['font-size']],
+    [
+      '@mixin round($c, $r: var(--g-radius)) { color: $c; border-radius: #{$r}; }\n.z { @include round(var(--g-text), $r: 9px); }',
+      ['border-radius'],
+    ],
+    ['@mixin mq($w) { @media (max-width: $w) { @content; } }\n$w: 700px;\n.a { @include mq($w) { display: none; } }', ['media', 'media']],
+    ['@mixin mq($w) { @media (max-width: $w) { @content; } }\n.a { @include mq($w: 1024px) { display: none; } }', ['media']],
+    ['@mixin text($s) { font-size: $s; }\n.z { @include text(var(--g-text-s)); }', []],
+  ]) {
+    assert.deepEqual(flagged(css, 'app/x.scss'), categories, css);
+  }
 });
 
 test('reads string literals in style bindings, ngStyle, host bindings and .style assignments', () => {
@@ -114,6 +148,21 @@ test('reads string literals in style bindings, ngStyle, host bindings and .style
     [`const theme = { '&': { fontSize: '13px', backgroundColor: 'white' } };`, 'x.ts', ['font-size', 'color']],
     [`const wide = matchMedia('(min-width: 700px)');`, 'x.ts', ['media']],
     [`this.observer.observe(['(max-width: 599.98px)']);`, 'x.ts', ['media']],
+    ['const wide = matchMedia(`(max-width: ${W}px)`);', 'x.ts', ['media']],
+    [`<p [style]="{ 'font-size': '13px', color: 'red' }">`, 'x.html', ['font-size', 'color']],
+    [`<p [style]="{ fontSize: '13px' }">`, 'x.html', ['font-size']],
+    [`<p [style]="'font-size: 13px'">`, 'x.html', ['font-size']],
+    [`<p [ngStyle]='{ "border-radius": "12px" }'>`, 'x.html', ['border-radius']],
+    [`host: { style: 'font-size: 13px; color: red' }`, 'x.ts', ['font-size', 'color']],
+    [`<rect [attr.rx]="6" [attr.font-size]="13" />\n<text [attr.font-size]="'13'">`, 'x.html', ['border-radius', 'font-size', 'font-size']],
+    [`this.renderer.setStyle(el, 'fontSize', '13px');\nel.style['borderRadius'] = '12px';`, 'x.ts', ['font-size', 'border-radius']],
+    [`readonly fontSize = signal('13px');`, 'x.ts', ['font-size']],
+    [`const tone = { hot: 'tomato' };\nconst COLORS = ['tomato', 'gold'];`, 'x.ts', ['color', 'color', 'color']],
+    [
+      'readonly labelSize = \'9px\';\nreadonly corner = signal(3);\ntemplate: `<b [style.font-size]="labelSize" [style.border-radius.px]="corner()">`',
+      'x.ts',
+      ['font-size', 'border-radius'],
+    ],
   ]) {
     assert.deepEqual(flagged(source, file), categories, source);
   }
@@ -128,6 +177,7 @@ test('reads string literals in style bindings, ngStyle, host bindings and .style
     `const dark = matchMedia('(prefers-color-scheme: dark)');\nconst wide = matchMedia('(min-width: 1024px)');`,
     `@HostBinding('style.color') c = 'var(--g-text)';\nSystemBars.setStyle({ style: Style.Dark });`,
     `const theme = { '&': { fontSize: 'var(--g-text-s)', height: '100%' } };\nif (tone === 'red') return;`,
+    `type Tone = 'red' | 'gold';\nswitch (tone) { case 'red': break; }\nreadonly size = '13px';\nhost: { style: 'display: block' }`,
     'styles: `@media (max-width: 559.98px) { .a { color: var(--g-text); } }`',
   ]) {
     assert.deepEqual(flagged(source, 'x.ts'), [], source);
@@ -190,6 +240,9 @@ test('in a tree, counts raw names where used, theme overrides where made, unknow
       `${src}/_theme.scss`,
       '@mixin rgb-token($name, $hex) {\n  --g-#{$name}: #{$hex};\n  --g-#{$name}-rgb: 1, 2, 3;\n}\n:root { --g-text-s: 0.8125rem; --g-switch-w: 40px; @include rgb-token(accent, #5846dc); }\n@mixin mq($w) { @media (max-width: $w) { @content; } }',
     );
+    writeFileSync(`${src}/styles.scss`, ':root { --g-pad: 4px; }\napp-x { --g-text-s: 9px; --g-pad: 2px; }');
+    writeFileSync(`${src}/app/c.component.ts`, "readonly size = '13px';\nreadonly tone = 'var(--g-accent)';");
+    writeFileSync(`${src}/app/c.component.html`, '<p [style.font-size]="size" [style.color]="tone">');
     writeFileSync(`${src}/app/a.scss`, '.a { --cell-size: 12px; --g-text-s: 13px; --g-switch-w: 34px; --g-gap: 14px; }');
     writeFileSync(
       `${src}/app/b.scss`,
@@ -199,6 +252,7 @@ test('in a tree, counts raw names where used, theme overrides where made, unknow
         '.d { font-size: var(--g-nope); color: var(--g-nope); margin: var(--g-gap, 10px); }',
         '@include mq(700px) { .e { display: none; } }',
         '@include mq(1024px) { .f { display: none; } }',
+        '@include t.mq(700px) { .g { display: none; } }',
       ].join('\n'),
     );
     const tree = scanTree(`${src}/`);
@@ -215,6 +269,12 @@ test('in a tree, counts raw names where used, theme overrides where made, unknow
           ['font-size', 3],
           ['color', 3],
           ['media', 4],
+          ['media', 6],
+        ],
+        'app/c.component.html': [['font-size', 1]],
+        'styles.scss': [
+          ['font-size', 2],
+          ['token-override', 2],
         ],
       },
     );

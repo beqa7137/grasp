@@ -48,32 +48,40 @@ providers, so every sign-in test times out.
   file under `apps/app/src` except specs, and counts, per file:
   - raw font sizes: `font-size`, the `font` shorthand and SVG `font-size` attributes;
   - raw radii: `border-radius`, its per-corner forms, Ionic's `--border-radius` and SVG `rx` and `ry` (a unitless
-    attribute is read as px);
-  - literal colors: hex, `rgb()`, `hsl()` and the other color functions with no token inside, and named colors, in color
-    properties (`filter` and `backdrop-filter` included), SVG color attributes, custom properties, SCSS variables and
-    `@include` arguments outside the theme, and in TypeScript any hex or color-function string;
-  - `token-override`: outside the theme files, a raw length in a name the theme defines (a `--g-`/`--ion-` text, font
+    attribute, static or bound, is read as px);
+  - literal colors: hex, named colors, and `rgb()`, `hsl()` and the other color functions unless their channels are one
+    bare token with at most a literal or token alpha (`rgba(var(--g-accent-rgb), 0.12)`), in color properties
+    (`filter` and `backdrop-filter` included), SVG color attributes, custom properties, SCSS variables and `@include`
+    arguments outside the theme, and in TypeScript any hex, color-function or color-name string (a compared string or a
+    union-type member is not one);
+  - `token-override`: outside the theme's rules, a raw length in a name the theme defines (a `--g-`/`--ion-` text, font
     or radius name counts as font-size or border-radius instead), at the definition, since it resizes the whole subtree;
   - `@media` width queries at any length except the redesign's viewport breakpoints (560, 1024 and 1280px, and 559.98,
     1023.98 and 1279.98px), and `@container` width queries except its container breakpoints (640 and 900px, and
     639.98 and 899.98px). A query on an SCSS variable it cannot resolve in the file counts, and so does a width query in a
-    TypeScript string (`matchMedia`, `BreakpointObserver`) or an `@include` of a mixin that wraps a query on its
-    argument. Units are matched in any case.
+    TypeScript string (`matchMedia`, `BreakpointObserver`; an interpolated width counts). Units are matched in any case.
 
-  It reads declarations in stylesheets and inline styles, template `[style.x]` and `[attr.x]` bindings (camelCase too),
-  `ngStyle`, `host` and `@HostBinding` style bindings, `.style` assignments (dotted or bracketed),
-  `Renderer2.setStyle` and string-valued style keys and fields in TypeScript (a CodeMirror theme's `fontSize`, a
-  canvas `fillStyle`), taking a binding's value from its string literals (or a number with the binding's unit). A size
-  is raw when it still holds a non-zero px, rem or pt once `chrome-font-size()` is removed; a `var()` fallback is read
-  like any other value, so `var(--g-text-s, 13px)` counts. A `var(--g-…)` whose name no file declares counts too (the
-  names `rgb-token` writes are declared). Only `_theme.scss` and `styles.scss` define tokens: a `--g-` or
-  `--ion-` property defined anywhere else is a local value like any other, so a literal color in it counts. A custom
-  property or SCSS variable defined with a raw size counts in each declaration that uses it, in its own file or another
-  (unless the theme defines that name). Counts may only fall against `style-tokens.baseline.json`: a rise fails with each
-  offending line, and a fall fails until `node scripts/style-tokens.mjs --update` (in `apps/app`) lowers the baseline,
-  which it never raises. A file with no entry is held at 0, so new and migrated files stay clean. After moving or
-  renaming files, delete the baseline and run `--update` to record it again: the diff shows every raise for review, and
-  LOOP.md gives the reason.
+  Where it reads: declarations in stylesheets, inline styles and `style` attributes, with SCSS interpolation (`#{$s}`)
+  read like the bare variable; template `[style.x]` and `[attr.x]` bindings (camelCase too), `[style]` and `[ngStyle]`
+  maps in either quote, `host` style bindings and a static `host: { style: '...' }` string, `@HostBinding`, `.style`
+  assignments (dotted or bracketed) and `setProperty`, `Renderer2.setStyle` (camelCase names included), and string-valued
+  style keys and fields in TypeScript (a CodeMirror theme's `fontSize`, a canvas `fillStyle`, `signal('13px')`). A
+  binding's value is its string literals, a number with the binding's unit, or, when the expression is one name (`size`,
+  `size()`, `this.size`), the literal that field holds in the component's own `.ts`. A value reached any other way
+  (another file, a service, a computed string) is not followed. A mixin parameter used in a font size, a radius or a width
+  query makes each `@include` of it (namespaced or not, positional or keyword, with `$variables` resolved) count that
+  argument as one. A size is raw when it still holds a non-zero px, rem or pt once `chrome-font-size()` is removed; a
+  `var()` fallback is read like any other value, so `var(--g-text-s, 13px)` counts. A `var(--g-…)` whose name no file
+  declares counts too (the names `rgb-token` writes are declared). A custom property or SCSS variable defined with a raw
+  size, directly or through one defined so before it, counts in each declaration that uses it, in its own file or another
+  (unless the theme defines that name).
+
+  Tokens are defined only in `_theme.scss` and in the root rules of `styles.scss` (`:root`, `html`, `.ion-palette-dark`,
+  `[data-theme]`, also inside `@media`); the rest of `styles.scss` is global component styles, scored like a component
+  file. Counts may only fall against `style-tokens.baseline.json`: a rise fails with each offending line, and a fall fails
+  until `node scripts/style-tokens.mjs --update` (in `apps/app`) lowers the baseline, which it never raises. A file with
+  no entry is held at 0, so new and migrated files stay clean. After moving or renaming files, delete the baseline and run
+  `--update` to record it again: the diff shows every raise for review, and LOOP.md gives the reason.
 
 - **Audit and pixel diff.** `audit.mjs` in both themes with `STABLE=1` and `PROFILES=desktop,w1024,pixel7,w320` (plus
   `ipad` when navigation changes), then `pixdiff.mjs` against the stored set of `main` (below). Read every differing
