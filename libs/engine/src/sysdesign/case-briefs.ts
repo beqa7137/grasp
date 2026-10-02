@@ -38,6 +38,13 @@ export const CASE_BRIEFS: readonly CaseBrief[] = [
     summary: 'Priority queues per channel, provider rate limits, retries and idempotent at-least-once delivery.',
   },
   {
+    id: 'email-service',
+    question:
+      'Design a consumer email service like Gmail or Outlook.com: receive, store, search and send mail for 500 million daily active mailboxes, from the web, phone apps and IMAP clients.',
+    summary:
+      'Accepting mail only after a durable write, SPF, DKIM and DMARC, spam filtering, SMTP retries and bounces, metadata sharded by user beside deduplicated blobs, per-user search indexes, modification-sequence sync and MTA-STS.',
+  },
+  {
     id: 'web-crawler',
     question: 'Design a crawler that fetches a billion pages a month for a search engine.',
     summary: 'A polite URL frontier, DNS, a seen-URL set, SimHash dedup, recrawl scheduling and crawler traps.',

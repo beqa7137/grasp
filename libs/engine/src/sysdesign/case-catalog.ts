@@ -22,6 +22,13 @@ export const CASE_CATALOG: readonly CaseSummary[] = [
     stages: 10,
     topics: ['sd-queues', 'sd-estimation', 'sd-reliability', 'sd-rate-limiting'],
   },
+  {
+    id: 'email-service',
+    title: 'Email Service',
+    level: 'advanced',
+    stages: 14,
+    topics: ['sd-durability', 'sd-storage', 'sd-search', 'sd-queues'],
+  },
   { id: 'web-crawler', title: 'Web Crawler', level: 'advanced', stages: 9, topics: ['sd-estimation', 'sd-queues', 'sd-sharding'] },
   {
     id: 'video-streaming',

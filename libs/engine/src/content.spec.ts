@@ -19,19 +19,25 @@ import {
   CASE_STUDIES,
   CELL_PRECISIONS,
   DENSITIES,
+  FIRST_RETRY_STOPS,
+  LIFETIME_STOPS,
+  LONGEST_STOPS,
   MAX_ATTEMPTS,
+  OUTAGE_STOPS,
   RECON_ACTIONS,
   ROLLOUT_STAGES,
   bucketingCheckpoint,
   cellSearchCheckpoint,
   explainRow,
   hotAccountCheckpoint,
+  mailStorageCheckpoint,
   propagationCheckpoint,
   quadtreeCheckpoint,
   reconcile,
   reconciliationDay,
   retryCheckpoint,
   retryRun,
+  smtpRetryCheckpoint,
   type Assignment,
   type AttemptFate,
   type KeyMode,
@@ -124,6 +130,33 @@ function proximityWidgetText(): unknown {
   return { cells, quadtree };
 }
 
+/** The text the email case's widgets build: both replies over every retry schedule, and storage over a spread of sliders. */
+function emailWidgetText(): unknown {
+  const retries = (['temporary', 'permanent'] as const).flatMap((reply) =>
+    OUTAGE_STOPS.flatMap((outageMin) =>
+      FIRST_RETRY_STOPS.flatMap((firstRetryMin) =>
+        [LONGEST_STOPS[0], LONGEST_STOPS.at(-1)!].flatMap((longestMin) =>
+          [LIFETIME_STOPS[0], 7_200].map((lifetimeMin) =>
+            smtpRetryCheckpoint({ outageMin, firstRetryMin, longestMin, lifetimeMin, reply }),
+          ),
+        ),
+      ),
+    ),
+  );
+  const storage = [50, 500].flatMap((usersM) =>
+    [0, 10, 50].flatMap((attachmentPct) =>
+      [0, 30, 80].flatMap((dedupPct) =>
+        ([3, 1.5] as const).flatMap((replication) =>
+          [100, 3_000].map((attachmentKb) =>
+            mailStorageCheckpoint({ usersM, perDay: 40, attachmentPct, attachmentKb, dedupPct, replication }),
+          ),
+        ),
+      ),
+    ),
+  );
+  return { retries, storage };
+}
+
 // A prediction's frames come from the tracers, which have entries of their own, so one seed covers the text it adds itself.
 const questions = (item: ItemDef) =>
   (item.kind === 'predict' ? REVIEW_SEEDS.slice(0, 1) : REVIEW_SEEDS).map((seed) => generateQuestion(item.id, seed));
@@ -149,6 +182,7 @@ function learnerContent(): Entry[] {
     ['payment ledger case widgets', caseWidgetText()],
     ['feature flag case widgets', flagWidgetText()],
     ['proximity case widgets', proximityWidgetText()],
+    ['email case widgets', emailWidgetText()],
     ...byKey('design lesson', SD_LESSONS),
     ...byId('coding problem', CODING_PROBLEMS),
     ...byId('competency summary', [...COMPETENCY_CATALOG]),

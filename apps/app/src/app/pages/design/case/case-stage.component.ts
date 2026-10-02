@@ -32,10 +32,12 @@ import { CodeTextComponent } from '../../../viz/code-text.component';
 import { BucketingWidgetComponent } from './widgets/bucketing-widget.component';
 import { CellsWidgetComponent } from './widgets/cells-widget.component';
 import { HotAccountWidgetComponent } from './widgets/hot-account-widget.component';
+import { MailStorageWidgetComponent } from './widgets/mail-storage-widget.component';
 import { PropagationWidgetComponent } from './widgets/propagation-widget.component';
 import { QuadtreeWidgetComponent } from './widgets/quadtree-widget.component';
 import { ReconcileWidgetComponent } from './widgets/reconcile-widget.component';
 import { RetryWidgetComponent } from './widgets/retry-widget.component';
+import { SmtpRetryWidgetComponent } from './widgets/smtp-retry-widget.component';
 
 const VERDICTS = {
   'spot-on': 'Spot on.',
@@ -51,6 +53,8 @@ const WIDGET_TITLES: Record<CaseWidget, string> = {
   propagation: 'Try it: get a flag change to every SDK',
   cells: 'Try it: search geohash cells around a user',
   quadtree: 'Try it: build a quadtree over 10,000 places',
+  'smtp-retry': 'Try it: retry a message through an outage',
+  'mail-storage': 'Try it: store a year of mail',
 };
 
 /** One interview stage: commit to a decision or an estimate first, then reveal the model answer a point at a time. */
@@ -69,6 +73,8 @@ const WIDGET_TITLES: Record<CaseWidget, string> = {
     PropagationWidgetComponent,
     CellsWidgetComponent,
     QuadtreeWidgetComponent,
+    SmtpRetryWidgetComponent,
+    MailStorageWidgetComponent,
   ],
   template: `
     @let s = stage();
@@ -162,6 +168,12 @@ const WIDGET_TITLES: Record<CaseWidget, string> = {
           }
           @case ('quadtree') {
             <app-quadtree-widget />
+          }
+          @case ('smtp-retry') {
+            <app-smtp-retry-widget />
+          }
+          @case ('mail-storage') {
+            <app-mail-storage-widget />
           }
         }
       </section>

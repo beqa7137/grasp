@@ -18,6 +18,7 @@ import { FEATURE_FLAGS } from './feature-flags.js';
 import { TICKETING } from './ticketing.js';
 import { WEB_CRAWLER } from './web-crawler.js';
 import { NOTIFICATIONS } from './notifications.js';
+import { EMAIL_SERVICE } from './email-service.js';
 import { CHAT } from './chat.js';
 import { TYPEAHEAD } from './typeahead.js';
 import { RATE_LIMITER } from './rate-limiter.js';
@@ -26,6 +27,7 @@ import type { CaseStudy } from './types.js';
 import { URL_SHORTENER } from './url-shortener.js';
 
 export type { CaseDecision, CaseEstimate, CaseOption, CaseStage, CaseStageKind, CaseStudy, CaseWidget } from './types.js';
+export * from './email/index.js';
 export * from './estimate.js';
 export * from './flags/index.js';
 export * from './labs.js';
@@ -42,6 +44,7 @@ export const CASE_STUDIES: readonly CaseStudy[] = [
   NEWS_FEED,
   CHAT,
   NOTIFICATIONS,
+  EMAIL_SERVICE,
   WEB_CRAWLER,
   VIDEO_STREAMING,
   PAYMENTS,

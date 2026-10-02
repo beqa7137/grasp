@@ -39,6 +39,7 @@ const CASE_ANSWERS = {
   'payment-ledger': { guesses: { 1: '18.5k', 2: '30', 7: '17', 9: '72M' }, decided: [0, 3, 4, 6, 8, 10, 11] },
   'feature-flags': { guesses: { 1: '5M', 2: '667' }, decided: [0, 3, 4, 6, 7, 8, 9, 10, 11, 12] },
   'proximity-service': { guesses: { 1: '17k', 2: '200' }, decided: [0, 3, 4, 6, 7, 8, 9, 10, 11, 12] },
+  'email-service': { guesses: { 1: '463k', 2: '518' }, decided: [0, 3, 4, 6, 7, 8, 9, 10, 11, 12] },
 };
 
 /** A case answered up to `reached`, its decisions as recommended, so the stage there shows its model. */
@@ -167,6 +168,20 @@ export function designStates() {
       id: 'case-proximity-service-quadtree',
       path: '/design/case/proximity-service',
       setup: caseWidget('proximity-service', 7, 'app-quadtree-widget', (m) =>
+        m.locator('app-widget-check fieldset button').first().click(),
+      ),
+    },
+    { id: 'case-email-service', path: '/design/case/email-service' },
+    { id: 'case-build-email-service', path: '/design/free-build?case=email-service' },
+    {
+      id: 'case-email-service-retry',
+      path: '/design/case/email-service',
+      setup: caseWidget('email-service', 7, 'app-smtp-retry-widget', (m) => m.locator('app-widget-check fieldset button').first().click()),
+    },
+    {
+      id: 'case-email-service-storage',
+      path: '/design/case/email-service',
+      setup: caseWidget('email-service', 8, 'app-mail-storage-widget', (m) =>
         m.locator('app-widget-check fieldset button').first().click(),
       ),
     },
