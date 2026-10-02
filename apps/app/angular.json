@@ -48,6 +48,7 @@
                 }
               ],
               "outputHashing": "all",
+              "statsJson": true,
               "optimization": {
                 "scripts": true,
                 "styles": {
