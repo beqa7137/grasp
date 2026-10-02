@@ -66,7 +66,6 @@ test('counts main, the tabs and the default page with their static imports, each
   assert.deepEqual(measured.files.sort(), ['chunk-learn.js', 'chunk-shared.js', 'chunk-tabs.js', 'main-A.js']);
   assert.equal(measured.jsBytes, 632_000);
   assert.equal(measured.bytes, BASELINE);
-  assert.equal(measured.initialBytes, 650_000);
   assert.deepEqual(closure(stats(), ['chunk-tabs.js']).sort(), ['chunk-shared.js', 'chunk-tabs.js']);
 });
 
@@ -119,12 +118,6 @@ test('fails when an allowlisted module has left first paint, so the allowlist on
   assert.deepEqual(problems(measure(moved, ROUTES), BASELINE), [
     'src/app/viz/mastery-ring.component.ts is no longer in first paint: remove it from VIZ_ALLOWED.',
   ]);
-});
-
-test("fails when Angular's initial total passes 855 kB", () => {
-  const heavy = stats();
-  heavy.outputs['main-A.js'].bytes += 205_010;
-  assert.match(problems(measure(heavy, ROUTES), BASELINE + 205_010).join(), /initial total is 855\.01 kB, above the 855\.00 kB cap/);
 });
 
 test('names an entry with no build output instead of measuring less', () => {

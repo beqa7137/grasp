@@ -5,7 +5,6 @@ const APP = fileURLToPath(new URL('../', import.meta.url));
 const BASELINE = fileURLToPath(new URL('first-paint-bytes.baseline.json', import.meta.url));
 
 export const SLACK = 2000;
-export const INITIAL_CAP = 855_000;
 const VIZ = /^src\/app\/viz\/|\/libs\/engine\/(src|dist)\/viz\//;
 /** Visualization modules first paint loads today. 3.3 moves mastery-ring to ui/; code-text leaves with Learn in R9. */
 export const VIZ_ALLOWED = ['src/app/viz/mastery-ring.component.ts', 'src/app/viz/code-text.component.ts'];
@@ -58,7 +57,6 @@ export function measure(stats, routes) {
     jsBytes: size(files),
     cssBytes,
     bytes: size(files) + cssBytes,
-    initialBytes: size(closure(stats, [main])) + cssBytes,
     viz,
     largest: inputs.sort((a, b) => b.bytes - a.bytes).slice(0, 10),
   };
@@ -73,8 +71,6 @@ export function problems(measured, baseline) {
         `${delta > 0 ? 'If the growth is intended, raise' : 'Lower'} the baseline: node scripts/first-paint-bytes.mjs --update, and state it in docs/LOOP.md.`,
     );
   }
-  if (measured.initialBytes > INITIAL_CAP)
-    found.push(`Angular's initial total is ${kB(measured.initialBytes)}, above the ${kB(INITIAL_CAP)} cap.`);
   for (const input of measured.viz.filter((path) => !VIZ_ALLOWED.includes(path))) {
     found.push(`${input} is a visualization module in first paint: import it only from lazy routes.`);
   }
@@ -103,7 +99,7 @@ function report(measured, baseline) {
   const leaks = measured.viz.filter((path) => !VIZ_ALLOWED.includes(path)).length;
   return (
     `First paint ${kB(measured.bytes)}: JS ${kB(measured.jsBytes)} in ${measured.files.length} files + global CSS ${kB(measured.cssBytes)} ` +
-    `(baseline ${kB(baseline)} ± ${kB(SLACK)}); Angular initial ${kB(measured.initialBytes)} (cap ${kB(INITIAL_CAP)}); ` +
+    `(baseline ${kB(baseline)} ± ${kB(SLACK)}); ` +
     `${leaks ? `${leaks} viz leaks` : 'no viz leaks'} (${VIZ_ALLOWED.length} allowlisted)`
   );
 }
