@@ -17,6 +17,7 @@ import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, Io
 import { Preferences } from '@capacitor/preferences';
 import {
   COMPONENTS,
+  DEFAULT_OBJECT_SHARE,
   PALETTE,
   canConnect,
   createNode,
@@ -162,10 +163,13 @@ export class SandboxPage {
   readonly workload = signal<Workload>({ rps: 1000, readRatio: 0.9 });
   readonly result = computed(() => simulate(this.design(), this.workload()));
   /** The share of files the board runs at: the one its workload names, or the one the old rule reads off its stores. */
-  readonly objectShare = computed(() => this.workload().objectShare ?? legacyObjectShare(this.design()));
+  private readonly runningShare = computed(() => this.workload().objectShare ?? legacyObjectShare(this.design(), this.result().nodes));
+  readonly objectShare = computed(() => this.runningShare() ?? DEFAULT_OBJECT_SHARE);
   readonly objectShareLabel = computed(() => {
-    const pct = `${Math.round(this.objectShare() * 100)}%`;
-    return this.workload().objectShare === undefined ? `old rule (${pct})` : pct;
+    const share = this.runningShare();
+    const pct = share === undefined ? '' : `${Math.round(share * 100)}%`;
+    if (this.workload().objectShare !== undefined) return pct;
+    return share === undefined ? 'old rule' : `old rule (${pct})`;
   });
   readonly checks = computed(() => {
     const s = this.scenario();

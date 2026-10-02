@@ -1,5 +1,5 @@
 import { DEFAULT_OBJECT_SHARE } from './object-share.js';
-import type { Design, Scenario, Workload } from './types.js';
+import type { Design, DesignNode, Scenario, SimResult, Workload } from './types.js';
 
 /** A Design Lab board as the app stores it between visits. */
 export interface SavedDesign {
@@ -32,13 +32,16 @@ export function nameObjectShare({ design, workload }: SavedDesign, objectShare: 
   };
 }
 
-/** The share of files a board on the old rule runs at: the one its first app linked to a store sends its first store. */
-export function legacyObjectShare({ nodes, edges }: Design): number {
+/**
+ * The share of files a board on the old rule runs at: the share saved on the first store linked from the first app
+ * that carries traffic (from the first such app at all when none does), 30% when that store saved none. Undefined when
+ * no app links a store, since CDNs and workers then split by instance count.
+ */
+export function legacyObjectShare({ nodes, edges }: Design, stats?: SimResult['nodes']): number | undefined {
   const byId = new Map(nodes.map((n) => [n.id, n]));
-  for (const app of nodes) {
-    if (app.kind !== 'app') continue;
-    const store = edges.map((e) => (e.from === app.id ? byId.get(e.to) : undefined)).find((n) => n?.kind === 'blob');
-    if (store) return store.share ?? DEFAULT_OBJECT_SHARE;
-  }
-  return DEFAULT_OBJECT_SHARE;
+  const storeOf = (app: DesignNode) => edges.map((e) => (e.from === app.id ? byId.get(e.to) : undefined)).find((n) => n?.kind === 'blob');
+  const apps = nodes.filter((n) => n.kind === 'app' && storeOf(n));
+  const carrying = (n: DesignNode) => (stats?.[n.id]?.readRps ?? 0) + (stats?.[n.id]?.writeRps ?? 0) > 0;
+  const app = apps.find(carrying) ?? apps[0];
+  return app && (storeOf(app)!.share ?? DEFAULT_OBJECT_SHARE);
 }
