@@ -22,7 +22,7 @@ describe('code deployment case', () => {
     ]);
     expect(text).toContain('1,000 an hour is 0.28 a second, one every 3.6 s');
     expect(text).toContain('200,000 instances on 50,000 servers, 4 each), so the busiest hour updates 100,000 instances, 28 a second');
-    expect(text).toContain('about 3,750 rollouts would be in flight at once');
+    expect(text).toContain('so up to about 3,750 rollouts can be in flight at once at the busiest hour');
     expect(text).toContain('8,000 deploys × 100 servers × 500 MB = 400 TB a day, about 37 Gbit/s on average and 111 Gbit/s');
     expect(text).toContain("a day's 8,000 deploys at 3 h 45 min each would take over 3 years in series");
   });
@@ -101,6 +101,22 @@ describe('code deployment case', () => {
       'Expand and contract',
     ])
       expect(text).toContain(probe);
+  });
+
+  it('covers surge, dependencies, rolling forward, monorepos and rotating secrets', () => {
+    for (const point of [
+      'With maxUnavailable 0 and a surge, new hosts start before old ones stop, so capacity never drops, at the cost of spare machines; with the defaults, up to 25% can be down at once.',
+      'Dependencies between services: never require two services to deploy together.',
+      "gated on the provider's rollout being complete, never on a shared timestamp.",
+      'When rollback is unsafe (a contract step already ran, or the new build wrote data the old one cannot read), roll forward instead',
+      "In a monorepo, the build graph says which services a commit affects (Bazel's reverse-dependency queries)",
+      'Rotate with overlap: issue the new secret, let services pick it up (re-read on a timer or a watch, not only at start-up), confirm nothing uses the old one, then revoke it.',
+      'Up to about 3,750 rollouts can be in flight at once at the busiest hour',
+      '(hosts that cannot converge are drained and repaired, not left serving an old build)',
+    ])
+      expect(text).toContain(point);
+    expect(text).not.toContain('Surge starts new hosts');
+    expect(text).not.toContain('if the busiest rate held that long');
   });
 
   it('labels tool defaults as defaults and names facts exactly', () => {

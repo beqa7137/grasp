@@ -79,6 +79,22 @@ describe('code deployment review items', () => {
     }
   });
 
+  it('says which part of a rollout takes longer, baking or updating', () => {
+    const endings = new Set<string>();
+    for (const seed of SEEDS) {
+      const { q } = right('rollout-duration', seed);
+      const run = rollout(planOf(q.prompt));
+      const baking = (run.waves.length - 1) * planOf(q.prompt).bakeMin;
+      const ending =
+        baking > run.totalMin - baking
+          ? 'Bake time is most of it, and it is what buys a small blast radius.'
+          : 'Updating is most of it: the cap on hosts out at once sets the pace.';
+      expect(q.explain.endsWith(ending), q.prompt).toBe(true);
+      endings.add(ending);
+    }
+    expect(endings.size).toBe(2);
+  });
+
   it('asks varied numeric questions', () => {
     for (const id of ['rollout-blast-radius', 'rollout-duration', 'artifact-fan-out'])
       expect(new Set(SEEDS.map((s) => generateQuestion(`sd:${id}`, s).prompt)).size, id).toBeGreaterThanOrEqual(5);

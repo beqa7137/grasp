@@ -114,6 +114,20 @@ describe('the distribution checkpoint', () => {
     expect([...asked].sort()).toEqual(['bottleneck', 'egress', 'time']);
   });
 
+  it('offers only tiers that exist, padded to three choices', () => {
+    let withoutCaches = 0;
+    for (const s of sweep()) {
+      const c = distributionCheckpoint(s);
+      if (!c.prompt.includes('Which links limit')) continue;
+      expect(c.choices.length).toBeGreaterThanOrEqual(3);
+      if (s.caches === 0) {
+        withoutCaches++;
+        expect(c.choices).not.toContain(TIER_TEXT.caches);
+      } else expect(c.choices).toContain(TIER_TEXT.caches);
+    }
+    expect(withoutCaches).toBeGreaterThan(0);
+  });
+
   it('asks about the bottleneck only when one tier clearly limits', () => {
     const tie = distribution({ ...base, originGbps: 1, p2p: true });
     expect(tie.tierSeconds.origin).toBe(tie.tierSeconds.hosts);

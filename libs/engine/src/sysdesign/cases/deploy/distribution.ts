@@ -96,10 +96,18 @@ export const TIER_TEXT: Record<Tier, string> = {
   hosts: "The hosts' own links",
 };
 
+/** Fills the bottleneck question to three choices when a tier is missing: artifact bytes never pass through the control plane. */
+const CONTROL_PLANE = "The deploy control plane's API";
+
 const describe = (s: DistributionSettings) =>
   `a ${num(s.sizeMb)} MB artifact${s.delta ? ` shipped as a ${DISTRIBUTION.deltaShare * 100}% delta` : ''} goes to ${num(s.hosts)} hosts from an origin with ${num(s.originGbps)} Gbit/s, ${s.caches === 0 ? 'with no regional caches' : `through ${num(s.caches)} regional cache${s.caches === 1 ? '' : 's'}`}, ${s.p2p ? 'hosts sharing pieces peer to peer' : 'each host downloading on its own'}`;
 
 type DistributionQuestion = 'time' | 'bottleneck' | 'egress';
+
+const withPadding = (choices: string[], right: string) => {
+  const padded = choices.length < 3 ? [...choices, CONTROL_PLANE] : choices;
+  return { choices: padded, answer: padded.indexOf(right) };
+};
 
 /** The bottleneck is asked only when it clearly wins: the runner-up tier needs at most 80% of its time. */
 export function clearBottleneck(run: DistributionRun): boolean {
@@ -129,8 +137,10 @@ export function distributionCheckpoint(s: DistributionSettings, run = distributi
   if (question === 'bottleneck')
     return {
       prompt: `Predict: ${situation}. Which links limit how fast every host gets it?`,
-      choices: TIERS.map((t) => TIER_TEXT[t]),
-      answer: TIERS.indexOf(run.bottleneck),
+      ...withPadding(
+        TIERS.filter((t) => run.tierSeconds[t] !== undefined).map((t) => TIER_TEXT[t]),
+        TIER_TEXT[run.bottleneck],
+      ),
       explain: `The slowest tier sets the pace: ${terms}. ${
         run.bottleneck === 'origin'
           ? 'Every copy leaves one place, so adding hosts adds time; caches or peers take the copies off the origin.'
