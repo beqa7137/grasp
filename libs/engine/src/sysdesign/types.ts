@@ -48,7 +48,10 @@ export interface Workload {
   readRatio: number;
   /** Abusive automated traffic (scrapers, credential stuffing) on top of rps. It is never counted as user errors. */
   botRps?: number;
-  /** The share of requests that upload or fetch whole objects (files, images, attachments). Absent means 30%. */
+  /**
+   * The share of requests that upload or fetch whole objects (files, images, attachments). Absent selects the old rule:
+   * an app sends its first store the share saved on it (30% by default), and CDNs and workers split by instance count.
+   */
   objectShare?: number;
 }
 

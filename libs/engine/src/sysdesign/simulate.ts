@@ -129,7 +129,7 @@ export function simulate(design: Design, workload: Workload): SimResult {
   const drainQueuesOnce = () => {
     if (drained) return drained;
     drained = drainQueues(queues, (id) => available(byId.get(id)!) * COMPONENTS.worker.capacityRps);
-    for (const q of queues)
+    for (const q of [...queues].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)))
       for (const [worker, jobs] of drained.flows.get(q.id) ?? []) send(q.node, byId.get(worker)!, { bg: jobs }, q.carry);
     return drained;
   };
@@ -219,7 +219,7 @@ export function simulate(design: Design, workload: Workload): SimResult {
         stores,
         others,
         objects,
-        records: 1 - objects,
+        records: objects > 1 - 1e-9 ? 0 : 1 - objects,
         carry: stores.length ? 0 : objectFrac,
       };
     };
@@ -453,6 +453,9 @@ export function simulate(design: Design, workload: Workload): SimResult {
   const errorRate = offered > 0 ? Math.min(1, syncErrors / offered) : 1;
 
   const { backlogGrowthPerSec, queueDrainRps, backlogDrainRatio } = drainQueuesOnce();
+  // Workers ran after everything else; their insights go back to the board's topological order.
+  const position = new Map(sorted.map((n, i) => [n.id, i]));
+  insights.sort((a, b) => (position.get(a.nodeId ?? '') ?? -1) - (position.get(b.nodeId ?? '') ?? -1));
   addInsights(design, stats, insights, workload, {
     backlogGrowth: backlogGrowthPerSec,
     bgFailures,

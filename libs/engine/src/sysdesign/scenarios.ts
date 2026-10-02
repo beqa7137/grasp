@@ -161,11 +161,11 @@ const DEFINITIONS: Record<ScenarioId, ScenarioDefinition> = {
     hints: [
       'Tap the database: how much of its load is files that nobody will ever query?',
       'An object store keeps whole files by key, scales far past a database and costs one flat price. What would the database have left to do?',
-      'Size the shards for the records alone: count the writes that are not files, at 2 ops each, plus the record reads that reach them, and keep each shard well short of full.',
+      'Size the shards for the records alone: of 7,000 writes a second, 3,500 are records, at 2 ops each 7,000 ops, plus the record reads that reach them. Keeping each shard well short of full, that is two shards, against four if the database kept the files too.',
       'In this model a file takes about 25 ms to its first byte (real object stores take tens of milliseconds, more at the tail), against 6 ms for a database read. Leave the app tier enough headroom to keep the p99 under 250 ms.',
     ],
     takeaway:
-      'Keep bytes out of the database. Bodies, attachments and images belong in an object store, referenced by key from a metadata row, so the database is sized for the records alone: here half the shards. The store is slower to the first byte, about 25 ms, so leave latency headroom elsewhere.',
+      'Keep bytes out of the database. Bodies, attachments and images belong in an object store, referenced by key from a metadata row, so the database is sized for the records alone, and its shards shrink with the share of traffic that is files. The store is slower to the first byte, about 25 ms, so leave latency headroom elsewhere.',
   },
   'ledger-month-end': {
     brief:

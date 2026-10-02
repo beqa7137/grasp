@@ -182,12 +182,13 @@ export const SCENARIO_VARIANTS: Record<ScenarioId, readonly ScenarioVariant[]> =
     },
     {
       twist:
-        'Agents now wait a random delay before reconnecting: the storm spreads over four minutes at 10,000 RPS, half of them reports. Budget $6,000.',
+        'This outage lasts about 17 minutes, and agents now wait a random delay before reconnecting: the storm spreads over four minutes at 10,000 RPS, half of them reports. Budget $6,000.',
       workload: { rps: 10_000, readRatio: 0.5, objectShare: 0 },
       goals: { ...WAVE, maxMonthlyCost: 6_000, spikeSeconds: 240 },
     },
     {
-      twist: 'Agents poll every few seconds while they wait for new state: 20,000 RPS for three minutes at 70% reads. Budget $7,200.',
+      twist:
+        'After a 15-minute outage, agents poll every few seconds while they wait for new state: 20,000 RPS for three minutes at 70% reads. Budget $7,200.',
       workload: { rps: 20_000, readRatio: 0.7, objectShare: 0 },
       goals: { ...WAVE, maxMonthlyCost: 7_200, spikeSeconds: 180 },
     },

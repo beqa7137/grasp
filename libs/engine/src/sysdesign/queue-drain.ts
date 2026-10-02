@@ -5,17 +5,59 @@ export interface QueueDemand {
   workers: string[];
 }
 
+/** Queues whose workers serve only them, all at one utilization; `ratio` is their load over those workers' capacity. */
+export interface DrainBlock {
+  queues: string[];
+  workers: string[];
+  ratio: number;
+}
+
 export interface QueueDrain {
   /** Jobs each queue hands each worker, per second: `flows.get(queue)?.get(worker)`. */
   flows: Map<string, Map<string, number>>;
+  blocks: DrainBlock[];
   backlogGrowthPerSec: number;
   queueDrainRps: number;
   backlogDrainRatio: number;
 }
 
-/** Subsets of a group of queues sharing workers are enumerated, so a larger group is drained as one block. */
-const MAX_EXACT_QUEUES = 12;
-const TIE = 1e-12;
+const TOLERANCE = 1e-12;
+const SCALING_ROUNDS = 200;
+
+const byId = (a: { id: string } | string, b: { id: string } | string) => {
+  const x = typeof a === 'string' ? a : a.id;
+  const y = typeof b === 'string' ? b : b.id;
+  return x < y ? -1 : x > y ? 1 : 0;
+};
+
+/**
+ * The fluid limit of workers pulling from the queues they link to. The set of queues with the highest load per unit of
+ * capacity it can reach is the bottleneck (Hall's theorem): its workers serve only it, all at the same utilization, and
+ * nothing does better. Peeling such blocks off in turn gives the least backlog any assignment can reach, and each block's
+ * backlog over its capacity is the shortest time to drain it once the spike ends. Queues holding nothing never enter, so
+ * neither does capacity only they reach. Everything runs over ids in sorted order, so the result, to the last bit, does
+ * not depend on the order the board lists anything.
+ */
+export function drainQueues(queues: readonly QueueDemand[], capacityOf: (worker: string) => number): QueueDrain {
+  const capacities = new Map(queues.flatMap((q) => q.workers).map((w) => [w, capacityOf(w)]));
+  const capacity = (w: string) => capacities.get(w)!;
+  const result: QueueDrain = { flows: new Map(), blocks: [], backlogGrowthPerSec: 0, queueDrainRps: 0, backlogDrainRatio: 0 };
+  const fed = queues
+    .filter((q) => q.incoming > 0)
+    .map((q) => ({ ...q, workers: [...new Set(q.workers)].sort(byId) }))
+    .sort(byId);
+  for (const block of peel(fed, capacity)) {
+    const load = sum(block.queues.map((q) => q.incoming));
+    const rate = sum(block.workers.map(capacity));
+    result.blocks.push({ queues: block.queues.map((q) => q.id), workers: block.workers, ratio: block.ratio });
+    result.backlogGrowthPerSec += Math.max(0, load - rate);
+    result.queueDrainRps += rate;
+    if (load > rate)
+      result.backlogDrainRatio = Math.max(result.backlogDrainRatio, rate > 0 ? (load - rate) / rate : Number.POSITIVE_INFINITY);
+    for (const [queue, out] of scale(block, capacity)) result.flows.set(queue, out);
+  }
+  return result;
+}
 
 interface Block {
   queues: QueueDemand[];
@@ -23,128 +65,193 @@ interface Block {
   ratio: number;
 }
 
-/**
- * The fluid limit of workers pulling from the queues they link to. The set of queues with the highest load per unit of
- * capacity it can reach is the bottleneck (Hall's theorem): its workers serve only it, all at the same utilization, and
- * nothing does better. Peeling such blocks off in turn gives the least backlog any assignment can reach, and each block's
- * backlog over its capacity is the shortest time to drain it once the spike ends. Queues holding nothing never enter, so
- * neither does capacity only they reach, and the result does not depend on the order the board lists anything.
- */
-export function drainQueues(queues: readonly QueueDemand[], capacity: (worker: string) => number): QueueDrain {
-  const result: QueueDrain = { flows: new Map(), backlogGrowthPerSec: 0, queueDrainRps: 0, backlogDrainRatio: 0 };
-  let remaining = queues.filter((q) => q.incoming > 0);
+const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
+
+/** Blocks from the densest down, one group of queues linked through shared workers at a time. */
+function peel(fed: QueueDemand[], capacity: (worker: string) => number): Block[] {
+  const blocks: Block[] = [];
   const taken = new Set<string>();
-  while (remaining.length) {
-    const block = densest(remaining, taken, capacity);
-    const load = block.queues.reduce((sum, q) => sum + q.incoming, 0);
-    const rate = block.workers.reduce((sum, w) => sum + capacity(w), 0);
-    result.backlogGrowthPerSec += Math.max(0, load - rate);
-    result.queueDrainRps += rate;
-    if (load > rate)
-      result.backlogDrainRatio = Math.max(result.backlogDrainRatio, rate > 0 ? (load - rate) / rate : Number.POSITIVE_INFINITY);
-    assign(block, capacity, result.flows);
-    for (const w of block.workers) taken.add(w);
-    remaining = remaining.filter((q) => !block.queues.includes(q));
+  for (const group of components(fed, capacity)) {
+    let remaining = group;
+    while (remaining.length) {
+      const reach = new Map(remaining.map((q) => [q.id, q.workers.filter((w) => !taken.has(w) && capacity(w) > 0)]));
+      const reachOf = (q: QueueDemand) => reach.get(q.id)!;
+      const stuck = remaining.filter((q) => reachOf(q).length === 0);
+      const block = stuck.length ? { queues: stuck, workers: [], ratio: Number.POSITIVE_INFINITY } : densest(remaining, reachOf, capacity);
+      blocks.push(block);
+      for (const w of block.workers) taken.add(w);
+      remaining = remaining.filter((q) => !block.queues.includes(q));
+    }
   }
-  return result;
+  return blocks;
 }
 
-function reach(queues: QueueDemand[], taken: Set<string>): string[] {
-  return [...new Set(queues.flatMap((q) => q.workers))].filter((w) => !taken.has(w));
-}
-
-function densest(queues: QueueDemand[], taken: Set<string>, capacity: (worker: string) => number): Block {
-  const of = (subset: QueueDemand[]): Block => {
-    const workers = reach(subset, taken);
-    const rate = workers.reduce((sum, w) => sum + capacity(w), 0);
-    const load = subset.reduce((sum, q) => sum + q.incoming, 0);
-    return { queues: subset, workers, ratio: rate > 0 ? load / rate : Number.POSITIVE_INFINITY };
-  };
-  if (queues.length > MAX_EXACT_QUEUES) return of(queues);
-  let best = of(queues);
-  for (let mask = 1; mask < 1 << queues.length; mask++) {
-    const candidate = of(queues.filter((_, i) => mask & (1 << i)));
-    const tie =
-      candidate.ratio === best.ratio ||
-      (Number.isFinite(candidate.ratio) && Number.isFinite(best.ratio) && Math.abs(candidate.ratio - best.ratio) <= TIE * best.ratio);
-    if (tie ? candidate.queues.length > best.queues.length : candidate.ratio > best.ratio) best = candidate;
-  }
-  return best;
+/** Queues linked through workers with capacity, in groups that share none; each keeps the sorted order. */
+function components(fed: QueueDemand[], capacity: (worker: string) => number): QueueDemand[][] {
+  const parent = fed.map((_, i) => i);
+  const root = (i: number): number => (parent[i] === i ? i : (parent[i] = root(parent[i])));
+  const owner = new Map<string, number>();
+  fed.forEach((q, i) => {
+    for (const w of q.workers) {
+      if (capacity(w) <= 0) continue;
+      const other = owner.get(w);
+      if (other === undefined) owner.set(w, i);
+      else parent[root(i)] = root(other);
+    }
+  });
+  const groups = new Map<number, QueueDemand[]>();
+  fed.forEach((q, i) => groups.set(root(i), [...(groups.get(root(i)) ?? []), q]));
+  return [...groups.values()];
 }
 
 /**
- * Within a block every queue is served the same fraction and every worker runs at the same utilization; a maximum flow
- * finds which queue feeds which worker, and the block being the densest guarantees it meets both exactly.
+ * The largest set of queues with the most load per unit of capacity it reaches, by Dinkelbach's method: at a trial
+ * ratio, a minimum cut in source -> queue (load) -> worker -> sink (ratio x capacity) separates the set that gains most
+ * from load minus ratio x capacity; its own ratio is the next trial, until no set gains. The maximal source side of the
+ * final cut is the union of every densest set.
  */
-function assign(block: Block, capacity: (worker: string) => number, flows: Map<string, Map<string, number>>) {
-  const served = Math.min(1, 1 / block.ratio);
-  const utilization = Math.min(1, block.ratio);
-  const supply = new Map(block.queues.map((q) => [q.id, q.incoming * served]));
-  const room = new Map(block.workers.map((w) => [w, capacity(w) * utilization]));
-  const flow = new Map<string, number>();
-  const key = (q: string, w: string) => `${q}\u0000${w}`;
-  const eps = 1e-9 * Math.max(1, ...supply.values());
+function densest(queues: QueueDemand[], reach: (q: QueueDemand) => string[], capacity: (worker: string) => number): Block {
+  const ratioOf = (set: QueueDemand[]) => {
+    const workers = [...new Set(set.flatMap(reach))].sort(byId);
+    return { workers, ratio: sum(set.map((q) => q.incoming)) / sum(workers.map(capacity)) };
+  };
+  let best: Block = { queues, ...ratioOf(queues) };
   for (;;) {
-    const path = augmentingPath(block, supply, room, flow, key, eps);
-    if (!path) break;
-    const amount = Math.min(supply.get(path.source)!, room.get(path.sink)!, ...path.back.map((k) => flow.get(k)!));
-    supply.set(path.source, supply.get(path.source)! - amount);
-    room.set(path.sink, room.get(path.sink)! - amount);
-    for (const k of path.forward) flow.set(k, (flow.get(k) ?? 0) + amount);
-    for (const k of path.back) flow.set(k, flow.get(k)! - amount);
-  }
-  for (const q of block.queues) {
-    const out = new Map<string, number>();
-    for (const w of q.workers) {
-      const f = flow.get(key(q.id, w)) ?? 0;
-      if (f > 0) out.set(w, f);
-    }
-    flows.set(q.id, out);
+    const side = maximalSourceSide(queues, reach, capacity, best.ratio);
+    if (!side.length) return best;
+    const next = { queues: side, ...ratioOf(side) };
+    if (next.ratio <= best.ratio * (1 + TOLERANCE)) return next;
+    best = next;
   }
 }
 
-/** Breadth-first search from a queue with supply left to a worker with room left, over the residual graph. */
-function augmentingPath(
-  block: Block,
-  supply: Map<string, number>,
-  room: Map<string, number>,
-  flow: Map<string, number>,
-  key: (q: string, w: string) => string,
-  eps: number,
-): { source: string; sink: string; forward: string[]; back: string[] } | undefined {
-  const inBlock = new Set(block.workers);
-  const byId = new Map(block.queues.map((q) => [q.id, q]));
-  const starts = block.queues.filter((q) => supply.get(q.id)! > eps).map((q) => q.id);
-  const reached = new Set<string>();
-  const queueFrom = new Map<string, { queue: string; worker: string }>();
-  const seenQueues = new Set(starts);
-  const frontier = [...starts];
-  while (frontier.length) {
-    const q = frontier.shift()!;
-    for (const w of byId.get(q)!.workers) {
-      if (!inBlock.has(w) || reached.has(w)) continue;
-      reached.add(w);
-      if (room.get(w)! > eps) {
-        const forward: string[] = [];
-        const back: string[] = [];
-        let worker = w;
-        let queue = q;
-        for (;;) {
-          forward.push(key(queue, worker));
-          const prev = queueFrom.get(queue);
-          if (!prev) return { source: queue, sink: w, forward, back };
-          back.push(key(queue, prev.worker));
-          worker = prev.worker;
-          queue = prev.queue;
+/** Max flow by shortest augmenting paths, then the queues that cannot reach the sink in the residual graph. */
+function maximalSourceSide(
+  queues: QueueDemand[],
+  reach: (q: QueueDemand) => string[],
+  capacity: (worker: string) => number,
+  ratio: number,
+): QueueDemand[] {
+  const workers = [...new Set(queues.flatMap(reach))].sort(byId);
+  const index = new Map(workers.map((w, j) => [w, j]));
+  const links = queues.map((q) => reach(q).map((w) => index.get(w)!));
+  const feeders: number[][] = workers.map(() => []);
+  links.forEach((ws, i) => ws.forEach((j) => feeders[j].push(i)));
+  const supply = queues.map((q) => q.incoming);
+  const room = workers.map((w) => ratio * capacity(w));
+  const flow = queues.map(() => new Float64Array(workers.length));
+  const eps = TOLERANCE * Math.max(1, sum(supply));
+  // Direct links carry what they can first, so few augmenting paths remain to search for.
+  links.forEach((ws, i) => {
+    for (const j of ws) {
+      const amount = Math.min(supply[i], room[j]);
+      if (amount <= 0) continue;
+      flow[i][j] += amount;
+      supply[i] -= amount;
+      room[j] -= amount;
+    }
+  });
+  const queueFrom = new Int32Array(queues.length);
+  const workerFrom = new Int32Array(workers.length);
+  const frontier: number[] = [];
+  for (;;) {
+    queueFrom.fill(-2);
+    workerFrom.fill(-1);
+    frontier.length = 0;
+    supply.forEach((left, i) => {
+      if (left > eps) {
+        queueFrom[i] = -1;
+        frontier.push(i);
+      }
+    });
+    let sink = -1;
+    search: for (let head = 0; head < frontier.length; head++) {
+      const i = frontier[head];
+      for (const j of links[i]) {
+        if (workerFrom[j] >= 0) continue;
+        workerFrom[j] = i;
+        if (room[j] > eps) {
+          sink = j;
+          break search;
+        }
+        for (const other of feeders[j]) {
+          if (queueFrom[other] !== -2 || flow[other][j] <= eps) continue;
+          queueFrom[other] = j;
+          frontier.push(other);
         }
       }
-      for (const other of block.queues) {
-        if (seenQueues.has(other.id) || (flow.get(key(other.id, w)) ?? 0) <= eps) continue;
-        seenQueues.add(other.id);
-        queueFrom.set(other.id, { queue: q, worker: w });
-        frontier.push(other.id);
+    }
+    if (sink < 0) break;
+    let amount = room[sink];
+    for (let j = sink, i = workerFrom[j]; ; j = queueFrom[i], i = workerFrom[j]) {
+      if (queueFrom[i] === -1) {
+        amount = Math.min(amount, supply[i]);
+        break;
       }
+      amount = Math.min(amount, flow[i][queueFrom[i]]);
+    }
+    room[sink] -= amount;
+    for (let j = sink, i = workerFrom[j]; ; j = queueFrom[i], i = workerFrom[j]) {
+      flow[i][j] += amount;
+      if (queueFrom[i] === -1) {
+        supply[i] -= amount;
+        break;
+      }
+      flow[i][queueFrom[i]] -= amount;
     }
   }
-  return undefined;
+  // A queue is on the sink side when its residual graph reaches a worker with room left.
+  const queueToSink = new Uint8Array(queues.length);
+  const workerToSink = Uint8Array.from(room, (left) => (left > eps ? 1 : 0));
+  for (let grown = true; grown;) {
+    grown = false;
+    links.forEach((ws, i) => {
+      if (queueToSink[i] || !ws.some((j) => workerToSink[j])) return;
+      queueToSink[i] = 1;
+      grown = true;
+    });
+    feeders.forEach((qs, j) => {
+      if (workerToSink[j] || !qs.some((i) => queueToSink[i] && flow[i][j] > eps)) return;
+      workerToSink[j] = 1;
+      grown = true;
+    });
+  }
+  return queues.filter((_, i) => !queueToSink[i]);
+}
+
+/**
+ * Within a block every queue is served the same fraction and every worker runs at the same utilization. Which queue
+ * feeds which worker is the unique scaling of the block's links to those row and column sums (iterative proportional
+ * fitting), ending on the workers so each one's total is exact.
+ */
+function scale(block: Block, capacity: (worker: string) => number): Map<string, Map<string, number>> {
+  const served = Math.min(1, 1 / block.ratio);
+  const utilization = Math.min(1, block.ratio);
+  const index = new Map(block.workers.map((w, j) => [w, j]));
+  const links = block.queues.map((q) => q.workers.filter((w) => index.has(w)).map((w) => index.get(w)!));
+  const feeders: number[][] = block.workers.map(() => []);
+  links.forEach((ws, i) => ws.forEach((j) => feeders[j].push(i)));
+  const rows = block.queues.map((q) => q.incoming * served);
+  const columns = block.workers.map((w) => capacity(w) * utilization);
+  const x = rows.map(() => 1);
+  const y = columns.map(() => 1);
+  const across = (list: number[], factors: number[]) => sum(list.map((k) => factors[k]));
+  const limit = TOLERANCE * Math.max(1, ...rows);
+  for (let round = 0; round < SCALING_ROUNDS; round++) {
+    links.forEach((ws, i) => {
+      const total = across(ws, y);
+      x[i] = total > 0 ? rows[i] / total : 0;
+    });
+    feeders.forEach((qs, j) => {
+      const total = across(qs, x);
+      y[j] = total > 0 ? columns[j] / total : 0;
+    });
+    if (links.every((ws, i) => Math.abs(x[i] * across(ws, y) - rows[i]) <= limit)) break;
+  }
+  return new Map(
+    block.queues.map((q, i) => [
+      q.id,
+      new Map(links[i].flatMap((j): [string, number][] => (x[i] * y[j] > 0 ? [[block.workers[j], x[i] * y[j]]] : []))),
+    ]),
+  );
 }
