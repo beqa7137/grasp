@@ -1,7 +1,7 @@
 import type { Locator } from '@playwright/test';
 import { expect, synced, test } from './fixtures';
 
-test('the first Design Lab mission can be solved from the inspector', async ({ page }) => {
+test('the first Design Lab mission can be solved from the inspector', { tag: '@lab' }, async ({ page }) => {
   await page.goto('/design');
   await page
     .getByRole('link', { name: /Your First Scale-Up/ })
@@ -34,7 +34,7 @@ test('the first Design Lab mission can be solved from the inspector', async ({ p
   await expect(page.getByRole('heading', { name: 'Scenario cleared' })).toBeVisible();
 });
 
-test('the first Design Lab mission can be solved with the keyboard alone', async ({ page }) => {
+test('the first Design Lab mission can be solved with the keyboard alone', { tag: '@lab' }, async ({ page }) => {
   await page.goto('/design/first-scale-up');
   const sidebar = page.locator('aside.sidebar');
   const targets = sidebar.getByRole('group', { name: 'Send traffic to' });
@@ -67,7 +67,7 @@ test('the first Design Lab mission can be solved with the keyboard alone', async
   await expect(sidebar.getByRole('heading', { name: 'Scenario cleared' })).toBeVisible();
 });
 
-test('new components never land on top of existing ones', { tag: '@smoke' }, async ({ page }) => {
+test('new components never land on top of existing ones', { tag: ['@smoke', '@lab'] }, async ({ page }) => {
   await page.goto('/design/first-scale-up');
   const palette = page.getByRole('group', { name: 'Add component' });
   for (const kind of ['LB', 'Cache', 'Replica', 'Queue']) await palette.getByRole('button', { name: kind, exact: true }).click();
@@ -82,13 +82,17 @@ test('new components never land on top of existing ones', { tag: '@smoke' }, asy
   }
 });
 
-test('the leaderboard mission opens from the list with its budget, and its starter does not clear it', async ({ page }) => {
-  await page.goto('/design');
-  await page
-    .getByRole('link', { name: /Leaderboard on a Budget/ })
-    .first()
-    .click();
-  await expect(page.getByText('p99 latency ≤ 200 ms')).toBeVisible();
-  await expect(page.getByText('Cost ≤ $8.5k/mo')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Scenario cleared' })).toHaveCount(0);
-});
+test(
+  'the leaderboard mission opens from the list with its budget, and its starter does not clear it',
+  { tag: '@lab' },
+  async ({ page }) => {
+    await page.goto('/design');
+    await page
+      .getByRole('link', { name: /Leaderboard on a Budget/ })
+      .first()
+      .click();
+    await expect(page.getByText('p99 latency ≤ 200 ms')).toBeVisible();
+    await expect(page.getByText('Cost ≤ $8.5k/mo')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Scenario cleared' })).toHaveCount(0);
+  },
+);

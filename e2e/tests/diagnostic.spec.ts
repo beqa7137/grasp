@@ -55,7 +55,7 @@ test('the invitation can be set aside, and the check is still one tap away in Se
   await expect(page.locator('app-diagnostic').getByRole('heading', { name: 'Find your starting point' })).toBeVisible();
 });
 
-test('number keys only answer the page in view, not a review left open in another tab', async ({ page }) => {
+test('number keys only answer the page in view, not a review left open in another tab', { tag: '@nav' }, async ({ page }) => {
   await page.goto('/drill');
   const review = page.locator('app-drill');
   await expect(review.locator('g-question-card .choice:enabled').first()).toBeVisible();

@@ -258,7 +258,7 @@ test('Ctrl/⌘ + Enter typed in the feedback dialog does not run the code behind
   await expect(page.getByText(/checks the examples/)).toBeVisible();
 });
 
-test('Trace steps through your own JavaScript', async ({ page }) => {
+test('Trace steps through your own JavaScript', { tag: '@player' }, async ({ page }) => {
   await page.goto('/code/two-sum');
   await trace(page, JS_TWO_SUM);
   await expect(page.getByRole('tab', { name: 'Trace' })).toHaveAttribute('aria-selected', 'true');
@@ -472,21 +472,25 @@ test('on a narrow phone, a call too long for the call stack is cut short on one 
   expect(await viz.evaluate((el) => el.scrollWidth - el.clientWidth)).toBe(0);
 });
 
-test('Step forward stays under the finger through a whole trace, as the call stack grows and shrinks', async ({ page }) => {
-  await page.goto('/code/tree-diameter');
-  await trace(page, JS_DIAMETER, 'Diameter of Binary Tree');
-  const player = page.locator('app-trace-player');
-  const forward = player.getByRole('button', { name: 'Step forward' });
-  const count = player.locator('.count');
-  await forward.scrollIntoViewIfNeeded();
-  const home = await viewportTop(forward);
-  const total = await stepTotal(count);
-  for (let step = 2; step <= total; step++) {
-    await forward.click();
-    await expect(count).toHaveText(`${step} / ${total}`);
-    await expectUnmoved(forward, home, `Step forward at step ${step}`);
-  }
-});
+test(
+  'Step forward stays under the finger through a whole trace, as the call stack grows and shrinks',
+  { tag: '@player' },
+  async ({ page }) => {
+    await page.goto('/code/tree-diameter');
+    await trace(page, JS_DIAMETER, 'Diameter of Binary Tree');
+    const player = page.locator('app-trace-player');
+    const forward = player.getByRole('button', { name: 'Step forward' });
+    const count = player.locator('.count');
+    await forward.scrollIntoViewIfNeeded();
+    const home = await viewportTop(forward);
+    const total = await stepTotal(count);
+    for (let step = 2; step <= total; step++) {
+      await forward.click();
+      await expect(count).toHaveText(`${step} / ${total}`);
+      await expectUnmoved(forward, home, `Step forward at step ${step}`);
+    }
+  },
+);
 
 test('widening the window mid-trace, from one column back to two, leaves Step forward where it was', async ({ page, isMobile }) => {
   test.skip(isMobile, 'A desktop window.');

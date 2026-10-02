@@ -3,7 +3,7 @@ import { expect, synced, test } from './fixtures';
 test.describe('first visit', () => {
   test.use({ pilotNoticeSeen: false });
 
-  test('welcomes pilot testers once, then shows the daily loop', { tag: '@smoke' }, async ({ page }) => {
+  test('welcomes pilot testers once, then shows the daily loop', { tag: ['@smoke', '@nav'] }, async ({ page }) => {
     await page.goto('/');
     const welcome = page.getByRole('heading', { name: 'Welcome to the Grasp pilot' });
     await expect(welcome).toBeVisible();
@@ -33,7 +33,7 @@ test('a pattern page teaches the cue and template and links to practice', { tag:
   await expect(page.getByRole('heading', { name: 'Two Sum', level: 1 })).toBeVisible();
 });
 
-test('deep links load directly, and unknown paths land on Learn', { tag: '@smoke' }, async ({ page }) => {
+test('deep links load directly, and unknown paths land on Learn', { tag: ['@smoke', '@nav'] }, async ({ page }) => {
   await page.goto('/visualize/binary-search');
   await expect(page.getByRole('heading', { name: 'Binary Search', level: 1 })).toBeVisible();
   await page.goto('/no-such-page');
@@ -129,7 +129,7 @@ test.describe('progress sync recovery', () => {
   });
 });
 
-test('every page named after its content gets that name as its title, from a direct visit', async ({ page }) => {
+test('every page named after its content gets that name as its title, from a direct visit', { tag: '@nav' }, async ({ page }) => {
   const titles: [string, RegExp][] = [
     ['/learn/pattern/hashing', /Arrays & Hashing pattern/],
     ['/learn/design/sd-overload', /Backpressure & Load Shedding/],

@@ -16,12 +16,32 @@ interface Options {
   theme: 'dark' | 'light' | 'system';
   /** Console errors the test causes on purpose, such as the browser reporting an expected 4xx response. */
   expectedConsoleErrors: RegExp[];
+  /** Motion test mode: `data-motion="off"` on <html>, so animations jump to their end. Tests of the Motion setting turn it off. */
+  motionOff: boolean;
+}
+
+/** Init scripts run before <html> exists; the observer marks it at the microtask checkpoint before the first page script. */
+function markMotionOff() {
+  const mark = () => document.documentElement?.setAttribute('data-motion', 'off');
+  if (document.documentElement) return mark();
+  new MutationObserver((_, observer) => {
+    if (!document.documentElement) return;
+    mark();
+    observer.disconnect();
+  }).observe(document, { childList: true });
 }
 
 export const test = base.extend<Options & { guard: void }>({
   pilotNoticeSeen: [true, { option: true }],
   theme: ['dark', { option: true }],
   expectedConsoleErrors: [[], { option: true }],
+  motionOff: [true, { option: true }],
+
+  // On the context, so pages the test opens itself and popups are in test mode too.
+  context: async ({ context, motionOff }, use) => {
+    if (motionOff) await context.addInitScript(markMotionOff);
+    await use(context);
+  },
 
   page: async ({ page, pilotNoticeSeen, theme }, use) => {
     if (pilotNoticeSeen) {

@@ -1,7 +1,7 @@
 import { PATTERN_CATALOG } from '@grasp/engine';
 import { expect, recordedEvents, test } from './fixtures';
 
-test('a pattern lesson reveals a worked example step by step, then replays it in the visualizer', async ({ page }) => {
+test('a pattern lesson reveals a worked example step by step, then replays it in the visualizer', { tag: '@nav' }, async ({ page }) => {
   await page.goto('/learn/pattern/two-pointers');
   await expect(page.getByRole('heading', { name: 'Why it works' })).toBeVisible();
 

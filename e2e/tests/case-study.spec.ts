@@ -113,7 +113,7 @@ test('a case study keeps every answer across a reload, and finishing it syncs a 
   expect((await recordedEvents(page)).filter((e) => e.type === 'case.completed')).toHaveLength(1);
 });
 
-test('a case build names nodes by their role and stores files in an object store', async ({ page }) => {
+test('a case build names nodes by their role and stores files in an object store', { tag: '@lab' }, async ({ page }) => {
   await page.goto('/design/free-build?case=file-sync');
   const blocks = page.getByRole('button', { name: /^Block store, Object Store/ });
   await blocks.focus();
