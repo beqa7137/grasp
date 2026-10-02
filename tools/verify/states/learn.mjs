@@ -209,7 +209,7 @@ export function learnStates() {
       id: 'feedback-dialog',
       path: '/learn',
       setup: async (p) => {
-        await p.getByRole('button', { name: 'More' }).click();
+        await p.getByRole('button', { name: 'More options' }).click();
         await p.locator('ion-popover').getByRole('button', { name: 'Send feedback' }).click();
         await p.waitForSelector('ion-modal app-feedback-sheet');
         await settle(p, 600);
@@ -219,7 +219,7 @@ export function learnStates() {
       id: 'learn-more-menu',
       path: '/learn',
       setup: async (p) => {
-        await p.getByRole('button', { name: 'More' }).click();
+        await p.getByRole('button', { name: 'More options' }).click();
         await p.locator('ion-popover app-learn-menu').waitFor();
         await settle(p, 600);
       },

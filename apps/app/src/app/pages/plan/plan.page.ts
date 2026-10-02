@@ -56,7 +56,7 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
         @if (!input() || editing()) {
           <h1 #heading tabindex="-1">{{ input() ? 'Change your plan' : 'Plan to your interview' }}</h1>
           @if (cleared()) {
-            <p class="undo panel">Plan cleared. <button type="button" class="g-btn ghost" (click)="undo()">Undo</button></p>
+            <p #undoRow class="undo panel">Plan cleared. <button type="button" class="g-btn ghost" (click)="undo()">Undo</button></p>
           }
           @if (!input()) {
             <p class="lead">
@@ -376,6 +376,7 @@ export class PlanPage {
   private readonly bank = inject(StoryBankService);
   private readonly injector = inject(Injector);
   private readonly heading = viewChild<ElementRef<HTMLElement>>('heading');
+  private readonly undoRow = viewChild<ElementRef<HTMLElement>>('undoRow');
   private readonly content = viewChild.required(IonContent);
   private readonly locale = inject(LOCALE_ID);
   readonly announcer = inject(AnnouncerService);
@@ -520,11 +521,17 @@ export class PlanPage {
   private async clear() {
     const previous = this.input();
     await this.progress.record({ type: 'plan.set', plan: null });
-    this.announcer.announce('Plan cleared.');
+    this.announcer.announce(`Plan cleared. You can undo for ${UNDO_MS / 1000} seconds.`);
     this.cleared.set(previous);
     clearTimeout(this.undoTimer);
-    this.undoTimer = setTimeout(() => this.cleared.set(null), UNDO_MS);
+    this.undoTimer = setTimeout(() => this.expireUndo(), UNDO_MS);
     this.focusHeading();
+  }
+
+  private expireUndo() {
+    const held = this.undoRow()?.nativeElement.contains(document.activeElement);
+    this.cleared.set(null);
+    if (held) refocusAfterRender(this.injector, () => this.heading()?.nativeElement);
   }
 
   private endUndo() {

@@ -27,7 +27,14 @@
         </span>
       </div>
       <a class="header-link" routerLink="/settings" aria-label="Settings"><ion-icon name="settings-outline" aria-hidden="true" /></a>
-      <button #more class="header-link" aria-label="More" (click)="openMenu($event)">
+      <button
+        #more
+        class="header-link"
+        aria-label="More options"
+        aria-haspopup="dialog"
+        [attr.aria-expanded]="menuOpen()"
+        (click)="openMenu($event)"
+      >
         <ion-icon name="ellipsis-horizontal" aria-hidden="true" />
       </button>
     </ion-buttons>

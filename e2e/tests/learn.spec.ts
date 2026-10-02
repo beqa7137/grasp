@@ -54,14 +54,18 @@ test('the Study plan tile lines up with the Review tile beside it', { tag: '@nav
 test('the Learn menu sends feedback and opens the study plan', { tag: '@nav' }, async ({ page }) => {
   await page.goto('/learn');
   const learn = page.locator('app-learn');
-  const more = learn.getByRole('button', { name: 'More' });
+  const more = learn.getByRole('button', { name: 'More options' });
   const menu = page.locator('ion-popover');
   const feedback = menu.getByRole('button', { name: 'Send feedback' });
   const plan = menu.getByRole('button', { name: 'Study plan' });
 
+  await expect(more).toHaveAttribute('aria-haspopup', 'dialog');
+  await expect(more).toHaveAttribute('aria-expanded', 'false');
   await more.focus();
   await page.keyboard.press('Enter');
-  await expect(feedback).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'More options' })).toBeVisible();
+  await expect(feedback).toBeFocused();
+  await expect(learn.getByRole('button', { name: 'More options', includeHidden: true })).toHaveAttribute('aria-expanded', 'true');
   const focused = async () => (await page.evaluate(() => document.activeElement?.textContent?.trim())) ?? '';
   const reached = new Set<string>();
   for (let i = 0; i < 4; i++) {
@@ -72,8 +76,11 @@ test('the Learn menu sends feedback and opens the study plan', { tag: '@nav' }, 
   await page.keyboard.press('Escape');
   await expect(menu).toBeHidden();
   await expect(more).toBeFocused();
+  await expect(more).toHaveAttribute('aria-expanded', 'false');
 
-  await more.click();
+  await more.dblclick();
+  await expect(feedback).toBeVisible();
+  await expect(menu).toHaveCount(1);
   await plan.click();
   await expect(page).toHaveURL(/\/plan$/);
   await expect(page.locator('app-plan').getByRole('heading', { name: 'Plan to your interview', level: 1 })).toBeVisible();
