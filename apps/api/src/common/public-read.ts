@@ -23,9 +23,15 @@ class PublicCacheInterceptor implements NestInterceptor {
   intercept(ctx: ExecutionContext, next: CallHandler) {
     const http = ctx.switchToHttp();
     const authorized = http.getRequest<Request>().headers.authorization !== undefined;
-    return next
-      .handle()
-      .pipe(tap(() => http.getResponse<Response>().setHeader('Cache-Control', authorized ? 'no-store' : PUBLIC_READ_CACHE)));
+    return next.handle().pipe(
+      tap(() => {
+        const res = http.getResponse<Response>();
+        if (authorized) return void res.setHeader('Cache-Control', 'no-store');
+        res.setHeader('Cache-Control', PUBLIC_READ_CACHE);
+        // A shared copy would hand every later caller the first caller's id; the server log still records it.
+        res.removeHeader('x-request-id');
+      }),
+    );
   }
 }
 

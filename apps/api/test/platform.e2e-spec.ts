@@ -43,14 +43,28 @@ describe('HTTP platform', () => {
     expect(res.headers['cache-control']).toBe(PUBLIC_READ_CACHE);
     expect(res.headers['set-cookie']).toBeUndefined();
     expect(res.headers['vary'] ?? '').not.toMatch(/\*|cookie|authorization|x-learner-id/i);
+    expect(res.headers['x-request-id']).toBeUndefined();
     expect(res.headers['etag']).toMatch(/^W\/"/);
     const again = await request(app.getHttpServer()).get(path).set('If-None-Match', res.headers['etag']!).expect(304);
     expect(again.headers['cache-control']).toBe(PUBLIC_READ_CACHE);
   });
 
+  it.each(PUBLIC_READS)('keys the cached copy of %s by origin, so the native app never gets one without CORS', async (path) => {
+    for (const origin of ['capacitor://localhost', 'http://localhost:4200']) {
+      const res = await request(app.getHttpServer()).get(path).set('Origin', origin).expect(200);
+      expect(res.headers['cache-control']).toBe(PUBLIC_READ_CACHE);
+      expect(res.headers['vary']).toMatch(/\bOrigin\b/);
+      expect(res.headers['access-control-allow-origin']).toBe(origin);
+    }
+    const foreign = await request(app.getHttpServer()).get(path).set('Origin', 'https://elsewhere.example').expect(200);
+    expect(foreign.headers['vary']).toMatch(/\bOrigin\b/);
+    expect(foreign.headers['access-control-allow-origin']).toBeUndefined();
+  });
+
   it.each(PUBLIC_READS)('never marks %s public for a request that carries credentials', async (path) => {
     const res = await request(app.getHttpServer()).get(path).set('Authorization', 'Bearer not-checked-here').expect(200);
     expect(res.headers['cache-control']).toBe('no-store');
+    expect(res.headers['x-request-id']).toBeDefined();
   });
 
   it('keeps learner-specific and varying reads out of shared caches', async () => {
