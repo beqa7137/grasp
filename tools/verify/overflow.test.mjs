@@ -1,7 +1,7 @@
-// node --test tools/verify/
+// [BROWSER=webkit] node --test tools/verify/
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { chromium } from './lib.mjs';
+import { launch } from './lib.mjs';
 import { findOverflow } from './overflow.mjs';
 
 const page300 = (body) => `<style>
@@ -15,7 +15,7 @@ const page300 = (body) => `<style>
 let browser;
 let page;
 before(async () => {
-  browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
+  browser = await launch(process.env.BROWSER);
   page = await browser.newPage({ viewport: { width: 400, height: 600 } });
 });
 after(() => browser.close());

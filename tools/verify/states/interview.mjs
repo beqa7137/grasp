@@ -1,5 +1,6 @@
+import { INTERVIEW_RUBRICS } from '@grasp/engine';
 import { randomUUID } from 'node:crypto';
-import { goto, settle } from '../lib.mjs';
+import { BASE, goto, settle } from '../lib.mjs';
 
 const STORIES = [
   {
@@ -111,12 +112,100 @@ async function giveBehavioralAnswer(p) {
   await settle(p, 400);
 }
 
+/** Each round of the seeded mock loop: how it scored and when, in minutes before now. */
+const LOOP_ROUNDS = [
+  { track: 'coding', verdict: 'hire', scores: [3, 3, 4, 3, 3], scoredAgo: 50 },
+  { track: 'system-design', verdict: 'lean-no-hire', scores: [2, 1, 2, 3, 2], scoredAgo: 25 },
+  { track: 'behavioral', verdict: 'lean-hire', scores: [3, 2, 3, 3, 3], scoredAgo: 5 },
+];
+
+/**
+ * A scripted mock loop on the device with its first `scored` rounds scored. Their sessions are played here, so the
+ * state needs no AI and writes nothing; ids are fixed so captures stay comparable.
+ */
+async function seedLoop(p, scored) {
+  const { problems } = await (await p.request.get(`${BASE}/api/interview/problems`)).json();
+  const now = await p.evaluate(() => Date.now());
+  const ago = (minutes) => new Date(now - minutes * 60_000).toISOString();
+  const rounds = LOOP_ROUNDS.map(({ track, verdict, scores, scoredAgo }, i) => {
+    const problem = problems.find((x) => x.track === track);
+    const sessionId = i < scored ? `00000000-0000-4000-8000-00000001000${i + 1}` : null;
+    return { track, problem, sessionId, verdict, scores, scoredAgo };
+  });
+  for (const { track, problem, sessionId, verdict, scores, scoredAgo } of rounds.filter((r) => r.sessionId)) {
+    const session = {
+      id: sessionId,
+      track,
+      problem,
+      messages: [{ role: 'interviewer', content: `Let's start with ${problem.title}.`, at: ago(scoredAgo + 20) }],
+      hintsUsed: 0,
+      status: 'scored',
+      createdAt: ago(scoredAgo + 20),
+      scoredAt: ago(scoredAgo),
+      mode: 'offline',
+      aiAccess: 'unavailable',
+      scorecard: {
+        verdict,
+        summary: 'Covered most rubric areas; name the trade-offs out loud.',
+        dimensions: INTERVIEW_RUBRICS[track].map(({ name }, d) => ({
+          name,
+          score: scores[d],
+          evidence: 'Named it once, without an example.',
+        })),
+        strengths: ['Asked about the constraints first.'],
+        improvements: ['Say why before how.'],
+        weakPatterns: [],
+        mode: 'offline',
+      },
+    };
+    await p.route(`**/api/interview/sessions/${sessionId}**`, (route) => route.fulfill({ json: session }));
+  }
+  const learnerId = await p.evaluate(() => localStorage.getItem('CapacitorStorage.grasp.learnerId'));
+  const loop = {
+    id: '00000000-0000-4000-8000-000000020000',
+    mode: 'offline',
+    level: 'mid',
+    createdAt: ago(80),
+    rounds: rounds.map(({ track, problem, sessionId }) => ({
+      track,
+      problemId: track === 'behavioral' ? problem.competencyId : problem.id,
+      reason: 'any',
+      sessionId,
+    })),
+    completedAt: scored === rounds.length ? ago(rounds.at(-1).scoredAgo) : null,
+  };
+  await p.evaluate(
+    ([key, value]) => localStorage.setItem(key, value),
+    [`CapacitorStorage.grasp.interview.loop.${learnerId}`, JSON.stringify(loop)],
+  );
+  await p.reload();
+}
+
 /** Mock interviews and the behavioral area. */
 export function interviewStates() {
   return [
     { id: 'interview-home', path: '/interview' },
     { id: 'interview-home-behavioral', path: '/interview', setup: (p) => p.getByRole('button', { name: /^Behavioral/ }).click() },
     { id: 'interview-behavioral-answer', path: '/interview', setup: openBehavioralInterview },
+    { id: 'mock-loop-setup', path: '/interview/loop' },
+    {
+      id: 'mock-loop-running',
+      path: '/interview/loop',
+      setup: async (p) => {
+        await seedLoop(p, 1);
+        await p.getByRole('heading', { name: 'Round 2 of 3' }).waitFor();
+        await settle(p);
+      },
+    },
+    {
+      id: 'mock-loop-debrief',
+      path: '/interview/loop',
+      setup: async (p) => {
+        await seedLoop(p, 3);
+        await p.getByRole('heading', { name: 'Loop debrief' }).waitFor();
+        await settle(p);
+      },
+    },
     {
       id: 'interview-behavioral-follow-up',
       path: '/interview',
