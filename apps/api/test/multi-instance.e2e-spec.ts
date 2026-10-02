@@ -82,9 +82,10 @@ describe.runIf(testDatabaseUrl)('Several API instances sharing Postgres', () => 
     // Windows are fixed minutes; don't start a burst in the last seconds of one.
     if (Date.now() % 60_000 > 57_000) await new Promise((resolve) => setTimeout(resolve, 60_000 - (Date.now() % 60_000) + 50));
     const statuses: number[] = [];
-    for (let i = 0; i < 8; i++) statuses.push((await on(i % 2 ? b : a, client).get('/api/curriculum/patterns')).status);
+    for (let i = 0; i < 8; i++)
+      statuses.push((await on(i % 2 ? b : a, client).get('/api/curriculum/review-items/sd:bottleneck/question')).status);
     expect(statuses).toEqual([200, 200, 200, 200, 200, 200, 429, 429]);
-    await on(b, ip()).get('/api/curriculum/patterns').expect(200);
+    await on(b, ip()).get('/api/curriculum/review-items/sd:bottleneck/question').expect(200);
   });
 
   it('lets only one instance at a time call the model for a session', async () => {

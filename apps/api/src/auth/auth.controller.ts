@@ -1,6 +1,7 @@
 import { Body, Controller, Get, HttpCode, Post } from '@nestjs/common';
 import { z } from 'zod';
 import { UserId } from '../common/learner-id.decorator.js';
+import { PublicRead } from '../common/public-read.js';
 import { RateLimit } from '../common/rate-limit.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { AccountService } from './account.service.js';
@@ -23,8 +24,7 @@ export class AuthController {
   ) {}
 
   @Get('config')
-  @RateLimit(AUTH_NETWORK_LIMIT)
-  @SkipIdentity()
+  @PublicRead()
   config() {
     return { google: this.google.clients, github: this.github.app };
   }

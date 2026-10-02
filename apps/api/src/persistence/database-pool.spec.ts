@@ -13,4 +13,18 @@ describe('Postgres pool', () => {
     expect(warn.mock.calls[0]![0]).not.toContain('secret');
     await pool.end();
   });
+
+  it("warns when given Neon's direct endpoint instead of its pooler", async () => {
+    const warn = vi.fn();
+    const neon = (host: string) => createDatabasePool(`postgresql://user:secret@${host}/neondb?sslmode=require`, { warn });
+    const pools = [
+      neon('ep-cool-dawn-a1b2c3d4-pooler.us-east-1.aws.neon.tech'),
+      neon('127.0.0.1:5590'),
+      neon('ep-cool-dawn-a1b2c3d4.us-east-1.aws.neon.tech'),
+    ];
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0]![0]).toContain('-pooler');
+    expect(warn.mock.calls[0]![0]).not.toContain('secret');
+    await Promise.all(pools.map((pool) => pool.end()));
+  });
 });
