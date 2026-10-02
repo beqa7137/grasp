@@ -16,8 +16,11 @@ import { COMPONENTS, SHARD_KEYS } from './sysdesign/catalog.js';
 import { CASE_BRIEFS } from './sysdesign/case-briefs.js';
 import { CASE_CATALOG } from './sysdesign/case-catalog.js';
 import {
+  BAKE_STOPS,
+  CACHE_STOPS,
   CASE_STUDIES,
   CELL_PRECISIONS,
+  DETECT_STOPS,
   DENSITIES,
   FIRST_RETRY_STOPS,
   LIFETIME_STOPS,
@@ -26,8 +29,12 @@ import {
   OUTAGE_STOPS,
   RECON_ACTIONS,
   ROLLOUT_STAGES,
+  SIZE_STOPS,
+  UNAVAILABLE_STOPS,
+  WAVE_SHAPES,
   bucketingCheckpoint,
   cellSearchCheckpoint,
+  distributionCheckpoint,
   explainRow,
   hotAccountCheckpoint,
   mailStorageCheckpoint,
@@ -37,6 +44,7 @@ import {
   reconciliationDay,
   retryCheckpoint,
   retryRun,
+  rolloutCheckpoint,
   smtpRetryCheckpoint,
   type Assignment,
   type AttemptFate,
@@ -157,6 +165,33 @@ function emailWidgetText(): unknown {
   return { retries, storage };
 }
 
+/** The text the deploy case's widgets build: rollouts over every bake, cap and detection delay, and distribution over every tier. */
+function deployWidgetText(): unknown {
+  const rollouts = WAVE_SHAPES.flatMap((shape) =>
+    [100, 2_000].flatMap((fleet) =>
+      [1, 4].flatMap((waves) =>
+        BAKE_STOPS.flatMap((bakeMin) =>
+          UNAVAILABLE_STOPS.flatMap((maxUnavailablePct) =>
+            DETECT_STOPS.map((detectMin) =>
+              rolloutCheckpoint({ fleet, canaryPct: 1, waves, shape, bakeMin, maxUnavailablePct, hostMin: 5, detectMin }),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  const distributions = SIZE_STOPS.flatMap((sizeMb) =>
+    CACHE_STOPS.flatMap((caches) =>
+      [false, true].flatMap((p2p) =>
+        [false, true].flatMap((delta) =>
+          [1, 10].map((originGbps) => distributionCheckpoint({ sizeMb, hosts: 20_000, originGbps, caches, p2p, delta })),
+        ),
+      ),
+    ),
+  );
+  return { rollouts, distributions };
+}
+
 // A prediction's frames come from the tracers, which have entries of their own, so one seed covers the text it adds itself.
 const questions = (item: ItemDef) =>
   (item.kind === 'predict' ? REVIEW_SEEDS.slice(0, 1) : REVIEW_SEEDS).map((seed) => generateQuestion(item.id, seed));
@@ -183,6 +218,7 @@ function learnerContent(): Entry[] {
     ['feature flag case widgets', flagWidgetText()],
     ['proximity case widgets', proximityWidgetText()],
     ['email case widgets', emailWidgetText()],
+    ['deploy case widgets', deployWidgetText()],
     ...byKey('design lesson', SD_LESSONS),
     ...byId('coding problem', CODING_PROBLEMS),
     ...byId('competency summary', [...COMPETENCY_CATALOG]),
