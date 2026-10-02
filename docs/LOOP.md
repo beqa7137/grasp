@@ -347,27 +347,35 @@ Known issues and deferred work, most valuable first.
 
 The owner's direction (2026-09-28): as much learning and practice content as possible across algorithms, system design and
 behavioral interviews, as interactive as possible with many examples, for landing jobs at the largest companies, serving
-100,000 simultaneous users. On 2026-09-30 the owner asked to fill the content gaps with great quality content first.
-Every piece keeps the bar so far: numbers come from a model the widget runs, an independent agent reviews facts,
-arithmetic and answer choices, and each gets review items. Next, in order:
+100,000 simultaneous users. On 2026-09-30 the owner asked to fill the content gaps with great quality content first. On
+2026-10-02 the owner approved this order, mixing content with the scale work a wide release needs. Every piece keeps the
+bar so far: numbers come from a model the widget runs, an independent agent reviews facts, arithmetic and answer
+choices, and each gets review items.
 
-1. Behavioral, the thinnest area (the story bank syncs to the account since 72): an AI behavioral interviewer that probes a story with follow-ups and scores it against the competency (engine and API in 74, the app in 76; the live eval remains)
-   (a scripted one shipped in 61), then deeper competency examples (weak, better, strong answers, with the flaw named).
-2. Missing algorithm patterns: done. In-place linked list reversal shipped in 78, minimum spanning trees (Kruskal with
-   union-find, Prim) in 79 and bitmask DP in 80, each with a lesson, a step-through tracer, drills, clozes, coding
-   problems and review items. Next for this area: a Find the Shortest Superstring problem (it needs a checker that
-   accepts any shortest answer) and a `dp[mask][last]` visualizer for the route form of bitmask DP.
-3. A dated study plan to an interview across coding, design and behavioral: done. The plan shipped in 83, and the full
-   mock loop (coding, design and behavioral rounds with one debrief, the plan's last units before the interview) in 84.
-4. More case studies: the payment ledger shipped in 87 with three models the learner runs inside its stages, and the
-   feature flag service in 88 with two, and the proximity service in 91 with two, and the email service in 93 with two, and
-   the code deployment system in 94 with two: the listed cases are done. Next, Design Lab missions with three spaced
-   revisits each. The object store has no mission yet:
-   its traffic share is a node setting the learner controls, so a mission for it first needs the share in the workload.
-5. More review cards for patterns with the fewest drill cards and clozes; consider a secondary greedy tag for
-   Non-overlapping Intervals.
-6. Every two or three content iterations, one item from the production readiness backlog above, then a defined workload
-   and a distributed load test for 100,000 simultaneous users.
+Done: the behavioral AI interviewer (74, 76), the missing patterns (78 to 80), the dated study plan (83), the full mock
+loop (84), and the payment ledger, feature flag, proximity, email and code deployment cases (87, 88, 91, 93, 94).
+
+Next, in order:
+
+1. Design Lab missions with three spaced revisits each (96, in progress). The object store mission first needs its
+   traffic share in the workload.
+2. Object-oriented design rounds, the biggest gap for Amazon, Microsoft and Uber style loops: an engine and runner for
+   class design problems (parking lot, elevator, LRU and LFU caches, iterators), then a first problem set. About two
+   iterations.
+3. Behavioral depth: for each of the 13 competencies, a weak, a better and a strong answer with the flaw named, and the
+   AI interviewer's live eval run on GPT-6 Luna. About two iterations.
+4. Scale work before a wide release (from the production readiness backlog and the follow-ups): cheaper rate limiting
+   so non-cached routes stop writing one or two Postgres counters per request, a defined workload, and a load test on a
+   Neon branch for 100,000 simultaneous users, then fixing what it finds. About three or four iterations.
+5. Missing coding patterns, one per iteration: stack parsing (calculators, brackets), matrix and simulation, string
+   algorithms (KMP, rolling hash), segment and Fenwick trees, more graphs (bipartite, Bellman-Ford). Also a Find the
+   Shortest Superstring problem and a `dp[mask][last]` visualizer for bitmask DP.
+6. Classic system design cases still missing: a distributed key-value store (Dynamo style), object storage (S3 style)
+   and a unique ID generator.
+7. More problems per pattern (toward 10 to 12) and more drill cards and clozes for the thinnest patterns (36 clozes
+   across 23 patterns today); consider a secondary greedy tag for Non-overlapping Intervals.
+8. The remaining production readiness items (14, 15, and the partial 4, 6, 8, 11), native crash reporting and the
+   Android emulator smoke test, and the Playwright WebKit crash, interleaved every two or three content iterations.
 
 ## Rules for picking
 
