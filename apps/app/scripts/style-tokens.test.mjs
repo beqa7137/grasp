@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { test } from 'node:test';
 import { BASELINE, counts, lowered, ratchet, scan, scanTree } from './style-tokens.mjs';
 
@@ -23,6 +24,11 @@ test('flags raw font sizes, radii, colors and one-off breakpoints', () => {
     ['.a { --tint: #ff0000; }', 'color'],
     ['@media (max-width: 600px) { .a { display: none; } }', 'media'],
     ['@media (min-width: 60em) { .a { display: none; } }', 'media'],
+    ['@container (max-width: 700px) { .a { display: none; } }', 'container'],
+    ['.a { font-size: 10pt; }', 'font-size'],
+    ['.a { filter: drop-shadow(0 0 2px #f00); }', 'color'],
+    ['.a { background: url("x.svg") #f00; }', 'color'],
+    ['.a { background: url(//x.com/a.png); color: #f00; }', 'color'],
   ]) {
     assert.deepEqual(flagged(css), [category], css);
   }
@@ -36,18 +42,64 @@ test('allows tokens, the chrome helper, relative and zero values, token tints an
     '.a { font: 500 #{chrome-font-size(11px)} / 1 var(--ion-font-family); }',
     '.a { font-size: inherit; font: inherit; font-size: 1.2em; font-size: 90%; }',
     '.a { border-radius: 0; border-radius: 0px; border-radius: 50%; border-radius: var(--g-radius-sm); }',
-    ':root { --g-radius: 14px; --g-accent: #5846dc; --ion-color-primary: #5846dc; }',
     '.a { color: var(--g-text); background: rgba(var(--g-found-rgb), 0.12); border-color: transparent; fill: currentColor; }',
     '.a { background: linear-gradient(180deg, rgba(var(--g-predict-rgb), 0.08), rgba(var(--ion-text-color-rgb), 0.02)); }',
     '.a { background: url(icons/red-dot.svg); }',
     '@media (prefers-reduced-motion: reduce) { .a { transition: none; } }',
     '@media (max-width: 560px) { .a { display: none; } }',
     '@media (min-width: 1024px) and (max-width: 1279.98px) { .a { display: none; } }',
+    '@container (min-width: 640px) and (max-width: 899.98px) { .a { display: none; } }',
+    '.a { --g-legend-gap: 14px; gap: var(--g-legend-gap); --g-switch-on: var(--g-predict); }',
     '.a { /* font-size: 13px; */ }',
     '.a {\n  // border-radius: 12px;\n}',
   ]) {
     assert.deepEqual(flagged(css), [], css);
   }
+});
+
+test('the theme files alone define tokens: a --g- or --ion- property elsewhere is a local value', () => {
+  const theme = ':root { --g-radius: 14px; --g-accent: #5846dc; --ion-color-primary: #5846dc; }';
+  assert.deepEqual(flagged(theme, '_theme.scss'), []);
+  assert.deepEqual(flagged(theme, 'styles.scss'), []);
+  assert.deepEqual(flagged(theme, 'app/x.scss'), ['border-radius', 'color', 'color']);
+  for (const [css, file, category] of [
+    ['.a { --g-my-red: #ff0000; color: var(--g-my-red); }', 'x.scss', 'color'],
+    [':host { --ion-color-base: #ff0000; }', 'x.scss', 'color'],
+    ['styles: `.a { --g-hot: rgb(255 0 0); }`', 'x.ts', 'color'],
+    ['.a { --g-my-size: 13px; font-size: var(--g-my-size); }', 'x.scss', 'font-size'],
+  ]) {
+    assert.deepEqual(flagged(css, file), [category], css);
+  }
+});
+
+test('counts SCSS variables like local custom properties, and resolves them in queries', () => {
+  assert.deepEqual(flagged('$danger: #ff0000;\n.a { color: $danger; }'), ['color']);
+  assert.deepEqual(scan('$s: 13px;\n.a { font-size: $s; }', 'x.scss'), [{ category: 'font-size', line: 2, text: 'font-size: $s' }]);
+  assert.deepEqual(flagged('$bp: 700px;\n@media (max-width: $bp) { .a { display: none; } }'), ['media']);
+  assert.deepEqual(flagged('@use "bp";\n@media (max-width: bp.$wide) { .a { display: none; } }'), ['media']);
+  assert.deepEqual(flagged('$bp: 1024px;\n@media (min-width: $bp) { .a { display: none; } }'), []);
+});
+
+test('reads string literals in style bindings, ngStyle, host bindings and .style assignments', () => {
+  for (const [source, file, categories] of [
+    [`<p [style.color]="'#ff0000'">`, 'x.html', ['color']],
+    [`<p [style.font-size.px]="13">`, 'x.html', ['font-size']],
+    [`<p [style.background]="hot ? 'red' : 'var(--g-surface)'">`, 'x.html', ['color']],
+    [`<rect [attr.fill]="'#ff0000'" />`, 'x.html', ['color']],
+    [`<p [ngStyle]="{ 'color': '#ff0000', 'font-size': '13px' }">`, 'x.html', ['color', 'font-size']],
+    [`<p [ngStyle]="{ fontSize: '13px', color: 'var(--g-text)' }">`, 'x.html', ['font-size']],
+    [`host: { '[style.color]': "'red'" }`, 'x.ts', ['color']],
+    [`el.style.color = '#ff0000';\nel.style.setProperty('border-radius', '12px');`, 'x.ts', ['color', 'border-radius']],
+  ]) {
+    assert.deepEqual(flagged(source, file), categories, source);
+  }
+  for (const source of [
+    `<path [style.stroke]="color(a.node)" [style.--c]="color(p.name)" [style.width.%]="share * 100" [style.max-width.px]="l.width">`,
+    `<p [style.color]="'var(--g-danger)'" [attr.aria-label]="'Red-black tree'">`,
+  ]) {
+    assert.deepEqual(flagged(source, 'x.html'), [], source);
+  }
+  assert.deepEqual(flagged('this.host.style.minHeight = `${height}px`;\nel.style.overflowAnchor = "none";', 'x.ts'), []);
 });
 
 test('counts a size laundered through a local custom property', () => {
@@ -94,6 +146,21 @@ test('fails when a count falls, so the baseline only goes down, and --update onl
   });
   assert.deepEqual(lowered({ 'a.scss': { 'font-size': 3 } }, { 'a.scss': { 'font-size': 1 } }), { 'a.scss': { 'font-size': 1 } });
   assert.deepEqual(lowered(counts(tree), null), { 'a.scss': { 'font-size': 1 } });
+});
+
+test('counts a property another file defines raw where it is used, unless the theme defines that name', () => {
+  const src = mkdtempSync(`${tmpdir()}/style-tokens-`);
+  try {
+    mkdirSync(`${src}/app`);
+    writeFileSync(`${src}/_theme.scss`, ':root { --g-text-s: 0.8125rem; }');
+    writeFileSync(`${src}/app/a.scss`, '.a { --cell-size: 12px; --g-text-s: 13px; }');
+    writeFileSync(`${src}/app/b.scss`, '.b { font-size: var(--cell-size); }\n.c { font-size: var(--g-text-s); }');
+    assert.deepEqual(scanTree(`${src}/`), {
+      'app/b.scss': [{ category: 'font-size', line: 1, text: 'font-size: var(--cell-size)' }],
+    });
+  } finally {
+    rmSync(src, { recursive: true, force: true });
+  }
 });
 
 test('the app holds every file to its committed baseline', () => {
