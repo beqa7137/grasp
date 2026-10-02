@@ -1757,6 +1757,8 @@ Every iteration follows CLAUDE.md:
 
   Angular's own initial budget stays as a backstop, never above 855 kB.
 
+  R0 note: the gate runs as `apps/app/scripts/first-paint-bytes.mjs` in the app's `postbuild`, on the stats every production build writes, and fails more than 2 kB below the baseline too; its total includes the global stylesheet; `first-paint-bytes.test.mjs` tests its logic on fixtures (`tools/verify/README.md`).
+
 - **Content review**, when the iteration's "Content review" line is not "none". An independent Claude content-review agent checks the listed editorial calls before landing. Its findings are fixed or recorded in LOOP.md.
 - A `docs/LOOP.md` entry, then a fast-forward to `main`.
 
