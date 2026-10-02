@@ -275,7 +275,7 @@ describe('the object share in the workload', () => {
     );
     const workload = { rps: 5_000, readRatio: 0.9 };
     expect(legacyObjectShare(old)).toBe(0.7);
-    const named = nameObjectShare({ design: old, workload }, legacyObjectShare(old));
+    const named = nameObjectShare({ design: old, workload }, legacyObjectShare(old)!);
     expect(run(named).edges['app->blob']).toBeCloseTo(simulate(old, workload).edges['app->blob']);
 
     // The first app links no store, and the second links two: the old rule reads the first of them.
@@ -295,7 +295,31 @@ describe('the object share in the workload', () => {
     expect(r.edges['app->second'] + r.edges['app->blob']).toBeCloseTo(1_000 * 0.2);
     expect(legacyObjectShare(legacyNode(CASE_LABS['file-sync'].design, 'blocks', 0.5))).toBe(0.5);
     expect(legacyObjectShare(CASE_LABS['email-service'].design)).toBe(DEFAULT_OBJECT_SHARE);
-    expect(legacyObjectShare(appsOnly(2))).toBe(DEFAULT_OBJECT_SHARE);
+
+    // An app that carries nothing is passed over for the one that does.
+    const idleFirst = board(
+      [
+        ['client', 'client'],
+        ['idle', 'app', 8, { failed: 8 }],
+        ['live', 'app'],
+        ['half', 'blob', 1, { share: 0.5 }],
+        ['most', 'blob', 1, { share: 0.7 }],
+      ],
+      ['client>live', 'live>most', 'idle>half'],
+    );
+    expect(legacyObjectShare(idleFirst, simulate(idleFirst, { rps: 1_000, readRatio: 0.5 }).nodes)).toBe(0.7);
+    expect(legacyObjectShare(idleFirst)).toBe(0.5);
+
+    // With no app linked to a store, CDNs and workers split by instance count, which no single share describes.
+    expect(legacyObjectShare(appsOnly(2))).toBeUndefined();
+    for (const id of ['video-streaming', 'web-crawler']) expect(legacyObjectShare(CASE_LABS[id].design), id).toBeUndefined();
+  });
+
+  it('names the crawler build its share, the one its fetchers already ran at, and leaves the video build on the old rule', () => {
+    const crawler = CASE_LABS['web-crawler'];
+    expect(crawler.workload.objectShare).toBe(0.2);
+    expect(simulate(crawler.design, crawler.workload)).toEqual(simulate(crawler.design, { ...crawler.workload, objectShare: undefined }));
+    expect(CASE_LABS['video-streaming'].workload.objectShare).toBeUndefined();
   });
 
   it('splits a board that names no share by instance count, as builds always have', () => {
@@ -360,6 +384,28 @@ describe('the object share in the workload', () => {
     const r = simulate(design, { rps: 1_000, readRatio: 0.3, objectShare: 1 });
     expect(r.insights.map((i) => i.title)).not.toContain('Workers have no database for records');
     expect(r.metrics.durableWriteRatio).toBeCloseTo(1);
+
+    // Files from three clients reach the app over three paths, so their share is summed to a hair under 1.
+    const threeClients = board(
+      [
+        ['web', 'client'],
+        ['ios', 'client'],
+        ['android', 'client'],
+        ['lb', 'lb', 2],
+        ['app', 'app', 10],
+        ['blob', 'blob'],
+        ['cache', 'cache'],
+        ['queue', 'queue', 2],
+        ['worker', 'worker', 2],
+      ],
+      ['web>lb', 'ios>lb', 'android>lb', 'lb>app', 'app>blob', 'app>cache', 'app>queue', 'queue>worker'],
+    );
+    for (const readRatio of [0.3, 0.5, 0.7]) {
+      const all = simulate(threeClients, { rps: 1_000, readRatio, objectShare: 1 });
+      expect([all.nodes['cache'].readRps, all.nodes['queue'].writeRps], `${readRatio}`).toEqual([0, 0]);
+      expect(all.insights.map((i) => i.title)).not.toContain('Cache has nowhere to send traffic');
+      expect(all.insights.map((i) => i.title)).not.toContain('Workers have nowhere to write');
+    }
   });
 });
 

@@ -114,7 +114,7 @@ export const CASE_LABS: Record<string, CaseLab> = {
     },
   },
   'web-crawler': {
-    workload: { rps: 19_300, readRatio: 0.9 },
+    workload: { rps: 19_300, readRatio: 0.9, objectShare: 0.2 },
     design: {
       nodes: [
         n('parsers', 'client', 70, 240),

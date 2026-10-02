@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { drainQueues, type QueueDemand } from './queue-drain.js';
+import { drainQueues, type QueueDemand, type QueueDrain } from './queue-drain.js';
 import { evaluate, getScenario } from './scenarios.js';
 import { simulate } from './simulate.js';
 import type { Design } from './types.js';
@@ -56,6 +56,17 @@ function randomBoard(seed: number) {
 const ratios = (blocks: { queues: string[]; ratio: number }[]) =>
   Object.fromEntries(blocks.flatMap((b) => b.queues.map((q) => [q, Number.isFinite(b.ratio) ? Number(b.ratio.toPrecision(9)) : 'never'])));
 
+/** Every queue sends its workers exactly what its block serves it: all of it, or capacity over load when overloaded. */
+function expectServed(queues: QueueDemand[], r: QueueDrain, label: string) {
+  const ratioOf = new Map(r.blocks.flatMap((b) => b.queues.map((q) => [q, b.ratio])));
+  for (const q of queues) {
+    if (q.incoming <= 0 || !Number.isFinite(ratioOf.get(q.id)!)) continue;
+    const sent = [...(r.flows.get(q.id)?.values() ?? [])].reduce((a, b) => a + b, 0);
+    const served = q.incoming * Math.min(1, 1 / ratioOf.get(q.id)!);
+    expect(Math.abs(sent - served) <= 1e-9 * Math.max(1, served), `${label} ${q.id}: ${sent} of ${served}`).toBe(true);
+  }
+}
+
 const close = (a: number, b: number) => a === b || Math.abs(a - b) <= 1e-6 * Math.max(1, Math.abs(a), Math.abs(b));
 
 describe('draining queues', () => {
@@ -75,7 +86,72 @@ describe('draining queues', () => {
         const links = new Set(q.workers);
         for (const w of exact.flows.get(q.id)?.keys() ?? []) expect(links.has(w), `${label} ${q.id}>${w}`).toBe(true);
       }
+      expectServed(queues, exact, label);
     }
+  });
+
+  it('splits a tied block exactly, leaving empty the links no feasible split can use', () => {
+    const tie = drainQueues(
+      [
+        { id: 'q1', incoming: 1_500, workers: ['w1'] },
+        { id: 'q2', incoming: 1_500, workers: ['w1', 'w2'] },
+      ],
+      () => 1_500,
+    );
+    expect(tie.flows.get('q1')?.get('w1')).toBeCloseTo(1_500, 9);
+    expect(tie.flows.get('q2')?.get('w1')).toBeUndefined();
+    expect(tie.flows.get('q2')?.get('w2')).toBeCloseTo(1_500, 9);
+
+    const nearTie = drainQueues(
+      [
+        { id: 'q1', incoming: 1_499, workers: ['w1'] },
+        { id: 'q2', incoming: 1_500, workers: ['w1', 'w2'] },
+      ],
+      () => 1_500,
+    );
+    expect(nearTie.flows.get('q1')?.get('w1')).toBeCloseTo(1_499, 9);
+    expect(nearTie.flows.get('q2')?.get('w1')).toBeCloseTo(0.5, 9);
+    expect(nearTie.flows.get('q2')?.get('w2')).toBeCloseTo(1_499.5, 9);
+  });
+
+  it('sends exactly what each queue is served on tied and chained boards of up to 20 queues, in any order', () => {
+    for (let n = 1; n <= 20; n++) {
+      // A chain: q_i reaches w_(i-1) and w_i, every load and capacity equal, so every prefix ties with the whole.
+      const chain = Array.from({ length: n }, (_, i) => ({ id: `q${i}`, incoming: 1_500, workers: i ? [`w${i - 1}`, `w${i}`] : ['w0'] }));
+      // A star: n tight queues on their own workers, and one more that reaches all of them.
+      const star = [
+        ...Array.from({ length: n }, (_, i) => ({ id: `t${i}`, incoming: 1_000, workers: [`w${i}`] })),
+        { id: 'all', incoming: 500 * n, workers: Array.from({ length: n }, (_, i) => `w${i}`) },
+      ];
+      for (const [name, queues, cap] of [
+        ['chain', chain, 1_500],
+        ['star', star, 1_500],
+        ['tight star', star.slice(0, n).concat({ ...star[n], incoming: 1_000 }), 1_000],
+      ] as const) {
+        const label = `${name} ${n}`;
+        const r = drainQueues(queues, () => cap);
+        expectServed(queues, r, label);
+        const reversed = drainQueues(
+          [...queues].reverse().map((q) => ({ ...q, workers: [...q.workers].reverse() })),
+          () => cap,
+        );
+        expect(reversed.flows, label).toEqual(r.flows);
+      }
+    }
+  });
+
+  it('returns on loads and capacities too large to compare', () => {
+    expect(
+      drainQueues([{ id: 'a', incoming: Number.POSITIVE_INFINITY, workers: ['w'] }], () => Number.POSITIVE_INFINITY).blocks,
+    ).toHaveLength(1);
+    const huge = drainQueues(
+      [
+        { id: 'a', incoming: 1e308, workers: ['w', 'v'] },
+        { id: 'b', incoming: 1e308, workers: ['v'] },
+      ],
+      () => 1e308,
+    );
+    expect(huge.blocks.length).toBeGreaterThan(0);
   });
 
   it('never pools queues that share no worker, however many there are', () => {
@@ -116,6 +192,38 @@ describe('draining queues', () => {
     const r = simulate(design, writeWall.workload);
     expect(r.metrics.backlogGrowthPerSec).toBeGreaterThan(5_000);
     expect(evaluate(writeWall, design, r).find((c) => c.id === 'backlog')!.pass).toBe(false);
+  });
+
+  it('sends a tied queue nothing over the link no feasible split can use, on a board', () => {
+    const design: Design = {
+      nodes: [
+        { id: 'users', kind: 'client', x: 0, y: 0, instances: 1 },
+        { id: 'lb', kind: 'lb', x: 0, y: 0, instances: 2 },
+        { id: 'app', kind: 'app', x: 0, y: 0, instances: 6 },
+        { id: 'db', kind: 'db', x: 0, y: 0, instances: 2 },
+        { id: 'q1', kind: 'queue', x: 0, y: 0, instances: 1 },
+        { id: 'q2', kind: 'queue', x: 0, y: 0, instances: 1 },
+        { id: 'w1', kind: 'worker', x: 0, y: 0, instances: 1 },
+        { id: 'w2', kind: 'worker', x: 0, y: 0, instances: 1 },
+      ],
+      edges: [
+        ['users', 'lb'],
+        ['lb', 'app'],
+        ['app', 'db'],
+        ['app', 'q1'],
+        ['app', 'q2'],
+        ['q1', 'w1'],
+        ['q2', 'w1'],
+        ['q2', 'w2'],
+        ['w1', 'db'],
+        ['w2', 'db'],
+      ].map(([from, to]) => ({ from, to })),
+    };
+    const r = simulate(design, { rps: 5_000, readRatio: 0.4 });
+    expect(r.metrics.backlogGrowthPerSec).toBe(0);
+    expect(r.edges['q2->w1'] ?? 0).toBe(0);
+    expect(r.edges['q1->w1']).toBeCloseTo(1_500, 9);
+    expect(r.edges['q2->w2']).toBeCloseTo(1_500, 9);
   });
 
   it('simulates a board with 20 queues and 40 workers in a few milliseconds', () => {

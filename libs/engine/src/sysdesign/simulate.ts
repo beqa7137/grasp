@@ -47,6 +47,9 @@ export const BOT_BLOCK_RATE = 0.98;
 const zero = (): Flow => ({ read: 0, write: 0, bg: 0, repl: 0, bot: 0 });
 const total = (f: Flow) => f.read + f.write + f.bg + f.repl + f.bot;
 
+/** The share left for records beside a share of objects; files summed over several paths can miss 1 by a rounding. */
+const recordsBeside = (objects: number) => (objects > 1 - 1e-9 ? 0 : 1 - objects);
+
 export function simulate(design: Design, workload: Workload): SimResult {
   const byId = new Map(design.nodes.map((n) => [n.id, n]));
   const kidsOf = new Map<string, DesignNode[]>();
@@ -219,7 +222,7 @@ export function simulate(design: Design, workload: Workload): SimResult {
         stores,
         others,
         objects,
-        records: objects > 1 - 1e-9 ? 0 : 1 - objects,
+        records: recordsBeside(objects),
         carry: stores.length ? 0 : objectFrac,
       };
     };
@@ -271,7 +274,7 @@ export function simulate(design: Design, workload: Workload): SimResult {
       case 'app': {
         const blobs = ofKind('blob');
         const objects = blobs.length ? (workload.objectShare === undefined ? (blobs[0].share ?? DEFAULT_OBJECT_SHARE) : objectFrac) : 0;
-        const rest = 1 - objects;
+        const rest = recordsBeside(objects);
         const carry = blobs.length ? 0 : objectFrac;
         forward('read', served.read * objects, blobs, served.read);
         forward('write', served.write * objects, blobs, served.write);

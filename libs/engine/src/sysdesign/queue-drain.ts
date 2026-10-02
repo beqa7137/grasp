@@ -22,7 +22,8 @@ export interface QueueDrain {
 }
 
 const TOLERANCE = 1e-12;
-const SCALING_ROUNDS = 200;
+const SCALING_ROUNDS = 5_000;
+const STALL_ROUNDS = 25;
 
 const byId = (a: { id: string } | string, b: { id: string } | string) => {
   const x = typeof a === 'string' ? a : a.id;
@@ -120,7 +121,7 @@ function densest(queues: QueueDemand[], reach: (q: QueueDemand) => string[], cap
     const side = maximalSourceSide(queues, reach, capacity, best.ratio);
     if (!side.length) return best;
     const next = { queues: side, ...ratioOf(side) };
-    if (next.ratio <= best.ratio * (1 + TOLERANCE)) return next;
+    if (!(next.ratio > best.ratio * (1 + TOLERANCE))) return next;
     best = next;
   }
 }
@@ -221,8 +222,9 @@ function maximalSourceSide(
 
 /**
  * Within a block every queue is served the same fraction and every worker runs at the same utilization. Which queue
- * feeds which worker is the unique scaling of the block's links to those row and column sums (iterative proportional
- * fitting), ending on the workers so each one's total is exact.
+ * feeds which worker is the scaling of the block's links to those row and column sums (iterative proportional fitting),
+ * ending on the workers so each one's total is exact. Where some queues tie with the block, links into their workers
+ * must carry nothing and the fitting only creeps towards that, so what it leaves unmatched moves along augmenting paths.
  */
 function scale(block: Block, capacity: (worker: string) => number): Map<string, Map<string, number>> {
   const served = Math.min(1, 1 / block.ratio);
@@ -235,23 +237,93 @@ function scale(block: Block, capacity: (worker: string) => number): Map<string, 
   const columns = block.workers.map((w) => capacity(w) * utilization);
   const x = rows.map(() => 1);
   const y = columns.map(() => 1);
-  const across = (list: number[], factors: number[]) => sum(list.map((k) => factors[k]));
-  const limit = TOLERANCE * Math.max(1, ...rows);
-  for (let round = 0; round < SCALING_ROUNDS; round++) {
-    links.forEach((ws, i) => {
-      const total = across(ws, y);
+  const across = (list: number[], factors: number[]) => {
+    let total = 0;
+    for (const k of list) total += factors[k];
+    return total;
+  };
+  const rowError = () => {
+    let worst = 0;
+    for (let i = 0; i < links.length; i++) worst = Math.max(worst, Math.abs(x[i] * across(links[i], y) - rows[i]));
+    return worst;
+  };
+  const limit = TOLERANCE * Math.max(1, sum(rows));
+  let checked = Number.POSITIVE_INFINITY;
+  for (let round = 1; round <= SCALING_ROUNDS; round++) {
+    for (let i = 0; i < links.length; i++) {
+      const total = across(links[i], y);
       x[i] = total > 0 ? rows[i] / total : 0;
-    });
-    feeders.forEach((qs, j) => {
-      const total = across(qs, x);
+    }
+    for (let j = 0; j < feeders.length; j++) {
+      const total = across(feeders[j], x);
       y[j] = total > 0 ? columns[j] / total : 0;
-    });
-    if (links.every((ws, i) => Math.abs(x[i] * across(ws, y) - rows[i]) <= limit)) break;
+    }
+    const error = rowError();
+    if (!(error > limit)) break;
+    // Near a tie the fitting only creeps; once it stops halving every few dozen rounds, rebalancing finishes the job.
+    if (round % STALL_ROUNDS === 0) {
+      if (!(error < checked / 2)) break;
+      checked = error;
+    }
   }
+  const flow = links.map((ws, i) => {
+    const out = new Float64Array(block.workers.length);
+    for (const j of ws) out[j] = x[i] * y[j];
+    return out;
+  });
+  rebalance(flow, links, feeders, rows, limit);
   return new Map(
     block.queues.map((q, i) => [
       q.id,
-      new Map(links[i].flatMap((j): [string, number][] => (x[i] * y[j] > 0 ? [[block.workers[j], x[i] * y[j]]] : []))),
+      new Map(links[i].flatMap((j): [string, number][] => (flow[i][j] > limit ? [[block.workers[j], flow[i][j]]] : []))),
     ]),
   );
+}
+
+/**
+ * Moves jobs from queues that send more than their total to queues that send less, along paths that add to one link
+ * into a worker and take as much off another, so every worker's total stays put. Breadth first over sorted indices,
+ * so the result does not depend on the order the board lists anything.
+ */
+function rebalance(flow: Float64Array[], links: number[][], feeders: number[][], rows: number[], eps: number): void {
+  const short = rows.map((r, i) => r - sum(links[i].map((j) => flow[i][j])));
+  const queueFrom = new Int32Array(rows.length);
+  const workerFrom = new Int32Array(feeders.length);
+  const frontier: number[] = [];
+  for (let round = 0; round < rows.length * (feeders.length + 1); round++) {
+    const start = short.findIndex((gap) => gap > eps);
+    if (start < 0) return;
+    queueFrom.fill(-2);
+    workerFrom.fill(-1);
+    queueFrom[start] = -1;
+    frontier.length = 0;
+    frontier.push(start);
+    let end = -1;
+    search: for (let head = 0; head < frontier.length; head++) {
+      const i = frontier[head];
+      for (const j of links[i]) {
+        if (workerFrom[j] >= 0) continue;
+        workerFrom[j] = i;
+        for (const k of feeders[j]) {
+          if (queueFrom[k] !== -2 || flow[k][j] <= eps) continue;
+          queueFrom[k] = j;
+          if (short[k] < -eps) {
+            end = k;
+            break search;
+          }
+          frontier.push(k);
+        }
+      }
+    }
+    if (end < 0) return;
+    let amount = Math.min(short[start], -short[end]);
+    for (let k = end; queueFrom[k] !== -1; k = workerFrom[queueFrom[k]]) amount = Math.min(amount, flow[k][queueFrom[k]]);
+    for (let k = end; queueFrom[k] !== -1; k = workerFrom[queueFrom[k]]) {
+      const j = queueFrom[k];
+      flow[k][j] -= amount;
+      flow[workerFrom[j]][j] += amount;
+    }
+    short[start] -= amount;
+    short[end] += amount;
+  }
 }

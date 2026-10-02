@@ -123,6 +123,10 @@ test('a free build sets the share of file requests in its workload, and an old b
   await expect(page.getByRole('slider', { name: 'Files 0%' })).toBeVisible();
   await expect(p99).not.toContainText('369');
 
+  // In the video build only the CDN and the transcoders feed the store, splitting by instance count: no share to show.
+  await page.goto('/design/free-build?case=video-streaming');
+  await expect(page.getByRole('slider', { name: 'Files old rule', exact: true })).toHaveAttribute('aria-valuetext', 'old rule');
+
   // The email build's workers write to its store, so it keeps the old rule until the learner names a share. Only the
   // workload changes here, so the board must be saved for a workload change alone.
   await page.goto('/design/free-build?case=email-service');
