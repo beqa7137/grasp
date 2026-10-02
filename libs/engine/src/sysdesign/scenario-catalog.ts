@@ -70,16 +70,16 @@ const CATALOG = [
   {
     id: 'ledger-month-end',
     title: 'Month-End Ledger',
-    tagline: '6,000 entries a second, and each one commits before it answers.',
+    tagline: '6,000 transfers a second, and each one commits before it answers.',
     workload: { rps: 12_000, readRatio: 0.5, objectShare: 0 },
     goals: { ...LEDGER, maxMonthlyCost: 11_000 },
   },
   {
-    id: 'deploy-wave',
-    title: 'Deploy Wave',
-    tagline: 'Thousands of hosts restart and report at once, for 90 seconds.',
+    id: 'reconnect-storm',
+    title: 'Reconnect Storm',
+    tagline: '50,000 agents reconnect at once, for three minutes.',
     workload: { rps: 16_000, readRatio: 0.5, objectShare: 0 },
-    goals: { ...WAVE, maxMonthlyCost: 7_000, spikeSeconds: 90 },
+    goals: { ...WAVE, maxMonthlyCost: 9_000, spikeSeconds: 180 },
   },
 ] as const satisfies readonly ScenarioSummary[];
 

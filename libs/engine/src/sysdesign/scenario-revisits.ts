@@ -11,5 +11,5 @@ export const SCENARIO_REVISITS: Readonly<Record<string, number>> = {
   'leaderboard-budget': 3,
   'mail-attachments': 3,
   'ledger-month-end': 3,
-  'deploy-wave': 3,
+  'reconnect-storm': 3,
 };

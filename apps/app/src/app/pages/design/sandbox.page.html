@@ -238,7 +238,10 @@
               </label>
               <label>
                 <span
-                  >Files <strong class="mono">{{ (workload().objectShare ?? defaultObjectShare) * 100 | number: '1.0-0' }}%</strong></span
+                  >Files
+                  <strong class="mono">{{
+                    workload().objectShare === undefined ? 'old rule' : (workload().objectShare! * 100 | number: '1.0-0') + '%'
+                  }}</strong></span
                 >
                 <input
                   type="range"

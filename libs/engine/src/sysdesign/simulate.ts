@@ -229,11 +229,16 @@ export function simulate(design: Design, workload: Workload): SimResult {
       case 'cdn': {
         const h = node.hitRate ?? spec.hitRate ?? 0;
         terminate('read', served.read * h, served.read);
-        const { stores, others, objects, records, carry } = objectSplit(kids);
-        forward('read', served.read * (1 - h) * objects, stores, served.read);
-        forward('read', served.read * (1 - h) * records, others, served.read, carry);
-        forward('write', served.write * objects, stores, served.write);
-        forward('write', served.write * records, others, served.write, carry);
+        if (workload.objectShare === undefined) {
+          forward('read', served.read * (1 - h), kids, served.read);
+          forward('write', served.write, kids, served.write);
+        } else {
+          const { stores, others, objects, records, carry } = objectSplit(kids);
+          forward('read', served.read * (1 - h) * objects, stores, served.read);
+          forward('read', served.read * (1 - h) * records, others, served.read, carry);
+          forward('write', served.write * objects, stores, served.write);
+          forward('write', served.write * records, others, served.write, carry);
+        }
         forwardBots(kids);
         break;
       }

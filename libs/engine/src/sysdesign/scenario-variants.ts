@@ -150,19 +150,20 @@ export const SCENARIO_VARIANTS: Record<ScenarioId, readonly ScenarioVariant[]> =
       goals: { ...KEPT, maxP99Ms: 250, maxMonthlyCost: 7_500, noBacklog: true, noSinglePointOfFailure: true },
     },
     {
-      twist: 'A migration imports years of plain-text mail: 13,000 RPS at 20% reads, and only 30% of requests carry a file. Budget $8,000.',
+      twist:
+        'A client bug forces a full resync of every label and flag: 13,000 RPS at 20% reads, and only 30% of requests touch a body or attachment. Budget $8,000.',
       workload: { rps: 13_000, readRatio: 0.2, objectShare: 0.3 },
       goals: { ...KEPT, maxP99Ms: 250, maxMonthlyCost: 8_000, noBacklog: true },
     },
   ],
   'ledger-month-end': [
     {
-      twist: 'Black Friday: 16,000 RPS, still half of them new entries. Budget $14,000.',
+      twist: 'A year of growth on top of the holiday peak: 16,000 RPS, still half of them new entries. Budget $14,000.',
       workload: { rps: 16_000, readRatio: 0.5, objectShare: 0 },
       goals: { ...LEDGER, maxMonthlyCost: 14_000 },
     },
     {
-      twist: 'Month end is over and merchants pull their statements: 12,000 RPS at 80% reads. Budget $8,000.',
+      twist: 'The month has closed and merchants pull their statements: 12,000 RPS at 80% reads. Budget $8,000.',
       workload: { rps: 12_000, readRatio: 0.8, objectShare: 0 },
       goals: { ...LEDGER, maxMonthlyCost: 8_000 },
     },
@@ -172,22 +173,22 @@ export const SCENARIO_VARIANTS: Record<ScenarioId, readonly ScenarioVariant[]> =
       goals: { ...LEDGER, maxMonthlyCost: 13_000 },
     },
   ],
-  'deploy-wave': [
+  'reconnect-storm': [
     {
-      twist: 'The fleet doubled: 24,000 RPS for 60 seconds, half of them reports. Budget $8,000.',
+      twist: 'Two regions recover at once: 24,000 RPS for 60 seconds, half of them reports. Budget $8,000.',
       workload: { rps: 24_000, readRatio: 0.5, objectShare: 0 },
       goals: { ...WAVE, maxMonthlyCost: 8_000, spikeSeconds: 60 },
     },
     {
       twist:
-        'A slower wave: 16,000 RPS for three minutes, half of them reports, and the backlog must still clear within 10 minutes. Budget $9,000.',
-      workload: { rps: 16_000, readRatio: 0.5, objectShare: 0 },
-      goals: { ...WAVE, maxMonthlyCost: 9_000, spikeSeconds: 180 },
+        'Agents now wait a random delay before reconnecting: the storm spreads over four minutes at 10,000 RPS, half of them reports. Budget $6,000.',
+      workload: { rps: 10_000, readRatio: 0.5, objectShare: 0 },
+      goals: { ...WAVE, maxMonthlyCost: 6_000, spikeSeconds: 240 },
     },
     {
-      twist: 'Hosts now poll every few seconds: 20,000 RPS for 90 seconds at 70% reads. Budget $7,500.',
+      twist: 'Agents poll every few seconds while they wait for new state: 20,000 RPS for three minutes at 70% reads. Budget $7,200.',
       workload: { rps: 20_000, readRatio: 0.7, objectShare: 0 },
-      goals: { ...WAVE, maxMonthlyCost: 7_500, spikeSeconds: 90 },
+      goals: { ...WAVE, maxMonthlyCost: 7_200, spikeSeconds: 180 },
     },
   ],
 };

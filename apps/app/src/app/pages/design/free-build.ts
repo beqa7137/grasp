@@ -1,11 +1,11 @@
-import type { Scenario } from '@grasp/engine';
+import { DEFAULT_OBJECT_SHARE, type Scenario } from '@grasp/engine';
 
 export const FREE_BUILD: Scenario = {
   id: 'free-build',
   title: 'Free Build',
   tagline: 'No goals. Dial the traffic and see what breaks.',
   brief: 'An open canvas. Change the workload with the sliders, add components, and pull the chaos lever on anything you like.',
-  workload: { rps: 5_000, readRatio: 0.9 },
+  workload: { rps: 5_000, readRatio: 0.9, objectShare: DEFAULT_OBJECT_SHARE },
   goals: { maxP99Ms: Number.POSITIVE_INFINITY, maxErrorRate: 1, maxMonthlyCost: Number.POSITIVE_INFINITY },
   starter: {
     nodes: [

@@ -12,7 +12,8 @@ export interface Stack {
   objectStore?: boolean;
   /** Workers write to the object store, and to the database unless this is `only`. */
   workersToStore?: boolean | 'only';
-  cdn?: { hitRate: number; toStore?: boolean };
+  /** `count` CDNs in a row, the last one in front of the load balancers. */
+  cdn?: { hitRate: number; toStore?: boolean; count?: number };
 }
 
 const node = (id: string, kind: ComponentKind, instances = 1, extra: Partial<DesignNode> = {}): DesignNode => ({
@@ -28,10 +29,11 @@ export function stack(s: Stack): Design {
   const nodes = [node('users', 'client'), node('app', 'app', s.apps), node('db', 'db', s.shards, { shardKey: 'hash' })];
   const edges: [string, string][] = [];
   let front = 'users';
-  if (s.cdn) {
-    nodes.push(node('cdn', 'cdn', 1, { hitRate: s.cdn.hitRate }));
-    edges.push([front, 'cdn']);
-    front = 'cdn';
+  for (let i = (s.cdn?.count ?? 1) - 1; s.cdn && i >= 0; i--) {
+    const id = i ? `cdn${i}` : 'cdn';
+    nodes.push(node(id, 'cdn', 1, { hitRate: s.cdn.hitRate }));
+    edges.push([front, id]);
+    front = id;
   }
   if (s.lbs) {
     nodes.push(node('lb', 'lb', s.lbs));
@@ -67,8 +69,8 @@ export const CASE_MISSION_SOLUTIONS: Record<string, Design> = {
   'ledger-month-end:1': stack({ lbs: 2, apps: 14, caches: 2, shards: 5, replicas: 5 }),
   'ledger-month-end:2': stack({ lbs: 2, apps: 9, caches: 2, shards: 2, replicas: 2 }),
   'ledger-month-end:3': stack({ lbs: 2, apps: 9, caches: 2, shards: 5, replicas: 5 }),
-  'deploy-wave': stack({ lbs: 2, apps: 12, caches: 2, shards: 1, replicas: 1, queues: 2, workers: 1 }),
-  'deploy-wave:1': stack({ lbs: 2, apps: 17, caches: 2, shards: 1, replicas: 1, queues: 2, workers: 1 }),
-  'deploy-wave:2': stack({ lbs: 2, apps: 12, caches: 2, shards: 2, replicas: 2, queues: 2, workers: 2 }),
-  'deploy-wave:3': stack({ lbs: 2, apps: 15, caches: 2, shards: 1, replicas: 1, queues: 2, workers: 1 }),
+  'reconnect-storm': stack({ lbs: 2, apps: 12, caches: 2, shards: 2, replicas: 2, queues: 2, workers: 2 }),
+  'reconnect-storm:1': stack({ lbs: 2, apps: 17, caches: 2, shards: 1, replicas: 1, queues: 2, workers: 1 }),
+  'reconnect-storm:2': stack({ lbs: 2, apps: 8, caches: 2, shards: 1, replicas: 1, queues: 2, workers: 1 }),
+  'reconnect-storm:3': stack({ lbs: 2, apps: 15, caches: 2, shards: 1, replicas: 1, queues: 2, workers: 1 }),
 };

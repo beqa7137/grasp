@@ -103,7 +103,7 @@ export function designStates() {
     { id: 'sandbox-attachments-cleared', path: '/design/mail-attachments', setup: clearAttachments },
     { id: 'sandbox-ledger', path: '/design/ledger-month-end' },
     { id: 'sandbox-ledger-revisit', path: '/design/ledger-month-end?revisit=1' },
-    { id: 'sandbox-deploy-wave', path: '/design/deploy-wave' },
+    { id: 'sandbox-reconnect-storm', path: '/design/reconnect-storm' },
     { id: 'sandbox-free', path: '/design/free-build' },
     { id: 'case-study', path: '/design/case/url-shortener' },
     {
