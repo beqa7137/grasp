@@ -295,8 +295,7 @@
   "app/pages/visualize/player.page.scss": {
     "border-radius": 10,
     "font-size": 23,
-    "media": 2,
-    "token-override": 2
+    "media": 2
   },
   "app/pages/visualize/visualize-list.page.ts": {
     "font-size": 4

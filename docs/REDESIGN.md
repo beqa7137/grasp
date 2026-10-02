@@ -986,7 +986,7 @@ There are no idle loops, except Lab particles while a Run plays.
 
 - **FLIP.** Boxes are recorded around the signal update in `afterRenderEffect`. `Element.animate` runs on `transform` and `opacity` only, with `transform-box` set for SVG groups.
 - **Particles.** Pooled dots with WAAPI keyframes sampled with `getPointAtLength`. Not `stroke-dashoffset`, which repaints on the main thread every frame, and not `offset-path`, which has gaps in WebKit.
-- **Test mode.** `audit.mjs`, `pixdiff.mjs` and Playwright set `?motion=off` and `data-motion`, so screenshots are deterministic.
+- **Test mode.** `audit.mjs`, `pixdiff.mjs` and Playwright set `?motion=off` and `data-motion`, so screenshots are deterministic. R0 note: R0's tools set only `data-motion="off"` (from an init script, before any app script); R3's boot code adds the `?motion=off` reader, which strips the parameter, and the tools may then use the URL form (LOOP.md's R0 follow-up).
 
 ### 3.6 Diagram color and type
 
@@ -1833,7 +1833,7 @@ Iterations are ordered by impact, alternating between organization and visuals. 
 - **Scope:**
   - verify states for `/plan` (empty, with plan), `/interview/loop` (setup, running, debrief), placement questions and results, the drill summary, and code Accepted;
   - the `w1024` and `ipad` verify profiles, and the e2e `tablet` project with the `@nav`, `@player` and `@lab` tags;
-  - `?motion=off` plus `data-motion` support in `audit.mjs`, `pixdiff.mjs` and Playwright;
+  - `?motion=off` plus `data-motion` support in `audit.mjs`, `pixdiff.mjs` and Playwright (R0 note: R0 ships `data-motion="off"` only; `?motion=off` and its reader land in R3, see 3.5);
   - `first-paint-bytes.test.mjs` with its committed baseline and the kit-leak check;
   - `style-tokens.test.mjs` with its committed baseline;
   - a stored screenshot set of `main`.
@@ -2475,7 +2475,7 @@ Iterations are ordered by impact, alternating between organization and visuals. 
 | Older native builds receive new events                                                                                                     | The pull filter (`?v=2`) keeps `target.set` from them. Every schema change stays add-first                                                                                                                                                                         |
 | Hiding pattern tags may frustrate deliberate pattern browsing                                                                              | Never hidden inside a pattern hub or the By-pattern view. "Show pattern" is one tap. The toggle is a device preference                                                                                                                                             |
 | Removing the Visualize and Design Lab tabs lowers their visibility for pilot users                                                         | The Watch button and specimen on every pattern page, Up next suggestions, the "Where things moved" note, and "Lab" kept as a name                                                                                                                                  |
-| Animation makes screenshots and e2e flaky; WAAPI ignores the global reduced-motion CSS                                                     | `?motion=off` in all tooling, `finish()` before every assertion, and `MotionService` reading `data-motion` itself                                                                                                                                                  |
+| Animation makes screenshots and e2e flaky; WAAPI ignores the global reduced-motion CSS                                                     | `data-motion="off"` in all tooling (`?motion=off` from R3), `finish()` before every assertion, and `MotionService` reading `data-motion` itself                                                                                                                    |
 | SVG transforms and particles on WebKit and low-end Android                                                                                 | Transform and opacity only, `getPointAtLength` keyframes, a 60-animation cap, pooled particles, pausing offscreen. Measured with `timing.mjs` on the throttled phone                                                                                               |
 | Drag acts conflict with iOS swipe-back and page scroll                                                                                     | Drag acts only for link, union and pointer; `touch-action: none` on handles only; swipe-back off during a drag; no swipe-to-step; keyboard and list paths in the same iteration                                                                                    |
 | The Lab Run is a fluid approximation of steady states                                                                                      | Labelled in the Model chip. Pass/fail stays on `evaluate()`                                                                                                                                                                                                        |

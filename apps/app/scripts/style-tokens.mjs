@@ -9,23 +9,34 @@ const BREAKPOINTS = {
   media: new Set(['560px', '1024px', '1280px', '559.98px', '1023.98px', '1279.98px']),
   container: new Set(['640px', '900px', '639.98px', '899.98px']),
 };
-/** The files 3.2 defines the tokens in; a `--g-` or `--ion-` property defined anywhere else is a local value like any other. */
+/** 3.2 defines the tokens in `_theme.scss` and in the root rules of `styles.scss`, whose other rules are global component styles. */
 const THEME = new Set(['_theme.scss', 'styles.scss']);
+const ROOT_SELECTOR = /^(?::root|html)(?:[.:[][^\s>+~]*)?$|^\.ion-palette-dark$|^\[data-theme[^\]]*\]$/;
 const RAW_LENGTH = /(?<![\w.$-])(?!0*\.?0+(?:px|rem|pt)\b)\d*\.?\d+(?:px|rem|pt)\b/i;
 const QUERY_LENGTH = /\d*\.?\d+(?:px|rem|em|pt)\b/gi;
-const DECLARATION = /(?<![\w-])(--[\w-]+|\$[\w-]+|-?[a-z][a-z-]*)\s*:\s*((?:url\([^)]*\)|[^;{}"`])*)/g;
+const DECLARATION = /(?<![\w-])(--[\w-]+|\$[\w-]+|-?[a-z][a-z-]*)\s*:\s*((?:#\{[^}]*\}|url\([^)]*\)|[^;{}"`])*)/g;
+/** A `style` key or property holding a declaration string, as in `host: { style: '...' }`: its declarations are read, not it. */
+const STYLE_KEY = /(?<![\w$.-])(['"]?)style\1\s*:(?=\s*['"`])/g;
 const BINDING = /\[(style|attr)\.([\w-]+)(?:\.([\w%]+))?\]['"]?\s*[=:]\s*(["'])(.*?)\4/g;
 const HOST_BINDING =
-  /@HostBinding\(\s*['"](?:style|attr)\.([\w-]+)(?:\.([\w%]+))?['"]\s*\)\s*(?:readonly\s+)?(?:get\s+)?[\w$]+[^=;\n{]*(?:=|\{\s*return)\s*([^;\n]*)/g;
+  /@HostBinding\(\s*['"](style|attr)\.([\w-]+)(?:\.([\w%]+))?['"]\s*\)\s*(?:readonly\s+)?(?:get\s+)?[\w$]+[^=;\n{]*(?:=|\{\s*return)\s*([^;\n]*)/g;
 const SVG_ATTRIBUTE = /(?<![\w-])(fill|stroke|stop-color|flood-color|color|font-size|rx|ry)=(["'])(.*?)\2/g;
 const STYLE_CALL =
   /\.style(?:\.setProperty\(\s*['"]([\w-]+)['"]\s*,([^)]*)\)|\[\s*['"]([\w-]+)['"]\s*\]\s*=([^;\n]*)|\.([a-zA-Z]+)\s*=([^;\n]*))|\.setStyle\(\s*[^,()]+,\s*['"]([\w-]+)['"]\s*,([^)]*)\)/g;
 /** A string-valued key or field in TypeScript, such as a CodeMirror theme's `fontSize: '13px'` or a field `fill = 'red'`. */
-const TS_PROPERTY = /(?<![\w$-])['"]?([a-zA-Z][\w-]*)['"]?\s*(?::|=(?![=>]))\s*(['"`])([^'"`\n]*)\2/g;
+const TS_PROPERTY = /(?<![\w$-])['"]?([a-zA-Z][\w-]*)['"]?\s*(?::|=(?![=>]))\s*(?:signal(?:<[^>]*>)?\(\s*)?(['"`])([^'"`\n]*)\2/g;
+/** A field or constant holding a literal, so a binding to it by name reads its value. */
+const FIELD =
+  /(?<![\w$.])([\w$]+)\s*(?::\s*[\w<>|'" ]+)?=(?![=>])\s*(?:signal(?:<[^>]*>)?\(\s*)?((['"`])[^'"`\n]*\3|-?\d*\.?\d+(?![\w.]))/g;
+/** A whole string that is a color name, unless it is compared or is one member of a union type. */
+const NAMED_LITERAL = /(?<![=!]==?\s*|\bcase\s+|\|\s*)(['"`])([a-z]+)\1(?!\s*\|)/g;
 const COLOR_LITERAL = /(['"`])\s*(?:#(?:[\da-f]{3,4}|[\da-f]{6}|[\da-f]{8})|(?:rgba?|hsla?|hwb|oklch|oklab)\([^'"`()]*\))\s*\1/gi;
-/** A width query held in a string, as `matchMedia` and `BreakpointObserver` take one. */
-const QUERY_LITERAL = /(['"`])([^'"`{}@\n]*\(\s*(?:min-|max-)?(?:width|inline-size)\s*:[^'"`{}@\n]*)\1/g;
-const QUERY_MIXIN = /@mixin\s+([\w-]+)[^{]*\{[^}]*@(?:media|container)[^{]*\$/g;
+/** A width query held in a string, as `matchMedia` and `BreakpointObserver` take one; an interpolated width counts. */
+const QUERY_LITERAL = /(['"`])((?:\$\{[^}]*\}|[^'"`{}@\n])*\(\s*(?:min-|max-)?(?:width|inline-size)\s*:(?:\$\{[^}]*\}|[^'"`{}@\n])*)\1/g;
+const MIXIN = /@mixin\s+([\w-]+)\s*\(((?:[^()]|\([^()]*\))*)\)\s*\{((?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*)\}/g;
+const INCLUDE = /@include\s+(?:[\w-]+\.)?([\w-]+)\(([^;{]*)\)/g;
+const ARGUMENT_COMMA = /,(?![^(]*\))/;
+const NUMBER = /^\s*-?\d*\.?\d+\s*$/;
 /** A theme-style name that says what it sizes, so a raw length defined under it counts where it is defined. */
 const FONT_NAME = /^--(?:g|ion)-(?:[\w-]*-)?(?:text|font)(?:-|$)/;
 const COLOR_PROPERTY =
@@ -47,9 +58,14 @@ const NAMED_COLORS = new Set(
   yellowgreen`.split(/\s+/),
 );
 
-const isToken = (name, file) => THEME.has(file) && /^--(?:g|ion)-/.test(name);
-const isLocal = (name, file) => (name.startsWith('--') && !isToken(name, file)) || (name.startsWith('$') && file.endsWith('.scss'));
-const isOverride = (name, file) => /^--(?:g|ion)-/.test(name) && !THEME.has(file);
+const isThemeName = (name) => /^--(?:g|ion)-/.test(name);
+const isLocal = (name, file, theme) =>
+  (name.startsWith('--') && !(theme && isThemeName(name))) || (name.startsWith('$') && file.endsWith('.scss'));
+const isOverride = (name, theme) => isThemeName(name) && !theme;
+/** Text to read declarations from: a `style` key's string is read as declarations, and `@include` arguments are scored as arguments. */
+const declarations = (text) =>
+  text.replace(STYLE_KEY, blank).replace(/(@include\s+[\w.-]+\()([^;{]*)\)/g, (_, head, args) => `${head}${blank(args)})`);
+const unitless = (value) => (NUMBER.test(value) ? `${value.trim()}px` : value);
 const kebab = (name) => name.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
 const blank = (match) => match.replace(/[^\n]/g, ' ');
 
@@ -63,86 +79,140 @@ function uncommented(text, file) {
   return out;
 }
 
+/** A token's channels with a literal or token alpha, as in `rgba(var(--g-accent-rgb), 0.12)`. */
+const TOKEN_CHANNELS = /^\s*var\(\s*--[\w-]+\s*\)\s*(?:[,/]\s*(?:[\d.]+%?|var\(\s*--[\w-]+\s*\)))?\s*$/;
+
 /** A custom property's name never counts, but its fallback does: `var(--g-text, #f00)` renders red wherever the name is unset. */
 function literalColor(value) {
-  const names = value.replace(/url\([^)]*\)/g, '').replace(/var\(\s*--[\w-]+/g, 'var(');
+  const plain = value.replace(/url\([^)]*\)/g, '');
+  if ([...plain.matchAll(COLOR_FUNCTION)].some(([, args]) => !TOKEN_CHANNELS.test(args))) return true;
+  const names = plain.replace(COLOR_FUNCTION, '').replace(/var\(\s*--[\w-]+/g, 'var(');
   if (HEX.test(names)) return true;
-  if ([...names.matchAll(COLOR_FUNCTION)].some(([, args]) => !/var\(/.test(args))) return true;
   return (names.toLowerCase().match(/[a-z]+/g) ?? []).some((word) => NAMED_COLORS.has(word));
 }
 
+/** Which offsets lie in a rule that defines tokens: all of `_theme.scss`, and the root rules of `styles.scss`. */
+function themeScope(text, file) {
+  if (!THEME.has(file)) return () => false;
+  if (file === '_theme.scss') return () => true;
+  const marks = [[-1, false]];
+  const stack = [];
+  let start = 0;
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === '{') {
+      const parent = stack.at(-1) ?? false;
+      const prelude = text.slice(start, i).trim();
+      const root = prelude.split(',').every((selector) => ROOT_SELECTOR.test(selector.trim()));
+      stack.push(text[i - 1] === '#' || prelude.startsWith('@') ? parent : root);
+      marks.push([i, stack.at(-1)]);
+    } else if (text[i] === '}') {
+      stack.pop();
+      marks.push([i, stack.at(-1) ?? false]);
+    }
+    if ('{};'.includes(text[i])) start = i + 1;
+  }
+  return (index) => marks.findLast(([at]) => at < index)[1];
+}
+
 /** Outside the theme, a `--g-` or `--ion-` name holding a raw length counts where it is defined when its name or the theme says what it sizes. */
-function category(property, file, tokens) {
+function category(property, file, tokens, theme = false) {
   if (property === 'font-size' || property === 'font') return 'font-size';
-  if (/^border(?:-[a-z]+)*-radius$|^r[xy]$/.test(property) || (property.includes('radius') && isLocal(property, file))) {
+  if (/^border(?:-[a-z]+)*-radius$|^r[xy]$/.test(property) || (property.includes('radius') && isLocal(property, file, theme))) {
     return 'border-radius';
   }
-  if (isOverride(property, file) && FONT_NAME.test(property)) return 'font-size';
-  if (isOverride(property, file) && tokens.has(property)) return 'token-override';
-  if (COLOR_PROPERTY.test(property) || isLocal(property, file)) return 'color';
+  if (isOverride(property, theme) && FONT_NAME.test(property)) return 'font-size';
+  if (isOverride(property, theme) && tokens.has(property)) return 'token-override';
+  if (COLOR_PROPERTY.test(property) || isLocal(property, file, theme)) return 'color';
   return null;
 }
 
-/** Every custom property and SCSS variable a file declares, including the names a mixin such as `rgb-token` writes. */
-function declared(source, file) {
+/** Every custom property and SCSS variable a file declares (in its theme rules alone with `themeOnly`), including the names a mixin such as `rgb-token` writes. */
+function declared(source, file, themeOnly = false) {
   const text = uncommented(source, file);
-  const names = new Set([...text.matchAll(DECLARATION)].map(([, name]) => name));
+  const inTheme = themeOnly ? themeScope(text, file) : () => true;
+  const names = new Set([...declarations(text).matchAll(DECLARATION)].filter((match) => inTheme(match.index)).map(([, name]) => name));
   for (const [, name] of text.matchAll(/(?:\[style\.|setProperty\(\s*['"])(--[\w-]+)/g)) names.add(name);
   for (const [, mixin, parameter, body] of text.matchAll(/@mixin\s+([\w-]+)\(\s*\$([\w-]+)[^)]*\)\s*\{((?:[^{}]|#\{[^}]*\})*)\}/g)) {
     const templates = [...body.matchAll(/(--[\w-]*)#\{\$([\w-]+)\}([\w-]*)\s*:/g)].filter(([, , name]) => name === parameter);
-    for (const [, argument] of text.matchAll(new RegExp(`@include\\s+${mixin}\\(\\s*([\\w-]+)`, 'g'))) {
-      for (const [, head, , tail] of templates) names.add(`${head}${argument}${tail}`);
+    for (const include of text.matchAll(new RegExp(`@include\\s+(?:[\\w-]+\\.)?${mixin}\\(\\s*([\\w-]+)`, 'g'))) {
+      if (inTheme(include.index)) for (const [, head, , tail] of templates) names.add(`${head}${include[1]}${tail}`);
     }
   }
   return names;
 }
 
-/** Custom properties and SCSS variables a file defines with a raw length, outside the theme's tokens. */
+/** Custom properties and SCSS variables a file defines with a raw length, directly or through one defined so before it. */
 export function rawDefinitions(source, file) {
-  return new Map(
-    [...uncommented(source, file).matchAll(DECLARATION)]
-      .filter(([, name, value]) => isLocal(name, file) && RAW_LENGTH.test(value))
-      .map(([, name, value]) => [name, value.trim()]),
-  );
+  const text = uncommented(source, file);
+  const inTheme = themeScope(text, file);
+  const raw = new Map();
+  for (const match of declarations(text).matchAll(DECLARATION)) {
+    const [, name, value] = match;
+    if (!isLocal(name, file, inTheme(match.index))) continue;
+    const via = [...value.matchAll(/var\(\s*(--[\w-]+)|(\$[\w-]+)/g)].some(([, property, variable]) => raw.has(property ?? variable));
+    if (RAW_LENGTH.test(value) || via) raw.set(name, value.trim());
+  }
+  return raw;
 }
 
-/** The value a style binding's expression can produce: its string literals, or a number with the binding's unit. */
-function bound(expression, unit) {
-  const literals = [...expression.matchAll(/'([^']*)'|"([^"]*)"|`([^`]*)`/g)].map(([, a, b, c]) =>
-    (a ?? b ?? c).replace(/\$\{[^}]*\}/g, ''),
-  );
+/** Fields and constants holding a literal or `signal(literal)`, by name, as the source text of that literal. */
+function fieldsOf(text) {
+  return new Map([...text.matchAll(FIELD)].map(([, name, literal]) => [name, literal]));
+}
+
+/** Each mixin's parameters with what they size: a width query, a font size or a radius. */
+function mixinParameters(text, file) {
+  const out = new Map();
+  for (const [, name, list, body] of text.matchAll(MIXIN)) {
+    const parameters = list.split(ARGUMENT_COMMA).map((entry) => {
+      const parameter = entry.trim().match(/^\$[\w-]+/)?.[0];
+      const uses = (value) => !!parameter && new RegExp(`\\$${parameter.slice(1)}(?![\\w-])`).test(value);
+      const query = [...body.matchAll(/@(media|container)([^{;]*)/g)].find(([, , condition]) => uses(condition))?.[1];
+      const size = [...body.matchAll(DECLARATION)]
+        .map(([, property, value]) => uses(value) && category(property, file, new Set()))
+        .find((kind) => kind === 'font-size' || kind === 'border-radius');
+      return { name: parameter, kind: query ?? size ?? null };
+    });
+    if (parameters.some(({ kind }) => kind)) out.set(name, parameters);
+  }
+  return out;
+}
+
+/** The value a style binding's expression can produce: its string literals, or a number with the binding's unit, read through a field it names. */
+function bound(expression, unit, fields = new Map()) {
+  const source = fields.get(expression.match(/^\s*(?:this\.)?([\w$]+)(?:\(\))?\s*$/)?.[1]) ?? expression;
+  const literals = [...source.matchAll(/'([^']*)'|"([^"]*)"|`([^`]*)`/g)].map(([, a, b, c]) => (a ?? b ?? c).replace(/\$\{[^}]*\}/g, ''));
   if (literals.length) return literals.join(' ');
-  return unit && /^\s*-?\d*\.?\d+\s*$/.test(expression) ? `${expression.trim()}${unit}` : '';
+  return unit && NUMBER.test(source) ? `${source.trim()}${unit}` : '';
 }
 
 /**
- * Raw values in one file: font sizes, radii and colors not taken from the theme's `--g-` tokens, and `@media`,
- * `@container` or `matchMedia` widths other than the redesign's breakpoints. It reads declarations, SCSS variables and
- * mixin arguments, SVG attributes, template and host style bindings, `ngStyle`, `.style` and `Renderer2` calls, and
- * TypeScript style keys and color strings. A size laundered through a custom property or SCSS variable defined with a
- * raw value counts too, whether this file defines it or another does. The tree context adds what one file cannot see:
- * `elsewhere` (names other files define raw), `tokens` (names the theme defines, so an override counts where it is
- * made), `defined` (every name declared anywhere, so `var(--g-nope, 13px)` counts) and `queryMixins` (mixins that wrap
- * a width query, so each `@include` with a new width counts).
+ * Raw values in one file; tools/verify/README.md lists what counts and where it is read. The tree context adds what one
+ * file cannot see: `elsewhere` (names other files define raw), `tokens` (names the theme defines, so an override counts
+ * where it is made), `defined` (every name declared anywhere, so `var(--g-nope, 13px)` counts), `mixins` (what each
+ * mixin's parameters size, so each `@include` is scored) and, for a template, `fields` (its component's literal fields).
  */
-export function scan(source, file, { elsewhere = new Set(), tokens = new Set(), defined = null, queryMixins = new Set() } = {}) {
+export function scan(source, file, { elsewhere = new Set(), tokens = new Set(), defined = null, mixins = new Map(), fields = null } = {}) {
   const text = uncommented(source, file);
+  const inTheme = themeScope(text, file);
+  const members = fields ?? (file.endsWith('.ts') ? fieldsOf(text) : new Map());
   const lineOf = (index) => text.slice(0, index).split('\n').length;
   const locals = rawDefinitions(source, file);
-  const mixins = new Set([...queryMixins, ...[...text.matchAll(QUERY_MIXIN)].map(([, name]) => name)]);
+  const sized = new Map([...mixins, ...mixinParameters(text, file)]);
   const findings = [];
   const spans = [];
   const add = (kind, index, snippet) => {
     const end = index + snippet.length;
     if (spans.some((span) => span.kind === kind && index < span.end && end > span.start)) return;
     spans.push({ kind, start: index, end });
-    findings.push({ category: kind, line: lineOf(index), text: snippet.trim().replace(/\s+/g, ' ') });
+    findings.push({ index, category: kind, line: lineOf(index), text: snippet.trim().replace(/\s+/g, ' ') });
   };
   const check = (property, value, index, snippet) => {
-    const kind = category(property, file, tokens);
+    const theme = inTheme(index);
+    const kind = category(property, file, tokens, theme);
     if (!kind) return;
     const unknown = defined && [...value.matchAll(/var\(\s*(--g-[\w-]+)/g)].some(([, name]) => !defined.has(name));
-    if (kind === 'color' || isOverride(property, file)) {
+    if (kind === 'color' || isOverride(property, theme)) {
       if (literalColor(value) || (kind === 'color' && unknown)) add('color', index, snippet);
     }
     if (kind !== 'color') {
@@ -152,46 +222,55 @@ export function scan(source, file, { elsewhere = new Set(), tokens = new Set(), 
       if (RAW_LENGTH.test(value.replace(/chrome-font-size\([^)]*\)/g, '')) || laundered || unknown) add(kind, index, snippet);
     }
   };
+  const binding = (type, property, unit, expression, index, snippet) => {
+    const value = bound(expression, unit ?? (type === 'attr' ? 'px' : undefined), members);
+    check(kebab(property), type === 'attr' ? unitless(value) : value, index, snippet);
+  };
   const query = (kind, condition, index, snippet) => {
     const lengths = condition.match(QUERY_LENGTH) ?? [];
     const unknown = lengths.some((length) => !BREAKPOINTS[kind].has(length.toLowerCase())) || /\$/.test(condition);
     if (/width|inline-size/i.test(condition) && unknown) add(kind, index, snippet);
   };
+  const resolved = (value) => value.replace(/\$[\w-]+/g, (name) => locals.get(name) ?? name);
 
-  for (const match of text.matchAll(DECLARATION)) check(match[1], match[2], match.index, match[0]);
-  for (const match of text.matchAll(SVG_ATTRIBUTE)) {
-    const value = /^\s*-?\d*\.?\d+\s*$/.test(match[3]) ? `${match[3].trim()}px` : match[3];
-    check(match[1], value, match.index, match[0]);
-  }
-  for (const match of text.matchAll(BINDING)) check(kebab(match[2]), bound(match[5], match[3]), match.index, match[0]);
-  for (const match of text.matchAll(HOST_BINDING)) check(kebab(match[1]), bound(match[3], match[2]), match.index, match[0]);
-  for (const style of text.matchAll(/\[ngStyle\]\s*=\s*"([^"]*)"/dg)) {
-    for (const pair of style[1].matchAll(/['"]?([\w-]+)(?:\.([\w%]+))?['"]?\s*:\s*([^,}]*)/dg)) {
-      check(kebab(pair[1]), bound(pair[3], pair[2]), style.indices[1][0] + pair.indices[1][0], pair[0]);
+  for (const match of declarations(text).matchAll(DECLARATION)) check(match[1], match[2], match.index, match[0]);
+  for (const match of text.matchAll(SVG_ATTRIBUTE)) check(match[1], unitless(match[3]), match.index, match[0]);
+  for (const match of text.matchAll(BINDING)) binding(match[1], match[2], match[3], match[5], match.index, match[0]);
+  for (const match of text.matchAll(HOST_BINDING)) binding(match[1], match[2], match[3], match[4], match.index, match[0]);
+  for (const style of text.matchAll(/\[(?:ngStyle|style)\]\s*=\s*(["'])(.*?)\1/dgs)) {
+    for (const pair of style[2].matchAll(/['"]?([\w-]+)(?:\.([\w%]+))?['"]?\s*:\s*([^,}]*)/dg)) {
+      binding('style', pair[1], pair[2], pair[3], style.indices[2][0] + pair.indices[1][0], pair[0]);
     }
   }
   for (const match of text.matchAll(STYLE_CALL)) {
-    const property = match[1] ?? match[3] ?? match[7] ?? kebab(match[5]);
-    check(property, bound(match[2] ?? match[4] ?? match[8] ?? match[6]), match.index, match[0]);
-  }
-  for (const match of text.matchAll(/@(media|container)([^{;]*)/g)) {
-    query(
-      match[1],
-      match[2].replace(/\$[\w-]+/g, (name) => locals.get(name) ?? name),
+    binding(
+      'style',
+      match[1] ?? match[3] ?? match[7] ?? match[5],
+      undefined,
+      match[2] ?? match[4] ?? match[8] ?? match[6],
       match.index,
       match[0],
     );
   }
-  for (const match of text.matchAll(/@include\s+([\w-]+)\(([^;{]*)\)/g)) {
-    if (!THEME.has(file) && literalColor(match[2])) add('color', match.index, match[0]);
-    if (mixins.has(match[1]) && RAW_LENGTH.test(match[2])) query('media', `(width: ${match[2]})`, match.index, match[0]);
+  for (const match of text.matchAll(/@(media|container)([^{;]*)/g)) query(match[1], resolved(match[2]), match.index, match[0]);
+  for (const match of text.matchAll(INCLUDE)) {
+    if (!inTheme(match.index) && literalColor(match[2])) add('color', match.index, match[0]);
+    const parameters = sized.get(match[1]);
+    if (!parameters) continue;
+    match[2].split(ARGUMENT_COMMA).forEach((argument, position) => {
+      const [, keyword, value = argument] = argument.match(/^\s*(\$[\w-]+)\s*:\s*([\s\S]*)$/) ?? [];
+      const kind = (keyword ? parameters.find(({ name }) => name === keyword) : parameters[position])?.kind;
+      if (kind === 'media' || kind === 'container') query(kind, `(width: ${resolved(value)})`, match.index, match[0]);
+      else if (kind) check(kind, resolved(value), match.index, match[0]);
+    });
   }
   if (file.endsWith('.ts')) {
     for (const match of text.matchAll(TS_PROPERTY)) check(kebab(match[1]), match[3], match.index, match[0]);
     for (const match of text.matchAll(COLOR_LITERAL)) add('color', match.index, match[0]);
+    for (const match of text.matchAll(NAMED_LITERAL)) if (NAMED_COLORS.has(match[2])) add('color', match.index, match[0]);
     for (const match of text.matchAll(QUERY_LITERAL)) query('media', match[2], match.index, match[0]);
   }
-  return findings.sort((a, b) => a.line - b.line);
+  return findings.sort((a, b) => a.index - b.index).map(({ index: _index, ...finding }) => finding);
 }
 
 /**
@@ -204,14 +283,23 @@ export function scanTree(src = SRC) {
     .filter((file) => /\.(scss|ts|html)$/.test(file) && !file.endsWith('.spec.ts'))
     .sort()
     .map((file) => [file, readFileSync(src + file, 'utf8')]);
-  const tokens = new Set(sources.filter(([file]) => THEME.has(file)).flatMap(([file, source]) => [...declared(source, file)]));
+  const scripts = new Map(sources.filter(([file]) => file.endsWith('.ts')));
+  const tokens = new Set(sources.filter(([file]) => THEME.has(file)).flatMap(([file, source]) => [...declared(source, file, true)]));
   const context = {
     tokens,
     defined: new Set(sources.flatMap(([file, source]) => [...declared(source, file)])),
     elsewhere: new Set(sources.flatMap(([file, source]) => [...rawDefinitions(source, file).keys()]).filter((name) => !tokens.has(name))),
-    queryMixins: new Set(sources.flatMap(([file, source]) => [...uncommented(source, file).matchAll(QUERY_MIXIN)].map(([, name]) => name))),
+    mixins: new Map(sources.flatMap(([file, source]) => [...mixinParameters(uncommented(source, file), file)])),
   };
-  return Object.fromEntries(sources.map(([file, source]) => [file, scan(source, file, context)]).filter(([, findings]) => findings.length));
+  const fields = (file) => {
+    const component = file.replace(/\.html$/, '.ts');
+    return file.endsWith('.html') && scripts.has(component) ? fieldsOf(uncommented(scripts.get(component), component)) : null;
+  };
+  return Object.fromEntries(
+    sources
+      .map(([file, source]) => [file, scan(source, file, { ...context, fields: fields(file) })])
+      .filter(([, findings]) => findings.length),
+  );
 }
 
 export function counts(tree) {
