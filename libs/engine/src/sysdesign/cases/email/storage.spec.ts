@@ -44,7 +44,8 @@ describe('the storage model', () => {
     expect(storageText(run.storedBytes)).toBe('311 PB');
     expect(storageText(run.diskBytes)).toBe('934 PB');
     expect(storageText(run.perUserBytes)).toBe('623 MB');
-    expect(Math.floor(run.quotaYears)).toBe(24);
+    expect(Math.floor(run.quotaYears)).toBe(14);
+    expect(storageText(run.rawBytes / 500e6)).toBe('1.04 GB');
   });
 
   it('keeps the parts, savings and copies consistent on every setting', () => {
@@ -58,6 +59,8 @@ describe('the storage model', () => {
       expect(near(run.diskBytes, run.storedBytes * s.replication), at).toBe(true);
       expect(near(run.perUserBytes * s.usersM * 1e6, run.storedBytes), at).toBe(true);
       expect(run.stored.metadata).toBe(run.raw.metadata);
+      // Quota is charged at message size, so the savings never make a mailbox look smaller to its owner.
+      expect(near(run.quotaYears, (15e9 * s.usersM * 1e6) / run.rawBytes), at).toBe(true);
       expect(near(run.dedupSaved, (run.raw.attachments * s.dedupPct) / 100), at).toBe(true);
       // Bodies alone, compressed, outweigh the metadata, so metadata is never the largest part.
       expect(run.stored.bodies).toBeGreaterThan(run.stored.metadata);

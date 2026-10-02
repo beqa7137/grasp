@@ -39,6 +39,11 @@ const WIDTH = 284;
 const TOP = 8;
 const BOTTOM = 40;
 const HATCH = 7;
+/** The narrowest outage band drawn, so even a 5-minute outage shows its hatching. */
+const MIN_BAND = 4;
+/** Ticks closer than this merge into a bar, so only the first few and the last are drawn, with a gap between. */
+const MIN_TICK_GAP = 2;
+const FIRST_TICKS = 5;
 
 /** One message sent to a broken server, retried on a doubling schedule: when it is delivered or bounced, and the queue behind it. */
 @Component({
@@ -85,6 +90,9 @@ const HATCH = 7;
       }
       @if (answered()) {
         <path class="tick" [attr.d]="drawing().failed" />
+        @if (drawing().gap) {
+          <path class="gap" [attr.d]="drawing().gap" />
+        }
         @if (run().outcome === 'delivered') {
           <circle class="delivered" [attr.cx]="drawing().endX" [attr.cy]="(top + bottom) / 2" r="4" />
         } @else {
@@ -101,6 +109,9 @@ const HATCH = 7;
       <li><span class="swatch lifetime"></span>Queue lifetime (dashed){{ drawing().lifetimeX === null ? ', past the right edge' : '' }}</li>
       @if (answered()) {
         <li><span class="swatch tick"></span>Failed attempt (tick)</li>
+        @if (drawing().gap) {
+          <li><span class="swatch gap"></span>More attempts (dotted line)</li>
+        }
         @if (run().outcome === 'delivered') {
           <li><span class="swatch delivered"></span>Delivered (circle)</li>
         } @else {
@@ -142,8 +153,8 @@ const HATCH = 7;
     <p class="visually-hidden" role="status">{{ announcement() }}</p>
     <p class="muted note">
       One message is sent as the outage begins, and {{ perMinute }} more a minute follow it to the same domain. Each failed attempt doubles
-      the wait before the next, up to the longest wait; nothing tells the queue the server is back, so a message waits for its own next
-      attempt. The first failed attempt at or past the queue lifetime bounces the message to its sender.
+      the wait before the next, up to the longest wait; in this model, as in Postfix by default, nothing tells the queue the server is back,
+      so a message waits for its own next attempt. The first failed attempt at or past the queue lifetime bounces the message to its sender.
     </p>
 
     <app-widget-check [check]="shownCheck()" [chosen]="chosen()" (chosenChange)="answer($event)" />
@@ -162,8 +173,13 @@ const HATCH = 7;
       stroke-width: 0.6;
     }
     .hatch {
-      stroke: var(--g-line-strong);
+      stroke: var(--g-muted);
       stroke-width: 0.8;
+    }
+    .gap {
+      stroke: var(--g-accent);
+      stroke-width: 1.2;
+      stroke-dasharray: 1 2;
     }
     .axis {
       stroke: var(--g-text);
@@ -218,7 +234,7 @@ const HATCH = 7;
       height: 12px;
       &.band {
         border: 1px solid var(--g-stroke);
-        background: repeating-linear-gradient(-60deg, var(--g-line-strong) 0 1.5px, transparent 1.5px 4px), var(--g-accent-soft);
+        background: repeating-linear-gradient(-60deg, var(--g-muted) 0 1.5px, transparent 1.5px 4px), var(--g-accent-soft);
       }
       &.lifetime {
         width: 2px;
@@ -227,6 +243,10 @@ const HATCH = 7;
       &.tick {
         width: 2px;
         background: var(--g-accent);
+      }
+      &.gap {
+        height: 2px;
+        background: repeating-linear-gradient(90deg, var(--g-accent) 0 2px, transparent 2px 4px);
       }
       &.delivered {
         border-radius: 50%;
@@ -302,17 +322,23 @@ export class SmtpRetryWidgetComponent {
     const run = this.run();
     const endMin = Math.min(s.outageMin, s.lifetimeMin) + s.longestMin;
     const x = (t: number) => LEFT + (Math.min(t, endMin) / endMin) * WIDTH;
-    const bandW = x(s.outageMin) - LEFT;
+    const bandW = Math.max(x(s.outageMin) - LEFT, MIN_BAND);
     const hatch: string[] = [];
     for (let h = LEFT; h + HATCH / 2 <= LEFT + bandW; h += HATCH)
       hatch.push(`M${h.toFixed(2)} ${BOTTOM}L${(h + HATCH / 2).toFixed(2)} ${TOP}`);
-    const failed = run.attempts.slice(0, -1).map((t) => `M${x(t).toFixed(2)} ${TOP + 6}V${BOTTOM - 6}`);
+    const xs = run.attempts.slice(0, -1).map(x);
+    const crowded = xs.length > FIRST_TICKS + 1 && xs.some((v, i) => i > 0 && v - xs[i - 1] < MIN_TICK_GAP);
+    const shown = crowded ? [...xs.slice(0, FIRST_TICKS), xs.at(-1)!] : xs;
+    const failed = shown.map((v) => `M${v.toFixed(2)} ${TOP + 6}V${BOTTOM - 6}`);
+    const mid = (TOP + BOTTOM) / 2;
+    const gap = crowded ? `M${(xs[FIRST_TICKS - 1] + 1.5).toFixed(2)} ${mid}H${(xs.at(-1)! - 1.5).toFixed(2)}` : '';
     return {
       endMin,
       band: { x: LEFT, w: bandW },
       hatch: hatch.join(''),
       lifetimeX: s.lifetimeMin <= endMin ? Number(x(s.lifetimeMin).toFixed(2)) : null,
       failed: failed.join(''),
+      gap,
       endX: x(run.atMin),
     };
   }

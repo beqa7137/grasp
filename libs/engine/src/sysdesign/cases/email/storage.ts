@@ -54,7 +54,7 @@ export interface MailStorageRun {
   compressionSaved: number;
   dedupSaved: number;
   perUserBytes: number;
-  /** Years until one mailbox fills the free quota at this rate. */
+  /** Years until one mailbox fills the free quota, charged at message size: the savings lower our cost, not the user's quota. */
   quotaYears: number;
 }
 
@@ -90,7 +90,7 @@ export function mailStorage(s: MailStorageSettings): MailStorageRun {
     compressionSaved: raw.bodies - stored.bodies,
     dedupSaved: raw.attachments - stored.attachments,
     perUserBytes,
-    quotaYears: (quotaGb * 1e9) / perUserBytes,
+    quotaYears: (quotaGb * 1e9) / (sum(raw) / users),
   };
 }
 

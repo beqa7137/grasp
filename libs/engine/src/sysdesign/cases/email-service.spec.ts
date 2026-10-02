@@ -34,7 +34,10 @@ describe('email service case', () => {
     expect(text).toContain(`assume 30%, ${storageText(run.dedupSaved)}. Kept once, a year is about ${storageText(run.storedBytes)}`);
     expect(text).toContain(`three copies make ${storageText(run.diskBytes)} a year`);
     expect(text).toContain('stores 1.5 times the bytes, 467 PB');
-    expect(text).toContain('Per mailbox: 623 MB a year, so a 15 GB free quota lasts about 24 years');
+    expect(text).toContain(
+      'Per mailbox: about 1.04 GB of mail a year as received, so a 15 GB free quota lasts about 14 years; quota is charged at message size, before the savings, which only lower our cost.',
+    );
+    expect(text).not.toContain('623 MB');
     expect(text).toContain('so about 1 KB a message: 20 TB a day, 7.3 PB a year, 14.6 MB a mailbox a year');
     expect(text).toContain('14.6 MB a mailbox a year and 146 MB after 10 years');
     expect(text).toContain('A 10-year mailbox has 146,000 messages and about 2.92 GB of bodies');
@@ -66,6 +69,21 @@ describe('email service case', () => {
   it('scopes the case to a consumer mailbox provider, not a marketing sender', () => {
     expect(EMAIL_SERVICE.stages[0].prompt).toContain('A large consumer mailbox provider at Gmail or Outlook scale');
     expect(EMAIL_SERVICE.stages[0].prompt).toContain('This is not a marketing email sender');
+  });
+
+  it('covers early recovery, full mailboxes, feedback loops and moving a mailbox', () => {
+    expect(text).toContain(
+      "A large sender should not wait out each message's backoff: when one delivery or a probe to a deferred domain succeeds, it releases that domain's queue at a controlled rate, which turns the tail of up to the longest wait into minutes.",
+    );
+    expect(text).not.toContain('Nothing tells our queue');
+    expect(text).toContain('A full mailbox: answer RCPT TO with 452 4.2.2 (temporary, so the sender retries while the user cleans up)');
+    expect(text).toContain('after a grace period, 552 5.2.2');
+    expect(text).toContain('feedback-loop reports (ARF, RFC 5965)');
+    expect(text).toContain('one-click unsubscribe (RFC 8058)');
+    expect(text).toContain("Gmail and Yahoo's 2024 sender rules");
+    expect(text).toContain('0.3%');
+    expect(text).toContain('Moving a mailbox: copy its metadata in the background, then replay the change log');
+    expect(text).toContain('dedupe by Message-ID');
   });
 
   it('names protocol facts exactly', () => {
