@@ -131,3 +131,11 @@ test('reads the default page from the real route table', () => {
   const page = defaultPage(readFileSync(`${APP}src/app/app.routes.ts`, 'utf8'));
   assert.ok(existsSync(APP + page), page);
 });
+
+test("Angular's initial budget, the backstop, never errors above 855 kB (REDESIGN.md 5.0)", () => {
+  const { budgets } = JSON.parse(readFileSync(`${APP}angular.json`, 'utf8')).projects.app.architect.build.configurations.production;
+  const initial = budgets.find((budget) => budget.type === 'initial');
+  const kB = (size) => Number(/^([\d.]+)kB$/.exec(size)?.[1] ?? Infinity);
+  assert.ok(kB(initial.maximumError) <= 855, `maximumError ${initial.maximumError}`);
+  assert.ok(kB(initial.maximumWarning) <= kB(initial.maximumError), `maximumWarning ${initial.maximumWarning}`);
+});

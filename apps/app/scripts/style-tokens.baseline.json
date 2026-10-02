@@ -1,6 +1,6 @@
 {
   "app/code/code-editor.component.ts": {
-    "font-size": 1
+    "font-size": 2
   },
   "app/code/language-picker.component.ts": {
     "border-radius": 1,
@@ -153,6 +153,7 @@
     "font-size": 4
   },
   "app/pages/design-lesson/stream-widget.component.ts": {
+    "border-radius": 1,
     "font-size": 1
   },
   "app/pages/design-lesson/tenancy-widget.component.ts": {
@@ -220,6 +221,9 @@
   "app/pages/design/node-inspector.component.scss": {
     "border-radius": 3,
     "font-size": 13
+  },
+  "app/pages/design/sandbox.page.html": {
+    "border-radius": 6
   },
   "app/pages/design/sandbox.page.scss": {
     "border-radius": 7,
@@ -291,7 +295,8 @@
   "app/pages/visualize/player.page.scss": {
     "border-radius": 10,
     "font-size": 23,
-    "media": 2
+    "media": 2,
+    "token-override": 2
   },
   "app/pages/visualize/visualize-list.page.ts": {
     "font-size": 4

@@ -17,7 +17,7 @@ const inDays = (p, days) =>
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }, days);
 
-/** The summary and the saved plan keep the scroll of the card or form they replace (a follow-up in LOOP.md). */
+/** The summary and the saved plan keep the scroll of the card or form they replace; delete this with the LOOP.md follow-up's app fix. */
 const toTop = (locator) => locator.evaluate((el) => el.closest('ion-content').scrollToTop(0));
 
 /** Answers the whole placement check: every fourth question "I haven't learned this", the rest with the first choice. */
@@ -161,7 +161,7 @@ export function learnStates() {
         await p.getByRole('button', { name: 'Submit' }).click();
         const verdict = p.getByText('Accepted.');
         await verdict.waitFor({ timeout: 30_000 });
-        // The editor keeps the horizontal scroll of the long pasted line (a follow-up in LOOP.md).
+        // The editor keeps the horizontal scroll of the long pasted line; delete this with the LOOP.md follow-up's app fix.
         await p.locator('.cm-scroller').evaluate((scroller) => (scroller.scrollLeft = 0));
         await verdict.scrollIntoViewIfNeeded();
         await settle(p);
