@@ -1,13 +1,13 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { generateQuestion, type Question } from '@grasp/engine';
-import { QuestionCardComponent } from './question-card.component';
+import { QuestionCardComponent, type CardReason } from './question-card.component';
 
-function render(question: Question, chosen: number | null = null) {
+function render(question: Question, chosen: number | null = null, reason: CardReason = 'new') {
   TestBed.configureTestingModule({ imports: [QuestionCardComponent], providers: [provideRouter([])] });
   const fixture = TestBed.createComponent(QuestionCardComponent);
   fixture.componentRef.setInput('question', question);
-  fixture.componentRef.setInput('reason', 'new');
+  fixture.componentRef.setInput('reason', reason);
   fixture.componentRef.setInput('chosen', chosen);
   fixture.detectChanges();
   return fixture;
@@ -21,6 +21,14 @@ describe('QuestionCardComponent', () => {
     expect(el.querySelector('.reason')!.textContent).toContain('New');
     expect(el.querySelectorAll('.choice').length).toBe(q.choices.length);
     expect(el.querySelector('.reveal')).toBeNull();
+  });
+
+  it.each([
+    ['check', 'Quick check'],
+    ['practice', 'Practice'],
+  ] as const)('labels a %s card %s', (reason, label) => {
+    const el: HTMLElement = render(generateQuestion('rec:h1', 7), null, reason).nativeElement;
+    expect(el.querySelector('.reason')!.textContent!.trim()).toBe(label);
   });
 
   it('emits the chosen index', () => {

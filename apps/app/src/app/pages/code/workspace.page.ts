@@ -1,4 +1,18 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  ElementRef,
+  Injector,
+  afterNextRender,
+  computed,
+  effect,
+  inject,
+  input,
+  signal,
+  untracked,
+  viewChild,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Preferences } from '@capacitor/preferences';
 import {
@@ -35,6 +49,7 @@ import { RunnerService, type RunReport, type TestReport } from '../../code/runne
 import { toFrames, type TraceFrame } from '../../code/trace-frames';
 import { TracePlayerComponent } from '../../code/trace-player.component';
 import { exampleTree } from '../../code/tree-frames';
+import { refocusAfterRender } from '../../core/focus';
 import { haptic } from '../../core/haptics';
 import { CODE_DRAFT_PREFIX } from '../../core/local-drafts';
 import { onPageKey } from '../../core/on-page-key';
@@ -97,6 +112,9 @@ export class WorkspacePage {
   readonly report = signal<RunReport | null>(null);
   readonly reportKind = signal<'run' | 'submit' | null>(null);
   readonly panel = signal<Panel>('tests');
+  private readonly injector = inject(Injector);
+  private readonly traceButton = viewChild.required<ElementRef<HTMLButtonElement>>('traceButton');
+  private readonly traceNote = viewChild<ElementRef<HTMLElement>>('traceNote');
   readonly panelsId = uniqueId('workspace-panels');
 
   readonly traceExample = signal(0);
@@ -173,7 +191,6 @@ export class WorkspacePage {
     this.flushDraft();
     this.language.set(language);
     void Preferences.set({ key: LANGUAGE_KEY, value: language });
-    if (language === 'python' && this.panel() === 'trace') this.panel.set('tests');
   }
 
   resetCode() {
@@ -205,8 +222,13 @@ export class WorkspacePage {
   async trace() {
     const problem = this.problem();
     const language = this.language();
-    if (!problem || this.running() || language === 'python') return;
+    if (!problem || this.running()) return;
     this.panel.set('trace');
+    if (language === 'python') {
+      refocusAfterRender(this.injector, () => this.traceNote()?.nativeElement, this.traceButton().nativeElement);
+      afterNextRender(() => this.traceNote()?.nativeElement.scrollIntoView({ block: 'nearest' }), { injector: this.injector });
+      return;
+    }
     this.running.set('trace');
     this.clearTrace();
     const args = problem.examples[this.traceExample()]?.args ?? problem.examples[0].args;

@@ -1,6 +1,7 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { PopoverController } from '@ionic/angular';
 import { ApiService } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
 import { ProgressService } from '../../core/progress.service';
@@ -19,6 +20,7 @@ describe('LearnPage sync notice', () => {
         { provide: ApiService, useValue: { get: async () => ({ events: [] }), post: async () => undefined } },
         { provide: AuthService, useValue: { signInRequired } },
         { provide: DiagnosticPromptService, useValue: { dismissed: signal(true) } },
+        { provide: PopoverController, useValue: {} },
       ],
     });
   });

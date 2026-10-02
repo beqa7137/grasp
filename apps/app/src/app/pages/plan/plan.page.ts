@@ -1,7 +1,18 @@
 import { DatePipe, formatDate } from '@angular/common';
-import { ChangeDetectionStrategy, Component, ElementRef, Injector, LOCALE_ID, computed, inject, signal, viewChild } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  ElementRef,
+  Injector,
+  LOCALE_ID,
+  computed,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
+import { AlertController, IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
 import {
   PLAN_MINUTES,
   PLAN_ROUNDS,
@@ -23,6 +34,7 @@ import { PlanFormComponent } from './plan-form.component';
 
 const ROUND_NAMES: Record<PlanRound, string> = { coding: 'Coding', design: 'System design', behavioral: 'Behavioral' };
 const UPCOMING_DAYS = 6;
+const UNDO_MS = 8_000;
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
@@ -43,6 +55,9 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
         <p class="visually-hidden" role="status">{{ announcer.message() }}</p>
         @if (!input() || editing()) {
           <h1 #heading tabindex="-1">{{ input() ? 'Change your plan' : 'Plan to your interview' }}</h1>
+          @if (cleared()) {
+            <p class="undo panel">Plan cleared. <button type="button" class="g-btn ghost" (click)="undo()">Undo</button></p>
+          }
           @if (!input()) {
             <p class="lead">
               Tell Grasp when your interview is and how much time you have. Each day you get a short list across the rounds you face,
@@ -184,7 +199,7 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
           <div class="actions">
             <button type="button" class="g-btn" (click)="edit()">{{ p.status === 'past' ? 'Set a new date' : 'Change plan' }}</button>
-            <button type="button" class="g-btn ghost" (click)="clear()">Clear plan</button>
+            <button type="button" class="g-btn ghost" (click)="confirmClear()">Clear plan</button>
           </div>
           <p class="muted footnote">
             Times are estimates. The plan rebuilds itself from what you finish, so do things in any order you like.
@@ -341,6 +356,14 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
       gap: 8px;
       margin-bottom: 12px;
     }
+    .undo {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 12px 0;
+      padding: 8px 8px 8px 14px;
+    }
     .footnote {
       font-size: 0.8125rem;
       line-height: 1.5;
@@ -353,11 +376,16 @@ export class PlanPage {
   private readonly bank = inject(StoryBankService);
   private readonly injector = inject(Injector);
   private readonly heading = viewChild<ElementRef<HTMLElement>>('heading');
+  private readonly content = viewChild.required(IonContent);
   private readonly locale = inject(LOCALE_ID);
   readonly announcer = inject(AnnouncerService);
   readonly duration = formatMinutes;
   readonly plural = plural;
   readonly editing = signal(false);
+  private readonly alerts = inject(AlertController);
+  /** The plan just cleared, while it can still be restored. */
+  readonly cleared = signal<StudyPlanInput | null>(null);
+  private undoTimer: ReturnType<typeof setTimeout> | undefined;
 
   readonly input = computed(() => this.progress.state().plan);
   readonly today = computed(() => dayKey(this.progress.now(), this.progress.now().getTimezoneOffset()));
@@ -415,6 +443,7 @@ export class PlanPage {
 
   constructor() {
     addIcons({ checkmarkCircle, chatbubblesOutline, ellipseOutline, flashOutline });
+    inject(DestroyRef).onDestroy(() => clearTimeout(this.undoTimer));
   }
 
   async ionViewWillEnter() {
@@ -458,18 +487,54 @@ export class PlanPage {
   async save(plan: StudyPlanInput) {
     const first = !this.input();
     this.editing.set(false);
+    this.endUndo();
     await this.progress.record({ type: 'plan.set', plan });
     this.announcer.announce(first ? 'Plan saved.' : 'Plan updated.');
     this.focusHeading();
   }
 
-  async clear() {
-    await this.progress.record({ type: 'plan.set', plan: null });
-    this.announcer.announce('Plan cleared.');
+  async confirmClear() {
+    const alert = await this.alerts.create({
+      header: 'Clear your plan?',
+      message: 'Your progress stays.',
+      buttons: [
+        { text: 'Cancel', role: 'cancel' },
+        { text: 'Clear plan', role: 'destructive' },
+      ],
+    });
+    await alert.present();
+    // Ionic gives focus back to "Clear plan" as the alert closes, so the heading takes it only after that.
+    const { role } = await alert.onDidDismiss();
+    if (role === 'destructive') await this.clear();
+  }
+
+  async undo() {
+    const previous = this.cleared();
+    this.endUndo();
+    if (!previous || this.input()) return;
+    await this.progress.record({ type: 'plan.set', plan: previous });
+    this.announcer.announce('Plan restored.');
     this.focusHeading();
   }
 
+  private async clear() {
+    const previous = this.input();
+    await this.progress.record({ type: 'plan.set', plan: null });
+    this.announcer.announce('Plan cleared.');
+    this.cleared.set(previous);
+    clearTimeout(this.undoTimer);
+    this.undoTimer = setTimeout(() => this.cleared.set(null), UNDO_MS);
+    this.focusHeading();
+  }
+
+  private endUndo() {
+    clearTimeout(this.undoTimer);
+    this.cleared.set(null);
+  }
+
+  /** Each view starts at its heading, which on a small phone the button that changed the view has scrolled away from. */
   private focusHeading() {
+    void this.content().scrollToTop(0);
     refocusAfterRender(this.injector, () => this.heading()?.nativeElement, document.body);
   }
 }

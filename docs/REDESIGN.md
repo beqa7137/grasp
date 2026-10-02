@@ -1864,6 +1864,7 @@ Iterations are ordered by impact, alternating between organization and visuals. 
   - a copy spec finds no "right edge" text;
   - e2e: Clear plan then Undo restores the plan.
 - **Content review:** none.
+- **R1 note:** Settings already had Send feedback, so R1 removed the tab and added the Learn ⋯ menu (Send feedback, Study plan). The copy spec is scoped to app templates (`templates.spec.ts`), since lesson content legitimately says "right edge" (B-trees, grids, the SMTP widget); README.md and docs/PILOT.md were rewritten by hand. "No fixed element overlaps content" is checked by the audit's `fixed` list on every state and an e2e on phone.
 
 **R2 Player stage and checkpoint dock.**
 

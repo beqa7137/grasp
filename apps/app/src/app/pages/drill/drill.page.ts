@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
+import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
 import {
   RATING,
   formatInterval,
@@ -46,7 +46,19 @@ const MAX_REQUEUES_PER_ITEM = 2;
 @Component({
   selector: 'app-drill',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, DatePipe, IonHeader, IonToolbar, IonTitle, IonContent, IonIcon, QuestionCardComponent, ForecastComponent],
+  imports: [
+    RouterLink,
+    DatePipe,
+    IonHeader,
+    IonToolbar,
+    IonButtons,
+    IonBackButton,
+    IonTitle,
+    IonContent,
+    IonIcon,
+    QuestionCardComponent,
+    ForecastComponent,
+  ],
   templateUrl: './drill.page.html',
   styleUrl: './drill.page.scss',
 })
@@ -73,6 +85,10 @@ export class DrillPage {
   readonly focusName = computed(() => {
     const id = this.pattern();
     return id ? (getPatternSummary(id)?.name ?? getSdTopic(id)?.name ?? id) : null;
+  });
+  readonly backHref = computed(() => {
+    const id = this.pattern();
+    return id ? (getSdTopic(id) ? `/learn/design/${id}` : `/learn/pattern/${id}`) : undefined;
   });
   readonly correctCount = computed(() => this.results().filter((r) => r.correct).length);
 

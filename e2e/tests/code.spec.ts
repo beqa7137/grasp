@@ -244,18 +244,22 @@ test('Ctrl/⌘ + Enter runs the examples straight from the editor', async ({ pag
   await expect(page.getByText('3 / 3 examples passed')).toBeVisible();
 });
 
-test('Ctrl/⌘ + Enter typed in the feedback dialog does not run the code behind it', async ({ page }) => {
+test('in Python, Trace explains itself and offers JavaScript, keeping the Python draft', async ({ page }) => {
   await page.goto('/code/two-sum');
-  await page.getByRole('radio', { name: 'JavaScript' }).click();
-  await write(page, JS_TWO_SUM);
-  await page.getByRole('button', { name: 'Send feedback' }).click();
-  const note = page.getByRole('textbox', { name: 'Your feedback' });
-  await note.fill('The run shortcut');
-  await note.press('ControlOrMeta+Enter');
-  await page.getByRole('button', { name: 'Cancel' }).click();
-  await expect(page.getByRole('dialog', { name: 'Send feedback' })).toBeHidden();
-  // The hint gives way as soon as a run starts.
-  await expect(page.getByText(/checks the examples/)).toBeVisible();
+  await expect(page.getByRole('radio', { name: 'Python' })).toBeChecked();
+  await write(page, PY_TWO_SUM);
+  await page.getByRole('button', { name: 'Trace', exact: true }).click();
+  await expect(page.getByRole('tab', { name: 'Trace' })).toHaveAttribute('aria-selected', 'true');
+  const note = page.locator('p', { hasText: 'Trace steps through JavaScript or TypeScript code.' });
+  await expect(note).toBeFocused();
+  await expect(note).toContainText('(your Python draft stays saved)');
+
+  await note.getByRole('button', { name: 'Switch to JavaScript' }).click();
+  await expect(page.getByRole('radio', { name: 'JavaScript' })).toBeChecked();
+  const editor = page.getByRole('textbox', { name: 'Two Sum solution' });
+  await expect(editor).not.toContainText('enumerate(nums)');
+  await page.getByRole('radio', { name: 'Python' }).click();
+  await expect(editor).toContainText('for i, x in enumerate(nums):');
 });
 
 test('Trace steps through your own JavaScript', { tag: '@player' }, async ({ page }) => {

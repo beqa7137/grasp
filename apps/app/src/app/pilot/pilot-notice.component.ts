@@ -18,7 +18,7 @@ import { AI_DISCLOSURE } from '../core/ai-disclosure';
           works.
         </li>
         <li>{{ aiDisclosure }}</li>
-        <li>Use the <strong>Feedback</strong> tab on the right edge any time. Bugs, confusion and ideas are all useful.</li>
+        <li>Send feedback any time from <strong>Settings</strong>. Bugs, confusion and ideas are all useful.</li>
         <li>
           You can export or delete everything we store from
           <!-- Ionic's focus trap only cycles through elements it recognizes, and a plain link is not one of them. -->

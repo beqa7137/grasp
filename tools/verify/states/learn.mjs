@@ -17,8 +17,16 @@ const inDays = (p, days) =>
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }, days);
 
-/** The summary and the saved plan keep the scroll of the card or form they replace; delete this with the LOOP.md follow-up's app fix. */
+/** The review summary keeps the scroll of the card it replaces; delete this with the LOOP.md follow-up's app fix. */
 const toTop = (locator) => locator.evaluate((el) => el.closest('ion-content').scrollToTop(0));
+
+/** Saves a plan for an interview in 20 days. */
+async function setPlan(p) {
+  await p.getByLabel('Interview date').fill(await inDays(p, 20));
+  await p.getByRole('button', { name: 'Save plan' }).click();
+  await p.getByRole('heading', { name: 'Interview in 20 days' }).waitFor();
+  await settle(p);
+}
 
 /** Answers the whole placement check: every fourth question "I haven't learned this", the rest with the first choice. */
 async function takePlacement(p) {
@@ -122,20 +130,39 @@ export function learnStates() {
     },
     { id: 'settings', path: '/settings' },
     { id: 'plan-empty', path: '/plan' },
+    { id: 'plan-set', path: '/plan', setup: setPlan },
     {
-      id: 'plan-set',
+      id: 'plan-clear-confirm',
       path: '/plan',
       setup: async (p) => {
-        await p.getByLabel('Interview date').fill(await inDays(p, 20));
-        await p.getByRole('button', { name: 'Save plan' }).click();
-        const heading = p.getByRole('heading', { name: 'Interview in 20 days' });
-        await heading.waitFor();
-        await toTop(heading);
-        await settle(p);
+        await setPlan(p);
+        await p.getByRole('button', { name: 'Clear plan' }).click();
+        await p.locator('ion-alert').getByRole('button', { name: 'Clear plan' }).waitFor();
+        await settle(p, 600);
+      },
+    },
+    {
+      id: 'plan-cleared-undo',
+      path: '/plan',
+      setup: async (p) => {
+        await setPlan(p);
+        await p.getByRole('button', { name: 'Clear plan' }).click();
+        await p.locator('ion-alert').getByRole('button', { name: 'Clear plan' }).click();
+        await p.getByRole('button', { name: 'Undo' }).waitFor();
+        await settle(p, 600);
       },
     },
     { id: 'code-list', path: '/code' },
     { id: 'code-two-sum', path: '/code/two-sum' },
+    {
+      id: 'code-python-trace-note',
+      path: '/code/two-sum',
+      setup: async (p) => {
+        await p.getByRole('button', { name: 'Trace', exact: true }).click();
+        await p.getByText('Trace steps through JavaScript or TypeScript code.').waitFor();
+        await settle(p, 400);
+      },
+    },
     { id: 'code-reverse-linked-list-ii', path: '/code/reverse-linked-list-ii' },
     { id: 'code-critical-mst-edges', path: '/code/critical-mst-edges' },
     { id: 'code-maximum-students', path: '/code/maximum-students' },
@@ -182,8 +209,18 @@ export function learnStates() {
       id: 'feedback-dialog',
       path: '/learn',
       setup: async (p) => {
-        await p.locator('.feedback-tab').click();
+        await p.getByRole('button', { name: 'More' }).click();
+        await p.locator('ion-popover').getByRole('button', { name: 'Send feedback' }).click();
         await p.waitForSelector('ion-modal app-feedback-sheet');
+        await settle(p, 600);
+      },
+    },
+    {
+      id: 'learn-more-menu',
+      path: '/learn',
+      setup: async (p) => {
+        await p.getByRole('button', { name: 'More' }).click();
+        await p.locator('ion-popover app-learn-menu').waitFor();
         await settle(p, 600);
       },
     },

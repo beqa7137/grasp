@@ -62,12 +62,7 @@
             <ion-icon name="refresh-outline" aria-hidden="true" />
           </button>
           <span class="spacer"></span>
-          <button
-            class="g-btn"
-            (click)="trace()"
-            [disabled]="!!running() || !canTrace()"
-            [title]="canTrace() ? 'Step through your code on an example' : 'Tracing is available for JavaScript and TypeScript'"
-          >
+          <button #traceButton class="g-btn" (click)="trace()" [disabled]="!!running()" title="Step through your code on an example">
             <ion-icon name="footsteps-outline" aria-hidden="true" /> Trace
           </button>
           <button class="g-btn" (click)="run()" [disabled]="!!running()" title="Run the examples (Ctrl/⌘ + Enter)">
@@ -197,9 +192,10 @@
               }
             } @else {
               @if (!canTrace()) {
-                <p class="muted hint">
-                  Tracing steps through JavaScript and TypeScript line by line.
+                <p #traceNote class="muted hint" tabindex="-1">
+                  Trace steps through JavaScript or TypeScript code.
                   <button class="g-btn ghost small-btn" (click)="setLanguage('javascript')">Switch to JavaScript</button>
+                  (your Python draft stays saved)
                 </p>
               } @else {
                 @if (p.examples.length > 1) {

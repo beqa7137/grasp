@@ -43,7 +43,8 @@ header {
     color: var(--g-warn);
     border-color: rgba(var(--g-warn-rgb), 0.45);
   }
-  &[data-reason='practice'] {
+  &[data-reason='practice'],
+  &[data-reason='check'] {
     color: var(--g-predict);
     border-color: rgba(var(--g-predict-rgb), 0.4);
   }

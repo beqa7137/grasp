@@ -56,7 +56,7 @@ The exit interviews explain the numbers; they don't replace them.
 
 ### Welcome message
 
-> Thanks for joining the Grasp pilot! For the next two weeks, try to spend 10–15 minutes a day. Start with the 5-minute **placement check** on the Learn tab, then **Review**, then learn or visualize one pattern. Over the two weeks, aim for at least **two mock interviews** and **two Design Lab missions**. When something breaks, confuses you or sparks an idea, tap **Feedback** on the right edge of the screen. It takes 20 seconds and we read everything. You can export or delete your data at any time in Settings. Link: https://…
+> Thanks for joining the Grasp pilot! For the next two weeks, try to spend 10–15 minutes a day. Start with the 5-minute **placement check** on the Learn tab, then **Review**, then learn or visualize one pattern. Over the two weeks, aim for at least **two mock interviews** and **two Design Lab missions**. When something breaks, confuses you or sparks an idea, tap **Send feedback** in Settings or in the ⋯ menu at the top of the Learn tab. It takes 20 seconds and we read everything. You can export or delete your data at any time in Settings. Link: https://…
 
 ## Surveys
 
