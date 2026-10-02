@@ -14,8 +14,6 @@ export interface ComponentSpec {
   maxInstances: number;
   writeCost: number;
   hitRate?: number;
-  /** Object stores only: the share of app requests that read or write whole objects. */
-  share?: number;
   connectsTo: ComponentKind[];
 }
 
@@ -27,7 +25,6 @@ export interface DesignNode {
   instances: number;
   failed?: number;
   hitRate?: number;
-  share?: number;
   /** The role this node plays in a case study, shown in place of the component name. */
   label?: string;
   /** Databases only: with several instances, each instance is a shard owning part of the keys. */
@@ -49,6 +46,8 @@ export interface Workload {
   readRatio: number;
   /** Abusive automated traffic (scrapers, credential stuffing) on top of rps. It is never counted as user errors. */
   botRps?: number;
+  /** The share of requests that upload or fetch whole objects (files, images, attachments). Absent means 30%. */
+  objectShare?: number;
 }
 
 export type NodeStatus = 'idle' | 'ok' | 'hot' | 'overloaded' | 'down';
@@ -96,6 +95,8 @@ export interface SimMetrics {
   backlogGrowthPerSec: number;
   queueDrainRps: number;
   durableWriteRatio: number;
+  /** User writes a queue acknowledged before any database committed them. */
+  queuedWriteRps: number;
   botRps: number;
   botsBlockedRps: number;
 }
@@ -117,6 +118,8 @@ export interface ScenarioGoals {
   requireDurableWrites?: boolean;
   /** Sustained load: the queue backlog must not grow at all. */
   noBacklog?: boolean;
+  /** Every write commits before the reply, so no queue may acknowledge one. */
+  synchronousWrites?: boolean;
 }
 
 export interface ScenarioVariant {

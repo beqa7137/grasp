@@ -19,6 +19,10 @@ export interface ScenarioSummary<Id extends string = string> {
   variants: readonly ScenarioVariant[];
 }
 
+const KEPT = { maxErrorRate: 0.001, requireDurableWrites: true } as const;
+const LEDGER = { maxP99Ms: 200, maxErrorRate: 0.001, synchronousWrites: true, noSinglePointOfFailure: true } as const;
+const WAVE = { ...KEPT, maxP99Ms: 250, noSinglePointOfFailure: true, maxDrainMinutes: 10 } as const;
+
 const CATALOG = [
   {
     id: 'first-scale-up',
@@ -199,6 +203,81 @@ const CATALOG = [
         twist: 'A live tournament: every match posts a score, so 20,000 RPS are half writes. Budget $11,000.',
         workload: { rps: 20_000, readRatio: 0.5 },
         goals: { maxP99Ms: 200, maxErrorRate: 0.001, maxMonthlyCost: 11_000 },
+      },
+    ],
+  },
+  {
+    id: 'mail-attachments',
+    title: 'Attachments Everywhere',
+    tagline: '10k RPS all day, and half of them carry a file.',
+    workload: { rps: 10_000, readRatio: 0.3, objectShare: 0.5 },
+    goals: { ...KEPT, maxP99Ms: 250, maxMonthlyCost: 5_500, noBacklog: true },
+    variants: [
+      {
+        twist: 'Photo sharing took off: 14,000 RPS at 30% reads, and 70% of requests now carry a file. Budget $6,500.',
+        workload: { rps: 14_000, readRatio: 0.3, objectShare: 0.7 },
+        goals: { ...KEPT, maxP99Ms: 250, maxMonthlyCost: 6_500, noBacklog: true },
+      },
+      {
+        twist:
+          'A metadata shard died and its mailboxes went dark for an hour. Same load, now with no single point of failure. Budget $7,500.',
+        workload: { rps: 10_000, readRatio: 0.3, objectShare: 0.5 },
+        goals: { ...KEPT, maxP99Ms: 250, maxMonthlyCost: 7_500, noBacklog: true, noSinglePointOfFailure: true },
+      },
+      {
+        twist:
+          'A migration imports years of plain-text mail: 13,000 RPS at 20% reads, and only 30% of requests carry a file. Budget $8,000.',
+        workload: { rps: 13_000, readRatio: 0.2, objectShare: 0.3 },
+        goals: { ...KEPT, maxP99Ms: 250, maxMonthlyCost: 8_000, noBacklog: true },
+      },
+    ],
+  },
+  {
+    id: 'ledger-month-end',
+    title: 'Month-End Ledger',
+    tagline: '6,000 entries a second, and each one commits before it answers.',
+    workload: { rps: 12_000, readRatio: 0.5, objectShare: 0 },
+    goals: { ...LEDGER, maxMonthlyCost: 11_000 },
+    variants: [
+      {
+        twist: 'Black Friday: 16,000 RPS, still half of them new entries. Budget $14,000.',
+        workload: { rps: 16_000, readRatio: 0.5, objectShare: 0 },
+        goals: { ...LEDGER, maxMonthlyCost: 14_000 },
+      },
+      {
+        twist: 'Month end is over and merchants pull their statements: 12,000 RPS at 80% reads. Budget $8,000.',
+        workload: { rps: 12_000, readRatio: 0.8, objectShare: 0 },
+        goals: { ...LEDGER, maxMonthlyCost: 8_000 },
+      },
+      {
+        twist: 'A payout run posts an entry for every merchant: 11,000 RPS at 25% reads. Budget $13,000.',
+        workload: { rps: 11_000, readRatio: 0.25, objectShare: 0 },
+        goals: { ...LEDGER, maxMonthlyCost: 13_000 },
+      },
+    ],
+  },
+  {
+    id: 'deploy-wave',
+    title: 'Deploy Wave',
+    tagline: 'Thousands of hosts restart and report at once, for 90 seconds.',
+    workload: { rps: 16_000, readRatio: 0.5, objectShare: 0 },
+    goals: { ...WAVE, maxMonthlyCost: 7_000, spikeSeconds: 90 },
+    variants: [
+      {
+        twist: 'The fleet doubled: 24,000 RPS for 60 seconds, half of them reports. Budget $8,000.',
+        workload: { rps: 24_000, readRatio: 0.5, objectShare: 0 },
+        goals: { ...WAVE, maxMonthlyCost: 8_000, spikeSeconds: 60 },
+      },
+      {
+        twist:
+          'A slower wave: 16,000 RPS for three minutes, half of them reports, and the backlog must still clear within 10 minutes. Budget $9,000.',
+        workload: { rps: 16_000, readRatio: 0.5, objectShare: 0 },
+        goals: { ...WAVE, maxMonthlyCost: 9_000, spikeSeconds: 180 },
+      },
+      {
+        twist: 'Hosts now poll every few seconds: 20,000 RPS for 90 seconds at 70% reads. Budget $7,500.',
+        workload: { rps: 20_000, readRatio: 0.7, objectShare: 0 },
+        goals: { ...WAVE, maxMonthlyCost: 7_500, spikeSeconds: 90 },
       },
     ],
   },

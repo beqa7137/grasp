@@ -145,6 +145,71 @@ const DEFINITIONS: Record<ScenarioId, ScenarioDefinition> = {
     takeaway:
       'Give each load its cheapest fix. A page every player reads, like the top 100, is ideal to cache at the edge and in memory. Writes need more primaries: replicas replay every write, so only shards add write capacity. Then size every tier to the load it really sees. Adding more of everything meets the latency goal and misses the budget.',
   },
+  'mail-attachments': {
+    brief:
+      "A mail service's storage tier takes 10,000 RPS all day, 30% reads. Half of the requests upload or download a message body or an attachment, a whole object; the rest list, flag and label messages. One primary takes about 2,500 writes/s. Keep every accepted write durable (a queue, if any, must keep up), p99 under 250 ms and errors under 0.1%, for at most $5,500/month.",
+    starter: {
+      nodes: [n('users', 'client', 70, 240), n('lb', 'lb', 250, 240, 2), n('app', 'app', 430, 240, 6), n('db', 'db', 700, 240)],
+      edges: [
+        { from: 'users', to: 'lb' },
+        { from: 'lb', to: 'app' },
+        { from: 'app', to: 'db' },
+      ],
+    },
+    hints: [
+      'Tap the database: how much of its load is files that nobody will ever query?',
+      'An object store keeps whole files by key, scales far past a database and costs one flat price. What would the database have left to do?',
+      'Size the shards for the records alone: count the writes that are not files, at 2 ops each, plus the record reads that reach them, and keep each shard well short of full.',
+      'A file takes about 25 ms to its first byte, against 6 ms for a database read. Leave the app tier enough headroom to keep the p99 under 250 ms.',
+    ],
+    takeaway:
+      'Keep bytes out of the database. Bodies, attachments and images belong in an object store, referenced by key from a metadata row, so the database is sized for the records alone: here half the shards. The store is slower to the first byte, about 25 ms, so leave latency headroom elsewhere.',
+  },
+  'ledger-month-end': {
+    brief:
+      'A payments platform records every money movement as a balanced ledger entry: 12,000 RPS all day, half of them new entries and half balance and statement reads. An entry checks balances and commits before it replies, so no queue may accept it. One primary takes about 2,500 writes/s, and the ledger must survive losing any machine. Keep p99 under 200 ms and errors under 0.1% for at most $11,000/month.',
+    starter: {
+      nodes: [n('users', 'client', 70, 240), n('lb', 'lb', 250, 240, 2), n('app', 'app', 430, 240, 8), n('db', 'db', 700, 240)],
+      edges: [
+        { from: 'users', to: 'lb' },
+        { from: 'lb', to: 'app' },
+        { from: 'app', to: 'db' },
+      ],
+    },
+    hints: [
+      'A queue would reply before the balance check commits. What else adds write capacity?',
+      'Replicas replay every write, so they help reads only. How many primaries do 6,000 entries a second at 2 ops each need?',
+      'Each shard is a primary that owns some of the accounts. When one dies, its accounts stop: what does every shard need?',
+      'Balance and statement reads repeat. Something in front of the shards can answer most of them.',
+    ],
+    takeaway:
+      'Some writes cannot wait. A ledger entry checks balances and commits before it answers, so a queue cannot absorb the load and replicas cannot take it: only more primaries add write capacity. Shard the ledger, give every shard a replica to fail over to, and cache the reads.',
+  },
+  'deploy-wave': {
+    brief:
+      'A deploy wave restarts thousands of hosts at once. For 90 seconds the control plane takes 16,000 RPS: half are polls for the desired state, which changes only when a deploy does, and half are state reports, every one of which must be kept. One primary takes about 2,500 writes/s. Keep the control plane free of single points of failure, clear the report backlog within 10 minutes of the wave, p99 under 250 ms and errors under 0.1%, for at most $7,000/month.',
+    starter: {
+      nodes: [
+        n('hosts', 'client', 70, 240, 1, { label: 'Host agents' }),
+        n('lb', 'lb', 250, 240, 2),
+        n('app', 'app', 430, 240, 8, { label: 'Control plane' }),
+        n('db', 'db', 700, 240, 1, { label: 'Deploy store' }),
+      ],
+      edges: [
+        { from: 'hosts', to: 'lb' },
+        { from: 'lb', to: 'app' },
+        { from: 'app', to: 'db' },
+      ],
+    },
+    hints: [
+      'The reports arrive in a burst and stop when the wave ends. Must the deploy store take them as fast as they arrive?',
+      'A queue accepts a report in milliseconds and workers write it later. How fast can they write before the primary, which still serves reads, falls over?',
+      'The backlog grows at the arrival rate minus the drain rate for 90 seconds, then drains. Check that your drain rate clears it within 10 minutes.',
+      'The desired state changes only when a deploy does, so almost every poll can be answered from memory.',
+    ],
+    takeaway:
+      'A burst of writes needs a buffer, not more primaries. The queue accepts every report at once, workers drain it as fast as the one primary can take, and the backlog clears minutes after the wave. Polls for state that rarely changes belong in a cache. Size consumers to the slowest dependency and keep two of everything that routes or holds work.',
+  },
 };
 
 export const SCENARIOS: Scenario[] = SCENARIO_CATALOG.map(({ id, title, tagline, workload, goals, variants }) => {
@@ -209,6 +274,15 @@ export function evaluate(scenario: Scenario, design: Design, result: SimResult =
       label: 'Every accepted write is persisted',
       pass,
       actual: bgFailing ? 'jobs failing' : `${(m.durableWriteRatio * 100).toFixed(1)}%`,
+    });
+  }
+  if (g.synchronousWrites) {
+    const queued = m.queuedWriteRps;
+    checks.push({
+      id: 'sync',
+      label: 'Every write commits before the reply',
+      pass: queued < 1,
+      actual: queued < 1 ? 'all committed' : `${fmt(queued)}/s queued`,
     });
   }
   if (g.noBacklog) {
