@@ -34,14 +34,17 @@ export function nameObjectShare({ design, workload }: SavedDesign, objectShare: 
 
 /**
  * The share of files a board on the old rule runs at: the share saved on the first store linked from the first app
- * that carries traffic (from the first such app at all when none does), 30% when that store saved none. Undefined when
+ * that is up and carries traffic (from the first such app at all when none does), 30% when that store saved none. Undefined when
  * no app links a store, since CDNs and workers then split by instance count.
  */
 export function legacyObjectShare({ nodes, edges }: Design, stats?: SimResult['nodes']): number | undefined {
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const storeOf = (app: DesignNode) => edges.map((e) => (e.from === app.id ? byId.get(e.to) : undefined)).find((n) => n?.kind === 'blob');
   const apps = nodes.filter((n) => n.kind === 'app' && storeOf(n));
-  const carrying = (n: DesignNode) => (stats?.[n.id]?.readRps ?? 0) + (stats?.[n.id]?.writeRps ?? 0) > 0;
+  const carrying = (n: DesignNode) => {
+    const s = stats?.[n.id];
+    return !!s && s.status !== 'down' && s.readRps + s.writeRps > 0;
+  };
   const app = apps.find(carrying) ?? apps[0];
   return app && (storeOf(app)!.share ?? DEFAULT_OBJECT_SHARE);
 }
