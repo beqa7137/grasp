@@ -1,7 +1,7 @@
 # Improvement loop
 
 The loop's memory between runs. Each run reads this first, picks one item, ships it through the full release sequence in
-`CLAUDE.md` into `feature/improvements` (the loop's base branch; production and `main` only on the owner's request), and
+`CLAUDE.md` onto `main`, which releases it to production (the owner's choice since 2026-10-02), and
 updates this file in the same change: add a line to **Shipped**, remove or edit what it resolved, and add any follow-ups
 it found. Keep entries short and factual, with numbers where they exist.
 
