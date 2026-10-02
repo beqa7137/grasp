@@ -1,0 +1,360 @@
+{
+  "app/code/code-editor.component.ts": {
+    "font-size": 1
+  },
+  "app/code/language-picker.component.ts": {
+    "border-radius": 1,
+    "font-size": 1
+  },
+  "app/code/trace-player.component.ts": {
+    "border-radius": 2,
+    "font-size": 4
+  },
+  "app/core/sign-in-options.component.ts": {
+    "font-size": 1
+  },
+  "app/pages/behavioral/ai-interview-entry.component.ts": {
+    "font-size": 4
+  },
+  "app/pages/behavioral/behavioral-list.page.ts": {
+    "font-size": 8
+  },
+  "app/pages/behavioral/behavioral-mock.page.ts": {
+    "font-size": 6
+  },
+  "app/pages/behavioral/competency.page.ts": {
+    "font-size": 4
+  },
+  "app/pages/behavioral/example-answer.component.ts": {
+    "font-size": 3
+  },
+  "app/pages/behavioral/rehearse.page.ts": {
+    "font-size": 8
+  },
+  "app/pages/behavioral/spot-flaws.component.ts": {
+    "font-size": 4
+  },
+  "app/pages/behavioral/star-editor.component.ts": {
+    "font-size": 8,
+    "media": 1
+  },
+  "app/pages/behavioral/star-practice.page.ts": {
+    "font-size": 6
+  },
+  "app/pages/behavioral/story-bank.page.ts": {
+    "font-size": 9
+  },
+  "app/pages/behavioral/story.page.ts": {
+    "font-size": 4
+  },
+  "app/pages/code/code-list.page.ts": {
+    "font-size": 4
+  },
+  "app/pages/code/workspace.page.scss": {
+    "border-radius": 2,
+    "font-size": 10,
+    "media": 1
+  },
+  "app/pages/design-lesson/availability-widget.component.ts": {
+    "border-radius": 1,
+    "font-size": 6
+  },
+  "app/pages/design-lesson/balancer-widget.component.ts": {
+    "font-size": 2
+  },
+  "app/pages/design-lesson/batch-widget.component.ts": {
+    "border-radius": 2,
+    "font-size": 2
+  },
+  "app/pages/design-lesson/budget-widget.component.ts": {
+    "font-size": 3
+  },
+  "app/pages/design-lesson/cache-widget.component.ts": {
+    "font-size": 1
+  },
+  "app/pages/design-lesson/cdn-widget.component.ts": {
+    "border-radius": 2,
+    "font-size": 3
+  },
+  "app/pages/design-lesson/clocks-widget.component.ts": {
+    "font-size": 1
+  },
+  "app/pages/design-lesson/crack-widget.component.ts": {
+    "font-size": 1
+  },
+  "app/pages/design-lesson/delivery-widget.component.ts": {
+    "font-size": 2
+  },
+  "app/pages/design-lesson/design-lesson.page.ts": {
+    "font-size": 10
+  },
+  "app/pages/design-lesson/discovery-widget.component.ts": {
+    "font-size": 1
+  },
+  "app/pages/design-lesson/durability-widget.component.ts": {
+    "font-size": 2
+  },
+  "app/pages/design-lesson/estimate-drill.component.ts": {
+    "border-radius": 1,
+    "font-size": 4
+  },
+  "app/pages/design-lesson/feed-model-widget.component.ts": {
+    "font-size": 2
+  },
+  "app/pages/design-lesson/gateway-widget.component.ts": {
+    "font-size": 2
+  },
+  "app/pages/design-lesson/geo-widget.component.ts": {
+    "font-size": 2
+  },
+  "app/pages/design-lesson/id-layout-widget.component.ts": {
+    "font-size": 3
+  },
+  "app/pages/design-lesson/index-widget.component.ts": {
+    "border-radius": 1,
+    "font-size": 7
+  },
+  "app/pages/design-lesson/lease-widget.component.ts": {
+    "font-size": 2
+  },
+  "app/pages/design-lesson/limiter-widget.component.ts": {
+    "font-size": 3
+  },
+  "app/pages/design-lesson/overload-widget.component.ts": {
+    "font-size": 3
+  },
+  "app/pages/design-lesson/pagination-widget.component.ts": {
+    "border-radius": 1,
+    "font-size": 2
+  },
+  "app/pages/design-lesson/partition-widget.component.ts": {
+    "font-size": 4
+  },
+  "app/pages/design-lesson/pipeline-widget.component.ts": {
+    "border-radius": 1,
+    "font-size": 2
+  },
+  "app/pages/design-lesson/quorum-widget.component.ts": {
+    "font-size": 4
+  },
+  "app/pages/design-lesson/recovery-widget.component.ts": {
+    "font-size": 2
+  },
+  "app/pages/design-lesson/region-widget.component.ts": {
+    "font-size": 2
+  },
+  "app/pages/design-lesson/replica-widget.component.ts": {
+    "font-size": 3
+  },
+  "app/pages/design-lesson/ring-widget.component.ts": {
+    "font-size": 1
+  },
+  "app/pages/design-lesson/storage-widget.component.ts": {
+    "font-size": 4
+  },
+  "app/pages/design-lesson/stream-widget.component.ts": {
+    "font-size": 1
+  },
+  "app/pages/design-lesson/tenancy-widget.component.ts": {
+    "font-size": 2
+  },
+  "app/pages/design-lesson/txn-widget.component.ts": {
+    "font-size": 3
+  },
+  "app/pages/design-lesson/widget.scss": {
+    "border-radius": 1,
+    "font-size": 5
+  },
+  "app/pages/design/case/case-stage.component.ts": {
+    "border-radius": 3,
+    "font-size": 8
+  },
+  "app/pages/design/case/case-study.page.ts": {
+    "font-size": 6
+  },
+  "app/pages/design/case/widgets/artifact-distribution-widget.component.ts": {
+    "border-radius": 2,
+    "font-size": 5
+  },
+  "app/pages/design/case/widgets/bucketing-widget.component.ts": {
+    "border-radius": 1,
+    "font-size": 4,
+    "media": 1
+  },
+  "app/pages/design/case/widgets/cells-widget.component.ts": {
+    "font-size": 3
+  },
+  "app/pages/design/case/widgets/hot-account-widget.component.ts": {
+    "font-size": 3
+  },
+  "app/pages/design/case/widgets/mail-storage-widget.component.ts": {
+    "border-radius": 2,
+    "font-size": 3
+  },
+  "app/pages/design/case/widgets/propagation-widget.component.ts": {
+    "font-size": 3
+  },
+  "app/pages/design/case/widgets/quadtree-widget.component.ts": {
+    "font-size": 3
+  },
+  "app/pages/design/case/widgets/reconcile-widget.component.ts": {
+    "font-size": 4
+  },
+  "app/pages/design/case/widgets/retry-widget.component.ts": {
+    "font-size": 5
+  },
+  "app/pages/design/case/widgets/rollout-plan-widget.component.ts": {
+    "font-size": 5
+  },
+  "app/pages/design/case/widgets/smtp-retry-widget.component.ts": {
+    "font-size": 4
+  },
+  "app/pages/design/case/widgets/widget-check.component.ts": {
+    "border-radius": 1,
+    "font-size": 2
+  },
+  "app/pages/design/design-list.page.ts": {
+    "border-radius": 1,
+    "font-size": 9
+  },
+  "app/pages/design/node-inspector.component.scss": {
+    "border-radius": 3,
+    "font-size": 13
+  },
+  "app/pages/design/sandbox.page.scss": {
+    "border-radius": 7,
+    "font-size": 35,
+    "media": 3
+  },
+  "app/pages/diagnostic/diagnostic.page.scss": {
+    "border-radius": 1,
+    "font-size": 8
+  },
+  "app/pages/drill/drill.page.scss": {
+    "border-radius": 4,
+    "font-size": 14
+  },
+  "app/pages/interview/behavioral-answer.component.ts": {
+    "font-size": 5
+  },
+  "app/pages/interview/behavioral-scorecard.component.ts": {
+    "font-size": 3
+  },
+  "app/pages/interview/interview-home.page.ts": {
+    "font-size": 11
+  },
+  "app/pages/interview/interview-session.page.scss": {
+    "border-radius": 8,
+    "font-size": 15
+  },
+  "app/pages/interview/loop-debrief.component.ts": {
+    "font-size": 7
+  },
+  "app/pages/interview/mock-loop.page.ts": {
+    "font-size": 5
+  },
+  "app/pages/interview/star-answer.component.ts": {
+    "border-radius": 1,
+    "font-size": 1
+  },
+  "app/pages/learn/learn.page.scss": {
+    "border-radius": 1,
+    "font-size": 24
+  },
+  "app/pages/pattern/pattern.page.ts": {
+    "font-size": 10
+  },
+  "app/pages/pattern/quick-check.component.ts": {
+    "font-size": 1
+  },
+  "app/pages/pattern/worked-example.component.ts": {
+    "font-size": 5
+  },
+  "app/pages/plan/plan-form.component.ts": {
+    "border-radius": 2,
+    "font-size": 4
+  },
+  "app/pages/plan/plan.page.ts": {
+    "font-size": 16
+  },
+  "app/pages/settings/account-settings.component.ts": {
+    "border-radius": 1,
+    "font-size": 6
+  },
+  "app/pages/settings/settings.page.ts": {
+    "font-size": 2
+  },
+  "app/pages/settings/study-settings.component.ts": {
+    "border-radius": 2,
+    "font-size": 3
+  },
+  "app/pages/visualize/player.page.scss": {
+    "border-radius": 10,
+    "font-size": 23,
+    "media": 2
+  },
+  "app/pages/visualize/visualize-list.page.ts": {
+    "font-size": 4
+  },
+  "app/pilot/feedback-sheet.component.ts": {
+    "font-size": 6
+  },
+  "app/pilot/pilot-notice.component.ts": {
+    "font-size": 1
+  },
+  "app/review/forecast.component.ts": {
+    "border-radius": 1,
+    "font-size": 2
+  },
+  "app/review/question-card.component.scss": {
+    "border-radius": 8,
+    "font-size": 14
+  },
+  "app/tabs/tabs.page.ts": {
+    "border-radius": 1,
+    "font-size": 2,
+    "media": 1
+  },
+  "app/viz/array-view.component.ts": {
+    "border-radius": 3,
+    "font-size": 3
+  },
+  "app/viz/code-panel.component.ts": {
+    "font-size": 1
+  },
+  "app/viz/code-text.component.ts": {
+    "border-radius": 1
+  },
+  "app/viz/graph-view.component.ts": {
+    "font-size": 1
+  },
+  "app/viz/grid-view.component.ts": {
+    "border-radius": 2,
+    "font-size": 3
+  },
+  "app/viz/legend.component.ts": {
+    "border-radius": 1,
+    "font-size": 1
+  },
+  "app/viz/list-view.component.ts": {
+    "border-radius": 1,
+    "font-size": 4
+  },
+  "app/viz/mastery-ring.component.ts": {
+    "font-size": 1
+  },
+  "app/viz/node-styles.ts": {
+    "font-size": 2
+  },
+  "app/viz/table-view.component.ts": {
+    "border-radius": 2,
+    "font-size": 2
+  },
+  "app/viz/tree-view.component.ts": {
+    "font-size": 1
+  },
+  "styles.scss": {
+    "border-radius": 6,
+    "font-size": 8
+  }
+}
