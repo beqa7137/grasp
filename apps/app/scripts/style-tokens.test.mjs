@@ -13,6 +13,14 @@ test('flags raw font sizes, radii, colors and one-off breakpoints', () => {
     ['.a { font-size: clamp(1.625rem, 5vw, 2.25rem); }', 'font-size'],
     ['.a { font-size: var(--size, 12px); }', 'font-size'],
     ['.a { font-size: var(--ion-safe-size, 12px); }', 'font-size'],
+    ['.a { font-size: var(--g-text-s, 13px); }', 'font-size'],
+    ['.a { border-radius: var(--g-radius, 12px); }', 'border-radius'],
+    ['.a { color: var(--g-text, #f00); }', 'color'],
+    ['.a { font-size: 13PX; }', 'font-size'],
+    ['@media (max-width: 700PX) { .a { display: none; } }', 'media'],
+    ['.a { -webkit-text-stroke-color: #f00; }', 'color'],
+    ['.a { text-emphasis-color: #f00; }', 'color'],
+    ['.a { @include tint(#f00); }', 'color'],
     ['.a { border-radius: 12px; }', 'border-radius'],
     ['.a { border-top-left-radius: 4px; }', 'border-radius'],
     ['ion-modal { --border-radius: 16px; }', 'border-radius'],
@@ -37,7 +45,7 @@ test('flags raw font sizes, radii, colors and one-off breakpoints', () => {
 test('allows tokens, the chrome helper, relative and zero values, token tints and the sanctioned breakpoints', () => {
   for (const css of [
     '.a { font-size: var(--g-text-s); }',
-    '.a { font-size: var(--g-text-s, 12px); }',
+    '.a { color: var(--g-text, var(--g-accent)); opacity: var(--g-dim, 0.5); }',
     '.a { font-size: chrome-font-size(13px); }',
     '.a { font: 500 #{chrome-font-size(11px)} / 1 var(--ion-font-family); }',
     '.a { font-size: inherit; font: inherit; font-size: 1.2em; font-size: 90%; }',
@@ -67,6 +75,10 @@ test('the theme files alone define tokens: a --g- or --ion- property elsewhere i
     [':host { --ion-color-base: #ff0000; }', 'x.scss', 'color'],
     ['styles: `.a { --g-hot: rgb(255 0 0); }`', 'x.ts', 'color'],
     ['.a { --g-my-size: 13px; font-size: var(--g-my-size); }', 'x.scss', 'font-size'],
+    ['.a { --g-text-s: 13px; }', 'app/x.scss', 'font-size'],
+    [':host { --g-radius-m: 2px; }', 'app/x.scss', 'border-radius'],
+    [':host { --ion-font-size: 13px; }', 'app/x.scss', 'font-size'],
+    ['styles: `:host { --g-text-s: 9px; }`', 'app/x.ts', 'font-size'],
   ]) {
     assert.deepEqual(flagged(css, file), [category], css);
   }
@@ -90,6 +102,18 @@ test('reads string literals in style bindings, ngStyle, host bindings and .style
     [`<p [ngStyle]="{ fontSize: '13px', color: 'var(--g-text)' }">`, 'x.html', ['font-size']],
     [`host: { '[style.color]': "'red'" }`, 'x.ts', ['color']],
     [`el.style.color = '#ff0000';\nel.style.setProperty('border-radius', '12px');`, 'x.ts', ['color', 'border-radius']],
+    [`<p [style.fontSize.px]="13">`, 'x.html', ['font-size']],
+    [`<p [style.backgroundColor]="'#ff0000'">`, 'x.html', ['color']],
+    [`@HostBinding('style.color') c = '#ff0000';`, 'x.ts', ['color']],
+    [`@HostBinding('style.font-size') s = '13px';`, 'x.ts', ['font-size']],
+    [`@HostBinding('attr.fill') get fill() { return 'red'; }`, 'x.ts', ['color']],
+    [`this.renderer.setStyle(el, 'border-radius', '12px');`, 'x.ts', ['border-radius']],
+    [`el.style['font-size'] = '13px';`, 'x.ts', ['font-size']],
+    [`red = '#ff0000';`, 'x.ts', ['color']],
+    [`ctx.fillStyle = 'red';\nctx.strokeStyle = 'hsl(0 100% 50%)';`, 'x.ts', ['color', 'color']],
+    [`const theme = { '&': { fontSize: '13px', backgroundColor: 'white' } };`, 'x.ts', ['font-size', 'color']],
+    [`const wide = matchMedia('(min-width: 700px)');`, 'x.ts', ['media']],
+    [`this.observer.observe(['(max-width: 599.98px)']);`, 'x.ts', ['media']],
   ]) {
     assert.deepEqual(flagged(source, file), categories, source);
   }
@@ -100,6 +124,14 @@ test('reads string literals in style bindings, ngStyle, host bindings and .style
     assert.deepEqual(flagged(source, 'x.html'), [], source);
   }
   assert.deepEqual(flagged('this.host.style.minHeight = `${height}px`;\nel.style.overflowAnchor = "none";', 'x.ts'), []);
+  for (const source of [
+    `const dark = matchMedia('(prefers-color-scheme: dark)');\nconst wide = matchMedia('(min-width: 1024px)');`,
+    `@HostBinding('style.color') c = 'var(--g-text)';\nSystemBars.setStyle({ style: Style.Dark });`,
+    `const theme = { '&': { fontSize: 'var(--g-text-s)', height: '100%' } };\nif (tone === 'red') return;`,
+    'styles: `@media (max-width: 559.98px) { .a { color: var(--g-text); } }`',
+  ]) {
+    assert.deepEqual(flagged(source, 'x.ts'), [], source);
+  }
 });
 
 test('counts a size laundered through a local custom property', () => {
@@ -118,6 +150,8 @@ test('reads inline styles in components and style attributes in templates', () =
     ],
   );
   assert.deepEqual(flagged('<svg><stop stop-color="#ff0000" /></svg>\n<div style="color: red"></div>', 'x.html'), ['color', 'color']);
+  assert.deepEqual(flagged(`<rect fill='#ff0000' rx="6" />\n<text font-size="13">`, 'x.html'), ['color', 'border-radius', 'font-size']);
+  assert.deepEqual(flagged('<rect rx="0" fill="var(--g-line)" />', 'x.html'), []);
   assert.deepEqual(flagged('<p data-color="red" [attr.fill]="tone()">', 'x.html'), []);
   assert.deepEqual(flagged('<!-- <p style="font-size: 13px"> -->\n<p [style.width.%]="share">', 'x.html'), []);
   assert.deepEqual(flagged('const fontSize = 12;\nconst title = { label: "Red-black tree", tone: tan(1) };', 'x.ts'), []);
@@ -148,16 +182,42 @@ test('fails when a count falls, so the baseline only goes down, and --update onl
   assert.deepEqual(lowered(counts(tree), null), { 'a.scss': { 'font-size': 1 } });
 });
 
-test('counts a property another file defines raw where it is used, unless the theme defines that name', () => {
+test('in a tree, counts raw names where used, theme overrides where made, unknown --g- names and mixin breakpoints', () => {
   const src = mkdtempSync(`${tmpdir()}/style-tokens-`);
   try {
     mkdirSync(`${src}/app`);
-    writeFileSync(`${src}/_theme.scss`, ':root { --g-text-s: 0.8125rem; }');
-    writeFileSync(`${src}/app/a.scss`, '.a { --cell-size: 12px; --g-text-s: 13px; }');
-    writeFileSync(`${src}/app/b.scss`, '.b { font-size: var(--cell-size); }\n.c { font-size: var(--g-text-s); }');
-    assert.deepEqual(scanTree(`${src}/`), {
-      'app/b.scss': [{ category: 'font-size', line: 1, text: 'font-size: var(--cell-size)' }],
-    });
+    writeFileSync(
+      `${src}/_theme.scss`,
+      '@mixin rgb-token($name, $hex) {\n  --g-#{$name}: #{$hex};\n  --g-#{$name}-rgb: 1, 2, 3;\n}\n:root { --g-text-s: 0.8125rem; --g-switch-w: 40px; @include rgb-token(accent, #5846dc); }\n@mixin mq($w) { @media (max-width: $w) { @content; } }',
+    );
+    writeFileSync(`${src}/app/a.scss`, '.a { --cell-size: 12px; --g-text-s: 13px; --g-switch-w: 34px; --g-gap: 14px; }');
+    writeFileSync(
+      `${src}/app/b.scss`,
+      [
+        '.b { font-size: var(--cell-size); }',
+        '.c { font-size: var(--g-text-s); color: var(--g-accent); background: rgba(var(--g-accent-rgb), 0.1); }',
+        '.d { font-size: var(--g-nope); color: var(--g-nope); margin: var(--g-gap, 10px); }',
+        '@include mq(700px) { .e { display: none; } }',
+        '@include mq(1024px) { .f { display: none; } }',
+      ].join('\n'),
+    );
+    const tree = scanTree(`${src}/`);
+    assert.deepEqual(
+      Object.fromEntries(Object.entries(tree).map(([file, findings]) => [file, findings.map((f) => [f.category, f.line])])),
+      {
+        '_theme.scss': [['media', 6]],
+        'app/a.scss': [
+          ['font-size', 1],
+          ['token-override', 1],
+        ],
+        'app/b.scss': [
+          ['font-size', 1],
+          ['font-size', 3],
+          ['color', 3],
+          ['media', 4],
+        ],
+      },
+    );
   } finally {
     rmSync(src, { recursive: true, force: true });
   }

@@ -40,23 +40,33 @@ providers, so every sign-in test times out.
 
   `first-paint-bytes.test.mjs` tests the same logic on fixture metafiles in `npm test`; it reads no build. REDESIGN.md 5.0
   names the test file as the gate; its R0 note says where the gate runs. Only `npm run build` runs `postbuild`, so a bare
-  `npx ng build` checks nothing. Angular's own `initial` budget in `apps/app/angular.json` (warning 850 kB, error
-  855 kB) is the backstop for the initial total.
+  `npx ng build` skips the first-paint and leak gate; Angular's own `initial` budget in `apps/app/angular.json` (warning
+  850 kB, error 855 kB) still applies there and is the backstop for the initial total. `first-paint-bytes.test.mjs` fails
+  if that budget's error is raised above 855 kB.
 
 - **Style ratchet.** `apps/app/scripts/style-tokens.test.mjs`, in `npm test`, scans every `.scss`, `.ts` and `.html`
   file under `apps/app/src` except specs, and counts, per file:
-  - raw font sizes: `font-size` and the `font` shorthand;
-  - raw radii: `border-radius`, its per-corner forms and Ionic's `--border-radius`;
+  - raw font sizes: `font-size`, the `font` shorthand and SVG `font-size` attributes;
+  - raw radii: `border-radius`, its per-corner forms, Ionic's `--border-radius` and SVG `rx` and `ry` (a unitless
+    attribute is read as px);
   - literal colors: hex, `rgb()`, `hsl()` and the other color functions with no token inside, and named colors, in color
-    properties (`filter` and `backdrop-filter` included), SVG color attributes, custom properties and SCSS variables;
+    properties (`filter` and `backdrop-filter` included), SVG color attributes, custom properties, SCSS variables and
+    `@include` arguments outside the theme, and in TypeScript any hex or color-function string;
+  - `token-override`: outside the theme files, a raw length in a name the theme defines (a `--g-`/`--ion-` text, font
+    or radius name counts as font-size or border-radius instead), at the definition, since it resizes the whole subtree;
   - `@media` width queries at any length except the redesign's viewport breakpoints (560, 1024 and 1280px, and 559.98,
     1023.98 and 1279.98px), and `@container` width queries except its container breakpoints (640 and 900px, and
-    639.98 and 899.98px). A query on an SCSS variable it cannot resolve in the file counts.
+    639.98 and 899.98px). A query on an SCSS variable it cannot resolve in the file counts, and so does a width query in a
+    TypeScript string (`matchMedia`, `BreakpointObserver`) or an `@include` of a mixin that wraps a query on its
+    argument. Units are matched in any case.
 
-  It reads declarations in stylesheets and inline styles, template `[style.x]` and `[attr.x]` bindings, `ngStyle`,
-  `host` style bindings and `.style` assignments in TypeScript, taking a binding's value from its string literals (or a
-  number with the binding's unit). A size is raw when it still holds a non-zero px, rem or pt once the theme's
-  `var(--g-…)` and `chrome-font-size()` are removed. Only `_theme.scss` and `styles.scss` define tokens: a `--g-` or
+  It reads declarations in stylesheets and inline styles, template `[style.x]` and `[attr.x]` bindings (camelCase too),
+  `ngStyle`, `host` and `@HostBinding` style bindings, `.style` assignments (dotted or bracketed),
+  `Renderer2.setStyle` and string-valued style keys and fields in TypeScript (a CodeMirror theme's `fontSize`, a
+  canvas `fillStyle`), taking a binding's value from its string literals (or a number with the binding's unit). A size
+  is raw when it still holds a non-zero px, rem or pt once `chrome-font-size()` is removed; a `var()` fallback is read
+  like any other value, so `var(--g-text-s, 13px)` counts. A `var(--g-…)` whose name no file declares counts too (the
+  names `rgb-token` writes are declared). Only `_theme.scss` and `styles.scss` define tokens: a `--g-` or
   `--ion-` property defined anywhere else is a local value like any other, so a literal color in it counts. A custom
   property or SCSS variable defined with a raw size counts in each declaration that uses it, in its own file or another
   (unless the theme defines that name). Counts may only fall against `style-tokens.baseline.json`: a rise fails with each
