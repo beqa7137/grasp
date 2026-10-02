@@ -158,3 +158,32 @@ export function findOverflow() {
   );
   return { overflow: kept.map(({ el, kind, px }) => ({ kind, selector: selector(el), px })), scrollers };
 }
+
+/**
+ * Fixed boxes laid over the page's content, run with `page.evaluate(fixedOverlaps)`: every visible element whose computed
+ * position is fixed and whose box meets a visible ion-content, outside Ionic's overlays (dialogs, menus, alerts, toasts).
+ */
+export function fixedOverlaps() {
+  const OVERLAYS = new Set(['ion-modal', 'ion-popover', 'ion-alert', 'ion-toast', 'ion-loading', 'ion-action-sheet', 'ion-picker']);
+  const up = (n) => n.assignedSlot ?? n.parentElement ?? n.getRootNode().host ?? null;
+  const inOverlay = (el) => {
+    for (let n = el; n; n = up(n)) if (OVERLAYS.has(n.localName)) return true;
+    return false;
+  };
+  const meets = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+  const contents = [...document.querySelectorAll('ion-content')]
+    .filter((c) => c.checkVisibility({ visibilityProperty: true }) && !c.closest('.ion-page-hidden, [aria-hidden="true"]'))
+    .map((c) => c.getBoundingClientRect());
+  const found = [];
+  const visit = (root) => {
+    for (const el of root.querySelectorAll('*')) {
+      if (el.shadowRoot) visit(el.shadowRoot);
+      if (getComputedStyle(el).position !== 'fixed' || inOverlay(el) || !el.checkVisibility({ visibilityProperty: true })) continue;
+      const r = el.getBoundingClientRect();
+      if (r.width && r.height && contents.some((c) => meets(r, c)))
+        found.push(`${el.localName}${[...el.classList].map((c) => `.${c}`).join('')}`);
+    }
+  };
+  visit(document.body);
+  return found;
+}

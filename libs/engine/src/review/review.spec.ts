@@ -104,6 +104,10 @@ describe('review item catalog', () => {
     expect(REVIEW_ITEMS.map(describeItem).filter((item) => item.label.includes('`'))).toEqual([]);
   });
 
+  it('links a missed pattern question to its lesson by name', () => {
+    expect(generateQuestion('rec:h1', 1).link).toEqual({ label: 'Read the Arrays & Hashing lesson', path: ['/learn/pattern', 'hashing'] });
+  });
+
   it('exposes lookups', () => {
     expect(getReviewItem('rec:h1')?.kind).toBe('recognition');
     expect(getReviewItem('nope')).toBeUndefined();

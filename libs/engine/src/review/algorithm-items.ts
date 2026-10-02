@@ -8,7 +8,7 @@ import { clozeSummary, complexitySummary, predictSummary, recognitionSummary } f
 import { KIND_LABELS, type ItemDef } from './types.js';
 
 const patternName = (id: string) => getPattern(id)?.name ?? id;
-const patternLink = (id: string) => ({ label: `Review ${patternName(id)}`, path: ['/learn/pattern', id] });
+const patternLink = (id: string) => ({ label: `Read the ${patternName(id)} lesson`, path: ['/learn/pattern', id] });
 
 const recognitionItems: ItemDef[] = DRILL_CARDS.map((card, i) => ({
   ...recognitionSummary(card, i),

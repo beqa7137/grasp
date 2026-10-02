@@ -1,8 +1,8 @@
 // Screenshots, axe, page errors and sideways overflow for every state in states/.
 // BASE=<url> THEME=dark|light OUT=<dir> [PROFILES=desktop,pixel7] [STABLE=1] [READONLY=1] node tools/verify/audit.mjs [state regex]
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { AxeBuilder, BASE, MASK_CSS, OUT, PROFILES, STABLE, THEME, goto, launch, newContext, readOnly } from './lib.mjs';
-import { findOverflow } from './overflow.mjs';
+import { AxeBuilder, BASE, MASK_CSS, OUT, PROFILES, STABLE, THEME, goto, launch, newContext, pagesSettled, readOnly } from './lib.mjs';
+import { findOverflow, fixedOverlaps } from './overflow.mjs';
 import { states } from './states/index.mjs';
 
 const only = process.argv[2] ? new RegExp(process.argv[2]) : null;
@@ -51,11 +51,13 @@ for (const profile of profiles) {
     try {
       await goto(page, state.path);
       const note = state.setup ? await state.setup(page) : undefined;
+      await pagesSettled(page);
       const { violations } = await new AxeBuilder({ page }).analyze();
       await page.screenshot({ path: `${OUT}/${name}.png` });
       rmSync(`${OUT}/${name}-FAILED.png`, { force: true });
       const overflowX = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       const { overflow, scrollers } = await page.evaluate(findOverflow);
+      const fixed = await page.evaluate(fixedOverlaps);
       results.push({
         profile,
         state: state.id,
@@ -65,6 +67,7 @@ for (const profile of profiles) {
         overflowX,
         overflow,
         scrollers,
+        fixed,
         violations: violations.map((v) => ({ id: v.id, impact: v.impact, targets: v.nodes.map((n) => n.target) })),
       });
       console.log(
@@ -74,6 +77,7 @@ for (const profile of profiles) {
         overflowX > 0 ? `overflowX ${overflowX}` : '',
         overflow.map((o) => `${o.kind} ${o.px}px ${o.selector}`).join('; '),
         scrollers.length ? `scrollers ${scrollers.map((o) => o.selector).join(', ')}` : '',
+        fixed.length ? `fixed over content ${fixed.join(', ')}` : '',
         note ?? '',
       );
     } catch (e) {
@@ -103,6 +107,7 @@ const missing = kept.flatMap((profile) =>
     .map((id) => `${profile} ${id}`),
 );
 console.log(`${results.filter((r) => r.clean).length} of ${results.length} states clean`);
+console.log(`${results.filter((r) => r.fixed?.length).length} of ${results.length} states with a fixed box over content`);
 console.log(
   `${OUT} (${THEME}): ${kept.join(', ')} × ${ids.length} states, ` +
     (missing.length ? `${missing.length} missing: ${missing.slice(0, 5).join(', ')}${missing.length > 5 ? ', …' : ''}` : 'complete'),

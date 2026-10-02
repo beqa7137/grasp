@@ -30,7 +30,6 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
       align-items: center;
       justify-content: flex-end;
       gap: 4px;
-      min-width: 0;
     }
     i {
       width: 100%;

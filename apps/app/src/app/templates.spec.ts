@@ -34,6 +34,11 @@ describe('templates', () => {
     expect(all.some((t) => t.file.endsWith('.ts'))).toBe(true);
   });
 
+  it('never send learners to a Feedback tab or the right edge of the screen', () => {
+    const stale = all.filter(({ html }) => /Feedback(<\/strong>)? tab|on the right edge/i.test(html)).map(({ file }) => file);
+    expect(stale).toEqual([]);
+  });
+
   it('name every icon or hide it from screen readers', () => {
     const unnamed = all.flatMap(({ file, html }) =>
       [...html.matchAll(ION_ICON)].filter(([, attributes]) => !NAMED_OR_HIDDEN.test(attributes)).map(([tag]) => `${file}: ${tag}`),

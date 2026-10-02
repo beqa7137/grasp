@@ -19,7 +19,7 @@ interface Asked {
   template: `
     @if (current(); as a) {
       <p class="muted progress">Question {{ position() + 1 }} of {{ asked().length }}</p>
-      <g-question-card [question]="a.question" reason="practice" [chosen]="chosen()" (choose)="answer($event)" />
+      <g-question-card [question]="a.question" reason="check" [chosen]="chosen()" (choose)="answer($event)" />
       @if (chosen() !== null) {
         <button class="g-btn primary next" (click)="next()">
           {{ position() + 1 < asked().length ? 'Next question' : 'See how you did' }}

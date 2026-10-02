@@ -89,6 +89,18 @@ export const readOnly = (context) =>
 
 export const settle = (page, ms = 700) => page.waitForTimeout(ms);
 
+/** Waits until no Ionic page transition is running: each outlet then shows one page, and hides the rest from screen readers. */
+export const pagesSettled = (page) =>
+  page.waitForFunction(
+    () =>
+      [...document.querySelectorAll('ion-router-outlet')].every(
+        (outlet) =>
+          [...outlet.children].filter((c) => c.classList.contains('ion-page') && !c.classList.contains('ion-page-hidden')).length <= 1,
+      ),
+    null,
+    { timeout: 10_000 },
+  );
+
 export async function goto(page, path) {
   await page.goto(`${BASE}${path}`, { waitUntil: 'networkidle' });
   await page.waitForSelector('ion-content');

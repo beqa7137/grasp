@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, ElementRef, Injector, computed, inject, signal, viewChild } from '@angular/core';
-import { RouterLink } from '@angular/router';
-import { IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
+import { Router, RouterLink } from '@angular/router';
+import { IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar, PopoverController } from '@ionic/angular';
 import {
   ALGORITHM_CATALOG,
   CODING_CATALOG,
@@ -20,6 +20,7 @@ import {
   cloudDoneOutline,
   codeSlashOutline,
   compassOutline,
+  ellipsisHorizontal,
   flame,
   flashOutline,
   gitNetworkOutline,
@@ -34,9 +35,11 @@ import {
 import { AuthService } from '../../core/auth.service';
 import { refocusAfterRender } from '../../core/focus';
 import { ProgressService } from '../../core/progress.service';
+import { PilotService } from '../../pilot/pilot.service';
 import { DiagnosticPromptService } from '../diagnostic/diagnostic-prompt.service';
 import { CodeTextComponent } from '../../viz/code-text.component';
 import { MasteryRingComponent } from '../../viz/mastery-ring.component';
+import { LearnMenuComponent, type LearnMenuChoice } from './learn-menu.component';
 
 const TRACKS: { id: Track; title: string; blurb: string }[] = [
   { id: 'foundations', title: 'Foundations', blurb: 'The four patterns behind a third of all interview questions.' },
@@ -58,6 +61,10 @@ export class LearnPage {
   private readonly retryButton = viewChild<ElementRef<HTMLButtonElement>>('retryButton');
   private readonly syncStatus = viewChild<ElementRef<HTMLElement>>('syncStatus');
   private readonly sessionResume = viewChild<ElementRef<HTMLAnchorElement>>('sessionResume');
+  private readonly more = viewChild.required<ElementRef<HTMLButtonElement>>('more');
+  private readonly popovers = inject(PopoverController);
+  private readonly router = inject(Router);
+  private readonly pilot = inject(PilotService);
   readonly progress = inject(ProgressService);
   readonly auth = inject(AuthService);
   readonly diagnosticPrompt = inject(DiagnosticPromptService);
@@ -138,6 +145,7 @@ export class LearnPage {
       chatbubblesOutline,
       cloudDoneOutline,
       compassOutline,
+      ellipsisHorizontal,
       pulseOutline,
       saveOutline,
       syncOutline,
@@ -151,6 +159,23 @@ export class LearnPage {
 
   mastery(topic: string) {
     return this.masteryById().get(topic)?.mastery ?? 0;
+  }
+
+  async openMenu(event: MouseEvent): Promise<void> {
+    const menu = await this.popovers.create({
+      component: LearnMenuComponent,
+      event,
+      htmlAttributes: { role: 'dialog', 'aria-label': 'More' },
+    });
+    await menu.present();
+    const { data } = await menu.onDidDismiss<LearnMenuChoice>();
+    if (data === 'plan') {
+      void this.router.navigateByUrl('/plan');
+    } else if (data === 'feedback') {
+      // WebKit leaves a tapped button unfocused, so the dialog would have nothing to give focus back to on close.
+      this.more().nativeElement.focus();
+      this.pilot.feedbackOpen.set(true);
+    }
   }
 
   async retrySync(): Promise<void> {

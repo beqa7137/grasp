@@ -27,7 +27,7 @@ test('a new learner takes the placement check, reviews start with the patterns t
   await page.getByRole('link', { name: /Start your first review/ }).click();
   await expect(page.getByRole('heading', { name: "Today's review" })).toBeVisible();
   await page.locator('g-question-card .choice').first().click();
-  const firstPattern = (await page.locator('g-question-card .reveal a').textContent())!.replace(/^Review | →$/g, '').trim();
+  const firstPattern = (await page.locator('g-question-card .reveal a').textContent())!.replace(/^Read the | lesson →$/g, '').trim();
   expect(strong, 'the first new card comes from a pattern the check found weak').not.toContain(firstPattern);
 
   await page.getByRole('tab', { name: 'Learn' }).click();

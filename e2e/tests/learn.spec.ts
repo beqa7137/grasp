@@ -7,6 +7,9 @@ test.describe('first visit', () => {
     await page.goto('/');
     const welcome = page.getByRole('heading', { name: 'Welcome to the Grasp pilot' });
     await expect(welcome).toBeVisible();
+    await expect(page.locator('app-pilot-notice')).toContainText(
+      'Send feedback any time from Settings. Bugs, confusion and ideas are all useful.',
+    );
     await page.getByRole('button', { name: "Got it, let's start" }).click();
     await expect(welcome).toBeHidden();
     await expect(page).toHaveURL(/\/learn$/);
@@ -38,6 +41,66 @@ test('deep links load directly, and unknown paths land on Learn', { tag: ['@smok
   await expect(page.getByRole('heading', { name: 'Binary Search', level: 1 })).toBeVisible();
   await page.goto('/no-such-page');
   await expect(page).toHaveURL(/\/learn$/);
+});
+
+test('the Study plan tile lines up with the Review tile beside it', { tag: '@nav' }, async ({ page }) => {
+  await page.goto('/learn');
+  const learn = page.locator('app-learn');
+  const plan = (await learn.getByRole('link', { name: /^Study plan/ }).boundingBox())!;
+  const review = (await learn.getByRole('link', { name: /^Review/ }).boundingBox())!;
+  expect(plan.y).toBe(review.y);
+});
+
+test('the Learn menu sends feedback and opens the study plan', { tag: '@nav' }, async ({ page }) => {
+  await page.goto('/learn');
+  const learn = page.locator('app-learn');
+  const more = learn.getByRole('button', { name: 'More' });
+  const menu = page.locator('ion-popover');
+  const feedback = menu.getByRole('button', { name: 'Send feedback' });
+  const plan = menu.getByRole('button', { name: 'Study plan' });
+
+  await more.focus();
+  await page.keyboard.press('Enter');
+  await expect(feedback).toBeVisible();
+  const focused = async () => (await page.evaluate(() => document.activeElement?.textContent?.trim())) ?? '';
+  const reached = new Set<string>();
+  for (let i = 0; i < 4; i++) {
+    await page.keyboard.press('Tab');
+    reached.add(await focused());
+  }
+  expect([...reached]).toEqual(expect.arrayContaining(['Send feedback', 'Study plan']));
+  await page.keyboard.press('Escape');
+  await expect(menu).toBeHidden();
+  await expect(more).toBeFocused();
+
+  await more.click();
+  await plan.click();
+  await expect(page).toHaveURL(/\/plan$/);
+  await expect(page.locator('app-plan').getByRole('heading', { name: 'Plan to your interview', level: 1 })).toBeVisible();
+  await expect(menu).toHaveCount(0);
+  await expect(page.locator('ion-backdrop:visible')).toHaveCount(0);
+});
+
+test('no fixed box sits over the page on a phone', { tag: '@nav' }, async ({ page, isMobile }) => {
+  test.skip(!isMobile, 'The right-edge tab covered content on phones.');
+  for (const path of ['/learn', '/code/two-sum', '/visualize/binary-search']) {
+    await page.goto(path);
+    await expect(page.locator('ion-router-outlet > .ion-page:not(.ion-page-hidden) ion-content').last()).toBeVisible();
+    const fixed = await page.evaluate(() => {
+      const overlays = 'ion-modal, ion-popover, ion-alert, ion-toast, ion-loading, ion-action-sheet';
+      const content = document.querySelector('ion-router-outlet .ion-page:not(.ion-page-hidden) ion-content')!.getBoundingClientRect();
+      return [...document.body.querySelectorAll('*')]
+        .filter((el) => getComputedStyle(el).position === 'fixed' && !el.closest(overlays))
+        .filter((el) => {
+          const r = el.getBoundingClientRect();
+          return (
+            r.width && r.height && r.left < content.right && content.left < r.right && r.top < content.bottom && content.top < r.bottom
+          );
+        })
+        .map((el) => `${el.localName}.${[...el.classList].join('.')}`);
+    });
+    expect(fixed, path).toEqual([]);
+  }
 });
 
 test('an answer waiting for its upload never shows progress as waiting to sync', async ({ page }) => {

@@ -95,11 +95,52 @@ test('a learner sets an interview date, follows today’s list, changes the roun
   await expect(learn.getByRole('link', { name: /Study plan.*Interview in 20 days/ })).toBeVisible();
   await learn.getByRole('link', { name: /Study plan/ }).click();
 
+  const dateLine = (await plan.locator('.date').textContent())!;
+  const confirm = page.getByRole('alertdialog', { name: 'Clear your plan?' });
+  await plan.getByRole('button', { name: 'Clear plan' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(confirm).toContainText('Your progress stays.');
+  await confirm.getByRole('button', { name: 'Cancel' }).click();
+  await expect(confirm).toBeHidden();
+  await expect(plan.getByRole('button', { name: 'Clear plan' })).toBeFocused();
+  await expect(plan.locator('.date')).toHaveText(dateLine);
+
   const clearing = synced(page, 'plan.set');
   await plan.getByRole('button', { name: 'Clear plan' }).click();
+  await confirm.getByRole('button', { name: 'Clear plan' }).click();
   await clearing;
   await expect(plan.getByRole('heading', { name: 'Plan to your interview', level: 1 })).toBeFocused();
   await expect(plan.getByRole('status')).toHaveText('Plan cleared.');
+
+  const restoring = synced(page, 'plan.set');
+  await plan.getByRole('button', { name: 'Undo' }).click();
+  await restoring;
+  await expect(plan.getByRole('heading', { name: 'Interview in 20 days', level: 1 })).toBeFocused();
+  await expect(plan.getByRole('status')).toHaveText('Plan restored.');
+  await expect(plan.locator('.date')).toHaveText(dateLine);
+  await expect(today.getByRole('link', { name: 'A story for Ownership' })).toBeVisible();
+  await expect(today.getByRole('link', { name: /^Learn / })).toHaveCount(0);
+});
+
+test('a cleared plan stays cleared once its Undo has gone', async ({ page }) => {
+  await page.clock.install();
+  await page.goto('/plan');
+  const plan = page.locator('app-plan');
+  await plan.getByLabel('Interview date').fill(await localDay(page, 20));
+  await plan.getByRole('button', { name: 'Save plan' }).click();
+  await expect(plan.getByRole('heading', { name: 'Interview in 20 days', level: 1 })).toBeVisible();
+
+  const clearing = synced(page, 'plan.set');
+  await plan.getByRole('button', { name: 'Clear plan' }).click();
+  await page.getByRole('alertdialog', { name: 'Clear your plan?' }).getByRole('button', { name: 'Clear plan' }).click();
+  const undo = plan.getByRole('button', { name: 'Undo' });
+  await expect(undo).toBeVisible();
+  await clearing;
+  await page.clock.fastForward(8_000);
+  await expect(undo).toBeHidden();
+
+  await page.reload();
+  await expect(plan.getByRole('heading', { name: 'Plan to your interview', level: 1 })).toBeVisible();
 });
 
 for (const theme of ['dark', 'light'] as const) {

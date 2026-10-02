@@ -13,4 +13,13 @@ describe('PilotNoticeComponent', () => {
     expect(AI_DISCLOSURE).toContain('behavioral answers');
     expect(text).toContain("are sent to OpenAI's GPT-6 Luna through Vercel's AI Gateway to write replies and scores");
   });
+
+  it('points to Settings for feedback', () => {
+    TestBed.configureTestingModule({ imports: [PilotNoticeComponent], providers: [provideRouter([])] });
+    const fixture = TestBed.createComponent(PilotNoticeComponent);
+    fixture.detectChanges();
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('Send feedback any time from Settings.');
+    expect(text).not.toMatch(/right edge/i);
+  });
 });

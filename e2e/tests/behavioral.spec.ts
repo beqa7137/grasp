@@ -80,6 +80,10 @@ test('a story written once in the bank covers its competencies, starts answers t
   await expect(page.getByRole('heading', { name: '2 of 13 competencies have a story' })).toBeVisible();
   await expect(page.getByRole('link', { name: /The billing export/ })).toContainText('Ownership, Delivering Results');
   await expect(page.getByText('"The billing export" has 2 checks to fix before you tell it.')).toBeVisible();
+  await page.getByRole('link', { name: /The billing export/ }).click();
+  await expect(page.getByLabel('Title')).toHaveValue('The billing export');
+  await expect(page.getByRole('banner')).toHaveCount(1);
+  await expect(page.getByRole('main')).toHaveCount(1);
 
   await page.goto('/behavioral/question/ownership-2');
   await page.getByRole('button', { name: 'The billing export' }).click();

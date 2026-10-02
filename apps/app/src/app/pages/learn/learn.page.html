@@ -6,7 +6,7 @@
     <ion-buttons slot="end">
       <div #syncStatus class="sync" tabindex="-1" [attr.data-status]="progress.syncStatus()">
         <ion-icon [name]="syncIcon()" aria-hidden="true" />
-        <span>
+        <span class="sync-label">
           @switch (progress.syncStatus()) {
             @case ('offline') {
               Sync unavailable
@@ -26,7 +26,10 @@
           }
         </span>
       </div>
-      <a class="settings-link" routerLink="/settings" aria-label="Settings"><ion-icon name="settings-outline" aria-hidden="true" /></a>
+      <a class="header-link" routerLink="/settings" aria-label="Settings"><ion-icon name="settings-outline" aria-hidden="true" /></a>
+      <button #more class="header-link" aria-label="More" (click)="openMenu($event)">
+        <ion-icon name="ellipsis-horizontal" aria-hidden="true" />
+      </button>
     </ion-buttons>
   </ion-toolbar>
 </ion-header>
@@ -80,7 +83,7 @@
       </div>
     </section>
 
-    <section class="plan">
+    <section class="loop">
       <h2 class="eyebrow">Today's loop</h2>
       @if (offerDiagnostic()) {
         <aside class="panel diagnostic" aria-labelledby="diagnostic-title">
@@ -148,7 +151,7 @@
         <a class="panel card-link tile mock" routerLink="/interview">
           <ion-icon name="chatbubbles-outline" aria-hidden="true" />
           <h3>Mock interview</h3>
-          <p>Coding or system design</p>
+          <p>Coding, system design or behavioral</p>
           <span class="cta">Face the interviewer →</span>
         </a>
       </div>
@@ -175,11 +178,6 @@
                   <h3>{{ p.name }}</h3>
                   <p class="muted"><g-code-text [text]="p.oneLiner" /></p>
                 </div>
-                @if (p.algorithmIds.length) {
-                  <span class="has-viz" title="Has a visualizer"
-                    ><ion-icon name="play-circle-outline" aria-label="Has a visualizer"
-                  /></span>
-                }
               </a>
             }
           </div>

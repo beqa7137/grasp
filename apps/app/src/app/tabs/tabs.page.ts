@@ -1,14 +1,7 @@
 import { Component, Injector, computed, inject } from '@angular/core';
 import { IonBadge, IonIcon, IonLabel, IonModal, IonTabBar, IonTabButton, IonTabs } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import {
-  chatbubbleEllipsesOutline,
-  chatbubblesOutline,
-  compassOutline,
-  flashOutline,
-  gitNetworkOutline,
-  playCircleOutline,
-} from 'ionicons/icons';
+import { chatbubblesOutline, compassOutline, flashOutline, gitNetworkOutline, playCircleOutline } from 'ionicons/icons';
 import { refocusAfterRender } from '../core/focus';
 import { isOnHiddenPage } from '../core/page-keys';
 import { ProgressService } from '../core/progress.service';
@@ -50,11 +43,6 @@ import { PilotService } from '../pilot/pilot.service';
       </nav>
     </ion-tabs>
 
-    <button class="feedback-tab" (click)="pilot.feedbackOpen.set(true)" aria-label="Send feedback">
-      <ion-icon name="chatbubble-ellipses-outline" aria-hidden="true" />
-      <span>Feedback</span>
-    </button>
-
     <ion-modal class="g-dialog" aria-label="Send feedback" [isOpen]="pilot.feedbackOpen()" (didDismiss)="pilot.feedbackOpen.set(false)">
       <ng-template>
         <app-feedback-sheet (closed)="pilot.feedbackOpen.set(false)" />
@@ -74,48 +62,6 @@ import { PilotService } from '../pilot/pilot.service';
     </ion-modal>
   `,
   styles: `
-    @use '../../chrome' as *;
-
-    .feedback-tab {
-      position: fixed;
-      right: 0;
-      top: 50%;
-      z-index: 20;
-      transform: translateY(-50%) rotate(180deg);
-      writing-mode: vertical-rl;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 12px 6px;
-      border: 1px solid var(--g-line-strong);
-      border-left: none;
-      border-radius: 8px 0 0 8px;
-      background: var(--g-raised);
-      color: var(--g-muted);
-      font: 500 #{chrome-font-size(11px)} / 1 var(--ion-font-family);
-      letter-spacing: 0.04em;
-      cursor: pointer;
-    }
-    .feedback-tab ion-icon {
-      font-size: 14px;
-      transform: rotate(90deg);
-    }
-    @media (max-width: 600px) {
-      .feedback-tab {
-        padding: 10px 5px;
-      }
-      .feedback-tab span {
-        display: none;
-      }
-    }
-    .feedback-tab:hover,
-    .feedback-tab:focus-visible {
-      color: var(--g-text);
-    }
-    /* The tab meets the edge of the screen, which would cut off a ring drawn outside it. */
-    .feedback-tab:focus-visible {
-      outline-offset: -2px;
-    }
     ion-badge {
       --background: var(--g-predict);
       --color: var(--g-on-fill);
@@ -134,7 +80,7 @@ export class TabsPage {
   });
 
   constructor() {
-    addIcons({ compassOutline, playCircleOutline, gitNetworkOutline, flashOutline, chatbubblesOutline, chatbubbleEllipsesOutline });
+    addIcons({ compassOutline, playCircleOutline, gitNetworkOutline, flashOutline, chatbubblesOutline });
   }
 
   /**

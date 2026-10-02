@@ -101,7 +101,8 @@ Sideways overflow is checked on the document and inside the page (`overflow.mjs`
 pages scroll inside `ion-content`: in-flow content spilling out of its box; text, fields, images, drawings or blocks clipped
 by an `overflow: hidden` box (an ellipsis or visually hidden text is fine); a box that scrolls sideways although its styles
 never set `overflow-x` (as `overflow-y: auto` alone does); and boxes that stick out of their `ion-content` or the viewport.
-Each finding names the kind, the overflow in px and a selector path (`>>>` crosses into a shadow root). Scrollers whose
+Each finding names the kind, the overflow in px and a selector path (`>>>` crosses into a shadow root). Each state also lists, as `fixed`, every fixed box outside Ionic's overlays laid over a visible `ion-content`
+(`fixedOverlaps` in `overflow.mjs`), and the run ends with how many states have one; it does not affect `clean`. Scrollers whose
 styles set `overflow-x` never fail; ones a keyboard cannot reach or a screen reader cannot name are listed as `scrollers`.
 Its tests run a fixture page in CI: `node --test tools/verify/overflow.test.mjs`, in Chromium, or in WebKit with
 `BROWSER=webkit`.
@@ -119,6 +120,8 @@ BASE=https://grasp-rho-taupe.vercel.app THEME=light OUT=verify-out/prod READONLY
   1 when any state of the run is not clean.
 - Each context starts with a fresh learner ID so server progress cannot leak between captured states, and with
   `prefers-reduced-motion: reduce` and the motion test mode (below).
+- After a state's setup, the audit waits until each `ion-router-outlet` shows one page, so axe never runs while a page
+  transition still exposes the page being left (two banners and two mains).
 - `STABLE=1` fixes the clock, `Math.random` and event UUIDs, so two builds can be compared pixel for pixel.
 - `READONLY=1` blocks every API write; always use it against production.
 - Results merge into `OUT` by profile and state, so a rerun of a few states (a WebKit crash, say) keeps the rest of the
@@ -181,8 +184,7 @@ Images never go into git, and CI does not make the set: its Chromium and fonts d
   160 px, channel delta 1 or 2). Others differ for other reasons: `lesson-caching-flushed` (desktop, w1024 and w320: a
   timed readout), `code-two-sum-run` (desktop and w1024: the run time), `player-*-predict` and `-answered` at w320 (up to
   63 px, delta 27), and on pixel7 `pattern-minimum-spanning-tree` and `case-study-estimated` (the scroll end lands about
-  20 px apart, so the whole image differs). `behavioral-story`'s three moderate landmark violations do not show on every
-  capture. Read those diffs, but expect them.
+  20 px apart, so the whole image differs). Read those diffs, but expect them.
 
 ## timing.mjs
 

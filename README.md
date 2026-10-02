@@ -79,7 +79,7 @@ Optional sign-in with Google or GitHub, with no passwords. Signing in folds the 
 
 [docs/PILOT.md](docs/PILOT.md) is the protocol for a ten-person pilot: success criteria, cohort, timeline, surveys, operations and data handling. The product side:
 
-- **In-app feedback.** A Feedback tab on every screen sends a note, an optional usefulness rating, and the screen and version it came from.
+- **In-app feedback.** A Send feedback button in Settings and in the Learn header's ⋯ menu sends a note, an optional usefulness rating, and the screen and version it came from.
 - **First-run pilot notice.** Explains what is stored and where transcripts go.
 - **Settings.** Learners can export or delete all their data (`GET /api/me/export`, `DELETE /api/me`).
 - **Cohort metrics for the operator.** `GET /api/admin/metrics` behind `ADMIN_TOKEN` reports activation, D1/D7 retention, recall, interview completion and AI cost. `npm run pilot:report` turns it into a weekly Markdown report checked against the targets.
