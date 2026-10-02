@@ -26,7 +26,8 @@ import {
   getCaseLab,
   getCaseSummary,
   getScenario,
-  migrateSavedDesign,
+  nameObjectShare,
+  restoreBoard,
   scenarioVariant,
   simulate,
   type ComponentKind,
@@ -387,9 +388,9 @@ export class SandboxPage {
     this.loaded.set(false);
     this.placedView = false;
     const { value } = await Preferences.get({ key: this.storageKey() });
-    const saved = value ? migrateSavedDesign(JSON.parse(value) as SavedDesign) : null;
-    this.design.set(saved?.design ?? structuredClone(s.starter));
-    this.workload.set(this.isFree() && saved ? saved.workload : s.workload);
+    const board = restoreBoard(value ? (JSON.parse(value) as SavedDesign) : null, s, this.isFree());
+    this.design.set(board.design);
+    this.workload.set(board.workload);
     this.celebrated.set(false);
     this.hintsShown.set(0);
     this.clearSelection();
@@ -509,7 +510,9 @@ export class SandboxPage {
   }
 
   setObjectShare(pct: number) {
-    this.workload.update((w) => ({ ...w, objectShare: pct / 100 }));
+    const named = nameObjectShare({ design: this.design(), workload: this.workload() }, pct / 100);
+    if (named.design !== this.design()) this.design.set(named.design);
+    this.workload.set(named.workload);
   }
 
   showHint() {

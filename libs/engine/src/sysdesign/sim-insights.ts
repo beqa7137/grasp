@@ -74,8 +74,8 @@ export function addInsights(
       insights.push({
         severity: 'warning',
         nodeId: n.id,
-        title: `One replica node copies ${primaries} primaries`,
-        detail: 'A replica copies one primary, so this one is a standby for none of them. Give each primary its own replicas.',
+        title: `One replica node copies ${primaries} databases`,
+        detail: 'A replica node copies one database, so this one is a standby for none of them. Give each database its own replica node.',
       });
     }
   }
@@ -135,7 +135,7 @@ function primariesOf(design: Design, replicaId: string): number {
 }
 
 function dbInsights(design: Design, n: DesignNode, st: NodeStats, insights: Insight[]) {
-  // A replica copies one primary; old boards could link one to several, and then it stands by for none of them.
+  // A replica node copies one database; old boards could link one to several, and then it stands by for none of them.
   const replicas = design.edges
     .filter((e) => e.from === n.id)
     .map((e) => design.nodes.find((x) => x.id === e.to))

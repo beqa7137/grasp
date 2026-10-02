@@ -1,5 +1,4 @@
-import { DEFAULT_OBJECT_SHARE } from './object-share.js';
-import type { Design, Workload } from './types.js';
+import type { Design, Scenario, Workload } from './types.js';
 
 /** A Design Lab board as the app stores it between visits. */
 export interface SavedDesign {
@@ -8,26 +7,26 @@ export interface SavedDesign {
 }
 
 /**
- * Boards saved before the object share moved into the workload kept it on the object store node, and each app sent that
- * share to the first object store it was connected to. When every app used the same share and only apps feed stores,
- * that share is named in the workload, which simulates the board exactly as before. Otherwise (a CDN or workers also
- * feed a store, or two apps used different shares) the board keeps its node shares and the old rule, which reads them,
- * so it too simulates exactly as before.
+ * The board a visit opens with: the saved design, under its saved workload in a free or case build and the mission's
+ * own otherwise. Nothing is rewritten, so a board saved before the workload named its object share keeps the share on
+ * its stores and the old rule reads it, until the learner names a share with the Files control (free and case builds
+ * only; a mission board stays on the old rule). Measured against the engine before that change, such boards simulate
+ * the same except where the simulator itself changed: two or more queues holding work (workers now drain them as the
+ * exact fluid model says), a queue holding nothing (its workers no longer count as drain), and a replica node under
+ * two or more databases (it now covers none of them).
  */
-export function migrateSavedDesign({ design, workload }: SavedDesign): SavedDesign {
-  const stripped = { ...design, nodes: design.nodes.map(({ share: _share, ...node }) => node) };
-  if (workload.objectShare !== undefined) return { design: stripped, workload };
-  const byId = new Map(design.nodes.map((n) => [n.id, n]));
-  const shares = new Set(
-    design.nodes
-      .filter((n) => n.kind === 'app')
-      .map((app) => design.edges.map((e) => (e.from === app.id ? byId.get(e.to) : undefined)).find((n) => n?.kind === 'blob'))
-      .filter((store) => store !== undefined)
-      .map((store) => store.share ?? DEFAULT_OBJECT_SHARE),
-  );
-  const fedElsewhere = design.edges.some(
-    (e) => byId.get(e.to)?.kind === 'blob' && ['cdn', 'worker'].includes(byId.get(e.from)?.kind ?? ''),
-  );
-  if (fedElsewhere || shares.size > 1) return { design, workload };
-  return { design: stripped, workload: { ...workload, objectShare: [...shares][0] ?? DEFAULT_OBJECT_SHARE } };
+export function restoreBoard(saved: SavedDesign | null, scenario: Scenario, free: boolean): SavedDesign {
+  return {
+    design: saved?.design ?? structuredClone(scenario.starter),
+    workload: free && saved ? saved.workload : scenario.workload,
+  };
+}
+
+/** Names the workload's object share, which replaces any share an old board kept on its stores. */
+export function nameObjectShare({ design, workload }: SavedDesign, objectShare: number): SavedDesign {
+  const legacy = design.nodes.some((n) => n.share !== undefined);
+  return {
+    design: legacy ? { ...design, nodes: design.nodes.map(({ share: _share, ...node }) => node) } : design,
+    workload: { ...workload, objectShare },
+  };
 }

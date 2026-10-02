@@ -1,5 +1,6 @@
 import { COMPONENTS, monthlyCost } from './catalog.js';
 import { DEFAULT_OBJECT_SHARE } from './object-share.js';
+import { drainQueues, type QueueDemand, type QueueDrain } from './queue-drain.js';
 import { fmt } from './format.js';
 import { addInsights, dedupe, rank } from './sim-insights.js';
 import { available, shardShares } from './shards.js';
@@ -70,9 +71,8 @@ export function simulate(design: Design, workload: Workload): SimResult {
   const insights: Insight[] = [];
 
   let syncErrors = 0;
-  let backlogGrowth = 0;
-  const workerSpare = new Map<string, number>();
-  const queueLoads: QueueLoad[] = [];
+  const queues: (QueueDemand & { node: DesignNode; carry: number })[] = [];
+  let drained: QueueDrain | undefined;
   let bgFailures = 0;
   let durableWrites = 0;
   let volatileWrites = 0;
@@ -119,13 +119,27 @@ export function simulate(design: Design, workload: Workload): SimResult {
     return EDGE_MS;
   };
 
-  const order = topoOrder(design.nodes, kidsOf, indegree);
+  // Only apps feed queues, so every queue's load is known before anything downstream of a worker runs: workers wait for it.
+  const fromWorkers = descendants(
+    design.nodes.filter((n) => n.kind === 'worker'),
+    kidsOf,
+  );
+  const sorted = topoOrder(design.nodes, kidsOf, indegree);
+  const order = [...sorted.filter((n) => !fromWorkers.has(n.id)), ...sorted.filter((n) => fromWorkers.has(n.id))];
+  const drainQueuesOnce = () => {
+    if (drained) return drained;
+    drained = drainQueues(queues, (id) => available(byId.get(id)!) * COMPONENTS.worker.capacityRps);
+    for (const q of queues)
+      for (const [worker, jobs] of drained.flows.get(q.id) ?? []) send(q.node, byId.get(worker)!, { bg: jobs }, q.carry);
+    return drained;
+  };
   // Without a load balancer, clients resolve a single address: only one app instance ever sees traffic.
   const clientFed = new Set(
     design.edges.filter((e) => byId.get(e.from)?.kind === 'client' && byId.get(e.to)?.kind === 'app').map((e) => e.to),
   );
 
   for (const node of order) {
+    if (fromWorkers.has(node.id)) drainQueuesOnce();
     const spec = COMPONENTS[node.kind];
     const f = inflow.get(node.id)!;
     const avail = clientFed.has(node.id) ? Math.min(1, available(node)) : available(node);
@@ -198,11 +212,12 @@ export function simulate(design: Design, workload: Workload): SimResult {
     const objectSplit = (targets: DesignNode[]) => {
       const stores = targets.filter((t) => t.kind === 'blob');
       const w = weights(targets);
-      const legacy = targets.reduce((sum, t, i) => sum + (t.kind === 'blob' ? w[i] : 0), 0);
+      const others = targets.filter((t) => t.kind !== 'blob');
+      const legacy = others.length ? targets.reduce((sum, t, i) => sum + (t.kind === 'blob' ? w[i] : 0), 0) : 1;
       const objects = !stores.length ? 0 : workload.objectShare === undefined ? legacy : objectFrac;
       return {
         stores,
-        others: targets.filter((t) => t.kind !== 'blob'),
+        others,
         objects,
         records: 1 - objects,
         carry: stores.length ? 0 : objectFrac,
@@ -313,18 +328,12 @@ export function simulate(design: Design, workload: Workload): SimResult {
         terminate('write', served.write, served.write);
         durableWrites += served.write;
         queuedWrites += served.write;
-        // A worker shared by several queues spends each unit of its capacity once, first on the queue that reaches it first.
-        const workers = ofKind('worker');
-        const spare = workers.map((w) => workerSpare.get(w.id) ?? available(w) * COMPONENTS.worker.capacityRps);
-        const workerCapacity = spare.reduce((a, b) => a + b, 0);
-        const incoming = served.write + served.bg;
-        const drain = Math.min(incoming, workerCapacity);
-        backlogGrowth += incoming - drain;
-        queueLoads.push({ workers: workers.map((w) => w.id), incoming, growth: incoming - drain });
-        workers.forEach((t, i) => {
-          const share = workerCapacity > 0 ? drain * (spare[i] / workerCapacity) : 0;
-          workerSpare.set(t.id, spare[i] - share);
-          if (share > 0) send(node, t, { bg: share }, objectFrac);
+        queues.push({
+          id: node.id,
+          node,
+          incoming: served.write + served.bg,
+          workers: ofKind('worker').map((w) => w.id),
+          carry: objectFrac,
         });
         break;
       }
@@ -339,7 +348,6 @@ export function simulate(design: Design, workload: Workload): SimResult {
         const { stores, others: dbs, objects, records } = objectSplit(ofKind('db', 'blob'));
         if (dbs.length || stores.length) {
           const spread = (targets: DesignNode[], amount: number) => {
-            if (amount <= 0) return;
             const w = weights(targets);
             targets.forEach((t, i) => send(node, t, { bg: amount * w[i] }));
           };
@@ -444,8 +452,9 @@ export function simulate(design: Design, workload: Workload): SimResult {
   const successRps = Math.max(0, offered - syncErrors);
   const errorRate = offered > 0 ? Math.min(1, syncErrors / offered) : 1;
 
+  const { backlogGrowthPerSec, queueDrainRps, backlogDrainRatio } = drainQueuesOnce();
   addInsights(design, stats, insights, workload, {
-    backlogGrowth,
+    backlogGrowth: backlogGrowthPerSec,
     bgFailures,
     volatileWrites,
     durableWrites,
@@ -467,8 +476,9 @@ export function simulate(design: Design, workload: Workload): SimResult {
       readP99Ms: percentile(readPaths, 0.99),
       writeP99Ms: percentile(writePaths, 0.99),
       monthlyCost: monthlyCost(design),
-      backlogGrowthPerSec: backlogGrowth,
-      ...queueDrain(queueLoads, (id) => available(byId.get(id)!) * COMPONENTS.worker.capacityRps),
+      backlogGrowthPerSec,
+      queueDrainRps,
+      backlogDrainRatio,
       durableWriteRatio: durableWrites + volatileWrites > 0 ? durableWrites / (durableWrites + volatileWrites) : 1,
       queuedWriteRps: queuedWrites,
       botRps: clients.length ? offeredBots : 0,
@@ -476,42 +486,6 @@ export function simulate(design: Design, workload: Workload): SimResult {
     },
     insights: rank(dedupe(insights)),
   };
-}
-
-interface QueueLoad {
-  workers: string[];
-  incoming: number;
-  growth: number;
-}
-
-/**
- * Once a spike ends, the queues that share workers drain their backlogs together, so each such group drains at the
- * capacity of its workers, counted once; the slowest group sets how long the backlog lasts. Queues holding nothing add
- * no drain.
- */
-function queueDrain(queues: QueueLoad[], capacity: (workerId: string) => number): { queueDrainRps: number; backlogDrainRatio: number } {
-  const groups: QueueLoad[] = [];
-  for (const q of queues) {
-    const joined = groups.filter((g) => g.workers.some((w) => q.workers.includes(w)));
-    const merged = joined.reduce(
-      (acc, g) => ({
-        workers: [...new Set([...acc.workers, ...g.workers])],
-        incoming: acc.incoming + g.incoming,
-        growth: acc.growth + g.growth,
-      }),
-      q,
-    );
-    groups.splice(0, groups.length, ...groups.filter((g) => !joined.includes(g)), merged);
-  }
-  let queueDrainRps = 0;
-  let backlogDrainRatio = 0;
-  for (const g of groups) {
-    if (g.incoming <= 0) continue;
-    const rate = g.workers.reduce((sum, w) => sum + capacity(w), 0);
-    queueDrainRps += rate;
-    if (g.growth > 0) backlogDrainRatio = Math.max(backlogDrainRatio, rate > 0 ? g.growth / rate : Number.POSITIVE_INFINITY);
-  }
-  return { queueDrainRps, backlogDrainRatio };
 }
 
 interface Pressure {
@@ -567,6 +541,18 @@ function shardPressure(node: DesignNode, f: Flow): Pressure {
     servedWrite,
     ...(node.instances > 1 ? { shards } : {}),
   };
+}
+
+function descendants(roots: DesignNode[], kidsOf: Map<string, DesignNode[]>): Set<string> {
+  const seen = new Set<string>();
+  const stack = [...roots];
+  while (stack.length) {
+    const n = stack.pop()!;
+    if (seen.has(n.id)) continue;
+    seen.add(n.id);
+    stack.push(...kidsOf.get(n.id)!);
+  }
+  return seen;
 }
 
 function topoOrder(nodes: DesignNode[], kidsOf: Map<string, DesignNode[]>, indegree: Map<string, number>): DesignNode[] {

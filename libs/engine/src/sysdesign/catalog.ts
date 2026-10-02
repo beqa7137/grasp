@@ -171,7 +171,7 @@ export function canConnect(design: Design, fromId: string, toId: string): Connec
   }
   if (design.edges.some((e) => e.from === fromId && e.to === toId)) return { ok: false, reason: 'Already connected' };
   if (to.kind === 'replica' && design.edges.some((e) => e.to === toId && design.nodes.find((n) => n.id === e.from)?.kind === 'db')) {
-    return { ok: false, reason: 'A replica copies one primary' };
+    return { ok: false, reason: 'A replica node copies one database' };
   }
   if (reaches(design, toId, fromId)) return { ok: false, reason: 'That would create a cycle' };
   return { ok: true };

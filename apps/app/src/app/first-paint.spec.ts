@@ -1,5 +1,5 @@
 /// <reference types="node" />
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { posix } from 'node:path';
 
 const SRC = 'src/';
@@ -20,15 +20,42 @@ function imports(file: string, from: RegExp): RegExpMatchArray[] {
   ];
 }
 
-/** App files the first paint loads: static imports only, since lazy routes are dynamic imports. */
-function firstPaintFiles(): string[] {
+/** App files that load with `entries`: static imports only, since lazy routes are dynamic imports. */
+function appClosure(entries: string[]): string[] {
   const seen = new Set<string>();
-  const queue = [...FIRST_PAINT];
+  const queue = [...entries];
   while (queue.length) {
     const file = queue.pop()!;
     if (seen.has(file)) continue;
     seen.add(file);
     for (const [, , path] of imports(file, /\.[^']+/)) queue.push(posix.normalize(posix.join(posix.dirname(file), `${path}.ts`)));
+  }
+  return [...seen];
+}
+
+const firstPaintFiles = () => appClosure(FIRST_PAINT);
+
+const ENGINE = '../../libs/engine/src/';
+const engineFiles = () =>
+  (readdirSync(ENGINE, { recursive: true }) as string[]).filter((f) => f.endsWith('.ts') && !/\.(spec|fixture)\.ts$/.test(f));
+
+/** The engine module that defines `name`. */
+function engineModuleOf(name: string): string {
+  const definition = new RegExp(String.raw`^export (?:const|function|class|let) ${name}\b`, 'm');
+  return engineFiles().find((f) => definition.test(readFileSync(ENGINE + f, 'utf8')))!;
+}
+
+/** Engine modules `entries` load at runtime; type-only imports vanish from the build. */
+function engineClosure(entries: string[]): string[] {
+  const seen = new Set<string>();
+  const queue = [...entries];
+  while (queue.length) {
+    const file = queue.pop()!;
+    if (seen.has(file)) continue;
+    seen.add(file);
+    const source = readFileSync(ENGINE + file, 'utf8');
+    for (const [, path] of source.matchAll(/^(?:import|export) (?!type\b)[^;]*? from '(\.[^']+)\.js';$/gms))
+      queue.push(posix.normalize(posix.join(posix.dirname(file), `${path}.ts`)));
   }
   return [...seen];
 }
@@ -65,5 +92,12 @@ describe('first paint', () => {
       'replay',
       'trueRetention',
     ]);
+  });
+
+  // Every titled route loads the titles chunk, so the Design Lab's component catalog must stay out of it.
+  it('keeps the Design Lab component catalog out of route titles', () => {
+    const modules = appClosure(['app/route-titles.ts']).flatMap(engineNames).map(engineModuleOf);
+    expect(modules.every(Boolean)).toBe(true);
+    expect(engineClosure(modules)).not.toContain('sysdesign/catalog.ts');
   });
 });
