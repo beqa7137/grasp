@@ -116,4 +116,10 @@ test('a free build sets the share of file requests in its workload, and a board 
   await expect(page.locator('.metric', { hasText: 'p99 latency' })).toContainText('369');
   await files.fill('0');
   await expect(page.locator('.metric', { hasText: 'p99 latency' })).not.toContainText('369');
+
+  // The email build's workers write to its store, so it keeps the old rule until the learner names a share.
+  await page.goto('/design/free-build?case=email-service');
+  await expect(page.getByRole('slider', { name: 'Files old rule' })).toHaveValue('30');
+  await page.getByRole('slider', { name: /^Files/ }).fill('30');
+  await expect(page.getByRole('slider', { name: 'Files 30%' })).toBeVisible();
 });

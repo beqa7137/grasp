@@ -32,7 +32,7 @@ export const SD_TOPICS: SdTopic[] = [
     id: 'sd-queues',
     name: 'Queues & Async Work',
     oneLiner: 'Absorbing spikes and sizing consumers.',
-    scenarioIds: ['flash-sale', 'deploy-wave'],
+    scenarioIds: ['flash-sale', 'reconnect-storm'],
   },
   {
     id: 'sd-rate-limiting',
@@ -141,7 +141,7 @@ export const SD_TOPICS: SdTopic[] = [
     id: 'sd-overload',
     name: 'Backpressure & Load Shedding',
     oneLiner: 'Bounded queues, deadlines and retries when traffic outruns capacity.',
-    scenarioIds: ['flash-sale', 'deploy-wave'],
+    scenarioIds: ['flash-sale', 'reconnect-storm'],
   },
   {
     id: 'sd-locks',

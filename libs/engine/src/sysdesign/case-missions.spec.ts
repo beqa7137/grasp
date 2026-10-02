@@ -13,14 +13,30 @@ const failedChecks = (scenario: Scenario, design: Design) =>
 
 const everyVersion = (id: string): Scenario[] => [getScenario(id)!, ...[1, 2, 3].map((v) => scenarioVariant(id, v)!)];
 
-/** A spread of designs from lean to lavish, with and without replicas, including a CDN at a 99% hit rate. */
+const MISSIONS = ['mail-attachments', 'ledger-month-end', 'reconnect-storm'];
+
+/** A spread of designs from lean to lavish, with and without replicas, and up to two CDNs at a 99% hit rate. */
 function* designs(extra: Partial<Stack>): Generator<Design> {
   for (const shards of [1, 2, 3, 4, 5, 6])
-    for (const apps of [6, 8, 10, 12, 14, 17, 20])
-      for (const caches of [0, 2])
+    for (const apps of [2, 3, 4, 6, 8, 10, 12, 14, 17, 20])
+      for (const caches of [0, 2, 4, 6])
         for (const replicas of [0, shards])
-          for (const cdn of [undefined, { hitRate: 0.99 }]) yield stack({ lbs: 2, apps, shards, caches, replicas, cdn, ...extra });
+          for (const cdn of [undefined, { hitRate: 0.99 }, { hitRate: 0.99, count: 2 }])
+            yield stack({ lbs: 2, apps, shards, caches, replicas, cdn, ...extra });
 }
+
+/** Users, load balancers and app servers, with nothing to keep the writes. */
+const appsOnly = (apps: number): Design => ({
+  nodes: [
+    { id: 'users', kind: 'client', x: 0, y: 0, instances: 1 },
+    { id: 'lb', kind: 'lb', x: 0, y: 0, instances: 2 },
+    { id: 'app', kind: 'app', x: 0, y: 0, instances: apps },
+  ],
+  edges: [
+    { from: 'users', to: 'lb' },
+    { from: 'lb', to: 'app' },
+  ],
+});
 
 const passesAny = (id: string, extra: Partial<Stack>) =>
   everyVersion(id)
@@ -57,7 +73,7 @@ describe('Attachments Everywhere', () => {
 describe('Month-End Ledger', () => {
   const mission = getScenario('ledger-month-end')!;
 
-  it('fails with a queue in front, because entries would be acknowledged before they commit', () => {
+  it('fails with a queue in front, because transfers would be acknowledged before they commit', () => {
     const queued = stack({ lbs: 2, apps: 10, caches: 2, shards: 3, replicas: 3, queues: 2, workers: 4 });
     expect(failedChecks(mission, queued)).toEqual(['sync']);
     expect(evaluate(mission, queued).find((g) => g.id === 'sync')!.actual).toBe('6.0k/s queued');
@@ -70,40 +86,39 @@ describe('Month-End Ledger', () => {
   });
 });
 
-describe('Deploy Wave', () => {
-  const mission = getScenario('deploy-wave')!;
+describe('Reconnect Storm', () => {
+  const mission = getScenario('reconnect-storm')!;
 
   it('fails without a queue: committing every report as it arrives takes four shards', () => {
     expect(failedChecks(mission, stack({ lbs: 2, apps: 12, caches: 2, shards: 4, replicas: 4 }))).toEqual(['cost']);
-    expect(passesAny('deploy-wave', {})).toEqual([]);
+    expect(passesAny('reconnect-storm', {})).toEqual([]);
   });
 
-  it('fails with more workers than the one primary can take', () => {
-    expect(failedChecks(mission, stack({ lbs: 2, apps: 12, caches: 2, shards: 1, replicas: 1, queues: 2, workers: 3 }))).toEqual([
-      'errors',
-      'durable',
-    ]);
-  });
-
-  it('needs a second primary to drain the three-minute wave in time', () => {
-    const slow = scenarioVariant('deploy-wave', 2)!;
-    expect(failedChecks(slow, CASE_MISSION_SOLUTIONS['deploy-wave'])).toEqual(['drain']);
-    for (const workers of [1, 2, 3])
-      expect(failedChecks(slow, stack({ lbs: 2, apps: 12, caches: 2, shards: 1, replicas: 1, queues: 2, workers })).length).toBeGreaterThan(
-        0,
-      );
+  it('needs a second primary: one drains too slowly, or fails with more workers than it can take', () => {
+    const onePrimary = (workers: number) => stack({ lbs: 2, apps: 12, caches: 2, shards: 1, replicas: 1, queues: 2, workers });
+    expect(failedChecks(mission, onePrimary(1))).toEqual(['drain']);
+    expect(failedChecks(mission, onePrimary(2))).toEqual(expect.arrayContaining(['errors', 'durable']));
+    expect(passesAny('reconnect-storm', { shards: 1, queues: 2, workers: 1 }).filter((t) => t === mission.title)).toEqual([]);
   });
 });
 
 describe('missions on the case studies', () => {
-  it.each(['mail-attachments', 'ledger-month-end', 'deploy-wave'])('%s changes the load or the goals on every revisit', (id) => {
+  it.each(MISSIONS)('%s fails every version with app servers that keep nothing', (id) => {
+    for (const s of everyVersion(id))
+      for (const apps of [2, 4, 8, 12, 16, 20]) {
+        expect(failedChecks(s, appsOnly(apps)), `${s.title}, ${apps} apps`).toContain('durable');
+        if (s.goals.synchronousWrites) expect(failedChecks(s, appsOnly(apps)), `${s.title}, ${apps} apps`).toContain('sync');
+      }
+  });
+
+  it.each(MISSIONS)('%s changes the load or the goals on every revisit', (id) => {
     const versions = everyVersion(id).map((s) => JSON.stringify([s.workload, s.goals]));
     expect(new Set(versions).size).toBe(4);
     for (const v of [1, 2, 3])
       expect(failedChecks(scenarioVariant(id, v)!, CASE_MISSION_SOLUTIONS[id]).length, `revisit ${v}`).toBeGreaterThan(0);
   });
 
-  it.each(['mail-attachments', 'ledger-month-end', 'deploy-wave'])('%s names its object share', (id) => {
+  it.each(MISSIONS)('%s names its object share', (id) => {
     for (const s of everyVersion(id)) expect(s.workload.objectShare).toBeTypeOf('number');
   });
 });
@@ -162,6 +177,51 @@ describe('the object share in the workload', () => {
     expect(migrateSavedDesign({ design, workload })).toEqual({ design, workload });
     const named = { rps: 1_000, readRatio: 0.5, objectShare: 0.2 };
     expect(migrateSavedDesign({ design: legacyNode(design, 'blob', 0.9), workload: named }).workload).toBe(named);
+  });
+
+  it('keeps the old rule for a board whose store a CDN or workers feed at the default share, with the numbers it had', () => {
+    const node = (id: string, kind: Design['nodes'][number]['kind'], instances = 1) => ({ id, kind, x: 0, y: 0, instances });
+    const design: Design = {
+      nodes: [
+        node('users', 'client'),
+        node('lb', 'lb', 2),
+        node('app', 'app', 4),
+        node('db', 'db', 2),
+        { ...node('blob-1-k3jd', 'blob'), share: 0.3 } as Design['nodes'][number],
+        node('queue-1-a8f2', 'queue', 2),
+        node('worker-1-c1d9', 'worker', 2),
+      ],
+      edges: [
+        ['users', 'lb'],
+        ['lb', 'app'],
+        ['app', 'db'],
+        ['app', 'blob-1-k3jd'],
+        ['app', 'queue-1-a8f2'],
+        ['queue-1-a8f2', 'worker-1-c1d9'],
+        ['worker-1-c1d9', 'db'],
+        ['worker-1-c1d9', 'blob-1-k3jd'],
+      ].map(([from, to]) => ({ from, to })),
+    };
+    const saved = migrateSavedDesign({ design, workload: { rps: 6_000, readRatio: 0.5 } });
+    expect(saved.workload.objectShare).toBeUndefined();
+    const r = simulate(saved.design, saved.workload);
+    expect([r.metrics.p50Ms, r.metrics.p99Ms, r.metrics.monthlyCost]).toEqual([95.1, 249.7, 4_840]);
+    expect(r.edges['app->blob-1-k3jd']).toBeCloseTo(1_800);
+    expect(r.edges['worker-1-c1d9->db']).toBeCloseTo(1_400);
+    expect(r.edges['worker-1-c1d9->blob-1-k3jd']).toBeCloseTo(700);
+
+    const video = CASE_LABS['video-streaming'];
+    const savedVideo = migrateSavedDesign({ design: legacyNode(video.design, 'segments', 0), workload: video.workload });
+    expect(savedVideo.workload.objectShare).toBeUndefined();
+    expect(simulate(savedVideo.design, savedVideo.workload)).toEqual(simulate(video.design, video.workload));
+  });
+
+  it('names the default share on a board whose store only apps feed, which simulates the same under the new rule', () => {
+    const { design, workload } = CASE_LABS['code-deployment'];
+    const old = { rps: workload.rps, readRatio: workload.readRatio };
+    const saved = migrateSavedDesign({ design: legacyNode(design, 'blob', 0.3), workload: old });
+    expect(saved.workload.objectShare).toBe(0.3);
+    expect(simulate(saved.design, saved.workload)).toEqual(simulate(design, old));
   });
 
   it('splits a board that names no share by instance count, as builds always have', () => {
