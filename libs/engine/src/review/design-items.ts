@@ -5,6 +5,7 @@ import { simulate } from '../sysdesign/simulate.js';
 import type { ComponentKind, Design, DesignNode } from '../sysdesign/types.js';
 import { concept, item, type DesignItemDefinition } from './design-item-kit.js';
 import { APP_ITEMS } from './design-items-apps.js';
+import { EMAIL_ITEMS } from './design-items-email.js';
 import { INFRA_ITEMS } from './design-items-infra.js';
 import { FLAG_ITEMS } from './design-items-flags.js';
 import { LEDGER_ITEMS } from './design-items-ledger.js';
@@ -485,6 +486,7 @@ const DEFINITIONS: Record<DesignItemId, DesignItemDefinition> = {
   ...LEDGER_ITEMS,
   ...FLAG_ITEMS,
   ...PROXIMITY_ITEMS,
+  ...EMAIL_ITEMS,
 };
 
 export const DESIGN_ITEMS: ItemDef[] = DESIGN_ITEM_CATALOG.map((summary, i) =>

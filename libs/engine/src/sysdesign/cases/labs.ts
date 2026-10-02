@@ -401,6 +401,28 @@ export const CASE_LABS: Record<string, CaseLab> = {
       edges: [...chain('clients', 'lb', 'app', 'cache', 'db', 'replica'), { from: 'app', to: 'db' }],
     },
   },
+  'email-service': {
+    workload: { rps: 10_100, readRatio: 0.36 },
+    design: {
+      nodes: [
+        n('mail', 'client', 70, 240, 1, { label: 'Senders and apps' }),
+        n('lb', 'lb', 240, 240, 2),
+        n('front', 'app', 410, 240, 8, { label: 'SMTP, API and sync' }),
+        n('cache', 'cache', 580, 100, 2, { hitRate: 0.8, label: 'Recent mail' }),
+        n('blob', 'blob', 410, 400, 1, { label: 'Bodies and attachments' }),
+        n('queue', 'queue', 580, 380, 2, { label: 'Inbound queue' }),
+        n('worker', 'worker', 760, 380, 6, { label: 'Filter and deliver' }),
+        n('db', 'db', 760, 240, 4, { shardKey: 'hash', label: 'Metadata shards' }),
+        n('replica', 'replica', 760, 100, 4),
+      ],
+      edges: [
+        ...chain('mail', 'lb', 'front', 'cache', 'db', 'replica'),
+        ...chain('front', 'queue', 'worker', 'db'),
+        { from: 'front', to: 'blob' },
+        { from: 'worker', to: 'blob' },
+      ],
+    },
+  },
   'feature-flags': {
     workload: { rps: 25_700, readRatio: 0.97 },
     design: {
