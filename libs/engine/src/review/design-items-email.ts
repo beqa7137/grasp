@@ -40,7 +40,7 @@ const retryDelivery = item('When a retried message is delivered after an outage'
   return {
     prompt: `A remote mail server answers 451 for ${durationText(outageMin)}. Your server retries first after ${durationText(firstRetryMin)} and doubles the wait each time, up to ${durationText(longestMin)}. How long after it was sent is a message sent as the outage began delivered?`,
     ...withChoices(rand, right, others(right, wrong)),
-    explain: `The attempts come at ${run.attempts.slice(0, 7).map(durationText).join(', ')}${run.attempts.length > 7 ? ' and so on' : ''}. Nothing tells the queue the server is back, so the message waits for the first attempt at or after ${durationText(outageMin)}: attempt ${run.attempts.length}, at ${right}, ${run.afterRecoveryMin ? `${durationText(run.afterRecoveryMin)} after recovery` : 'just as the server is back'}. Without the ${durationText(longestMin)} cap the waits would keep doubling and it would arrive at ${durationText(uncapped)}.`,
+    explain: `The attempts come at ${run.attempts.slice(0, 7).map(durationText).join(', ')}${run.attempts.length > 7 ? ' and so on' : ''}. With nothing telling the queue the server is back (Postfix's default), the message waits for the first attempt at or after ${durationText(outageMin)}: attempt ${run.attempts.length}, at ${right}, ${run.afterRecoveryMin ? `${durationText(run.afterRecoveryMin)} after recovery` : 'just as the server is back'}. Without the ${durationText(longestMin)} cap the waits would keep doubling and it would arrive at ${durationText(uncapped)}.`,
   };
 });
 

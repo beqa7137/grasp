@@ -155,6 +155,12 @@ describe('the retry checkpoint', () => {
     expect([...asked].sort()).toEqual(['attempts', 'drain', 'fate']);
   });
 
+  it('says waiting out the backoff is this model and Postfix by default, not a rule', () => {
+    const c = smtpRetryCheckpoint(base);
+    expect(c.prompt).toContain('how long until the last of them still queued is delivered?');
+    expect(c.explain).toMatch(/^In this model, as in Postfix by default, nothing tells the queue the server is back/);
+  });
+
   it('asks the fate for a 5xx, from the settings', () => {
     const c = smtpRetryCheckpoint({ ...base, reply: 'permanent' });
     expect(c.choices[c.answer]).toBe('Bounced at once, on the first attempt');

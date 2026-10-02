@@ -194,6 +194,6 @@ export function smtpRetryCheckpoint(s: SmtpRetrySettings, run = smtpRetry(s)): W
   return {
     prompt: `Predict: ${situation}. ${SMTP_RETRY.perMinute} messages a minute go to that domain. Once its server is back, how long until the last of them still queued is delivered?`,
     ...spacedChoices(run.drainMin, [s.firstRetryMin, s.longestMin, s.outageMin, ...neighbours.map((n) => n.drainMin)], durationText, 1),
-    explain: `Nothing tells our queue the server is back, so each queued message waits for its own next attempt. The oldest of the ${messagesText(run.queued)} queued is ${durationText(oldest)} old, and its wait between attempts has grown to ${durationText(run.drainMin)}; a message whose last attempt failed just before recovery waits almost that whole interval. A longer cap means a longer tail after every outage.`,
+    explain: `In this model, as in Postfix by default, nothing tells the queue the server is back, so each queued message waits for its own next attempt. The oldest of the ${messagesText(run.queued)} queued is ${durationText(oldest)} old, and its wait between attempts has grown to ${durationText(run.drainMin)}; a message whose last attempt failed just before recovery waits almost that whole interval. A longer cap means a longer tail after every outage.`,
   };
 }

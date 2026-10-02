@@ -1,7 +1,16 @@
 import { ApplicationRef, type Type } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { OUTAGE_STOPS, getCaseStudy, mailStorage, mailStorageCheckpoint, smtpRetryCheckpoint, storageText } from '@grasp/engine';
+import {
+  LIFETIME_STOPS,
+  MAIL_PARTS,
+  OUTAGE_STOPS,
+  getCaseStudy,
+  mailStorage,
+  mailStorageCheckpoint,
+  smtpRetryCheckpoint,
+  storageText,
+} from '@grasp/engine';
 import { CaseStageComponent } from '../case-stage.component';
 import { MailStorageWidgetComponent } from './mail-storage-widget.component';
 import { SmtpRetryWidgetComponent } from './smtp-retry-widget.component';
@@ -112,6 +121,50 @@ describe('SMTP retry widget', () => {
   });
 });
 
+describe('SMTP retry timeline', () => {
+  it('hatches even the shortest outage', () => {
+    const { el, slide } = mount(SmtpRetryWidgetComponent);
+    slide(0, 0);
+    slide(2, 4);
+    const band = el.querySelector('rect.band')!;
+    expect(Number(band.getAttribute('width'))).toBeGreaterThanOrEqual(4);
+    expect(el.querySelector('path.hatch')!.getAttribute('d')!.match(/M/g)!.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('draws the first and last attempts with a gap marker when ticks would merge', () => {
+    const { el, answer, slide, widget } = mount(SmtpRetryWidgetComponent);
+    slide(0, OUTAGE_STOPS.length - 1);
+    slide(1, 0);
+    slide(2, 0);
+    slide(3, LIFETIME_STOPS.length - 1);
+    answer(widget.check().answer);
+    expect(widget.run().attempts.length).toBeGreaterThan(300);
+    expect(el.querySelector('path.tick')!.getAttribute('d')!.match(/M/g)).toHaveLength(6);
+    expect(el.querySelector('path.gap')).not.toBeNull();
+    expect(legend(el)).toContain('More attempts (dotted line)');
+  });
+
+  it('draws every attempt when they are far enough apart', () => {
+    const { el, answer, widget } = mount(SmtpRetryWidgetComponent);
+    answer(widget.check().answer);
+    expect(el.querySelector('path.gap')).toBeNull();
+    expect(legend(el)).not.toContain('More attempts (dotted line)');
+  });
+});
+
+describe('mail storage split', () => {
+  it('leaves out a part with no bytes', () => {
+    const { el, answer, slide, widget } = mount(MailStorageWidgetComponent);
+    answer(widget.check().answer);
+    slide(2, 0);
+    expect([...el.querySelectorAll('.split > span')].map((p) => MAIL_PARTS.find((m) => p.classList.contains(m)))).toEqual([
+      'metadata',
+      'bodies',
+    ]);
+    expect(legend(el).map((l) => l.split(' (')[0])).toEqual(['Message metadata', 'Message bodies']);
+  });
+});
+
 describe('mail storage widget', () => {
   it('hides the split, savings and disk until answered, then shows what the model gives', () => {
     const { el, readout, answer, widget } = mount(MailStorageWidgetComponent);
@@ -126,7 +179,7 @@ describe('mail storage widget', () => {
     expect(readout('Stored, one copy')).toBe(storageText(run.storedBytes));
     expect(readout('On disk')).toBe('934 PB');
     expect(readout('Saved by dedup')).toBe('110 PB');
-    expect(readout('15 GB lasts')).toBe('24 years');
+    expect(readout('15 GB lasts')).toBe('14 years');
     expect(el.querySelector('.split')!.getAttribute('aria-label')).toBe(
       'Stored a year, one copy: message metadata 2%, message bodies 16%, attachments 82%',
     );

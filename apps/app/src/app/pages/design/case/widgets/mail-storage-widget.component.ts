@@ -69,12 +69,12 @@ const MARKS: Record<MailPart, string> = { metadata: 'solid', bodies: 'striped', 
 
     @if (answered()) {
       <div class="split" role="img" [attr.aria-label]="splitLabel()">
-        @for (p of parts; track p) {
+        @for (p of shownParts(); track p) {
           <span [class]="'part ' + p" [style.width.%]="shares()[p]"></span>
         }
       </div>
       <ul class="legend-list" aria-hidden="true">
-        @for (p of parts; track p) {
+        @for (p of shownParts(); track p) {
           <li>
             <span [class]="'swatch ' + p"></span>{{ partText[p] }} ({{ marks[p] }}) {{ bytes(run().stored[p]) }},
             {{ percent(shares()[p]) }}
@@ -195,7 +195,6 @@ export class MailStorageWidgetComponent {
   readonly sliders = SLIDERS;
   readonly replications = REPLICATIONS;
   readonly copies = COPIES;
-  readonly parts = MAIL_PARTS;
   readonly partText = PART_TEXT;
   readonly marks = MARKS;
   readonly limits = STORAGE_LIMITS;
@@ -230,12 +229,17 @@ export class MailStorageWidgetComponent {
     const { stored, storedBytes } = this.run();
     return Object.fromEntries(MAIL_PARTS.map((p) => [p, (stored[p] / storedBytes) * 100])) as Record<MailPart, number>;
   });
+  /** Parts holding bytes: a part with none would still draw a sliver at its minimum width. */
+  readonly shownParts = computed(() => MAIL_PARTS.filter((p) => this.run().stored[p] > 0));
   readonly years = computed(() => {
     const y = this.run().quotaYears;
     return y < 1 ? `${num(y * 12)} months` : `${y < 10 ? Number(y.toFixed(1)) : num(y)} years`;
   });
   readonly splitLabel = computed(
-    () => `Stored a year, one copy: ${MAIL_PARTS.map((p) => `${PART_TEXT[p].toLowerCase()} ${this.percent(this.shares()[p])}`).join(', ')}`,
+    () =>
+      `Stored a year, one copy: ${this.shownParts()
+        .map((p) => `${PART_TEXT[p].toLowerCase()} ${this.percent(this.shares()[p])}`)
+        .join(', ')}`,
   );
   readonly announcement = settledAnnouncement(() => this.summary());
 
