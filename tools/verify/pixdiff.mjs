@@ -22,16 +22,32 @@ for (const n of readdirSync(a)
   }
   let diff = 0;
   let max = 0;
+  const box = { left: Infinity, top: Infinity, right: -1, bottom: -1 };
   for (let i = 0; i < pa.data.length; i += 4) {
     const d = Math.max(
       Math.abs(pa.data[i] - pb.data[i]),
       Math.abs(pa.data[i + 1] - pb.data[i + 1]),
       Math.abs(pa.data[i + 2] - pb.data[i + 2]),
     );
-    if (d > 0) diff++;
+    if (d > 0) {
+      diff++;
+      const x = (i / 4) % pa.width;
+      const y = Math.floor(i / 4 / pa.width);
+      Object.assign(box, {
+        left: Math.min(box.left, x),
+        top: Math.min(box.top, y),
+        right: Math.max(box.right, x),
+        bottom: Math.max(box.bottom, y),
+      });
+    }
     max = Math.max(max, d);
   }
-  console.log(n, diff === 0 ? 'identical' : `${diff} px differ (max channel delta ${max})`);
+  console.log(
+    n,
+    diff === 0
+      ? 'identical'
+      : `${diff} px differ (max channel delta ${max}, box ${box.left},${box.top} ${box.right - box.left + 1}x${box.bottom - box.top + 1})`,
+  );
 }
 
 const read = (dir, file) => (existsSync(`${dir}/${file}`) ? JSON.parse(readFileSync(`${dir}/${file}`, 'utf8')) : null);
