@@ -185,7 +185,7 @@ describe('Per-user rate limits', () => {
       tokens.push((await http().post('/api/auth/google').set('X-Forwarded-For', freshIp()).send(credential).expect(200)).body.accessToken);
     }
     const hit = (token?: string) => {
-      const req = http().get('/api/curriculum/patterns').set('X-Forwarded-For', ip);
+      const req = http().get('/api/curriculum/review-items/sd:bottleneck/question').set('X-Forwarded-For', ip);
       return token ? req.set('Authorization', `Bearer ${token}`) : req.set('x-learner-id', phone);
     };
     for (let i = 0; i < 4; i++) await hit(tokens[0]).expect(200);
@@ -193,5 +193,21 @@ describe('Per-user rate limits', () => {
     await hit(tokens[1]).expect(200);
     for (let i = 0; i < 4; i++) await hit().expect(200);
     await hit().expect(429);
+  });
+
+  it('never gives a signed-in response a public cache header, and does not count public reads', async () => {
+    const http = () => request(app.getHttpServer());
+    const credential = await fakes.googleCredential(http, { sub: 'u3@example.com', email: 'u3@example.com' });
+    const token = (await http().post('/api/auth/google').set('X-Forwarded-For', freshIp()).send(credential).expect(200)).body.accessToken;
+    const signedIn = (path: string) =>
+      http().get(path).set('X-Forwarded-For', freshIp()).set('Authorization', `Bearer ${token}`).expect(200);
+    for (const path of ['/api/auth/me', '/api/progress', '/api/interview/problems', '/api/interview/sessions']) {
+      expect((await signedIn(path)).headers['cache-control']).toBe('no-store');
+    }
+    for (let i = 0; i < 6; i++) {
+      const res = await signedIn('/api/curriculum/patterns');
+      expect(res.headers['cache-control']).toBe('no-store');
+      expect(res.headers['x-ratelimit-limit']).toBeUndefined();
+    }
   });
 });

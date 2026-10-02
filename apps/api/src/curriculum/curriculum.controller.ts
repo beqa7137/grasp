@@ -16,15 +16,18 @@ import {
   newSeed,
   scenarioVariant,
 } from '@grasp/engine';
+import { PublicRead } from '../common/public-read.js';
 
 @Controller('curriculum')
 export class CurriculumController {
   @Get('patterns')
+  @PublicRead()
   patterns() {
     return PATTERNS;
   }
 
   @Get('algorithms')
+  @PublicRead()
   algorithms() {
     return ALGORITHMS.map(algorithmMeta);
   }
@@ -43,16 +46,19 @@ export class CurriculumController {
   }
 
   @Get('drills')
+  @PublicRead()
   drills() {
     return DRILL_CARDS;
   }
 
   @Get('topics')
+  @PublicRead()
   topics() {
     return { patterns: PATTERNS.map(({ id, name, track, order }) => ({ id, name, track, order })), systemDesign: SD_TOPICS };
   }
 
   @Get('review-items')
+  @PublicRead()
   reviewItems() {
     return REVIEW_ITEMS.map(describeItem);
   }
@@ -65,6 +71,7 @@ export class CurriculumController {
   }
 
   @Get('scenarios')
+  @PublicRead()
   scenarios() {
     return {
       components: COMPONENTS,

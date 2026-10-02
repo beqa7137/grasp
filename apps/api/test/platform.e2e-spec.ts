@@ -3,8 +3,19 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import request from 'supertest';
+import { PUBLIC_READ_CACHE } from '../src/common/public-read.js';
 import { createTestApp } from './support/app.js';
 
+const LEARNER = '6d6d6d6d-6d6d-4d6d-8d6d-6d6d6d6d6d6d';
+const PUBLIC_READS = [
+  '/api/auth/config',
+  '/api/curriculum/patterns',
+  '/api/curriculum/algorithms',
+  '/api/curriculum/drills',
+  '/api/curriculum/topics',
+  '/api/curriculum/review-items',
+  '/api/curriculum/scenarios',
+];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 describe('HTTP platform', () => {
@@ -27,9 +38,28 @@ describe('HTTP platform', () => {
     expect(ready.headers['cache-control']).toBeUndefined();
   });
 
-  it('leaves public curriculum responses eligible for caching', async () => {
-    const res = await request(app.getHttpServer()).get('/api/curriculum/patterns').expect(200);
-    expect(res.headers['cache-control']).toBeUndefined();
+  it.each(PUBLIC_READS)('lets shared caches keep %s and revalidates it by ETag', async (path) => {
+    const res = await request(app.getHttpServer()).get(path).set('x-learner-id', LEARNER).expect(200);
+    expect(res.headers['cache-control']).toBe(PUBLIC_READ_CACHE);
+    expect(res.headers['set-cookie']).toBeUndefined();
+    expect(res.headers['vary'] ?? '').not.toMatch(/\*|cookie|authorization|x-learner-id/i);
+    expect(res.headers['etag']).toMatch(/^W\/"/);
+    const again = await request(app.getHttpServer()).get(path).set('If-None-Match', res.headers['etag']!).expect(304);
+    expect(again.headers['cache-control']).toBe(PUBLIC_READ_CACHE);
+  });
+
+  it.each(PUBLIC_READS)('never marks %s public for a request that carries credentials', async (path) => {
+    const res = await request(app.getHttpServer()).get(path).set('Authorization', 'Bearer not-checked-here').expect(200);
+    expect(res.headers['cache-control']).toBe('no-store');
+  });
+
+  it('keeps learner-specific and varying reads out of shared caches', async () => {
+    for (const path of ['/api/progress', '/api/interview/problems', '/api/interview/sessions']) {
+      const res = await request(app.getHttpServer()).get(path).set('x-learner-id', LEARNER).expect(200);
+      expect(res.headers['cache-control']).toBe('no-store');
+    }
+    const question = await request(app.getHttpServer()).get('/api/curriculum/review-items/sd:bottleneck/question').expect(200);
+    expect(question.headers['cache-control']).toBeUndefined();
   });
 
   it('sets security headers and hides the framework', async () => {
@@ -94,13 +124,20 @@ describe('Rate limiting', () => {
     await app.close();
   });
 
-  it('limits each client IP separately and never throttles health checks', async () => {
-    const hit = (ip: string) => request(app.getHttpServer()).get('/api/curriculum/patterns').set('X-Forwarded-For', ip);
+  it('limits each client IP separately and never throttles health checks or public reads', async () => {
+    const hit = (ip: string) =>
+      request(app.getHttpServer()).get('/api/curriculum/review-items/sd:bottleneck/question').set('X-Forwarded-For', ip);
     for (let i = 0; i < 3; i++) await hit('203.0.113.1').expect(200);
     const limited = await hit('203.0.113.1').expect(429);
     expect(limited.headers['retry-after']).toBeDefined();
     await hit('203.0.113.2').expect(200);
     for (let i = 0; i < 5; i++) await request(app.getHttpServer()).get('/api/health').set('X-Forwarded-For', '203.0.113.1').expect(200);
+    for (const path of PUBLIC_READS) {
+      for (let i = 0; i < 5; i++) {
+        const res = await request(app.getHttpServer()).get(path).set('X-Forwarded-For', '203.0.113.1').expect(200);
+        expect(res.headers['x-ratelimit-limit']).toBeUndefined();
+      }
+    }
   });
 });
 

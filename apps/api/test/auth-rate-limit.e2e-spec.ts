@@ -227,7 +227,6 @@ describe.each(storages)('Authentication rate limits (%s storage)', (storage) => 
   });
 
   it.each([
-    ['/api/auth/config', 'AuthController.config', 200],
     ['/api/auth/google/nonce', 'GoogleController.nonce', 200],
     ['/api/auth/google', 'GoogleController.signIn', 400],
     ['/api/auth/github/token', 'GitHubController.token', 400],
@@ -240,18 +239,14 @@ describe.each(storages)('Authentication rate limits (%s storage)', (storage) => 
     await on()
       .get(CoordinationStore)
       .add(`rate:${handler}:${hashToken(`ip:${ip}`)}`, windowMs, limit - 1);
-    const hit = (address: string, index = 0) => {
-      const req = path === '/api/auth/config' ? http(index).get(path) : http(index).post(path).send({});
-      return req.set('X-Forwarded-For', address);
-    };
+    const hit = (address: string, index = 0) => http(index).post(path).send({}).set('X-Forwarded-For', address);
     const finalAllowed = await hit(ip, 1).expect(acceptedStatus);
     expect(finalAllowed.headers['x-ratelimit-limit']).toBe(String(limit));
     expect(finalAllowed.headers['x-ratelimit-remaining']).toBe('0');
     expectLimited(await hit(ip), limit, windowMs);
     await hit(freshIp(), 1).expect(acceptedStatus);
-    const separateRoute = path === '/api/auth/config' ? '/api/auth/google/nonce' : '/api/auth/config';
-    const separate = separateRoute.endsWith('config') ? http(1).get(separateRoute) : http(1).post(separateRoute);
-    await separate.set('X-Forwarded-For', ip).expect(200);
+    const [separatePath, separateStatus] = path === '/api/auth/google/nonce' ? ['/api/auth/refresh', 400] : ['/api/auth/google/nonce', 200];
+    await http(1).post(separatePath).send({}).set('X-Forwarded-For', ip).expect(separateStatus);
   });
 
   it.runIf(storage === 'postgres')('atomically admits one sign-in budget across two API instances', async () => {
