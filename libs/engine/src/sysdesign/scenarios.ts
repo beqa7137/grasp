@@ -206,11 +206,11 @@ const DEFINITIONS: Record<ScenarioId, ScenarioDefinition> = {
     hints: [
       'The reports arrive in a burst and stop when the storm ends. Must the deploy store take them as fast as they arrive?',
       'A queue accepts a report in milliseconds and workers write it later. How fast can they write before a primary, which still serves reads, falls over?',
-      'Every report must be written within the storm plus the deadline: 8,000 a second for 180 s, drained over 780 s, is about 1,850 a second. Is one worker, at 1,500 a second, enough? And how many writes a second do two workers send to one primary?',
+      'Every report must be written within the storm plus the deadline: 8,000 a second for 180 s, drained over 180 + 600 s, is about 1,850 a second. One worker drains 1,500 a second: enough? Two drain 3,000, and at 2 ops a write that is 6,000 ops a second: can one primary, with its 5,000, take that?',
       'The desired state changes only when a deploy does, so almost every poll can be answered from memory.',
     ],
     takeaway:
-      "A queue buys time, not capacity. It accepts every report at once, but the workers behind it must drain the whole storm within its window plus the deadline, here about 1,850 writes a second. One worker drains 1,500 a second, too slow; two drain 3,000, and at 2 ops a write that is more than one primary's 5,000 ops, so the store needs a second primary. Polls for state that rarely changes belong in a cache. In production the cheapest fix is at the source: agents add random jitter before reconnecting and coalesce reports, since only each host's latest state matters, so the burst is bounded by hosts, not reports.",
+      "A queue buys time, not capacity. It accepts every report at once, but the workers behind it must drain the whole burst within its window plus the deadline, and the database behind them must take what they write: size the workers to the burst and the primaries to the workers. Polls for state that rarely changes belong in a cache. In production the cheapest fix is at the source: agents add random jitter before reconnecting and coalesce reports, since only each host's latest state matters, so the burst is bounded by hosts, not reports.",
   },
 };
 

@@ -86,7 +86,7 @@ test.describe('in the light theme', () => {
   });
 });
 
-test('a free build sets the share of file requests in its workload, and a board saved with it on the object store keeps it', async ({
+test('a free build sets the share of file requests in its workload, and an old board keeps the old rule until the learner sets one', async ({
   page,
 }) => {
   await page.goto('/design/free-build?case=file-sync');
@@ -111,20 +111,24 @@ test('a free build sets the share of file requests in its workload, and a board 
     const saved = { design: { nodes, edges }, workload: { rps: 5000, readRatio: 0.9 } };
     localStorage.setItem('CapacitorStorage.grasp.design.free-build', JSON.stringify(saved));
   });
+  // A board saved before the workload named its share keeps the share on its store and the old rule, until the learner sets one.
   await page.goto('/design/free-build');
-  await expect(files).toHaveValue('70');
-  await expect(page.locator('.metric', { hasText: 'p99 latency' })).toContainText('369');
+  const p99 = page.locator('.metric', { hasText: 'p99 latency' });
+  await expect(page.getByRole('slider', { name: 'Files old rule' })).toBeVisible();
+  await expect(p99).toContainText('369');
   await files.fill('0');
-  await expect(page.locator('.metric', { hasText: 'p99 latency' })).not.toContainText('369');
+  await expect(page.getByRole('slider', { name: 'Files 0%' })).toBeVisible();
+  await expect(p99).not.toContainText('369');
 
-  // The email build's workers write to its store, so it keeps the old rule until the learner names a share.
+  // The email build's workers write to its store, so it keeps the old rule until the learner names a share. Only the
+  // workload changes here, so the board must be saved for a workload change alone.
   await page.goto('/design/free-build?case=email-service');
+  const saved = () => page.evaluate(() => localStorage.getItem('CapacitorStorage.grasp.design.case.email-service') ?? '');
+  await expect.poll(saved).toContain('"design"');
   await expect(page.getByRole('slider', { name: 'Files old rule' })).toHaveValue('30');
   await page.getByRole('slider', { name: /^Files/ }).fill('30');
   await expect(page.getByRole('slider', { name: 'Files 30%' })).toBeVisible();
-  await expect
-    .poll(() => page.evaluate(() => localStorage.getItem('CapacitorStorage.grasp.design.case.email-service') ?? ''))
-    .toContain('"objectShare":0.3');
+  await expect.poll(saved).toContain('"objectShare":0.3');
   await page.reload();
   await expect(page.getByRole('slider', { name: 'Files 30%' })).toBeVisible();
 });

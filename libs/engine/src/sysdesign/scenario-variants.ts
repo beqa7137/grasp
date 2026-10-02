@@ -176,7 +176,7 @@ export const SCENARIO_VARIANTS: Record<ScenarioId, readonly ScenarioVariant[]> =
   'reconnect-storm': [
     {
       twist:
-        'A second control plane fails and its agents fail over to this one: 24,000 RPS for 60 seconds, half of them reports. Budget $8,000.',
+        'This time the outage lasts 10 minutes, but every agent reconnects within the first minute: 24,000 RPS for 60 seconds, half of them reports. Budget $8,000.',
       workload: { rps: 24_000, readRatio: 0.5, objectShare: 0 },
       goals: { ...WAVE, maxMonthlyCost: 8_000, spikeSeconds: 60 },
     },
