@@ -355,6 +355,17 @@ Known issues and deferred work, most valuable first.
   30% of control-plane requests to the artifact store although its text says bytes reach hosts through caches and peers.
   The share applies to reads and writes alike, so a mission cannot say "downloads are files, uploads are not".
 
+## Redesign
+
+On 2026-10-02 the owner approved `docs/REDESIGN.md` as proposed. It rebuilds the navigation around the rounds of an
+interview loop (Today, Coding, Design, Behavioral and Mock, with a left rail on desktop) and moves every interactive
+picture onto one shared kit, the Workbench language. It ships as 49 iterations, R0 to R48, in the order and with the
+dependencies of its section 5.1, each through the gates of its section 5.0. Until R16 has landed (navigation, Today and
+the hubs), it takes priority over the content ideas below; after that, content items may interleave with the remaining
+redesign iterations.
+
+Next: R0, the measurement baseline.
+
 ## Content ideas
 
 The owner's direction (2026-09-28): as much learning and practice content as possible across algorithms, system design and
