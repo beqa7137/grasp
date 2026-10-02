@@ -174,7 +174,7 @@ test.describe('on a first visit', () => {
   });
 });
 
-test('a visualizer checkpoint can be answered from the keyboard, with focus always in view', async ({ page }) => {
+test('a visualizer checkpoint can be answered from the keyboard, with focus always in view', { tag: '@player' }, async ({ page }) => {
   await page.goto('/visualize/binary-search');
   await page.getByRole('button', { name: 'Step forward' }).focus();
   await stepToCheckpoint(page, () => page.keyboard.press('Enter'));

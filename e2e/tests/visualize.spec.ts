@@ -25,7 +25,7 @@ async function answerCheckpoint(page: Page) {
   await sync;
 }
 
-test('predicting the next step of a visualizer counts toward mastery', { tag: '@smoke' }, async ({ page }) => {
+test('predicting the next step of a visualizer counts toward mastery', { tag: ['@smoke', '@player'] }, async ({ page }) => {
   await page.goto('/visualize');
   await page.getByRole('link', { name: /Binary Search easy/ }).click();
   await expect(page.getByRole('checkbox', { name: 'Predict mode' })).toBeChecked();
@@ -47,7 +47,7 @@ for (const title of VISUALIZER_TITLES) {
   });
 }
 
-test('the timeline steps forward and back', async ({ page }) => {
+test('the timeline steps forward and back', { tag: '@player' }, async ({ page }) => {
   await page.goto('/visualize/binary-search');
   await page.getByText('Predict mode').click();
   await expect(page.getByRole('checkbox', { name: 'Predict mode' })).not.toBeChecked();
@@ -57,55 +57,63 @@ test('the timeline steps forward and back', async ({ page }) => {
   await expect(page.getByText('1 / 13')).toBeVisible();
 });
 
-test('number keys answer only the page in view, not a checkpoint left open on the Visualize tab', async ({ page }) => {
-  await page.goto('/visualize/binary-search');
-  const player = page.locator('app-player');
-  await stepToCheckpoint(page);
+test(
+  'number keys answer only the page in view, not a checkpoint left open on the Visualize tab',
+  { tag: ['@nav', '@player'] },
+  async ({ page }) => {
+    await page.goto('/visualize/binary-search');
+    const player = page.locator('app-player');
+    await stepToCheckpoint(page);
 
-  await page.getByRole('tab', { name: 'Review' }).click();
-  const review = page.locator('app-drill');
-  await expect(review.locator('g-question-card .choice:enabled').first()).toBeVisible();
-  // Ionic hides the page it leaves only once the tab transition ends.
-  await expect(player).toBeHidden();
-  await page.keyboard.press('1');
-  await expect(review.locator('g-question-card .reveal')).toHaveCount(1);
-  expect((await recordedEvents(page)).map((e) => e.type)).not.toContain('predict.answered');
+    await page.getByRole('tab', { name: 'Review' }).click();
+    const review = page.locator('app-drill');
+    await expect(review.locator('g-question-card .choice:enabled').first()).toBeVisible();
+    // Ionic hides the page it leaves only once the tab transition ends.
+    await expect(player).toBeHidden();
+    await page.keyboard.press('1');
+    await expect(review.locator('g-question-card .reveal')).toHaveCount(1);
+    expect((await recordedEvents(page)).map((e) => e.type)).not.toContain('predict.answered');
 
-  // The hidden player does not re-render, so look for a stray answer only once it is back in view.
-  await page.getByRole('tab', { name: 'Visualize' }).click();
-  await expect(player.getByText('Your call')).toBeVisible();
-  await expect(player.locator('.predict .verdict')).toHaveCount(0);
-  const sync = synced(page, 'predict.answered');
-  await page.keyboard.press('1');
-  await expect(player.locator('.predict .verdict')).toHaveCount(1);
-  await sync;
-});
+    // The hidden player does not re-render, so look for a stray answer only once it is back in view.
+    await page.getByRole('tab', { name: 'Visualize' }).click();
+    await expect(player.getByText('Your call')).toBeVisible();
+    await expect(player.locator('.predict .verdict')).toHaveCount(0);
+    const sync = synced(page, 'predict.answered');
+    await page.keyboard.press('1');
+    await expect(player.locator('.predict .verdict')).toHaveCount(1);
+    await sync;
+  },
+);
 
-test('Step forward stays under the finger through every step and checkpoint, however far Continue was scrolled to', async ({ page }) => {
-  await page.goto('/visualize/dijkstra');
-  const player = page.locator('app-player');
-  const forward = player.getByRole('button', { name: 'Step forward' });
-  const count = player.locator('.scrub .count');
-  const prompt = player.getByText('Your call');
-  const total = await stepTotal(count);
-  const home = await viewportTop(forward);
-  let checkpoints = 0;
-  for (let step = 1; step < total; step = Number((await count.textContent())!.split('/')[0])) {
-    await forward.click();
-    await expect(count.filter({ hasText: new RegExp(`^\\s*${step + 1} /`) }).or(prompt)).toBeVisible();
-    if (await prompt.isVisible()) {
-      checkpoints++;
-      // On a phone the verdict and Continue end below the fold, so the clicks scroll to them as a finger would.
-      await player.locator('.predict .choice').first().click();
-      await player.getByRole('button', { name: 'Continue →' }).click();
-      await expect(prompt).toBeHidden();
+test(
+  'Step forward stays under the finger through every step and checkpoint, however far Continue was scrolled to',
+  { tag: '@player' },
+  async ({ page }) => {
+    await page.goto('/visualize/dijkstra');
+    const player = page.locator('app-player');
+    const forward = player.getByRole('button', { name: 'Step forward' });
+    const count = player.locator('.scrub .count');
+    const prompt = player.getByText('Your call');
+    const total = await stepTotal(count);
+    const home = await viewportTop(forward);
+    let checkpoints = 0;
+    for (let step = 1; step < total; step = Number((await count.textContent())!.split('/')[0])) {
+      await forward.click();
+      await expect(count.filter({ hasText: new RegExp(`^\\s*${step + 1} /`) }).or(prompt)).toBeVisible();
+      if (await prompt.isVisible()) {
+        checkpoints++;
+        // On a phone the verdict and Continue end below the fold, so the clicks scroll to them as a finger would.
+        await player.locator('.predict .choice').first().click();
+        await player.getByRole('button', { name: 'Continue →' }).click();
+        await expect(prompt).toBeHidden();
+      }
+      await expectUnmoved(forward, home, `Step forward after step ${step}`);
     }
-    await expectUnmoved(forward, home, `Step forward after step ${step}`);
-  }
-  expect(checkpoints).toBeGreaterThan(0);
-});
+    expect(checkpoints).toBeGreaterThan(0);
+  },
+);
 
-test('an answered checkpoint also continues from Step forward, which stays where it was tapped', async ({ page }) => {
+test('an answered checkpoint also continues from Step forward, which stays where it was tapped', { tag: '@player' }, async ({ page }) => {
   await page.goto('/visualize/binary-search');
   const forward = page.getByRole('button', { name: 'Step forward' });
   await stepToCheckpoint(page);
@@ -154,20 +162,21 @@ async function stepKeepingStill(page: Page, watched: Locator, name: string) {
   }
 }
 
-test('on a phone scrolled to the Code panel under the drawing, stepping from the keyboard leaves the panel where it is', async ({
-  page,
-  isMobile,
-}) => {
-  test.skip(!isMobile, 'The Code panel sits beside the drawing on a wide screen.');
-  await page.goto('/visualize/dijkstra');
-  const player = page.locator('app-player');
-  await player.getByText('Predict mode').click();
-  const panel = player.locator('.side .code');
-  await panel.evaluate((el) => el.scrollIntoView({ block: 'start' }));
-  // Just under the toolbar, with the end of the drawing above it still in view.
-  await player.locator('ion-content').evaluate((content) => content.shadowRoot!.querySelector('.inner-scroll')!.scrollBy(0, -40));
-  await stepKeepingStill(page, panel, 'the Code panel');
-});
+test(
+  'on a phone scrolled to the Code panel under the drawing, stepping from the keyboard leaves the panel where it is',
+  { tag: '@player' },
+  async ({ page, isMobile }) => {
+    test.skip(!isMobile, 'The Code panel sits beside the drawing on a wide screen.');
+    await page.goto('/visualize/dijkstra');
+    const player = page.locator('app-player');
+    await player.getByText('Predict mode').click();
+    const panel = player.locator('.side .code');
+    await panel.evaluate((el) => el.scrollIntoView({ block: 'start' }));
+    // Just under the toolbar, with the end of the drawing above it still in view.
+    await player.locator('ion-content').evaluate((content) => content.shadowRoot!.querySelector('.inner-scroll')!.scrollBy(0, -40));
+    await stepKeepingStill(page, panel, 'the Code panel');
+  },
+);
 
 // Beside the drawing, the Code panel does not move with it, so the page must not scroll by the drawing's change, and the page
 // end must not scroll back as the drawing shrinks. Under it, a panel changing height in the same step must not cut the scroll.

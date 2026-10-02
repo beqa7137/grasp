@@ -35,6 +35,8 @@ export default defineConfig({
     { name: 'phone', use: { ...devices['Pixel 7'], launchOptions: chromium } },
     // The iOS app runs in WKWebView, so its engine is checked on an iPhone.
     { name: 'iphone', use: { ...devices['iPhone 17'] } },
+    // Only when asked: iterations that touch navigation, the player or the Lab run their tagged tests on a tablet too.
+    ...(process.env.E2E_TABLET && !deployed ? [{ name: 'tablet', use: { ...devices['iPad Mini'] }, grep: /@nav|@player|@lab/ }] : []),
   ],
   webServer: deployed
     ? undefined
