@@ -17,7 +17,7 @@ async function seriousViolations(page: Page): Promise<string[]> {
 test.describe('in the dark theme', () => {
   test.use({ theme: 'dark' });
 
-  test('Attachments Everywhere opens from the list and is cleared by mouse with an object store', async ({ page }) => {
+  test('Attachments Everywhere opens from the list and is cleared by mouse with an object store', { tag: '@lab' }, async ({ page }) => {
     await page.goto('/design');
     const card = page.getByRole('link', { name: /^\d+ Attachments Everywhere/ });
     await expect(card).toContainText('50% files');
@@ -52,7 +52,7 @@ test.describe('in the dark theme', () => {
 test.describe('in the light theme', () => {
   test.use({ theme: 'light' });
 
-  test('Attachments Everywhere is cleared with the keyboard alone', async ({ page }) => {
+  test('Attachments Everywhere is cleared with the keyboard alone', { tag: '@lab' }, async ({ page }) => {
     await page.goto('/design/mail-attachments');
     const sidebar = page.locator('aside.sidebar');
     const press = async (control: Locator) => {
