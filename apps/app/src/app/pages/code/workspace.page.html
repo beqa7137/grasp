@@ -192,10 +192,9 @@
               }
             } @else {
               @if (!canTrace()) {
-                <p #traceNote class="muted hint" tabindex="-1">
-                  Trace steps through JavaScript or TypeScript code.
+                <p #traceNote class="muted hint trace-note" tabindex="-1">
+                  Trace steps through JavaScript or TypeScript code. Your Python draft stays saved.
                   <button class="g-btn ghost small-btn" (click)="setLanguage('javascript')">Switch to JavaScript</button>
-                  (your Python draft stays saved)
                 </p>
               } @else {
                 @if (p.examples.length > 1) {

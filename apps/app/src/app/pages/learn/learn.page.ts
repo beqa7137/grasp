@@ -68,6 +68,7 @@ export class LearnPage {
   readonly progress = inject(ProgressService);
   readonly auth = inject(AuthService);
   readonly diagnosticPrompt = inject(DiagnosticPromptService);
+  readonly menuOpen = signal(false);
   private readonly retryNotice = signal<string | null>(null);
   readonly retrying = computed(() => this.retryNotice() !== null);
   readonly showSyncNotice = computed(
@@ -162,13 +163,18 @@ export class LearnPage {
   }
 
   async openMenu(event: MouseEvent): Promise<void> {
+    // A double tap would otherwise stack a second menu that outlives the first one's choice.
+    if (this.menuOpen()) return;
+    this.menuOpen.set(true);
     const menu = await this.popovers.create({
       component: LearnMenuComponent,
       event,
-      htmlAttributes: { role: 'dialog', 'aria-label': 'More' },
+      htmlAttributes: { role: 'dialog', 'aria-label': 'More options' },
     });
     await menu.present();
+    menu.querySelector('button')?.focus();
     const { data } = await menu.onDidDismiss<LearnMenuChoice>();
+    this.menuOpen.set(false);
     if (data === 'plan') {
       void this.router.navigateByUrl('/plan');
     } else if (data === 'feedback') {

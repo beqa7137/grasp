@@ -110,7 +110,7 @@ test('a learner sets an interview date, follows today’s list, changes the roun
   await confirm.getByRole('button', { name: 'Clear plan' }).click();
   await clearing;
   await expect(plan.getByRole('heading', { name: 'Plan to your interview', level: 1 })).toBeFocused();
-  await expect(plan.getByRole('status')).toHaveText('Plan cleared.');
+  await expect(plan.getByRole('status')).toHaveText('Plan cleared. You can undo for 8 seconds.');
 
   const restoring = synced(page, 'plan.set');
   await plan.getByRole('button', { name: 'Undo' }).click();
@@ -122,7 +122,7 @@ test('a learner sets an interview date, follows today’s list, changes the roun
   await expect(today.getByRole('link', { name: /^Learn / })).toHaveCount(0);
 });
 
-test('a cleared plan stays cleared once its Undo has gone', async ({ page }) => {
+test('a cleared plan stays cleared once its Undo has gone, and focus on Undo moves to the heading', async ({ page }) => {
   await page.clock.install();
   await page.goto('/plan');
   const plan = page.locator('app-plan');
@@ -136,8 +136,10 @@ test('a cleared plan stays cleared once its Undo has gone', async ({ page }) => 
   const undo = plan.getByRole('button', { name: 'Undo' });
   await expect(undo).toBeVisible();
   await clearing;
+  await undo.focus();
   await page.clock.fastForward(8_000);
   await expect(undo).toBeHidden();
+  await expect(plan.getByRole('heading', { name: 'Plan to your interview', level: 1 })).toBeFocused();
 
   await page.reload();
   await expect(plan.getByRole('heading', { name: 'Plan to your interview', level: 1 })).toBeVisible();

@@ -49,7 +49,7 @@ import { RunnerService, type RunReport, type TestReport } from '../../code/runne
 import { toFrames, type TraceFrame } from '../../code/trace-frames';
 import { TracePlayerComponent } from '../../code/trace-player.component';
 import { exampleTree } from '../../code/tree-frames';
-import { refocusAfterRender } from '../../core/focus';
+import { refocus } from '../../core/focus';
 import { haptic } from '../../core/haptics';
 import { CODE_DRAFT_PREFIX } from '../../core/local-drafts';
 import { onPageKey } from '../../core/on-page-key';
@@ -60,6 +60,7 @@ import { CodeTextComponent } from '../../viz/code-text.component';
 import { TreeViewComponent } from '../../viz/tree-view.component';
 
 const LANGUAGE_KEY = 'grasp.code.language';
+const traceable = (language: Language): language is Exclude<Language, 'python'> => language !== 'python';
 const draftKey = (problemId: string, language: Language) => `${CODE_DRAFT_PREFIX}${problemId}.${language}`;
 const SUITE_SEED = 1;
 const PREVIEW_CHARS = 400;
@@ -124,7 +125,7 @@ export class WorkspacePage {
   readonly traceLine = signal<number | null>(null);
 
   readonly record = computed(() => this.progress.state().coding[this.id()]);
-  readonly canTrace = computed(() => this.language() !== 'python');
+  readonly canTrace = computed(() => traceable(this.language()));
   readonly focusTest = computed<TestReport | undefined>(() => this.report()?.tests.find((t) => t.status !== 'passed'));
   readonly allPassed = computed(() => {
     const r = this.report();
@@ -224,9 +225,15 @@ export class WorkspacePage {
     const language = this.language();
     if (!problem || this.running()) return;
     this.panel.set('trace');
-    if (language === 'python') {
-      refocusAfterRender(this.injector, () => this.traceNote()?.nativeElement, this.traceButton().nativeElement);
-      afterNextRender(() => this.traceNote()?.nativeElement.scrollIntoView({ block: 'nearest' }), { injector: this.injector });
+    if (!traceable(language)) {
+      afterNextRender(
+        () => {
+          const note = this.traceNote()?.nativeElement;
+          note?.scrollIntoView({ block: 'nearest' });
+          refocus(note, this.traceButton().nativeElement);
+        },
+        { injector: this.injector },
+      );
       return;
     }
     this.running.set('trace');

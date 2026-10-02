@@ -252,7 +252,7 @@ test('in Python, Trace explains itself and offers JavaScript, keeping the Python
   await expect(page.getByRole('tab', { name: 'Trace' })).toHaveAttribute('aria-selected', 'true');
   const note = page.locator('p', { hasText: 'Trace steps through JavaScript or TypeScript code.' });
   await expect(note).toBeFocused();
-  await expect(note).toContainText('(your Python draft stays saved)');
+  await expect(note).toContainText('Your Python draft stays saved.');
 
   await note.getByRole('button', { name: 'Switch to JavaScript' }).click();
   await expect(page.getByRole('radio', { name: 'JavaScript' })).toBeChecked();
