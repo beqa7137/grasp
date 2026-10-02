@@ -56,7 +56,7 @@ const rolloutDuration = item('How long a staged rollout takes', (rand) => {
   return {
     prompt: `A rollout of ${planText(s, run.canary, run.batch)} How long does it take if nothing goes wrong?`,
     ...withChoices(rand, right, others(right, wrong)),
-    explain: `Batches: ${run.waves.map((w) => `${num(Math.ceil(w.hosts / run.batch))} for ${num(w.hosts)} hosts`).join(', ')}, ${durationText(run.totalMin - bakes * s.bakeMin)} of updating; plus ${bakes} bakes of ${durationText(s.bakeMin)}: ${right}. Bake time is most of it, and it is what buys a small blast radius.`,
+    explain: `Batches: ${run.waves.map((w) => `${num(Math.ceil(w.hosts / run.batch))} for ${num(w.hosts)} hosts`).join(', ')}, ${durationText(run.totalMin - bakes * s.bakeMin)} of updating; plus ${bakes} bakes of ${durationText(s.bakeMin)}: ${right}. ${bakes * s.bakeMin > run.totalMin - bakes * s.bakeMin ? 'Bake time is most of it, and it is what buys a small blast radius.' : 'Updating is most of it: the cap on hosts out at once sets the pace.'}`,
   };
 });
 

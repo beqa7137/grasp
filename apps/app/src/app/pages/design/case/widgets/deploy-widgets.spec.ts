@@ -61,7 +61,7 @@ describe('rollout plan widget', () => {
     expect(el.querySelector('path.hosts')!.getAttribute('d')!.match(/V/g)).toHaveLength(21);
     expect(legend(el)).toEqual([
       'Hosts on the new build as planned, up to 2,000 (solid line)',
-      'Alarm (dashed line)',
+      'Alarm (dashed line): no batch starts from here',
       'Reached by the bad build (circle)',
     ]);
   });
@@ -147,6 +147,7 @@ describe('artifact distribution widget', () => {
       "Hosts' own links",
     ]);
     expect(el.querySelectorAll('.bar.slowest')).toHaveLength(1);
+    expect(el.querySelectorAll('.bar.thin:not(.slowest)')).toHaveLength(2);
     expect(el.querySelector('.tiers')!.getAttribute('aria-label')).toBe(
       "Time each tier needs: the origin's uplink 2 s, the regional caches' links 13 min 20 s, the hosts' own links 4 s; the bottleneck is the regional caches' links",
     );

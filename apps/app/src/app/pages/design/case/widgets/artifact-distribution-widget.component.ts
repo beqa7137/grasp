@@ -88,7 +88,9 @@ const ROW_TEXT: Record<Tier, string> = { origin: "Origin's uplink", caches: "Reg
           <div class="tier">
             <span class="name">{{ rowText[t.tier] }}{{ t.tier === run().bottleneck ? ', bottleneck' : '' }}</span>
             <span class="time mono">{{ span(t.seconds) }}</span>
-            <span class="track"><span class="bar" [class.slowest]="t.tier === run().bottleneck" [style.width.%]="t.width"></span></span>
+            <span class="track"
+              ><span class="bar" [class.slowest]="t.tier === run().bottleneck" [class.thin]="t.width < 2" [style.width.%]="t.width"></span
+            ></span>
           </div>
         }
       </div>
@@ -171,6 +173,10 @@ const ROW_TEXT: Record<Tier, string> = { origin: "Origin's uplink", caches: "Reg
       border-radius: 2px;
       &.slowest {
         background: var(--g-accent);
+      }
+      &.thin {
+        min-width: 6px;
+        border-width: 1px;
       }
     }
     .legend-list {

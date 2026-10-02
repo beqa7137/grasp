@@ -95,7 +95,7 @@ export const CODE_DEPLOYMENT: CaseStudy = {
       },
       points: [
         'Functional: build a commit into an artifact; deploy a chosen artifact to an environment (staging, then the production regions) with a rollout plan; watch health and halt or roll back automatically; roll back on demand; show who deployed what, where and when.',
-        'Safety: a bad release reaches a bounded slice, the canary, before the rest, and no rollout leaves the fleet partly broken: each one ends fully on the new release or fully back on the old, and one that cannot pages a person.',
+        'Safety: a bad release reaches a bounded slice, the canary, before the rest, and no rollout leaves the fleet partly broken: each one ends fully on the new release or fully back on the old, and one that cannot pages a person (hosts that cannot converge are drained and repaired, not left serving an old build).',
         'Rollback in minutes: the previous release stays on every host, so going back is a restart, with no build and no download.',
         'Auditability: every deploy records who, what (the artifact digest and its commit), where, when, the approvals and the outcome, in a log nobody can edit.',
         'Many teams at once: one service never waits for another, and only one rollout per service and environment runs at a time.',
@@ -119,7 +119,7 @@ export const CODE_DEPLOYMENT: CaseStudy = {
       points: [
         `${num(peakHour)} an hour is ${Number((peakHour / 3_600).toFixed(2))} a second, one every ${Number((3_600 / peakHour).toFixed(1))} s: the control plane's request rate is small.`,
         `Host updates: a service runs on ${num(INSTANCES_A_SERVICE)} servers on average (services share servers: ${num(instances)} instances on ${num(SERVERS)} servers, ${num(instances / SERVERS)} each), so the busiest hour updates ${num(peakHour * INSTANCES_A_SERVICE)} instances, ${num((peakHour * INSTANCES_A_SERVICE) / 3_600)} a second.`,
-        `Concurrency: a safe rollout takes hours (the rollout stage works one out at ${durationText(planned.totalMin)}), so if the busiest rate held that long, about ${num(inFlight)} rollouts would be in flight at once (Little's law: ${num(peakHour)} an hour × ${Number((planned.totalMin / 60).toFixed(2))} hours). Locks must be per service.`,
+        `Concurrency: a safe rollout takes hours (the rollout stage works one out at ${durationText(planned.totalMin)}), so up to about ${num(inFlight)} rollouts can be in flight at once at the busiest hour's rate (Little's law: ${num(peakHour)} an hour × ${Number((planned.totalMin / 60).toFixed(2))} hours). Locks must be per service.`,
         'The hard numbers are not requests but bytes and time, next.',
       ],
     },
@@ -183,7 +183,7 @@ export const CODE_DEPLOYMENT: CaseStudy = {
     {
       kind: 'data',
       title: 'Model deployments and locks',
-      prompt: `About ${num(inFlight)} rollouts can be in flight at once. Two engineers on one team, or an engineer and a pipeline, may start deploys of the same service within seconds of each other.`,
+      prompt: `Up to about ${num(inFlight)} rollouts can be in flight at once at the busiest hour's rate. Two engineers on one team, or an engineer and a pipeline, may start deploys of the same service within seconds of each other.`,
       decision: {
         question: 'What keeps two deploys of one service from fighting over its hosts?',
         options: [
@@ -260,10 +260,11 @@ export const CODE_DEPLOYMENT: CaseStudy = {
         "Hermetic: every input is declared and pinned (source, dependencies by digest, the toolchain itself), and build steps run sandboxed without the network, so the same inputs give the same output. Bazel, from Google's internal Blaze, works this way.",
         'Reproducible: stripping timestamps, file order and build paths from the outputs makes them bit-for-bit identical, so anyone can rebuild and compare digests (the Reproducible Builds project, `SOURCE_DATE_EPOCH`).',
         'Caching: each build step is keyed by a hash of its inputs and command; a key already in the shared cache reuses its output instead of rebuilding, so a one-line change rebuilds only what depends on it. Outputs are stored by the hash of their content.',
+        "In a monorepo, the build graph says which services a commit affects (Bazel's reverse-dependency queries), so only those are rebuilt and offered for deploy; a change to a widely used library is a deploy of hundreds of services and is rolled out by the same waves, service by service.",
         'Artifact store: each artifact is kept by digest and never changed; a name such as a release number is only a pointer to a digest, and moving it is recorded. Keep recent releases so a rollback never needs a rebuild, and collect what no environment has used for months.',
         "Signing and provenance: the build platform signs a provenance statement (source commit, build steps, dependencies) for each artifact, for example as an in-toto attestation, and the artifact itself, for example with Sigstore's cosign. SLSA 1.0's build track has levels: L1, provenance exists; L2, it is produced and signed by a hosted build platform; L3, that platform is hardened so one build cannot influence another or reach the signing keys.",
         'Admission: hosts refuse an artifact whose signature or provenance does not verify, or that was not built from the release branch by the build platform.',
-        'Secrets never go in the artifact, which is copied to every cache and host and kept for months. The service fetches them at start-up from a secrets manager under its own identity, so rotating a secret is a config change, not a rebuild.',
+        'Secrets never go in the artifact, which is copied to every cache and host and kept for months. The service fetches them at start-up from a secrets manager under its own identity, so rotating a secret is a config change, not a rebuild. Rotate with overlap: issue the new secret, let services pick it up (re-read on a timer or a watch, not only at start-up), confirm nothing uses the old one, then revoke it.',
       ],
     },
     {
@@ -343,7 +344,7 @@ export const CODE_DEPLOYMENT: CaseStudy = {
       },
       widget: 'rollout-plan',
       points: [
-        'Rolling update: replace hosts in batches while the rest serve. Kubernetes Deployments default to maxUnavailable 25% and maxSurge 25%; those are defaults, not rules, and a large service usually takes far smaller steps. Surge starts new hosts before stopping old ones, so capacity never drops, at the cost of spare machines.',
+        'Rolling update: replace hosts in batches while the rest serve. Kubernetes Deployments default to maxUnavailable 25% and maxSurge 25%; those are defaults, not rules, and a large service usually takes far smaller steps. With maxUnavailable 0 and a surge, new hosts start before old ones stop, so capacity never drops, at the cost of spare machines; with the defaults, up to 25% can be down at once.',
         'Blue-green: two full environments, and traffic switches from one to the other; rolling back is switching back. It suits small services and cut-overs, costs double capacity during the switch, and on its own exposes everyone at once, so pair it with a gradual traffic shift, which is a canary.',
         'Canary: a small slice runs the new build on real traffic beside a baseline; only a passing canary continues. Spinnaker (with Kayenta for the analysis) and Argo Rollouts automate this.',
         'Waves follow failure domains: a canary in one zone, then the rest of that zone, then one region, then the rest, so a bad build is contained by the same boundaries that contain hardware failures and never reaches every region at once.',
@@ -457,6 +458,7 @@ export const CODE_DEPLOYMENT: CaseStudy = {
         'Rolling back a data migration: data moves forward. A backfill is written to be rerunnable, and the way back is keeping the old column, and the code that reads it, until the new data has proven itself. Destructive steps (dropping a column, narrowing a type) come last, in their own release, after the rollback window.',
         'Large tables: online schema change tools such as gh-ost and pt-online-schema-change copy into a shadow table and swap, so an ALTER does not lock a busy table; backfills run in small, throttled batches.',
         'The same rule holds for APIs and messages: add fields, tolerate unknown ones, and remove one only after every reader has stopped using it (protobuf field numbers are never reused).',
+        "Dependencies between services: never require two services to deploy together. Make each change compatible in both directions so either can go first; when one must lead (a new API field), deploy the provider fully, then let the consumer's pipeline start, gated on the provider's rollout being complete, never on a shared timestamp.",
       ],
     },
     {
@@ -525,6 +527,7 @@ export const CODE_DEPLOYMENT: CaseStudy = {
       points: [
         'A bad deploy that passed its canary: the triggers halt it and roll back the waves it reached, the release is marked bad so no pipeline promotes it again, and the postmortem asks why the canary missed it (too little traffic, a missing metric, too short a bake).',
         'Rollback is fast because it is routine: the previous release is on every host, so it is a restart, and rollback paths are exercised regularly rather than first used on the worst day.',
+        'When rollback is unsafe (a contract step already ran, or the new build wrote data the old one cannot read), roll forward instead: a fix through the pre-approved fast plan. Decide which applies before the release, by keeping every release rollback-safe until its contract step.',
         'The control plane down mid-rollout: hosts keep their current release and the deployment resumes from its recorded state, as in the desired-state stage.',
         'A bad agent release can break deploys everywhere, so the agent goes out through the same canary and waves, and the previous agent can always roll it back.',
         "A leaked signing key: revoke it, rebuild and re-sign from source, and refuse artifacts signed only with the old key. Short-lived signing certificates, as in Sigstore's keyless signing, shrink the window.",

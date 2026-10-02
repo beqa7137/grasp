@@ -103,7 +103,7 @@ const BOTTOM = 92;
       </div>
       <ul class="legend-list" aria-hidden="true">
         <li><span class="swatch hosts"></span>Hosts on the new build as planned, up to {{ format(settings().fleet) }} (solid line)</li>
-        <li><span class="swatch alarm"></span>Alarm (dashed line)</li>
+        <li><span class="swatch alarm"></span>Alarm (dashed line): no batch starts from here</li>
         <li><span class="swatch exposed"></span>Reached by the bad build (circle)</li>
       </ul>
       <dl class="readouts">
