@@ -238,17 +238,15 @@
               </label>
               <label>
                 <span
-                  >Files
-                  <strong class="mono">{{
-                    workload().objectShare === undefined ? 'old rule' : (workload().objectShare! * 100 | number: '1.0-0') + '%'
-                  }}</strong></span
+                  >Files <strong class="mono">{{ objectShareLabel() }}</strong></span
                 >
                 <input
                   type="range"
                   min="0"
                   max="100"
                   step="1"
-                  [value]="(workload().objectShare ?? defaultObjectShare) * 100"
+                  [value]="objectShare() * 100"
+                  [attr.aria-valuetext]="objectShareLabel()"
                   (input)="setObjectShare(+$any($event.target).value)"
                 />
               </label>

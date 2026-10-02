@@ -17,7 +17,6 @@ import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, Io
 import { Preferences } from '@capacitor/preferences';
 import {
   COMPONENTS,
-  DEFAULT_OBJECT_SHARE,
   PALETTE,
   canConnect,
   createNode,
@@ -26,6 +25,7 @@ import {
   getCaseLab,
   getCaseSummary,
   getScenario,
+  legacyObjectShare,
   nameObjectShare,
   restoreBoard,
   scenarioVariant,
@@ -131,7 +131,6 @@ export class SandboxPage {
   readonly palette = PALETTE.map((k) => COMPONENTS[k]);
   readonly specs = COMPONENTS;
   readonly fmt = fmt;
-  readonly defaultObjectShare = DEFAULT_OBJECT_SHARE;
 
   /** A case study's reference build, opened as a free build under the load the case estimates. */
   protected readonly caseBuild = computed<Scenario | undefined>(() => {
@@ -162,6 +161,12 @@ export class SandboxPage {
   readonly design = signal<Design>({ nodes: [], edges: [] });
   readonly workload = signal<Workload>({ rps: 1000, readRatio: 0.9 });
   readonly result = computed(() => simulate(this.design(), this.workload()));
+  /** The share of files the board runs at: the one its workload names, or the one the old rule reads off its stores. */
+  readonly objectShare = computed(() => this.workload().objectShare ?? legacyObjectShare(this.design()));
+  readonly objectShareLabel = computed(() => {
+    const pct = `${Math.round(this.objectShare() * 100)}%`;
+    return this.workload().objectShare === undefined ? `old rule (${pct})` : pct;
+  });
   readonly checks = computed(() => {
     const s = this.scenario();
     return s && !this.isFree() ? evaluate(s, this.design(), this.result()) : [];

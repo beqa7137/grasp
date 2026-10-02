@@ -114,7 +114,10 @@ test('a free build sets the share of file requests in its workload, and an old b
   // A board saved before the workload named its share keeps the share on its store and the old rule, until the learner sets one.
   await page.goto('/design/free-build');
   const p99 = page.locator('.metric', { hasText: 'p99 latency' });
-  await expect(page.getByRole('slider', { name: 'Files old rule' })).toBeVisible();
+  // The control starts at the share the board runs at: the 70% saved on its store.
+  const oldRule = page.getByRole('slider', { name: 'Files old rule (70%)' });
+  await expect(oldRule).toHaveValue('70');
+  await expect(oldRule).toHaveAttribute('aria-valuetext', 'old rule (70%)');
   await expect(p99).toContainText('369');
   await files.fill('0');
   await expect(page.getByRole('slider', { name: 'Files 0%' })).toBeVisible();
@@ -125,7 +128,7 @@ test('a free build sets the share of file requests in its workload, and an old b
   await page.goto('/design/free-build?case=email-service');
   const saved = () => page.evaluate(() => localStorage.getItem('CapacitorStorage.grasp.design.case.email-service') ?? '');
   await expect.poll(saved).toContain('"design"');
-  await expect(page.getByRole('slider', { name: 'Files old rule' })).toHaveValue('30');
+  await expect(page.getByRole('slider', { name: 'Files old rule (30%)' })).toHaveValue('30');
   await page.getByRole('slider', { name: /^Files/ }).fill('30');
   await expect(page.getByRole('slider', { name: 'Files 30%' })).toBeVisible();
   await expect.poll(saved).toContain('"objectShare":0.3');

@@ -1,3 +1,4 @@
+import { DEFAULT_OBJECT_SHARE } from './object-share.js';
 import type { Design, Scenario, Workload } from './types.js';
 
 /** A Design Lab board as the app stores it between visits. */
@@ -29,4 +30,15 @@ export function nameObjectShare({ design, workload }: SavedDesign, objectShare: 
     design: legacy ? { ...design, nodes: design.nodes.map(({ share: _share, ...node }) => node) } : design,
     workload: { ...workload, objectShare },
   };
+}
+
+/** The share of files a board on the old rule runs at: the one its first app linked to a store sends its first store. */
+export function legacyObjectShare({ nodes, edges }: Design): number {
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  for (const app of nodes) {
+    if (app.kind !== 'app') continue;
+    const store = edges.map((e) => (e.from === app.id ? byId.get(e.to) : undefined)).find((n) => n?.kind === 'blob');
+    if (store) return store.share ?? DEFAULT_OBJECT_SHARE;
+  }
+  return DEFAULT_OBJECT_SHARE;
 }

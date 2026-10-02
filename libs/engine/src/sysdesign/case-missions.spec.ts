@@ -3,7 +3,8 @@ import { canConnect } from './catalog.js';
 import { CASE_LABS } from './cases/labs.js';
 import { CASE_MISSION_SOLUTIONS, stack, type Stack } from './designs.fixture.js';
 import { drainQueues } from './queue-drain.js';
-import { nameObjectShare, restoreBoard, type SavedDesign } from './saved-design.js';
+import { DEFAULT_OBJECT_SHARE } from './object-share.js';
+import { legacyObjectShare, nameObjectShare, restoreBoard, type SavedDesign } from './saved-design.js';
 import { evaluate, getScenario, scenarioVariant } from './scenarios.js';
 import { simulate } from './simulate.js';
 import type { ComponentKind, Design, DesignNode, Scenario } from './types.js';
@@ -261,6 +262,42 @@ describe('the object share in the workload', () => {
     expect(nameObjectShare(email, 0.3).design).toBe(email.design);
   });
 
+  it('starts the Files control at the share an old board runs at', () => {
+    const old = board(
+      [
+        ['users', 'client'],
+        ['lb', 'lb', 2],
+        ['app', 'app', 3],
+        ['db', 'db'],
+        ['blob', 'blob', 1, { share: 0.7 }],
+      ],
+      ['users>lb', 'lb>app', 'app>db', 'app>blob'],
+    );
+    const workload = { rps: 5_000, readRatio: 0.9 };
+    expect(legacyObjectShare(old)).toBe(0.7);
+    const named = nameObjectShare({ design: old, workload }, legacyObjectShare(old));
+    expect(run(named).edges['app->blob']).toBeCloseTo(simulate(old, workload).edges['app->blob']);
+
+    // The first app links no store, and the second links two: the old rule reads the first of them.
+    const twoApps = board(
+      [
+        ['front', 'app'],
+        ['users', 'client'],
+        ['app', 'app'],
+        ['db', 'db'],
+        ['blob', 'blob', 1, { share: 0.7 }],
+        ['second', 'blob', 1, { share: 0.2 }],
+      ],
+      ['users>front', 'users>app', 'front>db', 'app>second', 'app>blob', 'app>db'],
+    );
+    expect(legacyObjectShare(twoApps)).toBe(0.2);
+    const r = simulate(twoApps, { rps: 2_000, readRatio: 0.9 });
+    expect(r.edges['app->second'] + r.edges['app->blob']).toBeCloseTo(1_000 * 0.2);
+    expect(legacyObjectShare(legacyNode(CASE_LABS['file-sync'].design, 'blocks', 0.5))).toBe(0.5);
+    expect(legacyObjectShare(CASE_LABS['email-service'].design)).toBe(DEFAULT_OBJECT_SHARE);
+    expect(legacyObjectShare(appsOnly(2))).toBe(DEFAULT_OBJECT_SHARE);
+  });
+
   it('splits a board that names no share by instance count, as builds always have', () => {
     const { design, workload } = CASE_LABS['video-streaming'];
     const r = simulate(design, workload);
@@ -304,6 +341,25 @@ describe('the object share in the workload', () => {
       const objects = r.nodes['objects'];
       expect(objects.readRps + objects.writeRps + objects.backgroundRps, JSON.stringify(s)).toBeCloseTo(4_000);
     }
+  });
+
+  it('asks for no database when every request is a file and the workers write only to the store', () => {
+    const design = board(
+      [
+        ['users', 'client'],
+        ['lb1', 'lb', 1],
+        ['lb2', 'lb', 2],
+        ['app', 'app', 20],
+        ['db', 'db', 4],
+        ['queue', 'queue', 4],
+        ['worker', 'worker', 8],
+        ['store', 'blob'],
+      ],
+      ['users>lb1', 'users>lb2', 'lb1>app', 'lb2>app', 'app>db', 'app>queue', 'queue>worker', 'worker>store'],
+    );
+    const r = simulate(design, { rps: 1_000, readRatio: 0.3, objectShare: 1 });
+    expect(r.insights.map((i) => i.title)).not.toContain('Workers have no database for records');
+    expect(r.metrics.durableWriteRatio).toBeCloseTo(1);
   });
 });
 
@@ -403,7 +459,28 @@ describe('the drain does not depend on the order the board lists anything', () =
     }
   });
 
-  it('gives the same metrics for any order of nodes and links', () => {
+  it('lists insights in the order of the board, though workers are worked out last', () => {
+    const design = board(
+      [
+        ['users', 'client'],
+        ['limiter', 'limiter'],
+        ['lb', 'lb'],
+        ['app1', 'app'],
+        ['app2', 'app'],
+        ['cache', 'cache'],
+        ['store', 'blob', 1, { share: 0.3 }],
+        ['queue', 'queue'],
+        ['worker', 'worker'],
+      ],
+      ['users>limiter', 'users>app1', 'limiter>lb', 'lb>app2', 'app2>cache', 'app2>store', 'app1>queue', 'queue>worker'],
+    );
+    const titles = simulate(design, { rps: 2_000, readRatio: 0.5 }).insights.map((i) => i.title);
+    const workers = titles.indexOf('Workers have nowhere to write');
+    expect(workers).toBeGreaterThanOrEqual(0);
+    expect(workers).toBeLessThan(titles.indexOf('Cache has nowhere to send traffic'));
+  });
+
+  it('gives the same node loads, link loads and goal checks for any order of nodes and links', () => {
     let seed = 96;
     const shuffle = <T>(list: T[]) => {
       const out = [...list];
@@ -414,19 +491,90 @@ describe('the drain does not depend on the order the board lists anything', () =
       }
       return out;
     };
-    const boards = [
-      board(parts, ['app>q1', 'app>q2', ...links]),
-      board([...parts, ['idle', 'queue', 1], ['spare', 'worker', 1]], ['app>q1', 'app>q2', 'idle>wS', 'idle>spare', 'spare>db', ...links]),
-      ...Object.values(CASE_MISSION_SOLUTIONS),
+    const attachments = scenarioVariant('mail-attachments', 1)!;
+    const crossLinked = (first: string[]) => [...first, 'appA>qA', 'appB>qB', 'w1>db', 'w1>blob', 'w2>db'];
+    // Two app tiers whose queues carry different shares of files, each queue linked to both workers.
+    const g1 = (order: string[]) =>
+      board(
+        [
+          ['users', 'client'],
+          ['lb', 'lb', 2],
+          ['appA', 'app', 8],
+          ['appB', 'app', 2],
+          ['blob', 'blob'],
+          ['db', 'db', 2],
+          ['qA', 'queue'],
+          ['qB', 'queue'],
+          ['w1', 'worker', 2],
+          ['w2', 'worker', 1],
+        ],
+        ['users>lb', 'lb>appA', 'lb>appB', 'appA>blob', 'appA>db', 'appB>db', ...crossLinked(order)],
+      );
+    const g7 = (order: string[]) =>
+      board(
+        [
+          ['users', 'client'],
+          ['lb', 'lb', 1],
+          ['appA', 'app', 4],
+          ['appB', 'app', 6],
+          ['blob', 'blob'],
+          ['db', 'db', 2],
+          ['qA', 'queue'],
+          ['qB', 'queue'],
+          ['w1', 'worker', 1],
+          ['w2', 'worker', 3],
+        ],
+        ['users>lb', 'lb>appA', 'lb>appB', 'appB>blob', 'appA>db', 'appB>db', ...crossLinked(order)],
+      );
+    const orders = [
+      ['qA>w1', 'qA>w2', 'qB>w1', 'qB>w2'],
+      ['qA>w2', 'qA>w1', 'qB>w2', 'qB>w1'],
     ];
-    for (const design of boards) {
-      const base = simulate(design, writeWall.workload).metrics;
+    const boards: [Design, Scenario][] = [
+      [board(parts, ['app>q1', 'app>q2', ...links]), writeWall],
+      [
+        board(
+          [...parts, ['idle', 'queue', 1], ['spare', 'worker', 1]],
+          ['app>q1', 'app>q2', 'idle>wS', 'idle>spare', 'spare>db', ...links],
+        ),
+        writeWall,
+      ],
+      ...orders.flatMap((order): [Design, Scenario][] => [
+        [g1(order), attachments],
+        [g7(order), attachments],
+        [g1(order), { ...attachments, workload: { ...attachments.workload, objectShare: 0.5 } }],
+      ]),
+      ...Object.entries(CASE_MISSION_SOLUTIONS).map(([key, design]): [Design, Scenario] => {
+        const [id, v] = key.split(':');
+        return [design, v ? scenarioVariant(id, Number(v))! : getScenario(id)!];
+      }),
+    ];
+    const near = (a: unknown, b: unknown, path: string): void => {
+      if (typeof a === 'number' && typeof b === 'number') {
+        if (Number.isFinite(a)) expect(Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(a)), path).toBe(true);
+        else expect(b, path).toBe(a);
+      } else if (a && typeof a === 'object') {
+        expect(Object.keys(b as object).sort(), path).toEqual(Object.keys(a).sort());
+        for (const k of Object.keys(a)) near((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k], `${path}.${k}`);
+      } else expect(b, path).toEqual(a);
+    };
+    for (const [design, scenario] of boards) {
+      const base = simulate(design, scenario.workload);
+      const goals = evaluate(scenario, design, base).map((c) => [c.id, c.pass]);
       for (let k = 0; k < 6; k++) {
-        const m = simulate({ nodes: shuffle(design.nodes), edges: shuffle(design.edges) }, writeWall.workload).metrics;
-        for (const [name, value] of Object.entries(base))
-          if (Number.isFinite(value)) expect(m[name as keyof typeof m], name).toBeCloseTo(value as number, 6);
-          else expect(m[name as keyof typeof m], name).toBe(value);
+        const shuffled = { nodes: shuffle(design.nodes), edges: shuffle(design.edges) };
+        const r = simulate(shuffled, scenario.workload);
+        near(base.nodes, r.nodes, 'nodes');
+        near(base.edges, r.edges, 'edges');
+        near(base.metrics, r.metrics, 'metrics');
+        expect(evaluate(scenario, shuffled, r).map((c) => [c.id, c.pass])).toEqual(goals);
       }
+    }
+    for (const make of [g1, g7]) {
+      const [first, second] = orders.map((order) => simulate(make(order), attachments.workload));
+      near(first.nodes, second.nodes, 'nodes');
+      near(first.edges, second.edges, 'edges');
+      expect(first.edges['qA->w2'] ?? 0).toBeGreaterThan(0);
     }
   });
 });
@@ -462,8 +610,8 @@ describe('a replica copies one database', () => {
   });
 });
 
-describe('the Reconnect Storm takeaway', () => {
-  it('holds on every revisit: it never claims a second primary or worker that a revisit does not need', () => {
+describe('the takeaways hold on every revisit', () => {
+  it('Reconnect Storm never claims a second primary or worker that a revisit does not need', () => {
     for (const v of [1, 2, 3]) {
       const revisit = scenarioVariant('reconnect-storm', v)!;
       const reference = CASE_MISSION_SOLUTIONS[`reconnect-storm:${v}`];
@@ -473,5 +621,29 @@ describe('the Reconnect Storm takeaway', () => {
       expect(revisit.hints).toEqual([]);
     }
     expect(getScenario('reconnect-storm')!.hints.join(' ')).toMatch(/1,850/);
+  });
+
+  it('Attachments Everywhere sizes the shards by the share of files, which every revisit changes', () => {
+    const versions = everyVersion('mail-attachments');
+    expect(versions.map((s) => s.workload.objectShare)).toEqual([0.5, 0.7, 0.5, 0.3]);
+    for (const s of versions) expect(s.takeaway, s.title).not.toMatch(/\b(half|here)\b/i);
+    expect(versions[0].hints[2]).toMatch(/3,500 are records.*7,000 ops.*two shards, against four/);
+  });
+
+  it('Month-End Ledger states no number a revisit could change', () => {
+    for (const s of everyVersion('ledger-month-end')) expect(s.takeaway, s.title).not.toMatch(/\d/);
+  });
+});
+
+describe('every Reconnect Storm names the outage its reports come from', () => {
+  it('has each agent send about 1.44 reports for every minute the control plane was down', () => {
+    const agents = 50_000;
+    const outages = [20, 10, 17, 15];
+    everyVersion('reconnect-storm').forEach((s, i) => {
+      const minutes = outages[i];
+      expect(s.brief, s.title).toMatch(new RegExp(`\\b${minutes}[ -]minute`));
+      const perAgent = (s.workload.rps * (1 - s.workload.readRatio) * s.goals.spikeSeconds!) / agents;
+      expect(Math.abs(perAgent / minutes / 1.44 - 1), `${s.title}: ${perAgent} reports per agent`).toBeLessThan(0.025);
+    });
   });
 });
