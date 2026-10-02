@@ -169,6 +169,13 @@ export const CASE_BRIEFS: readonly CaseBrief[] = [
     summary:
       'Local evaluation from cached rulesets, consistent bucketing by hash, streaming versus polling with CDN snapshots, guarded rollouts, approvals, flag debt and failure modes.',
   },
+  {
+    id: 'code-deployment',
+    question:
+      'Design an internal system that builds code and safely rolls it out to 50,000 servers in 5 regions, for 2,000 services deploying several times a day, like Spinnaker or Argo Rollouts.',
+    summary:
+      'Hermetic, signed builds named by digest, regional caches and peer-to-peer distribution, canaries with automated analysis, waves and bake time, automatic rollback, desired state with idempotent agents, and expand-and-contract schema changes.',
+  },
 ];
 
 export function getCaseBrief(id: string): CaseBrief | undefined {

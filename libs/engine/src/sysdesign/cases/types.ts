@@ -22,7 +22,17 @@ export interface CaseEstimate {
 
 /** A model the learner runs inside a stage, opened once the stage's decision and estimate are answered. */
 export type CaseWidget =
-  'retries' | 'hot-account' | 'reconcile' | 'bucketing' | 'propagation' | 'cells' | 'quadtree' | 'smtp-retry' | 'mail-storage';
+  | 'retries'
+  | 'hot-account'
+  | 'reconcile'
+  | 'bucketing'
+  | 'propagation'
+  | 'cells'
+  | 'quadtree'
+  | 'smtp-retry'
+  | 'mail-storage'
+  | 'artifact-distribution'
+  | 'rollout-plan';
 
 export type CaseStageKind = 'requirements' | 'estimation' | 'api' | 'data' | 'design' | 'deep-dive' | 'wrap-up';
 

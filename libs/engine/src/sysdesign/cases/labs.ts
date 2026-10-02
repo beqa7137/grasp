@@ -439,6 +439,27 @@ export const CASE_LABS: Record<string, CaseLab> = {
       edges: [...chain('sdks', 'lb', 'eval', 'cache', 'db', 'replica'), ...chain('eval', 'queue', 'worker', 'db')],
     },
   },
+  'code-deployment': {
+    workload: { rps: 2_500, readRatio: 0.66 },
+    design: {
+      nodes: [
+        n('agents', 'client', 70, 240, 1, { label: 'Host agents' }),
+        n('lb', 'lb', 240, 240, 2),
+        n('api', 'app', 410, 240, 4, { label: 'Control plane' }),
+        n('cache', 'cache', 580, 100, 2, { hitRate: 0.95, label: 'Desired state' }),
+        n('blob', 'blob', 410, 400, 1, { label: 'Artifact store' }),
+        n('queue', 'queue', 580, 380, 2, { label: 'Host reports' }),
+        n('worker', 'worker', 760, 380, 2, { label: 'Rollout analysis' }),
+        n('db', 'db', 760, 240, 1, { label: 'Deploy store' }),
+        n('replica', 'replica', 760, 100, 2),
+      ],
+      edges: [
+        ...chain('agents', 'lb', 'api', 'cache', 'db', 'replica'),
+        ...chain('api', 'queue', 'worker', 'db'),
+        { from: 'api', to: 'blob' },
+      ],
+    },
+  },
 };
 
 export function getCaseLab(id: string): CaseLab | undefined {

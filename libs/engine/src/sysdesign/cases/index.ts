@@ -20,6 +20,7 @@ import { WEB_CRAWLER } from './web-crawler.js';
 import { NOTIFICATIONS } from './notifications.js';
 import { EMAIL_SERVICE } from './email-service.js';
 import { CHAT } from './chat.js';
+import { CODE_DEPLOYMENT } from './code-deployment.js';
 import { TYPEAHEAD } from './typeahead.js';
 import { RATE_LIMITER } from './rate-limiter.js';
 import { NEWS_FEED } from './news-feed.js';
@@ -27,6 +28,7 @@ import type { CaseStudy } from './types.js';
 import { URL_SHORTENER } from './url-shortener.js';
 
 export type { CaseDecision, CaseEstimate, CaseOption, CaseStage, CaseStageKind, CaseStudy, CaseWidget } from './types.js';
+export * from './deploy/index.js';
 export * from './email/index.js';
 export * from './estimate.js';
 export * from './flags/index.js';
@@ -64,6 +66,7 @@ export const CASE_STUDIES: readonly CaseStudy[] = [
   STOCK_EXCHANGE,
   MESSAGE_QUEUE,
   FEATURE_FLAGS,
+  CODE_DEPLOYMENT,
 ];
 
 export function getCaseStudy(id: string): CaseStudy | undefined {

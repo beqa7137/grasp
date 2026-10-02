@@ -40,6 +40,7 @@ const CASE_ANSWERS = {
   'feature-flags': { guesses: { 1: '5M', 2: '667' }, decided: [0, 3, 4, 6, 7, 8, 9, 10, 11, 12] },
   'proximity-service': { guesses: { 1: '17k', 2: '200' }, decided: [0, 3, 4, 6, 7, 8, 9, 10, 11, 12] },
   'email-service': { guesses: { 1: '463k', 2: '518' }, decided: [0, 3, 4, 6, 7, 8, 9, 10, 11, 12] },
+  'code-deployment': { guesses: { 1: '1000', 2: '133', 8: '225' }, decided: [0, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13] },
 };
 
 /** A case answered up to `reached`, its decisions as recommended, so the stage there shows its model. */
@@ -48,9 +49,10 @@ const answeredDraft = (id, reached) => {
   return {
     attempt: `audit-${id}-${reached}`,
     reached,
-    stages: Array.from({ length: reached + 1 }, (_, i) =>
-      i in guesses ? { guess: guesses[i] } : decided.includes(i) ? { chosen: recommended(id, i) } : {},
-    ),
+    stages: Array.from({ length: reached + 1 }, (_, i) => ({
+      ...(i in guesses ? { guess: guesses[i] } : {}),
+      ...(decided.includes(i) ? { chosen: recommended(id, i) } : {}),
+    })),
   };
 };
 
@@ -182,6 +184,22 @@ export function designStates() {
       id: 'case-email-service-storage',
       path: '/design/case/email-service',
       setup: caseWidget('email-service', 8, 'app-mail-storage-widget', (m) =>
+        m.locator('app-widget-check fieldset button').first().click(),
+      ),
+    },
+    { id: 'case-code-deployment', path: '/design/case/code-deployment' },
+    { id: 'case-build-code-deployment', path: '/design/free-build?case=code-deployment' },
+    {
+      id: 'case-code-deployment-distribution',
+      path: '/design/case/code-deployment',
+      setup: caseWidget('code-deployment', 7, 'app-artifact-distribution-widget', (m) =>
+        m.locator('app-widget-check fieldset button').first().click(),
+      ),
+    },
+    {
+      id: 'case-code-deployment-rollout',
+      path: '/design/case/code-deployment',
+      setup: caseWidget('code-deployment', 8, 'app-rollout-plan-widget', (m) =>
         m.locator('app-widget-check fieldset button').first().click(),
       ),
     },

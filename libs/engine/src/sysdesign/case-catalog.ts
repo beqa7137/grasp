@@ -156,6 +156,13 @@ export const CASE_CATALOG: readonly CaseSummary[] = [
     stages: 14,
     topics: ['sd-realtime', 'sd-consistency', 'sd-reliability', 'sd-cdn'],
   },
+  {
+    id: 'code-deployment',
+    title: 'Code Deployment System',
+    level: 'advanced',
+    stages: 15,
+    topics: ['sd-reliability', 'sd-observability', 'sd-cdn', 'sd-consistency'],
+  },
 ];
 
 export function getCaseSummary(id: string): CaseSummary | undefined {

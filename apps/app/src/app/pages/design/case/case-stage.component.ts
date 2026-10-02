@@ -29,6 +29,7 @@ import { arrowForward, checkmarkCircle, closeCircle, constructOutline } from 'io
 import { refocus, refocusAfterRender } from '../../../core/focus';
 import { answerMark } from '../../../review/answer-mark';
 import { CodeTextComponent } from '../../../viz/code-text.component';
+import { ArtifactDistributionWidgetComponent } from './widgets/artifact-distribution-widget.component';
 import { BucketingWidgetComponent } from './widgets/bucketing-widget.component';
 import { CellsWidgetComponent } from './widgets/cells-widget.component';
 import { HotAccountWidgetComponent } from './widgets/hot-account-widget.component';
@@ -37,6 +38,7 @@ import { PropagationWidgetComponent } from './widgets/propagation-widget.compone
 import { QuadtreeWidgetComponent } from './widgets/quadtree-widget.component';
 import { ReconcileWidgetComponent } from './widgets/reconcile-widget.component';
 import { RetryWidgetComponent } from './widgets/retry-widget.component';
+import { RolloutPlanWidgetComponent } from './widgets/rollout-plan-widget.component';
 import { SmtpRetryWidgetComponent } from './widgets/smtp-retry-widget.component';
 
 const VERDICTS = {
@@ -55,6 +57,8 @@ const WIDGET_TITLES: Record<CaseWidget, string> = {
   quadtree: 'Try it: build a quadtree over 10,000 places',
   'smtp-retry': 'Try it: retry a message through an outage',
   'mail-storage': 'Try it: store a year of mail',
+  'artifact-distribution': 'Try it: get a release to every server',
+  'rollout-plan': 'Try it: roll a bad build out in waves',
 };
 
 /** One interview stage: commit to a decision or an estimate first, then reveal the model answer a point at a time. */
@@ -75,6 +79,8 @@ const WIDGET_TITLES: Record<CaseWidget, string> = {
     QuadtreeWidgetComponent,
     SmtpRetryWidgetComponent,
     MailStorageWidgetComponent,
+    ArtifactDistributionWidgetComponent,
+    RolloutPlanWidgetComponent,
   ],
   template: `
     @let s = stage();
@@ -174,6 +180,12 @@ const WIDGET_TITLES: Record<CaseWidget, string> = {
           }
           @case ('mail-storage') {
             <app-mail-storage-widget />
+          }
+          @case ('artifact-distribution') {
+            <app-artifact-distribution-widget />
+          }
+          @case ('rollout-plan') {
+            <app-rollout-plan-widget />
           }
         }
       </section>
