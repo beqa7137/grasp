@@ -15,6 +15,8 @@ const TAPS = [
   { name: 'visualize', selector: 'ion-tab-button[tab="visualize"]', heading: 'Watch the algorithm think.' },
   { name: 'design', selector: 'ion-tab-button[tab="design"]', heading: 'Build it. Load it. Break it.' },
   { name: 'pattern', selector: 'a.pattern[href="/learn/pattern/two-pointers"]', heading: 'Two Pointers' },
+  // A fresh learner's next visualizer. The heading alone can show before the stage, so the player counts once it is drawn.
+  { name: 'player', selector: 'a.tile.viz', heading: 'Binary Search', ready: 'app-player .scene .viz > *' },
 ];
 const headingVisible = (text) =>
   [...document.querySelectorAll('.ion-page:not(.ion-page-hidden) h1')].some(
@@ -40,6 +42,12 @@ async function once(browser, url, tap) {
     return at;
   }, tap.selector);
   await page.waitForFunction(headingVisible, tap.heading, { timeout: 120_000, polling: 50 });
+  if (tap.ready) {
+    await page.waitForFunction((selector) => document.querySelector(selector)?.getBoundingClientRect().height > 0, tap.ready, {
+      timeout: 120_000,
+      polling: 50,
+    });
+  }
   const shown = await page.evaluate(() => performance.now());
   await context.close();
   return { learn, tap: shown - tappedAt, fromLoad: shown };

@@ -96,11 +96,15 @@ const curveAt = (start: Point, control: Point, end: Point, t: number): Point => 
     NODE_STYLES,
     `
       :host {
-        display: block;
+        display: flex;
+        flex-direction: column;
         width: 100%;
       }
+      /* Shrinks to the height its host is given, such as the player's stage; the viewBox scales the drawing to match. */
       svg {
         display: block;
+        flex: 0 1 auto;
+        min-height: 0;
         width: 100%;
         max-width: 460px;
         margin: 0 auto;

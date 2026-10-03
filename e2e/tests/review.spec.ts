@@ -47,3 +47,33 @@ test('practice goes back to its lesson, and the Review tab root has no back butt
   await back.click();
   await expect(page).toHaveURL(/\/learn\/design\/sd-latency$/);
 });
+
+test('on a phone an answered card shows its rating buttons above the tab bar without scrolling', async ({ page, isMobile }) => {
+  test.skip(!isMobile, 'The rating bar sticks only under 1024px.');
+  for (const size of [page.viewportSize()!, { width: 320, height: 700 }]) {
+    await page.setViewportSize(size);
+    await page.goto('/drill');
+    await page.locator('g-question-card .choice').first().click();
+    await expect(page.getByRole('button', { name: /^(Got it|Continue)/ })).toBeVisible();
+    const placed = await page.locator('app-drill').evaluate((drill) => {
+      const tabs = document.querySelector('ion-tab-bar')!.getBoundingClientRect();
+      const header = drill.querySelector('ion-header')!.getBoundingClientRect();
+      const scroller = drill.querySelector('ion-content')!.shadowRoot!.querySelector('.inner-scroll')!;
+      const buttons = [...drill.querySelectorAll('.actions button')].map((b) => b.getBoundingClientRect());
+      return {
+        scrollTop: scroller.scrollTop,
+        shown: buttons.length > 0 && buttons.every((b) => b.top >= header.bottom && b.bottom <= tabs.top + 0.5),
+      };
+    });
+    expect(placed, `at ${size.width}×${size.height}`).toEqual({ scrollTop: 0, shown: true });
+  }
+});
+
+test('at 400% zoom the rating buttons stay in the flow, so they never cover the card', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 256 });
+  await page.goto('/drill');
+  await page.locator('g-question-card .choice').first().click();
+  const actions = page.locator('app-drill .actions');
+  await expect(actions).toBeVisible();
+  expect(await actions.evaluate((el) => getComputedStyle(el).position)).toBe('static');
+});

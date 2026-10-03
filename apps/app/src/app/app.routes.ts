@@ -28,6 +28,7 @@ export const routes: Routes = [
       },
       {
         path: 'visualize/:id',
+        data: { focus: true },
         title: (route) => titles().then((t) => t.algorithmTitle(route)),
         loadComponent: () => withTitles(import('./pages/visualize/player.page')).then((m) => m.PlayerPage),
       },

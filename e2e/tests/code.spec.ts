@@ -634,6 +634,7 @@ test('Trace draws a grid input as a grid, with the cell (r, c) points at and the
 
 test('the tree visualizer leads to its coding problem', async ({ page }) => {
   await page.goto('/visualize/tree-traversal');
+  await page.getByRole('button', { name: 'About this visualizer' }).click();
   await page.getByRole('link', { name: /Now write it yourself: Diameter of Binary Tree/ }).click();
   await expect(page).toHaveURL(/\/code\/tree-diameter$/);
   await expect(page.getByRole('textbox', { name: 'Diameter of Binary Tree solution' })).toBeVisible();

@@ -3,7 +3,6 @@ import {
   Component,
   DestroyRef,
   ElementRef,
-  afterNextRender,
   afterRenderEffect,
   computed,
   effect,
@@ -14,8 +13,8 @@ import {
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
-import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
+import { Router, RouterLink } from '@angular/router';
+import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar, PopoverController } from '@ionic/angular';
 import {
   CODING_CATALOG,
   InputError,
@@ -33,6 +32,7 @@ import {
   codeSlashOutline,
   diceOutline,
   helpCircleOutline,
+  informationCircleOutline,
   pause,
   play,
   playSkipBack,
@@ -40,8 +40,8 @@ import {
   refresh,
   sparkles,
 } from 'ionicons/icons';
-import { byPointer, refocus } from '../../core/focus';
-import { HoldHeightDirective } from '../../core/hold-height.directive';
+import { AnnouncerService } from '../../core/announcer.service';
+import { refocus } from '../../core/focus';
 import { haptic } from '../../core/haptics';
 import { onPageKey } from '../../core/on-page-key';
 import { ProgressService } from '../../core/progress.service';
@@ -55,6 +55,8 @@ import { GridViewComponent } from '../../viz/grid-view.component';
 import { ListViewComponent } from '../../viz/list-view.component';
 import { TableViewComponent } from '../../viz/table-view.component';
 import { TreeViewComponent, sideRoomFor } from '../../viz/tree-view.component';
+import { firstSentence } from './first-sentence';
+import { PlayerIntroComponent, type PlayerIntroChoice } from './player-intro.component';
 
 type PredictState = { frame: number; choice: number | null };
 
@@ -65,8 +67,7 @@ function alignedRow(f: Frame | undefined): AlignedRow | null {
 }
 
 const SPEEDS = [0.5, 1, 2, 4];
-/** How much of a focused verdict or narration, in px, must show for the learner to see where focus is. */
-const MIN_SHOWN = 16;
+const STEP_KEYS = new Set(['ArrowLeft', 'ArrowRight', ' ']);
 
 @Component({
   selector: 'app-player',
@@ -81,7 +82,6 @@ const MIN_SHOWN = 16;
     IonTitle,
     IonContent,
     IonIcon,
-    HoldHeightDirective,
     ArrayViewComponent,
     GridViewComponent,
     TableViewComponent,
@@ -93,6 +93,7 @@ const MIN_SHOWN = 16;
   ],
   templateUrl: './player.page.html',
   styleUrl: './player.page.scss',
+  providers: [AnnouncerService],
 })
 export class PlayerPage {
   readonly id = input.required<string>();
@@ -109,13 +110,18 @@ export class PlayerPage {
   });
   private readonly progress = inject(ProgressService);
   readonly shortcuts = inject(ShortcutsService);
+  readonly announcer = inject(AnnouncerService);
+  private readonly popovers = inject(PopoverController);
+  private readonly router = inject(Router);
   protected readonly answerMark = answerMark;
+  protected readonly firstSentence = firstSentence;
   private readonly predictPanel = viewChild<ElementRef<HTMLElement>>('predictPanel');
   private readonly predictPrompt = viewChild<ElementRef<HTMLElement>>('predictPrompt');
   private readonly verdict = viewChild<ElementRef<HTMLElement>>('verdict');
   private readonly narration = viewChild<ElementRef<HTMLElement>>('narration');
-  private readonly controls = viewChild<ElementRef<HTMLElement>>('controls');
-  private readonly content = viewChild.required(IonContent);
+  private readonly layout = viewChild<ElementRef<HTMLElement>>('layout');
+  private readonly panelCol = viewChild<ElementRef<HTMLElement>>('panelCol');
+  private readonly about = viewChild<ElementRef<HTMLElement>>('about');
 
   readonly algo = computed(() => getAlgorithm(this.id()) as AlgorithmDef | undefined);
   readonly problem = computed(() => CODING_CATALOG.find((p) => p.algorithmId === this.id()));
@@ -145,6 +151,10 @@ export class PlayerPage {
   readonly speedIndex = signal(1);
   readonly speed = computed(() => SPEEDS[this.speedIndex()]);
 
+  readonly introOpen = signal(false);
+  /** Off for the render after Continue moves focus to the narration, which then reads it, so it is not read twice. */
+  readonly quietNarration = signal(false);
+
   readonly predictMode = signal(true);
   readonly pending = signal<PredictState | null>(null);
   readonly answered = signal(new Map<number, boolean>());
@@ -163,11 +173,7 @@ export class PlayerPage {
   readonly result = computed(() => (this.index() === this.last() ? this.frame()?.vars['result'] : undefined));
 
   private timer: ReturnType<typeof setInterval> | undefined;
-  private scroller: HTMLElement | undefined;
   private shownPending: PredictState | null = null;
-  /** Where the page was scrolled and the controls sat when the open checkpoint appeared, for Continue to return to. */
-  private checkpointStart = { scrollTop: 0, controlsTop: 0 };
-  private continued = false;
 
   constructor() {
     addIcons({
@@ -181,11 +187,8 @@ export class PlayerPage {
       checkmarkCircle,
       closeCircle,
       helpCircleOutline,
+      informationCircleOutline,
       codeSlashOutline,
-    });
-
-    afterNextRender(async () => {
-      this.scroller = await this.content().getScrollElement();
     });
 
     effect(() => {
@@ -204,21 +207,22 @@ export class PlayerPage {
       this.timer = setInterval(() => this.next(), 1100 / this.speed());
     });
 
-    // A checkpoint takes over the playback controls, answering disables its choices and continuing removes it, so focus
-    // follows each change instead of falling back to the top of the page or staying on a control that no longer plays.
+    // A checkpoint opens in the dock, answering disables its choices and continuing removes it, so focus follows each change
+    // instead of falling back to the top of the page. Only the dock scrolls, so the stage and the transport never move.
     afterRenderEffect(() => {
       const p = this.pending();
       const before = this.shownPending;
       this.shownPending = p;
       if (p === before) return;
-      if (!p) {
-        this.returnAfterContinue();
-        refocus(this.narration()?.nativeElement, null, (el) => this.reveal(el));
-      } else if (p.choice === null) refocus(this.predictPrompt()?.nativeElement, this.controls()?.nativeElement);
-      else {
-        // Revealed after a tap as well as a key press, so focusing it must not scroll again.
+      if (!p) refocus(this.narration()?.nativeElement);
+      else if (p.choice === null) {
+        this.panelCol()?.nativeElement.scrollTo({ top: 0 });
+        refocus(this.predictPrompt()?.nativeElement, this.layout()?.nativeElement);
+      } else {
+        // Shown after a tap as well as a key press. It stops at the verdict, never at Continue below it, so a second tap
+        // on an answer cannot land on Continue.
         const verdict = this.verdict()?.nativeElement;
-        this.reveal(verdict);
+        verdict?.scrollIntoView({ block: 'nearest' });
         refocus(verdict, this.predictPanel()?.nativeElement, () => undefined);
       }
     });
@@ -256,6 +260,7 @@ export class PlayerPage {
   }
 
   reset() {
+    this.quietNarration.set(false);
     this.playing.set(false);
     this.pending.set(null);
     this.answered.set(new Map());
@@ -263,6 +268,7 @@ export class PlayerPage {
   }
 
   next() {
+    this.quietNarration.set(false);
     const p = this.pending();
     if (p) {
       if (p.choice !== null) this.leaveCheckpoint(p);
@@ -272,7 +278,6 @@ export class PlayerPage {
     const f = this.frames()[i];
     if (this.predictMode() && f?.predict && !this.answered().has(i)) {
       this.playing.set(false);
-      this.rememberCheckpointStart();
       this.pending.set({ frame: i, choice: null });
       return;
     }
@@ -284,17 +289,28 @@ export class PlayerPage {
   }
 
   prev() {
+    this.quietNarration.set(false);
     this.pending.set(null);
     this.index.update((i) => Math.max(0, i - 1));
   }
 
   seek(value: number) {
+    this.quietNarration.set(false);
     this.pending.set(null);
     this.index.set(Math.round(value));
   }
 
   togglePlay() {
-    if (this.pending()) return;
+    const open = this.pending();
+    if (open?.choice === null) {
+      this.predictPrompt()?.nativeElement.focus();
+      this.announcer.announce('Answer the question to continue.');
+      return;
+    }
+    if (open) {
+      this.continueAfterPredict();
+      return;
+    }
     if (this.index() >= this.last()) this.reset();
     this.playing.update((p) => !p);
   }
@@ -318,7 +334,8 @@ export class PlayerPage {
   continueAfterPredict() {
     const p = this.pending();
     if (!p || p.choice === null) return;
-    this.continued = true;
+    const active = document.activeElement;
+    this.quietNarration.set(!active || active === document.body || !!this.predictPanel()?.nativeElement.contains(active));
     this.leaveCheckpoint(p);
   }
 
@@ -327,42 +344,24 @@ export class PlayerPage {
     this.index.set(Math.min(this.last(), p.frame + 1));
   }
 
-  // Scrolls el into view only as far as keeps the controls on screen, unless a key press moved focus to it and that would
-  // leave it hidden but for a sliver, as in a short window or at high zoom: its focus must show, so then it is shown from its
-  // top instead. It stops at el, never at Continue below it, so a second tap on an answer cannot land on Continue.
-  private reveal(el: Element | undefined) {
-    const scroller = this.scroller;
-    const controls = this.controls()?.nativeElement;
-    if (!scroller || !el || !controls) return;
-    const view = scroller.getBoundingClientRect();
-    const padding = getComputedStyle(scroller);
-    const visibleTop = view.top + parseFloat(padding.scrollPaddingTop);
-    const visibleBottom = view.bottom - parseFloat(padding.scrollPaddingBottom);
-    const box = el.getBoundingClientRect();
-    const below = box.bottom - visibleBottom;
-    const kept = Math.max(0, Math.min(below, controls.getBoundingClientRect().top - visibleTop));
-    const shown = visibleBottom - (box.top - kept);
-    const by = byPointer() || shown >= Math.min(box.height, MIN_SHOWN) ? kept : Math.min(below, box.top - visibleTop);
-    if (by >= 1) scroller.scrollBy({ top: by, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
-  }
-
-  private rememberCheckpointStart() {
-    this.checkpointStart = {
-      scrollTop: this.scroller?.scrollTop ?? 0,
-      controlsTop: this.controls()?.nativeElement.getBoundingClientRect().top ?? 0,
-    };
-  }
-
-  // Puts Step forward back where it was when the checkpoint opened. Restoring the scroll position, not the distance, also
-  // brings back a sticky stage. Only Continue returns; Step forward continues where it was tapped.
-  private returnAfterContinue() {
-    if (!this.continued) return;
-    this.continued = false;
-    const scroller = this.scroller;
-    const controls = this.controls()?.nativeElement;
-    if (!scroller || !controls) return;
-    scroller.scrollTop = this.checkpointStart.scrollTop;
-    scroller.scrollTop += controls.getBoundingClientRect().top - this.checkpointStart.controlsTop;
+  async openIntro(event: MouseEvent): Promise<void> {
+    const algo = this.algo();
+    // A double tap would otherwise stack a second intro that outlives the first one's choice.
+    if (!algo || this.introOpen()) return;
+    this.introOpen.set(true);
+    const intro = await this.popovers.create({
+      component: PlayerIntroComponent,
+      componentProps: { algo, pattern: this.pattern(), problem: this.problem() },
+      event,
+      htmlAttributes: { role: 'dialog', 'aria-label': algo.title },
+    });
+    await intro.present();
+    const { data } = await intro.onDidDismiss<PlayerIntroChoice>();
+    this.introOpen.set(false);
+    if (data === 'pattern') void this.router.navigate(['/learn/pattern', algo.patternId]);
+    else if (data === 'code') void this.router.navigate(['/code', this.problem()!.id]);
+    // WebKit leaves a tapped button unfocused, so focus would otherwise fall to the top of the page.
+    else this.about()?.nativeElement.focus();
   }
 
   private onKey(e: KeyboardEvent) {
@@ -372,15 +371,14 @@ export class PlayerPage {
       return;
     }
     const revealed = p !== null && p.choice !== null;
+    if (STEP_KEYS.has(e.key)) e.preventDefault();
     if (e.key === 'ArrowRight') {
       if (revealed) this.continueAfterPredict();
       else this.next();
     } else if (e.key === 'ArrowLeft') {
       this.prev();
     } else if (e.key === ' ') {
-      e.preventDefault();
-      if (revealed) this.continueAfterPredict();
-      else this.togglePlay();
+      this.togglePlay();
     }
   }
 }

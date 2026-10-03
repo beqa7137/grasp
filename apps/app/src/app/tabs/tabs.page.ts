@@ -1,4 +1,5 @@
 import { Component, Injector, computed, inject } from '@angular/core';
+import { Router, type ActivatedRouteSnapshot } from '@angular/router';
 import { IonBadge, IonIcon, IonLabel, IonModal, IonTabBar, IonTabButton, IonTabs } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { chatbubblesOutline, compassOutline, flashOutline, gitNetworkOutline, playCircleOutline } from 'ionicons/icons';
@@ -14,7 +15,7 @@ import { PilotService } from '../pilot/pilot.service';
   imports: [IonTabs, IonTabBar, IonTabButton, IonIcon, IonLabel, IonBadge, IonModal, FeedbackSheetComponent, PilotNoticeComponent],
   template: `
     <ion-tabs>
-      <nav aria-label="Main">
+      <nav aria-label="Main" [class.focus-route]="focusRoute()">
         <ion-tab-bar slot="bottom">
           <ion-tab-button tab="learn" href="/learn">
             <ion-icon name="compass-outline" aria-hidden="true" />
@@ -62,6 +63,11 @@ import { PilotService } from '../pilot/pilot.service';
     </ion-modal>
   `,
   styles: `
+    @media (max-width: 1023.98px) {
+      nav.focus-route {
+        display: none;
+      }
+    }
     ion-badge {
       --background: var(--g-predict);
       --color: var(--g-on-fill);
@@ -74,6 +80,14 @@ export class TabsPage {
   private readonly progress = inject(ProgressService);
   readonly pilot = inject(PilotService);
   private readonly injector = inject(Injector);
+  private readonly router = inject(Router);
+  /** A focus route (2.6) gives its page the tab bar's height under 1024px; its own dock sits on the bottom safe area instead. */
+  readonly focusRoute = computed(() => {
+    this.router.currentNavigation();
+    let route: ActivatedRouteSnapshot = this.router.routerState.snapshot.root;
+    while (route.firstChild) route = route.firstChild;
+    return route.data['focus'] === true;
+  });
   readonly due = computed(() => {
     const session = this.progress.session();
     return session.dueTotal + session.boostedIncluded + this.progress.dueMissions().length;
