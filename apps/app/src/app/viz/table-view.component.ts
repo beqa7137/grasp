@@ -12,7 +12,7 @@ const key = ([r, c]: [number, number]) => `${r},${c}`;
   imports: [LegendComponent],
   template: `
     @let v = view();
-    <div class="table" role="table" [attr.aria-label]="ariaLabel()" [style.--cols]="v.colLabels.length">
+    <div class="table" role="table" [attr.aria-label]="ariaLabel()" [style.--cols]="v.colLabels.length" [style.--rows]="v.cells.length">
       <div role="row">
         <div class="corner" role="cell"></div>
         @for (label of v.colLabels; track $index) {
@@ -41,14 +41,16 @@ const key = ([r, c]: [number, number]) => `${r},${c}`;
     }
     /*
      * The padding holds the active cell's scale-up, so a table as wide as its container never overflows it. The row
-     * headers' column never gets narrower than its longest label, which takes the room from the cells.
+     * headers' column never gets narrower than its longest label, which takes the room from the cells. Inside a stage of
+     * fixed height (a size container, as in the player) the square cells also shrink until the table and its legend fit
+     * its height; with no such container cqh is the viewport's height, which leaves the width alone.
      */
     .table {
       display: grid;
       grid-template-columns: minmax(max-content, 1fr) repeat(var(--cols), minmax(0, 1fr));
       gap: 3px;
       padding-inline: 2px;
-      max-width: calc((var(--cols) + 1) * 46px + 4px);
+      max-width: min(calc((var(--cols) + 1) * 46px + 4px), calc((100cqh - 72px) * (var(--cols) + 1) / (var(--rows) + 1)));
       margin: 0 auto;
     }
     /* Rows exist for assistive tech; the cells lay out on the table's grid. */

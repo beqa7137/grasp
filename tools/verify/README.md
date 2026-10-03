@@ -188,7 +188,7 @@ Images never go into git, and CI does not make the set: its Chromium and fonts d
 
 ## timing.mjs
 
-First paint of `/learn` and the first tap on Visualize, Design and a pattern card, on a Pixel 7 profile with Fast 3G and a
+First paint of `/learn` and the first tap on Visualize, Design, a pattern card and Learn's next-visualizer tile (the player, timed until its stage has drawn its first view, `ready`), on a Pixel 7 profile with Fast 3G and a
 4x slower CPU, cold cache, builds interleaved, median of `RUNS`. Writes are blocked, so production is safe to time.
 
 ```sh

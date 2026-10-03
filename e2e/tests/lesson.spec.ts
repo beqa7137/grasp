@@ -41,6 +41,7 @@ test('the list reversal lesson replays a sublist reversal, and its visualizer le
   await expect(page).toHaveURL(/\/visualize\/linked-list-reversal\?input=/);
   await expect(page.getByRole('heading', { name: 'Reverse a Linked List', level: 1 })).toBeVisible();
   await expect(page.getByText('Invalid input')).toHaveCount(0);
+  await page.getByRole('button', { name: 'About this visualizer' }).click();
   await page.getByRole('link', { name: /Now write it yourself: Reverse Linked List II/ }).click();
   await expect(page).toHaveURL(/\/code\/reverse-linked-list-ii$/);
 });
@@ -58,6 +59,7 @@ test('the minimum spanning tree lesson replays Kruskal, and its visualizer leads
   await expect(page.getByRole('heading', { name: "Kruskal's Minimum Spanning Tree", level: 1 })).toBeVisible();
   await expect(page.getByText('Invalid input')).toHaveCount(0);
   await expect(page.locator('app-player .count')).toHaveText(/^1 \/ 40$/);
+  await page.getByRole('button', { name: 'About this visualizer' }).click();
   await page.getByRole('link', { name: /Now write it yourself: Connecting Cities With Minimum Cost/ }).click();
   await expect(page).toHaveURL(/\/code\/connecting-cities$/);
 });
@@ -75,6 +77,7 @@ test('the bitmask DP lesson replays Minimum XOR Sum, and its visualizer leads to
   await expect(page.getByRole('heading', { name: 'Minimum XOR Sum (Bitmask DP)', level: 1 })).toBeVisible();
   await expect(page.getByText('Invalid input')).toHaveCount(0);
   await expect(page.locator('app-player .count')).toHaveText(/^1 \/ 33$/);
+  await page.getByRole('button', { name: 'About this visualizer' }).click();
   await page.getByRole('link', { name: /Now write it yourself: Minimum XOR Sum of Two Arrays/ }).click();
   await expect(page).toHaveURL(/\/code\/minimum-xor-sum$/);
 });

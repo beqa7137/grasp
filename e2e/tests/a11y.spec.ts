@@ -201,16 +201,36 @@ test('a visualizer checkpoint can be answered from the keyboard, with focus alwa
   await expect(page.locator('.narration')).toBeFocused();
 });
 
-/** How an element sits in the player's view, between its toolbar and the tab bar: px shown, and whether all of it shows. */
+test('stepping and playing from the focused stage leave its scroll alone', { tag: '@player' }, async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 700 });
+  await page.goto('/visualize/lcs');
+  const scene = page.locator('app-player .scene');
+  await scene.focus();
+  const top = await scene.evaluate((el) => el.scrollTop);
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('app-player .scrub .count')).toHaveText('2 / 86');
+  await page.keyboard.press('Space');
+  await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible();
+  await page.keyboard.press('Space');
+  expect(await scene.evaluate((el) => el.scrollTop), 'the stage scroll').toBe(top);
+  await expect(scene).toBeFocused();
+});
+
+/** How an element sits in the player's view: px shown inside every box that clips it and the viewport, and whether all of it shows. */
 async function inView(page: Page, target: Locator) {
-  const [toolbar, tabs, box] = await Promise.all([
-    page.locator('app-player ion-header').boundingBox(),
-    page.locator('ion-tab-bar').boundingBox(),
-    target.boundingBox(),
-  ]);
-  const top = toolbar!.y + toolbar!.height;
-  const shown = Math.min(box!.y + box!.height, tabs!.y) - Math.max(box!.y, top);
-  return { shown, height: box!.height, whole: box!.y >= top && box!.y + box!.height <= tabs!.y };
+  return target.evaluate((el) => {
+    const box = el.getBoundingClientRect();
+    let top = Math.max(0, document.querySelector('app-player ion-header')!.getBoundingClientRect().bottom);
+    let bottom = innerHeight;
+    for (let parent = el.parentElement; parent; parent = parent.parentElement) {
+      if (getComputedStyle(parent).overflowY === 'visible') continue;
+      const clip = parent.getBoundingClientRect();
+      top = Math.max(top, clip.top);
+      bottom = Math.min(bottom, clip.bottom);
+    }
+    const shown = Math.min(box.bottom, bottom) - Math.max(box.top, top);
+    return { shown, height: box.height, whole: box.top >= top - 0.5 && box.bottom <= bottom + 0.5 };
+  });
 }
 
 /** Expects the focused element not hidden (WCAG 2.4.11): at least a strip of it in view, or all of a shorter one. */

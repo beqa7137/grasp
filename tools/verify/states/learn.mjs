@@ -78,6 +78,15 @@ export function learnStates() {
     { id: 'learn', path: '/learn' },
     { id: 'visualize-list', path: '/visualize' },
     ...players,
+    {
+      id: 'player-binary-search-intro',
+      path: '/visualize/binary-search',
+      setup: async (p) => {
+        await p.getByRole('button', { name: 'About this visualizer' }).click();
+        await p.getByRole('dialog', { name: 'Binary Search' }).waitFor();
+        await settle(p, 500);
+      },
+    },
     { id: 'player-subsets-backtracking-end', path: '/visualize/subsets-backtracking', setup: toEnd },
     { id: 'player-linked-list-reversal-end', path: '/visualize/linked-list-reversal', setup: toEnd },
     {

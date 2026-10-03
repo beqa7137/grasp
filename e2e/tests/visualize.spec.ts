@@ -1,4 +1,4 @@
-import type { Locator, Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { expect, expectUnmoved, recordedEvents, stepToCheckpoint, stepTotal, synced, test, viewportTop } from './fixtures';
 
 const VISUALIZER_TITLES = [
@@ -58,20 +58,30 @@ test('the timeline steps forward and back', { tag: '@player' }, async ({ page })
 });
 
 test(
-  'number keys answer only the page in view, not a checkpoint left open on the Visualize tab',
+  'number keys answer only the page in view, not a checkpoint left open under another page',
   { tag: ['@nav', '@player'] },
   async ({ page }) => {
     await page.goto('/visualize/binary-search');
     const player = page.locator('app-player');
     await stepToCheckpoint(page);
+    const wide = page.viewportSize()!.width >= 1024;
 
-    await page.getByRole('tab', { name: 'Review' }).click();
-    const review = page.locator('app-drill');
-    await expect(review.locator('g-question-card .choice:enabled').first()).toBeVisible();
-    // Ionic hides the page it leaves only once the tab transition ends.
-    await expect(player).toBeHidden();
-    await page.keyboard.press('1');
-    await expect(review.locator('g-question-card .reveal')).toHaveCount(1);
+    if (wide) {
+      await page.getByRole('tab', { name: 'Review' }).click();
+      const review = page.locator('app-drill');
+      await expect(review.locator('g-question-card .choice:enabled').first()).toBeVisible();
+      // Ionic hides the page it leaves only once the tab transition ends.
+      await expect(player).toBeHidden();
+      await page.keyboard.press('1');
+      await expect(review.locator('g-question-card .reveal')).toHaveCount(1);
+    } else {
+      // The player hides the tab bar under 1024px, so the other page is its pattern, opened from the intro in the Learn tab.
+      await page.getByRole('button', { name: 'About this visualizer' }).click();
+      await page.getByRole('dialog', { name: 'Binary Search' }).getByRole('link', { name: 'Binary Search', exact: true }).click();
+      await expect(page.locator('app-pattern').getByRole('heading', { name: 'Binary Search', level: 1 })).toBeVisible();
+      await expect(player).toBeHidden();
+      await page.keyboard.press('1');
+    }
     expect((await recordedEvents(page)).map((e) => e.type)).not.toContain('predict.answered');
 
     // The hidden player does not re-render, so look for a stray answer only once it is back in view.
@@ -102,7 +112,7 @@ test(
       await expect(count.filter({ hasText: new RegExp(`^\\s*${step + 1} /`) }).or(prompt)).toBeVisible();
       if (await prompt.isVisible()) {
         checkpoints++;
-        // On a phone the verdict and Continue end below the fold, so the clicks scroll to them as a finger would.
+        // Continue can sit below the fold of the checkpoint dock, which the click scrolls as a finger would.
         await player.locator('.predict .choice').first().click();
         await player.getByRole('button', { name: 'Continue →' }).click();
         await expect(prompt).toBeHidden();
@@ -120,7 +130,6 @@ test('an answered checkpoint also continues from Step forward, which stays where
   await expect(forward).toBeDisabled();
   await page.locator('.predict .choice').first().click();
   await expect(forward).toBeEnabled();
-  await forward.scrollIntoViewIfNeeded();
   const before = await viewportTop(forward);
   const step = await page.locator('app-player .scrub .count').textContent();
   await forward.click();
@@ -129,96 +138,25 @@ test('an answered checkpoint also continues from Step forward, which stays where
   await expectUnmoved(forward, before, 'Step forward after continuing with it');
 });
 
-test('on a phone held sideways, tapping an answer whose verdict opens below the fold leaves Step forward where it is', async ({ page }) => {
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.setViewportSize({ width: 915, height: 412 });
-  await page.goto('/visualize/two-sum-hash');
-  await stepToCheckpoint(page);
-  const player = page.locator('app-player');
-  const forward = player.getByRole('button', { name: 'Step forward' });
-  // Step forward just under the toolbar: as much of the checkpoint in view as there can be with the controls on screen.
-  await player.locator('ion-content').evaluate((content) => {
-    const toolbar = content.closest('.ion-page')!.querySelector('ion-header')!.getBoundingClientRect().bottom;
-    const button = content.querySelector('[aria-label="Step forward"]')!.getBoundingClientRect().top;
-    content.shadowRoot!.querySelector('.inner-scroll')!.scrollBy(0, button - toolbar - 4);
-  });
-  const choice = player.locator('.predict .choice').first();
-  await choice.scrollIntoViewIfNeeded();
-  const home = await viewportTop(forward);
-  await choice.click();
-  await expect(player.locator('.predict .verdict')).toBeVisible();
-  await expectUnmoved(forward, home, 'Step forward after tapping an answer');
-});
-
-async function stepKeepingStill(page: Page, watched: Locator, name: string) {
-  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
-  const count = page.locator('app-player .scrub .count');
-  const home = await viewportTop(watched);
-  const total = await stepTotal(count);
-  for (let step = 2; step <= total; step++) {
-    await page.keyboard.press('ArrowRight');
-    await expect(count).toHaveText(`${step} / ${total}`);
-    await expectUnmoved(watched, home, `${name} after step ${step}`);
-  }
-}
-
 test(
-  'on a phone scrolled to the Code panel under the drawing, stepping from the keyboard leaves the panel where it is',
+  'on a phone held sideways, tapping an answer leaves the stage and Step forward where they are',
   { tag: '@player' },
-  async ({ page, isMobile }) => {
-    test.skip(!isMobile, 'The Code panel sits beside the drawing on a wide screen.');
-    await page.goto('/visualize/dijkstra');
+  async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.setViewportSize({ width: 915, height: 412 });
+    await page.goto('/visualize/two-sum-hash');
+    await stepToCheckpoint(page);
     const player = page.locator('app-player');
-    await player.getByText('Predict mode').click();
-    const panel = player.locator('.side .code');
-    await panel.evaluate((el) => el.scrollIntoView({ block: 'start' }));
-    // Just under the toolbar, with the end of the drawing above it still in view.
-    await player.locator('ion-content').evaluate((content) => content.shadowRoot!.querySelector('.inner-scroll')!.scrollBy(0, -40));
-    await stepKeepingStill(page, panel, 'the Code panel');
+    const forward = player.getByRole('button', { name: 'Step forward' });
+    const scene = player.locator('.scene');
+    const [home, stage] = [await viewportTop(forward), await viewportTop(scene)];
+    await player.locator('.predict .choice').first().click();
+    await expect(player.locator('.predict .verdict')).toBeVisible();
+    await expectUnmoved(forward, home, 'Step forward after tapping an answer');
+    await expectUnmoved(scene, stage, 'the stage after tapping an answer');
+    await expectNoPageScroll(page);
   },
 );
-
-// Beside the drawing, the Code panel does not move with it, so the page must not scroll by the drawing's change, and the page
-// end must not scroll back as the drawing shrinks. Under it, a panel changing height in the same step must not cut the scroll.
-for (const { where, viewport, id } of [
-  { where: 'beside the drawing on a laptop', viewport: { width: 1280, height: 720 }, id: 'tree-traversal' },
-  { where: 'under the drawing in a narrow window', viewport: { width: 800, height: 900 }, id: 'lcs' },
-]) {
-  test(`with the page scrolled to its end, stepping from the keyboard leaves the Code panel ${where} where it is`, async ({
-    page,
-    isMobile,
-  }) => {
-    test.skip(isMobile, 'A desktop window.');
-    await page.setViewportSize(viewport);
-    await page.goto(`/visualize/${id}`);
-    const player = page.locator('app-player');
-    await player.getByText('Predict mode').click();
-    await player.locator('ion-content').evaluate((content) => {
-      const scroller = content.shadowRoot!.querySelector('.inner-scroll')!;
-      scroller.scrollTop = scroller.scrollHeight;
-    });
-    await stepKeepingStill(page, player.locator('.side .code'), 'the Code panel');
-  });
-}
-
-test('on a phone, a shorter step leaves no empty room under the drawing and its narration', async ({ page }) => {
-  await page.setViewportSize({ width: 320, height: 700 });
-  await page.goto('/visualize/linked-list-cycle');
-  const player = page.locator('app-player');
-  await player.getByText('Predict mode').click();
-  const forward = player.getByRole('button', { name: 'Step forward' });
-  const count = player.locator('.scrub .count');
-  const total = await stepTotal(count);
-  for (let step = 2; step <= total; step++) {
-    await forward.click();
-    await expect(count).toHaveText(`${step} / ${total}`);
-    const room = await player.locator('.scene').evaluate((scene) => {
-      const content = Math.max(...[...scene.children].map((child) => child.getBoundingClientRect().bottom));
-      return scene.getBoundingClientRect().bottom - content;
-    });
-    expect(room, `empty room under step ${step}`).toBeLessThan(1);
-  }
-});
 
 test('on a 320 px phone, every value of a long array fits its cell, and only the array scrolls sideways', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 700 });
@@ -244,4 +182,175 @@ test('on a 320 px phone, every value of a long array fits its cell, and only the
     return scroller.scrollWidth - scroller.clientWidth;
   });
   expect(sideways, 'the page scrolls sideways').toBe(0);
+});
+
+/** The page itself never scrolls: only the stage, the checkpoint dock and the code scroll inside it. */
+async function expectNoPageScroll(page: Page) {
+  const scroll = await page.locator('app-player ion-content').evaluate((content) => {
+    const scroller = content.shadowRoot!.querySelector('.inner-scroll')!;
+    const layout = content.querySelector('.layout')!;
+    // A fractional viewport can round a box up by a pixel, which is not room to scroll.
+    return {
+      page: scroller.scrollHeight - scroller.clientHeight <= 1 && scroller.scrollTop === 0,
+      layout: layout.scrollHeight - layout.clientHeight <= 1 && layout.scrollTop === 0,
+    };
+  });
+  expect(scroll, 'the page and the layout unscrolled, with nothing below them').toEqual({ page: true, layout: true });
+}
+
+/** Where the drawing sits: the first view in the stage, and how far the stage itself is scrolled. */
+async function visualPlace(page: Page) {
+  return page.locator('app-player .scene').evaluate((scene) => {
+    const box = scene.querySelector('.viz > *')!.getBoundingClientRect();
+    return { y: box.y, height: box.height, scrollTop: scene.scrollTop };
+  });
+}
+
+for (const id of ['dijkstra', 'kruskal-mst']) {
+  test(
+    `the ${id} drawing stays exactly where it is through a checkpoint, its answer and Continue`,
+    { tag: '@player' },
+    async ({ page }) => {
+      await page.goto(`/visualize/${id}`);
+      const player = page.locator('app-player');
+      const count = player.locator('.scrub .count');
+      const prompt = player.getByText('Your call');
+      const total = await stepTotal(count);
+      let frame = await visualPlace(page);
+      for (let step = 1; !(await prompt.isVisible()); step++) {
+        expect(step, 'a checkpoint should come up').toBeLessThan(total);
+        frame = await visualPlace(page);
+        await player.getByRole('button', { name: 'Step forward' }).click();
+        await expect(count.filter({ hasText: new RegExp(`^\\s*${step + 1} /`) }).or(prompt)).toBeVisible();
+      }
+      expect(await visualPlace(page), 'the drawing at the ask').toEqual(frame);
+
+      await player.locator('.predict .choice').first().click();
+      await expect(player.locator('.predict .verdict')).toBeVisible();
+      expect(await visualPlace(page), 'the drawing after the answer').toEqual(frame);
+
+      await player.getByRole('button', { name: 'Continue →' }).click();
+      await expect(prompt).toBeHidden();
+      const after = await visualPlace(page);
+      expect({ y: after.y, scrollTop: after.scrollTop }, 'the drawing after Continue').toEqual({ y: frame.y, scrollTop: frame.scrollTop });
+      await expectNoPageScroll(page);
+    },
+  );
+}
+
+const AUDITED = [
+  'binary-search',
+  'lcs',
+  'dijkstra',
+  'two-sum-hash',
+  'subsets-backtracking',
+  'linked-list-reversal',
+  'kruskal-mst',
+  'minimum-xor-sum',
+];
+
+for (const id of AUDITED) {
+  test(`at the first ${id} checkpoint the whole stage and the prompt are in view, and the page does not scroll`, async ({
+    page,
+  }, testInfo) => {
+    const sizes = [page.viewportSize()!, ...(testInfo.project.name === 'phone' ? [{ width: 320, height: 700 }] : [])];
+    for (const size of sizes) {
+      await page.setViewportSize(size);
+      await page.goto(`/visualize/${id}`);
+      await stepToCheckpoint(page);
+      await expectNoPageScroll(page);
+      const fit = await page.locator('app-player').evaluate((player) => {
+        const box = (selector: string) => player.querySelector(selector)!.getBoundingClientRect();
+        const header = box('ion-header');
+        const dock = box('.controls');
+        const scene = box('.scene');
+        const panel = box('.panel-col');
+        const prompt = box('.predict .prompt');
+        const drawings = [...player.querySelectorAll('.scene :is(svg, [role="table"], g-array-view, g-grid-view)')].map((el) =>
+          el.getBoundingClientRect(),
+        );
+        return {
+          stage: scene.top >= header.bottom && scene.bottom <= Math.min(dock.top, innerHeight) + 0.5,
+          drawing: drawings.length > 0 && drawings.every((d) => d.top >= scene.top && d.bottom <= scene.bottom + 0.5),
+          prompt: prompt.top >= panel.top && prompt.bottom <= panel.bottom + 0.5 && prompt.bottom <= innerHeight,
+          dock: dock.bottom <= innerHeight + 0.5,
+        };
+      });
+      expect(fit, `at ${size.width}×${size.height}`).toEqual({ stage: true, drawing: true, prompt: true, dock: true });
+    }
+  });
+}
+
+test('every frame of a long tracer keeps the dock on screen with no page scroll, its caption taking room from the code', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name === 'desktop', 'The caption has its own row beside the stage on a wide screen.');
+  for (const size of [page.viewportSize()!, { width: 320, height: 700 }]) {
+    await page.setViewportSize(size);
+    for (const id of ['tree-traversal', 'kruskal-mst']) {
+      await page.goto(`/visualize/${id}`);
+      const player = page.locator('app-player');
+      await player.getByText('Predict mode').click();
+      const count = player.locator('.scrub .count');
+      const total = await stepTotal(count);
+      for (let step = 1; step <= total; step++) {
+        if (step > 1) {
+          await player.getByRole('button', { name: 'Step forward' }).click();
+          await expect(count).toHaveText(`${step} / ${total}`);
+        }
+        await expectNoPageScroll(page);
+        const dock = (await player.locator('.controls').boundingBox())!;
+        expect(dock.y + dock.height, `${id} step ${step}: the dock's bottom`).toBeLessThanOrEqual(size.height + 0.5);
+      }
+    }
+  }
+});
+
+test('under 1024px the player hides the tab bar, and the list shows it again', { tag: ['@nav', '@player'] }, async ({ page }) => {
+  await page.goto('/visualize');
+  const tabs = page.getByRole('navigation', { name: 'Main' });
+  await expect(tabs).toBeVisible();
+  await page.getByRole('link', { name: /Binary Search easy/ }).click();
+  await expect(page.locator('app-player h1')).toHaveText('Binary Search');
+  if (page.viewportSize()!.width < 1024) await expect(tabs).toBeHidden();
+  else await expect(tabs).toBeVisible();
+  await page.locator('app-player ion-back-button').click();
+  await expect(page.locator('app-visualize-list')).toBeVisible();
+  await expect(tabs).toBeVisible();
+});
+
+test('Play at an open checkpoint asks for the answer instead of playing on', { tag: '@player' }, async ({ page }) => {
+  await page.goto('/visualize/binary-search');
+  await stepToCheckpoint(page);
+  const play = page.getByRole('button', { name: 'Play', exact: true });
+  await expect(play).toBeEnabled();
+  await play.click();
+  await expect(page.locator('.predict .prompt')).toBeFocused();
+  await expect(page.locator('app-player [role="status"]')).toHaveText('Answer the question to continue.');
+  await expect(page.locator('.predict .verdict')).toHaveCount(0);
+  expect((await recordedEvents(page)).map((e) => e.type)).not.toContain('predict.answered');
+
+  await page.locator('.predict .choice').first().click();
+  await play.click();
+  await expect(page.getByText('Your call')).toBeHidden();
+});
+
+test('the key hint shows only with a fine pointer', { tag: '@player' }, async ({ page, isMobile }) => {
+  await page.goto('/visualize/binary-search');
+  const hint = page.locator('app-player .keys');
+  if (isMobile) await expect(hint).toBeHidden();
+  else await expect(hint).toBeVisible();
+});
+
+test('the intro behind ⓘ names the visualizer and leads to its pattern and problem', { tag: '@player' }, async ({ page }) => {
+  await page.goto('/visualize/binary-search');
+  const about = page.getByRole('button', { name: 'About this visualizer' });
+  await about.click();
+  const intro = page.getByRole('dialog', { name: 'Binary Search' });
+  await expect(intro.getByRole('heading', { name: 'Binary Search' })).toBeVisible();
+  await expect(intro.getByRole('link', { name: /^Now write it yourself: / })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(intro).toBeHidden();
+  await expect(about).toBeFocused();
+  await expect(about).toHaveAttribute('aria-expanded', 'false');
 });

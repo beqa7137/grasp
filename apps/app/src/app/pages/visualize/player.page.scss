@@ -1,65 +1,46 @@
-.intro {
-  margin: 4px 0 18px;
-
-  // Its text is a bare flex item beside the icon, which only `anywhere` lets shrink below its longest word.
-  .code-it {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    overflow-wrap: anywhere;
-    color: var(--g-found);
-    font-size: 0.875rem;
-    text-decoration: none;
-  }
-
-  .meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-  a.chip {
-    text-decoration: none;
-  }
-  h1 {
-    font-size: clamp(1.5rem, 4vw, 2.125rem);
-    margin: 12px 0 6px;
-  }
-  p {
-    margin: 0;
-    max-width: 64ch;
-    line-height: 1.5;
-  }
+ion-title h1 {
+  // Inline, so the title's own ellipsis applies to a long name. The intro behind ⓘ names it in full.
+  display: inline;
+  margin: 0;
+  font: inherit;
 }
 
+.about {
+  width: 44px;
+  height: 44px;
+  color: var(--g-muted);
+}
+
+// The player is a size container, so each layout fits the stage, caption, region R and dock into the height it has and the
+// page never scrolls (REDESIGN.md 3.7; ion-content does not scroll here). Only when no layout fits does the layout scroll.
+.player {
+  container: player / size;
+  height: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 12px 16px 0;
+}
+
+// Phone and tablet: the stage gets what is left after the caption's 48px, R's 240px and the dock. A longer caption takes
+// its room from R, never from the stage.
 .layout {
+  --dock-h: calc(80px + var(--ion-safe-area-bottom, 0px));
+  --stage-h: clamp(200px, 100cqh - 48px - 240px - var(--dock-h), 420px);
+  height: 100cqh;
   display: grid;
-  gap: 16px;
   grid-template-columns: minmax(0, 1fr);
-
-  @media (min-width: 960px) {
-    grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
-    align-items: start;
-  }
+  grid-template-rows: var(--stage-h) auto minmax(0, 1fr) var(--dock-h);
+  grid-template-areas: 'stage' 'caption' 'panel' 'dock';
+  gap: 0 16px;
 }
 
-.stage {
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-
-  @media (min-width: 960px) {
-    position: sticky;
-    top: 12px;
-  }
-}
-
-.stage-bar {
+.status-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  padding: 4px 2px 12px;
 }
 
 .toggle {
@@ -91,24 +72,39 @@
   }
 }
 
+// The stage. Its height is fixed by the layout, so the drawing never moves; a drawing scales down to fit it, and a table or
+// list taller than it scrolls inside it, never the page.
 .scene {
+  grid-area: stage;
+  container-type: size;
+  height: var(--stage-h);
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  padding: 6px 10px;
+  overflow: hidden auto;
 }
 
 .viz {
-  padding: 8px 4px;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 4px 0;
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 10px;
+
+  > g-graph-view,
+  > g-tree-view {
+    flex: 0 1 auto;
+    min-height: 96px;
+  }
 }
 
 .aux {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 14px;
-  padding-top: 14px;
+  gap: 8px 14px;
+  padding-top: 8px;
   border-top: 1px dashed var(--g-line);
 
   .stack {
@@ -117,14 +113,12 @@
 }
 
 .narration {
+  grid-area: caption;
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  padding: 12px 14px;
-  border-radius: 12px;
-  background: var(--g-raised);
-  border: 1px solid var(--g-line);
-  min-height: 64px;
+  gap: 10px;
+  min-height: 48px;
+  padding: 4px 2px;
 
   .line {
     flex: none;
@@ -146,8 +140,20 @@
   p {
     margin: 0;
     flex: 1 1 22em;
-    line-height: 1.55;
-    font-size: 0.9375rem;
+    line-height: 1.4;
+    font-size: 0.875rem;
+  }
+  // Beside a checkpoint the caption is the note's first sentence, in at most two lines, so the dock keeps R's height.
+  &.brief p {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+  .code-it {
+    color: var(--g-found);
+    text-decoration: none;
+    overflow-wrap: anywhere;
   }
   .result {
     max-width: 100%;
@@ -160,34 +166,46 @@
   }
 }
 
+// Region R on phone, the top of the right column on desktop. It scrolls inside itself, so a long checkpoint never moves the
+// stage or the dock. On phone the checkpoint replaces the code while it is open.
+.panel-col {
+  grid-area: panel;
+  min-height: 0;
+  overflow-y: auto;
+  padding-top: 8px;
+}
+
 .predict {
   border-radius: 14px;
-  padding: 14px;
+  padding: 10px;
+  margin-bottom: 12px;
   background: linear-gradient(180deg, rgba(var(--g-predict-rgb), 0.08), rgba(var(--g-predict-rgb), 0.02));
   border: 1px solid rgba(var(--g-predict-rgb), 0.45);
   animation: rise 0.25s ease-out;
 
   .predict-head {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
+    margin-right: 6px;
     font: 600 0.6875rem/1 var(--ion-font-family);
     letter-spacing: 0.12em;
     text-transform: uppercase;
+    vertical-align: 1px;
     color: var(--g-predict);
     ion-icon {
       font-size: 16px;
     }
   }
   .prompt {
-    margin: 10px 0 12px;
+    margin: 0 0 8px;
     font-size: 1rem;
     font-weight: 500;
-    line-height: 1.45;
+    line-height: 1.4;
   }
   .choices {
     display: grid;
-    gap: 8px;
+    gap: 6px;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   }
   .choice {
@@ -197,7 +215,8 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 11px 12px;
+    min-height: 36px;
+    padding: 6px 10px;
     border-radius: 10px;
     font: 500 0.875rem/1.3 var(--ion-font-family);
     overflow-wrap: anywhere;
@@ -252,20 +271,27 @@
   }
 }
 
+// The transport dock, on the bottom safe area: the buttons over the timeline on phone, one row on desktop.
 .controls {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  grid-area: dock;
+  display: grid;
+  grid-template-areas: 'buttons' 'scrub';
+  align-content: center;
+  row-gap: 2px;
+  padding-bottom: var(--ion-safe-area-bottom, 0px);
+  border-top: 1px solid var(--g-line);
+  background: var(--g-bg);
 
   .buttons {
+    grid-area: buttons;
     display: flex;
     justify-content: center;
     align-items: center;
     gap: 8px;
   }
   .play {
-    width: 52px;
-    height: 52px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
     padding: 0;
     ion-icon {
@@ -277,13 +303,20 @@
     font-size: 0.8125rem;
   }
   .keys {
-    text-align: center;
+    grid-area: keys;
+    display: none;
     font-size: 0.71875rem;
     margin: 0;
+    @media (hover: hover) and (pointer: fine) {
+      @container player (min-width: 900px) {
+        display: block;
+      }
+    }
   }
 }
 
 .scrub {
+  grid-area: scrub;
   position: relative;
   display: flex;
   align-items: center;
@@ -348,6 +381,13 @@
   flex-direction: column;
   gap: 16px;
   min-width: 0;
+  padding-bottom: 12px;
+
+  &.asking {
+    @container player (max-width: 899.98px) {
+      display: none;
+    }
+  }
 
   .panel > header {
     padding: 12px 14px 4px;
@@ -453,6 +493,60 @@
   .run {
     margin: 12px 14px 0;
     width: calc(100% - 28px);
+  }
+}
+
+// Too narrow for two columns and too short for the stack: everything keeps its natural height and the layout scrolls. The
+// stage is not sticky, since at 400% zoom it would cover the verdict or narration that focus moves to.
+@container player (max-width: 639.98px) {
+  @container player (max-height: 543.98px) {
+    .layout {
+      grid-template-rows: var(--stage-h) auto auto auto;
+      overflow-y: auto;
+    }
+    .panel-col {
+      overflow: visible;
+    }
+  }
+}
+
+// A phone held sideways: the stage on the left, and the caption, R and the dock on the right.
+@container player (min-width: 640px) {
+  @container player (max-height: 543.98px) {
+    .layout {
+      --stage-h: clamp(200px, 100cqh - 12px, 560px);
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      grid-template-rows: auto minmax(0, 1fr) var(--dock-h);
+      grid-template-areas: 'stage caption' 'stage panel' 'stage dock';
+    }
+    .scene {
+      align-self: start;
+    }
+  }
+}
+
+// Desktop: the stage and its caption on the left, the checkpoint dock and the code on the right, the transport across the
+// bottom.
+@container player (min-width: 900px) {
+  @container player (min-height: 544px) {
+    .layout {
+      --dock-h: 64px;
+      --stage-h: clamp(280px, 100cqh - 144px, 560px);
+      grid-template-columns: minmax(0, 58fr) minmax(0, 42fr);
+      grid-template-rows: var(--stage-h) minmax(0, 1fr) var(--dock-h);
+      grid-template-areas: 'stage panel' 'caption panel' 'dock dock';
+    }
+    .narration {
+      align-self: start;
+      max-height: 100%;
+      overflow-y: auto;
+    }
+    .controls {
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      grid-template-areas: 'buttons scrub keys';
+      align-items: center;
+      column-gap: 20px;
+    }
   }
 }
 
