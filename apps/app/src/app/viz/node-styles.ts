@@ -1,3 +1,20 @@
+/**
+ * The drawing's box, shared by the SVG graph and tree views, which set `--vb-w` and `--vb-h` to their viewBox's size and
+ * their own maximum width. A page can cap its height with `--g-drawing-max-h` (the player's stage does), but height never
+ * takes it below `--g-drawing-floor` of its own scale, unless its width already does; with neither set, its width alone
+ * sizes it.
+ */
+export const DRAWING_BOX = `
+  svg {
+    display: block;
+    width: 100%;
+    max-height: var(--g-drawing-max-h, none);
+    min-height: min(calc(var(--g-drawing-floor, 0) * var(--vb-h) * 1px), calc(100cqw * var(--vb-h) / var(--vb-w)));
+    margin: 0 auto;
+    overflow: visible;
+  }
+`;
+
 /** Node styling shared by the SVG graph and tree views. */
 export const NODE_STYLES = `
   .node .body {

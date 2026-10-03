@@ -41,7 +41,7 @@
       <g-question-card [question]="slot.question" [reason]="slot.reason" [chosen]="chosen()" (choose)="answer($event)" />
 
       @if (chosen() !== null) {
-        <div class="actions">
+        <div class="actions" #actions>
           @if (practice()) {
             <button class="g-btn primary grow" (click)="rate(3)">Next <ion-icon name="arrow-forward" aria-hidden="true" /></button>
           } @else if (isCorrect()) {

@@ -83,6 +83,7 @@ export class TabsPage {
   private readonly router = inject(Router);
   /** A focus route (2.6) gives its page the tab bar's height under 1024px; its own dock sits on the bottom safe area instead. */
   readonly focusRoute = computed(() => {
+    // Read only to depend on it: the snapshot is not a signal, so each navigation's start and end re-run this.
     this.router.currentNavigation();
     let route: ActivatedRouteSnapshot = this.router.routerState.snapshot.root;
     while (route.firstChild) route = route.firstChild;

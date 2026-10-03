@@ -29,7 +29,6 @@ import { addIcons } from 'ionicons';
 import {
   checkmarkCircle,
   closeCircle,
-  codeSlashOutline,
   diceOutline,
   helpCircleOutline,
   informationCircleOutline,
@@ -114,7 +113,6 @@ export class PlayerPage {
   private readonly popovers = inject(PopoverController);
   private readonly router = inject(Router);
   protected readonly answerMark = answerMark;
-  protected readonly firstSentence = firstSentence;
   private readonly predictPanel = viewChild<ElementRef<HTMLElement>>('predictPanel');
   private readonly predictPrompt = viewChild<ElementRef<HTMLElement>>('predictPrompt');
   private readonly verdict = viewChild<ElementRef<HTMLElement>>('verdict');
@@ -168,6 +166,13 @@ export class PlayerPage {
     longestValue(this.frames().flatMap((f) => [...(f.array?.values ?? []), ...(alignedRow(f)?.values ?? [])])),
   );
   readonly treeRoom = computed(() => sideRoomFor(this.frames().map((f) => f.tree)));
+  /** Whether any frame shows lists under the drawing, so the drawing keeps one size for the whole run. */
+  readonly listed = computed(() => this.frames().some((f) => f.stack || f.queue || f.set || (f.output && !alignedRow(f))));
+  /** Beside a checkpoint the caption is the note's first sentence, so the dock keeps R's height. */
+  readonly caption = computed(() => {
+    const note = this.frame()?.note ?? '';
+    return this.pending() ? firstSentence(note) : note;
+  });
 
   readonly varEntries = computed(() => Object.entries(this.frame()?.vars ?? {}).filter(([k]) => k !== 'result'));
   readonly result = computed(() => (this.index() === this.last() ? this.frame()?.vars['result'] : undefined));
@@ -188,7 +193,6 @@ export class PlayerPage {
       closeCircle,
       helpCircleOutline,
       informationCircleOutline,
-      codeSlashOutline,
     });
 
     effect(() => {
@@ -219,10 +223,13 @@ export class PlayerPage {
         this.panelCol()?.nativeElement.scrollTo({ top: 0 });
         refocus(this.predictPrompt()?.nativeElement, this.layout()?.nativeElement);
       } else {
-        // Shown after a tap as well as a key press. It stops at the verdict, never at Continue below it, so a second tap
-        // on an answer cannot land on Continue.
+        // Shown after a tap as well as a key press, clear of the sticky Continue; a verdict taller than R's view keeps its
+        // first line in view.
         const verdict = this.verdict()?.nativeElement;
+        const panel = this.panelCol()?.nativeElement;
         verdict?.scrollIntoView({ block: 'nearest' });
+        if (verdict && panel && verdict.getBoundingClientRect().top < panel.getBoundingClientRect().top)
+          verdict.scrollIntoView({ block: 'start' });
         refocus(verdict, this.predictPanel()?.nativeElement, () => undefined);
       }
     });

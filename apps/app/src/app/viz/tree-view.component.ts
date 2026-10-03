@@ -3,7 +3,7 @@ import { GRAPH_NODE_RADIUS, type NodeState, type TreeView } from '@grasp/engine'
 import { BADGE_LINE_HEIGHT, BADGE_ROOM, badgeHalfWidth, badgeLines, besideReach, placeBadges, wrapBadge, type Spot } from './badges';
 import { toward, type Point } from './geometry';
 import { LegendComponent } from './legend.component';
-import { NODE_STYLES } from './node-styles';
+import { DRAWING_BOX, NODE_STYLES } from './node-styles';
 
 const SLOT = 46;
 const LEVEL = 60;
@@ -152,7 +152,14 @@ export function layoutForest(tree: TreeView, room = NO_ROOM): { nodes: PlacedNod
   imports: [LegendComponent],
   template: `
     @let l = layout();
-    <svg [attr.viewBox]="'0 0 ' + l.width + ' ' + l.height" [style.max-width.px]="l.width" role="img" [attr.aria-label]="ariaLabel()">
+    <svg
+      [attr.viewBox]="'0 0 ' + l.width + ' ' + l.height"
+      [style.max-width.px]="l.width"
+      [style.--vb-w]="l.width"
+      [style.--vb-h]="l.height"
+      role="img"
+      [attr.aria-label]="ariaLabel()"
+    >
       @for (link of l.links; track link.id) {
         <line class="link" [class.to-blank]="link.blank" [attr.x1]="link.x1" [attr.y1]="link.y1" [attr.x2]="link.x2" [attr.y2]="link.y2" />
       }
@@ -183,20 +190,11 @@ export function layoutForest(tree: TreeView, room = NO_ROOM): { nodes: PlacedNod
   `,
   styles: [
     NODE_STYLES,
+    DRAWING_BOX,
     `
       :host {
-        display: flex;
-        flex-direction: column;
-        width: 100%;
-      }
-      /* Shrinks to the height its host is given, such as the player's stage; the viewBox scales the drawing to match. */
-      svg {
         display: block;
-        flex: 0 1 auto;
-        min-height: 0;
         width: 100%;
-        margin: 0 auto;
-        overflow: visible;
       }
       .link {
         stroke: var(--g-stroke);

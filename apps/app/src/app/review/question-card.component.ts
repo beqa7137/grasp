@@ -172,7 +172,7 @@ export class QuestionCardComponent {
 
   private readonly host: HTMLElement = inject(ElementRef).nativeElement;
   private readonly prompt = viewChild.required<ElementRef<HTMLElement>>('prompt');
-  private readonly reveal = viewChild<ElementRef<HTMLElement>>('reveal');
+  readonly reveal = viewChild<ElementRef<HTMLElement>>('reveal');
   private shown: { question: Question; answered: boolean } | null = null;
 
   readonly reasonLabel = computed(() => REASON_LABELS[this.reason()]);

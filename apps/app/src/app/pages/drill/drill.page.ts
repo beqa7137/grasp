@@ -1,4 +1,16 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  afterRenderEffect,
+  computed,
+  effect,
+  inject,
+  input,
+  signal,
+  untracked,
+  viewChild,
+} from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
@@ -66,6 +78,9 @@ export class DrillPage {
   readonly pattern = input<string>();
   readonly progress = inject(ProgressService);
   readonly shortcuts = inject(ShortcutsService);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly card = viewChild(QuestionCardComponent);
+  private readonly actions = viewChild<ElementRef<HTMLElement>>('actions');
 
   readonly queue = signal<Slot[]>([]);
   readonly position = signal(0);
@@ -124,6 +139,14 @@ export class DrillPage {
       untracked(() => this.start());
     });
     onPageKey((e) => this.onKey(e), { kind: 'shortcuts' });
+    // The sticky rating bar appears with the verdict, under which it would otherwise sit after a tap.
+    afterRenderEffect(() => {
+      const bar = this.actions()?.nativeElement;
+      const verdict = this.card()?.reveal()?.nativeElement;
+      if (!bar || !verdict || getComputedStyle(bar).position !== 'sticky') return;
+      this.host.nativeElement.style.setProperty('--actions-h', `${bar.offsetHeight}px`);
+      verdict.scrollIntoView({ block: 'nearest' });
+    });
   }
 
   ionViewWillEnter() {

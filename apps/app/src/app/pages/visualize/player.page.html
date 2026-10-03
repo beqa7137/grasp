@@ -29,7 +29,7 @@
       <div class="layout" #layout>
         @if (frame(); as f) {
           <div class="scene panel" role="group" aria-roledescription="visualization" [attr.aria-label]="a.title" tabindex="0">
-            <div class="viz">
+            <div class="viz" [class.listed]="listed()">
               @if (f.array) {
                 <g-array-view [view]="f.array" [aligned]="alignedOutput()" [longest]="longestArrayValue()" />
               }
@@ -73,7 +73,7 @@
           >
             <span class="line mono">L{{ f.line }}</span>
             <div class="body">
-              <p><g-code-text [text]="pending() ? firstSentence(f.note) : f.note" /></p>
+              <p><g-code-text [text]="caption()" /></p>
               @if (!pending()) {
                 @if (result() !== undefined) {
                   <span class="result mono">→ {{ result() ?? 'null' }}</span>
