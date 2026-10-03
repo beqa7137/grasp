@@ -4,7 +4,7 @@ import { uniqueId } from '../core/unique-id';
 import { BADGE_HALF_HEIGHT, placeBadges, type Spot } from './badges';
 import { toward, type Point } from './geometry';
 import { LegendComponent } from './legend.component';
-import { NODE_STYLES } from './node-styles';
+import { DRAWING_BOX, NODE_STYLES } from './node-styles';
 
 const PAD = 30;
 const WIDTH = GRAPH_BOX.width + 2 * PAD;
@@ -51,7 +51,13 @@ const curveAt = (start: Point, control: Point, end: Point, t: number): Point => 
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [LegendComponent],
   template: `
-    <svg [attr.viewBox]="viewBox()" role="img" [attr.aria-label]="ariaLabel()">
+    <svg
+      [attr.viewBox]="'0 ' + box().top + ' ' + width + ' ' + box().height"
+      [style.--vb-w]="width"
+      [style.--vb-h]="box().height"
+      role="img"
+      [attr.aria-label]="ariaLabel()"
+    >
       <defs>
         @for (state of edgeStates; track state) {
           <marker
@@ -94,21 +100,14 @@ const curveAt = (start: Point, control: Point, end: Point, t: number): Point => 
   `,
   styles: [
     NODE_STYLES,
+    DRAWING_BOX,
     `
       :host {
-        display: flex;
-        flex-direction: column;
+        display: block;
         width: 100%;
       }
-      /* Shrinks to the height its host is given, such as the player's stage; the viewBox scales the drawing to match. */
       svg {
-        display: block;
-        flex: 0 1 auto;
-        min-height: 0;
-        width: 100%;
         max-width: 460px;
-        margin: 0 auto;
-        overflow: visible;
       }
       .edge {
         fill: none;
@@ -169,13 +168,14 @@ export class GraphViewComponent {
    * The box's full width, so every graph draws at one scale, but only the height its node rows and their badges reach: a
    * layout with flat rows, such as layers or a list, leaves no empty band above and below it.
    */
-  protected readonly viewBox = computed(() => {
+  protected readonly box = computed(() => {
     const ys = this.placed().map((n) => n.y);
-    if (!ys.length) return `0 0 ${WIDTH} ${HEIGHT}`;
+    if (!ys.length) return { top: 0, height: HEIGHT };
     const top = Math.max(0, Math.min(...ys) - BADGE_REACH);
     const bottom = Math.min(HEIGHT, Math.max(...ys) + BADGE_REACH);
-    return `0 ${round(top)} ${WIDTH} ${round(bottom - top)}`;
+    return { top: round(top), height: round(bottom - top) };
   });
+  protected readonly width = WIDTH;
   protected readonly radius = RADIUS;
   protected readonly edgeStates = EDGE_STATES;
   private readonly uid = uniqueId('g-graph');

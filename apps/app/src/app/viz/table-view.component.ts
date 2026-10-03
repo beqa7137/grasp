@@ -41,17 +41,21 @@ const key = ([r, c]: [number, number]) => `${r},${c}`;
     }
     /*
      * The padding holds the active cell's scale-up, so a table as wide as its container never overflows it. The row
-     * headers' column never gets narrower than its longest label, which takes the room from the cells. Inside a stage of
-     * fixed height (a size container, as in the player) the square cells also shrink until the table and its legend fit
-     * its height; with no such container cqh is the viewport's height, which leaves the width alone.
+     * headers' column never gets narrower than its longest label, which takes the room from the cells.
      */
     .table {
       display: grid;
       grid-template-columns: minmax(max-content, 1fr) repeat(var(--cols), minmax(0, 1fr));
       gap: 3px;
       padding-inline: 2px;
-      max-width: min(calc((var(--cols) + 1) * 46px + 4px), calc((100cqh - 72px) * (var(--cols) + 1) / (var(--rows) + 1)));
+      max-width: calc((var(--cols) + 1) * 46px + 4px);
       margin: 0 auto;
+    }
+    /* In the player's stage, whose height is fixed, the square cells also shrink until the table and its legend fit it. */
+    @container stage (height > 0px) {
+      .table {
+        max-width: min(calc((var(--cols) + 1) * 46px + 4px), calc((100cqh - 72px) * (var(--cols) + 1) / (var(--rows) + 1)));
+      }
     }
     /* Rows exist for assistive tech; the cells lay out on the table's grid. */
     [role='row'] {

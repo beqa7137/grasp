@@ -60,6 +60,8 @@ providers, so every sign-in test times out.
     1023.98 and 1279.98px), and `@container` width queries except its container breakpoints (640 and 900px, and
     639.98 and 899.98px). A query on an SCSS variable it cannot resolve in the file counts, and so does a width query in a
     TypeScript string (`matchMedia`, `BreakpointObserver`; an interpolated width counts). Units are matched in any case.
+    Only the width features' lengths count, so a height joined with `and` (`(min-width: 900px) and (min-height: 424px)`)
+    is free.
 
   Where it reads: declarations in stylesheets, inline styles and `style` attributes, with SCSS interpolation (`#{$s}`)
   read like the bare variable; template `[style.x]` and `[attr.x]` bindings (camelCase too), `[style]` and `[ngStyle]`

@@ -259,14 +259,17 @@ for (const id of AUDITED) {
       await page.goto(`/visualize/${id}`);
       await stepToCheckpoint(page);
       await expectNoPageScroll(page);
-      const fit = await page.locator('app-player').evaluate((player) => {
+      const fit = await page.locator('app-player').evaluate((player, visualizer) => {
         const box = (selector: string) => player.querySelector(selector)!.getBoundingClientRect();
         const header = box('ion-header');
         const dock = box('.controls');
         const scene = box('.scene');
         const panel = box('.panel-col');
         const prompt = box('.predict .prompt');
-        const drawings = [...player.querySelectorAll('.scene :is(svg, [role="table"], g-array-view, g-grid-view)')].map((el) =>
+        // Each list under the drawing shows at least its label; longer lists scroll the stage. Subsets on the iPhone's 249px
+        // stage is the known exception (an array, a tree and a legend fill it; LOOP.md's R2 follow-ups).
+        const lists = visualizer === 'subsets-backtracking' && innerHeight < 700 ? '' : ', .aux g-list-view .label';
+        const drawings = [...player.querySelectorAll(`.scene :is(svg, [role="table"], g-array-view, g-grid-view${lists})`)].map((el) =>
           el.getBoundingClientRect(),
         );
         return {
@@ -275,7 +278,7 @@ for (const id of AUDITED) {
           prompt: prompt.top >= panel.top && prompt.bottom <= panel.bottom + 0.5 && prompt.bottom <= innerHeight,
           dock: dock.bottom <= innerHeight + 0.5,
         };
-      });
+      }, id);
       expect(fit, `at ${size.width}×${size.height}`).toEqual({ stage: true, drawing: true, prompt: true, dock: true });
     }
   });
@@ -303,6 +306,89 @@ test('every frame of a long tracer keeps the dock on screen with no page scroll,
         expect(dock.y + dock.height, `${id} step ${step}: the dock's bottom`).toBeLessThanOrEqual(size.height + 0.5);
       }
     }
+  }
+});
+
+test(
+  'a drawing keeps one size on every frame, and height never shrinks its text below 6px',
+  { tag: '@player' },
+  async ({ page }, testInfo) => {
+    const sizes = [page.viewportSize()!, ...(testInfo.project.name === 'phone' ? [{ width: 320, height: 700 }] : [])];
+    for (const size of sizes) {
+      await page.setViewportSize(size);
+      for (const id of ['tree-traversal', 'kruskal-mst', 'subsets-backtracking']) {
+        await page.goto(`/visualize/${id}`);
+        const player = page.locator('app-player');
+        await player.getByText('Predict mode').click();
+        const count = player.locator('.scrub .count');
+        const total = await stepTotal(count);
+        const boxes = new Map<string, string>();
+        for (let step = 1; step <= total; step++) {
+          if (step > 1) {
+            await player.getByRole('button', { name: 'Step forward' }).click();
+            await expect(count).toHaveText(`${step} / ${total}`);
+          }
+          const drawing = player.locator('.scene svg[role="img"]');
+          if (!(await drawing.count())) continue;
+          const drawn = await drawing.evaluate((svg: SVGSVGElement) => {
+            const box = svg.getBoundingClientRect();
+            const view = svg.viewBox.baseVal;
+            const scale = Math.min(box.width / view.width, box.height / view.height);
+            const text = Math.min(...[...svg.querySelectorAll('text')].map((t) => parseFloat(getComputedStyle(t).fontSize) * scale));
+            return { view: `${view.width}×${view.height}`, box: `${Math.round(box.width)}×${Math.round(box.height)}`, text };
+          });
+          const where = `${id} step ${step} at ${size.width}×${size.height}`;
+          expect(drawn.text, `${where}: the smallest text`).toBeGreaterThanOrEqual(6);
+          expect(drawn.box, `${where}: the box for viewBox ${drawn.view}`).toBe(boxes.get(drawn.view) ?? drawn.box);
+          boxes.set(drawn.view, drawn.box);
+        }
+      }
+    }
+  },
+);
+
+for (const [id, width, height] of [
+  ['dijkstra', 320, 256],
+  ['kruskal-mst', 568, 320],
+  ['two-sum-hash', 600, 500],
+] as const) {
+  test(`at ${width}×${height} the layout scrolls and nothing covers the ${id} checkpoint`, { tag: '@player' }, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    await page.goto(`/visualize/${id}`);
+    await stepToCheckpoint(page);
+    const covered = () =>
+      page.locator('app-player').evaluate((player) =>
+        [...player.querySelectorAll<HTMLElement>('.predict :is(.prompt, .choice, .verdict)')].flatMap((el) => {
+          el.scrollIntoView({ block: 'nearest' });
+          const box = el.getBoundingClientRect();
+          const hit = document.elementFromPoint(box.left + Math.min(20, box.width / 2), box.top + box.height / 2);
+          return hit && el.contains(hit) ? [] : [`${el.className} under ${hit?.className}`];
+        }),
+      );
+    expect(await covered(), 'the prompt and every choice').toEqual([]);
+    await page.locator('.predict .choice').first().click();
+    await expect(page.locator('.predict .verdict')).toBeVisible();
+    expect(await covered(), 'the verdict').toEqual([]);
+  });
+}
+
+test('on a phone, Continue shows under the verdict in R right after an answer', { tag: '@player' }, async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === 'desktop', 'R is the phone layout.');
+  for (const id of ['binary-search', 'kruskal-mst', 'lcs']) {
+    await page.goto(`/visualize/${id}`);
+    await stepToCheckpoint(page);
+    await page.locator('.predict .choice').first().click();
+    await expect(page.locator('.predict .verdict')).toBeVisible();
+    const place = await page.locator('app-player').evaluate((player) => {
+      const box = (selector: string) => player.querySelector(selector)!.getBoundingClientRect();
+      const [r, verdict, go] = [box('.panel-col'), box('.predict .verdict'), box('.predict .continue')];
+      return {
+        continue: go.top >= r.top && go.bottom <= r.bottom + 0.5,
+        verdictTop: verdict.top >= r.top,
+        clear: verdict.bottom <= go.top + 1,
+      };
+    });
+    expect(place, id).toEqual({ continue: true, verdictTop: true, clear: true });
   }
 });
 
@@ -340,6 +426,14 @@ test('the key hint shows only with a fine pointer', { tag: '@player' }, async ({
   const hint = page.locator('app-player .keys');
   if (isMobile) await expect(hint).toBeHidden();
   else await expect(hint).toBeVisible();
+  if (isMobile) return;
+  // A short wide window has no column for the hint, so the dock keeps its buttons over the timeline.
+  await page.setViewportSize({ width: 1280, height: 500 });
+  await expect(hint).toBeHidden();
+  const dock = await page
+    .locator('app-player .controls')
+    .evaluate((c) => ({ rows: getComputedStyle(c).gridTemplateRows.split(' ').length, over: c.scrollHeight - c.clientHeight }));
+  expect(dock).toEqual({ rows: 2, over: 0 });
 });
 
 test('the intro behind ⓘ names the visualizer and leads to its pattern and problem', { tag: '@player' }, async ({ page }) => {

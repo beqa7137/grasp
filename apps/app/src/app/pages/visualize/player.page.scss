@@ -72,11 +72,11 @@ ion-title h1 {
   }
 }
 
-// The stage. Its height is fixed by the layout, so the drawing never moves; a drawing scales down to fit it, and a table or
-// list taller than it scrolls inside it, never the page.
+// The stage. Its height is fixed by the layout, so the drawing never moves; what does not fit scrolls inside it, never the
+// page.
 .scene {
   grid-area: stage;
-  container-type: size;
+  container: stage / size;
   height: var(--stage-h);
   min-height: 0;
   display: flex;
@@ -85,24 +85,27 @@ ion-title h1 {
   overflow: hidden auto;
 }
 
+// A drawing gets the stage's height less its legend, and less a first row of the lists when the run has any, so it keeps
+// one size on every frame. Height never takes it below 0.6 of its own scale: the lists give way and the stage scrolls.
 .viz {
-  flex: 1 1 auto;
-  min-height: 0;
+  --g-drawing-floor: 0.6;
+  --g-drawing-max-h: calc(100cqh - 34px);
   padding: 4px 0;
   display: flex;
   flex-direction: column;
   gap: 10px;
 
-  > g-graph-view,
-  > g-tree-view {
-    flex: 0 1 auto;
-    min-height: 96px;
+  &.listed {
+    --g-drawing-max-h: calc(100cqh - 100px);
+  }
+  > * {
+    flex: none;
   }
 }
 
 .aux {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 8px 14px;
   padding-top: 8px;
   border-top: 1px dashed var(--g-line);
@@ -173,6 +176,7 @@ ion-title h1 {
   min-height: 0;
   overflow-y: auto;
   padding-top: 8px;
+  scroll-padding-bottom: 60px;
 }
 
 .predict {
@@ -265,9 +269,14 @@ ion-title h1 {
       color: var(--g-warn);
     }
   }
+  // Sticky, so it shows under the verdict however far R has scrolled. It takes no tap for its first moments, since it can
+  // appear where the answer just tapped was and a double tap would skip the verdict.
   .continue {
+    position: sticky;
+    bottom: 0;
     margin-top: 12px;
     width: 100%;
+    animation: arm 0.4s;
   }
 }
 
@@ -307,11 +316,6 @@ ion-title h1 {
     display: none;
     font-size: 0.71875rem;
     margin: 0;
-    @media (hover: hover) and (pointer: fine) {
-      @container player (min-width: 900px) {
-        display: block;
-      }
-    }
   }
 }
 
@@ -498,54 +502,55 @@ ion-title h1 {
 
 // Too narrow for two columns and too short for the stack: everything keeps its natural height and the layout scrolls. The
 // stage is not sticky, since at 400% zoom it would cover the verdict or narration that focus moves to.
-@container player (max-width: 639.98px) {
-  @container player (max-height: 543.98px) {
-    .layout {
-      grid-template-rows: var(--stage-h) auto auto auto;
-      overflow-y: auto;
-    }
-    .panel-col {
-      overflow: visible;
-    }
+@container player (max-width: 639.98px) and (max-height: 543.98px) {
+  .layout {
+    grid-template-rows: var(--stage-h) auto auto auto;
+    overflow-y: auto;
+  }
+  .panel-col {
+    min-height: auto;
+    overflow: visible;
   }
 }
 
-// A phone held sideways: the stage on the left, and the caption, R and the dock on the right.
-@container player (min-width: 640px) {
-  @container player (max-height: 543.98px) {
-    .layout {
-      --stage-h: clamp(200px, 100cqh - 12px, 560px);
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-      grid-template-rows: auto minmax(0, 1fr) var(--dock-h);
-      grid-template-areas: 'stage caption' 'stage panel' 'stage dock';
-    }
-    .scene {
-      align-self: start;
-    }
+// A phone held sideways, or a window too short for the desktop stage's 280px: the stage on the left, and the caption, R and
+// the dock on the right.
+@container player ((min-width: 640px) and (max-width: 899.98px) and (max-height: 543.98px)) or ((min-width: 900px) and (max-height: 423.98px)) {
+  .layout {
+    --stage-h: clamp(200px, 100cqh - 12px, 560px);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) var(--dock-h);
+    grid-template-areas: 'stage caption' 'stage panel' 'stage dock';
+  }
+  .scene {
+    align-self: start;
   }
 }
 
 // Desktop: the stage and its caption on the left, the checkpoint dock and the code on the right, the transport across the
-// bottom.
-@container player (min-width: 900px) {
-  @container player (min-height: 544px) {
-    .layout {
-      --dock-h: 64px;
-      --stage-h: clamp(280px, 100cqh - 144px, 560px);
-      grid-template-columns: minmax(0, 58fr) minmax(0, 42fr);
-      grid-template-rows: var(--stage-h) minmax(0, 1fr) var(--dock-h);
-      grid-template-areas: 'stage panel' 'caption panel' 'dock dock';
-    }
-    .narration {
-      align-self: start;
-      max-height: 100%;
-      overflow-y: auto;
-    }
-    .controls {
-      grid-template-columns: auto minmax(0, 1fr) auto;
-      grid-template-areas: 'buttons scrub keys';
-      align-items: center;
-      column-gap: 20px;
+// bottom. It holds from the height where its stage reaches 280px.
+@container player (min-width: 900px) and (min-height: 424px) {
+  .layout {
+    --dock-h: 64px;
+    --stage-h: clamp(280px, 100cqh - 144px, 560px);
+    grid-template-columns: minmax(0, 58fr) minmax(0, 42fr);
+    grid-template-rows: var(--stage-h) minmax(0, 1fr) var(--dock-h);
+    grid-template-areas: 'stage panel' 'caption panel' 'dock dock';
+  }
+  .narration {
+    align-self: start;
+    max-height: 100%;
+    overflow-y: auto;
+  }
+  .controls {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: 'buttons scrub keys';
+    align-items: center;
+    column-gap: 20px;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .controls .keys {
+      display: block;
     }
   }
 }
@@ -558,5 +563,12 @@ ion-title h1 {
   to {
     transform: none;
     opacity: 1;
+  }
+}
+
+@keyframes arm {
+  from,
+  to {
+    pointer-events: none;
   }
 }

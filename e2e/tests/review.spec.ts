@@ -48,7 +48,7 @@ test('practice goes back to its lesson, and the Review tab root has no back butt
   await expect(page).toHaveURL(/\/learn\/design\/sd-latency$/);
 });
 
-test('on a phone an answered card shows its rating buttons above the tab bar without scrolling', async ({ page, isMobile }) => {
+test('on a phone an answered card shows its rating buttons above the tab bar, and its verdict above them', async ({ page, isMobile }) => {
   test.skip(!isMobile, 'The rating bar sticks only under 1024px.');
   for (const size of [page.viewportSize()!, { width: 320, height: 700 }]) {
     await page.setViewportSize(size);
@@ -58,14 +58,15 @@ test('on a phone an answered card shows its rating buttons above the tab bar wit
     const placed = await page.locator('app-drill').evaluate((drill) => {
       const tabs = document.querySelector('ion-tab-bar')!.getBoundingClientRect();
       const header = drill.querySelector('ion-header')!.getBoundingClientRect();
-      const scroller = drill.querySelector('ion-content')!.shadowRoot!.querySelector('.inner-scroll')!;
+      const bar = drill.querySelector('.actions')!.getBoundingClientRect();
+      const verdict = drill.querySelector('g-question-card .reveal .verdict')!.getBoundingClientRect();
       const buttons = [...drill.querySelectorAll('.actions button')].map((b) => b.getBoundingClientRect());
       return {
-        scrollTop: scroller.scrollTop,
         shown: buttons.length > 0 && buttons.every((b) => b.top >= header.bottom && b.bottom <= tabs.top + 0.5),
+        verdict: verdict.top >= header.bottom && verdict.bottom <= bar.top + 0.5,
       };
     });
-    expect(placed, `at ${size.width}×${size.height}`).toEqual({ scrollTop: 0, shown: true });
+    expect(placed, `at ${size.width}×${size.height}`).toEqual({ shown: true, verdict: true });
   }
 });
 

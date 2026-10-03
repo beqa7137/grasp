@@ -1886,8 +1886,8 @@ Iterations are ordered by impact, alternating between organization and visuals. 
 - **Measure:** `timing.mjs` first tap on `/visualize/:id`.
 - **Content review:** none.
 - **R2 note:** the player is a size container (`container: player / size`) with three layouts and a fallback, all in
-  `player.page.scss`; the height half of each query is nested in its own `@container` rule, so the style ratchet sees
-  only the sanctioned 640 and 900px widths and the player's raw `@media` count falls from 2 to 0. The formulas run on the
+  `player.page.scss`; each query joins its height to a sanctioned 640 or 900px width with `and` (the style ratchet
+  checks only width lengths), and the player's raw `@media` count falls from 2 to 0. The formulas run on the
   container's content box, after a 12px top padding, with no row gaps: phone and tablet S = clamp(200px, 100cqh − 48px −
   240px − dock, 420px), where the dock is 80px plus the bottom safe area (a buttons row over the timeline: R2 keeps the
   range and its checkpoint ticks on phone until R3's phone dock with ⋯ replaces them, so S is 24px under 3.7's numbers);
@@ -1895,17 +1895,20 @@ Iterations are ordered by impact, alternating between organization and visuals. 
   (WebKit, 44px iOS toolbar) 249px, iPad Mini 418px, 1280×720 459px (the tab bar still shows at 1024px and up until R10's
   rail), 1280×1000 558px, 1024×768 507px. The caption row is `auto`: outside a checkpoint it shows the whole `note` and a
   longer note takes its room from region R (`minmax(0, 1fr)`), never from the stage; beside a checkpoint it is the note's
-  first sentence in at most two lines, so R keeps 240px. Landscape (container at least 640px wide and under 544px tall):
-  the stage on the left. The fallback (narrower than 640px and under 544px) lets the layout itself scroll; its stage is not
+  first sentence in at most two lines, so R keeps 240px. Landscape (container 640 to 899px wide and under 544px tall, or
+  900px and wider and under 424px tall, where the desktop stage would fall under 280px): the stage on the left; so a
+  1366×640 laptop window gets the desktop layout. The fallback (narrower than 640px and under 544px) lets the layout itself scroll; its stage is not
   sticky, because at 400% zoom a sticky 200px stage would cover the verdict or narration that focus moves to. `ion-content`
   does not scroll on this page. The header is opaque, its title an inline `h1` that ellipsizes ("Kruskal's Minimum
   Spann…" at 320px), and ⓘ opens the intro (pattern, difficulty, complexity, summary and "Now write it yourself") as a
   popover dialog named after the visualizer; the write-it link also shows in the caption on the last frame. Play during a
   checkpoint focuses the question and announces "Answer the question to continue." (no skip exists until R3). The prompt
   is not an `aria-live` region: focus moves to it, which is the announcement, and the narration is not live for the render
-  after Continue moves focus to it, so nothing is read twice. Drawings fit the stage structurally: graph and tree SVGs
-  shrink to their host in the stage's flex column, and a table's square cells shrink to the stage's height (`.scene` is a
-  size container; `100cqh` elsewhere is the viewport's height, which leaves the width alone). The Predict mode switch and
+  after Continue moves focus to it, so nothing is read twice. Drawings fit the stage structurally: a graph or tree SVG is
+  at most the stage's height less its legend (less a first row of the lists when the run has any), the same on every
+  frame, and height never takes it below 0.6 of its own scale; the lists give way and the stage scrolls for them. A
+  table's square cells shrink to the stage's height only inside the stage (`@container stage`), so review cards, lessons
+  and the workspace are unchanged. The Predict mode switch and
   the score sit in region R under the checkpoint (phone) or under the dock (desktop) until R3's ⋯. The review card's rating
   bar is sticky above the tab bar under 1024px only when the window is at least 480px tall.
 

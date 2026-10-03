@@ -64,6 +64,7 @@ export class PlayerIntroComponent {
   problem?: CodingProblemSummary;
 
   go(event: MouseEvent, choice: PlayerIntroChoice) {
+    if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
     void this.popovers.dismiss(choice);
   }

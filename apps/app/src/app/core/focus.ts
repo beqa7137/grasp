@@ -5,9 +5,6 @@ let pointerInput = false;
 document.addEventListener('pointerdown', () => (pointerInput = true), { capture: true, passive: true });
 document.addEventListener('keydown', () => (pointerInput = false), { capture: true, passive: true });
 
-/** Whether the latest input was a tap or click rather than a key press, so focus moved now does not show. */
-export const byPointer = () => pointerInput;
-
 /**
  * Moves focus to `target` when focus was lost (its control was removed or disabled) or is still inside `within`, whose
  * content just changed. After a tap or click it does not scroll, so the content stays where the pointer left it. After a key

@@ -226,10 +226,14 @@ export function scan(source, file, { elsewhere = new Set(), tokens = new Set(), 
     const value = bound(expression, unit ?? (type === 'attr' ? 'px' : undefined), members);
     check(kebab(property), type === 'attr' ? unitless(value) : value, index, snippet);
   };
+  // Only a width feature's length must be a breakpoint, so a height joined to it with `and` stays free.
   const query = (kind, condition, index, snippet) => {
-    const lengths = condition.match(QUERY_LENGTH) ?? [];
-    const unknown = lengths.some((length) => !BREAKPOINTS[kind].has(length.toLowerCase())) || /\$/.test(condition);
-    if (/width|inline-size/i.test(condition) && unknown) add(kind, index, snippet);
+    const widths = [...condition.matchAll(/\(([^()]*)\)/g)]
+      .map(([, feature]) => feature)
+      .filter((feature) => /width|inline-size/i.test(feature));
+    const unknown = (feature) =>
+      /\$/.test(feature) || (feature.match(QUERY_LENGTH) ?? []).some((length) => !BREAKPOINTS[kind].has(length.toLowerCase()));
+    if (widths.some(unknown)) add(kind, index, snippet);
   };
   const resolved = (value) => value.replace(/\$[\w-]+/g, (name) => locals.get(name) ?? name);
 
