@@ -43,6 +43,7 @@ import { AnnouncerService } from '../../core/announcer.service';
 import { refocus, type FocusPlaces } from '../../core/focus';
 import { haptic } from '../../core/haptics';
 import { onPageKey } from '../../core/on-page-key';
+import { FIELD } from '../../core/page-keys';
 import { ProgressService } from '../../core/progress.service';
 import { ShortcutsService } from '../../core/shortcuts.service';
 import { answerMark } from '../../review/answer-mark';
@@ -118,8 +119,6 @@ export class PlayerPage {
   private readonly narration = viewChild<ElementRef<HTMLElement>>('narration');
   private readonly layout = viewChild<ElementRef<HTMLElement>>('layout');
   private readonly heading = viewChild<ElementRef<HTMLElement>>('heading');
-  private readonly scene = viewChild<ElementRef<HTMLElement>>('scene');
-  private readonly controls = viewChild<ElementRef<HTMLElement>>('controls');
   private readonly panelCol = viewChild<ElementRef<HTMLElement>>('panelCol');
   private readonly about = viewChild<ElementRef<HTMLElement>>('about');
 
@@ -222,17 +221,21 @@ export class PlayerPage {
 
     // A checkpoint opens in the dock, answering disables its choices and continuing removes it, so focus follows each change
     // instead of falling back to the top of the page. Only the dock scrolls, so the stage and the transport never move. Focus
-    // moves only from the stage, the transport or the page's heading (where a tab switch leaves it), never from a field or
-    // anything else the learner is using while it plays.
+    // moves from anywhere in the player or its heading (where a tab switch leaves it), but never out of a field the learner
+    // is typing in while it plays.
     afterRenderEffect(() => {
       const p = this.pending();
       const before = this.shownPending;
       this.shownPending = p;
       if (p === before) return;
-      const watched = [this.scene()?.nativeElement, this.controls()?.nativeElement, this.heading()?.nativeElement];
+      const active = document.activeElement;
+      const typing = !!active?.matches(FIELD) && active.checkVisibility?.() !== false;
+      const player = [this.layout()?.nativeElement, this.heading()?.nativeElement];
       if (!p) this.follow(this.narration()?.nativeElement);
       else if (p.choice === null) {
-        if (this.follow(this.predictPrompt()?.nativeElement, watched)) this.panelCol()?.nativeElement.scrollTo({ top: 0 });
+        if (typing) return;
+        this.panelCol()?.nativeElement.scrollTo({ top: 0 });
+        this.follow(this.predictPrompt()?.nativeElement, player);
       } else {
         // Shown after a tap as well as a key press, clear of the sticky Continue; a verdict taller than R's view keeps its
         // first line in view.
@@ -241,7 +244,7 @@ export class PlayerPage {
         verdict?.scrollIntoView({ block: 'nearest' });
         if (verdict && panel && verdict.getBoundingClientRect().top < panel.getBoundingClientRect().top)
           verdict.scrollIntoView({ block: 'start' });
-        refocus(verdict, [...watched, this.predictPanel()?.nativeElement], () => undefined);
+        if (!typing) refocus(verdict, player, () => undefined);
       }
     });
 
@@ -363,13 +366,12 @@ export class PlayerPage {
   }
 
   // Refocuses, and in the fallback, where the layout itself scrolls, also scrolls the target into view after a tap: the
-  // control tapped may sit far below it there. Says whether focus is on the target.
-  private follow(target: HTMLElement | undefined, within?: FocusPlaces): boolean {
+  // control tapped may sit far below it there.
+  private follow(target: HTMLElement | undefined, within?: FocusPlaces) {
     refocus(target, within);
     const layout = this.layout()?.nativeElement;
-    const followed = !!target && document.activeElement === target;
-    if (followed && layout && getComputedStyle(layout).overflowY !== 'visible') target.scrollIntoView({ block: 'nearest' });
-    return followed;
+    if (target && document.activeElement === target && layout && getComputedStyle(layout).overflowY !== 'visible')
+      target.scrollIntoView({ block: 'nearest' });
   }
 
   async openIntro(event: MouseEvent): Promise<void> {

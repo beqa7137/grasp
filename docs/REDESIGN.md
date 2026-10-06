@@ -1913,8 +1913,9 @@ Iterations are ordered by impact, alternating between organization and visuals. 
   floor (a table's square cells 1.6 times their text and as wide as their column labels, its row headers' column as wide
   as their longest label), and an array above it keeps room for the run's most pointer rows, so the drawing keeps one size
   on every frame; outside the stage (`@container stage`) review cards, lessons and the workspace are unchanged. A
-  checkpoint takes focus only from the body, the stage, the transport or the page's heading (which a tab switch under
-  1024px gives focus only when the hidden tab button had it), never from a field. The Predict mode switch and
+  checkpoint takes focus from anywhere in the player or its heading (which a tab switch under 1024px gives focus only
+  when the hidden tab button had it), and from a control it hides, but never from a field the learner is typing in;
+  unless the learner is in a field, region R also scrolls back to its top. The Predict mode switch and
   the score sit in region R under the checkpoint (phone) or under the dock (desktop) until R3's ⋯. The review card's rating
   bar is sticky above the tab bar under 1024px only when the window is at least 480px tall.
 
