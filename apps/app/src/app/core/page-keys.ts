@@ -1,5 +1,4 @@
-/** A field the learner types into, whose keys and focus belong to it. */
-export const FIELD = 'input, textarea, select, [contenteditable]';
+const FIELD = 'input, textarea, select, [contenteditable]';
 const OVERLAY = 'ion-modal, ion-alert, ion-action-sheet, ion-popover, ion-toast, ion-loading, [role="dialog"], [role="alertdialog"]';
 const CONTROL =
   'a[href], button, summary, [role="button"], [role="link"], [role="checkbox"], [role="radio"], [role="switch"], [role="tab"], [role="menuitem"], [role="option"]';
