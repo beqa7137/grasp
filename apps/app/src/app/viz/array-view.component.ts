@@ -26,6 +26,13 @@ export interface AlignedRow {
   values: Scalar[];
 }
 
+/** How many rows a frame's pointer labels take: those on one cell stack. */
+export function pointerRowsOf(pointers: Record<string, number> = {}): number {
+  const onCell = new Map<number, number>();
+  for (const index of Object.values(pointers)) onCell.set(index, (onCell.get(index) ?? 0) + 1);
+  return Math.max(0, ...onCell.values());
+}
+
 /** The longest of these values in characters, which every cell of a view showing any of them is wide enough to hold. */
 export function longestValue(values: Iterable<Scalar>): number {
   let longest = 1;
@@ -56,7 +63,7 @@ const POINTER_COLORS: Record<string, string> = {
   template: `
     @let v = view();
     <div class="track" #track [style.--n]="v.values.length" [style.--chars]="chars()">
-      <div class="pointers" [style.height.px]="pointers().length ? pointerRows() * 22 + 6 : 0">
+      <div class="pointers" [style.height.px]="pointerRows() ? pointerRows() * 22 + 6 : 0">
         @for (p of pointers(); track p.name) {
           <div
             class="ptr"
@@ -287,6 +294,8 @@ export class ArrayViewComponent {
   readonly aligned = input<AlignedRow | null>(null);
   /** The longest value in any frame the page will show here, so that cells keep one width from frame to frame. */
   readonly longest = input(1);
+  /** Pointer rows to keep room for when a frame has fewer, so that the array keeps one height from frame to frame. */
+  readonly band = input(0);
   private readonly host: HTMLElement = inject(ElementRef).nativeElement;
   private readonly track = viewChild.required<ElementRef<HTMLElement>>('track');
   private readonly cells = viewChildren<ElementRef<HTMLElement>>('cell');
@@ -308,7 +317,7 @@ export class ArrayViewComponent {
 
   readonly chars = computed(() => Math.max(this.longest(), longestValue([...this.view().values, ...(this.aligned()?.values ?? [])])));
 
-  readonly pointerRows = computed(() => Math.max(1, ...this.pointers().map((p) => p.row + 1)));
+  readonly pointerRows = computed(() => Math.max(this.band(), pointerRowsOf(this.view().pointers)));
 
   /** The cells a step works on, which a scrolled array keeps in view: its active cells, pointers and window. */
   private readonly followed = computed(() => {

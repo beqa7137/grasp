@@ -216,6 +216,17 @@ test('stepping and playing from the focused stage leave its scroll alone', { tag
   await expect(scene).toBeFocused();
 });
 
+test('the arrow keys still scroll a focused code panel sideways, and step the player', { tag: '@player' }, async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 700 });
+  await page.goto('/visualize/lcs');
+  const code = page.locator('app-player g-code-panel');
+  expect(await code.evaluate((el) => el.scrollWidth > el.clientWidth), 'the code is wider than its panel').toBe(true);
+  await code.focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('app-player .scrub .count')).toHaveText('2 / 86');
+  await expect.poll(() => code.evaluate((el) => el.scrollLeft), { message: 'the panel scrolled sideways' }).toBeGreaterThan(0);
+});
+
 /** How an element sits in the player's view: px shown inside every box that clips it and the viewport, and whether all of it shows. */
 async function inView(page: Page, target: Locator) {
   return target.evaluate((el) => {
@@ -268,6 +279,17 @@ test('at 400% zoom, answering and continuing from the keyboard never leave the f
   await expectFocusShown(page, page.locator('.predict .verdict'), 'the verdict');
   await page.keyboard.press('Tab');
   await page.keyboard.press('Enter');
+  await expectFocusShown(page, page.locator('.narration'), 'the narration');
+});
+
+test('at 400% zoom, tapping through a checkpoint never leaves the focused element out of view', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 256 });
+  await page.goto('/visualize/dijkstra');
+  await stepToCheckpoint(page);
+  await expectFocusShown(page, page.locator('.predict .prompt'), 'the prompt');
+  await page.locator('.predict .choice').first().click();
+  await expectFocusShown(page, page.locator('.predict .verdict'), 'the verdict');
+  await page.getByRole('button', { name: 'Continue →' }).click();
   await expectFocusShown(page, page.locator('.narration'), 'the narration');
 });
 

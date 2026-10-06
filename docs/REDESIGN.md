@@ -1897,8 +1897,9 @@ Iterations are ordered by impact, alternating between organization and visuals. 
   longer note takes its room from region R (`minmax(0, 1fr)`), never from the stage; beside a checkpoint it is the note's
   first sentence in at most two lines, so R keeps 240px. Landscape (container 640 to 899px wide and under 544px tall, or
   900px and wider and under 424px tall, where the desktop stage would fall under 280px): the stage on the left; so a
-  1366×640 laptop window gets the desktop layout. The fallback (narrower than 640px and under 544px) lets the layout itself scroll; its stage is not
-  sticky, because at 400% zoom a sticky 200px stage would cover the verdict or narration that focus moves to. `ion-content`
+  1366×640 laptop window gets the desktop layout. The fallback (narrower than 640px and under 544px) lets the layout itself scroll; its stage and Continue
+  are not sticky, because at 400% zoom they would cover the verdict or narration that focus moves to, and focus that
+  follows a tap scrolls into view there. `ion-content`
   does not scroll on this page. The header is opaque, its title an inline `h1` that ellipsizes ("Kruskal's Minimum
   Spann…" at 320px), and ⓘ opens the intro (pattern, difficulty, complexity, summary and "Now write it yourself") as a
   popover dialog named after the visualizer; the write-it link also shows in the caption on the last frame. Play during a
@@ -1906,9 +1907,11 @@ Iterations are ordered by impact, alternating between organization and visuals. 
   is not an `aria-live` region: focus moves to it, which is the announcement, and the narration is not live for the render
   after Continue moves focus to it, so nothing is read twice. Drawings fit the stage structurally: a graph or tree SVG is
   at most the stage's height less its legend (less a first row of the lists when the run has any), the same on every
-  frame, and height never takes it below 0.6 of its own scale; the lists give way and the stage scrolls for them. A
-  table's square cells shrink to the stage's height only inside the stage (`@container stage`), so review cards, lessons
-  and the workspace are unchanged. The Predict mode switch and
+  frame, and height never takes it below 0.6 of its own scale; the lists give way and the stage scrolls for them. In a
+  table's run the stage is a column of fixed height: the table's box takes what the views above it, its legend (on as
+  many lines as it wraps to) and a 66px first row of the lists leave, down to cells 1.6 times their text and as wide as their column labels (asking at most 0.6 of the full 46px), and an array
+  above it keeps room for the run's most pointer rows, so the table keeps one size on every frame; outside the stage
+  (`@container stage`) review cards, lessons and the workspace are unchanged. The Predict mode switch and
   the score sit in region R under the checkpoint (phone) or under the dock (desktop) until R3's ⋯. The review card's rating
   bar is sticky above the tab bar under 1024px only when the window is at least 480px tall.
 

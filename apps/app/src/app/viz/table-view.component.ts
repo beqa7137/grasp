@@ -12,23 +12,25 @@ const key = ([r, c]: [number, number]) => `${r},${c}`;
   imports: [LegendComponent],
   template: `
     @let v = view();
-    <div class="table" role="table" [attr.aria-label]="ariaLabel()" [style.--cols]="v.colLabels.length" [style.--rows]="v.cells.length">
-      <div role="row">
-        <div class="corner" role="cell"></div>
-        @for (label of v.colLabels; track $index) {
-          <div class="head col" role="columnheader" [class.hot]="activeCol() === $index">{{ label }}</div>
-        }
-      </div>
-      @for (row of v.cells; track r; let r = $index) {
+    <div class="fit" [style.--cols]="v.colLabels.length" [style.--rows]="v.cells.length" [style.--label-chars]="labelChars()">
+      <div class="table" role="table" [attr.aria-label]="ariaLabel()">
         <div role="row">
-          <div class="head row" role="rowheader" [class.hot]="activeRow() === r">{{ v.rowLabels[r] }}</div>
-          @for (cell of row; track c; let c = $index) {
-            <div class="cell" role="cell" [attr.data-role]="roles().get(r + ',' + c)" [class.empty]="cell === null">
-              {{ cell ?? '' }}
-            </div>
+          <div class="corner" role="cell"></div>
+          @for (label of v.colLabels; track $index) {
+            <div class="head col" role="columnheader" [class.hot]="activeCol() === $index">{{ label }}</div>
           }
         </div>
-      }
+        @for (row of v.cells; track r; let r = $index) {
+          <div role="row">
+            <div class="head row" role="rowheader" [class.hot]="activeRow() === r">{{ v.rowLabels[r] }}</div>
+            @for (cell of row; track c; let c = $index) {
+              <div class="cell" role="cell" [attr.data-role]="roles().get(r + ',' + c)" [class.empty]="cell === null">
+                {{ cell ?? '' }}
+              </div>
+            }
+          </div>
+        }
+      </div>
     </div>
     @if (legend()) {
       <g-legend [legend]="view().legend" swatch="role" />
@@ -39,6 +41,10 @@ const key = ([r, c]: [number, number]) => `${r},${c}`;
       display: block;
       width: 100%;
     }
+    .fit {
+      --cap: calc((var(--cols) + 1) * 46px + 4px);
+      --cell-text: clamp(10px, 2.4vw, 14px);
+    }
     /*
      * The padding holds the active cell's scale-up, so a table as wide as its container never overflows it. The row
      * headers' column never gets narrower than its longest label, which takes the room from the cells.
@@ -48,14 +54,8 @@ const key = ([r, c]: [number, number]) => `${r},${c}`;
       grid-template-columns: minmax(max-content, 1fr) repeat(var(--cols), minmax(0, 1fr));
       gap: 3px;
       padding-inline: 2px;
-      max-width: calc((var(--cols) + 1) * 46px + 4px);
+      max-width: var(--cap);
       margin: 0 auto;
-    }
-    /* In the player's stage, whose height is fixed, the square cells also shrink until the table and its legend fit it. */
-    @container stage (height > 0px) {
-      .table {
-        max-width: min(calc((var(--cols) + 1) * 46px + 4px), calc((100cqh - 72px) * (var(--cols) + 1) / (var(--rows) + 1)));
-      }
     }
     /* Rows exist for assistive tech; the cells lay out on the table's grid. */
     [role='row'] {
@@ -86,7 +86,7 @@ const key = ([r, c]: [number, number]) => `${r},${c}`;
       border-radius: 7px;
       background: var(--g-raised);
       border: 1px solid var(--g-line-strong);
-      font: 600 clamp(10px, 2.4vw, 14px) / 1 var(--g-font-mono);
+      font: 600 var(--cell-text) / 1 var(--g-font-mono);
       color: var(--g-text);
       transition:
         background 0.25s,
@@ -117,6 +117,41 @@ const key = ([r, c]: [number, number]) => `${r},${c}`;
     g-legend {
       --g-legend-gap: 14px;
     }
+    /*
+     * In the player's stage the table's box and its legend join the stage's column, whose height is fixed: the box starts
+     * as tall as the table at its full width and gives the views above it and the legend, on as many lines as it wraps to,
+     * the room they need, down to cells 1.6 times their text and as wide as the longest column label (7.2px a character
+     * of its 12px mono font, and 4px), which never asks for more than the drawing floor of their full 46px; the square
+     * cells then shrink until the table fits the box. Under the 22px header row each row is a cell and a 3px gap, the row
+     * headers taking the cells' height.
+     */
+    @container stage (height > 0px) {
+      :host {
+        display: contents;
+      }
+      .fit {
+        --full: calc(22px + var(--rows) * (min(100cqw, var(--cap)) - 1px) / (var(--cols) + 1));
+        container-type: size;
+        flex: 0 1 var(--full);
+        min-height: min(
+          var(--full),
+          calc(
+            22px + var(--rows) *
+              (max(1.6 * var(--cell-text), min(var(--label-chars) * 7.2px + 4px, var(--g-drawing-floor, 0) * 46px)) + 3px)
+          )
+        );
+      }
+      .table {
+        max-width: min(var(--cap), calc((100cqh - 22px) * (var(--cols) + 1) / var(--rows) + 1px));
+      }
+      .head.row {
+        min-height: 0;
+      }
+      /* The column's own 10px gap comes first. */
+      g-legend {
+        --g-legend-gap: 4px;
+      }
+    }
   `,
 })
 export class TableViewComponent {
@@ -131,6 +166,8 @@ export class TableViewComponent {
     if (v.active) roles.set(key(v.active), 'active');
     return roles;
   });
+
+  readonly labelChars = computed(() => Math.max(1, ...this.view().colLabels.map((label) => [...label].length)));
 
   readonly activeRow = computed(() => this.view().active?.[0] ?? null);
   readonly activeCol = computed(() => this.view().active?.[1] ?? null);

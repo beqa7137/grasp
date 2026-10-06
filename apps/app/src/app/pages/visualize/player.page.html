@@ -29,9 +29,9 @@
       <div class="layout" #layout>
         @if (frame(); as f) {
           <div class="scene panel" role="group" aria-roledescription="visualization" [attr.aria-label]="a.title" tabindex="0">
-            <div class="viz" [class.listed]="listed()">
+            <div class="viz" [class.listed]="listed()" [class.tabled]="tabled()">
               @if (f.array) {
-                <g-array-view [view]="f.array" [aligned]="alignedOutput()" [longest]="longestArrayValue()" />
+                <g-array-view [view]="f.array" [aligned]="alignedOutput()" [longest]="longestArrayValue()" [band]="arrayBand()" />
               }
               @if (f.grid) {
                 <g-grid-view [view]="f.grid" />

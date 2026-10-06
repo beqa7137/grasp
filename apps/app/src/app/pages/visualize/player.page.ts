@@ -46,7 +46,7 @@ import { onPageKey } from '../../core/on-page-key';
 import { ProgressService } from '../../core/progress.service';
 import { ShortcutsService } from '../../core/shortcuts.service';
 import { answerMark } from '../../review/answer-mark';
-import { ArrayViewComponent, longestValue, type AlignedRow } from '../../viz/array-view.component';
+import { ArrayViewComponent, longestValue, pointerRowsOf, type AlignedRow } from '../../viz/array-view.component';
 import { CodePanelComponent } from '../../viz/code-panel.component';
 import { CodeTextComponent } from '../../viz/code-text.component';
 import { GraphViewComponent } from '../../viz/graph-view.component';
@@ -66,7 +66,6 @@ function alignedRow(f: Frame | undefined): AlignedRow | null {
 }
 
 const SPEEDS = [0.5, 1, 2, 4];
-const STEP_KEYS = new Set(['ArrowLeft', 'ArrowRight', ' ']);
 
 @Component({
   selector: 'app-player',
@@ -166,6 +165,10 @@ export class PlayerPage {
     longestValue(this.frames().flatMap((f) => [...(f.array?.values ?? []), ...(alignedRow(f)?.values ?? [])])),
   );
   readonly treeRoom = computed(() => sideRoomFor(this.frames().map((f) => f.tree)));
+  /** Whether a table shows in the run: it takes the stage's room that the views above it and its legend leave. */
+  readonly tabled = computed(() => this.frames().some((f) => f.table));
+  /** An array above a table keeps room for the run's most pointer rows, so the table keeps one size on every frame. */
+  readonly arrayBand = computed(() => (this.tabled() ? Math.max(0, ...this.frames().map((f) => pointerRowsOf(f.array?.pointers))) : 0));
   /** Whether any frame shows lists under the drawing, so the drawing keeps one size for the whole run. */
   readonly listed = computed(() => this.frames().some((f) => f.stack || f.queue || f.set || (f.output && !alignedRow(f))));
   /** Beside a checkpoint the caption is the note's first sentence, so the dock keeps R's height. */
@@ -218,10 +221,10 @@ export class PlayerPage {
       const before = this.shownPending;
       this.shownPending = p;
       if (p === before) return;
-      if (!p) refocus(this.narration()?.nativeElement);
+      if (!p) this.follow(this.narration()?.nativeElement);
       else if (p.choice === null) {
         this.panelCol()?.nativeElement.scrollTo({ top: 0 });
-        refocus(this.predictPrompt()?.nativeElement, this.layout()?.nativeElement);
+        this.follow(this.predictPrompt()?.nativeElement, this.layout()?.nativeElement);
       } else {
         // Shown after a tap as well as a key press, clear of the sticky Continue; a verdict taller than R's view keeps its
         // first line in view.
@@ -351,6 +354,15 @@ export class PlayerPage {
     this.index.set(Math.min(this.last(), p.frame + 1));
   }
 
+  // Refocuses, and in the fallback, where the layout itself scrolls, also scrolls the target into view after a tap: the
+  // control tapped may sit far below it there.
+  private follow(target: HTMLElement | undefined, within?: Element) {
+    refocus(target, within);
+    const layout = this.layout()?.nativeElement;
+    if (target && document.activeElement === target && layout && getComputedStyle(layout).overflowY !== 'visible')
+      target.scrollIntoView({ block: 'nearest' });
+  }
+
   async openIntro(event: MouseEvent): Promise<void> {
     const algo = this.algo();
     // A double tap would otherwise stack a second intro that outlives the first one's choice.
@@ -378,13 +390,13 @@ export class PlayerPage {
       return;
     }
     const revealed = p !== null && p.choice !== null;
-    if (STEP_KEYS.has(e.key)) e.preventDefault();
     if (e.key === 'ArrowRight') {
       if (revealed) this.continueAfterPredict();
       else this.next();
     } else if (e.key === 'ArrowLeft') {
       this.prev();
     } else if (e.key === ' ') {
+      e.preventDefault();
       this.togglePlay();
     }
   }

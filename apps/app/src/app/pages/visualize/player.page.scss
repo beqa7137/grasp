@@ -86,7 +86,9 @@ ion-title h1 {
 }
 
 // A drawing gets the stage's height less its legend, and less a first row of the lists when the run has any, so it keeps
-// one size on every frame. Height never takes it below 0.6 of its own scale: the lists give way and the stage scrolls.
+// one size on every frame. Height never takes it below 0.6 of its own scale: the lists give way and the stage scrolls. A
+// table takes what the views above it, its legend and that first row leave, so in its run the stage is a column of fixed
+// height, an array above it keeps one height (arrayBand) and the lists one 66px row.
 .viz {
   --g-drawing-floor: 0.6;
   --g-drawing-max-h: calc(100cqh - 34px);
@@ -100,6 +102,13 @@ ion-title h1 {
   }
   > * {
     flex: none;
+  }
+  &.tabled {
+    height: 100cqh;
+    > .aux {
+      flex: 0 0 66px;
+      min-height: 0;
+    }
   }
 }
 
@@ -501,7 +510,7 @@ ion-title h1 {
 }
 
 // Too narrow for two columns and too short for the stack: everything keeps its natural height and the layout scrolls. The
-// stage is not sticky, since at 400% zoom it would cover the verdict or narration that focus moves to.
+// stage and Continue are not sticky, since at 400% zoom they would cover the verdict or narration that focus moves to.
 @container player (max-width: 639.98px) and (max-height: 543.98px) {
   .layout {
     grid-template-rows: var(--stage-h) auto auto auto;
@@ -510,6 +519,9 @@ ion-title h1 {
   .panel-col {
     min-height: auto;
     overflow: visible;
+  }
+  .predict .continue {
+    position: static;
   }
 }
 

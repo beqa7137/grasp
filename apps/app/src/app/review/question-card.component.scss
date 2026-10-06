@@ -194,7 +194,11 @@ header {
   background: rgba(var(--g-danger-rgb), 0.08);
   animation: rise 0.2s ease-out;
 
+  // Sized before the icon loads, as the answer marks are, so the explanation wraps at its final width when the page scrolls
+  // it clear of the rating bar.
   ion-icon {
+    width: 1em;
+    height: 1em;
     font-size: 24px;
     color: var(--g-danger);
     flex: none;

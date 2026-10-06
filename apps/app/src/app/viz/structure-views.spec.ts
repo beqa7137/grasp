@@ -4,7 +4,7 @@ import { ALGORITHMS, GRAPH_BOX, GRAPH_NODE_RADIUS, getAlgorithm, mulberry32, typ
 import { traceJs } from '../code/execute-js';
 import { toFrames } from '../code/trace-frames';
 import { exampleTree } from '../code/tree-frames';
-import { ArrayViewComponent, longestValue } from './array-view.component';
+import { ArrayViewComponent, longestValue, pointerRowsOf } from './array-view.component';
 import { placeBadges, wrapBadge, type Badged, type Spot } from './badges';
 import { GraphViewComponent } from './graph-view.component';
 import { LegendComponent } from './legend.component';
@@ -784,6 +784,24 @@ describe('structure views render real traces', () => {
     fixture.componentRef.setInput('longest', 4);
     fixture.detectChanges();
     expect(track.style.getPropertyValue('--chars')).toBe('4');
+  });
+
+  it('array: stacks pointers on one cell into rows, and keeps room for the rows a page asks for', () => {
+    expect(pointerRowsOf({})).toBe(0);
+    expect(pointerRowsOf({ lo: 0, hi: 3 })).toBe(1);
+    expect(pointerRowsOf({ lo: 2, mid: 2, hi: 2, i: 0 })).toBe(3);
+    const fixture = TestBed.createComponent(ArrayViewComponent);
+    fixture.componentRef.setInput('view', { values: [4, 2, 5], pointers: {} });
+    fixture.detectChanges();
+    const band: HTMLElement = fixture.nativeElement.querySelector('.pointers');
+    expect(band.style.height).toBe('0px');
+    fixture.componentRef.setInput('view', { values: [4, 2, 5], pointers: { i: 1, j: 1 } });
+    fixture.detectChanges();
+    expect(band.style.height).toBe('50px');
+    fixture.componentRef.setInput('band', 2);
+    fixture.componentRef.setInput('view', { values: [4, 2, 5], pointers: {} });
+    fixture.detectChanges();
+    expect(band.style.height).toBe('50px');
   });
 
   it('array: measures the longest of any values in characters', () => {
