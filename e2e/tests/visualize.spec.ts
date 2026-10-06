@@ -284,13 +284,16 @@ for (const id of AUDITED) {
   });
 }
 
-test('every frame of a long tracer keeps the dock on screen with no page scroll, its caption taking room from the code', async ({
-  page,
-}, testInfo) => {
-  test.skip(testInfo.project.name === 'desktop', 'The caption has its own row beside the stage on a wide screen.');
-  for (const size of [page.viewportSize()!, { width: 320, height: 700 }]) {
-    await page.setViewportSize(size);
-    for (const id of ['tree-traversal', 'kruskal-mst']) {
+// The frame walks below are one test per tracer (and size): each step is a few browser actions, Playwright's trace records
+// every one, and with it a single test of all four walks took about 60s on the iPhone (23s without the trace).
+for (const id of ['tree-traversal', 'kruskal-mst']) {
+  for (const narrow of [false, true]) {
+    test(`every frame of ${id}${narrow ? ' at 320×700' : ''} keeps the dock on screen with no page scroll, its caption taking room from the code`, async ({
+      page,
+    }, testInfo) => {
+      test.skip(testInfo.project.name === 'desktop', 'The caption has its own row beside the stage on a wide screen.');
+      if (narrow) await page.setViewportSize({ width: 320, height: 700 });
+      const size = page.viewportSize()!;
       await page.goto(`/visualize/${id}`);
       const player = page.locator('app-player');
       await player.getByText('Predict mode').click();
@@ -303,20 +306,20 @@ test('every frame of a long tracer keeps the dock on screen with no page scroll,
         }
         await expectNoPageScroll(page);
         const dock = (await player.locator('.controls').boundingBox())!;
-        expect(dock.y + dock.height, `${id} step ${step}: the dock's bottom`).toBeLessThanOrEqual(size.height + 0.5);
+        expect(dock.y + dock.height, `step ${step}: the dock's bottom`).toBeLessThanOrEqual(size.height + 0.5);
       }
-    }
+    });
   }
-});
+}
 
-test(
-  'a drawing keeps one size on every frame, and height never shrinks its text below 6px',
-  { tag: '@player' },
-  async ({ page }, testInfo) => {
-    const sizes = [page.viewportSize()!, ...(testInfo.project.name === 'phone' ? [{ width: 320, height: 700 }] : [])];
-    for (const size of sizes) {
-      await page.setViewportSize(size);
-      for (const id of ['tree-traversal', 'kruskal-mst', 'subsets-backtracking']) {
+for (const id of ['tree-traversal', 'kruskal-mst', 'subsets-backtracking']) {
+  test(
+    `the ${id} drawing keeps one size on every frame, and height never shrinks its text below 6px`,
+    { tag: '@player' },
+    async ({ page }, testInfo) => {
+      const sizes = [page.viewportSize()!, ...(testInfo.project.name === 'phone' ? [{ width: 320, height: 700 }] : [])];
+      for (const size of sizes) {
+        await page.setViewportSize(size);
         await page.goto(`/visualize/${id}`);
         const player = page.locator('app-player');
         await player.getByText('Predict mode').click();
@@ -337,15 +340,15 @@ test(
             const text = Math.min(...[...svg.querySelectorAll('text')].map((t) => parseFloat(getComputedStyle(t).fontSize) * scale));
             return { view: `${view.width}×${view.height}`, box: `${Math.round(box.width)}×${Math.round(box.height)}`, text };
           });
-          const where = `${id} step ${step} at ${size.width}×${size.height}`;
+          const where = `step ${step} at ${size.width}×${size.height}`;
           expect(drawn.text, `${where}: the smallest text`).toBeGreaterThanOrEqual(6);
           expect(drawn.box, `${where}: the box for viewBox ${drawn.view}`).toBe(boxes.get(drawn.view) ?? drawn.box);
           boxes.set(drawn.view, drawn.box);
         }
       }
-    }
-  },
-);
+    },
+  );
+}
 
 for (const [id, width, height] of [
   ['dijkstra', 320, 256],
