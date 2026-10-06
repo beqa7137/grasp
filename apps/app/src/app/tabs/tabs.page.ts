@@ -14,7 +14,7 @@ import { PilotService } from '../pilot/pilot.service';
   selector: 'app-tabs',
   imports: [IonTabs, IonTabBar, IonTabButton, IonIcon, IonLabel, IonBadge, IonModal, FeedbackSheetComponent, PilotNoticeComponent],
   template: `
-    <ion-tabs (ionTabsDidChange)="keepFocusOnPage()">
+    <ion-tabs (ionTabsWillChange)="noteNavFocus()" (ionTabsDidChange)="keepFocusOnPage()">
       <nav #nav aria-label="Main" [class.focus-route]="focusRoute()">
         <ion-tab-bar slot="bottom">
           <ion-tab-button tab="learn" href="/learn">
@@ -82,6 +82,7 @@ export class TabsPage {
   private readonly injector = inject(Injector);
   private readonly router = inject(Router);
   private readonly nav = viewChild.required<ElementRef<HTMLElement>>('nav');
+  private navHadFocus = false;
   /** A focus route (2.6) gives its page the tab bar's height under 1024px; its own dock sits on the bottom safe area instead. */
   readonly focusRoute = computed(() => {
     // Read only to depend on it: the snapshot is not a signal, so each navigation's start and end re-run this.
@@ -115,9 +116,16 @@ export class TabsPage {
     );
   }
 
-  /** A tab button can switch to a focus route, which hides the tab bar under 1024px and with it the focused button. */
+  noteNavFocus() {
+    this.navHadFocus = this.nav().nativeElement.contains(document.activeElement);
+  }
+
+  /**
+   * A tab button can switch to a focus route, which hides the tab bar under 1024px and with it the focused button. Only then
+   * does the page's heading take focus: on a first load or a link focus starts on the page, where the page keeps it.
+   */
   keepFocusOnPage() {
     const nav = this.nav().nativeElement;
-    if (getComputedStyle(nav).display === 'none') this.focusPageHeading(nav);
+    if (this.navHadFocus && getComputedStyle(nav).display === 'none') this.focusPageHeading(nav);
   }
 }

@@ -75,6 +75,29 @@ test('on a phone an answered card shows its rating buttons above the tab bar, an
   }
 });
 
+test.describe('with motion reduced, so the explanation does not rise into place after the page scrolls it', () => {
+  test.use({ contextOptions: { reducedMotion: 'reduce' } });
+
+  test("on a phone a practice card's explanation ends above its Next bar, whose icon loads after it appears", async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(!isMobile, 'The rating bar sticks only under 1024px.');
+    for (const size of [page.viewportSize()!, { width: 320, height: 700 }, { width: 412, height: 480 }]) {
+      await page.setViewportSize(size);
+      await page.goto('/drill?pattern=binary-search');
+      await page.locator('app-drill g-question-card .choice').first().click();
+      await expect(page.getByRole('button', { name: /^Next/ })).toBeVisible();
+      const clear = () =>
+        page.locator('app-drill').evaluate((drill) => {
+          const bar = drill.querySelector('.actions')!.getBoundingClientRect();
+          return drill.querySelector('g-question-card .reveal')!.getBoundingClientRect().bottom <= bar.top + 0.5;
+        });
+      await expect.poll(clear, { message: `at ${size.width}×${size.height}` }).toBe(true);
+    }
+  });
+});
+
 test('at 400% zoom the rating buttons stay in the flow, so they never cover the card', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 256 });
   await page.goto('/drill');

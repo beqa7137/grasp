@@ -2,9 +2,14 @@
  * The drawing's box, shared by the SVG graph and tree views, which set `--vb-w` and `--vb-h` to their viewBox's size and
  * their own maximum width. A page can cap its height with `--g-drawing-max-h` (the player's stage does), but height never
  * takes it below `--g-drawing-floor` of its own scale, unless its width already does; with neither set, its width alone
- * sizes it.
+ * sizes it. In the player's stage the drawing and its legend join the stage's column, so where that column has a fixed
+ * height the drawing also gives the views above it the room they need.
  */
 export const DRAWING_BOX = `
+  :host {
+    display: block;
+    width: 100%;
+  }
   svg {
     display: block;
     width: 100%;
@@ -12,6 +17,15 @@ export const DRAWING_BOX = `
     min-height: min(calc(var(--g-drawing-floor, 0) * var(--vb-h) * 1px), calc(100cqw * var(--vb-h) / var(--vb-w)));
     margin: 0 auto;
     overflow: visible;
+  }
+  @container stage (height > 0px) {
+    :host {
+      display: contents;
+    }
+    /* The column's own 10px gap comes first. */
+    g-legend {
+      --g-legend-gap: 0px;
+    }
   }
 `;
 

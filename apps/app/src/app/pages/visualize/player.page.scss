@@ -86,9 +86,10 @@ ion-title h1 {
 }
 
 // A drawing gets the stage's height less its legend, and less a first row of the lists when the run has any, so it keeps
-// one size on every frame. Height never takes it below 0.6 of its own scale: the lists give way and the stage scrolls. A
-// table takes what the views above it, its legend and that first row leave, so in its run the stage is a column of fixed
-// height, an array above it keeps one height (arrayBand) and the lists one 66px row.
+// one size on every frame. Height never takes it below its floor (0.6 of its own scale for a graph or tree): the lists give
+// way and the stage scrolls. Where a drawing shares the stage with views above it (a table always does, a graph or tree
+// under an array), the stage is a column of fixed height in which the drawing takes what those views, its legend and a
+// 66px first row of the lists leave, and an array above it keeps one height (arrayBand).
 .viz {
   --g-drawing-floor: 0.6;
   --g-drawing-max-h: calc(100cqh - 34px);
@@ -103,7 +104,7 @@ ion-title h1 {
   > * {
     flex: none;
   }
-  &.tabled {
+  &.column {
     height: 100cqh;
     > .aux {
       flex: 0 0 66px;
@@ -210,11 +211,14 @@ ion-title h1 {
       font-size: 16px;
     }
   }
+  // Scrolled to while the panel still rises the 6px of its entrance, so a scroll that lines the prompt up with a top edge
+  // leaves that room above it.
   .prompt {
     margin: 0 0 8px;
     font-size: 1rem;
     font-weight: 500;
     line-height: 1.4;
+    scroll-margin-top: 6px;
   }
   .choices {
     display: grid;
@@ -513,11 +517,10 @@ ion-title h1 {
 // stage and Continue are not sticky, since at 400% zoom they would cover the verdict or narration that focus moves to.
 @container player (max-width: 639.98px) and (max-height: 543.98px) {
   .layout {
-    grid-template-rows: var(--stage-h) auto auto auto;
+    grid-template-rows: var(--stage-h) max-content max-content max-content;
     overflow-y: auto;
   }
   .panel-col {
-    min-height: auto;
     overflow: visible;
   }
   .predict .continue {

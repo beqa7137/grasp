@@ -31,6 +31,8 @@ const FIELD =
 /** A whole string that is a color name, unless it is compared or is one member of a union type. */
 const NAMED_LITERAL = /(?<![=!]==?\s*|\bcase\s+|\|\s*)(['"`])([a-z]+)\1(?!\s*\|)/g;
 const COLOR_LITERAL = /(['"`])\s*(?:#(?:[\da-f]{3,4}|[\da-f]{6}|[\da-f]{8})|(?:rgba?|hsla?|hwb|oklch|oklab)\([^'"`()]*\))\s*\1/gi;
+/** An `@media` or `@container` rule's condition, keeping a template literal's `${…}` or SCSS's `#{…}` whole. */
+const AT_QUERY = /@(media|container)((?:\$\{[^}]*\}|#\{[^}]*\}|[^{;])*)/g;
 /** A width query held in a string, as `matchMedia` and `BreakpointObserver` take one; an interpolated width counts. */
 const QUERY_LITERAL = /(['"`])((?:\$\{[^}]*\}|[^'"`{}@\n])*\(\s*(?:min-|max-)?(?:width|inline-size)\s*:(?:\$\{[^}]*\}|[^'"`{}@\n])*)\1/g;
 const MIXIN = /@mixin\s+([\w-]+)\s*\(((?:[^()]|\([^()]*\))*)\)\s*\{((?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*)\}/g;
@@ -167,7 +169,7 @@ function mixinParameters(text, file) {
     const parameters = list.split(ARGUMENT_COMMA).map((entry) => {
       const parameter = entry.trim().match(/^\$[\w-]+/)?.[0];
       const uses = (value) => !!parameter && new RegExp(`\\$${parameter.slice(1)}(?![\\w-])`).test(value);
-      const query = [...body.matchAll(/@(media|container)([^{;]*)/g)].find(([, , condition]) => uses(condition))?.[1];
+      const query = [...body.matchAll(AT_QUERY)].find(([, , condition]) => uses(condition))?.[1];
       const size = [...body.matchAll(DECLARATION)]
         .map(([, property, value]) => uses(value) && category(property, file, new Set()))
         .find((kind) => kind === 'font-size' || kind === 'border-radius');
@@ -273,7 +275,7 @@ export function scan(source, file, { elsewhere = new Set(), tokens = new Set(), 
       match[0],
     );
   }
-  for (const match of text.matchAll(/@(media|container)([^{;]*)/g)) query(match[1], resolved(match[2]), match.index, match[0]);
+  for (const match of text.matchAll(AT_QUERY)) query(match[1], resolved(match[2]), match.index, match[0]);
   for (const match of text.matchAll(INCLUDE)) {
     if (!inTheme(match.index) && literalColor(match[2])) add('color', match.index, match[0]);
     const parameters = sized.get(match[1]);

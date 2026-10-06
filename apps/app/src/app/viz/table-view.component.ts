@@ -5,6 +5,7 @@ import { LegendComponent } from './legend.component';
 type CellRole = keyof TableLegend;
 
 const key = ([r, c]: [number, number]) => `${r},${c}`;
+const longest = (labels: string[]) => Math.max(1, ...labels.map((label) => [...label].length));
 
 @Component({
   selector: 'g-table-view',
@@ -12,7 +13,13 @@ const key = ([r, c]: [number, number]) => `${r},${c}`;
   imports: [LegendComponent],
   template: `
     @let v = view();
-    <div class="fit" [style.--cols]="v.colLabels.length" [style.--rows]="v.cells.length" [style.--label-chars]="labelChars()">
+    <div
+      class="fit"
+      [style.--cols]="v.colLabels.length"
+      [style.--rows]="v.cells.length"
+      [style.--label-chars]="labelChars()"
+      [style.--row-label-chars]="rowLabelChars()"
+    >
       <div class="table" role="table" [attr.aria-label]="ariaLabel()">
         <div role="row">
           <div class="corner" role="cell"></div>
@@ -120,29 +127,30 @@ const key = ([r, c]: [number, number]) => `${r},${c}`;
     /*
      * In the player's stage the table's box and its legend join the stage's column, whose height is fixed: the box starts
      * as tall as the table at its full width and gives the views above it and the legend, on as many lines as it wraps to,
-     * the room they need, down to cells 1.6 times their text and as wide as the longest column label (7.2px a character
-     * of its 12px mono font, and 4px), which never asks for more than the drawing floor of their full 46px; the square
-     * cells then shrink until the table fits the box. Under the 22px header row each row is a cell and a 3px gap, the row
-     * headers taking the cells' height.
+     * the room they need, down to cells 1.6 times their text and as wide as the longest column label; the square cells
+     * then shrink until the table fits the box. Under the 22px header row each row is a cell and a 3px gap, the row headers
+     * taking the cells' height. A label is 7.2px a character of the headers' 12px mono font, and the row headers' column
+     * is the wider of a cell and its longest label.
      */
     @container stage (height > 0px) {
       :host {
         display: contents;
       }
       .fit {
-        --full: calc(22px + var(--rows) * (min(100cqw, var(--cap)) - 1px) / (var(--cols) + 1));
-        container-type: size;
-        flex: 0 1 var(--full);
-        min-height: min(
-          var(--full),
-          calc(
-            22px + var(--rows) *
-              (max(1.6 * var(--cell-text), min(var(--label-chars) * 7.2px + 4px, var(--g-drawing-floor, 0) * 46px)) + 3px)
-          )
+        --width: min(100cqw, var(--cap));
+        --row-head: calc(var(--row-label-chars) * 7.2px);
+        --full-cell: min(
+          (var(--width) - 4px - var(--cols) * 3px) / (var(--cols) + 1),
+          (var(--width) - 4px - var(--cols) * 3px - var(--row-head)) / var(--cols)
         );
+        --floor-cell: max(1.6 * var(--cell-text), var(--label-chars) * 7.2px + 4px);
+        container-type: size;
+        flex: 0 1 calc(22px + var(--rows) * (var(--full-cell) + 3px));
+        min-height: calc(22px + var(--rows) * (min(var(--full-cell), var(--floor-cell)) + 3px));
       }
       .table {
-        max-width: min(var(--cap), calc((100cqh - 22px) * (var(--cols) + 1) / var(--rows) + 1px));
+        --cell: calc((100cqh - 22px) / var(--rows) - 3px);
+        max-width: min(var(--cap), calc(max(var(--cell), var(--row-head)) + var(--cols) * (var(--cell) + 3px) + 4px));
       }
       .head.row {
         min-height: 0;
@@ -167,7 +175,8 @@ export class TableViewComponent {
     return roles;
   });
 
-  readonly labelChars = computed(() => Math.max(1, ...this.view().colLabels.map((label) => [...label].length)));
+  readonly labelChars = computed(() => longest(this.view().colLabels));
+  readonly rowLabelChars = computed(() => longest(this.view().rowLabels));
 
   readonly activeRow = computed(() => this.view().active?.[0] ?? null);
   readonly activeCol = computed(() => this.view().active?.[1] ?? null);

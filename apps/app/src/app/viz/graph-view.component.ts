@@ -102,10 +102,6 @@ const curveAt = (start: Point, control: Point, end: Point, t: number): Point => 
     NODE_STYLES,
     DRAWING_BOX,
     `
-      :host {
-        display: block;
-        width: 100%;
-      }
       svg {
         max-width: 460px;
       }

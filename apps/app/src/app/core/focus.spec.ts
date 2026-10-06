@@ -41,6 +41,17 @@ describe('refocus', () => {
     expect(document.activeElement).toBe(elsewhere);
   });
 
+  it('takes focus from any of several places, and from nowhere else', () => {
+    const { card, choice, reveal, elsewhere } = setup();
+    elsewhere.focus();
+    refocus(reveal, [card, elsewhere]);
+    expect(document.activeElement).toBe(reveal);
+
+    choice.focus();
+    refocus(reveal, [null, elsewhere]);
+    expect(document.activeElement).toBe(choice);
+  });
+
   it('does not scroll to the new focus after a tap or click, but does after a key press', () => {
     const { reveal } = setup();
     const focus = vi.spyOn(reveal, 'focus');
