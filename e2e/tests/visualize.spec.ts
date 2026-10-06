@@ -417,23 +417,117 @@ test('under 1024px the player hides the tab bar, and the list shows it again', {
   await expect(tabs).toBeVisible();
 });
 
-test('under 1024px, a tab button that opens the player leaves focus on its heading', { tag: ['@nav', '@player'] }, async ({ page }) => {
+test(
+  'under 1024px, a tab button that opens the player leaves focus on its heading, and a checkpoint reached by key still takes it',
+  { tag: ['@nav', '@player'] },
+  async ({ page }) => {
+    if (page.viewportSize()!.width >= 1024) await page.setViewportSize({ width: 800, height: 720 });
+    await page.goto('/visualize/binary-search');
+    await page.getByRole('button', { name: 'About this visualizer' }).click();
+    await page.getByRole('dialog', { name: 'Binary Search' }).getByRole('link', { name: 'Binary Search', exact: true }).click();
+    await expect(page.locator('app-pattern').getByRole('heading', { name: 'Binary Search', level: 1 })).toBeVisible();
+    await page.getByRole('tab', { name: 'Visualize' }).focus();
+    // Ionic selects a tab on Enter's keydown and again on its keyup, which takes a selected tab to its root while its button
+    // keeps focus. A person's keyup comes after the switch, so the key is held until then.
+    await page.keyboard.down('Enter');
+    const heading = page.locator('app-player h1');
+    await expect(heading).toBeFocused();
+    await page.keyboard.up('Enter');
+    await expect(page).toHaveURL(/\/visualize\/binary-search$/);
+    await expect(heading).toBeFocused();
+    await expect(page.getByRole('navigation', { name: 'Main' })).toBeHidden();
+
+    await stepToCheckpoint(page, () => page.keyboard.press('ArrowRight'));
+    await expect(page.locator('.predict .prompt')).toBeFocused();
+    await page.keyboard.press('1');
+    await expect(page.locator('.predict .verdict')).toBeFocused();
+  },
+);
+
+test('a deep link under 1024px leaves focus on the page, so a checkpoint reached by key takes it', { tag: '@player' }, async ({ page }) => {
   if (page.viewportSize()!.width >= 1024) await page.setViewportSize({ width: 800, height: 720 });
   await page.goto('/visualize/binary-search');
-  await page.getByRole('button', { name: 'About this visualizer' }).click();
-  await page.getByRole('dialog', { name: 'Binary Search' }).getByRole('link', { name: 'Binary Search', exact: true }).click();
-  await expect(page.locator('app-pattern').getByRole('heading', { name: 'Binary Search', level: 1 })).toBeVisible();
-  await page.getByRole('tab', { name: 'Visualize' }).focus();
-  // Ionic selects a tab on Enter's keydown and again on its keyup, which takes a selected tab to its root while its button
-  // keeps focus. A person's keyup comes after the switch, so the key is held until then.
-  await page.keyboard.down('Enter');
-  const heading = page.locator('app-player h1');
-  await expect(heading).toBeFocused();
-  await page.keyboard.up('Enter');
-  await expect(page).toHaveURL(/\/visualize\/binary-search$/);
-  await expect(heading).toBeFocused();
   await expect(page.getByRole('navigation', { name: 'Main' })).toBeHidden();
+  await expect(page.locator('app-player h1')).not.toBeFocused();
+  await stepToCheckpoint(page, () => page.keyboard.press('ArrowRight'));
+  await expect(page.locator('.predict .prompt')).toBeFocused();
+  await page.keyboard.press('1');
+  await expect(page.locator('.predict .verdict')).toBeFocused();
 });
+
+test(
+  'typing into the input while it plays through a checkpoint keeps focus in the field and answers nothing',
+  { tag: '@player' },
+  async ({ page }) => {
+    await page.goto('/visualize/binary-search');
+    const player = page.locator('app-player');
+    const speed = player.getByRole('button', { name: /^Playback speed/ });
+    await speed.click();
+    await speed.click();
+    await expect(speed).toHaveAccessibleName('Playback speed 4×');
+    await player.getByRole('button', { name: 'Play', exact: true }).click();
+    await player.locator('.input').getByRole('button', { name: 'Edit' }).click();
+    const field = player.getByRole('textbox', { name: /^Sorted numbers/ });
+    await field.click();
+    await page.keyboard.press('End');
+    const before = await field.inputValue();
+    await page.keyboard.type('12341234123412341234', { delay: 120 });
+    await expect(player.getByText('Your call')).toBeVisible();
+    await expect(field).toBeFocused();
+    expect(await field.inputValue()).toBe(before + '12341234123412341234');
+    await expect(player.locator('.predict .verdict')).toHaveCount(0);
+    expect((await recordedEvents(page)).map((e) => e.type)).not.toContain('predict.answered');
+  },
+);
+
+for (const [id, width, height] of [
+  ['dijkstra', 320, 256],
+  ['kruskal-mst', 568, 320],
+] as const) {
+  test(
+    `at ${width}×${height} a tapped checkpoint's prompt shows whole once its panel has risen into place`,
+    { tag: '@player' },
+    async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      await page.goto(`/visualize/${id}`);
+      await stepToCheckpoint(page);
+      const prompt = page.locator('.predict .prompt');
+      await expect(prompt).toBeFocused();
+      await page.locator('.predict').evaluate((panel) => Promise.all(panel.getAnimations().map((a) => a.finished)));
+      const place = await prompt.evaluate((el) => {
+        const view = el.closest('.layout')!.getBoundingClientRect();
+        const box = el.getBoundingClientRect();
+        return { top: box.top >= view.top - 0.5, bottom: box.bottom <= view.bottom + 0.5 };
+      });
+      expect(place).toEqual({ top: true, bottom: true });
+    },
+  );
+}
+
+test(
+  'in the layout that scrolls, a long caption pushes what follows down instead of running over it',
+  { tag: '@player' },
+  async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 256 });
+    await page.goto('/visualize/dijkstra');
+    const player = page.locator('app-player');
+    await player.getByText('Predict mode').click();
+    const count = player.locator('.scrub .count');
+    const total = await stepTotal(count);
+    for (let step = 1; step <= total; step++) {
+      if (step > 1) {
+        await player.getByRole('slider', { name: 'Timeline' }).fill(String(step - 1));
+        await expect(count).toHaveText(`${step} / ${total}`);
+      }
+      const over = await player.evaluate(
+        (el) =>
+          el.querySelector('.narration .body')!.getBoundingClientRect().bottom -
+          el.querySelector('.panel-col')!.getBoundingClientRect().top,
+      );
+      expect(over, `step ${step}: the caption's bottom past R's top`).toBeLessThanOrEqual(0.5);
+    }
+  },
+);
 
 /** Where a table run's views sit in the stage: the table's box, the array's height, and whether the legend shows whole under the table. */
 async function tablePlace(page: Page) {
@@ -480,6 +574,99 @@ test('a table under an array keeps one size on every frame, with the array and i
       await expect(count).toHaveText(`${step} / ${total}`);
       expect(await tablePlace(page), `step ${step} at ${size.width}×${size.height}`).toEqual(first);
     }
+  }
+});
+
+/** Whether a stage table's cells hold their floor (square, 1.6 times their text) and its column labels and legend stay apart. */
+async function tableHolds(page: Page) {
+  return page.locator('app-player .scene').evaluate((scene) => {
+    const table = scene.querySelector('[role="table"]')!;
+    const cells = [...table.querySelectorAll<HTMLElement>('.cell:not([data-role="active"])')].map((cell) => ({
+      box: cell.getBoundingClientRect(),
+      text: parseFloat(getComputedStyle(cell).fontSize),
+    }));
+    const labels = [...table.querySelectorAll('.head.col')].map((head) => {
+      const range = document.createRange();
+      range.selectNodeContents(head);
+      return range.getBoundingClientRect();
+    });
+    const legend = scene.querySelector('g-table-view g-legend')!.getBoundingClientRect();
+    const reach = scene.getBoundingClientRect().top + scene.clientTop + scene.scrollHeight;
+    return {
+      floor: cells.every(({ box, text }) => box.width >= 1.6 * text - 0.5),
+      square: cells.every(({ box }) => Math.abs(box.width - box.height) <= 1),
+      labelsApart: labels.every((label, i) => i === 0 || label.left >= labels[i - 1].right + 1),
+      legendBelow: legend.top >= table.getBoundingClientRect().bottom && legend.bottom <= reach + 0.5,
+    };
+  });
+}
+
+for (const id of ['subarray-sum-prefix', 'single-number-xor', 'merge-intervals']) {
+  test(`every ${id} frame keeps its table's cells square and readable, its labels and legend apart`, async ({ page }, testInfo) => {
+    const sizes = [
+      page.viewportSize()!,
+      ...(testInfo.project.name === 'phone'
+        ? [
+            { width: 320, height: 700 },
+            { width: 412, height: 480 },
+          ]
+        : []),
+    ];
+    for (const size of sizes) {
+      await page.setViewportSize(size);
+      await page.goto(`/visualize/${id}`);
+      const player = page.locator('app-player');
+      await player.getByText('Predict mode').click();
+      const count = player.locator('.scrub .count');
+      const total = await stepTotal(count);
+      for (let step = 1; step <= total; step++) {
+        if (step > 1) {
+          await player.getByRole('slider', { name: 'Timeline' }).fill(String(step - 1));
+          await expect(count).toHaveText(`${step} / ${total}`);
+        }
+        const held = { floor: true, square: true, labelsApart: true, legendBelow: true };
+        expect(await tableHolds(page), `step ${step} at ${size.width}×${size.height}`).toEqual(held);
+      }
+    }
+  });
+}
+
+test('merge-intervals at its longest input keeps every row readable and within reach of the stage scroll', async ({ page }) => {
+  const intervals = [
+    [1, 3],
+    [8, 10],
+    [2, 6],
+    [15, 18],
+    [18, 20],
+    [4, 5],
+    [30, 40],
+    [35, 45],
+    [60, 70],
+    [80, 90],
+  ];
+  await page.goto(`/visualize/merge-intervals?input=${encodeURIComponent(JSON.stringify({ intervals }))}`);
+  const player = page.locator('app-player');
+  await expect(player.locator('.scene [role="table"] .head.row')).toHaveCount(10);
+  expect(await tableHolds(page)).toEqual({ floor: true, square: true, labelsApart: true, legendBelow: true });
+});
+
+test('an array above a tree leaves the tree and its legend in the stage on every trie frame', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === 'iphone', "The iPhone's 249px stage holds trie only at its floor, so the stage scrolls.");
+  await page.goto('/visualize/trie');
+  const player = page.locator('app-player');
+  await player.getByText('Predict mode').click();
+  const count = player.locator('.scrub .count');
+  const total = await stepTotal(count);
+  for (let step = 1; step <= total; step++) {
+    if (step > 1) {
+      await player.getByRole('slider', { name: 'Timeline' }).fill(String(step - 1));
+      await expect(count).toHaveText(`${step} / ${total}`);
+    }
+    const out = await player.locator('.scene').evaluate((scene) => {
+      const bottom = scene.getBoundingClientRect().top + scene.clientTop + scene.clientHeight;
+      return Math.max(...[...scene.querySelectorAll('svg[role="img"], g-legend')].map((el) => el.getBoundingClientRect().bottom - bottom));
+    });
+    expect(out, `step ${step}: px of the tree or its legend below the stage`).toBeLessThanOrEqual(0.5);
   }
 });
 

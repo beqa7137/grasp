@@ -192,10 +192,6 @@ export function layoutForest(tree: TreeView, room = NO_ROOM): { nodes: PlacedNod
     NODE_STYLES,
     DRAWING_BOX,
     `
-      :host {
-        display: block;
-        width: 100%;
-      }
       .link {
         stroke: var(--g-stroke);
         stroke-width: 2;

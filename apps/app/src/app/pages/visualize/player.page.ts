@@ -40,7 +40,7 @@ import {
   sparkles,
 } from 'ionicons/icons';
 import { AnnouncerService } from '../../core/announcer.service';
-import { refocus } from '../../core/focus';
+import { refocus, type FocusPlaces } from '../../core/focus';
 import { haptic } from '../../core/haptics';
 import { onPageKey } from '../../core/on-page-key';
 import { ProgressService } from '../../core/progress.service';
@@ -117,6 +117,9 @@ export class PlayerPage {
   private readonly verdict = viewChild<ElementRef<HTMLElement>>('verdict');
   private readonly narration = viewChild<ElementRef<HTMLElement>>('narration');
   private readonly layout = viewChild<ElementRef<HTMLElement>>('layout');
+  private readonly heading = viewChild<ElementRef<HTMLElement>>('heading');
+  private readonly scene = viewChild<ElementRef<HTMLElement>>('scene');
+  private readonly controls = viewChild<ElementRef<HTMLElement>>('controls');
   private readonly panelCol = viewChild<ElementRef<HTMLElement>>('panelCol');
   private readonly about = viewChild<ElementRef<HTMLElement>>('about');
 
@@ -165,10 +168,13 @@ export class PlayerPage {
     longestValue(this.frames().flatMap((f) => [...(f.array?.values ?? []), ...(alignedRow(f)?.values ?? [])])),
   );
   readonly treeRoom = computed(() => sideRoomFor(this.frames().map((f) => f.tree)));
-  /** Whether a table shows in the run: it takes the stage's room that the views above it and its legend leave. */
-  readonly tabled = computed(() => this.frames().some((f) => f.table));
-  /** An array above a table keeps room for the run's most pointer rows, so the table keeps one size on every frame. */
-  readonly arrayBand = computed(() => (this.tabled() ? Math.max(0, ...this.frames().map((f) => pointerRowsOf(f.array?.pointers))) : 0));
+  /**
+   * Whether the stage is a column of fixed height, where a drawing takes the room the views above it, its legend and a first
+   * row of the lists leave: a table always does, and a graph or tree under an array.
+   */
+  readonly column = computed(() => this.frames().some((f) => f.table || (f.array && (f.tree || f.graph))));
+  /** An array above a drawing in that column keeps room for the run's most pointer rows, so the drawing keeps one size. */
+  readonly arrayBand = computed(() => (this.column() ? Math.max(0, ...this.frames().map((f) => pointerRowsOf(f.array?.pointers))) : 0));
   /** Whether any frame shows lists under the drawing, so the drawing keeps one size for the whole run. */
   readonly listed = computed(() => this.frames().some((f) => f.stack || f.queue || f.set || (f.output && !alignedRow(f))));
   /** Beside a checkpoint the caption is the note's first sentence, so the dock keeps R's height. */
@@ -215,16 +221,18 @@ export class PlayerPage {
     });
 
     // A checkpoint opens in the dock, answering disables its choices and continuing removes it, so focus follows each change
-    // instead of falling back to the top of the page. Only the dock scrolls, so the stage and the transport never move.
+    // instead of falling back to the top of the page. Only the dock scrolls, so the stage and the transport never move. Focus
+    // moves only from the stage, the transport or the page's heading (where a tab switch leaves it), never from a field or
+    // anything else the learner is using while it plays.
     afterRenderEffect(() => {
       const p = this.pending();
       const before = this.shownPending;
       this.shownPending = p;
       if (p === before) return;
+      const watched = [this.scene()?.nativeElement, this.controls()?.nativeElement, this.heading()?.nativeElement];
       if (!p) this.follow(this.narration()?.nativeElement);
       else if (p.choice === null) {
-        this.panelCol()?.nativeElement.scrollTo({ top: 0 });
-        this.follow(this.predictPrompt()?.nativeElement, this.layout()?.nativeElement);
+        if (this.follow(this.predictPrompt()?.nativeElement, watched)) this.panelCol()?.nativeElement.scrollTo({ top: 0 });
       } else {
         // Shown after a tap as well as a key press, clear of the sticky Continue; a verdict taller than R's view keeps its
         // first line in view.
@@ -233,7 +241,7 @@ export class PlayerPage {
         verdict?.scrollIntoView({ block: 'nearest' });
         if (verdict && panel && verdict.getBoundingClientRect().top < panel.getBoundingClientRect().top)
           verdict.scrollIntoView({ block: 'start' });
-        refocus(verdict, this.predictPanel()?.nativeElement, () => undefined);
+        refocus(verdict, [...watched, this.predictPanel()?.nativeElement], () => undefined);
       }
     });
 
@@ -355,12 +363,13 @@ export class PlayerPage {
   }
 
   // Refocuses, and in the fallback, where the layout itself scrolls, also scrolls the target into view after a tap: the
-  // control tapped may sit far below it there.
-  private follow(target: HTMLElement | undefined, within?: Element) {
+  // control tapped may sit far below it there. Says whether focus is on the target.
+  private follow(target: HTMLElement | undefined, within?: FocusPlaces): boolean {
     refocus(target, within);
     const layout = this.layout()?.nativeElement;
-    if (target && document.activeElement === target && layout && getComputedStyle(layout).overflowY !== 'visible')
-      target.scrollIntoView({ block: 'nearest' });
+    const followed = !!target && document.activeElement === target;
+    if (followed && layout && getComputedStyle(layout).overflowY !== 'visible') target.scrollIntoView({ block: 'nearest' });
+    return followed;
   }
 
   async openIntro(event: MouseEvent): Promise<void> {

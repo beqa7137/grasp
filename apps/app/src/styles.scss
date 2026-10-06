@@ -260,7 +260,10 @@ button.chip {
     width: 40px;
     height: 40px;
   }
+  // Sized before the icon loads, so a button is measured at its final size, as the review bar is when it appears.
   ion-icon {
+    width: 1em;
+    height: 1em;
     font-size: 18px;
   }
 }

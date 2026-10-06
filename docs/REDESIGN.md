@@ -1908,10 +1908,13 @@ Iterations are ordered by impact, alternating between organization and visuals. 
   after Continue moves focus to it, so nothing is read twice. Drawings fit the stage structurally: a graph or tree SVG is
   at most the stage's height less its legend (less a first row of the lists when the run has any), the same on every
   frame, and height never takes it below 0.6 of its own scale; the lists give way and the stage scrolls for them. In a
-  table's run the stage is a column of fixed height: the table's box takes what the views above it, its legend (on as
-  many lines as it wraps to) and a 66px first row of the lists leave, down to cells 1.6 times their text and as wide as their column labels (asking at most 0.6 of the full 46px), and an array
-  above it keeps room for the run's most pointer rows, so the table keeps one size on every frame; outside the stage
-  (`@container stage`) review cards, lessons and the workspace are unchanged. The Predict mode switch and
+  table's run, and where a graph or tree sits under an array, the stage is a column of fixed height: the drawing takes what
+  the views above it, its legend (on as many lines as it wraps to) and a 66px first row of the lists leave, down to its
+  floor (a table's square cells 1.6 times their text and as wide as their column labels, its row headers' column as wide
+  as their longest label), and an array above it keeps room for the run's most pointer rows, so the drawing keeps one size
+  on every frame; outside the stage (`@container stage`) review cards, lessons and the workspace are unchanged. A
+  checkpoint takes focus only from the body, the stage, the transport or the page's heading (which a tab switch under
+  1024px gives focus only when the hidden tab button had it), never from a field. The Predict mode switch and
   the score sit in region R under the checkpoint (phone) or under the dock (desktop) until R3's ⋯. The review card's rating
   bar is sticky above the tab bar under 1024px only when the window is at least 480px tall.
 
