@@ -324,8 +324,24 @@ test(
   },
 );
 
+test('a checkpoint reached in play while the Timeline has focus takes it, its prompt whole in R', { tag: '@player' }, async ({ page }) => {
+  for (const size of SIZES) {
+    await page.setViewportSize(size);
+    await page.goto('/visualize/binary-search');
+    const player = page.locator('app-player');
+    await player.locator('.panel-col').evaluate((r) => r.scrollTo({ top: r.scrollHeight }));
+    await player.getByRole('button', { name: 'Play', exact: true }).focus();
+    await page.keyboard.press('Enter');
+    const timeline = player.getByRole('slider', { name: 'Timeline' });
+    for (let tabs = 0; tabs < 6 && !(await timeline.evaluate((el) => el === document.activeElement)); tabs++)
+      await page.keyboard.press('Tab');
+    await expect(timeline).toBeFocused();
+    await expectPromptFocused(page, `from the Timeline at ${size.width}×${size.height}`);
+  }
+});
+
 test(
-  'typing into the input while it plays through a checkpoint keeps focus in the field and answers nothing',
+  'typing into the input while it plays through a checkpoint keeps focus in the field, announces the checkpoint and answers nothing',
   { tag: '@player' },
   async ({ page }) => {
     await page.goto('/visualize/binary-search');
@@ -343,6 +359,18 @@ test(
     await page.keyboard.type('12341234123412341234', { delay: 120 });
     await expect(player.getByText('Your call')).toBeVisible();
     await expect(field).toBeFocused();
+    await expect(player.locator('[role="status"]')).toHaveText(/^Checkpoint: nums\[mid\] = -?\d+, target = -?\d+\. What happens next\?$/);
+    const place = await field.evaluate((el) => {
+      const r = el.closest('.panel-col')!;
+      const [view, box] = [r.getBoundingClientRect(), el.getBoundingClientRect()];
+      return {
+        whole: box.top >= view.top - 0.5 && box.bottom <= view.bottom + 0.5,
+        nearest:
+          r.scrollTop === 0 ||
+          Math.abs(view.top + r.clientTop + r.clientHeight - parseFloat(getComputedStyle(r).scrollPaddingBottom) - box.bottom) <= 1,
+      };
+    });
+    expect(place, 'the field whole in R, scrolled no further from the dock than it needs').toEqual({ whole: true, nearest: true });
     expect(await field.inputValue()).toBe(before + '12341234123412341234');
     await expect(player.locator('.predict .verdict')).toHaveCount(0);
     expect((await recordedEvents(page)).map((e) => e.type)).not.toContain('predict.answered');

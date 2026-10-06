@@ -18,6 +18,7 @@ import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, Io
 import {
   CODING_CATALOG,
   InputError,
+  codeSpans,
   formatField,
   getAlgorithm,
   getPatternSummary,
@@ -43,7 +44,6 @@ import { AnnouncerService } from '../../core/announcer.service';
 import { refocus, type FocusPlaces } from '../../core/focus';
 import { haptic } from '../../core/haptics';
 import { onPageKey } from '../../core/on-page-key';
-import { FIELD } from '../../core/page-keys';
 import { ProgressService } from '../../core/progress.service';
 import { ShortcutsService } from '../../core/shortcuts.service';
 import { answerMark } from '../../review/answer-mark';
@@ -67,6 +67,14 @@ function alignedRow(f: Frame | undefined): AlignedRow | null {
 }
 
 const SPEEDS = [0.5, 1, 2, 4];
+
+/** Where the learner types text, which a checkpoint never takes focus from; a slider, a switch or a read-only field is not. */
+const TYPING = [
+  'input:not([readonly]):is(:not([type]), [type="text"], [type="search"], [type="number"])',
+  'textarea:not([readonly])',
+  'select:not([disabled])',
+  '[contenteditable]:not([contenteditable="false"])',
+].join(', ');
 
 @Component({
   selector: 'app-player',
@@ -222,20 +230,27 @@ export class PlayerPage {
     // A checkpoint opens in the dock, answering disables its choices and continuing removes it, so focus follows each change
     // instead of falling back to the top of the page. Only the dock scrolls, so the stage and the transport never move. Focus
     // moves from anywhere in the player or its heading (where a tab switch leaves it), but never out of a field the learner
-    // is typing in while it plays.
+    // is typing in while it plays; a checkpoint that does not get focus is announced instead.
     afterRenderEffect(() => {
       const p = this.pending();
       const before = this.shownPending;
       this.shownPending = p;
       if (p === before) return;
       const active = document.activeElement;
-      const typing = !!active?.matches(FIELD) && active.checkVisibility?.() !== false;
+      const typing = active?.matches(TYPING) && active.checkVisibility?.() !== false ? active : null;
       const player = [this.layout()?.nativeElement, this.heading()?.nativeElement];
       if (!p) this.follow(this.narration()?.nativeElement);
       else if (p.choice === null) {
-        if (typing) return;
-        this.panelCol()?.nativeElement.scrollTo({ top: 0 });
-        this.follow(this.predictPrompt()?.nativeElement, player);
+        const prompt = this.predictPrompt()?.nativeElement;
+        if (typing) this.revealDockAbove(typing);
+        else {
+          this.panelCol()?.nativeElement.scrollTo({ top: 0 });
+          this.follow(prompt, player);
+        }
+        if (prompt && document.activeElement !== prompt) {
+          const text = codeSpans(this.frames()[p.frame].predict!.prompt).map((part) => part.text);
+          this.announcer.announce(`Checkpoint: ${text.join('')}`);
+        }
       } else {
         // Shown after a tap as well as a key press, clear of the sticky Continue; a verdict taller than R's view keeps its
         // first line in view.
@@ -363,6 +378,16 @@ export class PlayerPage {
   private leaveCheckpoint(p: PredictState) {
     this.pending.set(null);
     this.index.set(Math.min(this.last(), p.frame + 1));
+  }
+
+  // Scrolls R as far toward the dock at its top as keeps the field the learner is typing in wholly in view, above R's scroll
+  // padding, which typing would otherwise scroll it back to.
+  private revealDockAbove(field: Element) {
+    const panel = this.panelCol()?.nativeElement;
+    if (!panel?.contains(field)) return;
+    const view = panel.clientHeight - (parseFloat(getComputedStyle(panel).scrollPaddingBottom) || 0);
+    const below = field.getBoundingClientRect().bottom - panel.getBoundingClientRect().top - panel.clientTop + panel.scrollTop;
+    panel.scrollTop = Math.max(0, below - view);
   }
 
   // Refocuses, and in the fallback, where the layout itself scrolls, also scrolls the target into view after a tap: the
