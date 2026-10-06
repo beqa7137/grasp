@@ -110,11 +110,26 @@ export async function expectUnmoved(locator: Locator, top: number, message: stri
 /** The number of steps a player's "3 / 26" count counts to. */
 export const stepTotal = async (count: Locator) => Number((await count.textContent())!.split('/')[1]);
 
-/** Steps a visualizer with `press` until a checkpoint asks for a prediction, waiting for each step to show before the next. */
+/** The page itself never scrolls: only the stage, the checkpoint dock and the code scroll inside it. */
+export async function expectNoPageScroll(page: Page) {
+  const scroll = await page.locator('app-player ion-content').evaluate((content) => {
+    const scroller = content.shadowRoot!.querySelector('.inner-scroll')!;
+    const layout = content.querySelector('.layout')!;
+    // A fractional viewport can round a box up by a pixel, which is not room to scroll.
+    return {
+      page: scroller.scrollHeight - scroller.clientHeight <= 1 && scroller.scrollTop === 0,
+      layout: layout.scrollHeight - layout.clientHeight <= 1 && layout.scrollTop === 0,
+    };
+  });
+  expect(scroll, 'the page and the layout unscrolled, with nothing below them').toEqual({ page: true, layout: true });
+}
+
+/** Steps a visualizer with `press` from where it is until a checkpoint asks for a prediction, waiting for each step to show. */
 export async function stepToCheckpoint(page: Page, press = () => page.getByRole('button', { name: 'Step forward' }).click()) {
   const prompt = page.getByText('Your call');
-  const total = await stepTotal(page.locator('app-player .scrub .count'));
-  for (let step = 1; !(await prompt.isVisible()); step++) {
+  const count = page.locator('app-player .scrub .count');
+  const total = await stepTotal(count);
+  for (let step = Number((await count.textContent())!.split('/')[0]); !(await prompt.isVisible()); step++) {
     expect(step, 'a checkpoint should come up').toBeLessThan(total);
     await press();
     await expect(page.getByText(`${step + 1} / ${total}`, { exact: true }).or(prompt)).toBeVisible();

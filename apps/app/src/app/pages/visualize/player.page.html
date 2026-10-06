@@ -28,7 +28,7 @@
     <div class="player">
       <div class="layout" #layout>
         @if (frame(); as f) {
-          <div class="scene panel" role="group" aria-roledescription="visualization" [attr.aria-label]="a.title" tabindex="0" #scene>
+          <div class="scene panel" role="group" aria-roledescription="visualization" [attr.aria-label]="a.title" tabindex="0">
             <div class="viz" [class.listed]="listed()" [class.column]="column()">
               @if (f.array) {
                 <g-array-view [view]="f.array" [aligned]="alignedOutput()" [longest]="longestArrayValue()" [band]="arrayBand()" />
@@ -218,7 +218,7 @@
           </aside>
         </div>
 
-        <div class="controls" #controls>
+        <div class="controls">
           <div class="buttons">
             <button class="g-btn ghost icon" (click)="reset()" aria-label="Restart">
               <ion-icon name="refresh" aria-hidden="true" />

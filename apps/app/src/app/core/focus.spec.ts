@@ -30,6 +30,14 @@ describe('refocus', () => {
     expect(document.activeElement).toBe(reveal);
   });
 
+  it('takes focus from a control that the change hid while focused', () => {
+    const { choice, reveal } = setup();
+    choice.focus();
+    choice.checkVisibility = () => false;
+    refocus(reveal);
+    expect(document.activeElement).toBe(reveal);
+  });
+
   it('takes focus from inside the content that changed, but not from a control elsewhere', () => {
     const { card, choice, reveal, elsewhere } = setup();
     choice.focus();
