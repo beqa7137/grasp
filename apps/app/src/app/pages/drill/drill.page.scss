@@ -90,7 +90,8 @@
 
 // On phone and tablet the rating buttons stay on screen above the tab bar, however long the card (REDESIGN.md 3.8). Not in
 // a short window (high zoom), where a bar that tall would leave too little of the card in view. The page measures the bar
-// into --actions-h, so an answer or explanation scrolled into view stops clear of it.
+// into --actions-h, so an answer or explanation scrolled into view stops clear of it. The content is fullscreen, so its
+// scrollport runs on under the tab bar, and the bar sticks --offset-bottom above the scrollport's bottom.
 @media (max-width: 1023.98px) and (min-height: 480px) {
   .actions {
     position: sticky;
@@ -102,7 +103,7 @@
     border-top: 1px solid var(--g-line);
   }
   ion-content::part(scroll) {
-    scroll-padding-bottom: var(--actions-h, 0px);
+    scroll-padding-bottom: calc(var(--actions-h, 0px) + var(--offset-bottom, 0px));
   }
 }
 

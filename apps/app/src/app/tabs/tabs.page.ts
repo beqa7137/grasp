@@ -1,4 +1,4 @@
-import { Component, Injector, computed, inject } from '@angular/core';
+import { Component, ElementRef, Injector, computed, inject, viewChild } from '@angular/core';
 import { Router, type ActivatedRouteSnapshot } from '@angular/router';
 import { IonBadge, IonIcon, IonLabel, IonModal, IonTabBar, IonTabButton, IonTabs } from '@ionic/angular';
 import { addIcons } from 'ionicons';
@@ -14,8 +14,8 @@ import { PilotService } from '../pilot/pilot.service';
   selector: 'app-tabs',
   imports: [IonTabs, IonTabBar, IonTabButton, IonIcon, IonLabel, IonBadge, IonModal, FeedbackSheetComponent, PilotNoticeComponent],
   template: `
-    <ion-tabs>
-      <nav aria-label="Main" [class.focus-route]="focusRoute()">
+    <ion-tabs (ionTabsDidChange)="keepFocusOnPage()">
+      <nav #nav aria-label="Main" [class.focus-route]="focusRoute()">
         <ion-tab-bar slot="bottom">
           <ion-tab-button tab="learn" href="/learn">
             <ion-icon name="compass-outline" aria-hidden="true" />
@@ -81,6 +81,7 @@ export class TabsPage {
   readonly pilot = inject(PilotService);
   private readonly injector = inject(Injector);
   private readonly router = inject(Router);
+  private readonly nav = viewChild.required<ElementRef<HTMLElement>>('nav');
   /** A focus route (2.6) gives its page the tab bar's height under 1024px; its own dock sits on the bottom safe area instead. */
   readonly focusRoute = computed(() => {
     // Read only to depend on it: the snapshot is not a signal, so each navigation's start and end re-run this.
@@ -102,11 +103,21 @@ export class TabsPage {
    * The welcome dialog opens on load, so no control opened it to take focus back: the page's heading takes it instead.
    * Ionic still traps focus in the dialog while didDismiss runs, hence the wait for the next render.
    */
-  focusPageHeading() {
-    refocusAfterRender(this.injector, () => {
-      const heading = [...document.querySelectorAll<HTMLElement>('ion-router-outlet h1')].find((h) => !isOnHiddenPage(h));
-      if (heading) heading.tabIndex = -1;
-      return heading;
-    });
+  focusPageHeading(within?: Element) {
+    refocusAfterRender(
+      this.injector,
+      () => {
+        const heading = [...document.querySelectorAll<HTMLElement>('ion-router-outlet h1')].find((h) => !isOnHiddenPage(h));
+        if (heading) heading.tabIndex = -1;
+        return heading;
+      },
+      within,
+    );
+  }
+
+  /** A tab button can switch to a focus route, which hides the tab bar under 1024px and with it the focused button. */
+  keepFocusOnPage() {
+    const nav = this.nav().nativeElement;
+    if (getComputedStyle(nav).display === 'none') this.focusPageHeading(nav);
   }
 }

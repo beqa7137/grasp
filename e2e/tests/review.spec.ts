@@ -48,25 +48,30 @@ test('practice goes back to its lesson, and the Review tab root has no back butt
   await expect(page).toHaveURL(/\/learn\/design\/sd-latency$/);
 });
 
-test('on a phone an answered card shows its rating buttons above the tab bar, and its verdict above them', async ({ page, isMobile }) => {
+test('on a phone an answered card shows its rating buttons above the tab bar, and its whole explanation above them', async ({
+  page,
+  isMobile,
+}) => {
   test.skip(!isMobile, 'The rating bar sticks only under 1024px.');
-  for (const size of [page.viewportSize()!, { width: 320, height: 700 }]) {
+  for (const size of [page.viewportSize()!, { width: 320, height: 700 }, { width: 412, height: 480 }]) {
     await page.setViewportSize(size);
     await page.goto('/drill');
     await page.locator('g-question-card .choice').first().click();
     await expect(page.getByRole('button', { name: /^(Got it|Continue)/ })).toBeVisible();
-    const placed = await page.locator('app-drill').evaluate((drill) => {
-      const tabs = document.querySelector('ion-tab-bar')!.getBoundingClientRect();
-      const header = drill.querySelector('ion-header')!.getBoundingClientRect();
-      const bar = drill.querySelector('.actions')!.getBoundingClientRect();
-      const verdict = drill.querySelector('g-question-card .reveal .verdict')!.getBoundingClientRect();
-      const buttons = [...drill.querySelectorAll('.actions button')].map((b) => b.getBoundingClientRect());
-      return {
-        shown: buttons.length > 0 && buttons.every((b) => b.top >= header.bottom && b.bottom <= tabs.top + 0.5),
-        verdict: verdict.top >= header.bottom && verdict.bottom <= bar.top + 0.5,
-      };
-    });
-    expect(placed, `at ${size.width}×${size.height}`).toEqual({ shown: true, verdict: true });
+    // The explanation rises into place, so its box is read until it settles.
+    const placed = () =>
+      page.locator('app-drill').evaluate((drill) => {
+        const tabs = document.querySelector('ion-tab-bar')!.getBoundingClientRect();
+        const header = drill.querySelector('ion-header')!.getBoundingClientRect();
+        const bar = drill.querySelector('.actions')!.getBoundingClientRect();
+        const reveal = drill.querySelector('g-question-card .reveal')!.getBoundingClientRect();
+        const buttons = [...drill.querySelectorAll('.actions button')].map((b) => b.getBoundingClientRect());
+        return {
+          shown: buttons.length > 0 && buttons.every((b) => b.top >= header.bottom && b.bottom <= tabs.top + 0.5),
+          explanation: reveal.top >= header.bottom && reveal.bottom <= bar.top + 0.5,
+        };
+      });
+    await expect.poll(placed, { message: `at ${size.width}×${size.height}` }).toEqual({ shown: true, explanation: true });
   }
 });
 

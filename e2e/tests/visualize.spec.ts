@@ -351,24 +351,33 @@ for (const [id, width, height] of [
   ['dijkstra', 320, 256],
   ['kruskal-mst', 568, 320],
   ['two-sum-hash', 600, 500],
+  ['binary-search', 412, 480],
 ] as const) {
   test(`at ${width}×${height} the layout scrolls and nothing covers the ${id} checkpoint`, { tag: '@player' }, async ({ page }) => {
     await page.setViewportSize({ width, height });
     await page.goto(`/visualize/${id}`);
     await stepToCheckpoint(page);
-    const covered = () =>
-      page.locator('app-player').evaluate((player) =>
-        [...player.querySelectorAll<HTMLElement>('.predict :is(.prompt, .choice, .verdict)')].flatMap((el) => {
-          el.scrollIntoView({ block: 'nearest' });
-          const box = el.getBoundingClientRect();
-          const hit = document.elementFromPoint(box.left + Math.min(20, box.width / 2), box.top + box.height / 2);
-          return hit && el.contains(hit) ? [] : [`${el.className} under ${hit?.className}`];
-        }),
+    // Each element's first and last lines, since a sticky control would cover an end. Before the answer each element is
+    // scrolled into view; the verdict is read where the page put it.
+    const covered = (selector: string, scroll: boolean) =>
+      page.locator('app-player').evaluate(
+        (player, [within, reveal]) =>
+          [...player.querySelectorAll<HTMLElement>(within)].flatMap((el) => {
+            if (reveal) el.scrollIntoView({ block: 'nearest' });
+            const box = el.getBoundingClientRect();
+            return [box.top + 4, box.bottom - 4].flatMap((y) => {
+              const hit = document.elementFromPoint(box.left + Math.min(20, box.width / 2), y);
+              return hit && el.contains(hit) ? [] : [`${el.className} under ${hit?.className}`];
+            });
+          }),
+        [selector, scroll] as const,
       );
-    expect(await covered(), 'the prompt and every choice').toEqual([]);
+    expect(await covered('.predict :is(.prompt, .choice)', true), 'the prompt and every choice').toEqual([]);
     await page.locator('.predict .choice').first().click();
     await expect(page.locator('.predict .verdict')).toBeVisible();
-    expect(await covered(), 'the verdict').toEqual([]);
+    // Continue takes no pointer events while it arms, so a hit test sees through it until then.
+    await page.locator('.predict .continue').evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
+    expect(await covered('.predict .verdict', false), 'the verdict').toEqual([]);
   });
 }
 
@@ -403,6 +412,72 @@ test('under 1024px the player hides the tab bar, and the list shows it again', {
   await page.locator('app-player ion-back-button').click();
   await expect(page.locator('app-visualize-list')).toBeVisible();
   await expect(tabs).toBeVisible();
+});
+
+test('under 1024px, a tab button that opens the player leaves focus on its heading', { tag: ['@nav', '@player'] }, async ({ page }) => {
+  if (page.viewportSize()!.width >= 1024) await page.setViewportSize({ width: 800, height: 720 });
+  await page.goto('/visualize/binary-search');
+  await page.getByRole('button', { name: 'About this visualizer' }).click();
+  await page.getByRole('dialog', { name: 'Binary Search' }).getByRole('link', { name: 'Binary Search', exact: true }).click();
+  await expect(page.locator('app-pattern').getByRole('heading', { name: 'Binary Search', level: 1 })).toBeVisible();
+  await page.getByRole('tab', { name: 'Visualize' }).focus();
+  // Ionic selects a tab on Enter's keydown and again on its keyup, which takes a selected tab to its root while its button
+  // keeps focus. A person's keyup comes after the switch, so the key is held until then.
+  await page.keyboard.down('Enter');
+  const heading = page.locator('app-player h1');
+  await expect(heading).toBeFocused();
+  await page.keyboard.up('Enter');
+  await expect(page).toHaveURL(/\/visualize\/binary-search$/);
+  await expect(heading).toBeFocused();
+  await expect(page.getByRole('navigation', { name: 'Main' })).toBeHidden();
+});
+
+/** Where a table run's views sit in the stage: the table's box, the array's height, and whether the legend shows whole under the table. */
+async function tablePlace(page: Page) {
+  return page.locator('app-player .scene').evaluate((scene) => {
+    const stage = scene.getBoundingClientRect();
+    const table = scene.querySelector('[role="table"]')!.getBoundingClientRect();
+    const array = scene.querySelector('g-array-view')?.getBoundingClientRect();
+    const entries = [...scene.querySelectorAll('g-table-view g-legend span')].map((entry) => entry.getBoundingClientRect());
+    return {
+      table: `${Math.round(table.width)}×${Math.round(table.height)}`,
+      array: array && Math.round(array.height),
+      lines: new Set(entries.map((entry) => Math.round(entry.top))).size,
+      inside: table.top >= stage.top && entries.every((entry) => entry.top >= table.bottom && entry.bottom <= stage.bottom + 0.5),
+    };
+  });
+}
+
+test('at 320px the LCS table leaves its wrapped legend the room it needs in the stage', { tag: '@player' }, async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 700 });
+  await page.goto('/visualize/lcs');
+  const player = page.locator('app-player');
+  await player.getByText('Predict mode').click();
+  const first = await tablePlace(page);
+  expect(first.lines, 'legend lines').toBeGreaterThan(1);
+  expect(first.inside, 'the legend whole under the table, in the stage').toBe(true);
+  await player.getByRole('slider', { name: 'Timeline' }).fill('85');
+  await expect(player.locator('.scrub .count')).toHaveText('86 / 86');
+  expect(await tablePlace(page), 'the last frame, with the answer path').toEqual(first);
+});
+
+test('a table under an array keeps one size on every frame, with the array and its legend in the stage', async ({ page }, testInfo) => {
+  const sizes = [page.viewportSize()!, ...(testInfo.project.name === 'phone' ? [{ width: 320, height: 700 }] : [])];
+  for (const size of sizes) {
+    await page.setViewportSize(size);
+    await page.goto('/visualize/minimum-xor-sum');
+    const player = page.locator('app-player');
+    await player.getByText('Predict mode').click();
+    const count = player.locator('.scrub .count');
+    const total = await stepTotal(count);
+    const first = await tablePlace(page);
+    expect(first.inside, `the legend whole under the table at ${size.width}×${size.height}`).toBe(true);
+    for (let step = 2; step <= total; step++) {
+      await player.getByRole('button', { name: 'Step forward' }).click();
+      await expect(count).toHaveText(`${step} / ${total}`);
+      expect(await tablePlace(page), `step ${step} at ${size.width}×${size.height}`).toEqual(first);
+    }
+  }
 });
 
 test('Play at an open checkpoint asks for the answer instead of playing on', { tag: '@player' }, async ({ page }) => {

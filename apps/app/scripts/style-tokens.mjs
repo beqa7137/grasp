@@ -178,6 +178,25 @@ function mixinParameters(text, file) {
   return out;
 }
 
+/**
+ * A query condition's features without their parentheses, at any depth of grouping: `(a: 1px) and ((b: 2px) or (c: 3px))`
+ * gives a, b and c, and a feature's own functions stay whole, as in `(max-width: calc(700px - 1px))`.
+ */
+function queryFeatures(condition) {
+  const features = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < condition.length; i++) {
+    if (condition[i] === '(') {
+      if (depth++ === 0) start = i + 1;
+    } else if (condition[i] === ')' && --depth === 0) {
+      const inner = condition.slice(start, i).trim();
+      features.push(...(/^(?:\(|not\b)/i.test(inner) ? queryFeatures(inner) : [inner]));
+    }
+  }
+  return features;
+}
+
 /** The value a style binding's expression can produce: its string literals, or a number with the binding's unit, read through a field it names. */
 function bound(expression, unit, fields = new Map()) {
   const source = fields.get(expression.match(/^\s*(?:this\.)?([\w$]+)(?:\(\))?\s*$/)?.[1]) ?? expression;
@@ -228,9 +247,7 @@ export function scan(source, file, { elsewhere = new Set(), tokens = new Set(), 
   };
   // Only a width feature's length must be a breakpoint, so a height joined to it with `and` stays free.
   const query = (kind, condition, index, snippet) => {
-    const widths = [...condition.matchAll(/\(([^()]*)\)/g)]
-      .map(([, feature]) => feature)
-      .filter((feature) => /width|inline-size/i.test(feature));
+    const widths = queryFeatures(condition).filter((feature) => /width|inline-size/i.test(feature));
     const unknown = (feature) =>
       /\$/.test(feature) || (feature.match(QUERY_LENGTH) ?? []).some((length) => !BREAKPOINTS[kind].has(length.toLowerCase()));
     if (widths.some(unknown)) add(kind, index, snippet);

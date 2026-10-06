@@ -34,6 +34,9 @@ test('flags raw font sizes, radii, colors and one-off breakpoints', () => {
     ['@media (min-width: 60em) { .a { display: none; } }', 'media'],
     ['@container (max-width: 700px) { .a { display: none; } }', 'container'],
     ['@container (max-height: 500px) and (max-width: 700px) { .a { display: none; } }', 'container'],
+    ['@container ((max-height: 500px) and (max-width: 700px)) or (min-width: 900px) { .a { display: none; } }', 'container'],
+    ['@media (max-width: calc(700px - 1px)) { .a { display: none; } }', 'media'],
+    ['@media (max-width: min(700px, 50em)) { .a { display: none; } }', 'media'],
     ['.a { font-size: 10pt; }', 'font-size'],
     ['.a { filter: drop-shadow(0 0 2px #f00); }', 'color'],
     ['.a { background: url("x.svg") #f00; }', 'color'],
@@ -65,6 +68,7 @@ test('allows tokens, the chrome helper, relative and zero values, token tints an
     '@media (min-width: 1024px) and (max-width: 1279.98px) { .a { display: none; } }',
     '@container (min-width: 640px) and (max-width: 899.98px) { .a { display: none; } }',
     '@container player (min-width: 900px) and (min-height: 544px) { .a { display: none; } }',
+    '@container player ((min-width: 640px) and (max-height: 543.98px)) or ((min-width: 900px) and (max-height: 423.98px)) { .a { display: none; } }',
     '@media (max-width: 1023.98px) and (min-height: 480px) { .a { display: none; } }',
     '.a { --g-legend-gap: 14px; gap: var(--g-legend-gap); --g-switch-on: var(--g-predict); }',
     '.a { /* font-size: 13px; */ }',
@@ -123,6 +127,10 @@ test('reads SCSS interpolation, and mixin parameters that size a font, a radius 
     ],
     ['@mixin mq($w) { @media (max-width: $w) { @content; } }\n$w: 700px;\n.a { @include mq($w) { display: none; } }', ['media', 'media']],
     ['@mixin mq($w) { @media (max-width: $w) { @content; } }\n.a { @include mq($w: 1024px) { display: none; } }', ['media']],
+    [
+      '@mixin mq($w) { @media (max-width: $w) { @content; } }\n.a { @include mq(calc(700px - 1px)) { display: none; } }',
+      ['media', 'media'],
+    ],
     ['@mixin text($s) { font-size: $s; }\n.z { @include text(var(--g-text-s)); }', []],
   ]) {
     assert.deepEqual(flagged(css, 'app/x.scss'), categories, css);
