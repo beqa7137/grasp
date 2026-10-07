@@ -153,6 +153,9 @@ const KIND_LABELS: Record<CaseStageKind, string> = {
     </ion-content>
   `,
   styles: `
+    ion-content::part(scroll) {
+      scroll-behavior: smooth;
+    }
     h1 {
       font-size: clamp(1.625rem, 5vw, 2.25rem);
       margin: 4px 0 10px;
@@ -368,7 +371,7 @@ export class CaseStudyPage {
 
   goToStage(index: number) {
     const stage = this.stageEls()[index]?.nativeElement;
-    stage?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    stage?.scrollIntoView({ block: 'start' });
     stage?.querySelector('h2')?.focus({ preventScroll: true });
   }
 
@@ -378,7 +381,7 @@ export class CaseStudyPage {
       () => {
         const stage = this.finished() ? undefined : this.stageEls()[this.reached()]?.nativeElement;
         const target = stage ? stage.querySelector('h2') : this.outcomeEl()?.nativeElement;
-        const reveal = () => (stage ?? target)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const reveal = () => (stage ?? target)?.scrollIntoView({ block: 'start' });
         if (!always) return refocus(target, null, reveal);
         reveal();
         target?.focus({ preventScroll: true });

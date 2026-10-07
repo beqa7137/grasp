@@ -8,6 +8,7 @@ import {
   effect,
   inject,
   input,
+  model,
   output,
   signal,
   viewChild,
@@ -50,7 +51,10 @@ const TICK_WORDS: Record<TickState, string> = { pending: '', right: ', right', m
 
 /** How far apart two ticks' centres must be to draw whole: an 8px diamond turned 45° and its 2px halo. */
 const TICK_SPACE_PX = 16;
-/** Ticks drawn closer than that merge into one mark, which shows the state that most needs the learner. */
+/**
+ * Ticks drawn closer than that merge into one mark, which shows the state that most needs the learner and sits on the tick
+ * with that state, so a tap on a pending mark crosses its checkpoint and holds there.
+ */
 const URGENCY: Record<TickState, number> = { right: 0, skipped: 1, missed: 2, pending: 3 };
 
 /**
@@ -80,8 +84,8 @@ export class TransportComponent {
   readonly guard = input(true);
   /** A checkpoint is open, which closes ⋯ so the checkpoint dock shows. */
   readonly asking = input(false);
-  /** Region R's height, which ⋯'s panel never grows past, so it covers neither the stage nor the caption above R. */
-  readonly room = input<number | null>(null);
+  /** Whether ⋯ is open, which the player reads to keep the caption brief while it is. */
+  readonly moreOpen = model(false);
 
   readonly seek = output<number>();
   readonly back = output<void>();
@@ -101,7 +105,6 @@ export class TransportComponent {
   protected readonly panelId = uniqueId('g-transport-more');
   protected readonly timelineLabel = uniqueId('g-transport-timeline');
   protected readonly speedLabel = uniqueId('g-transport-speed');
-  protected readonly moreOpen = signal(false);
   protected readonly holding = signal<number | null>(null);
   /** Focus a drag gave the Timeline, which shows no ring until a key is pressed there (Chromium ignores `focusVisible`). */
   protected readonly pointerFocus = signal(false);
@@ -122,7 +125,7 @@ export class TransportComponent {
       const p = this.fraction(tick.at);
       const mark = marks.at(-1);
       if (mark && px > 0 && (p - mark.p) * px < TICK_SPACE_PX) {
-        if (URGENCY[tick.state] > URGENCY[mark.state]) mark.state = tick.state;
+        if (URGENCY[tick.state] > URGENCY[mark.state]) Object.assign(mark, tick, { p });
       } else marks.push({ ...tick, p });
     }
     return marks;

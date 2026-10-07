@@ -1,5 +1,6 @@
+import { ALGORITHM_CATALOG } from '@grasp/engine';
 import type { Locator, Page } from '@playwright/test';
-import { expect, openPlayback, recordedEvents, stepToCheckpoint, test } from './fixtures';
+import { expect, openPlayback, recordedEvents, stepTotal, stepToCheckpoint, test } from './fixtures';
 
 const transport = (page: Page) => page.locator('app-player g-transport');
 const count = (page: Page) => transport(page).locator('.count');
@@ -207,20 +208,89 @@ test.describe('a run with many checkpoints', { tag: '@player' }, () => {
     expect(Math.min(...gaps), 'an 8px diamond turned 45° with its 2px halo needs 15px').toBeGreaterThanOrEqual(15);
   });
 
-  test('⋯ on a 320px phone stays inside region R, under the caption, on every frame it is scrubbed to', async ({ page }) => {
+  test('a tap on a merged mark opens the pending checkpoint it shows', async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 320, height: 700 });
     await page.goto('/visualize/lcs');
-    await page.locator('app-player').getByText('Predict mode').click();
-    const more = page.getByRole('button', { name: 'More playback controls' });
-    await more.click();
-    const panel = page.getByRole('group', { name: 'Playback' });
-    const caption = page.locator('app-player .narration');
-    for (const step of [0, 20, 45, 85]) {
-      await timeline(page).fill(String(step));
-      await expect(count(page)).toHaveText(`${step + 1} / 86`);
-      const top = (await panel.boundingBox())!.y;
-      const bottom = await caption.evaluate((c) => c.getBoundingClientRect().bottom);
-      expect(top, `step ${step + 1}: the panel starts below the caption`).toBeGreaterThanOrEqual(bottom - 0.5);
+    await openPlayback(page);
+    for (const at of ['2 / 86', '8 / 86']) {
+      await page.getByRole('button', { name: 'Next checkpoint' }).click();
+      await expect(count(page)).toHaveText(at);
+      await page.locator('.predict').getByRole('button', { name: 'Skip' }).click();
+      await openPlayback(page);
     }
+    // At 320px LCS's checkpoints at 8 and 12 are 13px apart, so they draw as one mark, pending, on 12.
+    await expect(transport(page).locator('.tick[data-state="skipped"]')).toHaveCount(1);
+    const at = await centre(transport(page).locator('.tick[data-state="pending"]').first());
+    if (testInfo.project.use.hasTouch) await page.touchscreen.tap(at.x, at.y);
+    else await page.mouse.click(at.x, at.y);
+    await expect(count(page)).toHaveText('12 / 86');
+    await expect(page.locator('.predict .prompt')).toBeFocused();
+  });
+});
+
+test.describe('⋯ on a 320px phone', { tag: '@player' }, () => {
+  test.beforeEach(async ({ page }) => page.setViewportSize({ width: 320, height: 700 }));
+
+  for (const { id } of ALGORITHM_CATALOG) {
+    test(`fits whole in region R, under the caption, in the frame each seek paints, on ${id}'s first and last frames`, async ({
+      page,
+    }, testInfo) => {
+      test.skip(testInfo.project.name !== 'phone' && testInfo.project.name !== 'iphone', 'A phone layout, measured on the phones.');
+      await page.goto(`/visualize/${id}`);
+      await page.locator('app-player').getByText('Predict mode').click();
+      await openPlayback(page);
+      const total = await stepTotal(count(page));
+      for (const step of [total - 1, 0]) {
+        // A ResizeObserver made after the player's runs after it in the same frame, just before paint, so it sees what is painted.
+        const painted = await page.evaluate(
+          (to) =>
+            new Promise<{ gap: number; hidden: number }[]>((resolve) => {
+              const player = document.querySelector('app-player')!;
+              const panel = player.querySelector<HTMLElement>('g-transport .more')!;
+              const caption = player.querySelector('.narration')!;
+              const seen: { gap: number; hidden: number }[] = [];
+              const probe = new ResizeObserver(() =>
+                seen.push({
+                  gap: panel.getBoundingClientRect().top - caption.getBoundingClientRect().bottom,
+                  hidden: panel.scrollHeight - panel.clientHeight,
+                }),
+              );
+              probe.observe(player.querySelector('.panel-col')!);
+              const range = panel.querySelector('input')!;
+              range.value = String(to);
+              range.dispatchEvent(new Event('input', { bubbles: true }));
+              setTimeout(() => (probe.disconnect(), resolve(seen)), 400);
+            }),
+          step,
+        );
+        await expect(count(page)).toHaveText(`${step + 1} / ${total}`);
+        const settled = await page.evaluate(() => {
+          const panel = document.querySelector('app-player g-transport .more')!;
+          const caption = document.querySelector('app-player .narration')!;
+          return {
+            gap: panel.getBoundingClientRect().top - caption.getBoundingClientRect().bottom,
+            hidden: panel.scrollHeight - panel.clientHeight,
+          };
+        });
+        for (const { gap, hidden } of [...painted, settled]) {
+          expect(gap, `step ${step + 1}: the panel starts below the caption`).toBeGreaterThanOrEqual(-0.5);
+          expect(hidden, `step ${step + 1}: nothing in the panel is scrolled out of sight`).toBeLessThanOrEqual(1);
+        }
+      }
+    });
+  }
+
+  test('the hold chip clears the Timeline label', async ({ page }, testInfo) => {
+    await page.goto('/visualize/binary-search');
+    await openPlayback(page);
+    const pointer = await pointerFor(page, testInfo.project.name);
+    const thumb = await centre(timeline(page));
+    const first = await centre(tick(page, 0));
+    await pointer.down((await timeline(page).boundingBox())!.x + 8, thumb.y);
+    await pointer.move(first.x + 4, thumb.y);
+    const chip = (await transport(page).getByText('Answer it, or skip?').boundingBox())!;
+    const label = (await transport(page).locator('.label').first().boundingBox())!;
+    expect(chip.y, 'the chip starts below the label').toBeGreaterThanOrEqual(label.y + label.height);
+    await pointer.up(first.x + 4, thumb.y);
   });
 });

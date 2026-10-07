@@ -406,7 +406,7 @@ export class CaseStageComponent {
       () => {
         const result = this.result()?.nativeElement;
         // The verdict answers the tap that asked for it, so it comes into view whichever way the check was made.
-        result?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        result?.scrollIntoView({ block: 'nearest' });
         refocus(result);
       },
       { injector: this.injector },
