@@ -1,4 +1,4 @@
-import { MOTION_MIRROR_KEY, bootMotion } from './motion';
+import { MOTION_MIRROR_KEY, bootMotion, motionScroll } from './motion';
 
 function fakeWindow({ url = 'https://grasp.test/learn', saved = null as string | null, deviceReduces = false, blocked = false } = {}) {
   const root = document.createElement('html');
@@ -65,4 +65,21 @@ describe('bootMotion', () => {
     expect(bootMotion(win)).toEqual({ animated: false });
     expect(root.hasAttribute('data-motion')).toBe(false);
   });
+});
+
+describe('motionScroll', () => {
+  it.each([
+    { attribute: null, deviceReduces: false, behavior: 'smooth' },
+    { attribute: null, deviceReduces: true, behavior: 'auto' },
+    { attribute: 'full', deviceReduces: true, behavior: 'smooth' },
+    { attribute: 'reduced', deviceReduces: false, behavior: 'auto' },
+    { attribute: 'off', deviceReduces: false, behavior: 'auto' },
+  ])(
+    'scrolls $behavior with data-motion $attribute on a device that reduces motion: $deviceReduces',
+    ({ attribute, deviceReduces, behavior }) => {
+      const { win, root } = fakeWindow({ deviceReduces });
+      if (attribute) root.setAttribute('data-motion', attribute);
+      expect(motionScroll(win)).toBe(behavior);
+    },
+  );
 });

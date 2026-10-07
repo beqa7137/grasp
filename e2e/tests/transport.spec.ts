@@ -228,69 +228,107 @@ test.describe('a run with many checkpoints', { tag: '@player' }, () => {
   });
 });
 
-test.describe('⋯ on a 320px phone', { tag: '@player' }, () => {
+// A 320px phone upright, and a 360px-tall one held sideways, whose R the grid sets rather than the caption.
+for (const [width, height] of [
+  [320, 700],
+  [740, 360],
+] as const) {
+  test.describe(`⋯ on a ${width}×${height} phone`, { tag: '@player' }, () => {
+    test.beforeEach(async ({ page }) => page.setViewportSize({ width, height }));
+
+    for (const { id } of ALGORITHM_CATALOG) {
+      test(`fits whole in region R, under the caption, in the frame each seek paints, on ${id}'s first and last frames`, async ({
+        page,
+      }, testInfo) => {
+        test.skip(testInfo.project.name !== 'phone' && testInfo.project.name !== 'iphone', 'A phone layout, measured on the phones.');
+        await page.goto(`/visualize/${id}`);
+        await page.locator('app-player').getByText('Predict mode').click();
+        await openPlayback(page);
+        const total = await stepTotal(count(page));
+        for (const step of [total - 1, 0]) {
+          // A ResizeObserver made after the player's runs after it in the same frame, just before paint, so it sees what is painted.
+          const painted = await page.evaluate(
+            (to) =>
+              new Promise<{ gap: number; hidden: number }[]>((resolve) => {
+                const player = document.querySelector('app-player')!;
+                const panel = player.querySelector<HTMLElement>('g-transport .more')!;
+                const caption = player.querySelector('.narration')!;
+                const seen: { gap: number; hidden: number }[] = [];
+                const probe = new ResizeObserver(() =>
+                  seen.push({
+                    gap: panel.getBoundingClientRect().top - caption.getBoundingClientRect().bottom,
+                    hidden: panel.scrollHeight - panel.clientHeight,
+                  }),
+                );
+                probe.observe(player.querySelector('.panel-col')!);
+                const range = panel.querySelector('input')!;
+                range.value = String(to);
+                range.dispatchEvent(new Event('input', { bubbles: true }));
+                setTimeout(() => (probe.disconnect(), resolve(seen)), 400);
+              }),
+            step,
+          );
+          await expect(count(page)).toHaveText(`${step + 1} / ${total}`);
+          const settled = await page.evaluate(() => {
+            const panel = document.querySelector('app-player g-transport .more')!;
+            const caption = document.querySelector('app-player .narration')!;
+            return {
+              gap: panel.getBoundingClientRect().top - caption.getBoundingClientRect().bottom,
+              hidden: panel.scrollHeight - panel.clientHeight,
+            };
+          });
+          for (const { gap, hidden } of [...painted, settled]) {
+            expect(gap, `step ${step + 1}: the panel starts below the caption`).toBeGreaterThanOrEqual(-0.5);
+            expect(hidden, `step ${step + 1}: nothing in the panel is scrolled out of sight`).toBeLessThanOrEqual(1);
+          }
+        }
+      });
+    }
+  });
+}
+
+test.describe('⋯ on a phone', { tag: '@player' }, () => {
   test.beforeEach(async ({ page }) => page.setViewportSize({ width: 320, height: 700 }));
 
-  for (const { id } of ALGORITHM_CATALOG) {
-    test(`fits whole in region R, under the caption, in the frame each seek paints, on ${id}'s first and last frames`, async ({
-      page,
-    }, testInfo) => {
-      test.skip(testInfo.project.name !== 'phone' && testInfo.project.name !== 'iphone', 'A phone layout, measured on the phones.');
-      await page.goto(`/visualize/${id}`);
-      await page.locator('app-player').getByText('Predict mode').click();
-      await openPlayback(page);
-      const total = await stepTotal(count(page));
-      for (const step of [total - 1, 0]) {
-        // A ResizeObserver made after the player's runs after it in the same frame, just before paint, so it sees what is painted.
-        const painted = await page.evaluate(
-          (to) =>
-            new Promise<{ gap: number; hidden: number }[]>((resolve) => {
-              const player = document.querySelector('app-player')!;
-              const panel = player.querySelector<HTMLElement>('g-transport .more')!;
-              const caption = player.querySelector('.narration')!;
-              const seen: { gap: number; hidden: number }[] = [];
-              const probe = new ResizeObserver(() =>
-                seen.push({
-                  gap: panel.getBoundingClientRect().top - caption.getBoundingClientRect().bottom,
-                  hidden: panel.scrollHeight - panel.clientHeight,
-                }),
-              );
-              probe.observe(player.querySelector('.panel-col')!);
-              const range = panel.querySelector('input')!;
-              range.value = String(to);
-              range.dispatchEvent(new Event('input', { bubbles: true }));
-              setTimeout(() => (probe.disconnect(), resolve(seen)), 400);
-            }),
-          step,
-        );
-        await expect(count(page)).toHaveText(`${step + 1} / ${total}`);
-        const settled = await page.evaluate(() => {
-          const panel = document.querySelector('app-player g-transport .more')!;
-          const caption = document.querySelector('app-player .narration')!;
-          return {
-            gap: panel.getBoundingClientRect().top - caption.getBoundingClientRect().bottom,
-            hidden: panel.scrollHeight - panel.clientHeight,
-          };
-        });
-        for (const { gap, hidden } of [...painted, settled]) {
-          expect(gap, `step ${step + 1}: the panel starts below the caption`).toBeGreaterThanOrEqual(-0.5);
-          expect(hidden, `step ${step + 1}: nothing in the panel is scrolled out of sight`).toBeLessThanOrEqual(1);
-        }
-      }
-    });
-  }
-
-  test('the hold chip clears the Timeline label', async ({ page }, testInfo) => {
+  test("while a drag holds, the hold chip takes the Timeline label's row inside the panel", async ({ page }, testInfo) => {
     await page.goto('/visualize/binary-search');
     await openPlayback(page);
     const pointer = await pointerFor(page, testInfo.project.name);
     const thumb = await centre(timeline(page));
     const first = await centre(tick(page, 0));
+    const label = transport(page).locator('.label').first();
+    await expect(label).toBeVisible();
     await pointer.down((await timeline(page).boundingBox())!.x + 8, thumb.y);
     await pointer.move(first.x + 4, thumb.y);
     const chip = (await transport(page).getByText('Answer it, or skip?').boundingBox())!;
-    const label = (await transport(page).locator('.label').first().boundingBox())!;
-    expect(chip.y, 'the chip starts below the label').toBeGreaterThanOrEqual(label.y + label.height);
+    const panel = (await transport(page).locator('.more').boundingBox())!;
+    expect(chip.y, 'the chip stays inside the panel').toBeGreaterThanOrEqual(panel.y);
+    await expect(label, 'the label gives way to the chip').toBeHidden();
+    await expect(timeline(page), 'the Timeline keeps its name').toBeVisible();
     await pointer.up(first.x + 4, thumb.y);
+  });
+
+  test("a short R keeps the result in the caption's live region, and a tall one shows it whole", async ({ page }) => {
+    const narration = page.locator('app-player .narration');
+    for (const [width, height, shown] of [
+      [320, 700, false],
+      [768, 1024, true],
+    ] as const) {
+      await page.setViewportSize({ width, height });
+      await page.goto('/visualize/binary-search');
+      await openPlayback(page);
+      await timeline(page).press('End');
+      await expect(count(page)).toHaveText(/^(\d+) \/ \1$/);
+      await expect(narration).toHaveAttribute('aria-live', 'polite');
+      expect(await narration.ariaSnapshot(), `${width}×${height}`).toContain('→ 5');
+      const result = await narration.locator('.result').boundingBox();
+      expect(result!.width > 2, `${width}×${height}: the result is in view`).toBe(shown);
+      await expect(narration.getByRole('link', { name: /Now write it yourself/ })).toBeVisible({ visible: shown });
+      expect(
+        await transport(page)
+          .locator('.more')
+          .evaluate((m) => m.scrollHeight - m.clientHeight),
+      ).toBeLessThanOrEqual(1);
+    }
   });
 });

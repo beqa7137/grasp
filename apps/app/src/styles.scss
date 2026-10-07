@@ -337,8 +337,7 @@ button.chip {
   }
 }
 
-// Reduced follows the device unless Settings › Motion says Full; `off` is the tools' test mode (core/motion.ts). `*` does
-// not reach ion-content's shadow scroller, so pages that smooth-scroll it are reached through its part.
+// Reduced follows the device unless Settings › Motion says Full; `off` is the tools' test mode (core/motion.ts).
 // No transition at all: a duration of its own would make every property of every element transition for a frame, since
 // transition-property defaults to all, and a box read in that frame would still have its old size.
 @mixin no-motion {
@@ -351,8 +350,7 @@ button.chip {
   :root:not([data-motion='full']) {
     *,
     *::before,
-    *::after,
-    ion-content::part(scroll) {
+    *::after {
       @include no-motion;
     }
   }
@@ -361,8 +359,7 @@ button.chip {
 :root:is([data-motion='reduced'], [data-motion='off']) {
   *,
   *::before,
-  *::after,
-  ion-content::part(scroll) {
+  *::after {
     @include no-motion;
   }
 }

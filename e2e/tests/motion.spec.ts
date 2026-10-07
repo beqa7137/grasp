@@ -108,17 +108,14 @@ test.describe('the Motion setting', () => {
     await expect.poll(scrolling, 'Instant stills the stage only').toEqual(['auto', 'smooth']);
   });
 
-  test('a case study smooth-scrolls its page only while Motion allows it', async ({ page }) => {
+  test("a case study leaves its page scroller instant, so Ionic's own scroll animations never lag", async ({ page }) => {
     await page.goto('/design/case/url-shortener');
     const scrolling = () =>
-      page
-        .locator('app-case-study ion-content')
-        .evaluate((c) => getComputedStyle(c.shadowRoot!.querySelector('[part~="scroll"]')!).scrollBehavior);
-    await expect.poll(scrolling).toBe('smooth');
-    for (const mode of ['reduced', 'off']) {
-      await page.locator('html').evaluate((html, value) => html.setAttribute('data-motion', value), mode);
-      await expect.poll(scrolling, mode).toBe('auto');
-    }
+      page.locator('app-case-study ion-content').evaluate((c) => {
+        const scroller = c.shadowRoot?.querySelector('[part~="scroll"]');
+        return scroller && getComputedStyle(scroller).scrollBehavior;
+      });
+    await expect.poll(scrolling).toBe('auto');
   });
 
   test.describe('on a device that reduces motion, scrolling', () => {

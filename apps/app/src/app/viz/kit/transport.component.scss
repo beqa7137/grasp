@@ -56,7 +56,8 @@
 
 // ⋯ opens this above the dock: inline and non-modal, so focus and the checkpoint dock work as they do without it. It is no
 // taller than region R (`--g-room`, which the player measures), which the player keeps tall enough for it by shortening the
-// caption while it is open; on a window too short even for that it scrolls inside itself, keeping the labelled Timeline.
+// caption while it is open where R can be short; on a window too short even for that it scrolls inside itself, keeping the
+// labelled Timeline. It needs 192px, which a 360px-tall phone held sideways leaves R with 2px to spare.
 .more {
   display: none;
 
@@ -69,7 +70,7 @@
     min-height: 88px;
     display: grid;
     gap: 4px;
-    padding: 8px 0 6px;
+    padding: 6px 0 4px;
     overflow-y: auto;
     overscroll-behavior: contain;
     border-top: 1px solid var(--g-line);
@@ -81,6 +82,12 @@
 
 .label {
   line-height: 1.2;
+
+  // The hold chip rises over the Timeline's label, which gives way while a drag holds: a margin to clear it would cost the
+  // panel its fit on a 360px-tall phone held sideways. The Timeline keeps its name.
+  &.yield {
+    visibility: hidden;
+  }
 }
 
 .label:not(:first-child),
@@ -116,8 +123,6 @@
 .scrubber {
   position: relative;
   height: 44px;
-  // The hold chip rises 11px above the bar, so the Timeline's label above it in ⋯ stays clear of it.
-  margin-top: 12px;
 
   &::before {
     content: '';
@@ -290,7 +295,6 @@ input[type='range'] {
   }
   .scrubber {
     grid-area: scrub;
-    margin-top: 0;
   }
   .speed {
     grid-area: speed;
