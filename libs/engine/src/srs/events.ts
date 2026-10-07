@@ -1,6 +1,6 @@
 import type { Language } from '../coding/types.js';
 import type { InterviewTrack } from '../interview/rubrics.js';
-import type { StudyPlanInput } from '../plan/options.js';
+import type { StudyPlanInput, TargetInput } from '../plan/options.js';
 import type { CaseOutcome } from '../sysdesign/cases/outcome.js';
 import type { ReviewRating } from './scheduler.js';
 
@@ -90,6 +90,12 @@ export interface PlanSetEvent extends BaseEvent {
   plan: StudyPlanInput | null;
 }
 
+/** The loop the learner prepares for: level, round counts and company. The interview date stays with `plan.set`. */
+export interface TargetSetEvent extends BaseEvent {
+  type: 'target.set';
+  target: TargetInput;
+}
+
 /** Every round of a mock loop scored: the debrief's practice read. Each round's own flags came with its interview.scored. */
 export interface MockCompletedEvent extends BaseEvent {
   type: 'mock.completed';
@@ -123,6 +129,7 @@ export type LearningEvent =
   | CodeSubmittedEvent
   | SettingsChangedEvent
   | PlanSetEvent
+  | TargetSetEvent
   | DiagnosticCompletedEvent
   | MockCompletedEvent;
 

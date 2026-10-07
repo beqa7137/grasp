@@ -1,0 +1,543 @@
+[
+  {
+    "id": "fixture-0001",
+    "at": "2026-09-01T09:00:00.000Z",
+    "type": "diagnostic.completed",
+    "answers": [
+      {
+        "itemId": "rec:h1",
+        "outcome": "correct",
+        "durationMs": 4000
+      },
+      {
+        "itemId": "rec:tp1",
+        "outcome": "wrong",
+        "durationMs": 4500
+      },
+      {
+        "itemId": "rec:sw1",
+        "outcome": "skipped",
+        "durationMs": 5000
+      },
+      {
+        "itemId": "rec:bs1",
+        "outcome": "correct",
+        "durationMs": 5500
+      },
+      {
+        "itemId": "rec:ps1",
+        "outcome": "wrong",
+        "durationMs": 6000
+      }
+    ]
+  },
+  {
+    "id": "fixture-0002",
+    "at": "2026-09-01T09:05:00.000Z",
+    "type": "settings.changed",
+    "settings": {
+      "retention": 0.85,
+      "newPerDay": 15
+    }
+  },
+  {
+    "id": "fixture-0003",
+    "at": "2026-09-01T09:06:00.000Z",
+    "type": "plan.set",
+    "plan": {
+      "interviewDate": "2026-09-24",
+      "minutesPerDay": 45,
+      "rounds": ["coding", "design", "behavioral"],
+      "level": "new"
+    }
+  },
+  {
+    "id": "fixture-0004",
+    "at": "2026-09-01T09:10:00.000Z",
+    "type": "drill.reviewed",
+    "cardId": "h2",
+    "grade": 4
+  },
+  {
+    "id": "fixture-0005",
+    "at": "2026-09-01T09:20:00.000Z",
+    "type": "review.graded",
+    "itemId": "rec:h1",
+    "rating": 3,
+    "correct": true,
+    "durationMs": 9148
+  },
+  {
+    "id": "fixture-0006",
+    "at": "2026-09-01T09:21:00.000Z",
+    "type": "review.graded",
+    "itemId": "rec:tp1",
+    "rating": 3,
+    "correct": true,
+    "durationMs": 9185
+  },
+  {
+    "id": "fixture-0007",
+    "at": "2026-09-01T09:22:00.000Z",
+    "type": "review.graded",
+    "itemId": "rec:bs2",
+    "rating": 3,
+    "correct": true,
+    "durationMs": 9222
+  },
+  {
+    "id": "fixture-0008",
+    "at": "2026-09-01T09:23:00.000Z",
+    "type": "review.graded",
+    "itemId": "rec:sw2",
+    "rating": 3,
+    "correct": true,
+    "durationMs": 9259
+  },
+  {
+    "id": "fixture-0009",
+    "at": "2026-09-01T09:30:00.000Z",
+    "type": "predict.answered",
+    "algorithmId": "binary-search",
+    "patternId": "binary-search",
+    "correct": false
+  },
+  {
+    "id": "fixture-0010",
+    "at": "2026-09-01T09:31:00.000Z",
+    "type": "predict.answered",
+    "algorithmId": "binary-search",
+    "patternId": "binary-search",
+    "correct": true
+  },
+  {
+    "id": "fixture-0011",
+    "at": "2026-09-01T09:40:00.000Z",
+    "type": "practice.answered",
+    "itemId": "cx:binary-search:complexity",
+    "correct": true,
+    "durationMs": 12000
+  },
+  {
+    "id": "fixture-0012",
+    "at": "2026-09-01T09:50:00.000Z",
+    "type": "code.submitted",
+    "problemId": "two-sum",
+    "language": "javascript",
+    "passed": 2,
+    "total": 5
+  },
+  {
+    "id": "fixture-0013",
+    "at": "2026-09-01T09:55:00.000Z",
+    "type": "code.submitted",
+    "problemId": "two-sum",
+    "language": "python",
+    "passed": 5,
+    "total": 5
+  },
+  {
+    "id": "fixture-0014",
+    "at": "2026-09-02T09:00:00.000Z",
+    "type": "code.submitted",
+    "problemId": "daily-temperatures",
+    "language": "typescript",
+    "passed": 6,
+    "total": 6
+  },
+  {
+    "id": "fixture-0015",
+    "at": "2026-09-02T09:10:00.000Z",
+    "type": "review.graded",
+    "itemId": "rec:h1",
+    "rating": 3,
+    "correct": true,
+    "durationMs": 9518
+  },
+  {
+    "id": "fixture-0016",
+    "at": "2026-09-02T09:11:00.000Z",
+    "type": "review.graded",
+    "itemId": "rec:tp1",
+    "rating": 3,
+    "correct": true,
+    "durationMs": 9555
+  },
+  {
+    "id": "fixture-0017",
+    "at": "2026-09-02T09:12:00.000Z",
+    "type": "review.graded",
+    "itemId": "cx:binary-search:complexity",
+    "rating": 1,
+    "correct": false,
+    "durationMs": 9592
+  },
+  {
+    "id": "fixture-0018",
+    "at": "2026-09-02T09:13:00.000Z",
+    "type": "review.graded",
+    "itemId": "cloze:binary-search:1",
+    "rating": 3,
+    "correct": true,
+    "durationMs": 9629
+  },
+  {
+    "id": "fixture-0019",
+    "at": "2026-09-02T09:14:00.000Z",
+    "type": "review.graded",
+    "itemId": "pred:binary-search",
+    "rating": 3,
+    "correct": true,
+    "durationMs": 9666
+  },
+  {
+    "id": "fixture-0020",
+    "at": "2026-09-02T09:30:00.000Z",
+    "type": "scenario.completed",
+    "scenarioId": "first-scale-up",
+    "monthlyCost": 1200
+  },
+  {
+    "id": "fixture-0021",
+    "at": "2026-09-03T09:00:00.000Z",
+    "type": "scenario.completed",
+    "scenarioId": "first-scale-up",
+    "monthlyCost": 900
+  },
+  {
+    "id": "fixture-0022",
+    "at": "2026-09-05T09:00:00.000Z",
+    "type": "scenario.completed",
+    "scenarioId": "first-scale-up",
+    "monthlyCost": 950,
+    "variant": 1
+  },
+  {
+    "id": "fixture-0023",
+    "at": "2026-09-03T09:20:00.000Z",
+    "type": "case.completed",
+    "caseId": "url-shortener",
+    "topics": ["sd-estimation", "sd-caching", "sd-sharding"],
+    "bestChoices": 7,
+    "decisions": 9,
+    "closeEstimates": 3,
+    "estimates": 4
+  },
+  {
+    "id": "fixture-0024",
+    "at": "2026-09-04T09:00:00.000Z",
+    "type": "interview.scored",
+    "sessionId": "sess-coding-1",
+    "track": "coding",
+    "verdict": "lean-no-hire",
+    "weakPatterns": ["binary-search", "sliding-window"]
+  },
+  {
+    "id": "fixture-0025",
+    "at": "2026-09-04T09:30:00.000Z",
+    "type": "interview.scored",
+    "sessionId": "sess-sd-1",
+    "track": "system-design",
+    "verdict": "lean-hire",
+    "weakPatterns": []
+  },
+  {
+    "id": "fixture-0026",
+    "at": "2026-09-04T10:00:00.000Z",
+    "type": "interview.scored",
+    "sessionId": "sess-beh-1",
+    "track": "behavioral",
+    "verdict": "lean-hire",
+    "weakPatterns": [],
+    "competencyId": "conflict",
+    "weakCompetencies": ["conflict", "ownership"]
+  },
+  {
+    "id": "fixture-0027",
+    "at": "2026-09-04T10:01:00.000Z",
+    "type": "mock.completed",
+    "loopId": "loop-fixture-1",
+    "verdict": "lean-hire",
+    "rounds": [
+      {
+        "track": "coding",
+        "sessionId": "sess-coding-1",
+        "verdict": "lean-no-hire",
+        "at": "2026-09-04T09:00:00.000Z"
+      },
+      {
+        "track": "system-design",
+        "sessionId": "sess-sd-1",
+        "verdict": "lean-hire",
+        "at": "2026-09-04T09:30:00.000Z"
+      },
+      {
+        "track": "behavioral",
+        "sessionId": "sess-beh-1",
+        "verdict": "lean-hire",
+        "at": "2026-09-04T10:00:00.000Z"
+      }
+    ]
+  },
+  {
+    "id": "fixture-0028",
+    "at": "2026-09-05T09:30:00.000Z",
+    "type": "code.submitted",
+    "problemId": "ship-within-days",
+    "language": "javascript",
+    "passed": 4,
+    "total": 4
+  },
+  {
+    "id": "fixture-0029",
+    "at": "2026-09-05T09:40:00.000Z",
+    "type": "code.submitted",
+    "problemId": "longest-unique-substring",
+    "language": "javascript",
+    "passed": 1,
+    "total": 8
+  },
+  {
+    "id": "fixture-0030",
+    "at": "2026-09-06T09:00:00.000Z",
+    "type": "review.graded",
+    "itemId": "sd:cache-tail",
+    "rating": 3,
+    "correct": true,
+    "durationMs": 10073
+  },
+  {
+    "id": "fixture-0031",
+    "at": "2026-09-06T09:01:00.000Z",
+    "type": "review.graded",
+    "itemId": "sd:cache-math",
+    "rating": 3,
+    "correct": true,
+    "durationMs": 10110
+  },
+  {
+    "id": "fixture-0032",
+    "at": "2026-09-06T09:02:00.000Z",
+    "type": "review.graded",
+    "itemId": "rec:bs2",
+    "rating": 3,
+    "correct": true,
+    "durationMs": 10147
+  },
+  {
+    "id": "fixture-0033",
+    "at": "2026-09-06T09:03:00.000Z",
+    "type": "review.graded",
+    "itemId": "rec:sw2",
+    "rating": 3,
+    "correct": true,
+    "durationMs": 10184
+  },
+  {
+    "id": "fixture-0034",
+    "at": "2026-09-06T09:20:00.000Z",
+    "type": "plan.set",
+    "plan": null
+  },
+  {
+    "id": "fixture-0035",
+    "at": "2026-09-06T09:21:00.000Z",
+    "type": "plan.set",
+    "plan": {
+      "interviewDate": "2026-09-30",
+      "minutesPerDay": 60,
+      "rounds": ["behavioral", "coding"],
+      "level": "rusty"
+    }
+  },
+  {
+    "id": "fixture-0036",
+    "at": "2026-09-07T09:00:00.000Z",
+    "type": "interview.scored",
+    "sessionId": "sess-beh-2",
+    "track": "behavioral",
+    "verdict": "hire",
+    "weakPatterns": [],
+    "competencyId": "conflict"
+  },
+  {
+    "id": "fixture-0037",
+    "at": "2026-09-07T09:10:00.000Z",
+    "type": "case.completed",
+    "caseId": "url-shortener",
+    "topics": ["sd-estimation", "sd-caching", "sd-gone"],
+    "bestChoices": 9,
+    "decisions": 9,
+    "closeEstimates": 4,
+    "estimates": 4
+  },
+  {
+    "id": "fixture-0038",
+    "at": "2026-09-08T09:00:00.000Z",
+    "type": "diagnostic.completed",
+    "answers": [
+      {
+        "itemId": "rec:bs1",
+        "outcome": "correct",
+        "durationMs": 3000
+      },
+      {
+        "itemId": "rec:sw1",
+        "outcome": "skipped",
+        "durationMs": 0
+      }
+    ]
+  },
+  {
+    "id": "fixture-0039",
+    "at": "2026-09-09T09:00:00.000Z",
+    "type": "review.graded",
+    "itemId": "rec:h1",
+    "rating": 3,
+    "correct": true,
+    "durationMs": 10406
+  },
+  {
+    "id": "fixture-0040",
+    "at": "2026-09-09T09:01:00.000Z",
+    "type": "review.graded",
+    "itemId": "rec:tp1",
+    "rating": 3,
+    "correct": true,
+    "durationMs": 10443
+  },
+  {
+    "id": "fixture-0041",
+    "at": "2026-09-09T09:02:00.000Z",
+    "type": "review.graded",
+    "itemId": "rec:bs2",
+    "rating": 3,
+    "correct": true,
+    "durationMs": 10480
+  },
+  {
+    "id": "fixture-0042",
+    "at": "2026-09-09T09:03:00.000Z",
+    "type": "review.graded",
+    "itemId": "sd:cache-tail",
+    "rating": 3,
+    "correct": true,
+    "durationMs": 10517
+  },
+  {
+    "id": "fixture-0043",
+    "at": "2026-09-10T09:00:00.000Z",
+    "type": "review.graded",
+    "itemId": "rec:h1",
+    "rating": 3,
+    "correct": true,
+    "durationMs": 10554
+  },
+  {
+    "id": "fixture-0044",
+    "at": "2026-09-10T09:01:00.000Z",
+    "type": "review.graded",
+    "itemId": "rec:tp1",
+    "rating": 2,
+    "correct": true,
+    "durationMs": 10591
+  },
+  {
+    "id": "fixture-0045",
+    "at": "2026-09-10T09:02:00.000Z",
+    "type": "review.graded",
+    "itemId": "rec:bs2",
+    "rating": 3,
+    "correct": true,
+    "durationMs": 10628
+  },
+  {
+    "id": "fixture-0046",
+    "at": "2026-09-10T09:03:00.000Z",
+    "type": "review.graded",
+    "itemId": "sd:cache-tail",
+    "rating": 3,
+    "correct": true,
+    "durationMs": 10665
+  },
+  {
+    "id": "fixture-0047",
+    "at": "2026-09-11T09:00:00.000Z",
+    "type": "review.graded",
+    "itemId": "rec:h1",
+    "rating": 3,
+    "correct": true,
+    "durationMs": 10702
+  },
+  {
+    "id": "fixture-0048",
+    "at": "2026-09-11T09:01:00.000Z",
+    "type": "review.graded",
+    "itemId": "rec:tp1",
+    "rating": 3,
+    "correct": true,
+    "durationMs": 10739
+  },
+  {
+    "id": "fixture-0049",
+    "at": "2026-09-11T09:02:00.000Z",
+    "type": "review.graded",
+    "itemId": "rec:bs2",
+    "rating": 3,
+    "correct": true,
+    "durationMs": 10776
+  },
+  {
+    "id": "fixture-0050",
+    "at": "2026-09-11T09:03:00.000Z",
+    "type": "review.graded",
+    "itemId": "sd:cache-tail",
+    "rating": 3,
+    "correct": true,
+    "durationMs": 10813
+  },
+  {
+    "id": "fixture-0051",
+    "at": "2026-09-12T09:00:00.000Z",
+    "type": "review.graded",
+    "itemId": "rec:h1",
+    "rating": 3,
+    "correct": true,
+    "durationMs": 10850
+  },
+  {
+    "id": "fixture-0052",
+    "at": "2026-09-12T09:01:00.000Z",
+    "type": "review.graded",
+    "itemId": "rec:tp1",
+    "rating": 3,
+    "correct": true,
+    "durationMs": 10887
+  },
+  {
+    "id": "fixture-0053",
+    "at": "2026-09-12T09:02:00.000Z",
+    "type": "review.graded",
+    "itemId": "rec:bs2",
+    "rating": 3,
+    "correct": true,
+    "durationMs": 10924
+  },
+  {
+    "id": "fixture-0054",
+    "at": "2026-09-12T09:03:00.000Z",
+    "type": "review.graded",
+    "itemId": "sd:cache-tail",
+    "rating": 3,
+    "correct": true,
+    "durationMs": 10961
+  },
+  {
+    "id": "fixture-0055",
+    "at": "2026-09-13T09:00:00.000Z",
+    "type": "settings.changed",
+    "settings": {
+      "budgetMinutes": 20
+    }
+  }
+]

@@ -13,3 +13,4 @@ export * from './case-briefs.js';
 export * from './case-catalog.js';
 export * from './cases/index.js';
 export * from './lessons/index.js';
+export * from './shelves.js';

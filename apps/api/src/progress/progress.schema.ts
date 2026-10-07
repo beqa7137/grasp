@@ -7,6 +7,7 @@ import {
   DRILL_CARDS,
   INTERVIEW_TRACKS,
   LANGUAGES,
+  MAX_ROUND_COUNT,
   PATTERNS,
   PLAN_LEVELS,
   PLAN_MINUTES,
@@ -14,6 +15,8 @@ import {
   SCENARIOS,
   STUDY_OPTIONS,
   SD_TOPICS,
+  TARGET_COMPANIES,
+  TARGET_LEVELS,
   VERDICTS,
   getReviewItem,
   isCalendarDate,
@@ -46,6 +49,7 @@ const itemId = z
 const competencyId = z.string().refine((id) => competencyIds.has(id), 'Unknown competency');
 const durationMs = z.number().int().min(0).max(3_600_000);
 const caseCount = z.number().int().min(0).max(50);
+const roundCount = z.number().int().min(0).max(MAX_ROUND_COUNT);
 const oneOf = (options: readonly number[]) => z.number().refine((v) => options.includes(v), `Must be one of ${options.join(', ')}`);
 
 export const learningEventSchema = z.discriminatedUnion('type', [
@@ -153,6 +157,18 @@ export const learningEventSchema = z.discriminatedUnion('type', [
       })
       .nullable(),
   }),
+  // New in R4: the release still running rejects it, so clients send it from R9 on, and only `?v=2` pulls return it.
+  z.object({
+    ...base,
+    type: z.literal('target.set'),
+    target: z.strictObject({
+      level: z.enum(TARGET_LEVELS),
+      rounds: z
+        .strictObject({ coding: roundCount, design: roundCount, behavioral: roundCount })
+        .refine((rounds) => Object.values(rounds).some((count) => count > 0), 'At least one round'),
+      company: z.enum(TARGET_COMPANIES).optional(),
+    }),
+  }),
   z.object({
     ...base,
     type: z.literal('mock.completed'),
@@ -203,3 +219,6 @@ export const appendEventsSchema = z.object({
 export type AppendEventsDto = z.infer<typeof appendEventsSchema>;
 
 export const sinceSchema = z.iso.datetime({ offset: true }).optional();
+
+/** The event schema version a client reads; absent means 1. A version above this release's still reads everything. */
+export const versionSchema = z.coerce.number().int().min(1).optional();

@@ -2,14 +2,26 @@ import { describe, expect, it } from 'vitest';
 import { COMPETENCY_CATALOG } from '../behavioral/catalog.js';
 import { EMPTY_STAR_DRAFT } from '../behavioral/star-check.js';
 import type { Story } from '../behavioral/stories.js';
-import { CODING_CATALOG } from '../coding/catalog.js';
+import { CODING_CATALOG, getProblemSummary } from '../coding/catalog.js';
 import { PATTERN_CATALOG } from '../curriculum/catalog.js';
+import { SD_TOPICS } from '../curriculum/sd-topics.js';
 import type { InterviewTrack } from '../interview/rubrics.js';
+import { LEVEL_PROFILES, problemsAtBar } from '../readiness/levels.js';
 import type { StoredEvent } from '../srs/events.js';
 import { emptyProgress, replay, type ProgressState } from '../srs/progress.js';
 import { CASE_CATALOG } from '../sysdesign/case-catalog.js';
-import { PLAN_LEVELS, PLAN_MAX_DAYS, PLAN_MINUTES, normalizePlan, type PlanRound, type StudyPlanInput } from './options.js';
+import {
+  PLAN_LEVELS,
+  PLAN_MAX_DAYS,
+  PLAN_MINUTES,
+  normalizePlan,
+  type PlanRound,
+  type StudyPlanInput,
+  type TargetInput,
+} from './options.js';
+import { minutesFor } from './minutes.js';
 import { buildStudyPlan, type StudyPlan } from './study-plan.js';
+import { coveringMissions } from './target-units.js';
 
 const DAY = 86_400_000;
 const now = new Date('2026-10-01T09:00:00Z');
@@ -617,5 +629,103 @@ describe('plan inputs', () => {
       plan: { ...input(), level: 'expert' },
     } as unknown as StoredEvent;
     expect(replay([set, newer]).plan).toEqual(input());
+  });
+});
+
+describe('a plan for a Target', () => {
+  const counts = { coding: 2, design: 1, behavioral: 1 };
+  const target = (level: 'early' | 'mid' | 'senior'): TargetInput => ({ level, rounds: counts });
+  const targetPlan = (level: 'early' | 'mid' | 'senior', state = emptyProgress(), change: Partial<StudyPlanInput> = {}) =>
+    buildStudyPlan(input({ interviewDate: '2027-03-01', ...change }), state, { now, target: target(level) });
+  const ids = (list: { id: string }[], kind: string) =>
+    list.filter((u) => u.id.startsWith(`${kind}:`)).map((u) => u.id.slice(kind.length + 1));
+
+  it('schedules exactly the lists readiness counts at that level', () => {
+    for (const level of ['early', 'mid', 'senior'] as const) {
+      const units = targetPlan(level).units;
+      const profile = LEVEL_PROFILES[level];
+      expect(ids(units, 'pattern'), level).toEqual(profile.patterns.required);
+      expect(ids(units, 'solve'), level).toEqual(profile.patterns.required);
+      expect([...ids(units, 'case')].sort(), level).toEqual([...profile.cases.required].sort());
+      expect([...ids(units, 'lesson')].sort(), level).toEqual([...profile.topics.required].sort());
+      expect(ids(units, 'story'), level).toEqual(profile.competencies.map((c) => c.id));
+      const covered = new Set([
+        ...ids(units, 'case').flatMap((c) => CASE_CATALOG.find((x) => x.id === c)!.topics),
+        ...SD_TOPICS.filter((t) => t.scenarioIds.some((s) => ids(units, 'mission').includes(s))).map((t) => t.id),
+      ]);
+      for (const topic of profile.topics.required) expect(covered.has(topic), `${level} ${topic}`).toBe(true);
+    }
+  });
+
+  it('opens design with Your First Scale-Up, interleaves cases with gap missions, and teaches each topic before it is used', () => {
+    const design = targetPlan('mid').units.filter((u) => u.round === 'design' && u.kind !== 'mock');
+    expect(design.filter((u) => u.kind !== 'lesson').map((u) => u.id)).toEqual([
+      'mission:first-scale-up',
+      'case:url-shortener',
+      'mission:viral-feed',
+      'case:rate-limiter',
+      'mission:flash-sale',
+      'case:news-feed',
+      'mission:write-wall',
+      'case:chat',
+    ]);
+    expect(design.slice(0, 6).map((u) => u.topicId)).toEqual(
+      expect.arrayContaining(['sd-latency', 'sd-capacity', 'sd-estimation', 'sd-reliability', 'sd-load-balancing']),
+    );
+    for (const lesson of design.filter((u) => u.kind === 'lesson')) {
+      const user = design.find((u) => u.requires?.includes(lesson.id))!;
+      expect(design.indexOf(lesson), lesson.id).toBeLessThan(design.indexOf(user));
+    }
+    expect(
+      coveringMissions(
+        ['sd-estimation', 'sd-caching'],
+        CASE_CATALOG.filter((c) => c.id === 'url-shortener'),
+      ),
+    ).toEqual([]);
+  });
+
+  it('starts a pattern at the level bar, or on an easy problem for a New Early career learner, and solves again 2 days later', () => {
+    const unit = (level: 'early' | 'mid', unitId: string, start: StudyPlanInput['level'] = 'new') =>
+      targetPlan(level, emptyProgress(), { level: start }).units.find((u) => u.id === unitId)!;
+    expect(getProblemSummary(unit('mid', 'pattern:two-pointers').problemId!)!.difficulty).toBe('medium');
+    expect(getProblemSummary(unit('early', 'pattern:two-pointers').problemId!)!.difficulty).toBe('easy');
+    expect(getProblemSummary(unit('early', 'pattern:two-pointers', 'rusty').problemId!)!.difficulty).toBe('medium');
+    const second = unit('mid', 'solve:two-pointers');
+    expect(second).toMatchObject({ kind: 'solve', after: { unitId: 'pattern:two-pointers', days: 2 } });
+    expect(problemsAtBar('two-pointers', 'medium').map((p) => p.id)).toContain(second.problemId);
+    expect(second.problemId).not.toBe(unit('mid', 'pattern:two-pointers').problemId);
+
+    const first = problemsAtBar('two-pointers', 'medium')[0].id;
+    const solvedYesterday = replay([solved(first, now.getTime() - DAY)]);
+    expect(targetPlan('mid', solvedYesterday).units.find((u) => u.id === 'solve:two-pointers')).toMatchObject({ notBefore: '2026-10-02' });
+    const days = targetPlan('mid', solvedYesterday, { minutesPerDay: 120 }).days;
+    expect(days[0].slices.some((x) => x.unit.id === 'solve:two-pointers')).toBe(false);
+    expect(days.slice(1).some((d) => d.slices.some((x) => x.unit.id === 'solve:two-pointers'))).toBe(true);
+  });
+
+  it('counts minutes at the learner pace: lesson plus problem for a pattern, the problem alone for a solve', () => {
+    const units = targetPlan('mid').units;
+    expect(units.find((u) => u.id === 'pattern:two-pointers')!.minutes).toBe(15 + 35);
+    expect(units.find((u) => u.id === 'solve:two-pointers')!.minutes).toBe(35);
+    expect(targetPlan('mid', emptyProgress(), { level: 'confident' }).units.find((u) => u.id === 'pattern:two-pointers')!.minutes).toBe(25);
+    expect(minutesFor({ kind: 'retry', difficulty: 'hard' }, 'rusty')).toBe(40);
+  });
+
+  it('says how many minutes a day cover the required loop, and what share the chosen time covers', () => {
+    const short = targetPlan('mid', emptyProgress(), { interviewDate: '2026-10-24', minutesPerDay: 45 });
+    expect(short.status).toBe('tight');
+    expect(short.coverage!.minutesPerDay).toBeGreaterThan(45);
+    expect(short.coverage!.share).toBeGreaterThan(0);
+    expect(short.coverage!.share).toBeLessThan(1);
+    const roomy = targetPlan('mid', emptyProgress(), { interviewDate: '2026-10-24', minutesPerDay: short.coverage!.minutesPerDay! });
+    expect(roomy.coverage!.share).toBe(1);
+  });
+
+  it('plans exactly as before without a Target, with no coverage', () => {
+    const legacy = buildStudyPlan(input({ interviewDate: '2027-03-01' }), emptyProgress(), { now });
+    expect(ids(legacy.units, 'pattern')).toEqual(PATTERN_CATALOG.map((p) => p.id));
+    expect(ids(legacy.units, 'case')).toHaveLength(CASE_CATALOG.length);
+    expect(legacy.units.some((u) => ['solve', 'lesson', 'mission'].includes(u.kind))).toBe(false);
+    expect('coverage' in legacy).toBe(false);
   });
 });
