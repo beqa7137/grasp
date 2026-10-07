@@ -23,10 +23,10 @@ async function seriousViolations(page: Page): Promise<string[]> {
 }
 
 test('a learner sets an interview date, follows today’s list, changes the rounds and clears the plan', async ({ page }) => {
-  await page.goto('/learn');
+  await page.goto('/today');
   const learn = page.locator('app-learn');
   await learn.getByRole('link', { name: /Study plan.*Set your date/ }).click();
-  await expect(page).toHaveURL(/\/plan$/);
+  await expect(page).toHaveURL(/\/today\/plan$/);
   const plan = page.locator('app-plan');
   await expect(plan.getByRole('heading', { name: 'Plan to your interview', level: 1 })).toBeVisible();
 
@@ -74,7 +74,7 @@ test('a learner sets an interview date, follows today’s list, changes the roun
   expect(await seriousViolations(page)).toEqual([]);
 
   await today.getByRole('link', { name: 'Learn Arrays & Hashing' }).click();
-  await expect(page).toHaveURL(/\/learn\/pattern\/hashing$/);
+  await expect(page).toHaveURL(/\/coding\/patterns\/hashing$/);
   await page.goBack();
   await expect(heading).toBeVisible();
 
@@ -91,7 +91,7 @@ test('a learner sets an interview date, follows today’s list, changes the roun
   await expect(today.getByRole('link', { name: 'A story for Ownership' })).toBeVisible();
   await expect(today.getByRole('link', { name: /^Learn / })).toHaveCount(0);
 
-  await page.getByRole('tab', { name: 'Learn' }).click();
+  await page.getByRole('tab', { name: /^Today/ }).click();
   await expect(learn.getByRole('link', { name: /Study plan.*Interview in 20 days/ })).toBeVisible();
   await learn.getByRole('link', { name: /Study plan/ }).click();
 
@@ -124,7 +124,7 @@ test('a learner sets an interview date, follows today’s list, changes the roun
 
 test('a cleared plan stays cleared once its Undo has gone, and focus on Undo moves to the heading', async ({ page }) => {
   await page.clock.install();
-  await page.goto('/plan');
+  await page.goto('/today/plan');
   const plan = page.locator('app-plan');
   await plan.getByLabel('Interview date').fill(await localDay(page, 20));
   await plan.getByRole('button', { name: 'Save plan' }).click();
@@ -150,7 +150,7 @@ for (const theme of ['dark', 'light'] as const) {
     test.use({ theme });
 
     test('an interview tomorrow asks only for a light review today, and the day itself only for rest', async ({ page }) => {
-      await page.goto('/plan');
+      await page.goto('/today/plan');
       const plan = page.locator('app-plan');
       await expect(plan.getByRole('heading', { name: 'Plan to your interview' })).toBeVisible();
       expect(await seriousViolations(page)).toEqual([]);

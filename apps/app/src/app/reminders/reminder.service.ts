@@ -74,7 +74,7 @@ export class ReminderService {
     if (!this.supported) return;
     this.permission.set(toPermission((await this.notifications.checkPermissions()).display));
     await this.notifications.addListener('localNotificationActionPerformed', ({ notification }) => {
-      if (notification.id >= ID_BASE && notification.id < ID_BASE + DAYS_AHEAD) void this.router.navigateByUrl('/drill');
+      if (notification.id >= ID_BASE && notification.id < ID_BASE + DAYS_AHEAD) void this.router.navigateByUrl('/today/review');
     });
   }
 

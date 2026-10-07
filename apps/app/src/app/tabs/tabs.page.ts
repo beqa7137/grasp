@@ -1,14 +1,16 @@
 import { Component, ElementRef, Injector, computed, inject, viewChild } from '@angular/core';
-import { Router, type ActivatedRouteSnapshot } from '@angular/router';
-import { IonBadge, IonIcon, IonLabel, IonModal, IonTabBar, IonTabButton, IonTabs } from '@ionic/angular';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { NavigationEnd, Router, type ActivatedRouteSnapshot } from '@angular/router';
+import { IonBadge, IonIcon, IonLabel, IonModal, IonTabBar, IonTabButton, IonTabs, Config, NavController, Platform } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { chatbubblesOutline, compassOutline, flashOutline, gitNetworkOutline, playCircleOutline } from 'ionicons/icons';
+import { chatbubblesOutline, codeSlashOutline, gitNetworkOutline, peopleOutline, todayOutline } from 'ionicons/icons';
 import { refocusAfterRender } from '../core/focus';
 import { isOnHiddenPage } from '../core/page-keys';
 import { ProgressService } from '../core/progress.service';
 import { FeedbackSheetComponent } from '../pilot/feedback-sheet.component';
 import { PilotNoticeComponent } from '../pilot/pilot-notice.component';
 import { PilotService } from '../pilot/pilot.service';
+import { tabOf } from '../ui/cross-link.directive';
 
 @Component({
   selector: 'app-tabs',
@@ -16,29 +18,32 @@ import { PilotService } from '../pilot/pilot.service';
   template: `
     <ion-tabs (ionTabsWillChange)="noteNavFocus()" (ionTabsDidChange)="keepFocusOnPage()">
       <nav #nav aria-label="Main" [class.focus-route]="focusRoute()">
-        <ion-tab-bar slot="bottom">
-          <ion-tab-button tab="learn" href="/learn">
-            <ion-icon name="compass-outline" aria-hidden="true" />
-            <ion-label>Learn</ion-label>
+        <ion-tab-bar slot="bottom" (ionTabButtonClick)="select($event)">
+          <ion-tab-button tab="today" href="/today">
+            <ion-icon name="today-outline" aria-hidden="true" />
+            <ion-label>Today</ion-label>
+            @if (due() > 0) {
+              <ion-badge
+                ><span aria-hidden="true">{{ due() }}</span
+                ><span class="visually-hidden">, {{ due() }} due</span></ion-badge
+              >
+            }
           </ion-tab-button>
-          <ion-tab-button tab="visualize" href="/visualize">
-            <ion-icon name="play-circle-outline" aria-hidden="true" />
-            <ion-label>Visualize</ion-label>
+          <ion-tab-button tab="coding" href="/coding">
+            <ion-icon name="code-slash-outline" aria-hidden="true" />
+            <ion-label>Coding</ion-label>
           </ion-tab-button>
           <ion-tab-button tab="design" href="/design">
             <ion-icon name="git-network-outline" aria-hidden="true" />
-            <ion-label>Design Lab</ion-label>
+            <ion-label>Design</ion-label>
           </ion-tab-button>
-          <ion-tab-button tab="drill" href="/drill">
-            <ion-icon name="flash-outline" aria-hidden="true" />
-            <ion-label>Review</ion-label>
-            @if (due() > 0) {
-              <ion-badge>{{ due() }}</ion-badge>
-            }
+          <ion-tab-button tab="behavioral" href="/behavioral">
+            <ion-icon name="people-outline" aria-hidden="true" />
+            <ion-label>Behavioral</ion-label>
           </ion-tab-button>
-          <ion-tab-button tab="interview" href="/interview">
+          <ion-tab-button tab="mock" href="/mock">
             <ion-icon name="chatbubbles-outline" aria-hidden="true" />
-            <ion-label>Interview</ion-label>
+            <ion-label>Mock</ion-label>
           </ion-tab-button>
         </ion-tab-bar>
       </nav>
@@ -82,6 +87,8 @@ export class TabsPage {
   private readonly injector = inject(Injector);
   private readonly router = inject(Router);
   private readonly nav = viewChild.required<ElementRef<HTMLElement>>('nav');
+  private readonly tabs = viewChild.required(IonTabs);
+  private readonly navCtrl = inject(NavController);
   private navHadFocus = false;
   /** A focus route (2.6) gives its page the tab bar's height under 1024px; its own dock sits on the bottom safe area instead. */
   readonly focusRoute = computed(() => {
@@ -91,13 +98,43 @@ export class TabsPage {
     while (route.firstChild) route = route.firstChild;
     return route.data['focus'] === true;
   });
-  readonly due = computed(() => {
-    const session = this.progress.session();
-    return session.dueTotal + session.boostedIncluded + this.progress.dueMissions().length;
-  });
+  readonly due = this.progress.reviewDue;
+  /** The last URL shown in each tab, segment and filters included, except views a link from another tab opened. */
+  private readonly lastUrl = new Map<string, string>();
+  /** Ionic's own default, as its outlet applies it: the outlet has no getter to read it back. */
+  private readonly swipe = inject(Config).getBoolean('swipeBackEnabled', true);
 
   constructor() {
-    addIcons({ compassOutline, playCircleOutline, gitNetworkOutline, flashOutline, chatbubblesOutline });
+    addIcons({ todayOutline, codeSlashOutline, gitNetworkOutline, peopleOutline, chatbubblesOutline });
+    this.router.events.pipe(takeUntilDestroyed()).subscribe((event) => {
+      if (!(event instanceof NavigationEnd)) return;
+      const from: unknown = this.router.currentNavigation()?.extras.state?.['from'];
+      const tab = tabOf(event.urlAfterRedirects);
+      const crossed = typeof from === 'string' && tabOf(from) !== tab;
+      if (!crossed) this.lastUrl.set(tab, event.urlAfterRedirects);
+      // iOS swipe-back follows the outlet's stack, which would disagree with `app-back`, so it is off on such a view.
+      this.tabs().outlet.swipeGesture = this.swipe && !crossed;
+    });
+    // Android's back button follows the same rule as the page's back button, so it clicks that; a hub has none.
+    inject(Platform).backButton.subscribeWithPriority(10, (next) => {
+      const back = [...document.querySelectorAll<HTMLElement>('ion-router-outlet app-back ion-back-button')].find(
+        (b) => !isOnHiddenPage(b),
+      );
+      if (back) back.click();
+      else next();
+    });
+  }
+
+  /**
+   * Ionic restores a tab at its top view's URL, which for a hub is the hub's own URL, losing its segment (REDESIGN.md 2.5's
+   * spike). So a tab opens at the last URL it showed. A view another tab's link opened is not recorded, so the tab returns
+   * to where the learner left it. Selecting the current tab still returns to its root, Ionic's way.
+   */
+  select(event: Event) {
+    event.stopPropagation();
+    const { tab } = (event as CustomEvent<{ tab: string }>).detail;
+    if (this.tabs().getSelected() === tab) void this.tabs().select(tab);
+    else void this.navCtrl.navigateRoot(this.lastUrl.get(tab) ?? `/${tab}`, { animated: true, animationDirection: 'back' });
   }
 
   /**

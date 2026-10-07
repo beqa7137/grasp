@@ -20,10 +20,13 @@ const sameDraft = (a: StarDraft, b: StarDraft) =>
   (Object.keys(a) as (keyof StarDraft)[]).every((part) => a[part].trim() === b[part].trim());
 
 /** What a behavioral scorecard adds: the flaws with their fixes, rehearsal for flagged competencies, and what to do next. */
+import { CrossLinkDirective } from '../../ui/cross-link.directive';
+import { crossState } from '../../ui/cross-link.directive';
+
 @Component({
   selector: 'app-behavioral-scorecard',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, SignInOptionsComponent],
+  imports: [CrossLinkDirective, RouterLink, SignInOptionsComponent],
   template: `
     @if (session().scorecard?.flaws; as flaws) {
       @if (flaws.length) {
@@ -46,12 +49,12 @@ const sameDraft = (a: StarDraft, b: StarDraft) =>
       @for (f of flagged(); track f.id) {
         <p class="flagged">
           @if (!f.covering) {
-            No story covers {{ f.name }} yet: <a routerLink="/behavioral/stories">write one</a>
+            No story covers {{ f.name }} yet: <a routerLink="/behavioral/stories" crossLink>write one</a>
           } @else if (!f.due) {
             {{ f.name }} is flagged: nothing to rehearse right now.
           } @else {
             {{ f.name }} is flagged:
-            <a routerLink="/behavioral/rehearse"
+            <a routerLink="/behavioral/rehearse" crossLink
               >{{ f.due }} {{ f.due === 1 ? 'story that covers it is' : 'stories that cover it are' }} due for rehearsal now</a
             >
           }
@@ -65,7 +68,7 @@ const sameDraft = (a: StarDraft, b: StarDraft) =>
         </button>
       }
       <button type="button" class="g-btn" [disabled]="starting()" (click)="another()">Try another question</button>
-      <a class="g-btn" [routerLink]="['/behavioral/question', session().problem.id]">Practice this question</a>
+      <a class="g-btn" [routerLink]="['/behavioral/question', session().problem.id]" crossLink>Practice this question</a>
     </div>
     @if (signInOpen()) {
       <h3>Sign in for AI interviews</h3>
@@ -75,7 +78,7 @@ const sameDraft = (a: StarDraft, b: StarDraft) =>
       <p class="error" role="alert">{{ message }}</p>
     }
     @if (signInOpen() || error()) {
-      <a class="scripted" routerLink="/behavioral/mock" [queryParams]="{ question: next() }"
+      <a class="scripted" routerLink="/behavioral/drill" [queryParams]="{ question: next() }" crossLink
         >Practice it with scripted follow-ups instead</a
       >
     }
@@ -188,7 +191,10 @@ export class BehavioralScorecardComponent {
     const next = anotherQuestion(Math.random, session.problem.id);
     this.next.set(next);
     if (session.mode === 'offline') {
-      await this.router.navigate(['/behavioral/mock'], { queryParams: { question: next } });
+      await this.router.navigate(['/behavioral/drill'], {
+        queryParams: { question: next },
+        state: crossState(this.router, '/behavioral/drill'),
+      });
       return;
     }
     this.starting.set(true);

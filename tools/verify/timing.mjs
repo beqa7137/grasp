@@ -11,16 +11,20 @@ const TARGETS = Object.fromEntries(
 );
 const RUNS = Number(process.env.RUNS ?? 5);
 const FAST_3G = { offline: false, latency: 562.5, downloadThroughput: (1.6e6 / 8) * 0.9, uploadThroughput: (750e3 / 8) * 0.9 };
+// Each selector and heading list also matches a build from before REDESIGN.md R5 (Learn, Visualize), so main can be timed against it.
 const TAPS = [
-  { name: 'visualize', selector: 'ion-tab-button[tab="visualize"]', heading: 'Watch the algorithm think.' },
-  { name: 'design', selector: 'ion-tab-button[tab="design"]', heading: 'Build it. Load it. Break it.' },
-  { name: 'pattern', selector: 'a.pattern[href="/learn/pattern/two-pointers"]', heading: 'Two Pointers' },
+  {
+    name: 'coding',
+    selector: 'ion-tab-button[tab="coding"], ion-tab-button[tab="visualize"]',
+    heading: ['Master the cue', 'Watch the algorithm think.'],
+  },
+  { name: 'design', selector: 'ion-tab-button[tab="design"]', heading: ['Learn it hands-on', 'Build it. Load it. Break it.'] },
   // A fresh learner's next visualizer. The heading alone can show before the stage, so the player counts once it is drawn.
-  { name: 'player', selector: 'a.tile.viz', heading: 'Binary Search', ready: 'app-player .scene .viz > *' },
+  { name: 'player', selector: 'a.tile.viz', heading: ['Binary Search'], ready: 'app-player .scene .viz > *' },
 ];
-const headingVisible = (text) =>
+const headingVisible = (texts) =>
   [...document.querySelectorAll('.ion-page:not(.ion-page-hidden) h1')].some(
-    (h) => h.textContent.includes(text) && h.getBoundingClientRect().height > 0,
+    (h) => texts.some((text) => h.textContent.includes(text)) && h.getBoundingClientRect().height > 0,
   );
 
 async function once(browser, url, tap) {
@@ -33,9 +37,9 @@ async function once(browser, url, tap) {
   await cdp.send('Network.setCacheDisabled', { cacheDisabled: true });
   await cdp.send('Network.emulateNetworkConditions', FAST_3G);
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
-  await page.goto(`${url}/learn`, { waitUntil: 'commit' });
-  await page.waitForFunction(headingVisible, 'Build intuition', { timeout: 120_000, polling: 50 });
-  const learn = await page.evaluate(() => performance.now());
+  await page.goto(`${url}/today`, { waitUntil: 'commit' });
+  await page.waitForFunction(headingVisible, ['Build intuition'], { timeout: 120_000, polling: 50 });
+  const today = await page.evaluate(() => performance.now());
   const tappedAt = await page.evaluate((selector) => {
     const at = performance.now();
     document.querySelector(selector).click();
@@ -50,7 +54,7 @@ async function once(browser, url, tap) {
   }
   const shown = await page.evaluate(() => performance.now());
   await context.close();
-  return { learn, tap: shown - tappedAt, fromLoad: shown };
+  return { today, tap: shown - tappedAt, fromLoad: shown };
 }
 
 const median = (xs) => {
@@ -63,7 +67,7 @@ const labels = Object.keys(TARGETS);
 for (const tap of TAPS) {
   const runs = Object.fromEntries(labels.map((l) => [l, []]));
   for (let i = 0; i < RUNS; i++) for (const label of labels) runs[label].push(await once(browser, TARGETS[label], tap));
-  for (const key of ['learn', 'tap', 'fromLoad']) {
+  for (const key of ['today', 'tap', 'fromLoad']) {
     console.log(tap.name.padEnd(10), key.padEnd(9), labels.map((l) => `${l} ${median(runs[l].map((r) => r[key]))} ms`).join('  '));
   }
 }

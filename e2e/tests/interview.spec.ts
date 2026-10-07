@@ -3,9 +3,9 @@ import { expect, recordedEvents, synced, test } from './fixtures';
 
 /** Opens a coding interview and answers twice, which brings up End & score. */
 async function interviewUntilScorable(page: Page, problem: RegExp) {
-  await page.goto('/interview');
+  await page.goto('/mock');
   await page.getByRole('button', { name: problem }).click();
-  await expect(page).toHaveURL(/\/interview\/[0-9a-f-]{36}$/);
+  await expect(page).toHaveURL(/\/mock\/[0-9a-f-]{36}$/);
   const input = page.getByRole('textbox', { name: /Think out loud/ });
   const replies = page.locator('app-interview-session .msg:not(.me)');
   await expect(replies.first()).toBeVisible();
@@ -24,9 +24,9 @@ async function interviewUntilScorable(page: Page, problem: RegExp) {
 }
 
 test('a mock interview runs to a scorecard', async ({ page }) => {
-  await page.goto('/interview');
+  await page.goto('/mock');
   await page.getByRole('button', { name: /Days Until Warmer/ }).click();
-  await expect(page).toHaveURL(/\/interview\/[0-9a-f-]{36}$/);
+  await expect(page).toHaveURL(/\/mock\/[0-9a-f-]{36}$/);
   await expect(page.getByText(/daily temperatures/)).toBeVisible();
 
   const input = page.getByRole('textbox', { name: /Think out loud/ });
@@ -51,7 +51,7 @@ test('a mock interview runs to a scorecard', async ({ page }) => {
 });
 
 test('the interview list shows all three tracks', { tag: '@smoke' }, async ({ page }) => {
-  await page.goto('/interview');
+  await page.goto('/mock');
   await expect(page.getByRole('button', { name: /^Coding/ })).toBeVisible();
   await expect(page.getByRole('button', { name: /^System design/ })).toBeVisible();
   await expect(page.getByRole('button', { name: /^Behavioral/ })).toBeVisible();
@@ -128,7 +128,7 @@ test.describe('interview access recovery', () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
       await route.fulfill({ status: 403, json: { code: 'ai_sign_in_required', message: 'Sign in to continue with AI.' } });
     });
-    await page.goto('/interview');
+    await page.goto('/mock');
     await page.getByRole('button', { name: /Days Until Warmer/ }).click();
     const input = page.getByRole('textbox', { name: /Think out loud/ });
     await page.getByRole('button', { name: 'Code', exact: true }).click();
@@ -188,7 +188,7 @@ test('on a 320 px phone, End & score and the Design Lab Reset sit beside their t
     'the interview title ends before End & score starts',
   );
 
-  await page.goto('/design/first-scale-up');
+  await page.goto('/design/missions/first-scale-up');
   const toolbar = page.locator('app-sandbox ion-toolbar');
   await expect(toolbar.locator('ion-title')).toHaveText('Your First Scale-Up');
   await expectTitleBefore(

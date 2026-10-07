@@ -39,7 +39,6 @@ function stats() {
         imports: [...statically('chunk-shared.js'), ...lazily('chunk-player.js')],
         inputs: {
           'src/app/pages/learn/learn.page.ts': { bytesInOutput: 18_600 },
-          'src/app/viz/code-text.component.ts': { bytesInOutput: 1_400 },
           'src/app/viz/graph-view.component.ts': { bytesInOutput: 0 },
         },
       },

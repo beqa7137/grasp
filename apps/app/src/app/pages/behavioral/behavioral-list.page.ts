@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
+import { IonIcon } from '@ionic/angular';
 import { COMPETENCY_CATALOG, dueStories } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import { chatbubblesOutline, chevronForward, libraryOutline } from 'ionicons/icons';
@@ -11,98 +11,90 @@ import { StoryBankService } from './story-bank.service';
 @Component({
   selector: 'app-behavioral-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle, IonContent, IonIcon],
+  imports: [RouterLink, IonIcon],
   template: `
-    <ion-header [translucent]="true">
-      <ion-toolbar>
-        <ion-buttons slot="start"><ion-back-button defaultHref="/interview" text="" /></ion-buttons>
-        <ion-title>Behavioral</ion-title>
-      </ion-toolbar>
-    </ion-header>
-    <ion-content [fullscreen]="true">
-      <div class="page narrow">
-        <h1>Behavioral interviews</h1>
-        <p class="lead">
-          Every loop has them, and at senior levels they often decide your level. Interviewers listen for what you did, how you decided and
-          what changed because of it.
-        </p>
-        <section class="panel star">
-          <h2>Answer with STAR</h2>
-          <dl>
-            <dt>Situation</dt>
-            <dd>The context, in two sentences.</dd>
-            <dt>Task</dt>
-            <dd>What you owned and why it was hard.</dd>
-            <dt>Action</dt>
-            <dd>What you did, in the first person. Most of the answer.</dd>
-            <dt>Result</dt>
-            <dd>What changed, with a number.</dd>
-            <dt>Reflection</dt>
-            <dd>What you learned or would do differently.</dd>
-          </dl>
-        </section>
-        <section class="panel prep">
-          <h2>Before the loop</h2>
-          <ul>
-            <li>Build a bank of 8 to 10 stories from the last two or three years. Most stories answer two or three competencies.</li>
-            <li>Pick stories whose scope matches the level you are interviewing for.</li>
-            <li>"Tell me about yourself" and "Why this company?" are not STAR: answer each in 60 to 90 seconds.</li>
-            <li>Rehearse aloud. Written answers run longer when spoken.</li>
-            <li>Bring two or three questions for the interviewer.</li>
-          </ul>
-        </section>
-        <a class="panel item bank" routerLink="/behavioral/mock">
-          <ion-icon class="lead-icon" name="chatbubbles-outline" aria-hidden="true" />
-          <span class="text">
-            <span class="name">Mock behavioral interview</span>
-            <span class="one">Three questions from different competencies, the follow-ups an interviewer asks, then a debrief.</span>
-          </span>
-          <ion-icon name="chevron-forward" aria-hidden="true" />
-        </a>
-        <a class="panel item bank" routerLink="/behavioral/stories">
-          <ion-icon class="lead-icon" name="library-outline" aria-hidden="true" />
-          <span class="text">
-            <span class="name">Your story bank</span>
-            <span class="one">{{ bankSummary() }}</span>
-          </span>
-          <ion-icon name="chevron-forward" aria-hidden="true" />
-        </a>
-        @if (flagged().length) {
-          <h2 class="list-title">Flagged in interviews</h2>
-          <ul class="list flagged">
-            @for (f of flagged(); track f.id) {
-              <li>
-                <a class="panel item" [routerLink]="['/behavioral', f.id]">
-                  <span class="text">
-                    <span class="name">{{ f.name }}</span>
-                    <span class="one">{{ f.note }}</span>
-                  </span>
-                  <ion-icon name="chevron-forward" aria-hidden="true" />
-                </a>
-              </li>
-            }
-          </ul>
-        }
-        <h2 class="list-title">{{ competencies.length }} competencies</h2>
-        <ul class="list">
-          @for (c of competencies; track c.id) {
-            @let drafted = drafts.draftedIn(c.id);
+    <div class="page narrow">
+      <h1>Behavioral interviews</h1>
+      <p class="lead">
+        Every loop has them, and at senior levels they often decide your level. Interviewers listen for what you did, how you decided and
+        what changed because of it.
+      </p>
+      <section class="panel star">
+        <h2>Answer with STAR</h2>
+        <dl>
+          <dt>Situation</dt>
+          <dd>The context, in two sentences.</dd>
+          <dt>Task</dt>
+          <dd>What you owned and why it was hard.</dd>
+          <dt>Action</dt>
+          <dd>What you did, in the first person. Most of the answer.</dd>
+          <dt>Result</dt>
+          <dd>What changed, with a number.</dd>
+          <dt>Reflection</dt>
+          <dd>What you learned or would do differently.</dd>
+        </dl>
+      </section>
+      <section class="panel prep">
+        <h2>Before the loop</h2>
+        <ul>
+          <li>Build a bank of 8 to 10 stories from the last two or three years. Most stories answer two or three competencies.</li>
+          <li>Pick stories whose scope matches the level you are interviewing for.</li>
+          <li>"Tell me about yourself" and "Why this company?" are not STAR: answer each in 60 to 90 seconds.</li>
+          <li>Rehearse aloud. Written answers run longer when spoken.</li>
+          <li>Bring two or three questions for the interviewer.</li>
+        </ul>
+      </section>
+      <a class="panel item bank" routerLink="/behavioral/drill">
+        <ion-icon class="lead-icon" name="chatbubbles-outline" aria-hidden="true" />
+        <span class="text">
+          <span class="name">Mock behavioral interview</span>
+          <span class="one">Three questions from different competencies, the follow-ups an interviewer asks, then a debrief.</span>
+        </span>
+        <ion-icon name="chevron-forward" aria-hidden="true" />
+      </a>
+      <a class="panel item bank" routerLink="/behavioral/stories" [replaceUrl]="true">
+        <ion-icon class="lead-icon" name="library-outline" aria-hidden="true" />
+        <span class="text">
+          <span class="name">Your story bank</span>
+          <span class="one">{{ bankSummary() }}</span>
+        </span>
+        <ion-icon name="chevron-forward" aria-hidden="true" />
+      </a>
+      @if (flagged().length) {
+        <h2 class="list-title">Flagged in interviews</h2>
+        <ul class="list flagged">
+          @for (f of flagged(); track f.id) {
             <li>
-              <a class="panel item" [routerLink]="['/behavioral', c.id]">
+              <a class="panel item" [routerLink]="['/behavioral', f.id]">
                 <span class="text">
-                  <span class="name">{{ c.name }}</span>
-                  <span class="one">{{ c.oneLiner }}</span>
-                  @if (drafted) {
-                    <span class="drafted">{{ drafted }} {{ drafted === 1 ? 'answer' : 'answers' }} drafted</span>
-                  }
+                  <span class="name">{{ f.name }}</span>
+                  <span class="one">{{ f.note }}</span>
                 </span>
                 <ion-icon name="chevron-forward" aria-hidden="true" />
               </a>
             </li>
           }
         </ul>
-      </div>
-    </ion-content>
+      }
+      <h2 class="list-title">{{ competencies.length }} competencies</h2>
+      <ul class="list">
+        @for (c of competencies; track c.id) {
+          @let drafted = drafts.draftedIn(c.id);
+          <li>
+            <a class="panel item" [routerLink]="['/behavioral', c.id]">
+              <span class="text">
+                <span class="name">{{ c.name }}</span>
+                <span class="one">{{ c.oneLiner }}</span>
+                @if (drafted) {
+                  <span class="drafted">{{ drafted }} {{ drafted === 1 ? 'answer' : 'answers' }} drafted</span>
+                }
+              </span>
+              <ion-icon name="chevron-forward" aria-hidden="true" />
+            </a>
+          </li>
+        }
+      </ul>
+    </div>
   `,
   styles: `
     h1 {

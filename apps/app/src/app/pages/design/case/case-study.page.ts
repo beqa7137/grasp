@@ -14,7 +14,7 @@ import {
   viewChildren,
 } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
+import { IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
 import {
   CASE_CATALOG,
   caseOutcome,
@@ -45,15 +45,17 @@ const KIND_LABELS: Record<CaseStageKind, string> = {
 };
 
 /** A classic interview question worked stage by stage, in the order a strong candidate would run the interview. */
+import { BackComponent } from '../../../ui/back.component';
+
 @Component({
   selector: 'app-case-study',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    BackComponent,
     RouterLink,
     IonHeader,
     IonToolbar,
     IonButtons,
-    IonBackButton,
     IonTitle,
     IonContent,
     IonIcon,
@@ -63,7 +65,7 @@ const KIND_LABELS: Record<CaseStageKind, string> = {
   template: `
     <ion-header [translucent]="true">
       <ion-toolbar>
-        <ion-buttons slot="start"><ion-back-button defaultHref="/design" text="" /></ion-buttons>
+        <ion-buttons slot="start"><app-back href="/design/cases" /></ion-buttons>
         <ion-title>{{ summary()?.title }}</ion-title>
       </ion-toolbar>
     </ion-header>
@@ -143,7 +145,7 @@ const KIND_LABELS: Record<CaseStageKind, string> = {
             <div class="end">
               <button class="g-btn ghost" (click)="restart()">Start over</button>
               @if (nextCase(); as n) {
-                <a class="g-btn primary" [routerLink]="['/design/case', n.id]"
+                <a class="g-btn primary" [routerLink]="['/design/cases', n.id]"
                   >Next case: {{ n.title }}<ion-icon name="arrow-forward" aria-hidden="true"
                 /></a>
               }

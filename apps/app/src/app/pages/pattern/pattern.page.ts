@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
+import { IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
 import { PATTERN_CATALOG, getAlgorithmSummary, getLesson, getPattern, itemsForTopic, problemsForPattern } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import {
@@ -19,16 +19,17 @@ import { CodeTextComponent } from '../../viz/code-text.component';
 import { MasteryRingComponent } from '../../viz/mastery-ring.component';
 import { QuickCheckComponent } from './quick-check.component';
 import { WorkedExampleComponent } from './worked-example.component';
+import { BackComponent } from '../../ui/back.component';
 
 @Component({
   selector: 'app-pattern',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    BackComponent,
     RouterLink,
     IonHeader,
     IonToolbar,
     IonButtons,
-    IonBackButton,
     IonTitle,
     IonContent,
     IonIcon,
@@ -41,7 +42,7 @@ import { WorkedExampleComponent } from './worked-example.component';
   template: `
     <ion-header [translucent]="true">
       <ion-toolbar>
-        <ion-buttons slot="start"><ion-back-button defaultHref="/learn" text="" /></ion-buttons>
+        <ion-buttons slot="start"><app-back href="/coding" /></ion-buttons>
         <ion-title>{{ pattern()?.name }}</ion-title>
       </ion-toolbar>
     </ion-header>
@@ -62,15 +63,15 @@ import { WorkedExampleComponent } from './worked-example.component';
 
           <div class="actions">
             @for (a of algorithms(); track a.id) {
-              <a class="g-btn primary" [routerLink]="['/visualize', a.id]"
+              <a class="g-btn primary" [routerLink]="['/coding/visualizers', a.id]"
                 ><ion-icon name="play-circle" aria-hidden="true" />Visualize: {{ a.title }}</a
               >
             }
-            <a class="g-btn" routerLink="/drill" [queryParams]="{ pattern: p.id }"
+            <a class="g-btn" [routerLink]="['/coding/patterns', p.id, 'drill']"
               ><ion-icon name="flash-outline" aria-hidden="true" />Practice {{ itemCount() }} items</a
             >
             @for (c of problems(); track c.id) {
-              <a class="g-btn" [routerLink]="['/code', c.id]"
+              <a class="g-btn" [routerLink]="['/coding/problems', c.id]"
                 ><ion-icon name="code-slash-outline" aria-hidden="true" />Code: {{ c.title }}</a
               >
             }

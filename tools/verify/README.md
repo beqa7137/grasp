@@ -94,11 +94,15 @@ providers, so every sign-in test times out.
 ## audit.mjs
 
 Screenshots, axe violations, page errors and sideways overflow for every page state listed in `states/`, one file per
-area: `learn.mjs` (tabs, visualizers at a checkpoint and answered, the player's ⋯ panel, a held scrub guard and its tick
+area: `learn.mjs` (Today, the Coding hub's segments, visualizers at a checkpoint and answered, the player's ⋯ panel, a held scrub guard and its tick
 states, review and practice cards and the review summary, the
 code workspace and an accepted submission, the study plan empty and set, the placement check's question and results,
-dialogs), `design.mjs` (Design Lab, case studies and their widgets, design lessons) and `interview.mjs` (interviews, the
-mock loop at setup, between rounds and at its debrief, and behavioral). `lib.mjs` holds the browser helpers they share.
+dialogs), `design.mjs` (the Design hub's segments, Lab missions, case studies and their widgets, design lessons) and
+`interview.mjs` (the Mock hub and interviews, the mock loop at setup, between rounds and at its debrief, and the Behavioral
+hub). R5 renamed the hub states (`learn` is `today`, `visualize-list` is `coding-visualizers`, `code-list` is
+`coding-problems`, `design-list` is `design-missions`, `design-list-cases` is `design-cases`, `interview-home` is `mock`,
+`behavioral-list` is `behavioral-competencies`, `behavioral-mock` is `behavioral-drill`) and added `coding-skill-map` and
+`design-topics`; compare a capture from before R5 under the old names. `lib.mjs` holds the browser helpers they share.
 
 Sideways overflow is checked on the document and inside the page (`overflow.mjs`, shadow roots included), since Ionic
 pages scroll inside `ion-content`: in-flow content spilling out of its box; text, fields, images, drawings or blocks clipped
@@ -194,8 +198,9 @@ Images never go into git, and CI does not make the set: its Chromium and fonts d
 
 ## timing.mjs
 
-First paint of `/learn` and the first tap on Visualize, Design, a pattern card and Learn's next-visualizer tile (the player, timed until its stage has drawn its first view, `ready`), on a Pixel 7 profile with Fast 3G and a
-4x slower CPU, cold cache, builds interleaved, median of `RUNS`. Writes are blocked, so production is safe to time.
+First paint of `/today` and the first tap on the Coding tab, the Design tab and Today's next-visualizer tile (the player, timed until its stage has drawn its first view, `ready`), on a Pixel 7 profile with Fast 3G and a
+4x slower CPU, cold cache, builds interleaved, median of `RUNS`. Writes are blocked, so production is safe to time. Each tap's selector and headings also match a build from before R5 (`/today` redirects to Learn there, and the first tab
+is Visualize), so `main` from before R5 can be timed against a later head.
 
 ```sh
 TARGETS=base=http://localhost:4311,now=http://localhost:4310 RUNS=5 node tools/verify/timing.mjs

@@ -37,19 +37,33 @@ async function seekGrid(page: Page, fraction: number, state: string) {
 }
 
 const PAGES: { name: string; path: string; ready: (page: Page) => Promise<unknown> }[] = [
-  { name: 'Learn', path: '/learn', ready: (page) => expect(page.getByRole('heading', { level: 1 })).toBeVisible() },
+  { name: 'Today', path: '/today', ready: (page) => expect(page.getByRole('heading', { level: 1 })).toBeVisible() },
+  { name: 'the Coding hub with its skill map', path: '/coding', ready: (page) => expect(page.locator('app-hub h1')).toBeVisible() },
+  { name: 'the problem library', path: '/coding/problems', ready: (page) => expect(page.locator('app-hub h1')).toBeVisible() },
+  { name: 'the Design hub with its topics', path: '/design', ready: (page) => expect(page.locator('app-hub h1')).toBeVisible() },
+  { name: 'the case studies', path: '/design/cases', ready: (page) => expect(page.locator('app-hub h1')).toBeVisible() },
+  { name: 'the Behavioral hub', path: '/behavioral', ready: (page) => expect(page.locator('app-hub h1')).toBeVisible() },
+  { name: 'the story bank', path: '/behavioral/stories', ready: (page) => expect(page.locator('app-hub h1')).toBeVisible() },
   {
     name: 'a pattern page',
-    path: '/learn/pattern/binary-search',
+    path: '/coding/patterns/binary-search',
     ready: (page) => expect(page.getByRole('heading', { name: 'Binary Search', level: 1 })).toBeVisible(),
   },
-  { name: 'the LCS visualizer and its table', path: '/visualize/lcs', ready: (page) => expect(page.getByRole('table')).toBeVisible() },
-  { name: 'a visualizer checkpoint', path: '/visualize/binary-search', ready: (page) => stepToCheckpoint(page) },
-  { name: 'the grid search with cells in its queue', path: '/visualize/grid-bfs', ready: (page) => seekGrid(page, 0.5, 'frontier') },
-  { name: 'the grid search on its shortest path', path: '/visualize/grid-bfs', ready: (page) => seekGrid(page, 1, 'path') },
+  {
+    name: 'the LCS visualizer and its table',
+    path: '/coding/visualizers/lcs',
+    ready: (page) => expect(page.getByRole('table')).toBeVisible(),
+  },
+  { name: 'a visualizer checkpoint', path: '/coding/visualizers/binary-search', ready: (page) => stepToCheckpoint(page) },
+  {
+    name: 'the grid search with cells in its queue',
+    path: '/coding/visualizers/grid-bfs',
+    ready: (page) => seekGrid(page, 0.5, 'frontier'),
+  },
+  { name: 'the grid search on its shortest path', path: '/coding/visualizers/grid-bfs', ready: (page) => seekGrid(page, 1, 'path') },
   {
     name: 'a visualizer with an array too long for its width, which scrolls sideways',
-    path: '/visualize/binary-search',
+    path: '/coding/visualizers/binary-search',
     ready: async (page) => {
       await page.locator('app-player .input').getByRole('button', { name: 'Edit' }).click();
       const numbers = Array.from({ length: 24 }, (_, i) => -999 + i).join(', ');
@@ -60,7 +74,7 @@ const PAGES: { name: string; path: string; ready: (page: Page) => Promise<unknow
   },
   {
     name: 'an answered review card',
-    path: '/drill',
+    path: '/today/review',
     ready: async (page) => {
       await page.locator('g-question-card .choice').first().click();
       await expect(page.locator('g-question-card .reveal')).toBeVisible();
@@ -68,23 +82,27 @@ const PAGES: { name: string; path: string; ready: (page: Page) => Promise<unknow
   },
   {
     name: 'a Design Lab mission',
-    path: '/design/first-scale-up',
+    path: '/design/missions/first-scale-up',
     ready: (page) => expect(page.getByRole('button', { name: /^Users, / })).toBeVisible(),
   },
-  { name: 'Settings', path: '/settings', ready: (page) => expect(page.getByRole('radiogroup', { name: 'Daily session' })).toBeVisible() },
+  {
+    name: 'Settings',
+    path: '/today/settings',
+    ready: (page) => expect(page.getByRole('radiogroup', { name: 'Daily session' })).toBeVisible(),
+  },
   {
     name: 'the code workspace',
-    path: '/code/two-sum',
+    path: '/coding/problems/two-sum',
     ready: (page) => expect(page.getByRole('textbox', { name: 'Two Sum solution' })).toBeVisible(),
   },
   {
     name: 'a tree problem with its example trees',
-    path: '/code/tree-diameter',
+    path: '/coding/problems/tree-diameter',
     ready: (page) => expect(page.locator('.example g-tree-view').first()).toBeVisible(),
   },
   {
     name: 'a trace of learner code on a tree',
-    path: '/code/tree-diameter',
+    path: '/coding/problems/tree-diameter',
     ready: async (page) => {
       await trace(page, JS_DIAMETER, 'Diameter of Binary Tree');
       await expect(page.locator('app-trace-player g-tree-view')).toBeVisible();
@@ -92,7 +110,7 @@ const PAGES: { name: string; path: string; ready: (page: Page) => Promise<unknow
   },
   {
     name: 'a trace of a recursive DFS with its call stack',
-    path: '/code/tree-diameter',
+    path: '/coding/problems/tree-diameter',
     ready: async (page) => {
       await trace(page, JS_DIAMETER, 'Diameter of Binary Tree');
       await page.getByRole('slider', { name: 'Timeline' }).fill('17');
@@ -101,7 +119,7 @@ const PAGES: { name: string; path: string; ready: (page: Page) => Promise<unknow
   },
   {
     name: 'a trace of a grid',
-    path: '/code/number-of-islands',
+    path: '/coding/problems/number-of-islands',
     ready: async (page) => {
       await trace(page, JS_ISLANDS, 'Number of Islands');
       await seek(page, 28, 'Called sink(1, 1)');
@@ -109,7 +127,7 @@ const PAGES: { name: string; path: string; ready: (page: Page) => Promise<unknow
   },
   {
     name: 'a mock interview with its code drawer open',
-    path: '/interview',
+    path: '/mock',
     ready: async (page) => {
       await page.getByRole('button', { name: /Days Until Warmer/ }).click();
       await expect(page.getByText(/daily temperatures/)).toBeVisible();
@@ -137,7 +155,7 @@ for (const theme of ['dark', 'light'] as const) {
       test.use({ pilotNoticeSeen: false });
 
       test('the pilot welcome has no serious or critical accessibility violations', async ({ page }) => {
-        await page.goto('/learn');
+        await page.goto('/today');
         await expect(page.getByRole('dialog', { name: 'Welcome to the Grasp pilot' })).toBeVisible();
         expect(await blockingViolations(page, { contrastOnly })).toEqual([]);
       });
@@ -150,7 +168,7 @@ test.describe('on a first visit', () => {
 
   test('the pilot welcome keeps its button on screen at twice the text size', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/learn');
+    await page.goto('/today');
     await page.addStyleTag({ content: 'html { font-size: 200%; }' });
     const dialog = page.getByRole('dialog', { name: 'Welcome to the Grasp pilot' });
     // The dialog box is in the modal's shadow DOM and its content is slotted, so the button is not its DOM descendant.
@@ -175,7 +193,7 @@ test.describe('on a first visit', () => {
 });
 
 test('a visualizer checkpoint can be answered from the keyboard, with focus always in view', { tag: '@player' }, async ({ page }) => {
-  await page.goto('/visualize/binary-search');
+  await page.goto('/coding/visualizers/binary-search');
   await page.getByRole('button', { name: 'Step forward' }).focus();
   await stepToCheckpoint(page, () => page.keyboard.press('Enter'));
   const prompt = page.getByText('Your call');
@@ -203,7 +221,7 @@ test('a visualizer checkpoint can be answered from the keyboard, with focus alwa
 
 test('stepping and playing from the focused stage leave its scroll alone', { tag: '@player' }, async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 700 });
-  await page.goto('/visualize/lcs');
+  await page.goto('/coding/visualizers/lcs');
   const scene = page.locator('app-player .scene');
   await scene.focus();
   const top = await scene.evaluate((el) => el.scrollTop);
@@ -218,7 +236,7 @@ test('stepping and playing from the focused stage leave its scroll alone', { tag
 
 test('the arrow keys still scroll a focused code panel sideways, and step the player', { tag: '@player' }, async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 700 });
-  await page.goto('/visualize/lcs');
+  await page.goto('/coding/visualizers/lcs');
   const code = page.locator('app-player g-code-panel');
   expect(await code.evaluate((el) => el.scrollWidth > el.clientWidth), 'the code is wider than its panel').toBe(true);
   await code.focus();
@@ -256,7 +274,7 @@ test('on a narrow phone, answering and continuing from the keyboard keep Step fo
   page,
 }) => {
   await page.setViewportSize({ width: 320, height: 700 });
-  await page.goto('/visualize/dijkstra');
+  await page.goto('/coding/visualizers/dijkstra');
   const forward = page.getByRole('button', { name: 'Step forward' });
   await forward.focus();
   await stepToCheckpoint(page, () => page.keyboard.press('Enter'));
@@ -272,7 +290,7 @@ test('on a narrow phone, answering and continuing from the keyboard keep Step fo
 test('at 400% zoom, answering and continuing from the keyboard never leave the focused element out of view', async ({ page }) => {
   // 1280 x 1024 at 400% lays out as 320 x 256, too short for the controls and the verdict or narration together.
   await page.setViewportSize({ width: 320, height: 256 });
-  await page.goto('/visualize/dijkstra');
+  await page.goto('/coding/visualizers/dijkstra');
   await page.getByRole('button', { name: 'Step forward' }).focus();
   await stepToCheckpoint(page, () => page.keyboard.press('Enter'));
   await page.keyboard.press('1');
@@ -284,7 +302,7 @@ test('at 400% zoom, answering and continuing from the keyboard never leave the f
 
 test('at 400% zoom, tapping through a checkpoint never leaves the focused element out of view', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 256 });
-  await page.goto('/visualize/dijkstra');
+  await page.goto('/coding/visualizers/dijkstra');
   await stepToCheckpoint(page);
   await expectFocusShown(page, page.locator('.predict .prompt'), 'the prompt');
   await page.locator('.predict .choice').first().click();
@@ -294,12 +312,12 @@ test('at 400% zoom, tapping through a checkpoint never leaves the focused elemen
 });
 
 test('Enter on the link under a reviewed card opens it instead of grading the card', async ({ page }) => {
-  await page.goto('/drill');
+  await page.goto('/today/review');
   await page.locator('g-question-card .choice').first().click();
   const link = page.locator('g-question-card .reveal a');
   await link.focus();
   await page.keyboard.press('Enter');
-  await expect(page).toHaveURL(/\/(learn\/pattern|visualize)\//);
+  await expect(page).toHaveURL(/\/coding\/(patterns|visualizers)\//);
 
   expect((await recordedEvents(page)).map((e) => e.type)).not.toContain('review.graded');
 });

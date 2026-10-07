@@ -12,7 +12,7 @@ test.describe('first visit', () => {
     );
     await page.getByRole('button', { name: "Got it, let's start" }).click();
     await expect(welcome).toBeHidden();
-    await expect(page).toHaveURL(/\/learn$/);
+    await expect(page).toHaveURL(/\/today$/);
     await expect(page.getByRole('heading', { name: 'Build intuition, not a problem count.' })).toBeVisible();
 
     await page.reload();
@@ -22,7 +22,7 @@ test.describe('first visit', () => {
 });
 
 test('a pattern page teaches the cue and template and links to practice', { tag: '@smoke' }, async ({ page }) => {
-  await page.goto('/learn');
+  await page.goto('/coding');
   await page
     .getByRole('link', { name: /Arrays & Hashing/ })
     .first()
@@ -32,27 +32,27 @@ test('a pattern page teaches the cue and template and links to practice', { tag:
   await expect(page.getByRole('heading', { name: 'Template' })).toBeVisible();
 
   await page.getByRole('link', { name: 'Code: Two Sum' }).click();
-  await expect(page).toHaveURL(/\/code\/two-sum$/);
+  await expect(page).toHaveURL(/\/coding\/problems\/two-sum$/);
   await expect(page.getByRole('heading', { name: 'Two Sum', level: 1 })).toBeVisible();
 });
 
-test('deep links load directly, and unknown paths land on Learn', { tag: ['@smoke', '@nav'] }, async ({ page }) => {
-  await page.goto('/visualize/binary-search');
+test('deep links load directly, and unknown paths land on Today', { tag: ['@smoke', '@nav'] }, async ({ page }) => {
+  await page.goto('/coding/visualizers/binary-search');
   await expect(page.getByRole('heading', { name: 'Binary Search', level: 1 })).toBeVisible();
   await page.goto('/no-such-page');
-  await expect(page).toHaveURL(/\/learn$/);
+  await expect(page).toHaveURL(/\/today$/);
 });
 
 test('the Study plan tile lines up with the Review tile beside it', { tag: '@nav' }, async ({ page }) => {
-  await page.goto('/learn');
+  await page.goto('/today');
   const learn = page.locator('app-learn');
   const plan = (await learn.getByRole('link', { name: /^Study plan/ }).boundingBox())!;
   const review = (await learn.getByRole('link', { name: /^Review/ }).boundingBox())!;
   expect(plan.y).toBe(review.y);
 });
 
-test('the Learn menu sends feedback and opens the study plan', { tag: '@nav' }, async ({ page }) => {
-  await page.goto('/learn');
+test('the Today menu sends feedback and opens the study plan', { tag: '@nav' }, async ({ page }) => {
+  await page.goto('/today');
   const learn = page.locator('app-learn');
   const more = learn.getByRole('button', { name: 'More options' });
   const menu = page.locator('ion-popover');
@@ -82,7 +82,7 @@ test('the Learn menu sends feedback and opens the study plan', { tag: '@nav' }, 
   await expect(feedback).toBeVisible();
   await expect(menu).toHaveCount(1);
   await plan.click();
-  await expect(page).toHaveURL(/\/plan$/);
+  await expect(page).toHaveURL(/\/today\/plan$/);
   await expect(page.locator('app-plan').getByRole('heading', { name: 'Plan to your interview', level: 1 })).toBeVisible();
   await expect(menu).toHaveCount(0);
   await expect(page.locator('ion-backdrop:visible')).toHaveCount(0);
@@ -90,7 +90,7 @@ test('the Learn menu sends feedback and opens the study plan', { tag: '@nav' }, 
 
 test('no fixed box sits over the page on a phone', { tag: '@nav' }, async ({ page, isMobile }) => {
   test.skip(!isMobile, 'The right-edge tab covered content on phones.');
-  for (const path of ['/learn', '/code/two-sum', '/visualize/binary-search']) {
+  for (const path of ['/today', '/coding/problems/two-sum', '/coding/visualizers/binary-search']) {
     await page.goto(path);
     await expect(page.locator('ion-router-outlet > .ion-page:not(.ion-page-hidden) ion-content').last()).toBeVisible();
     const fixed = await page.evaluate(() => {
@@ -111,7 +111,7 @@ test('no fixed box sits over the page on a phone', { tag: '@nav' }, async ({ pag
 });
 
 test('an answer waiting for its upload never shows progress as waiting to sync', async ({ page }) => {
-  await page.goto('/learn');
+  await page.goto('/today');
   const status = page.locator('app-learn .sync');
   await expect(status).toHaveAttribute('data-status', 'synced');
   await status.evaluate((element) => {
@@ -120,11 +120,14 @@ test('an answer waiting for its upload never shows progress as waiting to sync',
     Object.assign(window, { syncStatuses: seen });
   });
 
-  await page.getByRole('tab', { name: 'Review' }).click();
+  await page
+    .locator('app-learn')
+    .getByRole('link', { name: /^Review/ })
+    .click();
   const sync = synced(page, 'review.graded');
   await page.locator('g-question-card .choice').first().click();
   await page.getByRole('button', { name: /^(Got it|Continue)/ }).click();
-  await page.getByRole('tab', { name: 'Learn' }).click();
+  await page.getByRole('tab', { name: 'Today' }).click();
   await sync;
   await expect(status).toHaveAttribute('data-status', 'synced');
   expect(await page.evaluate(() => [...(window as unknown as { syncStatuses: Set<string> }).syncStatuses])).not.toContain('pending');
@@ -134,15 +137,17 @@ test.describe('warmed offline lessons', () => {
   test.use({ expectedConsoleErrors: [/ERR_INTERNET_DISCONNECTED|WebKit encountered an internal error/] });
 
   test('opens an unvisited pattern and steps through an unvisited visualizer after disconnecting', async ({ page, context }) => {
-    await page.goto('/learn', { waitUntil: 'networkidle' });
+    await page.goto('/today', { waitUntil: 'networkidle' });
     await context.setOffline(true);
 
-    await page.locator('a.pattern[href="/learn/pattern/two-pointers"]').click();
+    await page.locator('ion-tab-button[tab="coding"]').click();
+    await page.locator('a.pattern[href="/coding/patterns/two-pointers"]').click();
     await expect(page.getByRole('heading', { name: 'Two Pointers', level: 1 })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Template' })).toBeVisible();
 
-    await page.locator('ion-tab-button[tab="visualize"]').click();
-    await page.locator('a.item[href="/visualize/binary-search"]').click();
+    await page.locator('ion-tab-button[tab="coding"]').click();
+    await page.locator('app-hub').getByRole('link', { name: 'Visualizers' }).click();
+    await page.locator('a.item[href="/coding/visualizers/binary-search"]').click();
     await expect(page.getByRole('heading', { name: 'Binary Search', level: 1 })).toBeVisible();
     const counter = page.locator('app-player g-transport .count');
     const initial = await counter.textContent();
@@ -168,7 +173,7 @@ test.describe('progress sync recovery', () => {
       return route.continue();
     });
 
-    await page.goto('/learn');
+    await page.goto('/today');
     const alert = page.getByRole('alert').filter({ hasText: 'Sync is unavailable' });
     const retry = alert.getByRole('button');
     const hero = page.locator('.hero');
@@ -201,13 +206,13 @@ test.describe('progress sync recovery', () => {
 
 test('every page named after its content gets that name as its title, from a direct visit', { tag: '@nav' }, async ({ page }) => {
   const titles: [string, RegExp][] = [
-    ['/learn/pattern/hashing', /Arrays & Hashing pattern/],
-    ['/learn/design/sd-overload', /Backpressure & Load Shedding/],
-    ['/visualize/binary-search', /Binary Search/],
-    ['/design/case/url-shortener', /URL Shortener/],
-    ['/design/first-scale-up', /Your First Scale-Up/],
+    ['/coding/patterns/hashing', /Arrays & Hashing pattern/],
+    ['/design/topics/sd-overload', /Backpressure & Load Shedding/],
+    ['/coding/visualizers/binary-search', /Binary Search/],
+    ['/design/cases/url-shortener', /URL Shortener/],
+    ['/design/missions/first-scale-up', /Your First Scale-Up/],
     ['/behavioral/feedback', /Giving & Receiving Feedback/],
-    ['/code/two-sum', /Two Sum/],
+    ['/coding/problems/two-sum', /Two Sum/],
   ];
   for (const [path, title] of titles) {
     await page.goto(path);

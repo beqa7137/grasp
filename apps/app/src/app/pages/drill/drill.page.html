@@ -1,6 +1,6 @@
 <ion-header [translucent]="true">
   <ion-toolbar>
-    <ion-buttons slot="start"><ion-back-button [defaultHref]="backHref()" text="" /></ion-buttons>
+    <ion-buttons slot="start"><app-back [href]="backHref()" /></ion-buttons>
     <ion-title>{{ practice() ? 'Practice' : 'Review' }}</ion-title>
   </ion-toolbar>
 </ion-header>
@@ -89,7 +89,7 @@
           <p class="sub">You missed these today. Practice them now or let the schedule bring them back:</p>
           <div class="chips">
             @for (t of missedTopics(); track t.id) {
-              <a class="chip" routerLink="/drill" [queryParams]="{ pattern: t.id }">{{ t.name }}</a>
+              <a class="chip" [routerLink]="drillLink(t.id)" crossLink>{{ t.name }}</a>
             }
           </div>
         }
@@ -106,7 +106,7 @@
             <button class="g-btn primary" (click)="start()">Keep going · {{ progress.session().items.length }} more</button>
           }
           @if (practice()) {
-            <a class="g-btn primary" routerLink="/drill">Back to your review</a>
+            <a class="g-btn primary" routerLink="/today/review" crossLink>Back to your review</a>
           }
         </div>
       </section>
@@ -122,7 +122,7 @@
           }
         </p>
         @if (progress.settings().newPerDay === 0) {
-          <p class="muted small">New cards are paused. <a routerLink="/settings">Change it in Settings</a>.</p>
+          <p class="muted small">New cards are paused. <a routerLink="/today/settings" crossLink>Change it in Settings</a>.</p>
         }
         <div class="coming">
           <p class="eyebrow">Coming up</p>
@@ -130,10 +130,10 @@
         </div>
         <p class="sub">Unlock more kinds of review:</p>
         <div class="unlocks">
-          <a class="g-btn" routerLink="/visualize"
+          <a class="g-btn" routerLink="/coding/visualizers" crossLink
             ><ion-icon name="pulse-outline" aria-hidden="true" />Visualize an algorithm → predict checkpoints</a
           >
-          <a class="g-btn" routerLink="/design"
+          <a class="g-btn" routerLink="/design/missions" crossLink
             ><ion-icon name="git-network-outline" aria-hidden="true" />Finish a Design Lab mission → system design cards</a
           >
         </div>
@@ -144,7 +144,7 @@
       <section class="panel missions">
         <p class="eyebrow">Mission revisits due</p>
         @for (m of progress.dueMissions(); track m.scenarioId) {
-          <a class="mission" [routerLink]="['/design', m.scenarioId]" [queryParams]="{ revisit: m.variant }">
+          <a class="mission" [routerLink]="['/design/missions', m.scenarioId]" [queryParams]="{ revisit: m.variant }" crossLink>
             <ion-icon name="git-network-outline" aria-hidden="true" />
             <span>{{ scenarioTitle(m.scenarioId) }} · revisit {{ m.variant }}</span>
             <ion-icon name="arrow-forward" aria-hidden="true" />

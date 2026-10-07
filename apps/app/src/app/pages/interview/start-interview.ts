@@ -11,7 +11,7 @@ export interface InterviewStart {
 
 export async function startInterview(api: ApiService, router: Router, start: InterviewStart): Promise<void> {
   const session = await api.post<InterviewSession>('/interview/sessions', start);
-  await router.navigate(['/interview', session.id]);
+  await router.navigate(['/mock', session.id]);
 }
 
 /** The API refused the AI interviewer until the learner signs in, or signs in again. */

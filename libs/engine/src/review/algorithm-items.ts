@@ -8,7 +8,7 @@ import { clozeSummary, complexitySummary, predictSummary, recognitionSummary } f
 import { KIND_LABELS, type ItemDef } from './types.js';
 
 const patternName = (id: string) => getPattern(id)?.name ?? id;
-const patternLink = (id: string) => ({ label: `Read the ${patternName(id)} lesson`, path: ['/learn/pattern', id] });
+const patternLink = (id: string) => ({ label: `Read the ${patternName(id)} lesson`, path: ['/coding/patterns', id] });
 
 const recognitionItems: ItemDef[] = DRILL_CARDS.map((card, i) => ({
   ...recognitionSummary(card, i),
@@ -110,7 +110,7 @@ const predictItems: ItemDef[] = ALGORITHMS.map((algo) => ({
         choices,
         answer,
         explain: p.explain,
-        link: { label: `Open the ${algo.title} visualizer`, path: ['/visualize', algo.id] },
+        link: { label: `Open the ${algo.title} visualizer`, path: ['/coding/visualizers', algo.id] },
       };
     }
     throw new Error(`Could not generate a prediction for ${algo.id}`);

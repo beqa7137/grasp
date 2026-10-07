@@ -51,7 +51,7 @@ for (const theme of ['dark', 'light'] as const) {
     test('the proximity case runs its cell and quadtree models and finishes into reviews', async ({ page }) => {
       // Fourteen stages and two models in one walk take up to a minute on the WebKit iPhone.
       test.slow();
-      await page.goto('/design');
+      await page.goto('/design/cases');
       await page.getByRole('link', { name: /^Proximity Service/ }).click();
       await expect(page.getByRole('heading', { name: 'Proximity Service', level: 1 })).toBeVisible();
       const stages = page.locator('li.stage');
@@ -168,7 +168,7 @@ test.describe('on a 320 px screen', () => {
         (draft) => localStorage.setItem('CapacitorStorage.grasp.case.proximity-service', draft),
         JSON.stringify({ attempt: `e2e-320-${reached}`, reached, stages }),
       );
-      await page.goto('/design/case/proximity-service');
+      await page.goto('/design/cases/proximity-service');
       const widget = page.locator(selector);
       await widget.locator('app-widget-check fieldset button').first().click();
       await expect(widget.locator('.readouts')).toBeVisible();

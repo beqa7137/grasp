@@ -23,9 +23,10 @@ export const algorithmTitle = (route: ActivatedRouteSnapshot) => getAlgorithmSum
 
 export const caseTitle = (route: ActivatedRouteSnapshot) => getCaseSummary(idOf(route))?.title ?? 'Case study';
 
-export function buildTitle(route: ActivatedRouteSnapshot) {
-  if (idOf(route) !== FREE_BUILD.id) return getScenarioSummary(idOf(route))?.title ?? 'Design Lab';
-  const study = getCaseSummary(route.queryParamMap.get('case') ?? '');
+export const missionTitle = (route: ActivatedRouteSnapshot) => getScenarioSummary(idOf(route))?.title ?? 'Design Lab';
+
+export function caseBuildTitle(route: ActivatedRouteSnapshot) {
+  const study = getCaseSummary(route.paramMap.get('case') ?? '');
   return study ? `${study.title} build` : FREE_BUILD.title;
 }
 

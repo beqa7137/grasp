@@ -2,7 +2,7 @@ import { PATTERN_CATALOG } from '@grasp/engine';
 import { expect, recordedEvents, test } from './fixtures';
 
 test('a pattern lesson reveals a worked example step by step, then replays it in the visualizer', { tag: '@nav' }, async ({ page }) => {
-  await page.goto('/learn/pattern/two-pointers');
+  await page.goto('/coding/patterns/two-pointers');
   await expect(page.getByRole('heading', { name: 'Why it works' })).toBeVisible();
 
   const examples = page.locator('app-worked-example');
@@ -20,7 +20,7 @@ test('a pattern lesson reveals a worked example step by step, then replays it in
     await example.getByRole('button', { name: 'Show all' }).click();
   }
   await page.getByRole('link', { name: 'Step through it in the visualizer' }).first().click();
-  await expect(page).toHaveURL(/\/visualize\/[\w-]+\?input=/);
+  await expect(page).toHaveURL(/\/coding\/visualizers\/[\w-]+\?input=/);
   await expect(page.getByRole('button', { name: 'Step forward' })).toBeVisible();
   await expect(page.getByText('Invalid input')).toHaveCount(0);
 
@@ -31,23 +31,23 @@ test('a pattern lesson reveals a worked example step by step, then replays it in
 });
 
 test('the list reversal lesson replays a sublist reversal, and its visualizer leads to Reverse Linked List II', async ({ page }) => {
-  await page.goto('/learn/pattern/linked-list-reversal');
+  await page.goto('/coding/patterns/linked-list-reversal');
   await expect(page.getByText(`Pattern 8 of ${PATTERN_CATALOG.length}`)).toBeVisible();
   const example = page.locator('app-worked-example').nth(1);
   await expect(example).toContainText('Reverse Linked List II');
   await example.getByRole('button', { name: /key move/ }).click();
   await example.getByRole('button', { name: 'Show all' }).click();
   await example.getByRole('link', { name: 'Step through it in the visualizer' }).click();
-  await expect(page).toHaveURL(/\/visualize\/linked-list-reversal\?input=/);
+  await expect(page).toHaveURL(/\/coding\/visualizers\/linked-list-reversal\?input=/);
   await expect(page.getByRole('heading', { name: 'Reverse a Linked List', level: 1 })).toBeVisible();
   await expect(page.getByText('Invalid input')).toHaveCount(0);
   await page.getByRole('button', { name: 'About this visualizer' }).click();
   await page.getByRole('link', { name: /Now write it yourself: Reverse Linked List II/ }).click();
-  await expect(page).toHaveURL(/\/code\/reverse-linked-list-ii$/);
+  await expect(page).toHaveURL(/\/coding\/problems\/reverse-linked-list-ii$/);
 });
 
 test('the minimum spanning tree lesson replays Kruskal, and its visualizer leads to Connecting Cities', async ({ page }) => {
-  await page.goto('/learn/pattern/minimum-spanning-tree');
+  await page.goto('/coding/patterns/minimum-spanning-tree');
   await expect(page.getByText(`Pattern 16 of ${PATTERN_CATALOG.length}`)).toBeVisible();
   const example = page.locator('app-worked-example').first();
   await expect(example).toContainText('Connecting Cities With Minimum Cost');
@@ -55,17 +55,17 @@ test('the minimum spanning tree lesson replays Kruskal, and its visualizer leads
   await example.getByRole('button', { name: 'Show all' }).click();
   await expect(example).toContainText('Return 18.');
   await example.getByRole('link', { name: 'Step through it in the visualizer' }).click();
-  await expect(page).toHaveURL(/\/visualize\/kruskal-mst\?input=/);
+  await expect(page).toHaveURL(/\/coding\/visualizers\/kruskal-mst\?input=/);
   await expect(page.getByRole('heading', { name: "Kruskal's Minimum Spanning Tree", level: 1 })).toBeVisible();
   await expect(page.getByText('Invalid input')).toHaveCount(0);
   await expect(page.locator('app-player .count')).toHaveText(/^1 \/ 40$/);
   await page.getByRole('button', { name: 'About this visualizer' }).click();
   await page.getByRole('link', { name: /Now write it yourself: Connecting Cities With Minimum Cost/ }).click();
-  await expect(page).toHaveURL(/\/code\/connecting-cities$/);
+  await expect(page).toHaveURL(/\/coding\/problems\/connecting-cities$/);
 });
 
 test('the bitmask DP lesson replays Minimum XOR Sum, and its visualizer leads to the problem', async ({ page }) => {
-  await page.goto('/learn/pattern/bitmask-dp');
+  await page.goto('/coding/patterns/bitmask-dp');
   await expect(page.getByText(`Pattern 23 of ${PATTERN_CATALOG.length}`)).toBeVisible();
   const example = page.locator('app-worked-example').first();
   await expect(example).toContainText('Minimum XOR Sum of Two Arrays');
@@ -73,17 +73,17 @@ test('the bitmask DP lesson replays Minimum XOR Sum, and its visualizer leads to
   await example.getByRole('button', { name: 'Show all' }).click();
   await expect(example).toContainText('Return 8: 1 with 5, 0 with 4 and 3 with 3.');
   await example.getByRole('link', { name: 'Step through it in the visualizer' }).click();
-  await expect(page).toHaveURL(/\/visualize\/minimum-xor-sum\?input=/);
+  await expect(page).toHaveURL(/\/coding\/visualizers\/minimum-xor-sum\?input=/);
   await expect(page.getByRole('heading', { name: 'Minimum XOR Sum (Bitmask DP)', level: 1 })).toBeVisible();
   await expect(page.getByText('Invalid input')).toHaveCount(0);
   await expect(page.locator('app-player .count')).toHaveText(/^1 \/ 33$/);
   await page.getByRole('button', { name: 'About this visualizer' }).click();
   await page.getByRole('link', { name: /Now write it yourself: Minimum XOR Sum of Two Arrays/ }).click();
-  await expect(page).toHaveURL(/\/code\/minimum-xor-sum$/);
+  await expect(page).toHaveURL(/\/coding\/problems\/minimum-xor-sum$/);
 });
 
 test('a lesson ends with a quick check of three questions that count as practice', async ({ page }) => {
-  await page.goto('/learn/pattern/binary-search');
+  await page.goto('/coding/patterns/binary-search');
   const check = page.locator('app-quick-check');
   for (let n = 1; n <= 3; n++) {
     await expect(check).toContainText(`Question ${n} of 3`);

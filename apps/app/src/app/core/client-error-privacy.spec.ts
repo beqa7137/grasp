@@ -60,7 +60,7 @@ it('serializes only trusted diagnostics after dirty scope, attachments and late 
   scope.setExtra('answer', PRIVATE);
   scope.setContext('learner', { answer: PRIVATE });
   scope.setFingerprint([PRIVATE]);
-  scope.setTransactionName(`/interview/${LEARNER_ID}/${PRIVATE}`);
+  scope.setTransactionName(`/mock/${LEARNER_ID}/${PRIVATE}`);
   scope.addBreadcrumb({ message: PRIVATE, data: { url: `https://grasp.example/${PRIVATE}` } });
   scope.addAttachment({ filename: `${PRIVATE}.txt`, data: PRIVATE });
   client.on('beforeSendEvent', (event, hint) => {

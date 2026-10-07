@@ -13,11 +13,24 @@ import { needsSignIn, startInterview } from './start-interview';
 
 const AI_NOTE = 'AI follow-ups and AI feedback. Your replies and shared code are sent to the AI service.';
 const AI_BEHAVIORAL_NOTE = 'AI follow-ups and AI feedback. Your answers, including any story you start from, are sent to the AI service.';
+import { CrossLinkDirective } from '../../ui/cross-link.directive';
+import { crossState } from '../../ui/cross-link.directive';
 
 @Component({
   selector: 'app-interview-home',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, DatePipe, IonHeader, IonToolbar, IonTitle, IonContent, IonIcon, IonSpinner, SignInOptionsComponent],
+  imports: [
+    CrossLinkDirective,
+    RouterLink,
+    DatePipe,
+    IonHeader,
+    IonToolbar,
+    IonTitle,
+    IonContent,
+    IonIcon,
+    IonSpinner,
+    SignInOptionsComponent,
+  ],
   template: `
     <ion-header [translucent]="true">
       <ion-toolbar><ion-title>Interview</ion-title></ion-toolbar>
@@ -123,7 +136,7 @@ const AI_BEHAVIORAL_NOTE = 'AI follow-ups and AI feedback. Your answers, includi
           </button>
         </div>
 
-        <a class="panel card-link behavioral" routerLink="/interview/loop">
+        <a class="panel card-link behavioral" routerLink="/mock/loop">
           <ion-icon name="layers-outline" aria-hidden="true" />
           <span>
             <span class="title display">Mock loop</span>
@@ -132,7 +145,7 @@ const AI_BEHAVIORAL_NOTE = 'AI follow-ups and AI feedback. Your answers, includi
           <span class="go">{{ loopActive() ? 'Continue →' : 'Open →' }}</span>
         </a>
 
-        <a class="panel card-link behavioral" routerLink="/behavioral">
+        <a class="panel card-link behavioral" routerLink="/behavioral" crossLink>
           <ion-icon name="people-outline" aria-hidden="true" />
           <span>
             <span class="title display">Guides, story bank and rehearsal</span>
@@ -145,7 +158,7 @@ const AI_BEHAVIORAL_NOTE = 'AI follow-ups and AI feedback. Your answers, includi
           <h2 class="recent-title">Recent</h2>
           <div class="recent">
             @for (s of recent(); track s.id) {
-              <a class="panel card-link session" [routerLink]="['/interview', s.id]">
+              <a class="panel card-link session" [routerLink]="['/mock', s.id]">
                 <span
                   >{{ s.problem.title
                   }}<small class="recent-mode">{{ s.mode === 'ai' ? 'AI interview' : 'Scripted practice' }}</small></span
@@ -465,7 +478,10 @@ export class InterviewHomePage {
       return;
     }
     if (this.track() === 'behavioral' && this.mode() === 'offline') {
-      await this.router.navigate(['/behavioral/mock'], problemId ? { queryParams: { question: problemId } } : {});
+      await this.router.navigate(['/behavioral/drill'], {
+        queryParams: problemId ? { question: problemId } : {},
+        state: crossState(this.router, '/behavioral/drill'),
+      });
       return;
     }
     this.starting.set(problemId ?? 'random');

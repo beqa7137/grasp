@@ -19,13 +19,13 @@ if (location.pathname !== SIGN_IN_CALLBACK_PATH) {
   // that opened the popup and closes it. Starting the app here would also refresh the session a second time.
   void import('@capgo/capacitor-social-login');
   setTimeout(() => {
-    if (!window.opener) location.replace('/settings');
+    if (!window.opener) location.replace('/today/settings');
   }, CALLBACK_FALLBACK_MS);
 } else if (window.opener) {
   // A refused callback inside the popup: close it rather than start the app there. The opener sees a cancel.
   window.close();
 } else {
-  location.replace('/settings');
+  location.replace('/today/settings');
 }
 
 function dropOAuthResponse() {

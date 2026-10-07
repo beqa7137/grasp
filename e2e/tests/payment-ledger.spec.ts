@@ -41,7 +41,7 @@ for (const theme of ['dark', 'light'] as const) {
     test('the payment ledger case runs its retry, hot account and reconciliation models and finishes into reviews', async ({ page }) => {
       // Thirteen stages and three models in one walk take up to a minute on the WebKit iPhone.
       test.slow();
-      await page.goto('/design');
+      await page.goto('/design/cases');
       await page.getByRole('link', { name: /^Payment Ledger/ }).click();
       await expect(page.getByRole('heading', { name: 'Payment Ledger', level: 1 })).toBeVisible();
       const stages = page.locator('li.stage');

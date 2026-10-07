@@ -51,7 +51,7 @@ for (const theme of ['dark', 'light'] as const) {
     test('the deployment case runs its distribution and rollout models and finishes into reviews', async ({ page }) => {
       // Fifteen stages and two models in one walk take over a minute on the WebKit iPhone.
       test.slow();
-      await page.goto('/design');
+      await page.goto('/design/cases');
       await page.getByRole('link', { name: /^Code Deployment System/ }).click();
       await expect(page.getByRole('heading', { name: 'Code Deployment System', level: 1 })).toBeVisible();
       const stages = page.locator('li.stage');
@@ -177,7 +177,7 @@ test.describe('on a 320 px screen', () => {
         (draft) => localStorage.setItem('CapacitorStorage.grasp.case.code-deployment', draft),
         JSON.stringify({ attempt: `e2e-320-${reached}`, reached, stages }),
       );
-      await page.goto('/design/case/code-deployment');
+      await page.goto('/design/cases/code-deployment');
       const widget = page.locator(selector);
       await widget.locator('app-widget-check fieldset button').first().click();
       await expect(widget.locator('.readouts div').nth(2)).toBeVisible();

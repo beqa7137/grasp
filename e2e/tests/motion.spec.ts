@@ -40,9 +40,14 @@ async function chooseMotion(page: Page, name: string) {
 }
 
 /** Pushes a visualizer from the Visualize list and counts the transition's animations. */
+async function openVisualizers(page: Page): Promise<void> {
+  await page.getByRole('tab', { name: 'Coding' }).click();
+  await page.locator('app-hub:not(.ion-page-hidden)').getByRole('link', { name: 'Visualizers' }).click();
+}
+
 async function pushVisualizer(page: Page): Promise<number> {
   await watchTransitions(page);
-  await page.locator('app-visualize-list a[href="/visualize/binary-search"]').first().click();
+  await page.locator('app-visualize-list a[href="/coding/visualizers/binary-search"]').first().click();
   await expect(page.getByRole('heading', { name: 'Binary Search', level: 1 })).toBeVisible();
   await expect(page.locator('app-visualize-list')).toBeHidden();
   return transitionsSeen(page);
@@ -52,22 +57,22 @@ test.describe('the Motion setting', () => {
   test.use({ motionOff: false, reducedMotion: 'no-preference' });
 
   test('Reduced turns off page transitions after a restart, and Full brings them back', async ({ page }) => {
-    await page.goto('/settings');
+    await page.goto('/today/settings');
     expect(await ionicAnimates(page)).toBe(true);
     await chooseMotion(page, 'Reduced');
     await expect(page.locator('html')).toHaveAttribute('data-motion', 'reduced');
-    await page.getByRole('tab', { name: 'Visualize' }).click();
+    await openVisualizers(page);
     expect(await pushVisualizer(page), 'page transitions follow only after a restart').toBeGreaterThan(0);
 
-    await page.goto('/visualize');
+    await page.goto('/coding/visualizers');
     expect(await ionicAnimates(page)).toBe(false);
     await expect(page.locator('html')).toHaveAttribute('data-motion', 'reduced');
     expect(await pushVisualizer(page)).toBe(0);
 
-    await page.goto('/settings');
+    await page.goto('/today/settings');
     await expect(motionRadio(page, 'Reduced')).toHaveAttribute('aria-checked', 'true');
     await chooseMotion(page, 'Full');
-    await page.goto('/visualize');
+    await page.goto('/coding/visualizers');
     expect(await ionicAnimates(page)).toBe(true);
     await expect(page.locator('html')).toHaveAttribute('data-motion', 'full');
     expect(await pushVisualizer(page)).toBeGreaterThan(0);
@@ -77,23 +82,23 @@ test.describe('the Motion setting', () => {
     test.use({ reducedMotion: 'reduce' });
 
     test('System follows the device, and Full overrides it', async ({ page }) => {
-      await page.goto('/settings');
+      await page.goto('/today/settings');
       await expect(motionRadio(page, 'System')).toHaveAttribute('aria-checked', 'true');
       await expect(page.locator('html')).not.toHaveAttribute('data-motion');
       expect(await ionicAnimates(page)).toBe(false);
-      await page.getByRole('tab', { name: 'Visualize' }).click();
+      await openVisualizers(page);
       expect(await pushVisualizer(page)).toBe(0);
 
-      await page.goto('/settings');
+      await page.goto('/today/settings');
       await chooseMotion(page, 'Full');
-      await page.goto('/visualize');
+      await page.goto('/coding/visualizers');
       expect(await ionicAnimates(page)).toBe(true);
       expect(await pushVisualizer(page)).toBeGreaterThan(0);
     });
   });
 
   test('smooth scrolling in the player follows Motion and the test mode, and Instant turns it off on the stage', async ({ page }) => {
-    await page.goto('/visualize/binary-search');
+    await page.goto('/coding/visualizers/binary-search');
     const player = page.locator('app-player');
     const scrolling = () =>
       player.evaluate((p) => ['g-array-view', 'g-code-panel'].map((tag) => getComputedStyle(p.querySelector(tag)!).scrollBehavior));
@@ -109,7 +114,7 @@ test.describe('the Motion setting', () => {
   });
 
   test("a case study leaves its page scroller instant, so Ionic's own scroll animations never lag", async ({ page }) => {
-    await page.goto('/design/case/url-shortener');
+    await page.goto('/design/cases/url-shortener');
     const scrolling = () =>
       page.locator('app-case-study ion-content').evaluate((c) => {
         const scroller = c.shadowRoot?.querySelector('[part~="scroll"]');
@@ -122,7 +127,7 @@ test.describe('the Motion setting', () => {
     test.use({ reducedMotion: 'reduce' });
 
     test('is instant under System and smooth under Full', async ({ page }) => {
-      await page.goto('/visualize/binary-search');
+      await page.goto('/coding/visualizers/binary-search');
       const view = page.locator('app-player g-array-view').first();
       await expect(view).toHaveCSS('scroll-behavior', 'auto');
       await page.locator('html').evaluate((html) => html.setAttribute('data-motion', 'full'));
@@ -131,9 +136,9 @@ test.describe('the Motion setting', () => {
   });
 
   test('?motion=off is the test mode, and the URL loses the parameter', async ({ page }) => {
-    await page.goto('/visualize?motion=off');
+    await page.goto('/coding/visualizers?motion=off');
     await expect(page.locator('html')).toHaveAttribute('data-motion', 'off');
-    await expect(page).toHaveURL(/\/visualize$/);
+    await expect(page).toHaveURL(/\/coding\/visualizers$/);
     expect(await ionicAnimates(page)).toBe(false);
     expect(await pushVisualizer(page)).toBe(0);
   });
@@ -141,7 +146,7 @@ test.describe('the Motion setting', () => {
 
 test('the test mode the fixtures set runs no page transition, whatever Motion says', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('CapacitorStorage.grasp.motion', 'full'));
-  await page.goto('/visualize');
+  await page.goto('/coding/visualizers');
   await expect(page.locator('html')).toHaveAttribute('data-motion', 'off');
   expect(await pushVisualizer(page)).toBe(0);
   expect(await ionicAnimates(page)).toBe(false);

@@ -1,7 +1,7 @@
 <ion-header [translucent]="true">
   <ion-toolbar>
     <ion-buttons slot="start">
-      <ion-back-button defaultHref="/design" text="" />
+      <app-back [href]="caseId() ? '/design/cases/' + caseId() : '/design/missions'" />
     </ion-buttons>
     <ion-title>{{ scenario()?.title ?? 'Design Lab' }}</ion-title>
     <ion-buttons slot="end">

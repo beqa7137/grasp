@@ -6,8 +6,8 @@ const BASELINE = fileURLToPath(new URL('first-paint-bytes.baseline.json', import
 
 export const SLACK = 2000;
 const VIZ = /^src\/app\/viz\/|\/libs\/engine\/(src|dist)\/viz\//;
-/** Visualization modules first paint loads today. 3.3 moves mastery-ring to ui/; code-text leaves with Learn in R9. */
-export const VIZ_ALLOWED = ['src/app/viz/mastery-ring.component.ts', 'src/app/viz/code-text.component.ts'];
+/** Visualization modules first paint loads today. 3.3 moves mastery-ring to ui/ (code-text left with Learn's map in R5). */
+export const VIZ_ALLOWED = ['src/app/viz/mastery-ring.component.ts'];
 
 export const kB = (bytes) => `${(bytes / 1000).toFixed(2)} kB`;
 const signed = (bytes) => `${bytes < 0 ? '-' : '+'}${kB(Math.abs(bytes))}`;

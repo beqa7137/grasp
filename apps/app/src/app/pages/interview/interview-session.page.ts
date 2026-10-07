@@ -14,7 +14,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { IonBackButton, IonButtons, IonContent, IonFooter, IonHeader, IonIcon, IonSpinner, IonTitle, IonToolbar } from '@ionic/angular';
+import { IonButtons, IonContent, IonFooter, IonHeader, IonIcon, IonSpinner, IonTitle, IonToolbar } from '@ionic/angular';
 import { Preferences } from '@capacitor/preferences';
 import { EMPTY_STAR_DRAFT, LANGUAGES, TRACK_NAMES, getPatternSummary, itemsForTopic, type Language, type StarDraft } from '@grasp/engine';
 import { addIcons } from 'ionicons';
@@ -42,17 +42,21 @@ import { StarAnswerComponent } from './star-answer.component';
 const SCORING_TIMEOUT_MS = 290_000;
 const AI_NOTICE = 'Your replies and shared code are sent to the AI service.';
 const BEHAVIORAL_AI_NOTICE = 'Your answers, including any story you start from, are sent to the AI service.';
+import { BackComponent } from '../../ui/back.component';
+import { CrossLinkDirective } from '../../ui/cross-link.directive';
+import { drillLink } from '../../core/links';
 
 @Component({
   selector: 'app-interview-session',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    CrossLinkDirective,
+    BackComponent,
     FormsModule,
     RouterLink,
     IonHeader,
     IonToolbar,
     IonButtons,
-    IonBackButton,
     IonTitle,
     IonContent,
     IonFooter,
@@ -70,6 +74,7 @@ const BEHAVIORAL_AI_NOTICE = 'Your answers, including any story you start from, 
   styleUrl: './interview-session.page.scss',
 })
 export class InterviewSessionPage {
+  readonly drillLink = drillLink;
   readonly id = input.required<string>();
   private readonly api = inject(ApiService);
   private readonly progress = inject(ProgressService);

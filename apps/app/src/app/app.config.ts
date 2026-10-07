@@ -23,7 +23,7 @@ export const appConfig = ({ animated }: { animated: boolean }): ApplicationConfi
     { provide: ErrorHandler, useClass: ReportingErrorHandler },
     { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },
     { provide: TitleStrategy, useClass: PageTitleStrategy },
-    provideIonicAngular({ mode: 'ios', navAnimation: iosTransitionAnimation, animated }),
+    provideIonicAngular({ mode: 'ios', navAnimation: iosTransitionAnimation, animated, hardwareBackButton: true }),
     provideRouter(routes, withComponentInputBinding(), withPreloading(SerialPreloadingStrategy)),
     provideAppInitializer(async () => {
       // Started first: loading the runtime config can wait on the network, and the theme and motion should not.

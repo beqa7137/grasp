@@ -1,6 +1,6 @@
 <ion-header [translucent]="true">
   <ion-toolbar>
-    <ion-buttons slot="start"><ion-back-button defaultHref="/interview" text="" /></ion-buttons>
+    <ion-buttons slot="start"><app-back href="/mock" /></ion-buttons>
     <ion-title>{{ session()?.problem?.title ?? 'Interview' }}</ion-title>
     @if (active() && candidateTurns() >= 2) {
       <ion-buttons slot="end">
@@ -131,7 +131,7 @@
       @if (s.scorecard; as card) {
         <section class="panel scorecard">
           @if (loopRound(); as r) {
-            <a class="g-btn primary loop-link" routerLink="/interview/loop">{{
+            <a class="g-btn primary loop-link" routerLink="/mock/loop">{{
               r.index + 1 < r.total ? 'Back to your mock loop' : 'See your loop debrief'
             }}</a>
           }
@@ -183,7 +183,7 @@
             <p class="scheduled">{{ scheduledItems() }} review items for these patterns were moved into today's review.</p>
             <div class="weak">
               @for (p of card.weakPatterns; track p) {
-                <a class="g-btn" routerLink="/drill" [queryParams]="{ pattern: p }">{{ patternName(p) }} →</a>
+                <a class="g-btn" [routerLink]="drillLink(p)" crossLink>{{ patternName(p) }} →</a>
               }
             </div>
           }

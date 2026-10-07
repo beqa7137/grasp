@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
+import { IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
 import {
   PATTERN_CATALOG,
   diagnosticItems,
@@ -26,11 +26,25 @@ interface Slot {
   itemId: string;
   question: Question;
 }
+import { BackComponent } from '../../ui/back.component';
+import { CrossLinkDirective } from '../../ui/cross-link.directive';
 
 @Component({
   selector: 'app-diagnostic',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, DatePipe, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle, IonContent, IonIcon, QuestionCardComponent],
+  imports: [
+    CrossLinkDirective,
+    BackComponent,
+    RouterLink,
+    DatePipe,
+    IonHeader,
+    IonToolbar,
+    IonButtons,
+    IonTitle,
+    IonContent,
+    IonIcon,
+    QuestionCardComponent,
+  ],
   templateUrl: './diagnostic.page.html',
   styleUrl: './diagnostic.page.scss',
 })

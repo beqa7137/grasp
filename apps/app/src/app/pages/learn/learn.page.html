@@ -26,7 +26,7 @@
           }
         </span>
       </div>
-      <a class="header-link" routerLink="/settings" aria-label="Settings"><ion-icon name="settings-outline" aria-hidden="true" /></a>
+      <a class="header-link" routerLink="/today/settings" aria-label="Settings"><ion-icon name="settings-outline" aria-hidden="true" /></a>
       <button
         #more
         class="header-link"
@@ -46,7 +46,7 @@
   @let session = progress.session();
   <div class="page">
     @if (auth.signInRequired()) {
-      <a #sessionResume class="resume panel" routerLink="/settings">Your session ended. Sign in to keep syncing your progress →</a>
+      <a #sessionResume class="resume panel" routerLink="/today/settings">Your session ended. Sign in to keep syncing your progress →</a>
     }
     @if (showSyncNotice()) {
       <aside #syncAlert class="sync-notice panel" role="alert" tabindex="-1">
@@ -54,6 +54,18 @@
         <button #retryButton class="g-btn ghost" [disabled]="retrying()" (click)="retrySync()">
           {{ retrying() ? 'Trying again' : 'Try again' }}
         </button>
+      </aside>
+    }
+    @if (movedNote()) {
+      <aside class="moved panel" aria-labelledby="moved-title">
+        <div>
+          <p id="moved-title" class="eyebrow">Where things moved</p>
+          <p>
+            Grasp now has five sections: Today, Coding, Design, Behavioral and Mock. The pattern map, the problems and the visualizers are
+            in Coding, the system design lessons, missions and case studies in Design, and Review is here on Today.
+          </p>
+        </div>
+        <button class="g-btn ghost" (click)="movedNote.set(false)">Got it</button>
       </aside>
     }
     <section class="hero">
@@ -100,13 +112,13 @@
             <p>{{ patternCount }} quick questions, about 5 minutes. Your reviews then start with the patterns you don't know yet.</p>
           </div>
           <div class="diagnostic-actions">
-            <a class="g-btn primary" routerLink="/diagnostic">Take the placement check</a>
+            <a class="g-btn primary" routerLink="/coding/placement" crossLink>Take the placement check</a>
             <button class="g-btn ghost" (click)="diagnosticPrompt.dismiss()">Not now</button>
           </div>
         </aside>
       }
       <div class="tiles">
-        <a class="panel card-link tile plan" routerLink="/plan">
+        <a class="panel card-link tile plan" routerLink="/today/plan">
           <ion-icon name="calendar-outline" aria-hidden="true" />
           <h3>Study plan</h3>
           @if (interview(); as when) {
@@ -117,96 +129,57 @@
             <span class="cta">Set your date →</span>
           }
         </a>
-        <a class="panel card-link tile drill" routerLink="/drill">
+        <a class="panel card-link tile drill" routerLink="/today/review">
           <ion-icon name="flash-outline" aria-hidden="true" />
           <h3>Review</h3>
-          @if (session.items.length) {
-            <p>{{ session.dueTotal }} due · {{ session.newIncluded }} new · ~{{ session.estimatedMinutes }} min</p>
+          @if (session.items.length || progress.reviewDue()) {
+            <p>
+              {{ progress.reviewDue() }} due · {{ session.newIncluded - session.boostedIncluded }} new · ~{{ session.estimatedMinutes }} min
+            </p>
             <span class="cta">Start →</span>
           } @else {
             <p>All caught up</p>
             <span class="cta">See what's next →</span>
           }
         </a>
-        <a class="panel card-link tile viz" [routerLink]="['/visualize', nextAlgorithm().id]">
+        <a class="panel card-link tile viz" [routerLink]="['/coding/visualizers', nextAlgorithm().id]" crossLink>
           <ion-icon name="play-circle-outline" aria-hidden="true" />
           <h3>Visualize</h3>
           <p>{{ nextAlgorithm().title }}</p>
           <span class="cta">Predict every step →</span>
         </a>
         @if (revisit(); as r) {
-          <a class="panel card-link tile lab" [routerLink]="['/design', r.scenarioId]" [queryParams]="{ revisit: r.variant }">
+          <a
+            class="panel card-link tile lab"
+            [routerLink]="['/design/missions', r.scenarioId]"
+            [queryParams]="{ revisit: r.variant }"
+            crossLink
+          >
             <ion-icon name="git-network-outline" aria-hidden="true" />
             <h3>Mission revisit</h3>
             <p>{{ r.title }} · revisit {{ r.variant }}</p>
             <span class="cta">Rebuild from memory →</span>
           </a>
         } @else {
-          <a class="panel card-link tile lab" [routerLink]="['/design', nextScenario().id]">
+          <a class="panel card-link tile lab" [routerLink]="['/design/missions', nextScenario().id]" crossLink>
             <ion-icon name="git-network-outline" aria-hidden="true" />
             <h3>Design Lab</h3>
             <p>{{ nextScenario().title }}</p>
             <span class="cta">Take the mission →</span>
           </a>
         }
-        <a class="panel card-link tile code" [routerLink]="['/code', nextProblem().id]">
+        <a class="panel card-link tile code" [routerLink]="['/coding/problems', nextProblem().id]" crossLink>
           <ion-icon name="code-slash-outline" aria-hidden="true" />
           <h3>Code</h3>
           <p>{{ nextProblem().title }}</p>
           <span class="cta">Solve and trace it →</span>
         </a>
-        <a class="panel card-link tile mock" routerLink="/interview">
+        <a class="panel card-link tile mock" routerLink="/mock" crossLink>
           <ion-icon name="chatbubbles-outline" aria-hidden="true" />
           <h3>Mock interview</h3>
           <p>Coding, system design or behavioral</p>
           <span class="cta">Face the interviewer →</span>
         </a>
-      </div>
-    </section>
-
-    <section class="map">
-      <div class="map-head">
-        <p class="eyebrow">Pattern map</p>
-        <p class="muted">
-          {{ patternCount }} patterns cover the vast majority of coding interviews. Master the cue, and the problem names itself.
-        </p>
-      </div>
-      @for (t of tracks; track t.id) {
-        <div class="track">
-          <div class="track-head">
-            <h2>{{ t.title }}</h2>
-            <p class="muted">{{ t.blurb }}</p>
-          </div>
-          <div class="patterns">
-            @for (p of t.patterns; track p.id) {
-              <a class="panel card-link pattern" [routerLink]="['/learn/pattern', p.id]">
-                <g-mastery-ring [value]="mastery(p.id)" />
-                <div class="info">
-                  <h3>{{ p.name }}</h3>
-                  <p class="muted"><g-code-text [text]="p.oneLiner" /></p>
-                </div>
-              </a>
-            }
-          </div>
-        </div>
-      }
-
-      <div class="track">
-        <div class="track-head">
-          <h2>System design</h2>
-          <p class="muted">Hands-on lessons, then Design Lab missions and case studies, kept fresh with generated cases.</p>
-        </div>
-        <div class="patterns">
-          @for (t of sdTopics; track t.id) {
-            <a class="panel card-link pattern" [routerLink]="['/learn/design', t.id]">
-              <g-mastery-ring [value]="mastery(t.id)" />
-              <div class="info">
-                <h3>{{ t.name }}</h3>
-                <p class="muted">{{ t.oneLiner }}</p>
-              </div>
-            </a>
-          }
-        </div>
       </div>
     </section>
   </div>

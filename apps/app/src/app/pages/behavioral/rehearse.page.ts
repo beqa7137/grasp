@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injector, computed, inject, signal, viewChild } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
+import { IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
 import { dueStories, formatClock, getCompetencySummary, rehearsalQuestion, storyTitle, whenNext, type Story } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import { checkmarkCircle, playOutline, refreshOutline, stopOutline } from 'ionicons/icons';
@@ -11,15 +11,16 @@ import { StoryBankService } from './story-bank.service';
 
 const MIN_SECONDS = 90;
 const MAX_SECONDS = 180;
+import { BackComponent } from '../../ui/back.component';
 
 @Component({
   selector: 'app-rehearse',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle, IonContent, IonIcon],
+  imports: [BackComponent, RouterLink, IonHeader, IonToolbar, IonButtons, IonTitle, IonContent, IonIcon],
   template: `
     <ion-header [translucent]="true">
       <ion-toolbar>
-        <ion-buttons slot="start"><ion-back-button defaultHref="/behavioral/stories" text="" /></ion-buttons>
+        <ion-buttons slot="start"><app-back href="/behavioral/stories" /></ion-buttons>
         <ion-title>Rehearse</ion-title>
       </ion-toolbar>
     </ion-header>

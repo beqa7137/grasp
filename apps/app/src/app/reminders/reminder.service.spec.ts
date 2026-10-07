@@ -110,7 +110,7 @@ describe('ReminderService', () => {
     await service.init();
     tap(7_100);
     tap(42);
-    expect(navigations).toEqual(['/drill']);
+    expect(navigations).toEqual(['/today/review']);
   });
 
   it('does nothing on the web', async () => {

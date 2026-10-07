@@ -30,7 +30,7 @@ import {
   type LevelOrder,
   type TestCase,
 } from '@grasp/engine';
-import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
+import { IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
   alertCircle,
@@ -66,16 +66,17 @@ const SUITE_SEED = 1;
 const PREVIEW_CHARS = 400;
 
 type Panel = 'tests' | 'trace';
+import { BackComponent } from '../../ui/back.component';
 
 @Component({
   selector: 'app-code-workspace',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    BackComponent,
     RouterLink,
     IonHeader,
     IonToolbar,
     IonButtons,
-    IonBackButton,
     IonTitle,
     IonContent,
     IonIcon,

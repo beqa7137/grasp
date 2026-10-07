@@ -321,6 +321,7 @@ Every card carries `reason`, `minutes`, `fromState` and `toState`. Example reaso
 - Segment links navigate with `replaceUrl: true`. Switching segments therefore neither animates nor builds a back chain, and back leaves the hub.
 - The sub-nav is a row of links with `aria-current="page"`, not ARIA tabs.
 - **Spike in R5:** confirm that `IonTabs.select()` restores the hub with its last segment URL. If Ionic restores the hub root instead, the tabs page records the last URL per tab from router events and selects with that URL.
+- R5 note: Ionic restores a tab at its top view's URL, which for a hub is the hub's own URL, so the fallback shipped: `tabs.page.ts` records the last URL per tab (not counting views a cross-section link opened, so a tab returns to where the learner left it) and handles the tab buttons itself.
 
 **Back across sections.** `ion-back-button` uses `defaultHref` only when its stack is empty. So `defaultHref` alone cannot return Today → case → Today when the Design stack already has history. Instead:
 
@@ -345,6 +346,8 @@ Every card carries `reason`, `minutes`, `fromState` and `toState`. Example reaso
 
 **Legacy routes** live in `apps/app/src/app/legacy-routes.ts` and stay permanently.
 
+R5 note: one file cannot hold both groups, since the static import that puts the inline group in main would pull the `loadChildren` group in too. The inline group is `legacy-routes.ts`; the lazy one is `legacy-prefixes.ts`.
+
 - Reminders already scheduled on devices open `/drill` (`reminder.service.ts:77`).
 - Redirects that depend on the query use `redirectTo` functions that return a `UrlTree` with the query kept.
 - The `loadChildren` legacy group is not preloaded, because `SerialPreloadingStrategy` skips `loadChildren` routes:
@@ -357,6 +360,8 @@ Every card carries `reason`, `minutes`, `fromState` and `toState`. Example reaso
 - The route array lists the five hub roots first; then the pattern hub, player, workspace, topic lesson, case study and Lab pages; then the rest.
 - The strategy waits for a `firstIdle` promise before starting. `firstIdle` resolves when Today's idle `@defer` blocks have resolved, or 5 seconds after first paint.
 - That way Today's own chunks are never queued behind about 40 route preloads on a throttled phone.
+
+R5 note: the declaration order above puts each tab's details before its hub, so the array cannot also list the hubs first. Routes carry a `data.preload` rank instead (hubs and their default segments 0; pattern, player, workspace, topic lesson, case study and Lab 1; the rest after), and `SerialPreloadingStrategy` loads by rank, then in declaration order. Today has no `@defer` blocks yet, so `firstIdle` is the first idle period (`requestIdleCallback`, 5 s timeout).
 
 ### 2.6 Navigation by form factor
 
@@ -380,6 +385,7 @@ Every card carries `reason`, `minutes`, `fromState` and `toState`. Example reaso
   - Today, `tabs.page.ts` adds mission revisits that `/drill` cannot do. So the badge reads 3 while Learn says "0 due" (`dark-pixel7-design-list-cases.png`).
   - The story count arrives from a dynamic import of `story-bank.service.ts` after first paint, so the badge first renders as cards plus revisits.
 - **Labels.** At 320px, each tab is 64px wide. Below 360px, labels drop to 11px. A Playwright check asserts that no label's `scrollWidth` exceeds its `clientWidth`.
+  R5 note: the labels were already 11px at every width (`styles.scss`, capped with `chrome-font-size`), so nothing changes below 360px; the Playwright check holds at 320px.
 - **Focus routes hide the tab bar** under 1024px. Focus routes are the player, workspace, mission, Lab and case build.
   - Their transport or run dock sits on the bottom safe area instead, and `app-back` returns the learner.
   - This is what gives the player the height it needs (3.7).

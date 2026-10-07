@@ -1,7 +1,7 @@
 import { formatDate } from '@angular/common';
 import { ChangeDetectionStrategy, Component, ElementRef, Injector, LOCALE_ID, computed, inject, signal, viewChild } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonSpinner, IonTitle, IonToolbar } from '@ionic/angular';
+import { IonButtons, IonContent, IonHeader, IonIcon, IonSpinner, IonTitle, IonToolbar } from '@ionic/angular';
 import {
   LOOP_ROUND_MINUTES,
   PLAN_ROUNDS,
@@ -45,17 +45,20 @@ const ROUND_DETAIL: Record<InterviewTrack, string> = {
 };
 
 type Stage = 'loading' | 'setup' | 'running' | 'debrief';
+import { BackComponent } from '../../ui/back.component';
+import { CrossLinkDirective } from '../../ui/cross-link.directive';
 
 @Component({
   selector: 'app-mock-loop',
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [AnnouncerService],
   imports: [
+    CrossLinkDirective,
+    BackComponent,
     RouterLink,
     IonHeader,
     IonToolbar,
     IonButtons,
-    IonBackButton,
     IonTitle,
     IonContent,
     IonIcon,
@@ -67,7 +70,7 @@ type Stage = 'loading' | 'setup' | 'running' | 'debrief';
   template: `
     <ion-header [translucent]="true">
       <ion-toolbar>
-        <ion-buttons slot="start"><ion-back-button defaultHref="/interview" text="" /></ion-buttons>
+        <ion-buttons slot="start"><app-back href="/mock" /></ion-buttons>
         <ion-title>Mock loop</ion-title>
       </ion-toolbar>
     </ion-header>
@@ -109,7 +112,9 @@ type Stage = 'loading' | 'setup' | 'running' | 'debrief';
               }
             </ol>
             @if (planRounds()) {
-              <p class="muted">These are the rounds in your study plan. <a routerLink="/plan">Change them on the plan page</a>.</p>
+              <p class="muted">
+                These are the rounds in your study plan. <a routerLink="/today/plan" crossLink>Change them on the plan page</a>.
+              </p>
             }
             <p class="muted">Take a short break between rounds if you like. You can stop after any round and pick up from here later.</p>
             @if (setupTracks().includes('behavioral')) {
@@ -231,7 +236,7 @@ type Stage = 'loading' | 'setup' | 'running' | 'debrief';
             <button type="button" class="g-btn primary again" (click)="newLoop()">Start a new loop</button>
           }
         }
-        <p class="muted footnote">Want just one round? <a routerLink="/interview">Start a single interview on the interview page</a>.</p>
+        <p class="muted footnote">Want just one round? <a routerLink="/mock">Start a single interview on the interview page</a>.</p>
       </div>
     </ion-content>
   `,
@@ -523,7 +528,7 @@ export class MockLoopPage {
     const round = loop?.rounds[index];
     if (!loop || !round) return;
     if (round.sessionId) {
-      await this.router.navigate(['/interview', round.sessionId]);
+      await this.router.navigate(['/mock', round.sessionId]);
       return;
     }
     this.error.set(null);
@@ -536,7 +541,7 @@ export class MockLoopPage {
       });
       this.sessions.update((all) => ({ ...all, [session.id]: session }));
       await this.loops.update((l) => ({ ...l, rounds: l.rounds.map((r, i) => (i === index ? { ...r, sessionId: session.id } : r)) }));
-      await this.router.navigate(['/interview', session.id]);
+      await this.router.navigate(['/mock', session.id]);
     } catch (e) {
       this.error.set(e instanceof ApiError ? e.message : 'Could not start the round. Please try again.');
       this.signInAgain.set(needsSignIn(e));

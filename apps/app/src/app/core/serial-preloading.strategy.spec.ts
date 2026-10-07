@@ -2,7 +2,7 @@ import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import type { Route } from '@angular/router';
 import { EMPTY, Observable, Subject, firstValueFrom, of } from 'rxjs';
-import { SerialPreloadingStrategy } from './serial-preloading.strategy';
+import { FIRST_IDLE, SerialPreloadingStrategy } from './serial-preloading.strategy';
 
 @Component({ template: '' })
 class TestPage {}
@@ -79,6 +79,23 @@ describe('SerialPreloadingStrategy', () => {
 
     expect(await firstValueFrom(TestBed.inject(SerialPreloadingStrategy).preload(route, load))).toBe('parent');
     expect(load).toHaveBeenCalledOnce();
+  });
+
+  it('loads ranked routes first, then in declaration order, once the first screen is idle', async () => {
+    let idle!: () => void;
+    TestBed.configureTestingModule({ providers: [{ provide: FIRST_IDLE, useValue: new Promise<void>((resolve) => (idle = resolve)) }] });
+    const strategy = TestBed.inject(SerialPreloadingStrategy);
+    const order: string[] = [];
+    const ranked = (path: string, preload?: number): Route => ({ ...componentRoute(path), data: preload === undefined ? {} : { preload } });
+    const results = [ranked('detail'), ranked('page', 1), ranked('hub', 0), ranked('other'), ranked('hub-two', 0)].map((route) =>
+      firstValueFrom(strategy.preload(route, () => (order.push(route.path!), of(route.path)))),
+    );
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    expect(order).toEqual([]);
+
+    idle();
+    await Promise.all(results);
+    expect(order).toEqual(['hub', 'hub-two', 'page', 'detail', 'other']);
   });
 
   it('does not start queued loaders after destruction', async () => {

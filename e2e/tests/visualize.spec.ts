@@ -38,7 +38,7 @@ async function answerCheckpoint(page: Page) {
 }
 
 test('predicting the next step of a visualizer counts toward mastery', { tag: ['@smoke', '@player'] }, async ({ page }) => {
-  await page.goto('/visualize');
+  await page.goto('/coding/visualizers');
   await page.getByRole('link', { name: /Binary Search easy/ }).click();
   await expect(page.getByRole('checkbox', { name: 'Predict mode' })).toBeChecked();
   await expect(page.getByText('1 / 13')).toBeVisible();
@@ -48,7 +48,7 @@ test('predicting the next step of a visualizer counts toward mastery', { tag: ['
 
 for (const title of VISUALIZER_TITLES) {
   test(`${title} opens from the list and asks for the next step`, async ({ page }) => {
-    await page.goto('/visualize');
+    await page.goto('/coding/visualizers');
     await page
       .getByRole('link')
       .filter({ has: page.getByRole('heading', { name: title, exact: true }) })
@@ -60,7 +60,7 @@ for (const title of VISUALIZER_TITLES) {
 }
 
 test('the timeline steps forward and back', { tag: '@player' }, async ({ page }) => {
-  await page.goto('/visualize/binary-search');
+  await page.goto('/coding/visualizers/binary-search');
   await page.getByText('Predict mode').click();
   await expect(page.getByRole('checkbox', { name: 'Predict mode' })).not.toBeChecked();
   await page.getByRole('button', { name: 'Step forward' }).click();
@@ -73,13 +73,17 @@ test(
   'number keys answer only the page in view, not a checkpoint left open under another page',
   { tag: ['@nav', '@player'] },
   async ({ page }) => {
-    await page.goto('/visualize/binary-search');
+    await page.goto('/coding/visualizers/binary-search');
     const player = page.locator('app-player');
     await stepToCheckpoint(page);
     const wide = page.viewportSize()!.width >= 1024;
 
     if (wide) {
-      await page.getByRole('tab', { name: 'Review' }).click();
+      await page.getByRole('tab', { name: /^Today/ }).click();
+      await page
+        .locator('app-learn')
+        .getByRole('link', { name: /^Review/ })
+        .click();
       const review = page.locator('app-drill');
       await expect(review.locator('g-question-card .choice:enabled').first()).toBeVisible();
       // Ionic hides the page it leaves only once the tab transition ends.
@@ -87,7 +91,7 @@ test(
       await page.keyboard.press('1');
       await expect(review.locator('g-question-card .reveal')).toHaveCount(1);
     } else {
-      // The player hides the tab bar under 1024px, so the other page is its pattern, opened from the intro in the Learn tab.
+      // The player hides the tab bar under 1024px, so the other page is its pattern, opened from the intro.
       await page.getByRole('button', { name: 'About this visualizer' }).click();
       await page.getByRole('dialog', { name: 'Binary Search' }).getByRole('link', { name: 'Binary Search', exact: true }).click();
       await expect(page.locator('app-pattern').getByRole('heading', { name: 'Binary Search', level: 1 })).toBeVisible();
@@ -97,7 +101,8 @@ test(
     expect((await recordedEvents(page)).map((e) => e.type)).not.toContain('predict.answered');
 
     // The hidden player does not re-render, so look for a stray answer only once it is back in view.
-    await page.getByRole('tab', { name: 'Visualize' }).click();
+    if (wide) await page.getByRole('tab', { name: 'Coding' }).click();
+    else await page.locator('app-pattern ion-back-button').click();
     await expect(player.getByText('Your call')).toBeVisible();
     await expect(player.locator('.predict .verdict')).toHaveCount(0);
     const sync = synced(page, 'predict.answered');
@@ -111,7 +116,7 @@ test(
   'Step forward stays under the finger through every step and checkpoint, however far Continue was scrolled to',
   { tag: '@player' },
   async ({ page }) => {
-    await page.goto('/visualize/dijkstra');
+    await page.goto('/coding/visualizers/dijkstra');
     const player = page.locator('app-player');
     const forward = player.getByRole('button', { name: 'Step forward' });
     const count = player.locator('g-transport .count');
@@ -136,7 +141,7 @@ test(
 );
 
 test('an answered checkpoint also continues from Step forward, which stays where it was tapped', { tag: '@player' }, async ({ page }) => {
-  await page.goto('/visualize/binary-search');
+  await page.goto('/coding/visualizers/binary-search');
   const forward = page.getByRole('button', { name: 'Step forward' });
   await stepToCheckpoint(page);
   await expect(forward).toBeDisabled();
@@ -156,7 +161,7 @@ test(
   async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.setViewportSize({ width: 915, height: 412 });
-    await page.goto('/visualize/two-sum-hash');
+    await page.goto('/coding/visualizers/two-sum-hash');
     await stepToCheckpoint(page);
     const player = page.locator('app-player');
     const forward = player.getByRole('button', { name: 'Step forward' });
@@ -178,7 +183,7 @@ for (const [id, width, height] of [
 ] as const) {
   test(`at ${width}×${height} the layout scrolls and nothing covers the ${id} checkpoint`, { tag: '@player' }, async ({ page }) => {
     await page.setViewportSize({ width, height });
-    await page.goto(`/visualize/${id}`);
+    await page.goto(`/coding/visualizers/${id}`);
     await stepToCheckpoint(page);
     // Each element's first and last lines, since a sticky control would cover an end. Before the answer each element is
     // scrolled into view; the verdict is read where the page put it.
@@ -207,7 +212,7 @@ for (const [id, width, height] of [
 test('on a phone, Continue shows under the verdict in R right after an answer', { tag: '@player' }, async ({ page }, testInfo) => {
   test.skip(testInfo.project.name === 'desktop', 'R is the phone layout.');
   for (const id of ['binary-search', 'kruskal-mst', 'lcs']) {
-    await page.goto(`/visualize/${id}`);
+    await page.goto(`/coding/visualizers/${id}`);
     await stepToCheckpoint(page);
     await page.locator('.predict .choice').first().click();
     await expect(page.locator('.predict .verdict')).toBeVisible();
@@ -253,7 +258,7 @@ async function keyToNextCheckpoint(page: Page, where = '') {
 }
 
 test('under 1024px the player hides the tab bar, and the list shows it again', { tag: ['@nav', '@player'] }, async ({ page }) => {
-  await page.goto('/visualize');
+  await page.goto('/coding/visualizers');
   const tabs = page.getByRole('navigation', { name: 'Main' });
   await expect(tabs).toBeVisible();
   await page.getByRole('link', { name: /Binary Search easy/ }).click();
@@ -269,19 +274,21 @@ test(
   'under 1024px, a tab button that opens the player leaves focus on its heading, and every checkpoint reached by key takes it',
   { tag: ['@nav', '@player'] },
   async ({ page }) => {
-    if (page.viewportSize()!.width >= 1024) await page.setViewportSize({ width: 800, height: 720 });
-    await page.goto('/visualize/binary-search');
-    await page.getByRole('button', { name: 'About this visualizer' }).click();
-    await page.getByRole('dialog', { name: 'Binary Search' }).getByRole('link', { name: 'Binary Search', exact: true }).click();
-    await expect(page.locator('app-pattern').getByRole('heading', { name: 'Binary Search', level: 1 })).toBeVisible();
-    await page.getByRole('tab', { name: 'Visualize' }).focus();
+    // The player hides the tab bar under 1024px, so it is left for another tab with the bar still shown.
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.goto('/coding/visualizers/binary-search');
+    await expect(page.locator('app-player h1')).toBeVisible();
+    await page.getByRole('tab', { name: /^Today/ }).click();
+    await expect(page.locator('app-learn h1')).toBeVisible();
+    await page.setViewportSize({ width: 800, height: 720 });
+    await page.getByRole('tab', { name: 'Coding' }).focus();
     // Ionic selects a tab on Enter's keydown and again on its keyup, which takes a selected tab to its root while its button
     // keeps focus. A person's keyup comes after the switch, so the key is held until then.
     await page.keyboard.down('Enter');
     const heading = page.locator('app-player h1');
     await expect(heading).toBeFocused();
     await page.keyboard.up('Enter');
-    await expect(page).toHaveURL(/\/visualize\/binary-search$/);
+    await expect(page).toHaveURL(/\/coding\/visualizers\/binary-search$/);
     await expect(heading).toBeFocused();
     await expect(page.getByRole('navigation', { name: 'Main' })).toBeHidden();
 
@@ -300,7 +307,7 @@ const SIZES = [
 test('a deep link leaves focus on the page, so every checkpoint reached by key takes it', { tag: '@player' }, async ({ page }) => {
   for (const size of SIZES) {
     await page.setViewportSize(size);
-    await page.goto('/visualize/binary-search');
+    await page.goto('/coding/visualizers/binary-search');
     if (size.width < 1024) await expect(page.getByRole('navigation', { name: 'Main' })).toBeHidden();
     await expect(page.locator('app-player h1')).not.toBeFocused();
     await stepToCheckpoint(page, () => page.keyboard.press('ArrowRight'));
@@ -316,7 +323,7 @@ test(
     for (const size of SIZES) {
       await page.setViewportSize(size);
       for (const from of ['code', 'Random'] as const) {
-        await page.goto('/visualize/binary-search');
+        await page.goto('/coding/visualizers/binary-search');
         const player = page.locator('app-player');
         await (from === 'code' ? player.locator('g-code-panel') : player.locator('.input').getByRole('button', { name: from })).focus();
         await stepToCheckpoint(page, () => page.keyboard.press('ArrowRight'));
@@ -329,7 +336,7 @@ test(
 test('a checkpoint reached in play while the Timeline has focus takes it, its prompt whole in R', { tag: '@player' }, async ({ page }) => {
   for (const size of SIZES) {
     await page.setViewportSize(size);
-    await page.goto('/visualize/binary-search');
+    await page.goto('/coding/visualizers/binary-search');
     const player = page.locator('app-player');
     await player.locator('.panel-col').evaluate((r) => r.scrollTo({ top: r.scrollHeight }));
     await openPlayback(page);
@@ -346,7 +353,7 @@ test(
   'typing into the input while it plays through a checkpoint keeps focus in the field, announces the checkpoint and answers nothing',
   { tag: '@player' },
   async ({ page }) => {
-    await page.goto('/visualize/binary-search');
+    await page.goto('/coding/visualizers/binary-search');
     const player = page.locator('app-player');
     await openPlayback(page);
     const fastest = player.getByRole('radiogroup', { name: 'Speed' }).getByRole('radio', { name: '4×' });
@@ -389,7 +396,7 @@ for (const [id, width, height] of [
     { tag: '@player' },
     async ({ page }) => {
       await page.setViewportSize({ width, height });
-      await page.goto(`/visualize/${id}`);
+      await page.goto(`/coding/visualizers/${id}`);
       await stepToCheckpoint(page);
       const prompt = page.locator('.predict .prompt');
       await expect(prompt).toBeFocused();
@@ -409,7 +416,7 @@ test(
   { tag: '@player' },
   async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 256 });
-    await page.goto('/visualize/dijkstra');
+    await page.goto('/coding/visualizers/dijkstra');
     const player = page.locator('app-player');
     await player.getByText('Predict mode').click();
     const count = player.locator('g-transport .count');
@@ -430,7 +437,7 @@ test(
 );
 
 test('Play at an open checkpoint asks for the answer instead of playing on', { tag: '@player' }, async ({ page }) => {
-  await page.goto('/visualize/binary-search');
+  await page.goto('/coding/visualizers/binary-search');
   await stepToCheckpoint(page);
   const play = page.getByRole('button', { name: 'Play', exact: true });
   await expect(play).toBeEnabled();
@@ -446,7 +453,7 @@ test('Play at an open checkpoint asks for the answer instead of playing on', { t
 });
 
 test('the key hint shows only with a fine pointer', { tag: '@player' }, async ({ page, isMobile }) => {
-  await page.goto('/visualize/binary-search');
+  await page.goto('/coding/visualizers/binary-search');
   const hint = page.locator('app-player .keys');
   if (isMobile) await expect(hint).toBeHidden();
   else await expect(hint).toBeVisible();
@@ -462,7 +469,7 @@ test('the key hint shows only with a fine pointer', { tag: '@player' }, async ({
 });
 
 test('the intro behind ⓘ names the visualizer and leads to its pattern and problem', { tag: '@player' }, async ({ page }) => {
-  await page.goto('/visualize/binary-search');
+  await page.goto('/coding/visualizers/binary-search');
   const about = page.getByRole('button', { name: 'About this visualizer' });
   await about.click();
   const intro = page.getByRole('dialog', { name: 'Binary Search' });
