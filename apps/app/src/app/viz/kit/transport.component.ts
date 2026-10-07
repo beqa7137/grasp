@@ -225,9 +225,12 @@ export class TransportComponent {
     if (e.type === 'pointerup' && drag.holding !== null) this.holdRelease.emit(drag.holding);
   }
 
-  /** Without this, a tap's trailing click lands on whatever replaced ⋯ under the finger, such as the checkpoint it opened. */
+  /**
+   * Without this, a tap's trailing click lands on whatever replaced ⋯ under the finger, such as the checkpoint it opened.
+   * A drag's touchend cannot be cancelled (and is followed by no click), and Chrome logs an error if asked to.
+   */
   onTouchEnd(e: TouchEvent) {
-    e.preventDefault();
+    if (e.cancelable) e.preventDefault();
   }
 
   private dragTo(e: PointerEvent) {
