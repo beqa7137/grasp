@@ -1940,8 +1940,9 @@ Iterations are ordered by impact, alternating between organization and visuals. 
   w320 294px). ⋯ opens an inline, non-modal group ("Playback") above the dock, over region R and never over the stage
   or the caption: the Timeline with its ticks and bands, Speed, Restart, Next checkpoint and Jump to result, the Timeline
   and Speed under visible labels; Describe (R19) and Presets (R25) join it later. It is laid out to fit R on a 320px phone
-  (Speed one row, the actions one row of icon over label) and capped at R's measured height, scrolling inside itself
-  when a long caption leaves R shorter. The count and the Timeline exist once in every layout. The Timeline stays a native range for the
+  (Speed one row, the actions one row of icon over label) and capped at R's measured height; while it is open the caption
+  keeps to its first two lines and leaves the result and the code link until it closes, so R keeps room for the whole
+  panel, and only a window too short for that scrolls inside it, keeping the labelled Timeline. The count and the Timeline exist once in every layout. The Timeline stays a native range for the
   keyboard, assistive tech and Playwright's `fill`, under a transparent layer that takes every pointer, so a drag is
   guarded alike in Chromium and WebKit and with touch: it holds on the first unanswered tick it crosses, with the chip
   "Answer it, or skip?" over the held tick and a selection haptic (`selectionStart`, `selectionChanged`, `selectionEnd`, since iOS ticks only
@@ -1952,8 +1953,8 @@ Iterations are ordered by impact, alternating between organization and visuals. 
   and a skipping drag record no event; a skipped tick asks again when stepped onto with Predict mode on. Ticks: pending
   hollow, right filled, skipped a thin grey outline, missed a critical ×, so no two differ by hue alone, and the Timeline's
   `aria-valuetext` adds ", checkpoint" and the outcome. Ticks drawn under 16px apart (a turned 8px diamond and its halo)
-  merge into one mark in the state that most needs the learner (pending, missed, skipped, right), so none is drawn
-  half-covered. Instant steps at 4×'s pace with the stage's motion tokens at 0s
+  merge into one mark in the state that most needs the learner (pending, missed, skipped, right), drawn on the tick
+  with that state, so none is drawn half-covered and a tap on a pending mark opens its checkpoint. Instant steps at 4×'s pace with the stage's motion tokens at 0s
   (the plan's alternative, 1×'s dwell, would have put the fastest-looking speed in the middle); R19's `pace` replaces both.
   The counter stays "N / M" (the phone form), since chapters have no data until R17/R18: `Frame.chapter` is added and
   drawn as bands under the track, but not yet named in the count. The ticks need a quiet track, `--g-viz-track` (#2a3040
@@ -1978,8 +1979,9 @@ Iterations are ordered by impact, alternating between organization and visuals. 
   moves them. Reduced and test mode turn
   transitions off entirely (`transition: none`): the old 0.001ms duration made every property of every element transition
   for a frame, since `transition-property` defaults to all. They also turn smooth scrolling off (`scroll-behavior: auto`),
-  as Instant does on the stage; the array and the code panel declare `scroll-behavior: smooth` in CSS and scroll without
-  a `behavior`, so the cascade decides in one place.
+  as Instant does on the stage; the array, the code panel and the case study's scroller (`ion-content::part(scroll)`,
+  which the no-motion rules name since `*` does not reach it) declare `scroll-behavior: smooth` in CSS and scroll
+  without a `behavior`, so the cascade decides in one place.
 
 **R4 Engine release A** (invisible).
 

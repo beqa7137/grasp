@@ -55,7 +55,8 @@
 }
 
 // ⋯ opens this above the dock: inline and non-modal, so focus and the checkpoint dock work as they do without it. It is no
-// taller than region R (`room`), and scrolls inside itself when R is shorter than it, so it never reaches the caption.
+// taller than region R (`--g-room`, which the player measures), which the player keeps tall enough for it by shortening the
+// caption while it is open; on a window too short even for that it scrolls inside itself, keeping the labelled Timeline.
 .more {
   display: none;
 
@@ -64,6 +65,8 @@
     left: 0;
     right: 0;
     bottom: 100%;
+    max-height: var(--g-room, none);
+    min-height: 88px;
     display: grid;
     gap: 4px;
     padding: 8px 0 6px;
@@ -113,6 +116,8 @@
 .scrubber {
   position: relative;
   height: 44px;
+  // The hold chip rises 11px above the bar, so the Timeline's label above it in ⋯ stays clear of it.
+  margin-top: 12px;
 
   &::before {
     content: '';
@@ -285,6 +290,7 @@ input[type='range'] {
   }
   .scrubber {
     grid-area: scrub;
+    margin-top: 0;
   }
   .speed {
     grid-area: speed;

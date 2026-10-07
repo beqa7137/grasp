@@ -190,6 +190,23 @@ ion-title h1 {
   }
 }
 
+// While ⋯ is open over R, the caption keeps to its first two lines and leaves the result and the code link until it closes,
+// so R keeps the room the panel needs and the panel never reaches the caption.
+@container player not ((min-width: 900px) and (min-height: 424px)) {
+  .narration.more-open {
+    p {
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      overflow: hidden;
+    }
+    .result,
+    .code-it {
+      display: none;
+    }
+  }
+}
+
 // Region R on phone, the top of the right column on desktop. It scrolls inside itself, so a long checkpoint never moves the
 // stage or the dock. On phone the checkpoint replaces the code while it is open.
 .panel-col {

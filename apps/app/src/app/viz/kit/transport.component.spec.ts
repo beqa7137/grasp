@@ -131,9 +131,8 @@ describe('TransportComponent', () => {
     const { el, fixture } = setUp((h) => h.ticks.set(ticks), 200);
     fixture.detectChanges();
     const marks = () => [...el.querySelectorAll<HTMLElement>('.tick')].map((t) => [t.dataset['state'], t.style.getPropertyValue('--p')]);
-    expect(marks(), '10px a frame: ticks closer than 16px merge').toEqual([
-      ['pending', '0.1'],
-      ['skipped', '0.2'],
+    expect(marks(), '10px a frame: ticks closer than 16px to the last mark merge, and the mark moves to the tick it shows').toEqual([
+      ['pending', '0.15'],
       ['missed', '0.3'],
       ['right', '0.6'],
     ]);
@@ -209,6 +208,23 @@ describe('TransportComponent', () => {
     pointer('pointerup', at(14));
     expect(host.log).toEqual(['seek 6', 'skip 6', 'seek 8', 'seek 12', 'release 12']);
     expect(calls).toEqual(['start', 'select', 'select', 'end']);
+  });
+
+  it('opens the pending checkpoint a merged mark shows when that mark is tapped', () => {
+    const { pointer, host, el } = setUp(
+      (h) =>
+        h.ticks.set([
+          { at: 2, state: 'right' },
+          { at: 3, state: 'pending' },
+        ]),
+      WIDTH - 16,
+    );
+    const mark = el.querySelectorAll<HTMLElement>('.tick');
+    expect(mark).toHaveLength(1);
+    const x = 8 + Number(mark[0].style.getPropertyValue('--p')) * (WIDTH - 16);
+    pointer('pointerdown', x);
+    pointer('pointerup', x);
+    expect(host.log).toEqual(['seek 3', 'release 3']);
   });
 
   it('shows the hold chip only while holding', () => {

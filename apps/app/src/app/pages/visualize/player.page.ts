@@ -122,8 +122,8 @@ export class PlayerPage {
   readonly problem = computed(() => CODING_CATALOG.find((p) => p.algorithmId === this.id()));
   readonly pattern = computed(() => (this.algo() ? getPatternSummary(this.algo()!.patternId) : undefined));
 
-  /** Region R's height, which bounds the transport's ⋯ panel. */
-  protected readonly room = signal<number | null>(null);
+  /** ⋯ is open, so the caption keeps to two lines and region R keeps room for the panel. */
+  protected readonly moreOpen = signal(false);
 
   readonly input = signal<Record<string, unknown> | null>(null);
   readonly drafts = signal<Record<string, string>>({});
@@ -221,7 +221,8 @@ export class PlayerPage {
     effect((onCleanup) => {
       const panel = this.panelCol()?.nativeElement;
       if (!panel) return;
-      const observer = new ResizeObserver(() => this.room.set(panel.offsetHeight));
+      // Written here rather than through a signal, so ⋯'s cap changes in the frame R does, before it is painted.
+      const observer = new ResizeObserver(() => panel.parentElement!.style.setProperty('--g-room', `${panel.offsetHeight}px`));
       observer.observe(panel);
       onCleanup(() => observer.disconnect());
     });

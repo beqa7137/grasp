@@ -80,6 +80,7 @@
           <div
             class="narration"
             [class.brief]="!!pending()"
+            [class.more-open]="moreOpen()"
             [attr.aria-live]="pending() || quietNarration() ? 'off' : 'polite'"
             tabindex="-1"
             #narration
@@ -244,7 +245,7 @@
           [canForward]="pending()?.choice !== null && (index() < last() || !!frame()?.predict)"
           [guard]="predictMode()"
           [asking]="!!pending()"
-          [room]="room()"
+          [(moreOpen)]="moreOpen"
           (seek)="seek($event)"
           (back)="prev()"
           (forward)="next()"
