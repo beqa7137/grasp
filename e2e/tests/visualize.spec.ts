@@ -3,7 +3,9 @@ import {
   expect,
   expectNoPageScroll,
   expectUnmoved,
+  openPlayback,
   recordedEvents,
+  seekTimeline,
   stepToCheckpoint,
   stepTotal,
   synced,
@@ -112,7 +114,7 @@ test(
     await page.goto('/visualize/dijkstra');
     const player = page.locator('app-player');
     const forward = player.getByRole('button', { name: 'Step forward' });
-    const count = player.locator('.scrub .count');
+    const count = player.locator('g-transport .count');
     const prompt = player.getByText('Your call');
     const total = await stepTotal(count);
     const home = await viewportTop(forward);
@@ -141,10 +143,10 @@ test('an answered checkpoint also continues from Step forward, which stays where
   await page.locator('.predict .choice').first().click();
   await expect(forward).toBeEnabled();
   const before = await viewportTop(forward);
-  const step = await page.locator('app-player .scrub .count').textContent();
+  const step = await page.locator('app-player g-transport .count').textContent();
   await forward.click();
   await expect(page.getByText('Your call')).toBeHidden();
-  await expect(page.locator('app-player .scrub .count')).not.toHaveText(step!);
+  await expect(page.locator('app-player g-transport .count')).not.toHaveText(step!);
   await expectUnmoved(forward, before, 'Step forward after continuing with it');
 });
 
@@ -330,11 +332,11 @@ test('a checkpoint reached in play while the Timeline has focus takes it, its pr
     await page.goto('/visualize/binary-search');
     const player = page.locator('app-player');
     await player.locator('.panel-col').evaluate((r) => r.scrollTo({ top: r.scrollHeight }));
+    await openPlayback(page);
     await player.getByRole('button', { name: 'Play', exact: true }).focus();
     await page.keyboard.press('Enter');
     const timeline = player.getByRole('slider', { name: 'Timeline' });
-    for (let tabs = 0; tabs < 6 && !(await timeline.evaluate((el) => el === document.activeElement)); tabs++)
-      await page.keyboard.press('Tab');
+    await timeline.focus();
     await expect(timeline).toBeFocused();
     await expectPromptFocused(page, `from the Timeline at ${size.width}×${size.height}`);
   }
@@ -346,10 +348,11 @@ test(
   async ({ page }) => {
     await page.goto('/visualize/binary-search');
     const player = page.locator('app-player');
-    const speed = player.getByRole('button', { name: /^Playback speed/ });
-    await speed.click();
-    await speed.click();
-    await expect(speed).toHaveAccessibleName('Playback speed 4×');
+    await openPlayback(page);
+    const fastest = player.getByRole('radiogroup', { name: 'Speed' }).getByRole('radio', { name: '4×' });
+    await fastest.click();
+    await expect(fastest).toHaveAttribute('aria-checked', 'true');
+    await page.keyboard.press('Escape');
     await player.getByRole('button', { name: 'Play', exact: true }).click();
     await player.locator('.input').getByRole('button', { name: 'Edit' }).click();
     const field = player.getByRole('textbox', { name: /^Sorted numbers/ });
@@ -409,11 +412,11 @@ test(
     await page.goto('/visualize/dijkstra');
     const player = page.locator('app-player');
     await player.getByText('Predict mode').click();
-    const count = player.locator('.scrub .count');
+    const count = player.locator('g-transport .count');
     const total = await stepTotal(count);
     for (let step = 1; step <= total; step++) {
       if (step > 1) {
-        await player.getByRole('slider', { name: 'Timeline' }).fill(String(step - 1));
+        await seekTimeline(page, step - 1);
         await expect(count).toHaveText(`${step} / ${total}`);
       }
       const over = await player.evaluate(
@@ -433,7 +436,7 @@ test('Play at an open checkpoint asks for the answer instead of playing on', { t
   await expect(play).toBeEnabled();
   await play.click();
   await expect(page.locator('.predict .prompt')).toBeFocused();
-  await expect(page.locator('app-player [role="status"]')).toHaveText('Answer the question to continue.');
+  await expect(page.locator('app-player [role="status"]')).toHaveText('Answer or skip to continue.');
   await expect(page.locator('.predict .verdict')).toHaveCount(0);
   expect((await recordedEvents(page)).map((e) => e.type)).not.toContain('predict.answered');
 
@@ -448,13 +451,14 @@ test('the key hint shows only with a fine pointer', { tag: '@player' }, async ({
   if (isMobile) await expect(hint).toBeHidden();
   else await expect(hint).toBeVisible();
   if (isMobile) return;
-  // A short wide window has no column for the hint, so the dock keeps its buttons over the timeline.
+  // A short wide window gets the dock with ⋯, which has no room for the hint, and nothing in it overflows.
   await page.setViewportSize({ width: 1280, height: 500 });
   await expect(hint).toBeHidden();
+  await expect(page.getByRole('button', { name: 'More playback controls' })).toBeVisible();
   const dock = await page
-    .locator('app-player .controls')
-    .evaluate((c) => ({ rows: getComputedStyle(c).gridTemplateRows.split(' ').length, over: c.scrollHeight - c.clientHeight }));
-  expect(dock).toEqual({ rows: 2, over: 0 });
+    .locator('app-player g-transport')
+    .evaluate((d) => ({ over: d.scrollHeight - d.clientHeight, wide: d.scrollWidth - d.clientWidth }));
+  expect(dock).toEqual({ over: 0, wide: 0 });
 });
 
 test('the intro behind ⓘ names the visualizer and leads to its pattern and problem', { tag: '@player' }, async ({ page }) => {

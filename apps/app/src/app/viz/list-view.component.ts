@@ -52,7 +52,7 @@ import { uniqueId } from '../core/unique-id';
       background: var(--g-raised);
       border: 1px solid var(--g-line-strong);
       text-align: center;
-      animation: pop 0.25s ease-out;
+      animation: pop var(--g-motion-quick) var(--g-ease-enter);
     }
     .items.vertical .item {
       overflow: hidden;

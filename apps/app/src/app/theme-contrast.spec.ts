@@ -75,6 +75,33 @@ const CODE_TOKENS = [
 ];
 const CODE_LINES = [[], ['code-active-line'], ['code-trace-line'], ['code-error-line'], ['code-selection']];
 
+/** Where a diagram draws: the player's stage, a card's surface, or the page itself on a review card. */
+const VIZ_BACKDROPS = ['viz-stage', 'surface', 'bg'];
+/** The checkpoint ticks' colours: pending, right, missed and skipped. */
+const TICKS = ['text', 'viz-final-ink', 'viz-critical', 'viz-discarded-ink'];
+
+/**
+ * Every diagram role token (REDESIGN.md 3.6) and how it is checked, so a new one cannot ship unchecked. Exempt, by design:
+ * `viz-dim`, an opacity whose dimmed text takes the discarded ink instead, and the discarded marks' 40% fade, whose
+ * mandatory second encoding is the hatch, checked here at full opacity.
+ */
+const VIZ: Record<string, 'backdrop' | 'mark and label' | 'ink' | 'soft fill' | 'text' | 'text and mark' | 'mark' | 'track' | 'exempt'> = {
+  'viz-stage': 'backdrop',
+  'viz-current': 'mark and label',
+  'viz-current-ink': 'ink',
+  'viz-current-soft': 'soft fill',
+  'viz-considering': 'mark',
+  'viz-considering-soft': 'soft fill',
+  'viz-final': 'mark',
+  'viz-final-soft': 'soft fill',
+  'viz-final-ink': 'text',
+  'viz-discarded-ink': 'text and mark',
+  'viz-critical': 'text and mark',
+  'viz-track': 'track',
+  'viz-dim': 'exempt',
+};
+const vizOf = (kinds: string[]) => Object.keys(VIZ).filter((token) => kinds.includes(VIZ[token]));
+
 describe('theme contrast', () => {
   it('measures as WCAG does', () => {
     expect(contrast([0, 0, 0], [255, 255, 255])).toBeCloseTo(21, 5);
@@ -127,6 +154,29 @@ describe('theme contrast', () => {
       graphic('knob', 'stroke'),
       graphic('on-fill', 'accent'),
     ];
+    expect(failures(checks)).toEqual([]);
+  });
+
+  it('classifies every diagram token in both themes', () => {
+    const declared = (theme: Theme) => [...TOKENS[theme].keys()].filter((name) => name.startsWith('viz-') && !name.endsWith('-rgb')).sort();
+    expect(declared('light')).toEqual(Object.keys(VIZ).sort());
+    expect(declared('dark')).toEqual(Object.keys(VIZ).sort());
+  });
+
+  it('keeps diagram text at 4.5:1 and marks at 3:1 wherever a diagram draws', () => {
+    const checks = VIZ_BACKDROPS.flatMap((backdrop) => [
+      ...vizOf(['text', 'text and mark', 'mark and label']).map((fore) => text(fore, backdrop)),
+      ...vizOf(['soft fill']).map((fill) => text('text', backdrop, fill)),
+      text('viz-final-ink', backdrop, 'viz-final-soft'),
+      text('viz-final-ink', backdrop, 'window', 'viz-final-soft'),
+      text('viz-final-ink', backdrop, 'state-path-fill'),
+      ...vizOf(['mark', 'mark and label', 'text and mark']).map((mark) => graphic(mark, backdrop)),
+    ]);
+    expect(failures([...checks, text('viz-current-ink', 'viz-current')])).toEqual([]);
+  });
+
+  it('keeps checkpoint ticks and the thumb at 3:1 on the track, and ticks on their halo', () => {
+    const checks = [...TICKS.flatMap((tick) => [graphic(tick, 'viz-track'), graphic(tick, 'bg')]), graphic('accent', 'viz-track')];
     expect(failures(checks)).toEqual([]);
   });
 });

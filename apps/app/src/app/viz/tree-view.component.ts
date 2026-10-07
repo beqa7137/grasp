@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { GRAPH_NODE_RADIUS, type NodeState, type TreeView } from '@grasp/engine';
 import { BADGE_LINE_HEIGHT, BADGE_ROOM, badgeHalfWidth, badgeLines, besideReach, placeBadges, wrapBadge, type Spot } from './badges';
+import { dims, type Focus } from './dim';
 import { toward, type Point } from './geometry';
 import { LegendComponent } from './legend.component';
 import { DRAWING_BOX, NODE_STYLES } from './node-styles';
@@ -167,7 +168,7 @@ export function layoutForest(tree: TreeView, room = NO_ROOM): { nodes: PlacedNod
         @if (n.blank) {
           <text class="blank" [attr.x]="n.x" [attr.y]="n.y">{{ n.label }}</text>
         } @else {
-          <g class="node" [attr.data-state]="n.state">
+          <g class="node" [attr.data-state]="n.state" [class.dim]="dims(focus(), { view: 'tree', id: n.id }, n.state === 'active')">
             @if (n.marked) {
               <circle class="ring" [attr.cx]="n.x" [attr.cy]="n.y" [attr.r]="radius + 4" />
             }
@@ -214,6 +215,9 @@ export class TreeViewComponent {
   readonly legend = input(true);
   /** The side room of every frame the page will show here (see `sideRoomFor`), so that the drawing keeps one width. */
   readonly room = input<SideRoom>();
+  /** A checkpoint's focus, which dims the other nodes. */
+  readonly focus = input<Focus>(null);
+  protected readonly dims = dims;
 
   protected readonly radius = RADIUS;
   protected readonly lineHeight = BADGE_LINE_HEIGHT;

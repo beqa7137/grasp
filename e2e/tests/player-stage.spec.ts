@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { expect, expectNoPageScroll, stepToCheckpoint, stepTotal, test } from './fixtures';
+import { expect, expectNoPageScroll, seekTimeline, stepToCheckpoint, stepTotal, test } from './fixtures';
 
 test('on a 320 px phone, every value of a long array fits its cell, and only the array scrolls sideways', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 700 });
@@ -42,7 +42,7 @@ for (const id of ['dijkstra', 'kruskal-mst']) {
     async ({ page }) => {
       await page.goto(`/visualize/${id}`);
       const player = page.locator('app-player');
-      const count = player.locator('.scrub .count');
+      const count = player.locator('g-transport .count');
       const prompt = player.getByText('Your call');
       const total = await stepTotal(count);
       let frame = await visualPlace(page);
@@ -91,7 +91,7 @@ for (const id of AUDITED) {
       const fit = await page.locator('app-player').evaluate((player, visualizer) => {
         const box = (selector: string) => player.querySelector(selector)!.getBoundingClientRect();
         const header = box('ion-header');
-        const dock = box('.controls');
+        const dock = box('g-transport');
         const scene = box('.scene');
         const panel = box('.panel-col');
         const prompt = box('.predict .prompt');
@@ -126,7 +126,7 @@ for (const id of ['tree-traversal', 'kruskal-mst']) {
       await page.goto(`/visualize/${id}`);
       const player = page.locator('app-player');
       await player.getByText('Predict mode').click();
-      const count = player.locator('.scrub .count');
+      const count = player.locator('g-transport .count');
       const total = await stepTotal(count);
       for (let step = 1; step <= total; step++) {
         if (step > 1) {
@@ -134,7 +134,7 @@ for (const id of ['tree-traversal', 'kruskal-mst']) {
           await expect(count).toHaveText(`${step} / ${total}`);
         }
         await expectNoPageScroll(page);
-        const dock = (await player.locator('.controls').boundingBox())!;
+        const dock = (await player.locator('g-transport').boundingBox())!;
         expect(dock.y + dock.height, `step ${step}: the dock's bottom`).toBeLessThanOrEqual(size.height + 0.5);
       }
     });
@@ -152,7 +152,7 @@ for (const id of ['tree-traversal', 'kruskal-mst', 'subsets-backtracking']) {
         await page.goto(`/visualize/${id}`);
         const player = page.locator('app-player');
         await player.getByText('Predict mode').click();
-        const count = player.locator('.scrub .count');
+        const count = player.locator('g-transport .count');
         const total = await stepTotal(count);
         const boxes = new Map<string, string>();
         for (let step = 1; step <= total; step++) {
@@ -203,8 +203,8 @@ test('at 320px the LCS table leaves its wrapped legend the room it needs in the 
   const first = await tablePlace(page);
   expect(first.lines, 'legend lines').toBeGreaterThan(1);
   expect(first.inside, 'the legend whole under the table, in the stage').toBe(true);
-  await player.getByRole('slider', { name: 'Timeline' }).fill('85');
-  await expect(player.locator('.scrub .count')).toHaveText('86 / 86');
+  await seekTimeline(page, 85);
+  await expect(player.locator('g-transport .count')).toHaveText('86 / 86');
   expect(await tablePlace(page), 'the last frame, with the answer path').toEqual(first);
 });
 
@@ -215,7 +215,7 @@ test('a table under an array keeps one size on every frame, with the array and i
     await page.goto('/visualize/minimum-xor-sum');
     const player = page.locator('app-player');
     await player.getByText('Predict mode').click();
-    const count = player.locator('.scrub .count');
+    const count = player.locator('g-transport .count');
     const total = await stepTotal(count);
     const first = await tablePlace(page);
     expect(first.inside, `the legend whole under the table at ${size.width}×${size.height}`).toBe(true);
@@ -267,11 +267,11 @@ for (const id of ['subarray-sum-prefix', 'single-number-xor', 'merge-intervals']
       await page.goto(`/visualize/${id}`);
       const player = page.locator('app-player');
       await player.getByText('Predict mode').click();
-      const count = player.locator('.scrub .count');
+      const count = player.locator('g-transport .count');
       const total = await stepTotal(count);
       for (let step = 1; step <= total; step++) {
         if (step > 1) {
-          await player.getByRole('slider', { name: 'Timeline' }).fill(String(step - 1));
+          await seekTimeline(page, step - 1);
           await expect(count).toHaveText(`${step} / ${total}`);
         }
         const held = { floor: true, square: true, labelsApart: true, legendBelow: true };
@@ -305,11 +305,11 @@ test('an array above a tree leaves the tree and its legend in the stage on every
   await page.goto('/visualize/trie');
   const player = page.locator('app-player');
   await player.getByText('Predict mode').click();
-  const count = player.locator('.scrub .count');
+  const count = player.locator('g-transport .count');
   const total = await stepTotal(count);
   for (let step = 1; step <= total; step++) {
     if (step > 1) {
-      await player.getByRole('slider', { name: 'Timeline' }).fill(String(step - 1));
+      await seekTimeline(page, step - 1);
       await expect(count).toHaveText(`${step} / ${total}`);
     }
     const out = await player.locator('.scene').evaluate((scene) => {

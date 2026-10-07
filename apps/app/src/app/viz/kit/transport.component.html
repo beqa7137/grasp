@@ -1,0 +1,91 @@
+<div class="buttons">
+  <button class="g-btn ghost icon wide" (click)="restart.emit()" aria-label="Restart">
+    <ion-icon name="refresh" aria-hidden="true" />
+  </button>
+  <button class="g-btn icon" (click)="back.emit()" [disabled]="!canBack()" aria-label="Step back">
+    <ion-icon name="play-skip-back" aria-hidden="true" />
+  </button>
+  <button class="g-btn primary play" (click)="play.emit()" [attr.aria-label]="playing() ? 'Pause' : 'Play'">
+    <ion-icon [name]="playing() ? 'pause' : 'play'" aria-hidden="true" />
+  </button>
+  <button class="g-btn icon" (click)="forward.emit()" [disabled]="!canForward()" aria-label="Step forward">
+    <ion-icon name="play-skip-forward" aria-hidden="true" />
+  </button>
+  <button class="g-btn ghost icon wide" (click)="nextCheckpoint.emit()" [disabled]="!hasNext()" aria-label="Next checkpoint">
+    <ion-icon name="diamond-outline" aria-hidden="true" />
+  </button>
+  <button class="g-btn ghost icon wide" (click)="toResult.emit()" [disabled]="atEnd()" aria-label="Jump to result">
+    <ion-icon name="flag-outline" aria-hidden="true" />
+  </button>
+</div>
+
+<div class="end">
+  <span class="count mono">{{ index() + 1 }} / {{ count() }}</span>
+  <button
+    #moreButton
+    class="g-btn ghost icon more-toggle"
+    aria-label="More playback controls"
+    [attr.aria-expanded]="moreOpen()"
+    [attr.aria-controls]="panelId"
+    (click)="toggleMore()"
+  >
+    <ion-icon name="ellipsis-horizontal" aria-hidden="true" />
+  </button>
+</div>
+
+<div class="more" [class.open]="moreOpen()" [id]="panelId" role="group" aria-label="Playback">
+  <div class="scrubber">
+    @if (bands().length) {
+      <div class="bands" aria-hidden="true">
+        @for (band of bands(); track $index) {
+          <i [class.odd]="band.odd" [style.--p]="band.p" [style.--span]="band.span"></i>
+        }
+      </div>
+    }
+    <div class="ticks" aria-hidden="true">
+      @for (tick of placedTicks(); track tick.at) {
+        <i class="tick" [attr.data-state]="tick.state" [style.--p]="tick.p"></i>
+      }
+    </div>
+    <input
+      #timeline
+      type="range"
+      min="0"
+      [max]="max()"
+      [value]="index()"
+      aria-label="Timeline"
+      [class.pointer-focus]="pointerFocus()"
+      [attr.aria-valuetext]="valueText()"
+      (input)="seek.emit(+$any($event.target).value)"
+      (keydown)="onTimelineKey($event)"
+      (blur)="pointerFocus.set(false)"
+    />
+    <div
+      class="drag"
+      aria-hidden="true"
+      (pointerdown)="onPointerDown($event)"
+      (pointermove)="onPointerMove($event)"
+      (pointerup)="onPointerUp($event)"
+      (pointercancel)="onPointerUp($event)"
+    ></div>
+    <span class="hold" aria-hidden="true">{{ holding() !== null ? 'Answer it, or skip?' : '' }}</span>
+  </div>
+
+  <div class="speed g-chip-radios" role="radiogroup" aria-label="Speed">
+    @for (s of speeds; track s.value) {
+      <button role="radio" [attr.aria-checked]="speed() === s.value" (click)="speedChange.emit(s.value)">{{ s.label }}</button>
+    }
+  </div>
+
+  <div class="actions">
+    <button class="g-btn ghost" (click)="fromMore('restart')"><ion-icon name="refresh" aria-hidden="true" />Restart</button>
+    <button class="g-btn ghost" (click)="fromMore('nextCheckpoint')" [disabled]="!hasNext()">
+      <ion-icon name="diamond-outline" aria-hidden="true" />Next checkpoint
+    </button>
+    <button class="g-btn ghost" (click)="fromMore('toResult')" [disabled]="atEnd()">
+      <ion-icon name="flag-outline" aria-hidden="true" />Jump to result
+    </button>
+  </div>
+</div>
+
+<div class="hint"><ng-content /></div>

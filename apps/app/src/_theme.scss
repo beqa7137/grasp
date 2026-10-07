@@ -46,15 +46,40 @@
   --g-pointer-alt: #9a2a08;
   @include rgb-token(predict, #536d00);
 
-  // Visualizer states: one look per state in every view and legend.
-  --g-state-current: var(--g-active);
-  --g-state-current-ink: var(--g-on-fill);
-  --g-state-frontier-fill: rgba(var(--g-warn-rgb), 0.16);
-  --g-state-frontier-line: var(--g-warn);
-  --g-state-done-fill: rgba(var(--g-found-rgb), 0.16);
-  --g-state-done-line: var(--g-found);
-  --g-state-path-fill: rgba(var(--g-found-rgb), 0.22);
-  --g-state-path-line: var(--g-found);
+  // Diagram roles (REDESIGN.md 3.6): each hue means one state, on the stage, and theme-contrast.spec.ts checks every one.
+  --g-viz-stage: #f7f8fb;
+  @include rgb-token(viz-current, #0b74ad);
+  --g-viz-current-ink: #ffffff;
+  --g-viz-current-soft: rgba(var(--g-viz-current-rgb), 0.16);
+  @include rgb-token(viz-considering, #c77700);
+  --g-viz-considering-soft: rgba(var(--g-viz-considering-rgb), 0.14);
+  @include rgb-token(viz-final, #12925f);
+  --g-viz-final-soft: rgba(var(--g-viz-final-rgb), 0.14);
+  // Final text can sit on the final wash inside the purple search window, where 3.6's #0a6b45 reaches only 4.2:1.
+  --g-viz-final-ink: var(--g-found-ink);
+  --g-viz-discarded-ink: #687082;
+  --g-viz-critical: #d42a49;
+  // Quiet enough that every checkpoint tick reaches 3:1 on it; the thumb marks the position.
+  --g-viz-track: #d3d7e0;
+  // Fills and strokes outside a checkpoint's focus fade to this; their text takes the discarded ink instead.
+  --g-viz-dim: 0.4;
+
+  --g-motion-quick: 120ms;
+  --g-motion-step: 240ms;
+  --g-motion-sheet: 280ms;
+  --g-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --g-ease-enter: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --g-ease-exit: cubic-bezier(0.3, 0, 0.8, 0.15);
+
+  // Visualizer states: one look per state in every view and legend, on the diagram roles.
+  --g-state-current: var(--g-viz-current);
+  --g-state-current-ink: var(--g-viz-current-ink);
+  --g-state-frontier-fill: var(--g-viz-considering-soft);
+  --g-state-frontier-line: var(--g-viz-considering);
+  --g-state-done-fill: var(--g-viz-final-soft);
+  --g-state-done-line: var(--g-viz-final);
+  --g-state-path-fill: rgba(var(--g-viz-final-rgb), 0.24);
+  --g-state-path-line: var(--g-viz-final);
   // Expanded cells are the most common state, so their outline stays quiet; their distance number marks them.
   --g-state-visited-fill: var(--g-accent-soft);
   --g-state-visited-line: rgba(var(--g-accent-rgb), 0.35);
@@ -114,6 +139,18 @@
   @include rgb-token(warn, #ffb547);
   --g-pointer-alt: #ff8a5c;
   @include rgb-token(predict, #d4f53c);
+
+  --g-viz-stage: #0e1118;
+  @include rgb-token(viz-current, #1f9fd0);
+  --g-viz-current-ink: #0b0d12;
+  @include rgb-token(viz-considering, #c08420);
+  --g-viz-considering-soft: rgba(var(--g-viz-considering-rgb), 0.18);
+  @include rgb-token(viz-final, #22ad74);
+  --g-viz-final-soft: rgba(var(--g-viz-final-rgb), 0.18);
+  --g-viz-final-ink: var(--g-found);
+  --g-viz-discarded-ink: var(--g-muted);
+  --g-viz-critical: #e5485f;
+  --g-viz-track: #2a3040;
 
   --g-wall: var(--g-stroke);
   --g-kind-lb: #7aa2ff;

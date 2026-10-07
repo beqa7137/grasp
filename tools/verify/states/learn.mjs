@@ -1,5 +1,5 @@
 import { PATTERN_CATALOG } from '@grasp/engine';
-import { answerFirst, settle, toEnd, toPredict } from '../lib.mjs';
+import { answerFirst, openPlayback, settle, toEnd, toPredict } from '../lib.mjs';
 
 const TWO_SUM = `function twoSum(nums, target) {
   const seen = new Map();
@@ -84,6 +84,38 @@ export function learnStates() {
       setup: async (p) => {
         await p.getByRole('button', { name: 'About this visualizer' }).click();
         await p.getByRole('dialog', { name: 'Binary Search' }).waitFor();
+        await settle(p, 500);
+      },
+    },
+    { id: 'player-binary-search-playback', path: '/visualize/binary-search', setup: openPlayback },
+    {
+      // Mid-drag, held on the first checkpoint with its chip showing.
+      id: 'player-binary-search-guard',
+      path: '/visualize/binary-search',
+      setup: async (p) => {
+        await openPlayback(p);
+        const thumb = await p.locator('g-transport .drag').boundingBox();
+        const tick = await p.locator('g-transport .tick').first().boundingBox();
+        await p.mouse.move(thumb.x + 8, thumb.y + thumb.height / 2);
+        await p.mouse.down();
+        await p.mouse.move(tick.x + tick.width / 2 + 6, thumb.y + thumb.height / 2, { steps: 4 });
+        await settle(p, 500);
+      },
+    },
+    {
+      // Binary search's default run asks three times; its answers are choices 2, 3 and 1.
+      id: 'player-binary-search-ticks',
+      path: '/visualize/binary-search',
+      setup: async (p) => {
+        for (const choice of [1, 0]) {
+          await toPredict(p);
+          await p.locator('.predict .choice').nth(choice).click();
+          await p.getByRole('button', { name: 'Continue →' }).click();
+          await p.locator('.predict').waitFor({ state: 'detached' });
+        }
+        await toPredict(p);
+        await p.locator('.predict .skip').click();
+        await openPlayback(p);
         await settle(p, 500);
       },
     },

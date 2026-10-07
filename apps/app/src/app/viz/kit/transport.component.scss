@@ -1,0 +1,283 @@
+@use '../../../chrome' as *;
+
+// The phone dock: back, play and forward, then the count and ⋯ at the end, on the bottom safe area. The
+// panel ⋯ opens may cover the region under the stage, never the stage itself.
+:host {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: 'buttons end';
+  align-items: center;
+  align-content: center;
+  column-gap: 8px;
+  padding-bottom: var(--ion-safe-area-bottom, 0px);
+  border-top: 1px solid var(--g-line);
+  background: var(--g-bg);
+}
+
+.buttons {
+  grid-area: buttons;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+
+.play {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  padding: 0;
+  ion-icon {
+    font-size: chrome-font-size(22px);
+  }
+}
+
+.wide,
+.hint {
+  display: none;
+}
+
+.end {
+  grid-area: end;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  min-width: 0;
+}
+
+.count {
+  font-size: chrome-font-size(12px);
+  color: var(--g-muted);
+  white-space: nowrap;
+}
+
+// ⋯ opens this above the dock: inline and non-modal, so focus and the checkpoint dock work as they do without it.
+.more {
+  display: none;
+
+  &.open {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 100%;
+    display: grid;
+    gap: 10px;
+    padding: 16px 0 12px;
+    border-top: 1px solid var(--g-line);
+    background: var(--g-bg);
+    box-shadow: var(--g-shadow-overlay);
+    animation: open var(--g-motion-sheet) var(--g-ease-enter);
+  }
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+// The track is drawn under the ticks and the thumb over them. The layer on top takes every pointer, so the native range
+// underneath answers only the keyboard and assistive tech, and a drag is guarded alike in every engine.
+.scrubber {
+  position: relative;
+  height: 44px;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(50% - 2px);
+    height: 4px;
+    background: var(--g-viz-track);
+  }
+}
+
+input[type='range'] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  appearance: none;
+  background: transparent;
+
+  &.pointer-focus {
+    outline: none;
+  }
+
+  @media (forced-colors: active) {
+    appearance: auto;
+  }
+
+  &::-webkit-slider-thumb {
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--g-accent);
+  }
+  &::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border: 0;
+    border-radius: 50%;
+    background: var(--g-accent);
+  }
+}
+
+.drag {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+  cursor: pointer;
+}
+
+// Both rows run from the thumb's centre at the first frame to its centre at the last, as the native range places it.
+.ticks,
+.bands {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+}
+
+.ticks {
+  top: 50%;
+
+  // 8px diamonds with a 3px stroke and a 2px halo of the page: pending hollow, right filled, skipped a thin grey outline,
+  // missed a critical ×, so no two states differ by colour alone.
+  .tick {
+    position: absolute;
+    left: calc(var(--p) * 100%);
+    width: 8px;
+    height: 8px;
+    translate: -50% -50%;
+    rotate: 45deg;
+    border: 3px solid var(--g-text);
+    background: var(--g-bg);
+    box-shadow: 0 0 0 2px var(--g-bg);
+
+    &[data-state='right'] {
+      border-color: var(--g-viz-final-ink);
+      background: var(--g-viz-final-ink);
+    }
+    &[data-state='skipped'] {
+      border-width: 2px;
+      border-color: var(--g-viz-discarded-ink);
+    }
+    &[data-state='missed'] {
+      border: 0;
+      background: none;
+      box-shadow: none;
+
+      &::before,
+      &::after {
+        content: '';
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 12px;
+        height: 3px;
+        translate: -50% -50%;
+        background: var(--g-viz-critical);
+      }
+      &::after {
+        rotate: 90deg;
+      }
+    }
+  }
+}
+
+.bands {
+  bottom: 6px;
+  height: 4px;
+
+  i {
+    position: absolute;
+    left: calc(var(--p) * 100%);
+    width: calc(var(--span) * 100%);
+    height: 100%;
+    background: var(--g-line-strong);
+
+    &.odd {
+      background: var(--g-stroke);
+    }
+  }
+}
+
+.hold {
+  position: absolute;
+  left: 50%;
+  // Just over the thumb, inside the bar and inside ⋯'s panel, so it never covers the caption above them.
+  bottom: calc(100% - 14px);
+  translate: -50% 0;
+  padding: 4px 10px;
+  border-radius: var(--g-radius-sm);
+  border: 1px solid var(--g-line-strong);
+  background: var(--g-raised);
+  box-shadow: var(--g-shadow-overlay);
+  font-size: chrome-font-size(12px);
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+
+  &:empty {
+    display: none;
+  }
+}
+
+// The desktop layout: one bar, the Timeline inline and no ⋯.
+@container player (min-width: 900px) and (min-height: 424px) {
+  :host {
+    grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+    grid-template-areas: 'buttons scrub end speed hint';
+    column-gap: 16px;
+  }
+  .wide {
+    display: inline-flex;
+  }
+  .play {
+    width: 52px;
+    height: 52px;
+  }
+  .more-toggle,
+  .actions {
+    display: none;
+  }
+  .more,
+  .more.open {
+    display: contents;
+  }
+  .scrubber {
+    grid-area: scrub;
+  }
+  .speed {
+    grid-area: speed;
+    flex-wrap: nowrap;
+    gap: 4px;
+
+    button {
+      min-width: 0;
+      padding: 0 8px;
+    }
+  }
+  .hint {
+    grid-area: hint;
+  }
+  @media (hover: hover) and (pointer: fine) and (min-width: 1280px) {
+    .hint {
+      display: block;
+    }
+  }
+}
+
+@keyframes open {
+  from {
+    translate: 0 8px;
+    opacity: 0;
+  }
+}

@@ -118,10 +118,17 @@ export async function toPredict(page) {
   return false;
 }
 
+/** Opens the player's ⋯ panel where the dock has one (below the desktop layout), so its Timeline and Speed show. */
+export async function openPlayback(page) {
+  const more = page.getByRole('button', { name: 'More playback controls' });
+  if ((await more.isVisible()) && (await more.getAttribute('aria-expanded')) !== 'true') await more.click();
+  await settle(page, 300);
+}
+
 /** Turns predict mode off and steps to the last frame, where a tree visualizer shows every badge. */
 export async function toEnd(page) {
   await page.getByText('Predict mode').click();
-  const [shown, total] = (await page.locator('app-player .scrub .count').textContent()).match(/\d+/g).map(Number);
+  const [shown, total] = (await page.locator('app-player g-transport .count').textContent()).match(/\d+/g).map(Number);
   const step = page.getByRole('button', { name: 'Step forward' });
   for (let i = shown; i < total; i++) await step.click();
   await page.locator('app-player .scene').scrollIntoViewIfNeeded();

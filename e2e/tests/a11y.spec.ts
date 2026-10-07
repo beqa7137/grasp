@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import type { Locator, Page } from '@playwright/test';
-import { JS_DIAMETER, JS_ISLANDS, expect, recordedEvents, seek, stepToCheckpoint, test, trace } from './fixtures';
+import { expect, JS_DIAMETER, JS_ISLANDS, recordedEvents, seek, seekTimeline, stepToCheckpoint, test, trace } from './fixtures';
 
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice'];
 const BLOCKING = new Set(['serious', 'critical']);
@@ -31,8 +31,8 @@ async function blockingViolations(page: Page, { contrastOnly = false } = {}): Pr
 
 /** Moves the timeline part of the way through and waits for the grid to show a cell in `state`. */
 async function seekGrid(page: Page, fraction: number, state: string) {
-  const timeline = page.getByRole('slider', { name: 'Timeline' });
-  await timeline.fill(String(Math.round(Number(await timeline.getAttribute('max')) * fraction)));
+  const max = Number(await page.locator('app-player input[type="range"]').getAttribute('max'));
+  await seekTimeline(page, Math.round(max * fraction));
   await expect(page.locator(`g-grid-view .cell[data-state="${state}"]`).first()).toBeVisible();
 }
 
@@ -208,7 +208,7 @@ test('stepping and playing from the focused stage leave its scroll alone', { tag
   await scene.focus();
   const top = await scene.evaluate((el) => el.scrollTop);
   await page.keyboard.press('ArrowRight');
-  await expect(page.locator('app-player .scrub .count')).toHaveText('2 / 86');
+  await expect(page.locator('app-player g-transport .count')).toHaveText('2 / 86');
   await page.keyboard.press('Space');
   await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible();
   await page.keyboard.press('Space');
@@ -223,7 +223,7 @@ test('the arrow keys still scroll a focused code panel sideways, and step the pl
   expect(await code.evaluate((el) => el.scrollWidth > el.clientWidth), 'the code is wider than its panel').toBe(true);
   await code.focus();
   await page.keyboard.press('ArrowRight');
-  await expect(page.locator('app-player .scrub .count')).toHaveText('2 / 86');
+  await expect(page.locator('app-player g-transport .count')).toHaveText('2 / 86');
   await expect.poll(() => code.evaluate((el) => el.scrollLeft), { message: 'the panel scrolled sideways' }).toBeGreaterThan(0);
 });
 

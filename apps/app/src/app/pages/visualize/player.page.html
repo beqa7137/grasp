@@ -28,22 +28,35 @@
     <div class="player">
       <div class="layout" #layout>
         @if (frame(); as f) {
-          <div class="scene panel" role="group" aria-roledescription="visualization" [attr.aria-label]="a.title" tabindex="0">
+          <div
+            class="scene panel"
+            [class.instant]="speed() === 'instant'"
+            role="group"
+            aria-roledescription="visualization"
+            [attr.aria-label]="a.title"
+            tabindex="0"
+          >
             <div class="viz" [class.listed]="listed()" [class.column]="column()">
               @if (f.array) {
-                <g-array-view [view]="f.array" [aligned]="alignedOutput()" [longest]="longestArrayValue()" [band]="arrayBand()" />
+                <g-array-view
+                  [view]="f.array"
+                  [aligned]="alignedOutput()"
+                  [longest]="longestArrayValue()"
+                  [band]="arrayBand()"
+                  [focus]="checkpointFocus()"
+                />
               }
               @if (f.grid) {
-                <g-grid-view [view]="f.grid" />
+                <g-grid-view [view]="f.grid" [focus]="checkpointFocus()" />
               }
               @if (f.table) {
-                <g-table-view [view]="f.table" />
+                <g-table-view [view]="f.table" [focus]="checkpointFocus()" />
               }
               @if (f.graph) {
-                <g-graph-view [view]="f.graph" />
+                <g-graph-view [view]="f.graph" [focus]="checkpointFocus()" />
               }
               @if (f.tree) {
-                <g-tree-view [view]="f.tree" [room]="treeRoom()" />
+                <g-tree-view [view]="f.tree" [room]="treeRoom()" [focus]="checkpointFocus()" />
               }
               @if (f.stack || f.queue || f.set || (f.output && !alignedOutput())) {
                 <div class="aux">
@@ -123,6 +136,8 @@
                   </p>
                 </div>
                 <button class="g-btn primary continue" (click)="continueAfterPredict()">Continue →</button>
+              } @else {
+                <button class="g-btn ghost skip" (click)="skip()">Skip</button>
               }
             </div>
           }
@@ -218,48 +233,31 @@
           </aside>
         </div>
 
-        <div class="controls">
-          <div class="buttons">
-            <button class="g-btn ghost icon" (click)="reset()" aria-label="Restart">
-              <ion-icon name="refresh" aria-hidden="true" />
-            </button>
-            <button class="g-btn icon" (click)="prev()" [disabled]="index() === 0" aria-label="Step back">
-              <ion-icon name="play-skip-back" aria-hidden="true" />
-            </button>
-            <button class="g-btn primary play" (click)="togglePlay()" [attr.aria-label]="playing() ? 'Pause' : 'Play'">
-              <ion-icon [name]="playing() ? 'pause' : 'play'" aria-hidden="true" />
-            </button>
-            <button
-              class="g-btn icon"
-              (click)="next()"
-              [disabled]="pending()?.choice === null || (index() === last() && !frame()?.predict)"
-              aria-label="Step forward"
-            >
-              <ion-icon name="play-skip-forward" aria-hidden="true" />
-            </button>
-            <button class="g-btn ghost speed mono" (click)="cycleSpeed()" [attr.aria-label]="'Playback speed ' + speed() + '×'">
-              {{ speed() }}×
-            </button>
-          </div>
-          <div class="scrub">
-            <div class="marks">
-              @for (m of predictMarks(); track $index) {
-                <i [style.left.%]="m"></i>
-              }
-            </div>
-            <input
-              type="range"
-              min="0"
-              [max]="last()"
-              [value]="index()"
-              (input)="seek(+$any($event.target).value)"
-              aria-label="Timeline"
-              [attr.aria-valuetext]="'Step ' + (index() + 1) + ' of ' + frames().length"
-            />
-            <span class="count mono">{{ index() + 1 }} / {{ frames().length }}</span>
-          </div>
-          <p class="keys muted">← → step · space play{{ shortcuts.characterKeys() ? ' · 1–4 answer' : '' }}</p>
-        </div>
+        <g-transport
+          [index]="index()"
+          [count]="frames().length"
+          [ticks]="ticks()"
+          [chapters]="chapters()"
+          [playing]="playing()"
+          [speed]="speed()"
+          [canBack]="index() > 0"
+          [canForward]="pending()?.choice !== null && (index() < last() || !!frame()?.predict)"
+          [guard]="predictMode()"
+          [asking]="!!pending()"
+          (seek)="seek($event)"
+          (back)="prev()"
+          (forward)="next()"
+          (play)="togglePlay()"
+          (restart)="reset()"
+          (nextCheckpoint)="nextCheckpoint(1)"
+          (previousCheckpoint)="nextCheckpoint(-1)"
+          (toResult)="seek(last())"
+          (speedChange)="speed.set($event)"
+          (skipTick)="skipTick($event)"
+          (holdRelease)="holdRelease($event)"
+        >
+          <p class="keys muted">← → step · ⇧← → checkpoint · space play{{ shortcuts.characterKeys() ? ' · 1–4 answer' : '' }}</p>
+        </g-transport>
       </div>
     </div>
   } @else {

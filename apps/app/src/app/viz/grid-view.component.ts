@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import type { GridView } from '@grasp/engine';
+import { DIM_CELL, dims, type Focus } from './dim';
 
 @Component({
   selector: 'g-grid-view',
@@ -8,7 +9,7 @@ import type { GridView } from '@grasp/engine';
     <div class="grid" [style.--cols]="cols()">
       @for (row of view().cells; track r; let r = $index) {
         @for (cell of row; track c; let c = $index) {
-          <div class="cell" [attr.data-state]="cell">
+          <div class="cell" [attr.data-state]="cell" [class.dim]="dims(focus(), { view: 'grid', at: [r, c] }, cell === 'current')">
             @if (cell === 'start') {
               <span class="tag">S</span>
             } @else if (cell === 'goal') {
@@ -27,103 +28,112 @@ import type { GridView } from '@grasp/engine';
       <span><i data-state="path"></i>shortest path</span>
     </div>
   `,
-  styles: `
-    :host {
-      display: block;
-      width: 100%;
-    }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(var(--cols), 1fr);
-      gap: 4px;
-      max-width: calc(var(--cols) * 52px);
-      margin: 0 auto;
-    }
-    .cell {
-      aspect-ratio: 1;
-      border-radius: 8px;
-      background: var(--g-raised);
-      border: 1px solid var(--g-line);
-      display: grid;
-      place-items: center;
-      transition:
-        background 0.3s,
-        border-color 0.3s,
-        transform 0.3s;
-    }
-    .cell[data-state='wall'] {
-      background: var(--g-wall);
-      border-color: var(--g-wall);
-      background-image: repeating-linear-gradient(45deg, transparent 0 5px, var(--g-wall-hatch) 5px 10px);
-    }
-    .cell[data-state='frontier'],
-    .legend i[data-state='frontier'] {
-      background: var(--g-state-frontier-fill);
-      border-color: var(--g-state-frontier-line);
-      border-style: dashed;
-    }
-    .cell[data-state='visited'],
-    .legend i[data-state='visited'] {
-      background: var(--g-state-visited-fill);
-      border-color: var(--g-state-visited-line);
-    }
-    .cell[data-state='current'],
-    .legend i[data-state='current'] {
-      background: var(--g-state-current);
-      border-color: var(--g-state-current);
-    }
-    .cell[data-state='current'] {
-      transform: scale(1.08);
-    }
-    .cell[data-state='current'] .d {
-      color: var(--g-state-current-ink);
-      font-weight: 700;
-    }
-    .cell[data-state='path'],
-    .legend i[data-state='path'] {
-      background: var(--g-state-path-fill);
-      border-color: var(--g-state-path-line);
-    }
-    .cell[data-state='start'],
-    .cell[data-state='goal'] {
-      border-color: var(--g-text);
-    }
-    .tag {
-      white-space: nowrap;
-      font: 700 13px/1 var(--g-font-display);
-    }
-    .d {
-      white-space: nowrap;
-      font: 11px/1 var(--g-font-mono);
-      color: var(--g-text);
-    }
-    .cell[data-state='visited'] .d {
-      color: var(--g-muted);
-    }
-    .legend {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 14px;
-      justify-content: center;
-      margin-top: 14px;
-      font-size: 0.75rem;
-      color: var(--g-muted);
-    }
-    .legend span {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .legend i {
-      width: 12px;
-      height: 12px;
-      border-radius: 3px;
-      display: inline-block;
-      border: 1px solid;
-    }
-  `,
+  styles: [
+    DIM_CELL,
+    `
+      :host {
+        display: block;
+        width: 100%;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(var(--cols), 1fr);
+        gap: 4px;
+        max-width: calc(var(--cols) * 52px);
+        margin: 0 auto;
+      }
+      .cell {
+        aspect-ratio: 1;
+        border-radius: 8px;
+        background: var(--g-raised);
+        border: 1px solid var(--g-line);
+        display: grid;
+        place-items: center;
+        transition:
+          background var(--g-motion-step),
+          border-color var(--g-motion-step),
+          transform var(--g-motion-step);
+      }
+      .cell[data-state='wall'] {
+        background: var(--g-wall);
+        border-color: var(--g-wall);
+        background-image: repeating-linear-gradient(45deg, transparent 0 5px, var(--g-wall-hatch) 5px 10px);
+      }
+      .cell[data-state='frontier'],
+      .legend i[data-state='frontier'] {
+        background: var(--g-state-frontier-fill);
+        border-color: var(--g-state-frontier-line);
+        border-style: dashed;
+      }
+      .cell[data-state='visited'],
+      .legend i[data-state='visited'] {
+        background: var(--g-state-visited-fill);
+        border-color: var(--g-state-visited-line);
+      }
+      .cell[data-state='current'],
+      .legend i[data-state='current'] {
+        background: var(--g-state-current);
+        border-color: var(--g-state-current);
+      }
+      .cell[data-state='current'] {
+        transform: scale(1.08);
+      }
+      .cell[data-state='current'] .d {
+        color: var(--g-state-current-ink);
+        font-weight: 700;
+      }
+      .cell[data-state='path'],
+      .legend i[data-state='path'] {
+        background: var(--g-state-path-fill);
+        border-color: var(--g-state-path-line);
+      }
+      .cell[data-state='start'],
+      .cell[data-state='goal'] {
+        border-color: var(--g-text);
+      }
+      .tag {
+        white-space: nowrap;
+        font: 700 13px/1 var(--g-font-display);
+      }
+      .d {
+        white-space: nowrap;
+        font: 11px/1 var(--g-font-mono);
+        color: var(--g-text);
+      }
+      .cell[data-state='visited'] .d {
+        color: var(--g-muted);
+      }
+      .cell.dim :is(.d, .tag) {
+        color: var(--g-viz-discarded-ink);
+      }
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        justify-content: center;
+        margin-top: 14px;
+        font-size: 0.75rem;
+        color: var(--g-muted);
+      }
+      .legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .legend i {
+        width: 12px;
+        height: 12px;
+        border-radius: 3px;
+        display: inline-block;
+        border: 1px solid;
+      }
+    `,
+  ],
 })
 export class GridViewComponent {
   readonly view = input.required<GridView>();
+  /** A checkpoint's focus, which dims the other cells. */
+  readonly focus = input<Focus>(null);
+  protected readonly dims = dims;
   readonly cols = computed(() => this.view().cells[0]?.length ?? 1);
 }

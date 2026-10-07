@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
 import { GRAPH_BOX, GRAPH_NODE_RADIUS, type EdgeState, type GraphView, type NodeState } from '@grasp/engine';
 import { uniqueId } from '../core/unique-id';
 import { BADGE_HALF_HEIGHT, placeBadges, type Spot } from './badges';
+import { dims, type Focus } from './dim';
 import { toward, type Point } from './geometry';
 import { LegendComponent } from './legend.component';
 import { DRAWING_BOX, NODE_STYLES } from './node-styles';
@@ -27,6 +28,7 @@ interface DrawnEdge {
   directed: boolean;
   label?: string;
   labelAt: Point;
+  dim: boolean;
 }
 
 interface DrawnNode {
@@ -37,6 +39,7 @@ interface DrawnNode {
   state: NodeState;
   badge?: string;
   badgeY: number;
+  dim: boolean;
 }
 
 const round = (n: number) => Math.round(n * 10) / 10;
@@ -76,16 +79,19 @@ const curveAt = (start: Point, control: Point, end: Point, t: number): Point => 
       @for (e of edges(); track e.id) {
         <path
           class="edge"
+          [class.dim]="e.dim"
           [attr.d]="e.d"
           [attr.data-state]="e.state"
           [attr.marker-end]="e.directed ? 'url(#' + markerId(e.state) + ')' : null"
         />
         @if (e.label) {
-          <text class="edge-label" [attr.data-state]="e.state" [attr.x]="e.labelAt.x" [attr.y]="e.labelAt.y">{{ e.label }}</text>
+          <text class="edge-label" [class.dim]="e.dim" [attr.data-state]="e.state" [attr.x]="e.labelAt.x" [attr.y]="e.labelAt.y">
+            {{ e.label }}
+          </text>
         }
       }
       @for (n of nodes(); track n.id) {
-        <g class="node" [attr.data-state]="n.state">
+        <g class="node" [attr.data-state]="n.state" [class.dim]="n.dim">
           <circle class="body" [attr.cx]="n.x" [attr.cy]="n.y" [attr.r]="radius" />
           <text class="label" [attr.x]="n.x" [attr.y]="n.y">{{ n.label }}</text>
           @if (n.badge) {
@@ -110,15 +116,15 @@ const curveAt = (start: Point, control: Point, end: Point, t: number): Point => 
         stroke: var(--g-stroke);
         stroke-width: 2;
         transition:
-          stroke 0.25s,
-          stroke-width 0.25s;
+          stroke var(--g-motion-step),
+          stroke-width var(--g-motion-step);
       }
       .edge[data-state='active'] {
-        stroke: var(--g-active);
+        stroke: var(--g-state-current);
         stroke-width: 3.5;
       }
       .edge[data-state='chosen'] {
-        stroke: var(--g-found);
+        stroke: var(--g-state-done-line);
         stroke-width: 3;
       }
       .edge[data-state='skipped'] {
@@ -129,10 +135,10 @@ const curveAt = (start: Point, control: Point, end: Point, t: number): Point => 
         fill: var(--g-stroke);
       }
       .arrow[data-state='active'] {
-        fill: var(--g-active);
+        fill: var(--g-state-current);
       }
       .arrow[data-state='chosen'] {
-        fill: var(--g-found);
+        fill: var(--g-state-done-line);
       }
       .arrow[data-state='skipped'] {
         fill: var(--g-faint);
@@ -148,10 +154,16 @@ const curveAt = (start: Point, control: Point, end: Point, t: number): Point => 
         stroke-linejoin: round;
       }
       .edge-label[data-state='active'] {
-        fill: var(--g-active);
+        fill: var(--g-state-current);
       }
       .edge-label[data-state='chosen'] {
-        fill: var(--g-found);
+        fill: var(--g-viz-final-ink);
+      }
+      .edge.dim {
+        stroke-opacity: var(--g-viz-dim);
+      }
+      .edge-label.dim {
+        fill: var(--g-viz-discarded-ink);
       }
     `,
   ],
@@ -159,6 +171,8 @@ const curveAt = (start: Point, control: Point, end: Point, t: number): Point => 
 export class GraphViewComponent {
   readonly view = input.required<GraphView>();
   readonly legend = input(true);
+  /** A checkpoint's focus, which dims the other nodes, and the edges not between two of its nodes. */
+  readonly focus = input<Focus>(null);
 
   /**
    * The box's full width, so every graph draws at one scale, but only the height its node rows and their badges reach: a
@@ -191,7 +205,7 @@ export class GraphViewComponent {
     const placed = this.placed();
     const edges = this.edges().map((e) => e.points);
     const centres = placeBadges(placed, edges, RADIUS, () => BADGE_SPOTS);
-    return placed.map((n, i) => ({ ...n, badgeY: centres[i].y }));
+    return placed.map((n, i) => ({ ...n, badgeY: centres[i].y, dim: this.dimmed(n) }));
   });
 
   readonly edges = computed<DrawnEdge[]>(() => {
@@ -216,9 +230,9 @@ export class GraphViewComponent {
         ? Array.from({ length: CURVE_PIECES + 1 }, (_, k) => curveAt(start, control, end, k / CURVE_PIECES))
         : [start, end];
       const curveMid = bends ? { x: (from.x + to.x) / 4 + control.x / 2, y: (from.y + to.y) / 4 + control.y / 2 } : mid;
-      return [
-        { id: `${i}:${e.from}-${e.to}`, d, points, state: e.state ?? 'idle', directed: e.directed, label: e.label, labelAt: curveMid },
-      ];
+      const state = e.state ?? 'idle';
+      const dim = state !== 'active' && (this.dimmed(from) || this.dimmed(to));
+      return [{ id: `${i}:${e.from}-${e.to}`, d, points, state, directed: e.directed, label: e.label, labelAt: curveMid, dim }];
     });
   });
 
@@ -227,6 +241,10 @@ export class GraphViewComponent {
     const active = v.nodes.find((n) => n.state === 'active');
     return `Graph with ${v.nodes.length} nodes and ${v.edges.length} edges${active ? `, current node ${active.label}` : ''}`;
   });
+
+  private dimmed(node: { id: string; state: NodeState }) {
+    return dims(this.focus(), { view: 'graph', id: node.id }, node.state === 'active');
+  }
 
   protected markerId(state: EdgeState) {
     return `${this.uid}-${state}`;

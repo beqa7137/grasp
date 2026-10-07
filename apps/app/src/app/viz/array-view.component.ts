@@ -13,6 +13,7 @@ import {
   viewChildren,
 } from '@angular/core';
 import type { ArrayView, Scalar } from '@grasp/engine';
+import { DIM_CELL, dims, type Focus } from './dim';
 
 interface PointerTag {
   name: string;
@@ -88,6 +89,7 @@ const POINTER_COLORS: Record<string, string> = {
             [class.settled]="settled().has($index)"
             [class.active]="active().has($index)"
             [class.found]="found().has($index)"
+            [class.dim]="dimmed().has($index)"
           >
             <span class="val">{{ value }}</span>
           </div>
@@ -115,179 +117,185 @@ const POINTER_COLORS: Record<string, string> = {
       }
     </div>
   `,
-  styles: `
-    /*
+  styles: [
+    DIM_CELL,
+    `
+      /*
      * The array scrolls sideways here rather than cut a value short or widen the page. The block padding keeps the active cell's
      * lift and glow and the window's rim inside the scroller; the margin gives it back.
      */
-    :host {
-      display: block;
-      width: 100%;
-      container-type: inline-size;
-      overflow-x: auto;
-      overflow-y: hidden;
-      padding-block: 6px;
-      margin-block: -6px;
-    }
-    @media (prefers-reduced-motion: no-preference) {
       :host {
-        scroll-behavior: smooth;
+        display: block;
+        width: 100%;
+        container-type: inline-size;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-block: 6px;
+        margin-block: -6px;
       }
-    }
-    /* Inside, since a parent that scrolls would cut off a ring drawn around it. */
-    :host(:focus-visible) {
-      outline-offset: -2px;
-    }
-    /*
+      @media (prefers-reduced-motion: no-preference) {
+        :host {
+          scroll-behavior: smooth;
+        }
+      }
+      /* Inside, since a parent that scrolls would cut off a ring drawn around it. */
+      :host(:focus-visible) {
+        outline-offset: -2px;
+      }
+      /*
      * 0.62em is a monospace character with a little to spare; --chrome is a cell's two margins, two 1px borders and 2px
      * either side.
      */
-    .track {
-      --cell: calc(100% / var(--n));
-      --gap: clamp(1px, 0.5vw, 3px);
-      --chrome: calc(2 * var(--gap) + 6px);
-      --fit: calc((100cqi / var(--n) - var(--chrome)) / (var(--chars) * 0.62));
-      --val-size: clamp(11px, min(2.6vw, var(--fit)), 16px);
-      --col-min: calc(var(--chars) * 0.62 * var(--val-size) + var(--chrome));
-      position: relative;
-      width: 100%;
-      min-width: calc(var(--n) * var(--col-min));
-      max-width: calc(var(--n) * 60px);
-      margin: 0 auto;
-    }
-    .pointers {
-      position: relative;
-    }
-    .ptr {
-      position: absolute;
-      bottom: calc(var(--row) * 22px + 4px);
-      left: calc(var(--i) * var(--cell));
-      width: var(--cell);
-      display: flex;
-      justify-content: center;
-      transition:
-        left 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
-        bottom 0.2s;
-    }
-    /*
+      .track {
+        --cell: calc(100% / var(--n));
+        --gap: clamp(1px, 0.5vw, 3px);
+        --chrome: calc(2 * var(--gap) + 6px);
+        --fit: calc((100cqi / var(--n) - var(--chrome)) / (var(--chars) * 0.62));
+        --val-size: clamp(11px, min(2.6vw, var(--fit)), 16px);
+        --col-min: calc(var(--chars) * 0.62 * var(--val-size) + var(--chrome));
+        position: relative;
+        width: 100%;
+        min-width: calc(var(--n) * var(--col-min));
+        max-width: calc(var(--n) * 60px);
+        margin: 0 auto;
+      }
+      .pointers {
+        position: relative;
+      }
+      .ptr {
+        position: absolute;
+        bottom: calc(var(--row) * 22px + 4px);
+        left: calc(var(--i) * var(--cell));
+        width: var(--cell);
+        display: flex;
+        justify-content: center;
+        transition:
+          left var(--g-motion-step) var(--g-ease-standard),
+          bottom var(--g-motion-quick);
+      }
+      /*
      * Auto margins centre a tag that fits its cell. One wider than its cell drops them and falls back on justify-content,
      * which at either end of the array lines it up with that end, so the scroller never cuts it off.
      */
-    .ptr.first {
-      justify-content: flex-start;
-    }
-    .ptr.last {
-      justify-content: flex-end;
-    }
-    .ptr span {
-      margin-inline: auto;
-      font: 600 11px/1 var(--g-font-mono);
-      white-space: nowrap;
-      color: var(--g-on-fill);
-      background: var(--c);
-      padding: 4px 6px 3px;
-      border-radius: 6px;
-    }
-    .ptr::after {
-      content: '';
-      position: absolute;
-      left: 50%;
-      bottom: -4px;
-      transform: translateX(-50%);
-      border: 4px solid transparent;
-      border-top-color: var(--c);
-      border-bottom: 0;
-    }
-    /* Columns share the track exactly; its min-width makes room for the longest value. */
-    .cells {
-      position: relative;
-      display: grid;
-      grid-template-columns: repeat(var(--n), minmax(0, 1fr));
-      gap: 0;
-    }
-    .window {
-      position: absolute;
-      top: -6px;
-      bottom: -6px;
-      left: calc(var(--from) * var(--cell));
-      width: calc((var(--to) - var(--from) + 1) * var(--cell));
-      background: var(--g-window);
-      border: 1px solid var(--g-window-line);
-      border-radius: 12px;
-      transition:
-        left 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
-        width 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
-    }
-    /*
+      .ptr.first {
+        justify-content: flex-start;
+      }
+      .ptr.last {
+        justify-content: flex-end;
+      }
+      .ptr span {
+        margin-inline: auto;
+        font: 600 11px/1 var(--g-font-mono);
+        white-space: nowrap;
+        color: var(--g-on-fill);
+        background: var(--c);
+        padding: 4px 6px 3px;
+        border-radius: 6px;
+      }
+      .ptr::after {
+        content: '';
+        position: absolute;
+        left: 50%;
+        bottom: -4px;
+        transform: translateX(-50%);
+        border: 4px solid transparent;
+        border-top-color: var(--c);
+        border-bottom: 0;
+      }
+      /* Columns share the track exactly; its min-width makes room for the longest value. */
+      .cells {
+        position: relative;
+        display: grid;
+        grid-template-columns: repeat(var(--n), minmax(0, 1fr));
+        gap: 0;
+      }
+      .window {
+        position: absolute;
+        top: -6px;
+        bottom: -6px;
+        left: calc(var(--from) * var(--cell));
+        width: calc((var(--to) - var(--from) + 1) * var(--cell));
+        background: var(--g-window);
+        border: 1px solid var(--g-window-line);
+        border-radius: 12px;
+        transition:
+          left var(--g-motion-step) var(--g-ease-standard),
+          width var(--g-motion-step) var(--g-ease-standard);
+      }
+      /*
      * The width is set, not automatic: an automatic width takes the 54px height cap through the aspect ratio, so a long
      * value would spill out.
      */
-    .cell {
-      position: relative;
-      width: calc(100% - 2 * var(--gap));
-      max-width: max(54px, var(--col-min) - 2 * var(--gap));
-      justify-self: center;
-      aspect-ratio: 1;
-      margin: var(--gap);
-      max-height: 54px;
-      border-radius: 10px;
-      background: var(--g-raised);
-      border: 1px solid var(--g-line-strong);
-      display: grid;
-      place-items: center;
-      transition:
-        background 0.25s,
-        border-color 0.25s,
-        opacity 0.25s,
-        transform 0.25s,
-        box-shadow 0.25s;
-    }
-    .val {
-      white-space: nowrap;
-      font: 600 var(--val-size) / 1 var(--g-font-mono);
-      color: var(--g-text);
-    }
-    .cell.settled {
-      background: transparent;
-      border-color: var(--g-line);
-    }
-    .cell.settled:not(.found) .val {
-      color: var(--g-muted);
-    }
-    .cell.active {
-      border-color: var(--g-state-current);
-      box-shadow: 0 0 0 3px rgba(var(--g-active-rgb), 0.18);
-      transform: translateY(-2px);
-    }
-    .cell.found {
-      background: var(--g-state-done-fill);
-      border-color: var(--g-state-done-line);
-      opacity: 1;
-    }
-    .cell.found .val {
-      color: var(--g-found-ink);
-    }
-    .indices {
-      display: grid;
-      grid-template-columns: repeat(var(--n), minmax(0, 1fr));
-      margin-top: 6px;
-    }
-    .indices span {
-      white-space: nowrap;
-      text-align: center;
-      font: 11px/1 var(--g-font-mono);
-      color: var(--g-faint);
-    }
-    /* Centred in the part of the track in view, however far it is scrolled. */
-    .row-label {
-      position: sticky;
-      left: 0;
-      display: block;
-      width: min(100%, 100cqi);
-      margin: 14px 0 8px;
-      text-align: center;
-    }
-  `,
+      .cell {
+        position: relative;
+        width: calc(100% - 2 * var(--gap));
+        max-width: max(54px, var(--col-min) - 2 * var(--gap));
+        justify-self: center;
+        aspect-ratio: 1;
+        margin: var(--gap);
+        max-height: 54px;
+        border-radius: 10px;
+        background: var(--g-raised);
+        border: 1px solid var(--g-line-strong);
+        display: grid;
+        place-items: center;
+        transition:
+          background var(--g-motion-step),
+          border-color var(--g-motion-step),
+          opacity var(--g-motion-step),
+          transform var(--g-motion-step),
+          box-shadow var(--g-motion-step);
+      }
+      .val {
+        white-space: nowrap;
+        font: 600 var(--val-size) / 1 var(--g-font-mono);
+        color: var(--g-text);
+      }
+      .cell.settled {
+        background: transparent;
+        border-color: var(--g-line);
+      }
+      .cell.settled:not(.found) .val {
+        color: var(--g-muted);
+      }
+      .cell.active {
+        border-color: var(--g-state-current);
+        box-shadow: 0 0 0 3px var(--g-viz-current-soft);
+        transform: translateY(-2px);
+      }
+      .cell.found {
+        background: var(--g-state-done-fill);
+        border-color: var(--g-state-done-line);
+        opacity: 1;
+      }
+      .cell.found .val {
+        color: var(--g-viz-final-ink);
+      }
+      .cell.dim .val {
+        color: var(--g-viz-discarded-ink);
+      }
+      .indices {
+        display: grid;
+        grid-template-columns: repeat(var(--n), minmax(0, 1fr));
+        margin-top: 6px;
+      }
+      .indices span {
+        white-space: nowrap;
+        text-align: center;
+        font: 11px/1 var(--g-font-mono);
+        color: var(--g-faint);
+      }
+      /* Centred in the part of the track in view, however far it is scrolled. */
+      .row-label {
+        position: sticky;
+        left: 0;
+        display: block;
+        width: min(100%, 100cqi);
+        margin: 14px 0 8px;
+        text-align: center;
+      }
+    `,
+  ],
 })
 export class ArrayViewComponent {
   readonly view = input.required<ArrayView>();
@@ -296,6 +304,8 @@ export class ArrayViewComponent {
   readonly longest = input(1);
   /** Pointer rows to keep room for when a frame has fewer, so that the array keeps one height from frame to frame. */
   readonly band = input(0);
+  /** A checkpoint's focus, which dims the other cells. */
+  readonly focus = input<Focus>(null);
   private readonly host: HTMLElement = inject(ElementRef).nativeElement;
   private readonly track = viewChild.required<ElementRef<HTMLElement>>('track');
   private readonly cells = viewChildren<ElementRef<HTMLElement>>('cell');
@@ -305,6 +315,10 @@ export class ArrayViewComponent {
   readonly settled = computed(() => new Set(this.view().settled ?? []));
   readonly active = computed(() => new Set(this.view().active ?? []));
   readonly found = computed(() => new Set(this.view().found ?? []));
+  readonly dimmed = computed(() => {
+    const focus = this.focus();
+    return new Set(this.view().values.flatMap((_, i) => (dims(focus, { view: 'array', at: i }, this.active().has(i)) ? [i] : [])));
+  });
 
   readonly pointers = computed<PointerTag[]>(() => {
     const seen = new Map<number, number>();

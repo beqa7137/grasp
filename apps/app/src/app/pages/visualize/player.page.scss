@@ -24,7 +24,7 @@ ion-title h1 {
 // Phone and tablet: the stage gets what is left after the caption's 48px, R's 240px and the dock. A longer caption takes
 // its room from R, never from the stage.
 .layout {
-  --dock-h: calc(80px + var(--ion-safe-area-bottom, 0px));
+  --dock-h: calc(56px + var(--ion-safe-area-bottom, 0px));
   --stage-h: clamp(200px, 100cqh - 48px - 240px - var(--dock-h), 420px);
   height: 100cqh;
   display: grid;
@@ -83,6 +83,13 @@ ion-title h1 {
   flex-direction: column;
   padding: 6px 10px;
   overflow: hidden auto;
+  background: var(--g-viz-stage);
+
+  // Instant: the steps snap, with no motion on the stage.
+  &.instant {
+    --g-motion-quick: 0s;
+    --g-motion-step: 0s;
+  }
 }
 
 // A drawing gets the stage's height less its legend, and less a first row of the lists when the run has any, so it keeps
@@ -282,6 +289,10 @@ ion-title h1 {
       color: var(--g-warn);
     }
   }
+  .skip {
+    margin-top: 8px;
+    width: 100%;
+  }
   // Sticky, so it shows under the verdict however far R has scrolled. It takes no tap for its first moments, since it can
   // appear where the answer just tapped was and a double tap would skip the verdict.
   .continue {
@@ -293,104 +304,14 @@ ion-title h1 {
   }
 }
 
-// The transport dock, on the bottom safe area: the buttons over the timeline on phone, one row on desktop.
-.controls {
+g-transport {
   grid-area: dock;
-  display: grid;
-  grid-template-areas: 'buttons' 'scrub';
-  align-content: center;
-  row-gap: 2px;
-  padding-bottom: var(--ion-safe-area-bottom, 0px);
-  border-top: 1px solid var(--g-line);
-  background: var(--g-bg);
-
-  .buttons {
-    grid-area: buttons;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 8px;
-  }
-  .play {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    padding: 0;
-    ion-icon {
-      font-size: 22px;
-    }
-  }
-  .speed {
-    min-width: 52px;
-    font-size: 0.8125rem;
-  }
-  .keys {
-    grid-area: keys;
-    display: none;
-    font-size: 0.71875rem;
-    margin: 0;
-  }
 }
 
-.scrub {
-  grid-area: scrub;
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-
-  // The input is as tall as a finger needs, and draws its 4px track as a background.
-  input[type='range'] {
-    flex: 1;
-    appearance: none;
-    height: 24px;
-    border-radius: 4px;
-    background: linear-gradient(var(--g-stroke), var(--g-stroke)) center / 100% 4px no-repeat;
-
-    @media (forced-colors: active) {
-      appearance: auto;
-    }
-
-    &::-webkit-slider-thumb {
-      appearance: none;
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-      background: var(--g-accent);
-      cursor: pointer;
-    }
-    &::-moz-range-thumb {
-      width: 16px;
-      height: 16px;
-      border: 0;
-      border-radius: 50%;
-      background: var(--g-accent);
-      cursor: pointer;
-    }
-  }
-  .marks {
-    position: absolute;
-    left: 8px;
-    right: calc(72px + 8px);
-    top: 50%;
-    height: 0;
-    pointer-events: none;
-    i {
-      position: absolute;
-      top: -7px;
-      width: 2px;
-      height: 14px;
-      border-radius: 1px;
-      background: var(--g-predict);
-      opacity: 0.8;
-    }
-  }
-  .count {
-    width: 72px;
-    text-align: right;
-    font-size: 0.75rem;
-    color: var(--g-muted);
-  }
+.keys {
+  margin: 0;
+  font-size: 0.71875rem;
+  white-space: nowrap;
 }
 
 .side {
@@ -556,17 +477,6 @@ ion-title h1 {
     align-self: start;
     max-height: 100%;
     overflow-y: auto;
-  }
-  .controls {
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    grid-template-areas: 'buttons scrub keys';
-    align-items: center;
-    column-gap: 20px;
-  }
-  @media (hover: hover) and (pointer: fine) {
-    .controls .keys {
-      display: block;
-    }
   }
 }
 
