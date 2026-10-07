@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 import { randomInt } from 'node:crypto';
 import { type GitHubUser, signInToGitHub } from '../support/github';
-import { expect, newClientIp, test } from './fixtures';
+import { expect, markMotionOff, newClientIp, test } from './fixtures';
 
 const ACTION = 'I traced the failure to an expired credential, I rotated it, I added an alert on missing files and I wrote the runbook.';
 
@@ -55,6 +55,7 @@ test("a signed-in learner's stories reach their other devices, with edits, delet
 
   const other = await browser.newContext({ baseURL: new URL(page.url()).origin });
   try {
+    await other.addInitScript(markMotionOff);
     await other.addInitScript(() => localStorage.setItem('CapacitorStorage.grasp.pilotNotice.v1', new Date().toISOString()));
     await other.setExtraHTTPHeaders({ 'x-forwarded-for': newClientIp() });
     await signInToGitHub(other, user);

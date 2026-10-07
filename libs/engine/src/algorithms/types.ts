@@ -91,6 +91,9 @@ export interface TreeView {
   legend?: TreeLegend;
 }
 
+/** One element of a frame's drawing: an array, table or grid cell by index, or a graph or tree node by id. */
+export type Locator = { view: 'array' | 'table' | 'grid'; at: number | [number, number] } | { view: 'graph' | 'tree'; id: string };
+
 export interface Prediction {
   /** Learner text: backticks mark code spans. */
   prompt: string;
@@ -100,6 +103,8 @@ export interface Prediction {
   ordered?: boolean;
   /** Learner text: backticks mark code spans. */
   explain: string;
+  /** What the question is about: while it is asked, the rest of the drawing dims. */
+  focus?: Locator[];
 }
 
 export interface Frame {
@@ -117,6 +122,8 @@ export interface Frame {
   graph?: GraphView;
   tree?: TreeView;
   predict?: Prediction;
+  /** The part of the run this frame belongs to, such as "Row 3 of 7"; consecutive frames share it. */
+  chapter?: string;
 }
 
 export type InputKind =

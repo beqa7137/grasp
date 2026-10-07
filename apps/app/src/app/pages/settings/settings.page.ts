@@ -3,6 +3,8 @@ import { AlertController, IonBackButton, IonButtons, IonContent, IonHeader, IonT
 import { ApiError, ApiService } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
 import { LearnerService } from '../../core/learner.service';
+import { MotionPreferenceService } from '../../core/motion-preference.service';
+import { type MotionPreference } from '../../core/motion';
 import { RovingSelectDirective } from '../../core/roving-select.directive';
 import { RuntimeConfigService } from '../../core/runtime-config.service';
 import { ShortcutsService } from '../../core/shortcuts.service';
@@ -49,6 +51,19 @@ import { type Choice, StudySettingsComponent } from './study-settings.component'
               @for (t of themes; track t.value) {
                 <button role="radio" [attr.aria-checked]="theme.preference() === t.value" (click)="theme.setPreference(t.value)">
                   {{ t.label }}
+                </button>
+              }
+            </div>
+          </div>
+          <div class="row" role="radiogroup" aria-labelledby="motion-label" aria-describedby="motion-hint">
+            <strong id="motion-label">Motion</strong>
+            <p class="muted small" id="motion-hint">
+              System follows your device's reduce motion setting. Page transitions follow this after the app restarts. On this device only.
+            </p>
+            <div class="g-chip-radios">
+              @for (m of motions; track m.value) {
+                <button role="radio" [attr.aria-checked]="motion.preference() === m.value" (click)="motion.setPreference(m.value)">
+                  {{ m.label }}
                 </button>
               }
             </div>
@@ -168,6 +183,12 @@ export class SettingsPage {
     { value: 'system', label: 'System' },
     { value: 'light', label: 'Light' },
     { value: 'dark', label: 'Dark' },
+  ];
+  readonly motion = inject(MotionPreferenceService);
+  readonly motions: Choice<MotionPreference>[] = [
+    { value: 'system', label: 'System' },
+    { value: 'reduced', label: 'Reduced' },
+    { value: 'full', label: 'Full' },
   ];
   readonly busy = signal(false);
 

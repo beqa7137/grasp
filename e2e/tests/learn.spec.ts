@@ -144,7 +144,7 @@ test.describe('warmed offline lessons', () => {
     await page.locator('ion-tab-button[tab="visualize"]').click();
     await page.locator('a.item[href="/visualize/binary-search"]').click();
     await expect(page.getByRole('heading', { name: 'Binary Search', level: 1 })).toBeVisible();
-    const counter = page.locator('app-player .scrub .count');
+    const counter = page.locator('app-player g-transport .count');
     const initial = await counter.textContent();
     await page.getByRole('button', { name: 'Step forward' }).click();
     await expect(counter).not.toHaveText(initial!);

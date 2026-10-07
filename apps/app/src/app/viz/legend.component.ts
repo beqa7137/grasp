@@ -58,10 +58,10 @@ export type LegendSwatch = 'state' | 'role';
       border-color: var(--g-state-done-line);
     }
     i[data-state='marked'] {
-      border-color: var(--g-found);
+      border-color: var(--g-state-done-line);
       box-shadow:
         0 0 0 2px var(--g-surface),
-        0 0 0 3.5px var(--g-found);
+        0 0 0 3.5px var(--g-state-done-line);
     }
     i[data-role] {
       border-radius: 3px;

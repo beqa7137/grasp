@@ -27,19 +27,7 @@ import {
   type Frame,
 } from '@grasp/engine';
 import { addIcons } from 'ionicons';
-import {
-  checkmarkCircle,
-  closeCircle,
-  diceOutline,
-  helpCircleOutline,
-  informationCircleOutline,
-  pause,
-  play,
-  playSkipBack,
-  playSkipForward,
-  refresh,
-  sparkles,
-} from 'ionicons/icons';
+import { checkmarkCircle, closeCircle, diceOutline, helpCircleOutline, informationCircleOutline, sparkles } from 'ionicons/icons';
 import { AnnouncerService } from '../../core/announcer.service';
 import { refocus, type FocusPlaces } from '../../core/focus';
 import { haptic } from '../../core/haptics';
@@ -54,6 +42,7 @@ import { GraphViewComponent } from '../../viz/graph-view.component';
 import { GridViewComponent } from '../../viz/grid-view.component';
 import { ListViewComponent } from '../../viz/list-view.component';
 import { TableViewComponent } from '../../viz/table-view.component';
+import { TransportComponent, stepInterval, type Band, type Speed, type Tick } from '../../viz/kit/transport.component';
 import { TreeViewComponent, sideRoomFor } from '../../viz/tree-view.component';
 import { firstSentence } from './first-sentence';
 import { PlayerIntroComponent, type PlayerIntroChoice } from './player-intro.component';
@@ -65,8 +54,6 @@ function alignedRow(f: Frame | undefined): AlignedRow | null {
   if (!f?.output || !f.array || f.tree || f.graph || f.table || f.output.items.length !== f.array.values.length) return null;
   return { label: f.output.label, values: f.output.items };
 }
-
-const SPEEDS = [0.5, 1, 2, 4];
 
 /** Where the learner types text, which a checkpoint never takes focus from; a slider, a switch or a read-only field is not. */
 const TYPING = [
@@ -97,6 +84,7 @@ const TYPING = [
     CodePanelComponent,
     CodeTextComponent,
     ListViewComponent,
+    TransportComponent,
   ],
   templateUrl: './player.page.html',
   styleUrl: './player.page.scss',
@@ -147,16 +135,9 @@ export class PlayerPage {
   readonly index = signal(0);
   readonly frame = computed(() => this.frames()[this.index()]);
   readonly last = computed(() => Math.max(0, this.frames().length - 1));
-  readonly predictMarks = computed(() =>
-    this.frames()
-      .map((f, i) => (f.predict ? i : -1))
-      .filter((i) => i >= 0)
-      .map((i) => (i / Math.max(1, this.last())) * 100),
-  );
 
   readonly playing = signal(false);
-  readonly speedIndex = signal(1);
-  readonly speed = computed(() => SPEEDS[this.speedIndex()]);
+  readonly speed = signal<Speed>(1);
 
   readonly introOpen = signal(false);
   /** Off for the render after Continue moves focus to the narration, which then reads it, so it is not read twice. */
@@ -164,10 +145,35 @@ export class PlayerPage {
 
   readonly predictMode = signal(true);
   readonly pending = signal<PredictState | null>(null);
-  readonly answered = signal(new Map<number, boolean>());
+  readonly answered = signal(new Map<number, 'right' | 'missed'>());
+  /** Checkpoints a drag or Skip went past. Stepping onto one with Predict mode on asks it again; an answer outranks a skip. */
+  readonly skipped = signal(new Set<number>());
   readonly score = computed(() => {
     const values = [...this.answered().values()];
-    return { correct: values.filter(Boolean).length, total: values.length };
+    return { correct: values.filter((v) => v === 'right').length, total: values.length };
+  });
+  readonly ticks = computed<Tick[]>(() =>
+    this.frames().flatMap((f, at) =>
+      f.predict ? [{ at, state: this.answered().get(at) ?? (this.skipped().has(at) ? 'skipped' : 'pending') }] : [],
+    ),
+  );
+  /** Runs of frames that share a chapter. */
+  readonly chapters = computed<Band[]>(() => {
+    const frames = this.frames();
+    const bands: Band[] = [];
+    frames.forEach((f, i) => {
+      if (!f.chapter) return;
+      const band = bands.at(-1);
+      if (band && band.end === i - 1 && frames[i - 1].chapter === f.chapter) band.end = i;
+      else bands.push({ start: i, end: i });
+    });
+    return bands;
+  });
+  /** While a checkpoint is open, what it is about; the rest of the drawing dims. */
+  readonly checkpointFocus = computed(() => {
+    const p = this.pending();
+    const focus = p ? this.frames()[p.frame]?.predict?.focus : undefined;
+    return focus?.length ? focus : null;
   });
 
   readonly alignedOutput = computed(() => alignedRow(this.frame()));
@@ -197,19 +203,7 @@ export class PlayerPage {
   private shownPending: PredictState | null = null;
 
   constructor() {
-    addIcons({
-      play,
-      pause,
-      playSkipBack,
-      playSkipForward,
-      refresh,
-      diceOutline,
-      sparkles,
-      checkmarkCircle,
-      closeCircle,
-      helpCircleOutline,
-      informationCircleOutline,
-    });
+    addIcons({ diceOutline, sparkles, checkmarkCircle, closeCircle, helpCircleOutline, informationCircleOutline });
 
     effect(() => {
       const algo = this.algo();
@@ -224,7 +218,7 @@ export class PlayerPage {
     effect(() => {
       clearInterval(this.timer);
       if (!this.playing()) return;
-      this.timer = setInterval(() => this.next(), 1100 / this.speed());
+      this.timer = setInterval(() => this.next(), stepInterval(this.speed()));
     });
 
     // A checkpoint opens in the dock, answering disables its choices and continuing removes it, so focus follows each change
@@ -300,6 +294,7 @@ export class PlayerPage {
     this.playing.set(false);
     this.pending.set(null);
     this.answered.set(new Map());
+    this.skipped.set(new Set());
     this.index.set(0);
   }
 
@@ -311,12 +306,7 @@ export class PlayerPage {
       return;
     }
     const i = this.index();
-    const f = this.frames()[i];
-    if (this.predictMode() && f?.predict && !this.answered().has(i)) {
-      this.playing.set(false);
-      this.pending.set({ frame: i, choice: null });
-      return;
-    }
+    if (this.ask(i)) return;
     if (i >= this.last()) {
       this.playing.set(false);
       return;
@@ -330,17 +320,50 @@ export class PlayerPage {
     this.index.update((i) => Math.max(0, i - 1));
   }
 
+  /** Every seek closes an open checkpoint and leaves it unanswered; only a held drag's release opens one (`holdRelease`). */
   seek(value: number) {
     this.quietNarration.set(false);
     this.pending.set(null);
-    this.index.set(Math.round(value));
+    this.index.set(Math.max(0, Math.min(this.last(), Math.round(value))));
+  }
+
+  holdRelease(at: number) {
+    this.seek(at);
+    this.ask(at);
+  }
+
+  skipTick(at: number) {
+    this.skipped.update((s) => new Set(s).add(at));
+  }
+
+  /** Seeks to the next checkpoint after this frame, or the one before it, and asks it when it is unanswered. */
+  nextCheckpoint(direction: 1 | -1 = 1) {
+    const i = this.index();
+    const at =
+      direction === 1
+        ? this.ticks().find((t) => t.at > i)
+        : this.ticks()
+            .filter((t) => t.at < i)
+            .at(-1);
+    if (!at) return;
+    this.playing.set(false);
+    this.seek(at.at);
+    this.ask(at.at);
+  }
+
+  skip() {
+    const p = this.pending();
+    if (!p || p.choice !== null) return;
+    this.skipTick(p.frame);
+    this.quietNarration.set(this.focusInDock());
+    this.leaveCheckpoint(p);
   }
 
   togglePlay() {
     const open = this.pending();
     if (open?.choice === null) {
       this.predictPrompt()?.nativeElement.focus();
-      this.announcer.announce('Answer the question to continue.');
+      this.announcer.announce('Answer or skip to continue.');
       return;
     }
     if (open) {
@@ -351,17 +374,13 @@ export class PlayerPage {
     this.playing.update((p) => !p);
   }
 
-  cycleSpeed() {
-    this.speedIndex.update((i) => (i + 1) % SPEEDS.length);
-  }
-
   choose(choice: number) {
     const p = this.pending();
     const predict = this.frames()[p?.frame ?? -1]?.predict;
     if (!p || p.choice !== null || !predict) return;
     const correct = choice === predict.answer;
     this.pending.set({ ...p, choice });
-    this.answered.update((m) => new Map(m).set(p.frame, correct));
+    this.answered.update((m) => new Map(m).set(p.frame, correct ? 'right' : 'missed'));
     void (correct ? haptic.success() : haptic.error());
     const algo = this.algo()!;
     void this.progress.record({ type: 'predict.answered', algorithmId: algo.id, patternId: algo.patternId, correct });
@@ -370,9 +389,21 @@ export class PlayerPage {
   continueAfterPredict() {
     const p = this.pending();
     if (!p || p.choice === null) return;
-    const active = document.activeElement;
-    this.quietNarration.set(!active || active === document.body || !!this.predictPanel()?.nativeElement.contains(active));
+    this.quietNarration.set(this.focusInDock());
     this.leaveCheckpoint(p);
+  }
+
+  private focusInDock() {
+    const active = document.activeElement;
+    return !active || active === document.body || !!this.predictPanel()?.nativeElement.contains(active);
+  }
+
+  /** Opens the checkpoint on frame `i` when Predict mode is on and it is unanswered; says whether it did. */
+  private ask(i: number): boolean {
+    if (!this.predictMode() || !this.frames()[i]?.predict || this.answered().has(i)) return false;
+    this.playing.set(false);
+    this.pending.set({ frame: i, choice: null });
+    return true;
   }
 
   private leaveCheckpoint(p: PredictState) {
@@ -426,6 +457,23 @@ export class PlayerPage {
       return;
     }
     const revealed = p !== null && p.choice !== null;
+    const jump =
+      e.shiftKey && e.key === 'ArrowRight'
+        ? () => this.nextCheckpoint(1)
+        : e.shiftKey && e.key === 'ArrowLeft'
+          ? () => this.nextCheckpoint(-1)
+          : e.key === 'Home'
+            ? () => this.seek(0)
+            : e.key === 'End'
+              ? () => this.seek(this.last())
+              : null;
+    if (jump) {
+      // A radio group takes Home and End for itself.
+      if (e.defaultPrevented) return;
+      e.preventDefault();
+      jump();
+      return;
+    }
     if (e.key === 'ArrowRight') {
       if (revealed) this.continueAfterPredict();
       else this.next();

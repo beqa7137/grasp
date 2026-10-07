@@ -20,8 +20,11 @@ interface Options {
   motionOff: boolean;
 }
 
-/** Init scripts run before <html> exists; the observer marks it at the microtask checkpoint before the first page script. */
-function markMotionOff() {
+/**
+ * Motion test mode for a context's pages. Init scripts run before <html> exists; the observer marks it at the microtask
+ * checkpoint before the first page script.
+ */
+export function markMotionOff() {
   const mark = () => document.documentElement?.setAttribute('data-motion', 'off');
   if (document.documentElement) return mark();
   new MutationObserver((_, observer) => {
@@ -127,13 +130,31 @@ export async function expectNoPageScroll(page: Page) {
 /** Steps a visualizer with `press` from where it is until a checkpoint asks for a prediction, waiting for each step to show. */
 export async function stepToCheckpoint(page: Page, press = () => page.getByRole('button', { name: 'Step forward' }).click()) {
   const prompt = page.getByText('Your call');
-  const count = page.locator('app-player .scrub .count');
+  const count = page.locator('app-player g-transport .count');
   const total = await stepTotal(count);
   for (let step = Number((await count.textContent())!.split('/')[0]); !(await prompt.isVisible()); step++) {
     expect(step, 'a checkpoint should come up').toBeLessThan(total);
     await press();
     await expect(page.getByText(`${step + 1} / ${total}`, { exact: true }).or(prompt)).toBeVisible();
   }
+}
+
+/** Opens the player's ⋯ panel where its dock has one (below the desktop layout), so the Timeline and Speed show. */
+export async function openPlayback(page: Page) {
+  await expect(page.locator('app-player g-transport .count')).toBeVisible();
+  const more = page.locator('app-player').getByRole('button', { name: 'More playback controls' });
+  if ((await more.isVisible()) && (await more.getAttribute('aria-expanded')) !== 'true') await more.click();
+  await expect(page.locator('app-player').getByRole('slider', { name: 'Timeline' })).toBeVisible();
+}
+
+/** Moves the player's Timeline to `step`, from ⋯ where the dock has one, closing ⋯ again so it covers nothing. */
+export async function seekTimeline(page: Page, step: number) {
+  await expect(page.locator('app-player g-transport .count')).toBeVisible();
+  const more = page.locator('app-player').getByRole('button', { name: 'More playback controls' });
+  const opened = (await more.isVisible()) && (await more.getAttribute('aria-expanded')) !== 'true';
+  if (opened) await more.click();
+  await page.locator('app-player').getByRole('slider', { name: 'Timeline' }).fill(String(step));
+  if (opened && (await more.getAttribute('aria-expanded')) === 'true') await more.click();
 }
 
 export const JS_DIAMETER = `function diameterOfBinaryTree(root) {

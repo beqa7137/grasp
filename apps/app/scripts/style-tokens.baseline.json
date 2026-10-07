@@ -293,8 +293,8 @@
     "font-size": 3
   },
   "app/pages/visualize/player.page.scss": {
-    "border-radius": 9,
-    "font-size": 21
+    "border-radius": 7,
+    "font-size": 18
   },
   "app/pages/visualize/visualize-list.page.ts": {
     "font-size": 4

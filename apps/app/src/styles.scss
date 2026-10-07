@@ -337,12 +337,29 @@ button.chip {
   }
 }
 
+// Reduced follows the device unless Settings › Motion says Full; `off` is the tools' test mode (core/motion.ts).
+// No transition at all: a duration of its own would make every property of every element transition for a frame, since
+// transition-property defaults to all, and a box read in that frame would still have its old size.
+@mixin no-motion {
+  animation-duration: 0.001ms !important;
+  transition: none !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion='full']) {
+    *,
+    *::before,
+    *::after {
+      @include no-motion;
+    }
+  }
+}
+
+:root:is([data-motion='reduced'], [data-motion='off']) {
   *,
   *::before,
   *::after {
-    animation-duration: 0.001ms !important;
-    transition-duration: 0.001ms !important;
+    @include no-motion;
   }
 }
 

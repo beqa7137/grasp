@@ -1918,7 +1918,8 @@ Iterations are ordered by impact, alternating between organization and visuals. 
   into (the Timeline slider, the Predict mode switch and a read-only field are not such fields). Region R then scrolls
   back to its top, or, beside such a field, only as far toward the dock as keeps the field in view; a checkpoint that
   does not get focus is announced ("Checkpoint: " and its question). The Predict mode switch and
-  the score sit in region R under the checkpoint (phone) or under the dock (desktop) until R3's ⋯. The review card's rating
+  the score sit in region R under the checkpoint (phone) or under the dock (desktop); R3 kept them there (its note), and
+  4.4's header switch moves them in R16 or R25. The review card's rating
   bar is sticky above the tab bar under 1024px only when the window is at least 480px tall.
 
 **R3 Transport and diagram palette.**
@@ -1932,6 +1933,45 @@ Iterations are ordered by impact, alternating between organization and visuals. 
   - Reduced motion turns off page transitions after a restart in e2e;
   - the scrub guard holds on an unanswered tick on all three devices.
 - **Content review:** none.
+- **R3 note:** `g-transport` (`viz/kit/transport.component.*`, pure guard logic in `viz/kit/scrub.ts`) replaces the
+  player's controls. The desktop layout gets one bar (Restart, Step back, Play, Step forward, Next checkpoint, Jump to
+  result, the Timeline, the count and Speed as chip radios; the key hint only from 1280px); every other layout gets 3.7's
+  56px phone dock (back, play, forward, "N / M", ⋯), so the stage gets the R2 timeline row's 24px back (Pixel 7 420px,
+  w320 294px). ⋯ opens an inline, non-modal group ("Playback") above the dock, over region R and never over the stage:
+  the Timeline with its ticks and bands, Speed, Restart, Next checkpoint and Jump to result; Describe (R19) and Presets
+  (R25) join it later. The count and the Timeline exist once in every layout. The Timeline stays a native range for the
+  keyboard, assistive tech and Playwright's `fill`, under a transparent layer that takes every pointer, so a drag is
+  guarded alike in Chromium and WebKit and with touch: it holds on the first unanswered tick it crosses, with the chip
+  "Answer it, or skip?" and a selection haptic (`selectionStart`, `selectionChanged`, `selectionEnd`, since iOS ticks only
+  inside a selection), until 24px more of drag from where the hold began skip it, so close ticks (LCS at 320px) skip at
+  most one per 24px; letting go while held opens that checkpoint; a tap is a drag of no length. Every other seek (keys,
+  Next checkpoint, Jump to result, `fill`) closes an open checkpoint and leaves it unanswered. Skip in the checkpoint dock
+  and a skipping drag record no event; a skipped tick asks again when stepped onto with Predict mode on. Ticks: pending
+  hollow, right filled, skipped a thin grey outline, missed a critical ×, so no two differ by hue alone, and the Timeline's
+  `aria-valuetext` adds ", checkpoint" and the outcome. Instant steps at 4×'s pace with the stage's motion tokens at 0s
+  (the plan's alternative, 1×'s dwell, would have put the fastest-looking speed in the middle); R19's `pace` replaces both.
+  The counter stays "N / M" (the phone form), since chapters have no data until R17/R18: `Frame.chapter` is added and
+  drawn as bands under the track, but not yet named in the count. The ticks need a quiet track, `--g-viz-track` (#2a3040
+  / #d3d7e0), on which every tick colour and the thumb reach 3:1. Palette: the `--g-viz-*` roles of 3.6 (stage, current
+  and its ink and soft fill, considering, final and its ink, discarded ink, critical, track, dim), on `:root` and the dark
+  palette, with `--g-state-*` re-pointed to them; dark's final ink is `--g-found` (#3ddc97), since #22ad74 on the path
+  fill over a surface is 4.36:1, and light's is `--g-found-ink` (#02583f), since #0a6b45 on the final wash inside
+  binary search's window is 4.22:1. Heat, guess and the longer motion tokens wait for their first renderer (R19, R20, R21).
+  `visited` keeps its purple wash until R19/R23 move the window and badges off purple too. Every legacy view's current
+  and final use takes the state tokens (graph edges, rings, the legend's marked swatch, the array's halo, the table's
+  active header, now text on `--g-viz-current-soft`); `POINTER_COLORS` stays until R19's `g-pointer` deletes it. The
+  dimming rule is built on `Prediction.focus` (with `Locator`, 3.4): while a checkpoint with a focus is open, the five
+  views fade the fills and strokes of the rest to `--g-viz-dim` (a layer of the stage's colour under an HTML cell's
+  text, `fill-opacity` and `stroke-opacity` in SVG) and switch its text to the discarded ink, never the current element;
+  no tracer authors a focus until R20, so no screen changes now. Motion: `core/motion.ts` applies the preference as
+  `data-motion` before bootstrap (from a `localStorage` mirror) and passes Ionic `animated`; Settings › Appearance ›
+  Motion stores it through `core/device-prefs.ts` (2.11). Theme and shortcuts keep
+  their own `Preferences` calls for now, a deliberate exception to extracting at the third copy: moved onto it, the module
+  became a 300-byte chunk of its own in first paint, one more request that cost 0.25 to 0.47s of `/learn`'s first paint
+  on the throttled phone (`timing.mjs`); R20, which adds the next preference, moves them once the module can sit in the
+  main chunk. Reduced and test mode turn
+  transitions off entirely (`transition: none`): the old 0.001ms duration made every property of every element transition
+  for a frame, since `transition-property` defaults to all.
 
 **R4 Engine release A** (invisible).
 

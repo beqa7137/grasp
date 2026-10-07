@@ -2,7 +2,7 @@ import type { BrowserContext, Page } from '@playwright/test';
 import { createHmac, randomBytes, randomInt } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import { type GitHubUser, collectGitHubResults, signInToGitHub } from '../support/github';
-import { expect, newClientIp, recordedEvents, synced, test } from './fixtures';
+import { expect, markMotionOff, newClientIp, recordedEvents, synced, test } from './fixtures';
 
 const CALLBACK_OPENERS_KEY = 'e2e.callbackOpeners';
 
@@ -127,6 +127,7 @@ test('a second device starts fresh after the account was deleted elsewhere and i
 
   const other = await browser.newContext({ baseURL: new URL(page.url()).origin });
   try {
+    await other.addInitScript(markMotionOff);
     await other.addInitScript(() => localStorage.setItem('CapacitorStorage.grasp.pilotNotice.v1', new Date().toISOString()));
     await other.setExtraHTTPHeaders({ 'x-forwarded-for': newClientIp() });
     await signInToGitHub(other, user);

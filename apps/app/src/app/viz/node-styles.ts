@@ -36,8 +36,8 @@ export const NODE_STYLES = `
     stroke: var(--g-stroke);
     stroke-width: 1.5;
     transition:
-      fill 0.25s,
-      stroke 0.25s;
+      fill var(--g-motion-step),
+      stroke var(--g-motion-step);
   }
   .node .label {
     font: 600 12px var(--g-font-mono);
@@ -64,8 +64,15 @@ export const NODE_STYLES = `
   }
   .node .ring {
     fill: none;
-    stroke: var(--g-found);
+    stroke: var(--g-state-done-line);
     stroke-width: 1.5;
+  }
+  .node.dim :is(.body, .ring) {
+    fill-opacity: var(--g-viz-dim);
+    stroke-opacity: var(--g-viz-dim);
+  }
+  .node.dim :is(.label, .badge) {
+    fill: var(--g-viz-discarded-ink);
   }
   .badge {
     font: 600 11px var(--g-font-mono);

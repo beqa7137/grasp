@@ -15,13 +15,14 @@ import { ShortcutsService } from './core/shortcuts.service';
 import { SerialPreloadingStrategy } from './core/serial-preloading.strategy';
 import { ThemeService } from './core/theme.service';
 
-export const appConfig: ApplicationConfig = {
+/** `animated` is whether Ionic animates page transitions, which it reads only here (`bootMotion`). */
+export const appConfig = ({ animated }: { animated: boolean }): ApplicationConfig => ({
   providers: [
     provideBrowserGlobalErrorListeners(),
     { provide: ErrorHandler, useClass: ReportingErrorHandler },
     { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },
     { provide: TitleStrategy, useClass: PageTitleStrategy },
-    provideIonicAngular({ mode: 'ios', navAnimation: iosTransitionAnimation }),
+    provideIonicAngular({ mode: 'ios', navAnimation: iosTransitionAnimation, animated }),
     provideRouter(routes, withComponentInputBinding(), withPreloading(SerialPreloadingStrategy)),
     provideAppInitializer(async () => {
       // Started first: loading the runtime config can wait on the network, and the theme should not.
@@ -42,4 +43,4 @@ export const appConfig: ApplicationConfig = {
       await Promise.all([pilot.init(), diagnosticPrompt.init(), reminders.init(), shortcuts.init(), themeReady]);
     }),
   ],
-};
+});

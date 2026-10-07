@@ -94,7 +94,8 @@ providers, so every sign-in test times out.
 ## audit.mjs
 
 Screenshots, axe violations, page errors and sideways overflow for every page state listed in `states/`, one file per
-area: `learn.mjs` (tabs, visualizers at a checkpoint and answered, review and practice cards and the review summary, the
+area: `learn.mjs` (tabs, visualizers at a checkpoint and answered, the player's ⋯ panel, a held scrub guard and its tick
+states, review and practice cards and the review summary, the
 code workspace and an accepted submission, the study plan empty and set, the placement check's question and results,
 dialogs), `design.mjs` (Design Lab, case studies and their widgets, design lessons) and `interview.mjs` (interviews, the
 mock loop at setup, between rounds and at its debrief, and behavioral). `lib.mjs` holds the browser helpers they share.
@@ -138,14 +139,17 @@ A full capture is 176 states, so a set of both themes on the four default profil
 ## Motion test mode
 
 The audit (`lib.mjs`) and Playwright (`e2e/tests/fixtures.ts`, on the context, so pages a test opens and popups get
-it too) set `data-motion="off"` on `<html>` from an init script, before any app script runs. It means test mode: every
-animation jumps to its end state, with no trail markers (unlike Reduced, which shows them). Nothing reads it yet: R3's
-Motion preference and R19's `MotionService` do. A Playwright test of the Motion setting itself turns it off with
-`test.use({ motionOff: false })`; `timing.mjs` never sets it, since it measures what learners get.
+it too; `markMotionOff` for a context a test opens itself) set `data-motion="off"` on `<html>` from an init script,
+before any app script runs. It means test mode: every animation jumps to its end state and no transition runs, with no
+trail markers (unlike Reduced, which shows them). Since R3 the app reads it: `core/motion.ts` (`bootMotion`, before
+bootstrap) keeps it over any Motion setting and boots Ionic with `animated: false`, so page and overlay transitions do not
+run at all, and the global rule in `styles.scss` stops CSS motion. The Motion setting never overwrites it. A Playwright
+test of the Motion setting itself turns it off with `test.use({ motionOff: false })`; `timing.mjs` never sets it, since
+it measures what learners get.
 
-The URL form, `?motion=off`, is R3's to add: its boot code keeps a `data-motion="off"` already present, treats
-`?motion=off` the same, and strips the parameter with `history.replaceState` so routes and URL assertions never see it.
-Until then the tools set only the attribute, which every consumer the spec names reads.
+The URL form, `?motion=off`, works the same: `bootMotion` sets the attribute and strips the parameter with
+`history.replaceState`, keeping the other parameters and the hash, so routes and URL assertions never see it. The tools
+keep setting the attribute, which needs no URL change.
 
 ## pixdiff.mjs
 
