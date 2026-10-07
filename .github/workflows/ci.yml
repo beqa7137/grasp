@@ -147,14 +147,15 @@ jobs:
 
       # Only Chromium's headless shell, since the tests run headless. Chromium needs no --with-deps: the runner
       # image already has its libraries (it ships Google Chrome), and the app brings its own fonts. Any failure to
-      # install the cached WebKit packages falls back to the mirror.
+      # install the cached WebKit packages falls back to the mirror. The cache holds only what Playwright's install-deps
+      # fetched, which skips recommended packages, so installing from it must skip them too or apt reaches for the mirror.
       - name: Install the browser
         run: |
           if [ "${{ matrix.project }}" != iphone ]; then
             npx -w @grasp/e2e playwright install --only-shell chromium
             exit 0
           fi
-          if ! { ls ~/webkit-debs/*.deb > /dev/null 2>&1 && sudo apt-get install -y --no-download ~/webkit-debs/*.deb; }; then
+          if ! { ls ~/webkit-debs/*.deb > /dev/null 2>&1 && sudo apt-get install -y --no-install-recommends --no-download ~/webkit-debs/*.deb; }; then
             echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' | sudo tee /etc/apt/apt.conf.d/99keep-debs > /dev/null
             npx -w @grasp/e2e playwright install-deps webkit
             mkdir -p ~/webkit-debs
