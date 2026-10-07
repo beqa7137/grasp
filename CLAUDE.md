@@ -42,7 +42,7 @@ Production is https://grasp-rho-taupe.vercel.app; `/api/health` reports the live
    `git config user.name "Beka Goderdzishvili" && git config user.email beqa.goder@gmail.com`.
 2. Verify the change (see below): reviews, `npm run verify` and the affected e2e specs locally, then the full
    three-device suite in CI on the exact head that will land. Push the head to the working branch and dispatch CI there
-   (`gh api -X POST repos/beqa7137/grasp/actions/workflows/ci.yml/dispatches -f ref=<branch>`): its seven shards take
+   (`gh api -X POST repos/beqa7137/grasp/actions/workflows/ci.yml/dispatches -f ref=<branch>`): its eight shards take
    about 12 minutes, against 45 to 50 on the 4-CPU build container, where load also crashes WebKit. When `main` gets
    the same commit, its CI reuses that passing run. Dispatch native.yml the same way only when the change touches a path
    in `native.yml`'s `paths` list: the iOS build runs on macOS, whose minutes cost about ten times as much.
