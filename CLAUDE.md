@@ -40,14 +40,18 @@ Production is https://grasp-rho-taupe.vercel.app; `/api/health` reports the live
 1. Work on a branch from `main`. Commit with the owner's identity: Vercel blocks deployments whose head commit has any
    other author. Before the first commit run
    `git config user.name "Beka Goderdzishvili" && git config user.email beqa.goder@gmail.com`.
-2. Verify the change locally (see below): reviews, `npm run verify` and the full three-device e2e suite on the exact head
-   that will land. Dispatch `gh workflow run native.yml --ref <branch>` only when the change touches a path in
-   `native.yml`'s `paths` list: the iOS build runs on macOS, whose minutes cost about ten times as much.
+2. Verify the change (see below): reviews, `npm run verify` and the affected e2e specs locally, then the full
+   three-device suite in CI on the exact head that will land. Push the head to the working branch and dispatch CI there
+   (`gh api -X POST repos/beqa7137/grasp/actions/workflows/ci.yml/dispatches -f ref=<branch>`): its seven shards take
+   about 12 minutes, against 45 to 50 on the 4-CPU build container, where load also crashes WebKit. When `main` gets
+   the same commit, its CI reuses that passing run. Dispatch native.yml the same way only when the change touches a path
+   in `native.yml`'s `paths` list: the iOS build runs on macOS, whose minutes cost about ten times as much.
 3. Write the change's `docs/LOOP.md` entry, then fast-forward `main`: `git push origin <sha>:main`, only when
    `git merge-base --is-ancestor origin/main <sha>` holds. Never force-push `main`. Migrations must stay compatible with
    the release still running (add first, drop in a later release), because they run before the new code serves.
-4. Watch CI and the deploy, then verify production (see below). If production is wrong, redeploy the last good release
-   with `gh workflow run deploy.yml --ref <good sha>` (or revert on a branch and land the revert), then fix on a branch.
+4. Watch CI and the deploy, then confirm `/api/health` reports the new `release`. If production is wrong, redeploy the
+   last good release with `gh workflow run deploy.yml --ref <good sha>` (or revert on a branch and land the revert), then
+   fix on a branch.
 5. `feature/improvements` is no longer the integration branch; keep it fast-forwarded to `main` only if a tool needs it.
 
 ## Verifying
@@ -59,7 +63,8 @@ Every change is verified end to end, not only by tests:
   (`audit.mjs`), pixel diffs between two screenshot sets (`pixdiff.mjs`), and first-paint and first-tap timing on a
   throttled phone (`timing.mjs`). Compare against a build of `main` for anything visual or performance
   related, in both themes, on desktop and a phone profile, and read the screenshots that differ.
-- Against production, after every push to `main`, plus `/api/health` reporting the new `release`:
+- Since 2026-10-07 the owner runs no production checks after a release beyond `/api/health` reporting the new `release`:
+  verification is local. When the owner asks for one, run
   `E2E_BASE_URL=https://grasp-rho-taupe.vercel.app npm run e2e -- --grep @smoke`, then
   `READONLY=1 BASE=https://grasp-rho-taupe.vercel.app THEME=dark node tools/verify/audit.mjs` (and `THEME=light`).
   `READONLY=1` blocks every API write, so production data stays clean. Never seed events into production.
