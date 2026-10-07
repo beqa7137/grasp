@@ -181,6 +181,15 @@ test("the device's back button goes from a hub to Today", { tag: '@nav' }, async
   await expect(tab(page, 'Today')).toHaveAttribute('aria-selected', 'true');
 });
 
+test("the device's back button returns a hub a link from another tab opened to that tab", { tag: '@nav' }, async ({ page }) => {
+  await page.goto('/mock');
+  await page.getByRole('link', { name: /Guides, story bank and rehearsal/ }).click();
+  await expect(heading(page)).toHaveText('Behavioral interviews');
+  await page.evaluate(() => document.dispatchEvent(new Event('backbutton')));
+  await expect(page).toHaveURL(/\/mock$/);
+  await expect(tab(page, 'Mock')).toHaveAttribute('aria-selected', 'true');
+});
+
 test('journey 2: the graph problems are two taps from a cold start, in the problem library', { tag: '@nav' }, async ({ page }) => {
   const graphs = new Set<string>(PATTERN_CATALOG.filter((p) => p.track === 'graphs').map((p) => p.id));
   const problems = CODING_CATALOG.filter((p) => p.patternIds.some((id) => graphs.has(id)));

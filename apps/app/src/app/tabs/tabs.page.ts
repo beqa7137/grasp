@@ -1,4 +1,4 @@
-import { Component, DestroyRef, ElementRef, Injector, computed, effect, inject, untracked, viewChild } from '@angular/core';
+import { Component, DestroyRef, ElementRef, Injector, computed, inject, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, type ActivatedRouteSnapshot } from '@angular/router';
 import { IonBadge, IonIcon, IonLabel, IonModal, IonTabBar, IonTabButton, IonTabs, Config, NavController, Platform } from '@ionic/angular';
@@ -11,7 +11,7 @@ import { ProgressService } from '../core/progress.service';
 import { FeedbackSheetComponent } from '../pilot/feedback-sheet.component';
 import { PilotNoticeComponent } from '../pilot/pilot-notice.component';
 import { PilotService } from '../pilot/pilot.service';
-import { CrossSections } from '../ui/cross-link.directive';
+import { CrossSections, forgetOnChange } from '../ui/cross-link.directive';
 import { hardwareBack } from './hardware-back';
 
 @Component({
@@ -113,14 +113,12 @@ export class TabsPage {
     });
     const auth = inject(AuthService);
     // Signing out or deleting the learner's data starts every tab afresh.
-    effect(() => {
-      auth.user();
-      this.progress.cleared();
-      untracked(() => this.sections.forget());
-    });
+    forgetOnChange(this.sections, () => `${auth.user()?.id ?? ''} ${this.progress.cleared()}`);
     const android = inject(Platform).backButton.subscribeWithPriority(10, () =>
       hardwareBack(document, {
         url: this.router.url,
+        from: this.sections.from(),
+        goBack: (url) => void this.navCtrl.navigateBack(url),
         goToday: () => void this.navCtrl.navigateRoot('/today', { animated: true, animationDirection: 'back' }),
         // Minimizing is Android's; the web build has nothing to leave.
         leave: () => void import('@capacitor/app').then(({ App }) => App.minimizeApp().catch(() => App.exitApp().catch(() => undefined))),

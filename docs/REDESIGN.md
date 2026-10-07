@@ -384,6 +384,7 @@ R5 note: the declaration order above puts each tab's details before its hub, so 
 - **Badge.** It equals the total on Today's Review row, and the Review session can do every item it counts (4.9).
   - Today, `tabs.page.ts` adds mission revisits that `/drill` cannot do. So the badge reads 3 while Learn says "0 due" (`dark-pixel7-design-list-cases.png`).
   - The story count arrives from a dynamic import of `story-bank.service.ts` after first paint, so the badge first renders as cards plus revisits.
+  - R5 note: until R35's Review session can do stories and mission revisits, the badge, Today's Review tile and the session's header all show the cards due in this sitting (`session.dueIncluded`, `ProgressService.reviewDue`).
 - **Labels.** At 320px, each tab is 64px wide. Below 360px, labels drop to 11px. A Playwright check asserts that no label's `scrollWidth` exceeds its `clientWidth`.
   R5 note: the labels were already 11px at every width (`styles.scss`, capped with `chrome-font-size`), so nothing changes below 360px; the Playwright check holds at 320px.
 - **Focus routes hide the tab bar** under 1024px. Focus routes are the player, workspace, mission, Lab and case build.

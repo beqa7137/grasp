@@ -1,4 +1,4 @@
-import { Directive, ElementRef, Injectable, inject } from '@angular/core';
+import { Directive, ElementRef, Injectable, effect, inject, untracked } from '@angular/core';
 import {
   type ActivatedRouteSnapshot,
   type Navigation,
@@ -98,17 +98,31 @@ export class CrossSections {
 
   private record(url: string): void {
     const tab = tabOf(url);
-    // A hub has no back button, so a link into it is an ordinary entry into its tab.
-    const from = isHub(this.router.routerState.snapshot.root) ? null : crossFrom(this.router.currentNavigation(), url);
-    if (from) {
-      this.fromByUrl.set(url, from);
+    const from = crossFrom(this.router.currentNavigation(), url);
+    if (from) this.fromByUrl.set(url, from);
+    else if (this.direction !== 'back') this.fromByUrl.delete(url);
+    // A hub has no back button, so a link into it is an ordinary entry into its tab; only Android's back reads its origin.
+    const hub = isHub(this.router.routerState.snapshot.root);
+    if (from && !hub) {
       this.entered.add(tab);
       return;
     }
-    if (this.direction !== 'back') this.fromByUrl.delete(url);
     if (this.direction === 'root') this.entered.delete(tab);
-    if (!this.fromByUrl.has(url) && !this.entered.has(tab)) this.lastUrls.set(tab, url);
+    if (!this.entered.has(tab) && (hub || !this.fromByUrl.has(url))) this.lastUrls.set(tab, url);
   }
+}
+
+/**
+ * Forgets every tab's place when `identity` changes: a sign-in, a sign-out or deleted data. Not on its first read, and not
+ * when a renewed session reports the same learner, which the auth service does on every token refresh.
+ */
+export function forgetOnChange(sections: CrossSections, identity: () => string): void {
+  let last: string | undefined;
+  effect(() => {
+    const now = identity();
+    if (last !== undefined && now !== last) untracked(() => sections.forget());
+    last = now;
+  });
 }
 
 /** Whether the shown page is a tab's hub: a tab root (Today, Mock) or a hub segment. */
