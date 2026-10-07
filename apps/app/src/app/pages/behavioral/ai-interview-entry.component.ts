@@ -32,7 +32,7 @@ import { needsSignIn, startInterview } from '../interview/start-interview';
         <p class="error" role="alert">{{ message }}</p>
       }
       @if (signInOpen() || error()) {
-        <a class="scripted" routerLink="/behavioral/mock" [queryParams]="{ question: problemId() }"
+        <a class="scripted" routerLink="/behavioral/drill" [queryParams]="{ question: problemId() }"
           >Practice it with scripted follow-ups instead</a
         >
       }

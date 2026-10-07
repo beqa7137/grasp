@@ -11,7 +11,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
+import { IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
 import {
   EMPTY_STAR_DRAFT,
   debriefMock,
@@ -33,15 +33,16 @@ import { StarEditorComponent } from './star-editor.component';
 import { StoryBankService } from './story-bank.service';
 
 type Turn = { question: number; followUp: number | null };
+import { BackComponent } from '../../ui/back.component';
 
 @Component({
   selector: 'app-behavioral-mock',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle, IonContent, IonIcon, StarEditorComponent],
+  imports: [BackComponent, RouterLink, IonHeader, IonToolbar, IonButtons, IonTitle, IonContent, IonIcon, StarEditorComponent],
   template: `
     <ion-header [translucent]="true">
       <ion-toolbar>
-        <ion-buttons slot="start"><ion-back-button defaultHref="/behavioral" text="" /></ion-buttons>
+        <ion-buttons slot="start"><app-back href="/behavioral" /></ion-buttons>
         <ion-title>Mock behavioral interview</ion-title>
       </ion-toolbar>
     </ion-header>

@@ -1,7 +1,7 @@
 <ion-header>
   <ion-toolbar>
     <ion-buttons slot="start">
-      <ion-back-button defaultHref="/visualize" text="" />
+      <app-back href="/coding/visualizers" />
     </ion-buttons>
     <ion-title
       ><h1 #heading>{{ algo()?.title ?? 'Visualizer' }}</h1></ion-title
@@ -93,7 +93,7 @@
                   <span class="result mono">→ {{ result() ?? 'null' }}</span>
                 }
                 @if (index() === last() && problem(); as c) {
-                  <a class="code-it" [routerLink]="['/code', c.id]">Now write it yourself: {{ c.title }} →</a>
+                  <a class="code-it" [routerLink]="['/coding/problems', c.id]">Now write it yourself: {{ c.title }} →</a>
                 }
               }
             </div>

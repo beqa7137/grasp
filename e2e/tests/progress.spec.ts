@@ -60,7 +60,7 @@ test.describe('progress sync retention', () => {
     const learnerId = await seedProgress(page, [eligible, future]);
     const firstUpload = page.waitForResponse((response) => isUpload(response.request()));
 
-    await page.goto('/learn');
+    await page.goto('/today');
     expect(await (await firstUpload).json()).toMatchObject({
       acknowledgedIds: [eligible.id],
       deferredFutureIds: [future.id],
@@ -107,7 +107,7 @@ test.describe('progress sync retention', () => {
       if (isUpload(request)) uploadedIds.push((request.postDataJSON() as { events: ProgressEvent[] }).events.map((event) => event.id));
     });
 
-    await page.goto('/learn');
+    await page.goto('/today');
     await expect(page.locator('.sync')).toHaveAttribute('data-status', 'pending');
     await expect(page.getByRole('alert')).toContainText('too large to sync');
     expect(uploadedIds).toEqual([[first.id, last.id]]);
@@ -142,7 +142,7 @@ test.describe('progress sync retention', () => {
       await route.fulfill({ response });
     });
 
-    await page.goto('/learn');
+    await page.goto('/today');
     await expect(page.locator('.sync')).toHaveAttribute('data-status', 'synced', { timeout: 60_000 });
     expect(uploads.length).toBeGreaterThan(1);
     for (const upload of uploads) {
@@ -168,7 +168,7 @@ test.describe('progress sync retention', () => {
       return route.continue();
     });
 
-    await page.goto('/learn');
+    await page.goto('/today');
     await expect(page.locator('.sync')).toHaveAttribute('data-status', 'offline');
     expect(await acknowledgedIds(page)).toEqual([]);
     expect(await serverEvents(page, learnerId)).toEqual([]);
@@ -200,7 +200,7 @@ test.describe('progress sync retention', () => {
         await route.abort('failed');
       });
 
-      await page.goto('/learn');
+      await page.goto('/today');
       await expect(page.locator('.sync')).toHaveAttribute('data-status', 'offline');
       expect((await serverEvents(page, learnerId)).map((stored) => stored.id)).toEqual([event.id]);
       expect(await acknowledgedIds(page)).not.toContain(event.id);
@@ -227,7 +227,7 @@ test.describe('progress sync retention', () => {
           return route.continue();
         });
 
-        await page.goto('/learn');
+        await page.goto('/today');
         const alert = page.getByRole('alert').filter({ hasText: 'Sync is unavailable' });
         const retry = alert.getByRole('button');
         const hero = page.locator('.hero');
@@ -263,7 +263,7 @@ test.describe('reconnecting', () => {
     context,
   }) => {
     test.skip(readOnly, 'It writes progress.');
-    await page.goto('/drill', { waitUntil: 'networkidle' });
+    await page.goto('/today/review', { waitUntil: 'networkidle' });
     await context.setOffline(true);
     await page.locator('g-question-card .choice').first().click();
     await page.getByRole('button', { name: /^(Got it|Continue)/ }).click();

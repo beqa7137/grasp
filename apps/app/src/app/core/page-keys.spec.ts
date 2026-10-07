@@ -36,7 +36,7 @@ describe('page keys', () => {
 
   it('leaves Enter and Space to the focused control, but takes them when nothing is focused', () => {
     document.body.innerHTML =
-      '<app-drill><a href="/learn">link</a><button>Easy</button><span role="radio">5 min</span><p tabindex="-1">Correct</p></app-drill>';
+      '<app-drill><a href="/today">link</a><button>Easy</button><span role="radio">5 min</span><p tabindex="-1">Correct</p></app-drill>';
     const host = document.querySelector('app-drill')!;
     for (const key of ['Enter', ' ']) {
       for (const control of ['a', 'button', '[role="radio"]']) {
@@ -53,7 +53,7 @@ describe('page keys', () => {
     document.body.innerHTML = '<app-player></app-player><div class="tab-host"></div>';
     const host = document.querySelector('app-player')!;
     const tab = document.querySelector('.tab-host')!.attachShadow({ mode: 'open' });
-    tab.innerHTML = '<a href="/interview" role="tab">Interview</a>';
+    tab.innerHTML = '<a href="/mock" role="tab">Mock</a>';
     const native = tab.querySelector('a')!;
     for (const key of ['Enter', ' ', 'ArrowRight']) {
       expect(keyOn(host, native, { key }), key).toBe(false);

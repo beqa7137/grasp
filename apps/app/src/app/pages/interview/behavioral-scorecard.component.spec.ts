@@ -138,7 +138,7 @@ describe('BehavioralScorecardComponent', () => {
     fixture.detectChanges();
     expect(el.querySelector('app-sign-in-options')).not.toBeNull();
     const scripted = [...el.querySelectorAll('a')].find((a) => a.textContent?.includes('scripted follow-ups'));
-    expect(scripted?.getAttribute('href')).toMatch(/^\/behavioral\/mock\?question=conflict-\d+$/);
+    expect(scripted?.getAttribute('href')).toMatch(/^\/behavioral\/drill\?question=conflict-\d+$/);
     expect(scripted?.getAttribute('href')).not.toContain('conflict-1');
   });
 
@@ -151,7 +151,7 @@ describe('BehavioralScorecardComponent', () => {
     expect(body).toMatchObject({ track: 'behavioral', mode: 'ai' });
     expect(body.problemId).toMatch(/^conflict-\d+$/);
     expect(body.problemId).not.toBe('conflict-1');
-    expect(navigate).toHaveBeenCalledWith(['/interview', 'next']);
+    expect(navigate).toHaveBeenCalledWith(['/mock', 'next']);
     expect([...el.querySelectorAll('a')].find((a) => a.textContent?.trim() === 'Practice this question')?.getAttribute('href')).toBe(
       '/behavioral/question/conflict-1',
     );

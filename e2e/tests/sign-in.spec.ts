@@ -72,13 +72,13 @@ test('signing in with GitHub keeps the progress made before, and signing back in
   const email = user.emails[0].email;
   await signInToGitHub(context, user);
 
-  await page.goto('/drill');
+  await page.goto('/today/review');
   const graded = synced(page, 'review.graded');
   await page.locator('g-question-card .choice').first().click();
   await page.getByRole('button', { name: /^(Got it|Continue)/ }).click();
   await graded;
 
-  await page.goto('/settings');
+  await page.goto('/today/settings');
   const account = page.locator('app-account-settings');
   const learner = page.getByText(/Learner [0-9a-f]{8} ·/);
   const anonymousLearner = (await learner.textContent())!;
@@ -113,12 +113,12 @@ test('a second device starts fresh after the account was deleted elsewhere and i
   const user = newGitHubUser({ verified: true });
   await signInToGitHub(context, user);
 
-  await page.goto('/drill');
+  await page.goto('/today/review');
   const graded = synced(page, 'review.graded');
   await page.locator('g-question-card .choice').first().click();
   await page.getByRole('button', { name: /^(Got it|Continue)/ }).click();
   await graded;
-  await page.goto('/settings');
+  await page.goto('/today/settings');
   const firstSignIn = page.waitForResponse(
     (response) => response.request().method() === 'POST' && response.url().endsWith('/api/auth/github'),
   );
@@ -132,7 +132,7 @@ test('a second device starts fresh after the account was deleted elsewhere and i
     await other.setExtraHTTPHeaders({ 'x-forwarded-for': newClientIp() });
     await signInToGitHub(other, user);
     const secondPage = await other.newPage();
-    await secondPage.goto('/settings');
+    await secondPage.goto('/today/settings');
     const secondSignIn = secondPage.waitForResponse(
       (response) => response.request().method() === 'POST' && response.url().endsWith('/api/auth/github'),
     );
@@ -158,7 +158,7 @@ test('a second device starts fresh after the account was deleted elsewhere and i
     const freshLearner = await secondPage.evaluate(() => localStorage.getItem('CapacitorStorage.grasp.learnerId'));
     await expect.poll(async () => (await recordedEvents(secondPage)).length).toBe(0);
 
-    await secondPage.goto('/drill');
+    await secondPage.goto('/today/review');
     const freshSynced = synced(secondPage, 'review.graded');
     await secondPage.locator('g-question-card .choice').first().click();
     await secondPage.getByRole('button', { name: /^(Got it|Continue)/ }).click();
@@ -176,7 +176,7 @@ test('a second device starts fresh after the account was deleted elsewhere and i
     expect(reloadedResponse.status()).toBe(200);
     await expect.poll(() => secondPage.evaluate(() => localStorage.getItem('CapacitorStorage.grasp.learnerId'))).toBe(freshLearner);
     await expect.poll(async () => (await recordedEvents(secondPage)).map((event) => event.id)).toEqual([freshEventId]);
-    await secondPage.goto('/settings');
+    await secondPage.goto('/today/settings');
     const newSignIn = secondPage.waitForResponse(
       (response) => response.request().method() === 'POST' && response.url().endsWith('/api/auth/github'),
     );
@@ -198,7 +198,7 @@ test.describe('a GitHub account without a verified email', () => {
 
   test('is told how to make sign-in work', async ({ page, context }) => {
     await signInToGitHub(context, newGitHubUser({ verified: false }));
-    await page.goto('/settings');
+    await page.goto('/today/settings');
     await continueWithGitHub(page);
 
     const account = page.locator('app-account-settings');
@@ -223,7 +223,7 @@ test.describe('GitHub sign-in with a slow token exchange', () => {
       const user = newGitHubUser({ verified: true });
       await signInToGitHub(context, user);
 
-      await page.goto('/settings');
+      await page.goto('/today/settings');
       await continueWithGitHub(page);
       await expect(page.locator('app-account-settings').getByText(user.emails[0].email, { exact: true })).toBeVisible();
       expect(await callbackOpeners(page), 'the sign-in window on /auth/callback can still reach the app').toEqual([true]);
@@ -233,7 +233,7 @@ test.describe('GitHub sign-in with a slow token exchange', () => {
 
 test('pressing Cancel on GitHub leaves the person signed out, silently', async ({ page, context }) => {
   await signInToGitHub(context, newGitHubUser({ verified: true }));
-  await page.goto('/settings');
+  await page.goto('/today/settings');
   await answerGitHub(await openGitHubConsent(page), 'Cancel');
 
   const account = page.locator('app-account-settings');
@@ -247,14 +247,14 @@ test('a crafted sign-in result sent to /auth/callback while a GitHub sign-in is 
   await signInToGitHub(context, user);
   const redeemed = recordRedemptions(context);
 
-  await page.goto('/settings');
+  await page.goto('/today/settings');
   const popup = await openGitHubConsent(page);
   await expect(popup.getByRole('button', { name: 'Authorize' })).toBeVisible();
 
   // What another site could do while the popup waits on GitHub: send a Grasp tab to the callback with a ticket of its own.
   const crafted = await context.newPage();
   await crafted.goto(`/auth/callback#access_token=${randomBytes(32).toString('base64url')}&token_type=bearer`);
-  await expect(crafted).toHaveURL(/\/settings$/);
+  await expect(crafted).toHaveURL(/\/today\/settings$/);
   expect(redeemed, 'no sign-in ticket was redeemed').toEqual([]);
 
   const account = page.locator('app-account-settings');
@@ -276,22 +276,22 @@ test("another person's GitHub code or ticket in a Grasp tab's address while a Gi
   await signInToGitHub(context, user);
   const redeemed = recordRedemptions(context);
 
-  await page.goto('/settings');
+  await page.goto('/today/settings');
   const popup = await openGitHubConsent(page);
   await expect(popup.getByRole('button', { name: 'Authorize' })).toBeVisible();
 
   // What another site could do while the popup waits on GitHub: open Grasp pages whose address carries a result of its own.
   const tab = await context.newPage();
   for (const planted of [
-    `/settings#access_token=${theirs.ticket}&token_type=bearer`,
-    `/settings?code=${theirs.code}&state=${randomBytes(16).toString('hex')}`,
+    `/today/settings#access_token=${theirs.ticket}&token_type=bearer`,
+    `/today/settings?code=${theirs.code}&state=${randomBytes(16).toString('hex')}`,
   ]) {
     await tab.goto(planted);
     await waitForSignInPlugin(tab);
-    await expect(tab).toHaveURL(/\/settings$/);
+    await expect(tab).toHaveURL(/\/today\/settings$/);
   }
   await tab.evaluate((ticket) => (location.hash = `access_token=${ticket}&token_type=bearer`), theirs.ticket);
-  await expect(tab).toHaveURL(/\/settings$/);
+  await expect(tab).toHaveURL(/\/today\/settings$/);
   expect(redeemed, 'no sign-in ticket was redeemed').toEqual([]);
 
   const account = page.locator('app-account-settings');
@@ -307,7 +307,7 @@ test('after the Google window is closed, reloading keeps the tab open and GitHub
   const user = newGitHubUser({ verified: true });
   await signInToGitHub(context, user);
 
-  await page.goto('/settings');
+  await page.goto('/today/settings');
   const opened = page.waitForEvent('popup');
   await page.getByRole('button', { name: 'Continue with Google' }).click();
   const popup = await opened;
@@ -330,7 +330,7 @@ test.describe('Google sign-in', () => {
     const google = await fakeGoogle(context);
     const callbackOpeners = await recordCallbackOpeners(context);
 
-    await page.goto('/settings');
+    await page.goto('/today/settings');
     const nonce = page.waitForResponse((r) => r.request().method() === 'POST' && r.url().endsWith('/api/auth/google/nonce'));
     const opened = page.waitForEvent('popup');
     await page.getByRole('button', { name: 'Continue with Google' }).click();

@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
+import { IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
 import { SENIORITY_LEVELS, examplesFor, getCompetency, getCompetencySummary, type Seniority } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import {
@@ -17,17 +17,18 @@ import { AiInterviewEntryComponent } from './ai-interview-entry.component';
 import { ExampleAnswerComponent } from './example-answer.component';
 import { SpotFlawsComponent } from './spot-flaws.component';
 import { StarDraftsService } from './star-drafts.service';
+import { BackComponent } from '../../ui/back.component';
 
 @Component({
   selector: 'app-competency',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    BackComponent,
     RouterLink,
     RovingSelectDirective,
     IonHeader,
     IonToolbar,
     IonButtons,
-    IonBackButton,
     IonTitle,
     IonContent,
     IonIcon,
@@ -38,7 +39,7 @@ import { StarDraftsService } from './star-drafts.service';
   template: `
     <ion-header [translucent]="true">
       <ion-toolbar>
-        <ion-buttons slot="start"><ion-back-button defaultHref="/behavioral" text="" /></ion-buttons>
+        <ion-buttons slot="start"><app-back href="/behavioral" /></ion-buttons>
         <ion-title>{{ summary()?.name }}</ion-title>
       </ion-toolbar>
     </ion-header>

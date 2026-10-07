@@ -14,7 +14,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar, PopoverController } from '@ionic/angular';
+import { IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar, PopoverController } from '@ionic/angular';
 import {
   CODING_CATALOG,
   InputError,
@@ -62,17 +62,18 @@ const TYPING = [
   'select:not([disabled])',
   '[contenteditable]:not([contenteditable="false"])',
 ].join(', ');
+import { BackComponent } from '../../ui/back.component';
 
 @Component({
   selector: 'app-player',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    BackComponent,
     FormsModule,
     RouterLink,
     IonHeader,
     IonToolbar,
     IonButtons,
-    IonBackButton,
     IonTitle,
     IonContent,
     IonIcon,
@@ -458,8 +459,8 @@ export class PlayerPage {
     await intro.present();
     const { data } = await intro.onDidDismiss<PlayerIntroChoice>();
     this.introOpen.set(false);
-    if (data === 'pattern') void this.router.navigate(['/learn/pattern', algo.patternId]);
-    else if (data === 'code') void this.router.navigate(['/code', this.problem()!.id]);
+    if (data === 'pattern') void this.router.navigate(['/coding/patterns', algo.patternId]);
+    else if (data === 'code') void this.router.navigate(['/coding/problems', this.problem()!.id]);
     // WebKit leaves a tapped button unfocused, so focus would otherwise fall to the top of the page.
     else this.about()?.nativeElement.focus();
   }

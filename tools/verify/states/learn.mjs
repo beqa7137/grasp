@@ -66,32 +66,37 @@ export function learnStates() {
     'kruskal-mst',
     'minimum-xor-sum',
   ].flatMap((id) => [
-    { id: `player-${id}`, path: `/visualize/${id}` },
-    { id: `player-${id}-predict`, path: `/visualize/${id}`, setup: async (p) => ((await toPredict(p)) ? settle(p, 500) : 'no predict') },
+    { id: `player-${id}`, path: `/coding/visualizers/${id}` },
+    {
+      id: `player-${id}-predict`,
+      path: `/coding/visualizers/${id}`,
+      setup: async (p) => ((await toPredict(p)) ? settle(p, 500) : 'no predict'),
+    },
     {
       id: `player-${id}-answered`,
-      path: `/visualize/${id}`,
+      path: `/coding/visualizers/${id}`,
       setup: async (p) => ((await toPredict(p)) ? answerFirst(p, '.predict .choice') : 'no predict'),
     },
   ]);
   return [
-    { id: 'learn', path: '/learn' },
-    { id: 'visualize-list', path: '/visualize' },
+    { id: 'today', path: '/today' },
+    { id: 'coding-skill-map', path: '/coding' },
+    { id: 'coding-visualizers', path: '/coding/visualizers' },
     ...players,
     {
       id: 'player-binary-search-intro',
-      path: '/visualize/binary-search',
+      path: '/coding/visualizers/binary-search',
       setup: async (p) => {
         await p.getByRole('button', { name: 'About this visualizer' }).click();
         await p.getByRole('dialog', { name: 'Binary Search' }).waitFor();
         await settle(p, 500);
       },
     },
-    { id: 'player-binary-search-playback', path: '/visualize/binary-search', setup: openPlayback },
+    { id: 'player-binary-search-playback', path: '/coding/visualizers/binary-search', setup: openPlayback },
     {
       // Mid-drag, held on the first checkpoint with its chip showing.
       id: 'player-binary-search-guard',
-      path: '/visualize/binary-search',
+      path: '/coding/visualizers/binary-search',
       setup: async (p) => {
         await openPlayback(p);
         const thumb = await p.locator('g-transport .drag').boundingBox();
@@ -105,7 +110,7 @@ export function learnStates() {
     {
       // Binary search's default run asks three times; its answers are choices 2, 3 and 1.
       id: 'player-binary-search-ticks',
-      path: '/visualize/binary-search',
+      path: '/coding/visualizers/binary-search',
       setup: async (p) => {
         for (const choice of [1, 0]) {
           await toPredict(p);
@@ -119,23 +124,23 @@ export function learnStates() {
         await settle(p, 500);
       },
     },
-    { id: 'player-subsets-backtracking-end', path: '/visualize/subsets-backtracking', setup: toEnd },
-    { id: 'player-linked-list-reversal-end', path: '/visualize/linked-list-reversal', setup: toEnd },
+    { id: 'player-subsets-backtracking-end', path: '/coding/visualizers/subsets-backtracking', setup: toEnd },
+    { id: 'player-linked-list-reversal-end', path: '/coding/visualizers/linked-list-reversal', setup: toEnd },
     {
       id: 'player-linked-list-reversal-whole',
-      path: `/visualize/linked-list-reversal?input=${encodeURIComponent(JSON.stringify({ values: [1, 2, 3, 4, 5], left: 1, right: 5 }))}`,
+      path: `/coding/visualizers/linked-list-reversal?input=${encodeURIComponent(JSON.stringify({ values: [1, 2, 3, 4, 5], left: 1, right: 5 }))}`,
       setup: toEnd,
     },
-    { id: 'player-kruskal-mst-end', path: '/visualize/kruskal-mst', setup: toEnd },
-    { id: 'player-minimum-xor-sum-end', path: '/visualize/minimum-xor-sum', setup: toEnd },
+    { id: 'player-kruskal-mst-end', path: '/coding/visualizers/kruskal-mst', setup: toEnd },
+    { id: 'player-minimum-xor-sum-end', path: '/coding/visualizers/minimum-xor-sum', setup: toEnd },
     {
       id: 'player-minimum-xor-sum-four',
-      path: `/visualize/minimum-xor-sum?input=${encodeURIComponent(JSON.stringify({ nums1: [12, 7, 3, 9], nums2: [5, 14, 8, 1] }))}`,
+      path: `/coding/visualizers/minimum-xor-sum?input=${encodeURIComponent(JSON.stringify({ nums1: [12, 7, 3, 9], nums2: [5, 14, 8, 1] }))}`,
       setup: toEnd,
     },
     {
       id: 'player-kruskal-mst-disconnected',
-      path: `/visualize/kruskal-mst?input=${encodeURIComponent(
+      path: `/coding/visualizers/kruskal-mst?input=${encodeURIComponent(
         JSON.stringify({
           n: 5,
           edges: [
@@ -148,19 +153,19 @@ export function learnStates() {
       )}`,
       setup: toEnd,
     },
-    { id: 'review-question', path: '/drill' },
-    { id: 'review-answered', path: '/drill', setup: (p) => answerFirst(p, 'g-question-card .choice') },
-    { id: 'review-summary', path: '/drill', setup: finishReview },
-    { id: 'practice-question', path: '/drill?pattern=binary-search' },
-    { id: 'practice-answered', path: '/drill?pattern=binary-search', setup: (p) => answerFirst(p, 'g-question-card .choice') },
-    { id: 'pattern-binary-search', path: '/learn/pattern/binary-search' },
-    { id: 'pattern-linked-list-reversal', path: '/learn/pattern/linked-list-reversal' },
-    { id: 'pattern-minimum-spanning-tree', path: '/learn/pattern/minimum-spanning-tree' },
-    { id: 'pattern-bitmask-dp', path: '/learn/pattern/bitmask-dp' },
-    { id: 'lesson-binary-search', path: '/learn/pattern/binary-search' },
+    { id: 'review-question', path: '/today/review' },
+    { id: 'review-answered', path: '/today/review', setup: (p) => answerFirst(p, 'g-question-card .choice') },
+    { id: 'review-summary', path: '/today/review', setup: finishReview },
+    { id: 'practice-question', path: '/coding/patterns/binary-search/drill' },
+    { id: 'practice-answered', path: '/coding/patterns/binary-search/drill', setup: (p) => answerFirst(p, 'g-question-card .choice') },
+    { id: 'pattern-binary-search', path: '/coding/patterns/binary-search' },
+    { id: 'pattern-linked-list-reversal', path: '/coding/patterns/linked-list-reversal' },
+    { id: 'pattern-minimum-spanning-tree', path: '/coding/patterns/minimum-spanning-tree' },
+    { id: 'pattern-bitmask-dp', path: '/coding/patterns/bitmask-dp' },
+    { id: 'lesson-binary-search', path: '/coding/patterns/binary-search' },
     {
       id: 'lesson-dp-2d-revealed',
-      path: '/learn/pattern/dp-2d',
+      path: '/coding/patterns/dp-2d',
       setup: async (p) => {
         const example = p.locator('app-worked-example').first();
         await example.getByRole('button', { name: /key move/ }).click();
@@ -169,12 +174,12 @@ export function learnStates() {
         await p.locator('details.follow-up summary').first().click();
       },
     },
-    { id: 'settings', path: '/settings' },
-    { id: 'plan-empty', path: '/plan' },
-    { id: 'plan-set', path: '/plan', setup: setPlan },
+    { id: 'settings', path: '/today/settings' },
+    { id: 'plan-empty', path: '/today/plan' },
+    { id: 'plan-set', path: '/today/plan', setup: setPlan },
     {
       id: 'plan-clear-confirm',
-      path: '/plan',
+      path: '/today/plan',
       setup: async (p) => {
         await setPlan(p);
         await p.getByRole('button', { name: 'Clear plan' }).click();
@@ -184,7 +189,7 @@ export function learnStates() {
     },
     {
       id: 'plan-cleared-undo',
-      path: '/plan',
+      path: '/today/plan',
       setup: async (p) => {
         await setPlan(p);
         await p.getByRole('button', { name: 'Clear plan' }).click();
@@ -193,23 +198,23 @@ export function learnStates() {
         await settle(p, 600);
       },
     },
-    { id: 'code-list', path: '/code' },
-    { id: 'code-two-sum', path: '/code/two-sum' },
+    { id: 'coding-problems', path: '/coding/problems' },
+    { id: 'code-two-sum', path: '/coding/problems/two-sum' },
     {
       id: 'code-python-trace-note',
-      path: '/code/two-sum',
+      path: '/coding/problems/two-sum',
       setup: async (p) => {
         await p.getByRole('button', { name: 'Trace', exact: true }).click();
         await p.getByText('Trace steps through JavaScript or TypeScript code.').waitFor();
         await settle(p, 400);
       },
     },
-    { id: 'code-reverse-linked-list-ii', path: '/code/reverse-linked-list-ii' },
-    { id: 'code-critical-mst-edges', path: '/code/critical-mst-edges' },
-    { id: 'code-maximum-students', path: '/code/maximum-students' },
+    { id: 'code-reverse-linked-list-ii', path: '/coding/problems/reverse-linked-list-ii' },
+    { id: 'code-critical-mst-edges', path: '/coding/problems/critical-mst-edges' },
+    { id: 'code-maximum-students', path: '/coding/problems/maximum-students' },
     {
       id: 'code-two-sum-run',
-      path: '/code/two-sum',
+      path: '/coding/problems/two-sum',
       setup: async (p) => {
         await p.getByRole('button', { name: /Run/ }).first().click();
         await p.waitForSelector('.outcome', { timeout: 30_000 });
@@ -218,7 +223,7 @@ export function learnStates() {
     },
     {
       id: 'code-two-sum-accepted',
-      path: '/code/two-sum',
+      path: '/coding/problems/two-sum',
       setup: async (p) => {
         await p.getByRole('radio', { name: 'JavaScript' }).click();
         await p.getByRole('textbox', { name: 'Two Sum solution' }).click();
@@ -235,20 +240,20 @@ export function learnStates() {
         await settle(p);
       },
     },
-    { id: 'diagnostic-intro', path: '/diagnostic' },
+    { id: 'diagnostic-intro', path: '/coding/placement' },
     {
       id: 'diagnostic-question',
-      path: '/diagnostic',
+      path: '/coding/placement',
       setup: async (p) => {
         await p.getByRole('button', { name: /^Start/ }).click();
         await p.getByText(`1/${PATTERN_CATALOG.length}`, { exact: true }).waitFor();
         await settle(p, 400);
       },
     },
-    { id: 'diagnostic-results', path: '/diagnostic', setup: takePlacement },
+    { id: 'diagnostic-results', path: '/coding/placement', setup: takePlacement },
     {
       id: 'feedback-dialog',
-      path: '/learn',
+      path: '/today',
       setup: async (p) => {
         await p.getByRole('button', { name: 'More options' }).click();
         await p.locator('ion-popover').getByRole('button', { name: 'Send feedback' }).click();
@@ -257,8 +262,8 @@ export function learnStates() {
       },
     },
     {
-      id: 'learn-more-menu',
-      path: '/learn',
+      id: 'today-more-menu',
+      path: '/today',
       setup: async (p) => {
         await p.getByRole('button', { name: 'More options' }).click();
         await p.locator('ion-popover app-learn-menu').waitFor();
@@ -267,7 +272,7 @@ export function learnStates() {
     },
     {
       id: 'pilot-welcome',
-      path: '/learn',
+      path: '/today',
       fresh: true,
       setup: async (p) => {
         await p.waitForSelector('ion-modal app-pilot-notice');

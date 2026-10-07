@@ -100,6 +100,17 @@ export class ProgressService {
   readonly forecast = computed(() => forecast(this.state(), this.now(), 7, this.now().getTimezoneOffset()));
   readonly missions = computed(() => missionRevisits(this.state(), this.now()));
   readonly dueMissions = computed(() => this.missions().filter((m) => m.due));
+  /** Whether this device holds any progress at all. */
+  readonly recorded = computed(() => this.events().length > 0);
+
+  /**
+   * What Review has due: cards, cards an interview or a missed prediction flagged, and mission revisits, which its summary
+   * lists. Today's Review tile and the Today tab's badge both show it, so they never disagree.
+   */
+  readonly reviewDue = computed(() => {
+    const session = this.session();
+    return session.dueTotal + session.boostedIncluded + this.dueMissions().length;
+  });
 
   constructor() {
     const tick = setInterval(() => this.now.set(new Date()), CLOCK_TICK_MS);

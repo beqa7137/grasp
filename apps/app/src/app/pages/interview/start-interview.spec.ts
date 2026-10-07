@@ -12,7 +12,7 @@ describe('startInterview', () => {
       mode: 'ai',
     });
     expect(api.post).toHaveBeenCalledExactlyOnceWith('/interview/sessions', { track: 'behavioral', problemId: 'conflict', mode: 'ai' });
-    expect(router.navigate).toHaveBeenCalledExactlyOnceWith(['/interview', 'session']);
+    expect(router.navigate).toHaveBeenCalledExactlyOnceWith(['/mock', 'session']);
   });
 
   it('opens nothing when the start is refused', async () => {

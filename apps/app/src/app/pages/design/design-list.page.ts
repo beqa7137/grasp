@@ -1,7 +1,7 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
-import { IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
+import { IonIcon } from '@ionic/angular';
 import {
   CASE_CATALOG,
   SCENARIO_CATALOG,
@@ -21,13 +21,10 @@ import { FREE_BUILD } from './free-build';
 @Component({
   selector: 'app-design-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, DecimalPipe, DatePipe, IonHeader, IonToolbar, IonTitle, IonContent, IonIcon],
+  imports: [RouterLink, DecimalPipe, DatePipe, IonIcon],
   template: `
-    <ion-header [translucent]="true">
-      <ion-toolbar><ion-title>Design Lab</ion-title></ion-toolbar>
-    </ion-header>
-    <ion-content [fullscreen]="true">
-      <div class="page">
+    <div class="page">
+      @if (show() === 'missions') {
         <p class="eyebrow">System design sandbox</p>
         <h1>Build it. Load it. Break it.</h1>
         <p class="muted lead">
@@ -39,7 +36,7 @@ import { FREE_BUILD } from './free-build';
           @for (s of scenarios; track s.id; let i = $index) {
             @let done = progress.state().missions[s.id];
             @let revisit = revisitFor(s.id);
-            <a class="panel card-link mission" [routerLink]="['/design', s.id]" [class.done]="done">
+            <a class="panel card-link mission" [routerLink]="['/design/missions', s.id]" [class.done]="done">
               <span class="num display">{{ i + 1 }}</span>
               <div class="body">
                 <h2>{{ s.title }}</h2>
@@ -67,7 +64,7 @@ import { FREE_BUILD } from './free-build';
               <a
                 class="panel card-link revisit"
                 [class.due]="revisit.due"
-                [routerLink]="['/design', s.id]"
+                [routerLink]="['/design/missions', s.id]"
                 [queryParams]="{ revisit: revisit.variant }"
               >
                 <ion-icon name="refresh-circle-outline" aria-hidden="true" />
@@ -78,7 +75,7 @@ import { FREE_BUILD } from './free-build';
               </a>
             }
           }
-          <a class="panel card-link mission free" [routerLink]="['/design', free.id]">
+          <a class="panel card-link mission free" routerLink="/design/lab">
             <span class="num"><ion-icon name="construct-outline" aria-hidden="true" /></span>
             <div class="body">
               <h2>{{ free.title }}</h2>
@@ -86,9 +83,10 @@ import { FREE_BUILD } from './free-build';
             </div>
           </a>
         </div>
-
-        <h2 class="section-title" id="cases">Interview case studies</h2>
-        <p class="muted section-lead">
+      } @else {
+        <p class="eyebrow">Interview case studies</p>
+        <h1>Run the interview, then defend it.</h1>
+        <p class="muted lead">
           Classic questions worked the way a strong candidate runs the interview: clarify, estimate, design, then defend the trade-offs.
         </p>
         <div class="list">
@@ -96,10 +94,10 @@ import { FREE_BUILD } from './free-build';
             @let draft = drafts.draft(c.id);
             @let finished = progress.state().cases[c.id];
             @let stage = stageOf(c);
-            <a class="panel card-link mission case" [routerLink]="['/design/case', c.id]" [class.done]="finished && !stage">
+            <a class="panel card-link mission case" [routerLink]="['/design/cases', c.id]" [class.done]="finished && !stage">
               <span class="num"><ion-icon name="document-text-outline" aria-hidden="true" /></span>
               <div class="body">
-                <h3>{{ c.title }}</h3>
+                <h2>{{ c.title }}</h2>
                 <p class="muted">{{ brief(c.id) }}</p>
                 <div class="chips">
                   <span class="chip">{{ c.level === 'core' ? 'Core' : 'Advanced' }}</span>
@@ -122,7 +120,7 @@ import { FREE_BUILD } from './free-build';
                 >
                 @if (draft) {
                   <span class="actions">
-                    <a class="g-btn ghost" [routerLink]="['/design/case', c.id]" [attr.aria-label]="'Review: ' + c.title">Review</a>
+                    <a class="g-btn ghost" [routerLink]="['/design/cases', c.id]" [attr.aria-label]="'Review: ' + c.title">Review</a>
                     <button class="g-btn ghost" (click)="restart(c.id)" [attr.aria-label]="'Start over: ' + c.title">Start over</button>
                   </span>
                 }
@@ -130,8 +128,8 @@ import { FREE_BUILD } from './free-build';
             }
           }
         </div>
-      </div>
-    </ion-content>
+      }
+    </div>
   `,
   styles: `
     h1 {
@@ -170,15 +168,6 @@ import { FREE_BUILD } from './free-build';
     .done .num {
       background: rgba(var(--g-found-rgb), 0.14);
       color: var(--g-found);
-    }
-    .section-title {
-      font-size: 1.25rem;
-      margin: 32px 0 6px;
-    }
-    .section-lead {
-      max-width: 62ch;
-      line-height: 1.5;
-      margin: 0 0 14px;
     }
     .free .num {
       background: var(--g-raised);
@@ -281,6 +270,7 @@ import { FREE_BUILD } from './free-build';
   `,
 })
 export class DesignListPage {
+  readonly show = input<'missions' | 'cases'>('missions');
   readonly progress = inject(ProgressService);
   readonly drafts = inject(CaseDraftsService);
   private readonly router = inject(Router);
@@ -315,7 +305,7 @@ export class DesignListPage {
   }
 
   restart(caseId: string) {
-    void this.router.navigate(['/design/case', caseId], { state: { startOver: true } });
+    void this.router.navigate(['/design/cases', caseId], { state: { startOver: true } });
   }
 
   revisitFor(id: string) {

@@ -13,7 +13,7 @@ function setup(access: AiAccess = 'sign-in-required') {
     get: vi.fn(async (path: string): Promise<InterviewCatalog | InterviewSession[]> => (path.endsWith('/problems') ? catalog : [])),
     post: vi.fn(async () => ({ id: 'session' })),
   };
-  const router = { navigate: vi.fn(async () => true) };
+  const router = { navigate: vi.fn(async () => true), url: '/mock' };
   TestBed.configureTestingModule({
     imports: [InterviewHomePage],
     providers: [
@@ -178,7 +178,7 @@ describe('InterviewHomePage access choice', () => {
     expect(api.post).toHaveBeenCalledTimes(1);
     resolve({ id: 'session' });
     await first;
-    expect(router.navigate).toHaveBeenCalledExactlyOnceWith(['/interview', 'session']);
+    expect(router.navigate).toHaveBeenCalledExactlyOnceWith(['/mock', 'session']);
   });
 });
 
@@ -191,8 +191,8 @@ describe('InterviewHomePage behavioral track', () => {
     await page.start();
     expect(api.post).not.toHaveBeenCalled();
     expect(router.navigate.mock.calls).toEqual([
-      [['/behavioral/mock'], { queryParams: { question: 'conflict' } }],
-      [['/behavioral/mock'], {}],
+      [['/behavioral/drill'], { queryParams: { question: 'conflict' }, state: { from: '/mock' } }],
+      [['/behavioral/drill'], { queryParams: {}, state: { from: '/mock' } }],
     ]);
   });
 
@@ -205,7 +205,7 @@ describe('InterviewHomePage behavioral track', () => {
     page.chooseMode('ai');
     await page.start('conflict');
     expect(api.post).toHaveBeenCalledExactlyOnceWith('/interview/sessions', { track: 'behavioral', problemId: 'conflict', mode: 'ai' });
-    expect(router.navigate).toHaveBeenCalledExactlyOnceWith(['/interview', 'session']);
+    expect(router.navigate).toHaveBeenCalledExactlyOnceWith(['/mock', 'session']);
   });
 
   it('opens sign-in instead of starting an AI interview for a guest', async () => {

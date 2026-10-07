@@ -3,7 +3,7 @@ import { expect, recordedEvents, synced, test } from './fixtures';
 test('a case study is worked stage by stage, resumes where the learner left it, and opens its build in the Design Lab', async ({
   page,
 }) => {
-  await page.goto('/design');
+  await page.goto('/design/cases');
   await page.getByRole('link', { name: /URL Shortener/ }).click();
   await expect(page.getByRole('heading', { name: 'URL Shortener', level: 1 })).toBeVisible();
 
@@ -34,7 +34,7 @@ test('a case study is worked stage by stage, resumes where the learner left it, 
   await page.reload();
   await expect(page.getByRole('heading', { name: /Estimate the traffic/ })).toBeVisible();
 
-  await page.goto('/design/free-build?case=url-shortener');
+  await page.goto('/design/cases/url-shortener/build');
   await expect(page).toHaveTitle(/URL Shortener build/);
   await expect(page.getByText(/design at 40k requests per second/)).toBeVisible();
   await expect(page.locator('g.node[data-kind="cache"]')).toBeVisible();
@@ -44,7 +44,7 @@ test('a case study is worked stage by stage, resumes where the learner left it, 
 const RECOMMENDED: Record<number, RegExp> = { 4: /^Hybrid: push for most accounts/, 6: /^A cursor: return the last post ID seen/ };
 
 test('a case study keeps every answer across a reload, and finishing it syncs a progress event and marks it finished', async ({ page }) => {
-  await page.goto('/design');
+  await page.goto('/design/cases');
   const card = page.getByRole('link', { name: /^News Feed/ });
   await card.click();
   const stages = page.locator('li.stage');
@@ -69,7 +69,7 @@ test('a case study keeps every answer across a reload, and finishing it syncs a 
   await expect(page.getByRole('status').filter({ hasText: '34,722 reads/s' })).toContainText('Spot on.');
   await expect(stages.nth(1).getByText('1 of 2', { exact: true })).toBeVisible();
 
-  await page.goto('/design');
+  await page.goto('/design/cases');
   await expect(card).toContainText('Stage 2 of 8');
   await card.click();
   await expect(reads).toHaveValue('35k');
@@ -98,14 +98,14 @@ test('a case study keeps every answer across a reload, and finishing it syncs a 
   expect(state.cases['news-feed']).toMatchObject({ completions: 1, bestChoices: 2, decisions: 3, closeEstimates: 1, estimates: 2 });
   expect(Object.keys(state.introduced)).toEqual(expect.arrayContaining(['sd-caching', 'sd-queues', 'sd-replication']));
 
-  await page.goto('/design');
+  await page.goto('/design/cases');
   await expect(card).toContainText('Finished');
   await expect(page.getByText('Decisions as recommended: 2 of 3. Estimates within 2x: 1 of 2.')).toBeVisible();
   await page.getByRole('link', { name: 'Review: News Feed' }).click();
   await expect(reads).toHaveValue('35k');
   await expect(page.getByRole('heading', { name: 'What costs candidates this question' })).toBeVisible();
 
-  await page.goto('/design');
+  await page.goto('/design/cases');
   await page.getByRole('button', { name: 'Start over: News Feed' }).click();
   await expect(stages.nth(0).getByRole('heading', { name: /Clarify what matters/ })).toBeFocused();
   await expect(decision.getByRole('button')).toHaveCount(4);
@@ -114,7 +114,7 @@ test('a case study keeps every answer across a reload, and finishing it syncs a 
 });
 
 test('a case build names nodes by their role and stores files in an object store', { tag: '@lab' }, async ({ page }) => {
-  await page.goto('/design/free-build?case=file-sync');
+  await page.goto('/design/cases/file-sync/build');
   const blocks = page.getByRole('button', { name: /^Block store, Object Store/ });
   await blocks.focus();
   await page.keyboard.press('Enter');

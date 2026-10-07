@@ -131,7 +131,7 @@ async function fakeAiInterviewer(page: Page, { failFirstAnswer = false } = {}) {
 }
 
 test('the interview list offers three tracks, and behavioral lists every competency', async ({ page }) => {
-  await page.goto('/interview');
+  await page.goto('/mock');
   await page.getByRole('button', { name: /^Behavioral/ }).click();
   const competencies = page.locator('app-interview-home .problem');
   await expect(competencies).toHaveCount(13);
@@ -141,10 +141,10 @@ test('the interview list offers three tracks, and behavioral lists every compete
 });
 
 test('scripted behavioral practice stays on the device: one question of the chosen competency', async ({ page }) => {
-  await page.goto('/interview');
+  await page.goto('/mock');
   await page.getByRole('button', { name: /^Behavioral/ }).click();
   await page.getByRole('button', { name: /^Conflict & Disagreement/ }).click();
-  await expect(page).toHaveURL(/\/behavioral\/mock\?question=conflict$/);
+  await expect(page).toHaveURL(/\/behavioral\/drill\?question=conflict$/);
   const mock = page.locator('app-behavioral-mock');
   await expect(mock.getByText('Question 1 of 1', { exact: true })).toBeVisible();
 });
@@ -157,7 +157,7 @@ test.describe('the AI interviewer entry on a question', () => {
     await page.getByRole('button', { name: 'Practice with the AI interviewer' }).click();
     await expect(page.getByRole('alert')).toContainText('unavailable');
     await page.getByRole('link', { name: 'Practice it with scripted follow-ups instead' }).click();
-    await expect(page).toHaveURL(/\/behavioral\/mock\?question=conflict-1$/);
+    await expect(page).toHaveURL(/\/behavioral\/drill\?question=conflict-1$/);
     await expect(page.locator('app-behavioral-mock h1')).toHaveText(
       'Tell me about a time you disagreed with a teammate on a technical decision.',
     );
@@ -170,12 +170,12 @@ test('an AI behavioral interview starts from a story, takes three follow-ups, an
   await expect(page.getByRole('link', { name: /The launch date/ })).toContainText('Rehearse tomorrow');
   const { id, sent } = await fakeAiInterviewer(page);
 
-  await settledGoto(page, '/interview');
+  await settledGoto(page, '/mock');
   await page.getByRole('button', { name: 'AI interview' }).click();
   await page.getByRole('button', { name: /^Behavioral/ }).click();
   await expect(page.getByText('Your answers, including any story you start from, are sent to the AI service.')).toBeVisible();
   await page.getByRole('button', { name: /^Conflict & Disagreement/ }).click();
-  await expect(page).toHaveURL(new RegExp(`/interview/${id}$`));
+  await expect(page).toHaveURL(new RegExp(`/mock/${id}$`));
   expect(sent[0]).toEqual({ track: 'behavioral', problemId: 'conflict', mode: 'ai' });
 
   const session = page.locator('app-interview-session');
@@ -261,7 +261,7 @@ test.describe('an answer the interviewer could not take', () => {
 
   test('comes back with focus on Give answer, and can be given again', async ({ page }) => {
     const { id, sent } = await fakeAiInterviewer(page, { failFirstAnswer: true });
-    await page.goto(`/interview/${id}`);
+    await page.goto(`/mock/${id}`);
     const session = page.locator('app-interview-session');
     for (const [part, text] of Object.entries({ Situation: STORY_DRAFT.situation, Action: STORY_DRAFT.action })) {
       await session.getByLabel(part, { exact: true }).fill(text);

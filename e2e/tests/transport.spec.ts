@@ -57,7 +57,7 @@ const landsOnDragLayer = (page: Page, x: number, y: number) =>
 
 test.describe('the transport', { tag: '@player' }, () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/visualize/binary-search');
+    await page.goto('/coding/visualizers/binary-search');
     await expect(count(page)).toHaveText('1 / 13');
   });
 
@@ -198,7 +198,7 @@ test.describe('the transport', { tag: '@player' }, () => {
 
 test.describe('a run with many checkpoints', { tag: '@player' }, () => {
   test('draws every tick whole, apart from its neighbours', async ({ page }) => {
-    await page.goto('/visualize/lcs');
+    await page.goto('/coding/visualizers/lcs');
     await openPlayback(page);
     const centres = await transport(page)
       .locator('.tick')
@@ -210,7 +210,7 @@ test.describe('a run with many checkpoints', { tag: '@player' }, () => {
 
   test('a tap on a merged mark opens the pending checkpoint it shows', async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 320, height: 700 });
-    await page.goto('/visualize/lcs');
+    await page.goto('/coding/visualizers/lcs');
     await openPlayback(page);
     for (const at of ['2 / 86', '8 / 86']) {
       await page.getByRole('button', { name: 'Next checkpoint' }).click();
@@ -241,7 +241,7 @@ for (const [width, height] of [
         page,
       }, testInfo) => {
         test.skip(testInfo.project.name !== 'phone' && testInfo.project.name !== 'iphone', 'A phone layout, measured on the phones.');
-        await page.goto(`/visualize/${id}`);
+        await page.goto(`/coding/visualizers/${id}`);
         await page.locator('app-player').getByText('Predict mode').click();
         await openPlayback(page);
         const total = await stepTotal(count(page));
@@ -291,7 +291,7 @@ test.describe('⋯ on a phone', { tag: '@player' }, () => {
   test.beforeEach(async ({ page }) => page.setViewportSize({ width: 320, height: 700 }));
 
   test("while a drag holds, the hold chip takes the Timeline label's row inside the panel", async ({ page }, testInfo) => {
-    await page.goto('/visualize/binary-search');
+    await page.goto('/coding/visualizers/binary-search');
     await openPlayback(page);
     const pointer = await pointerFor(page, testInfo.project.name);
     const thumb = await centre(timeline(page));
@@ -315,7 +315,7 @@ test.describe('⋯ on a phone', { tag: '@player' }, () => {
       [768, 1024, true],
     ] as const) {
       await page.setViewportSize({ width, height });
-      await page.goto('/visualize/binary-search');
+      await page.goto('/coding/visualizers/binary-search');
       await openPlayback(page);
       await timeline(page).press('End');
       await expect(count(page)).toHaveText(/^(\d+) \/ \1$/);

@@ -18,7 +18,7 @@ test.describe('in the dark theme', () => {
   test.use({ theme: 'dark' });
 
   test('Attachments Everywhere opens from the list and is cleared by mouse with an object store', { tag: '@lab' }, async ({ page }) => {
-    await page.goto('/design');
+    await page.goto('/design/missions');
     const card = page.getByRole('link', { name: /^\d+ Attachments Everywhere/ });
     await expect(card).toContainText('50% files');
     await card.click();
@@ -53,7 +53,7 @@ test.describe('in the light theme', () => {
   test.use({ theme: 'light' });
 
   test('Attachments Everywhere is cleared with the keyboard alone', { tag: '@lab' }, async ({ page }) => {
-    await page.goto('/design/mail-attachments');
+    await page.goto('/design/missions/mail-attachments');
     const sidebar = page.locator('aside.sidebar');
     const press = async (control: Locator) => {
       await control.focus();
@@ -90,7 +90,7 @@ test(
   'a free build sets the share of file requests in its workload, and an old board keeps the old rule until the learner sets one',
   { tag: '@lab' },
   async ({ page }) => {
-    await page.goto('/design/free-build?case=file-sync');
+    await page.goto('/design/cases/file-sync/build');
     const files = page.getByRole('slider', { name: /^Files/ });
     await expect(files).toHaveValue('50');
     await expect(page.getByRole('button', { name: /^Block store, Object Store, 1 instance, 22% utilized/ })).toBeVisible();
@@ -113,7 +113,7 @@ test(
       localStorage.setItem('CapacitorStorage.grasp.design.free-build', JSON.stringify(saved));
     });
     // A board saved before the workload named its share keeps the share on its store and the old rule, until the learner sets one.
-    await page.goto('/design/free-build');
+    await page.goto('/design/lab');
     const p99 = page.locator('.metric', { hasText: 'p99 latency' });
     // The control starts at the share the board runs at: the 70% saved on its store.
     const oldRule = page.getByRole('slider', { name: 'Files old rule (70%)' });
@@ -125,12 +125,12 @@ test(
     await expect(p99).not.toContainText('369');
 
     // In the video build only the CDN and the transcoders feed the store, splitting by instance count: no share to show.
-    await page.goto('/design/free-build?case=video-streaming');
+    await page.goto('/design/cases/video-streaming/build');
     await expect(page.getByRole('slider', { name: 'Files old rule', exact: true })).toHaveAttribute('aria-valuetext', 'old rule');
 
     // The email build's workers write to its store, so it keeps the old rule until the learner names a share. Only the
     // workload changes here, so the board must be saved for a workload change alone.
-    await page.goto('/design/free-build?case=email-service');
+    await page.goto('/design/cases/email-service/build');
     const saved = () => page.evaluate(() => localStorage.getItem('CapacitorStorage.grasp.design.case.email-service') ?? '');
     await expect.poll(saved).toContain('"design"');
     await expect(page.getByRole('slider', { name: 'Files old rule (30%)' })).toHaveValue('30');

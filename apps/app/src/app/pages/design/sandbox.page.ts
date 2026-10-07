@@ -13,7 +13,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
-import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar, ToastController } from '@ionic/angular';
+import { IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar, ToastController } from '@ionic/angular';
 import { Preferences } from '@capacitor/preferences';
 import {
   COMPONENTS,
@@ -92,11 +92,12 @@ type Gesture =
 type Drag =
   | { kind: 'move'; id: string; dx: number; dy: number; startX: number; startY: number; moved: boolean }
   | { kind: 'link'; from: string; x: number; y: number };
+import { BackComponent } from '../../ui/back.component';
 
 @Component({
   selector: 'app-sandbox',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DecimalPipe, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle, IonContent, IonIcon, NodeInspectorComponent],
+  imports: [BackComponent, DecimalPipe, IonHeader, IonToolbar, IonButtons, IonTitle, IonContent, IonIcon, NodeInspectorComponent],
   providers: [AnnouncerService],
   templateUrl: './sandbox.page.html',
   styleUrl: './sandbox.page.scss',

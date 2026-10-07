@@ -202,7 +202,7 @@ const PY_CRASH = `def two_sum(nums, target):
     return [0, 1]`;
 
 test('an efficient JavaScript solution passes the examples, then every test', { tag: '@smoke' }, async ({ page }) => {
-  await page.goto('/code/two-sum');
+  await page.goto('/coding/problems/two-sum');
   await page.getByRole('radio', { name: 'JavaScript' }).click();
   await write(page, JS_TWO_SUM);
 
@@ -217,7 +217,7 @@ test('an efficient JavaScript solution passes the examples, then every test', { 
 });
 
 test('a correct but quadratic solution fails the performance test', async ({ page }) => {
-  await page.goto('/code/two-sum');
+  await page.goto('/coding/problems/two-sum');
   await page.getByRole('radio', { name: 'JavaScript' }).click();
   await write(page, JS_TWO_SUM_QUADRATIC);
   await page.getByRole('button', { name: 'Run', exact: true }).click();
@@ -229,7 +229,7 @@ test('a correct but quadratic solution fails the performance test', async ({ pag
 
 test('Python runs in the browser on Pyodide', { tag: '@smoke' }, async ({ page }) => {
   test.slow();
-  await page.goto('/code/two-sum');
+  await page.goto('/coding/problems/two-sum');
   await expect(page.getByRole('radio', { name: 'Python' })).toBeChecked();
   await write(page, PY_TWO_SUM);
   await page.getByRole('button', { name: 'Run', exact: true }).click();
@@ -237,7 +237,7 @@ test('Python runs in the browser on Pyodide', { tag: '@smoke' }, async ({ page }
 });
 
 test('Ctrl/⌘ + Enter runs the examples straight from the editor', async ({ page }) => {
-  await page.goto('/code/two-sum');
+  await page.goto('/coding/problems/two-sum');
   await page.getByRole('radio', { name: 'JavaScript' }).click();
   await write(page, JS_TWO_SUM);
   await page.keyboard.press('ControlOrMeta+Enter');
@@ -245,7 +245,7 @@ test('Ctrl/⌘ + Enter runs the examples straight from the editor', async ({ pag
 });
 
 test('in Python, Trace explains itself and offers JavaScript, keeping the Python draft', async ({ page }) => {
-  await page.goto('/code/two-sum');
+  await page.goto('/coding/problems/two-sum');
   await expect(page.getByRole('radio', { name: 'Python' })).toBeChecked();
   await write(page, PY_TWO_SUM);
   await page.getByRole('button', { name: 'Trace', exact: true }).click();
@@ -263,7 +263,7 @@ test('in Python, Trace explains itself and offers JavaScript, keeping the Python
 });
 
 test('Trace steps through your own JavaScript', { tag: '@player' }, async ({ page }) => {
-  await page.goto('/code/two-sum');
+  await page.goto('/coding/problems/two-sum');
   await trace(page, JS_TWO_SUM);
   await expect(page.getByRole('tab', { name: 'Trace' })).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByRole('slider', { name: 'Timeline' })).toBeVisible();
@@ -274,7 +274,7 @@ test('Trace steps through your own JavaScript', { tag: '@player' }, async ({ pag
 });
 
 test('a tree problem builds each input tree from its level order and accepts a TypeScript DFS', async ({ page }) => {
-  await page.goto('/code/tree-diameter');
+  await page.goto('/coding/problems/tree-diameter');
   await expect(page.locator('.example g-tree-view')).toHaveCount(3);
   await page.getByRole('radio', { name: 'TypeScript' }).click();
   await write(page, TS_DIAMETER, 'Diameter of Binary Tree');
@@ -290,14 +290,14 @@ test('a tree problem builds each input tree from its level order and accepts a T
 
 test('Python has TreeNode and Optional in scope for a tree problem', async ({ page }) => {
   test.slow();
-  await page.goto('/code/tree-diameter');
+  await page.goto('/coding/problems/tree-diameter');
   await write(page, PY_DIAMETER, 'Diameter of Binary Tree');
   await page.getByRole('button', { name: 'Run', exact: true }).click();
   await expect(page.getByText('3 / 3 examples passed')).toBeVisible({ timeout: 60_000 });
 });
 
 test('a list problem hands the list over as linked nodes and accepts an in-place JavaScript reversal', async ({ page }) => {
-  await page.goto('/code/reverse-linked-list');
+  await page.goto('/coding/problems/reverse-linked-list');
   await page.getByRole('radio', { name: 'JavaScript' }).click();
   await write(page, JS_REVERSE, 'Reverse Linked List');
   await page.getByRole('button', { name: 'Run', exact: true }).click();
@@ -312,7 +312,7 @@ test('a list problem hands the list over as linked nodes and accepts an in-place
 
 test('Python has ListNode in scope for a list problem, and a list of 200,000 nodes does not crash it', async ({ page }) => {
   test.slow();
-  await page.goto('/code/reverse-linked-list-ii');
+  await page.goto('/coding/problems/reverse-linked-list-ii');
   await write(page, PY_REVERSE_BETWEEN, 'Reverse Linked List II');
   await page.getByRole('button', { name: 'Submit' }).click();
   await expect(page.getByText(/^(\d+) \/ \1 tests passed$/)).toBeVisible({ timeout: 120_000 });
@@ -321,7 +321,7 @@ test('Python has ListNode in scope for a list problem, and a list of 200,000 nod
 
 test('a Python solution that builds its own 200,000-node copy of a list, never returned, does not crash it', async ({ page }) => {
   test.slow();
-  await page.goto('/code/palindrome-linked-list');
+  await page.goto('/coding/problems/palindrome-linked-list');
   await write(page, PY_PALINDROME_COPY, 'Palindrome Linked List');
   await page.getByRole('button', { name: 'Submit' }).click();
   await expect(page.getByText(/^(\d+) \/ \1 tests passed$/)).toBeVisible({ timeout: 120_000 });
@@ -329,7 +329,7 @@ test('a Python solution that builds its own 200,000-node copy of a list, never r
 });
 
 test('Trace shows each list variable as the values it leads to, and the list it returns', async ({ page }) => {
-  await page.goto('/code/reverse-linked-list');
+  await page.goto('/coding/problems/reverse-linked-list');
   await trace(page, JS_REVERSE, 'Reverse Linked List');
   const count = page.locator('app-trace-player .count');
   await expect(count).toHaveText(/^1 \/ \d+$/);
@@ -338,7 +338,7 @@ test('Trace shows each list variable as the values it leads to, and the list it 
 });
 
 test('a JavaScript Kruskal with union-find is accepted for Connecting Cities, 100,000 roads included', async ({ page }) => {
-  await page.goto('/code/connecting-cities');
+  await page.goto('/coding/problems/connecting-cities');
   await page.getByRole('radio', { name: 'JavaScript' }).click();
   await write(page, JS_KRUSKAL, 'Connecting Cities With Minimum Cost');
   await page.getByRole('button', { name: 'Submit' }).click();
@@ -348,7 +348,7 @@ test('a JavaScript Kruskal with union-find is accepted for Connecting Cities, 10
 
 test('a Python Prim with an array of distances is accepted for Min Cost to Connect All Points, 1,000 points included', async ({ page }) => {
   test.slow();
-  await page.goto('/code/min-cost-connect-points');
+  await page.goto('/coding/problems/min-cost-connect-points');
   await write(page, PY_PRIM_POINTS, 'Min Cost to Connect All Points');
   await page.getByRole('button', { name: 'Submit' }).click();
   await expect(page.getByText(/^(\d+) \/ \1 tests passed$/)).toBeVisible({ timeout: 120_000 });
@@ -356,7 +356,7 @@ test('a Python Prim with an array of distances is accepted for Min Cost to Conne
 });
 
 test('a JavaScript bitmask DP is accepted for Partition to K Equal Sum Subsets, 16 values included', async ({ page }) => {
-  await page.goto('/code/partition-k-subsets');
+  await page.goto('/coding/problems/partition-k-subsets');
   await page.getByRole('radio', { name: 'JavaScript' }).click();
   await write(page, JS_PARTITION, 'Partition to K Equal Sum Subsets');
   await page.getByRole('button', { name: 'Submit' }).click();
@@ -366,7 +366,7 @@ test('a JavaScript bitmask DP is accepted for Partition to K Equal Sum Subsets, 
 
 test('a Python DP over hats with a mask of people is accepted for the hats problem, ten people included', async ({ page }) => {
   test.slow();
-  await page.goto('/code/hats-to-people');
+  await page.goto('/coding/problems/hats-to-people');
   await write(page, PY_HATS, 'Number of Ways to Wear Different Hats to Each Other');
   await page.getByRole('button', { name: 'Submit' }).click();
   await expect(page.getByText(/^(\d+) \/ \1 tests passed$/)).toBeVisible({ timeout: 120_000 });
@@ -379,7 +379,7 @@ test.describe('when Python code crashes the interpreter', () => {
 
   test('the run says so, and the next run starts a fresh Python', async ({ page }) => {
     test.slow();
-    await page.goto('/code/two-sum');
+    await page.goto('/coding/problems/two-sum');
     await write(page, PY_CRASH);
     await page.getByRole('button', { name: 'Run', exact: true }).click();
     await expect(page.getByText(/^Python crashed/)).toBeVisible({ timeout: 60_000 });
@@ -391,7 +391,7 @@ test.describe('when Python code crashes the interpreter', () => {
 });
 
 test('Trace draws the input tree and marks the node being visited', async ({ page }) => {
-  await page.goto('/code/tree-diameter');
+  await page.goto('/coding/problems/tree-diameter');
   await trace(page, JS_DIAMETER, 'Diameter of Binary Tree');
   const tree = page.locator('app-trace-player g-tree-view');
   await expect(tree.getByRole('img', { name: /^Tree with \d+ nodes/ })).toBeVisible();
@@ -400,7 +400,7 @@ test('Trace draws the input tree and marks the node being visited', async ({ pag
 });
 
 test('Trace shows the call stack of a recursive DFS, and the calls waiting on the stack in the tree', async ({ page }) => {
-  await page.goto('/code/tree-diameter');
+  await page.goto('/coding/problems/tree-diameter');
   await trace(page, JS_DIAMETER, 'Diameter of Binary Tree');
   await seek(page, 7, 'Called height(TreeNode(4))');
   await expect(page.getByRole('list', { name: 'call stack' }).getByRole('listitem')).toHaveText([
@@ -438,7 +438,7 @@ async function expectWordsInside(badge: Locator) {
 }
 
 test('Trace keeps the tree one width as a long pointer name comes and goes, with its badge inside the tree', async ({ page }) => {
-  await page.goto('/code/tree-diameter');
+  await page.goto('/coding/problems/tree-diameter');
   await trace(page, JS_DIAMETER_LONG_NAME, 'Diameter of Binary Tree');
   const tree = page.locator('app-trace-player g-tree-view svg');
   const unbadged = await tree.getAttribute('viewBox');
@@ -451,7 +451,7 @@ test('Trace keeps the tree one width as a long pointer name comes and goes, with
 
 test('on a narrow phone, two long pointer names on one node stack on two lines, and the tree keeps its full size', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 700 });
-  await page.goto('/code/tree-diameter');
+  await page.goto('/coding/problems/tree-diameter');
   await trace(page, JS_INORDER_LONG_NAMES, 'Diameter of Binary Tree');
   const tree = page.locator('app-trace-player g-tree-view svg');
   const first = (await tree.getAttribute('viewBox'))!;
@@ -465,7 +465,7 @@ test('on a narrow phone, two long pointer names on one node stack on two lines, 
 
 test('on a narrow phone, a call too long for the call stack is cut short on one line, and nothing scrolls sideways', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 700 });
-  await page.goto('/code/tree-diameter');
+  await page.goto('/coding/problems/tree-diameter');
   await trace(page, JS_DIAMETER, 'Diameter of Binary Tree');
   await seek(page, 7, 'Called height(TreeNode(4))');
   const calls = page.getByRole('list', { name: 'call stack' }).getByRole('listitem');
@@ -480,7 +480,7 @@ test(
   'Step forward stays under the finger through a whole trace, as the call stack grows and shrinks',
   { tag: '@player' },
   async ({ page }) => {
-    await page.goto('/code/tree-diameter');
+    await page.goto('/coding/problems/tree-diameter');
     await trace(page, JS_DIAMETER, 'Diameter of Binary Tree');
     const player = page.locator('app-trace-player');
     const forward = player.getByRole('button', { name: 'Step forward' });
@@ -499,7 +499,7 @@ test(
 test('widening the window mid-trace, from one column back to two, leaves Step forward where it was', async ({ page, isMobile }) => {
   test.skip(isMobile, 'A desktop window.');
   await page.setViewportSize({ width: 1280, height: 720 });
-  await page.goto('/code/tree-diameter');
+  await page.goto('/coding/problems/tree-diameter');
   await trace(page, JS_DIAMETER, 'Diameter of Binary Tree');
   const player = page.locator('app-trace-player');
   const forward = player.getByRole('button', { name: 'Step forward' });
@@ -525,7 +525,7 @@ test('with the page scrolled to its end, Step forward stays put as the call stac
   // On a laptop the problem statement beside the trace also sets where the page ends, so the page gives back less than the
   // drawing does. A phone is given the height of a large one, where Step forward is still on screen at the page end.
   await page.setViewportSize(isMobile ? { width: page.viewportSize()!.width, height: 840 } : { width: 1280, height: 1000 });
-  await page.goto('/code/tree-diameter');
+  await page.goto('/coding/problems/tree-diameter');
   await trace(page, JS_DIAMETER, 'Diameter of Binary Tree');
   const player = page.locator('app-trace-player');
   const forward = player.getByRole('button', { name: 'Step forward' });
@@ -551,7 +551,7 @@ test('on a laptop scrolled to the page end, stepping a trace from the keyboard l
 }) => {
   test.skip(isMobile, 'The problem statement sits above the trace on a phone.');
   await page.setViewportSize({ width: 1280, height: 720 });
-  await page.goto('/code/tree-diameter');
+  await page.goto('/coding/problems/tree-diameter');
   await trace(page, JS_DIAMETER, 'Diameter of Binary Tree');
   const player = page.locator('app-trace-player');
   const count = player.locator('.count');
@@ -572,7 +572,7 @@ test('on a laptop scrolled to the page end, stepping a trace from the keyboard l
 
 test('the call stack keeps no empty room above its calls for deeper frames still to come', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/code/tree-diameter');
+  await page.goto('/coding/problems/tree-diameter');
   await trace(page, JS_DIAMETER, 'Diameter of Binary Tree');
   const stack = page.locator('app-trace-player g-list-view.calls');
   const calls = stack.getByRole('listitem');
@@ -596,7 +596,7 @@ test('the call stack keeps no empty room above its calls for deeper frames still
 });
 
 test('a trace of pairs gives each value a cell wide enough for it, over its own index', async ({ page }) => {
-  await page.goto('/code/merge-intervals');
+  await page.goto('/coding/problems/merge-intervals');
   await trace(page, JS_MERGE, 'Merge Intervals');
   const array = page.locator('app-trace-player g-array-view');
   await expect(array.locator('.cell').first()).toHaveText('[1, 3]');
@@ -614,7 +614,7 @@ test('a trace of pairs gives each value a cell wide enough for it, over its own 
 });
 
 test('a trace that calls nothing beyond the entry function has no call stack', async ({ page }) => {
-  await page.goto('/code/two-sum');
+  await page.goto('/coding/problems/two-sum');
   await trace(page, JS_TWO_SUM);
   await expect(page.getByRole('slider', { name: 'Timeline' })).toBeVisible();
   await expect(page.locator('app-trace-player g-array-view')).toBeVisible();
@@ -622,7 +622,7 @@ test('a trace that calls nothing beyond the entry function has no call stack', a
 });
 
 test('Trace draws a grid input as a grid, with the cell (r, c) points at and the land the code sank', async ({ page }) => {
-  await page.goto('/code/number-of-islands');
+  await page.goto('/coding/problems/number-of-islands');
   await trace(page, JS_ISLANDS, 'Number of Islands');
   await seek(page, 12, 'grid[1][0] = "0"');
   const grid = page.locator('app-trace-player g-table-view');
@@ -633,9 +633,9 @@ test('Trace draws a grid input as a grid, with the cell (r, c) points at and the
 });
 
 test('the tree visualizer leads to its coding problem', async ({ page }) => {
-  await page.goto('/visualize/tree-traversal');
+  await page.goto('/coding/visualizers/tree-traversal');
   await page.getByRole('button', { name: 'About this visualizer' }).click();
   await page.getByRole('link', { name: /Now write it yourself: Diameter of Binary Tree/ }).click();
-  await expect(page).toHaveURL(/\/code\/tree-diameter$/);
+  await expect(page).toHaveURL(/\/coding\/problems\/tree-diameter$/);
   await expect(page.getByRole('textbox', { name: 'Diameter of Binary Tree solution' })).toBeVisible();
 });

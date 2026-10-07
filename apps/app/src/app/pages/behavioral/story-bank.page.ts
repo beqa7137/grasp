@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
+import { IonIcon } from '@ionic/angular';
 import {
   BANK_TARGET,
   dueStories,
@@ -19,79 +19,69 @@ import { STORY_SYNC_NOTES, StoryBankService } from './story-bank.service';
 @Component({
   selector: 'app-story-bank',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle, IonContent, IonIcon],
+  imports: [RouterLink, IonIcon],
   template: `
-    <ion-header [translucent]="true">
-      <ion-toolbar>
-        <ion-buttons slot="start"><ion-back-button defaultHref="/behavioral" text="" /></ion-buttons>
-        <ion-title>Story bank</ion-title>
-      </ion-toolbar>
-    </ion-header>
-    <ion-content [fullscreen]="true">
-      <div class="page narrow">
-        <h1>Your story bank</h1>
-        <p class="lead">
-          Write each real experience once, tag the competencies it answers, and tell it for any of their questions.
-          {{ target.min }} to {{ target.max }} stories cover a whole loop.
-        </p>
-        <div class="actions">
-          <button type="button" class="g-btn primary" (click)="create()"><ion-icon name="add" aria-hidden="true" />New story</button>
-          @if (due()) {
-            <a class="g-btn" routerLink="/behavioral/rehearse"
-              ><ion-icon name="mic-outline" aria-hidden="true" />Rehearse {{ due() }} due</a
-            >
-          }
-        </div>
+    <div class="page narrow">
+      <h1>Your story bank</h1>
+      <p class="lead">
+        Write each real experience once, tag the competencies it answers, and tell it for any of their questions.
+        {{ target.min }} to {{ target.max }} stories cover a whole loop.
+      </p>
+      <div class="actions">
+        <button type="button" class="g-btn primary" (click)="create()"><ion-icon name="add" aria-hidden="true" />New story</button>
+        @if (due()) {
+          <a class="g-btn" routerLink="/behavioral/rehearse"><ion-icon name="mic-outline" aria-hidden="true" />Rehearse {{ due() }} due</a>
+        }
+      </div>
 
-        <section class="coverage" aria-labelledby="coverage-title">
-          <h2 id="coverage-title">{{ review().covered }} of {{ review().coverage.length }} competencies have a story</h2>
+      <section class="coverage" aria-labelledby="coverage-title">
+        <h2 id="coverage-title">{{ review().covered }} of {{ review().coverage.length }} competencies have a story</h2>
+        <ul>
+          @for (c of review().coverage; track c.competencyId) {
+            <li [class.gap]="!c.storyIds.length">
+              <a [routerLink]="['/behavioral', c.competencyId]">{{ c.name }}</a>
+              <span class="n"
+                >{{ c.storyIds.length }}<span class="visually-hidden"> {{ c.storyIds.length === 1 ? 'story' : 'stories' }}</span></span
+              >
+            </li>
+          }
+        </ul>
+      </section>
+
+      @if (review().advice.length) {
+        <section class="panel advice">
+          <h2><ion-icon name="bulb-outline" aria-hidden="true" />To do</h2>
           <ul>
-            @for (c of review().coverage; track c.competencyId) {
-              <li [class.gap]="!c.storyIds.length">
-                <a [routerLink]="['/behavioral', c.competencyId]">{{ c.name }}</a>
-                <span class="n"
-                  >{{ c.storyIds.length }}<span class="visually-hidden"> {{ c.storyIds.length === 1 ? 'story' : 'stories' }}</span></span
-                >
-              </li>
+            @for (a of review().advice; track a) {
+              <li>{{ a }}</li>
             }
           </ul>
         </section>
+      }
 
-        @if (review().advice.length) {
-          <section class="panel advice">
-            <h2><ion-icon name="bulb-outline" aria-hidden="true" />To do</h2>
-            <ul>
-              @for (a of review().advice; track a) {
-                <li>{{ a }}</li>
-              }
-            </ul>
-          </section>
-        }
-
-        @if (stories().length) {
-          <h2 class="list-title">{{ stories().length }} {{ stories().length === 1 ? 'story' : 'stories' }}</h2>
-          <ul class="list">
-            @for (s of rows(); track s.id) {
-              <li>
-                <a class="panel item" [routerLink]="['/behavioral/stories', s.id]">
-                  <span class="text">
-                    <span class="name">{{ s.title }}</span>
-                    <span class="tags">{{ s.tags || 'No competencies yet' }}</span>
-                    <span class="checks" [class.ok]="s.passing === s.total">{{ s.passing }} of {{ s.total }} checks pass</span>
-                    <span class="when">Rehearse {{ s.when }}</span>
-                  </span>
-                  <ion-icon name="chevron-forward" aria-hidden="true" />
-                </a>
-              </li>
-            }
-          </ul>
-        }
-        <p class="saved muted">{{ saved() }}</p>
-        @for (r of refusals(); track r.id) {
-          <p class="saved muted">"{{ r.title }}" is saved on this device only: the account refused it, as {{ r.reason }}.</p>
-        }
-      </div>
-    </ion-content>
+      @if (stories().length) {
+        <h2 class="list-title">{{ stories().length }} {{ stories().length === 1 ? 'story' : 'stories' }}</h2>
+        <ul class="list">
+          @for (s of rows(); track s.id) {
+            <li>
+              <a class="panel item" [routerLink]="['/behavioral/stories', s.id]">
+                <span class="text">
+                  <span class="name">{{ s.title }}</span>
+                  <span class="tags">{{ s.tags || 'No competencies yet' }}</span>
+                  <span class="checks" [class.ok]="s.passing === s.total">{{ s.passing }} of {{ s.total }} checks pass</span>
+                  <span class="when">Rehearse {{ s.when }}</span>
+                </span>
+                <ion-icon name="chevron-forward" aria-hidden="true" />
+              </a>
+            </li>
+          }
+        </ul>
+      }
+      <p class="saved muted">{{ saved() }}</p>
+      @for (r of refusals(); track r.id) {
+        <p class="saved muted">"{{ r.title }}" is saved on this device only: the account refused it, as {{ r.reason }}.</p>
+      }
+    </div>
   `,
   styles: `
     h1 {

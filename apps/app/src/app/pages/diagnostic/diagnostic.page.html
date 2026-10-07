@@ -1,6 +1,6 @@
 <ion-header [translucent]="true">
   <ion-toolbar>
-    <ion-buttons slot="start"><ion-back-button defaultHref="/learn" text="" /></ion-buttons>
+    <ion-buttons slot="start"><app-back href="/coding" /></ion-buttons>
     <ion-title>Placement check</ion-title>
   </ion-toolbar>
 </ion-header>
@@ -29,7 +29,7 @@
           }
           <div class="actions">
             <button class="g-btn primary" (click)="start()"><ion-icon name="time-outline" aria-hidden="true" />Start · about 5 min</button>
-            <a class="g-btn ghost" routerLink="/learn">Not now</a>
+            <a class="g-btn ghost" routerLink="/today" crossLink>Not now</a>
           </div>
         </section>
       }
@@ -77,7 +77,7 @@
               <p class="muted small">Your reviews bring these patterns up first.</p>
               <div class="chips">
                 @for (p of result.weak; track p.id) {
-                  <a class="chip accent" [routerLink]="['/learn/pattern', p.id]">{{ p.name }}</a>
+                  <a class="chip accent" [routerLink]="['/coding/patterns', p.id]">{{ p.name }}</a>
                 }
               </div>
             </div>
@@ -88,16 +88,18 @@
               <p class="muted small">Their reviews skip ahead to templates and complexity.</p>
               <div class="chips">
                 @for (p of result.strong; track p.id) {
-                  <a class="chip" [routerLink]="['/learn/pattern', p.id]">{{ p.name }}</a>
+                  <a class="chip" [routerLink]="['/coding/patterns', p.id]">{{ p.name }}</a>
                 }
               </div>
             </div>
           }
 
           <div class="actions">
-            <a class="g-btn primary" routerLink="/drill">Start your first review <ion-icon name="arrow-forward" aria-hidden="true" /></a>
+            <a class="g-btn primary" routerLink="/today/review" crossLink
+              >Start your first review <ion-icon name="arrow-forward" aria-hidden="true"
+            /></a>
             @if (result.weak[0]; as first) {
-              <a class="g-btn ghost" [routerLink]="['/learn/pattern', first.id]">Learn {{ first.name }} first</a>
+              <a class="g-btn ghost" [routerLink]="['/coding/patterns', first.id]">Learn {{ first.name }} first</a>
             }
           </div>
         </section>

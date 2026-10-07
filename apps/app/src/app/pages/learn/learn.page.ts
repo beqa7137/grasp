@@ -6,11 +6,9 @@ import {
   CODING_CATALOG,
   PATTERN_CATALOG,
   SCENARIO_CATALOG,
-  SD_TOPICS,
   calendarDaysBetween,
   dayKey,
   getScenarioSummary,
-  type Track,
 } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import {
@@ -37,21 +35,14 @@ import { refocusAfterRender } from '../../core/focus';
 import { ProgressService } from '../../core/progress.service';
 import { PilotService } from '../../pilot/pilot.service';
 import { DiagnosticPromptService } from '../diagnostic/diagnostic-prompt.service';
-import { CodeTextComponent } from '../../viz/code-text.component';
 import { MasteryRingComponent } from '../../viz/mastery-ring.component';
 import { LearnMenuComponent, type LearnMenuChoice } from './learn-menu.component';
-
-const TRACKS: { id: Track; title: string; blurb: string }[] = [
-  { id: 'foundations', title: 'Foundations', blurb: 'The four patterns behind a third of all interview questions.' },
-  { id: 'core', title: 'Core patterns', blurb: 'Stacks, sweeps and heaps: where O(n²) becomes O(n).' },
-  { id: 'graphs', title: 'Graphs & trees', blurb: 'Traversal, ordering, connectivity, shortest paths.' },
-  { id: 'advanced', title: 'Advanced', blurb: 'Dynamic programming, tries, greedy proofs, bits.' },
-];
+import { CrossLinkDirective } from '../../ui/cross-link.directive';
 
 @Component({
   selector: 'app-learn',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, IonHeader, IonToolbar, IonButtons, IonTitle, IonContent, IonIcon, CodeTextComponent, MasteryRingComponent],
+  imports: [CrossLinkDirective, RouterLink, IonHeader, IonToolbar, IonButtons, IonTitle, IonContent, IonIcon, MasteryRingComponent],
   templateUrl: './learn.page.html',
   styleUrl: './learn.page.scss',
 })
@@ -69,6 +60,8 @@ export class LearnPage {
   readonly auth = inject(AuthService);
   readonly diagnosticPrompt = inject(DiagnosticPromptService);
   readonly menuOpen = signal(false);
+  /** "Where things moved" (REDESIGN.md 2.13), for learners with progress from before the five sections. */
+  readonly movedNote = signal(false);
   private readonly retryNotice = signal<string | null>(null);
   readonly retrying = computed(() => this.retryNotice() !== null);
   readonly showSyncNotice = computed(
@@ -101,10 +94,6 @@ export class LearnPage {
     return 'Some progress is waiting to sync. It is saved on this device.';
   });
   readonly patternCount = PATTERN_CATALOG.length;
-  readonly tracks = TRACKS.map((t) => ({ ...t, patterns: PATTERN_CATALOG.filter((p) => p.track === t.id) }));
-
-  readonly sdTopics = SD_TOPICS;
-  readonly masteryById = computed(() => new Map(this.progress.mastery().map((m) => [m.topic, m])));
   readonly overall = computed(() => {
     const list = this.progress.mastery();
     return list.reduce((s, m) => s + m.mastery, 0) / Math.max(1, list.length);
@@ -152,14 +141,15 @@ export class LearnPage {
       syncOutline,
       timeOutline,
     });
+    void this.offerMovedNote();
+  }
+
+  private async offerMovedNote(): Promise<void> {
+    if (await this.pilot.offerMovedNote(this.progress.recorded())) this.movedNote.set(true);
   }
 
   ionViewWillEnter() {
     this.progress.now.set(new Date());
-  }
-
-  mastery(topic: string) {
-    return this.masteryById().get(topic)?.mastery ?? 0;
   }
 
   async openMenu(event: MouseEvent): Promise<void> {
@@ -176,7 +166,7 @@ export class LearnPage {
     const { data } = await menu.onDidDismiss<LearnMenuChoice>();
     this.menuOpen.set(false);
     if (data === 'plan') {
-      void this.router.navigateByUrl('/plan');
+      void this.router.navigateByUrl('/today/plan');
     } else if (data === 'feedback') {
       // WebKit leaves a tapped button unfocused, so the dialog would have nothing to give focus back to on close.
       this.more().nativeElement.focus();

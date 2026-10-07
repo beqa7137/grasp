@@ -1,7 +1,7 @@
 import { expect, test } from './fixtures';
 
-test('a system design lesson opens from Learn and its widget answers the keyboard', async ({ page }) => {
-  await page.goto('/learn');
+test('a system design lesson opens from Design and its widget answers the keyboard', async ({ page }) => {
+  await page.goto('/design');
   await page.getByRole('link', { name: /Latency & Queueing/ }).click();
   await expect(page.getByRole('heading', { name: 'Latency & Queueing', level: 1 })).toBeVisible();
 
@@ -18,7 +18,7 @@ test('a system design lesson opens from Learn and its widget answers the keyboar
 });
 
 test('the sharding lesson counts the keys that move when a node joins, by consistent hashing and by hash mod N', async ({ page }) => {
-  await page.goto('/learn/design/sd-sharding');
+  await page.goto('/design/topics/sd-sharding');
   const moved = page.locator('.readouts div').filter({ hasText: 'Last change moved' }).locator('dd');
   await expect(moved).toHaveText('nothing yet');
 
@@ -36,7 +36,7 @@ test('the sharding lesson counts the keys that move when a node joins, by consis
 });
 
 test('the queue lesson drains the backlog sooner with more consumers', async ({ page }) => {
-  await page.goto('/learn/design/sd-queues');
+  await page.goto('/design/topics/sd-queues');
   const drained = page.locator('.readouts div').filter({ hasText: 'Drained' }).locator('dd');
   await expect(drained).toHaveText('25 s after spike');
   await page.getByRole('button', { name: 'More consumers' }).click();
@@ -47,7 +47,7 @@ test('the queue lesson drains the backlog sooner with more consumers', async ({ 
 });
 
 test('the rate limiting lesson shows a fixed window passing twice the limit at a window edge', async ({ page }) => {
-  await page.goto('/learn/design/sd-rate-limiting');
+  await page.goto('/design/topics/sd-rate-limiting');
   await expect(page.getByRole('radio', { name: 'Edge burst' })).toHaveAttribute('aria-checked', 'true');
   await expect(page.getByText('20 of 20 accepted · worst second 20')).toBeVisible();
   await expect(page.getByText('10 of 20 accepted · worst second 10')).toBeVisible();
@@ -56,7 +56,7 @@ test('the rate limiting lesson shows a fixed window passing twice the limit at a
 });
 
 test('the reliability lesson shows a second database copy removing almost all downtime', async ({ page }) => {
-  await page.goto('/learn/design/sd-reliability');
+  await page.goto('/design/topics/sd-reliability');
   const whole = page.locator('.readouts div').filter({ hasText: 'Whole request' }).locator('dd');
   await expect(whole).toHaveText('99.950%');
   await page.getByRole('button', { name: 'More Database copies' }).click();
@@ -65,7 +65,7 @@ test('the reliability lesson shows a second database copy removing almost all do
 });
 
 test('the estimation drill judges a typed estimate and shows the working', async ({ page }) => {
-  await page.goto('/learn/design/sd-estimation');
+  await page.goto('/design/topics/sd-estimation');
   const drill = page.locator('app-estimate-drill');
   await drill.getByRole('textbox').fill('6k');
   await drill.getByRole('button', { name: 'Check', exact: true }).click();
@@ -76,7 +76,7 @@ test('the estimation drill judges a typed estimate and shows the working', async
 });
 
 test('the capacity lesson moves the bottleneck when the database gets a second instance', async ({ page }) => {
-  await page.goto('/learn/design/sd-capacity');
+  await page.goto('/design/topics/sd-capacity');
   const readout = (name: string) => page.locator('.readouts div').filter({ hasText: name }).locator('dd');
   await expect(readout('Bottleneck')).toHaveText('Database');
   await expect(readout('Dropped')).toHaveText('4,000/s');
@@ -88,7 +88,7 @@ test('the capacity lesson moves the bottleneck when the database gets a second i
 test('the consistency lesson shows a stale read once R + W no longer exceeds N, and a failed write when too few replicas are up', async ({
   page,
 }) => {
-  await page.goto('/learn/design/sd-consistency');
+  await page.goto('/design/topics/sd-consistency');
   const readout = (name: string) => page.locator('.readouts div').filter({ hasText: name }).locator('dd');
   await expect(readout('R + W vs N')).toHaveText('4 > 3');
   await expect(readout('The read sees')).toHaveText('the new value');
@@ -102,7 +102,7 @@ test('the consistency lesson shows a stale read once R + W no longer exceeds N, 
 });
 
 test('the consensus lesson lets only a majority commit, and an even split stops writes everywhere', async ({ page }) => {
-  await page.goto('/learn/design/sd-consensus');
+  await page.goto('/design/topics/sd-consensus');
   const writes = page.locator('.readouts div').filter({ hasText: 'Writes' }).locator('dd');
   await expect(writes).toHaveText('commit on the right');
   await expect(page.getByText('Left: old leader cannot commit')).toBeVisible();
@@ -116,7 +116,7 @@ test('the consensus lesson lets only a majority commit, and an even split stops 
 });
 
 test('the unique ids lesson trades timestamp years for generator bits, and weighs random ids by the birthday bound', async ({ page }) => {
-  await page.goto('/learn/design/sd-ids');
+  await page.goto('/design/topics/sd-ids');
   const readout = (name: string) => page.locator('.readouts div').filter({ hasText: name }).locator('dd');
   await expect(readout('Lasts')).toHaveText('69.7 years');
   await expect(readout('Generators')).toHaveText('1,024');
@@ -130,7 +130,7 @@ test('the unique ids lesson trades timestamp years for generator bits, and weigh
 });
 
 test('the search lesson intersects posting lists for AND and ranks every match for OR', async ({ page }) => {
-  await page.goto('/learn/design/sd-search');
+  await page.goto('/design/topics/sd-search');
   const results = page.locator('app-index-widget .results li');
   await expect(results).toHaveCount(1);
   await expect(results.first()).toContainText('Redis is a fast in-memory database');
@@ -142,7 +142,7 @@ test('the search lesson intersects posting lists for AND and ranks every match f
 });
 
 test('the stream lesson drops an event that arrives after its window closed, until the watermark delay allows for it', async ({ page }) => {
-  await page.goto('/learn/design/sd-streams');
+  await page.goto('/design/topics/sd-streams');
   const dropped = page.locator('.readouts div').filter({ hasText: 'Dropped' }).locator('dd');
   await expect(dropped).toHaveText('event at 8 s');
   const delay = page.getByRole('slider', { name: /Watermark delay/ });
@@ -154,7 +154,7 @@ test('the stream lesson drops an event that arrives after its window closed, unt
 });
 
 test('the storage lesson compares write amplification, and bloom filters keep an LSM lookup to one read', async ({ page }) => {
-  await page.goto('/learn/design/sd-storage');
+  await page.goto('/design/topics/sd-storage');
   const engine = (name: string) => page.getByRole('region', { name });
   const readout = (name: string, label: string) => engine(name).locator('.readouts div').filter({ hasText: label }).locator('dd');
   await expect(readout('B-tree', 'Write amp.')).toHaveText('42×');
@@ -165,7 +165,7 @@ test('the storage lesson compares write amplification, and bloom filters keep an
 });
 
 test('the CDN lesson shows a shield absorbing the misses that more edge locations cause', async ({ page }) => {
-  await page.goto('/learn/design/sd-cdn');
+  await page.goto('/design/topics/sd-cdn');
   const readout = (label: string) => page.locator('.readouts div').filter({ hasText: label }).locator('dd');
   await expect(readout('Edge hits')).toHaveText('69.2%');
   await expect(readout('Origin load')).toHaveText('3,077/s');
@@ -177,7 +177,7 @@ test('the CDN lesson shows a shield absorbing the misses that more edge location
 });
 
 test('the multi-region lesson trades read and write latency against what a region outage loses', async ({ page }) => {
-  await page.goto('/learn/design/sd-multi-region');
+  await page.goto('/design/topics/sd-multi-region');
   const readout = (label: string) =>
     page
       .locator('.readouts div')
@@ -193,7 +193,7 @@ test('the multi-region lesson trades read and write latency against what a regio
 });
 
 test('the observability lesson turns an SLO into a budget and pages once errors burn it fast', async ({ page }) => {
-  await page.goto('/learn/design/sd-observability');
+  await page.goto('/design/topics/sd-observability');
   const readout = (label: string) =>
     page
       .locator('.readouts div')
@@ -209,7 +209,7 @@ test('the observability lesson turns an SLO into a budget and pages once errors 
 });
 
 test('the API design lesson shows offset paging reading every skipped row, and cursors reading one page', async ({ page }) => {
-  await page.goto('/learn/design/sd-api-design');
+  await page.goto('/design/topics/sd-api-design');
   const readout = (label: string) =>
     page
       .locator('.readouts div')
@@ -223,7 +223,7 @@ test('the API design lesson shows offset paging reading every skipped row, and c
 });
 
 test('the security lesson shows a fast hash falling in minutes where bcrypt takes centuries', async ({ page }) => {
-  await page.goto('/learn/design/sd-security');
+  await page.goto('/design/topics/sd-security');
   const readout = (label: string) =>
     page
       .locator('.readouts div')
@@ -235,7 +235,7 @@ test('the security lesson shows a fast hash falling in minutes where bcrypt take
 });
 
 test('the transactions lesson contrasts locks in two-phase commit with a saga visible half-done state', async ({ page }) => {
-  await page.goto('/learn/design/sd-transactions');
+  await page.goto('/design/topics/sd-transactions');
   const readout = (label: string) =>
     page
       .locator('.readouts div')
@@ -251,7 +251,7 @@ test('the transactions lesson contrasts locks in two-phase commit with a saga vi
 });
 
 test('the batch lesson shows one hot key stalling the job and a combiner shrinking the shuffle', async ({ page }) => {
-  await page.goto('/learn/design/sd-batch');
+  await page.goto('/design/topics/sd-batch');
   const readout = (label: string) =>
     page
       .locator('.readouts div')
@@ -267,7 +267,7 @@ test('the batch lesson shows one hot key stalling the job and a combiner shrinki
 });
 
 test('the geospatial lesson trades cells read against places read as geohash precision changes', async ({ page }) => {
-  await page.goto('/learn/design/sd-geo');
+  await page.goto('/design/topics/sd-geo');
   const readout = (label: string) =>
     page
       .locator('.readouts div')
@@ -281,7 +281,7 @@ test('the geospatial lesson trades cells read against places read as geohash pre
 });
 
 test('the real-time lesson shows polling cost and delay against a push connection', async ({ page }) => {
-  await page.goto('/learn/design/sd-realtime');
+  await page.goto('/design/topics/sd-realtime');
   const readout = (label: string) =>
     page
       .locator('.readouts div')
@@ -295,7 +295,7 @@ test('the real-time lesson shows polling cost and delay against a push connectio
 });
 
 test('the data modeling lesson weighs N+1 queries and a join against copying names into posts', async ({ page }) => {
-  await page.goto('/learn/design/sd-data-modeling');
+  await page.goto('/design/topics/sd-data-modeling');
   const readout = (label: string) =>
     page
       .locator('.readouts div')
@@ -312,7 +312,7 @@ test('the data modeling lesson weighs N+1 queries and a join against copying nam
 });
 
 test('the load shedding lesson shows a burst answered too late until the queue is bounded', async ({ page }) => {
-  await page.goto('/learn/design/sd-overload');
+  await page.goto('/design/topics/sd-overload');
   const readout = (label: string) =>
     page
       .locator('.readouts div')
@@ -329,7 +329,7 @@ test('the load shedding lesson shows a burst answered too late until the queue i
 });
 
 test('the locks lesson shows a paused holder writing after its lease ran out, until fencing rejects it', async ({ page }) => {
-  await page.goto('/learn/design/sd-locks');
+  await page.goto('/design/topics/sd-locks');
   const readout = (label: string) =>
     page
       .locator('.readouts div')
@@ -344,7 +344,7 @@ test('the locks lesson shows a paused holder writing after its lease ran out, un
 });
 
 test('the load balancing lesson shows round-robin feeding a slow server while least connections backs off', async ({ page }) => {
-  await page.goto('/learn/design/sd-load-balancing');
+  await page.goto('/design/topics/sd-load-balancing');
   const readout = (label: string) =>
     page
       .locator('.readouts div')
@@ -360,7 +360,7 @@ test('the load balancing lesson shows round-robin feeding a slow server while le
 });
 
 test('the clocks lesson shows last write wins dropping a later write until a hybrid clock has seen the first', async ({ page }) => {
-  await page.goto('/learn/design/sd-clocks');
+  await page.goto('/design/topics/sd-clocks');
   const readout = (label: string) =>
     page
       .locator('.readouts div')
@@ -375,7 +375,7 @@ test('the clocks lesson shows last write wins dropping a later write until a hyb
 });
 
 test('the discovery lesson shows how long each approach keeps sending to a dead instance', async ({ page }) => {
-  await page.goto('/learn/design/sd-discovery');
+  await page.goto('/design/topics/sd-discovery');
   const readout = (label: string) =>
     page
       .locator('.readouts div')
@@ -389,7 +389,7 @@ test('the discovery lesson shows how long each approach keeps sending to a dead 
 });
 
 test('the durability lesson shows erasure coding beating three copies on nines at half the space', async ({ page }) => {
-  await page.goto('/learn/design/sd-durability');
+  await page.goto('/design/topics/sd-durability');
   const readout = (label: string) =>
     page
       .locator('.readouts div')
@@ -404,7 +404,7 @@ test('the durability lesson shows erasure coding beating three copies on nines a
 });
 
 test('the recovery lesson shows what each plan loses, and a standby copying a bad delete', async ({ page }) => {
-  await page.goto('/learn/design/sd-recovery');
+  await page.goto('/design/topics/sd-recovery');
   const readout = (label: string) =>
     page
       .locator('.readouts div')
@@ -420,7 +420,7 @@ test('the recovery lesson shows what each plan loses, and a standby copying a ba
 });
 
 test('the tenancy lesson shows a noisy tenant starving everyone until fair sharing protects the quiet ones', async ({ page }) => {
-  await page.goto('/learn/design/sd-tenancy');
+  await page.goto('/design/topics/sd-tenancy');
   const readout = (label: string) =>
     page
       .locator('.readouts div')
@@ -435,7 +435,7 @@ test('the tenancy lesson shows a noisy tenant starving everyone until fair shari
 });
 
 test('the gateway lesson shows what introspection and a sidecar mesh add to each request', async ({ page }) => {
-  await page.goto('/learn/design/sd-gateway');
+  await page.goto('/design/topics/sd-gateway');
   const readout = (label: string) =>
     page
       .locator('.readouts div')

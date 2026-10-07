@@ -9,7 +9,7 @@ const STORY = {
 };
 
 test('a behavioral answer is checked as it is written, kept on this device, and erased with the learner data', async ({ page }) => {
-  await page.goto('/interview');
+  await page.goto('/mock');
   await page.getByRole('link', { name: /Guides, story bank and rehearsal/ }).click();
   await expect(page.getByRole('heading', { name: 'Behavioral interviews' })).toBeVisible();
   await page.getByRole('link', { name: /^Ownership/ }).click();
@@ -29,7 +29,7 @@ test('a behavioral answer is checked as it is written, kept on this device, and 
   await page.goto('/behavioral');
   await expect(page.getByRole('link', { name: /^Ownership/ })).toContainText('1 answer drafted');
 
-  await page.goto('/settings');
+  await page.goto('/today/settings');
   await page.getByRole('button', { name: 'Delete…' }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
   await expect(page.getByText('Your data was deleted. You are starting fresh.')).toBeVisible();
@@ -94,7 +94,7 @@ test('a story written once in the bank covers its competencies, starts answers t
   await page.getByRole('button', { name: 'Delete story' }).click();
   await expect(page.getByRole('heading', { name: '1 story' })).toBeVisible();
 
-  await page.goto('/settings');
+  await page.goto('/today/settings');
   await page.getByRole('button', { name: 'Delete…' }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
   await expect(page.getByText('Your data was deleted. You are starting fresh.')).toBeVisible();

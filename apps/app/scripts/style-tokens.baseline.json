@@ -216,7 +216,7 @@
   },
   "app/pages/design/design-list.page.ts": {
     "border-radius": 1,
-    "font-size": 9
+    "font-size": 8
   },
   "app/pages/design/node-inspector.component.scss": {
     "border-radius": 3,
@@ -237,6 +237,9 @@
   "app/pages/drill/drill.page.scss": {
     "border-radius": 4,
     "font-size": 14
+  },
+  "app/pages/hub/map.component.ts": {
+    "font-size": 5
   },
   "app/pages/interview/behavioral-answer.component.ts": {
     "font-size": 5
@@ -263,7 +266,7 @@
   },
   "app/pages/learn/learn.page.scss": {
     "border-radius": 1,
-    "font-size": 23
+    "font-size": 19
   },
   "app/pages/pattern/pattern.page.ts": {
     "font-size": 10

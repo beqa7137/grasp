@@ -1,7 +1,7 @@
 import { expect, synced, test } from './fixtures';
 
 test('a review session grades every card and schedules the next review', async ({ page }) => {
-  await page.goto('/drill');
+  await page.goto('/today/review');
   await expect(page.getByRole('heading', { name: "Today's review" })).toBeVisible();
   await expect(page.getByText('0 due · 10 new')).toBeVisible();
 
@@ -20,32 +20,34 @@ test('a review session grades every card and schedules the next review', async (
 });
 
 test('practice for one pattern stays outside the schedule', async ({ page }) => {
-  await page.goto('/learn/pattern/hashing');
+  await page.goto('/coding/patterns/hashing');
   await page.getByRole('link', { name: /Practice 6 items/ }).click();
-  await expect(page).toHaveURL(/\/drill\?pattern=hashing/);
+  await expect(page).toHaveURL(/\/coding\/patterns\/hashing\/drill/);
   await page.locator('app-drill g-question-card .choice').first().click();
   await expect(page.getByRole('button', { name: /^Next/ })).toBeVisible();
 });
 
-test('practice goes back to its lesson, and the Review tab root has no back button', { tag: '@nav' }, async ({ page }) => {
+test('practice goes back to its lesson, and the review back to Today', { tag: '@nav' }, async ({ page }) => {
   const drill = page.locator('app-drill');
   const back = drill.locator('ion-back-button');
-  await page.goto('/drill');
+  await page.goto('/today/review');
   await expect(drill.getByRole('heading', { name: "Today's review" })).toBeVisible();
-  await expect(back).toBeHidden();
+  await back.click();
+  await expect(page).toHaveURL(/\/today$/);
+  await expect(page.getByRole('tab', { name: /^Today/ })).toHaveAttribute('aria-selected', 'true');
 
-  await page.getByRole('tab', { name: 'Learn' }).click();
-  await page.locator('app-learn a.pattern[href="/learn/pattern/hashing"]').click();
+  await page.getByRole('tab', { name: 'Coding' }).click();
+  await page.locator('app-map a.pattern[href="/coding/patterns/hashing"]').click();
   await page.getByRole('link', { name: /Practice 6 items/ }).click();
-  await expect(page).toHaveURL(/\/drill\?pattern=hashing/);
+  await expect(page).toHaveURL(/\/coding\/patterns\/hashing\/drill/);
   await expect(drill.getByRole('heading', { name: 'Arrays & Hashing', level: 1 })).toBeVisible();
   await back.click();
-  await expect(page).toHaveURL(/\/learn\/pattern\/hashing$/);
-  await expect(page.getByRole('tab', { name: 'Learn' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page).toHaveURL(/\/coding\/patterns\/hashing$/);
+  await expect(page.getByRole('tab', { name: 'Coding' })).toHaveAttribute('aria-selected', 'true');
 
-  await page.goto('/drill?pattern=sd-latency');
+  await page.goto('/design/topics/sd-latency/drill');
   await back.click();
-  await expect(page).toHaveURL(/\/learn\/design\/sd-latency$/);
+  await expect(page).toHaveURL(/\/design\/topics\/sd-latency$/);
 });
 
 test('on a phone an answered card shows its rating buttons above the tab bar, and its whole explanation above them', async ({
@@ -55,7 +57,7 @@ test('on a phone an answered card shows its rating buttons above the tab bar, an
   test.skip(!isMobile, 'The rating bar sticks only under 1024px.');
   for (const size of [page.viewportSize()!, { width: 320, height: 700 }, { width: 412, height: 480 }]) {
     await page.setViewportSize(size);
-    await page.goto('/drill');
+    await page.goto('/today/review');
     await page.locator('g-question-card .choice').first().click();
     await expect(page.getByRole('button', { name: /^(Got it|Continue)/ })).toBeVisible();
     // The explanation rises into place, so its box is read until it settles.
@@ -85,7 +87,7 @@ test.describe('with motion reduced, so the explanation does not rise into place 
     test.skip(!isMobile, 'The rating bar sticks only under 1024px.');
     for (const size of [page.viewportSize()!, { width: 320, height: 700 }, { width: 412, height: 480 }]) {
       await page.setViewportSize(size);
-      await page.goto('/drill?pattern=binary-search');
+      await page.goto('/coding/patterns/binary-search/drill');
       await page.locator('app-drill g-question-card .choice').first().click();
       await expect(page.getByRole('button', { name: /^Next/ })).toBeVisible();
       const clear = () =>
@@ -100,7 +102,7 @@ test.describe('with motion reduced, so the explanation does not rise into place 
 
 test('at 400% zoom the rating buttons stay in the flow, so they never cover the card', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 256 });
-  await page.goto('/drill');
+  await page.goto('/today/review');
   await page.locator('g-question-card .choice').first().click();
   const actions = page.locator('app-drill .actions');
   await expect(actions).toBeVisible();

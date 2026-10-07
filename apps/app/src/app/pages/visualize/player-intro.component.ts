@@ -14,7 +14,7 @@ export type PlayerIntroChoice = 'pattern' | 'code';
     <h2>{{ algo.title }}</h2>
     <div class="meta">
       @if (pattern; as p) {
-        <a class="chip accent" [href]="'/learn/pattern/' + p.id" (click)="go($event, 'pattern')">{{ p.name }}</a>
+        <a class="chip accent" [href]="'/coding/patterns/' + p.id" (click)="go($event, 'pattern')">{{ p.name }}</a>
       }
       <span class="chip" [class]="algo.difficulty">{{ algo.difficulty }}</span>
       <span class="chip mono">time {{ algo.complexity.time }}</span>
@@ -22,7 +22,7 @@ export type PlayerIntroChoice = 'pattern' | 'code';
     </div>
     <p class="muted"><g-code-text [text]="algo.summary" /></p>
     @if (problem; as c) {
-      <a class="code-it" [href]="'/code/' + c.id" (click)="go($event, 'code')">Now write it yourself: {{ c.title }} →</a>
+      <a class="code-it" [href]="'/coding/problems/' + c.id" (click)="go($event, 'code')">Now write it yourself: {{ c.title }} →</a>
     }
   `,
   styles: `

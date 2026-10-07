@@ -21,7 +21,7 @@ test.describe('with no theme chosen', () => {
 
   test('the app follows the device, also when the device switches', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'dark' });
-    await page.goto('/learn');
+    await page.goto('/today');
     await expect.poll(() => look(page)).toEqual(LOOKS.dark);
 
     await page.emulateMedia({ colorScheme: 'light' });
@@ -30,7 +30,7 @@ test.describe('with no theme chosen', () => {
 
   test('Light, chosen from the keyboard, overrides a dark device and stays after a reload', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'dark' });
-    await page.goto('/settings');
+    await page.goto('/today/settings');
     const themes = page.getByRole('radiogroup', { name: 'Theme' });
     await expect(themes.getByRole('radio', { name: 'System' })).toBeChecked();
 
@@ -62,7 +62,7 @@ test.describe('before the app starts', () => {
   test('the page already shows the chosen theme, so it never flashes the other one', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'dark' });
     await page.route(/\/main-[\w-]+\.js$/, (route) => route.abort());
-    await page.goto('/learn');
+    await page.goto('/today');
     expect(await look(page)).toEqual(LOOKS.light);
     await expect(page.locator('app-root')).toBeEmpty();
   });

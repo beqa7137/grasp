@@ -12,10 +12,13 @@ interface Asked {
 }
 
 /** Three of the pattern's own review questions, answered in place and counted as practice. */
+import { CrossLinkDirective } from '../../ui/cross-link.directive';
+import { drillLink } from '../../core/links';
+
 @Component({
   selector: 'app-quick-check',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, QuestionCardComponent],
+  imports: [CrossLinkDirective, RouterLink, QuestionCardComponent],
   template: `
     @if (current(); as a) {
       <p class="muted progress">Question {{ position() + 1 }} of {{ asked().length }}</p>
@@ -29,7 +32,7 @@ interface Asked {
       <p class="summary" role="status">You got {{ correct() }} of {{ asked().length }} right.</p>
       <div class="actions">
         <button class="g-btn" (click)="restart()">Check again</button>
-        <a class="g-btn" routerLink="/drill" [queryParams]="{ pattern: topic() }">Practice all {{ total() }} items</a>
+        <a class="g-btn" [routerLink]="drillLink(topic())" crossLink>Practice all {{ total() }} items</a>
       </div>
     }
   `,
@@ -59,6 +62,7 @@ interface Asked {
   `,
 })
 export class QuickCheckComponent {
+  readonly drillLink = drillLink;
   readonly topic = input.required<string>();
   private readonly progress = inject(ProgressService);
   private readonly round = signal(0);

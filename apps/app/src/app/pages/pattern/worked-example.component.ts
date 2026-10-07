@@ -35,7 +35,7 @@ import { CodeTextComponent } from '../../viz/code-text.component';
           <span class="muted count">{{ revealed() }} of {{ example().steps.length }} steps</span>
           <button class="g-btn ghost" (click)="revealed.set(example().steps.length)">Show all</button>
         } @else if (example().visualize; as v) {
-          <a class="g-btn" [routerLink]="['/visualize', v.algorithmId]" [queryParams]="{ input: inputJson() }"
+          <a class="g-btn" [routerLink]="['/coding/visualizers', v.algorithmId]" [queryParams]="{ input: inputJson() }"
             ><ion-icon name="play-circle" aria-hidden="true" />Step through it in the visualizer</a
           >
         }

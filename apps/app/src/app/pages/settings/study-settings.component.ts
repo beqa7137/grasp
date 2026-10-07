@@ -12,11 +12,12 @@ export interface Choice<T> {
 }
 
 const pct = (r: number) => `${Math.round(r * 100)}%`;
+import { CrossLinkDirective } from '../../ui/cross-link.directive';
 
 @Component({
   selector: 'app-study-settings',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, DatePipe, RovingSelectDirective],
+  imports: [CrossLinkDirective, RouterLink, DatePipe, RovingSelectDirective],
   template: `
     <section class="panel block">
       <h2>Study</h2>
@@ -76,7 +77,7 @@ const pct = (r: number) => `${Math.round(r * 100)}%`;
             }
           </span>
         </div>
-        <a class="g-btn" routerLink="/diagnostic">{{ diagnosedAt() ? 'Retake' : 'Take it' }}</a>
+        <a class="g-btn" routerLink="/coding/placement" crossLink>{{ diagnosedAt() ? 'Retake' : 'Take it' }}</a>
       </div>
     </section>
 

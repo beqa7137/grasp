@@ -12,7 +12,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { AlertController, IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
+import { AlertController, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
 import {
   PLAN_MINUTES,
   PLAN_ROUNDS,
@@ -37,16 +37,30 @@ const UPCOMING_DAYS = 6;
 const UNDO_MS = 8_000;
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+import { BackComponent } from '../../ui/back.component';
+import { CrossLinkDirective } from '../../ui/cross-link.directive';
 
 @Component({
   selector: 'app-plan',
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [AnnouncerService],
-  imports: [RouterLink, DatePipe, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle, IonContent, IonIcon, PlanFormComponent],
+  imports: [
+    CrossLinkDirective,
+    BackComponent,
+    RouterLink,
+    DatePipe,
+    IonHeader,
+    IonToolbar,
+    IonButtons,
+    IonTitle,
+    IonContent,
+    IonIcon,
+    PlanFormComponent,
+  ],
   template: `
     <ion-header [translucent]="true">
       <ion-toolbar>
-        <ion-buttons slot="start"><ion-back-button defaultHref="/learn" text="" /></ion-buttons>
+        <ion-buttons slot="start"><app-back href="/today" /></ion-buttons>
         <ion-title>Study plan</ion-title>
       </ion-toolbar>
     </ion-header>
@@ -83,7 +97,7 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
           </section>
 
           @if (p.status === 'interview-day' && p.todayReview.cards) {
-            <a class="panel item review" routerLink="/drill">
+            <a class="panel item review" routerLink="/today/review">
               <ion-icon name="flash-outline" aria-hidden="true" />
               <span><strong>A light review</strong><span class="muted">Only if it calms you. Stop whenever you like.</span></span>
             </a>
@@ -99,7 +113,7 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
                   <ion-icon name="flash-outline" aria-hidden="true" />
                   <span class="text">
                     @if (p.todayReview.cards) {
-                      <a routerLink="/drill">Review</a>
+                      <a routerLink="/today/review">Review</a>
                       <span class="muted"
                         >{{ plural(p.todayReview.cards, 'card') }} ready, about {{ duration(p.todayReview.cardMinutes) }}</span
                       >
@@ -113,7 +127,7 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
                   <li class="item review">
                     <ion-icon name="chatbubbles-outline" aria-hidden="true" />
                     <span class="text">
-                      <a routerLink="/behavioral/rehearse">Rehearse your stories</a>
+                      <a routerLink="/behavioral/rehearse" crossLink>Rehearse your stories</a>
                       <span class="muted"
                         >{{ p.todayReview.stories === 1 ? '1 story' : p.todayReview.stories + ' stories' }} due{{
                           p.todayReview.storyMinutes
@@ -128,7 +142,7 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
                   <li class="item" [class.done]="s.done">
                     <ion-icon [name]="s.done ? 'checkmark-circle' : 'ellipse-outline'" aria-hidden="true" />
                     <span class="text">
-                      <a [routerLink]="link(s.unit)">
+                      <a [routerLink]="link(s.unit)" crossLink>
                         @if (s.done) {
                           <span class="visually-hidden">Done: </span>
                         }
@@ -136,7 +150,7 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
                       >
                       <span class="muted">{{ s.unit.detail }}</span>
                       @if (s.unit.kind === 'pattern' && !s.done) {
-                        <a class="also" [routerLink]="['/code', s.unit.problemId]">Solve {{ problemTitle(s.unit) }}</a>
+                        <a class="also" [routerLink]="['/coding/problems', s.unit.problemId]" crossLink>Solve {{ problemTitle(s.unit) }}</a>
                       }
                       <span class="meta">
                         about {{ duration(s.minutes) }}{{ s.parts > 1 ? ' · part ' + s.part + ' of ' + s.parts : '' }}
@@ -459,20 +473,20 @@ export class PlanPage {
   link(unit: PlanUnit): string[] {
     switch (unit.kind) {
       case 'pattern':
-        return ['/learn/pattern', unit.patternId!];
+        return ['/coding/patterns', unit.patternId!];
       case 'retry':
       case 'solve':
-        return ['/code', unit.problemId!];
+        return ['/coding/problems', unit.problemId!];
       case 'lesson':
-        return ['/learn/design', unit.topicId!];
+        return ['/design/topics', unit.topicId!];
       case 'case':
-        return ['/design/case', unit.caseId!];
+        return ['/design/cases', unit.caseId!];
       case 'mission':
-        return ['/design', unit.scenarioId!];
+        return ['/design/missions', unit.scenarioId!];
       case 'story':
         return ['/behavioral', unit.competencyId!];
       case 'mock':
-        return ['/interview/loop'];
+        return ['/mock/loop'];
     }
   }
 

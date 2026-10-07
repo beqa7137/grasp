@@ -36,11 +36,13 @@ const REASON_LABELS: Record<CardReason, string> = {
   check: 'Quick check',
   diagnostic: 'Placement check',
 };
+import { CrossLinkDirective } from '../ui/cross-link.directive';
 
 @Component({
   selector: 'g-question-card',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    CrossLinkDirective,
     RouterLink,
     IonIcon,
     ArrayViewComponent,
@@ -154,7 +156,7 @@ const REASON_LABELS: Record<CardReason, string> = {
             <p class="verdict">{{ chosen() === q.answer ? 'Correct' : 'Not quite' }}</p>
             <p class="why"><g-code-text [text]="q.explain" /></p>
             @if (q.link; as link) {
-              <a [routerLink]="link.path">{{ link.label }} →</a>
+              <a [routerLink]="link.path" crossLink>{{ link.label }} →</a>
             }
           </div>
         </div>

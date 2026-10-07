@@ -18,29 +18,30 @@ function practice(target: FocusTarget): { link: string[]; label: string } {
   switch (target.kind) {
     case 'pattern': {
       const name = getPatternSummary(target.patternId)?.name;
-      return { link: ['/learn/pattern', target.patternId], label: name ? `Study ${name}` : 'Study the pattern' };
+      return { link: ['/coding/patterns', target.patternId], label: name ? `Study ${name}` : 'Study the pattern' };
     }
     case 'design-topic': {
       const name = getSdTopic(target.topicId)?.name;
-      return { link: ['/learn/design', target.topicId], label: name ? `Read the ${name} lesson` : 'Read the lesson' };
+      return { link: ['/design/topics', target.topicId], label: name ? `Read the ${name} lesson` : 'Read the lesson' };
     }
     case 'case': {
       const title = getCaseSummary(target.caseId)?.title;
-      return { link: ['/design/case', target.caseId], label: title ? `Work the ${title} case study` : 'Work the case study' };
+      return { link: ['/design/cases', target.caseId], label: title ? `Work the ${title} case study` : 'Work the case study' };
     }
     case 'competency': {
       const name = getCompetencySummary(target.competencyId)?.name;
       return { link: ['/behavioral', target.competencyId], label: name ? `Read the ${name} guide` : 'Read the guide' };
     }
     case 'round':
-      return { link: ['/interview', target.sessionId], label: 'Reread how this round went' };
+      return { link: ['/mock', target.sessionId], label: 'Reread how this round went' };
   }
 }
+import { CrossLinkDirective } from '../../ui/cross-link.directive';
 
 @Component({
   selector: 'app-loop-debrief',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink],
+  imports: [CrossLinkDirective, RouterLink],
   template: `
     @let d = debrief();
     <section class="panel read" aria-labelledby="read-kind read-title">
@@ -82,7 +83,7 @@ function practice(target: FocusTarget): { link: string[]; label: string } {
             @if (f.lookFor) {
               <p class="muted">{{ f.lookFor }}</p>
             }
-            <a [routerLink]="f.practice.link">{{ f.practice.label }}</a>
+            <a [routerLink]="f.practice.link" crossLink>{{ f.practice.label }}</a>
           </li>
         }
       </ol>
@@ -104,7 +105,7 @@ function practice(target: FocusTarget): { link: string[]; label: string } {
                 <dd>{{ dim.score }} of 4</dd>
               }
             </dl>
-            <a [routerLink]="['/interview', s.id]">Scorecard and transcript</a>
+            <a [routerLink]="['/mock', s.id]">Scorecard and transcript</a>
           </section>
         }
       }

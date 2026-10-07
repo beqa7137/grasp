@@ -12,7 +12,7 @@ function newGitHubUser(): GitHubUser {
 
 /** Signs in from Settings and resolves with the session's access token. */
 async function signIn(page: Page): Promise<string> {
-  await page.goto('/settings');
+  await page.goto('/today/settings');
   const signedIn = page.waitForResponse((r) => r.request().method() === 'POST' && r.url().endsWith('/api/auth/github'));
   const popup = page.waitForEvent('popup');
   await page.getByRole('button', { name: 'Continue with GitHub' }).click();

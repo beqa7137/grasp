@@ -105,7 +105,10 @@ describe('review item catalog', () => {
   });
 
   it('links a missed pattern question to its lesson by name', () => {
-    expect(generateQuestion('rec:h1', 1).link).toEqual({ label: 'Read the Arrays & Hashing lesson', path: ['/learn/pattern', 'hashing'] });
+    expect(generateQuestion('rec:h1', 1).link).toEqual({
+      label: 'Read the Arrays & Hashing lesson',
+      path: ['/coding/patterns', 'hashing'],
+    });
   });
 
   it('exposes lookups', () => {

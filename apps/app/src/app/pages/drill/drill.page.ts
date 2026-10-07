@@ -13,7 +13,7 @@ import {
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
+import { IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
 import {
   RATING,
   formatInterval,
@@ -54,17 +54,21 @@ interface Result {
 const REQUEUE_WINDOW_MS = 20 * 60_000;
 /** A missed item is re-shown at most this many times per sitting; after that it waits for the next session. */
 const MAX_REQUEUES_PER_ITEM = 2;
+import { BackComponent } from '../../ui/back.component';
+import { CrossLinkDirective } from '../../ui/cross-link.directive';
+import { drillLink, lessonLink } from '../../core/links';
 
 @Component({
   selector: 'app-drill',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    CrossLinkDirective,
+    BackComponent,
     RouterLink,
     DatePipe,
     IonHeader,
     IonToolbar,
     IonButtons,
-    IonBackButton,
     IonTitle,
     IonContent,
     IonIcon,
@@ -75,6 +79,7 @@ const MAX_REQUEUES_PER_ITEM = 2;
   styleUrl: './drill.page.scss',
 })
 export class DrillPage {
+  readonly drillLink = drillLink;
   readonly pattern = input<string>();
   readonly progress = inject(ProgressService);
   readonly shortcuts = inject(ShortcutsService);
@@ -103,7 +108,7 @@ export class DrillPage {
   });
   readonly backHref = computed(() => {
     const id = this.pattern();
-    return id ? (getSdTopic(id) ? `/learn/design/${id}` : `/learn/pattern/${id}`) : undefined;
+    return id ? lessonLink(id) : '/today';
   });
   readonly correctCount = computed(() => this.results().filter((r) => r.correct).length);
 

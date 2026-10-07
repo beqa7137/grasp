@@ -22,7 +22,7 @@ import { AI_DISCLOSURE } from '../core/ai-disclosure';
         <li>
           You can export or delete everything we store from
           <!-- Ionic's focus trap only cycles through elements it recognizes, and a plain link is not one of them. -->
-          <a routerLink="/settings" tabindex="0" (click)="acknowledged.emit()">Settings</a>.
+          <a routerLink="/today/settings" tabindex="0" (click)="acknowledged.emit()">Settings</a>.
         </li>
       </ul>
     </ion-content>

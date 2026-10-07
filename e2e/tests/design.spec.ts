@@ -2,7 +2,7 @@ import type { Locator } from '@playwright/test';
 import { expect, synced, test } from './fixtures';
 
 test('the first Design Lab mission can be solved from the inspector', { tag: '@lab' }, async ({ page }) => {
-  await page.goto('/design');
+  await page.goto('/design/missions');
   await page
     .getByRole('link', { name: /Your First Scale-Up/ })
     .first()
@@ -35,7 +35,7 @@ test('the first Design Lab mission can be solved from the inspector', { tag: '@l
 });
 
 test('the first Design Lab mission can be solved with the keyboard alone', { tag: '@lab' }, async ({ page }) => {
-  await page.goto('/design/first-scale-up');
+  await page.goto('/design/missions/first-scale-up');
   const sidebar = page.locator('aside.sidebar');
   const targets = sidebar.getByRole('group', { name: 'Send traffic to' });
   const press = async (control: Locator) => {
@@ -68,7 +68,7 @@ test('the first Design Lab mission can be solved with the keyboard alone', { tag
 });
 
 test('new components never land on top of existing ones', { tag: ['@smoke', '@lab'] }, async ({ page }) => {
-  await page.goto('/design/first-scale-up');
+  await page.goto('/design/missions/first-scale-up');
   const palette = page.getByRole('group', { name: 'Add component' });
   for (const kind of ['LB', 'Cache', 'Replica', 'Queue']) await palette.getByRole('button', { name: kind, exact: true }).click();
   const nodes = page.locator('g.node rect.body');
@@ -86,7 +86,7 @@ test(
   'the leaderboard mission opens from the list with its budget, and its starter does not clear it',
   { tag: '@lab' },
   async ({ page }) => {
-    await page.goto('/design');
+    await page.goto('/design/missions');
     await page
       .getByRole('link', { name: /Leaderboard on a Budget/ })
       .first()

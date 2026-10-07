@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
+import { IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
 import { CASE_CATALOG, getScenarioSummary, getSdLesson, getSdTopic, itemsForTopic } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import {
@@ -54,15 +54,17 @@ import { StreamWidgetComponent } from './stream-widget.component';
 import { TxnWidgetComponent } from './txn-widget.component';
 
 /** A system design topic taught hands-on: a widget to experiment with, the ideas to name, worked examples and a quick check. */
+import { BackComponent } from '../../ui/back.component';
+
 @Component({
   selector: 'app-design-lesson',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    BackComponent,
     RouterLink,
     IonHeader,
     IonToolbar,
     IonButtons,
-    IonBackButton,
     IonTitle,
     IonContent,
     IonIcon,
@@ -108,7 +110,7 @@ import { TxnWidgetComponent } from './txn-widget.component';
   template: `
     <ion-header [translucent]="true">
       <ion-toolbar>
-        <ion-buttons slot="start"><ion-back-button defaultHref="/learn" text="" /></ion-buttons>
+        <ion-buttons slot="start"><app-back href="/design" /></ion-buttons>
         <ion-title>{{ topic()?.name }}</ion-title>
       </ion-toolbar>
     </ion-header>
@@ -286,12 +288,12 @@ import { TxnWidgetComponent } from './txn-widget.component';
               <h2><ion-icon name="construct-outline" aria-hidden="true" />Where it shows up</h2>
               <div class="links">
                 @for (m of missions(); track m.id) {
-                  <a class="g-btn" [routerLink]="['/design', m.id]"
+                  <a class="g-btn" [routerLink]="['/design/missions', m.id]"
                     ><ion-icon name="construct-outline" aria-hidden="true" />Mission: {{ m.title }}</a
                   >
                 }
                 @for (c of cases(); track c.id) {
-                  <a class="g-btn" [routerLink]="['/design/case', c.id]"
+                  <a class="g-btn" [routerLink]="['/design/cases', c.id]"
                     ><ion-icon name="document-text-outline" aria-hidden="true" />Case study: {{ c.title }}</a
                   >
                 }

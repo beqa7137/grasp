@@ -3,7 +3,7 @@ import { expect, expectNoPageScroll, seekTimeline, stepToCheckpoint, stepTotal, 
 
 test('on a 320 px phone, every value of a long array fits its cell, and only the array scrolls sideways', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 700 });
-  await page.goto('/visualize/binary-search');
+  await page.goto('/coding/visualizers/binary-search');
   const player = page.locator('app-player');
   await player.locator('.input').getByRole('button', { name: 'Edit' }).click();
   await player.getByRole('textbox', { name: /^Sorted numbers/ }).fill('-100, -50, 1, 3, 5, 8, 13, 21, 34, 55, 89, 144');
@@ -40,7 +40,7 @@ for (const id of ['dijkstra', 'kruskal-mst']) {
     `the ${id} drawing stays exactly where it is through a checkpoint, its answer and Continue`,
     { tag: '@player' },
     async ({ page }) => {
-      await page.goto(`/visualize/${id}`);
+      await page.goto(`/coding/visualizers/${id}`);
       const player = page.locator('app-player');
       const count = player.locator('g-transport .count');
       const prompt = player.getByText('Your call');
@@ -85,7 +85,7 @@ for (const id of AUDITED) {
     const sizes = [page.viewportSize()!, ...(testInfo.project.name === 'phone' ? [{ width: 320, height: 700 }] : [])];
     for (const size of sizes) {
       await page.setViewportSize(size);
-      await page.goto(`/visualize/${id}`);
+      await page.goto(`/coding/visualizers/${id}`);
       await stepToCheckpoint(page);
       await expectNoPageScroll(page);
       const fit = await page.locator('app-player').evaluate((player, visualizer) => {
@@ -123,7 +123,7 @@ for (const id of ['tree-traversal', 'kruskal-mst']) {
       test.skip(testInfo.project.name === 'desktop', 'The caption has its own row beside the stage on a wide screen.');
       if (narrow) await page.setViewportSize({ width: 320, height: 700 });
       const size = page.viewportSize()!;
-      await page.goto(`/visualize/${id}`);
+      await page.goto(`/coding/visualizers/${id}`);
       const player = page.locator('app-player');
       await player.getByText('Predict mode').click();
       const count = player.locator('g-transport .count');
@@ -149,7 +149,7 @@ for (const id of ['tree-traversal', 'kruskal-mst', 'subsets-backtracking']) {
       const sizes = [page.viewportSize()!, ...(testInfo.project.name === 'phone' ? [{ width: 320, height: 700 }] : [])];
       for (const size of sizes) {
         await page.setViewportSize(size);
-        await page.goto(`/visualize/${id}`);
+        await page.goto(`/coding/visualizers/${id}`);
         const player = page.locator('app-player');
         await player.getByText('Predict mode').click();
         const count = player.locator('g-transport .count');
@@ -197,7 +197,7 @@ async function tablePlace(page: Page) {
 
 test('at 320px the LCS table leaves its wrapped legend the room it needs in the stage', { tag: '@player' }, async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 700 });
-  await page.goto('/visualize/lcs');
+  await page.goto('/coding/visualizers/lcs');
   const player = page.locator('app-player');
   await player.getByText('Predict mode').click();
   const first = await tablePlace(page);
@@ -212,7 +212,7 @@ test('a table under an array keeps one size on every frame, with the array and i
   const sizes = [page.viewportSize()!, ...(testInfo.project.name === 'phone' ? [{ width: 320, height: 700 }] : [])];
   for (const size of sizes) {
     await page.setViewportSize(size);
-    await page.goto('/visualize/minimum-xor-sum');
+    await page.goto('/coding/visualizers/minimum-xor-sum');
     const player = page.locator('app-player');
     await player.getByText('Predict mode').click();
     const count = player.locator('g-transport .count');
@@ -264,7 +264,7 @@ for (const id of ['subarray-sum-prefix', 'single-number-xor', 'merge-intervals']
     ];
     for (const size of sizes) {
       await page.setViewportSize(size);
-      await page.goto(`/visualize/${id}`);
+      await page.goto(`/coding/visualizers/${id}`);
       const player = page.locator('app-player');
       await player.getByText('Predict mode').click();
       const count = player.locator('g-transport .count');
@@ -294,7 +294,7 @@ test('merge-intervals at its longest input keeps every row readable and within r
     [60, 70],
     [80, 90],
   ];
-  await page.goto(`/visualize/merge-intervals?input=${encodeURIComponent(JSON.stringify({ intervals }))}`);
+  await page.goto(`/coding/visualizers/merge-intervals?input=${encodeURIComponent(JSON.stringify({ intervals }))}`);
   const player = page.locator('app-player');
   await expect(player.locator('.scene [role="table"] .head.row')).toHaveCount(10);
   expect(await tableHolds(page)).toEqual({ floor: true, square: true, labelsApart: true, legendBelow: true });
@@ -302,7 +302,7 @@ test('merge-intervals at its longest input keeps every row readable and within r
 
 test('an array above a tree leaves the tree and its legend in the stage on every trie frame', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name === 'iphone', "The iPhone's 249px stage holds trie only at its floor, so the stage scrolls.");
-  await page.goto('/visualize/trie');
+  await page.goto('/coding/visualizers/trie');
   const player = page.locator('app-player');
   await player.getByText('Predict mode').click();
   const count = player.locator('g-transport .count');

@@ -1,6 +1,6 @@
 <ion-header [translucent]="true">
   <ion-toolbar>
-    <ion-buttons slot="start"><ion-back-button defaultHref="/code" text="" /></ion-buttons>
+    <ion-buttons slot="start"><app-back href="/coding/problems" /></ion-buttons>
     <ion-title>{{ problem()?.title ?? 'Code' }}</ion-title>
   </ion-toolbar>
 </ion-header>
@@ -12,7 +12,7 @@
         <div class="chips">
           <span class="chip" [class]="p.difficulty">{{ p.difficulty }}</span>
           @for (id of p.patternIds; track id) {
-            <a class="chip accent" [routerLink]="['/learn/pattern', id]">{{ patternName(id) }}</a>
+            <a class="chip accent" [routerLink]="['/coding/patterns', id]">{{ patternName(id) }}</a>
           }
           @if (record()?.solvedAt) {
             <span class="chip solved"><ion-icon name="checkmark-circle" aria-hidden="true" /> solved</span>
@@ -49,7 +49,7 @@
             <p><g-code-text [text]="p.approach" /></p>
             <p class="mono small">time {{ p.complexity.time }} · space {{ p.complexity.space }}</p>
             @if (p.algorithmId) {
-              <a class="link" [routerLink]="['/visualize', p.algorithmId]">Watch the reference solution in the visualizer →</a>
+              <a class="link" [routerLink]="['/coding/visualizers', p.algorithmId]">Watch the reference solution in the visualizer →</a>
             }
           </div>
         }

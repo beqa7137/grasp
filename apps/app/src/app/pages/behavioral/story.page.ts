@@ -1,19 +1,20 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
-import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar, NavController } from '@ionic/angular';
+import { IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar, NavController } from '@ionic/angular';
 import { COMPETENCY_CATALOG, STORY_LIMITS, storyTitle, type StarPart, type Story } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import { trashOutline } from 'ionicons/icons';
 import { StarEditorComponent } from './star-editor.component';
 import { STORY_SYNC_NOTES, StoryBankService, type StoryPatch } from './story-bank.service';
+import { BackComponent } from '../../ui/back.component';
 
 @Component({
   selector: 'app-story',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle, IonContent, IonIcon, StarEditorComponent],
+  imports: [BackComponent, IonHeader, IonToolbar, IonButtons, IonTitle, IonContent, IonIcon, StarEditorComponent],
   template: `
     <ion-header [translucent]="true">
       <ion-toolbar>
-        <ion-buttons slot="start"><ion-back-button defaultHref="/behavioral/stories" text="" /></ion-buttons>
+        <ion-buttons slot="start"><app-back href="/behavioral/stories" /></ion-buttons>
         <ion-title>{{ heading() }}</ion-title>
       </ion-toolbar>
     </ion-header>

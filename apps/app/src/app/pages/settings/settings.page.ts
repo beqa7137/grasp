@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { AlertController, IonBackButton, IonButtons, IonContent, IonHeader, IonTitle, IonToolbar, ToastController } from '@ionic/angular';
+import { AlertController, IonButtons, IonContent, IonHeader, IonTitle, IonToolbar, ToastController } from '@ionic/angular';
 import { ApiError, ApiService } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
 import { LearnerService } from '../../core/learner.service';
@@ -13,15 +13,16 @@ import { AI_DISCLOSURE } from '../../core/ai-disclosure';
 import { PilotService } from '../../pilot/pilot.service';
 import { AccountSettingsComponent } from './account-settings.component';
 import { type Choice, StudySettingsComponent } from './study-settings.component';
+import { BackComponent } from '../../ui/back.component';
 
 @Component({
   selector: 'app-settings',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    BackComponent,
     IonHeader,
     IonToolbar,
     IonButtons,
-    IonBackButton,
     IonTitle,
     IonContent,
     AccountSettingsComponent,
@@ -31,7 +32,7 @@ import { type Choice, StudySettingsComponent } from './study-settings.component'
   template: `
     <ion-header [translucent]="true">
       <ion-toolbar>
-        <ion-buttons slot="start"><ion-back-button defaultHref="/learn" text="" /></ion-buttons>
+        <ion-buttons slot="start"><app-back href="/today" /></ion-buttons>
         <ion-title>Settings</ion-title>
       </ion-toolbar>
     </ion-header>

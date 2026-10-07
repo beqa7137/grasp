@@ -102,7 +102,7 @@ async function openBehavioralInterview(p) {
     (stories) => localStorage.setItem('CapacitorStorage.grasp.behavioral.stories', JSON.stringify(stories)),
     [{ ...STORIES[1], id: 'a3', title: 'The launch date', draft: { ...STORIES[0].draft } }],
   );
-  await goto(p, `/interview/${id}`);
+  await goto(p, `/mock/${id}`);
 }
 
 async function giveBehavioralAnswer(p) {
@@ -184,13 +184,13 @@ async function seedLoop(p, scored) {
 /** Mock interviews and the behavioral area. */
 export function interviewStates() {
   return [
-    { id: 'interview-home', path: '/interview' },
-    { id: 'interview-home-behavioral', path: '/interview', setup: (p) => p.getByRole('button', { name: /^Behavioral/ }).click() },
-    { id: 'interview-behavioral-answer', path: '/interview', setup: openBehavioralInterview },
-    { id: 'mock-loop-setup', path: '/interview/loop' },
+    { id: 'mock', path: '/mock' },
+    { id: 'mock-behavioral', path: '/mock', setup: (p) => p.getByRole('button', { name: /^Behavioral/ }).click() },
+    { id: 'interview-behavioral-answer', path: '/mock', setup: openBehavioralInterview },
+    { id: 'mock-loop-setup', path: '/mock/loop' },
     {
       id: 'mock-loop-running',
-      path: '/interview/loop',
+      path: '/mock/loop',
       setup: async (p) => {
         await seedLoop(p, 1);
         await p.getByRole('heading', { name: 'Round 2 of 3' }).waitFor();
@@ -199,7 +199,7 @@ export function interviewStates() {
     },
     {
       id: 'mock-loop-debrief',
-      path: '/interview/loop',
+      path: '/mock/loop',
       setup: async (p) => {
         await seedLoop(p, 3);
         await p.getByRole('heading', { name: 'Loop debrief' }).waitFor();
@@ -208,7 +208,7 @@ export function interviewStates() {
     },
     {
       id: 'interview-behavioral-follow-up',
-      path: '/interview',
+      path: '/mock',
       setup: async (p) => {
         await openBehavioralInterview(p);
         await giveBehavioralAnswer(p);
@@ -217,7 +217,7 @@ export function interviewStates() {
     },
     {
       id: 'interview-behavioral-scorecard',
-      path: '/interview',
+      path: '/mock',
       setup: async (p) => {
         await openBehavioralInterview(p);
         await giveBehavioralAnswer(p);
@@ -237,7 +237,7 @@ export function interviewStates() {
         await settle(p, 400);
       },
     },
-    { id: 'behavioral-list', path: '/behavioral' },
+    { id: 'behavioral-competencies', path: '/behavioral' },
     { id: 'behavioral-competency', path: '/behavioral/conflict' },
     { id: 'behavioral-competency-new', path: '/behavioral/feedback' },
     {
@@ -288,10 +288,10 @@ export function interviewStates() {
       },
     },
     { id: 'behavioral-rehearse-none', path: '/behavioral/rehearse' },
-    { id: 'behavioral-mock', path: '/behavioral/mock' },
+    { id: 'behavioral-drill', path: '/behavioral/drill' },
     {
-      id: 'behavioral-mock-debrief',
-      path: '/behavioral/mock',
+      id: 'behavioral-drill-debrief',
+      path: '/behavioral/drill',
       setup: async (p) => {
         const mock = p.locator('app-behavioral-mock');
         const next = mock.getByRole('button', { name: /^(Answer|Finish and see the debrief)$/ });

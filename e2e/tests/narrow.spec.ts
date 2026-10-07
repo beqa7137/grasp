@@ -9,21 +9,21 @@ test.describe('on a 320 px screen, content fits its box', () => {
   test.use({ viewport: { width: 320, height: 700 } });
 
   test('a pattern quick check stacks its choices within the card', async ({ page }) => {
-    await page.goto('/learn/pattern/binary-search');
+    await page.goto('/coding/patterns/binary-search');
     const choices = page.locator('g-question-card .choices');
     await expect(choices.locator('.choice').first()).toBeVisible();
     expect(await tooWide(choices)).toEqual([]);
   });
 
   test('the coding problem list keeps one column within the page', async ({ page }) => {
-    await page.goto('/code');
+    await page.goto('/coding/problems');
     const list = page.locator('.list');
     await expect(list.locator('a').first()).toBeVisible();
     expect(await tooWide(list)).toEqual([]);
   });
 
   test('a Design Lab metric moves its unit under the value rather than spilling', async ({ page }) => {
-    await page.goto('/design/first-scale-up');
+    await page.goto('/design/missions/first-scale-up');
     const values = page.locator('.metrics .value');
     await expect(values.first()).toHaveText(/\d/);
     expect(await tooWide(values)).toEqual([]);
@@ -31,14 +31,14 @@ test.describe('on a 320 px screen, content fits its box', () => {
 
   test('a table widens its row header column for the longest label', async ({ page }) => {
     const input = { nums1: [12, 7, 3, 9], nums2: [5, 14, 8, 1] };
-    await page.goto(`/visualize/minimum-xor-sum?input=${encodeURIComponent(JSON.stringify(input))}`);
+    await page.goto(`/coding/visualizers/minimum-xor-sum?input=${encodeURIComponent(JSON.stringify(input))}`);
     const heads = page.locator('g-table-view .head.row');
     await expect(heads.filter({ hasText: '1 << j' }).first()).toBeAttached();
     expect(await tooWide(heads)).toEqual([]);
   });
 
   test('every part of the unique id bar shows its whole label', async ({ page }) => {
-    await page.goto('/learn/design/sd-ids');
+    await page.goto('/design/topics/sd-ids');
     const segments = page.locator('app-id-layout-widget .bar .seg');
     await expect(segments.first()).toHaveText('0');
     expect(await tooWide(segments)).toEqual([]);

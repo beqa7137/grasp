@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { expect, synced, test } from './fixtures';
 
 test('study settings sync as events', async ({ page }) => {
-  await page.goto('/settings');
+  await page.goto('/today/settings');
   const sync = synced(page, 'settings.changed');
   await page.getByRole('radiogroup', { name: 'Daily session' }).getByRole('radio', { name: '20 min' }).click();
   await sync;
@@ -11,7 +11,7 @@ test('study settings sync as events', async ({ page }) => {
 });
 
 test('learners can export their data, then delete it', async ({ page }, testInfo) => {
-  await page.goto('/settings');
+  await page.goto('/today/settings');
   const sync = synced(page, 'settings.changed');
   await page.getByRole('radiogroup', { name: 'New cards per day' }).getByRole('radio', { name: '5', exact: true }).click();
   await sync;
@@ -35,7 +35,7 @@ test('learners can export their data, then delete it', async ({ page }, testInfo
 });
 
 test('feedback reaches the team with the screen it came from', { tag: '@nav' }, async ({ page }) => {
-  await page.goto('/learn');
+  await page.goto('/today');
   const more = page.locator('app-learn').getByRole('button', { name: 'More options' });
   await more.focus();
   await page.keyboard.press('Enter');
@@ -50,7 +50,7 @@ test('feedback reaches the team with the screen it came from', { tag: '@nav' }, 
   await page.getByRole('button', { name: 'Send', exact: true }).click();
   const response = await sent;
   expect(response.status()).toBe(201);
-  expect(response.request().postDataJSON()).toMatchObject({ kind: 'idea', rating: 4, context: { route: '/learn' } });
+  expect(response.request().postDataJSON()).toMatchObject({ kind: 'idea', rating: 4, context: { route: '/today' } });
   await expect(page.getByRole('heading', { name: 'Thank you' })).toBeVisible();
   await page.getByRole('button', { name: 'Close' }).click();
   await expect(page.getByRole('heading', { name: 'Thank you' })).toBeHidden();
@@ -58,7 +58,7 @@ test('feedback reaches the team with the screen it came from', { tag: '@nav' }, 
 });
 
 test('a tap on the Learn menu gives focus back to it when feedback closes', { tag: '@nav' }, async ({ page }) => {
-  await page.goto('/learn');
+  await page.goto('/today');
   const more = page.locator('app-learn').getByRole('button', { name: 'More options' });
   await more.click();
   await page.locator('ion-popover').getByRole('button', { name: 'Send feedback' }).click();
@@ -70,16 +70,16 @@ test('a tap on the Learn menu gives focus back to it when feedback closes', { ta
 });
 
 test('Settings sends feedback too, from its own screen', async ({ page }) => {
-  await page.goto('/settings');
+  await page.goto('/today/settings');
   await page.getByRole('button', { name: 'Feedback', exact: true }).click();
   const sheet = page.locator('app-feedback-sheet');
-  await expect(sheet).toContainText("Includes the screen you're on (/settings)");
+  await expect(sheet).toContainText("Includes the screen you're on (/today/settings)");
   await sheet.getByRole('button', { name: 'Cancel' }).click();
   await expect(sheet).toHaveCount(0);
 });
 
 test('settings explain what is stored', { tag: '@smoke' }, async ({ page }) => {
-  await page.goto('/settings');
+  await page.goto('/today/settings');
   await expect(page.getByRole('heading', { name: 'Your data' })).toBeVisible();
   await expect(page.getByText(/your behavioral stories stay on this device until you sign in/)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Export' })).toBeVisible();

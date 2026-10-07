@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
+import { IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
 import {
   COMPETENCIES,
   EMPTY_STAR_DRAFT,
@@ -21,16 +21,17 @@ import { StarDraftsService } from './star-drafts.service';
 import { StoryBankService } from './story-bank.service';
 
 const QUESTIONS = COMPETENCIES.flatMap((c) => c.questions);
+import { BackComponent } from '../../ui/back.component';
 
 @Component({
   selector: 'app-star-practice',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    BackComponent,
     RouterLink,
     IonHeader,
     IonToolbar,
     IonButtons,
-    IonBackButton,
     IonTitle,
     IonContent,
     IonIcon,
@@ -41,7 +42,7 @@ const QUESTIONS = COMPETENCIES.flatMap((c) => c.questions);
   template: `
     <ion-header [translucent]="true">
       <ion-toolbar>
-        <ion-buttons slot="start"><ion-back-button [defaultHref]="backHref()" text="" /></ion-buttons>
+        <ion-buttons slot="start"><app-back [href]="backHref()" /></ion-buttons>
         <ion-title>{{ competency()?.name ?? 'Behavioral' }}</ion-title>
       </ion-toolbar>
     </ion-header>
