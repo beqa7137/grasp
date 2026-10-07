@@ -35,6 +35,9 @@ import { ProgressService } from '../../core/progress.service';
 import { ShortcutsService } from '../../core/shortcuts.service';
 import { ForecastComponent } from '../../review/forecast.component';
 import { QuestionCardComponent, type CardReason } from '../../review/question-card.component';
+import { BackComponent } from '../../ui/back.component';
+import { CrossLinkDirective } from '../../ui/cross-link.directive';
+import { drillLink, lessonLink } from '../../core/links';
 
 interface Slot {
   itemId: string;
@@ -54,9 +57,6 @@ interface Result {
 const REQUEUE_WINDOW_MS = 20 * 60_000;
 /** A missed item is re-shown at most this many times per sitting; after that it waits for the next session. */
 const MAX_REQUEUES_PER_ITEM = 2;
-import { BackComponent } from '../../ui/back.component';
-import { CrossLinkDirective } from '../../ui/cross-link.directive';
-import { drillLink, lessonLink } from '../../core/links';
 
 @Component({
   selector: 'app-drill',
@@ -164,7 +164,9 @@ export class DrillPage {
       ? practiceSet(this.pattern()!, Math.random).map((itemId) => this.slot(itemId, 'practice'))
       : this.progress.session().items.map((i) => this.slot(i.itemId, i.reason));
     const session = this.progress.session();
-    this.plan.set(this.practice() ? null : { due: session.dueIncluded, fresh: session.newIncluded, minutes: session.estimatedMinutes });
+    this.plan.set(
+      this.practice() ? null : { due: this.progress.reviewDue(), fresh: session.newIncluded, minutes: session.estimatedMinutes },
+    );
     this.queue.set(slots);
     this.position.set(0);
     this.results.set([]);

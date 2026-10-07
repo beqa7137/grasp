@@ -52,10 +52,9 @@ import { RingWidgetComponent } from './ring-widget.component';
 import { StorageWidgetComponent } from './storage-widget.component';
 import { StreamWidgetComponent } from './stream-widget.component';
 import { TxnWidgetComponent } from './txn-widget.component';
-
-/** A system design topic taught hands-on: a widget to experiment with, the ideas to name, worked examples and a quick check. */
 import { BackComponent } from '../../ui/back.component';
 
+/** A system design topic taught hands-on: a widget to experiment with, the ideas to name, worked examples and a quick check. */
 @Component({
   selector: 'app-design-lesson',
   changeDetection: ChangeDetectionStrategy.OnPush,

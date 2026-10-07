@@ -1,12 +1,14 @@
 import type { Page } from '@playwright/test';
 import { CODING_CATALOG, PATTERN_CATALOG, getScenarioSummary } from '@grasp/engine';
-import { expect, test } from './fixtures';
+import { TODAY_HEADING as TODAY, expect, shownPage, test } from './fixtures';
 
-/** Its line break renders no space. */
-const TODAY = /^Build intuition,\s?not a problem count\.$/;
 const tab = (page: Page, name: string) => page.getByRole('tab', { name: new RegExp(`^${name}`) });
-const shownPage = (page: Page) => page.locator('ion-tabs ion-router-outlet > .ion-page:not(.ion-page-hidden)');
 const heading = (page: Page) => shownPage(page).locator('h1').first();
+/** Clicks the shown page's back button once a transition has left one page shown. */
+async function back(page: Page) {
+  await expect(shownPage(page)).toHaveCount(1);
+  await shownPage(page).locator('app-back ion-back-button').click();
+}
 const swipeBack = (page: Page) =>
   page.evaluate(
     () =>
@@ -86,8 +88,8 @@ test.describe('back from a cross-section link', () => {
       await expect(page).toHaveURL(/\/design\/missions\/first-scale-up$/);
       await expect(heading(page)).toHaveText(mission);
 
-      if (how === 'the back button') await shownPage(page).locator('app-back ion-back-button').click();
-      // Ionic turns Android's back button into this event in the app; the web build listens for it too.
+      if (how === 'the back button') await back(page);
+      // Capacitor's App plugin fires this event for Android's back button; with hardwareBackButton the web build listens too.
       else await page.evaluate(() => document.dispatchEvent(new Event('backbutton')));
       await expect(page).toHaveURL(/\/today$/);
       await expect(heading(page)).toHaveText(TODAY);
@@ -109,10 +111,56 @@ test.describe('back from a cross-section link', () => {
       await expect(heading(page)).toHaveText(mission);
       // It would pop the Design stack, not return to Today as the back button does.
       await expect.poll(() => swipeBack(page)).toBe(false);
-      await shownPage(page).locator('app-back ion-back-button').click();
+      await back(page);
       await expect(heading(page)).toHaveText(TODAY);
       await expect.poll(() => swipeBack(page)).toBe(true);
     });
+  });
+
+  test('a view shown in its own tab and then opened from another returns to the other', { tag: '@nav' }, async ({ page }) => {
+    // The mission hides the tab bar under 1024px, and Today is reached through the bar.
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.goto('/design/missions');
+    await page.locator('app-design-list a[href="/design/missions/first-scale-up"]').click();
+    await expect(heading(page)).toHaveText(mission);
+    await tab(page, 'Today').click();
+    // Ionic shows the view it already holds for this URL.
+    await page.locator('app-learn a.tile.lab').click();
+    await expect(heading(page)).toHaveText(mission);
+    await back(page);
+    await expect(page).toHaveURL(/\/today$/);
+    await expect(tab(page, 'Today')).toHaveAttribute('aria-selected', 'true');
+  });
+
+  test.describe('with page transitions on', () => {
+    test.use({ motionOff: false });
+
+    test(
+      'a page opened above a cross-section view returns to it, which still returns to its own tab',
+      { tag: '@nav' },
+      async ({ page }) => {
+        await page.goto('/coding');
+        await expect(heading(page)).toHaveText('Master the cue, and the problem names itself.');
+        await tab(page, 'Today').click();
+        await page.locator('app-learn a.tile.code').click();
+        await expect(heading(page)).toHaveText('Two Sum');
+        await expect.poll(() => swipeBack(page)).toBe(false);
+
+        await page.locator('app-code-workspace a.chip[href="/coding/patterns/hashing"]').click();
+        await expect(heading(page)).toHaveText('Arrays & Hashing');
+        await expect.poll(() => swipeBack(page)).toBe(true);
+        await back(page);
+        await expect(heading(page)).toHaveText('Two Sum');
+        await expect.poll(() => swipeBack(page)).toBe(false);
+
+        await back(page);
+        await expect(page).toHaveURL(/\/today$/);
+        // Coding opens where the learner left it, not on the view Today's tile opened.
+        await tab(page, 'Coding').click();
+        await expect(page).toHaveURL(/\/coding$/);
+        await expect(heading(page)).toHaveText('Master the cue, and the problem names itself.');
+      },
+    );
   });
 
   test("a view in the tab's own stack still pops it", { tag: '@nav' }, async ({ page }) => {
@@ -123,6 +171,14 @@ test.describe('back from a cross-section link', () => {
     await expect(page).toHaveURL(/\/design\/missions$/);
     await expect(tab(page, 'Design')).toHaveAttribute('aria-selected', 'true');
   });
+});
+
+test("the device's back button goes from a hub to Today", { tag: '@nav' }, async ({ page }) => {
+  await page.goto('/coding/problems');
+  await expect(heading(page)).toHaveText('Write it. Run it. Watch it.');
+  await page.evaluate(() => document.dispatchEvent(new Event('backbutton')));
+  await expect(page).toHaveURL(/\/today$/);
+  await expect(tab(page, 'Today')).toHaveAttribute('aria-selected', 'true');
 });
 
 test('journey 2: the graph problems are two taps from a cold start, in the problem library', { tag: '@nav' }, async ({ page }) => {
@@ -147,6 +203,9 @@ test('journey 7: questions about conflict are two taps from a cold start', { tag
 
 test.describe('Where things moved', () => {
   const NOTE = { name: 'Where things moved' };
+  /** The note is decided once per device, after the first render; absence means something only once it is decided. */
+  const decided = (page: Page) =>
+    expect.poll(() => page.evaluate(() => localStorage.getItem('CapacitorStorage.grasp.movedNote.v1'))).not.toBeNull();
 
   test('shows once to a learner whose progress predates the five sections', { tag: '@nav' }, async ({ page }) => {
     await page.addInitScript(() => {
@@ -163,14 +222,18 @@ test.describe('Where things moved', () => {
     await expect(note).toContainText('five sections');
     await note.getByRole('button', { name: 'Got it' }).click();
     await expect(note).toHaveCount(0);
+    await expect(heading(page)).toBeFocused();
     await page.reload();
     await expect(heading(page)).toHaveText(TODAY);
+    await decided(page);
     await expect(note).toHaveCount(0);
   });
 
   test('never shows to a new learner, even once they have progress', { tag: '@nav' }, async ({ page }) => {
     await page.goto('/today');
     await expect(heading(page)).toHaveText(TODAY);
+    await decided(page);
+    await expect(page.getByRole('complementary', NOTE)).toHaveCount(0);
     await page
       .locator('app-learn')
       .getByRole('link', { name: /^Review/ })

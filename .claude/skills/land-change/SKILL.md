@@ -32,7 +32,7 @@ so prettier does not re-pad every row. Commit as the owner with the session trai
 
 1. Push the head to the working branch (force-with-lease if it was rewritten).
 2. Dispatch CI on it: `gh api -X POST repos/beqa7137/grasp/actions/workflows/ci.yml/dispatches -f ref=<branch>`. Its
-   eight shards take about 12 minutes; the local container needs 45 to 50.
+   nine shards take about 12 minutes; the local container needs 45 to 50.
 3. Find the run: `gh api "repos/beqa7137/grasp/actions/workflows/ci.yml/runs?branch=<branch>&per_page=1"` and check
    `head_sha` is the head you pushed. Wait for `conclusion == success`.
 4. On a failure, read the failing job's log (`gh api repos/beqa7137/grasp/actions/jobs/<id>/logs`). A WebKit internal

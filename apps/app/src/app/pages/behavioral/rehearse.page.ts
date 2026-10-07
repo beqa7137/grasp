@@ -8,10 +8,10 @@ import { refocusAfterRender } from '../../core/focus';
 import { ProgressService } from '../../core/progress.service';
 import { STAR_PARTS } from './star-parts';
 import { StoryBankService } from './story-bank.service';
+import { BackComponent } from '../../ui/back.component';
 
 const MIN_SECONDS = 90;
 const MAX_SECONDS = 180;
-import { BackComponent } from '../../ui/back.component';
 
 @Component({
   selector: 'app-rehearse',

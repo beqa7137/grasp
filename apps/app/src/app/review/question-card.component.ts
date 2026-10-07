@@ -24,6 +24,7 @@ import { ListViewComponent } from '../viz/list-view.component';
 import { TableViewComponent } from '../viz/table-view.component';
 import { TreeViewComponent } from '../viz/tree-view.component';
 import { answerMark } from './answer-mark';
+import { CrossLinkDirective } from '../ui/cross-link.directive';
 
 export type CardReason = SessionReason | 'practice' | 'check' | 'diagnostic';
 
@@ -36,7 +37,6 @@ const REASON_LABELS: Record<CardReason, string> = {
   check: 'Quick check',
   diagnostic: 'Placement check',
 };
-import { CrossLinkDirective } from '../ui/cross-link.directive';
 
 @Component({
   selector: 'g-question-card',

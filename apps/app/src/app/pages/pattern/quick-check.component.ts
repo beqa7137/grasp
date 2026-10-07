@@ -3,6 +3,8 @@ import { RouterLink } from '@angular/router';
 import { generateQuestion, itemsForTopic, newSeed, seeded, shuffle, type Question } from '@grasp/engine';
 import { ProgressService } from '../../core/progress.service';
 import { QuestionCardComponent } from '../../review/question-card.component';
+import { CrossLinkDirective } from '../../ui/cross-link.directive';
+import { drillLink } from '../../core/links';
 
 const QUESTIONS = 3;
 
@@ -12,9 +14,6 @@ interface Asked {
 }
 
 /** Three of the pattern's own review questions, answered in place and counted as practice. */
-import { CrossLinkDirective } from '../../ui/cross-link.directive';
-import { drillLink } from '../../core/links';
-
 @Component({
   selector: 'app-quick-check',
   changeDetection: ChangeDetectionStrategy.OnPush,

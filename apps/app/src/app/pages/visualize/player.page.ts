@@ -46,6 +46,7 @@ import { TransportComponent, stepInterval, type Band, type Speed, type Tick } fr
 import { TreeViewComponent, sideRoomFor } from '../../viz/tree-view.component';
 import { firstSentence } from './first-sentence';
 import { PlayerIntroComponent, type PlayerIntroChoice } from './player-intro.component';
+import { BackComponent } from '../../ui/back.component';
 
 type PredictState = { frame: number; choice: number | null };
 
@@ -62,7 +63,6 @@ const TYPING = [
   'select:not([disabled])',
   '[contenteditable]:not([contenteditable="false"])',
 ].join(', ');
-import { BackComponent } from '../../ui/back.component';
 
 @Component({
   selector: 'app-player',

@@ -135,7 +135,7 @@ test('a story is rehearsed aloud against the clock and comes back after a longer
 
 test('a mock behavioral interview asks three questions with follow-ups, then debriefs each answer', async ({ page }) => {
   await page.goto('/behavioral');
-  await page.getByRole('link', { name: /Mock behavioral interview/ }).click();
+  await page.getByRole('link', { name: /STAR drill/ }).click();
   const mock = page.locator('app-behavioral-mock');
   const next = mock.getByRole('button', { name: /^(Answer|Finish and see the debrief)$/ });
   const long = 'I would have load tested the client earlier, because the retry storm only showed up under real traffic.';

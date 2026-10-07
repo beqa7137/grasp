@@ -2,17 +2,30 @@ import { DestroyRef, Injectable, InjectionToken, inject } from '@angular/core';
 import type { PreloadingStrategy, Route } from '@angular/router';
 import { from, lastValueFrom, of, type Observable } from 'rxjs';
 
+const IDLE_CAP_MS = 5000;
+
 /**
  * Resolves once the first screen is idle (REDESIGN.md 2.5), so its own chunks never queue behind the preloads on a slow
- * phone. Today has no deferred blocks yet, so that is the first idle period, or 5 seconds at most.
+ * phone: Today has no deferred blocks yet, so that is the first idle period, or 5 seconds at most. WebKit has no
+ * `requestIdleCallback`, so there it is a frame after the page's load event.
  */
-export const FIRST_IDLE = new InjectionToken<Promise<void>>('first idle', {
-  factory: () =>
-    new Promise<void>((resolve) => {
-      if ('requestIdleCallback' in window) requestIdleCallback(() => resolve(), { timeout: 5000 });
-      else setTimeout(resolve);
-    }),
-});
+export function firstIdle(win: Window = window): Promise<void> {
+  return new Promise((resolve) => {
+    const cap = win.setTimeout(resolve, IDLE_CAP_MS);
+    const idle = () => {
+      win.clearTimeout(cap);
+      resolve();
+    };
+    if (typeof win.requestIdleCallback === 'function') win.requestIdleCallback(idle, { timeout: IDLE_CAP_MS });
+    else {
+      const afterLoad = () => win.requestAnimationFrame(() => win.setTimeout(idle));
+      if (win.document.readyState === 'complete') afterLoad();
+      else win.addEventListener('load', afterLoad, { once: true });
+    }
+  });
+}
+
+export const FIRST_IDLE = new InjectionToken<Promise<void>>('first idle', { factory: () => firstIdle() });
 
 /** Routes without a `preload` rank load after the ranked ones. */
 const UNRANKED = 2;

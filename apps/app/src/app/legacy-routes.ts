@@ -10,11 +10,17 @@ import { SCENARIO_CATALOG } from '@grasp/engine';
 export const LEGACY_PREFIXES = ['learn', 'visualize', 'drill', 'diagnostic', 'interview', 'code', 'plan', 'settings'] as const;
 export type LegacyPrefix = (typeof LEGACY_PREFIXES)[number];
 
-/** Redirects to `commands`, keeping the old URL's query. */
+interface OldUrl {
+  params: Record<string, string>;
+  queryParams: Record<string, unknown>;
+  fragment: string | null;
+}
+
+/** Redirects to `commands`, keeping the old URL's query and fragment (a string redirect would drop both). */
 export const keepQuery =
-  (commands: (params: Record<string, string>) => unknown[]) =>
-  ({ params, queryParams }: { params: Record<string, string>; queryParams: Record<string, unknown> }) =>
-    inject(Router).createUrlTree(commands(params), { queryParams });
+  (commands: (params: Record<string, string>) => unknown[], query: (old: OldUrl['queryParams']) => OldUrl['queryParams'] = (q) => q) =>
+  ({ params, queryParams, fragment }: OldUrl) =>
+    inject(Router).createUrlTree(commands(params), { queryParams: query(queryParams), fragment: fragment ?? undefined });
 
 const scenarioIds = new Set<string>(SCENARIO_CATALOG.map((s) => s.id));
 
@@ -25,12 +31,15 @@ const legacyMission: UrlMatcher = (segments: UrlSegment[]) =>
     : null;
 
 export const legacyDesignRoutes: Routes = [
-  { path: 'design/case/:id', redirectTo: '/design/cases/:id' },
+  { path: 'design/case/:id', redirectTo: keepQuery(({ id }) => ['/design/cases', id]) },
   {
     path: 'design/free-build',
-    redirectTo: ({ queryParams }) => {
-      const { case: study, ...query } = queryParams;
-      return inject(Router).createUrlTree(study ? ['/design/cases', study, 'build'] : ['/design/lab'], { queryParams: query });
+    redirectTo: (old) => {
+      const study = old.queryParams['case'];
+      return keepQuery(
+        () => (study ? ['/design/cases', study, 'build'] : ['/design/lab']),
+        ({ case: _, ...query }) => query,
+      )(old);
     },
   },
   { matcher: legacyMission, redirectTo: keepQuery(({ id }) => ['/design/missions', id]) },

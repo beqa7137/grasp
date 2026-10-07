@@ -2,7 +2,7 @@ import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import type { Route } from '@angular/router';
 import { EMPTY, Observable, Subject, firstValueFrom, of } from 'rxjs';
-import { FIRST_IDLE, SerialPreloadingStrategy } from './serial-preloading.strategy';
+import { FIRST_IDLE, SerialPreloadingStrategy, firstIdle } from './serial-preloading.strategy';
 
 @Component({ template: '' })
 class TestPage {}
@@ -10,6 +10,8 @@ class TestPage {}
 const componentRoute = (path: string): Route => ({ path, loadComponent: () => TestPage });
 
 describe('SerialPreloadingStrategy', () => {
+  beforeEach(() => TestBed.configureTestingModule({ providers: [{ provide: FIRST_IDLE, useValue: Promise.resolve() }] }));
+
   it('waits for component completion despite an earlier placeholder emission', async () => {
     const strategy = TestBed.inject(SerialPreloadingStrategy);
     const loading = new Subject<string>();
@@ -112,5 +114,54 @@ describe('SerialPreloadingStrategy', () => {
 
     expect(await Promise.all([first, second])).toEqual(['first', null]);
     expect(next).not.toHaveBeenCalled();
+  });
+});
+
+describe('firstIdle without requestIdleCallback, as in WebKit', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  function webkit(readyState: DocumentReadyState) {
+    const listeners: (() => void)[] = [];
+    const win = {
+      document: { readyState },
+      setTimeout: (fn: () => void, ms?: number) => setTimeout(fn, ms),
+      clearTimeout: (id: number) => clearTimeout(id),
+      requestAnimationFrame: (fn: () => void) => setTimeout(fn, 16),
+      addEventListener: (_: string, fn: () => void) => listeners.push(fn),
+    };
+    return { win: win as unknown as Window, load: () => listeners.forEach((fn) => fn()) };
+  }
+
+  const settled = (promise: Promise<void>) => {
+    let done = false;
+    void promise.then(() => (done = true));
+    return () => done;
+  };
+
+  it('waits for the load event and a frame', async () => {
+    const { win, load } = webkit('loading');
+    const done = settled(firstIdle(win));
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(done()).toBe(false);
+    load();
+    await vi.advanceTimersByTimeAsync(20);
+    expect(done()).toBe(true);
+  });
+
+  it('starts a frame after an already loaded page', async () => {
+    const done = settled(firstIdle(webkit('complete').win));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(done()).toBe(false);
+    await vi.advanceTimersByTimeAsync(20);
+    expect(done()).toBe(true);
+  });
+
+  it('gives up waiting after 5 seconds', async () => {
+    const done = settled(firstIdle(webkit('loading').win));
+    await vi.advanceTimersByTimeAsync(4999);
+    expect(done()).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(done()).toBe(true);
   });
 });

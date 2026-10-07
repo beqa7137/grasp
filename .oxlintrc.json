@@ -1,5 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc", "import"],
   "categories": {
     "correctness": "error",
     "suspicious": "warn"
@@ -23,7 +24,11 @@
         "allowWithDecorator": true
       }
     ],
-    "unicorn/require-post-message-target-origin": "off"
+    "unicorn/require-post-message-target-origin": "off",
+    "import/first": "error",
+    "import/no-duplicates": "error",
+    "import/no-named-as-default": "off",
+    "import/no-named-as-default-member": "off"
   },
   "ignorePatterns": ["**/dist/**", "**/node_modules/**", "**/.angular/**", "apps/api/drizzle/**"]
 }

@@ -5,6 +5,7 @@ import { STUDY_OPTIONS, relativeWorkload, type StudySettings } from '@grasp/engi
 import { ProgressService } from '../../core/progress.service';
 import { RovingSelectDirective } from '../../core/roving-select.directive';
 import { ReminderService } from '../../reminders/reminder.service';
+import { CrossLinkDirective } from '../../ui/cross-link.directive';
 
 export interface Choice<T> {
   value: T;
@@ -12,7 +13,6 @@ export interface Choice<T> {
 }
 
 const pct = (r: number) => `${Math.round(r * 100)}%`;
-import { CrossLinkDirective } from '../../ui/cross-link.directive';
 
 @Component({
   selector: 'app-study-settings',

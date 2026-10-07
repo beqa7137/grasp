@@ -1,8 +1,7 @@
 import { Preferences } from '@capacitor/preferences';
 import type { StoredEvent } from '@grasp/engine';
 import { TestBed } from '@angular/core/testing';
-import { ApiError } from './api.service';
-import { ApiService } from './api.service';
+import { ApiError, ApiService } from './api.service';
 import { LearnerService } from './learner.service';
 import { ProgressService } from './progress.service';
 

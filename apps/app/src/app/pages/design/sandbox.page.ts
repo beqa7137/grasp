@@ -76,6 +76,7 @@ import {
   toBoard,
   zoomAt,
 } from './viewport';
+import { BackComponent } from '../../ui/back.component';
 
 const W = 132;
 const H = 70;
@@ -92,7 +93,6 @@ type Gesture =
 type Drag =
   | { kind: 'move'; id: string; dx: number; dy: number; startX: number; startY: number; moved: boolean }
   | { kind: 'link'; from: string; x: number; y: number };
-import { BackComponent } from '../../ui/back.component';
 
 @Component({
   selector: 'app-sandbox',

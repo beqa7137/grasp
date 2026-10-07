@@ -30,6 +30,8 @@ import type { AiAccess, InterviewCatalog, InterviewMode, InterviewSession } from
 import { LoopDebriefComponent } from './loop-debrief.component';
 import { MockLoopService, loopCard } from './mock-loop.service';
 import { needsSignIn } from './start-interview';
+import { BackComponent } from '../../ui/back.component';
+import { CrossLinkDirective } from '../../ui/cross-link.directive';
 
 const REASONS: Record<string, string> = {
   'coding:flagged': 'On a pattern an interview flagged.',
@@ -45,8 +47,6 @@ const ROUND_DETAIL: Record<InterviewTrack, string> = {
 };
 
 type Stage = 'loading' | 'setup' | 'running' | 'debrief';
-import { BackComponent } from '../../ui/back.component';
-import { CrossLinkDirective } from '../../ui/cross-link.directive';
 
 @Component({
   selector: 'app-mock-loop',
@@ -236,7 +236,7 @@ import { CrossLinkDirective } from '../../ui/cross-link.directive';
             <button type="button" class="g-btn primary again" (click)="newLoop()">Start a new loop</button>
           }
         }
-        <p class="muted footnote">Want just one round? <a routerLink="/mock">Start a single interview on the interview page</a>.</p>
+        <p class="muted footnote">Want just one round? <a routerLink="/mock">Start a single round on the Mock page</a>.</p>
       </div>
     </ion-content>
   `,

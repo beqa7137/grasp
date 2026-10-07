@@ -10,6 +10,7 @@ import {
   type LoopDebrief,
 } from '@grasp/engine';
 import type { InterviewSession } from './interview.types';
+import { CrossLinkDirective } from '../../ui/cross-link.directive';
 
 const verdictLabel = (verdict: string) => verdict.replace(/-/g, ' ');
 
@@ -36,7 +37,6 @@ function practice(target: FocusTarget): { link: string[]; label: string } {
       return { link: ['/mock', target.sessionId], label: 'Reread how this round went' };
   }
 }
-import { CrossLinkDirective } from '../../ui/cross-link.directive';
 
 @Component({
   selector: 'app-loop-debrief',

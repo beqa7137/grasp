@@ -7,12 +7,9 @@ import {
   getScenarioSummary,
   getSdTopic,
 } from '@grasp/engine';
-import { expect, test } from './fixtures';
+import { TODAY_HEADING as TODAY, expect, shownPage, test } from './fixtures';
 
 const input = encodeURIComponent(JSON.stringify({ nums: [1, 3, 5, 7, 9], target: 7 }));
-
-/** Its line break renders no space. */
-const TODAY = /^Build intuition,\s?not a problem count\.$/;
 
 /** Every URL shape from before REDESIGN.md R5, where it lands, that page's h1 and the tab lit there. */
 const LINKS: { old: string; url: string; h1: string | RegExp; tab: string }[] = [
@@ -76,27 +73,34 @@ const LINKS: { old: string; url: string; h1: string | RegExp; tab: string }[] = 
   { old: '/plan', url: '/today/plan', h1: 'Plan to your interview', tab: 'today' },
   { old: '/settings', url: '/today/settings', h1: 'Settings', tab: 'today' },
   { old: '/no-such-page', url: '/today', h1: TODAY, tab: 'today' },
+  // A query and a fragment survive a redirect too.
+  { old: '/code/two-sum?from=mail#tests', url: '/coding/problems/two-sum?from=mail#tests', h1: 'Two Sum', tab: 'coding' },
+  { old: '/learn/pattern/hashing?from=mail#cues', url: '/coding/patterns/hashing?from=mail#cues', h1: 'Arrays & Hashing', tab: 'coding' },
+  { old: '/design/case/url-shortener?from=mail', url: '/design/cases/url-shortener?from=mail', h1: 'URL Shortener', tab: 'design' },
 ];
 
-const shownH1 = (page: Page) => page.locator('ion-tabs ion-router-outlet > .ion-page:not(.ion-page-hidden) h1').first();
+const shownH1 = (page: Page) => shownPage(page).locator('h1').first();
 /** Focus routes hide the tab bar under 1024px, but its selected tab still says where the page belongs. */
 const litTab = (page: Page) => page.locator('ion-tab-button.tab-selected');
 
 async function expectLanded(page: Page, url: string, h1: string | RegExp, tab: string) {
-  await expect(page).toHaveURL((actual) => decodeURIComponent(actual.pathname + actual.search) === decodeURIComponent(url));
+  await expect(page).toHaveURL((actual) => decodeURIComponent(actual.pathname + actual.search + actual.hash) === decodeURIComponent(url));
   await expect(shownH1(page)).toHaveText(h1);
   await expect(litTab(page)).toHaveCount(1);
   await expect(litTab(page)).toHaveAttribute('tab', tab);
 }
 
-test('every old URL lands on its new place, with its heading and its tab lit', { tag: '@nav' }, async ({ page }) => {
-  for (const { old, url, h1, tab } of LINKS) {
-    await test.step(old, async () => {
-      await page.goto(old);
-      await expectLanded(page, url, h1, tab);
-    });
-  }
-});
+// One test per tab, so a WebKit crash retries a short walk.
+for (const tab of ['today', 'coding', 'design', 'behavioral', 'mock']) {
+  test(`every old URL that lands in ${tab} keeps its place, heading and lit tab`, { tag: '@nav' }, async ({ page }) => {
+    for (const link of LINKS.filter((l) => l.tab === tab)) {
+      await test.step(link.old, async () => {
+        await page.goto(link.old);
+        await expectLanded(page, link.url, link.h1, link.tab);
+      });
+    }
+  });
+}
 
 test('old interview and story links still open the session and the story', { tag: '@nav' }, async ({ page }) => {
   await page.goto('/mock');

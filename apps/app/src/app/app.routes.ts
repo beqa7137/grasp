@@ -121,7 +121,7 @@ export const routes: Routes = [
       },
       {
         path: 'behavioral/drill',
-        title: 'Mock behavioral interview',
+        title: 'STAR drill',
         loadComponent: () => import('./pages/behavioral/behavioral-mock.page').then((m) => m.BehavioralMockPage),
       },
       {
@@ -153,6 +153,9 @@ export const routes: Routes = [
           },
         ],
       },
+      // REDESIGN.md 2.4's Questions and guide come with R12; until then their URLs open the hub.
+      { path: 'behavioral/questions', redirectTo: '/behavioral' },
+      { path: 'behavioral/guide', redirectTo: '/behavioral' },
       ...legacyBehavioralRoutes,
       {
         path: 'behavioral/:id',

@@ -19,6 +19,8 @@ import { onPageKey } from '../../core/on-page-key';
 import { ProgressService } from '../../core/progress.service';
 import { ShortcutsService } from '../../core/shortcuts.service';
 import { QuestionCardComponent } from '../../review/question-card.component';
+import { BackComponent } from '../../ui/back.component';
+import { CrossLinkDirective } from '../../ui/cross-link.directive';
 
 type Phase = 'intro' | 'questions' | 'results';
 
@@ -26,8 +28,6 @@ interface Slot {
   itemId: string;
   question: Question;
 }
-import { BackComponent } from '../../ui/back.component';
-import { CrossLinkDirective } from '../../ui/cross-link.directive';
 
 @Component({
   selector: 'app-diagnostic',

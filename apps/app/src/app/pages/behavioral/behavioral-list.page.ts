@@ -47,7 +47,7 @@ import { StoryBankService } from './story-bank.service';
       <a class="panel item bank" routerLink="/behavioral/drill">
         <ion-icon class="lead-icon" name="chatbubbles-outline" aria-hidden="true" />
         <span class="text">
-          <span class="name">Mock behavioral interview</span>
+          <span class="name">STAR drill</span>
           <span class="one">Three questions from different competencies, the follow-ups an interviewer asks, then a debrief.</span>
         </span>
         <ion-icon name="chevron-forward" aria-hidden="true" />

@@ -13,7 +13,7 @@ function setup(access: AiAccess = 'sign-in-required') {
     get: vi.fn(async (path: string): Promise<InterviewCatalog | InterviewSession[]> => (path.endsWith('/problems') ? catalog : [])),
     post: vi.fn(async () => ({ id: 'session' })),
   };
-  const router = { navigate: vi.fn(async () => true), url: '/mock' };
+  const router = { navigate: vi.fn(async () => true), navigateByUrl: vi.fn(async () => true), url: '/mock' };
   TestBed.configureTestingModule({
     imports: [InterviewHomePage],
     providers: [
@@ -99,7 +99,7 @@ describe('InterviewHomePage access choice', () => {
       expect(page.mode()).toBe('ai');
       expect(page.track()).toBe('system-design');
       expect(api.post).not.toHaveBeenCalled();
-      expect(router.navigate).not.toHaveBeenCalled();
+      expect(router.navigateByUrl).not.toHaveBeenCalled();
     },
   );
 
@@ -154,7 +154,7 @@ describe('InterviewHomePage access choice', () => {
     expect(page.track()).toBe('system-design');
     expect(page.mode()).toBe('offline');
     expect(api.post).not.toHaveBeenCalled();
-    expect(router.navigate).not.toHaveBeenCalled();
+    expect(router.navigateByUrl).not.toHaveBeenCalled();
   });
 
   it('opens sign-in after server denial without retrying the start', async () => {
@@ -166,7 +166,7 @@ describe('InterviewHomePage access choice', () => {
     expect(page.signInOpen()).toBe(true);
     expect(page.starting()).toBeNull();
     expect(api.post).toHaveBeenCalledTimes(1);
-    expect(router.navigate).not.toHaveBeenCalled();
+    expect(router.navigateByUrl).not.toHaveBeenCalled();
   });
 
   it('ignores a repeated start while the first request is pending', async () => {
@@ -178,7 +178,7 @@ describe('InterviewHomePage access choice', () => {
     expect(api.post).toHaveBeenCalledTimes(1);
     resolve({ id: 'session' });
     await first;
-    expect(router.navigate).toHaveBeenCalledExactlyOnceWith(['/mock', 'session']);
+    expect(router.navigateByUrl).toHaveBeenCalledExactlyOnceWith('/mock/session', { state: undefined });
   });
 });
 
@@ -205,7 +205,7 @@ describe('InterviewHomePage behavioral track', () => {
     page.chooseMode('ai');
     await page.start('conflict');
     expect(api.post).toHaveBeenCalledExactlyOnceWith('/interview/sessions', { track: 'behavioral', problemId: 'conflict', mode: 'ai' });
-    expect(router.navigate).toHaveBeenCalledExactlyOnceWith(['/mock', 'session']);
+    expect(router.navigateByUrl).toHaveBeenCalledExactlyOnceWith('/mock/session', { state: undefined });
   });
 
   it('opens sign-in instead of starting an AI interview for a guest', async () => {
@@ -216,6 +216,6 @@ describe('InterviewHomePage behavioral track', () => {
     await page.start('conflict');
     expect(page.signInOpen()).toBe(true);
     expect(api.post).not.toHaveBeenCalled();
-    expect(router.navigate).not.toHaveBeenCalled();
+    expect(router.navigateByUrl).not.toHaveBeenCalled();
   });
 });
