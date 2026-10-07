@@ -30,10 +30,21 @@ export function bootMotion(win: Window = window): { animated: boolean } {
     }
     applyMotion(root, motionPreference(saved));
   }
-  const mode = root.getAttribute('data-motion');
-  const deviceReduces = win.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
-  return { animated: mode === 'full' || (mode !== 'off' && mode !== 'reduced' && !deviceReduces) };
+  return { animated: motionAllowed(win) };
 }
+
+/** Full, or System on a device that does not reduce motion: what the no-motion rules in styles.scss decide for CSS. */
+export function motionAllowed(win: Window = window): boolean {
+  const mode = win.document.documentElement.getAttribute('data-motion');
+  const deviceReduces = win.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+  return mode === 'full' || (mode !== 'off' && mode !== 'reduced' && !deviceReduces);
+}
+
+/**
+ * The behavior of a scroll the app asks for. Ionic animates ion-content's scroller frame by frame, so a smooth
+ * `scroll-behavior` there would lag its animations; such a scroll names its behavior instead.
+ */
+export const motionScroll = (win: Window = window): ScrollBehavior => (motionAllowed(win) ? 'smooth' : 'auto');
 
 /** Sets `data-motion` for a preference, leaving the test mode's `off` in place. */
 export function applyMotion(root: HTMLElement, preference: MotionPreference): void {

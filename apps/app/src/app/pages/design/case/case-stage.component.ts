@@ -26,6 +26,7 @@ import {
 } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import { arrowForward, checkmarkCircle, closeCircle, constructOutline } from 'ionicons/icons';
+import { motionScroll } from '../../../core/motion';
 import { refocus, refocusAfterRender } from '../../../core/focus';
 import { answerMark } from '../../../review/answer-mark';
 import { CodeTextComponent } from '../../../viz/code-text.component';
@@ -406,7 +407,7 @@ export class CaseStageComponent {
       () => {
         const result = this.result()?.nativeElement;
         // The verdict answers the tap that asked for it, so it comes into view whichever way the check was made.
-        result?.scrollIntoView({ block: 'nearest' });
+        result?.scrollIntoView({ block: 'nearest', behavior: motionScroll() });
         refocus(result);
       },
       { injector: this.injector },

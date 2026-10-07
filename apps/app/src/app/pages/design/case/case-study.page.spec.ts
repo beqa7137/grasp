@@ -87,6 +87,17 @@ describe('CaseStudyPage answers', () => {
     expect(stored()).toMatchObject({ reached: 1, stages: [{ chosen: 2, revealed: all(0) }, { guess: '120k' }] });
   });
 
+  it('scrolls to a stage smoothly only while Motion allows it', async () => {
+    const { page } = await open(JSON.stringify(answeredDraft()));
+    const behaviors = () =>
+      vi.mocked(Element.prototype.scrollIntoView).mock.calls.map(([options]) => (options as ScrollIntoViewOptions).behavior);
+    page.goToStage(0);
+    document.documentElement.setAttribute('data-motion', 'reduced');
+    page.goToStage(0);
+    document.documentElement.removeAttribute('data-motion');
+    expect(behaviors().slice(-2)).toEqual(['smooth', 'auto']);
+  });
+
   it('restores every stage after a reload, including a typed estimate and its verdict', async () => {
     const saved: CaseDraft = { attempt: 'a-1', reached: 1, stages: [{ chosen: 1, revealed: 2 }, { guess: '120k' }] };
     const { stage } = await open(JSON.stringify(saved));

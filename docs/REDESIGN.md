@@ -1940,9 +1940,12 @@ Iterations are ordered by impact, alternating between organization and visuals. 
   w320 294px). ⋯ opens an inline, non-modal group ("Playback") above the dock, over region R and never over the stage
   or the caption: the Timeline with its ticks and bands, Speed, Restart, Next checkpoint and Jump to result, the Timeline
   and Speed under visible labels; Describe (R19) and Presets (R25) join it later. It is laid out to fit R on a 320px phone
-  (Speed one row, the actions one row of icon over label) and capped at R's measured height; while it is open the caption
-  keeps to its first two lines and leaves the result and the code link until it closes, so R keeps room for the whole
-  panel, and only a window too short for that scrolls inside it, keeping the labelled Timeline. The count and the Timeline exist once in every layout. The Timeline stays a native range for the
+  (Speed one row, the actions one row of icon over label) and capped at R's measured height; while it is open in a
+  container under 920px tall, where a last frame's caption can leave R short, the caption keeps to its first two lines,
+  the result leaves the view but stays in the caption's live region, and the code link waits until it closes, so R keeps
+  room for the whole panel (a tablet held upright keeps the whole caption), and only a window too short for that scrolls
+  inside it, keeping the labelled Timeline. While a drag holds, the chip takes the Timeline label's row and the label
+  gives way, so the panel needs no clearance row and fits a 360px-tall phone held sideways. The count and the Timeline exist once in every layout. The Timeline stays a native range for the
   keyboard, assistive tech and Playwright's `fill`, under a transparent layer that takes every pointer, so a drag is
   guarded alike in Chromium and WebKit and with touch: it holds on the first unanswered tick it crosses, with the chip
   "Answer it, or skip?" over the held tick and a selection haptic (`selectionStart`, `selectionChanged`, `selectionEnd`, since iOS ticks only
@@ -1979,9 +1982,10 @@ Iterations are ordered by impact, alternating between organization and visuals. 
   moves them. Reduced and test mode turn
   transitions off entirely (`transition: none`): the old 0.001ms duration made every property of every element transition
   for a frame, since `transition-property` defaults to all. They also turn smooth scrolling off (`scroll-behavior: auto`),
-  as Instant does on the stage; the array, the code panel and the case study's scroller (`ion-content::part(scroll)`,
-  which the no-motion rules name since `*` does not reach it) declare `scroll-behavior: smooth` in CSS and scroll
-  without a `behavior`, so the cascade decides in one place.
+  as Instant does on the stage; the array and the code panel declare `scroll-behavior: smooth` in CSS and scroll
+  without a `behavior`, so the cascade decides in one place. A case study's scrolls name their behavior from
+  `motionScroll()` (`core/motion.ts`, the same rule as the CSS) instead, since a smooth `scroll-behavior` on
+  `ion-content`'s scroller would lag Ionic's own frame-by-frame scrolls there (the status-bar tap).
 
 **R4 Engine release A** (invisible).
 

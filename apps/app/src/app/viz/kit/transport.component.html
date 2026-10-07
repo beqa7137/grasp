@@ -34,7 +34,7 @@
 </div>
 
 <div class="more" [class.open]="moreOpen()" [id]="panelId" role="group" aria-label="Playback">
-  <span class="label eyebrow" [id]="timelineLabel">Timeline</span>
+  <span class="label eyebrow" [id]="timelineLabel" [class.yield]="holding() !== null">Timeline</span>
   <div class="scrubber">
     @if (bands().length) {
       <div class="bands" aria-hidden="true">

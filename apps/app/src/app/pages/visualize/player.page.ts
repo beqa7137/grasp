@@ -117,12 +117,13 @@ export class PlayerPage {
   private readonly heading = viewChild<ElementRef<HTMLElement>>('heading');
   private readonly panelCol = viewChild<ElementRef<HTMLElement>>('panelCol');
   private readonly about = viewChild<ElementRef<HTMLElement>>('about');
+  private readonly transport = viewChild(TransportComponent, { read: ElementRef<HTMLElement> });
 
   readonly algo = computed(() => getAlgorithm(this.id()) as AlgorithmDef | undefined);
   readonly problem = computed(() => CODING_CATALOG.find((p) => p.algorithmId === this.id()));
   readonly pattern = computed(() => (this.algo() ? getPatternSummary(this.algo()!.patternId) : undefined));
 
-  /** ⋯ is open, so the caption keeps to two lines and region R keeps room for the panel. */
+  /** ⋯ is open, so where region R can be short the caption keeps to two lines and R keeps room for the panel. */
   protected readonly moreOpen = signal(false);
 
   readonly input = signal<Record<string, unknown> | null>(null);
@@ -220,9 +221,10 @@ export class PlayerPage {
 
     effect((onCleanup) => {
       const panel = this.panelCol()?.nativeElement;
-      if (!panel) return;
+      const transport = this.transport()?.nativeElement;
+      if (!panel || !transport) return;
       // Written here rather than through a signal, so ⋯'s cap changes in the frame R does, before it is painted.
-      const observer = new ResizeObserver(() => panel.parentElement!.style.setProperty('--g-room', `${panel.offsetHeight}px`));
+      const observer = new ResizeObserver(() => transport.style.setProperty('--g-room', `${panel.offsetHeight}px`));
       observer.observe(panel);
       onCleanup(() => observer.disconnect());
     });

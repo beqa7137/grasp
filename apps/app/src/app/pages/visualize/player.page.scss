@@ -190,9 +190,11 @@ ion-title h1 {
   }
 }
 
-// While ⋯ is open over R, the caption keeps to its first two lines and leaves the result and the code link until it closes,
-// so R keeps the room the panel needs and the panel never reaches the caption.
-@container player not ((min-width: 900px) and (min-height: 424px)) {
+// While ⋯ is open over R where R can be too short for it, the caption keeps to its first two lines, the result leaves the
+// view (not the live region) and the code link leaves until ⋯ closes, so R keeps the panel's 192px. Below 920px of
+// container height a phone's last frame can need that: house robber's caption, result and link at 390px wide leave R the
+// panel's height only from 915px. A taller window, such as a tablet held upright, keeps the whole caption.
+@container player (max-height: 919.98px) and (not ((min-width: 900px) and (min-height: 424px))) {
   .narration.more-open {
     p {
       display: -webkit-box;
@@ -200,7 +202,15 @@ ion-title h1 {
       -webkit-line-clamp: 2;
       overflow: hidden;
     }
-    .result,
+    .result {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
     .code-it {
       display: none;
     }
