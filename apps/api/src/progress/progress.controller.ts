@@ -2,7 +2,7 @@ import { Body, Controller, Get, HttpCode, Post, Query } from '@nestjs/common';
 import { LearnerId, UserId } from '../common/learner-id.decorator.js';
 import { ErasureStore } from '../persistence/erasure.stores.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
-import { appendEventsSchema, sinceSchema, type AppendEventsDto } from './progress.schema.js';
+import { appendEventsSchema, sinceSchema, versionSchema, type AppendEventsDto } from './progress.schema.js';
 import { ProgressService } from './progress.service.js';
 
 @Controller('progress')
@@ -28,8 +28,9 @@ export class ProgressController {
     @LearnerId() learnerId: string,
     @UserId() userId: string | null,
     @Query('since', new ZodValidationPipe(sinceSchema)) since?: string,
+    @Query('v', new ZodValidationPipe(versionSchema)) version?: number,
   ) {
-    const result = await this.progress.events(learnerId, since);
+    const result = await this.progress.events(learnerId, since, version);
     if (!userId && result.events.length === 0) await this.erasure.assertActive(learnerId);
     return result;
   }

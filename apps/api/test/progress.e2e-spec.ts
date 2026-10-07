@@ -101,6 +101,52 @@ describe.each(storages)('Progress append contract (%s)', (storage) => {
     });
   });
 
+  describe('event versions', () => {
+    const target = (id: string) => ({
+      id,
+      at: new Date().toISOString(),
+      type: 'target.set' as const,
+      target: { level: 'senior', rounds: { coding: 2, design: 2, behavioral: 1 }, company: 'amazon' },
+    });
+    const pull = (learnerId: string, query: Record<string, string>) =>
+      request(app.getHttpServer()).get('/api/progress/events').query(query).set('x-learner-id', learnerId);
+    const ids = (body: { events: { id: string }[] }) => body.events.map((e) => e.id).sort();
+
+    it('never returns target.set to a pull without v=2, and still moves its cursor past it', async () => {
+      const learnerId = randomUUID();
+      await post(learnerId, [event('evt-before'), target('evt-target'), event('evt-after')]).expect(200);
+      for (const query of [{}, { v: '1' }] as Record<string, string>[]) {
+        const body = (await pull(learnerId, query).expect(200)).body;
+        expect(ids(body)).toEqual(['evt-after', 'evt-before']);
+        expect(Date.parse(body.cursor)).not.toBeNaN();
+        const cursor = new Date(Date.parse(body.cursor) - 30_000).toISOString();
+        expect(ids((await pull(learnerId, { ...query, since: cursor }).expect(200)).body)).not.toContain('evt-target');
+      }
+      expect(ids((await pull(learnerId, { v: '2' }).expect(200)).body)).toEqual(['evt-after', 'evt-before', 'evt-target']);
+      expect(ids((await pull(learnerId, { v: '3' }).expect(200)).body)).toContain('evt-target');
+    });
+
+    it('rejects a version that is not a positive integer', async () => {
+      for (const v of ['0', 'two', '1.5']) await pull(randomUUID(), { v }).expect(400);
+    });
+
+    it('accepts a Target only in its declared shape', async () => {
+      const learnerId = randomUUID();
+      const valid = target('evt-target-ok');
+      await post(learnerId, [{ ...valid, target: { level: 'mid', rounds: { coding: 0, design: 0, behavioral: 1 } } }]).expect(200);
+      const invalid = [
+        { level: 'staff', rounds: valid.target.rounds },
+        { ...valid.target, rounds: { coding: 4, design: 0, behavioral: 0 } },
+        { ...valid.target, rounds: { coding: 0, design: 0, behavioral: 0 } },
+        { ...valid.target, rounds: { coding: 1, design: 1 } },
+        { ...valid.target, rounds: { ...valid.target.rounds, ood: 1 } },
+        { ...valid.target, company: 'initech' },
+        { ...valid.target, interviewDate: '2026-12-01' },
+      ];
+      for (const [i, body] of invalid.entries()) await post(learnerId, [{ ...valid, id: `evt-target-bad-${i}`, target: body }]).expect(400);
+    });
+  });
+
   it('acknowledges eligible IDs and defers future IDs without persisting them', async () => {
     const learnerId = randomUUID();
     const eligible = event('evt-eligible', new Date().toISOString());

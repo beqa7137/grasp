@@ -461,9 +461,14 @@ export class PlanPage {
       case 'pattern':
         return ['/learn/pattern', unit.patternId!];
       case 'retry':
+      case 'solve':
         return ['/code', unit.problemId!];
+      case 'lesson':
+        return ['/learn/design', unit.topicId!];
       case 'case':
         return ['/design/case', unit.caseId!];
+      case 'mission':
+        return ['/design', unit.scenarioId!];
       case 'story':
         return ['/behavioral', unit.competencyId!];
       case 'mock':

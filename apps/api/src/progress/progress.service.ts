@@ -15,6 +15,9 @@ const FUTURE_TOLERANCE_MS = 5 * 60_000;
 // Receipt times are stamped when a write starts, so one can commit after a later pull has already read past it. Writes
 // here finish in seconds, so re-reading the last minute catches them; events are immutable and deduplicated by ID.
 const PULL_OVERLAP_MS = 60_000;
+// Event types added after v1, by the version that added them. Older native builds pull without `v` and would count a
+// `target.set` as a study day, so they never see one.
+const EVENT_VERSION: Partial<Record<StoredEvent['type'], number>> = { 'target.set': 2 };
 
 @Injectable()
 export class ProgressService {
@@ -39,10 +42,11 @@ export class ProgressService {
     };
   }
 
-  async events(learnerId: string, since?: string) {
+  async events(learnerId: string, since?: string, version = 1) {
     const after = since ? new Date(Date.parse(since) - PULL_OVERLAP_MS) : null;
     const { events, latest } = await this.store.listReceivedAfter(learnerId, after);
-    return { events: sortEvents(events), cursor: latest ?? since ?? null };
+    const readable = events.filter((event) => (EVENT_VERSION[event.type] ?? 1) <= version);
+    return { events: sortEvents(readable), cursor: latest ?? since ?? null };
   }
 
   async snapshot(learnerId: string, now = new Date()) {

@@ -2087,6 +2087,7 @@ Iterations are ordered by impact, alternating between organization and visuals. 
 
 - **Scope:**
   - the target line and the first-run card (clients start sending `target.set` and `?v=2`);
+  - the pull version kept with the cursor: `EVENTS_KEY` stores the `v` the cursor was read with, and a device whose app now reads a higher version drops its cursor once (one full pull), so `target.set` events it pulled past under v1 arrive (R4 review finding C1);
   - the derived Target for pilot users, and the inline level row;
   - Up next with the six rules, and "Not today";
   - the shared `app-plan-today`;

@@ -3,10 +3,13 @@ import { dueStories, isRehearsable } from '../behavioral/rehearsal.js';
 import type { Story } from '../behavioral/stories.js';
 import { problemsForPattern } from '../coding/catalog.js';
 import { PATTERN_CATALOG } from '../curriculum/catalog.js';
+import { LEVEL_PROFILES } from '../readiness/levels.js';
 import { dayKey, type ProgressState } from '../srs/progress.js';
 import { buildSession } from '../srs/session.js';
-import { LOOP_FRESH_DAYS, LOOP_ROUND_MINUTES, PLAN_ROUND_TRACK } from '../interview/loop.js';
+import { LOOP_FRESH_DAYS, PLAN_ROUND_TRACK } from '../interview/loop.js';
 import { CASE_CATALOG } from '../sysdesign/case-catalog.js';
+import { MINUTES, roundTo5, STARTING_POINT_FACTOR } from './minutes.js';
+import { skillWeight, targetCodingUnits, targetDesignUnits, UNIT_GAIN, type TargetUnitsContext } from './target-units.js';
 import {
   PLAN_MAX_DAYS,
   PLAN_MINUTES,
@@ -15,17 +18,15 @@ import {
   calendarDaysBetween,
   type PlanLevel,
   type PlanRound,
+  type RoundCounts,
   type StudyPlanInput,
+  type TargetInput,
 } from './options.js';
-
-/** Rough sittings for a unit at the "new" level; the page always says "about". */
-const UNIT_MINUTES = { pattern: 40, retry: 20, story: 20, caseStage: 4 };
-const LEVEL_FACTOR: Record<PlanLevel, number> = { new: 1, rusty: 0.75, confident: 0.5 };
 /** Later days keep this share for reviews, which grow as new material turns into cards. */
 const REVIEW_SHARE = 0.2;
 /** Today's reviews take at most this share, so new material still moves forward. */
 const TODAY_REVIEW_CAP = 0.5;
-export const REHEARSAL_MINUTES = 3;
+export const REHEARSAL_MINUTES = MINUTES.rehearsal;
 /**
  * A unit is never split into a piece shorter than this unless the piece finishes it, and a day runs over by up to this
  * much to finish a unit rather than leave a short tail for another day.
@@ -34,7 +35,7 @@ const MIN_SLICE = 10;
 /** Stories saved before creation times were kept count as covered from long ago. */
 const BEFORE_CREATION_TIMES = new Date(0).toISOString();
 
-export type PlanUnitKind = 'pattern' | 'retry' | 'case' | 'story' | 'mock';
+export type PlanUnitKind = 'pattern' | 'solve' | 'retry' | 'lesson' | 'case' | 'mission' | 'story' | 'mock';
 
 export interface PlanUnit {
   id: string;
@@ -48,9 +49,19 @@ export interface PlanUnit {
   patternId?: string;
   problemId?: string;
   caseId?: string;
+  scenarioId?: string;
+  topicId?: string;
   competencyId?: string;
   /** Set when it was finished today; units finished before today are left out of the plan. */
   doneAt: string | null;
+  /** The loop readiness it adds when finished (a plan for a Target only), which orders work when time is short. */
+  value?: number;
+  /** The first day it may be placed. */
+  notBefore?: string;
+  /** It may be placed only this many days after the day another unit is finished. */
+  after?: { unitId: string; days: number };
+  /** Units that must be finished first (the lessons before a case or mission). */
+  requires?: string[];
 }
 
 export interface PlanSlice {
@@ -91,6 +102,15 @@ export interface StudyPlan {
   todayReview: { cards: number; cardMinutes: number; stories: number; storyMinutes: number; minutes: number };
   /** Null for a round the interview does not have, and for every round once the interview day has come. */
   remaining: Record<PlanRound, { units: number; minutes: number } | null>;
+  /** For a plan built for a Target: what the time chosen covers of the required loop. */
+  coverage?: PlanCoverage;
+}
+
+export interface PlanCoverage {
+  /** About how many minutes a day place every required unit before the interview, or null if none up to 10 hours do. */
+  minutesPerDay: number | null;
+  /** The share of the required units' minutes the chosen daily time places, 0 to 1. */
+  share: number;
 }
 
 export interface PlanContext {
@@ -98,7 +118,16 @@ export interface PlanContext {
   tzOffsetMinutes?: number;
   /** The learner's live stories, which live outside the progress log. */
   stories?: readonly Story[];
+  /**
+   * The learner's Target. With it the plan schedules exactly what readiness counts at its level (the required lists, at
+   * the level bar), balances rounds over the whole plan with ties to the larger count, and puts the most readiness
+   * first when the time is short; without it, every pattern and case study as before the Target existed.
+   */
+  target?: TargetInput;
 }
+
+/** The longest day `coverage.minutesPerDay` looks for. */
+const COVERAGE_MAX_MINUTES = 600;
 
 const DAY_MS = 86_400_000;
 const MOCK_TITLES: Record<PlanRound, string> = {
@@ -107,7 +136,6 @@ const MOCK_TITLES: Record<PlanRound, string> = {
   behavioral: 'Mock loop: behavioral round',
 };
 
-const roundTo5 = (minutes: number) => Math.max(5, Math.round(minutes / 5) * 5);
 const earliest = (times: (string | null | undefined)[]) =>
   times.filter((t): t is string => Boolean(t)).sort((a, b) => Date.parse(a) - Date.parse(b))[0] ?? null;
 const reviewCap = (minutesPerDay: number) => Math.floor(Math.max(0, minutesPerDay) * TODAY_REVIEW_CAP);
@@ -128,12 +156,28 @@ export function buildStudyPlan(input: StudyPlanInput, state: ProgressState, ctx:
     return { ...base, status: daysLeft === 0 ? 'interview-day' : 'past', days: [], units: [], unscheduled: [], remaining };
   }
 
-  const units = planUnits(input, state, stories, ctx.now).filter((u) => !u.doneAt || dayKey(new Date(u.doneAt), tz) >= today);
+  const all = ctx.target ? targetUnits(input, ctx.target, state, stories, ctx.now, tz) : legacyUnits(input, state, stories, ctx.now);
+  const doneToday = (u: PlanUnit) => !u.doneAt || dayKey(new Date(u.doneAt), tz) >= today;
+  const units = all.filter(doneToday);
   const dates = Array.from({ length: Math.min(daysLeft, PLAN_MAX_DAYS) }, (_, i) => addCalendarDays(today, i));
   const eve = daysLeft <= PLAN_MAX_DAYS ? dates.length - 1 : -1;
-  const fit = (minutesPerDay: number) =>
-    schedule(units, dates, eve, minutesPerDay, Math.min(todayReview.minutes, reviewCap(minutesPerDay)));
-  const { days, unplaced, incomplete } = fit(input.minutesPerDay);
+  // For a Target, work finished on earlier days still counts toward each round's share, so a new day does not restart
+  // the balance with every round at zero.
+  const balance: Balance | undefined = ctx.target && {
+    counts: ctx.target.rounds,
+    doneBefore: new Map(PLAN_ROUNDS.map((r) => [r, sumMinutes(all.filter((u) => u.round === r && u.kind !== 'mock' && !doneToday(u)))])),
+  };
+  const fit = (minutesPerDay: number, valueFirst = false) =>
+    schedule(
+      units,
+      dates,
+      eve,
+      minutesPerDay,
+      Math.min(todayReview.minutes, reviewCap(minutesPerDay)),
+      balance && { ...balance, valueFirst },
+    );
+  const balanced = fit(input.minutesPerDay);
+  const { days, unplaced, incomplete } = balance && balanced.incomplete.length ? fit(input.minutesPerDay, true) : balanced;
   const status: PlanStatus = days.every((d) => d.taper)
     ? 'eve'
     : units.every((u) => u.doneAt)
@@ -149,6 +193,7 @@ export function buildStudyPlan(input: StudyPlanInput, state: ProgressState, ctx:
     unscheduled: unplaced,
     finishDate: days.filter((d) => d.slices.some((s) => !s.done && s.unit.kind !== 'mock')).at(-1)?.date ?? null,
     minutesToFit: status === 'tight' ? (PLAN_MINUTES.find((m) => !fit(m).incomplete.length) ?? null) : null,
+    ...(balance && { coverage: coverage(units, days, (m) => fit(m).incomplete) }),
     remaining: Object.fromEntries(
       PLAN_ROUNDS.map((r) => {
         const open = units.filter((u) => u.round === r && !u.doneAt);
@@ -168,12 +213,60 @@ function reviewToday(input: StudyPlanInput, state: ProgressState, now: Date, tz:
   return { cards: session.items.length, cardMinutes, stories: due, storyMinutes, minutes: cardMinutes + storyMinutes };
 }
 
-function planUnits(input: StudyPlanInput, state: ProgressState, stories: readonly Story[], now: Date): PlanUnit[] {
-  const factor = LEVEL_FACTOR[input.level];
+const sumMinutes = (list: readonly PlanUnit[]) => list.reduce((s, u) => s + u.minutes, 0);
+
+/**
+ * What the chosen time covers of the required units (the mock loop aside): the smallest daily time, in steps of 5
+ * minutes, that places them all, and the share of their minutes the chosen time places.
+ */
+function coverage(units: PlanUnit[], days: PlanDay[], incompleteAt: (minutesPerDay: number) => PlanUnit[]): PlanCoverage {
+  const required = (list: PlanUnit[]) => list.filter((u) => u.kind !== 'mock' && !u.doneAt);
+  const open = sumMinutes(required(units));
+  const placedMinutes = days
+    .flatMap((d) => d.slices)
+    .filter((s) => !s.done && s.unit.kind !== 'mock')
+    .reduce((sum, s) => sum + s.minutes, 0);
+  const fits = (m: number) => !required(incompleteAt(m)).length;
+  let minutesPerDay: number | null = null;
+  if (fits(COVERAGE_MAX_MINUTES)) {
+    let low = 5;
+    let high = COVERAGE_MAX_MINUTES;
+    while (low < high) {
+      const mid = Math.floor((low + high) / 10) * 5;
+      if (fits(mid)) high = mid;
+      else low = mid + 5;
+    }
+    minutesPerDay = low;
+  }
+  return { minutesPerDay, share: open ? Math.min(1, placedMinutes / open) : 1 };
+}
+
+function legacyUnits(input: StudyPlanInput, state: ProgressState, stories: readonly Story[], now: Date): PlanUnit[] {
+  const factor = STARTING_POINT_FACTOR[input.level];
   const units: PlanUnit[] = [];
   if (input.rounds.includes('coding')) units.push(...codingUnits(state, input.level, factor));
   if (input.rounds.includes('design')) units.push(...designUnits(state, factor));
   if (input.rounds.includes('behavioral')) units.push(...behavioralUnits(state, stories, factor));
+  return [...units, ...mockUnits(input, state, now)];
+}
+
+/** The required lists of the Target's level, each unit valued by the readiness it adds. */
+function targetUnits(
+  input: StudyPlanInput,
+  target: TargetInput,
+  state: ProgressState,
+  stories: readonly Story[],
+  now: Date,
+  tzOffsetMinutes: number,
+): PlanUnit[] {
+  const profile = LEVEL_PROFILES[target.level];
+  const ctx: TargetUnitsContext = { state, profile, counts: target.rounds, startingPoint: input.level, tzOffsetMinutes };
+  const storyValue = skillWeight('behavioral', target.rounds, profile.competencies.length) * UNIT_GAIN.story;
+  const units: PlanUnit[] = [];
+  if (input.rounds.includes('coding')) units.push(...targetCodingUnits(ctx));
+  if (input.rounds.includes('design')) units.push(...targetDesignUnits(ctx));
+  if (input.rounds.includes('behavioral'))
+    units.push(...behavioralUnits(state, stories, STARTING_POINT_FACTOR[input.level]).map((u) => ({ ...u, value: storyValue })));
   return [...units, ...mockUnits(input, state, now)];
 }
 
@@ -188,7 +281,7 @@ function mockUnits(input: StudyPlanInput, state: ProgressState, now: Date): Plan
     kind: 'mock',
     title: MOCK_TITLES[round],
     detail: 'One round of your mock loop. Its tick appears when the last round is scored and the debrief is ready.',
-    minutes: LOOP_ROUND_MINUTES[PLAN_ROUND_TRACK[round]],
+    minutes: MINUTES.mockRound[PLAN_ROUND_TRACK[round]],
     flagged: false,
     doneAt: fresh?.rounds[PLAN_ROUND_TRACK[round]] ?? null,
   }));
@@ -219,7 +312,7 @@ function codingUnits(state: ProgressState, level: PlanLevel, factor: number): Pl
         detail: unsolved
           ? `An interview flagged this pattern. Solve ${target.title}, one you have not solved before.`
           : `An interview flagged this pattern. Solve ${target.title} again, from a blank editor.`,
-        minutes: roundTo5(UNIT_MINUTES.retry * factor),
+        minutes: roundTo5(MINUTES.retry * factor),
         flagged: true,
         patternId: pattern.id,
         problemId: target.id,
@@ -235,7 +328,7 @@ function codingUnits(state: ProgressState, level: PlanLevel, factor: number): Pl
       kind: 'pattern',
       title: `Learn ${pattern.name}`,
       detail: `${flag ? 'An interview flagged this pattern. ' : ''}Read the pattern, then solve a problem with it.`,
-      minutes: roundTo5(UNIT_MINUTES.pattern * factor),
+      minutes: roundTo5(MINUTES.pattern * factor),
       flagged: Boolean(flag),
       patternId: pattern.id,
       problemId: target.id,
@@ -254,7 +347,7 @@ function designUnits(state: ProgressState, factor: number): PlanUnit[] {
     kind: 'case',
     title: `${c.title} case study`,
     detail: 'Work through it stage by stage, estimates and trade-offs included.',
-    minutes: roundTo5(c.stages * UNIT_MINUTES.caseStage * factor),
+    minutes: roundTo5(c.stages * MINUTES.caseStage * factor),
     flagged: false,
     caseId: c.id,
     doneAt: state.cases[c.id]?.firstCompletedAt ?? null,
@@ -271,7 +364,7 @@ function behavioralUnits(state: ProgressState, stories: readonly Story[], factor
       kind: 'story',
       title: `A story for ${c.name}`,
       detail: `${flagged ? 'An interview flagged this competency. ' : ''}Read what interviewers look for, then write a story in your story bank and tag it, or tag a story you already have.`,
-      minutes: roundTo5(UNIT_MINUTES.story * factor),
+      minutes: roundTo5(MINUTES.story * factor),
       flagged,
       competencyId: c.id,
       // Creation, not the last change: rehearsing or editing a story must not make what it covered look new today.
@@ -281,18 +374,44 @@ function behavioralUnits(state: ProgressState, stories: readonly Story[], factor
   return [...units.filter((u) => u.flagged), ...units.filter((u) => !u.flagged)];
 }
 
+/** How a plan for a Target balances its rounds; without one, each day balances only what is left. */
+interface Balance {
+  counts: RoundCounts;
+  /** Minutes of each round's units finished before today. */
+  doneBefore: Map<PlanRound, number>;
+  /** When the time is short: within each round, take the unit that adds the most readiness per minute first. */
+  valueFirst?: boolean;
+}
+
 /**
  * Fills each day after its review time. The mock loop's rounds are kept first, on the last days before the interview;
  * then a unit split the day before continues first; otherwise a unit that fits whole is taken from whichever round is
- * furthest behind its share, and only when none fits is the next one split.
+ * furthest behind its share, and only when none fits is the next one split. A unit waits for its `notBefore` day and
+ * its `after` unit.
  */
-function schedule(units: PlanUnit[], dates: string[], eve: number, minutesPerDay: number, todayReview: number) {
-  const sum = (list: PlanUnit[]) => list.reduce((s, u) => s + u.minutes, 0);
+function schedule(units: PlanUnit[], dates: string[], eve: number, minutesPerDay: number, todayReview: number, balance?: Balance) {
+  const sum = sumMinutes;
   const ofRound = (r: PlanRound) => units.filter((u) => u.round === r && u.kind !== 'mock');
   const queues = new Map(PLAN_ROUNDS.map((r) => [r, ofRound(r).filter((u) => !u.doneAt)]));
+  const before = (r: PlanRound) => balance?.doneBefore.get(r) ?? 0;
   // Work finished today counts as placed, so finishing it does not hand its round's share to another round.
-  const total = new Map(PLAN_ROUNDS.map((r) => [r, sum(ofRound(r))]));
-  const placed = new Map(PLAN_ROUNDS.map((r) => [r, sum(ofRound(r).filter((u) => u.doneAt))]));
+  const total = new Map(PLAN_ROUNDS.map((r) => [r, sum(ofRound(r)) + before(r)]));
+  const placed = new Map(PLAN_ROUNDS.map((r) => [r, sum(ofRound(r).filter((u) => u.doneAt)) + before(r)]));
+  // Units finished before today are not in the plan; anything that waited on them may go.
+  const finishedOn = new Map(units.filter((u) => u.doneAt).map((u) => [u.id, 0]));
+  const inPlan = new Set(units.map((u) => u.id));
+  const finished = (id: string) => !inPlan.has(id) || finishedOn.has(id);
+  const ready = (unit: PlanUnit, i: number) =>
+    (!unit.notBefore || dates[i] >= unit.notBefore) &&
+    (!unit.after || (finished(unit.after.unitId) && i >= (finishedOn.get(unit.after.unitId) ?? 0) + unit.after.days)) &&
+    (unit.requires ?? []).every(finished);
+  const next = (r: PlanRound, i: number) => {
+    const eligible = queues.get(r)!.filter((u) => ready(u, i));
+    return balance?.valueFirst ? eligible.reduce((a, b) => (worth(b) > worth(a) ? b : a)) : eligible[0];
+  };
+  const behind = (a: PlanRound, b: PlanRound) =>
+    placed.get(a)! / total.get(a)! - placed.get(b)! / total.get(b)! || (balance ? balance.counts[b] - balance.counts[a] : 0);
+  const worth = (u: PlanUnit) => (u.value ?? 0) / left.get(u.id)!;
   const left = new Map(units.map((u) => [u.id, u.minutes]));
   const later = Math.round((Math.max(0, minutesPerDay) * REVIEW_SHARE) / 5) * 5;
   const doneToday = sum(units.filter((u) => u.doneAt));
@@ -318,7 +437,11 @@ function schedule(units: PlanUnit[], dates: string[], eve: number, minutesPerDay
       day.slices.push({ unit, minutes, part: 0, parts: 0, done: false });
       left.set(unit.id, left.get(unit.id)! - minutes);
       placed.set(unit.round, placed.get(unit.round)! + minutes);
-      if (!left.get(unit.id)) queues.get(unit.round)!.shift();
+      if (!left.get(unit.id)) {
+        const queue = queues.get(unit.round)!;
+        queue.splice(queue.indexOf(unit), 1);
+        finishedOn.set(unit.id, i);
+      }
       split = left.get(unit.id) ? unit : null;
       return minutes;
     };
@@ -340,10 +463,12 @@ function schedule(units: PlanUnit[], dates: string[], eve: number, minutesPerDay
       if (split) return;
     }
     while (free > 0) {
-      const heads = PLAN_ROUNDS.filter((r) => queues.get(r)!.length)
-        .sort((a, b) => placed.get(a)! / total.get(a)! - placed.get(b)! / total.get(b)!)
-        .map((r) => queues.get(r)![0]);
-      const fits = heads.find((u) => whole(u, free >= MIN_SLICE));
+      const heads = PLAN_ROUNDS.filter((r) => queues.get(r)!.some((u) => ready(u, i)))
+        .sort(behind)
+        .map((r) => next(r, i));
+      // For a Target the round furthest behind goes first even when its unit must be split, so a long unit (a 50-minute
+      // pattern on a 35-minute day) is never starved by shorter units of the other rounds.
+      const fits = (balance ? heads.slice(0, 1) : heads).find((u) => whole(u, free >= MIN_SLICE));
       if (fits) free -= place(fits, left.get(fits.id)!);
       else if (heads.length && free >= MIN_SLICE) free -= place(heads[0], free);
       else break;

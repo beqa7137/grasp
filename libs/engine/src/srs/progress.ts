@@ -2,7 +2,7 @@ import { getCompetencySummary } from '../behavioral/catalog.js';
 import { PROBLEM_PATTERNS, problemPatterns } from '../coding/problem-patterns.js';
 import { PATTERN_CATALOG } from '../curriculum/catalog.js';
 import { SD_TOPICS, getSdTopic } from '../curriculum/sd-topics.js';
-import { normalizePlan, type StudyPlanInput } from '../plan/options.js';
+import { followPlanRounds, normalizePlan, normalizeTarget, type StudyPlanInput, type TargetInput } from '../plan/options.js';
 import type { InterviewTrack } from '../interview/rubrics.js';
 import { getReviewItemSummary, itemsForTopic } from '../review/catalog.js';
 import type { ItemKind, ReviewItemSummary } from '../review/types.js';
@@ -49,6 +49,8 @@ export interface CodingRecord {
   solvedAt: string | null;
   bestPassed: number;
   total: number;
+  /** The latest submission. */
+  lastAt: string;
 }
 
 export interface WeakPattern {
@@ -78,6 +80,12 @@ export interface MockLoopRecord {
   rounds: Partial<Record<InterviewTrack, string>>;
 }
 
+/** The latest scored interview round of one track. */
+export interface TrackRecord {
+  at: string;
+  verdict: string;
+}
+
 export interface ReviewRecord {
   at: string;
   itemId: string;
@@ -95,7 +103,7 @@ export interface ProgressState {
   missions: Record<string, MissionState>;
   /** Finished case studies; the outcome is the latest completion's. */
   cases: Record<string, CaseRecord>;
-  interviews: { total: number; lastVerdict: string | null };
+  interviews: { total: number; lastVerdict: string | null; byTrack: Partial<Record<InterviewTrack, TrackRecord>> };
   behavioral: Record<string, CompetencyRecord>;
   /** Pattern → when an interview last flagged it as weak, and the first full solve of one of its problems since. */
   weakPatterns: Record<string, WeakPattern>;
@@ -112,6 +120,8 @@ export interface ProgressState {
   eventCount: number;
   settings: StudySettings;
   plan: StudyPlanInput | null;
+  /** The loop the learner prepares for, once a `target.set` has said so; `currentTarget()` covers the rest. */
+  target: TargetInput | null;
   /** The latest mock loop to finish. */
   mockLoop: MockLoopRecord | null;
 }
@@ -124,7 +134,7 @@ export const emptyProgress = (): ProgressState => ({
   predictions: {},
   missions: {},
   cases: {},
-  interviews: { total: 0, lastVerdict: null },
+  interviews: { total: 0, lastVerdict: null, byTrack: {} },
   behavioral: {},
   weakPatterns: {},
   placement: {},
@@ -138,8 +148,12 @@ export const emptyProgress = (): ProgressState => ({
   eventCount: 0,
   settings: { ...DEFAULT_STUDY_SETTINGS },
   plan: null,
+  target: null,
   mockLoop: null,
 });
+
+/** Choices about the plan, not study, so they never count as a day of the streak. */
+const NOT_STUDY = new Set<StoredEvent['type']>(['settings.changed', 'plan.set', 'target.set']);
 
 /** Pure reducer: the same event log yields the same state on every device and on the server. */
 export function applyEvent(state: ProgressState, stored: StoredEvent): ProgressState {
@@ -150,7 +164,7 @@ export function applyEvent(state: ProgressState, stored: StoredEvent): ProgressS
     cards: { ...state.cards },
     boosts: { ...state.boosts },
     introduced: { ...state.introduced },
-    streak: event.type === 'settings.changed' || event.type === 'plan.set' ? state.streak : bumpStreak(state.streak, event.at.slice(0, 10)),
+    streak: NOT_STUDY.has(event.type) ? state.streak : bumpStreak(state.streak, event.at.slice(0, 10)),
     eventCount: state.eventCount + 1,
   };
   const introduce = (topic: string) => {
@@ -224,7 +238,11 @@ export function applyEvent(state: ProgressState, stored: StoredEvent): ProgressS
       completeCase(state, next, event, introduce);
       break;
     case 'interview.scored': {
-      next.interviews = { total: state.interviews.total + 1, lastVerdict: event.verdict };
+      next.interviews = {
+        total: state.interviews.total + 1,
+        lastVerdict: event.verdict,
+        byTrack: { ...state.interviews.byTrack, [event.track]: { at: event.at, verdict: event.verdict } },
+      };
       if (event.track === 'behavioral') next.behavioral = scoreCompetencies(state.behavioral, event);
       if (event.weakPatterns.length)
         next.weakPatterns = {
@@ -254,6 +272,7 @@ export function applyEvent(state: ProgressState, stored: StoredEvent): ProgressS
           solvedAt: prev?.solvedAt ?? (solved ? event.at : null),
           bestPassed: Math.max(prev?.bestPassed ?? 0, event.passed),
           total: event.total,
+          lastAt: event.at,
         },
       };
       patterns.forEach(introduce);
@@ -287,6 +306,10 @@ export function applyEvent(state: ProgressState, stored: StoredEvent): ProgressS
     case 'plan.set':
       // A plan from a newer client with an option this one does not know keeps the plan this one can read.
       next.plan = event.plan === null ? null : (normalizePlan(event.plan) ?? state.plan);
+      if (state.target && next.plan && next.plan !== state.plan) next.target = followPlanRounds(state.target, next.plan);
+      break;
+    case 'target.set':
+      next.target = normalizeTarget(event.target) ?? state.target;
       break;
     case 'mock.completed':
       next.mockLoop = {

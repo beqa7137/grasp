@@ -1,0 +1,494 @@
+{
+  "cards": {
+    "rec:h2": {
+      "due": "2026-09-06T09:10:00.000Z",
+      "stability": 2.3065,
+      "difficulty": 2.11810397,
+      "scheduledDays": 5,
+      "learningSteps": 0,
+      "reps": 1,
+      "lapses": 0,
+      "phase": "review",
+      "lastReview": "2026-09-01T09:10:00.000Z",
+      "firstReview": "2026-09-01T09:10:00.000Z"
+    },
+    "rec:h1": {
+      "due": "2026-11-28T09:00:00.000Z",
+      "stability": 43.05458113,
+      "difficulty": 2.08372413,
+      "scheduledDays": 77,
+      "learningSteps": 0,
+      "reps": 6,
+      "lapses": 0,
+      "phase": "review",
+      "lastReview": "2026-09-12T09:00:00.000Z",
+      "firstReview": "2026-09-01T09:20:00.000Z"
+    },
+    "rec:tp1": {
+      "due": "2026-11-25T09:01:00.000Z",
+      "stability": 39.33096521,
+      "difficulty": 4.72469444,
+      "scheduledDays": 74,
+      "learningSteps": 0,
+      "reps": 6,
+      "lapses": 0,
+      "phase": "review",
+      "lastReview": "2026-09-12T09:01:00.000Z",
+      "firstReview": "2026-09-01T09:21:00.000Z"
+    },
+    "rec:bs2": {
+      "due": "2026-12-06T09:02:00.000Z",
+      "stability": 41.5241683,
+      "difficulty": 2.08372413,
+      "scheduledDays": 85,
+      "learningSteps": 0,
+      "reps": 6,
+      "lapses": 0,
+      "phase": "review",
+      "lastReview": "2026-09-12T09:02:00.000Z",
+      "firstReview": "2026-09-01T09:22:00.000Z"
+    },
+    "rec:sw2": {
+      "due": "2026-10-14T09:03:00.000Z",
+      "stability": 18.1678499,
+      "difficulty": 2.11121424,
+      "scheduledDays": 38,
+      "learningSteps": 0,
+      "reps": 2,
+      "lapses": 0,
+      "phase": "review",
+      "lastReview": "2026-09-06T09:03:00.000Z",
+      "firstReview": "2026-09-01T09:23:00.000Z"
+    },
+    "cloze:binary-search:1": {
+      "due": "2026-09-04T09:00:00.000Z",
+      "stability": 2.3065,
+      "difficulty": 2.11810397,
+      "scheduledDays": 5,
+      "learningSteps": 0,
+      "reps": 1,
+      "lapses": 0,
+      "phase": "review",
+      "lastReview": "2026-09-02T09:13:00.000Z",
+      "firstReview": "2026-09-02T09:13:00.000Z"
+    },
+    "pred:binary-search": {
+      "due": "2026-09-04T09:00:00.000Z",
+      "stability": 2.3065,
+      "difficulty": 2.11810397,
+      "scheduledDays": 4,
+      "learningSteps": 0,
+      "reps": 1,
+      "lapses": 0,
+      "phase": "review",
+      "lastReview": "2026-09-02T09:14:00.000Z",
+      "firstReview": "2026-09-02T09:14:00.000Z"
+    },
+    "sd:cache-tail": {
+      "due": "2026-11-03T09:03:00.000Z",
+      "stability": 26.3993838,
+      "difficulty": 2.09058635,
+      "scheduledDays": 52,
+      "learningSteps": 0,
+      "reps": 5,
+      "lapses": 0,
+      "phase": "review",
+      "lastReview": "2026-09-12T09:03:00.000Z",
+      "firstReview": "2026-09-06T09:00:00.000Z"
+    },
+    "sd:cache-math": {
+      "due": "2026-09-11T09:01:00.000Z",
+      "stability": 2.3065,
+      "difficulty": 2.11810397,
+      "scheduledDays": 5,
+      "learningSteps": 0,
+      "reps": 1,
+      "lapses": 0,
+      "phase": "review",
+      "lastReview": "2026-09-06T09:01:00.000Z",
+      "firstReview": "2026-09-06T09:01:00.000Z"
+    }
+  },
+  "boosts": {
+    "cloze:hashing:1": {
+      "at": "2026-09-01T09:50:00.000Z",
+      "reason": "code"
+    },
+    "sd:qps": {
+      "at": "2026-09-07T09:10:00.000Z",
+      "reason": "case"
+    },
+    "sd:shard-count": {
+      "at": "2026-09-03T09:20:00.000Z",
+      "reason": "case"
+    },
+    "rec:bs3": {
+      "at": "2026-09-04T09:00:00.000Z",
+      "reason": "interview"
+    },
+    "rec:bs1": {
+      "at": "2026-09-04T09:00:00.000Z",
+      "reason": "interview"
+    },
+    "cx:binary-search": {
+      "at": "2026-09-04T09:00:00.000Z",
+      "reason": "interview"
+    },
+    "cx:binary-search-answer": {
+      "at": "2026-09-04T09:00:00.000Z",
+      "reason": "interview"
+    },
+    "cloze:binary-search:1": {
+      "at": "2026-09-04T09:00:00.000Z",
+      "reason": "interview"
+    },
+    "pred:binary-search": {
+      "at": "2026-09-04T09:00:00.000Z",
+      "reason": "interview"
+    },
+    "rec:sw1": {
+      "at": "2026-09-04T09:00:00.000Z",
+      "reason": "interview"
+    },
+    "rec:sw3": {
+      "at": "2026-09-04T09:00:00.000Z",
+      "reason": "interview"
+    },
+    "cx:sliding-window": {
+      "at": "2026-09-04T09:00:00.000Z",
+      "reason": "interview"
+    },
+    "cloze:sliding-window:1": {
+      "at": "2026-09-05T09:40:00.000Z",
+      "reason": "code"
+    },
+    "cloze:sliding-window:2": {
+      "at": "2026-09-05T09:40:00.000Z",
+      "reason": "code"
+    },
+    "pred:longest-unique-substring": {
+      "at": "2026-09-04T09:00:00.000Z",
+      "reason": "interview"
+    },
+    "sd:cdn": {
+      "at": "2026-09-07T09:10:00.000Z",
+      "reason": "case"
+    }
+  },
+  "introduced": {
+    "hashing": "2026-09-01T09:00:00.000Z",
+    "binary-search": "2026-09-01T09:00:00.000Z",
+    "two-pointers": "2026-09-01T09:21:00.000Z",
+    "sliding-window": "2026-09-01T09:23:00.000Z",
+    "monotonic-stack": "2026-09-02T09:00:00.000Z",
+    "sd-latency": "2026-09-02T09:30:00.000Z",
+    "sd-capacity": "2026-09-02T09:30:00.000Z",
+    "sd-estimation": "2026-09-02T09:30:00.000Z",
+    "sd-reliability": "2026-09-02T09:30:00.000Z",
+    "sd-consensus": "2026-09-02T09:30:00.000Z",
+    "sd-observability": "2026-09-02T09:30:00.000Z",
+    "sd-api-design": "2026-09-02T09:30:00.000Z",
+    "sd-load-balancing": "2026-09-02T09:30:00.000Z",
+    "sd-discovery": "2026-09-02T09:30:00.000Z",
+    "sd-caching": "2026-09-03T09:20:00.000Z",
+    "sd-sharding": "2026-09-03T09:20:00.000Z"
+  },
+  "visualized": {
+    "binary-search": "2026-09-01T09:30:00.000Z"
+  },
+  "predictions": {
+    "binary-search": {
+      "correct": 1,
+      "total": 2
+    }
+  },
+  "missions": {
+    "first-scale-up": {
+      "firstCompletedAt": "2026-09-02T09:30:00.000Z",
+      "bestCost": 900,
+      "revisitsDone": 1,
+      "nextRevisitAt": "2026-09-15T09:00:00.000Z"
+    }
+  },
+  "cases": {
+    "url-shortener": {
+      "firstCompletedAt": "2026-09-03T09:20:00.000Z",
+      "completions": 2,
+      "topics": ["sd-estimation", "sd-caching", "sd-sharding"],
+      "bestChoices": 9,
+      "decisions": 9,
+      "closeEstimates": 4,
+      "estimates": 4
+    }
+  },
+  "interviews": {
+    "total": 4,
+    "lastVerdict": "hire"
+  },
+  "behavioral": {
+    "conflict": {
+      "lastAt": "2026-09-07T09:00:00.000Z",
+      "verdict": "hire",
+      "weakSince": null
+    },
+    "ownership": {
+      "lastAt": null,
+      "verdict": null,
+      "weakSince": "2026-09-04T10:00:00.000Z"
+    }
+  },
+  "weakPatterns": {
+    "binary-search": {
+      "flaggedAt": "2026-09-04T09:00:00.000Z",
+      "resolvedAt": "2026-09-05T09:30:00.000Z"
+    },
+    "sliding-window": {
+      "flaggedAt": "2026-09-04T09:00:00.000Z",
+      "resolvedAt": null
+    }
+  },
+  "placement": {
+    "binary-search": "strong",
+    "sliding-window": "weak"
+  },
+  "diagnosedAt": "2026-09-08T09:00:00.000Z",
+  "coding": {
+    "two-sum": {
+      "attempts": 2,
+      "solvedAt": "2026-09-01T09:55:00.000Z",
+      "bestPassed": 5,
+      "total": 5
+    },
+    "daily-temperatures": {
+      "attempts": 1,
+      "solvedAt": "2026-09-02T09:00:00.000Z",
+      "bestPassed": 6,
+      "total": 6
+    },
+    "ship-within-days": {
+      "attempts": 1,
+      "solvedAt": "2026-09-05T09:30:00.000Z",
+      "bestPassed": 4,
+      "total": 4
+    },
+    "longest-unique-substring": {
+      "attempts": 1,
+      "solvedAt": null,
+      "bestPassed": 1,
+      "total": 8
+    }
+  },
+  "practice": {
+    "correct": 1,
+    "total": 1
+  },
+  "durations": {
+    "recognition": 10570,
+    "cloze": 9629,
+    "predict": 9666,
+    "design": 10493
+  },
+  "recent": [
+    {
+      "at": "2026-09-01T09:10:00.000Z",
+      "itemId": "rec:h2",
+      "phase": "new",
+      "rating": 3
+    },
+    {
+      "at": "2026-09-01T09:20:00.000Z",
+      "itemId": "rec:h1",
+      "phase": "new",
+      "rating": 3
+    },
+    {
+      "at": "2026-09-01T09:21:00.000Z",
+      "itemId": "rec:tp1",
+      "phase": "new",
+      "rating": 3
+    },
+    {
+      "at": "2026-09-01T09:22:00.000Z",
+      "itemId": "rec:bs2",
+      "phase": "new",
+      "rating": 3
+    },
+    {
+      "at": "2026-09-01T09:23:00.000Z",
+      "itemId": "rec:sw2",
+      "phase": "new",
+      "rating": 3
+    },
+    {
+      "at": "2026-09-02T09:10:00.000Z",
+      "itemId": "rec:h1",
+      "phase": "review",
+      "rating": 3
+    },
+    {
+      "at": "2026-09-02T09:11:00.000Z",
+      "itemId": "rec:tp1",
+      "phase": "review",
+      "rating": 3
+    },
+    {
+      "at": "2026-09-02T09:13:00.000Z",
+      "itemId": "cloze:binary-search:1",
+      "phase": "new",
+      "rating": 3
+    },
+    {
+      "at": "2026-09-02T09:14:00.000Z",
+      "itemId": "pred:binary-search",
+      "phase": "new",
+      "rating": 3
+    },
+    {
+      "at": "2026-09-06T09:00:00.000Z",
+      "itemId": "sd:cache-tail",
+      "phase": "new",
+      "rating": 3
+    },
+    {
+      "at": "2026-09-06T09:01:00.000Z",
+      "itemId": "sd:cache-math",
+      "phase": "new",
+      "rating": 3
+    },
+    {
+      "at": "2026-09-06T09:02:00.000Z",
+      "itemId": "rec:bs2",
+      "phase": "review",
+      "rating": 3
+    },
+    {
+      "at": "2026-09-06T09:03:00.000Z",
+      "itemId": "rec:sw2",
+      "phase": "review",
+      "rating": 3
+    },
+    {
+      "at": "2026-09-09T09:00:00.000Z",
+      "itemId": "rec:h1",
+      "phase": "review",
+      "rating": 3
+    },
+    {
+      "at": "2026-09-09T09:01:00.000Z",
+      "itemId": "rec:tp1",
+      "phase": "review",
+      "rating": 3
+    },
+    {
+      "at": "2026-09-09T09:02:00.000Z",
+      "itemId": "rec:bs2",
+      "phase": "review",
+      "rating": 3
+    },
+    {
+      "at": "2026-09-09T09:03:00.000Z",
+      "itemId": "sd:cache-tail",
+      "phase": "review",
+      "rating": 3
+    },
+    {
+      "at": "2026-09-10T09:00:00.000Z",
+      "itemId": "rec:h1",
+      "phase": "review",
+      "rating": 3
+    },
+    {
+      "at": "2026-09-10T09:01:00.000Z",
+      "itemId": "rec:tp1",
+      "phase": "review",
+      "rating": 2
+    },
+    {
+      "at": "2026-09-10T09:02:00.000Z",
+      "itemId": "rec:bs2",
+      "phase": "review",
+      "rating": 3
+    },
+    {
+      "at": "2026-09-10T09:03:00.000Z",
+      "itemId": "sd:cache-tail",
+      "phase": "review",
+      "rating": 3
+    },
+    {
+      "at": "2026-09-11T09:00:00.000Z",
+      "itemId": "rec:h1",
+      "phase": "review",
+      "rating": 3
+    },
+    {
+      "at": "2026-09-11T09:01:00.000Z",
+      "itemId": "rec:tp1",
+      "phase": "review",
+      "rating": 3
+    },
+    {
+      "at": "2026-09-11T09:02:00.000Z",
+      "itemId": "rec:bs2",
+      "phase": "review",
+      "rating": 3
+    },
+    {
+      "at": "2026-09-11T09:03:00.000Z",
+      "itemId": "sd:cache-tail",
+      "phase": "review",
+      "rating": 3
+    },
+    {
+      "at": "2026-09-12T09:00:00.000Z",
+      "itemId": "rec:h1",
+      "phase": "review",
+      "rating": 3
+    },
+    {
+      "at": "2026-09-12T09:01:00.000Z",
+      "itemId": "rec:tp1",
+      "phase": "review",
+      "rating": 3
+    },
+    {
+      "at": "2026-09-12T09:02:00.000Z",
+      "itemId": "rec:bs2",
+      "phase": "review",
+      "rating": 3
+    },
+    {
+      "at": "2026-09-12T09:03:00.000Z",
+      "itemId": "sd:cache-tail",
+      "phase": "review",
+      "rating": 3
+    }
+  ],
+  "streak": {
+    "current": 12,
+    "longest": 12,
+    "lastDay": "2026-09-12"
+  },
+  "xp": 764,
+  "eventCount": 55,
+  "settings": {
+    "retention": 0.85,
+    "budgetMinutes": 20,
+    "newPerDay": 15
+  },
+  "plan": {
+    "interviewDate": "2026-09-30",
+    "minutesPerDay": 60,
+    "rounds": ["coding", "behavioral"],
+    "level": "rusty"
+  },
+  "mockLoop": {
+    "completedAt": "2026-09-04T10:01:00.000Z",
+    "verdict": "lean-hire",
+    "rounds": {
+      "coding": "2026-09-04T09:00:00.000Z",
+      "system-design": "2026-09-04T09:30:00.000Z",
+      "behavioral": "2026-09-04T10:00:00.000Z"
+    }
+  }
+}

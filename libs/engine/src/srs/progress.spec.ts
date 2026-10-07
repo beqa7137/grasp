@@ -133,7 +133,11 @@ describe('progress reducer', () => {
       expect(still.behavioral['conflict']).toEqual({ lastAt: iso(t0 + DAY), verdict: 'no-hire', weakSince: iso(t0) });
       const cleared = replay([behavioral(t0 + 2 * DAY, 'conflict', [], 'hire')], still);
       expect(cleared.behavioral['conflict']).toEqual({ lastAt: iso(t0 + 2 * DAY), verdict: 'hire', weakSince: null });
-      expect(cleared.interviews).toEqual({ total: 3, lastVerdict: 'hire' });
+      expect(cleared.interviews).toEqual({
+        total: 3,
+        lastVerdict: 'hire',
+        byTrack: { behavioral: { at: iso(t0 + 2 * DAY), verdict: 'hire' } },
+      });
     });
 
     it('flags other weak competencies without recording them as asked, and ignores ids the catalog does not have', () => {
@@ -185,12 +189,18 @@ describe('progress reducer', () => {
     expect(clozes.length).toBeGreaterThan(0);
 
     const failed = replay([submit(t0, 20)]);
-    expect(failed.coding['daily-temperatures']).toEqual({ attempts: 1, solvedAt: null, bestPassed: 20, total: 28 });
+    expect(failed.coding['daily-temperatures']).toEqual({ attempts: 1, solvedAt: null, bestPassed: 20, total: 28, lastAt: iso(t0) });
     expect(failed.introduced['monotonic-stack']).toBe(iso(t0));
     for (const def of clozes) expect(failed.boosts[def.id]).toEqual({ at: iso(t0), reason: 'code' });
 
     const solved = replay([submit(t0, 20), submit(t0 + 60_000, 28), submit(t0 + DAY, 3)]);
-    expect(solved.coding['daily-temperatures']).toEqual({ attempts: 3, solvedAt: iso(t0 + 60_000), bestPassed: 28, total: 28 });
+    expect(solved.coding['daily-temperatures']).toEqual({
+      attempts: 3,
+      solvedAt: iso(t0 + 60_000),
+      bestPassed: 28,
+      total: 28,
+      lastAt: iso(t0 + DAY),
+    });
     expect(solved.xp).toBe(2 + 50 + 2);
     const afterSolve = replay([submit(t0, 28), submit(t0 + DAY, 3)]);
     for (const def of clozes) expect(afterSolve.boosts[def.id]).toBeUndefined();
