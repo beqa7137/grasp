@@ -89,6 +89,10 @@ ion-title h1 {
   &.instant {
     --g-motion-quick: 0s;
     --g-motion-step: 0s;
+
+    * {
+      scroll-behavior: auto !important;
+    }
   }
 }
 

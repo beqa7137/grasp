@@ -54,7 +54,8 @@
   white-space: nowrap;
 }
 
-// ⋯ opens this above the dock: inline and non-modal, so focus and the checkpoint dock work as they do without it.
+// ⋯ opens this above the dock: inline and non-modal, so focus and the checkpoint dock work as they do without it. It is no
+// taller than region R (`room`), and scrolls inside itself when R is shorter than it, so it never reaches the caption.
 .more {
   display: none;
 
@@ -64,8 +65,10 @@
     right: 0;
     bottom: 100%;
     display: grid;
-    gap: 10px;
-    padding: 16px 0 12px;
+    gap: 4px;
+    padding: 8px 0 6px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     border-top: 1px solid var(--g-line);
     background: var(--g-bg);
     box-shadow: var(--g-shadow-overlay);
@@ -73,10 +76,36 @@
   }
 }
 
+.label {
+  line-height: 1.2;
+}
+
+.label:not(:first-child),
+.actions {
+  margin-top: 4px;
+}
+
+.speed button {
+  flex: 1 0 auto;
+  min-width: 44px;
+  padding: 0 6px;
+}
+
+// One row of three, each icon over its label and as wide as its label needs, so the panel fits R on a 320px phone.
 .actions {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
+
+  .g-btn {
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 4px;
+    padding: 6px 4px;
+    font-size: chrome-font-size(12px);
+    line-height: 1.2;
+    white-space: nowrap;
+  }
 }
 
 // The track is drawn under the ticks and the thumb over them. The layer on top takes every pointer, so the native range
@@ -211,10 +240,11 @@ input[type='range'] {
 
 .hold {
   position: absolute;
-  left: 50%;
-  // Just over the thumb, inside the bar and inside ⋯'s panel, so it never covers the caption above them.
+  // Just over the held tick, inside the bar and inside ⋯'s panel, so it never covers the caption above them. It slides from
+  // starting at the tick at the first frame to ending at it at the last, so it stays inside the track.
+  left: calc(8px + var(--p) * (100% - 16px));
   bottom: calc(100% - 14px);
-  translate: -50% 0;
+  translate: calc(var(--p) * -100%) 0;
   padding: 4px 10px;
   border-radius: var(--g-radius-sm);
   border: 1px solid var(--g-line-strong);
@@ -245,6 +275,7 @@ input[type='range'] {
     height: 52px;
   }
   .more-toggle,
+  .label,
   .actions {
     display: none;
   }

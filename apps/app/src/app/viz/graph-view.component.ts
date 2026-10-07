@@ -63,17 +63,19 @@ const curveAt = (start: Point, control: Point, end: Point, t: number): Point => 
     >
       <defs>
         @for (state of edgeStates; track state) {
-          <marker
-            [attr.id]="markerId(state)"
-            viewBox="0 0 10 10"
-            refX="8"
-            refY="5"
-            markerWidth="7"
-            markerHeight="7"
-            orient="auto-start-reverse"
-          >
-            <path d="M0,1 L9,5 L0,9 z" class="arrow" [attr.data-state]="state" />
-          </marker>
+          @for (dim of [false, true]; track dim) {
+            <marker
+              [attr.id]="markerId(state, dim)"
+              viewBox="0 0 10 10"
+              refX="8"
+              refY="5"
+              markerWidth="7"
+              markerHeight="7"
+              orient="auto-start-reverse"
+            >
+              <path d="M0,1 L9,5 L0,9 z" class="arrow" [class.dim]="dim" [attr.data-state]="state" />
+            </marker>
+          }
         }
       </defs>
       @for (e of edges(); track e.id) {
@@ -82,7 +84,7 @@ const curveAt = (start: Point, control: Point, end: Point, t: number): Point => 
           [class.dim]="e.dim"
           [attr.d]="e.d"
           [attr.data-state]="e.state"
-          [attr.marker-end]="e.directed ? 'url(#' + markerId(e.state) + ')' : null"
+          [attr.marker-end]="e.directed ? 'url(#' + markerId(e.state, e.dim) + ')' : null"
         />
         @if (e.label) {
           <text class="edge-label" [class.dim]="e.dim" [attr.data-state]="e.state" [attr.x]="e.labelAt.x" [attr.y]="e.labelAt.y">
@@ -161,6 +163,10 @@ const curveAt = (start: Point, control: Point, end: Point, t: number): Point => 
       }
       .edge.dim {
         stroke-opacity: var(--g-viz-dim);
+      }
+      /* A marker's arrowhead takes no style from the edge that uses it, so a dimmed edge points to a dimmed marker. */
+      .arrow.dim {
+        fill-opacity: var(--g-viz-dim);
       }
       .edge-label.dim {
         fill: var(--g-viz-discarded-ink);
@@ -246,7 +252,7 @@ export class GraphViewComponent {
     return dims(this.focus(), { view: 'graph', id: node.id }, node.state === 'active');
   }
 
-  protected markerId(state: EdgeState) {
-    return `${this.uid}-${state}`;
+  protected markerId(state: EdgeState, dim: boolean) {
+    return `${this.uid}-${state}${dim ? '-dim' : ''}`;
   }
 }

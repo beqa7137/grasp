@@ -132,11 +132,7 @@ const POINTER_COLORS: Record<string, string> = {
         overflow-y: hidden;
         padding-block: 6px;
         margin-block: -6px;
-      }
-      @media (prefers-reduced-motion: no-preference) {
-        :host {
-          scroll-behavior: smooth;
-        }
+        scroll-behavior: smooth;
       }
       /* Inside, since a parent that scrolls would cut off a ring drawn around it. */
       :host(:focus-visible) {
@@ -255,7 +251,7 @@ const POINTER_COLORS: Record<string, string> = {
         background: transparent;
         border-color: var(--g-line);
       }
-      .cell.settled:not(.found) .val {
+      .cell.settled:not(.found, .dim) .val {
         color: var(--g-muted);
       }
       .cell.active {

@@ -122,6 +122,9 @@ export class PlayerPage {
   readonly problem = computed(() => CODING_CATALOG.find((p) => p.algorithmId === this.id()));
   readonly pattern = computed(() => (this.algo() ? getPatternSummary(this.algo()!.patternId) : undefined));
 
+  /** Region R's height, which bounds the transport's ⋯ panel. */
+  protected readonly room = signal<number | null>(null);
+
   readonly input = signal<Record<string, unknown> | null>(null);
   readonly drafts = signal<Record<string, string>>({});
   readonly inputError = signal<string | null>(null);
@@ -213,6 +216,14 @@ export class PlayerPage {
         this.load(given ?? algo.defaultInput);
         if (given && this.inputError()) this.load(algo.defaultInput);
       });
+    });
+
+    effect((onCleanup) => {
+      const panel = this.panelCol()?.nativeElement;
+      if (!panel) return;
+      const observer = new ResizeObserver(() => this.room.set(panel.offsetHeight));
+      observer.observe(panel);
+      onCleanup(() => observer.disconnect());
     });
 
     effect(() => {

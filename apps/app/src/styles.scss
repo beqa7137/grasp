@@ -343,6 +343,7 @@ button.chip {
 @mixin no-motion {
   animation-duration: 0.001ms !important;
   transition: none !important;
+  scroll-behavior: auto !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

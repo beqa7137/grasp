@@ -1,5 +1,5 @@
 import { Injectable, signal } from '@angular/core';
-import { readDevicePref, writeDevicePref } from './device-prefs';
+import { mirrorDevicePref, readDevicePref, writeDevicePref } from './device-prefs';
 import { MOTION_KEY, MOTION_MIRROR_KEY, applyMotion, motionPreference, type MotionPreference } from './motion';
 
 /**
@@ -12,10 +12,13 @@ export class MotionPreferenceService {
   private changed = false;
   readonly preference = this.chosen.asReadonly();
 
-  constructor() {
-    void readDevicePref(MOTION_KEY).then((value) => {
-      if (!this.changed) this.chosen.set(motionPreference(value));
-    });
+  /** Reads the stored choice and puts `data-motion` and the boot mirror back in line with it, as ThemeService.init does. */
+  async init(): Promise<void> {
+    const saved = motionPreference(await readDevicePref(MOTION_KEY));
+    if (this.changed) return;
+    this.chosen.set(saved);
+    applyMotion(document.documentElement, saved);
+    mirrorDevicePref(MOTION_MIRROR_KEY, saved === 'system' ? null : saved);
   }
 
   async setPreference(preference: MotionPreference): Promise<void> {

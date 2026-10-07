@@ -18,7 +18,8 @@ type Pointer = {
 
 /**
  * A mouse on desktop; a finger on the phones: real touch events through the DevTools protocol in Chromium, and touch
- * pointer events in WebKit, whose Playwright driver has no touch drag.
+ * pointer events in WebKit, whose Playwright driver has no touch drag. Those skip WebKit's hit-testing, so each point is
+ * first checked to land on the drag layer, and the tap test below sends WebKit a real touch.
  */
 async function pointerFor(page: Page, project: string): Promise<Pointer> {
   if (project === 'desktop' || project === 'tablet')
@@ -34,8 +35,9 @@ async function pointerFor(page: Page, project: string): Promise<Pointer> {
     return { down: (x, y) => touch('touchStart', x, y), move: (x, y) => touch('touchMove', x, y), up: (x, y) => touch('touchEnd', x, y) };
   }
   const layer = transport(page).locator('.drag');
-  const send = (type: string, x: number, y: number) =>
-    layer.dispatchEvent(type, {
+  const send = async (type: string, x: number, y: number) => {
+    expect(await landsOnDragLayer(page, x, y), `${type} at ${x},${y} lands on the drag layer`).toBe(true);
+    await layer.dispatchEvent(type, {
       pointerId: 11,
       pointerType: 'touch',
       isPrimary: true,
@@ -45,8 +47,12 @@ async function pointerFor(page: Page, project: string): Promise<Pointer> {
       clientY: y,
       bubbles: true,
     });
+  };
   return { down: (x, y) => send('pointerdown', x, y), move: (x, y) => send('pointermove', x, y), up: (x, y) => send('pointerup', x, y) };
 }
+
+const landsOnDragLayer = (page: Page, x: number, y: number) =>
+  page.evaluate(([px, py]) => !!document.elementFromPoint(px, py)?.matches('app-player g-transport .drag'), [x, y]);
 
 test.describe('the transport', { tag: '@player' }, () => {
   test.beforeEach(async ({ page }) => {
@@ -87,6 +93,16 @@ test.describe('the transport', { tag: '@player' }, () => {
     await pointer.up(second.x + 8, thumb.y);
     await expect(page.locator('.predict .prompt')).toBeFocused();
     await expect(tick(page, 1)).toHaveAttribute('data-state', 'pending');
+  });
+
+  test('a tap on an unanswered checkpoint opens it, through real input in every engine', async ({ page }, testInfo) => {
+    await openPlayback(page);
+    const at = await centre(tick(page, 0));
+    expect(await landsOnDragLayer(page, at.x, at.y)).toBe(true);
+    if (testInfo.project.use.hasTouch) await page.touchscreen.tap(at.x, at.y);
+    else await page.mouse.click(at.x, at.y);
+    await expect(count(page)).toHaveText('4 / 13');
+    await expect(page.locator('.predict .prompt')).toBeFocused();
   });
 
   test('Next checkpoint opens the next one, Jump to result goes to the end, and a stepped-back skip asks again', async ({ page }) => {
@@ -176,5 +192,35 @@ test.describe('the transport', { tag: '@player' }, () => {
   test('stepping to a checkpoint still asks it, as before', async ({ page }) => {
     await stepToCheckpoint(page);
     await expect(page.locator('.predict').getByRole('button', { name: 'Skip' })).toBeVisible();
+  });
+});
+
+test.describe('a run with many checkpoints', { tag: '@player' }, () => {
+  test('draws every tick whole, apart from its neighbours', async ({ page }) => {
+    await page.goto('/visualize/lcs');
+    await openPlayback(page);
+    const centres = await transport(page)
+      .locator('.tick')
+      .evaluateAll((ticks) => ticks.map((t) => t.getBoundingClientRect()).map((b) => b.x + b.width / 2));
+    expect(centres.length).toBeGreaterThan(1);
+    const gaps = centres.slice(1).map((x, i) => x - centres[i]);
+    expect(Math.min(...gaps), 'an 8px diamond turned 45° with its 2px halo needs 15px').toBeGreaterThanOrEqual(15);
+  });
+
+  test('⋯ on a 320px phone stays inside region R, under the caption, on every frame it is scrubbed to', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 700 });
+    await page.goto('/visualize/lcs');
+    await page.locator('app-player').getByText('Predict mode').click();
+    const more = page.getByRole('button', { name: 'More playback controls' });
+    await more.click();
+    const panel = page.getByRole('group', { name: 'Playback' });
+    const caption = page.locator('app-player .narration');
+    for (const step of [0, 20, 45, 85]) {
+      await timeline(page).fill(String(step));
+      await expect(count(page)).toHaveText(`${step + 1} / 86`);
+      const top = (await panel.boundingBox())!.y;
+      const bottom = await caption.evaluate((c) => c.getBoundingClientRect().bottom);
+      expect(top, `step ${step + 1}: the panel starts below the caption`).toBeGreaterThanOrEqual(bottom - 0.5);
+    }
   });
 });

@@ -35,6 +35,7 @@ function highlight(line: string): string {
       display: block;
       overflow: auto;
       max-height: var(--code-max-height, none);
+      scroll-behavior: smooth;
     }
     :host(:focus-visible) {
       outline-offset: -2px;
@@ -102,7 +103,7 @@ export class CodePanelComponent {
       const box = this.host.nativeElement;
       if (!row || box.scrollHeight <= box.clientHeight) return;
       const top = row.offsetTop - box.clientHeight / 2 + row.clientHeight / 2;
-      box.scrollTo({ top, behavior: 'smooth' });
+      box.scrollTo({ top });
     });
   }
 }

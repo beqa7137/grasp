@@ -244,6 +244,7 @@
           [canForward]="pending()?.choice !== null && (index() < last() || !!frame()?.predict)"
           [guard]="predictMode()"
           [asking]="!!pending()"
+          [room]="room()"
           (seek)="seek($event)"
           (back)="prev()"
           (forward)="next()"
