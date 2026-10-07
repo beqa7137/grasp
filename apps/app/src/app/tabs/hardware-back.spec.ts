@@ -7,7 +7,7 @@ function page(html: string): Document {
 }
 
 describe('hardwareBack', () => {
-  const actions = (url: string) => ({ url, goToday: vi.fn(), leave: vi.fn() });
+  const actions = (url: string, from: string | null = null) => ({ url, from, goBack: vi.fn(), goToday: vi.fn(), leave: vi.fn() });
 
   it("clicks the shown page's back button, not one on a page Ionic hides", () => {
     const doc = page(
@@ -28,6 +28,13 @@ describe('hardwareBack', () => {
     hardwareBack(page('<div class="ion-page"></div>'), on);
     expect(on.goToday).toHaveBeenCalledOnce();
     expect(on.leave).not.toHaveBeenCalled();
+  });
+
+  it('returns to where a link from another tab opened the hub', () => {
+    const on = actions('/behavioral', '/mock');
+    hardwareBack(page('<div class="ion-page"></div>'), on);
+    expect(on.goBack).toHaveBeenCalledExactlyOnceWith('/mock');
+    expect(on.goToday).not.toHaveBeenCalled();
   });
 
   it('leaves the app from Today', () => {
