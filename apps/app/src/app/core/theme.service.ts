@@ -1,5 +1,5 @@
 import { DestroyRef, Injectable, InjectionToken, computed, inject, signal } from '@angular/core';
-import { Preferences } from '@capacitor/preferences';
+import { mirrorDevicePref, readDevicePref, writeDevicePref } from './device-prefs';
 import { NATIVE_PLATFORM } from './platform';
 import { SYSTEM_BARS, applyThemeToDocument, applyThemeToSystemBars } from './theme-chrome';
 
@@ -39,31 +39,21 @@ export class ThemeService {
   }
 
   async init(): Promise<void> {
-    const { value } = await Preferences.get({ key: THEME_KEY });
+    const value = await readDevicePref(THEME_KEY);
     this.chosen.set(value === 'light' || value === 'dark' ? value : 'system');
-    this.rememberForFirstPaint();
+    mirrorDevicePref(FIRST_PAINT_KEY, this.stored());
     this.apply();
   }
 
   async setPreference(preference: ThemePreference): Promise<void> {
     this.chosen.set(preference);
     this.apply();
-    this.rememberForFirstPaint();
-    await (preference === 'system' ? Preferences.remove({ key: THEME_KEY }) : Preferences.set({ key: THEME_KEY, value: preference }));
+    await writeDevicePref(THEME_KEY, this.stored(), FIRST_PAINT_KEY);
   }
 
-  /**
-   * On iOS and Android, Preferences keeps its values outside the web view, where theme-boot.js cannot read them before the
-   * app starts, so the choice is copied to localStorage as well.
-   */
-  private rememberForFirstPaint() {
+  private stored() {
     const preference = this.preference();
-    try {
-      if (preference === 'system') localStorage.removeItem(FIRST_PAINT_KEY);
-      else localStorage.setItem(FIRST_PAINT_KEY, preference);
-    } catch {
-      // Blocked storage only costs the first paint, which then follows the device until init() corrects it.
-    }
+    return preference === 'system' ? null : preference;
   }
 
   private apply() {

@@ -71,6 +71,15 @@ describe('a checkpoint focus on the views', () => {
     expect(dimmed(render(ArrayViewComponent, view, null), '.cell')).toEqual([false, false, false, false]);
   });
 
+  it('gives every dimmed array value the discarded ink, a settled one too', () => {
+    const view = { values: [5, 6, 7, 8], pointers: {}, active: [0], settled: [1, 2], found: [3] };
+    const host = render(ArrayViewComponent, view, [{ view: 'array', at: 0 }]);
+    const ink = [...host.querySelectorAll('.cell .val')].map((el) => getComputedStyle(el).color);
+    expect(ink).toEqual(['var(--g-text)', ...Array(3).fill('var(--g-viz-discarded-ink)')]);
+    const undimmed = render(ArrayViewComponent, view, null);
+    expect(getComputedStyle(undimmed.querySelectorAll('.cell .val')[1]).color).toBe('var(--g-muted)');
+  });
+
   it('dims grid and table cells by row and column', () => {
     const grid = {
       cells: [
@@ -111,6 +120,14 @@ describe('a checkpoint focus on the views', () => {
     const host = render(GraphViewComponent, graph, [{ view: 'graph', id: 'b' }]);
     expect(dimmed(host, '.node')).toEqual([false, false, true]);
     expect(dimmed(host, '.edge')).toEqual([false, true]);
+
+    const directed = { ...graph, edges: graph.edges.map((e) => ({ ...e, directed: true })) };
+    const arrows = render(GraphViewComponent, directed, [{ view: 'graph', id: 'b' }]);
+    const arrowheads = [...arrows.querySelectorAll('.edge')].map((edge) => {
+      const id = edge.getAttribute('marker-end')!.slice(5, -1);
+      return arrows.querySelector(`marker[id="${id}"] .arrow`)!.classList.contains('dim');
+    });
+    expect(arrowheads, 'a dimmed edge points to a dimmed arrowhead').toEqual([false, true]);
 
     const tree = {
       nodes: [

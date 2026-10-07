@@ -33,7 +33,8 @@
   </button>
 </div>
 
-<div class="more" [class.open]="moreOpen()" [id]="panelId" role="group" aria-label="Playback">
+<div class="more" [class.open]="moreOpen()" [style.max-height.px]="room()" [id]="panelId" role="group" aria-label="Playback">
+  <span class="label eyebrow" [id]="timelineLabel">Timeline</span>
   <div class="scrubber">
     @if (bands().length) {
       <div class="bands" aria-hidden="true">
@@ -42,7 +43,7 @@
         }
       </div>
     }
-    <div class="ticks" aria-hidden="true">
+    <div #tickRow class="ticks" aria-hidden="true">
       @for (tick of placedTicks(); track tick.at) {
         <i class="tick" [attr.data-state]="tick.state" [style.--p]="tick.p"></i>
       }
@@ -53,7 +54,7 @@
       min="0"
       [max]="max()"
       [value]="index()"
-      aria-label="Timeline"
+      [attr.aria-labelledby]="timelineLabel"
       [class.pointer-focus]="pointerFocus()"
       [attr.aria-valuetext]="valueText()"
       (input)="seek.emit(+$any($event.target).value)"
@@ -67,11 +68,13 @@
       (pointermove)="onPointerMove($event)"
       (pointerup)="onPointerUp($event)"
       (pointercancel)="onPointerUp($event)"
+      (touchend)="onTouchEnd($event)"
     ></div>
-    <span class="hold" aria-hidden="true">{{ holding() !== null ? 'Answer it, or skip?' : '' }}</span>
+    <span class="hold" aria-hidden="true" [style.--p]="holdP()">{{ holding() !== null ? 'Answer it, or skip?' : '' }}</span>
   </div>
 
-  <div class="speed g-chip-radios" role="radiogroup" aria-label="Speed">
+  <span class="label eyebrow" [id]="speedLabel">Speed</span>
+  <div class="speed g-chip-radios" role="radiogroup" [attr.aria-labelledby]="speedLabel">
     @for (s of speeds; track s.value) {
       <button role="radio" [attr.aria-checked]="speed() === s.value" (click)="speedChange.emit(s.value)">{{ s.label }}</button>
     }

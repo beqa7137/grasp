@@ -39,11 +39,15 @@ class Host {
 
 const WIDTH = 216;
 
-function setUp(changes: (host: Host) => void = () => undefined) {
+/** Sets up the transport, its tick row measured `trackPx` wide (0: not measured, as while ⋯ is closed). */
+function setUp(changes: (host: Host) => void = () => undefined, trackPx = 0) {
   vi.stubGlobal(
     'ResizeObserver',
     class {
-      observe() {}
+      constructor(private readonly report: ResizeObserverCallback) {}
+      observe() {
+        this.report([{ contentRect: { width: trackPx } } as ResizeObserverEntry], this as unknown as ResizeObserver);
+      }
       disconnect() {}
     },
   );
@@ -76,8 +80,11 @@ function setUp(changes: (host: Host) => void = () => undefined) {
 describe('TransportComponent', () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it('renders one count and one Timeline, whatever the layout', () => {
+  it('renders one count and one Timeline, whatever the layout, with Timeline and Speed labelled where they show', () => {
     const { el } = setUp();
+    const named = (selector: string) => el.querySelector('#' + el.querySelector(selector)!.getAttribute('aria-labelledby'))!.textContent;
+    expect(named('input[type="range"]')).toBe('Timeline');
+    expect(named('[role="radiogroup"]')).toBe('Speed');
     expect(el.querySelectorAll('.count')).toHaveLength(1);
     expect(el.querySelectorAll('input[type="range"]')).toHaveLength(1);
     expect(el.querySelector('.count')!.textContent!.trim()).toBe('1 / 21');
@@ -110,6 +117,27 @@ describe('TransportComponent', () => {
       'Step 17 of 21, checkpoint, skipped',
       'Step 6 of 21',
     ]);
+  });
+
+  it('merges ticks drawn too close to show whole into one mark, in the state that most needs the learner', () => {
+    const ticks: Tick[] = [
+      { at: 2, state: 'right' },
+      { at: 3, state: 'pending' },
+      { at: 4, state: 'skipped' },
+      { at: 6, state: 'missed' },
+      { at: 7, state: 'skipped' },
+      { at: 12, state: 'right' },
+    ];
+    const { el, fixture } = setUp((h) => h.ticks.set(ticks), 200);
+    fixture.detectChanges();
+    const marks = () => [...el.querySelectorAll<HTMLElement>('.tick')].map((t) => [t.dataset['state'], t.style.getPropertyValue('--p')]);
+    expect(marks(), '10px a frame: ticks closer than 16px merge').toEqual([
+      ['pending', '0.1'],
+      ['skipped', '0.2'],
+      ['missed', '0.3'],
+      ['right', '0.6'],
+    ]);
+    expect(setUp((h) => h.ticks.set(ticks), 0).el.querySelectorAll('.tick'), 'nothing merges before the row is measured').toHaveLength(6);
   });
 
   it('draws chapter bands only when the run has chapters', () => {
@@ -147,7 +175,7 @@ describe('TransportComponent', () => {
 
   it('chooses a speed from radios, Instant at 4×’s pace', () => {
     const { el, host, fixture } = setUp();
-    const radios = [...el.querySelectorAll<HTMLButtonElement>('[role="radiogroup"][aria-label="Speed"] [role="radio"]')];
+    const radios = [...el.querySelectorAll<HTMLButtonElement>('[role="radiogroup"] [role="radio"]')];
     expect(radios.map((r) => r.textContent!.trim())).toEqual(['0.5×', '1×', '2×', '4×', 'Instant']);
     expect(radios.map((r) => r.getAttribute('aria-checked'))).toEqual(['false', 'true', 'false', 'false', 'false']);
     radios[4].click();
@@ -190,6 +218,7 @@ describe('TransportComponent', () => {
     expect(chip()).toBe('');
     pointer('pointermove', tickX(8, 20, WIDTH));
     expect(chip()).toBe('Answer it, or skip?');
+    expect(el.querySelector<HTMLElement>('.hold')!.style.getPropertyValue('--p'), 'over the held tick').toBe('0.3');
     pointer('pointercancel', tickX(8, 20, WIDTH));
     expect(chip()).toBe('');
   });

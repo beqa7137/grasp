@@ -1937,18 +1937,23 @@ Iterations are ordered by impact, alternating between organization and visuals. 
   player's controls. The desktop layout gets one bar (Restart, Step back, Play, Step forward, Next checkpoint, Jump to
   result, the Timeline, the count and Speed as chip radios; the key hint only from 1280px); every other layout gets 3.7's
   56px phone dock (back, play, forward, "N / M", ⋯), so the stage gets the R2 timeline row's 24px back (Pixel 7 420px,
-  w320 294px). ⋯ opens an inline, non-modal group ("Playback") above the dock, over region R and never over the stage:
-  the Timeline with its ticks and bands, Speed, Restart, Next checkpoint and Jump to result; Describe (R19) and Presets
-  (R25) join it later. The count and the Timeline exist once in every layout. The Timeline stays a native range for the
+  w320 294px). ⋯ opens an inline, non-modal group ("Playback") above the dock, over region R and never over the stage
+  or the caption: the Timeline with its ticks and bands, Speed, Restart, Next checkpoint and Jump to result, the Timeline
+  and Speed under visible labels; Describe (R19) and Presets (R25) join it later. It is laid out to fit R on a 320px phone
+  (Speed one row, the actions one row of icon over label) and capped at R's measured height, scrolling inside itself
+  when a long caption leaves R shorter. The count and the Timeline exist once in every layout. The Timeline stays a native range for the
   keyboard, assistive tech and Playwright's `fill`, under a transparent layer that takes every pointer, so a drag is
   guarded alike in Chromium and WebKit and with touch: it holds on the first unanswered tick it crosses, with the chip
-  "Answer it, or skip?" and a selection haptic (`selectionStart`, `selectionChanged`, `selectionEnd`, since iOS ticks only
+  "Answer it, or skip?" over the held tick and a selection haptic (`selectionStart`, `selectionChanged`, `selectionEnd`, since iOS ticks only
   inside a selection), until 24px more of drag from where the hold began skip it, so close ticks (LCS at 320px) skip at
-  most one per 24px; letting go while held opens that checkpoint; a tap is a drag of no length. Every other seek (keys,
+  most one per 24px; letting go while held opens that checkpoint; a tap is a drag of no length, and its trailing click
+  is suppressed, since it would land on the checkpoint that replaced ⋯ under the finger. Every other seek (keys,
   Next checkpoint, Jump to result, `fill`) closes an open checkpoint and leaves it unanswered. Skip in the checkpoint dock
   and a skipping drag record no event; a skipped tick asks again when stepped onto with Predict mode on. Ticks: pending
   hollow, right filled, skipped a thin grey outline, missed a critical ×, so no two differ by hue alone, and the Timeline's
-  `aria-valuetext` adds ", checkpoint" and the outcome. Instant steps at 4×'s pace with the stage's motion tokens at 0s
+  `aria-valuetext` adds ", checkpoint" and the outcome. Ticks drawn under 16px apart (a turned 8px diamond and its halo)
+  merge into one mark in the state that most needs the learner (pending, missed, skipped, right), so none is drawn
+  half-covered. Instant steps at 4×'s pace with the stage's motion tokens at 0s
   (the plan's alternative, 1×'s dwell, would have put the fastest-looking speed in the middle); R19's `pace` replaces both.
   The counter stays "N / M" (the phone form), since chapters have no data until R17/R18: `Frame.chapter` is added and
   drawn as bands under the track, but not yet named in the count. The ticks need a quiet track, `--g-viz-track` (#2a3040
@@ -1965,13 +1970,16 @@ Iterations are ordered by impact, alternating between organization and visuals. 
   text, `fill-opacity` and `stroke-opacity` in SVG) and switch its text to the discarded ink, never the current element;
   no tracer authors a focus until R20, so no screen changes now. Motion: `core/motion.ts` applies the preference as
   `data-motion` before bootstrap (from a `localStorage` mirror) and passes Ionic `animated`; Settings › Appearance ›
-  Motion stores it through `core/device-prefs.ts` (2.11). Theme and shortcuts keep
-  their own `Preferences` calls for now, a deliberate exception to extracting at the third copy: moved onto it, the module
-  became a 300-byte chunk of its own in first paint, one more request that cost 0.25 to 0.47s of `/learn`'s first paint
-  on the throttled phone (`timing.mjs`); R20, which adds the next preference, moves them once the module can sit in the
-  main chunk. Reduced and test mode turn
+  Motion stores it through `core/device-prefs.ts` (2.11), as the theme now does; `MotionPreferenceService.init` runs in
+  the app initializer beside `ThemeService.init`, so the module sits in the main chunk, and like the theme it restores
+  `data-motion` and the boot mirror from the stored choice on every start. Shortcuts keep their own `Preferences` calls:
+  moved too, the module splits into a 300-byte first-paint chunk of its own again, the request that cost a first head
+  0.25 to 0.47s of `/learn`'s first paint on the throttled phone (`timing.mjs`); R20, which adds the next preference,
+  moves them. Reduced and test mode turn
   transitions off entirely (`transition: none`): the old 0.001ms duration made every property of every element transition
-  for a frame, since `transition-property` defaults to all.
+  for a frame, since `transition-property` defaults to all. They also turn smooth scrolling off (`scroll-behavior: auto`),
+  as Instant does on the stage; the array and the code panel declare `scroll-behavior: smooth` in CSS and scroll without
+  a `behavior`, so the cascade decides in one place.
 
 **R4 Engine release A** (invisible).
 

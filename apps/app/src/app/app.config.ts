@@ -5,6 +5,7 @@ import { routes } from './app.routes';
 import { AuthService } from './core/auth.service';
 import { ReportingErrorHandler, initErrorReporting } from './core/error-reporting';
 import { LearnerService } from './core/learner.service';
+import { MotionPreferenceService } from './core/motion-preference.service';
 import { PageTitleStrategy } from './core/page-title.strategy';
 import { ProgressService } from './core/progress.service';
 import { DiagnosticPromptService } from './pages/diagnostic/diagnostic-prompt.service';
@@ -25,8 +26,9 @@ export const appConfig = ({ animated }: { animated: boolean }): ApplicationConfi
     provideIonicAngular({ mode: 'ios', navAnimation: iosTransitionAnimation, animated }),
     provideRouter(routes, withComponentInputBinding(), withPreloading(SerialPreloadingStrategy)),
     provideAppInitializer(async () => {
-      // Started first: loading the runtime config can wait on the network, and the theme should not.
+      // Started first: loading the runtime config can wait on the network, and the theme and motion should not.
       const themeReady = inject(ThemeService).init();
+      const motionReady = inject(MotionPreferenceService).init();
       const runtime = inject(RuntimeConfigService);
       const learner = inject(LearnerService);
       const progress = inject(ProgressService);
@@ -40,7 +42,7 @@ export const appConfig = ({ animated }: { animated: boolean }): ApplicationConfi
       await learner.init();
       await auth.init();
       await progress.init();
-      await Promise.all([pilot.init(), diagnosticPrompt.init(), reminders.init(), shortcuts.init(), themeReady]);
+      await Promise.all([pilot.init(), diagnosticPrompt.init(), reminders.init(), shortcuts.init(), themeReady, motionReady]);
     }),
   ],
 });

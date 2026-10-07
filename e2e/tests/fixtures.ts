@@ -139,23 +139,28 @@ export async function stepToCheckpoint(page: Page, press = () => page.getByRole(
   }
 }
 
-/** Opens the player's ⋯ panel where its dock has one (below the desktop layout), so the Timeline and Speed show. */
-export async function openPlayback(page: Page) {
+/**
+ * Opens the player's ⋯ panel where its dock has one (below the desktop layout), so the Timeline and Speed show, and says
+ * whether it opened it.
+ */
+export async function openPlayback(page: Page): Promise<boolean> {
   await expect(page.locator('app-player g-transport .count')).toBeVisible();
-  const more = page.locator('app-player').getByRole('button', { name: 'More playback controls' });
-  if ((await more.isVisible()) && (await more.getAttribute('aria-expanded')) !== 'true') await more.click();
+  const more = morePlayback(page);
+  const opened = (await more.isVisible()) && (await more.getAttribute('aria-expanded')) !== 'true';
+  if (opened) await more.click();
   await expect(page.locator('app-player').getByRole('slider', { name: 'Timeline' })).toBeVisible();
+  return opened;
 }
 
 /** Moves the player's Timeline to `step`, from ⋯ where the dock has one, closing ⋯ again so it covers nothing. */
 export async function seekTimeline(page: Page, step: number) {
-  await expect(page.locator('app-player g-transport .count')).toBeVisible();
-  const more = page.locator('app-player').getByRole('button', { name: 'More playback controls' });
-  const opened = (await more.isVisible()) && (await more.getAttribute('aria-expanded')) !== 'true';
-  if (opened) await more.click();
+  const opened = await openPlayback(page);
   await page.locator('app-player').getByRole('slider', { name: 'Timeline' }).fill(String(step));
+  const more = morePlayback(page);
   if (opened && (await more.getAttribute('aria-expanded')) === 'true') await more.click();
 }
+
+const morePlayback = (page: Page) => page.locator('app-player').getByRole('button', { name: 'More playback controls' });
 
 export const JS_DIAMETER = `function diameterOfBinaryTree(root) {
   let best = 0;

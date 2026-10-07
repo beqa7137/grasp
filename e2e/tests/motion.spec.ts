@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { expect, test } from './fixtures';
+import { expect, openPlayback, test } from './fixtures';
 
 declare global {
   interface Window {
@@ -89,6 +89,34 @@ test.describe('the Motion setting', () => {
       await page.goto('/visualize');
       expect(await ionicAnimates(page)).toBe(true);
       expect(await pushVisualizer(page)).toBeGreaterThan(0);
+    });
+  });
+
+  test('smooth scrolling in the player follows Motion and the test mode, and Instant turns it off on the stage', async ({ page }) => {
+    await page.goto('/visualize/binary-search');
+    const player = page.locator('app-player');
+    const scrolling = () =>
+      player.evaluate((p) => ['g-array-view', 'g-code-panel'].map((tag) => getComputedStyle(p.querySelector(tag)!).scrollBehavior));
+    await expect.poll(scrolling).toEqual(['smooth', 'smooth']);
+    for (const mode of ['reduced', 'off']) {
+      await page.locator('html').evaluate((html, value) => html.setAttribute('data-motion', value), mode);
+      await expect.poll(scrolling, mode).toEqual(['auto', 'auto']);
+    }
+    await page.locator('html').evaluate((html) => html.removeAttribute('data-motion'));
+    await openPlayback(page);
+    await player.getByRole('radio', { name: 'Instant' }).click();
+    await expect.poll(scrolling, 'Instant stills the stage only').toEqual(['auto', 'smooth']);
+  });
+
+  test.describe('on a device that reduces motion, scrolling', () => {
+    test.use({ reducedMotion: 'reduce' });
+
+    test('is instant under System and smooth under Full', async ({ page }) => {
+      await page.goto('/visualize/binary-search');
+      const view = page.locator('app-player g-array-view').first();
+      await expect(view).toHaveCSS('scroll-behavior', 'auto');
+      await page.locator('html').evaluate((html) => html.setAttribute('data-motion', 'full'));
+      await expect(view).toHaveCSS('scroll-behavior', 'smooth');
     });
   });
 

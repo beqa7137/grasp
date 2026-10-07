@@ -1,4 +1,17 @@
-import { ChangeDetectionStrategy, Component, ElementRef, computed, effect, input, output, signal, viewChild } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  ElementRef,
+  afterNextRender,
+  computed,
+  effect,
+  inject,
+  input,
+  output,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { diamondOutline, ellipsisHorizontal, flagOutline, pause, play, playSkipBack, playSkipForward, refresh } from 'ionicons/icons';
@@ -35,6 +48,11 @@ export const stepInterval = (speed: Speed) => ONE_X_MS / (speed === 'instant' ? 
 
 const TICK_WORDS: Record<TickState, string> = { pending: '', right: ', right', missed: ', missed', skipped: ', skipped' };
 
+/** How far apart two ticks' centres must be to draw whole: an 8px diamond turned 45° and its 2px halo. */
+const TICK_SPACE_PX = 16;
+/** Ticks drawn closer than that merge into one mark, which shows the state that most needs the learner. */
+const URGENCY: Record<TickState, number> = { right: 0, skipped: 1, missed: 2, pending: 3 };
+
 /**
  * The player's transport (REDESIGN.md 3.7). On the desktop layout it is one bar; everywhere else a dock of back, play,
  * forward and the count, with ⋯ opening the Timeline, Speed, Restart, Next checkpoint and Jump to result above it. The
@@ -62,6 +80,8 @@ export class TransportComponent {
   readonly guard = input(true);
   /** A checkpoint is open, which closes ⋯ so the checkpoint dock shows. */
   readonly asking = input(false);
+  /** Region R's height, which ⋯'s panel never grows past, so it covers neither the stage nor the caption above R. */
+  readonly room = input<number | null>(null);
 
   readonly seek = output<number>();
   readonly back = output<void>();
@@ -79,18 +99,42 @@ export class TransportComponent {
 
   protected readonly speeds = SPEEDS;
   protected readonly panelId = uniqueId('g-transport-more');
+  protected readonly timelineLabel = uniqueId('g-transport-timeline');
+  protected readonly speedLabel = uniqueId('g-transport-speed');
   protected readonly moreOpen = signal(false);
   protected readonly holding = signal<number | null>(null);
   /** Focus a drag gave the Timeline, which shows no ring until a key is pressed there (Chromium ignores `focusVisible`). */
   protected readonly pointerFocus = signal(false);
   private readonly moreButton = viewChild<ElementRef<HTMLButtonElement>>('moreButton');
   private readonly timeline = viewChild.required<ElementRef<HTMLInputElement>>('timeline');
+  private readonly tickRow = viewChild.required<ElementRef<HTMLElement>>('tickRow');
+  /** The tick row's width, 0 until it is measured or while ⋯ is closed. */
+  private readonly trackPx = signal(0);
   private drag: (Drag & { pointer: number }) | null = null;
 
   readonly max = computed(() => Math.max(0, this.count() - 1));
   readonly atEnd = computed(() => this.index() >= this.max());
   readonly hasNext = computed(() => this.ticks().some((t) => t.at > this.index()));
-  readonly placedTicks = computed(() => this.ticks().map((t) => ({ ...t, p: this.fraction(t.at) })));
+  readonly placedTicks = computed(() => {
+    const px = this.trackPx();
+    const marks: (Tick & { p: number })[] = [];
+    for (const tick of this.ticks()) {
+      const p = this.fraction(tick.at);
+      const mark = marks.at(-1);
+      if (mark && px > 0 && (p - mark.p) * px < TICK_SPACE_PX) {
+        if (URGENCY[tick.state] > URGENCY[mark.state]) mark.state = tick.state;
+      } else marks.push({ ...tick, p });
+    }
+    return marks;
+  });
+  /** Where the hold chip points: the checkpoint the drag holds on. */
+  readonly holdP = computed(() => {
+    const at = this.holding();
+    return at === null ? 0 : this.fraction(at);
+  });
+  private readonly unanswered = computed(
+    () => new Set(this.guard() ? this.ticks().flatMap((t) => (t.state === 'pending' ? [t.at] : [])) : []),
+  );
   /** Each band runs from its first frame to the next band's, or to the last frame. */
   readonly bands = computed(() =>
     this.chapters().map((b, i) => {
@@ -107,6 +151,12 @@ export class TransportComponent {
     addIcons({ play, pause, playSkipBack, playSkipForward, refresh, diamondOutline, flagOutline, ellipsisHorizontal });
     effect(() => {
       if (this.asking()) this.moreOpen.set(false);
+    });
+    const destroyRef = inject(DestroyRef);
+    afterNextRender(() => {
+      const observer = new ResizeObserver(([entry]) => this.trackPx.set(entry.contentRect.width));
+      observer.observe(this.tickRow().nativeElement);
+      destroyRef.onDestroy(() => observer.disconnect());
     });
   }
 
@@ -172,11 +222,16 @@ export class TransportComponent {
     if (e.type === 'pointerup' && drag.holding !== null) this.holdRelease.emit(drag.holding);
   }
 
+  /** Without this, a tap's trailing click lands on whatever replaced ⋯ under the finger, such as the checkpoint it opened. */
+  onTouchEnd(e: TouchEvent) {
+    e.preventDefault();
+  }
+
   private dragTo(e: PointerEvent) {
     const drag = this.drag!;
     const box = (e.currentTarget as Element).getBoundingClientRect();
-    const pending = new Set(this.guard() ? this.ticks().flatMap((t) => (t.state === 'pending' ? [t.at] : [])) : []);
-    const step = dragTo(drag, e.clientX - box.left, this.max(), box.width, (v) => pending.has(v));
+    const unanswered = this.unanswered();
+    const step = dragTo(drag, e.clientX - box.left, this.max(), box.width, (v) => unanswered.has(v));
     this.drag = { ...step.drag, pointer: drag.pointer };
     if (step.skipped !== null) this.skipTick.emit(step.skipped);
     if (step.held) void haptic.select();

@@ -19,6 +19,6 @@ export function mirrorDevicePref(mirror: string, value: string | null): void {
     if (value === null) localStorage.removeItem(mirror);
     else localStorage.setItem(mirror, value);
   } catch {
-    // Blocked storage only costs the first paint, which then follows the device until the app corrects it.
+    // Blocked storage only costs the first paint, which then follows the device until the service's init() corrects it.
   }
 }
