@@ -57,7 +57,7 @@
       </aside>
     }
     @if (movedNote()) {
-      <aside class="moved panel" aria-labelledby="moved-title">
+      <aside #moved class="moved panel" aria-labelledby="moved-title">
         <div>
           <p id="moved-title" class="eyebrow">Where things moved</p>
           <p>
@@ -65,12 +65,12 @@
             in Coding, the system design lessons, missions and case studies in Design, and Review is here on Today.
           </p>
         </div>
-        <button class="g-btn ghost" (click)="movedNote.set(false)">Got it</button>
+        <button class="g-btn ghost" (click)="dismissMovedNote()">Got it</button>
       </aside>
     }
     <section class="hero">
       <p class="eyebrow">{{ greeting() }}</p>
-      <h1>Build intuition,<br />not a problem count.</h1>
+      <h1 #heading tabindex="-1">Build intuition,<br />not a problem count.</h1>
       <div class="stats">
         <div class="stat panel">
           <ion-icon name="flame" class="flame" aria-hidden="true" />
@@ -132,10 +132,8 @@
         <a class="panel card-link tile drill" routerLink="/today/review">
           <ion-icon name="flash-outline" aria-hidden="true" />
           <h3>Review</h3>
-          @if (session.items.length || progress.reviewDue()) {
-            <p>
-              {{ progress.reviewDue() }} due · {{ session.newIncluded - session.boostedIncluded }} new · ~{{ session.estimatedMinutes }} min
-            </p>
+          @if (session.items.length) {
+            <p>{{ progress.reviewDue() }} due · {{ session.newIncluded }} new · ~{{ session.estimatedMinutes }} min</p>
             <span class="cta">Start →</span>
           } @else {
             <p>All caught up</p>

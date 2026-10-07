@@ -38,13 +38,13 @@ import {
 import { needsSignIn } from './start-interview';
 import { MockLoopService } from './mock-loop.service';
 import { StarAnswerComponent } from './star-answer.component';
+import { BackComponent } from '../../ui/back.component';
+import { CrossLinkDirective } from '../../ui/cross-link.directive';
+import { drillLink } from '../../core/links';
 
 const SCORING_TIMEOUT_MS = 290_000;
 const AI_NOTICE = 'Your replies and shared code are sent to the AI service.';
 const BEHAVIORAL_AI_NOTICE = 'Your answers, including any story you start from, are sent to the AI service.';
-import { BackComponent } from '../../ui/back.component';
-import { CrossLinkDirective } from '../../ui/cross-link.directive';
-import { drillLink } from '../../core/links';
 
 @Component({
   selector: 'app-interview-session',

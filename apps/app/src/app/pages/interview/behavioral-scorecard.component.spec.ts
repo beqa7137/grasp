@@ -64,7 +64,7 @@ function render(card: Partial<Scorecard> = {}, options: { fromStory?: boolean; s
       { provide: ApiService, useValue: api },
     ],
   });
-  const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+  const navigate = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
   const fixture = TestBed.createComponent(BehavioralScorecardComponent);
   fixture.componentRef.setInput('session', session);
   fixture.componentRef.setInput('fromStory', options.fromStory ?? false);
@@ -151,7 +151,7 @@ describe('BehavioralScorecardComponent', () => {
     expect(body).toMatchObject({ track: 'behavioral', mode: 'ai' });
     expect(body.problemId).toMatch(/^conflict-\d+$/);
     expect(body.problemId).not.toBe('conflict-1');
-    expect(navigate).toHaveBeenCalledWith(['/mock', 'next']);
+    expect(navigate).toHaveBeenCalledWith('/mock/next', expect.anything());
     expect([...el.querySelectorAll('a')].find((a) => a.textContent?.trim() === 'Practice this question')?.getAttribute('href')).toBe(
       '/behavioral/question/conflict-1',
     );

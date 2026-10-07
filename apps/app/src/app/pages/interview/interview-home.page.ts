@@ -10,11 +10,10 @@ import { SignInOptionsComponent } from '../../core/sign-in-options.component';
 import { MockLoopService } from './mock-loop.service';
 import type { AiAccess, InterviewCatalog, InterviewMode, InterviewSession, InterviewTrack, ProblemSummary } from './interview.types';
 import { needsSignIn, startInterview } from './start-interview';
+import { CrossLinkDirective, crossState } from '../../ui/cross-link.directive';
 
 const AI_NOTE = 'AI follow-ups and AI feedback. Your replies and shared code are sent to the AI service.';
 const AI_BEHAVIORAL_NOTE = 'AI follow-ups and AI feedback. Your answers, including any story you start from, are sent to the AI service.';
-import { CrossLinkDirective } from '../../ui/cross-link.directive';
-import { crossState } from '../../ui/cross-link.directive';
 
 @Component({
   selector: 'app-interview-home',
@@ -33,7 +32,7 @@ import { crossState } from '../../ui/cross-link.directive';
   ],
   template: `
     <ion-header [translucent]="true">
-      <ion-toolbar><ion-title>Interview</ion-title></ion-toolbar>
+      <ion-toolbar><ion-title>Mock</ion-title></ion-toolbar>
     </ion-header>
     <ion-content [fullscreen]="true">
       <div class="page">

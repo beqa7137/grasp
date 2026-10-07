@@ -1,4 +1,4 @@
-import { expect, synced, test } from './fixtures';
+import { expect, shownPage, synced, test } from './fixtures';
 
 test.describe('first visit', () => {
   test.use({ pilotNoticeSeen: false });
@@ -92,7 +92,7 @@ test('no fixed box sits over the page on a phone', { tag: '@nav' }, async ({ pag
   test.skip(!isMobile, 'The right-edge tab covered content on phones.');
   for (const path of ['/today', '/coding/problems/two-sum', '/coding/visualizers/binary-search']) {
     await page.goto(path);
-    await expect(page.locator('ion-router-outlet > .ion-page:not(.ion-page-hidden) ion-content').last()).toBeVisible();
+    await expect(shownPage(page).locator('ion-content')).toBeVisible();
     const fixed = await page.evaluate(() => {
       const overlays = 'ion-modal, ion-popover, ion-alert, ion-toast, ion-loading, ion-action-sheet';
       const content = document.querySelector('ion-router-outlet .ion-page:not(.ion-page-hidden) ion-content')!.getBoundingClientRect();

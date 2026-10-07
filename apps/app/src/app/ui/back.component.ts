@@ -1,8 +1,7 @@
 import { CUSTOM_ELEMENTS_SCHEMA, ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
-import { Router } from '@angular/router';
 import { IonRouterOutlet, NavController } from '@ionic/angular';
 import { defineCustomElement } from '@ionic/core/components/ion-back-button.js';
-import { tabOf } from './cross-link.directive';
+import { CrossSections } from './cross-link.directive';
 
 /**
  * The back button of every page (REDESIGN.md 2.5). A view a link brought from another tab returns there, switching back to
@@ -21,24 +20,17 @@ export class BackComponent {
   readonly href = input.required<string>();
   private readonly nav = inject(NavController);
   private readonly outlet = inject(IonRouterOutlet, { optional: true });
-  private readonly from = crossFrom(inject(Router));
+  private readonly sections = inject(CrossSections);
 
   constructor() {
     defineCustomElement();
   }
 
   back(): void {
-    if (this.from) void this.nav.navigateBack(this.from);
+    // Read on each click: Ionic reuses this view for the same URL, entered another way.
+    const from = this.sections.from();
+    if (from) void this.nav.navigateBack(from);
     else if (this.outlet?.canGoBack()) void this.outlet.pop();
     else void this.nav.navigateBack(this.href());
   }
-}
-
-/** The URL a `crossLink` brought this view from, when it lies in another tab. */
-function crossFrom(router: Router): string | null {
-  const navigation = router.currentNavigation();
-  const state: unknown = navigation ? navigation.extras.state : history.state;
-  const from = (state as { from?: unknown } | null)?.from;
-  const url = navigation ? router.serializeUrl(navigation.finalUrl ?? navigation.extractedUrl) : router.url;
-  return typeof from === 'string' && tabOf(from) !== tabOf(url) ? from : null;
 }

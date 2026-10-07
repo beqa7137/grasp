@@ -53,6 +53,8 @@ export class LearnPage {
   private readonly syncStatus = viewChild<ElementRef<HTMLElement>>('syncStatus');
   private readonly sessionResume = viewChild<ElementRef<HTMLAnchorElement>>('sessionResume');
   private readonly more = viewChild.required<ElementRef<HTMLButtonElement>>('more');
+  private readonly heading = viewChild.required<ElementRef<HTMLElement>>('heading');
+  private readonly moved = viewChild<ElementRef<HTMLElement>>('moved');
   private readonly popovers = inject(PopoverController);
   private readonly router = inject(Router);
   private readonly pilot = inject(PilotService);
@@ -146,6 +148,12 @@ export class LearnPage {
 
   private async offerMovedNote(): Promise<void> {
     if (await this.pilot.offerMovedNote(this.progress.recorded())) this.movedNote.set(true);
+  }
+
+  dismissMovedNote(): void {
+    const note = this.moved()?.nativeElement;
+    this.movedNote.set(false);
+    refocusAfterRender(this.injector, () => this.heading().nativeElement, note);
   }
 
   ionViewWillEnter() {

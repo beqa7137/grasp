@@ -1,5 +1,14 @@
-import { Directive, ElementRef, inject } from '@angular/core';
-import { Router, RouterLink, type UrlTree } from '@angular/router';
+import { Directive, ElementRef, Injectable, inject } from '@angular/core';
+import {
+  type ActivatedRouteSnapshot,
+  type Navigation,
+  NavigationEnd,
+  NavigationStart,
+  Router,
+  RouterLink,
+  type UrlTree,
+} from '@angular/router';
+import { NavController } from '@ionic/angular';
 
 /** The tab a URL belongs to: its first segment (REDESIGN.md 2.4), which is also Ionic's stack id. */
 export function tabOf(url: string): string {
@@ -10,6 +19,12 @@ export function tabOf(url: string): string {
 export function crossState(router: Router, target: UrlTree | string): { from: string } | undefined {
   const url = typeof target === 'string' ? target : router.serializeUrl(target);
   return tabOf(url) === tabOf(router.url) ? undefined : { from: router.url };
+}
+
+/** Where a cross-section navigation came from (`crossState`'s `from`), when that lies in another tab than `url`. */
+export function crossFrom(navigation: Navigation | null, url: string): string | null {
+  const from: unknown = navigation?.extras.state?.['from'];
+  return typeof from === 'string' && tabOf(from) !== tabOf(url) ? from : null;
 }
 
 /**
@@ -31,4 +46,75 @@ export class CrossLinkDirective {
       { capture: true },
     );
   }
+}
+
+type Direction = 'back' | 'root' | 'forward';
+
+/**
+ * Which shown views a link from another tab opened (REDESIGN.md 2.5), and each tab's last URL. Ionic reuses a view for a
+ * URL it already holds and pops without navigation state, so this is kept per URL rather than per component: a link from
+ * another tab marks the URL, any other forward or root navigation to it clears the mark, and a pop keeps it. `app-back`,
+ * the swipe-back toggle and the tab buttons all read it.
+ */
+@Injectable({ providedIn: 'root' })
+export class CrossSections {
+  private readonly router = inject(Router);
+  private readonly nav = inject(NavController);
+  private readonly fromByUrl = new Map<string, string>();
+  private readonly lastUrls = new Map<string, string>();
+  /** Tabs a cross-section link entered: their last URL stays where the learner left them until the tab is selected. */
+  private readonly entered = new Set<string>();
+  private direction: Direction = 'forward';
+
+  constructor() {
+    this.router.events.subscribe((event) => {
+      if (event instanceof NavigationStart) this.direction = this.directionOf(event);
+      else if (event instanceof NavigationEnd) this.record(event.urlAfterRedirects);
+    });
+  }
+
+  /** Where the view at `url` was opened from, when a link from another tab opened it. */
+  from(url = this.router.url): string | null {
+    return this.fromByUrl.get(url) ?? null;
+  }
+
+  lastUrl(tab: string): string {
+    return this.lastUrls.get(tab) ?? `/${tab}`;
+  }
+
+  /** Forgets every tab's place, as when another learner takes over the device. */
+  forget(): void {
+    this.fromByUrl.clear();
+    this.lastUrls.clear();
+    this.entered.clear();
+  }
+
+  private directionOf(event: NavigationStart): Direction {
+    if (event.navigationTrigger === 'popstate') return 'back';
+    // Ionic's pops and back navigations set this just before they navigate; links leave it 'auto'.
+    const set = (this.nav as unknown as { direction: string }).direction;
+    return set === 'back' || set === 'root' ? set : 'forward';
+  }
+
+  private record(url: string): void {
+    const tab = tabOf(url);
+    // A hub has no back button, so a link into it is an ordinary entry into its tab.
+    const from = isHub(this.router.routerState.snapshot.root) ? null : crossFrom(this.router.currentNavigation(), url);
+    if (from) {
+      this.fromByUrl.set(url, from);
+      this.entered.add(tab);
+      return;
+    }
+    if (this.direction !== 'back') this.fromByUrl.delete(url);
+    if (this.direction === 'root') this.entered.delete(tab);
+    if (!this.fromByUrl.has(url) && !this.entered.has(tab)) this.lastUrls.set(tab, url);
+  }
+}
+
+/** Whether the shown page is a tab's hub: a tab root (Today, Mock) or a hub segment. */
+function isHub(root: ActivatedRouteSnapshot): boolean {
+  let route = root;
+  while (route.firstChild) route = route.firstChild;
+  const parent = route.parent?.routeConfig;
+  return (parent?.path !== '' && parent?.children !== undefined) || route.routeConfig?.path === tabOf(route.routeConfig?.path ?? '');
 }

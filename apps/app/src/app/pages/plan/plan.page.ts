@@ -31,14 +31,14 @@ import { ProgressService } from '../../core/progress.service';
 import { StoryBankService } from '../behavioral/story-bank.service';
 import { formatMinutes } from './duration';
 import { PlanFormComponent } from './plan-form.component';
+import { BackComponent } from '../../ui/back.component';
+import { CrossLinkDirective } from '../../ui/cross-link.directive';
 
 const ROUND_NAMES: Record<PlanRound, string> = { coding: 'Coding', design: 'System design', behavioral: 'Behavioral' };
 const UPCOMING_DAYS = 6;
 const UNDO_MS = 8_000;
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
-import { BackComponent } from '../../ui/back.component';
-import { CrossLinkDirective } from '../../ui/cross-link.directive';
 
 @Component({
   selector: 'app-plan',

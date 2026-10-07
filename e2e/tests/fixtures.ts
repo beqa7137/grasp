@@ -217,3 +217,9 @@ export async function seek(page: Page, step: number, note: string) {
   await page.getByRole('slider', { name: 'Timeline' }).fill(String(step));
   await expect(page.locator('app-trace-player .narration')).toContainText(note);
 }
+
+/** Today's heading: its line break renders no space. */
+export const TODAY_HEADING = /^Build intuition,\s?not a problem count\.$/;
+
+/** The page shown in the tabs' outlet: Ionic keeps the other tabs' pages mounted, and hidden. */
+export const shownPage = (page: Page) => page.locator('ion-tabs ion-router-outlet > .ion-page:not(.ion-page-hidden)');

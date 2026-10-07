@@ -33,6 +33,7 @@ import { ProgressService } from '../../../core/progress.service';
 import { CodeTextComponent } from '../../../viz/code-text.component';
 import { CaseDraftsService, newCaseDraft, type CaseDraft } from './case-drafts.service';
 import { CaseStageComponent } from './case-stage.component';
+import { BackComponent } from '../../../ui/back.component';
 
 const KIND_LABELS: Record<CaseStageKind, string> = {
   requirements: 'Requirements',
@@ -45,8 +46,6 @@ const KIND_LABELS: Record<CaseStageKind, string> = {
 };
 
 /** A classic interview question worked stage by stage, in the order a strong candidate would run the interview. */
-import { BackComponent } from '../../../ui/back.component';
-
 @Component({
   selector: 'app-case-study',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -46,6 +46,10 @@ interface Segment {
       gap: 8px;
       padding-bottom: 0;
     }
+    /* Segments start their own page with different first margins; under the row they all start at its padding. */
+    :host ::ng-deep router-outlet + * > .page > :first-child {
+      margin-top: 0;
+    }
     .chip {
       padding: 8px 14px;
       text-decoration: none;

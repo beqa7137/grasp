@@ -19,9 +19,9 @@ import { ExampleAnswerComponent } from './example-answer.component';
 import { StarEditorComponent } from './star-editor.component';
 import { StarDraftsService } from './star-drafts.service';
 import { StoryBankService } from './story-bank.service';
+import { BackComponent } from '../../ui/back.component';
 
 const QUESTIONS = COMPETENCIES.flatMap((c) => c.questions);
-import { BackComponent } from '../../ui/back.component';
 
 @Component({
   selector: 'app-star-practice',

@@ -1,16 +1,18 @@
-import { Component, ElementRef, Injector, computed, inject, viewChild } from '@angular/core';
+import { Component, DestroyRef, ElementRef, Injector, computed, effect, inject, untracked, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, type ActivatedRouteSnapshot } from '@angular/router';
 import { IonBadge, IonIcon, IonLabel, IonModal, IonTabBar, IonTabButton, IonTabs, Config, NavController, Platform } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { chatbubblesOutline, codeSlashOutline, gitNetworkOutline, peopleOutline, todayOutline } from 'ionicons/icons';
+import { AuthService } from '../core/auth.service';
 import { refocusAfterRender } from '../core/focus';
 import { isOnHiddenPage } from '../core/page-keys';
 import { ProgressService } from '../core/progress.service';
 import { FeedbackSheetComponent } from '../pilot/feedback-sheet.component';
 import { PilotNoticeComponent } from '../pilot/pilot-notice.component';
 import { PilotService } from '../pilot/pilot.service';
-import { tabOf } from '../ui/cross-link.directive';
+import { CrossSections } from '../ui/cross-link.directive';
+import { hardwareBack } from './hardware-back';
 
 @Component({
   selector: 'app-tabs',
@@ -99,30 +101,32 @@ export class TabsPage {
     return route.data['focus'] === true;
   });
   readonly due = this.progress.reviewDue;
-  /** The last URL shown in each tab, segment and filters included, except views a link from another tab opened. */
-  private readonly lastUrl = new Map<string, string>();
+  private readonly sections = inject(CrossSections);
   /** Ionic's own default, as its outlet applies it: the outlet has no getter to read it back. */
   private readonly swipe = inject(Config).getBoolean('swipeBackEnabled', true);
 
   constructor() {
     addIcons({ todayOutline, codeSlashOutline, gitNetworkOutline, peopleOutline, chatbubblesOutline });
     this.router.events.pipe(takeUntilDestroyed()).subscribe((event) => {
-      if (!(event instanceof NavigationEnd)) return;
-      const from: unknown = this.router.currentNavigation()?.extras.state?.['from'];
-      const tab = tabOf(event.urlAfterRedirects);
-      const crossed = typeof from === 'string' && tabOf(from) !== tab;
-      if (!crossed) this.lastUrl.set(tab, event.urlAfterRedirects);
-      // iOS swipe-back follows the outlet's stack, which would disagree with `app-back`, so it is off on such a view.
-      this.tabs().outlet.swipeGesture = this.swipe && !crossed;
+      // iOS swipe-back follows the outlet's stack, which would disagree with `app-back`, so it is off on a cross-section view.
+      if (event instanceof NavigationEnd) this.tabs().outlet.swipeGesture = this.swipe && !this.sections.from(event.urlAfterRedirects);
     });
-    // Android's back button follows the same rule as the page's back button, so it clicks that; a hub has none.
-    inject(Platform).backButton.subscribeWithPriority(10, (next) => {
-      const back = [...document.querySelectorAll<HTMLElement>('ion-router-outlet app-back ion-back-button')].find(
-        (b) => !isOnHiddenPage(b),
-      );
-      if (back) back.click();
-      else next();
+    const auth = inject(AuthService);
+    // Signing out or deleting the learner's data starts every tab afresh.
+    effect(() => {
+      auth.user();
+      this.progress.cleared();
+      untracked(() => this.sections.forget());
     });
+    const android = inject(Platform).backButton.subscribeWithPriority(10, () =>
+      hardwareBack(document, {
+        url: this.router.url,
+        goToday: () => void this.navCtrl.navigateRoot('/today', { animated: true, animationDirection: 'back' }),
+        // Minimizing is Android's; the web build has nothing to leave.
+        leave: () => void import('@capacitor/app').then(({ App }) => App.minimizeApp().catch(() => App.exitApp().catch(() => undefined))),
+      }),
+    );
+    inject(DestroyRef).onDestroy(() => android.unsubscribe());
   }
 
   /**
@@ -134,7 +138,7 @@ export class TabsPage {
     event.stopPropagation();
     const { tab } = (event as CustomEvent<{ tab: string }>).detail;
     if (this.tabs().getSelected() === tab) void this.tabs().select(tab);
-    else void this.navCtrl.navigateRoot(this.lastUrl.get(tab) ?? `/${tab}`, { animated: true, animationDirection: 'back' });
+    else void this.navCtrl.navigateRoot(this.sections.lastUrl(tab), { animated: true, animationDirection: 'back' });
   }
 
   /**

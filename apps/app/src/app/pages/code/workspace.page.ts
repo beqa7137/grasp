@@ -58,6 +58,7 @@ import { RovingSelectDirective } from '../../core/roving-select.directive';
 import { uniqueId } from '../../core/unique-id';
 import { CodeTextComponent } from '../../viz/code-text.component';
 import { TreeViewComponent } from '../../viz/tree-view.component';
+import { BackComponent } from '../../ui/back.component';
 
 const LANGUAGE_KEY = 'grasp.code.language';
 const traceable = (language: Language): language is Exclude<Language, 'python'> => language !== 'python';
@@ -66,7 +67,6 @@ const SUITE_SEED = 1;
 const PREVIEW_CHARS = 400;
 
 type Panel = 'tests' | 'trace';
-import { BackComponent } from '../../ui/back.component';
 
 @Component({
   selector: 'app-code-workspace',

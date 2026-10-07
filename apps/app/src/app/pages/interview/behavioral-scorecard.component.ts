@@ -15,14 +15,12 @@ import { SignInOptionsComponent } from '../../core/sign-in-options.component';
 import { StoryBankService } from '../behavioral/story-bank.service';
 import type { InterviewSession } from './interview.types';
 import { needsSignIn, startInterview } from './start-interview';
+import { CrossLinkDirective, crossState } from '../../ui/cross-link.directive';
 
 const sameDraft = (a: StarDraft, b: StarDraft) =>
   (Object.keys(a) as (keyof StarDraft)[]).every((part) => a[part].trim() === b[part].trim());
 
 /** What a behavioral scorecard adds: the flaws with their fixes, rehearsal for flagged competencies, and what to do next. */
-import { CrossLinkDirective } from '../../ui/cross-link.directive';
-import { crossState } from '../../ui/cross-link.directive';
-
 @Component({
   selector: 'app-behavioral-scorecard',
   changeDetection: ChangeDetectionStrategy.OnPush,

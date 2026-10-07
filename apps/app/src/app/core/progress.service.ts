@@ -104,13 +104,10 @@ export class ProgressService {
   readonly recorded = computed(() => this.events().length > 0);
 
   /**
-   * What Review has due: cards, cards an interview or a missed prediction flagged, and mission revisits, which its summary
-   * lists. Today's Review tile and the Today tab's badge both show it, so they never disagree.
+   * The cards due in this sitting of Review: the Today tab's badge, Today's Review tile and the session's own header all
+   * show this, and the session can do every card it counts (REDESIGN.md 2.6). Mission revisits have their own Today tile.
    */
-  readonly reviewDue = computed(() => {
-    const session = this.session();
-    return session.dueTotal + session.boostedIncluded + this.dueMissions().length;
-  });
+  readonly reviewDue = computed(() => this.session().dueIncluded);
 
   constructor() {
     const tick = setInterval(() => this.now.set(new Date()), CLOCK_TICK_MS);

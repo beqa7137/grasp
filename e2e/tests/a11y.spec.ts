@@ -36,14 +36,17 @@ async function seekGrid(page: Page, fraction: number, state: string) {
   await expect(page.locator(`g-grid-view .cell[data-state="${state}"]`).first()).toBeVisible();
 }
 
+/** A hub page has rendered its segment. */
+const hubShown = (page: Page) => expect(page.locator('app-hub h1')).toBeVisible();
+
 const PAGES: { name: string; path: string; ready: (page: Page) => Promise<unknown> }[] = [
   { name: 'Today', path: '/today', ready: (page) => expect(page.getByRole('heading', { level: 1 })).toBeVisible() },
-  { name: 'the Coding hub with its skill map', path: '/coding', ready: (page) => expect(page.locator('app-hub h1')).toBeVisible() },
-  { name: 'the problem library', path: '/coding/problems', ready: (page) => expect(page.locator('app-hub h1')).toBeVisible() },
-  { name: 'the Design hub with its topics', path: '/design', ready: (page) => expect(page.locator('app-hub h1')).toBeVisible() },
-  { name: 'the case studies', path: '/design/cases', ready: (page) => expect(page.locator('app-hub h1')).toBeVisible() },
-  { name: 'the Behavioral hub', path: '/behavioral', ready: (page) => expect(page.locator('app-hub h1')).toBeVisible() },
-  { name: 'the story bank', path: '/behavioral/stories', ready: (page) => expect(page.locator('app-hub h1')).toBeVisible() },
+  { name: 'the Coding hub with its skill map', path: '/coding', ready: hubShown },
+  { name: 'the problem library', path: '/coding/problems', ready: hubShown },
+  { name: 'the Design hub with its topics', path: '/design', ready: hubShown },
+  { name: 'the case studies', path: '/design/cases', ready: hubShown },
+  { name: 'the Behavioral hub', path: '/behavioral', ready: hubShown },
+  { name: 'the story bank', path: '/behavioral/stories', ready: hubShown },
   {
     name: 'a pattern page',
     path: '/coding/patterns/binary-search',

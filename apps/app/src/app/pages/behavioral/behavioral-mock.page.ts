@@ -31,9 +31,9 @@ import { alertCircle, arrowForward, checkmarkCircle } from 'ionicons/icons';
 import { refocusAfterRender } from '../../core/focus';
 import { StarEditorComponent } from './star-editor.component';
 import { StoryBankService } from './story-bank.service';
+import { BackComponent } from '../../ui/back.component';
 
 type Turn = { question: number; followUp: number | null };
-import { BackComponent } from '../../ui/back.component';
 
 @Component({
   selector: 'app-behavioral-mock',
@@ -43,7 +43,7 @@ import { BackComponent } from '../../ui/back.component';
     <ion-header [translucent]="true">
       <ion-toolbar>
         <ion-buttons slot="start"><app-back href="/behavioral" /></ion-buttons>
-        <ion-title>Mock behavioral interview</ion-title>
+        <ion-title>STAR drill</ion-title>
       </ion-toolbar>
     </ion-header>
     <ion-content [fullscreen]="true">
