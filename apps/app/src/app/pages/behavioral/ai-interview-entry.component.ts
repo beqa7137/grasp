@@ -48,7 +48,7 @@ import { needsSignIn, startInterview } from '../interview/start-interview';
       margin: 0 0 6px;
     }
     h3 {
-      font-size: 0.9375rem;
+      font-size: var(--g-text-title-s);
       margin: 16px 0 8px;
     }
     p {

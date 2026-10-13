@@ -165,7 +165,7 @@ const FIRST_TICKS = 5;
       max-width: 520px;
       margin: 4px auto 0;
       border-radius: var(--g-radius-sm);
-      background: var(--g-raised);
+      background: var(--g-sunken);
     }
     .band {
       fill: var(--g-accent-soft);
@@ -196,12 +196,12 @@ const FIRST_TICKS = 5;
     }
     .delivered {
       fill: var(--g-accent);
-      stroke: var(--g-raised);
+      stroke: var(--g-sunken);
       stroke-width: 1;
     }
     .bounced {
       fill: var(--g-danger-ink);
-      stroke: var(--g-raised);
+      stroke: var(--g-sunken);
       stroke-width: 1;
     }
     .axis-labels {

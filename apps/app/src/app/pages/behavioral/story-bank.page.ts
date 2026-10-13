@@ -84,6 +84,8 @@ import { STORY_SYNC_NOTES, StoryBankService } from './story-bank.service';
     </div>
   `,
   styles: `
+    @use '../../../type' as *;
+
     h1 {
       font-size: clamp(1.625rem, 5vw, 2.25rem);
       margin: 8px 0 8px;
@@ -94,6 +96,7 @@ import { STORY_SYNC_NOTES, StoryBankService } from './story-bank.service';
       margin: 0 0 16px;
     }
     h2 {
+      @include title;
       font-size: 1rem;
       margin: 0 0 10px;
     }

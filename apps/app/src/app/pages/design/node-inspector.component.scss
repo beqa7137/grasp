@@ -30,7 +30,7 @@
     gap: 6px;
     margin: 0 0 12px;
     div {
-      background: var(--g-raised);
+      background: var(--g-sunken);
       border-radius: 8px;
       padding: 7px 9px;
     }
@@ -87,6 +87,7 @@
       font: 600 0.75rem var(--g-font-mono);
       color: var(--g-muted);
       background: var(--g-raised);
+      box-shadow: var(--g-shadow-raised);
       border: 1px solid var(--g-line-strong);
       border-radius: 8px;
       padding: 6px 8px;
@@ -121,7 +122,7 @@
     .bar {
       height: 6px;
       border-radius: 3px;
-      background: var(--g-raised);
+      background: var(--g-sunken);
       overflow: hidden;
     }
     i {

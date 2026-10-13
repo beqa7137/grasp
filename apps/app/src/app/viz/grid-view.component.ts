@@ -93,7 +93,7 @@ import { DIM_CELL, dims, type Focus } from './dim';
       }
       .tag {
         white-space: nowrap;
-        font: 700 13px/1 var(--g-font-display);
+        font: 600 13px/1 var(--g-font-mono);
       }
       .d {
         white-space: nowrap;

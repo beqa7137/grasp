@@ -93,7 +93,7 @@ type Mode = (typeof MODES)[number]['mode'];
       align-items: baseline;
       padding: 6px 10px;
       border-radius: var(--g-radius-sm);
-      background: var(--g-raised);
+      background: var(--g-sunken);
     }
     .docs li.hit {
       background: var(--g-accent-soft);

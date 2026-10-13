@@ -123,7 +123,7 @@ const SPEEDS = [1, 2, 4];
       gap: 6px;
       padding: 4px 9px;
       border-radius: 7px;
-      background: var(--g-raised);
+      background: var(--g-sunken);
       border: 1px solid var(--g-line);
       font-size: 0.78125rem;
       transition: border-color 0.2s;
@@ -154,7 +154,7 @@ const SPEEDS = [1, 2, 4];
       font-size: 0.6875rem;
       padding: 3px 7px;
       border-radius: 6px;
-      background: var(--g-raised);
+      background: var(--g-sunken);
       color: var(--g-active);
       flex: none;
     }

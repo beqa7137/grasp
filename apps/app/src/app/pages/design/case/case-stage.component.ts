@@ -323,7 +323,7 @@ const WIDGET_TITLES: Record<CaseWidget, string> = {
       border-radius: 12px;
       h3 {
         margin: 0 0 12px;
-        font-size: 0.9375rem;
+        font-size: var(--g-text-title-s);
       }
     }
     .points {

@@ -1,8 +1,11 @@
+@use '../../../type' as *;
+
 ion-title h1 {
   // Inline, so the title's own ellipsis applies to a long name. The intro behind ⓘ names it in full.
   display: inline;
   margin: 0;
   font: inherit;
+  letter-spacing: inherit;
 }
 
 .about {
@@ -16,7 +19,7 @@ ion-title h1 {
 .player {
   container: player / size;
   height: 100%;
-  max-width: 1440px;
+  max-width: var(--g-width-workbench);
   margin: 0 auto;
   padding: 12px 16px 0;
 }
@@ -240,9 +243,8 @@ ion-title h1 {
     align-items: center;
     gap: 4px;
     margin-right: 6px;
-    font: 600 0.6875rem/1 var(--ion-font-family);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
+    @include label;
+    line-height: 1;
     vertical-align: 1px;
     color: var(--g-predict);
     ion-icon {
@@ -288,7 +290,7 @@ ion-title h1 {
     display: grid;
     place-items: center;
     font: 600 0.6875rem/1 var(--g-font-mono);
-    background: var(--g-raised);
+    background: var(--g-sunken);
     color: var(--g-muted);
   }
   .verdict {
@@ -383,7 +385,7 @@ g-transport {
   gap: 8px;
 
   div {
-    background: var(--g-raised);
+    background: var(--g-sunken);
     border-radius: 8px;
     padding: 8px 10px;
     min-width: 0;

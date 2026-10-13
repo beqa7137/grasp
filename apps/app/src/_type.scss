@@ -1,0 +1,16 @@
+// The label role (REDESIGN.md 3.2), the one uppercase style. Its family is set, so a label inside a heading never takes
+// the display face. It leaves line-height to each rule: a label in a fixed-height stage keeps its own.
+@mixin label {
+  font-family: var(--ion-font-family);
+  font-size: var(--g-text-label);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+// Card titles and every heading under 1.25rem (REDESIGN.md 3.2): Space Grotesk is for display sizes only.
+@mixin title {
+  font-family: var(--ion-font-family);
+  font-weight: 600;
+  letter-spacing: normal;
+}

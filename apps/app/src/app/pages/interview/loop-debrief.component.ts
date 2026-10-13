@@ -112,7 +112,10 @@ function practice(target: FocusTarget): { link: string[]; label: string } {
     </div>
   `,
   styles: `
+    @use '../../../type' as *;
+
     h2 {
+      @include title;
       font-size: 1.125rem;
       margin: 24px 0 10px;
     }

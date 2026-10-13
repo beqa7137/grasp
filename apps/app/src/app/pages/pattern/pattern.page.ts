@@ -156,6 +156,8 @@ import { BackComponent } from '../../ui/back.component';
     </ion-content>
   `,
   styles: `
+    @use '../../../type' as *;
+
     .head {
       display: flex;
       align-items: center;
@@ -198,6 +200,7 @@ import { BackComponent } from '../../ui/back.component';
       }
     }
     h2 {
+      @include title;
       display: flex;
       align-items: center;
       gap: 8px;

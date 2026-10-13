@@ -87,7 +87,7 @@ const sameDraft = (a: StarDraft, b: StarDraft) =>
       font-size: 0.875rem;
     }
     h3 {
-      font-size: 0.9375rem;
+      font-size: var(--g-text-title-s);
       margin: 18px 0 8px;
     }
     .flaws {

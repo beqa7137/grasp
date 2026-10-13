@@ -49,6 +49,11 @@ providers, so every sign-in test times out.
   - raw font sizes: `font-size`, the `font` shorthand and SVG `font-size` attributes;
   - raw radii: `border-radius`, its per-corner forms, Ionic's `--border-radius` and SVG `rx` and `ry` (a unitless
     attribute, static or bound, is read as px);
+  - raw spacing (since R6): `padding`, `margin` and their per-side and logical longhands, `gap`, `row-gap` and
+    `column-gap`, and Ionic's `--padding-*`, `--inner-padding-*` and `--margin-*` component properties. A negative length
+    counts (`margin: -1px`). `scroll-padding-*` and `scroll-margin-*` do not: they place a scrolled-to target rather than
+    space content. Spacing in `em` is exempt, as `em` font sizes are: it follows the element's own text size (an icon's
+    gap that grows with its label), which a fixed scale cannot express;
   - literal colors: hex, named colors, and `rgb()`, `hsl()` and the other color functions unless their channels are one
     bare token with at most a literal or token alpha (`rgba(var(--g-accent-rgb), 0.12)`), in color properties
     (`filter` and `backdrop-filter` included), SVG color attributes, custom properties, SCSS variables and `@include`
@@ -70,8 +75,8 @@ providers, so every sign-in test times out.
   style keys and fields in TypeScript (a CodeMirror theme's `fontSize`, a canvas `fillStyle`, `signal('13px')`). A
   binding's value is its string literals, a number with the binding's unit, or, when the expression is one name (`size`,
   `size()`, `this.size`), the literal that field holds in the component's own `.ts`. A value reached any other way
-  (another file, a service, a computed string) is not followed. A mixin parameter used in a font size, a radius or a width
-  query makes each `@include` of it (namespaced or not, positional or keyword, with `$variables` resolved) count that
+  (another file, a service, a computed string) is not followed. A mixin parameter used in a font size, a radius, spacing or
+  a width query makes each `@include` of it (namespaced or not, positional or keyword, with `$variables` resolved) count that
   argument as one. A size is raw when it still holds a non-zero px, rem or pt once `chrome-font-size()` is removed; a
   `var()` fallback is read like any other value, so `var(--g-text-s, 13px)` counts. A `var(--g-…)` whose name no file
   declares counts too (the names `rgb-token` writes are declared). A custom property or SCSS variable defined with a raw
@@ -84,6 +89,14 @@ providers, so every sign-in test times out.
   until `node scripts/style-tokens.mjs --update` (in `apps/app`) lowers the baseline, which it never raises. A file with
   no entry is held at 0, so new and migrated files stay clean. After moving or renaming files, delete the baseline and run
   `--update` to record it again: the diff shows every raise for review, and LOOP.md gives the reason.
+
+  The sanctioned ways to write what it counts: the `--g-space-*`, `--g-radius-*` and `--g-text-*` tokens (`styles.scss`,
+  beside `--g-width-*` for page widths); a breakpoint through `src/_breakpoints.scss` (`@include phone`, `tabs`,
+  `desktop`, `wide`, and `container-narrow`, `container-medium`, `container-wide` with an optional container name); and
+  the type roles in `src/_type.scss`: `@include label` for the uppercase label (the only file allowed
+  `text-transform: uppercase`, which `style-tokens.test.mjs` checks) and `@include title` for a heading or title under
+  1.25rem outside a card. An h2, h3 or h4 inside a `.panel`, `.card` or `.card-link` takes the title role from
+  `styles.scss` and needs no include; a monospaced one (`.mono`, an identifier or a readout) keeps code type.
 
 - **Audit and pixel diff.** `audit.mjs` in both themes with `STABLE=1` and `PROFILES=desktop,w1024,pixel7,w320` (plus
   `ipad` when navigation changes), then `pixdiff.mjs` against the stored set of `main` (below). Read every differing
@@ -137,7 +150,7 @@ BASE=https://grasp-rho-taupe.vercel.app THEME=light OUT=verify-out/prod READONLY
   browser version stops at once. The last line says whether `OUT` now holds every state on every profile it has, or
   names what is missing.
 
-A full capture is 176 states, so a set of both themes on the four default profiles is 1,408 screenshots. On this
+A full capture is 188 states, so a set of both themes on the four default profiles is 1,504 screenshots. On this
 4-core machine under a second builder's load, Chromium takes about 9 s a state; run the two themes as two processes.
 
 ## Motion test mode

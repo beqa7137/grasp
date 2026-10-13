@@ -26,6 +26,8 @@ export type PlayerIntroChoice = 'pattern' | 'code';
     }
   `,
   styles: `
+    @use '../../../type' as *;
+
     :host {
       display: flex;
       flex-direction: column;
@@ -35,7 +37,7 @@ export type PlayerIntroChoice = 'pattern' | 'code';
     h2 {
       margin: 0;
       font: inherit;
-      font-weight: 700;
+      @include title;
     }
     .meta {
       display: flex;

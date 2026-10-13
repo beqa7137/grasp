@@ -115,7 +115,7 @@ header {
     font-size: 0.75rem;
   }
   strong {
-    font: 600 0.8125rem var(--g-font-display);
+    font: 600 var(--g-text-body-s) var(--ion-font-family);
   }
   span {
     font: 0.71875rem var(--g-font-mono);
@@ -132,7 +132,7 @@ header {
   div {
     padding: 8px 12px;
     border-radius: 10px;
-    background: var(--g-raised);
+    background: var(--g-sunken);
   }
   dt {
     font-size: 0.6875rem;
@@ -176,7 +176,7 @@ header {
     border-radius: 7px;
     display: grid;
     place-items: center;
-    background: var(--g-surface);
+    background: var(--g-sunken);
     color: var(--g-muted);
     font: 600 0.75rem var(--g-font-mono);
   }

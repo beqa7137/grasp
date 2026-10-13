@@ -781,6 +781,9 @@ These are scripted e2e journeys from a cold start, on Pixel 7 and desktop. Each 
 - It allows `var(--g-…)`, the existing `chrome-font-size()` helper, `inherit`, `0` and `50%`.
 - It compares counts per file against a committed baseline that may only go down. Today there are 43 font sizes and 77 padding values.
 - Migrated files must reach 0.
+- R6 note: those counts were never measured that way; by R0's rules the ratchet held 610 raw values in 107 files. R6
+  added spacing (1,031 values) and the tokens, mixins and roles 5.2's R6 note lists; it now holds 1,600 in 111 files
+  (font-size 479, spacing 1,025, border-radius 90, media 6).
 
 **Theme fixes:**
 
@@ -2063,6 +2066,61 @@ Iterations are ordered by impact, alternating between organization and visuals. 
   - a pixdiff review of all states in both themes, with every differing screenshot read;
   - light secondary buttons are not darker than the surface.
 - **Content review:** none.
+- **R6 note:** what the scope's items became.
+  - **Ratchet.** It has enforced since R0 (there is no report mode, LOOP.md's R0 decisions), so "report to enforce" is
+    the tokens and mixins that let counts fall. R6 adds spacing to what it counts (`tools/verify/README.md`): padding,
+    margin, gap and Ionic's `--padding-*`, `--inner-padding-*` and `--margin-*`, negative lengths included, `em` exempt.
+  - **Size tokens** in `styles.scss`: `--g-space-1..8`, `--g-radius-xs/sm/md/lg/pill` (`--g-radius` became `-md`;
+    `-sm` moved from 9 to 10px), the nine `--g-text-*` roles (display-xl `clamp(1.625rem, 5vw, 2.25rem)`, display-l
+    1.5rem, title-l 1.25rem, title-m 1.0625rem, title-s 0.9375rem, body-l 1rem, body 0.875rem, body-s 0.8125rem, label
+    0.6875rem: the most used value of each role, so migrations move little) and `--g-width-reading/content/workbench`.
+    A token replaced a raw value only where it was identical; off-scale values wait for their components' migrations.
+    640 (Settings) and 780 (interview session) stay until R7 and R36 rebuild those pages.
+  - **Breakpoints** are mixins (`src/_breakpoints.scss`: `phone`, `tabs`, `desktop`, `wide`, `container-narrow`,
+    `container-medium`, `container-wide`), since a media query cannot read a custom property. `phone` keeps the app's
+    `max-width: 560px`. The nine plain queries at sanctioned widths use them, compiling to identical CSS; the six raw
+    queries the ratchet counts stay with the iterations that rebuild their pages (sandbox 720 and 1040: R21/R22; star
+    editor 720: R37; workspace 900: R16; bucketing 400: R46).
+  - **Status tones** are a semantic layer in `_theme.scss` over today's primitives, so the split changed no colour:
+    success is `found`, info is `active`, ink is the existing `-ink` (light info ink #015a8a, darker than active, which
+    reaches only 4.46:1 on its own wash over the sunken well), line and fill are the base hue, soft is a 12% wash.
+    `styles.scss`'s answer choices, answer marks and error toast use them; the other components move as their files
+    migrate. `theme-contrast.spec.ts` checks every tone's four roles exist and nothing else, ink at 4.5:1 on all four
+    surfaces and on its own wash, text on every wash, line and fill at 3:1, line on its own wash, and text on each fill.
+    Light warn and predict fills never paint a background (a source test in `style-tokens.test.mjs`).
+  - **Label role** is `.eyebrow`, through `@mixin label` in `src/_type.scss` (Inter 600, `--g-text-label`, 0.12em,
+    uppercase; each rule keeps its own line-height, so the player's list labels stay `line-height: 1`). The 11 component
+    rules include it and keep their colours; `_type.scss` is the only file allowed `text-transform: uppercase`.
+  - **Light raised and sunken.** `--g-raised` is #ffffff and `--g-sunken` #eef0f5. Of the 61 `--g-raised` uses, 25 stay
+    raised (controls, chips, toast, tooltip and diagram cells and nodes, each with a border) and 36 move to sunken
+    (wells, readouts, inset groups, plain-text code, tracks, bars, charts, timelines and maps, with the strokes that cut
+    gaps in their marks). The 8 component backgrounds on `--g-bg` stay: the transport, the drill's rating bar and the
+    interview footer are page level, the review card's diagram and code wells hold colours checked on the page, and the
+    player's input fields are controls. Every raised control a learner presses takes `--g-shadow-raised`: `.g-btn` (not
+    `.ghost`), `.g-choice` (not a `li`), link and button chips, the chip radios, the Lab's palette buttons, shard keys
+    and insights, the feedback rating dots and the scrub guard's hold chip. Raised fields (the Lab's, case's and
+    estimate inputs, the availability select, the plan's date and the study time) keep a border and no shadow until R7's
+    skins settle the text fields' surface. An answer choice's number key is sunken, in the question card as in the
+    player. The raised border stays `--g-line-strong` (1.6:1 on the surface): WCAG 1.4.11 asks no boundary of a control
+    its text label identifies, and the border and shadow mark the edge.
+  - **Dark steps:** surface #141824, raised #1c2130, sunken #0f121a (between the page and the card); `--g-shadow` and
+    `--g-shadow-raised` are a 1px inner top highlight, `--g-shadow-overlay` adds a real drop shadow. Faint lightens to
+    #828a9e (4.5:1 on raised), the syntax comment to #a0a8bc (4.5:1 on the code selection) and the search window to a
+    14% wash (muted text 4.64:1 on it).
+  - **No panel inside a panel.** `templates.spec.ts` follows component selectors across templates (`class`,
+    `[class.panel]`, `[ngClass]` and a host `class`) and pins the three cases it finds, each until its page's iteration:
+    the quick check in the pattern page (R16) and in the design topic page (R30), and the STAR editor in the behavioral
+    answer (R37). The third never renders: the walk does not evaluate `@if`, and the answer sets `[coached]="false"`,
+    which hides the editor's checks panel, so R37 only removes the entry.
+  - **Space Grotesk**, as a rule a reviewer can check (`e2e/tests/type.spec.ts`, the visualizer's intro popover and
+    Mock's Recent list included, and the loop debrief in `mock-loop.spec.ts`): h1 and `.display` at 20px or more keep
+    it, and so do h2 and h3 at 20px or more outside a card (`.panel`, `.card`, `.card-link`); every h2 to h4 inside a
+    card, and every heading or title under 20px, is Inter 600 with normal tracking (`@mixin title`), except a label
+    (`.eyebrow`) and a monospaced identifier or readout (`.mono`: the Lab's connection rps, the reconcile widget's order
+    id), which keeps code type until the JetBrains Mono rule above is applied. One global rule in `styles.scss` gives it
+    to every h2 to h4 in a card; a component includes the mixin only for a heading or title under 20px outside one.
+    Ionic runs in iOS mode on every platform, so `ion-title` is 17px everywhere and takes Inter. Stage text follows 3.6
+    (the grid's start and goal tags in JetBrains Mono 600).
 
 **R7 Chrome components.**
 

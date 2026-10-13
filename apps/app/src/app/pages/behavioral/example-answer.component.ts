@@ -34,6 +34,8 @@ export const STAR_LABELS = [
     </dl>
   `,
   styles: `
+    @use '../../../type' as *;
+
     :host {
       display: block;
     }
@@ -46,10 +48,7 @@ export const STAR_LABELS = [
       gap: 10px;
     }
     dt {
-      font-weight: 600;
-      font-size: 0.8125rem;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
+      @include label;
       color: var(--g-accent);
     }
     dd {

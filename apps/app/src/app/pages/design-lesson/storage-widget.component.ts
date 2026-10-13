@@ -104,7 +104,7 @@ const SLIDERS: Slider[] = [
     }
     .engine h3 {
       margin: 0 0 6px;
-      font-size: 0.9375rem;
+      font-size: var(--g-text-title-s);
     }
     .readouts {
       grid-template-columns: repeat(2, minmax(0, 1fr));

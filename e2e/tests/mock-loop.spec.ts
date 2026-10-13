@@ -3,6 +3,7 @@ import type { Page, Route } from '@playwright/test';
 import { randomInt, randomUUID } from 'node:crypto';
 import { type GitHubUser, signInToGitHub } from '../support/github';
 import { expect, synced, test } from './fixtures';
+import { typeFindings } from './type-rules';
 
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
@@ -140,6 +141,8 @@ test('a signed-out learner runs a scripted loop of three rounds to one debrief, 
   expect(rounds.map((r) => r.track)).toEqual(['coding', 'system-design', 'behavioral']);
   expect(event['at']).toBe(rounds[2].at);
   expect(await seriousViolations(page)).toEqual([]);
+  // REDESIGN.md 3.2: the debrief's prompts were the cramped Space Grotesk headings that Inter 600 replaces.
+  expect(await typeFindings(page)).toEqual({ small: [], titles: [], display: [], labels: [] });
 
   await page.reload();
   await expect(loop.getByRole('heading', { name: 'Loop debrief', level: 1 })).toBeVisible();

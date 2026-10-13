@@ -102,7 +102,7 @@ const SLIDERS: { key: Setting; label: string; unit: string; spoken: (v: number) 
       margin: 0 0 12px;
       padding: 10px 12px;
       border-radius: var(--g-radius-sm);
-      background: var(--g-raised);
+      background: var(--g-sunken);
       font-size: 0.875rem;
       line-height: 1.5;
       outline: none;

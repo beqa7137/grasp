@@ -99,6 +99,15 @@ export function designStates() {
     { id: 'design-missions', path: '/design/missions' },
     { id: 'sandbox', path: '/design/missions/first-scale-up' },
     { id: 'sandbox-inspector', path: '/design/missions/first-scale-up', setup: (p) => answerFirst(p, '.palette .tool') },
+    {
+      id: 'sandbox-edge-inspector',
+      path: '/design/missions/first-scale-up',
+      setup: async (p) => {
+        await p.locator('.edge .hit').first().dispatchEvent('pointerdown');
+        await p.locator('.inspector h2.mono').scrollIntoViewIfNeeded();
+        await settle(p, 500);
+      },
+    },
     { id: 'sandbox-leaderboard', path: '/design/missions/leaderboard-budget' },
     { id: 'sandbox-attachments', path: '/design/missions/mail-attachments' },
     { id: 'sandbox-attachments-cleared', path: '/design/missions/mail-attachments', setup: clearAttachments },

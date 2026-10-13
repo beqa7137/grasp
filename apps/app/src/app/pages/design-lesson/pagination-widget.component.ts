@@ -74,7 +74,7 @@ const SIZES = [20, 50, 100];
       font-size: 0.8125rem;
       padding: 8px 10px;
       border-radius: 8px;
-      background: var(--g-raised);
+      background: var(--g-sunken);
       overflow-wrap: anywhere;
       margin: 4px 0 12px;
     }

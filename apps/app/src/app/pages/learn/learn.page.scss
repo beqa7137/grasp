@@ -1,4 +1,5 @@
 @use '../../../chrome' as *;
+@use '../../../breakpoints' as *;
 
 .wordmark {
   font: 700 22px var(--g-font-display);
@@ -36,7 +37,7 @@
   ion-icon {
     font-size: 16px;
   }
-  @media (max-width: 560px) {
+  @include phone {
     .sync-label {
       position: absolute;
       width: 1px;
@@ -98,7 +99,7 @@
   flex-wrap: wrap;
   gap: 10px;
 
-  @media (max-width: 560px) {
+  @include phone {
     display: grid;
     grid-template-columns: 1fr 1fr;
   }
@@ -128,7 +129,7 @@
   }
   strong {
     display: block;
-    font: 600 1.125rem/1.1 var(--g-font-display);
+    font: 600 1.125rem/1.1 var(--ion-font-family);
   }
   span {
     font-size: 0.75rem;
@@ -149,7 +150,7 @@
   margin-top: 10px;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
 
-  @media (max-width: 560px) {
+  @include phone {
     grid-template-columns: 1fr 1fr;
     gap: 8px;
     .tile:last-child:nth-child(odd) {
@@ -294,7 +295,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  @media (max-width: 560px) {
+  @include phone {
     width: 100%;
     .g-btn.primary {
       flex: 1;

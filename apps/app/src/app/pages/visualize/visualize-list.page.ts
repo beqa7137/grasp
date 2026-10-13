@@ -72,8 +72,10 @@ import { CodeTextComponent } from '../../viz/code-text.component';
     p {
       margin: 0;
       line-height: 1.5;
-      font-size: 0.875rem;
       flex: 1;
+    }
+    p:not(.eyebrow) {
+      font-size: 0.875rem;
     }
     .bottom {
       display: flex;

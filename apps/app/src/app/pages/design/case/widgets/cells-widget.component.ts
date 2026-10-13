@@ -172,7 +172,7 @@ interface Box {
       margin: 0 auto 8px;
       overflow: hidden;
       border-radius: var(--g-radius-sm);
-      background: var(--g-raised);
+      background: var(--g-sunken);
     }
     .grid {
       stroke: var(--g-line-strong);
@@ -214,7 +214,7 @@ interface Box {
     }
     .user {
       fill: var(--g-text);
-      stroke: var(--g-raised);
+      stroke: var(--g-sunken);
       stroke-width: 0.4;
     }
     .legend-list {

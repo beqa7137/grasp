@@ -148,7 +148,7 @@ const BOTTOM = 92;
       max-width: 520px;
       margin: 4px auto 0;
       border-radius: var(--g-radius-sm);
-      background: var(--g-raised);
+      background: var(--g-sunken);
     }
     .axis {
       stroke: var(--g-text);
@@ -166,7 +166,7 @@ const BOTTOM = 92;
     }
     .exposed {
       fill: var(--g-danger-ink);
-      stroke: var(--g-raised);
+      stroke: var(--g-sunken);
       stroke-width: 1;
     }
     .axis-labels {
