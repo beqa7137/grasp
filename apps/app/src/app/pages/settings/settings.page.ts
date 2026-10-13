@@ -5,15 +5,17 @@ import { AuthService } from '../../core/auth.service';
 import { LearnerService } from '../../core/learner.service';
 import { MotionPreferenceService } from '../../core/motion-preference.service';
 import { type MotionPreference } from '../../core/motion';
-import { RovingSelectDirective } from '../../core/roving-select.directive';
 import { RuntimeConfigService } from '../../core/runtime-config.service';
 import { ShortcutsService } from '../../core/shortcuts.service';
 import { type ThemePreference, ThemeService } from '../../core/theme.service';
 import { AI_DISCLOSURE } from '../../core/ai-disclosure';
 import { PilotService } from '../../pilot/pilot.service';
 import { AccountSettingsComponent } from './account-settings.component';
-import { type Choice, StudySettingsComponent } from './study-settings.component';
+import { StudySettingsComponent } from './study-settings.component';
 import { BackComponent } from '../../ui/back.component';
+import { PageHeaderComponent } from '../../ui/page-header.component';
+import { SectionComponent } from '../../ui/section.component';
+import { SegmentedComponent, type SegmentOption } from '../../ui/segmented.component';
 
 @Component({
   selector: 'app-settings',
@@ -27,7 +29,9 @@ import { BackComponent } from '../../ui/back.component';
     IonContent,
     AccountSettingsComponent,
     StudySettingsComponent,
-    RovingSelectDirective,
+    PageHeaderComponent,
+    SectionComponent,
+    SegmentedComponent,
   ],
   template: `
     <ion-header [translucent]="true">
@@ -38,42 +42,39 @@ import { BackComponent } from '../../ui/back.component';
     </ion-header>
     <ion-content [fullscreen]="true">
       <div class="page narrow">
-        <h1 class="visually-hidden">Settings</h1>
-        <app-account-settings />
+        <g-page-header heading="Settings" />
 
         <app-study-settings />
 
-        <section class="panel block">
-          <h2>Appearance</h2>
-          <div class="row" role="radiogroup" aria-labelledby="theme-label" aria-describedby="theme-hint">
+        <g-section heading="Appearance">
+          <div class="g-setting">
             <strong id="theme-label">Theme</strong>
             <p class="muted small" id="theme-hint">System follows your device's light or dark mode. On this device only.</p>
-            <div class="g-chip-radios">
-              @for (t of themes; track t.value) {
-                <button role="radio" [attr.aria-checked]="theme.preference() === t.value" (click)="theme.setPreference(t.value)">
-                  {{ t.label }}
-                </button>
-              }
-            </div>
+            <g-segmented
+              [options]="themes"
+              [value]="theme.preference()"
+              (valueChange)="theme.setPreference($event!)"
+              labelledby="theme-label"
+              describedby="theme-hint"
+            />
           </div>
-          <div class="row" role="radiogroup" aria-labelledby="motion-label" aria-describedby="motion-hint">
+          <div class="g-setting">
             <strong id="motion-label">Motion</strong>
             <p class="muted small" id="motion-hint">
               System follows your device's reduce motion setting. Page transitions follow this after the app restarts. On this device only.
             </p>
-            <div class="g-chip-radios">
-              @for (m of motions; track m.value) {
-                <button role="radio" [attr.aria-checked]="motion.preference() === m.value" (click)="motion.setPreference(m.value)">
-                  {{ m.label }}
-                </button>
-              }
-            </div>
+            <g-segmented
+              [options]="motions"
+              [value]="motion.preference()"
+              (valueChange)="motion.setPreference($event!)"
+              labelledby="motion-label"
+              describedby="motion-hint"
+            />
           </div>
-        </section>
+        </g-section>
 
-        <section class="panel block">
-          <h2>Keyboard</h2>
-          <div class="row g-control-row">
+        <g-section heading="Keyboard">
+          <div class="g-setting g-control-row">
             <div>
               <strong>Single-key shortcuts</strong>
               <p class="muted small" id="character-keys-hint">
@@ -91,39 +92,12 @@ import { BackComponent } from '../../ui/back.component';
               <span class="track"><span class="knob"></span></span>
             </label>
           </div>
-        </section>
+        </g-section>
 
-        <section class="panel block">
-          <h2>Your data</h2>
-          <p class="muted">
-            Grasp stores your learning events, interview sessions and feedback
-            {{
-              auth.signedIn()
-                ? 'in your account, and syncs your behavioral stories there too'
-                : 'under an anonymous id; your behavioral stories stay on this device until you sign in'
-            }}. {{ aiDisclosure }}
-          </p>
-          <div class="row g-control-row">
-            <div>
-              <strong>Export</strong>
-              <p class="muted small">Download everything we store about you as JSON{{ auth.signedIn() ? ', stories included' : '' }}.</p>
-            </div>
-            <button class="g-btn" [disabled]="busy()" (click)="exportData()">Export</button>
-          </div>
-          <div class="row g-control-row">
-            <div>
-              <strong>Delete</strong>
-              <p class="muted small">
-                Erase your data{{ auth.signedIn() ? ' and your account' : '' }} on our server and on this device, and start fresh.
-              </p>
-            </div>
-            <button class="g-btn danger" [disabled]="busy()" (click)="confirmDelete()">Delete…</button>
-          </div>
-        </section>
+        <app-account-settings />
 
-        <section class="panel block">
-          <h2>Pilot</h2>
-          <div class="row g-control-row">
+        <g-section heading="Pilot">
+          <div class="g-setting g-control-row">
             <div>
               <strong>Send feedback</strong>
               <p class="muted small">Bugs, confusing bits and ideas all help.</p>
@@ -134,39 +108,44 @@ import { BackComponent } from '../../ui/back.component';
             Learner {{ learner.id().slice(0, 8) }} · {{ runtime.config().environment
             }}{{ runtime.config().release ? ' · ' + runtime.config().release : '' }}
           </p>
-        </section>
+        </g-section>
+
+        <g-section heading="Your data">
+          <p class="muted">
+            Grasp stores your learning events, interview sessions and feedback
+            {{
+              auth.signedIn()
+                ? 'in your account, and syncs your behavioral stories there too'
+                : 'under an anonymous id; your behavioral stories stay on this device until you sign in'
+            }}. {{ aiDisclosure }}
+          </p>
+          <div class="g-setting g-control-row">
+            <div>
+              <strong>Export</strong>
+              <p class="muted small">Download everything we store about you as JSON{{ auth.signedIn() ? ', stories included' : '' }}.</p>
+            </div>
+            <button class="g-btn" [disabled]="busy()" (click)="exportData()">Export</button>
+          </div>
+          <div class="g-setting g-control-row">
+            <div>
+              <strong>Delete</strong>
+              <p class="muted small">
+                Erase your data{{ auth.signedIn() ? ' and your account' : '' }} on our server and on this device, and start fresh.
+              </p>
+            </div>
+            <button class="g-btn danger" [disabled]="busy()" (click)="confirmDelete()">Delete…</button>
+          </div>
+        </g-section>
       </div>
     </ion-content>
   `,
   styles: `
-    .narrow {
-      max-width: 640px;
-    }
-    .block {
-      padding: 18px 18px 8px;
-      margin-bottom: 16px;
-    }
-    h2 {
-      font-size: var(--g-text-title-m);
-      line-height: 1.2;
-      margin: 0 0 8px;
-    }
-    .row {
-      padding: 12px 0;
-      border-top: 1px solid var(--g-line);
-    }
-    .row p {
-      margin: 2px 0 0;
-    }
-    .g-chip-radios {
-      margin-top: 10px;
-    }
-    .small {
-      font-size: 0.8125rem;
+    g-segmented {
+      margin-top: var(--g-space-3);
     }
     .g-btn.danger {
-      color: var(--g-danger);
-      border-color: rgba(var(--g-danger-rgb), 0.45);
+      color: var(--g-danger-ink);
+      border-color: var(--g-danger-line);
     }
   `,
 })
@@ -181,13 +160,13 @@ export class SettingsPage {
   readonly auth = inject(AuthService);
   readonly shortcuts = inject(ShortcutsService);
   readonly theme = inject(ThemeService);
-  readonly themes: Choice<ThemePreference>[] = [
+  readonly themes: SegmentOption<ThemePreference>[] = [
     { value: 'system', label: 'System' },
     { value: 'light', label: 'Light' },
     { value: 'dark', label: 'Dark' },
   ];
   readonly motion = inject(MotionPreferenceService);
-  readonly motions: Choice<MotionPreference>[] = [
+  readonly motions: SegmentOption<MotionPreference>[] = [
     { value: 'system', label: 'System' },
     { value: 'reduced', label: 'Reduced' },
     { value: 'full', label: 'Full' },

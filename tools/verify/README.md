@@ -34,8 +34,8 @@ providers, so every sign-in test times out.
     intended change runs `node scripts/first-paint-bytes.mjs --update` in `apps/app`, commits the new baseline and states
     the old and new bytes in LOOP.md. A shrink lowers the baseline the same way, so the freed room never becomes silent
     headroom;
-  - a closure chunk carries a module under `src/app/viz/` or the engine's `viz/`. Two are allowlisted until they leave
-    first paint (`mastery-ring` and `code-text`); one that has left must leave the allowlist too;
+  - a closure chunk carries any module under `src/app/viz/` or the engine's `viz/` (none is allowed since R7 moved
+    `mastery-ring` to `ui/`);
   - `stats.json` is not from the build in `browser/` (after a development build, say).
 
   `first-paint-bytes.test.mjs` tests the same logic on fixture metafiles in `npm test`; it reads no build. REDESIGN.md 5.0
@@ -108,7 +108,7 @@ providers, so every sign-in test times out.
 
 Screenshots, axe violations, page errors and sideways overflow for every page state listed in `states/`, one file per
 area: `learn.mjs` (Today, the Coding hub's segments, visualizers at a checkpoint and answered, the player's ⋯ panel, a held scrub guard and its tick
-states, review and practice cards and the review summary, the
+states, review and practice cards, the review and practice summaries and the caught-up review, Settings at its top and scrolled, the
 code workspace and an accepted submission, the study plan empty and set, the placement check's question and results,
 dialogs), `design.mjs` (the Design hub's segments, Lab missions, case studies and their widgets, design lessons) and
 `interview.mjs` (the Mock hub and interviews, the mock loop at setup, between rounds and at its debrief, and the Behavioral
@@ -150,7 +150,7 @@ BASE=https://grasp-rho-taupe.vercel.app THEME=light OUT=verify-out/prod READONLY
   browser version stops at once. The last line says whether `OUT` now holds every state on every profile it has, or
   names what is missing.
 
-A full capture is 188 states, so a set of both themes on the four default profiles is 1,504 screenshots. On this
+A full capture is 191 states, so a set of both themes on the four default profiles is 1,528 screenshots. On this
 4-core machine under a second builder's load, Chromium takes about 9 s a state; run the two themes as two processes.
 
 ## Motion test mode

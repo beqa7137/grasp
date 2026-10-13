@@ -11,15 +11,12 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
-import { DatePipe } from '@angular/common';
-import { RouterLink } from '@angular/router';
 import { IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
 import {
   RATING,
   formatInterval,
   generateQuestion,
   getPatternSummary,
-  getScenarioSummary,
   getSdTopic,
   newSeed,
   practiceSet,
@@ -28,16 +25,15 @@ import {
   type ReviewRating,
 } from '@grasp/engine';
 import { addIcons } from 'ionicons';
-import { arrowForward, flame, gitNetworkOutline, leafOutline, pulseOutline, timeOutline } from 'ionicons/icons';
+import { arrowForward, flame, timeOutline } from 'ionicons/icons';
 import { haptic } from '../../core/haptics';
 import { onPageKey } from '../../core/on-page-key';
 import { ProgressService } from '../../core/progress.service';
 import { ShortcutsService } from '../../core/shortcuts.service';
-import { ForecastComponent } from '../../review/forecast.component';
 import { QuestionCardComponent, type CardReason } from '../../review/question-card.component';
 import { BackComponent } from '../../ui/back.component';
-import { CrossLinkDirective } from '../../ui/cross-link.directive';
-import { drillLink, lessonLink } from '../../core/links';
+import { lessonLink } from '../../core/links';
+import { DrillSummaryComponent, type DrillScore } from './drill-summary.component';
 
 interface Slot {
   itemId: string;
@@ -61,25 +57,11 @@ const MAX_REQUEUES_PER_ITEM = 2;
 @Component({
   selector: 'app-drill',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
-    CrossLinkDirective,
-    BackComponent,
-    RouterLink,
-    DatePipe,
-    IonHeader,
-    IonToolbar,
-    IonButtons,
-    IonTitle,
-    IonContent,
-    IonIcon,
-    QuestionCardComponent,
-    ForecastComponent,
-  ],
+  imports: [BackComponent, IonHeader, IonToolbar, IonButtons, IonTitle, IonContent, IonIcon, QuestionCardComponent, DrillSummaryComponent],
   templateUrl: './drill.page.html',
   styleUrl: './drill.page.scss',
 })
 export class DrillPage {
-  readonly drillLink = drillLink;
   readonly pattern = input<string>();
   readonly progress = inject(ProgressService);
   readonly shortcuts = inject(ShortcutsService);
@@ -110,7 +92,6 @@ export class DrillPage {
     const id = this.pattern();
     return id ? lessonLink(id) : '/today';
   });
-  readonly correctCount = computed(() => this.results().filter((r) => r.correct).length);
 
   readonly previews = computed(() => {
     const slot = this.current();
@@ -126,19 +107,20 @@ export class DrillPage {
     };
   });
 
-  readonly missedTopics = computed(() => {
-    const topics = [
-      ...new Set(
-        this.results()
-          .filter((r) => !r.correct)
-          .map((r) => r.topic),
-      ),
-    ];
-    return topics.map((t) => ({ id: t, name: getPatternSummary(t)?.name ?? getSdTopic(t)?.name ?? t }));
+  readonly score = computed((): DrillScore | null => {
+    if (!this.finished()) return null;
+    const results = this.results();
+    const missed = [...new Set(results.filter((r) => !r.correct).map((r) => r.topic))];
+    return {
+      correct: results.filter((r) => r.correct).length,
+      total: results.length,
+      minutes: this.minutes(),
+      missed: missed.map((t) => ({ id: t, name: getPatternSummary(t)?.name ?? getSdTopic(t)?.name ?? t })),
+    };
   });
 
   constructor() {
-    addIcons({ arrowForward, flame, leafOutline, timeOutline, pulseOutline, gitNetworkOutline });
+    addIcons({ arrowForward, flame, timeOutline });
     effect(() => {
       this.pattern();
       untracked(() => this.start());
@@ -211,10 +193,6 @@ export class DrillPage {
       }
     }
     this.next();
-  }
-
-  scenarioTitle(id: string) {
-    return getScenarioSummary(id)?.title ?? id;
   }
 
   private onKey(e: KeyboardEvent) {

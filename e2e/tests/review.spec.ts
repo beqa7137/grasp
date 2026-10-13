@@ -16,6 +16,14 @@ test('a review session grades every card and schedules the next review', async (
     await expect(summary.or(page.locator('g-question-card .choice:enabled').first())).toBeVisible();
   }
   await expect(page.getByText('Next review', { exact: true })).toBeVisible();
+  // The summary replaces the card: focus moves to its score, and its next step shows without scrolling, above the tab bar.
+  await expect(page.getByRole('heading', { name: /^\d+\/\d+$/ })).toBeFocused();
+  const keepGoing = page.getByRole('button', { name: /^Keep going/ });
+  await expect(keepGoing).toBeVisible();
+  const tabBar = await page.locator('ion-tab-bar').boundingBox();
+  const bottom = tabBar?.height ? tabBar.y : page.viewportSize()!.height;
+  const box = (await keepGoing.boundingBox())!;
+  expect(box.y + box.height).toBeLessThanOrEqual(bottom);
   await sync;
 });
 

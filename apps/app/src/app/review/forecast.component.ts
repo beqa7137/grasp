@@ -4,7 +4,7 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
   selector: 'g-forecast',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="bars" role="img" [attr.aria-label]="summary()">
+    <div class="bars" role="img" [class.empty]="empty()" [attr.aria-label]="summary()">
       @for (d of bars(); track d.day) {
         <div class="col">
           <span class="n mono">{{ d.count || '' }}</span>
@@ -23,6 +23,10 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
       grid-template-columns: repeat(7, 1fr);
       gap: 6px;
       height: 104px;
+    }
+    /* With nothing due all week the bars are flat, so the chart keeps only their row. */
+    .bars.empty {
+      height: auto;
     }
     .col {
       display: flex;
@@ -64,6 +68,8 @@ export class ForecastComponent {
       label: i === 0 ? 'Today' : new Date(`${d.day}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short' }),
     }));
   });
+
+  readonly empty = computed(() => this.days().every((d) => d.count === 0));
 
   readonly summary = computed(() =>
     this.days()

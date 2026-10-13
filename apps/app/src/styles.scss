@@ -205,6 +205,10 @@ ion-tab-button {
   color: var(--g-muted);
 }
 
+.small {
+  font-size: var(--g-text-body-s);
+}
+
 .chip {
   display: inline-flex;
   align-items: center;
@@ -532,6 +536,31 @@ ion-alert .alert-button.ion-focused {
   > :first-child {
     flex: 1 1 0;
     min-width: min(8em, 100%);
+  }
+}
+
+// The text field skin, with `TextareaDirective` (ui/textarea.directive.ts): a sunken well that grows with its text and has
+// no resize grip.
+.g-textarea {
+  display: block;
+  width: 100%;
+  resize: none;
+  field-sizing: content;
+  background: var(--g-sunken);
+  color: var(--g-text);
+  border: 1px solid var(--g-stroke);
+  border-radius: var(--g-radius-sm);
+  padding: var(--g-space-3);
+  font: var(--g-text-body-l) / 1.45 var(--ion-font-family);
+}
+
+// One setting in a Settings card: its text, and its control below or beside it (with .g-control-row).
+.g-setting {
+  padding: var(--g-space-3) 0;
+  border-top: 1px solid var(--g-line);
+
+  p {
+    margin: var(--g-space-1) 0 0;
   }
 }
 

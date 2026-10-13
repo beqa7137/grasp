@@ -115,7 +115,6 @@ const LEVELS: Record<PlanLevel, { label: string; hint: string }> = {
       margin-bottom: 8px;
     }
     .small {
-      font-size: 0.8125rem;
       line-height: 1.45;
     }
     input[type='date'] {

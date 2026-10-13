@@ -116,7 +116,6 @@ const EXAMPLES: { label: string; fates: AttemptFate[] }[] = [
     }
     .small {
       margin: 0 0 6px;
-      font-size: 0.8125rem;
     }
     .steps {
       margin: 0;
