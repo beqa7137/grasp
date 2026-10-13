@@ -21,7 +21,6 @@ import { WorkedExampleComponent } from '../pattern/worked-example.component';
 import { AvailabilityWidgetComponent } from './availability-widget.component';
 import { BatchWidgetComponent } from './batch-widget.component';
 import { BudgetWidgetComponent } from './budget-widget.component';
-import { CacheWidgetComponent } from './cache-widget.component';
 import { CdnWidgetComponent } from './cdn-widget.component';
 import { CrackWidgetComponent } from './crack-widget.component';
 import { DeliveryWidgetComponent } from './delivery-widget.component';
@@ -53,6 +52,7 @@ import { StorageWidgetComponent } from './storage-widget.component';
 import { StreamWidgetComponent } from './stream-widget.component';
 import { TxnWidgetComponent } from './txn-widget.component';
 import { BackComponent } from '../../ui/back.component';
+import { LazyWidgetComponent } from './lazy-widget.component';
 
 /** A system design topic taught hands-on: a widget to experiment with, the ideas to name, worked examples and a quick check. */
 @Component({
@@ -72,7 +72,7 @@ import { BackComponent } from '../../ui/back.component';
     WorkedExampleComponent,
     QuickCheckComponent,
     LatencyWidgetComponent,
-    CacheWidgetComponent,
+    LazyWidgetComponent,
     RingWidgetComponent,
     QueueWidgetComponent,
     ReplicaWidgetComponent,
@@ -138,7 +138,7 @@ import { BackComponent } from '../../ui/back.component';
                   <app-latency-widget />
                 }
                 @case ('cache') {
-                  <app-cache-widget />
+                  <app-lazy-widget [load]="loadCacheWidget" [inputs]="{ experiments: l.widget.experiments ?? [] }" [placeholder]="640" />
                 }
                 @case ('hash-ring') {
                   <app-ring-widget />
@@ -237,12 +237,14 @@ import { BackComponent } from '../../ui/back.component';
                   <app-estimate-drill [drill]="l.widget.drill ?? []" />
                 }
               }
-              <h3>Things to try</h3>
-              <ol class="try">
-                @for (e of l.widget.tryThis; track $index) {
-                  <li><g-code-text [text]="e" /></li>
-                }
-              </ol>
+              @if (l.widget.tryThis; as tryThis) {
+                <h3>Things to try</h3>
+                <ol class="try">
+                  @for (e of tryThis; track $index) {
+                    <li><g-code-text [text]="e" /></li>
+                  }
+                </ol>
+              }
             </section>
 
             <section class="panel block">
@@ -425,6 +427,7 @@ export class DesignLessonPage {
   readonly itemCount = computed(() => itemsForTopic(this.id()).length);
   readonly missions = computed(() => (this.topic()?.scenarioIds ?? []).map((id) => getScenarioSummary(id)!).filter(Boolean));
   readonly cases = computed(() => CASE_CATALOG.filter((c) => c.topics.includes(this.id())));
+  readonly loadCacheWidget = () => import('./cache-widget.component').then((m) => m.CacheWidgetComponent);
 
   constructor() {
     addIcons({

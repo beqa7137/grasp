@@ -972,7 +972,7 @@ A step never has more than 640ms of motion.
 - the element under the learner's finger: it tracks 1:1 and eases only after release;
 - offscreen stages: they pause via IntersectionObserver and `visibilitychange`.
 
-There are no idle loops, except Lab particles while a Run plays.
+There are no idle loops, except Lab particles while a Run plays and a lesson widget's request dots while its stage is in view (R27a, at most 60 live, paused offscreen).
 
 **Interrupts.**
 
@@ -1610,7 +1610,20 @@ WEAK SPOTS  [Drill these · 14 cards]
 - **Same iteration, Replication widget:**
   - one `g-timeline`, with the write at t=0, a draggable "replica applies" marker, a draggable "read" marker, and a read-your-writes band;
   - labels attach to markers with collision nudging. This fixes "writread" (`dark-desktop-lesson-replication-pinned.png`) and the left clipping on phone.
-- **Same iteration, two bug fixes:** the cache hit-rate slider that sticks at its target during refill, and unnumbered stream events.
+- **Same iteration, a bug fix:** unnumbered stream events. (The cache hit-rate slider that stuck at its target during refill went with the Caching widget in R27a, 4.7b.)
+
+### 4.7b System design lesson widget: Caching (`/design/topics/sd-caching`, R27a)
+
+**Before:** two range inputs (hit rate 50 to 99.9%, origin 10 to 200 ms), Flush, three number tiles and three "Things to try" paragraphs; a 4.8 s linear refill timer that ignored what the origin can serve; during refill the slider was disabled at its target while the tile showed the live rate; the origin's capacity was an app constant.
+
+**After**, on one `g-stage` whose height depends only on its width:
+
+- **Flow:** Clients (10,000/s) → Cache → Origin. The cache is a hits | misses bar on a nines scale (one step per nine, room past 99.9% so its misses show), with the hit-rate `g-handle` on the split, snapping to 50, 80, 90, 95, 98, 99, 99.5 and 99.9%. The origin is a load meter on a log scale (10 to 10,000/s) with a capacity `g-handle` snapping to 1,000, 2,000, 4,000 and 10,000/s; over capacity its fill turns critical with one ×, pulsing while a flush plays, and its text reads "10,000/s" over "5× the 2,000/s / it can answer" ("over the 2,000/s / it can answer" under 1.5×). With motion, request dots flow whenever the stage is in view (1 dot = 1,000 requests, paused offscreen and on a hidden page, at most 60 at once): hits bounce off the cache; misses ride above the bar, clear of its labels, and wait at the origin (drawn 8× longer so you can see it), so a slow origin visibly lags; misses over capacity break with ×. The rates are written on the drawing either way, so Reduced motion loses no number.
+- **Readouts in place:** a 10×10 waffle of 100 requests in whole cells ("95 hits", "5 misses answered", "0 timing out now", each with its own mark; "1 in 200 misses" when fewer than 1 in 100 do; two legend lines reserved) with the 99th request ringed, so p99 visibly is a miss once more than 1 in 100 miss; mean and p99 beside it, "a miss" or "a hit" under p99, "timing out" over capacity.
+- **Chart:** always reserved; before a flush it says "Flush the cache to see the miss storm". After one, `g-chart-frame` draws origin load (fixed 0 to 10,000/s) and the hit rate (dashed, 0 to 100%) over 20 simulated seconds from the engine's `cacheRefill`, long enough for every setting but the lowest hit rates on the smallest origins to warm again, with the capacity threshold, the over-capacity span shaded and named in the legend with the requests lost so far ("over capacity until 5.7 s, 21,000 timed out", the total once warm; "over capacity throughout, N timed out so far" when the origin never gets back under capacity within the chart, and then no "warm again" and the picture rests on the last sample), the moment the cache is warm again marked, their times as ticks in their tones, a legend under the plot (so no label crosses a line), and a playhead `g-handle` on a track under the time ticks that the flow and waffle follow. With motion the flush plays at 3× (6.7 s) and ends warm ("· warm again" beside the hit rate); without, the whole chart shows with the playhead at the peak. Any setting changed with no play running returns the picture to the warm steady state; Table shows the samples with the playhead's row marked.
+- **During refill** the hit-rate handle stays live: it draws as a dashed target with a target tick, the bar shows the live rate, and dragging changes the target (the run recomputes).
+- **Wide** (stage ≥ 520px): one row for the flow, then the waffle and readouts beside the chart. **Narrow:** clients above the bar, the origin meter under it, then waffle and readouts, then the chart. Under the stage: the origin latency (`g-slider`, 10, 50, 100, 200 ms), Flush the cache and Replay.
+- **Experiments** replace `tryThis`: six cards (one more nine; is p99 a miss; a slow origin behind a good cache; the miss storm; a bigger origin; the challenge "a mean under 3 ms"). A card sets the widget up; the question shows in a dock under the stage, held as "your guess" while 2 s of traffic (or the flush) plays, with the stage scrolled into view on a phone and the settings it is about locked; an interrupted play (Replay, the playhead) reveals at once, and Replay or Flush during a flush always plays again from the empty cache. The focus outline takes in its captions, and its "Look here" tag goes to the first corner place that covers no text. Then the choices are marked, the reveal is read out politely, and its regions get a focus outline ("Look here", pulsed with motion). Every number in a prompt, choice or reveal is a slot `caching-experiments.ts` fills from `cacheSteady` and `cacheRefill`.
 
 ### 4.8 Behavioral hub, Questions and the Mock start (`/behavioral`, `/behavioral/questions`, `/mock`)
 
@@ -1776,57 +1789,58 @@ Every iteration follows CLAUDE.md:
 
 Iterations are ordered by impact, alternating between organization and visuals. **Ships alone** means the iteration needs no other iteration in this plan.
 
-| #   | Iteration                                                                | Depends on             | Ships alone                    |
-| --- | ------------------------------------------------------------------------ | ---------------------- | ------------------------------ |
-| R0  | Measurement baseline                                                     | none                   | yes                            |
-| R1  | First-screen fixes                                                       | none                   | yes                            |
-| R2  | Player stage and checkpoint dock                                         | none                   | yes                            |
-| R3  | Transport and diagram palette                                            | R2                     | yes after R2                   |
-| R4  | Engine release A                                                         | none                   | yes (invisible)                |
-| R5  | Routes, redirects and five tabs                                          | R4                     | no                             |
-| R6  | Tokens and theme                                                         | none                   | yes                            |
-| R7  | Chrome components                                                        | R6                     | yes after R6                   |
-| R8  | Coding hub and Problem library                                           | R5, R7                 | no                             |
-| R9  | Today I: Target and Up next                                              | R4, R5, R7             | no                             |
-| R10 | Desktop rail                                                             | R5, R6                 | no                             |
-| R11 | Design hub I: shelves, missions, cases                                   | R4, R5, R7             | no                             |
-| R12 | Behavioral hub and Questions                                             | R4, R5, R7             | no                             |
-| R13 | Mock hub and rounds                                                      | R4, R5, R7, R12        | no                             |
-| R14 | Today II: readiness, Progress, Continue, Weak spots, plan page           | R9                     | no                             |
-| R15 | Search and naming sweep                                                  | R8, R10, R11, R12, R13 | no                             |
-| R16 | Pattern hub and workspace                                                | R8                     | no                             |
-| R17 | Tracer annotations A: arrays, pointers, lists, stacks, heaps             | none                   | yes (invisible until rendered) |
-| R18 | Tracer annotations B: graphs, trees, grids, tables                       | none                   | yes (invisible until rendered) |
-| R19 | Motion layer: arrays and lists                                           | R3, R17                | no                             |
-| R20 | Checkpoint engine and array picks                                        | R19                    | no                             |
-| R21 | System diagram kit and Lab canvas (desktop)                              | R3, R7                 | no                             |
-| R22 | Lab on phone                                                             | R21                    | no                             |
-| R23 | Graph renderers and node and edge picks                                  | R18, R20               | no                             |
-| R24 | Trees, tables, heaps, hashmaps                                           | R18, R20               | no                             |
-| R25 | Debugger code pane                                                       | R3, R17, R18           | no                             |
-| R26 | Lab editing                                                              | R21                    | no                             |
-| R27 | Charts and timelines kit; Lesson widgets I (Load Balancing, Replication) | R3, R7, R19            | no                             |
-| R28 | Lab Run                                                                  | R21, R22, R27          | no                             |
-| R29 | Case page and diagrams I (9 core cases)                                  | R11, R21               | no                             |
-| R30 | Design hub II: topic links, drills, mission links                        | R11                    | no                             |
-| R31 | Pattern specimen A (5 array patterns)                                    | R16, R20               | no                             |
-| R32 | Pattern specimen B (18 patterns)                                         | R31, R23, R24          | no                             |
-| R33 | Drag acts                                                                | R23, R24               | no                             |
-| R34 | Case widgets I: retries, hot account                                     | R27, R29               | no                             |
-| R35 | Review session                                                           | R14, R20               | no                             |
-| R36 | Interview session, scorecards and mock loop                              | R7, R13                | no                             |
-| R37 | Behavioral practice surfaces                                             | R7, R12                | no                             |
-| R38 | Case diagrams II (18 advanced cases)                                     | R29                    | no                             |
-| R39 | Thumbnails: missions, cases, visualizers                                 | R8, R11, R21, R23, R24 | no                             |
-| R40 | Workspace trace on the kit                                               | R16, R23, R24          | no                             |
-| R41 | Lesson widgets II                                                        | R27                    | no                             |
-| R42 | Lesson widgets III                                                       | R27                    | no                             |
-| R43 | Lesson widgets IV                                                        | R27                    | no                             |
-| R44 | Lesson widgets V                                                         | R27                    | no                             |
-| R45 | Lesson widgets VI                                                        | R27                    | no                             |
-| R46 | Case widgets II                                                          | R27, R29               | no                             |
-| R47 | Case widgets III                                                         | R27, R29               | no                             |
-| R48 | Amazon target                                                            | R14, R12               | no                             |
+| #    | Iteration                                                                   | Depends on             | Ships alone                    |
+| ---- | --------------------------------------------------------------------------- | ---------------------- | ------------------------------ |
+| R0   | Measurement baseline                                                        | none                   | yes                            |
+| R1   | First-screen fixes                                                          | none                   | yes                            |
+| R2   | Player stage and checkpoint dock                                            | none                   | yes                            |
+| R3   | Transport and diagram palette                                               | R2                     | yes after R2                   |
+| R4   | Engine release A                                                            | none                   | yes (invisible)                |
+| R5   | Routes, redirects and five tabs                                             | R4                     | no                             |
+| R6   | Tokens and theme                                                            | none                   | yes                            |
+| R7   | Chrome components                                                           | R6                     | yes after R6                   |
+| R8   | Coding hub and Problem library                                              | R5, R7                 | no                             |
+| R9   | Today I: Target and Up next                                                 | R4, R5, R7             | no                             |
+| R10  | Desktop rail                                                                | R5, R6                 | no                             |
+| R11  | Design hub I: shelves, missions, cases                                      | R4, R5, R7             | no                             |
+| R12  | Behavioral hub and Questions                                                | R4, R5, R7             | no                             |
+| R13  | Mock hub and rounds                                                         | R4, R5, R7, R12        | no                             |
+| R14  | Today II: readiness, Progress, Continue, Weak spots, plan page              | R9                     | no                             |
+| R15  | Search and naming sweep                                                     | R8, R10, R11, R12, R13 | no                             |
+| R16  | Pattern hub and workspace                                                   | R8                     | no                             |
+| R17  | Tracer annotations A: arrays, pointers, lists, stacks, heaps                | none                   | yes (invisible until rendered) |
+| R18  | Tracer annotations B: graphs, trees, grids, tables                          | none                   | yes (invisible until rendered) |
+| R19  | Motion layer: arrays and lists                                              | R3, R17                | no                             |
+| R20  | Checkpoint engine and array picks                                           | R19                    | no                             |
+| R21  | System diagram kit and Lab canvas (desktop)                                 | R3, R7                 | no                             |
+| R22  | Lab on phone                                                                | R21                    | no                             |
+| R23  | Graph renderers and node and edge picks                                     | R18, R20               | no                             |
+| R24  | Trees, tables, heaps, hashmaps                                              | R18, R20               | no                             |
+| R25  | Debugger code pane                                                          | R3, R17, R18           | no                             |
+| R26  | Lab editing                                                                 | R21                    | no                             |
+| R27a | Caching widget, kit and experiments                                         | R3, R7                 | no                             |
+| R27b | Charts and timelines kit II; Lesson widgets I (Load Balancing, Replication) | R27a                   | no                             |
+| R28  | Lab Run                                                                     | R21, R22, R27b         | no                             |
+| R29  | Case page and diagrams I (9 core cases)                                     | R11, R21               | no                             |
+| R30  | Design hub II: topic links, drills, mission links                           | R11                    | no                             |
+| R31  | Pattern specimen A (5 array patterns)                                       | R16, R20               | no                             |
+| R32  | Pattern specimen B (18 patterns)                                            | R31, R23, R24          | no                             |
+| R33  | Drag acts                                                                   | R23, R24               | no                             |
+| R34  | Case widgets I: retries, hot account                                        | R27b, R29              | no                             |
+| R35  | Review session                                                              | R14, R20               | no                             |
+| R36  | Interview session, scorecards and mock loop                                 | R7, R13                | no                             |
+| R37  | Behavioral practice surfaces                                                | R7, R12                | no                             |
+| R38  | Case diagrams II (18 advanced cases)                                        | R29                    | no                             |
+| R39  | Thumbnails: missions, cases, visualizers                                    | R8, R11, R21, R23, R24 | no                             |
+| R40  | Workspace trace on the kit                                                  | R16, R23, R24          | no                             |
+| R41  | Lesson widgets II                                                           | R27a                   | no                             |
+| R42  | Lesson widgets III                                                          | R27a                   | no                             |
+| R43  | Lesson widgets IV                                                           | R27a                   | no                             |
+| R44  | Lesson widgets V                                                            | R27a                   | no                             |
+| R45  | Lesson widgets VI                                                           | R27a                   | no                             |
+| R46  | Case widgets II                                                             | R27a, R29              | no                             |
+| R47  | Case widgets III                                                            | R27a, R29              | no                             |
+| R48  | Amazon target                                                               | R14, R12               | no                             |
 
 **Dependency notes that fix the previous draft:**
 
@@ -1834,8 +1848,9 @@ Iterations are ordered by impact, alternating between organization and visuals. 
 - Pick checkpoints ship per renderer: arrays in R20, graphs in R23, tables and trees in R24. Drags come last (R33). No ask needs a hit target that does not exist yet.
 - The motion layer (R19) animates only arrays, lists, stacks and grids. Trees get motion in R24, after their pre-layout, so Subsets nodes never slide every frame.
 - Every iteration that uses `g-segmented` or sheets (R21, R27, R29 and later) depends on R7.
-- `g-sequence` is built in R27, before the retries widget (R34).
-- R27 was pulled forward by the owner on 2026-10-13, ahead of R8 to R26, and takes the Caching widget (`cache`) from R42; its R19 dependency (the motion layer) must be checked when R27 is planned.
+- `g-sequence` is built in R27b, before the retries widget (R34).
+- R27 was pulled forward by the owner on 2026-10-13, ahead of R8 to R26, and takes the Caching widget (`cache`) from R42. It is split: R27a ships the Caching widget with the kit pieces and experiments framework it needs; R27b adds the rest of the kit with Load Balancing and Replication. R41 to R47 depend on R27a, and on R27b for any kit piece only R27b builds (`g-histogram`, `g-timeline`, `g-sequence`, `sim.worker.ts`).
+- R19 is not a dependency of R27a: its widgets need no FLIP, pacing or trails, only "may script animate now?", which R3's `motionAllowed()` in `core/motion.ts` answers (data-motion, the test mode and the OS setting). Plays are bounded and particles pooled (`viz/kit/particles.ts`), so 3.5's budget holds without R19's `MotionService`.
 
 ### 5.2 Iterations
 
@@ -2430,16 +2445,31 @@ Iterations are ordered by impact, alternating between organization and visuals. 
   - a keyboard-only mission clear still passes.
 - **Content review:** none.
 
-**R27 Charts and timelines kit; Lesson widgets I.**
+**R27a Caching widget, kit and experiments.**
 
 - **Scope:**
-  - `g-chart-frame`: fixed scales, which fixes `overload-widget.component.ts:155`, and axes on the queue, overload, lease and latency charts;
-  - `g-sparkline`, `g-histogram`, `g-timeline` and `g-sequence`;
-  - `sim.worker.ts`;
-  - the experiments framework and the reveal spec;
-  - Load Balancing (4.7);
+  - a cut-down `g-stage` (well, dot grid, a ResizeObserver width so one viewBox unit is one CSS px, `role="group"` with `aria-roledescription`), `g-handle`, `g-chart-frame` (fixed scales, ticks, units, threshold line, shaded spans, a playhead, a data table toggle, end labels nudged apart) and `g-sparkline`;
+  - `viz/kit/particles.ts`: pooled request dots (at most 60 running), a bounded play clock, and pausing offscreen and on a hidden page;
+  - the experiments framework: `ExperimentSpec` templates whose every number is a slot the widget's model fills, `renderExperiment` (the answer is the choice equal to the model's value), the experiment dock and a `held` mode on `widget-check`;
+  - `cacheRefill` in the engine, with the widget's traffic, cache latency, snaps and the origin's capacity moved there from the app;
+  - the Caching widget (4.7b) in its own chunk, which removes the hit-rate slider bug by construction.
+- **Accept:**
+  - the reveal spec renders every experiment's prompt, choices and reveal from the model and fails on a digit outside a slot (`p99` and `100 requests` allowed);
+  - e2e drags and keys the handles, sets up every experiment in one tap, answers and reads the reveal and the focused regions, flushes and scrubs, and counts zero `Element.animate` calls under Reduced motion;
+  - the stage keeps its height through a flush and an experiment, and fits 320px;
+  - first paint within 2 kB of the baseline, no kit module in it, and no slower Design or lesson tap on `timing.mjs`.
+- **Content review:** the experiment predictions and reveals, and the refill model's wording.
+- **R27a note.** The widget's only first-paint change is main's export table (lazy chunks import a few more of its bindings); every glyph comes from the existing set, and `scripts/ionicons-glyphs.test.mjs` fails on a new one, since ionicons ships every imported glyph in a first-paint chunk. `@defer` was not used for the widget's chunk: it pulls Angular's defer runtime into the core chunk, 6.5 kB more on every first paint. `app-lazy-widget` imports the component and creates it instead. The origin latency is a `g-slider`, not a `g-segmented`: a lazy chunk sharing `g-segmented` with the tabs chunk split a first-paint chunk in two (30 files instead of 29), and R3 measured one more first-paint request at 0.25 to 0.47 s on `timing.mjs`'s phone. The capacity snaps are 1,000, 2,000, 4,000 and 10,000/s, so the bigger-origin experiment doubles capacity on a snap.
+
+**R27b Charts and timelines kit II; Lesson widgets I.**
+
+- **Scope:**
+  - `g-chart-frame` on the queue, overload, lease and latency charts, with fixed scales, which fixes `overload-widget.component.ts:155` (it rescales to each run's peak);
+  - `g-histogram`, `g-timeline` and `g-sequence`;
+  - `sim.worker.ts` (app side: Angular compiles `apps/app/src/**/*.worker.ts`), and `balanceRun(..., { samples })` with `series` and `histogram`;
+  - Load Balancing (4.7), with a size container on the lesson page for the `wide` breakout;
   - the Replication timeline;
-  - the cache slider and stream numbering fixes.
+  - the stream numbering fix.
 - **Accept:**
   - the reveal spec recomputes every quoted number;
   - "writread" is gone at all profiles;
@@ -2583,7 +2613,7 @@ Iterations are ordered by impact, alternating between organization and visuals. 
 | #   | Widgets (lesson: widget kind)                                                                                                                                                                                                                                                               |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | R41 | Latency & Queueing: `queue-latency`; Capacity & Scaling: `pipeline`; Reliability: `availability`, as a reliability block diagram; Sharding: `hash-ring`, with the 100-virtual-node band fixed; Storage Engines: `storage-engine`, as B-tree and LSM levels; Consistency & Quorums: `quorum` |
-| R42 | Data Modeling: `feed-model`; Unique IDs: `id-layout`; Durability: `durability`; Backups & Recovery: `recovery`; Caching: `cache`; CDNs & Edge: `cdn`                                                                                                                                        |
+| R42 | Data Modeling: `feed-model`; Unique IDs: `id-layout`; Durability: `durability`; Backups & Recovery: `recovery`; CDNs & Edge: `cdn` (Caching's `cache` moved to R27a)                                                                                                                        |
 | R43 | Search & Indexing: `inverted-index`; Geospatial: `geohash`, reusing the `cells-widget` renderer; Real-Time Delivery: `delivery`; Multi-Region: `multi-region`, as an RTT strip; Queues: `queue-backlog`; Stream Processing: `stream-windows`, with a watermark                              |
 | R44 | Batch: `batch-job`; Backpressure: `overload`; Consensus: `partition`, as votes; Locks & Leases: `lease`; Transactions: `transactions`, as a 2PC vs saga swimlane; Time & Clocks: `clocks`; Service Discovery: `discovery`, as a timeline                                                    |
 | R45 | API Design: `pagination`; Gateways: `gateway`; Rate Limiting: `rate-limiter`, as a token bucket over time; Security: `password-hash`; Multi-Tenancy: `tenancy`; Observability: `error-budget`; plus the Estimation drill restyled on the kit                                                |

@@ -1,6 +1,7 @@
 /** The math behind the system design lesson widgets, kept here so it is tested apart from the drawing. */
 
 export * from './widgets/balancing.js';
+export * from './widgets/caching.js';
 export * from './widgets/clocks.js';
 export * from './widgets/data-modeling.js';
 export * from './widgets/discovery.js';
@@ -24,24 +25,6 @@ export interface Latency {
 export function queueLatency(serviceMs: number, utilization: number): Latency {
   const mean = serviceMs / (1 - Math.min(utilization, 0.999));
   return { mean, p50: mean * Math.LN2, p99: mean * Math.log(100) };
-}
-
-export interface CacheOutcome {
-  originQps: number;
-  meanMs: number;
-  /** Set by the misses whenever more than 1% of requests miss. */
-  p99Ms: number;
-}
-
-/** A cache in front of an origin: every request asks the cache first, and a miss then pays the origin too. */
-export function cacheOutcome(qps: number, hitRate: number, cacheMs: number, originMs: number): CacheOutcome {
-  // Rounded so a 99% hit rate counts as exactly 1% misses, not a floating-point hair more.
-  const miss = Math.round((1 - hitRate) * 1e9) / 1e9;
-  return {
-    originQps: qps * miss,
-    meanMs: cacheMs + miss * originMs,
-    p99Ms: miss > 0.01 ? cacheMs + originMs : cacheMs,
-  };
 }
 
 /**

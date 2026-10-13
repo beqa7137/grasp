@@ -36,6 +36,8 @@ import type { SdLesson } from './types.js';
 
 export type { SdLesson, SdWidget } from './types.js';
 export * from './widgets.js';
+export * from './experiments.js';
+export * from './caching-experiments.js';
 
 export const SD_LESSONS: Readonly<Record<string, SdLesson>> = {
   'sd-latency': LATENCY_LESSON,

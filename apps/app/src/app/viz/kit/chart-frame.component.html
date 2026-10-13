@@ -1,0 +1,80 @@
+<div class="head">
+  <span class="title">{{ heading() }}</span>
+  @if (table()) {
+    <button type="button" class="toggle" [attr.aria-pressed]="showTable()" (click)="showTable.set(!showTable())">Table</button>
+  }
+</div>
+@if (showTable() && table(); as t) {
+  <g-data-table [label]="heading() + ', data'" [head]="t.head" [rows]="t.rows" [active]="tableRow()" [height]="svgHeight()" />
+} @else {
+  @let p = plot();
+  <svg
+    [attr.viewBox]="'0 0 ' + width() + ' ' + svgHeight()"
+    [attr.width]="width()"
+    [attr.height]="svgHeight()"
+    role="img"
+    [attr.aria-label]="summary()"
+  >
+    @for (s of shownSpans(); track $index) {
+      <rect class="span" [attr.x]="s.x" [attr.y]="p.top" [attr.width]="s.width" [attr.height]="p.bottom - p.top" />
+    }
+    @for (t of yTicks(); track $index) {
+      @if (!empty()) {
+        <line class="grid" [attr.x1]="p.left" [attr.x2]="p.right" [attr.y1]="t.y" [attr.y2]="t.y" />
+      }
+      <text class="tick" text-anchor="end" [attr.x]="p.left - 6" [attr.y]="t.y + 4">{{ t.label }}</text>
+    }
+    @for (t of y2Ticks(); track $index) {
+      <text class="tick" [attr.x]="p.right + 6" [attr.y]="t.y + 4">{{ t.label }}</text>
+    }
+    @for (t of xTicks(); track $index) {
+      <text [class]="'tick ' + t.tone" text-anchor="middle" [attr.x]="t.x" [attr.y]="p.bottom + 15">{{ t.label }}</text>
+    }
+    <line class="axis" [attr.x1]="p.left" [attr.x2]="p.right" [attr.y1]="p.bottom" [attr.y2]="p.bottom" />
+    @if (threshold(); as th) {
+      <line class="threshold" [attr.x1]="p.left" [attr.x2]="p.right" [attr.y1]="ys()(th.value)" [attr.y2]="ys()(th.value)" />
+    }
+    @for (m of shownMarkers(); track $index) {
+      <line [class]="'marker ' + m.tone" [attr.x1]="m.x" [attr.x2]="m.x" [attr.y1]="p.top" [attr.y2]="p.bottom" />
+    }
+    @if (empty(); as message) {
+      <text class="empty" text-anchor="middle" [attr.y]="(p.top + p.bottom) / 2 - 4">
+        @for (line of message.split('\n'); track $index) {
+          <tspan [attr.x]="(p.left + p.right) / 2" [attr.dy]="$index ? 17 : 0">{{ line }}</tspan>
+        }
+      </text>
+    } @else {
+      @for (s of series(); track s.id) {
+        <g
+          g-sparkline
+          [class]="'series ' + s.tone"
+          [points]="s.points"
+          [x]="xs()"
+          [y]="s.right ? y2s() : ys()"
+          [upTo]="upTo()"
+          [dashed]="!!s.dashed"
+        />
+      }
+      @if (playheadValues().length) {
+        <line class="playhead" [attr.x1]="playheadX()" [attr.x2]="playheadX()" [attr.y1]="p.top" [attr.y2]="p.bottom + 3" />
+      }
+    }
+  </svg>
+  @if (playheadValues().length && !empty()) {
+    <g-handle
+      knob="dot"
+      [label]="playheadLabel()"
+      [values]="playheadValues()"
+      [positions]="playheadPositions()"
+      [cross]="playheadCross()"
+      [valuetext]="playheadText()"
+      [disabled]="disabled()"
+      [(value)]="playhead"
+    />
+  }
+}
+<ul class="legend">
+  @for (l of legend(); track $index) {
+    <li><span [class]="'key ' + l.kind + ' ' + l.tone" aria-hidden="true"></span>{{ l.label }}</li>
+  }
+</ul>

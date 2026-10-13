@@ -1,5 +1,6 @@
 import type { WorkedExample } from '../../curriculum/lessons/types.js';
 import type { CaseEstimate } from '../cases/types.js';
+import type { ExperimentSpec } from './experiments.js';
 
 export type SdWidget =
   | 'queue-latency'
@@ -42,8 +43,10 @@ export interface SdLesson {
   why: string;
   widget: {
     kind: SdWidget;
-    /** Experiments to run with the widget, each naming what to set and what to notice. */
-    tryThis: readonly string[];
+    /** Experiments to run with the widget, each naming what to set and what to notice; the fallback until `experiments`. */
+    tryThis?: readonly string[];
+    /** Experiment cards that set the widget up, ask a prediction, play and reveal the model's numbers (REDESIGN.md 4.7). */
+    experiments?: readonly ExperimentSpec[];
     /** The estimate drill's questions, typed and judged one at a time. */
     drill?: readonly CaseEstimate[];
   };
