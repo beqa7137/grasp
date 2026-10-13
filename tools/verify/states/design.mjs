@@ -5,6 +5,8 @@ import { BASE, answerFirst, settle } from '../lib.mjs';
 const recommended = (id, stage) => getCaseStudy(id).stages[stage].decision.options.findIndex((o) => o.best);
 
 /** News Feed answers: two stages in progress, or every stage answered with the last one open. */
+/** The Caching widget's panel at the top of the view, so its picture and the controls under it show. */
+const cacheStageToTop = (p) => p.locator('#try').evaluate((panel) => panel.scrollIntoView({ block: 'start' }));
 const NEWS_FEED_POINTS = [4, 2, 2, 5, 5, 5, 3, 4];
 const NEWS_FEED_STARTED = {
   attempt: 'audit-in-progress',
@@ -269,12 +271,22 @@ export function designStates() {
     { id: 'case-message-queue', path: '/design/cases/message-queue' },
     { id: 'case-build-message-queue', path: '/design/cases/message-queue/build' },
     { id: 'lesson-latency', path: '/design/topics/sd-latency', setup: (p) => p.locator('#try').scrollIntoViewIfNeeded() },
+    { id: 'lesson-caching', path: '/design/topics/sd-caching', setup: (p) => cacheStageToTop(p) },
     {
       id: 'lesson-caching-flushed',
       path: '/design/topics/sd-caching',
       setup: async (p) => {
-        await p.locator('#try').scrollIntoViewIfNeeded();
         await p.getByRole('button', { name: 'Flush the cache' }).click();
+        await cacheStageToTop(p);
+      },
+    },
+    {
+      id: 'lesson-caching-revealed',
+      path: '/design/topics/sd-caching',
+      setup: async (p) => {
+        await p.getByRole('button', { name: 'Is p99 a miss?' }).click();
+        await p.getByRole('button', { name: 'It stays at 101 ms' }).click();
+        await cacheStageToTop(p);
       },
     },
     {

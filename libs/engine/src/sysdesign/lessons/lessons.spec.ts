@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { codeSpanProblems } from '../../code-spans.js';
 import { SD_TOPICS } from '../../curriculum/sd-topics.js';
+import { renderExperiment } from './experiments.js';
 import { SD_LESSONS } from './index.js';
 
 const texts = (l: (typeof SD_LESSONS)[string]) => [
   l.why,
-  ...l.widget.tryThis,
+  ...(l.widget.tryThis ?? []),
+  ...(l.widget.experiments ?? []).map(renderExperiment).flatMap((e) => [e.title, e.ask, ...e.choices, e.reveal]),
   ...(l.widget.drill ?? []).flatMap((d) => [d.question, ...d.working]),
   ...l.concepts.flatMap((c) => [c.title, c.body]),
   ...l.examples.flatMap((e) => [e.title, e.problem, e.insight, ...e.steps]),
@@ -18,7 +20,7 @@ describe('system design lessons', () => {
     const topics = new Set(SD_TOPICS.map((t) => t.id));
     for (const [id, l] of Object.entries(SD_LESSONS)) {
       expect(topics.has(id), id).toBe(true);
-      expect(l.widget.tryThis.length, id).toBeGreaterThanOrEqual(2);
+      expect((l.widget.experiments ?? l.widget.tryThis ?? []).length, id).toBeGreaterThanOrEqual(2);
       expect(l.concepts.length, id).toBeGreaterThanOrEqual(3);
       expect(l.examples.length, id).toBeGreaterThanOrEqual(2);
       expect(l.examples.length, id).toBeLessThanOrEqual(4);

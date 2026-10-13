@@ -1,0 +1,141 @@
+@use '../../../type' as *;
+
+:host {
+  position: relative;
+  display: block;
+}
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--g-space-2);
+  height: 28px;
+}
+.title {
+  @include label;
+  color: var(--g-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.toggle {
+  flex: none;
+  height: 26px;
+  padding: 0 var(--g-space-2);
+  border: 1px solid var(--g-line-strong);
+  border-radius: var(--g-radius-xs);
+  background: var(--g-raised);
+  color: var(--g-text);
+  font: 500 var(--g-text-body-s) var(--ion-font-family);
+  cursor: pointer;
+  &[aria-pressed='true'] {
+    background: var(--g-accent-soft);
+    border-color: var(--g-accent);
+  }
+}
+svg {
+  display: block;
+  overflow: visible;
+}
+text {
+  paint-order: stroke;
+  stroke: var(--g-viz-stage);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+.tick {
+  fill: var(--g-muted);
+  font: 500 var(--g-text-label) var(--ion-font-family);
+  font-variant-numeric: tabular-nums;
+}
+.grid {
+  stroke: var(--g-line);
+}
+.axis {
+  stroke: var(--g-line-strong);
+}
+.span {
+  fill: var(--g-danger-soft);
+}
+.threshold {
+  stroke: var(--g-viz-critical);
+  stroke-dasharray: 5 4;
+  stroke-width: 1.5;
+}
+.empty {
+  fill: var(--g-muted);
+  font: 500 var(--g-text-body-s) var(--ion-font-family);
+}
+.tick.final,
+.tick.critical {
+  font-weight: 700;
+}
+.marker {
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
+}
+.ink {
+  color: var(--g-text);
+  fill: var(--g-text);
+}
+.final {
+  color: var(--g-viz-final);
+  fill: var(--g-viz-final-ink);
+}
+.considering {
+  color: var(--g-viz-considering);
+  fill: var(--g-text);
+}
+.critical {
+  color: var(--g-viz-critical);
+  fill: var(--g-danger-ink);
+}
+g.series {
+  fill: none;
+}
+.playhead {
+  stroke: var(--g-accent);
+  stroke-width: 1.5;
+}
+
+.legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  height: 52px;
+  overflow: hidden;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 0 var(--g-space-3);
+  font: 500 var(--g-text-label) / 1.55 var(--ion-font-family);
+  color: var(--g-muted);
+  li {
+    display: flex;
+    align-items: center;
+    gap: var(--g-space-1);
+    white-space: nowrap;
+  }
+}
+.key {
+  width: 14px;
+  border-top: 2.5px solid currentColor;
+  &.dash {
+    border-top-style: dashed;
+  }
+  &.dot {
+    border-top: 1.5px dashed currentColor;
+  }
+  &.area {
+    height: 10px;
+    border: 0;
+    background: var(--g-danger-soft);
+  }
+  &.mark {
+    width: 0;
+    height: 12px;
+    border-top: 0;
+    border-left: 1.5px dashed currentColor;
+  }
+}

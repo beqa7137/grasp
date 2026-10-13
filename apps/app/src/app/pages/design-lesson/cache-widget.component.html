@@ -1,0 +1,233 @@
+<g-stage [height]="layout().height" label="Caching: clients, a cache and an origin">
+  @if (ready()) {
+    @let L = layout();
+    @let b = L.bar;
+    @let m = L.meter;
+    @let w = L.waffle;
+    <svg
+      class="flow"
+      [attr.viewBox]="'0 0 ' + L.width + ' ' + L.height"
+      [attr.width]="L.width"
+      [attr.height]="L.height"
+      role="img"
+      [attr.aria-label]="flowSummary()"
+    >
+      @let c = L.clients;
+      <g class="clients" [attr.transform]="'translate(' + c.x + ' ' + c.y + ') scale(' + c.scale + ')'">
+        <rect class="device" x="-18" y="-13" width="11" height="20" />
+        <rect class="device" x="-5.5" y="-16" width="11" height="20" />
+        <rect class="device" x="7" y="-13" width="11" height="20" />
+      </g>
+      <text class="label" [attr.x]="c.label.x" [attr.y]="c.label.y">Clients</text>
+      <text class="rate" [attr.text-anchor]="c.rate.anchor" [attr.x]="c.rate.x" [attr.y]="c.rate.y">{{ qps }}</text>
+
+      <polyline class="link" [attr.points]="points(L.link.in)" />
+      <polyline class="link" [attr.points]="points(L.link.miss)" />
+      @if (L.link.label; as ll) {
+        <text class="rate" text-anchor="middle" [attr.x]="ll.x" [attr.y]="ll.y">{{ formatQps(live().originQps) }}</text>
+        <text class="caption" text-anchor="middle" [attr.x]="ll.x" [attr.y]="ll.y + 26">misses</text>
+      }
+
+      <text class="label" [attr.x]="b.labelX" [attr.y]="b.labelY">Cache</text>
+      <text class="value hit-rate" text-anchor="end" [attr.x]="b.x1" [attr.y]="b.labelY">
+        @if (refilling()) {
+          <tspan class="now">{{ formatPct(live().hitRate) }}</tspan>
+          <tspan class="caption" dx="4">hits, target {{ formatPct(target()) }}</tspan>
+        } @else {
+          {{ formatPct(target()) }}
+          @if (warmAgain()) {
+            <tspan class="warm">· warm again</tspan>
+          } @else {
+            <tspan class="caption">hits</tspan>
+          }
+        }
+      </text>
+      <rect class="track" [attr.x]="b.x0" [attr.y]="b.top" [attr.width]="b.x1 - b.x0" [attr.height]="b.height" />
+      <rect class="zone hits" [attr.x]="b.x0" [attr.y]="b.top" [attr.width]="barSplit() - b.x0" [attr.height]="b.height" />
+      <rect class="zone misses" [attr.x]="barSplit()" [attr.y]="b.top" [attr.width]="b.x1 - barSplit()" [attr.height]="b.height" />
+      @if (!refilling() && barSplit() - b.x0 > 52) {
+        <text class="zone-label hits" [attr.x]="b.x0 + 16" [attr.y]="b.mid + 4">hits</text>
+      }
+      @if (!refilling() && b.x1 - barSplit() > 60) {
+        <text class="zone-label misses" [attr.x]="barSplit() + 14" [attr.y]="b.mid + 4">misses</text>
+      }
+      @if (refilling()) {
+        <line class="target" [attr.x1]="targetX()" [attr.x2]="targetX()" [attr.y1]="b.top - 4" [attr.y2]="b.top + b.height + 4" />
+      }
+      @for (tick of nineTicks(); track tick.label) {
+        <line class="tick-mark" [attr.x1]="tick.x" [attr.x2]="tick.x" [attr.y1]="b.top + b.height" [attr.y2]="b.top + b.height + 4" />
+        <text class="tick" text-anchor="middle" [attr.x]="tick.x" [attr.y]="b.tickY">{{ tick.label }}</text>
+      }
+
+      <text class="label" [attr.text-anchor]="m.label.anchor" [attr.x]="m.label.x" [attr.y]="m.label.y">Origin</text>
+      <rect class="meter" [attr.x]="m.x" [attr.y]="m.y" [attr.width]="m.width" [attr.height]="m.height" />
+      @let mm = meter();
+      <rect
+        class="load"
+        [class.over]="overloaded()"
+        [class.storm]="overloaded() && playing()"
+        [attr.x]="mm.fill.x"
+        [attr.y]="mm.fill.y"
+        [attr.width]="mm.fill.width"
+        [attr.height]="mm.fill.height"
+      />
+      @for (tick of meterTicks(); track tick.label) {
+        <line class="tick-mark" [attr.x1]="tick.mark[0]" [attr.y1]="tick.mark[1]" [attr.x2]="tick.mark[2]" [attr.y2]="tick.mark[3]" />
+        <text class="tick" [attr.text-anchor]="tick.anchor" [attr.x]="tick.x" [attr.y]="tick.y">{{ tick.label }}</text>
+      }
+      <line class="capacity" [attr.x1]="mm.capacity[0]" [attr.y1]="mm.capacity[1]" [attr.x2]="mm.capacity[2]" [attr.y2]="mm.capacity[3]" />
+      @if (overloaded()) {
+        <path class="cross" [attr.transform]="mm.cross" d="M-4 -4L4 4M4 -4L-4 4" />
+      }
+      <text class="value load-text" [class.bad]="overloaded()" [attr.text-anchor]="m.load.anchor" [attr.x]="m.load.x" [attr.y]="m.load.y">
+        {{ formatQps(live().originQps) }}
+      </text>
+      <text class="caption" [class.bad]="overloaded()" [attr.text-anchor]="m.cap.anchor" [attr.x]="m.cap.x" [attr.y]="m.cap.y">
+        @if (overloaded()) {
+          <tspan [attr.x]="m.cap.x">{{ overLines()[0] }}</tspan>
+          <tspan [attr.x]="m.cap.x" dy="13">{{ overLines()[1] }}</tspan>
+        } @else {
+          can answer {{ formatQps(capacity()) }}
+        }
+      </text>
+
+      @for (cell of cells(); track $index) {
+        <rect [class]="'cell ' + cell.kind" [attr.x]="cell.x" [attr.y]="cell.y" [attr.width]="w.cell" [attr.height]="w.cell" />
+        @if (cell.kind === 'lost') {
+          <path
+            class="cell-cross"
+            [attr.transform]="'translate(' + (cell.x + w.cell / 2) + ' ' + (cell.y + w.cell / 2) + ')'"
+            d="M-2.5 -2.5L2.5 2.5M2.5 -2.5L-2.5 2.5"
+          />
+        }
+      }
+      <rect class="p99-ring" [attr.x]="p99Cell().x - 2" [attr.y]="p99Cell().y - 2" [attr.width]="w.cell + 4" [attr.height]="w.cell + 4" />
+      <text class="p99-label" [attr.x]="w.x + waffleSide() + 5" [attr.y]="p99Cell().y + w.cell">p99</text>
+
+      <text class="label" [attr.x]="L.readout.x" [attr.y]="L.readout.y + 8">Mean</text>
+      <text class="value readout" [class.big]="L.wide" [class.bad]="overloaded()" [attr.x]="L.readout.x" [attr.y]="L.readout.y + 30">
+        {{ mean() }}
+      </text>
+      <text class="label" [attr.x]="L.readout.x" [attr.y]="L.readout.y + 56">p99</text>
+      <text class="value readout" [class.big]="L.wide" [class.bad]="overloaded()" [attr.x]="L.readout.x" [attr.y]="L.readout.y + 78">
+        {{ p99() }}
+      </text>
+      @if (!overloaded()) {
+        <text class="caption p99-kind" [attr.x]="L.readout.x" [attr.y]="L.readout.y + 96">{{ p99IsMiss() ? 'a miss' : 'a hit' }}</text>
+      }
+
+      @if (motion()) {
+        <text class="caption" [attr.text-anchor]="L.dotLegend.anchor" [attr.x]="L.dotLegend.x" [attr.y]="L.dotLegend.y">
+          <tspan class="dot-key">●</tspan>
+          {{ dotLegend }}
+        </text>
+        @if (L.wide) {
+          <text class="caption" [attr.x]="L.dotLegend.x" [attr.y]="L.dotLegend.y + 14">{{ waitLegend }}</text>
+        }
+      }
+      <g class="particles" #particles></g>
+
+      @for (f of L.focus; track f.id) {
+        <g class="focus" [attr.data-focus]="f.id" [class.focused]="focusOn().includes(f.id)">
+          <rect class="focus-outline" [attr.x]="f.x" [attr.y]="f.y" [attr.width]="f.width" [attr.height]="f.height" />
+          <rect class="tag" [attr.x]="f.tag.x" [attr.y]="f.tag.y" [attr.width]="tag.width" [attr.height]="tag.height" />
+          <text class="look" text-anchor="middle" [attr.x]="f.tag.x + tag.width / 2" [attr.y]="f.tag.y + 12">Look here</text>
+        </g>
+      }
+    </svg>
+
+    <ul class="waffle-legend" [style.left.px]="w.x" [style.top.px]="L.legendY - 12" [style.width.px]="L.legendWidth">
+      <li><span class="key hit" aria-hidden="true"></span>{{ legend().hits }}</li>
+      <li><span class="key miss" aria-hidden="true"></span>{{ legend().misses }}</li>
+      <li><span class="key lost" aria-hidden="true"></span>{{ legend().lost }}</li>
+    </ul>
+
+    <g-handle
+      label="Cache hit rate"
+      [values]="hitSnaps"
+      [positions]="hitPositions()"
+      [cross]="b.mid"
+      [valuetext]="hitText()"
+      [ghost]="refilling()"
+      [disabled]="locked()"
+      [value]="target()"
+      (valueChange)="setTarget($event)"
+    />
+    <g-handle
+      label="Origin capacity"
+      [axis]="m.axis"
+      [values]="capacitySnaps"
+      [positions]="capacityPositions()"
+      [cross]="m.cross"
+      [valuetext]="capacityText()"
+      [disabled]="locked()"
+      [value]="capacity()"
+      (valueChange)="setCapacity($event)"
+    />
+    <g-chart-frame
+      class="chart"
+      [style.left.px]="L.chart.x"
+      [style.top.px]="L.chart.y"
+      heading="After a flush"
+      [summary]="chartSummary()"
+      [width]="L.chart.width"
+      [height]="L.chart.height"
+      [x]="x"
+      [y]="y"
+      [y2]="y2"
+      [series]="series()"
+      [spans]="spans()"
+      [markers]="markers()"
+      [threshold]="threshold()"
+      [empty]="flushed() ? undefined : 'Flush the cache\nto see the miss storm'"
+      [upTo]="upTo()"
+      [table]="table()"
+      [tableRow]="tableRow()"
+      [playheadValues]="flushed() ? times : []"
+      playheadLabel="Time after the flush"
+      [playheadText]="playheadText()"
+      [playhead]="playheadTime()"
+      (playheadChange)="setPlayhead($event)"
+    />
+  }
+</g-stage>
+
+<div class="controls">
+  <label class="origin">
+    <span class="control-label"
+      >Origin latency <strong>{{ originMs() }} ms</strong></span
+    >
+    <g-slider
+      label="Origin latency"
+      [min]="0"
+      [max]="originSnaps.length - 1"
+      [value]="originSnaps.indexOf(originMs())"
+      [valueText]="originMs() + ' ms'"
+      [disabled]="locked()"
+      (valueChange)="setOrigin(originSnaps[$event])"
+    />
+    <span class="stops" aria-hidden="true">
+      @for (ms of originSnaps; track ms; let i = $index) {
+        <span [style.left]="'calc(11px + ' + i / (originSnaps.length - 1) + ' * (100% - 22px))'">{{ ms }}</span>
+      }
+    </span>
+  </label>
+  <div class="actions">
+    <button type="button" class="g-btn" [disabled]="locked()" (click)="flush()">Flush the cache</button>
+    <button type="button" class="g-btn" [disabled]="!flushed()" (click)="replay()">Replay</button>
+  </div>
+</div>
+<p class="notice" aria-live="polite">{{ notice() }}</p>
+
+@if (experiments().length) {
+  <app-experiment-dock
+    [experiments]="experiments()"
+    [active]="active()"
+    [phase]="phase()"
+    [done]="done()"
+    [goalStatus]="goalStatus()"
+    [chosen]="chosen()"
+    (chosenChange)="answer($event)"
+    (start)="start($event)"
+  />
+}

@@ -7,7 +7,10 @@ import { refocusAfterRender } from '../../../../core/focus';
 import { answerMark } from '../../../../review/answer-mark';
 import { CodeTextComponent } from '../../../../viz/code-text.component';
 
-/** A case widget's question about its own settings: choose first, then every choice is marked and the answer explained. */
+/**
+ * A widget's question about its own settings: choose first, then every choice is marked and the answer explained. A `held`
+ * check keeps the choice as "your guess" until its owner has shown the answer on the picture.
+ */
 @Component({
   selector: 'app-widget-check',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -26,15 +29,30 @@ import { CodeTextComponent } from '../../../../viz/code-text.component';
         <p class="legend">{{ c.prompt }}</p>
         <ul class="options">
           @for (choice of c.choices; track $index) {
-            <li class="g-choice option" [class.right]="$index === c.answer" [class.wrong]="$index === chosen() && $index !== c.answer">
-              <span>{{ choice }}</span>
-              @if (answerMark($index, c.answer, chosen()); as mark) {
-                <ion-icon class="g-answer-mark" [name]="mark.icon" [attr.aria-label]="mark.label" role="img" />
-              }
-            </li>
+            @if (held()) {
+              <li class="g-choice option" [class.guess]="$index === chosen()">
+                <span>{{ choice }}</span>
+                @if ($index === chosen()) {
+                  <span class="you">your guess</span>
+                }
+              </li>
+            } @else {
+              <li class="g-choice option" [class.right]="$index === c.answer" [class.wrong]="$index === chosen() && $index !== c.answer">
+                <span>{{ choice }}</span>
+                @if (answerMark($index, c.answer, chosen()); as mark) {
+                  <ion-icon class="g-answer-mark" [name]="mark.icon" [attr.aria-label]="mark.label" role="img" />
+                }
+              </li>
+            }
           }
         </ul>
-        <p class="explain"><g-code-text [text]="c.explain" /></p>
+        <div [attr.aria-live]="heldText() ? 'polite' : null">
+          @if (held()) {
+            <p class="explain muted">{{ heldText() }}</p>
+          } @else {
+            <p class="explain"><g-code-text [text]="c.explain" /></p>
+          }
+        </div>
         <ng-content />
       </div>
     }
@@ -75,6 +93,13 @@ import { CodeTextComponent } from '../../../../viz/code-text.component';
       font: 500 0.90625rem/1.45 var(--ion-font-family);
       text-align: left;
     }
+    .guess {
+      border-style: dashed;
+    }
+    .you {
+      font-size: var(--g-text-body-s);
+      color: var(--g-muted);
+    }
     .explain {
       margin: 0;
       line-height: 1.55;
@@ -85,6 +110,9 @@ import { CodeTextComponent } from '../../../../viz/code-text.component';
 export class WidgetCheckComponent {
   readonly check = input.required<WidgetCheckpoint>();
   readonly chosen = model<number | null>(null);
+  /** Holds the marks and the explanation back after a choice, showing `heldText`, until the owner has played the answer out. */
+  readonly held = input(false);
+  readonly heldText = input('');
   protected readonly answerMark = answerMark;
   private readonly injector = inject(Injector);
   private readonly answered = viewChild<ElementRef<HTMLElement>>('answered');

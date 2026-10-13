@@ -1,14 +1,11 @@
+import { CACHE_EXPERIMENTS } from './caching-experiments.js';
 import type { SdLesson } from './types.js';
 
 export const CACHING_LESSON: SdLesson = {
   why: 'A cache is the cheapest capacity you can buy: at a 99% hit rate the database sees one request in a hundred. But the origin must still survive the misses, and the misses set the tail. Most read-heavy designs in interviews come down to what to cache where, how stale it may be, and what happens the moment the cache is empty.',
   widget: {
     kind: 'cache',
-    tryThis: [
-      'Set the origin to 100 ms and the hit rate to 90%: the origin takes 1,000 requests a second, the mean is 11 ms and p99 is 101 ms. Move to 95%: origin load halves to 500 and the mean drops to 6 ms, but p99 stays at 101 ms. Only at 99.5% (50 origin requests, 1.5 ms mean) does p99 fall to 1 ms.',
-      'At 99.5%, drag the origin from 10 to 200 ms: the mean moves only from about 1.1 to 2 ms and p99 stays at 1 ms. Drop to 95% and repeat: p99 follows the origin from 11 to 201 ms. With few misses, a slow origin hardly shows.',
-      'Set 99.9% and 100 ms: the origin sees 10 requests a second and the mean is 1.1 ms. Press flush: every request misses, the origin sees 10,000 a second (1,000 times more) and origin load turns red at five times what it can serve: the latency shown assumes it keeps up, but in practice it queues and times out. That miss storm is what the database must survive.',
-    ],
+    experiments: CACHE_EXPERIMENTS,
   },
   concepts: [
     {

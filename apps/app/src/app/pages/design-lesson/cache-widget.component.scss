@@ -1,0 +1,294 @@
+@use '../../../type' as *;
+
+:host {
+  display: block;
+}
+svg {
+  display: block;
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+text {
+  paint-order: stroke;
+  stroke: var(--g-viz-stage);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+.label {
+  @include label;
+  fill: var(--g-muted);
+}
+.value {
+  font: 600 var(--g-text-title-s) var(--g-font-mono);
+  font-variant-numeric: tabular-nums;
+  fill: var(--g-text);
+  &.big {
+    font-size: var(--g-text-title-m);
+  }
+  &.bad {
+    fill: var(--g-danger-ink);
+  }
+}
+.hit-rate .now {
+  fill: var(--g-viz-considering);
+}
+.rate {
+  font: 600 var(--g-text-label) var(--g-font-mono);
+  font-variant-numeric: tabular-nums;
+  fill: var(--g-text);
+}
+.caption {
+  font: 500 var(--g-text-label) var(--ion-font-family);
+  fill: var(--g-muted);
+  &.bad {
+    fill: var(--g-danger-ink);
+  }
+}
+.tick {
+  font: 500 var(--g-text-label) var(--ion-font-family);
+  font-variant-numeric: tabular-nums;
+  fill: var(--g-muted);
+}
+.tick-mark {
+  stroke: var(--g-line-strong);
+}
+.device {
+  fill: var(--g-surface);
+  stroke: var(--g-text);
+  stroke-width: 1.5;
+}
+.link {
+  fill: none;
+  stroke: var(--g-line-strong);
+  stroke-width: 2;
+}
+.track {
+  fill: var(--g-viz-stage);
+}
+.zone {
+  stroke-width: 1.5;
+  &.hits {
+    fill: var(--g-viz-final-soft);
+    stroke: var(--g-viz-final);
+  }
+  &.misses {
+    fill: var(--g-viz-considering-soft);
+    stroke: var(--g-viz-considering);
+    stroke-dasharray: 4 3;
+  }
+}
+.zone-label {
+  font: 600 var(--g-text-label) var(--ion-font-family);
+  &.hits {
+    fill: var(--g-viz-final-ink);
+  }
+  &.misses {
+    fill: var(--g-text);
+  }
+}
+.target {
+  stroke: var(--g-text);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
+}
+.meter {
+  fill: var(--g-viz-track);
+}
+.load {
+  fill: var(--g-viz-considering);
+  &.over {
+    fill: var(--g-viz-critical);
+  }
+}
+.capacity {
+  stroke: var(--g-text);
+  stroke-width: 2;
+}
+.cross,
+.cell-cross {
+  fill: none;
+  stroke: var(--g-viz-stage);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.cell {
+  stroke-width: 1;
+  &.hit {
+    fill: var(--g-viz-final-soft);
+    stroke: var(--g-viz-final);
+  }
+  &.miss {
+    fill: var(--g-viz-considering);
+    stroke: var(--g-viz-considering);
+  }
+  &.lost {
+    fill: var(--g-viz-critical);
+    stroke: var(--g-viz-critical);
+  }
+}
+.p99-ring {
+  fill: none;
+  stroke: var(--g-text);
+  stroke-width: 2;
+}
+.p99-label {
+  font: 700 var(--g-text-label) var(--g-font-mono);
+  fill: var(--g-text);
+}
+.waffle-legend {
+  position: absolute;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--g-space-3);
+  font: 500 var(--g-text-label) / 1.45 var(--ion-font-family);
+  color: var(--g-muted);
+  li {
+    display: flex;
+    align-items: center;
+    gap: var(--g-space-1);
+    white-space: nowrap;
+  }
+  .key {
+    display: grid;
+    place-items: center;
+    width: 10px;
+    height: 10px;
+    border: 1px solid;
+    color: var(--g-viz-stage);
+    font: 700 var(--g-text-label) / 1 var(--ion-font-family);
+    &.hit {
+      background: var(--g-viz-final-soft);
+      border-color: var(--g-viz-final);
+    }
+    &.miss {
+      background: var(--g-viz-considering);
+      border-color: var(--g-viz-considering);
+    }
+    &.lost {
+      background: var(--g-viz-critical);
+      border-color: var(--g-viz-critical);
+      &::after {
+        content: '×';
+      }
+    }
+  }
+}
+.warm {
+  font: 600 var(--g-text-label) var(--ion-font-family);
+  fill: var(--g-viz-final-ink);
+}
+.tag {
+  fill: var(--g-viz-stage);
+  stroke: var(--g-accent);
+  stroke-width: 1.5;
+  visibility: hidden;
+}
+.load.storm {
+  animation: storm 0.9s ease-in-out infinite alternate;
+}
+@keyframes storm {
+  to {
+    opacity: 0.55;
+  }
+}
+.notice {
+  margin: var(--g-space-2) 0 0;
+  min-height: 1lh;
+  font-size: var(--g-text-body-s);
+  color: var(--g-muted);
+}
+.focus-outline {
+  fill: none;
+  stroke: var(--g-accent);
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
+  visibility: hidden;
+}
+.look {
+  font: 600 var(--g-text-label) var(--ion-font-family);
+  fill: var(--g-accent);
+  visibility: hidden;
+}
+.focused :is(.focus-outline, .look, .tag) {
+  visibility: visible;
+}
+.dot-key {
+  fill: var(--g-viz-considering);
+}
+.particles {
+  :is(circle, path) {
+    stroke-linecap: round;
+  }
+  // Pool elements are made at run time, outside the template, so only an unscoped rule reaches them.
+  ::ng-deep {
+    .particle circle {
+      stroke: var(--g-viz-stage);
+      stroke-width: 1;
+    }
+    .particle path {
+      display: none;
+      fill: none;
+      stroke: var(--g-viz-critical);
+      stroke-width: 2.5;
+    }
+    .particle.hit circle {
+      fill: var(--g-viz-final);
+    }
+    .particle.miss circle {
+      fill: var(--g-viz-considering);
+    }
+    .particle.lost circle {
+      fill: var(--g-viz-critical);
+    }
+    .particle.broken circle {
+      display: none;
+    }
+    .particle.broken path {
+      display: inline;
+    }
+  }
+}
+g-chart-frame {
+  position: absolute;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--g-space-3);
+  margin-top: var(--g-space-3);
+}
+.origin {
+  flex: 1 1 220px;
+  max-width: 320px;
+  display: grid;
+}
+.control-label {
+  font-size: var(--g-text-body);
+  color: var(--g-muted);
+  strong {
+    color: var(--g-text);
+    font-family: var(--g-font-mono);
+  }
+}
+// Each stop sits under the thumb's centre, which runs from half the 22px thumb in from each end of the track.
+.stops {
+  position: relative;
+  height: 16px;
+  font-size: var(--g-text-label);
+  color: var(--g-muted);
+  font-variant-numeric: tabular-nums;
+  span {
+    position: absolute;
+    transform: translateX(-50%);
+  }
+}
+.actions {
+  display: flex;
+  gap: var(--g-space-2);
+}

@@ -90,10 +90,6 @@
     "font-size": 3,
     "spacing": 4
   },
-  "app/pages/design-lesson/cache-widget.component.ts": {
-    "font-size": 1,
-    "spacing": 1
-  },
   "app/pages/design-lesson/cdn-widget.component.ts": {
     "border-radius": 2,
     "font-size": 3,
