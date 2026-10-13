@@ -223,6 +223,8 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
     </ion-content>
   `,
   styles: `
+    @use '../../../type' as *;
+
     h1 {
       font-size: clamp(1.5rem, 5vw, 2.125rem);
       margin: 8px 0 8px;
@@ -249,7 +251,8 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
       max-width: 62ch;
     }
     h2 {
-      font-size: 1.0625rem;
+      @include title;
+      font-size: var(--g-text-title-m);
       margin: 0 0 10px;
     }
     .today,
@@ -332,7 +335,7 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
     .day {
       padding: 12px 16px;
       h3 {
-        font-size: 0.9375rem;
+        font-size: var(--g-text-title-s);
         margin: 0 0 6px;
       }
       ul {

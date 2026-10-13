@@ -12,7 +12,8 @@ const BREAKPOINTS = {
 /** 3.2 defines the tokens in `_theme.scss` and in the root rules of `styles.scss`, whose other rules are global component styles. */
 const THEME = new Set(['_theme.scss', 'styles.scss']);
 const ROOT_SELECTOR = /^(?::root|html)(?:[.:[][^\s>+~]*)?$|^\.ion-palette-dark$|^\[data-theme[^\]]*\]$/;
-const RAW_LENGTH = /(?<![\w.$-])(?!0*\.?0+(?:px|rem|pt)\b)\d*\.?\d+(?:px|rem|pt)\b/i;
+/** A non-zero px, rem or pt length; a minus after a non-word character is a sign (`margin: -1px`), inside a name it is not. */
+const RAW_LENGTH = /(?<![\w.$]|[\w.$-]-)(?!0*\.?0+(?:px|rem|pt)\b)\d*\.?\d+(?:px|rem|pt)\b/i;
 const QUERY_LENGTH = /\d*\.?\d+(?:px|rem|em|pt)\b/gi;
 const DECLARATION = /(?<![\w-])(--[\w-]+|\$[\w-]+|-?[a-z][a-z-]*)\s*:\s*((?:#\{[^}]*\}|url\([^)]*\)|[^;{}"`])*)/g;
 /** A `style` key or property holding a declaration string, as in `host: { style: '...' }`: its declarations are read, not it. */
@@ -41,6 +42,12 @@ const ARGUMENT_COMMA = /,(?![^(]*\))/;
 const NUMBER = /^\s*-?\d*\.?\d+\s*$/;
 /** A theme-style name that says what it sizes, so a raw length defined under it counts where it is defined. */
 const FONT_NAME = /^--(?:g|ion)-(?:[\w-]*-)?(?:text|font)(?:-|$)/;
+/**
+ * Padding, margin and gap in every longhand, and Ionic's `--padding-*`, `--inner-padding-*` and `--margin-*` component
+ * properties. Not `scroll-padding-*` or `scroll-margin-*`, which place a scrolled-to target rather than space content.
+ */
+const SPACING_PROPERTY =
+  /^(?:--(?:inner-)?)?(?:padding|margin)(?:-(?:top|right|bottom|left|start|end|block|inline)(?:-(?:start|end))?)?$|^(?:grid-)?(?:row-|column-)?gap$/;
 const COLOR_PROPERTY =
   /^(?:color|background(?:-color|-image)?|border(?:-(?:top|right|bottom|left|block|inline)(?:-(?:start|end))?)?(?:-color)?|outline(?:-color)?|(?:box|text)-shadow|fill|stroke|(?:backdrop-)?filter|(?:caret|accent|stop|flood|lighting|scrollbar|text-decoration|column-rule|-webkit-text-fill|-webkit-text-stroke|text-emphasis|-webkit-tap-highlight|shadow)-color|text-decoration|column-rule|-webkit-text-stroke|text-emphasis|fill-style|stroke-style)$/;
 const COLOR_FUNCTION = /\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\(((?:[^()]|\([^()]*\))*)\)/g;
@@ -122,6 +129,7 @@ function category(property, file, tokens, theme = false) {
   if (/^border(?:-[a-z]+)*-radius$|^r[xy]$/.test(property) || (property.includes('radius') && isLocal(property, file, theme))) {
     return 'border-radius';
   }
+  if (property === 'spacing' || SPACING_PROPERTY.test(property)) return 'spacing';
   if (isOverride(property, theme) && FONT_NAME.test(property)) return 'font-size';
   if (isOverride(property, theme) && tokens.has(property)) return 'token-override';
   if (COLOR_PROPERTY.test(property) || isLocal(property, file, theme)) return 'color';
@@ -162,7 +170,7 @@ function fieldsOf(text) {
   return new Map([...text.matchAll(FIELD)].map(([, name, literal]) => [name, literal]));
 }
 
-/** Each mixin's parameters with what they size: a width query, a font size or a radius. */
+/** Each mixin's parameters with what they size: a width query, a font size, a radius or spacing. */
 function mixinParameters(text, file) {
   const out = new Map();
   for (const [, name, list, body] of text.matchAll(MIXIN)) {
@@ -172,7 +180,7 @@ function mixinParameters(text, file) {
       const query = [...body.matchAll(AT_QUERY)].find(([, , condition]) => uses(condition))?.[1];
       const size = [...body.matchAll(DECLARATION)]
         .map(([, property, value]) => uses(value) && category(property, file, new Set()))
-        .find((kind) => kind === 'font-size' || kind === 'border-radius');
+        .find((kind) => kind === 'font-size' || kind === 'border-radius' || kind === 'spacing');
       return { name: parameter, kind: query ?? size ?? null };
     });
     if (parameters.some(({ kind }) => kind)) out.set(name, parameters);

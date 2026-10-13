@@ -137,14 +137,14 @@ function span(years: number): string {
       }
     }
     .sign {
-      background: var(--g-raised);
+      background: var(--g-sunken);
       color: var(--g-muted);
     }
     .time {
       background: var(--g-accent-soft);
     }
     .gen {
-      background: var(--g-raised);
+      background: var(--g-sunken);
     }
     .seq {
       background: var(--g-surface);

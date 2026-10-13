@@ -79,6 +79,8 @@ const usd = (cents: number) => formatMinor(cents, 'USD');
   `,
   styleUrl: '../../../design-lesson/widget.scss',
   styles: `
+    @use '../../../../../type' as *;
+
     .intro {
       margin: 0 0 12px;
       font-size: 0.875rem;
@@ -95,7 +97,7 @@ const usd = (cents: number) => formatMinor(cents, 'USD');
     .row {
       padding: 12px;
       border-radius: var(--g-radius-sm);
-      background: var(--g-raised);
+      background: var(--g-sunken);
     }
     h4 {
       margin: 0 0 8px;
@@ -114,10 +116,8 @@ const usd = (cents: number) => formatMinor(cents, 'USD');
       }
     }
     .side {
-      font-size: 0.75rem;
+      @include label;
       color: var(--g-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
     }
     .summary p {
       margin: 0 0 12px;

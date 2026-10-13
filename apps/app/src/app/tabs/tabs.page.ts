@@ -70,7 +70,9 @@ import { hardwareBack } from './hardware-back';
     </ion-modal>
   `,
   styles: `
-    @media (max-width: 1023.98px) {
+    @use '../../breakpoints' as *;
+
+    @include tabs {
       nav.focus-route {
         display: none;
       }

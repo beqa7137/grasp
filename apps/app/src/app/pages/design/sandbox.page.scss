@@ -1,4 +1,5 @@
 @use '../../../chrome' as *;
+@use '../../../type' as *;
 
 .page.wide {
   max-width: 1320px;
@@ -64,18 +65,15 @@
   transition: border-color 0.2s;
 
   .label {
-    font-size: 0.6875rem;
+    @include label;
     color: var(--g-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-weight: 600;
   }
   .value {
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
     column-gap: 2px;
-    font: 600 clamp(1.125rem, 3vw, 1.5rem) / 1.1 var(--g-font-display);
+    font: 600 clamp(1.125rem, 3vw, 1.5rem) / 1.1 var(--ion-font-family);
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
@@ -130,7 +128,8 @@
   padding: 7px 11px 7px 8px;
   border-radius: 999px;
   border: 1px solid var(--g-line-strong);
-  background: var(--g-surface);
+  background: var(--g-raised);
+  box-shadow: var(--g-shadow-raised);
   color: var(--g-text);
   font: 500 0.8125rem/1 var(--ion-font-family);
   cursor: pointer;
@@ -283,7 +282,7 @@
   }
   .kind {
     fill: var(--g-text);
-    font: 600 13px var(--g-font-display);
+    font: 600 13px var(--ion-font-family);
   }
   .inst {
     fill: var(--g-muted);
@@ -466,7 +465,7 @@ input[type='range'] {
   }
   h2 {
     margin: 0 0 4px;
-    font-size: 1.0625rem;
+    font-size: var(--g-text-title-m);
   }
   p {
     margin: 0 0 6px;
@@ -530,7 +529,7 @@ input[type='range'] {
     gap: 8px;
     padding: 8px 10px;
     border-radius: 9px;
-    background: var(--g-raised);
+    background: var(--g-sunken);
     font-size: 0.84375rem;
     ion-icon {
       font-size: 18px;
@@ -591,6 +590,7 @@ input[type='range'] {
   border-radius: 10px;
   border: 1px solid var(--g-line);
   background: var(--g-raised);
+  box-shadow: var(--g-shadow-raised);
   color: var(--g-text);
   cursor: pointer;
   font: inherit;

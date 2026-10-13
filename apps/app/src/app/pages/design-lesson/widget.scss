@@ -1,3 +1,5 @@
+@use '../../../type' as *;
+
 :host {
   display: block;
 }
@@ -91,13 +93,11 @@ circle {
   div {
     padding: 8px 10px;
     border-radius: var(--g-radius-sm);
-    background: var(--g-raised);
+    background: var(--g-sunken);
   }
   dt {
-    font-size: 0.75rem;
+    @include label;
     color: var(--g-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
   }
   dd {
     margin: 2px 0 0;

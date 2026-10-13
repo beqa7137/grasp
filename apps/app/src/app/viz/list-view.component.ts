@@ -24,13 +24,14 @@ import { uniqueId } from '../core/unique-id';
     </div>
   `,
   styles: `
+    @use '../../type' as *;
+
     :host {
       display: block;
     }
     .label {
-      font: 600 0.65625rem/1 var(--ion-font-family);
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
+      @include label;
+      line-height: 1;
       color: var(--g-muted);
       margin-bottom: 8px;
     }

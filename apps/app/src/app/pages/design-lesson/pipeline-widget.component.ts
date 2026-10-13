@@ -105,7 +105,7 @@ interface Tier {
     .bar {
       height: 8px;
       border-radius: 4px;
-      background: var(--g-raised);
+      background: var(--g-sunken);
       overflow: hidden;
       span {
         display: block;

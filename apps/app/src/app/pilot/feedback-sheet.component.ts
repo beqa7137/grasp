@@ -149,6 +149,7 @@ const MAX_LENGTH = 2000;
       border-radius: 50%;
       border: 1px solid var(--g-line-strong);
       background: var(--g-raised);
+      box-shadow: var(--g-shadow-raised);
       color: var(--g-text);
       font-weight: 600;
       cursor: pointer;

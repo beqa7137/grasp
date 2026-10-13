@@ -71,6 +71,8 @@ interface Part {
   `,
   styleUrl: './widget.scss',
   styles: `
+    @use '../../../type' as *;
+
     .parts {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
@@ -96,9 +98,7 @@ interface Part {
       gap: 6px;
     }
     .tag {
-      font-size: 0.6875rem;
-      font-weight: 600;
-      text-transform: uppercase;
+      @include label;
       color: var(--g-danger-ink);
     }
     label {

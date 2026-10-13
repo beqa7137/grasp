@@ -1,4 +1,5 @@
 @use '../../../chrome' as *;
+@use '../../../breakpoints' as *;
 
 .chat {
   max-width: 780px;
@@ -80,7 +81,7 @@
     border-radius: 50%;
     display: grid;
     place-items: center;
-    font: 700 11px var(--g-font-display);
+    font: 700 11px var(--ion-font-family);
     background: var(--g-accent-soft);
     color: var(--g-accent);
     margin-top: 2px;
@@ -169,7 +170,7 @@
     margin: 12px 0 16px;
   }
   h3 {
-    font-size: 0.9375rem;
+    font-size: var(--g-text-title-s);
     margin: 18px 0 8px;
   }
   ul {
@@ -203,7 +204,7 @@
 }
 
 .dim {
-  background: var(--g-raised);
+  background: var(--g-sunken);
   border-radius: 10px;
   padding: 10px 12px;
   .dim-head {
@@ -301,7 +302,7 @@ ion-footer {
     margin: 6px 0 0;
     padding: 8px 10px;
     border-radius: 8px;
-    background: var(--g-raised);
+    background: var(--g-sunken);
     white-space: pre-wrap;
     max-height: 260px;
     overflow: auto;
@@ -352,7 +353,7 @@ ion-footer {
   }
 
   // On phones the buttons would squeeze the text box to a sliver, so they move to their own row.
-  @media (max-width: 560px) {
+  @include phone {
     flex-wrap: wrap;
     textarea {
       flex-basis: 100%;

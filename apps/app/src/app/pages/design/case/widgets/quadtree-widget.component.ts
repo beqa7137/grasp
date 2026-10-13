@@ -120,7 +120,7 @@ const DOT = 0.32;
       max-width: 440px;
       margin: 0 auto 8px;
       border-radius: var(--g-radius-sm);
-      background: var(--g-raised);
+      background: var(--g-sunken);
     }
     .places {
       fill: var(--g-accent);

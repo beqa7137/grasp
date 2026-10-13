@@ -155,6 +155,8 @@ const KIND_LABELS: Record<CaseStageKind, string> = {
     </ion-content>
   `,
   styles: `
+    @use '../../../../type' as *;
+
     h1 {
       font-size: clamp(1.625rem, 5vw, 2.25rem);
       margin: 4px 0 10px;
@@ -191,7 +193,7 @@ const KIND_LABELS: Record<CaseStageKind, string> = {
       align-items: center;
       flex-wrap: wrap;
       gap: 8px;
-      font-size: 1.0625rem;
+      font-size: var(--g-text-title-m);
       margin: 0 0 10px;
       outline: none;
       ion-icon {
@@ -214,11 +216,8 @@ const KIND_LABELS: Record<CaseStageKind, string> = {
       min-width: 0;
     }
     .kind {
-      font-size: 0.75rem;
-      font-weight: 500;
+      @include label;
       color: var(--g-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
     }
     ul {
       margin: 0;

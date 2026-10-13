@@ -143,7 +143,7 @@ const ROW_TEXT: Record<Tier, string> = { origin: "Origin's uplink", caches: "Reg
       margin: 4px 0 8px;
       padding: 8px 10px;
       border-radius: var(--g-radius-sm);
-      background: var(--g-raised);
+      background: var(--g-sunken);
     }
     .tier {
       display: grid;

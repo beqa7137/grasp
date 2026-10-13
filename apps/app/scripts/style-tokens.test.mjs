@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { test } from 'node:test';
-import { BASELINE, counts, lowered, ratchet, scan, scanTree } from './style-tokens.mjs';
+import { BASELINE, SRC, counts, lowered, ratchet, scan, scanTree } from './style-tokens.mjs';
 
 const flagged = (css, file = 'x.scss') => scan(css, file).map((f) => f.category);
 
@@ -70,11 +70,40 @@ test('allows tokens, the chrome helper, relative and zero values, token tints an
     '@container player (min-width: 900px) and (min-height: 544px) { .a { display: none; } }',
     '@container player ((min-width: 640px) and (max-height: 543.98px)) or ((min-width: 900px) and (max-height: 423.98px)) { .a { display: none; } }',
     '@media (max-width: 1023.98px) and (min-height: 480px) { .a { display: none; } }',
-    '.a { --g-legend-gap: 14px; gap: var(--g-legend-gap); --g-switch-on: var(--g-predict); }',
+    '.a { --g-legend-gap: 0px; gap: var(--g-legend-gap); --g-switch-on: var(--g-predict); }',
     '.a { /* font-size: 13px; */ }',
     '.a {\n  // border-radius: 12px;\n}',
   ]) {
     assert.deepEqual(flagged(css), [], css);
+  }
+});
+
+test('counts raw padding, margin and gap, signed, wherever a size is read, and allows tokens and relative values', () => {
+  for (const [source, file, categories] of [
+    ['.a { padding: 12px; }', 'x.scss', ['spacing']],
+    ['.a { margin: -8px; }', 'x.scss', ['spacing']],
+    ['.a { gap: 6px; row-gap: 2px; column-gap: 0.5rem; }', 'x.scss', ['spacing', 'spacing', 'spacing']],
+    ['.a { margin-inline-start: 4px; padding-block: 2px 0; }', 'x.scss', ['spacing', 'spacing']],
+    ['.a { margin: 0 calc(var(--g-space-2) - 1px); }', 'x.scss', ['spacing']],
+    ['.a { --pad: 12px; padding: var(--pad); }', 'x.scss', ['spacing']],
+    ['$gap: 6px;\n.a { gap: $gap; }', 'x.scss', ['spacing']],
+    ['ion-content { --padding-start: 22px; --inner-padding-end: 4px; }', 'x.scss', ['spacing', 'spacing']],
+    ['@mixin pad($p) { padding: $p; }\n.a { @include pad(12px); }', 'x.scss', ['spacing']],
+    [`<p [style.padding.px]="8">`, 'x.html', ['spacing']],
+    [`<p style="margin-top: 4px">`, 'x.html', ['spacing']],
+    [`const theme = { '.cm-content': { padding: '0 8px' } };`, 'x.ts', ['spacing']],
+  ]) {
+    assert.deepEqual(flagged(source, file), categories, source);
+  }
+  for (const [source, file] of [
+    ['.a { padding: var(--g-space-3); margin: 0 auto; gap: 50%; margin: 0.5em; padding: 0; }', 'x.scss'],
+    ['.a { margin: calc(var(--g-space-2) * -1); padding: var(--ion-safe-area-bottom, 0px); }', 'x.scss'],
+    ['.a { scroll-padding-top: 8px; scroll-margin-top: 6px; }', 'x.scss'],
+    ['@mixin pad($p) { padding: $p; }\n.a { @include pad(var(--g-space-2)); }', 'x.scss'],
+    [`const options = { rootMargin: '8px 0px' };`, 'x.ts'],
+    ['.a { --g-text-1px: 0; width: 12px; top: -4px; }', 'x.scss'],
+  ]) {
+    assert.deepEqual(flagged(source, file), [], source);
   }
 });
 
@@ -253,12 +282,12 @@ test('in a tree, counts raw names where used, theme overrides where made, unknow
     mkdirSync(`${src}/app`);
     writeFileSync(
       `${src}/_theme.scss`,
-      '@mixin rgb-token($name, $hex) {\n  --g-#{$name}: #{$hex};\n  --g-#{$name}-rgb: 1, 2, 3;\n}\n:root { --g-text-s: 0.8125rem; --g-switch-w: 40px; @include rgb-token(accent, #5846dc); }\n@mixin mq($w) { @media (max-width: $w) { @content; } }',
+      '@mixin rgb-token($name, $hex) {\n  --g-#{$name}: #{$hex};\n  --g-#{$name}-rgb: 1, 2, 3;\n}\n:root { --g-text-s: 0.8125rem; --g-switch-w: 40px; --g-space-2: 8px; @include rgb-token(accent, #5846dc); }\n@mixin mq($w) { @media (max-width: $w) { @content; } }',
     );
     writeFileSync(`${src}/styles.scss`, ':root { --g-pad: 4px; }\napp-x { --g-text-s: 9px; --g-pad: 2px; }');
     writeFileSync(`${src}/app/c.component.ts`, "readonly size = '13px';\nreadonly tone = 'var(--g-accent)';");
     writeFileSync(`${src}/app/c.component.html`, '<p [style.font-size]="size" [style.color]="tone">');
-    writeFileSync(`${src}/app/a.scss`, '.a { --cell-size: 12px; --g-text-s: 13px; --g-switch-w: 34px; --g-gap: 14px; }');
+    writeFileSync(`${src}/app/a.scss`, '.a { --cell-size: 12px; --g-text-s: 13px; --g-switch-w: 34px; --g-gap: 14px; --g-space-2: 5px; }');
     writeFileSync(
       `${src}/app/b.scss`,
       [
@@ -278,11 +307,13 @@ test('in a tree, counts raw names where used, theme overrides where made, unknow
         'app/a.scss': [
           ['font-size', 1],
           ['token-override', 1],
+          ['token-override', 1],
         ],
         'app/b.scss': [
           ['font-size', 1],
           ['font-size', 3],
           ['color', 3],
+          ['spacing', 3],
           ['media', 4],
           ['media', 6],
         ],
@@ -300,4 +331,28 @@ test('in a tree, counts raw names where used, theme overrides where made, unknow
 
 test('the app holds every file to its committed baseline', () => {
   assert.deepEqual(ratchet(scanTree(), JSON.parse(readFileSync(BASELINE, 'utf8'))), []);
+});
+
+const shipped = () =>
+  readdirSync(SRC, { recursive: true })
+    .filter((file) => /\.(scss|ts|html)$/.test(file) && !file.endsWith('.spec.ts'))
+    .map((file) => [file, readFileSync(SRC + file, 'utf8')]);
+
+test('paints no background with the warn or predict fill, which light keeps for small marks (REDESIGN.md 3.2)', () => {
+  const large = /background(?:-color)?\]?['"]?\s*[:=]\s*[^;\n]*--g-(?:warn|predict)-fill/;
+  assert.ok(large.test(`<p [style.background]="'var(--g-warn-fill)'">`) && large.test('.a { background: var(--g-predict-fill); }'));
+  assert.ok(!large.test('.a { color: var(--g-warn-fill); background: var(--g-warn-soft); }'));
+  assert.deepEqual(
+    shipped().flatMap(([file, source]) => source.split('\n').flatMap((line, i) => (large.test(line) ? [`${file}:${i + 1}`] : []))),
+    [],
+  );
+});
+
+test('writes uppercase only through the label role in _type.scss', () => {
+  assert.deepEqual(
+    shipped()
+      .filter(([file, source]) => file !== '_type.scss' && /text-transform\s*:\s*uppercase/i.test(source))
+      .map(([file]) => file),
+    [],
+  );
 });

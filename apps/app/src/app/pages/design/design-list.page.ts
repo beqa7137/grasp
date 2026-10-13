@@ -132,6 +132,8 @@ import { FREE_BUILD } from './free-build';
     </div>
   `,
   styles: `
+    @use '../../../breakpoints' as *;
+
     h1 {
       font-size: clamp(1.625rem, 5vw, 2.375rem);
       margin: 6px 0 8px;
@@ -170,7 +172,7 @@ import { FREE_BUILD } from './free-build';
       color: var(--g-found);
     }
     .free .num {
-      background: var(--g-raised);
+      background: var(--g-sunken);
       color: var(--g-muted);
     }
     .body {
@@ -184,6 +186,8 @@ import { FREE_BUILD } from './free-build';
     }
     p {
       margin: 0 0 10px;
+    }
+    p:not(.eyebrow) {
       font-size: 0.875rem;
     }
     .chips {
@@ -252,7 +256,7 @@ import { FREE_BUILD } from './free-build';
         text-decoration: none;
       }
     }
-    @media (max-width: 560px) {
+    @include phone {
       .badge {
         position: static;
         align-self: center;

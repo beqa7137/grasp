@@ -1,0 +1,46 @@
+// The redesign's breakpoints (REDESIGN.md 3.2). A media query cannot read a custom property, so these mixins are the
+// breakpoint tokens, and the style ratchet counts any other width. `phone` keeps the app's `max-width: 560px`, so a
+// 560px-wide screen stays a phone.
+
+@mixin phone {
+  @media (max-width: 560px) {
+    @content;
+  }
+}
+
+// Under 1024px: the bottom tabs (REDESIGN.md 2.6).
+@mixin tabs {
+  @media (max-width: 1023.98px) {
+    @content;
+  }
+}
+
+@mixin desktop {
+  @media (min-width: 1024px) {
+    @content;
+  }
+}
+
+@mixin wide {
+  @media (min-width: 1280px) {
+    @content;
+  }
+}
+
+@mixin container-narrow($name: null) {
+  @container #{$name} (max-width: 639.98px) {
+    @content;
+  }
+}
+
+@mixin container-medium($name: null) {
+  @container #{$name} (min-width: 640px) and (max-width: 899.98px) {
+    @content;
+  }
+}
+
+@mixin container-wide($name: null) {
+  @container #{$name} (min-width: 900px) {
+    @content;
+  }
+}

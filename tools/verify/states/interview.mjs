@@ -112,6 +112,31 @@ async function giveBehavioralAnswer(p) {
   await settle(p, 400);
 }
 
+/** Mock's Recent list, from two past sessions: one scored, one still in progress. */
+async function showRecent(p) {
+  const session = (id, problemId, title, createdAt, scorecard) => ({
+    id,
+    track: 'coding',
+    problem: { id: problemId, title, track: 'coding', patternIds: [] },
+    messages: [],
+    hintsUsed: 0,
+    status: scorecard ? 'scored' : 'active',
+    createdAt,
+    mode: 'offline',
+    ...(scorecard && { scorecard }),
+  });
+  const sessions = [
+    session('a7d1c0de-0000-4000-8000-000000000001', 'two-sum', 'Two Sum', '2026-09-14T15:30:00', { verdict: 'lean-hire' }),
+    session('a7d1c0de-0000-4000-8000-000000000002', 'valid-parentheses', 'Valid Parentheses', '2026-09-12T09:05:00'),
+  ];
+  await p.route('**/api/interview/sessions', (route) =>
+    route.request().method() === 'GET' ? route.fulfill({ json: sessions }) : route.continue(),
+  );
+  await goto(p, '/mock');
+  await p.getByRole('heading', { name: 'Recent' }).scrollIntoViewIfNeeded();
+  await settle(p);
+}
+
 /** Each round of the seeded mock loop: how it scored and when, in minutes before now. */
 const LOOP_ROUNDS = [
   { track: 'coding', verdict: 'hire', scores: [3, 3, 4, 3, 3], scoredAgo: 50 },
@@ -185,6 +210,7 @@ async function seedLoop(p, scored) {
 export function interviewStates() {
   return [
     { id: 'mock', path: '/mock' },
+    { id: 'mock-recent', path: '/mock', setup: showRecent },
     { id: 'mock-behavioral', path: '/mock', setup: (p) => p.getByRole('button', { name: /^Behavioral/ }).click() },
     { id: 'interview-behavioral-answer', path: '/mock', setup: openBehavioralInterview },
     { id: 'mock-loop-setup', path: '/mock/loop' },

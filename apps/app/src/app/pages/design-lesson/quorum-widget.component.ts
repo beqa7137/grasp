@@ -72,6 +72,8 @@ const SIZES = [3, 5] as const;
   `,
   styleUrl: './widget.scss',
   styles: `
+    @use '../../../type' as *;
+
     .steppers {
       display: flex;
       flex-wrap: wrap;
@@ -122,7 +124,7 @@ const SIZES = [3, 5] as const;
       }
       &.down {
         border-style: dashed;
-        background: var(--g-raised);
+        background: var(--g-sunken);
         color: var(--g-muted);
       }
     }
@@ -133,9 +135,7 @@ const SIZES = [3, 5] as const;
       font-size: 0.8125rem;
     }
     .tag {
-      font-size: 0.6875rem;
-      font-weight: 600;
-      text-transform: uppercase;
+      @include label;
       color: var(--g-accent);
     }
   `,

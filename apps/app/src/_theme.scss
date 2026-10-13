@@ -14,15 +14,18 @@
 
   @include rgb-token(bg, #f4f5f9);
   --g-surface: #ffffff;
-  --g-raised: #f0f2f6;
+  // Raised controls and objects are white like the card, set apart by their border and shadow; wells sink below it.
+  --g-raised: #ffffff;
+  --g-sunken: #eef0f5;
   --g-line: #dfe2ea;
   --g-line-strong: #c6cbd6;
   --g-stroke: #707889;
   --g-tab-bar: rgba(255, 255, 255, 0.92);
   --g-backdrop-opacity: 0.4;
-  // Light surfaces differ little from the page, so cards and overlays get the depth dark takes from its layered surfaces.
+  // Light surfaces differ little from the page, so cards and overlays get the depth dark takes from its stepped surfaces.
   --g-shadow: 0 1px 2px rgba(var(--g-text-rgb), 0.06), 0 3px 10px rgba(var(--g-text-rgb), 0.07);
   --g-shadow-overlay: 0 2px 6px rgba(var(--g-text-rgb), 0.08), 0 12px 32px rgba(var(--g-text-rgb), 0.16);
+  --g-shadow-raised: 0 1px 2px rgba(var(--g-text-rgb), 0.08);
 
   @include rgb-token(text, #161a23);
   --g-muted: #4a5263;
@@ -45,6 +48,26 @@
   --g-pointer: var(--g-warn);
   --g-pointer-alt: #9a2a08;
   @include rgb-token(predict, #536d00);
+
+  // Status tones (REDESIGN.md 3.2) over the primitives above: ink for text, line for borders, soft for a wash and fill for
+  // small marks only. Info ink is darker than active, which reaches only 4.46:1 on its own wash over the sunken well.
+  --g-success-ink: var(--g-found-ink);
+  --g-success-line: var(--g-found);
+  --g-success-soft: rgba(var(--g-found-rgb), 0.12);
+  --g-success-fill: var(--g-found);
+  --g-warn-line: var(--g-warn);
+  --g-warn-soft: rgba(var(--g-warn-rgb), 0.12);
+  --g-warn-fill: var(--g-warn);
+  --g-danger-line: var(--g-danger);
+  --g-danger-soft: rgba(var(--g-danger-rgb), 0.12);
+  --g-danger-fill: var(--g-danger);
+  --g-info-ink: #015a8a;
+  --g-info-line: var(--g-active);
+  --g-info-soft: rgba(var(--g-active-rgb), 0.12);
+  --g-info-fill: var(--g-active);
+  --g-predict-line: var(--g-predict);
+  --g-predict-soft: rgba(var(--g-predict-rgb), 0.12);
+  --g-predict-fill: var(--g-predict);
 
   // Diagram roles (REDESIGN.md 3.6): each hue means one state, on the stage, and theme-contrast.spec.ts checks every one.
   --g-viz-stage: #f7f8fb;
@@ -112,19 +135,22 @@
   color-scheme: dark;
 
   @include rgb-token(bg, #0b0d12);
-  --g-surface: #12151d;
-  --g-raised: #181c26;
+  --g-surface: #141824;
+  --g-raised: #1c2130;
+  --g-sunken: #0f121a;
   --g-line: #252a37;
   --g-line-strong: #343b4d;
   --g-stroke: #6b7387;
   --g-tab-bar: rgba(14, 16, 22, 0.92);
   --g-backdrop-opacity: 0.6;
-  --g-shadow: none;
-  --g-shadow-overlay: none;
+  --g-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --g-shadow-overlay: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 12px 32px rgba(0, 0, 0, 0.55);
+  --g-shadow-raised: var(--g-shadow);
 
   @include rgb-token(text, #e9ebf2);
   --g-muted: #8b93a8;
-  --g-faint: #7c8498;
+  // Light enough to keep 4.5:1 on the raised step.
+  --g-faint: #828a9e;
   --g-on-fill: #0b0d12;
   --g-knob: var(--g-text);
   --g-predict-ink: #e8f5a8;
@@ -139,6 +165,9 @@
   @include rgb-token(warn, #ffb547);
   --g-pointer-alt: #ff8a5c;
   @include rgb-token(predict, #d4f53c);
+  --g-info-ink: var(--g-active);
+  // A fainter wash than light's, so muted text keeps 4.5:1 on it over the surface.
+  --g-window: rgba(var(--g-accent-rgb), 0.14);
 
   --g-viz-stage: #0e1118;
   @include rgb-token(viz-current, #1f9fd0);
@@ -167,7 +196,7 @@
   --g-syntax-type: #ffcb6b;
   --g-syntax-operator: #89ddff;
   // Lighter than --g-muted, which drops under 4.5:1 on the trace and selection highlights.
-  --g-syntax-comment: #9ca4b8;
+  --g-syntax-comment: #a0a8bc;
   --g-code-active-line: rgba(var(--g-accent-rgb), 0.07);
   --g-code-line-on: rgba(var(--g-accent-rgb), 0.13);
   --g-code-selection: rgba(var(--g-accent-rgb), 0.28);

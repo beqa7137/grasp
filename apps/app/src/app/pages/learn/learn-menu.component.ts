@@ -26,7 +26,7 @@ export type LearnMenuChoice = 'feedback' | 'plan';
       padding: 12px 16px;
       cursor: pointer;
       &:hover {
-        background: var(--g-raised);
+        background: var(--g-sunken);
       }
       &:focus-visible {
         outline-offset: -2px;

@@ -117,7 +117,7 @@ type Verdict = 'found' | 'missed' | 'wrong' | 'clear';
     .fix {
       padding: 12px 14px;
       border-radius: var(--g-radius-sm);
-      background: var(--g-raised);
+      background: var(--g-sunken);
       margin-bottom: 12px;
       p {
         margin: 0;

@@ -1,3 +1,5 @@
+@use '../../../type' as *;
+
 .workspace {
   display: grid;
   grid-template-columns: minmax(300px, 0.85fr) minmax(0, 1.15fr);
@@ -48,7 +50,7 @@
 .io,
 .error,
 .logs {
-  background: var(--g-raised);
+  background: var(--g-sunken);
   border: 1px solid var(--g-line);
   border-radius: var(--g-radius-sm);
   padding: 10px 12px;
@@ -227,12 +229,10 @@
 }
 
 .badge {
-  font-size: 0.6875rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  @include label;
   padding: 2px 7px;
   border-radius: 6px;
-  background: var(--g-raised);
+  background: var(--g-sunken);
   color: var(--g-muted);
 
   &[data-status='passed'] {

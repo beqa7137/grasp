@@ -75,11 +75,13 @@ function unsyncedWarning(count: number, checked: boolean): string {
       margin-bottom: 16px;
     }
     h2 {
-      font: 600 1.0625rem/1.2 var(--g-font-display);
+      font-size: var(--g-text-title-m);
+      line-height: 1.2;
       margin: 0 0 8px;
     }
     h3 {
-      font: 600 0.875rem/1.2 var(--g-font-display);
+      font-size: var(--g-text-body);
+      line-height: 1.2;
       color: var(--g-muted);
       margin: 12px 0 8px;
     }

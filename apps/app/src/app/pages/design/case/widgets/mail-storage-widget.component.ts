@@ -139,7 +139,7 @@ const MARKS: Record<MailPart, string> = { metadata: 'solid', bodies: 'striped', 
       margin: 4px 0 8px;
       padding: 2px;
       border-radius: var(--g-radius-sm);
-      background: var(--g-raised);
+      background: var(--g-sunken);
     }
     .part {
       min-width: 2px;

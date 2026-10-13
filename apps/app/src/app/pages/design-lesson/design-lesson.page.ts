@@ -313,6 +313,8 @@ import { BackComponent } from '../../ui/back.component';
     </ion-content>
   `,
   styles: `
+    @use '../../../type' as *;
+
     .head {
       display: flex;
       align-items: center;
@@ -336,6 +338,7 @@ import { BackComponent } from '../../ui/back.component';
       margin-bottom: 12px;
     }
     h2 {
+      @include title;
       display: flex;
       align-items: center;
       gap: 8px;
@@ -346,7 +349,7 @@ import { BackComponent } from '../../ui/back.component';
       }
     }
     h3 {
-      font-size: 0.9375rem;
+      font-size: var(--g-text-title-s);
       margin: 18px 0 8px;
     }
     .prose {

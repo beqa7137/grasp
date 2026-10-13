@@ -39,11 +39,12 @@ function paint(theme: Theme, layers: string[]): Rgb {
     .reduce<Rgb>((under, [r, g, b, a]) => [r, g, b].map((c, i) => c * a + under[i] * (1 - a)) as Rgb, [0, 0, 0]);
 }
 
+function luminance(rgb: Rgb): number {
+  const [red, green, blue] = rgb.map((c) => ((c /= 255) <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+}
+
 function contrast(a: Rgb, b: Rgb): number {
-  const luminance = (rgb: Rgb) => {
-    const [red, green, blue] = rgb.map((c) => ((c /= 255) <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
-    return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
-  };
   const [lighter, darker] = [luminance(a), luminance(b)].sort((x, y) => y - x);
   return (lighter + 0.05) / (darker + 0.05);
 }
@@ -60,7 +61,10 @@ function failures(checks: Check[]): string[] {
 const text = (fore: string, ...over: string[]): Check => ({ fore, over, min: TEXT });
 const graphic = (fore: string, ...over: string[]): Check => ({ fore, over, min: GRAPHIC });
 
-const SURFACES = ['bg', 'surface', 'raised'];
+const SURFACES = ['bg', 'surface', 'raised', 'sunken'];
+/** The status tones and their roles (REDESIGN.md 3.2): ink for text, line for borders, soft for a wash, fill for small marks. */
+const TONES = ['success', 'warn', 'danger', 'info', 'predict'];
+const ROLES = ['ink', 'line', 'soft', 'fill'];
 /** Where a visualizer sits: a card's surface, or the page itself on a review card. */
 const BACKDROPS = ['surface', 'bg'];
 const CODE_TOKENS = [
@@ -111,6 +115,48 @@ describe('theme contrast', () => {
 
   it('keeps text readable on every surface', () => {
     expect(failures(['text', 'muted', 'faint'].flatMap((fore) => SURFACES.map((surface) => text(fore, surface))))).toEqual([]);
+  });
+
+  it('steps the surfaces: light raises controls to white and sinks wells under the card, dark lightens each step', () => {
+    const lightness = (theme: Theme, token: string) => luminance(paint(theme, [token]));
+    expect(lightness('light', 'raised')).toBeGreaterThanOrEqual(lightness('light', 'surface'));
+    expect(lightness('light', 'sunken')).toBeLessThan(lightness('light', 'surface'));
+    expect(lightness('light', 'bg')).toBeLessThan(lightness('light', 'surface'));
+    expect(lightness('dark', 'bg')).toBeLessThan(lightness('dark', 'surface'));
+    expect(lightness('dark', 'surface')).toBeLessThan(lightness('dark', 'raised'));
+    expect(lightness('dark', 'sunken')).toBeLessThan(lightness('dark', 'surface'));
+  });
+
+  it('declares the four roles of every status tone in both themes, and no other', () => {
+    for (const theme of THEMES) {
+      for (const tone of TONES) {
+        const roles = [...TOKENS[theme].keys()].filter((name) => name.startsWith(`${tone}-`) && !name.endsWith('-rgb'));
+        expect(roles.sort(), `${theme} ${tone}`).toEqual(ROLES.map((role) => `${tone}-${role}`).sort());
+      }
+    }
+  });
+
+  it('keeps status ink readable on every surface and on its own wash, and text on every wash', () => {
+    const checks = TONES.flatMap((tone) =>
+      SURFACES.flatMap((surface) => [
+        text(`${tone}-ink`, surface),
+        text(`${tone}-ink`, surface, `${tone}-soft`),
+        text('text', surface, `${tone}-soft`),
+      ]),
+    );
+    expect(failures(checks)).toEqual([]);
+  });
+
+  it('keeps status lines and fills at 3:1 on every surface, lines on their own wash too, and text on a fill at 4.5:1', () => {
+    const checks = TONES.flatMap((tone) => [
+      ...SURFACES.flatMap((surface) => [
+        graphic(`${tone}-line`, surface),
+        graphic(`${tone}-line`, surface, `${tone}-soft`),
+        graphic(`${tone}-fill`, surface),
+      ]),
+      text('on-fill', `${tone}-fill`),
+    ]);
+    expect(failures(checks)).toEqual([]);
   });
 
   it('keeps text readable on fills and on every visualizer state', () => {

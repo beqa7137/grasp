@@ -1,3 +1,5 @@
+@use '../../../breakpoints' as *;
+
 .small {
   font-size: 0.8125rem;
 }
@@ -106,7 +108,7 @@ h1:not(.eyebrow) {
     margin-top: 22px;
   }
   h2 {
-    font-size: 1.0625rem;
+    font-size: var(--g-text-title-m);
     margin: 0 0 4px;
   }
   .chips {
@@ -127,7 +129,7 @@ h1:not(.eyebrow) {
   }
 }
 
-@media (max-width: 560px) {
+@include phone {
   .actions .g-btn {
     flex: 1 1 100%;
   }

@@ -90,7 +90,7 @@ const AI_BEHAVIORAL_NOTE = 'AI follow-ups and AI feedback. Your answers, includi
             >
               <ion-icon [name]="t.icon" aria-hidden="true" />
               <span>
-                <span class="title display">{{ t.title }}</span>
+                <span class="title">{{ t.title }}</span>
                 <span class="muted blurb">{{ t.blurb }}</span>
               </span>
             </button>
@@ -102,7 +102,7 @@ const AI_BEHAVIORAL_NOTE = 'AI follow-ups and AI feedback. Your answers, includi
             @for (c of competencies; track c.id) {
               <button class="panel card-link problem" [disabled]="pending()" (click)="start(c.id)">
                 <span>
-                  <span class="title display">{{ c.name }}</span>
+                  <span class="title">{{ c.name }}</span>
                   <span class="muted one-liner">{{ c.oneLiner }}</span>
                 </span>
                 @if (starting() === c.id) {
@@ -116,7 +116,7 @@ const AI_BEHAVIORAL_NOTE = 'AI follow-ups and AI feedback. Your answers, includi
           @for (p of visible(); track p.id) {
             <button class="panel card-link problem" [disabled]="pending()" (click)="start(p.id)">
               <span>
-                <span class="title display">{{ p.title }}</span>
+                <span class="title">{{ p.title }}</span>
                 <span class="chips">
                   @for (id of p.patternIds; track id) {
                     <span class="chip">{{ patternName(id) }}</span>
@@ -138,7 +138,7 @@ const AI_BEHAVIORAL_NOTE = 'AI follow-ups and AI feedback. Your answers, includi
         <a class="panel card-link behavioral" routerLink="/mock/loop">
           <ion-icon name="layers-outline" aria-hidden="true" />
           <span>
-            <span class="title display">Mock loop</span>
+            <span class="title">Mock loop</span>
             <span class="muted blurb">{{ loopBlurb() }}</span>
           </span>
           <span class="go">{{ loopActive() ? 'Continue →' : 'Open →' }}</span>
@@ -147,7 +147,7 @@ const AI_BEHAVIORAL_NOTE = 'AI follow-ups and AI feedback. Your answers, includi
         <a class="panel card-link behavioral" routerLink="/behavioral" crossLink>
           <ion-icon name="people-outline" aria-hidden="true" />
           <span>
-            <span class="title display">Guides, story bank and rehearsal</span>
+            <span class="title">Guides, story bank and rehearsal</span>
             <span class="muted blurb">{{ behavioralBlurb }}</span>
           </span>
           <span class="go">Open →</span>
@@ -176,6 +176,10 @@ const AI_BEHAVIORAL_NOTE = 'AI follow-ups and AI feedback. Your answers, includi
     </ion-content>
   `,
   styles: `
+    @use '../../../type' as *;
+
+    @use '../../../breakpoints' as *;
+
     h1 {
       font-size: clamp(1.625rem, 5vw, 2.375rem);
       margin: 6px 0 8px;
@@ -236,8 +240,8 @@ const AI_BEHAVIORAL_NOTE = 'AI follow-ups and AI feedback. Your answers, includi
       margin: 20px 0 14px;
     }
     .title {
+      @include title;
       display: block;
-      font-weight: 500;
       line-height: 1.2;
     }
     .track,
@@ -317,6 +321,7 @@ const AI_BEHAVIORAL_NOTE = 'AI follow-ups and AI feedback. Your answers, includi
       margin-top: 4px;
     }
     .recent-title {
+      @include title;
       font-size: 1.125rem;
       margin: 30px 0 10px;
     }
@@ -346,7 +351,7 @@ const AI_BEHAVIORAL_NOTE = 'AI follow-ups and AI feedback. Your answers, includi
     .verdict[data-verdict='no-hire'] {
       color: var(--g-danger);
     }
-    @media (max-width: 560px) {
+    @include phone {
       .session {
         grid-template-columns: 1fr auto;
         .muted:nth-child(2) {

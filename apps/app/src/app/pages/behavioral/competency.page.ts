@@ -127,6 +127,8 @@ import { BackComponent } from '../../ui/back.component';
     </ion-content>
   `,
   styles: `
+    @use '../../../type' as *;
+
     h1 {
       font-size: clamp(1.625rem, 5vw, 2.25rem);
       margin: 4px 0 8px;
@@ -141,6 +143,7 @@ import { BackComponent } from '../../ui/back.component';
       margin-bottom: 12px;
     }
     h2 {
+      @include title;
       display: flex;
       align-items: center;
       gap: 8px;
