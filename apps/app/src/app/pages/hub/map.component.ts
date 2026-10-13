@@ -3,7 +3,7 @@ import { RouterLink } from '@angular/router';
 import { PATTERN_CATALOG, SD_TOPICS, type Track } from '@grasp/engine';
 import { ProgressService } from '../../core/progress.service';
 import { CodeTextComponent } from '../../viz/code-text.component';
-import { MasteryRingComponent } from '../../viz/mastery-ring.component';
+import { MasteryRingComponent } from '../../ui/mastery-ring.component';
 
 const TRACKS: { id: Track; title: string; blurb: string }[] = [
   { id: 'foundations', title: 'Foundations', blurb: 'The four patterns behind a third of all interview questions.' },

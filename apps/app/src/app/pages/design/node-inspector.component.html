@@ -86,7 +86,7 @@
             </button>
           }
         </div>
-        <p class="muted small">{{ shardKeyDetail(n) }}</p>
+        <p class="muted">{{ shardKeyDetail(n) }}</p>
       </div>
       @if (st.shards; as shards) {
         <ol class="shards" aria-label="Load per shard">
@@ -155,7 +155,7 @@
       @for (t of connectTargets(); track t.id) {
         <button class="g-btn" (click)="connectTo.emit(t.id)">{{ t.name }}</button>
       } @empty {
-        <p class="muted small">Nothing on the board can take its traffic. Add a component it connects to first.</p>
+        <p class="muted">Nothing on the board can take its traffic. Add a component it connects to first.</p>
       }
     </div>
   }

@@ -32,24 +32,30 @@ import { AI_DISCLOSURE } from '../core/ai-disclosure';
   `,
   styles: `
     ion-content {
-      --padding-top: 24px;
-      --padding-start: 22px;
-      --padding-end: 22px;
+      --padding-top: var(--g-space-6);
+      --padding-start: var(--g-space-5);
+      --padding-end: var(--g-space-5);
       line-height: 1.5;
     }
+    /* The list scrolls under the button on a short screen; the line shows where it is cut. */
     .footer {
-      padding: 12px 22px 28px;
+      padding: var(--g-space-3) var(--g-space-5) var(--g-space-6);
+      border-top: 1px solid var(--g-line);
+    }
+    .eyebrow {
+      margin: 0;
     }
     h2 {
-      font: 600 1.375rem/1.2 var(--g-font-display);
-      margin: 6px 0 12px;
+      font-size: var(--g-text-display-l);
+      line-height: 1.2;
+      margin: var(--g-space-2) 0 var(--g-space-3);
     }
     ul {
-      padding-left: 18px;
-      margin: 12px 0 10px;
+      padding-left: var(--g-space-5);
+      margin: var(--g-space-3) 0;
     }
     li {
-      margin-bottom: 8px;
+      margin-bottom: var(--g-space-2);
       color: var(--g-muted);
     }
     li strong {

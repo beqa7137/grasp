@@ -1835,6 +1835,7 @@ Iterations are ordered by impact, alternating between organization and visuals. 
 - The motion layer (R19) animates only arrays, lists, stacks and grids. Trees get motion in R24, after their pre-layout, so Subsets nodes never slide every frame.
 - Every iteration that uses `g-segmented` or sheets (R21, R27, R29 and later) depends on R7.
 - `g-sequence` is built in R27, before the retries widget (R34).
+- R27 was pulled forward by the owner on 2026-10-13, ahead of R8 to R26, and takes the Caching widget (`cache`) from R42; its R19 dependency (the motion layer) must be checked when R27 is planned.
 
 ### 5.2 Iterations
 
@@ -2132,6 +2133,24 @@ Iterations are ordered by impact, alternating between organization and visuals. 
   - no duplicated ion-title/h1 on migrated pages;
   - no native resize grip or system checkbox remains on migrated pages.
 - **Content review:** none.
+- **R7 note:** what the scope became.
+  - **Header.** `g-page-header` puts the h1 in the large title of Ionic's condense header; Ionic hides the toolbar title
+    (`aria-hidden`, opacity 0) until the large one scrolls under it. Ionic gives the banner role to whichever header
+    shows the title, which puts a banner inside `ion-content`'s main landmark (axe `landmark-banner-is-top-level`), so
+    the component keeps the role on the page's own header. A long title wraps in the large title and ellipsizes only in
+    the toolbar once scrolled.
+  - **Icons.** ionicons is one module, so every glyph the app imports anywhere ships with first paint (a new glyph costs
+    0.25 to 1.2 kB there). `ui/icons.ts` is named re-exports of glyphs the app already used, plus `close` and
+    `checkmark`; Settings' sections take no icons.
+  - **Built, not adopted.** `g-article`, `g-disclosure`, `g-filter-bar` and `g-filter-sheet`, `g-slider` and `g-check`
+    have no migrated user: adopting `g-article` in the pattern and design-lesson pages would retoken their off-scale
+    text (R16, R30). `g-sheet` is a native modal `dialog` (top layer, inert page) with its own focus, Escape and focus
+    return; `open` follows any close of the dialog, and Android's back button closes it before the page beneath. Tones
+    share one `Tone` type and the `tone-ink` mixin (`src/_tone.scss`).
+  - **Settings** follows 4.10's order with what exists (Study, Reminders, Appearance, Keyboard, Account, Pilot, Your
+    data): "Your loop" and Checkpoints come with R9 and R20. Its width is `--g-width-reading`.
+  - **Text fields** are sunken wells with a stroke border (`.g-textarea`); `mastery-ring` moved to `ui/`, emptying the
+    first-paint allowlist.
 
 **R8 Coding hub and Problem library.**
 

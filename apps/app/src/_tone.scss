@@ -1,0 +1,19 @@
+// A tone's ink (REDESIGN.md 3.2) on the element carrying the tone's class (`Tone` in app/ui/tone.ts). The element sets
+// its own neutral colour; the tones override it.
+@mixin tone-ink {
+  &.accent {
+    color: var(--g-accent);
+  }
+  &.success {
+    color: var(--g-success-ink);
+  }
+  &.warn {
+    color: var(--g-warn-ink);
+  }
+  &.danger {
+    color: var(--g-danger-ink);
+  }
+  &.info {
+    color: var(--g-info-ink);
+  }
+}

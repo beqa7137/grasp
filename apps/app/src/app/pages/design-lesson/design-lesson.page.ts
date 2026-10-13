@@ -15,7 +15,7 @@ import {
 } from 'ionicons/icons';
 import { ProgressService } from '../../core/progress.service';
 import { CodeTextComponent } from '../../viz/code-text.component';
-import { MasteryRingComponent } from '../../viz/mastery-ring.component';
+import { MasteryRingComponent } from '../../ui/mastery-ring.component';
 import { QuickCheckComponent } from '../pattern/quick-check.component';
 import { WorkedExampleComponent } from '../pattern/worked-example.component';
 import { AvailabilityWidgetComponent } from './availability-widget.component';

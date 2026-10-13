@@ -17,9 +17,6 @@ const inDays = (p, days) =>
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }, days);
 
-/** The review summary keeps the scroll of the card it replaces; delete this with the LOOP.md follow-up's app fix. */
-const toTop = (locator) => locator.evaluate((el) => el.closest('ion-content').scrollToTop(0));
-
 /** Saves a plan for an interview in 20 days. */
 async function setPlan(p) {
   await p.getByLabel('Interview date').fill(await inDays(p, 20));
@@ -50,7 +47,18 @@ async function finishReview(p) {
     await p.getByRole('button', { name: /^(Got it|Continue)/ }).click();
     await summary.or(p.locator('g-question-card .choice:enabled')).first().waitFor();
   }
-  await toTop(summary);
+  await settle(p);
+}
+
+/** Answers a practice set with the first choice until its summary shows. */
+async function finishPractice(p) {
+  const summary = p.getByText(/practice answers · \d+ min/);
+  for (let answered = 0; !(await summary.isVisible()); answered++) {
+    if (answered === 20) throw new Error('the practice did not end');
+    await p.locator('g-question-card .choice').first().click();
+    await p.getByRole('button', { name: /^Next/ }).click();
+    await summary.or(p.locator('g-question-card .choice:enabled')).first().waitFor();
+  }
   await settle(p);
 }
 
@@ -156,6 +164,17 @@ export function learnStates() {
     { id: 'review-question', path: '/today/review' },
     { id: 'review-answered', path: '/today/review', setup: (p) => answerFirst(p, 'g-question-card .choice') },
     { id: 'review-summary', path: '/today/review', setup: finishReview },
+    {
+      id: 'review-caught-up',
+      path: '/today/settings',
+      setup: async (p) => {
+        await p.getByRole('radiogroup', { name: 'New cards per day' }).getByRole('radio', { name: '0', exact: true }).click();
+        await p.goto(new URL('/today/review', p.url()).href);
+        await p.getByText('All caught up', { exact: true }).waitFor();
+        await settle(p);
+      },
+    },
+    { id: 'practice-summary', path: '/coding/patterns/binary-search/drill', setup: finishPractice },
     { id: 'practice-question', path: '/coding/patterns/binary-search/drill' },
     { id: 'practice-answered', path: '/coding/patterns/binary-search/drill', setup: (p) => answerFirst(p, 'g-question-card .choice') },
     { id: 'pattern-binary-search', path: '/coding/patterns/binary-search' },
@@ -175,6 +194,14 @@ export function learnStates() {
       },
     },
     { id: 'settings', path: '/today/settings' },
+    {
+      id: 'settings-scrolled',
+      path: '/today/settings',
+      setup: async (p) => {
+        await p.getByRole('heading', { name: 'Your data' }).scrollIntoViewIfNeeded();
+        await settle(p);
+      },
+    },
     { id: 'plan-empty', path: '/today/plan' },
     { id: 'plan-set', path: '/today/plan', setup: setPlan },
     {

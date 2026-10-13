@@ -8,21 +8,23 @@ import { refocusAfterRender } from '../core/focus';
 import { haptic } from '../core/haptics';
 import { RovingSelectDirective } from '../core/roving-select.directive';
 import { RuntimeConfigService } from '../core/runtime-config.service';
+import { SegmentedComponent } from '../ui/segmented.component';
+import { TextareaDirective } from '../ui/textarea.directive';
 
 type Kind = 'bug' | 'confusing' | 'idea' | 'praise';
 
-const KINDS: { id: Kind; label: string; placeholder: string }[] = [
-  { id: 'bug', label: 'Something broke', placeholder: 'What did you do, what happened, and what did you expect?' },
-  { id: 'confusing', label: 'Confusing', placeholder: 'Which part was hard to follow?' },
-  { id: 'idea', label: 'Idea', placeholder: 'What would make Grasp more useful for your prep?' },
-  { id: 'praise', label: 'Loved it', placeholder: 'What worked well?' },
+const KINDS: { value: Kind; label: string; placeholder: string }[] = [
+  { value: 'bug', label: 'Something broke', placeholder: 'What did you do, what happened, and what did you expect?' },
+  { value: 'confusing', label: 'Confusing', placeholder: 'Which part was hard to follow?' },
+  { value: 'idea', label: 'Idea', placeholder: 'What would make Grasp more useful for your prep?' },
+  { value: 'praise', label: 'Loved it', placeholder: 'What worked well?' },
 ];
 const MAX_LENGTH = 2000;
 
 @Component({
   selector: 'app-feedback-sheet',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, IonContent, RovingSelectDirective],
+  imports: [FormsModule, IonContent, RovingSelectDirective, SegmentedComponent, TextareaDirective],
   template: `
     <ion-content [class.form]="!sent()">
       @if (sent()) {
@@ -33,26 +35,13 @@ const MAX_LENGTH = 2000;
         </div>
       } @else {
         <h2>Send feedback</h2>
-        <div class="kinds" role="radiogroup" aria-label="Kind of feedback">
-          @for (k of kinds; track k.id) {
-            <button
-              type="button"
-              role="radio"
-              class="chip"
-              [class.accent]="kind() === k.id"
-              [attr.aria-checked]="kind() === k.id"
-              (click)="kind.set(k.id)"
-            >
-              {{ k.label }}
-            </button>
-          }
-        </div>
+        <g-segmented class="kinds" label="Kind of feedback" [options]="kinds" [value]="kind()" (valueChange)="kind.set($event!)" />
         <textarea
+          gTextarea
           [ngModel]="message()"
           (ngModelChange)="message.set($event)"
           [maxlength]="maxLength"
           [placeholder]="placeholder()"
-          rows="5"
           aria-label="Your feedback"
         ></textarea>
         <div class="meta muted">
@@ -90,58 +79,45 @@ const MAX_LENGTH = 2000;
   `,
   styles: `
     ion-content {
-      --padding-top: 20px;
-      --padding-start: 20px;
-      --padding-end: 20px;
+      --padding-top: var(--g-space-5);
+      --padding-start: var(--g-space-5);
+      --padding-end: var(--g-space-5);
     }
     /* Room below the last rating for its focus ring, which the scroll area would clip. */
     ion-content.form {
-      --padding-bottom: 8px;
+      --padding-bottom: var(--g-space-2);
     }
     h2 {
-      font: 600 1.25rem/1.2 var(--g-font-display);
-      margin: 0 0 14px;
+      font-size: var(--g-text-title-l);
+      line-height: 1.2;
+      margin: 0 0 var(--g-space-4);
     }
     .kinds {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-    .kinds .chip {
-      cursor: pointer;
-      font-size: 0.8125rem;
-      padding: 6px 12px;
+      margin-bottom: var(--g-space-3);
     }
     textarea {
-      width: 100%;
-      resize: vertical;
-      background: var(--g-surface);
-      color: var(--g-text);
-      border: 1px solid var(--g-stroke);
-      border-radius: var(--g-radius-sm);
-      padding: 12px;
-      font: 0.9375rem/1.45 var(--ion-font-family);
+      min-height: calc(5lh + 2 * var(--g-space-3) + 2px);
+      max-height: 40dvh;
     }
     .meta {
       display: flex;
       flex-wrap: wrap;
       justify-content: space-between;
-      gap: 12px;
-      font-size: 0.75rem;
-      margin-top: 6px;
+      gap: var(--g-space-3);
+      font-size: var(--g-text-body-s);
+      margin-top: var(--g-space-2);
     }
     /* The note wraps beside the count, and the count drops below it only when large text leaves no room. */
     .meta span:first-child {
       flex: 1;
     }
     .rating-label {
-      margin: 18px 0 8px;
-      font-size: 0.875rem;
+      margin: var(--g-space-5) 0 var(--g-space-2);
+      font-size: var(--g-text-body);
     }
     .rating {
       display: flex;
-      gap: 8px;
+      gap: var(--g-space-2);
     }
     .dot {
       width: 40px;
@@ -152,26 +128,27 @@ const MAX_LENGTH = 2000;
       box-shadow: var(--g-shadow-raised);
       color: var(--g-text);
       font-weight: 600;
+      font-variant-numeric: tabular-nums;
       cursor: pointer;
     }
     .dot.on {
-      background: var(--g-accent);
+      background: var(--g-accent-soft);
       border-color: var(--g-accent);
-      color: var(--g-on-fill);
+      box-shadow: inset 0 0 0 1px var(--g-accent);
     }
     .error {
-      color: var(--g-danger);
-      font-size: 0.875rem;
+      color: var(--g-danger-ink);
+      font-size: var(--g-text-body);
     }
     .actions {
       display: flex;
       justify-content: flex-end;
-      gap: 10px;
-      padding: 12px 20px 28px;
+      gap: var(--g-space-3);
+      padding: var(--g-space-3) var(--g-space-5) var(--g-space-6);
     }
     .done {
       text-align: center;
-      padding: 12px 0 28px;
+      padding: var(--g-space-3) 0 var(--g-space-6);
     }
   `,
 })
@@ -194,7 +171,7 @@ export class FeedbackSheetComponent {
   readonly error = signal<string | null>(null);
 
   readonly route = computed(() => this.router.url.split('?')[0]);
-  readonly placeholder = computed(() => KINDS.find((k) => k.id === this.kind())!.placeholder);
+  readonly placeholder = computed(() => KINDS.find((k) => k.value === this.kind())!.placeholder);
   readonly canSend = computed(() => !this.sending() && this.message().trim().length > 0);
 
   toggleRating(n: number) {

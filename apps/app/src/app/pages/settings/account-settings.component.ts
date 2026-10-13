@@ -5,6 +5,7 @@ import { logoGithub, logoGoogle } from 'ionicons/icons';
 import { ApiError } from '../../core/api.service';
 import { AuthService, SIGN_IN_PROVIDERS, UnsyncedStories, type SignInProvider } from '../../core/auth.service';
 import { SIGN_IN_ICONS, SIGN_IN_LABELS, SignInOptionsComponent, signInErrorMessage } from '../../core/sign-in-options.component';
+import { SectionComponent } from '../../ui/section.component';
 
 function unsyncedWarning(count: number, checked: boolean): string {
   const stories = count === 1 ? '1 story' : `${count} stories`;
@@ -17,14 +18,15 @@ function unsyncedWarning(count: number, checked: boolean): string {
 @Component({
   selector: 'app-account-settings',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IonIcon, SignInOptionsComponent],
+  imports: [IonIcon, SignInOptionsComponent, SectionComponent],
   template: `
-    <section class="panel block">
-      <h2>Account</h2>
+    <g-section heading="Account">
       @if (account(); as user) {
-        <div class="row">
+        <div class="g-setting g-control-row">
           <div>
-            <strong>{{ user.email }}</strong>
+            <strong class="action"
+              >Signed in as <span class="email">{{ user.email }}</span></strong
+            >
             <p class="muted small">Progress and behavioral stories sync across every device where you sign in.</p>
           </div>
           <button class="g-btn" [disabled]="busy()" (click)="confirmSignOut()">Sign out</button>
@@ -33,7 +35,7 @@ function unsyncedWarning(count: number, checked: boolean): string {
           <h3 id="sign-in-methods">Sign-in methods</h3>
           <ul class="methods" aria-labelledby="sign-in-methods">
             @for (method of methods(); track method.provider) {
-              <li class="row">
+              <li class="g-setting g-control-row">
                 <div class="method">
                   <ion-icon [name]="icons[method.provider]" aria-hidden="true" />
                   <div>
@@ -61,50 +63,33 @@ function unsyncedWarning(count: number, checked: boolean): string {
         @if (auth.signInRequired()) {
           <p class="notice">Your session ended. Sign in again to keep syncing this device's progress.</p>
         }
-        <p class="muted intro">Study and scripted practice work without an account. Sign in to sync progress and use AI interviews.</p>
+        <div class="g-setting intro">
+          @if (auth.providers()?.length) {
+            <strong>Sign in to sync stories across devices</strong>
+          }
+          <p class="muted">Study and scripted practice work without an account. Sign in to sync progress and use AI interviews.</p>
+        </div>
         <app-sign-in-options [disabled]="busy()" (busyChange)="signingIn.set($event)" (signedIn)="confirmSignedIn()" />
       }
       @if (error(); as message) {
         <p class="error" role="alert">{{ message }}</p>
       }
-    </section>
+    </g-section>
   `,
   styles: `
-    .block {
-      padding: 18px 18px 8px;
-      margin-bottom: 16px;
-    }
-    h2 {
-      font-size: var(--g-text-title-m);
-      line-height: 1.2;
-      margin: 0 0 8px;
-    }
     h3 {
       font-size: var(--g-text-body);
       line-height: 1.2;
       color: var(--g-muted);
-      margin: 12px 0 8px;
+      margin: var(--g-space-3) 0 var(--g-space-2);
     }
-    .row {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      padding: 12px 0;
-      border-top: 1px solid var(--g-line);
-    }
-    .row p {
-      margin: 2px 0 0;
-    }
-    .row .g-btn {
+    .g-setting .g-btn {
       flex: none;
     }
-    .small {
-      font-size: 0.8125rem;
+    .email {
+      overflow-wrap: anywhere;
     }
     .intro {
-      margin: 0 0 12px;
       line-height: 1.5;
     }
     .methods {
@@ -115,26 +100,27 @@ function unsyncedWarning(count: number, checked: boolean): string {
     .method {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: var(--g-space-3);
       min-width: 0;
       overflow-wrap: anywhere;
     }
     .method ion-icon {
       flex: none;
-      font-size: 20px;
+      width: 20px;
+      height: 20px;
     }
     .notice {
-      padding: 10px 12px;
-      border-radius: 10px;
-      background: rgba(var(--g-warn-rgb), 0.12);
-      color: var(--g-warn);
-      font-size: 0.875rem;
+      padding: var(--g-space-2) var(--g-space-3);
+      border-radius: var(--g-radius-sm);
+      background: var(--g-warn-soft);
+      color: var(--g-warn-ink);
+      font-size: var(--g-text-body);
     }
     .error {
-      color: var(--g-danger);
-      font-size: 0.875rem;
+      color: var(--g-danger-ink);
+      font-size: var(--g-text-body);
       line-height: 1.45;
-      margin: 0 0 12px;
+      margin: 0 0 var(--g-space-3);
     }
   `,
 })

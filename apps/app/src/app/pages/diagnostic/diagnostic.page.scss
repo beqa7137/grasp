@@ -1,9 +1,5 @@
 @use '../../../breakpoints' as *;
 
-.small {
-  font-size: 0.8125rem;
-}
-
 h1:not(.eyebrow) {
   font-size: clamp(1.625rem, 5vw, 2.25rem);
   margin: 6px 0 10px;

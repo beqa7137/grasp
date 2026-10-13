@@ -6,8 +6,6 @@ const BASELINE = fileURLToPath(new URL('first-paint-bytes.baseline.json', import
 
 export const SLACK = 2000;
 const VIZ = /^src\/app\/viz\/|\/libs\/engine\/(src|dist)\/viz\//;
-/** Visualization modules first paint loads today. 3.3 moves mastery-ring to ui/ (code-text left with Learn's map in R5). */
-export const VIZ_ALLOWED = ['src/app/viz/mastery-ring.component.ts'];
 
 export const kB = (bytes) => `${(bytes / 1000).toFixed(2)} kB`;
 const signed = (bytes) => `${bytes < 0 ? '-' : '+'}${kB(Math.abs(bytes))}`;
@@ -71,11 +69,8 @@ export function problems(measured, baseline) {
         `${delta > 0 ? 'If the growth is intended, raise' : 'Lower'} the baseline: node scripts/first-paint-bytes.mjs --update, and state it in docs/LOOP.md.`,
     );
   }
-  for (const input of measured.viz.filter((path) => !VIZ_ALLOWED.includes(path))) {
+  for (const input of measured.viz) {
     found.push(`${input} is a visualization module in first paint: import it only from lazy routes.`);
-  }
-  for (const input of VIZ_ALLOWED.filter((path) => !measured.viz.includes(path))) {
-    found.push(`${input} is no longer in first paint: remove it from VIZ_ALLOWED.`);
   }
   return found;
 }
@@ -96,11 +91,11 @@ function measureBuild(dist) {
 }
 
 function report(measured, baseline) {
-  const leaks = measured.viz.filter((path) => !VIZ_ALLOWED.includes(path)).length;
+  const leaks = measured.viz.length;
   return (
     `First paint ${kB(measured.bytes)}: JS ${kB(measured.jsBytes)} in ${measured.files.length} files + global CSS ${kB(measured.cssBytes)} ` +
     `(baseline ${kB(baseline)} ± ${kB(SLACK)}); ` +
-    `${leaks ? `${leaks} viz leaks` : 'no viz leaks'} (${VIZ_ALLOWED.length} allowlisted)`
+    `${leaks ? `${leaks} viz leaks` : 'no viz leaks'}`
   );
 }
 

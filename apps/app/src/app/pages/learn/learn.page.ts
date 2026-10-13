@@ -35,7 +35,7 @@ import { refocusAfterRender } from '../../core/focus';
 import { ProgressService } from '../../core/progress.service';
 import { PilotService } from '../../pilot/pilot.service';
 import { DiagnosticPromptService } from '../diagnostic/diagnostic-prompt.service';
-import { MasteryRingComponent } from '../../viz/mastery-ring.component';
+import { MasteryRingComponent } from '../../ui/mastery-ring.component';
 import { LearnMenuComponent, type LearnMenuChoice } from './learn-menu.component';
 import { CrossLinkDirective } from '../../ui/cross-link.directive';
 

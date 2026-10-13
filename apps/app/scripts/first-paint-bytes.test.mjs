@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { SLACK, VIZ_ALLOWED, closure, defaultPage, measure, problems } from './first-paint-bytes.mjs';
+import { SLACK, closure, defaultPage, measure, problems } from './first-paint-bytes.mjs';
 
 const APP = fileURLToPath(new URL('../', import.meta.url));
 const ROUTES = `export const routes = [{ path: '', loadComponent: () => import('./tabs/tabs.page'), children: [
@@ -30,7 +30,7 @@ function stats() {
         imports: statically('chunk-shared.js'),
         inputs: {
           'src/app/tabs/tabs.page.ts': { bytesInOutput: 10_000 },
-          'src/app/viz/mastery-ring.component.ts': { bytesInOutput: 2_000 },
+          'src/app/ui/mastery-ring.component.ts': { bytesInOutput: 2_000 },
         },
       },
       'chunk-learn.js': {
@@ -105,18 +105,10 @@ test('fails when tabs.page.ts imports a visualization module, directly or throug
   }
 });
 
-test('a visualization module in a lazy chunk, tree-shaken away or allowlisted is no leak', () => {
+test('a visualization module in a lazy chunk or tree-shaken away is no leak', () => {
   const measured = measure(stats(), ROUTES);
-  assert.deepEqual(measured.viz, [...VIZ_ALLOWED].sort());
+  assert.deepEqual(measured.viz, []);
   assert.deepEqual(problems(measured, BASELINE), []);
-});
-
-test('fails when an allowlisted module has left first paint, so the allowlist only shrinks', () => {
-  const moved = stats();
-  delete moved.outputs['chunk-tabs.js'].inputs['src/app/viz/mastery-ring.component.ts'];
-  assert.deepEqual(problems(measure(moved, ROUTES), BASELINE), [
-    'src/app/viz/mastery-ring.component.ts is no longer in first paint: remove it from VIZ_ALLOWED.',
-  ]);
 });
 
 test('names an entry with no build output instead of measuring less', () => {

@@ -227,6 +227,22 @@ describe('AccountSettingsComponent', () => {
     expect(button('Continue with Google').disabled).toBe(false);
   });
 
+  it('invites a signed-out learner to sign in only when this device can, with the same type for both lines', () => {
+    const cta = 'Sign in to sync stories across devices';
+    const offered = setup().el.querySelector('.intro')!;
+    expect(offered.querySelector('strong')?.textContent).toBe(cta);
+    expect(offered.querySelector('p')?.classList).not.toContain('small');
+    TestBed.resetTestingModule();
+    const none = setup({ providers: [] }).el;
+    expect(none.textContent).not.toContain(cta);
+    expect(none.querySelector('.intro p')?.textContent).toContain('Study and scripted practice work without an account.');
+  });
+
+  it('names the signed-in account in its action', () => {
+    const { el } = setup({ user: ada, identities: [] });
+    expect(el.querySelector('.g-setting strong')?.textContent?.replace(/\s+/g, ' ').trim()).toBe('Signed in as ada@example.com');
+  });
+
   it('shows the account, its linked methods and a way to connect the other provider', () => {
     const { el, buttons, button } = setup({ user: ada, identities: [googleIdentity] });
     expect(el.textContent).toContain('ada@example.com');
