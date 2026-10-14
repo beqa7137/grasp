@@ -46,14 +46,14 @@ const OVERLAY_BACK_PRIORITY = 100;
       (cancel)="$event.preventDefault(); open.set(false)"
       (close)="onClosed()"
     >
-      <header>
+      <div class="head">
         <h2 [id]="titleId">{{ heading() }}</h2>
         <button type="button" class="close" aria-label="Close" (click)="open.set(false)">
           <ion-icon [icon]="closeIcon" aria-hidden="true" />
         </button>
-      </header>
+      </div>
       <div class="body"><ng-content /></div>
-      <footer><ng-content select="[actions]" /></footer>
+      <div class="actions"><ng-content select="[actions]" /></div>
     </dialog>
   `,
   styles: `
@@ -83,7 +83,8 @@ const OVERLAY_BACK_PRIORITY = 100;
         padding-bottom: env(safe-area-inset-bottom);
       }
     }
-    header {
+    /* Not a header element: axe reads a header inside the dialog as a banner, which may not sit in the page's main landmark. */
+    .head {
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -113,13 +114,18 @@ const OVERLAY_BACK_PRIORITY = 100;
     .body {
       padding: 0 var(--g-space-5) var(--g-space-4);
     }
-    footer {
+    /* The dialog scrolls as one, and a long form must keep its actions in reach. */
+    .actions {
+      position: sticky;
+      bottom: 0;
       display: flex;
       justify-content: flex-end;
       gap: var(--g-space-2);
-      padding: 0 var(--g-space-5) var(--g-space-5);
+      padding: var(--g-space-3) var(--g-space-5) var(--g-space-5);
+      border-top: 1px solid var(--g-line);
+      background: var(--g-surface);
     }
-    footer:empty {
+    .actions:empty {
       display: none;
     }
   `,

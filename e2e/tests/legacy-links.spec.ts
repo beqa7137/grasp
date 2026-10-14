@@ -68,7 +68,7 @@ const LINKS: { old: string; url: string; h1: string | RegExp; tab: string }[] = 
     h1: /^Tell me about a time you disagreed/,
     tab: 'behavioral',
   },
-  { old: '/code', url: '/coding/problems', h1: 'Write it. Run it. Watch it.', tab: 'coding' },
+  { old: '/code', url: '/coding/problems', h1: 'Problems', tab: 'coding' },
   { old: '/code/two-sum', url: '/coding/problems/two-sum', h1: 'Two Sum', tab: 'coding' },
   { old: '/plan', url: '/today/plan', h1: 'Plan to your interview', tab: 'today' },
   { old: '/settings', url: '/today/settings', h1: 'Settings', tab: 'today' },

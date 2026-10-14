@@ -2,6 +2,14 @@ import { ALGORITHM_PATTERNS, type AlgorithmPatternId } from '../algorithms/patte
 
 export type Track = 'foundations' | 'core' | 'graphs' | 'advanced';
 
+/** The roadmap's four tracks, in order. */
+export const PATTERN_TRACKS: readonly { id: Track; name: string }[] = [
+  { id: 'foundations', name: 'Foundations' },
+  { id: 'core', name: 'Core' },
+  { id: 'graphs', name: 'Graphs & trees' },
+  { id: 'advanced', name: 'Advanced' },
+];
+
 /** A pattern as the pattern map, route titles and progress see it; the rest lives in patterns.ts. */
 export interface PatternSummary<Id extends string = string> {
   id: Id;

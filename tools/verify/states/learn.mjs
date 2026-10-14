@@ -1,5 +1,5 @@
 import { PATTERN_CATALOG } from '@grasp/engine';
-import { answerFirst, openPlayback, settle, toEnd, toPredict } from '../lib.mjs';
+import { answerFirst, goto, openPlayback, settle, toEnd, toPredict } from '../lib.mjs';
 
 const TWO_SUM = `function twoSum(nums, target) {
   const seen = new Map();
@@ -90,6 +90,15 @@ export function learnStates() {
     { id: 'today', path: '/today' },
     { id: 'coding-skill-map', path: '/coding' },
     { id: 'coding-visualizers', path: '/coding/visualizers' },
+    { id: 'coding-visualizers-trees', path: '/coding/visualizers?structure=trees' },
+    {
+      id: 'coding-skill-map-placed',
+      path: '/coding/placement',
+      setup: async (p) => {
+        await takePlacement(p);
+        await goto(p, '/coding');
+      },
+    },
     ...players,
     {
       id: 'player-binary-search-intro',
@@ -226,6 +235,26 @@ export function learnStates() {
       },
     },
     { id: 'coding-problems', path: '/coding/problems' },
+    { id: 'coding-problems-graphs', path: '/coding/problems?track=graphs' },
+    {
+      id: 'coding-problems-filters',
+      path: '/coding/problems?track=graphs&difficulty=hard',
+      setup: async (p) => {
+        // A phone opens the sheet; wider screens show the same controls beside the list.
+        const open = p.getByRole('button', { name: /^Filters/ });
+        if (await open.isVisible()) await open.click();
+        await settle(p, 500);
+      },
+    },
+    {
+      id: 'coding-problems-mixed',
+      path: '/coding/problems',
+      setup: async (p) => {
+        await p.getByRole('group', { name: 'View' }).getByRole('button', { name: 'Mixed' }).click();
+        await settle(p, 400);
+      },
+    },
+    { id: 'coding-problems-empty', path: '/coding/problems?q=zzzz' },
     { id: 'code-two-sum', path: '/coding/problems/two-sum' },
     {
       id: 'code-python-trace-note',

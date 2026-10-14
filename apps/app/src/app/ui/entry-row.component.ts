@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, booleanAttribute, Component, computed, input } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { IonIcon } from '@ionic/angular';
 import { goIcon } from './icons';
 import { type Tone } from './tone';
@@ -12,13 +13,17 @@ export interface EntryStatus {
 
 /**
  * One row of a library list (REDESIGN.md 3.2): status and kind glyphs, the title, then one meta line (kind, shelf, level
- * pips, minutes, status text). Put it on the link or button it opens: `<a g-entry-row routerLink="…">`.
+ * pips, minutes, status text) under it. With `inline`, the pips and status text sit at the row's end and the meta is one
+ * note under the title. Put it on the link or button it opens: `<a g-entry-row routerLink="…">`. Content marked `lead`
+ * replaces the status glyph; content marked `end` goes last.
  */
 @Component({
   selector: 'a[g-entry-row], button[g-entry-row], g-entry-row',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IonIcon],
+  imports: [IonIcon, NgTemplateOutlet],
+  host: { '[class.inline]': 'inline()' },
   template: `
+    <ng-content select="[lead]" />
     @if (status(); as s) {
       <ion-icon class="status" [class]="s.tone ?? 'neutral'" [icon]="s.icon" role="img" [attr.aria-label]="s.label" />
     }
@@ -27,21 +32,35 @@ export interface EntryStatus {
     }
     <span class="text">
       <span class="title">{{ heading() }}</span>
-      @if (meta().length || level()) {
+      @if (inline()) {
+        @if (meta().length) {
+          <span class="note">{{ meta().join(' · ') }}</span>
+        }
+      } @else if (meta().length || level() || after().length) {
         <span class="meta">
           @for (m of meta(); track $index) {
             <span>{{ m }}</span>
           }
-          @if (level(); as level) {
-            <span class="pips" role="img" [attr.aria-label]="'Level ' + level + ' of ' + levels()">
-              @for (p of pips(); track $index) {
-                <i [class.on]="p"></i>
-              }
-            </span>
-          }
+          <ng-container *ngTemplateOutlet="tail" />
         </span>
       }
     </span>
+    @if (inline() && (level() || after().length)) {
+      <span class="end"><ng-container *ngTemplateOutlet="tail" /></span>
+    }
+    <ng-template #tail>
+      @if (level(); as level) {
+        <span class="pips" role="img" [attr.aria-label]="levelLabel() ?? 'Level ' + level + ' of ' + levels()">
+          @for (p of pips(); track $index) {
+            <i [class.on]="p"></i>
+          }
+        </span>
+      }
+      @for (m of after(); track $index) {
+        <span>{{ m }}</span>
+      }
+    </ng-template>
+    <ng-content select="[end]" />
     @if (go()) {
       <ion-icon class="go" [icon]="goIcon" aria-hidden="true" />
     }
@@ -107,12 +126,30 @@ export interface EntryStatus {
       font-size: var(--g-text-body-s);
       color: var(--g-muted);
     }
+    /* One shape for every row: the title with an optional note under it, then the pips and status text at the row's end. */
+    .note {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: var(--g-text-body-s);
+      color: var(--g-muted);
+    }
+    .end {
+      flex: none;
+      display: flex;
+      align-items: center;
+      gap: var(--g-space-2);
+      white-space: nowrap;
+      font-size: var(--g-text-body-s);
+      color: var(--g-muted);
+    }
     .meta > span + span::before {
       content: '·';
       margin-right: var(--g-space-2);
     }
     .pips {
       display: inline-flex;
+      align-items: center;
       gap: var(--g-space-1);
     }
     .pips i {
@@ -129,10 +166,16 @@ export interface EntryStatus {
 export class EntryRowComponent {
   readonly heading = input.required<string>();
   readonly meta = input<string[]>([]);
+  /** Meta after the level pips: status text such as "best 2/5". */
+  readonly after = input<string[]>([]);
   readonly kind = input<string>();
   readonly status = input<EntryStatus>();
   readonly level = input<number>();
   readonly levels = input(3);
+  /** Read in place of "Level 2 of 3", as "Medium" for a difficulty. */
+  readonly levelLabel = input<string>();
+  /** The meta line after the title, on the title's line while both fit. */
+  readonly inline = input(false, { transform: booleanAttribute });
   /** A trailing arrow, for a row that opens a page. */
   readonly go = input(false);
   readonly goIcon = goIcon;

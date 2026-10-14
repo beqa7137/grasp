@@ -17,7 +17,7 @@ test.describe('on a 320 px screen, content fits its box', () => {
 
   test('the coding problem list keeps one column within the page', async ({ page }) => {
     await page.goto('/coding/problems');
-    const list = page.locator('.list');
+    const list = page.locator('app-problem-library .groups');
     await expect(list.locator('a').first()).toBeVisible();
     expect(await tooWide(list)).toEqual([]);
   });

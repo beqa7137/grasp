@@ -47,9 +47,9 @@ async function openVisualizers(page: Page): Promise<void> {
 
 async function pushVisualizer(page: Page): Promise<number> {
   await watchTransitions(page);
-  await page.locator('app-visualize-list a[href="/coding/visualizers/binary-search"]').first().click();
+  await page.locator('app-visualizers a[href="/coding/visualizers/binary-search"]').first().click();
   await expect(page.getByRole('heading', { name: 'Binary Search', level: 1 })).toBeVisible();
-  await expect(page.locator('app-visualize-list')).toBeHidden();
+  await expect(page.locator('app-visualizers')).toBeHidden();
   return transitionsSeen(page);
 }
 

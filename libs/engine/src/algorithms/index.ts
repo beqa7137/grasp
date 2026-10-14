@@ -29,6 +29,7 @@ export * from './catalog.js';
 export * from './input.js';
 export * from './random.js';
 export * from './layout.js';
+export * from './structures.js';
 
 const DEFINITIONS: Record<AlgorithmId, AlgorithmDefinition<any>> = {
   'binary-search': binarySearch,

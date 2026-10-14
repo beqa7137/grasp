@@ -4,3 +4,4 @@ export * from './list.js';
 export * from './catalog.js';
 export * from './problems/index.js';
 export * from './suite.js';
+export * from './library.js';

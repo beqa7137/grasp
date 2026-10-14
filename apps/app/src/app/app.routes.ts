@@ -6,6 +6,7 @@ const titles = () => import('./route-titles');
 /** Loads a titled page with its title, so preloading the page also keeps its title for an offline visit. */
 const withTitles = <T>(page: Promise<T>) => Promise.all([page, titles()]).then(([m]) => m);
 const hub = () => import('./pages/hub/hub.page').then((m) => m.HubPage);
+const skillMap = () => import('./pages/coding/skill-map.component').then((m) => m.SkillMapComponent);
 const map = () => import('./pages/hub/map.component').then((m) => m.MapComponent);
 const designList = () => import('./pages/design/design-list.page').then((m) => m.DesignListPage);
 const drill = () => import('./pages/drill/drill.page').then((m) => m.DrillPage);
@@ -62,15 +63,25 @@ export const routes: Routes = [
       {
         path: 'coding',
         title: 'Coding',
-        loadComponent: hub,
+        // The hub and its default segment load together: one after the other was one more round trip on a slow network.
+        loadComponent: () => Promise.all([hub(), skillMap()]).then(([page]) => page),
         data: { preload: 0 },
         children: [
-          { path: '', title: 'Skill map', loadComponent: map, data: { show: 'patterns', preload: 0 } },
-          { path: 'problems', title: 'Problems', loadComponent: () => import('./pages/code/code-list.page').then((m) => m.CodeListPage) },
+          {
+            path: '',
+            title: 'Skill map',
+            loadComponent: skillMap,
+            data: { preload: 0 },
+          },
+          {
+            path: 'problems',
+            title: 'Problems',
+            loadComponent: () => import('./pages/coding/problem-library.page').then((m) => m.ProblemLibraryPage),
+          },
           {
             path: 'visualizers',
             title: 'Visualizers',
-            loadComponent: () => import('./pages/visualize/visualize-list.page').then((m) => m.VisualizeListPage),
+            loadComponent: () => import('./pages/coding/visualizers.component').then((m) => m.VisualizersComponent),
           },
         ],
       },
@@ -108,7 +119,7 @@ export const routes: Routes = [
         loadComponent: hub,
         data: { preload: 0 },
         children: [
-          { path: '', title: 'Topics', loadComponent: map, data: { show: 'topics', preload: 0 } },
+          { path: '', title: 'Topics', loadComponent: map, data: { preload: 0 } },
           { path: 'missions', title: 'Missions', loadComponent: designList, data: { show: 'missions' } },
           { path: 'cases', title: 'Cases', loadComponent: designList, data: { show: 'cases' } },
         ],

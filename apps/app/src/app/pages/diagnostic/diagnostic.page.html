@@ -72,26 +72,9 @@
           }
 
           @if (result.weak.length && result.strong.length) {
-            <div class="group">
-              <h2>Start with these</h2>
-              <p class="muted small">Your reviews bring these patterns up first.</p>
-              <div class="chips">
-                @for (p of result.weak; track p.id) {
-                  <a class="chip accent" [routerLink]="['/coding/patterns', p.id]">{{ p.name }}</a>
-                }
-              </div>
-            </div>
-          }
-          @if (result.strong.length) {
-            <div class="group">
-              <h2>You already spot these</h2>
-              <p class="muted small">Their reviews skip ahead to templates and complexity.</p>
-              <div class="chips">
-                @for (p of result.strong; track p.id) {
-                  <a class="chip" [routerLink]="['/coding/patterns', p.id]">{{ p.name }}</a>
-                }
-              </div>
-            </div>
+            <p class="muted">
+              Your reviews bring the patterns to learn up first. The ones you spotted skip ahead to templates and complexity.
+            </p>
           }
 
           <div class="actions">
@@ -103,6 +86,7 @@
             }
           </div>
         </section>
+        <app-pattern-map class="map" [legend]="legend" [rows]="placementRows()" />
       }
     }
   </div>

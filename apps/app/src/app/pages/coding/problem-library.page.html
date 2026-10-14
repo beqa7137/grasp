@@ -1,0 +1,216 @@
+<div class="page library">
+  <div class="head">
+    <h1>Problems</h1>
+    <div class="views" role="group" aria-label="View">
+      @for (v of views; track v.value) {
+        <button type="button" g-chip [attr.aria-pressed]="prefs.view() === v.value" (click)="prefs.setView(v.value)">{{ v.label }}</button>
+      }
+    </div>
+    <p class="summary">{{ summary() }}</p>
+  </div>
+
+  <div
+    #trackRow
+    class="tracks"
+    role="group"
+    aria-label="Track"
+    [class.more-start]="tracksOverflow().start"
+    [class.more-end]="tracksOverflow().end"
+    (scroll)="measureTracks()"
+  >
+    @for (t of tracks; track t.id) {
+      @let n = result().counts.track[t.id];
+      <button
+        type="button"
+        g-chip
+        [attr.aria-pressed]="isOn('track', t.id)"
+        [attr.aria-disabled]="dimmed('track', t.id, n)"
+        (click)="toggle('track', t.id, n)"
+      >
+        {{ t.name }}
+        @if (!hidePatternCounts()) {
+          <span class="count">{{ n }}</span>
+        }
+      </button>
+    }
+  </div>
+
+  <g-filter-bar class="bar" inline [results]="resultLine()" [show]="showLabel()" [active]="sheetActive()" (reset)="resetSheet()">
+    <form chips class="search" role="search" (submit)="submitSearch($event)">
+      <label class="visually-hidden" for="problem-search">Search problems</label>
+      <input
+        #searchField
+        id="problem-search"
+        type="search"
+        placeholder="Search problems"
+        autocomplete="off"
+        spellcheck="false"
+        enterkeyhint="search"
+        [value]="search()"
+        (input)="type($any($event.target).value)"
+      />
+    </form>
+    @if (chips().length || filtered()) {
+      <div chips #chipRow class="active">
+        @for (c of chips(); track c.facet + c.value; let i = $index) {
+          <button type="button" g-chip [attr.aria-label]="'Remove ' + c.label" (click)="remove(c.facet, c.value, i)">
+            {{ c.label }}<ion-icon [icon]="icons.close" aria-hidden="true" />
+          </button>
+        }
+        <button type="button" class="g-btn ghost clear" (click)="clearAll()">Clear all</button>
+      </div>
+    }
+    <ng-container *ngTemplateOutlet="facets; context: { $implicit: 'sheet' }" />
+  </g-filter-bar>
+
+  <div class="layout">
+    <aside class="side" aria-labelledby="side-filters">
+      <h2 id="side-filters" class="visually-hidden">Filters</h2>
+      <ng-container *ngTemplateOutlet="facets; context: { $implicit: 'side' }" />
+    </aside>
+
+    <div class="main">
+      @if (prefs.view() === 'mixed') {
+        <div class="mixed-tools">
+          <g-check [checked]="prefs.showTags()" (checkedChange)="prefs.setShowTags($event)">Show pattern tags</g-check>
+          <button type="button" class="g-btn" [disabled]="!result().problems.length" (click)="pickRandom()">Pick one at random</button>
+        </div>
+      }
+
+      @if (!result().problems.length) {
+        <g-empty-state class="empty" heading="No problems match">
+          {{ emptyText() }}
+          <button action type="button" class="g-btn" (click)="clearAll()">Clear all</button>
+        </g-empty-state>
+      } @else if (prefs.view() === 'pattern') {
+        <ol class="groups">
+          @for (g of result().groups; track g.pattern.id) {
+            @let open = isOpen(g.pattern.id);
+            <li class="group">
+              <h2>
+                <button
+                  type="button"
+                  class="group-head"
+                  [attr.aria-expanded]="open"
+                  [attr.aria-controls]="'rows-' + g.pattern.id"
+                  (click)="toggleGroup(g.pattern.id)"
+                >
+                  <ion-icon class="chevron" [icon]="icons.expand" aria-hidden="true" />
+                  <span class="name">{{ g.pattern.name }}</span>
+                  <span class="tally"
+                    >{{ g.solved }} of {{ g.members }} solved{{
+                      filtered() && g.rows.length < g.members ? ' · ' + g.rows.length + ' shown' : ''
+                    }}</span
+                  >
+                </button>
+              </h2>
+              @if (open) {
+                <ul class="rows" [id]="'rows-' + g.pattern.id">
+                  @for (p of g.rows; track p.id) {
+                    <li>
+                      <a
+                        g-entry-row
+                        inline
+                        [routerLink]="['/coding/problems', p.id]"
+                        [heading]="p.title"
+                        [status]="rowStatus(p)"
+                        [meta]="alsoIn(p, g.pattern.id)"
+                        [level]="difficultyRank(p)"
+                        [levelLabel]="difficultyName(p)"
+                        [after]="best(p)"
+                      ></a>
+                    </li>
+                  }
+                </ul>
+              }
+            </li>
+          }
+        </ol>
+      } @else {
+        <ul class="rows mixed" aria-label="Problems, easiest first">
+          @for (p of mixed(); track p.id) {
+            <li>
+              <a
+                g-entry-row
+                inline
+                [routerLink]="['/coding/problems', p.id]"
+                [heading]="p.title"
+                [status]="rowStatus(p)"
+                [meta]="tags(p)"
+                [level]="difficultyRank(p)"
+                [levelLabel]="difficultyName(p)"
+                [after]="best(p)"
+              ></a>
+            </li>
+          }
+        </ul>
+      }
+    </div>
+  </div>
+</div>
+
+<ng-template #facets let-where>
+  <div class="facets">
+    <div class="facet" role="group" [attr.aria-labelledby]="where + '-status'">
+      <h3 [id]="where + '-status'">Status</h3>
+      <div class="options">
+        @for (s of statuses; track s.id) {
+          @let n = result().counts.status[s.id];
+          <button
+            type="button"
+            g-chip
+            [attr.aria-pressed]="isOn('status', s.id)"
+            [attr.aria-disabled]="dimmed('status', s.id, n)"
+            (click)="toggle('status', s.id, n)"
+          >
+            {{ s.name }} <span class="count">{{ n }}</span>
+          </button>
+        }
+      </div>
+    </div>
+    <div class="facet" role="group" [attr.aria-labelledby]="where + '-difficulty'">
+      <h3 [id]="where + '-difficulty'">Difficulty</h3>
+      <div class="options">
+        @for (d of difficulties; track d.id) {
+          @let n = result().counts.difficulty[d.id];
+          <button
+            type="button"
+            g-chip
+            [attr.aria-pressed]="isOn('difficulty', d.id)"
+            [attr.aria-disabled]="dimmed('difficulty', d.id, n)"
+            (click)="toggle('difficulty', d.id, n)"
+          >
+            {{ d.name }} <span class="count">{{ n }}</span>
+          </button>
+        }
+        <button type="button" g-chip [attr.aria-pressed]="atLevel()" [attr.aria-describedby]="where + '-level'" (click)="toggleLevel()">
+          At my level
+        </button>
+      </div>
+      <p class="hint" [id]="where + '-level'">{{ levelHint() }}</p>
+    </div>
+    <div class="facet" role="group" [attr.aria-labelledby]="where + '-pattern'">
+      <h3 [id]="where + '-pattern'">Pattern</h3>
+      @for (t of tracks; track t.id) {
+        <h4>{{ t.name }}</h4>
+        <div class="options">
+          @for (p of t.patterns; track p.id) {
+            @let n = result().counts.pattern[p.id];
+            <button
+              type="button"
+              g-chip
+              [attr.aria-pressed]="isOn('pattern', p.id)"
+              [attr.aria-disabled]="dimmed('pattern', p.id, n)"
+              (click)="toggle('pattern', p.id, n)"
+            >
+              {{ p.name }}
+              @if (!hidePatternCounts()) {
+                <span class="count">{{ n }}</span>
+              }
+            </button>
+          }
+        </div>
+      }
+    </div>
+  </div>
+</ng-template>

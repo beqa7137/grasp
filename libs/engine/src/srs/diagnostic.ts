@@ -31,3 +31,14 @@ export function placementFromAnswers(answers: readonly DiagnosticAnswer[]): Reco
   }
   return placement;
 }
+
+/**
+ * The pattern the placement check says to learn first: the earliest it placed as weak that the learner has not yet moved
+ * past (`started`, as practised or ready), or none before a placement.
+ */
+export function startHerePattern(
+  placement: Readonly<Record<string, Placement>>,
+  started: (id: string) => boolean = () => false,
+): string | null {
+  return PATTERN_CATALOG.find((p) => placement[p.id] === 'weak' && !started(p.id))?.id ?? null;
+}

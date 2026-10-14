@@ -107,7 +107,8 @@ providers, so every sign-in test times out.
 ## audit.mjs
 
 Screenshots, axe violations, page errors and sideways overflow for every page state listed in `states/`, one file per
-area: `learn.mjs` (Today, the Coding hub's segments, visualizers at a checkpoint and answered, the player's ⋯ panel, a held scrub guard and its tick
+area: `learn.mjs` (Today, the Coding hub's segments, with the skill map after a placement, the problem library on one track, with its
+filters open, Mixed and empty, and the visualizers of one structure, visualizers at a checkpoint and answered, the player's ⋯ panel, a held scrub guard and its tick
 states, review and practice cards, the review and practice summaries and the caught-up review, Settings at its top and scrolled, the
 code workspace and an accepted submission, the study plan empty and set, the placement check's question and results,
 dialogs), `design.mjs` (the Design hub's segments, Lab missions, case studies and their widgets, design lessons) and
@@ -214,6 +215,12 @@ Images never go into git, and CI does not make the set: its Chromium and fonts d
 First paint of `/today` and the first tap on the Coding tab, the Design tab and Today's next-visualizer tile (the player, timed until its stage has drawn its first view, `ready`), on a Pixel 7 profile with Fast 3G and a
 4x slower CPU, cold cache, builds interleaved, median of `RUNS`. Writes are blocked, so production is safe to time. Each tap's selector and headings also match a build from before R5 (`/today` redirects to Learn there, and the first tab
 is Visualize), so `main` from before R5 can be timed against a later head.
+
+A local `http://` target is timed through `h2proxy.mjs`, which serves it over TLS and HTTP/2 on a free port (a
+self-signed certificate for localhost, made once with `openssl` in the system's temporary directory), because production
+serves over HTTP/2. Over the local server's HTTP/1.1 a browser opens at most six connections, so a tap's chunks queued
+behind the preloads that start at Today's first idle, and R8 measured a 0.39 s player-tap regression that HTTP/2 does not
+show. An `https://` target (production) is timed directly.
 
 ```sh
 TARGETS=base=http://localhost:4311,now=http://localhost:4310 RUNS=5 node tools/verify/timing.mjs
