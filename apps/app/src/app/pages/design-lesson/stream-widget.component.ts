@@ -65,7 +65,8 @@ const x = (s: number) => (Math.min(Math.max(s, 0), SPAN) / SPAN) * W;
         <text class="tick" [attr.x]="t.x" y="-5" text-anchor="middle">{{ t.label }}</text>
       }
       @for (e of dots(); track e.n) {
-        <circle [attr.cx]="e.x" cy="10" r="4.5" [class.late]="e.late" [class.delayed]="e.delayed" />
+        <circle [attr.cx]="e.x" cy="14" r="7" [class.late]="e.late" [class.delayed]="e.delayed" />
+        <text class="count num" [attr.x]="e.x" y="17.5" text-anchor="middle">{{ e.n + 1 }}</text>
       }
       @for (win of bands(); track $index) {
         <rect class="band" [attr.x]="win.x" [attr.y]="win.y" [attr.width]="win.width" height="16" rx="4" />
@@ -113,6 +114,9 @@ const x = (s: number) => (Math.min(Math.max(s, 0), SPAN) / SPAN) * W;
       fill: var(--g-text);
       font: 600 10px var(--g-font-mono);
     }
+    .num {
+      fill: var(--g-surface);
+    }
     .legend .item {
       display: inline-flex;
       align-items: center;
@@ -150,14 +154,14 @@ export class StreamWidgetComponent {
     this.run().windows.map((win, i) => ({
       x: x(win.start),
       width: x(win.end) - x(win.start),
-      y: 24 + (this.kind() === 'sliding' ? (i % 2) * 20 : 0),
+      y: 28 + (this.kind() === 'sliding' ? (i % 2) * 20 : 0),
       count: win.events.length,
     })),
   );
-  readonly height = computed(() => (this.kind() === 'sliding' ? 64 : 44));
+  readonly height = computed(() => (this.kind() === 'sliding' ? 68 : 48));
   readonly dropped = computed(() => {
     const late = this.run().late;
-    return late.length ? late.map((i) => `event at ${EVENTS[i].at} s`).join(', ') : 'none';
+    return late.length ? late.map((i) => `event ${i + 1}, at ${EVENTS[i].at} s`).join('; ') : 'none';
   });
   readonly summary = computed(
     () =>

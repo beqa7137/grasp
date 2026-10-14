@@ -16,7 +16,7 @@
     [attr.aria-label]="summary()"
   >
     @for (s of shownSpans(); track $index) {
-      <rect class="span" [attr.x]="s.x" [attr.y]="p.top" [attr.width]="s.width" [attr.height]="p.bottom - p.top" />
+      <rect [class]="'span ' + s.tone" [attr.x]="s.x" [attr.y]="p.top" [attr.width]="s.width" [attr.height]="p.bottom - p.top" />
     }
     @for (t of yTicks(); track $index) {
       @if (!empty()) {
@@ -28,7 +28,7 @@
       <text class="tick" [attr.x]="p.right + 6" [attr.y]="t.y + 4">{{ t.label }}</text>
     }
     @for (t of xTicks(); track $index) {
-      <text [class]="'tick ' + t.tone" text-anchor="middle" [attr.x]="t.x" [attr.y]="p.bottom + 15">{{ t.label }}</text>
+      <text [class]="'tick ' + t.tone" [attr.text-anchor]="t.anchor" [attr.x]="t.x" [attr.y]="p.bottom + 15">{{ t.label }}</text>
     }
     <line class="axis" [attr.x1]="p.left" [attr.x2]="p.right" [attr.y1]="p.bottom" [attr.y2]="p.bottom" />
     @if (threshold(); as th) {
@@ -44,19 +44,43 @@
         }
       </text>
     } @else {
+      @for (b of shownBars(); track b.id) {
+        @if (b.ghost) {
+          <path [class]="'ghost ' + b.tone" [attr.d]="b.outline" />
+        } @else {
+          <g [class]="'bars ' + b.tone">
+            @for (r of b.rects; track $index) {
+              <rect [attr.x]="r.x + 0.5" [attr.y]="r.y" [attr.width]="r.width - 1" [attr.height]="r.height" />
+            }
+          </g>
+        }
+      }
       @for (s of series(); track s.id) {
         <g
           g-sparkline
-          [class]="'series ' + s.tone"
+          [class]="'series ' + s.tone + (s.thin ? ' thin' : '')"
           [points]="s.points"
           [x]="xs()"
           [y]="s.right ? y2s() : ys()"
           [upTo]="upTo()"
           [dashed]="!!s.dashed"
+          [dash]="s.dash"
         />
+      }
+      @for (t of endTexts(); track t.id) {
+        <text [class]="'end ' + t.tone" [attr.x]="t.x" [attr.y]="t.y">{{ t.text }}</text>
       }
       @if (playheadValues().length) {
         <line class="playhead" [attr.x1]="playheadX()" [attr.x2]="playheadX()" [attr.y1]="p.top" [attr.y2]="p.bottom + 3" />
+      } @else if (cursor() !== null) {
+        <line class="playhead" [attr.x1]="xs()(cursor()!)" [attr.x2]="xs()(cursor()!)" [attr.y1]="p.top" [attr.y2]="p.bottom" />
+      }
+      @for (d of shownDots(); track $index) {
+        @if (d.over) {
+          <path [class]="'dot over ' + d.tone" [attr.d]="'M' + d.cx + ' ' + (d.top - 2) + 'l6 9h-12z'" />
+        } @else {
+          <circle [class]="'dot ' + d.tone" [attr.cx]="d.cx" [attr.cy]="d.cy" r="5" />
+        }
       }
     }
   </svg>
@@ -73,8 +97,31 @@
     />
   }
 }
-<ul class="legend">
-  @for (l of legend(); track $index) {
-    <li><span [class]="'key ' + l.kind + ' ' + l.tone" aria-hidden="true"></span>{{ l.label }}</li>
-  }
-</ul>
+@if (legendLines()) {
+  <ul class="legend" [style.height.px]="legendHeight()">
+    @for (l of legend(); track l.id) {
+      <li>
+        <svg [class]="'key ' + l.kind + ' ' + l.tone" width="14" height="12" aria-hidden="true">
+          @switch (l.kind) {
+            @case ('area') {
+              <rect x="0" y="1" width="14" height="10" />
+            }
+            @case ('mark') {
+              <line x1="7" x2="7" y1="0" y2="12" />
+            }
+            @case ('dot') {
+              <circle cx="7" cy="6" r="4.5" />
+            }
+            @case ('ghost') {
+              <rect x="1" y="2" width="12" height="9" />
+            }
+            @default {
+              <line x1="0" x2="14" y1="6" y2="6" [attr.stroke-dasharray]="l.dash" />
+            }
+          }
+        </svg>
+        {{ l.label }}
+      </li>
+    }
+  </ul>
+}

@@ -9,10 +9,14 @@ class LoadedComponent {
 
 @Component({
   imports: [LazyWidgetComponent],
-  template: `<app-lazy-widget [load]="load" [inputs]="{ word: word() }" [placeholder]="640" />`,
+  template: `<app-lazy-widget [load]="load" [inputs]="{ word: word() }" [placeholder]="heights" />`,
 })
 class Host {
   readonly word = signal('once');
+  readonly heights = [
+    [0, 900],
+    [500, 640],
+  ] as const;
   attempts = 0;
   fail = true;
   readonly load = (): Promise<Type<unknown>> => {
@@ -30,7 +34,8 @@ async function settle(fixture: ReturnType<typeof TestBed.createComponent<Host>>)
 }
 
 describe('LazyWidgetComponent', () => {
-  it('holds the placeholder while loading, then loads the widget and passes its inputs on', async () => {
+  it("holds the widget's height at its width while loading, then loads the widget and passes its inputs on", async () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ width: 600 } as DOMRect);
     const fixture = TestBed.createComponent(Host);
     const el = fixture.nativeElement as HTMLElement;
     fixture.componentInstance.fail = false;

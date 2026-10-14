@@ -54,8 +54,11 @@ text {
 .axis {
   stroke: var(--g-line-strong);
 }
-.span {
+rect.span {
   fill: var(--g-danger-soft);
+  &.considering {
+    fill: var(--g-viz-considering-soft);
+  }
 }
 .threshold {
   stroke: var(--g-viz-critical);
@@ -91,6 +94,14 @@ text {
   color: var(--g-viz-critical);
   fill: var(--g-danger-ink);
 }
+.current {
+  color: var(--g-viz-current);
+  fill: var(--g-text);
+}
+.muted {
+  color: var(--g-muted);
+  fill: var(--g-muted);
+}
 g.series {
   fill: none;
 }
@@ -103,7 +114,6 @@ g.series {
   list-style: none;
   margin: 0;
   padding: 0;
-  height: 52px;
   overflow: hidden;
   display: flex;
   flex-wrap: wrap;
@@ -119,23 +129,53 @@ g.series {
   }
 }
 .key {
-  width: 14px;
-  border-top: 2.5px solid currentColor;
-  &.dash {
-    border-top-style: dashed;
+  flex: none;
+  overflow: visible;
+  line {
+    stroke: currentColor;
+    stroke-width: 2.5;
   }
-  &.dot {
-    border-top: 1.5px dashed currentColor;
+  &.mark line,
+  &.threshold line {
+    stroke-width: 1.5;
+    stroke-dasharray: 3 3;
   }
-  &.area {
-    height: 10px;
-    border: 0;
-    background: var(--g-danger-soft);
+  &.area rect {
+    fill: currentColor;
+    opacity: 0.35;
   }
-  &.mark {
-    width: 0;
-    height: 12px;
-    border-top: 0;
-    border-left: 1.5px dashed currentColor;
+  &.area.span rect {
+    fill: var(--g-danger-soft);
+    opacity: 1;
   }
+  &.area.span.considering rect {
+    fill: var(--g-viz-considering-soft);
+  }
+  &.ghost rect {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
+    stroke-dasharray: 3 2;
+  }
+}
+.key.dot circle,
+.dot {
+  fill: currentColor;
+  stroke: var(--g-viz-stage);
+  stroke-width: 1.5;
+}
+.end {
+  font: 600 var(--g-text-label) var(--ion-font-family);
+}
+.bars rect {
+  fill: currentColor;
+  fill-opacity: 0.35;
+  stroke: currentColor;
+  stroke-width: 1;
+}
+.ghost {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
 }

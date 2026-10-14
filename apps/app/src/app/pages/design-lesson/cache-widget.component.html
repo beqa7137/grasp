@@ -128,11 +128,7 @@
       <g class="particles" #particles></g>
 
       @for (f of L.focus; track f.id) {
-        <g class="focus" [attr.data-focus]="f.id" [class.focused]="focusOn().includes(f.id)">
-          <rect class="focus-outline" [attr.x]="f.x" [attr.y]="f.y" [attr.width]="f.width" [attr.height]="f.height" />
-          <rect class="tag" [attr.x]="f.tag.x" [attr.y]="f.tag.y" [attr.width]="tag.width" [attr.height]="tag.height" />
-          <text class="look" text-anchor="middle" [attr.x]="f.tag.x + tag.width / 2" [attr.y]="f.tag.y + 12">Look here</text>
-        </g>
+        <g app-focus [box]="f" [on]="exp.focusOn().includes(f.id)" />
       }
     </svg>
 
@@ -222,12 +218,12 @@
 @if (experiments().length) {
   <app-experiment-dock
     [experiments]="experiments()"
-    [active]="active()"
-    [phase]="phase()"
-    [done]="done()"
+    [active]="exp.active()"
+    [phase]="exp.phase()"
+    [done]="exp.done()"
     [goalStatus]="goalStatus()"
-    [chosen]="chosen()"
-    (chosenChange)="answer($event)"
+    [chosen]="exp.chosen()"
+    (chosenChange)="exp.answer($event)"
     (start)="start($event)"
   />
 }

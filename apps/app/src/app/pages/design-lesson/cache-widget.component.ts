@@ -3,7 +3,6 @@ import {
   Component,
   DestroyRef,
   ElementRef,
-  Injector,
   afterNextRender,
   computed,
   effect,
@@ -32,16 +31,19 @@ import {
   type ExperimentSpec,
   type SdExperiment,
 } from '@grasp/engine';
-import { motionAllowed, motionScroll } from '../../core/motion';
+import { motionAllowed } from '../../core/motion';
 import { SliderComponent } from '../../ui/slider.component';
 import { ChartFrameComponent, type ChartAxis, type ChartSeries, type ChartTable } from '../../viz/kit/chart-frame.component';
 import { HandleComponent } from '../../viz/kit/handle.component';
 import { ParticlePool, PlayClock, watchMotion, watchVisibility, type Pt } from '../../viz/kit/particles';
 import { StageComponent } from '../../viz/kit/stage.component';
-import { TAG, cacheLayout, waffleSide, type CacheLayout } from './cache-layout';
+import { cacheLayout, waffleSide, type CacheLayout } from './cache-layout';
 import { CacheTraffic, REQUESTS_PER_DOT, WAIT_SCALE } from './cache-traffic';
 import { barAt, meterAt, meterMarks, meterTicks, waffleCells, waffleCounts, waffleLegend } from './cache-view';
-import { ExperimentDockComponent, type ExperimentPhase } from './experiment-dock.component';
+import { ExperimentDockComponent } from './experiment-dock.component';
+import { ExperimentSession } from './experiment-session';
+import { FocusBoxComponent } from './focus-box.component';
+import { WidgetPlay, bringStageIntoView } from './widget-play';
 
 const STEADY_PLAY_MS = 2000;
 /** A flush's simulated seconds play at this many per real second. */
@@ -64,7 +66,7 @@ const METRIC_WORDS: Record<string, string> = { meanMs: 'mean', p99Ms: 'p99' };
 @Component({
   selector: 'app-cache-widget',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [StageComponent, HandleComponent, ChartFrameComponent, SliderComponent, ExperimentDockComponent],
+  imports: [StageComponent, HandleComponent, ChartFrameComponent, SliderComponent, ExperimentDockComponent, FocusBoxComponent],
   templateUrl: './cache-widget.component.html',
   styleUrl: './cache-widget.component.scss',
 })
@@ -83,7 +85,6 @@ export class CacheWidgetComponent {
   readonly y = Y_AXIS;
   readonly y2 = Y2_AXIS;
   readonly formatPct = formatPct;
-  readonly tag = TAG;
   readonly formatQps = formatQps;
   readonly points = (path: readonly Pt[]) => path.map((p) => p.join(',')).join(' ');
 
@@ -95,31 +96,30 @@ export class CacheWidgetComponent {
   readonly t = signal(0);
   /** After a flush has played out, or a setting changed since: the picture shows the warm steady state again. */
   readonly settled = signal(false);
-  readonly playing = signal(false);
   readonly motion = signal(false);
   /** A line under the controls for what a press did when nothing moves, as Replay under Reduced motion. */
   readonly notice = signal('');
-
-  readonly active = signal<SdExperiment | null>(null);
-  readonly phase = signal<ExperimentPhase>('asking');
-  readonly chosen = signal<number | null>(null);
-  readonly done = signal<ReadonlySet<string>>(new Set());
-  readonly focusOn = signal<readonly string[]>([]);
-  /** While an experiment plays, the settings its reveal is about stay fixed. */
-  readonly locked = computed(() => this.phase() === 'playing');
 
   readonly stage = viewChild.required(StageComponent);
   private readonly stageEl = viewChild.required(StageComponent, { read: ElementRef });
   private readonly particleLayer = viewChild<ElementRef<SVGGElement>>('particles');
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
-  private readonly injector = inject(Injector);
   private visible = true;
   private pool: ParticlePool | null = null;
   private traffic: { flow: CacheTraffic; dots: CacheLayout['dots']; from: number } | null = null;
   private flowClock: PlayClock | null = null;
-  private clock: PlayClock | null = null;
-  /** What the running play does when it ends, or when something interrupts it: an experiment's reveal. */
-  private pendingDone: (() => void) | null = null;
+  private readonly player = new WidgetPlay(() => this.motion() && this.ready());
+  readonly playing = this.player.playing;
+  readonly exp = new ExperimentSession({
+    apply: (s) => this.applySettings(s),
+    settings: () => ({ hitRate: this.target(), originMs: this.originMs(), capacity: this.capacity() }),
+    metrics: () => this.metrics(),
+    play: (e, done) => this.playAnswer(e, done),
+    stage: () => this.stageEl().nativeElement,
+    root: this.host,
+    motion: () => this.motion(),
+  });
+  readonly locked = this.exp.locked;
 
   readonly layout = computed(() => cacheLayout(Math.max(260, this.stage().width())));
   readonly ready = computed(() => this.stage().width() > 0);
@@ -248,16 +248,23 @@ export class CacheWidgetComponent {
   readonly playheadTime = computed(() => this.t() / 10);
   readonly upTo = computed(() => (this.playing() && this.flushed() ? this.t() / 10 : Infinity));
 
-  /** The challenge's measure, by the name its goal gives. */
-  readonly metrics = computed((): Record<string, number> => ({ meanMs: this.outcome().meanMs, p99Ms: this.outcome().p99Ms }));
+  /** The challenge's measures, by the names its goal gives; an origin over capacity has none worth meeting. */
+  readonly metrics = computed((): Record<string, number> =>
+    this.overloaded() ? { meanMs: Infinity, p99Ms: Infinity } : { meanMs: this.outcome().meanMs, p99Ms: this.outcome().p99Ms },
+  );
   readonly goalStatus = computed(() => {
-    const goal = this.active()?.goal;
+    const goal = this.exp.active()?.goal;
     if (!goal) return '';
     const words = METRIC_WORDS[goal.metric] ?? goal.metric;
-    const now = formatMs(this.metrics()[goal.metric]);
-    return this.phase() === 'revealed'
-      ? `Goal met: ${words} ${now}, under ${formatMs(goal.below)}.`
-      : `${words[0].toUpperCase()}${words.slice(1)} now ${now}; the goal is under ${formatMs(goal.below)}.`;
+    const value = this.metrics()[goal.metric];
+    const now = Number.isFinite(value) ? formatMs(value) : 'timing out';
+    const met = this.exp.metWith();
+    if (this.exp.phase() === 'revealed' && met) {
+      return value < goal.below
+        ? `Goal met: ${words} ${now}, under ${formatMs(goal.below)}.`
+        : `You met it at ${formatMs(met.metrics[goal.metric])}; the ${words} is now ${now}.`;
+    }
+    return `${words[0].toUpperCase()}${words.slice(1)} now ${now}; the goal is under ${formatMs(goal.below)}.`;
   });
 
   constructor() {
@@ -266,9 +273,9 @@ export class CacheWidgetComponent {
       const stopMotion = watchMotion(motionAllowed, (allowed) => this.motion.set(allowed));
       const stopVisibility = watchVisibility(this.stageEl().nativeElement, (visible) => {
         this.visible = visible;
-        for (const c of [this.flowClock, this.clock])
-          if (visible) c?.resume();
-          else c?.pause();
+        this.player.setVisible(visible);
+        if (visible) this.flowClock?.resume();
+        else this.flowClock?.pause();
         if (visible) this.pool?.resume();
         else this.pool?.pause();
       });
@@ -276,7 +283,7 @@ export class CacheWidgetComponent {
         stopMotion();
         stopVisibility();
         this.flowClock?.stop();
-        this.clock?.stop();
+        this.player.stop(false);
         this.pool?.clear();
       });
     });
@@ -284,11 +291,6 @@ export class CacheWidgetComponent {
     effect(() => {
       const flow = this.motion() && this.ready();
       untracked(() => (flow ? this.startFlow() : this.stopFlow()));
-    });
-    effect(() => {
-      const goal = this.active()?.goal;
-      if (goal && this.phase() === 'asking' && !this.overloaded() && this.metrics()[goal.metric] < goal.below)
-        untracked(() => this.reveal());
     });
   }
 
@@ -308,7 +310,7 @@ export class CacheWidgetComponent {
   }
 
   setPlayhead(time: number) {
-    this.stopPlay();
+    this.player.stop();
     this.notice.set('');
     this.settled.set(false);
     this.t.set(Math.round(time * 10));
@@ -316,7 +318,7 @@ export class CacheWidgetComponent {
 
   flush() {
     this.flushed.set(true);
-    this.focusOn.set([]);
+    this.exp.clearFocus();
     this.notice.set('');
     this.restart();
   }
@@ -327,48 +329,33 @@ export class CacheWidgetComponent {
   }
 
   private restart() {
-    this.bringStageIntoView();
+    bringStageIntoView(this.stageEl().nativeElement);
     // Stop the old play first: its end would otherwise settle the picture after this reset.
-    this.stopPlay();
+    this.player.stop();
     this.settled.set(false);
     this.t.set(0);
     this.playRun(() => undefined);
   }
 
   start(e: SdExperiment) {
-    this.stopPlay(false);
+    this.player.stop(false);
     this.notice.set('');
-    this.active.set(e);
-    this.chosen.set(null);
-    this.phase.set('asking');
-    this.focusOn.set([]);
     this.flushed.set(false);
     this.settled.set(false);
     this.t.set(0);
-    this.applySettings(e.setup);
-    this.stageEl().nativeElement.scrollIntoView({ block: 'nearest', behavior: motionScroll() });
+    this.exp.start(e);
   }
 
-  answer(index: number | null) {
-    this.chosen.set(index);
-    const e = this.active();
-    if (index === null || !e || this.phase() !== 'asking') return;
-    this.phase.set('playing');
-    this.bringStageIntoView();
-    const act = e.act;
-    if (act && 'flush' in act) {
+  /** An answer plays out: a flush plays its refill, any other act 2 s of traffic. */
+  private playAnswer(e: SdExperiment, done: () => void) {
+    if (e.act && 'flush' in e.act) {
       this.flushed.set(true);
       this.settled.set(false);
       this.t.set(0);
-      this.playRun(() => this.reveal());
+      this.playRun(done);
       return;
     }
-    if (act) this.applySettings(act.set);
-    this.play(
-      STEADY_PLAY_MS,
-      () => undefined,
-      () => this.reveal(),
-    );
+    this.player.play(STEADY_PLAY_MS, () => undefined, done);
   }
 
   /** A setting changed: with no play running, the picture shows the warm steady state of the new settings. */
@@ -380,50 +367,15 @@ export class CacheWidgetComponent {
     }
   }
 
-  private reveal() {
-    const e = this.active();
-    if (!e) return;
-    this.phase.set('revealed');
-    this.done.update((d) => new Set([...d, e.id]));
-    this.focusOn.set(e.focus);
-    if (!this.motion()) return;
-    afterNextRender(
-      {
-        write: () => {
-          for (const outline of this.host.querySelectorAll<SVGElement>('.focused .focus-outline'))
-            outline.animate([{ opacity: 1 }, { opacity: 0.2 }, { opacity: 1 }, { opacity: 0.2 }, { opacity: 1 }], {
-              duration: 1400,
-              easing: 'ease-in-out',
-            });
-        },
-      },
-      { injector: this.injector },
-    );
-  }
-
   private applySettings(s: Readonly<Record<string, number>>) {
     if (s['hitRate'] !== undefined) this.target.set(s['hitRate']);
     if (s['originMs'] !== undefined) this.originMs.set(s['originMs']);
     if (s['capacity'] !== undefined) this.capacity.set(s['capacity']);
   }
 
-  /**
-   * Scrolls the stage into view when an answer or a flush starts to play, unless it is already whole on screen: on a
-   * phone the question sits below the picture. The margin clears the page's translucent header.
-   */
-  private bringStageIntoView() {
-    const stage = this.stageEl().nativeElement as HTMLElement;
-    const header = stage.closest('ion-content')?.previousElementSibling?.getBoundingClientRect().bottom ?? 0;
-    const tabBar = document.querySelector('ion-tab-bar')?.getBoundingClientRect().top ?? window.innerHeight;
-    const box = stage.getBoundingClientRect();
-    if (box.top >= header && box.bottom <= tabBar) return;
-    stage.style.scrollMarginTop = `${header + 8}px`;
-    stage.scrollIntoView({ block: 'start', behavior: motionScroll() });
-  }
-
   /** A flush plays its refill to the end, where the cache is warm again; without motion it rests at the peak. */
   private playRun(done: () => void) {
-    this.play(
+    this.player.play(
       (CACHE_REFILL_SECONDS * 1000) / FLUSH_PLAY_RATE,
       (p) => this.t.set(Math.round(p * LAST)),
       done,
@@ -432,38 +384,6 @@ export class CacheWidgetComponent {
         this.settled.set(true);
       },
     );
-  }
-
-  /**
-   * Plays for `durationMs`. `done` runs however the play stops, so an experiment always reveals; `ended` runs only when
-   * it plays to its end, so an interrupted flush never settles the picture behind the play that replaced it.
-   */
-  private play(durationMs: number, onFrame: (progress: number) => void, done: () => void, ended = () => undefined) {
-    this.stopPlay();
-    if (!this.motion() || !this.ready()) return done();
-    this.pendingDone = done;
-    this.playing.set(true);
-    this.clock = new PlayClock(durationMs, onFrame, () => {
-      this.clock = null;
-      ended();
-      this.finishPlay(true);
-    });
-    if (!this.visible) this.clock.pause();
-    this.clock.start();
-  }
-
-  /** Stops a running play. An interrupted experiment play still reveals, so it never stays half done. */
-  private stopPlay(complete = true) {
-    this.clock?.stop();
-    this.clock = null;
-    this.finishPlay(complete);
-  }
-
-  private finishPlay(complete: boolean) {
-    const done = this.pendingDone;
-    this.pendingDone = null;
-    this.playing.set(false);
-    if (complete) done?.();
   }
 
   private startFlow() {

@@ -1,0 +1,239 @@
+@use '../../../type' as *;
+@use '../../../breakpoints' as *;
+
+:host {
+  display: grid;
+  gap: var(--g-space-3);
+}
+// Narrow, one column in reading order: the fleet, the controls that change it, the experiment's question, then the
+// charts. The two wrappers step aside (display: contents) so their parts take those places.
+.main,
+.side {
+  display: contents;
+}
+.fleet-stage {
+  order: 1;
+  min-width: 0;
+}
+.controls {
+  order: 2;
+}
+.dock {
+  order: 3;
+  min-width: 0;
+}
+.charts {
+  order: 4;
+}
+// The lesson page widens this widget's panel at container wide: the fleet with its charts right under it on the left,
+// the controls and the experiments on the right.
+@include container-wide(lesson) {
+  :host {
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 0.55fr);
+    align-items: start;
+    gap: var(--g-space-5);
+  }
+  .main,
+  .side {
+    display: grid;
+    gap: var(--g-space-3);
+    align-content: start;
+    min-width: 0;
+  }
+}
+svg,
+canvas {
+  display: block;
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+text {
+  paint-order: stroke;
+  stroke: var(--g-viz-stage);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+.label {
+  @include label;
+  fill: var(--g-muted);
+}
+.value {
+  font: 600 var(--g-text-title-s) var(--g-font-mono);
+  font-variant-numeric: tabular-nums;
+  fill: var(--g-text);
+  &.big {
+    font-size: var(--g-text-title-m);
+  }
+  &.bad {
+    fill: var(--g-danger-ink);
+  }
+}
+.caption {
+  font: 500 var(--g-text-label) var(--ion-font-family);
+  fill: var(--g-muted);
+}
+.strong {
+  font-weight: 700;
+  fill: var(--g-text);
+  &.bad {
+    fill: var(--g-danger-ink);
+  }
+}
+.policy-name {
+  fill: var(--g-text);
+  font-weight: 600;
+}
+.rate {
+  font: 600 var(--g-text-label) var(--g-font-mono);
+  fill: var(--g-text);
+}
+.tick {
+  font: 500 var(--g-text-label) var(--ion-font-family);
+  font-variant-numeric: tabular-nums;
+  fill: var(--g-muted);
+}
+.device {
+  fill: var(--g-surface);
+  stroke: var(--g-text);
+  stroke-width: 1.5;
+}
+.pipe {
+  stroke: var(--g-line-strong);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+.lb {
+  fill: var(--g-raised);
+  stroke: var(--g-text);
+  stroke-width: 1.5;
+}
+.lb-name {
+  font: 700 var(--g-text-label) var(--g-font-mono);
+  fill: var(--g-text);
+  stroke: none;
+}
+.slow-header.slow {
+  fill: var(--g-text);
+  font-weight: 700;
+}
+.key-block {
+  fill: var(--g-viz-current-soft);
+  stroke: var(--g-viz-current);
+}
+.count {
+  font: 700 var(--g-text-label) var(--g-font-mono);
+  font-variant-numeric: tabular-nums;
+  fill: var(--g-text);
+  &.bad {
+    fill: var(--g-danger-ink);
+  }
+  &.small {
+    font-weight: 600;
+    fill: var(--g-muted);
+  }
+}
+.pick {
+  fill: none;
+  stroke: var(--g-viz-considering);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+  &.chosen {
+    stroke: var(--g-viz-current);
+    stroke-width: 2.5;
+    stroke-dasharray: none;
+  }
+}
+.share-track {
+  fill: var(--g-viz-track);
+}
+.share {
+  fill: var(--g-viz-final);
+  &.bad {
+    fill: var(--g-viz-critical);
+  }
+}
+.can {
+  stroke: var(--g-text);
+  stroke-width: 2;
+}
+.scrub {
+  stroke: var(--g-line-strong);
+  stroke-width: 2;
+}
+.controls {
+  display: grid;
+  gap: var(--g-space-3);
+  align-content: start;
+  min-width: 0;
+}
+fieldset.policy {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+// A native radio group drawn as g-segmented: g-segmented itself, shared with a first-paint chunk, would split that chunk
+// (LOOP.md, R27a's follow-up), and native radios bring the arrow keys and one Tab stop with them.
+.segments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--g-space-1);
+}
+.segment {
+  position: relative;
+  input {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+  span {
+    display: flex;
+    align-items: center;
+    min-height: 40px;
+    padding: 0 var(--g-space-3);
+    border-radius: var(--g-radius-sm);
+    border: 1px solid var(--g-line-strong);
+    background: var(--g-raised);
+    box-shadow: var(--g-shadow-raised);
+    color: var(--g-text);
+    font: 500 var(--g-text-body) var(--ion-font-family);
+  }
+  input:checked + span {
+    background: var(--g-accent-soft);
+    border-color: var(--g-accent);
+    box-shadow: inset 0 0 0 1px var(--g-accent);
+    font-weight: 600;
+  }
+  input:focus-visible + span {
+    outline: var(--g-focus-ring);
+    outline-offset: 2px;
+  }
+  input:disabled + span {
+    opacity: 0.55;
+  }
+}
+@media (hover: hover) {
+  .segment input:not(:checked, :disabled):hover + span {
+    border-color: var(--g-faint);
+  }
+}
+.control-label {
+  @include label;
+  color: var(--g-muted);
+  padding: 0;
+  margin-bottom: var(--g-space-1);
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--g-space-2);
+}
+.notice {
+  margin: 0;
+  min-height: 2lh;
+  font-size: var(--g-text-body-s);
+  color: var(--g-muted);
+}

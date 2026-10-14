@@ -170,6 +170,8 @@ export class QuestionCardComponent {
   readonly reason = input<CardReason>('due');
   readonly chosen = input<number | null>(null);
   readonly choose = output<number>();
+  /** Whether the first question takes focus when it shows: not on a page that only offers it further down. */
+  readonly focusFirst = input(true);
   protected readonly answerMark = answerMark;
 
   private readonly host: HTMLElement = inject(ElementRef).nativeElement;
@@ -199,8 +201,9 @@ export class QuestionCardComponent {
       const before = this.shown;
       this.shown = { question, answered };
       const page = this.host.closest('.ion-page');
-      if (!before) refocus(this.prompt().nativeElement);
-      else if (question !== before.question) refocus(this.prompt().nativeElement, page);
+      if (!before) {
+        if (this.focusFirst()) refocus(this.prompt().nativeElement);
+      } else if (question !== before.question) refocus(this.prompt().nativeElement, page);
       else if (answered && !before.answered) refocus(this.reveal()?.nativeElement, page);
     });
   }

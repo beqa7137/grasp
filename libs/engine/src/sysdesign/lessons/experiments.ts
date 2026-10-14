@@ -4,14 +4,18 @@
  * from what the widget shows.
  */
 
-export type SlotUnit = 'pct' | 'ms' | 'qps' | 'times' | 's' | 'approx' | 'num';
+export type SlotUnit = 'pct' | 'ms' | 'dur' | 'qps' | 'times' | 's' | 'approx' | 'num' | 'word';
 
-export interface Slot {
-  value: number;
-  unit: SlotUnit;
-}
+/** A model value with its unit, or a `word` the model chose ("The old value"), which may carry no digits. */
+export type Slot = { value: number; unit: Exclude<SlotUnit, 'word'> } | { value: string; unit: 'word' };
 
 export type Slots = Readonly<Record<string, Slot>>;
+
+/** A slot maker for one unit, so a model value reads `ms(run.p99Ms)`. */
+export const slotOf =
+  (unit: Exclude<SlotUnit, 'word'>) =>
+  (value: number): Slot => ({ value, unit });
+export const word = (value: string): Slot => ({ value, unit: 'word' });
 
 /** A widget's settings by name, as the experiment applies them. */
 export type ExperimentSettings = Readonly<Record<string, number>>;
@@ -30,12 +34,18 @@ export interface ExperimentSpec {
   /** Each choice names the slot it stands for; the one equal to `truth` is the answer. Absent for a challenge. */
   choices?: readonly { text: string; value: string }[];
   truth?: string;
-  /** A challenge: met when the widget's `metric` falls below `below`. */
-  goal?: { metric: string; below: number };
+  /** A challenge: met when the widget's `metric` falls below `below` while the `keep` settings still hold. */
+  goal?: ExperimentGoal;
   reveal: string;
   /** The widget regions the reveal is about, pulsed when it plays. */
   focus: readonly string[];
   slots: () => Slots;
+}
+
+export interface ExperimentGoal {
+  metric: string;
+  below: number;
+  keep?: ExperimentSettings;
 }
 
 /** An experiment ready to show: every slot filled, and the answer found from the model. */
@@ -50,14 +60,16 @@ export interface SdExperiment {
   answer: number;
   reveal: string;
   focus: readonly string[];
-  goal?: { metric: string; below: number };
+  goal?: ExperimentGoal;
 }
 
 /** Phrases with digits a template may contain: everything else numeric must be a slot. */
 export const TEMPLATE_DIGITS_ALLOWED = ['p99', '100 requests', 'the 99th of 100'] as const;
 
 const trim = (v: number, decimals: number) => String(Number(v.toFixed(decimals)));
-const group = (v: number) => Math.round(v).toLocaleString('en-US');
+/** One formatter for every number: `toLocaleString` with a locale builds a new one on each call. */
+const GROUPED = new Intl.NumberFormat('en-US');
+const group = (v: number) => GROUPED.format(Math.round(v));
 
 /** Milliseconds as every readout shows them: two decimals under 10 ms, whole above. */
 export const formatMs = (v: number) => `${v < 10 ? trim(v, 2) : group(v)} ms`;
@@ -65,6 +77,9 @@ export const formatPct = (v: number) => `${trim(v, 1)}%`;
 export const formatQps = (v: number) => `${v < 10 ? trim(v, 1) : group(v)}/s`;
 export const formatTimes = (v: number) => `${v < 10 ? trim(v, 1) : group(v)}×`;
 export const formatSeconds = (v: number) => `${trim(v, 1)} s`;
+/** A latency that may run to minutes: milliseconds under a second, then seconds, with a tenth under 100 s. */
+export const formatDuration = (ms: number) =>
+  ms < 1_000 ? formatMs(ms) : ms < 100_000 ? formatSeconds(ms / 1_000) : `${group(ms / 1_000)} s`;
 /** Two significant figures: a modelled count is an estimate, so it is said as one. */
 export const formatApprox = (v: number) => {
   if (v < 100) return group(v);
@@ -72,17 +87,18 @@ export const formatApprox = (v: number) => {
   return group(Math.round(v / step) * step);
 };
 
-const FORMAT: Record<SlotUnit, (v: number) => string> = {
+const FORMAT: Record<Exclude<SlotUnit, 'word'>, (v: number) => string> = {
   pct: formatPct,
   ms: formatMs,
+  dur: formatDuration,
   qps: formatQps,
   times: formatTimes,
   s: formatSeconds,
   approx: formatApprox,
-  num: (v) => trim(v, 2),
+  num: (v) => (Number.isInteger(v) ? group(v) : trim(v, 2)),
 };
 
-export const formatSlot = (slot: Slot) => FORMAT[slot.unit](slot.value);
+export const formatSlot = (slot: Slot) => (slot.unit === 'word' ? slot.value : FORMAT[slot.unit](slot.value));
 
 /** Fills `{name}` placeholders; a name with no slot throws, so a typo fails the spec instead of reaching a learner. */
 export function fillTemplate(template: string, slots: Slots): string {
@@ -123,6 +139,15 @@ export function strayDigits(template: string): string[] {
   let rest = template.replace(/\{\w+\}/g, '');
   for (const phrase of TEMPLATE_DIGITS_ALLOWED) rest = rest.split(phrase).join('');
   return rest.match(/\d+/g) ?? [];
+}
+
+/** Whether the settings a challenge keeps are as it set them. */
+export const goalKept = (goal: ExperimentGoal, settings: ExperimentSettings): boolean =>
+  Object.entries(goal.keep ?? {}).every(([name, value]) => settings[name] === value);
+
+/** A challenge is met when its metric is under the goal and the settings it keeps are as it set them. */
+export function goalMet(goal: ExperimentGoal, metrics: Readonly<Record<string, number>>, settings: ExperimentSettings): boolean {
+  return goalKept(goal, settings) && metrics[goal.metric] < goal.below;
 }
 
 export const experimentTemplates = (spec: ExperimentSpec): string[] => [

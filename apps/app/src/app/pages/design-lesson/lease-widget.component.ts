@@ -1,17 +1,33 @@
-import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
-import { DecimalPipe } from '@angular/common';
+import { ChangeDetectionStrategy, Component, computed, signal, viewChild } from '@angular/core';
+import { formatNumber } from './number-format';
 import { leaseRun } from '@grasp/engine';
 import { RovingSelectDirective } from '../../core/roving-select.directive';
+import type { ChartAxis } from '../../viz/kit/chart-frame.component';
+import { StageComponent } from '../../viz/kit/stage.component';
+import {
+  TimelineComponent,
+  timelineHeight,
+  type TimelineEvent,
+  type TimelineMessage,
+  type TimelineSpan,
+} from '../../viz/kit/timeline.component';
+import { legendLines } from '../../viz/kit/timeline-layout';
 
 const STOP_AT = 20;
 const SPAN = 90;
-const CHART = { width: 300, height: 56, row: 18 };
+const AXIS: ChartAxis = { min: 0, max: SPAN, ticks: [0, 30, 60, 90], format: (v) => `${v} s` };
+const LANES = [
+  { id: 'first', label: 'Client 1' },
+  { id: 'second', label: 'Client 2' },
+  { id: 'store', label: 'Store' },
+];
+const LEGEND = ['holds the lock', 'paused', 'crashed'];
 
 /** A lease holder that freezes or crashes at 20 s: when a second client takes the lock, and whether a stale write lands. */
 @Component({
   selector: 'app-lease-widget',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DecimalPipe, RovingSelectDirective],
+  imports: [RovingSelectDirective, StageComponent, TimelineComponent],
   template: `
     <label class="slider">
       <span
@@ -45,32 +61,21 @@ const CHART = { width: 300, height: 56, row: 18 };
       Fencing tokens
     </label>
 
-    <svg class="chart" [attr.viewBox]="'0 0 ' + chart.width + ' ' + chart.height" role="img" [attr.aria-label]="timelineLabel()">
-      <rect class="held" x="0" y="2" [attr.width]="x(run().expiresAtSec)" [attr.height]="chart.row" />
-      <rect class="stopped" [attr.x]="x(stopAt)" y="2" [attr.width]="x(stoppedUntil()) - x(stopAt)" [attr.height]="chart.row" />
-      @if (run().lost) {
-        <rect
-          class="other"
-          [attr.x]="x(run().expiresAtSec)"
-          [attr.y]="chart.row + 8"
-          [attr.width]="chart.width - x(run().expiresAtSec)"
-          [attr.height]="chart.row"
+    <g-stage [height]="stageHeight()" label="Two clients and a lock over 90 seconds">
+      @if (stage().width(); as width) {
+        <g-timeline
+          class="timeline"
+          [width]="width - 16"
+          [legendLines]="legendLines(width - 16)"
+          [axis]="axis"
+          [lanes]="lanes"
+          [spans]="spans()"
+          [events]="events()"
+          [messages]="messages()"
+          [summary]="timelineLabel()"
         />
       }
-      @if (run().wakesAtSec !== null && run().lost) {
-        <line
-          class="write"
-          [class.bad]="run().staleWrite === 'accepted'"
-          [attr.x1]="x(run().wakesAtSec!)"
-          [attr.x2]="x(run().wakesAtSec!)"
-          y1="0"
-          [attr.y2]="chart.height"
-        />
-      }
-    </svg>
-    <p class="muted caption">
-      Top: the first client's lease, and its pause or crash. Below: the second client's lease. The line marks the woken client's write.
-    </p>
+    </g-stage>
 
     <dl class="readouts" aria-live="polite">
       <div>
@@ -94,7 +99,7 @@ const CHART = { width: 300, height: 56, row: 18 };
       }
       <div>
         <dt>Renewals a minute</dt>
-        <dd class="mono">{{ run().renewalsPerMinute | number: '1.0-1' }}</dd>
+        <dd class="mono">{{ num(run().renewalsPerMinute, 1, 0) }}</dd>
       </div>
     </dl>
   `,
@@ -103,32 +108,13 @@ const CHART = { width: 300, height: 56, row: 18 };
     .controls .muted {
       font-size: 0.875rem;
     }
-    .chart {
-      display: block;
-      width: 100%;
-      height: auto;
-      margin-top: 12px;
-      .held {
-        fill: var(--g-accent);
-      }
-      .stopped {
-        fill: var(--g-muted);
-        opacity: 0.6;
-      }
-      .other {
-        fill: var(--g-found-ink);
-      }
-      .write {
-        stroke: var(--g-found-ink);
-        stroke-width: 2;
-        &.bad {
-          stroke: var(--g-warn-ink);
-        }
-      }
+    g-stage {
+      margin-top: var(--g-space-3);
     }
-    .caption {
-      font-size: 0.8125rem;
-      margin: 4px 0 0;
+    .timeline {
+      position: absolute;
+      left: var(--g-space-2);
+      top: var(--g-space-2);
     }
     .readouts {
       grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -136,8 +122,12 @@ const CHART = { width: 300, height: 56, row: 18 };
   `,
 })
 export class LeaseWidgetComponent {
-  readonly chart = CHART;
-  readonly stopAt = STOP_AT;
+  readonly num = formatNumber;
+  readonly stage = viewChild.required(StageComponent);
+  readonly axis = AXIS;
+  readonly lanes = LANES;
+  readonly legendLines = (width: number) => legendLines(LEGEND, width - 32);
+  readonly stageHeight = computed(() => timelineHeight(LANES.length, this.legendLines(Math.max(256, this.stage().width()) - 16)) + 16);
   readonly ttl = signal(10);
   readonly renew = signal(3);
   readonly pause = signal(15);
@@ -154,6 +144,49 @@ export class LeaseWidgetComponent {
     }),
   );
   readonly stoppedUntil = computed(() => (this.crash() ? SPAN : Math.min(SPAN, STOP_AT + this.pause())));
+  readonly spans = computed((): TimelineSpan[] => {
+    const r = this.run();
+    const held = r.lost ? r.expiresAtSec : SPAN;
+    return [
+      { lane: 'first', from: 0, to: held, tone: 'final', label: LEGEND[0] },
+      { lane: 'first', from: STOP_AT, to: this.stoppedUntil(), tone: 'muted', label: this.crash() ? LEGEND[2] : LEGEND[1] },
+      ...(r.lost ? [{ lane: 'second', from: r.expiresAtSec, to: SPAN, tone: 'final' as const, label: LEGEND[0] }] : []),
+    ];
+  });
+  readonly events = computed((): TimelineEvent[] => {
+    const r = this.run();
+    const events: TimelineEvent[] = [
+      { lane: 'first', at: 0, n: 1, tone: 'current', label: 'takes the lock' },
+      { lane: 'first', at: STOP_AT, n: 2, tone: 'considering', label: this.crash() ? `crashes, ${STOP_AT} s` : `pauses, ${STOP_AT} s` },
+    ];
+    if (r.lost) {
+      events.push({ lane: 'second', at: r.expiresAtSec, n: 3, tone: 'current', label: `takes the lock, ${r.expiresAtSec} s` });
+    }
+    if (r.wakesAtSec !== null && r.wakesAtSec <= SPAN) {
+      const verdict = r.staleWrite === 'accepted' ? 'two holders wrote' : r.staleWrite === 'rejected' ? 'rejected, stale token' : 'written';
+      events.push({
+        lane: 'store',
+        at: r.wakesAtSec,
+        n: events.length + 1,
+        tone: r.staleWrite === 'accepted' ? 'critical' : 'final',
+        label: verdict,
+      });
+    }
+    return events;
+  });
+  readonly messages = computed((): TimelineMessage[] => {
+    const r = this.run();
+    if (r.wakesAtSec === null || r.wakesAtSec > SPAN) return [];
+    return [
+      {
+        id: 'write',
+        from: { lane: 'first', at: r.wakesAtSec },
+        to: { lane: 'store', at: r.wakesAtSec },
+        tone: r.staleWrite === 'accepted' ? 'critical' : 'current',
+        rejected: r.staleWrite === 'rejected',
+      },
+    ];
+  });
   readonly writeVerdict = computed(() => {
     const verdict = this.run().staleWrite;
     return verdict === 'none'
@@ -167,10 +200,6 @@ export class LeaseWidgetComponent {
     const second = r.lost ? `, and the other client takes the lock at ${r.expiresAtSec} s` : '';
     return `The first client's lease runs out at ${r.expiresAtSec} s${second}`;
   });
-
-  x(sec: number) {
-    return (Math.min(sec, SPAN) / SPAN) * CHART.width;
-  }
 
   setTtl(ttl: number) {
     this.ttl.set(ttl);

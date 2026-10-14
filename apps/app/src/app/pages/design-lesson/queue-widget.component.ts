@@ -1,6 +1,8 @@
-import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
-import { DecimalPipe } from '@angular/common';
+import { ChangeDetectionStrategy, Component, computed, signal, viewChild } from '@angular/core';
+import { formatNumber } from './number-format';
 import { queueBacklog } from '@grasp/engine';
+import { ChartFrameComponent, type ChartAxis, type ChartDot, type ChartSeries } from '../../viz/kit/chart-frame.component';
+import { StageComponent } from '../../viz/kit/stage.component';
 
 const SECONDS = 120;
 const BASE = 800;
@@ -9,37 +11,50 @@ const SPIKE_END = 40;
 const PER_CONSUMER = 1_000;
 /** The largest backlog the controls allow: a 6,000/s spike against one consumer for 30 seconds. */
 const MAX_PEAK = (6_000 - PER_CONSUMER) * (SPIKE_END - SPIKE_START);
-const W = 320;
-const H = 140;
+const STAGE_H = 320;
+const X: ChartAxis = { min: 0, max: SECONDS, ticks: [0, 30, 60, 90, 120], format: (v) => `${v} s` };
+const Y: ChartAxis = { min: 0, max: MAX_PEAK, ticks: [0, 50_000, 100_000, 150_000], format: (v) => (v ? `${v / 1_000}k` : '0') };
 
-/** Producers spike from second 10 to 40; set the consumers and watch the backlog build and drain. */
+/** Producers spike from second 10 to 40; set the consumers and watch the backlog build and drain, on fixed axes. */
 @Component({
   selector: 'app-queue-widget',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DecimalPipe],
+  imports: [StageComponent, ChartFrameComponent],
   template: `
-    <svg [attr.viewBox]="'-4 -4 ' + (w + 8) + ' ' + (h + 8)" role="img" [attr.aria-label]="summary()">
-      <rect class="spike" [attr.x]="spikeX.start" y="0" [attr.width]="spikeX.end - spikeX.start" [attr.height]="h" />
-      <line class="axis" x1="0" [attr.y1]="h" [attr.x2]="w" [attr.y2]="h" />
-      <path class="depth" [attr.d]="area()" />
-    </svg>
-    <p class="legend muted"><span class="key spike"></span>spike, seconds 10 to 40 · {{ seconds }} seconds shown</p>
+    <g-stage [height]="stageHeight" label="Messages waiting in the queue over two minutes">
+      @if (stage().width(); as width) {
+        <g-chart-frame
+          class="chart"
+          heading="Messages waiting"
+          [summary]="summary()"
+          [width]="width - 24"
+          [height]="stageHeight - 16"
+          [x]="x"
+          [y]="y"
+          [series]="series()"
+          [spans]="spans"
+          [markers]="markers()"
+          [dots]="peakDot()"
+          [legendLines]="2"
+        />
+      }
+    </g-stage>
 
     <label class="slider">
       <span
-        >Spike rate <strong class="mono">{{ spikeRate() | number }}/s</strong> (normally {{ base | number }}/s)</span
+        >Spike rate <strong class="mono">{{ num(spikeRate()) }}/s</strong> (normally {{ num(base) }}/s)</span
       >
       <input type="range" min="1000" max="6000" step="250" [value]="spikeRate()" (input)="spikeRate.set(+$any($event.target).value)" />
     </label>
     <div class="controls" role="group" aria-label="Consumers">
       <button class="g-btn" [disabled]="consumers() <= 1" (click)="consumers.set(consumers() - 1)" aria-label="Fewer consumers">−</button>
-      <span class="mono">{{ consumers() }} consumer{{ consumers() === 1 ? '' : 's' }} · {{ backlog().capacity | number }}/s</span>
+      <span class="mono">{{ consumers() }} consumer{{ consumers() === 1 ? '' : 's' }} · {{ num(backlog().capacity) }}/s</span>
       <button class="g-btn" [disabled]="consumers() >= 8" (click)="consumers.set(consumers() + 1)" aria-label="More consumers">+</button>
     </div>
     <dl class="readouts" aria-live="polite">
       <div>
         <dt>Peak backlog</dt>
-        <dd class="mono">{{ peak() | number }}</dd>
+        <dd class="mono">{{ num(peak()) }}</dd>
       </div>
       <div [class.bad]="backlog().drainSeconds === null">
         <dt>Drained</dt>
@@ -55,18 +70,13 @@ const H = 140;
   `,
   styleUrl: './widget.scss',
   styles: `
-    .spike {
-      fill: var(--g-warn);
-      opacity: 0.12;
+    g-stage {
+      margin-bottom: var(--g-space-3);
     }
-    .key.spike {
-      background: var(--g-warn);
-      opacity: 0.5;
-      height: 10px;
-    }
-    path.depth {
-      fill: var(--g-accent-soft);
-      stroke: var(--g-accent);
+    .chart {
+      position: absolute;
+      left: var(--g-space-3);
+      top: var(--g-space-2);
     }
     .controls .mono {
       min-width: 12em;
@@ -75,11 +85,13 @@ const H = 140;
   `,
 })
 export class QueueWidgetComponent {
-  readonly w = W;
-  readonly h = H;
-  readonly seconds = SECONDS;
+  readonly num = formatNumber;
+  readonly stage = viewChild.required(StageComponent);
+  readonly stageHeight = STAGE_H;
+  readonly x = X;
+  readonly y = Y;
   readonly base = BASE;
-  readonly spikeX = { start: (SPIKE_START / SECONDS) * W, end: (SPIKE_END / SECONDS) * W };
+  readonly spans = [{ from: SPIKE_START, to: SPIKE_END, label: `spike, ${SPIKE_START} s to ${SPIKE_END} s`, tone: 'considering' as const }];
   readonly spikeRate = signal(3_000);
   readonly consumers = signal(2);
   readonly backlog = computed(() =>
@@ -94,16 +106,29 @@ export class QueueWidgetComponent {
     }),
   );
   readonly peak = computed(() => Math.max(...this.backlog().depth));
+  readonly peakDot = computed((): ChartDot[] => {
+    const depth = this.backlog().depth;
+    const peak = this.peak();
+    return peak ? [{ x: depth.indexOf(peak) + 1, y: peak, tone: 'current', label: `peak ${peak.toLocaleString('en-US')}` }] : [];
+  });
   /** At the peak, the newest message waits for everything ahead of it to drain at the capacity. */
   readonly oldestWait = computed(() => {
     const wait = this.peak() / this.backlog().capacity;
     return wait < 1 ? 'under 1 s' : `${Math.round(wait)} s`;
   });
-  readonly area = computed(() => {
-    const depth = this.backlog().depth;
-    const top = MAX_PEAK;
-    const points = depth.map((d, t) => `${((t / (SECONDS - 1)) * W).toFixed(1)},${(H - (Math.min(d, top) / top) * H).toFixed(1)}`);
-    return `M0,${H}L${points.join('L')}L${W},${H}Z`;
+  readonly series = computed((): ChartSeries[] => [
+    {
+      id: 'depth',
+      tone: 'current',
+      label: 'messages waiting',
+      points: [[0, 0], ...this.backlog().depth.map((d, t) => [t + 1, d] as const)],
+    },
+  ]);
+  readonly markers = computed(() => {
+    const drain = this.backlog().drainSeconds;
+    return drain === null || this.peak() === 0
+      ? []
+      : [{ at: SPIKE_END + drain, label: `drained ${drain} s after the spike`, tone: 'final' as const }];
   });
   readonly summary = computed(() => {
     const drain = this.backlog().drainSeconds;
