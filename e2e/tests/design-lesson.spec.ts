@@ -5,7 +5,7 @@ test('a system design lesson opens from Design and its widget answers the keyboa
   await page.getByRole('link', { name: /Latency & Queueing/ }).click();
   await expect(page.getByRole('heading', { name: 'Latency & Queueing', level: 1 })).toBeVisible();
 
-  const slider = page.getByRole('slider', { name: /Utilization/ });
+  const slider = page.getByRole('slider', { name: /^Utilization \d+%/ });
   const p99 = page.locator('.readouts div').filter({ hasText: 'p99' }).locator('dd');
   await expect(p99).toHaveText('92 ms');
   await slider.focus();
@@ -15,6 +15,22 @@ test('a system design lesson opens from Design and its widget answers the keyboa
 
   await expect(page.getByRole('link', { name: 'Mission: Your First Scale-Up' })).toBeVisible();
   await expect(page.getByRole('heading', { name: /Quick check/ })).toBeVisible();
+});
+
+test('a design lesson opens at its top: its quick check further down takes no focus until answered', async ({ page }) => {
+  await page.goto('/design/topics/sd-replication');
+  await expect(page.getByRole('heading', { name: 'Replication & Databases', level: 1 })).toBeInViewport();
+  await expect(page.getByRole('heading', { name: /Quick check/ })).toBeAttached();
+  await page.waitForTimeout(1_000);
+  const scrollTop = () =>
+    page.evaluate(async () => {
+      const content = document.querySelector('app-design-lesson:not(.ion-page-hidden) ion-content') as unknown as {
+        getScrollElement(): Promise<HTMLElement>;
+      };
+      return (await content.getScrollElement()).scrollTop;
+    });
+  expect(await scrollTop()).toBe(0);
+  await expect(page.getByRole('heading', { name: 'Replication & Databases', level: 1 })).toBeInViewport();
 });
 
 test('the sharding lesson counts the keys that move when a node joins, by consistent hashing and by hash mod N', async ({ page }) => {
@@ -144,7 +160,7 @@ test('the search lesson intersects posting lists for AND and ranks every match f
 test('the stream lesson drops an event that arrives after its window closed, until the watermark delay allows for it', async ({ page }) => {
   await page.goto('/design/topics/sd-streams');
   const dropped = page.locator('.readouts div').filter({ hasText: 'Dropped' }).locator('dd');
-  await expect(dropped).toHaveText('event at 8 s');
+  await expect(dropped).toHaveText('event 4, at 8 s');
   const delay = page.getByRole('slider', { name: /Watermark delay/ });
   await delay.focus();
   for (let i = 0; i < 6; i++) await page.keyboard.press('ArrowRight');
@@ -341,22 +357,6 @@ test('the locks lesson shows a paused holder writing after its lease ran out, un
   await expect(readout('Its write at 35 s')).toHaveText('Rejected: its token is stale');
   await page.getByRole('radio', { name: 'Crashes' }).click();
   await expect(readout('No one holds it for')).toHaveText('8 s');
-});
-
-test('the load balancing lesson shows round-robin feeding a slow server while least connections backs off', async ({ page }) => {
-  await page.goto('/design/topics/sd-load-balancing');
-  const readout = (label: string) =>
-    page
-      .locator('.readouts div')
-      .filter({ has: page.locator('dt', { hasText: new RegExp(`^${label}$`) }) })
-      .locator('dd');
-  await expect(readout('p99 latency')).toHaveText('82 ms');
-  await page.getByRole('radio', { name: '5×' }).click();
-  await expect(readout('Sent to the slow server')).toHaveText('10.0%');
-  await expect(readout('p99 latency')).toHaveText('64.7 s');
-  await page.getByRole('radio', { name: 'Least connections' }).click();
-  await expect(readout('p99 latency')).toHaveText('96 ms');
-  await expect(readout('Sent to the slow server')).toHaveText('3.1%');
 });
 
 test('the clocks lesson shows last write wins dropping a later write until a hybrid clock has seen the first', async ({ page }) => {

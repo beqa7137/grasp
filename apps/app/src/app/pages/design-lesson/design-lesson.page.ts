@@ -25,9 +25,6 @@ import { CdnWidgetComponent } from './cdn-widget.component';
 import { CrackWidgetComponent } from './crack-widget.component';
 import { DeliveryWidgetComponent } from './delivery-widget.component';
 import { FeedModelWidgetComponent } from './feed-model-widget.component';
-import { OverloadWidgetComponent } from './overload-widget.component';
-import { LeaseWidgetComponent } from './lease-widget.component';
-import { BalancerWidgetComponent } from './balancer-widget.component';
 import { ClocksWidgetComponent } from './clocks-widget.component';
 import { DiscoveryWidgetComponent } from './discovery-widget.component';
 import { DurabilityWidgetComponent } from './durability-widget.component';
@@ -38,20 +35,18 @@ import { EstimateDrillComponent } from './estimate-drill.component';
 import { GeoWidgetComponent } from './geo-widget.component';
 import { IdLayoutWidgetComponent } from './id-layout-widget.component';
 import { IndexWidgetComponent } from './index-widget.component';
-import { LatencyWidgetComponent } from './latency-widget.component';
 import { LimiterWidgetComponent } from './limiter-widget.component';
 import { PaginationWidgetComponent } from './pagination-widget.component';
 import { PartitionWidgetComponent } from './partition-widget.component';
 import { PipelineWidgetComponent } from './pipeline-widget.component';
-import { QueueWidgetComponent } from './queue-widget.component';
 import { QuorumWidgetComponent } from './quorum-widget.component';
 import { RegionWidgetComponent } from './region-widget.component';
-import { ReplicaWidgetComponent } from './replica-widget.component';
 import { RingWidgetComponent } from './ring-widget.component';
 import { StorageWidgetComponent } from './storage-widget.component';
 import { StreamWidgetComponent } from './stream-widget.component';
 import { TxnWidgetComponent } from './txn-widget.component';
 import { BackComponent } from '../../ui/back.component';
+import { WIDGET_HEIGHTS } from './widget-heights';
 import { LazyWidgetComponent } from './lazy-widget.component';
 
 /** A system design topic taught hands-on: a widget to experiment with, the ideas to name, worked examples and a quick check. */
@@ -71,11 +66,8 @@ import { LazyWidgetComponent } from './lazy-widget.component';
     MasteryRingComponent,
     WorkedExampleComponent,
     QuickCheckComponent,
-    LatencyWidgetComponent,
     LazyWidgetComponent,
     RingWidgetComponent,
-    QueueWidgetComponent,
-    ReplicaWidgetComponent,
     LimiterWidgetComponent,
     AvailabilityWidgetComponent,
     PipelineWidgetComponent,
@@ -95,9 +87,6 @@ import { LazyWidgetComponent } from './lazy-widget.component';
     GeoWidgetComponent,
     DeliveryWidgetComponent,
     FeedModelWidgetComponent,
-    OverloadWidgetComponent,
-    LeaseWidgetComponent,
-    BalancerWidgetComponent,
     ClocksWidgetComponent,
     DiscoveryWidgetComponent,
     DurabilityWidgetComponent,
@@ -115,207 +104,238 @@ import { LazyWidgetComponent } from './lazy-widget.component';
     </ion-header>
     <ion-content [fullscreen]="true">
       @if (topic(); as t) {
-        <div class="page narrow">
-          <section class="head">
-            <g-mastery-ring [value]="progress.masteryOf(t.id)?.mastery ?? 0" [size]="64" />
-            <div>
-              <p class="eyebrow">System design</p>
-              <h1>{{ t.name }}</h1>
-            </div>
-          </section>
-          <p class="one">{{ t.oneLiner }}</p>
-
-          @if (lesson(); as l) {
-            <section class="panel block">
-              <h2><ion-icon name="school-outline" aria-hidden="true" />Why it matters</h2>
-              <p class="prose"><g-code-text [text]="l.why" /></p>
+        <div class="lesson">
+          <div class="page narrow" [class.has-breakout]="lesson()?.widget?.kind === 'balancer'">
+            <section class="head">
+              <g-mastery-ring [value]="progress.masteryOf(t.id)?.mastery ?? 0" [size]="64" />
+              <div>
+                <p class="eyebrow">System design</p>
+                <h1>{{ t.name }}</h1>
+              </div>
             </section>
+            <p class="one">{{ t.oneLiner }}</p>
 
-            <section class="panel block" id="try">
-              <h2><ion-icon name="hand-left-outline" aria-hidden="true" />Try it</h2>
-              @switch (l.widget.kind) {
-                @case ('queue-latency') {
-                  <app-latency-widget />
-                }
-                @case ('cache') {
-                  <app-lazy-widget [load]="loadCacheWidget" [inputs]="{ experiments: l.widget.experiments ?? [] }" [placeholder]="640" />
-                }
-                @case ('hash-ring') {
-                  <app-ring-widget />
-                }
-                @case ('queue-backlog') {
-                  <app-queue-widget />
-                }
-                @case ('replica-lag') {
-                  <app-replica-widget />
-                }
-                @case ('rate-limiter') {
-                  <app-limiter-widget />
-                }
-                @case ('availability') {
-                  <app-availability-widget />
-                }
-                @case ('pipeline') {
-                  <app-pipeline-widget />
-                }
-                @case ('quorum') {
-                  <app-quorum-widget />
-                }
-                @case ('partition') {
-                  <app-partition-widget />
-                }
-                @case ('id-layout') {
-                  <app-id-layout-widget />
-                }
-                @case ('inverted-index') {
-                  <app-index-widget />
-                }
-                @case ('stream-windows') {
-                  <app-stream-widget />
-                }
-                @case ('storage-engine') {
-                  <app-storage-widget />
-                }
-                @case ('cdn') {
-                  <app-cdn-widget />
-                }
-                @case ('multi-region') {
-                  <app-region-widget />
-                }
-                @case ('error-budget') {
-                  <app-budget-widget />
-                }
-                @case ('pagination') {
-                  <app-pagination-widget />
-                }
-                @case ('password-hash') {
-                  <app-crack-widget />
-                }
-                @case ('transactions') {
-                  <app-txn-widget />
-                }
-                @case ('batch-job') {
-                  <app-batch-widget />
-                }
-                @case ('geohash') {
-                  <app-geo-widget />
-                }
-                @case ('delivery') {
-                  <app-delivery-widget />
-                }
-                @case ('feed-model') {
-                  <app-feed-model-widget />
-                }
-                @case ('overload') {
-                  <app-overload-widget />
-                }
-                @case ('lease') {
-                  <app-lease-widget />
-                }
-                @case ('balancer') {
-                  <app-balancer-widget />
-                }
-                @case ('clocks') {
-                  <app-clocks-widget />
-                }
-                @case ('discovery') {
-                  <app-discovery-widget />
-                }
-                @case ('durability') {
-                  <app-durability-widget />
-                }
-                @case ('recovery') {
-                  <app-recovery-widget />
-                }
-                @case ('tenancy') {
-                  <app-tenancy-widget />
-                }
-                @case ('gateway') {
-                  <app-gateway-widget />
-                }
-                @case ('estimate-drill') {
-                  <app-estimate-drill [drill]="l.widget.drill ?? []" />
-                }
-              }
-              @if (l.widget.tryThis; as tryThis) {
-                <h3>Things to try</h3>
-                <ol class="try">
-                  @for (e of tryThis; track $index) {
-                    <li><g-code-text [text]="e" /></li>
-                  }
-                </ol>
-              }
-            </section>
-
-            <section class="panel block">
-              <h2><ion-icon name="bulb-outline" aria-hidden="true" />The ideas to name</h2>
-              <dl class="concepts">
-                @for (c of l.concepts; track c.title) {
-                  <dt>{{ c.title }}</dt>
-                  <dd><g-code-text [text]="c.body" /></dd>
-                }
-              </dl>
-            </section>
-
-            <h2 class="section-title">Worked examples</h2>
-            @for (e of l.examples; track e.title) {
+            @if (lesson(); as l) {
               <section class="panel block">
-                <app-worked-example [example]="e" />
+                <h2><ion-icon name="school-outline" aria-hidden="true" />Why it matters</h2>
+                <p class="prose"><g-code-text [text]="l.why" /></p>
+              </section>
+
+              <section class="panel block" id="try" [class.breakout]="l.widget.kind === 'balancer'">
+                <h2><ion-icon name="hand-left-outline" aria-hidden="true" />Try it</h2>
+                @switch (l.widget.kind) {
+                  @case ('queue-latency') {
+                    <app-lazy-widget [load]="loadLatencyWidget" [placeholder]="heights.latency" />
+                  }
+                  @case ('cache') {
+                    <app-lazy-widget
+                      [load]="loadCacheWidget"
+                      [inputs]="{ experiments: l.widget.experiments ?? [] }"
+                      [placeholder]="heights.cache"
+                    />
+                  }
+                  @case ('hash-ring') {
+                    <app-ring-widget />
+                  }
+                  @case ('queue-backlog') {
+                    <app-lazy-widget [load]="loadQueueWidget" [placeholder]="heights.queue" />
+                  }
+                  @case ('replica-lag') {
+                    <app-lazy-widget
+                      [load]="loadReplicaWidget"
+                      [inputs]="{ experiments: l.widget.experiments ?? [] }"
+                      [placeholder]="heights.replica"
+                    />
+                  }
+                  @case ('rate-limiter') {
+                    <app-limiter-widget />
+                  }
+                  @case ('availability') {
+                    <app-availability-widget />
+                  }
+                  @case ('pipeline') {
+                    <app-pipeline-widget />
+                  }
+                  @case ('quorum') {
+                    <app-quorum-widget />
+                  }
+                  @case ('partition') {
+                    <app-partition-widget />
+                  }
+                  @case ('id-layout') {
+                    <app-id-layout-widget />
+                  }
+                  @case ('inverted-index') {
+                    <app-index-widget />
+                  }
+                  @case ('stream-windows') {
+                    <app-stream-widget />
+                  }
+                  @case ('storage-engine') {
+                    <app-storage-widget />
+                  }
+                  @case ('cdn') {
+                    <app-cdn-widget />
+                  }
+                  @case ('multi-region') {
+                    <app-region-widget />
+                  }
+                  @case ('error-budget') {
+                    <app-budget-widget />
+                  }
+                  @case ('pagination') {
+                    <app-pagination-widget />
+                  }
+                  @case ('password-hash') {
+                    <app-crack-widget />
+                  }
+                  @case ('transactions') {
+                    <app-txn-widget />
+                  }
+                  @case ('batch-job') {
+                    <app-batch-widget />
+                  }
+                  @case ('geohash') {
+                    <app-geo-widget />
+                  }
+                  @case ('delivery') {
+                    <app-delivery-widget />
+                  }
+                  @case ('feed-model') {
+                    <app-feed-model-widget />
+                  }
+                  @case ('overload') {
+                    <app-lazy-widget [load]="loadOverloadWidget" [placeholder]="heights.overload" />
+                  }
+                  @case ('lease') {
+                    <app-lazy-widget [load]="loadLeaseWidget" [placeholder]="heights.lease" />
+                  }
+                  @case ('balancer') {
+                    <app-lazy-widget
+                      [load]="loadBalancerWidget"
+                      [inputs]="{ experiments: l.widget.experiments ?? [] }"
+                      [placeholder]="heights.balancer"
+                    />
+                  }
+                  @case ('clocks') {
+                    <app-clocks-widget />
+                  }
+                  @case ('discovery') {
+                    <app-discovery-widget />
+                  }
+                  @case ('durability') {
+                    <app-durability-widget />
+                  }
+                  @case ('recovery') {
+                    <app-recovery-widget />
+                  }
+                  @case ('tenancy') {
+                    <app-tenancy-widget />
+                  }
+                  @case ('gateway') {
+                    <app-gateway-widget />
+                  }
+                  @case ('estimate-drill') {
+                    <app-estimate-drill [drill]="l.widget.drill ?? []" />
+                  }
+                }
+                @if (l.widget.tryThis; as tryThis) {
+                  <h3>Things to try</h3>
+                  <ol class="try">
+                    @for (e of tryThis; track $index) {
+                      <li><g-code-text [text]="e" /></li>
+                    }
+                  </ol>
+                }
+              </section>
+
+              <section class="panel block">
+                <h2><ion-icon name="bulb-outline" aria-hidden="true" />The ideas to name</h2>
+                <dl class="concepts">
+                  @for (c of l.concepts; track c.title) {
+                    <dt>{{ c.title }}</dt>
+                    <dd><g-code-text [text]="c.body" /></dd>
+                  }
+                </dl>
+              </section>
+
+              <h2 class="section-title">Worked examples</h2>
+              @for (e of l.examples; track e.title) {
+                <section class="panel block">
+                  <app-worked-example [example]="e" />
+                </section>
+              }
+
+              <section class="panel block">
+                <h2><ion-icon name="alert-circle-outline" aria-hidden="true" />Pitfalls</h2>
+                <ul>
+                  @for (p of l.pitfalls; track p) {
+                    <li><g-code-text [text]="p" /></li>
+                  }
+                </ul>
+              </section>
+
+              <section class="panel block">
+                <h2><ion-icon name="chatbubbles-outline" aria-hidden="true" />What interviewers ask next</h2>
+                @for (f of l.followUps; track f.question) {
+                  <details class="follow-up">
+                    <summary><g-code-text [text]="f.question" /></summary>
+                    <p><g-code-text [text]="f.answer" /></p>
+                  </details>
+                }
+              </section>
+            }
+
+            @if (missions().length || cases().length) {
+              <section class="panel block">
+                <h2><ion-icon name="construct-outline" aria-hidden="true" />Where it shows up</h2>
+                <div class="links">
+                  @for (m of missions(); track m.id) {
+                    <a class="g-btn" [routerLink]="['/design/missions', m.id]"
+                      ><ion-icon name="construct-outline" aria-hidden="true" />Mission: {{ m.title }}</a
+                    >
+                  }
+                  @for (c of cases(); track c.id) {
+                    <a class="g-btn" [routerLink]="['/design/cases', c.id]"
+                      ><ion-icon name="document-text-outline" aria-hidden="true" />Case study: {{ c.title }}</a
+                    >
+                  }
+                </div>
               </section>
             }
 
             <section class="panel block">
-              <h2><ion-icon name="alert-circle-outline" aria-hidden="true" />Pitfalls</h2>
-              <ul>
-                @for (p of l.pitfalls; track p) {
-                  <li><g-code-text [text]="p" /></li>
-                }
-              </ul>
-            </section>
-
-            <section class="panel block">
-              <h2><ion-icon name="chatbubbles-outline" aria-hidden="true" />What interviewers ask next</h2>
-              @for (f of l.followUps; track f.question) {
-                <details class="follow-up">
-                  <summary><g-code-text [text]="f.question" /></summary>
-                  <p><g-code-text [text]="f.answer" /></p>
-                </details>
+              <h2><ion-icon name="flash-outline" aria-hidden="true" />Quick check</h2>
+              @if (itemCount()) {
+                <app-quick-check [topic]="t.id" />
+              } @else {
+                <p class="muted">Review questions for this topic unlock with its Design Lab missions or a finished case study.</p>
               }
             </section>
-          }
-
-          @if (missions().length || cases().length) {
-            <section class="panel block">
-              <h2><ion-icon name="construct-outline" aria-hidden="true" />Where it shows up</h2>
-              <div class="links">
-                @for (m of missions(); track m.id) {
-                  <a class="g-btn" [routerLink]="['/design/missions', m.id]"
-                    ><ion-icon name="construct-outline" aria-hidden="true" />Mission: {{ m.title }}</a
-                  >
-                }
-                @for (c of cases(); track c.id) {
-                  <a class="g-btn" [routerLink]="['/design/cases', c.id]"
-                    ><ion-icon name="document-text-outline" aria-hidden="true" />Case study: {{ c.title }}</a
-                  >
-                }
-              </div>
-            </section>
-          }
-
-          <section class="panel block">
-            <h2><ion-icon name="flash-outline" aria-hidden="true" />Quick check</h2>
-            @if (itemCount()) {
-              <app-quick-check [topic]="t.id" />
-            } @else {
-              <p class="muted">Review questions for this topic unlock with its Design Lab missions or a finished case study.</p>
-            }
-          </section>
+          </div>
         </div>
       }
     </ion-content>
   `,
   styles: `
     @use '../../../type' as *;
+    @use '../../../breakpoints' as *;
+
+    // The page's content box is a size container, so a widget can leave the reading column when the content (not the
+    // viewport: a rail takes its share) is wide. The page then takes the content width and holds every other part to the
+    // reading column, so nothing spills out of it.
+    .lesson {
+      container: lesson / inline-size;
+    }
+    @include container-wide(lesson) {
+      .page.has-breakout {
+        max-width: var(--g-width-content);
+        > :not(.breakout) {
+          max-width: calc(var(--g-width-reading) - 2 * var(--g-space-4));
+          margin-inline: auto;
+        }
+      }
+    }
 
     .head {
       display: flex;
@@ -428,6 +448,13 @@ export class DesignLessonPage {
   readonly missions = computed(() => (this.topic()?.scenarioIds ?? []).map((id) => getScenarioSummary(id)!).filter(Boolean));
   readonly cases = computed(() => CASE_CATALOG.filter((c) => c.topics.includes(this.id())));
   readonly loadCacheWidget = () => import('./cache-widget.component').then((m) => m.CacheWidgetComponent);
+  readonly heights = WIDGET_HEIGHTS;
+  readonly loadLatencyWidget = () => import('./latency-widget.component').then((m) => m.LatencyWidgetComponent);
+  readonly loadQueueWidget = () => import('./queue-widget.component').then((m) => m.QueueWidgetComponent);
+  readonly loadOverloadWidget = () => import('./overload-widget.component').then((m) => m.OverloadWidgetComponent);
+  readonly loadLeaseWidget = () => import('./lease-widget.component').then((m) => m.LeaseWidgetComponent);
+  readonly loadReplicaWidget = () => import('./replica-widget.component').then((m) => m.ReplicaWidgetComponent);
+  readonly loadBalancerWidget = () => import('./balancer-widget.component').then((m) => m.BalancerWidgetComponent);
 
   constructor() {
     addIcons({

@@ -1,16 +1,13 @@
-import type { ExperimentSpec, Slot, SlotUnit } from './experiments.js';
+import { slotOf, type ExperimentSpec } from './experiments.js';
 import { CACHE_HIT_MS, CACHE_HIT_SNAPS, CACHE_QPS, cacheRefill, cacheSteady } from './widgets/caching.js';
 
-const slot =
-  (unit: SlotUnit) =>
-  (value: number): Slot => ({ value, unit });
-const pct = slot('pct');
-const ms = slot('ms');
-const qps = slot('qps');
-const times = slot('times');
-const s = slot('s');
-const approx = slot('approx');
-const num = slot('num');
+const pct = slotOf('pct');
+const ms = slotOf('ms');
+const qps = slotOf('qps');
+const times = slotOf('times');
+const s = slotOf('s');
+const approx = slotOf('approx');
+const num = slotOf('num');
 
 const steady = (hitRate: number, originMs: number) => cacheSteady({ hitRate, originMs });
 

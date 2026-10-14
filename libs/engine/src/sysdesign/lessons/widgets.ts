@@ -1,6 +1,8 @@
 /** The math behind the system design lesson widgets, kept here so it is tested apart from the drawing. */
 
 export * from './widgets/balancing.js';
+export * from './widgets/balancing-settings.js';
+export * from './widgets/balancing-sweeps.js';
 export * from './widgets/caching.js';
 export * from './widgets/clocks.js';
 export * from './widgets/data-modeling.js';
@@ -9,23 +11,10 @@ export * from './widgets/durability.js';
 export * from './widgets/gateway.js';
 export * from './widgets/leases.js';
 export * from './widgets/overload.js';
+export * from './widgets/queueing.js';
 export * from './widgets/recovery.js';
+export * from './widgets/replication.js';
 export * from './widgets/tenancy.js';
-
-export interface Latency {
-  mean: number;
-  p50: number;
-  p99: number;
-}
-
-/**
- * A single server with random arrivals and service times (the M/M/1 queue): the response time is exponential with mean
- * `service / (1 - utilization)`, so every percentile grows by the same factor as the server fills.
- */
-export function queueLatency(serviceMs: number, utilization: number): Latency {
-  const mean = serviceMs / (1 - Math.min(utilization, 0.999));
-  return { mean, p50: mean * Math.LN2, p99: mean * Math.log(100) };
-}
 
 /**
  * 32-bit FNV-1a, then MurmurHash3's finalizer: FNV alone leaves near-identical keys such as `user:1` and `user:2` close
@@ -86,52 +75,6 @@ export function place(keys: readonly string[], nodes: readonly string[], owner: 
 
 export function movedKeys(before: readonly string[], after: readonly string[]): number {
   return before.filter((owner, i) => owner !== after[i]).length;
-}
-
-export interface Backlog {
-  /** Queue depth at the end of each second. */
-  depth: number[];
-  /** Seconds after the spike ends until the queue is empty again, or null if it never empties in the window. */
-  drainSeconds: number | null;
-  capacity: number;
-}
-
-/** Messages arrive at `baseRate`, or `spikeRate` during the spike, and consumers remove up to their capacity each second. */
-export function queueBacklog(options: {
-  seconds: number;
-  baseRate: number;
-  spikeRate: number;
-  spikeStart: number;
-  spikeEnd: number;
-  consumers: number;
-  perConsumer: number;
-}): Backlog {
-  const capacity = options.consumers * options.perConsumer;
-  const depth: number[] = [];
-  let queued = 0;
-  let drainSeconds: number | null = null;
-  for (let t = 0; t < options.seconds; t++) {
-    const arriving = t >= options.spikeStart && t < options.spikeEnd ? options.spikeRate : options.baseRate;
-    queued = Math.max(0, queued + arriving - capacity);
-    depth.push(queued);
-    if (drainSeconds === null && t >= options.spikeEnd && queued === 0) drainSeconds = t + 1 - options.spikeEnd;
-  }
-  return { depth, drainSeconds, capacity };
-}
-
-export interface ReplicaRead {
-  stale: boolean;
-  /** Where the read went: the replica, or the primary under read-your-writes. */
-  servedBy: 'replica' | 'primary';
-}
-
-/**
- * A user writes, then reads `readAfterMs` later. A replica has applied the write only once `lagMs` has passed; with
- * read-your-writes, the user's reads go to the primary for `pinMs` after their own write.
- */
-export function replicaRead(lagMs: number, readAfterMs: number, readYourWrites: boolean, pinMs: number): ReplicaRead {
-  if (readYourWrites && readAfterMs < pinMs) return { stale: false, servedBy: 'primary' };
-  return { stale: readAfterMs < lagMs, servedBy: 'replica' };
 }
 
 export type Limiter = 'token-bucket' | 'fixed-window' | 'sliding-window';

@@ -21,7 +21,7 @@ interface Asked {
   template: `
     @if (current(); as a) {
       <p class="muted progress">Question {{ position() + 1 }} of {{ asked().length }}</p>
-      <g-question-card [question]="a.question" reason="check" [chosen]="chosen()" (choose)="answer($event)" />
+      <g-question-card [question]="a.question" reason="check" [chosen]="chosen()" [focusFirst]="round() > 0" (choose)="answer($event)" />
       @if (chosen() !== null) {
         <button class="g-btn primary next" (click)="next()">
           {{ position() + 1 < asked().length ? 'Next question' : 'See how you did' }}
@@ -64,7 +64,7 @@ export class QuickCheckComponent {
   readonly drillLink = drillLink;
   readonly topic = input.required<string>();
   private readonly progress = inject(ProgressService);
-  private readonly round = signal(0);
+  readonly round = signal(0);
   readonly position = signal(0);
   readonly chosen = signal<number | null>(null);
   private readonly results = signal<boolean[]>([]);

@@ -181,12 +181,6 @@ text {
   font: 600 var(--g-text-label) var(--ion-font-family);
   fill: var(--g-viz-final-ink);
 }
-.tag {
-  fill: var(--g-viz-stage);
-  stroke: var(--g-accent);
-  stroke-width: 1.5;
-  visibility: hidden;
-}
 .load.storm {
   animation: storm 0.9s ease-in-out infinite alternate;
 }
@@ -200,21 +194,6 @@ text {
   min-height: 1lh;
   font-size: var(--g-text-body-s);
   color: var(--g-muted);
-}
-.focus-outline {
-  fill: none;
-  stroke: var(--g-accent);
-  stroke-width: 2;
-  stroke-dasharray: 6 4;
-  visibility: hidden;
-}
-.look {
-  font: 600 var(--g-text-label) var(--ion-font-family);
-  fill: var(--g-accent);
-  visibility: hidden;
-}
-.focused :is(.focus-outline, .look, .tag) {
-  visibility: visible;
 }
 .dot-key {
   fill: var(--g-viz-considering);

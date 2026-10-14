@@ -187,7 +187,13 @@ jobs:
       - uses: ./.github/actions/wait-for-postgres
 
       - name: Run the learner flows
-        run: npm run e2e -- --project=${{ matrix.project }} --shard=${{ matrix.shard }}/${{ matrix.of }} --workers=100% --reporter=github,blob
+        run: npm run e2e -- --project=${{ matrix.project }} --shard=${{ matrix.shard }}/${{ matrix.of }} --workers=100% --grep-invert @perf --reporter=github,blob
+
+      # Timing tests measure the page's main thread, so they run alone: beside the shard's other workers they would
+      # measure the runner's contention instead.
+      - name: Run the timing checks
+        if: matrix.project == 'phone' && matrix.shard == 1
+        run: npm run e2e -- --project=phone --grep @perf --workers=1 --reporter=github
 
       - name: Upload the blob report
         if: failure()

@@ -34,6 +34,7 @@ const KEY_STEP: Record<string, number> = { ArrowRight: 1, ArrowUp: 1, PageUp: 1,
     '[class.y]': "axis() === 'y'",
     '[class.ghost]': 'ghost()',
     '[class.dot]': "knob() === 'dot'",
+    '[class.ring]': "knob() === 'ring'",
     '[class.disabled]': 'disabled()',
     '[attr.aria-disabled]': "disabled() ? 'true' : null",
     '[style.transform]': 'transform()',
@@ -81,6 +82,12 @@ const KEY_STEP: Record<string, number> = { ArrowRight: 1, ArrowUp: 1, PageUp: 1,
       width: 18px;
       height: 18px;
     }
+    :host(.ring) .knob {
+      width: 28px;
+      height: 28px;
+      background: transparent;
+      box-shadow: none;
+    }
     :host(.disabled) {
       cursor: default;
       opacity: 0.45;
@@ -100,8 +107,8 @@ export class HandleComponent {
   readonly label = input.required<string>();
   readonly valuetext = input.required<string>();
   readonly ghost = input(false);
-  /** A pill along the track, or a round knob for a scrubber. */
-  readonly knob = input<'pill' | 'dot'>('pill');
+  /** A pill along the track, a round knob for a scrubber, or a ring around a mark the drawing already shows. */
+  readonly knob = input<'pill' | 'dot' | 'ring'>('pill');
   /** Shown but inert, while the picture plays something these numbers are about. */
   readonly disabled = input(false);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;

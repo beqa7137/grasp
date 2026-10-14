@@ -46,6 +46,8 @@ import { ChangeDetectionStrategy, Component, ElementRef, afterRenderEffect, inje
     td {
       text-align: right;
       padding: var(--g-space-1) var(--g-space-2);
+      // A value or a short head never breaks; a wide table scrolls sideways instead.
+      white-space: nowrap;
     }
     th {
       @include label;

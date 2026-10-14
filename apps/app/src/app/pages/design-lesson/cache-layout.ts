@@ -1,16 +1,11 @@
 import type { Pt } from '../../viz/kit/particles';
+import { focusBoxes, pad, union, type Box, type Focus } from './focus-layout';
 
 type Anchor = 'start' | 'middle' | 'end';
 interface Label {
   x: number;
   y: number;
   anchor: Anchor;
-}
-interface Box {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
 }
 
 /**
@@ -31,15 +26,7 @@ export interface MeterLayout extends Box {
 
 export type FocusRegion = 'gauge' | 'waffle' | 'readout' | 'chart';
 
-/** A region an experiment points at: an outline inside the stage, and its "Look here" tag on the top or bottom edge. */
-export interface FocusBox extends Box {
-  id: FocusRegion;
-  /** The tag's top left, on the box's top or bottom edge and inside the stage. */
-  tag: { x: number; y: number };
-}
-
-/** The "Look here" tag's size. */
-export const TAG = { width: 60, height: 16 };
+export type FocusBox = Focus<FocusRegion>;
 
 /** Where each part of the Caching widget sits for a stage `width` px wide. Every y is fixed, so the height is too. */
 export interface CacheLayout {
@@ -243,42 +230,6 @@ function narrowFlow(width: number) {
   };
 }
 
-const pad = (b: Box, by: number): Box => ({ x: b.x - by, y: b.y - by, width: b.width + 2 * by, height: b.height + 2 * by });
-const union = (boxes: readonly Box[]): Box => {
-  const x = Math.min(...boxes.map((b) => b.x));
-  const y = Math.min(...boxes.map((b) => b.y));
-  return {
-    x,
-    y,
-    width: Math.max(...boxes.map((b) => b.x + b.width)) - x,
-    height: Math.max(...boxes.map((b) => b.y + b.height)) - y,
-  };
-};
-export const overlaps = (a: Box, b: Box) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
-
-/** A box kept 1px inside the stage, so its outline never clips. */
-const inside = (b: Box, width: number, height: number): Box => {
-  const x = Math.max(1, b.x);
-  const y = Math.max(1, b.y);
-  return { x, y, width: Math.min(width - 1, b.x + b.width) - x, height: Math.min(height - 1, b.y + b.height) - y };
-};
-
-/**
- * Where a region's "Look here" tag goes: on or just outside a corner of its outline, the first place inside the stage
- * that covers no text or mark, so the tag never hides what it points at.
- */
-function placeTag(f: Box, taken: readonly Box[], width: number, height: number) {
-  const { width: w, height: h } = TAG;
-  const across = Array.from({ length: Math.floor((f.width - w) / 8) + 1 }, (_, i) => f.x + 4 + 8 * i);
-  const xs = [f.x + f.width - w - 4, f.x + 4, ...across, f.x - w - 2, f.x + f.width + 2];
-  const edges = [f.y - h / 2, f.y + f.height - h / 2, f.y - h - 1, f.y + f.height + 1];
-  const rows = Array.from({ length: Math.floor((f.height - h) / 8) + 1 }, (_, i) => f.y + 2 + 8 * i);
-  const candidates = [...edges, ...rows].flatMap((y) => xs.map((x) => ({ x, y })));
-  const fits = (c: { x: number; y: number }) =>
-    c.x >= 1 && c.y >= 1 && c.x + w <= width - 1 && c.y + h <= height - 1 && !taken.some((t) => overlaps({ ...c, width: w, height: h }, t));
-  return candidates.find(fits) ?? candidates[0];
-}
-
 export function cacheLayout(width: number): CacheLayout {
   const wide = width >= WIDE_FROM;
   const { gaugeParts, texts, ...f } = wide ? wideFlow(width) : narrowFlow(width);
@@ -318,9 +269,6 @@ export function cacheLayout(width: number): CacheLayout {
     ['readout', pad(readout, 4)],
     ['chart', pad(chart, 5)],
   ];
-  const focus = outlines.map(([id, b]): FocusBox => {
-    const kept = inside(b, width, height);
-    return { id, ...kept, tag: placeTag(kept, taken, width, height) };
-  });
+  const focus = focusBoxes(outlines, taken, width, height);
   return { ...f, width, height, wide, waffle, readout, chart, legendY, legendWidth: legend.width, focus, texts: taken };
 }

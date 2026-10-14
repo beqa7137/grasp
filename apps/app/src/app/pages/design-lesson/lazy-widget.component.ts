@@ -4,7 +4,9 @@ import {
   ComponentRef,
   DestroyRef,
   ViewContainerRef,
+  ElementRef,
   afterNextRender,
+  computed,
   effect,
   inject,
   input,
@@ -14,16 +16,20 @@ import {
 
 type LoadState = 'loading' | 'loaded' | 'failed';
 
+/** A widget's height at each width it lays out for: `[from width, height]` pairs, narrowest first. */
+export type WidgetHeights = readonly (readonly [number, number])[];
+
 /**
  * A lesson widget loaded in its own chunk, so the kit it draws with stays out of the lesson's. It is not `@defer`: that
  * pulls Angular's defer runtime into the core chunk, about 6.5 kB more on every first paint. While the chunk loads it
- * holds `placeholder` px, so the page below barely moves; if the load fails (offline, a deploy replaced the chunk) it
- * says so and offers a reload: the browser keeps a failed `import()` of a URL, so only a reload can fetch it again.
+ * holds the widget's height at its width (`placeholder`), so the page below barely moves; if the load fails (offline, a
+ * deploy replaced the chunk) it says so and offers a reload: the browser keeps a failed `import()` of a URL, so only a
+ * reload can fetch it again.
  */
 @Component({
   selector: 'app-lazy-widget',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { '[style.min-height.px]': "state() === 'loading' ? placeholder() : null", '[style.display]': "'block'" },
+  host: { '[style.min-height.px]': "state() === 'loading' ? minHeight() : null", '[style.display]': "'block'" },
   template: `
     @if (state() === 'failed') {
       <p class="failed" role="alert">
@@ -46,14 +52,21 @@ type LoadState = 'loading' | 'loaded' | 'failed';
 export class LazyWidgetComponent {
   readonly load = input.required<() => Promise<Type<unknown>>>();
   readonly inputs = input<Record<string, unknown>>({});
-  readonly placeholder = input(0);
+  readonly placeholder = input<WidgetHeights>([[0, 0]]);
   readonly state = signal<LoadState>('loading');
+  private readonly width = signal(0);
+  readonly minHeight = computed(() => {
+    const heights = this.placeholder();
+    return heights.filter(([from]) => this.width() >= from).at(-1)?.[1] ?? heights[0][1];
+  });
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   private ref: ComponentRef<unknown> | null = null;
   private readonly container = inject(ViewContainerRef);
   private destroyed = false;
 
   constructor() {
     inject(DestroyRef).onDestroy(() => (this.destroyed = true));
+    afterNextRender({ read: () => this.width.set(this.host.getBoundingClientRect().width) });
     afterNextRender(() => this.fetch());
     effect(() => this.applyInputs());
   }

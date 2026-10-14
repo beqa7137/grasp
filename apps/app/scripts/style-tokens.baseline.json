@@ -77,10 +77,6 @@
     "font-size": 5,
     "spacing": 9
   },
-  "app/pages/design-lesson/balancer-widget.component.ts": {
-    "font-size": 2,
-    "spacing": 1
-  },
   "app/pages/design-lesson/batch-widget.component.ts": {
     "border-radius": 2,
     "font-size": 2,
@@ -145,16 +141,15 @@
     "spacing": 10
   },
   "app/pages/design-lesson/lease-widget.component.ts": {
-    "font-size": 2,
-    "spacing": 2
+    "font-size": 1
   },
   "app/pages/design-lesson/limiter-widget.component.ts": {
     "font-size": 3,
     "spacing": 5
   },
   "app/pages/design-lesson/overload-widget.component.ts": {
-    "font-size": 3,
-    "spacing": 3
+    "font-size": 2,
+    "spacing": 1
   },
   "app/pages/design-lesson/pagination-widget.component.ts": {
     "border-radius": 1,
@@ -181,10 +176,6 @@
   "app/pages/design-lesson/region-widget.component.ts": {
     "font-size": 2,
     "spacing": 1
-  },
-  "app/pages/design-lesson/replica-widget.component.ts": {
-    "font-size": 3,
-    "spacing": 4
   },
   "app/pages/design-lesson/ring-widget.component.ts": {
     "font-size": 1,

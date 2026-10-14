@@ -1,14 +1,11 @@
+import { REPLICA_EXPERIMENTS } from './replication-experiments.js';
 import type { SdLesson } from './types.js';
 
 export const REPLICATION_LESSON: SdLesson = {
   why: 'Replicas are the first tool for scaling reads and surviving a dead database, and the most often misapplied. Every replica replays every write, so replicas add nothing to write throughput, and an asynchronous replica is always a little behind: a user posts, reloads and their post is gone, or a failover quietly drops the last writes the primary had acknowledged. Interviewers probe exactly these seams: which reads may be stale, which writes may be lost, and what stops two primaries.',
   widget: {
     kind: 'replica-lag',
-    tryThis: [
-      'Keep the defaults, 800 ms of lag and a read 300 ms after the write, with read-your-writes off: the replica has not applied the write yet, so the user sees stale data. Slide the read to 800 ms: now it is fresh. Any read sooner than the lag is stale, however small the gap.',
-      'Turn read-your-writes on with the defaults: the read goes to the primary and is fresh. Slide the read to 1,000 ms: the pin has ended and the read goes back to the replica, still fresh because 800 ms of lag has passed.',
-      'Keep read-your-writes on and raise the lag to 2,000 ms, then set the read to 1,200 ms: the pin has ended but the replica has not caught up, so the read is stale again. A time-based pin only works while it outlasts the worst lag; move the read to 2,000 ms and it is fresh.',
-    ],
+    experiments: REPLICA_EXPERIMENTS,
   },
   concepts: [
     {

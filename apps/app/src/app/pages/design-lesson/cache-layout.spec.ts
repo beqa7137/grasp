@@ -1,4 +1,5 @@
-import { TAG, cacheLayout, overlaps, waffleSide } from './cache-layout';
+import { cacheLayout, waffleSide } from './cache-layout';
+import { TAG, overlaps } from './focus-layout';
 
 describe('cacheLayout', () => {
   it('keeps one height per layout, whatever the width, and switches to one row from 520px', () => {

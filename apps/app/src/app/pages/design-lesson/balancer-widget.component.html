@@ -1,0 +1,198 @@
+<div class="main">
+  <g-stage #fleet class="fleet-stage" [height]="layout().height" label="Load balancing: clients, a balancer and a fleet of servers">
+    @if (ready()) {
+      @let L = layout();
+      @let c = L.clients;
+      @let r = L.readout;
+      @let sh = L.share;
+      @let sc = L.scrub;
+      @let slowLane = lanes()[0];
+      <svg
+        class="back"
+        [attr.viewBox]="'0 0 ' + L.width + ' ' + L.height"
+        [attr.width]="L.width"
+        [attr.height]="L.height"
+        aria-hidden="true"
+      >
+        <g class="clients" [attr.transform]="'translate(' + c.x + ' ' + c.y + ') scale(' + c.scale + ')'">
+          <rect class="device" x="-18" y="-13" width="11" height="20" />
+          <rect class="device" x="-5.5" y="-16" width="11" height="20" />
+          <rect class="device" x="7" y="-13" width="11" height="20" />
+        </g>
+        <line class="pipe" [attr.x1]="L.pipe.x0" [attr.x2]="L.pipe.x1" [attr.y1]="L.pipe.y" [attr.y2]="L.pipe.y" />
+        <path class="lb" [attr.d]="'M' + L.lb.x + ' ' + (L.lb.y - 24) + 'l24 24l-24 24l-24 -24z'" />
+      </svg>
+      <canvas #canvas class="lanes" aria-hidden="true" [attr.data-servers]="servers()"></canvas>
+      <svg
+        class="fleet"
+        [attr.viewBox]="'0 0 ' + L.width + ' ' + L.height"
+        [attr.width]="L.width"
+        [attr.height]="L.height"
+        role="img"
+        [attr.aria-label]="flowSummary()"
+      >
+        <text class="label" [attr.text-anchor]="r.anchor" [attr.x]="r.x" [attr.y]="r.y - 6">{{ p99Label() }}</text>
+        <text class="value big" [class.bad]="p99Bad()" [attr.text-anchor]="r.anchor" [attr.x]="r.x" [attr.y]="r.y + 17">{{ p99() }}</text>
+        <text class="caption" [attr.text-anchor]="r.anchor" [attr.x]="r.x" [attr.y]="r.y + 34">{{ meanLabel() }} {{ mean() }}</text>
+
+        <text class="label" x="12" [attr.y]="c.labelY">Clients</text>
+        <text class="rate" x="12" [attr.y]="c.rateY">{{ formatQps(arrivals()) }}</text>
+        <text class="caption" text-anchor="middle" [attr.x]="(L.pipe.x0 + L.pipe.x1) / 2" [attr.y]="L.pipe.labelY">
+          <tspan class="strong">{{ load() }}%</tspan>
+          load
+        </text>
+        <text class="lb-name" text-anchor="middle" [attr.x]="L.lb.x" [attr.y]="L.lb.y + 4">LB</text>
+        @if (L.wide) {
+          <text class="caption policy-name" text-anchor="middle" [attr.x]="L.lb.x" [attr.y]="L.lb.y + 40">
+            {{ policyLabels[policy()] }}
+          </text>
+        }
+
+        <text class="label" [attr.x]="L.rackX" [attr.y]="L.rackTop - 8">Servers · {{ servers() }}</text>
+        <text class="caption slow-header" [class.slow]="isSlow()" text-anchor="end" [attr.x]="L.right" [attr.y]="L.rackTop - 8">
+          {{ slowHeader() }}
+        </text>
+        @for (m of pickMarks(); track $index) {
+          @if (m.count) {
+            <text class="count small" [attr.x]="L.rackX + 4" [attr.y]="m.y + 4">{{ m.count }}</text>
+          }
+          <rect
+            class="pick"
+            [class.chosen]="m.chosen"
+            [attr.x]="L.rackX - 2"
+            [attr.y]="m.top"
+            [attr.width]="L.right + 2 - L.rackX"
+            [attr.height]="m.height"
+          />
+        }
+        <text class="count" [class.bad]="isSlow() && overfed()" [attr.x]="L.rackX + 4" [attr.y]="slowLane.y + 5">
+          {{ count(slowQueue()) }}
+        </text>
+        @if (run()) {
+          <rect class="key-block" [attr.x]="L.rackX + 4" [attr.y]="keyY() - 5" width="6" height="10" />
+          <text class="caption" [attr.x]="L.rackX + 14" [attr.y]="keyY() + 4">
+            = {{ count(blockSize()) }} {{ blockSize() === 1 ? 'request' : 'requests' }}
+          </text>
+        }
+        <text class="caption" text-anchor="end" [attr.x]="L.rackCross - 22" [attr.y]="keyY() + 4">↕ servers</text>
+
+        <text class="caption" [attr.x]="sh.x0" [attr.y]="sh.y - 8">
+          S1 is sent
+          <tspan class="strong" [class.bad]="isSlow() && overfed()">{{ formatPct(sentPct()) }}</tspan>
+          of requests
+        </text>
+        <rect class="share-track" [attr.x]="sh.x0" [attr.y]="sh.y" [attr.width]="sh.x1 - sh.x0" height="10" />
+        <rect class="share" [class.bad]="overfed()" [attr.x]="sh.x0" [attr.y]="sh.y" [attr.width]="shareX(sentPct()) - sh.x0" height="10" />
+        <line class="can" [attr.x1]="shareX(keepPct())" [attr.x2]="shareX(keepPct())" [attr.y1]="sh.y - 3" [attr.y2]="sh.y + 13" />
+        <text class="caption" [attr.x]="sh.x0" [attr.y]="sh.y + 24">
+          <tspan class="strong">|</tspan>
+          it can keep up with
+          <tspan class="strong">{{ formatPct(keepPct()) }}</tspan>
+        </text>
+        <text class="tick" text-anchor="end" [attr.x]="sh.x1" [attr.y]="sh.y + 24">{{ shareMax }}%</text>
+
+        <line class="scrub" [attr.x1]="sc.x0" [attr.x2]="sc.x1" [attr.y1]="sc.y" [attr.y2]="sc.y" />
+        <text class="tick" text-anchor="start" [attr.x]="sc.x0 - 8" [attr.y]="sc.y + 24">0 s</text>
+        <text class="tick" text-anchor="end" [attr.x]="sc.x1 + 8" [attr.y]="sc.y + 24">{{ runSeconds() }} s</text>
+        <text class="label" text-anchor="middle" [attr.x]="(sc.x0 + sc.x1) / 2" [attr.y]="sc.y + 24">Time in the run</text>
+
+        @for (f of L.focus; track f.id) {
+          <g app-focus [box]="f" [on]="exp.focusOn().includes(f.id)" />
+        }
+      </svg>
+
+      <g-handle
+        label="Load"
+        [values]="loads"
+        [positions]="L.pipe.loadPositions"
+        [cross]="L.pipe.y"
+        [valuetext]="loadText()"
+        [disabled]="locked()"
+        [value]="load()"
+        (valueChange)="setLoad($event)"
+      />
+      <g-handle
+        label="Servers"
+        axis="y"
+        [values]="serverSnaps"
+        [positions]="L.rackHandles"
+        [cross]="L.rackCross"
+        [valuetext]="serversText()"
+        [disabled]="locked()"
+        [value]="servers()"
+        (valueChange)="setServers($event)"
+      />
+      <g-handle
+        label="Slow server"
+        knob="dot"
+        [values]="slowSnaps"
+        [positions]="L.slowPositions"
+        [cross]="slowLane.y"
+        [valuetext]="slowText()"
+        [disabled]="locked()"
+        [value]="slowdown()"
+        (valueChange)="setSlowdown($event)"
+      />
+      <g-handle
+        label="Time in the run"
+        knob="dot"
+        [values]="sampleValues"
+        [positions]="scrubPositions()"
+        [cross]="sc.y"
+        [valuetext]="timeText()"
+        [value]="sample()"
+        (valueChange)="setTime($event)"
+      />
+    }
+  </g-stage>
+  <app-balancer-charts
+    class="charts"
+    [run]="chartRun()"
+    [sweep]="chartSweep()"
+    [policy]="chartPolicy()"
+    [load]="load()"
+    [sample]="chartSample()"
+    [ghost]="ghost()"
+    [failed]="broken() ? failedText : null"
+    [locked]="locked()"
+    [loadText]="chartLoadText()"
+    [focusOn]="exp.focusOn()"
+    (loadChange)="setLoad($event)"
+  />
+</div>
+
+<div class="side">
+  <div class="controls">
+    <fieldset class="policy" [disabled]="locked()">
+      <legend class="control-label">Policy</legend>
+      <div class="segments">
+        @for (o of policyOptions; track o.value) {
+          <label class="segment">
+            <input type="radio" name="lb-policy" [value]="o.value" [checked]="o.value === policy()" (change)="setPolicy(o.value)" />
+            <span>{{ o.label }}</span>
+          </label>
+        }
+      </div>
+    </fieldset>
+    <div class="actions">
+      <button type="button" class="g-btn" [disabled]="!run()" (click)="replay()">Replay</button>
+      <button type="button" class="g-btn" [disabled]="locked() || !run()?.choices?.length" (click)="watchPicks()">
+        {{ pick() === null ? 'Watch it choose' : motion() ? 'Stop watching' : 'Next pick' }}
+      </button>
+    </div>
+    <p class="notice" aria-live="polite">{{ notice() }}</p>
+  </div>
+  @if (experiments().length && !broken()) {
+    <app-experiment-dock
+      class="dock"
+      [experiments]="experiments()"
+      [active]="exp.active()"
+      [phase]="exp.phase()"
+      [done]="exp.done()"
+      [goalStatus]="goalStatus()"
+      [chosen]="exp.chosen()"
+      (chosenChange)="exp.answer($event)"
+      (start)="start($event)"
+    />
+  }
+</div>

@@ -1,15 +1,11 @@
+import { LB_EXPERIMENTS } from './load-balancing-experiments.js';
 import type { SdLesson } from './types.js';
 
 export const LOAD_BALANCING_LESSON: SdLesson = {
   why: 'Every horizontally scaled service sits behind a load balancer, and its policy decides both the tail latency at normal load and what happens when one server goes bad. A policy that ignores how busy servers are keeps feeding a degraded server its full share until its queue holds minutes of work, and that slow server still passes every health check. Interviewers probe which layer you balance at, what the balancer knows about each server, how a bad server leaves the pool, and what affinity costs.',
   widget: {
     kind: 'balancer',
-    tryThis: [
-      'Set 10 servers, 70% load, no slow server, and pick Random: the mean is about 35 ms, close to the 10 / (1 - 0.7) = 33 ms of a single server queue, the p99 is about 175 ms and one server once held 23 requests. Switch to Round-robin: about 19 ms mean and 82 ms p99. Least connections: about 11 ms mean, 51 ms p99, and no server ever holds more than 3. Two random choices lands at about 17 ms and 68 ms: most of the gain from looking at only two servers.',
-      'Keep 10 servers at 70% and set the slow server to 5x. Round-robin still sends it exactly 10% of the requests, though it can serve only about 2% of the fleet total: the mean jumps to about 3.5 s, the p99 to about 65 s, and its queue reaches about 1,380 and is still growing when the run ends. Random is no better. Least connections sends it about 3%, with a mean of about 14 ms and a p99 of about 96 ms; two random choices also sends it about 3%, at about 21 ms and 163 ms.',
-      'Pick Round-robin with 10 servers and a 2x slow server at 50% load: the slow server gets 10% of the requests, about 95% of what it can serve, so the mean is about 34 ms but the p99 already reaches about 450 ms. Raise the load to 70%: it now receives a third more than it can serve, and the mean climbs to about 560 ms and the p99 to about 10 s. Least connections at 70% stays at about 12.5 ms and 62 ms.',
-      'With no slow server at 70%, step the servers from 4 to 10 to 20. Random stays at about 34 ms each time, because each server is still its own queue at 70%. Least connections falls from about 15 ms to 11 ms to 10 ms: the bigger the pool, the more often it finds an idle server, and 10 ms is the bare service time.',
-    ],
+    experiments: LB_EXPERIMENTS,
   },
   concepts: [
     {
@@ -68,7 +64,7 @@ export const LOAD_BALANCING_LESSON: SdLesson = {
         'The slow server now serves 1,000 / 50 = 20 requests a second, a fifth of the others. The fleet can serve 9 × 100 + 20 = 920, so 644 is 70% of it: on paper there is plenty of room.',
         'Round-robin sends it a tenth of the traffic, 64.4 a second, 3.2 times what it can serve. Its queue grows by 44.4 a second: after 60 s it holds about 2,660 requests, and a new arrival waits 2,660 / 20, about 133 s.',
         'A tenth of all requests time out, and retries that land there add to the queue, while the other nine servers sit at about 64% and look fine on a fleet dashboard.',
-        'Least outstanding requests fixes it without configuration: the slow server holds its requests 5 times longer, so it looks busy and receives about 3% of the traffic, near its 20 / 920, about 2%, of the capacity. The widget shows the p99 falling from about 65 s to about 96 ms.',
+        'Least outstanding requests fixes it without configuration: the slow server holds its requests 5 times longer, so it looks busy and receives about 2.8% of the traffic, just under the 20 / 644, about 3.1%, it can keep up with. The widget shows the p99 falling from about 65 s to about 81 ms.',
         'Then remove it: outlier ejection on timeouts or latency, or an alert on per-server p99. Without it the fleet serves 900 a second, and 644 is still a safe 72%.',
       ],
     },

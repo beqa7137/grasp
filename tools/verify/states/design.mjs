@@ -7,6 +7,13 @@ const recommended = (id, stage) => getCaseStudy(id).stages[stage].decision.optio
 /** News Feed answers: two stages in progress, or every stage answered with the last one open. */
 /** The Caching widget's panel at the top of the view, so its picture and the controls under it show. */
 const cacheStageToTop = (p) => p.locator('#try').evaluate((panel) => panel.scrollIntoView({ block: 'start' }));
+/** A worker-run widget is drawn once its first run is in: the readout has a value. */
+const balancerReady = (p) => p.locator('app-balancer-widget .value.big').filter({ hasText: /\d/ }).waitFor();
+/** Steps a handle on the drawing by key, as a learner without a mouse would. */
+const stepHandle = async (p, name, key, times = 1) => {
+  await p.getByRole('slider', { name, exact: true }).focus();
+  for (let i = 0; i < times; i++) await p.keyboard.press(key);
+};
 const NEWS_FEED_POINTS = [4, 2, 2, 5, 5, 5, 3, 4];
 const NEWS_FEED_STARTED = {
   attempt: 'audit-in-progress',
@@ -299,11 +306,35 @@ export function designStates() {
     },
     { id: 'lesson-queues', path: '/design/topics/sd-queues', setup: (p) => p.locator('#try').scrollIntoViewIfNeeded() },
     {
+      id: 'lesson-replication',
+      path: '/design/topics/sd-replication',
+      setup: (p) => cacheStageToTop(p),
+    },
+    {
       id: 'lesson-replication-pinned',
       path: '/design/topics/sd-replication',
       setup: async (p) => {
-        await p.locator('#try').scrollIntoViewIfNeeded();
-        await p.getByRole('checkbox', { name: /Read your own writes/ }).check();
+        await p.getByRole('checkbox', { name: /Pin to the primary/ }).check();
+        await stepHandle(p, 'Replica applies the write', 'ArrowRight', 12);
+        await stepHandle(p, 'Your read', 'ArrowRight', 9);
+        await cacheStageToTop(p);
+      },
+    },
+    {
+      id: 'lesson-replication-asking',
+      path: '/design/topics/sd-replication',
+      setup: async (p) => {
+        await p.getByRole('button', { name: 'A read too soon' }).click();
+        await cacheStageToTop(p);
+      },
+    },
+    {
+      id: 'lesson-replication-revealed',
+      path: '/design/topics/sd-replication',
+      setup: async (p) => {
+        await p.getByRole('button', { name: 'Lag outlasts the pin' }).click();
+        await p.locator('app-widget-check').getByRole('button', { name: 'The old value', exact: true }).click();
+        await cacheStageToTop(p);
       },
     },
     { id: 'lesson-rate-limiting', path: '/design/topics/sd-rate-limiting', setup: (p) => p.locator('#try').scrollIntoViewIfNeeded() },
@@ -356,11 +387,54 @@ export function designStates() {
       },
     },
     {
+      id: 'lesson-load-balancing',
+      path: '/design/topics/sd-load-balancing',
+      setup: async (p) => {
+        await balancerReady(p);
+        await cacheStageToTop(p);
+      },
+    },
+    {
       id: 'lesson-load-balancing-slow',
       path: '/design/topics/sd-load-balancing',
       setup: async (p) => {
-        await p.locator('#try').scrollIntoViewIfNeeded();
-        await p.getByRole('radio', { name: '5×' }).click();
+        await balancerReady(p);
+        await stepHandle(p, 'Slow server', 'ArrowRight', 2);
+        await p.locator('app-balancer-widget .value.big').filter({ hasText: '64.7 s' }).waitFor();
+        await cacheStageToTop(p);
+      },
+    },
+    {
+      id: 'lesson-load-balancing-fleet20',
+      path: '/design/topics/sd-load-balancing',
+      setup: async (p) => {
+        await balancerReady(p);
+        await stepHandle(p, 'Servers', 'End');
+        await stepHandle(p, 'Slow server', 'End');
+        await p.locator('app-balancer-widget .value.big').filter({ hasText: /\d/ }).waitFor();
+        await cacheStageToTop(p);
+      },
+    },
+    {
+      id: 'lesson-load-balancing-revealed',
+      path: '/design/topics/sd-load-balancing',
+      setup: async (p) => {
+        await balancerReady(p);
+        await p.getByRole('button', { name: 'Least connections backs off' }).click();
+        await p.locator('app-widget-check legend').waitFor();
+        await p.locator('app-widget-check button').nth(1).click();
+        await p.locator('app-widget-check .explain').filter({ hasText: 'just under' }).waitFor();
+        await cacheStageToTop(p);
+      },
+    },
+    {
+      id: 'lesson-load-balancing-picks',
+      path: '/design/topics/sd-load-balancing',
+      setup: async (p) => {
+        await balancerReady(p);
+        await p.getByRole('radio', { name: 'Two random choices' }).check();
+        await p.getByRole('button', { name: 'Watch it choose' }).click();
+        await cacheStageToTop(p);
       },
     },
     {
