@@ -1,9 +1,11 @@
-import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
-import { ActivatedRoute, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { ChangeDetectionStrategy, Component, Injector, afterNextRender, inject, input, viewChild } from '@angular/core';
+import { ActivatedRoute, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { IonContent, IonHeader, IonTitle, IonToolbar } from '@ionic/angular';
 
-/** The Ionic hooks a segment may keep from when it was a page of its own. */
-interface Segment {
+import { SegmentMemory, type KeptSegment } from './segment-memory';
+
+/** The Ionic hooks a segment may keep from when it was a page of its own, and what it hands over to be kept. */
+interface Segment extends KeptSegment {
   ionViewWillEnter?(): void;
 }
 
@@ -36,7 +38,7 @@ interface Segment {
           >
         }
       </nav>
-      <router-outlet (activate)="activate($event)" />
+      <router-outlet (activate)="activate($event)" (deactivate)="memory.deactivated($event)" />
     </ion-content>
   `,
   styles: `
@@ -73,9 +75,21 @@ export class HubPage {
   readonly exact = { paths: 'exact', queryParams: 'ignored', fragment: 'ignored', matrixParams: 'ignored' } as const;
   private segment: Segment | null = null;
   private entered = false;
+  private readonly outlet = viewChild.required(RouterOutlet);
+  private readonly content = viewChild.required(IonContent);
+  readonly memory = new SegmentMemory(
+    inject(Router),
+    inject(Injector),
+    this.segments.map((s) => s.link),
+  );
+
+  constructor() {
+    afterNextRender(async () => this.memory.attach(await this.content().getScrollElement()));
+  }
 
   activate(segment: Segment) {
     this.segment = segment;
+    this.memory.activated(segment, this.outlet().activatedRoute);
     if (this.entered) segment.ionViewWillEnter?.();
   }
 

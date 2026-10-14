@@ -60,8 +60,15 @@ describe('DiagnosticPage', () => {
     expect(event.answers.map((a) => a.outcome)).toEqual(['correct', 'wrong', ...Array(PATTERNS.length - 2).fill('skipped')]);
     expect(event.answers.every((a) => a.durationMs >= 0)).toBe(true);
     expect(page.placed().strong.map((p) => p.id)).toEqual([PATTERNS[0].id]);
-    expect(el.textContent).toContain('Start with these');
+    expect(el.textContent).toContain('Your reviews bring the patterns to learn up first.');
     expect(el.textContent).toContain(`Learn ${PATTERNS[1].name} first`);
+    // The results are the skill map: each pattern with its placement, and one Start here on the first one to learn.
+    const rows = Array.from(el.querySelectorAll('app-pattern-map a[g-entry-row]'));
+    expect(rows).toHaveLength(PATTERNS.length);
+    const glyphs = rows.map((r) => r.querySelector('g-skill-state')?.getAttribute('aria-label'));
+    expect(glyphs).toEqual(['Spotted', ...Array(PATTERNS.length - 1).fill('To learn')]);
+    const marked = rows.filter((r) => r.textContent?.includes('Start here'));
+    expect(marked.map((r) => r.querySelector('.title')?.textContent)).toEqual([PATTERNS[1].name]);
   });
 
   it('calls it a fresh start when no pattern was spotted', async () => {
@@ -71,7 +78,9 @@ describe('DiagnosticPage', () => {
     await fixture.whenStable();
     fixture.detectChanges();
     expect(el.textContent).toContain('A fresh start');
-    expect(el.textContent).not.toContain('Start with these');
+    expect(el.textContent).not.toContain('Your reviews bring the patterns to learn up first.');
+    const marked = Array.from(el.querySelectorAll('app-pattern-map a[g-entry-row]')).filter((r) => r.textContent?.includes('Start here'));
+    expect(marked.map((r) => r.querySelector('.title')?.textContent)).toEqual([PATTERNS[0].name]);
   });
 
   it('answers with number keys and skips with S, only while the page is in view', () => {

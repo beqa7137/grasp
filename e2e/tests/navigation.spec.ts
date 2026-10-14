@@ -52,7 +52,7 @@ test('hub segments replace the URL, so back leaves the hub, and a tab reopens at
   await expect(page).toHaveURL(/\/coding$/);
   await segment(page, 'Problems').click();
   await expect(segment(page, 'Problems')).toHaveAttribute('aria-current', 'page');
-  await expect(heading(page)).toHaveText('Write it. Run it. Watch it.');
+  await expect(heading(page)).toHaveText('Problems');
   await segment(page, 'Visualizers').click();
   await expect(page).toHaveURL(/\/coding\/visualizers$/);
   await expect(page.locator('app-hub')).toHaveCount(1);
@@ -69,11 +69,11 @@ test('hub segments replace the URL, so back leaves the hub, and a tab reopens at
 
 test('the workspace returns to the hub segment it was opened from', { tag: '@nav' }, async ({ page }) => {
   await page.goto('/coding/problems');
-  await page.locator('app-code-list a[href="/coding/problems/two-sum"]').click();
+  await page.locator('app-problem-library a[href="/coding/problems/two-sum"]').click();
   await expect(page.locator('app-code-workspace h1')).toHaveText('Two Sum');
   await page.locator('app-code-workspace ion-back-button').click();
   await expect(page).toHaveURL(/\/coding\/problems$/);
-  await expect(page.locator('app-code-list')).toBeVisible();
+  await expect(page.locator('app-problem-library')).toBeVisible();
 });
 
 test.describe('back from a cross-section link', () => {
@@ -175,7 +175,7 @@ test.describe('back from a cross-section link', () => {
 
 test("the device's back button goes from a hub to Today", { tag: '@nav' }, async ({ page }) => {
   await page.goto('/coding/problems');
-  await expect(heading(page)).toHaveText('Write it. Run it. Watch it.');
+  await expect(heading(page)).toHaveText('Problems');
   await page.evaluate(() => document.dispatchEvent(new Event('backbutton')));
   await expect(page).toHaveURL(/\/today$/);
   await expect(tab(page, 'Today')).toHaveAttribute('aria-selected', 'true');
@@ -190,17 +190,30 @@ test("the device's back button returns a hub a link from another tab opened to t
   await expect(tab(page, 'Mock')).toHaveAttribute('aria-selected', 'true');
 });
 
-test('journey 2: the graph problems are two taps from a cold start, in the problem library', { tag: '@nav' }, async ({ page }) => {
-  const graphs = new Set<string>(PATTERN_CATALOG.filter((p) => p.track === 'graphs').map((p) => p.id));
-  const problems = CODING_CATALOG.filter((p) => p.patternIds.some((id) => graphs.has(id)));
-  expect(problems).toHaveLength(51);
+test(
+  'journey 2: the graph problems are three taps from a cold start: Coding, Problems, Graphs & trees',
+  { tag: '@nav' },
+  async ({ page }) => {
+    const graphs = PATTERN_CATALOG.filter((p) => p.track === 'graphs');
+    const problems = CODING_CATALOG.filter((p) => p.patternIds.some((id) => graphs.some((g) => g.id === id)));
+    expect(problems).toHaveLength(51);
 
-  await page.goto('/today');
-  await tab(page, 'Coding').click();
-  await segment(page, 'Problems').click();
-  const library = page.locator('app-code-list');
-  for (const problem of problems) await expect(library.locator(`a[href="/coding/problems/${problem.id}"]`)).toHaveCount(1);
-});
+    await page.goto('/today');
+    await tab(page, 'Coding').click();
+    await segment(page, 'Problems').click();
+    const library = page.locator('app-problem-library');
+    await library
+      .getByRole('group', { name: 'Track' })
+      .getByRole('button', { name: /^Graphs & trees/ })
+      .click();
+    await expect(page).toHaveURL(/\/coding\/problems\?track=graphs$/);
+    await expect(library.getByRole('status')).toHaveText('51 problems of 164');
+    // 57 rows under 7 pattern headers: 6 problems sit under two graph patterns.
+    await expect(library.locator('.group-head')).toHaveText(graphs.map((g) => new RegExp(`^${g.name.replace(/[()]/g, '\\$&')}`)));
+    await expect(library.locator('.rows a[g-entry-row]')).toHaveCount(57);
+    for (const problem of problems) await expect(library.locator(`a[href="/coding/problems/${problem.id}"]`).first()).toBeVisible();
+  },
+);
 
 test('journey 7: questions about conflict are two taps from a cold start', { tag: '@nav' }, async ({ page }) => {
   await page.goto('/today');

@@ -21,8 +21,16 @@ test('a new learner takes the placement check, reviews start with the patterns t
   await expect(page.getByText('Your starting point', { exact: true })).toBeVisible();
   await sync;
 
-  const spotted = page.locator('.group', { hasText: 'You already spot these' }).locator('.chip');
+  // The results are the skill map: each pattern's row carries its placement, and exactly one says Start here.
+  const map = page.locator('app-diagnostic app-pattern-map');
+  await expect(map.locator('a[g-entry-row]')).toHaveCount(QUESTIONS);
+  await expect(map.getByText('Start here', { exact: true })).toHaveCount(1);
+  const spotted = map
+    .locator('a[g-entry-row]')
+    .filter({ has: page.locator('g-skill-state[aria-label="Spotted"]') })
+    .locator('.title');
   const strong = (await spotted.allTextContents()).map((name) => name.trim());
+  expect(strong.length).toBeGreaterThan(0);
 
   await page.getByRole('link', { name: /Start your first review/ }).click();
   await expect(page.getByRole('heading', { name: "Today's review" })).toBeVisible();

@@ -7,7 +7,6 @@ import { SD_SHELVES, sdTopicLevel, type SdShelf } from '../curriculum/sd-shelves
 import { SD_TOPICS } from '../curriculum/sd-topics.js';
 import { DEFAULT_ROUND_COUNTS, PLAN_ROUNDS, TARGET_LEVELS, type RoundCounts, type TargetInput } from '../plan/options.js';
 import type { ProgressState } from '../srs/progress.js';
-import { CASE_CATALOG } from '../sysdesign/case-catalog.js';
 
 /** What a loop at one level asks for: readiness counts the required lists, and the plan schedules them. */
 export interface LevelProfile {
@@ -43,6 +42,8 @@ const EARLY_PATTERNS = [
 ];
 const MID_STRETCH_PATTERNS = ['minimum-spanning-tree', 'bit-manipulation', 'bitmask-dp'];
 const MID_CASES = ['url-shortener', 'rate-limiter', 'news-feed', 'chat'];
+// In `CASE_CATALOG` order (levels.spec.ts checks it), without importing the case catalog: the Coding hub's Skill map reads
+// these profiles, and the catalog's own chunk was one more round trip before it showed.
 const SENIOR_CASES = [
   'url-shortener',
   'rate-limiter',
@@ -51,8 +52,8 @@ const SENIOR_CASES = [
   'chat',
   'proximity-service',
   'distributed-cache',
-  'ad-click-aggregator',
   'leaderboard',
+  'ad-click-aggregator',
   'hotel-booking',
 ];
 const SENIOR_STRETCH_TOPICS = ['sd-discovery', 'sd-gateway'];
@@ -91,7 +92,7 @@ export const LEVEL_PROFILES: Record<Seniority, LevelProfile> = {
     startBar: 'medium',
     patterns: split(PATTERN_CATALOG, (p) => !MID_STRETCH_PATTERNS.includes(p.id)),
     topics: split(SD_TOPICS, (t) => !SENIOR_STRETCH_TOPICS.includes(t.id)),
-    cases: { required: inOrder(CASE_CATALOG, (c) => SENIOR_CASES.includes(c.id)) },
+    cases: { required: SENIOR_CASES },
     competencies: weighted(SENIOR_DOUBLE),
   },
 };

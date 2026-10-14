@@ -63,6 +63,9 @@ describe('level profiles', () => {
     expect(LEVEL_PROFILES.mid.cases.required).toEqual(['url-shortener', 'rate-limiter', 'news-feed', 'chat']);
     const core = CASE_CATALOG.filter((c) => c.level === 'core').map((c) => c.id);
     expect([...LEVEL_PROFILES.senior.cases.required].sort()).toEqual([...core, 'ad-click-aggregator'].sort());
+    // levels.ts lists them by hand, so it need not load the case catalog; they keep the catalog's order.
+    const senior: readonly string[] = LEVEL_PROFILES.senior.cases.required;
+    expect(senior).toEqual(CASE_CATALOG.filter((c) => senior.includes(c.id)).map((c) => c.id));
     for (const id of LEVEL_PROFILES.mid.cases.required) expect(core).toContain(id);
   });
 

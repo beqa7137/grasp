@@ -1,6 +1,8 @@
 // First paint and first tap on a throttled phone (Pixel 7, Fast 3G, 4x CPU, cold cache), builds interleaved, median of RUNS.
 // TARGETS=base=http://localhost:4621,now=http://localhost:4622 [RUNS=5] node tools/verify/timing.mjs
-// Writes are blocked, so a production URL is safe to time.
+// Writes are blocked, so a production URL is safe to time. A local http:// target is timed through an HTTP/2 proxy, as
+// production serves over HTTP/2 (`h2proxy.mjs`).
+import { serveHttp2 } from './h2proxy.mjs';
 import { devices, launch, readOnly } from './lib.mjs';
 
 const TARGETS = Object.fromEntries(
@@ -62,6 +64,14 @@ const median = (xs) => {
   return Math.round(s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2);
 };
 
+const proxies = [];
+for (const [label, url] of Object.entries(TARGETS)) {
+  if (!url.startsWith('http://')) continue;
+  const proxy = await serveHttp2(url);
+  proxies.push(proxy);
+  TARGETS[label] = proxy.url;
+}
+
 const browser = await launch();
 const labels = Object.keys(TARGETS);
 for (const tap of TAPS) {
@@ -72,3 +82,5 @@ for (const tap of TAPS) {
   }
 }
 await browser.close();
+for (const proxy of proxies) void proxy.close();
+process.exit(0);

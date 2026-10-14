@@ -141,7 +141,7 @@ test.describe('warmed offline lessons', () => {
     await context.setOffline(true);
 
     await page.locator('ion-tab-button[tab="coding"]').click();
-    await page.locator('a.pattern[href="/coding/patterns/two-pointers"]').click();
+    await page.locator('app-skill-map a[href="/coding/patterns/two-pointers"]').click();
     await expect(page.getByRole('heading', { name: 'Two Pointers', level: 1 })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Template' })).toBeVisible();
 

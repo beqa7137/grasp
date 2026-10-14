@@ -8,6 +8,7 @@ import {
   generateQuestion,
   newSeed,
   placementFromAnswers,
+  startHerePattern,
   type DiagnosticAnswer,
   type DiagnosticOutcome,
   type Question,
@@ -21,6 +22,7 @@ import { ShortcutsService } from '../../core/shortcuts.service';
 import { QuestionCardComponent } from '../../review/question-card.component';
 import { BackComponent } from '../../ui/back.component';
 import { CrossLinkDirective } from '../../ui/cross-link.directive';
+import { PatternMapComponent, type PatternMapRow } from '../coding/pattern-map.component';
 
 type Phase = 'intro' | 'questions' | 'results';
 
@@ -44,6 +46,7 @@ interface Slot {
     IonContent,
     IonIcon,
     QuestionCardComponent,
+    PatternMapComponent,
   ],
   templateUrl: './diagnostic.page.html',
   styleUrl: './diagnostic.page.scss',
@@ -59,12 +62,28 @@ export class DiagnosticPage {
 
   readonly current = computed(() => this.slots()[this.answers().length] ?? null);
   readonly phase = computed<Phase>(() => (!this.slots().length ? 'intro' : this.current() ? 'questions' : 'results'));
+  private readonly placement = computed(() => placementFromAnswers(this.answers()));
   readonly placed = computed(() => {
-    const placement = placementFromAnswers(this.answers());
+    const placement = this.placement();
     return {
       weak: PATTERN_CATALOG.filter((p) => placement[p.id] === 'weak'),
       strong: PATTERN_CATALOG.filter((p) => placement[p.id] === 'strong'),
     };
+  });
+  readonly legend = [
+    { glyph: 'spotted', label: 'Spotted' },
+    { glyph: 'to-learn', label: 'To learn' },
+  ] as const;
+  /** The results as the Coding skill map (REDESIGN.md 4.10): each pattern's placement, and one Start here. */
+  readonly placementRows = computed(() => {
+    const placement = this.placement();
+    const start = startHerePattern(placement);
+    return Object.fromEntries(
+      PATTERN_CATALOG.map((p): [string, PatternMapRow] => [
+        p.id,
+        { glyph: placement[p.id] === 'strong' ? 'spotted' : 'to-learn', startHere: p.id === start },
+      ]),
+    );
   });
 
   constructor() {

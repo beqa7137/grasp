@@ -33,4 +33,21 @@ describe('EntryRowComponent', () => {
     const el = render({ heading: 'URL Shortener' });
     expect(el.querySelector('.meta, ion-icon')).toBeNull();
   });
+
+  it('puts the pips and status text at the row end when inline, and the meta in one note under the title', () => {
+    const el = render({
+      heading: 'Number of Islands',
+      meta: ['also in DFS & Backtracking'],
+      level: 2,
+      levelLabel: 'Medium',
+      after: ['best 3/5'],
+      inline: true,
+    });
+    expect(el.querySelector('.text .note')?.textContent).toBe('also in DFS & Backtracking');
+    expect(el.querySelector('.text .pips')).toBeNull();
+    const end = el.querySelector('.end')!;
+    expect(end.querySelector('.pips')?.getAttribute('aria-label')).toBe('Medium');
+    expect(end.textContent).toContain('best 3/5');
+    expect(el.querySelector('.meta')).toBeNull();
+  });
 });

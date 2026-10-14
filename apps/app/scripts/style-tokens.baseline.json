@@ -62,10 +62,6 @@
     "font-size": 4,
     "spacing": 6
   },
-  "app/pages/code/code-list.page.ts": {
-    "font-size": 4,
-    "spacing": 9
-  },
   "app/pages/code/workspace.page.scss": {
     "border-radius": 2,
     "font-size": 9,
@@ -286,8 +282,8 @@
   },
   "app/pages/diagnostic/diagnostic.page.scss": {
     "border-radius": 1,
-    "font-size": 6,
-    "spacing": 22
+    "font-size": 5,
+    "spacing": 17
   },
   "app/pages/drill/drill.page.scss": {
     "border-radius": 2,
@@ -298,8 +294,8 @@
     "spacing": 2
   },
   "app/pages/hub/map.component.ts": {
-    "font-size": 5,
-    "spacing": 9
+    "font-size": 3,
+    "spacing": 6
   },
   "app/pages/interview/behavioral-answer.component.ts": {
     "font-size": 5,
@@ -367,10 +363,6 @@
     "border-radius": 7,
     "font-size": 17,
     "spacing": 48
-  },
-  "app/pages/visualize/visualize-list.page.ts": {
-    "font-size": 4,
-    "spacing": 8
   },
   "app/review/forecast.component.ts": {
     "border-radius": 1,

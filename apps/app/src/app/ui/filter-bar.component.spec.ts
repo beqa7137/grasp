@@ -55,7 +55,7 @@ describe('FilterBarComponent', () => {
     expect(dialog.open).toBe(true);
     expect(dialog.querySelector('input[type="checkbox"]')).not.toBeNull();
 
-    const [reset, show] = Array.from(dialog.querySelectorAll<HTMLButtonElement>('footer button'));
+    const [reset, show] = Array.from(dialog.querySelectorAll<HTMLButtonElement>('.actions button'));
     expect(show.textContent?.trim()).toBe('Show 51 problems');
     reset.click();
     fixture.detectChanges();

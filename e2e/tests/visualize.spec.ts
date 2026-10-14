@@ -39,7 +39,7 @@ async function answerCheckpoint(page: Page) {
 
 test('predicting the next step of a visualizer counts toward mastery', { tag: ['@smoke', '@player'] }, async ({ page }) => {
   await page.goto('/coding/visualizers');
-  await page.getByRole('link', { name: /Binary Search easy/ }).click();
+  await page.getByRole('link', { name: /Binary Search Easy/ }).click();
   await expect(page.getByRole('checkbox', { name: 'Predict mode' })).toBeChecked();
   await expect(page.getByText('1 / 13')).toBeVisible();
   await stepToCheckpoint(page);
@@ -261,12 +261,12 @@ test('under 1024px the player hides the tab bar, and the list shows it again', {
   await page.goto('/coding/visualizers');
   const tabs = page.getByRole('navigation', { name: 'Main' });
   await expect(tabs).toBeVisible();
-  await page.getByRole('link', { name: /Binary Search easy/ }).click();
+  await page.getByRole('link', { name: /Binary Search Easy/ }).click();
   await expect(page.locator('app-player h1')).toHaveText('Binary Search');
   if (page.viewportSize()!.width < 1024) await expect(tabs).toBeHidden();
   else await expect(tabs).toBeVisible();
   await page.locator('app-player ion-back-button').click();
-  await expect(page.locator('app-visualize-list')).toBeVisible();
+  await expect(page.locator('app-visualizers')).toBeVisible();
   await expect(tabs).toBeVisible();
 });
 
