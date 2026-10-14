@@ -1,4 +1,4 @@
-import { PATTERN_CATALOG } from '@grasp/engine';
+import { PATTERN_CATALOG, itemsForTopic } from '@grasp/engine';
 import { answerFirst, goto, openPlayback, settle, toEnd, toPredict } from '../lib.mjs';
 
 const TWO_SUM = `function twoSum(nums, target) {
@@ -16,6 +16,52 @@ const inDays = (p, days) =>
     d.setDate(d.getDate() + n);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }, days);
+
+/** Journey 1 (REDESIGN.md 2.14): a level, "3 weeks", "Build my plan". */
+async function buildPlan(p) {
+  await p.getByRole('button', { name: 'Mid-level' }).click();
+  await p.getByRole('button', { name: '3 weeks' }).click();
+  await p.getByRole('button', { name: 'Build my plan' }).click();
+  await p.locator('app-plan-today').waitFor();
+  await settle(p);
+}
+
+/**
+ * A Mid-level loop three weeks out at 2 h a day, a streak, and the first coding unit solved today: Today with progress.
+ * Seeded on the device and reloaded, as the events would arrive from a sync.
+ */
+async function seedProgress(p) {
+  await p.evaluate(
+    (itemIds) => {
+      const day = (offset) => {
+        const d = new Date(Date.now() + offset * 86_400_000);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      };
+      const at = (offset) => new Date(Date.now() + offset * 86_400_000 - 3_600_000).toISOString();
+      let n = 0;
+      const event = (offset, body) => ({ id: `today-seed-${++n}`, at: at(offset), ...body });
+      const reviews = [-2, -1, 0].flatMap((offset) =>
+        itemIds.map((itemId) => event(offset, { type: 'review.graded', itemId, rating: 3, correct: true, durationMs: 9000 })),
+      );
+      const events = [
+        event(-3, { type: 'target.set', target: { level: 'mid', rounds: { coding: 2, design: 1, behavioral: 1 } } }),
+        event(-3, {
+          type: 'plan.set',
+          plan: { interviewDate: day(21), minutesPerDay: 120, rounds: ['coding', 'design', 'behavioral'], level: 'new' },
+        }),
+        ...reviews,
+        event(0, { type: 'code.submitted', problemId: 'longest-consecutive-sequence', language: 'typescript', passed: 12, total: 12 }),
+      ];
+      localStorage.setItem('CapacitorStorage.grasp.events', JSON.stringify({ events, cursor: null }));
+    },
+    itemsForTopic('hashing')
+      .slice(0, 2)
+      .map((item) => item.id),
+  );
+  await p.reload({ waitUntil: 'networkidle' });
+  await p.locator('app-plan-today').waitFor();
+  await settle(p);
+}
 
 /** Saves a plan for an interview in 20 days. */
 async function setPlan(p) {
@@ -87,7 +133,49 @@ export function learnStates() {
     },
   ]);
   return [
-    { id: 'today', path: '/today' },
+    { id: 'today', path: '/today', setup: (p) => p.locator('app-loop-card').waitFor() },
+    {
+      id: 'today-loop-details',
+      path: '/today',
+      setup: async (p) => {
+        await p.getByRole('button', { name: 'Senior' }).click();
+        await p.getByRole('button', { name: 'Pick a date' }).click();
+        await p.getByRole('button', { name: /^Details/ }).click();
+        await settle(p);
+      },
+    },
+    {
+      id: 'today-not-now',
+      path: '/today',
+      setup: async (p) => {
+        await p.getByRole('button', { name: 'Not now' }).click();
+        await p.getByRole('heading', { name: 'Assuming a Mid-level loop' }).waitFor();
+        await p.locator('app-up-next-card').waitFor();
+        await settle(p);
+      },
+    },
+    { id: 'today-plan', path: '/today', setup: buildPlan },
+    { id: 'today-progress', path: '/today', setup: seedProgress },
+    {
+      id: 'today-edit',
+      path: '/today',
+      setup: async (p) => {
+        await seedProgress(p);
+        await p.getByRole('button', { name: 'Edit' }).click();
+        await p.locator('app-loop-card').waitFor();
+        await settle(p);
+      },
+    },
+    {
+      id: 'today-pilot',
+      path: '/today/plan',
+      setup: async (p) => {
+        await setPlan(p);
+        await goto(p, '/today');
+        await p.getByText('Your level?').waitFor();
+        await settle(p);
+      },
+    },
     { id: 'coding-skill-map', path: '/coding' },
     { id: 'coding-visualizers', path: '/coding/visualizers' },
     { id: 'coding-visualizers-trees', path: '/coding/visualizers?structure=trees' },
@@ -322,7 +410,7 @@ export function learnStates() {
       path: '/today',
       setup: async (p) => {
         await p.getByRole('button', { name: 'More options' }).click();
-        await p.locator('ion-popover app-learn-menu').waitFor();
+        await p.locator('ion-popover app-today-menu').waitFor();
         await settle(p, 600);
       },
     },

@@ -39,6 +39,8 @@ test('Settings shows its title once, large at the top and in the toolbar once sc
 
 test('Settings, the feedback dialog and the drill summary use the skins and nest no panel', async ({ page }) => {
   await page.goto('/today/settings');
+  // The page renders after the URL loads; read its controls once they are there.
+  await expect(page.locator('app-settings input[type="checkbox"]').first()).toBeAttached();
   expect(await expectSkinned(page.locator('app-settings'))).toContain('checkbox skinned');
 
   await page.getByRole('button', { name: 'Feedback', exact: true }).click();

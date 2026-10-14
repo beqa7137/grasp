@@ -1,7 +1,5 @@
-import { COMPETENCIES } from './competencies.js';
 import { isEmptyDraft } from './star-check.js';
 import { nextChange, type Story } from './stories.js';
-import type { BehavioralQuestion } from './types.js';
 
 const DAY_MS = 86_400_000;
 const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
@@ -38,12 +36,6 @@ export const isDue = (story: Story, now: Date, flagged: FlaggedCompetencies = {}
 export function dueStories(stories: readonly Story[], now: Date, flagged: FlaggedCompetencies = {}): Story[] {
   const since = (s: Story) => (s.rehearsal ? new Date(s.rehearsal.due).getTime() : 0);
   return stories.filter((s) => isDue(s, now, flagged)).sort((a, b) => since(a) - since(b));
-}
-
-/** Each telling asks a different question from the story's competencies, so it is practised as a reusable answer. */
-export function rehearsalQuestion(story: Story): BehavioralQuestion | undefined {
-  const questions = COMPETENCIES.filter((c) => story.competencyIds.includes(c.id)).flatMap((c) => c.questions);
-  return questions.length ? questions[(story.rehearsal?.told ?? 0) % questions.length] : undefined;
 }
 
 export function rehearse(story: Story, toldWell: boolean, now: Date): Story {

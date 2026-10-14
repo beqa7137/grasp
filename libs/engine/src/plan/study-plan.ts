@@ -111,6 +111,11 @@ export interface PlanCoverage {
   minutesPerDay: number | null;
   /** The share of the required units' minutes the chosen daily time places, 0 to 1. */
   share: number;
+  /**
+   * When the chosen time does not place them all: the fewest days from today to an interview date by which it would
+   * (up to PLAN_MAX_DAYS), or null if none does or nothing is missing.
+   */
+  daysToFit: number | null;
 }
 
 export interface PlanContext {
@@ -193,7 +198,21 @@ export function buildStudyPlan(input: StudyPlanInput, state: ProgressState, ctx:
     unscheduled: unplaced,
     finishDate: days.filter((d) => d.slices.some((s) => !s.done && s.unit.kind !== 'mock')).at(-1)?.date ?? null,
     minutesToFit: status === 'tight' ? (PLAN_MINUTES.find((m) => !fit(m).incomplete.length) ?? null) : null,
-    ...(balance && { coverage: coverage(units, days, (m) => fit(m).incomplete) }),
+    ...(balance && {
+      coverage: coverage(
+        units,
+        days,
+        (m) => fit(m).incomplete,
+        (n) => {
+          const longer = Array.from({ length: n }, (_, i) => addCalendarDays(today, i));
+          const cap = Math.min(todayReview.minutes, reviewCap(input.minutesPerDay));
+          const first = schedule(units, longer, n - 1, input.minutesPerDay, cap, balance).incomplete;
+          return first.length
+            ? schedule(units, longer, n - 1, input.minutesPerDay, cap, { ...balance, valueFirst: true }).incomplete
+            : first;
+        },
+      ),
+    }),
     remaining: Object.fromEntries(
       PLAN_ROUNDS.map((r) => {
         const open = units.filter((u) => u.round === r && !u.doneAt);
@@ -219,7 +238,12 @@ const sumMinutes = (list: readonly PlanUnit[]) => list.reduce((s, u) => s + u.mi
  * What the chosen time covers of the required units (the mock loop aside): the smallest daily time, in steps of 5
  * minutes, that places them all, and the share of their minutes the chosen time places.
  */
-function coverage(units: PlanUnit[], days: PlanDay[], incompleteAt: (minutesPerDay: number) => PlanUnit[]): PlanCoverage {
+function coverage(
+  units: PlanUnit[],
+  days: PlanDay[],
+  incompleteAt: (minutesPerDay: number) => PlanUnit[],
+  incompleteIn: (days: number) => PlanUnit[],
+): PlanCoverage {
   const required = (list: PlanUnit[]) => list.filter((u) => u.kind !== 'mock' && !u.doneAt);
   const open = sumMinutes(required(units));
   const placedMinutes = days
@@ -238,7 +262,21 @@ function coverage(units: PlanUnit[], days: PlanDay[], incompleteAt: (minutesPerD
     }
     minutesPerDay = low;
   }
-  return { minutesPerDay, share: open ? Math.min(1, placedMinutes / open) : 1 };
+  const share = open ? Math.min(1, placedMinutes / open) : 1;
+  return { minutesPerDay, share, daysToFit: share < 1 ? fewestDays(days.length + 1, (n) => !required(incompleteIn(n)).length) : null };
+}
+
+/** The fewest days from `from` up to PLAN_MAX_DAYS for which `fits` holds, or null; fitting is monotone in days. */
+function fewestDays(from: number, fits: (days: number) => boolean): number | null {
+  if (from > PLAN_MAX_DAYS || !fits(PLAN_MAX_DAYS)) return null;
+  let low = from;
+  let high = PLAN_MAX_DAYS;
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2);
+    if (fits(mid)) high = mid;
+    else low = mid + 1;
+  }
+  return low;
 }
 
 function legacyUnits(input: StudyPlanInput, state: ProgressState, stories: readonly Story[], now: Date): PlanUnit[] {

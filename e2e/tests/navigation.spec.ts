@@ -15,6 +15,12 @@ const swipeBack = (page: Page) =>
       (document.querySelector('ion-tabs ion-router-outlet') as (HTMLElement & { swipeHandler?: unknown }) | null)?.swipeHandler !==
       undefined,
   );
+/** A case study started on this device: Up next's rule 4 then offers "Continue URL Shortener", Today's link into a case. */
+const startedCase = (page: Page) =>
+  page.addInitScript(() =>
+    localStorage.setItem('CapacitorStorage.grasp.case.url-shortener', JSON.stringify({ attempt: 'nav-case', reached: 2, stages: [] })),
+  );
+const upNextStart = (page: Page) => page.locator('app-today app-up-next-card .start');
 const segment = (page: Page, name: string) => page.locator('app-hub:not(.ion-page-hidden)').getByRole('link', { name, exact: true });
 
 test('five tabs, each lit on its own section, with one Main navigation at every width', { tag: '@nav' }, async ({ page }) => {
@@ -78,15 +84,18 @@ test('the workspace returns to the hub segment it was opened from', { tag: '@nav
 
 test.describe('back from a cross-section link', () => {
   const mission = getScenarioSummary('first-scale-up')!.title;
+  const study = 'URL Shortener';
+  test.beforeEach(({ page }) => startedCase(page));
 
   for (const how of ['the back button', "the device's back button"]) {
     test(`returns to Today with ${how}, and Design keeps its own page`, { tag: '@nav' }, async ({ page }) => {
       await page.goto('/design/cases');
       await expect(heading(page)).toHaveText('Run the interview, then defend it.');
       await tab(page, 'Today').click();
-      await page.locator('app-learn a.tile.lab').click();
-      await expect(page).toHaveURL(/\/design\/missions\/first-scale-up$/);
-      await expect(heading(page)).toHaveText(mission);
+      await expect(upNextStart(page)).toHaveText('Continue');
+      await upNextStart(page).click();
+      await expect(page).toHaveURL(/\/design\/cases\/url-shortener$/);
+      await expect(heading(page)).toHaveText(study);
 
       if (how === 'the back button') await back(page);
       // Capacitor's App plugin fires this event for Android's back button; with hardwareBackButton the web build listens too.
@@ -107,8 +116,8 @@ test.describe('back from a cross-section link', () => {
     test('iOS swipe-back is off only while the cross-section view shows', { tag: '@nav' }, async ({ page }) => {
       await page.goto('/today');
       await expect.poll(() => swipeBack(page)).toBe(true);
-      await page.locator('app-learn a.tile.lab').click();
-      await expect(heading(page)).toHaveText(mission);
+      await upNextStart(page).click();
+      await expect(heading(page)).toHaveText(study);
       // It would pop the Design stack, not return to Today as the back button does.
       await expect.poll(() => swipeBack(page)).toBe(false);
       await back(page);
@@ -118,15 +127,15 @@ test.describe('back from a cross-section link', () => {
   });
 
   test('a view shown in its own tab and then opened from another returns to the other', { tag: '@nav' }, async ({ page }) => {
-    // The mission hides the tab bar under 1024px, and Today is reached through the bar.
+    // A focus route would hide the tab bar under 1024px, and Today is reached through the bar.
     await page.setViewportSize({ width: 1280, height: 720 });
-    await page.goto('/design/missions');
-    await page.locator('app-design-list a[href="/design/missions/first-scale-up"]').click();
-    await expect(heading(page)).toHaveText(mission);
+    await page.goto('/design/cases');
+    await page.locator('app-design-list a[href="/design/cases/url-shortener"]').click();
+    await expect(heading(page)).toHaveText(study);
     await tab(page, 'Today').click();
     // Ionic shows the view it already holds for this URL.
-    await page.locator('app-learn a.tile.lab').click();
-    await expect(heading(page)).toHaveText(mission);
+    await upNextStart(page).click();
+    await expect(heading(page)).toHaveText(study);
     await back(page);
     await expect(page).toHaveURL(/\/today$/);
     await expect(tab(page, 'Today')).toHaveAttribute('aria-selected', 'true');
@@ -142,20 +151,22 @@ test.describe('back from a cross-section link', () => {
         await page.goto('/coding');
         await expect(heading(page)).toHaveText('Master the cue, and the problem names itself.');
         await tab(page, 'Today').click();
-        await page.locator('app-learn a.tile.code').click();
-        await expect(heading(page)).toHaveText('Two Sum');
+        const today = page.locator('app-today');
+        await today.getByText('Other rounds').click();
+        await today.getByRole('link', { name: 'Learn Arrays & Hashing' }).click();
+        await expect(heading(page)).toHaveText('Arrays & Hashing');
         await expect.poll(() => swipeBack(page)).toBe(false);
 
-        await page.locator('app-code-workspace a.chip[href="/coding/patterns/hashing"]').click();
-        await expect(heading(page)).toHaveText('Arrays & Hashing');
+        await page.getByRole('link', { name: 'Code: Two Sum' }).click();
+        await expect(heading(page)).toHaveText('Two Sum');
         await expect.poll(() => swipeBack(page)).toBe(true);
         await back(page);
-        await expect(heading(page)).toHaveText('Two Sum');
+        await expect(heading(page)).toHaveText('Arrays & Hashing');
         await expect.poll(() => swipeBack(page)).toBe(false);
 
         await back(page);
         await expect(page).toHaveURL(/\/today$/);
-        // Coding opens where the learner left it, not on the view Today's tile opened.
+        // Coding opens where the learner left it, not on the view Today's Up next opened.
         await tab(page, 'Coding').click();
         await expect(page).toHaveURL(/\/coding$/);
         await expect(heading(page)).toHaveText('Master the cue, and the problem names itself.');
@@ -257,7 +268,7 @@ test.describe('Where things moved', () => {
     await decided(page);
     await expect(page.getByRole('complementary', NOTE)).toHaveCount(0);
     await page
-      .locator('app-learn')
+      .locator('app-today')
       .getByRole('link', { name: /^Review/ })
       .click();
     await page.locator('g-question-card .choice').first().click();

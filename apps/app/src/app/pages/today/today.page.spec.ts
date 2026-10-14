@@ -6,28 +6,36 @@ import { ApiService } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
 import { ProgressService } from '../../core/progress.service';
 import { DiagnosticPromptService } from '../diagnostic/diagnostic-prompt.service';
-import { LearnPage } from './learn.page';
+import { TodayPage } from './today.page';
 
-describe('LearnPage sync notice', () => {
+describe('TodayPage sync notice', () => {
   const signInRequired = signal(false);
+  const user = signal<{ id: string } | null>(null);
 
   beforeEach(() => {
     signInRequired.set(false);
+    user.set(null);
     TestBed.configureTestingModule({
-      imports: [LearnPage],
+      imports: [TodayPage],
       providers: [
         provideRouter([]),
         { provide: ApiService, useValue: { get: async () => ({ events: [] }), post: async () => undefined } },
-        { provide: AuthService, useValue: { signInRequired } },
+        { provide: AuthService, useValue: { signInRequired, user } },
         { provide: DiagnosticPromptService, useValue: { dismissed: signal(true) } },
         { provide: PopoverController, useValue: {} },
       ],
     });
   });
 
+  // The page loads its loop card and Up next after first paint; let those imports land before the test environment goes.
+  afterEach(async () => {
+    await Promise.all([import('./up-next.component'), import('./loop-card.component'), import('./loop-events')]);
+    await new Promise((resolve) => setTimeout(resolve));
+  });
+
   function render() {
     const progress = TestBed.inject(ProgressService);
-    const fixture = TestBed.createComponent(LearnPage);
+    const fixture = TestBed.createComponent(TodayPage);
     return { progress, fixture, el: fixture.nativeElement as HTMLElement };
   }
 
@@ -97,5 +105,14 @@ describe('LearnPage sync notice', () => {
     expect(el.querySelector('.sync-notice')?.textContent).toContain('too large to sync');
     expect(el.querySelector('.sync-notice')?.textContent).not.toContain('future date');
     expect((el.querySelector('.sync-notice button') as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("holds the first-run card on a signed-in device until the launch's first pull, so it never overwrites the account's loop", () => {
+    const { progress, fixture } = render();
+    expect(fixture.componentInstance.holdLoopCard()).toBe(false);
+    user.set({ id: 'account' });
+    expect(fixture.componentInstance.holdLoopCard()).toBe(true);
+    progress.pulled.set(true);
+    expect(fixture.componentInstance.holdLoopCard()).toBe(false);
   });
 });

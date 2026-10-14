@@ -1,3 +1,4 @@
+export * from './bar.js';
 export * from './levels.js';
 export * from './status.js';
 export * from './readiness.js';

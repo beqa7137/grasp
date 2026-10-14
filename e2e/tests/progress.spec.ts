@@ -230,7 +230,7 @@ test.describe('progress sync retention', () => {
         await page.goto('/today');
         const alert = page.getByRole('alert').filter({ hasText: 'Sync is unavailable' });
         const retry = alert.getByRole('button');
-        const hero = page.locator('.hero');
+        const hero = page.locator('app-today h1');
         await expect(alert).toBeVisible();
         expect(await acknowledgedIds(page)).not.toContain(event.id);
         expect(await serverEvents(page, learnerId)).toEqual([]);

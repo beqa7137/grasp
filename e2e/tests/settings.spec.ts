@@ -36,7 +36,7 @@ test('learners can export their data, then delete it', async ({ page }, testInfo
 
 test('feedback reaches the team with the screen it came from', { tag: '@nav' }, async ({ page }) => {
   await page.goto('/today');
-  const more = page.locator('app-learn').getByRole('button', { name: 'More options' });
+  const more = page.locator('app-today').getByRole('button', { name: 'More options' });
   await more.focus();
   await page.keyboard.press('Enter');
   await page.locator('ion-popover').getByRole('button', { name: 'Send feedback' }).focus();
@@ -59,7 +59,7 @@ test('feedback reaches the team with the screen it came from', { tag: '@nav' }, 
 
 test('a tap on the Learn menu gives focus back to it when feedback closes', { tag: '@nav' }, async ({ page }) => {
   await page.goto('/today');
-  const more = page.locator('app-learn').getByRole('button', { name: 'More options' });
+  const more = page.locator('app-today').getByRole('button', { name: 'More options' });
   await more.click();
   await page.locator('ion-popover').getByRole('button', { name: 'Send feedback' }).click();
   const sheet = page.locator('app-feedback-sheet');

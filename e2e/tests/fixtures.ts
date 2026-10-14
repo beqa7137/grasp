@@ -219,7 +219,8 @@ export async function seek(page: Page, step: number, note: string) {
 }
 
 /** Today's heading: its line break renders no space. */
-export const TODAY_HEADING = /^Build intuition,\s?not a problem count\.$/;
+/** Today's h1: the first-run card's question, or the target line ("Mid-level loop · …", "Assuming a Mid-level loop"). */
+export const TODAY_HEADING = /^What is your loop\?$| loop\b|^Assuming a Mid-level loop$/;
 
 /** The page shown in the tabs' outlet: Ionic keeps the other tabs' pages mounted, and hidden. */
 export const shownPage = (page: Page) => page.locator('ion-tabs ion-router-outlet > .ion-page:not(.ion-page-hidden)');

@@ -81,7 +81,7 @@ test(
     if (wide) {
       await page.getByRole('tab', { name: /^Today/ }).click();
       await page
-        .locator('app-learn')
+        .locator('app-today')
         .getByRole('link', { name: /^Review/ })
         .click();
       const review = page.locator('app-drill');
@@ -279,7 +279,7 @@ test(
     await page.goto('/coding/visualizers/binary-search');
     await expect(page.locator('app-player h1')).toBeVisible();
     await page.getByRole('tab', { name: /^Today/ }).click();
-    await expect(page.locator('app-learn h1')).toBeVisible();
+    await expect(page.locator('app-today h1')).toBeVisible();
     await page.setViewportSize({ width: 800, height: 720 });
     await page.getByRole('tab', { name: 'Coding' }).focus();
     // Ionic selects a tab on Enter's keydown and again on its keyup, which takes a selected tab to its root while its button

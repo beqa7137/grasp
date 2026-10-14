@@ -3,6 +3,9 @@ import type { Seniority } from '../behavioral/types.js';
 export const PLAN_ROUNDS = ['coding', 'design', 'behavioral'] as const;
 export type PlanRound = (typeof PLAN_ROUNDS)[number];
 
+/** How every screen names a round. */
+export const ROUND_NAMES: Record<PlanRound, string> = { coding: 'Coding', design: 'System design', behavioral: 'Behavioral' };
+
 export const PLAN_LEVELS = ['new', 'rusty', 'confident'] as const;
 export type PlanLevel = (typeof PLAN_LEVELS)[number];
 

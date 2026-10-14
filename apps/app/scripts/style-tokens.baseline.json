@@ -327,14 +327,6 @@
     "font-size": 1,
     "spacing": 4
   },
-  "app/pages/learn/learn-menu.component.ts": {
-    "spacing": 2
-  },
-  "app/pages/learn/learn.page.scss": {
-    "border-radius": 1,
-    "font-size": 19,
-    "spacing": 32
-  },
   "app/pages/pattern/pattern.page.ts": {
     "font-size": 10,
     "spacing": 19
@@ -353,7 +345,7 @@
     "spacing": 9
   },
   "app/pages/plan/plan.page.ts": {
-    "font-size": 14,
+    "font-size": 12,
     "spacing": 27
   },
   "app/pages/visualize/player-intro.component.ts": {

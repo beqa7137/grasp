@@ -6,7 +6,7 @@ const IDLE_CAP_MS = 5000;
 
 /**
  * Resolves once the first screen is idle (REDESIGN.md 2.5), so its own chunks never queue behind the preloads on a slow
- * phone: Today has no deferred blocks yet, so that is the first idle period, or 5 seconds at most. WebKit has no
+ * phone: the first idle period, or 5 seconds at most. Today's deferred blocks start then too. WebKit has no
  * `requestIdleCallback`, so there it is a frame after the page's load event.
  */
 export function firstIdle(win: Window = window): Promise<void> {

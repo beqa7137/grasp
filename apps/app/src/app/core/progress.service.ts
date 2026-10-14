@@ -19,6 +19,7 @@ import {
   type ScenarioCompletedEvent,
   type SettingsChangedEvent,
   type StoredEvent,
+  type TargetSetEvent,
   type StudySettings,
 } from '@grasp/engine';
 import { ApiService } from './api.service';
@@ -29,10 +30,20 @@ import { packProgressEvents, readProgressAcknowledgement } from './progress-uplo
 const EVENTS_KEY = 'grasp.events';
 const ACKNOWLEDGED_KEY = 'grasp.acknowledged.v1';
 const LEGACY_SYNCED_KEY = 'grasp.synced';
+/**
+ * The event version this app reads (`?v=`): the server leaves out of a pull any type newer than it. A cursor saved by an
+ * app that read an older version has moved past events this one can now read, so it is dropped once (REDESIGN.md R9).
+ */
+export const PULL_VERSION = 2;
 /** A device brought back into view syncs at most this often, so switching tabs does not pull on every switch. */
 export const VISIBLE_RESYNC_GAP_MS = 30_000;
 const CLOCK_TICK_MS = 60_000;
 const PROGRESS_PULL_TIMEOUT_MS = 20_000;
+/**
+ * A pull without a cursor returns the whole log: on a first launch, and once on every device after R9's version change.
+ * A heavy log is megabytes (50,000 reviews are 7.3 MB of JSON, about 0.3 MB gzipped), so it gets longer on a slow phone.
+ */
+const FULL_PULL_TIMEOUT_MS = 60_000;
 
 type Draft<T> = Omit<T, 'id' | 'at'> & { id?: string; at?: string };
 
@@ -46,6 +57,7 @@ export type NewEvent =
   | Draft<CodeSubmittedEvent>
   | Draft<SettingsChangedEvent>
   | Draft<PlanSetEvent>
+  | Draft<TargetSetEvent>
   | Draft<DiagnosticCompletedEvent>
   | Draft<MockCompletedEvent>;
 
@@ -88,6 +100,8 @@ export class ProgressService {
   /** Wall clock as a signal, so due counts and recall estimates refresh while the app stays open. */
   readonly now = signal(new Date());
   readonly syncStatus = signal<SyncStatus>('idle');
+  /** A pull has finished since launch, landing or not: until then a signed-in device may not hold its account's progress. */
+  readonly pulled = signal(false);
   readonly pendingSync = signal({ future: 0, oversized: 0 });
   /** Counts finished `clearLocal` calls, so pages holding a learner's drafts in memory can drop them. */
   readonly cleared = signal(0);
@@ -142,6 +156,7 @@ export class ProgressService {
         const stored = readLog(log.value);
         this.events.set(stored.events);
         this.pullCursor = stored.cursor;
+        if (stored.olderCursor) void this.persist().catch(() => undefined);
         this.acknowledged = new Set(acknowledged.value ? JSON.parse(acknowledged.value) : []);
         loaded = true;
       })
@@ -332,8 +347,8 @@ export class ProgressService {
     try {
       const since = this.pullCursor?.learnerId === scope.learnerId ? this.pullCursor.cursor : null;
       const { events, cursor } = await this.api.get<{ events: StoredEvent[]; cursor: string | null }>(
-        since ? `/progress/events?since=${encodeURIComponent(since)}` : '/progress/events',
-        PROGRESS_PULL_TIMEOUT_MS,
+        since ? `/progress/events?v=${PULL_VERSION}&since=${encodeURIComponent(since)}` : `/progress/events?v=${PULL_VERSION}`,
+        since ? PROGRESS_PULL_TIMEOUT_MS : FULL_PULL_TIMEOUT_MS,
         scope.controller.signal,
       );
       if (!this.isCurrent(scope)) return;
@@ -341,13 +356,15 @@ export class ProgressService {
       const incoming = events.filter((event) => !known.has(event.id));
       this.acknowledge(events.map((event) => event.id));
       if (incoming.length) this.events.update((list) => [...list, ...incoming]);
-      if (cursor && cursor !== since) this.pullCursor = { learnerId: scope.learnerId, cursor };
+      if (cursor && cursor !== since) this.pullCursor = { learnerId: scope.learnerId, cursor, v: PULL_VERSION };
       if (incoming.length || (cursor && cursor !== since)) await this.persist();
       if (!this.isCurrent(scope)) return;
       await this.checkpoint(scope);
       if (this.isCurrent(scope)) scope.pullFailed = false;
     } catch {
       if (this.isCurrent(scope)) scope.pullFailed = true;
+    } finally {
+      this.pulled.set(true);
     }
   }
 
@@ -398,11 +415,15 @@ export class ProgressService {
 interface PullCursor {
   learnerId: string;
   cursor: string;
+  /** The `PULL_VERSION` it was read with; cursors from before R9 have none, which reads as 1. */
+  v?: number;
 }
 
-function readLog(value: string | null): { events: StoredEvent[]; cursor: PullCursor | null } {
+function readLog(value: string | null): { events: StoredEvent[]; cursor: PullCursor | null; olderCursor: boolean } {
   const log = value ? (JSON.parse(value) as StoredEvent[] | { events: StoredEvent[]; cursor: PullCursor | null }) : [];
-  return Array.isArray(log) ? { events: log, cursor: null } : log;
+  if (Array.isArray(log)) return { events: log, cursor: null, olderCursor: false };
+  const olderCursor = log.cursor !== null && (log.cursor.v ?? 1) < PULL_VERSION;
+  return { events: log.events, cursor: olderCursor ? null : log.cursor, olderCursor };
 }
 
 function sameSettings(a: StudySettings, b: StudySettings) {

@@ -9,6 +9,7 @@ import { MotionPreferenceService } from './core/motion-preference.service';
 import { PageTitleStrategy } from './core/page-title.strategy';
 import { ProgressService } from './core/progress.service';
 import { DiagnosticPromptService } from './pages/diagnostic/diagnostic-prompt.service';
+import { TodayService } from './pages/today/today.service';
 import { PilotService } from './pilot/pilot.service';
 import { ReminderService } from './reminders/reminder.service';
 import { RuntimeConfigService } from './core/runtime-config.service';
@@ -34,6 +35,7 @@ export const appConfig = ({ animated }: { animated: boolean }): ApplicationConfi
       const progress = inject(ProgressService);
       const pilot = inject(PilotService);
       const diagnosticPrompt = inject(DiagnosticPromptService);
+      const todayPrefs = inject(TodayService);
       const auth = inject(AuthService);
       const reminders = inject(ReminderService);
       const shortcuts = inject(ShortcutsService);
@@ -42,7 +44,15 @@ export const appConfig = ({ animated }: { animated: boolean }): ApplicationConfi
       await learner.init();
       await auth.init();
       await progress.init();
-      await Promise.all([pilot.init(), diagnosticPrompt.init(), reminders.init(), shortcuts.init(), themeReady, motionReady]);
+      await Promise.all([
+        pilot.init(),
+        diagnosticPrompt.init(),
+        todayPrefs.init(),
+        reminders.init(),
+        shortcuts.init(),
+        themeReady,
+        motionReady,
+      ]);
     }),
   ],
 });

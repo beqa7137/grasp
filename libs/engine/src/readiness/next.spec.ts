@@ -5,9 +5,12 @@ import { buildStudyPlan } from '../plan/study-plan.js';
 import { itemsForTopic } from '../review/catalog.js';
 import type { LearningEvent } from '../srs/events.js';
 import { replay } from '../srs/progress.js';
-import { LEVEL_PROFILES, problemsAtBar } from './levels.js';
+import { problemsAtBar } from './bar.js';
+import { LEVEL_PROFILES } from './levels.js';
 import { loopReadiness } from './readiness.js';
 import { roundsByWeakness, upNext, type DeviceWork, type UpNextInput } from './next.js';
+import { getProblemSummary } from '../coding/catalog.js';
+import { getPatternSummary } from '../curriculum/catalog.js';
 import { READY_RULES } from './status.js';
 
 const now = new Date('2026-09-10T09:00:00.000Z');
@@ -42,7 +45,7 @@ const work = (round: DeviceWork['round'], id: string): DeviceWork => ({
 });
 
 describe('Up next', () => {
-  it('starts a fresh learner on the weakest round: Coding counts twice', () => {
+  it('starts a fresh learner on the weakest round: a Mid-level loop usually has two Coding rounds', () => {
     const card = upNext(input([]))!;
     expect(card).toMatchObject({
       rule: 6,
@@ -53,7 +56,11 @@ describe('Up next', () => {
       toState: 'learning',
       action: { kind: 'pattern', patternId: 'hashing' },
     });
-    expect(card.reason).toBe('Coding counts twice in your loop and Arrays & Hashing is New. Its lesson makes it Learning.');
+    expect(card.reason).toBe('A Mid-level loop usually has two Coding rounds, and Arrays & Hashing is New. Its lesson makes it Learning.');
+    const chosen = upNext(
+      input([ev({ type: 'target.set', target: { level: 'senior', rounds: { coding: 3, design: 2, behavioral: 1 } } })]),
+    )!;
+    expect(chosen.reason).toBe('Your loop has three Coding rounds, and Arrays & Hashing is New. Its lesson makes it Learning.');
   });
 
   it('orders rounds by count × (100 − score)', () => {
@@ -101,14 +108,45 @@ describe('Up next', () => {
         rule: 2,
         id: `plan:${today[0].unit.id}`,
         title: today[0].unit.title,
-        reason: `From your plan · 1 of ${today.length} today`,
+        reason: expect.stringMatching(new RegExp(`^From your plan · 1 of ${today.length} today\\. \\S`)),
         minutes: today[0].minutes,
       });
     });
 
+    it("says where the slice's skill stands and what the slice does for it", () => {
+      const lesson = today.find((s) => s.unit.kind === 'pattern')!;
+      const name = getPatternSummary(lesson.unit.patternId!)!.name;
+      const hidden = new Set(today.filter((s) => s !== lesson).map((s) => `plan:${s.unit.id}`));
+      const index = today.indexOf(lesson) + 1;
+      expect(upNext(input([], { plan, hidden }))).toMatchObject({
+        reason: `From your plan · ${index} of ${today.length} today. Read the lesson, then solve ${getProblemSummary(lesson.unit.problemId!)!.title}. ${name} is New; the solve makes it Practiced.`,
+        fromState: 'new',
+      });
+    });
+
+    it('names the part of a split slice', () => {
+      const short = buildStudyPlan({ interviewDate: '2026-09-30', minutesPerDay: 30, rounds: ['coding'], level: 'new' }, replay([]), {
+        now,
+        target: { level: 'mid', rounds: { coding: 2, design: 0, behavioral: 0 } },
+      });
+      const slice = short.days[0].slices[0];
+      expect(slice.parts).toBeGreaterThan(1);
+      const card = upNext(input([], { plan: short }))!;
+      expect(card.reason).toMatch(new RegExp(`^From your plan · 1 of ${short.days[0].slices.length} today, part 1 of ${slice.parts}\\. `));
+    });
+
+    it('says what a story slice does for its competency', () => {
+      const story = plan.days.flatMap((d) => d.slices).find((s) => s.unit.kind === 'story')!;
+      const withStory = { ...plan, days: [{ ...plan.days[0], slices: [story] }, ...plan.days.slice(1)] };
+      expect(upNext(input([], { plan: withStory }))!.reason).toMatch(/is New\. A story tagged with it makes it Learning\.$/);
+    });
+
     it('skips a slice hidden for today, leaving it in the plan', () => {
       const card = upNext(input([], { plan, hidden: new Set([`plan:${today[0].unit.id}`]) }))!;
-      expect(card).toMatchObject({ id: `plan:${today[1].unit.id}`, reason: `From your plan · 2 of ${today.length} today` });
+      expect(card).toMatchObject({
+        id: `plan:${today[1].unit.id}`,
+        reason: expect.stringMatching(new RegExp(`^From your plan · 2 of ${today.length} today\\.`)),
+      });
       expect(plan.days[0].slices[0].done).toBe(false);
     });
   });
@@ -202,7 +240,9 @@ describe('Up next', () => {
       const card = upNext(input(learning))!;
       const problem = problemsAtBar('hashing', 'medium')[0];
       expect(card).toMatchObject({ rule: 6, fromState: 'learning', toState: 'practiced', title: `Solve ${problem.title}`, minutes: 35 });
-      expect(card.reason).toBe('Coding counts twice in your loop and Arrays & Hashing is Learning. One medium solve makes it Practiced.');
+      expect(card.reason).toBe(
+        'A Mid-level loop usually has two Coding rounds, and Arrays & Hashing is Learning. One medium solve makes it Practiced.',
+      );
     });
 
     it('asks for a second solve on another day, never promising Ready while the recall check falls short', () => {

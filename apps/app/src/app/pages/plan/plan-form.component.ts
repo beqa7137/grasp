@@ -4,6 +4,7 @@ import {
   PLAN_MAX_DAYS,
   PLAN_MINUTES,
   PLAN_ROUNDS,
+  ROUND_NAMES,
   addCalendarDays,
   calendarDaysBetween,
   isCalendarDate,
@@ -14,7 +15,6 @@ import {
 import { RovingSelectDirective } from '../../core/roving-select.directive';
 import { formatMinutes } from './duration';
 
-const ROUND_LABELS: Record<PlanRound, string> = { coding: 'Coding', design: 'System design', behavioral: 'Behavioral' };
 const LEVELS: Record<PlanLevel, { label: string; hint: string }> = {
   new: { label: 'New to this', hint: 'Every unit at a learning pace, from the first pattern on.' },
   rusty: { label: 'Rusty', hint: 'You have prepared before: units are a little shorter.' },
@@ -170,7 +170,7 @@ export class PlanFormComponent {
   readonly cancelled = output<void>();
 
   readonly minuteOptions = PLAN_MINUTES.map((m) => ({ value: m as number, label: formatMinutes(m) }));
-  readonly roundOptions = PLAN_ROUNDS.map((r) => ({ value: r, label: ROUND_LABELS[r] }));
+  readonly roundOptions = PLAN_ROUNDS.map((r) => ({ value: r, label: ROUND_NAMES[r] }));
   readonly levelOptions = PLAN_LEVELS.map((l) => ({ value: l, label: LEVELS[l].label }));
 
   readonly date = linkedSignal(() => this.initial()?.interviewDate ?? '');

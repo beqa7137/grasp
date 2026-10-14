@@ -49,7 +49,9 @@ async function pushVisualizer(page: Page): Promise<number> {
   await watchTransitions(page);
   await page.locator('app-visualizers a[href="/coding/visualizers/binary-search"]').first().click();
   await expect(page.getByRole('heading', { name: 'Binary Search', level: 1 })).toBeVisible();
-  await expect(page.locator('app-visualizers')).toBeHidden();
+  // The heading shows and the list leaves before Ionic starts the animation, which waits for the entering page to be
+  // ready; Ionic hides the hub only once the transition has finished, animated or not.
+  await expect(page.locator('app-hub:not(.ion-page-hidden)')).toHaveCount(0);
   return transitionsSeen(page);
 }
 
