@@ -1,17 +1,18 @@
 import { getCompetencySummary } from '../behavioral/catalog.js';
 import { isRehearsable } from '../behavioral/rehearsal.js';
 import type { Story } from '../behavioral/stories.js';
-import { problemsForPattern, type CodingProblemSummary } from '../coding/catalog.js';
+import { getProblemSummary, problemsForPattern, type CodingProblemSummary } from '../coding/catalog.js';
 import { getPatternSummary } from '../curriculum/catalog.js';
 import { getSdTopic } from '../curriculum/sd-topics.js';
 import { LOOP_FRESH_DAYS, PLAN_ROUND_TRACK } from '../interview/loop.js';
 import { MINUTES, minutesFor } from '../plan/minutes.js';
-import { PLAN_ROUNDS, type PlanLevel, type PlanRound } from '../plan/options.js';
+import { PLAN_ROUNDS, ROUND_NAMES, type PlanLevel, type PlanRound } from '../plan/options.js';
 import type { PlanUnit, StudyPlan } from '../plan/study-plan.js';
 import type { ProgressState } from '../srs/progress.js';
 import { CASE_CATALOG } from '../sysdesign/case-catalog.js';
 import { getScenarioSummary } from '../sysdesign/scenario-catalog.js';
-import { LEVEL_PROFILES, problemsAtBar } from './levels.js';
+import { problemsAtBar } from './bar.js';
+import { LEVEL_PROFILES } from './levels.js';
 import { loopReadiness, stretchSkills, type LoopReadiness, type RequiredSkill } from './readiness.js';
 import {
   CASE_READY_RULE,
@@ -82,9 +83,8 @@ export interface UpNextInput {
   hidden?: ReadonlySet<string>;
 }
 
-const ROUND_NAMES: Record<PlanRound, string> = { coding: 'Coding', design: 'System design', behavioral: 'Behavioral' };
 const STATE_NAMES: Record<SkillState, string> = { new: 'New', learning: 'Learning', practiced: 'Practiced', ready: 'Ready' };
-const TIMES = ['', 'once', 'twice', 'three times'];
+const COUNT_WORDS = ['no', 'one', 'two', 'three'];
 const up = (state: SkillState): SkillState => SKILL_STATES[Math.min(SKILL_STATES.indexOf(state) + 1, SKILL_STATES.length - 1)];
 
 /** Rounds by how much readiness they hold back: the largest count × (100 − score) first. */
@@ -118,7 +118,7 @@ export function upNext(input: UpNextInput, only?: PlanRound): UpNextCard | null 
 
   return (
     (only ? null : visible(interviewNear(input.plan))) ??
-    planSlice(input.plan, hidden, only) ??
+    planSlice(input.plan, hidden, ctx, only) ??
     firstInRounds((round) => flagged(round, ctx, hidden)) ??
     firstInRounds((round) => deviceWork(round, input.deviceWork ?? [], hidden)) ??
     (input.online ? mock(readiness, rounds, state, now, hidden, only) : null) ??
@@ -146,22 +146,79 @@ function interviewNear(plan: StudyPlan | null): UpNextCard | null {
       };
 }
 
-function planSlice(plan: StudyPlan | null, hidden: ReadonlySet<string>, only?: PlanRound): UpNextCard | null {
+function planSlice(plan: StudyPlan | null, hidden: ReadonlySet<string>, ctx: StepContext, only?: PlanRound): UpNextCard | null {
   const slices = plan?.days[0]?.slices ?? [];
   const index = slices.findIndex((s) => !s.done && !hidden.has(`plan:${s.unit.id}`) && (!only || s.unit.round === only));
   if (index < 0) return null;
-  const { unit, minutes } = slices[index];
+  const { unit, minutes, part, parts } = slices[index];
+  const skill = unitSkill(unit, ctx);
+  const place = `From your plan · ${index + 1} of ${slices.length} today${parts > 1 ? `, part ${part} of ${parts}` : ''}.`;
   return {
     id: `plan:${unit.id}`,
     rule: 2,
     round: unit.round,
     title: unit.title,
-    reason: `From your plan · ${index + 1} of ${slices.length} today`,
+    reason: [place, skill?.sentence].filter(Boolean).join(' '),
     minutes,
-    fromState: null,
+    fromState: skill?.state ?? null,
     toState: null,
     action: { kind: 'plan-unit', unit },
   };
+}
+
+/** The skill a plan unit works on, and a sentence on where it stands and what the unit does for it. */
+function unitSkill(unit: PlanUnit, ctx: StepContext): { state: SkillState; sentence: string } | null {
+  const of = (
+    kind: RequiredSkill['kind'],
+    id: string | undefined,
+    name: string | undefined,
+    say: (name: string, state: string) => string,
+  ) => {
+    if (!id || !name) return null;
+    const state = skillStatus(kind, id, ctx).state;
+    return { state, sentence: say(name, STATE_NAMES[state]) };
+  };
+  const is = (name: string, state: string) => `${name} is ${state}.`;
+  const problem = getProblemSummary(unit.problemId ?? '')?.title;
+  const pattern = getPatternSummary(unit.patternId ?? '')?.name;
+  switch (unit.kind) {
+    case 'pattern':
+      // Practiced is one full solve (REDESIGN.md 2.3); the lesson teaches the pattern but is not part of the rule.
+      return of('pattern', unit.patternId, pattern, (name, state) =>
+        state === 'New' && problem
+          ? `Read the lesson, then solve ${problem}. ${name} is New; the solve makes it Practiced.`
+          : state === 'Learning' && problem
+            ? `Solve ${problem}. ${name} is Learning; the solve makes it Practiced.`
+            : is(name, state),
+      );
+    case 'solve':
+    case 'retry':
+      return of('pattern', unit.patternId, pattern, (name, state) =>
+        state === 'Learning'
+          ? `${is(name, state)} One solve makes it Practiced.`
+          : state === 'Practiced'
+            ? `${is(name, state)} A solve on another day brings it closer to Ready.`
+            : is(name, state),
+      );
+    case 'lesson':
+      return of('topic', unit.topicId, getSdTopic(unit.topicId ?? '')?.name, (name, state) =>
+        state === 'New' ? `${is(name, state)} Its lesson makes it Learning.` : is(name, state),
+      );
+    case 'story':
+      return of('competency', unit.competencyId, getCompetencySummary(unit.competencyId ?? '')?.name, (name, state) =>
+        state === 'New'
+          ? `${is(name, state)} A story tagged with it makes it Learning.`
+          : state === 'Learning'
+            ? `${is(name, state)} Telling it once makes it Practiced.`
+            : is(name, state),
+      );
+    case 'case':
+      return of('case', unit.caseId, CASE_CATALOG.find((c) => c.id === unit.caseId)?.title, (name, state) =>
+        state === 'New' || state === 'Learning' ? `${is(name, state)} Finishing it makes it Practiced.` : is(name, state),
+      );
+    default:
+      return null;
+  }
 }
 
 const solved = (state: ProgressState, problem: CodingProblemSummary) => Boolean(state.coding[problem.id]?.solvedAt);
@@ -318,10 +375,13 @@ function lowestSkill(
     if (!step) continue;
     const toState = up(skill.state);
     // A round counted once is the plain case; only a heavier weight is worth a mention.
+    const rounds = `${COUNT_WORDS[count]} ${ROUND_NAMES[round]} rounds`;
     const why =
-      count >= 2
-        ? `${ROUND_NAMES[round]} counts ${TIMES[count]} in your loop and ${step.name} is ${STATE_NAMES[skill.state]}.`
-        : `${step.name} is ${STATE_NAMES[skill.state]}.`;
+      count < 2
+        ? `${step.name} is ${STATE_NAMES[skill.state]}.`
+        : readiness.source === 'assumed'
+          ? `A Mid-level loop usually has ${rounds}, and ${step.name} is ${STATE_NAMES[skill.state]}.`
+          : `Your loop has ${rounds}, and ${step.name} is ${STATE_NAMES[skill.state]}.`;
     return {
       id: `${skill.kind}:${skill.id}`,
       rule: 6,
@@ -375,7 +435,7 @@ function nextStep(skill: RequiredSkill & { state: SkillState }, ctx: StepContext
         return {
           name,
           title: `Read the ${name} guide`,
-          effect: 'Knowing what interviewers look for makes it {state}.',
+          effect: 'Its guide shows what interviewers listen for; then a story tagged with it makes it {state}.',
           minutes: minutesFor({ kind: 'lesson' }, ctx.pace),
           action: { kind: 'competency', competencyId: skill.id },
         };

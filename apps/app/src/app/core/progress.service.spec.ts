@@ -132,7 +132,7 @@ describe('ProgressService sync', () => {
     await progress.resync();
     expect(progress.syncStatus()).toBe('synced');
     expect(api.get).toHaveBeenCalledTimes(2);
-    expect(api.get).toHaveBeenCalledWith('/progress/events', 20_000, expect.any(AbortSignal));
+    expect(api.get).toHaveBeenCalledWith('/progress/events?v=2', 60_000, expect.any(AbortSignal));
   });
 
   it('drops an erased learner batch and never sends it under the fresh learner', async () => {
@@ -219,20 +219,23 @@ describe('ProgressService sync', () => {
     const first = setup({ get: async () => ({ events: [settingsEvent('remote')], cursor }) as { events: StoredEvent[] } });
     await first.progress.init();
     await vi.waitFor(() => expect(first.progress.syncStatus()).toBe('synced'));
-    expect(first.api.get.mock.calls[0][0]).toBe('/progress/events');
+    expect(first.api.get.mock.calls[0][0]).toBe('/progress/events?v=2');
 
     await first.progress.resync();
-    expect(first.api.get.mock.calls[1][0]).toBe(`/progress/events?since=${encodeURIComponent(cursor)}`);
+    expect(first.api.get.mock.calls[1][0]).toBe(`/progress/events?v=2&since=${encodeURIComponent(cursor)}`);
+    // Only the pull of the whole log gets the longer wait.
+    expect(first.api.get).toHaveBeenNthCalledWith(1, '/progress/events?v=2', 60_000, expect.any(AbortSignal));
+    expect(first.api.get).toHaveBeenNthCalledWith(2, expect.stringContaining('&since='), 20_000, expect.any(AbortSignal));
 
     TestBed.resetTestingModule();
     const reload = setup();
     await reload.progress.init();
     await vi.waitFor(() => expect(reload.api.get).toHaveBeenCalled());
-    expect(reload.api.get.mock.calls[0][0]).toContain('?since=');
+    expect(reload.api.get.mock.calls[0][0]).toContain('&since=');
 
     reload.learner.value = 'learner-two';
     await reload.progress.resync();
-    expect(reload.api.get.mock.calls.at(-1)![0]).toBe('/progress/events');
+    expect(reload.api.get.mock.calls.at(-1)![0]).toBe('/progress/events?v=2');
   });
 
   it('pulls in full after another tab saves a log from before this one pulled, since the cursor travels with its events', async () => {
@@ -246,7 +249,46 @@ describe('ProgressService sync', () => {
     const reload = setup();
     await reload.progress.init();
     await vi.waitFor(() => expect(reload.api.get).toHaveBeenCalled());
-    expect(reload.api.get.mock.calls[0][0]).toBe('/progress/events');
+    expect(reload.api.get.mock.calls[0][0]).toBe('/progress/events?v=2');
+  });
+
+  it('drops a cursor read under an older pull version once, so events that version left out arrive in one full pull', async () => {
+    const old = '2026-09-28T05:00:00.000Z';
+    const fresh = '2026-09-29T05:00:00.000Z';
+    const target = {
+      id: 'remote-target',
+      at,
+      type: 'target.set',
+      target: { level: 'senior', rounds: { coding: 2, design: 2, behavioral: 1 } },
+    } as StoredEvent;
+    localStorage.setItem(
+      EVENTS_KEY,
+      JSON.stringify({ events: [settingsEvent('local')], cursor: { learnerId: 'learner-one', cursor: old } }),
+    );
+    const first = setup({ get: async () => ({ events: [settingsEvent('local'), target], cursor: fresh }) as { events: StoredEvent[] } });
+    await first.progress.init();
+    await vi.waitFor(() => expect(first.progress.syncStatus()).toBe('synced'));
+    expect(first.api.get.mock.calls[0][0]).toBe('/progress/events?v=2');
+    expect(first.progress.state().target).toEqual(target.type === 'target.set' && target.target);
+    expect(storedEvents().map((e) => e.id)).toEqual(['local', 'remote-target']);
+    expect(JSON.parse(localStorage.getItem(EVENTS_KEY)!).cursor).toEqual({ learnerId: 'learner-one', cursor: fresh, v: 2 });
+
+    TestBed.resetTestingModule();
+    const reload = setup();
+    await reload.progress.init();
+    await vi.waitFor(() => expect(reload.api.get).toHaveBeenCalled());
+    expect(reload.api.get.mock.calls[0][0]).toBe(`/progress/events?v=2&since=${encodeURIComponent(fresh)}`);
+  });
+
+  it('forgets an older cursor on disk at once, so a pull that fails still leaves the next launch a full pull', async () => {
+    localStorage.setItem(
+      EVENTS_KEY,
+      JSON.stringify({ events: [settingsEvent('local')], cursor: { learnerId: 'learner-one', cursor: at } }),
+    );
+    const { progress } = setup({ get: async () => Promise.reject(new ApiError(0, 'offline')) });
+    await progress.init();
+    await vi.waitFor(() => expect(JSON.parse(localStorage.getItem(EVENTS_KEY)!).cursor).toBeNull());
+    expect(storedEvents().map((e) => e.id)).toEqual(['local']);
   });
 
   it('keeps deferred future events pending, acknowledges valid neighbors, and retries the same immutable event', async () => {

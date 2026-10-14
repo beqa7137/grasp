@@ -69,7 +69,9 @@ async function setup(respond: (call: FetchCall) => Response | Promise<Response>,
   globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
     const headers = init?.headers as Record<string, string> | undefined;
     const call: FetchCall = {
-      path: String(input).replace(/^\/api/, ''),
+      path: String(input)
+        .replace(/^\/api/, '')
+        .replace(/\?.*$/, ''),
       method: init?.method ?? 'GET',
       learnerId: headers?.['x-learner-id'] ?? '',
       authorization: headers?.['authorization'] ?? null,

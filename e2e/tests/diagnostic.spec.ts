@@ -5,7 +5,10 @@ const QUESTIONS = PATTERN_CATALOG.length;
 
 test('a new learner takes the placement check, reviews start with the patterns they missed, and a retake starts over', async ({ page }) => {
   await page.goto('/today');
-  await page.getByRole('link', { name: 'Take the placement check' }).click();
+  await page.getByRole('button', { name: 'Mid-level' }).click();
+  await page.getByRole('button', { name: '3 weeks' }).click();
+  await page.getByRole('button', { name: 'Build my plan' }).click();
+  await page.getByRole('link', { name: 'Take the placement' }).click();
   await expect(page).toHaveURL(/\/coding\/placement$/);
   const diagnostic = page.locator('app-diagnostic');
   await expect(diagnostic.getByRole('heading', { name: 'Find your starting point' })).toBeVisible();
@@ -39,23 +42,36 @@ test('a new learner takes the placement check, reviews start with the patterns t
   expect(strong, 'the first new card comes from a pattern the check found weak').not.toContain(firstPattern);
 
   await page.getByRole('tab', { name: /^Today/ }).click();
-  const learn = page.locator('app-learn');
-  await expect(learn.getByRole('heading', { name: 'Build intuition, not a problem count.' })).toBeVisible();
-  await expect(learn.getByText('Find your starting point')).toBeHidden();
+  const learn = page.locator('app-today');
+  await expect(learn.getByRole('heading', { name: /^Mid-level loop · / })).toBeVisible();
+  await expect(learn.getByText('Skip what you know')).toBeHidden();
   await learn.getByRole('link', { name: 'Settings' }).click();
   await page.locator('app-settings').getByRole('link', { name: 'Retake' }).click();
   await expect(diagnostic.getByRole('button', { name: /^Start/ })).toBeVisible();
 });
 
-test('the invitation can be set aside, and the check is still one tap away in Settings', { tag: '@smoke' }, async ({ page }) => {
+test('the placement is offered once a loop with Coding is saved, can be set aside, and stays one tap away in Settings', async ({
+  page,
+}) => {
   await page.goto('/today');
-  const invitation = page.locator('app-learn').getByRole('heading', { name: 'Find your starting point' });
-  await expect(invitation).toBeVisible();
-  await page.getByRole('button', { name: 'Not now' }).click();
-  await expect(invitation).toBeHidden();
+  const today = page.locator('app-today');
+  const offer = today.getByRole('heading', { name: 'Skip what you know' });
+  await expect(today.getByRole('heading', { name: 'What is your loop?', level: 1 })).toBeVisible();
+  await expect(offer).toHaveCount(0);
+  await today.getByRole('button', { name: 'Senior' }).click();
+  await today.getByRole('button', { name: 'No date yet' }).click();
+  await today.getByRole('button', { name: 'Save my loop' }).click();
+  await expect(offer).toBeVisible();
+  await expect(today.getByRole('heading', { name: 'Senior loop · no date yet', level: 1 })).toBeFocused();
+  await today.getByRole('button', { name: 'No thanks' }).click();
+  await expect(offer).toHaveCount(0);
+  await expect(today.getByRole('heading', { name: 'Senior loop · no date yet', level: 1 })).toBeFocused();
+  await today.getByRole('button', { name: 'Edit' }).click();
+  await today.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(offer).toHaveCount(0);
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Build intuition, not a problem count.' })).toBeVisible();
-  await expect(invitation).toBeHidden();
+  await expect(today.getByRole('heading', { name: 'Senior loop · no date yet', level: 1 })).toBeVisible();
+  await expect(offer).toHaveCount(0);
 
   await page.goto('/today/settings');
   await page.getByRole('link', { name: 'Take it' }).click();
@@ -73,7 +89,7 @@ test('number keys only answer the page in view, not a review left open in anothe
 
   await page.getByRole('tab', { name: /^Today/ }).click();
   await page
-    .locator('app-learn')
+    .locator('app-today')
     .getByRole('link', { name: /^Review/ })
     .click();
   const review = page.locator('app-drill');

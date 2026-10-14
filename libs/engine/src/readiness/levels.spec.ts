@@ -6,7 +6,8 @@ import { PATTERN_CATALOG } from '../curriculum/catalog.js';
 import { sdTopicLevel } from '../curriculum/sd-shelves.js';
 import { SD_TOPICS } from '../curriculum/sd-topics.js';
 import { CASE_CATALOG } from '../sysdesign/case-catalog.js';
-import { LEVEL_PROFILES, meetsBar, problemsAtBar, shelfStretchAt } from './levels.js';
+import { problemsAtBar } from './bar.js';
+import { LEVEL_PROFILES, meetsBar, shelfStretchAt } from './levels.js';
 import { TARGET_LEVELS } from '../plan/options.js';
 
 const names = (ids: readonly string[]) => ids.map((id) => PATTERN_CATALOG.find((p) => p.id === id)!.name);

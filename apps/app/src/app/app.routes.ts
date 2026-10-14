@@ -32,7 +32,7 @@ export const routes: Routes = [
       {
         path: 'today',
         title: 'Today',
-        loadComponent: () => import('./pages/learn/learn.page').then((m) => m.LearnPage),
+        loadComponent: () => import('./pages/today/today.page').then((m) => m.TodayPage),
         data: { preload: 0 },
       },
 
@@ -116,7 +116,8 @@ export const routes: Routes = [
       {
         path: 'design',
         title: 'Design',
-        loadComponent: hub,
+        // As Coding's: the hub and its Topics segment load together, not one round trip after another.
+        loadComponent: () => Promise.all([hub(), map()]).then(([page]) => page),
         data: { preload: 0 },
         children: [
           { path: '', title: 'Topics', loadComponent: map, data: { preload: 0 } },

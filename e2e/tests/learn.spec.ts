@@ -13,10 +13,10 @@ test.describe('first visit', () => {
     await page.getByRole('button', { name: "Got it, let's start" }).click();
     await expect(welcome).toBeHidden();
     await expect(page).toHaveURL(/\/today$/);
-    await expect(page.getByRole('heading', { name: 'Build intuition, not a problem count.' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'What is your loop?', level: 1 })).toBeVisible();
 
     await page.reload();
-    await expect(page.getByRole('heading', { name: 'Build intuition, not a problem count.' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'What is your loop?', level: 1 })).toBeVisible();
     await expect(welcome).toBeHidden();
   });
 });
@@ -43,17 +43,9 @@ test('deep links load directly, and unknown paths land on Today', { tag: ['@smok
   await expect(page).toHaveURL(/\/today$/);
 });
 
-test('the Study plan tile lines up with the Review tile beside it', { tag: '@nav' }, async ({ page }) => {
-  await page.goto('/today');
-  const learn = page.locator('app-learn');
-  const plan = (await learn.getByRole('link', { name: /^Study plan/ }).boundingBox())!;
-  const review = (await learn.getByRole('link', { name: /^Review/ }).boundingBox())!;
-  expect(plan.y).toBe(review.y);
-});
-
 test('the Today menu sends feedback and opens the study plan', { tag: '@nav' }, async ({ page }) => {
   await page.goto('/today');
-  const learn = page.locator('app-learn');
+  const learn = page.locator('app-today');
   const more = learn.getByRole('button', { name: 'More options' });
   const menu = page.locator('ion-popover');
   const feedback = menu.getByRole('button', { name: 'Send feedback' });
@@ -112,7 +104,7 @@ test('no fixed box sits over the page on a phone', { tag: '@nav' }, async ({ pag
 
 test('an answer waiting for its upload never shows progress as waiting to sync', async ({ page }) => {
   await page.goto('/today');
-  const status = page.locator('app-learn .sync');
+  const status = page.locator('app-today .sync');
   await expect(status).toHaveAttribute('data-status', 'synced');
   await status.evaluate((element) => {
     const seen = new Set([element.getAttribute('data-status')]);
@@ -121,7 +113,7 @@ test('an answer waiting for its upload never shows progress as waiting to sync',
   });
 
   await page
-    .locator('app-learn')
+    .locator('app-today')
     .getByRole('link', { name: /^Review/ })
     .click();
   const sync = synced(page, 'review.graded');
@@ -176,7 +168,7 @@ test.describe('progress sync recovery', () => {
     await page.goto('/today');
     const alert = page.getByRole('alert').filter({ hasText: 'Sync is unavailable' });
     const retry = alert.getByRole('button');
-    const hero = page.locator('.hero');
+    const hero = page.locator('app-today h1');
     await expect(alert).toBeVisible();
     await expect(page.getByRole('link', { name: /Your session ended/ })).toHaveCount(0);
     const heroTop = (await hero.boundingBox())!.y;

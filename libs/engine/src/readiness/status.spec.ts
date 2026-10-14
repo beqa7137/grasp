@@ -4,7 +4,8 @@ import { itemsForTopic } from '../review/catalog.js';
 import type { LearningEvent } from '../srs/events.js';
 import { replay } from '../srs/progress.js';
 import { problemsForPattern } from '../coding/catalog.js';
-import { LEVEL_PROFILES, problemsAtBar } from './levels.js';
+import { problemsAtBar } from './bar.js';
+import { LEVEL_PROFILES } from './levels.js';
 import {
   CASE_READY_RULE,
   caseStatus,

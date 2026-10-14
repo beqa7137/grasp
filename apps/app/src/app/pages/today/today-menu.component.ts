@@ -1,10 +1,10 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { PopoverController } from '@ionic/angular';
 
-export type LearnMenuChoice = 'feedback' | 'plan';
+export type TodayMenuChoice = 'feedback' | 'plan';
 
 @Component({
-  selector: 'app-learn-menu',
+  selector: 'app-today-menu',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <button (click)="choose('feedback')">Send feedback</button>
@@ -14,7 +14,7 @@ export type LearnMenuChoice = 'feedback' | 'plan';
     :host {
       display: flex;
       flex-direction: column;
-      padding: 6px 0;
+      padding: var(--g-space-1) 0;
     }
     button {
       appearance: none;
@@ -23,10 +23,10 @@ export type LearnMenuChoice = 'feedback' | 'plan';
       color: var(--g-text);
       font: inherit;
       text-align: left;
-      padding: 12px 16px;
+      padding: var(--g-space-3) var(--g-space-4);
       cursor: pointer;
       &:hover {
-        background: var(--g-sunken);
+        background: rgba(var(--g-text-rgb), 0.06);
       }
       &:focus-visible {
         outline-offset: -2px;
@@ -34,10 +34,10 @@ export type LearnMenuChoice = 'feedback' | 'plan';
     }
   `,
 })
-export class LearnMenuComponent {
+export class TodayMenuComponent {
   private readonly popovers = inject(PopoverController);
 
-  choose(choice: LearnMenuChoice) {
+  choose(choice: TodayMenuChoice) {
     void this.popovers.dismiss(choice);
   }
 }

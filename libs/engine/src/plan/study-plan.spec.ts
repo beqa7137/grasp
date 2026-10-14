@@ -6,7 +6,8 @@ import { CODING_CATALOG, getProblemSummary } from '../coding/catalog.js';
 import { PATTERN_CATALOG } from '../curriculum/catalog.js';
 import { SD_TOPICS } from '../curriculum/sd-topics.js';
 import type { InterviewTrack } from '../interview/rubrics.js';
-import { LEVEL_PROFILES, problemsAtBar } from '../readiness/levels.js';
+import { problemsAtBar } from '../readiness/bar.js';
+import { LEVEL_PROFILES } from '../readiness/levels.js';
 import type { StoredEvent } from '../srs/events.js';
 import { emptyProgress, replay, type ProgressState } from '../srs/progress.js';
 import { CASE_CATALOG } from '../sysdesign/case-catalog.js';
@@ -14,6 +15,7 @@ import {
   PLAN_LEVELS,
   PLAN_MAX_DAYS,
   PLAN_MINUTES,
+  addCalendarDays,
   normalizePlan,
   type PlanRound,
   type StudyPlanInput,
@@ -719,6 +721,18 @@ describe('a plan for a Target', () => {
     expect(short.coverage!.share).toBeLessThan(1);
     const roomy = targetPlan('mid', emptyProgress(), { interviewDate: '2026-10-24', minutesPerDay: short.coverage!.minutesPerDay! });
     expect(roomy.coverage!.share).toBe(1);
+    expect(roomy.coverage!.daysToFit).toBeNull();
+  });
+
+  it('finds the fewest days to an interview by which the chosen time covers the required loop', () => {
+    const short = targetPlan('mid', emptyProgress(), { interviewDate: '2026-10-24', minutesPerDay: 45 });
+    const days = short.coverage!.daysToFit!;
+    expect(days).toBeGreaterThan(short.daysLeft);
+    const coverageIn = (n: number) =>
+      targetPlan('mid', emptyProgress(), { interviewDate: addCalendarDays(short.today, n), minutesPerDay: 45 }).coverage!;
+    expect(coverageIn(days).share).toBe(1);
+    expect(coverageIn(days - 1).share).toBeLessThan(1);
+    expect(coverageIn(days - 1).daysToFit).toBe(days);
   });
 
   it('plans exactly as before without a Target, with no coverage', () => {

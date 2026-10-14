@@ -1,14 +1,14 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { NgComponentOutlet } from '@angular/common';
+import { ChangeDetectionStrategy, Component, computed, inject, signal, type Type } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { SD_TOPICS } from '@grasp/engine';
 import { ProgressService } from '../../core/progress.service';
-import { MasteryRingComponent } from '../../ui/mastery-ring.component';
 
 /** The system design topic cards (Design's Topics), as Learn showed them before R5, until R11 builds the shelves. */
 @Component({
   selector: 'app-map',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, MasteryRingComponent],
+  imports: [RouterLink, NgComponentOutlet],
   template: `
     <div class="page">
       <p class="eyebrow">System design</p>
@@ -17,7 +17,11 @@ import { MasteryRingComponent } from '../../ui/mastery-ring.component';
       <div class="patterns">
         @for (t of sdTopics; track t.id) {
           <a class="panel card-link pattern" [routerLink]="['/design/topics', t.id]">
-            <g-mastery-ring [value]="mastery(t.id)" />
+            @if (ring(); as r) {
+              <ng-container *ngComponentOutlet="r; inputs: { value: mastery(t.id) }" />
+            } @else {
+              <span class="ring-slot"></span>
+            }
             <div class="info">
               <h2>{{ t.name }}</h2>
               <p class="muted">{{ t.oneLiner }}</p>
@@ -28,6 +32,11 @@ import { MasteryRingComponent } from '../../ui/mastery-ring.component';
     </div>
   `,
   styles: `
+    .ring-slot {
+      flex: none;
+      width: 40px;
+      height: 40px;
+    }
     h1 {
       font-size: clamp(1.625rem, 5vw, 2.375rem);
       margin: 6px 0 8px;
@@ -70,6 +79,19 @@ import { MasteryRingComponent } from '../../ui/mastery-ring.component';
 export class MapComponent {
   private readonly progress = inject(ProgressService);
   readonly sdTopics = SD_TOPICS;
+  /**
+   * The ring is its own chunk, shared with the lesson pages; loaded after the cards, so on a slow phone it does not hold the
+   * hub back a round trip.
+   */
+  readonly ring = signal<Type<unknown> | null>(null);
+
+  constructor() {
+    // Failing to load leaves each card its empty ring slot.
+    void import('../../ui/mastery-ring.component').then(
+      (m) => this.ring.set(m.MasteryRingComponent),
+      () => undefined,
+    );
+  }
   private readonly masteryById = computed(() => new Map(this.progress.mastery().map((m) => [m.topic, m.mastery])));
 
   mastery(topic: string) {

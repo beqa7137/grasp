@@ -75,9 +75,6 @@ describe('first paint', () => {
   it('takes only the progress reducer and light catalogs from the engine, never tracers, question builders or content', () => {
     const names = new Set(firstPaintFiles().flatMap(engineNames));
     expect([...names].sort()).toEqual([
-      'ALGORITHM_CATALOG',
-      'CODING_CATALOG',
-      'PATTERN_CATALOG',
       'SCENARIO_CATALOG',
       'buildSession',
       'calendarDaysBetween',

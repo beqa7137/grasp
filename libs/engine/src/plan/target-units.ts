@@ -1,7 +1,8 @@
 import type { CodingProblemSummary } from '../coding/catalog.js';
 import { PATTERN_CATALOG } from '../curriculum/catalog.js';
 import { getSdTopic, SD_TOPICS } from '../curriculum/sd-topics.js';
-import { problemsAtBar, type LevelProfile } from '../readiness/levels.js';
+import { problemsAtBar } from '../readiness/bar.js';
+import type { LevelProfile } from '../readiness/levels.js';
 import { solvesReady } from '../readiness/status.js';
 import { dayKey, type ProgressState } from '../srs/progress.js';
 import { CASE_CATALOG, type CaseSummary } from '../sysdesign/case-catalog.js';

@@ -239,6 +239,9 @@ test('an empty list names the filters as well as the search that left it empty',
 test("the device's back button closes the Filters sheet before it leaves the page", { tag: '@nav' }, async ({ page }) => {
   await page.goto('/coding/problems?track=graphs');
   const open = library(page).getByRole('button', { name: /^Filters/ });
+  // Decide once the list has rendered and laid out: on a tablet the button can show for a frame before the page settles.
+  await expect(library(page).getByText('51 problems of 164')).toBeVisible();
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   test.skip(!(await open.isVisible()), 'The filters sit beside the list from container medium up.');
   await open.click();
   const sheet = page.getByRole('dialog', { name: 'Filters' });

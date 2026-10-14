@@ -13,7 +13,8 @@ const TARGETS = Object.fromEntries(
 );
 const RUNS = Number(process.env.RUNS ?? 5);
 const FAST_3G = { offline: false, latency: 562.5, downloadThroughput: (1.6e6 / 8) * 0.9, uploadThroughput: (750e3 / 8) * 0.9 };
-// Each selector and heading list also matches a build from before REDESIGN.md R5 (Learn, Visualize), so main can be timed against it.
+// Each selector and heading list also matches a build from before REDESIGN.md R5 (Learn, Visualize), so main can be timed against it;
+// the player tap needs the Coding hub (R5 on).
 const TAPS = [
   {
     name: 'coding',
@@ -21,8 +22,15 @@ const TAPS = [
     heading: ['Master the cue', 'Watch the algorithm think.'],
   },
   { name: 'design', selector: 'ion-tab-button[tab="design"]', heading: ['Learn it hands-on', 'Build it. Load it. Break it.'] },
-  // A fresh learner's next visualizer. The heading alone can show before the stage, so the player counts once it is drawn.
-  { name: 'player', selector: 'a.tile.viz', heading: ['Binary Search'], ready: 'app-player .scene .viz > *' },
+  // Today lost its visualizer tile in R9, so the player is opened from Coding's Visualizers list: the steps before the tap
+  // are untimed. The heading alone can show before the stage, so the player counts once it is drawn.
+  {
+    name: 'player',
+    before: ['ion-tab-button[tab="coding"]', 'app-hub a[href="/coding/visualizers"]'],
+    selector: 'a[href="/coding/visualizers/binary-search"]',
+    heading: ['Binary Search'],
+    ready: 'app-player .scene .viz > *',
+  },
 ];
 const headingVisible = (texts) =>
   [...document.querySelectorAll('.ion-page:not(.ion-page-hidden) h1')].some(
@@ -40,11 +48,23 @@ async function once(browser, url, tap) {
   await cdp.send('Network.emulateNetworkConditions', FAST_3G);
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
   await page.goto(`${url}/today`, { waitUntil: 'commit' });
-  await page.waitForFunction(headingVisible, ['Build intuition'], { timeout: 120_000, polling: 50 });
+  await page.waitForFunction(headingVisible, ['Build intuition', 'What is your loop?'], { timeout: 120_000, polling: 50 });
   const today = await page.evaluate(() => performance.now());
+  const steps = [...(tap.before ?? []), tap.selector];
+  for (let i = 0; i < steps.length - 1; i++) {
+    await page.locator(`${steps[i]} >> visible=true`).first().click();
+    await page.waitForFunction(
+      (next) => [...document.querySelectorAll(next)].some((el) => el.getBoundingClientRect().height > 0),
+      steps[i + 1],
+      {
+        timeout: 120_000,
+        polling: 50,
+      },
+    );
+  }
   const tappedAt = await page.evaluate((selector) => {
     const at = performance.now();
-    document.querySelector(selector).click();
+    [...document.querySelectorAll(selector)].find((el) => el.getBoundingClientRect().height > 0).click();
     return at;
   }, tap.selector);
   await page.waitForFunction(headingVisible, tap.heading, { timeout: 120_000, polling: 50 });

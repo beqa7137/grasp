@@ -13,28 +13,19 @@ import {
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AlertController, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
-import {
-  PLAN_MINUTES,
-  PLAN_ROUNDS,
-  buildStudyPlan,
-  dayKey,
-  getProblemSummary,
-  type PlanRound,
-  type PlanUnit,
-  type StudyPlanInput,
-} from '@grasp/engine';
+import { PLAN_MINUTES, PLAN_ROUNDS, ROUND_NAMES, buildStudyPlan, currentTarget, dayKey, type StudyPlanInput } from '@grasp/engine';
 import { addIcons } from 'ionicons';
-import { checkmarkCircle, chatbubblesOutline, ellipseOutline, flashOutline } from 'ionicons/icons';
+import { chatbubblesOutline, flashOutline } from 'ionicons/icons';
 import { AnnouncerService } from '../../core/announcer.service';
 import { refocusAfterRender } from '../../core/focus';
 import { ProgressService } from '../../core/progress.service';
 import { StoryBankService } from '../behavioral/story-bank.service';
 import { formatMinutes } from './duration';
+import { PlanTodayComponent } from './plan-today.component';
 import { PlanFormComponent } from './plan-form.component';
 import { BackComponent } from '../../ui/back.component';
 import { CrossLinkDirective } from '../../ui/cross-link.directive';
 
-const ROUND_NAMES: Record<PlanRound, string> = { coding: 'Coding', design: 'System design', behavioral: 'Behavioral' };
 const UPCOMING_DAYS = 6;
 const UNDO_MS = 8_000;
 
@@ -56,6 +47,7 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
     IonContent,
     IonIcon,
     PlanFormComponent,
+    PlanTodayComponent,
   ],
   template: `
     <ion-header [translucent]="true">
@@ -138,27 +130,10 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
                     </span>
                   </li>
                 }
-                @for (s of day.slices; track s.unit.id) {
-                  <li class="item" [class.done]="s.done">
-                    <ion-icon [name]="s.done ? 'checkmark-circle' : 'ellipse-outline'" aria-hidden="true" />
-                    <span class="text">
-                      <a [routerLink]="link(s.unit)" crossLink>
-                        @if (s.done) {
-                          <span class="visually-hidden">Done: </span>
-                        }
-                        {{ s.unit.title }}</a
-                      >
-                      <span class="muted">{{ s.unit.detail }}</span>
-                      @if (s.unit.kind === 'pattern' && !s.done) {
-                        <a class="also" [routerLink]="['/coding/problems', s.unit.problemId]" crossLink>Solve {{ problemTitle(s.unit) }}</a>
-                      }
-                      <span class="meta">
-                        about {{ duration(s.minutes) }}{{ s.parts > 1 ? ' · part ' + s.part + ' of ' + s.parts : '' }}
-                      </span>
-                    </span>
-                  </li>
-                }
               </ul>
+              @if (day.slices.length) {
+                <app-plan-today [day]="day" [details]="true" />
+              }
               @if (day.taper) {
                 <p class="note">Review only today, so you arrive rested. Leave anything new for after the interview.</p>
               }
@@ -279,12 +254,6 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
         margin-top: 1px;
         color: var(--g-muted);
       }
-      &.done ion-icon {
-        color: var(--g-found-ink);
-      }
-      &.done > .text > a:first-child {
-        text-decoration: line-through;
-      }
     }
     .items .item:first-child {
       border-top: 0;
@@ -308,14 +277,6 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
       .muted {
         font-size: 0.875rem;
       }
-    }
-    .also {
-      font-size: 0.875rem;
-      justify-self: start;
-    }
-    .meta {
-      font-size: 0.8125rem;
-      color: var(--g-muted);
     }
     .note {
       margin: 10px 0 0;
@@ -411,7 +372,12 @@ export class PlanPage {
     const input = this.input();
     const now = this.progress.now();
     return input
-      ? buildStudyPlan(input, this.progress.state(), { now, tzOffsetMinutes: now.getTimezoneOffset(), stories: this.bank.stories() })
+      ? buildStudyPlan(input, this.progress.state(), {
+          now,
+          tzOffsetMinutes: now.getTimezoneOffset(),
+          stories: this.bank.stories(),
+          target: currentTarget(this.progress.state()).target,
+        })
       : null;
   });
   readonly minutesLabel = computed(() => formatMinutes(this.input()?.minutesPerDay ?? 0));
@@ -460,7 +426,7 @@ export class PlanPage {
   });
 
   constructor() {
-    addIcons({ checkmarkCircle, chatbubblesOutline, ellipseOutline, flashOutline });
+    addIcons({ chatbubblesOutline, flashOutline });
     inject(DestroyRef).onDestroy(() => clearTimeout(this.undoTimer));
   }
 
@@ -471,30 +437,6 @@ export class PlanPage {
 
   dayMinutes(day: { review: number; slices: { minutes: number }[] }) {
     return day.review + day.slices.reduce((s, x) => s + x.minutes, 0);
-  }
-
-  link(unit: PlanUnit): string[] {
-    switch (unit.kind) {
-      case 'pattern':
-        return ['/coding/patterns', unit.patternId!];
-      case 'retry':
-      case 'solve':
-        return ['/coding/problems', unit.problemId!];
-      case 'lesson':
-        return ['/design/topics', unit.topicId!];
-      case 'case':
-        return ['/design/cases', unit.caseId!];
-      case 'mission':
-        return ['/design/missions', unit.scenarioId!];
-      case 'story':
-        return ['/behavioral', unit.competencyId!];
-      case 'mock':
-        return ['/mock/loop'];
-    }
-  }
-
-  problemTitle(unit: PlanUnit) {
-    return getProblemSummary(unit.problemId ?? '')?.title ?? 'a problem';
   }
 
   edit() {

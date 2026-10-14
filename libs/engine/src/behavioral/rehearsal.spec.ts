@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { EMPTY_STAR_DRAFT } from './star-check.js';
-import { REHEARSAL_DAYS, dueStories, isDue, rehearsalQuestion, rehearse, whenNext } from './rehearsal.js';
+import { rehearsalQuestion } from './rehearsal-question.js';
+import { REHEARSAL_DAYS, dueStories, isDue, rehearse, whenNext } from './rehearsal.js';
 import type { Story } from './stories.js';
 
 const now = new Date('2026-09-29T12:00:00Z');

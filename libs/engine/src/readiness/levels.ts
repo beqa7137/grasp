@@ -1,7 +1,7 @@
 import type { Difficulty } from '../algorithms/types.js';
 import { COMPETENCY_CATALOG } from '../behavioral/catalog.js';
 import type { Seniority } from '../behavioral/types.js';
-import { problemsForPattern, type CodingProblemSummary } from '../coding/catalog.js';
+import type { CodingProblemSummary } from '../coding/catalog.js';
 import { PATTERN_CATALOG } from '../curriculum/catalog.js';
 import { SD_SHELVES, sdTopicLevel, type SdShelf } from '../curriculum/sd-shelves.js';
 import { SD_TOPICS } from '../curriculum/sd-topics.js';
@@ -22,7 +22,7 @@ export interface LevelProfile {
   competencies: readonly { id: string; weight: number }[];
 }
 
-const DIFFICULTY_RANK: Record<Difficulty, number> = { easy: 0, medium: 1, hard: 2 };
+export const DIFFICULTY_RANK: Record<Difficulty, number> = { easy: 0, medium: 1, hard: 2 };
 
 const EARLY_PATTERNS = [
   'hashing',
@@ -99,16 +99,6 @@ export const LEVEL_PROFILES: Record<Seniority, LevelProfile> = {
 
 export const meetsBar = (problem: Pick<CodingProblemSummary, 'difficulty'>, bar: Difficulty) =>
   DIFFICULTY_RANK[problem.difficulty] >= DIFFICULTY_RANK[bar];
-
-/**
- * The problems whose primary pattern this is, at or above the bar, easiest first. Only these count toward the pattern's
- * state: a problem cross-listed under it is practised as its own primary pattern.
- */
-export function problemsAtBar(patternId: string, bar: Difficulty): CodingProblemSummary[] {
-  return problemsForPattern(patternId)
-    .filter((p) => p.patternIds[0] === patternId && meetsBar(p, bar))
-    .sort((a, b) => DIFFICULTY_RANK[a.difficulty] - DIFFICULTY_RANK[b.difficulty]);
-}
 
 /** The levels at which none of a shelf's topics is required, so the hub can mark the shelf "Stretch at <level>". */
 export function shelfStretchAt(shelf: SdShelf): Seniority[] {

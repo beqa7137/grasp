@@ -24,8 +24,9 @@ async function seriousViolations(page: Page): Promise<string[]> {
 
 test('a learner sets an interview date, follows today’s list, changes the rounds and clears the plan', async ({ page }) => {
   await page.goto('/today');
-  const learn = page.locator('app-learn');
-  await learn.getByRole('link', { name: /Study plan.*Set your date/ }).click();
+  const todayPage = page.locator('app-today');
+  await todayPage.getByRole('button', { name: 'More options' }).click();
+  await page.locator('ion-popover').getByRole('button', { name: 'Study plan' }).click();
   await expect(page).toHaveURL(/\/today\/plan$/);
   const plan = page.locator('app-plan');
   await expect(plan.getByRole('heading', { name: 'Plan to your interview', level: 1 })).toBeVisible();
@@ -66,8 +67,7 @@ test('a learner sets an interview date, follows today’s list, changes the roun
 
   const today = plan.getByRole('region', { name: /^Today/ });
   await expect(today.getByRole('link', { name: 'Learn Arrays & Hashing' })).toBeVisible();
-  await expect(today.getByRole('link', { name: 'Solve Two Sum' })).toBeVisible();
-  await expect(today.getByRole('link', { name: 'URL Shortener case study' })).toBeVisible();
+  await expect(today.getByRole('link', { name: /^Solve / })).toBeVisible();
   await expect(today.getByRole('link', { name: 'Review' })).toBeVisible();
   await expect(plan.getByRole('region', { name: 'Coming up' }).getByRole('listitem').first()).toBeVisible();
   await expect(plan.getByRole('region', { name: 'Still to learn' })).toContainText('Behavioral');
@@ -92,8 +92,9 @@ test('a learner sets an interview date, follows today’s list, changes the roun
   await expect(today.getByRole('link', { name: /^Learn / })).toHaveCount(0);
 
   await page.getByRole('tab', { name: /^Today/ }).click();
-  await expect(learn.getByRole('link', { name: /Study plan.*Interview in 20 days/ })).toBeVisible();
-  await learn.getByRole('link', { name: /Study plan/ }).click();
+  await expect(todayPage.getByRole('heading', { level: 1 })).toHaveText(/^Mid-level loop \(assumed\) · .* · 20 days left · 1 h a day$/);
+  await todayPage.getByRole('button', { name: 'More options' }).click();
+  await page.locator('ion-popover').getByRole('button', { name: 'Study plan' }).click();
 
   const dateLine = (await plan.locator('.date').textContent())!;
   const confirm = page.getByRole('alertdialog', { name: 'Clear your plan?' });
