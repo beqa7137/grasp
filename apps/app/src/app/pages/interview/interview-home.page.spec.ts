@@ -1,221 +1,208 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { Router } from '@angular/router';
+import { Preferences } from '@capacitor/preferences';
+import { replay, type StoredEvent } from '@grasp/engine';
 import { ApiError, ApiService } from '../../core/api.service';
+import { LearnerService } from '../../core/learner.service';
+import { mockHistoryKey } from '../../core/local-drafts';
+import { ProgressService } from '../../core/progress.service';
+import { StoryBankService } from '../behavioral/story-bank.service';
 import { InterviewHomePage } from './interview-home.page';
-import type { AiAccess, InterviewCatalog, InterviewSession } from './interview.types';
+import type { InterviewCatalog, InterviewSession, Scorecard } from './interview.types';
+import { MockLoopService } from './mock-loop.service';
 
-function setup(access: AiAccess = 'sign-in-required') {
-  const catalog: InterviewCatalog = {
-    aiAccess: access,
-    problems: [{ id: 'problem', title: 'Practice', track: 'coding', patternIds: [] }],
-  };
+const AT = '2026-10-10T09:00:00.000Z';
+
+const session = (
+  id: string,
+  track: InterviewSession['track'],
+  title: string,
+  at: string,
+  verdict?: Scorecard['verdict'],
+): InterviewSession => ({
+  id,
+  track,
+  problem: { id: `${id}-problem`, title, track, patternIds: [] },
+  messages: [],
+  hintsUsed: 0,
+  status: verdict ? 'scored' : 'active',
+  createdAt: at,
+  mode: 'offline',
+  aiAccess: 'sign-in-required',
+  ...(verdict
+    ? {
+        scoredAt: at,
+        scorecard: { verdict, summary: '', dimensions: [], strengths: [], improvements: [], weakPatterns: [], mode: 'offline' as const },
+      }
+    : {}),
+});
+
+function setup(events: StoredEvent[] = [], sessions: InterviewSession[] = []) {
+  const learnerId = signal('learner-1');
+  const catalog: InterviewCatalog = { aiAccess: 'sign-in-required', problems: [] };
   const api = {
-    get: vi.fn(async (path: string): Promise<InterviewCatalog | InterviewSession[]> => (path.endsWith('/problems') ? catalog : [])),
-    post: vi.fn(async () => ({ id: 'session' })),
+    get: vi.fn(async (path: string): Promise<InterviewCatalog | InterviewSession[]> => (path.endsWith('/problems') ? catalog : sessions)),
   };
-  const router = { navigate: vi.fn(async () => true), navigateByUrl: vi.fn(async () => true), url: '/mock' };
   TestBed.configureTestingModule({
     imports: [InterviewHomePage],
     providers: [
       { provide: ApiService, useValue: api },
-      { provide: Router, useValue: router },
+      { provide: LearnerService, useValue: { id: learnerId } },
+      { provide: ProgressService, useValue: { state: signal(replay(events)), now: signal(new Date(AT)) } },
+      { provide: StoryBankService, useValue: { load: vi.fn(async () => undefined), stories: signal([]) } },
+      { provide: MockLoopService, useValue: { load: vi.fn(async () => null), loop: signal(null) } },
     ],
   }).overrideComponent(InterviewHomePage, { set: { template: '', imports: [] } });
-  const fixture = TestBed.createComponent(InterviewHomePage);
-  return { page: fixture.componentInstance, api, router, catalog };
+  const page = TestBed.createComponent(InterviewHomePage).componentInstance;
+  page.reload = vi.fn();
+  return { page, api, catalog, learnerId };
 }
 
-describe('InterviewHomePage access choice', () => {
-  it('starts scripted practice by default on an AI-enabled host', async () => {
-    const { page, api } = setup();
-    await page.ionViewWillEnter();
-    expect(page.mode()).toBe('offline');
-    await page.start('problem');
-    expect(api.post).toHaveBeenCalledExactlyOnceWith('/interview/sessions', { track: 'coding', problemId: 'problem', mode: 'offline' });
-  });
-
-  it('requires explicit AI selection after in-place sign-in and never starts automatically', async () => {
-    const { page, api, catalog } = setup();
-    await page.ionViewWillEnter();
-    page.track.set('system-design');
-    page.chooseMode('ai');
-    expect(page.signInOpen()).toBe(true);
-    expect(page.mode()).toBe('offline');
-    await page.start('problem');
-    expect(api.post).not.toHaveBeenCalled();
-    catalog.aiAccess = 'available';
-    await page.signedIn();
-    expect(page.mode()).toBe('offline');
-    expect(page.track()).toBe('system-design');
-    expect(api.post).not.toHaveBeenCalled();
-    page.chooseMode('ai');
-    await page.start('problem');
-    expect(api.post).toHaveBeenCalledExactlyOnceWith('/interview/sessions', { track: 'system-design', problemId: 'problem', mode: 'ai' });
-  });
-
-  it('keeps scripted practice available when AI is unavailable', async () => {
-    const { page, api } = setup('unavailable');
-    await page.ionViewWillEnter();
-    page.chooseMode('ai');
-    expect(page.mode()).toBe('offline');
-    expect(page.signInOpen()).toBe(false);
-    await page.start('problem');
-    expect(api.post).toHaveBeenCalledExactlyOnceWith('/interview/sessions', { track: 'coding', problemId: 'problem', mode: 'offline' });
-  });
-
-  it.each([429, 503])('retries a failed %s access check with only a read and preserves the selected track', async (status) => {
-    const { page, api, catalog } = setup();
-    await page.ionViewWillEnter();
-    page.track.set('system-design');
-    page.chooseMode('ai');
-    api.get.mockRejectedValueOnce(new ApiError(status, 'Try again shortly.'));
-    await page.signedIn();
-    expect(page.accessCheckFailed()).toBe(true);
-    page.chooseMode('ai');
-    expect(page.signInOpen()).toBe(false);
-    catalog.aiAccess = 'available';
-    await page.checkAccess();
-    expect(page.accessCheckFailed()).toBe(false);
-    expect(page.track()).toBe('system-design');
-    expect(page.mode()).toBe('offline');
-    expect(api.post).not.toHaveBeenCalled();
-    page.chooseMode('ai');
-    expect(page.mode()).toBe('ai');
-    expect(api.post).not.toHaveBeenCalled();
-  });
-
-  it.each(['token_invalid', 'sign_in_required'])(
-    'reopens in-place sign-in when the access check rejects genuinely expired credentials with %s',
-    async (code) => {
-      const { page, api, router } = setup('available');
-      await page.ionViewWillEnter();
-      page.track.set('system-design');
-      page.chooseMode('ai');
-      api.get.mockRejectedValueOnce(new ApiError(401, 'Sign in again.', code));
-      await page.checkAccess();
-      expect(page.signInOpen()).toBe(true);
-      expect(page.aiAccess()).toBe('sign-in-required');
-      expect(page.accessCheckFailed()).toBe(false);
-      expect(page.mode()).toBe('ai');
-      expect(page.track()).toBe('system-design');
-      expect(api.post).not.toHaveBeenCalled();
-      expect(router.navigateByUrl).not.toHaveBeenCalled();
-    },
-  );
-
-  it.each([429, 503])('clears a previous %s access failure after successful page re-entry', async (status) => {
-    const { page, api, catalog } = setup('available');
-    await page.ionViewWillEnter();
-    page.track.set('system-design');
-    page.chooseMode('ai');
-    api.get.mockRejectedValueOnce(new ApiError(status, 'Try again shortly.'));
-    await page.checkAccess();
-    expect(page.accessCheckFailed()).toBe(true);
-    await page.ionViewWillEnter();
-    expect(page.accessCheckFailed()).toBe(false);
-    expect(page.error()).toBeNull();
-    expect(page.notice()).toBeNull();
-    expect(page.aiAccess()).toBe(catalog.aiAccess);
-    expect(page.track()).toBe('system-design');
-    expect(page.mode()).toBe('ai');
-    expect(api.post).not.toHaveBeenCalled();
-  });
-
-  it('loads merged account interviews after sign-in without changing the selection or creating an interview', async () => {
-    const { page, api, catalog, router } = setup();
-    const guest: InterviewSession = {
-      id: 'guest-session',
-      track: 'coding',
-      problem: catalog.problems[0]!,
-      messages: [],
-      hintsUsed: 0,
-      status: 'active',
-      createdAt: '2026-09-27T00:00:00Z',
-      mode: 'offline',
-      aiAccess: 'sign-in-required',
-    };
-    api.get.mockImplementation(async (path) => (path.endsWith('/problems') ? catalog : [guest]));
-    await page.ionViewWillEnter();
-    expect(page.recent()).toEqual([guest]);
-    page.track.set('system-design');
-    page.chooseMode('ai');
-    const merged = [
-      { ...guest, aiAccess: 'available' as const },
-      { ...guest, id: 'account-session', mode: 'ai' as const },
-    ];
-    catalog.aiAccess = 'available';
-    api.get.mockImplementation(async (path) => (path.endsWith('/problems') ? catalog : merged));
-    api.get.mockClear();
-    await page.signedIn();
-    expect(api.get.mock.calls.map(([path]) => path)).toEqual(['/interview/problems', '/interview/sessions']);
-    expect(page.recent()).toEqual(merged);
-    expect(page.signInOpen()).toBe(false);
-    expect(page.notice()).not.toBeNull();
-    expect(page.track()).toBe('system-design');
-    expect(page.mode()).toBe('offline');
-    expect(api.post).not.toHaveBeenCalled();
-    expect(router.navigateByUrl).not.toHaveBeenCalled();
-  });
-
-  it('opens sign-in after server denial without retrying the start', async () => {
-    const { page, api, router } = setup('available');
-    await page.ionViewWillEnter();
-    page.chooseMode('ai');
-    api.post.mockRejectedValue(new ApiError(403, 'Sign in to use AI.', 'ai_sign_in_required'));
-    await page.start('problem');
-    expect(page.signInOpen()).toBe(true);
-    expect(page.starting()).toBeNull();
-    expect(api.post).toHaveBeenCalledTimes(1);
-    expect(router.navigateByUrl).not.toHaveBeenCalled();
-  });
-
-  it('ignores a repeated start while the first request is pending', async () => {
-    const { page, api, router } = setup('available');
-    let resolve!: (value: { id: string }) => void;
-    api.post.mockImplementation(() => new Promise((done) => (resolve = done)));
-    const first = page.start('problem');
-    await page.start('another');
-    expect(api.post).toHaveBeenCalledTimes(1);
-    resolve({ id: 'session' });
-    await first;
-    expect(router.navigateByUrl).toHaveBeenCalledExactlyOnceWith('/mock/session', { state: undefined });
-  });
+beforeEach(async () => {
+  await Preferences.remove({ key: mockHistoryKey('learner-1') });
 });
 
-describe('InterviewHomePage behavioral track', () => {
-  it('sends scripted practice of a competency to the mock on the device, without a session', async () => {
-    const { page, api, router } = setup('available');
-    await page.ionViewWillEnter();
-    page.track.set('behavioral');
-    await page.start('conflict');
-    await page.start();
-    expect(api.post).not.toHaveBeenCalled();
-    expect(router.navigate.mock.calls).toEqual([
-      [['/behavioral/drill'], { queryParams: { question: 'conflict' }, state: { from: '/mock' } }],
-      [['/behavioral/drill'], { queryParams: {}, state: { from: '/mock' } }],
+describe('InterviewHomePage', () => {
+  it('has one Single round card per round in the Target, with the last verdict, then readiness once it loads', async () => {
+    const { page } = setup([
+      { id: 't', at: AT, type: 'target.set', target: { level: 'senior', rounds: { coding: 2, design: 0, behavioral: 1 } } },
+      {
+        id: 'i',
+        at: AT,
+        type: 'interview.scored',
+        sessionId: 's',
+        track: 'behavioral',
+        verdict: 'lean-hire',
+        weakPatterns: [],
+        competencyId: 'conflict',
+        weakCompetencies: [],
+      },
     ]);
+    expect(page.rounds().map((r) => [r.track, r.minutes, r.hub, r.last])).toEqual([
+      ['coding', 45, '/coding', 'No rounds yet'],
+      ['behavioral', 20, '/behavioral', 'Last round: Lean hire, Oct 10'],
+    ]);
+    expect(page.rounds().map((r) => r.readiness)).toEqual(['Readiness …', 'Readiness …']);
+    await page.loadReadiness();
+    expect(page.rounds().map((r) => r.readiness)).toEqual(['Readiness 0 · Building', 'Readiness 6 · Building']);
+    expect(page.loopRounds()).toBe('Coding 45 · Behavioral 20 min');
+    expect(page.level()).toBe('senior');
+    expect(page.loopName()).toBe('Senior loop');
+    expect(page.scoredLine()).toBe('1 round scored');
   });
 
-  it('starts an AI interview on a competency once AI is chosen', async () => {
-    const { page, api, router } = setup('available');
-    await page.ionViewWillEnter();
-    page.track.set('behavioral');
-    expect(page.aiNote()).toContain('including any story you start from');
-    expect(page.aiNote()).not.toContain('code');
-    page.chooseMode('ai');
-    await page.start('conflict');
-    expect(api.post).toHaveBeenCalledExactlyOnceWith('/interview/sessions', { track: 'behavioral', problemId: 'conflict', mode: 'ai' });
-    expect(router.navigateByUrl).toHaveBeenCalledExactlyOnceWith('/mock/session', { state: undefined });
+  it('assumes a Mid-level loop of all three rounds without a Target, and says so', () => {
+    const { page } = setup();
+    expect(page.rounds().map((r) => r.track)).toEqual(['coding', 'system-design', 'behavioral']);
+    expect(page.loopName()).toBe('Mid-level loop (assumed)');
+    expect(page.loopRounds()).toBe('Coding 45 · System design 45 · Behavioral 20 min');
   });
 
-  it('opens sign-in instead of starting an AI interview for a guest', async () => {
-    const { page, api, router } = setup('sign-in-required');
+  it('groups History by round, newest first, and keeps the last five scorecards on the device', async () => {
+    const sessions = [
+      session('c1', 'coding', 'Days Until Warmer', '2026-10-01T00:00:00Z', 'hire'),
+      session('b1', 'behavioral', 'Conflict & Disagreement', '2026-10-02T00:00:00Z', 'lean-hire'),
+      session('c2', 'coding', 'Rate Limiter', '2026-10-03T00:00:00Z'),
+      ...['d1', 'd2', 'd3', 'd4', 'd5'].map((id, i) => session(id, 'system-design', 'News Feed', `2026-10-0${4 + i}T00:00:00Z`, 'no-hire')),
+    ];
+    const { page } = setup([], sessions);
     await page.ionViewWillEnter();
-    page.track.set('behavioral');
-    page.mode.set('ai');
-    await page.start('conflict');
-    expect(page.signInOpen()).toBe(true);
-    expect(api.post).not.toHaveBeenCalled();
-    expect(router.navigateByUrl).not.toHaveBeenCalled();
+    expect(page.history().map((g) => [g.name, g.entries.map((e) => e.id)])).toEqual([
+      ['Coding', ['c2', 'c1']],
+      ['System design', ['d5', 'd4', 'd3', 'd2', 'd1']],
+      ['Behavioral', ['b1']],
+    ]);
+    const { value } = await Preferences.get({ key: mockHistoryKey('learner-1') });
+    expect((JSON.parse(value!) as { id: string }[]).map((e) => e.id)).toEqual(['d5', 'd4', 'd3', 'd2', 'd1']);
+  });
+
+  it('without a connection says so and shows the scorecards this device kept, grouped by round', async () => {
+    const { page, api } = setup([], [session('c1', 'coding', 'Days Until Warmer', AT, 'hire')]);
+    await page.ionViewWillEnter();
+    api.get.mockRejectedValue(new ApiError(0, 'Cannot reach the Grasp server. Check your connection.'));
+    await page.load();
+    expect(page.offline()).toBe(true);
+    expect(page.error()).toBeNull();
+    expect(page.history().map((g) => [g.name, g.entries.map((e) => [e.title, e.verdict])])).toEqual([
+      ['Coding', [['Days Until Warmer', 'hire']]],
+    ]);
+    expect(page.rounds()).toHaveLength(3);
+  });
+
+  it('shows a server failure with Try again, not the offline state, and recovers on retry', async () => {
+    const { page, api } = setup();
+    api.get.mockRejectedValueOnce(new ApiError(503, 'Try again shortly.'));
+    await page.ionViewWillEnter();
+    expect(page.offline()).toBe(false);
+    expect(page.error()).toBe('Try again shortly.');
+    expect(page.catalog()).toBeNull();
+    await page.load();
+    expect(page.error()).toBeNull();
+    expect(page.catalog()).toEqual({ aiAccess: 'sign-in-required', problems: [] });
+  });
+
+  it('reads access and the sessions again after sign-in, without starting anything', async () => {
+    const { page, api, catalog } = setup();
+    await page.ionViewWillEnter();
+    catalog.aiAccess = 'available';
+    catalog.aiRounds = { limit: 3, used: 0 };
+    api.get.mockClear();
+    await page.load();
+    expect(api.get.mock.calls.map(([path]) => path)).toEqual(['/interview/problems', '/interview/sessions']);
+    expect(page.catalog()?.aiRounds).toEqual({ limit: 3, used: 0 });
+  });
+
+  it('opens the start sheet on the chosen round', () => {
+    const { page } = setup();
+    page.openSheet('behavioral');
+    expect(page.sheetTrack()).toBe('behavioral');
+    expect(page.sheetOpen()).toBe(true);
+  });
+
+  it('says so when the start sheet fails to load, offers Reload, and loads it again on the next tap', async () => {
+    const { page } = setup();
+    page.importSheet = vi.fn(() => Promise.reject(new TypeError('Failed to fetch dynamically imported module')));
+    page.openSheet('coding');
+    expect(page.opening()).toBe('coding');
+    await page.loadSheet();
+    expect(page.partFailed()).toBe(true);
+    expect(page.sheetOpen()).toBe(false);
+    expect(page.opening()).toBeNull();
+    page.openSheet('coding');
+    expect(page.importSheet).toHaveBeenCalledTimes(2);
+  });
+
+  it('says readiness is unavailable when its code fails to load', async () => {
+    const { page } = setup();
+    page.importReadiness = vi.fn(() => Promise.reject(new TypeError('Failed to fetch dynamically imported module')));
+    await page.loadReadiness();
+    expect(page.partFailed()).toBe(true);
+    expect(page.rounds().map((r) => r.readiness)).toEqual(['Readiness unavailable', 'Readiness unavailable', 'Readiness unavailable']);
+  });
+
+  it('runs a reload asked for during a load once it ends, so a sign-in during the first load still reads the new access', async () => {
+    const { page, api, catalog } = setup();
+    let release!: () => void;
+    api.get.mockImplementationOnce(() => new Promise((done) => (release = () => done(catalog))));
+    const first = page.load();
+    catalog.aiAccess = 'available';
+    await page.load();
+    release();
+    await first;
+    expect(api.get.mock.calls.filter(([path]) => path === '/interview/problems')).toHaveLength(2);
+    expect(page.catalog()?.aiAccess).toBe('available');
+  });
+
+  it('drops a load that outlives its learner, leaving the next learner view and device cache alone', async () => {
+    const { page, api, learnerId } = setup([], [session('c1', 'coding', 'Days Until Warmer', AT, 'hire')]);
+    let release!: () => void;
+    api.get.mockImplementationOnce(() => new Promise((done) => (release = () => done({ aiAccess: 'available', problems: [] }))));
+    const loading = page.load();
+    learnerId.set('learner-2');
+    release();
+    await loading;
+    expect(page.catalog()).toBeNull();
+    expect(page.sessions()).toEqual([]);
+    expect((await Preferences.get({ key: mockHistoryKey('learner-1') })).value).toBeNull();
   });
 });

@@ -19,6 +19,8 @@ export async function createTestApp(
     VERCEL_OIDC_TOKEN: undefined,
     VERCEL_ENV: undefined,
     DATABASE_URL: undefined,
+    // Suites start many AI sessions on one account; the allowance's own tests set it.
+    AI_ROUNDS_PER_HOUR: '1000',
     ...env,
   });
   const builder = customize(

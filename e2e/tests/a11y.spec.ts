@@ -1,6 +1,17 @@
 import AxeBuilder from '@axe-core/playwright';
 import type { Locator, Page } from '@playwright/test';
-import { expect, JS_DIAMETER, JS_ISLANDS, recordedEvents, seek, seekTimeline, stepToCheckpoint, test, trace } from './fixtures';
+import {
+  expect,
+  JS_DIAMETER,
+  JS_ISLANDS,
+  recordedEvents,
+  seek,
+  seekTimeline,
+  startMockRound,
+  stepToCheckpoint,
+  test,
+  trace,
+} from './fixtures';
 
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice'];
 const BLOCKING = new Set(['serious', 'critical']);
@@ -138,7 +149,7 @@ const PAGES: { name: string; path: string; ready: (page: Page) => Promise<unknow
     name: 'a mock interview with its code drawer open',
     path: '/mock',
     ready: async (page) => {
-      await page.getByRole('button', { name: /Days Until Warmer/ }).click();
+      await startMockRound(page, 'Coding', 'Days Until Warmer');
       await expect(page.getByText(/daily temperatures/)).toBeVisible();
       await page.getByRole('button', { name: 'Code', exact: true }).click();
       await expect(page.getByRole('textbox', { name: 'Interview code' })).toBeVisible();

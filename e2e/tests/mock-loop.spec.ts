@@ -38,7 +38,7 @@ async function talkAndScore(page: Page) {
     await expect(input).toBeEditable({ timeout: 30_000 });
   }
   await page.getByRole('button', { name: 'End & score' }).click();
-  await expect(page.getByText('Scorecard · scripted practice estimate')).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByText('Scorecard · Scripted: rubric checks')).toBeVisible({ timeout: 60_000 });
 }
 
 async function answerBehavioral(page: Page) {
@@ -53,7 +53,7 @@ async function answerBehavioral(page: Page) {
   }
   await expect(composer).toBeDisabled({ timeout: 30_000 });
   await page.getByRole('button', { name: 'End & score' }).click();
-  await expect(page.getByText('Scorecard · scripted practice estimate')).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByText('Scorecard · Scripted: rubric checks')).toBeVisible({ timeout: 60_000 });
 }
 
 /** A calendar day this many days from today, where the browser lives. */
@@ -66,7 +66,7 @@ const localDay = (page: Page, days: number) =>
 
 test('a signed-out learner runs a scripted loop of three rounds to one debrief, kept on the device', async ({ page }) => {
   await page.goto('/mock');
-  await page.getByRole('link', { name: /^Mock loop/ }).click();
+  await page.getByRole('link', { name: /^Full loop/ }).click();
   await expect(page).toHaveURL(/\/mock\/loop$/);
   const loop = page.locator('app-mock-loop');
   await expect(loop.getByRole('heading', { name: 'A mock interview loop', level: 1 })).toBeVisible();
@@ -78,7 +78,9 @@ test('a signed-out learner runs a scripted loop of three rounds to one debrief, 
   await expect(loop.getByText(/Questions lean toward/)).toHaveCount(0);
   await expect(loop.getByRole('radio', { name: 'Mid-level' })).toHaveAttribute('aria-checked', 'true');
   await expect(loop.getByRole('button', { name: 'Scripted practice' })).toHaveAttribute('aria-pressed', 'true');
-  await expect(loop.getByText('Guided prompts and a practice estimate for each round. No AI or sign-in needed.')).toBeVisible();
+  await expect(
+    loop.getByText('Scripted follow-ups for each round, scored by rubric checks. No AI or sign-in needed.', { exact: false }),
+  ).toBeVisible();
   expect(await seriousViolations(page)).toEqual([]);
 
   const created: { track: string; mode: string; level?: string }[] = [];
@@ -187,7 +189,7 @@ async function fakeAiInterviewer(page: Page) {
   const created: unknown[] = [];
   await page.route('**/api/interview/problems', async (route) => {
     const response = await route.fetch();
-    await route.fulfill({ response, json: { ...(await response.json()), aiAccess: 'available' } });
+    await route.fulfill({ response, json: { ...(await response.json()), aiAccess: 'available', aiRounds: { limit: 3, used: 1 } } });
   });
   await page.route('**/api/interview/sessions**', async (route: Route) => {
     const request = route.request();
@@ -250,17 +252,20 @@ test('an AI loop says what it costs before starting, and its debrief weighs the 
   await loop.getByRole('radio', { name: 'Senior' }).click();
   await expect(
     loop.getByText(
-      /An AI loop is 3 AI interviews in a row\. It costs you nothing, but each reply and each scorecard uses your hourly AI allowance/,
+      /An AI loop is 3 AI interviews in a row\. It costs you nothing, but each round takes one of your AI rounds for the hour/,
     ),
   ).toBeVisible();
   await expect(loop.getByText(/The debrief itself makes no AI call\./)).toBeVisible();
+  await expect(
+    loop.getByText('You have 2 AI rounds left this hour and this loop has 3. The rest can switch to scripted when you reach them.'),
+  ).toBeVisible();
   const completed = synced(page, 'mock.completed');
   await loop.getByRole('button', { name: 'Start the loop' }).click();
 
   for (const round of [1, 2, 3]) {
     await expect(page.getByText(`Mock loop · round ${round} of 3`)).toBeVisible();
     await page.getByRole('button', { name: 'End & score' }).click();
-    await expect(page.getByText('Scorecard · AI feedback')).toBeVisible();
+    await expect(page.getByText('Scorecard · AI interviewer')).toBeVisible();
     await page.getByRole('link', { name: round < 3 ? 'Back to your mock loop' : 'See your loop debrief' }).click();
     if (round < 3) await loop.getByRole('button', { name: /^Start the / }).click();
   }

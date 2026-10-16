@@ -27,6 +27,7 @@ const TAPS = [
     heading: ['System design', 'Learn it hands-on', 'Build it. Load it. Break it.'],
   },
   { name: 'behavioral', selector: 'ion-tab-button[tab="behavioral"]', heading: ['Behavioral interviews'] },
+  { name: 'mock', selector: 'ion-tab-button[tab="mock"]', heading: ['Mock interviews', 'Say it out loud.'] },
   // Today lost its visualizer tile in R9, so the player is opened from Coding's Visualizers list: the steps before the tap
   // are untimed. The heading alone can show before the stage, so the player counts once it is drawn.
   {

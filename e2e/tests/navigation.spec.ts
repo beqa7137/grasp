@@ -36,7 +36,7 @@ test('five sections, each lit on its own section, with one Main navigation at ev
     ['Coding', 'Master the cue, and the problem names itself.'],
     ['Design', 'System design'],
     ['Behavioral', 'Behavioral interviews'],
-    ['Mock', 'Say it out loud.'],
+    ['Mock', 'Mock interviews'],
     ['Today', TODAY],
   ]) {
     await section(page, name).click();
@@ -196,7 +196,7 @@ test("the device's back button goes from a hub to Today", { tag: '@nav' }, async
 
 test("the device's back button returns a hub a link from another tab opened to that tab", { tag: '@nav' }, async ({ page }) => {
   await page.goto('/mock');
-  await page.getByRole('link', { name: /Guides, story bank and rehearsal/ }).click();
+  await page.getByRole('link', { name: 'Prepare in Behavioral →' }).click();
   await expect(heading(page)).toHaveText('Behavioral interviews');
   await pressAndroidBack(page);
   await expect(page).toHaveURL(/\/mock$/);

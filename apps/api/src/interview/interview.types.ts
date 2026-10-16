@@ -88,9 +88,16 @@ export interface InterviewSession {
   scorecard?: Scorecard;
   scoredAt?: string;
   usage?: SessionUsage;
+  /** Set once the session has taken one of the learner's AI rounds this hour, so switching back and forth takes one. */
+  aiRound?: true;
 }
 
-export type PublicInterviewSession = Omit<InterviewSession, 'problem' | 'learnerId' | 'usage'> & {
+export interface AiRounds {
+  limit: number;
+  used: number;
+}
+
+export type PublicInterviewSession = Omit<InterviewSession, 'problem' | 'learnerId' | 'usage' | 'aiRound'> & {
   problem: Pick<InterviewProblem, 'id' | 'title' | 'track' | 'patternIds' | 'competencyId'>;
   mode: InterviewMode;
   aiAccess: AiAccess;

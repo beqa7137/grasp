@@ -138,6 +138,15 @@ describe('SheetComponent', () => {
     expect(document.activeElement).toBe($('#opener'));
   });
 
+  it('closes at once when asked in code, before any render, as an action that leaves the page needs', () => {
+    const { fixture, $, openSheet, dialog, open } = setup();
+    openSheet();
+    fixture.debugElement.query((d) => d.componentInstance instanceof SheetComponent).componentInstance.close();
+    expect(dialog().open).toBe(false);
+    expect(open()).toBe(false);
+    expect(document.activeElement).toBe($('#opener'));
+  });
+
   it('closes from its close button', () => {
     const { fixture, $, openSheet, open } = setup();
     openSheet();

@@ -68,7 +68,7 @@ describe.each(storages)('Paid interview access over HTTP (%s storage)', (storage
     await fakes?.close();
   });
 
-  async function instance(options: { client?: Anthropic; ai?: boolean; quota?: number } = {}) {
+  async function instance(options: { client?: Anthropic; ai?: boolean; quota?: number; aiRounds?: number } = {}) {
     const app = await createTestApp(
       {
         DATABASE_URL: storage === 'postgres' ? databaseUrl : undefined,
@@ -76,6 +76,7 @@ describe.each(storages)('Paid interview access over HTTP (%s storage)', (storage
         TRUST_PROXY: '1',
         RATE_LIMIT_PER_MINUTE: '1000',
         INTERVIEW_MESSAGES_PER_HOUR: String(options.quota ?? 120),
+        ...(options.aiRounds ? { AI_ROUNDS_PER_HOUR: String(options.aiRounds) } : {}),
         AI_DAILY_BUDGET_USD: '100',
         ...fakes.env(),
       },
@@ -138,6 +139,76 @@ describe.each(storages)('Paid interview access over HTTP (%s storage)', (storage
     expect(await start(app, bearer(account))).toMatchObject({ mode: 'offline', aiAccess: 'available' });
     expect(provider.requests).toHaveLength(0);
     expect(await app.get(SpendGuard).spentToday()).toBe(0);
+  });
+
+  it('counts AI rounds per learner and hour, once per session, and refuses the next before any paid work', async () => {
+    const app = await instance({ aiRounds: 2 });
+    const account = await signIn(app, 'rounds@example.com');
+    const rounds = async (headers: Record<string, string>) =>
+      (await request(app.getHttpServer()).get('/api/interview/problems').set(headers).expect(200)).body.aiRounds;
+    expect(await rounds(guest(randomUUID()))).toBeUndefined();
+    expect(await rounds(bearer(account))).toEqual({ limit: 2, used: 0 });
+
+    const ai = await start(app, bearer(account), 'ai');
+    expect(ai).toMatchObject({ mode: 'ai' });
+    expect(ai).not.toHaveProperty('aiRound');
+    await start(app, bearer(account), 'offline');
+    expect(await rounds(bearer(account))).toEqual({ limit: 2, used: 1 });
+
+    const scripted = await start(app, bearer(account), 'offline');
+    await setMode(app, scripted.id, bearer(account), 'ai').expect(201);
+    await setMode(app, scripted.id, bearer(account), 'offline').expect(201);
+    await setMode(app, scripted.id, bearer(account), 'ai').expect(201);
+    await setMode(app, ai.id, bearer(account), 'offline').expect(201);
+    await setMode(app, ai.id, bearer(account), 'ai').expect(201);
+    expect(await rounds(bearer(account))).toEqual({ limit: 2, used: 2 });
+
+    const refused = await request(app.getHttpServer())
+      .post('/api/interview/sessions')
+      .set(bearer(account))
+      .send({ track: 'behavioral', mode: 'ai' })
+      .expect(429);
+    expect(refused.body).toMatchObject({
+      code: 'ai_rounds_used',
+      message: "You have used this hour's 2 AI rounds. Scripted rounds are always available.",
+    });
+    const another = await start(app, bearer(account), 'offline');
+    expect((await setMode(app, another.id, bearer(account), 'ai').expect(429)).body.code).toBe('ai_rounds_used');
+    expect(
+      (await request(app.getHttpServer()).get(`/api/interview/sessions/${another.id}`).set(bearer(account)).expect(200)).body.mode,
+    ).toBe('offline');
+    expect(await rounds(bearer(account))).toEqual({ limit: 2, used: 2 });
+    expect(provider.requests).toHaveLength(0);
+    expect(await app.get(SpendGuard).spentToday()).toBe(0);
+  });
+
+  it('serves the catalog without the allowance when it cannot be read, so scripted rounds still start', async () => {
+    const app = await instance();
+    const account = await signIn(app, 'rounds-down@example.com');
+    vi.spyOn(app.get(CoordinationStore), 'read').mockRejectedValueOnce(new Error('coordination unavailable'));
+    const catalog = (await request(app.getHttpServer()).get('/api/interview/problems').set(bearer(account)).expect(200)).body;
+    expect(catalog).toMatchObject({ aiAccess: 'available' });
+    expect(catalog).not.toHaveProperty('aiRounds');
+    expect(await start(app, bearer(account), 'offline')).toMatchObject({ mode: 'offline' });
+  });
+
+  it('shows catalog titles, also for a session stored with an old mock title', async () => {
+    const app = await instance({ ai: false });
+    const learnerId = randomUUID();
+    const started = (
+      await request(app.getHttpServer())
+        .post('/api/interview/sessions')
+        .set(guest(learnerId))
+        .send({ track: 'system-design', problemId: 'rate-limiter' })
+        .expect(201)
+    ).body;
+    expect(started.problem.title).toBe('Rate Limiter');
+    const store = app.get(InterviewStore);
+    const stored = (await store.get(learnerId, started.id))!;
+    await store.save({ ...stored, problem: { ...stored.problem, title: 'Design a Distributed Rate Limiter' } });
+    const [recent] = (await request(app.getHttpServer()).get('/api/interview/sessions').set(guest(learnerId)).expect(200)).body;
+    expect(recent.problem.title).toBe('Rate Limiter');
+    expect((await store.get(learnerId, started.id))!.problem.title).toBe('Design a Distributed Rate Limiter');
   });
 
   it('rejects rotating guest UUIDs on every paid path without quota, transcript, or spend changes', async () => {

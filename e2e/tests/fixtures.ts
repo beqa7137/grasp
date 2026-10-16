@@ -254,3 +254,24 @@ export async function expectSectionLit(page: Page, name: string) {
   if (railShown(page)) await expect(section(page, name)).toHaveAttribute('aria-current', /^(page|true)$/);
   else await expect(section(page, name)).toHaveAttribute('aria-selected', 'true');
 }
+
+export type MockRound = 'Coding' | 'System design' | 'Behavioral';
+
+/** The Mock hub's start sheet for a Single round, opened from the round's card. */
+export async function openStartSheet(page: Page, round: MockRound) {
+  const card = page.locator('app-interview-home .round').filter({ has: page.getByRole('heading', { name: `${round} round` }) });
+  await card.getByRole('button', { name: 'Start a round' }).click();
+  const sheet = page.getByRole('dialog', { name: `${round} round` });
+  await expect(sheet).toBeVisible();
+  return sheet;
+}
+
+/** Starts a Single round from the Mock hub: Scripted unless `ai`, on the named choice or Surprise me. */
+export async function startMockRound(page: Page, round: MockRound, choice?: string | RegExp, { ai = false } = {}) {
+  if (new URL(page.url()).pathname !== '/mock') await page.goto('/mock');
+  const sheet = await openStartSheet(page, round);
+  if (ai) await sheet.getByRole('radio', { name: 'AI interviewer' }).click();
+  if (choice) await sheet.getByRole('radio', { name: choice }).check();
+  await sheet.getByRole('button', { name: 'Start round' }).click();
+  await expect(page).toHaveURL(/\/mock\/[0-9a-f-]{36}$/);
+}

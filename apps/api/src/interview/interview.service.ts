@@ -22,6 +22,7 @@ import { BEHAVIORAL_CLOSING, BEHAVIORAL_FOLLOW_UPS, starText } from './behaviora
 import { Interviewer } from './interviewer.js';
 import type {
   AiAccess,
+  AiRounds,
   CodeSnapshot,
   InterviewMessage,
   InterviewMode,
@@ -71,6 +72,19 @@ export class InterviewService {
     return userId ? 'available' : 'sign-in-required';
   }
 
+  /** The caller's AI rounds this hour, for a learner who can use AI; null otherwise. */
+  async aiRounds(learnerId: string, userId: string | null): Promise<AiRounds | null> {
+    if (this.aiAccess(userId) !== 'available') return null;
+    try {
+      const used = await this.coordination.read(aiRoundsKey(learnerId), HOUR_MS);
+      return { limit: this.config.aiRoundsPerHour, used: Math.min(used, this.config.aiRoundsPerHour) };
+    } catch (error) {
+      // The catalog also serves scripted starts, so a failed read leaves the allowance out rather than failing it.
+      this.log.warn({ operation: 'interview.read-ai-rounds', ...safeErrorDetails(error) });
+      return null;
+    }
+  }
+
   catalog() {
     return [
       ...PROBLEMS.map(({ id, track, title, patternIds }) => ({ id, track, title, patternIds })),
@@ -89,6 +103,7 @@ export class InterviewService {
     const problem = pickProblem(track, problemId);
     if (!problem) throw new NotFoundException('Unknown problem for this track');
     await this.interviewerFor(mode, claims);
+    if (mode === 'ai') await this.takeAiRound(learnerId);
     const now = new Date().toISOString();
     const session: InterviewSession = {
       id: randomUUID(),
@@ -101,6 +116,7 @@ export class InterviewService {
       createdAt: now,
       mode,
       ...(track === 'behavioral' ? { level: level ?? 'mid' } : {}),
+      ...(mode === 'ai' ? { aiRound: true as const } : {}),
     };
     await this.store.save(session);
     return this.toPublic(session, claims?.userId);
@@ -119,6 +135,10 @@ export class InterviewService {
       const session = await this.load(learnerId, id);
       if (session.status !== 'active') throw new ConflictException('Interview already scored');
       await this.interviewerFor(mode, claims);
+      if (mode === 'ai' && !session.aiRound) {
+        await this.takeAiRound(learnerId);
+        session.aiRound = true;
+      }
       session.mode = mode;
       await this.store.save(session);
       return this.toPublic(session, claims?.userId);
@@ -241,13 +261,29 @@ export class InterviewService {
     if (!taken) throw new HttpException('Interview rate limit reached, try again later', HttpStatus.TOO_MANY_REQUESTS);
   }
 
+  /**
+   * Taken before the session is saved: taken after, a refused take would have to undo a saved AI session that a concurrent
+   * request could already be using. A save that then fails costs the learner one round of the hour.
+   */
+  private async takeAiRound(learnerId: string) {
+    if (await this.coordination.take(aiRoundsKey(learnerId), HOUR_MS, this.config.aiRoundsPerHour)) return;
+    throw new HttpException(
+      {
+        code: 'ai_rounds_used',
+        message: `You have used this hour's ${this.config.aiRoundsPerHour} AI rounds. Scripted rounds are always available.`,
+      },
+      HttpStatus.TOO_MANY_REQUESTS,
+    );
+  }
+
   private toPublic(s: InterviewSession, userId?: string | null): PublicInterviewSession {
-    const { learnerId: _l, usage: _u, problem, ...rest } = s;
+    const { learnerId: _l, usage: _u, aiRound: _a, problem, ...rest } = s;
     return {
       ...rest,
       problem: {
         id: problem.id,
-        title: problem.title,
+        // Sessions keep the title they started with; the index's catalog title is the one to show.
+        title: PROBLEMS.find((p) => p.id === problem.id && p.track === problem.track)?.title ?? problem.title,
         track: problem.track,
         patternIds: problem.patternIds,
         ...(problem.competencyId ? { competencyId: problem.competencyId } : {}),
@@ -257,6 +293,8 @@ export class InterviewService {
     };
   }
 }
+
+const aiRoundsKey = (learnerId: string) => `interview-ai-rounds:${learnerId}`;
 
 /** A behavioral interview opens with one STAR answer and continues in plain follow-up answers, without hints or code. */
 function candidateMessage(session: InterviewSession, turns: number, input: CandidateInput): InterviewMessage {

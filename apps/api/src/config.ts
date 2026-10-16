@@ -48,6 +48,7 @@ const envSchema = z
         .refine((value) => Number.isSafeInteger(Math.floor(value * 1_000_000)), 'must fit a safe integer number of microdollars'),
     ),
     INTERVIEW_MESSAGES_PER_HOUR: z.coerce.number().int().positive().default(120),
+    AI_ROUNDS_PER_HOUR: z.coerce.number().int().positive().default(3),
 
     ADMIN_TOKEN: optional(z.string().min(32, 'must be at least 32 characters')),
     JWT_SECRET: optional(z.string().min(32, 'must be at least 32 characters')),
@@ -105,6 +106,8 @@ export interface AppConfig {
   /** Null means no daily ceiling. */
   aiDailyBudgetUsd: number | null;
   interviewMessagesPerHour: number;
+  /** AI interview sessions a learner may start, or switch to AI, per clock hour. */
+  aiRoundsPerHour: number;
   /** Bearer token for /api/admin; admin routes are disabled when unset. */
   adminToken: string | null;
   /** Signs access tokens. Outside production a random per-process secret is used when unset. */
@@ -155,6 +158,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     interviewScoreDeadlineMs: e.INTERVIEW_SCORE_DEADLINE_MS,
     aiDailyBudgetUsd: e.AI_DAILY_BUDGET_USD ?? null,
     interviewMessagesPerHour: e.INTERVIEW_MESSAGES_PER_HOUR,
+    aiRoundsPerHour: e.AI_ROUNDS_PER_HOUR,
     adminToken: e.ADMIN_TOKEN ?? null,
     jwtSecret: e.JWT_SECRET ?? null,
     google: e.GOOGLE_WEB_CLIENT_ID ? { webClientId: e.GOOGLE_WEB_CLIENT_ID, iosClientId: e.GOOGLE_IOS_CLIENT_ID ?? null } : null,

@@ -9,7 +9,7 @@ import {
   type FocusTarget,
   type LoopDebrief,
 } from '@grasp/engine';
-import type { InterviewSession } from './interview.types';
+import { scoredBy, type InterviewSession } from './interview.types';
 import { CrossLinkDirective } from '../../ui/cross-link.directive';
 
 const verdictLabel = (verdict: string) => verdict.replace(/-/g, ' ');
@@ -96,7 +96,7 @@ function practice(target: FocusTarget): { link: string[]; label: string } {
       @for (s of sessions(); track s.id) {
         @if (s.scorecard; as card) {
           <section class="panel round" [attr.aria-labelledby]="'round-' + s.id">
-            <p class="eyebrow">{{ names[s.track] }} · {{ card.mode === 'ai' ? 'AI feedback' : 'scripted practice estimate' }}</p>
+            <p class="eyebrow">{{ names[s.track] }} · {{ scoredBy(s) }}</p>
             <h3 [id]="'round-' + s.id">{{ s.problem.title }}</h3>
             <p class="verdict" [class.neutral]="card.mode === 'offline'" [attr.data-verdict]="card.verdict">{{ label(card.verdict) }}</p>
             <dl>
@@ -199,6 +199,7 @@ export class LoopDebriefComponent {
   readonly sessions = input.required<InterviewSession[]>();
   readonly names = TRACK_NAMES;
   readonly label = verdictLabel;
+  readonly scoredBy = scoredBy;
   readonly allScripted = computed(() => this.debrief().scripted === this.sessions().length);
   readonly focus = computed(() => this.debrief().focus.map((f) => ({ ...f, practice: practice(f.target) })));
 }

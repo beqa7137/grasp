@@ -42,8 +42,10 @@ export class InterviewController {
   constructor(private readonly interviews: InterviewService) {}
 
   @Get('problems')
-  problems(@UserId() userId: string | null) {
-    return { aiAccess: this.interviews.aiAccess(userId), problems: this.interviews.catalog() };
+  async problems(@UserId() userId: string | null, @Req() req: Request) {
+    const learnerId = req.identity?.learnerId;
+    const aiRounds = learnerId ? await this.interviews.aiRounds(learnerId, userId) : null;
+    return { aiAccess: this.interviews.aiAccess(userId), problems: this.interviews.catalog(), ...(aiRounds ? { aiRounds } : {}) };
   }
 
   @Get('sessions')

@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { CODING_CATALOG } from '@grasp/engine';
-import { TODAY_HEADING as TODAY, expect, section, shownPage, test } from './fixtures';
+import { TODAY_HEADING as TODAY, expect, section, shownPage, startMockRound, test } from './fixtures';
 
 // The rail shows from 1024px (REDESIGN.md 2.6): 1024×768 is a small laptop and an iPad Mini held sideways.
 const W1024 = { width: 1024, height: 768 };
@@ -142,10 +142,13 @@ const watchToday = (page: Page) =>
     const today = document.querySelector('app-today')!;
     const w = window as unknown as { todayShown: boolean };
     w.todayShown = false;
-    new MutationObserver(() => (w.todayShown ||= !today.classList.contains('ion-page-hidden'))).observe(today, {
-      attributes: true,
-      attributeFilter: ['class'],
-    });
+    // Only a change from hidden to shown counts: Ionic's end of the tab transition touches Today's classes while it stays hidden.
+    let hidden = today.classList.contains('ion-page-hidden');
+    new MutationObserver(() => {
+      const now = today.classList.contains('ion-page-hidden');
+      if (hidden && !now) w.todayShown = true;
+      hidden = now;
+    }).observe(today, { attributes: true, attributeFilter: ['class'] });
   });
 const todayShown = (page: Page) => page.evaluate(() => (window as unknown as { todayShown: boolean }).todayShown);
 
@@ -158,6 +161,7 @@ test(
     await expect(heading(page)).toHaveText(TODAY);
     await section(page, 'Coding').click();
     await expect(page).toHaveURL(/\/coding$/);
+    await expect(page.locator('app-today')).toHaveClass(/ion-page-hidden/);
     await watchToday(page);
     await section(page, 'Settings').click();
     await expect(heading(page)).toHaveText('Settings');
@@ -307,9 +311,7 @@ test('the Skip link comes first and moves focus to the page', { tag: '@nav' }, a
 
   // A page without a heading gives its main content focus.
   await page.waitForLoadState('networkidle');
-  await page.goto('/mock');
-  await page.getByRole('button', { name: /Days Until Warmer/ }).click();
-  await expect(page).toHaveURL(/\/mock\/[0-9a-f-]{36}$/);
+  await startMockRound(page, 'Coding', 'Days Until Warmer');
   await expect(shownPage(page).locator('h1')).toHaveCount(0);
   await skip.focus();
   await page.keyboard.press('Enter');

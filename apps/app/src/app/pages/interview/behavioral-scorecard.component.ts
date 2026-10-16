@@ -13,9 +13,9 @@ import { ApiError, ApiService } from '../../core/api.service';
 import { ProgressService } from '../../core/progress.service';
 import { SignInOptionsComponent } from '../../core/sign-in-options.component';
 import { StoryBankService } from '../behavioral/story-bank.service';
-import type { InterviewSession } from './interview.types';
+import type { InterviewMode, InterviewSession } from './interview.types';
 import { needsSignIn, startInterview } from './start-interview';
-import { CrossLinkDirective, crossState } from '../../ui/cross-link.directive';
+import { CrossLinkDirective } from '../../ui/cross-link.directive';
 
 const sameDraft = (a: StarDraft, b: StarDraft) =>
   (Object.keys(a) as (keyof StarDraft)[]).every((part) => a[part].trim() === b[part].trim());
@@ -76,9 +76,9 @@ const sameDraft = (a: StarDraft, b: StarDraft) =>
       <p class="error" role="alert">{{ message }}</p>
     }
     @if (signInOpen() || error()) {
-      <a class="scripted" routerLink="/behavioral/drill" [queryParams]="{ question: next() }" crossLink
-        >Practice it with scripted follow-ups instead</a
-      >
+      <button type="button" class="g-btn scripted" [disabled]="starting()" (click)="scripted()">
+        Practice it with scripted follow-ups instead
+      </button>
     }
   `,
   styles: `
@@ -129,7 +129,6 @@ const sameDraft = (a: StarDraft, b: StarDraft) =>
       margin: 12px 0 0;
     }
     .scripted {
-      display: inline-block;
       margin-top: 12px;
     }
   `,
@@ -184,22 +183,31 @@ export class BehavioralScorecardComponent {
     await this.bank.saveAnswer(answer, this.competencyId(), this.session().problem.title);
   }
 
-  async another() {
+  another() {
     const session = this.session();
     const next = anotherQuestion(Math.random, session.problem.id);
     this.next.set(next);
-    if (session.mode === 'offline') {
-      await this.router.navigate(['/behavioral/drill'], {
-        queryParams: { question: next },
-        state: crossState(this.router, '/behavioral/drill'),
-      });
-      return;
-    }
+    return this.startRound(session.mode);
+  }
+
+  /** The AI interviewer was refused: the same next question as a scripted round, which still ends in a verdict. */
+  scripted() {
+    return this.startRound('offline');
+  }
+
+  private async startRound(mode: InterviewMode) {
+    if (this.starting()) return;
     this.starting.set(true);
     this.error.set(null);
     this.signInOpen.set(false);
     try {
-      await startInterview(this.api, this.router, { track: 'behavioral', problemId: next, mode: 'ai' });
+      const level = this.session().level;
+      await startInterview(this.api, this.router, {
+        track: 'behavioral',
+        problemId: this.next() || this.session().problem.id,
+        mode,
+        ...(level ? { level } : {}),
+      });
     } catch (error) {
       if (needsSignIn(error)) this.signInOpen.set(true);
       else this.error.set(error instanceof ApiError ? error.message : 'Could not start the interview.');

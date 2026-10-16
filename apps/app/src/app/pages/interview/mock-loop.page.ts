@@ -1,5 +1,16 @@
 import { formatDate } from '@angular/common';
-import { ChangeDetectionStrategy, Component, ElementRef, Injector, LOCALE_ID, computed, inject, signal, viewChild } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  Injector,
+  LOCALE_ID,
+  computed,
+  inject,
+  linkedSignal,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { IonButtons, IonContent, IonHeader, IonIcon, IonSpinner, IonTitle, IonToolbar } from '@ionic/angular';
 import {
@@ -8,6 +19,7 @@ import {
   PLAN_ROUND_TRACK,
   SENIORITY_LEVELS,
   TRACK_NAMES,
+  currentTarget,
   debriefLoop,
   getCompetencySummary,
   hasInterviewFlags,
@@ -111,10 +123,8 @@ type Stage = 'loading' | 'setup' | 'running' | 'debrief';
                 </li>
               }
             </ol>
-            @if (planRounds()) {
-              <p class="muted">
-                These are the rounds in your study plan. <a routerLink="/today/plan" crossLink>Change them on the plan page</a>.
-              </p>
+            @if (target().source !== 'assumed') {
+              <p class="muted">These are the rounds in your loop. <a routerLink="/today" crossLink>Change your loop on Today</a>.</p>
             }
             <p class="muted">Take a short break between rounds if you like. You can stop after any round and pick up from here later.</p>
             @if (setupTracks().includes('behavioral')) {
@@ -150,14 +160,20 @@ type Stage = 'loading' | 'setup' | 'running' | 'debrief';
             @if (mode() === 'ai') {
               <p class="muted note">
                 An AI loop is {{ setupTracks().length === 1 ? 'one AI interview' : setupTracks().length + ' AI interviews in a row' }}. It
-                costs you nothing, but each reply and each scorecard uses your hourly AI allowance, the same one single interviews use. If
-                you reach it mid-round, wait until the next hour and carry on; nothing is lost. Your replies, shared code and answers,
-                including any story you start from, are sent to the AI service. The debrief itself makes no AI call.
+                costs you nothing, but each round takes one of your AI rounds for the hour, the same ones single rounds use. If a round
+                finds none left, switch the remaining rounds to scripted or start it after the hour turns. Your replies, shared code and
+                answers, including any story you start from, are sent to the AI service. The debrief itself makes no AI call.
               </p>
+              @if (aiRoundsShort(); as short) {
+                <p class="note" role="status">
+                  You have {{ short.left }} AI {{ short.left === 1 ? 'round' : 'rounds' }} left this hour and this loop has
+                  {{ short.needed }}. The rest can switch to scripted when you reach them.
+                </p>
+              }
             } @else {
               <p class="muted note">
-                Guided prompts and a practice estimate for each round. No AI or sign-in needed. Replies and scorecards still count toward
-                the hourly interview allowance.
+                Scripted follow-ups for each round, scored by rubric checks. No AI or sign-in needed. Replies and scorecards still count
+                toward the hourly interview allowance.
               </p>
             }
             @if (aiAccess() === 'unavailable') {
@@ -366,7 +382,8 @@ export class MockLoopPage {
   readonly loaded = signal(false);
   readonly choosing = signal(false);
   readonly mode = signal<InterviewMode>('offline');
-  readonly level = signal<Seniority>('mid');
+  /** The Target's level until the learner picks another here, which stays this loop's and never writes the Target. */
+  readonly level = linkedSignal<Seniority>(() => this.targetLevel());
   readonly starting = signal(false);
   readonly signInOpen = signal(false);
   readonly signInAgain = signal(false);
@@ -376,11 +393,20 @@ export class MockLoopPage {
   readonly missingNote = signal<string | null>(null);
   readonly pending = computed(() => this.starting() || this.signInOpen() || this.signInAgain());
   readonly aiAccess = computed<AiAccess | null>(() => this.catalog()?.aiAccess ?? null);
+  /** This hour's AI rounds, when fewer are left than the loop has rounds. */
+  readonly aiRoundsShort = computed(() => {
+    const rounds = this.catalog()?.aiRounds;
+    const needed = this.setupTracks().length;
+    return rounds && rounds.limit - rounds.used < needed ? { left: Math.max(0, rounds.limit - rounds.used), needed } : null;
+  });
   readonly flagged = computed(() => hasInterviewFlags(this.progress.state()));
   private loading: Promise<void> | null = null;
 
-  readonly planRounds = computed(() => this.progress.state().plan?.rounds ?? null);
-  readonly setupTracks = computed(() => (this.planRounds() ?? PLAN_ROUNDS).map((r) => PLAN_ROUND_TRACK[r]));
+  readonly target = computed(() => currentTarget(this.progress.state()));
+  /** A string, so a record that leaves the level as it was does not reset the one picked here. */
+  private readonly targetLevel = computed(() => this.target().target.level);
+  private readonly loopRounds = computed(() => PLAN_ROUNDS.filter((r) => this.target().target.rounds[r] > 0));
+  readonly setupTracks = computed(() => this.loopRounds().map((r) => PLAN_ROUND_TRACK[r]));
   readonly rounds = computed(() =>
     (this.loop()?.rounds ?? []).map((r) => ({ ...r, session: r.sessionId ? this.sessions()[r.sessionId] : undefined })),
   );
@@ -491,13 +517,7 @@ export class MockLoopPage {
     this.starting.set(true);
     this.error.set(null);
     try {
-      const picks: LoopPick[] = pickLoop(
-        catalog.problems,
-        this.progress.state(),
-        seeded(newSeed()),
-        this.planRounds() ?? PLAN_ROUNDS,
-        this.seen(),
-      );
+      const picks: LoopPick[] = pickLoop(catalog.problems, this.progress.state(), seeded(newSeed()), this.loopRounds(), this.seen());
       if (!picks.length) {
         this.error.set('No interview questions are available for these rounds right now. Please try again later.');
         return;
@@ -545,7 +565,7 @@ export class MockLoopPage {
     } catch (e) {
       this.error.set(e instanceof ApiError ? e.message : 'Could not start the round. Please try again.');
       this.signInAgain.set(needsSignIn(e));
-      this.aiRefused.set(e instanceof ApiError && e.code === 'ai_unavailable');
+      this.aiRefused.set(e instanceof ApiError && (e.code === 'ai_unavailable' || e.code === 'ai_rounds_used'));
       this.focusHeading();
     }
   }
