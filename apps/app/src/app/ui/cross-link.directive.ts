@@ -10,9 +10,12 @@ import {
 } from '@angular/router';
 import { NavController } from '@ionic/angular';
 
+/** A URL without its query or fragment. */
+export const pathOf = (url: string) => url.split(/[?#]/)[0];
+
 /** The tab a URL belongs to: its first segment (REDESIGN.md 2.4), which is also Ionic's stack id. */
 export function tabOf(url: string): string {
-  return url.split(/[?#]/)[0].split('/').find(Boolean) ?? '';
+  return pathOf(url).split('/').find(Boolean) ?? '';
 }
 
 /** Navigation state for a link to `target`: where it came from, when that is another tab (`app-back` returns there). */

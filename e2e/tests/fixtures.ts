@@ -224,3 +224,18 @@ export const TODAY_HEADING = /^What is your loop\?$| loop\b|^Assuming a Mid-leve
 
 /** The page shown in the tabs' outlet: Ionic keeps the other tabs' pages mounted, and hidden. */
 export const shownPage = (page: Page) => page.locator('ion-tabs ion-router-outlet > .ion-page:not(.ion-page-hidden)');
+
+/** From 1024px the rail replaces the tab bar (REDESIGN.md 2.6). */
+export const railShown = (page: Page) => page.viewportSize()!.width >= 1024;
+
+/** A section's tab, or from 1024px its rail item. */
+export const section = (page: Page, name: string) =>
+  railShown(page)
+    ? page.locator('app-rail').getByRole('link', { name: new RegExp(`^${name}`) })
+    : page.getByRole('tab', { name: new RegExp(`^${name}`) });
+
+/** The section is lit: its tab is selected, or its rail item is current (the section's own page, or a page inside it). */
+export async function expectSectionLit(page: Page, name: string) {
+  if (railShown(page)) await expect(section(page, name)).toHaveAttribute('aria-current', /^(page|true)$/);
+  else await expect(section(page, name)).toHaveAttribute('aria-selected', 'true');
+}

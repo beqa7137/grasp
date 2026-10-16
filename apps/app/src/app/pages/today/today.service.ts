@@ -1,5 +1,4 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
-import { dayKey } from '@grasp/engine';
+import { Injectable, inject, signal } from '@angular/core';
 import { readDevicePref, writeDevicePref } from '../../core/device-prefs';
 import { ProgressService } from '../../core/progress.service';
 
@@ -26,7 +25,7 @@ export class TodayService {
    * The learner's calendar day. `ProgressService.now` is replaced every minute and on every record, so whatever must hold
    * between visits (Up next) reads this instead, which changes only when the day does.
    */
-  readonly day = computed(() => dayKey(this.progress.now(), this.progress.now().getTimezoneOffset()));
+  readonly day = this.progress.day;
   /** Today is the page in view; its deferred blocks load and build only then, so a page opened from it goes first. */
   readonly shown = signal(true);
   /** Bumps when Up next should rebuild: Today entered, or the learner changed their loop here. */

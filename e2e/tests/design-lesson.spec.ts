@@ -153,7 +153,7 @@ test('the search lesson intersects posting lists for AND and ranks every match f
   await expect(results.first()).toContainText('1.02');
   await page.getByRole('radio', { name: 'Any word (OR)' }).click();
   await expect(results).toHaveCount(5);
-  await page.getByRole('searchbox').fill('zebra');
+  await page.locator('app-index-widget').getByRole('searchbox').fill('zebra');
   await expect(page.getByText('No document matches.')).toBeVisible();
 });
 

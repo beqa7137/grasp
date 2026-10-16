@@ -13,7 +13,7 @@ import {
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AlertController, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
-import { PLAN_MINUTES, PLAN_ROUNDS, ROUND_NAMES, buildStudyPlan, currentTarget, dayKey, type StudyPlanInput } from '@grasp/engine';
+import { PLAN_MINUTES, PLAN_ROUNDS, ROUND_NAMES, buildStudyPlan, currentTarget, type StudyPlanInput } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import { chatbubblesOutline, flashOutline } from 'ionicons/icons';
 import { AnnouncerService } from '../../core/announcer.service';
@@ -367,7 +367,7 @@ export class PlanPage {
   private undoTimer: ReturnType<typeof setTimeout> | undefined;
 
   readonly input = computed(() => this.progress.state().plan);
-  readonly today = computed(() => dayKey(this.progress.now(), this.progress.now().getTimezoneOffset()));
+  readonly today = this.progress.day;
   readonly plan = computed(() => {
     const input = this.input();
     const now = this.progress.now();
