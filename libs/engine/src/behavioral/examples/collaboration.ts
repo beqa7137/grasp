@@ -5,6 +5,8 @@ export const COLLABORATION: CompetencyExamples = {
   strong: [
     {
       level: 'early',
+      lookFor:
+        'Building your part with design and product: constraints raised before the build, a prototype instead of objections, and your plan changed by their research.',
       questionId: 'collaboration-1',
       situation:
         'In my first year as a frontend engineer at a travel booking site, I was assigned the mobile passenger details form, where about 30 percent of users who reached it abandoned the booking. A product manager owned that number and a designer owned the new mockups.',
@@ -27,6 +29,8 @@ export const COLLABORATION: CompetencyExamples = {
     },
     {
       level: 'mid',
+      lookFor:
+        "Stepping into another team's problem: time cleared openly with your lead, the problem shrunk together, and no new dependency on you left behind.",
       questionId: 'collaboration-2',
       situation:
         "I was a backend engineer on the search team of a used car marketplace. The mobile team's release in three weeks needed saved search alerts, and they were blocked on an endpoint my team had promised and then deprioritized for a ranking project.",
@@ -48,6 +52,8 @@ export const COLLABORATION: CompetencyExamples = {
     },
     {
       level: 'senior',
+      lookFor:
+        "A project across several teams with a fixed date and no authority: each team's constraints learned first, work split so no team blocks another, and credit shared by name.",
       questionId: 'collaboration-3',
       situation:
         'As a senior engineer at a healthcare scheduling company, I led the move of appointment reminders from email only to SMS. It needed work from four teams, messaging, patient accounts, compliance tooling and the mobile app, and none of them reported to me.',

@@ -250,8 +250,8 @@ test('an AI behavioral interview starts from a story, takes three follow-ups, an
   await expect(page.getByText('Story 1 of 1 · Conflict & Disagreement')).toBeVisible();
 
   await settledGoto(page, '/behavioral');
-  await expect(page.getByRole('heading', { name: 'Flagged in interviews' })).toBeVisible();
-  await expect(page.locator('.flagged').getByRole('link', { name: /Conflict & Disagreement/ })).toContainText('1 story to rehearse now.');
+  await expect(page.getByRole('link', { name: /Conflict & Disagreement/ })).toContainText('Flagged');
+  await expect(page.getByRole('link', { name: /^Rehearse 1 story/ })).toHaveAttribute('href', '/behavioral/rehearse');
   await settledGoto(page, '/behavioral/stories');
   await expect(page.getByRole('link', { name: /The launch date/ })).toContainText('Rehearse now');
 });

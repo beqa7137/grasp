@@ -5,6 +5,8 @@ export const CUSTOMER: CompetencyExamples = {
   strong: [
     {
       level: 'early',
+      lookFor:
+        "One user's problem treated as theirs rather than a ticket: you talked to them, reproduced it from their words, and pushed back on a partial fix.",
       questionId: 'customer-1',
       situation:
         'In my first year on the Android team of a pharmacy delivery app, a support agent forwarded a ticket from a user in a rural area whose refill orders kept failing at checkout. She was 71, ordered heart medication every month, and had already driven to the store twice because the app said her payment failed.',
@@ -26,6 +28,8 @@ export const CUSTOMER: CompetencyExamples = {
     },
     {
       level: 'mid',
+      lookFor:
+        "One important customer's complaint traced to its cause by watching them work, their real failures turned into tests, and a fix chosen for what their work can tolerate.",
       questionId: 'customer-7',
       situation:
         'I worked on site search for a marketplace of used industrial equipment. A large buyer, the procurement manager at a construction firm, complained that searching by part number returned nothing useful, and the firm was considering moving its orders elsewhere.',
@@ -46,6 +50,8 @@ export const CUSTOMER: CompetencyExamples = {
     },
     {
       level: 'senior',
+      lookFor:
+        'Testing a roadmap against what users need before teams commit to it, and changing it through data and shared experiments rather than authority.',
       questionId: 'customer-2',
       situation:
         'I was the staff engineer for the recommendations org at a streaming service, across four teams, and the roadmap for the next two quarters was a new deep ranking model aimed at raising click-through on the home screen by 3 percent.',

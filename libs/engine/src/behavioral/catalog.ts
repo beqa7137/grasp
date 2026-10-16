@@ -5,6 +5,9 @@ export interface CompetencySummary {
   oneLiner: string;
 }
 
+/** Every competency has this many questions (behavioral.spec.ts), so a list can count them without loading them. */
+export const QUESTIONS_PER_COMPETENCY = 7;
+
 export const COMPETENCY_CATALOG: readonly CompetencySummary[] = [
   { id: 'ownership', name: 'Ownership', oneLiner: 'Acting like the outcome is yours, beyond the edges of your task.' },
   { id: 'delivery', name: 'Delivering Results', oneLiner: 'Shipping what matters on time, and saying early when you cannot.' },

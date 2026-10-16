@@ -47,6 +47,12 @@ const PAGES: { name: string; path: string; ready: (page: Page) => Promise<unknow
   { name: 'the case studies', path: '/design/cases', ready: hubShown },
   { name: 'the Behavioral hub', path: '/behavioral', ready: hubShown },
   { name: 'the story bank', path: '/behavioral/stories', ready: hubShown },
+  { name: 'the behavioral questions', path: '/behavioral/questions?competency=conflict', ready: hubShown },
+  {
+    name: 'the STAR guide',
+    path: '/behavioral/guide',
+    ready: (page) => expect(page.getByRole('heading', { name: 'How to answer (STAR)', level: 1 })).toBeVisible(),
+  },
   {
     name: 'a pattern page',
     path: '/coding/patterns/binary-search',

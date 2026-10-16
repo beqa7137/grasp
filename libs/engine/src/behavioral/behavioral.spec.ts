@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { COMPETENCY_CATALOG } from './catalog.js';
+import { COMPETENCY_CATALOG, QUESTIONS_PER_COMPETENCY } from './catalog.js';
 import { COMPETENCIES, getCompetency } from './competencies.js';
 
 const MAX_LENGTH = 220;
@@ -25,6 +25,7 @@ describe('behavioral guide', () => {
   it('gives each competency seven numbered questions and four or five signals and red flags', () => {
     for (const c of COMPETENCIES) {
       expect(c.questions.map((q) => q.id)).toEqual([1, 2, 3, 4, 5, 6, 7].map((n) => `${c.id}-${n}`));
+      expect(c.questions).toHaveLength(QUESTIONS_PER_COMPETENCY);
       expect(
         c.questions.every((q) => q.competencyId === c.id),
         c.id,

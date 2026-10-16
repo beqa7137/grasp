@@ -5,6 +5,8 @@ export const OWNERSHIP: CompetencyExamples = {
   strong: [
     {
       level: 'early',
+      lookFor:
+        'A small piece of work you owned end to end, a mistake admitted in your first words, and the gap you closed so it cannot happen again.',
       questionId: 'ownership-4',
       situation:
         'Eight months into my first job, on the data team of a food delivery company, I owned a nightly job that loaded restaurant orders into the warehouse. The finance dashboard that the operations managers read every morning was built on it.',
@@ -26,6 +28,8 @@ export const OWNERSHIP: CompetencyExamples = {
     },
     {
       level: 'mid',
+      lookFor:
+        'Work nobody owned that you chose to take on, the shortcut you turned down and why, and a fix that kept working after you moved on.',
       questionId: 'ownership-6',
       situation:
         "Our monorepo's main CI pipeline ran about 4,000 integration tests on every merge, and a checkout test that timed out at random failed roughly one build in six. Engineers had learned to hit retry, which added about twenty minutes to every affected merge and hid real failures behind the noise.",
@@ -48,6 +52,8 @@ export const OWNERSHIP: CompetencyExamples = {
     },
     {
       level: 'senior',
+      lookFor:
+        'A risk across many teams that nobody else had seen, owned as an outcome: you made its cost concrete, made the fix cheap for every team, and left a check that outlasted you.',
       questionId: 'ownership-7',
       situation:
         'I was a staff engineer on the platform group of a fintech company with about 300 engineers. Reading a cloud provider notice, I saw that the managed Postgres version under 41 of our databases would lose support in eleven months, after which the provider would upgrade them on its own schedule.',

@@ -1,95 +1,76 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { IonIcon } from '@ionic/angular';
-import { COMPETENCY_CATALOG, dueStories } from '@grasp/engine';
-import { addIcons } from 'ionicons';
-import { chatbubblesOutline, chevronForward, libraryOutline } from 'ionicons/icons';
+import {
+  COMPETENCY_CATALOG,
+  LEVEL_PROFILES,
+  QUESTIONS_PER_COMPETENCY,
+  competencyStatus,
+  currentTarget,
+  dueStories,
+  type StatusContext,
+} from '@grasp/engine';
 import { ProgressService } from '../../core/progress.service';
+import { ChipComponent } from '../../ui/chip.component';
+import { EntryRowComponent } from '../../ui/entry-row.component';
+import { SkillStateComponent } from '../../ui/skill-state.component';
 import { StarDraftsService } from './star-drafts.service';
 import { StoryBankService } from './story-bank.service';
 
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+/**
+ * The Behavioral hub's Competencies (REDESIGN.md 2.8, 4.8): what the learner has, then the 13 competencies with their
+ * state, questions, drafts and stories, Flagged, and Senior focus in a Senior loop. STAR lives on its own page.
+ */
 @Component({
   selector: 'app-behavioral-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, IonIcon],
+  imports: [RouterLink, ChipComponent, EntryRowComponent, SkillStateComponent],
   template: `
     <div class="page narrow">
       <h1>Behavioral interviews</h1>
-      <p class="lead">
-        Every loop has them, and at senior levels they often decide your level. Interviewers listen for what you did, how you decided and
-        what changed because of it.
+      <p class="summary">
+        @for (part of summary(); track $index; let last = $last) {
+          <span>{{ part }}</span
+          >{{ last ? '' : ' · ' }}
+        }
       </p>
-      <section class="panel star">
-        <h2>Answer with STAR</h2>
-        <dl>
-          <dt>Situation</dt>
-          <dd>The context, in two sentences.</dd>
-          <dt>Task</dt>
-          <dd>What you owned and why it was hard.</dd>
-          <dt>Action</dt>
-          <dd>What you did, in the first person. Most of the answer.</dd>
-          <dt>Result</dt>
-          <dd>What changed, with a number.</dd>
-          <dt>Reflection</dt>
-          <dd>What you learned or would do differently.</dd>
-        </dl>
-      </section>
-      <section class="panel prep">
-        <h2>Before the loop</h2>
-        <ul>
-          <li>Build a bank of 8 to 10 stories from the last two or three years. Most stories answer two or three competencies.</li>
-          <li>Pick stories whose scope matches the level you are interviewing for.</li>
-          <li>"Tell me about yourself" and "Why this company?" are not STAR: answer each in 60 to 90 seconds.</li>
-          <li>Rehearse aloud. Written answers run longer when spoken.</li>
-          <li>Bring two or three questions for the interviewer.</li>
-        </ul>
-      </section>
-      <a class="panel item bank" routerLink="/behavioral/drill">
-        <ion-icon class="lead-icon" name="chatbubbles-outline" aria-hidden="true" />
-        <span class="text">
-          <span class="name">STAR drill</span>
-          <span class="one">Three questions from different competencies, the follow-ups an interviewer asks, then a debrief.</span>
-        </span>
-        <ion-icon name="chevron-forward" aria-hidden="true" />
-      </a>
-      <a class="panel item bank" routerLink="/behavioral/stories" [replaceUrl]="true">
-        <ion-icon class="lead-icon" name="library-outline" aria-hidden="true" />
-        <span class="text">
-          <span class="name">Your story bank</span>
-          <span class="one">{{ bankSummary() }}</span>
-        </span>
-        <ion-icon name="chevron-forward" aria-hidden="true" />
-      </a>
-      @if (flagged().length) {
-        <h2 class="list-title">Flagged in interviews</h2>
-        <ul class="list flagged">
-          @for (f of flagged(); track f.id) {
-            <li>
-              <a class="panel item" [routerLink]="['/behavioral', f.id]">
-                <span class="text">
-                  <span class="name">{{ f.name }}</span>
-                  <span class="one">{{ f.note }}</span>
-                </span>
-                <ion-icon name="chevron-forward" aria-hidden="true" />
-              </a>
-            </li>
-          }
-        </ul>
+      <p class="guide"><a routerLink="/behavioral/guide">How to answer (STAR) →</a></p>
+      @if (due(); as due) {
+        <a
+          class="rehearse"
+          g-entry-row
+          [go]="true"
+          routerLink="/behavioral/rehearse"
+          [heading]="'Rehearse ' + plural(due, 'story', 'stories')"
+          [meta]="[due === 1 ? 'Due now. Tell it aloud against the clock.' : 'Due now. Tell each one aloud against the clock.']"
+        ></a>
       }
-      <h2 class="list-title">{{ competencies.length }} competencies</h2>
-      <ul class="list">
-        @for (c of competencies; track c.id) {
-          @let drafted = drafts.draftedIn(c.id);
+
+      <ul class="legend" aria-label="Key">
+        @for (k of legend; track k) {
+          <li><g-skill-state aria-hidden="true" [state]="k" />{{ names[k] }}</li>
+        }
+      </ul>
+      <p class="key-note">
+        A competency is Learning once a story is tagged with it or a mock round asks about it, Practiced once one of its stories is
+        rehearsed, and Ready once a story is told well twice in a row or a mock round scores it Lean hire or better.
+      </p>
+      <ul class="rows">
+        @for (r of rows(); track r.id) {
           <li>
-            <a class="panel item" [routerLink]="['/behavioral', c.id]">
-              <span class="text">
-                <span class="name">{{ c.name }}</span>
-                <span class="one">{{ c.oneLiner }}</span>
-                @if (drafted) {
-                  <span class="drafted">{{ drafted }} {{ drafted === 1 ? 'answer' : 'answers' }} drafted</span>
-                }
-              </span>
-              <ion-icon name="chevron-forward" aria-hidden="true" />
+            <a g-entry-row [heading]="r.name" [meta]="r.meta" [routerLink]="['/behavioral', r.id]">
+              <g-skill-state lead [state]="r.state" />
+              @if (r.flagged || r.focus) {
+                <span end class="marks">
+                  @if (r.flagged) {
+                    <g-chip tone="warn">Flagged</g-chip>
+                  }
+                  @if (r.focus) {
+                    <g-chip>Senior focus</g-chip>
+                  }
+                </span>
+              }
             </a>
           </li>
         }
@@ -97,139 +78,110 @@ import { StoryBankService } from './story-bank.service';
     </div>
   `,
   styles: `
-    @use '../../../type' as *;
-
     h1 {
-      font-size: clamp(1.625rem, 5vw, 2.25rem);
-      margin: 8px 0 8px;
+      font-size: var(--g-text-display-l);
+      margin: var(--g-space-1) 0 var(--g-space-1);
     }
-    .lead {
-      font-size: 1.0625rem;
-      line-height: 1.55;
-      margin: 0 0 16px;
-    }
-    .star,
-    .prep {
-      padding: 16px;
-      margin-bottom: 16px;
-    }
-    .prep ul {
-      margin: 0;
-      padding-left: 18px;
-    }
-    .prep li {
-      line-height: 1.55;
-      margin-bottom: 4px;
-      font-size: 0.90625rem;
-    }
-    h2 {
-      @include title;
-      font-size: 1rem;
-      margin: 0 0 10px;
-    }
-    dl {
-      display: grid;
-      grid-template-columns: max-content 1fr;
-      gap: 6px 14px;
-      margin: 0;
-      font-size: 0.90625rem;
-      line-height: 1.5;
-    }
-    dt {
-      font-weight: 600;
-      color: var(--g-accent);
-    }
-    dd {
-      margin: 0;
-    }
-    .bank {
-      margin-bottom: 8px;
-      &:last-of-type {
-        margin-bottom: 20px;
-      }
-      .lead-icon {
-        font-size: 22px;
-        color: var(--g-accent);
+    .summary {
+      margin: 0 0 var(--g-space-2);
+      /* Holds its line while the drafts and stories load, so nothing below moves when the counts arrive. */
+      min-height: 1.5em;
+      color: var(--g-muted);
+      font-size: var(--g-text-body-s);
+      span {
+        white-space: nowrap;
       }
     }
-    .list-title {
-      margin-top: 4px;
+    .guide {
+      margin: 0 0 var(--g-space-4);
+      a {
+        display: inline-block;
+        padding-block: var(--g-space-1);
+        font-weight: 600;
+      }
     }
-    .flagged {
-      margin-bottom: 20px;
+    .rehearse {
+      margin-bottom: var(--g-space-4);
     }
-    .list {
-      list-style: none;
+    .legend,
+    .rows {
       margin: 0;
       padding: 0;
-      display: grid;
-      gap: 8px;
+      list-style: none;
     }
-    .item {
+    .legend {
       display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 14px 16px;
-      color: inherit;
-      text-decoration: none;
-      ion-icon {
-        flex: none;
-        color: var(--g-muted);
+      flex-wrap: wrap;
+      gap: var(--g-space-1) var(--g-space-4);
+      margin-bottom: var(--g-space-2);
+      font-size: var(--g-text-body-s);
+      color: var(--g-muted);
+      li {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--g-space-1);
       }
     }
-    .text {
-      display: grid;
-      gap: 2px;
-      min-width: 0;
-      flex: 1;
-    }
-    .name {
-      font-weight: 600;
-    }
-    .one {
-      font-size: 0.875rem;
+    .key-note {
+      margin: 0 0 var(--g-space-4);
+      font-size: var(--g-text-body-s);
+      line-height: 1.5;
       color: var(--g-muted);
-      line-height: 1.45;
     }
-    .drafted {
-      font-size: 0.8125rem;
-      color: var(--g-accent);
+    .rows {
+      display: grid;
+      gap: var(--g-space-2);
+    }
+    .marks {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: var(--g-space-1);
     }
   `,
 })
 export class BehavioralListPage {
-  readonly competencies = COMPETENCY_CATALOG;
-  readonly drafts = inject(StarDraftsService);
+  private readonly drafts = inject(StarDraftsService);
   private readonly bank = inject(StoryBankService);
   private readonly progress = inject(ProgressService);
-  /** Competencies an interview flagged as weak and none has cleared since, with the stories to rehearse for each. */
-  readonly flagged = computed(() => {
-    const now = new Date();
-    const behavioral = this.progress.state().behavioral;
-    return this.competencies
-      .filter((c) => behavioral[c.id]?.weakSince)
-      .map((c) => {
-        const covering = this.bank.tagged(c.id);
-        const due = dueStories(covering, now, behavioral).length;
-        const note = !covering.length
-          ? 'No story covers it yet.'
-          : due
-            ? `${due} ${due === 1 ? 'story' : 'stories'} to rehearse now.`
-            : 'Nothing to rehearse right now.';
-        return { id: c.id, name: c.name, note };
-      });
-  });
-  readonly bankSummary = computed(() => {
-    const count = this.bank.stories().length;
-    const { covered, coverage } = this.bank.review();
-    return count
-      ? `${count} ${count === 1 ? 'story' : 'stories'}, covering ${covered} of ${coverage.length} competencies.`
-      : 'Write each story once, tag its competencies, and see which ones still need one.';
-  });
+  readonly plural = plural;
+  readonly legend = ['new', 'learning', 'practiced', 'ready'] as const;
+  readonly names = { new: 'New', learning: 'Learning', practiced: 'Practiced', ready: 'Ready' } as const;
 
-  constructor() {
-    addIcons({ chatbubblesOutline, chevronForward, libraryOutline });
-  }
+  readonly due = computed(() => dueStories(this.bank.stories(), this.progress.now(), this.progress.state().behavioral).length);
+  readonly rows = computed(() => {
+    const state = this.progress.state();
+    const profile = LEVEL_PROFILES[currentTarget(state).target.level];
+    const ctx: StatusContext = { state, stories: this.bank.stories(), now: this.progress.now(), profile };
+    const coverage = new Map(this.bank.review().coverage.map((c) => [c.competencyId, c.storyIds.length]));
+    return COMPETENCY_CATALOG.map((c) => {
+      const status = competencyStatus(c.id, ctx);
+      const drafted = this.drafts.draftedIn(c.id);
+      const stories = coverage.get(c.id) ?? 0;
+      return {
+        id: c.id,
+        name: c.name,
+        state: status.state,
+        flagged: status.flagged,
+        focus: profile.level === 'senior' && profile.competencies.some((w) => w.id === c.id && w.weight > 1),
+        meta: [
+          plural(QUESTIONS_PER_COMPETENCY, 'question'),
+          ...(drafted ? [`${drafted} drafted`] : []),
+          plural(stories, 'story', 'stories'),
+        ],
+      };
+    });
+  });
+  readonly summary = computed(() => {
+    if (!this.drafts.loaded() || !this.bank.loaded()) return [];
+    const { covered, coverage } = this.bank.review();
+    const due = this.due();
+    return [
+      `${covered} of ${coverage.length} competencies ${covered === 1 ? 'has' : 'have'} a story`,
+      `${this.drafts.count()} of ${COMPETENCY_CATALOG.length * QUESTIONS_PER_COMPETENCY} questions drafted on this device`,
+      ...(due ? [`${plural(due, 'story', 'stories')} due`] : []),
+    ];
+  });
 
   ionViewWillEnter() {
     void this.drafts.load();

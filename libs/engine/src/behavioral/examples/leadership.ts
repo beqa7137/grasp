@@ -5,6 +5,8 @@ export const LEADERSHIP: CompetencyExamples = {
   strong: [
     {
       level: 'early',
+      lookFor:
+        'Helping one new teammate ramp up: a goal with a deadline, help shaped to what they already knew, and early ownership, measured against how long it used to take.',
       questionId: 'leadership-6',
       situation:
         'When I had been a frontend engineer for about a year, on a four-person team building a shipment tracking app for a freight broker, a new engineer joined from a backend background. Our last two hires had each taken about six weeks to merge their first real feature.',
@@ -26,6 +28,8 @@ export const LEADERSHIP: CompetencyExamples = {
     },
     {
       level: 'mid',
+      lookFor:
+        'Growing one engineer to a goal you could check, each teaching choice explained, including why you did not just do the work yourself.',
       questionId: 'leadership-1',
       situation:
         'A new graduate who was strong at modeling but had never run a production service joined our machine learning platform team. Within her first month, two of her deploys had paged the on-call engineer.',
@@ -48,6 +52,8 @@ export const LEADERSHIP: CompetencyExamples = {
     },
     {
       level: 'senior',
+      lookFor:
+        'Raising a standard across many teams without a mandate: evidence first, the root cause fixed, then a pilot and peers spreading it until it holds without you.',
       questionId: 'leadership-4',
       situation:
         'I was a staff engineer on the infrastructure team of a payments company with about 120 engineers in 14 teams. Each team ran its own services and its own incident process, and in one year we had 31 customer-facing incidents, 9 of them repeats of an earlier one.',

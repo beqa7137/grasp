@@ -5,6 +5,8 @@ export const TECHNICAL_DEPTH: CompetencyExamples = {
   strong: [
     {
       level: 'early',
+      lookFor:
+        'A problem in code you built, measured before changing anything: the cause found with a profiler or traces rather than a guess, and the obvious fix tested before going further.',
       questionId: 'technical-depth-3',
       situation:
         'About a year into my first job, on the web dashboard of a logistics company, customers with large accounts complained that the order history page froze when it opened. For an account with 3,000 orders it took 4.8 seconds before the page responded to a click.',
@@ -27,6 +29,8 @@ export const TECHNICAL_DEPTH: CompetencyExamples = {
     },
     {
       level: 'mid',
+      lookFor:
+        'A hard bug told as hypotheses narrowed by evidence, so an engineer can follow it, with the tempting fix you rejected and the safeguard you added.',
       questionId: 'technical-depth-2',
       situation:
         'I worked on the upload service for a video platform, and about 1 in 2,000 uploads was being stored corrupted. The files passed our checksum at upload time but failed to play days later.',
@@ -48,6 +52,8 @@ export const TECHNICAL_DEPTH: CompetencyExamples = {
     },
     {
       level: 'senior',
+      lookFor:
+        'A reliability problem across several services: failure modes ranked from real incidents, the mechanism explained precisely, and the change landed through shared code.',
       questionId: 'technical-depth-7',
       situation:
         "I was a staff engineer in the payments org of an online marketplace, which ran 14 services owned by five teams. Checkout availability was 99.5 percent against a target of 99.95, and every team believed the problem was in someone else's service.",

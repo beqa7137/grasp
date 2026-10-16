@@ -25,6 +25,7 @@ import {
   byDifficulty,
   currentPattern,
   currentTarget,
+  EMPTY_LIBRARY_QUERY,
   isFiltered,
   libraryQueryParams,
   librarySummary,
@@ -40,6 +41,7 @@ import {
 } from '@grasp/engine';
 import { IonIcon } from '@ionic/angular';
 import { refocusAfterRender } from '../../core/focus';
+import { LibraryState, matchedWhat, resultLine, type UrlParam } from '../../core/library-state';
 import { ProgressService } from '../../core/progress.service';
 import { CheckComponent } from '../../ui/check.component';
 import { ChipComponent } from '../../ui/chip.component';
@@ -57,8 +59,6 @@ const STATUS: Record<ProblemState, EntryStatus & { name: string }> = {
 };
 const DIFFICULTY_NAMES: Record<Difficulty, string> = { easy: 'Easy', medium: 'Medium', hard: 'Hard' };
 const PATTERN_NAMES = new Map<string, string>(PATTERN_CATALOG.map((p) => [p.id, p.name]));
-/** Typing writes the URL this long after the last key (REDESIGN.md 2.5). */
-const TYPING_MS = 150;
 
 /**
  * The Problem library (REDESIGN.md 4.2): the 164 problems grouped by pattern or mixed, filtered by status, difficulty,
@@ -99,29 +99,17 @@ export class ProblemLibraryPage implements KeptSegment {
   ];
 
   // The router binds the query parameters (REDESIGN.md 2.5: the URL is the only filter state).
-  readonly q = input<string>();
-  readonly status = input<string>();
-  readonly difficulty = input<string>();
-  readonly track = input<string>();
-  readonly pattern = input<string>();
-  readonly query = computed(
-    () =>
-      parseLibraryQuery({
-        q: this.q(),
-        status: this.status(),
-        difficulty: this.difficulty(),
-        track: this.track(),
-        pattern: this.pattern(),
-      }),
-    { equal: (a, b) => JSON.stringify(a) === JSON.stringify(b) },
+  readonly q = input<UrlParam>();
+  readonly status = input<UrlParam>();
+  readonly difficulty = input<UrlParam>();
+  readonly track = input<UrlParam>();
+  readonly pattern = input<UrlParam>();
+  readonly lib = new LibraryState<LibraryQuery>(
+    () => ({ q: this.q(), status: this.status(), difficulty: this.difficulty(), track: this.track(), pattern: this.pattern() }),
+    { parse: parseLibraryQuery, params: libraryQueryParams },
   );
+  readonly query = this.lib.query;
   readonly filtered = computed(() => isFiltered(this.query()));
-  private typing: ReturnType<typeof setTimeout> | undefined;
-  /** The field's text: the URL's, except while a typed change waits to be written. */
-  readonly search = linkedSignal<string, string>({
-    source: () => this.query().q,
-    computation: (q, previous) => (this.typing !== undefined && previous ? previous.value : q),
-  });
 
   private readonly coding = computed(() => this.progress.state().coding);
   readonly result = computed(() => queryLibrary(this.query(), this.coding()));
@@ -130,11 +118,7 @@ export class ProblemLibraryPage implements KeptSegment {
     const parts = DIFFICULTIES.map((d) => `${DIFFICULTY_NAMES[d]} ${s.byDifficulty[d].solved}/${s.byDifficulty[d].total}`);
     return [`${s.solved} of ${s.total} solved`, ...parts].join(' · ');
   });
-  readonly resultLine = computed(() => {
-    const n = this.result().problems.length;
-    const noun = n === 1 ? 'problem' : 'problems';
-    return this.filtered() ? `${n} ${noun} of ${this.catalogSize}` : `${n} ${noun}`;
-  });
+  readonly resultLine = computed(() => resultLine(this.result().problems.length, this.catalogSize, this.filtered(), 'problem'));
   readonly showLabel = computed(() => {
     const n = this.result().problems.length;
     return n ? `Show ${n} ${n === 1 ? 'problem' : 'problems'}` : 'No problems match';
@@ -174,12 +158,7 @@ export class ProblemLibraryPage implements KeptSegment {
    * Search 1"), so they are not shown (REDESIGN.md 2.9's spoiler rule).
    */
   readonly hidePatternCounts = computed(() => this.prefs.view() === 'mixed' && !this.prefs.showTags());
-  readonly emptyText = computed(() => {
-    const { q, ...facets } = this.query();
-    const filtered = Object.values(facets).some((values) => values.length);
-    const what = q ? `"${q}"${filtered ? ' with these filters' : ''}` : 'these filters';
-    return `Nothing in the library matches ${what}.`;
-  });
+  readonly emptyText = computed(() => `Nothing in the library matches ${matchedWhat(this.query())}.`);
   readonly tracksOverflow = signal({ start: false, end: false });
   private readonly current = computed(() => currentPattern(this.coding(), this.progress.state().placement));
   /** Groups the learner opened or closed, against where each starts: all open when filtered, else only the current pattern. */
@@ -191,7 +170,6 @@ export class ProblemLibraryPage implements KeptSegment {
   readonly catalogSize = CODING_CATALOG.length;
 
   constructor() {
-    this.destroyRef.onDestroy(() => clearTimeout(this.typing));
     // On a phone the tracks scroll in one line; a chosen track that starts past its edge is brought into it.
     afterNextRender(() => {
       const row = this.trackRow().nativeElement;
@@ -261,27 +239,21 @@ export class ProblemLibraryPage implements KeptSegment {
     return shown ? [p.patternIds.map((id) => PATTERN_NAMES.get(id) ?? id).join(', ')] : [];
   }
 
-  isOn(facet: ListFacet, value: string): boolean {
-    return (this.query()[facet] as readonly string[]).includes(value);
-  }
-
   /**
    * A chip that would leave nothing to show is dimmed and does nothing, unless it is on (it stays removable) or its count is
    * hidden by the spoiler rule (dimming would reveal the same thing).
    */
   dimmed(facet: ListFacet, value: string, count: number): 'true' | null {
-    if (count || this.isOn(facet, value)) return null;
+    if (!this.lib.dimmed(facet, value, count)) return null;
     return (facet === 'track' || facet === 'pattern') && this.hidePatternCounts() ? null : 'true';
   }
 
   toggle(facet: ListFacet, value: string, count?: number): void {
-    if (count !== undefined && this.dimmed(facet, value, count)) return;
-    const values = this.query()[facet] as readonly string[];
-    this.write({ [facet]: values.includes(value) ? values.filter((v) => v !== value) : [...values, value] });
+    if (count === undefined || !this.dimmed(facet, value, count)) this.lib.toggle(facet, value);
   }
 
   toggleLevel(): void {
-    this.write({ difficulty: this.atLevel() ? [] : this.level().difficulties });
+    this.lib.write({ difficulty: this.atLevel() ? [] : this.level().difficulties });
   }
 
   remove(facet: ListFacet, value: string, index: number): void {
@@ -298,30 +270,11 @@ export class ProblemLibraryPage implements KeptSegment {
   }
 
   clearAll(): void {
-    clearTimeout(this.typing);
-    this.typing = undefined;
-    this.write({ q: '', status: [], difficulty: [], track: [], pattern: [] });
-    refocusAfterRender(this.injector, () => this.searchField()?.nativeElement, this.chipRow()?.nativeElement);
+    this.lib.clear(EMPTY_LIBRARY_QUERY, () => this.searchField()?.nativeElement, this.chipRow()?.nativeElement);
   }
 
   resetSheet(): void {
-    this.write({ status: [], difficulty: [], pattern: [] });
-  }
-
-  type(text: string): void {
-    this.search.set(text);
-    clearTimeout(this.typing);
-    this.typing = setTimeout(() => {
-      this.typing = undefined;
-      this.write({ q: text });
-    }, TYPING_MS);
-  }
-
-  submitSearch(e: Event): void {
-    e.preventDefault();
-    clearTimeout(this.typing);
-    this.typing = undefined;
-    this.write({ q: this.search() });
+    this.lib.write({ status: [], difficulty: [], pattern: [] });
   }
 
   pickRandom(): void {
@@ -330,13 +283,5 @@ export class ProblemLibraryPage implements KeptSegment {
     const pool = open.length ? open : all;
     const pick = pool[Math.floor(Math.random() * pool.length)];
     if (pick) void this.router.navigate(['/coding/problems', pick.id]);
-  }
-
-  private write(change: Partial<LibraryQuery>): void {
-    void this.router.navigate([], {
-      relativeTo: this.route,
-      queryParams: libraryQueryParams({ ...this.query(), ...change }),
-      replaceUrl: true,
-    });
   }
 }

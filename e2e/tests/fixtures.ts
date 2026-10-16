@@ -218,6 +218,21 @@ export async function seek(page: Page, step: number, note: string) {
   await expect(page.locator('app-trace-player .narration')).toContainText(note);
 }
 
+/**
+ * Presses Android's back button. Ionic listens for it from ion-app's first idle callback (a 32 ms timer where, as in
+ * WebKit, there is no requestIdleCallback), so a press right after a cold load waits for that first; otherwise it can
+ * arrive before anything listens and be dropped.
+ */
+export async function pressAndroidBack(page: Page) {
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        'requestIdleCallback' in window ? requestIdleCallback(() => setTimeout(resolve, 0)) : setTimeout(resolve, 64),
+      ),
+  );
+  await page.evaluate(() => document.dispatchEvent(new Event('backbutton')));
+}
+
 /** Today's heading: its line break renders no space. */
 /** Today's h1: the first-run card's question, or the target line ("Mid-level loop · …", "Assuming a Mid-level loop"). */
 export const TODAY_HEADING = /^What is your loop\?$| loop\b|^Assuming a Mid-level loop$/;

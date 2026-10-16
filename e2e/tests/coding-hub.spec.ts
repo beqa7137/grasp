@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 import { ALGORITHM_CATALOG, CODING_CATALOG, PATTERN_CATALOG } from '@grasp/engine';
-import { expect, test } from './fixtures';
+import { expect, pressAndroidBack, test } from './fixtures';
 
 const library = (page: Page) => page.locator('app-problem-library');
 const results = (page: Page) => library(page).getByRole('status');
@@ -246,7 +246,7 @@ test("the device's back button closes the Filters sheet before it leaves the pag
   await open.click();
   const sheet = page.getByRole('dialog', { name: 'Filters' });
   await expect(sheet).toBeVisible();
-  await page.evaluate(() => document.dispatchEvent(new Event('backbutton')));
+  await pressAndroidBack(page);
   await expect(sheet).toBeHidden();
   await expect(page).toHaveURL(/\/coding\/problems\?track=graphs$/);
 });

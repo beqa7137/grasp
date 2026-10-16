@@ -143,7 +143,12 @@ export interface EntryStatus {
       font-size: var(--g-text-body-s);
       color: var(--g-muted);
     }
-    .meta > span + span::before {
+    /* The dot ends the part before it, so a line the meta wraps onto starts with a part, never with a dot. */
+    .meta > span:not(:last-child, .pips)::after {
+      content: '·';
+      margin-left: var(--g-space-2);
+    }
+    .meta > .pips + span::before {
       content: '·';
       margin-right: var(--g-space-2);
     }

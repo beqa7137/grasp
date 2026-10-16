@@ -45,6 +45,7 @@ export const RAIL_SECTIONS: readonly RailSection[] = [
     icon: 'people-outline',
     subs: [
       { label: 'Competencies', href: '/behavioral' },
+      { label: 'Questions', href: '/behavioral/questions' },
       { label: 'Stories', href: '/behavioral/stories' },
     ],
   },

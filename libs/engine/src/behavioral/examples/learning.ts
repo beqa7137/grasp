@@ -5,6 +5,8 @@ export const LEARNING: CompetencyExamples = {
   strong: [
     {
       level: 'early',
+      lookFor:
+        'A method for getting useful in unfamiliar code: one request traced end to end, time-boxed questions, and tests that caught your wrong assumption before it shipped.',
       questionId: 'learning-1',
       situation:
         'In my first job I joined a logistics company whose shipping rate service was about 400,000 lines of Java, older than most of the team. Peak season started in five weeks.',
@@ -26,6 +28,8 @@ export const LEARNING: CompetencyExamples = {
     },
     {
       level: 'mid',
+      lookFor:
+        'Volunteering for work in a stack you did not know, mixing reading, small experiments and review, and catching newcomer mistakes before users saw them.',
       questionId: 'learning-2',
       situation:
         'I was a backend engineer writing Python at a ticketing company when the only engineer who knew our Go API gateway left. A ticket sale for a large concert tour was six weeks away, and the last big sale had been hit by bots.',
@@ -47,6 +51,8 @@ export const LEARNING: CompetencyExamples = {
     },
     {
       level: 'senior',
+      lookFor:
+        'Learning a new domain from people who practise it while teaching a team, checking your understanding before it shaped a design, and the knowledge spreading beyond you.',
       questionId: 'learning-3',
       situation:
         'As a staff engineer at an online marketplace, I was asked to lead a new team building the ledger behind seller payouts. I had built search and recommendations for years and knew almost nothing about accounting.',

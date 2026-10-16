@@ -5,6 +5,8 @@ export const FEEDBACK: CompetencyExamples = {
   strong: [
     {
       level: 'early',
+      lookFor:
+        'Asking for feedback, meeting it with questions instead of a defense, changes you can measure, and asking again to close the loop.',
       questionId: 'feedback-3',
       situation:
         'Eight months into my first job, on a team building a payments dashboard, my pull requests were taking days to get approved, so I asked a senior engineer in a one-to-one what made them hard to review. He told me they often ran past 1,000 lines, and my descriptions said what changed but never why.',
@@ -27,6 +29,8 @@ export const FEEDBACK: CompetencyExamples = {
     },
     {
       level: 'mid',
+      lookFor:
+        'Holding the bar with a peer without losing the relationship: a conversation instead of a public block, must-fix kept apart from preference, and feedback taken in return.',
       questionId: 'feedback-2',
       situation:
         'I was reviewing a migration from a peer on our orders service. It added an index to a Postgres table with 400 million rows using a plain CREATE INDEX, which blocks writes to the table until the build finishes.',
@@ -48,6 +52,8 @@ export const FEEDBACK: CompetencyExamples = {
     },
     {
       level: 'senior',
+      lookFor:
+        'Feedback upward on a process you do not own: checked with data, given privately, the effect named without blaming intent, and an offer to do the work.',
       questionId: 'feedback-5',
       situation:
         'As a staff engineer in an infrastructure group of about 60 engineers, I noticed our incident reviews had turned into hunts for who pushed the bad change. Our director ran them and often opened with that question.',

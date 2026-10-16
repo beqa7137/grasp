@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { COMPETENCY_CATALOG } from './catalog.js';
 import type { StarDraft } from './star-check.js';
-import { deletedStory, isNewer, mergeStories, nextChange, reviewBank, storyTitle, type Story } from './stories.js';
+import { deletedStory, isNewer, mergeStories, nextChange, reviewBank, storyCovers, storyTitle, type Story } from './stories.js';
 
 const words = (n: number) => Array.from({ length: n }, () => 'detail').join(' ');
 const told: StarDraft = {
@@ -28,6 +28,16 @@ describe('reviewBank', () => {
     expect(review.covered).toBe(2);
     expect(review.gaps).toHaveLength(COMPETENCY_CATALOG.length - 2);
     expect(review.gaps).toContain('Ambiguity');
+  });
+
+  it("covers only a story's first three tags, the rule competency states use, and never a deleted story", () => {
+    const four = story('a', ['ownership', 'delivery', 'ambiguity', 'conflict']);
+    expect(storyCovers(four, 'ambiguity')).toBe(true);
+    expect(storyCovers(four, 'conflict')).toBe(false);
+    expect(storyCovers({ ...four, deleted: true }, 'ownership')).toBe(false);
+    const review = reviewBank([four]);
+    expect(review.covered).toBe(3);
+    expect(review.coverage.find((c) => c.competencyId === 'conflict')?.storyIds).toEqual([]);
   });
 
   it('asks for more stories below eight, and nothing more once the bank is full and finished', () => {

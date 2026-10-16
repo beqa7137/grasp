@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { CODING_CATALOG, PATTERN_CATALOG, getScenarioSummary } from '@grasp/engine';
-import { TODAY_HEADING as TODAY, expect, expectSectionLit, section, shownPage, test } from './fixtures';
+import { TODAY_HEADING as TODAY, expect, expectSectionLit, pressAndroidBack, section, shownPage, test } from './fixtures';
 
 const heading = (page: Page) => shownPage(page).locator('h1').first();
 /** Clicks the shown page's back button once a transition has left one page shown. */
@@ -101,7 +101,7 @@ test.describe('back from a cross-section link', () => {
 
       if (how === 'the back button') await back(page);
       // Capacitor's App plugin fires this event for Android's back button; with hardwareBackButton the web build listens too.
-      else await page.evaluate(() => document.dispatchEvent(new Event('backbutton')));
+      else await pressAndroidBack(page);
       await expect(page).toHaveURL(/\/today$/);
       await expect(heading(page)).toHaveText(TODAY);
       await expectSectionLit(page, 'Today');
@@ -180,7 +180,7 @@ test.describe('back from a cross-section link', () => {
     await page.goto('/design/missions');
     await page.locator('app-design-missions a[href="/design/missions/first-scale-up"]').click();
     await expect(heading(page)).toHaveText(mission);
-    await page.evaluate(() => document.dispatchEvent(new Event('backbutton')));
+    await pressAndroidBack(page);
     await expect(page).toHaveURL(/\/design\/missions$/);
     await expectSectionLit(page, 'Design');
   });
@@ -189,7 +189,7 @@ test.describe('back from a cross-section link', () => {
 test("the device's back button goes from a hub to Today", { tag: '@nav' }, async ({ page }) => {
   await page.goto('/coding/problems');
   await expect(heading(page)).toHaveText('Problems');
-  await page.evaluate(() => document.dispatchEvent(new Event('backbutton')));
+  await pressAndroidBack(page);
   await expect(page).toHaveURL(/\/today$/);
   await expectSectionLit(page, 'Today');
 });
@@ -198,7 +198,7 @@ test("the device's back button returns a hub a link from another tab opened to t
   await page.goto('/mock');
   await page.getByRole('link', { name: /Guides, story bank and rehearsal/ }).click();
   await expect(heading(page)).toHaveText('Behavioral interviews');
-  await page.evaluate(() => document.dispatchEvent(new Event('backbutton')));
+  await pressAndroidBack(page);
   await expect(page).toHaveURL(/\/mock$/);
   await expectSectionLit(page, 'Mock');
 });
@@ -228,10 +228,10 @@ test(
   },
 );
 
-test('journey 7: questions about conflict are two taps from a cold start', { tag: '@nav' }, async ({ page }) => {
+test("a competency's questions are two taps from a cold start", { tag: '@nav' }, async ({ page }) => {
   await page.goto('/today');
   await section(page, 'Behavioral').click();
-  await page.getByRole('link', { name: /^Conflict & Disagreement/ }).click();
+  await page.getByRole('link', { name: /Conflict & Disagreement/ }).click();
   await expect(page.locator('app-competency h1')).toHaveText('Conflict & Disagreement');
   await expect(page.locator('app-competency .questions a').first()).toBeVisible();
 });

@@ -1,20 +1,10 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  DestroyRef,
-  ElementRef,
-  Injector,
-  computed,
-  inject,
-  input,
-  linkedSignal,
-  viewChild,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, Injector, computed, inject, input, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
   CASE_CATALOG,
   CASE_LEVELS,
   CASE_STATES,
+  EMPTY_CASE_QUERY,
   SD_SHELVES,
   caseQueryParams,
   getCaseBrief,
@@ -31,6 +21,7 @@ import {
 } from '@grasp/engine';
 import { IonIcon } from '@ionic/angular';
 import { refocusAfterRender } from '../../core/focus';
+import { LibraryState, matchedWhat, resultLine, type UrlParam } from '../../core/library-state';
 import { ProgressService } from '../../core/progress.service';
 import { ChipComponent } from '../../ui/chip.component';
 import { EmptyStateComponent } from '../../ui/empty-state.component';
@@ -42,8 +33,6 @@ const STATE_NAMES: Record<CaseState, string> = { new: 'Not started', started: 'I
 const LEVEL_NAMES: Record<CaseSummary['level'], string> = { core: 'Core', advanced: 'Advanced' };
 const SHELF_NAMES = new Map<string, string>(SD_SHELVES.map((s) => [s.id, s.name]));
 const topicName = (id: string) => getSdTopic(id)?.name ?? id;
-/** Typing writes the URL this long after the last key, as the problem library does (REDESIGN.md 2.5). */
-const TYPING_MS = 150;
 
 /**
  * The Cases library (REDESIGN.md 4.5): the 27 case studies filtered by level, status, shelf and topic, plus a search. As in
@@ -70,8 +59,8 @@ const TYPING_MS = 150;
           <button
             type="button"
             g-chip
-            [attr.aria-pressed]="isOn('level', l.id)"
-            [attr.aria-disabled]="dimmed('level', l.id, n)"
+            [attr.aria-pressed]="lib.isOn('level', l.id)"
+            [attr.aria-disabled]="lib.dimmed('level', l.id, n)"
             (click)="toggle('level', l.id, n)"
           >
             {{ l.name }} <span class="count">{{ n }}</span>
@@ -80,7 +69,7 @@ const TYPING_MS = 150;
       </div>
 
       <g-filter-bar class="bar" [results]="resultLine()" [show]="showLabel()" [active]="sheetActive()" (reset)="resetSheet()">
-        <form chips class="search" role="search" (submit)="submitSearch($event)">
+        <form chips class="search" role="search" (submit)="lib.submit($event)">
           <label class="visually-hidden" for="case-search">Search cases</label>
           <input
             #searchField
@@ -90,8 +79,8 @@ const TYPING_MS = 150;
             autocomplete="off"
             spellcheck="false"
             enterkeyhint="search"
-            [value]="search()"
-            (input)="type($any($event.target).value)"
+            [value]="lib.search()"
+            (input)="lib.type($any($event.target).value)"
           />
         </form>
         @if (chips().length || filtered()) {
@@ -113,8 +102,8 @@ const TYPING_MS = 150;
                 <button
                   type="button"
                   g-chip
-                  [attr.aria-pressed]="isOn('status', s.id)"
-                  [attr.aria-disabled]="dimmed('status', s.id, n)"
+                  [attr.aria-pressed]="lib.isOn('status', s.id)"
+                  [attr.aria-disabled]="lib.dimmed('status', s.id, n)"
                   (click)="toggle('status', s.id, n)"
                 >
                   {{ s.name }} <span class="count">{{ n }}</span>
@@ -130,8 +119,8 @@ const TYPING_MS = 150;
                 <button
                   type="button"
                   g-chip
-                  [attr.aria-pressed]="isOn('shelf', s.id)"
-                  [attr.aria-disabled]="dimmed('shelf', s.id, n)"
+                  [attr.aria-pressed]="lib.isOn('shelf', s.id)"
+                  [attr.aria-disabled]="lib.dimmed('shelf', s.id, n)"
                   (click)="toggle('shelf', s.id, n)"
                 >
                   {{ s.name }} <span class="count">{{ n }}</span>
@@ -150,8 +139,8 @@ const TYPING_MS = 150;
                     <button
                       type="button"
                       g-chip
-                      [attr.aria-pressed]="isOn('topic', t.id)"
-                      [attr.aria-disabled]="dimmed('topic', t.id, n)"
+                      [attr.aria-pressed]="lib.isOn('topic', t.id)"
+                      [attr.aria-disabled]="lib.dimmed('topic', t.id, n)"
                       (click)="toggle('topic', t.id, n)"
                     >
                       {{ t.name }} <span class="count">{{ n }}</span>
@@ -229,21 +218,17 @@ export class CaseLibraryPage {
   }));
 
   // The router binds the query parameters: the URL is the only filter state.
-  readonly q = input<string>();
-  readonly level = input<string>();
-  readonly status = input<string>();
-  readonly shelf = input<string>();
-  readonly topic = input<string>();
-  readonly query = computed(
-    () => parseCaseQuery({ q: this.q(), level: this.level(), status: this.status(), shelf: this.shelf(), topic: this.topic() }),
-    { equal: (a, b) => JSON.stringify(a) === JSON.stringify(b) },
+  readonly q = input<UrlParam>();
+  readonly level = input<UrlParam>();
+  readonly status = input<UrlParam>();
+  readonly shelf = input<UrlParam>();
+  readonly topic = input<UrlParam>();
+  readonly lib = new LibraryState<CaseQuery>(
+    () => ({ q: this.q(), level: this.level(), status: this.status(), shelf: this.shelf(), topic: this.topic() }),
+    { parse: parseCaseQuery, params: caseQueryParams },
   );
+  readonly query = this.lib.query;
   readonly filtered = computed(() => isCaseQueryFiltered(this.query()));
-  private typing: ReturnType<typeof setTimeout> | undefined;
-  readonly search = linkedSignal<string, string>({
-    source: () => this.query().q,
-    computation: (q, previous) => (this.typing !== undefined && previous ? previous.value : q),
-  });
 
   /** Each case's place in the library, read once per change of progress or drafts. */
   private readonly states = computed(
@@ -265,11 +250,7 @@ export class CaseLibraryPage {
     const topics = this.query().topic;
     return topics.length === 1 ? { id: topics[0], name: topicName(topics[0]) } : null;
   });
-  readonly resultLine = computed(() => {
-    const n = this.result().cases.length;
-    const noun = n === 1 ? 'case' : 'cases';
-    return this.filtered() ? `${n} ${noun} of ${CASE_CATALOG.length}` : `${n} ${noun}`;
-  });
+  readonly resultLine = computed(() => resultLine(this.result().cases.length, CASE_CATALOG.length, this.filtered(), 'case'));
   readonly showLabel = computed(() => {
     const n = this.result().cases.length;
     return n ? `Show ${n} ${n === 1 ? 'case' : 'cases'}` : 'No cases match';
@@ -284,18 +265,12 @@ export class CaseLibraryPage {
       ...q.topic.map((v) => ({ facet: 'topic' as const, value: v, label: topicName(v) })),
     ];
   });
-  readonly emptyText = computed(() => {
-    const { q, ...facets } = this.query();
-    const filtered = Object.values(facets).some((values) => values.length);
-    const what = q ? `"${q}"${filtered ? ' with these filters' : ''}` : 'these filters';
-    return `No case matches ${what}.`;
-  });
+  readonly emptyText = computed(() => `No case matches ${matchedWhat(this.query())}.`);
 
   private readonly searchField = viewChild<ElementRef<HTMLInputElement>>('searchField');
   private readonly chipRow = viewChild<ElementRef<HTMLElement>>('chipRow');
 
   constructor() {
-    inject(DestroyRef).onDestroy(() => clearTimeout(this.typing));
     void this.drafts.load();
   }
 
@@ -331,19 +306,8 @@ export class CaseLibraryPage {
     void this.router.navigate(['/design/cases', caseId], { state: { startOver: true } });
   }
 
-  isOn(facet: CaseFacet, value: string): boolean {
-    return (this.query()[facet] as readonly string[]).includes(value);
-  }
-
-  /** A chip that would leave nothing to show is dimmed and does nothing, unless it is on. */
-  dimmed(facet: CaseFacet, value: string, count: number): 'true' | null {
-    return count || this.isOn(facet, value) ? null : 'true';
-  }
-
   toggle(facet: CaseFacet, value: string, count?: number): void {
-    if (count !== undefined && this.dimmed(facet, value, count)) return;
-    const values = this.query()[facet] as readonly string[];
-    this.write({ [facet]: values.includes(value) ? values.filter((v) => v !== value) : [...values, value] });
+    if (count === undefined || !this.lib.dimmed(facet, value, count)) this.lib.toggle(facet, value);
   }
 
   remove(facet: CaseFacet, value: string, index: number): void {
@@ -359,37 +323,10 @@ export class CaseLibraryPage {
   }
 
   clearAll(): void {
-    clearTimeout(this.typing);
-    this.typing = undefined;
-    this.write({ q: '', level: [], status: [], shelf: [], topic: [] });
-    refocusAfterRender(this.injector, () => this.searchField()?.nativeElement, this.chipRow()?.nativeElement);
+    this.lib.clear(EMPTY_CASE_QUERY, () => this.searchField()?.nativeElement, this.chipRow()?.nativeElement);
   }
 
   resetSheet(): void {
-    this.write({ status: [], shelf: [], topic: [] });
-  }
-
-  type(text: string): void {
-    this.search.set(text);
-    clearTimeout(this.typing);
-    this.typing = setTimeout(() => {
-      this.typing = undefined;
-      this.write({ q: text });
-    }, TYPING_MS);
-  }
-
-  submitSearch(e: Event): void {
-    e.preventDefault();
-    clearTimeout(this.typing);
-    this.typing = undefined;
-    this.write({ q: this.search() });
-  }
-
-  private write(change: Partial<CaseQuery>): void {
-    void this.router.navigate([], {
-      relativeTo: this.route,
-      queryParams: caseQueryParams({ ...this.query(), ...change }),
-      replaceUrl: true,
-    });
+    this.lib.write({ status: [], shelf: [], topic: [] });
   }
 }
