@@ -3,9 +3,8 @@ import { COMPETENCY_CATALOG } from '../behavioral/catalog.js';
 import type { Seniority } from '../behavioral/types.js';
 import type { CodingProblemSummary } from '../coding/catalog.js';
 import { PATTERN_CATALOG } from '../curriculum/catalog.js';
-import { SD_SHELVES, sdTopicLevel, type SdShelf } from '../curriculum/sd-shelves.js';
 import { SD_TOPICS } from '../curriculum/sd-topics.js';
-import { DEFAULT_ROUND_COUNTS, PLAN_ROUNDS, TARGET_LEVELS, type RoundCounts, type TargetInput } from '../plan/options.js';
+import { DEFAULT_ROUND_COUNTS, PLAN_ROUNDS, type RoundCounts, type TargetInput } from '../plan/options.js';
 import type { ProgressState } from '../srs/progress.js';
 
 /** What a loop at one level asks for: readiness counts the required lists, and the plan schedules them. */
@@ -67,7 +66,7 @@ const split = <T extends { id: string }>(catalog: readonly T[], required: (item:
 const weighted = (double: readonly string[]) => COMPETENCY_CATALOG.map((c) => ({ id: c.id, weight: double.includes(c.id) ? 2 : 1 }));
 
 // Early career has no design round by default; one added by hand is held to Mid-level's design lists.
-const midDesign = { topics: split(SD_TOPICS, (t) => sdTopicLevel(t.id) === 'core'), cases: { required: MID_CASES } };
+const midDesign = { topics: split(SD_TOPICS, (t) => t.level === 'core'), cases: { required: MID_CASES } };
 
 export const LEVEL_PROFILES: Record<Seniority, LevelProfile> = {
   early: {
@@ -99,13 +98,6 @@ export const LEVEL_PROFILES: Record<Seniority, LevelProfile> = {
 
 export const meetsBar = (problem: Pick<CodingProblemSummary, 'difficulty'>, bar: Difficulty) =>
   DIFFICULTY_RANK[problem.difficulty] >= DIFFICULTY_RANK[bar];
-
-/** The levels at which none of a shelf's topics is required, so the hub can mark the shelf "Stretch at <level>". */
-export function shelfStretchAt(shelf: SdShelf): Seniority[] {
-  const topics = SD_SHELVES.find((s) => s.id === shelf)!;
-  const all: readonly string[] = [...topics.core, ...topics.advanced];
-  return TARGET_LEVELS.filter((level) => !LEVEL_PROFILES[level].topics.required.some((t) => all.includes(t)));
-}
 
 /** Where the Target came from: a `target.set`, a plan made before Targets existed, or nothing yet. */
 export type TargetSource = 'set' | 'derived' | 'assumed';

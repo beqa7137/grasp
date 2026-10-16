@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component, Injector, afterNextRender, inject, input, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, Injector, afterNextRender, inject, input, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { IonContent, IonHeader, IonTitle, IonToolbar } from '@ionic/angular';
 
+import { refocus } from '../../core/focus';
 import { SegmentMemory, type KeptSegment } from './segment-memory';
 
 /** The Ionic hooks a segment may keep from when it was a page of its own, and what it hands over to be kept. */
@@ -76,10 +77,12 @@ export class HubPage {
   private segment: Segment | null = null;
   private entered = false;
   private readonly outlet = viewChild.required(RouterOutlet);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
   private readonly content = viewChild.required(IonContent);
   readonly memory = new SegmentMemory(
     inject(Router),
-    inject(Injector),
+    this.injector,
     this.segments.map((s) => s.link),
   );
 
@@ -88,9 +91,17 @@ export class HubPage {
   }
 
   activate(segment: Segment) {
+    // A link inside the segment that was left (Topics' "3 cases") goes with it, so focus moves to the new segment's heading.
+    if (this.segment) afterNextRender(() => this.focusHeading(), { injector: this.injector });
     this.segment = segment;
     this.memory.activated(segment, this.outlet().activatedRoute);
     if (this.entered) segment.ionViewWillEnter?.();
+  }
+
+  private focusHeading() {
+    const heading = this.host.nativeElement.querySelector<HTMLElement>('router-outlet + * h1');
+    if (heading && !heading.hasAttribute('tabindex')) heading.tabIndex = -1;
+    refocus(heading);
   }
 
   ionViewWillEnter() {

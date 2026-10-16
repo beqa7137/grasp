@@ -78,7 +78,7 @@ describe('reachability', () => {
 
   it('tells a New learner at 45 minutes how much the required loop needs, and how much 45 minutes covers', () => {
     const { coverage } = run('new', 45);
-    expect(coverage.minutesPerDay).toBe(150);
+    expect(coverage.minutesPerDay).toBe(155);
     expect(Math.round(coverage.share * 100)).toBe(27);
   });
 

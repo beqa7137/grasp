@@ -78,6 +78,11 @@ const KIND_LABELS: Record<CaseStageKind, string> = {
             <blockquote class="question">{{ b.question }}</blockquote>
             <p class="muted lead">{{ b.summary }}</p>
           }
+          @if (related(); as r) {
+            <p class="related">
+              Related: <a [routerLink]="['/design/cases', r.id]">{{ r.title }}</a>
+            </p>
+          }
 
           @if (loaded()) {
             <ol class="stages">
@@ -173,6 +178,13 @@ const KIND_LABELS: Record<CaseStageKind, string> = {
     .lead {
       line-height: 1.55;
       margin: 0 0 18px;
+    }
+    .related {
+      margin: 0 0 var(--g-space-4);
+      font-size: var(--g-text-body);
+      a {
+        padding-block: var(--g-space-1);
+      }
     }
     .stages {
       list-style: none;
@@ -281,6 +293,8 @@ export class CaseStudyPage {
   readonly unanswered: CaseStageAnswer = {};
   readonly summary = computed(() => getCaseSummary(this.id()));
   readonly brief = computed(() => getCaseBrief(this.id()));
+  /** The near-twin case, so the two read as different questions (REDESIGN.md 2.10). */
+  readonly related = computed(() => getCaseSummary(this.brief()?.related ?? ''));
   readonly study = computed(() => getCaseStudy(this.id()));
   readonly draft = signal<CaseDraft>(newCaseDraft());
   /** Stages wait for the saved draft, so its option order is the first one shown and an early tap cannot replace it. */

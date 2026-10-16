@@ -194,7 +194,7 @@ describe('CaseStudyPage answers', () => {
     page.advance();
     await settle();
     const event = { id: 'case-url-shortener-attempt-1', type: 'case.completed', caseId: 'url-shortener' };
-    const topics = ['sd-estimation', 'sd-caching', 'sd-sharding'];
+    const topics = ['sd-estimation', 'sd-caching', 'sd-sharding', 'sd-ids'];
     expect(record).toHaveBeenCalledExactlyOnceWith({ ...event, topics, bestChoices: 3, decisions: 3, closeEstimates: 2, estimates: 2 });
     expect(el.querySelector('.outcome')?.textContent).toContain('Decisions as recommended: 3 of 3');
 

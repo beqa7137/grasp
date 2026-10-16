@@ -18,6 +18,8 @@ export const newCaseDraft = (): CaseDraft => ({ attempt: crypto.randomUUID(), re
 @Injectable({ providedIn: 'root' })
 export class CaseDraftsService {
   private readonly saved = signal<ReadonlyMap<string, CaseDraft>>(new Map());
+  /** Whether `load` has read this device's drafts once, so a list filtered by them can tell "none" from "not yet". */
+  readonly loaded = signal(false);
 
   constructor() {
     const progress = inject(ProgressService);
@@ -37,6 +39,7 @@ export class CaseDraftsService {
       return draft ? [[key.slice(CASE_DRAFT_PREFIX.length), draft] as const] : [];
     });
     this.saved.set(new Map(drafts));
+    this.loaded.set(true);
   }
 
   /** The draft as `load` or the latest change left it. */

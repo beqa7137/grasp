@@ -261,11 +261,6 @@
     "font-size": 2,
     "spacing": 5
   },
-  "app/pages/design/design-list.page.ts": {
-    "border-radius": 1,
-    "font-size": 8,
-    "spacing": 18
-  },
   "app/pages/design/node-inspector.component.scss": {
     "border-radius": 3,
     "font-size": 13,
@@ -292,10 +287,6 @@
   },
   "app/pages/hub/hub.page.ts": {
     "spacing": 2
-  },
-  "app/pages/hub/map.component.ts": {
-    "font-size": 3,
-    "spacing": 6
   },
   "app/pages/interview/behavioral-answer.component.ts": {
     "font-size": 5,

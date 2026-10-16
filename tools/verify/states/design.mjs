@@ -1,4 +1,4 @@
-import { getCaseStudy } from '@grasp/engine';
+import { getCaseStudy, itemsForTopic } from '@grasp/engine';
 import { BASE, answerFirst, settle } from '../lib.mjs';
 
 /** The authored index of a decision's recommended option: drafts name options by it, whatever order they are shown in. */
@@ -101,11 +101,67 @@ const clearAttachments = async (p) => {
   await settle(p);
 };
 
+/**
+ * Your First Scale-Up passed, the Rate Limiter case finished and Load Balancing's cards recalled on three days and a Caching
+ * quick check answered, so the Topics show every state and a shelf with a Ready topic. Seeded on the device and reloaded, as a sync would bring them.
+ */
+const seedDesignProgress = async (p) => {
+  await p.evaluate(
+    ([itemIds, opened]) => {
+      const at = (offset) => new Date(Date.now() + offset * 86_400_000 - 3_600_000).toISOString();
+      let n = 0;
+      const event = (offset, body) => ({ id: `design-seed-${++n}`, at: at(offset), ...body });
+      const events = [
+        event(-3, { type: 'scenario.completed', scenarioId: 'first-scale-up', monthlyCost: 1840 }),
+        event(-3, {
+          type: 'case.completed',
+          caseId: 'rate-limiter',
+          topics: ['sd-rate-limiting', 'sd-estimation', 'sd-reliability'],
+          bestChoices: 3,
+          decisions: 4,
+          closeEstimates: 1,
+          estimates: 2,
+        }),
+        event(-3, { type: 'practice.answered', itemId: opened, correct: true, durationMs: 9000 }),
+        ...[-2, -1, 0].flatMap((offset) =>
+          itemIds.map((itemId) => event(offset, { type: 'review.graded', itemId, rating: 3, correct: true, durationMs: 9000 })),
+        ),
+      ];
+      localStorage.setItem('CapacitorStorage.grasp.events', JSON.stringify({ events, cursor: null }));
+    },
+    [itemsForTopic('sd-load-balancing').map((item) => item.id), itemsForTopic('sd-caching')[0].id],
+  );
+  await p.reload({ waitUntil: 'networkidle' });
+  await p.locator('app-design-shelves').waitFor();
+  await settle(p);
+};
+
 /** The Design Lab, case studies with their builds and widgets, and design lessons. */
 export function designStates() {
   return [
     { id: 'design-topics', path: '/design' },
+    { id: 'design-topics-progress', path: '/design', setup: seedDesignProgress },
+    {
+      id: 'design-topics-coordination',
+      path: '/design',
+      setup: async (p) => {
+        await p.getByRole('button', { name: /^Coordination/ }).click();
+        await settle(p);
+      },
+    },
     { id: 'design-missions', path: '/design/missions' },
+    { id: 'design-missions-topic', path: '/design/missions?topic=sd-capacity' },
+    { id: 'design-cases-topic', path: '/design/cases?topic=sd-rate-limiting' },
+    {
+      id: 'design-cases-filters',
+      path: '/design/cases?level=core',
+      setup: async (p) => {
+        await p.getByRole('button', { name: 'Filters' }).click();
+        await p.getByRole('dialog', { name: 'Filters' }).waitFor();
+        await settle(p);
+      },
+    },
+    { id: 'case-study-related', path: '/design/cases/ticketing' },
     { id: 'sandbox', path: '/design/missions/first-scale-up' },
     { id: 'sandbox-inspector', path: '/design/missions/first-scale-up', setup: (p) => answerFirst(p, '.palette .tool') },
     {

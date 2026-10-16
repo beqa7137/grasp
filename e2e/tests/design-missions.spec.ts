@@ -19,7 +19,7 @@ test.describe('in the dark theme', () => {
 
   test('Attachments Everywhere opens from the list and is cleared by mouse with an object store', { tag: '@lab' }, async ({ page }) => {
     await page.goto('/design/missions');
-    const card = page.getByRole('link', { name: /^\d+ Attachments Everywhere/ });
+    const card = page.getByRole('link', { name: /^Attachments Everywhere/ });
     await expect(card).toContainText('50% files');
     await card.click();
     await expect(page.locator('.mission .eyebrow')).toContainText('10k rps · 30% reads · 50% files');

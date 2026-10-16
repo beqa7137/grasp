@@ -22,7 +22,11 @@ describe('replaying a log stored before R4', () => {
   const state = replay(events);
 
   it('yields the state the previous engine did, apart from the new derived fields', () => {
-    expect(withoutDerived(state)).toEqual(fixture('replay-baseline.json'));
+    const baseline = fixture('replay-baseline.json');
+    // A content change, not a replay one: R11 moved Consensus & Leaders off Your First Scale-Up, so passing it no longer
+    // introduces the topic.
+    delete baseline.introduced['sd-consensus'];
+    expect(withoutDerived(state)).toEqual(baseline);
   });
 
   it('derives the new fields from events already stored', () => {

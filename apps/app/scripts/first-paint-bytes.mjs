@@ -19,7 +19,7 @@ export function defaultPage(routes) {
   return `src/app/${page[1]}.ts`;
 }
 
-function outputOf(stats, entryPoint) {
+export function outputOf(stats, entryPoint) {
   const output = Object.keys(stats.outputs).find((path) => stats.outputs[path].entryPoint === entryPoint);
   if (!output) throw new Error(`No build output has the entry point ${entryPoint}`);
   return output;
@@ -75,19 +75,28 @@ export function problems(measured, baseline) {
   return found;
 }
 
-/** Stats from an earlier build (a development build writes none) would measure the wrong files. */
-function measureBuild(dist) {
+/**
+ * The stats of the build in `dist`, refusing stats from an earlier build, which would describe other files: every script
+ * they name and the global stylesheet must be there at their size. A build empties `dist` first and names its files by
+ * content hash, so stats left from another build name files that are gone or differ (a development build writes no stats
+ * at all). No mtime is compared: Angular writes its outputs and stats.json in one batch in no fixed order, and the
+ * postbuild rewrites index.html, so file times can tie or run either way within one build.
+ */
+export function freshStats(dist) {
   const file = `${dist}stats.json`;
   const browser = `${dist}browser/`;
   const stale = new Error('stats.json is stale: run a production build (npm run build -w @grasp/app).');
   if (!existsSync(file) || !existsSync(`${browser}index.html`)) throw stale;
-  if (statSync(file).mtimeMs < statSync(`${browser}index.html`).mtimeMs) throw stale;
   const stats = JSON.parse(readFileSync(file, 'utf8'));
-  const measured = measure(stats, readFileSync(`${APP}src/app/app.routes.ts`, 'utf8'));
-  for (const path of [...measured.files, outputOf(stats, 'angular:styles/global:styles')]) {
+  const scripts = Object.keys(stats.outputs).filter((path) => path.endsWith('.js'));
+  for (const path of [...scripts, outputOf(stats, 'angular:styles/global:styles')]) {
     if (!existsSync(browser + path) || statSync(browser + path).size !== stats.outputs[path].bytes) throw stale;
   }
-  return measured;
+  return stats;
+}
+
+function measureBuild(dist) {
+  return measure(freshStats(dist), readFileSync(`${APP}src/app/app.routes.ts`, 'utf8'));
 }
 
 function report(measured, baseline) {

@@ -34,7 +34,7 @@ test('five sections, each lit on its own section, with one Main navigation at ev
   }
   for (const [name, h1] of <[string, string | RegExp][]>[
     ['Coding', 'Master the cue, and the problem names itself.'],
-    ['Design', 'Learn it hands-on, then build it.'],
+    ['Design', 'System design'],
     ['Behavioral', 'Behavioral interviews'],
     ['Mock', 'Say it out loud.'],
     ['Today', TODAY],
@@ -92,7 +92,7 @@ test.describe('back from a cross-section link', () => {
   for (const how of ['the back button', "the device's back button"]) {
     test(`returns to Today with ${how}, and Design keeps its own page`, { tag: '@nav' }, async ({ page }) => {
       await page.goto('/design/cases');
-      await expect(heading(page)).toHaveText('Run the interview, then defend it.');
+      await expect(heading(page)).toHaveText('Cases');
       await section(page, 'Today').click();
       await expect(upNextStart(page)).toHaveText('Continue');
       await upNextStart(page).click();
@@ -108,7 +108,7 @@ test.describe('back from a cross-section link', () => {
 
       await section(page, 'Design').click();
       await expect(page).toHaveURL(/\/design\/cases$/);
-      await expect(heading(page)).toHaveText('Run the interview, then defend it.');
+      await expect(heading(page)).toHaveText('Cases');
     });
   }
 
@@ -132,7 +132,7 @@ test.describe('back from a cross-section link', () => {
     // A focus route would hide the tab bar under 1024px, and Today is reached through the bar.
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.goto('/design/cases');
-    await page.locator('app-design-list a[href="/design/cases/url-shortener"]').click();
+    await page.locator('app-case-library a[href="/design/cases/url-shortener"]').click();
     await expect(heading(page)).toHaveText(study);
     await section(page, 'Today').click();
     // Ionic shows the view it already holds for this URL.
@@ -178,7 +178,7 @@ test.describe('back from a cross-section link', () => {
 
   test("a view in the tab's own stack still pops it", { tag: '@nav' }, async ({ page }) => {
     await page.goto('/design/missions');
-    await page.locator('app-design-list a[href="/design/missions/first-scale-up"]').click();
+    await page.locator('app-design-missions a[href="/design/missions/first-scale-up"]').click();
     await expect(heading(page)).toHaveText(mission);
     await page.evaluate(() => document.dispatchEvent(new Event('backbutton')));
     await expect(page).toHaveURL(/\/design\/missions$/);
