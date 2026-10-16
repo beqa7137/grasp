@@ -55,6 +55,13 @@ describe('behavioral examples', () => {
     expect(weak.fix).not.toBe('');
   });
 
+  it('says in one short sentence per level what interviewers look for, never the same line twice', () => {
+    const lines = strongs.map((s) => s.lookFor);
+    expect(lines.filter((line) => line.length < 60 || line.length > 220 || !/^[A-Z].*\.$/.test(line))).toEqual([]);
+    expect(lines.filter((line) => /\.\s/.test(line))).toEqual([]);
+    expect(new Set(lines).size).toBe(lines.length);
+  });
+
   it('uses every flaw in at least 5 weak answers', () => {
     const uses = ANSWER_FLAWS.map(({ id }) => [id, weaks.filter((w) => w.flaws.includes(id)).length] as const);
     expect(uses.filter(([, n]) => n < 5)).toEqual([]);

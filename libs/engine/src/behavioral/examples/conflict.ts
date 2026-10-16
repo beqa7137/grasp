@@ -5,6 +5,8 @@ export const CONFLICT: CompetencyExamples = {
   strong: [
     {
       level: 'early',
+      lookFor:
+        'A disagreement with a more senior engineer settled quickly on the merits, full commitment whichever way it went, and saying so when the other side was right.',
       questionId: 'conflict-6',
       situation:
         'In my first year as a frontend engineer, I needed a date range picker for our booking web app. I wanted to write my own, and the senior engineer reviewing my plan wanted me to use the picker from our shared component library.',
@@ -26,6 +28,8 @@ export const CONFLICT: CompetencyExamples = {
     },
     {
       level: 'mid',
+      lookFor:
+        'A disagreement with a peer settled with data rather than volume: you tested your own view, conceded a fair point and gave the other side real ownership.',
       questionId: 'conflict-1',
       situation:
         'On our iOS and Android shopping app, a senior teammate and I disagreed about offline support for the cart. He wanted a full local database with sync, and I thought that was far more than the problem needed.',
@@ -48,6 +52,8 @@ export const CONFLICT: CompetencyExamples = {
     },
     {
       level: 'senior',
+      lookFor:
+        'A disagreement across a power gap with real stakes: raised privately first, their strongest point conceded with numbers, and a fair test you were ready to lose.',
       questionId: 'conflict-5',
       situation:
         'As a staff engineer on our platform team, I ran the shared Kubernetes clusters that 30 teams deployed to. The director of machine learning wanted to buy a separate GPU cluster from a cloud vendor and run it outside our platform, and I thought that would split our security and cost controls in two.',

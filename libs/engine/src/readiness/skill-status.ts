@@ -31,8 +31,6 @@ export const READY_RULES = {
   /** A finished case's share of best choices, and of close estimates (all but one when it has 3 or fewer). */
   caseBestChoices: 0.7,
   caseCloseEstimates: 0.7,
-  /** Only a story's first tags count: a story tagged with everything is not evidence for each. */
-  storyTags: 3,
   /** The recall check passes a card whose last grade passed and which is at most this overdue... */
   recallGraceDays: 2,
   /** ...or whose recall probability is within this of the retention target. */

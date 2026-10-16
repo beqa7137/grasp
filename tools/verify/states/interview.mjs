@@ -30,6 +30,36 @@ const seedStories = async (p) => {
   await p.getByRole('link', { name: /The billing export/ }).waitFor();
 };
 
+/**
+ * A Senior loop with the seeded stories, two drafted answers and Conflict flagged by a mock round: the Behavioral hub with
+ * states, counts, a Rehearse row, Flagged and Senior focus. Seeded on the device and reloaded, as from a sync.
+ */
+const seedBehavioral = async (p) => {
+  await p.evaluate((stories) => {
+    const at = new Date(Date.now() - 86_400_000).toISOString();
+    const events = [
+      { id: 'behavioral-seed-1', at, type: 'target.set', target: { level: 'senior', rounds: { coding: 2, design: 2, behavioral: 1 } } },
+      {
+        id: 'behavioral-seed-2',
+        at,
+        type: 'interview.scored',
+        sessionId: '00000000-0000-4000-8000-000000030000',
+        track: 'behavioral',
+        verdict: 'lean-no-hire',
+        weakPatterns: [],
+        competencyId: 'conflict',
+        weakCompetencies: ['conflict'],
+      },
+    ];
+    localStorage.setItem('CapacitorStorage.grasp.events', JSON.stringify({ events, cursor: null }));
+    localStorage.setItem('CapacitorStorage.grasp.behavioral.stories', JSON.stringify(stories));
+    const draft = { situation: 'Our nightly billing export failed silently.', task: '', action: '', result: '', reflection: '' };
+    for (const id of ['ownership-1', 'conflict-2'])
+      localStorage.setItem(`CapacitorStorage.grasp.behavioral.draft.${id}`, JSON.stringify(draft));
+  }, STORIES);
+  await p.reload();
+};
+
 const FOLLOW_UPS = ['What did you do yourself?', 'How did you know it worked?', 'Where does the relationship stand now?'];
 
 /**
@@ -264,6 +294,41 @@ export function interviewStates() {
       },
     },
     { id: 'behavioral-competencies', path: '/behavioral' },
+    {
+      id: 'behavioral-competencies-progress',
+      path: '/behavioral',
+      setup: async (p) => {
+        await seedBehavioral(p);
+        await p.getByText('Senior focus').first().waitFor();
+      },
+    },
+    { id: 'behavioral-questions', path: '/behavioral/questions' },
+    {
+      id: 'behavioral-questions-conflict',
+      path: '/behavioral/questions?competency=conflict&q=disagree',
+      setup: async (p) => {
+        await seedBehavioral(p);
+        await p.getByText('4 questions of 91').waitFor();
+      },
+    },
+    { id: 'behavioral-questions-empty', path: '/behavioral/questions?q=zebra' },
+    { id: 'behavioral-guide', path: '/behavioral/guide' },
+    {
+      id: 'behavioral-competency-senior',
+      path: '/behavioral/leadership',
+      setup: async (p) => {
+        await seedBehavioral(p);
+        await p.getByText('At your level (Senior):').waitFor();
+      },
+    },
+    {
+      id: 'behavioral-competency-jump',
+      path: '/behavioral/conflict',
+      setup: async (p) => {
+        await p.getByRole('navigation', { name: 'On this page' }).getByRole('button', { name: 'Examples' }).click();
+        await settle(p, 400);
+      },
+    },
     { id: 'behavioral-competency', path: '/behavioral/conflict' },
     { id: 'behavioral-competency-new', path: '/behavioral/feedback' },
     {

@@ -23,12 +23,14 @@ const PAGES: { url: string; page: string | null; section: string | null }[] = [
   { url: '/design/missions', page: 'Missions', section: 'Design' },
   { url: '/design/cases', page: 'Cases', section: 'Design' },
   { url: '/behavioral', page: 'Competencies', section: 'Behavioral' },
+  { url: '/behavioral/questions', page: 'Questions', section: 'Behavioral' },
   { url: '/behavioral/stories', page: 'Stories', section: 'Behavioral' },
   { url: '/mock', page: 'Mock', section: null },
   { url: '/today/plan', page: 'Study plan', section: null },
   { url: '/today/settings', page: 'Settings', section: null },
   { url: '/today/review', page: null, section: 'Today' },
   { url: '/design/cases/url-shortener', page: null, section: 'Design' },
+  { url: '/behavioral/guide', page: null, section: 'Behavioral' },
   { url: '/coding/visualizers/binary-search', page: null, section: 'Coding' },
 ];
 

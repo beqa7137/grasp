@@ -1,6 +1,7 @@
 import { SD_SHELVES, sdTopicShelf, type SdShelf } from '../curriculum/sd-shelves.js';
 import { SD_TOPICS } from '../curriculum/sd-topics.js';
 import { CASE_CATALOG, type CaseSummary } from './case-catalog.js';
+import { paramText, paramValues, type UrlParams } from '../url-params.js';
 
 /** A case study's place in the library: stages in progress live on the device, a finish in the progress log. */
 export const CASE_STATES = ['new', 'started', 'finished'] as const;
@@ -29,13 +30,13 @@ const FACET_VALUES: Record<CaseFacet, readonly string[]> = {
 export const CASE_FACETS = Object.keys(FACET_VALUES) as CaseFacet[];
 
 /** Reads the query from URL parameters: comma lists, unknown values dropped, in catalog order. */
-export function parseCaseQuery(params: Readonly<Record<string, string | null | undefined>>): CaseQuery {
+export function parseCaseQuery(params: UrlParams): CaseQuery {
   const list = (facet: CaseFacet) => {
-    const given = new Set((params[facet] ?? '').split(','));
+    const given = paramValues(params, facet);
     return FACET_VALUES[facet].filter((v) => given.has(v));
   };
   return {
-    q: (params['q'] ?? '').trim(),
+    q: paramText(params, 'q', ' ').trim(),
     level: list('level') as CaseSummary['level'][],
     status: list('status') as CaseState[],
     shelf: list('shelf') as SdShelf[],

@@ -21,17 +21,9 @@
     "font-size": 3,
     "spacing": 7
   },
-  "app/pages/behavioral/behavioral-list.page.ts": {
-    "font-size": 8,
-    "spacing": 16
-  },
   "app/pages/behavioral/behavioral-mock.page.ts": {
     "font-size": 6,
     "spacing": 17
-  },
-  "app/pages/behavioral/competency.page.ts": {
-    "font-size": 4,
-    "spacing": 15
   },
   "app/pages/behavioral/example-answer.component.ts": {
     "font-size": 2,

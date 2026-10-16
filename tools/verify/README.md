@@ -113,7 +113,7 @@ states, review and practice cards, the review and practice summaries and the cau
 code workspace and an accepted submission, the study plan empty and set, the placement check's question and results,
 dialogs), `design.mjs` (the Design hub's segments, Lab missions, case studies and their widgets, design lessons) and
 `interview.mjs` (the Mock hub and interviews, the mock loop at setup, between rounds and at its debrief, and the Behavioral
-hub). R5 renamed the hub states (`learn` is `today`, `visualize-list` is `coding-visualizers`, `code-list` is
+hub with its Questions, the STAR guide and the competency page at a Senior Target). R5 renamed the hub states (`learn` is `today`, `visualize-list` is `coding-visualizers`, `code-list` is
 `coding-problems`, `design-list` is `design-missions`, `design-list-cases` is `design-cases`, `interview-home` is `mock`,
 `behavioral-list` is `behavioral-competencies`, `behavioral-mock` is `behavioral-drill`) and added `coding-skill-map` and
 `design-topics`; compare a capture from before R5 under the old names. `lib.mjs` holds the browser helpers they share.
@@ -212,7 +212,7 @@ Images never go into git, and CI does not make the set: its Chromium and fonts d
 
 ## timing.mjs
 
-First paint of `/today` and the first tap on the Coding tab, the Design tab and Today's next-visualizer tile (the player, timed until its stage has drawn its first view, `ready`), on a Pixel 7 profile with Fast 3G and a
+First paint of `/today` and the first tap on the Coding tab, the Design tab, the Behavioral tab (since R12) and Today's next-visualizer tile (the player, timed until its stage has drawn its first view, `ready`), on a Pixel 7 profile with Fast 3G and a
 4x slower CPU, cold cache, builds interleaved, median of `RUNS`. Writes are blocked, so production is safe to time. Each tap's selector and headings also match a build from before R5 (`/today` redirects to Learn there, and the first tab
 is Visualize), so `main` from before R5 can be timed against a later head.
 

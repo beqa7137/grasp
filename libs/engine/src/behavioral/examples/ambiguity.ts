@@ -5,6 +5,8 @@ export const AMBIGUITY: CompetencyExamples = {
   strong: [
     {
       level: 'early',
+      lookFor:
+        'Safe progress when the person who knows the answer is away: your assumptions written down and checked early, and a change kept small enough to prove it broke nothing.',
       questionId: 'ambiguity-7',
       situation:
         'In my first year, after moving from checkout to the search team, I was asked to add a delivery-date filter to product search. The ranking service was 40,000 lines of Java I had never seen, and its owner was on leave for three weeks.',
@@ -26,6 +28,8 @@ export const AMBIGUITY: CompetencyExamples = {
     },
     {
       level: 'mid',
+      lookFor:
+        'Solving the right problem rather than the literal request: the real need found behind it, and what the requester gives up said out loud.',
       questionId: 'ambiguity-5',
       situation:
         'A sales director asked my data team for a real-time dashboard, refreshed every minute, showing each rep\'s pipeline. Our warehouse loaded once a night, so "real time" meant a new streaming pipeline, roughly a quarter of work.',
@@ -48,6 +52,8 @@ export const AMBIGUITY: CompetencyExamples = {
     },
     {
       level: 'senior',
+      lookFor:
+        'One direction for several teams before the facts were in: a reversible design, a written signal for when to change course, and leads brought along one by one.',
       questionId: 'ambiguity-4',
       situation:
         'As a staff engineer on the infrastructure team, I saw that three enterprise deals needed our data kept in the EU, but legal could not yet say whether that meant storage only or processing too. The answer would take at least six months.',

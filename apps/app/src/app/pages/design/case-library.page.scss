@@ -1,4 +1,5 @@
 @use '../../../type' as *;
+@use '../../../search' as *;
 
 .library {
   container-type: inline-size;
@@ -39,19 +40,7 @@ h1 {
 .search {
   flex: 1 1 12rem;
   min-width: 0;
-  input {
-    width: 100%;
-    min-height: 44px;
-    padding: 0 var(--g-space-3);
-    border: 1px solid var(--g-line-strong);
-    border-radius: var(--g-radius-sm);
-    background: var(--g-raised);
-    color: var(--g-text);
-  }
-  input:focus-visible {
-    outline: var(--g-focus-ring);
-    outline-offset: 1px;
-  }
+  @include search-field;
 }
 
 .active {

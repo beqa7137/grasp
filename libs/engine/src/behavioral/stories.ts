@@ -31,7 +31,13 @@ export interface BankReview {
 }
 
 export const BANK_TARGET = { min: 8, max: 10 } as const;
-const MAX_TAGS = 3;
+/** Only a story's first tags count, everywhere: a story tagged with everything is not evidence for each. */
+export const COUNTED_TAGS = 3;
+const MAX_TAGS = COUNTED_TAGS;
+
+/** Whether a story counts for a competency: one of its first tags, and not deleted. */
+export const storyCovers = (story: Story, competencyId: string) =>
+  !story.deleted && story.competencyIds.slice(0, COUNTED_TAGS).includes(competencyId);
 /** What an account stores: `part` bounds each STAR part, generous for an answer told in three minutes. */
 export const STORY_LIMITS = { stories: 100, title: 80, part: 4_000 } as const;
 
@@ -69,7 +75,7 @@ export function reviewBank(stories: readonly Story[]): BankReview {
   const coverage = COMPETENCY_CATALOG.map((c) => ({
     competencyId: c.id,
     name: c.name,
-    storyIds: stories.filter((s) => s.competencyIds.includes(c.id)).map((s) => s.id),
+    storyIds: stories.filter((s) => storyCovers(s, c.id)).map((s) => s.id),
   }));
   const gaps = coverage.filter((c) => c.storyIds.length === 0).map((c) => c.name);
   const advice: string[] = [];

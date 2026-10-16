@@ -89,6 +89,13 @@ describe('the problem library', () => {
     expect(Object.values(libraryQueryParams(EMPTY_LIBRARY_QUERY)).every((v) => v === null)).toBe(true);
   });
 
+  it('reads a key given more than once as all of its values', () => {
+    expect(parseLibraryQuery({ q: ['two', 'sum'], track: ['graphs', 'foundations,nope'] })).toMatchObject({
+      q: 'two sum',
+      track: ['foundations', 'graphs'],
+    });
+  });
+
   it('orders the Mixed view easiest first and keeps the catalog order within a difficulty', () => {
     const mixed = byDifficulty(CODING_CATALOG);
     expect(mixed.map((p) => p.difficulty).slice(0, 15)).toEqual(Array(15).fill('easy'));

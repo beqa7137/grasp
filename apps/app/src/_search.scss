@@ -1,0 +1,16 @@
+// A library's search field (the problem, case and question libraries): the input inside the search form.
+@mixin search-field {
+  input {
+    width: 100%;
+    min-height: 44px;
+    padding: 0 var(--g-space-3);
+    border: 1px solid var(--g-line-strong);
+    border-radius: var(--g-radius-sm);
+    background: var(--g-raised);
+    color: var(--g-text);
+  }
+  input:focus-visible {
+    outline: var(--g-focus-ring);
+    outline-offset: 1px;
+  }
+}

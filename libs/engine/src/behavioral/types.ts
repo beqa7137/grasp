@@ -42,6 +42,8 @@ export const SENIORITY_LEVELS: readonly { level: Seniority; label: string }[] = 
 
 export interface StrongExample extends ExampleAnswer {
   level: Seniority;
+  /** What interviewers look for in this competency at this level, in one sentence: the competency page's "At your level". */
+  lookFor: string;
   /** Why each part works, in one or two sentences. */
   notes: { situation: string; task: string; action: string; result: string; reflection: string };
 }

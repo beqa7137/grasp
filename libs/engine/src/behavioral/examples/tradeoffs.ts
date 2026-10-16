@@ -5,6 +5,8 @@ export const TRADEOFFS: CompetencyExamples = {
   strong: [
     {
       level: 'early',
+      lookFor:
+        "One design choice in your own feature: each option's cost estimated, how often the bad case happens checked with data, what users lose named, and when you would revisit it.",
       questionId: 'tradeoffs-2',
       situation:
         'In my first year on the Android team of a grocery delivery app, I was given the offline shopping list: users wanted to edit their list in stores with no signal.',
@@ -27,6 +29,8 @@ export const TRADEOFFS: CompetencyExamples = {
     },
     {
       level: 'mid',
+      lookFor:
+        'Debt taken on deliberately to hit a date: what could not be compromised kept apart from what could, the cost told to whoever pays it, and a written trigger to repay it.',
       questionId: 'tradeoffs-3',
       situation:
         'Our notifications service sent push and email for a food delivery app, and marketing needed a new promotion engine live before a holiday campaign five weeks away.',
@@ -49,6 +53,8 @@ export const TRADEOFFS: CompetencyExamples = {
     },
     {
       level: 'senior',
+      lookFor:
+        "Two leaders' goals in conflict: each option priced in money and risk, each side asked what decision the data really drives, and one proposal both sides agreed to.",
       questionId: 'tradeoffs-4',
       situation:
         'I was a staff engineer on the data platform of a travel marketplace. Finance needed the nightly revenue close finished and frozen by 6 a.m., and the growth org wanted hourly dashboards from the same warehouse.',

@@ -5,6 +5,8 @@ export const FAILURE: CompetencyExamples = {
   strong: [
     {
       level: 'early',
+      lookFor:
+        'A real mistake in your own work, its cost stated plainly, the reasoning that led to it, and a specific change in how you work that paid off on the next piece of work.',
       questionId: 'failure-5',
       situation:
         'Six months after I joined a bank as a new graduate, working on its web dashboard, my tech lead told me in a one-on-one that my pull requests were so large that reviewing them was slowing the whole team down.',
@@ -26,6 +28,8 @@ export const FAILURE: CompetencyExamples = {
     },
     {
       level: 'mid',
+      lookFor:
+        'A mistake that reached production, owned in your first words, with most of the answer spent on fixing the system rather than on the apology.',
       questionId: 'failure-2',
       situation:
         'I was on the accounts team of a subscription platform with about two million users, and I wrote a database migration that added a required column with a default value to the users table.',
@@ -48,6 +52,8 @@ export const FAILURE: CompetencyExamples = {
     },
     {
       level: 'senior',
+      lookFor:
+        'A wrong call of yours that cost several teams: the untested assumption named as the root cause, then fixes from the instance to the system to how decisions get made.',
       questionId: 'failure-7',
       situation:
         'As the staff engineer for machine learning infrastructure at an online real estate marketplace, I made the call to build our own feature store on Cassandra instead of adopting an existing one, for six ML teams serving listing search and price estimates.',

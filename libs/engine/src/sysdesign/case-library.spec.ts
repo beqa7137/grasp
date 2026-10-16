@@ -21,6 +21,14 @@ describe('the Cases library', () => {
     expect(isCaseQueryFiltered(query)).toBe(true);
   });
 
+  it('reads a key given more than once as all of its values', () => {
+    expect(parseCaseQuery({ q: ['rate', 'limiter'], level: ['core', 'advanced'] })).toEqual({
+      ...EMPTY_CASE_QUERY,
+      q: 'rate limiter',
+      level: ['core', 'advanced'],
+    });
+  });
+
   it('filters by topic, shelf, level and search, counting each option with the other facets only', () => {
     const byTopic = queryCases({ ...EMPTY_CASE_QUERY, topic: ['sd-rate-limiting'] }, fresh);
     expect(byTopic.cases.map((c) => c.id)).toEqual(['rate-limiter', 'notifications', 'ticketing']);

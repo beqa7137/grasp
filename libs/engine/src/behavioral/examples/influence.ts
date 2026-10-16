@@ -5,6 +5,8 @@ export const INFLUENCE: CompetencyExamples = {
   strong: [
     {
       level: 'early',
+      lookFor:
+        'Winning over one skeptic by taking their concern seriously first, then a small, safe change with a guard that answers the objection.',
       questionId: 'influence-4',
       situation:
         'A year into my first job, on the Android team of a ride-hailing app, I noticed our cold start on low-end phones took 3.8 seconds, largely because six third-party SDKs initialized on the main thread at launch.',
@@ -26,6 +28,8 @@ export const INFLUENCE: CompetencyExamples = {
     },
     {
       level: 'mid',
+      lookFor:
+        'Getting managers to fund work with no visible payoff: its cost in engineer weeks, a smaller ask tied to planned work, and a way out if it fails.',
       questionId: 'influence-5',
       situation:
         'Our web storefront still ran on a hand-rolled state management layer from 2017, and new checkout features took about twice as long as estimated because changes rippled unpredictably across 40 components.',
@@ -48,6 +52,8 @@ export const INFLUENCE: CompetencyExamples = {
     },
     {
       level: 'senior',
+      lookFor:
+        'Changing how many teams work with no authority: evidence priced in hours, a tool that makes yes cheap, early adopters as proof, and the strongest objection turned into a better design, with credit to those who raised it.',
       questionId: 'influence-7',
       situation:
         'As a staff engineer in a logistics company with 14 backend teams, I traced 23 incidents in one year to the same bug class: services wrote to their database and then published an event, and when the publish failed, other services never heard about the change.',

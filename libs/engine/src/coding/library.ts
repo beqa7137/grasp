@@ -3,6 +3,7 @@ import { PATTERN_CATALOG, PATTERN_TRACKS, type PatternSummary, type Track } from
 import { startHerePattern, type Placement } from '../srs/diagnostic.js';
 import type { CodingRecord } from '../srs/progress.js';
 import { CODING_CATALOG, problemsForPattern, type CodingProblemSummary } from './catalog.js';
+import { paramText, paramValues, type UrlParams } from '../url-params.js';
 
 /** A problem's place in the library (REDESIGN.md 2.3): one of three, so the Status facet's counts add up to the catalog. */
 export const PROBLEM_STATES = ['unsolved', 'attempted', 'solved'] as const;
@@ -36,13 +37,13 @@ const FACET_VALUES: Record<ListFacet, readonly string[]> = {
 const FACETS = Object.keys(FACET_VALUES) as ListFacet[];
 
 /** Reads the query from URL parameters: comma lists, unknown values dropped, in the catalog's order. */
-export function parseLibraryQuery(params: Readonly<Record<string, string | null | undefined>>): LibraryQuery {
+export function parseLibraryQuery(params: UrlParams): LibraryQuery {
   const list = (facet: ListFacet) => {
-    const given = new Set((params[facet] ?? '').split(','));
+    const given = paramValues(params, facet);
     return FACET_VALUES[facet].filter((v) => given.has(v));
   };
   return {
-    q: (params['q'] ?? '').trim(),
+    q: paramText(params, 'q', ' ').trim(),
     status: list('status') as ProblemState[],
     difficulty: list('difficulty') as Difficulty[],
     track: list('track') as Track[],

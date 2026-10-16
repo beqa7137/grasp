@@ -23,7 +23,7 @@
       <button
         type="button"
         g-chip
-        [attr.aria-pressed]="isOn('track', t.id)"
+        [attr.aria-pressed]="lib.isOn('track', t.id)"
         [attr.aria-disabled]="dimmed('track', t.id, n)"
         (click)="toggle('track', t.id, n)"
       >
@@ -36,7 +36,7 @@
   </div>
 
   <g-filter-bar class="bar" inline [results]="resultLine()" [show]="showLabel()" [active]="sheetActive()" (reset)="resetSheet()">
-    <form chips class="search" role="search" (submit)="submitSearch($event)">
+    <form chips class="search" role="search" (submit)="lib.submit($event)">
       <label class="visually-hidden" for="problem-search">Search problems</label>
       <input
         #searchField
@@ -46,8 +46,8 @@
         autocomplete="off"
         spellcheck="false"
         enterkeyhint="search"
-        [value]="search()"
-        (input)="type($any($event.target).value)"
+        [value]="lib.search()"
+        (input)="lib.type($any($event.target).value)"
       />
     </form>
     @if (chips().length || filtered()) {
@@ -159,7 +159,7 @@
           <button
             type="button"
             g-chip
-            [attr.aria-pressed]="isOn('status', s.id)"
+            [attr.aria-pressed]="lib.isOn('status', s.id)"
             [attr.aria-disabled]="dimmed('status', s.id, n)"
             (click)="toggle('status', s.id, n)"
           >
@@ -176,7 +176,7 @@
           <button
             type="button"
             g-chip
-            [attr.aria-pressed]="isOn('difficulty', d.id)"
+            [attr.aria-pressed]="lib.isOn('difficulty', d.id)"
             [attr.aria-disabled]="dimmed('difficulty', d.id, n)"
             (click)="toggle('difficulty', d.id, n)"
           >
@@ -199,7 +199,7 @@
             <button
               type="button"
               g-chip
-              [attr.aria-pressed]="isOn('pattern', p.id)"
+              [attr.aria-pressed]="lib.isOn('pattern', p.id)"
               [attr.aria-disabled]="dimmed('pattern', p.id, n)"
               (click)="toggle('pattern', p.id, n)"
             >

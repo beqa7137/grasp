@@ -20,6 +20,8 @@ const skillMap = () =>
   lazy('pages/coding/skill-map.component', () => import('./pages/coding/skill-map.component')).then((m) => m.SkillMapComponent);
 const shelves = () =>
   lazy('pages/design/shelves.component', () => import('./pages/design/shelves.component')).then((m) => m.ShelvesComponent);
+const competencies = () =>
+  lazy('pages/behavioral/behavioral-list.page', () => import('./pages/behavioral/behavioral-list.page')).then((m) => m.BehavioralListPage);
 const drill = () => lazy('pages/drill/drill.page', () => import('./pages/drill/drill.page')).then((m) => m.DrillPage);
 const sandbox = () => withTitles(lazy('pages/design/sandbox.page', () => import('./pages/design/sandbox.page'))).then((m) => m.SandboxPage);
 
@@ -175,6 +177,11 @@ export const routes: Routes = [
           lazy('pages/behavioral/rehearse.page', () => import('./pages/behavioral/rehearse.page')).then((m) => m.RehearsePage),
       },
       {
+        path: 'behavioral/guide',
+        title: 'How to answer (STAR)',
+        loadComponent: () => lazy('pages/behavioral/guide.page', () => import('./pages/behavioral/guide.page')).then((m) => m.GuidePage),
+      },
+      {
         path: 'behavioral/drill',
         title: 'STAR drill',
         loadComponent: () =>
@@ -198,17 +205,17 @@ export const routes: Routes = [
       {
         path: 'behavioral',
         title: 'Behavioral',
-        loadComponent: hub,
+        loadComponent: () => Promise.all([hub(), competencies()]).then(([page]) => page),
         data: { preload: 0, narrow: true },
         children: [
+          { path: '', title: 'Competencies', loadComponent: competencies, data: { preload: 0 } },
           {
-            path: '',
-            title: 'Competencies',
+            path: 'questions',
+            title: 'Questions',
             loadComponent: () =>
-              lazy('pages/behavioral/behavioral-list.page', () => import('./pages/behavioral/behavioral-list.page')).then(
-                (m) => m.BehavioralListPage,
+              lazy('pages/behavioral/question-library.page', () => import('./pages/behavioral/question-library.page')).then(
+                (m) => m.QuestionLibraryPage,
               ),
-            data: { preload: 0 },
           },
           {
             path: 'stories',
@@ -218,9 +225,6 @@ export const routes: Routes = [
           },
         ],
       },
-      // REDESIGN.md 2.4's Questions and guide come with R12; until then their URLs open the hub.
-      { path: 'behavioral/questions', redirectTo: '/behavioral' },
-      { path: 'behavioral/guide', redirectTo: '/behavioral' },
       ...legacyBehavioralRoutes,
       {
         path: 'behavioral/:id',

@@ -1,4 +1,4 @@
-import { expect, test } from './fixtures';
+import { expect, shownPage, test } from './fixtures';
 
 const STORY = {
   Situation: 'Our nightly billing export failed silently for a week before finance noticed the gap.',
@@ -12,7 +12,7 @@ test('a behavioral answer is checked as it is written, kept on this device, and 
   await page.goto('/mock');
   await page.getByRole('link', { name: /Guides, story bank and rehearsal/ }).click();
   await expect(page.getByRole('heading', { name: 'Behavioral interviews' })).toBeVisible();
-  await page.getByRole('link', { name: /^Ownership/ }).click();
+  await page.getByRole('link', { name: /Ownership 7 questions/ }).click();
   await expect(page.getByRole('heading', { name: 'Ownership', level: 1 })).toBeVisible();
   await page.locator('app-competency').getByRole('link').first().click();
 
@@ -27,14 +27,14 @@ test('a behavioral answer is checked as it is written, kept on this device, and 
   await expect(page.getByLabel('Result', { exact: true })).toHaveValue(STORY.Result);
 
   await page.goto('/behavioral');
-  await expect(page.getByRole('link', { name: /^Ownership/ })).toContainText('1 answer drafted');
+  await expect(page.getByRole('link', { name: /Ownership 7 questions/ })).toContainText('1 drafted');
 
   await page.goto('/today/settings');
   await page.getByRole('button', { name: 'Delete…' }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
   await expect(page.getByText('Your data was deleted. You are starting fresh.')).toBeVisible();
   await page.goto('/behavioral');
-  await expect(page.getByRole('link', { name: /^Ownership/ })).not.toContainText('drafted');
+  await expect(page.getByRole('link', { name: /Ownership 7 questions/ })).not.toContainText('drafted');
 });
 
 test('a competency teaches with a worked answer per career stage and weak ones to diagnose', async ({ page }) => {
@@ -65,7 +65,7 @@ test('a story written once in the bank covers its competencies, starts answers t
   page,
 }) => {
   await page.goto('/behavioral');
-  await page.getByRole('link', { name: /Your story bank/ }).click();
+  await shownPage(page).getByRole('navigation', { name: 'Behavioral sections' }).getByRole('link', { name: 'Stories' }).click();
   await expect(page.getByRole('heading', { name: '0 of 13 competencies have a story' })).toBeVisible();
   await page.getByRole('button', { name: 'New story' }).click();
 
@@ -134,8 +134,8 @@ test('a story is rehearsed aloud against the clock and comes back after a longer
 });
 
 test('a mock behavioral interview asks three questions with follow-ups, then debriefs each answer', async ({ page }) => {
-  await page.goto('/behavioral');
-  await page.getByRole('link', { name: /STAR drill/ }).click();
+  await page.goto('/behavioral/questions');
+  await page.getByRole('link', { name: /^STAR drill: 3 questions with follow-ups, checks at the end, no verdict/ }).click();
   const mock = page.locator('app-behavioral-mock');
   const next = mock.getByRole('button', { name: /^(Answer|Finish and see the debrief)$/ });
   const long = 'I would have load tested the client earlier, because the retry storm only showed up under real traffic.';

@@ -5,6 +5,8 @@ export const DELIVERY: CompetencyExamples = {
   strong: [
     {
       level: 'early',
+      lookFor:
+        'A feature you owned against a real date, the quality line you would not cross, and the risk raised early rather than a silent slip.',
       questionId: 'delivery-5',
       situation:
         'In my second year as an Android engineer at a note-taking app, I owned PDF export for notes. Marketing had a launch post booked for the following Wednesday, and the app store build had to go out that Friday to reach most users by then.',
@@ -26,6 +28,8 @@ export const DELIVERY: CompetencyExamples = {
     },
     {
       level: 'mid',
+      lookFor:
+        'Leading delivery under pressure: priorities set in order and said out loud, scope cut with the people who agreed to it, and each call backed by evidence and told to the people it affects.',
       questionId: 'delivery-7',
       situation:
         'I was the on-call engineer for our payments service when, at 2 a.m. on a Friday, the card payment success rate dropped from 97 percent to 71 percent. Checkout was still up, and some customers were being charged twice.',
@@ -48,6 +52,8 @@ export const DELIVERY: CompetencyExamples = {
     },
     {
       level: 'senior',
+      lookFor:
+        'A date across teams you did not manage: a slip spotted early in the data, priced options brought to leaders, and teams unblocked rather than chased.',
       questionId: 'delivery-2',
       situation:
         'As a staff engineer on the data platform, I led the move of about 200 nightly pipelines, owned by six teams, off an orchestrator hosted in a data center whose lease ended on June 30. Missing it meant a six-month lease extension at about 400,000 dollars.',

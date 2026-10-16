@@ -73,6 +73,8 @@ export class StoryBankService {
   private readonly pulls = signal(0);
   private readonly signedIn = computed(() => this.tokens.accessToken() !== null);
   readonly stories = computed(() => this.all().filter((s) => !s.deleted));
+  /** False until the stored stories have been read once, so a count or an empty list never shows before it is known. */
+  readonly loaded = signal(false);
   readonly review = computed(() => reviewBank(this.stories()));
   readonly sync = computed<StorySync>(() => (!this.signedIn() ? 'device' : this.failed() ? 'failed' : 'synced'));
   /** Counts syncs that brought in another device's changes, so an open story can follow them. */
@@ -388,6 +390,7 @@ export class StoryBankService {
     const { value } = await Preferences.get({ key: STORY_BANK_KEY });
     const stories = value ? (JSON.parse(value) as Story[]) : [];
     this.all.set(stories.map((s) => (s.updatedAt ? s : { ...s, updatedAt: BEFORE_SYNC })));
+    this.loaded.set(true);
   }
 
   private async store(stories: readonly Story[]): Promise<void> {

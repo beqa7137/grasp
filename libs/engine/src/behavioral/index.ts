@@ -7,4 +7,5 @@ export * from './star-check.js';
 export * from './stories.js';
 export * from './rehearsal.js';
 export * from './rehearsal-question.js';
+export * from './question-library.js';
 export * from './mock.js';
