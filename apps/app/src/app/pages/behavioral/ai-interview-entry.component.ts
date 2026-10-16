@@ -1,22 +1,25 @@
 import { ChangeDetectionStrategy, Component, inject, input, signal } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { IonIcon, IonSpinner } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { sparkles } from 'ionicons/icons';
+import { currentTarget } from '@grasp/engine';
 import { ApiError, ApiService } from '../../core/api.service';
+import { ProgressService } from '../../core/progress.service';
 import { SignInOptionsComponent } from '../../core/sign-in-options.component';
 import { uniqueId } from '../../core/unique-id';
+import type { InterviewMode } from '../interview/interview.types';
 import { needsSignIn, startInterview } from '../interview/start-interview';
 
 @Component({
   selector: 'app-ai-interview-entry',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, IonIcon, IonSpinner, SignInOptionsComponent],
+  imports: [IonIcon, IonSpinner, SignInOptionsComponent],
   template: `
     <section class="panel entry" [attr.aria-labelledby]="titleId">
       <h2 [id]="titleId">Say it to an interviewer</h2>
       <p class="muted">Give your STAR answer, take up to three follow-ups, and get a scorecard with what to fix.</p>
-      <button type="button" class="g-btn primary" [disabled]="starting() || signInOpen()" (click)="start()">
+      <button type="button" class="g-btn primary" [disabled]="starting() || signInOpen()" (click)="start('ai')">
         @if (starting()) {
           <ion-spinner name="crescent" />
         } @else {
@@ -32,9 +35,9 @@ import { needsSignIn, startInterview } from '../interview/start-interview';
         <p class="error" role="alert">{{ message }}</p>
       }
       @if (signInOpen() || error()) {
-        <a class="scripted" routerLink="/behavioral/drill" [queryParams]="{ question: problemId() }"
-          >Practice it with scripted follow-ups instead</a
-        >
+        <button type="button" class="g-btn scripted" [disabled]="starting()" (click)="start('offline')">
+          Practice it with scripted follow-ups instead
+        </button>
       }
     </section>
   `,
@@ -61,9 +64,7 @@ import { needsSignIn, startInterview } from '../interview/start-interview';
       margin: 12px 0 0;
     }
     .scripted {
-      display: inline-block;
       margin-top: 12px;
-      font-size: 0.875rem;
     }
   `,
 })
@@ -72,6 +73,7 @@ export class AiInterviewEntryComponent {
   readonly problemId = input.required<string>();
   private readonly api = inject(ApiService);
   private readonly router = inject(Router);
+  private readonly progress = inject(ProgressService);
   readonly titleId = uniqueId('ai-entry-title');
   readonly starting = signal(false);
   readonly signInOpen = signal(false);
@@ -81,12 +83,15 @@ export class AiInterviewEntryComponent {
     addIcons({ sparkles });
   }
 
-  async start() {
+  /** Scripted is the way on when AI is refused: a mock round with a verdict, at the Target's level as AI would be. */
+  async start(mode: InterviewMode) {
     if (this.starting()) return;
     this.starting.set(true);
     this.error.set(null);
+    this.signInOpen.set(false);
     try {
-      await startInterview(this.api, this.router, { track: 'behavioral', problemId: this.problemId(), mode: 'ai' });
+      const level = currentTarget(this.progress.state()).target.level;
+      await startInterview(this.api, this.router, { track: 'behavioral', problemId: this.problemId(), mode, level });
     } catch (error) {
       if (needsSignIn(error)) this.signInOpen.set(true);
       else this.error.set(error instanceof ApiError ? error.message : 'Could not start the interview.');

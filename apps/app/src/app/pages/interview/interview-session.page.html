@@ -26,7 +26,7 @@
         @if (loopRound(); as r) {
           <span class="chip">Mock loop · round {{ r.index + 1 }} of {{ r.total }}</span>
         }
-        <span class="chip">{{ s.mode === 'ai' ? 'AI interviewer' : 'Scripted practice' }}</span>
+        <span class="chip">{{ s.mode === 'ai' ? 'AI interviewer' : 'Scripted' }}</span>
         @if (s.hintsUsed) {
           <span class="chip">{{ s.hintsUsed }} hint{{ s.hintsUsed > 1 ? 's' : '' }} used</span>
         }
@@ -35,7 +35,7 @@
         <section class="interviewer-choice" aria-label="Interviewer choice">
           <div class="mode-options" role="group" aria-label="Interviewer">
             <button class="g-btn" [attr.aria-pressed]="s.mode === 'offline'" [disabled]="pending()" (click)="chooseMode('offline')">
-              Scripted practice
+              Scripted
             </button>
             <button
               class="g-btn"
@@ -48,7 +48,7 @@
           </div>
           <p class="muted">Changing the interviewer affects future replies and the final score. Your conversation stays here.</p>
           @if (s.mode === 'offline') {
-            <p class="muted">Scripted prompts and a practice estimate. No AI or sign-in needed.</p>
+            <p class="muted">Scripted follow-ups, scored by rubric checks. No AI or sign-in needed.</p>
           } @else {
             <p class="muted">{{ aiNotice() }}</p>
           }
@@ -138,7 +138,7 @@
           <header>
             <ion-icon name="ribbon-outline" aria-hidden="true" />
             <div>
-              <p class="eyebrow">Scorecard · {{ card.mode === 'ai' ? 'AI feedback' : 'scripted practice estimate' }}</p>
+              <p class="eyebrow">Scorecard · {{ scoredBy(s) }}</p>
               <h2 class="verdict" [attr.data-verdict]="card.verdict">{{ verdictLabel(card.verdict) }}</h2>
             </div>
           </header>

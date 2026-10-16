@@ -5,7 +5,7 @@ import type { Story } from '@grasp/engine';
 import { ApiError, ApiService } from './api.service';
 import { AuthTokens } from './auth-tokens.service';
 import { LearnerService } from './learner.service';
-import { STORY_BANK_KEY, mockLoopKey, moveMockLoop, storyStashKey } from './local-drafts';
+import { STORY_BANK_KEY, mockHistoryKey, mockLoopKey, moveMockLoop, storyStashKey } from './local-drafts';
 import { ProgressService } from './progress.service';
 import { type GitHubCredential, SocialSignInService } from './social-sign-in.service';
 import { readStoryStash, writeStoryStash } from './story-stash';
@@ -280,6 +280,7 @@ export class AuthService {
     await this.forget();
     await this.clearStories(learnerId);
     await Preferences.remove({ key: mockLoopKey(learnerId) });
+    await Preferences.remove({ key: mockHistoryKey(learnerId) });
     await this.progress.clearLocal();
     await this.learner.reset();
     this.tokens.signInRequired.set(false);

@@ -38,6 +38,23 @@ describe('mock problem index', () => {
     });
   });
 
+  it('shows the catalog title of its twin, so a mock round and its problem or case read as one thing', () => {
+    for (const p of MOCK_PROBLEMS.filter((m) => m.catalogId)) {
+      const twin = p.track === 'coding' ? getProblemSummary(p.catalogId!) : CASE_CATALOG.find((c) => c.id === p.catalogId);
+      expect(p.title, p.id).toBe(twin!.title);
+    }
+    expect(Object.fromEntries(MOCK_PROBLEMS.map((p) => [p.id, p.title]))).toEqual({
+      'warmer-days': 'Days Until Warmer',
+      'shipping-capacity': 'Capacity To Ship Packages Within D Days',
+      'course-order': 'Course Schedule Order',
+      'longest-k-replace': 'Longest Repeating Character Replacement',
+      'url-shortener': 'URL Shortener',
+      'news-feed': 'News Feed',
+      'rate-limiter': 'Rate Limiter',
+      'chat-service': 'Chat App',
+    });
+  });
+
   it('shares each coding twin pattern with the catalog problem', () => {
     for (const p of MOCK_PROBLEMS.filter((m) => m.track === 'coding' && m.catalogId)) {
       const twin = getProblemSummary(p.catalogId!)!;

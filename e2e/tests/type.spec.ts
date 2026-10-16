@@ -27,7 +27,7 @@ test("the visualizer's intro titles itself in Inter 600, though its popover is n
   expect(await typeFindings(page)).toEqual({ small: [], titles: [], display: [], labels: [] });
 });
 
-test("Mock's Recent heading, outside any card, titles itself in Inter 600", async ({ page }) => {
+test("Mock's History headings, outside any card, title themselves in Inter 600", async ({ page }) => {
   const session = {
     id: randomUUID(),
     track: 'coding',
@@ -42,7 +42,8 @@ test("Mock's Recent heading, outside any card, titles itself in Inter 600", asyn
     route.request().method() === 'GET' ? route.fulfill({ json: [session] }) : route.continue(),
   );
   await page.goto('/mock', { waitUntil: 'networkidle' });
-  await expect(page.getByRole('heading', { name: 'Recent' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'History' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Coding', level: 3, exact: true })).toBeVisible();
   expect(await typeFindings(page)).toEqual({ small: [], titles: [], display: [], labels: [] });
 });
 

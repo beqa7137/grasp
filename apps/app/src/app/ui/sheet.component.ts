@@ -32,7 +32,9 @@ const OVERLAY_BACK_PRIORITY = 100;
  * A modal sheet (REDESIGN.md 3.2): a bottom sheet on a phone, a centred card wider up. It is a native modal `dialog`, so it
  * sits in the top layer over Ionic's pages and the page behind it is inert. Focus moves to its first control on open,
  * Escape and Android's back button close it, and focus goes back to what opened it, all done here rather than left to
- * each browser's dialog. However the dialog closes (a close watcher, `form method="dialog"`), `open` follows.
+ * each browser's dialog. However the dialog closes (a close watcher, `form method="dialog"`), `open` follows. A sheet whose
+ * action leaves the page must call `close()` before navigating: Ionic stops rendering the page it leaves, so an `open` set
+ * to false would never reach the dialog, which would stay modal over the next page.
  */
 @Component({
   selector: 'g-sheet',
@@ -148,6 +150,12 @@ export class SheetComponent {
     inject(DestroyRef).onDestroy(() => {
       if (this.dialog().nativeElement.open) this.onClosed();
     });
+  }
+
+  /** Closes now rather than at the next render: an action that leaves the page must not leave the modal open behind it. */
+  close() {
+    this.open.set(false);
+    this.dialog().nativeElement.close();
   }
 
   onKeydown(e: KeyboardEvent) {

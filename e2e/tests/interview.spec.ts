@@ -1,11 +1,9 @@
 import type { Locator, Page } from '@playwright/test';
-import { expect, recordedEvents, synced, test } from './fixtures';
+import { expect, openStartSheet, recordedEvents, startMockRound, synced, test } from './fixtures';
 
 /** Opens a coding interview and answers twice, which brings up End & score. */
-async function interviewUntilScorable(page: Page, problem: RegExp) {
-  await page.goto('/mock');
-  await page.getByRole('button', { name: problem }).click();
-  await expect(page).toHaveURL(/\/mock\/[0-9a-f-]{36}$/);
+async function interviewUntilScorable(page: Page, problem: string) {
+  await startMockRound(page, 'Coding', problem);
   const input = page.getByRole('textbox', { name: /Think out loud/ });
   const replies = page.locator('app-interview-session .msg:not(.me)');
   await expect(replies.first()).toBeVisible();
@@ -24,9 +22,7 @@ async function interviewUntilScorable(page: Page, problem: RegExp) {
 }
 
 test('a mock interview runs to a scorecard', async ({ page }) => {
-  await page.goto('/mock');
-  await page.getByRole('button', { name: /Days Until Warmer/ }).click();
-  await expect(page).toHaveURL(/\/mock\/[0-9a-f-]{36}$/);
+  await startMockRound(page, 'Coding', 'Days Until Warmer');
   await expect(page.getByText(/daily temperatures/)).toBeVisible();
 
   const input = page.getByRole('textbox', { name: /Think out loud/ });
@@ -45,24 +41,53 @@ test('a mock interview runs to a scorecard', async ({ page }) => {
 
   const sync = synced(page, 'interview.scored');
   await page.getByRole('button', { name: 'End & score' }).click();
-  await expect(page.getByText(/Scorecard · scripted practice estimate|Scorecard · AI feedback/)).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByText(/Scorecard · (Scripted: rubric checks|AI interviewer)/)).toBeVisible({ timeout: 60_000 });
   await expect(page.locator('.scorecard .verdict')).not.toBeEmpty();
   await sync;
 });
 
-test('the interview list shows all three tracks', { tag: '@smoke' }, async ({ page }) => {
+test('the Mock hub offers the full loop first, then a Single round of each track', { tag: '@smoke' }, async ({ page }) => {
   await page.goto('/mock');
-  await expect(page.getByRole('button', { name: /^Coding/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: /^System design/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: /^Behavioral/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Surprise me' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Mock interviews', level: 1 })).toBeVisible();
+  const loop = page.getByRole('link', { name: /^Full loop/ });
+  await expect(loop).toContainText('One round of each: Coding 45 · System design 45 · Behavioral 20 min');
+  await expect(loop).toHaveAttribute('href', '/mock/loop');
+  const headings = page.locator('app-interview-home').getByRole('heading', { level: 3 });
+  await expect(headings).toHaveText(['Coding round', 'System design round', 'Behavioral round']);
+  expect((await loop.boundingBox())!.y).toBeLessThan((await headings.first().boundingBox())!.y);
+  for (const card of await page.locator('app-interview-home .round').all()) await expect(card).toContainText(/Readiness \d+ · Building/);
+  const sheet = await openStartSheet(page, 'Coding');
+  await expect(sheet.getByRole('radio', { name: 'Surprise me' })).toBeChecked();
+  await expect(sheet.getByRole('radio', { name: 'Scripted' })).toHaveAttribute('aria-checked', 'true');
+  await expect(sheet.locator('.chip')).toHaveCount(0);
+});
+
+test('the start sheet lists catalog titles, and History shows them by round', async ({ page }) => {
+  await page.goto('/mock');
+  const sheet = await openStartSheet(page, 'System design');
+  await expect(sheet.locator('fieldset label')).toHaveText(['Surprise me', 'URL Shortener', 'News Feed', 'Rate Limiter', 'Chat App']);
+  await sheet.getByRole('button', { name: 'Close' }).click();
+  await expect(sheet).toBeHidden();
+  const coding = await openStartSheet(page, 'Coding');
+  await expect(coding.getByRole('radio', { name: 'Capacity To Ship Packages Within D Days' })).toBeVisible();
+  await expect(coding.getByRole('radio', { name: 'Longest Repeating Character Replacement' })).toBeVisible();
+  await coding.getByRole('radio', { name: 'Course Schedule Order' }).check();
+  await coding.getByRole('button', { name: 'Start round' }).click();
+  await expect(page).toHaveURL(/\/mock\/[0-9a-f-]{36}$/);
+  await expect(page.locator('app-interview-session ion-title')).toContainText('Course Schedule Order');
+  await page.waitForLoadState('networkidle');
+  await page.goto('/mock');
+  const history = page.locator('app-interview-home .history');
+  await expect(page.getByRole('heading', { name: 'History', level: 2 })).toBeVisible();
+  await expect(page.locator('app-interview-home h3.group')).toHaveText(['Coding']);
+  await expect(history.getByRole('link', { name: /^Course Schedule Order\s*Scripted · .* In progress$/ })).toBeVisible();
 });
 
 test.describe('interview score recovery', () => {
   test.use({ expectedConsoleErrors: [/net::ERR_FAILED/] });
 
   test('recovers a lost scoring response from the committed card and its single progress event', async ({ page }) => {
-    await interviewUntilScorable(page, /Days Until Warmer/);
+    await interviewUntilScorable(page, 'Days Until Warmer');
     const id = new URL(page.url()).pathname.split('/').at(-1)!;
     const path = `/api/interview/sessions/${id}/score`;
     let committedScore: Record<string, unknown> | undefined;
@@ -128,8 +153,7 @@ test.describe('interview access recovery', () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
       await route.fulfill({ status: 403, json: { code: 'ai_sign_in_required', message: 'Sign in to continue with AI.' } });
     });
-    await page.goto('/mock');
-    await page.getByRole('button', { name: /Days Until Warmer/ }).click();
+    await startMockRound(page, 'Coding', 'Days Until Warmer');
     const input = page.getByRole('textbox', { name: /Think out loud/ });
     await page.getByRole('button', { name: 'Code', exact: true }).click();
     await input.fill('My unsent explanation must stay here.');
@@ -167,7 +191,7 @@ test('at 200% zoom, with the text at its size or doubled, End & score sits besid
 }) => {
   test.skip(isMobile, 'Zoom is a desktop browser setting; a phone is checked at 320 px.');
   await page.setViewportSize({ width: 640, height: 500 });
-  await interviewUntilScorable(page, /Longest Repeating Run With K Changes/);
+  await interviewUntilScorable(page, 'Longest Repeating Character Replacement');
   for (const textSize of ['100%', '200%']) {
     await page.evaluate((size) => (document.documentElement.style.fontSize = size), textSize);
     await expectTitleBefore(
@@ -181,7 +205,7 @@ test('at 200% zoom, with the text at its size or doubled, End & score sits besid
 test('on a 320 px phone, End & score and the Design Lab Reset sit beside their titles, never over them', async ({ page, isMobile }) => {
   test.skip(!isMobile, 'A 320 px screen is a phone.');
   await page.setViewportSize({ width: 320, height: 700 });
-  await interviewUntilScorable(page, /Longest Repeating Run With K Changes/);
+  await interviewUntilScorable(page, 'Longest Repeating Character Replacement');
   await expectTitleBefore(
     page.locator('app-interview-session ion-title'),
     page.getByRole('button', { name: 'End & score' }),

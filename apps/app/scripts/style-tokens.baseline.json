@@ -18,7 +18,7 @@
     "spacing": 6
   },
   "app/pages/behavioral/ai-interview-entry.component.ts": {
-    "font-size": 3,
+    "font-size": 2,
     "spacing": 7
   },
   "app/pages/behavioral/behavioral-mock.page.ts": {
@@ -287,10 +287,6 @@
   "app/pages/interview/behavioral-scorecard.component.ts": {
     "font-size": 2,
     "spacing": 10
-  },
-  "app/pages/interview/interview-home.page.ts": {
-    "font-size": 11,
-    "spacing": 27
   },
   "app/pages/interview/interview-session.page.scss": {
     "border-radius": 8,

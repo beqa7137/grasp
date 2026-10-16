@@ -16,7 +16,10 @@ const told = (id: string, competencyIds: string[]): Story =>
     new Date(Date.now() - 60_000),
   );
 
-function render(card: Partial<Scorecard> = {}, options: { fromStory?: boolean; stories?: Story[]; weakSince?: string } = {}) {
+function render(
+  card: Partial<Scorecard> = {},
+  options: { fromStory?: boolean; stories?: Story[]; weakSince?: string; mode?: InterviewSession['mode'] } = {},
+) {
   const session: InterviewSession = {
     id: 'session',
     track: 'behavioral',
@@ -28,8 +31,9 @@ function render(card: Partial<Scorecard> = {}, options: { fromStory?: boolean; s
     hintsUsed: 0,
     status: 'scored',
     createdAt: '2026-09-29T00:00:00Z',
-    mode: 'ai',
+    mode: options.mode ?? 'ai',
     aiAccess: 'available',
+    level: 'senior',
     scorecard: {
       verdict: 'lean-no-hire',
       summary: 'Say what you did.',
@@ -130,16 +134,37 @@ describe('BehavioralScorecardComponent', () => {
     ]);
   });
 
-  it('offers sign-in and scripted practice when the AI interviewer is refused', async () => {
-    const { fixture, el, button, api } = render();
+  it('offers sign-in, or the same next question as a scripted round with a verdict, when the AI interviewer is refused', async () => {
+    const { fixture, el, button, api, navigate } = render();
     api.post.mockRejectedValueOnce(new ApiError(403, 'Sign in to use the AI interviewer.', 'ai_sign_in_required'));
     button('Try another question')!.click();
     await fixture.whenStable();
     fixture.detectChanges();
     expect(el.querySelector('app-sign-in-options')).not.toBeNull();
-    const scripted = [...el.querySelectorAll('a')].find((a) => a.textContent?.includes('scripted follow-ups'));
-    expect(scripted?.getAttribute('href')).toMatch(/^\/behavioral\/drill\?question=conflict-\d+$/);
-    expect(scripted?.getAttribute('href')).not.toContain('conflict-1');
+    expect([...el.querySelectorAll('a')].some((a) => a.getAttribute('href')?.startsWith('/behavioral/drill'))).toBe(false);
+    const asked = (api.post.mock.calls[0] as unknown as [string, { problemId: string }])[1].problemId;
+    button('Practice it with scripted follow-ups instead')!.click();
+    await fixture.whenStable();
+    expect(api.post).toHaveBeenLastCalledWith('/interview/sessions', {
+      track: 'behavioral',
+      problemId: asked,
+      mode: 'offline',
+      level: 'senior',
+    });
+    expect(asked).toMatch(/^conflict-\d+$/);
+    expect(asked).not.toBe('conflict-1');
+    expect(navigate).toHaveBeenCalledWith('/mock/next', expect.anything());
+  });
+
+  it('starts another scripted question as an API round, not the client-only STAR drill', async () => {
+    const { fixture, button, api, navigate } = render({ mode: 'offline' }, { mode: 'offline' });
+    button('Try another question')!.click();
+    await fixture.whenStable();
+    const [path, body] = api.post.mock.calls[0] as unknown as [string, { track: string; problemId: string; mode: string }];
+    expect(path).toBe('/interview/sessions');
+    expect(body).toMatchObject({ track: 'behavioral', mode: 'offline', level: 'senior' });
+    expect(body.problemId).toMatch(/^conflict-\d+$/);
+    expect(navigate).toHaveBeenCalledWith('/mock/next', expect.anything());
   });
 
   it('starts another AI question on the same competency, never this one, and links to practising this one', async () => {

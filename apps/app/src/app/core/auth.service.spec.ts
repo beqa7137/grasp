@@ -370,7 +370,10 @@ describe('AuthService (app)', () => {
     const { auth, calls } = setup();
     await auth.signIn('github');
     calls.length = 0;
+    const kept = ['grasp.interview.loop.account-learner', 'grasp.interview.history.account-learner'];
+    for (const key of kept) localStorage.setItem(`CapacitorStorage.${key}`, '[]');
     await auth.signOut();
+    for (const key of kept) expect(localStorage.getItem(`CapacitorStorage.${key}`), key).toBeNull();
     expect(calls).toEqual([
       'flush stories',
       'post /auth/logout',
@@ -507,6 +510,8 @@ describe('AuthService (app)', () => {
     calls.length = 0;
     tokens.accessToken.set(null);
     tokens.signInRequired.set(true);
+    const kept = ['grasp.interview.loop.account-learner', 'grasp.interview.history.account-learner'];
+    for (const key of kept) localStorage.setItem(`CapacitorStorage.${key}`, '[]');
 
     await Promise.all([
       tokens.learnerRetired!('learner_erased', 'account-learner'),
@@ -519,6 +524,7 @@ describe('AuthService (app)', () => {
     expect(tokens.signInRequired()).toBe(false);
     expect(localStorage.getItem('CapacitorStorage.grasp.auth.refresh')).toBeNull();
     expect(toasts).toEqual(["This learner's data was deleted on another device."]);
+    for (const key of kept) expect(localStorage.getItem(`CapacitorStorage.${key}`), key).toBeNull();
   });
 
   it('keeps local progress and adopts stored account credentials for a moved learner', async () => {

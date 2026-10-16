@@ -142,28 +142,68 @@ async function giveBehavioralAnswer(p) {
   await settle(p, 400);
 }
 
-/** Mock's Recent list, from two past sessions: one scored, one still in progress. */
-async function showRecent(p) {
-  const session = (id, problemId, title, createdAt, scorecard) => ({
-    id,
-    track: 'coding',
-    problem: { id: problemId, title, track: 'coding', patternIds: [] },
-    messages: [],
-    hintsUsed: 0,
-    status: scorecard ? 'scored' : 'active',
-    createdAt,
-    mode: 'offline',
-    ...(scorecard && { scorecard }),
-  });
-  const sessions = [
-    session('a7d1c0de-0000-4000-8000-000000000001', 'two-sum', 'Two Sum', '2026-09-14T15:30:00', { verdict: 'lean-hire' }),
-    session('a7d1c0de-0000-4000-8000-000000000002', 'valid-parentheses', 'Valid Parentheses', '2026-09-12T09:05:00'),
-  ];
+/** Mock's History, from past sessions in each round: scored ones and one still in progress. */
+const HISTORY = [
+  ['a7d1c0de-0000-4000-8000-000000000001', 'coding', 'warmer-days', 'Days Until Warmer', '2026-09-14T15:30:00', 'lean-hire'],
+  ['a7d1c0de-0000-4000-8000-000000000002', 'coding', 'course-order', 'Course Schedule Order', '2026-09-12T09:05:00', null],
+  ['a7d1c0de-0000-4000-8000-000000000003', 'system-design', 'rate-limiter', 'Rate Limiter', '2026-09-13T18:10:00', 'hire'],
+  ['a7d1c0de-0000-4000-8000-000000000004', 'behavioral', 'conflict-1', 'Conflict & Disagreement', '2026-09-11T08:45:00', 'lean-no-hire'],
+].map(([id, track, problemId, title, createdAt, verdict]) => ({
+  id,
+  track,
+  problem: { id: problemId, title, track, patternIds: [] },
+  messages: [],
+  hintsUsed: 0,
+  status: verdict ? 'scored' : 'active',
+  createdAt,
+  mode: track === 'system-design' ? 'ai' : 'offline',
+  ...(verdict && { scoredAt: createdAt, scorecard: { verdict } }),
+}));
+
+async function showHistory(p) {
   await p.route('**/api/interview/sessions', (route) =>
-    route.request().method() === 'GET' ? route.fulfill({ json: sessions }) : route.continue(),
+    route.request().method() === 'GET' ? route.fulfill({ json: HISTORY }) : route.continue(),
   );
   await goto(p, '/mock');
-  await p.getByRole('heading', { name: 'Recent' }).scrollIntoViewIfNeeded();
+  await p.getByRole('heading', { name: 'History' }).scrollIntoViewIfNeeded();
+  await settle(p);
+}
+
+/** The start sheet of a Single round; with `ai`, a signed-in learner's AI choice and this hour's allowance, played here. */
+async function openStartSheet(p, round, { ai = false } = {}) {
+  if (ai) {
+    await p.route('**/api/interview/problems', async (route) => {
+      const response = await route.fetch();
+      await route.fulfill({ response, json: { ...(await response.json()), aiAccess: 'available', aiRounds: { limit: 3, used: 1 } } });
+    });
+    await p.reload();
+  }
+  const card = p.locator('app-interview-home .round').filter({ has: p.getByRole('heading', { name: `${round} round` }) });
+  await card.getByRole('button', { name: 'Start a round' }).click();
+  const sheet = p.getByRole('dialog', { name: `${round} round` });
+  if (ai) await sheet.getByRole('radio', { name: 'AI interviewer' }).click();
+  await sheet.getByRole('button', { name: 'Start round' }).and(p.locator(':enabled')).waitFor();
+  await settle(p);
+}
+
+/** No connection: every API call fails as offline, and this device kept the scorecards of an earlier visit. */
+async function showOffline(p) {
+  const learnerId = await p.evaluate(() => localStorage.getItem('CapacitorStorage.grasp.learnerId'));
+  const kept = HISTORY.filter((s) => s.scorecard).map((s) => ({
+    id: s.id,
+    track: s.track,
+    title: s.problem.title,
+    mode: s.mode,
+    at: s.scoredAt,
+    verdict: s.scorecard.verdict,
+  }));
+  await p.evaluate(
+    ([key, value]) => localStorage.setItem(key, value),
+    [`CapacitorStorage.grasp.interview.history.${learnerId}`, JSON.stringify(kept)],
+  );
+  await p.route('**/api/interview/**', (route) => route.abort('internetdisconnected'));
+  await p.reload();
+  await p.getByRole('heading', { name: 'Mock rounds need a connection' }).waitFor();
   await settle(p);
 }
 
@@ -240,8 +280,11 @@ async function seedLoop(p, scored) {
 export function interviewStates() {
   return [
     { id: 'mock', path: '/mock' },
-    { id: 'mock-recent', path: '/mock', setup: showRecent },
-    { id: 'mock-behavioral', path: '/mock', setup: (p) => p.getByRole('button', { name: /^Behavioral/ }).click() },
+    { id: 'mock-history', path: '/mock', setup: showHistory },
+    { id: 'mock-start-coding', path: '/mock', setup: (p) => openStartSheet(p, 'Coding') },
+    { id: 'mock-start-behavioral', path: '/mock', setup: (p) => openStartSheet(p, 'Behavioral') },
+    { id: 'mock-start-ai', path: '/mock', setup: (p) => openStartSheet(p, 'System design', { ai: true }) },
+    { id: 'mock-offline', path: '/mock', setup: showOffline },
     { id: 'interview-behavioral-answer', path: '/mock', setup: openBehavioralInterview },
     { id: 'mock-loop-setup', path: '/mock/loop' },
     {

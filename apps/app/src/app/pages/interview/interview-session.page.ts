@@ -34,6 +34,7 @@ import {
   type InterviewMessage,
   type InterviewMode,
   type InterviewSession,
+  scoredBy,
 } from './interview.types';
 import { needsSignIn } from './start-interview';
 import { MockLoopService } from './mock-loop.service';
@@ -104,6 +105,7 @@ export class InterviewSessionPage {
 
   readonly languageLabels = LANGUAGE_LABELS;
   readonly trackLabels = TRACK_NAMES;
+  readonly scoredBy = scoredBy;
   readonly followUps = BEHAVIORAL_FOLLOW_UPS;
   readonly starDraft = signal<StarDraft>({ ...EMPTY_STAR_DRAFT });
   readonly answerFromStory = signal(false);
@@ -297,7 +299,9 @@ export class InterviewSessionPage {
       const changed = await this.api.post<InterviewSession>(`/interview/sessions/${session.id}/mode`, { mode });
       this.session.set(changed);
       this.notice.set(
-        `${changed.mode === 'ai' ? 'AI' : 'Scripted practice'} will handle future replies and the final score. Your conversation and draft are unchanged.`,
+        changed.mode === 'ai'
+          ? 'The AI interviewer will handle future replies and the final score. Your conversation and draft are unchanged.'
+          : 'Scripted follow-ups from here, and the final score by rubric checks. Your conversation and draft are unchanged.',
       );
     } catch (error) {
       this.handleError(error, 'Could not change the interviewer. Please try again.');

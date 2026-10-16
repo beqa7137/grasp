@@ -7,7 +7,7 @@ import {
   getScenarioSummary,
   getSdTopic,
 } from '@grasp/engine';
-import { TODAY_HEADING as TODAY, expect, expectSectionLit, railShown, section, shownPage, test } from './fixtures';
+import { TODAY_HEADING as TODAY, expect, expectSectionLit, railShown, section, shownPage, startMockRound, test } from './fixtures';
 
 const input = encodeURIComponent(JSON.stringify({ nums: [1, 3, 5, 7, 9], target: 7 }));
 
@@ -50,7 +50,7 @@ const LINKS: { old: string; url: string; h1: string | RegExp; tab: string }[] = 
   { old: '/drill?pattern=hashing', url: '/coding/patterns/hashing/drill', h1: getPatternSummary('hashing')!.name, tab: 'coding' },
   { old: '/drill?pattern=sd-latency', url: '/design/topics/sd-latency/drill', h1: getSdTopic('sd-latency')!.name, tab: 'design' },
   { old: '/diagnostic', url: '/coding/placement', h1: 'Find your starting point', tab: 'coding' },
-  { old: '/interview', url: '/mock', h1: 'Say it out loud.', tab: 'mock' },
+  { old: '/interview', url: '/mock', h1: 'Mock interviews', tab: 'mock' },
   { old: '/interview/loop', url: '/mock/loop', h1: /loop/i, tab: 'mock' },
   { old: '/behavioral', url: '/behavioral', h1: 'Behavioral interviews', tab: 'behavioral' },
   { old: '/behavioral/conflict', url: '/behavioral/conflict', h1: getCompetencySummary('conflict')!.name, tab: 'behavioral' },
@@ -108,9 +108,7 @@ for (const tab of ['today', 'coding', 'design', 'behavioral', 'mock']) {
 }
 
 test('old interview and story links still open the session and the story', { tag: '@nav' }, async ({ page }) => {
-  await page.goto('/mock');
-  await page.getByRole('button', { name: /Days Until Warmer/ }).click();
-  await expect(page).toHaveURL(/\/mock\/[0-9a-f-]{36}$/);
+  await startMockRound(page, 'Coding', 'Days Until Warmer');
   const session = new URL(page.url()).pathname.split('/')[2];
   await page.goto(`/interview/${session}`);
   await expect(page).toHaveURL(new RegExp(`/mock/${session}$`));

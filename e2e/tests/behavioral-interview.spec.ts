@@ -1,6 +1,6 @@
 import type { Page, Route } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
-import { expect, synced, test } from './fixtures';
+import { expect, expectSectionLit, openStartSheet, startMockRound, synced, test } from './fixtures';
 
 const DAY_MS = 86_400_000;
 const STORY_DRAFT = {
@@ -72,7 +72,7 @@ async function fakeAiInterviewer(page: Page, { failFirstAnswer = false } = {}) {
   };
   await page.route('**/api/interview/problems', async (route) => {
     const response = await route.fetch();
-    await route.fulfill({ response, json: { ...(await response.json()), aiAccess: 'available' } });
+    await route.fulfill({ response, json: { ...(await response.json()), aiAccess: 'available', aiRounds: { limit: 3, used: 1 } } });
   });
   await page.route('**/api/interview/sessions**', async (route: Route) => {
     const request = route.request();
@@ -130,37 +130,91 @@ async function fakeAiInterviewer(page: Page, { failFirstAnswer = false } = {}) {
   return { id, sent };
 }
 
-test('the interview list offers three tracks, and behavioral lists every competency', async ({ page }) => {
+test('the Behavioral start sheet picks a competency from the 13, at the level of the Target', async ({ page }) => {
   await page.goto('/mock');
-  await page.getByRole('button', { name: /^Behavioral/ }).click();
-  const competencies = page.locator('app-interview-home .problem');
-  await expect(competencies).toHaveCount(13);
-  await expect(competencies.first()).toContainText('Ownership');
-  await expect(competencies.first()).toContainText('Acting like the outcome is yours, beyond the edges of your task.');
-  await expect(page.getByRole('link', { name: /Guides, story bank and rehearsal/ })).toBeVisible();
+  const sheet = await openStartSheet(page, 'Behavioral');
+  const choices = sheet.locator('fieldset label');
+  await expect(choices).toHaveCount(14);
+  await expect(choices.first()).toHaveText('Surprise me');
+  await expect(choices.nth(1)).toContainText('Ownership');
+  await expect(sheet.getByText('One of its 7 questions, picked at random, scored at the Mid-level bar from your loop.')).toBeVisible();
+  await expect(sheet.getByRole('link', { name: /drill/i })).toHaveCount(0);
 });
 
-test('scripted behavioral practice stays on the device: one question of the chosen competency', async ({ page }) => {
+test('a scripted behavioral single round is an API session: it records interview.scored with a verdict, with Mock lit throughout', async ({
+  page,
+}) => {
   await page.goto('/mock');
-  await page.getByRole('button', { name: /^Behavioral/ }).click();
-  await page.getByRole('button', { name: /^Conflict & Disagreement/ }).click();
-  await expect(page).toHaveURL(/\/behavioral\/drill\?question=conflict$/);
-  const mock = page.locator('app-behavioral-mock');
-  await expect(mock.getByText('Question 1 of 1', { exact: true })).toBeVisible();
+  await expectSectionLit(page, 'Mock');
+  const created = page.waitForRequest((r) => r.method() === 'POST' && new URL(r.url()).pathname === '/api/interview/sessions');
+  await startMockRound(page, 'Behavioral', /^Conflict & Disagreement/);
+  expect((await created).postDataJSON()).toEqual({ track: 'behavioral', problemId: 'conflict', mode: 'offline', level: 'mid' });
+  await expect(page).not.toHaveURL(/drill/);
+  await expectSectionLit(page, 'Mock');
+  const session = page.locator('app-interview-session');
+  await expect(session.locator('.meta')).toContainText('Scripted');
+  for (const [part, text] of Object.entries({ Situation: STORY_DRAFT.situation, Action: STORY_DRAFT.action, Result: STORY_DRAFT.result })) {
+    await session.getByLabel(part, { exact: true }).fill(text);
+  }
+  await session.getByRole('button', { name: 'Give answer' }).click();
+  const composer = page.getByRole('textbox', { name: 'Your follow-up answer' });
+  for (let i = 0; i < 3; i++) {
+    await expect(composer).toBeEditable({ timeout: 30_000 });
+    await composer.fill('I wrote the retry fix myself and checked the failure dashboards every morning for two weeks after.');
+    await page.getByRole('button', { name: 'Send', exact: true }).click();
+  }
+  await expect(session.getByText(CLOSING, { exact: true })).toBeVisible({ timeout: 30_000 });
+  const scored = synced(page, 'interview.scored');
+  const upload = page.waitForRequest((r) => r.method() === 'POST' && r.url().endsWith('/api/progress/events'));
+  await page.getByRole('button', { name: 'End & score' }).click();
+  await expect(page.getByText('Scorecard · Scripted: rubric checks')).toBeVisible({ timeout: 60_000 });
+  const verdict = await session.locator('.scorecard .verdict').textContent();
+  expect(verdict?.trim()).toMatch(/^(no|lean no|lean|strong)? ?hire$/i);
+  const id = new URL(page.url()).pathname.split('/').at(-1)!;
+  const event = ((await upload).postDataJSON() as { events: Record<string, unknown>[] }).events.find(
+    (e) => e['type'] === 'interview.scored',
+  );
+  expect(event).toMatchObject({ id: `interview-${id}`, track: 'behavioral', competencyId: 'conflict', weakPatterns: [] });
+  expect(String(event!['verdict'])).toMatch(/^(no-hire|lean-no-hire|lean-hire|hire|strong-hire)$/);
+  await scored;
+  await expectSectionLit(page, 'Mock');
+  await expect(session.getByRole('link', { name: /drill/i })).toHaveCount(0);
+
+  await page.waitForLoadState('networkidle');
+  await page.goto('/mock');
+  await expectSectionLit(page, 'Mock');
+  const behavioral = page.locator('app-interview-home .round').filter({ has: page.getByRole('heading', { name: 'Behavioral round' }) });
+  await expect(behavioral).toContainText(/Last round: (No hire|Lean no hire|Lean hire|Hire|Strong hire), /);
+  await expect(page.locator('app-interview-home h3.group')).toHaveText(['Behavioral']);
+});
+
+test('no route from Mock reaches the client-only STAR drill', async ({ page }) => {
+  await page.goto('/mock');
+  const hub = page.locator('app-interview-home');
+  await expect(hub.locator('.round')).toHaveCount(3);
+  const hrefs = await hub.locator('a[href]').evaluateAll((links) => links.map((a) => a.getAttribute('href')!));
+  expect(hrefs.filter((h) => h.includes('drill'))).toEqual([]);
+  for (const round of ['Coding', 'System design', 'Behavioral'] as const) {
+    const sheet = await openStartSheet(page, round);
+    expect(await sheet.locator('a[href*="drill"]').count()).toBe(0);
+    await sheet.getByRole('button', { name: 'Close' }).click();
+  }
+  await page.goto('/mock/loop');
+  await expect(page.locator('app-mock-loop a[href*="drill"]')).toHaveCount(0);
 });
 
 test.describe('the AI interviewer entry on a question', () => {
   test.use({ expectedConsoleErrors: [/status of 503/] });
 
-  test('offers scripted follow-ups when the AI interviewer is unavailable', async ({ page }) => {
+  test('offers a scripted round with a verdict when the AI interviewer is unavailable', async ({ page }) => {
     await page.goto('/behavioral/question/conflict-1');
     await page.getByRole('button', { name: 'Practice with the AI interviewer' }).click();
     await expect(page.getByRole('alert')).toContainText('unavailable');
-    await page.getByRole('link', { name: 'Practice it with scripted follow-ups instead' }).click();
-    await expect(page).toHaveURL(/\/behavioral\/drill\?question=conflict-1$/);
-    await expect(page.locator('app-behavioral-mock h1')).toHaveText(
-      'Tell me about a time you disagreed with a teammate on a technical decision.',
-    );
+    const created = page.waitForRequest((r) => r.method() === 'POST' && new URL(r.url()).pathname === '/api/interview/sessions');
+    await page.getByRole('button', { name: 'Practice it with scripted follow-ups instead' }).click();
+    expect((await created).postDataJSON()).toEqual({ track: 'behavioral', problemId: 'conflict-1', mode: 'offline', level: 'mid' });
+    await expect(page).toHaveURL(/\/mock\/[0-9a-f-]{36}$/);
+    await expect(page.locator('app-interview-session').getByText(OPENING, { exact: true })).toBeVisible();
   });
 });
 
@@ -171,12 +225,14 @@ test('an AI behavioral interview starts from a story, takes three follow-ups, an
   const { id, sent } = await fakeAiInterviewer(page);
 
   await settledGoto(page, '/mock');
-  await page.getByRole('button', { name: 'AI interview' }).click();
-  await page.getByRole('button', { name: /^Behavioral/ }).click();
-  await expect(page.getByText('Your answers, including any story you start from, are sent to the AI service.')).toBeVisible();
-  await page.getByRole('button', { name: /^Conflict & Disagreement/ }).click();
+  const sheet = await openStartSheet(page, 'Behavioral');
+  await sheet.getByRole('radio', { name: 'AI interviewer' }).click();
+  await expect(sheet.getByText('AI rounds left this hour: 2 of 3')).toBeVisible();
+  await expect(sheet.getByText('Your answers, including any story you start from, are sent to the AI service.')).toBeVisible();
+  await sheet.getByRole('radio', { name: /^Conflict & Disagreement/ }).check();
+  await sheet.getByRole('button', { name: 'Start round' }).click();
   await expect(page).toHaveURL(new RegExp(`/mock/${id}$`));
-  expect(sent[0]).toEqual({ track: 'behavioral', problemId: 'conflict', mode: 'ai' });
+  expect(sent[0]).toEqual({ track: 'behavioral', problemId: 'conflict', mode: 'ai', level: 'mid' });
 
   const session = page.locator('app-interview-session');
   await expect(session.getByText(OPENING, { exact: true })).toBeVisible();

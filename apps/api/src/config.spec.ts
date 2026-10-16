@@ -16,6 +16,7 @@ describe('loadConfig', () => {
       anthropicApiKey: null,
       anthropicModel: 'claude-sonnet-5',
       aiDailyBudgetUsd: null,
+      aiRoundsPerHour: 3,
       webDistDir: null,
     });
     expect(config.corsOrigins).toContain('capacitor://localhost');

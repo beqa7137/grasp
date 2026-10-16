@@ -2,7 +2,8 @@ import type { InterviewTrack } from './rubrics.js';
 
 /**
  * A scripted mock round's problem as lists, search and the loop see it, so they work offline; the API keeps each one's
- * prompts and rubric. `catalogId` names the matching coding problem or case study, whose title is the one to show.
+ * prompts and rubric. `catalogId` names the matching coding problem or case study; `title` is that one's title, which
+ * the title spec holds it to.
  */
 export interface MockProblem {
   id: string;
@@ -19,7 +20,7 @@ export const MOCK_PROBLEMS: readonly MockProblem[] = [
   {
     id: 'shipping-capacity',
     track: 'coding',
-    title: 'Ship Within D Days',
+    title: 'Capacity To Ship Packages Within D Days',
     patternIds: ['binary-search', 'greedy'],
     catalogId: 'ship-within-days',
   },
@@ -34,14 +35,14 @@ export const MOCK_PROBLEMS: readonly MockProblem[] = [
   {
     id: 'longest-k-replace',
     track: 'coding',
-    title: 'Longest Repeating Run With K Changes',
+    title: 'Longest Repeating Character Replacement',
     patternIds: ['sliding-window', 'hashing'],
     catalogId: 'character-replacement',
   },
-  { id: 'url-shortener', track: 'system-design', title: 'Design a URL Shortener', patternIds: [], catalogId: 'url-shortener' },
-  { id: 'news-feed', track: 'system-design', title: 'Design a News Feed', patternIds: [], catalogId: 'news-feed' },
-  { id: 'rate-limiter', track: 'system-design', title: 'Design a Distributed Rate Limiter', patternIds: [], catalogId: 'rate-limiter' },
-  { id: 'chat-service', track: 'system-design', title: 'Design a Chat Service', patternIds: [], catalogId: 'chat' },
+  { id: 'url-shortener', track: 'system-design', title: 'URL Shortener', patternIds: [], catalogId: 'url-shortener' },
+  { id: 'news-feed', track: 'system-design', title: 'News Feed', patternIds: [], catalogId: 'news-feed' },
+  { id: 'rate-limiter', track: 'system-design', title: 'Rate Limiter', patternIds: [], catalogId: 'rate-limiter' },
+  { id: 'chat-service', track: 'system-design', title: 'Chat App', patternIds: [], catalogId: 'chat' },
 ];
 
 export function getMockProblem(id: string): MockProblem | undefined {
