@@ -1,4 +1,4 @@
-import { expect, shownPage, synced, test } from './fixtures';
+import { expect, section, shownPage, synced, test } from './fixtures';
 
 test.describe('first visit', () => {
   test.use({ pilotNoticeSeen: false });
@@ -119,7 +119,7 @@ test('an answer waiting for its upload never shows progress as waiting to sync',
   const sync = synced(page, 'review.graded');
   await page.locator('g-question-card .choice').first().click();
   await page.getByRole('button', { name: /^(Got it|Continue)/ }).click();
-  await page.getByRole('tab', { name: 'Today' }).click();
+  await section(page, 'Today').click();
   await sync;
   await expect(status).toHaveAttribute('data-status', 'synced');
   expect(await page.evaluate(() => [...(window as unknown as { syncStatuses: Set<string> }).syncStatuses])).not.toContain('pending');
@@ -132,12 +132,12 @@ test.describe('warmed offline lessons', () => {
     await page.goto('/today', { waitUntil: 'networkidle' });
     await context.setOffline(true);
 
-    await page.locator('ion-tab-button[tab="coding"]').click();
+    await section(page, 'Coding').click();
     await page.locator('app-skill-map a[href="/coding/patterns/two-pointers"]').click();
     await expect(page.getByRole('heading', { name: 'Two Pointers', level: 1 })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Template' })).toBeVisible();
 
-    await page.locator('ion-tab-button[tab="coding"]').click();
+    await section(page, 'Coding').click();
     await page.locator('app-hub').getByRole('link', { name: 'Visualizers' }).click();
     await page.locator('a.item[href="/coding/visualizers/binary-search"]').click();
     await expect(page.getByRole('heading', { name: 'Binary Search', level: 1 })).toBeVisible();

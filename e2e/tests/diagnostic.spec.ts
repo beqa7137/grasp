@@ -1,5 +1,5 @@
 import { PATTERN_CATALOG } from '@grasp/engine';
-import { expect, synced, test } from './fixtures';
+import { expect, section, synced, test } from './fixtures';
 
 const QUESTIONS = PATTERN_CATALOG.length;
 
@@ -41,7 +41,7 @@ test('a new learner takes the placement check, reviews start with the patterns t
   const firstPattern = (await page.locator('g-question-card .reveal a').textContent())!.replace(/^Read the | lesson →$/g, '').trim();
   expect(strong, 'the first new card comes from a pattern the check found weak').not.toContain(firstPattern);
 
-  await page.getByRole('tab', { name: /^Today/ }).click();
+  await section(page, 'Today').click();
   const learn = page.locator('app-today');
   await expect(learn.getByRole('heading', { name: /^Mid-level loop · / })).toBeVisible();
   await expect(learn.getByText('Skip what you know')).toBeHidden();
@@ -87,7 +87,7 @@ test('number keys only answer the page in view, not a review left open in anothe
   await page.keyboard.press('1');
   await expect(diagnostic.getByText(`2/${QUESTIONS}`, { exact: true })).toBeVisible();
 
-  await page.getByRole('tab', { name: /^Today/ }).click();
+  await section(page, 'Today').click();
   await page
     .locator('app-today')
     .getByRole('link', { name: /^Review/ })

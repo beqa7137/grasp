@@ -7,7 +7,7 @@ import {
   getScenarioSummary,
   getSdTopic,
 } from '@grasp/engine';
-import { TODAY_HEADING as TODAY, expect, shownPage, test } from './fixtures';
+import { TODAY_HEADING as TODAY, expect, expectSectionLit, railShown, section, shownPage, test } from './fixtures';
 
 const input = encodeURIComponent(JSON.stringify({ nums: [1, 3, 5, 7, 9], target: 7 }));
 
@@ -80,7 +80,7 @@ const LINKS: { old: string; url: string; h1: string | RegExp; tab: string }[] = 
 ];
 
 const shownH1 = (page: Page) => shownPage(page).locator('h1').first();
-/** Focus routes hide the tab bar under 1024px, but its selected tab still says where the page belongs. */
+/** Focus routes hide the tab bar under 1024px, and the rail replaces it from 1024px, but its selected tab still says where the page belongs. */
 const litTab = (page: Page) => page.locator('ion-tab-button.tab-selected');
 
 async function expectLanded(page: Page, url: string, h1: string | RegExp, tab: string) {
@@ -88,6 +88,11 @@ async function expectLanded(page: Page, url: string, h1: string | RegExp, tab: s
   await expect(shownH1(page)).toHaveText(h1);
   await expect(litTab(page)).toHaveCount(1);
   await expect(litTab(page)).toHaveAttribute('tab', tab);
+  if (!railShown(page)) return;
+  // A rail utility is an item of its own, so it is current rather than Today.
+  const utility = ({ '/today/plan': 'Study plan', '/today/settings': 'Settings' } as Record<string, string>)[new URL(page.url()).pathname];
+  if (utility) await expect(section(page, utility)).toHaveAttribute('aria-current', 'page');
+  else await expectSectionLit(page, tab[0].toUpperCase() + tab.slice(1));
 }
 
 // One test per tab, so a WebKit crash retries a short walk.

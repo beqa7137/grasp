@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { itemsForTopic } from '@grasp/engine';
-import { expect, synced, test } from './fixtures';
+import { expect, section, synced, test } from './fixtures';
 
 const EVENTS = 'CapacitorStorage.grasp.events';
 const today = (page: Page) => page.locator('app-today');
@@ -136,7 +136,7 @@ test('the Today badge equals the Review row', { tag: '@nav' }, async ({ page }) 
   expect(due).toBeGreaterThan(0);
   const badge = page.locator('ion-tab-button[tab="today"] ion-badge');
   await expect(badge.locator('[aria-hidden="true"]')).toHaveText(String(due));
-  await expect(page.getByRole('tab', { name: /^Today/ })).toHaveAccessibleName(new RegExp(`, ${due} due$`));
+  await expect(section(page, 'Today')).toHaveAccessibleName(new RegExp(`, ${due} due$`));
 });
 
 test('new cards alone show on the Review row but are not due, so the badge stays empty', { tag: '@nav' }, async ({ page }) => {
@@ -145,6 +145,7 @@ test('new cards alone show on the Review row but are not due, so the badge stays
   await expect(row).toContainText(/\d+ new · about \d+ min/);
   await expect(row).not.toContainText('due');
   await expect(page.locator('ion-tab-button[tab="today"] ion-badge')).toHaveCount(0);
+  await expect(section(page, 'Today')).toHaveAccessibleName('Today');
 });
 
 test('"Not now" hides the first-run card on this device, and "Set your loop" brings the form back', async ({ page }) => {
@@ -201,7 +202,7 @@ test('a plan from before Targets shows an assumed loop, and one tap on the level
   await plan.getByLabel('Interview date').fill(await localDay(page, 20));
   await plan.getByRole('button', { name: 'Save plan' }).click();
   await expect(plan.getByRole('heading', { name: 'Interview in 20 days', level: 1 })).toBeVisible();
-  await page.getByRole('tab', { name: /^Today/ }).click();
+  await section(page, 'Today').click();
   await expect(loopHeading(page)).toHaveText(/^Mid-level loop \(assumed\) · .* · 20 days left · 30 min a day$/);
   const row = today(page).getByRole('group', { name: 'Your level?' });
   const saving = synced(page, 'target.set');

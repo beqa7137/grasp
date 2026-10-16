@@ -199,6 +199,37 @@ export function learnStates() {
     },
     { id: 'player-binary-search-playback', path: '/coding/visualizers/binary-search', setup: openPlayback },
     {
+      // The rail (REDESIGN.md 2.6) is shown from 1024px; a focus route collapses it until it is expanded there.
+      id: 'rail-expanded-player',
+      path: '/coding/visualizers/binary-search',
+      setup: async (p) => {
+        const expand = p.locator('app-rail').getByRole('button', { name: 'Expand menu' });
+        if (!(await expand.isVisible())) return 'no rail';
+        await expand.click();
+        await settle(p);
+      },
+    },
+    {
+      id: 'rail-collapsed-plan',
+      path: '/today',
+      setup: async (p) => {
+        await buildPlan(p);
+        await goto(p, '/coding/visualizers/binary-search');
+        await p.locator('app-player h1').waitFor();
+        await p.keyboard.press('Tab');
+        await settle(p);
+      },
+    },
+    {
+      id: 'rail-skip-link',
+      path: '/today',
+      setup: async (p) => {
+        await p.locator('app-loop-card').waitFor();
+        await p.keyboard.press('Tab');
+        return (await p.getByRole('link', { name: 'Skip to content' }).isVisible()) ? undefined : 'no rail';
+      },
+    },
+    {
       // Mid-drag, held on the first checkpoint with its chip showing.
       id: 'player-binary-search-guard',
       path: '/coding/visualizers/binary-search',

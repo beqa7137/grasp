@@ -1,4 +1,4 @@
-import { expect, synced, test } from './fixtures';
+import { expect, expectSectionLit, section, synced, test } from './fixtures';
 
 test('a review session grades every card and schedules the next review', async ({ page }) => {
   await page.goto('/today/review');
@@ -42,16 +42,16 @@ test('practice goes back to its lesson, and the review back to Today', { tag: '@
   await expect(drill.getByRole('heading', { name: "Today's review" })).toBeVisible();
   await back.click();
   await expect(page).toHaveURL(/\/today$/);
-  await expect(page.getByRole('tab', { name: /^Today/ })).toHaveAttribute('aria-selected', 'true');
+  await expectSectionLit(page, 'Today');
 
-  await page.getByRole('tab', { name: 'Coding' }).click();
+  await section(page, 'Coding').click();
   await page.locator('app-skill-map a[href="/coding/patterns/hashing"]').click();
   await page.getByRole('link', { name: /Practice 6 items/ }).click();
   await expect(page).toHaveURL(/\/coding\/patterns\/hashing\/drill/);
   await expect(drill.getByRole('heading', { name: 'Arrays & Hashing', level: 1 })).toBeVisible();
   await back.click();
   await expect(page).toHaveURL(/\/coding\/patterns\/hashing$/);
-  await expect(page.getByRole('tab', { name: 'Coding' })).toHaveAttribute('aria-selected', 'true');
+  await expectSectionLit(page, 'Coding');
 
   await page.goto('/design/topics/sd-latency/drill');
   await back.click();

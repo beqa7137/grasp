@@ -1,4 +1,5 @@
-import { Component, DestroyRef, ElementRef, Injector, computed, inject, viewChild } from '@angular/core';
+import { NgComponentOutlet } from '@angular/common';
+import { Component, DestroyRef, ElementRef, Injector, type Type, computed, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, type ActivatedRouteSnapshot } from '@angular/router';
 import { IonBadge, IonIcon, IonLabel, IonModal, IonTabBar, IonTabButton, IonTabs, Config, NavController, Platform } from '@ionic/angular';
@@ -11,15 +12,33 @@ import { ProgressService } from '../core/progress.service';
 import { FeedbackSheetComponent } from '../pilot/feedback-sheet.component';
 import { PilotNoticeComponent } from '../pilot/pilot-notice.component';
 import { PilotService } from '../pilot/pilot.service';
-import { CrossSections, forgetOnChange } from '../ui/cross-link.directive';
+import { CrossSections, forgetOnChange, pathOf } from '../ui/cross-link.directive';
 import { hardwareBack } from './hardware-back';
+import type { RailHost } from './rail.component';
+import { daysLeft, problemsSolved } from './rail-counts';
+import { RailPrefsService } from './rail-prefs';
 
 @Component({
   selector: 'app-tabs',
-  imports: [IonTabs, IonTabBar, IonTabButton, IonIcon, IonLabel, IonBadge, IonModal, FeedbackSheetComponent, PilotNoticeComponent],
+  imports: [
+    IonTabs,
+    IonTabBar,
+    IonTabButton,
+    IonIcon,
+    IonLabel,
+    IonBadge,
+    IonModal,
+    FeedbackSheetComponent,
+    PilotNoticeComponent,
+    NgComponentOutlet,
+  ],
+  host: { '[class.rail-collapsed]': 'railCollapsed()', '[class.rail-failed]': 'railFailed()' },
   template: `
+    @if (desktop() && rail(); as railComponent) {
+      <ng-container *ngComponentOutlet="railComponent; inputs: railInputs" />
+    }
     <ion-tabs (ionTabsWillChange)="noteNavFocus()" (ionTabsDidChange)="keepFocusOnPage()">
-      <nav #nav aria-label="Main" [class.focus-route]="focusRoute()">
+      <nav #nav class="tab-bar" aria-label="Main" [class.focus-route]="focusRoute()">
         <ion-tab-bar slot="bottom" (ionTabButtonClick)="select($event)">
           <ion-tab-button tab="today" href="/today">
             <ion-icon name="today-outline" aria-hidden="true" />
@@ -72,9 +91,36 @@ import { hardwareBack } from './hardware-back';
   styles: `
     @use '../../breakpoints' as *;
 
+    $rail: 232px;
+    $rail-collapsed: 64px;
+
     @include tabs {
       nav.focus-route {
         display: none;
+      }
+    }
+    // From 1024px the rail replaces the tab bar (REDESIGN.md 2.6). The tabs start at its edge, so every page, and every
+    // container query in it, sees the width the rail leaves.
+    @include desktop {
+      nav.tab-bar {
+        display: none;
+      }
+      ion-tabs {
+        left: $rail;
+        width: auto;
+      }
+      :host(.rail-collapsed) ion-tabs {
+        left: $rail-collapsed;
+      }
+      // Without its chunk (offline on a first visit) the tab bar stays, so there is always a way around.
+      :host(.rail-failed) {
+        nav.tab-bar {
+          display: block;
+        }
+        ion-tabs {
+          left: 0;
+          width: 100%;
+        }
       }
     }
     ion-badge {
@@ -85,7 +131,7 @@ import { hardwareBack } from './hardware-back';
     }
   `,
 })
-export class TabsPage {
+export class TabsPage implements RailHost {
   private readonly progress = inject(ProgressService);
   readonly pilot = inject(PilotService);
   private readonly injector = inject(Injector);
@@ -94,7 +140,10 @@ export class TabsPage {
   private readonly tabs = viewChild.required(IonTabs);
   private readonly navCtrl = inject(NavController);
   private navHadFocus = false;
-  /** A focus route (2.6) gives its page the tab bar's height under 1024px; its own dock sits on the bottom safe area instead. */
+  /**
+   * A focus route (2.6) gives its page the tab bar's height under 1024px, where its own dock sits on the bottom safe area
+   * instead, and from 1024px the rail's width.
+   */
   readonly focusRoute = computed(() => {
     // Read only to depend on it: the snapshot is not a signal, so each navigation's start and end re-run this.
     this.router.currentNavigation();
@@ -103,15 +152,46 @@ export class TabsPage {
     return route.data['focus'] === true;
   });
   readonly due = this.progress.reviewDue;
+  readonly url = signal(this.router.url);
+  /** The rail is only built where it shows, so a phone's first paint spends nothing on it. */
+  readonly desktop = signal(false);
+  /** The rail's own chunk, loaded only from 1024px, so phones never fetch or build it. */
+  readonly rail = signal<Type<unknown> | null>(null);
+  readonly railFailed = signal(false);
+  readonly railInputs = { host: this };
+  readonly railPrefs = inject(RailPrefsService);
+  /** Focus routes collapse the rail to its icons (REDESIGN.md 2.6), unless the learner expanded it there on this device. */
+  readonly railCollapsed = computed(() => this.focusRoute() && this.railPrefs.collapsed());
+  readonly solved = computed(() => problemsSolved(this.progress.state().coding));
+  readonly daysLeft = computed(() => {
+    const date = this.progress.state().plan?.interviewDate;
+    return date ? daysLeft(date, this.progress.day()) : null;
+  });
   private readonly sections = inject(CrossSections);
   /** Ionic's own default, as its outlet applies it: the outlet has no getter to read it back. */
   private readonly swipe = inject(Config).getBoolean('swipeBackEnabled', true);
 
   constructor() {
     addIcons({ todayOutline, codeSlashOutline, gitNetworkOutline, peopleOutline, chatbubblesOutline });
+    const wide = matchMedia('(min-width: 1024px)');
+    const follow = () => {
+      this.desktop.set(wide.matches);
+      if (wide.matches && !this.rail())
+        void import('./rail.component').then(
+          (m) => {
+            this.railFailed.set(false);
+            this.rail.set(m.RailComponent);
+          },
+          () => this.railFailed.set(true),
+        );
+    };
+    follow();
+    wide.addEventListener('change', follow);
     this.router.events.pipe(takeUntilDestroyed()).subscribe((event) => {
+      if (!(event instanceof NavigationEnd)) return;
+      this.url.set(event.urlAfterRedirects);
       // iOS swipe-back follows the outlet's stack, which would disagree with `app-back`, so it is off on a cross-section view.
-      if (event instanceof NavigationEnd) this.tabs().outlet.swipeGesture = this.swipe && !this.sections.from(event.urlAfterRedirects);
+      this.tabs().outlet.swipeGesture = this.swipe && !this.sections.from(event.urlAfterRedirects);
     });
     const auth = inject(AuthService);
     // Signing out or deleting the learner's data starts every tab afresh.
@@ -126,19 +206,43 @@ export class TabsPage {
         leave: () => void import('@capacitor/app').then(({ App }) => App.minimizeApp().catch(() => App.exitApp().catch(() => undefined))),
       }),
     );
-    inject(DestroyRef).onDestroy(() => android.unsubscribe());
+    inject(DestroyRef).onDestroy(() => {
+      android.unsubscribe();
+      wide.removeEventListener('change', follow);
+    });
+  }
+
+  select(event: Event) {
+    event.stopPropagation();
+    this.selectTab((event as CustomEvent<{ tab: string }>).detail.tab);
+  }
+
+  toggleRail() {
+    this.railPrefs.setCollapsed(!this.railPrefs.collapsed());
+  }
+
+  openFeedback() {
+    this.pilot.feedbackOpen.set(true);
   }
 
   /**
-   * Ionic restores a tab at its top view's URL, which for a hub is the hub's own URL, losing its segment (REDESIGN.md 2.5's
-   * spike). So a tab opens at the last URL it showed. A view another tab's link opened is not recorded, so the tab returns
-   * to where the learner left it. Selecting the current tab still returns to its root, Ionic's way.
+   * A tab button or a rail section (REDESIGN.md 2.6). Ionic restores a tab at its top view's URL, which for a hub is the
+   * hub's own URL, losing its segment (2.5's spike). So a tab opens at the last URL it showed; a view another tab's link
+   * opened is not recorded, so the tab returns to where the learner left it. Selecting the current tab returns to its root:
+   * above the hub Ionic pops to it, and on a hub segment, which Ionic counts as the root already, the hub's first segment
+   * replaces it, as its segment links do.
    */
-  select(event: Event) {
-    event.stopPropagation();
-    const { tab } = (event as CustomEvent<{ tab: string }>).detail;
-    if (this.tabs().getSelected() === tab) void this.tabs().select(tab);
-    else void this.navCtrl.navigateRoot(this.sections.lastUrl(tab), { animated: true, animationDirection: 'back' });
+  selectTab(tab: string) {
+    const outlet = this.tabs().outlet;
+    const root = `/${tab}`;
+    if (this.tabs().getSelected() !== tab)
+      void this.navCtrl.navigateRoot(this.sections.lastUrl(tab), { animated: true, animationDirection: 'back' });
+    else if (outlet.getLastUrl(tab) !== root) void this.tabs().select(tab);
+    else if (pathOf(this.router.url) !== root) void this.router.navigateByUrl(root, { replaceUrl: true });
+  }
+
+  outlet(): unknown {
+    return this.tabs().outlet;
   }
 
   /**
@@ -149,9 +253,12 @@ export class TabsPage {
     refocusAfterRender(
       this.injector,
       () => {
-        const heading = [...document.querySelectorAll<HTMLElement>('ion-router-outlet h1')].find((h) => !isOnHiddenPage(h));
-        if (heading) heading.tabIndex = -1;
-        return heading;
+        // A page without a heading (an interview session) gives its main content focus instead.
+        const target = ['ion-router-outlet h1', 'ion-router-outlet ion-content']
+          .map((selector) => [...document.querySelectorAll<HTMLElement>(selector)].find((e) => !isOnHiddenPage(e)))
+          .find(Boolean);
+        if (target) target.tabIndex = -1;
+        return target;
       },
       within,
     );

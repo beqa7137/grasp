@@ -1,8 +1,7 @@
 import type { Page } from '@playwright/test';
 import { CODING_CATALOG, PATTERN_CATALOG, getScenarioSummary } from '@grasp/engine';
-import { TODAY_HEADING as TODAY, expect, shownPage, test } from './fixtures';
+import { TODAY_HEADING as TODAY, expect, expectSectionLit, section, shownPage, test } from './fixtures';
 
-const tab = (page: Page, name: string) => page.getByRole('tab', { name: new RegExp(`^${name}`) });
 const heading = (page: Page) => shownPage(page).locator('h1').first();
 /** Clicks the shown page's back button once a transition has left one page shown. */
 async function back(page: Page) {
@@ -23,12 +22,15 @@ const startedCase = (page: Page) =>
 const upNextStart = (page: Page) => page.locator('app-today app-up-next-card .start');
 const segment = (page: Page, name: string) => page.locator('app-hub:not(.ion-page-hidden)').getByRole('link', { name, exact: true });
 
-test('five tabs, each lit on its own section, with one Main navigation at every width', { tag: '@nav' }, async ({ page }) => {
-  for (const width of [320, 1024, 1280]) {
+test('five sections, each lit on its own section, with one Main navigation at every width', { tag: '@nav' }, async ({ page }) => {
+  for (const width of [320, 1023, 1024, 1280]) {
     await page.setViewportSize({ width, height: 700 });
     await page.goto('/today');
-    await expect(page.getByRole('navigation', { name: 'Main' })).toHaveCount(1);
-    await expect(page.locator('ion-tab-button ion-label')).toHaveText(['Today', 'Coding', 'Design', 'Behavioral', 'Mock']);
+    const main = page.getByRole('navigation', { name: 'Main' });
+    await expect(main).toHaveCount(1);
+    // From 1024px the rail replaces the tab bar (REDESIGN.md 2.6).
+    const sections = width < 1024 ? main.locator('ion-tab-button ion-label') : main.locator('a.section .label');
+    await expect(sections).toHaveText(['Today', 'Coding', 'Design', 'Behavioral', 'Mock']);
   }
   for (const [name, h1] of <[string, string | RegExp][]>[
     ['Coding', 'Master the cue, and the problem names itself.'],
@@ -37,9 +39,9 @@ test('five tabs, each lit on its own section, with one Main navigation at every 
     ['Mock', 'Say it out loud.'],
     ['Today', TODAY],
   ]) {
-    await tab(page, name).click();
+    await section(page, name).click();
     await expect(heading(page)).toHaveText(h1);
-    await expect(tab(page, name)).toHaveAttribute('aria-selected', 'true');
+    await expectSectionLit(page, name);
   }
 });
 
@@ -54,7 +56,7 @@ test('tab labels fit their buttons at 320px', { tag: '@nav' }, async ({ page }) 
 
 test('hub segments replace the URL, so back leaves the hub, and a tab reopens at its last segment', { tag: '@nav' }, async ({ page }) => {
   await page.goto('/today');
-  await tab(page, 'Coding').click();
+  await section(page, 'Coding').click();
   await expect(page).toHaveURL(/\/coding$/);
   await segment(page, 'Problems').click();
   await expect(segment(page, 'Problems')).toHaveAttribute('aria-current', 'page');
@@ -63,14 +65,14 @@ test('hub segments replace the URL, so back leaves the hub, and a tab reopens at
   await expect(page).toHaveURL(/\/coding\/visualizers$/);
   await expect(page.locator('app-hub')).toHaveCount(1);
 
-  await tab(page, 'Today').click();
-  await tab(page, 'Coding').click();
+  await section(page, 'Today').click();
+  await section(page, 'Coding').click();
   await expect(page).toHaveURL(/\/coding\/visualizers$/);
   await expect(heading(page)).toHaveText('Watch the algorithm think.');
 
   await page.goBack();
   await expect(page).toHaveURL(/\/today$/);
-  await expect(tab(page, 'Today')).toHaveAttribute('aria-selected', 'true');
+  await expectSectionLit(page, 'Today');
 });
 
 test('the workspace returns to the hub segment it was opened from', { tag: '@nav' }, async ({ page }) => {
@@ -91,7 +93,7 @@ test.describe('back from a cross-section link', () => {
     test(`returns to Today with ${how}, and Design keeps its own page`, { tag: '@nav' }, async ({ page }) => {
       await page.goto('/design/cases');
       await expect(heading(page)).toHaveText('Run the interview, then defend it.');
-      await tab(page, 'Today').click();
+      await section(page, 'Today').click();
       await expect(upNextStart(page)).toHaveText('Continue');
       await upNextStart(page).click();
       await expect(page).toHaveURL(/\/design\/cases\/url-shortener$/);
@@ -102,9 +104,9 @@ test.describe('back from a cross-section link', () => {
       else await page.evaluate(() => document.dispatchEvent(new Event('backbutton')));
       await expect(page).toHaveURL(/\/today$/);
       await expect(heading(page)).toHaveText(TODAY);
-      await expect(tab(page, 'Today')).toHaveAttribute('aria-selected', 'true');
+      await expectSectionLit(page, 'Today');
 
-      await tab(page, 'Design').click();
+      await section(page, 'Design').click();
       await expect(page).toHaveURL(/\/design\/cases$/);
       await expect(heading(page)).toHaveText('Run the interview, then defend it.');
     });
@@ -132,13 +134,13 @@ test.describe('back from a cross-section link', () => {
     await page.goto('/design/cases');
     await page.locator('app-design-list a[href="/design/cases/url-shortener"]').click();
     await expect(heading(page)).toHaveText(study);
-    await tab(page, 'Today').click();
+    await section(page, 'Today').click();
     // Ionic shows the view it already holds for this URL.
     await upNextStart(page).click();
     await expect(heading(page)).toHaveText(study);
     await back(page);
     await expect(page).toHaveURL(/\/today$/);
-    await expect(tab(page, 'Today')).toHaveAttribute('aria-selected', 'true');
+    await expectSectionLit(page, 'Today');
   });
 
   test.describe('with page transitions on', () => {
@@ -150,7 +152,7 @@ test.describe('back from a cross-section link', () => {
       async ({ page }) => {
         await page.goto('/coding');
         await expect(heading(page)).toHaveText('Master the cue, and the problem names itself.');
-        await tab(page, 'Today').click();
+        await section(page, 'Today').click();
         const today = page.locator('app-today');
         await today.getByText('Other rounds').click();
         await today.getByRole('link', { name: 'Learn Arrays & Hashing' }).click();
@@ -167,7 +169,7 @@ test.describe('back from a cross-section link', () => {
         await back(page);
         await expect(page).toHaveURL(/\/today$/);
         // Coding opens where the learner left it, not on the view Today's Up next opened.
-        await tab(page, 'Coding').click();
+        await section(page, 'Coding').click();
         await expect(page).toHaveURL(/\/coding$/);
         await expect(heading(page)).toHaveText('Master the cue, and the problem names itself.');
       },
@@ -180,7 +182,7 @@ test.describe('back from a cross-section link', () => {
     await expect(heading(page)).toHaveText(mission);
     await page.evaluate(() => document.dispatchEvent(new Event('backbutton')));
     await expect(page).toHaveURL(/\/design\/missions$/);
-    await expect(tab(page, 'Design')).toHaveAttribute('aria-selected', 'true');
+    await expectSectionLit(page, 'Design');
   });
 });
 
@@ -189,7 +191,7 @@ test("the device's back button goes from a hub to Today", { tag: '@nav' }, async
   await expect(heading(page)).toHaveText('Problems');
   await page.evaluate(() => document.dispatchEvent(new Event('backbutton')));
   await expect(page).toHaveURL(/\/today$/);
-  await expect(tab(page, 'Today')).toHaveAttribute('aria-selected', 'true');
+  await expectSectionLit(page, 'Today');
 });
 
 test("the device's back button returns a hub a link from another tab opened to that tab", { tag: '@nav' }, async ({ page }) => {
@@ -198,7 +200,7 @@ test("the device's back button returns a hub a link from another tab opened to t
   await expect(heading(page)).toHaveText('Behavioral interviews');
   await page.evaluate(() => document.dispatchEvent(new Event('backbutton')));
   await expect(page).toHaveURL(/\/mock$/);
-  await expect(tab(page, 'Mock')).toHaveAttribute('aria-selected', 'true');
+  await expectSectionLit(page, 'Mock');
 });
 
 test(
@@ -210,7 +212,7 @@ test(
     expect(problems).toHaveLength(51);
 
     await page.goto('/today');
-    await tab(page, 'Coding').click();
+    await section(page, 'Coding').click();
     await segment(page, 'Problems').click();
     const library = page.locator('app-problem-library');
     await library
@@ -228,7 +230,7 @@ test(
 
 test('journey 7: questions about conflict are two taps from a cold start', { tag: '@nav' }, async ({ page }) => {
   await page.goto('/today');
-  await tab(page, 'Behavioral').click();
+  await section(page, 'Behavioral').click();
   await page.getByRole('link', { name: /^Conflict & Disagreement/ }).click();
   await expect(page.locator('app-competency h1')).toHaveText('Conflict & Disagreement');
   await expect(page.locator('app-competency .questions a').first()).toBeVisible();

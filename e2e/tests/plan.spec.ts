@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
-import { expect, synced, test } from './fixtures';
+import { expect, section, synced, test } from './fixtures';
 
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
@@ -91,7 +91,7 @@ test('a learner sets an interview date, follows today’s list, changes the roun
   await expect(today.getByRole('link', { name: 'A story for Ownership' })).toBeVisible();
   await expect(today.getByRole('link', { name: /^Learn / })).toHaveCount(0);
 
-  await page.getByRole('tab', { name: /^Today/ }).click();
+  await section(page, 'Today').click();
   await expect(todayPage.getByRole('heading', { level: 1 })).toHaveText(/^Mid-level loop \(assumed\) · .* · 20 days left · 1 h a day$/);
   await todayPage.getByRole('button', { name: 'More options' }).click();
   await page.locator('ion-popover').getByRole('button', { name: 'Study plan' }).click();

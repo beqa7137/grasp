@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { LB_EXPERIMENTS, renderExperiment } from '@grasp/engine';
-import { expect, test } from './fixtures';
+import { expect, section, test } from './fixtures';
 
 const SHOWN = LB_EXPERIMENTS.map(renderExperiment);
 const SLOW = SHOWN.findIndex((e) => e.id === 'one-slow-server');
@@ -244,9 +244,9 @@ test.describe('the load balancing widget with motion', () => {
   test('keeps its dots in the drawing after a tab switch away and back', async ({ page }) => {
     const { widget } = await open(page);
     await expect.poll(() => liveDots(page)).toBeGreaterThan(0);
-    await page.getByRole('tab', { name: 'Today' }).click();
+    await section(page, 'Today').click();
     await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
-    await page.getByRole('tab', { name: 'Design' }).click();
+    await section(page, 'Design').click();
     await expect(shownWidget(page).locator('svg.fleet')).toBeVisible();
     await expect.poll(() => liveDots(page)).toBeGreaterThan(2);
     expect(await widget.locator('canvas.lanes').count()).toBe(1);

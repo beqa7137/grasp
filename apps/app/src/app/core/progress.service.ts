@@ -5,6 +5,7 @@ import {
   type CaseCompletedEvent,
   type CodeSubmittedEvent,
   type DiagnosticCompletedEvent,
+  dayKey,
   forecast,
   masteryByTopic,
   missionRevisits,
@@ -99,6 +100,8 @@ export class ProgressService {
 
   /** Wall clock as a signal, so due counts and recall estimates refresh while the app stays open. */
   readonly now = signal(new Date());
+  /** The learner's calendar day (YYYY-MM-DD), which changes only when the day does, though `now` ticks every minute. */
+  readonly day = computed(() => dayKey(this.now(), this.now().getTimezoneOffset()));
   readonly syncStatus = signal<SyncStatus>('idle');
   /** A pull has finished since launch, landing or not: until then a signed-in device may not hold its account's progress. */
   readonly pulled = signal(false);

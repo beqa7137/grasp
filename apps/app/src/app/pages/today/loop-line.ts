@@ -1,4 +1,4 @@
-import { calendarDaysBetween, type ProgressState, type Seniority } from '@grasp/engine';
+import { calendarDaysBetween, daysLeftLabel, type ProgressState, type Seniority } from '@grasp/engine';
 
 /**
  * `SENIORITY_LEVELS`' labels: first paint takes no new engine names (REDESIGN.md 4.1), so they are spelled here. Lazy
@@ -33,8 +33,7 @@ export function loopLine(state: Pick<ProgressState, 'target' | 'plan'>, today: s
   const plan = state.plan;
   if (!plan) return [loop, 'no date yet'];
   const days = calendarDaysBetween(today, plan.interviewDate);
-  const left = days < 0 ? 'date passed' : days === 0 ? 'interview today' : days === 1 ? 'interview tomorrow' : `${days} days left`;
-  const parts = [loop, formatDay(plan.interviewDate), left];
+  const parts = [loop, formatDay(plan.interviewDate), daysLeftLabel(days)];
   if (days > 0) parts.push(`${minutes(plan.minutesPerDay)} a day`);
   return parts;
 }

@@ -48,6 +48,13 @@ const DAY_MS = 86_400_000;
 export const calendarDaysBetween = (from: string, to: string) =>
   Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / DAY_MS);
 
+/** The interview countdown, as Today's target line and the rail's Study plan say it: "23 days left", "interview tomorrow". */
+export function daysLeftLabel(days: number): string {
+  if (days < 0) return 'date passed';
+  if (days === 0) return 'interview today';
+  return days === 1 ? 'interview tomorrow' : `${days} days left`;
+}
+
 export const addCalendarDays = (date: string, days: number) =>
   new Date(Date.parse(`${date}T00:00:00Z`) + days * DAY_MS).toISOString().slice(0, 10);
 

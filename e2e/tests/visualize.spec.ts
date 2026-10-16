@@ -5,6 +5,7 @@ import {
   expectUnmoved,
   openPlayback,
   recordedEvents,
+  section,
   seekTimeline,
   stepToCheckpoint,
   stepTotal,
@@ -79,7 +80,7 @@ test(
     const wide = page.viewportSize()!.width >= 1024;
 
     if (wide) {
-      await page.getByRole('tab', { name: /^Today/ }).click();
+      await section(page, 'Today').click();
       await page
         .locator('app-today')
         .getByRole('link', { name: /^Review/ })
@@ -101,7 +102,7 @@ test(
     expect((await recordedEvents(page)).map((e) => e.type)).not.toContain('predict.answered');
 
     // The hidden player does not re-render, so look for a stray answer only once it is back in view.
-    if (wide) await page.getByRole('tab', { name: 'Coding' }).click();
+    if (wide) await section(page, 'Coding').click();
     else await page.locator('app-pattern ion-back-button').click();
     await expect(player.getByText('Your call')).toBeVisible();
     await expect(player.locator('.predict .verdict')).toHaveCount(0);
@@ -278,10 +279,10 @@ test(
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.goto('/coding/visualizers/binary-search');
     await expect(page.locator('app-player h1')).toBeVisible();
-    await page.getByRole('tab', { name: /^Today/ }).click();
+    await section(page, 'Today').click();
     await expect(page.locator('app-today h1')).toBeVisible();
     await page.setViewportSize({ width: 800, height: 720 });
-    await page.getByRole('tab', { name: 'Coding' }).focus();
+    await section(page, 'Coding').focus();
     // Ionic selects a tab on Enter's keydown and again on its keyup, which takes a selected tab to its root while its button
     // keeps focus. A person's keyup comes after the switch, so the key is held until then.
     await page.keyboard.down('Enter');
@@ -458,8 +459,9 @@ test('the key hint shows only with a fine pointer', { tag: '@player' }, async ({
   if (isMobile) await expect(hint).toBeHidden();
   else await expect(hint).toBeVisible();
   if (isMobile) return;
-  // A short wide window gets the dock with ⋯, which has no room for the hint, and nothing in it overflows.
-  await page.setViewportSize({ width: 1280, height: 500 });
+  // A short wide window (the player under 424px tall) gets the dock with ⋯, which has no room for the hint, and nothing in it
+  // overflows. From 1024px the rail leaves the player the window's whole height, which the tab bar shared before R10.
+  await page.setViewportSize({ width: 1280, height: 440 });
   await expect(hint).toBeHidden();
   await expect(page.getByRole('button', { name: 'More playback controls' })).toBeVisible();
   const dock = await page

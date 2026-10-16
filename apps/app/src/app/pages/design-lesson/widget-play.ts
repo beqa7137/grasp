@@ -57,7 +57,9 @@ export class WidgetPlay {
  */
 export function bringStageIntoView(stage: HTMLElement): void {
   const header = stage.closest('ion-content')?.previousElementSibling?.getBoundingClientRect().bottom ?? 0;
-  const tabBar = document.querySelector('ion-tab-bar')?.getBoundingClientRect().top ?? window.innerHeight;
+  // From 1024px the rail replaces the tab bar, which is then not displayed and measures zero.
+  const bar = document.querySelector('ion-tab-bar')?.getBoundingClientRect();
+  const tabBar = bar?.height ? bar.top : window.innerHeight;
   const box = stage.getBoundingClientRect();
   if (box.top >= header && box.bottom <= tabBar) return;
   stage.style.scrollMarginTop = `${header + 8}px`;

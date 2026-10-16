@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { expect, openPlayback, test } from './fixtures';
+import { expect, openPlayback, section, test } from './fixtures';
 
 declare global {
   interface Window {
@@ -41,7 +41,7 @@ async function chooseMotion(page: Page, name: string) {
 
 /** Pushes a visualizer from the Visualize list and counts the transition's animations. */
 async function openVisualizers(page: Page): Promise<void> {
-  await page.getByRole('tab', { name: 'Coding' }).click();
+  await section(page, 'Coding').click();
   await page.locator('app-hub:not(.ion-page-hidden)').getByRole('link', { name: 'Visualizers' }).click();
 }
 

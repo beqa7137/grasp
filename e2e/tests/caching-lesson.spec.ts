@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { CACHE_EXPERIMENTS, renderExperiment } from '@grasp/engine';
-import { expect, test } from './fixtures';
+import { expect, section, test } from './fixtures';
 
 const SHOWN = CACHE_EXPERIMENTS.map(renderExperiment);
 const STORM = SHOWN.findIndex((e) => e.id === 'miss-storm');
@@ -256,9 +256,9 @@ test.describe('the caching widget with motion', () => {
   test('keeps its dots in the drawing after a tab switch away and back', async ({ page }) => {
     const { widget } = await open(page);
     await expect.poll(() => liveDots(page)).toBeGreaterThan(0);
-    await page.getByRole('tab', { name: 'Today' }).click();
+    await section(page, 'Today').click();
     await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
-    await page.getByRole('tab', { name: 'Design' }).click();
+    await section(page, 'Design').click();
     await expect(shownWidget(page).locator('svg.flow')).toBeVisible();
     await shownWidget(page).getByRole('button', { name: 'Flush the cache' }).click();
     await expect.poll(() => liveDots(page)).toBeGreaterThan(3);

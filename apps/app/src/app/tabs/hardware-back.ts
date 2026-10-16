@@ -1,4 +1,5 @@
 import { isOnHiddenPage } from '../core/page-keys';
+import { pathOf } from '../ui/cross-link.directive';
 
 export interface HardwareBack {
   /** The URL shown now. */
@@ -19,6 +20,6 @@ export function hardwareBack(doc: Document, { url, from, goBack, goToday, leave 
   const back = [...doc.querySelectorAll<HTMLElement>('ion-router-outlet app-back ion-back-button')].find((b) => !isOnHiddenPage(b));
   if (back) back.click();
   else if (from) goBack(from);
-  else if (url.split(/[?#]/)[0] !== '/today') goToday();
+  else if (pathOf(url) !== '/today') goToday();
   else leave();
 }
