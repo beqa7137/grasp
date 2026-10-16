@@ -3,11 +3,10 @@ import { COMPETENCY_CATALOG } from '../behavioral/catalog.js';
 import { SENIORITY_LEVELS } from '../behavioral/types.js';
 import { problemsForPattern } from '../coding/catalog.js';
 import { PATTERN_CATALOG } from '../curriculum/catalog.js';
-import { sdTopicLevel } from '../curriculum/sd-shelves.js';
 import { SD_TOPICS } from '../curriculum/sd-topics.js';
 import { CASE_CATALOG } from '../sysdesign/case-catalog.js';
 import { problemsAtBar } from './bar.js';
-import { LEVEL_PROFILES, meetsBar, shelfStretchAt } from './levels.js';
+import { LEVEL_PROFILES, meetsBar } from './levels.js';
 import { TARGET_LEVELS } from '../plan/options.js';
 
 const names = (ids: readonly string[]) => ids.map((id) => PATTERN_CATALOG.find((p) => p.id === id)!.name);
@@ -48,11 +47,11 @@ describe('level profiles', () => {
   });
 
   it('require the 17 core topics below Senior, and all but Service Discovery and API Gateways at Senior', () => {
-    const core = SD_TOPICS.filter((t) => sdTopicLevel(t.id) === 'core').map((t) => t.id);
+    const core = SD_TOPICS.filter((t) => t.level === 'core').map((t) => t.id);
     expect(core).toHaveLength(17);
     expect(LEVEL_PROFILES.mid.topics).toEqual({
       required: core,
-      stretch: SD_TOPICS.filter((t) => sdTopicLevel(t.id) === 'advanced').map((t) => t.id),
+      stretch: SD_TOPICS.filter((t) => t.level === 'advanced').map((t) => t.id),
     });
     expect(LEVEL_PROFILES.early.topics).toEqual(LEVEL_PROFILES.mid.topics);
     expect(LEVEL_PROFILES.senior.topics.stretch).toEqual(['sd-discovery', 'sd-gateway']);
@@ -68,11 +67,6 @@ describe('level profiles', () => {
     const senior: readonly string[] = LEVEL_PROFILES.senior.cases.required;
     expect(senior).toEqual(CASE_CATALOG.filter((c) => senior.includes(c.id)).map((c) => c.id));
     for (const id of LEVEL_PROFILES.mid.cases.required) expect(core).toContain(id);
-  });
-
-  it('mark a shelf with no required topic as Stretch at that level', () => {
-    expect(shelfStretchAt('coordination')).toEqual(['early', 'mid']);
-    expect(shelfStretchAt('foundations')).toEqual([]);
   });
 
   it('weigh all 13 competencies, five of them double at Senior', () => {

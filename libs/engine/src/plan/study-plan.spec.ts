@@ -668,7 +668,6 @@ describe('a plan for a Target', () => {
       'case:rate-limiter',
       'mission:flash-sale',
       'case:news-feed',
-      'mission:write-wall',
       'case:chat',
     ]);
     expect(design.slice(0, 6).map((u) => u.topicId)).toEqual(

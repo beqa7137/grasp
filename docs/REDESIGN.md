@@ -456,85 +456,33 @@ Today is the only daily surface. On a phone it is one column. From top to bottom
 2. **Up next.**
    - **With a plan:** the plan's checklist for today (`days[0]`), through a shared `app-plan-today` component that `/today/plan` also uses. It is headed "1 of 5 done · about 25 min left". The first unchecked row that is not hidden expands into the Up next card.
    - **Without a plan:** one Up next card, with an "Other rounds" disclosure listing one item per other round.
-   - **Loading.**
-     - The block is `@defer (on immediate)` with a fixed-height skeleton (176px).
-     - The deferred chunk imports `readiness/next.ts` and `plan/study-plan.ts`.
-     - It renders once progress, stories and device drafts have all resolved, so the primary button never changes after it appears.
-     - `nextBest` is not a first-paint import.
-3. **Review row.** "Review · 6 cards · 1 story · 1 mission revisit · ~7 min", or "All caught up · 4 due tomorrow" from `forecast()`.
-   - Cards and revisits are in first paint, so the row is tappable at once.
-   - The story count joins when the story bank loads. The row has a fixed height, so nothing shifts.
-4. **Readiness card.**
-   - A ring ("Loop readiness 31 · Building"), plus one labelled meter per round with its weight: "Coding 37 ×2", "System design 22", "Behavioral 27".
-   - Fresh mock verdicts show as chips ("Coding mock: Lean hire, 3 days ago").
-   - It opens `/today/progress`, and is deferred on idle.
-5. **Continue** (deferred on idle). At most 4 rows, newest first; rows from device drafts say "on this device":
-   - case drafts: "URL Shortener · Stage 2 of 9";
-   - attempted problems: "Trapping Rain Water · best 2 of 5" (needs `CodingRecord.lastAt`);
-   - a saved mission design that has not passed;
-   - STAR drafts: "Conflict & Disagreement Q3 · 3 of 5 parts";
-   - the mock loop: "Mock loop · round 2 of 3".
-6. **Weak spots** (deferred on idle; shown only when there are any).
-   - Up to 3 rows, each with its reason: "Flagged in your mock, Sep 30", "Missed 3 of 4 predictions", "Fading: 2 of 6 cards below your recall target".
-   - One "Drill these · 14 cards" button opens `/today/drill?topics=...`.
-   - Built by `weakSpots()` and `practiceMix()`.
+   - **Loading.** Every lazy import in the route files (pages, the route titles and the legacy prefixes; only the tabs are exempt) goes through `lazy('…', () => import(…))`, which adds a `modulepreload` link for each chunk the module imports statically outside main and the tabs, so a cold load fetches the module and its shared chunks in one round trip instead of discovering them after the module's chunk arrives. `scripts/route-chunks.mjs` (postbuild) writes each module's chunks into index.html (29 modules, 58 chunks; 5.6 kB raw, about 1 kB gzipped, which no gate counts), reads `stats.json` through the first-paint gate's freshness check, and fails the build on a bare or misnamed import in `app.routes.ts`, `legacy-routes.ts` or `legacy-prefixes.ts`; `core/route-chunks.ts` reads the block. Dynamic imports of the engine's modules (a subpath export) were tried first: esbuild gives each one a facade chunk that imports the shared chunk, so they still took two round trips. Topic states moved to `readiness/topic-status.ts`, on `readiness/skill-status.ts` (what every skill state shares), so the Topics load neither the problem catalog nor the behavioral and interview content that `status.ts` reads. On `timing.mjs`'s phone (7 runs, HTTP/2, against e539b00) the Design tap is 1.23 s against 0.90 s (Learn's cards needed no chunk outside first paint; an overview-only Topics measured 1.19 s, so the rest is the shared chunks' bytes), the Coding tap 1.21 s against 1.59 s, the player tap 3.81 s against 4.51 s. First paint grows 2.12 kB (the level fields and the `lazy` wrappers).
 
-**Desktop.**
+- **Topics:**
+  - First, a shelf overview: 6 tiles, each reading like "Ready 1 of 5", all on the first screen at every profile. Then the six shelves.
+  - Each topic row shows its state, a Core or Advanced chip, and "Used in 1 mission · 3 cases".
+  - Each shelf ends with its **home missions** and "Cases that use this shelf (n)".
 
-- At container `wide` (900px and up, so 1280px viewports with the rail), the page has two columns:
-  - the main column holds sections 1, 2, 3 and 5;
-  - a 320px aside holds sections 4 and 6, plus the plan's next 3 days.
-- Below `wide`, the page is one column.
+  | Shelf                 | Topics (core, then advanced)                                                                                                                                                    | Home missions (the topics of this shelf each mission uses)     |
+  | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+  | Foundations (5)       | Estimation, Latency & Queueing, Capacity & Scaling, Load Balancing, Reliability                                                                                                 | Your First Scale-Up (5 of 5), Leaderboard on a Budget (2 of 5) |
+  | Data (9)              | Data Modeling, Replication, Sharding & Partitioning, Consistency & Quorums, Unique IDs; Storage Engines, Durability & Erasure Coding, Backups & Disaster Recovery, Multi-Region | The Write Wall (5 of 9), Attachments Everywhere (2 of 9)       |
+  | Reads at scale (4)    | Caching, CDNs & Edge; Search & Indexing, Geospatial Indexing                                                                                                                    | The Feed Goes Viral (4 of 4)                                   |
+  | Async & delivery (5)  | Queues & Async Work, Backpressure & Load Shedding, Real-Time Delivery; Stream Processing, Batch Processing                                                                      | Flash Sale at Noon (3 of 5), Reconnect Storm (2 of 5)          |
+  | Coordination (5)      | Consensus & Leaders, Distributed Locks & Leases, Distributed Transactions, Time & Clocks, Service Discovery (all advanced)                                                      | Month-End Ledger (3 of 5)                                      |
+  | Edge & operations (6) | API Design, Rate Limiting & Abuse; API Gateways & Service Meshes, Security & Auth, Multi-Tenancy, Observability & SLOs                                                          | Bot Storm (4 of 6)                                             |
+  - **R4 moved two topics** (R11 pins the table above in `shelves.spec.ts`): Real-Time Delivery to the async shelf, renamed "Async & delivery", and Multi-Region to Data.
+  - **Home-shelf rule.** It is implemented as `shelfMissions()` in the engine and pinned by a spec.
+    - A mission's home is the shelf with the most topics whose `scenarioIds` list it.
+    - A tie goes to the shelf with fewer home missions so far, then to the shelf whose topics it covers the larger share of (so The Feed Goes Viral, 4 topics on Data and on Reads, stays home on Reads). Missions are processed in `SCENARIO_CATALOG` order.
+    - Example: The Feed Goes Viral uses 4 topics on Data and 4 on Reads at scale. Neither shelf has a home mission yet, so the larger share (4 of 4 against 4 of 9) takes it to Reads at scale.
+    - The coverage count is always shown, so a thin link is visible rather than hidden.
+  - **Also practised in.** Under each shelf, a quiet line lists other missions that touch it: "Also in: Your First Scale-Up (Service Discovery), Flash Sale at Noon (Distributed Transactions, Distributed Locks & Leases)", with full topic names (R11).
+  - **Coordination `scenarioIds`** (R11 content review): Consensus & Leaders moved from Your First Scale-Up to Month-End Ledger, Distributed Locks & Leases gained Month-End Ledger, and Service Discovery gained Reconnect Storm, so Month-End Ledger is Coordination's home at 3 of 5. Time & Clocks stays on The Write Wall.
+  - **New fields:** `SdTopic.shelf` and `SdTopic.level: 'core' | 'advanced'` (`level` is a field; the shelf is the lookup `sdTopicShelf`, see the R11 note).
 
-**What leaves the home page:**
-
-- the hero slogan (it stays on first run only);
-- the 4 stat tiles: streak and XP become the meta line, and retention moves to Progress;
-- the six rainbow tiles and their corner circles;
-- the placement banner;
-- the pattern map, which moves to Coding;
-- the 34 topic cards, which move to Design.
-
-The `.plan` bug disappears with its section.
-
-### 2.8 Hubs (detail in section 4)
-
-- **Coding.**
-  - **Skill map:** 4 tracks (Foundations, Core, Graphs & trees, Advanced).
-    - Each pattern shows a shape-coded state, "2 of 9 solved", Flagged, Stretch, and "Start here" after placement.
-    - Placement results render here (4.10) instead of as two chip clouds.
-    - The has-viz icon goes, since all 23 patterns have a visualizer.
-  - **Problems:** the library (4.2).
-  - **Visualizers:** the 23 players in roadmap track order (today, Two Sum Hash is 18th).
-    - Cards show checkpoint accuracy.
-    - Structure chips filter by Arrays, Lists, Trees, Graphs, Grids or DP.
-    - Thumbnails arrive in R39.
-  - **Pattern hub:** 4.3.
-- **Design.**
-  - **Topics:**
-    - First, a shelf overview: 6 tiles, each reading like "Ready 1 of 5", all on the first screen at every profile. Then the six shelves.
-    - Each topic row shows its state, a Core or Advanced chip, and "Used in 1 mission · 3 cases".
-    - Each shelf ends with its **home missions** and "Cases that use this shelf (n)".
-
-    | Shelf                  | Topics                                                                                                                                                            | Home missions (the topics of this shelf each mission uses)     |
-    | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-    | Foundations (5)        | Estimation, Latency & Queueing, Capacity & Scaling, Load Balancing, Reliability                                                                                   | Your First Scale-Up (5 of 5), Leaderboard on a Budget (2 of 5) |
-    | Data (8)               | Data Modeling, Storage Engines, Replication, Sharding & Partitioning, Consistency & Quorums, Unique IDs, Durability & Erasure Coding, Backups & Disaster Recovery | The Write Wall (5 of 8), Attachments Everywhere (2 of 8)       |
-    | Reads at scale (6)     | Caching, CDNs & Edge, Search & Indexing, Geospatial Indexing, Real-Time Delivery, Multi-Region                                                                    | The Feed Goes Viral (6 of 6)                                   |
-    | Async & processing (4) | Queues & Async Work, Stream Processing, Batch Processing, Backpressure & Load Shedding                                                                            | Flash Sale at Noon (3 of 4), Reconnect Storm (2 of 4)          |
-    | Coordination (5)       | Consensus & Leaders, Distributed Locks & Leases, Distributed Transactions, Time & Clocks, Service Discovery                                                       | Month-End Ledger (1 of 5: Distributed Transactions)            |
-    | Edge & operations (6)  | API Design, API Gateways & Service Meshes, Rate Limiting & Abuse, Security & Auth, Multi-Tenancy, Observability & SLOs                                            | Bot Storm (4 of 6)                                             |
-    - **Home-shelf rule.** It is implemented as `shelfMissions()` in the engine and pinned by a spec.
-      - A mission's home is the shelf with the most topics whose `scenarioIds` list it.
-      - A tie goes to the shelf with fewer home missions so far. Missions are processed in `SCENARIO_CATALOG` order.
-      - Example: Month-End Ledger ties Data and Coordination at 1 topic each. Data already has 2 home missions, so it goes to Coordination.
-      - The coverage count is always shown, so the thin Coordination link is visible rather than hidden.
-    - **Also practised in.** Under each shelf, a quiet line lists other missions that touch it: "Also in: Your First Scale-Up (Consensus, Discovery), Flash Sale at Noon (Locks, Transactions)".
-    - **Content follow-up.** R11's content review checks the Coordination `scenarioIds`: consensus and discovery point at first-scale-up, and clocks at write-wall. Changing them is a content change, so it becomes a LOOP.md candidate rather than part of this plan.
-    - **New fields:** `SdTopic.shelf` and `SdTopic.level: 'core' | 'advanced'`.
-
-  - **Missions:** the 9 missions in a 2-column grid, with passed, best cost and revisit due, plus a Lab card. Topology thumbnails arrive in R39.
-  - **Cases:** 4.5.
+- **Missions:** the 9 missions in a 2-column grid, with passed, best cost and revisit due, plus a Lab card. Topology thumbnails arrive in R39.
+- **Cases:** 4.5.
 - **Behavioral.**
   - **Competencies:** 13 rows with state, "7 questions · 1 story", Flagged, and "Senior focus" at Senior.
   - **Questions:** all 91 (4.8).
@@ -2272,6 +2220,17 @@ Iterations are ordered by impact, alternating between organization and visuals. 
   - the `shelfMissions()` spec pins the table of 2.8;
   - every topic row links its missions and cases.
 - **Content review:** the shelf assignments; the near-twin clauses; the Coordination `scenarioIds` (recorded as a follow-up if they need changing).
+- **R11 note** (as built, and decisions where the code differed from this plan):
+  - **Shelves.** The engine's shelves since R4 are the source, and 2.8's table now matches them (Async & delivery, Multi-Region on Data, Reads at scale 4 topics, Data 9). `shelves.spec.ts` pins the whole table: each shelf's core and advanced topics, home missions with "n of m", Also in, and each shelf's case count (Foundations 21, Data 24, Reads 14, Async 16, Coordination 8, Edge 7). `SdTopic.level` is now a field, as 2.8 asked (`SD_SHELVES` lists each shelf's topics core first, and `sdTopicLevel` is gone); the shelf stays a lookup (`sdTopicShelf`), since `SD_TOPICS` is in first paint and the shelves are not. `shelfStretchAt()` moved from `readiness/levels.ts` to `sysdesign/shelves.ts`, so `levels.ts` no longer imports the shelves. New in the engine: `topicUses()` (a topic's missions from `scenarioIds`, its cases from `CASE_CATALOG`), `shelfCases()`, and `sysdesign/case-library.ts` (the Cases query in the URL, filtering, and counts per option with the other facets' selection, as `coding/library.ts`).
+  - **Topics** (`pages/design/shelves.component.ts`, replacing Learn's cards): h1 "System design" with "6 of 17 core topics Practiced · 2 of 9 missions passed · 3 of 27 cases finished" (each part kept on one line); six tiles ("Ready 1 of 5" and a bar) that scroll to their shelf and focus its heading (2 columns at narrow, 3 at medium, 6 at wide, all on the first screen at w320); the skill-state key; then, a frame later so a slow phone paints the first screen without building 34 rows first, each shelf with its Stretch line from `shelfStretchAt()` (Coordination: "Stretch at Early career and Mid-level"), topic rows (`g-entry-row` with `g-skill-state` and a Core or Advanced chip, linking the lesson) each followed by "Used in 2 missions · 15 cases", two links outside the row so links never nest; then Home missions (each "uses 5 of 5 topics", Passed once passed), "Also in" with full topic names (the catalog has no short names), and "Cases that use this shelf (21) →". 9 topics have no case, so their line names missions only. Links in these lines keep their look with a target at least 24px tall. The mastery ring left the hub: states replace it.
+  - **Links between segments** replace the URL, as segment links do: "2 missions" opens `/design/missions?topic=sd-capacity` (the grid keeps the missions that use it, with "Show all missions"), "15 cases" `/design/cases?topic=sd-estimation`, the shelf line `?shelf=`. The link goes with the segment it was in, so the hub moves focus to the new segment's h1 whenever a segment switch leaves focus nowhere.
+  - **Missions** (`pages/design/missions.component.ts`): "0 of 9 passed" (and revisits due), a 2-column grid from container medium whose cards keep their own height, each card a link with its title as an h2, its facts line, Passed with best cost and revisits, the revisit link under it, and the Lab card last ("The Lab: Free Build").
+  - **Cases** (`pages/design/case-library.page.ts`): "3 of 27 finished", Level chips always shown (Core 9, Advanced 18), search, and a Filters sheet at every width (27 rows need no side panel) with Status (Not started, In progress from this device's drafts, Finished), Shelf and Topic (topics with cases, under their shelves); active chips with Remove and Clear all; one topic adds "Read the Rate Limiting & Abuse lesson →". Rows are one link with the title as an h2: brief, level and topic names as plain text, and a stage bar with "Stage 2 of 9" or "Finished"; a finished case keeps Review and Start over. The summary and the Status facet read one state per case, so a finished case started over counts as In progress in both; "No cases match" waits until the drafts have loaded once.
+  - **Renames** at the source: "Caching & CDNs" is "Caching", "Replication & Databases" is "Replication".
+  - **Near twins.** Each brief summary opens with its clause (Payment System "Moving money in and out through external processors:", Payment Ledger "The internal book of record every payment posts to:", Ticket Booking "A single on-sale rush for numbered seats, each sold once:", Hotel Booking "Steady sales of interchangeable rooms, counted per night over date ranges:"), and `CaseBrief.related` pairs them; the case page shows "Related: Payment Ledger" under the brief until R29's header.
+  - **Content review** changed data: the Coordination `scenarioIds` (2.8), and case topic tags: URL Shortener gains Unique IDs, Chat App Real-Time Delivery, Payment System Distributed Transactions and API Design, Ticket Booking Distributed Locks & Leases, Collaborative Editor Time & Clocks, Code Deployment System Service Discovery. A learner who passed Your First Scale-Up no longer has Consensus & Leaders introduced by it (`replay-baseline.spec.ts` names the exception); the Mid-level Target plan needs no gap mission after News Feed now (URL Shortener covers Unique IDs), and a New learner's whole loop needs 155 minutes a day rather than 150.
+  - **Loading.** Topic states moved to `readiness/topic-status.ts`, on `readiness/skill-status.ts` (what every skill state shares), so the Topics load neither the problem catalog nor the behavioral and interview content that `status.ts` reads. The Design hub's closure outside first paint is 34 kB in 12 chunks (the hub and Topics chunks 16.6 kB; the rest is the chrome kit's row, chip and skill state, levels, the shelves, the case catalog and the topic states, shared with other pages). Learn's cards needed nothing outside first paint, so the Design tap now waits one more round trip for those shared chunks, as the Coding tap always has: on `timing.mjs`'s phone 1.87 s against 0.86 s, Coding unchanged (1.56 s). The first build also made the Coding tap 0.43 s slower: the shelves' own chunk split from `levels.ts` and the Skill map waited a third round trip for it; with the level on `SdTopic` and `shelfStretchAt` beside the shelves, `levels.ts` imports no shelves and the Skill map is two round trips again. First paint grows 0.47 kB (the 34 level fields).
+  - **Not done here:** from 1024px the hubs still show their segment row beside the rail's sub-items (R10 follow-up); dropping it changes all three hubs and their segment e2e, so it is a follow-up.
 
 **R12 Behavioral hub and Questions.**
 

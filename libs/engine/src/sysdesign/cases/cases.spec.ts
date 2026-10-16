@@ -30,6 +30,16 @@ describe('system design case studies', () => {
     expect(CASE_CATALOG.map((c) => c.stages)).toEqual(CASE_STUDIES.map((s) => s.stages.length));
   });
 
+  it('pairs the near-twin cases both ways (REDESIGN.md 2.10)', () => {
+    const related = Object.fromEntries(CASE_BRIEFS.filter((b) => b.related).map((b) => [b.id, b.related]));
+    expect(related).toEqual({
+      payments: 'payment-ledger',
+      'payment-ledger': 'payments',
+      ticketing: 'hotel-booking',
+      'hotel-booking': 'ticketing',
+    });
+  });
+
   it('tags each study with design topics that exist', () => {
     const topics = new Set(SD_TOPICS.map((t) => t.id));
     for (const c of CASE_CATALOG)

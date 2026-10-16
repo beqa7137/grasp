@@ -30,7 +30,7 @@ const LINKS: { old: string; url: string; h1: string | RegExp; tab: string }[] = 
     h1: getAlgorithmSummary('binary-search')!.title,
     tab: 'coding',
   },
-  { old: '/design', url: '/design', h1: 'Learn it hands-on, then build it.', tab: 'design' },
+  { old: '/design', url: '/design', h1: 'System design', tab: 'design' },
   { old: '/design/case/url-shortener', url: '/design/cases/url-shortener', h1: getCaseSummary('url-shortener')!.title, tab: 'design' },
   { old: '/design/free-build', url: '/design/lab', h1: 'Free Build', tab: 'design' },
   { old: '/design/free-build?case=url-shortener', url: '/design/cases/url-shortener/build', h1: 'URL Shortener build', tab: 'design' },

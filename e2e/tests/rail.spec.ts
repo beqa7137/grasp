@@ -185,13 +185,13 @@ test(
 test('selecting the active section returns to its root, and a sub-item pops to its hub', { tag: '@nav' }, async ({ page }) => {
   await page.setViewportSize(W1024);
   await page.goto('/design/cases');
-  await page.locator('app-design-list a[href="/design/cases/url-shortener"]').click();
+  await page.locator('app-case-library a[href="/design/cases/url-shortener"]').click();
   await expect(heading(page)).toHaveText('URL Shortener');
   await section(page, 'Design').click();
   await expect(page).toHaveURL(/\/design$/);
-  await expect(heading(page)).toHaveText('Learn it hands-on, then build it.');
+  await expect(heading(page)).toHaveText('System design');
 
-  await page.locator('app-map a[href="/design/topics/sd-latency"]').click();
+  await page.locator('app-design-shelves a[href="/design/topics/sd-latency"]').click();
   await expect(page).toHaveURL(/\/design\/topics\/sd-latency$/);
   await section(page, 'Missions').click();
   await expect(page).toHaveURL(/\/design\/missions$/);
@@ -199,14 +199,14 @@ test('selecting the active section returns to its root, and a sub-item pops to i
   await expect(shownPage(page).locator('app-design-lesson')).toHaveCount(0);
   await section(page, 'Cases').click();
   await expect(page).toHaveURL(/\/design\/cases$/);
-  await expect(heading(page)).toHaveText('Run the interview, then defend it.');
+  await expect(heading(page)).toHaveText('Cases');
 
   // On a hub segment the active section goes to the hub's root too, from the rail and from the tab bar.
   await section(page, 'Missions').click();
   await expect(page).toHaveURL(/\/design\/missions$/);
   await section(page, 'Design').click();
   await expect(page).toHaveURL(/\/design$/);
-  await expect(heading(page)).toHaveText('Learn it hands-on, then build it.');
+  await expect(heading(page)).toHaveText('System design');
   await page.setViewportSize({ width: 800, height: 768 });
   await page.waitForLoadState('networkidle');
   await page.goto('/coding/problems');

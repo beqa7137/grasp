@@ -19,7 +19,7 @@ test('a system design lesson opens from Design and its widget answers the keyboa
 
 test('a design lesson opens at its top: its quick check further down takes no focus until answered', async ({ page }) => {
   await page.goto('/design/topics/sd-replication');
-  await expect(page.getByRole('heading', { name: 'Replication & Databases', level: 1 })).toBeInViewport();
+  await expect(page.getByRole('heading', { name: 'Replication', level: 1, exact: true })).toBeInViewport();
   await expect(page.getByRole('heading', { name: /Quick check/ })).toBeAttached();
   await page.waitForTimeout(1_000);
   const scrollTop = () =>
@@ -30,7 +30,7 @@ test('a design lesson opens at its top: its quick check further down takes no fo
       return (await content.getScrollElement()).scrollTop;
     });
   expect(await scrollTop()).toBe(0);
-  await expect(page.getByRole('heading', { name: 'Replication & Databases', level: 1 })).toBeInViewport();
+  await expect(page.getByRole('heading', { name: 'Replication', level: 1, exact: true })).toBeInViewport();
 });
 
 test('the sharding lesson counts the keys that move when a node joins, by consistent hashing and by hash mod N', async ({ page }) => {

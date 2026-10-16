@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { SLACK, closure, defaultPage, measure, problems } from './first-paint-bytes.mjs';
+import { SLACK, closure, defaultPage, freshStats, measure, problems } from './first-paint-bytes.mjs';
 
 const APP = fileURLToPath(new URL('../', import.meta.url));
 const ROUTES = `export const routes = [{ path: '', loadComponent: () => import('./tabs/tabs.page'), children: [
@@ -129,4 +131,49 @@ test("Angular's initial budget, the backstop, never errors above 855 kB (REDESIG
   const kB = (size) => Number(/^([\d.]+)kB$/.exec(size)?.[1] ?? Infinity);
   assert.ok(kB(initial.maximumError) <= 855, `maximumError ${initial.maximumError}`);
   assert.ok(kB(initial.maximumWarning) <= kB(initial.maximumError), `maximumWarning ${initial.maximumWarning}`);
+});
+
+/** A built `dist`: index.html, two scripts, the global stylesheet and the stats that describe them, all at `at`. */
+function builtDist(at = new Date('2026-10-16T10:00:00Z')) {
+  const dist = `${mkdtempSync(join(tmpdir(), 'fresh-stats-'))}/`;
+  mkdirSync(`${dist}browser`);
+  const files = { 'index.html': '<html></html>', 'main-A.js': 'main', 'chunk-B.js': 'chunk', 'styles-C.css': 'body{}' };
+  for (const [name, text] of Object.entries(files)) writeFileSync(`${dist}browser/${name}`, text);
+  const described = {
+    outputs: {
+      'main-A.js': { bytes: 4, entryPoint: 'src/main.ts', imports: [], inputs: {} },
+      'chunk-B.js': { bytes: 5, imports: [], inputs: {} },
+      'styles-C.css': { bytes: 6, entryPoint: 'angular:styles/global:styles', imports: [], inputs: {} },
+      'button.component-D.css': { bytes: 9, imports: [], inputs: {} },
+    },
+  };
+  writeFileSync(`${dist}stats.json`, JSON.stringify(described));
+  const touch = (path, time) => utimesSync(path, time, time);
+  for (const name of Object.keys(files)) touch(`${dist}browser/${name}`, at);
+  touch(`${dist}stats.json`, at);
+  return { dist, touch };
+}
+
+test('reads stats whose files are all there at their size, whatever their times: equal to index.html, or older than the scripts', () => {
+  const { dist, touch } = builtDist();
+  assert.ok(freshStats(dist).outputs['main-A.js']);
+  touch(`${dist}stats.json`, new Date('2026-10-16T09:59:59Z'));
+  assert.ok(freshStats(dist).outputs['chunk-B.js'], 'Angular writes stats.json in the same batch as the scripts, in no fixed order');
+});
+
+test('refuses stats from an earlier build, even when they are newer, and a build without stats', () => {
+  const { dist, touch } = builtDist();
+  writeFileSync(`${dist}browser/chunk-B.js`, 'a rebuilt chunk');
+  touch(`${dist}stats.json`, new Date('2026-10-16T11:00:00Z'));
+  assert.throws(() => freshStats(dist), /stats.json is stale/);
+
+  const gone = builtDist();
+  const earlier = JSON.parse(readFileSync(`${gone.dist}stats.json`, 'utf8'));
+  earlier.outputs['chunk-OLD.js'] = { bytes: 5, imports: [], inputs: {} };
+  writeFileSync(`${gone.dist}stats.json`, JSON.stringify(earlier));
+  assert.throws(() => freshStats(gone.dist), /stats.json is stale/);
+
+  const none = builtDist();
+  rmSync(`${none.dist}stats.json`);
+  assert.throws(() => freshStats(none.dist), /stats.json is stale/);
 });

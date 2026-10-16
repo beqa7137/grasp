@@ -4,6 +4,8 @@ export interface CaseBrief {
   /** The question as an interviewer would pose it. */
   question: string;
   summary: string;
+  /** A near-twin case, linked from this one so the two read as different questions (REDESIGN.md 2.10). */
+  related?: string;
 }
 
 export const CASE_BRIEFS: readonly CaseBrief[] = [
@@ -59,14 +61,17 @@ export const CASE_BRIEFS: readonly CaseBrief[] = [
     id: 'payments',
     question:
       'Design the payment backend of an online marketplace that charges buyers through external payment processors and pays out sellers.',
-    summary: 'Idempotency keys, a payment state machine, a double-entry ledger, unknown outcomes, the outbox pattern and reconciliation.',
+    summary:
+      'Moving money in and out through external processors: idempotency keys, a payment state machine, a double-entry ledger, unknown outcomes, the outbox pattern and reconciliation.',
+    related: 'payment-ledger',
   },
   {
     id: 'payment-ledger',
     question:
       'Design the double-entry ledger at the heart of a payments company: every capture, fee, refund, payout and transfer is recorded in it, and balances and statements are read from it.',
     summary:
-      'Immutable entries that sum to zero, idempotent posting, row locks and hot accounts, sharding with in-transit accounts, snapshots, reconciliation and invariants.',
+      'The internal book of record every payment posts to: immutable entries that sum to zero, idempotent posting, row locks and hot accounts, sharding with in-transit accounts, snapshots, reconciliation and invariants.',
+    related: 'payments',
   },
   {
     id: 'proximity-service',
@@ -91,7 +96,9 @@ export const CASE_BRIEFS: readonly CaseBrief[] = [
     id: 'ticketing',
     question:
       "Design a ticketing site like Ticketmaster, where a popular concert's seats go on sale at a fixed time and sell out in minutes.",
-    summary: 'A virtual waiting room, seat holds with expiry, conditional updates against double booking, and payment failures.',
+    summary:
+      'A single on-sale rush for numbered seats, each sold once: a virtual waiting room, seat holds with expiry, conditional updates against double booking, and payment failures.',
+    related: 'hotel-booking',
   },
   {
     id: 'search-engine',
@@ -146,7 +153,8 @@ export const CASE_BRIEFS: readonly CaseBrief[] = [
     question:
       'Design a hotel reservation system like Booking.com: search hotels by city and dates, then book a room without selling more rooms than the hotel allows.',
     summary:
-      'Room counts per night, holds with expiry, idempotent bookings, overbooking policies, a cached search path, sharding by hotel and channel manager sync.',
+      'Steady sales of interchangeable rooms, counted per night over date ranges: holds with expiry, idempotent bookings, overbooking policies, a cached search path, sharding by hotel and channel manager sync.',
+    related: 'ticketing',
   },
   {
     id: 'stock-exchange',

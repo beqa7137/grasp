@@ -10,11 +10,17 @@ export interface CaseSummary {
 }
 
 export const CASE_CATALOG: readonly CaseSummary[] = [
-  { id: 'url-shortener', title: 'URL Shortener', level: 'core', stages: 9, topics: ['sd-estimation', 'sd-caching', 'sd-sharding'] },
+  {
+    id: 'url-shortener',
+    title: 'URL Shortener',
+    level: 'core',
+    stages: 9,
+    topics: ['sd-estimation', 'sd-caching', 'sd-sharding', 'sd-ids'],
+  },
   { id: 'rate-limiter', title: 'Rate Limiter', level: 'core', stages: 10, topics: ['sd-rate-limiting', 'sd-estimation', 'sd-reliability'] },
   { id: 'typeahead', title: 'Search Autocomplete', level: 'core', stages: 9, topics: ['sd-caching', 'sd-sharding', 'sd-estimation'] },
   { id: 'news-feed', title: 'News Feed', level: 'core', stages: 8, topics: ['sd-caching', 'sd-queues', 'sd-replication'] },
-  { id: 'chat', title: 'Chat App', level: 'core', stages: 10, topics: ['sd-sharding', 'sd-queues', 'sd-reliability'] },
+  { id: 'chat', title: 'Chat App', level: 'core', stages: 10, topics: ['sd-sharding', 'sd-queues', 'sd-reliability', 'sd-realtime'] },
   {
     id: 'notifications',
     title: 'Notification System',
@@ -42,7 +48,7 @@ export const CASE_CATALOG: readonly CaseSummary[] = [
     title: 'Payment System',
     level: 'advanced',
     stages: 10,
-    topics: ['sd-consistency', 'sd-reliability', 'sd-queues', 'sd-sharding'],
+    topics: ['sd-consistency', 'sd-reliability', 'sd-queues', 'sd-sharding', 'sd-transactions', 'sd-api-design'],
   },
   {
     id: 'payment-ledger',
@@ -77,7 +83,7 @@ export const CASE_CATALOG: readonly CaseSummary[] = [
     title: 'Ticket Booking',
     level: 'advanced',
     stages: 10,
-    topics: ['sd-consistency', 'sd-rate-limiting', 'sd-sharding', 'sd-caching'],
+    topics: ['sd-consistency', 'sd-rate-limiting', 'sd-sharding', 'sd-caching', 'sd-locks'],
   },
   {
     id: 'search-engine',
@@ -119,7 +125,7 @@ export const CASE_CATALOG: readonly CaseSummary[] = [
     title: 'Collaborative Editor',
     level: 'advanced',
     stages: 8,
-    topics: ['sd-consistency', 'sd-queues', 'sd-sharding', 'sd-multi-region'],
+    topics: ['sd-consistency', 'sd-queues', 'sd-sharding', 'sd-multi-region', 'sd-clocks'],
   },
   {
     id: 'metrics-monitoring',
@@ -161,7 +167,7 @@ export const CASE_CATALOG: readonly CaseSummary[] = [
     title: 'Code Deployment System',
     level: 'advanced',
     stages: 15,
-    topics: ['sd-reliability', 'sd-observability', 'sd-cdn', 'sd-consistency'],
+    topics: ['sd-reliability', 'sd-observability', 'sd-cdn', 'sd-consistency', 'sd-discovery'],
   },
 ];
 
