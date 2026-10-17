@@ -25,8 +25,8 @@ export function queryWords(query: string): string[] {
     .filter(Boolean);
 }
 
-/** A title or alias as one comparable phrase. */
-export const phraseOf = (text: string) => queryWords(text).join(' ');
+/** A title or alias as one comparable phrase, without spaces, so "union find" and "Union-Find" are the same title. */
+export const phraseOf = (text: string) => queryWords(text).join('');
 
 export interface Scorable {
   title: string;
@@ -61,7 +61,7 @@ const covers = (query: readonly string[], ...fields: (readonly string[])[]) =>
 /** The item's score for the query's words: the best rule it meets, 0 for none. */
 export function scoreOf(item: Prepared, query: readonly string[]): number {
   if (!query.length) return 0;
-  const phrase = query.join(' ');
+  const phrase = query.join('');
   if (item.phrase === phrase) return SCORES.exact;
   if (item.phrase.startsWith(phrase)) return SCORES.titlePrefix;
   if (item.aliasPhrases.some((a) => a.startsWith(phrase))) return SCORES.alias;

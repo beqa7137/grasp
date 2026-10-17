@@ -20,6 +20,10 @@ export const SEARCH_ALIASES: Readonly<Record<string, readonly string[]>> = {
   'problem:kth-largest-element': ['Kth Largest Element in an Array'],
   'visualizer:tree-traversal': ['Tree DFS'],
   'pattern:tree-dfs': ['Tree DFS'],
+  'pattern:bfs': ['BFS'],
+  'pattern:dp-1d': ['DP'],
+  'pattern:minimum-spanning-tree': ['MST'],
+  'visualizer:lcs': ['LCS'],
   'topic:sd-caching': ['Caching & CDNs'],
   'topic:sd-replication': ['Replication & Databases'],
 };

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ALGORITHMS } from '../../algorithms/index.js';
 import { codeSpanProblems } from '../../code-spans.js';
+import { getProblemSummary } from '../../coding/catalog.js';
 import { PATTERN_CATALOG } from '../catalog.js';
 import { LESSONS } from './index.js';
 
@@ -29,6 +30,12 @@ describe('pattern lessons', () => {
       }
     }
     expect(Object.keys(LESSONS).sort()).toEqual(PATTERN_CATALOG.map((p) => p.id).sort());
+  });
+
+  it('link a variation only to a catalog problem it names by its catalog title', () => {
+    const linked = Object.values(LESSONS).flatMap((l) => l.variations.filter((v) => v.problemId));
+    expect(linked.length).toBeGreaterThan(0);
+    for (const v of linked) expect(v.how, v.name).toContain(getProblemSummary(v.problemId!)!.title);
   });
 
   it('replays each example in one of its own pattern visualizers, with an input the tracer accepts and a short trace', () => {
