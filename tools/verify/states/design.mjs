@@ -1,5 +1,5 @@
 import { getCaseStudy, itemsForTopic } from '@grasp/engine';
-import { BASE, answerFirst, settle } from '../lib.mjs';
+import { BASE, answerFirst, openReports, settle } from '../lib.mjs';
 
 /** The authored index of a decision's recommended option: drafts name options by it, whatever order they are shown in. */
 const recommended = (id, stage) => getCaseStudy(id).stages[stage].decision.options.findIndex((o) => o.best);
@@ -181,6 +181,7 @@ export function designStates() {
     { id: 'sandbox-reconnect-storm', path: '/design/missions/reconnect-storm' },
     { id: 'sandbox-free', path: '/design/lab' },
     { id: 'case-study', path: '/design/cases/url-shortener' },
+    { id: 'case-reported', path: '/design/cases/chat', setup: openReports },
     {
       id: 'case-study-decided',
       path: '/design/cases/url-shortener',

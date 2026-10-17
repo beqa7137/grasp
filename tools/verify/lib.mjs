@@ -89,6 +89,16 @@ export const readOnly = (context) =>
 
 export const settle = (page, ms = 700) => page.waitForTimeout(ms);
 
+/** Opens a page's "Reported in interviews" list on a day its reports show, so the state holds whatever the date. */
+export const openReports = async (page) => {
+  if (!STABLE) {
+    await page.clock.setFixedTime(new Date('2026-10-20T12:00:00'));
+    await page.reload();
+  }
+  await page.locator('app-interview-reports summary').click();
+  await settle(page, 400);
+};
+
 /** Waits until no Ionic page transition is running: each outlet then shows one page, and hides the rest from screen readers. */
 export const pagesSettled = (page) =>
   page.waitForFunction(

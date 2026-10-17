@@ -34,6 +34,7 @@ import { CodeTextComponent } from '../../../viz/code-text.component';
 import { CaseDraftsService, newCaseDraft, type CaseDraft } from './case-drafts.service';
 import { CaseStageComponent } from './case-stage.component';
 import { BackComponent } from '../../../ui/back.component';
+import { InterviewReportsComponent } from '../../../companies/interview-reports.component';
 
 const KIND_LABELS: Record<CaseStageKind, string> = {
   requirements: 'Requirements',
@@ -60,6 +61,7 @@ const KIND_LABELS: Record<CaseStageKind, string> = {
     IonIcon,
     CodeTextComponent,
     CaseStageComponent,
+    InterviewReportsComponent,
   ],
   template: `
     <ion-header [translucent]="true">
@@ -83,6 +85,7 @@ const KIND_LABELS: Record<CaseStageKind, string> = {
               Related: <a [routerLink]="['/design/cases', r.id]">{{ r.title }}</a>
             </p>
           }
+          <app-interview-reports class="reports" kind="case" [itemId]="s.id" />
 
           @if (loaded()) {
             <ol class="stages">
@@ -185,6 +188,10 @@ const KIND_LABELS: Record<CaseStageKind, string> = {
       a {
         padding-block: var(--g-space-1);
       }
+    }
+    .reports {
+      margin: 0 0 var(--g-space-3);
+      border-block: 1px solid var(--g-line);
     }
     .stages {
       list-style: none;

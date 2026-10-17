@@ -43,6 +43,7 @@ import {
   stopwatchOutline,
 } from 'ionicons/icons';
 import { CodeEditorComponent } from '../../code/code-editor.component';
+import { InterviewReportsComponent } from '../../companies/interview-reports.component';
 import { LanguagePickerComponent } from '../../code/language-picker.component';
 import type { RunnerError } from '../../code/protocol';
 import { RunnerService, type RunReport, type TestReport } from '../../code/runner.service';
@@ -86,6 +87,7 @@ type Panel = 'tests' | 'trace';
     RovingSelectDirective,
     CodeTextComponent,
     TreeViewComponent,
+    InterviewReportsComponent,
   ],
   templateUrl: './workspace.page.html',
   styleUrl: './workspace.page.scss',
