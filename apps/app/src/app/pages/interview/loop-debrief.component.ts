@@ -46,9 +46,9 @@ function practice(target: FocusTarget): { link: string[]; label: string } {
     @let d = debrief();
     <section class="panel read" aria-labelledby="read-kind read-title">
       @if (allScripted()) {
-        <p id="read-kind" class="eyebrow">Coverage estimate from scripted practice, not a hiring decision</p>
+        <p id="read-kind" class="eyebrow">Coverage estimate from scripted rounds, not a hiring decision</p>
         <p class="muted">
-          Scripted practice scored every round: it checks which rubric areas you covered, not whether your answers were right.
+          Every round was scripted: scripted rounds check which rubric areas you covered, not whether your answers were right.
         </p>
         <h2 id="read-title" class="verdict neutral">{{ label(d.verdict) }}</h2>
       } @else {
@@ -67,7 +67,7 @@ function practice(target: FocusTarget): { link: string[]; label: string } {
       }
       @if (d.scripted && !allScripted()) {
         <p class="muted">
-          Scripted practice scored {{ d.scripted }} of your {{ sessions().length }} rounds. Those rounds check which rubric areas you
+          {{ d.scripted }} of your {{ sessions().length }} rounds were scripted. Those rounds check which rubric areas you
           covered, not whether your answers were right, so this read is rougher than an all-AI loop.
         </p>
       }

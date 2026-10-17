@@ -154,7 +154,7 @@ export const TICKETING: CaseStudy = {
         'When their turn comes, the queue service issues an admission token (account, event, expiry, signed) that the booking API checks on every call. Bot defense and per-account rate limits sit in front of the origin.',
         'Stateless booking servers read the seat map from a cache with a short TTL, and write holds, checkouts and orders as conditional updates on the primary that owns the event: inventory is sharded by event ID.',
         'Payment runs through the provider with a payment attempt ID (the hold ID plus an attempt number) as the idempotency key, so a fan whose card is declined can try another card while the hold lasts. Workers (not in the build) handle payment webhooks, release expired holds and issue tickets.',
-        'Open the build in the Design Lab: 105,000 requests a second, 100,000 waiting room polls plus 5,000 from shoppers inside, with about 500 writes, and 40,000 bot requests on top (an assumption). The CDN stands for the edge waiting room, the limiter for bot defense and the database for the seat inventory sharded by event. Lower the CDN hit rate to see what the spike does to the origin.',
+        'Open the build in the Lab: 105,000 requests a second, 100,000 waiting room polls plus 5,000 from shoppers inside, with about 500 writes, and 40,000 bot requests on top (an assumption). The CDN stands for the edge waiting room, the limiter for bot defense and the database for the seat inventory sharded by event. Lower the CDN hit rate to see what the spike does to the origin.',
       ],
     },
     {

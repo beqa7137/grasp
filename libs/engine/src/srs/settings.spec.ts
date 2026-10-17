@@ -103,6 +103,6 @@ describe('reminders', () => {
       { id: id(), at: iso(t0), type: 'scenario.completed', scenarioId: 'viral-feed', monthlyCost: 8_000 },
     ];
     const [r] = planReminders(replay(events), [new Date(t0 + 4 * DAY)]);
-    expect(r.title).toBe('A Design Lab revisit is waiting');
+    expect(r.title).toBe('A Lab revisit is waiting');
   });
 });

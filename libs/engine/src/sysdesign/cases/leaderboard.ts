@@ -142,7 +142,7 @@ export const LEADERBOARD: CaseStudy = {
         'Consumers insert the result row (a unique match ID makes duplicates no-ops), update the player totals in the durable store, then write the new totals to the all-time, daily and weekly sorted sets in one pipeline.',
         'Read servers answer "me and my neighbours" from the sorted sets, from replicas where a second of lag is fine, and serve the top 100 from a copy they refresh every second, so the busiest query costs Redis one call a second per server.',
         'The player who just finished a match sees their new score straight from the result, not from a replica, so their own rank never appears to go backwards.',
-        'Open the build in the Design Lab: 50,000 requests a second, about 42,000 reads and 8,500 results. The cache stands for the Redis sorted sets, the queue and workers for the result stream and its consumers, and the database for the durable score store sharded by player. Lower the cache hit rate to see what ranking in the database would cost.',
+        'Open the build in the Lab: 50,000 requests a second, about 42,000 reads and 8,500 results. The cache stands for the Redis sorted sets, the queue and workers for the result stream and its consumers, and the database for the durable score store sharded by player. Lower the cache hit rate to see what ranking in the database would cost.',
       ],
     },
     {

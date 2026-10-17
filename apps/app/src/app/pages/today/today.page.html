@@ -145,7 +145,7 @@
         }
 
         <a class="panel review-row" routerLink="/today/review">
-          <ion-icon name="flash-outline" aria-hidden="true" />
+          <ion-icon [icon]="reviewIcon" aria-hidden="true" />
           <span class="text">
             <strong>Review</strong>
             <span class="muted"> · {{ reviewDetail() }}</span>

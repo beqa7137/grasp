@@ -19,7 +19,7 @@ const VISUALIZER_TITLES = [
   'Minimum XOR Sum (Bitmask DP)',
   'Merge Intervals',
   'Subsets by Backtracking',
-  'Tree DFS: Preorder, Inorder, Postorder',
+  'Tree Traversal: preorder, inorder, postorder',
   'Jump Game',
   'Single Number (XOR)',
   'Two Sum (Hash Map)',

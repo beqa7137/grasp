@@ -1,13 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
-import { PATTERN_CATALOG, getAlgorithmSummary, getLesson, getPattern, itemsForTopic, problemsForPattern } from '@grasp/engine';
+import { PATTERN_CATALOG, getAlgorithmSummary, getLesson, getPattern, getProblemSummary, itemsForTopic, problemsForPattern } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import {
   alertCircleOutline,
   chatbubblesOutline,
   codeSlashOutline,
-  flashOutline,
   gitBranchOutline,
   playCircle,
   schoolOutline,
@@ -20,6 +19,7 @@ import { MasteryRingComponent } from '../../ui/mastery-ring.component';
 import { QuickCheckComponent } from './quick-check.component';
 import { WorkedExampleComponent } from './worked-example.component';
 import { BackComponent } from '../../ui/back.component';
+import { drillIcon, quickCheckIcon } from '../../ui/icons';
 
 @Component({
   selector: 'app-pattern',
@@ -64,11 +64,11 @@ import { BackComponent } from '../../ui/back.component';
           <div class="actions">
             @for (a of algorithms(); track a.id) {
               <a class="g-btn primary" [routerLink]="['/coding/visualizers', a.id]"
-                ><ion-icon name="play-circle" aria-hidden="true" />Visualize: {{ a.title }}</a
+                ><ion-icon name="play-circle" aria-hidden="true" />Watch: {{ a.title }}</a
               >
             }
             <a class="g-btn" [routerLink]="['/coding/patterns', p.id, 'drill']"
-              ><ion-icon name="flash-outline" aria-hidden="true" />Practice {{ itemCount() }} items</a
+              ><ion-icon [icon]="icons.drill" aria-hidden="true" />Drill {{ itemCount() }} cards</a
             >
             @for (c of problems(); track c.id) {
               <a class="g-btn" [routerLink]="['/coding/problems', c.id]"
@@ -111,7 +111,12 @@ import { BackComponent } from '../../ui/back.component';
               <dl class="variations">
                 @for (v of l.variations; track v.name) {
                   <dt>{{ v.name }}</dt>
-                  <dd><g-code-text [text]="v.how" /></dd>
+                  <dd>
+                    <g-code-text [text]="v.how" />
+                    @if (v.problemId && problemTitle(v.problemId); as title) {
+                      <a class="try" [routerLink]="['/coding/problems', v.problemId]">Code: {{ title }} →</a>
+                    }
+                  </dd>
                 }
               </dl>
             </section>
@@ -139,7 +144,7 @@ import { BackComponent } from '../../ui/back.component';
           }
 
           <section class="panel block">
-            <h2><ion-icon name="flash-outline" aria-hidden="true" />Quick check</h2>
+            <h2><ion-icon [icon]="icons.quickCheck" aria-hidden="true" />Quick check</h2>
             <app-quick-check [topic]="p.id" />
           </section>
 
@@ -275,11 +280,12 @@ export class PatternPage {
   readonly algorithms = computed(() => (this.pattern()?.algorithmIds ?? []).map((id) => getAlgorithmSummary(id)!).filter(Boolean));
   readonly itemCount = computed(() => itemsForTopic(this.id()).length);
   readonly patternCount = PATTERN_CATALOG.length;
+  readonly icons = { drill: drillIcon, quickCheck: quickCheckIcon };
+  readonly problemTitle = (id: string) => getProblemSummary(id)?.title;
 
   constructor() {
     addIcons({
       playCircle,
-      flashOutline,
       searchOutline,
       alertCircleOutline,
       codeSlashOutline,

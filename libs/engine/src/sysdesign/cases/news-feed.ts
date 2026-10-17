@@ -129,7 +129,7 @@ export const NEWS_FEED: CaseStudy = {
         'Publish: app server writes the post to its shard, then enqueues a fan-out job; workers update the timelines.',
         'Media is served from a CDN and object storage, never through the app servers.',
         'Databases are sharded with a replica per shard, so a failed primary loses no data and reads continue during failover.',
-        'Open the build in the Design Lab: it serves the average 35k requests per second. Push it to the 70k peak and find what gives first. The queue and workers stand for fan-out; the simulator counts each job once, not the 200 timeline inserts it makes. Kill a worker or a cache node and watch what happens.',
+        'Open the build in the Lab: it serves the average 35k requests per second. Push it to the 70k peak and find what gives first. The queue and workers stand for fan-out; the simulator counts each job once, not the 200 timeline inserts it makes. Kill a worker or a cache node and watch what happens.',
       ],
     },
     {

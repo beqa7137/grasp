@@ -193,7 +193,7 @@ export const RATE_LIMITER: CaseStudy = {
         'Path: clients, then the gateway tier (TLS, key check, rate limit), then load balancers and stateless app servers, then the cache and the sharded database.',
         'Layers: volumetric floods and coarse per-IP limits at the CDN or edge network; per-key quotas at the gateway; business rules in the service.',
         'Each gateway keeps a small in-memory deny list: once a key is over its limit, reject it locally until its `Retry-After`, so an abusive key stops costing Redis calls too.',
-        'Open the build in the Design Lab: it serves one region, 40k requests per second from real clients plus 60k from clients far over quota. The limiter node stands for the gateway tier and its Redis cluster together; the simulator rejects 98% of the abusive traffic and assumes real clients stay under quota. Remove the limiter and watch the database overload; cut it to one instance and the limiter itself becomes the bottleneck, rejecting real users too.',
+        'Open the build in the Lab: it serves one region, 40k requests per second from real clients plus 60k from clients far over quota. The limiter node stands for the gateway tier and its Redis cluster together; the simulator rejects 98% of the abusive traffic and assumes real clients stay under quota. Remove the limiter and watch the database overload; cut it to one instance and the limiter itself becomes the bottleneck, rejecting real users too.',
       ],
     },
     {

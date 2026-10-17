@@ -25,7 +25,7 @@ describe('QuestionCardComponent', () => {
 
   it.each([
     ['check', 'Quick check'],
-    ['practice', 'Practice'],
+    ['practice', 'Drill'],
   ] as const)('labels a %s card %s', (reason, label) => {
     const el: HTMLElement = render(generateQuestion('rec:h1', 7), null, reason).nativeElement;
     expect(el.querySelector('.reason')!.textContent!.trim()).toBe(label);

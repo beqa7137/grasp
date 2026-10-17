@@ -30,7 +30,7 @@ export function signInErrorMessage(error: unknown): string {
           }
         </div>
       } @else {
-        <p class="muted">Sign-in isn't available on this device. You can keep studying and use scripted practice.</p>
+        <p class="muted">Sign-in isn't available on this device. You can keep studying and use scripted mock rounds.</p>
       }
     } @else if (auth.providersFailed()) {
       <p class="muted">Couldn't load sign-in options.</p>

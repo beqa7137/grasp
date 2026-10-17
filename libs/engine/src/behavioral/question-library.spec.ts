@@ -8,7 +8,7 @@ import {
   questionQueryParams,
   type QuestionStatus,
 } from './question-library.js';
-import type { BehavioralQuestion } from './types.js';
+import type { QuestionPrompt } from './question-prompts.js';
 
 const fresh = (): QuestionStatus[] => ['not-drafted'];
 const ids = (result: ReturnType<typeof queryQuestions>) => result.groups.flatMap((g) => g.questions.map((q) => q.id));
@@ -53,7 +53,7 @@ describe('the Questions library', () => {
   });
 
   it('filters by overlapping statuses, widening with each one chosen', () => {
-    const statusesOf = (q: BehavioralQuestion): QuestionStatus[] => [
+    const statusesOf = (q: QuestionPrompt): QuestionStatus[] => [
       q.id === 'conflict-1' ? 'drafted' : 'not-drafted',
       ...(q.competencyId === 'conflict' ? (['story'] as const) : []),
     ];

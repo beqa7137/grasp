@@ -67,7 +67,7 @@ function unsyncedWarning(count: number, checked: boolean): string {
           @if (auth.providers()?.length) {
             <strong>Sign in to sync stories across devices</strong>
           }
-          <p class="muted">Study and scripted practice work without an account. Sign in to sync progress and use AI interviews.</p>
+          <p class="muted">Study and scripted mock rounds work without an account. Sign in to sync progress and use the AI interviewer.</p>
         </div>
         <app-sign-in-options [disabled]="busy()" (busyChange)="signingIn.set($event)" (signedIn)="confirmSignedIn()" />
       }

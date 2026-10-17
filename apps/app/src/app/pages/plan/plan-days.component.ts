@@ -3,7 +3,8 @@ import { RouterLink } from '@angular/router';
 import { IonIcon } from '@ionic/angular';
 import type { PlanDay, StudyPlan } from '@grasp/engine';
 import { addIcons } from 'ionicons';
-import { chatbubblesOutline, flashOutline } from 'ionicons/icons';
+import { chatbubblesOutline } from 'ionicons/icons';
+import { reviewIcon } from '../../ui/icons';
 import { RovingSelectDirective } from '../../core/roving-select.directive';
 import { CrossLinkDirective } from '../../ui/cross-link.directive';
 import { formatMinutes } from './duration';
@@ -76,7 +77,7 @@ export function dayKind(day: PlanDay): DayKind {
           </h2>
           <ul class="items">
             <li class="item review">
-              <ion-icon name="flash-outline" aria-hidden="true" />
+              <ion-icon [icon]="reviewIcon" aria-hidden="true" />
               <span class="text">
                 @if (p.todayReview.cards) {
                   <a routerLink="/today/review">Review</a>
@@ -294,6 +295,7 @@ export function dayKind(day: PlanDay): DayKind {
   `,
 })
 export class PlanDaysComponent {
+  readonly reviewIcon = reviewIcon;
   private readonly locale = inject(LOCALE_ID);
   readonly plan = input.required<StudyPlan>();
   /**
@@ -331,7 +333,7 @@ export class PlanDaysComponent {
   readonly chosen = computed(() => this.plan().days.find((d) => d.date === this.selected()) ?? null);
 
   constructor() {
-    addIcons({ chatbubblesOutline, flashOutline });
+    addIcons({ chatbubblesOutline });
   }
 
   long(date: string): string {

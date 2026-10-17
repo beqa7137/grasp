@@ -151,7 +151,7 @@ export const STOCK_EXCHANGE: CaseStudy = {
         'Symbols are split into partitions, each with its own sequencer and matching engine. Symbols never interact, so a total order per partition is all matching needs, and partitions scale out without coordination.',
         'The sequencer assigns the next sequence number and timestamp, replicates the event, and hands it to the engine, which matches it against the book and emits outputs: acknowledgements and fills routed back to the gateways, market data to the publishers, trades to clearing.',
         'Stateful risk checks, such as a credit limit per member across all symbols, need a running total. A risk process consumes fills from the output stream and holds the running exposure; the gateway blocks new orders once a member exceeds its limit.',
-        'Open the build in the Design Lab: a scaled slice at 30,000 requests a second, 12,000 orders and cancels plus 18,000 order status and book snapshot queries. The lab counts milliseconds and has no multicast, so it draws the shape: the load balancer and app servers are the gateways, the queue is the sequenced log, the workers are matching engines, and the database with its cache is the post-trade store members query.',
+        'Open the build in the Lab: a scaled slice at 30,000 requests a second, 12,000 orders and cancels plus 18,000 order status and book snapshot queries. The lab counts milliseconds and has no multicast, so it draws the shape: the load balancer and app servers are the gateways, the queue is the sequenced log, the workers are matching engines, and the database with its cache is the post-trade store members query.',
       ],
     },
     {

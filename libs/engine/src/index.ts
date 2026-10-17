@@ -19,3 +19,4 @@ export * from './readiness/index.js';
 export * from './plan/minutes.js';
 export * from './url-params.js';
 export * from './companies/index.js';
+export * from './search/index.js';

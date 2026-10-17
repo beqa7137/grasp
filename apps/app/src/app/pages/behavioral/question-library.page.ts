@@ -9,7 +9,7 @@ import {
   parseQuestionQuery,
   queryQuestions,
   questionQueryParams,
-  type BehavioralQuestion,
+  type QuestionPrompt,
   type QuestionFacet,
   type QuestionQuery,
   type QuestionStatus,
@@ -267,7 +267,7 @@ export class QuestionLibraryPage {
   );
   readonly result = computed(() => {
     const covered = this.covered();
-    const statusesOf = (q: BehavioralQuestion): QuestionStatus[] => [
+    const statusesOf = (q: QuestionPrompt): QuestionStatus[] => [
       this.drafts.isDrafted(q.id) ? 'drafted' : 'not-drafted',
       ...(covered.has(q.competencyId) ? (['story'] as const) : []),
     ];

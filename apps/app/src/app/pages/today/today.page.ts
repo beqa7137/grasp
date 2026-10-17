@@ -24,7 +24,6 @@ import {
   cloudDoneOutline,
   compassOutline,
   ellipsisHorizontal,
-  flashOutline,
   gitNetworkOutline,
   saveOutline,
   settingsOutline,
@@ -38,6 +37,7 @@ import { FIRST_IDLE } from '../../core/serial-preloading.strategy';
 import { ProgressService } from '../../core/progress.service';
 import { PilotService } from '../../pilot/pilot.service';
 import { CrossLinkDirective } from '../../ui/cross-link.directive';
+import { reviewIcon } from '../../ui/icons';
 import { DiagnosticPromptService } from '../diagnostic/diagnostic-prompt.service';
 import { LEVELS, LEVEL_NAMES, addDays, loopLine, loopSource } from './loop-line';
 import { TodayMenuComponent, type TodayMenuChoice } from './today-menu.component';
@@ -55,6 +55,7 @@ const WEEKDAY = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: '
   styleUrl: './today.page.scss',
 })
 export class TodayPage {
+  readonly reviewIcon = reviewIcon;
   private readonly injector = inject(Injector);
   private readonly locale = inject(LOCALE_ID);
   private readonly syncAlert = viewChild<ElementRef<HTMLElement>>('syncAlert');
@@ -167,7 +168,6 @@ export class TodayPage {
       cloudDoneOutline,
       compassOutline,
       ellipsisHorizontal,
-      flashOutline,
       gitNetworkOutline,
       saveOutline,
       settingsOutline,

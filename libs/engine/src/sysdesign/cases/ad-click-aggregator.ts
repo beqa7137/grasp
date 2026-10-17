@@ -159,7 +159,7 @@ export const AD_CLICK_AGGREGATOR: CaseStudy = {
         'A stream processor (for example Apache Flink) reads the topic, drops duplicates, tags invalid clicks, counts per ad per minute in event-time windows and writes each finished window to the analytics store.',
         'Once a day, after late data has settled, a batch job (for example Spark) recounts the day from the raw log, with the same deduplication and fraud rules plus slower checks, and replaces that day in the store. Billing reads only reconciled days.',
         'Reconciliation compares the two per ad: small differences from late clicks are expected, large ones page someone. Apache Pinot supports this pattern directly with hybrid tables, which answer from batch segments where they exist and real-time ones after.',
-        'Open the build in the Design Lab: one of three regions at peak, 12,000 clicks a second plus 500 dashboard queries. The queue is Kafka, the workers are the stream processor, the cache holds recent dashboard results, and the database is the analytics store, sharded by a hash of the ad ID. The simulator writes every click to the store; the real aggregator writes one row per ad per minute, far fewer.',
+        'Open the build in the Lab: one of three regions at peak, 12,000 clicks a second plus 500 dashboard queries. The queue is Kafka, the workers are the stream processor, the cache holds recent dashboard results, and the database is the analytics store, sharded by a hash of the ad ID. The simulator writes every click to the store; the real aggregator writes one row per ad per minute, far fewer.',
       ],
     },
     {

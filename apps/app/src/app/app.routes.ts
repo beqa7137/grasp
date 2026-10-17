@@ -91,7 +91,7 @@ export const routes: Routes = [
         loadComponent: () =>
           withTitles(lazy('pages/visualize/player.page', () => import('./pages/visualize/player.page'))).then((m) => m.PlayerPage),
       },
-      { path: 'coding/patterns/:pattern/drill', title: 'Practice', loadComponent: drill },
+      { path: 'coding/patterns/:pattern/drill', title: 'Drill', loadComponent: drill },
       {
         path: 'coding/patterns/:id',
         data: { preload: 1 },
@@ -153,7 +153,7 @@ export const routes: Routes = [
             (m) => m.CaseStudyPage,
           ),
       },
-      { path: 'design/topics/:pattern/drill', title: 'Practice', loadComponent: drill },
+      { path: 'design/topics/:pattern/drill', title: 'Drill', loadComponent: drill },
       {
         path: 'design/topics/:id',
         data: { preload: 1 },
@@ -208,7 +208,7 @@ export const routes: Routes = [
       },
       {
         path: 'behavioral/question/:id',
-        title: 'Behavioral practice',
+        title: 'STAR practice',
         loadComponent: () =>
           lazy('pages/behavioral/star-practice.page', () => import('./pages/behavioral/star-practice.page')).then(
             (m) => m.StarPracticePage,

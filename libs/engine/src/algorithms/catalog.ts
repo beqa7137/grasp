@@ -117,7 +117,7 @@ const CATALOG = [
   },
   {
     id: 'tree-traversal',
-    title: 'Tree DFS: Preorder, Inorder, Postorder',
+    title: 'Tree Traversal: preorder, inorder, postorder',
     difficulty: 'easy',
     summary:
       'One recursive walk enters the nodes in the same sequence every time; the three orders differ only in where the node is appended.',

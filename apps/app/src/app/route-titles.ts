@@ -23,7 +23,7 @@ export const algorithmTitle = (route: ActivatedRouteSnapshot) => getAlgorithmSum
 
 export const caseTitle = (route: ActivatedRouteSnapshot) => getCaseSummary(idOf(route))?.title ?? 'Case study';
 
-export const missionTitle = (route: ActivatedRouteSnapshot) => getScenarioSummary(idOf(route))?.title ?? 'Design Lab';
+export const missionTitle = (route: ActivatedRouteSnapshot) => getScenarioSummary(idOf(route))?.title ?? 'Lab';
 
 export function caseBuildTitle(route: ActivatedRouteSnapshot) {
   const study = getCaseSummary(route.paramMap.get('case') ?? '');
