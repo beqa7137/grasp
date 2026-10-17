@@ -186,7 +186,7 @@ export class TabsPage implements RailHost {
   /** Ionic's own default, as its outlet applies it: the outlet has no getter to read it back. */
   private readonly swipe = inject(Config).getBoolean('swipeBackEnabled', true);
   private readonly searchHost = viewChild.required('searchHost', { read: ViewContainerRef });
-  private palette: Promise<ShowPalette> | null = null;
+  private palette: Promise<ShowPalette | null> | null = null;
   readonly searchKeyHint = searchKeyHint();
 
   constructor() {
@@ -209,7 +209,7 @@ export class TabsPage implements RailHost {
     const shortcuts = inject(ShortcutsService);
     const keys = (e: KeyboardEvent) => {
       if (isSearchChordStart(e)) {
-        if (this.desktop()) this.prepareSearch();
+        if (this.desktop()) void this.prepareSearch();
       } else if (isSearchKey(host, e, shortcuts.characterKeys())) {
         e.preventDefault();
         this.openSearch(document.activeElement instanceof HTMLElement ? document.activeElement : null);
@@ -275,13 +275,13 @@ export class TabsPage implements RailHost {
     return this.tabs().outlet;
   }
 
-  /** Starts loading the palette, which a phone never needs: it searches on its own page. */
-  prepareSearch(): Promise<ShowPalette> {
+  /** Starts loading the palette, which a phone never needs: it searches on its own page. Null when its code fails to load. */
+  prepareSearch(): Promise<ShowPalette | null> {
     this.palette ??= import('../search/search-palette.component').then(
       (m) => m.attachPalette(this.searchHost(), () => this.focusPageHeading()),
-      (error: unknown) => {
+      () => {
         this.palette = null;
-        throw error;
+        return null;
       },
     );
     return this.palette;
@@ -294,7 +294,7 @@ export class TabsPage implements RailHost {
   openSearch(launcher: HTMLElement | null): void {
     const page = () => void this.router.navigateByUrl('/today/search', { state: crossState(this.router, '/today/search') });
     if (!this.desktop()) return page();
-    this.prepareSearch().then((show) => show(launcher), page);
+    void this.prepareSearch().then((show) => (show ? show(launcher) : page()));
   }
 
   /**
