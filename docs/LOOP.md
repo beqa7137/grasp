@@ -734,7 +734,18 @@ Follow-ups from R49:
 - GeeksforGeeks shows only a "Last Updated" date (shown as "Updated"); a page re-dated later reads newer than its interview, so a refresh should not move such a row's date forward without new evidence.
 - On native, the source link relies on Capacitor opening `target="_blank"` in the system browser; it was not checked on a device.
 
-Next: R15 (Search and naming sweep) and the rest in 5.1's order.
+Follow-ups from R15:
+
+- Content review (5.0): the aliases and cue words (`search/keywords.ts`) and the renamed strings (Drill, Scripted, Lab, STAR practice, Watch, Tree Traversal) wait for the independent review.
+- Company names as search queries (R49's follow-up) still wait; the index takes no company data yet.
+- The hub roots (Skill map, Topics, Competencies, Mock) and the Visualizers and Missions segments have the header Search button, not an inline field of their own.
+- The palette's first open fetches its chunk and the shared data in two requests, unless a Ctrl or Meta keydown or the rail field's hover started them.
+- Today names its Review and Search glyphs itself rather than through the icon map, so `ui/icons.ts` stays out of first paint.
+- Prefix matching finds "tried" for "trie" and "Topological" for "top k" at word rank; a minimum word length or a stemmer could trim it.
+- The search chunk counts the index, scorer and prompts; the light catalogs it reads from are not counted, so a catalog moved out of first paint would load with search unnoticed by `search-chunk.mjs`.
+- Left from earlier follow-ups: the placement check's key hint on touch (R1, for R20), hub document titles (R3), the "Unsolved" rename (R8, no learner signal), a catalog Course Schedule II (2.10).
+
+Next: R16 (Pattern hub and workspace) and the rest in 5.1's order.
 
 ## Content ideas
 
