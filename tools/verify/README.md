@@ -113,7 +113,9 @@ states, review and practice cards, the review and practice summaries and the cau
 code workspace and an accepted submission, the study plan empty and set, the placement check's question and results,
 dialogs), `design.mjs` (the Design hub's segments, Lab missions, case studies and their widgets, design lessons) and
 `interview.mjs` (the Mock hub with its start sheets, AI allowance, History by round and offline state, interviews, the mock loop at setup, between rounds and at its debrief, and the Behavioral
-hub with its Questions, the STAR guide and the competency page at a Senior Target). R5 renamed the hub states (`learn` is `today`, `visualize-list` is `coding-visualizers`, `code-list` is
+hub with its Questions, the STAR guide and the competency page at a Senior Target) and `search.mjs` (R15's palette with
+results, with "See all" and with a suggestion, from 1024px only, the search page blank, with results, narrowed to one kind and
+with a suggestion, and the Mock hub opened on a result's round). R5 renamed the hub states (`learn` is `today`, `visualize-list` is `coding-visualizers`, `code-list` is
 `coding-problems`, `design-list` is `design-missions`, `design-list-cases` is `design-cases`, `interview-home` is `mock`,
 `behavioral-list` is `behavioral-competencies`, `behavioral-mock` is `behavioral-drill`) and added `coding-skill-map` and
 `design-topics`; compare a capture from before R5 under the old names. `lib.mjs` holds the browser helpers they share.
@@ -151,7 +153,7 @@ BASE=https://grasp-rho-taupe.vercel.app THEME=light OUT=verify-out/prod READONLY
   browser version stops at once. The last line says whether `OUT` now holds every state on every profile it has, or
   names what is missing.
 
-A full capture is 191 states, so a set of both themes on the four default profiles is 1,528 screenshots. On this
+A full capture is 249 states, so a set of both themes on the four default profiles is 1,992 screenshots. On this
 4-core machine under a second builder's load, Chromium takes about 9 s a state; run the two themes as two processes.
 
 ## Motion test mode

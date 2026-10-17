@@ -85,7 +85,10 @@ function entries(index: Partial<SearchIndex>): Entry[] {
 
 const KIND_ORDER = new Map(SEARCH_KINDS.map((k, i) => [k, i]));
 const byRank = (a: SearchResult, b: SearchResult) =>
-  b.score - a.score || KIND_ORDER.get(a.kind)! - KIND_ORDER.get(b.kind)! || a.title.length - b.title.length || a.title.localeCompare(b.title);
+  b.score - a.score ||
+  KIND_ORDER.get(a.kind)! - KIND_ORDER.get(b.kind)! ||
+  a.title.length - b.title.length ||
+  a.title.localeCompare(b.title);
 
 let shared: Entry[] | null = null;
 const indexEntries = () => (shared ??= entries(SEARCH_INDEX));

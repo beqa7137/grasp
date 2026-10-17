@@ -51,17 +51,7 @@ const WEEKDAY = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: '
   selector: 'app-today',
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [AnnouncerService],
-  imports: [
-    CrossLinkDirective,
-    RouterLink,
-    NgComponentOutlet,
-    IonHeader,
-    IonToolbar,
-    IonButtons,
-    IonTitle,
-    IonContent,
-    IonIcon,
-  ],
+  imports: [CrossLinkDirective, RouterLink, NgComponentOutlet, IonHeader, IonToolbar, IonButtons, IonTitle, IonContent, IonIcon],
   templateUrl: './today.page.html',
   styleUrl: './today.page.scss',
 })

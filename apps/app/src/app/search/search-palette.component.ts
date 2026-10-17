@@ -102,7 +102,9 @@ interface KindView {
         }
       </div>
       @if (!words()) {
-        <p class="note">Type to search patterns, problems, visualizers, topics, missions, cases, competencies, questions and mock rounds.</p>
+        <p class="note">
+          Type to search patterns, problems, visualizers, topics, missions, cases, competencies, questions and mock rounds.
+        </p>
       } @else if (!options().length) {
         <p class="note">
           Nothing matches "{{ query().trim() }}".
@@ -261,16 +263,16 @@ export class SearchPaletteComponent {
     return groupHits(this.results(), PER_KIND).map((g) => ({
       round: g.round,
       name: roundName(g.round),
-      kinds: g.kinds.map(
-        (k): KindView => ({
-          label: SEARCH_KIND_NAMES[k.kind][1],
-          hits: k.hits.map((h) => ({ ...h, option: option(h.title, searchHref(h)) })),
-          more: k.total > k.hits.length ? option(seeAll(k.kind, k.total), searchPageUrl(q, k.kind)) : null,
-        }),
-      ),
+      kinds: g.kinds.map((k): KindView => ({
+        label: SEARCH_KIND_NAMES[k.kind][1],
+        hits: k.hits.map((h) => ({ ...h, option: option(h.title, searchHref(h)) })),
+        more: k.total > k.hits.length ? option(seeAll(k.kind, k.total), searchPageUrl(q, k.kind)) : null,
+      })),
     }));
   });
-  readonly options = computed(() => this.view().flatMap((g) => g.kinds.flatMap((k) => [...k.hits.map((h) => h.option), ...(k.more ? [k.more] : [])])));
+  readonly options = computed(() =>
+    this.view().flatMap((g) => g.kinds.flatMap((k) => [...k.hits.map((h) => h.option), ...(k.more ? [k.more] : [])])),
+  );
   private readonly active = signal(0);
   readonly activeOption = computed(() => this.options()[this.active()] ?? null);
   readonly status = computed(() => {

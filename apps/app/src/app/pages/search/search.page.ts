@@ -114,7 +114,9 @@ const PER_KIND = 8;
             </g-empty-state>
           }
         } @else {
-          <p class="muted hint">Search patterns, problems, visualizers, topics, missions, cases, competencies, questions, mock rounds and your stories.</p>
+          <p class="muted hint">
+            Search patterns, problems, visualizers, topics, missions, cases, competencies, questions, mock rounds and your stories.
+          </p>
         }
       </div>
     </ion-content>

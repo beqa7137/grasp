@@ -1,7 +1,15 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
-import { PATTERN_CATALOG, getAlgorithmSummary, getLesson, getPattern, getProblemSummary, itemsForTopic, problemsForPattern } from '@grasp/engine';
+import {
+  PATTERN_CATALOG,
+  getAlgorithmSummary,
+  getLesson,
+  getPattern,
+  getProblemSummary,
+  itemsForTopic,
+  problemsForPattern,
+} from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import {
   alertCircleOutline,

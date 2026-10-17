@@ -43,7 +43,13 @@ describe('the search index', () => {
 
   it('tags rows only with ids of the kind their tags name', () => {
     const ids = (kind: keyof typeof SEARCH_INDEX) => new Set(SEARCH_INDEX[kind].map(([id]) => id));
-    const named = { problem: ids('pattern'), visualizer: ids('pattern'), mission: ids('topic'), case: ids('topic'), question: ids('competency') };
+    const named = {
+      problem: ids('pattern'),
+      visualizer: ids('pattern'),
+      mission: ids('topic'),
+      case: ids('topic'),
+      question: ids('competency'),
+    };
     for (const [kind, known] of Object.entries(named))
       for (const [id, , , tags = []] of SEARCH_INDEX[kind as keyof typeof named])
         for (const tag of tags) expect(known.has(tag), `${kind}:${id} ${tag}`).toBe(true);

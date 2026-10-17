@@ -1,11 +1,7 @@
 /** The scores of 2.9: the query is the whole title, starts it, starts an alias, or its words start the row's words. */
 export const SCORES = { exact: 100, titlePrefix: 60, alias: 50, titleWord: 40, tag: 25, blurbWord: 10 } as const;
 
-const fold = (text: string) =>
-  text
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ'’]/g, '');
+const fold = (text: string) => text.toLowerCase().normalize('NFD').replace(/[̀-ͯ'’]/g, '');
 
 /** A text's words: "K-th Largest" gives k, th, kth and largest, so both "k th" and "kth" find it. */
 export function wordsOf(text: string): string[] {

@@ -67,8 +67,8 @@ function practice(target: FocusTarget): { link: string[]; label: string } {
       }
       @if (d.scripted && !allScripted()) {
         <p class="muted">
-          {{ d.scripted }} of your {{ sessions().length }} rounds were scripted. Those rounds check which rubric areas you
-          covered, not whether your answers were right, so this read is rougher than an all-AI loop.
+          {{ d.scripted }} of your {{ sessions().length }} rounds were scripted. Those rounds check which rubric areas you covered, not
+          whether your answers were right, so this read is rougher than an all-AI loop.
         </p>
       }
     </section>

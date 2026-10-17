@@ -2,7 +2,18 @@ import type { Difficulty } from '../algorithms/types.js';
 import type { PlanRound } from '../plan/options.js';
 
 /** What search finds, in the order a tie between equal scores is broken. Stories are searched on the device, never indexed. */
-export const SEARCH_KINDS = ['pattern', 'visualizer', 'problem', 'topic', 'mission', 'case', 'mock', 'competency', 'question', 'story'] as const;
+export const SEARCH_KINDS = [
+  'pattern',
+  'visualizer',
+  'problem',
+  'topic',
+  'mission',
+  'case',
+  'mock',
+  'competency',
+  'question',
+  'story',
+] as const;
 export type SearchKind = (typeof SEARCH_KINDS)[number];
 
 /** The generated part of the index: what search needs from modules that do not load with first paint. */

@@ -64,7 +64,9 @@ describe('search ranking', () => {
     const groups = groupHits(searchAll('rate'), 8);
     expect(groups.map((g) => g.round)).toEqual(['design']);
     const found = groups[0].kinds.flatMap((k) => k.hits.map((h) => `${h.kind}:${h.id}`));
-    expect(found).toEqual(expect.arrayContaining(['topic:sd-rate-limiting', 'mission:bot-storm', 'case:rate-limiter', 'mock:rate-limiter']));
+    expect(found).toEqual(
+      expect.arrayContaining(['topic:sd-rate-limiting', 'mission:bot-storm', 'case:rate-limiter', 'mock:rate-limiter']),
+    );
     expect(groups[0].kinds.map((k) => k.kind)).toEqual(['topic', 'case', 'mock', 'mission']);
   });
 
@@ -83,7 +85,8 @@ describe('search ranking', () => {
   });
 
   it('never shows a problem its patterns, which would spoil the recognition step', () => {
-    for (const hit of searchAll('binary search').filter((h) => h.kind === 'problem')) expect(['Easy', 'Medium', 'Hard']).toContain(hit.meta);
+    for (const hit of searchAll('binary search').filter((h) => h.kind === 'problem'))
+      expect(['Easy', 'Medium', 'Hard']).toContain(hit.meta);
   });
 
   it('searches stories it is given, under Behavioral', () => {

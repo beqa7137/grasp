@@ -372,7 +372,7 @@ export class InterviewHomePage {
   readonly loading = signal(false);
   readonly sheetOpen = signal(false);
   readonly sheetTrack = signal<InterviewTrack>('coding');
-  private readonly sheetPick = signal<string | null>(null);
+  readonly sheetPick = signal<string | null>(null);
   private readonly sheetHost = viewChild.required('sheetHost', { read: ViewContainerRef });
   private readonly sheet = signal<ComponentRef<MockStartSheetComponent> | null>(null);
   private sheetLoad: Promise<void> | null = null;

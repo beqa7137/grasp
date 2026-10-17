@@ -363,7 +363,11 @@ test.describe('a refused AI start', () => {
       if (!refuse) return route.continue();
       return route.fulfill({
         status: 403,
-        json: { statusCode: 403, message: 'Sign in to use the AI interviewer, or choose the scripted interviewer.', code: 'ai_sign_in_required' },
+        json: {
+          statusCode: 403,
+          message: 'Sign in to use the AI interviewer, or choose the scripted interviewer.',
+          code: 'ai_sign_in_required',
+        },
       });
     });
     await page.goto('/mock/loop');

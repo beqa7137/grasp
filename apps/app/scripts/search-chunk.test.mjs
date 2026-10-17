@@ -14,7 +14,11 @@ const stats = (searchBytes = 30_000) => ({
     'main.js': output(500_000, ['src/main.ts'], ['chunk-shared.js']),
     'chunk-shared.js': output(9_000, ['../../libs/engine/dist/url-params.js']),
     'chunk-catalog.js': output(6_000, ['../../libs/engine/dist/algorithms/catalog.js']),
-    'chunk-search.js': output(searchBytes, ['../../libs/engine/dist/search/index.data.js', '../../libs/engine/dist/search/score.js'], ['chunk-prompts.js', 'chunk-shared.js', 'chunk-catalog.js']),
+    'chunk-search.js': output(
+      searchBytes,
+      ['../../libs/engine/dist/search/index.data.js', '../../libs/engine/dist/search/score.js'],
+      ['chunk-prompts.js', 'chunk-shared.js', 'chunk-catalog.js'],
+    ),
     'chunk-prompts.js': output(8_000, ['../../libs/engine/dist/behavioral/question-prompts.data.js']),
     'chunk-page.js': output(20_000, ['src/app/pages/search/search.page.ts'], ['chunk-search.js']),
   },
