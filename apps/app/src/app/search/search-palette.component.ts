@@ -198,6 +198,10 @@ interface KindView {
       cursor: pointer;
       &[aria-selected='true'] {
         background: var(--g-accent-soft);
+        // Muted ink falls under 4.5:1 on the dark theme's tinted row.
+        .meta {
+          color: var(--g-text);
+        }
       }
     }
     .title {
