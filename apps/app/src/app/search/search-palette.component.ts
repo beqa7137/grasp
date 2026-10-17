@@ -117,6 +117,8 @@ interface KindView {
     </dialog>
   `,
   styles: `
+    @use '../../type' as *;
+
     dialog {
       width: min(640px, calc(100vw - 2 * var(--g-space-4)));
       max-height: min(70vh, 640px);
@@ -177,12 +179,9 @@ interface KindView {
       }
     }
     .round {
+      @include label;
       margin: var(--g-space-3) var(--g-space-2) 0;
-      font-size: var(--g-text-label);
-      font-weight: 600;
       color: var(--g-text);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
     }
     .kind {
       margin: var(--g-space-2) var(--g-space-2) var(--g-space-1);
