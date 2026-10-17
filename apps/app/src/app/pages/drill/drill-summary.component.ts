@@ -52,13 +52,21 @@ export interface DrillScore {
           @if (!practice() && progress.session().items.length) {
             <button class="g-btn primary" (click)="keepGoing.emit()">Keep going · {{ progress.session().items.length }} more</button>
           }
-          @if (practice()) {
+          @if (weakSpots()) {
+            <a class="g-btn primary" routerLink="/today">Back to Today</a>
+          } @else if (practice()) {
             <a class="g-btn primary" routerLink="/today/review" crossLink>Back to your review</a>
           }
         </div>
 
         @if (s.missed.length) {
-          <p class="sub">You missed these today. Practice them now or let the schedule bring them back:</p>
+          <p class="sub">
+            {{
+              practice()
+                ? 'You missed these. Drill them again:'
+                : 'You missed these today. Practice them now or let the schedule bring them back:'
+            }}
+          </p>
           <div class="chips">
             @for (t of s.missed; track t.id) {
               <a g-chip [routerLink]="drillLink(t.id)" crossLink>{{ t.name }}</a>
@@ -199,6 +207,8 @@ export interface DrillScore {
 })
 export class DrillSummaryComponent {
   readonly practice = input(false);
+  /** A drill of Weak spots, which goes back to Today. */
+  readonly weakSpots = input(false);
   /** The sitting's result, or null when there was nothing to review. */
   readonly score = input<DrillScore | null>(null);
   readonly keepGoing = output<void>();

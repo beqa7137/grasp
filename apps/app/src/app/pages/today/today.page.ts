@@ -1,4 +1,4 @@
-import { NgComponentOutlet, formatDate } from '@angular/common';
+import { NgComponentOutlet } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -41,7 +41,7 @@ import { CrossLinkDirective } from '../../ui/cross-link.directive';
 import { DiagnosticPromptService } from '../diagnostic/diagnostic-prompt.service';
 import { LEVELS, LEVEL_NAMES, addDays, loopLine, loopSource } from './loop-line';
 import { TodayMenuComponent, type TodayMenuChoice } from './today-menu.component';
-import { LOOP_CARD_REST_DAYS, TodayService } from './today.service';
+import { LOOP_CARD_REST_DAYS, TodayService, dayLabel, SHORT_DAY } from './today.service';
 
 const DAY_MS = 86_400_000;
 const WEEKDAY = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'UTC' });
@@ -122,7 +122,7 @@ export class TodayPage {
    * overwrite another device's, so the card waits for the first pull.
    */
   readonly holdLoopCard = computed(() => this.auth.user() !== null && !this.progress.pulled());
-  readonly lineParts = computed(() => loopLine(this.progress.state(), this.day(), (date) => formatDate(date, 'MMM d', this.locale, 'UTC')));
+  readonly lineParts = computed(() => loopLine(this.progress.state(), this.day(), (date) => dayLabel(date, SHORT_DAY, this.locale)));
   readonly meta = computed(() => {
     const { streak, xp } = this.progress.state();
     return streak.current || xp ? `${streak.current}-day streak · ${xp} XP` : null;
@@ -156,6 +156,8 @@ export class TodayPage {
   /** The loop card and Up next load after first paint, since they hold the engine's planning code (REDESIGN.md 4.1). */
   readonly loopCard = signal<Type<unknown> | null | 'failed'>(null);
   readonly upNext = signal<Type<unknown> | null | 'failed'>(null);
+  /** Readiness, Continue and Weak spots, which load with Up next. */
+  readonly aside = signal<Type<unknown> | null | 'failed'>(null);
   private readonly idle = signal(false);
 
   constructor() {
@@ -184,6 +186,10 @@ export class TodayPage {
           (m) => this.upNext.set(m.UpNextComponent),
           () => this.upNext.set('failed'),
         );
+        void import('./today-aside.component').then(
+          (m) => this.aside.set(m.TodayAsideComponent),
+          () => this.aside.set('failed'),
+        );
       });
       if ((this.firstRun() || this.today.editing()) && !this.holdLoopCard() && !untracked(this.loopCard))
         void import('./loop-card.component').then(
@@ -200,7 +206,7 @@ export class TodayPage {
     inject(DestroyRef).onDestroy(() => leaving.unsubscribe());
     effect(() => {
       const closed = this.today.closed();
-      if (!closed) return;
+      if (closed?.place !== 'today') return;
       untracked(() => {
         this.announcer.announce(closed.message);
         void this.content().scrollToTop(0);
@@ -268,8 +274,8 @@ export class TodayPage {
     menu.querySelector('button')?.focus();
     const { data } = await menu.onDidDismiss<TodayMenuChoice>();
     this.menuOpen.set(false);
-    if (data === 'plan') {
-      void this.router.navigateByUrl('/today/plan');
+    if (data === 'plan' || data === 'progress') {
+      void this.router.navigateByUrl(`/today/${data}`);
     } else if (data === 'feedback') {
       // WebKit leaves a tapped button unfocused, so the dialog would have nothing to give focus back to on close.
       this.more().nativeElement.focus();

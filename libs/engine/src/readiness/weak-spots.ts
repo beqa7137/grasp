@@ -26,10 +26,10 @@ export interface WeakSpot {
 }
 
 /**
- * Up to three topics worth a drill, each with its reason: an interview flag not yet resolved (newest first), then
+ * Up to `limit` topics worth a drill, each with its reason: an interview flag not yet resolved (newest first), then
  * visualizer predictions mostly missed, then review cards fading below the recall target (the most first).
  */
-export function weakSpots(state: ProgressState, now: Date): WeakSpot[] {
+export function weakSpots(state: ProgressState, now: Date, limit = WEAK_SPOT_LIMIT): WeakSpot[] {
   const flagged = Object.entries(state.weakPatterns)
     .filter(([, f]) => !f.resolvedAt)
     .sort((a, b) => b[1].flaggedAt.localeCompare(a[1].flaggedAt))
@@ -47,7 +47,7 @@ export function weakSpots(state: ProgressState, now: Date): WeakSpot[] {
     .map(({ id, below, graded }): [string, WeakSpotReason] => [id, { kind: 'fading', below, graded }]);
   const spots: WeakSpot[] = [];
   for (const [topic, reason] of [...flagged, ...predictions, ...fading]) {
-    if (spots.length === WEAK_SPOT_LIMIT) break;
+    if (spots.length === limit) break;
     if (!spots.some((s) => s.topic === topic)) spots.push({ topic, reason, cards: itemsForTopic(topic).length });
   }
   return spots;

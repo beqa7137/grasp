@@ -96,7 +96,7 @@ test.describe('back from a cross-section link', () => {
       await section(page, 'Today').click();
       await expect(upNextStart(page)).toHaveText('Continue');
       await upNextStart(page).click();
-      await expect(page).toHaveURL(/\/design\/cases\/url-shortener$/);
+      await expect(page).toHaveURL(/\/design\/cases\/url-shortener\?resume=1$/);
       await expect(heading(page)).toHaveText(study);
 
       if (how === 'the back button') await back(page);

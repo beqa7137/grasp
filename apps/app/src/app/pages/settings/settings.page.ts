@@ -11,6 +11,7 @@ import { type ThemePreference, ThemeService } from '../../core/theme.service';
 import { AI_DISCLOSURE } from '../../core/ai-disclosure';
 import { PilotService } from '../../pilot/pilot.service';
 import { AccountSettingsComponent } from './account-settings.component';
+import { LoopSettingsComponent } from './loop-settings.component';
 import { StudySettingsComponent } from './study-settings.component';
 import { BackComponent } from '../../ui/back.component';
 import { PageHeaderComponent } from '../../ui/page-header.component';
@@ -28,6 +29,7 @@ import { SegmentedComponent, type SegmentOption } from '../../ui/segmented.compo
     IonTitle,
     IonContent,
     AccountSettingsComponent,
+    LoopSettingsComponent,
     StudySettingsComponent,
     PageHeaderComponent,
     SectionComponent,
@@ -43,6 +45,8 @@ import { SegmentedComponent, type SegmentOption } from '../../ui/segmented.compo
     <ion-content [fullscreen]="true">
       <div class="page narrow">
         <g-page-header heading="Settings" />
+
+        <app-loop-settings />
 
         <app-study-settings />
 

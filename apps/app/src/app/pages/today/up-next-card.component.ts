@@ -4,7 +4,7 @@ import { ROUND_NAMES, type UpNextCard } from '@grasp/engine';
 import { uniqueId } from '../../core/unique-id';
 import { CrossLinkDirective } from '../../ui/cross-link.directive';
 import { formatMinutes } from '../plan/duration';
-import { actionLink } from './up-next-links';
+import { actionLink, actionQuery } from './up-next-links';
 
 /** The one thing to do next (REDESIGN.md 2.3): its title, round and time, why, and Start or "Not today". */
 @Component({
@@ -24,7 +24,9 @@ import { actionLink } from './up-next-links';
       <p class="reason" [id]="id + '-reason'">{{ c.reason }}</p>
       <div class="actions">
         @if (link(); as l) {
-          <a class="g-btn primary start" [routerLink]="l" crossLink [attr.aria-describedby]="id + '-reason'">{{ verb() }}</a>
+          <a class="g-btn primary start" [routerLink]="l" [queryParams]="query()" crossLink [attr.aria-describedby]="id + '-reason'">{{
+            verb()
+          }}</a>
         }
         @if (c.action.kind !== 'rest') {
           <button type="button" class="g-btn ghost" (click)="notToday.emit()">Not today</button>
@@ -86,6 +88,7 @@ export class UpNextCardComponent {
   readonly notToday = output<void>();
   readonly id = uniqueId('up-next');
   readonly link = computed(() => actionLink(this.card().action));
+  readonly query = computed(() => actionQuery(this.card().action));
   readonly verb = computed(() => {
     switch (this.card().action.kind) {
       case 'device-work':

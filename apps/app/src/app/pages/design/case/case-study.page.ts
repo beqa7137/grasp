@@ -289,6 +289,8 @@ const KIND_LABELS: Record<CaseStageKind, string> = {
 })
 export class CaseStudyPage {
   readonly id = input.required<string>();
+  /** `?resume=1` (Continue, Up next) opens a started case at the stage it stopped at rather than at its top. */
+  readonly resume = input<string>();
   readonly kinds = KIND_LABELS;
   readonly unanswered: CaseStageAnswer = {};
   readonly summary = computed(() => getCaseSummary(this.id()));
@@ -340,6 +342,7 @@ export class CaseStudyPage {
           if (id !== this.id() || this.draft() !== fresh) return;
           if (saved) this.draft.set(saved);
           this.loaded.set(true);
+          if (saved?.reached && this.resume()) this.focusCurrent(true);
         });
     });
     // Recording follows the outcome rather than the tap, so a run whose draft was saved but whose event was not is

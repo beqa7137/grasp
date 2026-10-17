@@ -1,4 +1,5 @@
-import type { Routes } from '@angular/router';
+import { inject } from '@angular/core';
+import { Router, type ActivatedRouteSnapshot, type Routes } from '@angular/router';
 import { preloadChunks } from './core/route-chunks';
 import { LEGACY_PREFIXES, legacyBehavioralRoutes, legacyDesignRoutes } from './legacy-routes';
 
@@ -36,6 +37,22 @@ export const routes: Routes = [
     loadComponent: () => import('./tabs/tabs.page').then((m) => m.TabsPage),
     children: [
       { path: 'today/review', title: 'Review', loadComponent: drill },
+      {
+        path: 'today/drill',
+        title: 'Drill',
+        // Only Weak spots' "Drill these" links here, always with its topics; without them there is nothing to drill.
+        canActivate: [
+          (route: ActivatedRouteSnapshot) => route.queryParamMap.has('topics') || inject(Router).createUrlTree(['/today/review']),
+        ],
+        data: { weakSpots: true },
+        loadComponent: drill,
+      },
+      {
+        path: 'today/progress',
+        title: 'Progress',
+        loadComponent: () =>
+          lazy('pages/progress/progress.page', () => import('./pages/progress/progress.page')).then((m) => m.ProgressPage),
+      },
       {
         path: 'today/plan',
         title: 'Study plan',

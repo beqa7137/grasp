@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { TodayService } from './today.service';
+import { TodayService, SHORT_DAY, dayLabel } from './today.service';
 
 vi.mock('@capacitor/preferences', () => ({
   Preferences: {
@@ -47,6 +47,20 @@ describe('TodayService', () => {
     today.close('Loop saved.');
     expect(today.editing()).toBe(false);
     expect(today.visit()).toBe(visit + 1);
-    expect(today.closed()).toEqual({ message: 'Loop saved.' });
+    expect(today.closed()).toEqual({ message: 'Loop saved.', place: 'today' });
+
+    today.editing.set(true);
+    today.close('Loop updated.', 'settings');
+    expect(today.editing(), 'Settings closes its own card, not Today’s').toBe(true);
+    expect(today.closed()).toEqual({ message: 'Loop updated.', place: 'settings' });
+  });
+});
+
+describe('dayLabel', () => {
+  it('labels a calendar day as that day in every time zone', () => {
+    expect(dayLabel('2026-10-25', SHORT_DAY, 'en-US')).toBe('Oct 25');
+    expect(dayLabel('2026-01-01', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }, 'en-US')).toBe(
+      'Thursday, January 1, 2026',
+    );
   });
 });

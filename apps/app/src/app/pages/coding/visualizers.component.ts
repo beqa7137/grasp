@@ -29,7 +29,8 @@ const IN_ORDER = [...ALGORITHM_CATALOG].sort((a, b) => PATTERNS.get(a.patternId)
       <p class="eyebrow">Step-through visualizers</p>
       <h1>Watch the algorithm think.</h1>
       <p class="lead">
-        Scrub forward and back, edit the input, and call the next move before it happens. Every checkpoint feeds your mastery score.
+        Scrub forward and back, edit the input, and call the next move before it happens. A pattern whose predictions you keep missing shows
+        up in your weak spots.
       </p>
       <div class="filters">
         <div class="structures" role="group" aria-label="Structure">

@@ -67,7 +67,7 @@ async function seedProgress(p) {
 async function setPlan(p) {
   await p.getByLabel('Interview date').fill(await inDays(p, 20));
   await p.getByRole('button', { name: 'Save plan' }).click();
-  await p.getByRole('heading', { name: 'Interview in 20 days' }).waitFor();
+  await p.getByRole('heading', { name: /^20 days to / }).waitFor();
   await settle(p);
 }
 

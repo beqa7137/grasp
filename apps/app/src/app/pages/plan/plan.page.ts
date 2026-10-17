@@ -1,4 +1,3 @@
-import { DatePipe, formatDate } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -13,33 +12,41 @@ import {
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AlertController, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
-import { PLAN_MINUTES, PLAN_ROUNDS, ROUND_NAMES, buildStudyPlan, currentTarget, type StudyPlanInput } from '@grasp/engine';
+import { PLAN_MINUTES, buildStudyPlan, currentTarget, type PlanStatus, type StudyPlanInput } from '@grasp/engine';
 import { addIcons } from 'ionicons';
-import { chatbubblesOutline, flashOutline } from 'ionicons/icons';
+import { flashOutline } from 'ionicons/icons';
 import { AnnouncerService } from '../../core/announcer.service';
 import { refocusAfterRender } from '../../core/focus';
 import { ProgressService } from '../../core/progress.service';
 import { StoryBankService } from '../behavioral/story-bank.service';
 import { formatMinutes } from './duration';
-import { PlanTodayComponent } from './plan-today.component';
-import { PlanFormComponent } from './plan-form.component';
+import { PlanDaysComponent } from './plan-days.component';
+import { PlanFormComponent, STARTING_POINT_NAMES } from './plan-form.component';
+import { PlanRoundsComponent } from './plan-rounds.component';
+import { coverageLine } from '../today/coverage-line';
+import { ChipComponent, type ChipTone } from '../../ui/chip.component';
 import { BackComponent } from '../../ui/back.component';
-import { CrossLinkDirective } from '../../ui/cross-link.directive';
+import { dayLabel, SHORT_DAY } from '../today/today.service';
 
-const UPCOMING_DAYS = 6;
 const UNDO_MS = 8_000;
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+/** The header's chip (REDESIGN.md 4.9); the interview day and a passed date need none. */
+const STATUS_CHIPS: Partial<Record<PlanStatus, { text: string; tone: ChipTone }>> = {
+  'on-track': { text: 'On track', tone: 'success' },
+  tight: { text: 'Tight', tone: 'warn' },
+  covered: { text: 'All covered', tone: 'success' },
+  eve: { text: 'Review only', tone: 'neutral' },
+};
 
 @Component({
   selector: 'app-plan',
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [AnnouncerService],
   imports: [
-    CrossLinkDirective,
     BackComponent,
     RouterLink,
-    DatePipe,
     IonHeader,
     IonToolbar,
     IonButtons,
@@ -47,7 +54,9 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
     IonContent,
     IonIcon,
     PlanFormComponent,
-    PlanTodayComponent,
+    PlanDaysComponent,
+    PlanRoundsComponent,
+    ChipComponent,
   ],
   template: `
     <ion-header [translucent]="true">
@@ -70,22 +79,32 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
               rebuilt from what you have actually done, so a missed day never leaves you behind a stale schedule.
             </p>
           }
-          <app-plan-form [today]="today()" [initial]="input()" (saved)="save($event)" (cancelled)="cancel()" />
+          <app-plan-form [today]="today()" [initial]="input()" [loop]="target()" (saved)="save($event)" (cancelled)="cancel()" />
         } @else if (plan(); as p) {
           <section class="hero">
-            @switch (p.status) {
-              @case ('past') {
-                <h1 #heading tabindex="-1">Your interview date has passed</h1>
+            <div class="title-row">
+              <h1 #heading tabindex="-1">{{ title() }}</h1>
+              @if (chip(); as c) {
+                <g-chip [tone]="c.tone">{{ c.text }}</g-chip>
               }
-              @case ('interview-day') {
-                <h1 #heading tabindex="-1">Interview day</h1>
-              }
-              @default {
-                <h1 #heading tabindex="-1">{{ p.daysLeft === 1 ? 'Interview tomorrow' : 'Interview in ' + p.daysLeft + ' days' }}</h1>
-              }
+              <button type="button" class="link" (click)="edit()">{{ p.status === 'past' ? 'Set a new date' : 'Edit' }}</button>
+            </div>
+            <p class="date">{{ dateLine() }}</p>
+            <p class="status" [attr.data-status]="p.status">
+              {{ statusText() }}
+            </p>
+            @if (coverage(); as c) {
+              <div class="fit">
+                @if (c.minutes; as m) {
+                  <button type="button" class="g-btn" (click)="change({ minutesPerDay: m.value })">{{ m.label }}</button>
+                }
+                @if (c.date) {
+                  <button type="button" class="g-btn ghost" (click)="change({ interviewDate: c.date })">
+                    Move the date to {{ short(c.date) }}
+                  </button>
+                }
+              </div>
             }
-            <p class="date">{{ p.interviewDate | date: 'EEEE, MMMM d, y' }}{{ p.daysLeft > 0 ? ' · ' + minutesLabel() + ' a day' : '' }}</p>
-            <p class="status" [attr.data-status]="p.status">{{ statusText() }}</p>
           </section>
 
           @if (p.status === 'interview-day' && p.todayReview.cards) {
@@ -95,99 +114,12 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
             </a>
           }
 
-          @if (p.days[0]; as day) {
-            <section class="panel today" aria-labelledby="today-title">
-              <h2 id="today-title">
-                Today <span class="muted">· about {{ duration(dayMinutes(day)) }}</span>
-              </h2>
-              <ul class="items">
-                <li class="item review">
-                  <ion-icon name="flash-outline" aria-hidden="true" />
-                  <span class="text">
-                    @if (p.todayReview.cards) {
-                      <a routerLink="/today/review">Review</a>
-                      <span class="muted"
-                        >{{ plural(p.todayReview.cards, 'card') }} ready, about {{ duration(p.todayReview.cardMinutes) }}</span
-                      >
-                    } @else {
-                      <strong>Review</strong>
-                      <span class="muted">Nothing to review yet. Cards arrive as you learn.</span>
-                    }
-                  </span>
-                </li>
-                @if (p.todayReview.stories) {
-                  <li class="item review">
-                    <ion-icon name="chatbubbles-outline" aria-hidden="true" />
-                    <span class="text">
-                      <a routerLink="/behavioral/rehearse" crossLink>Rehearse your stories</a>
-                      <span class="muted"
-                        >{{ p.todayReview.stories === 1 ? '1 story' : p.todayReview.stories + ' stories' }} due{{
-                          p.todayReview.storyMinutes
-                            ? ', about ' + duration(p.todayReview.storyMinutes)
-                            : ', if time allows after your cards'
-                        }}</span
-                      >
-                    </span>
-                  </li>
-                }
-              </ul>
-              @if (day.slices.length) {
-                <app-plan-today [day]="day" [details]="true" />
-              }
-              @if (day.taper) {
-                <p class="note">Review only today, so you arrive rested. Leave anything new for after the interview.</p>
-              }
-            </section>
-          }
-
-          @if (upcoming().length) {
-            <section class="ahead" aria-labelledby="ahead-title">
-              <h2 id="ahead-title">Coming up</h2>
-              <ol class="days">
-                @for (d of upcoming(); track d.date) {
-                  <li class="panel day">
-                    <h3>
-                      {{ d.date | date: 'EEE, MMM d' }} <span class="muted">· about {{ duration(dayMinutes(d)) }}</span>
-                    </h3>
-                    @if (d.taper) {
-                      <p class="muted">Review only, so you arrive rested.</p>
-                    } @else {
-                      <ul>
-                        @for (s of d.slices; track s.unit.id) {
-                          <li>
-                            {{ s.unit.title
-                            }}<span class="muted">
-                              · {{ duration(s.minutes) }}{{ s.parts > 1 ? ', part ' + s.part + ' of ' + s.parts : '' }}</span
-                            >
-                          </li>
-                        } @empty {
-                          <li class="muted">Review, about {{ duration(d.review) }}.</li>
-                        }
-                      </ul>
-                    }
-                  </li>
-                }
-              </ol>
-              @if (laterDays(); as n) {
-                <p class="muted more">Then {{ plural(n, 'more day') }} until the interview.</p>
-              }
-            </section>
-          }
-
-          @if (remaining().length) {
-            <section class="panel left" aria-labelledby="left-title">
-              <h2 id="left-title">Still to learn</h2>
-              <dl>
-                @for (r of remaining(); track r.round) {
-                  <dt>{{ r.name }}</dt>
-                  <dd>{{ r.text }}</dd>
-                }
-              </dl>
-            </section>
+          @if (p.days.length) {
+            <app-plan-days [plan]="p" />
+            <app-plan-rounds [plan]="p" [target]="target()" />
           }
 
           <div class="actions">
-            <button type="button" class="g-btn" (click)="edit()">{{ p.status === 'past' ? 'Set a new date' : 'Change plan' }}</button>
             <button type="button" class="g-btn ghost" (click)="confirmClear()">Clear plan</button>
           </div>
           <p class="muted footnote">
@@ -225,22 +157,34 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
       line-height: 1.55;
       max-width: 62ch;
     }
+    .title-row {
+      display: flex;
+      align-items: baseline;
+      flex-wrap: wrap;
+      column-gap: var(--g-space-3);
+    }
+    .link {
+      appearance: none;
+      border: 0;
+      background: none;
+      padding: 0;
+      min-height: 24px;
+      color: var(--g-accent);
+      font: 600 var(--g-text-body) var(--ion-font-family);
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      cursor: pointer;
+    }
+    .fit {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--g-space-2);
+      margin-top: var(--g-space-3);
+    }
     h2 {
       @include title;
       font-size: var(--g-text-title-m);
       margin: 0 0 10px;
-    }
-    .today,
-    .left {
-      padding: 16px;
-      margin-bottom: 16px;
-    }
-    .items {
-      list-style: none;
-      margin: 0;
-      padding: 0;
-      display: grid;
-      gap: 4px;
     }
     .item {
       display: flex;
@@ -255,78 +199,12 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
         color: var(--g-muted);
       }
     }
-    .items .item:first-child {
-      border-top: 0;
-    }
     a.item.review {
       padding: 12px 16px;
       margin-bottom: 16px;
       color: inherit;
       text-decoration: none;
       align-items: center;
-    }
-    .text {
-      display: grid;
-      gap: 3px;
-      min-width: 0;
-      line-height: 1.45;
-      font-size: 0.9375rem;
-      a:first-child {
-        font-weight: 600;
-      }
-      .muted {
-        font-size: 0.875rem;
-      }
-    }
-    .note {
-      margin: 10px 0 0;
-      font-size: 0.875rem;
-      color: var(--g-muted);
-    }
-    .ahead {
-      margin-bottom: 16px;
-    }
-    .days {
-      list-style: none;
-      margin: 0;
-      padding: 0;
-      display: grid;
-      gap: 8px;
-    }
-    .day {
-      padding: 12px 16px;
-      h3 {
-        font-size: var(--g-text-title-s);
-        margin: 0 0 6px;
-      }
-      ul {
-        margin: 0;
-        padding-left: 18px;
-        font-size: 0.875rem;
-        line-height: 1.5;
-      }
-      p {
-        margin: 0;
-        font-size: 0.875rem;
-      }
-    }
-    .more {
-      margin: 10px 0 0;
-      font-size: 0.875rem;
-    }
-    dl {
-      display: grid;
-      grid-template-columns: max-content 1fr;
-      gap: 6px 16px;
-      margin: 0;
-      font-size: 0.9375rem;
-    }
-    dt {
-      font-weight: 600;
-    }
-    dd {
-      margin: 0;
-      color: var(--g-muted);
     }
     .actions {
       display: flex;
@@ -381,17 +259,29 @@ export class PlanPage {
       : null;
   });
   readonly minutesLabel = computed(() => formatMinutes(this.input()?.minutesPerDay ?? 0));
-  readonly upcoming = computed(() => this.plan()?.days.slice(1, 1 + UPCOMING_DAYS) ?? []);
-  readonly laterDays = computed(() => Math.max(0, (this.plan()?.days.length ?? 0) - 1 - UPCOMING_DAYS));
-  readonly remaining = computed(() => {
+  readonly target = computed(() => currentTarget(this.progress.state()).target);
+  readonly coverage = computed(() => {
     const p = this.plan();
-    if (!p) return [];
-    return PLAN_ROUNDS.flatMap((round) => {
-      const r = p.remaining[round];
-      if (!r) return [];
-      const text = r.units ? `${plural(r.units, 'item')}, about ${formatMinutes(r.minutes)}` : 'All covered. Keep reviewing.';
-      return [{ round, name: ROUND_NAMES[round], text }];
-    });
+    const input = this.input();
+    return p && input ? coverageLine(p, input, p.today, (d) => this.short(d)) : null;
+  });
+  readonly title = computed(() => {
+    const p = this.plan();
+    if (!p) return '';
+    if (p.status === 'past') return 'Your interview date has passed';
+    if (p.status === 'interview-day') return 'Interview day';
+    return p.daysLeft === 1 ? 'Interview tomorrow' : `${p.daysLeft} days to ${this.short(p.interviewDate)}`;
+  });
+  readonly dateLine = computed(() => {
+    const p = this.plan();
+    const input = this.input();
+    if (!p || !input) return '';
+    const date = dayLabel(p.interviewDate, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }, this.locale);
+    return p.daysLeft > 0 ? `${date} · ${this.minutesLabel()} a day · Starting point: ${STARTING_POINT_NAMES[input.level]}` : date;
+  });
+  readonly chip = computed(() => {
+    const status = this.plan()?.status;
+    return status ? (STATUS_CHIPS[status] ?? null) : null;
   });
   readonly statusText = computed(() => {
     const p = this.plan();
@@ -401,12 +291,14 @@ export class PlanPage {
       case 'past':
         return 'We hope it went well. Set the date of your next interview to plan for it, or clear the plan.';
       case 'interview-day':
-        return 'Good luck today. A short review at most, then rest and trust what you have practised.';
+        return 'Good luck today. A short review at most, then rest and trust what you have practiced.';
       case 'eve':
         return 'Tomorrow is the day. Keep today light: a short review, then rest.';
       case 'covered':
         return 'You have worked through everything in this plan. Keep your reviews going until the day.';
       case 'tight': {
+        const coverage = this.coverage();
+        if (coverage) return coverage.text;
         const n = p.unscheduled.length;
         const fit = p.minutesToFit
           ? ` At ${formatMinutes(p.minutesToFit)} a day, everything would fit.`
@@ -417,7 +309,13 @@ export class PlanPage {
         const mock = p.units.some((u) => u.kind === 'mock' && !u.doneAt);
         if (!p.finishDate) return 'Everything else is covered. Finish with a mock loop before the interview.';
         const sameYear = p.finishDate.slice(0, 4) === p.today.slice(0, 4);
-        const by = formatDate(p.finishDate, sameYear ? 'EEEE, MMMM d' : 'EEEE, MMMM d, y', this.locale);
+        const by = dayLabel(
+          p.finishDate,
+          sameYear
+            ? { weekday: 'long', month: 'long', day: 'numeric' }
+            : { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' },
+          this.locale,
+        );
         return mock
           ? `At ${perDay} a day you cover everything new by ${by}, then run a mock loop just before the interview.`
           : `At ${perDay} a day you cover everything by ${by}.`;
@@ -426,7 +324,7 @@ export class PlanPage {
   });
 
   constructor() {
-    addIcons({ chatbubblesOutline, flashOutline });
+    addIcons({ flashOutline });
     inject(DestroyRef).onDestroy(() => clearTimeout(this.undoTimer));
   }
 
@@ -435,8 +333,21 @@ export class PlanPage {
     await this.bank.load();
   }
 
-  dayMinutes(day: { review: number; slices: { minutes: number }[] }) {
-    return day.review + day.slices.reduce((s, x) => s + x.minutes, 0);
+  short(date: string): string {
+    return dayLabel(date, SHORT_DAY, this.locale);
+  }
+
+  /** The coverage line's one-tap fixes, as on Today: more minutes a day, or a later date. */
+  async change(change: Partial<StudyPlanInput>) {
+    const input = this.input();
+    if (!input) return;
+    await this.progress.record({ type: 'plan.set', plan: { ...input, ...change } });
+    this.announcer.announce(
+      change.minutesPerDay
+        ? `Plan changed to ${formatMinutes(change.minutesPerDay)} a day.`
+        : `Interview date moved to ${this.short(change.interviewDate!)}.`,
+    );
+    this.focusHeading();
   }
 
   edit() {

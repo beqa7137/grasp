@@ -42,121 +42,136 @@
 </ion-header>
 
 <ion-content [fullscreen]="true">
-  <div class="page">
-    <p class="visually-hidden" role="status">{{ announcer.message() }}</p>
-    @if (auth.signInRequired()) {
-      <a #sessionResume class="resume panel" routerLink="/today/settings">Your session ended. Sign in to keep syncing your progress →</a>
-    }
-    @if (showSyncNotice()) {
-      <aside #syncAlert class="sync-notice panel" role="alert" tabindex="-1">
-        <span>{{ syncNotice() }}</span>
-        <button #retryButton class="g-btn ghost" [disabled]="retrying()" (click)="retrySync()">
-          {{ retrying() ? 'Trying again' : 'Try again' }}
-        </button>
-      </aside>
-    }
-    @if (movedNote()) {
-      <aside #moved class="moved panel" aria-labelledby="moved-title">
-        <div>
-          <p id="moved-title" class="eyebrow">Where things moved</p>
-          <p>
-            Grasp now has five sections: Today, Coding, Design, Behavioral and Mock. The pattern map, the problems and the visualizers are
-            in Coding, the system design lessons, missions and case studies in Design, and Review is here on Today.
-          </p>
-        </div>
-        <button class="g-btn ghost" (click)="dismissMovedNote()">Got it</button>
-      </aside>
-    }
-
-    @if (firstRun()) {
-      <section class="panel loop-card" aria-labelledby="today-heading">
-        <h1 #heading id="today-heading" tabindex="-1">What is your loop?</h1>
-        <div class="loop-slot first-run">
-          @if (loopCard() === 'failed') {
-            <p class="failed" role="alert">
-              Couldn't load this part. <button type="button" class="g-btn" (click)="reload()">Reload</button>
-              <button type="button" class="g-btn ghost" (click)="notNow()">Not now</button>
-            </p>
-          } @else if (loopCard(); as card) {
-            <ng-container *ngComponentOutlet="$any(card); inputs: { mode: 'first-run' }" />
-          }
-        </div>
-      </section>
-    } @else {
-      <div class="target">
-        <div class="target-line">
-          <!-- prettier-ignore -->
-          <h1 #heading id="today-heading" tabindex="-1">@for (part of lineParts(); track $index; let last = $last) {<span class="part">{{ part }}</span>@if (!last) { · }}</h1>
-          @if (!today.editing()) {
-            <button type="button" class="link" (click)="edit()">{{ source() === 'assumed' ? 'Set your loop' : 'Edit' }}</button>
-          }
-        </div>
-        @if (meta(); as m) {
-          <p class="meta">{{ m }}</p>
+  <div class="frame">
+    <div class="page">
+      <div class="main">
+        <p class="visually-hidden" role="status">{{ announcer.message() }}</p>
+        @if (auth.signInRequired()) {
+          <a #sessionResume class="resume panel" routerLink="/today/settings"
+            >Your session ended. Sign in to keep syncing your progress →</a
+          >
         }
-        @if (source() === 'derived' && !today.editing()) {
-          <div class="level-row" role="group" aria-labelledby="level-question">
-            <span id="level-question">Your level?</span>
-            @for (l of levels; track l.level) {
-              <button type="button" (click)="chooseLevel(l.level)">{{ l.name }}</button>
+        @if (showSyncNotice()) {
+          <aside #syncAlert class="sync-notice panel" role="alert" tabindex="-1">
+            <span>{{ syncNotice() }}</span>
+            <button #retryButton class="g-btn ghost" [disabled]="retrying()" (click)="retrySync()">
+              {{ retrying() ? 'Trying again' : 'Try again' }}
+            </button>
+          </aside>
+        }
+        @if (movedNote()) {
+          <aside #moved class="moved panel" aria-labelledby="moved-title">
+            <div>
+              <p id="moved-title" class="eyebrow">Where things moved</p>
+              <p>
+                Grasp now has five sections: Today, Coding, Design, Behavioral and Mock. The pattern map, the problems and the visualizers
+                are in Coding, the system design lessons, missions and case studies in Design, and Review is here on Today.
+              </p>
+            </div>
+            <button class="g-btn ghost" (click)="dismissMovedNote()">Got it</button>
+          </aside>
+        }
+
+        @if (firstRun()) {
+          <section class="panel loop-card" aria-labelledby="today-heading">
+            <h1 #heading id="today-heading" tabindex="-1">What is your loop?</h1>
+            <div class="loop-slot first-run">
+              @if (loopCard() === 'failed') {
+                <p class="failed" role="alert">
+                  Couldn't load this part. <button type="button" class="g-btn" (click)="reload()">Reload</button>
+                  <button type="button" class="g-btn ghost" (click)="notNow()">Not now</button>
+                </p>
+              } @else if (loopCard(); as card) {
+                <ng-container *ngComponentOutlet="$any(card); inputs: { mode: 'first-run' }" />
+              }
+            </div>
+          </section>
+        } @else {
+          <div class="target">
+            <div class="target-line">
+              <!-- prettier-ignore -->
+              <h1 #heading id="today-heading" tabindex="-1">@for (part of lineParts(); track $index; let last = $last) {<span class="part">{{ part }}</span>@if (!last) { · }}</h1>
+              @if (!today.editing()) {
+                <button type="button" class="link" (click)="edit()">{{ source() === 'assumed' ? 'Set your loop' : 'Edit' }}</button>
+              }
+            </div>
+            @if (meta(); as m) {
+              <p class="meta">{{ m }}</p>
+            }
+            @if (source() === 'derived' && !today.editing()) {
+              <div class="level-row" role="group" aria-labelledby="level-question">
+                <span id="level-question">Your level?</span>
+                @for (l of levels; track l.level) {
+                  <button type="button" (click)="chooseLevel(l.level)">{{ l.name }}</button>
+                }
+              </div>
             }
           </div>
+          @if (today.editing()) {
+            <section class="panel loop-card" aria-label="Your loop">
+              <div class="loop-slot">
+                @if (loopCard() === 'failed') {
+                  <p class="failed" role="alert">
+                    Couldn't load this part. <button type="button" class="g-btn" (click)="reload()">Reload</button>
+                  </p>
+                } @else if (loopCard(); as card) {
+                  <ng-container *ngComponentOutlet="$any(card); inputs: { mode: 'edit' }" />
+                }
+              </div>
+            </section>
+          }
+        }
+
+        <div class="up-next-slot" [class.loading]="!upNext()">
+          @if (upNext() === 'failed') {
+            <p class="failed" role="alert">Couldn't load Up next. <button type="button" class="g-btn" (click)="reload()">Reload</button></p>
+          } @else if (upNext(); as block) {
+            <ng-container *ngComponentOutlet="$any(block)" />
+          }
+        </div>
+
+        @if (offerPlacement()) {
+          <aside #offer class="panel placement" tabindex="-1" aria-labelledby="placement-title">
+            <ion-icon name="compass-outline" aria-hidden="true" />
+            <div class="copy">
+              <h2 id="placement-title">Skip what you know</h2>
+              <p>A 5-minute coding placement marks the patterns you already know, so your plan and reviews start past them.</p>
+            </div>
+            <div class="placement-actions">
+              <a class="g-btn primary" routerLink="/coding/placement" crossLink>Take the placement</a>
+              <button class="g-btn ghost" (click)="dismissPlacement()">No thanks</button>
+            </div>
+          </aside>
+        }
+
+        <a class="panel review-row" routerLink="/today/review">
+          <ion-icon name="flash-outline" aria-hidden="true" />
+          <span class="text">
+            <strong>Review</strong>
+            <span class="muted"> · {{ reviewDetail() }}</span>
+          </span>
+          <ion-icon class="chevron" name="chevron-forward" aria-hidden="true" />
+        </a>
+        @if (revisit(); as r) {
+          <a class="panel review-row" [routerLink]="['/design/missions', r.scenarioId]" [queryParams]="{ revisit: r.variant }" crossLink>
+            <ion-icon name="git-network-outline" aria-hidden="true" />
+            <span class="text">
+              <strong>Revisit {{ r.title }}</strong>
+              <span class="muted"> · rebuild it from memory, revisit {{ r.variant }}</span>
+            </span>
+            <ion-icon class="chevron" name="chevron-forward" aria-hidden="true" />
+          </a>
         }
       </div>
-      @if (today.editing()) {
-        <section class="panel loop-card" aria-label="Your loop">
-          <div class="loop-slot">
-            @if (loopCard() === 'failed') {
-              <p class="failed" role="alert">
-                Couldn't load this part. <button type="button" class="g-btn" (click)="reload()">Reload</button>
-              </p>
-            } @else if (loopCard(); as card) {
-              <ng-container *ngComponentOutlet="$any(card); inputs: { mode: 'edit' }" />
-            }
-          </div>
-        </section>
-      }
-    }
-
-    <div class="up-next-slot" [class.loading]="!upNext()">
-      @if (upNext() === 'failed') {
-        <p class="failed" role="alert">Couldn't load Up next. <button type="button" class="g-btn" (click)="reload()">Reload</button></p>
-      } @else if (upNext(); as block) {
-        <ng-container *ngComponentOutlet="$any(block)" />
-      }
+      <div class="aside">
+        @if (aside() === 'failed') {
+          <p class="failed" role="alert">
+            Couldn't load your progress. <button type="button" class="g-btn" (click)="reload()">Reload</button>
+          </p>
+        } @else if (aside(); as block) {
+          <ng-container *ngComponentOutlet="$any(block)" />
+        }
+      </div>
     </div>
-
-    @if (offerPlacement()) {
-      <aside #offer class="panel placement" tabindex="-1" aria-labelledby="placement-title">
-        <ion-icon name="compass-outline" aria-hidden="true" />
-        <div class="copy">
-          <h2 id="placement-title">Skip what you know</h2>
-          <p>A 5-minute coding placement marks the patterns you already know, so your plan and reviews start past them.</p>
-        </div>
-        <div class="placement-actions">
-          <a class="g-btn primary" routerLink="/coding/placement" crossLink>Take the placement</a>
-          <button class="g-btn ghost" (click)="dismissPlacement()">No thanks</button>
-        </div>
-      </aside>
-    }
-
-    <a class="panel review-row" routerLink="/today/review">
-      <ion-icon name="flash-outline" aria-hidden="true" />
-      <span class="text">
-        <strong>Review</strong>
-        <span class="muted"> · {{ reviewDetail() }}</span>
-      </span>
-      <ion-icon class="chevron" name="chevron-forward" aria-hidden="true" />
-    </a>
-    @if (revisit(); as r) {
-      <a class="panel review-row" [routerLink]="['/design/missions', r.scenarioId]" [queryParams]="{ revisit: r.variant }" crossLink>
-        <ion-icon name="git-network-outline" aria-hidden="true" />
-        <span class="text">
-          <strong>Revisit {{ r.title }}</strong>
-          <span class="muted"> · rebuild it from memory, revisit {{ r.variant }}</span>
-        </span>
-        <ion-icon class="chevron" name="chevron-forward" aria-hidden="true" />
-      </a>
-    }
   </div>
 </ion-content>

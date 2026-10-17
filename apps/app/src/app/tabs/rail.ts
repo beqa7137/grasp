@@ -55,6 +55,7 @@ export const RAIL_SECTIONS: readonly RailSection[] = [
 /** Pages of the Today stack opened from the rail; at most one of them is ever on that stack. */
 export const RAIL_UTILITIES: readonly RailUtility[] = [
   { label: 'Study plan', href: '/today/plan', icon: 'document-text-outline' },
+  { label: 'Progress', href: '/today/progress', icon: 'progress-glyph' },
   { label: 'Settings', href: '/today/settings', icon: 'settings-outline' },
 ];
 

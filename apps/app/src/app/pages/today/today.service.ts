@@ -7,6 +7,20 @@ const NOT_TODAY_KEY = 'grasp.notToday';
 /** "Not now" on the first-run card hides it this many days (REDESIGN.md 2.13). */
 export const LOOP_CARD_REST_DAYS = 7;
 
+/**
+ * A calendar day (`YYYY-MM-DD`) as a label, for every page that shows the learner's days: read and formatted in UTC, so
+ * the day is the same everywhere. (Angular's `formatDate` reads a date-only string as local midnight, so formatting it in
+ * UTC showed the day before east of UTC.) It lives here, in main with the day it labels and without `@angular/common`,
+ * so first paint and the lazy pages share it without a chunk of its own.
+ */
+export const dayLabel = (date: string, options: Intl.DateTimeFormatOptions, locale: string): string =>
+  new Intl.DateTimeFormat(locale, { ...options, timeZone: 'UTC' }).format(new Date(`${date}T00:00:00Z`));
+
+/** "Oct 25" */
+export const SHORT_DAY: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
+
+export type LoopCardPlace = 'today' | 'settings';
+
 interface NotToday {
   day: string;
   ids: string[];
@@ -32,8 +46,11 @@ export class TodayService {
   readonly visit = signal(0);
   /** The loop card is open for editing (Edit, or "Set your loop" after "Not now"). */
   readonly editing = signal(false);
-  /** The loop card closed with this to announce; Today then moves focus to its heading. A new object each time. */
-  readonly closed = signal<{ message: string } | null>(null);
+  /**
+   * The loop card closed with this to announce, on the page that showed it (Today, or Settings' "Your loop"), which then
+   * moves focus to its heading. A new object each time.
+   */
+  readonly closed = signal<{ message: string; place: LoopCardPlace } | null>(null);
 
   /** The day key (YYYY-MM-DD) up to which the first-run card stays hidden, or null. */
   readonly loopCardHiddenUntil = signal<string | null>(null);
@@ -45,10 +62,10 @@ export class TodayService {
     this.notToday.set(readNotToday(hidden));
   }
 
-  close(message: string): void {
-    this.editing.set(false);
+  close(message: string, place: LoopCardPlace = 'today'): void {
+    if (place === 'today') this.editing.set(false);
     this.visit.update((n) => n + 1);
-    this.closed.set({ message });
+    this.closed.set({ message, place });
   }
 
   hideLoopCard(until: string): Promise<void> {

@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { PopoverController } from '@ionic/angular';
 
-export type TodayMenuChoice = 'feedback' | 'plan';
+export type TodayMenuChoice = 'feedback' | 'plan' | 'progress';
 
 @Component({
   selector: 'app-today-menu',
@@ -9,6 +9,7 @@ export type TodayMenuChoice = 'feedback' | 'plan';
   template: `
     <button (click)="choose('feedback')">Send feedback</button>
     <button (click)="choose('plan')">Study plan</button>
+    <button (click)="choose('progress')">Progress</button>
   `,
   styles: `
     :host {

@@ -29,7 +29,12 @@ describe('TodayPage sync notice', () => {
 
   // The page loads its loop card and Up next after first paint; let those imports land before the test environment goes.
   afterEach(async () => {
-    await Promise.all([import('./up-next.component'), import('./loop-card.component'), import('./loop-events')]);
+    await Promise.all([
+      import('./up-next.component'),
+      import('./today-aside.component'),
+      import('./loop-card.component'),
+      import('./loop-events'),
+    ]);
     await new Promise((resolve) => setTimeout(resolve));
   });
 
