@@ -26,6 +26,7 @@
           }
         </span>
       </div>
+      <a class="header-link search" routerLink="/today/search" aria-label="Search"><ion-icon name="search-outline" aria-hidden="true" /></a>
       <a class="header-link" routerLink="/today/settings" aria-label="Settings"><ion-icon name="settings-outline" aria-hidden="true" /></a>
       <button
         #more
@@ -145,7 +146,7 @@
         }
 
         <a class="panel review-row" routerLink="/today/review">
-          <ion-icon [icon]="reviewIcon" aria-hidden="true" />
+          <ion-icon name="albums-outline" aria-hidden="true" />
           <span class="text">
             <strong>Review</strong>
             <span class="muted"> · {{ reviewDetail() }}</span>

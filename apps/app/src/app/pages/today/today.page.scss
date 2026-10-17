@@ -27,6 +27,12 @@
     color: var(--g-text);
   }
 }
+// From 1024px the rail's field searches (REDESIGN.md 2.6).
+@include desktop {
+  .header-link.search {
+    display: none;
+  }
+}
 
 .sync {
   display: inline-flex;

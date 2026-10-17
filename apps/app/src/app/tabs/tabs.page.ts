@@ -1,5 +1,16 @@
 import { NgComponentOutlet } from '@angular/common';
-import { Component, DestroyRef, ElementRef, Injector, type Type, computed, inject, signal, viewChild } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  ElementRef,
+  Injector,
+  type Type,
+  ViewContainerRef,
+  computed,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, type ActivatedRouteSnapshot } from '@angular/router';
 import { IonBadge, IonIcon, IonLabel, IonModal, IonTabBar, IonTabButton, IonTabs, Config, NavController, Platform } from '@ionic/angular';
@@ -9,10 +20,13 @@ import { AuthService } from '../core/auth.service';
 import { refocusAfterRender } from '../core/focus';
 import { isOnHiddenPage } from '../core/page-keys';
 import { ProgressService } from '../core/progress.service';
+import { ShortcutsService } from '../core/shortcuts.service';
 import { FeedbackSheetComponent } from '../pilot/feedback-sheet.component';
 import { PilotNoticeComponent } from '../pilot/pilot-notice.component';
 import { PilotService } from '../pilot/pilot.service';
-import { CrossSections, forgetOnChange, pathOf } from '../ui/cross-link.directive';
+import type { ShowPalette } from '../search/search-palette.component';
+import { isSearchChordStart, isSearchKey, searchKeyHint } from '../search/search-keys';
+import { CrossSections, crossState, forgetOnChange, pathOf } from '../ui/cross-link.directive';
 import { hardwareBack } from './hardware-back';
 import type { RailHost } from './rail.component';
 import { daysLeft, problemsSolved } from './rail-counts';
@@ -87,6 +101,7 @@ import { RailPrefsService } from './rail-prefs';
         <app-pilot-notice (acknowledged)="pilot.acknowledgeNotice()" />
       </ng-template>
     </ion-modal>
+    <ng-container #searchHost />
   `,
   styles: `
     @use '../../breakpoints' as *;
@@ -170,6 +185,9 @@ export class TabsPage implements RailHost {
   private readonly sections = inject(CrossSections);
   /** Ionic's own default, as its outlet applies it: the outlet has no getter to read it back. */
   private readonly swipe = inject(Config).getBoolean('swipeBackEnabled', true);
+  private readonly searchHost = viewChild.required('searchHost', { read: ViewContainerRef });
+  private palette: Promise<ShowPalette> | null = null;
+  readonly searchKeyHint = searchKeyHint();
 
   constructor() {
     addIcons({ todayOutline, codeSlashOutline, gitNetworkOutline, peopleOutline, chatbubblesOutline });
@@ -187,6 +205,17 @@ export class TabsPage implements RailHost {
     };
     follow();
     wide.addEventListener('change', follow);
+    const host: Element = inject(ElementRef).nativeElement;
+    const shortcuts = inject(ShortcutsService);
+    const keys = (e: KeyboardEvent) => {
+      if (isSearchChordStart(e)) {
+        if (this.desktop()) this.prepareSearch();
+      } else if (isSearchKey(host, e, shortcuts.characterKeys())) {
+        e.preventDefault();
+        this.openSearch(document.activeElement instanceof HTMLElement ? document.activeElement : null);
+      }
+    };
+    document.addEventListener('keydown', keys);
     this.router.events.pipe(takeUntilDestroyed()).subscribe((event) => {
       if (!(event instanceof NavigationEnd)) return;
       this.url.set(event.urlAfterRedirects);
@@ -209,6 +238,7 @@ export class TabsPage implements RailHost {
     inject(DestroyRef).onDestroy(() => {
       android.unsubscribe();
       wide.removeEventListener('change', follow);
+      document.removeEventListener('keydown', keys);
     });
   }
 
@@ -243,6 +273,28 @@ export class TabsPage implements RailHost {
 
   outlet(): unknown {
     return this.tabs().outlet;
+  }
+
+  /** Starts loading the palette, which a phone never needs: it searches on its own page. */
+  prepareSearch(): Promise<ShowPalette> {
+    this.palette ??= import('../search/search-palette.component').then(
+      (m) => m.attachPalette(this.searchHost(), () => this.focusPageHeading()),
+      (error: unknown) => {
+        this.palette = null;
+        throw error;
+      },
+    );
+    return this.palette;
+  }
+
+  /**
+   * Search (REDESIGN.md 2.9): the palette from 1024px, its page below, where an overlay fights the phone's keyboard. Focus
+   * returns to `launcher` when the palette closes. Without the palette's code (offline on a first visit) the page opens.
+   */
+  openSearch(launcher: HTMLElement | null): void {
+    const page = () => void this.router.navigateByUrl('/today/search', { state: crossState(this.router, '/today/search') });
+    if (!this.desktop()) return page();
+    this.prepareSearch().then((show) => show(launcher), page);
   }
 
   /**

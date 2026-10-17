@@ -14,8 +14,8 @@ import {
   viewChild,
 } from '@angular/core';
 import { DatePipe, NgTemplateOutlet, formatDate } from '@angular/common';
-import { RouterLink } from '@angular/router';
-import { IonContent, IonHeader, IonIcon, IonSpinner, IonTitle, IonToolbar } from '@ionic/angular';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { IonButtons, IonContent, IonHeader, IonIcon, IonSpinner, IonTitle, IonToolbar } from '@ionic/angular';
 import {
   LOOP_ROUND_MINUTES,
   PLAN_ROUND_TRACK,
@@ -23,6 +23,7 @@ import {
   PLAN_ROUNDS,
   TRACK_NAMES,
   currentTarget,
+  getMockProblem,
   type ProgressState,
 } from '@grasp/engine';
 import { addIcons } from 'ionicons';
@@ -30,6 +31,7 @@ import { codeSlashOutline, gitNetworkOutline, layersOutline, peopleOutline } fro
 import { ApiError, ApiService } from '../../core/api.service';
 import { LearnerService } from '../../core/learner.service';
 import { ProgressService } from '../../core/progress.service';
+import { SearchButtonComponent } from '../../search/search-button.component';
 import { CrossLinkDirective } from '../../ui/cross-link.directive';
 import { EmptyStateComponent } from '../../ui/empty-state.component';
 import { alertIcon } from '../../ui/icons';
@@ -67,6 +69,7 @@ const ROUND_HUBS: Record<InterviewTrack, string> = { coding: '/coding', 'system-
     CrossLinkDirective,
     DatePipe,
     EmptyStateComponent,
+    IonButtons,
     IonContent,
     IonHeader,
     IonIcon,
@@ -76,10 +79,14 @@ const ROUND_HUBS: Record<InterviewTrack, string> = { coding: '/coding', 'system-
     NgTemplateOutlet,
     PageHeaderComponent,
     RouterLink,
+    SearchButtonComponent,
   ],
   template: `
     <ion-header [translucent]="true">
-      <ion-toolbar><ion-title>Mock interviews</ion-title></ion-toolbar>
+      <ion-toolbar>
+        <ion-title>Mock interviews</ion-title>
+        <ion-buttons slot="end"><app-search-button /></ion-buttons>
+      </ion-toolbar>
     </ion-header>
     <ion-content [fullscreen]="true">
       <div class="page narrow">
@@ -365,6 +372,7 @@ export class InterviewHomePage {
   readonly loading = signal(false);
   readonly sheetOpen = signal(false);
   readonly sheetTrack = signal<InterviewTrack>('coding');
+  private readonly sheetPick = signal<string | null>(null);
   private readonly sheetHost = viewChild.required('sheetHost', { read: ViewContainerRef });
   private readonly sheet = signal<ComponentRef<MockStartSheetComponent> | null>(null);
   private sheetLoad: Promise<void> | null = null;
@@ -444,13 +452,24 @@ export class InterviewHomePage {
       const sheet = this.sheet();
       if (!sheet) return;
       sheet.setInput('track', this.sheetTrack());
+      sheet.setInput('pick', this.sheetPick());
       sheet.setInput('level', this.level());
       sheet.setInput('levelLabel', this.levelLabel());
       sheet.setInput('catalog', this.catalog());
       sheet.setInput('offline', this.offline());
       sheet.setInput('open', this.sheetOpen());
     });
+    const route = inject(ActivatedRoute);
+    const router = inject(Router);
+    // A search result opens one round's sheet (REDESIGN.md 2.9); the parameter goes once read, so back and reload do not reopen it.
+    const rounds = route.queryParamMap.subscribe((params) => {
+      if (!params.has('round')) return;
+      const round = getMockProblem(params.get('round')!);
+      void router.navigate([], { relativeTo: route, queryParams: { round: null }, queryParamsHandling: 'merge', replaceUrl: true });
+      if (round) this.openSheet(round.track, round.id);
+    });
     inject(DestroyRef).onDestroy(() => {
+      rounds.unsubscribe();
       this.destroyed = true;
       this.sheet()?.destroy();
     });
@@ -502,8 +521,9 @@ export class InterviewHomePage {
     return verdictName(v);
   }
 
-  openSheet(track: InterviewTrack) {
+  openSheet(track: InterviewTrack, pick: string | null = null) {
     this.sheetTrack.set(track);
+    this.sheetPick.set(pick);
     this.sheetOpen.set(true);
     if (!this.sheet()) this.opening.set(track);
     void this.loadSheet();

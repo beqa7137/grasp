@@ -1,8 +1,9 @@
 import { ChangeDetectionStrategy, Component, ElementRef, Injector, afterNextRender, inject, input, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { IonContent, IonHeader, IonTitle, IonToolbar } from '@ionic/angular';
+import { IonButtons, IonContent, IonHeader, IonTitle, IonToolbar } from '@ionic/angular';
 
 import { refocus } from '../../core/focus';
+import { SearchButtonComponent } from '../../search/search-button.component';
 import { SegmentMemory, type KeptSegment } from './segment-memory';
 
 /** The Ionic hooks a segment may keep from when it was a page of its own, and what it hands over to be kept. */
@@ -18,12 +19,13 @@ interface Segment extends KeptSegment {
 @Component({
   selector: 'app-hub',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, RouterLinkActive, RouterOutlet, IonHeader, IonToolbar, IonTitle, IonContent],
+  imports: [RouterLink, RouterLinkActive, RouterOutlet, IonHeader, IonToolbar, IonTitle, IonButtons, IonContent, SearchButtonComponent],
   template: `
     <ion-header [translucent]="true">
-      <ion-toolbar
-        ><ion-title>{{ name }}</ion-title></ion-toolbar
-      >
+      <ion-toolbar>
+        <ion-title>{{ name }}</ion-title>
+        <ion-buttons slot="end"><app-search-button /></ion-buttons>
+      </ion-toolbar>
     </ion-header>
     <ion-content [fullscreen]="true">
       <nav class="page segments" [class.narrow]="narrow()" [attr.aria-label]="name + ' sections'">

@@ -5,7 +5,7 @@ import { format, resolveConfig } from 'prettier';
 import { describe, expect, it } from 'vitest';
 import { QUESTION_PROMPTS } from '../behavioral/question-prompts.js';
 import { COMPETENCIES } from '../behavioral/competencies.js';
-import { questionPromptsSource, searchIndexSource } from './build-index.js';
+import { questionPromptsSource, searchDataSource } from './build-index.js';
 import { CUE_WORDS, SEARCH_ALIASES } from './keywords.js';
 import { SEARCH_INDEX } from './search.js';
 import { SEARCH_KINDS } from './types.js';
@@ -20,7 +20,7 @@ const committed = (file: string) => readFileSync(new URL(file, import.meta.url),
 
 describe('the search index', () => {
   it('is generated from the current catalogs: run `npm run gen:search` when this fails', async () => {
-    expect(committed('./index.data.ts')).toBe(await generated('./index.data.ts', searchIndexSource()));
+    expect(committed('./index.data.ts')).toBe(await generated('./index.data.ts', searchDataSource()));
     expect(committed('../behavioral/question-prompts.data.ts')).toBe(
       await generated('../behavioral/question-prompts.data.ts', questionPromptsSource()),
     );

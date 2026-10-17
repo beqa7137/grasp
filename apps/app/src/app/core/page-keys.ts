@@ -1,5 +1,6 @@
 const FIELD = 'input, textarea, select, [contenteditable]';
-const OVERLAY = 'ion-modal, ion-alert, ion-action-sheet, ion-popover, ion-toast, ion-loading, [role="dialog"], [role="alertdialog"]';
+const OVERLAY =
+  'ion-modal, ion-alert, ion-action-sheet, ion-popover, ion-toast, ion-loading, dialog, [role="dialog"], [role="alertdialog"]';
 const CONTROL =
   'a[href], button, summary, [role="button"], [role="link"], [role="checkbox"], [role="radio"], [role="switch"], [role="tab"], [role="menuitem"], [role="option"]';
 const ARROW_WIDGET = '[role="radio"], [role="tab"], [role="slider"], [role="menuitem"], [role="option"]';

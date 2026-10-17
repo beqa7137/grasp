@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { EMPTY_SEARCH_QUERY, parseSearchQuery, searchQueryParams } from './query.js';
 import { didYouMean, groupHits, searchAll, searchHref } from './search.js';
 
 const top = (query: string) => {
@@ -61,7 +62,7 @@ describe('search ranking', () => {
 
   it('finds the rate limiter in one list from four keystrokes: the topic, Bot Storm, the case and the mock round', () => {
     const groups = groupHits(searchAll('rate'), 8);
-    expect(groups.map((g) => g.round)).toEqual(['system-design']);
+    expect(groups.map((g) => g.round)).toEqual(['design']);
     const found = groups[0].kinds.flatMap((k) => k.hits.map((h) => `${h.kind}:${h.id}`));
     expect(found).toEqual(expect.arrayContaining(['topic:sd-rate-limiting', 'mission:bot-storm', 'case:rate-limiter', 'mock:rate-limiter']));
     expect(groups[0].kinds.map((k) => k.kind)).toEqual(['topic', 'case', 'mock', 'mission']);
@@ -94,5 +95,14 @@ describe('search ranking', () => {
   it('opens a mock round on the Mock hub with its start sheet', () => {
     expect(searchHref({ kind: 'mock', id: 'rate-limiter' })).toBe('/mock?round=rate-limiter');
     expect(searchHref({ kind: 'question', id: 'conflict-2' })).toBe('/behavioral/question/conflict-2');
+  });
+});
+
+describe('the search page query', () => {
+  it('reads and writes its URL, dropping unknown kinds and keeping index order', () => {
+    const query = parseSearchQuery({ q: ' rate ', kind: 'mock,bogus,topic' });
+    expect(query).toEqual({ q: 'rate', kind: ['topic', 'mock'] });
+    expect(searchQueryParams(query)).toEqual({ q: 'rate', kind: 'topic,mock' });
+    expect(searchQueryParams(EMPTY_SEARCH_QUERY)).toEqual({ q: null, kind: null });
   });
 });

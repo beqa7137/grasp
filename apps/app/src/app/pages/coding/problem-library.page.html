@@ -49,6 +49,7 @@
         [value]="lib.search()"
         (input)="lib.type($any($event.target).value)"
       />
+      <app-search-everything [query]="query().q" />
     </form>
     @if (chips().length || filtered()) {
       <div chips #chipRow class="active">

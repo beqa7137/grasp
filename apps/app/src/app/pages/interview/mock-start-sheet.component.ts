@@ -172,6 +172,8 @@ export class MockStartSheetComponent {
   /** Null until the hub has reached the server. */
   readonly catalog = input<InterviewCatalog | null>(null);
   readonly offline = input(false);
+  /** The question to start on, as a search result's link names it (`/mock?round=rate-limiter`); none is Surprise me. */
+  readonly pick = input<string | null>(null);
   /** Sign-in finished here, or a refusal changed what AI allows: the hub reads access and the allowance again. */
   readonly signedIn = output<void>();
   readonly changed = output<void>();
@@ -184,8 +186,8 @@ export class MockStartSheetComponent {
   readonly choiceNoteId = uniqueId('mock-choice-note');
   readonly questions = QUESTIONS_PER_COMPETENCY;
   readonly mode = signal<InterviewMode>('offline');
-  /** '' is Surprise me. A new round starts from it. */
-  readonly choice = linkedSignal<InterviewTrack, string>({ source: this.track, computation: () => '' });
+  /** '' is Surprise me. A new round starts from it, or from the question it was opened for. */
+  readonly choice = linkedSignal({ source: () => ({ track: this.track(), pick: this.pick() }), computation: ({ pick }) => pick ?? '' });
   readonly starting = signal(false);
   readonly error = signal<string | null>(null);
 

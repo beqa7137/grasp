@@ -1,11 +1,15 @@
-import type { InterviewTrack } from '../interview/rubrics.js';
+import type { Difficulty } from '../algorithms/types.js';
+import type { PlanRound } from '../plan/options.js';
 
 /** What search finds, in the order a tie between equal scores is broken. Stories are searched on the device, never indexed. */
 export const SEARCH_KINDS = ['pattern', 'visualizer', 'problem', 'topic', 'mission', 'case', 'mock', 'competency', 'question', 'story'] as const;
 export type SearchKind = (typeof SEARCH_KINDS)[number];
 
-/** The kinds the generated index holds: questions come from the prompts file, stories from the device. */
-export type IndexedKind = Exclude<SearchKind, 'question' | 'story'>;
+/** The generated part of the index: what search needs from modules that do not load with first paint. */
+export interface SearchData {
+  problem: readonly (readonly [id: string, title: string, difficulty: Difficulty])[];
+  caseSummary: readonly (readonly [id: string, summary: string])[];
+}
 
 /**
  * One searchable item: its id, title and short blurb, then the ids it is tagged with and the other names it is searched by.
@@ -22,7 +26,7 @@ export interface SearchResult {
   title: string;
   /** What the result shows under its title. Never a problem's patterns, which would spoil the recognition step (2.9). */
   meta: string;
-  round: InterviewTrack;
+  round: PlanRound;
   score: number;
 }
 
@@ -34,6 +38,6 @@ export interface SearchKindGroup {
 }
 
 export interface SearchGroup {
-  round: InterviewTrack;
+  round: PlanRound;
   kinds: readonly SearchKindGroup[];
 }

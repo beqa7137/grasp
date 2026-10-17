@@ -54,6 +54,11 @@ export const routes: Routes = [
           lazy('pages/progress/progress.page', () => import('./pages/progress/progress.page')).then((m) => m.ProgressPage),
       },
       {
+        path: 'today/search',
+        title: 'Search',
+        loadComponent: () => lazy('pages/search/search.page', () => import('./pages/search/search.page')).then((m) => m.SearchPage),
+      },
+      {
         path: 'today/plan',
         title: 'Study plan',
         loadComponent: () => lazy('pages/plan/plan.page', () => import('./pages/plan/plan.page')).then((m) => m.PlanPage),

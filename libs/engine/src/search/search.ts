@@ -1,14 +1,9 @@
-import { QUESTION_PROMPTS } from '../behavioral/question-prompts.js';
-import { TRACK_NAMES, type InterviewTrack } from '../interview/rubrics.js';
-import { SEARCH_DATA } from './index.data.js';
+import { ROUND_NAMES, type PlanRound } from '../plan/options.js';
+import { searchIndex } from './rows.js';
 import { phraseOf, prepare, queryWords, scoreOf, suggestionDistance, wordsOf, type Prepared } from './score.js';
 import { SEARCH_KINDS, type SearchGroup, type SearchResult, type SearchIndex, type SearchKind, type SearchRow } from './types.js';
 
-export const SEARCH_INDEX: SearchIndex = {
-  ...SEARCH_DATA,
-  question: QUESTION_PROMPTS.map((q) => [q.id, q.prompt, '', [q.competencyId]]),
-  story: [],
-};
+export const SEARCH_INDEX: SearchIndex = searchIndex();
 
 /** Each kind's name, one and many: "Mock round", "See all 23 problems". */
 export const SEARCH_KIND_NAMES: Record<SearchKind, readonly [one: string, many: string]> = {
@@ -24,13 +19,13 @@ export const SEARCH_KIND_NAMES: Record<SearchKind, readonly [one: string, many: 
   story: ['Story', 'Stories'],
 };
 
-const ROUND_OF: Record<Exclude<SearchKind, 'mock'>, InterviewTrack> = {
+const ROUND_OF: Record<Exclude<SearchKind, 'mock'>, PlanRound> = {
   pattern: 'coding',
   visualizer: 'coding',
   problem: 'coding',
-  topic: 'system-design',
-  mission: 'system-design',
-  case: 'system-design',
+  topic: 'design',
+  mission: 'design',
+  case: 'design',
   competency: 'behavioral',
   question: 'behavioral',
   story: 'behavioral',
@@ -52,7 +47,7 @@ interface Entry {
   id: string;
   title: string;
   meta: string;
-  round: InterviewTrack;
+  round: PlanRound;
   prepared: Prepared;
 }
 
@@ -76,7 +71,7 @@ function entries(index: Partial<SearchIndex>): Entry[] {
         id,
         title,
         meta,
-        round: kind === 'mock' ? (tags[0] as InterviewTrack) : ROUND_OF[kind],
+        round: kind === 'mock' ? (tags[0] === 'coding' ? 'coding' : 'design') : ROUND_OF[kind],
         prepared: prepare({
           title,
           aliases,
@@ -126,7 +121,7 @@ export function didYouMean(query: string): string | null {
  * reach it; a kind shows at most `limit` hits.
  */
 export function groupHits(hits: readonly SearchResult[], limit = Infinity): SearchGroup[] {
-  const rounds = new Map<InterviewTrack, Map<SearchKind, SearchResult[]>>();
+  const rounds = new Map<PlanRound, Map<SearchKind, SearchResult[]>>();
   for (const hit of [...hits].sort(byRank)) {
     const kinds = rounds.get(hit.round) ?? rounds.set(hit.round, new Map()).get(hit.round)!;
     (kinds.get(hit.kind) ?? kinds.set(hit.kind, []).get(hit.kind)!).push(hit);
@@ -137,7 +132,7 @@ export function groupHits(hits: readonly SearchResult[], limit = Infinity): Sear
   }));
 }
 
-export const roundName = (round: InterviewTrack) => TRACK_NAMES[round];
+export const roundName = (round: PlanRound) => ROUND_NAMES[round];
 
 /** Where a hit opens. A mock round opens the Mock hub with its start sheet (`?round=`). */
 export function searchHref(hit: Pick<SearchResult, 'kind' | 'id'>): string {

@@ -24,6 +24,10 @@ export interface RailHost {
   toggleRail(): void;
   openFeedback(): void;
   focusPageHeading(within?: Element): void;
+  /** "Ctrl K", or "⌘ K" on Apple devices. */
+  searchKeyHint: string;
+  openSearch(launcher: HTMLElement | null): void;
+  prepareSearch(): unknown;
 }
 
 /** A plain click, which the rail handles itself; a modified or middle click opens the link's href as the browser would. */
@@ -57,13 +61,21 @@ const plainClick = (event: MouseEvent) => event.button === 0 && !event.metaKey &
           grasp<i>.</i>
         }
       </p>
-      @if (!collapsed()) {
-        <label class="search">
-          <ion-icon name="search-outline" aria-hidden="true" />
-          <input type="search" placeholder="Search" aria-label="Search" disabled />
-          <kbd aria-hidden="true">Ctrl K</kbd>
-        </label>
-      }
+      <button
+        #searchButton
+        type="button"
+        class="search"
+        aria-haspopup="dialog"
+        aria-keyshortcuts="Control+K Meta+K"
+        [attr.title]="collapsed() ? 'Search (' + host().searchKeyHint + ')' : null"
+        (pointerenter)="host().prepareSearch()"
+        (focus)="host().prepareSearch()"
+        (click)="host().openSearch(searchButton)"
+      >
+        <ion-icon name="search-outline" aria-hidden="true" />
+        <span class="label">Search</span>
+        <kbd aria-hidden="true">{{ host().searchKeyHint }}</kbd>
+      </button>
       <ul>
         @for (s of sections; track s.tab) {
           <li>
@@ -198,21 +210,26 @@ const plainClick = (event: MouseEvent) => event.button === 0 && !event.metaKey &
       display: flex;
       align-items: center;
       gap: var(--g-space-2);
+      min-height: 40px;
       margin-bottom: var(--g-space-3);
       padding: var(--g-space-2) var(--g-space-3);
       border: 1px solid var(--g-line);
       border-radius: var(--g-radius-sm);
       background: var(--g-sunken);
       color: var(--g-muted);
-      input {
+      font: inherit;
+      font-size: var(--g-text-body);
+      text-align: start;
+      cursor: pointer;
+      &:hover {
+        color: var(--g-text);
+        border-color: var(--g-line-strong);
+      }
+      &:focus-visible {
+        outline-offset: 1px;
+      }
+      .label {
         flex: 1;
-        min-width: 0;
-        border: 0;
-        padding: 0;
-        background: none;
-        color: inherit;
-        font: inherit;
-        font-size: var(--g-text-body);
       }
       kbd {
         font: inherit;
@@ -301,6 +318,13 @@ const plainClick = (event: MouseEvent) => event.button === 0 && !event.metaKey &
       .wordmark {
         padding: 0;
         text-align: center;
+      }
+      .search {
+        justify-content: center;
+        padding: 0;
+        kbd {
+          display: none;
+        }
       }
       .item {
         position: relative;
