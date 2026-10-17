@@ -41,7 +41,9 @@ async function open(draft?: string) {
   if (draft !== undefined) localStorage.setItem(KEY, draft);
   const record = vi.fn(async () => undefined);
   const cleared = signal(0);
-  TestBed.configureTestingModule({ providers: [provideRouter([]), { provide: ProgressService, useValue: { record, cleared } }] });
+  TestBed.configureTestingModule({
+    providers: [provideRouter([]), { provide: ProgressService, useValue: { record, cleared, day: signal('2026-10-17') } }],
+  });
   const fixture = TestBed.createComponent(CaseStudyPage);
   fixture.componentRef.setInput('id', 'url-shortener');
   fixture.detectChanges();
@@ -143,13 +145,17 @@ describe('CaseStudyPage answers', () => {
       return read(options);
     });
     TestBed.configureTestingModule({
-      providers: [provideRouter([]), { provide: ProgressService, useValue: { record: vi.fn(), cleared: signal(0) } }],
+      providers: [
+        provideRouter([]),
+        { provide: ProgressService, useValue: { record: vi.fn(), cleared: signal(0), day: signal('2026-10-17') } },
+      ],
     });
     const fixture = TestBed.createComponent(CaseStudyPage);
     fixture.componentRef.setInput('id', 'url-shortener');
     fixture.detectChanges();
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('h1')?.textContent).toContain('URL Shortener');
+    expect(el.querySelector('app-interview-reports summary')?.textContent?.trim()).toBe('Reported in interviews: Google, Apple');
     expect(el.querySelectorAll('app-case-stage')).toHaveLength(0);
     expect(el.querySelectorAll('fieldset button')).toHaveLength(0);
 
@@ -253,7 +259,9 @@ describe('CaseStudyPage answers', () => {
 
   it('keeps drafts loaded before its first change detection', async () => {
     localStorage.setItem(KEY, JSON.stringify({ attempt: 'a-1', reached: 1, stages: [] }));
-    TestBed.configureTestingModule({ providers: [{ provide: ProgressService, useValue: { cleared: signal(0) } }] });
+    TestBed.configureTestingModule({
+      providers: [{ provide: ProgressService, useValue: { cleared: signal(0), day: signal('2026-10-17') } }],
+    });
     const drafts = TestBed.inject(CaseDraftsService);
     await drafts.load();
     TestBed.tick();

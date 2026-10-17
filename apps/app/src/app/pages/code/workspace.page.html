@@ -42,6 +42,7 @@
             <li>{{ c }}</li>
           }
         </ul>
+        <app-interview-reports class="reports" kind="problem" [itemId]="p.id" />
 
         @if (record()?.solvedAt) {
           <div class="approach">

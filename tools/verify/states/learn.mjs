@@ -1,5 +1,5 @@
 import { PATTERN_CATALOG, itemsForTopic } from '@grasp/engine';
-import { answerFirst, goto, openPlayback, settle, toEnd, toPredict } from '../lib.mjs';
+import { answerFirst, goto, openPlayback, openReports, settle, toEnd, toPredict } from '../lib.mjs';
 
 const TWO_SUM = `function twoSum(nums, target) {
   const seen = new Map();
@@ -375,6 +375,7 @@ export function learnStates() {
     },
     { id: 'coding-problems-empty', path: '/coding/problems?q=zzzz' },
     { id: 'code-two-sum', path: '/coding/problems/two-sum' },
+    { id: 'code-reported', path: '/coding/problems/lowest-common-ancestor', setup: openReports },
     {
       id: 'code-python-trace-note',
       path: '/coding/problems/two-sum',

@@ -1765,6 +1765,7 @@ Iterations are ordered by impact, alternating between organization and visuals. 
 | R12  | Behavioral hub and Questions                                                | R4, R5, R7             | no                             |
 | R13  | Mock hub and rounds                                                         | R4, R5, R7, R12        | no                             |
 | R14  | Today II: readiness, Progress, Continue, Weak spots, plan page              | R9                     | no                             |
+| R49  | Company tags I: interview source lists on problem and case pages            | R8, R11                | no                             |
 | R15  | Search and naming sweep                                                     | R8, R10, R11, R12, R13 | no                             |
 | R16  | Pattern hub and workspace                                                   | R8                     | no                             |
 | R17  | Tracer annotations A: arrays, pointers, lists, stacks, heaps                | none                   | yes (invisible until rendered) |
@@ -1809,6 +1810,7 @@ Iterations are ordered by impact, alternating between organization and visuals. 
 - Every iteration that uses `g-segmented` or sheets (R21, R27, R29 and later) depends on R7.
 - `g-sequence` is built in R27b, before the retries widget (R34). R27b note: it is `g-timeline`'s messages (swimlanes over a time axis, travelling messages, × for a rejected one); R34 adds timeout brackets there rather than a second component.
 - R27 was pulled forward by the owner on 2026-10-13, ahead of R8 to R26, and takes the Caching widget (`cache`) from R42. It is split: R27a ships the Caching widget with the kit pieces and experiments framework it needs; R27b adds the rest of the kit with Load Balancing and Replication. R41 to R47 depend on R27a, and on R27b for any kit piece only R27b builds (`g-histogram`, `g-timeline`, `g-sequence`, `sim.worker.ts`).
+- R49 was placed after R14 and before R15 by the owner on 2026-10-17: it ships the sourced "Reported in interviews" lists first; the Company facet, row chips and company search wait for a later iteration, once coverage is worth filtering by.
 - R19 is not a dependency of R27a: its widgets need no FLIP, pacing or trails, only "may script animate now?", which R3's `motionAllowed()` in `core/motion.ts` answers (data-motion, the test mode and the OS setting). Plays are bounded and particles pooled (`viz/kit/particles.ts`), so 3.5's budget holds without R19's `MotionService`.
 
 ### 5.2 Iterations
@@ -2306,6 +2308,26 @@ Iterations are ordered by impact, alternating between organization and visuals. 
   - **Settings** opens with "Your loop": the loop line, "Rounds: Coding ×2, System design, Behavioral · Starting point: Rusty", and "Edit your loop", Today's loop card in place with focus moved to its first chip (`TodayService.close` now names the page that showed the card, so Today never takes focus for a Settings save).
   - **Naming.** "overall mastery" left with Learn in R9; its formula is Progress's "Review strength", the mastery ring reads "Review strength 40%", and the visualizers' blurb no longer promises a mastery score.
   - **Fixed on the way:** date-only strings (`YYYY-MM-DD`) were formatted with Angular's `formatDate(..., 'UTC')`, which reads them as local midnight, so east of UTC the target line and "Move the date to" showed the day before. Every date-only label now goes through `dayLabel` (`today.service.ts`, in main, on `Intl` in UTC without `@angular/common`, which would split a first-paint chunk), and an e2e in `Asia/Tbilisi` reads the exact date on Today, the plan page and Settings.
+
+**R49 Company tags I: interview source lists** (owner decision 2026-10-17, after R14 and before R15).
+
+- **Scope:**
+  - a lazy engine module, `libs/engine/src/companies/`: the reports, the source policy and pure selectors;
+  - a "Reported in interviews" list on the problem page and the case page, only when a shown report exists;
+  - the monthly refresh as an offline audit script, with the process in `docs/COMPANY_TAGS.md`;
+  - not yet: the Company facet, row chips and company search (a later iteration).
+- **Accept:**
+  - every report names a catalog problem or case, a known company, an https source on an allowed publisher (a spec fails on any denied host), a dated report with its basis and a checked day;
+  - a report over 24 months old, or 100 days past its check, is never shown (specs and e2e with a fixed clock);
+  - the reports chunk is outside the first-paint closure and loads with its page in one round trip;
+  - the audit never fetches a `manual` or denied publisher (a test with a fake fetch).
+- **Content review:** every report: the source opens, it names the same problem, the date basis is right, the note is in our own words, the publisher is allowed.
+- **As built:**
+  - **Data** (`companies/reports.data.ts`): 32 reports from the 36-row pilot after each source was re-read once as a single page on 2026-10-17 (no stored copies): 17 of 164 problems and 7 of 27 cases; Google 2 (1 problem, 1 case), Meta 11 (8, 3), Amazon 7 (5 problems in 6 reports, 1 case), Microsoft 7 (4, 3), Apple 3 (2, 1), Uber 2 (1 case). Dropped: the Microsoft intern Validate BST and Apple Game Leaderboard rows, already past 24 months; Gas Station (Microsoft), whose 24 months end on 2026-10-20, three days after the check; and the Apple Web Crawler row, whose page asks for a peer-to-peer crawling network, a variant. Meta's LCA and Ticket Booking rows moved from the publication date to the onsite month the post gives (interview, Aug 2025), and the four GeeksforGeeks rows whose page shows only "Last Updated" carry that date as `updated` (fix round). `LAST_REFRESH` records the refresh day, and no row may claim a later check. Rows store only the URL, publisher, title, dates, company, our id and a note in our own words.
+  - **Policy** (`companies/source-policy.ts`): three `manual` publishers (GeeksforGeeks, the Roundz Newsletter on Substack, Taro) with the terms that decided it, no `automated` one yet, and `DENIED_HOSTS` (LeetCode, Glassdoor on any domain, Blind, 1point3acres, Reddit, Aced/Exponent, Hello Interview, interviewing.io, PracHub, GitHub); `sourceRefusal` checks https, refuses user info, a port and any URL the parser would rewrite (a backslash, upper case), then the denylist (a trailing dot stripped; Glassdoor as any host label, so IDN top-level domains too) and the publisher's own hosts.
+  - **Selectors** (`companies/reports.ts`): `visibleReports(kind, id, today)` by company then newest; `reportVisible` with `shownUntil` (24 months after the last day a partial date covers) and `recheckBy` (`checked` plus 100 days); decided with `ProgressService.day`, so expiry needs no release.
+  - **UI** (`companies/interview-reports.component.ts`): a closed `g-disclosure` "Reported in interviews: Google, Meta, Amazon", at the end of the problem statement and under the case brief; each line the company, "Interview Aug 2025", "Published May 2025" or "Updated Sep 2025", our note, and the publisher linking out (`target="_blank"`, `rel="noopener noreferrer"`, named with the write-up's title); the footer says how dates are chosen, that Grasp is not affiliated with these companies or publishers, and that a report says nothing about how often a question is asked. With no shown report the host is hidden, so untagged pages are unchanged. Its 16 kB chunk (4 kB gzipped) is shared by the two pages and preloaded with them; first paint is unchanged.
+  - **Refresh** (`tools/company-tags/audit.mjs`, tested by `audit.test.mjs` in the engine's `npm test`): lists refusals, rows past or within 45 days of expiry or recheck, and items losing their last row; HEAD-checks links only on `automated` publishers after robots.txt read as RFC 9309 does (User-agent groups, `*` and `$`, the longest rule winning and allow a tie, a 5xx or network error disallowing all); writes `company-tags-audit-YYYY-MM-DD.md` to the system's temporary directory, outside the repository, with a checklist of manual pages. A manual page that refuses an agent is left to a person, never retried another way. It proposes on a `company-tags/YYYY-MM` branch and never pushes `main`; `docs/COMPANY_TAGS.md` keeps a log of out-of-the-ordinary source access.
 
 **R15 Search and naming sweep.**
 
