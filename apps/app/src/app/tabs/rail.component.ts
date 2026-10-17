@@ -32,6 +32,10 @@ export interface RailHost {
 const FEEDBACK_GLYPH =
   "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512' class='ionicon'><path d='M408 64H104a56.16 56.16 0 0 0-56 56v192a56.16 56.16 0 0 0 56 56h40v80l93.72-78.14a8 8 0 0 1 5.13-1.86H408a56.16 56.16 0 0 0 56-56V120a56.16 56.16 0 0 0-56-56Z' stroke-linejoin='round' class='ionicon-fill-none ionicon-stroke-width'/><circle cx='160' cy='216' r='32'/><circle cx='256' cy='216' r='32'/><circle cx='352' cy='216' r='32'/></svg>";
 
+// ionicons' stats-chart-outline, its rounded bars drawn as one path, kept here for the same reason.
+const PROGRESS_GLYPH =
+  "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512' class='ionicon'><path d='M72 320h32a8 8 0 0 1 8 8v144a8 8 0 0 1-8 8h-32a8 8 0 0 1-8-8v-144a8 8 0 0 1 8-8zM296 224h32a8 8 0 0 1 8 8v240a8 8 0 0 1-8 8h-32a8 8 0 0 1-8-8v-240a8 8 0 0 1 8-8zM408 112h32a8 8 0 0 1 8 8v352a8 8 0 0 1-8 8h-32a8 8 0 0 1-8-8v-352a8 8 0 0 1 8-8zM184 32h32a8 8 0 0 1 8 8v432a8 8 0 0 1-8 8h-32a8 8 0 0 1-8-8v-432a8 8 0 0 1 8-8z' stroke-linecap='round' stroke-linejoin='round' class='ionicon-fill-none ionicon-stroke-width'/></svg>";
+
 const plainClick = (event: MouseEvent) => event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
 
 /**
@@ -340,7 +344,7 @@ export class RailComponent {
   readonly active = computed(() => tabOf(this.host().url()));
 
   constructor() {
-    addIcons({ searchOutline, settingsOutline, documentTextOutline, chevronForward });
+    addIcons({ searchOutline, settingsOutline, documentTextOutline, chevronForward, 'progress-glyph': PROGRESS_GLYPH });
   }
 
   follow(event: MouseEvent, go: () => void) {

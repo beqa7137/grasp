@@ -1,7 +1,7 @@
 <ion-header [translucent]="true">
   <ion-toolbar>
     <ion-buttons slot="start"><app-back [href]="backHref()" /></ion-buttons>
-    <ion-title>{{ practice() ? 'Practice' : 'Review' }}</ion-title>
+    <ion-title>{{ weakDrill() ? 'Drill' : practice() ? 'Practice' : 'Review' }}</ion-title>
   </ion-toolbar>
 </ion-header>
 
@@ -9,8 +9,11 @@
   <div class="page narrow">
     <div class="head">
       <div>
-        <p class="eyebrow">{{ practice() ? 'Practice · not scheduled' : 'Spaced review' }}</p>
+        <p class="eyebrow">{{ weakDrill() ? 'Drill · not scheduled' : practice() ? 'Practice · not scheduled' : 'Spaced review' }}</p>
         <h1>{{ practice() ? focusName() : "Today's review" }}</h1>
+        @if (weakDrill()) {
+          <p class="plan muted">{{ mixNames().join(', ') }}</p>
+        }
         @if (plan(); as p) {
           @if (started() && !finished()) {
             <p class="plan muted">
@@ -29,7 +32,9 @@
       </div>
     </div>
 
-    @if (practice()) {
+    @if (weakDrill()) {
+      <p class="info">Drill answers don't schedule reviews.</p>
+    } @else if (practice()) {
       <p class="banner">Practice answers don't change your review schedule. Use this to cram a topic before an interview.</p>
     }
 
@@ -66,8 +71,13 @@
       } @else if (shortcuts.characterKeys()) {
         <p class="keys muted">Press 1–{{ slot.question.choices.length }} to answer</p>
       }
+    } @else if (weakDrill() && !mix().length) {
+      <section class="panel nothing">
+        <g-empty-state heading="Nothing to drill">These topics are not in Grasp any more.</g-empty-state>
+        <a class="g-btn" routerLink="/today">Back to Today</a>
+      </section>
     } @else {
-      <app-drill-summary [practice]="practice()" [score]="score()" (keepGoing)="start()" />
+      <app-drill-summary [practice]="practice()" [weakSpots]="weakDrill()" [score]="score()" (keepGoing)="start()" />
     }
   </div>
 </ion-content>

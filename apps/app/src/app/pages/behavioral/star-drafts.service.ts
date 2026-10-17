@@ -4,7 +4,7 @@ import { COMPETENCY_CATALOG, EMPTY_STAR_DRAFT, QUESTIONS_PER_COMPETENCY, isEmpty
 import { STAR_DRAFT_PREFIX, draftKeys } from '../../core/local-drafts';
 
 /** Every current question's id: a draft kept for a question that no longer exists is not counted. */
-const QUESTION_IDS = new Set(
+export const STAR_QUESTION_IDS: ReadonlySet<string> = new Set(
   COMPETENCY_CATALOG.flatMap((c) => Array.from({ length: QUESTIONS_PER_COMPETENCY }, (_, i) => `${c.id}-${i + 1}`)),
 );
 
@@ -17,7 +17,7 @@ export class StarDraftsService {
 
   async load(): Promise<void> {
     const keys = await draftKeys(STAR_DRAFT_PREFIX);
-    this.drafted.set(new Set(keys.map((key) => key.slice(STAR_DRAFT_PREFIX.length)).filter((id) => QUESTION_IDS.has(id))));
+    this.drafted.set(new Set(keys.map((key) => key.slice(STAR_DRAFT_PREFIX.length)).filter((id) => STAR_QUESTION_IDS.has(id))));
     this.loaded.set(true);
   }
 
@@ -41,7 +41,7 @@ export class StarDraftsService {
     this.drafted.update((ids) => {
       const next = new Set(ids);
       if (empty) next.delete(questionId);
-      else if (QUESTION_IDS.has(questionId)) next.add(questionId);
+      else if (STAR_QUESTION_IDS.has(questionId)) next.add(questionId);
       return next;
     });
   }

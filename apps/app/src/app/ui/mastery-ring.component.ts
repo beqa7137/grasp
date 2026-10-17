@@ -4,7 +4,7 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
   selector: 'g-mastery-ring',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <svg [attr.width]="size()" [attr.height]="size()" viewBox="0 0 40 40" role="img" [attr.aria-label]="pct() + '% mastery'">
+    <svg [attr.width]="size()" [attr.height]="size()" viewBox="0 0 40 40" role="img" [attr.aria-label]="'Review strength ' + pct() + '%'">
       <circle cx="20" cy="20" r="16" class="bg" />
       <circle cx="20" cy="20" r="16" class="fg" [class.empty]="!pct()" [attr.stroke-dasharray]="dash()" [attr.data-level]="level()" />
       @if (showLabel()) {

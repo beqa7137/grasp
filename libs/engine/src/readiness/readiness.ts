@@ -2,17 +2,12 @@ import type { Story } from '../behavioral/stories.js';
 import { PLAN_ROUNDS, type PlanRound, type TargetInput } from '../plan/options.js';
 import type { ProgressState } from '../srs/progress.js';
 import { currentTarget, LEVEL_PROFILES, type LevelProfile, type TargetSource } from './levels.js';
+import { readinessBand, type ReadinessBand } from './bands.js';
 import { skillStatus, type SkillKind, type SkillState, type SkillStatus, type StatusContext } from './status.js';
 
-export const STATE_WEIGHTS: Record<SkillState, number> = { new: 0, learning: 0.25, practiced: 0.6, ready: 1 };
+export * from './bands.js';
 
-/** Coverage bands, lowest first; the number is coverage of the required skills, never a hire prediction. */
-export const READINESS_BANDS = [
-  { band: 'building', from: 0 },
-  { band: 'getting-there', from: 40 },
-  { band: 'loop-ready', from: 75 },
-] as const;
-export type ReadinessBand = (typeof READINESS_BANDS)[number]['band'];
+export const STATE_WEIGHTS: Record<SkillState, number> = { new: 0, learning: 0.25, practiced: 0.6, ready: 1 };
 
 export interface RequiredSkill {
   kind: SkillKind;
@@ -59,9 +54,6 @@ export interface LoopReadiness {
   /** Only the rounds the Target counts, in round order. */
   rounds: RoundReadiness[];
 }
-
-export const readinessBand = (score: number): ReadinessBand =>
-  READINESS_BANDS.reduce<ReadinessBand>((band, b) => (score >= b.from ? b.band : band), 'building');
 
 /** 100 × Σ weight × state weight / Σ weight, rounded; a double weight counts twice in both sums. */
 export function roundScore(skills: readonly { state: SkillState; weight: number }[]): number {

@@ -24,7 +24,6 @@ import {
   TRACK_NAMES,
   currentTarget,
   type ProgressState,
-  type ReadinessBand,
 } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import { codeSlashOutline, gitNetworkOutline, layersOutline, peopleOutline } from 'ionicons/icons';
@@ -49,7 +48,6 @@ import { MockLoopService } from './mock-loop.service';
 import type { RoundScores } from './mock-readiness';
 import type { MockStartSheetComponent } from './mock-start-sheet.component';
 
-const BAND_NAMES: Record<ReadinessBand, string> = { building: 'Building', 'getting-there': 'Getting there', 'loop-ready': 'Loop-ready' };
 const ROUND_ICONS: Record<InterviewTrack, string> = {
   coding: 'code-slash-outline',
   'system-design': 'git-network-outline',
@@ -399,11 +397,7 @@ export class InterviewHomePage {
         icon: ROUND_ICONS[track],
         hub: ROUND_HUBS[track],
         minutes: LOOP_ROUND_MINUTES[track],
-        readiness: score
-          ? `Readiness ${score.score} · ${BAND_NAMES[score.band]}`
-          : this.readinessFailed()
-            ? 'Readiness unavailable'
-            : 'Readiness …',
+        readiness: score ? `Readiness ${score.score} · ${score.band}` : this.readinessFailed() ? 'Readiness unavailable' : 'Readiness …',
         last: last ? `Last round: ${verdictName(last.verdict)}, ${formatDate(last.at, 'MMM d', this.locale)}` : 'No rounds yet',
       };
     });

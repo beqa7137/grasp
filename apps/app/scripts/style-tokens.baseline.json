@@ -320,12 +320,12 @@
   },
   "app/pages/plan/plan-form.component.ts": {
     "border-radius": 2,
-    "font-size": 3,
-    "spacing": 9
+    "font-size": 2,
+    "spacing": 7
   },
   "app/pages/plan/plan.page.ts": {
-    "font-size": 12,
-    "spacing": 27
+    "font-size": 5,
+    "spacing": 15
   },
   "app/pages/visualize/player-intro.component.ts": {
     "spacing": 4

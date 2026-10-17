@@ -54,11 +54,32 @@
   }
 }
 
+.frame {
+  container: today / inline-size;
+}
+
 .page {
   max-width: var(--g-width-reading);
   display: grid;
+  gap: var(--g-space-4);
+  align-content: start;
+}
+
+.main {
+  display: grid;
   gap: var(--g-space-3);
   align-content: start;
+  min-width: 0;
+}
+
+// From a wide container (a desktop with the rail) readiness, Continue and Weak spots take a column of their own, so
+// Continue is in the first screen at 1280×720 (REDESIGN.md 2.14, journey 4).
+@include container-wide(today) {
+  .page {
+    max-width: var(--g-width-content);
+    grid-template-columns: minmax(0, var(--g-width-reading)) minmax(17rem, 22rem);
+    column-gap: var(--g-space-6);
+  }
 }
 
 .sync-notice,

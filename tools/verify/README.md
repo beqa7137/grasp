@@ -107,7 +107,7 @@ providers, so every sign-in test times out.
 ## audit.mjs
 
 Screenshots, axe violations, page errors and sideways overflow for every page state listed in `states/`, one file per
-area: `learn.mjs` (Today, the Coding hub's segments, with the skill map after a placement, the problem library on one track, with its
+area: `today.mjs` (R14's Today with readiness, Continue and Weak spots, Progress fresh, seeded and at Unfinished, the weak-spot drill, the plan's day strip and By round, and Settings' "Your loop" open), `learn.mjs` (Today, the Coding hub's segments, with the skill map after a placement, the problem library on one track, with its
 filters open, Mixed and empty, and the visualizers of one structure, visualizers at a checkpoint and answered, the player's ⋯ panel, a held scrub guard and its tick
 states, review and practice cards, the review and practice summaries and the caught-up review, Settings at its top and scrolled, the desktop rail expanded on the player and its focused Skip link, the
 code workspace and an accepted submission, the study plan empty and set, the placement check's question and results,

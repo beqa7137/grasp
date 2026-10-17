@@ -1,4 +1,3 @@
-import { formatDate } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -11,18 +10,7 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
-import {
-  CASE_CATALOG,
-  buildStudyPlan,
-  currentTarget,
-  minutesFor,
-  roundsInLoop,
-  upNext,
-  type DeviceWork,
-  type PlanDay,
-  type StudyPlanInput,
-  type UpNextCard,
-} from '@grasp/engine';
+import { buildStudyPlan, currentTarget, roundsInLoop, upNext, type PlanDay, type StudyPlanInput, type UpNextCard } from '@grasp/engine';
 import { RouterLink } from '@angular/router';
 import { AnnouncerService } from '../../core/announcer.service';
 import { refocusAfterRender } from '../../core/focus';
@@ -30,13 +18,13 @@ import { ProgressService } from '../../core/progress.service';
 import { CrossLinkDirective } from '../../ui/cross-link.directive';
 import { DisclosureComponent } from '../../ui/disclosure.component';
 import { StoryBankService } from '../behavioral/story-bank.service';
-import { CaseDraftsService } from '../design/case/case-drafts.service';
 import { formatMinutes } from '../plan/duration';
 import { PlanTodayComponent, daySummary } from '../plan/plan-today.component';
 import { coverageLine, type CoverageLine } from './coverage-line';
-import { TodayService } from './today.service';
+import { DeviceWorkService } from './device-work.service';
+import { TodayService, dayLabel, SHORT_DAY } from './today.service';
 import { UpNextCardComponent } from './up-next-card.component';
-import { actionLink, caseWorkId } from './up-next-links';
+import { actionLink } from './up-next-links';
 
 interface View {
   /** Today's checklist, when a plan gives today any slices. */
@@ -93,7 +81,7 @@ interface View {
               }
               @if (c.date) {
                 <button type="button" class="g-btn ghost" (click)="changePlan({ interviewDate: c.date })">
-                  Move the date to {{ dayLabel(c.date) }}
+                  Move the date to {{ shortDay(c.date) }}
                 </button>
               }
             </div>
@@ -181,7 +169,7 @@ interface View {
 export class UpNextComponent {
   private readonly progress = inject(ProgressService);
   private readonly bank = inject(StoryBankService);
-  private readonly drafts = inject(CaseDraftsService);
+  private readonly work = inject(DeviceWorkService);
   private readonly today = inject(TodayService);
   private readonly announcer = inject(AnnouncerService);
   private readonly injector = inject(Injector);
@@ -189,24 +177,37 @@ export class UpNextComponent {
   private readonly heading = viewChild<ElementRef<HTMLElement>>('heading');
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly loaded = signal(false);
+  /** The visit whose device drafts were last read. */
+  private readFor = -1;
   readonly view = signal<View | null>(null);
   readonly minutes = formatMinutes;
   readonly link = (card: UpNextCard) => actionLink(card.action);
 
   constructor() {
-    void Promise.all([this.bank.load().catch(() => undefined), this.drafts.load().catch(() => undefined)]).then(() =>
-      this.loaded.set(true),
-    );
+    void Promise.all([this.bank.load().catch(() => undefined), this.work.load().catch(() => undefined)]).then(() => {
+      this.readFor = untracked(this.today.visit);
+      this.loaded.set(true);
+    });
     effect(() => {
-      this.today.visit();
+      const visit = this.today.visit();
       const day = this.today.day();
       if (!this.loaded() || !this.today.shown()) return;
-      untracked(() => this.view.set(this.build(day)));
+      untracked(() => {
+        if (visit === this.readFor) return this.view.set(this.build(day));
+        // A draft written elsewhere since (a solve's code, a STAR answer) is read again before the card is chosen.
+        this.readFor = visit;
+        void this.work
+          .load()
+          .catch(() => undefined)
+          .then(() => {
+            if (this.readFor === visit) this.view.set(this.build(this.today.day()));
+          });
+      });
     });
   }
 
-  dayLabel(date: string): string {
-    return formatDate(date, 'MMM d', this.locale, 'UTC');
+  shortDay(date: string): string {
+    return dayLabel(date, SHORT_DAY, this.locale);
   }
 
   hide(card: UpNextCard): void {
@@ -230,7 +231,7 @@ export class UpNextComponent {
     this.today.visit.update((n) => n + 1);
     const message = change.minutesPerDay
       ? `Plan changed to ${formatMinutes(change.minutesPerDay)} a day.`
-      : `Interview date moved to ${this.dayLabel(change.interviewDate!)}.`;
+      : `Interview date moved to ${this.shortDay(change.interviewDate!)}.`;
     this.announcer.announce(message);
     refocusAfterRender(this.injector, () => this.heading()?.nativeElement, document.body);
   }
@@ -247,7 +248,7 @@ export class UpNextComponent {
       now,
       plan,
       online: navigator.onLine,
-      deviceWork: this.deviceWork(state.plan?.level),
+      deviceWork: this.work.upNextWork(state, state.plan?.level),
       hidden: this.today.hiddenOn(day),
     };
     const card = upNext(input);
@@ -265,26 +266,7 @@ export class UpNextComponent {
       card,
       expanded: card?.action.kind === 'plan-unit' ? card.action.unit.id : null,
       others,
-      coverage: plan && state.plan ? coverageLine(plan, state.plan, day, (d) => this.dayLabel(d)) : null,
+      coverage: plan && state.plan ? coverageLine(plan, state.plan, day, (d) => this.shortDay(d)) : null,
     };
-  }
-
-  /** Case studies started on this device and not finished: Up next's rule 4 (REDESIGN.md 2.3). */
-  private deviceWork(pace: StudyPlanInput['level'] = 'new'): DeviceWork[] {
-    const finished = this.progress.state().cases;
-    return CASE_CATALOG.flatMap((c) => {
-      const draft = this.drafts.draft(c.id);
-      if (!draft || draft.reached < 1 || finished[c.id]) return [];
-      const stage = Math.min(draft.reached + 1, c.stages);
-      return [
-        {
-          id: caseWorkId(c.id),
-          round: 'design' as const,
-          title: `Continue ${c.title}`,
-          detail: `you stopped at stage ${stage} of ${c.stages}`,
-          minutes: minutesFor({ kind: 'case', stages: c.stages - stage + 1 }, pace),
-        },
-      ];
-    });
   }
 }

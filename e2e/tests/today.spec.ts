@@ -201,7 +201,7 @@ test('a plan from before Targets shows an assumed loop, and one tap on the level
   const plan = page.locator('app-plan');
   await plan.getByLabel('Interview date').fill(await localDay(page, 20));
   await plan.getByRole('button', { name: 'Save plan' }).click();
-  await expect(plan.getByRole('heading', { name: 'Interview in 20 days', level: 1 })).toBeVisible();
+  await expect(plan.getByRole('heading', { name: /^20 days to /, level: 1 })).toBeVisible();
   await section(page, 'Today').click();
   await expect(loopHeading(page)).toHaveText(/^Mid-level loop \(assumed\) · .* · 20 days left · 30 min a day$/);
   const row = today(page).getByRole('group', { name: 'Your level?' });

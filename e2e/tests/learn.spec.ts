@@ -1,3 +1,4 @@
+import type { Page } from '@playwright/test';
 import { expect, section, shownPage, synced, test } from './fixtures';
 
 test.describe('first visit', () => {
@@ -125,11 +126,34 @@ test('an answer waiting for its upload never shows progress as waiting to sync',
   expect(await page.evaluate(() => [...(window as unknown as { syncStatuses: Set<string> }).syncStatuses])).not.toContain('pending');
 });
 
+/**
+ * Waits until the routes have been preloaded. `networkidle` alone (500 ms without a request) can arrive between two of the
+ * one-at-a-time preloads while a busy phone evaluates the last chunk, so going offline then left later chunks unfetched,
+ * on main too (6 and 7 of 24 WebKit runs at 8 workers): the resource count must hold for two seconds.
+ */
+async function preloadsSettled(page: Page) {
+  // Counted by an observer, since the resource timing buffer stops at 250 entries.
+  const count = () => page.evaluate(() => (window as unknown as { resourceCount: number }).resourceCount);
+  let last = -1;
+  for (let held = 0; held < 4;) {
+    const now = await count();
+    held = now === last ? held + 1 : 0;
+    last = now;
+    await page.waitForTimeout(500);
+  }
+}
+
 test.describe('warmed offline lessons', () => {
   test.use({ expectedConsoleErrors: [/ERR_INTERNET_DISCONNECTED|WebKit encountered an internal error/] });
 
   test('opens an unvisited pattern and steps through an unvisited visualizer after disconnecting', async ({ page, context }) => {
+    await page.addInitScript(() => {
+      const win = window as unknown as { resourceCount: number };
+      win.resourceCount = 0;
+      new PerformanceObserver((list) => (win.resourceCount += list.getEntries().length)).observe({ type: 'resource', buffered: true });
+    });
     await page.goto('/today', { waitUntil: 'networkidle' });
+    await preloadsSettled(page);
     await context.setOffline(true);
 
     await section(page, 'Coding').click();

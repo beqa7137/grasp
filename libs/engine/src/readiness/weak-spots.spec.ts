@@ -50,6 +50,13 @@ describe('weak spots', () => {
     ]);
   });
 
+  it('lists more when asked, in the same order', () => {
+    const events = ['heap', 'trie', 'greedy', 'intervals', 'bfs'].map((p, i) => flag([p], t0 + i * DAY));
+    const now = new Date(t0 + 6 * DAY);
+    expect(weakSpots(replay(events), now).map((s) => s.topic)).toEqual(['bfs', 'intervals', 'greedy']);
+    expect(weakSpots(replay(events), now, 5).map((s) => s.topic)).toEqual(['bfs', 'intervals', 'greedy', 'trie', 'heap']);
+  });
+
   it('drops a flag once a fresh solve resolves it', () => {
     const solve = ev({ type: 'code.submitted', problemId: 'kth-largest-element', language: 'python', passed: 2, total: 2 }, t0 + DAY);
     expect(weakSpots(replay([flag(['heap'], t0), solve]), new Date(t0 + DAY))).toEqual([]);

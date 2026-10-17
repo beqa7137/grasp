@@ -20,7 +20,7 @@ import { uniqueId } from '../../core/unique-id';
 import { ChipComponent } from '../../ui/chip.component';
 import { formatMinutes } from '../plan/duration';
 import { levelCounts, loopEvents } from './loop-events';
-import { LOOP_CARD_REST_DAYS, TodayService } from './today.service';
+import { LOOP_CARD_REST_DAYS, TodayService, type LoopCardPlace } from './today.service';
 
 const STARTING_POINTS: { value: PlanLevel; label: string }[] = [
   { value: 'new', label: 'New' },
@@ -278,6 +278,7 @@ export class LoopCardComponent {
   private readonly progress = inject(ProgressService);
   private readonly today = inject(TodayService);
   readonly mode = input<'first-run' | 'edit'>('first-run');
+  readonly place = input<LoopCardPlace>('today');
   readonly id = uniqueId('loop');
   readonly levels = SENIORITY_LEVELS.map(({ level, label }) => ({ level, name: label }));
   readonly presets = PRESETS;
@@ -373,6 +374,7 @@ export class LoopCardComponent {
         : date
           ? `Plan built: ${days} ${days === 1 ? 'day' : 'days'} to your interview.`
           : 'Loop saved.',
+      this.place(),
     );
   }
 
@@ -382,6 +384,6 @@ export class LoopCardComponent {
   }
 
   cancel(): void {
-    this.today.close('');
+    this.today.close('', this.place());
   }
 }

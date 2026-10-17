@@ -8,21 +8,25 @@ import {
   addCalendarDays,
   calendarDaysBetween,
   isCalendarDate,
+  roundsInLoop,
   type PlanLevel,
-  type PlanRound,
   type StudyPlanInput,
+  type TargetInput,
 } from '@grasp/engine';
 import { RovingSelectDirective } from '../../core/roving-select.directive';
 import { formatMinutes } from './duration';
 
 const LEVELS: Record<PlanLevel, { label: string; hint: string }> = {
-  new: { label: 'New to this', hint: 'Every unit at a learning pace, from the first pattern on.' },
+  new: { label: 'New', hint: 'Every unit at a learning pace, from the first pattern on.' },
   rusty: { label: 'Rusty', hint: 'You have prepared before: units are a little shorter.' },
   confident: {
     label: 'Confident',
     hint: 'Units are shorter, and patterns your placement check marked strong count as covered.',
   },
 };
+
+/** The starting point's name, as the plan page and Settings say it: "Starting point: Rusty". */
+export const STARTING_POINT_NAMES = Object.fromEntries(PLAN_LEVELS.map((l) => [l, LEVELS[l].label])) as Record<PlanLevel, string>;
 
 @Component({
   selector: 'app-plan-form',
@@ -60,20 +64,8 @@ const LEVELS: Record<PlanLevel, { label: string; hint: string }> = {
         </div>
       </div>
 
-      <fieldset class="field">
-        <legend><strong>Rounds in your interview</strong></legend>
-        <div class="checks">
-          @for (r of roundOptions; track r.value) {
-            <label class="check">
-              <input type="checkbox" [checked]="rounds().includes(r.value)" (change)="toggle(r.value)" />
-              {{ r.label }}
-            </label>
-          }
-        </div>
-      </fieldset>
-
       <div class="field" role="radiogroup" aria-labelledby="plan-level-label" aria-describedby="plan-level-hint">
-        <strong id="plan-level-label">Where you are starting</strong>
+        <strong id="plan-level-label">Starting point</strong>
         <div class="g-chip-radios levels">
           @for (l of levelOptions; track l.value) {
             <button type="button" role="radio" [attr.aria-checked]="level() === l.value" (click)="level.set(l.value)">
@@ -83,6 +75,8 @@ const LEVELS: Record<PlanLevel, { label: string; hint: string }> = {
         </div>
         <span id="plan-level-hint" class="muted small">{{ levelHint() }}</span>
       </div>
+
+      <p class="muted small rounds">Rounds come from your loop ({{ roundsLine() }}). Change them in Your loop on Today or in Settings.</p>
 
       <!-- Keyed by attempt, so the alert is created afresh and read again even when the message repeats. -->
       @for (e of errors(); track e.attempt) {
@@ -129,24 +123,9 @@ const LEVELS: Record<PlanLevel, { label: string; hint: string }> = {
     .levels button {
       font-family: inherit;
     }
-    .checks {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px 20px;
-    }
-    .check {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      min-height: 36px;
-      font-size: 0.9375rem;
-      cursor: pointer;
-    }
-    .check input {
-      width: 18px;
-      height: 18px;
+    .rounds {
       margin: 0;
-      accent-color: var(--g-accent);
+      line-height: 1.45;
     }
     .error {
       margin: 0;
@@ -166,19 +145,25 @@ const LEVELS: Record<PlanLevel, { label: string; hint: string }> = {
 export class PlanFormComponent {
   readonly today = input.required<string>();
   readonly initial = input<StudyPlanInput | null>(null);
+  /** The Target, whose rounds the plan takes: the level and the rounds are asked once, in "Your loop" (REDESIGN.md 2.1). */
+  readonly loop = input.required<TargetInput>();
   readonly saved = output<StudyPlanInput>();
   readonly cancelled = output<void>();
 
   readonly minuteOptions = PLAN_MINUTES.map((m) => ({ value: m as number, label: formatMinutes(m) }));
-  readonly roundOptions = PLAN_ROUNDS.map((r) => ({ value: r, label: ROUND_NAMES[r] }));
   readonly levelOptions = PLAN_LEVELS.map((l) => ({ value: l, label: LEVELS[l].label }));
 
   readonly date = linkedSignal(() => this.initial()?.interviewDate ?? '');
   readonly minutes = linkedSignal<number>(() => this.initial()?.minutesPerDay ?? 30);
-  readonly rounds = linkedSignal<PlanRound[]>(() => this.initial()?.rounds ?? [...PLAN_ROUNDS]);
+  readonly roundsLine = computed(() => {
+    const { rounds } = this.loop();
+    return PLAN_ROUNDS.filter((r) => rounds[r] > 0)
+      .map((r) => `${ROUND_NAMES[r]}${rounds[r] > 1 ? ` ×${rounds[r]}` : ''}`)
+      .join(', ');
+  });
   readonly level = linkedSignal<PlanLevel>(() => this.initial()?.level ?? 'new');
   private readonly dateInput = viewChild.required<ElementRef<HTMLInputElement>>('dateInput');
-  readonly error = signal<{ text: string; field: 'date' | 'rounds'; attempt: number } | null>(null);
+  readonly error = signal<{ text: string; field: 'date'; attempt: number } | null>(null);
   readonly errors = computed(() => {
     const e = this.error();
     return e ? [e] : [];
@@ -186,10 +171,6 @@ export class PlanFormComponent {
   private attempts = 0;
   readonly latest = computed(() => addCalendarDays(this.today(), PLAN_MAX_DAYS));
   readonly levelHint = computed(() => LEVELS[this.level()].hint);
-
-  toggle(round: PlanRound) {
-    this.rounds.update((list) => (list.includes(round) ? list.filter((r) => r !== round) : [...list, round]));
-  }
 
   submit(event: Event) {
     event.preventDefault();
@@ -200,15 +181,11 @@ export class PlanFormComponent {
       this.dateInput().nativeElement.focus();
       return;
     }
-    if (!this.rounds().length) {
-      this.error.set({ text: 'Choose at least one round.', field: 'rounds', attempt: ++this.attempts });
-      return;
-    }
     this.error.set(null);
     this.saved.emit({
       interviewDate: date,
       minutesPerDay: this.minutes(),
-      rounds: PLAN_ROUNDS.filter((r) => this.rounds().includes(r)),
+      rounds: roundsInLoop(this.loop().rounds),
       level: this.level(),
     });
   }

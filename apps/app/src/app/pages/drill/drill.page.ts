@@ -19,6 +19,7 @@ import {
   getPatternSummary,
   getSdTopic,
   newSeed,
+  practiceMix,
   practiceSet,
   previewDue,
   type Question,
@@ -31,7 +32,9 @@ import { onPageKey } from '../../core/on-page-key';
 import { ProgressService } from '../../core/progress.service';
 import { ShortcutsService } from '../../core/shortcuts.service';
 import { QuestionCardComponent, type CardReason } from '../../review/question-card.component';
+import { RouterLink } from '@angular/router';
 import { BackComponent } from '../../ui/back.component';
+import { EmptyStateComponent } from '../../ui/empty-state.component';
 import { lessonLink } from '../../core/links';
 import { DrillSummaryComponent, type DrillScore } from './drill-summary.component';
 
@@ -57,12 +60,29 @@ const MAX_REQUEUES_PER_ITEM = 2;
 @Component({
   selector: 'app-drill',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [BackComponent, IonHeader, IonToolbar, IonButtons, IonTitle, IonContent, IonIcon, QuestionCardComponent, DrillSummaryComponent],
+  imports: [
+    BackComponent,
+    RouterLink,
+    EmptyStateComponent,
+    IonHeader,
+    IonToolbar,
+    IonButtons,
+    IonTitle,
+    IonContent,
+    IonIcon,
+    QuestionCardComponent,
+    DrillSummaryComponent,
+  ],
   templateUrl: './drill.page.html',
   styleUrl: './drill.page.scss',
 })
 export class DrillPage {
   readonly pattern = input<string>();
+  /** Set by the `/today/drill` route only, so a `topics` query on any other page drills nothing. */
+  readonly weakSpots = input(false);
+  /** The topics Weak spots' "Drill these" drills together, `/today/drill?topics=a,b`. */
+  readonly topics = input<string>();
+  readonly mix = computed(() => [...new Set((this.topics() ?? '').split(','))].filter((id) => getPatternSummary(id) || getSdTopic(id)));
   readonly progress = inject(ProgressService);
   readonly shortcuts = inject(ShortcutsService);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
@@ -81,13 +101,16 @@ export class DrillPage {
   private shownAt = Date.now();
   private sessionStart = Date.now();
 
-  readonly practice = computed(() => Boolean(this.pattern()));
+  readonly weakDrill = computed(() => this.weakSpots() && !this.pattern());
+  readonly practice = computed(() => Boolean(this.pattern()) || this.weakDrill());
   readonly current = computed(() => this.queue()[this.position()] ?? null);
   readonly finished = computed(() => this.started() && this.position() >= this.queue().length);
   readonly focusName = computed(() => {
     const id = this.pattern();
-    return id ? (getPatternSummary(id)?.name ?? getSdTopic(id)?.name ?? id) : null;
+    if (!id) return this.weakDrill() ? 'Weak spots' : null;
+    return getPatternSummary(id)?.name ?? getSdTopic(id)?.name ?? id;
   });
+  readonly mixNames = computed(() => this.mix().map((id) => getPatternSummary(id)?.name ?? getSdTopic(id)?.name ?? id));
   readonly backHref = computed(() => {
     const id = this.pattern();
     return id ? lessonLink(id) : '/today';
@@ -123,6 +146,7 @@ export class DrillPage {
     addIcons({ arrowForward, flame, timeOutline });
     effect(() => {
       this.pattern();
+      this.mix();
       untracked(() => this.start());
     });
     onPageKey((e) => this.onKey(e), { kind: 'shortcuts' });
@@ -142,9 +166,10 @@ export class DrillPage {
   }
 
   start() {
-    const slots: Slot[] = this.practice()
-      ? practiceSet(this.pattern()!, Math.random).map((itemId) => this.slot(itemId, 'practice'))
-      : this.progress.session().items.map((i) => this.slot(i.itemId, i.reason));
+    const pattern = this.pattern();
+    const slots: Slot[] = !this.practice()
+      ? this.progress.session().items.map((i) => this.slot(i.itemId, i.reason))
+      : (pattern ? practiceSet(pattern, Math.random) : practiceMix(this.mix(), Math.random)).map((itemId) => this.slot(itemId, 'practice'));
     const session = this.progress.session();
     this.plan.set(
       this.practice() ? null : { due: this.progress.reviewDue(), fresh: session.newIncluded, minutes: session.estimatedMinutes },

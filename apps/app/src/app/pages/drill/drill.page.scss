@@ -111,3 +111,18 @@
 .head + app-drill-summary {
   margin-top: var(--g-space-4);
 }
+
+// Weak spots' drill says it in a plain line, not the practice banner's tone (REDESIGN.md 4.9).
+.info {
+  margin: var(--g-space-3) 0 0;
+  font-size: var(--g-text-body);
+  color: var(--g-muted);
+}
+
+.nothing {
+  display: grid;
+  gap: var(--g-space-3);
+  justify-items: start;
+  margin-top: var(--g-space-4);
+  padding: var(--g-space-4);
+}

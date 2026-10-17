@@ -1,8 +1,33 @@
 import type { UpNextAction } from '@grasp/engine';
 import { unitLink } from '../plan/plan-links';
 
-/** Device work ids name what they continue: a case study's draft on this device is `case-draft:<id>`. */
+/** Device work ids name what they continue: `case-draft:<case>`, `code-draft:<problem>`, `star-draft:<question>`. */
 export const caseWorkId = (caseId: string) => `case-draft:${caseId}`;
+export const codeWorkId = (problemId: string) => `code-draft:${problemId}`;
+export const starWorkId = (questionId: string) => `star-draft:${questionId}`;
+export const MOCK_LOOP_WORK_ID = 'mock-loop';
+
+/** The page that continues a piece of device work. */
+export function workLink(workId: string): string[] {
+  const colon = workId.indexOf(':');
+  const id = workId.slice(colon + 1);
+  switch (workId.slice(0, colon)) {
+    case 'code-draft':
+      return ['/coding/problems', id];
+    case 'star-draft':
+      return ['/behavioral/question', id];
+    case 'case-draft':
+      return ['/design/cases', id];
+    default:
+      return ['/mock/loop'];
+  }
+}
+
+/** A case study continued from here opens at the stage it stopped at, not at its top. */
+export const workQuery = (workId: string): Record<string, string> | null => (workId.startsWith('case-draft:') ? { resume: '1' } : null);
+
+/** The query an Up next card's link carries. */
+export const actionQuery = (action: UpNextAction) => (action.kind === 'device-work' ? workQuery(action.workId) : null);
 
 /** The page that does an Up next card's action, or null for "Rest", which has nothing to open. */
 export function actionLink(action: UpNextAction): string[] | null {
@@ -37,6 +62,6 @@ export function actionLink(action: UpNextAction): string[] | null {
     case 'plan-unit':
       return unitLink(action.unit);
     case 'device-work':
-      return ['/design/cases', action.workId.slice(caseWorkId('').length)];
+      return workLink(action.workId);
   }
 }
