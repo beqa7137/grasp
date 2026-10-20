@@ -45,7 +45,7 @@
     "@grasp/engine": "*",
     "@ionic/angular": "^9.0.5",
     "@lezer/highlight": "^1.2.3",
-    "@sentry/angular": "10.69.0",
+    "@sentry/angular": "10.75.0",
     "@sentry/capacitor": "4.4.0",
     "acorn": "^8.18.0",
     "astring": "^1.9.0",
