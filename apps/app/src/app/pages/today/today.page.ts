@@ -19,14 +19,15 @@ import { IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar, Popov
 import { getScenarioSummary, type Seniority } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import {
+  albumsOutline,
   alertCircleOutline,
   chevronForward,
   cloudDoneOutline,
   compassOutline,
   ellipsisHorizontal,
-  flashOutline,
   gitNetworkOutline,
   saveOutline,
+  searchOutline,
   settingsOutline,
   syncOutline,
   timeOutline,
@@ -162,14 +163,15 @@ export class TodayPage {
 
   constructor() {
     addIcons({
+      albumsOutline,
       alertCircleOutline,
       chevronForward,
       cloudDoneOutline,
       compassOutline,
       ellipsisHorizontal,
-      flashOutline,
       gitNetworkOutline,
       saveOutline,
+      searchOutline,
       settingsOutline,
       syncOutline,
       timeOutline,

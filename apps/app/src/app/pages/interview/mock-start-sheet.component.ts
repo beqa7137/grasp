@@ -14,7 +14,7 @@ import {
 } from '@angular/core';
 import { Router } from '@angular/router';
 import { IonSpinner } from '@ionic/angular';
-import { COMPETENCY_CATALOG, MOCK_PROBLEMS, QUESTIONS_PER_COMPETENCY, TRACK_NAMES, type Seniority } from '@grasp/engine';
+import { COMPETENCY_CATALOG, MOCK_PROBLEMS, QUESTIONS_PER_COMPETENCY, TRACK_NAMES, getMockProblem, type Seniority } from '@grasp/engine';
 import { ApiError, ApiService } from '../../core/api.service';
 import { SignInOptionsComponent } from '../../core/sign-in-options.component';
 import { uniqueId } from '../../core/unique-id';
@@ -29,6 +29,9 @@ const MODES: readonly SegmentOption<InterviewMode>[] = [
   { value: 'offline', label: 'Scripted' },
   { value: 'ai', label: 'AI interviewer' },
 ];
+
+/** A scripted round a link names (`/mock?round=rate-limiter`), read here with the list the sheet already holds. */
+export const mockRound = (id: string) => getMockProblem(id);
 
 interface Choice {
   id: string;
@@ -172,6 +175,8 @@ export class MockStartSheetComponent {
   /** Null until the hub has reached the server. */
   readonly catalog = input<InterviewCatalog | null>(null);
   readonly offline = input(false);
+  /** The question to start on, as a search result's link names it (`/mock?round=rate-limiter`); none is Surprise me. */
+  readonly pick = input<string | null>(null);
   /** Sign-in finished here, or a refusal changed what AI allows: the hub reads access and the allowance again. */
   readonly signedIn = output<void>();
   readonly changed = output<void>();
@@ -184,8 +189,8 @@ export class MockStartSheetComponent {
   readonly choiceNoteId = uniqueId('mock-choice-note');
   readonly questions = QUESTIONS_PER_COMPETENCY;
   readonly mode = signal<InterviewMode>('offline');
-  /** '' is Surprise me. A new round starts from it. */
-  readonly choice = linkedSignal<InterviewTrack, string>({ source: this.track, computation: () => '' });
+  /** '' is Surprise me. A new round starts from it, or from the question it was opened for. */
+  readonly choice = linkedSignal({ source: () => ({ track: this.track(), pick: this.pick() }), computation: ({ pick }) => pick ?? '' });
   readonly starting = signal(false);
   readonly error = signal<string | null>(null);
 

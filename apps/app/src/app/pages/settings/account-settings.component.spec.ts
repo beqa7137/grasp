@@ -104,7 +104,7 @@ describe('AccountSettingsComponent', () => {
   it('offers every provider this device can sign in with', () => {
     const { el, buttons } = setup();
     expect(el.textContent).toContain(
-      'Study and scripted practice work without an account. Sign in to sync progress and use AI interviews.',
+      'Study and scripted mock rounds work without an account. Sign in to sync progress and use the AI interviewer.',
     );
     expect(buttons()).toEqual(['Continue with Google', 'Continue with GitHub']);
   });
@@ -235,7 +235,7 @@ describe('AccountSettingsComponent', () => {
     TestBed.resetTestingModule();
     const none = setup({ providers: [] }).el;
     expect(none.textContent).not.toContain(cta);
-    expect(none.querySelector('.intro p')?.textContent).toContain('Study and scripted practice work without an account.');
+    expect(none.querySelector('.intro p')?.textContent).toContain('Study and scripted mock rounds work without an account.');
   });
 
   it('names the signed-in account in its action', () => {

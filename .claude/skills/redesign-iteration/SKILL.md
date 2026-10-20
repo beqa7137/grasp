@@ -43,6 +43,14 @@ round's confirmed and refuted findings. It needs the user's opt-in to multi-agen
 one). Without it, run the same stages with the Agent tool: a builder, then two or three independent reviewers, then the
 builder again with the confirmed findings.
 
+## Local checks
+
+The default for every iteration (owner decision during R15): run `npm run verify`, the build, and the e2e specs the
+change touches on desktop and phone, plus `type.spec`, `a11y` and `navigation` when names, layout or routes change, and
+the most-affected of those specs on iphone. The full three-device suite runs only in CI, on the exact head. Run
+`timing.mjs` once (7 runs, one order), and only for changes that touch loading, first paint or a hub tap. The audit and
+pixdiff stay as before.
+
 ## Resume after a restart
 
 Commit the worktree's uncommitted work as WIP (grasp-env), then run the workflow again with `resumeFromRunId` and the

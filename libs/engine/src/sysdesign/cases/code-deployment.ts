@@ -226,7 +226,7 @@ export const CODE_DEPLOYMENT: CaseStudy = {
         'Control plane: the deploy API, the deploy store (services, releases, deployments, the audit log) and rollout workers that move each deployment through its waves.',
         'Health analysis: compares metrics of the canary with a baseline and tells the rollout workers to continue, pause or roll back.',
         'Host agents: one on every server; each reads its desired state, fetches and verifies the artifact, swaps it in, checks readiness and reports what it runs.',
-        `Open the build in the Design Lab for the control plane: ${num(SERVERS)} agents poll their desired state every ${POLL_S} s, ${num(polls)} reads a second, mostly from a cache since it changes only when a deploy does, and report their state every ${REPORT_S} s, ${num(reports)} writes a second through a queue: about ${num(labRps)} requests a second, ${labReadShare}% reads. The object store stands for the artifact store, whose bytes reach hosts through caches and peers, not through the control plane.`,
+        `Open the build in the Lab for the control plane: ${num(SERVERS)} agents poll their desired state every ${POLL_S} s, ${num(polls)} reads a second, mostly from a cache since it changes only when a deploy does, and report their state every ${REPORT_S} s, ${num(reports)} writes a second through a queue: about ${num(labRps)} requests a second, ${labReadShare}% reads. The object store stands for the artifact store, whose bytes reach hosts through caches and peers, not through the control plane.`,
       ],
     },
     {

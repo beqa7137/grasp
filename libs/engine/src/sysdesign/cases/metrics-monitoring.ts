@@ -166,7 +166,7 @@ export const METRICS_MONITORING: CaseStudy = {
         'Ingesters keep the head block and write-ahead log for their series, cut blocks every two hours and upload them to object storage; a compactor merges blocks, removes the duplicate replicas and builds downsampled copies.',
         'Queriers fan out to the ingesters for recent data and to store gateways for older blocks. A query frontend splits long ranges into day-sized pieces, runs them in parallel and caches the results, since the past does not change.',
         'A ruler evaluates recording and alert rules on a schedule through the same query path and sends firing alerts to an Alertmanager cluster, which groups, deduplicates and routes them.',
-        'Open the build in the Design Lab: one of three regions at peak, 7,000 write batches a second (about 2.2 million samples in batches of about 320) plus 3,000 queries a second from dashboards and rules. The queue is the durable ingest log, the workers are the ingesters, the cache holds query results, and the database is the sharded time series store. The simulator writes every batch to the store; real ingesters compress samples in memory and write far less.',
+        'Open the build in the Lab: one of three regions at peak, 7,000 write batches a second (about 2.2 million samples in batches of about 320) plus 3,000 queries a second from dashboards and rules. The queue is the durable ingest log, the workers are the ingesters, the cache holds query results, and the database is the sharded time series store. The simulator writes every batch to the store; real ingesters compress samples in memory and write far less.',
       ],
     },
     {

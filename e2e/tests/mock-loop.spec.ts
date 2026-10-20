@@ -77,7 +77,7 @@ test('a signed-out learner runs a scripted loop of three rounds to one debrief, 
   ]);
   await expect(loop.getByText(/Questions lean toward/)).toHaveCount(0);
   await expect(loop.getByRole('radio', { name: 'Mid-level' })).toHaveAttribute('aria-checked', 'true');
-  await expect(loop.getByRole('button', { name: 'Scripted practice' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(loop.getByRole('button', { name: 'Scripted', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(
     loop.getByText('Scripted follow-ups for each round, scored by rubric checks. No AI or sign-in needed.', { exact: false }),
   ).toBeVisible();
@@ -125,8 +125,8 @@ test('a signed-out learner runs a scripted loop of three rounds to one debrief, 
 
   await page.getByRole('link', { name: 'See your loop debrief' }).click();
   await expect(loop.getByRole('heading', { name: 'Loop debrief', level: 1 })).toBeVisible();
-  await expect(loop.getByText('Coverage estimate from scripted practice, not a hiring decision')).toBeVisible();
-  await expect(loop.getByText(/Scripted practice scored every round: it checks which rubric areas you covered/)).toBeVisible();
+  await expect(loop.getByText('Coverage estimate from scripted rounds, not a hiring decision')).toBeVisible();
+  await expect(loop.getByText(/Every round was scripted: scripted rounds check which rubric areas you covered/)).toBeVisible();
   await expect(loop.getByText(/A simple practice rule, not how any one company decides/)).toBeVisible();
   await expect(loop.getByRole('heading', { name: 'Practice next', level: 2 })).toBeVisible();
   const focus = loop.locator('.focus > li');
@@ -280,7 +280,7 @@ test('an AI loop says what it costs before starting, and its debrief weighs the 
   await expect(loop.getByRole('heading', { name: 'lean no hire', level: 2 })).toBeVisible();
   await expect(loop.getByText('Practice read, not a hiring decision')).toBeVisible();
   await expect(loop.getByText('Your system design round was a no hire. Treat it as the first thing to fix.')).toBeVisible();
-  await expect(loop.getByText(/Scripted practice scored/)).toHaveCount(0);
+  await expect(loop.getByText(/rounds were scripted/)).toHaveCount(0);
   const focus = loop.locator('.focus > li');
   await expect(focus.locator('h3')).toHaveText(['Estimation', 'Follow-up handling', 'Problem understanding']);
   await expect(focus.locator('.eyebrow')).toHaveText(['System design · 1 of 4', 'Behavioral · 2 of 4', 'Coding · 3 of 4']);
@@ -312,7 +312,7 @@ for (const theme of ['dark', 'light'] as const) {
       await expect(page).toHaveURL(/\/mock\/[0-9a-f-]{36}$/);
       await page.goto('/mock/loop');
       await expect(loop.getByRole('heading', { name: 'Round 1 of 3', level: 1 })).toBeFocused();
-      await expect(loop.getByText(/^Mock loop · Scripted practice · started /)).toBeVisible();
+      await expect(loop.getByText(/^Mock loop · Scripted · started /)).toBeVisible();
       await expect(loop.getByRole('button', { name: 'Continue the coding round' })).toBeVisible();
       expect(await seriousViolations(page)).toEqual([]);
       await loop.getByRole('button', { name: 'End this loop' }).click();
@@ -350,7 +350,7 @@ test.describe('a round whose session is gone', () => {
 test.describe('a refused AI start', () => {
   test.use({ expectedConsoleErrors: [/status of 403/] });
 
-  test('offers to sign in again, or to switch the remaining rounds to scripted practice', async ({ page }) => {
+  test('offers to sign in again, or to switch the remaining rounds to the scripted interviewer', async ({ page }) => {
     let refuse = true;
     const created: { mode: string }[] = [];
     await page.route('**/api/interview/problems', async (route) => {
@@ -363,7 +363,11 @@ test.describe('a refused AI start', () => {
       if (!refuse) return route.continue();
       return route.fulfill({
         status: 403,
-        json: { statusCode: 403, message: 'Sign in to use the AI interviewer, or choose scripted practice.', code: 'ai_sign_in_required' },
+        json: {
+          statusCode: 403,
+          message: 'Sign in to use the AI interviewer, or choose the scripted interviewer.',
+          code: 'ai_sign_in_required',
+        },
       });
     });
     await page.goto('/mock/loop');
@@ -371,15 +375,15 @@ test.describe('a refused AI start', () => {
     await loop.getByRole('button', { name: 'AI interviewer' }).click();
     await loop.getByRole('button', { name: 'Start the loop' }).click();
     await expect(loop.getByRole('heading', { name: 'Round 1 of 3', level: 1 })).toBeVisible();
-    await expect(loop.getByRole('alert')).toHaveText('Sign in to use the AI interviewer, or choose scripted practice.');
+    await expect(loop.getByRole('alert')).toHaveText('Sign in to use the AI interviewer, or choose the scripted interviewer.');
     const panel = loop.getByRole('region', { name: 'Sign in again to keep your AI loop' });
     await expect(panel.getByRole('button', { name: 'Continue with GitHub' })).toBeVisible();
     expect(await seriousViolations(page)).toEqual([]);
 
     refuse = false;
-    await panel.getByRole('button', { name: 'Switch the remaining rounds to scripted practice' }).click();
+    await panel.getByRole('button', { name: 'Switch the remaining rounds to the scripted interviewer' }).click();
     await expect(loop.getByRole('heading', { name: 'Round 1 of 3', level: 1 })).toBeFocused();
-    await expect(loop.getByText(/^Mock loop · Scripted practice/)).toBeVisible();
+    await expect(loop.getByText(/^Mock loop · Scripted · started /)).toBeVisible();
     await loop.getByRole('button', { name: 'Start the coding round' }).click();
     await expect(page).toHaveURL(/\/mock\/[0-9a-f-]{36}$/);
     expect(created.map((c) => c.mode)).toEqual(['ai', 'offline']);

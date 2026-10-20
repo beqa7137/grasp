@@ -31,7 +31,7 @@ interface Asked {
       <p class="summary" role="status">You got {{ correct() }} of {{ asked().length }} right.</p>
       <div class="actions">
         <button class="g-btn" (click)="restart()">Check again</button>
-        <a class="g-btn" [routerLink]="drillLink(topic())" crossLink>Practice all {{ total() }} items</a>
+        <a class="g-btn" [routerLink]="drillLink(topic())" crossLink>Drill all {{ total() }} cards</a>
       </div>
     }
   `,

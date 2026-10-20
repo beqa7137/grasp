@@ -1,5 +1,6 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { ActivatedRoute, Router, convertToParamMap, type ParamMap } from '@angular/router';
 import { Preferences } from '@capacitor/preferences';
 import { replay, type StoredEvent } from '@grasp/engine';
 import { ApiError, ApiService } from '../../core/api.service';
@@ -10,6 +11,7 @@ import { StoryBankService } from '../behavioral/story-bank.service';
 import { InterviewHomePage } from './interview-home.page';
 import type { InterviewCatalog, InterviewSession, Scorecard } from './interview.types';
 import { MockLoopService } from './mock-loop.service';
+import { BehaviorSubject } from 'rxjs';
 
 const AT = '2026-10-10T09:00:00.000Z';
 
@@ -37,8 +39,10 @@ const session = (
     : {}),
 });
 
-function setup(events: StoredEvent[] = [], sessions: InterviewSession[] = []) {
+function setup(events: StoredEvent[] = [], sessions: InterviewSession[] = [], query: Record<string, string> = {}) {
   const learnerId = signal('learner-1');
+  const queryParamMap = new BehaviorSubject<ParamMap>(convertToParamMap(query));
+  const router = { navigate: vi.fn(async () => true) };
   const catalog: InterviewCatalog = { aiAccess: 'sign-in-required', problems: [] };
   const api = {
     get: vi.fn(async (path: string): Promise<InterviewCatalog | InterviewSession[]> => (path.endsWith('/problems') ? catalog : sessions)),
@@ -51,11 +55,13 @@ function setup(events: StoredEvent[] = [], sessions: InterviewSession[] = []) {
       { provide: ProgressService, useValue: { state: signal(replay(events)), now: signal(new Date(AT)) } },
       { provide: StoryBankService, useValue: { load: vi.fn(async () => undefined), stories: signal([]) } },
       { provide: MockLoopService, useValue: { load: vi.fn(async () => null), loop: signal(null) } },
+      { provide: ActivatedRoute, useValue: { queryParamMap } },
+      { provide: Router, useValue: router },
     ],
   }).overrideComponent(InterviewHomePage, { set: { template: '', imports: [] } });
   const page = TestBed.createComponent(InterviewHomePage).componentInstance;
   page.reload = vi.fn();
-  return { page, api, catalog, learnerId };
+  return { page, api, catalog, learnerId, router };
 }
 
 beforeEach(async () => {
@@ -156,7 +162,29 @@ describe('InterviewHomePage', () => {
     const { page } = setup();
     page.openSheet('behavioral');
     expect(page.sheetTrack()).toBe('behavioral');
+    expect(page.sheetPick()).toBeNull();
     expect(page.sheetOpen()).toBe(true);
+  });
+
+  it("opens a search result's round with its question picked, then drops the parameter so back does not reopen it", async () => {
+    const { page, router } = setup([], [], { round: 'rate-limiter' });
+    // The template is empty here, so the sheet has no host to be built in.
+    page.loadSheet = vi.fn(async () => undefined);
+    await vi.waitFor(() => expect(page.sheetOpen()).toBe(true));
+    expect(page.sheetTrack()).toBe('system-design');
+    expect(page.sheetPick()).toBe('rate-limiter');
+    expect(page.sheetOpen()).toBe(true);
+    expect(router.navigate).toHaveBeenCalledWith([], expect.objectContaining({ queryParams: { round: null }, replaceUrl: true }));
+  });
+
+  it('drops an unknown round without opening a sheet', async () => {
+    const { page, router } = setup([], [], { round: 'nope' });
+    // The template is empty here, so the sheet has no host to be built in.
+    page.loadSheet = vi.fn(async () => undefined);
+    await page.importSheet();
+    await Promise.resolve();
+    expect(page.sheetOpen()).toBe(false);
+    expect(router.navigate).toHaveBeenCalled();
   });
 
   it('says so when the start sheet fails to load, offers Reload, and loads it again on the next tap', async () => {

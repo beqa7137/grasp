@@ -126,7 +126,7 @@ export const CHAT: CaseStudy = {
         'On connect, the gateway writes `user, device -> gateway` to a session registry (an in-memory store such as Redis) with a TTL it refreshes; on disconnect it deletes the entry.',
         'The chat service assigns the conversation sequence number, appends the message to a durable log partitioned by conversation ID (for example Kafka), and acks Alice: the message is now safe.',
         "Consumers write it to the message store and route it: look up each recipient device in the registry and forward it to that gateway, which writes it to Bob's socket. No live session means offline, so a push job is queued.",
-        'Open the build in the Design Lab: 20,000 requests a second, half of them sends and half history reads, one slice of the 230k average. The simulator has no persistent connections: the app tier stands for the gateways plus the chat service, the cache for the session registry and recent messages, the queue for the log and the workers for persistence and delivery. Push it to 30,000 and see what runs hot first.',
+        'Open the build in the Lab: 20,000 requests a second, half of them sends and half history reads, one slice of the 230k average. The simulator has no persistent connections: the app tier stands for the gateways plus the chat service, the cache for the session registry and recent messages, the queue for the log and the workers for persistence and delivery. Push it to 30,000 and see what runs hot first.',
       ],
     },
     {

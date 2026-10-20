@@ -1,8 +1,11 @@
 import { ChangeDetectionStrategy, Component, ElementRef, Injector, afterNextRender, inject, input, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { IonContent, IonHeader, IonTitle, IonToolbar } from '@ionic/angular';
+import { IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
+import { addIcons } from 'ionicons';
+import { searchOutline } from 'ionicons/icons';
 
 import { refocus } from '../../core/focus';
+import { CrossLinkDirective } from '../../ui/cross-link.directive';
 import { SegmentMemory, type KeptSegment } from './segment-memory';
 
 /** The Ionic hooks a segment may keep from when it was a page of its own, and what it hands over to be kept. */
@@ -18,12 +21,27 @@ interface Segment extends KeptSegment {
 @Component({
   selector: 'app-hub',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, RouterLinkActive, RouterOutlet, IonHeader, IonToolbar, IonTitle, IonContent],
+  imports: [
+    RouterLink,
+    RouterLinkActive,
+    RouterOutlet,
+    IonHeader,
+    IonToolbar,
+    IonTitle,
+    IonButtons,
+    IonIcon,
+    IonContent,
+    CrossLinkDirective,
+  ],
   template: `
     <ion-header [translucent]="true">
-      <ion-toolbar
-        ><ion-title>{{ name }}</ion-title></ion-toolbar
-      >
+      <ion-toolbar>
+        <ion-title>{{ name }}</ion-title>
+        <ion-buttons slot="end"
+          ><a class="g-header-search" routerLink="/today/search" crossLink aria-label="Search"
+            ><ion-icon name="search-outline" aria-hidden="true" /></a
+        ></ion-buttons>
+      </ion-toolbar>
     </ion-header>
     <ion-content [fullscreen]="true">
       <nav class="page segments" [class.narrow]="narrow()" [attr.aria-label]="name + ' sections'">
@@ -87,6 +105,7 @@ export class HubPage {
   );
 
   constructor() {
+    addIcons({ searchOutline });
     afterNextRender(async () => this.memory.attach(await this.content().getScrollElement()));
   }
 

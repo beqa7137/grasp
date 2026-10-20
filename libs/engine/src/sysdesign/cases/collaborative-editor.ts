@@ -133,7 +133,7 @@ export const COLLABORATIVE_EDITOR: CaseStudy = {
         'The session server holds each open document in memory with its recent operation history. It transforms an incoming batch, appends it to the operation log with the next revision, and only then acknowledges the author and broadcasts to the others.',
         'The operation log is sharded by document ID, so all of one document is on one shard and an append is a single-shard write. Snapshot workers (not in the build) read the log and write a new snapshot every thousand operations or so, and when a document goes idle.',
         'Presence and cursors live only in the session server memory and are relayed, throttled to about ten updates a second per client. When a document closes, its session ends and its memory is freed; the 500 million cold documents cost only storage.',
-        'Open the build in the Design Lab: one two-hundredth of the fleet, 10,500 requests a second: 10,000 batch appends plus 500 document opens and history reads. The app servers stand for the gateways and session servers, the cache for recent snapshots and the database for the operation log and metadata, sharded by document ID. Relayed presence traffic is left out.',
+        'Open the build in the Lab: one two-hundredth of the fleet, 10,500 requests a second: 10,000 batch appends plus 500 document opens and history reads. The app servers stand for the gateways and session servers, the cache for recent snapshots and the database for the operation log and metadata, sharded by document ID. Relayed presence traffic is left out.',
       ],
     },
     {

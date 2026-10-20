@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { checkSearchChunks } from './search-chunk.mjs';
 
 const APP = fileURLToPath(new URL('../', import.meta.url));
 const BASELINE = fileURLToPath(new URL('first-paint-bytes.baseline.json', import.meta.url));
@@ -95,10 +96,6 @@ export function freshStats(dist) {
   return stats;
 }
 
-function measureBuild(dist) {
-  return measure(freshStats(dist), readFileSync(`${APP}src/app/app.routes.ts`, 'utf8'));
-}
-
 function report(measured, baseline) {
   const leaks = measured.viz.length;
   return (
@@ -109,7 +106,8 @@ function report(measured, baseline) {
 }
 
 if (import.meta.main) {
-  const measured = measureBuild(`${APP}dist/app/`);
+  const stats = freshStats(`${APP}dist/app/`);
+  const measured = measure(stats, readFileSync(`${APP}src/app/app.routes.ts`, 'utf8'));
   const baseline = existsSync(BASELINE) ? JSON.parse(readFileSync(BASELINE, 'utf8')).bytes : null;
   if (process.argv.includes('--update')) {
     const blocking = problems(measured, measured.bytes);
@@ -130,5 +128,7 @@ if (import.meta.main) {
       for (const { input, bytes, output } of measured.largest) console.error(`  ${kB(bytes).padStart(10)}  ${input}  (${output})`);
       process.exitCode = 1;
     }
+    // The search chunk's budget is a first-paint rule too (outside its closure), so it runs with this gate.
+    if (!checkSearchChunks(stats, measured.files)) process.exitCode = 1;
   }
 }

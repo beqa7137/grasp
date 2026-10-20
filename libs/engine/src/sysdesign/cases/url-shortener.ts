@@ -161,7 +161,7 @@ export const URL_SHORTENER: CaseStudy = {
         'Misses go to the sharded database; read replicas absorb reads and keep a copy if a primary fails.',
         'Writes go to the owning shard directly. At 1.2k per second they are not the bottleneck.',
         'A CDN or edge cache can serve popular redirects with a short TTL, taking most of a viral load; clicks are then counted from edge logs.',
-        'Open the build in the Design Lab: it serves one region at 40k redirects per second. Push the traffic up and see which component gives first.',
+        'Open the build in the Lab: it serves one region at 40k redirects per second. Push the traffic up and see which component gives first.',
       ],
     },
     {

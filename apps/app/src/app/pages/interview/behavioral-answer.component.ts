@@ -17,7 +17,7 @@ import type { InterviewMode } from './interview.types';
 
 const NOTES: Record<InterviewMode, string> = {
   ai: 'Sent to the AI service when you give your answer. Leave out names and confidential details.',
-  offline: 'Scripted practice: your answer is kept with this interview and not sent to the AI service.',
+  offline: 'Scripted round: your answer is kept with this interview and not sent to the AI service.',
 };
 
 /** The first turn of a behavioral interview: a STAR answer, optionally started from a story, sent only on "Give answer". */

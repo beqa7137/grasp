@@ -10,7 +10,7 @@ interface Stage {
 }
 
 const OFFLINE_SUMMARY =
-  'Scripted practice checks which rubric areas you covered, not whether your answers were right. Use this scorecard to guide your next practice session.';
+  'Scripted rounds check which rubric areas you covered, not whether your answers were right. Use this scorecard to guide your next practice session.';
 
 const WRAP_UP = 'Thanks, that is time. Hit "End & score" whenever you are ready.';
 

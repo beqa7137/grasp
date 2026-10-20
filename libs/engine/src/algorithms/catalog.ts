@@ -117,7 +117,7 @@ const CATALOG = [
   },
   {
     id: 'tree-traversal',
-    title: 'Tree DFS: Preorder, Inorder, Postorder',
+    title: 'Tree Traversal: preorder, inorder, postorder',
     difficulty: 'easy',
     summary:
       'One recursive walk enters the nodes in the same sequence every time; the three orders differ only in where the node is appended.',
@@ -147,7 +147,7 @@ const CATALOG = [
   },
   {
     id: 'subarray-sum-prefix',
-    title: 'Subarray Sum Equals K',
+    title: 'Subarray Sum Equals K with Prefix Sums',
     difficulty: 'medium',
     summary:
       'Keep a running prefix sum p and count how often each prefix appeared: the subarrays ending here that sum to k are the earlier prefixes equal to `p - k`.',

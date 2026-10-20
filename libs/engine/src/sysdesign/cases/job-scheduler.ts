@@ -140,7 +140,7 @@ export const JOB_SCHEDULER: CaseStudy = {
         'Scheduler nodes each own a set of buckets. Every second or so, an owner reads rows in its buckets with `next_fire_at` up to now plus a small look-ahead, and in one transaction inserts a run and advances the schedule.',
         'A dispatcher publishes new runs to the queue for their job type (a Kafka topic or an SQS queue, for example) and marks them `QUEUED`; it also picks up runs left `PENDING` by a crash, so the message is never lost.',
         'A worker pulls the message, claims the run (state `RUNNING`, a lease of 30 seconds, a new fencing token), heartbeats every 10 seconds, and reports the outcome. Failures are rescheduled with backoff; successes are final.',
-        'Open the build in the Design Lab: about 35,000 requests a second at the top of the hour, 40% of them writes that stand for runs being dispatched and recorded. The app tier is the API and the schedulers, the cache holds schedule and run status for dashboards, the queue feeds the workers, and the database is sharded by schedule ID with replicas for history queries.',
+        'Open the build in the Lab: about 35,000 requests a second at the top of the hour, 40% of them writes that stand for runs being dispatched and recorded. The app tier is the API and the schedulers, the cache holds schedule and run status for dashboards, the queue feeds the workers, and the database is sharded by schedule ID with replicas for history queries.',
       ],
     },
     {

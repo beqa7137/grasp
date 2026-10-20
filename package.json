@@ -12,6 +12,7 @@
   },
   "scripts": {
     "build:engine": "npm run build -w @grasp/engine",
+    "gen:search": "npm run build:engine && node scripts/gen-search.mjs && npm run build:engine",
     "dev:api": "npm run build:engine && npm run start:dev -w @grasp/api",
     "dev:app": "npm run build:engine && npm start -w @grasp/app",
     "build": "npm run build:engine && npm run build -w @grasp/api && npm run build -w @grasp/app",

@@ -220,7 +220,7 @@ export const PROXIMITY_SERVICE: CaseStudy = {
         'Index builder: a batch job that reads every business from a replica (or a change stream), builds the next index snapshot, validates it and writes it to object storage with a version number.',
         'Search path: the phone sends its location and filters; a search server picks the cells, collects candidates, checks true distances and filters, sorts, and returns ids and distances; the list fields come from the business cache in one batch read.',
         'Edit path: the owner edits through the business service, which writes the database; the edit shows on the business page at once, and in search after the next index update.',
-        `Open the build in the Design Lab: ${num(peakRps)} searches and as many page views a second at peak, ${num(peakReads)} reads, plus ${num(peakEdits)} edits: about ${num(labRps)} requests a second, ${readShare}% reads. The app tier stands for the search servers; the cache for what is answered from memory, the in-memory index and the cached pages; the database for the business store and its replicas.`,
+        `Open the build in the Lab: ${num(peakRps)} searches and as many page views a second at peak, ${num(peakReads)} reads, plus ${num(peakEdits)} edits: about ${num(labRps)} requests a second, ${readShare}% reads. The app tier stands for the search servers; the cache for what is answered from memory, the in-memory index and the cached pages; the database for the business store and its replicas.`,
       ],
     },
     {

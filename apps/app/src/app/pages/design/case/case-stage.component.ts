@@ -212,7 +212,7 @@ const WIDGET_TITLES: Record<CaseWidget, string> = {
       } @else {
         @if (s.lab) {
           <a class="g-btn" [routerLink]="['/design/cases', caseId(), 'build']"
-            ><ion-icon name="construct-outline" aria-hidden="true" />Load-test it in the Design Lab</a
+            ><ion-icon name="construct-outline" aria-hidden="true" />Load-test it in the Lab</a
           >
         }
         @if (showNext()) {

@@ -206,7 +206,7 @@ export const FEATURE_FLAGS: CaseStudy = {
         "Delivery: stream servers hold the SDKs' server-sent event connections and push each change; the CDN serves snapshots for SDKs that start, reconnect or poll. A relay running in each cluster can hold one upstream connection and serve all the cluster's SDKs.",
         "Client evaluation: evaluation servers keep every environment's ruleset in memory and answer browsers and phones with one context's values.",
         'Events: SDK summaries and exposures go through a queue to workers that update per-flag evaluation counts (for lifecycle) and hand exposures to the experimentation platform.',
-        `Open the build in the Design Lab: the request path is client evaluation, ${num(SESSIONS / 1e6)} million app sessions refreshing every ${SESSION_REFRESH_S / 60} minutes (${num(clientRps)} requests a second), plus ${num(summaryRps)} summary uploads a second from server SDKs: about ${num(labRps)} requests a second, ${readShare}% reads. The cache stands for the rulesets held in memory; the queue and workers take the summaries. Streams and the CDN are off this path: a change is one message per connection, not a request.`,
+        `Open the build in the Lab: the request path is client evaluation, ${num(SESSIONS / 1e6)} million app sessions refreshing every ${SESSION_REFRESH_S / 60} minutes (${num(clientRps)} requests a second), plus ${num(summaryRps)} summary uploads a second from server SDKs: about ${num(labRps)} requests a second, ${readShare}% reads. The cache stands for the rulesets held in memory; the queue and workers take the summaries. Streams and the CDN are off this path: a change is one message per connection, not a request.`,
       ],
     },
     {

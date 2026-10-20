@@ -1,5 +1,6 @@
 const FIELD = 'input, textarea, select, [contenteditable]';
-const OVERLAY = 'ion-modal, ion-alert, ion-action-sheet, ion-popover, ion-toast, ion-loading, [role="dialog"], [role="alertdialog"]';
+const OVERLAY =
+  'ion-modal, ion-alert, ion-action-sheet, ion-popover, ion-toast, ion-loading, dialog, [role="dialog"], [role="alertdialog"]';
 const CONTROL =
   'a[href], button, summary, [role="button"], [role="link"], [role="checkbox"], [role="radio"], [role="switch"], [role="tab"], [role="menuitem"], [role="option"]';
 const ARROW_WIDGET = '[role="radio"], [role="tab"], [role="slider"], [role="menuitem"], [role="option"]';
@@ -8,8 +9,22 @@ export function isOnHiddenPage(host: Element): boolean {
   return host.closest('.ion-page-hidden') !== null;
 }
 
+/** jsdom, used by the unit tests, has no `:modal`. */
+const isModal = (dialog: Element) => {
+  try {
+    return dialog.matches(':modal');
+  } catch {
+    return false;
+  }
+};
+
+/** A modal dialog makes the page behind it inert, though focus can fall to the body (a click on a dialog's padding). */
+function isBehindModal(host: Element): boolean {
+  return [...host.ownerDocument.querySelectorAll('dialog[open]')].some((dialog) => !dialog.contains(host) && isModal(dialog));
+}
+
 function isPageInert(host: Element): boolean {
-  return isOnHiddenPage(host) || host.closest('[aria-hidden="true"], [inert]') !== null;
+  return isOnHiddenPage(host) || host.closest('[aria-hidden="true"], [inert]') !== null || isBehindModal(host);
 }
 
 function composedElements(e: KeyboardEvent): Element[] {

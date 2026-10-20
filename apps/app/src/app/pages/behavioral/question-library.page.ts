@@ -9,11 +9,12 @@ import {
   parseQuestionQuery,
   queryQuestions,
   questionQueryParams,
-  type BehavioralQuestion,
+  type QuestionPrompt,
   type QuestionFacet,
   type QuestionQuery,
   type QuestionStatus,
 } from '@grasp/engine';
+import { SearchEverythingComponent } from '../../search/search-everything.component';
 import { LibraryState, matchedWhat, resultLine, type UrlParam } from '../../core/library-state';
 import { ChipComponent } from '../../ui/chip.component';
 import { EmptyStateComponent } from '../../ui/empty-state.component';
@@ -38,7 +39,7 @@ const NOT_DRAFTED: EntryStatus = { icon: notStartedStateIcon, label: 'Not drafte
 @Component({
   selector: 'app-question-library',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, ChipComponent, EmptyStateComponent, EntryRowComponent],
+  imports: [RouterLink, ChipComponent, EmptyStateComponent, EntryRowComponent, SearchEverythingComponent],
   template: `
     <div class="page narrow">
       <h1>Questions</h1>
@@ -62,6 +63,7 @@ const NOT_DRAFTED: EntryStatus = { icon: notStartedStateIcon, label: 'Not drafte
           [value]="lib.search()"
           (input)="lib.type($any($event.target).value)"
         />
+        <app-search-everything [query]="query().q" />
       </form>
       <div class="facet" role="group" aria-labelledby="question-competency">
         <span class="label" id="question-competency">Competency</span>
@@ -267,7 +269,7 @@ export class QuestionLibraryPage {
   );
   readonly result = computed(() => {
     const covered = this.covered();
-    const statusesOf = (q: BehavioralQuestion): QuestionStatus[] => [
+    const statusesOf = (q: QuestionPrompt): QuestionStatus[] => [
       this.drafts.isDrafted(q.id) ? 'drafted' : 'not-drafted',
       ...(covered.has(q.competencyId) ? (['story'] as const) : []),
     ];

@@ -143,7 +143,7 @@ export const HOTEL_BOOKING: CaseStudy = {
         'Results are cached by a normalized key (city or map tile, dates, guests, filters, currency) for a few minutes. Many travelers search the same cities for the same popular dates, so a large share hits the cache, and a miss costs one index query, never a read of the inventory primaries.',
         'Booking: stateless booking servers write holds and bookings with conditional updates on the primary that owns the hotel. Payment goes to the provider with the booking ID plus an attempt number as its idempotency key.',
         'Every inventory, rate or booking change writes an outbox row in the same transaction. Workers read the outbox to update the search summaries within seconds, to push availability to the channel manager and to send confirmations; inbound channel manager updates arrive through the same queue.',
-        'Open the build in the Design Lab: 12,000 requests a second, 85% reads, on 4 primaries sharded by a hash of the hotel ID, with replicas. The cache stands for the search index and result cache, and the queue and workers for the outbox and channel sync. Lower the cache hit rate to see what searches would do to the primaries.',
+        'Open the build in the Lab: 12,000 requests a second, 85% reads, on 4 primaries sharded by a hash of the hotel ID, with replicas. The cache stands for the search index and result cache, and the queue and workers for the outbox and channel sync. Lower the cache hit rate to see what searches would do to the primaries.',
       ],
     },
     {

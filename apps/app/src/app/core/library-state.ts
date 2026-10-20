@@ -1,6 +1,7 @@
 import { DestroyRef, Injector, computed, inject, linkedSignal, type Signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import type { UrlParams } from '@grasp/engine';
+import { CrossSections } from '../ui/cross-link.directive';
 import { refocusAfterRender, type FocusPlaces } from './focus';
 
 /** Typing writes the URL this long after the last key (REDESIGN.md 2.5). */
@@ -27,6 +28,7 @@ export class LibraryState<Q extends { q: string }> {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly injector = inject(Injector);
+  private readonly sections = inject(CrossSections);
   private typing: ReturnType<typeof setTimeout> | undefined;
   readonly query: Signal<Q>;
   /** The field's text: the URL's, except while a typed change waits to be written. */
@@ -80,11 +82,14 @@ export class LibraryState<Q extends { q: string }> {
     this.write({ q: this.search() } as Partial<Q>);
   }
 
+  /** Replaces the URL, keeping where a cross link opened the page from, so its back button still returns there. */
   write(change: Partial<Q>): void {
+    const from = this.sections.from();
     void this.router.navigate([], {
       relativeTo: this.route,
       queryParams: this.codec.params({ ...this.query(), ...change }),
       replaceUrl: true,
+      ...(from ? { state: { from } } : {}),
     });
   }
 

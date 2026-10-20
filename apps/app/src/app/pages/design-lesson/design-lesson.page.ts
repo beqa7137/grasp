@@ -9,7 +9,6 @@ import {
   chatbubblesOutline,
   constructOutline,
   documentTextOutline,
-  flashOutline,
   handLeftOutline,
   schoolOutline,
 } from 'ionicons/icons';
@@ -46,6 +45,7 @@ import { StorageWidgetComponent } from './storage-widget.component';
 import { StreamWidgetComponent } from './stream-widget.component';
 import { TxnWidgetComponent } from './txn-widget.component';
 import { BackComponent } from '../../ui/back.component';
+import { quickCheckIcon } from '../../ui/icons';
 import { WIDGET_HEIGHTS } from './widget-heights';
 import { LazyWidgetComponent } from './lazy-widget.component';
 
@@ -305,11 +305,11 @@ import { LazyWidgetComponent } from './lazy-widget.component';
             }
 
             <section class="panel block">
-              <h2><ion-icon name="flash-outline" aria-hidden="true" />Quick check</h2>
+              <h2><ion-icon [icon]="quickCheckIcon" aria-hidden="true" />Quick check</h2>
               @if (itemCount()) {
                 <app-quick-check [topic]="t.id" />
               } @else {
-                <p class="muted">Review questions for this topic unlock with its Design Lab missions or a finished case study.</p>
+                <p class="muted">Review questions for this topic unlock with its Lab missions or a finished case study.</p>
               }
             </section>
           </div>
@@ -440,6 +440,7 @@ import { LazyWidgetComponent } from './lazy-widget.component';
   `,
 })
 export class DesignLessonPage {
+  readonly quickCheckIcon = quickCheckIcon;
   readonly id = input.required<string>();
   readonly progress = inject(ProgressService);
   readonly topic = computed(() => getSdTopic(this.id()));
@@ -465,7 +466,6 @@ export class DesignLessonPage {
       chatbubblesOutline,
       constructOutline,
       documentTextOutline,
-      flashOutline,
     });
   }
 }
