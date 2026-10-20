@@ -195,7 +195,7 @@ export const PAYMENT_LEDGER: CaseStudy = {
         'Storage: a relational database such as Postgres, sharded by account owner, each shard with a synchronous standby in another zone so a committed entry survives losing the primary, and asynchronous replicas for statements and dashboards.',
         'A balance that decides something (can this wallet pay?) is read on the primary inside the posting transaction; balances on screens and statements read replicas.',
         "Around the database: the ledger's own outbox (entry posted) for notifications and analytics, nightly balance snapshots, reconciliation jobs against processor and bank files, and an archive of closed months.",
-        `Open the build in the Design Lab: about ${num(toThousand(peakEntries))} entry writes a second at peak (${num(peakPostings)} postings at under 3 postings per entry), with as many reads, ${num(2 * toThousand(peakEntries))} requests a second in all. The cache holds statement pages and balances for display; the sharded database is the ledger, with replicas for statements. The lab draws only the synchronous path; the outbox relay, snapshots and reconciliation hang off the primaries.`,
+        `Open the build in the Lab: about ${num(toThousand(peakEntries))} entry writes a second at peak (${num(peakPostings)} postings at under 3 postings per entry), with as many reads, ${num(2 * toThousand(peakEntries))} requests a second in all. The cache holds statement pages and balances for display; the sharded database is the ledger, with replicas for statements. The lab draws only the synchronous path; the outbox relay, snapshots and reconciliation hang off the primaries.`,
       ],
     },
     {

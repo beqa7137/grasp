@@ -146,7 +146,7 @@ type Stage = 'loading' | 'setup' | 'running' | 'debrief';
             }
             <div class="mode-options" role="group" aria-label="Interviewer">
               <button class="g-btn" [attr.aria-pressed]="mode() === 'offline'" [disabled]="pending()" (click)="chooseMode('offline')">
-                Scripted practice
+                Scripted
               </button>
               <button
                 class="g-btn"
@@ -177,7 +177,7 @@ type Stage = 'loading' | 'setup' | 'running' | 'debrief';
               </p>
             }
             @if (aiAccess() === 'unavailable') {
-              <p class="muted">AI is unavailable right now. Scripted practice is still available.</p>
+              <p class="muted">AI is unavailable right now. Scripted rounds are still available.</p>
             }
             @if (signInOpen()) {
               <section class="panel sign-in-panel" aria-labelledby="sign-in-title">
@@ -227,14 +227,14 @@ type Stage = 'loading' | 'setup' | 'running' | 'debrief';
               <section class="panel sign-in-panel" aria-labelledby="sign-in-again-title">
                 <h2 id="sign-in-again-title">Sign in again to keep your AI loop</h2>
                 <app-sign-in-options
-                  cancelLabel="Switch the remaining rounds to scripted practice"
+                  cancelLabel="Switch the remaining rounds to the scripted interviewer"
                   (cancelled)="useScripted()"
                   (signedIn)="signedInAgain()"
                 />
               </section>
             } @else if (aiRefused()) {
               <button type="button" class="g-btn" [disabled]="pending()" (click)="useScripted()">
-                Switch the remaining rounds to scripted practice
+                Switch the remaining rounds to the scripted interviewer
               </button>
             }
             <div class="end">
@@ -435,7 +435,7 @@ export class MockLoopPage {
     if (!loop) return 'Mock loop';
     const date = (at: string) => formatDate(at, 'MMM d, h:mm a', this.locale);
     if (this.stage() === 'running') {
-      return `Mock loop · ${loop.mode === 'ai' ? 'AI interviewer' : 'Scripted practice'} · started ${date(loop.createdAt)}`;
+      return `Mock loop · ${loop.mode === 'ai' ? 'AI interviewer' : 'Scripted'} · started ${date(loop.createdAt)}`;
     }
     return this.stage() === 'debrief' && loop.completedAt ? `Mock loop · finished ${date(loop.completedAt)}` : 'Mock loop';
   });
@@ -575,7 +575,7 @@ export class MockLoopPage {
     this.signInAgain.set(false);
     this.aiRefused.set(false);
     this.error.set(null);
-    this.announcer.announce('The remaining rounds use scripted practice.');
+    this.announcer.announce('The remaining rounds are scripted.');
     this.focusHeading();
   }
 

@@ -27,15 +27,15 @@ test('a review session grades every card and schedules the next review', async (
   await sync;
 });
 
-test('practice for one pattern stays outside the schedule', async ({ page }) => {
+test('a drill of one pattern stays outside the schedule', async ({ page }) => {
   await page.goto('/coding/patterns/hashing');
-  await page.getByRole('link', { name: /Practice 6 items/ }).click();
+  await page.getByRole('link', { name: /Drill 6 cards/ }).click();
   await expect(page).toHaveURL(/\/coding\/patterns\/hashing\/drill/);
   await page.locator('app-drill g-question-card .choice').first().click();
   await expect(page.getByRole('button', { name: /^Next/ })).toBeVisible();
 });
 
-test('practice goes back to its lesson, and the review back to Today', { tag: '@nav' }, async ({ page }) => {
+test('a drill goes back to its lesson, and the review back to Today', { tag: '@nav' }, async ({ page }) => {
   const drill = page.locator('app-drill');
   const back = drill.locator('ion-back-button');
   await page.goto('/today/review');
@@ -46,7 +46,7 @@ test('practice goes back to its lesson, and the review back to Today', { tag: '@
 
   await section(page, 'Coding').click();
   await page.locator('app-skill-map a[href="/coding/patterns/hashing"]').click();
-  await page.getByRole('link', { name: /Practice 6 items/ }).click();
+  await page.getByRole('link', { name: /Drill 6 cards/ }).click();
   await expect(page).toHaveURL(/\/coding\/patterns\/hashing\/drill/);
   await expect(drill.getByRole('heading', { name: 'Arrays & Hashing', level: 1 })).toBeVisible();
   await back.click();

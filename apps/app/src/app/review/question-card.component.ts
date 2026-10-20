@@ -33,7 +33,7 @@ const REASON_LABELS: Record<CardReason, string> = {
   relearn: 'Relearning',
   boosted: 'Flagged for you',
   new: 'New',
-  practice: 'Practice',
+  practice: 'Drill',
   check: 'Quick check',
   diagnostic: 'Placement check',
 };

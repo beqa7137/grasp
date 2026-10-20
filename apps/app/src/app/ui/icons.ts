@@ -1,7 +1,9 @@
 import { addIcons } from 'ionicons';
 import {
+  albumsOutline,
   alertCircleOutline,
   arrowForward,
+  barbellOutline,
   chatbubblesOutline,
   checkmark,
   checkmarkCircle,
@@ -11,8 +13,10 @@ import {
   ellipseOutline,
   flame,
   gitNetworkOutline,
+  helpCircleOutline,
   leafOutline,
   pulseOutline,
+  searchOutline,
   timeOutline,
 } from 'ionicons/icons';
 
@@ -29,6 +33,10 @@ export const designIcon = gitNetworkOutline;
 export const caughtUpIcon = leafOutline;
 export const visualizeIcon = pulseOutline;
 export const timeIcon = timeOutline;
+export const reviewIcon = albumsOutline;
+export const drillIcon = barbellOutline;
+export const quickCheckIcon = helpCircleOutline;
+export const searchIcon = searchOutline;
 export const doneStateIcon = checkmarkCircle;
 export const missedStateIcon = closeCircle;
 export const notStartedStateIcon = ellipseOutline;
@@ -48,6 +56,10 @@ addIcons({
   caughtUpIcon,
   visualizeIcon,
   timeIcon,
+  reviewIcon,
+  drillIcon,
+  quickCheckIcon,
+  searchIcon,
   doneStateIcon,
   missedStateIcon,
   notStartedStateIcon,

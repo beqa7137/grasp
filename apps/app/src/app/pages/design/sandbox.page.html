@@ -3,7 +3,7 @@
     <ion-buttons slot="start">
       <app-back [href]="caseId() ? '/design/cases/' + caseId() : '/design/missions'" />
     </ion-buttons>
-    <ion-title>{{ scenario()?.title ?? 'Design Lab' }}</ion-title>
+    <ion-title>{{ scenario()?.title ?? 'Lab' }}</ion-title>
     <ion-buttons slot="end">
       <button class="g-btn ghost reset" (click)="resetDesign()"><ion-icon name="refresh" aria-hidden="true" />Reset</button>
     </ion-buttons>

@@ -15,7 +15,12 @@ export interface Lesson {
   why: string;
   examples: readonly WorkedExample[];
   /** How the template changes for common twists. */
-  variations: readonly { name: string; how: string }[];
+  variations: readonly {
+    name: string;
+    how: string;
+    /** The catalog problem the variation names, linked under it. */
+    problemId?: string;
+  }[];
   /** What interviewers ask after a working solution, with a short model answer. */
   followUps: readonly { question: string; answer: string }[];
 }

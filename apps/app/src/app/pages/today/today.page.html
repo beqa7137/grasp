@@ -1,5 +1,9 @@
 <ion-header [translucent]="true">
   <ion-toolbar>
+    <!-- At the start, so the end's sync, gear and menu do not push the wordmark off centre at 320px. -->
+    <ion-buttons slot="start">
+      <a class="g-header-search" routerLink="/today/search" aria-label="Search"><ion-icon name="search-outline" aria-hidden="true" /></a>
+    </ion-buttons>
     <ion-title
       ><span class="wordmark">grasp<i>.</i></span></ion-title
     >
@@ -145,7 +149,7 @@
         }
 
         <a class="panel review-row" routerLink="/today/review">
-          <ion-icon name="flash-outline" aria-hidden="true" />
+          <ion-icon name="albums-outline" aria-hidden="true" />
           <span class="text">
             <strong>Review</strong>
             <span class="muted"> · {{ reviewDetail() }}</span>

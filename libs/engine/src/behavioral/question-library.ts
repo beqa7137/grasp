@@ -1,6 +1,5 @@
 import { COMPETENCY_CATALOG } from './catalog.js';
-import { COMPETENCIES } from './competencies.js';
-import type { BehavioralQuestion } from './types.js';
+import { QUESTION_PROMPTS, type QuestionPrompt } from './question-prompts.js';
 import { paramText, paramValues, type UrlParams } from '../url-params.js';
 
 /**
@@ -46,7 +45,7 @@ export const isQuestionQueryFiltered = (query: QuestionQuery) => Boolean(query.q
 export interface QuestionGroup {
   competencyId: string;
   name: string;
-  questions: BehavioralQuestion[];
+  questions: QuestionPrompt[];
 }
 
 export interface QuestionLibraryResult {
@@ -57,22 +56,21 @@ export interface QuestionLibraryResult {
   counts: Record<QuestionFacet, Record<string, number>>;
 }
 
-const QUESTIONS = COMPETENCIES.flatMap((c) => c.questions);
-export const QUESTION_COUNT = QUESTIONS.length;
+export const QUESTION_COUNT = QUESTION_PROMPTS.length;
 
 /** Filters the 91 questions. Every search word must appear in the prompt; several values of one facet widen it. */
 export function queryQuestions(
   query: QuestionQuery,
-  statusesOf: (question: BehavioralQuestion) => readonly QuestionStatus[],
+  statusesOf: (question: QuestionPrompt) => readonly QuestionStatus[],
 ): QuestionLibraryResult {
   const terms = query.q.toLowerCase().split(/\s+/).filter(Boolean);
-  const base = QUESTIONS.filter((q) => terms.every((t) => q.prompt.toLowerCase().includes(t)));
+  const base = QUESTION_PROMPTS.filter((q) => terms.every((t) => q.prompt.toLowerCase().includes(t)));
   const statuses = new Map(base.map((q) => [q.id, statusesOf(q)]));
-  const matches: Record<QuestionFacet, (q: BehavioralQuestion, values: readonly string[]) => boolean> = {
+  const matches: Record<QuestionFacet, (q: QuestionPrompt, values: readonly string[]) => boolean> = {
     competency: (q, values) => values.includes(q.competencyId),
     status: (q, values) => statuses.get(q.id)!.some((s) => values.includes(s)),
   };
-  const keeps = (q: BehavioralQuestion, except?: QuestionFacet) =>
+  const keeps = (q: QuestionPrompt, except?: QuestionFacet) =>
     QUESTION_FACETS.every((f) => f === except || !query[f].length || matches[f](q, query[f]));
   const counts = Object.fromEntries(
     QUESTION_FACETS.map((f) => {

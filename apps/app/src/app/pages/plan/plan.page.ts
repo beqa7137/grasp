@@ -13,8 +13,6 @@ import {
 import { RouterLink } from '@angular/router';
 import { AlertController, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
 import { PLAN_MINUTES, buildStudyPlan, currentTarget, type PlanStatus, type StudyPlanInput } from '@grasp/engine';
-import { addIcons } from 'ionicons';
-import { flashOutline } from 'ionicons/icons';
 import { AnnouncerService } from '../../core/announcer.service';
 import { refocusAfterRender } from '../../core/focus';
 import { ProgressService } from '../../core/progress.service';
@@ -26,6 +24,7 @@ import { PlanRoundsComponent } from './plan-rounds.component';
 import { coverageLine } from '../today/coverage-line';
 import { ChipComponent, type ChipTone } from '../../ui/chip.component';
 import { BackComponent } from '../../ui/back.component';
+import { reviewIcon } from '../../ui/icons';
 import { dayLabel, SHORT_DAY } from '../today/today.service';
 
 const UNDO_MS = 8_000;
@@ -109,7 +108,7 @@ const STATUS_CHIPS: Partial<Record<PlanStatus, { text: string; tone: ChipTone }>
 
           @if (p.status === 'interview-day' && p.todayReview.cards) {
             <a class="panel item review" routerLink="/today/review">
-              <ion-icon name="flash-outline" aria-hidden="true" />
+              <ion-icon [icon]="reviewIcon" aria-hidden="true" />
               <span><strong>A light review</strong><span class="muted">Only if it calms you. Stop whenever you like.</span></span>
             </a>
           }
@@ -228,6 +227,7 @@ const STATUS_CHIPS: Partial<Record<PlanStatus, { text: string; tone: ChipTone }>
   `,
 })
 export class PlanPage {
+  readonly reviewIcon = reviewIcon;
   private readonly progress = inject(ProgressService);
   private readonly bank = inject(StoryBankService);
   private readonly injector = inject(Injector);
@@ -324,7 +324,6 @@ export class PlanPage {
   });
 
   constructor() {
-    addIcons({ flashOutline });
     inject(DestroyRef).onDestroy(() => clearTimeout(this.undoTimer));
   }
 

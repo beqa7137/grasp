@@ -242,13 +242,13 @@ export class InterviewService {
     if (this.interviewer.mode !== 'ai') {
       throw new ServiceUnavailableException({
         code: 'ai_unavailable',
-        message: 'AI interviews are unavailable right now. You can switch to scripted practice.',
+        message: 'AI interviews are unavailable right now. You can switch to the scripted interviewer.',
       });
     }
     if (!claims) {
       throw new ForbiddenException({
         code: 'ai_sign_in_required',
-        message: 'Sign in to use the AI interviewer, or choose scripted practice.',
+        message: 'Sign in to use the AI interviewer, or choose the scripted interviewer.',
       });
     }
     if (!(await this.auth.activeFamily(claims.userId, claims.learnerId, claims.familyId))) throw tokenInvalid('Session ended');

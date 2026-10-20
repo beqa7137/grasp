@@ -347,7 +347,7 @@ export class InterviewSessionPage {
     const access = this.session()?.aiAccess;
     if (access === 'available') return true;
     if (access === 'sign-in-required') this.openSignIn();
-    else this.error.set('AI is unavailable right now. You can switch to scripted practice.');
+    else this.error.set('AI is unavailable right now. You can switch to the scripted interviewer.');
     return false;
   }
 

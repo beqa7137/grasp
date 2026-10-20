@@ -41,6 +41,7 @@ import {
 } from '@grasp/engine';
 import { IonIcon } from '@ionic/angular';
 import { refocusAfterRender } from '../../core/focus';
+import { SearchEverythingComponent } from '../../search/search-everything.component';
 import { LibraryState, matchedWhat, resultLine, type UrlParam } from '../../core/library-state';
 import { ProgressService } from '../../core/progress.service';
 import { CheckComponent } from '../../ui/check.component';
@@ -77,6 +78,7 @@ const PATTERN_NAMES = new Map<string, string>(PATTERN_CATALOG.map((p) => [p.id, 
     EmptyStateComponent,
     EntryRowComponent,
     FilterBarComponent,
+    SearchEverythingComponent,
   ],
   templateUrl: './problem-library.page.html',
   styleUrl: './problem-library.page.scss',

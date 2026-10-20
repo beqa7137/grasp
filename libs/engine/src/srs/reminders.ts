@@ -26,9 +26,9 @@ export function planReminders(state: ProgressState, times: Date[], tzOffsetMinut
       ? `${plural(reviews, 'review')} due${fresh ? ` + ${fresh} new` : ''}`
       : fresh
         ? `${plural(fresh, 'new card')} ready`
-        : 'A Design Lab revisit is waiting';
+        : 'A Lab revisit is waiting';
     const body = plan.items.length
-      ? `About ${plan.estimatedMinutes} min.${revisit ? ' A Design Lab revisit is due too.' : ' Reviewing now keeps recall near your target.'}`
+      ? `About ${plan.estimatedMinutes} min.${revisit ? ' A Lab revisit is due too.' : ' Reviewing now keeps recall near your target.'}`
       : 'Rebuild a mission you cleared, under new conditions.';
     return [{ at, title, body }];
   });

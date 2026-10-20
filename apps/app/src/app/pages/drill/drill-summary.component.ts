@@ -103,7 +103,7 @@ export interface DrillScore {
             ><ion-icon [icon]="icons.visualize" aria-hidden="true" />Visualize an algorithm → predict checkpoints</a
           >
           <a class="g-btn" routerLink="/design/missions" crossLink
-            ><ion-icon [icon]="icons.design" aria-hidden="true" />Finish a Design Lab mission → system design cards</a
+            ><ion-icon [icon]="icons.design" aria-hidden="true" />Finish a Lab mission → system design cards</a
           >
         </div>
       </section>

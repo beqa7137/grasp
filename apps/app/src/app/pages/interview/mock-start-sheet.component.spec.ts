@@ -33,6 +33,18 @@ function setup(track: InterviewTrack, access: AiAccess | null = 'sign-in-require
 }
 
 describe('MockStartSheetComponent', () => {
+  it('starts on the question a search result opened it for, and on Surprise me otherwise', () => {
+    const { sheet, fixture } = setup('system-design');
+    expect(sheet.choice()).toBe('');
+    fixture.componentRef.setInput('pick', 'rate-limiter');
+    fixture.detectChanges();
+    expect(sheet.choice()).toBe('rate-limiter');
+    fixture.componentRef.setInput('pick', null);
+    fixture.componentRef.setInput('track', 'coding');
+    fixture.detectChanges();
+    expect(sheet.choice()).toBe('');
+  });
+
   it('starts a scripted behavioral round as an API session at the Target level, never the STAR drill', async () => {
     const { sheet, api, router } = setup('behavioral');
     expect(sheet.mode()).toBe('offline');

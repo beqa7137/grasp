@@ -14,8 +14,8 @@ import {
   viewChild,
 } from '@angular/core';
 import { DatePipe, NgTemplateOutlet, formatDate } from '@angular/common';
-import { RouterLink } from '@angular/router';
-import { IonContent, IonHeader, IonIcon, IonSpinner, IonTitle, IonToolbar } from '@ionic/angular';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { IonButtons, IonContent, IonHeader, IonIcon, IonSpinner, IonTitle, IonToolbar } from '@ionic/angular';
 import {
   LOOP_ROUND_MINUTES,
   PLAN_ROUND_TRACK,
@@ -26,7 +26,7 @@ import {
   type ProgressState,
 } from '@grasp/engine';
 import { addIcons } from 'ionicons';
-import { codeSlashOutline, gitNetworkOutline, layersOutline, peopleOutline } from 'ionicons/icons';
+import { codeSlashOutline, gitNetworkOutline, layersOutline, peopleOutline, searchOutline } from 'ionicons/icons';
 import { ApiError, ApiService } from '../../core/api.service';
 import { LearnerService } from '../../core/learner.service';
 import { ProgressService } from '../../core/progress.service';
@@ -67,6 +67,7 @@ const ROUND_HUBS: Record<InterviewTrack, string> = { coding: '/coding', 'system-
     CrossLinkDirective,
     DatePipe,
     EmptyStateComponent,
+    IonButtons,
     IonContent,
     IonHeader,
     IonIcon,
@@ -79,7 +80,13 @@ const ROUND_HUBS: Record<InterviewTrack, string> = { coding: '/coding', 'system-
   ],
   template: `
     <ion-header [translucent]="true">
-      <ion-toolbar><ion-title>Mock interviews</ion-title></ion-toolbar>
+      <ion-toolbar>
+        <ion-title>Mock interviews</ion-title>
+        <ion-buttons slot="end"
+          ><a class="g-header-search" routerLink="/today/search" crossLink aria-label="Search"
+            ><ion-icon name="search-outline" aria-hidden="true" /></a
+        ></ion-buttons>
+      </ion-toolbar>
     </ion-header>
     <ion-content [fullscreen]="true">
       <div class="page narrow">
@@ -365,6 +372,7 @@ export class InterviewHomePage {
   readonly loading = signal(false);
   readonly sheetOpen = signal(false);
   readonly sheetTrack = signal<InterviewTrack>('coding');
+  readonly sheetPick = signal<string | null>(null);
   private readonly sheetHost = viewChild.required('sheetHost', { read: ViewContainerRef });
   private readonly sheet = signal<ComponentRef<MockStartSheetComponent> | null>(null);
   private sheetLoad: Promise<void> | null = null;
@@ -432,7 +440,7 @@ export class InterviewHomePage {
   });
 
   constructor() {
-    addIcons({ codeSlashOutline, gitNetworkOutline, layersOutline, peopleOutline });
+    addIcons({ codeSlashOutline, gitNetworkOutline, layersOutline, peopleOutline, searchOutline });
     afterNextRender(
       () => {
         void this.loadReadiness();
@@ -444,13 +452,28 @@ export class InterviewHomePage {
       const sheet = this.sheet();
       if (!sheet) return;
       sheet.setInput('track', this.sheetTrack());
+      sheet.setInput('pick', this.sheetPick());
       sheet.setInput('level', this.level());
       sheet.setInput('levelLabel', this.levelLabel());
       sheet.setInput('catalog', this.catalog());
       sheet.setInput('offline', this.offline());
       sheet.setInput('open', this.sheetOpen());
     });
+    const route = inject(ActivatedRoute);
+    const router = inject(Router);
+    // A search result opens one round's sheet (REDESIGN.md 2.9); the parameter goes once read, so back and reload do not reopen
+    // it. The round list comes with the sheet's code, so the hub's own tap loads nothing more for it.
+    const rounds = route.queryParamMap.subscribe((params) => {
+      const id = params.get('round');
+      if (id === null) return;
+      void router.navigate([], { relativeTo: route, queryParams: { round: null }, queryParamsHandling: 'merge', replaceUrl: true });
+      void this.importSheet().then(({ mockRound }) => {
+        const round = mockRound(id);
+        if (round && !this.destroyed) this.openSheet(round.track, round.id);
+      });
+    });
     inject(DestroyRef).onDestroy(() => {
+      rounds.unsubscribe();
       this.destroyed = true;
       this.sheet()?.destroy();
     });
@@ -466,7 +489,11 @@ export class InterviewHomePage {
         this.sheetFailed.set(false);
         if (this.destroyed || this.sheet()) return;
         const sheet = this.sheetHost().createComponent(MockStartSheetComponent);
-        sheet.instance.open.subscribe((open) => this.sheetOpen.set(open));
+        sheet.instance.open.subscribe((open) => {
+          this.sheetOpen.set(open);
+          // A search result's pick holds for that opening only: a later round starts from Surprise me.
+          if (!open) this.sheetPick.set(null);
+        });
         sheet.instance.signedIn.subscribe(() => void this.load());
         sheet.instance.changed.subscribe(() => void this.load());
         this.sheet.set(sheet);
@@ -502,8 +529,9 @@ export class InterviewHomePage {
     return verdictName(v);
   }
 
-  openSheet(track: InterviewTrack) {
+  openSheet(track: InterviewTrack, pick: string | null = null) {
     this.sheetTrack.set(track);
+    this.sheetPick.set(pick);
     this.sheetOpen.set(true);
     if (!this.sheet()) this.opening.set(track);
     void this.loadSheet();

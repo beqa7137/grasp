@@ -21,6 +21,7 @@ import {
 } from '@grasp/engine';
 import { IonIcon } from '@ionic/angular';
 import { refocusAfterRender } from '../../core/focus';
+import { SearchEverythingComponent } from '../../search/search-everything.component';
 import { LibraryState, matchedWhat, resultLine, type UrlParam } from '../../core/library-state';
 import { ProgressService } from '../../core/progress.service';
 import { ChipComponent } from '../../ui/chip.component';
@@ -42,7 +43,7 @@ const topicName = (id: string) => getSdTopic(id)?.name ?? id;
 @Component({
   selector: 'app-case-library',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, IonIcon, ChipComponent, EmptyStateComponent, FilterBarComponent],
+  imports: [RouterLink, IonIcon, ChipComponent, EmptyStateComponent, FilterBarComponent, SearchEverythingComponent],
   template: `
     <div class="page library">
       <h1>Cases</h1>
@@ -82,6 +83,7 @@ const topicName = (id: string) => getSdTopic(id)?.name ?? id;
             [value]="lib.search()"
             (input)="lib.type($any($event.target).value)"
           />
+          <app-search-everything [query]="query().q" />
         </form>
         @if (chips().length || filtered()) {
           <div chips #chipRow class="active">

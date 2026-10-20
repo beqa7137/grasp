@@ -327,7 +327,8 @@ export const FOUNDATIONS_CORE_LESSONS: Record<
       },
       {
         name: 'Binary search on the answer',
-        how: 'Search a range of candidate answers with `feasible(mid)`, keeping `hi = mid` when it passes and `lo = mid + 1` when it fails, as in Ship Packages Within D Days.',
+        how: 'Search a range of candidate answers with `feasible(mid)`, keeping `hi = mid` when it passes and `lo = mid + 1` when it fails, as in Capacity To Ship Packages Within D Days.',
+        problemId: 'ship-within-days',
       },
       {
         name: 'Lower bound (insert position)',

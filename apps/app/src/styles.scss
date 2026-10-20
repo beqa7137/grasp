@@ -244,6 +244,21 @@ button.chip {
   box-shadow: var(--g-shadow-raised);
 }
 
+// A header's Search link (REDESIGN.md 2.6): Today's, the hubs' and Mock's, under 1024px only, since from there the rail's
+// field searches.
+.g-header-search {
+  display: inline-flex;
+  padding: var(--g-space-2) var(--g-space-3);
+  color: var(--g-muted);
+  font-size: var(--g-text-title-l);
+  &:hover {
+    color: var(--g-text);
+  }
+  @media (min-width: 1024px) {
+    display: none;
+  }
+}
+
 .g-btn {
   appearance: none;
   border: 1px solid var(--g-line-strong);

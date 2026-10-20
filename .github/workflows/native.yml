@@ -17,6 +17,7 @@ on:
       # The bundle, style and icon gates are plain node scripts and data, which no native compile reads.
       - '!apps/app/scripts/*.baseline.json'
       - '!apps/app/scripts/first-paint-bytes*.mjs'
+      - '!apps/app/scripts/search-chunk*.mjs'
       - '!apps/app/scripts/style-tokens*.mjs'
       - '!apps/app/scripts/ionicons-glyphs*'
       - package.json

@@ -1,7 +1,7 @@
 <ion-header [translucent]="true">
   <ion-toolbar>
     <ion-buttons slot="start"><app-back [href]="backHref()" /></ion-buttons>
-    <ion-title>{{ weakDrill() ? 'Drill' : practice() ? 'Practice' : 'Review' }}</ion-title>
+    <ion-title>{{ practice() ? 'Drill' : 'Review' }}</ion-title>
   </ion-toolbar>
 </ion-header>
 
@@ -9,7 +9,7 @@
   <div class="page narrow">
     <div class="head">
       <div>
-        <p class="eyebrow">{{ weakDrill() ? 'Drill · not scheduled' : practice() ? 'Practice · not scheduled' : 'Spaced review' }}</p>
+        <p class="eyebrow">{{ practice() ? 'Drill · not scheduled' : 'Spaced review' }}</p>
         <h1>{{ practice() ? focusName() : "Today's review" }}</h1>
         @if (weakDrill()) {
           <p class="plan muted">{{ mixNames().join(', ') }}</p>
@@ -35,7 +35,7 @@
     @if (weakDrill()) {
       <p class="info">Drill answers don't schedule reviews.</p>
     } @else if (practice()) {
-      <p class="banner">Practice answers don't change your review schedule. Use this to cram a topic before an interview.</p>
+      <p class="banner">Drill answers don't change your review schedule. Use this to cram a topic before an interview.</p>
     }
 
     @if (queue().length) {

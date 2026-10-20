@@ -1,5 +1,16 @@
 import { NgComponentOutlet } from '@angular/common';
-import { Component, DestroyRef, ElementRef, Injector, type Type, computed, inject, signal, viewChild } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  ElementRef,
+  Injector,
+  type Type,
+  ViewContainerRef,
+  computed,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, type ActivatedRouteSnapshot } from '@angular/router';
 import { IonBadge, IonIcon, IonLabel, IonModal, IonTabBar, IonTabButton, IonTabs, Config, NavController, Platform } from '@ionic/angular';
@@ -9,10 +20,14 @@ import { AuthService } from '../core/auth.service';
 import { refocusAfterRender } from '../core/focus';
 import { isOnHiddenPage } from '../core/page-keys';
 import { ProgressService } from '../core/progress.service';
+import { FIRST_IDLE } from '../core/serial-preloading.strategy';
+import { ShortcutsService } from '../core/shortcuts.service';
 import { FeedbackSheetComponent } from '../pilot/feedback-sheet.component';
 import { PilotNoticeComponent } from '../pilot/pilot-notice.component';
 import { PilotService } from '../pilot/pilot.service';
-import { CrossSections, forgetOnChange, pathOf } from '../ui/cross-link.directive';
+import type { ShowPalette } from '../search/search-palette.component';
+import { holdKeys, isSearchChordStart, isSearchKey, searchKeyHint } from '../search/search-keys';
+import { CrossSections, crossState, forgetOnChange, pathOf } from '../ui/cross-link.directive';
 import { hardwareBack } from './hardware-back';
 import type { RailHost } from './rail.component';
 import { daysLeft, problemsSolved } from './rail-counts';
@@ -87,6 +102,10 @@ import { RailPrefsService } from './rail-prefs';
         <app-pilot-notice (acknowledged)="pilot.acknowledgeNotice()" />
       </ng-template>
     </ion-modal>
+    <ng-container #searchHost />
+    @if (searchLoading()) {
+      <p class="search-loading" role="status">Opening search…</p>
+    }
   `,
   styles: `
     @use '../../breakpoints' as *;
@@ -122,6 +141,20 @@ import { RailPrefsService } from './rail-prefs';
           width: 100%;
         }
       }
+    }
+    .search-loading {
+      position: fixed;
+      z-index: 20;
+      top: 12vh;
+      left: 50%;
+      transform: translateX(-50%);
+      margin: 0;
+      padding: var(--g-space-3) var(--g-space-4);
+      border: 1px solid var(--g-line-strong);
+      border-radius: var(--g-radius-md);
+      background: var(--g-raised);
+      color: var(--g-muted);
+      box-shadow: var(--g-shadow-overlay);
     }
     ion-badge {
       --background: var(--g-predict);
@@ -170,6 +203,12 @@ export class TabsPage implements RailHost {
   private readonly sections = inject(CrossSections);
   /** Ionic's own default, as its outlet applies it: the outlet has no getter to read it back. */
   private readonly swipe = inject(Config).getBoolean('swipeBackEnabled', true);
+  private readonly searchHost = viewChild.required('searchHost', { read: ViewContainerRef });
+  private palette: Promise<ShowPalette | null> | null = null;
+  private searchOpening = false;
+  /** Shown while the palette's code arrives, so a first open on a slow network answers at once. */
+  readonly searchLoading = signal(false);
+  readonly searchKeyHint = searchKeyHint();
 
   constructor() {
     addIcons({ todayOutline, codeSlashOutline, gitNetworkOutline, peopleOutline, chatbubblesOutline });
@@ -187,6 +226,21 @@ export class TabsPage implements RailHost {
     };
     follow();
     wide.addEventListener('change', follow);
+    const host: Element = inject(ElementRef).nativeElement;
+    const shortcuts = inject(ShortcutsService);
+    const keys = (e: KeyboardEvent) => {
+      if (isSearchChordStart(e)) {
+        if (this.desktop()) void this.prepareSearch();
+      } else if (isSearchKey(host, e, shortcuts.characterKeys())) {
+        e.preventDefault();
+        this.openSearch(document.activeElement instanceof HTMLElement ? document.activeElement : null);
+      }
+    };
+    document.addEventListener('keydown', keys);
+    // After first paint, so a desktop's first search opens at once without costing first paint anything.
+    void inject(FIRST_IDLE).then(() => {
+      if (this.desktop()) void this.prepareSearch();
+    });
     this.router.events.pipe(takeUntilDestroyed()).subscribe((event) => {
       if (!(event instanceof NavigationEnd)) return;
       this.url.set(event.urlAfterRedirects);
@@ -209,6 +263,7 @@ export class TabsPage implements RailHost {
     inject(DestroyRef).onDestroy(() => {
       android.unsubscribe();
       wide.removeEventListener('change', follow);
+      document.removeEventListener('keydown', keys);
     });
   }
 
@@ -243,6 +298,46 @@ export class TabsPage implements RailHost {
 
   outlet(): unknown {
     return this.tabs().outlet;
+  }
+
+  /** Starts loading the palette, which a phone never needs: it searches on its own page. Null when its code fails to load. */
+  prepareSearch(): Promise<ShowPalette | null> {
+    this.palette ??= import('../search/search-palette.component').then(
+      (m) => m.attachPalette(this.searchHost(), (within) => this.focusPageHeading(within ?? undefined)),
+      () => {
+        this.palette = null;
+        return null;
+      },
+    );
+    return this.palette;
+  }
+
+  /**
+   * Search (REDESIGN.md 2.9): the palette from 1024px, its page below, where an overlay fights the phone's keyboard. Focus
+   * returns to `launcher` when the palette closes. Without the palette's code (offline on a first visit) the page opens.
+   * What is typed before either is ready becomes the query rather than reaching the page behind.
+   */
+  openSearch(launcher: HTMLElement | null): void {
+    if (this.searchOpening) return;
+    this.searchOpening = true;
+    const held = holdKeys(document);
+    const state = { ...crossState(this.router, '/today/search'), focus: true };
+    const page = (typed: string) =>
+      this.router.navigateByUrl(typed ? `/today/search?q=${encodeURIComponent(typed)}` : '/today/search', { state });
+    const finish = (open: (typed: string) => unknown) => {
+      const typed = held.release();
+      this.searchOpening = false;
+      this.searchLoading.set(false);
+      if (!held.cancelled()) open(typed);
+    };
+    if (!this.desktop()) {
+      void page('').finally(() =>
+        finish((typed) => typed && this.router.navigateByUrl(`/today/search?q=${encodeURIComponent(typed)}`, { replaceUrl: true, state })),
+      );
+      return;
+    }
+    this.searchLoading.set(true);
+    void this.prepareSearch().then((show) => finish((typed) => (show ? show(launcher, typed) : page(typed))));
   }
 
   /**
