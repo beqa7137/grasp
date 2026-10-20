@@ -19,7 +19,7 @@
   },
   "devDependencies": {
     "typescript": "~6.0.2",
-    "vitest": "^4.1.2"
+    "vitest": "^5.0.2"
   },
   "dependencies": {
     "ts-fsrs": "^5.4.2"
