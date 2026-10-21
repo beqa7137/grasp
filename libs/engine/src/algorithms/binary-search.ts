@@ -1,8 +1,8 @@
 import { spansOf } from './annotate.js';
-import { fixedChoices, rotatedChoices } from './choices.js';
+import { cellsFor, fixedChoices, rotatedChoices } from './choices.js';
 import { asNumber, asNumbers } from './input.js';
 import { distinctInts, randInt } from './random.js';
-import type { AlgorithmDefinition, Frame } from './types.js';
+import type { AlgorithmDefinition, Frame, Prediction } from './types.js';
 
 type Input = { nums: number[]; target: number };
 
@@ -92,6 +92,55 @@ export const binarySearch: AlgorithmDefinition<Input> = {
       });
     };
 
+    const foundQuestion = (mid: number): Prediction => {
+      const ask = rotatedChoices(`\`nums[mid] = ${nums[mid]}\` equals \`target\`. What does binarySearch return?`, String(mid), [
+        String(target),
+        String(lo),
+        String(hi),
+        String(mid + 1),
+        'true',
+      ]);
+      return {
+        ...ask,
+        explain: `It returns the index, not the value: ${target} sits at \`mid = ${mid}\`, so the result is ${mid}.`,
+        skill: 'return',
+        pick: {
+          on: 'cell',
+          ask: 'Tap the index it returns.',
+          cells: cellsFor(ask.choices, [
+            [String(mid), [mid]],
+            [String(lo), [lo]],
+            [String(hi), [hi]],
+            ...(mid + 1 < nums.length ? [[String(mid + 1), [mid + 1]] as const] : []),
+          ]),
+        },
+      };
+    };
+
+    // Each move keeps one side of mid, so tapping a cell on a side chooses that move, and tapping mid chooses "Found it". When
+    // either side has no cells left the ask stays a list: deciding by the answer's side alone would give the answer away.
+    const stepQuestion = (mid: number, answer: 1 | 2): Prediction => {
+      const sides = [[mid], range(mid + 1, hi), range(lo, mid - 1)];
+      return {
+        prompt: `\`nums[mid] = ${nums[mid]}\`, \`target = ${target}\`. What happens next?`,
+        ...fixedChoices(CHOICES, answer),
+        explain:
+          answer === 1
+            ? `${nums[mid]} < ${target}. Since the array is sorted, everything at or left of mid is too small, so discard it.`
+            : `${nums[mid]} > ${target}. Everything at or right of mid is too big, so discard it.`,
+        skill: 'halve',
+        ...(sides[1].length && sides[2].length
+          ? {
+              pick: {
+                on: 'cell',
+                ask: 'Tap a cell the search keeps.',
+                cells: sides.map((side) => side.map((at) => ({ view: 'array', at }))),
+              },
+            }
+          : {}),
+      };
+    };
+
     snap(
       2,
       nums.length === 1
@@ -123,33 +172,14 @@ export const binarySearch: AlgorithmDefinition<Input> = {
         mid,
       );
 
-      const answer = nums[mid] === target ? 0 : nums[mid] < target ? 1 : 2;
+      const answer: 0 | 1 | 2 = nums[mid] === target ? 0 : nums[mid] < target ? 1 : 2;
       snap(
         5,
         `Compare ${nums[mid]} with the target ${target}.`,
         `Compare \`nums[mid] = ${nums[mid]}\` with target ${target}.`,
         {
           ...(answer === 0 ? { span: RETURN_SPAN } : {}),
-          predict:
-            answer === 0
-              ? {
-                  ...rotatedChoices(`\`nums[mid] = ${nums[mid]}\` equals \`target\`. What does binarySearch return?`, String(mid), [
-                    String(target),
-                    String(lo),
-                    String(hi),
-                    String(mid + 1),
-                    'true',
-                  ]),
-                  explain: `It returns the index, not the value: ${target} sits at \`mid = ${mid}\`, so the result is ${mid}.`,
-                }
-              : {
-                  prompt: `\`nums[mid] = ${nums[mid]}\`, \`target = ${target}\`. What happens next?`,
-                  ...fixedChoices(CHOICES, answer),
-                  explain:
-                    answer === 1
-                      ? `${nums[mid]} < ${target}. Since the array is sorted, everything at or left of mid is too small, so discard it.`
-                      : `${nums[mid]} > ${target}. Everything at or right of mid is too big, so discard it.`,
-                },
+          predict: answer === 0 ? foundQuestion(mid) : stepQuestion(mid, answer),
         },
         mid,
       );

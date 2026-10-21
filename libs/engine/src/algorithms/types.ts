@@ -94,6 +94,26 @@ export interface TreeView {
 /** One element of a frame's drawing: an array, table or grid cell by index, or a graph or tree node by id. */
 export type Locator = { view: 'array' | 'table' | 'grid'; at: number | [number, number] } | { view: 'graph' | 'tree'; id: string };
 
+/**
+ * An ask answered by tapping cells on the drawing. A tap chooses the choice whose cells hold it (or, picking two, whose
+ * cells are exactly the two picked), so a picture answer grades, records and reviews like the same answer from the list;
+ * a cell no choice holds is a wrong answer of its own.
+ */
+export interface CellPick {
+  on: 'cell';
+  /** Learner text: what to tap, such as "Tap a cell the search keeps." */
+  ask: string;
+  /** For each choice, the cells that choose it; empty for a choice the drawing has no cell for. */
+  cells: Locator[][];
+  /** How many cells make one answer, locked in together; one when absent. */
+  count?: 2;
+}
+
+/** An ask answered with a number: its choices as chips, or typed. */
+export interface ValuePick {
+  on: 'value';
+}
+
 export interface Prediction {
   /** Learner text: backticks mark code spans. */
   prompt: string;
@@ -105,6 +125,15 @@ export interface Prediction {
   explain: string;
   /** What the question is about: while it is asked, the rest of the drawing dims. */
   focus?: Locator[];
+  /** What the ask practises; the player asks the first of each skill in a run before any repeat (`pickCheckpoints`). */
+  skill: string;
+  /**
+   * 1 for an ask the drawing or a recent step all but answers, which the player asks only when a run has nothing else;
+   * 3 for one worth asking again before the rest. 2 when absent. Never decided by the answer, which it would give away.
+   */
+  tier?: 1 | 2 | 3;
+  /** How the player takes the answer besides the list: tapping cells, or a number. */
+  pick?: CellPick | ValuePick;
 }
 
 export interface Frame {

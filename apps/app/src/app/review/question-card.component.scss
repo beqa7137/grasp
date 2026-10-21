@@ -77,6 +77,21 @@ header {
   }
 }
 
+// The answer's one-line verdict, directly under the stage while its step plays (REDESIGN.md 3.8): the learner's guess, neutral
+// ink with a final check when right, or critical with the actual answer when wrong.
+.payoff {
+  margin: calc(-1 * var(--g-space-2)) 0 var(--g-space-3);
+  font-size: var(--g-text-body-s);
+  font-weight: 600;
+  color: var(--g-viz-guess);
+  .mark {
+    color: var(--g-danger);
+  }
+  &.right .mark {
+    color: var(--g-found);
+  }
+}
+
 .code {
   margin-bottom: 14px;
   border-radius: 12px;

@@ -157,6 +157,7 @@ export const linkedListReversal: AlgorithmDefinition<Input> = {
             ? `prev is null on the first step, so ${name(curr)} now ends the reversed part and points to null.`
             : `prev is on ${name(prev)}, the head of the reversed part, so the link turns around to it.`) +
           (next === null ? '' : ` The old link to ${name(next)} is gone, but next still holds it.`),
+        skill: 'flip',
       };
     };
 
@@ -169,6 +170,7 @@ export const linkedListReversal: AlgorithmDefinition<Input> = {
           next === null ? name(at.before!) : name(link[next]),
         ]),
         explain: `next saved ${name(next)} before the link turned around, so curr moves forward to it. \`curr = curr.next\` would follow the turned link back to ${name(back)}.`,
+        skill: 'advance',
       };
     };
 
@@ -298,6 +300,7 @@ export const linkedListReversal: AlgorithmDefinition<Input> = {
             ],
           ),
           explain: `\`before.next\` is still ${name(first)}, the old first node of the part and now its last. Pointing it at ${name(after)} joins the reversed part to the rest.`,
+          skill: 'reconnect-tail',
         },
       },
     );
@@ -320,6 +323,7 @@ export const linkedListReversal: AlgorithmDefinition<Input> = {
           linkChoice(prev, before),
         ]),
         explain: `prev is on ${name(prev)}, the new first node of the reversed part, so ${name(before)} now leads into it.`,
+        skill: 'reconnect-head',
       },
     });
     link[before] = prev;

@@ -1,5 +1,5 @@
 import { andList, spansOf } from './annotate.js';
-import { fixedChoices, rotatedChoices } from './choices.js';
+import { VALUE, fixedChoices, rotatedChoices } from './choices.js';
 import { InputError } from './types.js';
 import { asEdges, asNumber, type Edge } from './input.js';
 import { randInt } from './random.js';
@@ -226,6 +226,10 @@ export const dijkstra: AlgorithmDefinition<Input> = {
                       [String(w), String(dist[u]), '∞', String(candidate + w)],
                     ),
                     explain: `\`dist[${v}]\` was ∞, so any path is shorter: ${dist[u]} + ${w} = ${candidate}. Record it and push ${v} with that priority.`,
+                    skill: 'reach',
+                    // From the source, whose distance is 0, the answer is the weight printed on the edge.
+                    ...(dist[u] === 0 ? { tier: 1 as const } : {}),
+                    pick: VALUE,
                   }
                 : {
                     prompt: `\`dist[${u}] = ${dist[u]}\`, edge ${u}-${v} weighs ${w}, and \`dist[${v}]\` is ${dist[v]}. Update?`,
@@ -235,6 +239,9 @@ export const dijkstra: AlgorithmDefinition<Input> = {
                       : settled.has(v)
                         ? `${candidate} ≥ ${dist[v]}: node ${v} is already settled, and a settled distance never improves because every edge weight is non-negative. From here on, the trace skips edges back to settled nodes: they always fail this check.`
                         : `${candidate} ≥ ${fmt(dist[v])}: the path through ${u} is no shortcut, so nothing changes.`,
+                    skill: 'relax',
+                    // An edge back to a settled node always fails the check, as the drawing's settled node shows.
+                    ...(settled.has(v) ? { tier: 1 as const } : {}),
                   },
           },
           key(u, v),

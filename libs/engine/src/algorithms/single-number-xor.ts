@@ -145,6 +145,7 @@ export const singleNumberXor: AlgorithmDefinition<Input> = {
             predict: {
               ...xorQuestion(x, n, width),
               explain: `XOR keeps a 1 only where the two bits differ: \`${binary(x, width)} ^ ${binary(n, width)}\` = ${binary(x ^ n, width)}, which is ${x ^ n}. ${reason}`,
+              skill: 'xor',
             },
           },
         );

@@ -22,6 +22,23 @@ async function stepForward(p, steps) {
   await settle(p);
 }
 
+/** Answers the open checkpoint with its first choice, or, where it opened on the picture, its first cell. */
+async function answerCheckpoint(p) {
+  const choice = p.locator('.predict .choice').first();
+  await ((await choice.count()) ? choice : p.locator('app-player .scene [data-pick]').first()).click();
+  await settle(p, 500);
+}
+
+/** Opens the `n`th checkpoint of the run (from 0), skipping those before it. */
+async function toCheckpoint(p, n) {
+  for (let i = 0; i < n; i++) {
+    await toPredict(p);
+    await p.locator('.predict .skip').click();
+    await p.locator('.predict').waitFor({ state: 'detached' });
+  }
+  return toPredict(p);
+}
+
 async function showPane(p, pane) {
   await p.locator('app-code-workspace .workspace').last().waitFor();
   const control = p.getByRole('radiogroup', { name: 'Show' }).getByRole('radio', { name: pane, exact: true });
@@ -147,7 +164,7 @@ export function learnStates() {
     {
       id: `player-${id}-answered`,
       path: `/coding/visualizers/${id}`,
-      setup: async (p) => ((await toPredict(p)) ? answerFirst(p, '.predict .choice') : 'no predict'),
+      setup: async (p) => ((await toPredict(p)) ? answerCheckpoint(p) : 'no predict'),
     },
   ]);
   return [
@@ -268,6 +285,8 @@ export function learnStates() {
       setup: async (p) => {
         for (const choice of [1, 0]) {
           await toPredict(p);
+          const list = p.getByRole('button', { name: 'Answer from a list' });
+          if (await list.isVisible()) await list.click();
           await p.locator('.predict .choice').nth(choice).click();
           await p.getByRole('button', { name: 'Continue →' }).click();
           await p.locator('.predict').waitFor({ state: 'detached' });
@@ -276,6 +295,76 @@ export function learnStates() {
         await p.locator('.predict .skip').click();
         await openPlayback(p);
         await settle(p, 500);
+      },
+    },
+    // Pick and value asks (REDESIGN.md 3.8): on the picture, the list it falls back to, two cells picked, a typed value, the
+    // learner's ghost after a wrong pick, and the end card's summary.
+    {
+      id: 'player-binary-search-pick-list',
+      path: '/coding/visualizers/binary-search',
+      setup: async (p) => {
+        await toPredict(p);
+        const list = p.getByRole('button', { name: 'Answer from a list' });
+        if (await list.isVisible()) await list.click();
+        await settle(p, 500);
+      },
+    },
+    {
+      id: 'player-binary-search-pick-picture',
+      path: '/coding/visualizers/binary-search',
+      setup: async (p) => {
+        await toPredict(p);
+        const picture = p.getByRole('button', { name: 'Answer on the picture' });
+        if (await picture.isVisible()) await picture.click();
+        await settle(p, 500);
+      },
+    },
+    {
+      id: 'player-binary-search-ghost',
+      path: '/coding/visualizers/binary-search',
+      setup: async (p) => {
+        await toCheckpoint(p, 1);
+        const picture = p.getByRole('button', { name: 'Answer on the picture' });
+        if (await picture.isVisible()) await picture.click();
+        await p.locator('app-player .scene [data-pick]').first().click();
+        await settle(p, 900);
+      },
+    },
+    {
+      id: 'player-two-sum-hash-pair',
+      path: '/coding/visualizers/two-sum-hash',
+      setup: async (p) => {
+        // Its return ask, the run's one pick, after however many asks come first.
+        while ((await toPredict(p)) && !(await p.getByText('What does twoSum return?').count())) {
+          await p.locator('.predict .skip').click();
+          await p.locator('.predict').waitFor({ state: 'detached' });
+        }
+        const picture = p.getByRole('button', { name: 'Answer on the picture' });
+        if (await picture.isVisible()) await picture.click();
+        await p.locator('app-player .scene [data-pick]').nth(1).click();
+        await settle(p, 500);
+      },
+    },
+    {
+      id: 'player-grid-bfs-value',
+      path: '/coding/visualizers/grid-bfs',
+      setup: async (p) => {
+        await toCheckpoint(p, 1);
+        await p.getByLabel('Or type it').fill('2');
+        await settle(p, 500);
+      },
+    },
+    {
+      id: 'player-binary-search-summary',
+      path: '/coding/visualizers/binary-search',
+      setup: async (p) => {
+        for (let n = 0; n < 3; n++) {
+          await toPredict(p);
+          await answerCheckpoint(p);
+          await p.getByRole('button', { name: 'Continue →' }).click();
+          await p.locator('.predict').waitFor({ state: 'detached' });
+        }
+        await toEnd(p);
       },
     },
     // Trails (REDESIGN.md 3.5): the tools' test mode animates nothing, so a step leaves its trails for one frame.

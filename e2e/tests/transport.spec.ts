@@ -1,6 +1,9 @@
-import { ALGORITHM_CATALOG } from '@grasp/engine';
+import { ALGORITHM_CATALOG, getAlgorithm, pickCheckpoints } from '@grasp/engine';
 import type { Locator, Page } from '@playwright/test';
 import { expect, openPlayback, recordedEvents, stepTotal, stepToCheckpoint, test } from './fixtures';
+
+// These specs answer checkpoints from the list; picks.spec.ts covers answering on the picture.
+test.use({ checkpoints: 'list' });
 
 const transport = (page: Page) => page.locator('app-player g-transport');
 const count = (page: Page) => transport(page).locator('.count');
@@ -208,22 +211,26 @@ test.describe('a run with many checkpoints', { tag: '@player' }, () => {
     expect(Math.min(...gaps), 'an 8px diamond turned 45° with its 2px halo needs 15px').toBeGreaterThanOrEqual(15);
   });
 
-  test('a tap on a merged mark opens the pending checkpoint it shows', async ({ page }, testInfo) => {
+  test('a tap on a mark opens the pending checkpoint it shows, and checkpoints stay apart at 320px', async ({ page }, testInfo) => {
+    const algo = getAlgorithm('lcs')!;
+    const frames = algo.trace(algo.defaultInput);
+    const asking = pickCheckpoints(frames);
     await page.setViewportSize({ width: 320, height: 700 });
     await page.goto('/coding/visualizers/lcs');
     await openPlayback(page);
-    for (const at of ['2 / 86', '8 / 86']) {
+    // A run asks at least a tenth of its length apart (REDESIGN.md 3.8), so no two marks merge into one even at 320px.
+    await expect(transport(page).locator('.tick')).toHaveCount(asking.length);
+    for (const at of asking.slice(0, 2)) {
       await page.getByRole('button', { name: 'Next checkpoint' }).click();
-      await expect(count(page)).toHaveText(at);
+      await expect(count(page)).toHaveText(`${at + 1} / ${frames.length}`);
       await page.locator('.predict').getByRole('button', { name: 'Skip' }).click();
       await openPlayback(page);
     }
-    // At 320px LCS's checkpoints at 8 and 12 are 13px apart, so they draw as one mark, pending, on 12.
-    await expect(transport(page).locator('.tick[data-state="skipped"]')).toHaveCount(1);
+    await expect(transport(page).locator('.tick[data-state="skipped"]')).toHaveCount(2);
     const at = await centre(transport(page).locator('.tick[data-state="pending"]').first());
     if (testInfo.project.use.hasTouch) await page.touchscreen.tap(at.x, at.y);
     else await page.mouse.click(at.x, at.y);
-    await expect(count(page)).toHaveText('12 / 86');
+    await expect(count(page)).toHaveText(`${asking[2] + 1} / ${frames.length}`);
     await expect(page.locator('.predict .prompt')).toBeFocused();
   });
 });

@@ -1,5 +1,5 @@
 import { spansOf } from './annotate.js';
-import { fixedChoices, rotatedChoices } from './choices.js';
+import { VALUE, fixedChoices, rotatedChoices } from './choices.js';
 import { InputError } from './types.js';
 import { asEdges, asNumber, rangeOf } from './input.js';
 import { randInt, shuffle } from './random.js';
@@ -208,6 +208,7 @@ export const kruskalMst: AlgorithmDefinition<Input> = {
           ru === rv
             ? `\`find(${u})\` and \`find(${v})\` both reach root ${ru}: tree edges already join ${u} and ${v}, so ${u}-${v} would close a cycle. Every edge on that path weighs at most ${w}, so leaving this one out costs nothing.`
             : `\`find(${u}) = ${ru}\` and \`find(${v}) = ${rv}\` differ, so no path joins ${u} and ${v} yet, and no edge still to come weighs less than ${w}: accept it. That makes used ${used + 1}, ${completes ? 'which is n - 1: every node is joined, so the loop stops.' : `short of n - 1 = ${n - 1}, so the loop goes on.`}`,
+        skill: 'verdict',
       };
     };
 
@@ -221,6 +222,7 @@ export const kruskalMst: AlgorithmDefinition<Input> = {
           ...(other ? [setText([...merged, ...other].sort((a, b) => a - b))] : []),
         ]),
         explain: `Union links root ${ru} and root ${rv}, so every node of ${setText(mine)} and of ${setText(theirs)} now shares one root.`,
+        skill: 'merge',
       };
     };
 
@@ -232,6 +234,10 @@ export const kruskalMst: AlgorithmDefinition<Input> = {
         String(total + 2 * w),
       ]),
       explain: `Only accepted edges count: ${total} + ${w} = ${total + w}.${rejectedWeight ? ` The rejected edges, ${rejectedWeight} in all, are not in the tree.` : ''}`,
+      skill: 'total',
+      // Plain arithmetic beside the lesson's verdicts and merges.
+      tier: 1,
+      pick: VALUE,
     });
 
     const returnQuestion = (lastWeight: number, checkedWeight: number): Prediction => {
@@ -246,6 +252,8 @@ export const kruskalMst: AlgorithmDefinition<Input> = {
         explain: spans
           ? `used is n - 1 = ${n - 1}: the tree joins every node, so return its total, ${total}. Rejected and unchecked edges are not in it.`
           : `Only ${used} edge${used === 1 ? '' : 's'} joined two components, fewer than n - 1 = ${n - 1}, so some node is cut off and there is no spanning tree: return -1.`,
+        skill: 'return',
+        pick: VALUE,
       };
     };
 

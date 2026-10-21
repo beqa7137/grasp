@@ -90,6 +90,7 @@ const predictItems: ItemDef[] = ALGORITHMS.map((algo) => ({
       const decisions = frames.filter((f) => f.predict);
       if (decisions.length === 0) continue;
       const frame = decisions[Math.floor(rand() * decisions.length)];
+      const after = frames[frames.indexOf(frame) + 1];
       const p = frame.predict!;
       const { choices, answer } = p.ordered
         ? p
@@ -106,6 +107,7 @@ const predictItems: ItemDef[] = ALGORITHMS.map((algo) => ({
         eyebrow: `${KIND_LABELS.predict} · ${algo.title}`,
         prompt: p.prompt,
         frame: { ...frame, predict: undefined },
+        ...(after ? { after: { ...after, predict: undefined } } : {}),
         code: { lines: algo.code, highlight: frame.line },
         choices,
         answer,

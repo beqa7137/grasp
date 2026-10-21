@@ -14,6 +14,9 @@ import {
   trace,
 } from './fixtures';
 
+// These specs answer checkpoints from the list; picks.spec.ts covers answering on the picture.
+test.use({ checkpoints: 'list' });
+
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice'];
 const BLOCKING = new Set(['serious', 'critical']);
 

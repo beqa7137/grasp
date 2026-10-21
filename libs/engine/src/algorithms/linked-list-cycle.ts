@@ -121,6 +121,7 @@ export const linkedListCycle: AlgorithmDefinition<Input> = {
             : from >= n - 2
               ? `fast follows two next pointers: ${path}. The last node links back to ${name(pos)}, so fast goes around the loop instead of reaching null.${to === from ? ' In a loop of two nodes that brings it back where it started.' : ''}`
               : `fast follows two next pointers: ${path}. slow follows only one, to ${name(slowTo)}.`,
+        skill: 'fast-step',
       };
     };
 
@@ -131,6 +132,7 @@ export const linkedListCycle: AlgorithmDefinition<Input> = {
         gap === 1
           ? `fast is 1 node behind slow. slow steps to ${name(slowTo)} and fast's two steps land there too, so \`slow === fast\`. A gap of 1 always closes to 0: fast cannot jump over slow.`
           : `fast is 2 nodes behind slow. After this step slow is on ${name(slowTo)} and fast on ${name(to)}, 1 node behind. The gap drops by exactly one per step, so they meet on the next one.`,
+      skill: 'meet',
     });
 
     const apartCaption = () => {

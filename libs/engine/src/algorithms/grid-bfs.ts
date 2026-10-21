@@ -1,5 +1,5 @@
 import { andList, spansOf } from './annotate.js';
-import { fixedChoices, rotatedChoices } from './choices.js';
+import { VALUE, fixedChoices, rotatedChoices } from './choices.js';
 import { asGrid } from './input.js';
 import { randInt } from './random.js';
 import type { AlgorithmDefinition, CellState, Frame } from './types.js';
@@ -145,13 +145,21 @@ export const gridBfs: AlgorithmDefinition<Input> = {
 
     const fifoQuestion = (): Frame['predict'] => {
       const front = queue[0];
+      const ask = rotatedChoices(
+        `Queue is [${queue.map(label).join(', ')}]. Which cell is expanded next?`,
+        label(front),
+        [queue[queue.length - 1], queue[Math.floor(queue.length / 2)]].map(label),
+      );
+      const at = new Map(queue.map((cell) => [label(cell), cell]));
       return {
-        ...rotatedChoices(
-          `Queue is [${queue.map(label).join(', ')}]. Which cell is expanded next?`,
-          label(front),
-          [queue[queue.length - 1], queue[Math.floor(queue.length / 2)]].map(label),
-        ),
+        ...ask,
         explain: `A queue is FIFO: ${label(front)} was discovered earliest, so it is closest to the start. That ordering is exactly why BFS finds shortest paths.`,
+        skill: 'fifo',
+        pick: {
+          on: 'cell',
+          ask: 'Tap the cell expanded next.',
+          cells: ask.choices.map((choice) => [{ view: 'grid', at: at.get(choice)! }]),
+        },
       };
     };
 
@@ -168,6 +176,8 @@ export const gridBfs: AlgorithmDefinition<Input> = {
       return {
         prompt: `${label(front)} is at the front of the queue. How many new cells will it add?`,
         ...fixedChoices(COUNTS, fresh.length),
+        skill: 'count',
+        pick: VALUE,
         explain: `${fresh.length ? `It adds ${andList(fresh)}` : 'It adds nothing'}${reasons.length ? `: ${reasons.join(', and ')}` : ''}. A cell joins the queue only the first time it is seen, so each one is expanded once.`,
       };
     };

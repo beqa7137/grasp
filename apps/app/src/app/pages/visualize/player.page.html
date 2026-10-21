@@ -65,10 +65,20 @@
                   [keys]="k.array ?? null"
                   [step]="step()"
                   [comparing]="comparing()"
+                  [pick]="run.pickAsk()"
+                  [ghost]="run.ghost()"
+                  (picked)="run.pick($event)"
                 />
               }
               @if (f.grid) {
-                <g-grid-view [view]="f.grid" [focus]="checkpointFocus()" [step]="step()" />
+                <g-grid-view
+                  [view]="f.grid"
+                  [focus]="checkpointFocus()"
+                  [step]="step()"
+                  [pick]="run.pickAsk()"
+                  [ghost]="run.ghost()"
+                  (picked)="run.pick($event)"
+                />
               }
               @if (f.table) {
                 <g-table-view [view]="f.table" [focus]="checkpointFocus()" />
@@ -162,6 +172,14 @@
               @if (result() !== undefined) {
                 <span class="result mono" aria-hidden="true">→ {{ result() ?? 'null' }}</span>
               }
+              @if (run.summary(); as sum) {
+                <div class="summary">
+                  <p>{{ sum.correct }} of {{ sum.total }} predicted</p>
+                  @for (m of sum.missed; track m.at) {
+                    <button class="revisit" (click)="revisit(m.at)">Step {{ m.at + 1 }} · {{ m.state }}</button>
+                  }
+                </div>
+              }
               @if (problem(); as c) {
                 <a class="code-it" [routerLink]="['/coding/problems', c.id]">Write {{ c.title }} →</a>
               }
@@ -172,34 +190,81 @@
           }
           @if (pending(); as p) {
             @let q = frames()[p.frame].predict!;
+            @let mode = run.mode();
             <div class="predict" role="region" aria-label="Checkpoint" [class.revealed]="p.choice !== null" #predictPanel>
               <p class="prompt" tabindex="-1" #predictPrompt>
                 <span class="predict-head"><ion-icon name="help-circle-outline" aria-hidden="true" />Your call</span>
-                <g-code-text [text]="q.prompt" />
+                <span [id]="run.promptId"><g-code-text [text]="q.prompt" /></span>
               </p>
-              <div class="choices">
-                @for (c of q.choices; track $index) {
-                  <button
-                    class="g-choice choice"
-                    [disabled]="p.choice !== null"
-                    [class.right]="p.choice !== null && $index === q.answer"
-                    [class.wrong]="p.choice === $index && $index !== q.answer"
-                    (click)="choose($index)"
-                  >
-                    <span class="key">{{ $index + 1 }}</span
-                    >{{ c }}
-                    @if (answerMark($index, q.answer, p.choice); as mark) {
-                      <ion-icon class="g-answer-mark" [name]="mark.icon" [attr.aria-label]="mark.label" />
+              @if (mode === 'picture' && q.pick?.on === 'cell') {
+                @if (p.choice === null) {
+                  @let picked = run.selection().length;
+                  <p class="pick-ask">
+                    <span [id]="run.askId">{{ $any(q.pick).ask }}</span>
+                    @if (q.pick?.count === 2) {
+                      <span class="muted" aria-live="polite">{{ picked }} of 2 picked</span>
                     }
-                  </button>
+                  </p>
+                  @if (q.pick?.count === 2) {
+                    <button class="g-btn primary lock" [disabled]="picked < 2" (click)="run.lock()">Lock it in</button>
+                  }
                 }
-              </div>
+              } @else {
+                <div class="choices" [class.chips]="mode === 'value'">
+                  @for (c of q.choices; track $index) {
+                    <button
+                      class="g-choice choice"
+                      [disabled]="p.choice !== null"
+                      [class.right]="p.choice !== null && $index === q.answer"
+                      [class.wrong]="p.choice === $index && $index !== q.answer"
+                      (click)="run.choose($index)"
+                    >
+                      @if (mode !== 'value') {
+                        <span class="key">{{ $index + 1 }}</span>
+                      }
+                      {{ c }}
+                      @if (answerMark($index, q.answer, p.choice); as mark) {
+                        <ion-icon class="g-answer-mark" [name]="mark.icon" [attr.aria-label]="mark.label" />
+                      }
+                    </button>
+                  }
+                </div>
+                @if (mode === 'value' && p.choice === null) {
+                  <!-- Not a form: FormsModule's NgForm would take over a <form> and pull 8 kB of it into first paint. -->
+                  <div class="entry">
+                    <label>
+                      <span>Or type it</span>
+                      <input
+                        class="mono"
+                        autocomplete="off"
+                        enterkeyhint="done"
+                        maxlength="12"
+                        [id]="run.fieldId"
+                        [attr.inputmode]="q.choices.some(negative) ? 'text' : 'numeric'"
+                        [attr.aria-invalid]="badEntry() || null"
+                        [attr.aria-describedby]="badEntry() ? run.fieldId + '-hint' : null"
+                        [value]="run.typed()"
+                        (input)="run.typed.set($any($event.target).value)"
+                        (keydown.enter)="run.lock()"
+                      />
+                    </label>
+                    @if (badEntry()) {
+                      <span class="hint" [id]="run.fieldId + '-hint'">Type a whole number.</span>
+                    }
+                    <button class="g-btn" [disabled]="!isValueEntry(run.typed())" (click)="run.lock()">Lock it in</button>
+                  </div>
+                }
+              }
               @if (p.choice !== null) {
                 <div class="verdict" [class.ok]="p.choice === q.answer" tabindex="-1" #verdict>
                   <ion-icon [name]="p.choice === q.answer ? 'checkmark-circle' : 'close-circle'" aria-hidden="true" />
                   <p>
                     <strong>{{ p.choice === q.answer ? 'Exactly.' : 'Not quite.' }}</strong
-                    >&ngsp;<g-code-text [text]="q.explain" />&ngsp;
+                    >&ngsp;
+                    @if (p.text) {
+                      <span>You answered {{ p.text }}; it is {{ q.choices[q.answer] }}.</span>&ngsp;
+                    }
+                    <g-code-text [text]="q.explain" />&ngsp;
                     @if (p.choice !== q.answer) {
                       <span class="scheduled">A fresh version of this checkpoint will show up in your review within a day.</span>
                     }
@@ -207,6 +272,11 @@
                 </div>
                 <button class="g-btn primary continue" (click)="continueAfterPredict()">Continue →</button>
               } @else {
+                @if (q.pick?.on === 'cell') {
+                  <button class="g-btn ghost switch" (click)="run.answerFrom(mode === 'list' ? 'picture' : 'list')">
+                    {{ mode === 'list' ? 'Answer on the picture' : 'Answer from a list' }}
+                  </button>
+                }
                 <button class="g-btn ghost skip" (click)="skip()">Skip</button>
               }
             </div>
@@ -304,7 +374,7 @@
           [playing]="playing()"
           [speed]="speed()"
           [canBack]="index() > 0"
-          [canForward]="pending()?.choice !== null && (index() < last() || !!frame()?.predict)"
+          [canForward]="pending()?.choice !== null && (index() < last() || run.askingSet().has(index()))"
           [guard]="predictMode()"
           [asking]="!!pending()"
           [(moreOpen)]="moreOpen"
@@ -320,7 +390,7 @@
           (skipTick)="skipTick($event)"
           (holdRelease)="holdRelease($event)"
         >
-          <p class="keys muted">← → step · ⇧← → checkpoint · space play{{ shortcuts.characterKeys() ? ' · 1–4 answer' : '' }}</p>
+          <p class="keys muted">← → step · ⇧← → checkpoint · space play{{ keyHint() }}</p>
         </g-transport>
       </div>
     </div>

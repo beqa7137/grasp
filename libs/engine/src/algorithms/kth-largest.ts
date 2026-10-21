@@ -154,6 +154,7 @@ export const kthLargest: AlgorithmDefinition<Input> = {
             explain: enters
               ? `${x} > ${heap[0]}, so ${heap[0]} is no longer ${topK}. Replace the root and restore heap order.`
               : `${x} ≤ ${heap[0]}. It cannot be ${topK}, so the heap is unchanged.`,
+            skill: 'enter',
           },
         },
       );
@@ -187,6 +188,7 @@ export const kthLargest: AlgorithmDefinition<Input> = {
                   explain: swapDown
                     ? `A parent must not be larger than its children. Swap with the smaller child ${heap[child]} so the new parent is the minimum of the three.`
                     : `${heap[p]} is not larger than either child, so the heap is valid again.`,
+                  skill: 'sift',
                 },
               },
         );

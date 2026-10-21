@@ -1,5 +1,9 @@
+import { getAlgorithm, pickCheckpoints } from '@grasp/engine';
 import type { Page } from '@playwright/test';
 import { expect, openPlayback, section, stepToCheckpoint, test } from './fixtures';
+
+// These specs answer checkpoints from the list; picks.spec.ts covers answering on the picture.
+test.use({ checkpoints: 'list' });
 
 declare global {
   interface Window {
@@ -336,19 +340,25 @@ test(
   "arriving at Dijkstra's first checkpoint shows neither in the caption nor in Describe the note that answers it",
   { tag: '@player' },
   async ({ page }) => {
+    const algo = getAlgorithm('dijkstra')!;
+    const frames = algo.trace(algo.defaultInput);
+    const at = pickCheckpoints(frames)[0];
+    // The note works the sum out, "via 1 costs 7 + 10 = 17", which is the answer.
+    const answer = frames[at].note.match(/costs (.+)\.$/)![1];
     await page.goto('/coding/visualizers/dijkstra');
     const forward = page.getByRole('button', { name: 'Step forward' });
-    for (const at of [2, 3]) {
+    for (let step = 2; step <= at + 1; step++) {
       await forward.click();
-      await expect(page.locator('app-player g-transport .count')).toHaveText(`${at} / 27`);
+      await expect(page.locator('app-player g-transport .count')).toHaveText(`${step} / ${frames.length}`);
     }
     await expect(page.getByText('Your call')).toBeHidden();
     const narration = page.locator('app-player .narration');
-    await expect(narration).not.toContainText('0 + 7 = 7');
+    await expect(narration).toContainText(frames[at].caption!);
+    await expect(narration).not.toContainText(answer);
     await page.getByRole('button', { name: 'Describe this step' }).click();
-    const describe = page.getByRole('region', { name: 'Describe · step 3' });
+    const describe = page.getByRole('region', { name: `Describe · step ${at + 1}` });
     await expect(describe).toBeVisible();
-    await expect(describe).not.toContainText('0 + 7 = 7');
-    await expect(page.locator('app-player')).not.toContainText('0 + 7 = 7');
+    await expect(describe).not.toContainText(answer);
+    await expect(page.locator('app-player')).not.toContainText(answer);
   },
 );

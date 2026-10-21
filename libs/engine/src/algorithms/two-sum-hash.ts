@@ -1,5 +1,5 @@
 import { spansOf } from './annotate.js';
-import { fixedChoices, rotatedChoices } from './choices.js';
+import { cellsFor, fixedChoices, rotatedChoices } from './choices.js';
 import { asNumber, asNumbers, rangeOf } from './input.js';
 import { randInt, shuffle } from './random.js';
 import type { AlgorithmDefinition, Frame, SetView } from './types.js';
@@ -160,12 +160,21 @@ export const twoSumHash: AlgorithmDefinition<Input> = {
             prompt: `\`target = ${target}\`, \`x = nums[${i}] = ${x}\`, so \`need = ${need}\`. seen = ${mapText()}. Is ${need} in seen?`,
             ...fixedChoices(LOOKUP, j !== undefined ? 0 : 1),
             explain: lookupExplain(x, need),
+            skill: 'lookup',
+            // The prompt prints seen, which answers it, and the found lookup sits next to the return ask, so whatever the
+            // answer, the player asks it only when a run has nothing else.
+            tier: 1,
           },
         });
       }
 
       if (j !== undefined) {
         const answer = `[${j}, ${i}]`;
+        const ask = rotatedChoices(
+          `\`target = ${target}\`, \`x = nums[${i}] = ${x}\`, and \`need = ${need}\` is in seen = ${mapText()}. What does twoSum return?`,
+          answer,
+          [`[${need}, ${x}]`, `[${need}, ${i}]`, `[${i}, ${i}]`],
+        );
         snap(
           5,
           `${need} is in seen: an earlier number completes the pair.`,
@@ -173,12 +182,16 @@ export const twoSumHash: AlgorithmDefinition<Input> = {
           {
             span: RETURN_SPAN,
             predict: {
-              ...rotatedChoices(
-                `\`target = ${target}\`, \`x = nums[${i}] = ${x}\`, and \`need = ${need}\` is in seen = ${mapText()}. What does twoSum return?`,
-                answer,
-                [`[${need}, ${x}]`, `[${need}, ${i}]`, `[${i}, ${i}]`],
-              ),
+              ...ask,
               explain: `\`seen.get(${need}) = ${j}\` is the index where ${need} was stored, and \`i = ${i}\` is the index of x. twoSum returns indices, not values: ${answer}.`,
+              skill: 'return',
+              pick: {
+                on: 'cell',
+                ask: 'Tap the two indices it returns.',
+                // Only the answer stands for indices: [need, x] is values and [need, i] mixes them.
+                cells: cellsFor(ask.choices, [[answer, [j, i]]]),
+                count: 2,
+              },
             },
           },
         );
@@ -212,6 +225,7 @@ export const twoSumHash: AlgorithmDefinition<Input> = {
             explain: `seen must hold only the numbers before i. Stored first, a number that is half of target would find itself and return [i, i]${
               need === x ? `: here ${x} + ${x} = ${target}` : ''
             }.`,
+            skill: 'store-order',
           },
         });
       }

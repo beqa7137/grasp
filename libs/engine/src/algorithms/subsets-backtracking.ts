@@ -131,6 +131,7 @@ export const subsetsBacktracking: AlgorithmDefinition<Input> = {
           [path.slice(0, -1), ...nearby].map(bracket),
         ),
         explain: `Every call deeper than go(${j}) is finished, so control returns to go(${j}). It pops ${nums[j]} and skips it, and each call below takes its number first: ${bracket(next)}.`,
+        skill: 'next-subset',
       };
     };
 
@@ -178,6 +179,7 @@ export const subsetsBacktracking: AlgorithmDefinition<Input> = {
                 [`Return: go(${i}) is done`, `Call go(${i + 1}) again with ${x} still in path`],
               ),
               explain: `Choose, explore, un-choose: pop ${x} to get back to ${bracket(path.slice(0, -1))}, then explore every subset without ${x}. Returning now would miss them, and keeping ${x} would leak it into all of them.`,
+              skill: 'undo',
             },
           },
         );
@@ -219,6 +221,7 @@ export const subsetsBacktracking: AlgorithmDefinition<Input> = {
               [[], [nums[0]], nums.slice(0, -1)].map(bracket),
             ),
             explain: `Each call takes its number before it tries skipping it, so the first path takes everything on the way down: ${bracket(nums)}. Nothing is recorded until every number is decided.`,
+            skill: 'first-subset',
           },
         },
       );

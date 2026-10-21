@@ -14,6 +14,9 @@ import {
   viewportTop,
 } from './fixtures';
 
+// These specs answer checkpoints from the list; picks.spec.ts covers answering on the picture.
+test.use({ checkpoints: 'list' });
+
 const VISUALIZER_TITLES = [
   "Kruskal's Minimum Spanning Tree",
   'Minimum XOR Sum (Bitmask DP)',

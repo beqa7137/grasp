@@ -1,18 +1,50 @@
-import { ChangeDetectionStrategy, Component, ElementRef, afterRenderEffect, computed, inject, input, untracked } from '@angular/core';
-import type { GridView } from '@grasp/engine';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  afterRenderEffect,
+  computed,
+  inject,
+  input,
+  output,
+  untracked,
+} from '@angular/core';
+import type { CellState, GridView, Locator } from '@grasp/engine';
 import { DIM_CELL, dims, type Focus } from './dim';
 import { LANDING, land } from './kit/flip';
 import { MotionService, type StageStep } from './kit/motion.service';
+import { PICK_CELL, PickCellDirective, PickGroupDirective, type PickAsk, type PickGhost } from './kit/pick';
+
+/** What a screen reader hears for a cell's state while it can be picked, in the legend's words. */
+const STATE_LABELS: Record<CellState, string> = {
+  open: 'open',
+  wall: 'wall',
+  start: 'start',
+  goal: 'goal',
+  visited: 'expanded',
+  frontier: 'in queue',
+  current: 'current',
+  path: 'shortest path',
+};
 
 @Component({
   selector: 'g-grid-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="grid" [style.--cols]="cols()">
+    <div
+      class="grid"
+      [style.--cols]="cols()"
+      [gPickGroup]="pick()"
+      [pickGhost]="ghost()"
+      [pickColumns]="cols()"
+      (picked)="picked.emit($event)"
+    >
       @for (row of view().cells; track r; let r = $index) {
         @for (cell of row; track c; let c = $index) {
           <div
             class="cell"
+            [gPickCell]="{ view: 'grid', at: [r, c] }"
+            [pickLabel]="'(' + r + ',' + c + '), ' + stateLabel(cell)"
             [attr.data-state]="cell"
             [attr.data-at]="r + ',' + c"
             [class.dim]="dims(focus(), { view: 'grid', at: [r, c] }, cell === 'current')"
@@ -35,9 +67,11 @@ import { MotionService, type StageStep } from './kit/motion.service';
       <span><i data-state="path"></i>shortest path</span>
     </div>
   `,
+  imports: [PickGroupDirective, PickCellDirective],
   styles: [
     DIM_CELL,
     LANDING,
+    PICK_CELL,
     `
       :host {
         display: block;
@@ -145,6 +179,12 @@ export class GridViewComponent {
   readonly focus = input<Focus>(null);
   /** The step into this frame: its distances land in their cells. Nothing in a grid moves, so it leaves no trails. */
   readonly step = input<StageStep | null>(null);
+  /** An open pick ask, which makes the cells a radio group. */
+  readonly pick = input<PickAsk | null>(null);
+  /** The learner's committed pick, drawn on its cells. */
+  readonly ghost = input<PickGhost | null>(null);
+  readonly picked = output<Locator>();
+  protected readonly stateLabel = (state: CellState) => STATE_LABELS[state];
   private readonly motion = inject(MotionService, { optional: true });
   private readonly host: HTMLElement = inject(ElementRef).nativeElement;
   protected readonly dims = dims;

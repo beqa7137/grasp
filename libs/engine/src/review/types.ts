@@ -41,6 +41,8 @@ export interface Question {
   /** Learner text: backticks mark code spans. */
   explain: string;
   frame?: Frame;
+  /** The frame after `frame`, whose step plays once the question is answered (REDESIGN.md 3.8). */
+  after?: Frame;
   code?: { lines: string[]; blank?: number; highlight?: number };
   pipeline?: PipelineStage[];
   facts?: { label: string; value: string }[];

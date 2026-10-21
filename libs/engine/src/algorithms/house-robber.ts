@@ -1,6 +1,6 @@
 import { andList, spansOf } from './annotate.js';
 import { InputError } from './types.js';
-import { fixedChoices, rotatedChoices } from './choices.js';
+import { VALUE, fixedChoices, rotatedChoices } from './choices.js';
 import { asNumbers } from './input.js';
 import { randInt } from './random.js';
 import type { AlgorithmDefinition, Frame, Prediction, TableLegend } from './types.js';
@@ -54,6 +54,7 @@ function robOrSkip(step: Step): Prediction {
     prompt: `${givens(step)} Rob house ${house} or skip it?`,
     ...fixedChoices(ROB_OR_SKIP, step.take > step.skip ? 0 : 1),
     explain: `${verdict(step)} ${neighbor(step)}`,
+    skill: 'rob',
   };
 }
 
@@ -66,6 +67,8 @@ function dpValue(step: Step, threeBack: number | null): Prediction | null {
   return {
     ...options,
     explain: take > skip ? `${verdict(step)} ${neighbor(step)}` : verdict(step),
+    skill: 'dp',
+    pick: VALUE,
   };
 }
 

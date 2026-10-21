@@ -1,5 +1,5 @@
 import { andList, spansOf } from './annotate.js';
-import { fixedChoices, rotatedChoices } from './choices.js';
+import { VALUE, fixedChoices, rotatedChoices } from './choices.js';
 import { InputError } from './types.js';
 import { asNumbers, rangeOf } from './input.js';
 import { mulberry32, randInt, shuffle } from './random.js';
@@ -173,6 +173,7 @@ export const minimumXorSum: AlgorithmDefinition<Input> = {
           slips.filter((k) => k >= 0 && k < n && k !== count).map((k) => `i = ${k}`),
         ),
         explain: `${count === 0 ? 'No bit is set, so nothing is paired yet' : count === 1 ? '1 bit is set, so 1 value of nums2 is used, and it went to nums1[0]' : `${count} bits are set, so ${count} values of nums2 are used, and they went to nums1[0] ${count === 2 ? 'and' : 'to'} nums1[${count - 1}] in order`}. The next index is \`popcount(mask) = ${count}\`: the mask alone says how far the pairing has got.`,
+        skill: 'which',
       };
     };
 
@@ -186,6 +187,7 @@ export const minimumXorSum: AlgorithmDefinition<Input> = {
           slips.filter((v) => v >= 0 && v <= full && v !== answer).map(named),
         ),
         explain: `\`1 << ${bit}\` is ${binary(1 << bit)}, with only bit ${bit} set. OR keeps every bit of mask and turns bit ${bit} on: ${binary(answer)}, which is ${answer}. Setting a bit always makes the number larger, so dp[${answer}] comes later in the loop.`,
+        skill: 'mask',
       };
     };
 
@@ -201,6 +203,9 @@ export const minimumXorSum: AlgorithmDefinition<Input> = {
           `${dp[mask!]} + ${cost(i, bit)} = ${offer} is less than ${before}, so this way of pairing the same values is cheaper, and dp[${to}] drops to ${offer}.`,
           `${dp[mask!]} + ${cost(i, bit)} = ${offer} is not less than ${before}, so an earlier way of pairing the same values stays the best.`,
         ][outcome],
+        skill: 'outcome',
+        // A dp slot that holds ∞, as the prompt says, can only be set.
+        ...(before === Infinity ? { tier: 1 as const } : {}),
       };
     };
 
@@ -221,6 +226,8 @@ export const minimumXorSum: AlgorithmDefinition<Input> = {
           before === Infinity
             ? `dp[${to}] was ∞, so it becomes ${dp[mask!]} + ${cost(i, bit)} = ${offer}.`
             : `The min of ${before} and ${dp[mask!]} + ${cost(i, bit)} = ${offer} is ${answer}.`,
+        skill: 'value',
+        pick: VALUE,
       };
     };
 
@@ -242,6 +249,8 @@ export const minimumXorSum: AlgorithmDefinition<Input> = {
           [...new Set(slips)].filter((v) => v !== dp[full]).map(String),
         ),
         explain: `dp[${binary(full)}] is the least XOR sum with every value of nums2 used once: ${dp[full]}. Pairing the arrays in the order given costs ${inOrder}, and giving each nums1 value its cheapest free partner costs ${greedy}.`,
+        skill: 'return',
+        pick: VALUE,
       };
     };
 

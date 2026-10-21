@@ -1,8 +1,8 @@
 import { spansOf } from './annotate.js';
-import { fixedChoices, rotatedChoices } from './choices.js';
+import { cellsFor, fixedChoices, rotatedChoices } from './choices.js';
 import { asNumber, asNumbers } from './input.js';
 import { randInt } from './random.js';
-import type { AlgorithmDefinition, Frame } from './types.js';
+import type { AlgorithmDefinition, Frame, Prediction } from './types.js';
 
 type Input = { nums: number[]; target: number };
 
@@ -85,6 +85,29 @@ export const pairSum: AlgorithmDefinition<Input> = {
       { lens: `l = 0, r = ${r}` },
     );
 
+    const foundQuestion = (sum: number): Prediction => {
+      const ask = rotatedChoices(`\`sum = ${sum}\` equals \`target\`. What does pairSum return?`, `[${l}, ${r}]`, [
+        `[${nums[l]}, ${nums[r]}]`,
+        `[${l}, ${r - 1}]`,
+        `[${l + 1}, ${r}]`,
+      ]);
+      return {
+        ...ask,
+        explain: `pairSum returns the positions of the pair, \`l = ${l}\` and \`r = ${r}\`, not the values ${nums[l]} and ${nums[r]}.`,
+        skill: 'return',
+        pick: {
+          on: 'cell',
+          ask: 'Tap the two indices it returns.',
+          cells: cellsFor(ask.choices, [
+            [`[${l}, ${r}]`, [l, r]],
+            ...(r - 1 > l ? [[`[${l}, ${r - 1}]`, [l, r - 1]] as const] : []),
+            ...(l + 1 < r ? [[`[${l + 1}, ${r}]`, [l + 1, r]] as const] : []),
+          ]),
+          count: 2,
+        },
+      };
+    };
+
     while (l < r) {
       const sum = nums[l] + nums[r];
       chapter = `l = ${l}, r = ${r}`;
@@ -96,14 +119,7 @@ export const pairSum: AlgorithmDefinition<Input> = {
         ...(answer === 0 ? { span: RETURN_SPAN } : {}),
         predict:
           answer === 0
-            ? {
-                ...rotatedChoices(`\`sum = ${sum}\` equals \`target\`. What does pairSum return?`, `[${l}, ${r}]`, [
-                  `[${nums[l]}, ${nums[r]}]`,
-                  `[${l}, ${r - 1}]`,
-                  `[${l + 1}, ${r}]`,
-                ]),
-                explain: `pairSum returns the positions of the pair, \`l = ${l}\` and \`r = ${r}\`, not the values ${nums[l]} and ${nums[r]}.`,
-              }
+            ? foundQuestion(sum)
             : {
                 prompt: `\`sum = ${sum}\`, \`target = ${target}\`. Which move is safe?`,
                 ...fixedChoices(CHOICES, answer),
@@ -111,6 +127,7 @@ export const pairSum: AlgorithmDefinition<Input> = {
                   answer === 1
                     ? `Too small. \`nums[${l}] = ${nums[l]}\` paired with the largest remaining value still falls short, so it can never be in a valid pair: drop it.`
                     : `Too big. \`nums[${r}] = ${nums[r]}\` paired with the smallest remaining value already overshoots, so it can never be in a valid pair: drop it.`,
+                skill: 'move',
               },
       });
       if (answer === 0) {

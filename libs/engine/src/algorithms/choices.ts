@@ -1,4 +1,4 @@
-import type { Prediction } from './types.js';
+import type { Locator, Prediction, ValuePick } from './types.js';
 
 /** FNV-1a, then murmur3's finalizer: FNV-1a alone mixes its low bits poorly, and they are the ones that pick a slot. */
 function hash(text: string): number {
@@ -29,3 +29,14 @@ export function rotatedChoices(
 export function fixedChoices(choices: string[], answer: number): Pick<Prediction, 'choices' | 'answer' | 'ordered'> {
   return { choices, answer, ordered: true };
 }
+
+/**
+ * Each choice's array cells, from the choices that stand for indices (`roles`, as text and indices); a choice that stands
+ * for values gets none, even when its text reads as indices, so a tap on those cells never grades as it.
+ */
+export function cellsFor(choices: readonly string[], roles: readonly (readonly [string, readonly number[]])[]): Locator[][] {
+  return choices.map((c) => (roles.find(([text]) => text === c)?.[1] ?? []).map((at): Locator => ({ view: 'array', at })));
+}
+
+/** A value ask: its choices are numbers (or ∞), which the player offers as chips beside a field to type one. */
+export const VALUE: ValuePick = { on: 'value' };

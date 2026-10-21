@@ -1,6 +1,6 @@
 import { InputError } from './types.js';
 import { spansOf } from './annotate.js';
-import { rotatedChoices } from './choices.js';
+import { VALUE, rotatedChoices } from './choices.js';
 import { asNumber, asNumbers, rangeOf } from './input.js';
 import { randInt } from './random.js';
 import type { AlgorithmDefinition, Frame, Prediction, TableLegend, TableView } from './types.js';
@@ -140,6 +140,7 @@ export const subarraySumPrefix: AlgorithmDefinition<Input> = {
             `\`count[${next}]\` starts again at 0`,
           ]),
           explain: `${p} + ${plus(x)} = ${next}. ${repeat} Equal prefixes mean the numbers between them add up to nothing.`,
+          skill: 'zero-run',
         };
       }
       return {
@@ -152,6 +153,8 @@ export const subarraySumPrefix: AlgorithmDefinition<Input> = {
           x < 0
             ? `${p} + ${plus(x)} = ${next}. A negative number pulls p down, so prefix sums are not sorted and a sliding window cannot find these subarrays. The count map can.`
             : `${p} + ${x} = ${next}. p always holds the sum of \`nums[0..${i}]\`, carried forward one number at a time instead of re-adding the prefix.`,
+        skill: 'prefix',
+        pick: VALUE,
       };
     };
 
@@ -171,6 +174,8 @@ export const subarraySumPrefix: AlgorithmDefinition<Input> = {
             : lookup === 0
               ? `${rule} \`count[0] = ${matches}\`${matches === 1 ? ': only the seed, which stands for the subarray that starts at index 0' : ', and the seed is the one for the subarray that starts at index 0'}.`
               : `${rule} Prefix ${lookup} has appeared ${matches === 1 ? 'once' : `${matches} times, each the start of a different subarray`}, so \`count[${lookup}] = ${matches}\`.`,
+        skill: 'count',
+        pick: VALUE,
       };
     };
 

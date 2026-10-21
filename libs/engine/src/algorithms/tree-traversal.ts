@@ -227,6 +227,7 @@ export const treeTraversal: AlgorithmDefinition<Input> = {
       return {
         ...options,
         explain: appendReason(x, answer, turn),
+        skill: 'append',
       };
     };
 
@@ -243,6 +244,9 @@ export const treeTraversal: AlgorithmDefinition<Input> = {
       return {
         ...options,
         explain: `Returning unwinds the stack to dfs(${turn.at.val}), the nearest call that has not gone right yet, so dfs(${answer}) is the next new call. Every order enters nodes in this same sequence; only the append line moves.`,
+        skill: 'visit',
+        // With one node left to enter, the tree on show leaves only one candidate.
+        ...(entryOrder.length - enteredCount === 1 ? { tier: 1 as const } : {}),
       };
     };
 
@@ -278,6 +282,7 @@ export const treeTraversal: AlgorithmDefinition<Input> = {
               : order === 'inorder'
                 ? `Inorder appends a node only after its left subtree, so dfs first runs down the left edge. The leftmost node, ${answer}, is appended first.`
                 : `Postorder appends a node only after both of its subtrees, so the first value has no children: ${answer}, the first leaf dfs reaches.`,
+          skill: 'first',
         },
       };
     };

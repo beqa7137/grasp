@@ -18,6 +18,8 @@ interface Options {
   expectedConsoleErrors: RegExp[];
   /** Motion test mode: `data-motion="off"` on <html>, so animations jump to their end. Tests of the Motion setting turn it off. */
   motionOff: boolean;
+  /** Where pick asks are answered on this device; specs of the list flow choose the list, as a learner can in Settings. */
+  checkpoints: 'picture' | 'list';
 }
 
 /**
@@ -39,6 +41,7 @@ export const test = base.extend<Options & { guard: void }>({
   theme: ['dark', { option: true }],
   expectedConsoleErrors: [[], { option: true }],
   motionOff: [true, { option: true }],
+  checkpoints: ['picture', { option: true }],
 
   // On the context, so pages the test opens itself and popups are in test mode too.
   context: async ({ context, motionOff }, use) => {
@@ -46,7 +49,8 @@ export const test = base.extend<Options & { guard: void }>({
     await use(context);
   },
 
-  page: async ({ page, pilotNoticeSeen, theme }, use) => {
+  page: async ({ page, pilotNoticeSeen, theme, checkpoints }, use) => {
+    if (checkpoints === 'list') await page.addInitScript(() => localStorage.setItem('CapacitorStorage.grasp.checkpoints', 'list'));
     if (pilotNoticeSeen) {
       await page.addInitScript(() => localStorage.setItem('CapacitorStorage.grasp.pilotNotice.v1', new Date().toISOString()));
     }

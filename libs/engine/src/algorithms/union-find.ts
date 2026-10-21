@@ -192,6 +192,7 @@ export const unionFind: AlgorithmDefinition<Input> = {
       const same = ra === rb;
       // The roots would answer the ask, so the asking frame shows the edge's ends and keeps ra and rb out of its variables.
       Object.assign(current, { ra: null, rb: null });
+      const alone = (x: number) => parent[x] === x && !parent.some((p, y) => y !== x && p === x);
       snap(6, `Follow ${a} and ${b} up the forest to their roots.`, `\`find(${a}) = ${ra}\`, \`find(${b}) = ${rb}\`.`, [a, b], {
         predict: {
           prompt: `Edge ${a}-${b}. Follow each end up the forest to its root. What does union do?`,
@@ -199,6 +200,9 @@ export const unionFind: AlgorithmDefinition<Input> = {
           explain: same
             ? `\`find(${a})\` and \`find(${b})\` both reach root ${ra}: this edge adds no new connection (it would close a cycle).`
             : `\`find(${a}) = ${ra}\` and \`find(${b}) = ${rb}\`. Different roots mean different components. Linking one root under the other joins them, and the component count drops by one.`,
+          skill: 'union',
+          // Two nodes no union has touched are two trees of one, as the forest shows.
+          ...(a !== b && alone(a) && alone(b) ? { tier: 1 as const } : {}),
         },
       });
       Object.assign(current, { ra, rb });

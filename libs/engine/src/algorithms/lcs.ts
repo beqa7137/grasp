@@ -1,5 +1,5 @@
 import { spansOf } from './annotate.js';
-import { fixedChoices, rotatedChoices } from './choices.js';
+import { VALUE, fixedChoices, rotatedChoices } from './choices.js';
 import { InputError } from './types.js';
 import { randInt } from './random.js';
 import type { AlgorithmDefinition, Frame, Prediction, TableLegend, TableView } from './types.js';
@@ -91,6 +91,9 @@ export const lcs: AlgorithmDefinition<Input> = {
       explain: match
         ? `Both prefixes end in ${a[i - 1]}, so that letter extends the best answer for the prefixes without it: \`dp[${i - 1}][${j - 1}] + 1\`.`
         : `The last letters differ, so at least one of them is not in the LCS. Take the better of dropping a's (above) or b's (left).`,
+      skill: 'rule',
+      // In column 1 the left neighbor is the empty prefix's 0. Set by place alone, match or not, so it never tells the rule.
+      ...(j === 1 && i > 1 ? { tier: 1 as const } : {}),
     });
 
     const matchQuestion = (i: number, j: number): Prediction => {
@@ -102,6 +105,8 @@ export const lcs: AlgorithmDefinition<Input> = {
           [diagonal, diagonal + 2, diagonal > 0 ? diagonal - 1 : diagonal + 3].map(String),
         ),
         explain: `Both prefixes end in ${a[i - 1]}, so that letter extends the best answer for the prefixes without it: \`dp[${i - 1}][${j - 1}] + 1 = ${diagonal} + 1 = ${diagonal + 1}\`.`,
+        skill: 'value',
+        pick: VALUE,
       };
     };
 

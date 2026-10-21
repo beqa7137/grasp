@@ -127,6 +127,8 @@ export const trie: AlgorithmDefinition<Input> = {
       position = -1;
       chapter = `Insert word ${k + 1}: ${w}`;
       snap(4, `Insert "${w}": start ${k ? 'again ' : ''}at the root.`, `Insert "${w}": start at the root.`);
+      // Once a word has branched off, each later letter is a new node too, as the drawing shows.
+      let branched = false;
       for (position = 0; position < w.length; position++) {
         const ch = w[position];
         const exists = node.children.has(ch);
@@ -143,11 +145,14 @@ export const trie: AlgorithmDefinition<Input> = {
                   explain: exists
                     ? `An earlier word already starts with "${prefix}${ch}", so the path is shared: no new node.`
                     : `No earlier word continues "${prefix}" with "${ch}", so the word branches off here.`,
+                  skill: 'insert',
+                  ...(branched ? { tier: 1 as const } : {}),
                 },
               }
             : { lens: exists ? `node['${ch}'] exists` : `node['${ch}'] ??= {} → new node` },
         );
         if (!exists) {
+          branched = true;
           const child: TrieNode = { id: `${node.id}/${ch}`, label: ch, parent: node.id, children: new Map(), end: false };
           node.children.set(ch, child);
           all.push(child);

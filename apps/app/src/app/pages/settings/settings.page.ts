@@ -3,6 +3,7 @@ import { AlertController, IonButtons, IonContent, IonHeader, IonTitle, IonToolba
 import { ApiError, ApiService } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
 import { LearnerService } from '../../core/learner.service';
+import { CheckpointPrefService, type CheckpointPreference } from '../../core/checkpoint-pref.service';
 import { MotionPreferenceService } from '../../core/motion-preference.service';
 import { type MotionPreference } from '../../core/motion';
 import { RuntimeConfigService } from '../../core/runtime-config.service';
@@ -73,6 +74,20 @@ import { SegmentedComponent, type SegmentOption } from '../../ui/segmented.compo
               (valueChange)="motion.setPreference($event!)"
               labelledby="motion-label"
               describedby="motion-hint"
+            />
+          </div>
+          <div class="g-setting">
+            <strong id="checkpoints-label">Checkpoints</strong>
+            <p class="muted small" id="checkpoints-hint">
+              Where you answer a visualizer's tap questions. Automatic uses the picture when its cells are big enough to tap, and the list
+              when they are not. On this device only.
+            </p>
+            <g-segmented
+              [options]="checkpointModes"
+              [value]="checkpoints.preference()"
+              (valueChange)="checkpoints.setPreference($event!)"
+              labelledby="checkpoints-label"
+              describedby="checkpoints-hint"
             />
           </div>
         </g-section>
@@ -174,6 +189,12 @@ export class SettingsPage {
     { value: 'system', label: 'System' },
     { value: 'reduced', label: 'Reduced' },
     { value: 'full', label: 'Full' },
+  ];
+  readonly checkpoints = inject(CheckpointPrefService);
+  readonly checkpointModes: SegmentOption<CheckpointPreference>[] = [
+    { value: 'auto', label: 'Automatic' },
+    { value: 'picture', label: 'On the picture' },
+    { value: 'list', label: 'As a list' },
   ];
   readonly busy = signal(false);
 

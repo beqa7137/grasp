@@ -26,6 +26,7 @@ import {
   formatField,
   getAlgorithm,
   getPatternSummary,
+  isValueEntry,
   lensComparison,
   nextVisualizer,
   pace,
@@ -46,11 +47,9 @@ import {
 } from 'ionicons/icons';
 import { AnnouncerService } from '../../core/announcer.service';
 import { refocus, type FocusPlaces } from '../../core/focus';
-import { haptic } from '../../core/haptics';
 import { motionAllowed } from '../../core/motion';
 import { uniqueId } from '../../core/unique-id';
 import { onPageKey } from '../../core/on-page-key';
-import { ProgressService } from '../../core/progress.service';
 import { ShortcutsService } from '../../core/shortcuts.service';
 import { answerMark } from '../../review/answer-mark';
 import { ArrayViewComponent, longestValue, pointerRowsOf, type AlignedRow } from '../../viz/array-view.component';
@@ -65,9 +64,8 @@ import { TransportComponent, type Band, type Speed, type Tick } from '../../viz/
 import { WatchComponent } from '../../viz/kit/watch.component';
 import { TreeViewComponent, sideRoomFor } from '../../viz/tree-view.component';
 import { PlayerIntroComponent, type PlayerIntroChoice } from './player-intro.component';
+import { CheckpointRun, type PredictState } from './checkpoint-run';
 import { BackComponent } from '../../ui/back.component';
-
-type PredictState = { frame: number; choice: number | null };
 
 /** A jump of more than one step crossfades the stage this long (REDESIGN.md 3.5). */
 const CROSSFADE_MS = 160;
@@ -128,12 +126,21 @@ export class PlayerPage {
       return null;
     }
   });
-  private readonly progress = inject(ProgressService);
   readonly shortcuts = inject(ShortcutsService);
   readonly announcer = inject(AnnouncerService);
   private readonly popovers = inject(PopoverController);
   private readonly router = inject(Router);
   protected readonly answerMark = answerMark;
+  protected readonly isValueEntry = isValueEntry;
+  protected readonly negative = (choice: string) => choice.startsWith('-');
+  /** A typed value that is not a whole number, which Lock it in refuses. */
+  protected readonly badEntry = computed(() => this.run.typed().trim() !== '' && !isValueEntry(this.run.typed()));
+  /** What the number keys do: answer from the list, type a value, or nothing while an ask is on the picture. */
+  protected readonly keyHint = computed(() => {
+    if (!this.shortcuts.characterKeys()) return '';
+    const mode = this.pending()?.choice === null ? this.run.mode() : 'list';
+    return mode === 'list' ? ' · 1–4 answer' : mode === 'value' ? ' · digits type the answer' : '';
+  });
   private readonly predictPanel = viewChild<ElementRef<HTMLElement>>('predictPanel');
   private readonly predictPrompt = viewChild<ElementRef<HTMLElement>>('predictPrompt');
   private readonly verdict = viewChild<ElementRef<HTMLElement>>('verdict');
@@ -157,7 +164,9 @@ export class PlayerPage {
    * The last frame's next steps, at the top of R. The result shows there too, so the caption keeps its height and never
    * scrolls; the caption keeps the result for screen readers, as its live region reads it.
    */
-  readonly endCard = computed(() => this.index() === this.last() && !this.pending() && Boolean(this.problem() || this.following()));
+  readonly endCard = computed(
+    () => this.index() === this.last() && !this.pending() && Boolean(this.problem() || this.following() || this.run.summary()),
+  );
 
   /** ⋯ is open, so where region R can be short the caption keeps to two lines and R keeps room for the panel. */
   protected readonly moreOpen = signal(false);
@@ -229,12 +238,10 @@ export class PlayerPage {
       close: () => this.closeDescribe(),
     };
   });
+  /** The run's checkpoints: which frames ask, the open one, and what was answered (3.8). */
+  readonly run = new CheckpointRun(this.frames, this.algo);
   /** The answered checkpoint's guess, drawn on the stage as a "you" tag while its payoff plays (3.8). */
-  readonly guess = computed(() => {
-    const p = this.pending();
-    const q = p && p.choice !== null ? this.frames()[p.frame]?.predict : undefined;
-    return q && p ? { choice: q.choices[p.choice!], answer: q.choices[q.answer], right: p.choice === q.answer } : null;
-  });
+  readonly guess = this.run.guess;
 
   readonly playing = signal(false);
   readonly speed = signal<Speed>(1);
@@ -244,18 +251,12 @@ export class PlayerPage {
   readonly quietNarration = signal(false);
 
   readonly predictMode = signal(true);
-  readonly pending = signal<PredictState | null>(null);
-  readonly answered = signal(new Map<number, 'right' | 'missed'>());
-  /** Checkpoints a drag or Skip went past. Stepping onto one with Predict mode on asks it again; an answer outranks a skip. */
-  readonly skipped = signal(new Set<number>());
-  readonly score = computed(() => {
-    const values = [...this.answered().values()];
-    return { correct: values.filter((v) => v === 'right').length, total: values.length };
-  });
+  readonly pending = this.run.pending;
+  readonly answered = this.run.answered;
+  readonly skipped = this.run.skipped;
+  readonly score = this.run.score;
   readonly ticks = computed<Tick[]>(() =>
-    this.frames().flatMap((f, at) =>
-      f.predict ? [{ at, state: this.answered().get(at) ?? (this.skipped().has(at) ? 'skipped' : 'pending') }] : [],
-    ),
+    this.run.asking().map((at) => ({ at, state: this.answered().get(at) ?? (this.skipped().has(at) ? 'skipped' : 'pending') })),
   );
   /** Runs of frames that share a chapter. */
   readonly chapters = computed<Band[]>(() => {
@@ -300,7 +301,7 @@ export class PlayerPage {
   readonly askingHere = computed(() => {
     if (this.pending()?.choice === null) return true;
     const at = this.shownIndex();
-    return !this.pending() && this.predictMode() && !!this.frames()[at]?.predict && !this.answered().has(at);
+    return !this.pending() && this.predictMode() && this.run.askingSet().has(at) && !this.answered().has(at);
   });
   readonly caption = computed(() => {
     const frame = this.shown();
@@ -376,7 +377,8 @@ export class PlayerPage {
         if (typing) this.revealDockAbove(typing);
         else {
           this.panelCol()?.nativeElement.scrollTo({ top: 0 });
-          this.follow(prompt, player);
+          // On the picture, the drawing's first cell takes focus instead (`gPickGroup`).
+          if (this.run.mode() !== 'picture') this.follow(prompt, player);
         }
         if (prompt && document.activeElement !== prompt) {
           const text = codeSpans(this.frames()[p.frame].predict!.prompt).map((part) => part.text);
@@ -392,6 +394,40 @@ export class PlayerPage {
           verdict.scrollIntoView({ block: 'start' });
         if (!typing) refocus(verdict, player, () => undefined);
       }
+    });
+
+    // Switching an ask shows its dock from the top again, and to the list moves focus to its first choice, which only then
+    // exists.
+    afterRenderEffect(() => {
+      this.run.mode();
+      untracked(() => {
+        if (this.run.switched) this.panelCol()?.nativeElement.scrollTo({ top: 0 });
+        this.run.switched = false;
+        if (!this.run.listFocus) return;
+        this.run.listFocus = false;
+        this.predictPanel()?.nativeElement.querySelector<HTMLElement>('.choice')?.focus();
+      });
+    });
+
+    // Pick targets are measured as drawn, so cells too small to tap open the list instead (3.8).
+    // They are read only while a cell pick is open (and as one opens, in `ask`), so a run's first render forces no layout.
+    effect((onCleanup) => {
+      const scene = this.scene()?.nativeElement;
+      if (!scene || this.run.question()?.pick?.on !== 'cell') return;
+      const observer = new ResizeObserver(() => this.measureTargets());
+      observer.observe(scene);
+      onCleanup(() => observer.disconnect());
+    });
+
+    // The end card sits at the top of R, which may still be scrolled down from the run's last checkpoint; a tall card then
+    // scrolls on until its end clears the transport (R's scroll padding).
+    afterRenderEffect(() => {
+      if (!this.endCard()) return;
+      untracked(() => {
+        const panel = this.panelCol()?.nativeElement;
+        panel?.scrollTo({ top: 0 });
+        panel?.querySelector('.end-card')?.scrollIntoView({ block: 'nearest' });
+      });
     });
 
     inject(DestroyRef).onDestroy(() => clearTimeout(this.timer));
@@ -430,9 +466,7 @@ export class PlayerPage {
     if (this.shownIndex() !== 0) this.seekKind = 'jump';
     this.quietNarration.set(false);
     this.playing.set(false);
-    this.pending.set(null);
-    this.answered.set(new Map());
-    this.skipped.set(new Set());
+    this.run.reset();
     this.index.set(0);
   }
 
@@ -514,18 +548,6 @@ export class PlayerPage {
     this.playing.update((p) => !p);
   }
 
-  choose(choice: number) {
-    const p = this.pending();
-    const predict = this.frames()[p?.frame ?? -1]?.predict;
-    if (!p || p.choice !== null || !predict) return;
-    const correct = choice === predict.answer;
-    this.pending.set({ ...p, choice });
-    this.answered.update((m) => new Map(m).set(p.frame, correct ? 'right' : 'missed'));
-    void (correct ? haptic.success() : haptic.error());
-    const algo = this.algo()!;
-    void this.progress.record({ type: 'predict.answered', algorithmId: algo.id, patternId: algo.patternId, correct });
-  }
-
   continueAfterPredict() {
     const p = this.pending();
     if (!p || p.choice === null) return;
@@ -540,9 +562,10 @@ export class PlayerPage {
 
   /** Opens the checkpoint on frame `i` when Predict mode is on and it is unanswered; says whether it did. */
   private ask(i: number): boolean {
-    if (!this.predictMode() || !this.frames()[i]?.predict || this.answered().has(i)) return false;
+    if (!this.predictMode() || !this.run.askingSet().has(i) || this.answered().has(i)) return false;
     this.playing.set(false);
-    this.pending.set({ frame: i, choice: null });
+    if (this.frames()[i].predict!.pick?.on === 'cell') this.measureTargets();
+    this.run.open(i, !!document.activeElement?.matches(TYPING));
     return true;
   }
 
@@ -568,6 +591,17 @@ export class PlayerPage {
     const layout = this.layout()?.nativeElement;
     if (target && document.activeElement === target && layout && getComputedStyle(layout).overflowY !== 'visible')
       target.scrollIntoView({ block: 'nearest' });
+  }
+
+  private measureTargets() {
+    this.run.measure(this.scene()?.nativeElement, matchMedia('(pointer: coarse)').matches);
+  }
+
+  /** The end card's link to a checkpoint not predicted: it shows that frame, and asks again one that was skipped. */
+  revisit(at: number) {
+    this.playing.set(false);
+    this.seek(at, 'jump');
+    this.ask(at);
   }
 
   /** A watch history's seek; its entry for the frame on show goes nowhere, so it never closes an open checkpoint. */
@@ -607,6 +641,7 @@ export class PlayerPage {
 
   /** A jump crossfades the stage (3.5), and an answer's "you" tag gives way to its verdict once the payoff has played (3.8). */
   private playStage(step: StageStep) {
+    this.run.settleAfter(step.adjacent && step.scale > 0 ? this.motion.at('end', step.scale) : 0);
     const scene = this.scene()?.nativeElement;
     if (!scene || step.scale === 0) return;
     if (step.jump) this.motion.animate(scene.querySelector('.viz')!, [{ opacity: 0 }, { opacity: 1 }], { duration: CROSSFADE_MS });
@@ -640,10 +675,20 @@ export class PlayerPage {
 
   private onKey(e: KeyboardEvent) {
     const p = this.pending();
-    if (p && p.choice === null && /^[1-4]$/.test(e.key)) {
-      this.choose(Number(e.key) - 1);
+    const mode = this.run.mode();
+    // A value ask takes its number in the field, so a digit goes there instead of choosing a chip by its place.
+    if (p && p.choice === null && mode === 'value' && /^[0-9-]$/.test(e.key)) {
+      e.preventDefault();
+      this.run.typed.update((typed) => typed + e.key);
+      document.getElementById(this.run.fieldId)?.focus();
       return;
     }
+    if (p && p.choice === null && /^[1-4]$/.test(e.key) && mode === 'list') {
+      this.run.choose(Number(e.key) - 1);
+      return;
+    }
+    // A pick group moves its own focus with the arrows, Home and End.
+    if (e.defaultPrevented) return;
     const revealed = p !== null && p.choice !== null;
     const jump =
       e.shiftKey && e.key === 'ArrowRight'

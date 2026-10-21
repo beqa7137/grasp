@@ -1,6 +1,9 @@
 import type { Page } from '@playwright/test';
 import { expect, expectNoPageScroll, seekTimeline, stepToCheckpoint, stepTotal, test } from './fixtures';
 
+// These specs answer checkpoints from the list; picks.spec.ts covers answering on the picture.
+test.use({ checkpoints: 'list' });
+
 test('on a 320 px phone, every value of a long array fits its cell, and only the array scrolls sideways', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 700 });
   await page.goto('/coding/visualizers/binary-search');

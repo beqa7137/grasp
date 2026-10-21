@@ -1,5 +1,5 @@
 import { spansOf } from './annotate.js';
-import { fixedChoices, rotatedChoices } from './choices.js';
+import { VALUE, fixedChoices, rotatedChoices } from './choices.js';
 import { asNumbers, rangeOf } from './input.js';
 import { randInt } from './random.js';
 import type { AlgorithmDefinition, Frame } from './types.js';
@@ -106,6 +106,9 @@ export const jumpGame: AlgorithmDefinition<Input> = {
               : i === reach
                 ? `${i} = ${reach}: a jump lands exactly on index ${i}, which is enough to stand here. Only \`i > reach\` means stuck.${zero}`
                 : `${i} < ${reach}: index ${i} is inside the reachable prefix, so you can stand here.${zero}`,
+            skill: 'check',
+            // Once reach covers the last index, a step's caption has said so, and every later check passes.
+            ...(reach >= last ? { tier: 1 as const } : {}),
           },
         });
       }
@@ -147,6 +150,8 @@ export const jumpGame: AlgorithmDefinition<Input> = {
               jump > reach
                 ? `From index ${i} you can jump to ${i} + ${nums[i]} = ${jump}, past ${reach}. \`Math.max\` keeps the farther point, so reach becomes ${jump}.`
                 : `From index ${i} you get at most to ${i} + ${nums[i]} = ${jump}, not past ${reach}. \`Math.max\` keeps ${reach}: reach never shrinks.`,
+            skill: 'reach',
+            pick: VALUE,
           },
         });
       }

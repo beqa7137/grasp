@@ -9,15 +9,17 @@ import {
   effect,
   inject,
   input,
+  output,
   signal,
   untracked,
   viewChild,
   viewChildren,
 } from '@angular/core';
-import type { ArrayView, Scalar } from '@grasp/engine';
+import type { ArrayView, Locator, Scalar } from '@grasp/engine';
 import { DIM_CELL, dims, type Focus } from './dim';
 import { LANDING, enter, flip, land, leave, placeKeyed, type Placed } from './kit/flip';
 import { MotionService, type StageStep } from './kit/motion.service';
+import { PICK_CELL, PickCellDirective, PickGroupDirective, type PickAsk, type PickGhost } from './kit/pick';
 
 interface PointerTag {
   name: string;
@@ -73,7 +75,14 @@ function tagsOf(pointers: Record<string, number>): PointerTag[] {
         [style.--rows-h.px]="rowsHeight(ownRows())"
       >
         @for (t of trails().pointers; track t.name) {
-          <div class="ptr trail" aria-hidden="true" [style.--i]="t.index" [style.--row]="t.row">
+          <div
+            class="ptr trail"
+            aria-hidden="true"
+            [class.first]="t.index === 0"
+            [class.last]="t.index === v.values.length - 1"
+            [style.--i]="t.index"
+            [style.--row]="t.row"
+          >
             <span
               ><s>{{ t.name }}</s> {{ t.arrow }}</span
             >
@@ -93,7 +102,7 @@ function tagsOf(pointers: Record<string, number>): PointerTag[] {
           </div>
         }
       </div>
-      <div class="cells">
+      <div class="cells" [gPickGroup]="pick()" [pickGhost]="ghost()" (picked)="picked.emit($event)">
         @if (v.window; as w) {
           <div class="window" data-key="window" [style.--from]="w[0]" [style.--to]="w[1]"></div>
         }
@@ -101,6 +110,8 @@ function tagsOf(pointers: Record<string, number>): PointerTag[] {
           <div
             #cell
             class="cell"
+            [gPickCell]="{ view: 'array', at: $index }"
+            [pickLabel]="'index ' + $index + ', ' + value"
             [attr.data-key]="'c:' + cellKey($index)"
             [class.settled]="settled().has($index)"
             [class.active]="active().has($index)"
@@ -148,9 +159,11 @@ function tagsOf(pointers: Record<string, number>): PointerTag[] {
       }
     </div>
   `,
+  imports: [PickGroupDirective, PickCellDirective],
   styles: [
     DIM_CELL,
     LANDING,
+    PICK_CELL,
     `
       /*
      * The array scrolls sideways here rather than cut a value short or widen the page. The block padding keeps the active cell's
@@ -414,6 +427,11 @@ export class ArrayViewComponent {
   readonly step = input<StageStep | null>(null);
   /** Whether the run compares anything here, which keeps a row for the comparator label on every frame. */
   readonly comparing = input(false);
+  /** An open pick ask, which makes the cells a radio group. */
+  readonly pick = input<PickAsk | null>(null);
+  /** The learner's committed pick, drawn on its cells. */
+  readonly ghost = input<PickGhost | null>(null);
+  readonly picked = output<Locator>();
   private readonly motion = inject(MotionService, { optional: true });
   private readonly host: HTMLElement = inject(ElementRef).nativeElement;
   private readonly track = viewChild<ElementRef<HTMLElement>>('track');

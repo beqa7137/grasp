@@ -234,6 +234,28 @@ ion-title h1 {
   .code-it {
     color: var(--g-success-ink);
   }
+  // "4 of 5 predicted", with a way back to each checkpoint not predicted (REDESIGN.md 3.8).
+  .summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--g-space-1) var(--g-space-2);
+    flex-basis: 100%;
+    p {
+      margin: 0;
+    }
+  }
+  // Links rather than buttons in a row of their own each, so a run with several misses keeps the card short enough for R.
+  .revisit {
+    min-height: var(--g-space-6);
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--g-accent);
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+  }
 }
 
 // Region R on phone, the top of the right column on desktop. It scrolls inside itself, so a long checkpoint never moves the
@@ -341,6 +363,69 @@ ion-title h1 {
   .skip {
     margin-top: 8px;
     width: 100%;
+  }
+  .switch {
+    margin-top: var(--g-space-2);
+    width: 100%;
+  }
+  // What to tap on the picture, under the prompt (REDESIGN.md 3.8).
+  .pick-ask {
+    margin: 0;
+    font-size: var(--g-text-body-s);
+    font-weight: 600;
+    .muted {
+      margin-left: var(--g-space-1);
+      font-weight: 400;
+    }
+  }
+  .lock {
+    margin-top: var(--g-space-2);
+    width: 100%;
+  }
+  // A value ask's numbers sit in one row of chips, beside a field to type one.
+  .choices.chips {
+    grid-template-columns: repeat(auto-fit, minmax(var(--g-space-8), 1fr));
+    .choice {
+      justify-content: center;
+      min-height: var(--g-space-8);
+      font-family: var(--g-font-mono);
+    }
+  }
+  .entry {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: var(--g-space-2);
+    margin-top: var(--g-space-2);
+    label {
+      display: grid;
+      flex: 1;
+      gap: var(--g-space-1);
+      font-size: var(--g-text-body-s);
+      color: var(--g-muted);
+    }
+    input {
+      min-height: var(--g-space-8);
+      min-width: 0;
+      padding: 0 var(--g-space-2);
+      border: 1px solid var(--g-stroke);
+      border-radius: var(--g-radius-sm);
+      background: var(--g-bg);
+      color: var(--g-text);
+      font-size: var(--g-text-body);
+      &:focus {
+        border-color: var(--g-accent);
+      }
+    }
+    .g-btn {
+      min-height: var(--g-space-8);
+    }
+    .hint {
+      order: 3;
+      flex-basis: 100%;
+      font-size: var(--g-text-body-s);
+      color: var(--g-danger);
+    }
   }
   // Sticky, so it shows under the verdict however far R has scrolled. It takes no tap for its first moments, since it can
   // appear where the answer just tapped was and a double tap would skip the verdict.

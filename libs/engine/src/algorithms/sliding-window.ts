@@ -1,13 +1,11 @@
 import { spansOf } from './annotate.js';
-import { fixedChoices, rotatedChoices } from './choices.js';
+import { rotatedChoices } from './choices.js';
 import { InputError } from './types.js';
 import { asText, rangeOf } from './input.js';
 import { randInt } from './random.js';
-import type { AlgorithmDefinition, Frame } from './types.js';
+import type { AlgorithmDefinition, Frame, Prediction } from './types.js';
 
 type Input = { s: string };
-
-const CHOICES = ['Expand: add it to the window', 'Shrink from the left first'];
 
 const CODE = [
   'function longestUnique(s) {',
@@ -91,6 +89,33 @@ export const longestUnique: AlgorithmDefinition<Input> = {
       });
     };
 
+    // Where left stands once c fits: just past the old copy of c, or where it was when c is new. The window's set would
+    // give a yes-or-no ask away, so this one is read off the cells.
+    const leftQuestion = (c: string): Prediction => {
+      const old = chars.lastIndexOf(c, right - 1);
+      const to = old >= left ? old + 1 : left;
+      const ask = rotatedChoices(
+        `'${c}' arrives at index ${right}. Where does left stand once the window has no repeat?`,
+        `index ${to}`,
+        [old >= left ? old : left + 1, old >= left ? left : right, right, to + 1, ...(left > 0 ? [left - 1] : [])]
+          .filter((i) => i !== to && i <= right)
+          .map((i) => `index ${i}`),
+      );
+      return {
+        ...ask,
+        explain:
+          old >= left
+            ? `The old '${c}' is at index ${old}, inside the window, so left moves just past it, to ${to}${old > left ? ', and everything before it leaves too' : ''}.`
+            : `'${c}' is not in the window, so nothing leaves: left stays at ${to}.`,
+        skill: 'shrink',
+        pick: {
+          on: 'cell',
+          ask: 'Tap the cell where left stands.',
+          cells: ask.choices.map((choice) => [{ view: 'array', at: Number(choice.slice(6)) }]),
+        },
+      };
+    };
+
     snap(
       3,
       'The window starts empty; right will visit each character once.',
@@ -100,7 +125,6 @@ export const longestUnique: AlgorithmDefinition<Input> = {
 
     for (right = 0; right < chars.length; right++) {
       const c = chars[right];
-      const dup = seen.has(c);
       chapter = `right = ${right}: '${c}'`;
       const n = chars.length;
       snap(
@@ -118,14 +142,9 @@ export const longestUnique: AlgorithmDefinition<Input> = {
                     [`Up to ${n * n}, ${n} per character`, `Up to ${(n * (n - 1)) / 2}, once per pair`, 'Exactly once'],
                   ),
                   explain: `left never passes right, so each character leaves the window at most once: at most ${n} moves in all. That is why the inner while still adds up to O(n).`,
+                  skill: 'bound',
                 }
-              : {
-                  prompt: `'${c}' wants to join window {${[...seen].join(', ')}}. What happens?`,
-                  ...fixedChoices(CHOICES, dup ? 1 : 0),
-                  explain: dup
-                    ? `'${c}' is already inside, so the window would contain a repeat. Evict from the left until the old '${c}' is gone.`
-                    : `'${c}' is new, so the window stays valid: just extend it.`,
-                },
+              : leftQuestion(c),
         },
       );
       while (seen.has(c)) {

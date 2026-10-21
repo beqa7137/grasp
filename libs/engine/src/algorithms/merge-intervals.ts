@@ -1,5 +1,5 @@
 import { spansOf } from './annotate.js';
-import { fixedChoices, rotatedChoices } from './choices.js';
+import { VALUE, fixedChoices, rotatedChoices } from './choices.js';
 import { InputError } from './types.js';
 import { randInt, shuffle } from './random.js';
 import type { AlgorithmDefinition, Frame, TableLegend, TableView } from './types.js';
@@ -198,6 +198,7 @@ export const mergeIntervals: AlgorithmDefinition<Input> = {
           explain: overlaps
             ? `${s} ≤ ${end}: it starts ${s === end ? 'exactly where last ends, and touching endpoints count as overlapping' : 'before last ends'}. Sorting already guarantees ${s} ≥ ${start}, so checking the end is enough.`
             : `${s} > ${end}: it starts after last ends. Every later interval starts at ${s} or later, so nothing can reach last again: it is final.`,
+          skill: 'overlap',
         },
       });
 
@@ -235,6 +236,8 @@ export const mergeIntervals: AlgorithmDefinition<Input> = {
                 e < end
                   ? `\`max(${end}, ${e}) = ${end}\`. [${s}, ${e}] sits inside last, so setting \`last[1] = e\` would wrongly shrink [${start}, ${end}] to [${start}, ${e}].`
                   : `\`max(${end}, ${e}) = ${e}\`. [${s}, ${e}] reaches past last, so the merged interval grows to ${e}.`,
+              skill: 'merge-end',
+              pick: VALUE,
             },
           },
         );

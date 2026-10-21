@@ -209,6 +209,7 @@ export const topoSort: AlgorithmDefinition<Input> = {
                 next === 0
                   ? `${v}'s in-degree was 1, so ${u} was the last node it waited on. It drops to 0: ${v} is free to go.`
                   : `${v}'s in-degree was ${indeg[v]}, so it drops to ${next}: ${v} still waits on ${next} more prerequisite${next === 1 ? '' : 's'}.`,
+              skill: 'release',
             },
           },
           id,

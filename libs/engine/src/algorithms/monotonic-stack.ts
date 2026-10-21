@@ -105,6 +105,7 @@ export const nextGreater: AlgorithmDefinition<Input> = {
                   explain: pop
                     ? `${nums[i]} > ${nums[top]}, so ${nums[i]} is the first bigger value to the right of index ${top}. Resolve it and pop.`
                     : `${nums[i]} ≤ ${nums[top]}. It cannot resolve the top or anything below it, since those values are at least as large. Push and move on.`,
+                  skill: 'pop-push',
                 },
               },
         );
