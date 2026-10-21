@@ -47,6 +47,19 @@ test('predicting the next step of a visualizer counts toward mastery', { tag: ['
   await answerCheckpoint(page);
 });
 
+test(
+  "beside a checkpoint the caption is the frame's own line, and the whole note narrates again after it",
+  { tag: '@player' },
+  async ({ page }) => {
+    await page.goto('/coding/visualizers/binary-search');
+    await stepToCheckpoint(page);
+    const caption = page.locator('app-player .narration .body');
+    await expect(caption).toHaveText('Compare 16 with the target 23.');
+    await answerCheckpoint(page);
+    await expect(caption).toHaveText('16 < 23: discard the left half. lo moves to 5.');
+  },
+);
+
 for (const title of VISUALIZER_TITLES) {
   test(`${title} opens from the list and asks for the next step`, async ({ page }) => {
     await page.goto('/coding/visualizers');

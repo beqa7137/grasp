@@ -203,10 +203,11 @@ export class PlayerPage {
   readonly arrayBand = computed(() => (this.column() ? Math.max(0, ...this.frames().map((f) => pointerRowsOf(f.array?.pointers))) : 0));
   /** Whether any frame shows lists under the drawing, so the drawing keeps one size for the whole run. */
   readonly listed = computed(() => this.frames().some((f) => f.stack || f.queue || f.set || (f.output && !alignedRow(f))));
-  /** Beside a checkpoint the caption is the note's first sentence, so the dock keeps R's height. */
+  /** Beside a checkpoint the caption is the frame's own, or the note's first sentence, so the dock keeps R's height. */
   readonly caption = computed(() => {
-    const note = this.frame()?.note ?? '';
-    return this.pending() ? firstSentence(note) : note;
+    const frame = this.frame();
+    const note = frame?.note ?? '';
+    return this.pending() ? (frame?.caption ?? firstSentence(note)) : note;
   });
 
   readonly varEntries = computed(() => Object.entries(this.frame()?.vars ?? {}).filter(([k]) => k !== 'result'));

@@ -1,4 +1,5 @@
 import { InputError } from './types.js';
+import { spansOf } from './annotate.js';
 import { fixedChoices, rotatedChoices } from './choices.js';
 import { asNumber, asNumbers } from './input.js';
 import { randInt, shuffle } from './random.js';
@@ -12,22 +13,37 @@ const VALUE_POOL = Array.from({ length: 40 }, (_, i) => i + 1);
 const MEET = ['Yes: slow === fast, return true', 'No: they are still apart'];
 const LEGEND: GraphLegend = { active: 'slow', frontier: 'fast', done: 'slow = fast' };
 
+const CODE = [
+  'function hasCycle(head) {',
+  '  let slow = head, fast = head;',
+  '  while (fast?.next) {',
+  '    slow = slow.next; fast = fast.next.next; // 1 step, 2 steps',
+  '    if (slow === fast) return true;',
+  '  }',
+  '  return false;',
+  '}',
+];
+
+const SPANS = spansOf(CODE, {
+  2: 'let slow = head, fast = head',
+  3: 'fast?.next',
+  4: 'slow = slow.next; fast = fast.next.next',
+  5: 'slow === fast',
+  7: 'return false',
+});
+
 export const linkedListCycle: AlgorithmDefinition<Input> = {
-  code: [
-    'function hasCycle(head) {',
-    '  let slow = head, fast = head;',
-    '  while (fast?.next) {',
-    '    slow = slow.next; fast = fast.next.next; // 1 step, 2 steps',
-    '    if (slow === fast) return true;',
-    '  }',
-    '  return false;',
-    '}',
-  ],
+  code: CODE,
   fields: [
     { key: 'values', label: 'Node values', kind: 'numbers', hint: `Up to ${MAX_NODES}, all different` },
     { key: 'pos', label: 'Last node links to', kind: 'number', hint: 'An index, or -1 for no cycle' },
   ],
   defaultInput: { values: [4, 7, 1, 9, 3, 6], pos: 2 },
+  presets: [
+    { label: 'No cycle', input: { values: [4, 7, 1, 9, 3, 6], pos: -1 } },
+    { label: 'The tail links to the head', input: { values: [4, 7, 1, 9, 3, 6], pos: 0 } },
+    { label: 'A loop of two nodes', input: { values: [4, 7, 1, 9, 3, 6], pos: 4 } },
+  ],
 
   randomInput(rand = Math.random) {
     const n = randInt(rand, 5, MAX_NODES);
@@ -60,6 +76,7 @@ export const linkedListCycle: AlgorithmDefinition<Input> = {
     let steps = 0;
     let skipPlain = false;
     let explained = false;
+    let chapter = 'Set up';
 
     // Steps fast still needs to reach slow's node once both are in the loop; a full lap when they share a node.
     const gapOf = () => (fast !== null && pos >= 0 && slow >= pos ? ((slow - fast - 1 + loop) % loop) + 1 : null);
@@ -79,11 +96,14 @@ export const linkedListCycle: AlgorithmDefinition<Input> = {
       legend: LEGEND,
     });
 
-    const snap = (line: number, note: string, extra: Partial<Frame> = {}, walked: number[] = []) => {
+    const snap = (line: number, caption: string, note: string, extra: Partial<Frame> = {}, walked: number[] = []) => {
       const gap = gapOf();
       frames.push({
         line,
+        caption,
         note,
+        chapter,
+        span: SPANS[line],
         vars: { slow: values[slow], fast: fast === null ? 'null' : values[fast], steps, gap: steps && gap !== null ? gap % loop : null },
         graph: graph(walked),
         ...extra,
@@ -113,6 +133,14 @@ export const linkedListCycle: AlgorithmDefinition<Input> = {
           : `fast is 2 nodes behind slow. After this step slow is on ${name(slowTo)} and fast on ${name(to)}, 1 node behind. The gap drops by exactly one per step, so they meet on the next one.`,
     });
 
+    const apartCaption = () => {
+      if (fast === null) return 'fast is null, so the two cannot meet.';
+      const gap = gapOf();
+      if (gap === null)
+        return pos < 0 ? 'Different nodes: fast pulls further ahead.' : 'Different nodes: slow has not reached the cycle yet.';
+      return `Different nodes: fast is ${gap} behind slow in the cycle and gains 1 per move.`;
+    };
+
     const apartNote = () => {
       if (fast === null) return 'fast is null, so it cannot be on the same node as slow.';
       const gap = gapOf();
@@ -129,6 +157,7 @@ export const linkedListCycle: AlgorithmDefinition<Input> = {
 
     snap(
       2,
+      `Both pointers start at the head, ${name(0)}.`,
       `Both pointers start at the head, ${name(0)}. Each step slow follows one next pointer and fast follows two. If the list ends, fast finds the end first; if it loops, fast laps around and catches slow from behind.`,
     );
 
@@ -137,40 +166,62 @@ export const linkedListCycle: AlgorithmDefinition<Input> = {
       const ahead = next(from)!;
       const to = next(ahead);
       const slowTo = next(slow)!;
-      snap(3, `fast is on ${name(from)} and \`fast.next\` is ${name(ahead)}. Both exist, so fast can take two steps.`);
+      chapter = `Move ${steps + 1}`;
+      snap(
+        3,
+        'fast and the node after it exist, so fast can take two steps.',
+        `fast is on ${name(from)} and \`fast.next\` is ${name(ahead)}. Both exist, so fast can take two steps.`,
+        {
+          lens: `fast.next → ${name(ahead)}`,
+        },
+      );
 
       const gap = gapOf();
       const meets = gap !== null && gap <= 2 && slow !== from;
       const plain = !meets && from < n - 2;
       const predict = meets ? meetQuestion(gap, slowTo, to!) : plain && skipPlain ? null : whereQuestion(from, ahead, to, slowTo);
       skipPlain = plain && !skipPlain;
-      if (predict) snap(4, 'Move slow one node and fast two.', { predict });
+      if (predict) snap(4, 'Move slow one node and fast two.', 'Move slow one node and fast two.', { predict });
 
       const walked = [slow, from, ahead];
       slow = slowTo;
       fast = to;
       steps++;
-      snap(4, `slow moves to ${name(slow)}, and fast moves ${name(from)} → ${name(ahead)} → ${name(fast)}.`, {}, walked);
+      snap(
+        4,
+        `slow moves to ${name(slow)}, and fast to ${name(fast)}.`,
+        `slow moves to ${name(slow)}, and fast moves ${name(from)} → ${name(ahead)} → ${name(fast)}.`,
+        { lens: `slow → ${name(slow)}, fast → ${name(fast)}` },
+        walked,
+      );
 
       if (slow === fast) {
         snap(
           5,
+          `slow and fast meet on ${name(slow)}: the list has a cycle, so return true.`,
           `\`slow === fast\`: both are on ${name(slow)}, so the list loops. Return true. Inside the loop fast gains one node per step, so it catches slow within one lap: O(n) time, O(1) memory.${slow === pos ? '' : ` They met at ${name(slow)}, not at the loop's start, ${name(pos)}: finding the start needs a second phase.`}`,
+          { lens: `${name(slow)} === ${name(fast)} → true` },
         );
         frames[frames.length - 1].vars['result'] = true;
         return frames;
       }
-      snap(5, apartNote());
+      snap(5, apartCaption(), apartNote(), { lens: `${name(slow)} === ${name(fast)} → false` });
     }
 
+    chapter = 'Reach the end';
     snap(
       3,
       fast === null
+        ? 'fast is null: it ran off the end, so the while loop ends.'
+        : 'fast is on the last node, so it cannot take two steps: the while loop ends.',
+      fast === null
         ? 'fast is null: it ran off the end, so `fast?.next` is undefined and the loop stops.'
         : `fast is on ${name(fast)}, the last node, and \`fast.next\` is null. Two more steps would run off the end, so the loop stops.`,
+      { lens: fast === null ? 'fast → null' : 'fast.next → null' },
     );
     snap(
       7,
+      'A list with an end has no cycle, so return false.',
       `fast reached the end, and a list with an end cannot loop. Return false after ${steps} step${steps === 1 ? '' : 's'}: O(n) time, and only two pointers, so O(1) memory.`,
     );
     frames[frames.length - 1].vars['result'] = false;

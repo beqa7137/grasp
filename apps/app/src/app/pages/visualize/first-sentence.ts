@@ -1,9 +1,9 @@
 const ABBREVIATIONS = /(?:^|\s)(?:e\.g|i\.e|vs)$/i;
 
 /**
- * The first sentence of a tracer's note, for the caption beside a checkpoint until frames carry their own (R4). A sentence
- * ends at `.`, `!` or `?` outside a code span, after any closing brackets or quotes, before a space and a word that does
- * not start in lower case. Without one, the whole note is the sentence.
+ * The first sentence of a tracer's note, for the caption beside a checkpoint on a frame without a caption of its own
+ * (R18 writes the rest). A sentence ends at `.`, `!` or `?` outside a code span, after any closing brackets or quotes,
+ * before a space and a word that does not start in lower case. Without one, the whole note is the sentence.
  */
 export function firstSentence(note: string): string {
   let inCode = false;

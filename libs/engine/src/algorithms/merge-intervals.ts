@@ -1,3 +1,4 @@
+import { spansOf } from './annotate.js';
 import { fixedChoices, rotatedChoices } from './choices.js';
 import { InputError } from './types.js';
 import { randInt, shuffle } from './random.js';
@@ -29,19 +30,32 @@ function asIntervals(value: unknown, key: string): Interval[] {
   });
 }
 
+const CODE = [
+  'function merge(intervals) {',
+  '  intervals.sort((a, b) => a[0] - b[0]);',
+  '  const out = [[...intervals[0]]];',
+  '  let last = out[0];',
+  '  for (const [s, e] of intervals.slice(1)) {',
+  '    if (s <= last[1]) last[1] = Math.max(last[1], e);',
+  '    else out.push(last = [s, e]);',
+  '  }',
+  '  return out;',
+  '}',
+];
+
+const SPANS = spansOf(CODE, {
+  2: 'intervals.sort((a, b) => a[0] - b[0])',
+  3: 'const out = [[...intervals[0]]]',
+  4: 'let last = out[0]',
+  5: 'const [s, e] of intervals.slice(1)',
+  6: 's <= last[1]',
+  7: 'out.push(last = [s, e])',
+  9: 'return out',
+});
+const MERGE_SPAN = spansOf(CODE, { 6: 'last[1] = Math.max(last[1], e)' })[6];
+
 export const mergeIntervals: AlgorithmDefinition<Input> = {
-  code: [
-    'function merge(intervals) {',
-    '  intervals.sort((a, b) => a[0] - b[0]);',
-    '  const out = [[...intervals[0]]];',
-    '  let last = out[0];',
-    '  for (const [s, e] of intervals.slice(1)) {',
-    '    if (s <= last[1]) last[1] = Math.max(last[1], e);',
-    '    else out.push(last = [s, e]);',
-    '  }',
-    '  return out;',
-    '}',
-  ],
+  code: CODE,
   fields: [{ key: 'intervals', label: 'Intervals', kind: 'intervals', hint: 'Like 1-3, 2-6, in any order' }],
   defaultInput: {
     intervals: [
@@ -53,6 +67,38 @@ export const mergeIntervals: AlgorithmDefinition<Input> = {
       [4, 5],
     ],
   },
+  presets: [
+    {
+      label: 'Touching ends merge',
+      input: {
+        intervals: [
+          [1, 2],
+          [2, 3],
+          [3, 4],
+        ],
+      },
+    },
+    {
+      label: 'One interval holds the rest',
+      input: {
+        intervals: [
+          [2, 3],
+          [1, 10],
+          [4, 5],
+        ],
+      },
+    },
+    {
+      label: 'Nothing overlaps',
+      input: {
+        intervals: [
+          [5, 6],
+          [1, 2],
+          [3, 4],
+        ],
+      },
+    },
+  ],
 
   randomInput(rand = Math.random) {
     const intervals: Interval[] = [];
@@ -77,6 +123,7 @@ export const mergeIntervals: AlgorithmDefinition<Input> = {
     let last: Interval | null = null;
     const outRows: [startRow: number, endRow: number][] = [];
     let i = -1;
+    let chapter = 'Sort';
 
     const table = (focus: Partial<TableView> = {}): TableView => ({
       rowLabels: rows.map((_, r) => String(r)),
@@ -91,11 +138,14 @@ export const mergeIntervals: AlgorithmDefinition<Input> = {
       ...focus,
     });
 
-    const snap = (line: number, note: string, extra: Partial<Frame> = {}) => {
+    const snap = (line: number, caption: string, note: string, extra: Partial<Frame> = {}) => {
       const current = i > 0 && i < rows.length ? rows[i] : null;
       frames.push({
         line,
+        caption,
         note,
+        chapter,
+        span: SPANS[line],
         vars: { s: current ? current[0] : null, e: current ? current[1] : null, last: last ? show(last) : null },
         table: table(),
         output: { label: 'out', items: out.map(show) },
@@ -103,19 +153,33 @@ export const mergeIntervals: AlgorithmDefinition<Input> = {
       });
     };
 
-    snap(2, 'The intervals as given. Sort them by start first, so that overlapping intervals end up next to each other.');
+    snap(
+      2,
+      'The intervals as given. Sort them by start first.',
+      'The intervals as given. Sort them by start first, so that overlapping intervals end up next to each other.',
+    );
     const wasSorted = rows.every((row, r) => r === 0 || rows[r - 1][0] <= row[0]);
     rows = [...rows].sort((a, b) => a[0] - b[0]);
     snap(
       2,
+      `${wasSorted ? 'Already sorted' : 'Sorted'} by start: overlaps now sit next to each other.`,
       `${wasSorted ? 'Already sorted' : 'Sorted'} by start. Now an interval can only overlap the most recent merged one, never an earlier one.`,
     );
 
     out.push([...rows[0]]);
     outRows.push([0, 0]);
-    snap(3, `out starts with a copy of ${show(rows[0])}. It is a copy because merging will edit it in place.`);
+    chapter = 'Set up';
+    snap(
+      3,
+      `out starts with a copy of ${show(rows[0])}.`,
+      `out starts with a copy of ${show(rows[0])}. It is a copy because merging will edit it in place.`,
+    );
     last = out[0];
-    snap(4, 'last points at the newest entry of out. It is the only merged interval a later one can still reach.');
+    snap(
+      4,
+      'last points at the newest interval in out.',
+      'last points at the newest entry of out. It is the only merged interval a later one can still reach.',
+    );
 
     for (i = 1; i < rows.length; i++) {
       const [s, e] = rows[i];
@@ -124,8 +188,9 @@ export const mergeIntervals: AlgorithmDefinition<Input> = {
       const endCell: [number, number] = [source[1], 1];
       const overlaps = s <= end;
 
-      snap(5, `Next interval: ${show(rows[i])}.`);
-      snap(6, `Compare \`s = ${s}\` with \`last[1] = ${end}\`.`, {
+      chapter = `Interval ${i}: ${show(rows[i])}`;
+      snap(5, `Next comes ${show(rows[i])}.`, `Next interval: ${show(rows[i])}.`, { lens: `s = ${s}, e = ${e}` });
+      snap(6, `Compare its start, ${s}, with the end of last, ${end}.`, `Compare \`s = ${s}\` with \`last[1] = ${end}\`.`, {
         table: table({ deps: [endCell] }),
         predict: {
           prompt: `\`last = [${start}, ${end}]\`, next interval [${s}, ${e}]. Does it overlap last?`,
@@ -140,34 +205,62 @@ export const mergeIntervals: AlgorithmDefinition<Input> = {
         last = [s, e];
         out.push(last);
         outRows.push([i, i]);
-        snap(7, `${s} > ${end}: no overlap. Push [${s}, ${e}]; it becomes the new last.`);
+        snap(
+          7,
+          `${s} > ${end}: no overlap, so [${s}, ${e}] goes in as the new last.`,
+          `${s} > ${end}: no overlap. Push [${s}, ${e}]; it becomes the new last.`,
+          {
+            lens: `last = [${s}, ${e}]`,
+          },
+        );
         continue;
       }
 
       const merged = Math.max(end, e);
       if (e !== end) {
-        snap(6, `${s} ≤ ${end}: they overlap, so [${s}, ${e}] merges into last. Now settle its end.`, {
-          table: table({ active: [i, 1], deps: [endCell] }),
-          predict: {
-            ...rotatedChoices(
-              `[${s}, ${e}] overlaps \`last = [${start}, ${end}]\`. What is the merged end after this step?`,
-              String(merged),
-              [String(merged === end ? e : end)],
-            ),
-            explain:
-              e < end
-                ? `\`max(${end}, ${e}) = ${end}\`. [${s}, ${e}] sits inside last, so setting \`last[1] = e\` would wrongly shrink [${start}, ${end}] to [${start}, ${e}].`
-                : `\`max(${end}, ${e}) = ${e}\`. [${s}, ${e}] reaches past last, so the merged interval grows to ${e}.`,
+        snap(
+          6,
+          'They overlap, so settle the end of the merged interval.',
+          `${s} ≤ ${end}: they overlap, so [${s}, ${e}] merges into last. Now settle its end.`,
+          {
+            span: MERGE_SPAN,
+            table: table({ active: [i, 1], deps: [endCell] }),
+            predict: {
+              ...rotatedChoices(
+                `[${s}, ${e}] overlaps \`last = [${start}, ${end}]\`. What is the merged end after this step?`,
+                String(merged),
+                [String(merged === end ? e : end)],
+              ),
+              explain:
+                e < end
+                  ? `\`max(${end}, ${e}) = ${end}\`. [${s}, ${e}] sits inside last, so setting \`last[1] = e\` would wrongly shrink [${start}, ${end}] to [${start}, ${e}].`
+                  : `\`max(${end}, ${e}) = ${e}\`. [${s}, ${e}] reaches past last, so the merged interval grows to ${e}.`,
+            },
           },
-        });
+        );
       }
       last[1] = merged;
       if (e > end) source[1] = i;
-      snap(6, `\`last[1] = max(${end}, ${e})\` = ${merged}, so last is now [${start}, ${merged}].`, { table: table({ active: [i, 1] }) });
+      snap(
+        6,
+        merged === end ? `[${s}, ${e}] fits inside last, so last stays [${start}, ${end}].` : `last grows to [${start}, ${merged}].`,
+        `\`last[1] = max(${end}, ${e})\` = ${merged}, so last is now [${start}, ${merged}].`,
+        {
+          table: table({ active: [i, 1] }),
+          span: MERGE_SPAN,
+          lens: `max(${end}, ${e}) = ${merged}`,
+        },
+      );
     }
 
+    chapter = 'Result';
     snap(
       9,
+      rows.length === 1
+        ? 'Done: one interval, so nothing to merge.'
+        : out.length === rows.length
+          ? `Done: none of the ${rows.length} intervals overlap.`
+          : `Done: ${rows.length} intervals merged into ${out.length}.`,
       `Done: ${rows.length} interval${rows.length === 1 ? '' : 's'} merged into ${out.length}. Sorting costs O(n log n) and the sweep visits each interval once, so O(n log n) overall.`,
     );
     frames[frames.length - 1].vars['result'] = `[${out.map(show).join(', ')}]`;

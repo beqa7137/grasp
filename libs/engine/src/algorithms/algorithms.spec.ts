@@ -35,6 +35,7 @@ const frameProblems = (frames: Frame[], lines: number) =>
       p && !(p.answer >= 0 && p.answer < p.choices.length) && `answer ${p.answer} is not a choice`,
       p && (p.prompt.length <= 10 || p.explain.length <= 10) && 'prompt or explain too short',
       ...textProblems('note', f.note),
+      ...(f.caption ? textProblems('caption', f.caption) : []),
       ...(p ? [...textProblems('prompt', p.prompt), ...textProblems('explain', p.explain)] : []),
     ].flatMap((problem) => (problem ? [`frame ${k}: ${problem}`] : []));
   });
@@ -344,15 +345,14 @@ describe.each(ALGORITHMS.map((a) => [a.id, a] as const))('%s', (id, algo) => {
 });
 
 describe('answer slots', () => {
-  it(`never puts the first multi-choice answer in one slot on more than ${MAX_SLOT_SHARE * 100}% of the random inputs`, () => {
+  it(`never puts the first rotated multi-choice answer in one slot on more than ${MAX_SLOT_SHARE * 100}% of the random inputs`, () => {
     const crowded = ALGORITHMS.flatMap((algo) => {
+      // A fixed menu, like pair sum's l++ / r--, gives each answer its own slot, so there the slot follows the data.
       const firstQuestions = sweepInputs(algo).flatMap((input) => {
-        const first = algo.trace(algo.validate(input)).find((f) => f.predict && f.predict.choices.length >= 3);
+        const first = algo.trace(algo.validate(input)).find((f) => f.predict && !f.predict.ordered && f.predict.choices.length >= 3);
         return first ? [first.predict!] : [];
       });
-      // A fixed menu, like pair sum's found / l++ / r--, gives each answer its own slot, so there the slot follows the data.
-      const fixedMenu = firstQuestions.every((p) => p.ordered);
-      if (firstQuestions.length < MIN_INPUTS_ASKED || fixedMenu) return [];
+      if (firstQuestions.length < MIN_INPUTS_ASKED) return [];
       const worst = Math.max(...[0, 1, 2, 3].map((slot) => firstQuestions.filter((p) => p.answer === slot).length)) / firstQuestions.length;
       return worst > MAX_SLOT_SHARE ? [`${algo.id}: ${Math.round(worst * 100)}% in one slot`] : [];
     });

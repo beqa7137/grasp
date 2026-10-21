@@ -54,22 +54,25 @@ describe('review item catalog', () => {
     }
   });
 
-  it.each(['binary-search', 'pair-sum-sorted', 'dijkstra', 'lcs'])('keeps the %s menu in the order the visualizer shows it', (id) => {
+  it.each(['dijkstra', 'lcs'])('keeps the %s menu in the order the visualizer shows it', (id) => {
     const algo = getAlgorithm(id)!;
     const menu = predictions(tracerFixture(algo).traceOf(algo.defaultInput))[0].choices;
     for (const seed of SEEDS) expect(generateQuestion(`pred:${id}`, seed).choices).toEqual(menu);
   });
 
-  it('keeps a fixed menu in order beside questions whose choices move around', () => {
-    const algo = getAlgorithm('two-sum-hash')!;
-    const menu = predictions(tracerFixture(algo).traceOf(algo.defaultInput)).find((p) => p.ordered)!.choices;
-    const questions = SEEDS.map((seed) => generateQuestion('pred:two-sum-hash', seed));
-    const fromMenu = questions.filter((q) => q.choices.every((c) => menu.includes(c)));
-    expect(fromMenu.length).toBeGreaterThan(0);
-    for (const q of fromMenu) expect(q.choices).toEqual(menu);
-    const rotating = questions.filter((q) => !fromMenu.includes(q));
-    expect(new Set(rotating.map((q) => q.answer)).size).toBeGreaterThanOrEqual(3);
-  });
+  it.each(['two-sum-hash', 'binary-search', 'pair-sum-sorted'])(
+    'keeps the %s fixed menu in order beside questions whose choices move around',
+    (id) => {
+      const algo = getAlgorithm(id)!;
+      const menu = predictions(tracerFixture(algo).traceOf(algo.defaultInput)).find((p) => p.ordered)!.choices;
+      const questions = SEEDS.map((seed) => generateQuestion(`pred:${id}`, seed));
+      const fromMenu = questions.filter((q) => q.choices.every((c) => menu.includes(c)));
+      expect(fromMenu.length).toBeGreaterThan(0);
+      for (const q of fromMenu) expect(q.choices).toEqual(menu);
+      const rotating = questions.filter((q) => !fromMenu.includes(q));
+      expect(new Set(rotating.map((q) => q.answer)).size).toBeGreaterThanOrEqual(3);
+    },
+  );
 
   it('generates genuinely different variants for predict and numeric design items', () => {
     const varied = REVIEW_ITEMS.filter(

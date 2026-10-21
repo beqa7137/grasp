@@ -1,3 +1,4 @@
+import { spansOf } from './annotate.js';
 import { rotatedChoices } from './choices.js';
 import { asNumbers } from './input.js';
 import { randInt, shuffle } from './random.js';
@@ -34,18 +35,27 @@ function xorQuestion(x: number, n: number, width: number) {
   );
 }
 
+const CODE = [
+  'function singleNumber(nums) {',
+  '  let x = 0; // 0 ^ n = n',
+  '  for (const n of nums) {',
+  '    x ^= n; // n ^ n = 0',
+  '  }',
+  '  return x;',
+  '}',
+];
+
+const SPANS = spansOf(CODE, { 2: 'let x = 0', 3: 'const n of nums', 4: 'x ^= n', 6: 'return x' });
+
 export const singleNumberXor: AlgorithmDefinition<Input> = {
-  code: [
-    'function singleNumber(nums) {',
-    '  let x = 0; // 0 ^ n = n',
-    '  for (const n of nums) {',
-    '    x ^= n; // n ^ n = 0',
-    '  }',
-    '  return x;',
-    '}',
-  ],
+  code: CODE,
   fields: [{ key: 'nums', label: 'Numbers', kind: 'numbers', hint: 'Every value twice except one' }],
   defaultInput: { nums: [4, 1, 2, 1, 2] },
+  presets: [
+    { label: 'The single number is last', input: { nums: [3, 5, 3, 5, 6] } },
+    { label: 'Zero is the single number', input: { nums: [7, 0, 7] } },
+    { label: 'Pairs far apart', input: { nums: [9, 12, 6, 12, 9] } },
+  ],
 
   randomInput(rand = Math.random) {
     const pool = shuffle(
@@ -69,14 +79,18 @@ export const singleNumberXor: AlgorithmDefinition<Input> = {
     let x = 0;
     let i = -1;
     let folded = 0;
+    let chapter = 'Set up';
 
     const unpairedView = (active?: string): SetView => ({ label: 'unpaired so far', entries: [...unpaired.keys()].map(String), active });
 
-    const snap = (line: number, note: string, table: TableView, extra: Partial<Frame> = {}) => {
+    const snap = (line: number, caption: string, note: string, table: TableView, extra: Partial<Frame> = {}) => {
       const reading = i >= 0 && i < nums.length;
       frames.push({
         line,
+        caption,
         note,
+        chapter,
+        span: SPANS[line],
         vars: { n: reading ? nums[i] : null, x, 'x in binary': binary(x, width) },
         array: {
           values: [...nums],
@@ -94,15 +108,24 @@ export const singleNumberXor: AlgorithmDefinition<Input> = {
 
     snap(
       2,
+      'x starts at 0, since 0 ^ n = n.',
       'Start with `x = 0`, since `0 ^ n = n`. x will hold the XOR of every number read so far, and because `n ^ n = 0`, that equals the XOR of the numbers still waiting for a partner.',
       bitTable(width, [x, null, null]),
+      { lens: 'x = 0' },
     );
 
     for (i = 0; i < nums.length; i++) {
       const n = nums[i];
       const before = x;
       const partner = unpaired.get(n);
-      snap(3, `Read \`n = nums[${i}] = ${n}\`, which is ${binary(n, width)} in binary.`, bitTable(width, [x, n, null]));
+      chapter = `nums[${i}] = ${n}`;
+      snap(
+        3,
+        `Read n = ${n}, which is ${binary(n, width)} in binary.`,
+        `Read \`n = nums[${i}] = ${n}\`, which is ${binary(n, width)} in binary.`,
+        bitTable(width, [x, n, null]),
+        { lens: `n = ${n} = ${binary(n, width)}` },
+      );
 
       if (i > 0) {
         const reason =
@@ -113,12 +136,18 @@ export const singleNumberXor: AlgorithmDefinition<Input> = {
               : (x & n) !== 0
                 ? 'Columns with a 1 in both become 0, which is where XOR differs from OR and +.'
                 : 'No column has a 1 in both, so each 1 bit of n switches on in x.';
-        snap(4, `XOR \`x = ${binary(x, width)}\` with \`n = ${binary(n, width)}\`, one column at a time.`, bitTable(width, [x, n, null]), {
-          predict: {
-            ...xorQuestion(x, n, width),
-            explain: `XOR keeps a 1 only where the two bits differ: \`${binary(x, width)} ^ ${binary(n, width)}\` = ${binary(x ^ n, width)}, which is ${x ^ n}. ${reason}`,
+        snap(
+          4,
+          'XOR x with n, one bit column at a time.',
+          `XOR \`x = ${binary(x, width)}\` with \`n = ${binary(n, width)}\`, one column at a time.`,
+          bitTable(width, [x, n, null]),
+          {
+            predict: {
+              ...xorQuestion(x, n, width),
+              explain: `XOR keeps a 1 only where the two bits differ: \`${binary(x, width)} ^ ${binary(n, width)}\` = ${binary(x ^ n, width)}, which is ${x ^ n}. ${reason}`,
+            },
           },
-        });
+        );
       }
 
       if (partner === undefined) unpaired.set(n, i);
@@ -134,19 +163,33 @@ export const singleNumberXor: AlgorithmDefinition<Input> = {
       snap(
         4,
         partner !== undefined
+          ? `${n} meets its earlier copy and cancels out: x is ${x}.`
+          : n === 0
+            ? `XOR with 0 changes nothing: x stays ${x}.`
+            : `Each 1 bit of ${n} flips the matching bit of x: x is ${x}; ${n} waits for a partner.`,
+        partner !== undefined
           ? `${step} This ${n} meets the earlier ${n} at \`nums[${partner}]\`, and \`n ^ n = 0\`, so the pair cancels out of x.`
           : n === 0
             ? `${step} XOR with 0 changes nothing.`
             : `${step} Each 1 in n flips the matching bit of x, and ${n} now waits for a partner.`,
         bitTable(width, [before, n, x], { deps: flips, path: wholeRow(2, width) }),
-        partner === undefined ? { set: unpairedView(String(n)) } : {},
+        {
+          ...(partner === undefined ? { set: unpairedView(String(n)) } : {}),
+          lens: `${binary(before, width)} ^ ${binary(n, width)} = ${binary(x, width)}`,
+        },
       );
     }
 
     const survivors = [...unpaired.keys()];
     const cost = 'One pass with one variable: O(n) time, O(1) space.';
+    chapter = 'Result';
     snap(
       6,
+      survivors.length === 1
+        ? `${settled.length ? 'Every pair canceled' : 'No pairs'}, so x = ${x}: the number without a partner.`
+        : survivors.length === 0
+          ? 'Every number had a partner, so everything canceled: x = 0.'
+          : `${survivors.length} numbers have no partner, so x is their XOR, ${x}.`,
       survivors.length === 1
         ? `${settled.length ? 'Every pair canceled' : 'There were no pairs to cancel'}, so \`x = ${x}\`: the one number without a partner. ${cost}`
         : survivors.length === 0

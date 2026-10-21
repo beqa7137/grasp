@@ -144,6 +144,16 @@ describe('linked-list-reversal', () => {
             expect(p.choices.length, `${n} ${left}-${right}: ${p.prompt}`).toBeGreaterThanOrEqual(3);
   });
 
+  it('offers the node itself as where curr.next points only on a one-node list, where too few other nodes are left', () => {
+    for (let n = 1; n <= 5; n++)
+      for (let left = 1; left <= n; left++)
+        for (let right = left; right <= n; right++)
+          for (const p of predictions(traceOf({ values: Array.from({ length: n }, (_, i) => i + 1), left, right }))) {
+            const self = /^curr is on (node \d+)\./.exec(p.prompt)?.[1];
+            if (self) expect(p.choices.includes(self), `${n} ${left}-${right}: ${p.prompt}`).toBe(n === 1);
+          }
+  });
+
   it('rejects bad input with clear InputErrors', () => {
     const rejects = (input: unknown, message: string) => expect(() => algo.validate(input)).toThrow(new InputError(message));
     rejects({ values: [1, 2, 1], left: 1, right: 2 }, 'values must be distinct: each value names one node');

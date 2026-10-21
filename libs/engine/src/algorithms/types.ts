@@ -124,6 +124,12 @@ export interface Frame {
   predict?: Prediction;
   /** The part of the run this frame belongs to, such as "Row 3 of 7"; consecutive frames share it. */
   chapter?: string;
+  /** Learner text, at most 80 characters: the one-line narration, where `note` is the long explanation. */
+  caption?: string;
+  /** The columns of `line` being evaluated, from the first to one past the last. */
+  span?: [number, number];
+  /** The evaluated expression with its values, such as "16 < 23 → true"; never on a frame that asks, which it would answer. */
+  lens?: string;
 }
 
 export type InputKind =
@@ -152,6 +158,8 @@ export interface AlgorithmDef<I extends AlgorithmInput = AlgorithmInput> extends
   randomInput(rand?: () => number): I;
   validate(input: unknown): I;
   trace(input: I): Frame[];
+  /** A few inputs worth watching, such as an edge case, offered beside Random. */
+  presets?: { label: string; input: I }[];
 }
 
 /** What a tracer module defines: everything but its catalog entry's fields. */

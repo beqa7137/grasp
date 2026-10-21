@@ -245,6 +245,13 @@ input[type='range'] {
     &.odd {
       background: var(--g-stroke);
     }
+
+    // A last chapter of one frame spans nothing, so it keeps a minimum width, ending at the track's end.
+    &:last-child {
+      left: auto;
+      right: calc((1 - var(--p) - var(--span)) * 100%);
+      min-width: 6px;
+    }
   }
 }
 

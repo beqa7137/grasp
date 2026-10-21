@@ -7,6 +7,7 @@ type Input = ReturnType<typeof algo.validate>;
 
 const YES = 'Yes: return the pair';
 const NO = 'No: store x and keep scanning';
+const STORE_WHY = 'So x can never pair with itself';
 const LOOKUP_KINDS = [
   ['is a key', 'hit'],
   ['with itself', 'self'],
@@ -42,7 +43,10 @@ const inSync = ({ nums, target }: Input, frames: Frame[]) =>
     );
   });
 
-/** A lookup answer matches whether the trace returns at this i, a store answer is the next map, and a pair answer is the result. */
+/**
+ * A lookup answer matches whether the trace returns at this i, the store question is asked before x is stored, and a pair
+ * answer is the result.
+ */
 const answersConfirmed = (frames: Frame[]) =>
   frames.every((f, k) => {
     if (!f.predict) return true;
@@ -50,7 +54,9 @@ const answersConfirmed = (frames: Frame[]) =>
     const chosen = choices[answer];
     const last = frames[frames.length - 1];
     if (prompt.endsWith('in seen?')) return (chosen === YES) === (last.vars['i'] === f.vars['i'] && resultOf(frames) !== '[]');
-    if (prompt.endsWith('after this step?')) return chosen === `{${frames[k + 1].set!.entries.join(', ')}}`;
+    if (prompt.endsWith('after the lookup?')) {
+      return chosen === STORE_WHY && f.set!.entries.length === 0 && frames[k + 1].set!.entries.join() === `${f.vars['x']} → 0`;
+    }
     return chosen === resultOf(frames);
   });
 
@@ -59,7 +65,7 @@ describe('two-sum-hash', () => {
     const frames = traceOf(algo.defaultInput);
     const last = frames[frames.length - 1];
     expect(frames).toHaveLength(21);
-    expect(correctChoices(frames)).toEqual(['{3 → 0}', NO, NO, YES, '[2, 3]']);
+    expect(correctChoices(frames)).toEqual([STORE_WHY, NO, NO, YES, '[2, 3]']);
     expect(last.line).toBe(5);
     expect(resultOf(frames)).toBe('[2, 3]');
     expect(last.array).toMatchObject({ pointers: { i: 3 }, window: [0, 2], found: [2, 3], settled: [4, 5] });

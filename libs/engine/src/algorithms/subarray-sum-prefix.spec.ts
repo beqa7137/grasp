@@ -48,12 +48,28 @@ const lookupFrames = (frames: Frame[], asked: number) =>
     frames.findIndex((f, n) => n > asked && f.line !== 6),
   );
 
-/** A prefix answer is the next p; a count answer is how much total grows and how many subarrays the next frames show. */
-const answersConfirmed = (frames: Frame[]) =>
+/**
+ * A prefix answer is the next p, and a repeated prefix's answer is the one choice naming a run of nums that sums to 0 and
+ * ends at i; a count answer is how much total grows and how many subarrays the next frames show.
+ */
+const answersConfirmed = (frames: Frame[], nums: number[]) =>
   frames.every((f, n) => {
     if (!f.predict) return true;
-    const chosen = Number(f.predict.choices[f.predict.answer]);
+    const text = f.predict.choices[f.predict.answer];
+    const chosen = Number(text);
     const next = frames[n + 1];
+    const zeroRun = (choice: string) => {
+      const run = /^`nums\[(\d+)\.\.(\d+)\]` sums to 0$/.exec(choice);
+      return run && nums.slice(Number(run[1]), Number(run[2]) + 1).reduce((x, y) => x + y, 0) === 0 ? Number(run[2]) : null;
+    };
+    if (f.predict.prompt.includes('a prefix seen before')) {
+      const others = f.predict.choices.filter((_, k) => k !== f.predict!.answer);
+      return (
+        zeroRun(text) === next.vars['i'] &&
+        others.every((c) => zeroRun(c) === null) &&
+        f.predict.prompt.includes(`back to ${next.vars['p']},`)
+      );
+    }
     if (f.line === 5) return next.vars['p'] === chosen;
     const bands = lookupFrames(frames, n).filter((g) => g.array!.window);
     return Number(next.vars['total']) - Number(f.vars['total']) === chosen && bands.length === chosen;
@@ -64,7 +80,7 @@ describe('subarray-sum-prefix', () => {
     const frames = traceOf(algo.defaultInput);
     expect(frames).toHaveLength(30);
     expect(frames[0]).toMatchObject({ line: 2, table: { colLabels: ['0'], cells: [[1]], active: [0, 0] } });
-    expect(correctChoices(frames)).toEqual(['0', '3', '1', '1', '3', '1', '0', '2']);
+    expect(correctChoices(frames)).toEqual(['0', '3', '1', '1', '`nums[2..3]` sums to 0', '1', '0', '2']);
     const last = frames[frames.length - 1];
     expect(last.line).toBe(9);
     expect(resultOf(frames)).toBe(5);
@@ -77,7 +93,7 @@ describe('subarray-sum-prefix', () => {
   });
 
   it('asks predictions that the following frames confirm', () => {
-    for (const input of SAMPLES) expect(answersConfirmed(traceOf(input))).toBe(true);
+    for (const input of SAMPLES) expect(answersConfirmed(traceOf(input), algo.validate(input).nums)).toBe(true);
   });
 
   it('counts a subarray that starts at index 0 through the seed, offering the missed seed as a distractor', () => {

@@ -1,3 +1,4 @@
+import { spansOf } from './annotate.js';
 import { fixedChoices, rotatedChoices } from './choices.js';
 import { asNumber, asNumbers, rangeOf } from './input.js';
 import { randInt, shuffle } from './random.js';
@@ -9,23 +10,47 @@ const LOOKUP = ['Yes: return the pair', 'No: store x and keep scanning'];
 
 const entry = (value: number, index: number) => `${value} → ${index}`;
 
+const CODE = [
+  'function twoSum(nums, target) {',
+  '  const seen = new Map(); // value -> index',
+  '  for (const [i, x] of nums.entries()) {',
+  '    const need = target - x;',
+  '    if (seen.has(need)) return [seen.get(need), i];',
+  '    seen.set(x, i); // only after the check',
+  '  }',
+  '  return [];',
+  '}',
+];
+
+const SPANS = spansOf(CODE, {
+  2: 'const seen = new Map()',
+  3: 'const [i, x] of nums.entries()',
+  4: 'const need = target - x',
+  5: 'seen.has(need)',
+  6: 'seen.set(x, i)',
+  8: 'return []',
+});
+const RETURN_SPAN = spansOf(CODE, { 5: 'return [seen.get(need), i]' })[5];
+
+const STORE_WHY = 'So x can never pair with itself';
+const STORE_DISTRACTORS = [
+  'So seen stays sorted by value',
+  'Because a lookup is faster on a smaller map',
+  'So the scan can stop at the first hit',
+];
+
 export const twoSumHash: AlgorithmDefinition<Input> = {
-  code: [
-    'function twoSum(nums, target) {',
-    '  const seen = new Map(); // value -> index',
-    '  for (const [i, x] of nums.entries()) {',
-    '    const need = target - x;',
-    '    if (seen.has(need)) return [seen.get(need), i];',
-    '    seen.set(x, i); // only after the check',
-    '  }',
-    '  return [];',
-    '}',
-  ],
+  code: CODE,
   fields: [
     { key: 'nums', label: 'Numbers', kind: 'numbers' },
     { key: 'target', label: 'Target sum', kind: 'number' },
   ],
   defaultInput: { nums: [3, 8, 11, 5, 7, 2], target: 16 },
+  presets: [
+    { label: 'No pair adds up', input: { nums: [1, 2, 4, 9], target: 20 } },
+    { label: 'Half the target, twice', input: { nums: [8, 3, 8], target: 16 } },
+    { label: 'The pair is the last two', input: { nums: [2, 7, 11, 15], target: 26 } },
+  ],
 
   randomInput(rand = Math.random) {
     const target = randInt(rand, 10, 20);
@@ -56,16 +81,20 @@ export const twoSumHash: AlgorithmDefinition<Input> = {
     let stored = 0;
     let pair: [number, number] | null = null;
     let askedPlainMiss = false;
+    let chapter = 'Set up';
 
     const entries = () => [...seen].map(([value, index]) => entry(value, index));
     const mapText = () => `{${entries().join(', ')}}`;
     const seenView = (active?: string): SetView => ({ label: 'seen (value → index)', entries: entries(), active });
 
-    const snap = (line: number, note: string, extra: Partial<Frame> = {}) => {
+    const snap = (line: number, caption: string, note: string, extra: Partial<Frame> = {}) => {
       const scanning = i >= 0 && i < nums.length;
       frames.push({
         line,
+        caption,
         note,
+        chapter,
+        span: SPANS[line],
         vars: { target, i: scanning ? i : null, x: scanning ? nums[i] : null, need },
         array: {
           values: [...nums],
@@ -97,22 +126,36 @@ export const twoSumHash: AlgorithmDefinition<Input> = {
 
     snap(
       2,
+      `seen will map each number the scan passes to its index. Target: ${target}.`,
       `seen maps every number the scan has passed to its index, so asking "did my partner come earlier?" is one O(1) lookup instead of a scan back. Target: ${target}.`,
     );
 
     for (i = 0; i < nums.length; i++) {
       const x = nums[i];
       need = null;
-      snap(3, i === 0 ? `The scan starts at \`i = 0\` with \`x = ${x}\`.` : `Move to \`i = ${i}\`: \`x = ${x}\`.`);
+      chapter = `nums[${i}] = ${x}`;
+      snap(
+        3,
+        i === 0 ? `The scan starts at index 0, where x is ${x}.` : `Move to index ${i}, where x is ${x}.`,
+        i === 0 ? `The scan starts at \`i = 0\` with \`x = ${x}\`.` : `Move to \`i = ${i}\`: \`x = ${x}\`.`,
+        { lens: `i = ${i}, x = ${x}` },
+      );
       need = target - x;
-      snap(4, `\`x = ${x}\` needs a partner of \`target - x\` = ${target} - ${x} = ${need}.`);
+      snap(
+        4,
+        `${x} needs a partner of ${target} - ${x} = ${need}.`,
+        `\`x = ${x}\` needs a partner of \`target - x\` = ${target} - ${x} = ${need}.`,
+        {
+          lens: `${target} - ${x} = ${need}`,
+        },
+      );
 
       const j = seen.get(need);
       const partnerInNums = nums.includes(need);
       // Ask every lookup whose partner is in nums (already seen, x itself, or later), but only one plain miss.
       if (i > 0 && (partnerInNums || !askedPlainMiss)) {
         askedPlainMiss ||= !partnerInNums;
-        snap(5, `Look up \`need = ${need}\` in seen.`, {
+        snap(5, `Look up ${need} in seen.`, `Look up \`need = ${need}\` in seen.`, {
           predict: {
             prompt: `\`target = ${target}\`, \`x = nums[${i}] = ${x}\`, so \`need = ${need}\`. seen = ${mapText()}. Is ${need} in seen?`,
             ...fixedChoices(LOOKUP, j !== undefined ? 0 : 1),
@@ -123,21 +166,28 @@ export const twoSumHash: AlgorithmDefinition<Input> = {
 
       if (j !== undefined) {
         const answer = `[${j}, ${i}]`;
-        snap(5, `\`seen.has(${need})\` is true: an earlier number completes the pair.`, {
-          predict: {
-            ...rotatedChoices(
-              `\`target = ${target}\`, \`x = nums[${i}] = ${x}\`, and \`need = ${need}\` is in seen = ${mapText()}. What does twoSum return?`,
-              answer,
-              [`[${need}, ${x}]`, `[${need}, ${i}]`, `[${i}, ${i}]`],
-            ),
-            explain: `\`seen.get(${need}) = ${j}\` is the index where ${need} was stored, and \`i = ${i}\` is the index of x. twoSum returns indices, not values: ${answer}.`,
+        snap(
+          5,
+          `${need} is in seen: an earlier number completes the pair.`,
+          `\`seen.has(${need})\` is true: an earlier number completes the pair.`,
+          {
+            span: RETURN_SPAN,
+            predict: {
+              ...rotatedChoices(
+                `\`target = ${target}\`, \`x = nums[${i}] = ${x}\`, and \`need = ${need}\` is in seen = ${mapText()}. What does twoSum return?`,
+                answer,
+                [`[${need}, ${x}]`, `[${need}, ${i}]`, `[${i}, ${i}]`],
+              ),
+              explain: `\`seen.get(${need}) = ${j}\` is the index where ${need} was stored, and \`i = ${i}\` is the index of x. twoSum returns indices, not values: ${answer}.`,
+            },
           },
-        });
+        );
         pair = [j, i];
         snap(
           5,
+          `Return ${answer}: ${need} + ${x} = ${target}.`,
           `Return ${answer}: \`nums[${j}] + nums[${i}]\` = ${need} + ${x} = ${target}.${i < nums.length - 1 ? ' The scan stops here, so the rest of nums is never read.' : ''} Each step was one O(1) lookup and at most one O(1) store: O(n) time, O(n) space.`,
-          { set: seenView(entry(need, j)) },
+          { set: seenView(entry(need, j)), span: RETURN_SPAN, lens: `seen.get(${need}) = ${j}` },
         );
         frames[frames.length - 1].vars['result'] = answer;
         return frames;
@@ -145,19 +195,23 @@ export const twoSumHash: AlgorithmDefinition<Input> = {
 
       snap(
         5,
+        i === 0 ? `seen is empty, so nothing can pair with ${x} yet.` : `${need} is not in seen: no earlier number pairs with ${x}.`,
         i === 0
           ? `seen is empty, so ${need} is not there: nothing can pair with ${x} yet.${need === x ? ` Checking before storing is what stops ${x} from pairing with itself.` : ''}`
           : `\`seen.has(${need})\` is false: no number before index ${i} is ${need}.`,
+        { lens: `seen.has(${need}) → false` },
       );
       if (i === 0) {
-        snap(6, 'No partner yet, so remember x for the numbers still to come.', {
+        snap(6, `Store ${x} in seen, after the lookup.`, 'No partner yet, so remember x for the numbers still to come.', {
           predict: {
             ...rotatedChoices(
-              `\`target = ${target}\`, \`x = nums[0] = ${x}\`, and \`need = ${need}\` is not in the empty seen. What does seen hold after this step?`,
-              `{${entry(x, 0)}}`,
-              [`{${entry(need, 0)}}`, `{${entry(0, x)}}`, '{}'],
+              `\`target = ${target}\`, \`x = nums[0] = ${x}\`. Why does twoSum store x in seen only after the lookup?`,
+              STORE_WHY,
+              STORE_DISTRACTORS,
             ),
-            explain: `\`seen.set(x, i)\` uses the number as the key and its index as the value, so seen becomes {${entry(x, 0)}}. A later number that needs ${x} looks it up by value and reads back index 0.`,
+            explain: `seen must hold only the numbers before i. Stored first, a number that is half of target would find itself and return [i, i]${
+              need === x ? `: here ${x} + ${x} = ${target}` : ''
+            }.`,
           },
         });
       }
@@ -168,15 +222,20 @@ export const twoSumHash: AlgorithmDefinition<Input> = {
       snap(
         6,
         previous !== undefined
+          ? `${x} is already a key: its index moves from ${previous} to ${i}.`
+          : `Store ${entry(x, i)}, so a later number that needs ${x} finds it.`,
+        previous !== undefined
           ? `${x} is already a key, so set replaces its index ${previous} with ${i}. Either copy pairs the same way; a hit returns the newer index.`
           : `Store ${entry(x, i)}, so a later number that needs ${x} finds it in O(1).${i === 0 ? ' The shaded band marks the numbers seen holds.' : ''}`,
-        { set: seenView(entry(x, i)) },
+        { set: seenView(entry(x, i)), lens: `seen.set(${x}, ${i})` },
       );
     }
 
     need = null;
+    chapter = 'No pair';
     snap(
       8,
+      `The scan ended without a hit: no pair sums to ${target}, so return [].`,
       `The scan reached the end without a hit: no two numbers add up to ${target}, so return []. Each number cost one O(1) lookup and one O(1) store: O(n) time, O(n) space.`,
     );
     frames[frames.length - 1].vars['result'] = '[]';
