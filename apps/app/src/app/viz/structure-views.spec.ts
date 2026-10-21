@@ -794,14 +794,14 @@ describe('structure views render real traces', () => {
     fixture.componentRef.setInput('view', { values: [4, 2, 5], pointers: {} });
     fixture.detectChanges();
     const band: HTMLElement = fixture.nativeElement.querySelector('.pointers');
-    expect(band.style.height).toBe('0px');
+    expect(band.style.getPropertyValue('--band-h')).toBe('0px');
     fixture.componentRef.setInput('view', { values: [4, 2, 5], pointers: { i: 1, j: 1 } });
     fixture.detectChanges();
-    expect(band.style.height).toBe('50px');
+    expect(band.style.getPropertyValue('--band-h')).toBe('50px');
     fixture.componentRef.setInput('band', 2);
     fixture.componentRef.setInput('view', { values: [4, 2, 5], pointers: {} });
     fixture.detectChanges();
-    expect(band.style.height).toBe('50px');
+    expect(band.style.getPropertyValue('--band-h')).toBe('50px');
   });
 
   it('array: measures the longest of any values in characters', () => {

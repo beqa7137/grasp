@@ -40,8 +40,6 @@
 
   @include rgb-token(accent, #5846dc);
   --g-accent-soft: rgba(var(--g-accent-rgb), 0.14);
-  --g-window: rgba(var(--g-accent-rgb), 0.16);
-  --g-window-line: rgba(var(--g-accent-rgb), 0.7);
   @include rgb-token(active, #0268a0);
   @include rgb-token(found, #036b4c);
   @include rgb-token(danger, #c3203d);
@@ -79,10 +77,12 @@
   --g-viz-considering-soft: rgba(var(--g-viz-considering-rgb), 0.14);
   @include rgb-token(viz-final, #12925f);
   --g-viz-final-soft: rgba(var(--g-viz-final-rgb), 0.14);
-  // Final text can sit on the final wash inside the purple search window, where 3.6's #0a6b45 reaches only 4.2:1.
+  // Final text takes the darker found ink, which keeps 4.5:1 on the final wash over every backdrop.
   --g-viz-final-ink: var(--g-found-ink);
   --g-viz-discarded-ink: #687082;
   --g-viz-critical: #d42a49;
+  // The learner's guess is neutral and dashed (3.6): no fourth hue passed the color-vision checks.
+  --g-viz-guess: var(--g-text);
   // Quiet enough that every checkpoint tick reaches 3:1 on it; the thumb marks the position.
   --g-viz-track: #d3d7e0;
   // Fills and strokes outside a checkpoint's focus fade to this; their text takes the discarded ink instead.
@@ -91,6 +91,8 @@
   --g-motion-quick: 120ms;
   --g-motion-step: 240ms;
   --g-motion-sheet: 280ms;
+  --g-motion-layout: 360ms;
+  --g-motion-land: 400ms;
   --g-ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --g-ease-enter: cubic-bezier(0.05, 0.7, 0.1, 1);
   --g-ease-exit: cubic-bezier(0.3, 0, 0.8, 0.15);
@@ -105,8 +107,9 @@
   --g-state-path-fill: rgba(var(--g-viz-final-rgb), 0.24);
   --g-state-path-line: var(--g-viz-final);
   // Expanded cells are the most common state, so their outline stays quiet; their distance number marks them.
-  --g-state-visited-fill: var(--g-accent-soft);
-  --g-state-visited-line: rgba(var(--g-accent-rgb), 0.35);
+  // Expanded cells are done with but not an answer: a neutral wash, since purple is for controls only (3.6).
+  --g-state-visited-fill: rgba(var(--g-text-rgb), 0.08);
+  --g-state-visited-line: var(--g-line-strong);
 
   --g-wall: #5d6577;
   --g-wall-hatch: rgba(255, 255, 255, 0.12);
@@ -167,8 +170,6 @@
   --g-pointer-alt: #ff8a5c;
   @include rgb-token(predict, #d4f53c);
   --g-info-ink: var(--g-active);
-  // A fainter wash than light's, so muted text keeps 4.5:1 on it over the surface.
-  --g-window: rgba(var(--g-accent-rgb), 0.14);
 
   --g-viz-stage: #0e1118;
   @include rgb-token(viz-current, #1f9fd0);
@@ -180,6 +181,7 @@
   --g-viz-final-ink: var(--g-found);
   --g-viz-discarded-ink: var(--g-muted);
   --g-viz-critical: #e5485f;
+  --g-viz-guess: var(--g-text);
   --g-viz-track: #2a3040;
 
   --g-wall: var(--g-stroke);

@@ -101,6 +101,7 @@ const VIZ: Record<string, 'backdrop' | 'mark and label' | 'ink' | 'soft fill' | 
   'viz-final-ink': 'text',
   'viz-discarded-ink': 'text and mark',
   'viz-critical': 'text and mark',
+  'viz-guess': 'text and mark',
   'viz-track': 'track',
   'viz-dim': 'exempt',
 };
@@ -169,8 +170,6 @@ describe('theme contrast', () => {
         text('muted', backdrop, 'state-visited-fill'),
         text('found-ink', backdrop, 'state-path-fill'),
         text('found-ink', backdrop, 'state-done-fill'),
-        text('found-ink', backdrop, 'window', 'state-done-fill'),
-        text('muted', backdrop, 'window'),
       ]),
     ];
     expect(failures(checks)).toEqual([]);
@@ -193,9 +192,7 @@ describe('theme contrast', () => {
       ...SURFACES.flatMap((surface) => [graphic('stroke', surface), graphic('wall', surface), graphic('accent', surface)]),
       ...BACKDROPS.flatMap((backdrop) => [
         graphic('wall', backdrop, 'state-visited-fill'),
-        ...['state-frontier-line', 'state-done-line', 'state-path-line', 'state-current', 'window-line'].map((line) =>
-          graphic(line, backdrop),
-        ),
+        ...['state-frontier-line', 'state-done-line', 'state-path-line', 'state-current'].map((line) => graphic(line, backdrop)),
       ]),
       graphic('knob', 'stroke'),
       graphic('on-fill', 'accent'),
@@ -214,7 +211,6 @@ describe('theme contrast', () => {
       ...vizOf(['text', 'text and mark', 'mark and label']).map((fore) => text(fore, backdrop)),
       ...vizOf(['soft fill']).map((fill) => text('text', backdrop, fill)),
       text('viz-final-ink', backdrop, 'viz-final-soft'),
-      text('viz-final-ink', backdrop, 'window', 'viz-final-soft'),
       text('viz-final-ink', backdrop, 'state-path-fill'),
       ...vizOf(['mark', 'mark and label', 'text and mark']).map((mark) => graphic(mark, backdrop)),
     ]);

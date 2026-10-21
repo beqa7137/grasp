@@ -1,10 +1,12 @@
 import type { Page } from '@playwright/test';
-import { expect, openPlayback, section, test } from './fixtures';
+import { expect, openPlayback, section, stepToCheckpoint, test } from './fixtures';
 
 declare global {
   interface Window {
     Ionic?: { config?: { get: (key: string) => unknown } };
     animationsStarted?: number;
+    /** What each script animation on the stage moved: its element's classes and text. */
+    stageAnimations?: { classes: string; text: string }[];
   }
 }
 
@@ -153,3 +155,200 @@ test('the test mode the fixtures set runs no page transition, whatever Motion sa
   expect(await pushVisualizer(page)).toBe(0);
   expect(await ionicAnimates(page)).toBe(false);
 });
+
+/** Records the element of every script animation started inside the player's stage. */
+function recordStageAnimations() {
+  const animate = Element.prototype.animate;
+  window.stageAnimations = [];
+  Element.prototype.animate = function (this: Element, ...args: Parameters<typeof animate>) {
+    if (this.closest('.scene')) window.stageAnimations!.push({ classes: this.className, text: this.textContent!.trim() });
+    return animate.apply(this, args);
+  };
+}
+
+/** Turns Predict mode off, so stepping runs through the checkpoints. */
+async function predictOff(page: Page) {
+  await page.locator('app-player').getByText('Predict mode').click();
+  await expect(page.getByRole('checkbox', { name: 'Predict mode' })).not.toBeChecked();
+}
+
+async function answerCheckpoint(page: Page) {
+  await page.locator('app-player .predict .choice').first().click();
+  await page.getByRole('button', { name: 'Continue →' }).click();
+  await expect(page.getByText('Your call')).toBeHidden();
+}
+
+const stage = (page: Page) => page.locator('app-player .scene');
+
+test.describe("the stage's motion", { tag: '@player' }, () => {
+  test.use({ motionOff: false, reducedMotion: 'no-preference' });
+  test.beforeEach(({ page }) => page.addInitScript(recordStageAnimations));
+
+  test('a dequeue slides the front chip out of the queue', async ({ page }) => {
+    await page.goto('/coding/visualizers/grid-bfs');
+    const queue = page.locator('app-player g-list-view').filter({ hasText: 'queue' });
+    await expect(queue.getByRole('listitem')).toHaveText(['(0,0)']);
+    await page.getByRole('button', { name: 'Step forward' }).click();
+    await expect(page.locator('app-player g-transport .count')).toHaveText(/^2 \//);
+    await expect
+      .poll(() => page.evaluate(() => window.stageAnimations!.filter((a) => a.classes.includes('leaving'))))
+      .toEqual([{ classes: expect.stringContaining('item'), text: '(0,0)' }]);
+    await expect(queue.locator('.leaving')).toHaveCount(0);
+  });
+
+  test('holding → at 4× finishes each step before the next, and leaves nothing mid-animation', async ({ page }) => {
+    await page.goto('/coding/visualizers/binary-search');
+    await predictOff(page);
+    const opened = await openPlayback(page);
+    await page.locator('app-player').getByRole('radio', { name: '4×' }).click();
+    if (opened) await page.locator('app-player').getByRole('button', { name: 'More playback controls' }).click();
+    await stage(page).focus();
+    const unfinished = await page.evaluate(async () => {
+      const running = () =>
+        document
+          .querySelector('.scene')!
+          .getAnimations({ subtree: true })
+          .filter((a) => a.playState === 'running');
+      const frame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+      let left = 0;
+      for (let i = 0; i < 10; i++) {
+        const before = running();
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+        await frame();
+        await frame();
+        left += before.filter((a) => a.playState !== 'finished').length;
+      }
+      return left;
+    });
+    expect(unfinished, 'every animation of a step ends before the next step').toBe(0);
+    await expect(page.locator('app-player g-transport .count')).toHaveText('11 / 13');
+    expect(await page.evaluate(() => window.stageAnimations!.length), 'the steps animated').toBeGreaterThan(0);
+    await expect
+      .poll(() => stage(page).evaluate((s) => s.getAnimations({ subtree: true }).filter((a) => a.playState === 'running').length))
+      .toBe(0);
+    await expect(stage(page).locator('.leaving, .landing-old, .landing-ring')).toHaveCount(0);
+  });
+
+  test('an answer plays the real step under a "you" tag, which then says whether it was right', async ({ page }) => {
+    await page.goto('/coding/visualizers/binary-search');
+    await stepToCheckpoint(page);
+    await page.locator('app-player .predict .choice').first().click();
+    const verdict = page.locator('app-player .you.verdict');
+    await expect(verdict).toBeVisible();
+    await expect(verdict).toContainText('you:');
+    await expect(page.locator('app-player .ptr', { hasText: 'lo' })).toHaveCSS('--i', '5');
+    await expect.poll(() => page.evaluate(() => window.stageAnimations!.some((a) => a.classes.includes('ptr')))).toBe(true);
+    await page.getByRole('button', { name: 'Continue →' }).click();
+    await expect(verdict).toHaveCount(0);
+  });
+});
+
+test.describe('with reduced motion', { tag: '@player' }, () => {
+  test.use({ motionOff: false, reducedMotion: 'reduce' });
+  test.beforeEach(({ page }) => page.addInitScript(recordStageAnimations));
+
+  test('a step leaves trails instead of animating: a dashed pin where lo was, and the dequeued chip struck through', async ({ page }) => {
+    await page.goto('/coding/visualizers/binary-search');
+    await stepToCheckpoint(page);
+    await answerCheckpoint(page);
+    await expect(page.locator('app-player .ptr.trail')).toHaveText(['lo →']);
+    await page.getByRole('button', { name: 'Step forward' }).click();
+    await expect(page.locator('app-player .ptr.trail')).toHaveCount(0);
+
+    await page.goto('/coding/visualizers/grid-bfs');
+    await page.getByRole('button', { name: 'Step forward' }).click();
+    await expect(page.locator('app-player g-list-view .item.trail')).toHaveText('(0,0)');
+    expect(await page.evaluate(() => window.stageAnimations!.length)).toBe(0);
+  });
+});
+
+test(
+  "Describe lists the frame's values and what its step changed, from the header or D on the stage",
+  { tag: '@player' },
+  async ({ page }) => {
+    await page.goto('/coding/visualizers/binary-search');
+    await page.getByRole('button', { name: 'Step forward' }).click();
+    await page.getByRole('button', { name: 'Describe this step' }).click();
+    const describe = page.getByRole('region', { name: 'Describe · step 2' });
+    await expect(describe.getByRole('heading', { name: 'Describe · step 2' })).toBeFocused();
+    const array = describe.getByRole('table', { name: 'Array' });
+    await expect(array.locator('tbody td:nth-of-type(1)')).toHaveText(['2', '5', '8', '12', '16', '23', '38', '56', '72', '91']);
+    await expect(array.getByRole('row', { name: /^0 2 lo/ })).toBeVisible();
+    await expect(describe.getByRole('listitem')).toHaveText(['Compare 0 <= 9.']);
+    await describe.getByRole('button', { name: 'Close' }).click();
+    await expect(describe).toHaveCount(0);
+    await expect(stage(page)).toBeFocused();
+    await page.keyboard.press('d');
+    await expect(describe.getByRole('heading', { name: 'Describe · step 2' })).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(describe).toHaveCount(0);
+    await expect(stage(page)).toBeFocused();
+  },
+);
+
+test(
+  'pins appearing and a stack growing leave the cells and the bottom of the stack where they were',
+  { tag: '@player' },
+  async ({ page }) => {
+    await page.goto('/coding/visualizers/next-greater-element');
+    // The last cell: the first one becomes current, which lifts it 2px.
+    const cell = page.locator('app-player g-array-view .cells').first().locator('.cell').last();
+    const stack = page.locator('app-player g-list-view.stack .items');
+    const bottom = async () => {
+      const box = (await stack.boundingBox())!;
+      return box.y + box.height;
+    };
+    const before = { cell: (await cell.boundingBox())!.y, stack: await bottom() };
+    await page.getByRole('button', { name: 'Step forward' }).click();
+    await expect(page.locator('app-player .ptr', { hasText: 'top' })).toBeVisible();
+    await expect(page.locator('app-player g-list-view.stack [role="listitem"]')).toHaveCount(1);
+    // A short stage (an iPhone in Safari) keeps only the frame's own pin rows and grows the stack from its top instead,
+    // so the lists stay in view.
+    test.skip((await stage(page).boundingBox())!.height < 360, 'A short stage trades these for keeping the lists in view.');
+    expect((await cell.boundingBox())!.y).toBeCloseTo(before.cell, 0);
+    expect(await bottom()).toBeCloseTo(before.stack, 0);
+  },
+);
+
+test.describe('on a 320px phone', { tag: '@player' }, () => {
+  test.use({ viewport: { width: 320, height: 700 } });
+
+  test("Next Greater Element's stack stays inside the stage at its first checkpoint", async ({ page }) => {
+    await page.goto('/coding/visualizers/next-greater-element');
+    const forward = page.getByRole('button', { name: 'Step forward' });
+    for (const at of [2, 3]) {
+      await forward.click();
+      await expect(page.locator('app-player g-transport .count')).toHaveText(`${at} / 27`);
+    }
+    const inside = async () => {
+      const chip = (await page.locator('app-player g-list-view.stack [role="listitem"]').first().boundingBox())!;
+      const scene = (await stage(page).boundingBox())!;
+      return chip.y >= scene.y && chip.y + chip.height <= scene.y + scene.height;
+    };
+    expect(await inside(), 'the stack chip at 3 / 27').toBe(true);
+    await forward.click();
+    await expect(page.getByText('Your call')).toBeVisible();
+    expect(await inside(), 'the stack chip beside the open checkpoint').toBe(true);
+  });
+});
+
+test(
+  "arriving at Dijkstra's first checkpoint shows neither in the caption nor in Describe the note that answers it",
+  { tag: '@player' },
+  async ({ page }) => {
+    await page.goto('/coding/visualizers/dijkstra');
+    const forward = page.getByRole('button', { name: 'Step forward' });
+    for (const at of [2, 3]) {
+      await forward.click();
+      await expect(page.locator('app-player g-transport .count')).toHaveText(`${at} / 27`);
+    }
+    await expect(page.getByText('Your call')).toBeHidden();
+    const narration = page.locator('app-player .narration');
+    await expect(narration).not.toContainText('0 + 7 = 7');
+    await page.getByRole('button', { name: 'Describe this step' }).click();
+    const describe = page.getByRole('region', { name: 'Describe · step 3' });
+    await expect(describe).toBeVisible();
+    await expect(describe).not.toContainText('0 + 7 = 7');
+    await expect(page.locator('app-player')).not.toContainText('0 + 7 = 7');
+  },
+);

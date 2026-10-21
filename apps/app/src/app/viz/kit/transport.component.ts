@@ -42,11 +42,6 @@ export const SPEEDS: { value: Speed; label: string }[] = [
   { value: 'instant', label: 'Instant' },
 ];
 
-const ONE_X_MS = 1100;
-
-/** How long a frame shows while playing. Instant steps at 4×'s pace with the stage's motion off, so it is the fastest. */
-export const stepInterval = (speed: Speed) => ONE_X_MS / (speed === 'instant' ? 4 : speed);
-
 const TICK_WORDS: Record<TickState, string> = { pending: '', right: ', right', missed: ', missed', skipped: ', skipped' };
 
 /** How far apart two ticks' centres must be to draw whole: an 8px diamond turned 45° and its 2px halo. */

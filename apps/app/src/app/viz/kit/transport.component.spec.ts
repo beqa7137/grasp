@@ -2,7 +2,7 @@ import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { haptic } from '../../core/haptics';
 import { HOLD_PX, tickX } from './scrub';
-import { TransportComponent, stepInterval, type Band, type Speed, type Tick } from './transport.component';
+import { TransportComponent, type Band, type Speed, type Tick } from './transport.component';
 
 @Component({
   imports: [TransportComponent],
@@ -172,7 +172,7 @@ describe('TransportComponent', () => {
     expect(button('Jump to result').every((b) => b.disabled)).toBe(true);
   });
 
-  it('chooses a speed from radios, Instant at 4×’s pace', () => {
+  it('chooses a speed from radios', () => {
     const { el, host, fixture } = setUp();
     const radios = [...el.querySelectorAll<HTMLButtonElement>('[role="radiogroup"] [role="radio"]')];
     expect(radios.map((r) => r.textContent!.trim())).toEqual(['0.5×', '1×', '2×', '4×', 'Instant']);
@@ -180,7 +180,6 @@ describe('TransportComponent', () => {
     radios[4].click();
     fixture.detectChanges();
     expect(host.speed()).toBe('instant');
-    expect([0.5, 1, 2, 4, 'instant'].map((s) => stepInterval(s as Speed))).toEqual([2200, 1100, 550, 275, 275]);
   });
 
   it('holds a touch drag on an unanswered checkpoint, skips it 24px on, and opens the next one it is let go on', () => {

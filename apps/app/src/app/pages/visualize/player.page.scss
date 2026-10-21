@@ -8,7 +8,7 @@ ion-title h1 {
   letter-spacing: inherit;
 }
 
-.about {
+.head-action {
   width: 44px;
   height: 44px;
   color: var(--g-muted);
@@ -88,14 +88,9 @@ ion-title h1 {
   overflow: hidden auto;
   background: var(--g-viz-stage);
 
-  // Instant: the steps snap, with no motion on the stage.
-  &.instant {
-    --g-motion-quick: 0s;
-    --g-motion-step: 0s;
-
-    * {
-      scroll-behavior: auto !important;
-    }
+  // Instant: the steps snap, with no motion on the stage (its motion tokens are 0 then) and no smooth scrolling.
+  &.instant * {
+    scroll-behavior: auto !important;
   }
 }
 
@@ -398,31 +393,46 @@ g-transport {
   --code-max-height: 360px;
 }
 
-.vars dl {
-  margin: 0;
-  padding: 8px 14px 14px;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 8px;
+.vars g-watch {
+  padding: var(--g-space-2) var(--g-space-3) var(--g-space-3);
+}
 
-  div {
-    background: var(--g-sunken);
-    border-radius: 8px;
-    padding: 8px 10px;
-    min-width: 0;
+// The learner's guess on the stage while an answer's payoff plays (REDESIGN.md 3.8): neutral and dashed, then solid with a
+// check when right, or critical and dashed with × and the actual answer when wrong. The dock's verdict says it in words. It
+// sits at the stage's bottom edge, clear of the pins and cells the payoff moves at the top.
+.you {
+  grid-area: stage;
+  align-self: end;
+  justify-self: end;
+  z-index: 1;
+  max-width: calc(100% - 2 * var(--g-space-2));
+  margin: var(--g-space-2);
+  padding: var(--g-space-1) var(--g-space-2);
+  border: 1px dashed var(--g-viz-guess);
+  border-radius: var(--g-radius-xs);
+  background: var(--g-viz-stage);
+  color: var(--g-viz-guess);
+  font-size: var(--g-text-body-s);
+  font-weight: 600;
+  line-height: 1.35;
+  pointer-events: none;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+
+  &.right {
+    border-style: solid;
+    border-color: var(--g-viz-final);
+    .mark {
+      color: var(--g-viz-final-ink);
+    }
   }
-  dt {
-    font-size: 0.6875rem;
-    color: var(--g-muted);
-    margin-bottom: 4px;
-  }
-  dd {
-    margin: 0;
-    font-size: 0.875rem;
-    font-weight: 600;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  &.wrong {
+    border-color: var(--g-viz-critical);
+    .mark {
+      color: var(--g-viz-critical);
+    }
   }
 }
 

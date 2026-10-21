@@ -1,6 +1,8 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, afterRenderEffect, computed, inject, input, untracked } from '@angular/core';
 import type { GridView } from '@grasp/engine';
 import { DIM_CELL, dims, type Focus } from './dim';
+import { LANDING, land } from './kit/flip';
+import { MotionService, type StageStep } from './kit/motion.service';
 
 @Component({
   selector: 'g-grid-view',
@@ -9,7 +11,12 @@ import { DIM_CELL, dims, type Focus } from './dim';
     <div class="grid" [style.--cols]="cols()">
       @for (row of view().cells; track r; let r = $index) {
         @for (cell of row; track c; let c = $index) {
-          <div class="cell" [attr.data-state]="cell" [class.dim]="dims(focus(), { view: 'grid', at: [r, c] }, cell === 'current')">
+          <div
+            class="cell"
+            [attr.data-state]="cell"
+            [attr.data-at]="r + ',' + c"
+            [class.dim]="dims(focus(), { view: 'grid', at: [r, c] }, cell === 'current')"
+          >
             @if (cell === 'start') {
               <span class="tag">S</span>
             } @else if (cell === 'goal') {
@@ -30,6 +37,7 @@ import { DIM_CELL, dims, type Focus } from './dim';
   `,
   styles: [
     DIM_CELL,
+    LANDING,
     `
       :host {
         display: block;
@@ -43,6 +51,7 @@ import { DIM_CELL, dims, type Focus } from './dim';
         margin: 0 auto;
       }
       .cell {
+        position: relative;
         aspect-ratio: 1;
         border-radius: 8px;
         background: var(--g-raised);
@@ -134,6 +143,34 @@ export class GridViewComponent {
   readonly view = input.required<GridView>();
   /** A checkpoint's focus, which dims the other cells. */
   readonly focus = input<Focus>(null);
+  /** The step into this frame: its distances land in their cells. Nothing in a grid moves, so it leaves no trails. */
+  readonly step = input<StageStep | null>(null);
+  private readonly motion = inject(MotionService, { optional: true });
+  private readonly host: HTMLElement = inject(ElementRef).nativeElement;
   protected readonly dims = dims;
   readonly cols = computed(() => this.view().cells[0]?.length ?? 1);
+
+  constructor() {
+    afterRenderEffect(() => {
+      const step = this.step();
+      untracked(() => this.play(step));
+    });
+  }
+
+  private play(step: StageStep | null) {
+    const motion = this.motion;
+    if (!motion || !step?.adjacent || step.scale === 0) return;
+    const s = step.scale;
+    const timing = {
+      duration: motion.ms('land', s),
+      delay: motion.at('consequence', s) - motion.ms('quick', s),
+      easing: motion.ease('standard'),
+    };
+    for (const e of step.events) {
+      if (e.view !== 'grid' || e.kind !== 'write' || !Array.isArray(e.at)) continue;
+      const cell = this.host.querySelector<HTMLElement>(`[data-at="${e.at.join(',')}"]`);
+      const value = cell?.querySelector<HTMLElement>('.d');
+      if (cell && value) land(motion, cell, value, e.from === undefined ? '' : String(e.from), timing);
+    }
+  }
 }

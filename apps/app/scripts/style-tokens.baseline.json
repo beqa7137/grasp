@@ -326,9 +326,9 @@
     "spacing": 4
   },
   "app/pages/visualize/player.page.scss": {
-    "border-radius": 7,
-    "font-size": 17,
-    "spacing": 48
+    "border-radius": 6,
+    "font-size": 15,
+    "spacing": 44
   },
   "app/review/forecast.component.ts": {
     "border-radius": 1,
@@ -347,7 +347,7 @@
     "font-size": 1
   },
   "app/viz/array-view.component.ts": {
-    "border-radius": 3,
+    "border-radius": 2,
     "font-size": 3,
     "spacing": 6
   },

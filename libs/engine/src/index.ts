@@ -20,3 +20,4 @@ export * from './plan/minutes.js';
 export * from './url-params.js';
 export * from './companies/index.js';
 export * from './search/index.js';
+export * from './viz/index.js';

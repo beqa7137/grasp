@@ -11,6 +11,17 @@ const TWO_SUM = `function twoSum(nums, target) {
 
 /** A calendar day this many days from the page's today, as the date field takes it. */
 /** Under 1024px the workspace shows one pane at a time (REDESIGN.md 4.2); wider, every pane shows and this does nothing. */
+/** Steps the player forward `steps` times, waiting for each step's count. */
+async function stepForward(p, steps) {
+  const count = p.locator('app-player g-transport .count');
+  for (let i = 0; i < steps; i++) {
+    const at = Number((await count.textContent()).split('/')[0]);
+    await p.getByRole('button', { name: 'Step forward' }).click();
+    await p.locator('app-player g-transport .count', { hasText: new RegExp(`^${at + 1} /`) }).waitFor();
+  }
+  await settle(p);
+}
+
 async function showPane(p, pane) {
   await p.locator('app-code-workspace .workspace').last().waitFor();
   const control = p.getByRole('radiogroup', { name: 'Show' }).getByRole('radio', { name: pane, exact: true });
@@ -265,6 +276,27 @@ export function learnStates() {
         await p.locator('.predict .skip').click();
         await openPlayback(p);
         await settle(p, 500);
+      },
+    },
+    // Trails (REDESIGN.md 3.5): the tools' test mode animates nothing, so a step leaves its trails for one frame.
+    { id: 'player-grid-bfs-trail', path: '/coding/visualizers/grid-bfs', setup: (p) => stepForward(p, 1) },
+    {
+      // A pop off the stack and a value written into the aligned output.
+      id: 'player-next-greater-element-trail',
+      path: '/coding/visualizers/next-greater-element',
+      setup: async (p) => {
+        await p.locator('app-player').getByText('Predict mode').click();
+        await stepForward(p, 7);
+      },
+    },
+    {
+      id: 'player-binary-search-describe',
+      path: '/coding/visualizers/binary-search',
+      setup: async (p) => {
+        await stepForward(p, 1);
+        await p.getByRole('button', { name: 'Describe this step' }).click();
+        await p.getByRole('region', { name: /^Describe/ }).waitFor();
+        await settle(p);
       },
     },
     { id: 'player-subsets-backtracking-end', path: '/coding/visualizers/subsets-backtracking', setup: toEnd },
