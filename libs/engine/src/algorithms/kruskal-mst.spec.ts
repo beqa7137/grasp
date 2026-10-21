@@ -136,7 +136,7 @@ describe('kruskal-mst', () => {
     expect([...seen].sort()).toEqual(['accept', 'complete', 'merge', 'reject', 'return -1', 'return total', 'total']);
   });
 
-  it('draws at most one diameter of the circle in a random graph, so no two weights meet at its centre', () => {
+  it('draws at most one diameter of the circle in a random graph, so no two weights meet at its center', () => {
     for (const { n, edges } of randomInputs(11, 300)) {
       const diameters = edges.filter(([a, b]) => n % 2 === 0 && Math.abs(a - b) === n / 2);
       expect(diameters.length, JSON.stringify(edges)).toBeLessThanOrEqual(1);

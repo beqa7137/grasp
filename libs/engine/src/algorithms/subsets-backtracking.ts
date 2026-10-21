@@ -1,3 +1,4 @@
+import { spansOf } from './annotate.js';
 import { InputError } from './types.js';
 import { rotatedChoices } from './choices.js';
 import { asNumbers } from './input.js';
@@ -14,27 +15,44 @@ interface CallNode {
 }
 
 const MAX_NUMS = 3;
-// A leaf's badge lists its whole subset, so values stay two characters wide to keep neighbouring badges apart.
+// A leaf's badge lists its whole subset, so values stay two characters wide to keep neighboring badges apart.
 const VALUE_RANGE = { minValue: -9, maxValue: 99 };
 const LEGEND: TreeLegend = { active: 'running', frontier: 'on the call stack', done: 'returned' };
 
 const bracket = (items: (number | string)[]) => `[${items.join(', ')}]`;
 
+const CODE = [
+  'function subsets(nums) {',
+  '  const out = [], path = [];',
+  '  function go(i) {',
+  '    if (i === nums.length) { out.push([...path]); return; }',
+  '    path.push(nums[i]); go(i + 1); path.pop(); // take nums[i]',
+  '    go(i + 1); // skip nums[i]',
+  '  }',
+  '  go(0);',
+  '  return out;',
+  '}',
+];
+
+const SPANS = spansOf(CODE, {
+  2: 'const out = [], path = []',
+  4: 'out.push([...path])',
+  5: 'path.push(nums[i]); go(i + 1)',
+  6: 'go(i + 1)',
+  8: 'go(0)',
+  9: 'return out',
+});
+const POP_SPAN = spansOf(CODE, { 5: 'path.pop()' })[5];
+
 export const subsetsBacktracking: AlgorithmDefinition<Input> = {
-  code: [
-    'function subsets(nums) {',
-    '  const out = [], path = [];',
-    '  function go(i) {',
-    '    if (i === nums.length) { out.push([...path]); return; }',
-    '    path.push(nums[i]); go(i + 1); path.pop(); // take nums[i]',
-    '    go(i + 1); // skip nums[i]',
-    '  }',
-    '  go(0);',
-    '  return out;',
-    '}',
-  ],
+  code: CODE,
   fields: [{ key: 'nums', label: 'Numbers', kind: 'numbers', hint: `Up to ${MAX_NUMS}, all different` }],
   defaultInput: { nums: [1, 2, 3] },
+  presets: [
+    { label: 'One number', input: { nums: [7] } },
+    { label: 'Two numbers', input: { nums: [4, 9] } },
+    { label: 'Unsorted, with a negative', input: { nums: [5, -3, 0] } },
+  ],
 
   randomInput(rand = Math.random) {
     const size = rand() < 0.75 ? 3 : 2;
@@ -69,12 +87,16 @@ export const subsetsBacktracking: AlgorithmDefinition<Input> = {
       nodes.length ? { nodes: nodes.map((node) => ({ ...node, state: stateOf(node.id) })), legend: LEGEND } : undefined;
     const indicesWhere = (value: boolean) => taken.flatMap((t, k) => (t === value ? [k] : []));
 
-    const snap = (line: number, note: string, extra: Partial<Frame> = {}) => {
+    let chapter = 'Set up';
+    const snap = (line: number, caption: string, note: string, extra: Partial<Frame> = {}) => {
       const i = calls.length - 1;
       const inRange = i >= 0 && i < n;
       frames.push({
         line,
+        caption,
         note,
+        chapter,
+        span: SPANS[line],
         vars: { i: i >= 0 ? i : null, 'nums[i]': inRange ? nums[i] : null, path: bracket(path), 'out.length': out.length },
         array: {
           values: [...nums],
@@ -117,49 +139,77 @@ export const subsetsBacktracking: AlgorithmDefinition<Input> = {
         out.push([...path]);
         nodes[nodes.length - 1].badge = path.length ? path.join(',') : '[]';
         const mask = taken.reduce<number>((m, t) => m * 2 + (t ? 1 : 0), 0);
+        const predict = mask > 0 && !taken[n - 1] ? recordNext(mask) : undefined;
         snap(
           4,
+          `Every number is decided: record ${bracket(path)}, subset ${out.length} of ${total}, and return.`,
           out.length === 1
             ? `Every number is decided, so record ${bracket(path)} and return. Push a copy: path keeps changing after this.`
             : `Every number is decided: record ${bracket(path)} (subset ${out.length} of ${total}) and return.`,
-          mask > 0 && !taken[n - 1] ? { predict: recordNext(mask) } : {},
+          predict ? { predict } : { lens: `out.push(${bracket(path)})` },
         );
+        chapter = `Subset ${out.length + 1} of ${total}`;
         return;
       }
 
       const x = nums[i];
       path.push(x);
       taken[i] = true;
-      snap(5, `go(${i}) takes ${x} first: push it, so path is ${bracket(path)}, and call go(${i + 1}).`);
+      snap(
+        5,
+        `go(${i}) takes ${x} first: path is ${bracket(path)}, then go(${i + 1}) decides the rest.`,
+        `go(${i}) takes ${x} first: push it, so path is ${bracket(path)}, and call go(${i + 1}).`,
+        { lens: `path.push(${x}) → ${bracket(path)}` },
+      );
       call(String(x), () => go(i + 1));
 
       if (!askedUndo) {
         askedUndo = true;
-        snap(5, `go(${i}) resumes: the branch that took ${x} is fully explored.`, {
-          predict: {
-            ...rotatedChoices(
-              `go(${i}) is back from the branch that took ${x}, and path is ${bracket(path)}. What does it do next?`,
-              `Pop ${x}, then call go(${i + 1}) to skip it`,
-              [`Return: go(${i}) is done`, `Call go(${i + 1}) again with ${x} still in path`],
-            ),
-            explain: `Choose, explore, un-choose: pop ${x} to get back to ${bracket(path.slice(0, -1))}, then explore every subset without ${x}. Returning now would miss them, and keeping ${x} would leak it into all of them.`,
+        snap(
+          5,
+          `go(${i}) resumes: the branch that took ${x} is fully explored.`,
+          `go(${i}) resumes: the branch that took ${x} is fully explored.`,
+          {
+            span: POP_SPAN,
+            predict: {
+              ...rotatedChoices(
+                `go(${i}) is back from the branch that took ${x}, and path is ${bracket(path)}. What does it do next?`,
+                `Pop ${x}, then call go(${i + 1}) to skip it`,
+                [`Return: go(${i}) is done`, `Call go(${i + 1}) again with ${x} still in path`],
+              ),
+              explain: `Choose, explore, un-choose: pop ${x} to get back to ${bracket(path.slice(0, -1))}, then explore every subset without ${x}. Returning now would miss them, and keeping ${x} would leak it into all of them.`,
+            },
           },
-        });
+        );
       }
       path.pop();
       taken[i] = null;
-      snap(5, `Back in go(${i}): pop ${x} to undo the take, so path is ${bracket(path)} again.`);
+      snap(
+        5,
+        `Pop ${x} to undo the take, so path is back to ${bracket(path)}.`,
+        `Back in go(${i}): pop ${x} to undo the take, so path is ${bracket(path)} again.`,
+        { span: POP_SPAN, lens: `path.pop() → ${x}` },
+      );
 
       taken[i] = false;
-      snap(6, `Now skip ${x}: call go(${i + 1}) with path ${bracket(path)} unchanged (a dash in the tree).`);
+      snap(
+        6,
+        `Now skip ${x}: go(${i + 1}) runs again on path ${bracket(path)}, without ${x}.`,
+        `Now skip ${x}: call go(${i + 1}) with path ${bracket(path)} unchanged (a dash in the tree).`,
+      );
       call('–', () => go(i + 1));
       taken[i] = null;
     };
 
-    snap(2, 'path holds the numbers taken so far and out collects finished subsets. Every number gets two branches: take it, or skip it.');
+    snap(
+      2,
+      'path holds the numbers taken so far; out collects each finished subset.',
+      'path holds the numbers taken so far and out collects finished subsets. Every number gets two branches: take it, or skip it.',
+    );
     call('[]', () => {
       snap(
         8,
+        `Call go(0) with an empty path: ${n === 1 ? 'the one number is' : n === 2 ? 'both numbers are' : `all ${n} numbers are`} still undecided.`,
         'Call go(0) with an empty path. In the tree, blue is the running call, amber calls wait for it to return, and green calls are finished.',
         {
           predict: {
@@ -172,11 +222,16 @@ export const subsetsBacktracking: AlgorithmDefinition<Input> = {
           },
         },
       );
+      chapter = `Subset 1 of ${total}`;
       go(0);
     });
 
+    chapter = 'Result';
     snap(
       9,
+      n === 1
+        ? 'Done: 2 subsets, since the one number is either in or out.'
+        : `Done: ${total} subsets, since each of the ${n} numbers doubles the count.`,
       `Done: ${total} subsets from ${n} number${n === 1 ? '' : 's'}, because each number doubles the leaves. Copying each subset costs up to O(n), so the total is O(n · 2ⁿ).`,
     );
     frames[frames.length - 1].vars['result'] = bracket(out.map(bracket));

@@ -45,7 +45,6 @@ import { ListViewComponent } from '../../viz/list-view.component';
 import { TableViewComponent } from '../../viz/table-view.component';
 import { TransportComponent, stepInterval, type Band, type Speed, type Tick } from '../../viz/kit/transport.component';
 import { TreeViewComponent, sideRoomFor } from '../../viz/tree-view.component';
-import { firstSentence } from './first-sentence';
 import { PlayerIntroComponent, type PlayerIntroChoice } from './player-intro.component';
 import { BackComponent } from '../../ui/back.component';
 
@@ -203,11 +202,10 @@ export class PlayerPage {
   readonly arrayBand = computed(() => (this.column() ? Math.max(0, ...this.frames().map((f) => pointerRowsOf(f.array?.pointers))) : 0));
   /** Whether any frame shows lists under the drawing, so the drawing keeps one size for the whole run. */
   readonly listed = computed(() => this.frames().some((f) => f.stack || f.queue || f.set || (f.output && !alignedRow(f))));
-  /** Beside a checkpoint the caption is the frame's own, or the note's first sentence, so the dock keeps R's height. */
+  /** Beside a checkpoint the caption is the frame's own one line, so the dock keeps R's height; never the note, which can hold the answer. */
   readonly caption = computed(() => {
     const frame = this.frame();
-    const note = frame?.note ?? '';
-    return this.pending() ? (frame?.caption ?? firstSentence(note)) : note;
+    return (this.pending() ? frame?.caption : frame?.note) ?? '';
   });
 
   readonly varEntries = computed(() => Object.entries(this.frame()?.vars ?? {}).filter(([k]) => k !== 'result'));

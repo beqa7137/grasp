@@ -72,7 +72,7 @@ function listCells(n: number, pos: number): Cell[] {
 
 const columnSpacing = (cols: number) => (cols > 1 ? Math.min(MAX_LIST_SPACING, GRAPH_BOX.width / (cols - 1)) : 0);
 
-/** Cells centred in the unit box, spaced in GRAPH_BOX units so the grid stays square. */
+/** Cells centered in the unit box, spaced in GRAPH_BOX units so the grid stays square. */
 function placeCells(cells: Cell[], rowSpacing = LIST_ROW_SPACING): Point[] {
   const cols = Math.max(...cells.map(([col]) => col)) + 1;
   const rows = Math.max(...cells.map(([, row]) => row)) + 1;

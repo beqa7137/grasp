@@ -1,3 +1,4 @@
+import { andList, spansOf } from './annotate.js';
 import { InputError } from './types.js';
 import { fixedChoices, rotatedChoices } from './choices.js';
 import { asNumbers } from './input.js';
@@ -35,8 +36,8 @@ function robbedHouses(dp: number[]): number[] {
 const givens = ({ i, money, twoBack, skip }: Step) =>
   `\`dp[${i - 2}] = ${twoBack}\`, \`dp[${i - 1}] = ${skip}\`, and house ${i - 1} holds ${money}.`;
 
-const neighbour = ({ i }: Step) =>
-  `Robbing house ${i - 1} rules out its neighbour, house ${i - 2}, so it can only add to \`dp[${i - 2}]\`, not to \`dp[${i - 1}]\`.`;
+const neighbor = ({ i }: Step) =>
+  `Robbing house ${i - 1} rules out its neighbor, house ${i - 2}, so it can only add to \`dp[${i - 2}]\`, not to \`dp[${i - 1}]\`.`;
 
 function verdict({ i, money, skip, take }: Step): string {
   const house = i - 1;
@@ -52,7 +53,7 @@ function robOrSkip(step: Step): Prediction {
   return {
     prompt: `${givens(step)} Rob house ${house} or skip it?`,
     ...fixedChoices(ROB_OR_SKIP, step.take > step.skip ? 0 : 1),
-    explain: `${verdict(step)} ${neighbour(step)}`,
+    explain: `${verdict(step)} ${neighbor(step)}`,
   };
 }
 
@@ -64,25 +65,41 @@ function dpValue(step: Step, threeBack: number | null): Prediction | null {
   if (options.choices.length < 2) return null;
   return {
     ...options,
-    explain: take > skip ? `${verdict(step)} ${neighbour(step)}` : verdict(step),
+    explain: take > skip ? `${verdict(step)} ${neighbor(step)}` : verdict(step),
   };
 }
 
+const CODE = [
+  'function rob(nums) {',
+  '  const n = nums.length;',
+  '  const dp = Array(n + 1).fill(0); // best of the first i houses',
+  '  dp[0] = 0; // no houses, nothing to rob',
+  '  dp[1] = nums[0]; // one house: rob it',
+  '  for (let i = 2; i <= n; i++) {',
+  '    dp[i] = Math.max(dp[i - 1], dp[i - 2] + nums[i - 1]);',
+  '  }',
+  '  return dp[n];',
+  '}',
+];
+
+const SPANS = spansOf(CODE, {
+  3: 'const dp = Array(n + 1).fill(0)',
+  4: 'dp[0] = 0',
+  5: 'dp[1] = nums[0]',
+  6: 'i <= n',
+  7: 'dp[i] = Math.max(dp[i - 1], dp[i - 2] + nums[i - 1])',
+  9: 'return dp[n]',
+});
+
 export const houseRobber: AlgorithmDefinition<Input> = {
-  code: [
-    'function rob(nums) {',
-    '  const n = nums.length;',
-    '  const dp = Array(n + 1).fill(0); // best of the first i houses',
-    '  dp[0] = 0; // no houses, nothing to rob',
-    '  dp[1] = nums[0]; // one house: rob it',
-    '  for (let i = 2; i <= n; i++) {',
-    '    dp[i] = Math.max(dp[i - 1], dp[i - 2] + nums[i - 1]);',
-    '  }',
-    '  return dp[n];',
-    '}',
-  ],
+  code: CODE,
   fields: [{ key: 'nums', label: 'Money in each house', kind: 'numbers', hint: `Up to ${MAX_HOUSES} houses, 0 to 99 each` }],
   defaultInput: { nums: [2, 7, 9, 3, 1, 5] },
+  presets: [
+    { label: 'Two houses', input: { nums: [4, 9] } },
+    { label: 'The two richest are neighbors', input: { nums: [1, 50, 60, 1] } },
+    { label: 'Every house holds the same', input: { nums: [5, 5, 5, 5, 5] } },
+  ],
 
   randomInput(rand = Math.random) {
     return { nums: Array.from({ length: randInt(rand, 5, 8) }, () => randInt(rand, 1, 15)) };
@@ -107,10 +124,14 @@ export const houseRobber: AlgorithmDefinition<Input> = {
 
     const known = (k: number) => (k < filled ? dp[k] : null);
 
-    const snap = (line: number, note: string, extra: Partial<Frame> = {}) => {
+    let chapter = 'Set up';
+    const snap = (line: number, caption: string, note: string, extra: Partial<Frame> = {}) => {
       frames.push({
         line,
+        caption,
         note,
+        chapter,
+        span: SPANS[line],
         vars: {
           n,
           i,
@@ -141,34 +162,55 @@ export const houseRobber: AlgorithmDefinition<Input> = {
 
     snap(
       3,
+      `dp[i] will hold the most money from the first i houses: ${n + 1} slots.`,
       `\`dp[i]\` will hold the most money you can take from the first i houses. With \`n = ${n}\`, that needs ${n + 1} slots, from \`dp[0]\` for no houses to \`dp[${n}]\` for all of them. Dashed slots are not filled in yet.`,
     );
     filling = 0;
     dp[0] = 0;
     filled = 1;
-    snap(4, 'Base case: with no houses there is nothing to rob, so `dp[0] = 0`.');
+    chapter = 'Base cases';
+    snap(4, 'With no houses there is nothing to rob, so dp[0] = 0.', 'Base case: with no houses there is nothing to rob, so `dp[0] = 0`.', {
+      lens: 'dp[0] = 0',
+    });
     filling = 1;
     dp[1] = nums[0];
     filled = 2;
-    snap(5, `Base case: with one house, rob it. \`dp[1] = nums[0] = ${nums[0]}\`.`);
+    snap(5, `With one house, rob it: dp[1] = ${nums[0]}.`, `Base case: with one house, rob it. \`dp[1] = nums[0] = ${nums[0]}\`.`, {
+      lens: `dp[1] = nums[0] = ${nums[0]}`,
+    });
 
     for (i = 2; i <= n; i++) {
       filling = i;
       const house = i - 1;
       const step: Step = { i, money: nums[house], twoBack: dp[i - 2], skip: dp[i - 1], take: dp[i - 2] + nums[house] };
-      const { money, skip, take } = step;
-      snap(6, `\`i = ${i}\`: \`dp[${i}]\` covers houses 0 to ${house}, and the newest one, house ${house}, holds ${money}.`);
+      const { money, twoBack, skip, take } = step;
+      chapter = `i = ${i}`;
+      snap(
+        6,
+        `dp[${i}] covers houses 0 to ${house}; the newest, house ${house}, holds ${money}.`,
+        `\`i = ${i}\`: \`dp[${i}]\` covers houses 0 to ${house}, and the newest one, house ${house}, holds ${money}.`,
+        { lens: `${i} <= ${n} → true` },
+      );
 
       const decide = asked % 2 === 0 && take !== skip;
       const predict = decide ? robOrSkip(step) : dpValue(step, i >= 3 ? dp[i - 3] : null);
       if (predict) {
         asked++;
-        snap(7, `Weigh skipping house ${house} against robbing it.`, { predict });
+        snap(7, `Weigh skipping house ${house} against robbing it.`, `Weigh skipping house ${house} against robbing it.`, { predict });
       }
 
       dp[i] = Math.max(skip, take);
       filled = i + 1;
-      snap(7, verdict(step));
+      snap(
+        7,
+        take > skip
+          ? `Rob house ${house}: ${twoBack} + ${money} = ${take} beats ${skip}, so dp[${i}] = ${take}.`
+          : take < skip
+            ? `Skip house ${house}: ${skip} beats ${twoBack} + ${money} = ${take}, so dp[${i}] = ${skip}.`
+            : `Robbing house ${house} ties with skipping it at ${skip}, so dp[${i}] = ${skip}.`,
+        verdict(step),
+        { lens: `max(${skip}, ${twoBack} + ${money}) = ${dp[i]}` },
+      );
     }
 
     i = null;
@@ -182,8 +224,12 @@ export const houseRobber: AlgorithmDefinition<Input> = {
     const walkBack = robbed.length
       ? `Walking back, \`dp[i] = dp[i - 1]\` means house \`i - 1\` was skipped, otherwise it was robbed: that gives ${haul}.`
       : 'Every house is empty, so nothing gets robbed.';
+    chapter = 'Result';
     snap(
       9,
+      robbed.length
+        ? `Return dp[${n}] = ${best}: robbing ${robbed.length === 1 ? 'house' : 'houses'} ${andList(robbed.map(String))} gives the most.`
+        : `Return dp[${n}] = 0: every house is empty.`,
       `Return \`dp[${n}] = ${best}\`. ${walkBack} One pass is O(n) time, and since each \`dp[i]\` reads only the two cells before it, two variables holding the last two values can replace the array for O(1) space.`,
     );
     frames[frames.length - 1].vars['result'] = best;

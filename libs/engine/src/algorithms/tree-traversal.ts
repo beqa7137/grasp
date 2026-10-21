@@ -1,3 +1,4 @@
+import { spansOf } from './annotate.js';
 import { InputError } from './types.js';
 import { rotatedChoices } from './choices.js';
 import { asNumbers } from './input.js';
@@ -63,27 +64,48 @@ function walk(node: TreeNode | null, order: Order, out: number[] = []): number[]
 const label = (node: TreeNode | null) => (node ? String(node.val) : 'null');
 const nodeId = (node: TreeNode | null, parentId: string, side: Side) => (node ? `n${node.val}` : `${parentId}.${side}`);
 
+const CODE = [
+  'function traverse(root, order) {',
+  '  const out = [];',
+  '  function dfs(node) {',
+  '    if (!node) return; // base case',
+  "    if (order === 'preorder') out.push(node.val);",
+  '    dfs(node.left);',
+  "    if (order === 'inorder') out.push(node.val);",
+  '    dfs(node.right);',
+  "    if (order === 'postorder') out.push(node.val);",
+  '  }',
+  '  dfs(root);',
+  '  return out;',
+  '}',
+];
+
+const SPANS = spansOf(CODE, {
+  2: 'const out = []',
+  4: '!node',
+  5: 'out.push(node.val)',
+  6: 'dfs(node.left)',
+  7: 'out.push(node.val)',
+  8: 'dfs(node.right)',
+  9: 'out.push(node.val)',
+  10: '}',
+  11: 'dfs(root)',
+  12: 'return out',
+});
+const BASE_CASE_SPAN = spansOf(CODE, { 4: 'if (!node) return' })[4];
+
 export const treeTraversal: AlgorithmDefinition<Input> = {
-  code: [
-    'function traverse(root, order) {',
-    '  const out = [];',
-    '  function dfs(node) {',
-    '    if (!node) return; // base case',
-    "    if (order === 'preorder') out.push(node.val);",
-    '    dfs(node.left);',
-    "    if (order === 'inorder') out.push(node.val);",
-    '    dfs(node.right);',
-    "    if (order === 'postorder') out.push(node.val);",
-    '  }',
-    '  dfs(root);',
-    '  return out;',
-    '}',
-  ],
+  code: CODE,
   fields: [
     { key: 'values', label: 'BST values', kind: 'numbers', hint: `Inserted in this order, distinct, up to ${MAX_NODES}` },
     { key: 'order', label: 'Order', kind: 'text', options: ORDERS },
   ],
   defaultInput: { values: [5, 2, 8, 1, 4, 9, 3], order: 'inorder' },
+  presets: [
+    { label: 'Sorted input makes a chain', input: { values: [1, 2, 3, 4, 5], order: 'inorder' } },
+    { label: 'A left chain, postorder', input: { values: [9, 7, 5, 3], order: 'postorder' } },
+    { label: 'A full tree, preorder', input: { values: [4, 2, 6, 1, 3, 5, 7], order: 'preorder' } },
+  ],
 
   randomInput(rand = Math.random) {
     const count = randInt(rand, 5, 8);
@@ -137,12 +159,16 @@ export const treeTraversal: AlgorithmDefinition<Input> = {
       add(root, rootId, null);
       return { nodes, legend: LEGEND };
     };
-    const snap = (line: number, note: string, extra: Partial<Frame> = {}) => {
+    let chapter = 'Set up';
+    const snap = (line: number, caption: string, note: string, extra: Partial<Frame> = {}) => {
       const call = stack.length ? stack[stack.length - 1] : null;
       const node = call?.node ?? null;
       frames.push({
         line,
+        caption,
         note,
+        chapter,
+        span: SPANS[line],
         vars: {
           order,
           node: node ? node.val : call ? 'null' : null,
@@ -256,41 +282,67 @@ export const treeTraversal: AlgorithmDefinition<Input> = {
       };
     };
 
+    const appended = (line: number, caption: string, note: string, v: number) => {
+      out.push(v);
+      snap(line, caption, note, { lens: `out.push(${v})` });
+      chapter = out.length === sequence.length ? 'Unwind and return' : `Value ${out.length + 1} of ${sequence.length}`;
+    };
+
     const dfs = (node: TreeNode | null, id: string, side: Side | null) => {
       stack.push({ node, id, side });
       if (!node) {
-        snap(4, `No ${side} child here: dfs(null) hits the base case and returns at once.`);
+        snap(
+          4,
+          `No ${side} child here: dfs(null) hits the base case and returns.`,
+          `No ${side} child here: dfs(null) hits the base case and returns at once.`,
+          {
+            span: BASE_CASE_SPAN,
+            lens: '!null → true',
+          },
+        );
         stack.pop();
         returned.add(id);
         return;
       }
       const v = node.val;
       enteredCount++;
-      snap(4, `dfs(${v}): the node is not null, so the call goes on.`);
-      if (order === 'preorder') {
-        out.push(v);
-        snap(5, `Preorder appends ${v} the moment its call starts.`);
-      }
-      snap(6, `Go left from ${v}: call dfs(${label(node.left)}).`);
+      snap(4, `dfs(${v}) runs: the node is not null, so the call goes on.`, `dfs(${v}): the node is not null, so the call goes on.`, {
+        lens: `!${v} → false`,
+      });
+      if (order === 'preorder')
+        appended(5, `Preorder appends ${v} as soon as its call starts.`, `Preorder appends ${v} the moment its call starts.`, v);
+      snap(6, `Go left from ${v} first: call dfs(${label(node.left)}).`, `Go left from ${v}: call dfs(${label(node.left)}).`);
       dfs(node.left, nodeId(node.left, id, 'left'), 'left');
       if (order === 'inorder') {
-        out.push(v);
-        snap(7, `Back at ${v} with its left subtree done. Inorder appends ${v} now, before its right subtree.`);
+        appended(
+          7,
+          `Back at ${v} with its left subtree done, so inorder appends ${v} now.`,
+          `Back at ${v} with its left subtree done. Inorder appends ${v} now, before its right subtree.`,
+          v,
+        );
       }
       snap(
         8,
+        order === 'inorder'
+          ? `Go right from ${v}: call dfs(${label(node.right)}).`
+          : `Back at ${v}, its left subtree done. Go right: call dfs(${label(node.right)}).`,
         order === 'inorder'
           ? `Go right from ${v}: call dfs(${label(node.right)}).`
           : `Back at ${v} with its left subtree done. Go right: call dfs(${label(node.right)}).`,
       );
       dfs(node.right, nodeId(node.right, id, 'right'), 'right');
       if (order === 'postorder') {
-        out.push(v);
-        snap(9, `Back at ${v} with both subtrees done. Postorder appends ${v} last.`);
+        appended(
+          9,
+          `Both subtrees of ${v} are done, so postorder appends ${v} now.`,
+          `Back at ${v} with both subtrees done. Postorder appends ${v} last.`,
+          v,
+        );
       }
       const caller = stack.length > 1 ? stack[stack.length - 2].node : null;
       snap(
         10,
+        caller ? `dfs(${v}) is done: return to dfs(${caller.val}).` : `dfs(${v}) is done, and with it the whole tree.`,
         caller ? `dfs(${v}) is done. Return to dfs(${caller.val}).` : `dfs(${v}) is done, and with it the whole tree.`,
         returnQuestion(node, caller),
       );
@@ -300,18 +352,24 @@ export const treeTraversal: AlgorithmDefinition<Input> = {
 
     snap(
       2,
+      `Build the BST from ${values.length === 1 ? 'the one value' : `the ${values.length} values`}, then walk it in ${order}.`,
       `Insert ${values.join(', ')} into a BST, then walk it in ${order}. Blue marks the running call, amber the calls waiting under it, green the calls that returned.`,
     );
     snap(
       11,
+      `Start the recursion at the root: call dfs(${root.val}).`,
       `Start the recursion at the root, ${root.val}. The call stack always holds the path from the root down to the running call.`,
       firstQuestion(),
     );
+    chapter = `Value 1 of ${sequence.length}`;
     dfs(root, rootId, null);
 
     const result = `[${out.join(', ')}]`;
     snap(
       12,
+      order === 'inorder'
+        ? 'Return out: every value, sorted, as inorder on a BST always is.'
+        : `Return out: every value, appended once, in ${order}.`,
       order === 'inorder'
         ? `Return ${result}: sorted, as inorder on a BST always is. Each node was entered and appended once, O(n), and the stack never held more than one root-to-leaf path, O(h).`
         : `Return ${result}. Each node was entered and appended once, O(n), and the stack never held more than one root-to-leaf path, O(h).`,

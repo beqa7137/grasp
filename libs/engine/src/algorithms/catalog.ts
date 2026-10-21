@@ -60,7 +60,7 @@ const CATALOG = [
     id: 'lcs',
     title: 'Longest Common Subsequence',
     difficulty: 'medium',
-    summary: 'Fill a table where each cell answers the problem for two prefixes, using only the three neighbours already filled.',
+    summary: 'Fill a table where each cell answers the problem for two prefixes, using only the three neighbors already filled.',
     complexity: { time: 'O(m·n)', space: 'O(m·n)' },
   },
   {

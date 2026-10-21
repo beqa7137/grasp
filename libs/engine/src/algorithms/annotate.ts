@@ -12,3 +12,7 @@ export function spansOf(code: readonly string[], parts: Record<number, string>):
     }),
   );
 }
+
+/** Items joined for a sentence: "a", "a and b", "a, b and c". */
+export const andList = (items: readonly string[]) =>
+  items.length <= 2 ? items.join(' and ') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;

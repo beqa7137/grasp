@@ -1,3 +1,4 @@
+import { andList, spansOf } from './annotate.js';
 import { fixedChoices, rotatedChoices } from './choices.js';
 import { InputError } from './types.js';
 import { asNumbers, rangeOf } from './input.js';
@@ -44,28 +45,44 @@ function questionPlan(nums1: number[], nums2: number[]) {
 const popcount = (mask: number) => mask.toString(2).split('1').length - 1;
 const show = (value: number) => (value === Infinity ? '∞' : String(value));
 
+const CODE = [
+  'function minimumXorSum(nums1, nums2) {',
+  '  const n = nums1.length;',
+  '  const dp = Array(1 << n).fill(Infinity);',
+  '  dp[0] = 0; // nothing paired yet',
+  '  for (let mask = 0; mask < (1 << n) - 1; mask++) {',
+  '    const i = popcount(mask); // next nums1 index',
+  '    for (let j = 0; j < n; j++) {',
+  '      if (mask & (1 << j)) continue; // used',
+  '      const to = mask | (1 << j);',
+  '      dp[to] = Math.min(dp[to], dp[mask] + (nums1[i] ^ nums2[j]));',
+  '    }',
+  '  }',
+  '  return dp[(1 << n) - 1];',
+  '}',
+];
+
+const SPANS = spansOf(CODE, {
+  3: 'const dp = Array(1 << n).fill(Infinity)',
+  4: 'dp[0] = 0',
+  6: 'const i = popcount(mask)',
+  9: 'const to = mask | (1 << j)',
+  10: 'dp[to] = Math.min(dp[to], dp[mask] + (nums1[i] ^ nums2[j]))',
+  13: 'return dp[(1 << n) - 1]',
+});
+
 export const minimumXorSum: AlgorithmDefinition<Input> = {
-  code: [
-    'function minimumXorSum(nums1, nums2) {',
-    '  const n = nums1.length;',
-    '  const dp = Array(1 << n).fill(Infinity);',
-    '  dp[0] = 0; // nothing paired yet',
-    '  for (let mask = 0; mask < (1 << n) - 1; mask++) {',
-    '    const i = popcount(mask); // next nums1 index',
-    '    for (let j = 0; j < n; j++) {',
-    '      if (mask & (1 << j)) continue; // used',
-    '      const to = mask | (1 << j);',
-    '      dp[to] = Math.min(dp[to], dp[mask] + (nums1[i] ^ nums2[j]));',
-    '    }',
-    '  }',
-    '  return dp[(1 << n) - 1];',
-    '}',
-  ],
+  code: CODE,
   fields: [
     { key: 'nums1', label: 'nums1', kind: 'numbers', hint: '3 or 4 values, 0 to 99' },
     { key: 'nums2', label: 'nums2', kind: 'numbers', hint: 'As many values as nums1' },
   ],
   defaultInput: { nums1: [1, 0, 3], nums2: [5, 3, 4] },
+  presets: [
+    { label: 'Every value is 0', input: { nums1: [0, 0, 0], nums2: [0, 0, 0] } },
+    { label: 'Same values, reversed', input: { nums1: [1, 2, 3], nums2: [3, 2, 1] } },
+    { label: 'Four pairs: 16 masks', input: { nums1: [7, 7, 7, 7], nums2: [1, 2, 4, 8] } },
+  ],
 
   randomInput(rand = Math.random) {
     const n = randInt(rand, 3, 4);
@@ -112,11 +129,15 @@ export const minimumXorSum: AlgorithmDefinition<Input> = {
       };
     };
 
-    const snap = (line: number, note: string, extra: Partial<Frame> = {}) => {
+    let chapter = 'Set up';
+    const snap = (line: number, caption: string, note: string, extra: Partial<Frame> = {}) => {
       const i = mask === null || mask === full ? null : popcount(mask);
       frames.push({
         line,
+        caption,
         note,
+        chapter,
+        span: SPANS[line],
         vars: {
           mask: mask === null ? null : named(mask),
           i,
@@ -139,8 +160,6 @@ export const minimumXorSum: AlgorithmDefinition<Input> = {
     };
 
     const used = (m: number) => rangeOf(0, n - 1).filter((b) => (m >> b) & 1);
-    const list = (items: string[]) =>
-      items.length <= 2 ? items.join(' and ') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
 
     const whichQuestion = (m: number): Prediction => {
       const count = popcount(m);
@@ -228,10 +247,18 @@ export const minimumXorSum: AlgorithmDefinition<Input> = {
 
     snap(
       3,
+      `dp has a slot per mask, 0 to ${full}, each ∞ until some pairing reaches it.`,
       `dp[mask] will hold the least XOR sum once the values of nums2 whose bits are set in mask are paired with nums1[0], nums1[1] and so on, in order. With n = ${n} there are ${1 << n} masks, 0 to ${full}, all ∞ for now.`,
     );
     dp[0] = 0;
-    snap(4, `dp[0] = 0: with no values used, nothing is paired yet and the sum is 0.`);
+    snap(
+      4,
+      'dp[0] = 0: with nothing paired yet, the sum is 0.',
+      `dp[0] = 0: with no values used, nothing is paired yet and the sum is 0.`,
+      {
+        lens: 'dp[0] = 0',
+      },
+    );
 
     let t = 0;
     for (let m = 0; m < full; m++) {
@@ -239,14 +266,20 @@ export const minimumXorSum: AlgorithmDefinition<Input> = {
       j = null;
       to = null;
       const i = popcount(m);
-      if (plan.which.includes(m)) snap(6, 'Find the next index of nums1.', { predict: whichQuestion(m) });
+      chapter = `mask = ${binary(m)}`;
+      if (plan.which.includes(m))
+        snap(6, `Find the next index of nums1 from mask ${binary(m)}.`, 'Find the next index of nums1.', { predict: whichQuestion(m) });
       const free = rangeOf(0, n - 1).filter((b) => !((m >> b) & 1));
       const taken = used(m);
       snap(
         6,
         m === 0
+          ? `mask = ${binary(m)}: nothing is used yet, so nums1[0] = ${nums1[0]} pairs first.`
+          : `mask = ${binary(m)}: ${taken.length} value${taken.length === 1 ? '' : 's'} of nums2 used, so nums1[${i}] = ${nums1[i]} pairs next.`,
+        m === 0
           ? `mask = ${binary(m)}: nothing is used, so i = 0 and nums1[0] = ${nums1[0]} is paired first, with each value of nums2 in turn.`
-          : `mask = ${binary(m)}: ${list(taken.map((b) => `nums2[${b}]`))} ${taken.length === 1 ? 'is' : 'are'} used, so i = popcount(mask) = ${i} and nums1[${i}] = ${nums1[i]} comes next. dp[${m}] = ${dp[m]} is final: every mask that leads here is smaller and was done earlier. Only j = ${list(free.map(String))} ${free.length === 1 ? 'is' : 'are'} free.`,
+          : `mask = ${binary(m)}: ${andList(taken.map((b) => `nums2[${b}]`))} ${taken.length === 1 ? 'is' : 'are'} used, so i = popcount(mask) = ${i} and nums1[${i}] = ${nums1[i]} comes next. dp[${m}] = ${dp[m]} is final: every mask that leads here is smaller and was done earlier. Only j = ${andList(free.map(String))} ${free.length === 1 ? 'is' : 'are'} free.`,
+        { lens: `popcount(${binary(m)}) = ${i}` },
       );
       for (const bit of free) {
         j = bit;
@@ -254,22 +287,45 @@ export const minimumXorSum: AlgorithmDefinition<Input> = {
         const offer = dp[m] + cost(i, bit);
         const before = dp[next];
         if (plan.to.includes(t)) {
-          snap(9, `Try j = ${bit}: set its bit.`, { predict: toQuestion(m, bit) });
+          snap(9, `Try j = ${bit}: to is mask with bit ${bit} set.`, `Try j = ${bit}: set its bit.`, { predict: toQuestion(m, bit) });
           to = next;
-          snap(9, `\`to = ${binary(m)} | ${binary(1 << bit)}\` = ${binary(next)}, which is ${next}.`);
+          snap(
+            9,
+            `Setting bit ${bit} gives to = ${binary(next)}, which is ${next}.`,
+            `\`to = ${binary(m)} | ${binary(1 << bit)}\` = ${binary(next)}, which is ${next}.`,
+            { lens: `${binary(m)} | ${binary(1 << bit)} = ${binary(next)}` },
+          );
         }
         to = next;
-        if (plan.outcome.includes(t)) snap(10, 'Compare the two ways into dp[to].', { predict: outcomeQuestion(i, bit, offer, before) });
-        if (plan.value.includes(t)) snap(10, 'Take the min.', { predict: valueQuestion(i, bit, offer, before) });
+        if (plan.outcome.includes(t))
+          snap(
+            10,
+            before === Infinity
+              ? `Offer dp[${next}] its first way in, through mask ${binary(m)}.`
+              : `Compare the two ways into dp[${next}].`,
+            'Compare the two ways into dp[to].',
+            {
+              predict: outcomeQuestion(i, bit, offer, before),
+            },
+          );
+        if (plan.value.includes(t))
+          snap(10, `Take the min for dp[${next}].`, 'Take the min.', { predict: valueQuestion(i, bit, offer, before) });
         dp[next] = Math.min(before, offer);
         const pair = `Pair nums1[${i}] = ${nums1[i]} with nums2[${bit}] = ${nums2[bit]}: \`${nums1[i]} ^ ${nums2[bit]} = ${cost(i, bit)}\`, so this way costs ${dp[m]} + ${cost(i, bit)} = ${offer}.`;
+        const pairing = `Pairing nums1[${i}] with nums2[${bit}] costs ${cost(i, bit)}`;
         snap(
           10,
+          [
+            `${pairing}: dp[${next}] = ${offer}, its first value.`,
+            `${pairing}: ${offer} < ${before}, so dp[${next}] drops.`,
+            `${pairing}: ${offer} ≥ ${before}, so dp[${next}] stays.`,
+          ][outcomeOf(before, offer)],
           [
             `${pair} dp[${next}] was ∞, so it becomes ${offer}.`,
             `${pair} That beats ${before}, so dp[${next}] drops to ${offer}.`,
             `${pair} dp[${next}] = ${before} is no bigger, so it stays.`,
           ][outcomeOf(before, offer)],
+          { lens: `min(${show(before)}, ${dp[m]} + ${cost(i, bit)}) = ${dp[next]}` },
         );
         to = null;
         t++;
@@ -278,10 +334,12 @@ export const minimumXorSum: AlgorithmDefinition<Input> = {
 
     mask = full;
     j = null;
-    snap(13, 'The loop is over.', { predict: returnQuestion() });
+    chapter = 'Result';
+    snap(13, 'The loop is over: every mask holds its least XOR sum.', 'The loop is over.', { predict: returnQuestion() });
     done = true;
     snap(
       13,
+      `Return dp[${full}] = ${dp[full]}: every value of nums2 is used exactly once.`,
       `Return dp[${full}] = ${dp[full]}: every value of nums2 is used once. Each of the 2ⁿ masks tries up to n values, O(2ⁿ · n) time and O(2ⁿ) space. Trying every order of nums2 is n! orders: ${rangeOf(1, n).reduce((p, k) => p * k, 1)} here, but about 87 billion at n = 14.`,
     );
     frames[frames.length - 1].vars['result'] = dp[full];

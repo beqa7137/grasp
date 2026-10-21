@@ -54,13 +54,7 @@ describe('review item catalog', () => {
     }
   });
 
-  it.each(['dijkstra', 'lcs'])('keeps the %s menu in the order the visualizer shows it', (id) => {
-    const algo = getAlgorithm(id)!;
-    const menu = predictions(tracerFixture(algo).traceOf(algo.defaultInput))[0].choices;
-    for (const seed of SEEDS) expect(generateQuestion(`pred:${id}`, seed).choices).toEqual(menu);
-  });
-
-  it.each(['two-sum-hash', 'binary-search', 'pair-sum-sorted'])(
+  it.each(['two-sum-hash', 'binary-search', 'pair-sum-sorted', 'dijkstra', 'lcs'])(
     'keeps the %s fixed menu in order beside questions whose choices move around',
     (id) => {
       const algo = getAlgorithm(id)!;

@@ -1,3 +1,4 @@
+import { spansOf } from './annotate.js';
 import { fixedChoices, rotatedChoices } from './choices.js';
 import { InputError } from './types.js';
 import { asEdges, asNumber, rangeOf } from './input.js';
@@ -13,22 +14,35 @@ const LEGEND: GraphLegend = { active: 'on the current edge', done: 'in the tree'
 
 const setText = (nodes: number[]) => `{${nodes.join(', ')}}`;
 
+const CODE = [
+  'function kruskal(n, edges) {',
+  '  edges.sort((a, b) => a[2] - b[2]);',
+  '  const parent = [...Array(n).keys()];',
+  '  let total = 0, used = 0;',
+  '  for (const [u, v, w] of edges) {',
+  '    const ru = find(u), rv = find(v);',
+  '    if (ru === rv) continue; // a cycle',
+  '    union(ru, rv); // by rank',
+  '    total += w;',
+  '    if (++used === n - 1) break; // done',
+  '  }',
+  '  return used === n - 1 ? total : -1;',
+  '}',
+];
+
+const SPANS = spansOf(CODE, {
+  2: 'edges.sort((a, b) => a[2] - b[2])',
+  3: 'const parent = [...Array(n).keys()]',
+  6: 'const ru = find(u), rv = find(v)',
+  7: 'ru === rv',
+  8: 'union(ru, rv)',
+  9: 'total += w',
+  10: '++used === n - 1',
+  12: 'return used === n - 1 ? total : -1',
+});
+
 export const kruskalMst: AlgorithmDefinition<Input> = {
-  code: [
-    'function kruskal(n, edges) {',
-    '  edges.sort((a, b) => a[2] - b[2]);',
-    '  const parent = [...Array(n).keys()];',
-    '  let total = 0, used = 0;',
-    '  for (const [u, v, w] of edges) {',
-    '    const ru = find(u), rv = find(v);',
-    '    if (ru === rv) continue; // a cycle',
-    '    union(ru, rv); // by rank',
-    '    total += w;',
-    '    if (++used === n - 1) break; // done',
-    '  }',
-    '  return used === n - 1 ? total : -1;',
-    '}',
-  ],
+  code: CODE,
   fields: [
     { key: 'n', label: 'Nodes', kind: 'number', hint: '2 to 8, numbered from 0' },
     { key: 'edges', label: 'Edges', kind: 'weightedEdges', hint: 'Like 0-1:4 (undirected, weight 1–99)' },
@@ -47,6 +61,42 @@ export const kruskalMst: AlgorithmDefinition<Input> = {
       [4, 5, 7],
     ],
   },
+  presets: [
+    {
+      label: 'Two groups, no bridge',
+      input: {
+        n: 4,
+        edges: [
+          [0, 1, 1],
+          [2, 3, 2],
+        ],
+      },
+    },
+    {
+      label: 'Every weight the same',
+      input: {
+        n: 4,
+        edges: [
+          [0, 1, 2],
+          [1, 2, 2],
+          [0, 2, 2],
+          [2, 3, 2],
+        ],
+      },
+    },
+    {
+      label: 'The heaviest edge is never read',
+      input: {
+        n: 4,
+        edges: [
+          [0, 1, 1],
+          [1, 2, 2],
+          [2, 3, 3],
+          [0, 3, 9],
+        ],
+      },
+    },
+  ],
 
   randomInput(rand = Math.random) {
     const n = randInt(rand, 4, 6);
@@ -56,7 +106,7 @@ export const kruskalMst: AlgorithmDefinition<Input> = {
     const groupStart = (i: number) => (i < cut ? 0 : cut);
     const seen = new Set<string>();
     const edges: WeightedEdge[] = [];
-    // Two diameters of the circle would cross at its centre and draw their weights on top of each other.
+    // Two diameters of the circle would cross at its center and draw their weights on top of each other.
     let diameter = false;
     const add = (a: number, b: number) => {
       const id = `${Math.min(a, b)}-${Math.max(a, b)}`;
@@ -129,11 +179,15 @@ export const kruskalMst: AlgorithmDefinition<Input> = {
       };
     };
 
-    const snap = (line: number, note: string, extra: Partial<Frame> = {}, active?: number[]) => {
+    let chapter = 'Set up';
+    const snap = (line: number, caption: string, note: string, extra: Partial<Frame> = {}, active?: number[]) => {
       const [u, v, w] = current === null ? [null, null, null] : edges[current];
       frames.push({
         line,
+        caption,
         note,
+        chapter,
+        span: SPANS[line],
         vars: { u, v, w, ru: roots?.[0] ?? null, rv: roots?.[1] ?? null, total, used },
         graph: graph(),
         queue: {
@@ -148,12 +202,12 @@ export const kruskalMst: AlgorithmDefinition<Input> = {
     const verdictQuestion = (u: number, v: number, w: number, ru: number, rv: number): Prediction => {
       const completes = ru !== rv && used + 1 === n - 1;
       return {
-        prompt: `\`find(${u}) = ${ru}\` and \`find(${v}) = ${rv}\`, and used is ${used}. What happens to edge ${u}-${v}, weight ${w}?`,
+        prompt: `used is ${used} and n is ${n}. What happens to edge ${u}-${v}, weight ${w}?`,
         ...fixedChoices(VERDICTS, ru === rv ? 1 : completes ? 2 : 0),
         explain:
           ru === rv
-            ? `Both ends have root ${ru}: tree edges already join ${u} and ${v}, so ${u}-${v} would close a cycle. Every edge on that path weighs at most ${w}, so leaving this one out costs nothing.`
-            : `The roots differ, so no path joins ${u} and ${v} yet, and no edge still to come weighs less than ${w}: accept it. That makes used ${used + 1}, ${completes ? 'which is n - 1: every node is joined, so the loop stops.' : `short of n - 1 = ${n - 1}, so the loop goes on.`}`,
+            ? `\`find(${u})\` and \`find(${v})\` both reach root ${ru}: tree edges already join ${u} and ${v}, so ${u}-${v} would close a cycle. Every edge on that path weighs at most ${w}, so leaving this one out costs nothing.`
+            : `\`find(${u}) = ${ru}\` and \`find(${v}) = ${rv}\` differ, so no path joins ${u} and ${v} yet, and no edge still to come weighs less than ${w}: accept it. That makes used ${used + 1}, ${completes ? 'which is n - 1: every node is joined, so the loop stops.' : `short of n - 1 = ${n - 1}, so the loop goes on.`}`,
       };
     };
 
@@ -197,9 +251,14 @@ export const kruskalMst: AlgorithmDefinition<Input> = {
 
     snap(
       2,
+      `Sort the ${edges.length} edge${edges.length === 1 ? '' : 's'} by weight, so the cheapest come${edges.length === 1 ? 's' : ''} first.`,
       `Sort the ${edges.length} edges by weight. Kruskal looks at them cheapest first and keeps one only if it joins two separate components.`,
     );
-    snap(3, `Every node starts as its own component: ${n} components, and no tree edges yet.`);
+    snap(
+      3,
+      `Each of the ${n} nodes starts as its own component, with no tree edges yet.`,
+      `Every node starts as its own component: ${n} components, and no tree edges yet.`,
+    );
 
     let accepted = 0;
     let lastWeight = 0;
@@ -209,18 +268,46 @@ export const kruskalMst: AlgorithmDefinition<Input> = {
       const [u, v, w] = edges[current];
       roots = [find(u), find(v)];
       const [ru, rv] = roots;
-      snap(6, `Next cheapest edge: ${u}-${v}, weight ${w}. \`find(${u}) = ${ru}\` and \`find(${v}) = ${rv}\`.`, {}, componentOf(u));
-      if (k >= 2) snap(7, 'Check the roots.', { predict: verdictQuestion(u, v, w, ru, rv) });
+      chapter = `Edge ${k + 1}: ${u}-${v}`;
+      snap(
+        6,
+        `Next cheapest edge: ${u}-${v}, weight ${w}. Find the root of each end.`,
+        `Next cheapest edge: ${u}-${v}, weight ${w}. \`find(${u}) = ${ru}\` and \`find(${v}) = ${rv}\`.`,
+        { lens: `edge ${u}-${v}, w ${w}` },
+        componentOf(u),
+      );
+      if (k >= 2) {
+        // The roots would answer the verdict, so they stay out of the asking frame's variables.
+        roots = null;
+        snap(7, `Compare the roots: are ${u} and ${v} in one component already?`, 'Check the roots.', {
+          predict: verdictQuestion(u, v, w, ru, rv),
+        });
+        roots = [ru, rv];
+      }
       if (ru === rv) {
         states[current] = 'skipped';
         rejectedWeight += w;
-        snap(7, `Same root ${ru}: ${u} and ${v} are already connected, so ${u}-${v} would close a cycle. Reject it.`, {}, componentOf(u));
+        snap(
+          7,
+          `${u} and ${v} are already connected, so ${u}-${v} would close a cycle: reject it.`,
+          `Same root ${ru}: ${u} and ${v} are already connected, so ${u}-${v} would close a cycle. Reject it.`,
+          { lens: `${ru} === ${rv} → true` },
+          componentOf(u),
+        );
         continue;
       }
       states[current] = 'chosen';
-      snap(7, `Roots ${ru} and ${rv} differ: ${u} and ${v} are in different components, so accept ${u}-${v}.`);
+      snap(
+        7,
+        `${u} and ${v} are in different components, so ${u}-${v} joins them: accept it.`,
+        `Roots ${ru} and ${rv} differ: ${u} and ${v} are in different components, so accept ${u}-${v}.`,
+        { lens: `${ru} === ${rv} → false` },
+      );
       const [mine, theirs] = [componentOf(u), componentOf(v)];
-      if (accepted === 1) snap(8, 'Union the two components.', { predict: mergeQuestion(u, v, ru, rv, mine, theirs) });
+      if (accepted === 1)
+        snap(8, `Union the components of ${u} and ${v}.`, 'Union the two components.', {
+          predict: mergeQuestion(u, v, ru, rv, mine, theirs),
+        });
       if (rank[ru] < rank[rv]) parent[ru] = rv;
       else if (rank[ru] > rank[rv]) parent[rv] = ru;
       else {
@@ -230,37 +317,56 @@ export const kruskalMst: AlgorithmDefinition<Input> = {
       const left = components().length;
       snap(
         8,
+        `Join them into ${setText(componentOf(u))}: ${left} component${left === 1 ? '' : 's'} left.`,
         `Union: ${setText(mine)} and ${setText(theirs)} become ${setText(componentOf(u))}. ${left} component${left === 1 ? '' : 's'} left.`,
-        {},
+        { lens: `union(${ru}, ${rv})` },
         componentOf(u),
       );
-      if (accepted === 2) snap(9, 'Add the weight to the running total.', { predict: totalQuestion(u, v, w) });
+      if (accepted === 2)
+        snap(9, `Add the weight of ${u}-${v} to the running total.`, 'Add the weight to the running total.', {
+          predict: totalQuestion(u, v, w),
+        });
       total += w;
       lastWeight = w;
-      snap(9, `total = ${total - w} + ${w} = ${total}.`);
+      snap(9, `total grows by ${w} to ${total}: only accepted edges count.`, `total = ${total - w} + ${w} = ${total}.`, {
+        lens: `${total - w} + ${w} = ${total}`,
+      });
       accepted++;
       used++;
       if (used === n - 1) {
         const unchecked = order.length - queued;
         snap(
           10,
+          `used is ${used}, which is n - 1: every node is joined, so stop here.`,
           `used = ${used} = n - 1: the tree joins all ${n} nodes, so stop.${unchecked ? ` The ${unchecked === 1 ? 'edge' : `${unchecked} edges`} left ${unchecked === 1 ? 'is' : 'are'} never checked.` : ''}`,
+          { lens: `${used} === ${n - 1} → true` },
         );
         break;
       }
-      snap(10, `used = ${used}. A tree on ${n} nodes needs ${n - 1} edges, so ${n - 1 - used} more to go.`);
+      const more = n - 1 - used;
+      snap(
+        10,
+        `used is ${used}: a tree on ${n} nodes needs ${n - 1} edges, so ${more} more to go.`,
+        `used = ${used}. A tree on ${n} nodes needs ${n - 1} edges, so ${more} more to go.`,
+        { lens: `${used} === ${n - 1} → false` },
+      );
     }
 
     current = null;
     roots = null;
     const checkedWeight = total + rejectedWeight;
-    snap(12, 'The loop is over.', { predict: returnQuestion(lastWeight, checkedWeight) });
+    chapter = 'Result';
+    snap(12, 'The loop is over: did it find all n - 1 edges?', 'The loop is over.', { predict: returnQuestion(lastWeight, checkedWeight) });
     const result = used === n - 1 ? total : -1;
     snap(
       12,
       result >= 0
+        ? `Return ${total}: the accepted edges form a minimum spanning tree.`
+        : `Return -1: the edges ran out with ${used} of the ${n - 1} a spanning tree needs.`,
+      result >= 0
         ? `Return ${total}: the edges taken form a minimum spanning tree. Sorting takes O(E log E), and each find and union is nearly O(1).`
         : `Return -1: the edges ran out after ${used} of the ${n - 1} a spanning tree needs, leaving ${components().length} components.`,
+      { lens: `${used} === ${n - 1} → ${result >= 0}` },
     );
     frames[frames.length - 1].vars['result'] = result;
     return frames;

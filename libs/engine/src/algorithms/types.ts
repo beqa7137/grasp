@@ -159,7 +159,7 @@ export interface AlgorithmDef<I extends AlgorithmInput = AlgorithmInput> extends
   validate(input: unknown): I;
   trace(input: I): Frame[];
   /** A few inputs worth watching, such as an edge case, offered beside Random. */
-  presets?: { label: string; input: I }[];
+  presets: { label: string; input: I }[];
 }
 
 /** What a tracer module defines: everything but its catalog entry's fields. */

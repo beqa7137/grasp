@@ -47,7 +47,7 @@ const answersConfirmed = (frames: Frame[]) =>
     return before[i] === null && frames[k + 1].line === 7 && matches;
   });
 
-/** The highlighted houses are never neighbours, add up to the answer, and each one lights up the dp cell that counted it. */
+/** The highlighted houses are never neighbors, add up to the answer, and each one lights up the dp cell that counted it. */
 const lootAddsUp = (nums: number[], frames: Frame[]) => {
   const { array, table } = frames[frames.length - 1];
   const robbed = array!.found!;

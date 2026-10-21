@@ -1,3 +1,4 @@
+import { andList, spansOf } from './annotate.js';
 import { fixedChoices } from './choices.js';
 import { InputError } from './types.js';
 import { asEdges, asNumber, type Edge } from './input.js';
@@ -10,22 +11,34 @@ type Input = { n: number; edges: Edge[] };
 const CHOICES = ['Yes: nothing else points to it now', 'Not yet: it still has prerequisites'];
 const LEGEND: GraphLegend = { active: 'current', frontier: 'queued', done: 'done' };
 
+const CODE = [
+  'function topoSort(n, edges) {',
+  '  const indeg = Array(n).fill(0), adj = lists(n);',
+  '  for (const [u, v] of edges) { adj[u].push(v); indeg[v]++; }',
+  '  const queue = nodes(n).filter((v) => indeg[v] === 0);',
+  '  const order = [];',
+  '  while (queue.length) {',
+  '    const u = queue.shift(); order.push(u);',
+  '    for (const v of adj[u]) {',
+  '      if (--indeg[v] === 0) queue.push(v);',
+  '    }',
+  '  }',
+  '  return order.length === n ? order : null; // null: cycle',
+  '}',
+];
+
+const SPANS = spansOf(CODE, {
+  3: 'indeg[v]++',
+  4: 'nodes(n).filter((v) => indeg[v] === 0)',
+  7: 'const u = queue.shift(); order.push(u)',
+  8: 'const v of adj[u]',
+  9: '--indeg[v] === 0',
+  12: 'return order.length === n ? order : null',
+});
+const ENQUEUE_SPAN = spansOf(CODE, { 9: 'if (--indeg[v] === 0) queue.push(v)' })[9];
+
 export const topoSort: AlgorithmDefinition<Input> = {
-  code: [
-    'function topoSort(n, edges) {',
-    '  const indeg = Array(n).fill(0), adj = lists(n);',
-    '  for (const [u, v] of edges) { adj[u].push(v); indeg[v]++; }',
-    '  const queue = nodes(n).filter((v) => indeg[v] === 0);',
-    '  const order = [];',
-    '  while (queue.length) {',
-    '    const u = queue.shift(); order.push(u);',
-    '    for (const v of adj[u]) {',
-    '      if (--indeg[v] === 0) queue.push(v);',
-    '    }',
-    '  }',
-    '  return order.length === n ? order : null; // null: cycle',
-    '}',
-  ],
+  code: CODE,
   fields: [
     { key: 'n', label: 'Nodes', kind: 'number', hint: '2 to 9, numbered from 0' },
     { key: 'edges', label: 'Dependencies', kind: 'directedEdges', hint: 'u>v means u comes before v' },
@@ -42,6 +55,44 @@ export const topoSort: AlgorithmDefinition<Input> = {
       [3, 6],
     ],
   },
+  presets: [
+    {
+      label: 'A chain, one after another',
+      input: {
+        n: 5,
+        edges: [
+          [0, 1],
+          [1, 2],
+          [2, 3],
+          [3, 4],
+        ],
+      },
+    },
+    {
+      label: 'Four arrows into one node',
+      input: {
+        n: 5,
+        edges: [
+          [0, 4],
+          [1, 4],
+          [2, 4],
+          [3, 4],
+        ],
+      },
+    },
+    {
+      label: 'A cycle behind the start',
+      input: {
+        n: 4,
+        edges: [
+          [0, 1],
+          [1, 2],
+          [2, 3],
+          [3, 1],
+        ],
+      },
+    },
+  ],
 
   randomInput(rand = Math.random) {
     const n = randInt(rand, 4, 8);
@@ -97,10 +148,14 @@ export const topoSort: AlgorithmDefinition<Input> = {
       }),
       legend: LEGEND,
     });
-    const snap = (line: number, note: string, extra: Partial<Frame> = {}, activeEdge?: string) =>
+    let chapter = 'Set up';
+    const snap = (line: number, caption: string, note: string, extra: Partial<Frame> = {}, activeEdge?: string) =>
       frames.push({
         line,
+        caption,
         note,
+        chapter,
+        span: SPANS[line],
         vars: { u, 'queue size': queue.length, placed: order.length },
         graph: graph(activeEdge),
         queue: { label: 'queue', items: [...queue] },
@@ -108,34 +163,52 @@ export const topoSort: AlgorithmDefinition<Input> = {
         ...extra,
       });
 
-    snap(3, `Count prerequisites: in-degree is the number of arrows pointing into a node.`);
+    snap(
+      3,
+      "Count each node's prerequisites: the arrows pointing into it.",
+      `Count prerequisites: in-degree is the number of arrows pointing into a node.`,
+    );
     for (let v = 0; v < n; v++) if (indeg[v] === 0) queue.push(v);
     const single = queue.length === 1;
     snap(
       4,
+      queue.length === 0
+        ? 'Every node has a prerequisite, so the queue starts empty.'
+        : single
+          ? `Node ${queue[0]} has no prerequisites, so it starts the queue alone.`
+          : queue.length === n
+            ? `None of the ${n} nodes has a prerequisite, so they all start the queue.`
+            : queue.length > 4
+              ? `${queue.length} nodes have no prerequisites, so they start the queue.`
+              : `Nodes ${andList(queue.map(String))} have no prerequisites, so they start the queue.`,
       queue.length
         ? `${single ? 'Node' : 'Nodes'} ${queue.join(', ')} ${single ? 'has' : 'have'} no prerequisites: ${single ? 'it' : 'they'} can go first.`
         : 'No node is free of prerequisites: there must be a cycle.',
+      { lens: `queue = [${queue.join(', ')}]` },
     );
 
     while (queue.length) {
       u = queue.shift()!;
       order.push(u);
-      snap(7, `Take ${u} from the queue and place it next in the order.`);
+      chapter = `Place node ${u}`;
+      snap(7, `Place ${u} next: nothing it depends on is still waiting.`, `Take ${u} from the queue and place it next in the order.`, {
+        lens: `order = [${order.join(', ')}]`,
+      });
       for (const v of adj[u]) {
         const id = `${u}>${v}`;
         const next = indeg[v] - 1;
         snap(
           8,
+          `Edge ${u}→${v}: ${u} is placed, so ${v} has one fewer node to wait for.`,
           `Edge ${u}→${v}: ${u} is done, so ${v} loses one prerequisite.`,
           {
             predict: {
-              prompt: `Removing ${u}→${v} drops ${v}'s in-degree from ${indeg[v]} to ${next}. Does ${v} join the queue?`,
+              prompt: `Removing ${u}→${v} takes one prerequisite off ${v}. Does ${v} join the queue?`,
               ...fixedChoices(CHOICES, next === 0 ? 0 : 1),
               explain:
                 next === 0
-                  ? `Every node that must come before ${v} is placed, so ${v} is free to go.`
-                  : `${v} still waits on ${next} more prerequisite${next === 1 ? '' : 's'}.`,
+                  ? `${v}'s in-degree was 1, so ${u} was the last node it waited on. It drops to 0: ${v} is free to go.`
+                  : `${v}'s in-degree was ${indeg[v]}, so it drops to ${next}: ${v} still waits on ${next} more prerequisite${next === 1 ? '' : 's'}.`,
             },
           },
           id,
@@ -143,17 +216,30 @@ export const topoSort: AlgorithmDefinition<Input> = {
         indeg[v] = next;
         used.add(id);
         if (next === 0) queue.push(v);
-        snap(9, next === 0 ? `${v} is free: enqueue it.` : `${v} still has ${next} to go.`, {}, id);
+        snap(
+          9,
+          next === 0
+            ? `${v} has no prerequisites left, so it joins the queue.`
+            : `${v} still waits on ${next} more, so it stays out of the queue.`,
+          next === 0 ? `${v} is free: enqueue it.` : `${v} still has ${next} to go.`,
+          next === 0 ? { span: ENQUEUE_SPAN, lens: `--indeg[${v}] → 0` } : { lens: `--indeg[${v}] → ${next}` },
+          id,
+        );
       }
     }
 
     u = null;
     const cyclic = order.length < n;
+    chapter = cyclic ? 'Cycle' : 'Result';
     snap(
       12,
       cyclic
+        ? `Only ${order.length} of ${n} nodes ${order.length === 1 ? 'was' : 'were'} placed: the rest wait on a cycle, so return null.`
+        : `All ${n} nodes are placed, each after its prerequisites: return the order.`,
+      cyclic
         ? `Only ${order.length} of ${n} nodes ${order.length === 1 ? 'was' : 'were'} placed. The rest wait on each other forever: a cycle, so no valid order exists.`
         : `All ${n} nodes placed: ${order.join(' → ')}. Each node and edge was handled once, O(V + E).`,
+      { lens: `${order.length} === ${n} → ${!cyclic}` },
     );
     frames[frames.length - 1].vars['result'] = cyclic ? 'cycle' : order.join(' → ');
     return frames;

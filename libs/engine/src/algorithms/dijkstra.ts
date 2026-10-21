@@ -1,4 +1,5 @@
-import { fixedChoices } from './choices.js';
+import { andList, spansOf } from './annotate.js';
+import { fixedChoices, rotatedChoices } from './choices.js';
 import { InputError } from './types.js';
 import { asEdges, asNumber, type Edge } from './input.js';
 import { randInt } from './random.js';
@@ -11,24 +12,35 @@ const RELAX = ['Yes: a shorter path was found', 'No: keep the current distance']
 const LEGEND: GraphLegend = { active: 'current', frontier: 'queued', done: 'done' };
 const fmt = (d: number) => (d === Infinity ? '∞' : String(d));
 
+const CODE = [
+  'function dijkstra(n, edges, source) {',
+  '  const dist = Array(n).fill(Infinity); dist[source] = 0;',
+  '  const pq = new MinHeap([[0, source]]);',
+  '  while (pq.size) {',
+  '    const [d, u] = pq.pop();',
+  '    if (d > dist[u]) continue; // stale entry',
+  '    for (const [v, w] of adj[u]) {',
+  '      if (dist[u] + w < dist[v]) {',
+  '        dist[v] = dist[u] + w;',
+  '        pq.push([dist[v], v]);',
+  '      }',
+  '    }',
+  '  }',
+  '  return dist;',
+  '}',
+];
+
+const SPANS = spansOf(CODE, {
+  3: 'const pq = new MinHeap([[0, source]])',
+  5: 'const [d, u] = pq.pop()',
+  6: 'd > dist[u]',
+  8: 'dist[u] + w < dist[v]',
+  10: 'pq.push([dist[v], v])',
+  14: 'return dist',
+});
+
 export const dijkstra: AlgorithmDefinition<Input> = {
-  code: [
-    'function dijkstra(n, edges, source) {',
-    '  const dist = Array(n).fill(Infinity); dist[source] = 0;',
-    '  const pq = new MinHeap([[0, source]]);',
-    '  while (pq.size) {',
-    '    const [d, u] = pq.pop();',
-    '    if (d > dist[u]) continue; // stale entry',
-    '    for (const [v, w] of adj[u]) {',
-    '      if (dist[u] + w < dist[v]) {',
-    '        dist[v] = dist[u] + w;',
-    '        pq.push([dist[v], v]);',
-    '      }',
-    '    }',
-    '  }',
-    '  return dist;',
-    '}',
-  ],
+  code: CODE,
   fields: [
     { key: 'n', label: 'Nodes', kind: 'number', hint: '2 to 8, numbered from 0' },
     { key: 'edges', label: 'Roads', kind: 'weightedEdges', hint: 'Like 0-1:4 (undirected, weight 1–99)' },
@@ -49,6 +61,45 @@ export const dijkstra: AlgorithmDefinition<Input> = {
     ],
     source: 0,
   },
+  presets: [
+    {
+      label: 'A detour beats the direct road',
+      input: {
+        n: 3,
+        edges: [
+          [0, 2, 10],
+          [0, 1, 2],
+          [1, 2, 3],
+        ],
+        source: 0,
+      },
+    },
+    {
+      label: 'A node no road reaches',
+      input: {
+        n: 4,
+        edges: [
+          [0, 1, 2],
+          [1, 2, 3],
+          [0, 2, 6],
+        ],
+        source: 0,
+      },
+    },
+    {
+      label: 'Start in the middle',
+      input: {
+        n: 5,
+        edges: [
+          [0, 1, 4],
+          [1, 2, 1],
+          [2, 3, 2],
+          [3, 4, 5],
+        ],
+        source: 2,
+      },
+    },
+  ],
 
   randomInput(rand = Math.random) {
     const n = randInt(rand, 4, 7);
@@ -106,10 +157,14 @@ export const dijkstra: AlgorithmDefinition<Input> = {
         legend: LEGEND,
       };
     };
-    const snap = (line: number, note: string, extra: Partial<Frame> = {}, active?: string) =>
+    let chapter = 'Set up';
+    const snap = (line: number, caption: string, note: string, extra: Partial<Frame> = {}, active?: string) =>
       frames.push({
         line,
+        caption,
         note,
+        chapter,
+        span: SPANS[line],
         vars: { u, 'dist[u]': u === null ? null : fmt(dist[u]), settled: settled.size },
         graph: graph(active),
         queue: { label: 'priority queue (dist@node)', items: [...pq].sort((a, b) => a[0] - b[0]).map(([d, v]) => `${d}@${v}`) },
@@ -118,52 +173,96 @@ export const dijkstra: AlgorithmDefinition<Input> = {
       });
 
     pq = [[0, source]];
-    snap(3, `Start at ${source} with distance 0; every other node is ∞ until a path reaches it.`);
+    snap(
+      3,
+      `Start at node ${source}, distance 0. Every other node is ∞ until a path reaches it.`,
+      `Start at ${source} with distance 0; every other node is ∞ until a path reaches it.`,
+      { lens: `pq = [0@${source}]` },
+    );
 
     while (pq.length) {
       pq.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
       const [d, next] = pq.shift()!;
       u = next;
       if (d > dist[u]) {
-        snap(6, `Popped ${d}@${u}, but \`dist[${u}]\` is already ${dist[u]}: a stale entry left behind by a later improvement. Skip it.`);
+        chapter = `Skip ${d}@${u}`;
+        snap(
+          6,
+          `${d}@${u} is stale: dist[${u}] already dropped to ${dist[u]}, so skip it.`,
+          `Popped ${d}@${u}, but \`dist[${u}]\` is already ${dist[u]}: a stale entry left behind by a later improvement. Skip it.`,
+          { lens: `${d} > ${dist[u]} → true` },
+        );
         continue;
       }
       settled.add(u);
-      snap(5, `Closest unsettled node is ${u} at distance ${d}. No later path can beat it, because every edge weight is non-negative.`);
+      chapter = `Settle node ${u}`;
+      snap(
+        5,
+        adj[u].every(([v]) => settled.has(v))
+          ? `Node ${u} is the closest left, at distance ${d}, and all its neighbors are settled.`
+          : `Node ${u} is the closest left, at distance ${d}: no later path can beat that.`,
+        `Closest unsettled node is ${u} at distance ${d}. No later path can beat it, because every edge weight is non-negative.`,
+        { lens: `pq.pop() → ${d}@${u}` },
+      );
       for (const [v, w] of adj[u]) {
-        // Settled neighbours always fail the check: ask about the first one, skip the rest.
+        // Settled neighbors always fail the check: ask about the first one, skip the rest.
         if (settled.has(v) && askedSettled) continue;
         askedSettled ||= settled.has(v);
         const candidate = dist[u] + w;
         const better = candidate < dist[v];
         snap(
           8,
+          dist[v] === Infinity
+            ? `Edge ${u}-${v}, weight ${w}: what does the way through ${u} cost?`
+            : `Edge ${u}-${v}, weight ${w}: is the way through ${u} shorter?`,
           `Edge ${u}–${v} (weight ${w}): via ${u} costs ${dist[u]} + ${w} = ${candidate}.`,
           {
-            predict: {
-              prompt: `Going through ${u} reaches ${v} in ${candidate}; \`dist[${v}]\` is ${fmt(dist[v])}. Update?`,
-              ...fixedChoices(RELAX, better ? 0 : 1),
-              explain: better
-                ? `${candidate} < ${fmt(dist[v])}: record the shorter distance and push ${v} with its new priority.`
-                : settled.has(v)
-                  ? `${candidate} ≥ ${dist[v]}: node ${v} is already settled, and a settled distance never improves because every edge weight is non-negative. From here on, the trace skips edges back to settled nodes: they always fail this check.`
-                  : `${candidate} ≥ ${fmt(dist[v])}: the path through ${u} is no shortcut, so nothing changes.`,
-            },
+            predict:
+              dist[v] === Infinity
+                ? {
+                    ...rotatedChoices(
+                      `Edge ${u}-${v} weighs ${w}, and \`dist[${v}]\` is ∞. What is \`dist[${v}]\` after this step?`,
+                      String(candidate),
+                      [String(w), String(dist[u]), '∞', String(candidate + w)],
+                    ),
+                    explain: `\`dist[${v}]\` was ∞, so any path is shorter: ${dist[u]} + ${w} = ${candidate}. Record it and push ${v} with that priority.`,
+                  }
+                : {
+                    prompt: `\`dist[${u}] = ${dist[u]}\`, edge ${u}-${v} weighs ${w}, and \`dist[${v}]\` is ${dist[v]}. Update?`,
+                    ...fixedChoices(RELAX, better ? 0 : 1),
+                    explain: better
+                      ? `${candidate} < ${fmt(dist[v])}: record the shorter distance and push ${v} with its new priority.`
+                      : settled.has(v)
+                        ? `${candidate} ≥ ${dist[v]}: node ${v} is already settled, and a settled distance never improves because every edge weight is non-negative. From here on, the trace skips edges back to settled nodes: they always fail this check.`
+                        : `${candidate} ≥ ${fmt(dist[v])}: the path through ${u} is no shortcut, so nothing changes.`,
+                  },
           },
           key(u, v),
         );
         if (!better) continue;
+        const old = dist[v];
         dist[v] = candidate;
         via[v] = u;
         pq.push([candidate, v]);
-        snap(10, `\`dist[${v}] = ${candidate}\`; push ${candidate}@${v}.`, {}, key(u, v));
+        snap(
+          10,
+          `dist[${v}] drops from ${fmt(old)} to ${candidate}, and ${candidate}@${v} joins the queue.`,
+          `\`dist[${v}] = ${candidate}\`; push ${candidate}@${v}.`,
+          { lens: `${dist[u]} + ${w} = ${candidate} < ${fmt(old)}` },
+          key(u, v),
+        );
       }
     }
 
     u = null;
-    const unreachable = dist.filter((d) => d === Infinity).length;
+    const unreached = dist.flatMap((d, v) => (d === Infinity ? [String(v)] : []));
+    const unreachable = unreached.length;
+    chapter = 'Result';
     snap(
       14,
+      unreachable
+        ? `Queue empty: return dist. ${unreached.length === 1 ? `Node ${unreached[0]} has` : unreached.length === 2 ? `Nodes ${andList(unreached)} have` : `${unreached.length} nodes have`} no road from ${source}, so ${unreached.length === 1 ? 'it stays' : 'they stay'} at ∞.`
+        : 'Queue empty: every node is settled at its shortest distance, so return dist.',
       `Queue empty: every reachable node is settled.${unreachable ? ` ${unreachable} node${unreachable === 1 ? ' is' : 's are'} unreachable (∞).` : ''} The highlighted edges form the shortest-path tree.`,
     );
     frames[frames.length - 1].vars['result'] = `[${dist.map(fmt).join(', ')}]`;
