@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { expect, modifierKey, railShown, shownPage, test } from './fixtures';
+import { expect, modifierKey, railShown, showPane, shownPage, test } from './fixtures';
 
 const palette = (page: Page) => page.getByRole('dialog', { name: 'Search' });
 const searchPage = (page: Page) => page.locator('app-search');
@@ -108,6 +108,7 @@ test.describe('the search shortcuts', { tag: '@nav' }, () => {
       await expect(field(page)).toBeFocused();
       await back(page);
       await expect(page).toHaveURL(/\/coding\/problems\/two-sum$/);
+      await showPane(page, 'Code');
       await editor.click();
       await searchChord(page);
       await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));

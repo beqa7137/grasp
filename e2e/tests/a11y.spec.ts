@@ -7,6 +7,7 @@ import {
   recordedEvents,
   seek,
   seekTimeline,
+  showPane,
   startMockRound,
   stepToCheckpoint,
   test,
@@ -70,6 +71,21 @@ const PAGES: { name: string; path: string; ready: (page: Page) => Promise<unknow
     ready: (page) => expect(page.getByRole('heading', { name: 'Binary Search', level: 1 })).toBeVisible(),
   },
   {
+    name: "a pattern's problems",
+    path: '/coding/patterns/binary-search/problems',
+    ready: (page) => expect(page.getByRole('heading', { name: 'Problems', level: 2 })).toBeVisible(),
+  },
+  {
+    name: 'the hint ladder, open to its last rung',
+    path: '/coding/problems/search-rotated-array',
+    ready: async (page) => {
+      await page.getByRole('button', { name: 'Which pattern?' }).click();
+      await page.getByRole('button', { name: 'Which words give it away?' }).click();
+      await page.getByRole('button', { name: 'Show the template' }).click();
+      await expect(page.getByRole('link', { name: 'Watch it: Binary Search →' })).toBeVisible();
+    },
+  },
+  {
     name: 'the LCS visualizer and its table',
     path: '/coding/visualizers/lcs',
     ready: (page) => expect(page.getByRole('table')).toBeVisible(),
@@ -113,7 +129,10 @@ const PAGES: { name: string; path: string; ready: (page: Page) => Promise<unknow
   {
     name: 'the code workspace',
     path: '/coding/problems/two-sum',
-    ready: (page) => expect(page.getByRole('textbox', { name: 'Two Sum solution' })).toBeVisible(),
+    ready: async (page) => {
+      await showPane(page, 'Code');
+      await expect(page.getByRole('textbox', { name: 'Two Sum solution' })).toBeVisible();
+    },
   },
   {
     name: 'a tree problem with its example trees',

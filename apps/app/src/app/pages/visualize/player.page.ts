@@ -22,6 +22,7 @@ import {
   formatField,
   getAlgorithm,
   getPatternSummary,
+  nextVisualizer,
   parseField,
   type AlgorithmDef,
   type Frame,
@@ -123,6 +124,13 @@ export class PlayerPage {
   readonly algo = computed(() => getAlgorithm(this.id()) as AlgorithmDef | undefined);
   readonly problem = computed(() => CODING_CATALOG.find((p) => p.algorithmId === this.id()));
   readonly pattern = computed(() => (this.algo() ? getPatternSummary(this.algo()!.patternId) : undefined));
+  /** The end card's next step after writing the problem: the next visualizer in roadmap order. */
+  readonly following = computed(() => nextVisualizer(this.id()));
+  /**
+   * The last frame's next steps, at the top of R. The result shows there too, so the caption keeps its height and never
+   * scrolls; the caption keeps the result for screen readers, as its live region reads it.
+   */
+  readonly endCard = computed(() => this.index() === this.last() && !this.pending() && Boolean(this.problem() || this.following()));
 
   /** ⋯ is open, so where region R can be short the caption keeps to two lines and R keeps room for the panel. */
   protected readonly moreOpen = signal(false);

@@ -38,8 +38,6 @@ const KNOWN_NESTED_PANELS = [
   // Never rendered: the walk does not evaluate `@if`, and the answer panel sets `[coached]="false"`, which hides the STAR
   // editor's checks panel. It stays until R37 rebuilds the editor, so that iteration need not look for a nesting.
   'pages/interview/behavioral-answer.component.ts: app-star-editor',
-  // R16, the pattern hub: the same quick check inside the pattern page's section panel.
-  'pages/pattern/pattern.page.ts: app-quick-check',
 ];
 
 interface Template {

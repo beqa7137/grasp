@@ -1,3 +1,4 @@
+import { itemsForTopic } from '@grasp/engine';
 import { expect, expectSectionLit, section, synced, test } from './fixtures';
 
 test('a review session grades every card and schedules the next review', async ({ page }) => {
@@ -29,34 +30,46 @@ test('a review session grades every card and schedules the next review', async (
 
 test('a drill of one pattern stays outside the schedule', async ({ page }) => {
   await page.goto('/coding/patterns/hashing');
-  await page.getByRole('link', { name: /Drill 6 cards/ }).click();
+  await page.getByRole('link', { name: 'Drill', exact: true }).click();
   await expect(page).toHaveURL(/\/coding\/patterns\/hashing\/drill/);
-  await page.locator('app-drill g-question-card .choice').first().click();
+  const drill = page.locator('app-pattern-hub app-drill-session');
+  await expect(drill.getByText("Drill answers don't change your review schedule.", { exact: false })).toBeVisible();
+  // The six hashing cards, which the lesson's old "Drill 6 cards" button named.
+  await expect(drill.locator('.stats .mono')).toHaveText(`1/${itemsForTopic('hashing').length}`);
+  expect(itemsForTopic('hashing')).toHaveLength(6);
+  await page.locator('app-drill-session g-question-card .choice').first().click();
   await expect(page.getByRole('button', { name: /^Next/ })).toBeVisible();
 });
 
-test('a drill goes back to its lesson, and the review back to Today', { tag: '@nav' }, async ({ page }) => {
-  const drill = page.locator('app-drill');
-  const back = drill.locator('ion-back-button');
-  await page.goto('/today/review');
-  await expect(drill.getByRole('heading', { name: "Today's review" })).toBeVisible();
-  await back.click();
-  await expect(page).toHaveURL(/\/today$/);
-  await expectSectionLit(page, 'Today');
+test(
+  "a pattern's drill leaves its hub for the Skill map, a topic's goes back to its lesson, and the review to Today",
+  { tag: '@nav' },
+  async ({ page }) => {
+    const drill = page.locator('app-drill');
+    const back = drill.locator('ion-back-button');
+    await page.goto('/today/review');
+    await expect(drill.getByRole('heading', { name: "Today's review" })).toBeVisible();
+    await back.click();
+    await expect(page).toHaveURL(/\/today$/);
+    await expectSectionLit(page, 'Today');
 
-  await section(page, 'Coding').click();
-  await page.locator('app-skill-map a[href="/coding/patterns/hashing"]').click();
-  await page.getByRole('link', { name: /Drill 6 cards/ }).click();
-  await expect(page).toHaveURL(/\/coding\/patterns\/hashing\/drill/);
-  await expect(drill.getByRole('heading', { name: 'Arrays & Hashing', level: 1 })).toBeVisible();
-  await back.click();
-  await expect(page).toHaveURL(/\/coding\/patterns\/hashing$/);
-  await expectSectionLit(page, 'Coding');
+    await section(page, 'Coding').click();
+    await page.locator('app-skill-map a[href="/coding/patterns/hashing"]').click();
+    await page.getByRole('link', { name: 'Drill', exact: true }).click();
+    await expect(page).toHaveURL(/\/coding\/patterns\/hashing\/drill/);
+    const hub = page.locator('app-pattern-hub');
+    await expect(hub.getByRole('heading', { name: 'Arrays & Hashing', level: 1 })).toBeVisible();
+    await expect(hub.getByRole('heading', { name: 'Drill', level: 2 })).toBeVisible();
+    // A segment is part of its hub (REDESIGN.md 2.5), so back leaves the hub.
+    await hub.locator('ion-back-button').click();
+    await expect(page).toHaveURL(/\/coding$/);
+    await expectSectionLit(page, 'Coding');
 
-  await page.goto('/design/topics/sd-latency/drill');
-  await back.click();
-  await expect(page).toHaveURL(/\/design\/topics\/sd-latency$/);
-});
+    await page.goto('/design/topics/sd-latency/drill');
+    await back.click();
+    await expect(page).toHaveURL(/\/design\/topics\/sd-latency$/);
+  },
+);
 
 test('on a phone an answered card shows its rating buttons above the tab bar, and its whole explanation above them', async ({
   page,
@@ -96,10 +109,10 @@ test.describe('with motion reduced, so the explanation does not rise into place 
     for (const size of [page.viewportSize()!, { width: 320, height: 700 }, { width: 412, height: 480 }]) {
       await page.setViewportSize(size);
       await page.goto('/coding/patterns/binary-search/drill');
-      await page.locator('app-drill g-question-card .choice').first().click();
+      await page.locator('app-drill-session g-question-card .choice').first().click();
       await expect(page.getByRole('button', { name: /^Next/ })).toBeVisible();
       const clear = () =>
-        page.locator('app-drill').evaluate((drill) => {
+        page.locator('app-drill-session').evaluate((drill) => {
           const bar = drill.querySelector('.actions')!.getBoundingClientRect();
           return drill.querySelector('g-question-card .reveal')!.getBoundingClientRect().bottom <= bar.top + 0.5;
         });

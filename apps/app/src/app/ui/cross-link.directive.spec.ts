@@ -2,7 +2,7 @@ import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { NavigationStart, Router, provideRouter } from '@angular/router';
 import { NavController } from '@ionic/angular';
-import { type CrossSections, forgetOnChange } from './cross-link.directive';
+import { CrossSections, forgetOnChange } from './cross-link.directive';
 
 @Component({ template: '' })
 class Blank {}
@@ -42,5 +42,59 @@ describe('NavController', () => {
     });
     await nav.navigateBack('/somewhere');
     expect(seen).toEqual(['back']);
+  });
+});
+
+describe('CrossSections', () => {
+  function setup() {
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([
+          { path: 'today', component: Blank },
+          { path: 'coding/problems/:id', component: Blank },
+          {
+            path: 'coding/patterns/:id',
+            component: Blank,
+            children: [
+              { path: '', component: Blank },
+              { path: 'problems', component: Blank },
+            ],
+          },
+          { path: 'coding', component: Blank, children: [{ path: '', component: Blank }] },
+        ]),
+      ],
+    });
+    return { router: TestBed.inject(Router), sections: TestBed.inject(CrossSections) };
+  }
+
+  it("keeps a view's origin when its URL is replaced within its tab, as a pattern hub's segment switch does", async () => {
+    const { router, sections } = setup();
+    await router.navigateByUrl('/today');
+    await router.navigateByUrl('/coding/patterns/hashing', { state: { from: '/today' } });
+    expect(sections.from()).toBe('/today');
+    await router.navigateByUrl('/coding/patterns/hashing/problems', { replaceUrl: true });
+    expect(sections.from()).toBe('/today');
+    await router.navigateByUrl('/coding/problems/two-sum');
+    expect(sections.from()).toBeNull();
+  });
+
+  it('keeps no origin for a history move or a root navigation, which the router and Ionic also mark as replacing', async () => {
+    const { router, sections } = setup();
+    const nav = TestBed.inject(NavController);
+    await router.navigateByUrl('/today');
+    await router.navigateByUrl('/coding/patterns/hashing', { state: { from: '/today' } });
+    await nav.navigateRoot('/coding/problems/two-sum', { replaceUrl: true });
+    expect(sections.from()).toBeNull();
+    await router.navigateByUrl('/coding/patterns/hashing', { state: { from: '/today' } });
+    await nav.navigateBack('/coding/problems/two-sum', { replaceUrl: true });
+    expect(sections.from()).toBeNull();
+  });
+
+  it('counts a pattern hub as a page above its tab, so the tab still returns to where the learner left it', async () => {
+    const { router, sections } = setup();
+    await router.navigateByUrl('/coding');
+    await router.navigateByUrl('/today');
+    await router.navigateByUrl('/coding/patterns/hashing', { state: { from: '/today' } });
+    expect(sections.lastUrl('coding')).toBe('/coding');
   });
 });

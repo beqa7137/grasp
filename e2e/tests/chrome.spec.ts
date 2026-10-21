@@ -61,8 +61,8 @@ test('Settings, the feedback dialog and the drill summary use the skins and nest
     await page.getByRole('button', { name: /^Next/ }).click();
     await expect(summary.or(page.locator('g-question-card .choice:enabled').first())).toBeVisible();
   }
-  await expect(page.locator('app-drill').getByRole('heading', { name: /^\d+\/\d+$/ })).toBeFocused();
-  await expectSkinned(page.locator('app-drill'));
+  await expect(page.locator('app-drill-session').getByRole('heading', { name: /^\d+\/\d+$/ })).toBeFocused();
+  await expectSkinned(page.locator('app-drill-session'));
 });
 
 test.describe('first visit', () => {

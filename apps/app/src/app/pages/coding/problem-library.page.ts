@@ -31,13 +31,10 @@ import {
   librarySummary,
   meetsBar,
   parseLibraryQuery,
-  problemState,
   queryLibrary,
   type CodingProblemSummary,
-  type Difficulty,
   type LibraryQuery,
   type ListFacet,
-  type ProblemState,
 } from '@grasp/engine';
 import { IonIcon } from '@ionic/angular';
 import { refocusAfterRender } from '../../core/focus';
@@ -49,17 +46,10 @@ import { ChipComponent } from '../../ui/chip.component';
 import { EmptyStateComponent } from '../../ui/empty-state.component';
 import { EntryRowComponent, type EntryStatus } from '../../ui/entry-row.component';
 import { FilterBarComponent } from '../../ui/filter-bar.component';
-import { closeIcon, doneStateIcon, expandIcon, notStartedStateIcon, timeIcon } from '../../ui/icons';
+import { closeIcon, expandIcon } from '../../ui/icons';
 import { type KeptSegment } from '../hub/segment-memory';
 import { LibraryPrefsService, type LibraryView } from './library-prefs.service';
-
-const STATUS: Record<ProblemState, EntryStatus & { name: string }> = {
-  unsolved: { name: 'Unsolved', label: 'Unsolved', icon: notStartedStateIcon },
-  attempted: { name: 'Attempted', label: 'Attempted', icon: timeIcon },
-  solved: { name: 'Solved', label: 'Solved', icon: doneStateIcon, tone: 'success' },
-};
-const DIFFICULTY_NAMES: Record<Difficulty, string> = { easy: 'Easy', medium: 'Medium', hard: 'Hard' };
-const PATTERN_NAMES = new Map<string, string>(PATTERN_CATALOG.map((p) => [p.id, p.name]));
+import { DIFFICULTY_NAMES, PATTERN_NAMES, PROBLEM_STATUS as STATUS, problemRow } from './problem-rows';
 
 /**
  * The Problem library (REDESIGN.md 4.2): the 164 problems grouped by pattern or mixed, filtered by status, difficulty,
@@ -213,26 +203,23 @@ export class ProblemLibraryPage implements KeptSegment {
   }
 
   rowStatus(p: CodingProblemSummary): EntryStatus {
-    return STATUS[problemState(this.coding()[p.id])];
+    return problemRow.status(this.coding()[p.id]);
   }
 
   difficultyRank(p: CodingProblemSummary): number {
-    return DIFFICULTIES.indexOf(p.difficulty) + 1;
+    return problemRow.level(p);
   }
 
   difficultyName(p: CodingProblemSummary): string {
-    return DIFFICULTY_NAMES[p.difficulty];
+    return problemRow.levelLabel(p);
   }
 
   best(p: CodingProblemSummary): string[] {
-    const record = this.coding()[p.id];
-    return record && !record.solvedAt ? [`best ${record.bestPassed}/${record.total}`] : [];
+    return problemRow.best(this.coding()[p.id]);
   }
 
-  /** In a pattern's group, the problem's other patterns: the group already names this one. */
   alsoIn(p: CodingProblemSummary, groupPattern: string): string[] {
-    const others = p.patternIds.filter((id) => id !== groupPattern).map((id) => PATTERN_NAMES.get(id) ?? id);
-    return others.length ? [`also in ${others.join(', ')}`] : [];
+    return problemRow.alsoIn(p, groupPattern);
   }
 
   /** The Mixed view names patterns only after a solve, or when the learner turned the tags on. */

@@ -6,3 +6,4 @@ export * from './complexity.js';
 export * from './sd-topics.js';
 export * from './lessons/index.js';
 export * from './sd-shelves.js';
+export * from './roadmap.js';

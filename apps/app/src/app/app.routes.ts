@@ -24,6 +24,16 @@ const shelves = () =>
 const competencies = () =>
   lazy('pages/behavioral/behavioral-list.page', () => import('./pages/behavioral/behavioral-list.page')).then((m) => m.BehavioralListPage);
 const drill = () => lazy('pages/drill/drill.page', () => import('./pages/drill/drill.page')).then((m) => m.DrillPage);
+const patternHub = () =>
+  lazy('pages/pattern/pattern-hub.page', () => import('./pages/pattern/pattern-hub.page')).then((m) => m.PatternHubPage);
+const patternLesson = () =>
+  lazy('pages/pattern/pattern-lesson.component', () => import('./pages/pattern/pattern-lesson.component')).then(
+    (m) => m.PatternLessonComponent,
+  );
+const drillSegment = () =>
+  lazy('pages/pattern/pattern-drill.component', () => import('./pages/pattern/pattern-drill.component')).then(
+    (m) => m.PatternDrillComponent,
+  );
 const sandbox = () => withTitles(lazy('pages/design/sandbox.page', () => import('./pages/design/sandbox.page'))).then((m) => m.SandboxPage);
 
 /**
@@ -96,13 +106,23 @@ export const routes: Routes = [
         loadComponent: () =>
           withTitles(lazy('pages/visualize/player.page', () => import('./pages/visualize/player.page'))).then((m) => m.PlayerPage),
       },
-      { path: 'coding/patterns/:pattern/drill', title: 'Drill', loadComponent: drill },
       {
         path: 'coding/patterns/:id',
         data: { preload: 1 },
         title: (route) => titles().then((t) => t.patternTitle(route)),
-        loadComponent: () =>
-          withTitles(lazy('pages/pattern/pattern.page', () => import('./pages/pattern/pattern.page'))).then((m) => m.PatternPage),
+        // As the section hubs: the hub and its Lesson segment load together.
+        loadComponent: () => withTitles(Promise.all([patternHub(), patternLesson()]).then(([page]) => page)),
+        children: [
+          { path: '', loadComponent: patternLesson, data: { preload: 1 } },
+          {
+            path: 'problems',
+            loadComponent: () =>
+              lazy('pages/pattern/pattern-problems.component', () => import('./pages/pattern/pattern-problems.component')).then(
+                (m) => m.PatternProblemsComponent,
+              ),
+          },
+          { path: 'drill', loadComponent: drillSegment },
+        ],
       },
       {
         path: 'coding',

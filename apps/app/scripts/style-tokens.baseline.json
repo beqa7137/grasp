@@ -57,7 +57,6 @@
   "app/pages/code/workspace.page.scss": {
     "border-radius": 2,
     "font-size": 9,
-    "media": 1,
     "spacing": 38
   },
   "app/pages/design-lesson/availability-widget.component.ts": {
@@ -272,7 +271,7 @@
     "font-size": 5,
     "spacing": 17
   },
-  "app/pages/drill/drill.page.scss": {
+  "app/pages/drill/drill-session.component.scss": {
     "border-radius": 2,
     "font-size": 5,
     "spacing": 16
@@ -305,10 +304,6 @@
     "border-radius": 1,
     "font-size": 1,
     "spacing": 4
-  },
-  "app/pages/pattern/pattern.page.ts": {
-    "font-size": 10,
-    "spacing": 19
   },
   "app/pages/pattern/quick-check.component.ts": {
     "font-size": 1,

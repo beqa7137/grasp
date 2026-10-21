@@ -7,12 +7,17 @@
 
 <ion-content [fullscreen]="true">
   @if (problem(); as p) {
-    <div class="workspace">
+    <g-segmented class="panes" label="Show" [options]="panes" [value]="pane()" (valueChange)="choosePane($event!)" />
+    <div class="workspace" [attr.data-pane]="pane()">
       <section class="problem panel">
-        <div class="chips">
+        <div class="chips" #chips>
           <span class="chip" [class]="p.difficulty">{{ p.difficulty }}</span>
-          @for (id of p.patternIds; track id) {
-            <a class="chip accent" [routerLink]="['/coding/patterns', id]">{{ patternName(id) }}</a>
+          @if (patternShown()) {
+            @for (id of p.patternIds; track id) {
+              <a class="chip accent" [routerLink]="['/coding/patterns', id]">{{ patternName(id) }}</a>
+            }
+          } @else {
+            <button class="chip show-pattern" (click)="showPattern()">Show pattern</button>
           }
           @if (record()?.solvedAt) {
             <span class="chip solved"><ion-icon name="checkmark-circle" aria-hidden="true" /> solved</span>
@@ -43,6 +48,13 @@
           }
         </ul>
         <app-interview-reports class="reports" kind="problem" [itemId]="p.id" />
+        <div class="hints">
+          @if (hintLadder(); as ladder) {
+            <ng-container *ngComponentOutlet="ladder; inputs: hintInputs()" />
+          } @else {
+            <h2 class="eyebrow">Hints</h2>
+          }
+        </div>
 
         @if (record()?.solvedAt) {
           <div class="approach">
@@ -57,7 +69,15 @@
       </section>
 
       <section class="work">
-        <div class="toolbar">
+        @if (askLanguage()) {
+          <div class="ask-language" role="group" [attr.aria-labelledby]="askId">
+            <p [id]="askId">Which language will you interview in?</p>
+            @for (l of languages; track l) {
+              <button class="g-btn" (click)="answerLanguage(l)">{{ languageLabels[l] }}</button>
+            }
+          </div>
+        }
+        <div class="toolbar" #toolbar>
           <app-language-picker [language]="language()" (languageChange)="setLanguage($event)" />
           <button class="g-btn ghost icon" (click)="resetCode()" title="Reset to the starter code" aria-label="Reset code">
             <ion-icon name="refresh-outline" aria-hidden="true" />
@@ -85,7 +105,7 @@
           />
         </div>
 
-        <div class="results panel">
+        <div class="results panel" tabindex="-1" aria-label="Results" role="region" #resultsPanel>
           <div class="tabs">
             <div class="tablist" role="tablist" aria-label="Results">
               <button
@@ -143,8 +163,30 @@
 
                   @if (reportKind() === 'submit' && allPassed()) {
                     <div class="success">
-                      <p><strong>Accepted.</strong>&ngsp;<g-code-text [text]="problem()!.approach" /></p>
+                      <p>
+                        <strong>Accepted.</strong>&ngsp;
+                        @if (earned()) {
+                          <span class="xp">+{{ earned() }} XP</span>&ngsp;
+                        }
+                        <g-code-text [text]="problem()!.approach" />
+                      </p>
                       <p class="mono small">Expected: time {{ problem()!.complexity.time }} · space {{ problem()!.complexity.space }}</p>
+                      <div class="next-steps">
+                        @if (nextProblem(); as n) {
+                          <a
+                            class="g-btn primary"
+                            [routerLink]="['/coding/problems', n.id]"
+                            [replaceUrl]="true"
+                            [state]="{ pattern: focusPattern(), fromHub: fromHub && hubPattern === focusPattern() }"
+                            >Next unsolved in {{ patternName(focusPattern()) }}: {{ n.title }} →</a
+                          >
+                        } @else {
+                          <p class="small">Every {{ patternName(focusPattern()) }} problem is solved.</p>
+                        }
+                        <a class="g-btn" [href]="'/coding/patterns/' + focusPattern()" (click)="backToPattern($event)"
+                          >Back to {{ patternName(focusPattern()) }}</a
+                        >
+                      </div>
                     </div>
                   }
 

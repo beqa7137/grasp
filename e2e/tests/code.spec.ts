@@ -1,5 +1,19 @@
 import type { Locator } from '@playwright/test';
-import { JS_DIAMETER, JS_ISLANDS, expect, expectUnmoved, seek, stepTotal, synced, test, trace, viewportTop, write } from './fixtures';
+import {
+  JS_DIAMETER,
+  JS_ISLANDS,
+  expect,
+  expectUnmoved,
+  pickLanguage,
+  seek,
+  showPane,
+  stepTotal,
+  synced,
+  test,
+  trace,
+  viewportTop,
+  write,
+} from './fixtures';
 
 const JS_TWO_SUM = `function twoSum(nums, target) {
   const seen = new Map();
@@ -203,7 +217,7 @@ const PY_CRASH = `def two_sum(nums, target):
 
 test('an efficient JavaScript solution passes the examples, then every test', { tag: '@smoke' }, async ({ page }) => {
   await page.goto('/coding/problems/two-sum');
-  await page.getByRole('radio', { name: 'JavaScript' }).click();
+  await pickLanguage(page, 'JavaScript');
   await write(page, JS_TWO_SUM);
 
   await page.getByRole('button', { name: 'Run', exact: true }).click();
@@ -218,7 +232,7 @@ test('an efficient JavaScript solution passes the examples, then every test', { 
 
 test('a correct but quadratic solution fails the performance test', async ({ page }) => {
   await page.goto('/coding/problems/two-sum');
-  await page.getByRole('radio', { name: 'JavaScript' }).click();
+  await pickLanguage(page, 'JavaScript');
   await write(page, JS_TWO_SUM_QUADRATIC);
   await page.getByRole('button', { name: 'Run', exact: true }).click();
   await expect(page.getByText('3 / 3 examples passed')).toBeVisible();
@@ -230,6 +244,7 @@ test('a correct but quadratic solution fails the performance test', async ({ pag
 test('Python runs in the browser on Pyodide', { tag: '@smoke' }, async ({ page }) => {
   test.slow();
   await page.goto('/coding/problems/two-sum');
+  await showPane(page, 'Code');
   await expect(page.getByRole('radio', { name: 'Python' })).toBeChecked();
   await write(page, PY_TWO_SUM);
   await page.getByRole('button', { name: 'Run', exact: true }).click();
@@ -238,7 +253,7 @@ test('Python runs in the browser on Pyodide', { tag: '@smoke' }, async ({ page }
 
 test('Ctrl/⌘ + Enter runs the examples straight from the editor', async ({ page }) => {
   await page.goto('/coding/problems/two-sum');
-  await page.getByRole('radio', { name: 'JavaScript' }).click();
+  await pickLanguage(page, 'JavaScript');
   await write(page, JS_TWO_SUM);
   await page.keyboard.press('ControlOrMeta+Enter');
   await expect(page.getByText('3 / 3 examples passed')).toBeVisible();
@@ -246,6 +261,7 @@ test('Ctrl/⌘ + Enter runs the examples straight from the editor', async ({ pag
 
 test('in Python, Trace explains itself and offers JavaScript, keeping the Python draft', async ({ page }) => {
   await page.goto('/coding/problems/two-sum');
+  await showPane(page, 'Code');
   await expect(page.getByRole('radio', { name: 'Python' })).toBeChecked();
   await write(page, PY_TWO_SUM);
   await page.getByRole('button', { name: 'Trace', exact: true }).click();
@@ -256,6 +272,7 @@ test('in Python, Trace explains itself and offers JavaScript, keeping the Python
 
   await note.getByRole('button', { name: 'Switch to JavaScript' }).click();
   await expect(page.getByRole('radio', { name: 'JavaScript' })).toBeChecked();
+  await showPane(page, 'Code');
   const editor = page.getByRole('textbox', { name: 'Two Sum solution' });
   await expect(editor).not.toContainText('enumerate(nums)');
   await page.getByRole('radio', { name: 'Python' }).click();
@@ -276,7 +293,7 @@ test('Trace steps through your own JavaScript', { tag: '@player' }, async ({ pag
 test('a tree problem builds each input tree from its level order and accepts a TypeScript DFS', async ({ page }) => {
   await page.goto('/coding/problems/tree-diameter');
   await expect(page.locator('.example g-tree-view')).toHaveCount(3);
-  await page.getByRole('radio', { name: 'TypeScript' }).click();
+  await pickLanguage(page, 'TypeScript');
   await write(page, TS_DIAMETER, 'Diameter of Binary Tree');
   await page.getByRole('button', { name: 'Run', exact: true }).click();
   await expect(page.getByText('3 / 3 examples passed')).toBeVisible();
@@ -298,7 +315,7 @@ test('Python has TreeNode and Optional in scope for a tree problem', async ({ pa
 
 test('a list problem hands the list over as linked nodes and accepts an in-place JavaScript reversal', async ({ page }) => {
   await page.goto('/coding/problems/reverse-linked-list');
-  await page.getByRole('radio', { name: 'JavaScript' }).click();
+  await pickLanguage(page, 'JavaScript');
   await write(page, JS_REVERSE, 'Reverse Linked List');
   await page.getByRole('button', { name: 'Run', exact: true }).click();
   await expect(page.getByText('3 / 3 examples passed')).toBeVisible();
@@ -339,7 +356,7 @@ test('Trace shows each list variable as the values it leads to, and the list it 
 
 test('a JavaScript Kruskal with union-find is accepted for Connecting Cities, 100,000 roads included', async ({ page }) => {
   await page.goto('/coding/problems/connecting-cities');
-  await page.getByRole('radio', { name: 'JavaScript' }).click();
+  await pickLanguage(page, 'JavaScript');
   await write(page, JS_KRUSKAL, 'Connecting Cities With Minimum Cost');
   await page.getByRole('button', { name: 'Submit' }).click();
   await expect(page.getByText(/^(\d+) \/ \1 tests passed$/)).toBeVisible({ timeout: 30_000 });
@@ -357,7 +374,7 @@ test('a Python Prim with an array of distances is accepted for Min Cost to Conne
 
 test('a JavaScript bitmask DP is accepted for Partition to K Equal Sum Subsets, 16 values included', async ({ page }) => {
   await page.goto('/coding/problems/partition-k-subsets');
-  await page.getByRole('radio', { name: 'JavaScript' }).click();
+  await pickLanguage(page, 'JavaScript');
   await write(page, JS_PARTITION, 'Partition to K Equal Sum Subsets');
   await page.getByRole('button', { name: 'Submit' }).click();
   await expect(page.getByText(/^(\d+) \/ \1 tests passed$/)).toBeVisible({ timeout: 30_000 });
@@ -637,5 +654,6 @@ test('the tree visualizer leads to its coding problem', async ({ page }) => {
   await page.getByRole('button', { name: 'About this visualizer' }).click();
   await page.getByRole('link', { name: /Now write it yourself: Diameter of Binary Tree/ }).click();
   await expect(page).toHaveURL(/\/coding\/problems\/tree-diameter$/);
+  await showPane(page, 'Code');
   await expect(page.getByRole('textbox', { name: 'Diameter of Binary Tree solution' })).toBeVisible();
 });

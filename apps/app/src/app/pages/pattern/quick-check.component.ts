@@ -31,7 +31,7 @@ interface Asked {
       <p class="summary" role="status">You got {{ correct() }} of {{ asked().length }} right.</p>
       <div class="actions">
         <button class="g-btn" (click)="restart()">Check again</button>
-        <a class="g-btn" [routerLink]="drillLink(topic())" crossLink>Drill all {{ total() }} cards</a>
+        <a class="g-btn" [routerLink]="drillLink(topic())" [replaceUrl]="inHub()" crossLink>Drill all {{ total() }} cards</a>
       </div>
     }
   `,
@@ -63,6 +63,8 @@ interface Asked {
 export class QuickCheckComponent {
   readonly drillLink = drillLink;
   readonly topic = input.required<string>();
+  /** In a pattern hub, where the drill is a segment, so its link replaces the URL as the segment row's do. */
+  readonly inHub = input(false);
   private readonly progress = inject(ProgressService);
   readonly round = signal(0);
   readonly position = signal(0);

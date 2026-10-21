@@ -95,7 +95,7 @@ test(
       // The player hides the tab bar under 1024px, so the other page is its pattern, opened from the intro.
       await page.getByRole('button', { name: 'About this visualizer' }).click();
       await page.getByRole('dialog', { name: 'Binary Search' }).getByRole('link', { name: 'Binary Search', exact: true }).click();
-      await expect(page.locator('app-pattern').getByRole('heading', { name: 'Binary Search', level: 1 })).toBeVisible();
+      await expect(page.locator('app-pattern-hub').getByRole('heading', { name: 'Binary Search', level: 1 })).toBeVisible();
       await expect(player).toBeHidden();
       await page.keyboard.press('1');
     }
@@ -103,7 +103,7 @@ test(
 
     // The hidden player does not re-render, so look for a stray answer only once it is back in view.
     if (wide) await section(page, 'Coding').click();
-    else await page.locator('app-pattern ion-back-button').click();
+    else await page.locator('app-pattern-hub ion-back-button').click();
     await expect(player.getByText('Your call')).toBeVisible();
     await expect(player.locator('.predict .verdict')).toHaveCount(0);
     const sync = synced(page, 'predict.answered');

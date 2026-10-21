@@ -10,6 +10,13 @@ const TWO_SUM = `function twoSum(nums, target) {
 }`;
 
 /** A calendar day this many days from the page's today, as the date field takes it. */
+/** Under 1024px the workspace shows one pane at a time (REDESIGN.md 4.2); wider, every pane shows and this does nothing. */
+async function showPane(p, pane) {
+  await p.locator('app-code-workspace .workspace').last().waitFor();
+  const control = p.getByRole('radiogroup', { name: 'Show' }).getByRole('radio', { name: pane, exact: true });
+  if (await control.isVisible()) await control.click();
+}
+
 const inDays = (p, days) =>
   p.evaluate((n) => {
     const d = new Date();
@@ -268,6 +275,7 @@ export function learnStates() {
       setup: toEnd,
     },
     { id: 'player-kruskal-mst-end', path: '/coding/visualizers/kruskal-mst', setup: toEnd },
+    { id: 'player-dijkstra-end', path: '/coding/visualizers/dijkstra', setup: toEnd },
     { id: 'player-minimum-xor-sum-end', path: '/coding/visualizers/minimum-xor-sum', setup: toEnd },
     {
       id: 'player-minimum-xor-sum-four',
@@ -306,6 +314,7 @@ export function learnStates() {
     { id: 'practice-question', path: '/coding/patterns/binary-search/drill' },
     { id: 'practice-answered', path: '/coding/patterns/binary-search/drill', setup: (p) => answerFirst(p, 'g-question-card .choice') },
     { id: 'pattern-binary-search', path: '/coding/patterns/binary-search' },
+    { id: 'pattern-binary-search-problems', path: '/coding/patterns/binary-search/problems' },
     { id: 'pattern-linked-list-reversal', path: '/coding/patterns/linked-list-reversal' },
     { id: 'pattern-minimum-spanning-tree', path: '/coding/patterns/minimum-spanning-tree' },
     { id: 'pattern-bitmask-dp', path: '/coding/patterns/bitmask-dp' },
@@ -380,18 +389,41 @@ export function learnStates() {
       id: 'code-python-trace-note',
       path: '/coding/problems/two-sum',
       setup: async (p) => {
+        await showPane(p, 'Code');
         await p.getByRole('button', { name: 'Trace', exact: true }).click();
         await p.getByText('Trace steps through JavaScript or TypeScript code.').waitFor();
         await settle(p, 400);
       },
     },
     { id: 'code-reverse-linked-list-ii', path: '/coding/problems/reverse-linked-list-ii' },
+    {
+      id: 'code-hints',
+      path: '/coding/problems/search-rotated-array',
+      setup: async (p) => {
+        const ladder = p.locator('app-hint-ladder');
+        await ladder.getByRole('button', { name: 'Which pattern?' }).click();
+        await ladder.getByRole('button', { name: 'Which words give it away?' }).click();
+        await ladder.getByRole('button', { name: 'Show the template' }).click();
+        await ladder.getByRole('link', { name: /^Watch it/ }).scrollIntoViewIfNeeded();
+        await settle(p);
+      },
+    },
+    {
+      id: 'code-signature',
+      path: '/coding/problems/cheapest-flights',
+      setup: async (p) => {
+        await showPane(p, 'Code');
+        await p.getByRole('radio', { name: 'TypeScript' }).click();
+        await settle(p);
+      },
+    },
     { id: 'code-critical-mst-edges', path: '/coding/problems/critical-mst-edges' },
     { id: 'code-maximum-students', path: '/coding/problems/maximum-students' },
     {
       id: 'code-two-sum-run',
       path: '/coding/problems/two-sum',
       setup: async (p) => {
+        await showPane(p, 'Code');
         await p.getByRole('button', { name: /Run/ }).first().click();
         await p.waitForSelector('.outcome', { timeout: 30_000 });
         await settle(p, 400);
@@ -401,6 +433,7 @@ export function learnStates() {
       id: 'code-two-sum-accepted',
       path: '/coding/problems/two-sum',
       setup: async (p) => {
+        await showPane(p, 'Code');
         await p.getByRole('radio', { name: 'JavaScript' }).click();
         await p.getByRole('textbox', { name: 'Two Sum solution' }).click();
         // The editor selects all with the page's own platform key, which on the ipad profile is not the host's.
@@ -410,8 +443,6 @@ export function learnStates() {
         await p.getByRole('button', { name: 'Submit' }).click();
         const verdict = p.getByText('Accepted.');
         await verdict.waitFor({ timeout: 30_000 });
-        // The editor keeps the horizontal scroll of the long pasted line; delete this with the LOOP.md follow-up's app fix.
-        await p.locator('.cm-scroller').evaluate((scroller) => (scroller.scrollLeft = 0));
         await verdict.scrollIntoViewIfNeeded();
         await settle(p);
       },

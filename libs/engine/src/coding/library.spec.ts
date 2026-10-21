@@ -17,6 +17,7 @@ import {
   queryLibrary,
   type LibraryQuery,
 } from './library.js';
+import { nextUnsolved, patternProblems } from './pattern-problems.js';
 
 const solved = (at = '2026-10-01T10:00:00.000Z'): CodingRecord => ({ attempts: 1, solvedAt: at, bestPassed: 5, total: 5, lastAt: at });
 const attempted = (at = '2026-10-02T10:00:00.000Z'): CodingRecord => ({ attempts: 2, solvedAt: null, bestPassed: 3, total: 5, lastAt: at });
@@ -121,6 +122,32 @@ describe('the problem library', () => {
     expect(startHerePattern({ 'two-pointers': 'weak', bfs: 'weak' }, (id) => id === 'two-pointers')).toBe('bfs');
     const coding = { 'two-sum': solved('2026-10-01T10:00:00.000Z'), 'three-sum': attempted('2026-10-03T10:00:00.000Z') };
     expect(currentPattern(coding, { bfs: 'weak' })).toBe(CODING_CATALOG.find((p) => p.id === 'three-sum')!.patternIds[0]);
+  });
+});
+
+describe("a pattern hub's problems", () => {
+  it('lists the members, problems of this primary pattern first', () => {
+    const rows = patternProblems('greedy');
+    expect(rows.map((p) => p.id).sort()).toEqual(
+      CODING_CATALOG.filter((p) => p.patternIds.includes('greedy'))
+        .map((p) => p.id)
+        .sort(),
+    );
+    const firstOther = rows.findIndex((p) => p.patternIds[0] !== 'greedy');
+    expect(firstOther).toBeGreaterThan(0);
+    expect(rows.slice(firstOther).every((p) => p.patternIds[0] !== 'greedy')).toBe(true);
+  });
+
+  it('names the next unsolved member after the current one, wrapping to the top', () => {
+    const [a, b, c] = patternProblems('binary-search');
+    expect(nextUnsolved('binary-search', {}, a.id)?.id).toBe(b.id);
+    expect(nextUnsolved('binary-search', { [b.id]: solved() }, a.id)?.id).toBe(c.id);
+    const all = patternProblems('binary-search');
+    expect(nextUnsolved('binary-search', {}, all.at(-1)!.id)?.id).toBe(a.id);
+    expect(nextUnsolved('binary-search', { [a.id]: attempted() })?.id).toBe(a.id);
+    const everything = Object.fromEntries(all.map((p) => [p.id, solved()]));
+    expect(nextUnsolved('binary-search', everything, a.id)).toBeNull();
+    expect(nextUnsolved('binary-search', Object.fromEntries(all.slice(1).map((p) => [p.id, solved()])), a.id)).toBeNull();
   });
 });
 

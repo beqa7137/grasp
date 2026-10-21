@@ -37,6 +37,13 @@ const TAPS = [
     heading: ['Binary Search'],
     ready: 'app-player .scene .viz > *',
   },
+  // Since R16: a problem from the library, timed until the workspace shows its statement.
+  {
+    name: 'problem',
+    before: ['ion-tab-button[tab="coding"]', 'app-hub a[href="/coding/problems"]'],
+    selector: 'app-problem-library a[href="/coding/problems/two-sum"]',
+    heading: ['Two Sum'],
+  },
 ];
 const headingVisible = (texts) =>
   [...document.querySelectorAll('.ion-page:not(.ion-page-hidden) h1')].some(

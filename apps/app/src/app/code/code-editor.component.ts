@@ -79,6 +79,55 @@ const marks = StateField.define<DecorationSet>({
   provide: (field) => EditorView.decorations.from(field),
 });
 
+/** Columns a line's leading whitespace takes, with tabs at the editor's tab size. */
+const leadingColumns = (text: string) => {
+  let columns = 0;
+  for (const ch of text) {
+    if (ch === ' ') columns++;
+    else if (ch === '\t') columns += 4 - (columns % 4);
+    else break;
+  }
+  return columns;
+};
+
+/**
+ * Long lines wrap instead of scrolling sideways (REDESIGN.md 4.2: a signature never scrolls at 320px), and each wrapped
+ * line hangs one indent deeper than its own indentation, so a continuation never reads as a new statement. Each line
+ * carries its hang in `--hang`; the first row is pulled back by the same amount.
+ */
+const hangs = StateField.define<DecorationSet>({
+  create: (state) => hangsFor(state.doc),
+  update: (value, tr) => (tr.docChanged ? hangsFor(tr.state.doc) : value),
+  provide: (field) => EditorView.decorations.from(field),
+});
+
+/** Arrows a wrap must not split: a browser may break after the hyphen of Python's `->`. */
+const ARROWS = /->|=>/g;
+const unbroken = Decoration.mark({ class: 'cm-unbroken' });
+
+function hangsFor(doc: EditorState['doc']): DecorationSet {
+  const ranges = [];
+  for (let n = 1; n <= doc.lines; n++) {
+    const line = doc.line(n);
+    ranges.push(Decoration.line({ attributes: { style: `--hang: ${leadingColumns(line.text) + 4}ch` } }).range(line.from));
+    for (const arrow of line.text.matchAll(ARROWS)) ranges.push(unbroken.range(line.from + arrow.index, line.from + arrow.index + 2));
+  }
+  return Decoration.set(ranges, true);
+}
+
+const wrapping: Extension = [
+  EditorView.lineWrapping,
+  hangs,
+  // CodeMirror pads a line 6px on the left; in em, so the hang adds to the same room.
+  EditorView.theme({
+    '.cm-line': { paddingLeft: 'calc(0.43em + var(--hang))', textIndent: 'calc(-1 * var(--hang))' },
+    // CodeMirror's `anywhere` lets a row break inside a short token and leave a lone "," behind; a word only breaks when it
+    // cannot fit a row of its own.
+    '.cm-content.cm-lineWrapping': { overflowWrap: 'break-word' },
+    '.cm-unbroken': { whiteSpace: 'nowrap' },
+  }),
+];
+
 const languageExtension = (language: Language): Extension =>
   language === 'python' ? python() : javascript({ typescript: language === 'typescript' });
 
@@ -196,6 +245,7 @@ export class CodeEditorComponent implements OnDestroy {
           theme,
           this.darkSlot.of(EditorView.darkTheme.of(untracked(this.appTheme.dark))),
           marks,
+          wrapping,
           this.languageSlot.of(languageExtension(untracked(this.language))),
           // tabindex only makes explicit that the contenteditable takes focus, which checkers such as axe otherwise miss.
           EditorView.contentAttributes.of({ 'aria-label': untracked(this.label), 'aria-describedby': this.keysId, tabindex: '0' }),

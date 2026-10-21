@@ -1,4 +1,5 @@
 @use '../../../type' as *;
+@use '../../../breakpoints' as *;
 
 .workspace {
   display: grid;
@@ -10,9 +11,29 @@
   min-height: 100%;
 }
 
-@media (max-width: 900px) {
+// The Problem / Code / Results control: under 1024px the workspace is one column, and shows one pane at a time.
+.panes {
+  display: none;
+}
+
+@include tabs {
   .workspace {
     grid-template-columns: minmax(0, 1fr);
+    padding-top: 0;
+  }
+  .panes {
+    display: block;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    padding: var(--g-space-2) var(--g-space-4);
+    background: var(--g-bg);
+  }
+  .workspace[data-pane='problem'] .work,
+  .workspace:not([data-pane='problem']) .problem,
+  .workspace[data-pane='code'] .results,
+  .workspace[data-pane='results'] :is(.editor, .ask-language) {
+    display: none;
   }
 }
 
@@ -75,6 +96,34 @@
 .reports {
   margin-top: var(--g-space-3);
   border-top: 1px solid var(--g-line);
+}
+
+.hints {
+  margin-top: var(--g-space-4);
+  padding-top: var(--g-space-3);
+  border-top: 1px solid var(--g-line);
+}
+
+.show-pattern {
+  cursor: pointer;
+  border-style: dashed;
+}
+
+.ask-language {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--g-space-2);
+  padding: var(--g-space-3);
+  border: 1px solid var(--g-line);
+  border-radius: var(--g-radius-sm);
+  background: var(--g-raised);
+
+  p {
+    flex: 1 1 100%;
+    margin: 0;
+    font-weight: 600;
+  }
 }
 
 .approach {
@@ -212,6 +261,22 @@
 
   p {
     margin: 0 0 4px;
+  }
+  .xp {
+    color: var(--g-success-ink);
+    font-weight: 600;
+  }
+}
+
+.next-steps {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--g-space-2);
+  margin-top: var(--g-space-3);
+
+  a {
+    text-decoration: none;
   }
 }
 

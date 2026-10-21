@@ -321,9 +321,11 @@ test.describe('⋯ on a phone', { tag: '@player' }, () => {
       await expect(count(page)).toHaveText(/^(\d+) \/ \1$/);
       await expect(narration).toHaveAttribute('aria-live', 'polite');
       expect(await narration.ariaSnapshot(), `${width}×${height}`).toContain('→ 5');
-      const result = await narration.locator('.result').boundingBox();
-      expect(result!.width > 2, `${width}×${height}: the result is in view`).toBe(shown);
-      await expect(narration.getByRole('link', { name: /Now write it yourself/ })).toBeVisible({ visible: shown });
+      const result = await page.locator('app-player .end-card .result').boundingBox();
+      expect((result?.width ?? 0) > 2, `${width}×${height}: the result is in view`).toBe(shown);
+      const next = page.locator('app-player').getByRole('navigation', { name: 'Next steps' });
+      await expect(next.getByRole('link', { name: 'Write Binary Search →' })).toBeVisible({ visible: shown });
+      await expect(next.getByRole('link', { name: /^Next visualizer: / })).toBeVisible({ visible: shown });
       expect(
         await transport(page)
           .locator('.more')

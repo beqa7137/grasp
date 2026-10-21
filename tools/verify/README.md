@@ -110,7 +110,7 @@ Screenshots, axe violations, page errors and sideways overflow for every page st
 area: `today.mjs` (R14's Today with readiness, Continue and Weak spots, Progress fresh, seeded and at Unfinished, the weak-spot drill, the plan's day strip and By round, and Settings' "Your loop" open), `learn.mjs` (Today, the Coding hub's segments, with the skill map after a placement, the problem library on one track, with its
 filters open, Mixed and empty, and the visualizers of one structure, visualizers at a checkpoint and answered, the player's ⋯ panel, a held scrub guard and its tick
 states, review and practice cards, the review and practice summaries and the caught-up review, Settings at its top and scrolled, the desktop rail expanded on the player and its focused Skip link, the
-code workspace and an accepted submission, the study plan empty and set, the placement check's question and results,
+code workspace and an accepted submission, its hint ladder open and the wrapped signature on the Code pane, a pattern hub's Problems, the player's end card, the study plan empty and set, the placement check's question and results,
 dialogs), `design.mjs` (the Design hub's segments, Lab missions, case studies and their widgets, design lessons) and
 `interview.mjs` (the Mock hub with its start sheets, AI allowance, History by round and offline state, interviews, the mock loop at setup, between rounds and at its debrief, and the Behavioral
 hub with its Questions, the STAR guide and the competency page at a Senior Target) and `search.mjs` (R15's palette with
@@ -214,7 +214,7 @@ Images never go into git, and CI does not make the set: its Chromium and fonts d
 
 ## timing.mjs
 
-First paint of `/today` and the first tap on the Coding tab, the Design tab, the Behavioral tab (since R12), the Mock tab (since R13) and Today's next-visualizer tile (the player, timed until its stage has drawn its first view, `ready`), on a Pixel 7 profile with Fast 3G and a
+First paint of `/today` and the first tap on the Coding tab, the Design tab, the Behavioral tab (since R12), the Mock tab (since R13), the player (opened from Coding's Visualizers, timed until its stage has drawn its first view, `ready`) and a problem opened from the library (since R16), on a Pixel 7 profile with Fast 3G and a
 4x slower CPU, cold cache, builds interleaved, median of `RUNS`. Writes are blocked, so production is safe to time. Each tap's selector and headings also match a build from before R5 (`/today` redirects to Learn there, and the first tab
 is Visualize), so `main` from before R5 can be timed against a later head.
 

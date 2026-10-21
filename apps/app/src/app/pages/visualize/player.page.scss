@@ -177,24 +177,10 @@ ion-title h1 {
     -webkit-line-clamp: 2;
     overflow: hidden;
   }
-  .code-it {
-    color: var(--g-found);
-    text-decoration: none;
-    overflow-wrap: anywhere;
-  }
-  .result {
-    max-width: 100%;
-    overflow-wrap: anywhere;
-    font-weight: 600;
-    color: var(--g-found);
-    background: rgba(var(--g-found-rgb), 0.12);
-    padding: 6px 10px;
-    border-radius: 8px;
-  }
 }
 
 // While ⋯ is open over R where R can be too short for it, the caption keeps to its first two lines, the result leaves the
-// view (not the live region) and the code link leaves until ⋯ closes, so R keeps the panel's 192px. Below 920px of
+// view (not the live region) and the end card leaves R until ⋯ closes, so R keeps the panel's 192px. Below 920px of
 // container height a phone's last frame can need that: house robber's caption, result and link at 390px wide leave R the
 // panel's height only from 915px. A taller window, such as a tablet held upright, keeps the whole caption.
 @container player (max-height: 919.98px) and (not ((min-width: 900px) and (min-height: 424px))) {
@@ -214,9 +200,44 @@ ion-title h1 {
       clip-path: inset(50%);
       white-space: nowrap;
     }
-    .code-it {
-      display: none;
-    }
+  }
+  .panel-col.more-open .end-card {
+    display: none;
+  }
+}
+
+.narration,
+.end-card {
+  .result {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    font-weight: 600;
+    color: var(--g-found);
+    background: rgba(var(--g-found-rgb), 0.12);
+    padding: 6px 10px;
+    border-radius: 8px;
+  }
+}
+
+// The last frame's result and next steps, at the top of R where a checkpoint would sit, so the caption keeps its height.
+.end-card {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--g-space-1) var(--g-space-4);
+  margin-bottom: var(--g-space-3);
+  padding: var(--g-space-3);
+  border: 1px solid var(--g-line);
+  border-radius: var(--g-radius-md);
+  background: var(--g-raised);
+  font-weight: 600;
+
+  a {
+    text-decoration: none;
+    overflow-wrap: anywhere;
+  }
+  .code-it {
+    color: var(--g-success-ink);
   }
 }
 

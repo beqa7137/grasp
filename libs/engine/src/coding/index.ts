@@ -6,3 +6,5 @@ export * from './problem-patterns.js';
 export * from './problems/index.js';
 export * from './suite.js';
 export * from './library.js';
+export * from './hints.js';
+export * from './pattern-problems.js';

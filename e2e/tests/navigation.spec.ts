@@ -159,7 +159,10 @@ test.describe('back from a cross-section link', () => {
         await expect(heading(page)).toHaveText('Arrays & Hashing');
         await expect.poll(() => swipeBack(page)).toBe(false);
 
-        await page.getByRole('link', { name: 'Code: Two Sum' }).click();
+        await shownPage(page)
+          .getByRole('link', { name: /^Problems \(\d+\)$/ })
+          .click();
+        await shownPage(page).locator('app-pattern-problems a[href="/coding/problems/two-sum"]').click();
         await expect(heading(page)).toHaveText('Two Sum');
         await expect.poll(() => swipeBack(page)).toBe(true);
         await back(page);

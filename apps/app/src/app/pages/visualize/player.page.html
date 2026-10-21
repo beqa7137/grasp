@@ -90,17 +90,27 @@
               <p><g-code-text [text]="caption()" /></p>
               @if (!pending()) {
                 @if (result() !== undefined) {
-                  <span class="result mono">→ {{ result() ?? 'null' }}</span>
-                }
-                @if (index() === last() && problem(); as c) {
-                  <a class="code-it" [routerLink]="['/coding/problems', c.id]">Now write it yourself: {{ c.title }} →</a>
+                  <span class="result mono" [class.visually-hidden]="endCard()">→ {{ result() ?? 'null' }}</span>
                 }
               }
             </div>
           </div>
         }
 
-        <div class="panel-col" #panelCol>
+        <div class="panel-col" [class.more-open]="moreOpen()" #panelCol>
+          @if (endCard()) {
+            <nav class="end-card" aria-label="Next steps">
+              @if (result() !== undefined) {
+                <span class="result mono" aria-hidden="true">→ {{ result() ?? 'null' }}</span>
+              }
+              @if (problem(); as c) {
+                <a class="code-it" [routerLink]="['/coding/problems', c.id]">Write {{ c.title }} →</a>
+              }
+              @if (following(); as n) {
+                <a class="next-viz" [routerLink]="['/coding/visualizers', n.id]" [replaceUrl]="true">Next visualizer: {{ n.title }} →</a>
+              }
+            </nav>
+          }
           @if (pending(); as p) {
             @let q = frames()[p.frame].predict!;
             <div class="predict" role="region" aria-label="Checkpoint" [class.revealed]="p.choice !== null" #predictPanel>

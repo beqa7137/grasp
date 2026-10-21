@@ -32,7 +32,8 @@ test('a pattern page teaches the cue and template and links to practice', { tag:
   await expect(page.getByRole('heading', { name: /Cues/ })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Template' })).toBeVisible();
 
-  await page.getByRole('link', { name: 'Code: Two Sum' }).click();
+  await page.getByRole('link', { name: /^Problems \(\d+\)$/ }).click();
+  await page.locator('app-pattern-problems a[href="/coding/problems/two-sum"]').click();
   await expect(page).toHaveURL(/\/coding\/problems\/two-sum$/);
   await expect(page.getByRole('heading', { name: 'Two Sum', level: 1 })).toBeVisible();
 });

@@ -1,11 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
-  ALGORITHM_CATALOG,
   ALGORITHM_STRUCTURES,
   ALGORITHM_STRUCTURE_NAMES,
   PATTERN_CATALOG,
   PATTERN_TRACKS,
+  VISUALIZERS_IN_ORDER as IN_ORDER,
   type AlgorithmStructure,
   type PatternSummary,
 } from '@grasp/engine';
@@ -16,8 +16,6 @@ import { CodeTextComponent } from '../../viz/code-text.component';
 const STRUCTURES = Object.keys(ALGORITHM_STRUCTURE_NAMES) as AlgorithmStructure[];
 const PATTERNS = new Map<string, PatternSummary>(PATTERN_CATALOG.map((p) => [p.id, p]));
 const DIFFICULTY_NAMES = { easy: 'Easy', medium: 'Medium', hard: 'Hard' } as const;
-/** The visualizers in roadmap order: by their pattern's place in the tracks (REDESIGN.md 2.8). */
-const IN_ORDER = [...ALGORITHM_CATALOG].sort((a, b) => PATTERNS.get(a.patternId)!.order - PATTERNS.get(b.patternId)!.order);
 
 /** The Coding hub's Visualizers: the 23 players in track order, with checkpoint accuracy and Structure chips kept in the URL. */
 @Component({
@@ -164,7 +162,7 @@ export class VisualizersComponent {
   readonly structures = STRUCTURES.map((id) => ({
     id,
     name: ALGORITHM_STRUCTURE_NAMES[id],
-    count: ALGORITHM_CATALOG.filter((a) => ALGORITHM_STRUCTURES[a.id] === id).length,
+    count: IN_ORDER.filter((a) => ALGORITHM_STRUCTURES[a.id] === id).length,
   }));
 
   /** The query parameter, bound by the router: the URL is the only filter state (REDESIGN.md 2.5). Unknown values are dropped. */

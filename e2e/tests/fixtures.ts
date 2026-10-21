@@ -194,12 +194,26 @@ export const JS_ISLANDS = `function numIslands(grid) {
   return count;
 }`;
 
-/** Replaces the code in the editor of the problem with this title. */
 /** The modifier the page's own platform uses for shortcuts: Meta on Apple devices, as the editor reads it, else Control. */
 export const modifierKey = async (page: Page) =>
   (await page.evaluate(() => /Mac|iPhone|iPad/.test(`${navigator.platform} ${navigator.userAgent}`))) ? 'Meta' : 'Control';
 
+/** Under 1024px the workspace shows one pane at a time (REDESIGN.md 4.2); this picks one there, and does nothing wider. */
+export async function showPane(page: Page, pane: 'Problem' | 'Code' | 'Results') {
+  await page.locator('app-code-workspace .workspace').last().waitFor();
+  const control = page.getByRole('radiogroup', { name: 'Show' }).getByRole('radio', { name: pane, exact: true });
+  if (await control.isVisible()) await control.click();
+}
+
+/** Picks the workspace's language in its toolbar, on the Code pane where one pane shows at a time. */
+export async function pickLanguage(page: Page, language: 'Python' | 'JavaScript' | 'TypeScript') {
+  await showPane(page, 'Code');
+  await page.getByRole('radio', { name: language }).click();
+}
+
+/** Replaces the code in the editor of the problem with this title. */
 export async function write(page: Page, code: string, title = 'Two Sum') {
+  await showPane(page, 'Code');
   const editor = page.getByRole('textbox', { name: `${title} solution` });
   await editor.click();
   await page.keyboard.press(`${await modifierKey(page)}+a`);
@@ -208,7 +222,7 @@ export async function write(page: Page, code: string, title = 'Two Sum') {
 
 /** Traces JavaScript in the workspace of the problem with this title. */
 export async function trace(page: Page, code: string, title = 'Two Sum') {
-  await page.getByRole('radio', { name: 'JavaScript' }).click();
+  await pickLanguage(page, 'JavaScript');
   await write(page, code, title);
   await page.getByRole('button', { name: 'Trace' }).click();
 }

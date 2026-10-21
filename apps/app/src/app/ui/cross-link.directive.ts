@@ -68,6 +68,7 @@ export class CrossSections {
   /** Tabs a cross-section link entered: their last URL stays where the learner left them until the tab is selected. */
   private readonly entered = new Set<string>();
   private direction: Direction = 'forward';
+  private shown = '';
 
   constructor() {
     this.router.events.subscribe((event) => {
@@ -101,7 +102,14 @@ export class CrossSections {
 
   private record(url: string): void {
     const tab = tabOf(url);
-    const from = crossFrom(this.router.currentNavigation(), url);
+    const navigation = this.router.currentNavigation();
+    // A link that replaces its URL within the tab (a hub's segment, a pattern's Prev or Next) keeps the view's place in the
+    // stack, so it keeps where the view was opened from. The router also marks history moves and first loads as replacing,
+    // and Ionic resends a root's extras on a tab reselect, so only a forward link counts.
+    const replacing = navigation?.trigger === 'imperative' && navigation.extras.replaceUrl && this.direction === 'forward';
+    const replaced = replacing && tabOf(this.shown) === tab ? this.fromByUrl.get(this.shown) : undefined;
+    const from = crossFrom(navigation, url) ?? replaced ?? null;
+    this.shown = url;
     if (from) this.fromByUrl.set(url, from);
     else if (this.direction !== 'back') this.fromByUrl.delete(url);
     // A hub has no back button, so a link into it is an ordinary entry into its tab; only Android's back reads its origin.
@@ -128,10 +136,11 @@ export function forgetOnChange(sections: CrossSections, identity: () => string):
   });
 }
 
-/** Whether the shown page is a tab's hub: a tab root (Today, Mock) or a hub segment. */
+/** Whether the shown page is a tab's hub: a tab root (Today, Mock) or a section hub's segment, not a pattern hub's. */
 function isHub(root: ActivatedRouteSnapshot): boolean {
   let route = root;
   while (route.firstChild) route = route.firstChild;
   const parent = route.parent?.routeConfig;
-  return (parent?.path !== '' && parent?.children !== undefined) || route.routeConfig?.path === tabOf(route.routeConfig?.path ?? '');
+  const atTab = (path: string | undefined) => !!path && path === tabOf(path);
+  return (parent?.children !== undefined && atTab(parent.path)) || atTab(route.routeConfig?.path);
 }
