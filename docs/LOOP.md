@@ -781,6 +781,7 @@ Follow-ups from R18:
 - Minimum XOR Sum still asks "What does the min do?" when `dp[to]` holds ∞, whose answer ("Set it") the prompt shows; its spec wants every outcome asked, so R20's pick asks or a value ask there need that spec changed too.
 - LCS still asks "which rule?" at every j = 1 mismatch (the letters on show answer it), and Grid BFS's count menu (0 to 3) is a fixed menu whose answer slot follows the data; `pickCheckpoints` (R20) caps both.
 - Captions name the drawing's values, so at 320px some wrap to two lines (LCS "Cell (1, 1): compare 'A' from a with 'B' from b."); 3.7 allows two on phone.
+- Asks R20's `pickCheckpoints` should cap or drop: Dijkstra's value asks on the source's own edges (the answer is the printed weight), Dijkstra's "Update?" (No is right about 86% of the time now the ∞ cases moved to the value ask), Trie insert asks right after a node was created on the same word (always "Create a new node", and the drawing shows it), Kruskal's running-total ask (plain arithmetic), Jump Game's "Can you still continue?" after a caption said the last index is reachable, Tree Traversal's "which node next?" with one candidate, and Union-Find verdicts on two untouched singletons (always "Merge").
 - R17's follow-ups on the counter naming the chapter, the narration outside a checkpoint and R25's renderers for spans, lenses and presets apply to all 23 tracers now.
 
 Next: R19 (Motion layer: arrays and lists) and the rest in 5.1's order.
