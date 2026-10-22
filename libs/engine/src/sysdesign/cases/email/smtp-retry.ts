@@ -149,12 +149,12 @@ function fateChoices(run: SmtpRetryRun, others: SmtpRetryRun[]): Pick<WidgetChec
 /**
  * A prediction about the current settings, read from the run: what happens to a message sent as the outage begins and
  * when, how many attempts that takes, or how long after the server is back the queue for the domain is empty.
- * Distractors are what the same question gives under neighbouring settings, or a common mistake.
+ * Distractors are what the same question gives under neighboring settings, or a common mistake.
  */
 export function smtpRetryCheckpoint(s: SmtpRetrySettings, run = smtpRetry(s)): WidgetCheckpoint {
   const temporary = s.reply === 'temporary' ? run : smtpRetry({ ...s, reply: 'temporary' });
   const forever = smtpRetry({ ...s, reply: 'temporary', lifetimeMin: Number.MAX_SAFE_INTEGER });
-  const neighbours = [
+  const neighbors = [
     { ...s, longestMin: s.longestMin * 4 },
     { ...s, firstRetryMin: s.firstRetryMin * 4, longestMin: Math.max(s.longestMin, s.firstRetryMin * 4) },
     { ...s, longestMin: Math.max(s.firstRetryMin, s.longestMin / 4) },
@@ -166,7 +166,7 @@ export function smtpRetryCheckpoint(s: SmtpRetrySettings, run = smtpRetry(s)): W
     const atOnce: SmtpRetryRun = { ...run, outcome: 'bounced', atMin: 0 };
     const atRecovery: SmtpRetryRun = { ...run, outcome: 'delivered', atMin: s.outageMin };
     const lifetimeBounce: SmtpRetryRun = { ...run, outcome: 'bounced', atMin: giveUp };
-    const others = [atOnce, temporary, forever, lifetimeBounce, atRecovery, ...neighbours];
+    const others = [atOnce, temporary, forever, lifetimeBounce, atRecovery, ...neighbors];
     const why =
       s.reply === 'permanent'
         ? `A 5xx reply says the failure is permanent, so the sending server does not retry: it bounces the message to the sender at once, and every one of the ${messagesText(run.bounced)} sent during the outage bounces the same way. That is why a receiving server whose own storage or directory is down must answer 4xx, never 5xx.`
@@ -186,14 +186,14 @@ export function smtpRetryCheckpoint(s: SmtpRetrySettings, run = smtpRetry(s)): W
     const waits = [1, 2, 3, 4].map((k) => durationText(retryWait(k, s.firstRetryMin, s.longestMin)));
     return {
       prompt: `Predict: ${situation}. How many delivery attempts does a message sent as the outage begins get, the first one included?`,
-      ...spacedChoices(count, [fixed, uncapped.attempts.length, ...neighbours.map((n) => n.attempts.length)], attemptsText, 1),
+      ...spacedChoices(count, [fixed, uncapped.attempts.length, ...neighbors.map((n) => n.attempts.length)], attemptsText, 1),
       explain: `The waits between attempts run ${waits.join(', ')} and so on, never longer than ${durationText(s.longestMin)}. Attempt ${count}, at ${durationText(run.atMin)}, is the first at or after ${run.outcome === 'delivered' ? `the ${durationText(s.outageMin)} outage, so it delivers the message` : `the ${durationText(s.lifetimeMin)} queue lifetime while the server is still broken, so it bounces the message`}.`,
     };
   }
   const oldest = Math.min(s.outageMin, giveUp);
   return {
     prompt: `Predict: ${situation}. ${SMTP_RETRY.perMinute} messages a minute go to that domain. Once its server is back, how long until the last of them still queued is delivered?`,
-    ...spacedChoices(run.drainMin, [s.firstRetryMin, s.longestMin, s.outageMin, ...neighbours.map((n) => n.drainMin)], durationText, 1),
+    ...spacedChoices(run.drainMin, [s.firstRetryMin, s.longestMin, s.outageMin, ...neighbors.map((n) => n.drainMin)], durationText, 1),
     explain: `In this model, as in Postfix by default, nothing tells the queue the server is back, so each queued message waits for its own next attempt. The oldest of the ${messagesText(run.queued)} queued is ${durationText(oldest)} old, and its wait between attempts has grown to ${durationText(run.drainMin)}; a message whose last attempt failed just before recovery waits almost that whole interval. A longer cap means a longer tail after every outage.`,
   };
 }

@@ -145,7 +145,7 @@ const waveName = (w: RolloutWave) => (w.index === 0 ? 'the canary' : `wave ${w.i
 /**
  * A prediction about the current settings, read from the run: how long the whole rollout takes, or how many hosts run a
  * bad build by the time analysis flags it. Distractors are what the same question gives when a step of the plan is
- * forgotten, or under neighbouring settings.
+ * forgotten, or under neighboring settings.
  */
 export function rolloutCheckpoint(s: RolloutSettings, run = rollout(s)): WidgetCheckpoint {
   const situation = describe(s, run);
@@ -155,13 +155,13 @@ export function rolloutCheckpoint(s: RolloutSettings, run = rollout(s)): WidgetC
     const baking = bakes * s.bakeMin;
     const updating = run.totalMin - baking;
     const unbatched = run.waves.length * s.hostMin + baking;
-    const neighbours = [
+    const neighbors = [
       { ...s, maxUnavailablePct: s.maxUnavailablePct * 2 },
       { ...s, maxUnavailablePct: s.maxUnavailablePct / 2 },
     ].map((n) => rollout(n).totalMin);
     return {
       prompt: `Predict: ${situation}. How long does the whole rollout take, if nothing goes wrong?`,
-      ...spacedChoices(run.totalMin, [updating, unbatched, run.totalMin + s.bakeMin, ...neighbours], durationText, 1),
+      ...spacedChoices(run.totalMin, [updating, unbatched, run.totalMin + s.bakeMin, ...neighbors], durationText, 1),
       explain: `Hosts update ${num(run.batch)} at a time, ${durationText(s.hostMin)} a batch: ${working.join('; ')}. That is ${durationText(updating)} of updating${baking ? `, plus ${plural(bakes, 'bake')} of ${durationText(s.bakeMin)} between waves` : ' and no baking'}: ${durationText(run.totalMin)}. ${baking > updating ? 'Baking is most of it: the price of catching a bad build while it is small.' : 'Updating is most of it: the cap on hosts out at once sets the pace.'}`,
     };
   }

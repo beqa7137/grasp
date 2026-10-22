@@ -1,0 +1,147 @@
+// A node on the system diagram (REDESIGN.md 3.6, 4.6): state is the heat ramp, the critical outline and the hatch,
+// each with a second encoding (meter length and %, "!", "×").
+:host {
+  --heat: var(--g-muted);
+  outline: none;
+}
+:host([data-heat='1']) {
+  --heat: var(--g-viz-heat-1);
+}
+:host([data-heat='2']) {
+  --heat: var(--g-viz-heat-2);
+}
+:host([data-heat='3']) {
+  --heat: var(--g-viz-heat-3);
+}
+
+.focus {
+  fill: none;
+  stroke: none;
+  rx: var(--g-radius-md);
+}
+:host(:focus-visible) .focus {
+  stroke: var(--g-text);
+  stroke-width: 2;
+}
+
+.body,
+.hatch {
+  rx: var(--g-radius-sm);
+}
+.body {
+  fill: color-mix(in srgb, var(--heat) 10%, var(--g-raised));
+  stroke: var(--g-stroke);
+  stroke-width: 1.5;
+}
+:host([data-heat='0']) .body {
+  fill: var(--g-raised);
+}
+.hatch {
+  fill: url(#g-sys-hatch);
+}
+.glyph {
+  color: var(--g-text);
+}
+.hit-track,
+.hit {
+  fill: none;
+  stroke-width: 2;
+}
+.hit-track {
+  stroke: var(--g-line);
+}
+.hit {
+  stroke: var(--g-muted);
+}
+
+.name {
+  fill: var(--g-text);
+  font: 600 var(--g-text-body-s) var(--ion-font-family);
+  // Names grow less than secondary text, so the longest one-line name still fits beside the glyph.
+  font-size: calc(var(--g-text-body-s) * min(var(--text-scale, 1), 1.12));
+}
+.stat,
+.ms,
+.count {
+  fill: var(--g-muted);
+  font: 600 var(--g-text-label) var(--g-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.stat {
+  fill: var(--g-text);
+  font-size: var(--g-text-body-s);
+}
+.detail {
+  fill: var(--g-muted);
+  font: 500 var(--g-text-label) var(--ion-font-family);
+}
+// Secondary text grows with --text-scale, which the canvas sets when its view is zoomed out, so it stays about 11px on
+// screen; names and values stay put, since the node's box is fixed.
+.count,
+.ms,
+.detail {
+  font-size: calc(var(--g-text-label) * var(--text-scale, 1));
+}
+
+.meter-track,
+.meter,
+.shard {
+  rx: var(--g-radius-xs);
+}
+.meter-track {
+  fill: var(--g-line);
+}
+.meter,
+.shard {
+  fill: var(--heat);
+}
+.shard {
+  &[data-heat='0'] {
+    fill: var(--g-muted);
+  }
+  &[data-heat='1'] {
+    fill: var(--g-viz-heat-1);
+  }
+  &[data-heat='2'] {
+    fill: var(--g-viz-heat-2);
+  }
+  &[data-heat='3'] {
+    fill: var(--g-viz-heat-3);
+  }
+  &.over {
+    fill: var(--g-viz-critical);
+  }
+  &.down {
+    fill: url(#g-sys-hatch);
+    stroke: var(--g-viz-critical);
+  }
+}
+
+.badge {
+  fill: var(--g-viz-critical);
+}
+.badge-mark {
+  fill: var(--g-on-fill);
+  font: 700 var(--g-text-body-s) var(--ion-font-family);
+}
+:host([data-status='overloaded']) .body,
+:host([data-status='down']) .body {
+  stroke: var(--g-viz-critical);
+  stroke-width: 2;
+}
+:host([data-status='down']) {
+  .stat {
+    fill: var(--g-viz-critical);
+  }
+}
+:host(.selected) .body {
+  stroke: var(--g-accent);
+  stroke-width: 2.5;
+}
+
+.port {
+  fill: var(--g-bg);
+  stroke: var(--g-text);
+  stroke-width: 2;
+  cursor: crosshair;
+}

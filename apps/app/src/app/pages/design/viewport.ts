@@ -1,3 +1,7 @@
+import { BOARD } from '@grasp/engine';
+
+export { BOARD };
+
 /** The visible part of the design board, in board units (an SVG viewBox). */
 export interface ViewBox {
   x: number;
@@ -11,7 +15,6 @@ export interface Point {
   y: number;
 }
 
-export const BOARD = { w: 900, h: 480 };
 /** Narrowest view: about 3.5× the fitted zoom on a desktop canvas. */
 export const MIN_VIEW_W = 260;
 /** How far past the board edge a zoomed-in view may be dragged. */
@@ -23,7 +26,7 @@ const PHONE_MAX_WIDTH_PX = 700;
 /** Height ÷ width of the canvas element; the view keeps it so nothing stretches. */
 export type Aspect = number;
 
-/** The whole board, centred, with extra space on whichever axis the element is longer in. */
+/** The whole board, centered, with extra space on whichever axis the element is longer in. */
 export function fitView(aspect: Aspect): ViewBox {
   const w = Math.max(BOARD.w, BOARD.h / aspect);
   const h = w * aspect;
@@ -50,12 +53,16 @@ export function panBy(view: ViewBox, dx: number, dy: number, aspect: Aspect): Vi
   return clampView({ ...view, x: view.x + dx, y: view.y + dy }, aspect);
 }
 
-/** Pans as little as possible to bring a box, such as a component taking keyboard focus, into view. */
-export function reveal(view: ViewBox, box: ViewBox, aspect: Aspect, pad = 12): ViewBox {
+/** How far to pan, as little as possible, to bring a box into view with `pad` around it. */
+export function revealShift(view: ViewBox, box: ViewBox, pad = 12): Point {
   const shift = (start: number, size: number, from: number, to: number) =>
     Math.min(0, from - pad - start) || Math.max(0, to + pad - (start + size));
-  const dx = shift(view.x, view.w, box.x, box.x + box.w);
-  const dy = shift(view.y, view.h, box.y, box.y + box.h);
+  return { x: shift(view.x, view.w, box.x, box.x + box.w), y: shift(view.y, view.h, box.y, box.y + box.h) };
+}
+
+/** Pans as little as possible to bring a box, such as a component taking keyboard focus, into view. */
+export function reveal(view: ViewBox, box: ViewBox, aspect: Aspect, pad = 12): ViewBox {
+  const { x: dx, y: dy } = revealShift(view, box, pad);
   return dx || dy ? panBy(view, dx, dy, aspect) : view;
 }
 
@@ -71,6 +78,30 @@ export function initialView(aspect: Aspect, widthPx: number, nodes: Point[]): Vi
   const left = Math.min(...nodes.map((n) => n.x)) - 90;
   const middle = nodes.reduce((sum, n) => sum + n.y, 0) / nodes.length;
   return clampView({ x: left, y: middle - h / 2, w, h }, aspect);
+}
+
+/**
+ * Where a desktop canvas opens (REDESIGN.md 4.6): every node, and every `extra` box drawn around them, in view with `pad`
+ * board units of margin, centered, and
+ * never magnified past one board unit per screen pixel, so a three-node mission does not open at giant size.
+ */
+export function fitContent(
+  aspect: Aspect,
+  widthPx: number,
+  nodes: Point[],
+  size: { w: number; h: number },
+  pad = 40,
+  extra: readonly ViewBox[] = [],
+): ViewBox {
+  if (!nodes.length) return fitView(aspect);
+  const boxes = [...nodes.map((n) => ({ x: n.x - size.w / 2, y: n.y - size.h / 2, w: size.w, h: size.h })), ...extra];
+  const x0 = Math.min(...boxes.map((b) => b.x)) - pad;
+  const x1 = Math.max(...boxes.map((b) => b.x + b.w)) + pad;
+  const y0 = Math.min(...boxes.map((b) => b.y)) - pad;
+  const y1 = Math.max(...boxes.map((b) => b.y + b.h)) + pad;
+  const w = Math.max(x1 - x0, (y1 - y0) / aspect, widthPx, MIN_VIEW_W);
+  const h = w * aspect;
+  return { x: (x0 + x1) / 2 - w / 2, y: (y0 + y1) / 2 - h / 2, w, h };
 }
 
 /** Board point under a screen point, given the canvas element's box. */

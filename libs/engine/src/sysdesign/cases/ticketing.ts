@@ -7,7 +7,7 @@ export const TICKETING: CaseStudy = {
       kind: 'requirements',
       title: 'Clarify what matters',
       prompt:
-        'Most of the year a ticketing site is a quiet catalogue. Then one tour goes on sale at 10:00 and millions arrive at once. Which requirements shape the design, and which do you park?',
+        'Most of the year a ticketing site is a quiet catalog. Then one tour goes on sale at 10:00 and millions arrive at once. Which requirements shape the design, and which do you park?',
       decision: {
         question: 'Which property do you refuse to trade away, whatever the load?',
         options: [
@@ -18,7 +18,7 @@ export const TICKETING: CaseStudy = {
           },
           {
             label: 'Every buyer who reaches checkout gets through; fix the rare oversell afterwards',
-            why: 'Airlines overbook on purpose because some passengers never show up and a later flight is a remedy. Here there is no spare seat to move anyone to, so "fix it afterwards" means cancelling a fan who already paid.',
+            why: 'Airlines overbook on purpose because some passengers never show up and a later flight is a remedy. Here there is no spare seat to move anyone to, so "fix it afterwards" means canceling a fan who already paid.',
           },
           {
             label: 'The seat map every shopper sees is always exactly current',

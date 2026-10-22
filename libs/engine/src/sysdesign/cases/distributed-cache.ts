@@ -120,7 +120,7 @@ export const DISTRIBUTED_CACHE: CaseStudy = {
           {
             label: 'Consistent hashing: nodes own many points on a hash ring, and a key belongs to the next point clockwise',
             best: true,
-            why: 'Adding a 21st node moves only the keys it takes over, about 1/21 of them, and a removed node hands its keys to many neighbours instead of one. Redis Cluster gets the same property from 16,384 fixed hash slots assigned to nodes.',
+            why: 'Adding a 21st node moves only the keys it takes over, about 1/21 of them, and a removed node hands its keys to many neighbors instead of one. Redis Cluster gets the same property from 16,384 fixed hash slots assigned to nodes.',
           },
           {
             label: '`hash(key) mod N`',

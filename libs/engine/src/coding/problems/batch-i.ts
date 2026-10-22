@@ -136,7 +136,7 @@ export const nQueensCount: CodingProblemDefinition = {
 
 export const minimumHeightTrees: CodingProblemDefinition = {
   statement: [
-    '`edges` describes a tree on `n` nodes labelled 0 to `n - 1`: each `[a, b]` is an undirected edge, and every two nodes are joined by exactly one path.',
+    '`edges` describes a tree on `n` nodes labeled 0 to `n - 1`: each `[a, b]` is an undirected edge, and every two nodes are joined by exactly one path.',
     'Rooting the tree at a node gives it a height, the number of edges on the longest path from that root down to a leaf. Return every node whose rooted tree has the smallest height, in any order. There are always one or two of them; a single node with no edges is its own answer.',
   ],
   constraints: [

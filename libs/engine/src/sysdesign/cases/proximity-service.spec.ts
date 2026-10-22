@@ -34,9 +34,9 @@ describe('proximity service case', () => {
 
   it('quotes the numbers its models give, with one example user and town', () => {
     const own = cellSearch({ precision: 6, radiusKm: 0.5, scope: 'own' });
-    const nine = cellSearch({ precision: 6, radiusKm: 0.5, scope: 'neighbours' });
-    const wide = cellSearch({ precision: 6, radiusKm: 1, scope: 'neighbours' });
-    const coarse = cellSearch({ precision: 5, radiusKm: 1, scope: 'neighbours' });
+    const nine = cellSearch({ precision: 6, radiusKm: 0.5, scope: 'neighbors' });
+    const wide = cellSearch({ precision: 6, radiusKm: 1, scope: 'neighbors' });
+    const coarse = cellSearch({ precision: 5, radiusKm: 1, scope: 'neighbors' });
     expect(text).toContain(`It finds ${own.found} of the ${own.within} places within 0.5 km`);
     expect(text).toContain(`the 9 cells read ${nine.read} places and keep the ${nine.found} within 0.5 km`);
     expect(text).toContain(`so 9 of them miss ${wide.missed} of ${wide.within} places here`);
@@ -68,7 +68,7 @@ describe('proximity service case', () => {
     expect(text).not.toContain('Cache popular cells');
     expect(text).toContain('(category, price, and coarse hours such as open late or open weekends)');
     expect(text).toContain('open now is checked against the hours in the cached record for the few hundred candidates');
-    expect(text).toContain('Hot cells (city centres, airports): reading a cell is already a memory lookup, so the cost is the candidates.');
+    expect(text).toContain('Hot cells (city centers, airports): reading a cell is already a memory lookup, so the cost is the candidates.');
     expect(text).toContain('cache whole responses only for coarse zoomed-out map views, which many users share');
     expect(text).toContain(
       'about 70 ms (New York to London) to 300 ms (Europe to Australia), most or all of the 100 ms budget, or several times it',

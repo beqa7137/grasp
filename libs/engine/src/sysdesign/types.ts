@@ -68,6 +68,8 @@ export interface NodeStats {
   utilization: number;
   latencyMs: number;
   droppedRps: number;
+  /** The part of `droppedRps` refused at this node for want of capacity (or because it is down), not sent nowhere after. */
+  rejectedRps: number;
   absorbedRps: number;
   status: NodeStatus;
   /** Sharded databases only, hottest shard first. */
@@ -111,6 +113,8 @@ export interface SimMetrics {
 export interface SimResult {
   nodes: Record<string, NodeStats>;
   edges: Record<string, number>;
+  /** The bot traffic within each edge's rps. */
+  edgeBots: Record<string, number>;
   metrics: SimMetrics;
   insights: Insight[];
 }

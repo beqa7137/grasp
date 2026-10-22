@@ -126,7 +126,7 @@ export const METRICS_MONITORING: CaseStudy = {
       },
       points: [
         'A series is identified by its full label set, for example `cpu{host="a", dc="eu"}`, where the metric name is itself one more label. The index maps each label pair to a sorted list of series IDs; a query intersects those lists, like a search engine.',
-        'Gorilla compression: timestamps are stored as the difference between successive deltas, which is 0 (a single bit) for a regular 15-second scrape; values are XORed with the previous one, and a slowly changing gauge shares most bits with its neighbour.',
+        'Gorilla compression: timestamps are stored as the difference between successive deltas, which is 0 (a single bit) for a regular 15-second scrape; values are XORed with the previous one, and a slowly changing gauge shares most bits with its neighbor.',
         'Recent data sits in an in-memory head block protected by a write-ahead log; every two hours it is cut into an immutable block on disk, and older blocks are compacted into larger ones. Prometheus works this way.',
         'Retention drops whole blocks, never single samples. Downsampled blocks (5-minute and 1-hour resolution) keep min, max, sum and count per window, so a year-long graph reads few points and still shows the spikes.',
         'Long-term storage: ship finished blocks to object storage (as Thanos, Cortex and Grafana Mimir do) and read them through a gateway, so local disks hold only recent data.',
@@ -227,7 +227,7 @@ export const METRICS_MONITORING: CaseStudy = {
             why: 'Better than a static threshold, but after the problem is fixed the hour still contains the bad minutes, so the alert keeps firing long after recovery, and it still misses slow burns.',
           },
           {
-            label: 'Anomaly detection that learns normal behaviour and pages on deviations',
+            label: 'Anomaly detection that learns normal behavior and pages on deviations',
             why: 'Useful on dashboards for spotting odd shapes, but hard to explain at 3 a.m., noisy around launches and holidays, and not tied to anything users were promised.',
           },
         ],

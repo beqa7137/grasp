@@ -58,6 +58,19 @@ const BANNED: [name: string, char: string][] = [
   ['an em dash', '\u2014'],
   ['a non-breaking space', '\u00a0'],
 ];
+/** British spellings the content uses American forms for (the house style), by family. */
+const BRITISH = new RegExp(
+  [
+    String.raw`\w*(?:neighbour|behaviour|colour|honour|flavour|favour|rumour|labour|harbour)\w*`,
+    String.raw`(?:centre|metre|litre|fibre|theatre)s?|centred|centring`,
+    String.raw`defence|offence|licence|programme|catalogue|grey|cheque|tyres?|aluminium|judgement|fulfil|fulfils|instalments?|enrol|enrols`,
+    String.raw`\w*(?:cancell|labell|modell|travell|signall|totall|fuell|levell|marshall)(?:ed|ing|er|ers)`,
+    String.raw`\w*(?:organis|recognis|optimis|minimis|maximis|prioritis|normalis|utilis|summaris|serialis|deserialis|realis|specialis|initialis|finalis|authoris|categoris|standardis|visualis|memoris|customis|synchronis|parallelis|centralis|capitalis|emphasis|amortis|randomis|tokenis|penalis|apologis|criticis)(?:e|es|ed|ing|ation|ations|er|ers)`,
+  ]
+    .map((family) => `\\b(?:${family})\\b`)
+    .join('|'),
+  'gi',
+);
 /** A comparison or assignment between operands, a property access or an index: the code a pattern's or a problem's prose names. */
 const CODE_OUTSIDE_SPANS = /\w\s*(?:[=!<>]=?=?|>>>?)\s*\w|\w\.\w|\w\[\w*\]/;
 const RANDOM_TRACES = 20;
@@ -131,7 +144,7 @@ function flagWidgetText(): unknown {
 function proximityWidgetText(): unknown {
   const cells = CELL_PRECISIONS.flatMap((precision) =>
     [0.1, 0.5, 1, 2.5, 5].flatMap((radiusKm) =>
-      (['own', 'neighbours'] as const).map((scope) => cellSearchCheckpoint({ precision, radiusKm, scope })),
+      (['own', 'neighbors'] as const).map((scope) => cellSearchCheckpoint({ precision, radiusKm, scope })),
     ),
   );
   const quadtree = DENSITIES.flatMap((density) => [5, 10, 15, 100, 400].map((capacity) => quadtreeCheckpoint({ capacity, density })));
@@ -235,6 +248,13 @@ describe('learner-facing content', () => {
       const json = JSON.stringify(value);
       return BANNED.filter(([, char]) => json.includes(char)).map(([problem]) => `${name} has ${problem}`);
     });
+    expect(problems).toEqual([]);
+  });
+
+  it('spells the American way (neighbor, center, defense, canceled, modeled, serialize, catalog)', () => {
+    const problems = learnerContent().flatMap(([name, value]) =>
+      [...new Set(JSON.stringify(value).match(BRITISH) ?? [])].map((word) => `${name}: ${word}`),
+    );
     expect(problems).toEqual([]);
   });
 

@@ -13,7 +13,7 @@
 <ion-content [fullscreen]="true">
   @if (scenario(); as s) {
     @let m = result().metrics;
-    <div class="page wide">
+    <div class="page wide" [class.desk]="floating()">
       <h1 class="visually-hidden">{{ s.title }}</h1>
       <p class="visually-hidden" role="status">{{ announcer.message() }}</p>
       @if (s.revisit; as r) {
@@ -25,75 +25,96 @@
           </p>
         </section>
       }
-      <section class="metrics">
-        <div
-          class="metric panel"
-          [class.bad]="!isFree() && m.p99Ms > s.goals.maxP99Ms"
-          [class.good]="!isFree() && m.p99Ms <= s.goals.maxP99Ms && m.errorRate < 1"
-        >
-          <span class="label">p99 latency</span>
-          <span class="value">{{ m.errorRate >= 1 ? '–' : (m.p99Ms | number: '1.0-0') }}<small>ms</small></span>
-        </div>
-        <div class="metric panel">
-          <span class="label">p50</span>
-          <span class="value">{{ m.errorRate >= 1 ? '–' : (m.p50Ms | number: '1.0-0') }}<small>ms</small></span>
-        </div>
-        <div
-          class="metric panel"
-          [class.bad]="m.errorRate > s.goals.maxErrorRate"
-          [class.good]="!isFree() && m.errorRate <= s.goals.maxErrorRate"
-        >
-          <span class="label">Errors</span>
-          <span class="value">{{ m.errorRate * 100 | number: '1.0-2' }}<small>%</small></span>
-        </div>
-        <div class="metric panel">
-          <span class="label">Served</span>
-          <span class="value"
-            >{{ fmt(m.successRps) }}<small>/{{ fmt(m.offeredRps) }} rps</small></span
+      @if (!floating()) {
+        <section class="metrics">
+          <div
+            class="metric panel"
+            [class.bad]="!isFree() && m.p99Ms > s.goals.maxP99Ms"
+            [class.good]="!isFree() && m.p99Ms <= s.goals.maxP99Ms && m.errorRate < 1"
           >
-          @if (m.botRps > 0) {
-            <span class="bots">{{ fmt(m.botsBlockedRps) }} of {{ fmt(m.botRps) }} bot rps blocked</span>
-          }
-        </div>
-        <div
-          class="metric panel"
-          [class.bad]="!isFree() && m.monthlyCost > s.goals.maxMonthlyCost"
-          [class.good]="!isFree() && m.monthlyCost <= s.goals.maxMonthlyCost"
-        >
-          <span class="label">Cost</span>
-          <span class="value">${{ fmt(m.monthlyCost) }}<small>/mo</small></span>
-        </div>
-      </section>
+            <span class="label">p99 latency</span>
+            <span class="value">{{ m.errorRate >= 1 ? '–' : (m.p99Ms | number: '1.0-0') }}<small>ms</small></span>
+          </div>
+          <div class="metric panel">
+            <span class="label">p50</span>
+            <span class="value">{{ m.errorRate >= 1 ? '–' : (m.p50Ms | number: '1.0-0') }}<small>ms</small></span>
+          </div>
+          <div
+            class="metric panel"
+            [class.bad]="!isFree() && m.errorRate > s.goals.maxErrorRate"
+            [class.good]="!isFree() && m.errorRate <= s.goals.maxErrorRate"
+          >
+            <span class="label">Errors</span>
+            <span class="value">{{ m.errorRate * 100 | number: '1.0-2' }}<small>%</small></span>
+          </div>
+          <div class="metric panel">
+            <span class="label">Served</span>
+            <span class="value"
+              >{{ fmt(m.successRps) }}<small>/{{ fmt(m.offeredRps) }} rps</small></span
+            >
+            @if (m.botRps > 0) {
+              <span class="bots">{{ fmt(m.botsBlockedRps) }} of {{ fmt(m.botRps) }} bot rps blocked</span>
+            }
+          </div>
+          <div
+            class="metric panel"
+            [class.bad]="!isFree() && m.monthlyCost > s.goals.maxMonthlyCost"
+            [class.good]="!isFree() && m.monthlyCost <= s.goals.maxMonthlyCost"
+          >
+            <span class="label">Cost</span>
+            <span class="value">${{ fmt(m.monthlyCost) }}<small>/mo</small></span>
+          </div>
+        </section>
+      }
 
       <div class="workbench">
         <section class="board">
-          <div class="palette" role="group" aria-label="Add component">
-            @for (c of palette; track c.kind) {
-              <button class="tool" [attr.data-kind]="c.kind" (click)="addComponent(c.kind)" [title]="c.description">
-                <ion-icon name="add" aria-hidden="true" />{{ c.short }}
-              </button>
-            }
-          </div>
+          @if (floating()) {
+            <div class="tools-column" role="group" aria-label="Add component">
+              @for (g of toolGroups; track g.label) {
+                <div class="tool-group" role="group" [attr.aria-label]="g.label">
+                  <span class="eyebrow" aria-hidden="true">{{ g.label }}</span>
+                  @for (c of g.tools; track c.kind) {
+                    <button class="tool-tile" [attr.data-kind]="c.kind" (click)="addComponent(c.kind)" [title]="c.description">
+                      <svg class="tool-glyph" viewBox="0 0 24 24" aria-hidden="true"><use [attr.href]="'#g-sys-' + c.kind" /></svg
+                      ><span class="tool-name">{{ c.short }}</span>
+                    </button>
+                  }
+                </div>
+              }
+            </div>
+          } @else {
+            <div class="palette" role="group" aria-label="Add component">
+              @for (c of palette; track c.kind) {
+                <button class="tool" [attr.data-kind]="c.kind" (click)="addComponent(c.kind)" [title]="c.description">
+                  <ion-icon name="add" aria-hidden="true" />{{ c.short }}
+                </button>
+              }
+            </div>
+          }
 
-          <div class="canvas panel" [class.connecting]="!!connectFrom() || drag()?.kind === 'link'">
+          <div class="canvas panel" [class.connecting]="!!connectFrom() || drag.state()?.kind === 'link'">
             @if (connectFrom(); as from) {
               <div class="banner">
                 Tap a component to receive traffic from <strong>{{ specs[selected()?.kind ?? 'app'].short }}</strong>
                 <button class="g-btn ghost" (click)="cancelConnect()">Cancel</button>
               </div>
             }
+            <g-sys-sprite />
             <div class="viewport">
               <svg
                 #canvas
                 tabindex="-1"
                 role="group"
                 aria-label="Design canvas"
-                [attr.viewBox]="viewBox()"
+                [attr.viewBox]="lab.viewBox()"
+                [style.--text-scale]="textScale()"
                 (pointerdown)="onCanvasDown($event)"
                 (pointermove)="onMove($event)"
                 (pointerup)="onUp($event)"
                 (pointercancel)="onCancel($event)"
-                (wheel)="onWheel($event)"
+                (wheel)="gestures.wheel($event)"
+                (keydown)="onCanvasKey($event)"
               >
                 <defs>
                   <pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse">
@@ -101,87 +122,64 @@
                   </pattern>
                 </defs>
                 <rect x="-2000" y="-2000" width="5000" height="5000" fill="url(#dots)" />
-                <rect class="board-edge" x="0" y="0" [attr.width]="board.w" [attr.height]="board.h" rx="16" />
+                @if (!floating()) {
+                  <rect class="board-edge" x="0" y="0" [attr.width]="board.w" [attr.height]="board.h" rx="16" />
+                }
 
                 @for (e of edges(); track e.key) {
                   <g
+                    gSysEdge
                     class="edge"
-                    [attr.data-status]="e.status"
-                    [class.idle]="e.rps === 0"
+                    [view]="e"
+                    [textScale]="textScale()"
                     [class.selected]="selectedEdge() === e.key"
                     (pointerdown)="onEdgeClick($event, e.key)"
-                  >
-                    <path class="hit" [attr.d]="e.d" />
-                    <path class="base" [attr.d]="e.d" [attr.stroke-width]="e.width" />
-                    @if (e.rps > 0) {
-                      <path class="flow" [attr.d]="e.d" [attr.stroke-width]="e.width" [style.animation-duration.s]="e.dur" />
-                    }
-                  </g>
+                  ></g>
                 }
                 @if (linkPreview(); as d) {
                   <path class="preview" [attr.d]="d" />
                 }
 
-                @for (n of design().nodes; track n.id) {
-                  @let st = result().nodes[n.id];
-                  @let spec = specs[n.kind];
+                @for (v of diagram().nodes; track v.id) {
+                  @let n = design().nodes[$index];
                   <g
+                    gSysNode
                     class="node"
                     tabindex="0"
                     role="button"
-                    [attr.data-node]="n.id"
+                    [view]="v"
+                    [selected]="selectedId() === v.id"
+                    [port]="specs[n.kind].connectsTo.length > 0"
+                    [attr.data-node]="v.id"
                     [attr.aria-label]="nodeLabel(n)"
-                    [attr.aria-pressed]="selectedId() === n.id"
+                    [attr.aria-pressed]="selectedId() === v.id"
                     [attr.data-kind]="n.kind"
-                    [attr.data-status]="st?.status"
-                    [class.selected]="selectedId() === n.id"
-                    [attr.transform]="'translate(' + (n.x - W / 2) + ',' + (n.y - H / 2) + ')'"
+                    [attr.transform]="'translate(' + (v.x - W / 2) + ',' + (v.y - H / 2) + ')'"
                     (pointerdown)="onNodeDown($event, n)"
+                    (portDown)="drag.portDown($event, n)"
                     (keydown.enter)="activateNode($event, n)"
                     (keydown.space)="activateNode($event, n)"
                     (focus)="revealNode($event, n)"
-                  >
-                    <rect class="ring" x="-5" y="-5" [attr.width]="W + 10" [attr.height]="H + 10" rx="16" />
-                    <rect class="body" [attr.width]="W" [attr.height]="H" rx="12" />
-                    <rect class="stripe" width="4" [attr.height]="H - 20" x="0" y="10" rx="2" />
-                    <text class="kind" x="14" y="22">{{ n.label ?? spec.short }}</text>
-                    @if (n.kind !== 'client') {
-                      <text class="inst" [attr.x]="W - 12" y="22" text-anchor="end">×{{ n.instances }}</text>
-                    }
-                    @if (n.kind === 'client') {
-                      <text class="main" x="14" y="44">{{ fmt(m.offeredRps) }} rps</text>
-                      <text class="sub" x="14" y="60">{{ workload().readRatio * 100 | number: '1.0-0' }}% reads</text>
-                      @if (workload().botRps) {
-                        <text class="bots" [attr.x]="W - 12" y="22" text-anchor="end">+{{ fmt(workload().botRps!) }} bots</text>
-                      }
-                    } @else {
-                      <text class="main" x="14" y="44">{{ st?.status === 'down' ? 'DOWN' : utilPct(n.id) + '%' }}</text>
-                      <text class="sub" [attr.x]="W - 12" y="44" text-anchor="end">{{ st?.latencyMs | number: '1.0-0' }} ms</text>
-                      <rect class="meter-bg" x="14" [attr.y]="H - 16" [attr.width]="W - 28" height="4" rx="2" />
-                      <rect
-                        class="meter"
-                        x="14"
-                        [attr.y]="H - 16"
-                        [attr.width]="(W - 28) * (utilPct(n.id) > 100 ? 1 : utilPct(n.id) / 100)"
-                        height="4"
-                        rx="2"
-                      />
-                    }
-                    @if (n.failed) {
-                      <text class="failed" [attr.x]="W - 12" y="60" text-anchor="end">✕{{ n.failed }} down</text>
-                    }
-                    @if (spec.connectsTo.length) {
-                      <circle class="port" [attr.cx]="W" [attr.cy]="H / 2" r="7" (pointerdown)="onPortDown($event, n)" />
-                    }
-                  </g>
+                  ></g>
                 }
+                <g #traceLayer class="trace-layer" aria-hidden="true"></g>
               </svg>
+              @if (floating()) {
+                @if (desk(); as d) {
+                  <ng-container *ngComponentOutlet="d.overlay; inputs: deskInputs" />
+                }
+                @if (selected() || selectedEdge()) {
+                  <div class="float" role="region" aria-label="Inspector" (keydown)="closeOnEscape($event)">
+                    <ng-container *ngTemplateOutlet="inspectorTpl" />
+                  </div>
+                }
+              }
               <div class="zoom" role="group" aria-label="Zoom">
-                <button class="g-btn icon" (click)="zoom(1)" aria-label="Zoom in"><ion-icon name="add" aria-hidden="true" /></button>
-                <button class="g-btn icon" (click)="zoom(-1)" [disabled]="!zoomedIn()" aria-label="Zoom out">
+                <button class="g-btn icon" (click)="lab.zoom(1)" aria-label="Zoom in"><ion-icon name="add" aria-hidden="true" /></button>
+                <button class="g-btn icon" (click)="lab.zoom(-1)" [disabled]="!lab.zoomedIn()" aria-label="Zoom out">
                   <ion-icon name="remove" aria-hidden="true" />
                 </button>
-                <button class="g-btn icon" (click)="fitBoard()" [disabled]="!zoomedIn()" aria-label="Show whole board">
+                <button class="g-btn icon" (click)="lab.fit()" [disabled]="!lab.zoomedIn()" aria-label="Show whole board">
                   <ion-icon name="scan-outline" aria-hidden="true" />
                 </button>
               </div>
@@ -192,7 +190,13 @@
             </p>
           </div>
 
-          @if (isFree()) {
+          @if (floating()) {
+            <div class="dock-slot">
+              @if (desk(); as d) {
+                <ng-container *ngComponentOutlet="d.dock; inputs: deskInputs" />
+              }
+            </div>
+          } @else if (isFree()) {
             <div class="panel workload">
               @if (caseBuild()) {
                 <p class="brief case-brief">{{ s.brief }}</p>
@@ -269,41 +273,12 @@
             </section>
           }
 
-          @if (selected(); as n) {
-            <app-node-inspector
-              [node]="n"
-              [stats]="selectedStats()!"
-              [spec]="specs[n.kind]"
-              [outgoing]="outgoing()"
-              [connectTargets]="connectTargets()"
-              [connecting]="connectFrom() === n.id"
-              [targetsLabelId]="targetsLabelId"
-              (close)="closeInspector()"
-              (stepInstances)="stepInstances(n, $event)"
-              (update)="updateNode(n.id, $event)"
-              (deleteEdge)="deleteEdge($event)"
-              (startConnect)="startConnect(n.id)"
-              (connectTo)="connectTo($event)"
-              (failInstance)="failInstance(n)"
-              (recover)="recover(n)"
-              (remove)="deleteNode(n.id)"
-            />
-          } @else if (selectedEdge(); as key) {
-            <section class="panel inspector">
-              <header>
-                <div>
-                  <p class="eyebrow">Connection</p>
-                  <h2 class="mono">{{ fmt(result().edges[key] ?? 0) }} rps</h2>
-                </div>
-                <button class="g-btn ghost icon" (click)="closeInspector()" aria-label="Close">
-                  <ion-icon name="close-circle-outline" aria-hidden="true" />
-                </button>
-              </header>
-              <div class="actions">
-                <button class="g-btn ghost danger" (click)="deleteEdge(key)">
-                  <ion-icon name="trash-outline" aria-hidden="true" />Remove connection
-                </button>
-              </div>
+          @if (!floating()) {
+            <ng-container *ngTemplateOutlet="inspectorTpl" />
+          } @else if (caseBuild()) {
+            <section class="panel case-brief">
+              <p class="eyebrow">Case build</p>
+              <p class="brief">{{ s.brief }}</p>
             </section>
           }
 
@@ -368,3 +343,43 @@
     </div>
   }
 </ion-content>
+
+<ng-template #inspectorTpl>
+  @if (selected(); as n) {
+    <app-node-inspector
+      [node]="n"
+      [stats]="selectedStats()!"
+      [spec]="specs[n.kind]"
+      [outgoing]="outgoing()"
+      [connectTargets]="connectTargets()"
+      [connecting]="connectFrom() === n.id"
+      [targetsLabelId]="targetsLabelId"
+      (close)="closeInspector()"
+      (stepInstances)="stepInstances(n, $event)"
+      (update)="updateNode(n.id, $event)"
+      (deleteEdge)="deleteEdge($event)"
+      (startConnect)="startConnect(n.id)"
+      (connectTo)="connectTo($event)"
+      (failInstance)="failInstance(n)"
+      (recover)="recover(n)"
+      (remove)="deleteNode(n.id)"
+    />
+  } @else if (selectedEdge(); as key) {
+    <section class="panel inspector">
+      <header>
+        <div>
+          <p class="eyebrow">Connection</p>
+          <h2 class="mono">{{ fmt(result().edges[key] ?? 0) }} rps</h2>
+        </div>
+        <button class="g-btn ghost icon" (click)="closeInspector()" aria-label="Close">
+          <ion-icon name="close-circle-outline" aria-hidden="true" />
+        </button>
+      </header>
+      <div class="actions">
+        <button class="g-btn ghost danger" (click)="deleteEdge(key)">
+          <ion-icon name="trash-outline" aria-hidden="true" />Remove connection
+        </button>
+      </div>
+    </section>
+  }
+</ng-template>

@@ -99,8 +99,8 @@ export const FAILURE: CompetencyExamples = {
         'I was on the web team of a spreadsheet app, working on real-time co-editing so several people could edit a sheet at once.',
       task: 'We were building the sync engine for co-editing and the conflict handling, and it was supposed to launch at the end of the year as the headline feature.',
       action:
-        'We spent the first few months designing the data model and we decided to use a custom merge approach for conflicting edits. We built a prototype on iOS first and then we started porting it to Android. Our testing kept finding edge cases with the same cell edited by two people at once, so we kept adding special cases, and we pushed the launch back twice. I worked on some of the Android storage code. In the end leadership decided we were taking too long and cancelled the project so our team could move to a collaboration feature instead.',
-      result: 'The project was cancelled after about 9 months, and roughly 40 percent of the sync code was never used.',
+        'We spent the first few months designing the data model and we decided to use a custom merge approach for conflicting edits. We built a prototype on iOS first and then we started porting it to Android. Our testing kept finding edge cases with the same cell edited by two people at once, so we kept adding special cases, and we pushed the launch back twice. I worked on some of the Android storage code. In the end leadership decided we were taking too long and canceled the project so our team could move to a collaboration feature instead.',
+      result: 'The project was canceled after about 9 months, and roughly 40 percent of the sync code was never used.',
       reflection: 'It was a frustrating time for everyone.',
       flaws: ['we-not-i', 'no-reflection'],
       why: {

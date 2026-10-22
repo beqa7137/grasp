@@ -1,0 +1,58 @@
+// Edges are neutral (REDESIGN.md 4.6): only what is dropped is critical, and the rps pill shows on the busiest edges, on
+// hover and on selection.
+:host {
+  cursor: pointer;
+}
+.hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 16;
+}
+.base {
+  fill: none;
+  stroke: var(--g-stroke);
+}
+:host(.idle) .base,
+:host(.repl) .base {
+  stroke-dasharray: 5 4;
+}
+:host(.selected) .base {
+  stroke: var(--g-text);
+}
+.tail {
+  fill: none;
+  stroke: var(--g-viz-critical);
+  stroke-linecap: butt;
+}
+.dropped,
+.tag {
+  font: 600 var(--g-text-label) var(--g-font-mono);
+  font-size: calc(var(--g-text-label) * var(--text-scale, 1));
+  paint-order: stroke;
+  stroke: var(--g-viz-stage);
+  stroke-width: 3px;
+}
+.dropped {
+  fill: var(--g-viz-critical);
+}
+.tag {
+  fill: var(--g-muted);
+}
+.pill {
+  display: none;
+  rect {
+    fill: var(--g-surface);
+    stroke: var(--g-line-strong);
+    rx: var(--g-radius-xs);
+  }
+  text {
+    fill: var(--g-text);
+    font: 600 var(--g-text-label) var(--g-font-mono);
+    font-size: calc(var(--g-text-label) * var(--text-scale, 1));
+  }
+}
+:host(.roomy.pinned) .pill,
+:host(.roomy:hover) .pill,
+:host(.roomy.selected) .pill {
+  display: inline;
+}

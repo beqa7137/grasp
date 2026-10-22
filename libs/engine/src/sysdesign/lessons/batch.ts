@@ -92,7 +92,7 @@ export const BATCH_LESSON: SdLesson = {
     {
       question: 'How do you sort 100 TB so the output is globally ordered?',
       answer:
-        'Hash partitioning scatters neighbouring keys, so use range partitioning instead: sample the keys, pick R-1 split points that divide the sample evenly, and send each record to the reducer owning its range. Each reducer sorts its range, and the output files in reducer order form one sorted sequence. This is how TeraSort works; a skewed sample gives uneven ranges, so sample enough keys.',
+        'Hash partitioning scatters neighboring keys, so use range partitioning instead: sample the keys, pick R-1 split points that divide the sample evenly, and send each record to the reducer owning its range. Each reducer sorts its range, and the output files in reducer order form one sorted sequence. This is how TeraSort works; a skewed sample gives uneven ranges, so sample enough keys.',
     },
     {
       question: 'How do you count distinct users per country when a combiner cannot just add numbers?',

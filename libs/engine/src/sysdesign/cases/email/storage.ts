@@ -136,7 +136,7 @@ const perMessage = (bytes: number, messages: number) => `${Number((bytes / messa
 /**
  * A prediction about the current settings, read from the run: which part of the mail takes the most storage, how much a
  * year takes on disk with its copies, or how much deduplicating attachments saves. Distractors are what the same question
- * gives when a saving or the copies are forgotten, or under neighbouring settings.
+ * gives when a saving or the copies are forgotten, or under neighboring settings.
  */
 export function mailStorageCheckpoint(s: MailStorageSettings, run = mailStorage(s)): WidgetCheckpoint {
   const situation = describe(s);

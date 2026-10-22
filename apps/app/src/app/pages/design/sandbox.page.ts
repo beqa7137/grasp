@@ -4,6 +4,7 @@ import {
   DestroyRef,
   ElementRef,
   Injector,
+  type Type,
   computed,
   effect,
   inject,
@@ -12,13 +13,16 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
-import { DecimalPipe } from '@angular/common';
+import { DecimalPipe, NgComponentOutlet, NgTemplateOutlet } from '@angular/common';
 import { IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar, ToastController } from '@ionic/angular';
 import { Preferences } from '@capacitor/preferences';
 import {
   COMPONENTS,
   DEFAULT_OBJECT_SHARE,
+  FREE_BUILD_GOALS,
+  NODE_SIZE,
   PALETTE,
+  TRAFFIC,
   canConnect,
   createNode,
   evaluate,
@@ -37,6 +41,7 @@ import {
   type SavedDesign,
   type Scenario,
   type Workload,
+  type WorkloadControls,
 } from '@grasp/engine';
 import { addIcons } from 'ionicons';
 import {
@@ -59,50 +64,60 @@ import { haptic } from '../../core/haptics';
 import { onPageKey } from '../../core/on-page-key';
 import { ProgressService } from '../../core/progress.service';
 import { uniqueId } from '../../core/unique-id';
-import { curve, edgePath } from './edge-path';
+import { curve } from './edge-path';
+import { CanvasGestures } from './canvas-gestures';
 import { FREE_BUILD } from './free-build';
 import { NodeInspectorComponent } from './node-inspector.component';
-import {
-  BOARD,
-  type Point,
-  type ViewBox,
-  clampView,
-  fitView,
-  freeSpot,
-  initialView,
-  panBy,
-  reveal,
-  sameView,
-  toBoard,
-  zoomAt,
-} from './viewport';
+import type { DockGoals, LabHost } from './lab-host';
+import { labDiagram, nodeLabel, nodeName } from './lab-diagram';
+import { CALLOUT_MAX_W } from '../../viz/kit/sys/callouts';
+import type { LabTrace } from './lab-trace';
+import { LabView, type LabContent } from './lab-view';
+import { NodeDrag } from './node-drag';
+import { SysEdgeComponent } from '../../viz/kit/sys/sys-edge.component';
+import { SysNodeComponent } from '../../viz/kit/sys/sys-node.component';
+import { SysSpriteComponent } from '../../viz/kit/sys/sys-sprite.component';
+import { BOARD, freeSpot } from './viewport';
 import { BackComponent } from '../../ui/back.component';
 
-const W = 132;
-const H = 70;
-const VIEW_W = BOARD.w;
-const VIEW_H = BOARD.h;
-const ZOOM_STEP = 1.35;
-/** Screen pixels a background drag must travel before it pans instead of counting as a tap. */
-const PAN_SLOP_PX = 6;
-
-type Gesture =
-  | { kind: 'pan'; id: number; start: Point; view: ViewBox; moved: boolean }
-  | { kind: 'pinch'; ids: [number, number]; distance: number; mid: Point; view: ViewBox };
-
-type Drag =
-  | { kind: 'move'; id: string; dx: number; dy: number; startX: number; startY: number; moved: boolean }
-  | { kind: 'link'; from: string; x: number; y: number };
+const W = NODE_SIZE.w;
+const H = NODE_SIZE.h;
+/** Free Build offers every workload control. */
+const FREE_CONTROLS: WorkloadControls = { traffic: TRAFFIC, reads: true, bots: { max: 100_000 }, files: true };
+const TOOL_GROUPS: { label: string; kinds: ComponentKind[] }[] = [
+  { label: 'Edge', kinds: ['cdn', 'limiter', 'lb'] },
+  { label: 'Compute', kinds: ['app', 'worker'] },
+  { label: 'Data', kinds: ['cache', 'db', 'replica', 'blob'] },
+  { label: 'Async', kinds: ['queue'] },
+];
+/** Room the Traffic handle and its label take under the client, and a pinned callout under its node, in board units. */
+const HANDLE_BOX = { w: 300, h: 44 };
+const CALLOUT_BOX = { w: CALLOUT_MAX_W, h: 56 };
 
 @Component({
   selector: 'app-sandbox',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [BackComponent, DecimalPipe, IonHeader, IonToolbar, IonButtons, IonTitle, IonContent, IonIcon, NodeInspectorComponent],
+  imports: [
+    BackComponent,
+    DecimalPipe,
+    NgTemplateOutlet,
+    IonHeader,
+    IonToolbar,
+    IonButtons,
+    IonTitle,
+    IonContent,
+    IonIcon,
+    NodeInspectorComponent,
+    NgComponentOutlet,
+    SysEdgeComponent,
+    SysNodeComponent,
+    SysSpriteComponent,
+  ],
   providers: [AnnouncerService],
   templateUrl: './sandbox.page.html',
   styleUrl: './sandbox.page.scss',
 })
-export class SandboxPage {
+export class SandboxPage implements LabHost {
   readonly id = input.required<string>();
   readonly caseId = input<string | undefined>(undefined, { alias: 'case' });
   readonly revisit = input(undefined, {
@@ -112,6 +127,7 @@ export class SandboxPage {
   private readonly toasts = inject(ToastController);
   readonly announcer = inject(AnnouncerService);
   private readonly svg = viewChild<ElementRef<SVGSVGElement>>('canvas');
+  readonly traceLayer = viewChild<ElementRef<SVGGElement>>('traceLayer');
   private readonly inspector = viewChild(NodeInspectorComponent);
   private readonly injector = inject(Injector);
   readonly targetsLabelId = uniqueId('sandbox-targets');
@@ -119,17 +135,32 @@ export class SandboxPage {
   readonly W = W;
   readonly H = H;
   readonly board = BOARD;
-  readonly view = signal<ViewBox>(fitView(BOARD.h / BOARD.w));
-  readonly viewBox = computed(() => {
-    const v = this.view();
-    return `${v.x} ${v.y} ${v.w} ${v.h}`;
+  readonly lab = new LabView(
+    () => this.content(),
+    () => this.loaded(),
+  );
+  readonly view = this.lab.view;
+  readonly canvasSize = this.lab.size;
+  readonly textScale = this.lab.textScale;
+  readonly floating = this.lab.floating;
+  readonly toolGroups = TOOL_GROUPS.map((g) => ({ label: g.label, tools: g.kinds.map((k) => COMPONENTS[k]) }));
+  /** The dock and the canvas overlay, fetched the first time the Lab is desktop-sized, with the trace they show. */
+  readonly desk = signal<{ dock: Type<unknown>; overlay: Type<unknown> } | null>(null);
+  readonly trace = signal<LabTrace | null>(null);
+  readonly deskInputs = { host: this as LabHost };
+  readonly gestures = new CanvasGestures(
+    this.view,
+    () => this.lab.aspect,
+    () => this.rect(),
+    () => this.onBackground(),
+  );
+  readonly drag = new NodeDrag({
+    nodes: () => this.design().nodes,
+    toBoard: (e) => this.toSvg(e),
+    moveNode: (id, x, y) => this.updateNode(id, { x, y }),
+    connect: (from, to) => void this.connect(from, to),
+    tap: (node) => this.selectNode(node),
   });
-  readonly zoomedIn = computed(() => !sameView(this.view(), fitView(this.aspect)));
-  private aspect = BOARD.h / BOARD.w;
-  private placedView = false;
-  private canvasWidth = 0;
-  private readonly pointers = new Map<number, Point>();
-  private gesture: Gesture | null = null;
   readonly palette = PALETTE.map((k) => COMPONENTS[k]);
   readonly specs = COMPONENTS;
   readonly fmt = fmt;
@@ -147,6 +178,8 @@ export class SandboxPage {
       brief: `The ${title} case study's design at ${fmt(lab.workload.rps)} requests per second. Push the traffic up, kill a node, and see what gives first.`,
       starter: lab.design,
       workload: lab.workload,
+      // Case goals come with R28; until then a build has none, and its dock says so.
+      goals: { maxP99Ms: Number.POSITIVE_INFINITY, maxErrorRate: 1, maxMonthlyCost: Number.POSITIVE_INFINITY },
     };
   });
 
@@ -159,6 +192,25 @@ export class SandboxPage {
     this.caseBuild() ? `grasp.design.case.${this.caseId()}` : `grasp.design.${this.id()}${this.revisit() ? `.r${this.revisit()}` : ''}`,
   );
   readonly isFree = computed(() => this.id() === FREE_BUILD.id);
+  private readonly caseLab = computed(() => {
+    const id = this.caseId();
+    return this.caseBuild() && id ? getCaseLab(id) : undefined;
+  });
+  /** The workload controls this build declares: every one in Free Build, a case's own, none in a mission. */
+  readonly controls = computed<WorkloadControls | null>(() => this.caseLab()?.controls ?? (this.isFree() ? FREE_CONTROLS : null));
+  readonly dockGoals = computed<DockGoals>(() => {
+    const s = this.scenario();
+    if (this.caseBuild() || !s) return { kind: 'none' };
+    return this.isFree() ? { kind: 'yours', goals: FREE_BUILD_GOALS } : { kind: 'mission', goals: s.goals };
+  });
+  /** The traffic the board opened at, kept as a snap of the Traffic handle. */
+  private readonly openedRps = signal(0);
+  readonly trafficControl = computed(() => {
+    const c = this.controls();
+    const client = this.design().nodes.find((n) => n.kind === 'client');
+    const keep = [this.scenario()?.workload.rps ?? 0, this.openedRps()];
+    return c && client ? { id: client.id, range: c.traffic, keep } : null;
+  });
 
   readonly design = signal<Design>({ nodes: [], edges: [] });
   readonly workload = signal<Workload>({ rps: 1000, readRatio: 0.9 });
@@ -181,7 +233,6 @@ export class SandboxPage {
   readonly selectedId = signal<string | null>(null);
   readonly selectedEdge = signal<string | null>(null);
   readonly connectFrom = signal<string | null>(null);
-  readonly drag = signal<Drag | null>(null);
   readonly hintsShown = signal(0);
   readonly celebrated = signal(false);
   private readonly loaded = signal(false);
@@ -192,28 +243,31 @@ export class SandboxPage {
     return n ? this.result().nodes[n.id] : null;
   });
 
-  readonly edges = computed(() => {
-    const byId = new Map(this.design().nodes.map((n) => [n.id, n]));
-    return this.design().edges.flatMap((e) => {
-      const a = byId.get(e.from);
-      const b = byId.get(e.to);
-      if (!a || !b) return [];
-      const key = `${e.from}->${e.to}`;
-      const rps = this.result().edges[key] ?? 0;
-      const status = this.result().nodes[b.id]?.status ?? 'idle';
-      return [
-        {
-          key,
-          from: e.from,
-          to: e.to,
-          d: edgePath(a, b, { w: W, h: H }, BOARD.h),
-          rps,
-          status,
-          width: 1.5 + Math.log10(rps + 1) * 0.9,
-          dur: rps > 0 ? Math.max(0.35, 3.2 - Math.log10(rps + 1) * 0.55) : 0,
-        },
-      ];
+  readonly diagram = computed(() => {
+    const lab = this.caseLab();
+    const roles = lab?.roles ? { glyphs: lab.roles, kinds: new Map(lab.design.nodes.map((n) => [n.id, n.kind])) } : null;
+    return labDiagram(this.design(), this.result(), this.workload(), (id) => this.nodeName(id), roles, this.selectedEdge());
+  });
+  readonly edges = computed(() => this.diagram().edges);
+  readonly placedNodes = computed(() => this.diagram().nodes);
+  readonly insights = computed(() => this.result().insights);
+  readonly canTrace = computed(() => this.design().nodes.length > 1);
+  /** What the desktop canvas fits on open: the nodes, their routed edges, the Traffic handle and room for callouts. */
+  private readonly content = computed<LabContent>(() => {
+    const nodes = this.design().nodes;
+    const extra = this.edges().map((e) => {
+      const xs = e.points.map((p) => p[0]);
+      const ys = e.points.map((p) => p[1]);
+      return { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
     });
+    const labels = [];
+    const client = nodes.find((n) => n.id === this.trafficControl()?.id);
+    if (client) labels.push({ x: client.x - W / 2, y: client.y + H / 2, ...HANDLE_BOX });
+    for (const id of new Set(this.insights().flatMap((i) => (i.nodeId && i.severity !== 'tip' ? [i.nodeId] : [])))) {
+      const n = nodes.find((x) => x.id === id);
+      if (n) labels.push({ x: n.x - CALLOUT_BOX.w / 2, y: n.y + H / 2, ...CALLOUT_BOX });
+    }
+    return { nodes, extra, labels };
   });
 
   readonly outgoing = computed(() =>
@@ -229,7 +283,7 @@ export class SandboxPage {
   });
 
   readonly linkPreview = computed(() => {
-    const d = this.drag();
+    const d = this.drag.state();
     if (d?.kind !== 'link') return null;
     const from = this.design().nodes.find((n) => n.id === d.from);
     return from ? curve(from.x + W / 2, from.y, d.x, d.y) : null;
@@ -281,113 +335,60 @@ export class SandboxPage {
         void this.progress.record({ type: 'scenario.completed', scenarioId: s.id, monthlyCost: cost, ...(variant ? { variant } : {}) });
     });
 
-    const resize = new ResizeObserver(([entry]) => this.onResize(entry.contentRect.width, entry.contentRect.height));
+    const resize = new ResizeObserver(([entry]) => this.lab.resize(entry.contentRect.width, entry.contentRect.height));
     effect(() => {
       const el = this.svg()?.nativeElement;
       if (el) resize.observe(el);
     });
     effect(() => {
-      if (this.loaded()) untracked(() => this.placeView());
+      if (this.loaded()) untracked(() => this.lab.place());
+    });
+    const unwatch = this.lab.watchLayout();
+    let fetching = false;
+    effect(() => {
+      if (!this.floating() || fetching) return;
+      fetching = true;
+      void import('./lab-desk').then((m) => {
+        this.trace.set(new m.LabTrace());
+        this.desk.set({ dock: m.LabDockComponent, overlay: m.LabOverlayComponent });
+      });
+    });
+    effect(() => {
+      this.design();
+      this.workload();
+      untracked(() => this.trace()?.clear());
+    });
+    // The floating inspector covers the canvas's right edge, so a selection there pans or refits clear of it, and the
+    // home view returns once nothing is selected.
+    let wasSelected = false;
+    effect(() => {
+      const box = this.selectionBox();
+      if (!this.floating()) return;
+      if (box) untracked(() => this.lab.keepClear(box));
+      else if (wasSelected) untracked(() => this.lab.fit());
+      wasSelected = !!box;
     });
 
     inject(DestroyRef).onDestroy(() => {
       clearTimeout(this.saveTimer);
       resize.disconnect();
+      unwatch();
+      this.trace()?.destroy();
     });
     onPageKey((e) => this.onKey(e));
   }
 
-  private onResize(width: number, height: number) {
-    if (!width || !height) return;
-    this.aspect = height / width;
-    this.canvasWidth = width;
-    if (!this.placedView) {
-      this.placeView();
-      return;
-    }
-    const v = this.view();
-    const w = v.w;
-    const h = w * this.aspect;
-    this.view.set(clampView({ x: v.x, y: v.y + (v.h - h) / 2, w, h }, this.aspect));
-  }
-
-  /** Opens each design at a sensible zoom once both the design and the canvas size are known. */
-  private placeView() {
-    if (this.placedView || !this.loaded() || !this.canvasWidth) return;
-    this.placedView = true;
-    this.view.set(initialView(this.aspect, this.canvasWidth, this.design().nodes));
-  }
-
-  zoom(direction: 1 | -1) {
-    const v = this.view();
-    this.view.set(zoomAt(v, { x: v.x + v.w / 2, y: v.y + v.h / 2 }, direction > 0 ? 1 / ZOOM_STEP : ZOOM_STEP, this.aspect));
-  }
-
-  fitBoard() {
-    this.view.set(fitView(this.aspect));
-  }
-
-  onWheel(e: WheelEvent) {
-    // Trackpad pinches arrive as ctrl+wheel; a plain wheel keeps scrolling the page.
-    if (!e.ctrlKey && !e.metaKey) return;
-    e.preventDefault();
-    const factor = Math.min(1.25, Math.max(0.8, Math.exp(e.deltaY * 0.005)));
-    this.view.set(zoomAt(this.view(), toBoard(this.view(), this.rect(), { x: e.clientX, y: e.clientY }), factor, this.aspect));
-  }
+  /** The selected node's or edge's box, which the floating inspector must not cover. */
+  private readonly selectionBox = computed(() => {
+    const node = this.selected();
+    if (node) return { x: node.x - W / 2, y: node.y - H / 2, w: W, h: H };
+    const edge = this.edges().find((e) => e.key === this.selectedEdge());
+    return edge ? { x: edge.mid[0] - 40, y: edge.mid[1] - 20, w: 80, h: 40 } : null;
+  });
 
   onCanvasDown(e: PointerEvent) {
     this.svg()?.nativeElement.setPointerCapture?.(e.pointerId);
-    this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    this.startGesture();
-  }
-
-  private startGesture() {
-    const [a, b] = [...this.pointers.entries()];
-    if (a && b) {
-      this.gesture = {
-        kind: 'pinch',
-        ids: [a[0], b[0]],
-        distance: Math.max(1, Math.hypot(a[1].x - b[1].x, a[1].y - b[1].y)),
-        mid: { x: (a[1].x + b[1].x) / 2, y: (a[1].y + b[1].y) / 2 },
-        view: this.view(),
-      };
-    } else if (a) {
-      this.gesture = { kind: 'pan', id: a[0], start: a[1], view: this.view(), moved: false };
-    } else {
-      this.gesture = null;
-    }
-  }
-
-  private moveGesture() {
-    const g = this.gesture;
-    if (!g) return;
-    const rect = this.rect();
-    if (g.kind === 'pan') {
-      const p = this.pointers.get(g.id);
-      if (!p) return;
-      g.moved ||= Math.hypot(p.x - g.start.x, p.y - g.start.y) > PAN_SLOP_PX;
-      if (!g.moved) return;
-      const scale = g.view.w / rect.width;
-      this.view.set(panBy(g.view, (g.start.x - p.x) * scale, (g.start.y - p.y) * scale, this.aspect));
-      return;
-    }
-    const a = this.pointers.get(g.ids[0]);
-    const b = this.pointers.get(g.ids[1]);
-    if (!a || !b) return;
-    const distance = Math.max(1, Math.hypot(a.x - b.x, a.y - b.y));
-    const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
-    const zoomed = zoomAt(g.view, toBoard(g.view, rect, g.mid), g.distance / distance, this.aspect);
-    const scale = zoomed.w / rect.width;
-    this.view.set(panBy(zoomed, (g.mid.x - mid.x) * scale, (g.mid.y - mid.y) * scale, this.aspect));
-  }
-
-  private endPointer(e: PointerEvent, cancelled: boolean) {
-    this.pointers.delete(e.pointerId);
-    const g = this.gesture;
-    if (!cancelled && g?.kind === 'pan' && !g.moved && this.pointers.size === 0) this.onBackground();
-    // Lifting one finger of a pinch continues as a pan with the other.
-    this.startGesture();
-    if (this.gesture?.kind === 'pan') this.gesture.moved = true;
+    this.gestures.down(e);
   }
 
   private rect() {
@@ -396,11 +397,12 @@ export class SandboxPage {
 
   private async restore(s: Scenario) {
     this.loaded.set(false);
-    this.placedView = false;
+    this.lab.unplace();
     const { value } = await Preferences.get({ key: this.storageKey() });
     const board = restoreBoard(value ? (JSON.parse(value) as SavedDesign) : null, s, this.isFree());
     this.design.set(board.design);
     this.workload.set(board.workload);
+    this.openedRps.set(board.workload.rps);
     this.celebrated.set(false);
     this.hintsShown.set(0);
     this.clearSelection();
@@ -507,6 +509,27 @@ export class SandboxPage {
     this.cancelConnect();
   }
 
+  setTraffic(rps: number) {
+    this.workload.update((w) => ({ ...w, rps }));
+  }
+
+  startTrace() {
+    void this.trace()?.start(this.design(), this.result(), this.diagram(), this.traceLayer()?.nativeElement, this.svg()?.nativeElement);
+  }
+
+  /** Escape on the canvas (a selected node has focus) closes the inspector, as it does inside it. */
+  onCanvasKey(e: KeyboardEvent) {
+    if (this.selected() || this.selectedEdge()) this.closeOnEscape(e);
+  }
+
+  /** Escape inside the floating inspector closes it and returns focus to its node. */
+  closeOnEscape(e: KeyboardEvent) {
+    if (e.key !== 'Escape' || this.connectFrom()) return;
+    e.preventDefault();
+    e.stopPropagation();
+    this.closeInspector();
+  }
+
   setRps(sliderValue: number) {
     this.workload.update((w) => ({ ...w, rps: Math.round(10 ** sliderValue / 100) * 100 }));
   }
@@ -536,27 +559,13 @@ export class SandboxPage {
   }
 
   nodeName(id: string) {
-    const nodes = this.design().nodes;
-    const node = nodes.find((n) => n.id === id);
-    if (!node) return id;
-    if (node.label) return node.label;
-    const same = nodes.filter((n) => n.kind === node.kind && !n.label);
-    const short = COMPONENTS[node.kind].short;
-    return same.length > 1 ? `${short} ${same.indexOf(node) + 1}` : short;
+    return nodeName(this.design().nodes, id);
   }
 
   nodeLabel(n: DesignNode) {
-    const spec = COMPONENTS[n.kind];
-    const name = spec.name === spec.short ? this.nodeName(n.id) : `${this.nodeName(n.id)}, ${spec.name}`;
-    if (n.kind === 'client') {
-      const reads = Math.round(this.workload().readRatio * 100);
-      return `${name}, ${fmt(this.result().metrics.offeredRps)} requests per second, ${reads}% reads`;
-    }
-    const unit = n.kind === 'db' ? 'shard' : 'instance';
-    const size = `${n.instances} ${unit}${n.instances === 1 ? '' : 's'}${n.failed ? `, ${n.failed} down` : ''}`;
-    const st = this.result().nodes[n.id];
-    const load = st?.status === 'down' ? 'down' : `${this.utilPct(n.id)}% utilized, ${Math.round(st?.latencyMs ?? 0)} ms`;
-    return `${name}, ${size}, ${load}`;
+    const lab = this.caseLab();
+    const role = lab?.roles?.[n.id] && lab.design.nodes.some((o) => o.id === n.id && o.kind === n.kind) ? lab.roles[n.id] : undefined;
+    return nodeLabel(n, this.nodeName(n.id), role, this.result(), this.workload());
   }
 
   /**
@@ -565,13 +574,19 @@ export class SandboxPage {
    */
   revealNode(e: FocusEvent, node: DesignNode) {
     if (!(e.target as Element).matches(':focus-visible')) return;
-    this.view.set(reveal(this.view(), { x: node.x - W / 2, y: node.y - H / 2, w: W, h: H }, this.aspect));
+    this.lab.reveal({ x: node.x - W / 2, y: node.y - H / 2, w: W, h: H });
   }
 
   activateNode(e: Event, node: DesignNode) {
     e.preventDefault();
     if (this.connectFrom()) this.connectTo(node.id);
-    else this.focusInsight(node.id);
+    else this.selectNode(node);
+  }
+
+  /** Selects a node; on desktop, tapping the client also traces a request from it. */
+  selectNode(node: DesignNode) {
+    this.focusInsight(node.id);
+    if (node.kind === 'client' && this.floating()) this.startTrace();
   }
 
   connectTo(to: string) {
@@ -597,71 +612,23 @@ export class SandboxPage {
   onNodeDown(e: PointerEvent, node: DesignNode) {
     e.stopPropagation();
     const from = this.connectFrom();
-    if (from) {
-      void this.connect(from, node.id);
-      return;
-    }
-    const p = this.toSvg(e);
-    (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
-    this.drag.set({ kind: 'move', id: node.id, dx: p.x - node.x, dy: p.y - node.y, startX: p.x, startY: p.y, moved: false });
-  }
-
-  onPortDown(e: PointerEvent, node: DesignNode) {
-    e.stopPropagation();
-    const p = this.toSvg(e);
-    this.drag.set({ kind: 'link', from: node.id, x: p.x, y: p.y });
+    if (from) void this.connect(from, node.id);
+    else this.drag.nodeDown(e, node);
   }
 
   onMove(e: PointerEvent) {
-    if (this.pointers.has(e.pointerId)) {
-      this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      this.moveGesture();
-      return;
-    }
-    const d = this.drag();
-    if (!d) return;
-    const p = this.toSvg(e);
-    if (d.kind === 'link') {
-      this.drag.set({ ...d, x: p.x, y: p.y });
-      return;
-    }
-    const moved = d.moved || Math.hypot(p.x - d.startX, p.y - d.startY) > 4;
-    if (moved !== d.moved) this.drag.set({ ...d, moved });
-    if (!moved) return;
-    const x = clamp(p.x - d.dx, W / 2, VIEW_W - W / 2);
-    const y = clamp(p.y - d.dy, H / 2, VIEW_H - H / 2);
-    this.patch((draft) => {
-      const n = draft.nodes.find((node) => node.id === d.id);
-      if (n) {
-        n.x = Math.round(x);
-        n.y = Math.round(y);
-      }
-    });
+    if (this.gestures.has(e.pointerId)) this.gestures.move(e);
+    else this.drag.move(e);
   }
 
   onCancel(e: PointerEvent) {
-    if (this.pointers.has(e.pointerId)) this.endPointer(e, true);
-    else this.drag.set(null);
+    if (this.gestures.has(e.pointerId)) this.gestures.end(e, true);
+    else this.drag.cancel();
   }
 
   onUp(e: PointerEvent) {
-    if (this.pointers.has(e.pointerId)) {
-      this.endPointer(e, false);
-      return;
-    }
-    const d = this.drag();
-    this.drag.set(null);
-    if (!d) return;
-    if (d.kind === 'move' && !d.moved) {
-      this.selectedId.set(d.id);
-      this.selectedEdge.set(null);
-      return;
-    }
-    if (d.kind === 'link') {
-      const p = this.toSvg(e);
-      const target = this.design().nodes.find((n) => Math.abs(n.x - p.x) <= W / 2 && Math.abs(n.y - p.y) <= H / 2);
-      if (target) void this.connect(d.from, target.id);
-    }
+    if (this.gestures.has(e.pointerId)) this.gestures.end(e, false);
+    else this.drag.up(e);
   }
 
   onBackground() {
@@ -676,10 +643,6 @@ export class SandboxPage {
 
   log(value: number) {
     return Math.log10(value);
-  }
-
-  utilPct(id: string) {
-    return Math.round(Math.min(9.99, this.result().nodes[id]?.utilization ?? 0) * 100);
   }
 
   private nodeElement(id: string | null | undefined) {
@@ -707,8 +670,4 @@ export class SandboxPage {
     const pt = new DOMPoint(e.clientX, e.clientY).matrixTransform(svg.getScreenCTM()!.inverse());
     return { x: pt.x, y: pt.y };
   }
-}
-
-function clamp(v: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, v));
 }

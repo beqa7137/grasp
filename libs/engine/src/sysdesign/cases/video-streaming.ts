@@ -55,7 +55,7 @@ export const VIDEO_STREAMING: CaseStudy = {
         ],
       },
       points: [
-        'About 42 Tbps on average and about 85 Tbps at peak. No single data centre serves that; it has to come from caches spread across the world, close to viewers.',
+        'About 42 Tbps on average and about 85 Tbps at peak. No single data center serves that; it has to come from caches spread across the world, close to viewers.',
         'Bandwidth, not compute, is the biggest bill, so every bit saved per stream (better codecs, not sending 1080p to a small phone screen) is money.',
         'Uploads are tiny next to that: 500 hours a minute at an 8 Mbps source is 500 times 3,600 seconds times 8 Mb / 60 s, about 240 Gbps.',
       ],
@@ -101,7 +101,7 @@ export const VIDEO_STREAMING: CaseStudy = {
         'Playback path: the player gets metadata from the API, then pulls the manifest and segments from a CDN edge; misses go to a regional origin shield, and only its misses reach object storage.',
         'The metadata store (video, channel, status, renditions) is a sharded database keyed by video ID, with a cache in front: every play reads it once.',
         'View events flow from players to a log or queue; stream workers aggregate them and update counts in batches, never on the playback path.',
-        'Open the build in the Lab: one metro at 200,000 requests a second, about 800,000 viewers each fetching a 4-second segment. The CDN answers 95%. The app tier stands for the origin and API servers, the cache for the origin shield, and the database for object storage plus the metadata store. The 1% of requests that are writes are view and watch-time events: the queue is the event log and the workers the counters. The simulator counts requests, not bytes, and the transcoding pipeline runs off this path, so it is not shown.',
+        'Open the build in the Lab: one metro at 200,000 requests a second, about 800,000 viewers each fetching a 4-second segment. The CDN answers 95%. The app tier stands for the origin and API servers, the cache for the origin shield, the object store for the segments the CDN misses, and the database for the metadata store. The 1% of requests that are writes are view and watch-time events: the queue is the event log and the workers the counters. The simulator counts requests, not bytes, and the transcoding pipeline runs off this path, so it is not shown.',
       ],
     },
     {

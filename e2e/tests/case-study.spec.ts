@@ -1,4 +1,4 @@
-import { expect, recordedEvents, synced, test } from './fixtures';
+import { expect, openWorkload, recordedEvents, synced, test } from './fixtures';
 
 test('a case study is worked stage by stage, resumes where the learner left it, and opens its build in the Design Lab', async ({
   page,
@@ -119,6 +119,7 @@ test('a case build names nodes by their role and stores files in an object store
   await blocks.focus();
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Block store' })).toBeVisible();
+  await openWorkload(page);
   await expect(page.getByRole('slider', { name: /^Files/ })).toHaveValue('50');
   await expect(page.getByRole('button', { name: /^Metadata API, App Servers/ })).toHaveCount(1);
 });

@@ -1,17 +1,17 @@
-import { BOARD, MIN_VIEW_W, clampView, fitView, freeSpot, initialView, panBy, reveal, toBoard, zoomAt } from './viewport';
+import { BOARD, MIN_VIEW_W, clampView, fitContent, fitView, freeSpot, initialView, panBy, reveal, toBoard, zoomAt } from './viewport';
 
 const WIDE = BOARD.h / BOARD.w;
 const TALL = 1.3;
 
 describe('design board viewport', () => {
   it('fits the whole board, padding whichever axis the canvas is longer in', () => {
-    expect(fitView(WIDE)).toEqual({ x: 0, y: 0, w: 900, h: 480 });
+    expect(fitView(WIDE)).toEqual({ x: 0, y: 0, w: BOARD.w, h: BOARD.h });
     const tall = fitView(TALL);
-    expect(tall.w).toBe(900);
-    expect(tall.h).toBeCloseTo(1170);
-    expect(tall.y).toBeCloseTo((480 - 1170) / 2);
-    const letterbox = fitView(0.4);
-    expect(letterbox.h).toBeCloseTo(480);
+    expect(tall.w).toBe(BOARD.w);
+    expect(tall.h).toBeCloseTo(BOARD.w * TALL);
+    expect(tall.y).toBeCloseTo((BOARD.h - BOARD.w * TALL) / 2);
+    const letterbox = fitView(0.3);
+    expect(letterbox.h).toBeCloseTo(BOARD.h);
     expect(letterbox.x).toBeLessThan(0);
   });
 
@@ -19,8 +19,8 @@ describe('design board viewport', () => {
     const start = fitView(WIDE);
     const anchor = { x: 600, y: 300 };
     const zoomed = zoomAt(start, anchor, 0.5, WIDE);
-    expect(zoomed.w).toBe(450);
-    expect(zoomed.h).toBeCloseTo(240);
+    expect(zoomed.w).toBe(BOARD.w / 2);
+    expect(zoomed.h).toBeCloseTo(BOARD.h / 2);
     const before = (anchor.x - start.x) / start.w;
     const after = (anchor.x - zoomed.x) / zoomed.w;
     expect(after).toBeCloseTo(before);
@@ -65,6 +65,26 @@ describe('design board viewport', () => {
     expect(phone.x).toBeLessThanOrEqual(0);
     expect(phone.y + phone.h / 2).toBeCloseTo(240);
     expect(clampView(phone, TALL)).toEqual(phone);
+  });
+
+  it('fits desktops to the design, never past one unit a pixel, with every node inside', () => {
+    const size = { w: 148, h: 64 };
+    const nodes = [
+      { x: 90, y: 240 },
+      { x: 990, y: 100 },
+      { x: 990, y: 390 },
+    ];
+    const view = fitContent(WIDE, 600, nodes, size);
+    for (const n of nodes) {
+      expect(n.x - size.w / 2).toBeGreaterThanOrEqual(view.x);
+      expect(n.x + size.w / 2).toBeLessThanOrEqual(view.x + view.w);
+      expect(n.y - size.h / 2).toBeGreaterThanOrEqual(view.y);
+      expect(n.y + size.h / 2).toBeLessThanOrEqual(view.y + view.h);
+    }
+    expect(view.h / view.w).toBeCloseTo(WIDE);
+    const small = fitContent(WIDE, 1000, nodes.slice(0, 1), size);
+    expect(small.w).toBe(1000);
+    expect(small.x + small.w / 2).toBe(90);
   });
 
   it('maps screen points to board points', () => {

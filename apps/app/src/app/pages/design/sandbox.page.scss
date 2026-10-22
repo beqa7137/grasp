@@ -1,5 +1,6 @@
 @use '../../../chrome' as *;
 @use '../../../type' as *;
+@use '../../../breakpoints' as *;
 
 .page.wide {
   max-width: 1320px;
@@ -99,11 +100,107 @@
   display: grid;
   gap: 16px;
   grid-template-columns: minmax(0, 1fr);
+}
 
-  @media (min-width: 1040px) {
-    grid-template-columns: minmax(0, 1fr) 360px;
+// The desktop Lab (REDESIGN.md 4.6): tools beside a canvas fitted to the design, the dock under both, and the mission,
+// case brief and insights in a row below. Under 1024px the layout stays as it was until R22.
+.desk {
+  .workbench {
+    gap: var(--g-space-4);
+  }
+  .board {
+    display: grid;
+    grid-template-columns: 2.75rem minmax(0, 1fr);
+    grid-template-areas: 'tools canvas' 'dock dock';
+    gap: var(--g-space-3);
+  }
+  .tools-column {
+    grid-area: tools;
+  }
+  .canvas {
+    grid-area: canvas;
+  }
+  .dock-slot {
+    grid-area: dock;
+    min-width: 0;
+  }
+  // The floating inspector takes the canvas's right edge, so the zoom controls move to its left.
+  .canvas .zoom {
+    right: auto;
+    left: var(--g-space-3);
+  }
+  .viewport > svg {
+    aspect-ratio: auto;
+    height: clamp(22rem, calc(100dvh - 21rem), 40rem);
+  }
+  .sidebar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(20rem, 100%), 1fr));
     align-items: start;
   }
+  // Under 1280px the tools are glyphs alone (named for assistive tech and in their tooltip), so the canvas keeps its width.
+  .tool-group .eyebrow,
+  .tool-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .tool-tile {
+    justify-content: center;
+  }
+  @include wide {
+    .board {
+      grid-template-columns: 6.5rem minmax(0, 1fr);
+    }
+    .tool-group .eyebrow,
+    .tool-name {
+      position: static;
+      width: auto;
+      height: auto;
+      clip-path: none;
+    }
+    .tool-tile {
+      justify-content: flex-start;
+    }
+  }
+}
+
+.tools-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--g-space-3);
+}
+.tool-group {
+  display: grid;
+  gap: var(--g-space-1);
+  .eyebrow {
+    margin: 0;
+  }
+}
+.tool-tile {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: var(--g-space-2);
+  padding: var(--g-space-1) var(--g-space-2);
+  border-radius: var(--g-radius-xs);
+  border: 1px solid var(--g-line);
+  background: var(--g-raised);
+  color: var(--g-text);
+  font: 500 var(--g-text-body-s) / 1.2 var(--ion-font-family);
+  text-align: left;
+  cursor: pointer;
+  &:hover {
+    border-color: var(--g-accent);
+  }
+}
+.tool-glyph {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
 }
 
 .board {
@@ -138,48 +235,14 @@
     transform 0.08s;
   ion-icon {
     font-size: 15px;
-    color: var(--kind-color, var(--g-accent));
+    color: var(--g-accent);
   }
   &:hover {
-    border-color: var(--kind-color, var(--g-accent));
+    border-color: var(--g-accent);
   }
   &:active {
     transform: scale(0.96);
   }
-}
-
-[data-kind='client'] {
-  --kind-color: var(--g-text);
-}
-[data-kind='cdn'] {
-  --kind-color: var(--g-active);
-}
-[data-kind='limiter'] {
-  --kind-color: var(--g-pointer-alt);
-}
-[data-kind='lb'] {
-  --kind-color: var(--g-kind-lb);
-}
-[data-kind='app'] {
-  --kind-color: var(--g-accent);
-}
-[data-kind='cache'] {
-  --kind-color: var(--g-kind-cache);
-}
-[data-kind='db'] {
-  --kind-color: var(--g-warn);
-}
-[data-kind='replica'] {
-  --kind-color: var(--g-kind-replica);
-}
-[data-kind='queue'] {
-  --kind-color: var(--g-found);
-}
-[data-kind='worker'] {
-  --kind-color: var(--g-kind-worker);
-}
-[data-kind='blob'] {
-  --kind-color: var(--g-kind-blob);
 }
 
 .canvas {
@@ -233,6 +296,22 @@
     cursor: crosshair;
   }
 
+  .float {
+    position: absolute;
+    top: var(--g-space-3);
+    right: var(--g-space-3);
+    z-index: 2;
+    width: 20rem;
+    max-height: calc(100% - var(--g-space-6));
+    overflow: auto;
+    border-radius: var(--g-radius-md);
+    box-shadow: var(--g-shadow-raised);
+    // The edge inspector is a bare panel: in the sidebar the sidebar pads it, here the float does.
+    .panel {
+      padding: var(--g-space-4);
+    }
+  }
+
   .banner {
     position: absolute;
     top: 10px;
@@ -258,146 +337,21 @@
 .node {
   cursor: grab;
   touch-action: none;
-  outline: none;
-
-  .ring {
-    fill: none;
-    stroke: none;
-  }
-  &:focus-visible .ring {
-    stroke: var(--g-text);
-    stroke-width: 2;
-  }
-
-  .body {
-    fill: var(--g-raised);
-    stroke: var(--g-stroke);
-    stroke-width: 1.5;
-    transition:
-      stroke 0.2s,
-      fill 0.2s;
-  }
-  .stripe {
-    fill: var(--kind-color);
-  }
-  .kind {
-    fill: var(--g-text);
-    font: 600 13px var(--ion-font-family);
-  }
-  .inst {
-    fill: var(--g-muted);
-    font: 600 12px var(--g-font-mono);
-  }
-  .main {
-    fill: var(--g-text);
-    font: 600 15px var(--g-font-mono);
-  }
-  .sub {
-    fill: var(--g-muted);
-    font: 11px var(--g-font-mono);
-  }
-  .bots {
-    fill: var(--g-pointer-alt);
-    font: 600 11px var(--g-font-mono);
-  }
-  .failed {
-    fill: var(--g-danger);
-    font: 600 10px var(--g-font-mono);
-  }
-  .meter-bg {
-    fill: var(--g-line);
-  }
-  .meter {
-    fill: var(--g-found);
-    transition:
-      width 0.3s,
-      fill 0.2s;
-  }
-  .port {
-    fill: var(--g-bg);
-    stroke: var(--kind-color);
-    stroke-width: 2;
-    cursor: crosshair;
-    transition: r 0.15s;
-    &:hover {
-      r: 9;
-    }
-  }
-
-  &[data-status='hot'] {
-    .body {
-      stroke: var(--g-warn);
-    }
-    .meter {
-      fill: var(--g-warn);
-    }
-    .main {
-      fill: var(--g-warn);
-    }
-  }
-  &[data-status='overloaded'] {
-    .body {
-      stroke: var(--g-danger);
-      fill: rgba(var(--g-danger-rgb), 0.1);
-      animation: throb 1s ease-in-out infinite;
-    }
-    .meter {
-      fill: var(--g-danger);
-    }
-    .main {
-      fill: var(--g-danger);
-    }
-  }
-  &[data-status='down'] {
-    .body {
-      stroke: var(--g-danger);
-      stroke-dasharray: 5 4;
-      fill: rgba(var(--g-danger-rgb), 0.06);
-    }
-    .main {
-      fill: var(--g-danger);
-    }
-  }
-  &[data-status='idle'] .main {
-    fill: var(--g-faint);
-  }
-  &.selected .body {
-    stroke: var(--g-accent);
-    stroke-width: 2.5;
-  }
 }
 
-.edge {
-  cursor: pointer;
-  .hit {
-    fill: none;
-    stroke: transparent;
-    stroke-width: 16;
-  }
-  .base {
-    fill: none;
-    stroke: var(--g-stroke);
-  }
-  .flow {
-    fill: none;
-    stroke: var(--g-accent);
-    stroke-dasharray: 3 11;
-    stroke-linecap: round;
-    animation: flow linear infinite;
-    opacity: 0.95;
-  }
-  &[data-status='hot'] .flow {
-    stroke: var(--g-warn);
-  }
-  &[data-status='overloaded'] .flow,
-  &[data-status='down'] .flow {
-    stroke: var(--g-danger);
-  }
-  &.idle .base {
-    stroke-dasharray: 4 5;
-  }
-  &.selected .base {
-    stroke: var(--g-text);
+.trace-layer {
+  pointer-events: none;
+  ::ng-deep .particle.trace {
+    circle {
+      fill: var(--g-viz-current);
+    }
+    path {
+      display: none;
+    }
+    text {
+      fill: var(--g-viz-current-ink);
+      font: 700 var(--g-text-label) var(--g-font-mono);
+    }
   }
 }
 
@@ -623,16 +577,6 @@ input[type='range'] {
   }
 }
 
-@keyframes flow {
-  to {
-    stroke-dashoffset: -28;
-  }
-}
-@keyframes throb {
-  50% {
-    fill: rgba(var(--g-danger-rgb), 0.22);
-  }
-}
 @keyframes rise {
   from {
     transform: translateY(6px);

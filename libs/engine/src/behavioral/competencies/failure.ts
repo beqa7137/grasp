@@ -39,7 +39,7 @@ export const FAILURE: Competency = {
       ['With what you knew then, was it still a reasonable call?', 'When did you realize it was wrong?', 'How did you unwind it?'],
     ],
     [
-      'Tell me about a project you worked on that got cancelled or never shipped.',
+      'Tell me about a project you worked on that got canceled or never shipped.',
       'Whether you can reflect on wasted effort without bitterness and take something from it.',
       [
         'Could you have seen the cancellation coming earlier?',

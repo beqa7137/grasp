@@ -31,7 +31,7 @@ const radiusPrecision = item('Geohash precision for a search radius', (rand) => 
   const { widthKm, heightKm } = geohashCellKm(precision, lat);
   const finer = geohashCellKm(precision + 1, lat);
   return {
-    prompt: `A nearby search at ${lat}° latitude reads the user's geohash cell and its 8 neighbours. Which is the finest precision that never misses a place within ${kmText(radiusKm)}?`,
+    prompt: `A nearby search at ${lat}° latitude reads the user's geohash cell and its 8 neighbors. Which is the finest precision that never misses a place within ${kmText(radiusKm)}?`,
     ...withChoices(
       rand,
       `Precision ${precision}`,

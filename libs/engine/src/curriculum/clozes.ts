@@ -150,7 +150,7 @@ export const CLOZES: Record<string, Cloze[]> = {
         'for (const v of adj[u]) if (indeg[v] === 0) q.push(v);',
         'for (const v of adj[u]) if (--indeg[u] === 0) q.push(v);',
       ],
-      why: 'Taking u satisfies one prerequisite of each neighbour; a neighbour is ready only when its in-degree reaches zero.',
+      why: 'Taking u satisfies one prerequisite of each neighbor; a neighbor is ready only when its in-degree reaches zero.',
     },
     {
       line: 0,

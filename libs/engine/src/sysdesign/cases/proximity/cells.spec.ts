@@ -13,7 +13,7 @@ import {
 } from './cells.js';
 import { geohashBounds, geohashEncode, geohashNeighbours, haversineKm } from './geohash.js';
 
-const SCOPES: CellScope[] = ['own', 'neighbours'];
+const SCOPES: CellScope[] = ['own', 'neighbors'];
 
 /** Every precision, scope and radius the controls allow. */
 function* sweep(): Generator<CellSearchSettings> {
@@ -72,7 +72,7 @@ describe('cell search', () => {
         if (s.radiusKm <= Math.min(run.widthKm, run.heightKm)) expect(run.missed).toBe(0);
       }
     }
-    expect(cellSearch({ precision: 6, radiusKm: 1, scope: 'neighbours' }).missed).toBeGreaterThan(0);
+    expect(cellSearch({ precision: 6, radiusKm: 1, scope: 'neighbors' }).missed).toBeGreaterThan(0);
     expect(() => cellSearch({ precision: 6, radiusKm: 0, scope: 'own' })).toThrow();
   });
 });
@@ -93,8 +93,8 @@ describe('cell search checkpoint', () => {
   it('asks from the settings: the user cell alone what it finds, 9 cells what they read, or miss when the radius is wider than a cell', () => {
     const asked = (s: CellSearchSettings) => cellSearchCheckpoint(s).prompt.split('. ').at(-1)!;
     expect(asked({ precision: 6, radiusKm: 0.5, scope: 'own' })).toMatch(/does it find\?$/);
-    expect(asked({ precision: 6, radiusKm: 0.5, scope: 'neighbours' })).toMatch(/does it read before checking distances\?$/);
-    expect(asked({ precision: 6, radiusKm: 1, scope: 'neighbours' })).toMatch(/does it miss\?$/);
+    expect(asked({ precision: 6, radiusKm: 0.5, scope: 'neighbors' })).toMatch(/does it read before checking distances\?$/);
+    expect(asked({ precision: 6, radiusKm: 1, scope: 'neighbors' })).toMatch(/does it miss\?$/);
     expect(new Set([...sweep()].map(asked)).size).toBeGreaterThan(3);
   });
 });

@@ -27,8 +27,9 @@ export function travelKeyframes(path: readonly Pt[], fadeOut: boolean, holdShare
 
 /**
  * Pooled request dots for a stage (REDESIGN.md 3.5): at most `MAX_LIVE` move at once (an emit past that is dropped, never
- * queued), elements are reused, and every dot pauses with `pause()`. Callers emit only while motion is allowed, so under
- * Reduced or the test mode no animation is ever made. A dot that `breaks` ends as a × where it stops.
+ * queued), elements are reused, and every dot pauses with `pause()`. A dot may carry a `label`, such as a traced
+ * request's number. Callers emit only while motion is allowed, so under Reduced or the test mode no animation is ever
+ * made. A dot that `breaks` ends as a × where it stops.
  */
 export class ParticlePool {
   private readonly free: SVGGElement[] = [];
@@ -37,11 +38,18 @@ export class ParticlePool {
 
   constructor(readonly layer: SVGGElement) {}
 
-  emit(path: readonly Pt[], tone: string, durationMs: number, options: { breaks?: boolean; holdShare?: number } = {}): boolean {
+  emit(
+    path: readonly Pt[],
+    tone: string,
+    durationMs: number,
+    options: { breaks?: boolean; holdShare?: number; label?: string; radius?: number } = {},
+  ): boolean {
     if (this.live.size >= MAX_LIVE || path.length < 2) return false;
     const breaks = !!options.breaks;
     const dot = this.free.pop() ?? this.make();
     dot.setAttribute('class', `particle ${tone}`);
+    dot.firstElementChild!.setAttribute('r', String(options.radius ?? 3.5));
+    dot.lastElementChild!.textContent = options.label ?? '';
     dot.removeAttribute('visibility');
     const frames = travelKeyframes(path, !breaks, options.holdShare);
     const animation = dot.animate(frames, { duration: durationMs, easing: 'linear', fill: 'forwards' });
@@ -83,7 +91,10 @@ export class ParticlePool {
     circle.setAttribute('r', '3.5');
     const cross = document.createElementNS(SVG, 'path');
     cross.setAttribute('d', 'M-4 -4L4 4M4 -4L-4 4');
-    g.append(circle, cross);
+    const label = document.createElementNS(SVG, 'text');
+    label.setAttribute('text-anchor', 'middle');
+    label.setAttribute('dy', '0.35em');
+    g.append(circle, cross, label);
     this.layer.append(g);
     return g;
   }

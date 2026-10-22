@@ -80,7 +80,7 @@ export const formatSeconds = (v: number) => `${trim(v, 1)} s`;
 /** A latency that may run to minutes: milliseconds under a second, then seconds, with a tenth under 100 s. */
 export const formatDuration = (ms: number) =>
   ms < 1_000 ? formatMs(ms) : ms < 100_000 ? formatSeconds(ms / 1_000) : `${group(ms / 1_000)} s`;
-/** Two significant figures: a modelled count is an estimate, so it is said as one. */
+/** Two significant figures: a modeled count is an estimate, so it is said as one. */
 export const formatApprox = (v: number) => {
   if (v < 100) return group(v);
   const step = 10 ** (Math.floor(Math.log10(v)) - 1);

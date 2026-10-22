@@ -39,7 +39,7 @@ describe('proximity service review items', () => {
       expect(width.answer).toBe(kmText(geohashCellKm(precision, lat).widthKm));
 
       const fit = right('radius-precision', seed);
-      const [at, radius] = numbers(fit.q.prompt.replace(/8 neighbours/, ''));
+      const [at, radius] = numbers(fit.q.prompt.replace(/8 neighbors/, ''));
       const km = fit.q.prompt.includes(`${radius} m`) ? radius / 1000 : radius;
       const p = Number(fit.answer.split(' ')[1]);
       const side = (q: number) => Math.min(geohashCellKm(q, at).widthKm, geohashCellKm(q, at).heightKm);

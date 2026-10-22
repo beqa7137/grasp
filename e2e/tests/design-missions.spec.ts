@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import type { Locator, Page } from '@playwright/test';
-import { expect, synced, test } from './fixtures';
+import { expect, openWorkload, synced, test } from './fixtures';
 
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
@@ -25,25 +25,25 @@ test.describe('in the dark theme', () => {
     await expect(page.locator('.mission .eyebrow')).toContainText('10k rps · 30% reads · 50% files');
     expect(await seriousViolations(page)).toEqual([]);
 
-    const sidebar = page.locator('aside.sidebar');
+    const lab = page.locator('app-sandbox');
     const node = (kind: string) => page.locator(`g.node[data-kind="${kind}"]`);
     const fit = page.getByRole('button', { name: 'Show whole board' });
     if (await fit.isEnabled()) await fit.click();
 
     await page.getByRole('group', { name: 'Add component' }).getByRole('button', { name: 'Objects', exact: true }).click();
-    await expect(sidebar.getByRole('heading', { name: 'Object Store' })).toBeVisible();
+    await expect(lab.getByRole('heading', { name: 'Object Store' })).toBeVisible();
     await node('app').click();
-    await expect(sidebar.getByRole('heading', { name: 'App Servers' })).toBeVisible();
-    await sidebar.getByRole('button', { name: /Connect to/ }).click();
+    await expect(lab.getByRole('heading', { name: 'App Servers' })).toBeVisible();
+    await lab.getByRole('button', { name: /Connect to/ }).click();
     await node('blob').click();
-    await expect(sidebar.getByRole('list', { name: 'Sends traffic to' })).toContainText('Objects');
-    for (let i = 0; i < 3; i++) await sidebar.getByRole('button', { name: 'More instances', exact: true }).click();
+    await expect(lab.getByRole('list', { name: 'Sends traffic to' })).toContainText('Objects');
+    for (let i = 0; i < 3; i++) await lab.getByRole('button', { name: 'More instances', exact: true }).click();
 
     await node('db').click();
-    await expect(sidebar.getByRole('heading', { name: 'Primary DB' })).toBeVisible();
+    await expect(lab.getByRole('heading', { name: 'Primary DB' })).toBeVisible();
     const sync = synced(page, 'scenario.completed');
-    await sidebar.getByRole('button', { name: 'More shards', exact: true }).click();
-    await expect(sidebar.getByRole('heading', { name: 'Scenario cleared' })).toBeVisible();
+    await lab.getByRole('button', { name: 'More shards', exact: true }).click();
+    await expect(lab.getByRole('heading', { name: 'Scenario cleared' })).toBeVisible();
     await sync;
     expect(await seriousViolations(page)).toEqual([]);
   });
@@ -54,34 +54,34 @@ test.describe('in the light theme', () => {
 
   test('Attachments Everywhere is cleared with the keyboard alone', { tag: '@lab' }, async ({ page }) => {
     await page.goto('/design/missions/mail-attachments');
-    const sidebar = page.locator('aside.sidebar');
+    const lab = page.locator('app-sandbox');
     const press = async (control: Locator) => {
       await control.focus();
       await page.keyboard.press('Enter');
     };
     const inspect = async (name: RegExp, heading: string) => {
       await press(page.getByRole('button', { name }));
-      await expect(sidebar.getByRole('heading', { name: heading })).toBeVisible();
+      await expect(lab.getByRole('heading', { name: heading })).toBeVisible();
     };
     await expect(page.getByRole('button', { name: /^DB, Primary DB, 1 shard,/ })).toBeVisible();
     expect(await seriousViolations(page)).toEqual([]);
 
     await press(page.getByRole('group', { name: 'Add component' }).getByRole('button', { name: 'Objects', exact: true }));
-    await expect(sidebar.getByRole('heading', { name: 'Object Store' })).toBeVisible();
+    await expect(lab.getByRole('heading', { name: 'Object Store' })).toBeVisible();
     await inspect(/^App, App Servers, /, 'App Servers');
-    await press(sidebar.getByRole('button', { name: /Connect to/ }));
-    await press(sidebar.getByRole('group', { name: 'Send traffic to' }).getByRole('button', { name: 'Objects', exact: true }));
-    await expect(sidebar.getByRole('list', { name: 'Sends traffic to' })).toContainText('Objects');
+    await press(lab.getByRole('button', { name: /Connect to/ }));
+    await press(lab.getByRole('group', { name: 'Send traffic to' }).getByRole('button', { name: 'Objects', exact: true }));
+    await expect(lab.getByRole('list', { name: 'Sends traffic to' })).toContainText('Objects');
     for (const instances of [7, 8, 9]) {
-      await press(sidebar.getByRole('button', { name: 'More instances', exact: true }));
+      await press(lab.getByRole('button', { name: 'More instances', exact: true }));
       await expect(page.getByRole('button', { name: new RegExp(`^App, App Servers, ${instances} instances`) })).toBeVisible();
     }
-    await expect(sidebar.getByRole('heading', { name: 'Scenario cleared' })).toHaveCount(0);
+    await expect(lab.getByRole('heading', { name: 'Scenario cleared' })).toHaveCount(0);
 
     await inspect(/^DB, Primary DB, /, 'Primary DB');
-    await press(sidebar.getByRole('button', { name: 'More shards', exact: true }));
+    await press(lab.getByRole('button', { name: 'More shards', exact: true }));
     await expect(page.getByRole('button', { name: /^DB, Primary DB, 2 shards,/ })).toBeVisible();
-    await expect(sidebar.getByRole('heading', { name: 'Scenario cleared' })).toBeVisible();
+    await expect(lab.getByRole('heading', { name: 'Scenario cleared' })).toBeVisible();
     expect(await seriousViolations(page)).toEqual([]);
   });
 });
@@ -91,6 +91,7 @@ test(
   { tag: '@lab' },
   async ({ page }) => {
     await page.goto('/design/cases/file-sync/build');
+    await openWorkload(page);
     const files = page.getByRole('slider', { name: /^Files/ });
     await expect(files).toHaveValue('50');
     await expect(page.getByRole('button', { name: /^Block store, Object Store, 1 instance, 22% utilized/ })).toBeVisible();
@@ -114,7 +115,8 @@ test(
     });
     // A board saved before the workload named its share keeps the share on its store and the old rule, until the learner sets one.
     await page.goto('/design/lab');
-    const p99 = page.locator('.metric', { hasText: 'p99 latency' });
+    await openWorkload(page);
+    const p99 = page.locator('.metric, .kpi').filter({ hasText: /p99/i });
     // The control starts at the share the board runs at: the 70% saved on its store.
     const oldRule = page.getByRole('slider', { name: 'Files old rule (70%)' });
     await expect(oldRule).toHaveValue('70');
@@ -124,20 +126,24 @@ test(
     await expect(page.getByRole('slider', { name: 'Files 0%' })).toBeVisible();
     await expect(p99).not.toContainText('369');
 
-    // In the video build only the CDN and the transcoders feed the store, splitting by instance count: no share to show.
+    // The video build names no share of files, so it offers no Files control (R21); phones keep every control until R22.
     await page.goto('/design/cases/video-streaming/build');
-    await expect(page.getByRole('slider', { name: 'Files old rule', exact: true })).toHaveAttribute('aria-valuetext', 'old rule');
+    await openWorkload(page);
+    const desktop = await page.getByRole('button', { name: /^Workload/ }).isVisible();
+    if (desktop) await expect(page.getByRole('slider', { name: /^Files/ })).toHaveCount(0);
+    else await expect(page.getByRole('slider', { name: 'Files old rule', exact: true })).toHaveAttribute('aria-valuetext', 'old rule');
 
-    // The email build's workers write to its store, so it keeps the old rule until the learner names a share. Only the
-    // workload changes here, so the board must be saved for a workload change alone.
+    // The email build names its share (30%), and a change to the workload alone is saved with the board.
     await page.goto('/design/cases/email-service/build');
     const saved = () => page.evaluate(() => localStorage.getItem('CapacitorStorage.grasp.design.case.email-service') ?? '');
     await expect.poll(saved).toContain('"design"');
-    await expect(page.getByRole('slider', { name: 'Files old rule (30%)' })).toHaveValue('30');
-    await page.getByRole('slider', { name: /^Files/ }).fill('30');
-    await expect(page.getByRole('slider', { name: 'Files 30%' })).toBeVisible();
-    await expect.poll(saved).toContain('"objectShare":0.3');
+    await openWorkload(page);
+    await expect(page.getByRole('slider', { name: 'Files 30%' })).toHaveValue('30');
+    await page.getByRole('slider', { name: /^Files/ }).fill('40');
+    await expect(page.getByRole('slider', { name: 'Files 40%' })).toBeVisible();
+    await expect.poll(saved).toContain('"objectShare":0.4');
     await page.reload();
-    await expect(page.getByRole('slider', { name: 'Files 30%' })).toBeVisible();
+    await openWorkload(page);
+    await expect(page.getByRole('slider', { name: 'Files 40%' })).toBeVisible();
   },
 );

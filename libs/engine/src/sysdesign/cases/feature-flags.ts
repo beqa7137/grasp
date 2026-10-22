@@ -58,7 +58,7 @@ export const FEATURE_FLAGS: CaseStudy = {
             label:
               'Answer at once from the last ruleset the SDK received, use the default written at the call site only for a flag it never received, and report the outage through metrics',
             best: true,
-            why: 'The last ruleset is what was live a moment ago, so behaviour does not change during the outage; only new flag changes wait. The flag service can fail without any caller failing, which is the first requirement.',
+            why: 'The last ruleset is what was live a moment ago, so behavior does not change during the outage; only new flag changes wait. The flag service can fail without any caller failing, which is the first requirement.',
           },
           {
             label: 'Wait up to 2 seconds for the flag service, then use the call-site default',
@@ -403,7 +403,7 @@ export const FEATURE_FLAGS: CaseStudy = {
           },
           {
             label: 'Delete every flag 90 days after it was created',
-            why: 'The code still asks for it, so it gets the call-site default, which may be the old behaviour: launched features silently turn off.',
+            why: 'The code still asks for it, so it gets the call-site default, which may be the old behavior: launched features silently turn off.',
           },
           {
             label: 'Hold a cleanup sprint every quarter',

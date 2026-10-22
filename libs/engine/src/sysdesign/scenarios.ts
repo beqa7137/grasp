@@ -1,4 +1,5 @@
 import { fmt } from './format.js';
+import { kpiVerdicts } from './lab-goals.js';
 import { SCENARIO_CATALOG, type ScenarioId, type ScenarioSummary } from './scenario-catalog.js';
 import { SCENARIO_VARIANTS } from './scenario-variants.js';
 import { simulate } from './simulate.js';
@@ -20,7 +21,7 @@ const DEFINITIONS: Record<ScenarioId, ScenarioDefinition> = {
     brief:
       "A startup's REST API runs on a single app server. Marketing expects 3,000 requests/second at launch, 90% reads. Keep p99 under 150 ms and errors near zero without blowing the budget.",
     starter: {
-      nodes: [n('users', 'client', 70, 240), n('app', 'app', 360, 240), n('db', 'db', 640, 240)],
+      nodes: [n('users', 'client', 80, 240), n('app', 'app', 430, 240), n('db', 'db', 770, 240)],
       edges: [
         { from: 'users', to: 'app' },
         { from: 'app', to: 'db' },
@@ -37,7 +38,7 @@ const DEFINITIONS: Record<ScenarioId, ScenarioDefinition> = {
     brief:
       'A social feed hits the front page. Traffic jumps to 40,000 RPS with 97% reads. Keep p99 under 180 ms, errors under 0.1%, no single point of failure, and spend at most $9,000/month.',
     starter: {
-      nodes: [n('users', 'client', 70, 240), n('lb', 'lb', 260, 240), n('app', 'app', 450, 240, 4), n('db', 'db', 700, 240)],
+      nodes: [n('users', 'client', 80, 240), n('lb', 'lb', 310, 240), n('app', 'app', 540, 240, 4), n('db', 'db', 840, 240)],
       edges: [
         { from: 'users', to: 'lb' },
         { from: 'lb', to: 'app' },
@@ -56,7 +57,7 @@ const DEFINITIONS: Record<ScenarioId, ScenarioDefinition> = {
     brief:
       'A ticketing site opens sales for a stadium tour: 15,000 RPS for 60 seconds, 70% of them writes (orders). The database can take ~2.5k writes/s. Every accepted order must be durable, p99 under 250 ms, errors under 0.5%, and the backlog must clear within 10 minutes of the spike.',
     starter: {
-      nodes: [n('users', 'client', 70, 220), n('lb', 'lb', 240, 220, 2), n('app', 'app', 420, 220, 8), n('db', 'db', 720, 220)],
+      nodes: [n('users', 'client', 80, 220), n('lb', 'lb', 290, 220, 2), n('app', 'app', 500, 220, 8), n('db', 'db', 860, 220)],
       edges: [
         { from: 'users', to: 'lb' },
         { from: 'lb', to: 'app' },
@@ -76,12 +77,12 @@ const DEFINITIONS: Record<ScenarioId, ScenarioDefinition> = {
       'A marketplace serves 6,000 RPS of real users (90% reads). Overnight, scrapers and credential stuffers add 24,000 RPS of bot traffic from thousands of IPs, and it keeps falling over. Keep p99 under 200 ms and real-user errors under 0.1%, with no single point of failure, for at most $5,000/month.',
     starter: {
       nodes: [
-        n('users', 'client', 70, 240),
-        n('lb', 'lb', 250, 240, 2),
-        n('app', 'app', 430, 240, 5),
-        n('cache', 'cache', 610, 240, 2),
-        n('db', 'db', 790, 240),
-        n('rep', 'replica', 790, 380),
+        n('users', 'client', 80, 240),
+        n('lb', 'lb', 300, 240, 2),
+        n('app', 'app', 520, 240, 5),
+        n('cache', 'cache', 730, 240, 2),
+        n('db', 'db', 950, 240),
+        n('rep', 'replica', 950, 380),
       ],
       edges: [
         { from: 'users', to: 'lb' },
@@ -105,11 +106,11 @@ const DEFINITIONS: Record<ScenarioId, ScenarioDefinition> = {
       'A chat service stores 12,000 RPS, 60% of them new messages (all day, not in a spike). Each write costs the database 2 ops, so one primary tops out near 2,500 writes/s. The messages table is partitioned by created_at. Keep p99 under 200 ms, errors under 0.1%, the queue (if any) keeping up, and spend at most $9,000/month.',
     starter: {
       nodes: [
-        n('users', 'client', 70, 240),
-        n('lb', 'lb', 250, 240, 2),
-        n('app', 'app', 430, 240, 8),
-        n('cache', 'cache', 610, 240),
-        n('db', 'db', 790, 240, 1, { shardKey: 'time' }),
+        n('users', 'client', 80, 240),
+        n('lb', 'lb', 300, 240, 2),
+        n('app', 'app', 520, 240, 8),
+        n('cache', 'cache', 730, 240),
+        n('db', 'db', 950, 240, 1, { shardKey: 'time' }),
       ],
       edges: [
         { from: 'users', to: 'lb' },
@@ -131,7 +132,7 @@ const DEFINITIONS: Record<ScenarioId, ScenarioDefinition> = {
     brief:
       "A mobile game's leaderboard takes 24,000 RPS all day. 75% are reads of the global top 100, the same page for every player and fine a few seconds stale. The rest are score submissions: 6,000 writes/s at 2 database ops each. Keep p99 under 200 ms and errors under 0.1% for at most $8,500/month.",
     starter: {
-      nodes: [n('users', 'client', 70, 240), n('lb', 'lb', 250, 240, 2), n('app', 'app', 430, 240, 12), n('db', 'db', 700, 240)],
+      nodes: [n('users', 'client', 80, 240), n('lb', 'lb', 300, 240, 2), n('app', 'app', 520, 240, 12), n('db', 'db', 840, 240)],
       edges: [
         { from: 'users', to: 'lb' },
         { from: 'lb', to: 'app' },
@@ -151,7 +152,7 @@ const DEFINITIONS: Record<ScenarioId, ScenarioDefinition> = {
     brief:
       "A mail service's storage tier takes 10,000 RPS all day, 30% reads. Half of the requests upload or download a message body or an attachment, a whole object; the rest list, flag and label messages. One primary takes about 2,500 writes/s. Keep every accepted write durable (a queue, if any, must keep up), p99 under 250 ms and errors under 0.1%, for at most $5,500/month.",
     starter: {
-      nodes: [n('users', 'client', 70, 240), n('lb', 'lb', 250, 240, 2), n('app', 'app', 430, 240, 6), n('db', 'db', 700, 240)],
+      nodes: [n('users', 'client', 80, 240), n('lb', 'lb', 300, 240, 2), n('app', 'app', 520, 240, 6), n('db', 'db', 840, 240)],
       edges: [
         { from: 'users', to: 'lb' },
         { from: 'lb', to: 'app' },
@@ -171,7 +172,7 @@ const DEFINITIONS: Record<ScenarioId, ScenarioDefinition> = {
     brief:
       "A payments platform records every money movement as a balanced ledger entry: 12,000 RPS all day, half of them new entries and half balance and statement reads. The new entries are transfers that debit a wallet: each checks the balance and commits before it replies, because the caller must know whether the money moved, so no queue may accept them. (Captures from other services already arrive through their outbox; that queue sits upstream of the caller, not between the ledger's reply and its commit.) One primary takes about 2,500 writes/s, and the ledger must survive losing any machine. Keep p99 under 200 ms and errors under 0.1% for at most $11,000/month.",
     starter: {
-      nodes: [n('users', 'client', 70, 240), n('lb', 'lb', 250, 240, 2), n('app', 'app', 430, 240, 8), n('db', 'db', 700, 240)],
+      nodes: [n('users', 'client', 80, 240), n('lb', 'lb', 300, 240, 2), n('app', 'app', 520, 240, 8), n('db', 'db', 840, 240)],
       edges: [
         { from: 'users', to: 'lb' },
         { from: 'lb', to: 'app' },
@@ -192,10 +193,10 @@ const DEFINITIONS: Record<ScenarioId, ScenarioDefinition> = {
       'The control plane was down for 20 minutes. When it returns, all 50,000 agents reconnect at once: for three minutes it takes 16,000 RPS, half polls for desired state and half state reports, every one of which must be kept. One primary takes about 2,500 writes/s. Keep the control plane free of single points of failure, clear the report backlog within 10 minutes of the storm, p99 under 250 ms and errors under 0.1%, for at most $9,000/month.',
     starter: {
       nodes: [
-        n('hosts', 'client', 70, 240, 1, { label: 'Host agents' }),
-        n('lb', 'lb', 250, 240, 2),
-        n('app', 'app', 430, 240, 8, { label: 'Control plane' }),
-        n('db', 'db', 700, 240, 1, { label: 'Deploy store' }),
+        n('hosts', 'client', 80, 240, 1, { label: 'Host agents' }),
+        n('lb', 'lb', 300, 240, 2),
+        n('app', 'app', 520, 240, 8, { label: 'Control plane' }),
+        n('db', 'db', 840, 240, 1, { label: 'Deploy store' }),
       ],
       edges: [
         { from: 'hosts', to: 'lb' },
@@ -246,11 +247,12 @@ export function drainMinutes(result: SimResult, spikeSeconds: number): number {
 export function evaluate(scenario: Scenario, design: Design, result: SimResult = simulate(design, scenario.workload)): GoalCheck[] {
   const g = scenario.goals;
   const m = result.metrics;
+  const kpi = kpiVerdicts(m, g);
   const checks: GoalCheck[] = [
     {
       id: 'p99',
       label: `p99 latency ≤ ${g.maxP99Ms} ms`,
-      pass: m.errorRate < 1 && m.p99Ms <= g.maxP99Ms,
+      pass: kpi.p99 !== 'fail',
       actual: `${Math.round(m.p99Ms)} ms`,
     },
     {
@@ -259,7 +261,7 @@ export function evaluate(scenario: Scenario, design: Design, result: SimResult =
       pass: m.errorRate <= g.maxErrorRate,
       actual: `${(m.errorRate * 100).toFixed(2)}%`,
     },
-    { id: 'cost', label: `Cost ≤ $${fmt(g.maxMonthlyCost)}/mo`, pass: m.monthlyCost <= g.maxMonthlyCost, actual: `$${fmt(m.monthlyCost)}` },
+    { id: 'cost', label: `Cost ≤ $${fmt(g.maxMonthlyCost)}/mo`, pass: kpi.cost !== 'fail', actual: `$${fmt(m.monthlyCost)}` },
   ];
   if (g.noSinglePointOfFailure) {
     const spofs = result.insights.filter((i) => i.title.startsWith('Single point of failure')).length;

@@ -69,7 +69,7 @@ export const BITMASK_DP_LESSON: Lesson = {
     },
     {
       name: 'Row by row',
-      how: 'For a grid at most about 8 wide, as in Maximum Students Taking Exam, let a mask be the seats taken in one row. `dp[row][mask]` builds on every mask of the row before that fits with it, O(rows · 4^cols), and a mask with two neighbouring bits, `mask & (mask << 1)`, is skipped at once.',
+      how: 'For a grid at most about 8 wide, as in Maximum Students Taking Exam, let a mask be the seats taken in one row. `dp[row][mask]` builds on every mask of the row before that fits with it, O(rows · 4^cols), and a mask with two neighboring bits, `mask & (mask << 1)`, is skipped at once.',
     },
     {
       name: 'Top-down with a memo',

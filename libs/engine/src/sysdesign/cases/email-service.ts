@@ -399,7 +399,7 @@ export const EMAIL_SERVICE: CaseStudy = {
       kind: 'deep-dive',
       title: 'Sync every device',
       prompt:
-        'A user has a phone, a laptop and a desktop IMAP client, each last online at a different time. In between, mail arrived, was read on another device, labelled and deleted.',
+        'A user has a phone, a laptop and a desktop IMAP client, each last online at a different time. In between, mail arrived, was read on another device, labeled and deleted.',
       decision: {
         question: 'How does a device catch up with the mailbox?',
         options: [
@@ -429,7 +429,7 @@ export const EMAIL_SERVICE: CaseStudy = {
         'JMAP (RFC 8620, with mail in RFC 8621): each data type has a state string; Email/changes returns the ids created, updated and destroyed since a state, and when the server can no longer work that out it answers cannotCalculateChanges and the client resyncs.',
         'Trim the log, keeping say 30 days of changes; a device away longer resyncs ids and flags in full and fetches bodies as they are opened.',
         'Push: phone apps cannot keep a connection open in the background, so the server sends a small notification through APNs or FCM (mailbox changed, perhaps with a sender and subject) and the app syncs.',
-        'Conflicts: read on one device and marked unread on another resolve in the order the server applies them, last writer wins per flag; labels are added and removed one by one, so two devices labelling at once both take effect.',
+        'Conflicts: read on one device and marked unread on another resolve in the order the server applies them, last writer wins per flag; labels are added and removed one by one, so two devices labeling at once both take effect.',
       ],
     },
     {

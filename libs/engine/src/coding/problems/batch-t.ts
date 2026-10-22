@@ -92,7 +92,7 @@ function chanceChain(rand: () => number): [number, number[][], number, number] {
 
 export const maxProbability: CodingProblemDefinition = {
   statement: [
-    'There are `n` nodes labelled 0 to `n - 1`. Each `[a, b, p]` in `edges` is an undirected edge between `a` and `b` that you cross safely with a chance of `p` percent. Chances along a path multiply: a 50 percent edge followed by an 80 percent edge gets you through 40 percent of the time.',
+    'There are `n` nodes labeled 0 to `n - 1`. Each `[a, b, p]` in `edges` is an undirected edge between `a` and `b` that you cross safely with a chance of `p` percent. Chances along a path multiply: a 50 percent edge followed by an 80 percent edge gets you through 40 percent of the time.',
     'Return the highest chance of getting from `start` to `end`, as a probability from 0 to 1 multiplied by 1,000,000 and rounded to the nearest integer, or 0 if no path joins them. The tests keep that product at least a thousandth away from any half-integer, so floating-point error cannot tip the rounding.',
   ],
   constraints: [
@@ -301,7 +301,7 @@ function roadGrid(rand: () => number, rows: number, cols: number): [number, numb
 
 export const countPaths: CodingProblemDefinition = {
   statement: [
-    'There are `n` intersections labelled 0 to `n - 1`. Each `[u, v, time]` in `roads` is a two-way road between `u` and `v` that takes `time` minutes to drive.',
+    'There are `n` intersections labeled 0 to `n - 1`. Each `[u, v, time]` in `roads` is a two-way road between `u` and `v` that takes `time` minutes to drive.',
     'Return the number of different routes from intersection 0 to intersection `n - 1` that take the least total time, modulo 1,000,000,007. Routes differ when their sequences of roads differ. When `n` is 1 the answer is 1, for the route with no roads, and when `n - 1` cannot be reached it is 0.',
   ],
   constraints: ['1 ≤ n ≤ 10^5', '0 ≤ roads.length ≤ 2·10^5', '1 ≤ time ≤ 10^9', '0 ≤ u, v < n, u ≠ v, and no two roads join the same pair'],
@@ -413,7 +413,7 @@ function layeredCourses(rand: () => number, n: number): number[][] {
 
 export const minimumTime: CodingProblemDefinition = {
   statement: [
-    'There are `n` courses labelled 1 to `n`, and course `i` takes `time[i - 1]` months. Each pair `[prev, next]` in `relations` means course `prev` must be finished before course `next` can start. The relations never form a cycle.',
+    'There are `n` courses labeled 1 to `n`, and course `i` takes `time[i - 1]` months. Each pair `[prev, next]` in `relations` means course `prev` must be finished before course `next` can start. The relations never form a cycle.',
     'You may take any number of courses at the same time, and a course can start as soon as all its prerequisites are finished. Return the fewest months needed to finish every course.',
   ],
   constraints: [
@@ -672,7 +672,7 @@ export const findAllRecipes: CodingProblemDefinition = {
 
 export const makeConnected: CodingProblemDefinition = {
   statement: [
-    'There are `n` computers labelled 0 to `n - 1`, and each `[a, b]` in `connections` is a cable joining computers `a` and `b`. Computers joined directly or through other computers can talk to each other.',
+    'There are `n` computers labeled 0 to `n - 1`, and each `[a, b]` in `connections` is a cable joining computers `a` and `b`. Computers joined directly or through other computers can talk to each other.',
     'In one operation you may unplug any cable and plug it in between two computers that no cable joins. Return the fewest operations that let every computer talk to every other, or -1 if there are not enough cables.',
   ],
   constraints: [

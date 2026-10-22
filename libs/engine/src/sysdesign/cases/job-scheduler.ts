@@ -212,7 +212,7 @@ export const JOB_SCHEDULER: CaseStudy = {
         'At-least-once is the honest guarantee: a worker can finish the work and die before reporting. Jobs make their effects idempotent by keying them on the run ID (an upsert, an idempotency key on a payment, a processed-runs table).',
         'Retries back off exponentially with jitter (for example 30 seconds, 1, 2, 4 minutes, randomized), up to the policy limit. Then the run is `FAILED`, goes to a dead-letter view and alerts its owner.',
         'Retry only what can succeed later: timeouts and dependency errors. A handler that reports a permanent error (bad payload, deleted account) fails at once instead of burning attempts.',
-        'Concurrency policies act at claim time: with "skip", a new run whose schedule already has one `RUNNING` is marked `SKIPPED`; with "replace", the old run is cancelled first.',
+        'Concurrency policies act at claim time: with "skip", a new run whose schedule already has one `RUNNING` is marked `SKIPPED`; with "replace", the old run is canceled first.',
       ],
     },
     {

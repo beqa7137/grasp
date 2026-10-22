@@ -8,7 +8,7 @@ import { MinHeap } from './min-heap.js';
 
 export const countComponents: CodingProblemDefinition = {
   statement: [
-    'There are `n` nodes labelled 0 to `n - 1` and a list of undirected edges. Return how many connected components the graph has.',
+    'There are `n` nodes labeled 0 to `n - 1` and a list of undirected edges. Return how many connected components the graph has.',
   ],
   constraints: ['1 ≤ n ≤ 10^5', '0 ≤ edges.length ≤ 10^5', 'no self-loops or repeated edges'],
   entry: 'countComponents',
@@ -163,7 +163,7 @@ export const redundantConnection: CodingProblemDefinition = {
 
 export const courseSchedule: CodingProblemDefinition = {
   statement: [
-    'You must take `numCourses` courses labelled 0 to `numCourses - 1`. Each pair `[a, b]` in `prerequisites` means you must take `b` before `a`.',
+    'You must take `numCourses` courses labeled 0 to `numCourses - 1`. Each pair `[a, b]` in `prerequisites` means you must take `b` before `a`.',
     'Return `true` if you can finish every course, or `false` if the prerequisites are circular.',
   ],
   constraints: ['1 ≤ numCourses ≤ 10^5', '0 ≤ prerequisites.length ≤ 2·10^5', 'pairs are distinct'],
@@ -233,7 +233,7 @@ export const courseSchedule: CodingProblemDefinition = {
 
 export const parallelCourses: CodingProblemDefinition = {
   statement: [
-    'There are `n` courses labelled 1 to `n`. Each pair `[before, after]` in `relations` means you must finish `before` in an earlier semester than `after`.',
+    'There are `n` courses labeled 1 to `n`. Each pair `[before, after]` in `relations` means you must finish `before` in an earlier semester than `after`.',
     'In one semester you may take any number of courses whose prerequisites were all finished in earlier semesters. Return the fewest semesters needed to finish every course, or -1 if a cycle makes that impossible.',
   ],
   constraints: ['1 ≤ n ≤ 10^5', '0 ≤ relations.length ≤ 2·10^5', '1 ≤ before, after ≤ n', 'before ≠ after', 'pairs are distinct'],
@@ -372,7 +372,7 @@ export const parallelCourses: CodingProblemDefinition = {
 
 export const networkDelay: CodingProblemDefinition = {
   statement: [
-    '`times[i] = [u, v, w]` is a directed link from node `u` to node `v` that takes `w` milliseconds. Nodes are labelled 1 to `n`.',
+    '`times[i] = [u, v, w]` is a directed link from node `u` to node `v` that takes `w` milliseconds. Nodes are labeled 1 to `n`.',
     'A signal is sent from node `k`. Return how long it takes for every node to receive it, or -1 if some node never does.',
   ],
   constraints: ['1 ≤ n ≤ 10^4', '1 ≤ times.length ≤ 5·10^4', '0 ≤ w ≤ 100'],

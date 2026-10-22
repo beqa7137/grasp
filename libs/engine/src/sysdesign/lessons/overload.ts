@@ -34,7 +34,7 @@ export const OVERLOAD_LESSON: SdLesson = {
     },
     {
       title: 'Retries that do not amplify',
-      body: 'Retry at one layer only, usually the one closest to the user. Cap attempts (2 or 3) and keep a retry budget: a client retries only while retries stay under about 10% of its requests, so an outage raises load by at most 10%. Space attempts with exponential backoff and jitter, for example a sleep drawn at random between 0 and min(cap, base × 2^attempt), so thousands of clients do not retry in lockstep. Retry only idempotent operations or ones carrying an idempotency key, and honour `Retry-After`. A circuit breaker stops calls to a dependency that keeps failing, and probes it before resuming.',
+      body: 'Retry at one layer only, usually the one closest to the user. Cap attempts (2 or 3) and keep a retry budget: a client retries only while retries stay under about 10% of its requests, so an outage raises load by at most 10%. Space attempts with exponential backoff and jitter, for example a sleep drawn at random between 0 and min(cap, base × 2^attempt), so thousands of clients do not retry in lockstep. Retry only idempotent operations or ones carrying an idempotency key, and honor `Retry-After`. A circuit breaker stops calls to a dependency that keeps failing, and probes it before resuming.',
     },
     {
       title: 'Backpressure in pipelines',

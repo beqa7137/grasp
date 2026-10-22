@@ -4,7 +4,6 @@ import { SD_TOPICS } from '../../curriculum/sd-topics.js';
 import { CASE_BRIEFS } from '../case-briefs.js';
 import { CASE_CATALOG } from '../case-catalog.js';
 import { COMPONENTS } from '../catalog.js';
-import { SCENARIOS } from '../scenarios.js';
 import { simulate } from '../simulate.js';
 import { CASE_LABS, CASE_STUDIES, type CaseStudy } from './index.js';
 
@@ -85,19 +84,7 @@ describe('system design case studies', () => {
     const kinds = new Map(lab.design.nodes.map((n) => [n.id, n.kind]));
     for (const e of lab.design.edges) expect(COMPONENTS[kinds.get(e.from)!].connectsTo, `${e.from} to ${e.to}`).toContain(kinds.get(e.to));
     for (const n of lab.design.nodes) expect(n.instances, n.id).toBeLessThanOrEqual(COMPONENTS[n.kind].maxInstances);
-    // The Design Lab fits its board to the view, so a build wider or taller than the missions' starters opens clipped.
-    const widest = Math.max(...SCENARIOS.flatMap((s) => s.starter.nodes.map((n) => n.x)));
-    for (const n of lab.design.nodes) {
-      expect(n.x, n.id).toBeLessThanOrEqual(widest);
-      // Nodes are 132 units wide and 70 tall; closer centres make neighbours touch.
-      const crowded = lab.design.nodes.filter((o) => o !== n && Math.abs(o.x - n.x) < 150 && Math.abs(o.y - n.y) < 100);
-      expect(
-        crowded.map((o) => o.id),
-        n.id,
-      ).toEqual([]);
-      expect(n.y, n.id).toBeGreaterThanOrEqual(60);
-      expect(n.y, n.id).toBeLessThanOrEqual(420);
-    }
+    // Placement on the board (in bounds, nodes apart, edges routed clear) is checked for every board in lab-kit.spec.ts.
     const result = simulate(lab.design, lab.workload);
     expect(result.metrics.errorRate).toBeLessThanOrEqual(0.001);
     expect(result.metrics.p99Ms).toBeLessThanOrEqual(250);

@@ -91,7 +91,7 @@ export const NOTIFICATIONS: CaseStudy = {
           {
             label: 'One request naming a segment and a template; a campaign service expands the audience in pages at a throttled rate',
             best: true,
-            why: 'The team makes one call, the audience is read in batches of thousands, and jobs enter the low-priority queue at a rate the operator sets, so the campaign can be paused, resumed or cancelled midway.',
+            why: 'The team makes one call, the audience is read in batches of thousands, and jobs enter the low-priority queue at a rate the operator sets, so the campaign can be paused, resumed or canceled midway.',
           },
           {
             label: 'The team calls the send endpoint once per recipient',
@@ -99,14 +99,14 @@ export const NOTIFICATIONS: CaseStudy = {
           },
           {
             label: 'Expand the whole audience into the queue at once and let workers drain it',
-            why: 'Defensible for smaller campaigns, since the queue absorbs the burst. At 100 million jobs, cancelling means purging millions of messages, and preferences read at expansion go stale for jobs sent hours later.',
+            why: 'Defensible for smaller campaigns, since the queue absorbs the burst. At 100 million jobs, canceling means purging millions of messages, and preferences read at expansion go stale for jobs sent hours later.',
           },
         ],
       },
       points: [
         '`POST /v1/notifications` takes the recipient user ID, a template ID with its parameters, a category, a priority and optional channels; it returns `202 Accepted` with a notification ID.',
         'Every send carries an `Idempotency-Key` header chosen by the caller (for example the password reset request ID); a retry with the same key returns the first result instead of sending again.',
-        '`POST /v1/campaigns` takes a segment, a template, a schedule and a maximum send rate; campaigns can be paused and cancelled.',
+        '`POST /v1/campaigns` takes a segment, a template, a schedule and a maximum send rate; campaigns can be paused and canceled.',
         '`GET` on `/v1/notifications/:id` returns the status per channel: queued, sent, delivered, opened, failed or suppressed (with the reason, such as an opt-out).',
         "Teams authenticate with per-team API keys, and each team has a quota per priority, so a bug in one team's code cannot flood the platform.",
       ],
@@ -133,7 +133,7 @@ export const NOTIFICATIONS: CaseStudy = {
         'Queues: one topic per channel and priority (critical, transactional, bulk), each with its own worker pool, so a campaign backlog never sits in front of a password reset.',
         'Workers: apply preferences, quiet hours and frequency caps at send time, render the template, call the provider through an adapter with a per-provider rate limiter, then record the outcome.',
         'Provider callbacks (email bounces and complaints, SMS delivery receipts) and app open events flow back through their own queue into the delivery log.',
-        'Open the build in the Lab: it serves the average, 11.6k sends a second plus 2.9k status and preference reads. The single queue stands for all the channel and priority topics, and the worker count stands for the send rate providers allow; the simulator does not model the providers themselves. The simulator also routes every send through the API, while a real campaign enters the queue from the campaign service.',
+        'Open the build in the Lab: it serves the average, 11.6k sends a second plus 2.9k status and preference reads. The calling services are the traffic source and the limiter stands for per-team quotas. The single queue stands for all the channel and priority topics, and the worker count stands for the send rate providers allow; the simulator does not model the providers themselves. The simulator also routes every send through the API, while a real campaign enters the queue from the campaign service.',
         'Push the load to 40,000 requests a second, a campaign on top of the baseline: the API keeps accepting in a few milliseconds while the backlog grows by about 17k a second. That is the queue absorbing the spike; it drains once the campaign ends. Adding workers drains it faster only until the database, or in reality the provider limits, run out.',
       ],
     },

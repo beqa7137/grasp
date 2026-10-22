@@ -55,7 +55,7 @@ export const QUESTION_PROMPT_ROWS: readonly (readonly [id: string, prompt: strin
   ['failure-1', 'Tell me about a time you failed.'],
   ['failure-2', 'Describe a production incident you caused. What happened next?'],
   ['failure-3', 'Tell me about a decision you made that turned out to be wrong.'],
-  ['failure-4', 'Tell me about a project you worked on that got cancelled or never shipped.'],
+  ['failure-4', 'Tell me about a project you worked on that got canceled or never shipped.'],
   ['failure-5', 'What is a piece of critical feedback you received, and what did you do with it?'],
   ['failure-6', 'Tell me about a time you missed something important in a code review or design review.'],
   ['failure-7', 'What is the biggest technical mistake you have made?'],

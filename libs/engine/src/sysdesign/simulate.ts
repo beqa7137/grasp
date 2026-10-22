@@ -41,6 +41,13 @@ const EDGE_MS = 0.5;
 const INTERNET_RTT_MS = 40;
 const EDGE_RTT_MS = 10;
 const CDN_ORIGIN_MS = 30;
+
+/** The network time of one hop: the internet from a client (less to a nearby CDN), the CDN's way back to its origin, else a datacenter hop. */
+export function hopMs(from: ComponentKind, to: ComponentKind): number {
+  if (from === 'client') return to === 'cdn' ? EDGE_RTT_MS : INTERNET_RTT_MS;
+  if (from === 'cdn') return CDN_ORIGIN_MS;
+  return EDGE_MS;
+}
 const REPLICATION_COST = 1;
 /** Share of bot traffic a rate limiter rejects; the rest stays under quota by spreading over many IPs. */
 export const BOT_BLOCK_RATE = 0.98;
@@ -67,6 +74,7 @@ export function simulate(design: Design, workload: Workload): SimResult {
 
   const inflow = new Map<string, Flow>(design.nodes.map((n) => [n.id, zero()]));
   const edgeRps: Record<string, number> = {};
+  const edgeBots: Record<string, number> = {};
   const stats: Record<string, NodeStats> = {};
   const servedFrac = new Map<string, Record<ReqType, number>>();
   const routes = new Map<string, Record<ReqType, Route>>();
@@ -105,6 +113,7 @@ export function simulate(design: Design, workload: Workload): SimResult {
     target.bot += flow.bot ?? 0;
     const key = `${from.id}->${to.id}`;
     edgeRps[key] = (edgeRps[key] ?? 0) + (flow.read ?? 0) + (flow.write ?? 0) + (flow.bg ?? 0) + (flow.repl ?? 0) + (flow.bot ?? 0);
+    if (flow.bot) edgeBots[key] = (edgeBots[key] ?? 0) + flow.bot;
   };
 
   const weights = (targets: DesignNode[]) => {
@@ -114,12 +123,6 @@ export function simulate(design: Design, workload: Workload): SimResult {
     const all = targets.map((t) => t.instances);
     const allSum = all.reduce((a, b) => a + b, 0) || 1;
     return all.map((w) => w / allSum);
-  };
-
-  const hopMs = (from: DesignNode, to: DesignNode) => {
-    if (from.kind === 'client') return to.kind === 'cdn' ? EDGE_RTT_MS : INTERNET_RTT_MS;
-    if (from.kind === 'cdn') return CDN_ORIGIN_MS;
-    return EDGE_MS;
   };
 
   // Only apps feed queues, so every queue's load is known before anything downstream of a worker runs: workers wait for it.
@@ -192,19 +195,20 @@ export function simulate(design: Design, workload: Workload): SimResult {
         const slots = replicas.reduce((sum, r) => sum + available(r), 0);
         if (slots === 0) {
           send(node, t, { [type]: share }, carry);
-          track(t.id, share / base, hopMs(node, t));
+          track(t.id, share / base, hopMs(node.kind, t.kind));
           return;
         }
         // Read routing (driver/proxy) spreads reads over every primary (one per shard) and the live replicas.
         const primary = (share * t.instances) / (t.instances + slots);
         send(node, t, { [type]: primary }, carry);
-        track(t.id, primary / base, hopMs(node, t));
+        track(t.id, primary / base, hopMs(node.kind, t.kind));
         for (const r of replicas) {
           const part = (share - primary) * (available(r) / slots);
           if (part <= 0) continue;
           send(t, r, { [type]: part });
           edgeRps[`${node.id}->${t.id}`] = (edgeRps[`${node.id}->${t.id}`] ?? 0) + part;
-          track(r.id, part / base, hopMs(node, t));
+          if (type === 'bot') edgeBots[`${node.id}->${t.id}`] = (edgeBots[`${node.id}->${t.id}`] ?? 0) + part;
+          track(r.id, part / base, hopMs(node.kind, t.kind));
         }
       });
     };
@@ -400,6 +404,7 @@ export function simulate(design: Design, workload: Workload): SimResult {
       utilization: Number.isFinite(utilization) ? utilization : 99,
       latencyMs,
       droppedRps: dropped + unrouted + unroutedBots,
+      rejectedRps: dropped,
       absorbedRps: absorbed,
       status,
       ...(pressure.shards ? { shards: pressure.shards } : {}),
@@ -419,6 +424,7 @@ export function simulate(design: Design, workload: Workload): SimResult {
         utilization: 0,
         latencyMs: COMPONENTS[n.kind].baseLatencyMs,
         droppedRps: 0,
+        rejectedRps: 0,
         absorbedRps: 0,
         status: available(n) === 0 && n.kind !== 'client' ? 'down' : 'idle',
       };
@@ -473,6 +479,7 @@ export function simulate(design: Design, workload: Workload): SimResult {
   return {
     nodes: stats,
     edges: edgeRps,
+    edgeBots,
     metrics: {
       offeredRps: offered,
       successRps,
@@ -504,7 +511,7 @@ interface Pressure {
 
 function poolPressure(baseLatencyMs: number, load: number, capacity: number): Pressure {
   const utilization = capacity === Number.POSITIVE_INFINITY ? 0 : capacity > 0 ? load / capacity : load > 0 ? Number.POSITIVE_INFINITY : 0;
-  const served = utilization <= 1 ? 1 : capacity > 0 ? 1 / utilization : 0;
+  const served = utilization <= 1 + 1e-9 ? 1 : capacity > 0 ? 1 / utilization : 0;
   return { utilization, latencyMs: baseLatencyMs / (1 - Math.min(utilization, SATURATION)), servedRead: served, servedWrite: served };
 }
 
@@ -518,8 +525,9 @@ function shardPressure(node: DesignNode, f: Flow): Pressure {
   const down = node.instances - available(node);
   const reads = f.read + f.bot;
   const writes = (f.write + f.bg) * spec.writeCost;
-  let servedRead = 0;
-  let servedWrite = 0;
+  // What is lost, not what is served, accumulates: shares summing to 1 within float error must not read as a refusal.
+  let lostRead = 0;
+  let lostWrite = 0;
   let weightedLatency = 0;
   let liveLoad = 0;
   let hottest = 0;
@@ -528,13 +536,15 @@ function shardPressure(node: DesignNode, f: Flow): Pressure {
     const writeShare = shares.write[i];
     const load = reads * readShare + writes * writeShare;
     if (i >= node.instances - down) {
+      lostRead += readShare;
+      lostWrite += writeShare;
       shards.push({ utilization: 0, down: true });
       return;
     }
     const utilization = load / spec.capacityRps;
-    const served = utilization <= 1 ? 1 : 1 / utilization;
-    servedRead += readShare * served;
-    servedWrite += writeShare * served;
+    const served = utilization <= 1 + 1e-9 ? 1 : 1 / utilization;
+    lostRead += readShare * (1 - served);
+    lostWrite += writeShare * (1 - served);
     weightedLatency += load * (spec.baseLatencyMs / (1 - Math.min(utilization, SATURATION)));
     liveLoad += load;
     hottest = Math.max(hottest, utilization);
@@ -543,8 +553,8 @@ function shardPressure(node: DesignNode, f: Flow): Pressure {
   return {
     utilization: hottest,
     latencyMs: liveLoad > 0 ? weightedLatency / liveLoad : spec.baseLatencyMs,
-    servedRead,
-    servedWrite,
+    servedRead: Math.max(0, 1 - lostRead),
+    servedWrite: Math.max(0, 1 - lostWrite),
     ...(node.instances > 1 ? { shards } : {}),
   };
 }

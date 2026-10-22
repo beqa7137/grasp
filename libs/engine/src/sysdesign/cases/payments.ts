@@ -113,7 +113,7 @@ export const PAYMENTS: CaseStudy = {
       points: [
         '`POST /payments` with an `Idempotency-Key` header (a UUID the client makes once per checkout attempt), the order ID, amount, currency and the payment method token.',
         'Same key and same request hash: return the stored response. Same key and a different body: reject it with `422`. Key still in progress: return `409` so the client retries later.',
-        'Scope keys per client and expire them after a set period, such as 24 hours; the order ID is also unique per successful payment, a second line of defence.',
+        'Scope keys per client and expire them after a set period, such as 24 hours; the order ID is also unique per successful payment, a second line of defense.',
         'Pass our own payment attempt ID to the processor as its idempotency key, so a retried processor call cannot create a second charge either.',
         '`GET /payments/{id}` returns the current state, and processors report outcomes to `POST /webhooks`, one path per processor.',
       ],

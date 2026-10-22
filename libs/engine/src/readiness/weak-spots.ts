@@ -53,7 +53,7 @@ export function weakSpots(state: ProgressState, now: Date, limit = WEAK_SPOT_LIM
   return spots;
 }
 
-/** One ungraded drill across several topics: each topic's practice set, taken in turns so neighbours differ. */
+/** One ungraded drill across several topics: each topic's practice set, taken in turns so neighbors differ. */
 export function practiceMix(topics: readonly string[], rand: Rand): string[] {
   const sets = topics.map((t) => practiceSet(t, rand));
   const mixed: string[] = [];

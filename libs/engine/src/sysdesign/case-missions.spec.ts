@@ -332,18 +332,18 @@ describe('the object share in the workload', () => {
     for (const id of ['video-streaming', 'web-crawler']) expect(legacyObjectShare(CASE_LABS[id].design), id).toBeUndefined();
   });
 
-  it('names the crawler build its share, the one its fetchers already ran at, and leaves the video build on the old rule', () => {
+  it('leaves the crawler build without an object store, as its text says, and the video build on the old rule', () => {
     const crawler = CASE_LABS['web-crawler'];
-    expect(crawler.workload.objectShare).toBe(0.2);
-    expect(simulate(crawler.design, crawler.workload)).toEqual(simulate(crawler.design, { ...crawler.workload, objectShare: undefined }));
+    expect(crawler.design.nodes.some((n) => n.kind === 'blob')).toBe(false);
+    expect(crawler.workload.objectShare).toBeUndefined();
     expect(CASE_LABS['video-streaming'].workload.objectShare).toBeUndefined();
+    expect(CASE_LABS['video-streaming'].controls.files).toBeUndefined();
   });
 
   it('splits a board that names no share by instance count, as builds always have', () => {
     const { design, workload } = CASE_LABS['video-streaming'];
     const r = simulate(design, workload);
     expect(r.edges['cdn->segments']).toBeCloseTo(3_966.667, 2);
-    expect(r.edges['worker->segments']).toBeCloseTo(444.444, 2);
     const old = run(load({ design: legacyNode(design, 'segments', 0), workload }));
     expect(old).toEqual(r);
   });

@@ -24,7 +24,7 @@ import { WidgetCheckComponent } from './widget-check.component';
 
 const SCOPES: { scope: CellScope; label: string }[] = [
   { scope: 'own', label: "The user's cell only" },
-  { scope: 'neighbours', label: 'The cell and its 8 neighbours' },
+  { scope: 'neighbors', label: 'The cell and its 8 neighbors' },
 ];
 
 /** The map shows this many km around what is searched, so its edges are visible. */
@@ -110,8 +110,8 @@ interface Box {
     </svg>
     <ul class="legend-list" aria-hidden="true">
       <li><span class="swatch own"></span>The user's cell</li>
-      @if (settings().scope === 'neighbours') {
-        <li><span class="swatch neighbour"></span>Neighbour (dashed)</li>
+      @if (settings().scope === 'neighbors') {
+        <li><span class="swatch neighbor"></span>Neighbor (dashed)</li>
       }
       <li><span class="swatch ring"></span>Radius</li>
       <li><span class="swatch user"></span>The user</li>
@@ -241,7 +241,7 @@ interface Box {
         border: 2px solid var(--g-text);
         background: var(--g-accent-soft);
       }
-      &.neighbour {
+      &.neighbor {
         border: 1.5px dashed var(--g-stroke);
         background: var(--g-accent-soft);
       }
@@ -323,7 +323,7 @@ export class CellsWidgetComponent {
   readonly cellSize = computed(() => `${kmText(this.run().widthKm)} × ${kmText(this.run().heightKm)}`);
   readonly spokenRadius = computed(() => {
     const r = this.settings().radiusKm;
-    return r < 1 ? `${num(r * 1000)} metres` : `${Number(r.toFixed(1))} kilometres`;
+    return r < 1 ? `${num(r * 1000)} meters` : `${Number(r.toFixed(1))} kilometers`;
   });
   readonly mapLabel = computed(() => {
     const run = this.run();
@@ -378,7 +378,7 @@ export class CellsWidgetComponent {
     const u = 1.8;
     return {
       grid: lines.join(''),
-      // The user's cell last, so its solid edge is drawn over its neighbours' dashed ones.
+      // The user's cell last, so its solid edge is drawn over its neighbors' dashed ones.
       cells: [...cells.slice(1), own],
       user: [ux, uy],
       r: s.radiusKm * scale,
@@ -390,7 +390,7 @@ export class CellsWidgetComponent {
   private summary(): string {
     const s = this.settings();
     const run = this.run();
-    const head = `Precision ${s.precision}, ${s.scope === 'own' ? "the user's cell only" : 'the cell and its 8 neighbours'}, ${radiusText(s.radiusKm)}: ${placesText(run.within)} within the radius.`;
+    const head = `Precision ${s.precision}, ${s.scope === 'own' ? "the user's cell only" : 'the cell and its 8 neighbors'}, ${radiusText(s.radiusKm)}: ${placesText(run.within)} within the radius.`;
     if (!this.answered()) return `${head} Answer the prediction to see what the search reads.`;
     return `${head} It reads ${placesText(run.read)}, finds ${num(run.found)} and misses ${num(run.missed)}.`;
   }

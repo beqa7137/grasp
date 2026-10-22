@@ -238,7 +238,7 @@ export const numberOfProvinces: CodingProblemDefinition = {
 
 export const cheapestFlights: CodingProblemDefinition = {
   statement: [
-    'There are `n` cities labelled 0 to `n - 1`. Each `[from, to, price]` in `flights` is a one-way flight from city `from` to city `to` that costs `price`.',
+    'There are `n` cities labeled 0 to `n - 1`. Each `[from, to, price]` in `flights` is a one-way flight from city `from` to city `to` that costs `price`.',
     'Return the cheapest total price to fly from `src` to `dst` with at most `k` stops in between, that is at most `k + 1` flights. Return -1 if no such route exists.',
   ],
   constraints: [

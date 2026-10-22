@@ -162,7 +162,7 @@ export const WEB_CRAWLER: CaseStudy = {
         'Process: check the content type, store the body, compute the checksum and SimHash, then parse the HTML: resolve links against the page (and any `<base>` tag), honor `nofollow` and `noindex` directives, and read `rel="canonical"`.',
         'Filter: normalize each link (lowercase scheme and host, drop default port and fragment, resolve dot segments, strip session IDs and tracking parameters), check robots rules and the seen-URL set, and add new URLs to the frontier.',
         'Distribute by host hash: each crawler node owns a slice of hosts (consistent hashing, so adding a node moves only its share) and keeps their frontier, politeness timers, robots rules, DNS cache and seen-URL shard locally. Links for other hosts are batched and sent to their owner, so politeness never needs cross-node coordination.',
-        'Open the build in the Lab: it serves the average 19,300 extracted links a second. The simulator is request-shaped: the Users node stands for the parsers, and each request is one extracted link. Reads are the 90% already seen, answered by the fingerprint cache (cache) or the URL store sharded by host hash (database). The 10% that are new are writes: the queue stands for the frontier and the workers for the frontier writers that record each URL. That is about 5 new URLs per page fetched, far more than the budget can fetch, which is why the frontier must prioritize. DNS, robots.txt, politeness timers, the fetchers and the object store are not shown.',
+        'Open the build in the Lab: it serves the average 19,300 extracted links a second. The simulator is request-shaped: the Parsers node sends each extracted link as one request. Reads are the 90% already seen, answered by the fingerprint cache (cache) or the URL store sharded by host hash (database). The 10% that are new are writes: the queue stands for the frontier and the workers for the frontier writers that record each URL. That is about 5 new URLs per page fetched, far more than the budget can fetch, which is why the frontier must prioritize. DNS, robots.txt, politeness timers, the fetchers and the object store are not shown.',
       ],
     },
     {
@@ -228,7 +228,7 @@ export const WEB_CRAWLER: CaseStudy = {
     'Treating the crawl as a breadth-first search over one FIFO queue: most links on a page point to the same host, so the crawler hammers it.',
     'Ignoring DNS: blocking lookups leave fetchers idle while bandwidth sits unused.',
     'Choosing a Bloom filter for the seen-URL set without saying that false positives silently drop new pages forever.',
-    'Designing only discovery, with no recrawl scheduling and no defence against traps, so the budget goes to stale pages and infinite calendars.',
+    'Designing only discovery, with no recrawl scheduling and no defense against traps, so the budget goes to stale pages and infinite calendars.',
   ],
   followUps: [
     {

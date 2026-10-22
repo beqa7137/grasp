@@ -40,7 +40,7 @@ export interface ReconRow {
 export const RECON_ACTIONS: readonly { kind: BreakKind; label: string }[] = [
   { kind: 'matched', label: 'Nothing: it matches' },
   { kind: 'timing', label: 'Carry it to the next report' },
-  { kind: 'missed-capture', label: 'Post the missed capture, then fulfil or refund' },
+  { kind: 'missed-capture', label: 'Post the missed capture, then fulfill or refund' },
   { kind: 'fee', label: 'Book the actual fee and query the difference' },
   { kind: 'duplicate', label: 'Record and refund the second charge' },
 ];
@@ -101,7 +101,7 @@ export function explainRow(row: ReconRow, cutoff: string): string {
     case 'timing':
       return `We captured ${amount} at ${row.ledger!.time}, after the report's ${cutoff} cut-off, so it belongs in the next report. Carry it forward, and raise it only if it is missing there too.`;
     case 'missed-capture':
-      return `Our attempt timed out and is still unknown, but the processor captured ${amount} as ${first.charge}. The customer paid: post the capture so the books hold the money, then fulfil the order or refund it.`;
+      return `Our attempt timed out and is still unknown, but the processor captured ${amount} as ${first.charge}. The customer paid: post the capture so the books hold the money, then fulfill the order or refund it.`;
     case 'fee': {
       const expected = contractFee(first.gross);
       return `The amount matches, but the processor took ${usd(first.fee)} against the contract's ${usd(expected)}, for example a surcharge for a card issued abroad. Book the fee actually charged (${usd(first.fee - expected)} more fee expense) and query it.`;

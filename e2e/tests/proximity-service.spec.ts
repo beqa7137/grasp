@@ -66,11 +66,11 @@ for (const theme of ['dark', 'light'] as const) {
       await finishStage(stages.nth(3), 'Next: Choose a spatial index');
       await decide(stages.nth(4), /^A B-tree on \(latitude, longitude\)/, 'your answer, wrong');
       await finishStage(stages.nth(4), 'Next: Put it together');
-      await finishStage(stages.nth(5), 'Next: Search geohash cells and their neighbours');
+      await finishStage(stages.nth(5), 'Next: Search geohash cells and their neighbors');
 
       const cellsStage = stages.nth(6);
       await expect(cellsStage.locator('app-cells-widget')).toHaveCount(0);
-      await decide(cellsStage, /^The user's cell and its 8 neighbours, at a precision/, 'your answer, correct');
+      await decide(cellsStage, /^The user's cell and its 8 neighbors, at a precision/, 'your answer, correct');
       await expect(cellsStage.getByRole('heading', { name: 'Try it: search geohash cells around a user' })).toBeVisible();
       const cells = cellsStage.locator('app-cells-widget');
       await expect(readout(cells, 'Within the radius')).toHaveText('40');
@@ -90,18 +90,18 @@ for (const theme of ['dark', 'light'] as const) {
       await expect(precision.getByRole('radio', { name: '7' })).toHaveAttribute('aria-checked', 'true');
       await expect(readout(cells, 'Found')).toHaveCount(0);
       await predict(cells, '3 places');
-      await cells.getByRole('radio', { name: 'The cell and its 8 neighbours' }).click();
+      await cells.getByRole('radio', { name: 'The cell and its 8 neighbors' }).click();
       await expect(cells.getByText(/How many of the 40 places does it miss\?/)).toBeVisible();
       await predict(cells, '30 places');
       await expect(readout(cells, 'Missed')).toHaveText('30');
       const radius = cells.getByRole('slider', { name: /^Radius/ });
       await radius.focus();
       await page.keyboard.press('ArrowLeft');
-      await expect(radius).toHaveAttribute('aria-valuetext', '400 metres');
+      await expect(radius).toHaveAttribute('aria-valuetext', '400 meters');
       await expect(readout(cells, 'Missed')).toHaveText('14');
       await expect(cells.locator('app-widget-check fieldset')).toHaveCount(0);
       await expect(cells.getByRole('status')).toContainText(
-        'Precision 7, the cell and its 8 neighbours, 0.4 km: 24 places within the radius. It reads 10 places, finds 10 and misses 14.',
+        'Precision 7, the cell and its 8 neighbors, 0.4 km: 24 places within the radius. It reads 10 places, finds 10 and misses 14.',
       );
       expect(await seriousViolations(page)).toEqual([]);
       await finishStage(cellsStage, 'Next: Adapt to density with a quadtree');

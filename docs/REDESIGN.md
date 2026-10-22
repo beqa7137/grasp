@@ -1773,6 +1773,14 @@ Iterations are ordered by impact, alternating between organization and visuals. 
 | R19  | Motion layer: arrays and lists                                              | R3, R17                | no                             |
 | R20  | Checkpoint engine and array picks                                           | R19                    | no                             |
 | R21  | System diagram kit and Lab canvas (desktop)                                 | R3, R7                 | no                             |
+| R41  | Lesson widgets II                                                           | R27a, R27b             | no                             |
+| R42  | Lesson widgets III                                                          | R27a, R27b             | no                             |
+| R43  | Lesson widgets IV                                                           | R27a, R27b             | no                             |
+| R44  | Lesson widgets V                                                            | R27a, R27b             | no                             |
+| R45  | Lesson widgets VI                                                           | R27a, R27b             | no                             |
+| R46  | Case widgets II                                                             | R27a, R27b             | no                             |
+| R47  | Case widgets III                                                            | R27a, R27b, R46        | no                             |
+| R50  | Diagram cards for design review items                                       | R21                    | no                             |
 | R22  | Lab on phone                                                                | R21                    | no                             |
 | R23  | Graph renderers and node and edge picks                                     | R18, R20               | no                             |
 | R24  | Trees, tables, heaps, hashmaps                                              | R18, R20               | no                             |
@@ -1793,13 +1801,6 @@ Iterations are ordered by impact, alternating between organization and visuals. 
 | R38  | Case diagrams II (18 advanced cases)                                        | R29                    | no                             |
 | R39  | Thumbnails: missions, cases, visualizers                                    | R8, R11, R21, R23, R24 | no                             |
 | R40  | Workspace trace on the kit                                                  | R16, R23, R24          | no                             |
-| R41  | Lesson widgets II                                                           | R27a                   | no                             |
-| R42  | Lesson widgets III                                                          | R27a                   | no                             |
-| R43  | Lesson widgets IV                                                           | R27a                   | no                             |
-| R44  | Lesson widgets V                                                            | R27a                   | no                             |
-| R45  | Lesson widgets VI                                                           | R27a                   | no                             |
-| R46  | Case widgets II                                                             | R27a, R29              | no                             |
-| R47  | Case widgets III                                                            | R27a, R29              | no                             |
 | R48  | Amazon target                                                               | R14, R12               | no                             |
 
 **Dependency notes that fix the previous draft:**
@@ -1811,6 +1812,7 @@ Iterations are ordered by impact, alternating between organization and visuals. 
 - `g-sequence` is built in R27b, before the retries widget (R34). R27b note: it is `g-timeline`'s messages (swimlanes over a time axis, travelling messages, × for a rejected one); R34 adds timeout brackets there rather than a second component.
 - R27 was pulled forward by the owner on 2026-10-13, ahead of R8 to R26, and takes the Caching widget (`cache`) from R42. It is split: R27a ships the Caching widget with the kit pieces and experiments framework it needs; R27b adds the rest of the kit with Load Balancing and Replication. R41 to R47 depend on R27a, and on R27b for any kit piece only R27b builds (`g-histogram`, `g-timeline`, `g-sequence`, `sim.worker.ts`).
 - R49 was placed after R14 and before R15 by the owner on 2026-10-17: it ships the sourced "Reported in interviews" lists first; the Company facet, row chips and company search wait for a later iteration, once coverage is worth filtering by.
+- Owner decision, 2026-10-21: after R21, the lesson and case widgets come next, R41 to R47, before R22 and everything else, with R42's Data Modeling `feed-model` first (it opens R41's batch). The owner found the slider-and-tile "Try it" widgets (such as `/design/topics/sd-data-modeling`: buttons, a slider and number tiles, no picture) far below a world-class bar, so every redrawn widget now starts with a design brief (the mechanism it must make visible, what the learner should see change, the experiments and their reveals), a mockup, and two independent design critics who compare it with the best interactive explainers, before it is built. Load Balancing (R27b, 4.7) is the reference. R41 to R45 depend only on R27a and R27b. R46 and R47 depend on R27a and R27b and on R29 for the case widget layout (predict first, pinned visual, controls after); R29 is not built yet, so R46 builds that layout itself and R47 and R29 reuse it, rather than waiting for R29. R50 (diagram cards for the design review and drill items, on R21's kit) follows R47. An audit the same day found surfaces with no picture that no iteration redrew; they are placed in R45, R46 and R50 (5.2), and the mock system design round, which is chat only, is a LOOP.md candidate that needs an owner decision.
 - R19 is not a dependency of R27a: its widgets need no FLIP, pacing or trails, only "may script animate now?", which R3's `motionAllowed()` in `core/motion.ts` answers (data-motion, the test mode and the OS setting). Plays are bounded and particles pooled (`viz/kit/particles.ts`), so 3.5's budget holds without R19's `MotionService`.
 
 ### 5.2 Iterations
@@ -2498,6 +2500,96 @@ Iterations are ordered by impact, alternating between organization and visuals. 
   - routing falls back to curves when no clear lane exists;
   - a pixdiff review of every case build.
 - **Content review:** the case build `roles` and `workload` declarations.
+- **R21 note** (as built, and decisions where the code differed from this plan):
+  - **Engine.** `viz/route.ts` routes edges as rounded elbows: each edge tries lanes from the middle of the gap outward
+    (H-V-H to the right, V-H-V within a column, under or over both boxes for a target to the left) and takes the first
+    whose segments clear every other node by 10 units and run over no lane already taken; with none it falls back to
+    the curve the board drew before (`curveBetween`), sampled into points for a travelling dot. `sysdesign/trace.ts`
+    (`traceRequest`) follows the busiest outgoing edge from the busiest client to a store or queue, with each hop's
+    network time (`hopMs`, now exported from `simulate.ts`) and the node's own `latencyMs`, so the sum is that path's mean
+    in the simulator. `NodeStats.rejectedRps` is the part of `droppedRps` a node refused for want of capacity, which the
+    critical edge tails draw. `lab-goals.ts`: `FREE_BUILD_GOALS` (p99 200 ms, errors 1%, no budget) and `kpiVerdicts`,
+    which `evaluate()` now uses for p99 and cost, so a KPI's color cannot disagree with a mission's grade. `board.ts`:
+    the board is 1060 × 480 and a node 148 × 64; the case labs and mission starters were respaced at the source (x ×
+    1.2), and `lab-kit.spec.ts` holds every board in bounds, its nodes apart and every edge routed without a curve.
+    Saved boards keep their coordinates.
+  - **`CASE_LABS[id]`.** `roles` maps a node id to a role glyph (`log`, `matcher`, `sequencer`): Message Queue's log
+    segments, Stock Exchange's sequencer and matching engines ("Matching" became "Matching engines"). Labels stay on the
+    nodes, where saved boards already keep them; a role draws only on its own node while it is still the kind the lab
+    gave it, and screen readers hear "Primary DB as an append-only log". The workload controls are `controls`, not
+    `workload` as 3.4 planned, since `workload` already holds the build's numbers (now the controls' defaults): Traffic
+    from 100 to 1,000,000 a second everywhere, Reads everywhere, Bots where the workload has bots (Rate Limiter,
+    Ticketing), Files where the workload names its share of whole objects (fix round 1; it was every build with an object store). Free Build declares all four; missions declare none, since
+    they are graded at their own load (no Traffic handle there; R28's workload presets are the place for one).
+  - **Kit** (`viz/kit/sys/`, lazy): one inline glyph sprite (`g-sys-sprite`, with the down hatch and the arrowhead; no
+    asset file, so no `native.yml` path), `g-sys-node` (glyph, name on one or two lines, load % and time, live count,
+    meter or a shard strip, the hit-rate ring on caches and CDNs, heat ramp body and meter, critical outline and "!"
+    when overloaded, hatch and × when down), `g-sys-edge` (sqrt width, arrowhead, critical tail with "−1.0k rps
+    dropped", dashed "repl", "async" into a queue, a pill on the three busiest edges that have room for one, on hover
+    and on selection), `callouts.ts`, `trace-player.ts`. `--g-viz-heat-1..3` and `--g-motion-travel` are the first
+    renderers of 3.6's heat ramp and 3.5's travel token; the Lab's kind hues (`--g-kind-*`) left the Lab (the ring
+    widget still reads them). The old idle loops (the edges' dash `flow` and the overload `throb`) are gone.
+  - **Desktop layout** (from 1024px, by a `matchMedia` signal; under it the page is as before until R22, except the
+    drawing): a tool column grouped Edge, Compute, Data and Async (glyphs alone under 1280px, named for assistive tech
+    and in their tooltips), the canvas fitted to the design (`fitContent`: every node in view, never past one unit a
+    pixel), and the dock under both; the mission, case brief and insights sit in a row below. The dock and the overlay load only there, through `NgComponentOutlet` with a type-only `LabHost` input (the rail's pattern), and the trace player with the first trace that moves, so phones fetch none of them. The inspector floats over
+    the canvas's right edge (`role="region"`, "Inspector"); when it would cover a node the design refits into the canvas
+    left of it, and where that would drop under 0.75× (0.6× before fix round 1) (a wide case at 1024px) only the selected node pans clear.
+  - **Dock:** p99 (grouped, "1,864 ms"), errors, served and cost, each with its goal, ✓ or ✕ and "met" or "missed" for
+    screen readers: a mission's goals, Free Build's "Your goals", and "No goals for this build yet" in a case build
+    until R28 (its scenario's goals are none, so nothing colors). Workload ▾ and Model ⓘ are disclosures; Escape inside
+    one closes it and returns focus to its button, handled on the popover, never the document. The Model text follows
+    the simulator, not 4.6's draft: the Lab's latency is service time over (1 − utilization), the M/M/1 mean, not M/D/1,
+    and there is no Run yet, so it says the numbers are the steady state.
+  - **Traffic** is a `g-handle` on a 200px track under the client, in screen pixels over the canvas with the callouts
+    (so their text stays 13px at any zoom): 1-2-5 snaps in the build's range plus its default and the load it opened at.
+  - **Callouts:** the first critical or warning insight of each node, under it, else over it, and none where it would
+    cover a node, another callout or the Traffic handle (the insights list keeps every one); a callout selects its node.
+  - **Trace a request:** a dock button, or a tap on the client; one numbered dot (`ParticlePool`, now with a label and
+    radius) travels the routed path at `--g-motion-travel` a hop, each hop's "+42 ms" appears as the dot arrives, then
+    "Request 1: Users → LB → App → Cache → DB, 85 ms on the busiest path." in a status region. Under Reduced motion and
+    the test mode nothing animates and every hop shows at once; it pauses offscreen; any change to the board or its
+    workload clears it.
+  - **Free Build** now says "Your own goals: p99 within 200 ms, errors within 1%." in its tagline (it said "No goals").
+    Its starter misses both at 5k a second; at 1k it meets both. Display only: no report until R28, nothing stored.
+  - **Fix round 1** (code, browser and content reviews): the dock sat in the tool column, since a host made by
+    `NgComponentOutlet` takes none of the page's styles, so it now sits in a `.dock-slot` that carries the grid area (an
+    e2e checks its box at 1024, 1280 and 1440px). Refusals that were only float error ("−0 rps dropped" on healthy boards)
+    are gone at the source: `shardPressure` adds up what is lost rather than what is served, and both pressures serve
+    everything up to 1 + 1e-9; no tail is drawn under 0.5 rps, and a target's refusals are shared over the edges into it
+    by their traffic (its inflow also counted reads reaching replicas through the database's edge). The floating
+    inspector refits the design (nodes and routed edges) clear of it down to 0.75×, else pans the selection clear
+    without clamping to the board, for a selected edge too; the home view returns when the selection clears; Escape
+    inside it closes it and returns focus to the node; the zoom controls moved to the canvas's left. Routing: the
+    across-then-into candidate is offered whenever the target sits right of the source and clear above or below its row
+    (App to Cache left from App's bottom and looped up before), never when the route would cross the target; no edge
+    enters where another leaves; elbows stay on the board; `lab-kit.spec.ts` forbids edges that share no node running
+    along each other and edges leaving the board. Fit to content takes in the routed edges, the Traffic handle and room
+    for callouts. Trace a request stops where a node answers more requests itself (bots aside) than it sends down its
+    busiest edge (a cache's or CDN's hits), says how many requests are refused on an overloaded board and "No traffic
+    leaves the client" when none does, and shows each node's own time over it and the internet's time on its edge. The
+    trace, the dock, the overlay and their hop labels and summary load in the desktop chunk. Callouts call a named node by
+    its name and, with the hop labels, keep off the edges, pills, tags and the Traffic handle. Secondary text in nodes and
+    on edges grows with a `--text-scale` the canvas sets from its zoom (at most 1.35×), so it stays about 10px or more on
+    screen. The client's bots take a line of their own, below a two-line name they join the read share, and a node's live
+    count reads "6/8". Workload and Model close on focus leaving them and on a press outside; the read share reads to a
+    tenth ("99.5%") and its slider steps by 0.1. `evaluate()` passes p99 on anything but "fail", as cost does. Free
+    Build's starter is respaced. Content: Files only where the workload names its share (Email names 30%, Code
+    Deployment 0; Video offers no Files, Web Crawler has no object store and its Parsers send the links); log roles on
+    Chat's message log, Ad Click's click log, Collaborative Editor's operation log, Ride Sharing's location log,
+    Leaderboard's result stream, Search Engine's crawl log, Video's view events, Metrics' ingest log and Email's inbound
+    queue; Message Queue's database is its partition leaders; clients and nodes take the cases' own names; Stock
+    Exchange's order into its sequencer is not tagged async; American spellings throughout the case text, which
+    `content.spec.ts` now enforces for neighbor, center, color, labeled and behavior.
+  - **Fix round 2:** a pill pins only where it leaves the red tail of a target's refusals in view, and never shows on an
+    edge too short for it, not even selected (the inspector gives its rps); where "−N rps dropped" cannot fit, the whole
+    edge turns critical and dashed, at least 3 units wide, so refused traffic always shows. Escape on a selected node
+    closes the inspector too. The trace counts only the users' requests a node answers: `SimResult.edgeBots` records the
+    bots in each edge, so a cache that bots always miss stops the trace when it answers most users (Bot Storm). Names
+    grow with the zoom (at most 1.12×; names over 13 characters take two lines). The floating edge inspector is padded.
+    Video's Counters no longer write to the segment store, and its client is "Viewers". `content.spec.ts`'s check covers
+    the wider British forms (canceled, defense, meters, modeled, fulfill, favor, honor, serialize, catalog and more) and
+    the content follows.
 
 **R22 Lab on phone.**
 
@@ -2711,7 +2803,7 @@ Iterations are ordered by impact, alternating between organization and visuals. 
 - **Scope:** roles, diagrams and steps for the 18 advanced cases.
 - **Accept:**
   - every case shows a diagram;
-  - Stock Exchange draws a matching engine and a sequencer, and Message Queue draws its brokers as logs.
+  - Stock Exchange draws a matching engine and a sequencer, and Message Queue draws its partition leaders as logs.
 - **Content review:** the topologies and steps.
 
 **R39 Thumbnails.**
@@ -2742,9 +2834,20 @@ Iterations are ordered by impact, alternating between organization and visuals. 
 | R42 | Data Modeling: `feed-model`; Unique IDs: `id-layout`; Durability: `durability`; Backups & Recovery: `recovery`; CDNs & Edge: `cdn` (Caching's `cache` moved to R27a)                                                                                                                        |
 | R43 | Search & Indexing: `inverted-index`; Geospatial: `geohash`, reusing the `cells-widget` renderer; Real-Time Delivery: `delivery`; Multi-Region: `multi-region`, as an RTT strip; Queues: `queue-backlog`; Stream Processing: `stream-windows`, with a watermark                              |
 | R44 | Batch: `batch-job`; Backpressure: `overload`; Consensus: `partition`, as votes; Locks & Leases: `lease`; Transactions: `transactions`, as a 2PC vs saga swimlane; Time & Clocks: `clocks`; Service Discovery: `discovery`, as a timeline                                                    |
-| R45 | API Design: `pagination`; Gateways: `gateway`; Rate Limiting: `rate-limiter`, as a token bucket over time; Security: `password-hash`; Multi-Tenancy: `tenancy`; Observability: `error-budget`; plus the Estimation drill restyled on the kit                                                |
+| R45 | API Design: `pagination`; Gateways: `gateway`; Rate Limiting: `rate-limiter`, as a token bucket over time; Security: `password-hash`; Multi-Tenancy: `tenancy`; Observability: `error-budget`; plus the Estimation drill as a drawn widget (below)                                          |
 
+- **Order (owner decision, 2026-10-21, 5.1):** this batch follows R21, with R42's Data Modeling `feed-model` built first.
+- **Forms.** The rows that name no picture (`pipeline`, `quorum`, `feed-model`, `id-layout`, `durability`, `recovery`,
+  `cdn`, `inverted-index`, `delivery`, `batch-job`, `clocks`, `pagination`, `gateway`, `password-hash`, `tenancy`,
+  `error-budget`) get their form from their design brief and its critics, not from this table. `queue-latency`,
+  `queue-backlog`, `overload` and `lease` already moved onto chart and timeline stages in R27b, so their slots are
+  experiments and reveals only, unless their brief finds the picture short of the bar.
+- **Estimation drill** (`sd-estimation`, R45): a drawn widget rather than a restyle: an order-of-magnitude scale with the
+  learner's guess against the answer, and the arithmetic drawn as a breakdown of factors.
 - **Accept, for each widget:**
+  - a design brief written before building (the mechanism it must make visible, what the learner should see change, the
+    experiments and their reveals), a mockup, and two independent design critics who compare it with the best
+    interactive explainers, with Load Balancing (R27b, 4.7) as the reference;
   - a drawn mechanism;
   - experiments with a reveal spec.
 
@@ -2755,6 +2858,10 @@ Iterations are ordered by impact, alternating between organization and visuals. 
 **R46 Case widgets II.**
 
 - **Scope:**
+  - the case widget layout R29 lists (predict first, pinned visual, controls after), built here because R46 now comes
+    before R29 (5.1); R47 and R29 reuse it;
+  - case estimate stages draw the guess against the answer on the Estimation drill's order-of-magnitude scale (R45),
+    with the tolerance band, on today's estimate cards; R29 later moves the cards onto `g-checkpoint` and keeps the drawing;
   - reconcile: 25 buttons become a two-ledger diff with mismatch cards;
   - rollout: 8 sliders become a staged rollout timeline with handles;
   - propagation: a `g-sequence` of config pushes;
@@ -2772,9 +2879,19 @@ Iterations are ordered by impact, alternating between organization and visuals. 
 **R46 and R47 share these gates:**
 
 - **Accept:**
+  - R41 to R45's bar: a design brief, a mockup and two design critics before building;
   - predict first, pinned visual, controls after;
   - a reveal spec for every quoted number.
 - **Content review:** the predictions.
+
+**R50 Diagram cards for design review items.**
+
+- **Scope:** the system design review and drill items (`libs/engine/src/review/design-items*.ts`) describe generated
+  topologies in text only; each card draws its topology with R21's diagram kit (`g-sys-node`, routed edges, role glyphs),
+  read-only, with the text kept as the card's described alternative.
+- **Accept:** every design review and drill item that names a topology shows it drawn, at 320px too; review item ids
+  and counts are unchanged.
+- **Content review:** the drawn topologies against each item's text.
 
 **R48 Amazon target.**
 

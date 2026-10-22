@@ -135,13 +135,17 @@ test.describe('in dark', () => {
   // Dark keeps the raised step apart from the card, so a control with the raised shadow on the card's fill stood out.
   test("the Lab's palette buttons take the raised fill", async ({ page }) => {
     await page.goto('/design/missions/first-scale-up');
-    await expect(page.locator('.palette .tool').first()).toBeVisible();
+    // Phones show the palette as a row of chips, the desktop Lab (R21) as a column of tiles.
+    await expect(page.locator('.palette .tool, .tool-tile').first()).toBeVisible();
     const { raised, tools } = await page.evaluate(() => {
       const probe = document.body.appendChild(document.createElement('div'));
       probe.style.background = 'var(--g-raised)';
       const fill = getComputedStyle(probe).backgroundColor;
       probe.remove();
-      return { raised: fill, tools: [...document.querySelectorAll('.palette .tool')].map((e) => getComputedStyle(e).backgroundColor) };
+      return {
+        raised: fill,
+        tools: [...document.querySelectorAll('.palette .tool, .tool-tile')].map((e) => getComputedStyle(e).backgroundColor),
+      };
     });
     expect(tools.length).toBeGreaterThan(0);
     expect(new Set(tools)).toEqual(new Set([raised]));

@@ -247,7 +247,7 @@ export function nearestPlaces(root: QuadNode, points: readonly [number, number][
 const RECENT = 24;
 const recent = new Map<string, { root: QuadNode; run: QuadtreeRun; cost?: QueryCost }>();
 
-/** A checkpoint asks about neighbouring settings too, so recent trees are kept, and their query cost once measured. */
+/** A checkpoint asks about neighboring settings too, so recent trees are kept, and their query cost once measured. */
 function kept(s: QuadtreeSettings) {
   if (!(s.capacity >= 1)) throw new Error('A leaf must hold at least one place');
   const key = `${s.density}:${s.capacity}`;
@@ -331,10 +331,10 @@ const nodesText = (v: number) => `${num(v)} node${v === 1 ? '' : 's'}`;
 
 /**
  * A prediction about the current settings, read from the run: how deep the tree goes, how many nodes it has, or how many
- * places a query for the nearest 20 checks. Distractors are what the same question gives under neighbouring settings.
+ * places a query for the nearest 20 checks. Distractors are what the same question gives under neighboring settings.
  */
 export function quadtreeCheckpoint(s: QuadtreeSettings, run = quadtree(s)): WidgetCheckpoint {
-  // The capacity neighbours first: the query question measures only those, since queries cost more than a build.
+  // The capacity neighbors first: the query question measures only those, since queries cost more than a build.
   const nearby: QuadtreeSettings[] = [
     { ...s, capacity: s.capacity * 4 },
     { ...s, capacity: Math.max(1, Math.round(s.capacity / 4)) },
@@ -343,7 +343,7 @@ export function quadtreeCheckpoint(s: QuadtreeSettings, run = quadtree(s)): Widg
   const { places, nearest } = QUADTREE;
   const situation = `${num(places)} places ${DENSITY_TEXT[s.density]}, at most ${num(s.capacity)} a leaf`;
   const question = questionFor(s);
-  const neighbours = question === 'examined' ? [] : nearby.map(quadtree);
+  const neighbors = question === 'examined' ? [] : nearby.map(quadtree);
   if (question === 'depth') {
     const deepest = run.leaves.reduce((a, b) => (b.depth > a.depth ? b : a));
     const even = Math.log(places / s.capacity) / Math.log(4);
@@ -351,7 +351,7 @@ export function quadtreeCheckpoint(s: QuadtreeSettings, run = quadtree(s)): Widg
       prompt: `Predict: ${situation}. How many levels below the root is the deepest leaf?`,
       ...spacedChoices(
         run.depth,
-        [Math.ceil(even), ...neighbours.map((n) => n.depth), Math.round(run.depth * 1.5), Math.round(run.depth / 2)],
+        [Math.ceil(even), ...neighbors.map((n) => n.depth), Math.round(run.depth * 1.5), Math.round(run.depth / 2)],
         levels,
         1,
       ),
@@ -362,7 +362,7 @@ export function quadtreeCheckpoint(s: QuadtreeSettings, run = quadtree(s)): Widg
     const avg = places / run.leaves.length;
     return {
       prompt: `Predict: ${situation}. How many nodes does the tree have, leaves included?`,
-      ...spacedChoices(run.nodes, [Math.ceil(places / s.capacity), ...neighbours.map((n) => n.nodes)], nodesText, 1),
+      ...spacedChoices(run.nodes, [Math.ceil(places / s.capacity), ...neighbors.map((n) => n.nodes)], nodesText, 1),
       explain: `A split turns one leaf into four, so the tree has 1 + 4 × splits nodes: here ${num(run.leaves.length)} leaves and ${num(run.nodes - run.leaves.length)} inner nodes. A leaf holds ${Number(avg.toFixed(1))} places on average, fewer than ${num(s.capacity)}, because a split rarely divides a leaf evenly and some quarters are empty.`,
     };
   }

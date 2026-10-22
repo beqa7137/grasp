@@ -74,7 +74,7 @@ const FACTS: Record<ComplexityFactId, ComplexityFactDefinition> = {
     question: 'BFS shortest path on an R × C grid: time?',
     answer: 'O(R · C)',
     distractors: ['O((R · C)²)', 'O(R + C)', 'O(R · C · log(R · C))'],
-    why: 'Every cell is enqueued at most once and checks 4 neighbours: O(V + E) with V = R·C, E ≈ 4V.',
+    why: 'Every cell is enqueued at most once and checks 4 neighbors: O(V + E) with V = R·C, E ≈ 4V.',
   },
   subsets: {
     question: 'Generate every subset of n items: time?',
@@ -122,7 +122,7 @@ const FACTS: Record<ComplexityFactId, ComplexityFactDefinition> = {
     question: 'Longest common subsequence of strings of length n and m with a DP table: time?',
     answer: 'O(n · m)',
     distractors: ['O(n + m)', 'O(2ⁿ⁺ᵐ)', 'O(n · m · min(n, m))'],
-    why: 'n · m states, each computed in O(1) from three neighbours.',
+    why: 'n · m states, each computed in O(1) from three neighbors.',
   },
   'bitmask-route': {
     question: 'Bitmask DP over (mask, last) for the shortest route through all n nodes: time, as a tight bound?',

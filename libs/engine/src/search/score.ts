@@ -87,7 +87,7 @@ export function scoreOf(item: Prepared, query: readonly string[]): number {
   return 0;
 }
 
-/** Edit distance counting a swap of two neighbouring letters as one edit ("dijsktra"), giving up past `limit`. */
+/** Edit distance counting a swap of two neighboring letters as one edit ("dijsktra"), giving up past `limit`. */
 export function editDistance(a: string, b: string, limit = Infinity): number {
   if (Math.abs(a.length - b.length) > limit) return limit + 1;
   let before: number[] = [];

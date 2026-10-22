@@ -1,0 +1,118 @@
+@use '../../../type' as *;
+
+:host {
+  display: block;
+}
+
+.dock {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--g-space-3);
+  padding: var(--g-space-3) var(--g-space-4);
+}
+
+.kpis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--g-space-2);
+}
+
+.kpi {
+  display: grid;
+  gap: var(--g-space-1);
+  min-width: 8.5em;
+  padding: var(--g-space-2) var(--g-space-3);
+  border-radius: var(--g-radius-sm);
+  border: 1px solid var(--g-line);
+  background: var(--g-sunken);
+
+  .label {
+    @include label;
+    color: var(--g-muted);
+  }
+  .value {
+    font: 600 var(--g-text-title-m) / 1.1 var(--g-font-mono);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  small {
+    font: 500 var(--g-text-label) var(--ion-font-family);
+    color: var(--g-muted);
+    margin-left: var(--g-space-1);
+  }
+  .goal {
+    font: 500 var(--g-text-label) var(--ion-font-family);
+    color: var(--g-muted);
+  }
+  &[data-verdict='pass'] {
+    border-color: var(--g-success-line);
+    .goal {
+      color: var(--g-success-ink);
+    }
+  }
+  &[data-verdict='fail'] {
+    border-color: var(--g-danger-line);
+    .value,
+    .goal {
+      color: var(--g-danger-ink);
+    }
+  }
+}
+
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--g-space-2);
+  .g-btn {
+    font-size: var(--g-text-body-s);
+  }
+}
+
+.goals-note {
+  margin: 0;
+  font-size: var(--g-text-body-s);
+  color: var(--g-muted);
+}
+
+.pop {
+  position: relative;
+}
+
+.popover {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + var(--g-space-2));
+  z-index: 3;
+  width: min(20rem, 80vw);
+  display: grid;
+  gap: var(--g-space-3);
+  padding: var(--g-space-3) var(--g-space-4);
+  border: 1px solid var(--g-line-strong);
+  border-radius: var(--g-radius-md);
+  background: var(--g-raised);
+  box-shadow: var(--g-shadow-raised);
+
+  label {
+    display: grid;
+    gap: var(--g-space-2);
+    font-size: var(--g-text-body-s);
+    color: var(--g-muted);
+  }
+  strong {
+    color: var(--g-text);
+    margin-left: var(--g-space-2);
+  }
+  input[type='range'] {
+    width: 100%;
+    accent-color: var(--g-accent);
+  }
+  &.model p {
+    margin: 0;
+    font-size: var(--g-text-body);
+    line-height: 1.5;
+    color: var(--g-text);
+  }
+}

@@ -3,7 +3,7 @@ import { PATTERN_CATALOG, type PatternSummary } from './catalog.js';
 
 const ORDER = new Map<string, number>(PATTERN_CATALOG.map((p) => [p.id, p.order]));
 
-/** A pattern's place in the roadmap: its neighbours within its track, and the pattern after it across tracks. */
+/** A pattern's place in the roadmap: its neighbors within its track, and the pattern after it across tracks. */
 export interface PatternNeighbours {
   previous: PatternSummary | null;
   next: PatternSummary | null;

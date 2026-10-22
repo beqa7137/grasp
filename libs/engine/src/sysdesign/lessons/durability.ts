@@ -37,7 +37,7 @@ export const DURABILITY_LESSON: SdLesson = {
     },
     {
       title: 'Hot data replicated, cold data erasure coded',
-      body: 'Recently written, frequently read data favours replicas: reads come from any single copy, a slow disk can be skipped, and nothing is decoded. Most bytes in a big store are cold, and there the 2x saving of erasure coding dominates. Large object and file stores do both: Facebook moved warm photos from replicated Haystack to f4, which uses Reed-Solomon 10 + 4, and HDFS offers policies such as RS 6 + 3 and RS 10 + 4 alongside 3x replication. Data is often written replicated and re-encoded once it cools.',
+      body: 'Recently written, frequently read data favors replicas: reads come from any single copy, a slow disk can be skipped, and nothing is decoded. Most bytes in a big store are cold, and there the 2x saving of erasure coding dominates. Large object and file stores do both: Facebook moved warm photos from replicated Haystack to f4, which uses Reed-Solomon 10 + 4, and HDFS offers policies such as RS 6 + 3 and RS 10 + 4 alongside 3x replication. Data is often written replicated and re-encoded once it cools.',
     },
   ],
   examples: [
@@ -75,7 +75,7 @@ export const DURABILITY_LESSON: SdLesson = {
       insight:
         'Eleven nines is a design target from a model; hit it with margin under independence, then remove the correlations the model ignores.',
       steps: [
-        'Amazon S3 and Google Cloud Storage say they are designed for eleven nines a year: a modelled design target, not a guarantee their SLAs pay out on. It is a loss chance of 10^-11 per object a year. Across 10 million objects that is 10^-4 objects a year: on average one object lost every 10,000 years.',
+        'Amazon S3 and Google Cloud Storage say they are designed for eleven nines a year: a modeled design target, not a guarantee their SLAs pay out on. It is a loss chance of 10^-11 per object a year. Across 10 million objects that is 10^-4 objects a year: on average one object lost every 10,000 years.',
         'Three copies at 2% a year and 24 hour repairs reach about 9.7 nines by the independent model, short of the target. Repairing in 6 hours gives 10.9, still short.',
         '6 + 3 at the same 24 hour repairs gives about 11.8 nines at half the storage of three copies, and 10 + 4 about 14.7: some margin, which you need because the model is optimistic.',
         'Place the 9 pieces of 6 + 3 on 9 different racks, 3 per zone across 3 zones. A zone outage removes 3 pieces and leaves exactly 6, so data stays readable, but with no margin until the zone returns.',

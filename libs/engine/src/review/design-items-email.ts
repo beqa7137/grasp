@@ -101,7 +101,7 @@ const perUserIndex = concept(
 );
 
 const syncChanges = concept(
-  'A phone was offline for a day while, on another device, mail was read, labelled and deleted. How does the phone catch up?',
+  'A phone was offline for a day while, on another device, mail was read, labeled and deleted. How does the phone catch up?',
   'It sends the last modification sequence it saw and gets every change since, deletions included',
   [
     'It downloads the whole message list and compares',

@@ -229,7 +229,7 @@ export const AD_CLICK_AGGREGATOR: CaseStudy = {
         'Flink checkpoints use barriers that flow through the stream (asynchronous barrier snapshotting, based on the Chandy-Lamport algorithm), so state and input offsets are captured consistently without stopping the job.',
         'Duplicate clicks are a separate problem from replays: a double tap or a retried request produces two events for one impression. Keep seen impression IDs in keyed state with a TTL and count the first click per impression only.',
         'Sizing that state: an hour of peak traffic is 35,000 times 3,600, about 126 million IDs; at 16 bytes each that is about 2 GB, spread across workers in RocksDB state.',
-        'Fraud (invalid traffic) is tagged rather than dropped: click rates per IP and device, known bot user agents and data centre IP ranges, clicks too soon after the ad rendered. Tagged clicks are stored as invalid, so rules can change and the batch job can re-score history.',
+        'Fraud (invalid traffic) is tagged rather than dropped: click rates per IP and device, known bot user agents and data center IP ranges, clicks too soon after the ad rendered. Tagged clicks are stored as invalid, so rules can change and the batch job can re-score history.',
         'Slower fraud models run in the daily batch job; clicks judged invalid after billing are credited back to advertisers, as large ad networks do.',
       ],
     },

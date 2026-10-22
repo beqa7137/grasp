@@ -88,7 +88,7 @@ export const HOTEL_BOOKING: CaseStudy = {
         '`GET /search` with a city or map box, check-in and check-out dates, guests and filters returns a page of hotels with the lowest available price for the stay. It may be a few minutes stale.',
         '`GET /hotels/{id}/rooms` with dates returns room types, rate plans, cancellation policies and near current availability, so the guest sees fresher numbers than search before committing.',
         '`POST /bookings` with hotel, room type, rate plan, dates, guests and an `Idempotency-Key` holds the rooms and returns a booking ID, the total price and `expires_at`, or `409` naming the sold out night.',
-        '`POST /bookings/{id}/pay` pays or stores the card; `GET /bookings/{id}` reports held, paying, confirmed, expired or cancelled; `DELETE /bookings/{id}` cancels under the saved policy.',
+        '`POST /bookings/{id}/pay` pays or stores the card; `GET /bookings/{id}` reports held, paying, confirmed, expired or canceled; `DELETE /bookings/{id}` cancels under the saved policy.',
       ],
     },
     {

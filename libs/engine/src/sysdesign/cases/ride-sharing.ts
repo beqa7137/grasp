@@ -191,10 +191,10 @@ export const RIDE_SHARING: CaseStudy = {
       prompt:
         'The rider cancels at the moment the driver accepts; the network drops a driver\'s "trip ended". How do you keep a trip consistent?',
       points: [
-        'An explicit state machine: requested, then accepted (driver en route), arrived, in progress, completed. Cancelled is reachable from requested, accepted and arrived; no driver found ends a request that dispatch gives up on.',
+        'An explicit state machine: requested, then accepted (driver en route), arrived, in progress, completed. Canceled is reachable from requested, accepted and arrived; no driver found ends a request that dispatch gives up on.',
         'Every transition is a conditional write: set the new state only if the current state (or a version number) is the expected one. The race between cancel and accept has exactly one winner, and the loser gets a clear error.',
         'Trips live in a transactional database keyed by trip ID, with the driver and rider as indexed columns. The rate is only hundreds of transitions a second, so correctness costs little here.',
-        "The driver's status in the index follows the trip: offered, then on trip, and available again when the trip completes or is cancelled. A periodic job repairs any driver stuck as busy with no open trip.",
+        "The driver's status in the index follows the trip: offered, then on trip, and available again when the trip completes or is canceled. A periodic job repairs any driver stuck as busy with no open trip.",
         'Each transition publishes an event to the log. Receipts, payments, rider notifications and analytics consume it, so the trip service stays small.',
         'Every client call is idempotent by trip ID and expected state, so a retried "trip ended" after a dropped connection simply confirms the state it already reached.',
       ],

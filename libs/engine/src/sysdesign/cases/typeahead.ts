@@ -223,7 +223,7 @@ export const TYPEAHEAD: CaseStudy = {
   pitfalls: [
     'Walking the subtree at request time instead of precomputing the top 10 per prefix, so the hottest one-letter prefixes do the most work.',
     'Updating the serving structure on every search: write contention near the root, and nothing filtered before it goes live.',
-    'Ignoring the client: a request per keystroke with no cancelling multiplies traffic and renders stale, out-of-order suggestions.',
+    'Ignoring the client: a request per keystroke with no canceling multiplies traffic and renders stale, out-of-order suggestions.',
     'Treating filtering as an afterthought: one offensive or private suggestion shown to millions is the real incident, so it needs build-time filters, a distinct-user threshold and a serve-time kill switch.',
   ],
   followUps: [
@@ -235,7 +235,7 @@ export const TYPEAHEAD: CaseStudy = {
     {
       question: 'Should "york" suggest "new york times"?',
       answer:
-        'Only if you index infixes: store each query under the prefixes of every word start, not just the first. That multiplies the entries by the average word count (about 3), and the ranking should favour matches at the start.',
+        'Only if you index infixes: store each query under the prefixes of every word start, not just the first. That multiplies the entries by the average word count (about 3), and the ranking should favor matches at the start.',
     },
     {
       question: 'How do you roll out a new build safely?',

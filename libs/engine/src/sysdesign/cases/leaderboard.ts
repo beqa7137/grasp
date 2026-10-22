@@ -52,7 +52,7 @@ export const LEADERBOARD: CaseStudy = {
       points: [
         'Each result updates three boards (all time, today and this week): about 25,000 sorted set writes a second at peak.',
         'Reads: the results screen and menus show about 5 leaderboard views per match, so 5 x 8,333 is about 42,000 reads a second. Together about 50,000 requests a second, 83% of them reads.',
-        'Most reads are two kinds: the top of a board, which is the same for everyone and caches perfectly, and "me and my neighbours", which is different for every player and has to come from the ranking itself.',
+        'Most reads are two kinds: the top of a board, which is the same for everyone and caches perfectly, and "me and my neighbors", which is different for every player and has to come from the ranking itself.',
         'None of this is large for a key-value store. The hard part is answering "what is my rank among 80 million?" in milliseconds while scores keep moving.',
       ],
     },
@@ -82,7 +82,7 @@ export const LEADERBOARD: CaseStudy = {
       points: [
         '`PUT /results/{match_id}` from the game server (service credentials, not a player token) with each player ID, score and match end time. The match ID is the idempotency key: a retried report changes nothing.',
         '`GET /boards/{id}/top` with a limit up to 100 returns rank, player, display name and score. Board IDs name the scope and window, such as all time, today or this week.',
-        '`GET /boards/{id}/me` with `around=5` returns the rank and score of the caller, the neighbours on each side, plus an `as_of` time so the client can say how fresh it is.',
+        '`GET /boards/{id}/me` with `around=5` returns the rank and score of the caller, the neighbors on each side, plus an `as_of` time so the client can say how fresh it is.',
         'Ranks are 1-based on the wire, even though Redis counts from 0, and the response says how ties are ranked so the client can show "=12" if the product wants shared ranks.',
       ],
     },
@@ -97,7 +97,7 @@ export const LEADERBOARD: CaseStudy = {
           {
             label: 'A Redis sorted set per board: score by player, kept ordered in a skip list',
             best: true,
-            why: 'Adding or changing a score and reading a rank are both O(log n), about 27 steps for 80 million, and a range of neighbours costs O(log n + m). That is exactly the set of queries a leaderboard asks.',
+            why: 'Adding or changing a score and reading a rank are both O(log n), about 27 steps for 80 million, and a range of neighbors costs O(log n + m). That is exactly the set of queries a leaderboard asks.',
           },
           {
             label: 'A relational table with an index on score: rank is a count of the rows with a higher score',
@@ -125,7 +125,7 @@ export const LEADERBOARD: CaseStudy = {
       },
       points: [
         'Writes: `ZADD board GT s p` keeps the best score (the `GT` flag, Redis 6.2 and later, only raises it). For points that add up, keep the running total in the database and write the total with `ZADD`, never `ZINCRBY`, so a replayed update is harmless.',
-        'Reads: `ZRANGE board 0 99 REV` is the top 100; `ZREVRANK board p` is the 0-based rank, and `ZRANGE board a b REV` with a = max(0, r - 5) and b = r + 5 gives the neighbours; an unclamped negative start would count from the bottom of the board.',
+        'Reads: `ZRANGE board 0 99 REV` is the top 100; `ZREVRANK board p` is the 0-based rank, and `ZRANGE board a b REV` with a = max(0, r - 5) and b = r + 5 gives the neighbors; an unclamped negative start would count from the bottom of the board.',
         'Ties: Redis orders equal scores by member bytes, and the reverse reads used here flip that, so the player whose ID sorts last as a string wins every tie. That looks arbitrary. Either pack a tie breaker into the score, or rank ties together as one plus the count of higher scores, `ZCOUNT board (s +inf`.',
         'Packing the tie breaker: scores are 64-bit doubles, exact for integers up to 2^53. A weekly board can use points x 2^20 plus (2^20 - 1 - seconds since the week began): a week is 604,800 seconds, under 2^20, so whoever reached the score first ranks higher, with points up to 2^33.',
         'The durable store holds every result row (unique match ID and player) and the per-player totals for each board. It is sharded by player ID, and it can rebuild any board from scratch.',
@@ -140,7 +140,7 @@ export const LEADERBOARD: CaseStudy = {
       points: [
         'Game servers post results to the score service, which checks the signature and plausibility, then appends the result to a stream partitioned by player ID and acknowledges. Partitioning by player keeps one player in order.',
         'Consumers insert the result row (a unique match ID makes duplicates no-ops), update the player totals in the durable store, then write the new totals to the all-time, daily and weekly sorted sets in one pipeline.',
-        'Read servers answer "me and my neighbours" from the sorted sets, from replicas where a second of lag is fine, and serve the top 100 from a copy they refresh every second, so the busiest query costs Redis one call a second per server.',
+        'Read servers answer "me and my neighbors" from the sorted sets, from replicas where a second of lag is fine, and serve the top 100 from a copy they refresh every second, so the busiest query costs Redis one call a second per server.',
         'The player who just finished a match sees their new score straight from the result, not from a replica, so their own rank never appears to go backwards.',
         'Open the build in the Lab: 50,000 requests a second, about 42,000 reads and 8,500 results. The cache stands for the Redis sorted sets, the queue and workers for the result stream and its consumers, and the database for the durable score store sharded by player. Lower the cache hit rate to see what ranking in the database would cost.',
       ],
@@ -174,7 +174,7 @@ export const LEADERBOARD: CaseStudy = {
         ],
       },
       points: [
-        'Before splitting, check the numbers: 8 GB and 25,000 writes a second fit one Redis primary, and replicas absorb the neighbour reads. Split the boards across nodes (all time on one, today on another) long before splitting one board.',
+        'Before splitting, check the numbers: 8 GB and 25,000 writes a second fit one Redis primary, and replicas absorb the neighbor reads. Split the boards across nodes (all time on one, today on another) long before splitting one board.',
         'With N shards, a rank costs N round trips in parallel, so latency is the slowest shard. Keep N small (8 or 16), and cache the counts of the top few thousand scores for a second, since most rank queries cluster there.',
         'The top list is exact: every global top 100 player is in the top 100 of their own shard, so merging N lists of 100 loses nobody.',
         'Replace the tail with a histogram once exact ranks stop helping: rank 312,450,118 and rank 312,450,119 mean nothing to a player, and "top 63%" is honest and cheap.',
@@ -219,7 +219,7 @@ export const LEADERBOARD: CaseStudy = {
       points: [
         'Failure: Redis replicates asynchronously, so a failover can lose the last second of updates. The stream offsets let consumers replay from a checkpoint, and absolute writes make the replay safe. A lost node is rebuilt from the durable store.',
         'Multi-region: a global board needs one home for its sorted sets. Other regions forward results there and read from local replicas a little behind, which the second of lag we allowed already covers.',
-        'Hot moments: an event start or a daily reset brings everyone to the same screen at once. The cached top 100 absorbs it; rate limit neighbour queries per player so a stuck client cannot poll every 100 ms.',
+        'Hot moments: an event start or a daily reset brings everyone to the same screen at once. The cached top 100 absorbs it; rate limit neighbor queries per player so a stuck client cannot poll every 100 ms.',
         'Monitoring: result stream lag, time from result to visible rank, Redis memory and command latency, the number of results rejected as implausible, and an audit comparing a sample of board scores with the durable totals.',
       ],
     },

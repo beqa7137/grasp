@@ -71,7 +71,7 @@ describe('cells widget', () => {
     expect(widget.chosen()).toBe(asked.answer);
     expect(widget.shownCheck()).toBe(asked);
     expect(readout('Found')).toBe(String(cellSearch({ precision: 6, radiusKm: 0.3, scope: 'own' }).found));
-    click('[role="radio"]', 'The cell and its 8 neighbours');
+    click('[role="radio"]', 'The cell and its 8 neighbors');
     expect(widget.chosen()).toBeNull();
     expect(widget.check().prompt).toContain('How many places does it read');
     answer(widget.check().answer);
@@ -89,7 +89,7 @@ describe('cells widget', () => {
       expect(map.getAttribute('role')).toBe('img');
       expect(map.getAttribute('aria-label')).toBe("Map of the user's cell at precision 6, with a 0.5 km circle holding 40 places");
       expect(el.querySelector('[aria-live]')).toBeNull();
-      expect(el.querySelector('input[type="range"]')!.getAttribute('aria-valuetext')).toBe('500 metres');
+      expect(el.querySelector('input[type="range"]')!.getAttribute('aria-valuetext')).toBe('500 meters');
       const status = el.querySelector('[role="status"]')!;
       await vi.advanceTimersByTimeAsync(700);
       fixture.detectChanges();
@@ -97,7 +97,7 @@ describe('cells widget', () => {
       slide(1.2);
       slide(1.5);
       fixture.detectChanges();
-      expect(el.querySelector('input[type="range"]')!.getAttribute('aria-valuetext')).toBe('1.5 kilometres');
+      expect(el.querySelector('input[type="range"]')!.getAttribute('aria-valuetext')).toBe('1.5 kilometers');
       await vi.advanceTimersByTimeAsync(700);
       fixture.detectChanges();
       expect(status.textContent).toContain("Precision 6, the user's cell only, 1.5 km:");

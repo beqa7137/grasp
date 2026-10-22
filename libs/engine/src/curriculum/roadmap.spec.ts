@@ -4,7 +4,7 @@ import { PATTERN_CATALOG } from './catalog.js';
 import { VISUALIZERS_IN_ORDER, nextVisualizer, patternNeighbours } from './roadmap.js';
 
 describe('the roadmap', () => {
-  it('gives a pattern its neighbours within its track, and the pattern after it across tracks', () => {
+  it('gives a pattern its neighbors within its track, and the pattern after it across tracks', () => {
     expect(patternNeighbours('binary-search')).toMatchObject({
       previous: { id: 'sliding-window' },
       next: null,

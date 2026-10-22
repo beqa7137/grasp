@@ -43,7 +43,7 @@ describe('search scoring', () => {
     expect(suggestionDistance('heap', 'trie')).toBeNull();
   });
 
-  it('counts a swap of neighbouring letters as one edit', () => {
+  it('counts a swap of neighboring letters as one edit', () => {
     expect(editDistance('dijsktra', 'dijkstra')).toBe(1);
   });
 

@@ -82,7 +82,7 @@ export const COLLABORATIVE_EDITOR: CaseStudy = {
       points: [
         '`POST /docs` creates a document; `GET /docs/{id}` returns metadata, your role and the latest snapshot with its revision number.',
         'The client then opens a WebSocket to `/docs/{id}/live`, sending the revision it holds. The server replies with any operations after that revision, then streams new ones.',
-        'Each outgoing message carries a batch of operations, the base revision it was written against, and a client ID with a sequence number, so a batch resent after a reconnect is recognised and not applied twice.',
+        'Each outgoing message carries a batch of operations, the base revision it was written against, and a client ID with a sequence number, so a batch resent after a reconnect is recognized and not applied twice.',
         'The server answers the author with an acknowledgement naming the revision the batch became, and sends the transformed batch to everyone else. Cursor positions travel as separate presence messages that are never stored.',
         '`GET /docs/{id}/history` lists versions; `POST /docs/{id}/share` changes access. Every call and the socket itself check the caller role.',
       ],
@@ -110,7 +110,7 @@ export const COLLABORATIVE_EDITOR: CaseStudy = {
           },
           {
             label: 'Last writer wins per paragraph',
-            why: 'Cheap and fine for fields such as a title or a colour, as design tools do per property. For prose, two people typing in one paragraph silently lose one person entirely.',
+            why: 'Cheap and fine for fields such as a title or a color, as design tools do per property. For prose, two people typing in one paragraph silently lose one person entirely.',
           },
         ],
       },

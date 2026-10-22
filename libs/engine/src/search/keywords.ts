@@ -56,7 +56,7 @@ export const SEARCH_ALIASES: Readonly<Record<string, readonly string[]>> = {
   'page:/behavioral/stories': ['Story bank'],
 };
 
-/** The products a case is modelled on: searched, but never shown, not even as a suggestion. */
+/** The products a case is modeled on: searched, but never shown, not even as a suggestion. */
 export const PRODUCT_NAMES: Readonly<Record<string, readonly string[]>> = {
   'case:url-shortener': ['TinyURL'],
   'case:news-feed': ['Twitter'],

@@ -293,3 +293,12 @@ export async function startMockRound(page: Page, round: MockRound, choice?: stri
   await sheet.getByRole('button', { name: 'Start round' }).click();
   await expect(page).toHaveURL(/\/mock\/[0-9a-f-]{36}$/);
 }
+
+/** Opens the Lab's Workload popover where there is one (desktop keeps the read, bot and file controls there; phones show them under the canvas). */
+export async function openWorkload(page: Page): Promise<void> {
+  await page.locator('app-sandbox g.node').first().waitFor();
+  const button = page.getByRole('button', { name: /^Workload/ });
+  // From 1024px the dock loads in its own chunk after the board, so wait for it rather than read its absence.
+  if ((page.viewportSize()?.width ?? 0) >= 1024) await button.waitFor();
+  if ((await button.isVisible()) && (await button.getAttribute('aria-expanded')) !== 'true') await button.click();
+}

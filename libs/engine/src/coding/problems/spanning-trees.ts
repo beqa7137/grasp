@@ -173,7 +173,7 @@ export const minCostConnectPoints: CodingProblemDefinition = {
 
 export const connectingCities: CodingProblemDefinition = {
   statement: [
-    'There are `n` cities labelled 1 to `n`. Each `[x, y, cost]` in `connections` is a road you could build between cities `x` and `y` for `cost`, usable both ways; two cities may have more than one such road.',
+    'There are `n` cities labeled 1 to `n`. Each `[x, y, cost]` in `connections` is a road you could build between cities `x` and `y` for `cost`, usable both ways; two cities may have more than one such road.',
     'Return the least total cost of roads that connect every city to every other, directly or through other cities, or -1 if the roads cannot connect them all.',
   ],
   constraints: ['2 ≤ n ≤ 10^5', '1 ≤ connections.length ≤ 10^5', '1 ≤ x, y ≤ n and x ≠ y', '0 ≤ cost ≤ 10^5'],
@@ -372,7 +372,7 @@ export const criticalMstEdges: CodingProblemDefinition = {
 
 export const waterDistribution: CodingProblemDefinition = {
   statement: [
-    'A village has `n` houses labelled 1 to `n`. House `i` can get water from a well dug there for `wells[i - 1]`, or through pipes from a house that has water.',
+    'A village has `n` houses labeled 1 to `n`. House `i` can get water from a well dug there for `wells[i - 1]`, or through pipes from a house that has water.',
     'Each `[house1, house2, cost]` in `pipes` is a pipe you could lay between two houses, carrying water both ways; two houses may have more than one such pipe. Return the least total cost to supply every house with water.',
   ],
   constraints: [

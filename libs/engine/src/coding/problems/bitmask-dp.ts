@@ -29,7 +29,7 @@ function connectedGraph(rand: () => number, n: number, extra: number): number[][
   return graph.map((next) => shuffle(rand, next));
 }
 
-/** A dense connected core of n - leaves nodes with each leaf joined to one core node, labelled in random order. */
+/** A dense connected core of n - leaves nodes with each leaf joined to one core node, labeled in random order. */
 function coreWithLeaves(rand: () => number, n: number, leaves: number, extra: number): number[][] {
   const core = connectedGraph(rand, n - leaves, extra);
   const graph = [...core, ...rangeOf(1, leaves).map(() => [] as number[])];
@@ -243,7 +243,7 @@ export const partitionKSubsets: CodingProblemDefinition = {
 
 export const shortestPathAllNodes: CodingProblemDefinition = {
   statement: [
-    'An undirected, connected graph has `n` nodes labelled 0 to `n - 1`, and `graph[i]` lists the nodes joined to node i by an edge.',
+    'An undirected, connected graph has `n` nodes labeled 0 to `n - 1`, and `graph[i]` lists the nodes joined to node i by an edge.',
     'Return the length of the shortest path that visits every node. The path may start and end at any node, visit a node more than once and use an edge more than once; its length is the number of edges it walks.',
     'With n up to 12, trying every order of the nodes is too slow: `12!` is about 479 million. Aim for O(2ⁿ · n²) with a BFS whose state is a node together with the set of nodes visited.',
   ],
@@ -445,13 +445,13 @@ export const maxStudents: CodingProblemDefinition = {
     return Math.max(...best);
   },
   approach:
-    'Let a mask be the seats taken in one row. It is valid for its row when every set bit is a good seat and no two bits are neighbours, so `mask & (mask >> 1)` is 0. It fits the row before, `prev`, when `mask & (prev << 1)` and `mask & (prev >> 1)` are both 0: those are the two diagonals. `dp[row][mask]` is the most students in the rows so far with this row seated as mask: the best `dp[row - 1][prev]` over the masks that fit, plus the bits of mask. Keep only the previous row.',
+    'Let a mask be the seats taken in one row. It is valid for its row when every set bit is a good seat and no two bits are neighbors, so `mask & (mask >> 1)` is 0. It fits the row before, `prev`, when `mask & (prev << 1)` and `mask & (prev >> 1)` are both 0: those are the two diagonals. `dp[row][mask]` is the most students in the rows so far with this row seated as mask: the best `dp[row - 1][prev]` over the masks that fit, plus the bits of mask. Keep only the previous row.',
   complexity: { time: 'O(m · 4ⁿ)', space: 'O(2ⁿ)' },
 };
 
 export const hatsToPeople: CodingProblemDefinition = {
   statement: [
-    'There are `n` people and 40 kinds of hats, labelled 1 to 40, and `hats[i]` lists the hats that person i likes.',
+    'There are `n` people and 40 kinds of hats, labeled 1 to 40, and `hats[i]` lists the hats that person i likes.',
     'Return the number of ways the n people can each wear one hat they like with no two people wearing the same hat. Two ways differ when some person wears a different hat. The answer can be large, so return it modulo 10^9 + 7.',
     'With at most 10 people but 40 hats, put the people in the bitmask, not the hats: aim for O(40 · 2ⁿ · n).',
   ],

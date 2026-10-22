@@ -60,8 +60,8 @@ export function geohashBounds(hash: string): CellBounds {
 }
 
 /**
- * The 8 cells around one, clockwise from north: step one cell from its centre and encode again, wrapping longitude at
- * 180 degrees. Beyond a pole there is no cell, so a polar cell has 5 neighbours.
+ * The 8 cells around one, clockwise from north: step one cell from its center and encode again, wrapping longitude at
+ * 180 degrees. Beyond a pole there is no cell, so a polar cell has 5 neighbors.
  */
 export function geohashNeighbours(hash: string): string[] {
   const b = geohashBounds(hash);

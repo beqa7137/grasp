@@ -31,7 +31,7 @@ export const STOCK_EXCHANGE: CaseStudy = {
         'Functional: accept new orders, cancels and replaces (modify) for limit and market orders with time in force (day, immediate or cancel); match them by price-time priority; report acknowledgements and fills to the sender; publish market data to everyone; send trades to clearing.',
         'Scale (from the interviewer): about 5,000 symbols and a few hundred member firms. The day averages 100,000 messages a second over a 6.5 hour session, peaks at 500,000 a second, and the busiest symbol carries about 5% of the flow.',
         'Non-functional: order entry to acknowledgement in tens of microseconds, with a tight tail (p99.99 matters more than the median), fair and reproducible ordering, no acknowledged order ever lost, and failover within seconds.',
-        'Most messages are not trades: for many active algorithms, the large majority of orders are cancelled or replaced before they ever fill, so cancels must be as cheap as adds.',
+        'Most messages are not trades: for many active algorithms, the large majority of orders are canceled or replaced before they ever fill, so cancels must be as cheap as adds.',
         'Out of scope unless asked: clearing and settlement, the member-side trading systems, options and multi-leg orders, and the regulatory reporting pipeline.',
       ],
     },
@@ -211,7 +211,7 @@ export const STOCK_EXCHANGE: CaseStudy = {
       },
       points: [
         'The engine may match while an event is still being replicated, as long as no acknowledgement, fill or market data leaves the exchange until that event is on a quorum. Otherwise a failover could forget a trade the world has already seen.',
-        'Replication stays in one data centre, with replicas a few microseconds apart over kernel bypass networking; a cross-region quorum would add milliseconds to every order.',
+        'Replication stays in one data center, with replicas a few microseconds apart over kernel bypass networking; a cross-region quorum would add milliseconds to every order.',
         'Failover: the new leader has applied every event up to the last committed sequence number, so it continues from there. Gateways reconnect to it, and members resynchronize using their session sequence numbers.',
         'A backup site in another region receives the log asynchronously. Moving there is a declared event, with trading halted and members reconnecting, not an automatic failover.',
         'Replay also serves testing: run a new engine version against a recorded day of input and compare its outputs with the originals before it goes live.',

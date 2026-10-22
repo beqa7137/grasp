@@ -54,7 +54,7 @@ export const SEARCH_ENGINE: CaseStudy = {
         ],
       },
       points: [
-        'About 58k queries a second on average and 116k at peak, spread over several regions, each with room to absorb the load of a failed neighbour.',
+        'About 58k queries a second on average and 116k at peak, spread over several regions, each with room to absorb the load of a failed neighbor.',
         'Every query is a read. Writes come from indexing, which runs in the background and never on the query path.',
         'Query popularity is skewed: a small head of queries repeats constantly, and a large share of queries are seen only once. That split decides what caching can and cannot do.',
       ],
@@ -260,7 +260,7 @@ export const SEARCH_ENGINE: CaseStudy = {
     {
       question: 'How would you add semantic search, so a query matches pages that use different words?',
       answer:
-        'Embed pages and queries with the same model and keep an approximate nearest neighbour index (such as HNSW) per shard beside the inverted index. Retrieve candidates from both, merge them and let the reranker decide. The vector index is far larger per page, so it often covers only the higher tiers.',
+        'Embed pages and queries with the same model and keep an approximate nearest neighbor index (such as HNSW) per shard beside the inverted index. Retrieve candidates from both, merge them and let the reranker decide. The vector index is far larger per page, so it often covers only the higher tiers.',
     },
   ],
 };

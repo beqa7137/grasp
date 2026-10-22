@@ -41,7 +41,7 @@ describe('geohash', () => {
     ).toEqual(['s', 'e', '7', 'k']);
   });
 
-  it('finds the 8 neighbours clockwise from north, wrapping at 180 degrees and stopping at the poles', () => {
+  it('finds the 8 neighbors clockwise from north, wrapping at 180 degrees and stopping at the poles', () => {
     expect(geohashNeighbours('dqcjq')).toEqual(['dqcjw', 'dqcjx', 'dqcjr', 'dqcjp', 'dqcjn', 'dqcjj', 'dqcjm', 'dqcjt']);
     const eastmost = geohashEncode(0.01, 179.999, 5);
     expect(eastmost).toBe('xbpbp');

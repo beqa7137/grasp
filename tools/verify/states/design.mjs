@@ -1,4 +1,4 @@
-import { getCaseStudy, itemsForTopic } from '@grasp/engine';
+import { CASE_LABS, SCENARIO_CATALOG, getCaseStudy, itemsForTopic } from '@grasp/engine';
 import { BASE, answerFirst, openReports, settle } from '../lib.mjs';
 
 /** The authored index of a decision's recommended option: drafts name options by it, whatever order they are shown in. */
@@ -136,9 +136,24 @@ const seedDesignProgress = async (p) => {
   await settle(p);
 };
 
+/** Presses a control only the desktop Lab has (from 1024px); on a phone the state is the page as it opens. */
+const onDesktop = async (p, role, name) => {
+  await p.locator('app-sandbox g.node').first().waitFor();
+  const control = p.getByRole(role, { name });
+  if (await control.isVisible()) await control.click();
+  await settle(p, 500);
+};
+
+/** The Lab's boards without a state of their own above: every mission and case build is screenshotted (R21's pixel diff). */
+const everyBoard = (listed) =>
+  [
+    ...SCENARIO_CATALOG.map((s) => ({ id: `sandbox-${s.id}`, path: `/design/missions/${s.id}` })),
+    ...Object.keys(CASE_LABS).map((id) => ({ id: `case-build-${id}`, path: `/design/cases/${id}/build` })),
+  ].filter((state) => !listed.some((l) => l.path === state.path));
+
 /** The Design Lab, case studies with their builds and widgets, and design lessons. */
 export function designStates() {
-  return [
+  const states = [
     { id: 'design-topics', path: '/design' },
     { id: 'design-topics-progress', path: '/design', setup: seedDesignProgress },
     {
@@ -163,7 +178,19 @@ export function designStates() {
     },
     { id: 'case-study-related', path: '/design/cases/ticketing' },
     { id: 'sandbox', path: '/design/missions/first-scale-up' },
-    { id: 'sandbox-inspector', path: '/design/missions/first-scale-up', setup: (p) => answerFirst(p, '.palette .tool') },
+    { id: 'sandbox-inspector', path: '/design/missions/first-scale-up', setup: (p) => answerFirst(p, '.palette .tool, .tool-tile') },
+    { id: 'sandbox-model', path: '/design/missions/first-scale-up', setup: (p) => onDesktop(p, 'button', /^Model/) },
+    { id: 'sandbox-trace', path: '/design/cases/url-shortener/build', setup: (p) => onDesktop(p, 'button', 'Trace a request') },
+    { id: 'sandbox-workload', path: '/design/cases/rate-limiter/build', setup: (p) => onDesktop(p, 'button', /^Workload/) },
+    {
+      id: 'sandbox-callout-inspector',
+      path: '/design/missions/first-scale-up',
+      setup: async (p) => {
+        const callout = p.locator('app-lab-overlay .callout').first();
+        if (await callout.isVisible()) await callout.click();
+        await settle(p, 500);
+      },
+    },
     {
       id: 'sandbox-edge-inspector',
       path: '/design/missions/first-scale-up',
@@ -604,4 +631,5 @@ export function designStates() {
       },
     },
   ];
+  return [...states, ...everyBoard(states)];
 }

@@ -172,7 +172,7 @@ function interleaveByTopic(defs: ReviewItemSummary[]): ReviewItemSummary[] {
 }
 
 /**
- * Greedy reorder so neighbours differ in topic and, where possible, kind. Interleaved practice feels
+ * Greedy reorder so neighbors differ in topic and, where possible, kind. Interleaved practice feels
  * harder but transfers better, and interviews never tell you which pattern is coming.
  */
 export function interleave<T extends { def: Pick<ReviewItemSummary, 'topic' | 'kind'> }>(items: T[]): T[] {

@@ -29,8 +29,8 @@ export interface Place {
   km: number;
 }
 
-/** Read the user's cell only, or the cell and its 8 neighbours. */
-export type CellScope = 'own' | 'neighbours';
+/** Read the user's cell only, or the cell and its 8 neighbors. */
+export type CellScope = 'own' | 'neighbors';
 
 export interface CellSearchSettings {
   precision: number;
@@ -174,7 +174,7 @@ export function cellSearchCheckpoint(s: CellSearchSettings, run = cellSearch(s))
   const other = (change: Partial<CellSearchSettings>) => cellSearch({ ...s, ...change });
   const coarser = other({ precision: s.precision - 1 });
   const finer = other({ precision: s.precision + 1 });
-  const flipped = other({ scope: s.scope === 'own' ? 'neighbours' : 'own' });
+  const flipped = other({ scope: s.scope === 'own' ? 'neighbors' : 'own' });
   const size = `${kmText(run.widthKm)} wide and ${kmText(run.heightKm)} tall`;
   const situation = `${placesText(run.within)} lie within ${radiusText(s.radiusKm)} of the user, and geohash cells at precision ${s.precision} are ${size} here`;
   const question = questionFor(s, run);
@@ -183,12 +183,12 @@ export function cellSearchCheckpoint(s: CellSearchSettings, run = cellSearch(s))
     return {
       prompt: `Predict: ${situation}. The search reads only the user's own cell, ${run.cell}. How many of the ${placesText(run.within)} does it find?`,
       ...spacedChoices(run.found, [run.within, run.read, flipped.found, coarser.found, 0], placesText, 1),
-      explain: `Only places whose geohash starts with ${run.cell} are read: ${num(run.found)} of the ${num(run.within)} within the radius. The user stands ${kmText(EDGE_KM)} from the cell's east edge, and the other ${num(run.missed)} lie across an edge, among them a place only ${kmText(cellPlaces()[0].km)} away in ${across}, which shares just ${sharedPrefix(run.cell, across)} characters with the user's cell. Read the 8 neighbours too.`,
+      explain: `Only places whose geohash starts with ${run.cell} are read: ${num(run.found)} of the ${num(run.within)} within the radius. The user stands ${kmText(EDGE_KM)} from the cell's east edge, and the other ${num(run.missed)} lie across an edge, among them a place only ${kmText(cellPlaces()[0].km)} away in ${across}, which shares just ${sharedPrefix(run.cell, across)} characters with the user's cell. Read the 8 neighbors too.`,
     };
   }
   if (question === 'read') {
     return {
-      prompt: `Predict: ${situation}. The search reads the user's cell and its 8 neighbours. How many places does it read before checking distances?`,
+      prompt: `Predict: ${situation}. The search reads the user's cell and its 8 neighbors. How many places does it read before checking distances?`,
       ...spacedChoices(run.read, [run.within, coarser.read, finer.read, flipped.read], placesText, 1),
       explain: `Nine cells, each ${size}, hold ${num(run.read)} places. ${num(run.found)} of them are within ${radiusText(s.radiusKm)}; the other ${num(run.extra)} are read and then dropped by the distance check. The radius is no longer than a side of a cell, so from anywhere in the middle cell the 9 cells cover the whole circle and nothing is missed.`,
     };
@@ -198,7 +198,7 @@ export function cellSearchCheckpoint(s: CellSearchSettings, run = cellSearch(s))
       ? `The 9 cells reach only ${kmText(run.coveredKm)} from the user on the nearest side, less than the ${radiusText(s.radiusKm)} radius, so ${num(run.missed)} places within it lie in cells never read.`
       : `The 9 cells happen to reach ${kmText(run.coveredKm)} from the user on the nearest side, so nothing within ${radiusText(s.radiusKm)} lies outside them; a user nearer the block's edge would miss places.`;
   return {
-    prompt: `Predict: ${situation}. The search reads the user's cell and its 8 neighbours. How many of the ${placesText(run.within)} does it miss?`,
+    prompt: `Predict: ${situation}. The search reads the user's cell and its 8 neighbors. How many of the ${placesText(run.within)} does it miss?`,
     ...spacedChoices(run.missed, [0, run.within, coarser.missed, finer.missed, flipped.missed], placesText, 1),
     explain: `${why} A radius wider than a cell needs a coarser precision, whose cells are at least the radius, or more rings of cells.`,
   };

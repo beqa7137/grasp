@@ -258,12 +258,12 @@
     "spacing": 24
   },
   "app/pages/design/sandbox.page.html": {
-    "border-radius": 6
+    "border-radius": 1
   },
   "app/pages/design/sandbox.page.scss": {
     "border-radius": 7,
-    "font-size": 33,
-    "media": 3,
+    "font-size": 27,
+    "media": 2,
     "spacing": 49
   },
   "app/pages/diagnostic/diagnostic.page.scss": {

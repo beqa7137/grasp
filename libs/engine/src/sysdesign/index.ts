@@ -15,3 +15,6 @@ export * from './cases/index.js';
 export * from './lessons/index.js';
 export * from './shelves.js';
 export * from './case-library.js';
+export * from './lab-goals.js';
+export * from './trace.js';
+export * from './board.js';

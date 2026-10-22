@@ -151,7 +151,7 @@ export const RATE_LIMITER: CaseStudy = {
           },
           {
             label: 'Take a distributed lock per key around the update',
-            why: 'Correct, but it adds round trips and serialises every request for a key through the lock: the busiest keys, the ones that matter, suffer most.',
+            why: 'Correct, but it adds round trips and serializes every request for a key through the lock: the busiest keys, the ones that matter, suffer most.',
           },
         ],
       },

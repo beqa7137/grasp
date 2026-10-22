@@ -126,12 +126,12 @@ function questionFor(s: PropagationSettings): Question {
 /**
  * A prediction about the current settings, picked from them so it varies as the learner moves them: how long the last
  * instance waits for a change, how many requests a second reach the flag service, or how many bytes a second leave it.
- * Distractors are what the same question gives under neighbouring settings.
+ * Distractors are what the same question gives under neighboring settings.
  */
 export function propagationCheckpoint(s: PropagationSettings): WidgetCheckpoint {
   const run = propagation(s);
   const other = (change: Partial<PropagationSettings>) => propagation({ ...s, ...change });
-  const neighbours = [
+  const neighbors = [
     other({ cdn: !s.cdn }),
     other({ delivery: s.delivery === 'stream' ? 'poll' : 'stream' }),
     other({ payload: s.payload === 'full' ? 'delta' : 'full' }),
@@ -150,7 +150,7 @@ export function propagationCheckpoint(s: PropagationSettings): WidgetCheckpoint 
         : `An instance that polled just before the change waits a whole interval, ${secondsText(s.intervalS)}${s.cdn ? `, and the CDN copy it gets can be one more interval old` : ''}: ${secondsText(PROPAGATION.publishS)} to publish plus ${s.cdn ? `2 × ${secondsText(s.intervalS)}` : secondsText(s.intervalS)}. On average an instance waits half as long after publishing, ${secondsText(run.typicalS)} in all.`;
     return {
       prompt: `Predict: ${situation}. How long until the last instance has a change?`,
-      ...spacedChoices(run.worstS, [run.typicalS, s.intervalS, ...neighbours.map((n) => n.worstS)], secondsText, 0.05),
+      ...spacedChoices(run.worstS, [run.typicalS, s.intervalS, ...neighbors.map((n) => n.worstS)], secondsText, 0.05),
       explain: why,
     };
   }
@@ -161,7 +161,7 @@ export function propagationCheckpoint(s: PropagationSettings): WidgetCheckpoint 
     const perS = (v: number) => `${v < 10 ? Number(v.toFixed(1)) : num(v)} requests/s`;
     return {
       prompt: `Predict: ${situation}. How many requests a second reach the flag service?`,
-      ...spacedChoices(run.originRps, [s.instances / s.intervalS, s.instances, ...neighbours.map((n) => n.originRps)], perS, 0.5),
+      ...spacedChoices(run.originRps, [s.instances / s.intervalS, s.instances, ...neighbors.map((n) => n.originRps)], perS, 0.5),
       explain: why,
     };
   }
@@ -172,7 +172,7 @@ export function propagationCheckpoint(s: PropagationSettings): WidgetCheckpoint 
       : `Each poll downloads about ${Number(perPoll.toFixed(1)).toLocaleString('en-US')} KB (${PAYLOADS[s.payload]}${s.payload === 'etag' ? `: with ${s.changesPerMin} changes a minute, ${num((1 - Math.exp((-s.changesPerMin / 60) * s.intervalS)) * 100)}% of polls see one` : ''}), and ${num(run.originRps)} polls a second reach the service: ${bytesRate(run.originBytesS)}.`;
   return {
     prompt: `Predict: ${situation}. How many bytes a second leave the flag service?`,
-    ...spacedChoices(run.originBytesS, [run.sdkBytesS, ...neighbours.map((n) => n.originBytesS)], bytesRate, 100),
+    ...spacedChoices(run.originBytesS, [run.sdkBytesS, ...neighbors.map((n) => n.originBytesS)], bytesRate, 100),
     explain: why,
   };
 }

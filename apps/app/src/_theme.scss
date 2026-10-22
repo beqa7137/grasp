@@ -85,6 +85,10 @@
   --g-viz-guess: var(--g-text);
   // Quiet enough that every checkpoint tick reaches 3:1 on it; the thumb marks the position.
   --g-viz-track: #d3d7e0;
+  // Load from 50 to 70, 70 to 85 and 85 to 100% (3.6): darker with load on light, brighter on dark; meter length and % are its second encoding.
+  --g-viz-heat-1: #c97a22;
+  --g-viz-heat-2: #9c5a0c;
+  --g-viz-heat-3: #7a4508;
   // Fills and strokes outside a checkpoint's focus fade to this; their text takes the discarded ink instead.
   --g-viz-dim: 0.4;
 
@@ -93,6 +97,7 @@
   --g-motion-sheet: 280ms;
   --g-motion-layout: 360ms;
   --g-motion-land: 400ms;
+  --g-motion-travel: 520ms;
   --g-ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --g-ease-enter: cubic-bezier(0.05, 0.7, 0.1, 1);
   --g-ease-exit: cubic-bezier(0.3, 0, 0.8, 0.15);
@@ -183,6 +188,9 @@
   --g-viz-critical: #e5485f;
   --g-viz-guess: var(--g-text);
   --g-viz-track: #2a3040;
+  --g-viz-heat-1: #9a6418;
+  --g-viz-heat-2: #c98a2e;
+  --g-viz-heat-3: #f0b25a;
 
   --g-wall: var(--g-stroke);
   --g-kind-lb: #7aa2ff;

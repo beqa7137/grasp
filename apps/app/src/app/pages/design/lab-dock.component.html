@@ -1,0 +1,160 @@
+@let m = metrics();
+@let v = verdicts();
+@let l = limits();
+<section class="dock panel" aria-label="Run">
+  <div class="kpis">
+    <div class="kpi" [attr.data-verdict]="v?.p99">
+      <span class="label">p99</span>
+      <span class="value mono">{{ p99() }}<small>ms</small></span>
+      @if (l && v) {
+        <span class="goal"
+          ><span aria-hidden="true">{{ v.p99 === 'pass' ? '✓' : '✕' }}</span> {{ l.p99
+          }}<span class="visually-hidden">, {{ verdictWord(v.p99) }}</span></span
+        >
+      }
+    </div>
+    <div class="kpi" [attr.data-verdict]="v?.errors">
+      <span class="label">Errors</span>
+      <span class="value mono">{{ errors() }}</span>
+      @if (l && v) {
+        <span class="goal"
+          ><span aria-hidden="true">{{ v.errors === 'pass' ? '✓' : '✕' }}</span> {{ l.errors
+          }}<span class="visually-hidden">, {{ verdictWord(v.errors) }}</span></span
+        >
+      }
+    </div>
+    <div class="kpi">
+      <span class="label">Served</span>
+      <span class="value mono"
+        >{{ fmt(m.successRps) }}<small>/{{ fmt(m.offeredRps) }} rps</small></span
+      >
+      @if (m.botRps > 0) {
+        <span class="goal">{{ fmt(m.botsBlockedRps) }} of {{ fmt(m.botRps) }} bot rps blocked</span>
+      }
+    </div>
+    <div class="kpi" [attr.data-verdict]="v?.cost">
+      <span class="label">Cost</span>
+      <span class="value mono">${{ fmt(m.monthlyCost) }}<small>/mo</small></span>
+      @if (l && v) {
+        <span class="goal">
+          @if (v.cost !== 'none') {
+            <span aria-hidden="true">{{ v.cost === 'pass' ? '✓' : '✕' }}</span>
+          }
+          {{ l.cost }}<span class="visually-hidden">{{ v.cost === 'none' ? '' : ', ' + verdictWord(v.cost) }}</span></span
+        >
+      }
+    </div>
+  </div>
+
+  <div class="tools">
+    <p class="goals-note">
+      @switch (goals().kind) {
+        @case ('mission') {
+          Mission goals
+        }
+        @case ('yours') {
+          Your goals
+        }
+        @default {
+          No goals for this build yet
+        }
+      }
+    </p>
+    @if (host().canTrace()) {
+      <button class="g-btn ghost" (click)="host().startTrace()">Trace a request</button>
+    }
+    @if (hasWorkload()) {
+      <div class="pop" #workloadPop [class.open]="open() === 'workload'" (focusout)="closeOnFocusOut($event, workloadPop)">
+        <button
+          #workloadButton
+          class="g-btn ghost"
+          [attr.aria-expanded]="open() === 'workload'"
+          [attr.aria-controls]="ids.workload"
+          (click)="toggle('workload')"
+          (keydown)="closeOnEscape($event, 'workload')"
+        >
+          Workload <span aria-hidden="true">▾</span>
+        </button>
+        @if (open() === 'workload') {
+          @let c = controls()!;
+          @let w = workload();
+          <div class="popover" role="group" aria-label="Workload" [id]="ids.workload" (keydown)="closeOnEscape($event, 'workload')">
+            @if (c.reads) {
+              <label>
+                <span
+                  >Reads <strong class="mono">{{ pct(w.readRatio) }}</strong></span
+                >
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  [value]="w.readRatio * 100"
+                  (input)="host().setReadRatio(+$any($event.target).value)"
+                />
+              </label>
+            }
+            @if (c.bots; as bots) {
+              <label>
+                <span
+                  >Bots <strong class="mono">{{ fmt(w.botRps ?? 0) }} rps</strong></span
+                >
+                <input
+                  type="range"
+                  min="0"
+                  [max]="bots.max"
+                  step="1000"
+                  [value]="w.botRps ?? 0"
+                  (input)="host().setBotRps(+$any($event.target).value)"
+                />
+              </label>
+            }
+            @if (c.files) {
+              <label>
+                <span
+                  >Files <strong class="mono">{{ host().objectShareLabel() }}</strong></span
+                >
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  [value]="host().objectShare() * 100"
+                  [attr.aria-valuetext]="host().objectShareLabel()"
+                  (input)="host().setObjectShare(+$any($event.target).value)"
+                />
+              </label>
+            }
+          </div>
+        }
+      </div>
+    }
+    <div class="pop" #modelPop [class.open]="open() === 'model'" (focusout)="closeOnFocusOut($event, modelPop)">
+      <button
+        #modelButton
+        class="g-btn ghost"
+        [attr.aria-expanded]="open() === 'model'"
+        [attr.aria-controls]="ids.model"
+        (click)="toggle('model')"
+        (keydown)="closeOnEscape($event, 'model')"
+      >
+        Model <span aria-hidden="true">ⓘ</span>
+      </button>
+      @if (open() === 'model') {
+        <div
+          class="popover model"
+          role="group"
+          aria-label="Model"
+          [id]="ids.model"
+          tabindex="-1"
+          (keydown)="closeOnEscape($event, 'model')"
+        >
+          <p>
+            Each component is a queue: its time is its service time divided by (1 − utilization), as for random arrivals (M/M/1). Past its
+            capacity it refuses the rest, which count as errors. The numbers are the steady state at this traffic.
+          </p>
+        </div>
+      }
+    </div>
+  </div>
+</section>

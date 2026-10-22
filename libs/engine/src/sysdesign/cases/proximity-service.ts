@@ -47,9 +47,9 @@ const cornerKm = Math.max(
   ...[corner.south, corner.north].flatMap((y) => [corner.west, corner.east].map((x) => haversineKm(user.lat, user.lon, y, x))),
 );
 const own = cellSearch({ precision: 6, radiusKm: SMALL_RADIUS_KM, scope: 'own' });
-const nine = cellSearch({ precision: 6, radiusKm: SMALL_RADIUS_KM, scope: 'neighbours' });
-const wide = cellSearch({ precision: 6, radiusKm: 1, scope: 'neighbours' });
-const coarse = cellSearch({ precision: 5, radiusKm: 1, scope: 'neighbours' });
+const nine = cellSearch({ precision: 6, radiusKm: SMALL_RADIUS_KM, scope: 'neighbors' });
+const wide = cellSearch({ precision: 6, radiusKm: 1, scope: 'neighbors' });
+const coarse = cellSearch({ precision: 5, radiusKm: 1, scope: 'neighbors' });
 const p6 = geohashCellKm(6, lat);
 const p8 = geohashCellKm(8, lat);
 const fineCells = (Math.PI * SMALL_RADIUS_KM ** 2) / (p8.widthKm * p8.heightKm);
@@ -204,8 +204,8 @@ export const PROXIMITY_SERVICE: CaseStudy = {
         'Fixed grid: cut the map into equal squares, keyed by row and column. Simple, but one size for everywhere: a downtown square holds thousands of businesses and a desert square none.',
         'Geohash: interleave the bits of longitude and latitude and write them 5 at a time in base 32. A shared prefix means the same enclosing cell, so a cell is a prefix range in any sorted index (a B-tree, a sorted set). Next stage: cell sizes and edges.',
         'Quadtree: split any square holding too many businesses into four, recursively, so leaves are small where businesses are dense and large where they are not. Built in memory, not stored as a database index.',
-        "S2 and H3: Google's S2 projects the sphere onto a cube and orders each face's cells along a Hilbert curve, with 64-bit cell ids and 31 levels, so cells stay similar in size even near the poles; a region coverer turns a circle into a few cells of mixed sizes. Uber's H3 tiles the planet with hexagons (and 12 pentagons per resolution) at 16 resolutions; every neighbour shares an edge and sits at about the same distance.",
-        'R-trees: a balanced tree of bounding rectangles that indexes shapes as well as points. PostGIS builds one with a GiST index: `ST_DWithin` finds everything within a distance (in metres on the geography type), and `ORDER BY geom <-> point` with a `LIMIT` walks the index nearest first. A good default when the data already lives in Postgres and the load fits it.',
+        "S2 and H3: Google's S2 projects the sphere onto a cube and orders each face's cells along a Hilbert curve, with 64-bit cell ids and 31 levels, so cells stay similar in size even near the poles; a region coverer turns a circle into a few cells of mixed sizes. Uber's H3 tiles the planet with hexagons (and 12 pentagons per resolution) at 16 resolutions; every neighbor shares an edge and sits at about the same distance.",
+        'R-trees: a balanced tree of bounding rectangles that indexes shapes as well as points. PostGIS builds one with a GiST index: `ST_DWithin` finds everything within a distance (in meters on the geography type), and `ORDER BY geom <-> point` with a `LIMIT` walks the index nearest first. A good default when the data already lives in Postgres and the load fits it.',
       ],
     },
     {
@@ -225,14 +225,14 @@ export const PROXIMITY_SERVICE: CaseStudy = {
     },
     {
       kind: 'deep-dive',
-      title: 'Search geohash cells and their neighbours',
+      title: 'Search geohash cells and their neighbors',
       prompt: `At ${latText} a precision 6 geohash cell is ${size(6)} (wide by tall). A user stands ${kmText(EDGE_KM)} from the east edge of their cell, ${userCell}, and searches ${radiusText(SMALL_RADIUS_KM)}.`,
       decision: {
         question: 'Which cells does the search read?',
         options: [
           {
             label:
-              "The user's cell and its 8 neighbours, at a precision whose cells are at least as wide and as tall as the radius, then check every candidate's true distance",
+              "The user's cell and its 8 neighbors, at a precision whose cells are at least as wide and as tall as the radius, then check every candidate's true distance",
             best: true,
             why: `From anywhere in the middle cell, a radius no longer than a cell's sides cannot reach past the 3 × 3 block, so nothing is missed: here the 9 cells read ${num(nine.read)} places and keep the ${num(nine.found)} within ${radiusText(SMALL_RADIUS_KM)}.`,
           },
@@ -254,10 +254,10 @@ export const PROXIMITY_SERVICE: CaseStudy = {
       points: [
         `Cell size by length at the Equator: 4 characters, ${size(4, 0)}; 5, ${size(5, 0)}; 6, ${size(6, 0)}; 7, ${size(7, 0)}; 8, ${size(8, 0)}. Each character adds 5 bits, alternately 3 longitude and 2 latitude bits or the reverse, so cells are square only every second length.`,
         `Height never changes, but width shrinks with the cosine of the latitude: at ${latText} cells are ${lonShrink}% narrower than at the Equator, so pick the precision at the user's latitude.`,
-        `The edge problem: bits follow a Z-shaped curve, so places a few metres apart on either side of an edge can share a short prefix, or none at all across the Equator or the prime meridian. Around latitude 0 and longitude 0 the four quarters start with ${['s', 'e', '7', 'k'].join(', ')}. Never treat a shared prefix as a distance.`,
-        'Neighbours come from decoding the cell, stepping one cell north, south, east or west (and diagonally) from its centre and encoding again, with longitude wrapping at 180 degrees.',
+        `The edge problem: bits follow a Z-shaped curve, so places a few meters apart on either side of an edge can share a short prefix, or none at all across the Equator or the prime meridian. Around latitude 0 and longitude 0 the four quarters start with ${['s', 'e', '7', 'k'].join(', ')}. Never treat a shared prefix as a distance.`,
+        'Neighbors come from decoding the cell, stepping one cell north, south, east or west (and diagonally) from its center and encoding again, with longitude wrapping at 180 degrees.',
         `Pick the finest precision whose cells are at least the radius: ${radiusText(SMALL_RADIUS_KM)} at ${latText} is precision 6 (${size(6)}). A ${radiusText(1)} radius is longer than a precision 6 cell's ${kmText(p6.heightKm)} height, so 9 of them miss ${num(wide.missed)} of ${num(wide.within)} places here; precision 5 (${size(5)}) finds all ${num(coarse.found)} but reads ${num(coarse.read)}.`,
-        'In a database the cell is an indexed column (or the prefix of a sorted key), and 9 cells are 9 prefix range reads, fewer when neighbouring cells are adjacent in geohash order and merge into one range.',
+        'In a database the cell is an indexed column (or the prefix of a sorted key), and 9 cells are 9 prefix range reads, fewer when neighboring cells are adjacent in geohash order and merge into one range.',
       ],
     },
     {
@@ -360,7 +360,7 @@ export const PROXIMITY_SERVICE: CaseStudy = {
       },
       points: [
         'Search servers keep no state beyond the snapshot they loaded, so autoscaling adds copies and a load balancer spreads searches; each region runs its own pool near its users, with every region holding the whole world (a few GB).',
-        "Hot cells (city centres, airports): reading a cell is already a memory lookup, so the cost is the candidates. Split busy cells finer (a quadtree does this by itself), keep each busy cell's places pre-sorted by category so filters skip most of them, cap the candidates a search measures, and cache whole responses only for coarse zoomed-out map views, which many users share.",
+        "Hot cells (city centers, airports): reading a cell is already a memory lookup, so the cost is the candidates. Split busy cells finer (a quadtree does this by itself), keep each busy cell's places pre-sorted by category so filters skip most of them, cap the candidates a search measures, and cache whole responses only for coarse zoomed-out map views, which many users share.",
         'Business pages: a cache by id in front of read replicas absorbs most of the page views; the primary takes only the edits.',
         'Shard the index by region only when it outgrows memory, for example with much richer entries: split by cell prefix with hot cities split finer, and send searches near a shard edge to both shards.',
       ],
@@ -428,7 +428,7 @@ export const PROXIMITY_SERVICE: CaseStudy = {
       points: [
         'A quadtree or an R-tree does this natively: best-first search opens the nearest node next, however far that is.',
         `With filters, widen until the nearest ${NEAREST} places that pass them lie within the covered distance; a rare category widens much further, so cap the radius and say so in the response.`,
-        'Antimeridian: a 2 km circle around a point at 179.99° E crosses the 180th meridian, where longitude jumps to -180°. Neighbour cells wrap longitude, and distances use the haversine formula, which handles the wrap; never compare raw longitudes.',
+        'Antimeridian: a 2 km circle around a point at 179.99° E crosses the 180th meridian, where longitude jumps to -180°. Neighbor cells wrap longitude, and distances use the haversine formula, which handles the wrap; never compare raw longitudes.',
         `Poles: cells become slivers (at ${POLE_LAT}° N a precision 5 cell is ${size(5, POLE_LAT)}) and there is no cell beyond the pole, so a polar circle may need every longitude. Few businesses are there, but the code must not loop or crash; S2's cube cells avoid most of this.`,
         'A moving user: search again only when they move more than a fraction of the radius or leave their cell, debounce map pans, and re-sort the last results on the phone between searches.',
         `Dense spots: at a stadium or an airport even a precision 7 cell (${size(7)}) can hold hundreds of places; the filter bits and a cap on candidates keep the search bounded.`,
@@ -465,7 +465,7 @@ export const PROXIMITY_SERVICE: CaseStudy = {
       points: [
         'A search server dies: the load balancer stops sending it searches; the others each hold the full index, so nothing is lost. A replacement loads the latest snapshot from object storage and joins once it reports ready.',
         'The business database is down: search keeps working from memory, and business pages from the cache; edits fail with a retryable error until it is back, and the next index update simply comes later.',
-        'A region fails: DNS or anycast moves its users to the next region, which holds the same index; size each region with spare capacity for a neighbour.',
+        'A region fails: DNS or anycast moves its users to the next region, which holds the same index; size each region with spare capacity for a neighbor.',
         'Index builder fails: servers keep the last good version; alert when the served version is older than a day.',
       ],
     },
@@ -485,7 +485,7 @@ export const PROXIMITY_SERVICE: CaseStudy = {
   ],
   pitfalls: [
     'Indexing latitude and longitude in ordinary B-trees and expecting a radius search to be fast.',
-    "Reading only the user's cell, so a place across the edge, metres away, is missed.",
+    "Reading only the user's cell, so a place across the edge, meters away, is missed.",
     'Ordering results by shared geohash prefix or by distance in raw degrees instead of true distance.',
     'Sharding the location index by business id, so every search asks every shard.',
     'One fixed radius or precision everywhere: thousands of wasted reads downtown, empty results in the countryside.',

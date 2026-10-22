@@ -114,7 +114,7 @@ describe('session builder', () => {
     expect(plan.items.filter((i) => i.reason === 'new')).toHaveLength(0);
   });
 
-  it('interleave avoids same-topic neighbours when possible', () => {
+  it('interleave avoids same-topic neighbors when possible', () => {
     const defs = ['a', 'a', 'a', 'b', 'b', 'c'].map((topic, i) => ({ def: { topic, kind: 'recognition' as const }, i }));
     const out = interleave(defs).map((x) => x.def.topic);
     expect(out.every((t, i) => i === 0 || t !== out[i - 1])).toBe(true);

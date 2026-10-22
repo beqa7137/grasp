@@ -154,7 +154,7 @@ export const FILE_SYNC: CaseStudy = {
           {
             label: 'Content-defined chunking: a rolling hash picks boundaries where the content matches a pattern, averaging about 4 MB',
             best: true,
-            why: 'Boundaries follow the content, so an insertion changes only the block it lands in and perhaps its neighbour; everything after it hashes the same as before. Algorithms such as Rabin fingerprints or FastCDC are fast enough to run on the client.',
+            why: 'Boundaries follow the content, so an insertion changes only the block it lands in and perhaps its neighbor; everything after it hashes the same as before. Algorithms such as Rabin fingerprints or FastCDC are fast enough to run on the client.',
           },
           {
             label: 'Fixed 4 MB blocks at fixed offsets',
