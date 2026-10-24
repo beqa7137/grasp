@@ -1,0 +1,365 @@
+<div class="controls">
+  <fieldset class="group" [disabled]="locked()">
+    <legend class="control-label">Schema</legend>
+    <div class="segments">
+      @for (o of schemas; track o.value) {
+        <label class="segment">
+          <input type="radio" name="feed-schema" [value]="o.value" [checked]="o.value === schema()" (change)="setSchema(o.value)" />
+          <span>{{ o.label }}</span>
+        </label>
+      }
+    </div>
+  </fieldset>
+  <fieldset class="group" [class.nothing]="schema() === 1" [disabled]="locked() || schema() === 1" aria-describedby="feed-read-note">
+    <legend class="control-label">Read with</legend>
+    <div class="segments">
+      @for (o of reads; track o.value) {
+        <label class="segment">
+          <input type="radio" name="feed-read" [value]="o.value" [checked]="o.value === read()" (change)="setRead(o.value)" />
+          <span>{{ o.label }}</span>
+        </label>
+      }
+    </div>
+    <p class="note" id="feed-read-note">{{ schema() === 1 ? 'Nothing to look up: the name is in each post.' : '' }}</p>
+  </fieldset>
+  <p class="notice" aria-live="polite">{{ notice() }}</p>
+</div>
+
+<div class="main">
+  <g-stage class="page-stage" [height]="pageHeight()" label="Data modeling: one feed page and one rename">
+    @if (ready()) {
+      @let L = readL();
+      @let T = tablesL();
+      @let r = readV();
+      @let t = tablesV();
+      <svg
+        [attr.viewBox]="'0 0 ' + L.width + ' ' + pageHeight()"
+        [attr.width]="L.width"
+        [attr.height]="pageHeight()"
+        role="img"
+        [attr.aria-label]="readSummary()"
+      >
+        <defs>
+          <pattern id="feed-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <line class="hatch-line" x1="0" y1="0" x2="0" y2="6" />
+          </pattern>
+          <marker id="feed-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto">
+            <path class="arrowhead" d="M0 0L8 4L0 8z" />
+          </marker>
+        </defs>
+        <text class="label" [attr.x]="pad + 42" y="30">Read · one feed page</text>
+        <text class="head" text-anchor="end" [attr.x]="L.width - pad" [attr.y]="L.headlineY">
+          <tspan>{{ r.wait.value }}</tspan>
+          <tspan class="unit" dx="4">{{ r.wait.unit }}</tspan>
+        </text>
+
+        <line class="lane" [attr.x1]="L.px0 - 6" [attr.x2]="L.px1" [attr.y1]="L.appY" [attr.y2]="L.appY" />
+        <line class="lane" [attr.x1]="L.px0 - 6" [attr.x2]="L.px1" [attr.y1]="L.dbY" [attr.y2]="L.dbY" />
+        <g class="glyph" [attr.transform]="'translate(' + pad + ' ' + L.appY + ')'">
+          <rect x="0" y="-9" width="18" height="18" />
+          <path d="M4 -3h10M4 2h7" />
+        </g>
+        <text class="cap ink" [attr.x]="pad + (L.wide ? 24 : 0)" [attr.y]="L.appY + (L.wide ? 4 : 24)">App</text>
+        <g class="glyph" [attr.transform]="'translate(' + (pad + 9) + ' ' + L.dbY + ')'">
+          <path d="M-8 -6v12c0 2.5 16 2.5 16 0v-12" />
+          <path d="M-8 -6a8 2.6 0 1 0 16 0a8 2.6 0 1 0 -16 0" />
+        </g>
+        <text class="cap ink" [attr.x]="pad + (L.wide ? 24 : 0)" [attr.y]="L.dbY + (L.wide ? 4 : 24)">DB</text>
+
+        @if (r.ghost; as g) {
+          <path class="trip ghost" [attr.d]="g.path" />
+        }
+        <path class="trip pending" [attr.d]="r.pending" />
+        <path class="trip" [attr.d]="r.done" />
+        <path class="trip first" [attr.d]="r.first" />
+        <path class="hit" [attr.d]="r.hits" />
+        @if (r.ghost; as g) {
+          @if (g.x !== null) {
+            <line class="ready ghost" [attr.x1]="g.x" [attr.x2]="g.x" [attr.y1]="L.appY - 4" [attr.y2]="L.dbY + 4" />
+          }
+          @if (g.label; as gl) {
+            <text class="small" [class.over-trips]="g.behind" [attr.x]="gl.x" [attr.y]="gl.y" [attr.text-anchor]="gl.anchor">
+              {{ gl.lines[0] }}
+            </text>
+            @if (gl.lines[1]) {
+              <text class="num" [attr.x]="gl.x" [attr.y]="gl.y + 16" [attr.text-anchor]="gl.anchor">{{ gl.lines[1] }}</text>
+            }
+          }
+        }
+        @if (r.marker; as m) {
+          @if (replayed() === null) {
+            <g class="marker" [class.land]="landed()">
+              <line class="ready" [attr.x1]="m.x" [attr.x2]="m.x" [attr.y1]="L.appY - 4" [attr.y2]="L.dbY + 4" />
+              @if (m.label; as ml) {
+                @for (line of ml.lines; track $index) {
+                  <text class="small" [attr.x]="ml.x" [attr.y]="ml.y + $index * 16">{{ line }}</text>
+                }
+              }
+            </g>
+          }
+        }
+        @if (r.overflow) {
+          <path class="chevron" [attr.d]="'M' + (L.px1 - 8) + ' ' + (L.appY - 6) + 'l8 6l-8 6'" />
+        }
+        @if (r.overflowLabel; as ol) {
+          <text class="small ink over-trips" [attr.x]="ol.x" [attr.y]="ol.y" text-anchor="end">{{ ol.text }}</text>
+        }
+        @for (b of r.braces; track $index) {
+          <path class="brace" [attr.d]="b" />
+        }
+        @for (l of r.leaders; track $index) {
+          <line class="leader" [attr.x1]="l.x" [attr.x2]="l.x" [attr.y1]="l.y1" [attr.y2]="l.y2" />
+        }
+        @for (line of r.sql; track $index) {
+          <text class="sql" [attr.x]="line.x" [attr.y]="line.y">
+            @for (part of line.parts; track $index) {
+              <tspan [class]="part.kind ?? ''">{{ part.text }}</tspan>
+            }
+          </text>
+        }
+        @if (r.magnifier; as mg) {
+          <path class="mag-link" [attr.d]="mg.link" />
+          <rect class="mag" [attr.x]="mg.x" [attr.y]="mg.y" [attr.width]="mg.width" [attr.height]="mg.height" />
+          <path class="trip first" [attr.d]="mg.first" />
+          @for (v of mg.vees; track $index) {
+            <path class="trip" [attr.d]="v" />
+          }
+          <path class="hit" [attr.d]="mg.hits" />
+          <text class="small" [attr.x]="mg.x + 8" [attr.y]="mg.y + 15">{{ mg.label }}</text>
+        }
+        @if (r.ruler; as ru) {
+          @for (x of ru.ticks; track $index) {
+            <line class="axis" [attr.x1]="x" [attr.x2]="x" [attr.y1]="L.rulerY - 6" [attr.y2]="L.rulerY - 2" />
+          }
+          <text class="small" [attr.x]="ru.left.x" [attr.y]="ru.left.y">{{ ru.left.text }}</text>
+          <text class="small" text-anchor="end" [attr.x]="ru.right.x" [attr.y]="ru.right.y">
+            {{ replayed() !== null ? replayCaption() : ru.right.text }}
+          </text>
+        }
+        <line class="axis" [attr.x1]="L.px0" [attr.x2]="L.px1" [attr.y1]="L.axisY" [attr.y2]="L.axisY" />
+        @for (tick of axisTicks(); track tick.t) {
+          <line class="axis" [attr.x1]="tick.x" [attr.x2]="tick.x" [attr.y1]="L.axisY" [attr.y2]="L.axisY + 4" />
+          <text class="tick" [attr.x]="tick.x" [attr.y]="L.axisY + 17" [attr.text-anchor]="tick.anchor">{{ tick.label }}</text>
+        }
+        @if (L.chipLabel; as cl) {
+          <text class="cap" [attr.x]="cl.x" [attr.y]="cl.y">Database</text>
+        }
+
+        <text class="label" [attr.x]="pad" [attr.y]="T.top + 26">Tables</text>
+        <text class="head" text-anchor="end" [attr.x]="L.width - pad" [attr.y]="T.top + 28">
+          <tspan>{{ t.headline.value }}</tspan>
+          <tspan class="unit" dx="4">{{ t.headline.unit }}</tspan>
+        </text>
+        @for (card of [T.posts, T.authors]; track $index; let i = $index) {
+          <rect class="card" [attr.x]="card.x" [attr.y]="card.y" [attr.width]="card.width" [attr.height]="card.height" />
+          <text class="label on-card" [attr.x]="card.x + 10" [attr.y]="card.y + 17">{{ i === 0 ? 'posts' : 'authors' }}</text>
+          @if (t.notes; as n) {
+            <text class="small on-card" text-anchor="end" [attr.x]="card.x + card.width - 10" [attr.y]="card.y + 17">
+              {{ i === 0 ? n.posts : n.authors }}
+            </text>
+          }
+          <line
+            class="card-sep"
+            [attr.x1]="card.x"
+            [attr.x2]="card.x + card.width"
+            [attr.y1]="card.y + T.headH"
+            [attr.y2]="card.y + T.headH"
+          />
+          <line class="card-sep" [attr.x1]="card.x" [attr.x2]="card.x + card.width" [attr.y1]="t.off.y - 17" [attr.y2]="t.off.y - 17" />
+        }
+        @for (row of litRows(); track $index) {
+          <rect
+            [class]="row.full ? 'read-row full' : 'read-row'"
+            [attr.x]="row.x + 1"
+            [attr.y]="row.y"
+            [attr.width]="row.width - 2"
+            [attr.height]="row.height"
+          />
+          <rect class="read-bar" [attr.x]="row.x" [attr.y]="row.y" width="3" [attr.height]="row.height" />
+        }
+        @if (schema() === 1) {
+          <rect
+            class="unread"
+            [attr.x]="T.authors.x + 1"
+            [attr.y]="T.authors.y + T.headH"
+            [attr.width]="T.authors.width - 2"
+            [attr.height]="T.authors.height - T.headH - 1"
+          />
+        }
+        @for (c of t.postColumns; track c.name) {
+          <text class="cell-h on-card" [attr.x]="c.x" [attr.y]="T.posts.y + 36">{{ c.name }}</text>
+        }
+        @if (t.copy; as cc) {
+          <rect
+            class="copy-col"
+            [attr.x]="cc.x - 3"
+            [attr.y]="T.posts.y + 24"
+            [attr.width]="cc.width - 3"
+            [attr.height]="T.headH - 24 + 4 * T.rowH + 2"
+          />
+        }
+        <text class="cell-h on-card" [attr.x]="T.authors.x + 10" [attr.y]="T.authors.y + 36">id</text>
+        <text class="cell-h on-card" [attr.x]="t.authorsNameX" [attr.y]="T.authors.y + 36">name</text>
+        @for (row of t.rows; track $index; let i = $index) {
+          @for (v of row.post; track $index; let j = $index) {
+            @if (i === 0 && t.copy && j === 2 && t.rename.p901; as state) {
+              <rect
+                [class]="state === 'stale' ? 'cell-mark stale' : 'cell-mark fresh'"
+                [attr.x]="t.copy.x - 4"
+                [attr.y]="row.y - 12"
+                [attr.width]="state === 'stale' ? 30 : 50"
+                height="17"
+              />
+              @if (state === 'stale') {
+                @if (L.wide && T.side) {
+                  <rect class="old-pill" [attr.x]="t.copy.x + 32" [attr.y]="row.y - 11" width="74" height="15" />
+                  <text class="old-tag" text-anchor="middle" [attr.x]="t.copy.x + 69" [attr.y]="row.y">Old name</text>
+                } @else {
+                  <g class="clock" [attr.transform]="'translate(' + (t.copy.x + 34) + ' ' + (row.y - 4) + ')'">
+                    <circle r="5" />
+                    <path d="M0 -2.5V0l2 1.5" />
+                  </g>
+                }
+              }
+            }
+            <text class="mono on-card" [attr.x]="t.postColumns[j].x" [attr.y]="row.y">{{ v }}</text>
+          }
+          <text class="mono on-card" [attr.x]="T.authors.x + 10" [attr.y]="T.authors.y + T.headH + i * T.rowH + 15">{{ row.post[1] }}</text>
+          @if (i === 0 && t.rename.authors) {
+            <rect
+              class="cell-mark fresh"
+              [attr.x]="t.authorsNameX - 4"
+              [attr.y]="T.authors.y + T.headH + 3"
+              [attr.width]="t.rename.struck ? 84 : 50"
+              height="17"
+            />
+          }
+          <text class="mono on-card" [attr.x]="t.authorsNameX" [attr.y]="T.authors.y + T.headH + i * T.rowH + 15">
+            @if (i === 0 && t.rename.struck) {
+              <tspan class="struck">Ada</tspan>
+              <tspan dx="6">{{ row.authorName }}</tspan>
+            } @else {
+              {{ row.authorName }}
+            }
+          </text>
+        }
+        <text class="small on-card" [attr.x]="t.more.posts.x" [attr.y]="t.more.posts.y">{{ t.more.posts.lines[0] }}</text>
+        @if (t.more.authors; as ma) {
+          <text class="small on-card" [attr.x]="ma.x" [attr.y]="ma.y">{{ ma.lines[0] }}</text>
+        }
+        <text class="mono off on-card" [attr.x]="t.postColumns[0].x" [attr.y]="t.off.y">p897</text>
+        <text class="mono off on-card" [attr.x]="t.postColumns[1].x" [attr.y]="t.off.y">a9</text>
+        <text class="small on-card" text-anchor="end" [attr.x]="t.off.note.x" [attr.y]="t.off.note.y">{{ t.off.note.lines[0] }}</text>
+        @if (schema() === 0) {
+          <text class="mono off on-card" [attr.x]="T.authors.x + 10" [attr.y]="T.authors.y + T.authors.height - 9">a9</text>
+          <text class="mono off on-card" [attr.x]="t.authorsNameX" [attr.y]="T.authors.y + T.authors.height - 9">Mei</text>
+        }
+        <path [class]="schema() === 1 ? 'fk muted' : 'fk'" [attr.d]="t.fk" marker-end="url(#feed-arrow)" />
+        <g
+          app-feed-track
+          [track]="T.pageTrack"
+          [stops]="pageStops"
+          [index]="pageIndex()"
+          [value]="'' + pageSize()"
+          name="Posts a page"
+          [disabled]="locked()"
+        />
+        @for (line of t.note.lines; track $index) {
+          <text class="cap" [attr.x]="t.note.x" [attr.y]="t.note.y + $index * 17">{{ line }}</text>
+        }
+        <g class="dots" #dots></g>
+        @for (f of focus(); track f.id) {
+          <g app-focus [box]="f" [on]="exp.focusOn().includes(f.id)" />
+        }
+      </svg>
+
+      <button type="button" class="play" aria-label="Load a page" [style.left.px]="pad - 6" [disabled]="locked()" (click)="loadPage()">
+        <svg viewBox="0 0 36 36" aria-hidden="true">
+          <circle cx="18" cy="18" r="16" />
+          <path d="M14 11v14l11-7z" />
+        </svg>
+      </button>
+      <fieldset class="places" aria-label="Where the database is">
+        @for (c of L.chips; track $index; let i = $index) {
+          <label class="place" [style.left.px]="c.x" [style.top.px]="c.y" [style.width.px]="c.width">
+            <input type="radio" name="feed-place" [value]="i" [checked]="i === place()" [disabled]="locked()" (change)="setPlace(i)" />
+            <span>
+              {{ places[i].name }}
+              <small>{{ formatMs(places[i].rttMs) }}</small>
+            </span>
+          </label>
+        }
+      </fieldset>
+      <g-handle
+        label="Posts a page"
+        knob="dot"
+        [values]="pageSizes"
+        [positions]="T.pageTrack.positions"
+        [cross]="T.pageTrack.y"
+        [valuetext]="pageSize() + ' posts a page'"
+        [disabled]="locked()"
+        [value]="pageSize()"
+        (valueChange)="setPageSize($event)"
+      />
+    }
+  </g-stage>
+
+  <app-feed-write
+    class="write"
+    [settings]="settings()"
+    [rename]="rename()"
+    [slowdown]="renameSpeed()"
+    [hideStale]="hideStale()"
+    [showBehind]="showBehindWrite()"
+    [renameLocked]="!showBehindWrite()"
+    [locked]="locked()"
+    [focusOn]="exp.focusOn()"
+    (postsChange)="setPostsPerAuthor($event)"
+    (renameClick)="renameAda()"
+    (playheadChange)="setRewrite($event)"
+  />
+
+  <app-feed-traffic
+    class="traffic"
+    [settings]="settings()"
+    [hideDenormalized]="hideDenormalized()"
+    [showBehind]="showBehind()"
+    [locked]="locked()"
+    [tableLocked]="askingAny()"
+    [focusOn]="exp.focusOn()"
+    (pagesChange)="setPages($event)"
+    (renamesChange)="setRenames($event)"
+  />
+
+  <div class="describe">
+    <button type="button" class="g-btn" [attr.aria-expanded]="describe()" [disabled]="askingAny()" (click)="toggleDescribe()">
+      {{ describe() ? 'Hide the description' : 'Describe' }}
+    </button>
+    @if (askingAny()) {
+      <span class="muted">Describe waits for your answer.</span>
+    }
+    @if (describe() && !askingAny()) {
+      <g-data-table
+        label="Each schema and read at these settings"
+        [head]="describeHead"
+        [rows]="describeRows()"
+        [active]="describeRow()"
+        [height]="null"
+      />
+    }
+  </div>
+</div>
+
+@if (experiments().length) {
+  <app-experiment-dock
+    class="experiments"
+    [experiments]="experiments()"
+    [active]="exp.active()"
+    [phase]="exp.phase()"
+    [done]="exp.done()"
+    [goalStatus]="goalStatus()"
+    [chosen]="exp.chosen()"
+    (chosenChange)="exp.answer($event)"
+    (start)="start($event)"
+  />
+}

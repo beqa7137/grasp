@@ -310,23 +310,6 @@ test('the real-time lesson shows polling cost and delay against a push connectio
   await expect(readout('Average delay')).toHaveText('50 ms');
 });
 
-test('the data modeling lesson weighs N+1 queries and a join against copying names into posts', async ({ page }) => {
-  await page.goto('/design/topics/sd-data-modeling');
-  const readout = (label: string) =>
-    page
-      .locator('.readouts div')
-      .filter({ has: page.locator('dt', { hasText: new RegExp(`^${label}$`) }) })
-      .locator('dd');
-  await expect(readout('Queries per page')).toHaveText('21');
-  await page.getByRole('radio', { name: 'One join' }).click();
-  await expect(readout('Queries per page')).toHaveText('1');
-  await expect(readout('Rows written per rename')).toHaveText('1');
-  await page.getByRole('radio', { name: 'Denormalized' }).click();
-  await expect(readout('Rows read per page')).toHaveText('20');
-  await expect(readout('Rows written per rename')).toHaveText('501');
-  await expect(readout('After a rename')).toHaveText('Old name until the fan-out ends');
-});
-
 test('the load shedding lesson shows a burst answered too late until the queue is bounded', async ({ page }) => {
   await page.goto('/design/topics/sd-overload');
   const readout = (label: string) =>

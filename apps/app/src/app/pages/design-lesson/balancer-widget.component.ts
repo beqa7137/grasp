@@ -22,6 +22,7 @@ import {
   formatDuration,
   formatPct,
   formatQps,
+  goalBounds,
   lbSweep,
   type BalanceRun,
   type Balancer,
@@ -96,6 +97,7 @@ export class BalancerWidgetComponent {
         answer: -1,
         reveal: '',
         focus: e.focus,
+        hide: e.hide ?? [],
         goal: e.goal,
       })),
   );
@@ -301,13 +303,14 @@ export class BalancerWidgetComponent {
     const goal = this.exp.active()?.goal;
     const run = this.run();
     if (!goal || !run) return '';
+    const [bound] = goalBounds(goal);
     const now = `p99 ${formatDuration(run.p99Ms)}`;
     const met = this.exp.metWith();
     if (this.exp.phase() === 'revealed' && met)
-      return this.exp.kept() && run.p99Ms < goal.below
-        ? `Goal met: ${now}, under ${formatDuration(goal.below)}.`
+      return this.exp.kept() && run.p99Ms < bound.below
+        ? `Goal met: ${now}, under ${formatDuration(bound.below)}.`
         : `You met it at p99 ${formatDuration(met.metrics['p99Ms'])}; now ${now}.`;
-    if (this.exp.kept()) return `Now ${now}; the goal is under ${formatDuration(goal.below)}.`;
+    if (this.exp.kept()) return `Now ${now}; the goal is under ${formatDuration(bound.below)}.`;
     const keep = Object.entries(goal.keep ?? {}).map(([k, v]) => KEEP_WORDS[k]?.(v) ?? `${k} ${v}`);
     return `Now ${now}, but the goal keeps ${keep.slice(0, -1).join(', ')}${keep.length > 1 ? ' and ' : ''}${keep.at(-1)}.`;
   });

@@ -40,6 +40,7 @@ export * from './experiments.js';
 export * from './caching-experiments.js';
 export * from './load-balancing-experiments.js';
 export * from './replication-experiments.js';
+export * from './data-modeling-experiments.js';
 
 export const SD_LESSONS: Readonly<Record<string, SdLesson>> = {
   'sd-latency': LATENCY_LESSON,

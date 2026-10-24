@@ -106,10 +106,6 @@
     "font-size": 4,
     "spacing": 12
   },
-  "app/pages/design-lesson/feed-model-widget.component.ts": {
-    "font-size": 2,
-    "spacing": 1
-  },
   "app/pages/design-lesson/gateway-widget.component.ts": {
     "font-size": 2,
     "spacing": 1

@@ -1,0 +1,489 @@
+@use '../../../type' as *;
+@use '../../../breakpoints' as *;
+@use 'feed-controls';
+
+:host {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--g-space-3);
+}
+// Narrow, one column in reading order: the schema and read as the first rows of the page's stage, the page, the open
+// question, the rename, the traffic, then the experiment cards. The wrappers step aside (display: contents) so their
+// parts take those places.
+.main,
+.experiments {
+  display: contents;
+}
+.controls {
+  order: 1;
+}
+.page-stage {
+  order: 2;
+  min-width: 0;
+}
+.experiments ::ng-deep .dock {
+  order: 3;
+  margin-top: 0;
+}
+.write {
+  order: 4;
+}
+.traffic {
+  order: 5;
+}
+.describe {
+  order: 6;
+}
+.experiments ::ng-deep :is(.heading, .cards) {
+  order: 7;
+}
+.experiments ::ng-deep .heading {
+  margin: var(--g-space-2) 0 0;
+}
+// Below wide, the schema and read are the page stage's first rows.
+.controls {
+  padding: var(--g-space-3) var(--g-space-3) 0;
+  border: 1px solid var(--g-line);
+  border-bottom: 0;
+  border-radius: var(--g-radius-md) var(--g-radius-md) 0 0;
+  background: var(--g-viz-stage);
+}
+.page-stage {
+  margin-top: calc(-1 * var(--g-space-3));
+  ::ng-deep .well {
+    border-top: 0;
+    border-radius: 0 0 var(--g-radius-md) var(--g-radius-md);
+  }
+}
+// The lesson page widens this widget's panel at container wide: the page and the rename as one stage with the traffic
+// under it on the left, the schema, the read and the experiments on the right.
+@include container-wide(lesson) {
+  :host {
+    grid-template-columns: minmax(0, 1fr) 340px;
+    grid-template-rows: auto 1fr;
+    align-items: start;
+    column-gap: var(--g-space-5);
+  }
+  .main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--g-space-3);
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    min-width: 0;
+  }
+  .controls {
+    grid-column: 2;
+    grid-row: 1;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+  .experiments {
+    display: block;
+    grid-column: 2;
+    grid-row: 2;
+    min-width: 0;
+  }
+  .experiments ::ng-deep .dock {
+    margin-top: var(--g-space-3);
+  }
+  .page-stage {
+    margin-top: 0;
+    ::ng-deep .well {
+      border-top: 1px solid var(--g-line);
+      border-bottom-style: dashed;
+      border-radius: var(--g-radius-md) var(--g-radius-md) 0 0;
+    }
+  }
+  .write {
+    margin-top: calc(-1 * var(--g-space-3));
+    ::ng-deep .well {
+      border-top: 0;
+      border-radius: 0 0 var(--g-radius-md) var(--g-radius-md);
+    }
+  }
+}
+
+.controls {
+  display: grid;
+  gap: var(--g-space-3);
+  align-content: start;
+  min-width: 0;
+}
+fieldset.group {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+// Native radio groups drawn as g-segmented, as Load Balancing does: the component would split a first-paint chunk, and
+// native radios bring the arrow keys and one Tab stop with them.
+.segments {
+  display: flex;
+  gap: var(--g-space-1);
+}
+.segment {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  input {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+  span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0 var(--g-space-1);
+    border-radius: var(--g-radius-sm);
+    border: 1px solid var(--g-line-strong);
+    background: var(--g-raised);
+    box-shadow: var(--g-shadow-raised);
+    color: var(--g-text);
+    font: 500 var(--g-text-body) / 1.15 var(--ion-font-family);
+    text-align: center;
+  }
+  input:checked + span {
+    background: var(--g-accent-soft);
+    border-color: var(--g-accent);
+    box-shadow: inset 0 0 0 1px var(--g-accent);
+    font-weight: 600;
+  }
+  input:focus-visible + span {
+    outline: var(--g-focus-ring);
+    outline-offset: 2px;
+  }
+  input:disabled {
+    cursor: default;
+  }
+  input:disabled + span {
+    opacity: 0.55;
+  }
+}
+// Read with, when the schema has nothing to join: struck through, with no read chosen.
+fieldset.nothing .segment input + span {
+  border-color: var(--g-line-strong);
+  color: var(--g-faint);
+  background: transparent;
+  box-shadow: none;
+  border-style: dashed;
+  font-weight: 500;
+  text-decoration: line-through;
+  opacity: 1;
+}
+@media (hover: hover) {
+  .segment input:not(:checked, :disabled):hover + span {
+    border-color: var(--g-faint);
+  }
+}
+.control-label {
+  @include label;
+  color: var(--g-muted);
+  padding: 0;
+  margin-bottom: var(--g-space-1);
+}
+.note {
+  margin: var(--g-space-1) 0 0;
+  min-height: 1lh;
+  font-size: var(--g-text-body-s);
+  color: var(--g-muted);
+}
+.notice {
+  margin: 0;
+  min-height: 2lh;
+  font-size: var(--g-text-body-s);
+  color: var(--g-muted);
+}
+// Below wide the notice would sit over the stage and push it down as it speaks; the picture shows the change, so
+// there it is read out only.
+@include container-narrow(lesson) {
+  .notice {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    min-height: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .controls {
+    position: relative;
+  }
+}
+.describe {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--g-space-2);
+  min-width: 0;
+  .g-btn {
+    min-height: 44px;
+  }
+  // Eight columns are wider than a phone: the table scrolls inside its own box, never the page.
+  g-data-table {
+    flex: 1 0 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .muted {
+    font-size: var(--g-text-body-s);
+    color: var(--g-muted);
+  }
+}
+
+.lane {
+  stroke: var(--g-line-strong);
+  stroke-dasharray: 2 4;
+}
+.glyph {
+  rect,
+  path {
+    fill: var(--g-raised);
+    stroke: var(--g-text);
+    stroke-width: 1.5;
+  }
+}
+.trip {
+  fill: none;
+  stroke: var(--g-text);
+  stroke-width: 1;
+  stroke-linejoin: round;
+  &.first {
+    stroke: var(--g-viz-current);
+    stroke-width: 1.75;
+  }
+  &.pending {
+    opacity: 0.3;
+  }
+  &.ghost {
+    stroke: var(--g-viz-discarded-ink);
+    stroke-dasharray: 2 2;
+    opacity: 0.55;
+  }
+}
+.hit {
+  fill: var(--g-viz-current);
+}
+.brace {
+  fill: none;
+  stroke: var(--g-muted);
+  stroke-width: 1.25;
+}
+.leader {
+  stroke: var(--g-muted);
+  stroke-width: 1;
+}
+.ready {
+  stroke: var(--g-text);
+  stroke-width: 1.5;
+  &.ghost {
+    stroke: var(--g-viz-discarded-ink);
+    stroke-dasharray: 3 3;
+  }
+}
+.marker.land {
+  animation: land var(--g-motion-land) var(--g-ease-enter);
+}
+@keyframes land {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+.over-trips {
+  stroke-width: 6px;
+}
+.chevron {
+  fill: none;
+  stroke: var(--g-text);
+  stroke-width: 1.5;
+}
+.sql {
+  font: 500 var(--g-text-label) var(--g-font-mono);
+  fill: var(--g-text);
+  .k {
+    font-weight: 700;
+  }
+  .m {
+    fill: var(--g-muted);
+  }
+}
+.mag {
+  fill: var(--g-viz-stage);
+  stroke: var(--g-line-strong);
+  rx: var(--g-radius-xs);
+}
+.mag-link {
+  fill: none;
+  stroke: var(--g-line-strong);
+  stroke-dasharray: 2 3;
+}
+.card {
+  fill: var(--g-raised);
+  stroke: var(--g-line-strong);
+  rx: var(--g-radius-xs);
+}
+.card-sep {
+  stroke: var(--g-line);
+}
+.cell-h {
+  font: 500 var(--g-text-label) var(--g-font-mono);
+  fill: var(--g-muted);
+}
+.mono.off {
+  font-weight: 500;
+  fill: var(--g-viz-discarded-ink);
+}
+.read-row {
+  fill: var(--g-viz-current);
+  fill-opacity: 0.1;
+  &.full {
+    fill-opacity: 0.22;
+  }
+}
+.read-bar {
+  fill: var(--g-viz-current);
+}
+.unread {
+  fill: url(#feed-hatch);
+}
+.copy-col {
+  fill: none;
+  stroke: var(--g-text);
+  stroke-dasharray: 3 2;
+  rx: var(--g-radius-xs);
+}
+.fk {
+  fill: none;
+  stroke: var(--g-stroke);
+  stroke-width: 1.5;
+  &.muted {
+    stroke-dasharray: 3 3;
+    opacity: 0.6;
+  }
+}
+.arrowhead {
+  fill: var(--g-stroke);
+}
+.cell-mark {
+  &.stale {
+    fill: var(--g-viz-considering-soft);
+    stroke: var(--g-viz-considering);
+    stroke-width: 1.25;
+    stroke-dasharray: 3 2;
+  }
+  &.fresh {
+    fill: var(--g-viz-final-soft);
+    stroke: var(--g-viz-final);
+    stroke-width: 1.25;
+  }
+}
+.old-pill {
+  fill: var(--g-viz-considering-soft);
+  stroke: var(--g-viz-considering);
+  stroke-dasharray: 2 2;
+  rx: var(--g-radius-xs);
+}
+.old-tag {
+  @include label;
+  fill: var(--g-text);
+  stroke: none;
+}
+.clock {
+  circle,
+  path {
+    fill: none;
+    stroke: var(--g-viz-considering);
+    stroke-width: 1.4;
+    stroke-linecap: round;
+  }
+}
+.struck {
+  text-decoration: line-through;
+  fill: var(--g-viz-discarded-ink);
+}
+.dots ::ng-deep .particle {
+  circle {
+    fill: var(--g-viz-current);
+  }
+  path,
+  text {
+    display: none;
+  }
+  &.trip circle {
+    fill: var(--g-text);
+  }
+  &.page circle {
+    fill: var(--g-viz-final);
+  }
+  &.stale circle {
+    fill: var(--g-viz-considering);
+  }
+  &.broken {
+    circle {
+      display: none;
+    }
+    path {
+      display: inline;
+      fill: none;
+      stroke: var(--g-viz-critical);
+      stroke-width: 2;
+    }
+  }
+}
+.places {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+  pointer-events: none;
+}
+.place {
+  position: absolute;
+  height: 44px;
+  pointer-events: auto;
+  input {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+  span {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    border-radius: var(--g-radius-sm);
+    border: 1px solid var(--g-line-strong);
+    background: var(--g-raised);
+    color: var(--g-text);
+    font: 500 var(--g-text-body-s) / 1.2 var(--ion-font-family);
+    white-space: nowrap;
+  }
+  small {
+    font: 600 var(--g-text-label) var(--g-font-mono);
+    color: var(--g-muted);
+  }
+  input:checked + span {
+    background: var(--g-accent-soft);
+    border: 2px solid var(--g-accent);
+    small {
+      color: var(--g-text);
+    }
+  }
+  input:focus-visible + span {
+    outline: var(--g-focus-ring);
+    outline-offset: 2px;
+  }
+  input:disabled + span {
+    opacity: 0.55;
+  }
+}

@@ -1,0 +1,41 @@
+// A play button on a stage: a 36px disc in a 44px hit box.
+.play {
+  position: absolute;
+  top: var(--g-space-1);
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  z-index: 1;
+  svg {
+    position: static;
+    width: 36px;
+    height: 36px;
+    margin: var(--g-space-1);
+  }
+  circle {
+    fill: var(--g-raised);
+    stroke: var(--g-accent);
+    stroke-width: 1.5;
+  }
+  path {
+    fill: var(--g-accent);
+  }
+  &:focus-visible {
+    outline: none;
+    circle {
+      stroke-width: 3;
+    }
+    svg {
+      outline: var(--g-focus-ring);
+      outline-offset: 1px;
+      border-radius: var(--g-radius-pill);
+    }
+  }
+  &:disabled {
+    cursor: default;
+    opacity: 0.55;
+  }
+}

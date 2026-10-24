@@ -8,6 +8,10 @@ const recommended = (id, stage) => getCaseStudy(id).stages[stage].decision.optio
 /** The Caching widget's panel at the top of the view, so its picture and the controls under it show. */
 const cacheStageToTop = (p) => p.locator('#try').evaluate((panel) => panel.scrollIntoView({ block: 'start' }));
 /** A worker-run widget is drawn once its first run is in: the readout has a value. */
+const feedReady = async (p) => {
+  await p.locator('app-feed-model-widget app-feed-traffic svg').waitFor();
+  await p.locator('#try').scrollIntoViewIfNeeded();
+};
 const balancerReady = (p) => p.locator('app-balancer-widget .value.big').filter({ hasText: /\d/ }).waitFor();
 /** Steps a handle on the drawing by key, as a learner without a mouse would. */
 const stepHandle = async (p, name, key, times = 1) => {
@@ -454,12 +458,74 @@ export function designStates() {
     },
     { id: 'lesson-storage', path: '/design/topics/sd-storage', setup: (p) => p.locator('#try').scrollIntoViewIfNeeded() },
     { id: 'lesson-geo', path: '/design/topics/sd-geo', setup: (p) => p.locator('#try').scrollIntoViewIfNeeded() },
+    { id: 'lesson-data-modeling-n1', path: '/design/topics/sd-data-modeling', setup: (p) => feedReady(p) },
     {
-      id: 'lesson-data-modeling-denormalized',
+      id: 'lesson-data-modeling-batched',
       path: '/design/topics/sd-data-modeling',
       setup: async (p) => {
-        await p.locator('#try').scrollIntoViewIfNeeded();
-        await p.getByRole('radio', { name: 'Denormalized' }).click();
+        await feedReady(p);
+        await p.getByRole('radio', { name: 'Batched IN' }).check();
+      },
+    },
+    {
+      id: 'lesson-data-modeling-join',
+      path: '/design/topics/sd-data-modeling',
+      setup: async (p) => {
+        await feedReady(p);
+        await p.getByRole('radio', { name: 'Join' }).check();
+      },
+    },
+    {
+      id: 'lesson-data-modeling-rename',
+      path: '/design/topics/sd-data-modeling',
+      setup: async (p) => {
+        await feedReady(p);
+        await p.getByRole('radio', { name: 'Denormalized', exact: true }).check();
+        await p.getByRole('button', { name: 'Rename Ada' }).click();
+        await p.getByRole('slider', { name: 'Copy rewrite' }).waitFor();
+      },
+    },
+    {
+      id: 'lesson-data-modeling-describe',
+      path: '/design/topics/sd-data-modeling',
+      setup: async (p) => {
+        await feedReady(p);
+        await p.getByRole('button', { name: 'Describe' }).click();
+        await p.locator('app-feed-model-widget .describe g-data-table').scrollIntoViewIfNeeded();
+      },
+    },
+    {
+      id: 'lesson-data-modeling-table',
+      path: '/design/topics/sd-data-modeling',
+      setup: async (p) => {
+        await feedReady(p);
+        await p.getByRole('button', { name: 'Table' }).click();
+        await p.locator('app-feed-traffic g-data-table').scrollIntoViewIfNeeded();
+      },
+    },
+    {
+      id: 'lesson-data-modeling-asking',
+      path: '/design/topics/sd-data-modeling',
+      setup: async (p) => {
+        await feedReady(p);
+        await p.locator('app-feed-model-widget .cards button', { hasText: 'Denormalize the feed?' }).click();
+        await p.locator('app-widget-check legend').waitFor();
+      },
+    },
+    {
+      id: 'lesson-data-modeling-revealed',
+      path: '/design/topics/sd-data-modeling',
+      setup: async (p) => {
+        await feedReady(p);
+        await p.locator('app-feed-model-widget .cards button', { hasText: 'Denormalize the feed?' }).click();
+        await p
+          .locator('app-widget-check')
+          .getByRole('button', { name: /^It about halves/ })
+          .click();
+        await p
+          .locator('app-widget-check .explain')
+          .filter({ hasText: /^From / })
+          .waitFor();
       },
     },
     {

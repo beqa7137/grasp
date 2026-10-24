@@ -23,7 +23,6 @@ import { BudgetWidgetComponent } from './budget-widget.component';
 import { CdnWidgetComponent } from './cdn-widget.component';
 import { CrackWidgetComponent } from './crack-widget.component';
 import { DeliveryWidgetComponent } from './delivery-widget.component';
-import { FeedModelWidgetComponent } from './feed-model-widget.component';
 import { ClocksWidgetComponent } from './clocks-widget.component';
 import { DiscoveryWidgetComponent } from './discovery-widget.component';
 import { DurabilityWidgetComponent } from './durability-widget.component';
@@ -50,6 +49,9 @@ import { WIDGET_HEIGHTS } from './widget-heights';
 import { LazyWidgetComponent } from './lazy-widget.component';
 
 /** A system design topic taught hands-on: a widget to experiment with, the ideas to name, worked examples and a quick check. */
+/** Widgets that leave the reading column at container wide, to sit beside their controls and experiments. */
+const BREAKOUT = new Set(['balancer', 'feed-model']);
+
 @Component({
   selector: 'app-design-lesson',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -86,7 +88,6 @@ import { LazyWidgetComponent } from './lazy-widget.component';
     BatchWidgetComponent,
     GeoWidgetComponent,
     DeliveryWidgetComponent,
-    FeedModelWidgetComponent,
     ClocksWidgetComponent,
     DiscoveryWidgetComponent,
     DurabilityWidgetComponent,
@@ -105,7 +106,7 @@ import { LazyWidgetComponent } from './lazy-widget.component';
     <ion-content [fullscreen]="true">
       @if (topic(); as t) {
         <div class="lesson">
-          <div class="page narrow" [class.has-breakout]="lesson()?.widget?.kind === 'balancer'">
+          <div class="page narrow" [class.has-breakout]="breakout()">
             <section class="head">
               <g-mastery-ring [value]="progress.masteryOf(t.id)?.mastery ?? 0" [size]="64" />
               <div>
@@ -121,7 +122,7 @@ import { LazyWidgetComponent } from './lazy-widget.component';
                 <p class="prose"><g-code-text [text]="l.why" /></p>
               </section>
 
-              <section class="panel block" id="try" [class.breakout]="l.widget.kind === 'balancer'">
+              <section class="panel block" id="try" [class.breakout]="breakout()">
                 <h2><ion-icon name="hand-left-outline" aria-hidden="true" />Try it</h2>
                 @switch (l.widget.kind) {
                   @case ('queue-latency') {
@@ -202,7 +203,11 @@ import { LazyWidgetComponent } from './lazy-widget.component';
                     <app-delivery-widget />
                   }
                   @case ('feed-model') {
-                    <app-feed-model-widget />
+                    <app-lazy-widget
+                      [load]="loadFeedModelWidget"
+                      [inputs]="{ experiments: l.widget.experiments ?? [] }"
+                      [placeholder]="heights.feedModel"
+                    />
                   }
                   @case ('overload') {
                     <app-lazy-widget [load]="loadOverloadWidget" [placeholder]="heights.overload" />
@@ -456,6 +461,8 @@ export class DesignLessonPage {
   readonly loadLeaseWidget = () => import('./lease-widget.component').then((m) => m.LeaseWidgetComponent);
   readonly loadReplicaWidget = () => import('./replica-widget.component').then((m) => m.ReplicaWidgetComponent);
   readonly loadBalancerWidget = () => import('./balancer-widget.component').then((m) => m.BalancerWidgetComponent);
+  readonly loadFeedModelWidget = () => import('./feed-model-widget.component').then((m) => m.FeedModelWidgetComponent);
+  readonly breakout = computed(() => BREAKOUT.has(this.lesson()?.widget.kind ?? ''));
 
   constructor() {
     addIcons({

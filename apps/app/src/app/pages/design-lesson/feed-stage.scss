@@ -1,0 +1,100 @@
+// The Data Modeling stages' drawing roles (REDESIGN.md 3.6), shared by every part that draws in them. `feed-layout.ts`
+// measures text by these sizes, so a size changed here changes its collision checks too.
+@use '../../../type' as *;
+
+svg {
+  display: block;
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+}
+text {
+  paint-order: stroke;
+  stroke: var(--g-viz-stage);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+.on-card {
+  stroke: var(--g-raised);
+}
+.label {
+  @include label;
+  fill: var(--g-muted);
+}
+.head {
+  font: 600 var(--g-text-title-m) var(--g-font-mono);
+  font-variant-numeric: tabular-nums;
+  fill: var(--g-text);
+}
+.unit,
+.cap {
+  font: 500 var(--g-text-body-s) var(--ion-font-family);
+  fill: var(--g-muted);
+}
+.ink {
+  fill: var(--g-text);
+}
+.small,
+.tick {
+  font: 500 var(--g-text-label) var(--ion-font-family);
+  font-variant-numeric: tabular-nums;
+  fill: var(--g-muted);
+  &.on {
+    font-weight: 700;
+    fill: var(--g-text);
+  }
+}
+.num,
+.mono {
+  font: 600 var(--g-text-label) var(--g-font-mono);
+  font-variant-numeric: tabular-nums;
+  fill: var(--g-text);
+}
+.strong {
+  font-weight: 700;
+  fill: var(--g-text);
+}
+.bad {
+  fill: var(--g-danger-ink);
+}
+.value {
+  font: 700 var(--g-text-label) var(--g-font-mono);
+  font-variant-numeric: tabular-nums;
+  fill: var(--g-accent);
+}
+.rail {
+  stroke: var(--g-viz-track);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+.fill {
+  stroke: var(--g-accent);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+.stop {
+  fill: var(--g-line-strong);
+}
+.feed-track.disabled {
+  opacity: 0.55;
+}
+.axis {
+  stroke: var(--g-line-strong);
+}
+.grid-line {
+  stroke: var(--g-line);
+}
+.hatch-line {
+  stroke: var(--g-viz-discarded-ink);
+  stroke-opacity: 0.35;
+  stroke-width: 1.5;
+}
+.hatch-bad-bg {
+  fill: var(--g-danger-soft);
+}
+.hatch-bad-line {
+  stroke: var(--g-viz-critical);
+  stroke-opacity: 0.4;
+  stroke-width: 1.2;
+}

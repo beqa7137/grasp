@@ -1,0 +1,64 @@
+@use 'feed-controls';
+
+:host {
+  display: block;
+}
+.cell {
+  &.ghost {
+    fill: none;
+    stroke: var(--g-line-strong);
+    stroke-dasharray: 2 2;
+  }
+  &.rest {
+    fill: var(--g-viz-track);
+  }
+  &.fresh {
+    fill: var(--g-viz-final-soft);
+    stroke: var(--g-viz-final);
+    stroke-width: 1.5;
+  }
+  &.stale {
+    fill: none;
+    stroke: var(--g-viz-considering);
+    stroke-width: 1.5;
+    stroke-dasharray: 3 2;
+  }
+}
+.empty-note {
+  fill: var(--g-viz-stage);
+  rx: var(--g-radius-xs);
+}
+.bar {
+  rx: var(--g-radius-xs);
+  &.none {
+    fill: var(--g-viz-track);
+    opacity: 0.6;
+  }
+  &.rest {
+    fill: none;
+    stroke: var(--g-stroke);
+    stroke-dasharray: 4 3;
+  }
+  &.left {
+    fill: none;
+    stroke: var(--g-viz-considering);
+    stroke-dasharray: 3 2;
+    stroke-width: 1.5;
+  }
+  &.done {
+    fill: var(--g-viz-final-soft);
+    stroke: var(--g-viz-final);
+    stroke-width: 1.5;
+  }
+  &.behind {
+    fill: var(--g-danger-soft);
+    stroke: var(--g-viz-critical);
+    stroke-width: 1.5;
+  }
+}
+.cross {
+  fill: none;
+  stroke: var(--g-viz-critical);
+  stroke-width: 2;
+  stroke-linecap: round;
+}

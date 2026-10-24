@@ -50,4 +50,11 @@ export const WIDGET_HEIGHTS = {
     [520, 1023],
     [900, 645],
   ],
+  feedModel: [
+    [0, 2601],
+    [322, 2386],
+    [444, 2341],
+    [522, 1864],
+    [880, 1468],
+  ],
 } as const satisfies Record<string, WidgetHeights>;

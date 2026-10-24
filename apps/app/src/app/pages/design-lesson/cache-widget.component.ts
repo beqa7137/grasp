@@ -27,6 +27,7 @@ import {
   formatQps,
   formatSeconds,
   formatTimes,
+  goalBounds,
   renderExperiment,
   type ExperimentSpec,
   type SdExperiment,
@@ -253,8 +254,9 @@ export class CacheWidgetComponent {
     this.overloaded() ? { meanMs: Infinity, p99Ms: Infinity } : { meanMs: this.outcome().meanMs, p99Ms: this.outcome().p99Ms },
   );
   readonly goalStatus = computed(() => {
-    const goal = this.exp.active()?.goal;
-    if (!goal) return '';
+    const active = this.exp.active()?.goal;
+    if (!active) return '';
+    const [goal] = goalBounds(active);
     const words = METRIC_WORDS[goal.metric] ?? goal.metric;
     const value = this.metrics()[goal.metric];
     const now = Number.isFinite(value) ? formatMs(value) : 'timing out';

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CACHE_EXPERIMENTS } from './caching-experiments.js';
+import { FEED_CHALLENGE_GOAL, FEED_EXPERIMENTS } from './data-modeling-experiments.js';
 import {
   experimentTemplates,
   fillTemplate,
@@ -10,6 +11,7 @@ import {
   formatQps,
   formatSeconds,
   formatTimes,
+  goalBounds,
   goalMet,
   renderExperiment,
   strayDigits,
@@ -20,6 +22,17 @@ import { REPLICA_EXPERIMENTS } from './replication-experiments.js';
 import { balanceRun } from './widgets/balancing.js';
 import { LB_LOADS, LB_POLICIES, LB_SERVER_SNAPS, LB_SLOWDOWNS } from './widgets/balancing-settings.js';
 import { CACHE_CAPACITY_SNAPS, CACHE_HIT_SNAPS, CACHE_ORIGIN_MS_SNAPS, cacheSteady } from './widgets/caching.js';
+import {
+  FEED_BASELINE,
+  FEED_PAGES_PER_S,
+  FEED_PAGE_SIZES,
+  FEED_PLACES,
+  FEED_POSTS_PER_AUTHOR,
+  FEED_READS,
+  FEED_RENAMES_PER_S,
+  feedAt,
+  type FeedSettings,
+} from './widgets/data-modeling.js';
 import { REPLICA_PIN_SNAPS, REPLICA_TIMES, replicaOutcome } from './widgets/replication.js';
 
 describe('experiment formatting', () => {
@@ -55,6 +68,20 @@ describe('experiment formatting', () => {
     expect(goalMet(goal, { p99Ms: 163 }, { slowdown: 5 })).toBe(false);
   });
 
+  it('meets a goal of several bounds only when every one holds', () => {
+    const goal = {
+      all: [
+        { metric: 'waitMs', below: 5 },
+        { metric: 'staleMs', below: 1_000 },
+      ],
+      keep: { place: 2 },
+    };
+    expect(goalMet(goal, { waitMs: 2, staleMs: 100 }, { place: 2 })).toBe(true);
+    expect(goalMet(goal, { waitMs: 2, staleMs: 1_000 }, { place: 2 })).toBe(false);
+    expect(goalMet(goal, { waitMs: 2, staleMs: 100 }, { place: 1 })).toBe(false);
+    expect(goalBounds({ metric: 'p99Ms', below: 100 })).toEqual([{ metric: 'p99Ms', below: 100 }]);
+  });
+
   it('refuses a placeholder with no slot', () => {
     expect(() => fillTemplate('p99 is {nope}', {})).toThrow(/nope/);
   });
@@ -68,8 +95,12 @@ describe('experiment formatting', () => {
 describe('the reveal spec', () => {
   const lessons = Object.entries(SD_LESSONS).filter(([, l]) => l.widget.experiments);
 
-  it('covers the Caching, Load Balancing and Replication lessons', () => {
-    expect(lessons.map(([id]) => id)).toEqual(expect.arrayContaining(['sd-caching', 'sd-load-balancing', 'sd-replication']));
+  it('covers the Caching, Load Balancing, Replication and Data Modeling lessons', () => {
+    expect(lessons.map(([id]) => id)).toEqual(
+      expect.arrayContaining(['sd-caching', 'sd-load-balancing', 'sd-replication', 'sd-data-modeling']),
+    );
+    expect(SD_LESSONS['sd-data-modeling'].widget.experiments).toBe(FEED_EXPERIMENTS);
+    expect(SD_LESSONS['sd-data-modeling'].widget.tryThis).toBeUndefined();
     expect(SD_LESSONS['sd-caching'].widget.experiments).toBe(CACHE_EXPERIMENTS);
     expect(SD_LESSONS['sd-load-balancing'].widget.experiments).toBe(LB_EXPERIMENTS);
     expect(SD_LESSONS['sd-replication'].widget.experiments).toBe(REPLICA_EXPERIMENTS);
@@ -128,7 +159,7 @@ describe('the Caching experiments', () => {
 
   it('set a challenge the handle can just reach', () => {
     const goal = CACHE_EXPERIMENTS.find((e) => e.goal)!;
-    const meets = (h: number) => cacheSteady({ hitRate: h, originMs: goal.setup['originMs'] }).meanMs < goal.goal!.below;
+    const meets = (h: number) => cacheSteady({ hitRate: h, originMs: goal.setup['originMs'] }).meanMs < goalBounds(goal.goal!)[0].below;
     expect(meets(goal.setup['hitRate'])).toBe(false);
     expect(CACHE_HIT_SNAPS.filter(meets)).toEqual([99.5, 99.9]);
   });
@@ -213,5 +244,112 @@ describe('the Replication experiments', () => {
     expect(REPLICA_PIN_SNAPS.filter((pin) => goalMet(goal.goal!, { staleMs: stale(pin) }, { ...goal.setup, pin }))).toEqual([
       2_000, 2_500, 3_000,
     ]);
+  });
+});
+
+describe('the Data Modeling experiments', () => {
+  const shown = Object.fromEntries(FEED_EXPERIMENTS.map((e) => [e.id, renderExperiment(e)]));
+  const settingsOf = (e: (typeof FEED_EXPERIMENTS)[number]): FeedSettings =>
+    ({ ...FEED_BASELINE, ...e.setup, ...(e.act && 'set' in e.act ? e.act.set : {}) }) as FeedSettings;
+
+  it('set the widget up on its snaps, in the order of the interview arc', () => {
+    expect(FEED_EXPERIMENTS.map((e) => e.id)).toEqual(['trips-not-rows', 'read-heavy', 'old-name', 'frequent-renames', 'pick-schema']);
+    for (const e of FEED_EXPERIMENTS) {
+      const s = settingsOf(e);
+      expect([0, 1], e.id).toContain(s.schema);
+      expect(FEED_READS[s.read], e.id).toBeDefined();
+      expect(FEED_PLACES[s.place], e.id).toBeDefined();
+      expect(FEED_PAGE_SIZES, e.id).toContain(s.pageSize);
+      expect(FEED_POSTS_PER_AUTHOR, e.id).toContain(s.postsPerAuthor);
+      expect(FEED_PAGES_PER_S, e.id).toContain(s.pagesPerSecond);
+      expect(FEED_RENAMES_PER_S, e.id).toContain(s.renamesPerSecond);
+    }
+  });
+
+  it('quote what feedCost gives for their setup', () => {
+    expect(shown['trips-not-rows'].ask).toContain('same 200 rows');
+    expect(shown['trips-not-rows'].choices).toEqual(['About the same', 'About 2× longer', 'About 101× longer']);
+    expect(shown['trips-not-rows'].reveal).toMatch(/^101×: 101 ms against 1 ms, for the same 200 rows/);
+    expect(shown['trips-not-rows'].reveal).toContain('batched IN pays 2 (2 ms)');
+    expect(shown['trips-not-rows'].reveal).toContain('N+1 waits 3 s and the join 30 ms');
+    expect(shown['read-heavy'].choices).toEqual(['It about halves, to 200,501', 'It stays about 400,001', 'It doubles, to 800,002']);
+    expect(shown['read-heavy'].reveal).toContain('saving 200,000 rows a second, while a rename now writes 501 rows instead of 1');
+    expect(shown['read-heavy'].reveal).toContain('pays up to 400 renames a second, but the copy rewrite falls behind above 10');
+    expect(shown['read-heavy'].reveal).toContain('on some copies for 100 ms.');
+    expect(shown['old-name'].choices).toEqual(['About 2 s', 'About 20 s', 'About 200 s']);
+    expect(shown['old-name'].reveal).toMatch(/^About 20 s: 100,000 copies at 5,000 a second, and 20,000 pages/);
+    expect(shown['frequent-renames'].choices).toEqual([
+      'They clear within 1 s of each rename, as before',
+      'They clear within 10 s: each rename waits behind the last',
+      'Never: the rewrite falls further behind every second',
+    ]);
+    expect(shown['frequent-renames'].answer).toBe(2);
+    expect(shown['frequent-renames'].reveal).toContain('50,000 copy rows a second against the rewrite’s 5,000: 10×'.replace('’', "'"));
+    expect(shown['frequent-renames'].reveal).toContain('the backlog grows by 45,000 rows a second');
+    expect(shown['frequent-renames'].reveal).toContain(
+      'Rows got worse too: 70,010 a second against 40,010 with the join, since 10 renames a second is past the break-even of 4.',
+    );
+    expect(shown['pick-schema'].ask).toMatch(
+      /^10,000 pages a second of 20 posts, the database in another zone\. Keep the page wait under 5 ms, old names gone within 1 s, and the database under 350,000 rows/,
+    );
+    expect(shown['pick-schema'].reveal).toMatch(/^Denormalized meets all three: 2 ms, old name for 100 ms, 200,501 rows a second/);
+    expect(shown['pick-schema'].reveal).toContain('one rename takes 20 s to rewrite while renames arrive every second');
+    expect(shown['pick-schema'].reveal).toContain('2 round trips, 1 row per rename');
+  });
+
+  it('play the answer on the picture, and hide what would give it away while asking', () => {
+    expect(FEED_EXPERIMENTS.map((e) => e.act)).toEqual([
+      { set: { read: 0 }, run: 'load' },
+      { set: { schema: 1 } },
+      { run: 'rename' },
+      { set: { renamesPerSecond: 10 }, run: 'rename' },
+      undefined,
+    ]);
+    expect(FEED_EXPERIMENTS.map((e) => renderExperiment(e).hide)).toEqual([[], ['denormalized'], ['stale'], ['behind'], []]);
+    const asked = settingsOf(FEED_EXPERIMENTS[0]);
+    expect({ ...asked, read: 2 }).toMatchObject(FEED_EXPERIMENTS[0].setup);
+  });
+
+  it('answer frequent renames from the model: the rewrite falls behind, where it kept up at the setup', () => {
+    const e = FEED_EXPERIMENTS.find((x) => x.id === 'frequent-renames')!;
+    expect(feedAt({ ...FEED_BASELINE, ...e.setup } as FeedSettings).fanoutLoad).toBeLessThan(1);
+    expect(feedAt(settingsOf(e))).toMatchObject({ fanoutLoad: 10, staleMs: Infinity });
+  });
+
+  it('set a challenge that exactly one schema and read passes, and only at the settings it keeps', () => {
+    const e = FEED_EXPERIMENTS.find((x) => x.goal)!;
+    expect(e.goal).toBe(FEED_CHALLENGE_GOAL);
+    const base = { ...FEED_BASELINE, ...e.setup } as FeedSettings;
+    const passes = (s: FeedSettings) => {
+      const c = feedAt(s);
+      return goalMet(FEED_CHALLENGE_GOAL, { waitMs: c.waitMs, staleMs: c.staleMs, rowsPerSecond: c.rowsPerSecond }, { ...s });
+    };
+    const picks = [
+      { schema: 0, read: 0 },
+      { schema: 0, read: 1 },
+      { schema: 0, read: 2 },
+      { schema: 1, read: 0 },
+      { schema: 1, read: 1 },
+      { schema: 1, read: 2 },
+    ];
+    expect(picks.filter((p) => passes({ ...base, ...p })).map((p) => p.schema)).toEqual([1, 1, 1]);
+    expect(passes(base)).toBe(false);
+    expect(picks.map((p) => feedAt({ ...base, ...p }).waitMs).slice(0, 4)).toEqual([42, 4, 2, 2]);
+    expect(feedAt({ ...base, read: 2 }).rowsPerSecond).toBe(400_001);
+    expect(feedAt({ ...base, schema: 1 })).toMatchObject({ staleMs: 100, rowsPerSecond: 200_501 });
+    let free = 0;
+    for (const pageSize of FEED_PAGE_SIZES)
+      for (const postsPerAuthor of FEED_POSTS_PER_AUTHOR)
+        for (const pagesPerSecond of FEED_PAGES_PER_S)
+          for (const renamesPerSecond of FEED_RENAMES_PER_S)
+            for (const place of FEED_PLACES.keys())
+              for (const p of picks) {
+                const s = { ...p, pageSize, postsPerAuthor, pagesPerSecond, renamesPerSecond, place };
+                if (passes(s)) {
+                  free++;
+                  expect(s).toMatchObject({ ...e.goal!.keep, schema: 1 });
+                }
+              }
+    expect(free).toBe(3);
   });
 });

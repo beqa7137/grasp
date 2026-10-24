@@ -20,8 +20,11 @@ export const word = (value: string): Slot => ({ value, unit: 'word' });
 /** A widget's settings by name, as the experiment applies them. */
 export type ExperimentSettings = Readonly<Record<string, number>>;
 
-/** What answering plays: new settings, or the widget's flush. */
-export type ExperimentAct = { set: ExperimentSettings } | { flush: true };
+/** A play a widget runs on the picture, such as loading a page or renaming an author. */
+export type ExperimentRun = 'load' | 'rename';
+
+/** What answering plays: new settings (then, if named, a run), a run on its own, or the widget's flush. */
+export type ExperimentAct = { set: ExperimentSettings; run?: ExperimentRun } | { run: ExperimentRun } | { flush: true };
 
 /** An experiment as authored: templates with `{slot}` placeholders, and the model values that fill them. */
 export interface ExperimentSpec {
@@ -39,14 +42,19 @@ export interface ExperimentSpec {
   reveal: string;
   /** The widget regions the reveal is about, pulsed when it plays. */
   focus: readonly string[];
+  /** The widget regions hidden while it asks, so the picture does not give the answer away. */
+  hide?: readonly string[];
   slots: () => Slots;
 }
 
-export interface ExperimentGoal {
+/** A measure a challenge must bring under a bound. */
+export interface ExperimentBound {
   metric: string;
   below: number;
-  keep?: ExperimentSettings;
 }
+
+/** A challenge's goal: one bound, or `all` of several at once; either way the `keep` settings must still hold. */
+export type ExperimentGoal = (ExperimentBound | { all: readonly ExperimentBound[] }) & { keep?: ExperimentSettings };
 
 /** An experiment ready to show: every slot filled, and the answer found from the model. */
 export interface SdExperiment {
@@ -60,11 +68,12 @@ export interface SdExperiment {
   answer: number;
   reveal: string;
   focus: readonly string[];
+  hide: readonly string[];
   goal?: ExperimentGoal;
 }
 
 /** Phrases with digits a template may contain: everything else numeric must be a slot. */
-export const TEMPLATE_DIGITS_ALLOWED = ['p99', '100 requests', 'the 99th of 100'] as const;
+export const TEMPLATE_DIGITS_ALLOWED = ['p99', '100 requests', 'the 99th of 100', 'N+1'] as const;
 
 const trim = (v: number, decimals: number) => String(Number(v.toFixed(decimals)));
 /** One formatter for every number: `toLocaleString` with a locale builds a new one on each call. */
@@ -130,6 +139,7 @@ export function renderExperiment(spec: ExperimentSpec): SdExperiment {
     answer,
     reveal: fill(spec.reveal),
     focus: spec.focus,
+    hide: spec.hide ?? [],
     goal: spec.goal,
   };
 }
@@ -145,9 +155,12 @@ export function strayDigits(template: string): string[] {
 export const goalKept = (goal: ExperimentGoal, settings: ExperimentSettings): boolean =>
   Object.entries(goal.keep ?? {}).every(([name, value]) => settings[name] === value);
 
-/** A challenge is met when its metric is under the goal and the settings it keeps are as it set them. */
+/** A goal's bounds, one or several. */
+export const goalBounds = (goal: ExperimentGoal): readonly ExperimentBound[] => ('all' in goal ? goal.all : [goal]);
+
+/** A challenge is met when every bound's metric is under it and the settings it keeps are as it set them. */
 export function goalMet(goal: ExperimentGoal, metrics: Readonly<Record<string, number>>, settings: ExperimentSettings): boolean {
-  return goalKept(goal, settings) && metrics[goal.metric] < goal.below;
+  return goalKept(goal, settings) && goalBounds(goal).every((b) => metrics[b.metric] < b.below);
 }
 
 export const experimentTemplates = (spec: ExperimentSpec): string[] => [

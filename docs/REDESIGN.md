@@ -2854,6 +2854,57 @@ Iterations are ordered by impact, alternating between organization and visuals. 
   **Accept, at the end of R45:** no `tryThis` is left, and no tile-only widget remains.
 
 - **Content review:** the experiment predictions and reveals in each iteration.
+- **Data Modeling note** (R41, the batch's first widget, `feed-model`; as built from the owner-approved brief and
+  mockup of 2026-10-23, and where it differs):
+  - **Engine.** `feedCost` gains the batched IN read (2 queries, `2p` rows) and the brief's fields (queries, read rows
+    and write rows a second, `rewriteMs` (one rename's copy rewrite), `staleMs` and `pagesWhileStale` (Infinity once
+    `fanoutLoad` passes 1: the old name never clears), `fanoutLoad`, `fanoutBacklogRowsPerSecond`, both rename
+    limits) at `FEED_FANOUT_ROWS_PER_S` (5,000); `feedRowsPerPost` is the chart's function; the snaps, `FEED_PLACES`,
+    `FEED_BASELINE` and `feedAt` (settings by index) live beside it. Experiments: `ExperimentAct` gains `run: 'load'` and `run: 'rename'` (alone or after `set`), `ExperimentGoal` is one bound or `all` of several (`goalBounds`), and, beyond the
+    brief, an `ExperimentSpec.hide` names the regions an open question hides (E2 the denormalized line, break-even,
+    region and point; E3 the old name's window; E4 the falling-behind region). `N+1` joins the digits a template may
+    carry. Setups are complete settings, so a card always starts from the same picture.
+  - **Picture.** Three stages, each from `feed-layout.ts` and a pure view (`feed-page-view.ts`, `feed-write-view.ts`,
+    `feed-traffic-view.ts`): the page (read lanes, chips, tables), the rename, and the traffic. At container wide the
+    page and rename stages join as one with a dashed rule; narrower, Schema and Read with head the page stage, then the
+    open question, the rename, the traffic and the cards (the dock's parts ordered by CSS). Below 520px of stage the
+    read headline takes its own row, chips go 2 by 2 under 442px, tables stack (authors under posts, the foreign key
+    pointing down) under 320px, the traffic header wraps where Table would cover it, and the legends take a row a key.
+    The magnifier sits under the SQL rows (the join's line is no longer cut) and shows only where it covers no trip,
+    ghost or label (so a 320px phone often has none; the ruler carries the trips); below 360px it takes its own row under the lanes
+    instead. Trips past the axis end in a chevron and "+17 trips off the axis → 630 ms". Describe sits in a
+    `minmax(0, 1fr)` grid and its table, as tall as its rows, scrolls inside its own box, so the page never scrolls sideways. On a phone
+    the traffic Table's heads shorten ("Renames per post", "Denorm.") and wrap with plain letter spacing (`g-data-table`'s
+    `compact`), so its three columns fit at 320px. A label that has no room is dropped
+    rather than overlapped: "page ready" past the comb, the WHERE clause of N+1 from another region at 320px. The chart
+    is drawn in the stage, not `g-chart-frame` (reads and writes bands, the hatched region, clamped arrows and
+    chevrons); Table swaps it for `g-data-table`. Describe is a button under the traffic with a row per schema and read
+    (trips, wait, rows read, rows a rename, old name, pages while stale, rows a second). The places are native radios
+    over the stage, two lines each (name over time); the play buttons are `button`s. Type is the kit's: 11px mono for
+    SQL and cells, 17px headlines (the mockup's 12 and 18 are not tokens).
+  - **Motion.** Load a page replays at `max(20, 150 / rtt)`, capped at 4 s after the sixth trip (`feed-replay.ts`); a
+    pooled dot travels each trip, rows light as the trips reach them, and the ruler reads "trip 7 of 21" and "shown 150×
+    slower" while it plays (the brief put the counter on the brace). Rename Ada plays the rewrite over 3 s, page dots
+    landing on Ada's newest post (p901, the last copy rewritten) with a × while it is stale; a rewrite that falls behind
+    loops three times between 0 and 60% (it never fills) and rests there, its headline "old name never clears" in the
+    critical tone. Under Reduced motion nothing animates: a load says what it did, a rename rests
+    half done with its playhead (one that falls behind rests half done with no playhead, since it can never finish) and "~~Ada~~ Ada K." where the authors card has room. Plays pause when the widget's host is offscreen (watching the shell's stage hid answers on a 390px phone, where
+    the write stage is further down).
+  - **Experiments.** Five, in the brief's order and wording, reworded in review (E2 "Denormalize the feed?", E4's
+    choices, E5's reveal). The ghost is the previous read in both directions: a slower one as its comb, a faster one as
+    one label ("The join was 1 ms") beside its own marker, haloed over the comb, so E1 keeps the join. Falling
+    behind is `fanoutLoad > 1` everywhere: exactly at capacity a rename finishes. E4 also runs the rename, so
+    the loop shows; its answer is a computed slot ("Never" or the matching duration). The challenge's "two round trips,
+    one row" are slots. Cards carry titles only (the dock has no subtitle). Describe and Table close and wait while any
+    question is open, the challenge included; E2 hides the denormalized line under either schema, with its "?" at a fixed
+    offset from the normalized label; E3 and E4 show "?" for the window, the elapsed time and the pages, including
+    while the rewrite plays. A component spec moves every radio, handle snap, Load and Rename during each question and
+    checks no rendered text holds the answer.
+  - **Checks.** `feed-layout.spec.ts` draws every read, page size, place, ghost and replay state, every schema, posts
+    count, rename rate and rewrite state, and every traffic snap, at 12 widths from 248 to 700px: no text on another or
+    off its stage, handle and target hit boxes apart, every outline taking in the text it touches and its tag over none,
+    point labels left of the cursor once it is in. Text is measured by a fixed advance per role, rounded up from the
+    fonts.
 
 **R46 Case widgets II.**
 

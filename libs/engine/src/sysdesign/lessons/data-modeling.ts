@@ -1,14 +1,11 @@
+import { FEED_EXPERIMENTS } from './data-modeling-experiments.js';
 import type { SdLesson } from './types.js';
 
 export const DATA_MODELING_LESSON: SdLesson = {
   why: 'A schema is a bet on which queries you will run and how often. Model from nouns and you get a clean schema that answers the hot query with twenty round trips; copy data everywhere and every rename becomes a job that rewrites thousands of rows while pages show the old value. Interviewers ask you to list the access patterns first, then defend each join, copy and index with their rates.',
   widget: {
     kind: 'feed-model',
-    tryThis: [
-      'Pick N+1 queries with 20 posts per page: the page sends 21 queries and waits 21 ms on the database, even at 1 ms a round trip. Switch to one join: 1 query and 1 ms, reading the same 40 rows. Raise posts per page to 100: N+1 now waits 101 ms while the join still waits 1 ms, though both read the same 200 rows. The round trips are the cost.',
-      "Pick denormalized with 20 posts per page, 500 posts per author, 1,000 pages a second and 1 rename a second: a page reads 20 rows instead of 40, a rename writes 501 rows, and the total falls from 40,001 rows a second with the join to 20,501. Notice that pages can now show an author's old name until the rewrite finishes.",
-      'Keep denormalized and set 100 pages a second and 100,000 posts per author: each rename writes 100,001 rows and the total climbs to 102,001 rows a second, against 4,001 for the join. Copying pays only while pages times posts per page outweighs renames times posts per author.',
-    ],
+    experiments: FEED_EXPERIMENTS,
   },
   concepts: [
     {

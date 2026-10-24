@@ -7,7 +7,7 @@ import { ChangeDetectionStrategy, Component, ElementRef, afterRenderEffect, inje
 @Component({
   selector: 'g-data-table',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { tabindex: '0', role: 'region', '[attr.aria-label]': 'label()', '[style.height.px]': 'height()' },
+  host: { tabindex: '0', role: 'region', '[attr.aria-label]': 'label()', '[style.height.px]': 'height()', '[class.compact]': 'compact()' },
   template: `
     <table>
       <thead>
@@ -59,6 +59,17 @@ import { ChangeDetectionStrategy, Component, ElementRef, afterRenderEffect, inje
     td {
       border-top: 1px solid var(--g-line);
     }
+    :host(.compact) {
+      th,
+      td {
+        padding-inline: var(--g-space-1);
+      }
+      th {
+        letter-spacing: normal;
+        white-space: normal;
+        vertical-align: bottom;
+      }
+    }
     .active td {
       background: var(--g-accent-soft);
       font-weight: 700;
@@ -73,7 +84,10 @@ export class DataTableComponent {
   readonly label = input.required<string>();
   readonly head = input.required<readonly string[]>();
   readonly rows = input.required<readonly (readonly string[])[]>();
-  readonly height = input.required<number>();
+  /** The box's height; null sizes it to its rows. */
+  readonly height = input.required<number | null>();
+  /** Tighter cells and plain-spaced heads that may wrap, for a phone's narrow stage. */
+  readonly compact = input(false);
   readonly active = input(-1);
 
   constructor() {
