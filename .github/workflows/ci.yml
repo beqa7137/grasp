@@ -96,7 +96,8 @@ jobs:
     name: Browser end-to-end tests (${{ matrix.project }} ${{ matrix.shard }}/${{ matrix.of }})
     needs: verdict
     if: ${{ !cancelled() && needs.verdict.outputs.passed != 'true' }}
-    runs-on: ubuntu-latest
+    # Pinned until a run proves WebKit on Ubuntu 26, which ubuntu-latest became on 2026-10-19.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
 
     strategy:
@@ -129,12 +130,14 @@ jobs:
         id: playwright
         run: |
           echo "version=$(node -p "require('playwright-core/package.json').version")" >> "$GITHUB_OUTPUT"
+          echo "os=$ImageOS" >> "$GITHUB_OUTPUT"
           echo "image=$ImageOS-$ImageVersion" >> "$GITHUB_OUTPUT"
 
+      # WebKit is built per OS release, and Playwright skips the download when a cached build is present.
       - uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ matrix.project == 'iphone' && 'webkit' || 'chromium' }}-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.version }}
+          key: playwright-${{ matrix.project == 'iphone' && 'webkit' || 'chromium' }}-${{ steps.playwright.outputs.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.version }}
 
       # WebKit's libraries are not on the runner image and come from the Ubuntu mirror, which once took ten minutes.
       # The downloaded packages are kept per image, so later runs install them from disk.
