@@ -41,5 +41,13 @@
   "devDependencies": {
     "oxlint": "^1.85.0",
     "prettier": "^3.9.9"
+  },
+  "overrides": {
+    "@nestjs/platform-express": {
+      "multer": "^2.5.0"
+    },
+    "@vercel/cli-config": {
+      "zod": "^4.6.6"
+    }
   }
 }
