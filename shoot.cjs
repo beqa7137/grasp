@@ -58,6 +58,10 @@ const server = http.createServer((req, res) => {
     console.log(`\nexperiments, asking and revealed: ${exp.renders} renders, ${exp.failures.length} with collisions`);
     for (const f of exp.failures.slice(0, 12)) console.log(`    W${f.W} E${f.exp} ${f.phase}: ${f.out.join(' | ')}`);
     total += exp.failures.length;
+    const giveaways = await page.evaluate((w) => window.noAnswer(w), sweepWidths);
+    console.log(`no-answer sweep, every question asking: ${giveaways.renders} renders, ${giveaways.out.length} giveaways`);
+    for (const g of giveaways.out.slice(0, 12)) console.log(`    ${g}`);
+    total += giveaways.out.length;
     const settings = await page.evaluate(() => {
       const M = window.QuorumModel;
       const out = [];

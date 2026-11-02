@@ -1101,7 +1101,7 @@
       function hiding(view) {
         const h = new Set(view.hide);
         return {
-          count: h.has('count'),
+          count: h.has('count') || h.has('write'),
           verdict: h.has('verdict'),
           write: h.has('write'),
           writeTime: h.has('write') || h.has('write-time'),
@@ -1196,7 +1196,7 @@
         if (wide) {
           let lx = W - pad;
           for (const [name, cls] of [
-            ['repair', 'link repair'],
+            ...(hid.repair ? [] : [['repair', 'link repair']]),
             ['read', 'link read'],
             ['write', 'link write'],
           ]) {
@@ -1582,7 +1582,7 @@
         const stripTop = y;
         const stripLabel = `Read sets of ${r}`;
         D.text(pad, y + 26, [[stripLabel, 'label']]);
-        const refused = write.outcome === 'refused' && !hid.write;
+        const refused = write.outcome === 'refused' && !hid.count;
         const head = hid.count ? [`? of ${m.readSets}`, ' can miss v8'] : refused ? ['none', ' written to miss'] : [`${m.staleSets} of ${m.readSets}`, ' can miss v8'];
         const headW = tw(head[0], 'head') + tw(head[1], 'cap');
         const headInline = pad + tw(stripLabel, 'label') + 16 + headW <= W - pad;
@@ -1661,6 +1661,7 @@
         }
         // The sentence about overlap, and the one about its limit.
         const s1 = (() => {
+          if (hid.write) return 'Which reads can miss v8 depends on how the write ends: after your answer.';
           if (hid.count) return `Does every read of ${r} meet the ${w} that acked?`;
           if (write.outcome === 'refused') return 'Nothing was written, so there is nothing to miss.';
           if (write.outcome === 'timed-out') {
@@ -1673,9 +1674,9 @@
           if (m.settings.sloppy && m.h < w)
             return `A read never asks the stand-ins: only ${m.h} home replica${m.h === 1 ? '' : 's'} acked, so a read of ${r} can miss ${m.h === 1 ? 'it' : 'them'}.`;
           if (m.staleSets === 0) return `Every read of ${r} shares a replica with the ${m.h} that acked.`;
-          return `${r} + ${w} is not above ${n}: a read of ${r} can miss all ${m.h} that acked.`;
+          return `${r} + ${w} is not above ${n}: a read of ${r} can miss ${m.h === 1 ? 'the replica' : `all ${m.h}`} that acked.`;
         })();
-        const s2 = 'Even then, R + W > N alone is not linearizable: reads racing a write can disagree, and concurrent writes settled by last-write-wins can drop one.';
+        const s2 = 'R + W > N alone is not linearizable: reads racing a write can disagree, and concurrent writes settled by last-write-wins can drop one.';
         const sideX = pad + Math.max(headCol + gridW, 236) + 28;
         const side = wide && W - pad - sideX >= 220;
         ly = legendTop + (legendRows - 1) * 16;
@@ -2183,6 +2184,45 @@ ${[3, 5].map((k) => `<label class="segment"><input type="radio" name="n" ${k ===
         }
         well.style.width = '';
         return results;
+      };
+      // While a question asks, no rendered text or accessible name may hold its answer or a false claim (known.md bug 1).
+      const GIVEAWAYS = {
+        'r-plus-w-equals-n': ['1 of 10', 'share no replica', 'can miss all'],
+        'all-one-down': ['refused', 'timed out', 'Nothing was written', 'not sent', 'none written', 'live, 3 needed', '97.03', '99.9999'],
+        stall: ['acked in 40', 'acked 40', 'returned 40', 'fresh'],
+        'missed-write': ['repaired', 'repair', '6 ms', 'fixed'],
+        sloppy: ['1 of 3', 'returns v7', 'stale', 'can miss it', 'only 1 home'],
+      };
+      const FALSE_CLAIMS = ['meet any', 'can fit in N without sharing'];
+      const BY_REGION = {
+        verdict: ['returns v', 'fresh', 'stale', 'both acked'],
+        repair: ['repair', 'fixed'],
+        write: ['acked in', 'refused', 'timed out'],
+        'write-time': ['acked in 4', 'acked 4'],
+      };
+      window.noAnswer = function (widths) {
+        const well = document.getElementById('well');
+        const out = [];
+        let renders = 0;
+        for (const W of widths) {
+          well.style.width = W + 2 + 'px';
+          for (const spec of M.EXPERIMENTS.filter((e) => !e.goal)) {
+            const m = M.run(spec.setup);
+            const view = { hide: spec.hide, phase: 'asking', focus: [] };
+            const { D, H } = buildStage(W, m, view);
+            well.style.height = H + 'px';
+            well.innerHTML = D.svg(H) + overlaysHtml(D, view, W);
+            renders++;
+            const text = [...well.querySelectorAll('text')].map((t) => t.textContent).join(' | ') + ' | ' + [...well.querySelectorAll('[aria-label]')].map((e) => e.getAttribute('aria-label')).join(' | ');
+            const words = [...GIVEAWAYS[spec.id], ...FALSE_CLAIMS, ...spec.hide.flatMap((h) => BY_REGION[h] ?? [])];
+            for (const g of words) if (text.includes(g)) out.push(`W${W} ${spec.id}: "${g}"`);
+            const hidesRepair = spec.hide.includes('repair') || spec.hide.includes('verdict');
+            if (hidesRepair && well.querySelector('.link.repair, .repair-glyph, .repair-bar')) out.push(`W${W} ${spec.id}: a repair mark while asking`);
+            if (spec.hide.includes('verdict') && well.querySelector('.both-ring, .card.both')) out.push(`W${W} ${spec.id}: a BOTH ring while asking`);
+          }
+        }
+        well.style.width = '';
+        return { renders, out };
       };
       window.heights = function (widths) {
         const well = document.getElementById('well');

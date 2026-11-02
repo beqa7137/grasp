@@ -148,9 +148,9 @@ when > 0, final when 0, muted when the write did not succeed; "none written to m
 row per replica with R1..RN heads on wide stages (acked rows in final ink), member cells amber, acked members green, an
 × under each set that can miss, and the drawn read's set ringed. Legend: acked v8, in the read set, can miss, this
 read. Then the overlap sentence ("Every read of 2 shares a replica with the 2 that acked.", or why not: "2 + 1 is not
-above 3: a read of 2 can miss all 1 that acked.", the sloppy and timed-out forms) and the limit, muted: "Even then, R +
-W > N alone is not linearizable: reads racing a write can disagree, and concurrent writes settled by last-write-wins
-can drop one." Wide: sentences beside the grid; narrow: under it.
+above 3: a read of 2 can miss the replica that acked.", the sloppy and timed-out forms) and the limit, muted: "R + W > N
+alone is not linearizable: reads racing a write can disagree, and concurrent writes settled by last-write-wins can drop
+one." Wide: sentences beside the grid; narrow: under it.
 
 **Latency** (compact): "LATENCY log scale", a 1 to 200 ms log axis (1, 2, 5, 10, 20, 50, 100, "200 ms", the unit
 label always kept), lanes "Write acks" and "Read answers". Opaque dots (write blue, stand-in hollow, read amber), the
@@ -172,10 +172,10 @@ sweep checks it). Measured in the mockup:
 | Stage width | N 3   | N 5   |
 | ----------- | ----- | ----- |
 | 620 (1280)  | 846   | 880   |
-| 520         | 894   | 894   |
+| 520         | 876   | 880   |
 | 400         | 1,146 | 1,176 |
-| 322 (390)   | 1,180 | 1,210 |
-| 252 (320)   | 1,238 | 1,294 |
+| 322 (390)   | 1,162 | 1,192 |
+| 252 (320)   | 1,220 | 1,276 |
 
 Phones are as short as collisions allow: each section stacks (W handle, writer, fan, cards, fan, reader, pill, R handle,
 strip, latency). `widget-heights.ts` gets the built widget's measured heights, as before.
@@ -269,7 +269,7 @@ answer's own play (motion runs, hidden text stays "?") and releases at the revea
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | `count`        | strip headline "? of 10", the × marks, acked colours in cells and heads, the BOTH caption; the overlap sentence becomes "Does every read of 3 meet the 2 that acked?" (neutral and true)   | stage summary, Describe's sets row, the strip's accessible name, notices                             |
 | `verdict`      | pill "returns ? · after your answer" (dashed), answer chips "R3 ?", read chips "? · 4 ms", BOTH ring and caption, repair arcs and glyphs, R-th ring and its label, the repair bar           | summary, notices, card names (no held or answered value), handles' text untouched                    |
-| `write`        | writer status "outcome after your answer", cards' values "?", write lines neutral dashed, no W-th ring, write lane "acks after your answer", live counts                                    | summary, notices, card names, Describe                                                               |
+| `write`        | writer status "outcome after your answer", cards' values "?", write lines neutral dashed, no W-th ring, write lane "acks after your answer", live counts, and all `count` hides, the strip saying "Which reads can miss v8 depends on how the write ends: after your answer." | summary, notices, card names, Describe                                                               |
 | `write-time`   | "acked in ?", the W-th chip ring, the W-th latency ring and label (dots and round trips stay)                                                                                               | summary, Describe                                                                                    |
 | `availability` | both handles' captions "survives ? down · writes succeed ?"                                                                                                                                 | the handles' `aria-valuetext`, Describe                                                              |
 | `repair`       | repair arcs, particles and glyphs, the repaired card keeps v7 and its state word, the pill's time "? ms", the read lane ends at its R-th answer labelled "2nd answer 4 ms"                   | summary, notices, card names                                                                          |
@@ -307,7 +307,12 @@ settings an open question is about are locked; the cards carry titles only.
    no-answer sweep moves every card, handle and toggle and starts every play during each question, with motion on and
    off, and checks no rendered or accessible text holds the answer or a false claim ("stale", "fresh", "meet any", "can
    fit in N without sharing", "both acked", "returns v"), and that no repair particle exists while asking. The mockup's
-   `ask` state (E5) and `&exp=` show each question's hidden picture.
+   `ask` state (E5) and `&exp=` show each question's hidden picture, and its `noAnswer()` sweep (run by `shoot.cjs`)
+   renders every question asking at 11 widths and scans the stage's text and accessible names for that question's
+   answer words, its hidden regions' words ("returns v", "fresh", "stale", "both acked" for `verdict`; "repair" for
+   `repair`; "refused", "timed out" for `write`) and the false claims, plus any repair mark or BOTH ring it hides. It
+   caught one in this rebuild: E2's strip said "Nothing was written" while asking, so `write` now hides the strip too.
+   The legend drops its "repair" line while repairs are hidden.
 2. **`fieldset.group` beating `.n-control`.** The selector is `fieldset.group.n-control`; the layout spec includes 320 px
    and asserts the N control's box ends above the stage's.
 3. **Elements tracked by `$index`.** Answer chips, line labels, read chips and latency dots are tracked by replica id,
