@@ -30,8 +30,8 @@ for (const spec of M.EXPERIMENTS) {
   }
   for (const [k, s] of Object.entries(e.slots)) check(s.unit !== 'word' || !/\d/.test(s.value), `${spec.id}: word slot ${k} carries digits`);
   for (const text of [e.title, e.ask, ...e.choices, e.reveal]) {
-    check(!/—/.test(text), `${spec.id}: em dash`);
-    check(!/ /.test(text), `${spec.id}: non-breaking space`);
+    check(!/\u2014/.test(text), `${spec.id}: em dash`);
+    check(!/\u00a0/.test(text), `${spec.id}: non-breaking space`);
   }
 }
 console.log(`\nanswer positions ${positions.join(', ')}`);

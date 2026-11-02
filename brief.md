@@ -110,7 +110,8 @@ One `g-stage`, read top to bottom as the story: the write, the replicas, the rea
 - **Writer** (top left, over zone A): a box with "WRITER · ZONE A", "v8 Artemis" and the write headline, "acked in
   4 ms" (final ink), "refused: 2 live, 3 needed" (critical), "timed out at 2 s" (warn). Sloppy: H1 and H2 stacked to
   its right, dashed, each with its v8 chip and "for R2" (idle "standing by" when no home replica is down).
-- **W handle** beside the writer (wide) or above it (narrow): "W · acks a write waits for", a track with a stop per
+- **W handle** beside the writer (wide) or above it (narrow): "W · acks a write waits for" (the letter in the accent at
+  15 px: handles are UI, the only purple on the stage), a track with a stop per
   level, the levels named ONE, QUORUM and ALL and the unnamed ones by number (N 5: ONE 2 QUORUM 4 ALL; never "W 4,
   4"), and "survives 1 down · writes succeed 99.97%" (short "survives 1 down · 99.97%" where it does not fit).
 - **Write fan:** one line from the writer to each live replica, ending on a round-trip chip above its card ("2 ms",
@@ -120,8 +121,11 @@ One `g-stage`, read top to bottom as the story: the write, the replicas, the rea
 - **Replica cards:** a roving button group. Each card: the name (mono 15/13), its zone ("zone A", phone "A"), the value
   it holds (v8 final chip with "Artemis", v7 neutral with "Apollo", phone "v8"/"v7"), a repaired glyph, a pause glyph
   when stalled, and four state pips (up, down, stops mid-write, back) with the state word on wide stages ("up",
-  "down", "stopped", "missed v8", "repaired", "paused"). Down is dashed and hatched; stopped is a critical dashed
-  outline with ×. 44 px targets everywhere, five cards on a 252 px stage included (8 px sides, ≥3 px gaps).
+  "down", "stopped", "missed v8", "repaired", "paused", and "v8 at 20 ms" in warn ink when the replica answered v7 and
+  v8 landed after the read: the stale race, readable at rest). Down is dashed and hatched; stopped is a critical dashed
+  outline with ×. 44 px targets everywhere, five cards on a 252 px stage included (8 px sides, ≥3 px gaps). On hover or
+  focus the next state's pip gets a dashed accent ring and a hint names it ("Tap: take R2 down"), above the card where
+  it covers no text, else below it.
 - **BOTH ring:** a replica in the write set and the read set gets a 2.5 px final-green border (and an outer ring where
   the gaps allow); the caption under the pill says "R2 both acked and answered". It is the motion climax.
 - **Read fan:** from a chip under each reachable card to the reader. Read set: solid considering amber, its chip "v8 ·
@@ -140,7 +144,7 @@ One `g-stage`, read top to bottom as the story: the write, the replicas, the rea
   Wraps at " · " to two lines on phones.
 
 **Read-set strip** (right under the reader): "READ SETS OF 2" and the headline "0 of 3 can miss v8" (17 px mono; critical
-when > 0, final when 0, muted when the write did not succeed). A column per read set (14 px cells, 12 on phones), a
+when > 0, final when 0, muted when the write did not succeed; "none written to miss" with no × when it was refused). A column per read set (14 px cells, 12 on phones), a
 row per replica with R1..RN heads on wide stages (acked rows in final ink), member cells amber, acked members green, an
 × under each set that can miss, and the drawn read's set ringed. Legend: acked v8, in the read set, can miss, this
 read. Then the overlap sentence ("Every read of 2 shares a replica with the 2 that acked.", or why not: "2 + 1 is not
@@ -168,10 +172,10 @@ sweep checks it). Measured in the mockup:
 | Stage width | N 3   | N 5   |
 | ----------- | ----- | ----- |
 | 620 (1280)  | 846   | 880   |
-| 520         | 896   | 896   |
-| 400         | 1,132 | 1,160 |
-| 322 (390)   | 1,166 | 1,194 |
-| 252 (320)   | 1,222 | 1,278 |
+| 520         | 894   | 894   |
+| 400         | 1,146 | 1,176 |
+| 322 (390)   | 1,180 | 1,210 |
+| 252 (320)   | 1,238 | 1,294 |
 
 Phones are as short as collisions allow: each section stacks (W handle, writer, fan, cards, fan, reader, pill, R handle,
 strip, latency). `widget-heights.ts` gets the built widget's measured heights, as before.
@@ -290,8 +294,10 @@ settings an open question is about are locked; the cards carry titles only.
   text; critical carries ×; down carries hatch and dashes; the BOTH ring has its caption; the pill has a glyph and words.
   Tokens are the app's (`--g-viz-*`), checked by `theme-contrast.spec.ts`.
 - 44 px targets: cards at five on 252 px, handles (44 px hit boxes, apart from every other target at every stop), Play.
-- Describe: a `g-data-table` per replica (zone, state, write round trip, has v8 at, read reaches it, answered and
-  repaired) in a `minmax(0, 1fr)` grid, scrolling inside its own box; `compact` heads on phones ("Rep.", "Write rtt").
+- Describe: a `g-data-table` with a row per replica (replica and zone, state, write round trip, has v8 at, read reaches
+  it, answered and repaired: the stale race reads "has v8 at 20 ms, read reaches it 3 ms, answered v7") in a
+  `minmax(0, 1fr)` grid, scrolling inside its own box; on phones `compact` with short heads and cells ("Rep.", "State",
+  "Write rtt", "Has v8 at", "Read at", "Got"; "R1", "stopped", "v8, fixed"), which fits 320 px without scrolling.
 - Reduced motion as in 2; the tools' `?motion=off` and `data-motion` give deterministic screenshots.
 
 ## 5. The prevention list (known.md's eight bugs)

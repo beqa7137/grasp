@@ -612,6 +612,12 @@
         stroke: var(--g-line-strong);
         stroke-width: 1.25;
       }
+      .next-pip {
+        fill: none;
+        stroke: var(--g-accent);
+        stroke-width: 1.5;
+        stroke-dasharray: 2 2;
+      }
       .pip.on {
         fill: var(--g-text);
         stroke: var(--g-text);
@@ -1152,7 +1158,7 @@
       // ---------- A W or R handle block: the track with its stops, the level names and the availability caption.
       function handleBlock(D, o) {
         const { id, x, y, w, k, n, hid, letter, what, survives, succeed, verb } = o;
-        D.text(x, y + 14, [[letter, 'nameS', 'ink'], [what, 'small', 'muted', 6]], { owner: id });
+        D.text(x, y + 14, [[letter, 'name', 'accent'], [what, 'small', 'muted', 6]], { owner: id });
         const tx0 = x + 22;
         const tx1 = x + w - 22;
         const ty = y + 38;
@@ -1370,12 +1376,20 @@
           const pr = wide ? 3.5 : 2.5;
           const pg = wide ? 11 : 8;
           M.STATES.forEach((s, j) => D.add('marks', `<circle class="pip${s === st ? ' on' : ''}" cx="${x + ix + pr + j * pg}" cy="${pipY}" r="${pr}"/>`));
+          if (view.hint === i) {
+            const j = M.STATES.indexOf(NEXT[st]);
+            D.add('marks', `<circle class="next-pip" cx="${x + ix + pr + j * pg}" cy="${pipY}" r="${pr + 2.5}"/>`);
+          }
           if (wide) {
             let word = STATE_WORD[st];
             let wcls = 'muted';
+            const answered = read.answers.find((a) => a.id === i);
             if (repaired) {
               word = 'repaired';
               wcls = 'good';
+            } else if (answered && answered.value === 7 && holds === 8 && !hid.verdict && !hid.write) {
+              word = `v8 at ${fmt(rep.landAt)}`;
+              wcls = 'warn';
             } else if (rep.pause && st === 'up') {
               word = 'paused';
               wcls = 'warn';
@@ -1544,14 +1558,18 @@
         D.mark({ x0: px, x1: px + pw, y0: pillY, y1: pillY + ph }, 'pill');
         D.add('text', glyph(pill.tone, px + 18, pillY + 16));
         pillLines.forEach((line, i) => D.text(px + 32, pillY + 21 + i * 16, [[line, 'pill', pill.tone === 'hidden' ? 'muted' : 'ink']], { owner: 'pill', textCls: 'on-chip' }));
-        D.region('reader', { x: Math.min(rx, px) - 3, y: readerY - 3, w: W - pad - Math.min(rx, px) + 6, h: pillY + ph - readerY + 6 });
         const pillReserve = wide ? 32 : 48;
+        let readerBottom = pillY + ph;
+        let readerLeft = Math.min(rx, px);
         if (both.length && !hid.count) {
           const names = both.map((i) => `R${i + 1}`);
           const t = `${names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names.at(-1) : names[0]} both acked and answered`;
           const role = tw(t, 'cap') <= W - 2 * pad ? 'cap' : 'small';
-          D.text(W - pad, pillY + ph + 18, [[tw(t, role) <= W - 2 * pad ? t : `${names.join(', ')} acked and answered`, role, 'good']], { anchor: 'end' });
+          const box = D.text(W - pad, pillY + ph + 18, [[tw(t, role) <= W - 2 * pad ? t : `${names.join(', ')} acked and answered`, role, 'good']], { anchor: 'end' });
+          readerBottom = box.y1;
+          readerLeft = Math.min(readerLeft, box.x0);
         }
+        D.region('reader', { x: readerLeft - 4, y: readerY - 3, w: W - pad - readerLeft + 7, h: readerBottom - readerY + 7 });
         y = Math.max(pillY + pillReserve + 26, wide ? handleBottom : 0);
         if (!wide) {
           handleBlock(D, { ...rHandle, x: pad, y: y + 4, w: W - 2 * pad });
@@ -1564,7 +1582,8 @@
         const stripTop = y;
         const stripLabel = `Read sets of ${r}`;
         D.text(pad, y + 26, [[stripLabel, 'label']]);
-        const head = hid.count ? [`? of ${m.readSets}`, ' can miss v8'] : [`${m.staleSets} of ${m.readSets}`, ' can miss v8'];
+        const refused = write.outcome === 'refused' && !hid.write;
+        const head = hid.count ? [`? of ${m.readSets}`, ' can miss v8'] : refused ? ['none', ' written to miss'] : [`${m.staleSets} of ${m.readSets}`, ' can miss v8'];
         const headW = tw(head[0], 'head') + tw(head[1], 'cap');
         const headInline = pad + tw(stripLabel, 'label') + 16 + headW <= W - pad;
         const headTone = hid.count || write.outcome !== 'acked' ? 'muted' : m.staleSets > 0 ? 'bad' : 'good';
@@ -1594,7 +1613,7 @@
             D.add('marks', `<rect class="cell${member ? (acked ? ' acked' : ' member') : ''}" x="${x + 0.5}" y="${gridTop + i * (cell + cgap) + 0.5}" width="${cell - 1}" height="${cell - 1}" rx="2"/>`);
           }
           const xY = gridTop + n * (cell + cgap) + 7;
-          if (s.canMiss && !hid.count) xGlyph(D, x + cell / 2, xY, `set${k}`, 3.5);
+          if (s.canMiss && !hid.count && !refused) xGlyph(D, x + cell / 2, xY, `set${k}`, 3.5);
           if (s.isThis) {
             D.add('marks', `<rect class="this-ring" x="${x - 3}" y="${gridTop - 3}" width="${cell + 6}" height="${n * (cell + cgap) - cgap + 6}" rx="4"/>`);
           }
@@ -1603,7 +1622,8 @@
         const gridBottom = gridTop + n * (cell + cgap) - cgap;
         D.mark({ x0: gx0 - 3, x1: gx0 + gridW + 3, y0: gridTop - 3, y1: gridBottom + 14 }, 'strip-grid');
         // Legend under the grid.
-        let ly = gridBottom + 30;
+        // Five rows get two more pixels before the legend, so N 5 sits 34px below N 3 as the first build measured.
+        let ly = gridBottom + 30 + (n === 5 ? 2 : 0);
         const fullLegend = [
           ['acked', 'acked v8'],
           ['member', 'in the read set'],
@@ -1689,11 +1709,11 @@
         const lx0 = Math.log10(1);
         const span = Math.log10(200) - lx0;
         const X = (t) => r1(px0 + ((Math.log10(Math.min(200, Math.max(1, t))) - lx0) / span) * (px1 - px0));
-        const L1 = wide ? y + 60 : y + 62;
-        const L2 = wide ? L1 + 44 : L1 + 54;
+        const L1 = wide ? y + 60 : y + 70;
+        const L2 = wide ? L1 + 44 : L1 + 62;
         const axisY = L2 + (wide ? 24 : 30);
         const ticks = [1, 2, 5, 10, 20, 50, 100, 200];
-        for (const t of ticks) D.add('grid', `<line class="gridline" x1="${X(t)}" y1="${L1 - 18}" x2="${X(t)}" y2="${axisY}"/>`);
+        for (const t of ticks) D.add('grid', `<line class="gridline" x1="${X(t)}" y1="${L1 - (wide ? 18 : 22)}" x2="${X(t)}" y2="${axisY}"/>`);
         for (const L of [L1, L2]) D.add('grid', `<line class="lane" x1="${px0}" y1="${L}" x2="${px1}" y2="${L}"/>`);
         D.add('grid', `<line class="axis" x1="${px0}" y1="${axisY}" x2="${px1}" y2="${axisY}"/>`);
         const unitLabel = '200 ms';
@@ -1716,8 +1736,8 @@
           D.text(pad, L2 + 4, [['Read answers', 'cap', 'ink']]);
         } else {
           for (const [t, L] of [['Write acks', L1], ['Read answers', L2]]) {
-            D.add('grid', `<rect class="ground" x="${pad - 2}" y="${L - 28}" width="${tw(t, 'small') + 6}" height="14" rx="3"/>`);
-            D.text(pad, L - 18, [[t, 'small', 'ink']], { ground: true });
+            D.add('grid', `<rect class="ground" x="${pad - 2}" y="${L - 36}" width="${tw(t, 'small') + 6}" height="14" rx="3"/>`);
+            D.text(pad, L - 26, [[t, 'small', 'ink']], { ground: true });
           }
         }
         const placeName = (x, L, name, owner, ringed) => {
@@ -1733,9 +1753,9 @@
             const cands = [
               [x + ringR + 6, L + 4, 'start'],
               [x - ringR - 6, L + 4, 'end'],
-              [x, L - ringR - 6, 'middle'],
-              [x + ringR + 2, L - ringR - 4, 'start'],
-              [x - ringR - 2, L - ringR - 4, 'end'],
+              [x, L - ringR - 7, 'middle'],
+              [x + ringR + 2, L - ringR - 7, 'start'],
+              [x - ringR - 2, L - ringR - 7, 'end'],
             ];
             for (const [cx0, cy0, anchor] of cands) {
               const box = D.textBox(cx0, cy0, w0, 'smallB', anchor);
@@ -1810,7 +1830,7 @@
           }
         }
         for (const d of dots) placeName(d.x, d.L, d.name, d.read ? `latr-${d.name}` : `lat-${d.name}`, d.ringed);
-        y = axisY + 26;
+        y = axisY + 24;
         D.region('latency', { x: Math.max(3, pad - 8), y: latTop + 4, w: W - 2 * Math.max(3, pad - 8), h: y - latTop - 4 });
         const H = Math.ceil(y + 4);
 
@@ -1856,7 +1876,7 @@
                 if (tx < 3 || tx + TAG.w > D.W - 3 || ty < 3 || ty + TAG.h > H - 3) continue;
                 if (!D.free(box, '', 1)) continue;
                 D.add('top', `<rect class="tag" x="${tx}" y="${ty}" width="${TAG.w}" height="${TAG.h}" rx="8"/>`);
-                D.add('top', `<text x="${tx + TAG.w / 2}" y="${ty + 12}" text-anchor="middle" data-owner="look"><tspan class="t-look">LOOK HERE</tspan></text>`);
+                D.add('top', `<text x="${tx + TAG.w / 2}" y="${ty + 12}" text-anchor="middle" data-owner="look" data-ground="1"><tspan class="t-look">LOOK HERE</tspan></text>`);
                 D.mark(box, 'look');
                 placed = true;
                 break;
@@ -1949,11 +1969,14 @@ ${[3, 5].map((k) => `<label class="segment"><input type="radio" name="n" ${k ===
       function describeHtml(m, open, compact) {
         const btn = `<button class="g-btn" aria-expanded="${open}">${open ? 'Hide the description' : 'Describe'}</button>`;
         if (!open) return btn;
-        const head = compact ? ['Rep.', 'State', 'Write rtt', 'Has v8 at', 'Read at', 'Answer'] : ['Replica', 'State', 'Write round trip', 'Has v8 at', 'Read reaches it', 'Answered'];
+        const head = compact ? ['Rep.', 'State', 'Write rtt', 'Has v8 at', 'Read at', 'Got'] : ['Replica', 'State', 'Write round trip', 'Has v8 at', 'Read reaches it', 'Answered'];
         const rows = m.replicas.map((x) => {
           const a = m.read.answers.find((q) => q.id === x.id);
           const has = m.write.applied.includes(x.id) ? fmt(x.landAt) : '–';
-          return [`${x.name} (zone ${x.zone})`, M.STATE_NAMES[x.state], x.knownDown ? '–' : fmt(x.writeRtt), has, a ? fmt(a.readAt) : '–', a ? `v${a.value}${m.read.repairs.includes(x.id) ? ', repaired' : ''}` : '–'];
+          const name = compact ? x.name : `${x.name} (zone ${x.zone})`;
+          const state = compact ? { up: 'up', down: 'down', mid: 'stopped', back: 'back' }[x.state] : M.STATE_NAMES[x.state];
+          const answered = a ? `v${a.value}${m.read.repairs.includes(x.id) ? (compact ? ', fixed' : ', repaired') : ''}` : '–';
+          return [name, state, x.knownDown ? '–' : fmt(x.writeRtt), has, a ? fmt(a.readAt) : '–', answered];
         });
         return `${btn}<div class="table-box${compact ? ' compact' : ''}" tabindex="0" role="region" aria-label="Each replica in this scenario"><table><thead><tr>${head.map((h) => `<th scope="col">${h}</th>`).join('')}</tr></thead><tbody>${rows
           .map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join('')}</tr>`)
@@ -1995,8 +2018,12 @@ ${[3, 5].map((k) => `<label class="segment"><input type="radio" name="n" ${k ===
           tip.textContent = `Tap: ${NEXT_PHRASE[NEXT[st]].replace('it', `R${view.hint + 1}`)}`;
           well.appendChild(tip);
           const tw0 = tip.offsetWidth;
-          tip.style.left = Math.max(4, Math.min(W - tw0 - 4, h.x + h.w / 2 - tw0 / 2)) + 'px';
-          tip.style.top = h.y - 30 + 'px';
+          const th = tip.offsetHeight;
+          const left = Math.max(4, Math.min(W - tw0 - 4, h.x + h.w / 2 - tw0 / 2));
+          const covers = (top) => D.texts.some((t) => !(t.x1 <= left || t.x0 >= left + tw0 || t.y1 <= top || t.y0 >= top + th));
+          const above = h.y - th - 26;
+          tip.style.left = left + 'px';
+          tip.style.top = (covers(above) ? h.y + h.h + 26 : above) + 'px';
           well.querySelector(`.card-hit[data-owner="R${view.hint + 1}"]`).style.outline = 'var(--g-focus-ring)';
           well.querySelector(`.card-hit[data-owner="R${view.hint + 1}"]`).style.outlineOffset = '3px';
         }
