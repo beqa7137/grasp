@@ -385,7 +385,7 @@
       id: 'missed-write',
       title: 'The replica that missed a write',
       setup: { n: 3, w: 2, r: 2, states: ['up', 'up', 'back'], stall: 0, sloppy: 0 },
-      act: { run: 'write-read' },
+      act: { run: 'read' },
       ask: 'R{m} was down for the write and is back. The read asks R{m}, which still has v{old}, and R{o}, which has v{new}. What happens to R{m}?',
       choices: [
         { text: 'The read writes v{new} to it before returning: read repair', value: 'repair' },
@@ -420,7 +420,7 @@
       id: 'sloppy',
       title: 'A sloppy quorum',
       setup: { n: 3, w: 2, r: 2, states: ['up', 'back', 'back'], stall: 0, sloppy: 1 },
-      act: { run: 'write-read' },
+      act: { run: 'read' },
       ask: 'R{a} and R{b} were down, so a sloppy quorum took the write on R{h} and stand-in H{s1}. Both are back for the read, and {r} + {w} > {n}. Can a read still miss v{new}?',
       choices: [
         { text: 'No: R + W > N still holds', value: 'no' },

@@ -31,7 +31,8 @@ const server = http.createServer((req, res) => {
   const browser = await chromium.launch({ executablePath: EXECUTABLE });
   let total = 0;
   const errors = [];
-  for (const theme of THEMES)
+  const shots = !args.includes('--sweep-only');
+  for (const theme of shots ? THEMES : [])
     for (const width of WIDTHS) {
       const page = await browser.newPage({ viewport: { width, height: 900 }, deviceScaleFactor: width < 600 ? 2 : 1 });
       page.on('pageerror', (e) => errors.push(`${theme} ${width}: ${e.message}`));
@@ -74,14 +75,26 @@ const server = http.createServer((req, res) => {
               for (const stall of [0, 1])
                 for (const sloppy of [0, 1]) {
                   k++;
-                  // Every N 3 setting; every 23rd N 5 setting (a stride that walks all W, R and state mixes).
-                  if (n === 3 || k % 23 === 0) out.push({ n, w, r, states, stall, sloppy });
+                  // Every N 3 setting; every 41st N 5 setting (a stride prime to 4, so it walks every W, R and state mix).
+                  if (n === 3 || k % 41 === 0) out.push({ n, w, r, states, stall, sloppy });
                 }
       return out;
     });
-    const widths = (opt('sweep') ?? '252,322,400,620').split(',').map(Number);
-    const res = await page.evaluate(([w, s]) => window.sweep(w, s), [widths, settings]);
-    console.log(`settings sweep: ${settings.length} settings x ${widths.length} widths = ${res.renders} renders, ${res.failures.length} with collisions`);
+    // Every N 3 setting at the narrowest phone and the desktop stage; the N 5 sample at two phone widths too.
+    const plan = [
+      [252, settings],
+      [620, settings.filter((x) => x.n === 3)],
+      [322, settings.filter((x) => x.n === 5)],
+      [400, settings.filter((x) => x.n === 5)],
+    ];
+    const res = { renders: 0, failures: [] };
+    for (const [w, list] of plan)
+      for (let i = 0; i < list.length; i += 400) {
+        const part = await page.evaluate(([w, s]) => window.sweep([w], s), [w, list.slice(i, i + 400)]);
+        res.renders += part.renders;
+        res.failures.push(...part.failures);
+      }
+    console.log(`settings sweep: ${settings.length} settings over ${plan.map(([w, l]) => `${l.length} at ${w}`).join(', ')} = ${res.renders} renders, ${res.failures.length} with collisions`);
     const byKind = {};
     for (const f of res.failures) for (const o of f.out) byKind[o.replace(/"[^"]*"/g, '"…"').replace(/R\d|H\d/g, 'R?')] = (byKind[o.replace(/"[^"]*"/g, '"…"').replace(/R\d|H\d/g, 'R?')] ?? 0) + 1;
     for (const [k, v] of Object.entries(byKind).sort((a, b) => b[1] - a[1]).slice(0, 12)) console.log(`    ${v} x ${k}`);

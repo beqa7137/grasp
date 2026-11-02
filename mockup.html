@@ -312,6 +312,7 @@
       .toggles .segment span {
         flex-direction: column;
         gap: 0;
+        font-size: var(--g-text-body-s);
       }
       .notice {
         margin: 0;
@@ -1398,7 +1399,7 @@
           const per = Math.max(1, Math.floor((W - 2 * pad - 24 + 6) / (chipW + 6)));
           return Math.ceil(n / per);
         })();
-        const readerH = wide ? 84 : 20 + 12 + readerRows * 26;
+        const readerH = wide ? 62 : 20 + 12 + readerRows * 26;
         const chipList = read.answers
           .map((a) => ({ ...a }))
           .sort((a, b) => b.value - a.value || a.rtt - b.rtt);
@@ -1439,9 +1440,10 @@
         reps.forEach((rep, i) => {
           const owner = `R${i + 1}`;
           if (!rep.reachable) {
-            const s = [cx(i), cardY + cardH];
-            D.add('links', `<line class="link dead" x1="${s[0]}" y1="${s[1]}" x2="${rApex[0]}" y2="${rApex[1]}"/>`);
-            D.link(sampleLine(s[0], s[1], rApex[0], rApex[1]), `reader ${owner}`);
+            const top = cardY + cardH;
+            const s = [cx(i), rChipY + chipH];
+            D.add('links', `<path class="link dead" d="M${s[0]} ${top}V${s[1]}L${rApex[0]} ${rApex[1]}"/>`);
+            D.link([...sampleLine(s[0], top, s[0], s[1]), ...sampleLine(s[0], s[1], rApex[0], rApex[1])], `reader ${owner} dead${i + 1}`);
             readDeadXs.push({ i, s });
             return;
           }
@@ -1462,9 +1464,8 @@
           const owner = `R${i + 1}`;
           for (const t of [0.5, 0.42, 0.58, 0.34, 0.66, 0.26, 0.74, 0.2]) {
             const p = [s[0] + (rApex[0] - s[0]) * t, s[1] + (rApex[1] - s[1]) * t];
-            const box = { x0: p[0] - 8, x1: p[0] + 8, y0: p[1] - 8, y1: p[1] + 8 };
-            const clear = D.links.every((l) => l.owner === `reader ${owner}` || l.points.every(([x, yy]) => x < box.x0 || x > box.x1 || yy < box.y0 || yy > box.y1));
-            if (clear) {
+            const box = { x0: p[0] - 6, x1: p[0] + 6, y0: p[1] - 6, y1: p[1] + 6 };
+            if (D.free(box, `dead${i + 1}`, 2)) {
               xGlyph(D, r1(p[0]), r1(p[1]), owner, 4);
               break;
             }
@@ -1480,7 +1481,7 @@
           ];
           for (const [x, yy, anchor] of left ? cand : [cand[1], cand[0], cand[2]]) {
             const box = D.textBox(x, yy, tw('repair', 'small'), 'small', anchor);
-            if (D.free(box, `repair${a.id + 1}`)) {
+            if (D.free(box, '')) {
               D.text(x, yy, [['repair', 'small', 'good']], { anchor, owner: `repair${a.id + 1}` });
               break;
             }
@@ -1511,7 +1512,6 @@
             ccx += wdt + 6;
           }
         }
-        D.region('reader', { x: rx - 2, y: readerY - 2, w: rw + 4, h: readerH + 4 });
         const rHandle = {
           id: 'rhandle',
           k: r,
@@ -1525,6 +1525,7 @@
         };
         y = readerY + readerH;
         if (wide) handleBlock(D, { ...rHandle, x: pad, y: readerY, w: rx - 24 - pad });
+        const handleBottom = readerY + 84;
 
         // The verdict pill: the heaviest mark.
         const pill = pillOf(m, hid);
@@ -1537,22 +1538,21 @@
         }
         const pw = Math.max(...pillLines.map((l) => tw(l, 'pill'))) + 44;
         const ph = pillLines.length === 1 ? 32 : 48;
-        const pillY = y + 12;
+        const pillY = y + 10;
         const px = W - pad - pw;
         D.add('marks', `<rect class="pill ${pill.tone}" x="${px}" y="${pillY}" width="${pw}" height="${ph}" rx="16"/>`);
         D.mark({ x0: px, x1: px + pw, y0: pillY, y1: pillY + ph }, 'pill');
         D.add('text', glyph(pill.tone, px + 18, pillY + 16));
         pillLines.forEach((line, i) => D.text(px + 32, pillY + 21 + i * 16, [[line, 'pill', pill.tone === 'hidden' ? 'muted' : 'ink']], { owner: 'pill', textCls: 'on-chip' }));
-        D.region('reader', { x: px - 2, y: pillY - 2, w: pw + 4, h: ph + 4 });
+        D.region('reader', { x: Math.min(rx, px) - 3, y: readerY - 3, w: W - pad - Math.min(rx, px) + 6, h: pillY + ph - readerY + 6 });
         const pillReserve = wide ? 32 : 48;
-        let bothY;
         if (both.length && !hid.count) {
           const names = both.map((i) => `R${i + 1}`);
           const t = `${names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names.at(-1) : names[0]} both acked and answered`;
-          if (wide && px - 16 - tw(t, 'cap') >= pad + 4) D.text(px - 14, pillY + 21, [[t, 'cap', 'good']], { anchor: 'end' });
-          else D.text(W - pad, pillY + ph + 18, [[t, 'cap', 'good']], { anchor: 'end' });
+          const role = tw(t, 'cap') <= W - 2 * pad ? 'cap' : 'small';
+          D.text(W - pad, pillY + ph + 18, [[tw(t, role) <= W - 2 * pad ? t : `${names.join(', ')} acked and answered`, role, 'good']], { anchor: 'end' });
         }
-        y = pillY + pillReserve + (wide ? 0 : 26);
+        y = Math.max(pillY + pillReserve + 26, wide ? handleBottom : 0);
         if (!wide) {
           handleBlock(D, { ...rHandle, x: pad, y: y + 4, w: W - 2 * pad });
           y += 4 + 84;
@@ -1567,7 +1567,7 @@
         const head = hid.count ? [`? of ${m.readSets}`, ' can miss v8'] : [`${m.staleSets} of ${m.readSets}`, ' can miss v8'];
         const headW = tw(head[0], 'head') + tw(head[1], 'cap');
         const headInline = pad + tw(stripLabel, 'label') + 16 + headW <= W - pad;
-        const headTone = hid.count ? 'muted' : m.staleSets > 0 ? 'bad' : 'good';
+        const headTone = hid.count || write.outcome !== 'acked' ? 'muted' : m.staleSets > 0 ? 'bad' : 'good';
         if (headInline) {
           D.text(W - pad, y + 27, [[head[0], 'head', headTone], [head[1], 'cap', 'muted']], { anchor: 'end' });
           y += 42;
@@ -1604,14 +1604,29 @@
         D.mark({ x0: gx0 - 3, x1: gx0 + gridW + 3, y0: gridTop - 3, y1: gridBottom + 14 }, 'strip-grid');
         // Legend under the grid.
         let ly = gridBottom + 30;
-        const legend = [
+        const fullLegend = [
           ['acked', 'acked v8'],
           ['member', 'in the read set'],
           ['x', 'can miss'],
           ['ring', 'this read'],
-        ].filter(([k]) => !(hid.count && (k === 'acked' || k === 'x')));
+        ];
+        const legend = fullLegend.filter(([k]) => !(hid.count && (k === 'acked' || k === 'x')));
         let lx = pad;
         const legendW = wide ? 236 : W - 2 * pad;
+        const legendRows = (() => {
+          let rows = 1;
+          let x0 = pad;
+          for (const [, t] of fullLegend) {
+            const iw = 12 + 5 + tw(t, 'small');
+            if (x0 + iw > pad + legendW) {
+              rows++;
+              x0 = pad;
+            }
+            x0 += iw + 14;
+          }
+          return rows;
+        })();
+        const legendTop = ly;
         for (const [k, t] of legend) {
           const iw = 12 + 5 + tw(t, 'small');
           if (lx + iw > pad + legendW) {
@@ -1626,10 +1641,15 @@
         }
         // The sentence about overlap, and the one about its limit.
         const s1 = (() => {
-          if (hid.count) return `Does every read of ${r} meet the ${m.h || w} that acked?`;
+          if (hid.count) return `Does every read of ${r} meet the ${w} that acked?`;
           if (write.outcome === 'refused') return 'Nothing was written, so there is nothing to miss.';
-          if (write.outcome === 'timed-out')
-            return m.h ? `The write timed out, but ${m.h} replica${m.h > 1 ? 's' : ''} applied it: a read of ${r} that misses ${m.h > 1 ? 'them' : 'it'} returns v7.` : 'The write timed out and applied nowhere: every read returns v7.';
+          if (write.outcome === 'timed-out') {
+            if (!m.h) return 'The write timed out and applied nowhere: every read returns v7.';
+            const who = m.h > 2 ? `${m.h} replicas` : m.ackedHomes.map((i) => `R${i + 1}`).join(' and ');
+            return m.staleSets === 0
+              ? `The write timed out, yet every read of ${r} meets a replica that applied it.`
+              : `The write timed out, but ${who} applied it: a read of ${r} that misses ${m.h > 1 ? 'them' : 'it'} returns v7.`;
+          }
           if (m.settings.sloppy && m.h < w)
             return `A read never asks the stand-ins: only ${m.h} home replica${m.h === 1 ? '' : 's'} acked, so a read of ${r} can miss ${m.h === 1 ? 'it' : 'them'}.`;
           if (m.staleSets === 0) return `Every read of ${r} shares a replica with the ${m.h} that acked.`;
@@ -1638,24 +1658,25 @@
         const s2 = 'Even then, R + W > N alone is not linearizable: reads racing a write can disagree, and concurrent writes settled by last-write-wins can drop one.';
         const sideX = pad + Math.max(headCol + gridW, 236) + 28;
         const side = wide && W - pad - sideX >= 220;
+        ly = legendTop + (legendRows - 1) * 16;
         const sentW = side ? W - pad - sideX : W - 2 * pad;
         const l1 = wrap(s1, 'cap', sentW);
         const l2 = wrap(s2, 'cap', sentW);
         const sx0 = side ? sideX : pad;
-        let sy0 = side ? gridTop + 10 : ly + 26;
+        let sy0 = side ? gridTop + 2 : ly + 26;
         l1.forEach((line, i) => D.text(sx0, sy0 + i * 18, [[line, 'cap', 'ink']]));
         sy0 += l1.length * 18 + 4;
         l2.forEach((line, i) => D.text(sx0, sy0 + i * 18, [[line, 'cap', 'muted']]));
         const sentBottom = sy0 + l2.length * 18 - 10;
         // Reserve the most lines any overlap sentence takes at this width, so the height depends only on width and N.
         const reserveS1 = Math.max(
-          ...[`Does every read of 5 meet the 5 that acked?`, `The write timed out, but 4 replicas applied it: a read of 5 that misses them returns v7.`, `A read never asks the stand-ins: only 1 home replica acked, so a read of 5 can miss it.`, `Every read of 5 shares a replica with the 5 that acked.`].map(
+          ...[`Does every read of 5 meet the 5 that acked?`, `The write timed out, but 3 replicas applied it: a read of 2 that misses them returns v7.`, `A read never asks the stand-ins: only 1 home replica acked, so a read of 5 can miss it.`, `Every read of 5 shares a replica with the 5 that acked.`].map(
             (t) => wrap(t, 'cap', sentW).length,
           ),
         );
-        const sentReserve = (side ? gridTop + 10 : ly + 26) + (reserveS1 * 18 + 4) + l2.length * 18 - 10;
+        const sentReserve = (side ? gridTop + 2 : ly + 26) + (reserveS1 * 18 + 4) + l2.length * 18 - 10;
         y = Math.max(ly + (wide ? 16 : 16) * (side ? 0 : 0), side ? Math.max(ly, sentReserve) : sentReserve) + 8;
-        D.region('strip', { x: pad - 4, y: stripTop + 6, w: W - 2 * pad + 8, h: y - stripTop - 6 });
+        D.region('strip', { x: Math.max(3, pad - 8), y: stripTop + 4, w: W - 2 * Math.max(3, pad - 8), h: y - stripTop - 4 });
 
         // Latency, log scale 1 to 200 ms.
         y += 10;
@@ -1675,14 +1696,17 @@
         for (const t of ticks) D.add('grid', `<line class="gridline" x1="${X(t)}" y1="${L1 - 18}" x2="${X(t)}" y2="${axisY}"/>`);
         for (const L of [L1, L2]) D.add('grid', `<line class="lane" x1="${px0}" y1="${L}" x2="${px1}" y2="${L}"/>`);
         D.add('grid', `<line class="axis" x1="${px0}" y1="${axisY}" x2="${px1}" y2="${axisY}"/>`);
+        const unitLabel = '200 ms';
+        const unitLeft = X(200) + 4 - tw(unitLabel, 'small');
         let lastTick = -Infinity;
         ticks.forEach((t, i) => {
-          const label = i === ticks.length - 1 ? '200 ms' : String(t);
-          const anchor = i === ticks.length - 1 ? 'end' : 'middle';
-          const x = i === ticks.length - 1 ? X(t) + 4 : X(t);
+          const last = i === ticks.length - 1;
+          const label = last ? unitLabel : String(t);
+          const anchor = last ? 'end' : 'middle';
+          const x = last ? X(t) + 4 : X(t);
           const w0 = tw(label, 'small');
           const left = anchor === 'end' ? x - w0 : x - w0 / 2;
-          if (left < lastTick + 6) return;
+          if (!last && (left < lastTick + 6 || left + w0 > unitLeft - 6)) return;
           D.add('grid', `<line class="axis" x1="${X(t)}" y1="${axisY}" x2="${X(t)}" y2="${axisY + 4}"/>`);
           D.text(x, axisY + 17, [[label, 'small', 'muted']], { anchor });
           lastTick = left + w0;
@@ -1696,11 +1720,12 @@
             D.text(pad, L - 18, [[t, 'small', 'ink']], { ground: true });
           }
         }
-        const nameDy = wide ? -10 : 17;
         const placeName = (x, L, name, owner, ringed) => {
-          const yy = L + nameDy + (ringed ? (wide ? -4 : 4) : 0);
+          const yy = L + (ringed ? 19 : 17);
           const box = D.textBox(x, yy, tw(name, 'small'), 'small', 'middle');
-          if (D.free(box, owner, 1)) D.text(x, yy, [[name, 'small', 'muted']], { anchor: 'middle', owner, ground: true });
+          if (!D.free(box, owner, 1)) return;
+          D.add('grid', `<rect class="ground" x="${box.x0 - 2}" y="${box.y0 - 1}" width="${box.x1 - box.x0 + 4}" height="${box.y1 - box.y0 + 2}" rx="2"/>`);
+          D.text(x, yy, [[name, 'small', 'muted']], { anchor: 'middle', owner, ground: true });
         };
         const placeLabel = (x, L, texts, ringR, owner, tone = 'ink') => {
           for (const t of texts) {
@@ -1709,14 +1734,15 @@
               [x + ringR + 6, L + 4, 'start'],
               [x - ringR - 6, L + 4, 'end'],
               [x, L - ringR - 6, 'middle'],
-              [x, L + ringR + 14, 'middle'],
+              [x + ringR + 2, L - ringR - 4, 'start'],
+              [x - ringR - 2, L - ringR - 4, 'end'],
             ];
             for (const [cx0, cy0, anchor] of cands) {
               const box = D.textBox(cx0, cy0, w0, 'smallB', anchor);
               if (box.x0 < px0 - (wide ? 0 : 4) || box.x1 > W - pad) continue;
-              if (!D.free(box, owner, 2)) continue;
+              if (!D.free(box, '', 2)) continue;
               D.add('grid', `<rect class="ground" x="${box.x0 - 3}" y="${box.y0 - 2}" width="${box.x1 - box.x0 + 6}" height="${box.y1 - box.y0 + 4}" rx="3"/>`);
-              D.text(cx0, cy0, [[t, 'smallB', tone]], { anchor, owner, ground: true });
+              D.text(cx0, cy0, [[t, 'smallB', tone]], { anchor, owner: owner + '-label', ground: true });
               return true;
             }
           }
@@ -1785,7 +1811,7 @@
         }
         for (const d of dots) placeName(d.x, d.L, d.name, d.read ? `latr-${d.name}` : `lat-${d.name}`, d.ringed);
         y = axisY + 26;
-        D.region('latency', { x: pad - 4, y: latTop + 6, w: W - 2 * pad + 8, h: y - latTop - 6 });
+        D.region('latency', { x: Math.max(3, pad - 8), y: latTop + 4, w: W - 2 * Math.max(3, pad - 8), h: y - latTop - 4 });
         const H = Math.ceil(y + 4);
 
         D.label = summary(m, hid);
@@ -1816,11 +1842,16 @@
             const w = Math.min(D.W - 3, b.x + b.w) - x;
             const h = Math.min(H - 3, b.y + b.h) - y0;
             D.add('top', `<rect class="focus-outline" x="${x}" y="${y0}" width="${w}" height="${h}" rx="10"/>`);
-            const xs = [x + w - TAG.w - 16, x + 16, x + w / 2 - TAG.w / 2];
-            const ys = [y0 - TAG.h / 2, y0 + h - TAG.h / 2, y0 + 4, y0 + h - TAG.h - 4];
+            // Frame edges first (16px off the corners), then just inside, then the gutter outside.
+            const across = [];
+            for (let ax = x + w - TAG.w - 16; ax >= x + 16; ax -= 8) across.push(ax);
+            const xs = [x + w - TAG.w - 16, x + 16, ...across];
+            const ys = [y0 - TAG.h / 2, y0 + h - TAG.h / 2, y0 + 4, y0 + h - TAG.h - 4, y0 - TAG.h - 2, y0 + h + 2];
+            const cands = ys.flatMap((ty) => xs.map((tx) => [tx, ty]));
+            for (const ty of [y0 + 4, y0 + h / 2 - TAG.h / 2]) cands.push([x + w + 4, ty], [x - TAG.w - 4, ty]);
             let placed = false;
-            for (const ty of ys) {
-              for (const tx of xs) {
+            for (const [tx, ty] of cands) {
+              {
                 const box = { x0: tx, x1: tx + TAG.w, y0: ty, y1: ty + TAG.h };
                 if (tx < 3 || tx + TAG.w > D.W - 3 || ty < 3 || ty + TAG.h > H - 3) continue;
                 if (!D.free(box, '', 1)) continue;
@@ -1996,9 +2027,14 @@ ${[3, 5].map((k) => `<label class="segment"><input type="radio" name="n" ${k ===
         for (const el of svg.querySelectorAll('.link, .gridline, .lane, .axis, .rule')) {
           const grid = !el.classList.contains('link');
           const o = owners(el);
-          const len = el.getTotalLength();
           const pts = [];
-          for (let d = 0; d <= len; d += 2) pts.push(el.getPointAtLength(d));
+          if (el.tagName === 'line') {
+            const [x1, y1, x2, y2] = ['x1', 'y1', 'x2', 'y2'].map((a) => Number(el.getAttribute(a)));
+            for (const [x, y] of sampleLine(x1, y1, x2, y2, 2)) pts.push({ x, y });
+          } else {
+            const len = el.getTotalLength();
+            for (let d = 0; d <= len; d += 2) pts.push(el.getPointAtLength(d));
+          }
           for (const t of texts) {
             if (grid && t.ground) continue;
             if (pts.some((p) => inside(p, t))) out.push(`${grid ? 'grid' : 'line'} through "${t.s}"`);
