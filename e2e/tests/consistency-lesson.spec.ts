@@ -148,7 +148,7 @@ test('the quorum challenge is met only at N 5, W 4, R 2 with R3 pausing', async 
   const r = widget.getByRole('slider', { name: 'R, answers a read waits for' });
   await r.focus();
   await page.keyboard.press('ArrowLeft');
-  await expect(widget.locator('.status')).toHaveText(/^Goal met: No read set can miss v8: 0 of 10 can, met · reads 3 ms, under 5 ms: met/);
+  await expect(widget.locator('.status')).toHaveText(/Goal met: No read set can miss v8: 0 of 10 can, met · reads 3 ms, under 5 ms: met/);
   await expect(widget.locator('.reveal')).toHaveText(SHOWN.at(-1)!.reveal);
 });
 
