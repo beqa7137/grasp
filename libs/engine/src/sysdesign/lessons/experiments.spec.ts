@@ -1,12 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { CACHE_EXPERIMENTS } from './caching-experiments.js';
 import { FEED_CHALLENGE_GOAL, FEED_EXPERIMENTS } from './data-modeling-experiments.js';
+import { QUORUM_EXPERIMENTS } from './consistency-experiments.js';
 import {
+  boundLimit,
+  boundMet,
   experimentTemplates,
   fillTemplate,
   formatApprox,
   formatDuration,
   formatMs,
+  formatNines,
+  formatOrdinal,
   formatPct,
   formatQps,
   formatSeconds,
@@ -82,6 +87,50 @@ describe('experiment formatting', () => {
     expect(goalBounds({ metric: 'p99Ms', below: 100 })).toEqual([{ metric: 'p99Ms', below: 100 }]);
   });
 
+  it('writes a chance as its nines, never 100%, and a count as an ordinal', () => {
+    expect([0.970299, 0.999702, 0.99902, 0.999999, 0.9999999504, 1].map(formatNines)).toEqual([
+      '97.03%',
+      '99.97%',
+      '99.90%',
+      '99.9999%',
+      '99.99999%',
+      '99.9999999999%',
+    ]);
+    expect([1, 2, 3, 4, 11, 12, 13, 21, 22, 111].map(formatOrdinal)).toEqual([
+      '1st',
+      '2nd',
+      '3rd',
+      '4th',
+      '11th',
+      '12th',
+      '13th',
+      '21st',
+      '22nd',
+      '111th',
+    ]);
+    expect(fillTemplate('the {k} ack, {p}', { k: { value: 2, unit: 'ordinal' }, p: { value: 0.970299, unit: 'nines' } })).toBe(
+      'the 2nd ack, 97.03%',
+    );
+  });
+
+  it('meets a bound below a limit or at least one', () => {
+    expect([boundMet({ metric: 'm', below: 5 }, 4), boundMet({ metric: 'm', below: 5 }, 5)]).toEqual([true, false]);
+    expect([boundMet({ metric: 'm', atLeast: 1 }, 1), boundMet({ metric: 'm', atLeast: 1 }, 0)]).toEqual([true, false]);
+    expect([boundLimit({ metric: 'm', below: 5 }), boundLimit({ metric: 'm', atLeast: 1 })]).toEqual([5, 1]);
+    expect(
+      goalMet(
+        {
+          all: [
+            { metric: 'a', below: 5 },
+            { metric: 'b', atLeast: 1 },
+          ],
+        },
+        { a: 4, b: 0 },
+        {},
+      ),
+    ).toBe(false);
+  });
+
   it('refuses a placeholder with no slot', () => {
     expect(() => fillTemplate('p99 is {nope}', {})).toThrow(/nope/);
   });
@@ -95,10 +144,11 @@ describe('experiment formatting', () => {
 describe('the reveal spec', () => {
   const lessons = Object.entries(SD_LESSONS).filter(([, l]) => l.widget.experiments);
 
-  it('covers the Caching, Load Balancing, Replication and Data Modeling lessons', () => {
+  it('covers the Caching, Load Balancing, Replication, Data Modeling and Consistency lessons', () => {
     expect(lessons.map(([id]) => id)).toEqual(
-      expect.arrayContaining(['sd-caching', 'sd-load-balancing', 'sd-replication', 'sd-data-modeling']),
+      expect.arrayContaining(['sd-caching', 'sd-load-balancing', 'sd-replication', 'sd-data-modeling', 'sd-consistency']),
     );
+    expect(SD_LESSONS['sd-consistency'].widget.experiments).toBe(QUORUM_EXPERIMENTS);
     expect(SD_LESSONS['sd-data-modeling'].widget.experiments).toBe(FEED_EXPERIMENTS);
     expect(SD_LESSONS['sd-data-modeling'].widget.tryThis).toBeUndefined();
     expect(SD_LESSONS['sd-caching'].widget.experiments).toBe(CACHE_EXPERIMENTS);
@@ -159,7 +209,7 @@ describe('the Caching experiments', () => {
 
   it('set a challenge the handle can just reach', () => {
     const goal = CACHE_EXPERIMENTS.find((e) => e.goal)!;
-    const meets = (h: number) => cacheSteady({ hitRate: h, originMs: goal.setup['originMs'] }).meanMs < goalBounds(goal.goal!)[0].below;
+    const meets = (h: number) => boundMet(goalBounds(goal.goal!)[0], cacheSteady({ hitRate: h, originMs: goal.setup['originMs'] }).meanMs);
     expect(meets(goal.setup['hitRate'])).toBe(false);
     expect(CACHE_HIT_SNAPS.filter(meets)).toEqual([99.5, 99.9]);
   });

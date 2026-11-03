@@ -19,6 +19,8 @@ import {
   CACHE_ORIGIN_MS_SNAPS,
   CACHE_QPS,
   CACHE_REFILL_SECONDS,
+  boundLimit,
+  boundMet,
   cacheRefill,
   cacheSteady,
   formatApprox,
@@ -262,11 +264,11 @@ export class CacheWidgetComponent {
     const now = Number.isFinite(value) ? formatMs(value) : 'timing out';
     const met = this.exp.metWith();
     if (this.exp.phase() === 'revealed' && met) {
-      return value < goal.below
-        ? `Goal met: ${words} ${now}, under ${formatMs(goal.below)}.`
+      return boundMet(goal, value)
+        ? `Goal met: ${words} ${now}, under ${formatMs(boundLimit(goal))}.`
         : `You met it at ${formatMs(met.metrics[goal.metric])}; the ${words} is now ${now}.`;
     }
-    return `${words[0].toUpperCase()}${words.slice(1)} now ${now}; the goal is under ${formatMs(goal.below)}.`;
+    return `${words[0].toUpperCase()}${words.slice(1)} now ${now}; the goal is under ${formatMs(boundLimit(goal))}.`;
   });
 
   constructor() {

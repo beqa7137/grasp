@@ -18,6 +18,7 @@ import {
   feedAt,
   feedModelOf,
   formatDuration,
+  boundMet,
   formatMs,
   goalBounds,
   renderExperiment,
@@ -250,8 +251,8 @@ export class FeedModelWidgetComponent {
     const goal = this.exp.active()?.goal;
     if (!goal) return '';
     const c = this.cost();
-    const bounds = Object.fromEntries(goalBounds(goal).map((b) => [b.metric, b.below]));
-    const mark = (metric: string, v: number) => (v < bounds[metric] ? '✓' : '✗');
+    const bounds = Object.fromEntries(goalBounds(goal).map((b) => [b.metric, b]));
+    const mark = (metric: string, v: number) => (boundMet(bounds[metric], v) ? '✓' : '✗');
     const how = this.schema() === 1 ? 'Denormalized' : readName(this.model());
     const stale = c.staleMs ? `old name ${staleText(c.staleMs)}` : 'fresh';
     const status = `${how} · ${formatMs(c.waitMs)} ${mark('waitMs', c.waitMs)} · ${stale} ${mark('staleMs', c.staleMs)} · ${count(c.rowsPerSecond)} rows/s ${mark('rowsPerSecond', c.rowsPerSecond)}`;

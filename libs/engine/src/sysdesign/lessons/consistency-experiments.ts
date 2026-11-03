@@ -236,10 +236,10 @@ export const QUORUM_EXPERIMENTS: readonly ExperimentSpec[] = [
         old: num(old),
         sets: num(m.readSets),
         miss: num(miss),
-        no: word('no'),
+        no: word('No'),
         all: word('all'),
-        yes: word('yes'),
-        outcome: word(miss === m.readSets ? 'all' : miss > 0 ? 'yes' : 'no'),
+        yes: word('Yes'),
+        outcome: word(miss === m.readSets ? 'all' : miss > 0 ? 'Yes' : 'No'),
         strict: nines(run({ ...SETUP.sloppy, sloppy: 0 }).avail.write),
         loose: nines(m.avail.write),
       };

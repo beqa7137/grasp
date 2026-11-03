@@ -222,7 +222,8 @@ function standInsFor(replicas: readonly QuorumNode[]): QuorumNode[] {
 }
 
 function writeOf(targets: readonly QuorumNode[], w: number): QuorumWrite {
-  if (targets.length < w) return { outcome: 'refused', ms: 0, live: targets.length, needed: w, sent: [], applied: [], acked: [], ackOrder: [] };
+  if (targets.length < w)
+    return { outcome: 'refused', ms: 0, live: targets.length, needed: w, sent: [], applied: [], acked: [], ackOrder: [] };
   const ackOrder = targets
     .filter((t) => t.state === 'up')
     .sort((a, b) => a.writeRtt - b.writeRtt || a.id - b.id)
@@ -230,7 +231,16 @@ function writeOf(targets: readonly QuorumNode[], w: number): QuorumWrite {
   const sent = targets.map((t) => t.id);
   const ms = (id: number) => targets.find((t) => t.id === id)!.writeRtt;
   return ackOrder.length >= w
-    ? { outcome: 'acked', ms: ms(ackOrder[w - 1]), live: targets.length, needed: w, sent, applied: ackOrder, acked: ackOrder.slice(0, w), ackOrder }
+    ? {
+        outcome: 'acked',
+        ms: ms(ackOrder[w - 1]),
+        live: targets.length,
+        needed: w,
+        sent,
+        applied: ackOrder,
+        acked: ackOrder.slice(0, w),
+        ackOrder,
+      }
     : { outcome: 'timed-out', ms: WRITE_TIMEOUT_MS, live: targets.length, needed: w, sent, applied: ackOrder, acked: ackOrder, ackOrder };
 }
 
@@ -251,7 +261,12 @@ function readOf(all: readonly QuorumNode[], r: number, write: QuorumWrite): Quor
   const rthMs = Math.max(...answers.map((a) => a.rtt));
   const anyNew = answers.some((a) => a.value === QUORUM_VERSIONS.new);
   const anyOld = answers.some((a) => a.value === QUORUM_VERSIONS.old);
-  const repairs = anyNew ? answers.filter((a) => a.value === QUORUM_VERSIONS.old).map((a) => a.id).sort((a, b) => a - b) : [];
+  const repairs = anyNew
+    ? answers
+        .filter((a) => a.value === QUORUM_VERSIONS.old)
+        .map((a) => a.id)
+        .sort((a, b) => a - b)
+    : [];
   // The repair writes go out together, and the read returns once the slowest is back.
   const repairMs = repairs.length ? Math.max(...repairs.map((id) => all[id].readRtt)) : 0;
   return {
@@ -272,7 +287,8 @@ function readOf(all: readonly QuorumNode[], r: number, write: QuorumWrite): Quor
 function verdictOf(write: QuorumWrite, read: QuorumRead): QuorumVerdict {
   if (!read.set.length) return 'read-fails';
   if (write.outcome === 'refused') return 'refused';
-  if (write.outcome === 'timed-out') return read.returns === QUORUM_VERSIONS.new ? 'timed-out' : write.applied.length ? 'old' : 'failed-write';
+  if (write.outcome === 'timed-out')
+    return read.returns === QUORUM_VERSIONS.new ? 'timed-out' : write.applied.length ? 'old' : 'failed-write';
   return read.returns === QUORUM_VERSIONS.new ? 'fresh' : 'stale';
 }
 
