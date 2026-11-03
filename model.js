@@ -5,20 +5,25 @@
 
   const STALL_MS = 100;
   const TIMEOUT_MS = 2000;
+  const READ_TIMEOUT_MS = 5000;
   const HINT_WINDOW_HOURS = 3;
   const DOWN_CHANCE = 0.01;
   const VERSIONS = { old: 7, new: 8, oldValue: 'Apollo', newValue: 'Artemis' };
-  // One-way delays from the writer (zone A); the reader (zone C) sees them in the other order.
+  // One-way delays from the writer (data center A); the reader (data center C) sees them in the other order. DC B sits
+  // 2 ms from both, a known simplification no quoted number depends on.
   const ONE_WAY = { 3: [1, 2, 20], 5: [1, 1.5, 2, 20, 20.5] };
-  const ZONES = { 3: ['A', 'B', 'C'], 5: ['A', 'A', 'B', 'C', 'C'] };
-  // Sloppy stand-ins sit beside the writer; the read never asks them.
+  const DCS = { 3: ['A', 'B', 'C'], 5: ['A', 'A', 'B', 'C', 'C'] };
+  // Sloppy stand-ins sit beside the writer in DC A, so the reader reaches them across data centers.
   const STAND_IN_ONE_WAY = [1.5, 2.5];
+  const CROSS_DC_ONE_WAY = 20;
   const STATES = ['up', 'down', 'mid', 'back'];
   const STATE_NAMES = { up: 'up', down: 'down', mid: 'stops mid-write', back: 'back, missed the write' };
   const SIZES = [3, 5];
 
   const stalledIndex = (n) => (n === 3 ? 1 : 2);
   const quorumOf = (n) => Math.floor(n / 2) + 1;
+  /** Replicas an EACH_QUORUM write waits for: a quorum of each data center's replicas. */
+  const eachQuorum = (n) => Object.values(DCS[n].reduce((c, dc) => ({ ...c, [dc]: (c[dc] ?? 0) + 1 }), {})).reduce((s, k) => s + quorumOf(k), 0);
   const levelName = (k, n) => (k === 1 ? 'ONE' : k === n ? 'ALL' : k === quorumOf(n) ? 'QUORUM' : null);
 
   function choose(n, k) {
@@ -61,7 +66,7 @@
         id: i,
         name: `R${i + 1}`,
         home: true,
-        zone: ZONES[n][i],
+        dc: DCS[n][i],
         state,
         pause,
         writeOneWay: d,
@@ -73,18 +78,22 @@
         reachable: state === 'up' || state === 'back',
       };
     });
-    const knownDown = replicas.filter((x) => x.knownDown);
+    // Stand-ins go first to the replicas still down at the read (a static scenario may choose), so each stand-in's
+    // "for R3" stays true for the read it may serve.
+    const knownDown = replicas.filter((x) => x.knownDown).sort((a, b) => (a.state === 'down' ? 0 : 1) - (b.state === 'down' ? 0 : 1) || a.id - b.id);
     const live = replicas.filter((x) => !x.knownDown);
     const standIns = sloppy
       ? STAND_IN_ONE_WAY.slice(0, Math.min(2, knownDown.length)).map((d, j) => ({
           id: n + j,
           name: `H${j + 1}`,
           home: false,
-          zone: 'A',
+          dc: 'A',
           state: 'up',
           pause: 0,
           writeOneWay: d,
+          readOneWay: CROSS_DC_ONE_WAY + d,
           writeRtt: 2 * d,
+          readRtt: 2 * (CROSS_DC_ONE_WAY + d),
           landAt: d,
           standsFor: knownDown[j].id,
         }))
@@ -107,24 +116,42 @@
     }
 
     const sentAt = write.ms;
-    const reachable = replicas.filter((x) => x.reachable);
+    // A sloppy read goes to the first N healthy nodes, so a stand-in answers for a home replica still down: with the
+    // write it holds, or with no copy of the key when the write was refused.
+    for (const s of standIns) s.reachable = byId(s.standsFor).state === 'down';
+    const reachable = all.filter((x) => x.reachable);
+    // Replicas that stopped mid-write still look live, so a read short of them waits out its timeout instead of failing.
+    const believedLive = reachable.length + replicas.filter((x) => x.state === 'mid').length;
     let read;
     if (reachable.length < r) {
-      read = { outcome: 'fails', sentAt, reachable: reachable.length, needed: r, set: [], answers: [], repairs: [], rthMs: null, repairMs: 0, ms: null, returns: null };
+      read = {
+        outcome: believedLive >= r ? 'timed-out' : 'fails',
+        sentAt,
+        reachable: reachable.length,
+        needed: r,
+        set: [],
+        answers: [],
+        repairs: [],
+        rthMs: null,
+        repairMs: 0,
+        ms: null,
+        returns: null,
+      };
     } else {
       const set = [...reachable].sort((a, b) => a.readRtt - b.readRtt || a.id - b.id).slice(0, r);
       const answers = set.map((x) => {
         const readAt = sentAt + x.readOneWay + x.pause;
         const has = write.applied.includes(x.id) && x.landAt <= readAt;
-        return { id: x.id, value: has ? VERSIONS.new : VERSIONS.old, readAt, rtt: x.readRtt };
+        return { id: x.id, value: has ? VERSIONS.new : x.home ? VERSIONS.old : null, readAt, rtt: x.readRtt };
       });
       const rthMs = Math.max(...answers.map((a) => a.rtt));
       const anyNew = answers.some((a) => a.value === VERSIONS.new);
+      const anyOld = answers.some((a) => a.value === VERSIONS.old);
       const stale = answers.filter((a) => a.value === VERSIONS.old);
       const repairs = anyNew ? stale.map((a) => a.id).sort((a, b) => a - b) : [];
       const repairMs = repairs.length ? Math.max(...repairs.map((id) => byId(id).readRtt)) : 0;
       read = {
-        outcome: anyNew ? 'v8' : 'v7',
+        outcome: anyNew ? 'v8' : anyOld ? 'v7' : 'no-copy',
         sentAt,
         reachable: reachable.length,
         needed: r,
@@ -134,17 +161,19 @@
         rthMs,
         repairMs,
         ms: rthMs + repairMs,
-        returns: anyNew ? VERSIONS.new : VERSIONS.old,
+        returns: anyNew ? VERSIONS.new : anyOld ? VERSIONS.old : null,
       };
     }
 
+    const readDone = read.set.length > 0;
     let verdict;
-    if (read.outcome === 'fails') verdict = 'read-fails';
+    if (!readDone) verdict = 'read-fails';
     else if (write.outcome === 'refused') verdict = 'refused';
     else if (write.outcome === 'timed-out') verdict = read.returns === VERSIONS.new ? 'timed-out' : write.applied.length ? 'old' : 'failed-write';
     else verdict = read.returns === VERSIONS.new ? 'fresh' : 'stale';
 
-    // The guarantee counts home replicas that acked; the drawn read is one draw from those sets.
+    // The guarantee counts home read sets against the home replicas that acked; the drawn read is one draw, and a
+    // sloppy read that used a stand-in is none of them.
     const ackedHomes = write.acked.filter((id) => byId(id).home);
     const h = ackedHomes.length;
     const readSets = choose(n, r);
@@ -154,18 +183,20 @@
       canMiss: !members.some((id) => ackedHomes.includes(id)),
       isThis: read.set.length === r && members.every((id, i) => id === read.set[i]),
     }));
-    const thisReadUnsure = read.outcome !== 'fails' && !read.set.some((id) => ackedHomes.includes(id));
-    const both = write.outcome === 'acked' ? read.set.filter((id) => ackedHomes.includes(id)) : [];
+    const readStandIns = read.set.filter((id) => !byId(id).home);
+    const thisReadUnsure = readDone && !read.set.some((id) => write.acked.includes(id));
+    const both = write.outcome === 'acked' ? read.set.filter((id) => write.acked.includes(id)) : [];
 
     const holds = all.map((x) => {
       if (x.home && read.repairs.includes(x.id)) return VERSIONS.new;
-      return write.applied.includes(x.id) ? VERSIONS.new : x.state === 'down' || x.state === 'mid' ? null : VERSIONS.old;
+      if (write.applied.includes(x.id)) return VERSIONS.new;
+      return !x.home || x.state === 'down' || x.state === 'mid' ? null : VERSIONS.old;
     });
 
     const writeAvail = atLeastUp(w, sloppy ? n + 2 : n);
-    const readAvail = atLeastUp(r, n);
+    const readAvail = atLeastUp(r, sloppy ? n + 2 : n);
     const writeSurvives = sloppy ? Math.min(n, n + 2 - w) : n - w;
-    const readSurvives = n - r;
+    const readSurvives = sloppy ? Math.min(n, n + 2 - r) : n - r;
 
     return {
       settings: { n, w, r, states: states.slice(0, n), stall: !!stall, sloppy: !!sloppy },
@@ -180,6 +211,7 @@
       readSets,
       staleSets,
       sets,
+      readStandIns,
       thisReadUnsure,
       both,
       holds,
@@ -269,13 +301,13 @@
       ask: 'Writes wait for {w} of {n} acks and a read asks {r}, so {r} + {w} = {n}. Of the {sets} read sets of {r}, how many can miss v{new}?',
       choices: [
         { text: 'None: {r} + {w} covers all {n}', value: 'none' },
-        { text: '{three} of {sets}, as with {two}', value: 'asTwo' },
+        { text: '{three} of {sets}, as a read of {two} would', value: 'asTwo' },
         { text: '{one} of {sets}', value: 'one' },
       ],
       truth: 'miss',
       reveal:
         '{miss} of {sets}: R{a}, R{b} and R{c} share no replica with the {w} that acked, and that is the read drawn here. It got v{new} only because v{new} reached R{lucky} at {land}, before the read did, and it repaired R{p} and R{q} before returning ({ms} in all). Had v{new} reached R{lucky} after the read, it would return v{old}. With R + W = N exactly one read set misses the write; R {r1} makes it {r1} + {w} > {n}, and none can.',
-      focus: ['strip', 'reader'],
+      focus: ['strip', 'reader', 'cards'],
       hide: ['count'],
       slots() {
         const m = run(this.setup);
@@ -312,7 +344,7 @@
       title: 'One replica down at ALL',
       setup: { n: 3, w: 3, r: 1, states: ['up', 'up', 'down'], stall: 0, sloppy: 0 },
       act: { run: 'write-read' },
-      ask: 'Writes wait for ALL {n} replicas, reads for ONE, and R{d} is down. What happens?',
+      ask: 'Writes wait for ALL {n} replicas, reads for ONE, and R{d} has been down for a minute, so the cluster knows. What happens?',
       choices: [
         { text: 'Writes are refused at once; reads still work', value: 'refused' },
         { text: 'Writes time out after {timeout}; reads still work', value: 'timedOut' },
@@ -335,7 +367,7 @@
           refused: word('refused'),
           timedOut: word('timed out'),
           both: word('both'),
-          outcome: word(m.read.outcome === 'fails' ? 'reads fail' : outcome),
+          outcome: word(m.read.set.length ? outcome : 'reads fail'),
           rr: rn(m.read.set[0]),
           old: num(VERSIONS.old),
           new: num(VERSIONS.new),
@@ -360,7 +392,7 @@
       ],
       truth: 'writeMs',
       reveal:
-        "{writeMs}: a write goes to all {n} and returns at the {wth} ack, which is now R{f}'s, across zones; ALL would wait {slow} for R{s}. ONE stays {one}. Reads hedge such stalls with speculative retry, asking one more replica; a write already goes to all, so only W and replica placement help.",
+        "{writeMs}: a write goes to all {n} and returns at the {wth} ack, which is now R{f}'s, across data centers; ALL would wait {slow} for R{s}. ONE stays {one}. Reads hedge such stalls with speculative retry, asking one more replica; a write already goes to all, so only W and replica placement help.",
       focus: ['latency', 'writer'],
       hide: ['write-time', 'verdict'],
       slots() {
@@ -429,9 +461,9 @@
       ],
       truth: 'outcome',
       reveal:
-        'Yes, {miss} of the {sets}: a read never asks the stand-ins, and of the home replicas only R{h} has v{new}, so a read of R{a} and R{b}, like this one, returns v{old}. H{s1} and H{s2} replay v{new} to R{a} and R{b} shortly after they return (hinted handoff); until then R + W > N promises nothing. A sloppy quorum trades the overlap for write availability: {strict} to {loose} here.',
+        'Yes, {miss} of the {sets}: R{a} and R{b} are back, so a read goes to the home replicas again, not to the stand-ins holding the write, and of the home replicas only R{h} has v{new}, so a read of R{a} and R{b}, like this one, returns v{old}. H{s1} and H{s2} replay v{new} to R{a} and R{b} shortly after they return (hinted handoff); until then R + W > N promises nothing. A sloppy quorum trades the overlap for write availability: {strict} to {loose} here.',
       focus: ['standins', 'strip'],
-      hide: ['verdict', 'count'],
+      hide: ['verdict', 'count', 'read'],
       slots() {
         const m = run(this.setup);
         const [a, b] = m.replicas.filter((x) => x.state === 'back').map((x) => x.id);
@@ -465,7 +497,7 @@
       ask: 'The middle replica keeps pausing for {pause}. Choose N, W and R so that no read set can miss v{new}, reads take under {gr}, writes under {gw}, and writes survive at least {k} replica down.',
       goal: CHALLENGE_GOAL,
       reveal:
-        "N {n}, W {w}, R {r}: {r} + {w} > {n}, the read hears R{a} and R{b} in {read}, and the {wth} ack, R{c}'s, arrives at {write}, so the paused R{s} is never waited on. The cost is {n} copies of every write, and writes succeed {avail} of the time against QUORUM of {three}'s {q3}. In an interview, also name speculative retry (ask one more replica when one is slow), and say why LOCAL_QUORUM is not the answer here: a quorum inside the reader's data center need not overlap a write acknowledged in the writer's.",
+        "N {n}, W {w}, R {r}: {r} + {w} > {n}, the read hears R{a} and R{b} in {read}, and the {wth} ack, R{c}'s, arrives at {write}, so the paused R{s} is never waited on. The cost is {n} copies of every write, and writes succeed {avail} of the time against QUORUM of {three}'s {q3}. In an interview, also name speculative retry (ask one more replica when one is slow), and say why LOCAL_QUORUM is not the answer here: a LOCAL_QUORUM read in the reader's data center need not overlap a LOCAL_QUORUM write in the writer's, and EACH_QUORUM writes would mean all {each} here, waiting for the paused R{s}.",
       focus: ['reader', 'latency'],
       hide: [],
       solution: { n: 5, w: 4, r: 2 },
@@ -492,6 +524,7 @@
           avail: nines(m.avail.write),
           three: num(3),
           q3: nines(run({ ...BASE, w: 2 }).avail.write),
+          each: num(eachQuorum(s.n)),
         };
       },
     },
@@ -526,11 +559,14 @@
   const api = {
     STALL_MS,
     TIMEOUT_MS,
+    READ_TIMEOUT_MS,
+    CROSS_DC_ONE_WAY,
     HINT_WINDOW_HOURS,
     DOWN_CHANCE,
     VERSIONS,
     ONE_WAY,
-    ZONES,
+    DCS,
+    eachQuorum,
     STAND_IN_ONE_WAY,
     STATES,
     STATE_NAMES,

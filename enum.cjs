@@ -59,6 +59,7 @@ check(count === 34, '34 challenge settings');
 check(passing.length === 1 && passing[0] === 'N5 W4 R2', 'exactly N5 W4 R2 passes');
 const sol = M.run({ n: 5, w: 4, r: 2, states: Array(5).fill('up'), stall: 1, sloppy: 0 });
 check(sol.read.ms === 3 && sol.write.ms === 41, 'the solution reads in 3 ms and writes in 41 ms');
+check(M.eachQuorum(5) === 5, 'EACH_QUORUM at N 5 waits for all 5, as the reveal says "all"');
 console.log('status at setup:', M.goalStatus(M.run(challenge.setup)).join(' | '));
 console.log('status at solution:', M.goalStatus(sol).join(' | '));
 
@@ -81,6 +82,12 @@ const facts = [
   ['QUORUM of 3 writes', M.formatNines(M.run(M.BASE).avail.write), '99.97%'],
   ['sloppy QUORUM of 3 writes', M.formatNines(M.run({ ...M.BASE, sloppy: 1 }).avail.write), '99.99999%'],
   ['N5 W4 writes', M.formatNines(sol.avail.write), '99.90%'],
+  ['E5 read set (home replicas again)', M.run({ ...M.BASE, states: ['up', 'back', 'back'], sloppy: 1 }).read.set.join(), '1,2'],
+  ['sloppy read uses H1 for the down R3', M.run({ ...M.BASE, r: 3, states: ['up', 'up', 'down'], sloppy: 1 }).read.set.join(), '0,1,3'],
+  ['sloppy N3 W2 R2, R2 and R3 down: H1 and H2 answer', M.run({ ...M.BASE, states: ['up', 'down', 'down'], sloppy: 1 }).verdict, 'fresh'],
+  ['a stand-in read round trip', M.run({ ...M.BASE, r: 3, states: ['up', 'up', 'down'], sloppy: 1 }).all[3].readRtt, 43],
+  ['read short of a stopped replica times out', M.run({ ...M.BASE, states: ['up', 'mid', 'mid'] }).read.outcome, 'timed-out'],
+  ['read short of known-down replicas fails at once', M.run({ ...M.BASE, states: ['up', 'down', 'down'] }).read.outcome, 'fails'],
 ];
 for (const [name, got, want] of facts) {
   console.log(`${String(got) === String(want) ? 'ok  ' : 'FAIL'} ${name}: ${got}`);
@@ -92,6 +99,10 @@ let settings = 0;
 const verdicts = {};
 let freshClaim = 0;
 let survivesClaim = 0;
+let readSurvivesClaim = 0;
+let refusedNoCopy = 0;
+let standInReads = 0;
+const readOutcomes = {};
 let nines100 = 0;
 const stateLists = (n) => {
   const out = [];
@@ -111,7 +122,7 @@ for (const n of M.SIZES)
             settings++;
             const m = M.quorumScenario(n, w, r, states, stall, sloppy);
             verdicts[m.verdict] = (verdicts[m.verdict] ?? 0) + 1;
-            if (!sloppy && r + w > n && m.write.outcome === 'acked' && m.read.outcome !== 'fails') {
+            if (!sloppy && r + w > n && m.write.outcome === 'acked' && m.read.set.length) {
               freshClaim++;
               check(m.verdict === 'fresh' && m.staleSets === 0, `strict R + W > N not fresh: N${n} W${w} R${r} ${states} stall ${stall}`);
             }
@@ -120,11 +131,28 @@ for (const n of M.SIZES)
               survivesClaim++;
               check(m.write.outcome === 'acked', `survives ${m.survives.write} but refused with ${down} down: N${n} W${w} sloppy ${sloppy}`);
             }
+            const stillDown = states.filter((s) => s === 'down').length;
+            if (!states.includes('mid') && stillDown <= m.survives.read) {
+              readSurvivesClaim++;
+              check(m.read.set.length > 0, `reads survive ${m.survives.read} but fail with ${stillDown} down: N${n} W${w} R${r} ${states} sloppy ${sloppy}`);
+            }
+            if (m.readStandIns.length) {
+              standInReads++;
+              const written = m.write.outcome !== 'refused';
+              check(written ? m.read.returns === M.VERSIONS.new : m.read.returns !== M.VERSIONS.new, 'a stand-in answers with the write it holds, or no copy');
+            }
+            if (m.read.outcome === 'no-copy') {
+              refusedNoCopy++;
+              check(m.verdict === 'refused', 'only a refused write leaves a read with no copy');
+            }
+            if (!m.read.set.length) readOutcomes[m.read.outcome] = (readOutcomes[m.read.outcome] ?? 0) + 1;
             if (m.write.outcome === 'acked') check(m.write.ms < M.TIMEOUT_MS, 'acked before the timeout');
             for (const p of [m.avail.write, m.avail.read]) if (M.formatNines(p) === '100.00%' || /^100/.test(M.formatNines(p))) nines100++;
           }
 console.log(`${settings} settings; verdicts ${JSON.stringify(verdicts)}`);
-console.log(`strict R + W > N with a completed read: ${freshClaim}, all fresh; "survives k down" held in ${survivesClaim}`);
+console.log(`strict R + W > N with a completed read: ${freshClaim}, all fresh; "survives k down" held in ${survivesClaim} for writes, ${readSurvivesClaim} for reads`);
+console.log(`sloppy reads that used a stand-in: ${standInReads}; reads that did not complete: ${JSON.stringify(readOutcomes)}`);
+console.log(`refused sloppy writes whose read heard only stand-ins with no copy of the key: ${refusedNoCopy}`);
 check(settings === 104704, '104,704 settings');
 check(nines100 === 0, 'nines never print 100%');
 check(Object.keys(verdicts).length === 7, 'all seven verdicts occur');

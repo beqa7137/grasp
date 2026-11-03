@@ -345,6 +345,18 @@
       .play path {
         fill: var(--g-accent);
       }
+      .play:disabled {
+        cursor: default;
+        opacity: 0.55;
+      }
+      .replicas {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+      .replicas > * {
+        pointer-events: auto;
+      }
       .card-hit {
         position: absolute;
         padding: 0;
@@ -357,6 +369,9 @@
       .card-hit:focus-visible {
         outline: var(--g-focus-ring);
         outline-offset: 3px;
+      }
+      .card-hit[aria-disabled='true'] {
+        cursor: default;
       }
       .handle {
         position: absolute;
@@ -488,6 +503,14 @@
         stroke: var(--g-line-strong);
         stroke-dasharray: 3 3;
       }
+      .box.asked {
+        stroke: var(--g-viz-considering);
+        stroke-width: 1.5;
+      }
+      .box.both {
+        stroke: var(--g-viz-final);
+        stroke-width: 2.5;
+      }
       .card {
         fill: var(--g-raised);
         stroke: var(--g-line-strong);
@@ -609,7 +632,7 @@
       }
       .pip {
         fill: none;
-        stroke: var(--g-line-strong);
+        stroke: var(--g-stroke);
         stroke-width: 1.25;
       }
       .next-pip {
@@ -727,6 +750,11 @@
       }
       .dot.read {
         fill: var(--g-viz-considering);
+      }
+      .dot.read.standin {
+        fill: var(--g-viz-stage);
+        stroke: var(--g-viz-considering);
+        stroke-width: 1.5;
       }
       .ring {
         fill: none;
@@ -1049,7 +1077,7 @@
           const spans = parts
             .map(([t, r, cls = '', dx = 0], i) => `<tspan class="t-${r} ${cls}"${dx ? ` dx="${dx}"` : ''}>${esc(t)}</tspan>`)
             .join('');
-          const attrs = `x="${x}" y="${y}" text-anchor="${anchor}"${o.owner ? ` data-owner="${o.owner}"` : ''}${o.ground ? ' data-ground="1"' : ''}`;
+          const attrs = `x="${x}" y="${y}" text-anchor="${anchor}"${o.owner ? ` data-owner="${o.owner}"` : ''}${o.ground ? ' data-ground="1"' : ''}${o.names ? ` data-names="${o.names}"` : ''}`;
           this.add(o.layer ?? 'text', `<text class="${o.textCls ?? ''}" ${attrs}>${spans}</text>`);
           return box;
         }
@@ -1100,18 +1128,27 @@
       // ---------- What the open question hides, on every surface (one map: known.md bug 1).
       function hiding(view) {
         const h = new Set(view.hide);
+        const read = h.has('read');
+        const verdict = h.has('verdict') || read;
+        const write = h.has('write');
+        const writeTime = write || h.has('write-time');
+        const count = h.has('count') || write;
         return {
-          count: h.has('count') || h.has('write'),
-          verdict: h.has('verdict'),
-          write: h.has('write'),
-          writeTime: h.has('write') || h.has('write-time'),
+          count,
+          verdict,
+          write,
+          writeTime,
+          // Which replicas acked, as the strip colours them (the fan's split follows writeTime).
+          ackers: count || writeTime,
           avail: h.has('availability'),
-          repair: h.has('repair') || h.has('verdict'),
-          readTime: h.has('repair') || h.has('verdict'),
+          repair: h.has('repair') || verdict,
+          readTime: h.has('repair') || verdict,
+          read,
         };
       }
 
       const STATE_WORD = { up: 'up', down: 'down', mid: 'stopped', back: 'missed v8' };
+      const STATE_SHORT = { up: null, down: 'down', mid: 'stopped', back: 'missed' };
       const NEXT = { up: 'down', down: 'mid', mid: 'back', back: 'up' };
       const NEXT_PHRASE = {
         down: 'take it down',
@@ -1119,6 +1156,7 @@
         back: 'bring it back, having missed the write',
         up: 'bring it up',
       };
+      const nameList = (names) => (names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : names[0]);
 
       function pillOf(m, hid) {
         const r = m.read;
@@ -1130,7 +1168,7 @@
           case 'stale':
             return { tone: 'critical', text: `returns v7 · stale · ${time}` };
           case 'refused':
-            return { tone: 'neutral', text: `write refused · read ${time}` };
+            return r.outcome === 'no-copy' ? { tone: 'critical', text: `write refused · read finds no copy · ${time}` } : { tone: 'neutral', text: `write refused · read ${time}` };
           case 'timed-out':
             return { tone: 'warn', text: `write timed out · returns v8 · ${time}` };
           case 'old':
@@ -1138,7 +1176,9 @@
           case 'failed-write':
             return { tone: 'neutral', text: `write timed out, applied nowhere · read ${time}` };
           default:
-            return { tone: 'critical', text: `read fails · ${r.reachable} reachable, ${r.needed} needed` };
+            return r.outcome === 'timed-out'
+              ? { tone: 'critical', text: `read times out · ${r.reachable} answered, ${r.needed} needed` }
+              : { tone: 'critical', text: `read fails · ${r.reachable} reachable, ${r.needed} needed` };
         }
       }
 
@@ -1154,6 +1194,7 @@
         D.add('marks', `<circle class="xground" cx="${cx}" cy="${cy}" r="${s + 3}"/><path class="xmark" d="M${cx - s} ${cy - s}l${2 * s} ${2 * s}M${cx + s} ${cy - s}l${-2 * s} ${2 * s}"/>`);
         D.mark({ x0: cx - s - 2, x1: cx + s + 2, y0: cy - s - 2, y1: cy + s + 2 }, owner);
       }
+      const pauseGlyph = (px, py) => `<rect class="pause" x="${px}" y="${py}" width="3" height="10" rx="1"/><rect class="pause" x="${px + 5}" y="${py}" width="3" height="10" rx="1"/>`;
 
       // ---------- A W or R handle block: the track with its stops, the level names and the availability caption.
       function handleBlock(D, o) {
@@ -1167,17 +1208,42 @@
         for (let j = 1; j <= n; j++) D.add('marks', `<circle class="stop" cx="${pos(j)}" cy="${ty}" r="2.5"/>`);
         for (let j = 1; j <= n; j++) {
           const name = M.levelName(j, n) ?? String(j);
-          const anchor = 'middle';
-          D.text(pos(j), y + 62, [[name, j === k ? 'smallB' : 'small', j === k ? 'ink' : 'muted']], { anchor, owner: id });
+          D.text(pos(j), y + 62, [[name, j === k ? 'smallB' : 'small', j === k ? 'ink' : 'muted']], { anchor: 'middle', owner: id });
         }
         const pct = M.formatNines(succeed);
-        const full = hid ? `survives ? down · ${verb} succeed ?` : `survives ${survives} down · ${verb} succeed ${pct}`;
-        const short = hid ? 'survives ? · succeeds ?' : `survives ${survives} down · ${pct}`;
-        const cap = tw(full, 'small') <= w ? full : short;
+        const forms = hid
+          ? [`survives ? down · ${verb} succeed ?`, `survives ? down · ${verb} ?`]
+          : [`survives ${survives} down · ${verb} succeed ${pct}`, `survives ${survives} down · ${verb} ${pct}`, `survives ${survives} down · ${pct}`];
+        const cap = forms.find((t) => tw(t, 'small') <= w) ?? forms.at(-1);
         D.text(x, y + 81, [[cap, 'small', 'muted']], { owner: id });
         D.hit('handle', pos(k) - 22, ty - 22, 44, 44, { owner: id, label: `${letter} ${M.levelName(k, n) ?? k}` });
         D.region('handles', { x: x - 4, y: y - 2, w: w + 8, h: 90 });
       }
+
+      // Every round trip a lane can show at this N, for reserving room for the tallest stack of dots.
+      function possibleRtts(n) {
+        const ow = M.ONE_WAY[n];
+        const s = M.stalledIndex(n);
+        const write = [...ow.map((d) => 2 * d), 2 * ow[s] + M.STALL_MS, ...M.STAND_IN_ONE_WAY.map((d) => 2 * d)];
+        const back = [...ow].reverse();
+        const read = [...back.map((d) => 2 * d), 2 * back[s] + M.STALL_MS, ...M.STAND_IN_ONE_WAY.map((d) => 2 * (M.CROSS_DC_ONE_WAY + d))];
+        return { write, read };
+      }
+      const DOT_R = 4.5;
+      const STACK_GAP = 2 * DOT_R + 2;
+      const STACK_STEP = 10;
+      // Dots closer than a dot and a gap stack upwards in time order: the earliest sits on the lane.
+      function stackDots(items) {
+        const sorted = [...items].sort((a, b) => a.t - b.t || a.order - b.order);
+        let prev = null;
+        for (const d of sorted) {
+          d.k = prev && d.x - prev.x < STACK_GAP ? prev.k + 1 : 0;
+          d.base = d.k ? prev.base : d;
+          prev = d;
+        }
+        return sorted;
+      }
+      const tallestStack = (values, X) => Math.max(1, ...stackDots(values.map((t, i) => ({ t, x: X(t), order: i }))).map((d) => d.k + 1));
 
       // ---------- The stage.
       function buildStage(W, m, view) {
@@ -1189,23 +1255,36 @@
         const reps = m.replicas;
         const write = m.write;
         const read = m.read;
+        const readDone = read.set.length > 0;
+        // Five cards under about 300 px: chips drop the unit, which the key, the axis and Describe carry.
+        const unitless = !wide && n === 5 && W < 300;
+        const chipMs = (v) => (unitless ? fmt(v).replace(' ms', '') : fmt(v));
 
-        // Header.
+        // Header: Play, the label and the line key (beside the label when wide, its own row when narrow).
         D.hit('play', pad - 6, 2, 44, 44, { owner: 'play' });
         D.text(pad + 42, 29, 'One write, then one read', { role: 'label' });
+        const keyItems = [['write', 'link write'], ['read', 'link read'], ...(hid.repair ? [] : [['repair', 'link repair']])];
+        let y = 48;
         if (wide) {
           let lx = W - pad;
-          for (const [name, cls] of [
-            ...(hid.repair ? [] : [['repair', 'link repair']]),
-            ['read', 'link read'],
-            ['write', 'link write'],
-          ]) {
-            const tw0 = tw(name, 'small');
+          for (const [name, cls] of [...keyItems].reverse()) {
             D.text(lx, 29, [[name, 'small', 'muted']], { anchor: 'end' });
-            lx -= tw0 + 6;
+            lx -= tw(name, 'small') + 6;
             D.add('marks', `<line class="${cls} legend-line" x1="${lx - 16}" y1="25" x2="${lx}" y2="25"/>`);
             lx -= 30;
           }
+        } else {
+          let lx = pad;
+          const ky = y + 8;
+          for (const [name, cls] of keyItems) {
+            D.add('marks', `<line class="${cls} legend-line" x1="${lx}" y1="${ky - 4}" x2="${lx + 16}" y2="${ky - 4}"/>`);
+            D.text(lx + 22, ky, [[name, 'small', 'muted']]);
+            lx += 22 + tw(name, 'small') + 14;
+          }
+          const unitNote = 'times in ms';
+          if (unitless && W - pad - tw(unitNote, 'small') >= pad + 22 * 3 + 14 * 2 + tw('write', 'small') + tw('read', 'small') + tw('repair', 'small') + 8)
+            D.text(W - pad, ky, [[unitNote, 'small', 'muted']], { anchor: 'end' });
+          y += 16;
         }
 
         // Card columns.
@@ -1214,24 +1293,19 @@
         const gap = n > 1 ? (W - 2 * pad - n * cw) / (n - 1) : 0;
         const cx = (i) => r1(pad + i * (cw + gap) + cw / 2);
         const cardH = wide ? 80 : 72;
+        // Narrow cards carry a short state word in the name row when there is room for one (not five on a phone).
+        const cardWords = wide || cw >= 68;
 
-        // Writer row, with the W handle beside it (wide) or above it (narrow).
-        const writerW = wide ? 156 : Math.round(Math.min(150, Math.max(124, (W - 2 * pad) * 0.5)));
+        // Writer row, with the W handle beside it (wide) or above it (narrow). The status breaks only between its parts.
         const standGap = 14;
-        let y = 48;
-        const writerH = wide ? 84 : 88;
+        const longest = Math.max(tw(`refused: ${M.SIZES.at(-1) - 1} live, ${M.SIZES.at(-1)} needed`, 'capB'), tw('outcome after your answer', 'capB'));
+        const longestPart = Math.max(tw(`${M.SIZES.at(-1) - 1} live, ${M.SIZES.at(-1)} needed`, 'capB'), tw('after your answer', 'capB'));
+        const oneLineW = longest + 24;
+        const writerOneLine = wide && W - pad - (pad + oneLineW + standGap + 112 + 24) >= 200;
+        const writerW = writerOneLine ? oneLineW : wide ? 156 : Math.round(Math.min((W - 2 * pad) * 0.6, Math.max(124, (W - 2 * pad) * 0.5, longestPart + 24)));
+        const writerH = writerOneLine ? 84 : wide ? 92 : 88;
         let writerY;
-        const wHandle = {
-          id: 'whandle',
-          k: w,
-          n,
-          hid: hid.avail,
-          letter: 'W',
-          what: wide ? 'acks a write waits for' : 'acks a write waits for',
-          survives: m.survives.write,
-          succeed: m.avail.write,
-          verb: 'writes',
-        };
+        const wHandle = { id: 'whandle', k: w, n, hid: hid.avail, letter: 'W', what: 'acks a write waits for', survives: m.survives.write, succeed: m.avail.write, verb: 'writes' };
         if (wide) {
           writerY = y + 4;
           const hx = pad + writerW + standGap + 112 + 24;
@@ -1245,17 +1319,28 @@
         const wx = pad;
         D.add('marks', `<rect class="box" x="${wx}" y="${writerY}" width="${writerW}" height="${writerH}" rx="10"/>`);
         D.mark({ x0: wx, x1: wx + writerW, y0: writerY, y1: writerY + writerH }, 'writer');
-        const wlabel = tw('Writer · zone A', 'label') <= writerW - 20 ? 'Writer · zone A' : 'Writer';
+        const wlabel = tw('Writer · DC A', 'label') <= writerW - 20 ? 'Writer · DC A' : 'Writer';
         D.text(wx + 12, writerY + 20, [[wlabel, 'label']], { owner: 'writer', textCls: 'on-card' });
         D.text(wx + 12, writerY + 43, [['v8', wide ? 'name' : 'nameS', 'ink'], ['Artemis', 'cap', 'muted', 6]], { owner: 'writer', textCls: 'on-card' });
         let status;
-        if (hid.write) status = ['outcome after your answer', 'muted'];
-        else if (write.outcome === 'acked') status = [hid.writeTime ? 'acked in ?' : `acked in ${fmt(write.ms)}`, 'good'];
-        else if (write.outcome === 'refused') status = [`refused: ${write.live} live, ${write.needed} needed`, 'bad'];
-        else status = [`timed out at ${M.formatDuration(M.TIMEOUT_MS)}`, 'warn'];
-        const statusLines = wrap(status[0], 'capB', writerW - 22);
+        if (hid.write) status = [['outcome', 'after your answer'], 'muted'];
+        else if (write.outcome === 'acked') status = [[hid.writeTime ? 'acked in ?' : `acked in ${fmt(write.ms)}`], 'good'];
+        else if (write.outcome === 'refused') status = [['refused:', `${write.live} live, ${write.needed} needed`], 'bad'];
+        else status = [[`timed out at ${M.formatDuration(M.TIMEOUT_MS)}`], 'warn'];
+        const oneLine = status[0].join(' ');
+        const statusLines = tw(oneLine, 'capB') <= writerW - 22 ? [oneLine] : status[0];
         statusLines.forEach((line, i) => D.text(wx + 12, writerY + 64 + i * 16, [[line, 'capB', status[1]]], { owner: 'writer', textCls: 'on-card' }));
         D.region('writer', { x: wx - 2, y: writerY - 2, w: writerW + 4, h: writerH + 4 });
+
+        // How a write line is drawn: neutral while the write hides, one style while which replicas acked hides.
+        const writeCls = (id) => {
+          if (hid.write) return 'pending';
+          if (write.outcome === 'refused') return 'unsent';
+          if (hid.writeTime) return 'write';
+          const solid = write.outcome === 'timed-out' ? write.applied : write.acked;
+          return solid.includes(id) ? 'write' : 'write weak';
+        };
+        const both = hid.verdict ? [] : m.both;
 
         // Stand-ins beside the writer (sloppy only).
         if (m.settings.sloppy) {
@@ -1266,9 +1351,11 @@
             const s = m.standIns[j];
             const sy = writerY + j * (sh + 8);
             const owner = `H${j + 1}`;
-            D.add('marks', `<rect class="box ${s ? 'dashed' : 'idle'}" x="${sx}" y="${sy}" width="${sw}" height="${sh}" rx="8"/>`);
+            const asked = s && !hid.read && read.set.includes(s.id);
+            const boxCls = !s ? 'idle' : both.includes(s.id) ? 'both' : asked ? 'asked' : 'dashed';
+            D.add('marks', `<rect class="box ${boxCls}" x="${sx}" y="${sy}" width="${sw}" height="${sh}" rx="8"/>`);
             D.mark({ x0: sx, x1: sx + sw, y0: sy, y1: sy + sh }, owner);
-            D.add('links', `<line class="link ${s ? 'write' : 'unsent'}" x1="${wx + writerW}" y1="${sy + sh / 2}" x2="${sx}" y2="${sy + sh / 2}"/>`);
+            D.add('links', `<line class="link ${s ? writeCls(s.id) : 'unsent'}" x1="${wx + writerW}" y1="${sy + sh / 2}" x2="${sx}" y2="${sy + sh / 2}"/>`);
             D.link(sampleLine(wx + writerW, sy + sh / 2, sx, sy + sh / 2), `writer ${owner}`);
             D.text(sx + 8, sy + sh / 2 + 5, [[owner, 'nameS', s ? 'ink' : 'muted']], { owner, textCls: 'on-card' });
             if (s) {
@@ -1298,25 +1385,24 @@
           const owner = `R${i + 1}`;
           if (rep.knownDown) return;
           const end = [cx(i), wChipY];
-          let cls;
-          if (hid.write) cls = 'pending';
-          else if (write.outcome === 'refused') cls = 'unsent';
-          else if (write.acked.includes(i) && write.outcome === 'acked') cls = 'write';
-          else cls = 'write weak';
-          D.add('links', `<line class="link ${cls}" x1="${wApex[0]}" y1="${wApex[1]}" x2="${end[0]}" y2="${end[1]}"/>`);
+          D.add('links', `<line class="link ${writeCls(i)}" data-write="${i}" x1="${wApex[0]}" y1="${wApex[1]}" x2="${end[0]}" y2="${end[1]}"/>`);
           D.link(sampleLine(wApex[0], wApex[1], end[0], end[1]), `writer ${owner}`);
           let t;
           let chipCls = 'sent';
           let ink = 'ink';
-          if (write.outcome === 'refused' && !hid.write) {
+          if (hid.write) {
+            t = '?';
+            chipCls = 'unknown';
+            ink = 'muted';
+          } else if (write.outcome === 'refused') {
             t = wide ? 'not sent' : '–';
             chipCls = 'quiet';
             ink = 'muted';
-          } else if (rep.state === 'mid' && !hid.write) {
+          } else if (rep.state === 'mid') {
             t = wide ? 'no ack' : '×';
             chipCls = 'quiet';
             ink = 'bad';
-          } else t = fmt(rep.writeRtt);
+          } else t = chipMs(rep.writeRtt);
           if (i === wthId && !hid.writeTime) chipCls += ' wth';
           const cwid = Math.max(26, tw(t, 'mono') + 10);
           D.add('marks', `<rect class="chip ${chipCls}" x="${end[0] - cwid / 2}" y="${wChipY}" width="${cwid}" height="${chipH}" rx="8"/>`);
@@ -1324,8 +1410,26 @@
           D.text(end[0], wChipY + 12, [[t, 'mono', ink]], { anchor: 'middle', owner, textCls: 'on-chip' });
         });
 
+        // What each card shows at rest, after what the open question hides.
+        const shown = reps.map((rep, i) => {
+          if (hid.write && rep.state !== 'down' && rep.state !== 'mid') return '?';
+          if (hid.repair && read.repairs.includes(i) && !write.applied.includes(i)) return 7;
+          return m.holds[i];
+        });
+        const quietRead = hid.verdict || hid.write;
+        const answerOf = (i) => read.answers.find((a) => a.id === i);
+        // The stale race: v8 reached the replica after the read did. Its lucky counterpart: a read set no ack covers that
+        // heard v8 anyway.
+        const race = reps.map((rep, i) => {
+          const a = answerOf(i);
+          return !quietRead && !!a && a.value === 7 && write.applied.includes(i) && rep.landAt > a.readAt;
+        });
+        const lucky = reps.map((rep, i) => {
+          const a = answerOf(i);
+          return !quietRead && !hid.count && !!a && m.thisReadUnsure && a.value === 8;
+        });
+
         // Replica cards.
-        const both = hid.verdict ? [] : m.both;
         reps.forEach((rep, i) => {
           const owner = `R${i + 1}`;
           const x = r1(cx(i) - cw / 2);
@@ -1338,25 +1442,45 @@
           D.add('marks', `<rect class="${cls}" x="${x}" y="${cardY}" width="${cw}" height="${cardH}" rx="8"/>`);
           D.mark({ x0: x, x1: x + cw, y0: cardY, y1: cardY + cardH }, owner);
           const ix = wide ? 10 : 5;
-          D.text(x + ix, cardY + (wide ? 22 : 18), [[owner, wide ? 'name' : 'nameS', st === 'down' ? 'muted' : 'ink']], { owner, textCls: 'on-card' });
-          const zone = wide ? `zone ${rep.zone}` : rep.zone;
-          D.text(x + cw - ix, cardY + (wide ? 22 : 18), [[zone, 'small', 'muted']], { anchor: 'end', owner, textCls: 'on-card' });
-          // The value the replica holds once the scenario has run.
-          const holds = m.holds[i];
+          const nameY = cardY + (wide ? 22 : 18);
+          D.text(x + ix, nameY, [[owner, wide ? 'name' : 'nameS', st === 'down' ? 'muted' : 'ink']], { owner, textCls: 'on-card' });
           const repaired = read.repairs.includes(i) && !hid.repair;
-          let shown = holds;
-          if (read.repairs.includes(i) && hid.repair) shown = 7;
-          if (hid.write && st !== 'down' && st !== 'mid') shown = '?';
+          // The state word: repaired first (a repair lands before a raced v8 does), then the race and its lucky
+          // counterpart, paused and the state.
+          let word = null;
+          if (repaired) word = { full: 'repaired', short: 'repaired', cls: 'good' };
+          else if (race[i]) word = { full: `v8 at ${fmt(rep.landAt)}`, short: `at ${fmt(rep.landAt)}`, cls: 'warn' };
+          else if (lucky[i]) word = { full: `v8 at ${fmt(rep.landAt)}`, short: `at ${fmt(rep.landAt)}`, cls: 'good' };
+          else if (rep.pause && st === 'up') word = { full: 'paused', short: 'paused', cls: 'warn' };
+          else if (st === 'back' && hid.write) word = { full: 'back', short: 'back', cls: 'muted' };
+          else word = { full: STATE_WORD[st], short: STATE_SHORT[st], cls: 'muted' };
+          const pipY = cardY + cardH - (wide ? 14 : 12);
+          const pr = wide ? 3.5 : 2.5;
+          const pg = wide ? 11 : 8;
+          const nameRoom = cw - 2 * ix - tw(owner, wide ? 'name' : 'nameS') - 6;
+          let nameSlot = null;
+          let pipWord = null;
+          if (wide && tw(word.full, 'small') <= cw - (ix + 3 * pg + 2 * pr + 6) - 6) pipWord = word;
+          else if (cardWords && word.short && tw(word.short, 'small') <= nameRoom) nameSlot = { t: word.short, cls: word.cls };
           const chipY = cardY + (wide ? 32 : 26);
+          const pauseInName = !cardWords && rep.pause;
+          if (nameSlot) D.text(x + cw - ix, nameY, [[nameSlot.t, 'small', nameSlot.cls]], { anchor: 'end', owner, textCls: 'on-card' });
+          else if (pauseInName) D.add('marks', pauseGlyph(x + cw - ix - 8, nameY - 9));
+          else {
+            const dc = wide ? `DC ${rep.dc}` : rep.dc;
+            if (tw(dc, 'small') <= nameRoom) D.text(x + cw - ix, nameY, [[dc, 'small', 'muted']], { anchor: 'end', owner, textCls: 'on-card' });
+          }
+          // The value the replica holds once the scenario has run.
+          const value = shown[i];
           if (st === 'mid' && !hid.write) {
             xGlyph(D, x + ix + 8, chipY + 9, owner, 4);
-          } else if (shown !== null) {
-            const label = shown === '?' ? '?' : `v${shown}`;
-            const word = wide && shown === 8 && cw >= 100 ? 'Artemis' : wide && shown === 7 && cw >= 100 ? 'Apollo' : '';
-            const chw = tw(label, 'mono') + (word ? tw(word, 'small') + 5 : 0) + 12;
-            const ccls = shown === '?' ? 'unknown' : shown === 8 ? 'new' : 'old';
+          } else if (value !== null) {
+            const label = value === '?' ? '?' : `v${value}`;
+            const name = wide && value === 8 && cw >= 100 ? 'Artemis' : wide && value === 7 && cw >= 100 ? 'Apollo' : '';
+            const chw = tw(label, 'mono') + (name ? tw(name, 'small') + 5 : 0) + 12;
+            const ccls = value === '?' ? 'unknown' : value === 8 ? 'new' : 'old';
             D.add('marks', `<rect class="chip ${ccls}" x="${x + ix}" y="${chipY}" width="${chw}" height="18" rx="5"/>`);
-            D.text(x + ix + 6, chipY + 13, word ? [[label, 'mono', shown === 8 ? 'chip-new-ink' : 'muted'], [word, 'small', 'muted', 5]] : [[label, 'mono', shown === 8 ? 'chip-new-ink' : shown === 7 ? 'muted' : 'muted']], {
+            D.text(x + ix + 6, chipY + 13, name ? [[label, 'mono', value === 8 ? 'chip-new-ink' : 'muted'], [name, 'small', 'muted', 5]] : [[label, 'mono', value === 8 ? 'chip-new-ink' : 'muted']], {
               owner,
               textCls: 'on-chip',
             });
@@ -1366,45 +1490,24 @@
                 D.add('marks', `<path class="repair-glyph" d="M${gx + 4} ${chipY + 5}a4.5 4.5 0 1 0 1 5"/><path class="repair-glyph" d="M${gx + 5} ${chipY + 2}v3.5h-3.5"/>`);
             }
           }
-          if (rep.pause) {
-            const px = x + cw - ix - 8;
-            const py = chipY + 4;
-            D.add('marks', `<rect class="pause" x="${px}" y="${py}" width="3" height="10" rx="1"/><rect class="pause" x="${px + 5}" y="${py}" width="3" height="10" rx="1"/>`);
-          }
+          if (rep.pause && !pauseInName) D.add('marks', pauseGlyph(x + cw - ix - 8, chipY + 4));
           // State pips: up, down, stops mid-write, back.
-          const pipY = cardY + cardH - (wide ? 14 : 12);
-          const pr = wide ? 3.5 : 2.5;
-          const pg = wide ? 11 : 8;
           M.STATES.forEach((s, j) => D.add('marks', `<circle class="pip${s === st ? ' on' : ''}" cx="${x + ix + pr + j * pg}" cy="${pipY}" r="${pr}"/>`));
           if (view.hint === i) {
             const j = M.STATES.indexOf(NEXT[st]);
             D.add('marks', `<circle class="next-pip" cx="${x + ix + pr + j * pg}" cy="${pipY}" r="${pr + 2.5}"/>`);
           }
-          if (wide) {
-            let word = STATE_WORD[st];
-            let wcls = 'muted';
-            const answered = read.answers.find((a) => a.id === i);
-            if (repaired) {
-              word = 'repaired';
-              wcls = 'good';
-            } else if (answered && answered.value === 7 && holds === 8 && !hid.verdict && !hid.write) {
-              word = `v8 at ${fmt(rep.landAt)}`;
-              wcls = 'warn';
-            } else if (rep.pause && st === 'up') {
-              word = 'paused';
-              wcls = 'warn';
-            } else if (st === 'back' && hid.write) word = 'back';
-            const wx0 = x + ix + 3 * pg + 2 * pr + 6;
-            if (wx0 + tw(word, 'small') <= x + cw - 6) D.text(wx0, pipY + 4, [[word, 'small', wcls]], { owner, textCls: 'on-card' });
-          }
+          if (pipWord) D.text(x + ix + 3 * pg + 2 * pr + 6, pipY + 4, [[pipWord.full, 'small', pipWord.cls]], { owner, textCls: 'on-card' });
           D.hit('card', x, cardY, cw, cardH, {
             owner,
             label: `${owner}, ${M.STATE_NAMES[st]}${rep.pause ? ', paused' : ''}. Activate to ${NEXT_PHRASE[NEXT[st]]}.`,
           });
         });
-        D.region('cards', { x: pad - 4, y: wChipY - 4, w: W - 2 * pad + 8, h: cardH + chipH + 4 + 8 + chipH + 4 });
+        // Chips fill both edges of the card band, so its frame reaches up to the writer and takes the write fan.
+        const cardsTop = writerY + writerH + 3;
+        D.region('cards', { x: pad - 4, y: cardsTop, w: W - 2 * pad + 8, h: cardY + cardH + 4 + chipH + 4 - cardsTop });
 
-        // Read chips under the cards, then the read fan.
+        // Read chips under the cards, then the read fan (not drawn at all while the read itself waits for the answer).
         const rChipY = cardY + cardH + 4;
         const readerY = rChipY + chipH + fanH;
         const readerRows = (() => {
@@ -1414,12 +1517,12 @@
           return Math.ceil(n / per);
         })();
         const readerH = wide ? 62 : 20 + 12 + readerRows * 26;
-        const chipList = read.answers
-          .map((a) => ({ ...a }))
-          .sort((a, b) => b.value - a.value || a.rtt - b.rtt);
-        const chipW = (a) => tw(`R${a.id + 1} ${hid.verdict ? '?' : 'v' + a.value}`, 'mono') + 14;
-        const sentT = hid.write ? 'sent when the write returns' : write.outcome === 'refused' ? 'sent at once' : `sent at ${tf(read.sentAt)}`;
-        const readerLabel = 'Reader · zone C';
+        const shownAnswers = hid.read ? [] : read.answers;
+        const chipList = shownAnswers.map((a) => ({ ...a })).sort((a, b) => (b.value ?? 0) - (a.value ?? 0) || a.rtt - b.rtt);
+        const answerText = (a) => (hid.verdict ? '?' : a.value === null ? '–' : `v${a.value}`);
+        const chipW = (a) => tw(`${m.all[a.id].name} ${answerText(a)}`, 'mono') + 14;
+        const sentT = hid.read ? 'read sent after your answer' : hid.writeTime ? 'sent when the write returns' : write.outcome === 'refused' ? 'sent at once' : `sent at ${tf(read.sentAt)}`;
+        const readerLabel = 'Reader · DC C';
         let rw;
         if (wide) {
           const chipsW = chipList.reduce((s, a) => s + chipW(a) + 6, 0) - 6;
@@ -1451,28 +1554,40 @@
           D.link(pts, `reader R${id + 1} repair${id + 1}`);
         }
         const readDeadXs = [];
-        reps.forEach((rep, i) => {
-          const owner = `R${i + 1}`;
-          if (!rep.reachable) {
-            const top = cardY + cardH;
+        if (!hid.read)
+          reps.forEach((rep, i) => {
+            const owner = `R${i + 1}`;
+            if (!rep.reachable) {
+              const top = cardY + cardH;
+              const s = [cx(i), rChipY + chipH];
+              D.add('links', `<path class="link dead" d="M${s[0]} ${top}V${s[1]}L${rApex[0]} ${rApex[1]}"/>`);
+              D.link([...sampleLine(s[0], top, s[0], s[1]), ...sampleLine(s[0], s[1], rApex[0], rApex[1])], `reader ${owner} dead${i + 1}`);
+              readDeadXs.push({ i, s });
+              return;
+            }
+            const inSet = read.set.includes(i);
+            const answer = answerOf(i);
             const s = [cx(i), rChipY + chipH];
-            D.add('links', `<path class="link dead" d="M${s[0]} ${top}V${s[1]}L${rApex[0]} ${rApex[1]}"/>`);
-            D.link([...sampleLine(s[0], top, s[0], s[1]), ...sampleLine(s[0], s[1], rApex[0], rApex[1])], `reader ${owner} dead${i + 1}`);
-            readDeadXs.push({ i, s });
-            return;
-          }
-          const inSet = read.set.includes(i);
-          const answer = read.answers.find((a) => a.id === i);
-          const s = [cx(i), rChipY + chipH];
-          D.add('links', `<line class="link read${inSet ? '' : ' weak'}" x1="${s[0]}" y1="${s[1]}" x2="${rApex[0]}" y2="${rApex[1]}"/>`);
-          D.link(sampleLine(s[0], s[1], rApex[0], rApex[1]), `reader ${owner}`);
-          let t = fmt(rep.readRtt);
-          if (inSet && wide) t = `${hid.verdict ? '?' : 'v' + answer.value} · ${t}`;
-          const cwid = Math.max(26, tw(t, 'mono') + 10);
-          D.add('marks', `<rect class="chip ${inSet ? 'asked' : 'quiet'}" x="${s[0] - cwid / 2}" y="${rChipY}" width="${cwid}" height="${chipH}" rx="8"/>`);
-          D.mark({ x0: s[0] - cwid / 2, x1: s[0] + cwid / 2, y0: rChipY, y1: rChipY + chipH }, owner);
-          D.text(s[0], rChipY + 12, [[t, 'mono', inSet ? 'ink' : 'muted']], { anchor: 'middle', owner, textCls: 'on-chip' });
-        });
+            D.add('links', `<line class="link read${inSet ? '' : ' weak'}" x1="${s[0]}" y1="${s[1]}" x2="${rApex[0]}" y2="${rApex[1]}"/>`);
+            D.link(sampleLine(s[0], s[1], rApex[0], rApex[1]), `reader ${owner}`);
+            const time = chipMs(rep.readRtt);
+            let parts;
+            if (inSet) {
+              const v = hid.verdict ? '?' : `v${answer.value}`;
+              // An answer that differs from what the card holds at rest is the point of the drawing: warn ink.
+              const differs = !hid.verdict && answer.value !== shown[i];
+              const vInk = differs ? 'warn' : 'ink';
+              const sep = tw(' ', 'mono') - 1;
+              // Where value and time do not both fit, a read-set chip keeps the answer; the latency lane keeps the time.
+              if (wide || partsWidth([[v, 'mono'], [`· ${time}`, 'mono', '', sep]]) + 10 <= cw) parts = [[v, 'mono', vInk], [`· ${time}`, 'mono', 'ink', sep]];
+              else if (!hid.verdict) parts = [[v, 'mono', differs ? 'warn' : lucky[i] ? 'good' : 'ink']];
+              else parts = [[time, 'mono', 'ink']];
+            } else parts = [[time, 'mono', 'muted']];
+            const cwid = Math.max(26, partsWidth(parts) + 10);
+            D.add('marks', `<rect class="chip ${inSet ? 'asked' : 'quiet'}" x="${s[0] - cwid / 2}" y="${rChipY}" width="${cwid}" height="${chipH}" rx="8"/>`);
+            D.mark({ x0: s[0] - cwid / 2, x1: s[0] + cwid / 2, y0: rChipY, y1: rChipY + chipH }, owner);
+            D.text(s[0], rChipY + 12, parts, { anchor: 'middle', owner, textCls: 'on-chip' });
+          });
         // An unreachable replica's x sits where no repair arc or other line passes.
         for (const { i, s } of readDeadXs) {
           const owner = `R${i + 1}`;
@@ -1506,10 +1621,13 @@
         D.add('marks', `<rect class="box" x="${rx}" y="${readerY}" width="${rw}" height="${readerH}" rx="10"/>`);
         D.mark({ x0: rx, x1: rx + rw, y0: readerY, y1: readerY + readerH }, 'reader');
         D.text(rx + 12, readerY + 20, [[readerLabel, 'label']], { owner: 'reader', textCls: 'on-card' });
-        if (rx + 12 + tw(readerLabel, 'label') + 12 + tw(sentT, 'small') <= rx + rw - 12)
-          D.text(rx + rw - 12, readerY + 20, [[sentT, 'small', 'muted']], { anchor: 'end', owner: 'reader', textCls: 'on-card' });
-        if (read.outcome === 'fails') {
-          D.text(rx + 12, readerY + 44, [[`no answer: ${read.reachable} reachable, ${read.needed} needed`, 'small', 'bad']], { owner: 'reader', textCls: 'on-card' });
+        const sentFits = rx + 12 + tw(readerLabel, 'label') + 12 + tw(sentT, 'small') <= rx + rw - 12;
+        if (sentFits) D.text(rx + rw - 12, readerY + 20, [[sentT, 'small', 'muted']], { anchor: 'end', owner: 'reader', textCls: 'on-card' });
+        if (hid.read) {
+          if (!sentFits) D.text(rx + 12, readerY + 44, [[sentT, 'small', 'muted']], { owner: 'reader', textCls: 'on-card' });
+        } else if (!readDone) {
+          const t = read.outcome === 'timed-out' ? `timed out: ${read.reachable} answered, ${read.needed} needed` : `no answer: ${read.reachable} reachable, ${read.needed} needed`;
+          D.text(rx + 12, readerY + 44, [[t, 'small', 'bad']], { owner: 'reader', textCls: 'on-card' });
         } else {
           let ccx = rx + 12;
           let ccy = readerY + 30;
@@ -1519,24 +1637,13 @@
               ccx = rx + 12;
               ccy += 26;
             }
-            const v = hid.verdict ? '?' : `v${a.value}`;
             const ccls = hid.verdict ? 'unknown' : a.value === 8 ? 'new' : 'old';
-            D.add('marks', `<rect class="chip ${ccls}" x="${ccx}" y="${ccy}" width="${wdt}" height="20" rx="6"/>`);
-            D.text(ccx + 7, ccy + 14, [[`R${a.id + 1}`, 'mono', 'muted'], [v, 'mono', a.value === 8 && !hid.verdict ? 'chip-new-ink' : 'muted', 5]], { owner: 'reader', textCls: 'on-chip' });
+            D.add('marks', `<rect class="chip ${ccls}" data-answer="${a.id}" x="${ccx}" y="${ccy}" width="${wdt}" height="20" rx="6"/>`);
+            D.text(ccx + 7, ccy + 14, [[m.all[a.id].name, 'mono', 'muted'], [answerText(a), 'mono', a.value === 8 && !hid.verdict ? 'chip-new-ink' : 'muted', 5]], { owner: 'reader', textCls: 'on-chip' });
             ccx += wdt + 6;
           }
         }
-        const rHandle = {
-          id: 'rhandle',
-          k: r,
-          n,
-          hid: hid.avail,
-          letter: 'R',
-          what: 'answers a read waits for',
-          survives: m.survives.read,
-          succeed: m.avail.read,
-          verb: 'reads',
-        };
+        const rHandle = { id: 'rhandle', k: r, n, hid: hid.avail, letter: 'R', what: 'answers a read waits for', survives: m.survives.read, succeed: m.avail.read, verb: 'reads' };
         y = readerY + readerH;
         if (wide) handleBlock(D, { ...rHandle, x: pad, y: readerY, w: rx - 24 - pad });
         const handleBottom = readerY + 84;
@@ -1545,8 +1652,7 @@
         const pill = pillOf(m, hid);
         const pillMax = W - 2 * pad;
         let pillLines = [pill.text];
-        const pillW1 = tw(pill.text, 'pill') + 44;
-        if (pillW1 > pillMax) {
+        if (tw(pill.text, 'pill') + 44 > pillMax) {
           const k = pill.text.lastIndexOf(' · ');
           pillLines = [pill.text.slice(0, k), pill.text.slice(k + 3)];
         }
@@ -1562,8 +1668,8 @@
         let readerBottom = pillY + ph;
         let readerLeft = Math.min(rx, px);
         if (both.length && !hid.count) {
-          const names = both.map((i) => `R${i + 1}`);
-          const t = `${names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names.at(-1) : names[0]} both acked and answered`;
+          const names = both.map((id) => m.all[id].name);
+          const t = `${nameList(names)} both acked and answered`;
           const role = tw(t, 'cap') <= W - 2 * pad ? 'cap' : 'small';
           const box = D.text(W - pad, pillY + ph + 18, [[tw(t, role) <= W - 2 * pad ? t : `${names.join(', ')} acked and answered`, role, 'good']], { anchor: 'end' });
           readerBottom = box.y1;
@@ -1576,49 +1682,47 @@
           y += 4 + 84;
         }
 
-        // The read-set strip: the guarantee, apart from what this read happened to see.
+        // The read-set strip: the guarantee over home read sets, apart from what this read happened to see.
         y += 14;
         D.add('grid', `<line class="rule" x1="${pad}" y1="${y}" x2="${W - pad}" y2="${y}"/>`);
         const stripTop = y;
-        const stripLabel = `Read sets of ${r}`;
+        const stripLabel = `Read sets of ${r} ${r === 1 ? 'replica' : 'replicas'}`;
         D.text(pad, y + 26, [[stripLabel, 'label']]);
         const refused = write.outcome === 'refused' && !hid.count;
         const head = hid.count ? [`? of ${m.readSets}`, ' can miss v8'] : refused ? ['none', ' written to miss'] : [`${m.staleSets} of ${m.readSets}`, ' can miss v8'];
-        const headW = tw(head[0], 'head') + tw(head[1], 'cap');
-        const headInline = pad + tw(stripLabel, 'label') + 16 + headW <= W - pad;
         const headTone = hid.count || write.outcome !== 'acked' ? 'muted' : m.staleSets > 0 ? 'bad' : 'good';
-        if (headInline) {
-          D.text(W - pad, y + 27, [[head[0], 'head', headTone], [head[1], 'cap', 'muted']], { anchor: 'end' });
-          y += 42;
-        } else {
-          D.text(pad, y + 50, [[head[0], 'head', headTone], [head[1], 'cap', 'muted']]);
-          y += 64;
-        }
         const cell = wide ? 14 : 12;
         const cgap = 2;
         const setGap = wide ? 8 : 5;
-        const headCol = wide ? 28 : 0;
+        const headCol = wide ? 28 : 20;
         const gx0 = pad + headCol;
+        const gridW = m.sets.length * (cell + setGap) - setGap;
+        const gridWMost = M.choose(n, Math.floor(n / 2)) * (cell + setGap) - setGap;
+        const sideX = pad + Math.max(headCol + gridWMost, 236) + 28;
+        const side = wide && W - pad - sideX >= 220;
+        // The headline sits in the label's row unless its longest form cannot, so every state at a width draws it alike.
+        const longestHead = Math.max(tw('none', 'head') + tw(' written to miss', 'cap'), tw('10 of 10', 'head') + tw(' can miss v8', 'cap'));
+        const headStacked = !side && pad + tw('Read sets of 5 replicas', 'label') + 16 + longestHead > W - pad;
+        if (side) D.text(sideX, y + 27, [[head[0], 'head', headTone], [head[1], 'cap', 'muted']]);
+        else if (headStacked) D.text(pad, y + 50, [[head[0], 'head', headTone], [head[1], 'cap', 'muted']]);
+        else D.text(W - pad, y + 27, [[head[0], 'head', headTone], [head[1], 'cap', 'muted']], { anchor: 'end' });
+        y += headStacked ? 64 : 42;
         const gridTop = y;
-        if (wide)
-          for (let i = 0; i < n; i++) {
-            const acked = !hid.count && m.ackedHomes.includes(i);
-            D.text(pad, gridTop + i * (cell + cgap) + cell - 2, [[`R${i + 1}`, 'mono', acked ? 'good' : 'muted']]);
-          }
+        for (let i = 0; i < n; i++) {
+          const acked = !hid.ackers && m.ackedHomes.includes(i);
+          D.text(pad, gridTop + i * (cell + cgap) + cell - 2, [[`R${i + 1}`, 'mono', acked ? 'good' : 'muted']]);
+        }
         m.sets.forEach((s, k) => {
           const x = gx0 + k * (cell + setGap);
           for (let i = 0; i < n; i++) {
             const member = s.members.includes(i);
-            const acked = member && !hid.count && m.ackedHomes.includes(i);
+            const acked = member && !hid.ackers && m.ackedHomes.includes(i);
             D.add('marks', `<rect class="cell${member ? (acked ? ' acked' : ' member') : ''}" x="${x + 0.5}" y="${gridTop + i * (cell + cgap) + 0.5}" width="${cell - 1}" height="${cell - 1}" rx="2"/>`);
           }
           const xY = gridTop + n * (cell + cgap) + 7;
           if (s.canMiss && !hid.count && !refused) xGlyph(D, x + cell / 2, xY, `set${k}`, 3.5);
-          if (s.isThis) {
-            D.add('marks', `<rect class="this-ring" x="${x - 3}" y="${gridTop - 3}" width="${cell + 6}" height="${n * (cell + cgap) - cgap + 6}" rx="4"/>`);
-          }
+          if (s.isThis && !hid.read) D.add('marks', `<rect class="this-ring" x="${x - 3}" y="${gridTop - 3}" width="${cell + 6}" height="${n * (cell + cgap) - cgap + 6}" rx="4"/>`);
         });
-        const gridW = m.sets.length * (cell + setGap) - setGap;
         const gridBottom = gridTop + n * (cell + cgap) - cgap;
         D.mark({ x0: gx0 - 3, x1: gx0 + gridW + 3, y0: gridTop - 3, y1: gridBottom + 14 }, 'strip-grid');
         // Legend under the grid.
@@ -1630,7 +1734,9 @@
           ['x', 'can miss'],
           ['ring', 'this read'],
         ];
-        const legend = fullLegend.filter(([k]) => !(hid.count && (k === 'acked' || k === 'x')));
+        const legend = fullLegend
+          .map(([k, t]) => [k, k === 'acked' && write.outcome === 'timed-out' ? 'has v8' : t])
+          .filter(([k]) => !((k === 'acked' && hid.ackers) || (k === 'x' && hid.count) || (k === 'ring' && hid.read)));
         let lx = pad;
         const legendW = wide ? 236 : W - 2 * pad;
         const legendRows = (() => {
@@ -1660,58 +1766,73 @@
           lx += iw + 14;
         }
         // The sentence about overlap, and the one about its limit.
+        const viaStandIns = !hid.read && m.readStandIns.length > 0;
+        const standInNames = nameList(m.readStandIns.map((id) => m.all[id].name));
         const s1 = (() => {
           if (hid.write) return 'Which reads can miss v8 depends on how the write ends: after your answer.';
           if (hid.count) return `Does every read of ${r} meet the ${w} that acked?`;
-          if (write.outcome === 'refused') return 'Nothing was written, so there is nothing to miss.';
+          if (write.outcome === 'refused')
+            return viaStandIns ? `Nothing was written, and ${standInNames} ${m.readStandIns.length > 1 ? 'hold' : 'holds'} no copy of the key.` : 'Nothing was written, so there is nothing to miss.';
           if (write.outcome === 'timed-out') {
             if (!m.h) return 'The write timed out and applied nowhere: every read returns v7.';
-            const who = m.h > 2 ? `${m.h} replicas` : m.ackedHomes.map((i) => `R${i + 1}`).join(' and ');
+            const who = m.h > 2 ? `${m.h} replicas` : nameList(m.ackedHomes.map((i) => `R${i + 1}`));
             return m.staleSets === 0
               ? `The write timed out, yet every read of ${r} meets a replica that applied it.`
               : `The write timed out, but ${who} applied it: a read of ${r} that misses ${m.h > 1 ? 'them' : 'it'} returns v7.`;
           }
-          if (m.settings.sloppy && m.h < w)
-            return `A read never asks the stand-ins: only ${m.h} home replica${m.h === 1 ? '' : 's'} acked, so a read of ${r} can miss ${m.h === 1 ? 'it' : 'them'}.`;
+          if (viaStandIns)
+            return `This read asked ${standInNames} for the down ${nameList(m.readStandIns.map((id) => `R${m.all[id].standsFor + 1}`))}; the sets count home replicas, ${m.h ? `of which ${m.h} acked` : 'and none acked'}.`;
+          if (m.settings.sloppy && m.h < w && m.staleSets > 0)
+            return m.h === 0
+              ? `The read goes to the home replicas, not the stand-ins holding the write, and no home replica acked: every read of ${r} can miss v8.`
+              : `The read goes to the home replicas, not the stand-ins holding the write: only ${m.h} home replica${m.h === 1 ? '' : 's'} acked, so a read of ${r} can miss ${m.h === 1 ? 'it' : 'them'}.`;
           if (m.staleSets === 0) return `Every read of ${r} shares a replica with the ${m.h} that acked.`;
           return `${r} + ${w} is not above ${n}: a read of ${r} can miss ${m.h === 1 ? 'the replica' : `all ${m.h}`} that acked.`;
         })();
         const s2 = 'R + W > N alone is not linearizable: reads racing a write can disagree, and concurrent writes settled by last-write-wins can drop one.';
-        const sideX = pad + Math.max(headCol + gridW, 236) + 28;
-        const side = wide && W - pad - sideX >= 220;
         ly = legendTop + (legendRows - 1) * 16;
         const sentW = side ? W - pad - sideX : W - 2 * pad;
         const l1 = wrap(s1, 'cap', sentW);
         const l2 = wrap(s2, 'cap', sentW);
         const sx0 = side ? sideX : pad;
-        let sy0 = side ? gridTop + 2 : ly + 26;
+        // Beside the grid the headline is the column's first line and the sentences start 6 px under it.
+        const sentTop = side ? stripTop + 27 + 6 + 14 : ly + 26;
+        let sy0 = sentTop;
         l1.forEach((line, i) => D.text(sx0, sy0 + i * 18, [[line, 'cap', 'ink']]));
         sy0 += l1.length * 18 + 4;
         l2.forEach((line, i) => D.text(sx0, sy0 + i * 18, [[line, 'cap', 'muted']]));
-        const sentBottom = sy0 + l2.length * 18 - 10;
         // Reserve the most lines any overlap sentence takes at this width, so the height depends only on width and N.
         const reserveS1 = Math.max(
-          ...[`Does every read of 5 meet the 5 that acked?`, `The write timed out, but 3 replicas applied it: a read of 2 that misses them returns v7.`, `A read never asks the stand-ins: only 1 home replica acked, so a read of 5 can miss it.`, `Every read of 5 shares a replica with the 5 that acked.`].map(
-            (t) => wrap(t, 'cap', sentW).length,
-          ),
+          ...[
+            'Does every read of 5 meet the 5 that acked?',
+            'Which reads can miss v8 depends on how the write ends: after your answer.',
+            'The write timed out, but 3 replicas applied it: a read of 2 that misses them returns v7.',
+            'The read goes to the home replicas, not the stand-ins holding the write: only 1 home replica acked, so a read of 5 can miss it.',
+            'The read goes to the home replicas, not the stand-ins holding the write, and no home replica acked: every read of 5 can miss v8.',
+            'This read asked H1 and H2 for the down R1 and R2; the sets count home replicas, of which 3 acked.',
+            'Nothing was written, and H1 and H2 hold no copy of the key.',
+            'Every read of 5 shares a replica with the 5 that acked.',
+          ].map((t) => wrap(t, 'cap', sentW).length),
         );
-        const sentReserve = (side ? gridTop + 2 : ly + 26) + (reserveS1 * 18 + 4) + l2.length * 18 - 10;
-        y = Math.max(ly + (wide ? 16 : 16) * (side ? 0 : 0), side ? Math.max(ly, sentReserve) : sentReserve) + 8;
+        const sentReserve = sentTop + (reserveS1 * 18 + 4) + l2.length * 18 - 10;
+        y = (side ? Math.max(ly, sentReserve) : sentReserve) + 8;
         D.region('strip', { x: Math.max(3, pad - 8), y: stripTop + 4, w: W - 2 * Math.max(3, pad - 8), h: y - stripTop - 4 });
 
-        // Latency, log scale 1 to 200 ms.
+        // Latency, log scale 1 to 200 ms, each request timed from its own start.
         y += 10;
         D.add('grid', `<line class="rule" x1="${pad}" y1="${y}" x2="${W - pad}" y2="${y}"/>`);
         const latTop = y;
-        D.text(pad, y + 26, [['Latency', 'label'], ['log scale', 'small', 'muted', 8]]);
+        D.text(pad, y + 26, [['Latency', 'label'], ['from each request · log scale', 'small', 'muted', 8]]);
         const rowLabelW = wide ? 104 : 0;
         const px0 = pad + rowLabelW + 8;
         const px1 = W - pad - (wide ? 18 : 12);
-        const lx0 = Math.log10(1);
-        const span = Math.log10(200) - lx0;
-        const X = (t) => r1(px0 + ((Math.log10(Math.min(200, Math.max(1, t))) - lx0) / span) * (px1 - px0));
+        const span = Math.log10(200);
+        const X = (t) => r1(px0 + (Math.log10(Math.min(200, Math.max(1, t))) / span) * (px1 - px0));
+        // Room above each lane for the tallest stack of dots this width and N can draw, so heights stay put.
+        const possible = possibleRtts(n);
+        const tallR = tallestStack(possible.read, X);
         const L1 = wide ? y + 60 : y + 70;
-        const L2 = wide ? L1 + 44 : L1 + 62;
+        const L2 = L1 + Math.max(wide ? 44 : 62, 34 + (tallR - 1) * STACK_STEP);
         const axisY = L2 + (wide ? 24 : 30);
         const ticks = [1, 2, 5, 10, 20, 50, 100, 200];
         for (const t of ticks) D.add('grid', `<line class="gridline" x1="${X(t)}" y1="${L1 - (wide ? 18 : 22)}" x2="${X(t)}" y2="${axisY}"/>`);
@@ -1741,12 +1862,19 @@
             D.text(pad, L - 26, [[t, 'small', 'ink']], { ground: true });
           }
         }
-        const placeName = (x, L, name, owner, ringed) => {
+        // A stack's names join under its lowest dot; a name that finds no room is reported by the checks.
+        const placeName = (x, L, names, owner, ringed) => {
+          const t = names.join(', ');
           const yy = L + (ringed ? 19 : 17);
-          const box = D.textBox(x, yy, tw(name, 'small'), 'small', 'middle');
-          if (!D.free(box, owner, 1)) return;
-          D.add('grid', `<rect class="ground" x="${box.x0 - 2}" y="${box.y0 - 1}" width="${box.x1 - box.x0 + 4}" height="${box.y1 - box.y0 + 2}" rx="2"/>`);
-          D.text(x, yy, [[name, 'small', 'muted']], { anchor: 'middle', owner, ground: true });
+          const w0 = tw(t, 'small');
+          for (const dx of [0, w0 / 2 - 4, -w0 / 2 + 4]) {
+            const box = D.textBox(x + dx, yy, w0, 'small', 'middle');
+            if (box.x0 < pad - 2 || box.x1 > W - pad + 2 || !D.free(box, owner, 1)) continue;
+            D.add('grid', `<rect class="ground" x="${box.x0 - 2}" y="${box.y0 - 1}" width="${box.x1 - box.x0 + 4}" height="${box.y1 - box.y0 + 2}" rx="2"/>`);
+            D.text(x + dx, yy, [[t, 'small', 'muted']], { anchor: 'middle', owner, ground: true, names: names.join(' ') });
+            return;
+          }
+          D.missingNames = [...(D.missingNames ?? []), t];
         };
         const placeLabel = (x, L, texts, ringR, owner, tone = 'ink') => {
           for (const t of texts) {
@@ -1769,22 +1897,46 @@
           }
           return false;
         };
-        // Write acks.
-        const dots = [];
-        if (hid.write) {
-          D.text(px0 + 4, L1 + 4, [['acks after your answer', 'small', 'muted']], { ground: true });
-          D.add('grid', `<rect class="ground" x="${px0}" y="${L1 - 8}" width="${tw('acks after your answer', 'small') + 8}" height="14"/>`);
-        } else if (write.outcome === 'refused') {
-          D.add('grid', `<rect class="ground" x="${px0}" y="${L1 - 8}" width="${tw('none: the write was refused', 'small') + 8}" height="14"/>`);
-          D.text(px0 + 4, L1 + 4, [['none: the write was refused', 'small', 'muted']], { ground: true });
-        } else {
-          for (const id of write.ackOrder) {
-            const x = X(m.all[id].writeRtt);
-            const stand = !m.all[id].home;
-            D.add('marks', `<circle class="dot ${stand ? 'standin' : 'write'}" cx="${x}" cy="${L1}" r="4.5"/>`);
-            D.mark({ x0: x - 5, x1: x + 5, y0: L1 - 5, y1: L1 + 5 }, `lat-${m.all[id].name}`);
-            dots.push({ x, L: L1, name: m.all[id].name });
+        const laneNote = (L, t, tone = 'muted') => {
+          D.add('grid', `<rect class="ground" x="${px0}" y="${L - 8}" width="${tw(t, 'small') + 8}" height="14"/>`);
+          D.text(px0 + 4, L + 4, [[t, 'small', tone]], { ground: true });
+        };
+        // Draws a lane's dots, stacked where they would touch, and returns where each one landed.
+        const drawLane = (L, items) => {
+          const placed = stackDots(items.map((d, order) => ({ ...d, x: X(d.t), order })));
+          for (const d of placed) {
+            d.y = L - d.k * STACK_STEP;
+            D.add('marks', `<circle class="dot ${d.cls}" data-dot="${d.name}" cx="${d.x}" cy="${d.y}" r="${DOT_R}"/>`);
+            D.mark({ x0: d.x - 5, x1: d.x + 5, y0: d.y - 5, y1: d.y + 5 }, d.owner);
           }
+          return placed;
+        };
+        // Names go under each stack; stacks whose names would touch share one label, in order, under their middle.
+        const nameStacks = (placed, L, ringedName) => {
+          const groups = [];
+          for (const base of placed.filter((d) => d.k === 0)) {
+            const members = placed.filter((d) => d.base === base);
+            const g = { xs: [base.x], members, ringed: base.name === ringedName };
+            const last = groups.at(-1);
+            const width = (ms) => tw(ms.map((d) => d.name).join(', '), 'small');
+            if (last && base.x - last.xs.at(-1) < (width(last.members) + width(members)) / 2 + 4) {
+              last.xs.push(base.x);
+              last.members.push(...members);
+              last.ringed ||= g.ringed;
+            } else groups.push(g);
+          }
+          for (const g of groups) {
+            const x = (Math.min(...g.xs) + Math.max(...g.xs)) / 2;
+            placeName(x, L, g.members.map((d) => d.name), g.members.map((d) => d.owner).join(' '), g.ringed);
+          }
+        };
+        // Write acks.
+        if (hid.write) laneNote(L1, 'acks after your answer');
+        else if (write.outcome === 'refused') laneNote(L1, 'none: the write was refused');
+        else {
+          const acks = write.ackOrder.map((id) => ({ t: m.all[id].writeRtt, name: m.all[id].name, cls: m.all[id].home ? 'write' : 'standin', owner: `lat-${m.all[id].name}` }));
+          const placed = drawLane(L1, acks);
+          let ringedName = null;
           if (write.outcome === 'timed-out') {
             D.add('marks', `<path class="chevron" d="M${px1 - 2} ${L1 - 6}l6 6l-6 6"/>`);
             D.mark({ x0: px1 - 4, x1: px1 + 6, y0: L1 - 7, y1: L1 + 7 }, 'timeout');
@@ -1795,42 +1947,38 @@
               D.text(px1 - 8, L1 + 4, [[t, 'smallB', 'warn']], { anchor: 'end', owner: 'timeout', ground: true });
             } else placeLabel(px1, L1, [t, 'timed out'], 6, 'timeout', 'warn');
           } else if (!hid.writeTime) {
-            const x = X(write.ms);
-            dots.forEach((d) => d.L === L1 && d.name === m.all[wthId].name && (d.ringed = true));
-            D.add('marks', `<circle class="ring" cx="${x}" cy="${L1}" r="8"/>`);
-            D.mark({ x0: x - 9, x1: x + 9, y0: L1 - 9, y1: L1 + 9 }, `lat-${m.all[wthId].name}`);
-            placeLabel(x, L1, [`acked ${fmt(write.ms)}`, fmt(write.ms)], 8, `lat-${m.all[wthId].name}`);
+            const d = placed.find((p) => p.name === m.all[wthId].name);
+            ringedName = d.k === 0 ? d.name : null;
+            D.add('marks', `<circle class="ring" cx="${d.x}" cy="${d.y}" r="8"/>`);
+            D.mark({ x0: d.x - 9, x1: d.x + 9, y0: d.y - 9, y1: d.y + 9 }, d.owner);
+            placeLabel(d.x, d.y, [`acked ${fmt(write.ms)}`, fmt(write.ms)], 8, d.owner);
           }
+          nameStacks(placed, L1, ringedName);
         }
         // Read answers.
-        if (read.outcome === 'fails') {
-          const t = `none: ${read.reachable} reachable, ${read.needed} needed`;
-          D.add('grid', `<rect class="ground" x="${px0}" y="${L2 - 8}" width="${tw(t, 'small') + 8}" height="14"/>`);
-          D.text(px0 + 4, L2 + 4, [[t, 'small', 'bad']], { ground: true });
-        } else {
-          for (const a of read.answers) {
-            const x = X(a.rtt);
-            D.add('marks', `<circle class="dot read" cx="${x}" cy="${L2}" r="4.5"/>`);
-            D.mark({ x0: x - 5, x1: x + 5, y0: L2 - 5, y1: L2 + 5 }, `latr-R${a.id + 1}`);
-            dots.push({ x, L: L2, name: `R${a.id + 1}`, read: true });
-          }
+        if (hid.read) laneNote(L2, 'the read runs after your answer');
+        else if (!readDone) laneNote(L2, read.outcome === 'timed-out' ? `timed out: ${read.reachable} answered, ${read.needed} needed` : `none: ${read.reachable} reachable, ${read.needed} needed`, 'bad');
+        else {
+          const answers = read.answers.map((a) => ({ t: a.rtt, name: m.all[a.id].name, cls: m.all[a.id].home ? 'read' : 'read standin', owner: `latr-${m.all[a.id].name}` }));
+          const placed = drawLane(L2, answers);
+          let ringedName = null;
           if (!hid.verdict) {
-            const x = X(read.rthMs);
-            const rthId = read.answers.find((a) => a.rtt === read.rthMs).id;
-            dots.forEach((d) => d.L === L2 && d.name === `R${rthId + 1}` && (d.ringed = true));
-            D.add('marks', `<circle class="ring" cx="${x}" cy="${L2}" r="8"/>`);
-            D.mark({ x0: x - 9, x1: x + 9, y0: L2 - 9, y1: L2 + 9 }, `latr-R${rthId + 1}`);
+            const rth = read.answers.filter((a) => a.rtt === read.rthMs).at(-1);
+            const d = placed.find((p) => p.name === m.all[rth.id].name);
+            ringedName = d.k === 0 ? d.name : null;
+            D.add('marks', `<circle class="ring" cx="${d.x}" cy="${d.y}" r="8"/>`);
+            D.mark({ x0: d.x - 9, x1: d.x + 9, y0: d.y - 9, y1: d.y + 9 }, d.owner);
             const ord = M.formatOrdinal(r);
             if (repairs.length) {
-              const xe = X(read.ms);
-              D.add('marks', `<line class="repair-bar" x1="${x + 8}" y1="${L2}" x2="${Math.max(x + 9, xe)}" y2="${L2}"/><line class="end-tick" x1="${Math.max(x + 9, xe)}" y1="${L2 - 6}" x2="${Math.max(x + 9, xe)}" y2="${L2 + 6}"/>`);
-              D.mark({ x0: x + 8, x1: Math.max(x + 9, xe) + 2, y0: L2 - 6, y1: L2 + 6 }, 'returned');
-              placeLabel(Math.max(x + 9, xe), L2, [`returned ${fmt(read.ms)} (+${fmt(read.repairMs).replace(' ms', '')} repair)`, `returned ${fmt(read.ms)}`, `+${fmt(read.repairMs)} repair`], 2, 'returned', 'good');
-            } else if (hid.repair) placeLabel(x, L2, [`${ord} answer ${fmt(read.rthMs)}`, fmt(read.rthMs)], 8, `latr-R${rthId + 1}`);
-            else placeLabel(x, L2, [`returned ${fmt(read.ms)}`, fmt(read.ms)], 8, `latr-R${rthId + 1}`);
+              const xe = Math.max(d.x + 9, X(read.ms));
+              D.add('marks', `<line class="repair-bar" x1="${d.x + 8}" y1="${d.y}" x2="${xe}" y2="${d.y}"/><line class="end-tick" x1="${xe}" y1="${d.y - 6}" x2="${xe}" y2="${d.y + 6}"/>`);
+              D.mark({ x0: d.x + 8, x1: xe + 2, y0: d.y - 6, y1: d.y + 6 }, 'returned');
+              placeLabel(xe, d.y, [`returned ${fmt(read.ms)} (+${fmt(read.repairMs).replace(' ms', '')} repair)`, `returned ${fmt(read.ms)}`, `+${fmt(read.repairMs)} repair`], 2, 'returned', 'good');
+            } else if (hid.repair) placeLabel(d.x, d.y, [`${ord} answer ${fmt(read.rthMs)}`, fmt(read.rthMs)], 8, d.owner);
+            else placeLabel(d.x, d.y, [`returned ${fmt(read.ms)}`, fmt(read.ms)], 8, d.owner);
           }
+          nameStacks(placed, L2, ringedName);
         }
-        for (const d of dots) placeName(d.x, d.L, d.name, d.read ? `latr-${d.name}` : `lat-${d.name}`, d.ringed);
         y = axisY + 24;
         D.region('latency', { x: Math.max(3, pad - 8), y: latTop + 4, w: W - 2 * Math.max(3, pad - 8), h: y - latTop - 4 });
         const H = Math.ceil(y + 4);
@@ -1843,11 +1991,13 @@
       function summary(m, hid) {
         const { n, w, r } = m.settings;
         const parts = [`${n} replicas, W ${M.levelName(w, n) ?? w}, R ${M.levelName(r, n) ?? r}.`];
-        if (hid.write) parts.push('The write is sent; its outcome shows after your answer.');
-        else if (m.write.outcome === 'acked') parts.push(`The write is acked${hid.writeTime ? '' : ` in ${fmt(m.write.ms)}`} by ${m.write.acked.map((id) => m.all[id].name).join(' and ')}.`);
+        if (hid.write) parts.push("The write's outcome shows after your answer.");
+        else if (hid.writeTime) parts.push("The write's time shows after your answer.");
+        else if (m.write.outcome === 'acked') parts.push(`The write is acked in ${fmt(m.write.ms)} by ${nameList(m.write.acked.map((id) => m.all[id].name))}.`);
         else if (m.write.outcome === 'refused') parts.push(`The write is refused: ${m.write.live} live, ${m.write.needed} needed.`);
         else parts.push('The write times out.');
-        if (hid.verdict) parts.push('What the read returns shows after your answer.');
+        if (hid.read) parts.push('The read runs after your answer.');
+        else if (hid.verdict) parts.push('What the read returns shows after your answer.');
         else parts.push(pillOf(m, hid).text + '.');
         if (!hid.count) parts.push(`${m.staleSets} of ${m.readSets} read sets can miss v8.`);
         return parts.join(' ');
@@ -1898,6 +2048,10 @@
         refused: { s: { ...M.BASE, w: 3, r: 1, states: ['up', 'up', 'down'] } },
         timeout: { s: { ...M.BASE, w: 3, r: 2, states: ['up', 'up', 'mid'] } },
         sloppy: { s: { ...M.BASE, states: ['up', 'back', 'back'], sloppy: 1 } },
+        standin: { s: { ...M.BASE, r: 3, states: ['up', 'up', 'down'], sloppy: 1 } },
+        sloppy5: { s: { n: 5, w: 3, r: 5, states: ['up', 'up', 'down', 'down', 'up'], stall: 0, sloppy: 1 } },
+        readtimeout: { s: { ...M.BASE, states: ['up', 'mid', 'mid'] } },
+        nocopy: { s: { ...M.BASE, w: 3, r: 1, states: ['down', 'down', 'down'], sloppy: 1 } },
         slow: { s: { n: 5, w: 3, r: 3, states: UP(5), stall: 1, sloppy: 0 } },
         ask: { exp: 4, phase: 'asking' },
         reveal: { exp: 0, phase: 'revealed', chosen: 1 },
@@ -1934,7 +2088,7 @@ ${[3, 5].map((k) => `<label class="segment"><input type="radio" name="n" ${k ===
 <fieldset class="group"${locked ? ' disabled' : ''}><legend class="control-label">Conditions</legend><div class="toggles">
 <label class="segment"><input type="checkbox" ${m.settings.stall ? 'checked' : ''}/><span>${stallName}<small>${fmt(M.STALL_MS)} GC pause</small></span></label>
 <label class="segment"><input type="checkbox" ${m.settings.sloppy ? 'checked' : ''}/><span>Sloppy quorum<small>stand-ins H1, H2</small></span></label></div></fieldset>
-<p class="notice" aria-live="polite">${locked ? 'The settings this question is about are locked until you answer.' : 'Tap a replica to change its state; drag W and R on the drawing.'}</p>`;
+<p class="notice" aria-live="polite">${locked ? 'Play and the settings this question is about wait for your answer.' : 'Tap a replica to change its state; drag W and R on the drawing.'}</p>`;
       }
       const ICON_RIGHT = '<svg class="mark" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="var(--g-success-line)"/><path d="M6 10.2l2.6 2.6 5.2-5.6" fill="none" stroke="var(--g-surface)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
       const ICON_WRONG = '<svg class="mark" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="var(--g-danger)"/><path d="M7 7l6 6M13 7l-6 6" fill="none" stroke="var(--g-surface)" stroke-width="2" stroke-linecap="round"/></svg>';
@@ -1971,12 +2125,14 @@ ${[3, 5].map((k) => `<label class="segment"><input type="radio" name="n" ${k ===
         const btn = `<button class="g-btn" aria-expanded="${open}">${open ? 'Hide the description' : 'Describe'}</button>`;
         if (!open) return btn;
         const head = compact ? ['Rep.', 'State', 'Write rtt', 'Has v8 at', 'Read at', 'Got'] : ['Replica', 'State', 'Write round trip', 'Has v8 at', 'Read reaches it', 'Answered'];
-        const rows = m.replicas.map((x) => {
+        const rows = m.all.map((x) => {
           const a = m.read.answers.find((q) => q.id === x.id);
           const has = m.write.applied.includes(x.id) ? fmt(x.landAt) : '–';
-          const name = compact ? x.name : `${x.name} (zone ${x.zone})`;
-          const state = compact ? { up: 'up', down: 'down', mid: 'stopped', back: 'back' }[x.state] : M.STATE_NAMES[x.state];
-          const answered = a ? `v${a.value}${m.read.repairs.includes(x.id) ? (compact ? ', fixed' : ', repaired') : ''}` : '–';
+          const name = compact ? x.name : `${x.name} (DC ${x.dc})`;
+          const forR = `R${x.standsFor + 1}`;
+          const state = !x.home ? (compact ? `for ${forR}` : `stand-in for ${forR}`) : compact ? { up: 'up', down: 'down', mid: 'stopped', back: 'back' }[x.state] : M.STATE_NAMES[x.state];
+          const value = a ? (a.value === null ? 'no copy' : `v${a.value}`) : '';
+          const answered = a ? `${value}${m.read.repairs.includes(x.id) ? (compact ? ', fixed' : ', repaired') : ''}` : '–';
           return [name, state, x.knownDown ? '–' : fmt(x.writeRtt), has, a ? fmt(a.readAt) : '–', answered];
         });
         return `${btn}<div class="table-box${compact ? ' compact' : ''}" tabindex="0" role="region" aria-label="Each replica in this scenario"><table><thead><tr>${head.map((h) => `<th scope="col">${h}</th>`).join('')}</tr></thead><tbody>${rows
@@ -1984,15 +2140,26 @@ ${[3, 5].map((k) => `<label class="segment"><input type="radio" name="n" ${k ===
           .join('')}</tbody></table></div>`;
       }
 
+      // Play waits while a question asks: the answer's own play is the first play. The cards are one toolbar (a single
+      // Tab stop; arrows, Home and End move).
       function overlaysHtml(D, view, W) {
-        return D.hits
-          .map((h) => {
-            if (h.kind === 'play')
-              return `<button class="play hit" data-owner="play" style="left:${h.x}px;top:${h.y}px" aria-label="Play the write, then the read"${view.phase === 'asking' ? ' disabled' : ''}><svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="16"/><path d="M14 11v14l11-7z"/></svg></button>`;
-            if (h.kind === 'card') return `<button class="card-hit hit" data-owner="${h.owner}" style="left:${h.x}px;top:${h.y}px;width:${h.w}px;height:${h.h}px" aria-label="${esc(h.label)}"></button>`;
-            return `<div class="handle hit" role="slider" tabindex="0" data-owner="${h.owner}" aria-label="${esc(h.label)}" style="left:${h.x}px;top:${h.y}px"><span class="knob"></span></div>`;
-          })
-          .join('');
+        const asking = view.phase === 'asking';
+        const play = D.hits
+          .filter((h) => h.kind === 'play')
+          .map(
+            (h) =>
+              `<button class="play hit" data-owner="play" style="left:${h.x}px;top:${h.y}px" aria-label="${asking ? 'Play the write, then the read, after your answer' : 'Play the write, then the read'}"${asking ? ' disabled' : ''}><svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="16"/><path d="M14 11v14l11-7z"/></svg></button>`,
+          );
+        const cards = D.hits
+          .filter((h) => h.kind === 'card')
+          .map(
+            (h, i) =>
+              `<button class="card-hit hit" data-owner="${h.owner}" tabindex="${i === 0 ? 0 : -1}"${asking ? ' aria-disabled="true"' : ''} style="left:${h.x}px;top:${h.y}px;width:${h.w}px;height:${h.h}px" aria-label="${esc(h.label)}"></button>`,
+          );
+        const handles = D.hits
+          .filter((h) => h.kind === 'handle')
+          .map((h) => `<div class="handle hit" role="slider" tabindex="0" data-owner="${h.owner}" aria-label="${esc(h.label)}" style="left:${h.x}px;top:${h.y}px"><span class="knob"></span></div>`);
+        return `${play.join('')}<div class="replicas" role="toolbar" aria-label="Replicas">${cards.join('')}</div>${handles.join('')}`;
       }
 
       function render(name) {
@@ -2016,7 +2183,7 @@ ${[3, 5].map((k) => `<label class="segment"><input type="radio" name="n" ${k ===
           const tip = document.createElement('div');
           tip.className = 'hint';
           tip.dataset.transient = '1';
-          tip.textContent = `Tap: ${NEXT_PHRASE[NEXT[st]].replace('it', `R${view.hint + 1}`)}`;
+          tip.textContent = `${W >= 520 ? 'Enter' : 'Tap'}: ${NEXT_PHRASE[NEXT[st]].replace('it', `R${view.hint + 1}`)}`;
           well.appendChild(tip);
           const tw0 = tip.offsetWidth;
           const th = tip.offsetHeight;
@@ -2079,6 +2246,29 @@ ${[3, 5].map((k) => `<label class="segment"><input type="radio" name="n" ${k ===
           const box = { x0: b.x, x1: b.x + b.width, y0: b.y, y1: b.y + b.height };
           for (const t of texts) if (!share(t.owner, owners(mk)) && ov(box, t, 0.5)) out.push(`text on mark ${mk.getAttribute('data-mark')}: "${t.s}"`);
         }
+        // Dots on dots, dots without a name, chips closer than 3 px, and glyphs on chips.
+        const dots = [...svg.querySelectorAll('circle.dot')].map((c) => ({ name: c.dataset.dot, x: Number(c.getAttribute('cx')), y: Number(c.getAttribute('cy')), r: Number(c.getAttribute('r')) }));
+        for (let i = 0; i < dots.length; i++)
+          for (let j = i + 1; j < dots.length; j++)
+            if (Math.hypot(dots[i].x - dots[j].x, dots[i].y - dots[j].y) < dots[i].r + dots[j].r) out.push(`dot on dot: ${dots[i].name} / ${dots[j].name}`);
+        const named = new Set([...svg.querySelectorAll('text[data-names]')].flatMap((t) => t.dataset.names.split(' ')));
+        for (const d of dots) if (!named.has(d.name)) out.push(`dot without a name: ${d.name}`);
+        const box = (el) => {
+          const b = el.getBBox();
+          return { x0: b.x, x1: b.x + b.width, y0: b.y, y1: b.y + b.height };
+        };
+        const chips = [...svg.querySelectorAll('rect.chip')].map(box);
+        for (let i = 0; i < chips.length; i++)
+          for (let j = i + 1; j < chips.length; j++) {
+            const [a, b] = [chips[i], chips[j]];
+            const yOverlap = Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > 1;
+            const gapX = Math.max(a.x0, b.x0) - Math.min(a.x1, b.x1);
+            if (yOverlap && gapX < 3) out.push(`chips ${gapX < 0 ? 'overlap' : `${r1(gapX)} px apart`} at y ${r1(a.y0)}`);
+          }
+        for (const g of svg.querySelectorAll('.pause, .repair-glyph')) {
+          const gb = box(g);
+          if (chips.some((c) => ov(gb, c, 0))) out.push(`glyph on a chip at x ${r1(gb.x0)}`);
+        }
         const wb = well.getBoundingClientRect();
         const hits = [...well.querySelectorAll('.hit')].map((h) => {
           const b = h.getBoundingClientRect();
@@ -2130,11 +2320,12 @@ ${[3, 5].map((k) => `<label class="segment"><input type="radio" name="n" ${k ===
         if (view.focus?.length) focusOutlines(D, view.focus, window.__stage.H);
         tagMarks(well, D);
         ownLinks(well, D);
-        const out = collisions(well);
-        if (D.missingTags) out.push(`${D.missingTags} focus tag(s) without a place`);
+        const out = [...collisions(well), ...unplaced(D)];
         well.querySelectorAll('[data-mark]').forEach((e) => e.parentNode.remove());
         return out;
       }
+
+      const unplaced = (D) => [...(D.missingTags ? [`${D.missingTags} focus tag(s) without a place`] : []), ...(D.missingNames ?? []).map((t) => `no room for the dot name "${t}"`)];
 
       // A sweep over settings and widths, drawing only the stage, for the layout's own check.
       window.sweep = function (widths, settingsList) {
@@ -2150,7 +2341,7 @@ ${[3, 5].map((k) => `<label class="segment"><input type="radio" name="n" ${k ===
               well.innerHTML = D.svg(H) + overlaysHtml(D, view, W);
               tagMarks(well, D);
               ownLinks(well, D);
-              const out = collisions(well);
+              const out = [...collisions(well), ...unplaced(D)];
               results.renders++;
               if (out.length) results.failures.push({ W, s: `N${s.n} W${s.w} R${s.r} ${s.states.join('/')} stall${s.stall} sloppy${s.sloppy}`, out: out.slice(0, 4) });
             }
@@ -2175,8 +2366,7 @@ ${[3, 5].map((k) => `<label class="segment"><input type="radio" name="n" ${k ===
               well.innerHTML = D.svg(H) + overlaysHtml(D, view, W);
               tagMarks(well, D);
               ownLinks(well, D);
-              const out = collisions(well);
-              if (D.missingTags) out.push(`${D.missingTags} focus tag(s) without a place`);
+              const out = [...collisions(well), ...unplaced(D)];
               results.renders++;
               if (out.length) results.failures.push({ W, exp: k + 1, phase, out: out.slice(0, 4) });
             }
@@ -2187,19 +2377,45 @@ ${[3, 5].map((k) => `<label class="segment"><input type="radio" name="n" ${k ===
       };
       // While a question asks, no rendered text or accessible name may hold its answer or a false claim (known.md bug 1).
       const GIVEAWAYS = {
-        'r-plus-w-equals-n': ['1 of 10', 'share no replica', 'can miss all'],
+        'r-plus-w-equals-n': ['1 of 10', 'share no replica', 'can miss all', 'at 2 ms'],
         'all-one-down': ['refused', 'timed out', 'Nothing was written', 'not sent', 'none written', 'live, 3 needed', '97.03', '99.9999'],
-        stall: ['acked in 40', 'acked 40', 'returned 40', 'fresh'],
+        stall: ['acked in 40', 'acked 40', 'returned 40', 'fresh', 'sent at 40', 'by R1 and R3', 'R1 and R3'],
         'missed-write': ['repaired', 'repair', '6 ms', 'fixed'],
-        sloppy: ['1 of 3', 'returns v7', 'stale', 'can miss it', 'only 1 home'],
+        sloppy: ['1 of 3', 'returns v7', 'stale', 'can miss it', 'only 1 home', 'R2 v7', 'R3 v7'],
       };
-      const FALSE_CLAIMS = ['meet any', 'can fit in N without sharing'];
+      const FALSE_CLAIMS = ['meet any', 'can fit in N without sharing', 'write is sent', 'never asks'];
       const BY_REGION = {
         verdict: ['returns v', 'fresh', 'stale', 'both acked'],
-        repair: ['repair', 'fixed'],
-        write: ['acked in', 'refused', 'timed out'],
-        'write-time': ['acked in 4', 'acked 4'],
+        repair: ['repair', 'fixed', 'v8 at'],
+        write: ['acked in', 'refused', 'timed out', 'sent at'],
+        'write-time': ['acked in 4', 'acked 4', 'sent at'],
+        read: ['sent at', 'returned'],
       };
+      // The structural giveaways no word list catches, for one question asking in the rendered well.
+      function hiddenMarks(well, spec, m) {
+        const out = [];
+        const hide = new Set(spec.hide);
+        const svg = well.querySelector('svg.draw');
+        const summaryText = svg.getAttribute('aria-label');
+        if (!well.querySelector('.play')?.disabled) out.push('Play is enabled while asking');
+        if (hide.has('write') || hide.has('write-time')) {
+          const styles = new Set([...svg.querySelectorAll('.link[data-write]')].map((l) => l.getAttribute('class')));
+          if (styles.size > 1) out.push(`write lines in ${styles.size} styles`);
+          if (svg.querySelector('.cell.acked')) out.push('an acked strip cell');
+          for (const id of m.write.acked) if (summaryText.includes(m.all[id].name)) out.push(`the summary names ${m.all[id].name}`);
+        }
+        // A word like "v8 at 20 ms" or "at 20 ms" on a replica the write never reached is false.
+        for (const t of svg.querySelectorAll('text[data-owner]')) {
+          const id = Number((t.dataset.owner.match(/^R(\d)$/) ?? [])[1]) - 1;
+          if (id >= 0 && !m.write.applied.includes(id) && /\bat \d/.test(t.textContent)) out.push(`"${t.textContent}" on R${id + 1}, which the write never reached`);
+        }
+        if (hide.has('read')) {
+          const mark = svg.querySelector('.link.read:not(.legend-line), .link.dead, .chip.asked, [data-answer], .dot.read');
+          if (mark) out.push(`a read mark while the read waits: ${mark.getAttribute('class')}`);
+          if ([...svg.querySelectorAll('.this-ring')].length) out.push('a this-read ring while the read waits');
+        }
+        return out;
+      }
       window.noAnswer = function (widths) {
         const well = document.getElementById('well');
         const out = [];
@@ -2216,6 +2432,7 @@ ${[3, 5].map((k) => `<label class="segment"><input type="radio" name="n" ${k ===
             const text = [...well.querySelectorAll('text')].map((t) => t.textContent).join(' | ') + ' | ' + [...well.querySelectorAll('[aria-label]')].map((e) => e.getAttribute('aria-label')).join(' | ');
             const words = [...GIVEAWAYS[spec.id], ...FALSE_CLAIMS, ...spec.hide.flatMap((h) => BY_REGION[h] ?? [])];
             for (const g of words) if (text.includes(g)) out.push(`W${W} ${spec.id}: "${g}"`);
+            for (const g of hiddenMarks(well, spec, m)) out.push(`W${W} ${spec.id}: ${g}`);
             const hidesRepair = spec.hide.includes('repair') || spec.hide.includes('verdict');
             if (hidesRepair && well.querySelector('.link.repair, .repair-glyph, .repair-bar')) out.push(`W${W} ${spec.id}: a repair mark while asking`);
             if (spec.hide.includes('verdict') && well.querySelector('.both-ring, .card.both')) out.push(`W${W} ${spec.id}: a BOTH ring while asking`);
@@ -2235,8 +2452,12 @@ ${[3, 5].map((k) => `<label class="segment"><input type="radio" name="n" ${k ===
               { ...M.BASE, n, w: n, r: n, states: UP(n), sloppy: 1 },
               { ...M.BASE, n, w: n, r: 1, states: ['up', 'mid', ...UP(n - 2)] },
               { ...M.BASE, n, w: 2, r: n, states: ['down', 'back', ...UP(n - 2)], sloppy: 1, stall: 1 },
+              { ...M.BASE, n, w: n, r: n, states: ['up', 'down', 'down', ...UP(n - 3)], sloppy: 1 },
+              { ...M.BASE, n, w: 1, r: n, states: ['up', 'mid', 'mid', ...UP(n - 3)] },
+              { ...M.BASE, n, w: n, r: 1, states: Array(n).fill('down'), sloppy: 1 },
             ])
               hs.add(buildStage(W, M.run(s), { hide: [], phase: 'rest' }).H);
+            for (const spec of M.EXPERIMENTS.filter((e) => !e.goal && e.setup.n === n)) hs.add(buildStage(W, M.run(spec.setup), { hide: spec.hide, phase: 'asking' }).H);
             out[`${W}/N${n}`] = [...hs];
           }
         return out;
