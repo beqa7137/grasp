@@ -1,14 +1,11 @@
+import { QUORUM_EXPERIMENTS } from './consistency-experiments.js';
 import type { SdLesson } from './types.js';
 
 export const CONSISTENCY_LESSON: SdLesson = {
   why: 'Once data lives on more than one machine, "read the latest value" stops being free: every read either coordinates with other replicas or risks being stale. Whether a user sees their own edit, whether two buyers get the last seat, and whether an outage returns errors or old data are all consistency choices. Interviewers probe whether you can name the guarantee each operation needs, what it costs in latency and availability, and what a quorum really promises.',
   widget: {
     kind: 'quorum',
-    tryThis: [
-      'Keep the defaults, N = 3, W = 2 and R = 2: the write reaches two replicas and the worst-case read asks the one it missed plus one it reached, so the read is fresh and R + W = 4 > 3. Take any one replica down: both still succeed and the read is still fresh. Take a second one down: the write and the read both fail, since only one replica is up.',
-      'Bring every replica back up, then set W = 1 and R = 1: the write reaches one replica and the worst-case read asks another, so it is stale and R + W = 2 is not above 3. Raise R to 3: now the read must include the written replica and is fresh. Take one replica down: writes still succeed, but reads fail. Cheap writes were paid for with fragile reads.',
-      'Set N = 5, W = 3 and R = 3: take any two replicas down and the read is still fresh; take a third down and both fail. Now bring all five up and set W = 2 and R = 2: the read is stale. Take three replicas down: the read turns fresh only because the write and the read were both forced onto the same two surviving replicas; once the other three come back, a read can miss the write. That is not a guarantee, and the widget still reports R + W as not above N.',
-    ],
+    experiments: QUORUM_EXPERIMENTS,
   },
   concepts: [
     {
@@ -17,11 +14,11 @@ export const CONSISTENCY_LESSON: SdLesson = {
     },
     {
       title: 'Quorums: R + W > N',
-      body: 'In a leaderless store (the Amazon Dynamo design, not DynamoDB; Cassandra, Riak) each key has N replicas. A write is sent to all N and succeeds once W acknowledge; a read asks R and returns the newest version among the answers. If R + W > N, every read set shares at least one replica with every successful write set, so the read sees the write. The split decides the trade: writes survive N - W replicas down, reads survive N - R. N = 3, W = 2, R = 2 tolerates one down replica for both; W = 3, R = 1 makes reads cheap and writes fragile. This lesson covers leaderless stores; the Replication lesson covers leader-based ones, where freshness depends on which replica you read, not on overlap.',
+      body: 'In a leaderless store (the Amazon Dynamo design, not DynamoDB; Cassandra, Riak) each key has N replicas. A write is sent to all N and succeeds once W acknowledge; a read waits for R answers (Cassandra asks only the R nearest replicas; Dynamo asks all and takes the first R) and returns the newest version among them. If R + W > N, every read set shares at least one replica with every successful write set, so the read sees the write. The split decides the trade: writes survive N - W replicas down, reads survive N - R. N = 3, W = 2, R = 2 tolerates one down replica for both; W = 3, R = 1 makes reads cheap and writes fragile. This lesson covers leaderless stores; the Replication lesson covers leader-based ones, where freshness depends on which replica you read, not on overlap.',
     },
     {
       title: 'What a quorum does not guarantee',
-      body: "Overlap is necessary, not sufficient. A sloppy quorum lets a write land on stand-in nodes outside the key's N when its home replicas are unreachable (hinted handoff later delivers it), so a read of the home replicas can miss it. A write that reached fewer than W replicas is reported as failed but is not rolled back, so later reads may or may not see it. Two concurrent writes resolved by last-write-wins keep one and silently drop the other, and with clock skew the survivor may be the older one. Even a strict quorum is not linearizable on its own: a read racing a write can see the new value while the next read sees the old one, without extra steps such as reads that repair stale replicas before returning.",
+      body: "Overlap is necessary, not sufficient. A sloppy quorum lets a write land on stand-in nodes outside the key's N when its home replicas are unreachable (hinted handoff later delivers it), so a read of the home replicas can miss it. A write that reached fewer than W replicas is reported as failed (a timeout) but is not rolled back, so later reads may or may not see it. Two concurrent writes resolved by last-write-wins keep one and silently drop the other, and with clock skew the survivor may be the older one. Even a strict quorum is not linearizable on its own: a read racing a write can see the new value while the next read sees the old one, without extra steps such as reads that repair stale replicas before returning.",
     },
     {
       title: 'CAP, stated precisely, and PACELC',
@@ -52,7 +49,7 @@ export const CONSISTENCY_LESSON: SdLesson = {
         'Reads cost R replica requests each. At R = 2 the catalog makes 120,000 replica reads a second, 40,000 per node; at R = 1 it makes 60,000, 20,000 per node. R = 1 needs W = 3.',
         'W = 3 means a write waits for the slowest replica and fails while any replica is down. The retrying pipeline absorbs that, and reads keep working with two replicas down. Catalog: W = 3, R = 1.',
         'For the event log, W = 1 and R = 3 acknowledges each write at the fastest replica and keeps writes up with two replicas down; the rare reads need all three replicas and fail if one is down.',
-        'But W = 1 acknowledges a write held by one node: if its disk dies before the others receive the write, the write is gone. If events must not be lost, W = 2, R = 2 keeps both paths up with one replica down, which is why it is the common default.',
+        'But W = 1 acknowledges a write held by one node: if its disk dies before the others receive the write, the write is gone. If events must not be lost, W = 2, R = 2 keeps both paths up with one replica down, which is why it is the usual choice.',
       ],
     },
     {

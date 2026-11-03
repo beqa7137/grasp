@@ -11,6 +11,7 @@ export * from './widgets/durability.js';
 export * from './widgets/gateway.js';
 export * from './widgets/leases.js';
 export * from './widgets/overload.js';
+export * from './widgets/quorum.js';
 export * from './widgets/queueing.js';
 export * from './widgets/recovery.js';
 export * from './widgets/replication.js';
@@ -157,29 +158,6 @@ export function pipeline(offered: number, tiers: readonly { instances: number; p
   }
   const bottleneck = capacities.reduce((b, c, i) => (c < capacities[b] ? i : b), 0);
   return { capacities, arriving, throughput: flow, bottleneck, utilization: capacities.map((c, i) => Math.min(1, arriving[i] / c)) };
-}
-
-export interface QuorumRound {
-  /** Replicas the write reached: the first `w` that are up. */
-  writeSet: number[];
-  /** Replicas the read asked, in the worst case: up replicas outside the write set first. */
-  readSet: number[];
-  writeOk: boolean;
-  readOk: boolean;
-  /** Whether every possible read set meets every possible write set, which is what `r + w > n` guarantees. */
-  overlap: boolean;
-  /** Whether the worst-case read still sees the write. */
-  fresh: boolean;
-}
-
-/** A leaderless store with `n` replicas: a write needs `w` acknowledgments and a read asks `r` replicas. */
-export function quorumRound(n: number, w: number, r: number, down: readonly number[]): QuorumRound {
-  const up = Array.from({ length: n }, (_, i) => i).filter((i) => !down.includes(i));
-  const writeOk = up.length >= w;
-  const readOk = up.length >= r;
-  const writeSet = writeOk ? up.slice(0, w) : [];
-  const readSet = readOk ? [...up.filter((i) => !writeSet.includes(i)), ...writeSet].slice(0, r) : [];
-  return { writeSet, readSet, writeOk, readOk, overlap: r + w > n, fresh: writeOk && readSet.some((i) => writeSet.includes(i)) };
 }
 
 export interface Partition {

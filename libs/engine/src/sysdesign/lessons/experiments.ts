@@ -4,7 +4,7 @@
  * from what the widget shows.
  */
 
-export type SlotUnit = 'pct' | 'ms' | 'dur' | 'qps' | 'times' | 's' | 'approx' | 'num' | 'word';
+export type SlotUnit = 'pct' | 'ms' | 'dur' | 'qps' | 'times' | 's' | 'approx' | 'num' | 'nines' | 'ordinal' | 'word';
 
 /** A model value with its unit, or a `word` the model chose ("The old value"), which may carry no digits. */
 export type Slot = { value: number; unit: Exclude<SlotUnit, 'word'> } | { value: string; unit: 'word' };
@@ -20,8 +20,8 @@ export const word = (value: string): Slot => ({ value, unit: 'word' });
 /** A widget's settings by name, as the experiment applies them. */
 export type ExperimentSettings = Readonly<Record<string, number>>;
 
-/** A play a widget runs on the picture, such as loading a page or renaming an author. */
-export type ExperimentRun = 'load' | 'rename';
+/** A play a widget runs on the picture, such as loading a page, renaming an author, or a write then a read. */
+export type ExperimentRun = 'load' | 'rename' | 'write-read' | 'read';
 
 /** What answering plays: new settings (then, if named, a run), a run on its own, or the widget's flush. */
 export type ExperimentAct = { set: ExperimentSettings; run?: ExperimentRun } | { run: ExperimentRun } | { flush: true };
@@ -37,7 +37,7 @@ export interface ExperimentSpec {
   /** Each choice names the slot it stands for; the one equal to `truth` is the answer. Absent for a challenge. */
   choices?: readonly { text: string; value: string }[];
   truth?: string;
-  /** A challenge: met when the widget's `metric` falls below `below` while the `keep` settings still hold. */
+  /** A challenge: met when every bound holds while the `keep` settings still hold. */
   goal?: ExperimentGoal;
   reveal: string;
   /** The widget regions the reveal is about, pulsed when it plays. */
@@ -47,11 +47,8 @@ export interface ExperimentSpec {
   slots: () => Slots;
 }
 
-/** A measure a challenge must bring under a bound. */
-export interface ExperimentBound {
-  metric: string;
-  below: number;
-}
+/** A measure a challenge must bring under a bound, or keep at or above one. */
+export type ExperimentBound = { metric: string; below: number } | { metric: string; atLeast: number };
 
 /** A challenge's goal: one bound, or `all` of several at once; either way the `keep` settings must still hold. */
 export type ExperimentGoal = (ExperimentBound | { all: readonly ExperimentBound[] }) & { keep?: ExperimentSettings };
@@ -96,6 +93,19 @@ export const formatApprox = (v: number) => {
   return group(Math.round(v / step) * step);
 };
 
+/** A chance as a percentage of nines: two decimals, more only to show every leading nine, and never 100%. */
+export function formatNines(p: number): string {
+  const unlikely = 1 - p;
+  const nines = unlikely > 0 ? Math.floor(-Math.log10(unlikely) + 1e-9) : 12;
+  const decimals = Math.max(2, nines - 2);
+  const pct = Math.min(Number((p * 100).toFixed(decimals)), 100 - 10 ** -decimals);
+  return `${pct.toFixed(decimals)}%`;
+}
+export const formatOrdinal = (v: number) => {
+  const suffix = v % 100 >= 11 && v % 100 <= 13 ? 'th' : (['th', 'st', 'nd', 'rd'][v % 10] ?? 'th');
+  return `${v}${suffix}`;
+};
+
 const FORMAT: Record<Exclude<SlotUnit, 'word'>, (v: number) => string> = {
   pct: formatPct,
   ms: formatMs,
@@ -105,6 +115,8 @@ const FORMAT: Record<Exclude<SlotUnit, 'word'>, (v: number) => string> = {
   s: formatSeconds,
   approx: formatApprox,
   num: (v) => (Number.isInteger(v) ? group(v) : trim(v, 2)),
+  nines: formatNines,
+  ordinal: formatOrdinal,
 };
 
 export const formatSlot = (slot: Slot) => (slot.unit === 'word' ? slot.value : FORMAT[slot.unit](slot.value));
@@ -158,9 +170,14 @@ export const goalKept = (goal: ExperimentGoal, settings: ExperimentSettings): bo
 /** A goal's bounds, one or several. */
 export const goalBounds = (goal: ExperimentGoal): readonly ExperimentBound[] => ('all' in goal ? goal.all : [goal]);
 
-/** A challenge is met when every bound's metric is under it and the settings it keeps are as it set them. */
+/** Whether `value` meets a bound: under a `below`, or at or above an `atLeast`. */
+export const boundMet = (b: ExperimentBound, value: number) => ('below' in b ? value < b.below : value >= b.atLeast);
+/** The number a bound names, either way. */
+export const boundLimit = (b: ExperimentBound) => ('below' in b ? b.below : b.atLeast);
+
+/** A challenge is met when every bound's metric meets it and the settings it keeps are as it set them. */
 export function goalMet(goal: ExperimentGoal, metrics: Readonly<Record<string, number>>, settings: ExperimentSettings): boolean {
-  return goalKept(goal, settings) && goalBounds(goal).every((b) => metrics[b.metric] < b.below);
+  return goalKept(goal, settings) && goalBounds(goal).every((b) => boundMet(b, metrics[b.metric]));
 }
 
 export const experimentTemplates = (spec: ExperimentSpec): string[] => [

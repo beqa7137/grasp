@@ -20,7 +20,6 @@ import {
   place,
   queueBacklog,
   queueLatency,
-  quorumRound,
   regionOutcome,
   replicaRead,
   ringOwner,
@@ -177,20 +176,6 @@ describe('pipeline', () => {
     expect(capped.throughput).toBe(15_000);
     expect(capped.bottleneck).toBe(1);
     expect(capped.utilization).toEqual([0.4, 1, 0.375]);
-  });
-});
-
-describe('quorum round', () => {
-  it('guarantees a fresh read exactly when r + w > n', () => {
-    expect(quorumRound(3, 2, 2, [])).toMatchObject({ overlap: true, fresh: true, writeSet: [0, 1], readSet: [2, 0] });
-    expect(quorumRound(3, 1, 1, [])).toMatchObject({ overlap: false, fresh: false, readSet: [1] });
-    expect(quorumRound(5, 3, 2, [])).toMatchObject({ overlap: false, fresh: false });
-  });
-
-  it('fails a write or read that cannot gather its quorum', () => {
-    expect(quorumRound(3, 2, 2, [0, 1])).toMatchObject({ writeOk: false, readOk: false, fresh: false });
-    expect(quorumRound(5, 3, 3, [4, 3])).toMatchObject({ writeOk: true, readOk: true, fresh: true });
-    expect(quorumRound(3, 3, 1, [2])).toMatchObject({ writeOk: false, readOk: true });
   });
 });
 
