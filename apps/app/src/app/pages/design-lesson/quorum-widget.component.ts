@@ -112,7 +112,7 @@ export class QuorumWidgetComponent {
 
   readonly motion = signal(false);
   readonly describe = signal(false);
-  readonly notice = signal('');
+  readonly notice = signal('Tap a replica to change its state; drag W and R on the drawing.');
   /** The card whose next state the hint names, and the input that asked: a key, a tap or a hover. */
   readonly hint = signal<{ i: number; verb: Verb } | null>(null);
   /** The card that holds the toolbar's one Tab stop. */

@@ -12,6 +12,33 @@ const feedReady = async (p) => {
   await p.locator('app-feed-model-widget app-feed-traffic svg').waitFor();
   await p.locator('#try').scrollIntoViewIfNeeded();
 };
+/** The Consistency & Quorums widget drawn, its panel at the top of the view. */
+const quorumStageToTop = (p) => p.locator('app-quorum-widget g-stage').evaluate((stage) => stage.scrollIntoView({ block: 'start' }));
+const quorumReady = async (p) => {
+  await p.locator('app-quorum-widget svg.draw').waitFor();
+  await quorumStageToTop(p);
+};
+/**
+ * Sets the quorum widget as a learner would: N, the conditions, W and R by key from QUORUM, and taps on each replica
+ * card (each tap moves it on: up, down, stops mid-write, back).
+ */
+const quorumAt = async (p, { n, w, r, stall, sloppy, taps = [] }, ready = true) => {
+  if (ready) await p.locator('app-quorum-widget svg.draw').waitFor();
+  const widget = p.locator('app-quorum-widget');
+  if (n) await widget.getByRole('radio', { name: `${n} replicas` }).check();
+  if (stall) await widget.getByRole('checkbox', { name: /pauses/ }).check();
+  if (sloppy) await widget.getByRole('checkbox', { name: /Sloppy quorum/ }).check();
+  const quorum = Math.floor((n ?? 3) / 2) + 1;
+  for (const [name, to] of [
+    ['W, acks a write waits for', w],
+    ['R, answers a read waits for', r],
+  ]) {
+    if (!to || to === quorum) continue;
+    await stepHandle(p, name, to > quorum ? 'ArrowRight' : 'ArrowLeft', Math.abs(to - quorum));
+  }
+  for (const [i, k] of taps.entries()) for (let j = 0; j < k; j++) await widget.locator('.card-hit').nth(i).click();
+  await quorumStageToTop(p);
+};
 const balancerReady = (p) => p.locator('app-balancer-widget .value.big').filter({ hasText: /\d/ }).waitFor();
 /** Steps a handle on the drawing by key, as a learner without a mouse would. */
 const stepHandle = async (p, name, key, times = 1) => {
@@ -437,12 +464,69 @@ export function designStates() {
       },
     },
     { id: 'lesson-capacity', path: '/design/topics/sd-capacity', setup: (p) => p.locator('#try').scrollIntoViewIfNeeded() },
+    { id: 'lesson-consistency', path: '/design/topics/sd-consistency', setup: (p) => quorumReady(p) },
+    { id: 'lesson-consistency-stale', path: '/design/topics/sd-consistency', setup: (p) => quorumAt(p, { w: 1, r: 1 }) },
+    { id: 'lesson-consistency-down', path: '/design/topics/sd-consistency', setup: (p) => quorumAt(p, { taps: [0, 0, 1] }) },
+    { id: 'lesson-consistency-timeout', path: '/design/topics/sd-consistency', setup: (p) => quorumAt(p, { w: 3, taps: [0, 0, 2] }) },
     {
-      id: 'lesson-consistency-down',
+      id: 'lesson-consistency-sloppy',
+      path: '/design/topics/sd-consistency',
+      setup: (p) => quorumAt(p, { sloppy: true, taps: [0, 3, 3] }),
+    },
+    { id: 'lesson-consistency-slow', path: '/design/topics/sd-consistency', setup: (p) => quorumAt(p, { n: 5, w: 3, r: 3, stall: true }) },
+    {
+      id: 'lesson-consistency-describe',
       path: '/design/topics/sd-consistency',
       setup: async (p) => {
-        await p.locator('#try').scrollIntoViewIfNeeded();
-        await p.getByRole('button', { name: /^Replica 3,/ }).click();
+        await quorumAt(p, { w: 1, r: 1 });
+        await p.locator('app-quorum-widget').getByRole('button', { name: 'Describe' }).click();
+        await p.locator('app-quorum-widget .describe g-data-table').scrollIntoViewIfNeeded();
+      },
+    },
+    {
+      id: 'lesson-consistency-table',
+      path: '/design/topics/sd-consistency',
+      setup: async (p) => {
+        await quorumAt(p, { sloppy: true, r: 3, taps: [0, 0, 1] });
+        await p.locator('app-quorum-widget').getByRole('button', { name: 'Describe' }).click();
+        await p.locator('app-quorum-widget .describe g-data-table').scrollIntoViewIfNeeded();
+      },
+    },
+    {
+      id: 'lesson-consistency-asking',
+      path: '/design/topics/sd-consistency',
+      setup: async (p) => {
+        await quorumReady(p);
+        await p.locator('app-quorum-widget .cards button', { hasText: 'One replica stalls' }).click();
+        await p.locator('app-widget-check legend').waitFor();
+      },
+    },
+    {
+      id: 'lesson-consistency-revealed',
+      path: '/design/topics/sd-consistency',
+      setup: async (p) => {
+        await quorumReady(p);
+        await p.locator('app-quorum-widget .cards button', { hasText: 'A sloppy quorum' }).click();
+        await p
+          .locator('app-widget-check')
+          .getByRole('button', { name: /^Yes: 1 of the 3/ })
+          .click();
+        await p
+          .locator('app-widget-check .explain')
+          .filter({ hasText: /^Yes, 1 of the 3/ })
+          .waitFor();
+        await quorumStageToTop(p);
+      },
+    },
+    {
+      id: 'lesson-consistency-challenge',
+      path: '/design/topics/sd-consistency',
+      setup: async (p) => {
+        await quorumReady(p);
+        await p.locator('app-quorum-widget .cards button', { hasText: 'Challenge' }).click();
+        await quorumAt(p, { n: 5, w: 4, r: 2 }, false);
+        await p.locator('app-experiment-dock .reveal').waitFor();
+        await quorumStageToTop(p);
       },
     },
     { id: 'lesson-consensus', path: '/design/topics/sd-consensus', setup: (p) => p.locator('#try').scrollIntoViewIfNeeded() },
