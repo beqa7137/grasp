@@ -423,7 +423,7 @@ The layout spec (`quorum-layout.spec.ts`) draws every N 3 setting and a stride o
 and revealed, the challenge's setting and N 5 sloppy with a replica down, at many widths from 248 to 700 px: no text on
 text, no line or mark through text, nothing off the stage, hit boxes apart, no dot on a dot, every ack and answer with a
 visible dot and name in its lane, every ring label placed, chips at least 3 px apart, no glyph on a chip, one height per
-width and N. `shoot.cjs` runs the same checks on the mockup: 12,099 setting renders and 132 experiment renders, clean.
+width and N. `shoot.cjs` runs the same checks on the mockup: 12,275 setting renders (the challenge and N 5 sloppy with each single replica down at all 11 widths among them) and 132 experiment renders, clean.
 
 ## 6. What a learner can say in an interview afterwards
 

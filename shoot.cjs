@@ -108,11 +108,17 @@ const server = http.createServer((req, res) => {
       return out;
     });
     // Every N 3 setting at the narrowest phone and the desktop stage; the N 5 sample at two phone widths too.
+    // The challenge's setting and N 5 sloppy with each single replica down, at every sweep width (dot stacks).
+    const named = [
+      { n: 5, w: 4, r: 2, states: Array(5).fill('up'), stall: 1, sloppy: 0 },
+      ...[0, 1, 2, 3, 4].flatMap((d) => [1, 3, 5].map((r) => ({ n: 5, w: 3, r, states: Array.from({ length: 5 }, (_, i) => (i === d ? 'down' : 'up')), stall: 0, sloppy: 1 }))),
+    ];
     const plan = [
       [252, settings],
       [620, settings.filter((x) => x.n === 3)],
       [322, settings.filter((x) => x.n === 5)],
       [400, settings.filter((x) => x.n === 5)],
+      ...sweepWidths.map((w) => [w, named]),
     ];
     const res = { renders: 0, failures: [] };
     for (const [w, list] of plan)
