@@ -1,0 +1,123 @@
+@use '../../../type' as *;
+@use '../../../breakpoints' as *;
+
+// The controls beside a lesson widget's stage (Data Modeling, Consistency & Quorums): native radio groups and
+// checkboxes drawn as g-segmented, a polite notice, and Describe with its table.
+.controls {
+  display: grid;
+  gap: var(--g-space-3);
+  align-content: start;
+  min-width: 0;
+}
+fieldset.group {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+// Native radio groups drawn as g-segmented, as Load Balancing does: the component would split a first-paint chunk, and
+// native radios bring the arrow keys and one Tab stop with them.
+.segments {
+  display: flex;
+  gap: var(--g-space-1);
+}
+.segment {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  input {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+  span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0 var(--g-space-1);
+    border-radius: var(--g-radius-sm);
+    border: 1px solid var(--g-line-strong);
+    background: var(--g-raised);
+    box-shadow: var(--g-shadow-raised);
+    color: var(--g-text);
+    font: 500 var(--g-text-body) / 1.15 var(--ion-font-family);
+    text-align: center;
+  }
+  input:checked + span {
+    background: var(--g-accent-soft);
+    border-color: var(--g-accent);
+    box-shadow: inset 0 0 0 1px var(--g-accent);
+    font-weight: 600;
+  }
+  input:focus-visible + span {
+    outline: var(--g-focus-ring);
+    outline-offset: 2px;
+  }
+  input:disabled {
+    cursor: default;
+  }
+  input:disabled + span {
+    opacity: 0.55;
+  }
+}
+@media (hover: hover) {
+  .segment input:not(:checked, :disabled):hover + span {
+    border-color: var(--g-faint);
+  }
+}
+.control-label {
+  @include label;
+  color: var(--g-muted);
+  padding: 0;
+  margin-bottom: var(--g-space-1);
+}
+.note {
+  margin: var(--g-space-1) 0 0;
+  min-height: 1lh;
+  font-size: var(--g-text-body-s);
+  color: var(--g-muted);
+}
+.notice {
+  margin: 0;
+  min-height: 2lh;
+  font-size: var(--g-text-body-s);
+  color: var(--g-muted);
+}
+// Below wide the notice would sit over the stage and push it down as it speaks; the picture shows the change, so
+// there it is read out only.
+@include container-narrow(lesson) {
+  .notice {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    min-height: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .controls {
+    position: relative;
+  }
+}
+.describe {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--g-space-2);
+  min-width: 0;
+  .g-btn {
+    min-height: 44px;
+  }
+  // Eight columns are wider than a phone: the table scrolls inside its own box, never the page.
+  g-data-table {
+    flex: 1 0 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .muted {
+    font-size: var(--g-text-body-s);
+    color: var(--g-muted);
+  }
+}

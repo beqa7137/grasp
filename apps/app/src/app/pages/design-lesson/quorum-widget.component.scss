@@ -1,6 +1,7 @@
 @use '../../../type' as *;
 @use '../../../breakpoints' as *;
 @use 'feed-controls';
+@use 'widget-controls';
 
 :host {
   display: grid;
@@ -149,11 +150,11 @@ svg.draw {
   fill: var(--g-text);
 }
 .t-name {
-  font: 600 15px var(--g-font-mono);
+  font: 600 var(--g-text-title-s) var(--g-font-mono);
   fill: var(--g-text);
 }
 .t-nameS {
-  font: 600 13px var(--g-font-mono);
+  font: 600 var(--g-text-body-s) var(--g-font-mono);
   fill: var(--g-text);
 }
 .t-head {
@@ -554,46 +555,6 @@ svg.draw :is(.card-both, .both-ring).land {
   }
 }
 
-// A play button on a stage: a 36px disc in a 44px hit box.
-.play {
-  position: absolute;
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  border: 0;
-  background: none;
-  cursor: pointer;
-  z-index: 2;
-  svg {
-    display: block;
-    width: 36px;
-    height: 36px;
-    margin: var(--g-space-1);
-  }
-  circle {
-    fill: var(--g-raised);
-    stroke: var(--g-accent);
-    stroke-width: 1.5;
-  }
-  path {
-    fill: var(--g-accent);
-  }
-  &:focus-visible {
-    outline: none;
-    circle {
-      stroke-width: 3;
-    }
-    svg {
-      outline: var(--g-focus-ring);
-      outline-offset: 1px;
-      border-radius: var(--g-radius-pill);
-    }
-  }
-  &:disabled {
-    cursor: default;
-    opacity: 0.55;
-  }
-}
 .replicas {
   position: absolute;
   inset: 0;
