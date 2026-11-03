@@ -984,6 +984,9 @@
         letter-spacing: normal;
         white-space: normal;
       }
+      th .unit {
+        text-transform: none;
+      }
     </style>
   </head>
   <body>
@@ -2139,7 +2142,9 @@ ${[3, 5].map((k) => `<label class="segment"><input type="radio" name="n" ${k ===
       function describeHtml(m, open, compact) {
         const btn = `<button class="g-btn" aria-expanded="${open}">${open ? 'Hide the description' : 'Describe'}</button>`;
         if (!open) return btn;
-        const head = compact ? ['Rep.', 'State', 'Write rtt', 'Has v8 at', 'Read at', 'Got'] : ['Replica', 'State', 'Write round trip', 'Has v8 at', 'Read reaches it', 'Answered'];
+        // Phones put the unit in the heads, so the cells stay narrow enough for 320 px with stand-ins listed.
+        const head = compact ? ['Rep.', 'State', 'Write rtt, ms', 'Has v8 at, ms', 'Read at, ms', 'Got'] : ['Replica', 'State', 'Write round trip', 'Has v8 at', 'Read reaches it', 'Answered'];
+        const fmt = (v) => (compact ? M.formatMs(v).replace(' ms', '') : M.formatMs(v));
         const rows = m.all.map((x) => {
           const a = m.read.answers.find((q) => q.id === x.id);
           const has = m.write.applied.includes(x.id) ? fmt(x.landAt) : '–';
@@ -2150,7 +2155,7 @@ ${[3, 5].map((k) => `<label class="segment"><input type="radio" name="n" ${k ===
           const answered = a ? `${value}${m.read.repairs.includes(x.id) ? (compact ? ', fixed' : ', repaired') : ''}` : '–';
           return [name, state, x.knownDown ? '–' : fmt(x.writeRtt), has, a ? fmt(a.readAt) : '–', answered];
         });
-        return `${btn}<div class="table-box${compact ? ' compact' : ''}" tabindex="0" role="region" aria-label="Each replica in this scenario"><table><thead><tr>${head.map((h) => `<th scope="col">${h}</th>`).join('')}</tr></thead><tbody>${rows
+        return `${btn}<div class="table-box${compact ? ' compact' : ''}" tabindex="0" role="region" aria-label="Each replica in this scenario"><table><thead><tr>${head.map((h) => `<th scope="col">${h.replace(', ms', ', <span class="unit">ms</span>')}</th>`).join('')}</tr></thead><tbody>${rows
           .map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join('')}</tr>`)
           .join('')}</tbody></table></div>`;
       }
