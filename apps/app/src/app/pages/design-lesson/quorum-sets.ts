@@ -175,9 +175,9 @@ export function drawStrip(c: Ctx, top: number): number {
       ly += 16;
     }
     if (k === 'acked' || k === 'member')
-      D.add('marks', `legend-${k}`, { k: 'rect', cls: `cell ${k}`, x: lx + 0.5, y: ly - 9.5, w: 10, h: 10, rx: 2 });
-    if (k === 'x') D.add('marks', 'legend-x', { k: 'path', cls: 'xmark', d: `M${lx + 2} ${ly - 8}l7 7M${lx + 9} ${ly - 8}l-7 7` });
-    if (k === 'ring') D.add('marks', 'legend-ring', { k: 'rect', cls: 'this-ring', x: lx + 0.5, y: ly - 10.5, w: 10, h: 12, rx: 3 });
+      D.add('marks', `legend-${k}`, { k: 'rect', cls: `cell ${k} key`, x: lx + 0.5, y: ly - 9.5, w: 10, h: 10, rx: 2 });
+    if (k === 'x') D.add('marks', 'legend-x', { k: 'path', cls: 'xmark key', d: `M${lx + 2} ${ly - 8}l7 7M${lx + 9} ${ly - 8}l-7 7` });
+    if (k === 'ring') D.add('marks', 'legend-ring', { k: 'rect', cls: 'this-ring key', x: lx + 0.5, y: ly - 10.5, w: 10, h: 12, rx: 3 });
     D.text(`legend-${k}-t`, lx + 17, ly, [[t, 'small', 'muted']]);
     lx += iw + 14;
   }

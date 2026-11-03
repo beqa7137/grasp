@@ -120,6 +120,8 @@ export class QuorumWidgetComponent {
   /** Screen ms into a running play; null at rest, where the stage shows its end state. */
   readonly tau = signal<number | null>(null);
   private clock: Timeline = () => 0;
+  /** Whether the toolbar was last moved by a key, which makes the next focus a keyboard's even where `:focus-visible` is not reported. */
+  private keyed = false;
 
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   readonly stageRef = viewChild.required(StageComponent);
@@ -306,6 +308,7 @@ export class QuorumWidgetComponent {
     const to = ({ ArrowRight: i + 1, ArrowDown: i + 1, ArrowLeft: i - 1, ArrowUp: i - 1, Home: 0, End: last } as Record<string, number>)[
       event.key
     ];
+    this.keyed = true;
     if (to === undefined) return;
     event.preventDefault();
     const next = Math.max(0, Math.min(last, to));
@@ -315,16 +318,17 @@ export class QuorumWidgetComponent {
 
   cardFocus(i: number, event: FocusEvent) {
     this.rove.set(i);
-    let keyboard = true;
+    let visible = true;
     try {
-      keyboard = (event.target as HTMLElement).matches(':focus-visible');
+      visible = (event.target as HTMLElement).matches(':focus-visible');
     } catch {
-      keyboard = true;
+      visible = true;
     }
-    if (keyboard) this.hint.set({ i, verb: 'Enter' });
+    if (this.keyed || visible) this.hint.set({ i, verb: 'Enter' });
   }
 
   cardPointer(i: number, event: PointerEvent, phase: 'enter' | 'up' | 'leave') {
+    this.keyed = false;
     if (phase === 'leave') {
       if (this.hint()?.verb === 'Click') this.hint.set(null);
       return;
@@ -342,6 +346,7 @@ export class QuorumWidgetComponent {
   play(done: () => void = () => undefined, run: Run = 'write-read') {
     this.exp.clearFocus();
     this.player.stop();
+    this.pool?.clear();
     const m = this.model();
     if (!this.motion() || !this.ready()) {
       this.notice.set(outcomeNotice(m, this.hid()));
@@ -383,6 +388,7 @@ export class QuorumWidgetComponent {
 
   start(e: SdExperiment) {
     this.player.stop(false);
+    this.pool?.clear();
     this.tau.set(null);
     this.describe.set(false);
     this.hint.set(null);
@@ -403,6 +409,7 @@ export class QuorumWidgetComponent {
   /** Any change of settings: a running play is about the settings before it. */
   private settle() {
     this.player.stop();
+    this.pool?.clear();
     this.exp.clearFocus();
     this.tau.set(null);
   }
