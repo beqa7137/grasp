@@ -1,7 +1,9 @@
 // Renders mockup.html in every state at 1280, 390 and 320 px in both themes, saves full-page screenshots to shots/,
 // prints the page's own collision report (text on text, lines and marks through text, off-stage text, hit boxes on hit
-// boxes, focus tags with no place), then sweeps the stage over settings, experiments and widths.
-// Usage: node shoot.cjs [--no-sweep] [--only=state,state] [--widths=1280,390]
+// boxes, dots on dots, dots without a name, labels with no place, chips closer than 3 px, glyphs on chips, focus tags
+// with no place), then sweeps the stage over settings, experiments and widths, and runs the no-answer sweep.
+// A state is a name ("stale"), a question asking or revealed ("ask:3", "reveal:1"), or either with Describe open ("+d").
+// Usage: node shoot.cjs [--no-sweep] [--sweep-only] [--only=state,state] [--widths=1280,390]
 'use strict';
 const http = require('http');
 const fs = require('fs');
@@ -11,7 +13,28 @@ const { chromium } = require('/var/tmp/r41b/node_modules/playwright');
 const DIR = __dirname;
 const args = process.argv.slice(2);
 const opt = (name) => args.find((a) => a.startsWith(`--${name}=`))?.split('=')[1];
-const STATES = opt('only')?.split(',') ?? ['default', 'stale', 'down', 'refused', 'timeout', 'sloppy', 'slow', 'ask', 'reveal', 'challenge'];
+const STATES = opt('only')?.split(',') ?? [
+  'default',
+  'stale',
+  'down',
+  'refused',
+  'timeout',
+  'sloppy',
+  'standin',
+  'sloppy5',
+  'readtimeout',
+  'nocopy',
+  'slow',
+  ...[1, 2, 3, 4, 5].map((k) => `ask:${k}`),
+  ...[1, 2, 3, 4, 5].map((k) => `reveal:${k}`),
+  'challenge',
+  'stale+d',
+];
+const query = (state) => {
+  const [name, exp] = state.replace('+d', '').split(':');
+  return `state=${name}${exp ? `&exp=${exp}` : ''}${state.endsWith('+d') ? '&describe=1' : ''}`;
+};
+const file = (state) => state.replace(':', '').replace('+d', '-describe');
 const WIDTHS = opt('widths')?.split(',').map(Number) ?? [1280, 390, 320];
 const THEMES = ['light', 'dark'];
 const EXECUTABLE = process.env.CHROMIUM_PATH ?? '/opt/pw-browsers/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell';
@@ -37,12 +60,12 @@ const server = http.createServer((req, res) => {
       const page = await browser.newPage({ viewport: { width, height: 900 }, deviceScaleFactor: width < 600 ? 2 : 1 });
       page.on('pageerror', (e) => errors.push(`${theme} ${width}: ${e.message}`));
       for (const state of STATES) {
-        await page.goto(`${base}?state=${state}&theme=${theme}`);
+        await page.goto(`${base}?${query(state)}&theme=${theme}`);
         await page.waitForSelector('body[data-ready="1"]', { timeout: 10000 });
         const { issues, stage } = await page.evaluate(() => ({ issues: window.__collisions, stage: window.__stage }));
-        await page.screenshot({ path: path.join(DIR, 'shots', `${state}-${width}-${theme}.png`), fullPage: true });
+        await page.screenshot({ path: path.join(DIR, 'shots', `${file(state)}-${width}-${theme}.png`), fullPage: true });
         total += issues.length;
-        const line = `${state.padEnd(10)} ${String(width).padStart(4)} ${theme.padEnd(5)} stage ${stage.W}x${stage.H}  ${issues.length ? `${issues.length} collisions` : 'clean'}`;
+        const line = `${state.padEnd(11)} ${String(width).padStart(4)} ${theme.padEnd(5)} stage ${stage.W}x${stage.H}  ${issues.length ? `${issues.length} collisions` : 'clean'}`;
         console.log(line);
         for (const i of issues.slice(0, 8)) console.log(`    ${i}`);
       }

@@ -1277,13 +1277,13 @@
           let lx = pad;
           const ky = y + 8;
           for (const [name, cls] of keyItems) {
-            D.add('marks', `<line class="${cls} legend-line" x1="${lx}" y1="${ky - 4}" x2="${lx + 16}" y2="${ky - 4}"/>`);
-            D.text(lx + 22, ky, [[name, 'small', 'muted']]);
-            lx += 22 + tw(name, 'small') + 14;
+            D.add('marks', `<line class="${cls} legend-line" x1="${lx}" y1="${ky - 4}" x2="${lx + 14}" y2="${ky - 4}"/>`);
+            D.text(lx + 19, ky, [[name, 'small', 'muted']]);
+            lx += 19 + tw(name, 'small') + 12;
           }
           const unitNote = 'times in ms';
-          if (unitless && W - pad - tw(unitNote, 'small') >= pad + 22 * 3 + 14 * 2 + tw('write', 'small') + tw('read', 'small') + tw('repair', 'small') + 8)
-            D.text(W - pad, ky, [[unitNote, 'small', 'muted']], { anchor: 'end' });
+          const keyEnd = pad + 19 * 3 + 12 * 2 + tw('write', 'small') + tw('read', 'small') + tw('repair', 'small');
+          if (unitless && W - pad - tw(unitNote, 'small') >= keyEnd + 8) D.text(W - pad, ky, [[unitNote, 'small', 'muted']], { anchor: 'end' });
           y += 16;
         }
 
@@ -1477,13 +1477,17 @@
           } else if (value !== null) {
             const label = value === '?' ? '?' : `v${value}`;
             const name = wide && value === 8 && cw >= 100 ? 'Artemis' : wide && value === 7 && cw >= 100 ? 'Apollo' : '';
-            const chw = tw(label, 'mono') + (name ? tw(name, 'small') + 5 : 0) + 12;
+            // A race with no room for its word says it in the chip: it held v7 when the read came, then v8 landed.
+            const arrow = race[i] && !nameSlot && !pipWord && tw('v7→v8', 'mono') + 12 <= cw - 2 * ix;
+            const parts = arrow
+              ? [['v7→', 'mono', 'warn'], ['v8', 'mono', 'chip-new-ink']]
+              : name
+                ? [[label, 'mono', value === 8 ? 'chip-new-ink' : 'muted'], [name, 'small', 'muted', 5]]
+                : [[label, 'mono', value === 8 ? 'chip-new-ink' : 'muted']];
+            const chw = partsWidth(parts) + 12;
             const ccls = value === '?' ? 'unknown' : value === 8 ? 'new' : 'old';
             D.add('marks', `<rect class="chip ${ccls}" x="${x + ix}" y="${chipY}" width="${chw}" height="18" rx="5"/>`);
-            D.text(x + ix + 6, chipY + 13, name ? [[label, 'mono', value === 8 ? 'chip-new-ink' : 'muted'], [name, 'small', 'muted', 5]] : [[label, 'mono', value === 8 ? 'chip-new-ink' : 'muted']], {
-              owner,
-              textCls: 'on-chip',
-            });
+            D.text(x + ix + 6, chipY + 13, parts, { owner, textCls: 'on-chip' });
             if (repaired) {
               const gx = x + ix + chw + 9;
               if (gx + 6 <= x + cw - 3)
@@ -1781,10 +1785,10 @@
               : `The write timed out, but ${who} applied it: a read of ${r} that misses ${m.h > 1 ? 'them' : 'it'} returns v7.`;
           }
           if (viaStandIns)
-            return `This read asked ${standInNames} for the down ${nameList(m.readStandIns.map((id) => `R${m.all[id].standsFor + 1}`))}; the sets count home replicas, ${m.h ? `of which ${m.h} acked` : 'and none acked'}.`;
+            return `This read asked ${standInNames} for the down ${nameList(m.readStandIns.map((id) => `R${m.all[id].standsFor + 1}`))}; the sets count home replicas only.`;
           if (m.settings.sloppy && m.h < w && m.staleSets > 0)
             return m.h === 0
-              ? `The read goes to the home replicas, not the stand-ins holding the write, and no home replica acked: every read of ${r} can miss v8.`
+              ? `Only stand-ins acked, and the read goes to the home replicas: every read of ${r} can miss v8.`
               : `The read goes to the home replicas, not the stand-ins holding the write: only ${m.h} home replica${m.h === 1 ? '' : 's'} acked, so a read of ${r} can miss ${m.h === 1 ? 'it' : 'them'}.`;
           if (m.staleSets === 0) return `Every read of ${r} shares a replica with the ${m.h} that acked.`;
           return `${r} + ${w} is not above ${n}: a read of ${r} can miss ${m.h === 1 ? 'the replica' : `all ${m.h}`} that acked.`;
@@ -1808,8 +1812,8 @@
             'Which reads can miss v8 depends on how the write ends: after your answer.',
             'The write timed out, but 3 replicas applied it: a read of 2 that misses them returns v7.',
             'The read goes to the home replicas, not the stand-ins holding the write: only 1 home replica acked, so a read of 5 can miss it.',
-            'The read goes to the home replicas, not the stand-ins holding the write, and no home replica acked: every read of 5 can miss v8.',
-            'This read asked H1 and H2 for the down R1 and R2; the sets count home replicas, of which 3 acked.',
+            'Only stand-ins acked, and the read goes to the home replicas: every read of 5 can miss v8.',
+            'This read asked H1 and H2 for the down R1 and R2; the sets count home replicas only.',
             'Nothing was written, and H1 and H2 hold no copy of the key.',
             'Every read of 5 shares a replica with the 5 that acked.',
           ].map((t) => wrap(t, 'cap', sentW).length),
@@ -1831,8 +1835,9 @@
         // Room above each lane for the tallest stack of dots this width and N can draw, so heights stay put.
         const possible = possibleRtts(n);
         const tallR = tallestStack(possible.read, X);
-        const L1 = wide ? y + 60 : y + 70;
-        const L2 = L1 + Math.max(wide ? 44 : 62, 34 + (tallR - 1) * STACK_STEP);
+        // Phone lanes carry their names above them, with room for a ring label between name and dots.
+        const L1 = wide ? y + 60 : y + 74;
+        const L2 = L1 + Math.max(wide ? 44 : 66, 34 + (tallR - 1) * STACK_STEP);
         const axisY = L2 + (wide ? 24 : 30);
         const ticks = [1, 2, 5, 10, 20, 50, 100, 200];
         for (const t of ticks) D.add('grid', `<line class="gridline" x1="${X(t)}" y1="${L1 - (wide ? 18 : 22)}" x2="${X(t)}" y2="${axisY}"/>`);
@@ -1858,8 +1863,8 @@
           D.text(pad, L2 + 4, [['Read answers', 'cap', 'ink']]);
         } else {
           for (const [t, L] of [['Write acks', L1], ['Read answers', L2]]) {
-            D.add('grid', `<rect class="ground" x="${pad - 2}" y="${L - 36}" width="${tw(t, 'small') + 6}" height="14" rx="3"/>`);
-            D.text(pad, L - 26, [[t, 'small', 'ink']], { ground: true });
+            D.add('grid', `<rect class="ground" x="${pad - 2}" y="${L - 40}" width="${tw(t, 'small') + 6}" height="14" rx="3"/>`);
+            D.text(pad, L - 30, [[t, 'small', 'ink']], { ground: true });
           }
         }
         // A stack's names join under its lowest dot; a name that finds no room is reported by the checks.
@@ -1876,15 +1881,24 @@
           }
           D.missingNames = [...(D.missingNames ?? []), t];
         };
-        const placeLabel = (x, L, texts, ringR, owner, tone = 'ink') => {
+        // A ring's label goes beside the ring (and its repair bar, which ends at xEnd), level or raised, then above it.
+        const placeLabel = (x, L, texts, ringR, owner, tone = 'ink', xEnd = x + ringR) => {
+          const xl = x - ringR;
+          const xr = Math.max(x + ringR, xEnd);
           for (const t of texts) {
             const w0 = tw(t, 'smallB');
             const cands = [
-              [x + ringR + 6, L + 4, 'start'],
-              [x - ringR - 6, L + 4, 'end'],
-              [x, L - ringR - 7, 'middle'],
-              [x + ringR + 2, L - ringR - 7, 'start'],
-              [x - ringR - 2, L - ringR - 7, 'end'],
+              [xr + 6, L + 4, 'start'],
+              [xl - 6, L + 4, 'end'],
+              [xr + 6, L - 1, 'start'],
+              [xl - 6, L - 1, 'end'],
+              [(xl + xr) / 2, L - ringR - 7, 'middle'],
+              [xl, L - ringR - 7, 'start'],
+              [xr, L - ringR - 7, 'end'],
+              [xr + 16, L + 4, 'start'],
+              [xl - 16, L + 4, 'end'],
+              [xr + 6, L - 12, 'start'],
+              [xl - 6, L - 12, 'end'],
             ];
             for (const [cx0, cy0, anchor] of cands) {
               const box = D.textBox(cx0, cy0, w0, 'smallB', anchor);
@@ -1895,6 +1909,7 @@
               return true;
             }
           }
+          D.missingNames = [...(D.missingNames ?? []), texts[0]];
           return false;
         };
         const laneNote = (L, t, tone = 'muted') => {
@@ -1945,7 +1960,7 @@
             if (D.free(box, 'timeout')) {
               D.add('grid', `<rect class="ground" x="${box.x0 - 3}" y="${box.y0 - 2}" width="${box.x1 - box.x0 + 6}" height="${box.y1 - box.y0 + 4}" rx="3"/>`);
               D.text(px1 - 8, L1 + 4, [[t, 'smallB', 'warn']], { anchor: 'end', owner: 'timeout', ground: true });
-            } else placeLabel(px1, L1, [t, 'timed out'], 6, 'timeout', 'warn');
+            } else placeLabel(px1 + 2, L1, [t, 'timed out'], 6, 'timeout', 'warn');
           } else if (!hid.writeTime) {
             const d = placed.find((p) => p.name === m.all[wthId].name);
             ringedName = d.k === 0 ? d.name : null;
@@ -1973,7 +1988,7 @@
               const xe = Math.max(d.x + 9, X(read.ms));
               D.add('marks', `<line class="repair-bar" x1="${d.x + 8}" y1="${d.y}" x2="${xe}" y2="${d.y}"/><line class="end-tick" x1="${xe}" y1="${d.y - 6}" x2="${xe}" y2="${d.y + 6}"/>`);
               D.mark({ x0: d.x + 8, x1: xe + 2, y0: d.y - 6, y1: d.y + 6 }, 'returned');
-              placeLabel(xe, d.y, [`returned ${fmt(read.ms)} (+${fmt(read.repairMs).replace(' ms', '')} repair)`, `returned ${fmt(read.ms)}`, `+${fmt(read.repairMs)} repair`], 2, 'returned', 'good');
+              placeLabel(d.x, d.y, [`returned ${fmt(read.ms)} (+${fmt(read.repairMs).replace(' ms', '')} repair)`, `returned ${fmt(read.ms)}`, `+${fmt(read.repairMs)} repair`, fmt(read.ms)], 8, 'returned', 'good', xe + 2);
             } else if (hid.repair) placeLabel(d.x, d.y, [`${ord} answer ${fmt(read.rthMs)}`, fmt(read.rthMs)], 8, d.owner);
             else placeLabel(d.x, d.y, [`returned ${fmt(read.ms)}`, fmt(read.ms)], 8, d.owner);
           }
@@ -2325,7 +2340,7 @@ ${[3, 5].map((k) => `<label class="segment"><input type="radio" name="n" ${k ===
         return out;
       }
 
-      const unplaced = (D) => [...(D.missingTags ? [`${D.missingTags} focus tag(s) without a place`] : []), ...(D.missingNames ?? []).map((t) => `no room for the dot name "${t}"`)];
+      const unplaced = (D) => [...(D.missingTags ? [`${D.missingTags} focus tag(s) without a place`] : []), ...(D.missingNames ?? []).map((t) => `no room for "${t}"`)];
 
       // A sweep over settings and widths, drawing only the stage, for the layout's own check.
       window.sweep = function (widths, settingsList) {
