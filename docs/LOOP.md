@@ -852,7 +852,7 @@ Follow-ups from R41 (Data Modeling):
 - The lazy placeholder heights vary about 50px with the cards' wrapping within a range.
 - Content review of the five experiments and the labels (`content.md` dump).
 
-Next: R41's remaining widgets (Latency & Queueing, Capacity & Scaling, Reliability, Sharding, Storage Engines, Consistency & Quorums), after R42's Data Modeling `feed-model` (122). The owner decided on 2026-10-21 that the lesson and case widgets (R41 to R47) come before R22 and everything else, each starting from a design brief, a mockup and two design critics (REDESIGN.md 5.1 and 5.2); then R50, R22 and the rest in 5.1's order.
+Next: R41's remaining widgets (Latency & Queueing, Capacity & Scaling, Reliability, Sharding, Storage Engines), after R42's Data Modeling `feed-model` (122) and Consistency & Quorums `quorum` (123). The owner decided on 2026-10-21 that the lesson and case widgets (R41 to R47) come before R22 and everything else, each starting from a design brief, a mockup and two design critics (REDESIGN.md 5.1 and 5.2); then R50, R22 and the rest in 5.1's order.
 
 ## Content ideas
 

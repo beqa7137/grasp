@@ -2905,6 +2905,52 @@ Iterations are ordered by impact, alternating between organization and visuals. 
     off its stage, handle and target hit boxes apart, every outline taking in the text it touches and its tag over none,
     point labels left of the cursor once it is in. Text is measured by a fixed advance per role, rounded up from the
     fonts.
+- **Consistency & Quorums note** (R41, the batch's second widget, `quorum`; as built from the rebuilt brief and mockup
+  of 2026-11-03 (`design/r41-quorum`: `brief.md`, `known.md`, `changes.md`), and where it differs):
+  - **Engine.** `widgets/quorum.ts`: `quorumScenario(n, w, r, states, stall, sloppy)`, stateless: one write of v8 over
+    v7, then one read sent when the client hears back. Three data centers (writer in DC A, reader in DC C; one-way
+    delays 1, 2, 20 ms at N 3 and 1, 1.5, 2, 20, 20.5 ms at N 5, a round trip twice that), the arrival rule (a replica
+    holds v8 when the read reaches it only if v8 got there first), the middle replica's `QUORUM_STALL_MS` pause on
+    everything it handles, refused writes (known down) against timed-out ones (stopped mid-write, `WRITE_TIMEOUT_MS`),
+    reads that fail at once or time out, read repair inside the read's time, sloppy stand-ins H1 and H2 that answer for a
+    home replica still down, the read-set guarantee `C(n − h, r)` of `C(n, r)` apart from the one drawn read, and
+    availability at 1% down per replica (`atLeastUp`). `quorumAt` reads the widget's settings (`s1` to `s5` are state
+    indexes). `quorumRound` is retired. Framework: `ExperimentRun` gains `'write-read'` and `'read'`, `ExperimentBound` is
+    `below` or `atLeast`, read through `boundMet` and `boundLimit` (Caching, Load Balancing and Data Modeling unchanged),
+    and the `nines` (never 100%) and `ordinal` slot units. `consistency-experiments.ts`: the six experiments with the
+    reviewed wording, every number a slot, answers at 3, 1, 2, 1, 3; the challenge passes at exactly one of its 34
+    settings (N 5, W 4, R 2). The lesson's three text fixes are in, and its `tryThis` is gone. `quorum.spec.ts` pins the
+    geometry, every quoted number, the arrival rule at every N, W, R and stall, and the brief's counts over all 104,704
+    settings (verdicts, the fresh claim, both handles' "survives k down", stand-in reads, no 100%).
+  - **Picture.** One stage, as the brief draws it, from `buildStage` (`quorum-stage.ts` for the write, cards and read,
+    `quorum-sets.ts` for the read-set strip and the latency lanes) as a list of marks placed clear of each other by a
+    `Draw` (`quorum-draw.ts`); the component draws the list. Text is measured from per-character advances of the fonts the
+    app ships (`quorum-text.ts`, measured with canvas once), so the layout decides the same in the browser and in specs.
+    Every text and its accessible twin read one `hiding()` map (`quorum-words.ts`). Stage heights: 869 and 898 at 620px
+    (N 3 and N 5; the mockup measured 871 and 900), 1,225 and 1,255 at 322px, 1,261 and 1,317 at 252px. Beyond the
+    brief: where the wide R handle's caption would sit under a long pill it takes a shorter form, and every caption has a
+    last form without "survives" ("5 down · 99.999999999999%", sloppy N 5 at 520px). Focus tags are the house "Look
+    here" tag, placed 3px off the border and 16px off corners. The controls' styles move to `_widget-controls.scss`,
+    shared with Data Modeling (its third copy, after Load Balancing's).
+  - **Motion.** A play maps model time to `700 ms × log2(1 + t)`; each mark carries the moment it appears, a mark a play
+    replaces (a card's v7) leaves as its successor lands, and particles ride the stage's own paths. A timed-out write plays
+    its acks, a 900 ms countdown, then restarts the clock at the read's send; a read that times out shows its failure
+    50 ms of model time after it leaves. Read-side marks appear as the read reaches them, the BOTH ring lands with the
+    answer from the replica in both sets, and the pill lands last. Plays pause by the widget host's visibility. Under
+    Reduced motion nothing animates, Play says what happened in order, and a repaired card shows "~~v7~~ v8" where it
+    fits.
+  - **Experiments.** As the brief and known.md word them. While a question asks, Play, N, the conditions, the cards and
+    both handles wait (`aria-disabled` cards, no hint), and Describe waits; hiding holds through the answer's own play,
+    but for the read itself, which that play is about. The challenge's status line joins its four parts with " · " in the
+    dock's one status line (the mockup listed them).
+  - **Checks.** `quorum-layout.spec.ts` draws every N 3 setting at 252, 322 and 620px and strides of the rest and of N 5
+    at 11 widths from 248 to 700px, the challenge, N 5 sloppy with each replica down and known.md's bug-7 setting, and
+    every experiment asking and revealed: no text on text or off the stage, no line or grid line through text, no text on
+    a mark, no dot on a dot, every dot named, chips 3px apart, no glyph on a chip, hit boxes apart at every handle stop,
+    every label and tag placed, one height per width and N. The component spec runs the no-answer sweep (every card,
+    handle and toggle moved during each question, then the answer's play sampled frame by frame) with motion off and on,
+    against the answer words, false claims and structural giveaways, and samples plays for read-side timing, a timed-out
+    play's answer order, tracking by replica and the host-visibility pause.
 
 **R46 Case widgets II.**
 

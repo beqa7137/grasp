@@ -142,9 +142,11 @@ test('the quorum challenge is met only at N 5, W 4, R 2 with R3 pausing', async 
     'No read set can miss v8: 0 of 3 can, met · reads 40 ms, under 5 ms: not yet · writes 40 ms, under 50 ms: met · writes survive 1 down, at least 1: met',
   );
   await widget.getByRole('radio', { name: '5 replicas' }).check();
+  await expect(widget.locator('svg.draw')).toHaveAttribute('aria-label', /^5 replicas, W QUORUM, R QUORUM\./);
   const w = widget.getByRole('slider', { name: 'W, acks a write waits for' });
   await w.focus();
   await page.keyboard.press('ArrowRight');
+  await expect(w).toHaveAttribute('aria-valuetext', /^4 of 5/);
   const r = widget.getByRole('slider', { name: 'R, answers a read waits for' });
   await r.focus();
   await page.keyboard.press('ArrowLeft');

@@ -25,7 +25,11 @@ const quorumReady = async (p) => {
 const quorumAt = async (p, { n, w, r, stall, sloppy, taps = [] }, ready = true) => {
   if (ready) await p.locator('app-quorum-widget svg.draw').waitFor();
   const widget = p.locator('app-quorum-widget');
-  if (n) await widget.getByRole('radio', { name: `${n} replicas` }).check();
+  if (n) {
+    await widget.getByRole('radio', { name: `${n} replicas` }).check();
+    // The handles take the new stops with the redraw; a key before it would step the old ones.
+    await widget.locator(`svg.draw[aria-label^="${n} replicas"]`).waitFor();
+  }
   if (stall) await widget.getByRole('checkbox', { name: /pauses/ }).check();
   if (sloppy) await widget.getByRole('checkbox', { name: /Sloppy quorum/ }).check();
   const quorum = Math.floor((n ?? 3) / 2) + 1;
