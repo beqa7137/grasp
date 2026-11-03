@@ -133,7 +133,7 @@ function giveaways(t: Setup, id: string, hide: readonly string[], settings: Quor
     const styles = new Set([...svg.querySelectorAll('[data-write]')].map((l) => l.getAttribute('class')));
     if (styles.size > 1) out.push(`write lines in ${styles.size} styles`);
     if (svg.querySelector('.cell.acked')) out.push('an acked strip cell');
-    for (const id of m.write.acked) if (summary.includes(m.all[id].name)) out.push(`the summary names ${m.all[id].name}`);
+    for (const acked of m.write.acked) if (summary.includes(m.all[acked].name)) out.push(`the summary names ${m.all[acked].name}`);
   }
   // A word like "v8 at 20 ms" or "at 20 ms" on a replica the write never reached is false.
   for (const tx of svg.querySelectorAll('text[data-owner]')) {

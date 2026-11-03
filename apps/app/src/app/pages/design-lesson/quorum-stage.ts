@@ -1,19 +1,9 @@
-import {
-  QUORUM_SIZES,
-  QUORUM_VERSIONS,
-  REPLICA_STATES,
-  WRITE_TIMEOUT_MS,
-  formatDuration,
-  formatMs,
-  formatNines,
-  formatOrdinal,
-  quorumLevelName,
-  type QuorumScenario,
-} from '@grasp/engine';
+import { QUORUM_VERSIONS, REPLICA_STATES, WRITE_TIMEOUT_MS, formatMs, type QuorumScenario } from '@grasp/engine';
 import { Draw, pauseGlyph, pillGlyph, quad, r1, sampleLine, xGlyph, type Moment, type Region } from './quorum-draw';
 import { drawLatency, drawStrip } from './quorum-sets';
 import { partsWidth, tw, type Part } from './quorum-text';
 import { NEXT, STATE_SHORT, STATE_WORD, hiding, nameList, pillOf, summary, timeText, type Hid } from './quorum-words';
+import { drawHeader, drawStandIns, drawWriter, handleBlock, lineClass } from './quorum-writer';
 
 const { old: V7, new: V8 } = QUORUM_VERSIONS;
 /** From this stage width the drawing takes its wide form: handles beside the writer and the reader, one row of answers. */
@@ -57,59 +47,6 @@ export interface Ctx {
   sentAt: number;
 }
 
-/** A W or R handle block: the track with its stops, the level names and the availability caption. */
-function handleBlock(
-  c: Ctx,
-  o: {
-    id: string;
-    x: number;
-    y: number;
-    w: number;
-    k: number;
-    letter: string;
-    what: string;
-    survives: number;
-    succeed: number;
-    verb: string;
-    /** Room for the caption, where a mark beside the handle reaches under it. */
-    capW?: number;
-  },
-): Track {
-  const { D, m } = c;
-  const n = m.settings.n;
-  D.text(`${o.id}-name`, o.x, o.y + 14, [
-    [o.letter, 'name', 'accent'],
-    [o.what, 'small', 'muted', 6],
-  ]);
-  const tx0 = o.x + 22;
-  const tx1 = o.x + o.w - 22;
-  const ty = o.y + 38;
-  const pos = (j: number) => r1(tx0 + ((j - 1) * (tx1 - tx0)) / (n - 1));
-  D.add('marks', `${o.id}-rail`, { k: 'line', cls: 'rail', x1: tx0, y1: ty, x2: tx1, y2: ty });
-  D.add('marks', `${o.id}-fill`, { k: 'line', cls: 'fill', x1: tx0, y1: ty, x2: pos(o.k), y2: ty });
-  for (let j = 1; j <= n; j++) D.add('marks', `${o.id}-stop${j}`, { k: 'circle', cls: 'stop', cx: pos(j), cy: ty, r: 2.5 });
-  for (let j = 1; j <= n; j++) {
-    const name = quorumLevelName(j, n) ?? String(j);
-    D.text(`${o.id}-level${j}`, pos(j), o.y + 62, [[name, j === o.k ? 'smallB' : 'small', j === o.k ? 'ink' : 'muted']], {
-      anchor: 'middle',
-      owner: o.id,
-    });
-  }
-  const pct = formatNines(o.succeed);
-  const forms = c.hid.avail
-    ? [`survives ? down · ${o.verb} succeed ?`, `survives ? down · ${o.verb} ?`]
-    : [
-        `survives ${o.survives} down · ${o.verb} succeed ${pct}`,
-        `survives ${o.survives} down · ${o.verb} ${pct}`,
-        `survives ${o.survives} down · ${pct}`,
-        `${o.survives} down · ${pct}`,
-      ];
-  const cap = forms.find((t) => tw(t, 'small') <= (o.capW ?? o.w)) ?? forms.at(-1)!;
-  D.text(`${o.id}-cap`, o.x, o.y + 81, [[cap, 'small', 'muted']], { owner: o.id });
-  D.region('handles', { x: o.x - 4, y: o.y - 2, w: o.w + 8, h: 90 });
-  return { positions: Array.from({ length: n }, (_, j) => pos(j + 1)), y: ty };
-}
-
 const earlier = (a: Moment | null, b: Moment | null): Moment | null => (!a ? b : !b ? a : a[1] <= b[1] ? a : b);
 
 /**
@@ -122,7 +59,7 @@ export function buildStage(W: number, m: QuorumScenario, view: StageView): Stage
   const hid = hiding(view.hide);
   const wide = W >= WIDE_FROM;
   const pad = wide ? 16 : 8;
-  const { n, w, r } = m.settings;
+  const { n, r } = m.settings;
   const reps = m.replicas;
   const write = m.write;
   const read = m.read;
@@ -135,37 +72,9 @@ export function buildStage(W: number, m: QuorumScenario, view: StageView): Stage
   const atW = (t: number): Moment => ['w', t];
   const atR = (t: number): Moment => ['r', t];
 
-  // Header: Play, the label and the line key (beside the label when wide, its own row when narrow).
+  // Header: Play, the label and the line key.
   const play = { x: pad - 6, y: 2 };
-  D.text('title', pad + 42, 29, [['One write, then one read', 'label']]);
-  const keyItems: [string, string][] = [
-    ['write', 'link write'],
-    ['read', 'link read'],
-    ...(hid.repair ? [] : [['repair', 'link repair'] as [string, string]]),
-  ];
-  let y = 48;
-  if (wide) {
-    let lx = W - pad;
-    for (const [name, cls] of [...keyItems].reverse()) {
-      D.text(`key-${name}`, lx, 29, [[name, 'small', 'muted']], { anchor: 'end' });
-      lx -= tw(name, 'small') + 6;
-      D.add('marks', `key-${name}-line`, { k: 'line', cls: `${cls} legend-line`, x1: lx - 16, y1: 25, x2: lx, y2: 25 });
-      lx -= 30;
-    }
-  } else {
-    let lx = pad;
-    const ky = y + 8;
-    for (const [name, cls] of keyItems) {
-      D.add('marks', `key-${name}-line`, { k: 'line', cls: `${cls} legend-line`, x1: lx, y1: ky - 4, x2: lx + 14, y2: ky - 4 });
-      D.text(`key-${name}`, lx + 19, ky, [[name, 'small', 'muted']]);
-      lx += 19 + tw(name, 'small') + 12;
-    }
-    const unitNote = 'times in ms';
-    const keyEnd = pad + 19 * 3 + 12 * 2 + tw('write', 'small') + tw('read', 'small') + tw('repair', 'small');
-    if (unitless && W - pad - tw(unitNote, 'small') >= keyEnd + 8)
-      D.text('key-unit', W - pad, ky, [[unitNote, 'small', 'muted']], { anchor: 'end' });
-    y += 16;
-  }
+  let y = drawHeader(c, unitless);
 
   // Card columns.
   const gapMin = wide ? 12 : n === 5 ? 3 : 8;
@@ -176,171 +85,22 @@ export function buildStage(W: number, m: QuorumScenario, view: StageView): Stage
   // Narrow cards carry a short state word in the name row when there is room for one (not five on a phone).
   const cardWords = wide || cw >= 68;
 
-  // Writer row, with the W handle beside it (wide) or above it (narrow). The status breaks only between its parts.
-  const standGap = 14;
-  const most = QUORUM_SIZES.at(-1)!;
-  const longest = Math.max(tw(`refused: ${most - 1} live, ${most} needed`, 'capB'), tw('outcome after your answer', 'capB'));
-  const longestPart = Math.max(tw(`${most - 1} live, ${most} needed`, 'capB'), tw('after your answer', 'capB'));
-  const oneLineW = longest + 24;
-  const writerOneLine = wide && W - pad - (pad + oneLineW + standGap + 112 + 24) >= 200;
-  const writerW = writerOneLine
-    ? oneLineW
-    : wide
-      ? 156
-      : Math.round(Math.min((W - 2 * pad) * 0.6, Math.max(124, (W - 2 * pad) * 0.5, longestPart + 24)));
-  const writerH = writerOneLine ? 84 : wide ? 92 : 88;
-  let writerY: number;
-  const wHandle = {
-    id: 'whandle',
-    k: w,
-    letter: 'W',
-    what: 'acks a write waits for',
-    survives: m.survives.write,
-    succeed: m.avail.write,
-    verb: 'writes',
-  };
-  let wTrack: Track;
-  if (wide) {
-    writerY = y + 4;
-    const hx = pad + writerW + standGap + 112 + 24;
-    wTrack = handleBlock(c, { ...wHandle, x: hx, y: writerY, w: W - pad - hx });
-  } else {
-    wTrack = handleBlock(c, { ...wHandle, x: pad, y, w: W - 2 * pad });
-    writerY = y + 92;
-  }
-  y = writerY + writerH;
-  const wx = pad;
-  D.add('marks', 'writer', { k: 'rect', cls: 'box', x: wx, y: writerY, w: writerW, h: writerH, rx: 10 });
-  D.mark({ x0: wx, x1: wx + writerW, y0: writerY, y1: writerY + writerH }, 'writer');
-  const wlabel = tw('Writer · DC A', 'label') <= writerW - 20 ? 'Writer · DC A' : 'Writer';
-  D.text('writer-label', wx + 12, writerY + 20, [[wlabel, 'label']], { owner: 'writer', cls: 'on-card' });
-  D.text(
-    'writer-value',
-    wx + 12,
-    writerY + 43,
-    [
-      [`v${V8}`, wide ? 'name' : 'nameS', 'ink'],
-      [QUORUM_VERSIONS.newValue, 'cap', 'muted', 6],
-    ],
-    { owner: 'writer', cls: 'on-card' },
-  );
-  let status: { parts: string[]; tone: string; at: Moment | undefined };
-  if (hid.write) status = { parts: ['outcome', 'after your answer'], tone: 'muted', at: undefined };
-  else if (write.outcome === 'acked')
-    status = { parts: [hid.writeTime ? 'acked in ?' : `acked in ${formatMs(write.ms)}`], tone: 'good', at: atW(write.ms) };
-  else if (write.outcome === 'refused')
-    status = { parts: ['refused:', `${write.live} live, ${write.needed} needed`], tone: 'bad', at: atW(0) };
-  else status = { parts: [`timed out at ${formatDuration(WRITE_TIMEOUT_MS)}`], tone: 'warn', at: atW(WRITE_TIMEOUT_MS) };
-  const oneLine = status.parts.join(' ');
-  const statusLines = tw(oneLine, 'capB') <= writerW - 22 ? [oneLine] : status.parts;
-  statusLines.forEach((line, i) =>
-    D.text(`writer-status${i}`, wx + 12, writerY + 64 + i * 16, [[line, 'capB', status.tone]], {
-      owner: 'writer',
-      cls: 'on-card',
-      at: status.at,
-    }),
-  );
-  if (write.outcome === 'timed-out' && !hid.write) {
-    // While it waits out the timeout: a countdown ring and the ack it waits for.
-    const lastAck = Math.max(0, ...write.applied.map((id) => m.all[id].writeRtt));
-    const waiting = `waiting for a ${formatOrdinal(write.applied.length + 1)} ack`;
-    const span = { at: atW(lastAck), until: atW(WRITE_TIMEOUT_MS) };
-    D.add('marks', 'countdown', { k: 'circle', cls: 'countdown', cx: wx + writerW - 18, cy: writerY + 18, r: 8, ...span });
-    D.text('writer-waiting', wx + 12, writerY + 64, [[waiting, 'cap', 'muted']], { owner: 'writer', cls: 'on-card', ...span });
-  }
-  D.region('writer', { x: wx - 2, y: writerY - 2, w: writerW + 4, h: writerH + 4 });
-
-  // How a write line is drawn: neutral while the write hides, one style while which replicas acked hides.
-  const writeCls = (id: number) => {
-    if (hid.write) return 'pending';
-    if (write.outcome === 'refused') return 'unsent';
-    if (hid.writeTime) return 'write';
-    const solid = write.outcome === 'timed-out' ? write.applied : write.acked;
-    return solid.includes(id) ? 'write' : 'write weak';
-  };
+  // Writer row, with the W handle beside it (wide) or above it (narrow), and the stand-ins beside it when sloppy.
+  const writer = drawWriter(c, y);
+  y = writer.y + writer.h;
+  const writeCls = lineClass(c);
   const both = hid.verdict ? [] : m.both;
   const answerOf = (i: number) => read.answers.find((a) => a.id === i);
   const answerBack = (i: number) => atR(sentAt + m.all[i].readRtt);
   const paths: Stage['paths'] = { write: new Map(), read: new Map(), repair: new Map() };
-
-  // Stand-ins beside the writer (sloppy only).
-  if (m.settings.sloppy) {
-    const sx = wx + writerW + standGap;
-    const sw = wide ? 112 : W - pad - sx;
-    const sh = (writerH - 8) / 2;
-    for (let j = 0; j < 2; j++) {
-      const s = m.standIns[j];
-      const sy = writerY + j * (sh + 8);
-      const owner = `H${j + 1}`;
-      D.add('marks', `stand${j}`, { k: 'rect', cls: s ? 'box dashed' : 'box idle', x: sx, y: sy, w: sw, h: sh, rx: 8 });
-      if (s && !hid.read && read.set.includes(s.id))
-        D.add('marks', `stand${j}-asked`, {
-          k: 'rect',
-          cls: both.includes(s.id) ? 'box both' : 'box asked',
-          x: sx,
-          y: sy,
-          w: sw,
-          h: sh,
-          rx: 8,
-          at: answerBack(s.id),
-        });
-      D.mark({ x0: sx, x1: sx + sw, y0: sy, y1: sy + sh }, owner);
-      D.add('links', `stand${j}-line`, {
-        k: 'line',
-        cls: `link ${s ? writeCls(s.id) : 'unsent'}`,
-        x1: wx + writerW,
-        y1: sy + sh / 2,
-        x2: sx,
-        y2: sy + sh / 2,
-        owner: `writer ${owner}`,
-        write: s?.id,
-      });
-      D.link(sampleLine(wx + writerW, sy + sh / 2, sx, sy + sh / 2), `writer ${owner}`);
-      if (s)
-        paths.write.set(s.id, [
-          [wx + writerW, sy + sh / 2],
-          [sx, sy + sh / 2],
-        ]);
-      D.text(`stand${j}-name`, sx + 8, sy + sh / 2 + 5, [[owner, 'nameS', s ? 'ink' : 'muted']], { owner, cls: 'on-card' });
-      if (s) {
-        const has = write.applied.includes(s.id);
-        const chipT = hid.write ? '?' : has ? `v${V8}` : '–';
-        const chx = sx + 34;
-        const timing = has && !hid.write ? { at: atW(s.landAt) } : {};
-        D.add('marks', `stand${j}-chip`, {
-          k: 'rect',
-          cls: `chip ${hid.write ? 'unknown' : has ? 'new' : 'old'}`,
-          x: chx,
-          y: sy + sh / 2 - 9,
-          w: 26,
-          h: 18,
-          rx: 5,
-          ...timing,
-        });
-        D.text(`stand${j}-value`, chx + 13, sy + sh / 2 + 4, [[chipT, 'mono', has && !hid.write ? 'chip-new-ink' : 'muted']], {
-          anchor: 'middle',
-          owner,
-          cls: 'on-chip',
-          ...timing,
-        });
-        const forT = `for R${(s.standsFor ?? 0) + 1}`;
-        if (sx + 66 + tw(forT, 'small') <= sx + sw - 6)
-          D.text(`stand${j}-for`, sx + 66, sy + sh / 2 + 4, [[forT, 'small', 'muted']], { owner, cls: 'on-card' });
-      } else {
-        const idle = 'standing by';
-        if (sx + 34 + tw(idle, 'small') <= sx + sw - 6)
-          D.text(`stand${j}-idle`, sx + 34, sy + sh / 2 + 4, [[idle, 'small', 'muted']], { owner, cls: 'on-card' });
-      }
-    }
-    D.region('standins', { x: sx - 2, y: writerY - 2, w: sw + 4, h: writerH + 4 });
-  }
+  if (m.settings.sloppy) drawStandIns(c, writer, writeCls, both, paths);
 
   // The write fan.
   const fanH = wide ? 69 : 66;
   const chipH = 16;
   const wChipY = y + fanH;
   const cardY = wChipY + chipH + 4;
-  const wApex: Pt = [Math.min(Math.max(cx(0), wx + 18), wx + writerW - 18), writerY + writerH];
+  const wApex: Pt = [Math.min(Math.max(cx(0), writer.x + 18), writer.x + writer.w - 18), writer.y + writer.h];
   const wthId = write.outcome === 'acked' ? write.acked[write.acked.length - 1] : null;
   reps.forEach((rep, i) => {
     const owner = `R${i + 1}`;
@@ -555,7 +315,7 @@ export function buildStage(W: number, m: QuorumScenario, view: StageView): Stage
     cards.push({ x, y: cardY, w: cw, h: cardH });
   });
   // Chips fill both edges of the card band, so its frame reaches up to the writer and takes the write fan.
-  const cardsTop = writerY + writerH + 3;
+  const cardsTop = writer.y + writer.h + 3;
   D.region('cards', { x: pad - 4, y: cardsTop, w: W - 2 * pad + 8, h: cardY + cardH + 4 + chipH + 4 - cardsTop });
 
   // Read chips under the cards, then the read fan (not drawn at all while the read itself waits for the answer).
@@ -828,5 +588,5 @@ export function buildStage(W: number, m: QuorumScenario, view: StageView): Stage
   y = drawStrip(c, y);
   y = drawLatency(c, y);
   const H = Math.ceil(y + 4);
-  return { D, H, hid, wide, play, cards, handles: { w: wTrack, r: rTrack! }, paths, summary: summary(m, hid) };
+  return { D, H, hid, wide, play, cards, handles: { w: writer.track, r: rTrack! }, paths, summary: summary(m, hid) };
 }

@@ -77,7 +77,7 @@ function hits(st: Stage, m: QuorumScenario) {
 function collisions(st: Stage, m: QuorumScenario): string[] {
   const { D, H } = st;
   const W = D.W;
-  const out: string[] = [...D.missing.map((t) => `no room for "${t}"`)];
+  const out: string[] = D.missing.map((t) => `no room for "${t}"`);
   const texts = D.texts;
   for (let i = 0; i < texts.length; i++) {
     const a = texts[i];
@@ -163,14 +163,14 @@ describe('quorum layout', () => {
     for (const W of WIDTHS)
       for (const n of QUORUM_SIZES) {
         const hs = new Set<number>();
-        const rest = n === 3 ? [] : UP(n - 3);
+        const more = n === 3 ? [] : UP(n - 3);
         for (const s of [
           { w: 1, r: 1, states: UP(n), stall: false, sloppy: false },
           { w: n, r: n, states: UP(n), stall: false, sloppy: true },
           { w: n, r: 1, states: ['up', 'mid', ...UP(n - 2)], stall: false, sloppy: false },
           { w: 2, r: n, states: ['down', 'back', ...UP(n - 2)], stall: true, sloppy: true },
-          { w: n, r: n, states: ['up', 'down', 'down', ...rest], stall: false, sloppy: true },
-          { w: 1, r: n, states: ['up', 'mid', 'mid', ...rest], stall: false, sloppy: false },
+          { w: n, r: n, states: ['up', 'down', 'down', ...more], stall: false, sloppy: true },
+          { w: 1, r: n, states: ['up', 'mid', 'mid', ...more], stall: false, sloppy: false },
           { w: n, r: 1, states: Array(n).fill('down'), stall: false, sloppy: true },
         ] as Omit<Setting, 'n'>[])
           hs.add(buildStage(W, run({ n, ...s }), REST).H);
