@@ -37,7 +37,6 @@ import { LimiterWidgetComponent } from './limiter-widget.component';
 import { PaginationWidgetComponent } from './pagination-widget.component';
 import { PartitionWidgetComponent } from './partition-widget.component';
 import { PipelineWidgetComponent } from './pipeline-widget.component';
-import { QuorumWidgetComponent } from './quorum-widget.component';
 import { RegionWidgetComponent } from './region-widget.component';
 import { RingWidgetComponent } from './ring-widget.component';
 import { StorageWidgetComponent } from './storage-widget.component';
@@ -50,7 +49,7 @@ import { LazyWidgetComponent } from './lazy-widget.component';
 
 /** A system design topic taught hands-on: a widget to experiment with, the ideas to name, worked examples and a quick check. */
 /** Widgets that leave the reading column at container wide, to sit beside their controls and experiments. */
-const BREAKOUT = new Set(['balancer', 'feed-model']);
+const BREAKOUT = new Set(['balancer', 'feed-model', 'quorum']);
 
 @Component({
   selector: 'app-design-lesson',
@@ -73,7 +72,6 @@ const BREAKOUT = new Set(['balancer', 'feed-model']);
     LimiterWidgetComponent,
     AvailabilityWidgetComponent,
     PipelineWidgetComponent,
-    QuorumWidgetComponent,
     PartitionWidgetComponent,
     IdLayoutWidgetComponent,
     IndexWidgetComponent,
@@ -158,7 +156,11 @@ const BREAKOUT = new Set(['balancer', 'feed-model']);
                     <app-pipeline-widget />
                   }
                   @case ('quorum') {
-                    <app-quorum-widget />
+                    <app-lazy-widget
+                      [load]="loadQuorumWidget"
+                      [inputs]="{ experiments: l.widget.experiments ?? [] }"
+                      [placeholder]="heights.quorum"
+                    />
                   }
                   @case ('partition') {
                     <app-partition-widget />
@@ -462,6 +464,7 @@ export class DesignLessonPage {
   readonly loadReplicaWidget = () => import('./replica-widget.component').then((m) => m.ReplicaWidgetComponent);
   readonly loadBalancerWidget = () => import('./balancer-widget.component').then((m) => m.BalancerWidgetComponent);
   readonly loadFeedModelWidget = () => import('./feed-model-widget.component').then((m) => m.FeedModelWidgetComponent);
+  readonly loadQuorumWidget = () => import('./quorum-widget.component').then((m) => m.QuorumWidgetComponent);
   readonly breakout = computed(() => BREAKOUT.has(this.lesson()?.widget.kind ?? ''));
 
   constructor() {

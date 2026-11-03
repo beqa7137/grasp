@@ -57,4 +57,9 @@ export const WIDGET_HEIGHTS = {
     [522, 1864],
     [880, 1468],
   ],
+  quorum: [
+    [0, 1700],
+    [520, 1300],
+    [880, 960],
+  ],
 } as const satisfies Record<string, WidgetHeights>;

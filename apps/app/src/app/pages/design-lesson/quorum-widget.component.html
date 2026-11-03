@@ -1,0 +1,201 @@
+<div class="controls">
+  <fieldset class="group n-control" [disabled]="locked()">
+    <legend class="control-label">Replicas (N)</legend>
+    <div class="segments">
+      @for (k of sizes; track k) {
+        <label class="segment">
+          <input type="radio" name="quorum-n" [value]="k" [checked]="k === n()" (change)="setN(k)" />
+          <span>{{ k }} replicas</span>
+        </label>
+      }
+    </div>
+  </fieldset>
+  <fieldset class="group" [disabled]="locked()">
+    <legend class="control-label">Conditions</legend>
+    <div class="toggles">
+      <label class="segment">
+        <input type="checkbox" [checked]="stall() === 1" (change)="setStall($any($event.target).checked)" />
+        <span>
+          {{ stallName() }}
+          <small>{{ stallMs }} GC pause</small>
+        </span>
+      </label>
+      <label class="segment">
+        <input type="checkbox" [checked]="sloppy() === 1" (change)="setSloppy($any($event.target).checked)" />
+        <span>
+          Sloppy quorum
+          <small>stand-ins H1, H2</small>
+        </span>
+      </label>
+    </div>
+  </fieldset>
+  <p class="notice" aria-live="polite">{{ notice() }}</p>
+</div>
+
+<div class="main">
+  <g-stage class="quorum-stage" [height]="stage().H" label="Consistency and quorums: one write, then one read">
+    @if (ready()) {
+      @let st = stage();
+      <svg
+        class="draw"
+        [attr.viewBox]="'0 0 ' + st.D.W + ' ' + st.H"
+        [attr.width]="st.D.W"
+        [attr.height]="st.H"
+        role="img"
+        [attr.aria-label]="st.summary"
+      >
+        <defs>
+          <pattern id="quorum-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <rect class="card-fill-down" width="6" height="6" />
+            <line class="hatch-line" x1="0" y1="0" x2="0" y2="6" />
+          </pattern>
+          <marker id="quorum-repair-arrow" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="7" markerHeight="7" orient="auto">
+            <path class="arrowhead" d="M0 0L8 4L0 8z" />
+          </marker>
+        </defs>
+        @for (p of shown(); track p.id) {
+          @if (p.k === 'text') {
+            <text
+              [attr.class]="p.cls"
+              [attr.x]="p.x"
+              [attr.y]="p.y"
+              [attr.text-anchor]="p.anchor"
+              [attr.data-owner]="p.owner ?? null"
+              [attr.data-ground]="p.ground ? '1' : null"
+              [attr.data-names]="p.names ?? null"
+            >
+              @for (part of p.parts; track $index) {
+                <tspan [attr.class]="'t-' + part[1] + ' ' + (part[2] ?? '')" [attr.dx]="part[3] ?? null">{{ part[0] }}</tspan>
+              }
+            </text>
+          } @else if (p.k === 'line') {
+            <line
+              [attr.class]="p.cls"
+              [attr.x1]="p.x1"
+              [attr.y1]="p.y1"
+              [attr.x2]="p.x2"
+              [attr.y2]="p.y2"
+              [attr.data-owner]="p.owner ?? null"
+              [attr.data-write]="p.write ?? null"
+            />
+          } @else if (p.k === 'rect') {
+            <rect
+              [attr.class]="p.cls"
+              [attr.x]="p.x"
+              [attr.y]="p.y"
+              [attr.width]="p.w"
+              [attr.height]="p.h"
+              [attr.rx]="p.rx"
+              [attr.data-answer]="p.answer ?? null"
+            />
+          } @else if (p.k === 'circle') {
+            <circle [attr.class]="p.cls" [attr.cx]="p.cx" [attr.cy]="p.cy" [attr.r]="p.r" [attr.data-dot]="p.dot ?? null" />
+          } @else {
+            <path
+              [attr.class]="p.cls"
+              [attr.d]="p.d"
+              [attr.data-owner]="p.owner ?? null"
+              [attr.marker-end]="p.arrow ? 'url(#quorum-repair-arrow)' : null"
+            />
+          }
+        }
+        <g class="dots" #dots></g>
+        @for (f of focus(); track f.id) {
+          <g app-focus [box]="f" [on]="exp.focusOn().includes(f.region)" />
+        }
+      </svg>
+
+      <button
+        type="button"
+        class="play"
+        [attr.aria-label]="playName()"
+        [style.left.px]="st.play.x"
+        [style.top.px]="st.play.y"
+        [disabled]="locked()"
+        (click)="play()"
+      >
+        <svg viewBox="0 0 36 36" aria-hidden="true">
+          <circle cx="18" cy="18" r="16" />
+          <path d="M14 11v14l11-7z" />
+        </svg>
+      </button>
+      <div class="replicas" role="toolbar" aria-label="Replicas">
+        @for (c of st.cards; track $index; let i = $index) {
+          <button
+            type="button"
+            class="card-hit"
+            [style.left.px]="c.x"
+            [style.top.px]="c.y"
+            [style.width.px]="c.w"
+            [style.height.px]="c.h"
+            [attr.tabindex]="i === rove() ? 0 : -1"
+            [attr.aria-disabled]="locked() ? 'true' : null"
+            [attr.aria-label]="cardNames()[i]"
+            (click)="cycle(i)"
+            (keydown)="cardKey($event, i)"
+            (focus)="cardFocus(i, $event)"
+            (blur)="cardBlur()"
+            (pointerenter)="cardPointer(i, $event, 'enter')"
+            (pointerup)="cardPointer(i, $event, 'up')"
+            (pointerleave)="cardPointer(i, $event, 'leave')"
+          ></button>
+        }
+      </div>
+      @if (hintBox(); as h) {
+        <div class="hint" aria-hidden="true" [style.left.px]="h.left" [style.top.px]="h.top">{{ h.text }}</div>
+      }
+      <g-handle
+        label="W, acks a write waits for"
+        [values]="levels()"
+        [positions]="st.handles.w.positions"
+        [cross]="st.handles.w.y"
+        [valuetext]="wText()"
+        [disabled]="locked()"
+        [value]="w()"
+        (valueChange)="setW($event)"
+      />
+      <g-handle
+        label="R, answers a read waits for"
+        [values]="levels()"
+        [positions]="st.handles.r.positions"
+        [cross]="st.handles.r.y"
+        [valuetext]="rText()"
+        [disabled]="locked()"
+        [value]="r()"
+        (valueChange)="setR($event)"
+      />
+    }
+  </g-stage>
+
+  <div class="describe">
+    <button type="button" class="g-btn" [attr.aria-expanded]="describe()" [disabled]="askingAny()" (click)="toggleDescribe()">
+      {{ describe() ? 'Hide the description' : 'Describe' }}
+    </button>
+    @if (askingAny()) {
+      <span class="muted">Describe waits for your answer.</span>
+    }
+    @if (describe() && !askingAny()) {
+      <g-data-table
+        label="Each replica in this scenario"
+        [head]="describeHead()"
+        [rows]="describeRows()"
+        [compact]="compact()"
+        [height]="null"
+      />
+    }
+  </div>
+</div>
+
+@if (experiments().length) {
+  <app-experiment-dock
+    class="experiments"
+    [experiments]="experiments()"
+    [active]="exp.active()"
+    [phase]="exp.phase()"
+    [done]="exp.done()"
+    [goalStatus]="goalStatus()"
+    [chosen]="exp.chosen()"
+    (chosenChange)="exp.answer($event)"
+    (start)="start($event)"
+  />
+}

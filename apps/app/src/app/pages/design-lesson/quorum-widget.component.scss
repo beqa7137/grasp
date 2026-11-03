@@ -1,0 +1,629 @@
+@use '../../../type' as *;
+@use '../../../breakpoints' as *;
+@use 'feed-controls';
+
+:host {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--g-space-3);
+}
+// Narrow, one column in reading order: the controls as the stage's first rows, the stage, the open question, Describe,
+// then the experiment cards. The wrappers step aside (display: contents) so their parts take those places.
+.main,
+.experiments {
+  display: contents;
+}
+.controls {
+  order: 1;
+  padding: var(--g-space-3) var(--g-space-3) 0;
+  border: 1px solid var(--g-line);
+  border-bottom: 0;
+  border-radius: var(--g-radius-md) var(--g-radius-md) 0 0;
+  background: var(--g-viz-stage);
+}
+.quorum-stage {
+  order: 2;
+  min-width: 0;
+  margin-top: calc(-1 * var(--g-space-3));
+  ::ng-deep .well {
+    border-top: 0;
+    border-radius: 0 0 var(--g-radius-md) var(--g-radius-md);
+  }
+}
+.experiments ::ng-deep .dock {
+  order: 3;
+  margin-top: 0;
+}
+.describe {
+  order: 4;
+}
+.experiments ::ng-deep :is(.heading, .cards) {
+  order: 5;
+}
+.experiments ::ng-deep .heading {
+  margin: var(--g-space-2) 0 0;
+}
+// The lesson page widens this widget's panel at container wide: the stage on the left, the controls, the open question
+// and the cards on the right.
+@include container-wide(lesson) {
+  :host {
+    grid-template-columns: minmax(0, 1fr) 340px;
+    grid-template-rows: auto 1fr;
+    align-items: start;
+    column-gap: var(--g-space-5);
+  }
+  .main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--g-space-3);
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    min-width: 0;
+  }
+  .controls {
+    grid-column: 2;
+    grid-row: 1;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+  .experiments {
+    display: block;
+    grid-column: 2;
+    grid-row: 2;
+    min-width: 0;
+  }
+  .experiments ::ng-deep .dock {
+    margin-top: var(--g-space-3);
+  }
+  .quorum-stage {
+    margin-top: 0;
+    ::ng-deep .well {
+      border-top: 1px solid var(--g-line);
+      border-radius: var(--g-radius-md);
+    }
+  }
+}
+.toggles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--g-space-1);
+  .segment span {
+    flex-direction: column;
+    font-size: var(--g-text-body-s);
+    line-height: 1.2;
+    padding-block: var(--g-space-1);
+  }
+  small {
+    font: 500 var(--g-text-label) var(--ion-font-family);
+    color: var(--g-muted);
+  }
+}
+
+// The stage's drawing roles; `quorum-text.ts` measures text by these sizes, so a size changed here changes its checks.
+svg.draw {
+  display: block;
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+  text {
+    paint-order: stroke;
+    stroke: var(--g-viz-stage);
+    stroke-width: 3px;
+    stroke-linejoin: round;
+  }
+  text.on-card {
+    stroke: var(--g-raised);
+  }
+  text.on-chip {
+    stroke: none;
+  }
+}
+.t-label {
+  @include label;
+  fill: var(--g-muted);
+}
+.t-cap {
+  font: 500 var(--g-text-body-s) var(--ion-font-family);
+  fill: var(--g-muted);
+}
+.t-capB,
+.t-pill {
+  font: 600 var(--g-text-body-s) var(--ion-font-family);
+  fill: var(--g-text);
+}
+.t-small {
+  font: 500 var(--g-text-label) var(--ion-font-family);
+  font-variant-numeric: tabular-nums;
+  fill: var(--g-muted);
+}
+.t-smallB {
+  font: 700 var(--g-text-label) var(--ion-font-family);
+  font-variant-numeric: tabular-nums;
+  fill: var(--g-text);
+}
+.t-mono {
+  font: 600 var(--g-text-label) var(--g-font-mono);
+  font-variant-numeric: tabular-nums;
+  fill: var(--g-text);
+}
+.t-name {
+  font: 600 15px var(--g-font-mono);
+  fill: var(--g-text);
+}
+.t-nameS {
+  font: 600 13px var(--g-font-mono);
+  fill: var(--g-text);
+}
+.t-head {
+  font: 600 var(--g-text-title-m) var(--g-font-mono);
+  font-variant-numeric: tabular-nums;
+  fill: var(--g-text);
+}
+.ink {
+  fill: var(--g-text);
+}
+.muted {
+  fill: var(--g-muted);
+}
+.good,
+.chip-new-ink {
+  fill: var(--g-viz-final-ink);
+}
+.bad {
+  fill: var(--g-danger-ink);
+}
+.warn {
+  fill: var(--g-warn-ink);
+}
+.accent {
+  fill: var(--g-accent);
+}
+.struck {
+  fill: var(--g-viz-discarded-ink);
+  text-decoration: line-through;
+}
+.rule {
+  stroke: var(--g-line);
+}
+.box {
+  fill: var(--g-raised);
+  stroke: var(--g-line-strong);
+  &.dashed {
+    stroke-dasharray: 4 3;
+  }
+  &.idle {
+    fill: none;
+    stroke-dasharray: 3 3;
+  }
+  &.asked {
+    fill: none;
+    stroke: var(--g-viz-considering);
+    stroke-width: 1.5;
+  }
+  &.both {
+    fill: none;
+    stroke: var(--g-viz-final);
+    stroke-width: 2.5;
+  }
+}
+.card {
+  fill: var(--g-raised);
+  stroke: var(--g-line-strong);
+  &.down {
+    fill: url(#quorum-hatch);
+    stroke-dasharray: 4 3;
+  }
+  &.mid {
+    stroke: var(--g-viz-critical);
+    stroke-dasharray: 4 3;
+  }
+}
+.card-both {
+  fill: none;
+  stroke: var(--g-viz-final);
+  stroke-width: 2.5;
+}
+.both-ring {
+  fill: none;
+  stroke: var(--g-viz-final);
+  stroke-width: 1.5;
+  stroke-opacity: 0.55;
+}
+.card-fill-down {
+  fill: var(--g-sunken);
+}
+.hatch-line {
+  stroke: var(--g-viz-discarded-ink);
+  stroke-opacity: 0.35;
+  stroke-width: 1.5;
+}
+.chip {
+  fill: var(--g-raised);
+  stroke: var(--g-line-strong);
+  &.new {
+    fill: var(--g-viz-final-soft);
+    stroke: var(--g-viz-final);
+  }
+  &.old {
+    fill: var(--g-sunken);
+  }
+  &.unknown {
+    fill: var(--g-viz-stage);
+    stroke-dasharray: 3 2;
+  }
+  &.asked {
+    fill: var(--g-viz-stage);
+    stroke: var(--g-viz-considering);
+    stroke-width: 1.5;
+  }
+  &.sent {
+    fill: var(--g-viz-stage);
+    stroke: var(--g-viz-current);
+    stroke-opacity: 0.6;
+  }
+  &.wth {
+    stroke: var(--g-viz-current);
+    stroke-opacity: 1;
+    stroke-width: 2;
+  }
+  &.quiet {
+    fill: var(--g-viz-stage);
+    stroke: var(--g-line);
+  }
+}
+.link {
+  fill: none;
+  stroke-linecap: round;
+  &.write {
+    stroke: var(--g-viz-current);
+    stroke-width: 2;
+  }
+  &.write.weak {
+    stroke-width: 1.25;
+    stroke-opacity: 0.45;
+  }
+  &.pending {
+    stroke: var(--g-stroke);
+    stroke-width: 1.25;
+    stroke-dasharray: 5 4;
+  }
+  &.unsent {
+    stroke: var(--g-line-strong);
+    stroke-width: 1.25;
+    stroke-dasharray: 1 4;
+  }
+  &.read {
+    stroke: var(--g-viz-considering);
+    stroke-width: 2;
+  }
+  &.read.weak {
+    stroke-width: 1.25;
+    stroke-opacity: 0.4;
+  }
+  &.dead {
+    stroke: var(--g-line-strong);
+    stroke-width: 1.25;
+    stroke-dasharray: 4 4;
+  }
+  &.repair {
+    stroke: var(--g-viz-final);
+    stroke-width: 1.75;
+    stroke-dasharray: 5 3;
+  }
+}
+.legend-line {
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.arrowhead {
+  fill: var(--g-viz-final);
+}
+.xmark {
+  stroke: var(--g-viz-critical);
+  stroke-width: 2;
+  stroke-linecap: round;
+  fill: none;
+}
+.xground,
+.ground {
+  fill: var(--g-viz-stage);
+}
+// Empty pips stroke at 3:1 or better against both cards (WCAG 1.4.11).
+.pip {
+  fill: none;
+  stroke: var(--g-stroke);
+  stroke-width: 1.25;
+  &.on {
+    fill: var(--g-text);
+    stroke: var(--g-text);
+  }
+}
+.next-pip {
+  fill: none;
+  stroke: var(--g-accent);
+  stroke-width: 1.5;
+  stroke-dasharray: 2 2;
+}
+.pause {
+  fill: var(--g-warn);
+}
+.repair-glyph {
+  fill: none;
+  stroke: var(--g-viz-final);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+.rail {
+  stroke: var(--g-viz-track);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+.fill {
+  stroke: var(--g-accent);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+.stop {
+  fill: var(--g-line-strong);
+}
+.pill {
+  stroke-width: 1.5;
+  &.final {
+    fill: var(--g-viz-final-soft);
+    stroke: var(--g-viz-final);
+  }
+  &.critical {
+    fill: var(--g-danger-soft);
+    stroke: var(--g-viz-critical);
+  }
+  &.warn {
+    fill: var(--g-warn-soft);
+    stroke: var(--g-warn);
+  }
+  &.neutral {
+    fill: var(--g-raised);
+    stroke: var(--g-line-strong);
+  }
+  &.hidden {
+    fill: var(--g-viz-stage);
+    stroke: var(--g-stroke);
+    stroke-dasharray: 4 3;
+  }
+}
+svg.draw path.glyph {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  &.final {
+    stroke: var(--g-viz-final);
+  }
+  &.critical {
+    stroke: var(--g-viz-critical);
+  }
+  &.warn {
+    stroke: var(--g-warn);
+  }
+  &.neutral,
+  &.hidden {
+    stroke: var(--g-stroke);
+  }
+}
+.cell {
+  fill: none;
+  stroke: var(--g-viz-track);
+  &.member {
+    fill: var(--g-viz-considering-soft);
+    stroke: var(--g-viz-considering);
+  }
+  &.acked {
+    fill: var(--g-viz-final);
+    stroke: var(--g-viz-final);
+  }
+}
+.this-ring,
+.ring {
+  fill: none;
+  stroke: var(--g-text);
+  stroke-width: 1.75;
+}
+.gridline {
+  stroke: var(--g-line);
+}
+.lane {
+  stroke: var(--g-viz-track);
+  stroke-width: 1.5;
+}
+.axis {
+  stroke: var(--g-line-strong);
+}
+.dot {
+  &.write {
+    fill: var(--g-viz-current);
+  }
+  &.standin {
+    fill: var(--g-viz-stage);
+    stroke: var(--g-viz-current);
+    stroke-width: 1.5;
+  }
+  &.read {
+    fill: var(--g-viz-considering);
+  }
+  &.read.standin {
+    fill: var(--g-viz-stage);
+    stroke: var(--g-viz-considering);
+  }
+}
+.repair-bar {
+  stroke: var(--g-viz-final);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+.end-tick {
+  stroke: var(--g-viz-final);
+  stroke-width: 2;
+}
+.chevron {
+  fill: none;
+  stroke: var(--g-warn);
+  stroke-width: 2;
+}
+.countdown {
+  fill: none;
+  stroke: var(--g-warn);
+  stroke-width: 2;
+  stroke-dasharray: 50.27;
+  transform: rotate(-90deg);
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+// A play brings each mark in as its moment comes: it lands, and what it replaces leaves. The overlap's climax rings
+// the replica in both sets. Plays run only with motion, so without it nothing here animates.
+svg.draw .land {
+  animation: quorum-land var(--g-motion-land) var(--g-ease-enter) both;
+  transform-box: fill-box;
+}
+svg.draw .leave {
+  animation: quorum-leave 250ms ease-in forwards;
+  transform-box: fill-box;
+}
+svg.draw .countdown.land {
+  animation: quorum-countdown 900ms linear both;
+}
+svg.draw :is(.card-both, .both-ring).land {
+  animation: quorum-climax 400ms var(--g-ease-enter) both;
+  transform-origin: center;
+}
+@keyframes quorum-land {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+@keyframes quorum-leave {
+  to {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+@keyframes quorum-countdown {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: 50.27;
+  }
+}
+@keyframes quorum-climax {
+  from {
+    opacity: 0;
+    transform: scale(1.08);
+  }
+  60% {
+    opacity: 1;
+  }
+}
+.dots ::ng-deep .particle {
+  circle {
+    fill: var(--g-viz-current);
+  }
+  path,
+  text {
+    display: none;
+  }
+  &.read circle,
+  &.answer circle {
+    fill: var(--g-viz-considering);
+  }
+  &.repair circle {
+    fill: var(--g-viz-final);
+  }
+  &.broken {
+    circle {
+      display: none;
+    }
+    path {
+      display: inline;
+      fill: none;
+      stroke: var(--g-viz-critical);
+      stroke-width: 2;
+    }
+  }
+}
+
+// A play button on a stage: a 36px disc in a 44px hit box.
+.play {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  z-index: 2;
+  svg {
+    display: block;
+    width: 36px;
+    height: 36px;
+    margin: var(--g-space-1);
+  }
+  circle {
+    fill: var(--g-raised);
+    stroke: var(--g-accent);
+    stroke-width: 1.5;
+  }
+  path {
+    fill: var(--g-accent);
+  }
+  &:focus-visible {
+    outline: none;
+    circle {
+      stroke-width: 3;
+    }
+    svg {
+      outline: var(--g-focus-ring);
+      outline-offset: 1px;
+      border-radius: var(--g-radius-pill);
+    }
+  }
+  &:disabled {
+    cursor: default;
+    opacity: 0.55;
+  }
+}
+.replicas {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.card-hit {
+  position: absolute;
+  padding: 0;
+  border: 0;
+  border-radius: var(--g-radius-sm);
+  background: transparent;
+  cursor: pointer;
+  pointer-events: auto;
+  z-index: 1;
+  &:focus-visible {
+    outline: var(--g-focus-ring);
+    outline-offset: 3px;
+  }
+  &[aria-disabled='true'] {
+    cursor: default;
+  }
+}
+.hint {
+  position: absolute;
+  z-index: 3;
+  padding: var(--g-space-1) var(--g-space-2);
+  border-radius: var(--g-radius-xs);
+  background: var(--g-text);
+  color: var(--g-viz-stage);
+  font: 500 var(--g-text-label) / 1.3 var(--ion-font-family);
+  white-space: nowrap;
+  pointer-events: none;
+}
