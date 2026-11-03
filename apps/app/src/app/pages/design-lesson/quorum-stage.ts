@@ -71,6 +71,8 @@ function handleBlock(
     survives: number;
     succeed: number;
     verb: string;
+    /** Room for the caption, where a mark beside the handle reaches under it. */
+    capW?: number;
   },
 ): Track {
   const { D, m } = c;
@@ -100,8 +102,9 @@ function handleBlock(
         `survives ${o.survives} down · ${o.verb} succeed ${pct}`,
         `survives ${o.survives} down · ${o.verb} ${pct}`,
         `survives ${o.survives} down · ${pct}`,
+        `${o.survives} down · ${pct}`,
       ];
-  const cap = forms.find((t) => tw(t, 'small') <= o.w) ?? forms.at(-1)!;
+  const cap = forms.find((t) => tw(t, 'small') <= (o.capW ?? o.w)) ?? forms.at(-1)!;
   D.text(`${o.id}-cap`, o.x, o.y + 81, [[cap, 'small', 'muted']], { owner: o.id });
   D.region('handles', { x: o.x - 4, y: o.y - 2, w: o.w + 8, h: 90 });
   return { positions: Array.from({ length: n }, (_, j) => pos(j + 1)), y: ty };
@@ -776,9 +779,6 @@ export function buildStage(W: number, m: QuorumScenario, view: StageView): Stage
     verb: 'reads',
   };
   y = readerY + readerH;
-  let rTrack: Track | null = wide ? handleBlock(c, { ...rHandle, x: pad, y: readerY, w: rx - 24 - pad }) : null;
-  const handleBottom = readerY + 84;
-
   // The verdict pill: the heaviest mark, landing last.
   const pill = pillOf(m, hid);
   const pillAt = hid.verdict ? {} : { at: readDone ? atR(sentAt + (read.ms ?? 0)) : failAt };
@@ -791,6 +791,11 @@ export function buildStage(W: number, m: QuorumScenario, view: StageView): Stage
   const ph = pillLines.length === 1 ? 32 : 48;
   const pillY = y + 10;
   const px = W - pad - pw;
+  // Wide, a long pill reaches under the R handle's caption, which then takes a shorter form.
+  let rTrack: Track | null = wide
+    ? handleBlock(c, { ...rHandle, x: pad, y: readerY, w: rx - 24 - pad, capW: Math.min(rx - 24 - pad, px - 10 - pad) })
+    : null;
+  const handleBottom = readerY + 84;
   D.add('marks', 'pill', { k: 'rect', cls: `pill ${pill.tone}`, x: px, y: pillY, w: pw, h: ph, rx: 16, ...pillAt });
   D.mark({ x0: px, x1: px + pw, y0: pillY, y1: pillY + ph }, 'pill');
   D.add('text', 'pill-glyph', { k: 'path', cls: `glyph ${pill.tone}`, d: pillGlyph(pill.tone, px + 18, pillY + 16), ...pillAt });
