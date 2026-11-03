@@ -232,6 +232,12 @@ svg.draw {
   stroke-width: 1.5;
   stroke-opacity: 0.55;
 }
+.both-echo {
+  fill: none;
+  stroke: var(--g-viz-final);
+  stroke-width: 2;
+  opacity: 0;
+}
 .card-fill-down {
   fill: var(--g-sunken);
 }
@@ -497,6 +503,19 @@ svg.draw .countdown.land {
 svg.draw :is(.card-both, .both-ring).land {
   animation: quorum-climax 400ms var(--g-ease-enter) both;
   transform-origin: center;
+}
+svg.draw .both-echo.land {
+  animation: quorum-echo 700ms ease-out both;
+  transform-origin: center;
+}
+@keyframes quorum-echo {
+  from {
+    opacity: 0.8;
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.12);
+  }
 }
 @keyframes quorum-land {
   from {

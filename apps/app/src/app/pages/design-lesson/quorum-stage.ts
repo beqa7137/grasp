@@ -10,6 +10,8 @@ const { old: V7, new: V8 } = QUORUM_VERSIONS;
 export const WIDE_FROM = 520;
 /** A read short of answers waits out its timeout; a play shows the wait as this much model time. */
 const READ_WAIT_SHOWN_MS = 50;
+/** Later than any play ends: as a mark's `until`, it keeps the mark to plays. */
+const PLAY_ONLY: Moment = ['r', Number.MAX_SAFE_INTEGER];
 
 export type Pt = readonly [number, number];
 export interface StageView {
@@ -190,6 +192,18 @@ export function buildStage(W: number, m: QuorumScenario, view: StageView): Stage
           at: climax,
         });
       D.add('marks', `both${i}`, { k: 'rect', cls: 'card-both', x, y: cardY, w: cw, h: cardH, rx: 8, at: climax });
+      // The climax's second ring fades out as it lands; it exists only in a play.
+      D.add('back', `both-echo${i}`, {
+        k: 'rect',
+        cls: 'both-echo',
+        x: x - 2,
+        y: cardY - 2,
+        w: cw + 4,
+        h: cardH + 4,
+        rx: 10,
+        at: climax,
+        until: PLAY_ONLY,
+      });
     }
     D.mark({ x0: x, x1: x + cw, y0: cardY, y1: cardY + cardH }, owner);
     const ix = wide ? 10 : 5;

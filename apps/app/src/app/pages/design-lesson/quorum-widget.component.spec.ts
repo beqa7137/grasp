@@ -12,6 +12,8 @@ class Host {
 }
 
 const SHOWN = QUORUM_EXPERIMENTS.map(renderExperiment);
+/** The sweep and the plays sample frame by frame: many renders, longer than a unit test's default. */
+const LONG_MS = 60_000;
 const at = (id: string) => SHOWN.findIndex((e) => e.id === id);
 
 /** While a question asks, no rendered or accessible text of the widget may hold its answer (known.md bug 1). */
@@ -149,7 +151,7 @@ function giveaways(t: Setup, id: string, hide: readonly string[], settings: Quor
     t.el.querySelector('.link.repair, .repair-glyph, .repair-bar, .particle.repair:not([visibility])')
   )
     out.push('a repair mark');
-  if (hide.includes('verdict') && svg.querySelector('.both-ring, .card-both')) out.push('a BOTH ring');
+  if (hide.includes('verdict') && svg.querySelector('.both-ring, .card-both, .both-echo')) out.push('a BOTH ring');
   return out;
 }
 
@@ -238,92 +240,108 @@ describe('QuorumWidgetComponent', () => {
     expect(t.animate).not.toHaveBeenCalled();
   });
 
-  it('plays the write then the read, every read-side mark arriving with the read, tracked by replica', async () => {
-    const t = await setup({ motion: 'full' });
-    await t.press(t.play());
-    const readMarks = () => t.svg().querySelectorAll('.link.read:not(.legend-line), .chip.asked, [data-answer], .dot.read, .pill');
-    expect(readMarks()).toHaveLength(0);
-    expect(t.svg().querySelector('.this-ring:not(.key)')).toBeNull();
-    let r3: Element | null = null;
-    let order = '';
-    for (let i = 0; i < 120 && t.text('.notice')[0] === ''; i++) {
-      await t.tick(50);
-      const answers = [...t.svg().querySelectorAll('[data-answer]')].map((a) => a.getAttribute('data-answer')).join(',');
-      if (answers !== order.split(';').at(-1)) order += `;${answers}`;
-      r3 ??= t.svg().querySelector('[data-answer="2"]');
-    }
-    expect(order).toBe(';2;1,2');
-    expect(t.svg().querySelector('[data-answer="2"]')).toBe(r3);
-    expect(t.text('.notice')[0]).toMatch(/^Acked in 4 ms by R1 and R2\./);
-    expect(t.animate).toHaveBeenCalled();
-    expect(readMarks().length).toBeGreaterThan(0);
-  });
+  it(
+    'plays the write then the read, every read-side mark arriving with the read, tracked by replica',
+    async () => {
+      const t = await setup({ motion: 'full' });
+      await t.press(t.play());
+      const readMarks = () => t.svg().querySelectorAll('.link.read:not(.legend-line), .chip.asked, [data-answer], .dot.read, .pill');
+      expect(readMarks()).toHaveLength(0);
+      expect(t.svg().querySelector('.this-ring:not(.key)')).toBeNull();
+      let r3: Element | null = null;
+      let order = '';
+      for (let i = 0; i < 120 && t.text('.notice')[0] === ''; i++) {
+        await t.tick(50);
+        const answers = [...t.svg().querySelectorAll('[data-answer]')].map((a) => a.getAttribute('data-answer')).join(',');
+        if (answers !== order.split(';').at(-1)) order += `;${answers}`;
+        r3 ??= t.svg().querySelector('[data-answer="2"]');
+      }
+      expect(order).toBe(';2;1,2');
+      expect(t.svg().querySelector('[data-answer="2"]')).toBe(r3);
+      expect(t.text('.notice')[0]).toMatch(/^Acked in 4 ms by R1 and R2\./);
+      expect(t.animate).toHaveBeenCalled();
+      expect(readMarks().length).toBeGreaterThan(0);
+    },
+    LONG_MS,
+  );
 
-  it('plays a timed-out write, a countdown, then the read on its own clock, the R-th answer landing last', async () => {
-    const t = await setup({ motion: 'full' });
-    await t.key(t.slider('W'), 'End');
-    await t.press(t.cards()[2]);
-    await t.press(t.cards()[2]);
-    expect(t.svg().getAttribute('aria-label')).toContain('The write times out.');
-    await t.press(t.play());
-    let countdown = false;
-    const seen: string[] = [];
-    for (let i = 0; i < 300 && t.text('.notice')[0] === ''; i++) {
-      await t.tick(40);
-      countdown ||= !!t.svg().querySelector('.countdown');
-      const answers = [...t.svg().querySelectorAll('[data-answer]')].map((a) => a.getAttribute('data-answer')).join(',');
-      if (seen.at(-1) !== answers) seen.push(answers);
-    }
-    expect(countdown).toBe(true);
-    expect(seen).toEqual(['', '1', '1,0']);
-    expect(t.text('.notice')[0]).toMatch(/^The write timed out at 2 s; R1 and R2 applied it\./);
-  });
+  it(
+    'plays a timed-out write, a countdown, then the read on its own clock, the R-th answer landing last',
+    async () => {
+      const t = await setup({ motion: 'full' });
+      await t.key(t.slider('W'), 'End');
+      await t.press(t.cards()[2]);
+      await t.press(t.cards()[2]);
+      expect(t.svg().getAttribute('aria-label')).toContain('The write times out.');
+      await t.press(t.play());
+      let countdown = false;
+      const seen: string[] = [];
+      for (let i = 0; i < 300 && t.text('.notice')[0] === ''; i++) {
+        await t.tick(40);
+        countdown ||= !!t.svg().querySelector('.countdown');
+        const answers = [...t.svg().querySelectorAll('[data-answer]')].map((a) => a.getAttribute('data-answer')).join(',');
+        if (seen.at(-1) !== answers) seen.push(answers);
+      }
+      expect(countdown).toBe(true);
+      expect(seen).toEqual(['', '1', '1,0']);
+      expect(t.text('.notice')[0]).toMatch(/^The write timed out at 2 s; R1 and R2 applied it\./);
+    },
+    LONG_MS,
+  );
 
-  it('pauses a play while the widget host is offscreen, not one stage', async () => {
-    const t = await setup({ motion: 'full' });
-    expect(t.watched.map((w) => w.el)).toContain(t.widget);
-    await t.press(t.play());
-    const host = t.watched.find((w) => w.el === t.widget)!;
-    host.report([{ isIntersecting: false } as IntersectionObserverEntry], {} as IntersectionObserver);
-    for (let i = 0; i < 40; i++) await t.tick(100);
-    expect(t.text('.notice')).toEqual(['']);
-    host.report([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver);
-    for (let i = 0; i < 80 && t.text('.notice')[0] === ''; i++) await t.tick(100);
-    expect(t.text('.notice')[0]).toMatch(/^Acked in 4 ms/);
-  });
+  it(
+    'pauses a play while the widget host is offscreen, not one stage',
+    async () => {
+      const t = await setup({ motion: 'full' });
+      expect(t.watched.map((w) => w.el)).toContain(t.widget);
+      await t.press(t.play());
+      const host = t.watched.find((w) => w.el === t.widget)!;
+      host.report([{ isIntersecting: false } as IntersectionObserverEntry], {} as IntersectionObserver);
+      for (let i = 0; i < 40; i++) await t.tick(100);
+      expect(t.text('.notice')).toEqual(['']);
+      host.report([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver);
+      for (let i = 0; i < 80 && t.text('.notice')[0] === ''; i++) await t.tick(100);
+      expect(t.text('.notice')[0]).toMatch(/^Acked in 4 ms/);
+    },
+    LONG_MS,
+  );
 
   for (const motion of ['off', 'full'])
-    it(`hides each question's answer on every surface while it asks and through its play, motion ${motion}`, async () => {
-      const t = await setup({ motion });
-      for (const e of SHOWN.filter((x) => !x.goal)) {
-        await t.card(at(e.id));
-        const settings = settingsOf(e);
-        const summary = t.svg().getAttribute('aria-label');
-        expect(t.play().disabled, e.id).toBe(true);
-        expect(t.play().getAttribute('aria-label')).toBe('Play the write, then the read, after your answer');
-        expect(t.text('.notice'), e.id).toEqual(['Play and the settings this question is about wait for your answer.']);
-        // Move every card, handle and toggle: nothing moves while the question asks.
-        for (const c of t.cards()) await t.press(c);
-        for (const name of ['W', 'R']) for (const k of ['ArrowRight', 'Home', 'End']) await t.key(t.slider(name), k);
-        for (const label of ['3 replicas', '5 replicas', 'R', 'Sloppy quorum']) await t.press(t.option(label));
-        expect(t.svg().getAttribute('aria-label'), e.id).toBe(summary);
-        expect(
-          t.cards().every((c) => c.getAttribute('aria-disabled') === 'true'),
-          e.id,
-        ).toBe(true);
-        expect(t.el.querySelector('.hint'), e.id).toBeNull();
-        expect(t.text('.describe button')).toEqual(['Describe']);
-        expect(giveaways(t, e.id, e.hide, settings), `${e.id} asking`).toEqual([]);
-        await t.choose(e.choices[(e.answer + 1) % e.choices.length]);
-        const held = e.hide.filter((h) => h !== 'read');
-        for (let i = 0; i < 200 && !t.el.querySelector('app-widget-check .explain:not(.muted)'); i++) {
-          expect(giveaways(t, e.id, held, settings), `${e.id} playing`).toEqual([]);
-          await t.tick(60);
+    it(
+      `hides each question's answer on every surface while it asks and through its play, motion ${motion}`,
+      async () => {
+        const t = await setup({ motion });
+        for (const e of SHOWN.filter((x) => !x.goal)) {
+          await t.card(at(e.id));
+          const settings = settingsOf(e);
+          const summary = t.svg().getAttribute('aria-label');
+          expect(t.play().disabled, e.id).toBe(true);
+          expect(t.play().getAttribute('aria-label')).toBe('Play the write, then the read, after your answer');
+          expect(t.text('.notice'), e.id).toEqual(['Play and the settings this question is about wait for your answer.']);
+          // Move every card, handle and toggle: nothing moves while the question asks.
+          for (const c of t.cards()) await t.press(c);
+          for (const name of ['W', 'R']) for (const k of ['ArrowRight', 'Home', 'End']) await t.key(t.slider(name), k);
+          for (const label of ['3 replicas', '5 replicas', 'R', 'Sloppy quorum']) await t.press(t.option(label));
+          expect(t.svg().getAttribute('aria-label'), e.id).toBe(summary);
+          expect(
+            t.cards().every((c) => c.getAttribute('aria-disabled') === 'true'),
+            e.id,
+          ).toBe(true);
+          expect(t.el.querySelector('.hint'), e.id).toBeNull();
+          expect(t.text('.describe button')).toEqual(['Describe']);
+          expect(giveaways(t, e.id, e.hide, settings), `${e.id} asking`).toEqual([]);
+          await t.choose(e.choices[(e.answer + 1) % e.choices.length]);
+          const held = e.hide.filter((h) => h !== 'read');
+          for (let i = 0; i < 200 && !t.el.querySelector('app-widget-check .explain:not(.muted)'); i++) {
+            expect(giveaways(t, e.id, held, settings), `${e.id} playing`).toEqual([]);
+            await t.tick(60);
+          }
+          expect(t.text('app-widget-check .explain'), e.id).toEqual([e.reveal]);
+          for (const region of e.focus) expect(t.el.querySelector(`[data-focus="${region}"]`)!.classList, e.id).toContain('focused');
         }
-        expect(t.text('app-widget-check .explain'), e.id).toEqual([e.reveal]);
-        for (const region of e.focus) expect(t.el.querySelector(`[data-focus="${region}"]`)!.classList, e.id).toContain('focused');
-      }
-    });
+      },
+      LONG_MS,
+    );
 
   it('shows what each question hid once it is revealed', async () => {
     const t = await setup();
