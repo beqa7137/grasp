@@ -61,8 +61,8 @@ check(positions.join(',') === '3,2,1,2,3', 'answer positions are 3, 2, 1, 2, 3')
   check(split.meanWait / shared.meanWait > 5 && split.meanWait / shared.meanWait < 6, 'E3: a shared queue cuts the wait 5 to 6 times');
   const st = M.run({ load: 90, service: 'steady' });
   check(rel(st.meanWait, M.run({ load: 90 }).meanWait / 2) < 1e-9, 'E4: steady service halves the mean wait (M/D/1)');
-  const lose = M.run({ servers: 3, load: 70, down: 1 });
-  check(!lose.stable && rel(lose.rho, 1.05) < 1e-9 && rel(lose.growthPerS, 10) < 1e-9, 'E5: two of three at 105%, growing by 10/s');
+  const lose = M.run({ servers: 3, load: 75, down: 1 });
+  check(!lose.stable && rel(lose.rho, 1.125) < 1e-9 && rel(lose.growthPerS, 25) < 1e-9, 'E5: two of three at 112.5%, growing by 25/s');
   const safe = M.run({ servers: 3, load: 60, down: 1 });
   check(safe.stable && rel(safe.rho, 0.9) < 1e-9, 'E5: from 60% the two left run at 90%');
 }
@@ -315,10 +315,16 @@ function score(seed) {
 }
 {
   // Unstable settings start empty and grow: the window ends with more waiting than it starts.
-  const s = { load: 70, servers: 3, down: 1 };
-  const smp = M.sample(s);
-  const steps = M.waitingSteps(smp);
-  check(steps[steps.length - 1][1] > 0, 'an unstable window ends with a queue');
+  // Unstable windows show a ramp: the drift outruns the noise once the window is many times (lambda + mu) / (lambda - mu)^2.
+  for (const s of [{ load: 75, servers: 3, down: 1 }, { load: 60, servers: 2, queue: 'split', down: 1 }]) {
+    const smp = M.sample(s);
+    const steps = M.waitingSteps(smp);
+    const at = (t) => steps.filter((p) => p[0] <= t).at(-1)[1];
+    const W = smp.window;
+    const q = [0.25, 0.5, 0.75, 1].map((f) => at(f * W - 1));
+    console.log(`  ${JSON.stringify(s)}: waiting at each quarter of the ${W} ms window ${q.join(', ')}`);
+    check(q[3] > q[1] && q[1] > q[0] && q[3] > 3 * q[0], `the unstable window ${JSON.stringify(s)} ramps`);
+  }
 }
 
 console.log(`\n${checks} checks, ${failures} failed`);

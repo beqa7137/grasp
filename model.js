@@ -15,9 +15,9 @@
   /** The sample's window of model time, and how much slower than real time a free play shows it. */
   const WINDOW_MS = 400;
   /** With no steady state the queue only grows; a longer window, played faster, shows the ramp. */
-  const UNSTABLE_WINDOW_MS = 2000;
+  const UNSTABLE_WINDOW_MS = 4000;
   const PLAY_SLOW = 25;
-  const UNSTABLE_PLAY_SLOW = 5;
+  const UNSTABLE_PLAY_SLOW = 2;
   const ANSWER_SLOW = 8;
   /** Arrivals simulated before the window, so the window opens in the steady state. */
   const WARM_ARRIVALS = 40000;
@@ -447,7 +447,7 @@
     knee: { ...BASE, load: 70 },
     pool: { ...BASE, servers: 4, queue: 'split', load: 80 },
     steady: { ...BASE, load: 90 },
-    fail: { ...BASE, servers: 3, load: 70 },
+    fail: { ...BASE, servers: 3, load: 75 },
     challenge: { ...BASE, servers: 2, queue: 'split', load: 60, down: 1 },
   };
   const CHALLENGE_BOUNDS = { p99: 100, load: 60 };
@@ -612,7 +612,7 @@
       ],
       truth: 'outcome',
       reveal:
-        'It never settles: {load} of {servers} servers is {rate}, and the {left} left can serve only {cap}, so {growth} more arrive than leave and each request waits longer than the one before. Losing one of {servers} multiplies the load on the rest by {mult}: {load} becomes {rho}. From {safe}, the {left} left would run at {safeRho}, with p99 {safeP99}. Size so the fleet minus one still runs below the knee.',
+        'It never settles: {load} of {servers} servers is {rate}, and the {left} left can serve only {cap}, so {growth} more arrive than leave, and the queue and its waits keep growing. Losing one of {servers} multiplies the load on the rest by {mult}: {load} becomes {rho}, and anything above {limit} is more than {left} can serve. From {safe}, the {left} left would run at {safeRho}, with p99 {safeP99}. Size so the fleet minus one still runs below the knee.',
       focus: ['chart', 'scene'],
       hide: ['after'],
       slots: () => {
@@ -632,6 +632,7 @@
           mult: times(a.settings.servers / b.up),
           rho: pct(b.rho * 100),
           safe: pct(safe.settings.load),
+          limit: pct((b.up / a.settings.servers) * 100),
           safeRho: pct(safe.rho * 100),
           safeP99: ms(safe.p99),
           unbounded: word('unbounded'),

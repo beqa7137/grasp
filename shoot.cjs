@@ -114,8 +114,13 @@ const server = http.createServer((req, res) => {
       }
     console.log(`settings sweep: ${count} settings over ${plan.map(([w, l, t]) => `${l.length * t.length} at ${w}`).join(', ')} = ${res.renders} renders, ${res.failures.length} with collisions`);
     const byKind = {};
-    for (const f of res.failures) for (const o of f.out) byKind[o.replace(/"[^"]*"/g, '"…"').replace(/\d+/g, '#')] = (byKind[o.replace(/"[^"]*"/g, '"…"').replace(/\d+/g, '#')] ?? 0) + 1;
-    for (const [k, v] of Object.entries(byKind).sort((a, b) => b[1] - a[1]).slice(0, 12)) console.log(`    ${v} x ${k}`);
+    for (const f of res.failures)
+      for (const o of f.out) {
+        const k = o.replace(/"[^"]*"/g, '"…"').replace(/\d+/g, '#');
+        byKind[k] ??= { n: 0, eg: `W${f.W} ${f.s}: ${o}` };
+        byKind[k].n++;
+      }
+    for (const [k, v] of Object.entries(byKind).sort((a, b) => b[1].n - a[1].n).slice(0, 14)) console.log(`    ${v.n} x ${k}   e.g. ${v.eg}`);
     for (const f of res.failures.slice(0, 10)) console.log(`    W${f.W} ${f.s}: ${f.out.join(' | ')}`);
     total += res.failures.length;
     const heights = await page.evaluate(() => window.heights([252, 300, 322, 360, 400, 460, 520, 560, 620, 700]));
