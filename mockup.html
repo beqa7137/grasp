@@ -1251,7 +1251,7 @@
         D.region('load', { x: pad - 8, y: loadTop - 4, w: W - 2 * pad + 16, h: y - loadTop + 2 });
 
         // The band: the queue (one, or one per server behind a random router) and the servers, at the moment `tNow`.
-        const SW = wide ? 96 : 66;
+        const SW = wide ? 96 : 70;
         const exitW = wide ? 18 : 10;
         const xs = W - pad - exitW - SW;
         const qText = queueLabel(m, hid, at, tw('Requests arrive after your answer', 'label') > W - 2 * pad, playing ? null : tScene);
@@ -1269,7 +1269,7 @@
         const bh = c === 1 ? 64 : c === 2 ? 44 : 30;
         const gapS = c === 1 ? 0 : c === 2 ? 16 : 6;
         const slotY = (i) => ymid + (i - (c - 1) / 2) * (bh + gapS) - bh / 2;
-        const RR = c === 1 ? 18 : c === 2 ? 12 : 9;
+        const RR = c === 1 ? (wide ? 18 : 14) : c === 2 ? 12 : 9;
         const DR = c === 1 ? 8 : c === 2 ? 6 : 5;
         const PITCH = 2 * DR + 3;
         const split = s.queue === 'split' && up > 1;
@@ -1361,6 +1361,7 @@
             continue;
           }
           D.add('marks', `<circle class="ring-track" cx="${rx}" cy="${ry}" r="${RR}"/>`);
+          D.mark({ x0: rx - RR - 1, x1: rx + RR + 1, y0: ry - RR - 1, y1: ry + RR + 1 }, `${name}-ring`);
           const r = at.serving.find((q) => q.server === i);
           if (r) {
             const p = Math.max(0.02, Math.min(0.999, (tScene - r.start) / (r.leave - r.start)));
@@ -1671,8 +1672,9 @@
         };
         // The headline row's swatches are the legend whenever it shows them, so a name with no room is left out then.
         const legendShown = m.stable || hid.numbers;
-        if (p99pts.length) D.place([...along(p99pts, -7), ...along(p99pts, 15)], [['p99', 'smallB', 'crit-ink']], { owner: 'c99', ground: true, minY: py0, maxY: py1 - 1, minX: px0 + 2, maxX: px1 - 2, optional: legendShown });
-        if (p50pts.length) D.place([...along(p50pts, 15), ...along(p50pts, -7)], [['p50', 'smallB', 'cur-ink']], { owner: 'c50', ground: true, minY: py0, maxY: py1 - 1, minX: px0 + 2, maxX: px1 - 2, optional: legendShown });
+        // p99 only ever over its line and p50 only under it, so a name never sits by the other curve.
+        if (p99pts.length) D.place([...along(p99pts, -7), ...along(p99pts, -13), ...along(p99pts, -19)], [['p99', 'smallB', 'crit-ink']], { owner: 'c99', ground: true, minY: py0, maxY: py1 - 1, minX: px0 + 2, maxX: px1 - 2, optional: legendShown });
+        if (p50pts.length) D.place([...along(p50pts, 15), ...along(p50pts, 21), ...along(p50pts, 27)], [['p50', 'smallB', 'cur-ink']], { owner: 'c50', ground: true, minY: py0, maxY: py1 - 1, minX: px0 + 2, maxX: px1 - 2, optional: legendShown });
         if (view.ghost && view._ghostPts?.length) {
           const gp = view._ghostPts;
           const cands = [];
@@ -1865,7 +1867,7 @@
           s.queue,
         )}</div></fieldset>
 <fieldset class="group"${dis}><legend class="control-label">Conditions</legend><div class="toggles">
-<label class="segment"><input type="checkbox" ${s.service === 'steady' ? 'checked' : ''}/><span>Steady work<small>exactly ${fms(M.SERVICE_MS)} each</small></span></label>
+<label class="segment"><input type="checkbox" ${s.service === 'steady' ? 'checked' : ''}/><span>Steady work<small>${fms(M.SERVICE_MS)} each</small></span></label>
 <label class="segment"><input type="checkbox" ${s.down ? 'checked' : ''}${s.servers === 1 ? ' disabled' : ''}/><span>A server down<small>its traffic moves</small></span></label></div></fieldset>
 <p class="notice" aria-live="polite">${esc(noticeOf(m, view))}</p>`;
       }
