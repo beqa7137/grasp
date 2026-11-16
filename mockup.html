@@ -1114,7 +1114,7 @@
       }
       function serversLabel(m, hid) {
         const s = m.settings;
-        const rho = hid.modelWords ? '?' : `${Math.round(m.rho * 100)}`;
+        const rho = hid.modelWords ? '?' : M.formatPct(m.rho * 100).replace('%', '');
         if (s.servers === 1) return `Server · ${rho}% busy`;
         if (s.down) return m.up === 1 ? `1 up · ${rho}% busy` : `${m.up} up · each ${rho}% busy`;
         return `Servers · each ${rho}% busy`;
@@ -1127,7 +1127,7 @@
       }
       // The longest form each label can take at any setting, so the band's label rows are one value per width.
       const LONGEST_QUEUE = ['Requests arrive after your answer', 'Queues · 999 waiting at 400 ms'];
-      const LONGEST_SERVERS = ['Servers · each ?% busy', '3 up · each 131% busy', '1 up · 196% busy', 'Servers · each 98% busy'];
+      const LONGEST_SERVERS = ['Servers · each ?% busy', '3 up · each 130.7% busy', '2 up · each 147% busy', '1 up · 196% busy', 'Servers · each 98% busy'];
 
       function factLines(m, hid) {
         if (hid.numbers) return ['Who waits, and how many are in the system at once, show after your answer.'];
@@ -1764,7 +1764,7 @@
             D.add('marks', `<path class="chevron" d="M${px1 + 3} ${cy - 5}L${px1 + 8} ${cy}L${px1 + 3} ${cy + 5}"/>`);
             D.mark({ x0: px1 + 2, x1: px1 + 9, y0: cy - 6, y1: cy + 6 }, 'over');
           }
-          D.text(MX0, cy + 4, [[`${Math.round(m.rho * 100)}% busy`, 'smallB', 'bad']], { owner: 'over' });
+          D.text(MX0, cy + 4, [[`${M.formatPct(m.rho * 100)} busy`, 'smallB', 'bad']], { owner: 'over' });
           wrap('no steady state', 'small', MX1 - MX0).forEach((t, i) => D.text(MX0, cy + 20 + i * 14, [[t, 'small', 'bad']], { owner: 'over' }));
         } else {
           wrap('after your answer', 'small', MX1 - MX0).forEach((t, i) => D.text(MX0, (py0 + py1) / 2 + i * 14, [[t, 'small', 'muted']], { owner: 'marg' }));
@@ -1961,8 +1961,8 @@
         const t = (v) => (compact ? String(Math.round(v)) : fdur(v));
         const rows = M.LOADS.map((load) => {
           const r = M.run({ ...s, load });
-          if (!r.stable) return { now: load === s.load, cells: [`${load}%`, `${Math.round(r.rho * 100)}%`, compact ? '∞' : 'grows', '–', '–', compact ? 'all' : 'grows'] };
-          return { now: load === s.load, cells: [`${load}%`, `${Math.round(r.rho * 100)}%`, t(r.mean), t(r.p50), t(r.p99), `${Math.round(r.waitChance * 100)}%`] };
+          if (!r.stable) return { now: load === s.load, cells: [`${load}%`, M.formatPct(r.rho * 100), compact ? '∞' : 'grows', '–', '–', compact ? 'all' : 'grows'] };
+          return { now: load === s.load, cells: [`${load}%`, M.formatPct(r.rho * 100), t(r.mean), t(r.p50), t(r.p99), M.formatPct(r.waitChance * 100)] };
         });
         const smp = M.sample(s);
         const steps = M.waitingSteps(smp);

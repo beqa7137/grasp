@@ -119,7 +119,7 @@ positions linear in load, the fill in the accent: handles are UI), "10%" and "98
 `aria-valuetext` is "70% busy, 70 requests a second".
 
 **The band** (the queue and the servers at one moment). Label row: "QUEUE · 8 WAITING AT 51 MS" left and "SERVER · 70%
-BUSY" right ("SERVERS · EACH 80% BUSY", "3 UP · EACH 80% BUSY", "2 UP · EACH 112% BUSY" or "1 UP · 120% BUSY" with × in critical ink); on
+BUSY" right ("SERVERS · EACH 80% BUSY", "3 UP · EACH 80% BUSY", "2 UP · EACH 112.5% BUSY" or "1 UP · 120% BUSY" with × in critical ink); on
 narrow stages the servers' label takes its own row (reserved per width). Servers sit at the right, a column of boxes
 with a name (mono 13), a progress ring (the current tone grows around the ring as the request in service is worked on;
 its dot sits in the middle), "idle" where it fits, an exit stub. Fewer servers are drawn larger (one: 64 px boxes, ring
@@ -167,7 +167,7 @@ them when a name finds no room. The cursor: a dotted vertical line at ρ, a dot 
 meet (steady work at low load, both exactly 10 ms) one dot carries both, ringed in critical, labelled "p50 and p99 10 ms"
 ("both 10 ms", then "10 ms"). After a change of configuration the previous one's p99 stays as a dotted ghost named for
 what it was ("a queue each", "random work", "all three up", or "before"). Over capacity the cursor leaves the plot: a
-critical chevron at its right edge and, in the marginal column, "112% busy" and "no steady state".
+critical chevron at its right edge and, in the marginal column, "112.5% busy" and "no steady state". Utilizations print with one decimal where they have one, as the reveals do.
 
 **100 requests** (the marginal). Right of the plot, on the same time axis: the model's 100 quantiles as dots binned by
 height (5 or 6 px pitch), each bin's dots side by side, so the column is the distribution on its side; a p50 tick and a
