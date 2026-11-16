@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import { initErrorReporting, reportClientError, ReportingErrorHandler } from './error-reporting';
+import { initErrorReporting, reportClientError, ReportingErrorHandler, watchPageLeave } from './error-reporting';
 import { RuntimeConfigService } from './runtime-config.service';
 
 const PRIVATE = 'private-learner-answer-token';
@@ -23,6 +23,26 @@ it.each([
   new ReportingErrorHandler().handleError(error);
   expect(log).toHaveBeenCalledExactlyOnceWith({ operation: 'application', category });
   expect(JSON.stringify(log.mock.calls)).not.toContain(PRIVATE);
+});
+
+it('leaves unreported the imports WebKit cancels as the page leaves, until the page is shown again', () => {
+  const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const page = new EventTarget();
+  watchPageLeave(page);
+  const cancelled = () => new TypeError('Importing a module script failed.');
+  reportClientError(cancelled());
+  expect(log).toHaveBeenCalledTimes(1);
+
+  page.dispatchEvent(new Event('beforeunload'));
+  new ReportingErrorHandler().handleError(cancelled());
+  reportClientError(cancelled(), 'bootstrap');
+  expect(log).toHaveBeenCalledTimes(1);
+  reportClientError(new TypeError(PRIVATE));
+  expect(log).toHaveBeenCalledTimes(2);
+
+  page.dispatchEvent(new Event('pageshow'));
+  reportClientError(cancelled());
+  expect(log).toHaveBeenCalledTimes(3);
 });
 
 it('labels bootstrap failures without exposing the original exception', () => {

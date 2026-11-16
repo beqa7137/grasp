@@ -239,6 +239,21 @@ test("a competency's questions are two taps from a cold start", { tag: '@nav' },
   await expect(page.locator('app-competency .questions a').first()).toBeVisible();
 });
 
+test('leaving a page while its code still loads logs no error', async ({ page }) => {
+  // The STAR guide's code is held as on a slow network, so the reload cancels its import: WebKit rejects such imports.
+  let hold = false;
+  let held = 0;
+  await page.route(/\/chunk-[\w-]+\.js$/, (route) => (hold ? void held++ : route.continue()));
+  await page.goto('/behavioral');
+  await expect(page.locator('app-behavioral-list .summary')).not.toBeEmpty();
+  hold = true;
+  await page.getByRole('link', { name: 'How to answer (STAR) →' }).click();
+  await expect.poll(() => held).toBeGreaterThan(0);
+  hold = false;
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Behavioral interviews', level: 1 })).toBeVisible();
+});
+
 test.describe('Where things moved', () => {
   const NOTE = { name: 'Where things moved' };
   /** The note is decided once per device, after the first render; absence means something only once it is decided. */
