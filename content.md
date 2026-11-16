@@ -1,28 +1,31 @@
 # Latency & Queueing widget (`queue-latency`): every string, generated
 
-Generated from the built widget at aeba73689bbbb7366ba8dfb3a7ad16d6aec8038a (`/design/topics/sd-latency`) by a browser walk, and from the engine build for
+Generated from the built widget at 4b8b7beacda075a7069a76c3bd9837e65b98c58a (`/design/topics/sd-latency`) by a browser walk, and from the engine build for
 the experiments. Nothing here is typed by hand. Walks:
 
 - **D-RM**: desktop 1280px, reduced motion, answering each question wrong.
 - **D-M**: desktop 1280px, with motion, answering each question right.
 - **320**: Pixel 7 at 320px, reduced motion, answering each question wrong.
+- **390-M**: Pixel 7 at 390px, with motion, answering each question right.
 
-Each walk draws 16 settings (default; quiet, 30%; busy, 90%; 98%; one server at 10%; 4 servers, a queue each, 80%; 4 servers, one queue, 80% (ghost: a queue each); steady work, 90% (ghost: random); 4 servers, steady, 30%; 3 servers, 60%, one down (ghost: all up); 3 servers, 70%, one down; 2 servers, 50%, one down: exactly 100%; 2 servers, a queue each, steady, 85%, one down; 4 servers, a queue each, 75%, one down: exactly 100%; 3 servers, a queue each, steady, 95%; 2 servers, 20% (ghost: 1 server)), and at each: the stage at rest, a Play
+Each walk draws 17 settings (default; quiet, 30%; busy, 90%; 98%; one server at 10%; 4 servers, a queue each, 80%; 4 servers, one queue, 80% (ghost: a queue each); steady work, 90% (ghost: random); 4 servers, steady, 30%; 3 servers, 60%, one down (ghost: all up); 3 servers, 70%, one down; 2 servers, 40%, one down: one left; 2 servers, 50%, one down: exactly 100%; 2 servers, a queue each, steady, 85%, one down; 4 servers, a queue each, 75%, one down: exactly 100%; 3 servers, a queue each, steady, 95%; 2 servers, 20% (ghost: 1 server)), and at each: the stage at rest, a Play
 (sampled through the play with motion; the caption without), and Describe open; then every experiment asking, playing
-its answer (sampled with motion), revealed, and Describe after the reveal; the challenge at its start, at 4 servers, met
-at 4 servers sharing one queue at 60%, moved off to 65% and back, at 1 server and with steady work. A string is listed
+its answer (sampled every 80 ms with motion), revealed, and Describe after the reveal (waiting for it to open); the
+challenge at its start, with every server up and with steady work before the goal is met, at 4 servers, met at 4
+servers sharing one queue at 60%, moved off to 65% and back, at 1 server, with steady work, and with every server up
+after the reveal. A string is listed
 once, with the walks that showed it.
 
 ## Experiments (engine build)
 
-### Waiting at half load
+### One server at half load
 
 - **id:** `idle-yet-waiting`
-- **Ask:** One server, 50% busy, so it sits idle 50% of the time. Requests arrive at random, 50/s on average, and each needs 10 ms of work on average. On average, how long does a request wait before the server starts on it?
+- **Ask:** One server, 50% busy, so it sits idle 50% of the time. Requests arrive at random, 50/s on average, and each needs a random amount of work, 10 ms on average. On average, how long does a request wait before the server starts on it?
 - **Choice 1:** None: it has time to spare
 - **Choice 2:** 2.5 ms: only the bursts wait
 - **Choice 3 (answer):** 10 ms: as long as the work itself
-- **Reveal:** 10 ms, as long as the work itself. A request that arrives at a random moment finds the server busy 50% of the time, exactly its utilization, so 50% of requests wait for the work ahead of them, 20 ms on average; over every request that is 10 ms, and a request takes 20 ms in all. Waiting needs no overload, only collisions.
+- **Reveal:** 10 ms, as long as the work itself. A request that arrives at a random moment finds the server busy 50% of the time, exactly its utilization, so 50% of requests wait for the work ahead of them, 20 ms on average; averaged over every request, that is 10 ms, and a request takes 20 ms in all. Waiting needs no overload, only collisions.
 - **Hides while asking:** sample, numbers
 - **Focus at the reveal:** split, timeline
 
@@ -33,7 +36,7 @@ once, with the walks that showed it.
 - **Choice 1:** 43 ms: in step with the traffic
 - **Choice 2 (answer):** 100 ms: 3× as long
 - **Choice 3:** 333 ms: 10× as long
-- **Reveal:** 100 ms: the mean is S / (1 − utilization), and going from 70% to 90% busy cuts the idle share from 30% to 10%, so the time grows 3×. The work stays 10 ms; the waiting grows from 23 ms to 90 ms, and p99 from 154 ms to 461 ms. Each step of load costs more than the last, which is why a service that looked fine at 70% falls over at 90%.
+- **Reveal:** 100 ms: the mean is S / (1 − utilization), where S is the 10 ms of work, and going from 70% to 90% busy cuts the idle share from 30% to 10%, so the time grows 3×. The work stays 10 ms; the waiting grows from 23 ms to 90 ms, and p99 from 154 ms to 461 ms. Each step of load costs more than the last (this bend is the knee of the curve), which is why a service that looked fine at 70% is 3× slower at 90%.
 - **Hides while asking:** ahead, after
 - **Focus at the reveal:** chart, split
 
@@ -55,7 +58,7 @@ once, with the walks that showed it.
 - **Choice 1:** 90 ms: unchanged, the load is the same
 - **Choice 2 (answer):** 45 ms: half as long
 - **Choice 3:** 9 ms: a tenth, no request is slow any more
-- **Reveal:** 45 ms, exactly half. Arrivals still collide at random, so the queue stays, but the Pollaczek-Khinchine formula ties the wait to how much service times vary as well as to the load: the wait scales with (1 + CV²) / 2, where CV, the coefficient of variation, is the spread of service times over their mean. Random times have a CV of 1 and steady ones 0, so steady halves the wait; work that varies more than random (a few slow requests among many fast ones) waits longer still. p99 falls from 461 ms to 229 ms. Smaller, more even units of work cut the tail without adding a server.
+- **Reveal:** 45 ms, exactly half. The Pollaczek-Khinchine formula ties the wait to how much service times vary as well as to the load: the wait scales with (1 + CV²) / 2, where CV, the coefficient of variation, is the standard deviation of service times over their mean. Random (exponential) times have a CV of 1 and steady ones 0, so steady halves the wait; work that varies more than random (a few slow requests among many fast ones) waits longer still. p99 falls from 461 ms to 229 ms. More even work cuts the tail without adding a server.
 - **Hides while asking:** after
 - **Focus at the reveal:** split, chart
 
@@ -64,9 +67,9 @@ once, with the walks that showed it.
 - **id:** `lose-one`
 - **Ask:** 3 servers share one queue at 80% busy, and p99 is 85 ms. One fails, and the others take its traffic. What is p99 now?
 - **Choice 1:** 127 ms: half as long again, like the load
-- **Choice 2:** about 1 s: deep in the knee
-- **Choice 3 (answer):** It never settles: the queue grows without bound
-- **Reveal:** It never settles: 80% of 3 servers is 240/s, and the 2 left can serve only 200/s, so 40/s more arrive than leave, and the queue and its waits keep growing. Losing one of 3 multiplies the load on the rest by 1.5×: 80% becomes 120%, and anything above 66.7% is more than 2 can serve. From 60%, the 2 left would run at 90%, with p99 233 ms. Size so the fleet minus one still runs below the knee.
+- **Choice 2:** It settles after a burst, with p99 near 1 s
+- **Choice 3 (answer):** It never settles: the queue keeps growing
+- **Reveal:** It never settles: 80% of 3 servers is 240/s, and the 2 left can serve only 200/s, so 40/s more arrive than leave, and the queue and its waits keep growing. Losing one of 3 multiplies the load on the rest by 1.5×: 80% becomes 120%, and from 66.7% up the 2 left cannot keep up. From 60%, the 2 left would run at 90%, with p99 233 ms. Size so the fleet minus one still runs below the knee.
 - **Hides while asking:** after, utilization, stability
 - **Focus at the reveal:** chart, scene
 
@@ -74,931 +77,1608 @@ once, with the walks that showed it.
 
 - **id:** `headroom`
 - **Ask:** A server has failed, and its traffic moved to the rest. Choose the servers, the queue and the load so that p99 stays under 100 ms on the servers left while the fleet runs at least 60% busy with every server up.
-- **Reveal:** 4 servers sharing one queue at 60%: with one down, the 3 left are 80% busy and p99 is 85 ms. 3 servers at 60% would leave 2 at 90%, p99 233 ms; a queue each would need the load down to 40%. A bigger pool runs hotter and still rides out a failure: plan N+1 servers, each run at what the other N can absorb.
+- **Reveal:** 4 servers sharing one queue at 60%: with one down, the 3 left are 80% busy and p99 is 85 ms. 3 servers at 60% would leave 2 at 90%, p99 233 ms; 4 servers with a queue each would need the load down to 40%. A bigger pool runs hotter and still rides out a failure: plan N+1 servers and run them at a load the N left can absorb.
 - **Focus at the reveal:** chart, scene
 
-## Stage drawing (SVG text) (680)
+## Stage drawing (SVG text) (902)
 
-- ? _(D-RM, D-M, 320)_
+- ? _(D-RM, D-M, 320, 390-M)_
 - +10/s _(320)_
-- +107 _(D-M)_
+- +101 _(D-M)_
+- +102 _(D-M)_
+- +103 _(390-M)_
+- +104 _(D-M)_
+- +105 _(390-M)_
+- +106 _(D-M)_
+- +108 _(D-M)_
+- +11 _(390-M)_
+- +110 _(D-M)_
 - +111 _(D-M)_
-- +12 _(320)_
-- +120 _(D-RM, D-M)_
+- +113 _(390-M)_
+- +114 _(D-RM, D-M)_
+- +117 _(D-M)_
+- +118 _(D-M, 390-M)_
+- +12 _(D-M, 320, 390-M)_
+- +120 _(D-M, 390-M)_
+- +121 _(390-M)_
+- +123 _(390-M)_
+- +125 _(390-M)_
 - +126 _(D-RM, D-M)_
+- +127 _(390-M)_
+- +13 _(390-M)_
+- +130 _(390-M)_
+- +131 _(390-M)_
+- +132 _(390-M)_
+- +133 _(390-M)_
+- +134 _(390-M)_
+- +135 _(390-M)_
+- +137 _(390-M)_
+- +138 _(320)_
+- +139 _(390-M)_
+- +14 _(390-M)_
 - +143 _(320)_
-- +144 _(320)_
-- +15 _(320)_
-- +2 _(320)_
-- +20 _(320)_
+- +15 _(320, 390-M)_
+- +16 _(390-M)_
+- +17 _(D-RM, D-M, 390-M)_
+- +18 _(390-M)_
+- +19 _(390-M)_
+- +20 _(390-M)_
 - +22 _(320)_
-- +220 _(320)_
-- +23 _(D-RM, D-M)_
 - +24 _(320)_
 - +249 _(D-RM, D-M)_
-- +25 _(D-M)_
-- +26 _(D-RM, D-M)_
+- +25 _(D-M, 390-M)_
+- +265 _(390-M)_
+- +27 _(D-M)_
 - +270 _(320)_
-- +3 _(320)_
-- +32 _(D-RM, D-M, 320)_
-- +33 _(320)_
-- +4 _(320)_
-- +48 _(320)_
+- +3 _(320, 390-M)_
+- +31 _(320)_
+- +34 _(390-M)_
+- +36 _(D-M)_
+- +37 _(390-M)_
+- +39 _(320)_
+- +4 _(320, 390-M)_
+- +42 _(390-M)_
+- +47 _(390-M)_
 - +5 _(320)_
-- +57 _(320)_
-- +6 _(320)_
-- +62 _(D-M)_
-- +7 _(D-RM, 320)_
-- +74 _(D-RM, D-M)_
-- +8 _(D-RM)_
-- +85 _(D-M)_
-- +96 _(320)_
-- 0 _(D-RM, D-M, 320)_
-- 0.08 ms waiting _(D-RM, D-M, 320)_
+- +50 _(D-RM, D-M)_
+- +51 _(D-M)_
+- +53 _(390-M)_
+- +57 _(390-M)_
+- +59 _(D-M)_
+- +6 _(D-RM, D-M, 320, 390-M)_
+- +60 _(D-M)_
+- +64 _(D-M)_
+- +65 _(D-M)_
+- +67 _(390-M)_
+- +68 _(D-M)_
+- +69 _(D-M)_
+- +7 _(D-RM, 390-M)_
+- +71 _(D-M, 390-M)_
+- +72 _(D-RM, D-M)_
+- +73 _(390-M)_
+- +79 _(390-M)_
+- +8 _(D-RM, 390-M)_
+- +81 _(D-M)_
+- +82 _(390-M)_
+- +83 _(D-M)_
+- +84 _(D-M)_
+- +85 _(390-M)_
+- +86 _(D-M, 390-M)_
+- +87 _(390-M)_
+- +88 _(390-M)_
+- +89 _(390-M)_
+- +9 _(390-M)_
+- +94 _(320, 390-M)_
+- +96 _(390-M)_
+- +98 _(D-M)_
+- × 105 ms (Little's law). _(390-M)_
+- 0 _(D-RM, D-M, 320, 390-M)_
+- 0.08 ms waiting _(D-RM, D-M, 320, 390-M)_
 - 0.11 in the system at once on _(320)_
+- 0.11 in the system at once on average: 10/s × _(390-M)_
 - 0.11 in the system at once on average: 10/s × 11.1 ms (Little's law). _(D-RM, D-M)_
-- 0.23 ms waiting _(D-RM)_
+- 0.23 ms waiting _(320)_
 - 0.42 in the system at once on _(320)_
+- 0.42 in the system at once on average: 40/s × _(390-M)_
 - 0.42 in the system at once on average: 40/s × 10.4 ms (Little's law). _(D-RM, D-M)_
-- 0.42 ms waiting _(D-RM, D-M, 320)_
+- 0.42 ms waiting _(D-RM, D-M, 320, 390-M)_
 - 0.43 in the system at once on _(320)_
+- 0.43 in the system at once on average: 30/s × _(390-M)_
 - 0.43 in the system at once on average: 30/s × 14.3 ms (Little's law). _(D-RM, D-M)_
 - 0.5 _(D-RM, D-M)_
-- 0.67 in the system at once on _(320)_
-- 0.95 in the system at once on _(320)_
-- 0% _(D-RM, D-M, 320)_
-- 1 _(D-RM, D-M, 320)_
-- 1 < 1 ms _(320)_
+- 0% _(D-RM, D-M, 320, 390-M)_
+- 1 _(D-RM, D-M, 320, 390-M)_
+- 1 < 1 ms _(320, 390-M)_
 - 1 in the system at once on average: _(320)_
+- 1 in the system at once on average: 50/s × _(390-M)_
 - 1 in the system at once on average: 50/s × 20 ms (Little's law). _(D-RM, D-M)_
-- 1 ms _(D-RM, D-M, 320)_
-- 1 s _(D-RM, D-M, 320)_
+- 1 ms _(D-RM, D-M, 320, 390-M)_
+- 1 s _(D-RM, D-M, 320, 390-M)_
 - 1 under 1 ms _(D-RM, D-M)_
-- 1 up · 100% of capacity _(D-RM, D-M, 320)_
-- 1 up · 120% of capacity _(D-RM, D-M, 320)_
-- 1 up · 160% of capacity _(320)_
-- 1 up · 170% of capacity _(D-RM, D-M, 320)_
+- 1 up · 100% of capacity _(D-RM, D-M, 320, 390-M)_
+- 1 up · 120% of capacity _(D-RM, D-M, 320, 390-M)_
+- 1 up · 170% of capacity _(D-RM, D-M, 320, 390-M)_
+- 1 up · 80% busy _(D-RM, D-M, 320, 390-M)_
+- 1.05 in the system at once on average: 60/s × _(390-M)_
 - 1.05 in the system at once on average: 60/s × 17.5 ms (Little's law). _(D-M)_
-- 1.11 ms waiting _(D-RM, D-M, 320)_
+- 1.11 ms waiting _(D-RM, D-M, 320, 390-M)_
 - 1.21 in the system at once on _(320)_
+- 1.21 in the system at once on average: 120/s × _(390-M)_
 - 1.21 in the system at once on average: 120/s × 10.1 ms (Little's law). _(D-RM, D-M)_
 - 1.5 _(D-RM, D-M)_
-- 1.5 in the system at once on average: 60/s × 25 ms (Little's law). _(D-RM, D-M)_
-- 1.63 in the system at once on average: 160/s × 10.2 ms (Little's law). _(D-RM)_
-- 1.86 in the system at once on _(320)_
-- 1.9 ms waiting _(320)_
-- 10 _(D-RM, D-M, 320)_
-- 10 at 10 ms _(D-RM, D-M, 320)_
-- 10 ms _(D-RM, D-M, 320)_
-- 10 ms of work _(D-RM, D-M, 320)_
-- 10 ms waiting _(D-RM, D-M, 320)_
-- 10 s _(D-RM, D-M, 320)_
+- 1.5 in the system at once on average: _(320)_
+- 1.5 in the system at once on average: 60/s × 25 ms (Little's law). _(D-RM)_
+- 1.63 in the system at once on _(320)_
+- 1.79 ms waiting _(D-RM, D-M, 320, 390-M)_
+- 10 _(D-RM, D-M, 320, 390-M)_
+- 10 at 10 ms _(D-RM, D-M, 320, 390-M)_
+- 10 ms _(D-RM, D-M, 320, 390-M)_
+- 10 ms of work _(D-RM, D-M, 320, 390-M)_
+- 10 ms waiting _(D-RM, D-M, 320, 390-M)_
+- 10 ms. _(390-M)_
+- 10 requests/s at random, 10 ms each on average _(390-M)_
+- 10 s _(D-RM, D-M, 320, 390-M)_
+- 10.1 ms (Little's law). _(390-M)_
+- 10.4 ms (Little's law). _(390-M)_
 - 10/s at random, 10 ms each _(320)_
 - 10% _(D-RM, D-M)_
-- 10% of requests wait at all. _(D-RM, D-M, 320)_
-- 100 _(D-RM, D-M, 320)_
-- 100 ms _(D-RM, D-M, 320)_
-- 100 requests _(D-RM, D-M, 320)_
+- 10% of requests wait at all. _(D-RM, D-M, 320, 390-M)_
+- 100 _(D-RM, D-M, 320, 390-M)_
+- 100 ms _(D-RM, D-M, 320, 390-M)_
+- 100 ms (Little's law). _(390-M)_
+- 100 requests _(D-RM, D-M, 320, 390-M)_
 - 100/s arrive, exactly what the one _(320)_
+- 100/s arrive, exactly what the one server left _(390-M)_
 - 100/s arrive, exactly what the one server left can serve. _(D-RM, D-M)_
-- 100/s at random, 10 ms each _(320)_
-- 100% _(D-RM, D-M, 320)_
-- 100% of _(D-RM, D-M, 320)_
-- 104 ms _(D-RM, D-M, 320)_
-- 105 ms _(D-RM, D-M, 320)_
-- 105% of _(D-RM, D-M, 320)_
-- 11 ms _(D-RM, D-M, 320)_
-- 11 ms waiting _(D-RM, D-M, 320)_
-- 115 ms _(D-RM, D-M)_
+- 100/s at random, 10 ms each _(320, 390-M)_
+- 100/s. _(390-M)_
+- 100% _(D-RM, D-M, 320, 390-M)_
+- 100% of _(D-RM, D-M, 320, 390-M)_
+- 104 ms _(D-RM, D-M, 320, 390-M)_
+- 105 ms _(D-RM, D-M, 320, 390-M)_
+- 105% of _(D-RM, D-M, 320, 390-M)_
+- 11 ms _(D-RM, D-M, 320, 390-M)_
+- 11 ms waiting _(D-RM, D-M, 390-M)_
+- 11.1 ms (Little's law). _(390-M)_
+- 11.8 ms (Little's law). _(390-M)_
+- 115 ms _(D-RM, D-M, 320, 390-M)_
 - 12 in the system at once on average: _(320)_
+- 12 in the system at once on average: 240/s × _(390-M)_
 - 12 in the system at once on average: 240/s × 50 ms (Little's law). _(D-RM, D-M)_
-- 12 ms _(D-RM, D-M, 320)_
+- 12 ms _(D-RM, D-M, 320, 390-M)_
+- 120 requests/s at random, exactly 10 ms each _(390-M)_
+- 120/s × 17.5 ms (Little's law). _(320)_
 - 120/s arrive, and the one server left _(320)_
+- 120/s arrive, and the one server left can serve _(390-M)_
 - 120/s arrive, and the one server left can serve 100/s. _(D-RM, D-M)_
-- 120/s at random, 10 ms each _(320)_
+- 120/s at random, 10 ms each _(320, 390-M)_
 - 120/s, exactly 10 ms each _(320)_
-- 120% of _(D-RM, D-M, 320)_
-- 121 ms _(D-RM, D-M, 320)_
-- 13 ms _(D-RM, D-M, 320)_
-- 132 ms _(320)_
-- 139 ms _(320)_
-- 14 ms _(D-RM, D-M, 320)_
-- 14.85 in the system at once on average: 270/s × 55 ms (Little's law). _(D-M)_
-- 140 ms waiting _(D-RM, 320)_
-- 15 ms _(D-RM, 320)_
-- 15 ms waiting _(D-RM, D-M)_
-- 150 ms _(D-RM, 320)_
-- 154 ms _(D-RM, D-M, 320)_
+- 120% of _(D-RM, D-M, 320, 390-M)_
+- 121 ms _(320, 390-M)_
+- 13 ms _(D-RM, D-M, 320, 390-M)_
+- 139 ms _(D-M, 320, 390-M)_
+- 14 ms _(D-RM, D-M, 320, 390-M)_
+- 14.3 ms (Little's law). _(390-M)_
+- 140 ms waiting _(D-RM)_
+- 15 ms _(320)_
+- 15 ms waiting _(D-RM, D-M, 320, 390-M)_
+- 150 ms _(D-RM)_
+- 154 ms _(D-RM, D-M, 320, 390-M)_
 - 16 in the system at once on average: _(320)_
+- 16 in the system at once on average: 320/s × _(390-M)_
 - 16 in the system at once on average: 320/s × 50 ms (Little's law). _(D-RM, D-M)_
-- 16 ms _(D-RM, D-M, 320)_
-- 160/s arrive, and the one server left _(320)_
+- 16 ms _(D-RM, D-M, 320, 390-M)_
 - 160/s, exactly 10 ms each _(320)_
-- 160% of _(320)_
-- 17 ms _(D-RM, D-M, 320)_
+- 17 ms _(D-RM, D-M, 320, 390-M)_
+- 17.46 ms (Little's law). _(390-M)_
+- 17.5 ms (Little's law). _(390-M)_
+- 170 requests/s at random, exactly 10 ms each _(390-M)_
 - 170/s arrive, and the one server left _(320)_
+- 170/s arrive, and the one server left can serve _(390-M)_
 - 170/s arrive, and the one server left can serve 100/s. _(D-RM, D-M)_
 - 170/s, exactly 10 ms each _(320)_
-- 170% of _(D-RM, D-M, 320)_
-- 18 ms _(D-M)_
-- 180/s at random, 10 ms each _(320)_
-- 184 ms _(320)_
-- 19 ms waiting _(D-RM, D-M, 320)_
-- 2 _(D-RM, D-M, 320)_
-- 2 < 1 ms _(D-RM, D-M, 320)_
+- 170% of _(D-RM, D-M, 320, 390-M)_
+- 18 ms _(D-RM, D-M, 320, 390-M)_
+- 180/s at random, 10 ms each _(320, 390-M)_
+- 19 in the system at once on average: 95/s × _(390-M)_
+- 19 in the system at once on average: 95/s × 200 ms (Little's law). _(D-M)_
+- 19 ms waiting _(320, 390-M)_
+- 190 ms waiting _(D-M, 390-M)_
+- 2 _(D-RM, D-M, 320, 390-M)_
+- 2 < 1 ms _(320, 390-M)_
 - 2 under 1 ms _(D-RM, D-M)_
-- 2 up · 105% of capacity _(D-RM, D-M, 320)_
-- 2 up · 120% of capacity _(D-RM, D-M, 320)_
-- 2 up · each ?% _(D-M)_
-- 2 up · each 90% busy _(D-RM, D-M, 320)_
-- 2.3 s _(D-RM, D-M, 320)_
+- 2 up · 105% of capacity _(D-RM, D-M, 320, 390-M)_
+- 2 up · 120% of capacity _(D-RM, D-M, 320, 390-M)_
+- 2 up · each ?% _(D-M, 390-M)_
+- 2 up · each 90% busy _(D-RM, D-M, 320, 390-M)_
+- 2.1 in the system at once on average: _(320)_
+- 2.1 in the system at once on average: 120/s × 17.5 ms (Little's law). _(D-RM)_
+- 2.3 s _(D-RM, D-M, 320, 390-M)_
 - 2.33 in the system at once on _(320)_
+- 2.33 in the system at once on average: 180/s × 12.96 ms (Little's law). _(D-RM)_
+- 2.33 in the system at once on average: 70/s × _(390-M)_
 - 2.33 in the system at once on average: 70/s × 33.3 ms (Little's law). _(D-RM, D-M)_
-- 2.34 in the system at once on _(320)_
-- 2.34 in the system at once on average: 180/s × 13 ms (Little's law). _(D-RM)_
 - 2.5 _(D-RM, D-M)_
+- 2.83 in the system at once on _(320)_
+- 2.83 in the system at once on average: 240/s × _(390-M)_
+- 2.83 in the system at once on average: 240/s × 11.8 ms (Little's law). _(D-RM, D-M)_
 - 2.96 ms waiting _(D-RM, 320)_
-- 20 _(D-RM, D-M, 320)_
-- 20 ms _(D-RM, D-M, 320)_
-- 200 _(D-RM, D-M, 320)_
-- 21 ms _(D-RM, D-M, 320)_
+- 2× slower _(390-M)_
+- 20 _(D-RM, D-M, 320, 390-M)_
+- 20 ms _(D-RM, D-M, 320, 390-M)_
+- 20 ms (Little's law). _(390-M)_
+- 20.8 ms (Little's law). _(390-M)_
+- 200 _(D-RM, D-M, 320, 390-M)_
+- 200 ms _(D-M, 390-M)_
+- 200 ms (Little's law). _(390-M)_
+- 200/s. _(390-M)_
+- 21 ms _(D-RM, D-M, 390-M)_
 - 210/s arrive, and the 2 servers left _(320)_
+- 210/s arrive, and the 2 servers left can serve _(390-M)_
 - 210/s arrive, and the 2 servers left can serve 200/s. _(D-RM, D-M)_
-- 210/s at random, 10 ms each _(320)_
-- 22 ms _(D-RM, D-M, 320)_
-- 22.9% of requests wait at all. _(320)_
-- 229 ms _(D-RM, D-M, 320)_
-- 23 ms _(D-RM, D-M, 320)_
-- 23 ms waiting _(D-RM, D-M, 320)_
-- 230 ms _(D-RM, D-M, 320)_
-- 233 ms _(D-RM, D-M, 320)_
+- 210/s at random, 10 ms each _(320, 390-M)_
+- 22 ms _(D-RM, D-M, 320, 390-M)_
+- 229 ms _(D-RM, D-M, 320, 390-M)_
+- 23 ms _(D-RM, D-M, 320, 390-M)_
+- 23 ms waiting _(D-RM, D-M, 320, 390-M)_
+- 230 ms _(D-RM, D-M, 320, 390-M)_
+- 233 ms _(D-RM, D-M, 320, 390-M)_
 - 240/s × 50 ms (Little's law). _(320)_
 - 240/s arrive, and the 2 servers left _(320)_
+- 240/s arrive, and the 2 servers left can serve _(390-M)_
 - 240/s arrive, and the 2 servers left can serve 200/s. _(D-RM, D-M)_
-- 240/s at random, 10 ms each _(320)_
-- 25 ms _(D-RM, D-M)_
+- 240/s at random, 10 ms each _(320, 390-M)_
+- 25 ms _(D-RM, D-M, 320, 390-M)_
+- 25 ms (Little's law). _(390-M)_
 - 25% _(D-RM, D-M)_
-- 260/s at random, 10 ms each _(320)_
-- 28 ms _(D-RM, D-M, 320)_
-- 280/s × 150 ms (Little's law). _(320)_
-- 280/s at random, 10 ms each _(320)_
+- 260/s at random, 10 ms each _(320, 390-M)_
+- 28 ms _(D-RM, D-M)_
+- 28.7% of requests wait at all. _(D-RM, D-M, 320, 390-M)_
+- 28.97 ms (Little's law). _(390-M)_
+- 285 requests/s at random, exactly 10 ms each _(390-M)_
 - 285/s, exactly 10 ms each _(320)_
-- 29 ms _(D-RM, D-M, 320)_
+- 29 ms _(320, 390-M)_
 - 29.93 in the system at once on _(320)_
+- 29.93 in the system at once on average: 285/s _(390-M)_
 - 29.93 in the system at once on average: 285/s × 105 ms (Little's law). _(D-RM, D-M)_
-- 3 _(D-RM, D-M, 320)_
-- 3 < 1 ms _(D-RM, D-M, 320)_
-- 3 up · 100% of capacity _(D-RM, D-M, 320)_
-- 3 up · each 80% busy _(D-RM, D-M, 320)_
-- 3 up · each 86.7% busy _(D-RM, D-M, 320)_
-- 3 up · each 93.3% busy _(D-RM, 320)_
-- 3.25 in the system at once on _(320)_
+- 3 _(D-RM, D-M, 320, 390-M)_
+- 3 < 1 ms _(320, 390-M)_
+- 3 in the system at once on average: 120/s × _(390-M)_
+- 3 in the system at once on average: 120/s × 25 ms (Little's law). _(D-M)_
+- 3 under 1 ms _(D-RM, D-M)_
+- 3 up · 100% of capacity _(D-RM, D-M, 320, 390-M)_
+- 3 up · each 80% busy _(D-RM, D-M, 320, 390-M)_
+- 3 up · each 86.7% busy _(320, 390-M)_
+- 3 up · each 93.3% busy _(D-RM)_
 - 3.5 _(D-RM, D-M)_
 - 3.5% of requests wait at all; the rest _(320)_
+- 3.5% of requests wait at all; the rest take _(390-M)_
 - 3.5% of requests wait at all; the rest take exactly 10 ms. _(D-RM, D-M)_
-- 30 ms waiting _(320)_
-- 30/s at random, 10 ms each _(320)_
-- 30% of requests wait at all. _(D-RM, D-M, 320)_
+- 30/s at random, 10 ms each _(320, 390-M)_
+- 30% of requests wait at all. _(D-RM, D-M, 320, 390-M)_
 - 300 _(D-RM, D-M)_
-- 300/s × 40 ms (Little's law). _(320)_
 - 300/s arrive, exactly what the 3 _(320)_
+- 300/s arrive, exactly what the 3 servers left can _(390-M)_
 - 300/s arrive, exactly what the 3 servers left can serve. _(D-RM, D-M)_
-- 300/s at random, 10 ms each _(320)_
+- 300/s at random, 10 ms each _(320, 390-M)_
 - 320/s × 50 ms (Little's law). _(320)_
-- 320/s at random, 10 ms each _(320)_
-- 33 ms _(D-RM, D-M, 320)_
-- 347 ms _(D-RM, D-M, 320)_
-- 35 ms _(D-RM, D-M, 320)_
+- 320/s at random, 10 ms each _(320, 390-M)_
+- 33 ms _(D-RM, D-M, 320, 390-M)_
+- 33.3 ms (Little's law). _(390-M)_
+- 347 ms _(D-RM, D-M, 320, 390-M)_
+- 35 ms _(D-RM, D-M, 320, 390-M)_
 - 35.5% of requests wait at all. _(D-RM, 320)_
-- 38 ms _(D-RM, D-M, 320)_
-- 4 < 1 ms _(D-RM, D-M, 320)_
-- 4 s _(D-RM, D-M, 320)_
+- 38 ms _(D-RM, D-M, 320, 390-M)_
+- 4 < 1 ms _(320, 390-M)_
+- 4 in the system at once on average: _(320)_
+- 4 in the system at once on average: 80/s × _(390-M)_
+- 4 in the system at once on average: 80/s × 50 ms (Little's law). _(D-RM, D-M)_
+- 4 s _(D-RM, D-M, 320, 390-M)_
 - 4 s from empty _(320)_
-- 4.29 ms waiting _(D-RM, D-M, 320)_
+- 4 under 1 ms _(D-RM, D-M)_
+- 4.29 ms waiting _(D-RM, D-M, 320, 390-M)_
 - 4.95 in the system at once on _(320)_
+- 4.95 in the system at once on average: 90/s × _(390-M)_
 - 4.95 in the system at once on average: 90/s × 55 ms (Little's law). _(D-RM, D-M)_
-- 4.99 in the system at once on _(320)_
+- 4.99 in the system at once on average: 240/s × _(390-M)_
 - 4.99 in the system at once on average: 240/s × 20.8 ms (Little's law). _(D-RM, D-M)_
-- 40 at 10 ms _(D-M)_
-- 40 ms _(D-RM, D-M, 320)_
-- 40 ms waiting _(D-RM, D-M, 320)_
-- 40/s at random, 10 ms each _(320)_
-- 40% of requests wait at all. _(320)_
-- 400 ms _(D-RM, D-M, 320)_
-- 42 in the system at once on average: _(320)_
+- 40 at 10 ms _(D-RM, D-M, 320, 390-M)_
+- 40 ms _(D-RM, D-M, 320, 390-M)_
+- 40 ms waiting _(D-RM, D-M, 320, 390-M)_
+- 40/s at random, 10 ms each _(320, 390-M)_
+- 400 ms _(D-RM, D-M, 320, 390-M)_
 - 42 in the system at once on average: 280/s × 150 ms (Little's law). _(D-RM)_
-- 43 ms waiting _(D-RM, D-M, 320)_
-- 45 ms waiting _(D-RM, D-M, 320)_
-- 459 ms _(D-RM, D-M, 320)_
+- 43 ms waiting _(D-RM, D-M, 320, 390-M)_
+- 45 ms waiting _(D-RM, D-M, 320, 390-M)_
+- 459 ms _(D-RM, D-M, 320, 390-M)_
 - 46 ms _(D-RM, D-M)_
-- 461 ms _(D-RM, D-M, 320)_
-- 47 ms _(D-RM, D-M, 320)_
+- 461 ms _(D-RM, D-M, 320, 390-M)_
+- 47 ms _(D-RM, D-M, 320, 390-M)_
 - 49 in the system at once on average: _(320)_
+- 49 in the system at once on average: 98/s × _(390-M)_
 - 49 in the system at once on average: 98/s × 500 ms (Little's law). _(D-RM, D-M)_
-- 49.2% of requests wait at all. _(320)_
-- 490 ms waiting _(D-RM, D-M, 320)_
-- 5 _(D-RM, D-M, 320)_
-- 5 < 1 ms _(D-RM, D-M, 320)_
-- 5 at 10 ms _(320)_
+- 490 ms waiting _(D-RM, D-M, 320, 390-M)_
+- 5 _(D-RM, D-M, 320, 390-M)_
+- 5 < 1 ms _(320, 390-M)_
+- 5 at 10 ms _(320, 390-M)_
 - 5 at exactly 10 ms _(D-RM, D-M)_
-- 5.47 ms waiting _(320)_
-- 5.6 in the system at once on _(320)_
-- 5.6 in the system at once on average: 320/s × 17.5 ms (Little's law). _(D-RM, D-M)_
-- 50 _(D-RM, D-M, 320)_
-- 50 ms _(D-RM, D-M, 320)_
+- 5 under 1 ms _(D-RM, D-M)_
+- 5.59 in the system at once on _(320)_
+- 5.59 in the system at once on average: 320/s × _(390-M)_
+- 5.59 in the system at once on average: 320/s × 17.46 ms (Little's law). _(D-RM, D-M)_
+- 50 _(D-RM, D-M, 320, 390-M)_
+- 50 ms _(D-RM, D-M, 320, 390-M)_
+- 50 ms (Little's law). _(390-M)_
 - 50/s × 20 ms (Little's law). _(320)_
-- 50/s at random, 10 ms each _(320)_
-- 50% _(D-RM, D-M, 320)_
-- 50% of requests wait at all. _(D-RM, D-M, 320)_
-- 500 _(D-RM, D-M, 320)_
-- 500 ms _(D-RM, D-M, 320)_
-- 51 ms _(D-RM, D-M, 320)_
-- 52 ms _(320)_
-- 53 ms _(D-RM, D-M, 320)_
+- 50/s at random, 10 ms each _(320, 390-M)_
+- 50% _(D-RM, D-M, 320, 390-M)_
+- 50% of requests wait at all. _(D-RM, D-M, 320, 390-M)_
+- 500 _(D-RM, D-M, 320, 390-M)_
+- 500 ms _(D-RM, D-M, 320, 390-M)_
+- 500 ms (Little's law). _(390-M)_
+- 51 ms _(D-RM, D-M, 320, 390-M)_
+- 52.63 ms (Little's law). _(390-M)_
+- 53 ms _(D-RM, D-M, 320, 390-M)_
 - 54 ms _(D-RM, 320)_
-- 55 ms _(D-RM, D-M, 320)_
-- 59.6% of requests wait at all. _(D-RM, D-M, 320)_
-- 6 < 1 ms _(D-RM, 320)_
-- 6.67 ms waiting _(320)_
-- 6.7% of requests wait at all. _(D-RM, D-M, 320)_
-- 60% of requests wait at all; the rest take exactly 10 ms. _(D-M)_
-- 60% of requests wait at all. _(D-RM, D-M)_
-- 63 ms _(320)_
-- 64.7% of requests wait at all. _(D-RM, D-M, 320)_
-- 65/s at random, 10 ms each _(320)_
-- 65% of requests wait at all. _(320)_
-- 66 ms _(D-RM, D-M, 320)_
-- 69 ms _(D-RM, D-M, 320)_
-- 691 ms _(D-RM, 320)_
-- 7 < 1 ms _(D-RM, D-M, 320)_
-- 7.32 ms _(D-RM, D-M, 320)_
-- 7.46 ms waiting _(D-RM, D-M, 320)_
-- 7.5 ms waiting _(D-M)_
-- 7.54 in the system at once on _(320)_
-- 7.54 in the system at once on average: 260/s × 29 ms (Little's law). _(D-RM, D-M)_
-- 7.7 ms _(D-RM, D-M, 320)_
-- 7.82 ms _(D-RM, D-M)_
-- 70/s at random, 10 ms each _(320)_
-- 70% of requests wait at all. _(D-RM, D-M, 320)_
-- 75 ms _(D-RM, D-M, 320)_
-- 75.9% of requests wait at all. _(D-RM, D-M, 320)_
+- 55 ms _(D-RM, D-M, 320, 390-M)_
+- 55 ms (Little's law). _(390-M)_
+- 58 ms _(390-M)_
+- 59.6% of requests wait at all. _(D-RM, D-M, 320, 390-M)_
+- 6 < 1 ms _(320)_
+- 6 under 1 ms _(D-RM)_
+- 6.7% of requests wait at all. _(D-RM, D-M, 320, 390-M)_
+- 60 requests/s at random, exactly 10 ms each _(390-M)_
+- 60/s × 25 ms (Little's law). _(320)_
+- 60/s at random, 10 ms each _(320)_
+- 60% of requests wait at all; the rest _(320)_
+- 60% of requests wait at all; the rest take exactly _(390-M)_
+- 60% of requests wait at all; the rest take exactly 10 ms. _(D-RM, D-M)_
+- 60% of requests wait at all. _(D-RM, D-M, 320, 390-M)_
+- 64.7% of requests wait at all. _(D-RM, D-M, 390-M)_
+- 66 ms _(D-RM, D-M, 320, 390-M)_
+- 69 ms _(D-RM, D-M, 320, 390-M)_
+- 691 ms _(D-RM)_
+- 7 < 1 ms _(320, 390-M)_
+- 7 under 1 ms _(D-RM, D-M)_
+- 7.32 ms _(D-RM, D-M, 320, 390-M)_
+- 7.46 ms waiting _(D-RM, D-M, 320, 390-M)_
+- 7.5 ms waiting _(D-RM, D-M, 320, 390-M)_
+- 7.53 in the system at once on _(320)_
+- 7.53 in the system at once on average: 260/s × _(390-M)_
+- 7.7 ms _(D-RM, D-M, 320, 390-M)_
+- 7.82 ms _(D-RM, D-M, 390-M)_
+- 70/s at random, 10 ms each _(320, 390-M)_
+- 70% of requests wait at all. _(D-RM, D-M, 320, 390-M)_
+- 75 ms _(D-RM, D-M, 320, 390-M)_
+- 75.9% of requests wait at all. _(320, 390-M)_
 - 75% _(D-RM, D-M)_
-- 75% of requests wait at all. _(320)_
-- 77 ms _(320)_
-- 8.5% of requests wait at all; the rest take exactly 10 ms. _(D-RM)_
-- 8.59 ms _(320)_
-- 8.66 ms _(D-RM, D-M)_
-- 80/s at random, 10 ms each _(320)_
-- 80% of requests wait at all. _(D-RM, D-M, 320)_
-- 85 ms _(D-RM, D-M, 320)_
-- 85.3% of requests wait at all. _(D-RM, D-M, 320)_
-- 9 < 1 ms _(D-RM, D-M, 320)_
+- 8.5% of requests wait at all; the rest _(320)_
+- 8.66 ms _(D-RM, D-M, 390-M)_
+- 8.71 ms _(D-RM, D-M, 320, 390-M)_
+- 80/s × 50 ms (Little's law). _(320)_
+- 80/s at random, 10 ms each _(320, 390-M)_
+- 80% of requests wait at all. _(D-RM, D-M, 320, 390-M)_
+- 85 ms _(D-RM, D-M, 390-M)_
+- 85.3% of requests wait at all. _(D-RM, D-M, 320, 390-M)_
+- 9 < 1 ms _(320, 390-M)_
 - 9 in the system at once on average: _(320)_
+- 9 in the system at once on average: 90/s × _(390-M)_
 - 9 in the system at once on average: 90/s × 100 ms (Little's law). _(D-RM, D-M)_
+- 9 under 1 ms _(D-RM, D-M)_
 - 9.47 in the system at once on _(320)_
-- 9.47 in the system at once on average: 180/s × 52.6 ms (Little's law). _(D-RM, D-M)_
-- 9.64 ms _(D-RM, D-M, 320)_
-- 9.9 ms _(D-RM, D-M, 320)_
-- 90 ms waiting _(D-RM, D-M, 320)_
+- 9.47 in the system at once on average: 180/s × _(390-M)_
+- 9.47 in the system at once on average: 180/s × 52.63 ms (Little's law). _(D-RM, D-M)_
+- 9.64 ms _(D-RM, D-M, 320, 390-M)_
+- 9.9 ms _(D-RM, D-M, 320, 390-M)_
+- 90 ms waiting _(D-RM, D-M, 320, 390-M)_
+- 90 requests/s at random, exactly 10 ms each _(390-M)_
 - 90/s × 100 ms (Little's law). _(320)_
-- 90/s at random, 10 ms each _(320)_
+- 90/s at random, 10 ms each _(320, 390-M)_
 - 90/s, exactly 10 ms each _(320)_
 - 90% of requests wait at all; the rest _(320)_
+- 90% of requests wait at all; the rest take exactly _(390-M)_
 - 90% of requests wait at all; the rest take exactly 10 ms. _(D-RM, D-M)_
-- 90% of requests wait at all. _(D-RM, D-M, 320)_
-- 91 at 10 ms _(D-RM)_
-- 92 ms _(D-RM, D-M, 320)_
-- 93.3% of requests wait at all. _(D-RM, 320)_
-- 95 ms waiting _(D-RM, D-M, 320)_
+- 90% of requests wait at all. _(D-RM, D-M, 320, 390-M)_
+- 91 at 10 ms _(320)_
+- 92 ms _(D-RM, D-M, 320, 390-M)_
+- 921 ms _(D-M, 390-M)_
+- 93.3% of requests wait at all. _(D-RM)_
+- 95 ms waiting _(D-RM, D-M, 320, 390-M)_
+- 95/s at random, 10 ms each _(390-M)_
 - 95% of requests wait at all; the rest _(320)_
+- 95% of requests wait at all; the rest take exactly _(390-M)_
 - 95% of requests wait at all; the rest take exactly 10 ms. _(D-RM, D-M)_
-- 97 at 10 ms _(D-RM, D-M, 320)_
+- 95% of requests wait at all. _(D-M, 390-M)_
+- 97 at 10 ms _(D-RM, D-M, 320, 390-M)_
 - 98/s × 500 ms (Little's law). _(320)_
-- 98/s at random, 10 ms each _(320)_
+- 98/s at random, 10 ms each _(320, 390-M)_
 - 98% _(D-RM, D-M)_
-- 98% of requests wait at all. _(D-RM, D-M, 320)_
-- A sample of random arrivals _(D-RM, D-M, 320)_
-- above: most, 70 _(320)_
-- above: most, 88 _(320)_
-- after your _(D-RM, D-M, 320)_
+- 98% of requests wait at all. _(D-RM, D-M, 320, 390-M)_
+- A sample of random arrivals _(D-RM, D-M, 320, 390-M)_
+- above: most, 64 _(390-M)_
+- above: the longest, 1 _(390-M)_
+- above: the longest, 10 _(390-M)_
+- above: the longest, 11 _(390-M)_
+- above: the longest, 147 _(390-M)_
+- above: the longest, 2 _(390-M)_
+- above: the longest, 3 _(390-M)_
+- above: the longest, 4 _(390-M)_
+- above: the longest, 6 _(390-M)_
+- above: the longest, 8 _(390-M)_
+- above: the longest, 81 _(390-M)_
+- above: the longest, 9 _(390-M)_
+- after your _(D-RM, D-M, 320, 390-M)_
 - After your answer _(320)_
-- answer _(D-RM, D-M, 320)_
+- against utilization _(390-M)_
+- answer _(D-RM, D-M, 320, 390-M)_
 - answer. _(320)_
-- arrivals _(D-RM, D-M, 320)_
+- arrivals _(D-RM, D-M, 320, 390-M)_
+- arrivals exactly match the capacity left _(390-M)_
 - arrivals exactly match what the server left can serve _(D-RM, D-M)_
 - arrivals exactly match what the servers left can serve _(D-RM, D-M)_
+- at the _(390-M)_
+- at the reveal _(D-M)_
 - average: 10/s × 11.1 ms (Little's law). _(320)_
 - average: 120/s × 10.1 ms (Little's _(320)_
-- average: 180/s × 13 ms (Little's law). _(320)_
-- average: 180/s × 52.6 ms (Little's _(320)_
-- average: 210/s × 15.5 ms (Little's _(320)_
-- average: 240/s × 20.8 ms (Little's _(320)_
-- average: 260/s × 29 ms (Little's _(320)_
+- average: 160/s × 10.2 ms (Little's _(320)_
+- average: 180/s × 12.96 ms (Little's _(320)_
+- average: 180/s × 52.63 ms (Little's _(320)_
+- average: 240/s × 11.8 ms (Little's _(320)_
+- average: 260/s × 28.97 ms (Little's _(320)_
 - average: 285/s × 105 ms (Little's _(320)_
 - average: 30/s × 14.3 ms (Little's _(320)_
-- average: 320/s × 17.5 ms (Little's _(320)_
+- average: 320/s × 17.46 ms (Little's _(320)_
 - average: 40/s × 10.4 ms (Little's _(320)_
-- average: 40/s × 16.7 ms (Little's _(320)_
-- average: 65/s × 28.6 ms (Little's _(320)_
 - average: 70/s × 33.3 ms (Little's _(320)_
-- average: 80/s × 11.9 ms (Little's law). _(320)_
 - average: 90/s × 55 ms (Little's law). _(320)_
-- before: 15 ms _(D-RM, D-M)_
-- before: 152 ms _(D-M)_
-- before: 154 ms _(D-RM, D-M, 320)_
-- before: 17 ms _(D-RM)_
+- before: 121 ms _(390-M)_
+- before: 15 ms _(D-RM, D-M, 390-M)_
+- before: 154 ms _(D-RM, D-M, 320, 390-M)_
 - before: 184 ms _(D-RM, D-M)_
 - before: 229 ms _(D-RM, D-M)_
 - before: 307 ms _(D-RM, D-M)_
-- before: 49 ms _(D-RM, D-M)_
-- before: 54 ms _(D-RM, D-M)_
+- before: 461 ms _(D-M)_
+- before: 49 ms _(D-RM, D-M, 390-M)_
+- before: 54 ms _(D-RM, D-M, 390-M)_
+- before: 55 ms _(D-RM, D-M, 390-M)_
 - before: 57 ms _(D-RM)_
 - before: 58 ms _(D-RM, D-M)_
-- before: 63 ms _(D-RM, D-M, 320)_
-- before: 691 ms _(D-RM, D-M, 320)_
-- before: 77 ms _(D-RM, D-M)_
-- before: 85 ms _(D-RM, D-M, 320)_
-- before: 921 ms _(320)_
+- before: 63 ms _(D-RM, D-M, 320, 390-M)_
+- before: 691 ms _(D-RM, D-M, 320, 390-M)_
+- before: 77 ms _(D-RM, D-M, 390-M)_
+- before: 85 ms _(D-RM, D-M, 320, 390-M)_
+- before: 921 ms _(320, 390-M)_
+- bound and the waits keep growing. _(390-M)_
 - by utilization _(320)_
 - can serve 100/s. _(320)_
 - can serve 200/s. _(320)_
-- capacity _(D-RM, D-M, 320)_
+- can serve. _(390-M)_
+- capacity _(D-RM, D-M, 320, 390-M)_
 - down _(D-RM, D-M)_
 - drawn above: S1 idle beside a line of 13 _(D-RM, D-M)_
 - drawn above: S1 idle beside a line of 16 _(D-RM, D-M)_
-- drawn above: S2 idle beside a line of 15 _(D-M)_
+- drawn above: S1 idle beside a line of 5 _(D-RM)_
+- drawn above: S1 idle beside a line of 7 _(D-M)_
+- drawn above: the end, 144 waiting _(D-RM, D-M)_
+- drawn above: the end, 275 waiting _(D-RM, D-M)_
+- drawn above: the end, 28 waiting _(D-RM, D-M)_
+- drawn above: the end, 37 waiting _(D-RM, D-M)_
+- drawn above: the end, 44 waiting _(D-RM, D-M)_
+- drawn above: the end, 77 waiting _(D-RM, D-M)_
+- drawn above: the end, 99 waiting _(D-RM, D-M)_
 - drawn above: the longest queue, 1 _(D-RM, D-M)_
 - drawn above: the longest queue, 10 _(D-RM, D-M)_
-- drawn above: the longest queue, 101 _(D-RM, D-M)_
 - drawn above: the longest queue, 11 _(D-RM, D-M)_
 - drawn above: the longest queue, 147 _(D-RM, D-M)_
-- drawn above: the longest queue, 150 _(D-RM, D-M)_
 - drawn above: the longest queue, 2 _(D-RM, D-M)_
-- drawn above: the longest queue, 275 _(D-RM, D-M)_
 - drawn above: the longest queue, 3 _(D-RM, D-M)_
 - drawn above: the longest queue, 4 _(D-RM, D-M)_
-- drawn above: the longest queue, 53 _(D-RM, D-M)_
 - drawn above: the longest queue, 6 _(D-M)_
-- drawn above: the longest queue, 63 _(D-RM, D-M)_
 - drawn above: the longest queue, 8 _(D-RM, D-M)_
+- drawn above: the longest queue, 81 _(D-M)_
 - drawn above: the longest queue, 9 _(D-RM, D-M)_
-- drawn above: the most waiting, 64 _(D-RM)_
-- drawn above: the most waiting, 70 _(D-RM, D-M)_
+- drawn above: the most waiting, 64 _(D-RM, D-M)_
 - drawn above: the most waiting, 88 _(D-RM)_
+- end: 144 _(320, 390-M)_
+- end: 275 _(320, 390-M)_
+- end: 28 _(320, 390-M)_
+- end: 37 _(320, 390-M)_
+- end: 44 _(320, 390-M)_
+- end: 77 _(390-M)_
+- end: 99 _(320, 390-M)_
+- every wait grows without bound. _(390-M)_
+- exactly 10 ms. _(390-M)_
 - Fan-out: a page that calls 50 of these meets at least one slower than p99 on 39.5% of loads. _(D-RM, D-M)_
+- First 4 s, from empty _(320)_
 - first in line: 0.01 ms _(320)_
 - first in line: 0.07 ms _(320)_
+- first in line: 0.18 ms _(320)_
 - first in line: 1.5 s _(320)_
 - first in line: 1.6 s _(320)_
-- first in line: 13 ms _(320)_
-- first in line: 15 ms _(320)_
+- first in line: 101 ms _(320)_
+- first in line: 12 ms _(320)_
+- first in line: 149 ms _(390-M)_
 - first in line: 16 ms _(320)_
+- first in line: 167 ms _(390-M)_
 - first in line: 23 ms _(320)_
+- first in line: 233 ms _(320)_
+- first in line: 25 ms _(320)_
 - first in line: 263 ms _(320)_
-- first in line: 278 ms _(320)_
 - first in line: 3.67 ms _(320)_
 - first in line: 34 ms _(320)_
 - first in line: 35 ms _(320)_
-- first in line: 38 ms _(320)_
 - first in line: 44 ms _(320)_
-- first in line: 451 ms _(320)_
-- first in line: 47 ms _(320)_
+- first in line: 472 ms _(320)_
+- first in line: 51 ms _(320)_
 - first in line: 58 ms _(320)_
-- first in line: 6.04 ms _(320)_
-- first in line: 687 ms _(320)_
-- first in line: 792 ms _(320)_
+- first in line: 653 ms _(320)_
+- first in line: 892 ms _(320)_
 - first in line: 9.19 ms _(320)_
 - first in line: 9.49 ms _(320)_
-- first in line: waiting 0.01 ms so far _(D-RM, D-M)_
-- first in line: waiting 0.07 ms so far _(D-RM, D-M)_
-- first in line: waiting 0.18 ms so far _(D-RM)_
-- first in line: waiting 1.5 s so far _(D-RM, D-M)_
-- first in line: waiting 1.6 s so far _(D-RM, D-M)_
-- first in line: waiting 124 ms so far _(D-M)_
-- first in line: waiting 13 ms so far _(D-RM, D-M)_
-- first in line: waiting 14 ms so far _(D-M)_
+- first in line: waiting 0.01 ms so far _(D-RM, D-M, 390-M)_
+- first in line: waiting 0.07 ms so far _(D-RM, D-M, 390-M)_
+- first in line: waiting 1.5 s so far _(D-RM, D-M, 390-M)_
+- first in line: waiting 1.6 s so far _(D-RM, D-M, 390-M)_
+- first in line: waiting 101 ms so far _(D-RM, D-M, 390-M)_
+- first in line: waiting 12 ms so far _(D-RM, D-M, 390-M)_
+- first in line: waiting 13 ms so far _(D-RM, D-M, 390-M)_
+- first in line: waiting 14 ms so far _(D-M, 390-M)_
 - first in line: waiting 149 ms so far _(D-RM, D-M)_
-- first in line: waiting 16 ms so far _(D-RM, D-M)_
+- first in line: waiting 16 ms so far _(D-RM, 390-M)_
 - first in line: waiting 167 ms so far _(D-RM, D-M)_
-- first in line: waiting 23 ms so far _(D-RM, D-M)_
+- first in line: waiting 23 ms so far _(D-RM, D-M, 390-M)_
+- first in line: waiting 233 ms so far _(D-RM, D-M, 390-M)_
+- first in line: waiting 25 ms so far _(D-RM)_
 - first in line: waiting 254 ms so far _(D-RM)_
-- first in line: waiting 263 ms so far _(D-RM)_
-- first in line: waiting 278 ms so far _(D-RM, D-M)_
-- first in line: waiting 3.67 ms so far _(D-RM, D-M)_
-- first in line: waiting 34 ms so far _(D-RM, D-M)_
-- first in line: waiting 347 ms so far _(D-RM, D-M)_
-- first in line: waiting 35 ms so far _(D-RM, D-M)_
-- first in line: waiting 44 ms so far _(D-RM, D-M)_
-- first in line: waiting 451 ms so far _(D-RM, D-M)_
-- first in line: waiting 51 ms so far _(D-RM, D-M)_
-- first in line: waiting 58 ms so far _(D-RM, D-M)_
-- first in line: waiting 687 ms so far _(D-RM, D-M)_
-- first in line: waiting 792 ms so far _(D-RM, D-M)_
-- first in line: waiting 9.19 ms so far _(D-RM, D-M)_
-- first in line: waiting 9.49 ms so far _(D-RM, D-M)_
-- Fullest · 64 waiting at 20 ms _(320)_
-- Fullest · 70 waiting at 1.3 s _(320)_
-- Fullest · 88 waiting at 29 ms _(320)_
+- first in line: waiting 263 ms so far _(D-RM, D-M, 390-M)_
+- first in line: waiting 3.67 ms so far _(D-RM, D-M, 390-M)_
+- first in line: waiting 34 ms so far _(D-RM, D-M, 390-M)_
+- first in line: waiting 35 ms so far _(D-RM, D-M, 390-M)_
+- first in line: waiting 44 ms so far _(D-RM, D-M, 390-M)_
+- first in line: waiting 472 ms so far _(D-RM, D-M, 390-M)_
+- first in line: waiting 51 ms so far _(D-RM, D-M, 390-M)_
+- first in line: waiting 58 ms so far _(D-RM, D-M, 390-M)_
+- first in line: waiting 653 ms so far _(D-RM, D-M, 390-M)_
+- first in line: waiting 691 ms so far _(D-RM, D-M, 390-M)_
+- first in line: waiting 843 ms so far _(D-M, 390-M)_
+- first in line: waiting 892 ms so far _(D-RM, D-M, 390-M)_
+- first in line: waiting 9.19 ms so far _(D-RM, D-M, 390-M)_
+- first in line: waiting 9.49 ms so far _(D-RM, D-M, 390-M)_
+- Fullest · 64 waiting at 20 ms _(320, 390-M)_
 - growing. _(320)_
 - idle _(D-RM, D-M)_
 - idle beside 13 _(320)_
 - idle beside 16 _(320)_
-- in service _(D-RM, D-M, 320)_
-- Last to leave: no wait, then 0.66 ms of work _(D-RM, D-M)_
-- Last to leave: no wait, then 0.67 ms of work _(D-RM, D-M)_
-- Last to leave: no wait, then 10 ms of work _(D-RM, D-M)_
-- Last to leave: no wait, then 17 ms of work _(D-RM)_
-- Last to leave: no wait, then 21 ms of work _(D-RM, D-M)_
-- Last to leave: no wait, then 5.81 ms of work _(D-RM, D-M)_
-- Last to leave: waited 1.5 s, then 4.08 ms of work _(D-RM, D-M)_
-- Last to leave: waited 1.6 s, then 10 ms of work _(D-RM, D-M)_
-- Last to leave: waited 15 ms, then 26 ms of work _(D-RM, D-M)_
-- Last to leave: waited 16 ms, then 26 ms of work _(D-RM, D-M)_
-- Last to leave: waited 20 ms, then 10 ms of work _(D-RM, D-M)_
-- Last to leave: waited 258 ms, then 14 ms of work _(D-RM, D-M)_
-- Last to leave: waited 36 ms, then 10 ms of work _(D-M)_
-- Last to leave: waited 407 ms, then 36 ms of work _(D-RM, D-M)_
-- Last to leave: waited 49 ms, then 12 ms of work _(D-RM, D-M)_
-- Last to leave: waited 6.59 ms, then 10 ms of work _(D-RM)_
-- Last to leave: waited 675 ms, then 1.68 ms of work _(D-RM, D-M)_
-- Last to leave: waited 772 ms, then 18 ms of work _(D-RM, D-M)_
+- idle beside 5 _(320)_
+- idle, 13 _(390-M)_
+- idle, 16 _(390-M)_
+- idle, 7 _(390-M)_
+- in service _(D-RM, D-M, 320, 390-M)_
+- Just left: no wait, 0.66 ms _(390-M)_
+- Just left: no wait, 0.67 ms _(390-M)_
+- Just left: no wait, 10 ms _(390-M)_
+- Just left: no wait, 12 ms _(390-M)_
+- Just left: no wait, 21 ms _(390-M)_
+- Just left: no wait, 5.81 ms _(390-M)_
+- Just left: no wait, then 0.66 ms of work _(D-RM, D-M)_
+- Just left: no wait, then 0.67 ms of work _(D-RM, D-M)_
+- Just left: no wait, then 10 ms of work _(D-RM, D-M)_
+- Just left: no wait, then 12 ms of work _(D-RM, D-M)_
+- Just left: no wait, then 17 ms of work _(D-RM)_
+- Just left: no wait, then 21 ms of work _(D-RM, D-M)_
+- Just left: no wait, then 5.81 ms of work _(D-RM, D-M)_
+- Just left: waited 1.5 s, then 4.08 ms of work _(D-RM, D-M)_
+- Just left: waited 1.6 s, then 10 ms of work _(D-RM, D-M)_
+- Just left: waited 15 ms, then 26 ms of work _(D-RM)_
+- Just left: waited 16 ms, then 26 ms of work _(D-RM, D-M)_
+- Just left: waited 20 ms, then 10 ms of work _(D-RM, D-M)_
+- Just left: waited 228 ms, then 30 ms of work _(D-RM, D-M)_
+- Just left: waited 36 ms, then 10 ms of work _(D-M)_
+- Just left: waited 459 ms, then 7.6 ms of work _(D-RM, D-M)_
+- Just left: waited 49 ms, then 12 ms of work _(D-RM, D-M)_
+- Just left: waited 659 ms, then 5.76 ms of work _(D-RM, D-M)_
+- Just left: waited 691 ms, then 10 ms of work _(D-RM, D-M)_
+- Just left: waited 829 ms, then 0.97 ms of work _(D-M)_
+- Just left: waited 913 ms, then 5.49 ms of work _(D-RM, D-M)_
 - law). _(320)_
-- Load10% busy _(320)_
+- Load10% busy _(320, 390-M)_
 - Load10% busy · 10 requests/s at random, 10 ms each on average _(D-RM, D-M)_
-- Load20% busy _(320)_
+- Load20% busy _(320, 390-M)_
 - Load20% busy · 40 requests/s at random, 10 ms each on average _(D-RM, D-M)_
-- Load30% busy _(320)_
+- Load30% busy _(320, 390-M)_
 - Load30% busy · 120 requests/s at random, exactly 10 ms each _(D-RM, D-M)_
 - Load30% busy · 30 requests/s at random, 10 ms each on average _(D-RM, D-M)_
 - Load40% busy _(320)_
-- Load40% busy · 160 requests/s at random, exactly 10 ms each _(D-RM)_
-- Load50% busy _(320)_
+- Load40% busy with both up _(320, 390-M)_
+- Load40% busy with both up · 80 requests/s at random, 10 ms each on average _(D-RM, D-M)_
+- Load50% busy _(320, 390-M)_
 - Load50% busy · 50 requests/s at random, 10 ms each on average _(D-RM, D-M)_
-- Load50% busy with all 2 up _(320)_
-- Load50% busy with all 2 up · 100 requests/s at random, 10 ms each on average _(D-RM, D-M)_
-- Load60% busy _(320)_
+- Load50% busy with both up _(320, 390-M)_
+- Load50% busy with both up · 100 requests/s at random, 10 ms each on average _(D-RM, D-M)_
+- Load60% busy _(320, 390-M)_
+- Load60% busy · 120 requests/s at random, 10 ms each on average _(D-M)_
+- Load60% busy · 120 requests/s at random, exactly 10 ms each _(D-RM)_
 - Load60% busy · 180 requests/s at random, 10 ms each on average _(D-RM)_
-- Load60% busy · 60 requests/s at random, 10 ms each on average _(D-RM, D-M)_
+- Load60% busy · 240 requests/s at random, 10 ms each on average _(D-RM, D-M)_
+- Load60% busy · 60 requests/s at random, 10 ms each on average _(D-RM)_
 - Load60% busy · 60 requests/s at random, exactly 10 ms each _(D-M)_
-- Load60% busy with all 2 up _(320)_
-- Load60% busy with all 2 up · 120 requests/s at random, 10 ms each on average _(D-RM, D-M)_
-- Load60% busy with all 3 up _(320)_
+- Load60% busy with all 3 up _(320, 390-M)_
 - Load60% busy with all 3 up · 180 requests/s at random, 10 ms each on average _(D-RM, D-M)_
-- Load60% busy with all 4 up _(320)_
+- Load60% busy with all 4 up _(320, 390-M)_
 - Load60% busy with all 4 up · 240 requests/s at random, 10 ms each on average _(D-RM, D-M)_
-- Load65% busy _(320)_
-- Load65% busy with all 4 up _(320)_
-- Load65% busy with all 4 up · 260 requests/s at random, 10 ms each on average _(D-RM, D-M)_
-- Load70% busy _(320)_
+- Load60% busy with both up _(320, 390-M)_
+- Load60% busy with both up · 120 requests/s at random, 10 ms each on average _(D-RM, D-M)_
+- Load60% busy with both up · 120 requests/s at random, exactly 10 ms each _(D-RM, D-M)_
+- Load65% busy with all 4 up _(320, 390-M)_
+- Load70% busy _(320, 390-M)_
 - Load70% busy · 70 requests/s at random, 10 ms each on average _(D-RM, D-M)_
-- Load70% busy with all 3 up _(320)_
+- Load70% busy with all 3 up _(320, 390-M)_
 - Load70% busy with all 3 up · 210 requests/s at random, 10 ms each on average _(D-RM, D-M)_
-- Load70% busy with all 4 up _(320)_
 - Load70% busy with all 4 up · 280 requests/s at random, 10 ms each on average _(D-RM)_
-- Load75% busy _(320)_
-- Load75% busy with all 4 up _(320)_
+- Load75% busy with all 4 up _(320, 390-M)_
 - Load75% busy with all 4 up · 300 requests/s at random, 10 ms each on average _(D-RM, D-M)_
-- Load80% busy _(320)_
+- Load80% busy _(320, 390-M)_
 - Load80% busy · 240 requests/s at random, 10 ms each on average _(D-RM)_
 - Load80% busy · 320 requests/s at random, 10 ms each on average _(D-RM, D-M)_
-- Load80% busy with all 2 up _(320)_
-- Load80% busy with all 3 up _(320)_
+- Load80% busy with all 3 up _(320, 390-M)_
 - Load80% busy with all 3 up · 240 requests/s at random, 10 ms each on average _(D-RM, D-M)_
-- Load85% busy with all 2 up _(320)_
-- Load85% busy with all 2 up · 170 requests/s at random, exactly 10 ms each _(D-RM, D-M)_
-- Load90% busy _(320)_
-- Load90% busy · 270 requests/s at random, exactly 10 ms each _(D-M)_
+- Load85% busy with both up _(320, 390-M)_
+- Load85% busy with both up · 170 requests/s at random, exactly 10 ms each _(D-RM, D-M)_
+- Load90% busy _(320, 390-M)_
 - Load90% busy · 90 requests/s at random, 10 ms each on average _(D-RM, D-M)_
 - Load90% busy · 90 requests/s at random, exactly 10 ms each _(D-RM, D-M)_
-- Load95% busy _(320)_
+- Load95% busy _(320, 390-M)_
 - Load95% busy · 285 requests/s at random, exactly 10 ms each _(D-RM, D-M)_
-- Load98% busy _(320)_
+- Load95% busy · 95 requests/s at random, 10 ms each on average _(D-M)_
+- Load98% busy _(320, 390-M)_
 - Load98% busy · 98 requests/s at random, 10 ms each on average _(D-RM, D-M)_
-- Longest · 1 waiting at 303 ms _(320)_
-- Longest · 10 waiting at 294 ms _(320)_
-- Longest · 10 waiting at 301 ms _(320)_
-- Longest · 10 waiting at 367 ms _(320)_
-- Longest · 10 waiting at 371 ms _(320)_
-- Longest · 101 waiting at 3.3 s _(320)_
-- Longest · 11 waiting at 323 ms _(320)_
-- Longest · 11 waiting at 367 ms _(320)_
-- Longest · 11 waiting at 377 ms _(320)_
+- Longest · 1 waiting at 303 ms _(320, 390-M)_
+- Longest · 10 waiting at 285 ms _(320)_
+- Longest · 10 waiting at 301 ms _(320, 390-M)_
+- Longest · 10 waiting at 371 ms _(390-M)_
+- Longest · 11 waiting at 323 ms _(320, 390-M)_
+- Longest · 11 waiting at 326 ms _(320, 390-M)_
+- Longest · 11 waiting at 367 ms _(320, 390-M)_
+- Longest · 11 waiting at 377 ms _(320, 390-M)_
 - Longest · 147 waiting _(320)_
-- Longest · 150 waiting at 3.5 s _(320)_
-- Longest · 2 waiting at 156 ms _(320)_
-- Longest · 225 waiting at 3.9 s _(320)_
-- Longest · 275 waiting at 4 s _(320)_
-- Longest · 3 waiting at 152 ms _(320)_
-- Longest · 4 waiting at 73 ms _(320)_
-- Longest · 5 waiting at 314 ms _(320)_
-- Longest · 53 waiting at 3.6 s _(320)_
-- Longest · 63 waiting at 1.8 s _(320)_
-- Longest · 7 waiting at 227 ms _(320)_
-- Longest · 8 waiting at 262 ms _(320)_
+- Longest · 147 waiting at 144 ms _(390-M)_
+- Longest · 2 waiting at 156 ms _(320, 390-M)_
+- Longest · 3 waiting at 152 ms _(320, 390-M)_
+- Longest · 3 waiting at 357 ms _(320)_
+- Longest · 4 waiting at 73 ms _(320, 390-M)_
+- Longest · 6 waiting at 285 ms _(390-M)_
+- Longest · 8 waiting at 262 ms _(320, 390-M)_
 - Longest · 8 waiting at 362 ms _(320)_
-- Longest · 9 waiting at 323 ms _(320)_
-- Longest · 9 waiting at 378 ms _(320)_
+- Longest · 8 waiting at 371 ms _(320, 390-M)_
+- Longest · 81 waiting at 92 ms _(390-M)_
+- Longest · 9 waiting at 323 ms _(320, 390-M)_
+- Longest · 9 waiting at 378 ms _(320, 390-M)_
 - longest: 1 _(320)_
 - longest: 10 _(320)_
-- longest: 101 _(320)_
 - longest: 11 _(320)_
 - longest: 147 _(320)_
-- longest: 150 _(320)_
 - longest: 2 _(320)_
-- longest: 225 _(320)_
-- longest: 275 _(320)_
 - longest: 3 _(320)_
 - longest: 4 _(320)_
-- longest: 5 _(320)_
-- longest: 53 _(320)_
-- longest: 63 _(320)_
-- longest: 7 _(320)_
 - longest: 8 _(320)_
 - longest: 9 _(320)_
-- Look here _(D-RM, D-M, 320)_
-- mean _(D-RM, D-M, 320)_
-- model: +20/s _(320)_
-- model: +40/s _(320)_
+- Look here _(D-RM, D-M, 320, 390-M)_
+- mean _(D-RM, D-M, 320, 390-M)_
+- model: +10/s _(390-M)_
+- model: +40/s _(320, 390-M)_
 - most: 64 _(320)_
 - no slack left _(320)_
-- no steady _(320)_
+- no steady _(320, 390-M)_
 - no steady state _(D-RM, D-M)_
-- No steady state _(D-RM, D-M, 320)_
-- On average _(D-RM, D-M, 320)_
-- p50 _(D-RM, D-M, 320)_
-- p50 and p99 · log scale _(320)_
+- No steady state _(D-RM, D-M, 320, 390-M)_
+- On average _(D-RM, D-M, 320, 390-M)_
+- once, show after your answer. _(390-M)_
+- once, show at the reveal. _(390-M)_
+- p50 _(D-RM, D-M, 320, 390-M)_
+- p50 and p99 · log scale _(320, 390-M)_
 - p50 and p99 against utilization · log scale _(D-RM, D-M)_
-- p99 _(D-RM, D-M, 320)_
+- p99 _(D-RM, D-M, 320, 390-M)_
 - p99 before _(320)_
-- p99, 1 server _(320)_
-- p99, a queue each _(D-RM, D-M)_
-- p99, random work _(D-RM, D-M)_
+- p99, a queue each _(D-RM, D-M, 390-M)_
+- p99, random work _(D-RM, D-M, 390-M)_
 - playing 2× slower _(D-M)_
-- playing 25× slower _(D-M)_
+- playing 25× slower _(D-M, 390-M)_
 - Plays after your answer _(320)_
-- Queue _(D-RM, D-M, 320)_
-- Queue · 1 waiting now _(D-M)_
-- Queue · 105 waiting now _(D-M)_
-- Queue · 116 waiting now _(D-M)_
-- Queue · 137 waiting now _(D-M)_
-- Queue · 141 waiting now _(D-M)_
-- Queue · 2 waiting now _(D-M)_
+- Queue _(D-RM, D-M, 320, 390-M)_
+- Queue · 1 waiting now _(D-M, 390-M)_
+- Queue · 10 waiting now _(D-M)_
+- Queue · 100 waiting now _(D-M, 390-M)_
+- Queue · 101 waiting now _(390-M)_
+- Queue · 102 waiting now _(D-M)_
+- Queue · 103 waiting now _(D-M)_
+- Queue · 106 waiting now _(390-M)_
+- Queue · 108 waiting now _(390-M)_
+- Queue · 11 waiting now _(D-M, 390-M)_
+- Queue · 112 waiting now _(D-M)_
+- Queue · 114 waiting now _(D-M, 390-M)_
+- Queue · 115 waiting now _(D-M)_
+- Queue · 116 waiting now _(390-M)_
+- Queue · 117 waiting now _(D-M)_
+- Queue · 124 waiting now _(390-M)_
+- Queue · 129 waiting now _(D-M, 390-M)_
+- Queue · 131 waiting now _(D-M, 390-M)_
+- Queue · 132 waiting now _(D-M, 390-M)_
+- Queue · 134 waiting now _(D-M, 390-M)_
+- Queue · 136 waiting now _(D-M, 390-M)_
+- Queue · 138 waiting now _(D-M, 390-M)_
+- Queue · 14 waiting now _(D-M)_
+- Queue · 140 waiting now _(D-M)_
+- Queue · 141 waiting now _(D-M, 390-M)_
+- Queue · 142 waiting now _(390-M)_
+- Queue · 143 waiting now _(390-M)_
+- Queue · 144 waiting now _(D-M, 390-M)_
+- Queue · 145 waiting now _(390-M)_
+- Queue · 146 waiting now _(390-M)_
+- Queue · 147 waiting now _(D-M)_
+- Queue · 148 waiting now _(D-M, 390-M)_
+- Queue · 19 waiting now _(390-M)_
+- Queue · 2 waiting now _(D-M, 390-M)_
+- Queue · 21 waiting now _(D-M)_
+- Queue · 24 waiting now _(390-M)_
 - Queue · 25 waiting now _(D-M)_
-- Queue · 3 waiting now _(D-M)_
-- Queue · 4 waiting now _(D-M)_
+- Queue · 27 waiting now _(D-M)_
+- Queue · 28 waiting now _(D-M)_
+- Queue · 3 waiting now _(D-M, 390-M)_
+- Queue · 31 waiting now _(D-M)_
+- Queue · 32 waiting now _(390-M)_
+- Queue · 37 waiting now _(390-M)_
+- Queue · 4 waiting now _(D-M, 390-M)_
+- Queue · 43 waiting now _(D-M)_
+- Queue · 48 waiting now _(D-M)_
+- Queue · 49 waiting now _(390-M)_
+- Queue · 5 waiting now _(D-M, 390-M)_
+- Queue · 54 waiting now _(390-M)_
 - Queue · 56 waiting now _(D-M)_
-- Queue · 6 waiting now _(D-M)_
-- Queue · 8 waiting now _(D-M)_
-- Queue · 93 waiting now _(D-M)_
-- Queue · nobody waiting now _(D-M)_
+- Queue · 58 waiting now _(D-M)_
+- Queue · 59 waiting now _(390-M)_
+- Queue · 6 waiting now _(D-M, 390-M)_
+- Queue · 65 waiting now _(390-M)_
+- Queue · 67 waiting now _(D-M)_
+- Queue · 69 waiting now _(390-M)_
+- Queue · 7 waiting now _(D-M, 390-M)_
+- Queue · 8 waiting now _(D-M, 390-M)_
+- Queue · 82 waiting now _(D-M)_
+- Queue · 83 waiting now _(390-M)_
+- Queue · 90 waiting now _(D-M)_
+- Queue · 91 waiting now _(390-M)_
+- Queue · 94 waiting now _(390-M)_
+- Queue · 95 waiting now _(D-M)_
+- Queue · 96 waiting now _(D-M)_
+- Queue · 97 waiting now _(390-M)_
+- Queue · 98 waiting now _(390-M)_
+- Queue · 99 waiting now _(D-M, 390-M)_
+- Queue · nobody waiting now _(D-M, 390-M)_
+- Queue after 4 s · 144 waiting _(D-RM, D-M, 320, 390-M)_
+- Queue after 4 s · 275 waiting _(D-RM, D-M, 320, 390-M)_
+- Queue after 4 s · 37 waiting _(D-RM, D-M, 320, 390-M)_
+- Queue after 4 s · 44 waiting _(D-RM, D-M, 320, 390-M)_
+- Queue after 4 s · 77 waiting _(D-RM, D-M, 390-M)_
+- Queue after 4 s · 99 waiting _(D-RM, D-M, 320, 390-M)_
 - Queue at its longest · 1 waiting at 303 ms _(D-RM, D-M)_
-- Queue at its longest · 10 waiting at 285 ms _(D-RM, D-M)_
+- Queue at its longest · 10 waiting at 285 ms _(D-RM)_
 - Queue at its longest · 10 waiting at 301 ms _(D-RM, D-M)_
 - Queue at its longest · 10 waiting at 371 ms _(D-RM, D-M)_
-- Queue at its longest · 101 waiting at 3.3 s _(D-RM, D-M)_
 - Queue at its longest · 11 waiting at 323 ms _(D-RM, D-M)_
+- Queue at its longest · 11 waiting at 326 ms _(D-RM, D-M)_
 - Queue at its longest · 11 waiting at 367 ms _(D-RM, D-M)_
-- Queue at its longest · 11 waiting at 377 ms _(D-RM, D-M)_
 - Queue at its longest · 147 waiting at 144 ms _(D-RM, D-M)_
-- Queue at its longest · 150 waiting at 3.5 s _(D-RM, D-M)_
 - Queue at its longest · 2 waiting at 156 ms _(D-RM, D-M)_
-- Queue at its longest · 275 waiting at 4 s _(D-RM, D-M)_
 - Queue at its longest · 3 waiting at 152 ms _(D-RM, D-M)_
-- Queue at its longest · 3 waiting at 357 ms _(D-RM)_
 - Queue at its longest · 4 waiting at 73 ms _(D-RM, D-M)_
-- Queue at its longest · 53 waiting at 3.6 s _(D-RM, D-M)_
 - Queue at its longest · 6 waiting at 285 ms _(D-M)_
-- Queue at its longest · 63 waiting at 1.8 s _(D-RM, D-M)_
 - Queue at its longest · 8 waiting at 262 ms _(D-RM, D-M)_
 - Queue at its longest · 8 waiting at 362 ms _(D-RM)_
+- Queue at its longest · 8 waiting at 371 ms _(D-RM, D-M)_
+- Queue at its longest · 81 waiting at 92 ms _(D-M)_
 - Queue at its longest · 9 waiting at 323 ms _(D-RM, D-M)_
 - Queue at its longest · 9 waiting at 378 ms _(D-RM, D-M)_
-- Queues · 14 waiting now _(D-M)_
-- Queues · 19 waiting now _(D-M)_
-- Queues · 20 waiting now _(D-M)_
+- Queues · 1 waiting now _(390-M)_
+- Queues · 12 waiting now _(D-M, 390-M)_
+- Queues · 13 waiting now _(D-M, 390-M)_
+- Queues · 14 waiting now _(D-M, 390-M)_
+- Queues · 15 waiting now _(D-M, 390-M)_
+- Queues · 16 waiting now _(D-M, 390-M)_
+- Queues · 18 waiting now _(D-M, 390-M)_
+- Queues · 19 waiting now _(D-M, 390-M)_
+- Queues · 2 waiting now _(D-M, 390-M)_
+- Queues · 52 waiting now _(390-M)_
+- Queues · 53 waiting now _(390-M)_
+- Queues · 54 waiting now _(390-M)_
+- Queues · 55 waiting now _(390-M)_
+- Queues · 56 waiting now _(390-M)_
+- Queues · 57 waiting now _(390-M)_
+- Queues · 58 waiting now _(390-M)_
 - Queues · 60 waiting now _(D-M)_
-- Queues · 9 waiting now _(D-M)_
-- Queues · nobody waiting now _(D-M)_
+- Queues · 61 waiting now _(D-M, 390-M)_
+- Queues · 62 waiting now _(390-M)_
+- Queues · 8 waiting now _(D-M)_
+- Queues · 9 waiting now _(D-M, 390-M)_
 - Queues · S1 idle beside a line of 13 at 136 ms _(D-RM, D-M)_
 - Queues · S1 idle beside a line of 16 at 398 ms _(D-RM, D-M)_
-- Queues · S2 idle beside a line of 15 at 18 ms _(D-M)_
-- Queues at their fullest · 64 waiting at 20 ms _(D-RM)_
-- Queues at their fullest · 70 waiting at 1.3 s _(D-RM, D-M)_
+- Queues · S1 idle beside a line of 5 at 361 ms _(D-RM)_
+- Queues · S1 idle beside a line of 7 at 351 ms _(D-M)_
+- Queues after 4 s · 28 waiting _(D-RM, D-M, 320, 390-M)_
+- Queues at their fullest · 64 waiting at 20 ms _(D-RM, D-M)_
 - Queues at their fullest · 88 waiting at 29 ms _(D-RM)_
-- random _(D-RM, D-M, 320)_
-- Requests arrive after your answer _(D-RM, D-M)_
-- Response time, exact from the model _(D-RM, D-M)_
+- random _(D-RM, D-M, 320, 390-M)_
+- Requests arrive after your answer _(D-RM, D-M, 390-M)_
+- Response time, exact from the model _(D-RM, D-M, 390-M)_
 - Response time, from the model _(320)_
-- S1 _(D-RM, D-M, 320)_
-- S1 idle beside 13, at 136 ms _(320)_
-- S1 idle beside 13, at 382 ms _(320)_
-- S1 idle beside 16, at 398 ms _(320)_
-- S2 _(D-RM, D-M, 320)_
-- S3 _(D-RM, D-M, 320)_
-- S4 _(D-RM, D-M, 320)_
+- reveal _(390-M)_
+- S1 _(D-RM, D-M, 320, 390-M)_
+- S1 idle beside 13, at 136 ms _(320, 390-M)_
+- S1 idle beside 16, at 398 ms _(320, 390-M)_
+- S1 idle beside 5, at 361 ms _(320)_
+- S1 idle beside 7, at 351 ms _(390-M)_
+- S2 _(D-RM, D-M, 320, 390-M)_
+- S3 _(D-RM, D-M, 320, 390-M)_
+- S4 _(D-RM, D-M, 320, 390-M)_
 - second, and every wait grows _(320)_
-- Server · 10% busy _(D-RM, D-M, 320)_
-- Server · 30% busy _(D-RM, D-M, 320)_
-- Server · 40% busy _(320)_
-- Server · 50% busy _(D-RM, D-M, 320)_
-- Server · 60% busy _(D-RM, D-M)_
-- Server · 65% busy _(320)_
-- Server · 70% busy _(D-RM, D-M, 320)_
-- Server · 90% busy _(D-RM, D-M, 320)_
-- Server · 98% busy _(D-RM, D-M, 320)_
+- serve. _(390-M)_
+- Server · 10% busy _(D-RM, D-M, 320, 390-M)_
+- Server · 30% busy _(D-RM, D-M, 320, 390-M)_
+- Server · 50% busy _(D-RM, D-M, 320, 390-M)_
+- Server · 60% busy _(D-RM, D-M, 320, 390-M)_
+- Server · 70% busy _(D-RM, D-M, 320, 390-M)_
+- Server · 90% busy _(D-RM, D-M, 320, 390-M)_
+- Server · 95% busy _(D-M, 390-M)_
+- Server · 98% busy _(D-RM, D-M, 320, 390-M)_
 - server left can serve. _(320)_
-- Servers · each 20% busy _(D-RM, D-M, 320)_
-- Servers · each 30% busy _(D-RM, D-M, 320)_
-- Servers · each 40% busy _(D-RM, 320)_
-- Servers · each 60% busy _(D-RM, 320)_
-- Servers · each 70% busy _(320)_
-- Servers · each 75% busy _(320)_
-- Servers · each 80% busy _(D-RM, D-M, 320)_
-- Servers · each 90% busy _(D-M)_
-- Servers · each 95% busy _(D-RM, D-M, 320)_
+- Servers · each 20% busy _(D-RM, D-M, 320, 390-M)_
+- Servers · each 30% busy _(D-RM, D-M, 320, 390-M)_
+- Servers · each 40% busy _(320)_
+- Servers · each 60% busy _(D-RM, D-M, 320, 390-M)_
+- Servers · each 80% busy _(D-RM, D-M, 320, 390-M)_
+- Servers · each 95% busy _(D-RM, D-M, 320, 390-M)_
 - servers left can serve. _(320)_
 - So 10 more arrive than leave each _(320)_
+- So 10 more arrive than leave each second, and _(390-M)_
 - So 10 more arrive than leave each second, and every wait grows without bound. _(D-RM, D-M)_
 - So 20 more arrive than leave each _(320)_
+- So 20 more arrive than leave each second, and _(390-M)_
 - So 20 more arrive than leave each second, and every wait grows without bound. _(D-RM, D-M)_
 - So 40 more arrive than leave each _(320)_
+- So 40 more arrive than leave each second, and _(390-M)_
 - So 40 more arrive than leave each second, and every wait grows without bound. _(D-RM, D-M)_
-- So 60 more arrive than leave each _(320)_
 - So 70 more arrive than leave each _(320)_
+- So 70 more arrive than leave each second, and _(390-M)_
 - So 70 more arrive than leave each second, and every wait grows without bound. _(D-RM, D-M)_
-- state _(320)_
+- state _(320, 390-M)_
 - system at once, show after your _(320)_
 - take exactly 10 ms. _(320)_
-- The first 4 s, starting empty _(D-RM, D-M)_
-- The last 400 ms _(320)_
-- The last 400 ms of this sample _(D-RM, D-M, 320)_
+- The first 4 s, starting empty _(D-RM, D-M, 390-M)_
+- The last 400 ms _(320, 390-M)_
+- The last 400 ms of this sample _(D-RM, D-M, 320, 390-M)_
 - the model: +10 a second _(D-RM, D-M)_
-- the model: +20 a second _(D-RM, D-M)_
+- the model: +20 a second _(D-RM, D-M, 320, 390-M)_
 - the model: +40 a second _(D-RM, D-M)_
-- the model: +60 a second _(320)_
-- the model: +70 a second _(D-RM, D-M, 320)_
+- the model: +70 a second _(D-RM, D-M, 320, 390-M)_
 - the queue grows by 10 a second _(320)_
-- the queue grows by 10 requests a second _(D-RM, D-M)_
+- the queue grows by 10 requests a second _(D-RM, D-M, 390-M)_
 - the queue grows by 20 a second _(320)_
-- the queue grows by 20 requests a second _(D-RM, D-M)_
+- the queue grows by 20 requests a second _(D-RM, D-M, 390-M)_
 - the queue grows by 40 a second _(320)_
-- the queue grows by 40 requests a second _(D-RM, D-M)_
-- the queue grows by 60 a second _(320)_
+- the queue grows by 40 requests a second _(D-RM, D-M, 390-M)_
 - the queue grows by 70 a second _(320)_
-- the queue grows by 70 requests a second _(D-RM, D-M)_
-- The rest after your answer _(D-RM, D-M)_
-- The sample after the failure _(D-M)_
-- The sample plays after your answer _(D-RM, D-M)_
-- waiting _(D-RM, D-M, 320)_
-- waiting grows without bound _(D-RM, D-M)_
+- the queue grows by 70 requests a second _(D-RM, D-M, 390-M)_
+- The rest after your answer _(D-RM)_
+- The rest at the reveal _(D-M, 390-M)_
+- The sample after the failure _(D-M, 390-M)_
+- The sample plays after your answer _(D-RM, D-M, 390-M)_
+- waiting _(D-RM, D-M, 320, 390-M)_
+- waiting grows without bound _(D-RM, D-M, 390-M)_
 - waiting: no bound _(320)_
 - Who waits, and how many are in the _(320)_
+- Who waits, and how many are in the system at _(390-M)_
 - Who waits, and how many are in the system at once, show after your answer. _(D-RM, D-M)_
+- Who waits, and how many are in the system at once, show at the reveal. _(D-M)_
 - With no slack, the queue wanders _(320)_
+- With no slack, the queue wanders without a _(390-M)_
 - With no slack, the queue wanders without a bound and the waits keep growing. _(D-RM, D-M)_
 - without a bound and the waits keep _(320)_
 - without bound. _(320)_
-- work and waiting after your answer _(D-RM, D-M, 320)_
+- work and waiting after your answer _(D-RM, D-M, 320, 390-M)_
+- work and waiting at the reveal _(D-M, 390-M)_
 
-## Stage summary (the drawing's accessible name) (42)
+## Stage summary (the drawing's accessible name) (40)
 
-- 2 servers with a queue each, one of them down, 60% busy with all up, requests taking 10 ms on average. There is no steady state: 120/s arrive and the server left serves 100/s, so the queue grows by 20 requests a second. _(D-RM, 320)_
-- 2 servers with a queue each, one of them down, 80% busy with all up, every request taking exactly 10 ms. There is no steady state: 160/s arrive and the server left serves 100/s, so the queue grows by 60 requests a second. _(320)_
-- 2 servers with a queue each, one of them down, 85% busy with all up, every request taking exactly 10 ms. There is no steady state: 170/s arrive and the server left serves 100/s, so the queue grows by 70 requests a second. _(D-RM, D-M, 320)_
-- 2 servers with one shared queue, 20% busy with all up, requests taking 10 ms on average. The model gives p50 7.32 ms, p99 47 ms and a mean of 10 ms, of which 0.42 ms is waiting. _(D-RM, D-M, 320)_
-- 2 servers with one shared queue, 40% busy with all up, requests taking 10 ms on average. The model gives p50 8.59 ms, p99 52 ms and a mean of 12 ms, of which 1.9 ms is waiting. _(320)_
-- 2 servers with one shared queue, one of them down, 50% busy with all up, requests taking 10 ms on average. There is no steady state: 100/s arrive, exactly what the server left can serve, so the queue wanders without a bound and the waits keep growing. _(D-RM, D-M, 320)_
-- 2 servers with one shared queue, one of them down, 60% busy with all up, requests taking 10 ms on average. There is no steady state: 120/s arrive and the server left serves 100/s, so the queue grows by 20 requests a second. _(D-M, 320)_
-- 3 servers with a queue each, 90% busy with all up, every request taking exactly 10 ms. The model gives p50 40 ms, p99 229 ms and a mean of 55 ms, of which 45 ms is waiting. _(D-M)_
-- 3 servers with a queue each, 95% busy with all up, every request taking exactly 10 ms. The model gives p50 75 ms, p99 459 ms and a mean of 105 ms, of which 95 ms is waiting. _(D-RM, D-M, 320)_
+- 2 servers with a queue each, 60% busy with all up, every request taking exactly 10 ms. The model gives p50 14 ms, p99 55 ms and a mean of 18 ms, of which 7.5 ms is waiting. _(D-RM, 320)_
+- 2 servers with a queue each, 60% busy with all up, requests taking 10 ms on average. The model gives p50 17 ms, p99 115 ms and a mean of 25 ms, of which 15 ms is waiting. _(D-M, 390-M)_
+- 2 servers with a queue each, one of them down, 60% busy with all up, every request taking exactly 10 ms. There is no steady state: 120/s arrive and the server left serves 100/s, so the queue grows by 20 requests a second. _(D-RM, D-M, 390-M)_
+- 2 servers with a queue each, one of them down, 60% busy with all up, requests taking 10 ms on average. There is no steady state: 120/s arrive and the server left serves 100/s, so the queue grows by 20 requests a second. _(D-RM, D-M, 320, 390-M)_
+- 2 servers with a queue each, one of them down, 85% busy with all up, every request taking exactly 10 ms. There is no steady state: 170/s arrive and the server left serves 100/s, so the queue grows by 70 requests a second. _(D-RM, D-M, 320, 390-M)_
+- 2 servers with one shared queue, 20% busy with all up, requests taking 10 ms on average. The model gives p50 7.32 ms, p99 47 ms and a mean of 10 ms, of which 0.42 ms is waiting. _(D-RM, D-M, 320, 390-M)_
+- 2 servers with one shared queue, one of them down, 40% busy with all up, requests taking 10 ms on average. The model gives p50 35 ms, p99 230 ms and a mean of 50 ms, of which 40 ms is waiting. _(D-RM, D-M, 320, 390-M)_
+- 2 servers with one shared queue, one of them down, 50% busy with all up, requests taking 10 ms on average. There is no steady state: 100/s arrive, exactly what the server left can serve, so the queue wanders without a bound and the waits keep growing. _(D-RM, D-M, 320, 390-M)_
+- 3 servers with a queue each, 95% busy with all up, every request taking exactly 10 ms. The model gives p50 75 ms, p99 459 ms and a mean of 105 ms, of which 95 ms is waiting. _(D-RM, D-M, 320, 390-M)_
 - 3 servers with one shared queue, 60% busy with all up, requests taking 10 ms on average. The model gives p50 9.64 ms, p99 54 ms and a mean of 13 ms, of which 2.96 ms is waiting. _(D-RM, 320)_
-- 3 servers with one shared queue, 70% busy with all up, requests taking 10 ms on average. The model gives p50 12 ms, p99 63 ms and a mean of 15 ms, of which 5.47 ms is waiting. _(320)_
-- 3 servers with one shared queue, 80% busy with all up, requests taking 10 ms on average. The model gives p50 16 ms, p99 85 ms and a mean of 21 ms, of which 11 ms is waiting. _(D-RM, 320)_
-- 3 servers with one shared queue, one of them down, 60% busy with all up, requests taking 10 ms on average. The model gives p50 38 ms, p99 233 ms and a mean of 53 ms, of which 43 ms is waiting. _(D-RM, D-M, 320)_
-- 3 servers with one shared queue, one of them down, 70% busy with all up, requests taking 10 ms on average. There is no steady state: 210/s arrive and the servers left serve 200/s, so the queue grows by 10 requests a second. _(D-RM, D-M, 320)_
-- 3 servers with one shared queue, one of them down, 80% busy with all up, requests taking 10 ms on average. The model's numbers show after your answer. _(D-M)_
-- 3 servers with one shared queue, one of them down, 80% busy with all up, requests taking 10 ms on average. There is no steady state: 240/s arrive and the servers left serve 200/s, so the queue grows by 40 requests a second. _(D-RM, D-M, 320)_
-- 4 servers with a queue each, 75% busy with all up, requests taking 10 ms on average. The model gives p50 28 ms, p99 184 ms and a mean of 40 ms, of which 30 ms is waiting. _(320)_
-- 4 servers with a queue each, 80% busy with all up, requests taking 10 ms on average. The model gives p50 35 ms, p99 230 ms and a mean of 50 ms, of which 40 ms is waiting. _(D-RM, D-M, 320)_
-- 4 servers with a queue each, one of them down, 60% busy with all up, requests taking 10 ms on average. The model gives p50 35 ms, p99 230 ms and a mean of 50 ms, of which 40 ms is waiting. _(D-RM, D-M, 320)_
-- 4 servers with a queue each, one of them down, 70% busy with all up, requests taking 10 ms on average. The model gives p50 104 ms, p99 691 ms and a mean of 150 ms, of which 140 ms is waiting. _(D-RM, 320)_
-- 4 servers with a queue each, one of them down, 75% busy with all up, requests taking 10 ms on average. There is no steady state: 300/s arrive, exactly what the servers left can serve, so the queue wanders without a bound and the waits keep growing. _(D-RM, D-M, 320)_
-- 4 servers with one shared queue, 30% busy with all up, every request taking exactly 10 ms. The model gives p50 10 ms, p99 13 ms and a mean of 10 ms, of which 0.08 ms is waiting. _(D-RM, D-M, 320)_
-- 4 servers with one shared queue, 40% busy with all up, every request taking exactly 10 ms. The model gives p50 10 ms, p99 15 ms and a mean of 10 ms, of which 0.23 ms is waiting. _(D-RM)_
-- 4 servers with one shared queue, 80% busy with all up, requests taking 10 ms on average. The model gives p50 13 ms, p99 69 ms and a mean of 17 ms, of which 7.46 ms is waiting. _(D-RM, D-M, 320)_
-- 4 servers with one shared queue, 80% busy with all up, requests taking 10 ms on average. The model's numbers show after your answer. _(D-M)_
-- 4 servers with one shared queue, one of them down, 60% busy with all up, requests taking 10 ms on average. The model gives p50 16 ms, p99 85 ms and a mean of 21 ms, of which 11 ms is waiting. _(D-RM, D-M, 320)_
-- 4 servers with one shared queue, one of them down, 65% busy with all up, requests taking 10 ms on average. The model gives p50 22 ms, p99 121 ms and a mean of 29 ms, of which 19 ms is waiting. _(D-RM, D-M, 320)_
-- One server, 10% busy, requests taking 10 ms on average. The model gives p50 7.7 ms, p99 51 ms and a mean of 11 ms, of which 1.11 ms is waiting. _(D-RM, D-M, 320)_
-- One server, 30% busy, requests taking 10 ms on average. The model gives p50 9.9 ms, p99 66 ms and a mean of 14 ms, of which 4.29 ms is waiting. _(D-RM, D-M, 320)_
-- One server, 40% busy, requests taking 10 ms on average. The model gives p50 12 ms, p99 77 ms and a mean of 17 ms, of which 6.67 ms is waiting. _(320)_
-- One server, 50% busy, requests taking 10 ms on average. The model gives p50 14 ms, p99 92 ms and a mean of 20 ms, of which 10 ms is waiting. _(D-RM, D-M, 320)_
-- One server, 50% busy, requests taking 10 ms on average. The model's numbers show after your answer. _(D-M)_
-- One server, 50% busy, requests taking 10 ms on average. The model's numbers show after your answer. The sample of requests plays after your answer. _(D-RM, D-M, 320)_
-- One server, 60% busy, every request taking exactly 10 ms. The model gives p50 14 ms, p99 55 ms and a mean of 18 ms, of which 7.5 ms is waiting. _(D-M)_
-- One server, 60% busy, requests taking 10 ms on average. The model gives p50 17 ms, p99 115 ms and a mean of 25 ms, of which 15 ms is waiting. _(D-RM, D-M)_
-- One server, 65% busy, requests taking 10 ms on average. The model gives p50 20 ms, p99 132 ms and a mean of 29 ms, of which 19 ms is waiting. _(320)_
-- One server, 70% busy, requests taking 10 ms on average. The model gives p50 23 ms, p99 154 ms and a mean of 33 ms, of which 23 ms is waiting. _(D-RM, D-M, 320)_
-- One server, 90% busy, every request taking exactly 10 ms. The model gives p50 40 ms, p99 229 ms and a mean of 55 ms, of which 45 ms is waiting. _(D-RM, D-M, 320)_
-- One server, 90% busy, every request taking exactly 10 ms. The model's numbers show after your answer. _(D-M)_
-- One server, 90% busy, requests taking 10 ms on average. The model gives p50 69 ms, p99 461 ms and a mean of 100 ms, of which 90 ms is waiting. _(D-RM, D-M, 320)_
-- One server, 90% busy, requests taking 10 ms on average. The model's numbers show after your answer. _(D-M)_
-- One server, 98% busy, requests taking 10 ms on average. The model gives p50 347 ms, p99 2.3 s and a mean of 500 ms, of which 490 ms is waiting. _(D-RM, D-M, 320)_
+- 3 servers with one shared queue, 80% busy with all up, requests taking 10 ms on average. The model gives p50 16 ms, p99 85 ms and a mean of 21 ms, of which 11 ms is waiting. _(D-RM)_
+- 3 servers with one shared queue, one of them down, 60% busy with all up, requests taking 10 ms on average. The model gives p50 38 ms, p99 233 ms and a mean of 53 ms, of which 43 ms is waiting. _(D-RM, D-M, 320, 390-M)_
+- 3 servers with one shared queue, one of them down, 70% busy with all up, requests taking 10 ms on average. There is no steady state: 210/s arrive and the servers left serve 200/s, so the queue grows by 10 requests a second. _(D-RM, D-M, 320, 390-M)_
+- 3 servers with one shared queue, one of them down, 80% busy with all up, requests taking 10 ms on average. The model's numbers show at the reveal. _(D-M, 390-M)_
+- 3 servers with one shared queue, one of them down, 80% busy with all up, requests taking 10 ms on average. There is no steady state: 240/s arrive and the servers left serve 200/s, so the queue grows by 40 requests a second. _(D-RM, D-M, 320, 390-M)_
+- 4 servers with a queue each, 80% busy with all up, requests taking 10 ms on average. The model gives p50 35 ms, p99 230 ms and a mean of 50 ms, of which 40 ms is waiting. _(D-RM, D-M, 320, 390-M)_
+- 4 servers with a queue each, one of them down, 60% busy with all up, requests taking 10 ms on average. The model gives p50 35 ms, p99 230 ms and a mean of 50 ms, of which 40 ms is waiting. _(D-RM, D-M, 320, 390-M)_
+- 4 servers with a queue each, one of them down, 70% busy with all up, requests taking 10 ms on average. The model gives p50 104 ms, p99 691 ms and a mean of 150 ms, of which 140 ms is waiting. _(D-RM)_
+- 4 servers with a queue each, one of them down, 75% busy with all up, requests taking 10 ms on average. There is no steady state: 300/s arrive, exactly what the servers left can serve, so the queue wanders without a bound and the waits keep growing. _(D-RM, D-M, 320, 390-M)_
+- 4 servers with one shared queue, 30% busy with all up, every request taking exactly 10 ms. The model gives p50 10 ms, p99 13 ms and a mean of 10 ms, of which 0.08 ms is waiting. _(D-RM, D-M, 320, 390-M)_
+- 4 servers with one shared queue, 40% busy with all up, every request taking exactly 10 ms. The model gives p50 10 ms, p99 15 ms and a mean of 10 ms, of which 0.23 ms is waiting. _(320)_
+- 4 servers with one shared queue, 60% busy with all up, requests taking 10 ms on average. The model gives p50 8.71 ms, p99 50 ms and a mean of 12 ms, of which 1.79 ms is waiting. _(D-RM, D-M, 320, 390-M)_
+- 4 servers with one shared queue, 80% busy with all up, requests taking 10 ms on average. The model gives p50 13 ms, p99 69 ms and a mean of 17 ms, of which 7.46 ms is waiting. _(D-RM, D-M, 320, 390-M)_
+- 4 servers with one shared queue, 80% busy with all up, requests taking 10 ms on average. The model's numbers show at the reveal. _(D-M, 390-M)_
+- 4 servers with one shared queue, one of them down, 60% busy with all up, requests taking 10 ms on average. The model gives p50 16 ms, p99 85 ms and a mean of 21 ms, of which 11 ms is waiting. _(D-RM, D-M, 390-M)_
+- 4 servers with one shared queue, one of them down, 65% busy with all up, requests taking 10 ms on average. The model gives p50 22 ms, p99 121 ms and a mean of 29 ms, of which 19 ms is waiting. _(320, 390-M)_
+- One server, 10% busy, requests taking 10 ms on average. The model gives p50 7.7 ms, p99 51 ms and a mean of 11 ms, of which 1.11 ms is waiting. _(D-RM, D-M, 320, 390-M)_
+- One server, 30% busy, requests taking 10 ms on average. The model gives p50 9.9 ms, p99 66 ms and a mean of 14 ms, of which 4.29 ms is waiting. _(D-RM, D-M, 320, 390-M)_
+- One server, 50% busy, requests taking 10 ms on average. The model gives p50 14 ms, p99 92 ms and a mean of 20 ms, of which 10 ms is waiting. _(D-RM, D-M, 320, 390-M)_
+- One server, 50% busy, requests taking 10 ms on average. The model's numbers show after your answer. The sample of requests plays after your answer. _(D-RM, D-M, 320, 390-M)_
+- One server, 50% busy, requests taking 10 ms on average. The model's numbers show at the reveal. _(D-M, 390-M)_
+- One server, 60% busy, every request taking exactly 10 ms. The model gives p50 14 ms, p99 55 ms and a mean of 18 ms, of which 7.5 ms is waiting. _(D-M, 390-M)_
+- One server, 60% busy, requests taking 10 ms on average. The model gives p50 17 ms, p99 115 ms and a mean of 25 ms, of which 15 ms is waiting. _(D-RM, 320)_
+- One server, 70% busy, requests taking 10 ms on average. The model gives p50 23 ms, p99 154 ms and a mean of 33 ms, of which 23 ms is waiting. _(D-RM, D-M, 320, 390-M)_
+- One server, 90% busy, every request taking exactly 10 ms. The model gives p50 40 ms, p99 229 ms and a mean of 55 ms, of which 45 ms is waiting. _(D-RM, D-M, 320, 390-M)_
+- One server, 90% busy, every request taking exactly 10 ms. The model's numbers show at the reveal. _(D-M, 390-M)_
+- One server, 90% busy, requests taking 10 ms on average. The model gives p50 69 ms, p99 461 ms and a mean of 100 ms, of which 90 ms is waiting. _(D-RM, D-M, 320, 390-M)_
+- One server, 90% busy, requests taking 10 ms on average. The model's numbers show at the reveal. _(D-M, 390-M)_
+- One server, 95% busy, requests taking 10 ms on average. The model gives p50 139 ms, p99 921 ms and a mean of 200 ms, of which 190 ms is waiting. _(D-M, 390-M)_
+- One server, 98% busy, requests taking 10 ms on average. The model gives p50 347 ms, p99 2.3 s and a mean of 500 ms, of which 490 ms is waiting. _(D-RM, D-M, 320, 390-M)_
 
-## Accessible names (Play, the stage, the table) (20)
+## Accessible names (Play, the stage, the table) (25)
 
-- 3 servers share one queue at 80% busy, and p99 is 85 ms. One fails, and the others take its traffic. What is p99 now? _(D-RM, D-M, 320)_
-- 4 servers, each 80% busy, each with its own queue, and every request goes to one of them at random: a request waits 40 ms on average. Put all 4 behind one shared queue, at the same load. What is the average wait now? _(D-RM, D-M, 320)_
-- correct answer _(D-RM, 320)_
-- done _(D-RM, D-M, 320)_
-- Experiment: Challenge: busy, and safe when one fails _(D-RM, D-M, 320)_
-- Experiment: From 70% to 90% busy _(D-RM, D-M, 320)_
-- Experiment: Lose one of three _(D-RM, D-M, 320)_
-- Experiment: One queue or a queue each _(D-RM, D-M, 320)_
-- Experiment: Steadier work _(D-RM, D-M, 320)_
-- Experiment: Waiting at half load _(D-RM, D-M, 320)_
-- Latency and queueing: requests arriving at random to busy servers _(D-RM, D-M, 320)_
-- Load, how busy the servers run _(D-RM, D-M, 320)_
-- One server at 70% busy: a request takes 33 ms on average, 10 ms of work and the rest waiting. Traffic grows by 28.6%, until the server is 90% busy. What is the average now? _(D-RM, D-M, 320)_
-- One server, 50% busy, so it sits idle 50% of the time. Requests arrive at random, 50/s on average, and each needs 10 ms of work on average. On average, how long does a request wait before the server starts on it? _(D-RM, D-M, 320)_
-- One server, 90% busy. Requests need 10 ms of work on average but vary at random, and wait 90 ms on average. Now every request takes exactly 10 ms. What is the average wait? _(D-RM, D-M, 320)_
-- Play the sample _(D-RM, D-M, 320)_
-- Play the sample, after your answer _(D-RM, D-M, 320)_
-- Stop the sample _(D-M)_
+- 3 servers share one queue at 80% busy, and p99 is 85 ms. One fails, and the others take its traffic. What is p99 now? _(D-RM, D-M, 320, 390-M)_
+- 4 servers, each 80% busy, each with its own queue, and every request goes to one of them at random: a request waits 40 ms on average. Put all 4 behind one shared queue, at the same load. What is the average wait now? _(D-RM, D-M, 320, 390-M)_
+- A server down (described by: its traffic moves) _(D-RM, D-M, 320, 390-M)_
+- A server down (described by: needs two or more) _(D-RM, D-M, 320, 390-M)_
+- correct answer _(D-RM, 320, 390-M)_
+- done _(D-RM, D-M, 320, 390-M)_
+- Experiment: Challenge: busy, and safe when one fails _(D-RM, D-M, 320, 390-M)_
+- Experiment: From 70% to 90% busy _(D-RM, D-M, 320, 390-M)_
+- Experiment: Lose one of three _(D-RM, D-M, 320, 390-M)_
+- Experiment: One queue or a queue each _(D-RM, D-M, 320, 390-M)_
+- Experiment: One server at half load _(D-RM, D-M, 320, 390-M)_
+- Experiment: Steadier work _(D-RM, D-M, 320, 390-M)_
+- Latency and queueing: requests arriving at random to busy servers _(D-RM, D-M, 320, 390-M)_
+- Load, how busy the servers run _(D-RM, D-M, 320, 390-M)_
+- One server at 70% busy: a request takes 33 ms on average, 10 ms of work and the rest waiting. Traffic grows by 28.6%, until the server is 90% busy. What is the average now? _(D-RM, D-M, 320, 390-M)_
+- One server, 50% busy, so it sits idle 50% of the time. Requests arrive at random, 50/s on average, and each needs a random amount of work, 10 ms on average. On average, how long does a request wait before the server starts on it? _(D-RM, D-M, 320, 390-M)_
+- One server, 90% busy. Requests need 10 ms of work on average but vary at random, and wait 90 ms on average. Now every request takes exactly 10 ms. What is the average wait? _(D-RM, D-M, 320, 390-M)_
+- Play the sample _(D-RM, D-M, 320, 390-M)_
+- Play the sample, after the reveal _(D-M, 390-M)_
+- Play the sample, after your answer _(D-RM, D-M, 320, 390-M)_
+- Steady work (described by: 10 ms each) _(D-RM, D-M, 320, 390-M)_
+- Stop the sample _(D-M, 390-M)_
+- The model at every load for this setting _(D-RM, D-M, 320, 390-M)_
 - your answer, correct _(D-M)_
-- your answer, wrong _(D-RM, 320)_
+- your answer, wrong _(D-RM, 320, 390-M)_
 
-## Slider values (aria-valuetext) (31)
+## Slider values (aria-valuetext) (28)
 
-- 10% busy, 10 requests a second _(D-RM, D-M, 320)_
-- 20% busy, 40 requests a second _(D-RM, D-M, 320)_
-- 30% busy, 120 requests a second _(D-RM, D-M, 320)_
-- 30% busy, 30 requests a second _(D-RM, D-M, 320)_
-- 40% busy, 160 requests a second _(D-RM)_
-- 40% busy, 40 requests a second _(320)_
-- 40% busy, 80 requests a second _(320)_
-- 50% busy with all 2 up, 100 requests a second _(D-RM, D-M, 320)_
-- 50% busy, 50 requests a second _(D-RM, D-M, 320)_
-- 60% busy with all 2 up, 120 requests a second _(D-RM, D-M, 320)_
-- 60% busy with all 3 up, 180 requests a second _(D-RM, D-M, 320)_
-- 60% busy with all 4 up, 240 requests a second _(D-RM, D-M, 320)_
+- 10% busy, 10 requests a second _(D-RM, D-M, 320, 390-M)_
+- 20% busy, 40 requests a second _(D-RM, D-M, 320, 390-M)_
+- 30% busy, 120 requests a second _(D-RM, D-M, 320, 390-M)_
+- 30% busy, 30 requests a second _(D-RM, D-M, 320, 390-M)_
+- 40% busy with both up, 80 requests a second _(D-RM, D-M, 320, 390-M)_
+- 40% busy, 160 requests a second _(320)_
+- 50% busy with both up, 100 requests a second _(D-RM, D-M, 320, 390-M)_
+- 50% busy, 50 requests a second _(D-RM, D-M, 320, 390-M)_
+- 60% busy with all 3 up, 180 requests a second _(D-RM, D-M, 320, 390-M)_
+- 60% busy with all 4 up, 240 requests a second _(D-RM, D-M, 320, 390-M)_
+- 60% busy with both up, 120 requests a second _(D-RM, D-M, 320, 390-M)_
+- 60% busy, 120 requests a second _(D-RM, D-M, 320, 390-M)_
 - 60% busy, 180 requests a second _(D-RM, 320)_
-- 60% busy, 60 requests a second _(D-RM, D-M)_
-- 65% busy with all 4 up, 260 requests a second _(D-RM, D-M, 320)_
-- 65% busy, 65 requests a second _(320)_
-- 70% busy with all 3 up, 210 requests a second _(D-RM, D-M, 320)_
-- 70% busy with all 4 up, 280 requests a second _(D-RM, 320)_
-- 70% busy, 210 requests a second _(320)_
-- 70% busy, 70 requests a second _(D-RM, D-M, 320)_
-- 75% busy with all 4 up, 300 requests a second _(D-RM, D-M, 320)_
-- 75% busy, 300 requests a second _(320)_
-- 80% busy with all 2 up, 160 requests a second _(320)_
-- 80% busy with all 3 up, 240 requests a second _(D-RM, D-M, 320)_
-- 80% busy, 240 requests a second _(D-RM, 320)_
-- 80% busy, 320 requests a second _(D-RM, D-M, 320)_
-- 85% busy with all 2 up, 170 requests a second _(D-RM, D-M, 320)_
-- 90% busy, 270 requests a second _(D-M)_
-- 90% busy, 90 requests a second _(D-RM, D-M, 320)_
-- 95% busy, 285 requests a second _(D-RM, D-M, 320)_
-- 98% busy, 98 requests a second _(D-RM, D-M, 320)_
+- 60% busy, 240 requests a second _(D-RM, D-M, 320, 390-M)_
+- 60% busy, 60 requests a second _(D-RM, D-M, 320, 390-M)_
+- 65% busy with all 4 up, 260 requests a second _(320, 390-M)_
+- 70% busy with all 3 up, 210 requests a second _(D-RM, D-M, 320, 390-M)_
+- 70% busy with all 4 up, 280 requests a second _(D-RM)_
+- 70% busy, 70 requests a second _(D-RM, D-M, 320, 390-M)_
+- 75% busy with all 4 up, 300 requests a second _(D-RM, D-M, 320, 390-M)_
+- 80% busy with all 3 up, 240 requests a second _(D-RM, D-M, 320, 390-M)_
+- 80% busy, 240 requests a second _(D-RM)_
+- 80% busy, 320 requests a second _(D-RM, D-M, 320, 390-M)_
+- 85% busy with both up, 170 requests a second _(D-RM, D-M, 320, 390-M)_
+- 90% busy, 90 requests a second _(D-RM, D-M, 320, 390-M)_
+- 95% busy, 285 requests a second _(D-RM, D-M, 320, 390-M)_
+- 95% busy, 95 requests a second _(D-M, 390-M)_
+- 98% busy, 98 requests a second _(D-RM, D-M, 320, 390-M)_
 
-## Notices (polite live region) (49)
+## Notices (polite live region) (51)
 
-- 2 servers with a queue each, one down, 160% of capacity, steady work: no steady state; the queue grows by 60 requests a second. _(320)_
-- 2 servers with a queue each, one down, 170% of capacity, steady work: no steady state; the queue grows by 70 requests a second. _(D-RM, D-M, 320)_
-- 2 servers with one shared queue, each 20% busy: p99 47 ms, p50 7.32 ms, 6.7% of requests wait. _(D-RM, D-M, 320)_
-- 2 servers with one shared queue, each 40% busy: p99 52 ms, p50 8.59 ms, 22.9% of requests wait. _(320)_
-- 2 servers with one shared queue, one down, 100% of capacity: no steady state; arrivals exactly match the capacity left. _(D-RM, D-M, 320)_
-- 2 servers with one shared queue, one down, 120% of capacity: no steady state; the queue grows by 20 requests a second. _(D-M, 320)_
-- 3 servers with a queue each, each 90% busy, steady work: p99 229 ms, p50 40 ms, 90% of requests wait. _(D-M)_
-- 3 servers with a queue each, each 95% busy, steady work: p99 459 ms, p50 75 ms, 95% of requests wait. _(D-RM, D-M, 320)_
+- 2 servers with a queue each, each 60% busy, steady work: p99 55 ms, p50 14 ms, 60% of requests wait. _(D-RM, 320)_
+- 2 servers with a queue each, each 60% busy: p99 115 ms, p50 17 ms, 60% of requests wait. _(D-M, 390-M)_
+- 2 servers with a queue each, one down, 120% of capacity, steady work: no steady state; the queue grows by 20 requests a second. _(D-RM, D-M, 390-M)_
+- 2 servers with a queue each, one down, 120% of capacity: no steady state; the queue grows by 20 requests a second. _(D-M, 320, 390-M)_
+- 2 servers with a queue each, one down, 170% of capacity, steady work: no steady state; the queue grows by 70 requests a second. _(D-RM, D-M, 320, 390-M)_
+- 2 servers with one shared queue, each 20% busy: p99 47 ms, p50 7.32 ms, 6.7% of requests wait. _(D-RM, D-M, 320, 390-M)_
+- 2 servers with one shared queue, one down, 100% of capacity: no steady state; arrivals exactly match the capacity left. _(D-RM, D-M, 320, 390-M)_
+- 2 servers with one shared queue, one down, the one left 80% busy: p99 230 ms, p50 35 ms, 80% of requests wait. _(D-RM, D-M, 320, 390-M)_
+- 3 servers with a queue each, each 95% busy, steady work: p99 459 ms, p50 75 ms, 95% of requests wait. _(D-RM, D-M, 320, 390-M)_
 - 3 servers with one shared queue, each 60% busy: p99 54 ms, p50 9.64 ms, 35.5% of requests wait. _(D-RM, 320)_
-- 3 servers with one shared queue, each 70% busy: p99 63 ms, p50 12 ms, 49.2% of requests wait. _(320)_
-- 3 servers with one shared queue, one down, 105% of capacity: no steady state; the queue grows by 10 requests a second. _(D-RM, D-M, 320)_
-- 3 servers with one shared queue, one down, each 90% busy: p99 233 ms, p50 38 ms, 85.3% of requests wait. _(D-RM, D-M, 320)_
-- 4 servers with a queue each, each 75% busy: p99 184 ms, p50 28 ms, 75% of requests wait. _(320)_
-- 4 servers with a queue each, each 80% busy: p99 230 ms, p50 35 ms, 80% of requests wait. _(D-RM, D-M, 320)_
-- 4 servers with a queue each, one down, 100% of capacity: no steady state; arrivals exactly match the capacity left. _(D-RM, D-M)_
-- 4 servers with a queue each, one down, each 80% busy: p99 230 ms, p50 35 ms, 80% of requests wait. _(D-RM, D-M, 320)_
-- 4 servers with a queue each, one down, each 93.3% busy: p99 691 ms, p50 104 ms, 93.3% of requests wait. _(D-RM, 320)_
-- 4 servers with one shared queue, each 30% busy, steady work: p99 13 ms, p50 10 ms, 3.5% of requests wait. _(D-RM, D-M, 320)_
-- 4 servers with one shared queue, each 40% busy, steady work: p99 15 ms, p50 10 ms, 8.5% of requests wait. _(D-RM)_
-- 4 servers with one shared queue, each 80% busy: p99 69 ms, p50 13 ms, 59.6% of requests wait. _(D-RM, D-M)_
-- 4 servers with one shared queue, one down, each 80% busy: p99 85 ms, p50 16 ms, 64.7% of requests wait. _(D-RM, D-M, 320)_
-- 4 servers with one shared queue, one down, each 86.7% busy: p99 121 ms, p50 22 ms, 75.9% of requests wait. _(D-RM, D-M, 320)_
-- Drag the load, or change the servers, the queue and the conditions; Play runs the sample. _(D-RM, D-M, 320)_
-- In this sample, 1176 requests arrived in the first 4 s. The most were waiting at 1.3 s: 70 across the 3 lines; 28 were waiting at the end. _(D-RM, 320)_
-- In this sample, 118 requests arrived in the last 400 ms. The most were waiting at 20 ms: 64 across the 3 lines; 57 were waiting at the end. _(D-RM, 320)_
-- In this sample, 124 requests arrived in the last 400 ms. At 398 ms, S1 sat idle while 16 waited in S3's line; 17 were waiting at the end. _(D-RM, 320)_
-- In this sample, 124 requests arrived in the last 400 ms. The line grew to 9 waiting at 378 ms; 5 were waiting at the end. _(D-RM, D-M, 320)_
-- In this sample, 23 requests arrived in the last 400 ms. The line grew to 4 waiting at 73 ms; 2 were waiting at the end. _(D-RM, 320)_
-- In this sample, 24 requests arrived in the last 400 ms. The line grew to 3 waiting at 152 ms; nobody was waiting at the end. _(D-RM, 320)_
+- 3 servers with one shared queue, one down, 105% of capacity: no steady state; the queue grows by 10 requests a second. _(D-RM, D-M, 320, 390-M)_
+- 3 servers with one shared queue, one down, 120% of capacity: no steady state; the queue grows by 40 requests a second. _(D-RM, D-M, 320, 390-M)_
+- 3 servers with one shared queue, one down, each 90% busy: p99 233 ms, p50 38 ms, 85.3% of requests wait. _(D-RM, D-M, 320, 390-M)_
+- 4 servers with a queue each, each 80% busy: p99 230 ms, p50 35 ms, 80% of requests wait. _(D-RM, D-M, 320, 390-M)_
+- 4 servers with a queue each, one down, 100% of capacity: no steady state; arrivals exactly match the capacity left. _(D-M, 320, 390-M)_
+- 4 servers with a queue each, one down, each 80% busy: p99 230 ms, p50 35 ms, 80% of requests wait. _(D-RM, D-M, 320, 390-M)_
+- 4 servers with a queue each, one down, each 93.3% busy: p99 691 ms, p50 104 ms, 93.3% of requests wait. _(D-RM)_
+- 4 servers with one shared queue, each 30% busy, steady work: p99 13 ms, p50 10 ms, 3.5% of requests wait. _(D-RM, D-M, 320, 390-M)_
+- 4 servers with one shared queue, each 40% busy, steady work: p99 15 ms, p50 10 ms, 8.5% of requests wait. _(320)_
+- 4 servers with one shared queue, each 60% busy: p99 50 ms, p50 8.71 ms, 28.7% of requests wait. _(D-RM, D-M, 320, 390-M)_
+- 4 servers with one shared queue, each 80% busy: p99 69 ms, p50 13 ms, 59.6% of requests wait. _(D-RM, D-M, 320, 390-M)_
+- 4 servers with one shared queue, one down, each 80% busy: p99 85 ms, p50 16 ms, 64.7% of requests wait. _(D-RM, D-M, 390-M)_
+- 4 servers with one shared queue, one down, each 86.7% busy: p99 121 ms, p50 22 ms, 75.9% of requests wait. _(320, 390-M)_
+- Drag the load, or change the servers, the queue and the conditions; Play runs the sample. _(D-RM, D-M, 320, 390-M)_
+- In this sample, 1176 requests arrived in the first 4 s. 28 were waiting at the end: with no slack, the queue wanders with no trend. _(D-RM, 320)_
+- In this sample, 118 requests arrived in the last 400 ms. The most were waiting at 20 ms: 64 across the 3 lines; 57 were waiting at the end. _(D-RM, 320, 390-M)_
+- In this sample, 124 requests arrived in the last 400 ms. At 398 ms, S1 sat idle while 16 waited in S3's line; 17 were waiting at the end. _(D-RM, D-M, 320, 390-M)_
+- In this sample, 124 requests arrived in the last 400 ms. The line grew to 9 waiting at 378 ms; 5 were waiting at the end. _(D-RM, D-M, 320, 390-M)_
+- In this sample, 23 requests arrived in the last 400 ms. The line grew to 4 waiting at 73 ms; 2 were waiting at the end. _(D-RM, D-M, 320)_
+- In this sample, 24 requests arrived in the last 400 ms. The line grew to 3 waiting at 152 ms; nobody was waiting at the end. _(D-RM, D-M, 320)_
 - In this sample, 31 requests arrived in the last 400 ms. The line grew to 10 waiting at 301 ms; 3 were waiting at the end. _(D-RM, 320)_
-- In this sample, 396 requests arrived in the first 4 s. The line grew to 53 waiting at 3.6 s; 44 were waiting at the end. _(D-RM, 320)_
+- In this sample, 38 requests arrived in the last 400 ms. The line grew to 11 waiting at 326 ms; 6 were waiting at the end. _(D-RM, 320)_
+- In this sample, 396 requests arrived in the first 4 s. 44 were waiting at the end: with no slack, the queue wanders with no trend. _(D-RM, 320)_
 - In this sample, 41 requests arrived in the last 400 ms. The line grew to 11 waiting at 323 ms; 8 were waiting at the end. _(D-RM, 320)_
 - In this sample, 41 requests arrived in the last 400 ms. The line grew to 9 waiting at 323 ms; 8 were waiting at the end. _(D-RM, 320)_
 - In this sample, 45 requests arrived in the last 400 ms. The line grew to 147 waiting at 144 ms; 141 were waiting at the end. _(D-RM, 320)_
 - In this sample, 54 requests arrived in the last 400 ms. The line grew to 2 waiting at 156 ms; nobody was waiting at the end. _(D-RM, 320)_
 - In this sample, 6 requests arrived in the last 400 ms. The line grew to 1 waiting at 303 ms; nobody was waiting at the end. _(D-RM, 320)_
-- In this sample, 674 requests arrived in the first 4 s. The line grew to 275 waiting at 4 s; 275 were waiting at the end. _(D-RM, 320)_
-- In this sample, 79 requests arrived in the last 400 ms. The line grew to 11 waiting at 367 ms; 8 were waiting at the end. _(D-RM, 320)_
-- In this sample, 812 requests arrived in the first 4 s. The line grew to 63 waiting at 1.8 s; 37 were waiting at the end. _(D-RM, 320)_
-- One server, 10% busy: p99 51 ms, p50 7.7 ms, 10% of requests wait. _(D-RM, D-M, 320)_
-- One server, 30% busy: p99 66 ms, p50 9.9 ms, 30% of requests wait. _(D-RM, D-M, 320)_
-- One server, 40% busy: p99 77 ms, p50 12 ms, 40% of requests wait. _(320)_
-- One server, 60% busy, steady work: p99 55 ms, p50 14 ms, 60% of requests wait. _(D-M)_
-- One server, 60% busy: p99 115 ms, p50 17 ms, 60% of requests wait. _(D-RM, D-M)_
-- One server, 65% busy: p99 132 ms, p50 20 ms, 65% of requests wait. _(320)_
-- One server, 90% busy, steady work: p99 229 ms, p50 40 ms, 90% of requests wait. _(D-RM, D-M, 320)_
-- One server, 90% busy: p99 461 ms, p50 69 ms, 90% of requests wait. _(D-RM, D-M, 320)_
-- One server, 98% busy: p99 2.3 s, p50 347 ms, 98% of requests wait. _(D-RM, D-M, 320)_
-- Play and the settings this question is about wait for your answer. _(D-RM, D-M, 320)_
+- In this sample, 674 requests arrived in the first 4 s. 275 were waiting at the end; the model's trend, 70 more a second, reaches 280 by then. _(D-RM, 320)_
+- In this sample, 79 requests arrived in the last 400 ms. The line grew to 11 waiting at 367 ms; 8 were waiting at the end. _(D-RM, D-M, 320)_
+- In this sample, 812 requests arrived in the first 4 s. 37 were waiting at the end; the model's trend, 10 more a second, reaches 40 by then. _(D-RM, 320)_
+- One server, 10% busy: p99 51 ms, p50 7.7 ms, 10% of requests wait. _(D-RM, D-M, 320, 390-M)_
+- One server, 30% busy: p99 66 ms, p50 9.9 ms, 30% of requests wait. _(D-RM, D-M, 320, 390-M)_
+- One server, 50% busy: p99 92 ms, p50 14 ms, 50% of requests wait. _(D-RM, D-M, 320, 390-M)_
+- One server, 60% busy, steady work: p99 55 ms, p50 14 ms, 60% of requests wait. _(D-M, 390-M)_
+- One server, 60% busy: p99 115 ms, p50 17 ms, 60% of requests wait. _(D-RM, 320)_
+- One server, 90% busy, steady work: p99 229 ms, p50 40 ms, 90% of requests wait. _(D-RM, D-M, 320, 390-M)_
+- One server, 90% busy: p99 461 ms, p50 69 ms, 90% of requests wait. _(D-RM, D-M, 320, 390-M)_
+- One server, 95% busy: p99 921 ms, p50 139 ms, 95% of requests wait. _(D-M, 390-M)_
+- One server, 98% busy: p99 2.3 s, p50 347 ms, 98% of requests wait. _(D-RM, D-M, 320, 390-M)_
+- Play and the settings wait for your answer. _(D-RM, D-M, 320, 390-M)_
 
 ## Controls (13)
 
-- 1 _(D-RM, D-M, 320)_
-- 2 _(D-RM, D-M, 320)_
-- 3 _(D-RM, D-M, 320)_
-- 4 _(D-RM, D-M, 320)_
-- A queue each _(D-RM, D-M, 320)_
-- A server down its traffic moves _(D-RM, D-M, 320)_
-- A server down needs two or more _(D-RM, D-M, 320)_
-- Conditions _(D-RM, D-M, 320)_
-- One queue _(D-RM, D-M, 320)_
-- Queue _(D-RM, D-M, 320)_
-- Queue · one server has one queue _(D-RM, D-M, 320)_
-- Servers _(D-RM, D-M, 320)_
-- Steady work 10 ms each _(D-RM, D-M, 320)_
+- 1 _(D-RM, D-M, 320, 390-M)_
+- 2 _(D-RM, D-M, 320, 390-M)_
+- 3 _(D-RM, D-M, 320, 390-M)_
+- 4 _(D-RM, D-M, 320, 390-M)_
+- A queue each _(D-RM, D-M, 320, 390-M)_
+- A server down its traffic moves _(D-RM, D-M, 320, 390-M)_
+- A server down needs two or more _(D-RM, D-M, 320, 390-M)_
+- Conditions _(D-RM, D-M, 320, 390-M)_
+- One queue _(D-RM, D-M, 320, 390-M)_
+- Queue _(D-RM, D-M, 320, 390-M)_
+- Queue · one server has one queue _(D-RM, D-M, 320, 390-M)_
+- Servers _(D-RM, D-M, 320, 390-M)_
+- Steady work 10 ms each _(D-RM, D-M, 320, 390-M)_
 
-## Describe (4)
+## Describe (448)
 
-- Describe _(D-RM, D-M, 320)_
-- Describe waits for the reveal. _(D-M)_
-- Describe waits for your answer. _(D-RM, D-M, 320)_
-- Describe waits until you meet the goal. _(D-RM, D-M, 320)_
+- ∞ _(320, 390-M)_
+- ∞: no steady state; every wait grows without bound. _(320, 390-M)_
+- 0.1% _(D-RM, D-M, 320, 390-M)_
+- 0.9% _(D-RM, D-M, 320, 390-M)_
+- 1.8% _(D-RM, D-M, 320, 390-M)_
+- 1% _(D-RM, D-M, 320, 390-M)_
+- 10 _(320, 390-M)_
+- 10 ms _(D-RM, D-M)_
+- 10.1 ms _(D-RM, D-M)_
+- 10.2 ms _(D-RM, D-M)_
+- 10.3 ms _(D-RM, D-M)_
+- 10.4 ms _(D-RM, D-M)_
+- 10.5 ms _(D-RM, D-M)_
+- 10.6 ms _(D-RM, D-M)_
+- 10.9 ms _(D-RM, D-M)_
+- 10% _(D-RM, D-M, 320, 390-M)_
+- 100 _(320, 390-M)_
+- 100 ms _(D-RM, D-M)_
+- 100% _(320, 390-M)_
+- 100% (full) _(D-RM, D-M)_
+- 103 _(320, 390-M)_
+- 103 ms _(D-RM, D-M)_
+- 104 _(320, 390-M)_
+- 104 ms _(D-RM, D-M)_
+- 105 _(320, 390-M)_
+- 105 ms _(D-RM, D-M)_
+- 105% _(320, 390-M)_
+- 105% (over) _(D-RM, D-M)_
+- 106.7% (over) _(D-RM, D-M)_
+- 107% _(320, 390-M)_
+- 11 _(320, 390-M)_
+- 11 ms _(D-RM, D-M)_
+- 11.1 ms _(D-RM, D-M)_
+- 11.3 ms _(D-RM, D-M)_
+- 11.4 ms _(D-RM, D-M)_
+- 11.5 ms _(D-RM, D-M)_
+- 11.6 ms _(D-RM, D-M)_
+- 11.8 ms _(D-RM, D-M)_
+- 11.9 ms _(D-RM, D-M)_
+- 112.5% (over) _(D-RM, D-M)_
+- 113.3% (over) _(D-RM, D-M)_
+- 113% _(320, 390-M)_
+- 114 _(320, 390-M)_
+- 114 ms _(D-RM, D-M)_
+- 115 _(320, 390-M)_
+- 115 ms _(D-RM, D-M)_
+- 1150 _(320, 390-M)_
+- 1150 ms _(D-RM, D-M)_
+- 1154 _(320, 390-M)_
+- 1154 ms _(D-RM, D-M)_
+- 119 _(320, 390-M)_
+- 119 ms _(D-RM, D-M)_
+- 12 _(320, 390-M)_
+- 12.1 ms _(D-RM, D-M)_
+- 12.5 ms _(D-RM, D-M)_
+- 12.7 ms _(D-RM, D-M)_
+- 12.8 ms _(D-RM, D-M)_
+- 120% _(320, 390-M)_
+- 120% (over) _(D-RM, D-M)_
+- 121 _(320, 390-M)_
+- 121 ms _(D-RM, D-M)_
+- 122 _(320, 390-M)_
+- 122 ms _(D-RM, D-M)_
+- 126.7% (over) _(D-RM, D-M)_
+- 127.5% (over) _(D-RM, D-M)_
+- 127% _(320, 390-M)_
+- 129 _(320, 390-M)_
+- 129 ms _(D-RM, D-M)_
+- 13 _(320, 390-M)_
+- 13.3 ms _(D-RM, D-M)_
+- 13.3% _(D-RM, D-M, 320, 390-M)_
+- 13.5 ms _(D-RM, D-M)_
+- 13.6 ms _(D-RM, D-M)_
+- 13.7 ms _(D-RM, D-M)_
+- 13.8% _(D-RM, D-M, 320, 390-M)_
+- 13.9 ms _(D-RM, D-M)_
+- 13% _(320, 390-M)_
+- 130.7% (over) _(D-RM, D-M)_
+- 130% _(320, 390-M)_
+- 130% (over) _(D-RM, D-M)_
+- 131% _(320, 390-M)_
+- 132 _(320, 390-M)_
+- 132 ms _(D-RM, D-M)_
+- 135% _(320, 390-M)_
+- 135% (over) _(D-RM, D-M)_
+- 138 _(320, 390-M)_
+- 138 ms _(D-RM, D-M)_
+- 139 _(320, 390-M)_
+- 139 ms _(D-RM, D-M)_
+- 14 _(320, 390-M)_
+- 14.3 ms _(D-RM, D-M)_
+- 14.5 ms _(D-RM, D-M)_
+- 14.9 ms _(D-RM, D-M)_
+- 140% _(320, 390-M)_
+- 140% (over) _(D-RM, D-M)_
+- 141 _(320, 390-M)_
+- 141 ms _(D-RM, D-M)_
+- 142.5% (over) _(D-RM, D-M)_
+- 142% _(320, 390-M)_
+- 147% _(320, 390-M)_
+- 147% (over) _(D-RM, D-M)_
+- 15 _(320, 390-M)_
+- 15 ms _(D-RM, D-M)_
+- 15.1 ms _(D-RM, D-M)_
+- 15.3 ms _(D-RM, D-M)_
+- 15.5 ms _(D-RM, D-M)_
+- 15.6 ms _(D-RM, D-M)_
+- 15.9 ms _(D-RM, D-M)_
+- 15% _(D-RM, D-M, 320, 390-M)_
+- 150 _(320, 390-M)_
+- 150 ms _(D-RM, D-M)_
+- 150% _(320, 390-M)_
+- 150% (over) _(D-RM, D-M)_
+- 152 _(320, 390-M)_
+- 152 ms _(D-RM, D-M)_
+- 154 _(320, 390-M)_
+- 154 ms _(D-RM, D-M)_
+- 157 _(320, 390-M)_
+- 157 ms _(D-RM, D-M)_
+- 16 _(320, 390-M)_
+- 16.2 ms _(D-RM, D-M)_
+- 16.3% _(D-RM, D-M, 320, 390-M)_
+- 16.6 ms _(D-RM, D-M)_
+- 16.7 ms _(D-RM, D-M)_
+- 16.9 ms _(D-RM, D-M)_
+- 160% _(320, 390-M)_
+- 160% (over) _(D-RM, D-M)_
+- 17 _(320, 390-M)_
+- 17.1 ms _(D-RM, D-M)_
+- 17.3 ms _(D-RM, D-M)_
+- 17.4% _(D-RM, D-M, 320, 390-M)_
+- 17.5 ms _(D-RM, D-M)_
+- 170% _(320, 390-M)_
+- 170% (over) _(D-RM, D-M)_
+- 176 _(320, 390-M)_
+- 176 ms _(D-RM, D-M)_
+- 179 _(320, 390-M)_
+- 179 ms _(D-RM, D-M)_
+- 18 _(320, 390-M)_
+- 180% _(320, 390-M)_
+- 180% (over) _(D-RM, D-M)_
+- 184 _(320, 390-M)_
+- 184 ms _(D-RM, D-M)_
+- 19 _(320, 390-M)_
+- 19.2 ms _(D-RM, D-M)_
+- 19.3 ms _(D-RM, D-M)_
+- 19.5 ms _(D-RM, D-M)_
+- 19.6 ms _(D-RM, D-M)_
+- 19.8 ms _(D-RM, D-M)_
+- 190% _(320, 390-M)_
+- 190% (over) _(D-RM, D-M)_
+- 196% _(320, 390-M)_
+- 196% (over) _(D-RM, D-M)_
+- 2 servers with a queue each, one of them down, 85% busy with all up, every request taking exactly 10 ms. There is no steady state: 170/s arrive and the server left serves 100/s, so the queue grows by 70 requests a second. This sample: 674 requests arrived in the first 4 s. 275 were waiting at the end; the model's trend, 70 more a second, reaches 280 by then. _(D-RM, D-M, 320, 390-M)_
+- 2 servers with one shared queue, 20% busy with all up, requests taking 10 ms on average. The model gives p50 7.32 ms, p99 47 ms and a mean of 10 ms, of which 0.42 ms is waiting. This sample: 24 requests arrived in the last 400 ms. The line grew to 3 waiting at 152 ms; nobody was waiting at the end. _(D-RM, D-M, 320, 390-M)_
+- 2 servers with one shared queue, one of them down, 40% busy with all up, requests taking 10 ms on average. The model gives p50 35 ms, p99 230 ms and a mean of 50 ms, of which 40 ms is waiting. This sample: 38 requests arrived in the last 400 ms. The line grew to 11 waiting at 326 ms; 6 were waiting at the end. _(D-RM, D-M, 320, 390-M)_
+- 2 servers with one shared queue, one of them down, 50% busy with all up, requests taking 10 ms on average. There is no steady state: 100/s arrive, exactly what the server left can serve, so the queue wanders without a bound and the waits keep growing. This sample: 396 requests arrived in the first 4 s. 44 were waiting at the end: with no slack, the queue wanders with no trend. _(D-RM, D-M, 320, 390-M)_
+- 20 _(320, 390-M)_
+- 20 ms _(D-RM, D-M)_
+- 20.4 ms _(D-RM, D-M)_
+- 20.8 ms _(D-RM, D-M)_
+- 20% _(D-RM, D-M, 320, 390-M)_
+- 200 _(320, 390-M)_
+- 200 ms _(D-RM, D-M)_
+- 203 _(320, 390-M)_
+- 203 ms _(D-RM, D-M)_
+- 21 _(320, 390-M)_
+- 21.4 ms _(D-RM, D-M)_
+- 21.5 ms _(D-RM, D-M)_
+- 21.7 ms _(D-RM, D-M)_
+- 22 _(320, 390-M)_
+- 22.1 ms _(D-RM, D-M)_
+- 22.5 ms _(D-RM, D-M)_
+- 22.8 ms _(D-RM, D-M)_
+- 22.9 ms _(D-RM, D-M)_
+- 22.9% _(D-RM, D-M, 320, 390-M)_
+- 229 _(320, 390-M)_
+- 229 ms _(D-RM, D-M)_
+- 23 _(320, 390-M)_
+- 23.1 ms _(D-RM, D-M)_
+- 230 _(320, 390-M)_
+- 230 ms _(D-RM, D-M)_
+- 2303 _(320, 390-M)_
+- 2303 ms _(D-RM, D-M)_
+- 233 _(320, 390-M)_
+- 233 ms _(D-RM, D-M)_
+- 236 _(320, 390-M)_
+- 236 ms _(D-RM, D-M)_
+- 24 _(320, 390-M)_
+- 24.3 ms _(D-RM, D-M)_
+- 24.8 ms _(D-RM, D-M)_
+- 24.9 ms _(D-RM, D-M)_
+- 25 _(320, 390-M)_
+- 25 ms _(D-RM, D-M)_
+- 253 _(320, 390-M)_
+- 253 ms _(D-RM, D-M)_
+- 255 _(320, 390-M)_
+- 255 ms _(D-RM, D-M)_
+- 26 _(320, 390-M)_
+- 26.2 ms _(D-RM, D-M)_
+- 26.7% _(D-RM, D-M, 320, 390-M)_
+- 27.1% _(D-RM, D-M, 320, 390-M)_
+- 27.7 ms _(D-RM, D-M)_
+- 27.8 ms _(D-RM, D-M)_
+- 27.9% _(D-RM, D-M, 320, 390-M)_
+- 27% _(320, 390-M)_
+- 28 _(320, 390-M)_
+- 28.5 ms _(D-RM, D-M)_
+- 28.6 ms _(D-RM, D-M)_
+- 28.7% _(D-RM, D-M, 320, 390-M)_
+- 28.8 ms _(D-RM, D-M)_
+- 28.9 ms _(D-RM, D-M)_
+- 29 _(320, 390-M)_
+- 29.7 ms _(D-RM, D-M)_
+- 294 _(320, 390-M)_
+- 294 ms _(D-RM, D-M)_
+- 3 servers with a queue each, 95% busy with all up, every request taking exactly 10 ms. The model gives p50 75 ms, p99 459 ms and a mean of 105 ms, of which 95 ms is waiting. This sample: 118 requests arrived in the last 400 ms. The most were waiting at 20 ms: 64 across the 3 lines; 57 were waiting at the end. _(D-RM, D-M, 320, 390-M)_
+- 3 servers with one shared queue, one of them down, 60% busy with all up, requests taking 10 ms on average. The model gives p50 38 ms, p99 233 ms and a mean of 53 ms, of which 43 ms is waiting. This sample: 79 requests arrived in the last 400 ms. The line grew to 11 waiting at 367 ms; 8 were waiting at the end. _(D-RM, D-M, 320, 390-M)_
+- 3 servers with one shared queue, one of them down, 70% busy with all up, requests taking 10 ms on average. There is no steady state: 210/s arrive and the servers left serve 200/s, so the queue grows by 10 requests a second. This sample: 812 requests arrived in the first 4 s. 37 were waiting at the end; the model's trend, 10 more a second, reaches 40 by then. _(D-RM, D-M, 320, 390-M)_
+- 3 servers with one shared queue, one of them down, 80% busy with all up, requests taking 10 ms on average. There is no steady state: 240/s arrive and the servers left serve 200/s, so the queue grows by 40 requests a second. This sample: 928 requests arrived in the first 4 s. 144 were waiting at the end; the model's trend, 40 more a second, reaches 160 by then. _(D-RM, D-M, 320, 390-M)_
+- 3.5% _(D-RM, D-M, 320, 390-M)_
+- 3.7% _(D-RM, D-M, 320, 390-M)_
+- 3.9% _(D-RM, D-M, 320, 390-M)_
+- 30 _(320, 390-M)_
+- 30 ms _(D-RM, D-M)_
+- 30% _(D-RM, D-M, 320, 390-M)_
+- 307 _(320, 390-M)_
+- 307 ms _(D-RM, D-M)_
+- 32 _(320, 390-M)_
+- 32.4 ms _(D-RM, D-M)_
+- 33 _(320, 390-M)_
+- 33.3 ms _(D-RM, D-M)_
+- 33.3% _(D-RM, D-M, 320, 390-M)_
+- 33.7% _(D-RM, D-M, 320, 390-M)_
+- 34.5 ms _(D-RM, D-M)_
+- 34.7 ms _(D-RM, D-M)_
+- 345 _(320, 390-M)_
+- 345 ms _(D-RM, D-M)_
+- 347 _(320, 390-M)_
+- 347 ms _(D-RM, D-M)_
+- 35 _(320, 390-M)_
+- 35.2 ms _(D-RM, D-M)_
+- 35.4% _(D-RM, D-M, 320, 390-M)_
+- 36 _(320, 390-M)_
+- 36 ms _(D-RM, D-M)_
+- 37.7 ms _(D-RM, D-M)_
+- 38 _(320, 390-M)_
+- 38.3 ms _(D-RM, D-M)_
+- 39.9 ms _(D-RM, D-M)_
+- 4 servers with a queue each, 80% busy with all up, requests taking 10 ms on average. The model gives p50 35 ms, p99 230 ms and a mean of 50 ms, of which 40 ms is waiting. This sample: 124 requests arrived in the last 400 ms. At 398 ms, S1 sat idle while 16 waited in S3's line; 17 were waiting at the end. _(D-RM, D-M, 320, 390-M)_
+- 4 servers with a queue each, one of them down, 75% busy with all up, requests taking 10 ms on average. There is no steady state: 300/s arrive, exactly what the servers left can serve, so the queue wanders without a bound and the waits keep growing. This sample: 1176 requests arrived in the first 4 s. 28 were waiting at the end: with no slack, the queue wanders with no trend. _(D-RM, D-M, 320, 390-M)_
+- 4 servers with one shared queue, 30% busy with all up, every request taking exactly 10 ms. The model gives p50 10 ms, p99 13 ms and a mean of 10 ms, of which 0.08 ms is waiting. This sample: 54 requests arrived in the last 400 ms. The line grew to 2 waiting at 156 ms; nobody was waiting at the end. _(D-RM, D-M, 320, 390-M)_
+- 4 servers with one shared queue, 80% busy with all up, requests taking 10 ms on average. The model gives p50 13 ms, p99 69 ms and a mean of 17 ms, of which 7.46 ms is waiting. This sample: 124 requests arrived in the last 400 ms. The line grew to 9 waiting at 378 ms; 5 were waiting at the end. _(D-RM, D-M, 320, 390-M)_
+- 40 _(320, 390-M)_
+- 40 ms _(D-RM, D-M)_
+- 40.1 ms _(D-RM, D-M)_
+- 40% _(D-RM, D-M, 320, 390-M)_
+- 41% _(D-RM, D-M, 320, 390-M)_
+- 42.9% _(D-RM, D-M, 320, 390-M)_
+- 43 _(320, 390-M)_
+- 43.4 ms _(D-RM, D-M)_
+- 44 _(320, 390-M)_
+- 44.2 ms _(D-RM, D-M)_
+- 45% _(D-RM, D-M, 320, 390-M)_
+- 459 _(320, 390-M)_
+- 459 ms _(D-RM, D-M)_
+- 46 _(320, 390-M)_
+- 46.1 ms _(D-RM, D-M)_
+- 46.2 ms _(D-RM, D-M)_
+- 46.3 ms _(D-RM, D-M)_
+- 46.6 ms _(D-RM, D-M)_
+- 46.7 ms _(D-RM, D-M)_
+- 461 _(320, 390-M)_
+- 461 ms _(D-RM, D-M)_
+- 463 _(320, 390-M)_
+- 463 ms _(D-RM, D-M)_
+- 47 _(320, 390-M)_
+- 47 ms _(D-RM, D-M)_
+- 47.6 ms _(D-RM, D-M)_
+- 48 _(320, 390-M)_
+- 48.6 ms _(D-RM, D-M)_
+- 49 _(320, 390-M)_
+- 49.8 ms _(D-RM, D-M)_
+- 49% _(D-RM, D-M, 320, 390-M)_
+- 50 _(320, 390-M)_
+- 50 ms _(D-RM, D-M)_
+- 50.8 ms _(D-RM, D-M)_
+- 50.9% _(D-RM, D-M, 320, 390-M)_
+- 50% _(D-RM, D-M, 320, 390-M)_
+- 500 _(320, 390-M)_
+- 500 ms _(D-RM, D-M)_
+- 51 _(320, 390-M)_
+- 51.2 ms _(D-RM, D-M)_
+- 51.2% _(D-RM, D-M, 320, 390-M)_
+- 51.6 ms _(D-RM, D-M)_
+- 51.8 ms _(D-RM, D-M)_
+- 52 _(320, 390-M)_
+- 52 ms _(D-RM, D-M)_
+- 52.6 ms _(D-RM, D-M)_
+- 53 _(320, 390-M)_
+- 53.1 ms _(D-RM, D-M)_
+- 53.3% _(D-RM, D-M, 320, 390-M)_
+- 53.8 ms _(D-RM, D-M)_
+- 53% _(320, 390-M)_
+- 54 _(320, 390-M)_
+- 54.6 ms _(D-RM, D-M)_
+- 54.9 ms _(D-RM, D-M)_
+- 55 _(320, 390-M)_
+- 55 ms _(D-RM, D-M)_
+- 55.3 ms _(D-RM, D-M)_
+- 56.7 ms _(D-RM, D-M)_
+- 57 _(320, 390-M)_
+- 57.6 ms _(D-RM, D-M)_
+- 57.6% _(D-RM, D-M, 320, 390-M)_
+- 57.8% _(D-RM, D-M, 320, 390-M)_
+- 58 _(320, 390-M)_
+- 580 _(320, 390-M)_
+- 580 ms _(D-RM, D-M)_
+- 59.6% _(D-RM, D-M, 320, 390-M)_
+- 6.7% _(D-RM, D-M, 320, 390-M)_
+- 6.9 ms _(D-RM, D-M)_
+- 60 _(320, 390-M)_
+- 60.1 ms _(D-RM, D-M)_
+- 60% _(D-RM, D-M, 320, 390-M)_
+- 62.8 ms _(D-RM, D-M)_
+- 63 _(320, 390-M)_
+- 63.4 ms _(D-RM, D-M)_
+- 63.7 ms _(D-RM, D-M)_
+- 64 _(320, 390-M)_
+- 64.3% _(D-RM, D-M, 320, 390-M)_
+- 65.7 ms _(D-RM, D-M)_
+- 65.8 ms _(D-RM, D-M)_
+- 65% _(D-RM, D-M, 320, 390-M)_
+- 66 _(320, 390-M)_
+- 66.7 ms _(D-RM, D-M)_
+- 66.7% _(D-RM, D-M, 320, 390-M)_
+- 67 _(320, 390-M)_
+- 67.3% _(D-RM, D-M, 320, 390-M)_
+- 67% _(320, 390-M)_
+- 68.9 ms _(D-RM, D-M)_
+- 68.9% _(D-RM, D-M, 320, 390-M)_
+- 69 _(320, 390-M)_
+- 69.3 ms _(D-RM, D-M)_
+- 69.9 ms _(D-RM, D-M)_
+- 691 _(320, 390-M)_
+- 691 ms _(D-RM, D-M)_
+- 7 _(320, 390-M)_
+- 7 ms _(D-RM, D-M)_
+- 7.1 ms _(D-RM, D-M)_
+- 7.3 ms _(D-RM, D-M)_
+- 7.7 ms _(D-RM, D-M)_
+- 7.8 ms _(D-RM, D-M)_
+- 70 _(320, 390-M)_
+- 70% _(D-RM, D-M, 320, 390-M)_
+- 71.1% _(D-RM, D-M, 320, 390-M)_
+- 72 _(320, 390-M)_
+- 72.1 ms _(D-RM, D-M)_
+- 72.7 ms _(D-RM, D-M)_
+- 73 _(320, 390-M)_
+- 74.8 ms _(D-RM, D-M)_
+- 74.9 ms _(D-RM, D-M)_
+- 75 _(320, 390-M)_
+- 75 ms _(D-RM, D-M)_
+- 75% _(D-RM, D-M, 320, 390-M)_
+- 76.8 ms _(D-RM, D-M)_
+- 77 _(320, 390-M)_
+- 77.5% _(D-RM, D-M, 320, 390-M)_
+- 78.1% _(D-RM, D-M, 320, 390-M)_
+- 78.8% _(D-RM, D-M, 320, 390-M)_
+- 8 _(320, 390-M)_
+- 8 ms _(D-RM, D-M)_
+- 8.5% _(D-RM, D-M, 320, 390-M)_
+- 8.6 ms _(D-RM, D-M)_
+- 8.7 ms _(D-RM, D-M)_
+- 80% _(D-RM, D-M, 320, 390-M)_
+- 82.7 ms _(D-RM, D-M)_
+- 83 _(320, 390-M)_
+- 85.3% _(D-RM, D-M, 320, 390-M)_
+- 85.6 ms _(D-RM, D-M)_
+- 85% _(D-RM, D-M, 320, 390-M)_
+- 86 _(320, 390-M)_
+- 86.7% _(D-RM, D-M, 320, 390-M)_
+- 87% _(320, 390-M)_
+- 88.4% _(D-RM, D-M, 320, 390-M)_
+- 89.1% _(D-RM, D-M, 320, 390-M)_
+- 9 _(320, 390-M)_
+- 9.1 ms _(D-RM, D-M)_
+- 9.1% _(D-RM, D-M, 320, 390-M)_
+- 9.4 ms _(D-RM, D-M)_
+- 9.5 ms _(D-RM, D-M)_
+- 9.7 ms _(D-RM, D-M)_
+- 9.9 ms _(D-RM, D-M)_
+- 90 _(320, 390-M)_
+- 90.4 ms _(D-RM, D-M)_
+- 90% _(D-RM, D-M, 320, 390-M)_
+- 91 _(320, 390-M)_
+- 91.4 ms _(D-RM, D-M)_
+- 92 _(320, 390-M)_
+- 92.1 ms _(D-RM, D-M)_
+- 92.6% _(D-RM, D-M, 320, 390-M)_
+- 921 _(320, 390-M)_
+- 921 ms _(D-RM, D-M)_
+- 924 _(320, 390-M)_
+- 924 ms _(D-RM, D-M)_
+- 93.3% _(D-RM, D-M, 320, 390-M)_
+- 93% _(320, 390-M)_
+- 95.3% _(D-RM, D-M, 320, 390-M)_
+- 95.6% _(D-RM, D-M, 320, 390-M)_
+- 95% _(D-RM, D-M, 320, 390-M)_
+- 96.3% _(D-RM, D-M, 320, 390-M)_
+- 97 _(320, 390-M)_
+- 97.1 ms _(D-RM, D-M)_
+- 97.5% _(D-RM, D-M)_
+- 97% _(D-RM, D-M, 320, 390-M)_
+- 98.7 ms _(D-RM, D-M)_
+- 98% _(D-RM, D-M, 320, 390-M)_
+- 99 _(320, 390-M)_
+- all _(D-RM, D-M, 320, 390-M)_
+- Busy _(D-RM, D-M, 320, 390-M)_
+- Describe _(D-RM, D-M, 320, 390-M)_
+- Describe waits for the reveal. _(D-M, 390-M)_
+- Describe waits for your answer. _(D-RM, D-M, 320, 390-M)_
+- Describe waits until you meet the goal. _(D-RM, D-M, 320, 390-M)_
+- Each _(320, 390-M)_
+- Each busy _(D-RM, D-M)_
+- grows _(D-RM, D-M)_
+- grows: no steady state; every wait grows without bound. _(D-RM, D-M)_
+- Hide the description _(D-RM, D-M, 320, 390-M)_
+- Load _(D-RM, D-M, 320, 390-M)_
+- Load on each _(D-RM, D-M)_
+- Load on S1 _(D-RM, D-M)_
+- Mean _(D-RM, D-M)_
+- Mean, ms _(320, 390-M)_
+- On each _(320, 390-M)_
+- On S1 _(320, 390-M)_
+- One server, 10% busy, requests taking 10 ms on average. The model gives p50 7.7 ms, p99 51 ms and a mean of 11 ms, of which 1.11 ms is waiting. This sample: 6 requests arrived in the last 400 ms. The line grew to 1 waiting at 303 ms; nobody was waiting at the end. _(D-RM, D-M, 320, 390-M)_
+- One server, 30% busy, requests taking 10 ms on average. The model gives p50 9.9 ms, p99 66 ms and a mean of 14 ms, of which 4.29 ms is waiting. This sample: 23 requests arrived in the last 400 ms. The line grew to 4 waiting at 73 ms; 2 were waiting at the end. _(D-RM, D-M, 320, 390-M)_
+- One server, 50% busy, requests taking 10 ms on average. The model gives p50 14 ms, p99 92 ms and a mean of 20 ms, of which 10 ms is waiting. This sample: 26 requests arrived in the last 400 ms. The line grew to 8 waiting at 262 ms; 3 were waiting at the end. _(D-RM, D-M, 320, 390-M)_
+- One server, 70% busy, requests taking 10 ms on average. The model gives p50 23 ms, p99 154 ms and a mean of 33 ms, of which 23 ms is waiting. This sample: 31 requests arrived in the last 400 ms. The line grew to 10 waiting at 301 ms; 3 were waiting at the end. _(D-RM, D-M, 320, 390-M)_
+- One server, 90% busy, every request taking exactly 10 ms. The model gives p50 40 ms, p99 229 ms and a mean of 55 ms, of which 45 ms is waiting. This sample: 41 requests arrived in the last 400 ms. The line grew to 9 waiting at 323 ms; 8 were waiting at the end. _(D-RM, D-M, 320, 390-M)_
+- One server, 90% busy, requests taking 10 ms on average. The model gives p50 69 ms, p99 461 ms and a mean of 100 ms, of which 90 ms is waiting. This sample: 41 requests arrived in the last 400 ms. The line grew to 11 waiting at 323 ms; 8 were waiting at the end. _(D-RM, D-M, 320, 390-M)_
+- One server, 98% busy, requests taking 10 ms on average. The model gives p50 347 ms, p99 2.3 s and a mean of 500 ms, of which 490 ms is waiting. This sample: 45 requests arrived in the last 400 ms. The line grew to 147 waiting at 144 ms; 141 were waiting at the end. _(D-RM, D-M, 320, 390-M)_
+- p50 _(D-RM, D-M)_
+- p50, ms _(320, 390-M)_
+- p99 _(D-RM, D-M)_
+- p99, ms _(320, 390-M)_
+- Wait at all _(D-RM, D-M)_
+- Waits _(320, 390-M)_
 
-## Reduced-motion caption (16)
+## Reduced-motion caption (17)
 
-- In this sample, 1176 requests arrived in the first 4 s. The most were waiting at 1.3 s: 70 across the 3 lines; 28 were waiting at the end. _(D-RM, 320)_
+- In this sample, 1176 requests arrived in the first 4 s. 28 were waiting at the end: with no slack, the queue wanders with no trend. _(D-RM, 320)_
 - In this sample, 118 requests arrived in the last 400 ms. The most were waiting at 20 ms: 64 across the 3 lines; 57 were waiting at the end. _(D-RM, 320)_
 - In this sample, 124 requests arrived in the last 400 ms. At 398 ms, S1 sat idle while 16 waited in S3's line; 17 were waiting at the end. _(D-RM, 320)_
 - In this sample, 124 requests arrived in the last 400 ms. The line grew to 9 waiting at 378 ms; 5 were waiting at the end. _(D-RM, 320)_
 - In this sample, 23 requests arrived in the last 400 ms. The line grew to 4 waiting at 73 ms; 2 were waiting at the end. _(D-RM, 320)_
 - In this sample, 24 requests arrived in the last 400 ms. The line grew to 3 waiting at 152 ms; nobody was waiting at the end. _(D-RM, 320)_
 - In this sample, 31 requests arrived in the last 400 ms. The line grew to 10 waiting at 301 ms; 3 were waiting at the end. _(D-RM, 320)_
-- In this sample, 396 requests arrived in the first 4 s. The line grew to 53 waiting at 3.6 s; 44 were waiting at the end. _(D-RM, 320)_
+- In this sample, 38 requests arrived in the last 400 ms. The line grew to 11 waiting at 326 ms; 6 were waiting at the end. _(D-RM, 320)_
+- In this sample, 396 requests arrived in the first 4 s. 44 were waiting at the end: with no slack, the queue wanders with no trend. _(D-RM, 320)_
 - In this sample, 41 requests arrived in the last 400 ms. The line grew to 11 waiting at 323 ms; 8 were waiting at the end. _(D-RM, 320)_
 - In this sample, 41 requests arrived in the last 400 ms. The line grew to 9 waiting at 323 ms; 8 were waiting at the end. _(D-RM, 320)_
 - In this sample, 45 requests arrived in the last 400 ms. The line grew to 147 waiting at 144 ms; 141 were waiting at the end. _(D-RM, 320)_
 - In this sample, 54 requests arrived in the last 400 ms. The line grew to 2 waiting at 156 ms; nobody was waiting at the end. _(D-RM, 320)_
 - In this sample, 6 requests arrived in the last 400 ms. The line grew to 1 waiting at 303 ms; nobody was waiting at the end. _(D-RM, 320)_
-- In this sample, 674 requests arrived in the first 4 s. The line grew to 275 waiting at 4 s; 275 were waiting at the end. _(D-RM, 320)_
+- In this sample, 674 requests arrived in the first 4 s. 275 were waiting at the end; the model's trend, 70 more a second, reaches 280 by then. _(D-RM, 320)_
 - In this sample, 79 requests arrived in the last 400 ms. The line grew to 11 waiting at 367 ms; 8 were waiting at the end. _(D-RM, 320)_
-- In this sample, 812 requests arrived in the first 4 s. The line grew to 63 waiting at 1.8 s; 37 were waiting at the end. _(D-RM, 320)_
+- In this sample, 812 requests arrived in the first 4 s. 37 were waiting at the end; the model's trend, 10 more a second, reaches 40 by then. _(D-RM, 320)_
 
-## Experiment dock (44)
+## Experiment dock (52)
 
-- ·p99 with every server up: 115 ms, under 100 ms: not yet _(D-RM, D-M)_
-- ·p99 with every server up: 132 ms, under 100 ms: not yet _(320)_
-- ·p99 with one server down: 121 ms, under 100 ms: not yet _(D-RM, D-M, 320)_
-- ·p99 with one server down: 230 ms, under 100 ms: not yet _(D-RM, D-M, 320)_
-- ·p99 with one server down: grows without bound, needs under 100 ms: not yet _(D-RM, 320)_
-- ✓p99 with every server up: 55 ms, under 100 ms: met _(D-M)_
-- ✓p99 with one server down: 85 ms, under 100 ms: met _(D-RM, D-M, 320)_
-- ✓the fleet at 60% busy with all up, at least 60%: met _(D-RM, D-M, 320)_
-- ✓the fleet at 65% busy with all up, at least 60%: met _(D-RM, D-M, 320)_
-- 10 ms, as long as the work itself. A request that arrives at a random moment finds the server busy 50% of the time, exactly its utilization, so 50% of requests wait for the work ahead of them, 20 ms on average; over every request that is 10 ms, and a request takes 20 ms in all. Waiting needs no overload, only collisions. _(D-RM, D-M, 320)_
-- 10 ms: as long as the work itself _(D-RM, D-M, 320)_
+- ·p99 with every server up: 115 ms; the goal measures it with one server down: not yet _(D-M, 390-M)_
+- ·p99 with every server up: 50 ms; the goal measures it with one server down: not yet _(D-RM, D-M, 320, 390-M)_
+- ·p99 with every server up: 55 ms; the goal measures it with one server down: not yet _(D-RM, 320)_
+- ·p99 with one server down and steady work: grows without bound; the goal keeps random work: not yet _(D-RM, D-M, 390-M)_
+- ·p99 with one server down: 121 ms, under 100 ms: not yet _(320, 390-M)_
+- ·p99 with one server down: 230 ms, under 100 ms: not yet _(D-RM, D-M, 320, 390-M)_
+- ·p99 with one server down: grows without bound, needs under 100 ms: not yet _(D-RM, D-M, 320, 390-M)_
+- ·p99 with one server down: needs two or more servers: not yet _(D-RM, D-M, 320, 390-M)_
+- ✓p99 with one server down: 85 ms, under 100 ms: met _(D-RM, D-M, 390-M)_
+- ✓the fleet at 60% busy with all up, at least 60%: met _(D-RM, D-M, 320, 390-M)_
+- ✓the fleet at 65% busy with all up, at least 60%: met _(320, 390-M)_
+- 10 ms, as long as the work itself. A request that arrives at a random moment finds the server busy 50% of the time, exactly its utilization, so 50% of requests wait for the work ahead of them, 20 ms on average; averaged over every request, that is 10 ms, and a request takes 20 ms in all. Waiting needs no overload, only collisions. _(D-RM, D-M, 320, 390-M)_
+- 10 ms: as long as the work itself _(D-RM, D-M, 320, 390-M)_
 - 10 ms: as long as the work itselfyour guess _(D-M)_
-- 100 ms: 3× as long _(D-RM, D-M, 320)_
+- 100 ms: 3× as long _(D-RM, D-M, 320, 390-M)_
 - 100 ms: 3× as longyour guess _(D-M)_
-- 100 ms: the mean is S / (1 − utilization), and going from 70% to 90% busy cuts the idle share from 30% to 10%, so the time grows 3×. The work stays 10 ms; the waiting grows from 23 ms to 90 ms, and p99 from 154 ms to 461 ms. Each step of load costs more than the last, which is why a service that looked fine at 70% falls over at 90%. _(D-RM, D-M, 320)_
-- 127 ms: half as long again, like the load _(D-RM, D-M, 320)_
-- 2.5 ms: only the bursts wait _(D-RM, D-M, 320)_
-- 20 ms: half as long _(D-RM, D-M, 320)_
-- 3 servers share one queue at 80% busy, and p99 is 85 ms. One fails, and the others take its traffic. What is p99 now? _(D-RM, D-M, 320)_
-- 333 ms: 10× as long _(D-RM, D-M, 320)_
-- 4 servers sharing one queue at 60%: with one down, the 3 left are 80% busy and p99 is 85 ms. 3 servers at 60% would leave 2 at 90%, p99 233 ms; a queue each would need the load down to 40%. A bigger pool runs hotter and still rides out a failure: plan N+1 servers, each run at what the other N can absorb. _(D-RM, D-M, 320)_
-- 4 servers, each 80% busy, each with its own queue, and every request goes to one of them at random: a request waits 40 ms on average. Put all 4 behind one shared queue, at the same load. What is the average wait now? _(D-RM, D-M, 320)_
-- 40 ms: unchanged, each is as busy _(D-RM, D-M, 320)_
-- 43 ms: in step with the traffic _(D-RM, D-M, 320)_
-- 45 ms, exactly half. Arrivals still collide at random, so the queue stays, but the Pollaczek-Khinchine formula ties the wait to how much service times vary as well as to the load: the wait scales with (1 + CV²) / 2, where CV, the coefficient of variation, is the spread of service times over their mean. Random times have a CV of 1 and steady ones 0, so steady halves the wait; work that varies more than random (a few slow requests among many fast ones) waits longer still. p99 falls from 461 ms to 229 ms. Smaller, more even units of work cut the tail without adding a server. _(D-RM, D-M, 320)_
-- 45 ms: half as long _(D-RM, D-M, 320)_
+- 100 ms: the mean is S / (1 − utilization), where S is the 10 ms of work, and going from 70% to 90% busy cuts the idle share from 30% to 10%, so the time grows 3×. The work stays 10 ms; the waiting grows from 23 ms to 90 ms, and p99 from 154 ms to 461 ms. Each step of load costs more than the last (this bend is the knee of the curve), which is why a service that looked fine at 70% is 3× slower at 90%. _(D-RM, D-M, 320, 390-M)_
+- 127 ms: half as long again, like the load _(D-RM, D-M, 320, 390-M)_
+- 127 ms: half as long again, like the loadyour guess _(390-M)_
+- 2.5 ms: only the bursts wait _(D-RM, D-M, 320, 390-M)_
+- 20 ms: half as long _(D-RM, D-M, 320, 390-M)_
+- 20 ms: half as longyour guess _(390-M)_
+- 3 servers share one queue at 80% busy, and p99 is 85 ms. One fails, and the others take its traffic. What is p99 now? _(D-RM, D-M, 320, 390-M)_
+- 333 ms: 10× as long _(D-RM, D-M, 320, 390-M)_
+- 333 ms: 10× as longyour guess _(390-M)_
+- 4 servers sharing one queue at 60%: with one down, the 3 left are 80% busy and p99 is 85 ms. 3 servers at 60% would leave 2 at 90%, p99 233 ms; 4 servers with a queue each would need the load down to 40%. A bigger pool runs hotter and still rides out a failure: plan N+1 servers and run them at a load the N left can absorb. _(D-RM, D-M, 320, 390-M)_
+- 4 servers, each 80% busy, each with its own queue, and every request goes to one of them at random: a request waits 40 ms on average. Put all 4 behind one shared queue, at the same load. What is the average wait now? _(D-RM, D-M, 320, 390-M)_
+- 40 ms: unchanged, each is as busy _(D-RM, D-M, 320, 390-M)_
+- 43 ms: in step with the traffic _(D-RM, D-M, 320, 390-M)_
+- 45 ms, exactly half. The Pollaczek-Khinchine formula ties the wait to how much service times vary as well as to the load: the wait scales with (1 + CV²) / 2, where CV, the coefficient of variation, is the standard deviation of service times over their mean. Random (exponential) times have a CV of 1 and steady ones 0, so steady halves the wait; work that varies more than random (a few slow requests among many fast ones) waits longer still. p99 falls from 461 ms to 229 ms. More even work cuts the tail without adding a server. _(D-RM, D-M, 320, 390-M)_
+- 45 ms: half as long _(D-RM, D-M, 320, 390-M)_
 - 45 ms: half as longyour guess _(D-M)_
-- 7.46 ms, 5.4× shorter: with a queue each, a request can wait behind a long one while another server sits idle; here that happens 57.4% of the time. One shared queue hands each request to the first server that frees up, so it waits only when all 4 are busy, which 59.6% of arrivals find, against 80% with a queue each. p99 falls from 230 ms to 69 ms. This is why one line feeding a pool beats a line per checkout, and why least-loaded balancing beats random. _(D-RM, D-M, 320)_
-- 7.5 ms: about 5× shorter _(D-RM, D-M, 320)_
+- 7.46 ms, 5.4× shorter: with a queue each, a request can wait behind a long one while another server sits idle; here that happens 57.4% of the time. One shared queue hands each request to the first server that frees up, so it waits only when all 4 are busy, which 59.6% of arrivals find, against 80% with a queue each. p99 falls from 230 ms to 69 ms. This is why one line feeding a pool beats a line per checkout, and why least-loaded balancing beats random. _(D-RM, D-M, 320, 390-M)_
+- 7.5 ms: about 5× shorter _(D-RM, D-M, 320, 390-M)_
 - 7.5 ms: about 5× shorteryour guess _(D-M)_
-- 9 ms: a tenth, no request is slow any more _(D-RM, D-M, 320)_
-- 90 ms: unchanged, the load is the same _(D-RM, D-M, 320)_
-- A server has failed, and its traffic moved to the rest. Choose the servers, the queue and the load so that p99 stays under 100 ms on the servers left while the fleet runs at least 60% busy with every server up. _(D-RM, D-M, 320)_
-- about 1 s: deep in the knee _(D-RM, D-M, 320)_
-- Goal met: _(D-RM, D-M, 320)_
-- It never settles: 80% of 3 servers is 240/s, and the 2 left can serve only 200/s, so 40/s more arrive than leave, and the queue and its waits keep growing. Losing one of 3 multiplies the load on the rest by 1.5×: 80% becomes 120%, and anything above 66.7% is more than 2 can serve. From 60%, the 2 left would run at 90%, with p99 233 ms. Size so the fleet minus one still runs below the knee. _(D-RM, D-M, 320)_
-- It never settles: the queue grows without bound _(D-RM, D-M, 320)_
-- It never settles: the queue grows without boundyour guess _(D-M)_
-- None: it has time to spare _(D-RM, D-M, 320)_
-- One server at 70% busy: a request takes 33 ms on average, 10 ms of work and the rest waiting. Traffic grows by 28.6%, until the server is 90% busy. What is the average now? _(D-RM, D-M, 320)_
-- One server, 50% busy, so it sits idle 50% of the time. Requests arrive at random, 50/s on average, and each needs 10 ms of work on average. On average, how long does a request wait before the server starts on it? _(D-RM, D-M, 320)_
-- One server, 90% busy. Requests need 10 ms of work on average but vary at random, and wait 90 ms on average. Now every request takes exactly 10 ms. What is the average wait? _(D-RM, D-M, 320)_
-- Watch the picture: the answer plays out on it. _(D-M)_
-- You met it; now: _(D-RM, D-M, 320)_
+- 9 ms: a tenth, no request is slow any more _(D-RM, D-M, 320, 390-M)_
+- 9 ms: a tenth, no request is slow any moreyour guess _(390-M)_
+- 90 ms: unchanged, the load is the same _(D-RM, D-M, 320, 390-M)_
+- A server has failed, and its traffic moved to the rest. Choose the servers, the queue and the load so that p99 stays under 100 ms on the servers left while the fleet runs at least 60% busy with every server up. _(D-RM, D-M, 320, 390-M)_
+- Goal met: _(D-RM, D-M, 390-M)_
+- It never settles: 80% of 3 servers is 240/s, and the 2 left can serve only 200/s, so 40/s more arrive than leave, and the queue and its waits keep growing. Losing one of 3 multiplies the load on the rest by 1.5×: 80% becomes 120%, and from 66.7% up the 2 left cannot keep up. From 60%, the 2 left would run at 90%, with p99 233 ms. Size so the fleet minus one still runs below the knee. _(D-RM, D-M, 320, 390-M)_
+- It never settles: the queue keeps growing _(D-RM, D-M, 320, 390-M)_
+- It never settles: the queue keeps growingyour guess _(D-M)_
+- It settles after a burst, with p99 near 1 s _(D-RM, D-M, 320, 390-M)_
+- None: it has time to spare _(D-RM, D-M, 320, 390-M)_
+- None: it has time to spareyour guess _(390-M)_
+- One server at 70% busy: a request takes 33 ms on average, 10 ms of work and the rest waiting. Traffic grows by 28.6%, until the server is 90% busy. What is the average now? _(D-RM, D-M, 320, 390-M)_
+- One server, 50% busy, so it sits idle 50% of the time. Requests arrive at random, 50/s on average, and each needs a random amount of work, 10 ms on average. On average, how long does a request wait before the server starts on it? _(D-RM, D-M, 320, 390-M)_
+- One server, 90% busy. Requests need 10 ms of work on average but vary at random, and wait 90 ms on average. Now every request takes exactly 10 ms. What is the average wait? _(D-RM, D-M, 320, 390-M)_
+- The goal keeps a server down and random work. _(D-RM, D-M, 320, 390-M)_
+- Watch the picture: the answer plays out on it. _(D-M, 390-M)_
+- You met it; now: _(D-RM, D-M, 320, 390-M)_
