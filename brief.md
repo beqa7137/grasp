@@ -119,7 +119,7 @@ positions linear in load, the fill in the accent: handles are UI), "10%" and "98
 `aria-valuetext` is "70% busy, 70 requests a second".
 
 **The band** (the queue and the servers at one moment). Label row: "QUEUE · 8 WAITING AT 51 MS" left and "SERVER · 70%
-BUSY" right ("SERVERS · EACH 80% BUSY", "3 UP · EACH 80% BUSY", "2 UP · EACH 112% BUSY" with × in critical ink); on
+BUSY" right ("SERVERS · EACH 80% BUSY", "3 UP · EACH 80% BUSY", "2 UP · EACH 112% BUSY" or "1 UP · 120% BUSY" with × in critical ink); on
 narrow stages the servers' label takes its own row (reserved per width). Servers sit at the right, a column of boxes
 with a name (mono 13), a progress ring (the current tone grows around the ring as the request in service is worked on;
 its dot sits in the middle), "idle" where it fits, an exit stub. Fewer servers are drawn larger (one: 64 px boxes, ring
@@ -245,7 +245,8 @@ waitWhenWaiting, meanWaitAll, mean; enum.cjs checks "as long as the work itself"
 ring arc or head note; "REQUESTS ARRIVE AFTER YOUR ANSWER", "The sample plays after your answer") and `numbers` (asking
 and playing: headline "?", the bar dashed with "work and waiting after your answer", one fact "Who waits, and how many
 are in the system at once, show after your answer.", no curves, dots, leaders or 100 requests, "after your answer" in the
-marginal; the cursor line stays at 50%, the premise). Focus: the band, the timeline. "Server · 50% busy" stays: it is
+marginal; the cursor line stays at 50%, the premise). Focus: the bar (work and waiting are equal halves: the answer
+drawn) and the timeline (the bursts it comes from). "Server · 50% busy" stays: it is
 the premise, not the answer.
 
 **E2 "From 70% to 90% busy".** Setup 1 server, random, 70%; act `set: { load: 90 }`, `run: 'sample'`. Ask: "One server

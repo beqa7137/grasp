@@ -476,7 +476,7 @@
       truth: 'meanWaitAll',
       reveal:
         '{meanWaitAll}, as long as the work itself. A request that arrives at a random moment finds the server busy {chance} of the time, exactly its utilization, so {chance} of requests wait for the work ahead of them, {waitWhenWaiting} on average; over every request that is {meanWaitAll}, and a request takes {mean} in all. Waiting needs no overload, only collisions.',
-      focus: ['scene', 'timeline'],
+      focus: ['split', 'timeline'],
       hide: ['sample', 'numbers'],
       slots: () => {
         const m = run(SETUP.idle);

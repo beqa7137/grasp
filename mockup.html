@@ -1116,7 +1116,7 @@
         const s = m.settings;
         const rho = hid.modelWords ? '?' : `${Math.round(m.rho * 100)}`;
         if (s.servers === 1) return `Server · ${rho}% busy`;
-        if (s.down) return `${m.up} up · each ${rho}% busy`;
+        if (s.down) return m.up === 1 ? `1 up · ${rho}% busy` : `${m.up} up · each ${rho}% busy`;
         return `Servers · each ${rho}% busy`;
       }
       function queueLabel(m, hid, at, narrowQ, moment) {
@@ -1127,13 +1127,13 @@
       }
       // The longest form each label can take at any setting, so the band's label rows are one value per width.
       const LONGEST_QUEUE = ['Requests arrive after your answer', 'Queues · 999 waiting at 400 ms'];
-      const LONGEST_SERVERS = ['Servers · each ?% busy', '3 up · each 196% busy', 'Servers · each 98% busy'];
+      const LONGEST_SERVERS = ['Servers · each ?% busy', '3 up · each 131% busy', '1 up · 196% busy', 'Servers · each 98% busy'];
 
       function factLines(m, hid) {
         if (hid.numbers) return ['Who waits, and how many are in the system at once, show after your answer.'];
         if (!m.stable)
           return [
-            `${M.formatQps(m.ratePerS)} arrive, and the ${serverWord(m.up)} left can serve ${M.formatQps(m.capacityPerS)}.`,
+            `${M.formatQps(m.ratePerS)} arrive, and ${m.up === 1 ? 'the one server left can' : `the ${m.up} servers left can`} serve ${M.formatQps(m.capacityPerS)}.`,
             `So ${M.formatQps(m.growthPerS).replace('/s', '')} more arrive than leave each second, and every wait grows without bound.`,
           ];
         const waitPct = M.formatPct(m.waitChance * 100);
@@ -1787,7 +1787,7 @@
         const work = s.service === 'steady' ? `every request taking exactly ${fms(M.SERVICE_MS)}` : `requests taking ${fms(M.SERVICE_MS)} on average`;
         const parts = [`${who}, ${work}.`];
         if (hid.numbers) parts.push("The model's numbers show after your answer.");
-        else if (!m.stable) parts.push(`There is no steady state: ${M.formatQps(m.ratePerS)} arrive and the servers left serve ${M.formatQps(m.capacityPerS)}, so the queue grows by ${M.formatQps(m.growthPerS).replace('/s', '')} requests a second.`);
+        else if (!m.stable) parts.push(`There is no steady state: ${M.formatQps(m.ratePerS)} arrive and ${m.up === 1 ? 'the server left serves' : 'the servers left serve'} ${M.formatQps(m.capacityPerS)}, so the queue grows by ${M.formatQps(m.growthPerS).replace('/s', '')} requests a second.`);
         else parts.push(`The model gives p50 ${fdur(m.p50)}, p99 ${fdur(m.p99)} and a mean of ${fdur(m.mean)}, of which ${fdur(m.meanWait)} is waiting.`);
         if (hid.sample) parts.push('The sample of requests plays after your answer.');
         return parts.join(' ');
