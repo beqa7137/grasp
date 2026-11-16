@@ -1282,11 +1282,12 @@
       // stage's height depends on its width alone (prevention 12). The sweep checks every setting against these.
       const RESERVE_SET = (() => {
         const out = [];
-        for (const traffic of [1000, 7000, 20000])
+        for (const traffic of [1000, 7000, 14000, 20000])
           for (const lb of [1, 6])
             for (const app of [1, 4, 21])
               for (const size of M.SIZES)
-                for (const replicas of [0, 1, 6]) for (const cache of [0, 1]) for (const zone of [0, 1]) for (const slow of [0, 1]) out.push({ traffic, lb, app, size, replicas, cache, zone, slow });
+                for (let replicas = 0; replicas <= M.REP_MAX; replicas++)
+                  for (const cache of [0, 1]) for (const zone of [0, 1]) for (const slow of [0, 1]) out.push({ traffic, lb, app, size, replicas, cache, zone, slow });
         for (const e of M.EXPERIMENTS) out.push(e.setup, { ...e.setup, ...(e.act?.set ?? {}) });
         out.push({ ...M.EXPERIMENTS[5].setup, ...M.CHALLENGE_SOLUTION });
         return out;

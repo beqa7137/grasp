@@ -145,8 +145,9 @@ requests evenly. No word is ever in the stream's path, so a particle never cross
    one line or two by width; at the right a − and a + key (32 px keys in 44 px targets).
 3. **The status** in words: "**80% busy** · limit 10,000/s · 2,000/s spare"; "**Full** · limit 6,000/s · 2,000/s shed,
    the bottleneck" (critical ink on "Full"); "**100% busy** · limit 10,000/s · nothing spare"; "**Idle** · ... · nothing
-   reaches it"; "**None left:** zone A held every load balancer."; replicas say "each". Past the axis, "limit 40,000/s,
-   off the axis" (the break mark alone on phones).
+   reaches it"; "**None left:** zone A held every load balancer."; replicas say "each". A database lane names its limit's
+   unit in full, beside a machine sized in queries: "**15% busy** · limit 40,000 requests/s, off the axis · 34,000/s
+   spare" ("off the axis" only on wide stages; the break mark says it on phones).
 4. **Its cost** where it is not one request: the app servers' **worker pool** (ten blocks of ten cells, one server's 100
    workers, "WORKERS ON ONE SERVER", then "**50 of 100 busy**: 1,000/s × 50 ms in flight (Little's law).", or when the
    pool binds "**100 of 100 busy**: 200/s × 500 ms. The 1,000/s sent to each would need 500; its CPU sits 13.3% busy.");
@@ -178,15 +179,27 @@ stage's first rows (stage background), the stage, the open question, Describe, t
 (visually hidden, as `_widget-controls.scss` does), so its length never moves the stage.
 
 **Heights** depend only on the stage's width: every wrapped text reserves the most lines any setting needs at that width
-(measured over 880 extreme and experiment settings, then held by the sweep to every setting). Measured in the mockup:
+(measured over 2,701 extreme and experiment settings, then held by the sweep to every setting). Measured in the mockup:
 
-| Stage width (px) | 252   | 270   | 300   | 322   | 344   | 360   | 400   | 460 | 520 | 560 | 620 | 700 |
-| ---------------- | ----- | ----- | ----- | ----- | ----- | ----- | ----- | --- | --- | --- | --- | --- |
-| Stage height     | 1,150 | 1,115 | 1,081 | 1,047 | 1,029 | 1,012 | 963   | 893 | 883 | 870 | 838 | 838 |
+| Stage width (px) | 252   | 270   | 300   | 322   | 344   | 360   | 400 | 460 | 520 | 560 | 620 | 700 |
+| ---------------- | ----- | ----- | ----- | ----- | ----- | ----- | --- | --- | --- | --- | --- | --- |
+| Stage height     | 1,167 | 1,115 | 1,064 | 1,047 | 1,029 | 1,029 | 946 | 926 | 917 | 866 | 838 | 838 |
 
-(HEIGHTS: replaced by the final sweep's table in section 2 of `changes.md` if it moves.) `widget-heights.ts` gets the
-built widget's whole heights at rest per host width from a measuring spec at 320, 360, 375, 390, 412 and 430 px and every
-50 px from 300 to 1,300, failing on any drift over 3 px.
+Per pixel from 248 to 760 px it is a step function (`heightSteps()` in the mockup); a stage of at least the width in
+the first row is the height under it. The step at 520 px is the stage's side padding growing from 12 to 16 px.
+
+| From (px) | 248 | 258 | 262 | 265 | 282 | 288 | 293 | 303 | 328 | 366 | 367 | 387 | 393 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Height | 1,167 | 1,152 | 1,132 | 1,115 | 1,098 | 1,081 | 1,064 | 1,047 | 1,029 | 997 | 980 | 963 | 946 |
+
+| From (px) | 422 | 504 | 514 | 518 | 519 | 520 | 522 | 526 | 527 | 570 | 701 | 744 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Height | 926 | 909 | 892 | 875 | 858 | 917 | 900 | 883 | 866 | 838 | 823 | 806 |
+
+So 252 px (a 320 phone) is 1,167, 322 px (390) is 1,047, 344 px (412) is 1,029 and 620 px (1280) is 838; the built
+stage's steps will fall a few px off these (per-character advances against the mockup's canvas), and its layout spec
+pins its own. `widget-heights.ts` gets the built widget's whole heights at rest per host width from a measuring spec
+at 320, 360, 375, 390, 412 and 430 px and every 50 px from 300 to 1,300, failing on any drift over 3 px.
 
 **Motion** (3.5's grammar; WAAPI on transform and opacity; pooled particles, at most 60 live).
 
@@ -360,7 +373,7 @@ in Latency & Queueing.
    "nothing shed". A tier no load reaches says "Idle · ... · nothing reaches it", not "0% busy"; nothing past its limit is
    called busy ("Full"); a lost tier says "None left". The false-claim rules (NaN, undefined, Infinity, "0% busy", any
    busy over 100%, a number past 999 without its separator, "1 load balancers", "a 8,000") run over every stage of the
-   settings sweep (62,464 renders) and every page sentence of a third of all settings (summary, ramp story, Describe both
+   settings sweep (148,940 renders: a stride of every setting at 12 widths, at rest, mid-ramp and with a ghost) and every page sentence of a third of all settings (summary, ramp story, Describe both
    ways, goal checks); none. Every sentence is computed for its setting ("each" only for replicas, "is" for the primary,
    "a promoted replica" only when one was), and every lane's drawn end is its limit, every shed block ends where the
    stream above it does, the served bar is what is served, and Little's law multiplies out as printed (layout spec

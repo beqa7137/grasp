@@ -4,9 +4,10 @@ Part A lists what the mockup's own screenshot and collision rounds found (screen
 both themes; `shoot.cjs` and its sweeps). Part B is the critique of the first complete design against the bar (Stripe,
 Linear, Observable, NYT graphics, Bartosz Ciechanowski; Load Balancing, Data Modeling, Consistency & Quorums and Latency &
 Queueing as the house references), in two passes: craft, then teaching and honesty. Part C lists the items considered and
-kept as they are, with the reason. The round ends with zero collisions over 162 screenshots (27 states), zero findings
-over the settings sweep, 324 experiment renders and 360 no-answer renders with four planted leaks caught, no finding over
-every page sentence of a third of all 197,568 settings, one stage height per width, and `enum.cjs` passing 366 checks.
+kept as they are, with the reason. The round ends with zero collisions over 174 screenshots (29 states), zero findings
+over the settings sweep (148,940 renders across 12 widths), 324 experiment renders and 360 no-answer renders with four
+planted leaks caught, no finding over every page sentence of a third of all 197,568 settings, one stage height per
+width, and `enum.cjs` passing 366 checks.
 
 ## A. The mockup's own rounds
 
@@ -32,7 +33,8 @@ every page sentence of a third of all 197,568 settings, one stage height per wid
 | The climax ring sat on the shed block's ×                                                                                              | A block under 24 px leaves its × to the stream's edge above; the ring has a ground halo                                                                                                                 |
 | Reduced motion's caption sat above the stage at wide                                                                                   | It follows the stage in both layouts, and the first tier to fill is ringed                                                                                                                              |
 | Particles were capped per gap, so a stream of 20,000 drew as many as one of 9,000                                                      | One dot per 1,500 requests a second per 24 px of stream at every rate, at most 56 on the stage                                                                                                          |
-| The phone stage was 1,184 px                                                                                                           | Shorter statuses and costs, "off the axis" only on wide stages, a one-sentence simplifications line: 1,150 px at 320 and 1,047 px at 390                                                               |
+| The phone stage was 1,184 px                                                                                                           | Shorter statuses and costs, "off the axis" only on wide stages, a one-sentence simplifications line: 1,167 px at 320 (with B7's "requests/s") and 1,047 px at 390 |
+| The settings sweep found five replicas' status (a read share of 0.036) needing a third line at a 520 px stage, over the cost line under it | The reserved lines come from every replica count at four traffic levels (2,701 settings); the sweep holds every setting to them |
 
 ## B. Critique
 
