@@ -1056,6 +1056,12 @@
         const n = Math.max(2, Math.ceil(Math.hypot(x2 - x1, y2 - y1) / step));
         return Array.from({ length: n + 1 }, (_, i) => [x1 + ((x2 - x1) * i) / n, y1 + ((y2 - y1) * i) / n]);
       };
+      const cubic = (p0, p1, p2, p3, n = 24) =>
+        Array.from({ length: n + 1 }, (_, i) => {
+          const t = i / n;
+          const u = 1 - t;
+          return [u * u * u * p0[0] + 3 * u * u * t * p1[0] + 3 * u * t * t * p2[0] + t * t * t * p3[0], u * u * u * p0[1] + 3 * u * u * t * p1[1] + 3 * u * t * t * p2[1] + t * t * t * p3[1]];
+        });
       const samplePath = (pts, step = 3) => pts.slice(1).flatMap((p, i) => sampleLine(pts[i][0], pts[i][1], p[0], p[1], step));
       function xGlyph(D, cx, cy, owner, s = 4) {
         D.add('marks', `<circle class="xground" cx="${cx}" cy="${cy}" r="${s + 3}"/><path class="xmark" d="M${cx - s} ${cy - s}l${2 * s} ${2 * s}M${cx + s} ${cy - s}l${-2 * s} ${2 * s}"/>`);
@@ -1083,7 +1089,8 @@
           cursorDots: !numbers,
           cursorLine: !after,
           ahead: h.has('ahead') ? view.setupRho : null,
-          modelWords: numbers,
+          // The servers' utilization is a premise unless the act changes it (losing a server), then it is the answer.
+          modelWords: after && !!view.rhoChanged,
         };
       }
 
@@ -1266,6 +1273,7 @@
         const DR = c === 1 ? 8 : c === 2 ? 6 : 5;
         const PITCH = 2 * DR + 3;
         const split = s.queue === 'split' && up > 1;
+        const upIdx = Array.from({ length: up }, (_, i) => i);
         const xf = xs - 24;
         const queueDots = (list, xHead, yq, xTail, owner) => {
           const capN = Math.max(1, Math.floor((xHead - xTail) / PITCH) + 1);
@@ -1288,6 +1296,7 @@
             const sy = slotY(i) + bh / 2;
             const d = `M${xf} ${ymid}C${xf + 14} ${ymid} ${xs - 12} ${sy} ${xs} ${sy}`;
             D.add('links', `<path class="lane${i >= up ? ' down' : ''}" d="${d}"/>`);
+            D.link(cubic([xf, ymid], [xf + 14, ymid], [xs - 12, sy], [xs, sy]), 'lane');
           }
           queueDots(at.waiting, xf - 10, ymid, pad + 8, 'queue');
         } else {
@@ -1302,6 +1311,7 @@
             const sy = slotY(i) + bh / 2;
             const cls = `lane${i >= up ? ' down' : ''}`;
             D.add('links', `<path class="${cls}" d="M${xr + 8} ${ymid}C${xr + 26} ${ymid} ${xl0 - 18} ${sy} ${xl0} ${sy}L${xs} ${sy}"/>`);
+            D.link(cubic([xr + 8, ymid], [xr + 26, ymid], [xl0 - 18, sy], [xl0, sy]), 'lane');
             D.link(sampleLine(xl0, sy, xs, sy), 'lane');
             if (i < up)
               queueDots(
@@ -1314,6 +1324,26 @@
           }
           D.add('marks', `<path class="router" d="M${xr} ${ymid - 8}L${xr + 8} ${ymid}L${xr} ${ymid + 8}L${xr - 8} ${ymid}Z"/>`);
           D.mark({ x0: xr - 8, x1: xr + 8, y0: ymid - 8, y1: ymid + 8 }, 'router');
+        }
+        // At rest, the request first in line says how long it has waited: the sample's own number, at the moment drawn.
+        if (smp && !playing && at.waiting.length) {
+          const lanes = split ? upIdx.map((i) => at.waiting.filter((r) => r.server === i)) : [at.waiting];
+          const k = lanes.reduce((b, l, i) => (l.length > lanes[b].length ? i : b), 0);
+          const head = lanes[k][0];
+          const hx = split ? xs - 10 : xf - 10;
+          const hy = split ? slotY(k) + bh / 2 : ymid;
+          const waited = fdur(Math.max(0, tScene - head.arrive));
+          const forms = [`first in line: waiting ${waited} so far`, `waiting ${waited} so far`, `waiting ${waited}`];
+          forms.some((t, i) =>
+            D.place(
+              [
+                [hx + DR, hy - DR - 7, 'end'],
+                [hx + DR, hy + DR + 14, 'end'],
+              ],
+              [[t, 'small', 'wait-ink']],
+              { owner: 'queue', ground: true, minX: pad, maxX: xs - 4, optional: true },
+            ),
+          );
         }
         for (let i = 0; i < c; i++) {
           const sy = slotY(i);
@@ -1807,6 +1837,7 @@
           focus: phase === 'revealed' ? spec.focus : [],
           setupRho: setupM.rho,
           configChanged: changed,
+          rhoChanged: Math.abs(M.run(after).rho - setupM.rho) > 1e-9,
           ghost: phase !== 'asking' && changed ? spec.setup : null,
           ghostName: 'before',
           tau: phase === 'playing' ? Number(params.get('tau') ?? 180) : null,
@@ -1885,7 +1916,7 @@
       }
       // Describe: a row per load stop for this configuration, the current one marked; compact under a 560 px stage.
       function describeHtml(m, view, compact) {
-        const waits = view.phase === 'asking' || view.phase === 'playing' || view.phase === 'challenge';
+        const waits = view.phase === 'asking' || view.phase === 'playing' || (view.phase === 'challenge' && !view.met);
         const open = !!view.describe && !waits;
         const btn = `<button class="g-btn" aria-expanded="${open}"${waits ? ' disabled' : ''}>${open ? 'Hide the description' : 'Describe'}</button>`;
         if (waits) return `${btn}<p class="muted-note">Describe waits for your answer.</p>`;
@@ -2111,6 +2142,7 @@
           focus: phase === 'revealed' ? spec.focus : [],
           setupRho: M.run(spec.setup).rho,
           configChanged: changed,
+          rhoChanged: Math.abs(M.run(after).rho - M.run(spec.setup).rho) > 1e-9,
           ghost: phase !== 'asking' && changed ? spec.setup : null,
           ghostName: 'before',
           tau: phase === 'playing' ? tau : null,
@@ -2148,7 +2180,8 @@
         if (numbersHidden && svg.querySelector('.dot.req, .dot.p50, .dot.p99, .bar-work, .bar-wait, .leader, .mtick, .chevron')) out.push('a model mark while the numbers wait');
         if (hide.has('numbers') && svg.querySelector('.curve.p50, .curve.p99')) out.push('a curve while the numbers wait');
         if (numbersHidden) for (const t of svg.querySelectorAll('text[data-id^="stat-"]')) if (t.textContent !== '?') out.push(`${t.dataset.id} reads "${t.textContent}"`);
-        if (numbersHidden && /busy/.test(svg.textContent) && !/\?% busy/.test(svg.textContent) && /Server/.test(svg.textContent)) out.push('the servers label shows a utilization');
+        const rhoChanged = Math.abs(M.run(actSettings(spec)).rho - M.run(spec.setup).rho) > 1e-9;
+        if (hide.has('after') && phase === 'playing' && rhoChanged && !/\?% busy/.test(svg.textContent)) out.push('the servers label shows the new utilization');
         if (hide.has('after') && phase === 'playing' && svg.querySelector('.cursor')) out.push('the cursor at the new setting while the answer plays');
         if (hide.has('ahead')) {
           const limit = M.run(spec.setup).rho;
