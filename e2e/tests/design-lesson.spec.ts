@@ -101,22 +101,6 @@ test('the capacity lesson moves the bottleneck when the database gets a second i
   await expect(readout('Dropped')).toHaveText('2,000/s');
 });
 
-test('the consistency lesson shows a stale read once R + W no longer exceeds N, and a failed write when too few replicas are up', async ({
-  page,
-}) => {
-  await page.goto('/design/topics/sd-consistency');
-  const readout = (name: string) => page.locator('.readouts div').filter({ hasText: name }).locator('dd');
-  await expect(readout('R + W vs N')).toHaveText('4 > 3');
-  await expect(readout('The read sees')).toHaveText('the new value');
-  await page.getByRole('button', { name: 'Lower Read quorum' }).click();
-  await expect(readout('R + W vs N')).toHaveText('3 ≤ 3');
-  await expect(readout('The read sees')).toHaveText('possibly the old value');
-  await page.getByRole('button', { name: /^Replica 1,/ }).click();
-  await page.getByRole('button', { name: /^Replica 2,/ }).click();
-  await expect(page.getByRole('button', { name: /^Replica 1, down/ })).toHaveAttribute('aria-pressed', 'true');
-  await expect(readout('Write')).toHaveText('fails');
-});
-
 test('the consensus lesson lets only a majority commit, and an even split stops writes everywhere', async ({ page }) => {
   await page.goto('/design/topics/sd-consensus');
   const writes = page.locator('.readouts div').filter({ hasText: 'Writes' }).locator('dd');

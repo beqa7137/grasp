@@ -22,12 +22,33 @@ export type ExperimentPhase = 'asking' | 'playing' | 'revealed';
       <section class="dock" [attr.aria-label]="'Experiment: ' + e.title">
         @if (e.goal) {
           <p class="ask">{{ e.ask }}</p>
-          <p class="status" [class.met]="phase() === 'revealed'" role="status">
-            @if (phase() === 'revealed') {
-              <ion-icon name="checkmark-circle" aria-hidden="true" />
-            }
-            {{ goalStatus() }}
-          </p>
+          @if (goalChecks().length) {
+            <div role="status">
+              @if (goalStatus()) {
+                <p class="status" [class.met]="phase() === 'revealed'">
+                  @if (phase() === 'revealed') {
+                    <ion-icon name="checkmark-circle" aria-hidden="true" />
+                  }
+                  {{ goalStatus() }}
+                </p>
+              }
+              <ul class="checks">
+                @for (c of goalChecks(); track $index) {
+                  <li [class.met]="c.met">
+                    <span class="mark" aria-hidden="true">{{ c.met ? '✓' : '·' }}</span
+                    >{{ c.text }}
+                  </li>
+                }
+              </ul>
+            </div>
+          } @else {
+            <p class="status" [class.met]="phase() === 'revealed'" role="status">
+              @if (phase() === 'revealed') {
+                <ion-icon name="checkmark-circle" aria-hidden="true" />
+              }
+              {{ goalStatus() }}
+            </p>
+          }
           <div aria-live="polite">
             @if (phase() === 'revealed') {
               <p class="reveal"><g-code-text [text]="e.reveal" /></p>
@@ -94,9 +115,32 @@ export type ExperimentPhase = 'asking' | 'playing' | 'revealed';
       &.met {
         color: var(--g-success-ink);
         ion-icon {
+          flex: none;
           font-size: var(--g-text-title-l);
           animation: met var(--g-motion-sheet) var(--g-ease-enter);
         }
+      }
+    }
+    .checks {
+      list-style: none;
+      margin: var(--g-space-1) 0 0;
+      padding: 0;
+      display: grid;
+      gap: var(--g-space-1);
+      font: 600 var(--g-text-body-s) var(--ion-font-family);
+      font-variant-numeric: tabular-nums;
+      color: var(--g-muted);
+      li {
+        display: flex;
+        gap: var(--g-space-2);
+        align-items: baseline;
+        &.met {
+          color: var(--g-success-ink);
+        }
+      }
+      .mark {
+        flex: none;
+        width: 1em;
       }
     }
     @keyframes met {
@@ -182,6 +226,8 @@ export class ExperimentDockComponent {
   readonly phase = input<ExperimentPhase>('asking');
   readonly done = input<ReadonlySet<string>>(new Set());
   readonly goalStatus = input('');
+  /** A challenge's bounds as a checklist under its status line, each with whether it is met now. */
+  readonly goalChecks = input<readonly { text: string; met: boolean }[]>([]);
   readonly chosen = model<number | null>(null);
   readonly start = output<SdExperiment>();
 

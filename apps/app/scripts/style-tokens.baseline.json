@@ -148,10 +148,6 @@
     "font-size": 2,
     "spacing": 6
   },
-  "app/pages/design-lesson/quorum-widget.component.ts": {
-    "font-size": 3,
-    "spacing": 8
-  },
   "app/pages/design-lesson/recovery-widget.component.ts": {
     "font-size": 2,
     "spacing": 1

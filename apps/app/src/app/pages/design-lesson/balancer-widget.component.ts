@@ -19,6 +19,8 @@ import {
   LB_SERVER_SNAPS,
   LB_SERVICE_MS,
   LB_SLOWDOWNS,
+  boundLimit,
+  boundMet,
   formatDuration,
   formatPct,
   formatQps,
@@ -307,10 +309,10 @@ export class BalancerWidgetComponent {
     const now = `p99 ${formatDuration(run.p99Ms)}`;
     const met = this.exp.metWith();
     if (this.exp.phase() === 'revealed' && met)
-      return this.exp.kept() && run.p99Ms < bound.below
-        ? `Goal met: ${now}, under ${formatDuration(bound.below)}.`
+      return this.exp.kept() && boundMet(bound, run.p99Ms)
+        ? `Goal met: ${now}, under ${formatDuration(boundLimit(bound))}.`
         : `You met it at p99 ${formatDuration(met.metrics['p99Ms'])}; now ${now}.`;
-    if (this.exp.kept()) return `Now ${now}; the goal is under ${formatDuration(bound.below)}.`;
+    if (this.exp.kept()) return `Now ${now}; the goal is under ${formatDuration(boundLimit(bound))}.`;
     const keep = Object.entries(goal.keep ?? {}).map(([k, v]) => KEEP_WORDS[k]?.(v) ?? `${k} ${v}`);
     return `Now ${now}, but the goal keeps ${keep.slice(0, -1).join(', ')}${keep.length > 1 ? ' and ' : ''}${keep.at(-1)}.`;
   });
