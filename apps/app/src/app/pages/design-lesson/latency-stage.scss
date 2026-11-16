@@ -1,0 +1,359 @@
+@use '../../../type' as *;
+
+// The Latency & Queueing stage's drawing roles; `latency-draw.ts` measures text by these sizes, so a size changed here
+// changes its checks. Stage text keeps proportional digits, as measured.
+text {
+  paint-order: stroke;
+  stroke: var(--g-viz-stage);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  &.on-box {
+    stroke: var(--g-raised);
+  }
+  &.on-chip {
+    stroke: none;
+  }
+}
+.t-label {
+  @include label;
+  fill: var(--g-muted);
+}
+.t-unit {
+  text-transform: none;
+}
+.t-cap {
+  font: 500 var(--g-text-body-s) var(--ion-font-family);
+  fill: var(--g-muted);
+}
+.t-capB {
+  font: 600 var(--g-text-body-s) var(--ion-font-family);
+  fill: var(--g-text);
+}
+.t-small {
+  font: 500 var(--g-text-label) var(--ion-font-family);
+  fill: var(--g-muted);
+}
+.t-smallB {
+  font: 700 var(--g-text-label) var(--ion-font-family);
+  fill: var(--g-text);
+}
+.t-mono {
+  font: 600 var(--g-text-label) var(--g-font-mono);
+  fill: var(--g-text);
+}
+.t-nameS {
+  font: 600 var(--g-text-body-s) var(--g-font-mono);
+  fill: var(--g-text);
+}
+.t-head {
+  font: 600 var(--g-text-title-m) var(--g-font-mono);
+  fill: var(--g-text);
+}
+.ink {
+  fill: var(--g-text);
+}
+.muted {
+  fill: var(--g-muted);
+}
+.bad {
+  fill: var(--g-danger-ink);
+}
+.wait-ink {
+  fill: var(--g-warn-ink);
+}
+.cur-ink {
+  fill: var(--g-viz-current);
+}
+.crit-ink {
+  fill: var(--g-viz-critical);
+}
+.rule {
+  stroke: var(--g-line);
+}
+.rail {
+  stroke: var(--g-viz-track);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+.fill {
+  stroke: var(--g-accent);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+.stop {
+  fill: var(--g-line-strong);
+}
+// Lanes, the fork and the router carry the routing a question asks about: --g-stroke passes 3:1 in both themes.
+.lane {
+  fill: none;
+  stroke: var(--g-stroke);
+  stroke-width: 1.25;
+  &.down {
+    stroke-dasharray: 3 3;
+  }
+  &.hidden {
+    stroke-dasharray: 3 3;
+    stroke-opacity: 0.55;
+  }
+}
+.router {
+  fill: var(--g-raised);
+  stroke: var(--g-stroke);
+  stroke-width: 1.25;
+}
+.srv {
+  fill: var(--g-raised);
+  stroke: var(--g-line-strong);
+  &.down {
+    fill: url(#latency-hatch);
+    stroke-dasharray: 4 3;
+  }
+  &.over {
+    stroke: var(--g-viz-critical);
+    stroke-width: 1.5;
+  }
+}
+.ring-track {
+  fill: none;
+  stroke: var(--g-viz-track);
+  stroke-width: 2.5;
+  &.hidden {
+    stroke: var(--g-stroke);
+    stroke-opacity: 0.55;
+    stroke-width: 1.25;
+    stroke-dasharray: 2 3;
+  }
+}
+.ring-arc {
+  fill: none;
+  stroke: var(--g-viz-current);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+.dot {
+  &.wait {
+    fill: var(--g-viz-considering);
+  }
+  &.serve {
+    fill: var(--g-viz-current);
+  }
+  &.p50 {
+    fill: var(--g-viz-current);
+    stroke: var(--g-viz-stage);
+    stroke-width: 1.5;
+  }
+  &.p99 {
+    fill: var(--g-viz-critical);
+    stroke: var(--g-viz-stage);
+    stroke-width: 1.5;
+  }
+  &.req {
+    fill: var(--g-stroke);
+  }
+  &.req.nowait {
+    fill: var(--g-viz-current);
+  }
+  &.slide {
+    transition: transform var(--slide, 0ms) ease-out;
+  }
+}
+.ring99 {
+  fill: none;
+  stroke: var(--g-viz-critical);
+  stroke-width: 1.75;
+}
+.key-dot {
+  &.wait {
+    fill: var(--g-viz-considering);
+  }
+  &.serve {
+    fill: var(--g-viz-current);
+  }
+}
+.chip {
+  fill: var(--g-raised);
+  stroke: var(--g-line-strong);
+  &.hidden-chip {
+    fill: var(--g-viz-stage);
+    stroke: var(--g-stroke);
+    stroke-dasharray: 3 2;
+  }
+}
+.tick-arr {
+  fill: var(--g-muted);
+  &.dense {
+    fill-opacity: 0.3;
+  }
+}
+.area-wait {
+  fill: var(--g-viz-considering-soft);
+}
+.area-edge {
+  fill: none;
+  stroke: var(--g-viz-considering);
+  stroke-width: 1.5;
+}
+.row-track {
+  fill: none;
+  stroke: var(--g-line);
+}
+.busy {
+  fill: var(--g-viz-current);
+}
+.busy-down {
+  fill: url(#latency-hatch);
+}
+.notch {
+  fill: var(--g-viz-stage);
+}
+.qgrid {
+  stroke: var(--g-line-strong);
+  stroke-dasharray: 2 3;
+}
+.drift {
+  stroke: var(--g-text);
+  stroke-opacity: 0.75;
+  stroke-width: 1.25;
+  stroke-dasharray: 5 3;
+}
+.axis {
+  stroke: var(--g-line-strong);
+}
+.gridline {
+  stroke: var(--g-line);
+}
+.playhead {
+  stroke: var(--g-text);
+  stroke-width: 1.5;
+}
+.moment {
+  stroke: var(--g-text);
+  stroke-opacity: 0.55;
+  stroke-dasharray: 2 2;
+}
+.peak {
+  fill: none;
+  stroke: var(--g-text);
+  stroke-width: 1.5;
+}
+.bar-work {
+  fill: var(--g-viz-current);
+}
+.bar-wait {
+  fill: var(--g-viz-considering);
+}
+.bar-hidden {
+  fill: none;
+  stroke: var(--g-stroke);
+  stroke-dasharray: 4 3;
+}
+.curve {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  &.p50 {
+    stroke: var(--g-viz-current);
+  }
+  &.p99 {
+    stroke: var(--g-viz-critical);
+    stroke-dasharray: 6 4;
+  }
+  &.ghost {
+    stroke: var(--g-stroke);
+    stroke-width: 1.5;
+    stroke-dasharray: 2 3;
+  }
+}
+.cursor {
+  stroke: var(--g-text);
+  stroke-opacity: 0.45;
+  stroke-dasharray: 3 3;
+}
+.cut,
+.leader {
+  fill: none;
+  stroke: var(--g-stroke);
+  stroke-dasharray: 2 3;
+}
+.ghost-dot {
+  fill: var(--g-viz-stage);
+  stroke: var(--g-stroke);
+  stroke-width: 1.5;
+}
+.ghost-arrow {
+  stroke: var(--g-stroke);
+  stroke-width: 1.25;
+  stroke-dasharray: 2 3;
+}
+.ghost-head {
+  fill: none;
+  stroke: var(--g-stroke);
+  stroke-width: 1.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.mtick {
+  stroke-width: 1.5;
+  &.p50 {
+    stroke: var(--g-viz-current);
+  }
+  &.p99 {
+    stroke: var(--g-viz-critical);
+  }
+  &.over50 {
+    stroke-dasharray: 3 3;
+  }
+}
+.legend-line {
+  stroke-width: 2;
+  stroke-linecap: round;
+  &.p50 {
+    stroke: var(--g-viz-current);
+  }
+  &.p99 {
+    stroke: var(--g-viz-critical);
+    stroke-dasharray: 4 3;
+  }
+}
+.xmark {
+  stroke: var(--g-viz-critical);
+  stroke-width: 2;
+  stroke-linecap: round;
+  fill: none;
+}
+.xground {
+  fill: var(--g-viz-stage);
+}
+.chevron {
+  fill: none;
+  stroke: var(--g-viz-critical);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+// A play's marks land as its clock reaches them; the climax rings the rest moment, and at the reveal the model's
+// values settle. Plays run only with motion, so without it nothing here animates.
+.land {
+  animation: latency-land var(--g-motion-land, 400ms) var(--g-ease-enter, ease-out) both;
+  transform-box: fill-box;
+}
+.peak.land {
+  animation: latency-climax 400ms var(--g-ease-enter, ease-out) both;
+  transform-origin: center;
+}
+@keyframes latency-land {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+@keyframes latency-climax {
+  from {
+    opacity: 0;
+    transform: scale(2.2);
+  }
+  60% {
+    opacity: 1;
+  }
+}

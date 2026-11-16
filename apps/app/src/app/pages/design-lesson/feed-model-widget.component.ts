@@ -28,6 +28,7 @@ import {
   type SdExperiment,
 } from '@grasp/engine';
 import { motionAllowed } from '../../core/motion';
+import { CodeTextComponent } from '../../viz/code-text.component';
 import { DataTableComponent } from '../../viz/kit/data-table.component';
 import { HandleComponent } from '../../viz/kit/handle.component';
 import { ParticlePool, watchMotion, watchVisibility } from '../../viz/kit/particles';
@@ -84,6 +85,7 @@ const KEEP_WORDS: Partial<Record<Setting, (v: number) => string>> = {
     StageComponent,
     HandleComponent,
     DataTableComponent,
+    CodeTextComponent,
     FeedTrackComponent,
     FeedTrafficComponent,
     FeedWriteComponent,
@@ -313,13 +315,7 @@ export class FeedModelWidgetComponent {
     if (this.locked() || value === this.schema()) return;
     this.settle();
     this.schema.set(value);
-    const c = this.cost();
-    const stale = this.staleSaid();
-    this.notice.set(
-      value === 1
-        ? `Denormalized: 1 query reads ${count(c.rowsReadPerPage)} rows; a rename writes ${count(c.rowsPerRename)} rows${stale}.`
-        : `Normalized, read with ${readWord(this.model())}: ${queries(c.queriesPerPage)}, ${formatMs(c.waitMs)} page wait; a rename writes 1 row.`,
-    );
+    this.notice.set(this.schemaNotice());
   }
 
   setRead(value: number) {
@@ -482,13 +478,20 @@ export class FeedModelWidgetComponent {
 
   start(e: SdExperiment) {
     this.player.stop(false);
-    this.notice.set('');
     this.describe.set(false);
     this.exp.start(e);
+    this.notice.set(e.goal ? this.schemaNotice() : '');
   }
 
   toggleDescribe() {
     this.describe.update((d) => !d);
+  }
+
+  private schemaNotice() {
+    const c = this.cost();
+    return this.schema() === 1
+      ? `Denormalized: 1 query reads ${count(c.rowsReadPerPage)} rows; a rename writes ${count(c.rowsPerRename)} rows${this.staleSaid()}.`
+      : `Normalized, read with ${readWord(this.model())}: ${queries(c.queriesPerPage)}, ${formatMs(c.waitMs)} page wait; a rename writes 1 row.`;
   }
 
   private trafficNotice() {

@@ -49,7 +49,7 @@ import { LazyWidgetComponent } from './lazy-widget.component';
 
 /** A system design topic taught hands-on: a widget to experiment with, the ideas to name, worked examples and a quick check. */
 /** Widgets that leave the reading column at container wide, to sit beside their controls and experiments. */
-const BREAKOUT = new Set(['balancer', 'feed-model', 'quorum']);
+const BREAKOUT = new Set(['balancer', 'feed-model', 'quorum', 'queue-latency']);
 
 @Component({
   selector: 'app-design-lesson',
@@ -124,7 +124,11 @@ const BREAKOUT = new Set(['balancer', 'feed-model', 'quorum']);
                 <h2><ion-icon name="hand-left-outline" aria-hidden="true" />Try it</h2>
                 @switch (l.widget.kind) {
                   @case ('queue-latency') {
-                    <app-lazy-widget [load]="loadLatencyWidget" [placeholder]="heights.latency" />
+                    <app-lazy-widget
+                      [load]="loadLatencyWidget"
+                      [inputs]="{ experiments: l.widget.experiments ?? [] }"
+                      [placeholder]="heights.latency"
+                    />
                   }
                   @case ('cache') {
                     <app-lazy-widget

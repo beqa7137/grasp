@@ -27,6 +27,19 @@ describe('CodeTextComponent', () => {
     expect([...el.querySelectorAll('span:not(.run)')].map((span) => span.textContent)).toEqual(['equal to ', ' Then ']);
   });
 
+  it('keeps each number on one line with its unit, and a percentile with its value', () => {
+    const el = render('p99 230 ms, p50 35 ms; about 1 s, or 1,500 ms in 2.5 s, from 64 MB. 3 servers and 80% busy, `x = 10 ms`.');
+    expect([...el.querySelectorAll('.keep')].map((k) => k.textContent)).toEqual([
+      'p99 230 ms',
+      'p50 35 ms',
+      '1 s',
+      '1,500 ms',
+      '2.5 s',
+      '64 MB',
+    ]);
+    expect(el.textContent).toBe('p99 230 ms, p50 35 ms; about 1 s, or 1,500 ms in 2.5 s, from 64 MB. 3 servers and 80% busy, x = 10 ms.');
+  });
+
   it('shows an unbalanced backtick literally', () => {
     const el = render('a `b` c`d');
     expect(el.querySelector('code')).toBeNull();

@@ -22,7 +22,7 @@
     </div>
     <p class="note" id="feed-read-note">{{ schema() === 1 ? 'Nothing to look up: the name is in each post.' : '' }}</p>
   </fieldset>
-  <p class="notice" aria-live="polite">{{ notice() }}</p>
+  <p class="notice" aria-live="polite" aria-atomic="true"><g-code-text [text]="notice()" /></p>
 </div>
 
 <div class="main">

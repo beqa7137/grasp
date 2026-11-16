@@ -19,7 +19,6 @@ import {
   pipeline,
   place,
   queueBacklog,
-  queueLatency,
   regionOutcome,
   replicaRead,
   ringOwner,
@@ -29,19 +28,6 @@ import {
   streamWindows,
   txnOutcome,
 } from './widgets.js';
-
-describe('queue latency', () => {
-  it('doubles at half load and grows tenfold at 90%, with p99 about 4.6 times the mean', () => {
-    expect(queueLatency(10, 0.5).mean).toBeCloseTo(20);
-    expect(queueLatency(10, 0.9).mean).toBeCloseTo(100);
-    expect(queueLatency(10, 0.9).p99 / queueLatency(10, 0.9).mean).toBeCloseTo(4.605, 3);
-    expect(queueLatency(10, 0.9).p50).toBeCloseTo(69.3, 1);
-  });
-
-  it('stays finite at full load', () => {
-    expect(Number.isFinite(queueLatency(10, 1).p99)).toBe(true);
-  });
-});
 
 describe('cache outcome', () => {
   it('sends only the misses to the origin and lets misses set p99 above 1%', () => {

@@ -213,7 +213,7 @@
     <button type="button" class="g-btn" [disabled]="!flushed()" (click)="replay()">Replay</button>
   </div>
 </div>
-<p class="notice" aria-live="polite">{{ notice() }}</p>
+<p class="notice" aria-live="polite" aria-atomic="true"><g-code-text [text]="notice()" /></p>
 
 @if (experiments().length) {
   <app-experiment-dock

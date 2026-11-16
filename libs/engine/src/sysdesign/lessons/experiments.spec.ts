@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CACHE_EXPERIMENTS } from './caching-experiments.js';
 import { FEED_CHALLENGE_GOAL, FEED_EXPERIMENTS } from './data-modeling-experiments.js';
 import { QUORUM_EXPERIMENTS } from './consistency-experiments.js';
+import { LATENCY_EXPERIMENTS } from './latency-experiments.js';
 import {
   boundLimit,
   boundMet,
@@ -145,10 +146,11 @@ describe('experiment formatting', () => {
 describe('the reveal spec', () => {
   const lessons = Object.entries(SD_LESSONS).filter(([, l]) => l.widget.experiments);
 
-  it('covers the Caching, Load Balancing, Replication, Data Modeling and Consistency lessons', () => {
+  it('covers the Caching, Load Balancing, Replication, Data Modeling, Consistency and Latency lessons', () => {
     expect(lessons.map(([id]) => id)).toEqual(
-      expect.arrayContaining(['sd-caching', 'sd-load-balancing', 'sd-replication', 'sd-data-modeling', 'sd-consistency']),
+      expect.arrayContaining(['sd-caching', 'sd-load-balancing', 'sd-replication', 'sd-data-modeling', 'sd-consistency', 'sd-latency']),
     );
+    expect(SD_LESSONS['sd-latency'].widget.experiments).toBe(LATENCY_EXPERIMENTS);
     expect(SD_LESSONS['sd-consistency'].widget.experiments).toBe(QUORUM_EXPERIMENTS);
     expect(SD_LESSONS['sd-data-modeling'].widget.experiments).toBe(FEED_EXPERIMENTS);
     expect(SD_LESSONS['sd-data-modeling'].widget.tryThis).toBeUndefined();
@@ -177,6 +179,15 @@ describe('the reveal spec', () => {
       expect(shown.choices.length, spec.id).toBeGreaterThanOrEqual(3);
       expect(new Set(shown.choices).size, spec.id).toBe(shown.choices.length);
       expect(shown.choices[shown.answer], spec.id).toContain(fillTemplate(`{${spec.truth}}`, spec.slots()));
+    }
+  });
+
+  it.each(lessons)('%s quotes no answer number in its why, which sits above the widget', (_id, lesson) => {
+    for (const spec of lesson.widget.experiments!) {
+      if (spec.goal) continue;
+      const shown = renderExperiment(spec);
+      for (const [, n] of shown.choices[shown.answer].matchAll(/(\d[\d.,]*(?: ?(?:ms|s|%|×))?)/g))
+        expect(lesson.why, `${spec.id}: "${n}"`).not.toMatch(new RegExp(`(^|[^\\d.])${n.replace(/[.×]/g, '\\$&')}(?![\\d])`));
     }
   });
 });

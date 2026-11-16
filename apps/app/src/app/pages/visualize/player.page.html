@@ -146,6 +146,7 @@
             [class.brief]="!!pending()"
             [class.more-open]="moreOpen()"
             [attr.aria-live]="pending() || quietNarration() ? 'off' : 'polite'"
+            aria-atomic="true"
             tabindex="-1"
             #narration
           >

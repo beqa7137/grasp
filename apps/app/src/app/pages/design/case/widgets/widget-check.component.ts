@@ -19,26 +19,26 @@ import { CodeTextComponent } from '../../../../viz/code-text.component';
     @let c = check();
     @if (chosen() === null) {
       <fieldset class="check">
-        <legend class="legend">{{ c.prompt }}</legend>
+        <legend class="legend"><g-code-text [text]="c.prompt" /></legend>
         @for (choice of c.choices; track $index) {
-          <button class="g-choice option" (click)="choose($index)">{{ choice }}</button>
+          <button class="g-choice option" (click)="choose($index)"><g-code-text [text]="choice" /></button>
         }
       </fieldset>
     } @else {
       <div class="check" role="group" [attr.aria-label]="c.prompt" tabindex="-1" #answered>
-        <p class="legend">{{ c.prompt }}</p>
+        <p class="legend"><g-code-text [text]="c.prompt" /></p>
         <ul class="options">
           @for (choice of c.choices; track $index) {
             @if (held()) {
               <li class="g-choice option" [class.guess]="$index === chosen()">
-                <span>{{ choice }}</span>
+                <span><g-code-text [text]="choice" /></span>
                 @if ($index === chosen()) {
                   <span class="you">your guess</span>
                 }
               </li>
             } @else {
               <li class="g-choice option" [class.right]="$index === c.answer" [class.wrong]="$index === chosen() && $index !== c.answer">
-                <span>{{ choice }}</span>
+                <span><g-code-text [text]="choice" /></span>
                 @if (answerMark($index, c.answer, chosen()); as mark) {
                   <ion-icon class="g-answer-mark" [name]="mark.icon" [attr.aria-label]="mark.label" role="img" />
                 }
@@ -46,7 +46,7 @@ import { CodeTextComponent } from '../../../../viz/code-text.component';
             }
           }
         </ul>
-        <div [attr.aria-live]="heldText() ? 'polite' : null">
+        <div [attr.aria-live]="heldText() ? 'polite' : null" aria-atomic="true">
           @if (held()) {
             <p class="explain muted">{{ heldText() }}</p>
           } @else {
@@ -104,6 +104,7 @@ import { CodeTextComponent } from '../../../../viz/code-text.component';
       margin: 0;
       line-height: 1.55;
       font-size: 0.90625rem;
+      text-wrap: pretty;
     }
   `,
 })

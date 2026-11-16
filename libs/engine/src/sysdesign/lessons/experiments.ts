@@ -20,8 +20,8 @@ export const word = (value: string): Slot => ({ value, unit: 'word' });
 /** A widget's settings by name, as the experiment applies them. */
 export type ExperimentSettings = Readonly<Record<string, number>>;
 
-/** A play a widget runs on the picture, such as loading a page, renaming an author, or a write then a read. */
-export type ExperimentRun = 'load' | 'rename' | 'write-read' | 'read';
+/** A play a widget runs on the picture, such as loading a page, renaming an author, a write then a read, or a sample of requests. */
+export type ExperimentRun = 'load' | 'rename' | 'write-read' | 'read' | 'sample';
 
 /** What answering plays: new settings (then, if named, a run), a run on its own, or the widget's flush. */
 export type ExperimentAct = { set: ExperimentSettings; run?: ExperimentRun } | { run: ExperimentRun } | { flush: true };
@@ -70,7 +70,7 @@ export interface SdExperiment {
 }
 
 /** Phrases with digits a template may contain: everything else numeric must be a slot. */
-export const TEMPLATE_DIGITS_ALLOWED = ['p99', '100 requests', 'the 99th of 100', 'N+1'] as const;
+export const TEMPLATE_DIGITS_ALLOWED = ['p99', '100 requests', 'the 99th of 100', 'N+1', 'S / (1 − utilization)', '(1 + CV²) / 2'] as const;
 
 const trim = (v: number, decimals: number) => String(Number(v.toFixed(decimals)));
 /** One formatter for every number: `toLocaleString` with a locale builds a new one on each call. */

@@ -189,6 +189,7 @@ describe('FeedModelWidgetComponent', () => {
   it('meets the challenge only by denormalizing, and keeps the settings it holds', async () => {
     const { card, text, radio, key } = await setup();
     await card(at('pick-schema'));
+    expect(text('.notice')).toEqual(['Normalized, read with N+1: 21 queries, 42 ms page wait; a rename writes 1 row.']);
     expect(text('.status')[0]).toBe('N+1 · 42 ms ✗ · fresh ✓ · 400,001 rows/s ✗');
     await radio('Join');
     expect(text('.status')[0]).toBe('The join · 2 ms ✓ · fresh ✓ · 400,001 rows/s ✗');

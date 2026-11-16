@@ -1,0 +1,167 @@
+<div class="controls">
+  <fieldset class="group servers-control" [disabled]="locked()">
+    <legend class="control-label">Servers</legend>
+    <div class="segments">
+      @for (k of serverCounts; track k) {
+        <label class="segment">
+          <input type="radio" name="latency-servers" [value]="k" [checked]="k === servers()" (change)="setServers(k)" />
+          <span>{{ k }}</span>
+        </label>
+      }
+    </div>
+  </fieldset>
+  <fieldset class="group queue-control" [disabled]="locked()">
+    <legend class="control-label">
+      Queue
+      @if (one()) {
+        <span class="why">· one server has one queue</span>
+      }
+    </legend>
+    <div class="segments">
+      <label class="segment">
+        <input type="radio" name="latency-queue" [checked]="model().settings.queue === 0" [disabled]="one()" (change)="setQueue(0)" />
+        <span>One queue</span>
+      </label>
+      <label class="segment">
+        <input type="radio" name="latency-queue" [checked]="model().settings.queue === 1" [disabled]="one()" (change)="setQueue(1)" />
+        <span>A queue each</span>
+      </label>
+    </div>
+  </fieldset>
+  <fieldset class="group" [disabled]="locked()">
+    <legend class="control-label">Conditions</legend>
+    <div class="toggles">
+      <label class="segment">
+        <input
+          type="checkbox"
+          aria-describedby="latency-steady-hint"
+          [checked]="service() === 1"
+          (change)="setService($any($event.target).checked)"
+        />
+        <span>
+          Steady work
+          <small id="latency-steady-hint" aria-hidden="true">{{ serviceMs }} each</small>
+        </span>
+      </label>
+      <label class="segment">
+        <input
+          type="checkbox"
+          aria-describedby="latency-down-hint"
+          [checked]="model().settings.down === 1"
+          [disabled]="one()"
+          (change)="setDown($any($event.target).checked)"
+        />
+        <span>
+          A server down
+          <small id="latency-down-hint" aria-hidden="true">{{ one() ? 'needs two or more' : 'its traffic moves' }}</small>
+        </span>
+      </label>
+    </div>
+  </fieldset>
+  <p class="notice" aria-live="polite" aria-atomic="true"><g-code-text [text]="notice()" /></p>
+</div>
+
+<div class="main">
+  <g-stage class="latency-stage" [height]="stage().H" label="Latency and queueing: requests arriving at random to busy servers">
+    @if (ready()) {
+      @let st = stage();
+      <svg
+        class="draw"
+        [attr.viewBox]="'0 0 ' + st.D.W + ' ' + st.H"
+        [attr.width]="st.D.W"
+        [attr.height]="st.H"
+        role="img"
+        [attr.aria-label]="st.summary"
+      >
+        <defs>
+          <pattern id="latency-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <rect class="hatch-fill" width="6" height="6" />
+            <line class="hatch-line" x1="0" y1="0" x2="0" y2="6" />
+          </pattern>
+          <clipPath id="latency-clip"><rect x="0" y="0" [attr.width]="clipWidth()" [attr.height]="st.H" /></clipPath>
+        </defs>
+        <g app-latency-prims [prims]="under()" />
+        <g app-latency-prims [prims]="clipped()" [attr.clip-path]="plan() ? 'url(#latency-clip)' : null" />
+        <g app-latency-prims [prims]="playMarks()" />
+        <g app-latency-prims [prims]="over()" />
+        <g app-latency-prims class="band" [prims]="bandPrims()" [style.--slide]="slide() + 'ms'" />
+        <g class="dots" #dots></g>
+        @for (f of st.focus; track f.id) {
+          <g app-focus [box]="f" [on]="exp.focusOn().includes(f.region)" />
+        }
+      </svg>
+
+      <button
+        type="button"
+        class="play"
+        [attr.aria-label]="playName()"
+        [style.left.px]="st.play.x"
+        [style.top.px]="st.play.y"
+        [disabled]="locked()"
+        (click)="togglePlay()"
+      >
+        <svg viewBox="0 0 36 36" aria-hidden="true">
+          <circle cx="18" cy="18" r="16" />
+          @if (playing() && !exp.locked()) {
+            <path d="M12.5 11h4v14h-4zM19.5 11h4v14h-4z" />
+          } @else {
+            <path d="M14 11v14l11-7z" />
+          }
+        </svg>
+      </button>
+      <g-handle
+        [class.glide]="exp.locked()"
+        label="Load, how busy the servers run"
+        [values]="loads"
+        [positions]="st.load.positions"
+        [cross]="st.load.y"
+        [valuetext]="loadText()"
+        [disabled]="locked()"
+        [value]="load()"
+        (valueChange)="setLoad($event)"
+      />
+    }
+  </g-stage>
+  @if (caption()) {
+    <p class="caption"><g-code-text [text]="caption()" /></p>
+  }
+
+  <div class="describe">
+    <button type="button" class="g-btn" [attr.aria-expanded]="describe()" [disabled]="describeWaits()" (click)="toggleDescribe()">
+      {{ describe() ? 'Hide the description' : 'Describe' }}
+    </button>
+    @if (describeWaits()) {
+      <span class="muted">{{ describeWaitsWhy() }}</span>
+    }
+    @if (describe() && !describeWaits()) {
+      @let d = describeTable();
+      <p class="said"><g-code-text [text]="describeSaid()" /></p>
+      <g-data-table
+        label="The model at every load for this setting"
+        [head]="d.head"
+        [rows]="d.rows"
+        [active]="d.active"
+        [compact]="compact()"
+        [height]="tableHeight()"
+      />
+      @if (d.note) {
+        <p class="muted note">{{ d.note }}</p>
+      }
+    }
+  </div>
+</div>
+
+@if (experiments().length) {
+  <app-experiment-dock
+    class="experiments"
+    [experiments]="experiments()"
+    [active]="exp.active()"
+    [phase]="exp.phase()"
+    [done]="exp.done()"
+    [goalStatus]="goalStatus()"
+    [goalChecks]="goalChecks()"
+    [chosen]="exp.chosen()"
+    (chosenChange)="exp.answer($event)"
+    (start)="start($event)"
+  />
+}

@@ -180,7 +180,7 @@
         {{ pick() === null ? 'Watch it choose' : motion() ? 'Stop watching' : 'Next pick' }}
       </button>
     </div>
-    <p class="notice" aria-live="polite">{{ notice() }}</p>
+    <p class="notice" aria-live="polite" aria-atomic="true"><g-code-text [text]="notice()" /></p>
   </div>
   @if (experiments().length && !broken()) {
     <app-experiment-dock

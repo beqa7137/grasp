@@ -36,6 +36,7 @@ import {
 } from '@grasp/engine';
 import { motionAllowed } from '../../core/motion';
 import { SliderComponent } from '../../ui/slider.component';
+import { CodeTextComponent } from '../../viz/code-text.component';
 import { ChartFrameComponent, type ChartAxis, type ChartSeries, type ChartTable } from '../../viz/kit/chart-frame.component';
 import { HandleComponent } from '../../viz/kit/handle.component';
 import { ParticlePool, PlayClock, watchMotion, watchVisibility, type Pt } from '../../viz/kit/particles';
@@ -69,7 +70,15 @@ const METRIC_WORDS: Record<string, string> = { meanMs: 'mean', p99Ms: 'p99' };
 @Component({
   selector: 'app-cache-widget',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [StageComponent, HandleComponent, ChartFrameComponent, SliderComponent, ExperimentDockComponent, FocusBoxComponent],
+  imports: [
+    StageComponent,
+    HandleComponent,
+    ChartFrameComponent,
+    SliderComponent,
+    ExperimentDockComponent,
+    FocusBoxComponent,
+    CodeTextComponent,
+  ],
   templateUrl: './cache-widget.component.html',
   styleUrl: './cache-widget.component.scss',
 })

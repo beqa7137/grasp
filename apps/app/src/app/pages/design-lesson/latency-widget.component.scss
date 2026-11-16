@@ -1,0 +1,81 @@
+@use '../../../type' as *;
+@use '../../../breakpoints' as *;
+@use 'feed-controls';
+@use 'widget-controls';
+@use 'widget-layout' as *;
+
+@include stage-layout('.latency-stage');
+.caption {
+  order: 2;
+  margin: 0;
+  font-size: var(--g-text-body-s);
+  color: var(--g-muted);
+}
+.control-label .why {
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+}
+// Below wide the notice would sit over the stage and move it as it speaks; the picture shows the change, so there it
+// is read out only.
+@container lesson (max-width: 899.98px) {
+  .notice {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    min-height: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .controls {
+    position: relative;
+    padding-bottom: var(--g-space-3);
+  }
+}
+svg.draw {
+  display: block;
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+}
+.hatch-fill {
+  fill: var(--g-sunken);
+}
+.hatch-line {
+  stroke: var(--g-viz-discarded-ink);
+  stroke-opacity: 0.35;
+  stroke-width: 1.5;
+}
+// An answer's act moves the load handle to its new stop.
+g-handle.glide {
+  transition: transform 240ms var(--g-ease-standard, ease-in-out);
+}
+// A request in flight is hollow, an arrival in the arrivals row's ink: amber means waiting, so it fills only by landing in
+// a line.
+.dots ::ng-deep .particle {
+  circle {
+    fill: var(--g-viz-stage);
+    stroke: var(--g-muted);
+    stroke-width: 1.5;
+  }
+  path,
+  text {
+    display: none;
+  }
+  // A departure is hollow in the in-service ink: only the ring's center is a request in service.
+  &.leave circle {
+    stroke: var(--g-viz-current);
+  }
+}
+.describe {
+  .said {
+    flex: 1 0 100%;
+    margin: 0;
+    font-size: var(--g-text-body-s);
+  }
+  .note {
+    flex: 1 0 100%;
+    margin: 0;
+  }
+}

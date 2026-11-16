@@ -43,6 +43,31 @@ const quorumAt = async (p, { n, w, r, stall, sloppy, taps = [] }, ready = true) 
   for (const [i, k] of taps.entries()) for (let j = 0; j < k; j++) await widget.locator('.card-hit').nth(i).click();
   await quorumStageToTop(p);
 };
+const latencyStageToTop = (p) => p.locator('app-latency-widget g-stage').evaluate((stage) => stage.scrollIntoView({ block: 'start' }));
+/** The latency widget's load stops, as its handle steps them. */
+const LATENCY_LOADS = [10, 20, 30, 40, 50, 60, 65, 70, 75, 80, 85, 90, 95, 98];
+/**
+ * Sets the latency widget as a learner would: the server count, the queue, steady work and a server down by their
+ * controls, then the load by key from the stop it is at.
+ */
+const latencyAt = async (p, { servers, split, steady, down, load }, ready = true) => {
+  const widget = p.locator('app-latency-widget');
+  if (ready) await widget.locator('svg.draw .curve.p99').waitFor();
+  if (servers) await widget.getByRole('radio', { name: String(servers), exact: true }).check();
+  if (split !== undefined) await widget.getByRole('radio', { name: split ? 'A queue each' : 'One queue' }).check();
+  if (steady !== undefined) await widget.getByRole('checkbox', { name: /Steady work/ }).setChecked(steady);
+  if (down !== undefined) await widget.getByRole('checkbox', { name: /A server down/ }).setChecked(down);
+  if (load) {
+    const handle = widget.getByRole('slider', { name: 'Load, how busy the servers run' });
+    const steps = LATENCY_LOADS.indexOf(load) - LATENCY_LOADS.indexOf(Number(await handle.getAttribute('aria-valuenow')));
+    if (steps) await stepHandle(p, 'Load, how busy the servers run', steps > 0 ? 'ArrowRight' : 'ArrowLeft', Math.abs(steps));
+  }
+  await latencyStageToTop(p);
+};
+const latencyCard = async (p, title) => {
+  await p.locator('app-latency-widget svg.draw .curve.p99').waitFor();
+  await p.locator('app-latency-widget .cards button', { hasText: title }).click();
+};
 const balancerReady = (p) => p.locator('app-balancer-widget .value.big').filter({ hasText: /\d/ }).waitFor();
 /** Steps a handle on the drawing by key, as a learner without a mouse would. */
 const stepHandle = async (p, name, key, times = 1) => {
@@ -396,7 +421,99 @@ export function designStates() {
     { id: 'case-build-stock-exchange', path: '/design/cases/stock-exchange/build' },
     { id: 'case-message-queue', path: '/design/cases/message-queue' },
     { id: 'case-build-message-queue', path: '/design/cases/message-queue/build' },
-    { id: 'lesson-latency', path: '/design/topics/sd-latency', setup: (p) => p.locator('#try').scrollIntoViewIfNeeded() },
+    { id: 'lesson-latency', path: '/design/topics/sd-latency', setup: (p) => latencyAt(p, {}) },
+    { id: 'lesson-latency-quiet', path: '/design/topics/sd-latency', setup: (p) => latencyAt(p, { load: 30 }) },
+    { id: 'lesson-latency-busy', path: '/design/topics/sd-latency', setup: (p) => latencyAt(p, { load: 90 }) },
+    { id: 'lesson-latency-split', path: '/design/topics/sd-latency', setup: (p) => latencyAt(p, { servers: 4, split: true, load: 80 }) },
+    {
+      id: 'lesson-latency-pool',
+      path: '/design/topics/sd-latency',
+      setup: async (p) => {
+        await latencyAt(p, { servers: 4, split: true, load: 80 });
+        await latencyAt(p, { split: false }, false);
+      },
+    },
+    {
+      id: 'lesson-latency-steady',
+      path: '/design/topics/sd-latency',
+      setup: async (p) => {
+        await latencyAt(p, { load: 90 });
+        await latencyAt(p, { steady: true }, false);
+      },
+    },
+    { id: 'lesson-latency-calm', path: '/design/topics/sd-latency', setup: (p) => latencyAt(p, { servers: 4, steady: true, load: 30 }) },
+    {
+      id: 'lesson-latency-down',
+      path: '/design/topics/sd-latency',
+      setup: async (p) => {
+        await latencyAt(p, { servers: 3, load: 60 });
+        await latencyAt(p, { down: true }, false);
+      },
+    },
+    { id: 'lesson-latency-overload', path: '/design/topics/sd-latency', setup: (p) => latencyAt(p, { servers: 3, down: true, load: 70 }) },
+    { id: 'lesson-latency-critical', path: '/design/topics/sd-latency', setup: (p) => latencyAt(p, { servers: 2, down: true, load: 50 }) },
+    {
+      id: 'lesson-latency-reduced',
+      path: '/design/topics/sd-latency',
+      setup: async (p) => {
+        await latencyAt(p, {});
+        await p.locator('app-latency-widget').getByRole('button', { name: 'Play the sample' }).click();
+        await p.locator('app-latency-widget .caption').waitFor();
+      },
+    },
+    {
+      id: 'lesson-latency-describe',
+      path: '/design/topics/sd-latency',
+      setup: async (p) => {
+        await latencyAt(p, {});
+        await p.locator('app-latency-widget').getByRole('button', { name: 'Describe' }).click();
+        await p.locator('app-latency-widget .describe g-data-table').scrollIntoViewIfNeeded();
+      },
+    },
+    {
+      id: 'lesson-latency-table',
+      path: '/design/topics/sd-latency',
+      setup: async (p) => {
+        await latencyAt(p, { servers: 3, down: true, load: 80 });
+        await p.locator('app-latency-widget').getByRole('button', { name: 'Describe' }).click();
+        await p.locator('app-latency-widget .describe g-data-table').scrollIntoViewIfNeeded();
+      },
+    },
+    {
+      id: 'lesson-latency-asking',
+      path: '/design/topics/sd-latency',
+      setup: async (p) => {
+        await latencyCard(p, 'One queue or a queue each');
+        await p.locator('app-widget-check legend').waitFor();
+        await latencyStageToTop(p);
+      },
+    },
+    {
+      id: 'lesson-latency-revealed',
+      path: '/design/topics/sd-latency',
+      setup: async (p) => {
+        await latencyCard(p, 'From 70% to 90% busy');
+        await p
+          .locator('app-widget-check')
+          .getByRole('button', { name: /^100 ms: 3× as long/ })
+          .click();
+        await p
+          .locator('app-widget-check .explain')
+          .filter({ hasText: /^100 ms: the mean is/ })
+          .waitFor();
+        await latencyStageToTop(p);
+      },
+    },
+    {
+      id: 'lesson-latency-challenge',
+      path: '/design/topics/sd-latency',
+      setup: async (p) => {
+        await latencyCard(p, 'Challenge');
+        await latencyAt(p, { servers: 4, split: false }, false);
+        await p.locator('app-experiment-dock .reveal').waitFor();
+        await latencyStageToTop(p);
+      },
+    },
     { id: 'lesson-caching', path: '/design/topics/sd-caching', setup: (p) => cacheStageToTop(p) },
     {
       id: 'lesson-caching-flushed',

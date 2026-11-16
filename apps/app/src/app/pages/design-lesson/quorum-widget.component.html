@@ -29,7 +29,7 @@
       </label>
     </div>
   </fieldset>
-  <p class="notice" aria-live="polite">{{ notice() }}</p>
+  <p class="notice" aria-live="polite" aria-atomic="true"><g-code-text [text]="notice()" /></p>
 </div>
 
 <div class="main">

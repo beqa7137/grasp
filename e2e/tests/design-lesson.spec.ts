@@ -5,12 +5,12 @@ test('a system design lesson opens from Design and its widget answers the keyboa
   await page.getByRole('link', { name: /Latency & Queueing/ }).click();
   await expect(page.getByRole('heading', { name: 'Latency & Queueing', level: 1 })).toBeVisible();
 
-  const slider = page.getByRole('slider', { name: /^Utilization \d+%/ });
-  const p99 = page.locator('.readouts div').filter({ hasText: 'p99' }).locator('dd');
-  await expect(p99).toHaveText('92 ms');
+  const slider = page.getByRole('slider', { name: 'Load, how busy the servers run' });
+  const p99 = page.locator('app-latency-widget svg.draw [data-id="stat-p99"]');
+  await expect(p99).toHaveText('154 ms');
   await slider.focus();
-  for (let i = 0; i < 40; i++) await page.keyboard.press('ArrowRight');
-  await expect(page.getByText('Utilization 90%')).toBeVisible();
+  for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowRight');
+  await expect(slider).toHaveAttribute('aria-valuetext', '90% busy, 90 requests a second');
   await expect(p99).toHaveText('461 ms');
 
   await expect(page.getByRole('link', { name: 'Mission: Your First Scale-Up' })).toBeVisible();

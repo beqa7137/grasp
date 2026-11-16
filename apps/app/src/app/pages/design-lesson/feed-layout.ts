@@ -1,5 +1,6 @@
 import { FEED_PLACES } from '@grasp/engine';
 import type { Box } from './focus-layout';
+import { fixedMeasure } from './stage-text';
 
 export const PAD = 16;
 /** From this stage width the drawing takes its wide form: labels beside handles, one row of chips, a legend column. */
@@ -18,7 +19,9 @@ export type TextRole = 'mono' | 'small' | 'cap' | 'label' | 'head';
 const ADVANCE: Record<TextRole, number> = { mono: 7, small: 6, cap: 7, label: 8.4, head: 10.8 };
 const HEIGHT: Record<TextRole, number> = { mono: 11, small: 11, cap: 13, label: 11, head: 17 };
 
-export const textWidth = (text: string, role: TextRole) => text.length * ADVANCE[role];
+const TEXT = fixedMeasure(ADVANCE, HEIGHT);
+
+export const textWidth = TEXT.tw;
 
 export type Anchor = 'start' | 'middle' | 'end';
 
@@ -37,19 +40,7 @@ export function headerBoxes(label: string, labelX: number, value: string, unit: 
 }
 
 /** Splits `text` into at most `lines` lines that fit `width`, breaking at spaces; the last line takes what is left. */
-export function wrap(text: string, role: TextRole, width: number, lines: number): string[] {
-  const words = text.split(' ');
-  const out: string[] = [];
-  let line = '';
-  for (const word of words) {
-    const next = line ? `${line} ${word}` : word;
-    if (line && textWidth(next, role) > width && out.length < lines - 1) {
-      out.push(line);
-      line = word;
-    } else line = next;
-  }
-  return [...out, line];
-}
+export const wrap = (text: string, role: TextRole, width: number, lines: number): string[] => TEXT.wrap(text, role, width, lines);
 
 /** A handle's track with its stops: their x, the stop labels' row, and the snapped value's row over the knob. */
 export interface Track {

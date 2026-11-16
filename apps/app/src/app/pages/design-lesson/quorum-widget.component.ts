@@ -28,6 +28,7 @@ import {
   type SdExperiment,
 } from '@grasp/engine';
 import { motionAllowed } from '../../core/motion';
+import { CodeTextComponent } from '../../viz/code-text.component';
 import { DataTableComponent } from '../../viz/kit/data-table.component';
 import { HandleComponent } from '../../viz/kit/handle.component';
 import { ParticlePool, watchMotion, watchVisibility } from '../../viz/kit/particles';
@@ -76,7 +77,7 @@ const carry = (k: number, from: number, to: number) =>
 @Component({
   selector: 'app-quorum-widget',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [StageComponent, HandleComponent, DataTableComponent, FocusBoxComponent, ExperimentDockComponent],
+  imports: [StageComponent, HandleComponent, DataTableComponent, FocusBoxComponent, ExperimentDockComponent, CodeTextComponent],
   host: { '(document:pointerdown)': 'pointerAnywhere($event)' },
   templateUrl: './quorum-widget.component.html',
   styleUrl: './quorum-widget.component.scss',
@@ -261,7 +262,7 @@ export class QuorumWidgetComponent {
     this.r.set(carry(this.r(), from, k));
     this.states.update((s) => s.map((v, i) => (i < k ? v : 0)));
     this.rove.set(Math.min(this.rove(), k - 1));
-    this.said(`${k} replicas, W ${levelOf(this.w(), k)}, R ${levelOf(this.r(), k)}`);
+    this.said(this.configSaid());
   }
 
   setW(k: number) {
@@ -403,11 +404,16 @@ export class QuorumWidgetComponent {
     this.describe.set(false);
     this.hint.set(null);
     this.exp.start(e);
-    this.notice.set(e.goal ? '' : 'Play and the settings this question is about wait for your answer.');
+    if (e.goal) this.said(this.configSaid());
+    else this.notice.set('Play and the settings this question is about wait for your answer.');
   }
 
   toggleDescribe() {
     this.describe.update((d) => !d);
+  }
+
+  private configSaid() {
+    return `${this.n()} replicas, W ${levelOf(this.w(), this.n())}, R ${levelOf(this.r(), this.n())}`;
   }
 
   /** A settings change: the picture shows its end state at once, and the notice says what changed and how it ends. */

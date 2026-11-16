@@ -22,6 +22,7 @@ import {
   type SdExperiment,
 } from '@grasp/engine';
 import { motionAllowed } from '../../core/motion';
+import { CodeTextComponent } from '../../viz/code-text.component';
 import type { ChartAxis } from '../../viz/kit/chart-frame.component';
 import { watchMotion, watchVisibility } from '../../viz/kit/particles';
 import { linear } from '../../viz/kit/sparkline.component';
@@ -56,7 +57,7 @@ const NEW = 'the new value';
 @Component({
   selector: 'app-replica-widget',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [StageComponent, TimelineComponent, ExperimentDockComponent, FocusBoxComponent],
+  imports: [StageComponent, TimelineComponent, ExperimentDockComponent, FocusBoxComponent, CodeTextComponent],
   template: `
     <g-stage [height]="layout().height" label="Replication: a write, the replica applying it, and your read">
       @if (ready()) {
@@ -116,7 +117,7 @@ const NEW = 'the new value';
       </label>
       <button type="button" class="g-btn" [disabled]="locked()" (click)="replay()">Play it</button>
     </div>
-    <p class="notice" aria-live="polite">{{ notice() }}</p>
+    <p class="notice" aria-live="polite" aria-atomic="true"><g-code-text [text]="notice()" /></p>
 
     @if (experiments().length) {
       <app-experiment-dock

@@ -33,6 +33,7 @@ import {
 } from '@grasp/engine';
 import { motionAllowed } from '../../core/motion';
 import { SimClient, SimSuperseded } from '../../sim/sim-client';
+import { CodeTextComponent } from '../../viz/code-text.component';
 import { HandleComponent } from '../../viz/kit/handle.component';
 import { watchMotion, watchVisibility } from '../../viz/kit/particles';
 import { StageComponent } from '../../viz/kit/stage.component';
@@ -78,7 +79,7 @@ const serverName = (s: number) => `S${s + 1}`;
 @Component({
   selector: 'app-balancer-widget',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [StageComponent, HandleComponent, BalancerChartsComponent, ExperimentDockComponent, FocusBoxComponent],
+  imports: [StageComponent, HandleComponent, BalancerChartsComponent, ExperimentDockComponent, FocusBoxComponent, CodeTextComponent],
   templateUrl: './balancer-widget.component.html',
   styleUrl: './balancer-widget.component.scss',
 })

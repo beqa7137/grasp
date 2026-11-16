@@ -2970,6 +2970,134 @@ Iterations are ordered by impact, alternating between organization and visuals. 
     `quorum-motion.spec.ts`, `quorum-words.spec.ts` (every setting), structural no-answer checks by mark id (two planted
     leaks now fail the sweep), ring-on-dot, Reduced-motion, playing-phase and mid-play frames in the layout spec, and
     Describe widths in e2e.
+- **Latency & Queueing note** (R41, the batch's third widget, `queue-latency`; as built from the brief, mockup and
+  second critique round of `design/r41-latency`, and where it differs):
+  - **Verdict.** The R27b chart (one log curve of p50 and p99, a slider and three tiles) showed the outcome, never the
+    cause, so the brief found it short of the bar and the widget is redrawn: a seeded sample of requests (the queue in
+    front of the servers at one moment, and the window as a timeline) over the exact model (the numbers, where the time
+    goes, the curve and 100 requests at its quantiles), the curve kept as the consequence.
+  - **Engine.** `widgets/queueing.ts` keeps `queueBacklog` and `Backlog` as they were and gains the exact model: M/M/c
+    by Erlang C, M/D/c by Crommelin's chain solved with GTH state reduction and Franx's waiting-time formula, one shared
+    queue or a queue each (each server its own M/M/1 or M/D/1), `latencyQuantile` by bisection, `idleBesideShare`,
+    `latencyScenario` (memoized; past capacity no steady state, the queue growing by λ − m/S) and `latencyCurve` (90
+    points per configuration, memoized); `queueLatency` is retired. `widgets/latency-sample.ts` holds the seeded run
+    (seed 26159, common random numbers, 40,000 arrivals before a 400 ms window, or 4 to 8 s from empty past capacity), its
+    rest moment (the longest queue, an idle server beside the longest line, or the most waiting) and the play plans.
+    Settings are numbers: `load`, `servers`, `queue` (0 shared, 1 a queue each), `service` (0 random, 1 steady) and
+    `down`. Framework: `ExperimentRun` gains `'sample'`, and `TEMPLATE_DIGITS_ALLOWED` gains "S / (1 − utilization)" and
+    "(1 + CV²) / 2". `latency-experiments.ts`: the six experiments in the brief's wording, answers at 3, 2, 1, 2, 3, the
+    challenge passing at exactly one of its 98 settings (4 servers, one shared queue, 60%); E5's truth word is "never
+    settles", since the reveal spec asks the right choice to contain its truth. The lesson's three text fixes are in,
+    and its `tryThis` is gone. `queueing.spec.ts` pins the closed forms at every load, Erlang C, Erlang's 1909 M/D/1
+    formula in BigInt fixed point (66 points within 1e-9), a discrete-event simulation of every configuration at 30%
+    and 80% within tolerances that widen with 1 / (1 − ρ), and the idle-beside share against a simulation of four
+    queues; `latency-sample.spec.ts` the seed's hard bounds (and the other three seeds the search found), its
+    typicality, the ramps, the rest moments and the plays.
+  - **Picture.** One stage from `buildStage` (`latency-layout.ts`: the load and the timeline; `latency-band.ts`: the
+    queue and servers at a moment; `latency-chart.ts`: the model's half), a list of marks placed clear of each other by
+    a `Draw` (`latency-draw.ts`) and drawn by `latency-prims.component.ts`. Text is measured by `stage-text.ts`, now the
+    one module for the stages' text widths: Consistency & Quorums and this widget measure by the shipped fonts'
+    per-character advances, and Data Modeling's `feed-layout.ts` by its own fixed advance per role, unchanged, through
+    the same interface (LOOP.md's follow-up in its safe form). The label role keeps a unit's case after a number ("400
+    ms"), measured and drawn the same way. Stage heights are a step function of width: 985, 967, 949, 933, 915 and 899
+    px from 248, 288, 376, 461, 534 and 590 px (the brief's canvas measured each step 1 to 4 px earlier). Beyond the
+    brief: where a curve ghost would block the curves' names on a narrow stage with no legend (no steady state), the
+    names come first and the ghost only where it crosses neither; the compact table's loads are whole percentages, so
+    its widest rows fit 320 px. The two-column layout of Consistency & Quorums and this widget is one mixin
+    (`_widget-layout.scss`, its third copy), and the toggles' style moved to `_widget-controls.scss`.
+  - **Motion.** A play runs one monotone clock (25× slower for a stable window, 2× past capacity; an answer plays the
+    200 ms of its new sample that end at its rest moment, or the whole 4 s in real time). The band is redrawn at the
+    clock's moment from the sample (`bandAt`), its dots tracked by request id and sliding up their line on a transform
+    for at most 240 ms; the timeline is drawn whole and revealed up to the playhead by a clip; arrivals travel the inlet
+    for 300 ms and land as the clock reaches them, and departures leave along the exit stub; nothing travels, slides or
+    sweeps under 120 ms (a ring is drawn full). The climax gets a landing ring, a free play ends on the rest moment with
+    a 160 ms crossfade, and at a reveal the values settle, the cursor slides from the setup's utilization and E2's
+    curves draw on from the cut. Plays pause by the widget host's visibility. Under Reduced motion nothing animates, and
+    Play writes the sample's story under the stage.
+  - **Experiments.** One `hiding()` map (`latency-words.ts`) feeds the stage, its summary, the notices, the load
+    handle's value and Describe. While a question asks, Play, the handle, Servers, Queue and Conditions wait; hiding
+    holds through the answer's own play and releases at the reveal, and Describe waits until then (in the challenge,
+    until the goal is met). A card's setup is a new start with no ghost; the act's play and reveal keep the setup's
+    waiting scale. The challenge's status is the house checklist with its states in words.
+  - **Checks.** `latency-layout.spec.ts` draws every setting at 252, 322 and 620 px and strides of them at nine more
+    widths from 248 to 700 px, ghosts of both kinds, the band at moments of every free play, and every experiment
+    asking, playing and revealed at 12 widths: no text on text or off the stage, no line or grid line through text, no
+    text on a mark, no dot on a dot, x ticks 6 px apart, no text at an outline's stroke, Play and the handle apart at
+    every stop, every label and tag placed, the marginal's 50/49/1 zones, Little's law as printed, the speed note its
+    clock's rate, the chevron at the plot's top, the ghost's name nearest its curve, no false claim, E3's idle server
+    beside a line, one height per width and one waiting scale from a play to its reveal. `latency-words.spec.ts`
+    checks every setting's sentences, `latency-motion.spec.ts` the clock, the particles and the 120 ms rule, and the
+    component spec runs the no-answer sweep (every control moved during each question, then the answer's play sampled
+    frame by frame, against answer words, false claims and structural giveaways) with motion off and on, and catches
+    leaks planted in copies of E1 and E2.
+  - **Fix round 1** (three reviews; twenty findings confirmed, two of them the same fan-out line, one blocking). "Why it matters", above the widget,
+    printed E1's and E2's answers (10, 20 and 100 ms): it states the claim without numbers now, the worked example moved
+    under the widget into "Why waiting explodes" at 75% and 95%, loads no experiment asks, and the reveal spec fails any
+    lesson whose why quotes an answer's number. That concept no longer says steady work halves the wait (E4's answer),
+    and Headroom's examples use five servers. E1's ask says the work is random and its card reads "One server at half
+    load"; E2's reveal defines S, names the knee and says "3× slower" for "falls over"; E4's defines CV by the standard
+    deviation and random work as exponential; one of E5's distractors is a statement about settling too; the wording
+    nits and the older lesson lines are fixed (slower than its p99, M/M/1 in the sizing steps, U+2212, Little's law on
+    average). With no steady state a sample rests on its window's end, never a mid-window peak the queue falls back
+    from (just past 100% the drift over 4 s is no larger than the noise), and its story sets the end against the model's
+    trend. The no-answer sweep fails on the point ghost's arrow and on any plot mark at the act's utilization while an
+    answer plays (a planted arrow at the hidden p99 now fails it, and the third leaky copy draws one), and asserts the
+    notice at every reveal, which now says the new setting's sentence. The fact rows are reserved from three constant
+    pairs (`LONGEST_FACTS`, held by the words spec to every setting from 228 to 1,400 px), so first render no longer
+    models all 364 settings, and the curves are no longer deferred. `stage-text.ts` never breaks a number from its unit
+    (the other two widgets' wrapped texts hold no such pair). One server left is never "each": the notice says "the one
+    left 80% busy" and Describe heads "Load on S1". The fan-out line needs a steady state. The under-1 ms count keeps off
+    the marginal's rule, which placement now sees as a mark, and never falls into the x ticks' row. Arrivals in flight
+    are hollow in the arrivals' ink, so solid amber is only what waits; a departure leaves from its ring's edge, and an
+    arrival that would land under the "+N" chip joins its count. The challenge counts p99 only at the settings its goal
+    keeps and says what it keeps. Little's law prints the mean to as many decimals as keep it within the model's number.
+    Polish taken: one live region for Play's story, "with both up", hidden numbers show "at the reveal" once answered,
+    the checkboxes' hints as descriptions, "Just left", distinct spec hosts. `LATENCY_SETTINGS` (engine) and
+    `latency-claims.testing.ts` replace six copies of the setting space and three of the false claims; new checks: a
+    wrapped line that starts with a unit, a marginal word under its rule, a p99 with no steady state, "each" of one
+    server, the fact reservation, p99 counted only where the goal keeps, trip ends clear of the band, the unstable rest
+    moment, and in e2e the amber count at play frames and the reveal's notice.
+  - **Fix round 2** (three reviews; seven findings confirmed, three of them "should"). Just past capacity the 4 s window
+    still peaked and fell back (105%: 63 waiting at 1.8 s, 37 at the end) under words saying the queue grows. A rule on
+    the model alone (a window long enough for the drift to beat the noise) cannot promise the picture with one seed, so
+    the window reads the sample: from empty it runs 4 s, or 6 or 8 s, the first whose end stands within a tenth of the
+    window's most (`LATENCY_UNSTABLE_WINDOWS_MS`, `LATENCY_RAMP_END`); seven settings near capacity take a longer
+    window, E5's and the challenge's keep 4 s, and exactly 100%, where the queue has no trend, keeps 4 s. The sample
+    spec holds all 84 settings past capacity to the rule. The under-1 ms count sat in the plot in about 40% of states
+    (the plot's floor, tried for the long form, beat the short form in the column): it is now the 100 requests column's
+    own row under its rule, the 1 ms floor, inside the column at every setting and width, and the x axis says each
+    utilization centered under its own tick, so "100%" no longer sits under the cursor at 80% on a phone. Learner text
+    (`g-code-text`) keeps a number with its unit, and a percentile with its value, on one line, since content bans the
+    non-breaking space; the notices of all six lesson widgets, Play's caption, Describe's sentence and the dock's
+    question, choices, goal and checks render through it. At 1280 px a third of the notice's sentences had split a
+    number from its unit, and the dock's choices split in five widgets. The no-answer sweep fails the act's curves while
+    an answer that changes the configuration plays, and a cut away from the setup's utilization. Arrivals that start at
+    once stop at their server's edge, so no particle crosses a server's name or its "idle", and a departure is hollow in
+    the in-service ink, leaving from outside its ring. Polish taken: separators in the sample's story and no sentence of
+    it opening on a numeral, three significant figures for a request's sampled times, E4's reveal without its aside, and
+    `text-wrap: pretty` on the dock's explanation. Checks added: the ramp rule and its shortest window, the count's
+    column and rule, particles off the servers' labels, the story's prose, a kept run around every number with its
+    unit (component spec) and in e2e no line that parts them on those surfaces at 320 to 430 px and 1280 px, and two
+    leaks planted in the hiding map (the act's curves drawn, the cut at the act's load), which the sweep catches.
+  - **Fix round 3** (two findings confirmed, both "should"). `g-code-text` splits learner text into runs that Angular
+    rewrites in place, and no live region was atomic, so a screen reader announced only the runs that changed: "W ONE.
+    The read returns v8, fresh, in" without its "6 ms.", and a latency change that kept the numbers said none of them.
+    Every live region that renders learner text through it is now atomic (the six lesson widgets' notices, the dock's
+    reveal, a case check's explanation and the player's narration), and a list that grows (a worked example's steps, a
+    case's model answer) still reads only the item it adds; `templates.spec.ts` fails a `g-code-text` in a live region
+    that is neither. Past capacity the timeline drew an SVG element per sampled request (5,035 at 105% on its 8 s
+    window), and the drift key's search scanned the waiting area's edge, some 20,000 points, at every candidate place:
+    on a Pixel 7 at 4× CPU a load step took 692 to 811 ms to its second frame at 105%, with long tasks up to 522 ms. The
+    timeline now draws a path per kind of mark: the arrival ticks in as few paths as their overlaps need, so faint ticks
+    still add up and a burst reads darker as before; each server's busy time as one path with a block per busy period
+    (blocks per request had left anti-aliased seams that read as idle time); and the notches in one path, each cut where
+    the next request's block starts, as the drawing order had it. Placement keeps labels off a line by points its width
+    bounds (`columnPoints`: per pixel column, the range the line covers there) and reads a line's points across a box by
+    x. The same step takes 69 to 97 ms, with no long task, and the SVG holds 249 to 330 elements; the layout spec holds
+    every setting at 248 and 620 px to 48 timeline marks, 600 marks in all and six line points a pixel, with a tick per
+    arrival and a block per busy period. Polish taken: opening a challenge says the setting's sentence in Data Modeling,
+    Consistency & Quorums and Latency & Queueing alike, and the y axis's lowest label sits up off the x labels' row, 6
+    px clear of them (checked at every width).
 
 **R46 Case widgets II.**
 

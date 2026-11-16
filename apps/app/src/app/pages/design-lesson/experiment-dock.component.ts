@@ -21,7 +21,7 @@ export type ExperimentPhase = 'asking' | 'playing' | 'revealed';
     @if (active(); as e) {
       <section class="dock" [attr.aria-label]="'Experiment: ' + e.title">
         @if (e.goal) {
-          <p class="ask">{{ e.ask }}</p>
+          <p class="ask"><g-code-text [text]="e.ask" /></p>
           @if (goalChecks().length) {
             <div role="status">
               @if (goalStatus()) {
@@ -36,7 +36,7 @@ export type ExperimentPhase = 'asking' | 'playing' | 'revealed';
                 @for (c of goalChecks(); track $index) {
                   <li [class.met]="c.met">
                     <span class="mark" aria-hidden="true">{{ c.met ? '✓' : '·' }}</span
-                    >{{ c.text }}
+                    ><g-code-text [text]="c.text" />
                   </li>
                 }
               </ul>
@@ -49,7 +49,7 @@ export type ExperimentPhase = 'asking' | 'playing' | 'revealed';
               {{ goalStatus() }}
             </p>
           }
-          <div aria-live="polite">
+          <div aria-live="polite" aria-atomic="true">
             @if (phase() === 'revealed') {
               <p class="reveal"><g-code-text [text]="e.reveal" /></p>
             }

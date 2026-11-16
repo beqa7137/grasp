@@ -470,6 +470,7 @@ describe('QuorumWidgetComponent', () => {
         (li) => `${li.classList.contains('met') ? '+' : '-'} ${li.textContent!.replace(/\s+/g, ' ').trim()}`,
       );
     await t.card(at('fast-fresh'));
+    expect(t.text('.notice')).toEqual(['3 replicas, W QUORUM, R QUORUM. The read returns v8, fresh, in 40 ms.']);
     expect(t.text('.status')).toEqual([]);
     expect(checks()).toEqual([
       '+ ✓No read set can miss v8: 0 of 3 can, met',

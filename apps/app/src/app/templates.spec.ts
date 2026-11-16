@@ -107,6 +107,35 @@ function nestedPanels(sources: Source[]): string[] {
   });
 }
 
+const LIVE = /\s(?:aria-live|\[attr\.aria-live\])=/;
+/** `status` and `alert` are atomic by default. */
+const ATOMIC = /\saria-atomic="true"|\srole="(?:status|alert)"/;
+
+/**
+ * Each `g-code-text` inside a live region that is not atomic. It splits a sentence into runs and rewrites only the runs
+ * that change, so such a region would read out fragments of the sentence. A list that grows (an `@for` inside the region)
+ * needs no more: each new item is added whole, and atomic would read every earlier item again.
+ */
+function splitLiveText(sources: { name: string; html: string }[]): string[] {
+  return sources.flatMap(({ name, html }) => {
+    const markup = html.replace(/<!--[\s\S]*?-->/g, '');
+    const open: { tag: string; split: boolean; at: number }[] = [];
+    const found: string[] = [];
+    for (const m of markup.matchAll(TAG)) {
+      const [whole, close, tag, attributes, selfClosing] = m;
+      if (close) {
+        const at = open.map((e) => e.tag).lastIndexOf(tag);
+        if (at >= 0) open.length = at;
+        continue;
+      }
+      if (tag === 'g-code-text' && open.some((e) => e.split && !markup.slice(e.at, m.index).includes('@for ('))) found.push(name);
+      if (!selfClosing && !VOID.has(tag.toLowerCase()))
+        open.push({ tag, split: LIVE.test(attributes) && !ATOMIC.test(attributes), at: m.index + whole.length });
+    }
+    return found;
+  });
+}
+
 describe('templates', () => {
   const all = templates();
 
@@ -165,6 +194,19 @@ describe('templates', () => {
       hostClass: component.match(/host:\s*\{[^}]*?['"]?class['"]?\s*:\s*'([^']*)'/)?.[1],
     }));
     expect(nestedPanels(sources).sort()).toEqual(KNOWN_NESTED_PANELS);
+  });
+
+  it('read learner text in a live region whole, never only the runs that changed', () => {
+    const fixtures = [
+      { name: 'split', html: '<p class="notice" aria-live="polite"><g-code-text [text]="n()" /></p>' },
+      { name: 'deep', html: '<div [attr.aria-live]="m"><p><g-code-text [text]="r" /></p></div>' },
+      { name: 'atomic', html: '<p aria-live="polite" aria-atomic="true"><g-code-text [text]="n()" /></p>' },
+      { name: 'status', html: '<div role="status"><li><g-code-text [text]="c" /></li></div>' },
+      { name: 'after', html: '<p aria-live="polite">{{ n() }}</p><g-code-text [text]="q" />' },
+      { name: 'grows', html: '<ol aria-live="polite">@for (s of shown(); track $index) {<li><g-code-text [text]="s" /></li>}</ol>' },
+    ];
+    expect(splitLiveText(fixtures)).toEqual(['split', 'deep']);
+    expect(splitLiveText(all.map(({ file, html }) => ({ name: file, html })))).toEqual([]);
   });
 
   it('give every radio group and tab list the arrow keys and one Tab stop', () => {
