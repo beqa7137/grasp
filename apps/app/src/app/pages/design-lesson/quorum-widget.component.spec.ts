@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { QUORUM_EXPERIMENTS, quorumAt, renderExperiment, type QuorumSettings } from '@grasp/engine';
 import { QuorumWidgetComponent } from './quorum-widget.component';
+import { hiding, outcomeNotice } from './quorum-words';
 
 @Component({
   imports: [QuorumWidgetComponent],
@@ -436,6 +437,7 @@ describe('QuorumWidgetComponent', () => {
           }
           expect(t.describe().disabled, e.id).toBe(false);
           expect(t.text('app-widget-check .explain'), e.id).toEqual([e.reveal]);
+          expect(t.text('.notice'), `${e.id} revealed`).toEqual([outcomeNotice(t.component().model(), hiding([]))]);
           for (const region of e.focus) expect(t.el.querySelector(`[data-focus="${region}"]`)!.classList, e.id).toContain('focused');
         }
       },

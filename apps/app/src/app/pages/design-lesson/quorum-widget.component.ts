@@ -447,9 +447,14 @@ export class QuorumWidgetComponent {
   /** An answer plays its act: the write and then the read, or the read alone after a write already done. */
   private playAnswer(e: SdExperiment, done: () => void) {
     this.notice.set('');
+    // The play ends while the question still hides its answer, so the notice it leaves is blank; the reveal fills it.
+    const reveal = () => {
+      done();
+      if (this.exp.active() === e && this.exp.phase() === 'revealed') this.notice.set(outcomeNotice(this.model(), this.hid()));
+    };
     const run = e.act && 'run' in e.act ? e.act.run : undefined;
-    if (run === 'write-read' || run === 'read') return this.play(done, run);
-    this.player.play(HOLD_MS, () => undefined, done);
+    if (run === 'write-read' || run === 'read') return this.play(reveal, run);
+    this.player.play(HOLD_MS, () => undefined, reveal);
   }
 
   private dots(): ParticlePool | null {
