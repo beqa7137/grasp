@@ -1023,7 +1023,8 @@
       /** A count of workers in flight: whole when it is, else one decimal. */
       /** A share of a request's queries: up to three decimals, so 0.18 split four ways reads 0.045. */
       const f3 = (v) => String(Number(v.toFixed(3)));
-      const f1 = (v) => (Math.abs(v - Math.round(v)) < 1e-9 ? fn(v) : String(Number(v.toFixed(1))));
+      const ONE_DECIMAL = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 });
+      const f1 = (v) => ONE_DECIMAL.format(v);
 
       // ---------- The drawing: SVG parts in layers, and the boxes placement checks against.
       class Draw {
@@ -1134,6 +1135,7 @@
       }
 
       // ---------- Words.
+      const NO_HIDE_WORDS = { lanes: new Set(), totals: false };
       const NOUN = { lb: ['load balancer', 'load balancers'], app: ['app server', 'app servers'], replicas: ['read replica', 'read replicas'] };
       const tierWord = (id) => ({ lb: 'the load balancers', app: 'the app servers', primary: 'the database primary', replicas: 'the read replicas' })[id];
       const verb = (id) => (id === 'primary' ? 'is' : 'are');
@@ -1142,10 +1144,11 @@
       /** A block's name and its fleet beside it: instances times what each takes. */
       const NAMES = { lb: ['Load balancers'], app: ['App servers'], primary: ['Database primary', 'Primary'], replicas: ['Read replicas'] };
       const NAME = { lb: 'Load balancers', app: 'App servers', primary: 'Primary', replicas: 'Read replicas' };
-      function fleetForms(r, id) {
+      function fleetForms(r, id, hid = NO_HIDE_WORDS) {
         const t = r[id];
         if (id === 'lb' || id === 'app') {
-          const each = fq(t.each);
+          // A hidden app tier shows what each server's CPU can do: a worker limit would be the answer.
+          const each = fq(id === 'app' && hid.lanes.has('app') ? t.cpuEach : t.each);
           if (t.lost) return [`${t.up} of ${t.n} up × ${each}`, `${t.up} up × ${each}`, `${t.up} × ${each}`];
           return [`${t.n} × ${each}`];
         }
@@ -1159,7 +1162,7 @@
         return t.n ? [`${t.n} × ${size}`, `${t.n} × ${fn(r.settings.size)}`, `${t.n}`] : ['none'];
       }
       /** A block's status: how busy it is (bold), its limit, then what it spares or sheds. */
-      function statusParts(r, id, hid) {
+      function statusParts(r, id, hid, wide = true) {
         const t = r[id];
         if (id === 'replicas' && !t.n) return [['None: ', 'capB'], ['the primary takes every read.', 'cap']];
         if (id === 'replicas' && !t.up) return [['None left: ', 'capB', 'crit-ink'], ['the primary takes every read.', 'cap']];
@@ -1168,9 +1171,10 @@
         const each = id === 'replicas' ? ' each' : '';
         if (hid.lanes.has(id)) return [[`?% busy${each}`, 'capB'], [' · limit after your answer', 'cap']];
         const limit = t.ceiling;
-        const limitWords = limit > M.AXIS_MAX ? `limit ${fq(limit)}, off the axis` : `limit ${fq(limit)}`;
+        // Narrow, the lane's cut end says it runs off the axis; wide, the words say so too.
+        const limitWords = limit > M.AXIS_MAX && wide ? `limit ${fq(limit)}, off the axis` : `limit ${fq(limit)}`;
         const load = id === 'primary' || id === 'replicas' ? r.served : t.arriving;
-        if (t.shed > 1e-9) return [[`Full${each}`, 'capB', 'crit-ink'], [` · ${limitWords} · ${fq(t.shed)} shed here${r.bottleneck === id ? ', the bottleneck' : ''}`, 'cap']];
+        if (t.shed > 1e-9) return [[`Full${each}`, 'capB', 'crit-ink'], [` · ${limitWords} · ${fq(t.shed)} shed${r.bottleneck === id ? ', the bottleneck' : ''}`, 'cap']];
         if (t.util > 1 - 1e-9) return [[`100% busy${each}`, 'capB'], [` · ${limitWords} · nothing spare`, 'cap']];
         if (load <= 0) return [[`Idle${each}`, 'capB'], [` · ${limitWords} · nothing reaches it`, 'cap']];
         return [[`${fp(t.util)} busy${each}`, 'capB'], [` · ${limitWords} · ${fq(limit - load)} spare`, 'cap']];
@@ -1181,16 +1185,16 @@
         const w = M.formatNum(r.writes);
         if (id === 'primary') {
           if (t.outage) return [['With no primary, writes have nowhere to go.', 'cap']];
-          return r.replicas.up ? [[`Each request: ${w} writes; its reads go to the replicas.`, 'cap']] : [[`Each request: ${w} writes and ${M.formatNum(r.misses)} reads, every one here.`, 'cap']];
+          return r.replicas.up ? [[`${w} writes a request; its reads go to the replicas.`, 'cap']] : [[`${w} writes and ${M.formatNum(r.misses)} reads a request, all of them here.`, 'cap']];
         }
         if (!t.up) return [['', 'cap']];
-        return [[`Each one: every write replayed, ${w} a request, and ${f3(r.misses / t.up)} reads a request.`, 'cap']];
+        return [[`Each replays every write, ${w} a request, and takes ${f3(r.misses / t.up)} reads a request.`, 'cap']];
       }
       /** The cache line at the database's foot: what it answers of each request's reads. */
       function cacheParts(r) {
         const reads = M.formatNum(r.reads);
         if (!r.settings.cache) return [['Cache off: ', 'capB'], [`all ${reads} reads of each request reach the database.`, 'cap']];
-        return [['Cache on: ', 'capB'], [`it answers ${M.formatNum(r.hits)} of each request’s ${reads} reads; ${M.formatNum(r.misses)} reach the database.`, 'cap']];
+        return [['Cache on: ', 'capB'], [`${M.formatNum(r.hits)} of each request’s ${reads} reads hit it; ${M.formatNum(r.misses)} reach the database.`, 'cap']];
       }
       /** The worker pool on one app server, by Little's law: in flight = rate x time. */
       function workerParts(r, hid) {
@@ -1202,7 +1206,7 @@
         if (a.need > M.WORKERS + 1e-9)
           return [
             [`${f1(a.inFlight)} of ${a.workers} busy`, 'capB', 'crit-ink'],
-            [`: ${fq(rate)} × ${ms}. The ${fq(a.arriving / a.up)} sent to each server would need ${f1(a.need)}, and its CPU sits ${fp(a.cpuUtil)} busy.`, 'cap'],
+            [`: ${fq(rate)} × ${ms}. The ${fq(a.arriving / a.up)} sent to each would need ${f1(a.need)}; its CPU sits ${fp(a.cpuUtil)} busy.`, 'cap'],
           ];
         return [[`${f1(a.inFlight)} of ${a.workers} busy`, 'capB'], [`: ${fq(rate)} × ${ms} in flight (Little’s law).`, 'cap']];
       }
@@ -1211,7 +1215,7 @@
         const shed = r.shed > 1e-9;
         return [['Served ', 'label'], [fq(r.served), 'head'], [' of ', 'cap'], [fq(r.offered), 'capB'], shed ? [` · ${fq(r.shed)} shed, ${fp(r.shed / r.offered)}`, 'capB', 'crit-ink'] : [' · nothing shed', 'cap']];
       }
-      const FOOTNOTE = 'Every request costs a tier the same work, and a tier past its limit sheds the rest rather than queueing it.';
+      const FOOTNOTE = 'Simplified: every request costs a tier the same, its instances are alike, and past its limit a tier sheds rather than queues.';
       /** The setting's sentences: what is served, where it stops, and how busy the rest run. */
       function summary(r, hid = { lanes: new Set(), totals: false }) {
         const s = r.settings;
@@ -1290,7 +1294,7 @@
         for (const s of RESERVE_SET) {
           const r = M.run(s);
           for (const hid of [NO_HIDE, ALL_HIDE]) {
-            for (const id of ['lb', 'app', 'primary', 'replicas']) n[id] = Math.max(n[id], flow(statusParts(r, id, hid), lw).length);
+            for (const id of ['lb', 'app', 'primary', 'replicas']) n[id] = Math.max(n[id], flow(statusParts(r, id, hid, W >= 460), lw).length);
             n.workers = Math.max(n.workers, flow(workerParts(r, hid), lw).length);
             n.sink = Math.max(n.sink, flow(sinkParts(r, hid), lw).length);
           }
@@ -1370,6 +1374,11 @@
           xGlyph(D, g.xa + w / 2, top + h / 2, owner, 4, 'xground on-box');
           D.mark({ x0: g.xa, x1: g.xa + w, y0: top, y1: top + h }, owner);
           return;
+        }
+        // The axis's gridlines run through each lane only, behind its instances, so a bar reads against the ticks.
+        for (const v of [10000, 20000].filter((v) => v <= M.AXIS_MAX)) {
+          D.add('lanes', `<line class="gridline" x1="${r1(g.x(v))}" y1="${top - 3}" x2="${r1(g.x(v))}" y2="${top + h + 3}"/>`);
+          D.link([[g.x(v), top - 3], [g.x(v), top + h / 2], [g.x(v), top + h + 3]], 'grid');
         }
         const count = id === 'primary' ? 1 : t.up;
         const each = t.ceiling / count;
@@ -1496,9 +1505,9 @@
         const block = (id, top, steps, stub) => {
           drawLane(D, g, id, r[id], top + LANE_Y, LANE_H, r, hid, view);
           if (stub !== null) stubs.push({ y0: top, y1: top + LANE_Y, flow: stub, id });
-          tierHeader(D, g, top + LANE_Y + LANE_H, pick(NAMES[id], (n) => tw(n, 'label') <= g.stepX - g.xa - 6), fleetForms(r, id), steps, id);
+          tierHeader(D, g, top + LANE_Y + LANE_H, pick(NAMES[id], (n) => tw(n, 'label') <= g.stepX - g.xa - 6), fleetForms(r, id, hid), steps, id);
           const base = top + LANE_Y + LANE_H + 44 + 13;
-          drawLines(D, g.xa, base, flow(statusParts(r, id, hid), lw), id, { id: `cap-${id}` });
+          drawLines(D, g.xa, base, flow(statusParts(r, id, hid, W >= 460), lw), id, { id: `cap-${id}` });
           const end = base + (res[id] - 1) * LINE;
           regionTop[id] = top;
           if (id === 'lb' || id === 'app') D.region(id, { x: g.pad + 6, y: top + 3, w: W - 2 * g.pad - 12, h: end + 8 - top - 3 });
@@ -1608,11 +1617,7 @@
           }
           D.meta.gaps.push({ y0: gp.y0, y1: gp.y1, x0: g.xa, x1, xPass, nextId: gp.nextId });
           gp.mark = { x0: g.xa, x1: Math.max(x1, g.xa) + 4, y0: gp.y0, y1: gp.y1 };
-          // Gridlines only in the gaps, behind the stream, so none runs under a word.
-          for (const v of [10000, 20000].filter((v) => v <= M.AXIS_MAX)) {
-            D.add('grid', `<line class="gridline" x1="${r1(g.x(v))}" y1="${gp.y0}" x2="${r1(g.x(v))}" y2="${gp.y1}"/>`);
-            D.link([[g.x(v), gp.y0 + 0.5], [g.x(v), (gp.y0 + gp.y1) / 2], [g.x(v), gp.y1 - 0.5]], 'grid');
-          }
+
         }
 
         // Inside each box the stream pours into the lane: what the tier takes, down to the lane's top. Within a tier
@@ -1663,7 +1668,7 @@
           return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
         };
       }
-      // One dot for every 400 requests a second in each gap's 24 px, so dot counts follow the model's rates; at most 60.
+      // One dot for every 1,500 requests a second in each gap's 24 px, so dot counts follow the model's rates (at most 56).
       function drawParticles(D, g, gaps, view) {
         const rnd = mulberry32(view.seed ?? 7);
         const placed = [];
@@ -1671,7 +1676,7 @@
         let total = 0;
         for (const gp of gaps) {
           const shedNext = gp.next && gp.next.shed > 1e-9 ? gp.next.shed : 0;
-          const n = Math.min(14, Math.round((gp.flow / 400) * ((gp.y1 - gp.y0) / 24) * 0.5));
+          const n = Math.round((gp.flow / 1500) * ((gp.y1 - gp.y0) / 24));
           const x1 = g.x(gp.flow);
           const xPass = g.x(gp.flow - shedNext);
           for (let i = 0, tries = 0; i < n && tries < 200 && total < 60; tries++) {
@@ -1837,8 +1842,8 @@ ${toggle(s.slow, 'Slow queries', `${M.formatMs(M.SLOW_MS)} each`)}</div></fields
         const z = m.zone;
         const where = z.lanes.find((t) => t.shed > 1e-9) ?? (z.primary.outage ? z.primary : null);
         return [
-          { met: served, text: served ? `all ${fq(r.offered)} served: met` : `${fq(r.served)} served of ${fq(r.offered)}, ${fq(r.shed)} shed: not yet` },
-          { met: room, text: `the busiest tier ${fp(r.maxUtil)} busy, so ${fp(1 - r.maxUtil)} headroom, at least ${M.formatPct(b.headroom)}: ${said(room)}` },
+          { met: served, text: served ? `served: all ${fq(r.offered)}: met` : `served: ${fq(r.served)} of ${fq(r.offered)}, ${fq(r.shed)} shed: not yet` },
+          { met: room, text: `headroom: the busiest tier ${fp(r.maxUtil)} busy leaves ${fp(1 - r.maxUtil)}, at least ${M.formatPct(b.headroom)}: ${said(room)}` },
           {
             met: zoneOk,
             text: zoneOk
@@ -1847,7 +1852,7 @@ ${toggle(s.slow, 'Slow queries', `${M.formatMs(M.SLOW_MS)} each`)}</div></fields
                 ? 'zone A lost: the primary falls with it, and no replica takes over: not yet'
                 : `zone A lost: ${fq(m.zoneShed)} shed at ${tierWord(where?.id ?? z.bottleneck)}: not yet`,
           },
-          { met: few, text: `${r.machines} ${plural(r.machines, 'machine', 'machines')}, at most ${b.machines}: ${said(few)}` },
+          { met: few, text: `machines: ${r.machines}, at most ${b.machines}: ${said(few)}` },
         ];
       }
       function dockHtml(r, view) {
@@ -1894,7 +1899,7 @@ ${toggle(s.slow, 'Slow queries', `${M.formatMs(M.SLOW_MS)} each`)}</div></fields
           return [name[id], id === 'primary' ? (t.promoted ? (compact ? '1*' : '1, promoted') : '1') : up(t, n), q(t.ceiling), q(t.arriving), `${M.formatPct(t.util * 100)}`, t.shed > 1e-9 ? q(t.shed) : compact ? '0' : 'none'];
         };
         for (const id of ['lb', 'app', 'primary', 'replicas']) rows.push({ id, cells: tierRow(id) });
-        rows.push({ id: 'all', cells: [compact ? 'Served' : 'Served', '', '', q(r.offered), '', r.shed > 1e-9 ? q(r.shed) : compact ? '0' : 'none'], total: true });
+        rows.push({ id: 'all', cells: [compact ? 'Path' : 'Whole path', `${r.machines}`, q(Math.min(r.lb.ceiling, r.app.ceiling, r.dbCeiling)), q(r.offered), '', r.shed > 1e-9 ? q(r.shed) : compact ? '0' : 'none'], total: true });
         return { head, rows, note: compact && r.primary.promoted ? '1*: a replica promoted to primary.' : null };
       }
       function describeHtml(r, view, compact) {
@@ -2068,7 +2073,7 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${esc(ramp
         // Captions keep within their reserved lines (the stage's height depends on its width alone).
         const res = reserve(D.W);
         const lw = g.xb - g.xa;
-        for (const id of ['lb', 'app', 'primary', 'replicas']) if (flow(statusParts(r, id, D.meta.hid), lw).length > res[id]) out.push(`${id}'s status runs past its reserved lines`);
+        for (const id of ['lb', 'app', 'primary', 'replicas']) if (flow(statusParts(r, id, D.meta.hid, D.W >= 460), lw).length > res[id]) out.push(`${id}'s status runs past its reserved lines`);
         if (flow(workerParts(r, D.meta.hid), g.xb - g.xa).length > res.workers) out.push("the workers' line runs past its reserved lines");
         if (flow(costParts(r, 'primary'), lw).length > res.costP) out.push("the primary's cost runs past its reserved lines");
         if (flow(costParts(r, 'replicas'), lw).length > res.costR) out.push("the replicas' cost runs past its reserved lines");
@@ -2165,7 +2170,7 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${esc(ramp
         const sl = (i, k) => M.formatSlot(e[i].slots[k]);
         return {
           tenfold: [sl(0, 'dbLimit'), 'bottleneck', 'Full', /limit [\d,]+/, /[\d.]+% busy/, /[\d,]+\/s (shed|spare)/],
-          cache: [sl(1, 'after'), sl(1, 'afterRound'), sl(1, 'ratio'), 'Full', /limit [\d,]+\/s ·[^|]*0\.38/],
+          cache: [sl(1, 'after'), sl(1, 'afterRound'), sl(1, 'ratio'), '0.38'],
           replay: [sl(2, 'after'), sl(2, 'afterRound'), sl(2, 'limitAfter'), '900'],
           zone: [sl(3, 'shed') + ' shed', sl(3, 'appLimit'), sl(3, 'appOver'), 'Full', 'bottleneck'],
           slow: [sl(4, 'served'), sl(4, 'perServer'), sl(4, 'cpu'), sl(4, 'shed'), 'workers bind', 'Full'],
@@ -2235,7 +2240,7 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${esc(ramp
         };
         tryLeak('tenfold', 'asking', { hide: [] });
         tryLeak('cache', 'playing', { hide: [] });
-        tryLeak('replay', 'asking', { leakGhost: true }, { ...M.SETUP.replay, replicas: 4 });
+        tryLeak('replay', 'asking', { leakGhost: true }, { ...M.SETUP.replay, size: 4000, replicas: 4 });
         tryLeak('slow', 'playing', { changed: ['lb'] });
         well.style.width = '';
         return caught;
@@ -2265,9 +2270,10 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${esc(ramp
         for (let i = 0; i < ALL.length; i += stride) {
           const s = ALL[i];
           const r = M.run(s);
-          const words = [summary(r), rampStory(s, M.TRAFFIC[0]), ...[true, false].map((c) => describeRows(r, c).rows.flatMap((x) => x.cells).join(' ')), ...goalChecks(r).map((g) => g.text)];
+          const prose = [summary(r), rampStory(s, M.TRAFFIC[0])];
+          const words = [...prose, ...[true, false].map((c) => describeRows(r, c).rows.flatMap((x) => x.cells).join(' ')), ...goalChecks(r).map((g) => g.text)];
           for (const w of words)
-            for (const g of WORD_RULES) {
+            for (const g of WORD_RULES.filter((g) => prose.includes(w) || g !== WORD_RULES[FALSE_CLAIMS.length])) {
               const m = w.match(g);
               if (m && !(g.source.includes('(load balancer') && m[1] === '1')) out.push(`${show(s)}: ${g} in "${w}"`);
             }
