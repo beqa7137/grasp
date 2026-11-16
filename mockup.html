@@ -1108,7 +1108,9 @@
       function loadParts(m, wide) {
         const s = m.settings;
         const busy = s.down ? `${s.load}% busy with all ${s.servers} up` : `${s.load}% busy`;
-        return { busy, rate: `${M.formatQps(m.ratePerS).replace('/s', '')} requests/s, at random` };
+        const rate = M.formatQps(m.ratePerS).replace('/s', '');
+        const work = s.service === 'steady' ? `exactly ${fms(M.SERVICE_MS)} each` : `${fms(M.SERVICE_MS)} each on average`;
+        return { busy, rate: `${rate} requests/s at random, ${work}`, rateShort: `${rate} requests/s at random`, work };
       }
       function serversLabel(m, hid) {
         const s = m.settings;
@@ -1230,7 +1232,7 @@
         const loadTop = y;
         const loadLabelY = loadTop + 12;
         const loadLine = [['Load', 'label'], [lp.busy, 'capB', 'ink', 10]];
-        if (wide) loadLine.push([` · ${lp.rate}`, 'cap', 'muted']);
+        if (wide) loadLine.push([` · ${partsWidth([...loadLine, [` · ${lp.rate}`, 'cap']]) <= W - 2 * pad ? lp.rate : lp.rateShort}`, 'cap', 'muted']);
         D.text(pad, loadLabelY, loadLine, { owner: 'load' });
         const tx0 = Math.max(pad + 8, 23);
         const tx1 = Math.min(W - pad - 8, W - 23);
@@ -1245,7 +1247,7 @@
           D.text(tx1, ty + 28, [[`${M.LOADS.at(-1)}%`, 'small', 'muted']], { owner: 'load', anchor: 'end' });
           y = ty + 36;
         } else {
-          D.text(pad, ty + 30, [[lp.rate, 'cap', 'muted']], { owner: 'load' });
+          D.text(pad, ty + 30, [[tw(lp.rate, 'cap') <= W - 2 * pad ? lp.rate : lp.rateShort, 'cap', 'muted']], { owner: 'load' });
           y = ty + 38;
         }
         D.region('load', { x: pad - 8, y: loadTop - 4, w: W - 2 * pad + 16, h: y - loadTop + 2 });
@@ -1324,6 +1326,37 @@
           }
           D.add('marks', `<path class="router" d="M${xr} ${ymid - 8}L${xr + 8} ${ymid}L${xr} ${ymid + 8}L${xr - 8} ${ymid}Z"/>`);
           D.mark({ x0: xr - 8, x1: xr + 8, y0: ymid - 8, y1: ymid + 8 }, 'router');
+        }
+        // The last request to leave by the moment drawn, as its own small bar of waiting then work: one request's time
+        // beside the model's average below. It changes at each departure during a play (a swap, never a count). While the
+        // model's numbers wait it waits too: a sampled time beside a hidden model time would read as the answer.
+        if (smp && !hid.numbers) {
+          const done = smp.reqs.filter((r) => r.leave <= tScene);
+          const last = done.reduce((b, r) => (!b || r.leave > b.leave ? r : b), null);
+          if (last) {
+            const waitMs = last.start - last.arrive;
+            const workMs = last.leave - last.start;
+            const words = [
+              [`Last to leave: waited ${fdur(waitMs)}, then ${fdur(workMs)} of work`, 'small'],
+              [`Last out: waited ${fdur(waitMs)}, worked ${fdur(workMs)}`, 'small'],
+            ];
+            const maxW = (split ? xs : xf) - pad - 12;
+            const pick = words.find(([t]) => tw(t, 'small') <= maxW);
+            const ry = bt + BH - 16;
+            const barY = ry + 5;
+            if (pick && !split) {
+              const scale = Math.min(2, (maxW - 4) / Math.max(1, waitMs + workMs));
+              const ww = waitMs * scale;
+              const kw = Math.max(1.5, workMs * scale);
+              const box = { x0: pad, x1: pad + Math.max(tw(pick[0], 'small'), ww + kw + 2), y0: ry - 10, y1: barY + 7 };
+              if (D.free(box, '', 2)) {
+                D.text(pad, ry, [[pick[0], 'small', 'muted']], { owner: 'receipt' });
+                if (ww > 0.5) D.add('marks', `<rect class="bar-wait receipt" x="${pad}" y="${barY}" width="${r1(ww)}" height="5" rx="1.5" data-id="r${last.id}"/>`);
+                D.add('marks', `<rect class="bar-work receipt" x="${r1(pad + ww + (ww > 0.5 ? 1 : 0))}" y="${barY}" width="${r1(kw)}" height="5" rx="1.5"/>`);
+                D.mark({ x0: pad, x1: pad + ww + kw + 1, y0: barY, y1: barY + 5 }, 'receipt');
+              }
+            }
+          }
         }
         // At rest, the request first in line says how long it has waited: the sample's own number, at the moment drawn.
         if (smp && !playing && at.waiting.length) {
@@ -2166,7 +2199,7 @@
       // ---------- The no-answer sweep: while a question asks and while its answer plays, no rendered text, accessible
       // name or structure may hold its answer or a false claim (prevention 1 and 2).
       const GIVEAWAYS = {
-        'idle-yet-waiting': ['of requests wait', 'waiting now', 'waiting at', '20 ms', '10 ms waiting', 'longest', 'idle'],
+        'idle-yet-waiting': ['of requests wait', 'waiting now', 'waiting at', '20 ms', '10 ms waiting', 'longest', 'idle', 'first in line', 'last to leave'],
         knee: ['90 ms waiting', '461 ms', '69 ms', '3×'],
         pool: ['7.46', '59.6%', '69 ms', '17 ms', 'shared queue hands'],
         steady: ['45 ms', '229 ms', '55 ms', '40 ms'],
@@ -2182,7 +2215,7 @@
         if (well.querySelector('.handle')?.getAttribute('aria-disabled') !== 'true') out.push('the load handle is enabled');
         if (hide.has('sample') && phase === 'asking' && svg.querySelector('.dot.wait, .dot.serve, .tick-arr, .busy, .area-wait, .peak, .ring-arc')) out.push('a sample mark while the sample waits');
         const numbersHidden = hide.has('numbers') || (hide.has('after') && phase === 'playing');
-        if (numbersHidden && svg.querySelector('.dot.req, .dot.p50, .dot.p99, .bar-work, .bar-wait, .leader, .mtick, .chevron')) out.push('a model mark while the numbers wait');
+        if (numbersHidden && svg.querySelector('.dot.req, .dot.p50, .dot.p99, .bar-work, .bar-wait, .leader, .mtick, .chevron')) out.push(`a model or receipt mark while the numbers wait: ${svg.querySelector('.dot.req, .dot.p50, .dot.p99, .bar-work, .bar-wait, .leader, .mtick, .chevron').getAttribute('class')}`);
         if (hide.has('numbers') && svg.querySelector('.curve.p50, .curve.p99')) out.push('a curve while the numbers wait');
         if (numbersHidden) for (const t of svg.querySelectorAll('text[data-id^="stat-"]')) if (t.textContent !== '?') out.push(`${t.dataset.id} reads "${t.textContent}"`);
         const rhoChanged = Math.abs(M.run(actSettings(spec)).rho - M.run(spec.setup).rho) > 1e-9;
@@ -2214,7 +2247,7 @@
                 drawInto(well, W, m, view);
                 renders++;
                 const text = [...well.querySelectorAll('text')].map((t) => t.textContent).join(' | ') + ' | ' + [...well.querySelectorAll('[aria-label],[aria-valuetext]')].map((e) => `${e.getAttribute('aria-label')} ${e.getAttribute('aria-valuetext') ?? ''}`).join(' | ');
-                const words = [...(GIVEAWAYS[spec.id] ?? []), ...FALSE_CLAIMS].filter((g) => !(phase === 'playing' && spec.id === 'idle-yet-waiting' && ['waiting now', 'waiting at', 'idle'].includes(g)));
+                const words = [...(GIVEAWAYS[spec.id] ?? []), ...FALSE_CLAIMS].filter((g) => !(phase === 'playing' && spec.id === 'idle-yet-waiting' && ['waiting now', 'waiting at', 'idle', 'first in line', 'last to leave'].includes(g)));
                 for (const g of words) if (typeof g === 'string' ? text.includes(g) : g.test(text) && (phase === 'asking' || !String(g).includes('waiting'))) out.push(`W${W} ${spec.id} ${phase}${tau !== null ? ` t${tau}` : ''}: "${g}"`);
                 for (const g of structural(well, spec, phase)) out.push(`W${W} ${spec.id} ${phase}: ${g}`);
               }

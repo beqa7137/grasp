@@ -75,7 +75,8 @@ Pollaczek-Khinchine ρS / (2(1 − ρ)) at every load (exact to 1e−9); M/D/1's
 1909 formula P(W ≤ xD) = (1 − ρ) Σₖ (ρ(k − x))ᵏ / k! · e^(−ρ(k − x)), evaluated in 160-digit BigInt fixed point because
 its terms cancel to 40 digits (66 points from 10 to 98%, largest gap 8e−15); a discrete-event FCFS simulation of every
 configuration at 30, 60, 80 and 90% (76 configurations, 3 to 12 million requests each): mean, p50, p99 and the chance to
-wait within 2 to 8% (the tolerance widens with 1 / (1 − ρ), as busy periods lengthen); a shared queue never waits longer
+wait agree, the largest gaps 1.1%, 0.7% and 2.1% against tolerances of 2 to 8% (widening with 1 / (1 − ρ), as busy periods
+lengthen); a shared queue never waits longer
 than a queue each, steady never longer than random, p99 rises with load in every configuration, Little's law holds.
 Every experiment number, its answer and the challenge's one solution are printed and checked.
 
@@ -84,8 +85,8 @@ stream of uniforms at every setting, so a higher load compresses the same arriva
 request by request); 40,000 arrivals warm the system up, and the window is the 400 ms before the last one. With no
 steady state the window is 4 s and starts empty (a ramp needs the window many times (λ + μ) / (λ − μ)²; enum.cjs checks
 both unstable states ramp quarter by quarter). The seed (31) is the one of 64 whose windows sit closest to the model
-(the window's busy share against ρ, its mean queue against λ W_q, over every stable setting and again over the
-experiments' settings), so the picture is typical. **Honesty rule:** the sample is drawn and labelled as a sample ("A
+(the window's busy share against ρ and its mean queue against λ W_q, averaged over every stable setting, again over the
+experiments' settings, plus a quarter of the worst window), so the picture is typical. **Honesty rule:** the sample is drawn and labelled as a sample ("A
 sample of random arrivals", "The last 400 ms of this sample", "8 waiting at 51 ms"); it is never summarized as a
 percentile, a mean or a utilization. Every number in the lower half, the headline, the bar, the two facts, the curves,
 the 100 requests and every experiment slot comes from the exact model.
@@ -111,8 +112,9 @@ requests). A hairline rule and a label start each part, so the eye knows which h
 form "Random arrivals"), and the key: an amber dot "waiting", a blue dot "in service" (beside the label when wide, its own
 row on phones).
 
-**Load.** "LOAD **70% busy** · 70 requests/s, at random" (phones put the rate under the track); with a server down,
-"**60% busy with all 4 up** · 240 requests/s". A `g-handle` slider on a full-width track with a stop per load (14 stops,
+**Load.** "LOAD **70% busy** · 70 requests/s at random, 10 ms each on average" ("exactly 10 ms each" for steady work;
+"70 requests/s at random" where the rest does not fit; phones put it under the track); with a server down, "**60% busy
+with all 4 up** · 240 requests/s at random, ...". A `g-handle` slider on a full-width track with a stop per load (14 stops,
 positions linear in load, the fill in the accent: handles are UI), "10%" and "98%" under the ends on wide stages. Its
 `aria-valuetext` is "70% busy, 70 requests a second".
 
@@ -127,8 +129,12 @@ then "+N" in a chip when they pass the lane's room; the fork's curves run to eve
 diamond after "random" on the inlet, curves to a lane per server, each lane its own amber line in front of its box, so
 an idle server beside a long line is in plain sight. A server down: hatched, dashed, "down" where it fits and a critical
 ×, its lane dashed and empty. Over capacity, the boxes of the servers left take a critical outline. At rest, the
-request first in line says how long it has waited ("first in line: waiting 34 ms so far", sample, in warn ink, placed
-over the head of the longest line where it covers nothing, shorter forms after).
+request first in line says how long it has waited ("first in line: waiting 65 ms so far", sample, in warn ink, placed
+over the head of the longest line where it covers nothing, shorter forms after). Under the line, where there is room
+(not with a queue each), the last request to leave by that moment is a small bar in the model bar's colours: "Last to
+leave: waited 97 ms, then 54 ms of work" ("Last out: waited 97 ms, worked 54 ms"), so one request's waiting and work sit
+above the model's average for every request. During a play it swaps at each departure; it waits while the model's
+numbers wait (a sampled time beside a hidden model time would read as the answer).
 
 **The moment.** At rest the band shows the moment the window's queue was longest, and the timeline marks it: a dotted
 line at that moment, a ring on the waiting area's peak, and in the timeline's label row "drawn above: the longest queue, 8"
@@ -227,13 +233,15 @@ plays out on it.") through the play; the reveal is read out politely and its reg
 "Look here" tag.
 
 **E1 "Waiting at half load".** Setup 1 server, random, 50%; act `run: 'sample'`. Ask: "One server, 50% busy, so it sits
-idle 50% of the time. Requests arrive at random, 50/s on average, and each needs 10 ms of work on average. How many of
-them wait before the server starts on them?" Choices: "None: it has time to spare" / "About one in ten, in the bursts" /
-**"Half of them"**. Truth: P(wait) (PASTA: an arrival finds the server busy exactly ρ of the time). Reveal: "Half of
-them: a request that arrives at a random moment finds the server busy 50% of the time, exactly its utilization, so 50%
-of requests wait for the work ahead of them. Those wait 20 ms on average, so the mean wait over every request is 10 ms,
-and a request takes 20 ms in all for 10 ms of work. Waiting needs no overload, only collisions." Slots: load, idle, rate,
-service, chance, waitWhenWaiting, meanWaitAll, mean. Hides `sample` (asking only: no requests, ticks, busy blocks, area,
+idle 50% of the time. Requests arrive at random, 50/s on average, and each needs 10 ms of work on average. On average,
+how long does a request wait before the server starts on it?" Choices (ascending): "None: it has time to spare" / "2.5
+ms: only the bursts wait" / **"10 ms: as long as the work itself"**. Truth: the mean wait, ρS / (1 − ρ). Reveal: "10 ms,
+as long as the work itself. A request that arrives at a random moment finds the server busy 50% of the time, exactly its
+utilization, so 50% of requests wait for the work ahead of them, 20 ms on average; over every request that is 10 ms, and
+a request takes 20 ms in all. Waiting needs no overload, only collisions." (Asking how many wait would be guessable from
+"50% busy": the answer is the utilization itself; asking the wait is not, and the reveal still teaches that an arrival
+finds the server busy exactly as often as it is busy.) Slots: load, idle, rate, service, quarter, chance,
+waitWhenWaiting, meanWaitAll, mean; enum.cjs checks "as long as the work itself". Hides `sample` (asking only: no requests, ticks, busy blocks, area,
 ring arc or head note; "REQUESTS ARRIVE AFTER YOUR ANSWER", "The sample plays after your answer") and `numbers` (asking
 and playing: headline "?", the bar dashed with "work and waiting after your answer", one fact "Who waits, and how many
 are in the system at once, show after your answer.", no curves, dots, leaders or 100 requests, "after your answer" in the
@@ -252,8 +260,8 @@ answer", "after your answer" or "?" beside it) and `after` (playing: the headlin
 
 **E3 "One queue or a queue each".** Setup 4 servers, a queue each, 80%; act `set: { queue: shared }`. Ask: "4 servers,
 each 80% busy, each with its own queue, and every request goes to one of them at random: a request waits 40 ms on
-average. Put all 4 behind one shared queue, at the same load. What is the average wait now?" Choices (ascending):
-**"7.46 ms: a wait needs all 4 busy"** / "20 ms: the pool shares the bursts" / "40 ms: each is just as busy". Reveal:
+average. Put all 4 behind one shared queue, at the same load. What is the average wait now?" Choices (ascending, one
+shape): **"7.46 ms: 5.4× shorter"** / "20 ms: half as long" / "40 ms: unchanged, each is as busy". Reveal:
 "7.46 ms, 5.4× shorter: with a queue each, a request can wait behind a long one while another server sits idle. One
 shared queue hands each request to the first server that frees up, so it waits only when all 4 are busy, which 59.6% of
 arrivals find, against 80% with a queue each. p99 falls from 230 ms to 69 ms. This is why one line feeding a pool beats a

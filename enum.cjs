@@ -51,6 +51,7 @@ check(positions.join(',') === '3,2,1,2,3', 'answer positions are 3, 2, 1, 2, 3')
   const idle = M.run({ load: 50 });
   check(rel(idle.waitChance, 0.5) < 1e-12, 'E1: half of requests wait at 50% (PASTA: P(wait) = utilization)');
   check(rel(idle.meanWait, 10) < 1e-9 && rel(idle.mean, 20) < 1e-9, 'E1: mean wait 10 ms, mean 20 ms');
+  check(rel(idle.meanWait, M.SERVICE_MS) < 1e-9, 'E1: "as long as the work itself" holds at 50%');
   const a = M.run({ load: 70 });
   const b = M.run({ load: 90 });
   check(rel(b.mean / a.mean, 3) < 1e-9, 'E2: 70% to 90% triples the mean');
@@ -257,7 +258,8 @@ for (const servers of M.SERVERS)
         }
 console.log(`${ALL.length} settings`);
 // Typicality: the window's busy share against the utilization, and its average queue against the model's, over every
-// stable setting and again over the settings the experiments show; the seed with the smallest sum of the two means wins.
+// stable setting and again over the settings the experiments show; the seed with the smallest sum of the two means and a
+// quarter of the worst gap wins.
 const KEY = [{ load: 50 }, { load: 70 }, { load: 90 }, { load: 80, servers: 4, queue: 'split' }, { load: 80, servers: 4 }, { load: 90, service: 'steady' }, { load: 70, servers: 3 }, { load: 60, servers: 4, down: 1 }, { load: 60, servers: 3 }];
 function gap(s, seed) {
   const m = M.run(s);
@@ -274,7 +276,8 @@ function score(seed) {
     worst = Math.max(worst, g);
   }
   const key = KEY.reduce((t, s) => t + gap(s, seed), 0) / KEY.length;
-  return { mean: all / ALL.length, key, worst, total: all / ALL.length + key };
+  // A quarter of the worst gap counts too, so no one window is far from the model to buy a slightly better mean.
+  return { mean: all / ALL.length, key, worst, total: all / ALL.length + key + worst / 4 };
 }
 {
   const seeds = quick ? [M.SAMPLE_SEED] : Array.from({ length: 64 }, (_, i) => i + 1);

@@ -467,20 +467,19 @@
       title: 'Waiting at half load',
       setup: SETUP.idle,
       act: { run: 'sample' },
-      ask: 'One server, {load} busy, so it sits idle {idle} of the time. Requests arrive at random, {rate} on average, and each needs {service} of work on average. How many of them wait before the server starts on them?',
+      ask: 'One server, {load} busy, so it sits idle {idle} of the time. Requests arrive at random, {rate} on average, and each needs {service} of work on average. On average, how long does a request wait before the server starts on it?',
       choices: [
         { text: 'None: it has time to spare', value: 'none' },
-        { text: 'About one in ten, in the bursts', value: 'tenth' },
-        { text: 'Half of them', value: 'half' },
+        { text: '{quarter}: only the bursts wait', value: 'quarter' },
+        { text: '{meanWaitAll}: as long as the work itself', value: 'meanWaitAll' },
       ],
-      truth: 'share',
+      truth: 'meanWaitAll',
       reveal:
-        'Half of them: a request that arrives at a random moment finds the server busy {chance} of the time, exactly its utilization, so {chance} of requests wait for the one ahead to finish. Those wait {waitWhenWaiting} on average, so the mean wait over every request is {meanWaitAll}, and a request takes {mean} in all for {service} of work. Waiting needs no overload, only collisions.',
+        '{meanWaitAll}, as long as the work itself. A request that arrives at a random moment finds the server busy {chance} of the time, exactly its utilization, so {chance} of requests wait for the work ahead of them, {waitWhenWaiting} on average; over every request that is {meanWaitAll}, and a request takes {mean} in all. Waiting needs no overload, only collisions.',
       focus: ['scene', 'timeline'],
       hide: ['sample', 'numbers'],
       slots: () => {
         const m = run(SETUP.idle);
-        const share = Math.abs(m.waitChance - 0.5) < 1e-9 ? 'half' : m.waitChance < 0.2 ? 'tenth' : 'other';
         return {
           load: pct(m.settings.load),
           idle: pct(100 - m.settings.load),
@@ -490,10 +489,8 @@
           meanWaitAll: ms(m.meanWait),
           waitWhenWaiting: ms(m.meanWait / m.waitChance),
           mean: ms(m.mean),
-          none: word('none'),
-          tenth: word('tenth'),
-          half: word('half'),
-          share: word(share),
+          none: ms(0),
+          quarter: ms(SERVICE_MS / 4),
         };
       },
     },
@@ -543,9 +540,9 @@
       act: { set: { queue: 'shared' }, run: 'sample' },
       ask: '{servers} servers, each {load} busy, each with its own queue, and every request goes to one of them at random: a request waits {before} on average. Put all {servers} behind one shared queue, at the same load. What is the average wait now?',
       choices: [
-        { text: '{after}: a wait needs all {servers} busy', value: 'after' },
-        { text: '{half}: the pool shares the bursts', value: 'half' },
-        { text: '{before}: each is just as busy', value: 'before' },
+        { text: '{after}: {ratio} shorter', value: 'after' },
+        { text: '{half}: half as long', value: 'half' },
+        { text: '{before}: unchanged, each is as busy', value: 'before' },
       ],
       truth: 'after',
       reveal:
@@ -647,7 +644,7 @@
       ask: 'A server has failed, and its traffic moved to the rest. Choose the servers, the queue and the load so that p99 stays under {p99} on the servers left while the fleet runs at least {minLoad} busy with every server up.',
       goal: CHALLENGE_GOAL,
       reveal:
-        '{servers} servers sharing one queue at {load}: with one down, the {left} left are {rho} busy and p99 is {p99Now}. Three servers at {load} would leave two at {rho3}, p99 {p99Three}; a queue each would need the load down to {splitLoad}. A bigger pool runs hotter and still rides out a failure: plan N+1 servers, each run at what the other N can absorb.',
+        '{servers} servers sharing one queue at {load}: with one down, the {left} left are {rho} busy and p99 is {p99Now}. {threeN} servers at {load} would leave {twoN} at {rho3}, p99 {p99Three}; a queue each would need the load down to {splitLoad}. A bigger pool runs hotter and still rides out a failure: plan N+1 servers, each run at what the other N can absorb.',
       focus: ['chart', 'scene'],
       hide: [],
       slots: () => {
@@ -665,6 +662,8 @@
           left: num(sol.up),
           rho: pct(sol.rho * 100),
           p99Now: ms(sol.p99),
+          threeN: num(three.settings.servers),
+          twoN: num(three.up),
           rho3: pct(three.rho * 100),
           p99Three: ms(three.p99),
           splitLoad: pct(splitPass[splitPass.length - 1]),
