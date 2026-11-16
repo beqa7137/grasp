@@ -611,7 +611,7 @@
       ],
       truth: 'afterRound',
       reveal:
-        '{after}, {ratio} shorter: with a queue each, a request can wait behind a long one while another server sits idle, and here that is so {idleBeside} of the time. One shared queue hands each request to the first server that frees up, so it waits only when all {servers} are busy, which {chance} of arrivals find, against {chanceSplit} with a queue each. p99 falls from {p99Before} to {p99After}. This is why one line feeding a pool beats a line per checkout, and why least-loaded balancing beats random.',
+        '{after}, {ratio} shorter: with a queue each, a request can wait behind a long one while another server sits idle; here that happens {idleBeside} of the time. One shared queue hands each request to the first server that frees up, so it waits only when all {servers} are busy, which {chance} of arrivals find, against {chanceSplit} with a queue each. p99 falls from {p99Before} to {p99After}. This is why one line feeding a pool beats a line per checkout, and why least-loaded balancing beats random.',
       focus: ['scene', 'numbers'],
       hide: ['after'],
       slots: () => {

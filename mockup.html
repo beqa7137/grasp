@@ -2276,7 +2276,7 @@
         const spec = M.EXPERIMENTS[expIdx];
         if (spec.goal) return expView(spec, params.get('start') === '1' ? 'start' : 'challenge');
         const phase = params.get('phase') === 'playing' && st.phase === 'asking' ? 'playing' : st.phase;
-        return expView(spec, phase, Number(params.get('frac') ?? 0.6));
+        return expView(spec, phase, Number(params.get('frac') ?? 0.9));
       }
       /** One experiment's view: asking (from whatever setting came before, which must leave no trace), the answer's play at
        * a fraction of its clock, revealed, or the challenge met or at its start. */
