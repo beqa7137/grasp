@@ -675,6 +675,11 @@
         stroke: var(--g-viz-critical);
         stroke-width: 2;
       }
+      .landing-ground {
+        fill: none;
+        stroke: var(--g-raised);
+        stroke-width: 5;
+      }
       .focus-outline {
         fill: none;
         stroke: var(--g-accent);
@@ -687,6 +692,7 @@
         stroke-width: 1.5;
       }
       .caption {
+        order: 2;
         margin: 0;
         font-size: var(--g-text-body-s);
         color: var(--g-muted);
@@ -1172,7 +1178,9 @@
         if (hid.lanes.has(id)) return [[`?% busy${each}`, 'capB'], [' · limit after your answer', 'cap']];
         const limit = t.ceiling;
         // Narrow, the lane's cut end says it runs off the axis; wide, the words say so too.
-        const limitWords = limit > M.AXIS_MAX && wide ? `limit ${fq(limit)}, off the axis` : `limit ${fq(limit)}`;
+        // A database lane says its limit is in requests, beside a machine sized in queries.
+        const unit = id === 'primary' || id === 'replicas' ? `${fn(limit)} requests/s` : fq(limit);
+        const limitWords = limit > M.AXIS_MAX && wide ? `limit ${unit}, off the axis` : `limit ${unit}`;
         const load = id === 'primary' || id === 'replicas' ? r.served : t.arriving;
         if (t.shed > 1e-9) return [[`Full${each}`, 'capB', 'crit-ink'], [` · ${limitWords} · ${fq(t.shed)} shed${r.bottleneck === id ? ', the bottleneck' : ''}`, 'cap']];
         if (t.util > 1 - 1e-9) return [[`100% busy${each}`, 'capB'], [` · ${limitWords} · nothing spare`, 'cap']];
@@ -1422,7 +1430,8 @@
           const x1 = g.x(t.ceiling + t.shed);
           D.add('lanes', rect(x0, top + 1, x1 - x0, h - 2, 'shed-block', ` data-shed="${id}"`));
           D.mark({ x0, x1, y0: top, y1: top + h }, owner);
-          xGlyph(D, Math.max(x0 + 8, x1 - 8), top + h / 2, owner, 4, 'xground on-box');
+          // A narrow block leaves its × to the stream's edge above, where the shed is also marked.
+          if (x1 - x0 >= 24) xGlyph(D, x1 - 9, top + h / 2, owner, 4, 'xground on-box');
         }
       }
 
@@ -1628,7 +1637,7 @@
         // The climax: the tier that filled first, ringed where its limit is.
         if (view.climax && D.meta.lanes?.[view.climax]) {
           const L = D.meta.lanes[view.climax];
-          D.add('top', `<circle class="landing" cx="${r1(L.x1)}" cy="${r1(L.y + L.h / 2)}" r="15"/>`);
+          D.add('top', `<circle class="landing-ground" cx="${r1(L.x1)}" cy="${r1(L.y + L.h / 2)}" r="16"/><circle class="landing" cx="${r1(L.x1)}" cy="${r1(L.y + L.h / 2)}" r="16"/>`);
         }
         // The stream's path takes no label or tag.
         for (const gp of gaps) D.mark(gp.mark, 'stream');
@@ -1763,6 +1772,8 @@
         const expIdx = expParam !== null && st.exp !== undefined ? Number(expParam) - 1 : st.exp;
         if (expIdx === undefined) {
           const v = { s: st.s, hide: [], phase: 'rest', ghost: st.ghost ?? null, describe: !!st.describe, reduced: !!st.reduced };
+          // Reduced motion: Play draws the setting at rest with the first tier to fill ringed, and says the ramp in words.
+          if (st.reduced) v.climax = M.rampPlan(st.s, M.TRAFFIC[0], st.s.traffic).full;
           if (st.ramp) return { ...v, s: { ...st.s, traffic: st.ramp.at }, particles: true, climax: rampClimax(st.s, st.ramp.from, st.ramp.at), rampTo: st.s.traffic };
           return v;
         }
@@ -2261,6 +2272,17 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${esc(ramp
         return out;
       };
       window.stageHeight = (W, s = B) => buildStage(W, M.run(s), { s, hide: [], phase: 'rest' }).H;
+      /** The stage height at every pixel of width, as the steps where it changes (the height is a function of width). */
+      window.heightSteps = function (from = 248, to = 760) {
+        const out = [];
+        let last = null;
+        for (let W = from; W <= to; W++) {
+          const H = window.stageHeight(W);
+          if (H !== last) out.push([W, H]);
+          last = H;
+        }
+        return out;
+      };
       window.widgetHeight = () => document.getElementById('widget').getBoundingClientRect().height;
       // Every summary, notice, ramp story, Describe row and goal check a setting prints, for the false-claim and grammar
       // rules.
