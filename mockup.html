@@ -293,8 +293,14 @@
         box-shadow: inset 0 0 0 1px var(--g-accent);
         font-weight: 600;
       }
-      fieldset:disabled .segment span {
+      fieldset:disabled .segment span,
+      .segment input:disabled + span {
         opacity: 0.55;
+      }
+      .control-label .why {
+        font-weight: 500;
+        letter-spacing: normal;
+        text-transform: none;
       }
       .segment small {
         font: 500 var(--g-text-label) var(--g-font);
@@ -313,6 +319,25 @@
       .notice {
         margin: 0;
         min-height: 2lh;
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+      }
+      /* Below wide the notice would sit over the stage and push it down as it speaks: read out only (_widget-controls.scss). */
+      @media (max-width: 999px) {
+        .notice {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          min-height: 0;
+          overflow: hidden;
+          clip-path: inset(50%);
+        }
+        .controls {
+          padding-bottom: 12px;
+        }
+      }
+      .caption {
+        margin: 0;
         font-size: var(--g-text-body-s);
         color: var(--g-muted);
       }
@@ -455,13 +480,67 @@
       .stop {
         fill: var(--g-line-strong);
       }
+      .t-unit {
+        text-transform: none;
+      }
       .lane {
         fill: none;
-        stroke: var(--g-viz-track);
-        stroke-width: 1.5;
+        stroke: var(--g-stroke);
+        stroke-width: 1.25;
       }
       .lane.down {
         stroke-dasharray: 3 3;
+      }
+      .lane.hidden {
+        stroke-dasharray: 3 3;
+        stroke-opacity: 0.55;
+      }
+      .ring-track.hidden {
+        stroke: var(--g-stroke);
+        stroke-opacity: 0.55;
+        stroke-width: 1.25;
+        stroke-dasharray: 2 3;
+      }
+      .chip.hidden-chip {
+        fill: var(--g-viz-stage);
+        stroke: var(--g-stroke);
+        stroke-dasharray: 3 2;
+      }
+      .notch {
+        fill: var(--g-viz-stage);
+      }
+      .qgrid {
+        stroke: var(--g-line-strong);
+        stroke-dasharray: 2 3;
+      }
+      .drift {
+        stroke: var(--g-text);
+        stroke-opacity: 0.75;
+        stroke-width: 1.25;
+        stroke-dasharray: 5 3;
+      }
+      .ghost-dot {
+        fill: var(--g-viz-stage);
+        stroke: var(--g-stroke);
+        stroke-width: 1.5;
+      }
+      .ghost-arrow {
+        stroke: var(--g-stroke);
+        stroke-width: 1.25;
+        stroke-dasharray: 2 3;
+      }
+      .ghost-head {
+        fill: none;
+        stroke: var(--g-stroke);
+        stroke-width: 1.25;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .mtick.over50 {
+        stroke-dasharray: 3 3;
+      }
+      path.leader {
+        fill: none;
       }
       .router {
         fill: var(--g-raised);
@@ -850,8 +929,10 @@
       .table-box {
         justify-self: stretch;
         overflow: auto;
-        max-height: 300px;
         border-top: 1px solid var(--g-line);
+      }
+      tbody tr {
+        height: 28px;
       }
       table {
         width: 100%;
@@ -911,9 +992,10 @@
       const M = window.LatencyModel;
       const params = new URLSearchParams(location.search);
       document.documentElement.classList.toggle('dark', params.get('theme') === 'dark');
-      const WIN = M.WINDOW_MS;
+      const SCALES = [2, 5, 10, 20, 50, 100, 200, 500, 1000];
 
       // ---------- Text measurement, with the fonts the app ships (no tabular digits: small text is measured as drawn).
+      // The label role is set in capitals, but a unit after a number keeps its SI case ("400 ms", "4 s").
       const ROLE = {
         label: { css: '600 11px "Inter Variable"', size: 11, track: 0.12, upper: true },
         cap: { css: '500 13px "Inter Variable"', size: 13 },
@@ -925,6 +1007,8 @@
         head: { css: '600 17px "JetBrains Mono Variable"', size: 17 },
         look: { css: '600 11px "Inter Variable"', size: 11 },
       };
+      const UNIT_AFTER_NUMBER = /(?<=\d )(ms|s)\b/;
+      const upperKeepUnits = (t) => t.toUpperCase().replace(/(?<=\d )(MS|S)\b/g, (u) => u.toLowerCase());
       const ctx = document.createElement('canvas').getContext('2d');
       const widthCache = new Map();
       function tw(text, role) {
@@ -932,7 +1016,7 @@
         if (widthCache.has(key)) return widthCache.get(key);
         const f = ROLE[role];
         ctx.font = f.css;
-        const s = f.upper ? text.toUpperCase() : text;
+        const s = f.upper ? upperKeepUnits(text) : text;
         const w = Math.ceil(ctx.measureText(s).width + (f.track ? f.track * f.size * s.length : 0)) + 1;
         widthCache.set(key, w);
         return w;
@@ -953,10 +1037,21 @@
         return lines;
       }
       const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      const labelInner = (t) =>
+        esc(t)
+          .split(UNIT_AFTER_NUMBER)
+          .map((p, i) => (i % 2 ? `<tspan class="t-unit">${p}</tspan>` : p))
+          .join('');
       const fms = M.formatMs;
       const fdur = M.formatDuration;
+      // Stage times: a value that would round to 0 says so instead of printing a false 0.
+      const fwait = (v) => (v > 0 && v < 0.005 ? 'under 0.01 ms' : fdur(v));
+      // One decimal under 100 ms, whole numbers above: the precision of Little's law and Describe's columns.
+      const ms1 = (v) => (v < 100 ? String(Number(v.toFixed(1))) : String(Math.round(v)));
+      const pctOf = (v) => (v > 0 && v < 0.0005 ? 'under 0.1%' : M.formatPct(v * 100));
       const r1 = (v) => Math.round(v * 10) / 10;
       const plural = (n, one, many) => (n === 1 ? one : many);
+      const pick = (forms, fits) => forms.find(fits) ?? null;
 
       // ---------- The drawing: SVG parts in layers, and the boxes placement checks against.
       class Draw {
@@ -969,6 +1064,7 @@
           this.hits = [];
           this.regions = {};
           this.missing = [];
+          this.meta = {};
         }
         add(layer, s) {
           this.layers[layer].push(s);
@@ -987,8 +1083,8 @@
           box.owner = o.owner ?? '';
           box.s = parts.map((p) => p[0]).join('');
           this.texts.push(box);
-          const spans = parts.map(([t, r, cls = '', dx = 0]) => `<tspan class="t-${r} ${cls}"${dx ? ` dx="${dx}"` : ''}>${esc(t)}</tspan>`).join('');
-          const attrs = `x="${r1(x)}" y="${r1(y)}" text-anchor="${anchor}"${o.owner ? ` data-owner="${o.owner}"` : ''}${o.ground ? ' data-ground="1"' : ''}${o.id ? ` data-id="${o.id}"` : ''}`;
+          const spans = parts.map(([t, r, cls = '', dx = 0]) => `<tspan class="t-${r} ${cls}"${dx ? ` dx="${dx}"` : ''}>${r === 'label' ? labelInner(t) : esc(t)}</tspan>`).join('');
+          const attrs = `x="${r1(x)}" y="${r1(y)}" text-anchor="${anchor}"${o.owner ? ` data-owner="${o.owner}"` : ''}${o.ground ? ' data-ground="1"' : ''}${o.id ? ` data-id="${o.id}"` : ''}${o.data ?? ''}`;
           this.add(o.layer ?? 'text', `<text class="${o.textCls ?? ''}" ${attrs}>${spans}</text>`);
           return box;
         }
@@ -1016,28 +1112,15 @@
           }
           return b.x0 >= 2 && b.x1 <= this.W - 2;
         }
-        why(box, ignoreOwner, margin) {
-          const b = { x0: box.x0 - margin, x1: box.x1 + margin, y0: box.y0 - margin, y1: box.y1 + margin };
-          const hit = (o) => !(o.x1 <= b.x0 || o.x0 >= b.x1 || o.y1 <= b.y0 || o.y0 >= b.y1);
-          const t = this.texts.find((t) => hit(t));
-          if (t) return `text ${t.s}`;
-          const mk = this.marks.find((m) => hit(m));
-          if (mk) return `mark ${mk.owner}`;
-          const l = this.links.find((l) => l.points.some(([x, y]) => x > b.x0 && x < b.x1 && y > b.y0 && y < b.y1));
-          if (l) return `link ${l.owner}`;
-          return 'edge';
-        }
-        /** Puts a text at the first candidate where it covers nothing; records it as missing when none is free. */
+        /** Puts a text at the first candidate where it covers nothing (and `ok` accepts); records it as missing when none is free. */
         place(cands, parts, o = {}) {
           for (const [x, y, anchor = 'start'] of cands) {
             const w = partsWidth(parts);
             const role = parts.reduce((a, p) => (ROLE[p[1]].size > ROLE[a].size ? p[1] : a), parts[0][1]);
             const box = this.textBox(x, y, w, role, anchor);
             if (box.y0 < (o.minY ?? 0) || box.y1 > (o.maxY ?? Infinity) || box.x0 < (o.minX ?? 2) || box.x1 > (o.maxX ?? this.W - 2)) continue;
-            if (!this.free(box, o.ignore ?? '', o.margin ?? 2)) {
-              if (window.__why) window.__why.push([parts[0][0], x, y, anchor, this.why(box, o.ignore ?? '', o.margin ?? 2)]);
-              continue;
-            }
+            if (!this.free(box, o.ignore ?? '', o.margin ?? 2)) continue;
+            if (o.ok && !o.ok(box)) continue;
             return this.text(x, y, parts, { ...o, anchor });
           }
           if (!o.optional) this.missing.push(parts.map((p) => p[0]).join(''));
@@ -1064,117 +1147,163 @@
         });
       const samplePath = (pts, step = 3) => pts.slice(1).flatMap((p, i) => sampleLine(pts[i][0], pts[i][1], p[0], p[1], step));
       function xGlyph(D, cx, cy, owner, s = 4) {
-        D.add('marks', `<circle class="xground" cx="${cx}" cy="${cy}" r="${s + 3}"/><path class="xmark" d="M${cx - s} ${cy - s}l${2 * s} ${2 * s}M${cx + s} ${cy - s}l${-2 * s} ${2 * s}"/>`);
+        D.add('marks', `<circle class="xground" cx="${cx}" cy="${cy}" r="${s + 3}"/><path class="xmark" data-owner="${owner}" d="M${cx - s} ${cy - s}l${2 * s} ${2 * s}M${cx + s} ${cy - s}l${-2 * s} ${2 * s}"/>`);
         D.mark({ x0: cx - s - 2, x1: cx + s + 2, y0: cy - s - 2, y1: cy + s + 2 }, owner);
       }
-      function dot(D, cx, cy, r, cls, owner, id) {
-        D.add('dots', `<circle class="dot ${cls}" cx="${r1(cx)}" cy="${r1(cy)}" r="${r}"${id !== undefined ? ` data-id="${id}"` : ''} data-owner="${owner}"/>`);
+      function dot(D, cx, cy, r, cls, owner, id, data = '') {
+        D.add('dots', `<circle class="dot ${cls}" cx="${r1(cx)}" cy="${r1(cy)}" r="${r}"${id !== undefined ? ` data-id="${id}"` : ''} data-owner="${owner}"${data}/>`);
         D.mark({ x0: cx - r, x1: cx + r, y0: cy - r, y1: cy + r }, owner);
       }
+      /** The y of a polyline at x (linear between its points), or null outside it. */
+      function yAt(pts, x) {
+        for (let i = 1; i < pts.length; i++) {
+          const [xa, ya] = pts[i - 1];
+          const [xb, yb] = pts[i];
+          if (x >= xa && x <= xb) return xb === xa ? ya : ya + ((yb - ya) * (x - xa)) / (xb - xa);
+        }
+        return null;
+      }
 
-      // ---------- What an open question hides, on every surface: one map (prevention 1).
-      // `sample` hides the requests until the answer's play starts them; `numbers` hides every model number and curve at
-      // the current setting; `after` hides, during the answer's play, everything the model says about the act's new
-      // setting (its numbers, its curves, the cursor and the scene's model words); `ahead` cuts the curves at the
-      // setup's utilization, asking and playing.
+      // ---------- What an open question hides, on every surface: one map (prevention 1). Each region is named in the
+      // question's own `hide` list, so nothing is inferred from the act. `sample` hides the requests until the answer's
+      // play starts them; `numbers` hides every model number and curve at the current setting; `after` hides, during the
+      // answer's play, what the model says about the act's new setting (its numbers, its curves, the cursor); `ahead` cuts
+      // the curves at the setup's utilization; `utilization` hides the servers' new load during the play (the servers'
+      // label and the over-capacity outlines); `stability` hides, during the play, whether the new setting settles (the
+      // window's length in words, the play's speed and the model's drift). No ghost of an earlier setting shows while a
+      // question asks: a card's setup is a new start, not a change.
       function hiding(view) {
         const h = new Set(view.hide ?? []);
+        const asking = view.phase === 'asking';
         const playing = view.phase === 'playing';
         const after = h.has('after') && playing;
         const numbers = h.has('numbers') || after;
         return {
-          sample: h.has('sample') && !playing,
+          sample: h.has('sample') && asking,
           numbers,
           curves: h.has('numbers') || (after && view.configChanged),
           cursorDots: !numbers,
           cursorLine: !after,
           ahead: h.has('ahead') ? view.setupRho : null,
-          // The servers' utilization is a premise unless the act changes it (losing a server), then it is the answer.
-          modelWords: after && !!view.rhoChanged,
+          utilization: h.has('utilization') && playing,
+          stability: h.has('stability') && playing,
+          ghost: asking && !view.leakGhost,
         };
       }
 
       // ---------- Curves, one per configuration: p50 and p99 against the utilization of the servers that are up.
       const curveCache = new Map();
+      const configOf = (s) => ({ servers: s.servers, queue: s.servers > 1 ? s.queue : 'shared', service: s.service, down: s.servers > 1 ? s.down : 0 });
       function curvesOf(s) {
-        const cfg = { servers: s.servers, queue: s.servers > 1 ? s.queue : 'shared', service: s.service, down: s.servers > 1 ? s.down : 0 };
+        const cfg = configOf(s);
         const key = JSON.stringify(cfg);
         if (!curveCache.has(key)) curveCache.set(key, { p50: M.curve(cfg, 'p50', 90), p99: M.curve(cfg, 'p99', 90) });
         return curveCache.get(key);
       }
+      const scaleOf = (smp, m, withDrift) => {
+        const most = Math.max(0, ...M.waitingSteps(smp).map((p) => p[1]));
+        const drift = !m.stable && withDrift ? (m.growthPerS * smp.window) / 1000 : 0;
+        return SCALES.find((q) => q >= Math.max(1, most, drift));
+      };
 
       // ---------- Words the stage and the page share.
       const serverWord = (n) => `${n} ${plural(n, 'server', 'servers')}`;
-      function loadParts(m, wide) {
+      const critical = (m) => Math.abs(m.rho - 1) < 1e-9;
+      function loadParts(m) {
         const s = m.settings;
         const busy = s.down ? `${s.load}% busy with all ${s.servers} up` : `${s.load}% busy`;
         const rate = M.formatQps(m.ratePerS).replace('/s', '');
-        const work = s.service === 'steady' ? `exactly ${fms(M.SERVICE_MS)} each` : `${fms(M.SERVICE_MS)} each on average`;
-        return { busy, rate: `${rate} requests/s at random, ${work}`, rateShort: `${rate} requests/s at random`, work };
+        const each = fms(M.SERVICE_MS);
+        const rates =
+          s.service === 'steady'
+            ? [`${rate} requests/s at random, exactly ${each} each`, `${rate}/s, exactly ${each} each`, `${rate}/s at random`]
+            : [`${rate} requests/s at random, ${each} each on average`, `${rate}/s at random, ${each} each`, `${rate}/s at random`];
+        return { busy, rates };
       }
+      // Utilization is "busy" only below 100%: past it, the offered load is a share of the capacity left.
       function serversLabel(m, hid) {
         const s = m.settings;
-        const rho = hid.modelWords ? '?' : M.formatPct(m.rho * 100).replace('%', '');
-        if (s.servers === 1) return `Server · ${rho}% busy`;
-        if (s.down) return m.up === 1 ? `1 up · ${rho}% busy` : `${m.up} up · each ${rho}% busy`;
-        return `Servers · each ${rho}% busy`;
+        if (hid.utilization) return m.up === 1 ? '1 up · ?%' : `${m.up} up · each ?%`;
+        const p = M.formatPct(m.rho * 100);
+        if (!m.stable) return `${m.up} up · ${p} of capacity`;
+        if (s.servers === 1) return `Server · ${p} busy`;
+        if (s.down) return m.up === 1 ? `1 up · ${p} busy` : `${m.up} up · each ${p} busy`;
+        return `Servers · each ${p} busy`;
       }
-      function queueLabel(m, hid, at, narrowQ, moment) {
-        if (hid.sample) return narrowQ ? 'Arrivals after your answer' : 'Requests arrive after your answer';
-        const n = at.waiting.length;
-        const word = m.settings.queue === 'split' && m.up > 1 ? 'Queues' : 'Queue';
-        return moment === null ? `${word} · ${n} waiting now` : `${word} · ${n} waiting at ${fdur(Math.round(moment))}`;
+      /** The band's label, longest form first: it names the moment it shows. */
+      function queueForms(m, hid, rest, nNow, playing) {
+        const split = m.settings.queue === 'split' && m.up > 1;
+        const word = split ? 'Queues' : 'Queue';
+        if (hid.sample) return [word];
+        if (playing) return [nNow ? `${word} · ${nNow} waiting now` : `${word} · nobody waiting now`];
+        if (!rest || rest.kind === 'none') return [`${word} · nobody waited in this sample`, 'Nobody waited in this sample', 'Nobody waited'];
+        const at = fdur(Math.round(rest.t));
+        if (rest.kind === 'idle') return [`${word} · S${rest.idle + 1} idle beside a line of ${rest.n} at ${at}`, `S${rest.idle + 1} idle beside ${rest.n}, at ${at}`, `S${rest.idle + 1} idle beside ${rest.n}`];
+        if (rest.kind === 'most') return [`${word} at their fullest · ${rest.n} waiting at ${at}`, `Fullest · ${rest.n} waiting at ${at}`, `Fullest · ${rest.n} waiting`];
+        return [`${word} at its longest · ${rest.n} waiting at ${at}`, `Longest · ${rest.n} waiting at ${at}`, `Longest · ${rest.n} waiting`];
       }
-      // The longest form each label can take at any setting, so the band's label rows are one value per width.
-      const LONGEST_QUEUE = ['Requests arrive after your answer', 'Queues · 999 waiting at 400 ms'];
-      const LONGEST_SERVERS = ['Servers · each ?% busy', '3 up · each 130.7% busy', '2 up · each 147% busy', '1 up · 196% busy', 'Servers · each 98% busy'];
+      // The longest form each band label can take at any setting, so the label rows are one value per width.
+      const LONGEST_QUEUE = ['Queues · S4 idle beside a line of 99 at 400 ms', 'Queues at their fullest · 999 waiting at 400 ms', 'Queue at its longest · 999 waiting at 400 ms', 'Queues · nobody waited in this sample'];
+      let serversLabelsCache = null;
+      function allServersLabels() {
+        if (serversLabelsCache) return serversLabelsCache;
+        const out = new Set(['Servers · each ?%', '3 up · each ?%', '1 up · ?%']);
+        for (const s of ALL) out.add(serversLabel(M.run(s), {}));
+        serversLabelsCache = [...out];
+        return serversLabelsCache;
+      }
 
       function factLines(m, hid) {
         if (hid.numbers) return ['Who waits, and how many are in the system at once, show after your answer.'];
+        const left = m.up === 1 ? 'the one server left' : `the ${m.up} servers left`;
+        if (critical(m))
+          return [`${M.formatQps(m.ratePerS)} arrive, exactly what ${left} can serve.`, 'With no slack, the queue wanders without a bound and the waits keep growing.'];
         if (!m.stable)
           return [
-            `${M.formatQps(m.ratePerS)} arrive, and ${m.up === 1 ? 'the one server left can' : `the ${m.up} servers left can`} serve ${M.formatQps(m.capacityPerS)}.`,
+            `${M.formatQps(m.ratePerS)} arrive, and ${left} can serve ${M.formatQps(m.capacityPerS)}.`,
             `So ${M.formatQps(m.growthPerS).replace('/s', '')} more arrive than leave each second, and every wait grows without bound.`,
           ];
-        const waitPct = M.formatPct(m.waitChance * 100);
-        const a =
-          m.settings.service === 'steady' && m.waitChance < 0.995
-            ? `${waitPct} of requests wait at all; the rest take exactly ${fms(M.SERVICE_MS)}.`
-            : `${waitPct} of requests wait at all.`;
-        const inSys = M.formatSlot({ value: m.inSystem, unit: 'num' });
-        const b = `${inSys} in the system at once on average: ${M.formatQps(m.ratePerS)} × ${fdur(m.mean)} (Little's law).`;
+        const w = pctOf(m.waitChance);
+        const share = w.startsWith('under') ? `${w[0].toUpperCase()}${w.slice(1)}` : w;
+        const a = m.settings.service === 'steady' && m.waitChance < 0.995 ? `${share} of requests wait at all; the rest take exactly ${fms(M.SERVICE_MS)}.` : `${share} of requests wait at all.`;
+        // Little's law multiplies out as printed: L is the printed rate times the printed mean.
+        const meanP = ms1(m.mean);
+        const L = M.formatSlot({ value: (m.ratePerS * Number(meanP)) / 1000, unit: 'num' });
+        const b = `${L} in the system at once on average: ${M.formatQps(m.ratePerS)} × ${meanP} ms (Little's law).`;
         return [a, b];
       }
       // Every fact line any setting can print, for reserving their lines per width.
       let allFactsCache = null;
       function allFacts() {
-        if (allFactsCache) return allFactsCache;
-        const out = [];
-        for (const servers of M.SERVERS)
-          for (const queue of M.QUEUES)
-            for (const service of M.SERVICES)
-              for (const down of [0, 1])
-                for (const load of M.LOADS) {
-                  if (servers === 1 && (queue === 'split' || down)) continue;
-                  const m = M.run({ load, servers, queue, service, down });
-                  out.push(factLines(m, {}));
-                }
-        out.push(factLines(M.run(M.BASE), { numbers: true }));
-        allFactsCache = out;
-        return out;
+        if (!allFactsCache) allFactsCache = [...ALL.map((s) => factLines(M.run(s), {})), factLines(M.run(M.BASE), { numbers: true })];
+        return allFactsCache;
       }
       const factReserve = new Map();
       function factRows(width) {
         if (!factReserve.has(width)) {
-          let a = 1;
-          let b = 1;
-          for (const [la, lb] of allFacts()) {
-            a = Math.max(a, wrap(la, 'cap', width).length);
-            b = Math.max(b, lb ? wrap(lb, 'cap', width).length : 0);
-          }
-          factReserve.set(width, [a, b]);
+          let n = 1;
+          for (const [la, lb] of allFacts()) n = Math.max(n, wrap(la, 'cap', width).length + (lb ? wrap(lb, 'cap', width).length : 0));
+          factReserve.set(width, n);
         }
         return factReserve.get(width);
+      }
+      function headlineForms(m) {
+        const g = M.formatQps(m.growthPerS).replace('/s', '');
+        const left = m.up === 1 ? 'the server left' : 'the servers left';
+        return critical(m)
+          ? [`arrivals exactly match what ${left} can serve`, 'arrivals exactly match the capacity left', 'no slack left']
+          : [`the queue grows by ${g} requests a second`, `the queue grows by ${g} a second`, `grows by ${g} a second`];
+      }
+      /** The curve ghost's name: what was different about the configuration it shows. */
+      function ghostName(g, s) {
+        const a = configOf(g);
+        const b = configOf(s);
+        const diff = ['servers', 'queue', 'service', 'down'].filter((k) => a[k] !== b[k]);
+        if (diff.length !== 1) return 'p99 before';
+        if (diff[0] === 'queue') return a.queue === 'split' ? 'p99, a queue each' : 'p99, one queue';
+        if (diff[0] === 'service') return a.service === 'random' ? 'p99, random work' : 'p99, steady work';
+        if (diff[0] === 'servers') return `p99, ${serverWord(a.servers)}`;
+        return 'p99 before';
       }
 
       // ---------- The stage.
@@ -1189,25 +1318,21 @@
         const win = m.stable ? M.WINDOW_MS : M.UNSTABLE_WINDOW_MS;
         const playing = view.tau !== null && view.tau !== undefined;
         const smp = hid.sample ? null : M.sample(s);
-        // At rest the timeline is whole and the band shows the moment the queue was longest (marked on the timeline);
-        // during a play both follow the play's one clock, so nothing is drawn before its moment.
-        const allSteps = smp ? M.waitingSteps(smp) : [];
-        const maxAll = Math.max(0, ...allSteps.map((p) => p[1]));
-        const peakT = maxAll > 0 ? allSteps.find((p) => p[1] === maxAll)[0] + 0.01 : win;
+        const rest = smp ? smp.rest : null;
+        const plan = playing ? (view.play ?? M.playPlan(M.sample(s), false)) : null;
         const tNow = playing ? view.tau : win;
-        const tScene = playing ? view.tau : peakT;
+        const tScene = playing ? view.tau : rest && rest.kind !== 'none' ? rest.t : win;
         const at = smp ? M.sampleAt(smp, tScene) : { waiting: [], serving: [] };
+        D.meta = { rest, playing, rate: plan?.rate ?? null, hid };
 
-        // Header: Play, the label and the key (beside the label when wide, its own row when narrow).
+        // Header: Play, the sample's title and the key (beside the title when wide, its own row when narrow).
         D.hit('play', pad - 8, 2, 44, 44, { owner: 'play' });
         D.mark({ x0: pad - 6, x1: pad + 34, y0: 4, y1: 44 }, 'play');
-        const headForms = ['A sample of random arrivals', 'Random arrivals'];
-        D.text(pad + 40, 29, [[headForms.find((t) => tw(t, 'label') <= W - pad - (pad + 40)) ?? headForms.at(-1), 'label']], { owner: 'head' });
         const keyItems = [
           ['waiting', 'wait'],
           ['in service', 'serve'],
         ];
-        let y;
+        const keyW = keyItems.reduce((a, [n]) => a + 24 + tw(n, 'small'), 0) - 12;
         const keyAt = (x, ky) => {
           let lx = x;
           for (const [name, cls] of keyItems) {
@@ -1216,9 +1341,10 @@
             D.text(lx + 12, ky, [[name, 'small', 'muted']], { owner: 'key' });
             lx += 12 + tw(name, 'small') + 12;
           }
-          return lx;
         };
-        const keyW = keyItems.reduce((a, [n]) => a + 24 + tw(n, 'small'), 0) - 12;
+        const headRoom = (wide ? W - pad - keyW - 16 : W - pad) - (pad + 40);
+        D.text(pad + 40, 29, [[pick(['A sample of random arrivals', 'Random arrivals'], (t) => tw(t, 'capB') <= headRoom) ?? 'Random arrivals', 'capB', 'ink']], { owner: 'head' });
+        let y;
         if (wide) {
           keyAt(W - pad - keyW, 29);
           y = 50;
@@ -1227,13 +1353,18 @@
           y = 70;
         }
 
-        // Load: the planned load of the fleet with every server up, its handle, and the arrival rate it means.
-        const lp = loadParts(m, wide);
+        // Load: the planned load of the fleet with every server up, its handle, and the arrival rate and work it means.
+        const lp = loadParts(m);
         const loadTop = y;
-        const loadLabelY = loadTop + 12;
-        const loadLine = [['Load', 'label'], [lp.busy, 'capB', 'ink', 10]];
-        if (wide) loadLine.push([` · ${partsWidth([...loadLine, [` · ${lp.rate}`, 'cap']]) <= W - 2 * pad ? lp.rate : lp.rateShort}`, 'cap', 'muted']);
-        D.text(pad, loadLabelY, loadLine, { owner: 'load' });
+        const loadLine = [
+          ['Load', 'label'],
+          [lp.busy, 'capB', 'ink', 10],
+        ];
+        if (wide) {
+          const r = pick(lp.rates, (t) => partsWidth([...loadLine, [` · ${t}`, 'cap']]) <= W - 2 * pad);
+          if (r) loadLine.push([` · ${r}`, 'cap', 'muted']);
+        }
+        D.text(pad, loadTop + 12, loadLine, { owner: 'load' });
         const tx0 = Math.max(pad + 8, 23);
         const tx1 = Math.min(W - pad - 8, W - 23);
         const ty = loadTop + 34;
@@ -1247,20 +1378,23 @@
           D.text(tx1, ty + 28, [[`${M.LOADS.at(-1)}%`, 'small', 'muted']], { owner: 'load', anchor: 'end' });
           y = ty + 36;
         } else {
-          D.text(pad, ty + 30, [[tw(lp.rate, 'cap') <= W - 2 * pad ? lp.rate : lp.rateShort, 'cap', 'muted']], { owner: 'load' });
+          D.text(pad, ty + 30, [[pick(lp.rates, (t) => tw(t, 'cap') <= W - 2 * pad) ?? lp.rates.at(-1), 'cap', 'muted']], { owner: 'load' });
           y = ty + 38;
         }
         D.region('load', { x: pad - 8, y: loadTop - 4, w: W - 2 * pad + 16, h: y - loadTop + 2 });
+        y += 8;
 
-        // The band: the queue (one, or one per server behind a random router) and the servers, at the moment `tNow`.
+        // The band: the queue (one, or one per server behind a random router) and the servers, at the moment drawn.
         const SW = wide ? 96 : 70;
         const exitW = wide ? 18 : 10;
         const xs = W - pad - exitW - SW;
-        const qText = queueLabel(m, hid, at, tw('Requests arrive after your answer', 'label') > W - 2 * pad, playing ? null : tScene);
         const sText = serversLabel(m, hid);
-        const oneRow = Math.max(...LONGEST_QUEUE.map((t) => tw(t, 'label'))) + Math.max(...LONGEST_SERVERS.map((t) => tw(t, 'label'))) + 16 <= W - 2 * pad;
-        const over = !m.stable && !hid.modelWords;
-        D.text(pad, y + 12, [[qText, 'label', hid.sample ? 'muted' : '']], { owner: 'qlabel' });
+        const serversMax = Math.max(...allServersLabels().map((t) => tw(t, 'label')));
+        const oneRow = Math.max(...LONGEST_QUEUE.map((t) => tw(t, 'label'))) + serversMax + 16 <= W - 2 * pad;
+        const qRoom = oneRow ? W - 2 * pad - serversMax - 16 : W - 2 * pad;
+        const qForms = queueForms(m, hid, rest, at.waiting.length, playing);
+        D.text(pad, y + 12, [[pick(qForms, (t) => tw(t, 'label') <= qRoom) ?? qForms.at(-1), 'label', hid.sample ? 'muted' : '']], { owner: 'qlabel' });
+        const over = !m.stable && !hid.utilization;
         const sY = oneRow ? y + 12 : y + 28;
         D.text(W - pad, sY, [[sText, 'label', over ? 'bad' : '']], { owner: 'slabel', anchor: 'end' });
         if (over) xGlyph(D, W - pad - tw(sText, 'label') - 10, sY - 4, 'slabel', 3.5);
@@ -1275,8 +1409,8 @@
         const DR = c === 1 ? 8 : c === 2 ? 6 : 5;
         const PITCH = 2 * DR + 3;
         const split = s.queue === 'split' && up > 1;
-        const upIdx = Array.from({ length: up }, (_, i) => i);
         const xf = xs - 24;
+        const laneCls = (down) => `lane${down ? ' down' : ''}${hid.sample ? ' hidden' : ''}`;
         const queueDots = (list, xHead, yq, xTail, owner) => {
           const capN = Math.max(1, Math.floor((xHead - xTail) / PITCH) + 1);
           const shown = list.length > capN ? capN - 2 : list.length;
@@ -1288,16 +1422,15 @@
             const ch = 2 * DR + 4;
             D.add('marks', `<rect class="chip" x="${r1(cx1 - cw)}" y="${yq - ch / 2}" width="${cw}" height="${ch}" rx="${ch / 2}"/>`);
             D.mark({ x0: cx1 - cw, x1: cx1, y0: yq - ch / 2, y1: yq + ch / 2 }, owner);
-            D.text(cx1 - cw / 2, yq + 4, [[more, 'mono', 'ink']], { owner: `${owner} lane`, anchor: 'middle', textCls: 'on-chip', ground: true });
+            D.text(cx1 - cw / 2, yq + 4, [[more, 'mono', 'ink']], { owner: `${owner} lane`, anchor: 'middle', textCls: 'on-chip', ground: true, data: ` data-more="${list.length - shown}"` });
           }
         };
         if (!split) {
-          D.add('links', `<line class="lane" x1="${pad}" y1="${ymid}" x2="${xf}" y2="${ymid}"/>`);
+          D.add('links', `<line class="${laneCls(false)}" x1="${pad}" y1="${ymid}" x2="${xf}" y2="${ymid}"/>`);
           D.link(sampleLine(pad, ymid, xf, ymid), 'lane');
           for (let i = 0; i < c; i++) {
             const sy = slotY(i) + bh / 2;
-            const d = `M${xf} ${ymid}C${xf + 14} ${ymid} ${xs - 12} ${sy} ${xs} ${sy}`;
-            D.add('links', `<path class="lane${i >= up ? ' down' : ''}" d="${d}"/>`);
+            D.add('links', `<path class="${laneCls(i >= up)}" d="M${xf} ${ymid}C${xf + 14} ${ymid} ${xs - 12} ${sy} ${xs} ${sy}"/>`);
             D.link(cubic([xf, ymid], [xf + 14, ymid], [xs - 12, sy], [xs, sy]), 'lane');
           }
           queueDots(at.waiting, xf - 10, ymid, pad + 8, 'queue');
@@ -1306,13 +1439,12 @@
           const rw = tw('random', 'small');
           const xr = pad + rw + 14;
           const xl0 = xr + 40;
-          D.add('links', `<line class="lane" x1="${pad}" y1="${ymid}" x2="${xr - 8}" y2="${ymid}"/>`);
+          D.add('links', `<line class="${laneCls(false)}" x1="${pad}" y1="${ymid}" x2="${xr - 8}" y2="${ymid}"/>`);
           D.link(sampleLine(pad, ymid, xr - 8, ymid), 'lane');
           D.text(pad, ymid - 6, [['random', 'small', 'muted']], { owner: 'router' });
           for (let i = 0; i < c; i++) {
             const sy = slotY(i) + bh / 2;
-            const cls = `lane${i >= up ? ' down' : ''}`;
-            D.add('links', `<path class="${cls}" d="M${xr + 8} ${ymid}C${xr + 26} ${ymid} ${xl0 - 18} ${sy} ${xl0} ${sy}L${xs} ${sy}"/>`);
+            D.add('links', `<path class="${laneCls(i >= up)}" d="M${xr + 8} ${ymid}C${xr + 26} ${ymid} ${xl0 - 18} ${sy} ${xl0} ${sy}L${xs} ${sy}"/>`);
             D.link(cubic([xr + 8, ymid], [xr + 26, ymid], [xl0 - 18, sy], [xl0, sy]), 'lane');
             D.link(sampleLine(xl0, sy, xs, sy), 'lane');
             if (i < up)
@@ -1321,53 +1453,51 @@
                 xs - 10,
                 sy,
                 xl0 + 6,
-                'queue',
+                `queue q${i}`,
               );
           }
           D.add('marks', `<path class="router" d="M${xr} ${ymid - 8}L${xr + 8} ${ymid}L${xr} ${ymid + 8}L${xr - 8} ${ymid}Z"/>`);
           D.mark({ x0: xr - 8, x1: xr + 8, y0: ymid - 8, y1: ymid + 8 }, 'router');
         }
-        // The last request to leave by the moment drawn, as its own small bar of waiting then work: one request's time
-        // beside the model's average below. It changes at each departure during a play (a swap, never a count). While the
-        // model's numbers wait it waits too: a sampled time beside a hidden model time would read as the answer.
-        if (smp && !hid.numbers) {
+        // While the sample waits for the answer, the band is drawn hidden the way the model bar is: dashed lanes and ring
+        // tracks and a chip in the lane, never an idle server with nobody waiting (that would be the "None" answer).
+        if (hid.sample) {
+          const x0c = pad + 6;
+          const x1c = (split ? xs - 30 : xf) - 12;
+          const t = pick(['Requests arrive after your answer', 'Arrivals after your answer', 'After your answer'], (f) => tw(f, 'small') + 16 <= x1c - x0c);
+          if (t) {
+            const cw = tw(t, 'small') + 16;
+            const cx = (x0c + x1c) / 2;
+            D.add('marks', `<rect class="chip hidden-chip" x="${r1(cx - cw / 2)}" y="${ymid - 10}" width="${cw}" height="20" rx="10"/>`);
+            D.mark({ x0: cx - cw / 2, x1: cx + cw / 2, y0: ymid - 10, y1: ymid + 10 }, 'lane');
+            D.text(cx, ymid + 4, [[t, 'small', 'muted']], { owner: 'lane', anchor: 'middle', textCls: 'on-chip', ground: true });
+          } else D.missing.push('the hidden sample chip');
+        }
+        // The last request to leave by the moment drawn, in words: one request's own waiting and work, at the moment drawn.
+        // It waits while the model's numbers wait: a sampled time beside a hidden model time would read as the answer.
+        if (smp && !hid.numbers && !split) {
           const done = smp.reqs.filter((r) => r.leave <= tScene);
           const last = done.reduce((b, r) => (!b || r.leave > b.leave ? r : b), null);
           if (last) {
             const waitMs = last.start - last.arrive;
             const workMs = last.leave - last.start;
-            const words = [
-              [`Last to leave: waited ${fdur(waitMs)}, then ${fdur(workMs)} of work`, 'small'],
-              [`Last out: waited ${fdur(waitMs)}, worked ${fdur(workMs)}`, 'small'],
-            ];
-            const maxW = (split ? xs : xf) - pad - 12;
-            const pick = words.find(([t]) => tw(t, 'small') <= maxW);
-            const ry = bt + BH - 16;
-            const barY = ry + 5;
-            if (pick && !split) {
-              const scale = Math.min(2, (maxW - 4) / Math.max(1, waitMs + workMs));
-              const ww = waitMs * scale;
-              const kw = Math.max(1.5, workMs * scale);
-              const box = { x0: pad, x1: pad + Math.max(tw(pick[0], 'small'), ww + kw + 2), y0: ry - 10, y1: barY + 7 };
-              if (D.free(box, '', 2)) {
-                D.text(pad, ry, [[pick[0], 'small', 'muted']], { owner: 'receipt' });
-                if (ww > 0.5) D.add('marks', `<rect class="bar-wait receipt" x="${pad}" y="${barY}" width="${r1(ww)}" height="5" rx="1.5" data-id="r${last.id}"/>`);
-                D.add('marks', `<rect class="bar-work receipt" x="${r1(pad + ww + (ww > 0.5 ? 1 : 0))}" y="${barY}" width="${r1(kw)}" height="5" rx="1.5"/>`);
-                D.mark({ x0: pad, x1: pad + ww + kw + 1, y0: barY, y1: barY + 5 }, 'receipt');
-              }
-            }
+            const words =
+              waitMs < 0.005
+                ? [`Last to leave: no wait, then ${fdur(workMs)} of work`, `Last out: no wait, ${fdur(workMs)}`]
+                : [`Last to leave: waited ${fdur(waitMs)}, then ${fdur(workMs)} of work`, `Last out: waited ${fdur(waitMs)}, worked ${fdur(workMs)}`];
+            const t = pick(words, (w) => tw(w, 'small') <= xf - pad - 12);
+            if (t) D.place([[pad, bt + BH - 6]], [[t, 'small', 'muted']], { owner: 'receipt', optional: true });
           }
         }
         // At rest, the request first in line says how long it has waited: the sample's own number, at the moment drawn.
         if (smp && !playing && at.waiting.length) {
-          const lanes = split ? upIdx.map((i) => at.waiting.filter((r) => r.server === i)) : [at.waiting];
-          const k = lanes.reduce((b, l, i) => (l.length > lanes[b].length ? i : b), 0);
+          const lanes = split ? Array.from({ length: up }, (_, i) => at.waiting.filter((r) => r.server === i)) : [at.waiting];
+          const k = split && rest?.kind === 'idle' ? rest.line : lanes.reduce((b, l, i) => (l.length > lanes[b].length ? i : b), 0);
           const head = lanes[k][0];
           const hx = split ? xs - 10 : xf - 10;
           const hy = split ? slotY(k) + bh / 2 : ymid;
           const waited = fdur(Math.max(0, tScene - head.arrive));
-          const forms = [`first in line: waiting ${waited} so far`, `waiting ${waited} so far`, `waiting ${waited}`];
-          forms.some((t, i) =>
+          [`first in line: waiting ${waited} so far`, `first in line: ${waited}`, `first: ${waited}`].some((t) =>
             D.place(
               [
                 [hx + DR, hy - DR - 7, 'end'],
@@ -1378,6 +1508,7 @@
             ),
           );
         }
+        const idleServers = [];
         for (let i = 0; i < c; i++) {
           const sy = slotY(i);
           const down = i >= up;
@@ -1393,7 +1524,7 @@
             xGlyph(D, rx, ry, name, 3.5);
             continue;
           }
-          D.add('marks', `<circle class="ring-track" cx="${rx}" cy="${ry}" r="${RR}"/>`);
+          D.add('marks', `<circle class="ring-track${hid.sample ? ' hidden' : ''}" cx="${rx}" cy="${ry}" r="${RR}"/>`);
           D.mark({ x0: rx - RR - 1, x1: rx + RR + 1, y0: ry - RR - 1, y1: ry + RR + 1 }, `${name}-ring`);
           const r = at.serving.find((q) => q.server === i);
           if (r) {
@@ -1403,34 +1534,62 @@
             const ey = ry - RR * Math.cos(ang);
             D.add('marks', `<path class="ring-arc" d="M${rx} ${ry - RR}A${RR} ${RR} 0 ${p > 0.5 ? 1 : 0} 1 ${r1(ex)} ${r1(ey)}"/>`);
             dot(D, rx, ry, Math.round(RR * 0.45 * 2) / 2, 'serve', name, r.id);
-          } else if (smp && xs + 9 + tw(name, 'nameS') + 6 + tw('idle', 'small') <= rx - RR - 5) {
-            D.text(rx - RR - 5, midY + 4, [['idle', 'small', 'muted']], { owner: name, anchor: 'end', textCls: 'on-box' });
+          } else if (smp) {
+            idleServers.push(i);
+            if (xs + 9 + tw(name, 'nameS') + 6 + tw('idle', 'small') <= rx - RR - 5) D.text(rx - RR - 5, midY + 4, [['idle', 'small', 'muted']], { owner: name, anchor: 'end', textCls: 'on-box' });
           }
-          D.add('links', `<line class="lane" x1="${xs + SW}" y1="${ry}" x2="${xs + SW + exitW - 2}" y2="${ry}"/>`);
+          D.add('links', `<line class="lane exit${hid.sample ? ' hidden' : ''}" x1="${xs + SW}" y1="${ry}" x2="${xs + SW + exitW - 2}" y2="${ry}"/>`);
         }
+        D.meta.band = { idle: idleServers, lines: split ? Array.from({ length: up }, (_, i) => at.waiting.filter((r) => r.server === i).length) : [at.waiting.length] };
         D.region('scene', { x: pad - 8, y: loadTop - 4, w: W - 2 * pad + 16, h: bt + BH + 6 - loadTop + 4 });
         D.region('band', { x: pad - 8, y: y, w: W - 2 * pad + 16, h: bt + BH + 6 - y });
-        y = bt + BH + 18;
 
-        // The timeline: the sample's last 400 ms, arrivals, the queue's length and each server's busy time.
-        D.add('grid', `<line class="rule" x1="${pad}" y1="${y}" x2="${W - pad}" y2="${y}"/>`);
+        // The timeline: the sample's window, arrivals, the queue's length and each server's busy time. Space, not a rule,
+        // parts it from the band: the one rule on the stage parts the sample from the model.
+        y = bt + BH + 18;
         const tlTop = y;
         const winWord = win >= 1000 ? `${win / 1000} s` : `${win} ms`;
-        const tlLabel = !m.stable ? (wide ? `The first ${winWord}, starting empty` : `${winWord}, starting empty`) : wide ? `The last ${winWord} of this sample` : `The last ${winWord}`;
-        D.text(pad, y + 20, [[tlLabel, 'label']], { owner: 'tl' });
-        if (playing && smp) {
-          const note = [`playing ${smp.slow}× slower`, `${smp.slow}× slower`].find((t) => tw(t, 'small') + tw(tlLabel, 'label') + 16 <= W - 2 * pad);
-          if (note) D.text(W - pad, y + 20, [[note, 'small', 'muted']], { owner: 'tl', anchor: 'end' });
+        const tlForms = hid.stability ? ['The sample after the failure', 'After the failure'] : !m.stable ? [`The first ${winWord}, starting empty`, `First ${winWord}, from empty`] : [`The last ${winWord} of this sample`, `The last ${winWord}`];
+        // The label row's right side: the play's speed from its own clock, or at rest the moment the band shows.
+        let right = [];
+        let ringMark = false;
+        if (playing && smp && !hid.stability) right = plan.rate === 1 ? ['playing in real time', 'real time'] : [`playing ${plan.rate}× slower`, `${plan.rate}× slower`];
+        else if (!playing && smp && rest && rest.kind !== 'none') {
+          ringMark = true;
+          const n = rest.n;
+          if (rest.kind === 'idle') right = [`drawn above: S${rest.idle + 1} idle beside a line of ${n}`, `S${rest.idle + 1} idle, ${n} waiting`, `idle beside ${n}`, `idle, ${n}`];
+          else if (rest.kind === 'most') right = [`drawn above: the most waiting, ${n}`, `above: most, ${n}`, `most: ${n}`];
+          else right = [`drawn above: the longest queue, ${n}`, `above: the longest, ${n}`, `longest: ${n}`];
+        }
+        let tlLabel = tlForms.at(-1);
+        let rightText = null;
+        const extra = ringMark ? 12 : 0;
+        outer: for (const l of tlForms)
+          for (const r of right.length ? right : [null]) {
+            if (tw(l, 'label') + (r ? tw(r, 'small') + 16 + extra : 0) <= W - 2 * pad) {
+              tlLabel = l;
+              rightText = r;
+              break outer;
+            }
+          }
+        if (right.length && !rightText) D.missing.push(right.at(-1));
+        D.text(pad, y + 14, [[tlLabel, 'label']], { owner: 'tl' });
+        if (rightText) {
+          const note = D.text(W - pad, y + 14, [[rightText, 'small', 'muted']], { owner: 'tl', anchor: 'end', id: playing ? 'rate-note' : 'moment-note' });
+          if (ringMark) {
+            D.add('top', `<circle class="peak" cx="${r1(note.x0 - 8)}" cy="${y + 10}" r="3.5"/>`);
+            D.mark({ x0: note.x0 - 12, x1: note.x0 - 4, y0: y + 6, y1: y + 14 }, 'tl');
+          }
         }
         const g = wide ? 64 : 54;
         const x0 = pad + g;
         const x1 = W - pad - 4;
         const X = (t) => x0 + (Math.max(0, Math.min(win, t)) / win) * (x1 - x0);
-        const ya = y + 32;
+        const ya = y + 26;
         D.text(pad, ya + 9, [['arrivals', 'small', 'muted']], { owner: 'tl-names' });
         const yw = ya + 18;
         const WH = 34;
-        D.text(pad, yw + WH / 2 + 4, [['waiting', 'small', 'muted']], { owner: 'tl-names' });
+        D.text(pad, yw + WH / 2 + 6, [['waiting', 'small', 'muted']], { owner: 'tl-names' });
         const ys = yw + WH + 10;
         const SH = 44;
         const rh = (SH - (c - 1) * 4) / c;
@@ -1455,22 +1614,30 @@
           const ticks = [];
           for (const r of smp.reqs) if (r.arrive >= 0 && r.arrive <= tNow) ticks.push(`<rect class="tick-arr${win >= 1000 ? ' dense' : ''}" x="${r1(X(r.arrive) - 0.75)}" y="${ya}" width="1.5" height="10" data-id="${r.id}"/>`);
           D.add('marks', ticks.join(''));
+          // Busy time: one block per request, back to back with no gap, so white is only ever idle time; a notch on the
+          // top edge marks where the next request of a busy period starts.
           const busy = [];
+          const leaves = new Set(smp.reqs.map((r) => `${r.server}|${r.leave.toFixed(9)}`));
           for (const r of smp.reqs) {
             const a = Math.max(0, r.start);
             const b = Math.min(r.leave, tNow);
             if (b <= a) continue;
             const xa = X(a);
-            const xb = Math.max(xa + 0.6, X(b) - (r.leave <= tNow ? 0.8 : 0));
+            const xb = Math.max(xa + 0.6, X(b));
             busy.push(`<rect class="busy" x="${r1(xa)}" y="${r1(rowY(r.server))}" width="${r1(xb - xa)}" height="${r1(rh)}" data-id="${r.id}"/>`);
+            if (r.start > 0 && leaves.has(`${r.server}|${r.start.toFixed(9)}`)) busy.push(`<rect class="notch" x="${r1(xa - 0.5)}" y="${r1(rowY(r.server))}" width="1" height="${Math.min(3, rh / 2)}"/>`);
           }
           D.add('marks', busy.join(''));
+          // The waiting row's scale is an axis, fixed for the whole window (and, in an experiment, never below the
+          // setup's), so nothing already drawn changes as a play goes on; a faint line marks it.
+          const drift = !m.stable && !critical(m) && !hid.stability ? (m.growthPerS * win) / 1000 : 0;
+          const Q = Math.max(scaleOf(smp, m, !hid.stability), view.qFloor ?? 0);
+          const Yq = (n) => yw + WH - (Math.min(n, Q) / Q) * WH;
+          D.add('grid', `<line class="qgrid" x1="${x0}" y1="${yw}" x2="${x1}" y2="${yw}"/>`);
+          D.text(x0 - 6, yw + 4, [[String(Q), 'small', 'muted']], { owner: 'tl-scale', anchor: 'end', data: ` data-q="${Q}"` });
           const steps = M.waitingSteps(smp).filter(([t]) => t <= tNow);
-          const maxQ = Math.max(1, ...steps.map((p) => p[1]));
-          const Q = [2, 5, 10, 20, 50, 100, 200, 500, 1000].find((q) => q >= maxQ);
-          const Yq = (n) => yw + WH - (n / Q) * WH;
           let d = `M${x0} ${yw + WH}`;
-          let edge = [];
+          const edge = [];
           let prev = 0;
           for (const [t, n] of steps) {
             d += `L${r1(X(t))} ${r1(Yq(prev))}L${r1(X(t))} ${r1(Yq(n))}`;
@@ -1483,44 +1650,54 @@
           const edgeD = `M${x0} ${yw + WH}` + edge.map(([ex, ey]) => `L${r1(ex)} ${r1(ey)}`).join('');
           D.add('marks', `<path class="area-edge" d="${edgeD}"/>`);
           D.link(samplePath([[x0, yw + WH], ...edge], 2), 'area');
-          D.text(x0 - 6, yw + 8, [[String(Q), 'small', 'muted']], { owner: 'tl-scale', anchor: 'end' });
-          // The longest queue in the window, at rest: a ring at its first moment, its count in the label row.
-          if (maxQ > 0 && !playing) {
+          // With no steady state, the model's drift from empty as a dashed line beside the sample's wander.
+          if (drift > 0) {
+            D.add('links', `<line class="drift" x1="${x0}" y1="${yw + WH}" x2="${r1(X(win))}" y2="${r1(Yq(drift))}"/>`);
+            D.link(sampleLine(x0, yw + WH, X(win), Yq(drift), 2), 'drift');
+            const gw = M.formatQps(m.growthPerS).replace('/s', '');
+            const forms = [`the model: +${gw} a second`, `model: +${gw}/s`, `+${gw}/s`];
+            let done = false;
+            for (const t of forms) {
+              for (let xx = x0 + 4; xx + 18 + tw(t, 'small') <= x1 && !done; xx += 6) {
+                const sw = { x0: xx, x1: xx + 14, y0: yw + 5, y1: yw + 9 };
+                const box = D.textBox(xx + 18, yw + 11, tw(t, 'small'), 'small');
+                if (!D.free(sw, '', 1) || !D.free(box, '', 1)) continue;
+                D.add('top', `<line class="drift" x1="${xx}" y1="${yw + 7}" x2="${xx + 14}" y2="${yw + 7}"/>`);
+                D.mark(sw, 'drift-key');
+                D.text(xx + 18, yw + 11, [[t, 'small', 'ink']], { owner: 'drift-key', ground: true });
+                done = true;
+              }
+              if (done) break;
+            }
+            if (!done) D.missing.push(forms.at(-1));
+          }
+          // The moment the band shows, at rest: a dotted line through the timeline and a ring on the area there.
+          if (ringMark) {
             const px = X(tScene);
-            const py = Yq(maxQ);
+            const py = Yq(rest.total);
             D.add('top', `<line class="moment" x1="${r1(px)}" y1="${ya - 4}" x2="${r1(px)}" y2="${yax}"/>`);
             D.link(sampleLine(px, ya - 4, px, yax), 'moment');
             D.add('top', `<circle class="peak" cx="${r1(px)}" cy="${r1(py)}" r="3.5"/>`);
             D.mark({ x0: px - 4, x1: px + 4, y0: py - 4, y1: py + 4 }, 'peak');
-            const room = W - 2 * pad - tw(tlLabel, 'label') - 28;
-            const word = [`drawn above: the longest queue, ${maxQ}`, `above: the longest, ${maxQ}`, `above: ${maxQ}`].find((t) => tw(t, 'small') <= room) ?? `${maxQ}`;
-            const lx = W - pad - tw(word, 'small');
-            D.add('top', `<circle class="peak" cx="${r1(lx - 8)}" cy="${tlTop + 16}" r="3.5"/>`);
-            D.mark({ x0: lx - 12, x1: lx - 4, y0: tlTop + 12, y1: tlTop + 20 }, 'tl');
-            D.text(W - pad, tlTop + 20, [[word, 'small', 'muted']], { owner: 'tl', anchor: 'end' });
           }
-          if (playing) {
-            D.add('top', `<line class="playhead" x1="${r1(X(tNow))}" y1="${ya - 4}" x2="${r1(X(tNow))}" y2="${yax}"/>`);
-          }
+          if (playing) D.add('top', `<line class="playhead" x1="${r1(X(tNow))}" y1="${ya - 4}" x2="${r1(X(tNow))}" y2="${yax}"/>`);
         } else {
-          const later = ['The sample plays after your answer', 'Plays after your answer'].find((t) => tw(t, 'cap') <= x1 - x0 - 8) ?? 'After your answer';
+          const later = pick(['The sample plays after your answer', 'Plays after your answer'], (t) => tw(t, 'cap') <= x1 - x0 - 8) ?? 'After your answer';
           D.text(x0 + 6, yw + WH / 2 + 4, [[later, 'cap', 'muted']], { owner: 'tl-wait' });
         }
-        D.region('timeline', { x: pad - 8, y: tlTop + 4, w: W - 2 * pad + 16, h: yax + 20 - tlTop - 4 });
-        y = yax + 26;
+        D.region('timeline', { x: pad - 8, y: tlTop - 2, w: W - 2 * pad + 16, h: yax + 20 - tlTop + 2 });
+        y = yax + 28;
 
-        // The model: exact numbers for this setting, never the sample's.
+        // The model: exact numbers for this setting, never the sample's. The stage's one rule parts the two halves.
         D.add('grid', `<line class="rule" x1="${pad}" y1="${y}" x2="${W - pad}" y2="${y}"/>`);
-        const modelTop = y;
-        D.text(pad, y + 20, [[wide ? 'Response time · exact, from the model' : 'Response time · the model', 'label']], { owner: 'model' });
-        y += 30;
+        D.text(pad, y + 24, [[pick(['Response time, exact from the model', 'Response time, from the model'], (t) => tw(t, 'capB') <= W - 2 * pad) ?? 'The model', 'capB', 'ink']], { owner: 'model' });
+        y += 36;
         const headTop = y;
         if (!m.stable && !hid.numbers) {
           xGlyph(D, pad + 5, y + 14, 'head', 4);
           D.text(pad + 16, y + 19, [['No steady state', 'capB', 'bad']], { owner: 'head' });
-          const grow = M.formatQps(m.growthPerS).replace('/s', '');
-          const gw = [`the queue grows by ${grow} requests a second`, `the queue grows by ${grow} a second`, `grows by ${grow} a second`].find((t) => tw(t, 'cap') <= W - 2 * pad - 16);
-          D.text(pad + 16, y + 37, [[gw, 'cap', 'muted']], { owner: 'head' });
+          const gwords = pick(headlineForms(m), (t) => tw(t, 'cap') <= W - 2 * pad - 16) ?? headlineForms(m).at(-1);
+          D.text(pad + 16, y + 37, [[gwords, 'cap', 'muted']], { owner: 'head' });
         } else {
           const colW = wide ? 132 : Math.floor((W - 2 * pad) / 3);
           const stats = [
@@ -1542,7 +1719,7 @@
         }
         y += 46;
         D.region('numbers', { x: pad - 8, y: headTop - 6, w: W - 2 * pad + 16, h: 0 });
-        // Where the time goes, on average: the work and the waiting, as one bar.
+        // Where the time goes, on average, in a request's own order: the waiting, then the work.
         const barTop = y;
         let bx0 = pad;
         if (wide) {
@@ -1554,47 +1731,51 @@
         }
         const bx1 = W - pad;
         const by = y + 3;
+        const barLabels = (lefts, rightT, leftCls, rightCls) => {
+          const rw = tw(rightT, 'small');
+          const l = pick(lefts, (t) => tw(t, 'small') + 16 + rw <= bx1 - bx0) ?? lefts.at(-1);
+          D.text(bx0, by + 28, [[l, 'small', leftCls]], { owner: 'bar' });
+          D.text(bx1, by + 28, [[rightT, 'small', rightCls]], { owner: 'bar', anchor: 'end' });
+        };
         if (hid.numbers) {
           D.add('marks', `<rect class="bar-hidden" x="${bx0}" y="${by}" width="${bx1 - bx0}" height="12" rx="3"/>`);
           D.text(bx0, by + 28, [['work and waiting after your answer', 'small', 'muted']], { owner: 'bar' });
         } else if (!m.stable) {
-          const ws = bx0 + Math.max(3, (bx1 - bx0) * 0.03);
-          D.add('marks', `<rect class="bar-work" x="${bx0}" y="${by}" width="${r1(ws - bx0)}" height="12" rx="2"/><rect class="bar-wait" x="${r1(ws + 1)}" y="${by}" width="${r1(bx1 - ws - 1)}" height="12" rx="2"/>`);
-          D.text(bx0, by + 28, [[`${fms(M.SERVICE_MS)} of work`, 'small', 'cur-ink']], { owner: 'bar' });
-          D.text(bx1, by + 28, [['waiting grows without bound', 'small', 'wait-ink']], { owner: 'bar', anchor: 'end' });
+          const ws = bx1 - Math.max(3, (bx1 - bx0) * 0.03);
+          D.add('marks', `<rect class="bar-wait" x="${bx0}" y="${by}" width="${r1(ws - 1 - bx0)}" height="12" rx="2"/><rect class="bar-work" x="${r1(ws)}" y="${by}" width="${r1(bx1 - ws)}" height="12" rx="2"/>`);
+          barLabels(['waiting grows without bound', 'waiting: no bound'], `${fms(M.SERVICE_MS)} of work`, 'wait-ink', 'cur-ink');
         } else {
-          const ws = bx0 + Math.max(2, ((bx1 - bx0) * M.SERVICE_MS) / m.mean);
-          D.add('marks', `<rect class="bar-work" x="${bx0}" y="${by}" width="${r1(ws - bx0)}" height="12" rx="2"/>`);
-          if (bx1 - ws > 2) D.add('marks', `<rect class="bar-wait" x="${r1(ws + 1)}" y="${by}" width="${r1(bx1 - ws - 1)}" height="12" rx="2"/>`);
-          D.text(bx0, by + 28, [[`${fms(M.SERVICE_MS)} of work`, 'small', 'cur-ink']], { owner: 'bar' });
-          D.text(bx1, by + 28, [[`${fdur(m.meanWait)} waiting`, 'small', 'wait-ink']], { owner: 'bar', anchor: 'end' });
+          const ww = ((bx1 - bx0) * m.meanWait) / m.mean;
+          if (ww >= 1) D.add('marks', `<rect class="bar-wait" x="${bx0}" y="${by}" width="${r1(ww - 1)}" height="12" rx="2"/>`);
+          D.add('marks', `<rect class="bar-work" x="${r1(bx0 + (ww >= 1 ? ww : 0))}" y="${by}" width="${r1(bx1 - bx0 - (ww >= 1 ? ww : 0))}" height="12" rx="2"/>`);
+          barLabels([`${fwait(m.meanWait)} waiting`], `${fms(M.SERVICE_MS)} of work`, 'wait-ink', 'cur-ink');
         }
         D.mark({ x0: bx0, x1: bx1, y0: by, y1: by + 12 }, 'bar');
         y = by + 36;
         D.region('split', { x: pad - 8, y: barTop - 4, w: W - 2 * pad + 16, h: y - barTop + 2 });
-        // Two facts: who waits at all, and Little's law. Each reserves its longest form's lines at this width.
-        const [ra, rb] = factRows(W - 2 * pad);
-        const lines = factLines(m, hid);
-        const la = wrap(lines[0], 'cap', W - 2 * pad);
-        la.forEach((t, i) => D.text(pad, y + 14 + i * 18, [[t, 'cap', i === 0 && !m.stable && !hid.numbers ? 'muted' : 'muted']], { owner: 'facts' }));
-        y += ra * 18;
-        if (lines[1]) wrap(lines[1], 'cap', W - 2 * pad).forEach((t, i) => D.text(pad, y + 14 + i * 18, [[t, 'cap', 'muted']], { owner: 'facts' }));
-        y += rb * 18 + 8;
+        // Two facts: who waits at all, and Little's law. The second follows the first's own lines; the block reserves
+        // the most lines any setting needs at this width, after both.
+        const rows = factRows(W - 2 * pad);
+        const lines = factLines(m, hid).flatMap((f) => wrap(f, 'cap', W - 2 * pad));
+        lines.forEach((t, i) => D.text(pad, y + 14 + i * 18, [[t, 'cap', 'muted']], { owner: 'facts', id: `fact-${i}` }));
+        D.meta.facts = factLines(m, hid);
+        y += rows * 18 + 8;
         D.regions.numbers[0].h = y - headTop + 2;
 
         // The chart: p50 and p99 against utilization (log time), the cursor, and the 100 requests at this load.
         const chartTop = y;
         const MW = wide ? 88 : 66;
-        const titles = ['p50 and p99 against utilization · log scale', 'Against utilization · log scale', 'Against utilization'];
-        const right = '100 requests';
-        const title = titles.find((t) => tw(t, 'label') + tw(right, 'label') + 16 <= W - 2 * pad);
+        const right100 = '100 requests';
+        const title = pick(['p50 and p99 against utilization · log scale', 'p50 and p99 · log scale'], (t) => tw(t, 'label') + tw(right100, 'label') + 16 <= W - 2 * pad);
         if (title) {
           D.text(pad, y + 12, [[title, 'label']], { owner: 'chart-title' });
-          D.text(W - pad, y + 12, [[right, 'label']], { owner: 'chart-title', anchor: 'end' });
+          D.text(W - pad, y + 12, [[right100, 'label']], { owner: 'chart-title', anchor: 'end' });
           y += 26;
         } else {
-          D.text(pad, y + 12, [[titles.at(-1), 'label']], { owner: 'chart-title' });
-          D.text(W - pad, y + 28, [[right, 'label']], { owner: 'chart-title', anchor: 'end' });
+          D.text(pad, y + 12, [['p50 and p99 · log scale', 'label']], { owner: 'chart-title' });
+          const sub = pick(['against utilization', 'by utilization'], (t) => tw(t, 'label') + tw(right100, 'label') + 16 <= W - 2 * pad);
+          if (sub) D.text(pad, y + 28, [[sub, 'label']], { owner: 'chart-title' });
+          D.text(W - pad, y + 28, [[right100, 'label']], { owner: 'chart-title', anchor: 'end' });
           y += 42;
         }
         const PH = wide ? 176 : 164;
@@ -1614,17 +1795,16 @@
           D.add('grid', `<line class="${t === 1 ? 'axis' : 'gridline'}" x1="${px0}" y1="${r1(Yt(t))}" x2="${px1}" y2="${r1(Yt(t))}"/>`);
           D.text(px0 - 6, Yt(t) + 4, [[name, 'small', 'muted']], { owner: 'yaxis', anchor: 'end' });
         }
-        for (const p of px1 - px0 >= 180 ? [0, 25, 50, 75, 100] : [0, 50, 100]) {
+        for (const p of px1 - px0 >= 200 ? [0, 25, 50, 75, 100] : [0, 50, 100]) {
           D.add('grid', `<line class="axis" x1="${r1(Xc(p / 100))}" y1="${py1}" x2="${r1(Xc(p / 100))}" y2="${py1 + 4}"/>`);
-          D.text(Xc(p / 100), py1 + 16, [[`${p}%`, 'small', 'muted']], { owner: 'xaxis', anchor: p === 0 ? 'start' : p === 100 ? 'end' : 'middle' });
+          D.text(Xc(p / 100), py1 + 16, [[`${p}%`, 'small', 'muted']], { owner: 'xaxis', anchor: p === 0 ? 'start' : p === 100 ? 'end' : 'middle', data: ' data-xtick="1"' });
         }
         D.add('grid', `<line class="gridline" x1="${px1}" y1="${py0}" x2="${px1}" y2="${py1}"/>`);
         const pathOf = (pts, limit) => {
           const out = [];
           for (const [rho, t] of pts) {
             if (limit !== null && limit !== undefined && rho > limit + 1e-9) break;
-            const yy = Yt(t);
-            out.push([Xc(rho), yy]);
+            out.push([Xc(rho), Yt(t)]);
             if (t >= 10000) break;
           }
           return out;
@@ -1635,19 +1815,25 @@
           D.link(samplePath(pts, 2), owner);
         };
         const cur = curvesOf(s);
+        // A ghost keeps the setting before a change. A change that keeps the utilization (the queue, the work, the server
+        // count) leaves the old p99 curve, named for what differed; a change that moves it (the load, a server down)
+        // leaves the old cursor as hollow dots, with an arrow to where it went. None while a question asks.
+        const gm = view.ghost && !hid.ghost ? M.run(view.ghost) : null;
+        const ghostKind = !gm ? null : Math.abs(gm.rho - m.rho) > 1e-9 ? (gm.stable ? 'point' : null) : JSON.stringify(configOf(view.ghost)) !== JSON.stringify(configOf(s)) ? 'curve' : null;
+        let ghostPts = [];
+        if (ghostKind === 'curve') {
+          ghostPts = pathOf(curvesOf(view.ghost).p99, null);
+          drawCurve(ghostPts, 'ghost', 'ghost');
+        }
         let p50pts = [];
         let p99pts = [];
-        if (view.ghost) {
-          const gp = pathOf(curvesOf(view.ghost).p99, null);
-          drawCurve(gp, 'ghost', 'ghost');
-          view._ghostPts = gp;
-        }
         if (!hid.curves) {
           p50pts = pathOf(cur.p50, hid.ahead);
           p99pts = pathOf(cur.p99, hid.ahead);
           drawCurve(p50pts, 'p50', 'c50');
           drawCurve(p99pts, 'p99', 'c99');
         }
+        D.meta.curves = { p50: p50pts, p99: p99pts, ghost: ghostPts };
         if (hid.ahead !== null && !hid.curves) {
           const cx = Xc(hid.ahead);
           D.add('links', `<line class="cut" x1="${r1(cx)}" y1="${py0}" x2="${r1(cx)}" y2="${py1}"/>`);
@@ -1660,9 +1846,18 @@
         }
         const MX0 = px1 + 14;
         const MX1 = W - pad;
+        // Over capacity the cursor leaves the plot at its top right, where the curves leave as the waits grow without bound.
+        let chevron = null;
+        if (!m.stable && !hid.numbers && !hid.utilization) {
+          chevron = { x: px1 + 1, y: py0 + 1 };
+          D.add('marks', `<path class="chevron" data-y="${py0}" d="M${px1 - 7} ${py0 + 9}L${px1 + 1} ${py0 + 1}M${px1 - 4} ${py0 + 1}L${px1 + 1} ${py0 + 1}L${px1 + 1} ${py0 + 6}"/>`);
+          D.mark({ x0: px1 - 8, x1: px1 + 3, y0: py0 - 1, y1: py0 + 10 }, 'over');
+          D.meta.chevronY = py0;
+        }
         // Cursor: the utilization of the servers that are up, with the model's p50 and p99 there and their values,
-        // placed before the curves' names so the numbers get the best places. When p50 and p99 meet (steady work at low
-        // load, both 10 ms), one dot carries both: the p50 dot inside a p99 ring.
+        // placed before the curves' names so the numbers get the best places. Where p50 and p99 sit within a dot of each
+        // other, one marker carries both (the p50 dot in a p99 ring); one label only when they print the same.
+        let cursor = null;
         if (m.stable && hid.cursorLine) {
           const cx = Xc(m.rho);
           D.add('links', `<line class="cursor" x1="${r1(cx)}" y1="${py0}" x2="${r1(cx)}" y2="${py1}"/>`);
@@ -1670,30 +1865,32 @@
           if (hid.cursorDots) {
             const y50 = Yt(m.p50);
             const y99 = Yt(m.p99);
-            const meet = Math.abs(y99 - y50) < 9;
-            for (const [yy, cls] of meet ? [[y50, 'p50']] : [[y50, 'p50'], [y99, 'p99']]) {
-              D.add('links', `<line class="leader" x1="${r1(cx + 5)}" y1="${r1(yy)}" x2="${MX0 - 3}" y2="${r1(yy)}"/>`);
-              D.link(sampleLine(cx + 5, yy, MX0 - 3, yy), `lead-${cls}`);
-            }
-            const labels = meet
-              ? [[y50, 'p50', 'ink', [`p50 and p99 ${fdur(m.p50)}`, `both ${fdur(m.p50)}`, fdur(m.p50)].find((t) => tw(t, 'smallB') <= (px1 - px0) / 2) ?? fdur(m.p50)]]
-              : [
-                  [y99, 'p99', 'crit-ink', fdur(m.p99)],
-                  [y50, 'p50', 'cur-ink', fdur(m.p50)],
-                ];
-            if (meet) {
-              dot(D, cx, y50, 3.5, 'p50', 'cur-p50');
-              D.add('dots', `<circle class="ring99" cx="${r1(cx)}" cy="${r1(y50)}" r="6.5"/>`);
-              D.mark({ x0: cx - 8, x1: cx + 8, y0: y50 - 8, y1: y50 + 8 }, 'cur-p50');
+            const close = Math.abs(y99 - y50) < 9;
+            const same = fdur(m.p50) === fdur(m.p99);
+            cursor = { x: cx, y50, y99 };
+            if (close) {
+              const ym = (y50 + y99) / 2;
+              dot(D, cx, ym, 3.5, 'p50', 'cur-p50 cur-p99');
+              D.add('dots', `<circle class="ring99" cx="${r1(cx)}" cy="${r1(ym)}" r="6.5"/>`);
+              D.mark({ x0: cx - 8, x1: cx + 8, y0: ym - 8, y1: ym + 8 }, 'cur-p50 cur-p99');
             } else {
               dot(D, cx, y99, 4, 'p99', 'cur-p99');
               dot(D, cx, y50, 4, 'p50', 'cur-p50');
             }
-            for (const [yy, cls, ink, text] of labels) {
+            const valueCands = (yy, ups) => {
               const cands = [];
               for (const dx of [10, 22, 40, 60, 84])
-                for (const dy of [-7, 15, -17, 25, -29, 37]) cands.push([cx - dx, yy + dy, 'end'], [cx + dx, yy + dy, 'start']);
-              D.place(cands, [[text, 'smallB', ink]], { owner: `cur-${cls}`, ground: true, minX: pad, maxX: MX0 - 4, minY: py0, maxY: py1 - 2, margin: 1 });
+                for (const dy of ups) cands.push([cx - dx, yy + dy, 'end'], [cx + dx, yy + dy, 'start']);
+              return cands;
+            };
+            if (same) {
+              const forms = [`p50 and p99 ${fdur(m.p50)}`, `both ${fdur(m.p50)}`];
+              forms.some((t, i) => D.place(valueCands(y50, [-7, 15, -17, 25, -29, 37]), [[t, 'smallB', 'ink']], { owner: 'cur-p50 cur-p99', ground: true, minX: pad, maxX: MX0 - 4, minY: py0, maxY: py1 - 2, margin: 1, optional: i < forms.length - 1 }));
+            } else {
+              const up99 = close ? [-9, -19, -31] : [-7, 15, -17, 25, -29, 37];
+              const dn50 = close ? [17, 27, 39] : [-7, 15, -17, 25, -29, 37];
+              D.place(valueCands(y99, up99), [[fdur(m.p99), 'smallB', 'crit-ink']], { owner: 'cur-p99', ground: true, minX: pad, maxX: MX0 - 4, minY: py0, maxY: py1 - 2, margin: 1 });
+              D.place(valueCands(y50, dn50), [[fdur(m.p50), 'smallB', 'cur-ink']], { owner: 'cur-p50', ground: true, minX: pad, maxX: MX0 - 4, minY: py0, maxY: py1 - 2, margin: 1 });
             }
           }
         }
@@ -1703,75 +1900,188 @@
           for (let i = 0; i < pts.length * 0.7; i += Math.max(1, Math.floor(pts.length / 24))) out.push([pts[i][0] + 3, pts[i][1] + dy, 'start']);
           return out;
         };
-        // The headline row's swatches are the legend whenever it shows them, so a name with no room is left out then.
         const legendShown = m.stable || hid.numbers;
-        // p99 only ever over its line and p50 only under it, so a name never sits by the other curve.
-        if (p99pts.length) D.place([...along(p99pts, -7), ...along(p99pts, -13), ...along(p99pts, -19)], [['p99', 'smallB', 'crit-ink']], { owner: 'c99', ground: true, minY: py0, maxY: py1 - 1, minX: px0 + 2, maxX: px1 - 2, optional: legendShown });
-        if (p50pts.length) D.place([...along(p50pts, 15), ...along(p50pts, 21), ...along(p50pts, 27)], [['p50', 'smallB', 'cur-ink']], { owner: 'c50', ground: true, minY: py0, maxY: py1 - 1, minX: px0 + 2, maxX: px1 - 2, optional: legendShown });
-        if (view.ghost && view._ghostPts?.length) {
-          const gp = view._ghostPts;
+        const names = [];
+        if (p99pts.length) names.push(D.place([...along(p99pts, -7), ...along(p99pts, -13), ...along(p99pts, -19)], [['p99', 'smallB', 'crit-ink']], { owner: 'c99', ground: true, minY: py0, maxY: py1 - 1, minX: px0 + 2, maxX: px1 - 2, optional: legendShown }));
+        if (p50pts.length) names.push(D.place([...along(p50pts, 15), ...along(p50pts, 21), ...along(p50pts, 27)], [['p50', 'smallB', 'cur-ink']], { owner: 'c50', ground: true, minY: py0, maxY: py1 - 1, minX: px0 + 2, maxX: px1 - 2, optional: legendShown }));
+        // The curve ghost's name: only where the ghost is at least 10 px from both current curves and the nearest curve
+        // to the name is the ghost, 24 px from another name; dropped rather than ambiguous.
+        if (ghostKind === 'curve' && ghostPts.length) {
+          const others = [p50pts, p99pts].filter((p) => p.length);
+          const near = (box) => {
+            const cy = (box.y0 + box.y1) / 2;
+            for (let x = box.x0; x <= box.x1; x += 2)
+              for (const p of others) {
+                const yy = yAt(p, x);
+                if (yy !== null && yy > box.y0 - 10 && yy < box.y1 + 10) return false;
+              }
+            const xm = (box.x0 + box.x1) / 2;
+            const gy = yAt(ghostPts, xm);
+            if (gy === null) return false;
+            for (const p of others) {
+              const yy = yAt(p, xm);
+              if (yy !== null && Math.abs(yy - cy) <= Math.abs(gy - cy)) return false;
+            }
+            return names.every((n) => !n || Math.hypot((n.x0 + n.x1) / 2 - xm, (n.y0 + n.y1) / 2 - cy) >= 24);
+          };
           const cands = [];
           for (const dy of [-8, 16, -18, 26])
-            for (let k = 2; k < 22; k++) {
-              const p = gp[Math.floor((k / 24) * (gp.length - 1))];
-              cands.push([p[0], p[1] + dy, 'middle']);
+            for (let k = 23; k >= 6; k--) {
+              const p = ghostPts[Math.floor((k / 24) * (ghostPts.length - 1))];
+              cands.push([p[0], p[1] + dy, 'end'], [p[0], p[1] + dy, 'middle']);
             }
-          [view.ghostName ?? 'before', 'before'].some((t, i) => D.place(cands, [[t, 'small', 'muted']], { owner: 'ghost', ground: true, minY: py0, maxY: py1 - 1, minX: px0 + 2, maxX: px1 - 2, optional: i === 0 }));
+          const gn = ghostName(view.ghost, s);
+          const placed = [gn, 'p99 before'].some((t) => D.place(cands, [[t, 'small', 'muted']], { owner: 'ghost', ground: true, minY: py0, maxY: py1 - 1, minX: px0 + 2, maxX: px1 - 2, optional: true, ok: near, id: 'ghost-name' }));
+          D.meta.ghostName = placed;
         }
-        // The marginal: 100 requests at the model's quantiles, binned on the same time axis. The dot size is the largest
-        // whose fullest bin fits the column. Steady work's requests that never wait all take exactly 10 ms; when they
-        // overflow their row, the rest are counted under it, where steady work has no requests (none is under 10 ms).
+        // The point ghost: hollow dots at the old utilization, the old p99 in words, and an arrow to the new cursor.
+        if (ghostKind === 'point') {
+          const gx = Xc(gm.rho);
+          const g99 = Yt(gm.p99);
+          const g50 = Yt(gm.p50);
+          for (const [yy, k] of [
+            [g99, 'p99'],
+            [g50, 'p50'],
+          ]) {
+            D.add('dots', `<circle class="ghost-dot ${k}" cx="${r1(gx)}" cy="${r1(yy)}" r="3.5" data-owner="ghost"/>`);
+            D.mark({ x0: gx - 4.5, x1: gx + 4.5, y0: yy - 4.5, y1: yy + 4.5 }, 'ghost');
+          }
+          const target = cursor ? [cursor.x, cursor.y99] : chevron ? [chevron.x - 9, chevron.y + 9] : null;
+          if (target) {
+            const [tx, tyy] = target;
+            const len = Math.hypot(tx - gx, tyy - g99);
+            if (len > 16) {
+              const ux = (tx - gx) / len;
+              const uy = (tyy - g99) / len;
+              const ax0 = gx + ux * 6;
+              const ay0 = g99 + uy * 6;
+              const ax1 = tx - ux * 7;
+              const ay1 = tyy - uy * 7;
+              const hx = ax1 - ux * 5;
+              const hy = ay1 - uy * 5;
+              D.add('links', `<line class="ghost-arrow" x1="${r1(ax0)}" y1="${r1(ay0)}" x2="${r1(ax1)}" y2="${r1(ay1)}"/><path class="ghost-head" d="M${r1(hx - uy * 3.5)} ${r1(hy + ux * 3.5)}L${r1(ax1)} ${r1(ay1)}L${r1(hx + uy * 3.5)} ${r1(hy - ux * 3.5)}"/>`);
+              D.link(sampleLine(ax0, ay0, ax1, ay1, 2), 'ghost');
+            }
+          }
+          const cands = (yy) => {
+            const out = [];
+            for (const dx of [8, 18, 30])
+              for (const dy of [-8, 15, -18, 25]) out.push([gx - dx, yy + dy, 'end'], [gx + dx, yy + dy, 'start']);
+            return out;
+          };
+          ['before: ' + fdur(gm.p99), fdur(gm.p99)].some((t) => D.place(cands(g99), [[t, 'small', 'muted']], { owner: 'ghost', ground: true, minX: pad, maxX: MX0 - 4, minY: py0, maxY: py1 - 2, margin: 1, optional: true, id: 'ghost-p99' }));
+          D.place(cands(g50), [[fdur(gm.p50), 'small', 'muted']], { owner: 'ghost', ground: true, minX: pad, maxX: MX0 - 4, minY: py0, maxY: py1 - 2, margin: 1, optional: true, id: 'ghost-p50' });
+        }
+        // The marginal: 100 requests at the model's quantiles. Rows are anchored at the ticks: the 50 below p50 sit wholly
+        // under its tick, the 49 between sit between the ticks, and the 100th sits wholly over the p99 tick; each tick keeps
+        // a 1 px gap of stage colour to the dots beside it. The dot size is the largest whose fullest row fits the column.
         D.add('grid', `<line class="axis" x1="${MX0}" y1="${py1}" x2="${MX1}" y2="${py1}"/>`);
         if (m.stable && !hid.numbers) {
-          const atomOf = (t) => s.service === 'steady' && Math.abs(t - M.SERVICE_MS) < 1e-6;
+          const y50 = Yt(m.p50);
+          const y99t = Yt(m.p99);
+          const equal = Math.abs(m.p99 - m.p50) < 1e-6;
+          const atomOf = (i) => s.service === 'steady' && Math.abs(m.dots[i] - M.SERVICE_MS) < 1e-6;
+          const T = 1.75;
           const layout = (r) => {
-            const pitch = 2 * r + 1;
-            const bins = new Map();
+            const p = 2 * r + 1;
+            const y99 = equal ? y50 : Math.min(y99t, y50 - (2 * T + p));
+            const rows = new Map();
+            const put = (zone, k, cy, i) => {
+              const key = `${zone}${k}`;
+              if (!rows.has(key)) rows.set(key, { zone, cy, list: [] });
+              rows.get(key).list.push(i);
+            };
+            const kA = Math.max(0, Math.floor((py1 - 0.5 - 2 * r - (y50 + T)) / p));
+            const kC = Math.max(0, Math.floor((y99 - T - 2 * r - (py0 + 0.5)) / p));
+            const HB = y50 - y99 - 2 * T;
+            const nB = Math.max(1, Math.floor(HB / p));
+            const hB = HB / nB;
             m.dots.forEach((t, i) => {
-              const j = Math.max(0, Math.floor((py1 - Yt(t)) / pitch));
-              if (!bins.has(j)) bins.set(j, []);
-              bins.get(j).push({ t, i });
+              const yy = Yt(t);
+              if (i < 50) {
+                const k = Math.min(kA, Math.max(0, Math.floor((yy - y50 - T) / p)));
+                put('A', k, y50 + T + r + k * p, i);
+              } else if (i < 99 && !equal) {
+                const k = Math.min(nB - 1, Math.max(0, Math.floor((y50 - T - yy) / hB)));
+                put('B', k, y50 - T - hB * (k + 0.5), i);
+              } else {
+                const k = Math.min(kC, Math.max(0, Math.floor((y99 - T - yy) / p)));
+                put('C', k, y99 - T - r - k * p, i);
+              }
             });
-            const capN = Math.floor((MX1 - MX0 + 1) / pitch);
-            const worst = Math.max(0, ...[...bins.values()].filter((l) => !l.some((d) => atomOf(d.t))).map((l) => l.length));
-            return { r, pitch, bins, capN, fits: worst <= capN };
+            const capN = Math.floor((MX1 - MX0 + 1) / p);
+            const worst = Math.max(0, ...[...rows.values()].filter((l) => !l.list.some(atomOf)).map((l) => l.list.length));
+            return { r, p, y99, rows, capN, fits: worst <= capN };
           };
           const options = (wide ? [2.5, 2, 1.75, 1.5] : [2, 1.75, 1.5, 1.25]).map(layout);
           const L = options.find((o) => o.fits) ?? options.at(-1);
-          const { r, pitch, bins, capN } = L;
-          const under = m.dots.filter((t) => t < 1).length;
-          for (const [q, cls] of [
-            [m.p50, 'p50'],
-            [m.p99, 'p99'],
-          ])
-            D.add('grid', `<line class="mtick ${cls}" x1="${MX0 - 3}" y1="${r1(Yt(q))}" x2="${MX1}" y2="${r1(Yt(q))}"/>`);
-          for (const [j, list] of bins) {
-            const cyy = py1 - j * pitch - pitch / 2;
-            const shown = Math.min(list.length, capN);
-            list.slice(0, shown).forEach((d, k) => dot(D, MX0 + r + k * pitch, cyy, r, `req${atomOf(d.t) ? ' nowait' : ''}`, 'marg', `q${d.i}`));
-            if (list.length > shown) {
-              const atom = list.some((d) => atomOf(d.t));
-              const words = atom ? [`+${list.length - shown} more at ${fms(M.SERVICE_MS)}`, `+${list.length - shown} more`] : [`+${list.length - shown}`];
-              const word = words.find((t) => tw(t, 'smallB') <= MX1 - MX0) ?? words.at(-1);
-              D.place([[MX0, cyy + 13], [MX0, cyy + 24]], [[word, 'smallB', atom ? 'cur-ink' : 'ink']], { owner: 'marg-more', ground: true });
+          const { r, p, rows, capN } = L;
+          const y99 = L.y99;
+          D.meta.marginal = { y50, y99, r, equal, rows: [] };
+          D.add('grid', `<line class="mtick p50" data-tick="p50" x1="${MX0 - 3}" y1="${r1(y50)}" x2="${MX1}" y2="${r1(y50)}"/>`);
+          D.add('grid', `<line class="mtick p99${equal ? ' over50' : ''}" data-tick="p99" x1="${MX0 - 3}" y1="${r1(y99)}" x2="${MX1}" y2="${r1(y99)}"/>`);
+          if (cursor) {
+            // Leaders from the cursor's dots to their ticks; where the marginal opened a row between close ticks, the p99
+            // leader steps to its tick at the column's edge.
+            for (const [yy, ty, cls] of [
+              [cursor.y50, y50, 'p50'],
+              [cursor.y99, y99, 'p99'],
+            ]) {
+              if (cls === 'p99' && equal) continue;
+              D.add('links', `<path class="leader" d="M${r1(cursor.x + 5)} ${r1(yy)}L${MX0 - 3} ${r1(yy)}L${MX0 - 3} ${r1(ty)}"/>`);
+              D.link(sampleLine(cursor.x + 5, yy, MX0 - 3, yy), `lead-${cls}`);
             }
           }
-          if (under) D.text(MX1, py1 + 16, [[wide ? `${under} under 1 ms` : `${under} < 1 ms`, 'small', 'muted']], { owner: 'marg-note', anchor: 'end' });
-        } else if (!m.stable && !hid.numbers) {
-          // Past 100% the cursor leaves the chart: a chevron at its edge, and the marginal says why there are no dots.
-          const cy = Yt(100);
-          if (hid.cursorLine) {
-            D.add('marks', `<path class="chevron" d="M${px1 + 3} ${cy - 5}L${px1 + 8} ${cy}L${px1 + 3} ${cy + 5}"/>`);
-            D.mark({ x0: px1 + 2, x1: px1 + 9, y0: cy - 6, y1: cy + 6 }, 'over');
+          const atoms = m.dots.filter((t, i) => atomOf(i)).length;
+          let atomRowCy = null;
+          for (const row of rows.values()) {
+            // In a row holding steady work's no-wait requests, the others are drawn first: the ones left out are then
+            // all no-wait requests, which the count in words covers.
+            const list = [...row.list.filter((i) => !atomOf(i)), ...row.list.filter(atomOf)];
+            const shown = Math.min(list.length, capN);
+            list.slice(0, shown).forEach((i, k) => dot(D, MX0 + r + k * p, row.cy, r, `req${atomOf(i) ? ' nowait' : ''}`, 'marg', `q${i}`, ` data-zone="${row.zone}"`));
+            const hidden = list.length - shown;
+            D.meta.marginal.rows.push({ zone: row.zone, cy: row.cy, n: list.length });
+            if (list.some(atomOf)) {
+              atomRowCy = Math.max(atomRowCy ?? -Infinity, row.cy);
+              continue;
+            }
+            if (hidden > 0) D.place([[MX0, row.cy + 13], [MX0, row.cy + 24], [MX0, row.cy - 8]], [[`+${hidden}`, 'smallB', 'ink']], { owner: 'marg-more', ground: true });
           }
-          D.text(MX0, cy + 4, [[`${M.formatPct(m.rho * 100)} busy`, 'smallB', 'bad']], { owner: 'over' });
-          wrap('no steady state', 'small', MX1 - MX0).forEach((t, i) => D.text(MX0, cy + 20 + i * 14, [[t, 'small', 'bad']], { owner: 'over' }));
+          // Steady work's requests that never wait all take exactly 10 ms: their count, always in words, under their row.
+          if (atoms) {
+            const forms = [`${atoms} at exactly ${fms(M.SERVICE_MS)}`, `${atoms} at ${fms(M.SERVICE_MS)}`];
+            forms.some((t, i) => D.place([[MX1, atomRowCy + r + 13, 'end'], [MX1, atomRowCy + r + 24, 'end']], [[t, 'smallB', 'cur-ink']], { owner: 'marg-more', ground: true, minX: MX0 - 10, optional: i < forms.length - 1 }));
+          }
+          const under = m.dots.filter((t) => t < 1).length;
+          if (under) {
+            const bottom = [...rows.values()].filter((row) => row.zone === 'A').sort((a, b) => b.cy - a.cy);
+            const cands = bottom.slice(0, 3).map((row) => [MX0 + Math.min(row.list.length, capN) * p + 3, row.cy + 4, 'start']);
+            const forms = wide ? [`${under} under 1 ms`, `${under} < 1 ms`] : [`${under} < 1 ms`];
+            const ok = forms.some((t) => D.place(cands, [[t, 'small', 'muted']], { owner: 'marg-note', ground: true, maxX: MX1, optional: true }));
+            if (!ok) D.text(MX1, py1 + 16, [[`${under} < 1 ms`, 'small', 'muted']], { owner: 'marg-note', anchor: 'end' });
+          }
+        } else if (!m.stable && !hid.numbers) {
+          // Past 100% there are no 100 requests to draw: the marginal says why, under the chevron.
+          if (!hid.utilization) wrap(`${M.formatPct(m.rho * 100)} of capacity`, 'smallB', MX1 - MX0).forEach((t, i) => D.text(MX0, py0 + 12 + i * 14, [[t, 'smallB', 'bad']], { owner: 'over' }));
+          const n = hid.utilization ? 0 : wrap(`${M.formatPct(m.rho * 100)} of capacity`, 'smallB', MX1 - MX0).length;
+          wrap('no steady state', 'small', MX1 - MX0).forEach((t, i) => D.text(MX0, py0 + 12 + (n + i) * 14, [[t, 'small', 'bad']], { owner: 'over' }));
         } else {
           wrap('after your answer', 'small', MX1 - MX0).forEach((t, i) => D.text(MX0, (py0 + py1) / 2 + i * 14, [[t, 'small', 'muted']], { owner: 'marg' }));
         }
-        D.region('chart', { x: pad - 8, y: chartTop - 4, w: W - 2 * pad + 16, h: py1 + 22 - chartTop + 4 });
-        D.region('marginal', { x: MX0 - 6, y: chartTop - 4, w: MX1 - MX0 + 12, h: py1 + 22 - chartTop + 4 });
+        D.region('chart', { x: pad - 8, y: chartTop - 4, w: W - 2 * pad + 16, h: py1 + 24 - chartTop + 4 });
+        D.region('marginal', { x: MX0 - 6, y: chartTop - 4, w: MX1 - MX0 + 12, h: py1 + 24 - chartTop + 4 });
         y = py1 + 26;
+        // Fan-out, at wide stages: one model line on what the p99 tick means for a page that calls many of these.
+        if (wide) {
+          if (!hid.numbers) {
+            const share = M.formatPct((1 - 0.99 ** 50) * 100);
+            const t = pick([`Fan-out: a page that calls 50 of these meets at least one slower than p99 on ${share} of loads.`, `A page calling 50 of these meets one past p99 on ${share} of loads.`], (f) => tw(f, 'small') <= W - 2 * pad);
+            if (t) D.text(pad, y + 10, [[t, 'small', 'muted']], { owner: 'fanout' });
+            else D.missing.push('fan-out');
+          }
+          y += 18;
+        }
         D.label = summary(m, hid);
         D.view = view;
         return { D, H: y };
@@ -1786,35 +2096,51 @@
             : `${serverWord(s.servers)} with ${s.queue === 'split' ? 'a queue each' : 'one shared queue'}${s.down ? `, one of them down` : ''}, ${s.load}% busy with all up`;
         const work = s.service === 'steady' ? `every request taking exactly ${fms(M.SERVICE_MS)}` : `requests taking ${fms(M.SERVICE_MS)} on average`;
         const parts = [`${who}, ${work}.`];
+        const left = m.up === 1 ? 'the server left' : 'the servers left';
         if (hid.numbers) parts.push("The model's numbers show after your answer.");
-        else if (!m.stable) parts.push(`There is no steady state: ${M.formatQps(m.ratePerS)} arrive and ${m.up === 1 ? 'the server left serves' : 'the servers left serve'} ${M.formatQps(m.capacityPerS)}, so the queue grows by ${M.formatQps(m.growthPerS).replace('/s', '')} requests a second.`);
-        else parts.push(`The model gives p50 ${fdur(m.p50)}, p99 ${fdur(m.p99)} and a mean of ${fdur(m.mean)}, of which ${fdur(m.meanWait)} is waiting.`);
+        else if (critical(m)) parts.push(`There is no steady state: ${M.formatQps(m.ratePerS)} arrive, exactly what ${left} can serve, so the queue wanders without a bound and the waits keep growing.`);
+        else if (!m.stable) parts.push(`There is no steady state: ${M.formatQps(m.ratePerS)} arrive and ${left} serve${m.up === 1 ? 's' : ''} ${M.formatQps(m.capacityPerS)}, so the queue grows by ${M.formatQps(m.growthPerS).replace('/s', '')} requests a second.`);
+        else parts.push(`The model gives p50 ${fdur(m.p50)}, p99 ${fdur(m.p99)} and a mean of ${fdur(m.mean)}, of which ${fwait(m.meanWait)} is waiting.`);
         if (hid.sample) parts.push('The sample of requests plays after your answer.');
         return parts.join(' ');
       }
 
-      // ---------- Focus outlines with their "Look here" tag on the first free place (prevention 5).
+      // ---------- Focus outlines with their "Look here" tag on the first free place (prevention 5). An outline takes in
+      // every text its region holds with 6 px to spare, so its stroke never runs along a text.
       function focusOutlines(D, ids, H) {
         const TAG = { w: 72, h: 16 };
         for (const id of ids) {
           for (const b of D.regions[id] ?? []) {
-            const x = Math.max(3, b.x);
-            const y0 = Math.max(3, b.y);
-            const w = Math.min(D.W - 3, b.x + b.w) - x;
-            const h = Math.min(H - 3, b.y + b.h) - y0;
-            D.add('top', `<rect class="focus-outline" x="${x}" y="${y0}" width="${w}" height="${h}" rx="10"/>`);
+            let x0 = b.x;
+            let y0 = b.y;
+            let x1 = b.x + b.w;
+            let y1 = b.y + b.h;
+            for (const t of D.texts) {
+              const cx = (t.x0 + t.x1) / 2;
+              const cy = (t.y0 + t.y1) / 2;
+              if (cx < b.x || cx > b.x + b.w || cy < b.y || cy > b.y + b.h) continue;
+              x0 = Math.min(x0, t.x0 - 6);
+              y0 = Math.min(y0, t.y0 - 6);
+              x1 = Math.max(x1, t.x1 + 6);
+              y1 = Math.max(y1, t.y1 + 6);
+            }
+            const x = Math.max(3, x0);
+            const yy = Math.max(3, y0);
+            const w = Math.min(D.W - 3, x1) - x;
+            const h = Math.min(H - 3, y1) - yy;
+            D.add('top', `<rect class="focus-outline" x="${r1(x)}" y="${r1(yy)}" width="${r1(w)}" height="${r1(h)}" rx="10"/>`);
             const across = [];
             for (let ax = x + w - TAG.w - 16; ax >= x + 16; ax -= 8) across.push(ax);
             const xs = [x + w - TAG.w - 16, x + 16, ...across];
-            const ys = [y0 - TAG.h / 2, y0 + h - TAG.h / 2, y0 + 4, y0 + h - TAG.h - 4, y0 - TAG.h - 2, y0 + h + 2, y0 + 24, y0 + 44];
-            const cands = ys.flatMap((ty) => xs.map((tx) => [tx, ty]));
+            // On the outline's edge first (the house's place), then just inside, then inside rows, outside last.
+            const ys = [yy - TAG.h / 2, yy + h - TAG.h / 2, yy + 4, yy + h - TAG.h - 4, yy + 24, yy + 44, yy - TAG.h - 2, yy + h + 2];
             let placed = false;
-            for (const [tx, ty] of cands) {
+            for (const [tx, ty] of ys.flatMap((t) => xs.map((sx) => [sx, t]))) {
               const box = { x0: tx, x1: tx + TAG.w, y0: ty, y1: ty + TAG.h };
               if (tx < 3 || tx + TAG.w > D.W - 3 || ty < 3 || ty + TAG.h > H - 3) continue;
               if (!D.free(box, '', 1)) continue;
-              D.add('top', `<rect class="tag" x="${tx}" y="${ty}" width="${TAG.w}" height="${TAG.h}" rx="8"/>`);
-              D.add('top', `<text x="${tx + TAG.w / 2}" y="${ty + 12}" text-anchor="middle" data-owner="look" data-ground="1"><tspan class="t-look">LOOK HERE</tspan></text>`);
+              D.add('top', `<rect class="tag" x="${r1(tx)}" y="${r1(ty)}" width="${TAG.w}" height="${TAG.h}" rx="8"/>`);
+              D.add('top', `<text x="${r1(tx + TAG.w / 2)}" y="${r1(ty + 12)}" text-anchor="middle" data-owner="look" data-ground="1"><tspan class="t-look">LOOK HERE</tspan></text>`);
               D.mark(box, 'look');
               placed = true;
               break;
@@ -1826,44 +2152,75 @@
 
       // ---------- Mockup states.
       const B = M.BASE;
+      const ALL = [];
+      for (const servers of M.SERVERS)
+        for (const queue of M.QUEUES)
+          for (const service of M.SERVICES)
+            for (const down of [0, 1])
+              for (const load of M.LOADS) {
+                if (servers === 1 && (queue === 'split' || down)) continue;
+                ALL.push({ load, servers, queue, service, down });
+              }
+      window.ALL_SETTINGS = ALL;
+      const CONFIGS = [];
+      for (const servers of M.SERVERS)
+        for (const queue of M.QUEUES)
+          for (const service of M.SERVICES)
+            for (const down of [0, 1]) if (!(servers === 1 && (queue === 'split' || down))) CONFIGS.push({ servers, queue, service, down });
+      const freePlay = (s, frac) => {
+        const play = M.playPlan(M.sample(s), false);
+        return { play, tau: play.from + frac * (play.to - play.from) };
+      };
       const STATES = {
         default: { s: B },
         quiet: { s: { ...B, load: 30 } },
         busy: { s: { ...B, load: 90 } },
         split: { s: { ...B, servers: 4, queue: 'split', load: 80 } },
-        pool: { s: { ...B, servers: 4, queue: 'shared', load: 80 }, ghost: { ...B, servers: 4, queue: 'split', load: 80 }, ghostName: 'a queue each' },
-        steady: { s: { ...B, load: 90, service: 'steady' }, ghost: { ...B, load: 90 }, ghostName: 'random work' },
-        down: { s: { ...B, servers: 3, load: 60, down: 1 }, ghost: { ...B, servers: 3, load: 60 }, ghostName: 'all three up' },
+        pool: { s: { ...B, servers: 4, queue: 'shared', load: 80 }, ghost: { ...B, servers: 4, queue: 'split', load: 80 } },
+        steady: { s: { ...B, load: 90, service: 'steady' }, ghost: { ...B, load: 90 } },
+        calm: { s: { ...B, servers: 4, load: 30, service: 'steady' } },
+        down: { s: { ...B, servers: 3, load: 60, down: 1 }, ghost: { ...B, servers: 3, load: 60 } },
         overload: { s: { ...B, servers: 3, load: 70, down: 1 } },
-        playing: { s: B, tau: 236 },
+        critical: { s: { ...B, servers: 2, load: 50, down: 1 } },
+        playing: { s: B, frac: 0.59 },
         describe: { s: B, describe: true },
+        reduced: { s: B, reduced: true },
         ask: { exp: 0, phase: 'asking' },
         reveal: { exp: 1, phase: 'revealed' },
         challenge: { exp: 5, phase: 'challenge' },
       };
       const actSettings = (spec) => ({ ...spec.setup, ...(spec.act?.set ?? {}) });
-      const configKey = (s) => `${s.servers}|${s.servers > 1 ? s.queue : 'shared'}|${s.service}|${s.servers > 1 ? s.down : 0}`;
+      const sameConfig = (a, b) => JSON.stringify(configOf(a)) === JSON.stringify(configOf(b));
       function viewOf(name) {
         const st = STATES[name] ?? STATES.default;
         const expParam = params.get('exp');
         const expIdx = expParam !== null && st.exp !== undefined ? Number(expParam) - 1 : st.exp;
-        if (expIdx === undefined) return { s: st.s, hide: [], phase: 'rest', ghost: st.ghost ?? null, ghostName: st.ghostName, tau: st.tau ?? null, describe: !!st.describe };
+        if (expIdx === undefined) {
+          const fp = st.frac !== undefined ? freePlay(st.s, st.frac) : { play: null, tau: null };
+          return { s: st.s, hide: [], phase: 'rest', ghost: st.ghost ?? null, ...fp, describe: !!st.describe, reduced: !!st.reduced };
+        }
         const spec = M.EXPERIMENTS[expIdx];
+        if (spec.goal) return expView(spec, params.get('start') === '1' ? 'start' : 'challenge');
+        const phase = params.get('phase') === 'playing' && st.phase === 'asking' ? 'playing' : st.phase;
+        return expView(spec, phase, Number(params.get('frac') ?? 0.6));
+      }
+      /** One experiment's view: asking (from whatever setting came before, which must leave no trace), the answer's play at
+       * a fraction of its clock, revealed, or the challenge met or at its start. */
+      function expView(spec, phase, frac = 0.6, from = null) {
         const e = M.renderExperiment(spec);
         if (spec.goal) {
-          const start = params.get('start') === '1';
-          const s = start ? spec.setup : { ...spec.setup, ...M.CHALLENGE_SOLUTION };
+          const s = phase === 'start' ? spec.setup : { ...spec.setup, ...M.CHALLENGE_SOLUTION };
           const m = M.run(s);
           const met = M.goalMet(spec.goal, m.settings, m.metrics);
           return { s, hide: [], exp: e, spec, phase: 'challenge', met, focus: met ? spec.focus : [], ghost: null, tau: null };
         }
-        const phase = params.get('phase') === 'playing' && st.phase === 'asking' ? 'playing' : st.phase;
         const after = actSettings(spec);
-        const s = phase === 'asking' ? spec.setup : after;
         const setupM = M.run(spec.setup);
-        const changed = configKey(spec.setup) !== configKey(after);
+        const moved = !sameConfig(spec.setup, after) || Math.abs(M.run(after).rho - setupM.rho) > 1e-9;
+        const play = phase === 'playing' ? M.playPlan(M.sample(after), true) : null;
+        const sampleShown = !spec.hide.includes('sample');
         return {
-          s,
+          s: phase === 'asking' ? spec.setup : after,
           hide: phase === 'revealed' ? [] : spec.hide,
           exp: e,
           spec,
@@ -1871,53 +2228,73 @@
           chosen: e.answer === 0 ? 1 : 0,
           focus: phase === 'revealed' ? spec.focus : [],
           setupRho: setupM.rho,
-          configChanged: changed,
-          rhoChanged: Math.abs(M.run(after).rho - setupM.rho) > 1e-9,
-          ghost: phase !== 'asking' && changed ? spec.setup : null,
-          ghostName: 'before',
-          tau: phase === 'playing' ? Number(params.get('tau') ?? 180) : null,
+          configChanged: !sameConfig(spec.setup, after),
+          ghost: phase === 'asking' ? from : moved ? spec.setup : null,
+          play,
+          tau: play ? play.from + frac * (play.to - play.from) : null,
+          qFloor: phase !== 'asking' && sampleShown ? scaleOf(M.sample(spec.setup), setupM, true) : null,
         };
       }
+      window.expView = expView;
 
       // ---------- The page around the stage.
       function controlsHtml(m, view) {
         const s = m.settings;
         const locked = view.phase === 'asking' || view.phase === 'playing';
         const dis = locked ? ' disabled' : '';
-        const seg = (name, items, cur) =>
-          items.map(([v, label]) => `<label class="segment"><input type="radio" name="${name}" ${v === cur ? 'checked' : ''}/><span>${label}</span></label>`).join('');
+        const one = s.servers === 1;
+        const seg = (name, items, cur, disabledAll = false) =>
+          items.map(([v, label]) => `<label class="segment"><input type="radio" name="${name}" ${v === cur ? 'checked' : ''}${disabledAll ? ' disabled' : ''}/><span>${label}</span></label>`).join('');
         return `<fieldset class="group servers-control"${dis}><legend class="control-label">Servers</legend><div class="segments">${seg(
           'servers',
           M.SERVERS.map((k) => [k, String(k)]),
           s.servers,
         )}</div></fieldset>
-<fieldset class="group queue-control"${locked || s.servers === 1 ? ' disabled' : ''}><legend class="control-label">Queue</legend><div class="segments">${seg(
+<fieldset class="group queue-control"${locked ? ' disabled' : ''}><legend class="control-label">Queue${one ? '<span class="why"> · one server has one queue</span>' : ''}</legend><div class="segments">${seg(
           'queue',
           [
             ['shared', 'One queue'],
             ['split', 'A queue each'],
           ],
           s.queue,
+          one,
         )}</div></fieldset>
 <fieldset class="group"${dis}><legend class="control-label">Conditions</legend><div class="toggles">
 <label class="segment"><input type="checkbox" ${s.service === 'steady' ? 'checked' : ''}/><span>Steady work<small>${fms(M.SERVICE_MS)} each</small></span></label>
-<label class="segment"><input type="checkbox" ${s.down ? 'checked' : ''}${s.servers === 1 ? ' disabled' : ''}/><span>A server down<small>its traffic moves</small></span></label></div></fieldset>
+<label class="segment"><input type="checkbox" ${s.down ? 'checked' : ''}${one ? ' disabled' : ''}/><span>A server down<small>${one ? 'needs two or more' : 'its traffic moves'}</small></span></label></div></fieldset>
 <p class="notice" aria-live="polite">${esc(noticeOf(m, view))}</p>`;
       }
       function noticeOf(m, view) {
         if (view.phase === 'asking') return 'Play and the settings this question is about wait for your answer.';
-        if (view.phase === 'playing') return '';
-        if (view.phase === 'challenge') return '';
+        if (view.phase === 'playing' || view.phase === 'challenge') return '';
+        if (view.reduced) return sampleStory(m, M.sample(m.settings));
         return 'Drag the load, or change the servers, the queue and the conditions; Play runs the sample.';
+      }
+      /** What the sample did, in order, for the notice and the Reduced-motion caption: every number is written. */
+      function sampleStory(m, smp) {
+        const arrivals = smp.reqs.filter((r) => r.arrive >= 0).length;
+        const span = `${smp.stable ? 'the last' : 'the first'} ${fdur(smp.window)}`;
+        const end = M.linesAt(smp, smp.window - 1e-6).total;
+        const endWords = end ? `${end} ${plural(end, 'was', 'were')} waiting at the end` : 'nobody was waiting at the end';
+        const r = smp.rest;
+        const at = fdur(Math.round(r.t));
+        const first = `In this sample, ${arrivals} ${plural(arrivals, 'request', 'requests')} arrived in ${span}.`;
+        if (r.kind === 'none') return `${first} None had to wait.`;
+        if (r.kind === 'idle') return `${first} At ${at}, S${r.idle + 1} sat idle while ${r.n} waited in S${r.line + 1}'s line; ${endWords}.`;
+        if (r.kind === 'most') return `${first} The most were waiting at ${at}: ${r.n} across the ${smp.up} lines; ${endWords}.`;
+        return `${first} The line grew to ${r.n} waiting at ${at}; ${endWords}.`;
       }
       const ICON_RIGHT = '<svg class="mark" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="var(--g-success-line)"/><path d="M6 10.2l2.6 2.6 5.2-5.6" fill="none" stroke="var(--g-surface)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
       const ICON_WRONG = '<svg class="mark" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="var(--g-danger)"/><path d="M7 7l6 6M13 7l-6 6" fill="none" stroke="var(--g-surface)" stroke-width="2" stroke-linecap="round"/></svg>';
+      /** The challenge's status, each bound in the ask's own terms and its state in words (the house goalParts). */
       function goalChecks(m) {
         const b = M.CHALLENGE_BOUNDS;
-        const p99 = m.stable ? fdur(m.p99) : 'no steady state';
+        const said = (met) => (met ? 'met' : 'not yet');
+        const p99met = m.stable && m.p99 < b.p99;
+        const loadMet = m.settings.load >= b.load;
         return [
-          { text: `p99 with one server down: ${p99}, under ${fms(b.p99)}`, met: m.stable && m.p99 < b.p99 },
-          { text: `the fleet at ${m.settings.load}% busy with all up, at least ${b.load}%`, met: m.settings.load >= b.load },
+          { met: p99met, text: m.stable ? `p99 with one server down: ${fdur(m.p99)}, under ${fms(b.p99)}: ${said(p99met)}` : `p99 with one server down: grows without bound, needs under ${fms(b.p99)}: ${said(false)}` },
+          { met: loadMet, text: `the fleet at ${m.settings.load}% busy with all up, at least ${b.load}%: ${said(loadMet)}` },
         ];
       }
       function dockHtml(m, view) {
@@ -1950,42 +2327,46 @@
 <ol class="cards">${M.EXPERIMENTS.map((s, i) => `<li><button class="card-btn"${view.exp && view.exp.id === s.id ? ' aria-current="step"' : ''}><span class="num">${s.goal ? '⚑' : i + 1}</span><span>${esc(M.renderExperiment(s).title)}</span></button></li>`).join('')}</ol>`;
       }
       // Describe: a row per load stop for this configuration, the current one marked; compact under a 560 px stage.
+      function describeRows(m, compact) {
+        const s = m.settings;
+        const busyHead = s.servers === 1 ? 'Busy' : s.down ? 'Load on each' : 'Each busy';
+        const head = compact ? ['Load', s.servers === 1 ? 'Busy' : s.down ? 'On each' : 'Each', 'Mean, ms', 'p50, ms', 'p99, ms', 'Wait'] : ['Load', busyHead, 'Mean', 'p50', 'p99', 'Wait at all'];
+        const t = (v) => (compact ? String(Math.round(v)) : `${ms1(v)} ms`);
+        let unstable = false;
+        const rows = M.LOADS.map((load) => {
+          const r = M.run({ ...s, load });
+          const p = M.formatPct(r.rho * 100);
+          if (!r.stable) {
+            unstable = true;
+            const g = compact ? '∞' : 'grows';
+            return { now: load === s.load, cells: [`${load}%`, compact ? p : critical(r) ? `${p} (full)` : `${p} (over)`, g, g, g, 'all'] };
+          }
+          const w = pctOf(r.waitChance);
+          return { now: load === s.load, cells: [`${load}%`, p, t(r.mean), t(r.p50), t(r.p99), w.startsWith('under') ? '<0.1%' : w] };
+        });
+        return { head, rows, note: unstable ? (compact ? '∞: no steady state; every wait grows without bound.' : 'grows: no steady state; every wait grows without bound.') : null };
+      }
       function describeHtml(m, view, compact) {
         const waits = view.phase === 'asking' || view.phase === 'playing' || (view.phase === 'challenge' && !view.met);
         const open = !!view.describe && !waits;
         const btn = `<button class="g-btn" aria-expanded="${open}"${waits ? ' disabled' : ''}>${open ? 'Hide the description' : 'Describe'}</button>`;
-        if (waits) return `${btn}<p class="muted-note">Describe waits for your answer.</p>`;
+        if (waits) return `${btn}<p class="muted-note">${view.phase === 'challenge' ? 'Describe waits until you meet the goal.' : 'Describe waits for your answer.'}</p>`;
         if (!open) return btn;
-        const s = m.settings;
-        const head = compact ? ['Load', 'Busy', 'Mean, ms', 'p50, ms', 'p99, ms', 'Wait'] : ['Load', 'Each busy', 'Mean', 'p50', 'p99', 'Wait at all'];
-        const t = (v) => (compact ? String(Math.round(v)) : fdur(v));
-        const rows = M.LOADS.map((load) => {
-          const r = M.run({ ...s, load });
-          if (!r.stable) return { now: load === s.load, cells: [`${load}%`, M.formatPct(r.rho * 100), compact ? '∞' : 'grows', '–', '–', compact ? 'all' : 'grows'] };
-          return { now: load === s.load, cells: [`${load}%`, M.formatPct(r.rho * 100), t(r.mean), t(r.p50), t(r.p99), M.formatPct(r.waitChance * 100)] };
-        });
-        const smp = M.sample(s);
-        const steps = M.waitingSteps(smp);
-        const maxQ = Math.max(0, ...steps.map((p) => p[1]));
-        const arrivals = smp.reqs.filter((r) => r.arrive >= 0).length;
-        const peakAt = maxQ ? steps.find((p) => p[1] === maxQ)[0] : null;
-        const span = `${smp.stable ? 'the last' : 'the first'} ${fdur(smp.window)}`;
-        const sampleLine = maxQ
-          ? `This sample: ${arrivals} ${plural(arrivals, 'request', 'requests')} arrived in ${span}, and the line was longest at ${fdur(Math.round(peakAt))}, with ${maxQ} waiting, the moment the drawing shows.`
-          : `This sample: ${arrivals} ${plural(arrivals, 'request', 'requests')} arrived in ${span}, and none had to wait.`;
+        const { head, rows, note } = describeRows(m, compact);
+        const sampleLine = `This sample: ${sampleStory(m, M.sample(m.settings)).replace(/^In this sample, /, '')}`;
         return `${btn}<p class="summary">${esc(summary(m, {}))} ${esc(sampleLine)}</p><div class="table-box${compact ? ' compact' : ''}" tabindex="0" role="region" aria-label="The model at every load for this setting"><table><thead><tr>${head
           .map((h) => `<th scope="col">${h.replace(', ms', ', <span class="unit">ms</span>')}</th>`)
-          .join('')}</tr></thead><tbody>${rows.map((r) => `<tr${r.now ? ' class="now" aria-current="true"' : ''}>${r.cells.map((c) => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+          .join('')}</tr></thead><tbody>${rows.map((r) => `<tr${r.now ? ' class="now" aria-current="true"' : ''}>${r.cells.map((c) => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>${note ? `<p class="muted-note">${esc(note)}</p>` : ''}`;
       }
-      // Play and the load handle: Play waits while a question asks; the handle is a slider with its value in words.
+      // Play and the load handle: Play waits while a question asks; during a free play it is Stop.
       function overlaysHtml(D, view, m) {
         const asking = view.phase === 'asking' || view.phase === 'playing';
+        const freePlaying = view.phase === 'rest' && view.tau !== null && view.tau !== undefined;
+        const glyph = freePlaying ? '<rect x="12.5" y="11" width="4" height="14" rx="1"/><rect x="19.5" y="11" width="4" height="14" rx="1"/>' : '<path d="M14 11v14l11-7z"/>';
+        const label = asking ? 'Play the sample, after your answer' : freePlaying ? 'Stop the sample' : 'Play the sample';
         const play = D.hits
           .filter((h) => h.kind === 'play')
-          .map(
-            (h) =>
-              `<button class="play hit" data-owner="play" style="left:${h.x}px;top:${h.y}px" aria-label="${asking ? 'Play the sample, after your answer' : 'Play the sample'}"${asking ? ' disabled' : ''}><svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="16"/><path d="M14 11v14l11-7z"/></svg></button>`,
-          );
+          .map((h) => `<button class="play hit" data-owner="play" style="left:${h.x}px;top:${h.y}px" aria-label="${label}"${asking ? ' disabled' : ''}><svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="16"/>${glyph}</svg></button>`);
         const s = m.settings;
         const valuetext = `${s.load}% busy${s.down ? ` with all ${s.servers} up` : ''}, ${M.formatQps(m.ratePerS).replace('/s', '')} requests a second`;
         const handles = D.hits
@@ -2003,7 +2384,7 @@
         const root = document.getElementById('widget');
         root.innerHTML = `<div class="controls">${controlsHtml(m, view)}</div>
 <div class="main"><div class="stage" role="group" aria-roledescription="visualization" aria-label="Latency and queueing: requests arriving at random to busy servers"><div class="well" id="well"></div></div>
-<div class="describe">${describeHtml(m, view, window.innerWidth < 600)}</div></div>
+${view.reduced ? `<p class="caption" role="status">${esc(sampleStory(m, M.sample(m.settings)))}</p>` : ''}<div class="describe" id="describe"></div></div>
 <div class="experiments"><section class="dock" aria-label="Experiment">${dockHtml(m, view)}</section>${cardsHtml(view)}</div>`;
         const well = document.getElementById('well');
         const W = well.clientWidth;
@@ -2011,12 +2392,23 @@
         if (view.focus?.length) focusOutlines(D, view.focus, H);
         well.style.height = H + 'px';
         well.innerHTML = D.svg(H, D.label) + overlaysHtml(D, view, m);
+        document.getElementById('describe').innerHTML = describeHtml(m, view, W < 560);
+        const box = document.querySelector('.table-box');
+        const now = box?.querySelector('tr.now');
+        // The box ends half way through a row, so it reads as one that scrolls; it opens on the current load's row.
+        if (box) {
+          const head = box.querySelector('thead').getBoundingClientRect().height;
+          const row = box.querySelector('tbody tr').getBoundingClientRect().height;
+          box.style.maxHeight = `${Math.round(head + 10.5 * row)}px`;
+        }
+        if (box && now) box.scrollTop = Math.max(0, now.offsetTop - box.clientHeight / 2 + now.offsetHeight / 2);
         window.__stage = { W, H, missingTags: D.missingTags ?? 0, summary: D.label, missing: D.missing };
-        return { W, H, D };
+        return { W, H, D, view, m };
       }
 
       // ---------- Collisions, measured from the rendered DOM: text on text, lines through text, marks under text,
-      // off-stage text, dots on dots, chips too close, hit boxes on hit boxes, labels and tags with no place.
+      // off-stage text, dots on dots, hit boxes on hit boxes, x ticks too close, text against a focus outline's stroke,
+      // labels and tags with no place.
       function collisions(well) {
         const svg = well.querySelector('svg.draw');
         const W = Number(svg.getAttribute('width'));
@@ -2025,7 +2417,7 @@
         const share = (a, b) => a.some((t) => b.includes(t));
         const texts = [...svg.querySelectorAll('text')].map((t) => {
           const b = t.getBBox();
-          return { s: t.textContent, owner: owners(t), ground: t.hasAttribute('data-ground'), x0: b.x + 0.5, x1: b.x + b.width - 0.5, y0: b.y + b.height * 0.2, y1: b.y + b.height * 0.95 };
+          return { el: t, s: t.textContent, owner: owners(t), ground: t.hasAttribute('data-ground'), x0: b.x + 0.5, x1: b.x + b.width - 0.5, y0: b.y + b.height * 0.2, y1: b.y + b.height * 0.95 };
         });
         const out = [];
         const ov = (a, b, m = 0) => Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > m && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > m;
@@ -2034,9 +2426,11 @@
           if (a.x0 < -0.5 || a.x1 > W + 0.5 || a.y0 < 0 || a.y1 > H) out.push(`off-stage: "${a.s}"`);
           for (let j = i + 1; j < texts.length; j++) if (ov(a, texts[j], 0.5)) out.push(`text on text: "${a.s}" / "${texts[j].s}"`);
         }
+        const xt = texts.filter((t) => t.el.hasAttribute('data-xtick')).sort((a, b) => a.x0 - b.x0);
+        for (let i = 1; i < xt.length; i++) if (xt[i].x0 - xt[i - 1].x1 < 6) out.push(`x ticks ${xt[i - 1].s} and ${xt[i].s} ${(xt[i].x0 - xt[i - 1].x1).toFixed(1)} px apart`);
         const inside = (p, t) => p.x > t.x0 + 0.5 && p.x < t.x1 - 0.5 && p.y > t.y0 + 0.5 && p.y < t.y1 - 0.5;
-        for (const el of svg.querySelectorAll('.lane, .curve, .cursor, .leader, .cut, .gridline, .axis, .rule, .row-track, .area-edge, .playhead, .moment, .mtick')) {
-          const grid = el.matches('.gridline, .axis, .rule, .row-track, .mtick');
+        for (const el of svg.querySelectorAll('.lane, .curve, .cursor, .leader, .cut, .gridline, .axis, .rule, .row-track, .area-edge, .playhead, .moment, .mtick, .drift, .ghost-arrow, .qgrid')) {
+          const grid = el.matches('.gridline, .axis, .rule, .row-track, .mtick, .qgrid');
           const o = owners(el);
           const pts = [];
           if (el.tagName === 'line') {
@@ -2057,10 +2451,20 @@
           const box = { x0: b.x, x1: b.x + b.width, y0: b.y, y1: b.y + b.height };
           for (const t of texts) if (!share(t.owner, owners(mk)) && ov(box, t, 0.5)) out.push(`text on mark ${mk.getAttribute('data-mark')}: "${t.s}"`);
         }
-        const dots = [...svg.querySelectorAll('circle.dot')].map((c) => ({ id: c.dataset.id ?? c.getAttribute('data-owner'), x: Number(c.getAttribute('cx')), y: Number(c.getAttribute('cy')), r: Number(c.getAttribute('r')) }));
+        const dots = [...svg.querySelectorAll('circle.dot, circle.ghost-dot')].map((c) => ({ id: c.dataset.id ?? c.getAttribute('data-owner'), x: Number(c.getAttribute('cx')), y: Number(c.getAttribute('cy')), r: Number(c.getAttribute('r')) }));
         for (let i = 0; i < dots.length; i++)
           for (let j = i + 1; j < dots.length; j++) if (Math.hypot(dots[i].x - dots[j].x, dots[i].y - dots[j].y) < dots[i].r + dots[j].r - 0.01) out.push(`dot on dot: ${dots[i].id} / ${dots[j].id}`);
         for (const d of dots) if (d.x - d.r < -0.5 || d.x + d.r > W + 0.5 || d.y - d.r < 0 || d.y + d.r > H) out.push(`dot off-stage: ${d.id}`);
+        // An outline takes in the text it touches: every text is well inside it or well clear of its stroke.
+        for (const o of svg.querySelectorAll('rect.focus-outline')) {
+          const [x, y, w, h] = ['x', 'y', 'width', 'height'].map((a) => Number(o.getAttribute(a)));
+          for (const t of texts) {
+            if (t.owner.includes('look')) continue;
+            const inner = t.x0 >= x + 3 && t.x1 <= x + w - 3 && t.y0 >= y + 3 && t.y1 <= y + h - 3;
+            const clear = t.x1 <= x - 4 || t.x0 >= x + w + 4 || t.y1 <= y - 4 || t.y0 >= y + h + 4;
+            if (!inner && !clear) out.push(`text at an outline's stroke: "${t.s}"`);
+          }
+        }
         const wb = well.getBoundingClientRect();
         const hits = [...well.querySelectorAll('.hit')].map((h) => {
           const b = h.getBoundingClientRect();
@@ -2090,22 +2494,83 @@
         }
         svg.appendChild(g);
       }
-      // Line owners from the layout's link list, by order of drawing, so a line is never checked against its own label.
-      function ownLines(well, D) {
+      // Line owners, so a line is never checked against its own label.
+      function ownLines(well) {
         const svg = well.querySelector('svg.draw');
-        for (const el of svg.querySelectorAll('.curve.p50')) el.setAttribute('data-owner', 'c50');
-        for (const el of svg.querySelectorAll('.curve.p99')) el.setAttribute('data-owner', 'c99');
-        for (const el of svg.querySelectorAll('.curve.ghost')) el.setAttribute('data-owner', 'ghost');
-        for (const el of svg.querySelectorAll('.cursor')) el.setAttribute('data-owner', 'cursor');
-        for (const el of svg.querySelectorAll('.cut')) el.setAttribute('data-owner', 'cut');
-        for (const el of svg.querySelectorAll('.area-edge')) el.setAttribute('data-owner', 'area');
-        for (const el of svg.querySelectorAll('.lane')) el.setAttribute('data-owner', 'lane');
+        const own = { '.curve.p50': 'c50', '.curve.p99': 'c99', '.curve.ghost': 'ghost', '.ghost-arrow': 'ghost', '.cursor': 'cursor', '.cut': 'cut', '.area-edge': 'area', '.lane': 'lane', '.drift': 'drift drift-key' };
+        for (const [sel, o] of Object.entries(own)) for (const el of svg.querySelectorAll(sel)) el.setAttribute('data-owner', o);
       }
       const unplaced = (D) => [...(D.missingTags ? [`${D.missingTags} focus tag(s) without a place`] : []), ...(D.missing ?? []).map((t) => `no room for "${t}"`)];
-      function check(well, D) {
+
+      // ---------- What must hold on every render, beyond collisions (the layout spec's assertions).
+      // A hidden value is never replaced by a wrong default, and nothing past 100% is "busy".
+      const FALSE_CLAIMS = [/(^|[^\d.,])0 waiting/, /(^|[^\d.,])0% of requests/, /(^|[^\d.,])0 (more|requests a second)/, /(^|[^\d.,])0 ms waiting/, /(^|[^\d.])(1\d\d|[2-9]\d\d)(\.\d+)?% busy/, /NaN/, /undefined/, /Infinity/];
+      const stageText = (well) => [...well.querySelectorAll('text')].map((t) => t.textContent).join(' | ') + ' | ' + [...well.querySelectorAll('[aria-label],[aria-valuetext]')].map((e) => `${e.getAttribute('aria-label')} ${e.getAttribute('aria-valuetext') ?? ''}`).join(' | ');
+      function assertions(well, D, m) {
+        const out = [];
+        const svg = well.querySelector('svg.draw');
+        const text = stageText(well);
+        for (const g of FALSE_CLAIMS) if (g.test(text)) out.push(`false claim ${g}: ${text.match(g)[0]}`);
+        // Little's law multiplies out as printed.
+        for (const f of D.meta.facts ?? []) {
+          const x = f.match(/^([\d.,]+) in the system at once on average: ([\d,]+)\/s × ([\d.]+) ms/);
+          if (x) {
+            const [L, rate, mean] = [x[1], x[2], x[3]].map((v) => Number(v.replace(/,/g, '')));
+            if (Math.abs(L - (rate * mean) / 1000) > 0.0051) out.push(`Little's law does not multiply out: ${f}`);
+          }
+        }
+        // The play's speed in words is the clock's own rate.
+        const note = svg.querySelector('[data-id="rate-note"]');
+        if (note) {
+          const n = note.textContent.match(/(\d+)×/);
+          const said = n ? Number(n[1]) : /real time/.test(note.textContent) ? 1 : null;
+          if (said !== D.meta.rate) out.push(`the speed note says ${note.textContent} for a clock at ${D.meta.rate}×`);
+        }
+        // "p50 and p99" share one label only when they print the same.
+        const both = text.match(/p50 and p99 ([\d.]+ m?s)/);
+        if (both && m.stable && fdur(m.p99) !== fdur(m.p50)) out.push(`"${both[0]}" while p99 is ${fdur(m.p99)}`);
+        // The chevron sits at the plot's top right.
+        const ch = svg.querySelector('.chevron');
+        if (ch && Math.abs(ch.getBBox().y - Number(ch.dataset.y)) > 1.5) out.push('the chevron is not at the top of the plot');
+        // The 100 requests: 50 wholly under the p50 tick, 49 between the ticks, the 100th wholly over the p99 tick (all 50
+        // over one tick when p50 and p99 are equal), and no dot crossed by a tick.
+        const mg = D.meta.marginal;
+        if (mg) {
+          const n = { A: 0, B: 0, C: 0 };
+          for (const row of mg.rows) n[row.zone] += row.n;
+          const want = mg.equal ? { A: 50, B: 0, C: 50 } : { A: 50, B: 49, C: 1 };
+          if (n.A !== want.A || n.B !== want.B || n.C !== want.C) out.push(`marginal zones ${n.A}/${n.B}/${n.C}`);
+          const t50 = Number(svg.querySelector('[data-tick="p50"]').getAttribute('y1'));
+          const t99 = Number(svg.querySelector('[data-tick="p99"]').getAttribute('y1'));
+          for (const c of svg.querySelectorAll('circle.dot.req')) {
+            const cy = Number(c.getAttribute('cy'));
+            const r = Number(c.getAttribute('r'));
+            const z = c.dataset.zone;
+            const under50 = cy - r >= t50 + 0.75 + 0.9;
+            const over99 = cy + r <= t99 - 0.75 - 0.9;
+            const between = cy + r <= t50 - 0.75 - 0.9 && cy - r >= t99 + 0.75 + 0.9;
+            if ((z === 'A' && !under50) || (z === 'B' && !between) || (z === 'C' && !over99)) out.push(`marginal dot ${c.dataset.id} (${z}) against the ticks`);
+          }
+        }
+        // The curve ghost's name: the nearest curve to it is the ghost.
+        const gn = svg.querySelector('[data-id="ghost-name"]');
+        if (gn && D.meta.curves) {
+          const b = gn.getBBox();
+          const xm = b.x + b.width / 2;
+          const cy = b.y + b.height / 2;
+          const d = (pts) => {
+            const yy = pts.length ? yAt(pts, xm) : null;
+            return yy === null ? Infinity : Math.abs(yy - cy);
+          };
+          const dg = d(D.meta.curves.ghost);
+          if (!(dg < d(D.meta.curves.p50) && dg < d(D.meta.curves.p99))) out.push(`the ghost's name "${gn.textContent}" sits nearer another curve`);
+        }
+        return out;
+      }
+      function check(well, D, m) {
         tagMarks(well, D);
-        ownLines(well, D);
-        const out = [...collisions(well), ...unplaced(D)];
+        ownLines(well);
+        const out = [...collisions(well), ...unplaced(D), ...(m ? assertions(well, D, m) : [])];
         well.querySelectorAll('[data-mark]').forEach((e) => e.remove());
         return out;
       }
@@ -2116,172 +2581,183 @@
         well.innerHTML = D.svg(H, D.label) + overlaysHtml(D, view, m);
         return { D, H };
       }
+      const qOf = (well) => Number(well.querySelector('[data-q]')?.dataset.q ?? NaN);
+      const show = (s) => `${s.servers} ${s.queue} ${s.service} down${s.down} ${s.load}%`;
 
-      // A sweep over settings and widths, drawing only the stage, for the layout's own check.
-      const ALL = [];
-      for (const servers of M.SERVERS)
-        for (const queue of M.QUEUES)
-          for (const service of M.SERVICES)
-            for (const down of [0, 1])
-              for (const load of M.LOADS) {
-                if (servers === 1 && (queue === 'split' || down)) continue;
-                ALL.push({ load, servers, queue, service, down });
-              }
-      window.ALL_SETTINGS = ALL;
-      window.sweep = function (widths, list = ALL, taus = [null]) {
+      // A sweep over settings and widths, drawing only the stage: at rest, at moments of a free play (the waiting scale
+      // the same in every frame), and with a ghost of the setting before a change (a curve ghost when the change keeps
+      // the utilization, a point ghost when it moves it).
+      window.sweep = function (widths, list = ALL, fracs = [null], ghosts = false) {
         const well = document.getElementById('well');
         const res = { renders: 0, failures: [] };
         for (const W of widths) {
           well.style.width = W + 2 + 'px';
-          for (const s of list)
-            for (const tau of taus) {
-              const m = M.run(s);
-              const { D } = drawInto(well, W, m, { hide: [], phase: 'rest', tau });
-              const out = check(well, D);
-              res.renders++;
-              if (out.length) res.failures.push({ W, s: `${s.servers} ${s.queue} ${s.service} down${s.down} ${s.load}%${tau !== null ? ` t${tau}` : ''}`, out: out.slice(0, 4) });
+          for (const s of list) {
+            const m = M.run(s);
+            const qs = new Set();
+            const views = fracs.map((f) => (f === null ? { s, hide: [], phase: 'rest', tau: null } : { s, hide: [], phase: 'rest', ...freePlay(s, f) }));
+            if (ghosts) {
+              const i = M.LOADS.indexOf(s.load);
+              if (i > 0) views.push({ s, hide: [], phase: 'rest', tau: null, ghost: { ...s, load: M.LOADS[i - 1] } });
+              views.push({ s, hide: [], phase: 'rest', tau: null, ghost: { ...s, service: s.service === 'random' ? 'steady' : 'random' } });
+              if (s.servers > 1) views.push({ s, hide: [], phase: 'rest', tau: null, ghost: { ...s, queue: s.queue === 'split' ? 'shared' : 'split' } });
             }
+            for (const view of views) {
+              const { D } = drawInto(well, W, m, view);
+              const out = check(well, D, m);
+              if (!view.ghost) qs.add(qOf(well));
+              res.renders++;
+              if (out.length) res.failures.push({ W, s: `${show(s)}${view.tau !== null ? ` t${Math.round(view.tau)}` : ''}${view.ghost ? ' ghost' : ''}`, out: out.slice(0, 4) });
+            }
+            if (qs.size > 1) res.failures.push({ W, s: show(s), out: [`the waiting scale changes during a play: ${[...qs].join(', ')}`] });
+          }
         }
         well.style.width = '';
         return res;
       };
-      // Every experiment asking, playing (after the act, hiding held) and revealed, with its focus and tags.
+      // Every experiment asking, its answer's play at several moments, revealed, and the challenge met and at its start.
       window.sweepExperiments = function (widths) {
         const well = document.getElementById('well');
         const res = { renders: 0, failures: [] };
         for (const W of widths) {
           well.style.width = W + 2 + 'px';
           M.EXPERIMENTS.forEach((spec, k) => {
-            const phases = spec.goal ? ['challenge', 'start'] : ['asking', 'playing', 'revealed'];
-            for (const phase of phases) {
-              const view = expView(spec, phase);
+            const runs = spec.goal ? [['challenge'], ['start']] : [['asking'], ['playing', 0.05], ['playing', 0.5], ['playing', 0.95], ['revealed']];
+            const qs = [];
+            for (const [phase, frac] of runs) {
+              const view = expView(spec, phase, frac);
               const m = M.run(view.s);
               const { D } = drawInto(well, W, m, view);
-              const out = check(well, D);
+              const out = check(well, D, m);
+              if (phase !== 'asking' && !spec.goal) qs.push(qOf(well));
+              if (spec.id === 'pool' && phase === 'asking') {
+                const b = D.meta.band;
+                if (!(b.idle.length >= 1 && Math.max(...b.lines) >= 5)) out.push(`E3 asks without an idle server beside a line of 5 (idle ${b.idle}, lines ${b.lines})`);
+              }
               res.renders++;
-              if (out.length) res.failures.push({ W, exp: k + 1, phase, out: out.slice(0, 4) });
+              if (out.length) res.failures.push({ W, exp: k + 1, phase: `${phase}${frac !== undefined ? ` ${frac}` : ''}`, out: out.slice(0, 4) });
             }
+            // The answer's play and the reveal share one waiting scale, never below the setup's.
+            if (qs.length && new Set(qs).size > 1) res.failures.push({ W, exp: k + 1, phase: 'play to reveal', out: [`the waiting scale changes: ${qs.join(', ')}`] });
           });
         }
         well.style.width = '';
         return res;
       };
-      function expView(spec, phase, tau = 180) {
-        const after = actSettings(spec);
-        const changed = configKey(spec.setup) !== configKey(after);
-        if (spec.goal) {
-          const s = phase === 'start' ? spec.setup : { ...spec.setup, ...M.CHALLENGE_SOLUTION };
-          return { s, hide: [], phase: 'challenge', focus: phase === 'start' ? [] : spec.focus, tau: null };
-        }
-        return {
-          s: phase === 'asking' ? spec.setup : after,
-          hide: phase === 'revealed' ? [] : spec.hide,
-          phase,
-          focus: phase === 'revealed' ? spec.focus : [],
-          setupRho: M.run(spec.setup).rho,
-          configChanged: changed,
-          rhoChanged: Math.abs(M.run(after).rho - M.run(spec.setup).rho) > 1e-9,
-          ghost: phase !== 'asking' && changed ? spec.setup : null,
-          ghostName: 'before',
-          tau: phase === 'playing' ? tau : null,
-        };
-      }
-      window.expView = expView;
       // Draws one setting (an object) or one experiment's phase (its number) at a stage width, for a close look.
-      window.debugDraw = function (W, which, phase, tau = null) {
+      window.debugDraw = function (W, which, phase, frac = null) {
         const well = document.getElementById('well');
         well.style.width = W + 2 + 'px';
-        const view = typeof which === 'object' ? { s: which, hide: [], phase: 'rest', tau } : expView(M.EXPERIMENTS[which - 1], phase, tau ?? 180);
-        const { D } = drawInto(well, W, M.run(view.s), view);
-        return check(well, D);
+        const view = typeof which === 'object' ? { s: which, hide: [], phase: 'rest', ...(frac === null ? { tau: null } : freePlay(which, frac)) } : expView(M.EXPERIMENTS[which - 1], phase, frac ?? 0.6);
+        const m = M.run(view.s);
+        const { D } = drawInto(well, W, m, view);
+        return check(well, D, m);
       };
 
       // ---------- The no-answer sweep: while a question asks and while its answer plays, no rendered text, accessible
-      // name or structure may hold its answer or a false claim (prevention 1 and 2).
+      // name or structure may hold its answer or a false claim (prevention 1 and 2). Each question is entered from the
+      // settings every act leads to (and, at two widths, from every configuration), so nothing a learner did before
+      // can carry an answer in.
+      const e5After = M.run(actSettings(M.EXPERIMENTS[4]));
       const GIVEAWAYS = {
-        'idle-yet-waiting': ['of requests wait', 'waiting now', 'waiting at', '20 ms', '10 ms waiting', 'longest', 'idle', 'first in line', 'last to leave'],
+        'idle-yet-waiting': ['of requests wait', 'waiting now', 'waiting at', '20 ms', '10 ms waiting', 'longest', 'idle', 'first in line', 'Last to leave', 'nobody wait', 'Nobody wait'],
         knee: ['90 ms waiting', '461 ms', '69 ms', '3×'],
-        pool: ['7.46', '59.6%', '69 ms', '17 ms', 'shared queue hands'],
+        pool: ['7.46', '7.5 ms', '59.6%', '57.4%', '69 ms', '17 ms', 'shared queue hands'],
         steady: ['45 ms', '229 ms', '55 ms', '40 ms'],
-        'lose-one': ['No steady state', 'no steady state', 'over capacity', '105%', 'grows', 'without bound', '200/s'],
+        'lose-one': ['No steady state', 'no steady state', 'of capacity', M.formatPct(e5After.rho * 100), 'grows', 'without bound', '200/s', 'starting empty', 'from empty', 'first 4 s', 'First 4 s', '× slower', 'real time', 'model:'],
       };
-      // A hidden value must never be replaced by a wrong default: no "0 waiting", no "idle" servers, no "0%".
-      const FALSE_CLAIMS = [/(^|[^\d.,])0 waiting/, /(^|[^\d.,])0% of requests/, /NaN/, /undefined/, /Infinity/];
+      // A sample's words are its payoff during the answer's play, so E1's play may show them.
+      const PLAY_ALLOWS = { 'idle-yet-waiting': ['waiting now', 'waiting at', 'idle', 'first in line', 'longest', 'nobody wait', 'Nobody wait'] };
       function structural(well, spec, phase) {
         const out = [];
         const svg = well.querySelector('svg.draw');
         const hide = new Set(spec.hide);
+        const text = svg.textContent;
         if (!well.querySelector('.play')?.disabled) out.push('Play is enabled');
         if (well.querySelector('.handle')?.getAttribute('aria-disabled') !== 'true') out.push('the load handle is enabled');
-        if (hide.has('sample') && phase === 'asking' && svg.querySelector('.dot.wait, .dot.serve, .tick-arr, .busy, .area-wait, .peak, .ring-arc')) out.push('a sample mark while the sample waits');
+        if (hide.has('sample') && phase === 'asking') {
+          if (svg.querySelector('.dot.wait, .dot.serve, .tick-arr, .busy, .area-wait, .peak, .ring-arc')) out.push('a sample mark while the sample waits');
+          if (svg.querySelector('.lane:not(.hidden), .ring-track:not(.hidden)')) out.push('a solid lane or ring track while the sample waits');
+        }
         const numbersHidden = hide.has('numbers') || (hide.has('after') && phase === 'playing');
-        if (numbersHidden && svg.querySelector('.dot.req, .dot.p50, .dot.p99, .bar-work, .bar-wait, .leader, .mtick, .chevron')) out.push(`a model or receipt mark while the numbers wait: ${svg.querySelector('.dot.req, .dot.p50, .dot.p99, .bar-work, .bar-wait, .leader, .mtick, .chevron').getAttribute('class')}`);
+        const modelMark = svg.querySelector('.dot.req, .dot.p50, .dot.p99, .bar-work, .bar-wait, .leader, .mtick, .chevron, .drift');
+        if (numbersHidden && modelMark) out.push(`a model mark while the numbers wait: ${modelMark.getAttribute('class')}`);
         if (hide.has('numbers') && svg.querySelector('.curve.p50, .curve.p99')) out.push('a curve while the numbers wait');
         if (numbersHidden) for (const t of svg.querySelectorAll('text[data-id^="stat-"]')) if (t.textContent !== '?') out.push(`${t.dataset.id} reads "${t.textContent}"`);
-        const rhoChanged = Math.abs(M.run(actSettings(spec)).rho - M.run(spec.setup).rho) > 1e-9;
-        if (hide.has('after') && phase === 'playing' && rhoChanged && !/\?% busy/.test(svg.textContent)) out.push('the servers label shows the new utilization');
+        if (hide.has('utilization') && phase === 'playing') {
+          if (!/up · (each )?\?%/.test(text)) out.push('the servers label shows the new load');
+          if (svg.querySelector('.srv.over, .xmark[data-owner="slabel"]')) out.push('an over-capacity mark while the load waits');
+        }
+        if (hide.has('stability') && phase === 'playing' && svg.querySelector('.drift, [data-id="rate-note"]')) out.push("the drift or the play's speed while stability waits");
         if (hide.has('after') && phase === 'playing' && svg.querySelector('.cursor')) out.push('the cursor at the new setting while the answer plays');
+        if (phase === 'asking' && svg.querySelector('.curve.ghost, .ghost-dot, .ghost-arrow, text[data-owner~="ghost"]')) out.push('a ghost of an earlier setting while the question asks');
         if (hide.has('ahead')) {
-          const limit = M.run(spec.setup).rho;
+          const cut = svg.querySelector('.cut');
           for (const p of svg.querySelectorAll('.curve.p50, .curve.p99')) {
             const box = p.getBBox();
-            const plot = svg.querySelector('.cut');
-            if (plot && box.x + box.width > Number(plot.getAttribute('x1')) + 0.6) out.push(`a curve past the cut at ${Math.round(limit * 100)}%`);
+            if (cut && box.x + box.width > Number(cut.getAttribute('x1')) + 0.6) out.push('a curve past the cut');
           }
         }
         return out;
       }
-      window.noAnswer = function (widths) {
+      function giveaways(well, spec, phase) {
+        const text = stageText(well);
+        const allow = phase === 'playing' ? (PLAY_ALLOWS[spec.id] ?? []) : [];
+        const out = [];
+        for (const g of [...(GIVEAWAYS[spec.id] ?? []), ...FALSE_CLAIMS]) {
+          if (allow.includes(g)) continue;
+          if (typeof g === 'string' ? text.includes(g) : g.test(text)) out.push(`"${g}"`);
+        }
+        return out;
+      }
+      const ACT_TARGETS = [...M.EXPERIMENTS.filter((e) => e.act).map(actSettings), { ...M.EXPERIMENTS[5].setup, ...M.CHALLENGE_SOLUTION }];
+      window.noAnswer = function (widths, allConfigsAt = []) {
         const well = document.getElementById('well');
         const out = [];
         let renders = 0;
         for (const W of widths) {
           well.style.width = W + 2 + 'px';
-          for (const spec of M.EXPERIMENTS.filter((e) => !e.goal))
-            for (const phase of ['asking', 'playing'])
-              for (const f of phase === 'playing' ? [0, 0.15, 0.45, 0.8, 1] : [null]) {
-                const win = M.run(actSettings(spec)).stable ? M.WINDOW_MS : M.UNSTABLE_WINDOW_MS;
-                const tau = f === null ? null : Math.round(f * win);
-                const view = expView(spec, phase, tau);
-                const m = M.run(view.s);
-                drawInto(well, W, m, view);
-                renders++;
-                const text = [...well.querySelectorAll('text')].map((t) => t.textContent).join(' | ') + ' | ' + [...well.querySelectorAll('[aria-label],[aria-valuetext]')].map((e) => `${e.getAttribute('aria-label')} ${e.getAttribute('aria-valuetext') ?? ''}`).join(' | ');
-                const words = [...(GIVEAWAYS[spec.id] ?? []), ...FALSE_CLAIMS].filter((g) => !(phase === 'playing' && spec.id === 'idle-yet-waiting' && ['waiting now', 'waiting at', 'idle', 'first in line', 'last to leave'].includes(g)));
-                for (const g of words) if (typeof g === 'string' ? text.includes(g) : g.test(text) && (phase === 'asking' || !String(g).includes('waiting'))) out.push(`W${W} ${spec.id} ${phase}${tau !== null ? ` t${tau}` : ''}: "${g}"`);
-                for (const g of structural(well, spec, phase)) out.push(`W${W} ${spec.id} ${phase}: ${g}`);
-              }
+          for (const spec of M.EXPERIMENTS.filter((e) => !e.goal)) {
+            const froms = [null, ...ACT_TARGETS, ...(allConfigsAt.includes(W) ? CONFIGS.map((c) => ({ ...c, load: 70 })) : [])];
+            const runs = [...froms.map((f) => ['asking', null, f]), ...[0, 0.15, 0.45, 0.8, 1].map((f) => ['playing', f, null])];
+            for (const [phase, frac, from] of runs) {
+              const view = expView(spec, phase, frac ?? 0.6, from);
+              drawInto(well, W, M.run(view.s), view);
+              renders++;
+              const where = `W${W} ${spec.id} ${phase}${frac !== null ? ` ${frac}` : ''}${from ? ` from ${show({ ...from })}` : ''}`;
+              for (const g of [...giveaways(well, spec, phase), ...structural(well, spec, phase)]) out.push(`${where}: ${g}`);
+            }
+          }
         }
         well.style.width = '';
         return { renders, out };
       };
-      // Plants a leak on a copy of the view to prove the sweep catches it: a shown p99 in E2 and a sample mark in E1.
+      // Plants leaks on copies of views to prove the sweep catches each: E2 played without `after`, E1 asked without
+      // `sample`, E5 played without `stability` (its timeline says the window starts empty), and E3 asked with the ghost
+      // of the setting before it.
       window.plantedLeaks = function (W) {
         const well = document.getElementById('well');
         well.style.width = W + 2 + 'px';
         const caught = [];
-        {
-          const spec = M.EXPERIMENTS.find((e) => e.id === 'knee');
-          const view = { ...expView(spec, 'playing', 200), hide: ['ahead'] };
+        const tryLeak = (id, phase, patch, from = null) => {
+          const spec = M.EXPERIMENTS.find((e) => e.id === id);
+          const view = { ...expView(spec, phase, 0.6, from), ...patch };
           drawInto(well, W, M.run(view.s), view);
-          const text = [...well.querySelectorAll('text')].map((t) => t.textContent).join(' | ');
-          caught.push(GIVEAWAYS.knee.some((g) => text.includes(g)) || structural(well, spec, 'playing').length > 0);
-        }
-        {
-          const spec = M.EXPERIMENTS.find((e) => e.id === 'idle-yet-waiting');
-          const view = { ...expView(spec, 'asking'), hide: ['numbers'] };
-          drawInto(well, W, M.run(view.s), view);
-          caught.push(structural(well, spec, 'asking').length > 0);
-        }
+          caught.push(giveaways(well, spec, phase).length + structural(well, spec, phase).length > 0);
+        };
+        tryLeak('knee', 'playing', { hide: ['ahead'] });
+        tryLeak('idle-yet-waiting', 'asking', { hide: ['numbers'] });
+        tryLeak('lose-one', 'playing', { hide: ['after', 'utilization'] });
+        tryLeak('pool', 'asking', { leakGhost: true }, { ...B, servers: 4, queue: 'shared', load: 80 });
         well.style.width = '';
         return caught;
       };
       window.heights = function (widths) {
-        const well = document.getElementById('well');
         const out = {};
         for (const W of widths) {
           const hs = new Set();
           for (const s of ALL) hs.add(buildStage(W, M.run(s), { hide: [], phase: 'rest', tau: null }).H);
+          for (const s of ALL.filter((_, i) => i % 7 === 0)) hs.add(buildStage(W, M.run(s), { hide: [], phase: 'rest', ...freePlay(s, 0.5) }).H);
           for (const spec of M.EXPERIMENTS)
             for (const phase of spec.goal ? ['challenge', 'start'] : ['asking', 'playing', 'revealed']) {
               const v = expView(spec, phase);
@@ -2292,19 +2768,30 @@
         return out;
       };
       window.stageHeight = (W, s = M.BASE) => buildStage(W, M.run(s), { hide: [], phase: 'rest', tau: null }).H;
-      // Whole-widget heights at viewport widths, for widget-heights.ts's placeholders (the panel's content height).
       window.widgetHeight = () => document.getElementById('widget').getBoundingClientRect().height;
+      // Every Describe, summary and notice any setting prints, for the false-claim regexes.
+      window.pageWords = function () {
+        const out = [];
+        for (const s of ALL) {
+          const m = M.run(s);
+          const smp = M.sample(s);
+          const words = [summary(m, {}), sampleStory(m, smp), ...[true, false].map((c) => JSON.stringify(describeRows(m, c))), ...goalChecks(m).map((g) => g.text)].join(' | ');
+          for (const g of FALSE_CLAIMS) if (g.test(words)) out.push(`${show(s)}: ${g} in "${words.match(g)[0]}"`);
+        }
+        return out;
+      };
 
       const stateName = params.get('state') ?? 'default';
       Promise.all([
         document.fonts.load('600 11px "Inter Variable"'),
         document.fonts.load('500 13px "Inter Variable"'),
+        document.fonts.load('600 13px "Inter Variable"'),
         document.fonts.load('700 11px "Inter Variable"'),
         document.fonts.load('600 11px "JetBrains Mono Variable"'),
       ]).then(() => {
-        const { D } = render(stateName);
+        const first = render(stateName);
         const well = document.getElementById('well');
-        const issues = check(well, D);
+        const issues = check(well, first.D, first.m);
         render(stateName);
         window.__collisions = issues;
         document.body.dataset.ready = '1';

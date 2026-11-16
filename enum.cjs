@@ -62,10 +62,68 @@ check(positions.join(',') === '3,2,1,2,3', 'answer positions are 3, 2, 1, 2, 3')
   check(split.meanWait / shared.meanWait > 5 && split.meanWait / shared.meanWait < 6, 'E3: a shared queue cuts the wait 5 to 6 times');
   const st = M.run({ load: 90, service: 'steady' });
   check(rel(st.meanWait, M.run({ load: 90 }).meanWait / 2) < 1e-9, 'E4: steady service halves the mean wait (M/D/1)');
-  const lose = M.run({ servers: 3, load: 75, down: 1 });
-  check(!lose.stable && rel(lose.rho, 1.125) < 1e-9 && rel(lose.growthPerS, 25) < 1e-9, 'E5: two of three at 112.5%, growing by 25/s');
+  const lose = M.run({ servers: 3, load: 80, down: 1 });
+  check(!lose.stable && rel(lose.rho, 1.2) < 1e-9 && rel(lose.growthPerS, 40) < 1e-9, 'E5: two of three at 120%, growing by 40/s');
   const safe = M.run({ servers: 3, load: 60, down: 1 });
   check(safe.stable && rel(safe.rho, 0.9) < 1e-9, 'E5: from 60% the two left run at 90%');
+  const e3 = M.renderExperiment(M.EXPERIMENTS[2]).slots;
+  check(rel(e3.afterRound.value, e3.after.value) < 0.01, `E3: the choice's ${e3.afterRound.value} ms is within 1% of the model's ${e3.after.value}`);
+  check(Math.abs(e3.ratio.value - e3.ratioRound.value) < 0.5, `E3: "about ${e3.ratioRound.value}x" rounds the model's ${e3.ratio.value.toFixed(2)}x`);
+  // The pools' steady-to-random ratio: one server halves exactly; a pool "nearly halves" (0.5 to 0.65 from 30% to 90%).
+  for (const c of [2, 3, 4])
+    for (const load of [30, 60, 80, 90]) {
+      const r = M.run({ load, servers: c, service: 'steady' }).meanWait / M.run({ load, servers: c }).meanWait;
+      check(r > 0.5 && r < 0.65, `steady service nearly halves a pool's wait: ${c} at ${load}%, ${r.toFixed(3)}`);
+    }
+  // Exactly 100%: no steady state and no drift, so the words say the queue wanders, never "grows by 0".
+  const critical = [];
+  for (const c of [2, 3, 4]) for (const load of M.LOADS) for (const queue of M.QUEUES) for (const service of M.SERVICES) {
+    const m = M.run({ load, servers: c, queue, service, down: 1 });
+    if (Math.abs(m.rho - 1) < 1e-9) {
+      critical.push(`${c} ${queue} ${service} ${load}%`);
+      check(!m.stable && Math.abs(m.growthPerS) < 1e-9, `exactly 100% at ${c} servers ${load}%: unstable, no drift`);
+    }
+  }
+  console.log(`exactly 100% busy with one down: ${critical.join(', ')}`);
+}
+// E3's reveal: with a queue each, the share of time some server is idle while a request waits at another, against a
+// simulation of 4 independent M/M/1 queues (the time average equals what arrivals see, by PASTA).
+{
+  const rho = 0.8;
+  const c = 4;
+  const formula = M.idleBesideShare(rho, c);
+  const rand = M.mulberry32(97);
+  const lambda = rho / M.SERVICE_MS;
+  const mu = 1 / M.SERVICE_MS;
+  const n = new Array(c).fill(0);
+  let t = 0;
+  let hit = 0;
+  const T = quick ? 2e6 : 2e7;
+  while (t < T) {
+    const rate = c * lambda + n.filter((k) => k > 0).length * mu;
+    const dt = -Math.log(1 - rand()) / rate;
+    if (n.some((k) => k === 0) && n.some((k) => k >= 2)) hit += dt;
+    t += dt;
+    let u = rand() * rate;
+    for (let i = 0; i < c; i++) {
+      if (u < lambda) {
+        n[i]++;
+        u = Infinity;
+        break;
+      }
+      u -= lambda;
+      if (n[i] > 0) {
+        if (u < mu) {
+          n[i]--;
+          u = Infinity;
+          break;
+        }
+        u -= mu;
+      }
+    }
+  }
+  console.log(`E3: idle beside a waiting request ${(formula * 100).toFixed(2)}% by the formula, ${((hit / t) * 100).toFixed(2)}% simulated`);
+  check(Math.abs(hit / t - formula) < 0.01, 'E3: the idle-beside-a-line share matches a simulation of 4 queues at 80%');
 }
 
 // ------------------------------------------------------------------ challenge
@@ -257,10 +315,62 @@ for (const servers of M.SERVERS)
           ALL.push({ load, servers, queue, service, down });
         }
 console.log(`${ALL.length} settings`);
-// Typicality: the window's busy share against the utilization, and its average queue against the model's, over every
-// stable setting and again over the settings the experiments show; the seed with the smallest sum of the two means and a
-// quarter of the worst gap wins.
-const KEY = [{ load: 50 }, { load: 70 }, { load: 90 }, { load: 80, servers: 4, queue: 'split' }, { load: 80, servers: 4 }, { load: 90, service: 'steady' }, { load: 70, servers: 3 }, { load: 60, servers: 4, down: 1 }, { load: 60, servers: 3 }];
+const show = (s) => `${s.servers ?? 1} ${s.queue ?? 'shared'} ${s.service ?? 'random'}${s.down ? ' down' : ''} ${s.load}%`;
+// The settings each experiment shows: setups, acts and the challenge's solution.
+const BUSY_AT = [
+  { load: 50 },
+  { load: 70 },
+  { load: 90 },
+  { load: 80, servers: 4, queue: 'split' },
+  { load: 80, servers: 4 },
+  { load: 90, service: 'steady' },
+  { load: 80, servers: 3 },
+  { load: 60, servers: 4, down: 1 },
+];
+const RAMPS = [
+  { load: 80, servers: 3, down: 1 },
+  { load: 60, servers: 2, queue: 'split', down: 1 },
+];
+const ANSWERS = [{ load: 50 }, { load: 90 }, { load: 80, servers: 4 }, { load: 90, service: 'steady' }];
+const POOL_SPLIT = { load: 80, servers: 4, queue: 'split' };
+const waitingAt = (steps, t) => steps.filter((p) => p[0] <= t).at(-1)[1];
+/** A ramp: the count waiting at each second rises, the end holds at least 0.8 of the window's most, and the end is within
+ * 25% of the model's drift over the window. */
+function ramp(s, seed) {
+  const smp = M.sample(s, seed);
+  const steps = M.waitingSteps(smp);
+  const at = [1000, 2000, 3000, 4000].map((t) => waitingAt(steps, t - 1e-6));
+  const most = Math.max(...steps.map((p) => p[1]));
+  const drift = (M.run(s).growthPerS * smp.window) / 1000;
+  const rises = at.every((v, i) => i === 0 || v > at[i - 1]);
+  return { at, most, drift, ok: rises && at[3] >= 0.8 * most && Math.abs(at[3] - drift) <= 0.25 * drift };
+}
+/** The hard bounds every seed must meet before typicality decides between them. */
+function bounds(seed) {
+  const busy = BUSY_AT.map((s) => {
+    const st = M.sampleStats(M.sample(s, seed));
+    return { s, gap: (st.busy - M.run(s).rho) * 100 };
+  });
+  const pool = M.sample(POOL_SPLIT, seed).rest;
+  const ramps = RAMPS.map((s) => ({ s, ...ramp(s, seed) }));
+  const answers = ANSWERS.map((s) => ({ s, t: M.sample(s, seed).rest.t }));
+  const ok = {
+    busy: busy.every((b) => Math.abs(b.gap) <= 7),
+    pool: pool.kind === 'idle' && pool.n >= 8,
+    ramps: ramps.every((r) => r.ok),
+    answers: answers.every((a) => a.t >= M.ANSWER_SLICE_MS),
+  };
+  return { busy, pool, ramps, answers, ok, all: Object.values(ok).every(Boolean) };
+}
+const printBounds = (seed, b) =>
+  console.log(
+    `seed ${String(seed).padStart(3)}: busy gaps ${b.busy.map((x) => x.gap.toFixed(1)).join(' ')} (max ${Math.max(...b.busy.map((x) => Math.abs(x.gap))).toFixed(1)}) ${b.ok.busy ? 'ok' : 'NO'}; ` +
+      `E3 ${b.pool.kind} line ${b.pool.n} ${b.ok.pool ? 'ok' : 'NO'}; ramps ${b.ramps.map((r) => `${r.at.join('/')} of ${Math.round(r.drift)}`).join(', ')} ${b.ok.ramps ? 'ok' : 'NO'}; ` +
+      `answers' moments ${b.answers.map((a) => Math.round(a.t)).join(' ')} ms ${b.ok.answers ? 'ok' : 'NO'}`,
+  );
+// Typicality, among the seeds that meet every bound: the window's busy share against the utilization, and its average
+// queue against the model's, over every stable setting and again over the settings the experiments show, plus a quarter
+// of the worst gap.
 function gap(s, seed) {
   const m = M.run(s);
   if (!m.stable) return 0;
@@ -275,21 +385,37 @@ function score(seed) {
     all += g;
     worst = Math.max(worst, g);
   }
-  const key = KEY.reduce((t, s) => t + gap(s, seed), 0) / KEY.length;
-  // A quarter of the worst gap counts too, so no one window is far from the model to buy a slightly better mean.
+  const key = BUSY_AT.reduce((t, s) => t + gap(s, seed), 0) / BUSY_AT.length;
   return { mean: all / ALL.length, key, worst, total: all / ALL.length + key + worst / 4 };
 }
+// The search: `--search=1-60000` scans a range of seeds against the bounds (about 15 minutes for the whole range on one
+// core; split the range across processes). Of seeds 1 to 60,000 these four meet every bound; the default run re-checks
+// them and picks the most typical, which must be SAMPLE_SEED.
+const SEARCHED = { range: [1, 60000], passing: [26159, 27425, 30512, 57837] };
 {
-  const seeds = quick ? [M.SAMPLE_SEED] : Array.from({ length: 64 }, (_, i) => i + 1);
-  const scored = seeds.map((seed) => ({ seed, ...score(seed) })).sort((a, b) => a.total - b.total);
-  for (const r of scored.slice(0, 5)) console.log(`seed ${r.seed}: mean gap ${r.mean.toFixed(3)}, at the experiments ${r.key.toFixed(3)}, worst ${r.worst.toFixed(3)}`);
-  if (!quick) check(scored[0].seed === M.SAMPLE_SEED, `SAMPLE_SEED is the most typical of ${seeds.length} (it is ${scored[0].seed})`);
-  // Report how far the chosen seed's windows sit from the model, setting by setting, at the loads the experiments use.
-  for (const s of [{ load: 50 }, { load: 70 }, { load: 90 }, { load: 80, servers: 4, queue: 'split' }, { load: 80, servers: 4 }, { load: 90, service: 'steady' }, { load: 70, servers: 3 }, { load: 60, servers: 4, down: 1 }]) {
+  const arg = process.argv.find((a) => a.startsWith('--search='));
+  const [lo, hi] = arg ? arg.split('=')[1].split('-').map(Number) : [0, -1];
+  const SEEDS = arg ? Array.from({ length: hi - lo + 1 }, (_, i) => lo + i) : quick ? [M.SAMPLE_SEED] : [...new Set([...SEARCHED.passing, M.SAMPLE_SEED])];
+  const passing = [];
+  for (const seed of SEEDS) {
+    const b = bounds(seed);
+    if (b.all) passing.push(seed);
+    if (b.all || seed === M.SAMPLE_SEED) printBounds(seed, b);
+  }
+  console.log(`${passing.length} of ${SEEDS.length} seeds meet every bound${arg ? '' : ` (searched ${SEARCHED.range.join(' to ')})`}`);
+  if (!arg && !quick) check(passing.join(',') === SEARCHED.passing.join(','), "the recorded search's seeds still meet every bound");
+  const chosen = bounds(M.SAMPLE_SEED);
+  for (const [k, v] of Object.entries(chosen.ok)) check(v, `SAMPLE_SEED ${M.SAMPLE_SEED} meets the ${k} bound`);
+  if (!quick) {
+    const scored = passing.map((seed) => ({ seed, ...score(seed) })).sort((a, b) => a.total - b.total);
+    for (const r of scored.slice(0, 6)) console.log(`seed ${r.seed}: mean gap ${r.mean.toFixed(3)}, at the experiments ${r.key.toFixed(3)}, worst ${r.worst.toFixed(3)}, score ${r.total.toFixed(3)}`);
+    check(scored.length > 0 && scored[0].seed === M.SAMPLE_SEED, `SAMPLE_SEED is the most typical seed that meets every bound (it is ${scored[0]?.seed})`);
+  }
+  for (const s of [...BUSY_AT, ...ANSWERS.slice(1, 2)]) {
     const m = M.run(s);
     const smp = M.sample(s);
     const st = M.sampleStats(smp);
-    console.log(`  ${JSON.stringify(s).padEnd(52)} window: ${smp.reqs.length} requests, busy ${(st.busy * 100).toFixed(0)}% (model ${(m.rho * 100).toFixed(0)}%), waiting ${st.waiting.toFixed(2)} on average (model ${m.waiting.toFixed(2)})`);
+    console.log(`  ${show(s).padEnd(28)} window: ${smp.reqs.filter((r) => r.arrive >= 0).length} arrivals, busy ${(st.busy * 100).toFixed(1)}% (model ${(m.rho * 100).toFixed(1)}%), waiting ${st.waiting.toFixed(2)} on average (model ${m.waiting.toFixed(2)}), rest ${smp.rest.kind} ${smp.rest.n} at ${smp.rest.t.toFixed(1)} ms`);
   }
 }
 // Common random numbers: at a higher load the same request (by index) never waits less, and the window's waiting grows.
@@ -316,17 +442,54 @@ function score(seed) {
       }
     }
 }
+// The rest moments the stage draws: a queue each shows a line beside an idle server whenever the window has one.
 {
-  // Unstable settings start empty and grow: the window ends with more waiting than it starts.
-  // Unstable windows show a ramp: the drift outruns the noise once the window is many times (lambda + mu) / (lambda - mu)^2.
-  for (const s of [{ load: 75, servers: 3, down: 1 }, { load: 60, servers: 2, queue: 'split', down: 1 }]) {
+  let idle = 0;
+  let splits = 0;
+  for (const s of ALL) {
     const smp = M.sample(s);
-    const steps = M.waitingSteps(smp);
-    const at = (t) => steps.filter((p) => p[0] <= t).at(-1)[1];
-    const W = smp.window;
-    const q = [0.25, 0.5, 0.75, 1].map((f) => at(f * W - 1));
-    console.log(`  ${JSON.stringify(s)}: waiting at each quarter of the ${W} ms window ${q.join(', ')}`);
-    check(q[3] > q[1] && q[1] > q[0] && q[3] > 3 * q[0], `the unstable window ${JSON.stringify(s)} ramps`);
+    if (!smp.split) continue;
+    splits++;
+    if (smp.rest.kind === 'idle') {
+      idle++;
+      const { lines, busy } = M.linesAt(smp, smp.rest.t);
+      check(!busy[smp.rest.idle] && lines[smp.rest.line] === smp.rest.n, `${show(s)}: the rest moment has S${smp.rest.idle + 1} idle beside a line of ${smp.rest.n}`);
+    }
+  }
+  console.log(`  a queue each: ${idle} of ${splits} windows show a line beside an idle server at rest`);
+  const pool = M.sample(POOL_SPLIT).rest;
+  console.log(`  E3's asking frame: S${pool.idle + 1} idle beside S${pool.line + 1}'s line of ${pool.n} at ${pool.t.toFixed(1)} ms (${pool.total} waiting in all)`);
+  check(pool.kind === 'idle' && pool.n >= 5, "E3's asking frame has an idle server beside a line of at least 5");
+}
+// Unstable windows: the experiments' ramps, and the model's drift line fits the waiting row's scale at every setting.
+{
+  for (const s of RAMPS) {
+    const r = ramp(s);
+    console.log(`  ${show(s)}: waiting at 1, 2, 3 and 4 s ${r.at.join(', ')}; the window's most ${r.most}; the model's drift over 4 s ${r.drift}`);
+    check(r.ok, `the unstable window ${show(s)} ramps (every second rises, ends at 0.8 of its most, within 25% of the drift)`);
+  }
+  const SCALES = [2, 5, 10, 20, 50, 100, 200, 500, 1000];
+  let unstable = 0;
+  for (const s of ALL) {
+    const m = M.run(s);
+    if (m.stable) continue;
+    unstable++;
+    const smp = M.sample(s);
+    const end = (m.growthPerS * smp.window) / 1000;
+    const most = Math.max(...M.waitingSteps(smp).map((p) => p[1]));
+    check(SCALES.some((q) => q >= Math.max(end, most)), `${show(s)}: a waiting scale holds the drift line's end ${end} and the sample's ${most}`);
+    check(smp.rest.kind !== 'idle' || smp.split, `${show(s)}: an unstable rest moment is the longest queue`);
+  }
+  console.log(`  ${unstable} unstable settings; the drift line fits every waiting scale`);
+}
+// The answers' plays: each runs the 200 ms that end at its rest moment, 25x slower; with no steady state, 4 s in real time.
+{
+  for (const spec of M.EXPERIMENTS.filter((e) => e.act)) {
+    const s = { ...spec.setup, ...(spec.act.set ?? {}) };
+    const smp = M.sample(s);
+    const p = M.playPlan(smp, true);
+    console.log(`  ${spec.id}: plays ${p.from.toFixed(1)} to ${p.to.toFixed(1)} ms of ${show(s)} at ${p.rate}x, ${(((p.to - p.from) * p.rate) / 1000).toFixed(1)} s on screen`);
+    check(p.to - p.from >= M.ANSWER_SLICE_MS - 1e-9 || !smp.stable, `${spec.id}: the answer plays a full ${M.ANSWER_SLICE_MS} ms`);
   }
 }
 

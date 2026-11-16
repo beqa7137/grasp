@@ -18,10 +18,14 @@
   const UNSTABLE_WINDOW_MS = 4000;
   const PLAY_SLOW = 25;
   const UNSTABLE_PLAY_SLOW = 2;
-  const ANSWER_SLOW = 8;
+  /** An answer plays the 200 ms of its new sample that end at the rest moment, as slowly as a free play; with no steady
+   * state, the whole window in real time (its rings are drawn full, as the motion rule asks under 120 ms). */
+  const ANSWER_SLICE_MS = 200;
+  const ANSWER_SLOW = PLAY_SLOW;
+  const ANSWER_UNSTABLE_SLOW = 1;
   /** Arrivals simulated before the window, so the window opens in the steady state. */
   const WARM_ARRIVALS = 40000;
-  const SAMPLE_SEED = 31;
+  const SAMPLE_SEED = 26159;
   const DOTS = 100;
 
   // ---------------------------------------------------------------- exact queueing
@@ -355,8 +359,66 @@
         server: server[i],
       });
     }
-    return { t0, reqs, window: win, up, stable, slow: stable ? PLAY_SLOW : UNSTABLE_PLAY_SLOW };
+    const smp = { t0, reqs, window: win, up, stable, split: s.queue === 'split' && up > 1 };
+    smp.rest = restMoment(smp);
+    return smp;
   }
+
+  /** Each line's length and each server's state at window time `t` (one line when the queue is shared). */
+  function linesAt(smp, t) {
+    const lines = new Array(smp.up).fill(0);
+    const busy = new Array(smp.up).fill(false);
+    let total = 0;
+    for (const r of smp.reqs) {
+      if (r.arrive > t || r.leave <= t) continue;
+      if (r.start > t) {
+        lines[r.server]++;
+        total++;
+      } else busy[r.server] = true;
+    }
+    return { lines, busy, total };
+  }
+
+  /**
+   * The moment the stage shows at rest. One shared queue: the first moment its line was longest. A queue each: the
+   * moment the longest single line waited while a server that is up sat idle, the mechanism a shared queue removes;
+   * if no line ever waited beside an idle server, the moment the most were waiting. `none` when nobody waited.
+   */
+  function restMoment(smp) {
+    const steps = waitingSteps(smp);
+    const most = Math.max(0, ...steps.map((p) => p[1]));
+    if (most === 0) return { kind: 'none', t: smp.window, n: 0, total: 0 };
+    const first = steps.find((p) => p[1] === most)[0] + 0.01;
+    if (!smp.split) return { kind: 'longest', t: first, n: most, total: most };
+    const times = new Set();
+    for (const r of smp.reqs) for (const x of [r.arrive, r.start, r.leave]) if (x >= 0 && x < smp.window) times.add(x);
+    let best = null;
+    for (const x of [...times].sort((a, b) => a - b)) {
+      const t = x + 0.01;
+      const { lines, busy, total } = linesAt(smp, t);
+      const idle = busy.findIndex((b) => !b);
+      if (idle < 0) continue;
+      let k = 0;
+      for (let j = 1; j < lines.length; j++) if (lines[j] > lines[k]) k = j;
+      if (lines[k] > 0 && (!best || lines[k] > best.n)) best = { kind: 'idle', t, n: lines[k], line: k, idle, total };
+    }
+    return best ?? { kind: 'most', t: first, n: most, total: most };
+  }
+
+  /** The clock of a play: which window times it runs over and how many times slower than real time. */
+  function playPlan(smp, answer) {
+    if (!smp.stable) return { from: 0, to: smp.window, rate: answer ? ANSWER_UNSTABLE_SLOW : UNSTABLE_PLAY_SLOW };
+    if (!answer) return { from: 0, to: smp.window, rate: PLAY_SLOW };
+    const to = smp.rest.kind === 'none' ? smp.window : smp.rest.t;
+    return { from: Math.max(0, to - ANSWER_SLICE_MS), to, rate: ANSWER_SLOW };
+  }
+
+  /**
+   * A queue each, c independent M/M/1 queues at utilization rho: the share of time some server is idle while a request
+   * waits at another. P(idle) = 1 - rho, P(waiting) = rho^2, P(exactly one in system) = rho - rho^2, by inclusion and
+   * exclusion over the servers.
+   */
+  const idleBesideShare = (rho, c) => 1 - rho ** c - (1 - rho * rho) ** c + (rho - rho * rho) ** c;
 
   /** What the sample shows at window time `t`: who waits (in arrival order, per queue) and who is in service. */
   function sampleAt(smp, t) {
@@ -432,7 +494,7 @@
       return formatSlot(slots[k]);
     });
   }
-  const ALLOWED = ['p99', 'p50', '100 requests', 'the 99th of 100', 'N+1', 'S / (1 − utilization)'];
+  const ALLOWED = ['p99', 'p50', '100 requests', 'the 99th of 100', 'N+1', 'S / (1 − utilization)', '(1 + CV²) / 2'];
   function strayDigits(t) {
     let rest = t.replace(/\{\w+\}/g, '');
     for (const p of ALLOWED) rest = rest.split(p).join('');
@@ -447,7 +509,7 @@
     knee: { ...BASE, load: 70 },
     pool: { ...BASE, servers: 4, queue: 'split', load: 80 },
     steady: { ...BASE, load: 90 },
-    fail: { ...BASE, servers: 3, load: 75 },
+    fail: { ...BASE, servers: 3, load: 80 },
     challenge: { ...BASE, servers: 2, queue: 'split', load: 60, down: 1 },
   };
   const CHALLENGE_BOUNDS = { p99: 100, load: 60 };
@@ -540,13 +602,13 @@
       act: { set: { queue: 'shared' }, run: 'sample' },
       ask: '{servers} servers, each {load} busy, each with its own queue, and every request goes to one of them at random: a request waits {before} on average. Put all {servers} behind one shared queue, at the same load. What is the average wait now?',
       choices: [
-        { text: '{after}: {ratio} shorter', value: 'after' },
+        { text: '{afterRound}: about {ratioRound} shorter', value: 'afterRound' },
         { text: '{half}: half as long', value: 'half' },
         { text: '{before}: unchanged, each is as busy', value: 'before' },
       ],
-      truth: 'after',
+      truth: 'afterRound',
       reveal:
-        '{after}, {ratio} shorter: with a queue each, a request can wait behind a long one while another server sits idle. One shared queue hands each request to the first server that frees up, so it waits only when all {servers} are busy, which {chance} of arrivals find, against {chanceSplit} with a queue each. p99 falls from {p99Before} to {p99After}. This is why one line feeding a pool beats a line per checkout, and why least-loaded balancing beats random.',
+        '{after}, {ratio} shorter: with a queue each, a request can wait behind a long one while another server sits idle, and here that is so {idleBeside} of the time. One shared queue hands each request to the first server that frees up, so it waits only when all {servers} are busy, which {chance} of arrivals find, against {chanceSplit} with a queue each. p99 falls from {p99Before} to {p99After}. This is why one line feeding a pool beats a line per checkout, and why least-loaded balancing beats random.',
       focus: ['scene', 'numbers'],
       hide: ['after'],
       slots: () => {
@@ -557,8 +619,11 @@
           load: pct(a.settings.load),
           before: ms(a.meanWait),
           after: ms(b.meanWait),
+          afterRound: ms(Math.round(b.meanWait * 2) / 2),
           half: ms(a.meanWait / 2),
           ratio: times(a.meanWait / b.meanWait),
+          ratioRound: times(Math.round(a.meanWait / b.meanWait)),
+          idleBeside: pct(idleBesideShare(a.rho, a.up) * 100),
           chance: pct(b.waitChance * 100),
           chanceSplit: pct(a.waitChance * 100),
           p99Before: ms(a.p99),
@@ -573,13 +638,13 @@
       act: { set: { service: 'steady' }, run: 'sample' },
       ask: 'One server, {load} busy. Requests need {service} of work on average but vary at random, and wait {before} on average. Now every request takes exactly {service}. What is the average wait?',
       choices: [
-        { text: '{before}: the load is the same', value: 'before' },
-        { text: '{after}: half', value: 'after' },
-        { text: '{tenth}: no request is slow any more', value: 'tenth' },
+        { text: '{before}: unchanged, the load is the same', value: 'before' },
+        { text: '{after}: half as long', value: 'after' },
+        { text: '{tenth}: a tenth, no request is slow any more', value: 'tenth' },
       ],
       truth: 'after',
       reveal:
-        '{after}, exactly half. Arrivals still collide at random, so the queue stays, but the Pollaczek-Khinchine formula ties the wait to how much service times vary as well as to the load, and random times double the wait that steady ones give at the same load. p99 falls from {p99Before} to {p99After}. Smaller, more even units of work cut the tail without adding a server.',
+        '{after}, exactly half. Arrivals still collide at random, so the queue stays, but the Pollaczek-Khinchine formula ties the wait to how much service times vary as well as to the load: the wait scales with (1 + CV²) / 2, where CV, the coefficient of variation, is the spread of service times over their mean. Random times have a CV of {cvRandom} and steady ones {cvSteady}, so steady halves the wait; work that varies more than random (a few slow requests among many fast ones) waits longer still. p99 falls from {p99Before} to {p99After}. Smaller, more even units of work cut the tail without adding a server.',
       focus: ['split', 'chart'],
       hide: ['after'],
       slots: () => {
@@ -593,6 +658,8 @@
           tenth: ms(a.meanWait / 10),
           p99Before: ms(a.p99),
           p99After: ms(b.p99),
+          cvRandom: num(1),
+          cvSteady: num(0),
         };
       },
     },
@@ -604,14 +671,14 @@
       ask: '{servers} servers share one queue at {load} busy, and p99 is {before}. One fails, and the others take its traffic. What is p99 now?',
       choices: [
         { text: '{prop}: half as long again, like the load', value: 'prop' },
-        { text: '{five}: about five times as long', value: 'five' },
+        { text: 'about {second}: deep in the knee', value: 'second' },
         { text: 'It never settles: the queue grows without bound', value: 'unbounded' },
       ],
       truth: 'outcome',
       reveal:
         'It never settles: {load} of {servers} servers is {rate}, and the {left} left can serve only {cap}, so {growth} more arrive than leave, and the queue and its waits keep growing. Losing one of {servers} multiplies the load on the rest by {mult}: {load} becomes {rho}, and anything above {limit} is more than {left} can serve. From {safe}, the {left} left would run at {safeRho}, with p99 {safeP99}. Size so the fleet minus one still runs below the knee.',
       focus: ['chart', 'scene'],
-      hide: ['after'],
+      hide: ['after', 'utilization', 'stability'],
       slots: () => {
         const a = run(SETUP.fail);
         const b = run({ ...SETUP.fail, down: 1 });
@@ -621,7 +688,7 @@
           load: pct(a.settings.load),
           before: ms(a.p99),
           prop: ms(a.p99 * 1.5),
-          five: ms(a.p99 * 5),
+          second: dur(1000),
           rate: qps(b.ratePerS),
           left: num(b.up),
           cap: qps(b.capacityPerS),
@@ -701,8 +768,14 @@
     PLAY_SLOW,
     UNSTABLE_PLAY_SLOW,
     ANSWER_SLOW,
+    ANSWER_SLICE_MS,
+    ANSWER_UNSTABLE_SLOW,
     SAMPLE_SEED,
     DOTS,
+    linesAt,
+    restMoment,
+    playPlan,
+    idleBesideShare,
     erlangC,
     mmc,
     mdc,
