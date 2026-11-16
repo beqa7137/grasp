@@ -12,7 +12,7 @@ part E the second critic's 29 to what changed; part F lists what this round's ow
 two items applied in an adapted form, with the reason. Every must and should is applied, and every nice but one, which
 another item superseded (D21). The mockup ends with zero findings over 180 screenshots (30 states), 5,064 setting renders
 (every setting at rest, through a free play and with both kinds of ghost), 297 experiment renders, 920 no-answer renders
-with four planted leaks caught, and every page sentence of all 364 settings; `enum.cjs` passes 2,348 checks.
+with four planted leaks caught, and every page sentence of all 364 settings; `enum.cjs` passes 2,322 checks.
 
 ## A. The mockup's own rounds
 
