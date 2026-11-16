@@ -1,0 +1,2295 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Capacity widget mockup</title>
+    <style>
+      @font-face {
+        font-family: 'Inter Variable';
+        src: url(fonts/inter-latin-wght-normal.woff2) format('woff2');
+        font-weight: 100 900;
+        font-display: block;
+      }
+      @font-face {
+        font-family: 'JetBrains Mono Variable';
+        src: url(fonts/jetbrains-mono-latin-wght-normal.woff2) format('woff2');
+        font-weight: 100 800;
+        font-display: block;
+      }
+      /* The app's tokens (apps/app/src/_theme.scss, styles.scss): light is the base, dark overrides. */
+      :root {
+        color-scheme: light;
+        --g-bg: #f4f5f9;
+        --g-surface: #ffffff;
+        --g-raised: #ffffff;
+        --g-sunken: #eef0f5;
+        --g-line: #dfe2ea;
+        --g-line-strong: #c6cbd6;
+        --g-stroke: #707889;
+        --g-text: #161a23;
+        --g-text-rgb: 22, 26, 35;
+        --g-muted: #4a5263;
+        --g-faint: #5c6477;
+        --g-on-fill: #ffffff;
+        --g-warn-ink: #6e4200;
+        --g-danger-ink: #9d1630;
+        --g-found-ink: #02583f;
+        --g-accent: #5846dc;
+        --g-accent-rgb: 88, 70, 220;
+        --g-accent-soft: rgba(88, 70, 220, 0.14);
+        --g-found: #036b4c;
+        --g-danger: #c3203d;
+        --g-warn: #945800;
+        --g-success-ink: var(--g-found-ink);
+        --g-success-line: var(--g-found);
+        --g-success-soft: rgba(3, 107, 76, 0.12);
+        --g-danger-soft: rgba(195, 32, 61, 0.12);
+        --g-warn-soft: rgba(148, 88, 0, 0.12);
+        --g-viz-stage: #f7f8fb;
+        --g-viz-current: #0b74ad;
+        --g-viz-current-soft: rgba(11, 116, 173, 0.16);
+        --g-viz-considering: #c77700;
+        --g-viz-considering-soft: rgba(199, 119, 0, 0.14);
+        --g-viz-final: #12925f;
+        --g-viz-final-ink: var(--g-found-ink);
+        --g-viz-discarded-ink: #687082;
+        --g-viz-critical: #d42a49;
+        --g-viz-track: #d3d7e0;
+        --g-shadow: 0 1px 2px rgba(var(--g-text-rgb), 0.06), 0 3px 10px rgba(var(--g-text-rgb), 0.07);
+        --g-shadow-raised: 0 1px 2px rgba(var(--g-text-rgb), 0.08);
+        --g-radius-xs: 6px;
+        --g-radius-sm: 10px;
+        --g-radius-md: 14px;
+        --g-radius-pill: 999px;
+        --g-text-title-m: 1.0625rem;
+        --g-text-title-s: 0.9375rem;
+        --g-text-body: 0.875rem;
+        --g-text-body-s: 0.8125rem;
+        --g-text-label: 0.6875rem;
+        --g-font: 'Inter Variable', system-ui, sans-serif;
+        --g-font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+        --g-focus-ring: 2px solid var(--g-accent);
+      }
+      :root.dark {
+        color-scheme: dark;
+        --g-bg: #0b0d12;
+        --g-surface: #141824;
+        --g-raised: #1c2130;
+        --g-sunken: #0f121a;
+        --g-line: #252a37;
+        --g-line-strong: #343b4d;
+        --g-stroke: #6b7387;
+        --g-text: #e9ebf2;
+        --g-text-rgb: 233, 235, 242;
+        --g-muted: #8b93a8;
+        --g-faint: #828a9e;
+        --g-on-fill: #0b0d12;
+        --g-warn-ink: #f3e6b3;
+        --g-danger-ink: #ffb3bd;
+        --g-found-ink: #3ddc97;
+        --g-accent: #9d8cff;
+        --g-accent-rgb: 157, 140, 255;
+        --g-accent-soft: rgba(157, 140, 255, 0.14);
+        --g-found: #3ddc97;
+        --g-danger: #ff5d73;
+        --g-warn: #ffb547;
+        --g-success-soft: rgba(61, 220, 151, 0.12);
+        --g-danger-soft: rgba(255, 93, 115, 0.12);
+        --g-warn-soft: rgba(255, 181, 71, 0.12);
+        --g-viz-stage: #0e1118;
+        --g-viz-current: #1f9fd0;
+        --g-viz-current-soft: rgba(31, 159, 208, 0.16);
+        --g-viz-considering: #c08420;
+        --g-viz-considering-soft: rgba(192, 132, 32, 0.18);
+        --g-viz-final: #22ad74;
+        --g-viz-final-ink: var(--g-found);
+        --g-viz-discarded-ink: var(--g-muted);
+        --g-viz-critical: #e5485f;
+        --g-viz-track: #2a3040;
+        --g-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        --g-shadow-raised: var(--g-shadow);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--g-bg);
+        color: var(--g-text);
+        font: 400 var(--g-text-body) / 1.5 var(--g-font);
+        font-variant-ligatures: none;
+        -webkit-font-smoothing: antialiased;
+        overflow-wrap: break-word;
+      }
+      button {
+        font-size: 0.8333rem;
+      }
+      .page {
+        max-width: 1048px;
+        margin: 0 auto;
+        padding: 20px 16px 40px;
+      }
+      .eyebrow {
+        margin: 0;
+        font: 600 var(--g-text-label) var(--g-font);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--g-muted);
+      }
+      h1 {
+        margin: 4px 0 14px;
+        font: 600 1.25rem/1.3 var(--g-font);
+      }
+      .panel {
+        border: 1px solid var(--g-line);
+        border-radius: var(--g-radius-md);
+        background: var(--g-surface);
+        box-shadow: var(--g-shadow);
+        padding: 16px;
+      }
+      /* Narrow: one column, the controls as the stage's first rows, then the stage, the question, Describe, the cards. */
+      .widget {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 12px;
+      }
+      .main,
+      .experiments {
+        display: contents;
+      }
+      .controls {
+        order: 1;
+      }
+      .stage {
+        order: 2;
+        min-width: 0;
+      }
+      .dock {
+        order: 3;
+      }
+      .describe {
+        order: 4;
+      }
+      .heading,
+      .cards {
+        order: 5;
+      }
+      .controls {
+        padding: 12px 12px 0;
+        border: 1px solid var(--g-line);
+        border-bottom: 0;
+        border-radius: var(--g-radius-md) var(--g-radius-md) 0 0;
+        background: var(--g-viz-stage);
+        display: grid;
+        gap: 10px;
+        min-width: 0;
+      }
+      .stage {
+        margin-top: -12px;
+      }
+      .stage .well {
+        border-top: 0;
+        border-radius: 0 0 var(--g-radius-md) var(--g-radius-md);
+      }
+      @media (min-width: 1000px) {
+        .widget {
+          grid-template-columns: minmax(0, 1fr) 340px;
+          grid-template-rows: auto 1fr;
+          align-items: start;
+          column-gap: 20px;
+        }
+        .main {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr);
+          gap: 12px;
+          grid-column: 1;
+          grid-row: 1 / span 2;
+          min-width: 0;
+        }
+        .controls {
+          grid-column: 2;
+          grid-row: 1;
+          padding: 0;
+          border: 0;
+          background: none;
+        }
+        .experiments {
+          display: block;
+          grid-column: 2;
+          grid-row: 2;
+          min-width: 0;
+        }
+        .stage {
+          margin-top: 0;
+        }
+        .stage .well {
+          border-top: 1px solid var(--g-line);
+          border-radius: var(--g-radius-md);
+        }
+        .dock {
+          margin-top: 12px;
+        }
+      }
+      .well {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid var(--g-line);
+        border-radius: var(--g-radius-md);
+        background-color: var(--g-viz-stage);
+        background-image: radial-gradient(circle, rgba(var(--g-text-rgb), 0.09) 1px, transparent 1.5px);
+        background-size: 24px 24px;
+        background-position: 11px 11px;
+      }
+      /* Every fieldset.group carries the same zero padding; a control's own class only adds to it (the R41 padding bug). */
+      fieldset.group {
+        margin: 0;
+        padding: 0;
+        border: 0;
+        min-width: 0;
+      }
+      .control-label {
+        font: 600 var(--g-text-label) var(--g-font);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--g-muted);
+        padding: 0;
+        margin-bottom: 4px;
+      }
+      .segments {
+        display: flex;
+        gap: 4px;
+      }
+      .segment {
+        position: relative;
+        flex: 1 1 0;
+        min-width: 0;
+      }
+      .segment input {
+        position: absolute;
+        inset: 0;
+        margin: 0;
+        opacity: 0;
+        cursor: pointer;
+      }
+      .segment span {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        min-height: 44px;
+        padding: 0 6px;
+        border-radius: var(--g-radius-sm);
+        border: 1px solid var(--g-line-strong);
+        background: var(--g-raised);
+        box-shadow: var(--g-shadow-raised);
+        color: var(--g-text);
+        font: 500 var(--g-text-body) / 1.15 var(--g-font);
+        text-align: center;
+      }
+      .segment input:checked + span {
+        background: var(--g-accent-soft);
+        border-color: var(--g-accent);
+        box-shadow: inset 0 0 0 1px var(--g-accent);
+        font-weight: 600;
+      }
+      fieldset:disabled .segment span,
+      .segment input:disabled + span {
+        opacity: 0.55;
+      }
+      .control-label .why {
+        font-weight: 500;
+        letter-spacing: normal;
+        text-transform: none;
+      }
+      .segment small {
+        font: 500 var(--g-text-label) var(--g-font);
+        color: var(--g-muted);
+      }
+      .toggles {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px;
+      }
+      .toggles .segment span {
+        flex-direction: column;
+        gap: 0;
+        font-size: var(--g-text-body-s);
+      }
+      .notice {
+        margin: 0;
+        min-height: 2lh;
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+      }
+      /* Below wide the notice would sit over the stage and push it down as it speaks: read out only (_widget-controls.scss). */
+      @media (max-width: 999px) {
+        .notice {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          min-height: 0;
+          overflow: hidden;
+          clip-path: inset(50%);
+        }
+        .controls {
+          padding-bottom: 12px;
+        }
+      }
+      /* Heat for load (3.6): darker with load on light, brighter on dark; length and % are its second encoding. */
+      :root {
+        --g-viz-heat-1: #c97a22;
+        --g-viz-heat-2: #9c5a0c;
+        --g-viz-heat-3: #7a4508;
+        --g-viz-final-soft: rgba(18, 146, 95, 0.14);
+        --g-viz-critical-soft: rgba(212, 42, 73, 0.12);
+        --g-viz-current-rgb: 11, 116, 173;
+      }
+      :root.dark {
+        --g-viz-heat-1: #9a6418;
+        --g-viz-heat-2: #c98a2e;
+        --g-viz-heat-3: #f0b25a;
+        --g-viz-final-soft: rgba(34, 173, 116, 0.18);
+        --g-viz-critical-soft: rgba(229, 72, 95, 0.16);
+        --g-viz-current-rgb: 31, 159, 208;
+      }
+      .play {
+        position: absolute;
+        width: 44px;
+        height: 44px;
+        padding: 0;
+        border: 0;
+        background: none;
+        cursor: pointer;
+        z-index: 2;
+      }
+      .play svg {
+        display: block;
+        width: 36px;
+        height: 36px;
+        margin: 4px;
+      }
+      .play circle {
+        fill: var(--g-raised);
+        stroke: var(--g-accent);
+        stroke-width: 1.5;
+      }
+      .play path,
+      .play rect {
+        fill: var(--g-accent);
+      }
+      .play:disabled {
+        cursor: default;
+        opacity: 0.55;
+      }
+      /* A tier's stepper: a 44 px target around a 32 px key. */
+      .step {
+        position: absolute;
+        width: 44px;
+        height: 44px;
+        padding: 0;
+        border: 0;
+        background: none;
+        cursor: pointer;
+        z-index: 2;
+        display: grid;
+        place-items: center;
+      }
+      .step span {
+        display: grid;
+        place-items: center;
+        width: 32px;
+        height: 32px;
+        border-radius: var(--g-radius-xs);
+        border: 1px solid var(--g-line-strong);
+        background: var(--g-raised);
+        box-shadow: var(--g-shadow-raised);
+        color: var(--g-text);
+        font: 600 17px/1 var(--g-font);
+      }
+      .step:disabled {
+        cursor: default;
+      }
+      .step:disabled span {
+        opacity: 0.45;
+      }
+      .handle {
+        position: absolute;
+        width: 44px;
+        height: 44px;
+        display: grid;
+        place-items: center;
+        cursor: ew-resize;
+        z-index: 2;
+      }
+      .handle .knob {
+        width: 14px;
+        height: 26px;
+        border-radius: var(--g-radius-pill);
+        background: var(--g-raised);
+        border: 2px solid var(--g-accent);
+        box-shadow: var(--g-shadow-raised);
+      }
+      .handle[aria-disabled='true'] {
+        cursor: default;
+      }
+      .handle[aria-disabled='true'] .knob {
+        opacity: 0.55;
+      }
+      /* Drawing roles: text sits on a halo of its ground; small text is measured as drawn (no tabular digits). */
+      svg.draw {
+        position: absolute;
+        left: 0;
+        top: 0;
+        display: block;
+        overflow: visible;
+      }
+      svg.draw text {
+        paint-order: stroke;
+        stroke: var(--g-viz-stage);
+        stroke-width: 3px;
+        stroke-linejoin: round;
+      }
+      svg.draw text.on-box {
+        stroke: var(--g-raised);
+      }
+      .t-label {
+        font: 600 var(--g-text-label) var(--g-font);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        fill: var(--g-muted);
+      }
+      .t-cap {
+        font: 500 var(--g-text-body-s) var(--g-font);
+        fill: var(--g-muted);
+      }
+      .t-capB {
+        font: 600 var(--g-text-body-s) var(--g-font);
+        fill: var(--g-text);
+      }
+      .t-small {
+        font: 500 var(--g-text-label) var(--g-font);
+        fill: var(--g-muted);
+      }
+      .t-smallB {
+        font: 700 var(--g-text-label) var(--g-font);
+        fill: var(--g-text);
+      }
+      .t-head {
+        font: 600 var(--g-text-title-m) var(--g-font-mono);
+        fill: var(--g-text);
+      }
+      .t-look {
+        font: 600 var(--g-text-label) var(--g-font);
+        fill: var(--g-accent);
+      }
+      .t-unit {
+        text-transform: none;
+      }
+      .crit-ink {
+        fill: var(--g-danger-ink);
+      }
+      .final-ink {
+        fill: var(--g-viz-final-ink);
+      }
+      .ink {
+        fill: var(--g-text);
+      }
+      .muted {
+        fill: var(--g-muted);
+      }
+      .gridline {
+        stroke: var(--g-line);
+        stroke-dasharray: 2 3;
+      }
+      .rail {
+        stroke: var(--g-viz-track);
+        stroke-width: 4;
+        stroke-linecap: round;
+      }
+      .rail-fill {
+        stroke: var(--g-accent);
+        stroke-width: 4;
+        stroke-linecap: round;
+      }
+      .stop {
+        fill: var(--g-line-strong);
+      }
+      .axis {
+        stroke: var(--g-line-strong);
+      }
+      /* The request stream between tiers: its width is the rate on the shared axis. */
+      .band {
+        fill: rgba(var(--g-viz-current-rgb), 0.2);
+      }
+      :root.dark .band {
+        fill: rgba(var(--g-viz-current-rgb), 0.3);
+      }
+      .strand {
+        stroke: var(--g-viz-stage);
+        stroke-opacity: 0.7;
+        stroke-width: 1;
+      }
+      .band-edge {
+        stroke: var(--g-viz-current);
+        stroke-opacity: 0.8;
+        stroke-width: 1.5;
+      }
+      .band-shed {
+        fill: var(--g-viz-critical-soft);
+      }
+      .band-shed-edge {
+        stroke: var(--g-viz-critical);
+        stroke-width: 2;
+      }
+      .band-hidden {
+        fill: none;
+        stroke: var(--g-stroke);
+        stroke-dasharray: 3 3;
+      }
+      .divider {
+        stroke: var(--g-line);
+      }
+      .band.stub {
+        fill: rgba(var(--g-viz-current-rgb), 0.3);
+      }
+      .tier-box {
+        fill: var(--g-raised);
+        stroke: var(--g-line);
+      }
+      .tier-box.bottleneck {
+        stroke: var(--g-viz-critical);
+        stroke-width: 1.5;
+      }
+      .tier-accent {
+        fill: var(--g-viz-critical);
+      }
+      .seg {
+        fill: var(--g-sunken);
+        stroke: var(--g-line-strong);
+      }
+      .seg.lost {
+        fill: url(#hatch);
+        stroke-dasharray: 3 2;
+      }
+      .fill.lo {
+        fill: var(--g-viz-current);
+      }
+      .fill.h1 {
+        fill: var(--g-viz-heat-1);
+      }
+      .fill.h2 {
+        fill: var(--g-viz-heat-2);
+      }
+      .fill.h3 {
+        fill: var(--g-viz-heat-3);
+      }
+      .fill.full {
+        fill: var(--g-viz-critical);
+      }
+      .writes-hatch {
+        fill: url(#writes);
+      }
+      .swatch-track {
+        fill: var(--g-sunken);
+        stroke: var(--g-line-strong);
+      }
+      .lane-hidden {
+        fill: none;
+        stroke: var(--g-stroke);
+        stroke-opacity: 0.7;
+        stroke-dasharray: 3 3;
+      }
+      .shed-block {
+        fill: url(#shedhatch);
+        stroke: var(--g-viz-critical);
+        stroke-width: 1.25;
+      }
+      .break {
+        fill: none;
+        stroke: var(--g-raised);
+        stroke-width: 3;
+      }
+      .break-line {
+        fill: none;
+        stroke: var(--g-stroke);
+        stroke-width: 1.25;
+      }
+      .ghost-tick {
+        stroke: var(--g-text);
+        stroke-opacity: 0.6;
+        stroke-width: 1.5;
+        stroke-dasharray: 2 2;
+      }
+      .meter-cell {
+        fill: var(--g-sunken);
+        stroke: var(--g-line-strong);
+      }
+      .sink {
+        fill: var(--g-viz-final);
+      }
+      .sink-track {
+        fill: var(--g-sunken);
+      }
+      .hatch-fill {
+        fill: var(--g-sunken);
+      }
+      .hatch-line {
+        stroke: var(--g-viz-discarded-ink);
+        stroke-opacity: 0.4;
+        stroke-width: 1.5;
+      }
+      .writes-line {
+        stroke: var(--g-raised);
+        stroke-opacity: 0.85;
+        stroke-width: 1.25;
+      }
+      .shed-fill {
+        fill: var(--g-viz-critical-soft);
+      }
+      .shed-line {
+        stroke: var(--g-viz-critical);
+        stroke-opacity: 0.6;
+        stroke-width: 1.25;
+      }
+      .xmark {
+        stroke: var(--g-viz-critical);
+        stroke-width: 2;
+        stroke-linecap: round;
+        fill: none;
+      }
+      .xground {
+        fill: var(--g-viz-stage);
+      }
+      .xground.on-box {
+        fill: var(--g-raised);
+      }
+      .dot.req {
+        fill: var(--g-viz-current);
+      }
+      .dot.doomed {
+        fill: var(--g-viz-critical);
+      }
+      .landing {
+        fill: none;
+        stroke: var(--g-viz-critical);
+        stroke-width: 2;
+      }
+      .focus-outline {
+        fill: none;
+        stroke: var(--g-accent);
+        stroke-width: 2;
+        stroke-dasharray: 6 4;
+      }
+      .tag {
+        fill: var(--g-viz-stage);
+        stroke: var(--g-accent);
+        stroke-width: 1.5;
+      }
+      .caption {
+        margin: 0;
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+      }
+      /* The experiment dock and cards (experiment-dock.component.ts, widget-check.component.ts). */
+      .dock {
+        padding: 12px 16px;
+        border-radius: var(--g-radius-md);
+        border: 1px solid var(--g-line);
+        border-left: 3px solid var(--g-accent);
+        background: var(--g-surface);
+      }
+      .dock:empty {
+        display: none;
+      }
+      .legend {
+        margin: 0 0 4px;
+        font-weight: 600;
+        line-height: 1.45;
+      }
+      .options {
+        list-style: none;
+        margin: 8px 0 0;
+        padding: 0;
+        display: grid;
+        gap: 8px;
+      }
+      .g-choice {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        padding: 10px 14px;
+        border-radius: 12px;
+        border: 1px solid var(--g-line-strong);
+        background: var(--g-raised);
+        color: var(--g-text);
+        font: 500 0.90625rem/1.45 var(--g-font);
+        text-align: left;
+      }
+      button.g-choice {
+        box-shadow: var(--g-shadow-raised);
+        cursor: pointer;
+      }
+      .g-choice.right {
+        border-color: var(--g-success-line);
+        background: var(--g-success-soft);
+      }
+      .g-choice.wrong {
+        border-color: var(--g-danger);
+        background: var(--g-danger-soft);
+      }
+      .mark {
+        flex: none;
+        width: 20px;
+        height: 20px;
+      }
+      .held {
+        margin: 10px 0 0;
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+      }
+      .reveal {
+        margin: 10px 0 0;
+        line-height: 1.55;
+        font-size: 0.90625rem;
+      }
+      .status-line {
+        margin: 8px 0 4px;
+        font: 600 var(--g-text-body) var(--g-font);
+        color: var(--g-muted);
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .status-line.met {
+        color: var(--g-success-ink);
+      }
+      .status {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        display: grid;
+        gap: 4px;
+        font: 600 var(--g-text-body-s) var(--g-font);
+        font-variant-numeric: tabular-nums;
+        color: var(--g-muted);
+      }
+      .status li {
+        display: flex;
+        gap: 8px;
+        align-items: baseline;
+      }
+      .status li.met {
+        color: var(--g-success-ink);
+      }
+      .status .state {
+        flex: none;
+        width: 16px;
+      }
+      .heading {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font: 600 var(--g-text-title-s) var(--g-font);
+        margin: 20px 0 8px;
+      }
+      .heading svg {
+        color: var(--g-accent);
+      }
+      .cards {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 8px;
+      }
+      .card-btn {
+        width: 100%;
+        min-height: 48px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 12px;
+        border: 1px solid var(--g-line-strong);
+        border-radius: var(--g-radius-sm);
+        background: var(--g-raised);
+        box-shadow: var(--g-shadow-raised);
+        color: var(--g-text);
+        font: 500 var(--g-text-body) var(--g-font);
+        text-align: left;
+      }
+      .card-btn[aria-current] {
+        border-color: var(--g-accent);
+        box-shadow: inset 0 0 0 1px var(--g-accent);
+        background: var(--g-accent-soft);
+      }
+      .card-btn .num {
+        flex: none;
+        display: grid;
+        place-items: center;
+        width: 26px;
+        height: 26px;
+        border-radius: var(--g-radius-pill);
+        background: var(--g-sunken);
+        font: 600 var(--g-text-body-s) var(--g-font-mono);
+        color: var(--g-muted);
+      }
+      /* Describe: a minmax(0, 1fr) grid, its table scrolling inside its own box; compact on narrow stages. */
+      .describe {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 8px;
+        justify-items: start;
+      }
+      .describe .muted-note {
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+        margin: 0;
+      }
+      .describe p.summary {
+        margin: 0;
+        font-size: var(--g-text-body-s);
+      }
+      .g-btn {
+        appearance: none;
+        border: 1px solid var(--g-line-strong);
+        background: var(--g-raised);
+        box-shadow: var(--g-shadow-raised);
+        color: var(--g-text);
+        border-radius: var(--g-radius-sm);
+        padding: 9px 14px;
+        min-height: 44px;
+        font: 500 var(--g-text-body) / 1 var(--g-font);
+      }
+      .g-btn:disabled {
+        opacity: 0.55;
+      }
+      .table-box {
+        justify-self: stretch;
+        overflow: auto;
+        border-top: 1px solid var(--g-line);
+      }
+      tbody tr {
+        height: 28px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font: 500 var(--g-text-body-s) var(--g-font);
+        font-variant-numeric: tabular-nums;
+      }
+      th,
+      td {
+        text-align: right;
+        padding: 4px 8px;
+        white-space: nowrap;
+      }
+      th:first-child,
+      td:first-child {
+        text-align: left;
+      }
+      th {
+        font: 600 var(--g-text-label) var(--g-font);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--g-muted);
+        position: sticky;
+        top: 0;
+        background: var(--g-surface);
+        vertical-align: bottom;
+      }
+      td {
+        border-top: 1px solid var(--g-line);
+      }
+      tr.now td {
+        background: var(--g-accent-soft);
+        font-weight: 600;
+      }
+      .compact th,
+      .compact td {
+        padding-inline: 4px;
+      }
+      .compact th {
+        letter-spacing: normal;
+        white-space: normal;
+      }
+      th .unit {
+        text-transform: none;
+      }
+      .toggles {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+      tr.total th,
+      tr.total td {
+        font-weight: 600;
+      }
+      tbody th {
+        text-align: left;
+        font: 500 var(--g-text-body-s) var(--g-font);
+        letter-spacing: normal;
+        text-transform: none;
+        color: var(--g-text);
+        position: static;
+        background: none;
+        border-top: 1px solid var(--g-line);
+        padding: 4px 8px;
+      }
+      .compact tbody th {
+        padding-inline: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <p class="eyebrow">System design · Capacity &amp; Scaling</p>
+      <h1>Try it</h1>
+      <section class="panel widget" id="widget"></section>
+    </main>
+    <script src="model.js"></script>
+    <script>
+      'use strict';
+      const M = window.CapacityModel;
+      const params = new URLSearchParams(location.search);
+      document.documentElement.classList.toggle('dark', params.get('theme') === 'dark');
+
+      // ---------- Text measurement, with the fonts the app ships (no tabular digits: stage text is measured as drawn).
+      const ROLE = {
+        label: { css: '600 11px "Inter Variable"', size: 11, track: 0.12, upper: true },
+        cap: { css: '500 13px "Inter Variable"', size: 13 },
+        capB: { css: '600 13px "Inter Variable"', size: 13 },
+        small: { css: '500 11px "Inter Variable"', size: 11 },
+        smallB: { css: '700 11px "Inter Variable"', size: 11 },
+        head: { css: '600 17px "JetBrains Mono Variable"', size: 17 },
+        look: { css: '600 11px "Inter Variable"', size: 11 },
+      };
+      const ctx = document.createElement('canvas').getContext('2d');
+      const widthCache = new Map();
+      function tw(text, role) {
+        const key = role + '|' + text;
+        if (widthCache.has(key)) return widthCache.get(key);
+        const f = ROLE[role];
+        ctx.font = f.css;
+        const s = f.upper ? text.toUpperCase() : text;
+        const w = Math.ceil(ctx.measureText(s).width + (f.track ? f.track * f.size * s.length : 0)) + 1;
+        widthCache.set(key, w);
+        return w;
+      }
+      const partsWidth = (parts) => parts.reduce((s, [t, role, , dx = 0]) => s + tw(t, role) + dx, 0);
+      // A space may break a line except between a number and its unit ("50 ms"), as stage-text.ts and g-code-text keep them.
+      const BREAK = / (?!(?<=\d )(?:ms|s)\b)/;
+      /** Lays runs of styled words into lines no wider than `width`: each line a list of [text, role, cls] parts. */
+      function flow(parts, width) {
+        // Words keep their run's role and class; a word with no space before it is glued to the one before (no break).
+        const words = [];
+        let spaceNext = false;
+        for (const [text, role, cls = ''] of parts) {
+          const pieces = text.split(BREAK);
+          pieces.forEach((w, i) => {
+            const space = i > 0 || spaceNext || /^ /.test(text);
+            if (w) words.push({ w, role, cls, space: words.length > 0 && space });
+          });
+          spaceNext = / $/.test(text);
+        }
+        const lines = [];
+        let line = [];
+        let lw = 0;
+        for (const word of words) {
+          const lead = word.space ? ' ' : '';
+          const add = tw(lead + word.w, word.role);
+          if (line.length && word.space && lw + add > width) {
+            lines.push(line);
+            line = [[word.w, word.role, word.cls]];
+            lw = tw(word.w, word.role);
+          } else {
+            const last = line[line.length - 1];
+            if (last && last[1] === word.role && last[2] === word.cls) last[0] += lead + word.w;
+            else line.push([lead + word.w, word.role, word.cls]);
+            lw += add;
+          }
+        }
+        if (line.length) lines.push(line);
+        return lines;
+      }
+      const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      const r1 = (v) => Math.round(v * 10) / 10;
+      const plural = (n, one, many) => (n === 1 ? one : many);
+      const pick = (forms, fits) => forms.find(fits) ?? forms[forms.length - 1];
+      const fq = (v) => M.formatQps(v);
+      const fp = (u) => M.formatPct(u * 100);
+      const fn = (v) => M.group(v);
+      /** A count of workers in flight: whole when it is, else one decimal. */
+      /** A share of a request's queries: up to three decimals, so 0.18 split four ways reads 0.045. */
+      const f3 = (v) => String(Number(v.toFixed(3)));
+      const f1 = (v) => (Math.abs(v - Math.round(v)) < 1e-9 ? fn(v) : String(Number(v.toFixed(1))));
+
+      // ---------- The drawing: SVG parts in layers, and the boxes placement checks against.
+      class Draw {
+        constructor(W) {
+          this.W = W;
+          this.layers = { back: [], grid: [], band: [], boxes: [], lanes: [], marks: [], dots: [], text: [], top: [] };
+          this.texts = [];
+          this.marks = [];
+          this.links = [];
+          this.hits = [];
+          this.regions = {};
+          this.missing = [];
+          this.meta = { gaps: [], reserve: [] };
+        }
+        add(layer, s) {
+          this.layers[layer].push(s);
+        }
+        textBox(x, y, w, role, anchor = 'start') {
+          const fs = ROLE[role].size;
+          const x0 = anchor === 'middle' ? x - w / 2 : anchor === 'end' ? x - w : x;
+          return { x0, x1: x0 + w, y0: y - 0.74 * fs, y1: y + 0.22 * fs };
+        }
+        text(x, y, parts, o = {}) {
+          if (typeof parts === 'string') parts = [[parts, o.role ?? 'small', o.cls ?? '']];
+          const anchor = o.anchor ?? 'start';
+          const w = partsWidth(parts);
+          const role = parts.reduce((a, p) => (ROLE[p[1]].size > ROLE[a].size ? p[1] : a), parts[0][1]);
+          const box = this.textBox(x, y, w, role, anchor);
+          box.owner = o.owner ?? '';
+          box.s = parts.map((p) => p[0]).join('');
+          this.texts.push(box);
+          const spans = parts.map(([t, r, cls = '', dx = 0]) => `<tspan class="t-${r} ${cls}"${dx ? ` dx="${dx}"` : ''}>${esc(t)}</tspan>`).join('');
+          const attrs = `x="${r1(x)}" y="${r1(y)}" text-anchor="${anchor}"${o.owner ? ` data-owner="${o.owner}"` : ''}${o.ground ? ' data-ground="1"' : ''}${o.id ? ` data-id="${o.id}"` : ''}${o.data ?? ''}`;
+          this.add(o.layer ?? 'text', `<text class="${o.textCls ?? ''}" ${attrs}>${spans}</text>`);
+          return box;
+        }
+        mark(box, owner = '') {
+          this.marks.push({ ...box, owner });
+        }
+        link(points, owner = '') {
+          this.links.push({ points, owner });
+        }
+        hit(kind, x, y, w, h, extra = {}) {
+          this.hits.push({ kind, x, y, w, h, ...extra });
+        }
+        region(id, box) {
+          (this.regions[id] ??= []).push(box);
+        }
+        free(box, ignoreOwner = '', margin = 2) {
+          const b = { x0: box.x0 - margin, x1: box.x1 + margin, y0: box.y0 - margin, y1: box.y1 + margin };
+          const hit = (o) => !(o.x1 <= b.x0 || o.x0 >= b.x1 || o.y1 <= b.y0 || o.y0 >= b.y1);
+          const mine = (o) => ignoreOwner && o.owner && o.owner.split(' ').some((t) => ignoreOwner.split(' ').includes(t));
+          if (this.texts.some((t) => hit(t) && !mine(t))) return false;
+          if (this.marks.some((m) => hit(m) && !mine(m))) return false;
+          for (const l of this.links) {
+            if (mine(l)) continue;
+            if (l.points.some(([x, y]) => x > b.x0 && x < b.x1 && y > b.y0 && y < b.y1)) return false;
+          }
+          return b.x0 >= 2 && b.x1 <= this.W - 2;
+        }
+        /** Puts a text at the first candidate where it covers nothing; records it as missing when none is free. */
+        place(cands, parts, o = {}) {
+          for (const [x, y, anchor = 'start'] of cands) {
+            const w = partsWidth(parts);
+            const role = parts.reduce((a, p) => (ROLE[p[1]].size > ROLE[a].size ? p[1] : a), parts[0][1]);
+            const box = this.textBox(x, y, w, role, anchor);
+            if (box.y0 < (o.minY ?? 0) || box.y1 > (o.maxY ?? Infinity) || box.x0 < (o.minX ?? 2) || box.x1 > (o.maxX ?? this.W - 2)) continue;
+            if (!this.free(box, o.ignore ?? '', o.margin ?? 2)) continue;
+            return this.text(x, y, parts, { ...o, anchor });
+          }
+          if (!o.optional) this.missing.push(parts.map((p) => p[0]).join(''));
+          return null;
+        }
+        svg(H, label) {
+          const L = this.layers;
+          return `<svg class="draw" width="${this.W}" height="${H}" viewBox="0 0 ${this.W} ${H}" role="img" aria-label="${esc(label)}">
+<defs>
+<pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" class="hatch-fill"/><line class="hatch-line" x1="0" y1="0" x2="0" y2="6"/></pattern>
+<pattern id="writes" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line class="writes-line" x1="0" y1="0" x2="0" y2="5"/></pattern>
+<pattern id="shedhatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)"><rect width="6" height="6" class="shed-fill"/><line class="shed-line" x1="0" y1="0" x2="0" y2="6"/></pattern>
+</defs>
+<g>${L.back.join('')}</g><g>${L.grid.join('')}</g><g>${L.band.join('')}</g><g>${L.dots.join('')}</g><g>${L.boxes.join('')}</g><g>${L.lanes.join('')}</g><g>${L.marks.join('')}</g><g>${L.text.join('')}</g><g>${L.top.join('')}</g></svg>`;
+        }
+      }
+      function xGlyph(D, cx, cy, owner, s = 4, ground = 'xground') {
+        D.add('marks', `<circle class="${ground}" cx="${r1(cx)}" cy="${r1(cy)}" r="${s + 3}"/><path class="xmark" data-owner="${owner}" d="M${r1(cx - s)} ${r1(cy - s)}l${2 * s} ${2 * s}M${r1(cx + s)} ${r1(cy - s)}l${-2 * s} ${2 * s}"/>`);
+        D.mark({ x0: cx - s - 2, x1: cx + s + 2, y0: cy - s - 2, y1: cy + s + 2 }, owner);
+      }
+      const rect = (x, y, w, h, cls, extra = '') => `<rect class="${cls}" x="${r1(x)}" y="${r1(y)}" width="${r1(Math.max(0, w))}" height="${r1(h)}"${extra}/>`;
+
+      // ---------- What an open question hides, on every surface: one map (prevention 1). Each region is named in the
+      // question's own `hide` list. `limits` (asking and the answer's play) hides every tier's limit and load: the
+      // lanes are drawn empty and dashed, every busy, limit, spare, shed and served number reads "?", and no tier is
+      // named the bottleneck; the fleets, their per-instance sizes, the per-request costs and the traffic stay, since
+      // they are the question's premise. `after` (the answer's play only) hides the same for the tiers the act changes,
+      // and the served and shed totals. The stream of requests between tiers stays: it is the mechanism the play shows.
+      // No ghost of an earlier setting shows while a question asks.
+      function hiding(view) {
+        const h = new Set(view.hide ?? []);
+        const asking = view.phase === 'asking';
+        const playing = view.phase === 'playing';
+        const limits = h.has('limits') && (asking || playing);
+        const after = h.has('after') && playing;
+        const lanes = new Set();
+        if (limits) for (const id of ['lb', 'app', 'primary', 'replicas', 'workers']) lanes.add(id);
+        if (after) for (const id of view.changed ?? []) lanes.add(id);
+        return { lanes, totals: limits || after, ghost: asking && !view.leakGhost, any: limits || after };
+      }
+
+      // ---------- Words.
+      const NOUN = { lb: ['load balancer', 'load balancers'], app: ['app server', 'app servers'], replicas: ['read replica', 'read replicas'] };
+      const tierWord = (id) => ({ lb: 'the load balancers', app: 'the app servers', primary: 'the database primary', replicas: 'the read replicas' })[id];
+      const verb = (id) => (id === 'primary' ? 'is' : 'are');
+      const cap1 = (t) => t[0].toUpperCase() + t.slice(1);
+      const limitOf = (r, id) => r[id].ceiling;
+      /** A block's name and its fleet beside it: instances times what each takes. */
+      const NAMES = { lb: ['Load balancers'], app: ['App servers'], primary: ['Database primary', 'Primary'], replicas: ['Read replicas'] };
+      const NAME = { lb: 'Load balancers', app: 'App servers', primary: 'Primary', replicas: 'Read replicas' };
+      function fleetForms(r, id) {
+        const t = r[id];
+        if (id === 'lb' || id === 'app') {
+          const each = fq(t.each);
+          if (t.lost) return [`${t.up} of ${t.n} up × ${each}`, `${t.up} up × ${each}`, `${t.up} × ${each}`];
+          return [`${t.n} × ${each}`];
+        }
+        const size = `${fn(r.settings.size)} queries/s`;
+        if (id === 'primary') {
+          const largest = r.settings.size >= M.SIZES[M.SIZES.length - 1];
+          if (t.promoted) return [`${size}, a promoted replica`, `${size}, promoted`, size];
+          return largest ? [`${size}, the largest machine`, `${size}, the largest`, size] : [`${size}`];
+        }
+        if (t.lost) return [`${t.up} of ${t.n} left × ${size}`, `${t.up} of ${t.n} left`, `${t.up} left`];
+        return t.n ? [`${t.n} × ${size}`, `${t.n} × ${fn(r.settings.size)}`, `${t.n}`] : ['none'];
+      }
+      /** A block's status: how busy it is (bold), its limit, then what it spares or sheds. */
+      function statusParts(r, id, hid) {
+        const t = r[id];
+        if (id === 'replicas' && !t.n) return [['None: ', 'capB'], ['the primary takes every read.', 'cap']];
+        if (id === 'replicas' && !t.up) return [['None left: ', 'capB', 'crit-ink'], ['the primary takes every read.', 'cap']];
+        if (id === 'primary' && t.outage) return [['Lost with zone A: ', 'capB', 'crit-ink'], ['no replica can take over, so every request fails here.', 'cap']];
+        if ((id === 'lb' || id === 'app') && !t.up) return [['None left: ', 'capB', 'crit-ink'], [`zone A held every ${NOUN[id][0]}.`, 'cap']];
+        const each = id === 'replicas' ? ' each' : '';
+        if (hid.lanes.has(id)) return [[`?% busy${each}`, 'capB'], [' · limit after your answer', 'cap']];
+        const limit = t.ceiling;
+        const limitWords = limit > M.AXIS_MAX ? `limit ${fq(limit)}, off the axis` : `limit ${fq(limit)}`;
+        const load = id === 'primary' || id === 'replicas' ? r.served : t.arriving;
+        if (t.shed > 1e-9) return [[`Full${each}`, 'capB', 'crit-ink'], [` · ${limitWords} · ${fq(t.shed)} shed here${r.bottleneck === id ? ', the bottleneck' : ''}`, 'cap']];
+        if (t.util > 1 - 1e-9) return [[`100% busy${each}`, 'capB'], [` · ${limitWords} · nothing spare`, 'cap']];
+        if (load <= 0) return [[`Idle${each}`, 'capB'], [` · ${limitWords} · nothing reaches it`, 'cap']];
+        return [[`${fp(t.util)} busy${each}`, 'capB'], [` · ${limitWords} · ${fq(limit - load)} spare`, 'cap']];
+      }
+      /** What one request costs this block. */
+      function costParts(r, id) {
+        const t = r[id];
+        const w = M.formatNum(r.writes);
+        if (id === 'primary') {
+          if (t.outage) return [['With no primary, writes have nowhere to go.', 'cap']];
+          return r.replicas.up ? [[`Each request: ${w} writes; its reads go to the replicas.`, 'cap']] : [[`Each request: ${w} writes and ${M.formatNum(r.misses)} reads, every one here.`, 'cap']];
+        }
+        if (!t.up) return [['', 'cap']];
+        return [[`Each one: every write replayed, ${w} a request, and ${f3(r.misses / t.up)} reads a request.`, 'cap']];
+      }
+      /** The cache line at the database's foot: what it answers of each request's reads. */
+      function cacheParts(r) {
+        const reads = M.formatNum(r.reads);
+        if (!r.settings.cache) return [['Cache off: ', 'capB'], [`all ${reads} reads of each request reach the database.`, 'cap']];
+        return [['Cache on: ', 'capB'], [`it answers ${M.formatNum(r.hits)} of each request’s ${reads} reads; ${M.formatNum(r.misses)} reach the database.`, 'cap']];
+      }
+      /** The worker pool on one app server, by Little's law: in flight = rate x time. */
+      function workerParts(r, hid) {
+        const a = r.app;
+        if (!a.up) return [['No app server left.', 'cap']];
+        if (hid.lanes.has('workers') || hid.lanes.has('app')) return [['? of 100 busy', 'capB'], [' after your answer.', 'cap']];
+        const rate = a.passed / a.up;
+        const ms = M.formatMs(a.ms);
+        if (a.need > M.WORKERS + 1e-9)
+          return [
+            [`${f1(a.inFlight)} of ${a.workers} busy`, 'capB', 'crit-ink'],
+            [`: ${fq(rate)} × ${ms}. The ${fq(a.arriving / a.up)} sent to each server would need ${f1(a.need)}, and its CPU sits ${fp(a.cpuUtil)} busy.`, 'cap'],
+          ];
+        return [[`${f1(a.inFlight)} of ${a.workers} busy`, 'capB'], [`: ${fq(rate)} × ${ms} in flight (Little’s law).`, 'cap']];
+      }
+      function sinkParts(r, hid) {
+        if (hid.totals) return [['Served ', 'label'], ['?', 'head'], [' of ', 'cap'], [fq(r.offered), 'capB'], [' · shed after your answer', 'cap']];
+        const shed = r.shed > 1e-9;
+        return [['Served ', 'label'], [fq(r.served), 'head'], [' of ', 'cap'], [fq(r.offered), 'capB'], shed ? [` · ${fq(r.shed)} shed, ${fp(r.shed / r.offered)}`, 'capB', 'crit-ink'] : [' · nothing shed', 'cap']];
+      }
+      const FOOTNOTE = 'Every request costs a tier the same work, and a tier past its limit sheds the rest rather than queueing it.';
+      /** The setting's sentences: what is served, where it stops, and how busy the rest run. */
+      function summary(r, hid = { lanes: new Set(), totals: false }) {
+        const s = r.settings;
+        if (hid.totals || hid.lanes.size) return `Of ${fn(r.offered)} requests a second offered, what each tier takes shows after your answer.`;
+        const parts = [];
+        const each = (id) => (id === 'replicas' ? ' each' : '');
+        let lead;
+        if (r.shed > 1e-9) {
+          parts.push(`Of ${fn(r.offered)} requests a second, ${fn(r.served)} are served and ${fn(r.shed)} shed.`);
+          const b = r.bottleneck;
+          lead = b;
+          if (b === 'primary' && r.primary.outage) parts.push('The primary fell with zone A and no replica could take over, so every request fails at the database.');
+          else if ((b === 'lb' || b === 'app') && !r[b].up) parts.push(`Zone A held every ${NOUN[b][0]}, so nothing gets past ${tierWord(b)}.`);
+          else parts.push(`${cap1(tierWord(b))} ${verb(b)} the bottleneck, full at ${fn(limitOf(r, b))} a second.`);
+        } else {
+          lead = r.busiest;
+          parts.push(`All ${fn(r.offered)} requests a second are served.`);
+          parts.push(`${cap1(tierWord(lead))} ${verb(lead)} the busiest, at ${fp(r[lead].util)}${each(lead)}.`);
+        }
+        const others = r.lanes.filter((t) => t.id !== lead && !(t.id === 'primary' && t.outage) && t.up !== 0);
+        if (others.length)
+          parts.push(
+            `${others
+              .map((t, i) => {
+                const name = i ? tierWord(t.id) : cap1(tierWord(t.id));
+                return t.shed > 1e-9 ? `${name} ${verb(t.id)} full, shedding ${fn(t.shed)} a second` : `${name} ${verb(t.id)} at ${fp(t.util)}${each(t.id)}`;
+              })
+              .join('; ')}.`,
+          );
+        if (!r.replicas.n) parts.push('There are no read replicas: the primary takes every read.');
+        if (s.zone) parts.push('Zone A is down.');
+        if (s.slow) parts.push(`Each request takes ${M.formatMs(M.SLOW_MS)}.`);
+        return parts.join(' ');
+      }
+      /** What a ramp did, in order, for Reduced motion's caption and its notice. */
+      function rampStory(s, from) {
+        const plan = M.rampPlan(s, from, s.traffic);
+        const first = `Play stepped the traffic from ${fn(plan.stops[0])} to ${fn(s.traffic)} requests a second.`;
+        const end = plan.runs[plan.runs.length - 1];
+        if (plan.climax < 0) return `${first} No tier filled; ${tierWord(end.busiest)} came closest, at ${fp(end[end.busiest].util)}${end.busiest === 'replicas' ? ' each' : ''}.`;
+        const at = plan.runs[plan.climax];
+        return `${first} At ${fn(at.offered)}, ${tierWord(at.bottleneck)} filled first and began to shed; at ${fn(end.offered)}, ${fn(end.served)} a second are served and ${fn(end.shed)} shed.`;
+      }
+
+      // ---------- Geometry: one axis in requests a second, shared by the traffic, the stream and every lane.
+      function geometry(W) {
+        const pad = W >= 520 ? 16 : 12;
+        const xa = pad + 12;
+        const xb = W - pad - 12;
+        const k = (xb - xa) / M.AXIS_MAX;
+        return { W, pad, xa, xb, k, x: (v) => xa + Math.min(Math.max(v, 0), M.AXIS_MAX) * k, gap: W >= 520 ? 26 : 24, stepX: W - pad - 2 - 88 };
+      }
+      const LINE = 17;
+
+      // ---------- Reserved lines: every wrapped text keeps, at each width, the most lines any setting needs, so the
+      // stage's height depends on its width alone (prevention 12). The sweep checks every setting against these.
+      const RESERVE_SET = (() => {
+        const out = [];
+        for (const traffic of [1000, 7000, 20000])
+          for (const lb of [1, 6])
+            for (const app of [1, 4, 21])
+              for (const size of M.SIZES)
+                for (const replicas of [0, 1, 6]) for (const cache of [0, 1]) for (const zone of [0, 1]) for (const slow of [0, 1]) out.push({ traffic, lb, app, size, replicas, cache, zone, slow });
+        for (const e of M.EXPERIMENTS) out.push(e.setup, { ...e.setup, ...(e.act?.set ?? {}) });
+        out.push({ ...M.EXPERIMENTS[5].setup, ...M.CHALLENGE_SOLUTION });
+        return out;
+      })();
+      const reserveCache = new Map();
+      const NO_HIDE = { lanes: new Set(), totals: false };
+      const ALL_HIDE = { lanes: new Set(['lb', 'app', 'primary', 'replicas', 'workers']), totals: true };
+      function reserve(W) {
+        if (reserveCache.has(W)) return reserveCache.get(W);
+        const g = geometry(W);
+        const lw = g.xb - g.xa;
+        const n = { lb: 1, app: 1, primary: 1, replicas: 1, workers: 1, costP: 1, costR: 1, cache: 1, sink: 1 };
+        for (const s of RESERVE_SET) {
+          const r = M.run(s);
+          for (const hid of [NO_HIDE, ALL_HIDE]) {
+            for (const id of ['lb', 'app', 'primary', 'replicas']) n[id] = Math.max(n[id], flow(statusParts(r, id, hid), lw).length);
+            n.workers = Math.max(n.workers, flow(workerParts(r, hid), lw).length);
+            n.sink = Math.max(n.sink, flow(sinkParts(r, hid), lw).length);
+          }
+          n.costP = Math.max(n.costP, flow(costParts(r, 'primary'), lw).length);
+          n.costR = Math.max(n.costR, flow(costParts(r, 'replicas'), lw).length);
+          n.cache = Math.max(n.cache, flow(cacheParts(r), lw).length);
+        }
+        n.foot = flow([[FOOTNOTE, 'small']], lw + 12).length;
+        reserveCache.set(W, n);
+        return n;
+      }
+      const workerTextWidth = (g) => g.xb - g.xa - meterWidth(g) - 10;
+      const meterWidth = (g) => Math.round(Math.min(110, (g.xb - g.xa) * 0.34));
+
+      // ---------- The legend: what each mark means, in one row beside the title or in rows under it.
+      const LEGEND = [
+        ['band', 'requests'],
+        ['busy', 'busy'],
+        ['track', 'spare'],
+        ['writes', 'writes'],
+        ['shed', 'shed'],
+      ];
+      function legendSwatch(D, kind, x, y) {
+        if (kind === 'band') {
+          D.add('marks', rect(x, y - 8, 14, 9, 'band') + `<circle class="dot req" cx="${x + 4}" cy="${y - 3.5}" r="2"/><circle class="dot req" cx="${x + 10}" cy="${y - 3.5}" r="2"/>`);
+        } else if (kind === 'busy') D.add('marks', rect(x, y - 8, 14, 9, 'fill h2'));
+        else if (kind === 'track') D.add('marks', rect(x + 0.5, y - 7.5, 13, 8, 'swatch-track'));
+        else if (kind === 'writes') D.add('marks', rect(x, y - 8, 14, 9, 'fill h2') + rect(x, y - 8, 14, 9, 'writes-hatch'));
+        else xGlyph(D, x + 7, y - 3.5, 'legend', 3.5);
+        D.mark({ x0: x, x1: x + 14, y0: y - 9, y1: y + 1 }, 'legend');
+      }
+      const legendWidth = () => LEGEND.reduce((s, [, t], i) => s + 18 + tw(t, 'small') + (i ? 12 : 0), 0);
+      function drawLegend(D, x0, y, maxX) {
+        let x = x0;
+        let yy = y;
+        for (const [kind, t] of LEGEND) {
+          const w = 18 + tw(t, 'small');
+          if (x > x0 && x + w > maxX) {
+            x = x0;
+            yy += 18;
+          }
+          legendSwatch(D, kind, x, yy);
+          D.text(x + 18, yy, [[t, 'small']], { owner: 'legend' });
+          x += w + 12;
+        }
+        return yy;
+      }
+
+      const heatOf = (u, shed) => (shed ? 'full' : u < 0.5 ? 'lo' : u < 0.7 ? 'h1' : u < 0.85 ? 'h2' : 'h3');
+
+      /** A row of instance segments on the axis: each as wide as its limit, filled to how busy it is. */
+      function drawLane(D, g, id, t, y, h, r, hid, view) {
+        const owner = `lane-${id}`;
+        const top = y;
+        const W = D.W;
+        if (hid.lanes.has(id) && !(id === 'replicas' && !t.n)) {
+          D.add('lanes', rect(g.xa, top, g.xb - g.xa, h, 'lane-hidden', ' rx="3"'));
+          D.mark({ x0: g.xa, x1: g.xb, y0: top, y1: top + h }, owner);
+          D.text((g.xa + g.xb) / 2, top + h / 2 + 4, [['after your answer', 'small']], { anchor: 'middle', owner, textCls: 'on-box' });
+          return;
+        }
+        if (id === 'replicas' && !t.up) {
+          D.add('lanes', rect(g.xa, top, Math.min(90, g.xb - g.xa), h, 'lane-hidden', ' rx="3"'));
+          D.mark({ x0: g.xa, x1: g.xa + Math.min(90, g.xb - g.xa), y0: top, y1: top + h }, owner);
+          return;
+        }
+        if (id === 'primary' && t.outage) {
+          const w = Math.min(90, g.xb - g.xa);
+          D.add('lanes', rect(g.xa, top, w, h, 'seg lost', ' rx="2"'));
+          xGlyph(D, g.xa + w / 2, top + h / 2, owner, 4, 'xground on-box');
+          D.mark({ x0: g.xa, x1: g.xa + w, y0: top, y1: top + h }, owner);
+          return;
+        }
+        if ((id === 'lb' || id === 'app') && !t.up) {
+          const w = Math.min(90, g.xb - g.xa);
+          D.add('lanes', rect(g.xa, top, w, h, 'seg lost', ' rx="2"'));
+          xGlyph(D, g.xa + w / 2, top + h / 2, owner, 4, 'xground on-box');
+          D.mark({ x0: g.xa, x1: g.xa + w, y0: top, y1: top + h }, owner);
+          return;
+        }
+        const count = id === 'primary' ? 1 : t.up;
+        const each = t.ceiling / count;
+        const shed = t.shed > 1e-9;
+        const heat = heatOf(t.util, shed);
+        const writesU = id === 'primary' ? t.writesUtil : id === 'replicas' ? t.replayUtil : 0;
+        let clipped = false;
+        const fills = [];
+        for (let i = 0; i < count; i++) {
+          const v0 = i * each;
+          if (v0 >= M.AXIS_MAX) {
+            clipped = true;
+            break;
+          }
+          const x0 = g.x(v0);
+          const xEnd = (i + 1) * each > M.AXIS_MAX ? g.xb : g.x((i + 1) * each) - (count > 1 ? 1 : 0);
+          if ((i + 1) * each > M.AXIS_MAX) clipped = true;
+          const w = xEnd - x0;
+          // A segment fills to how busy it is; one cut at the axis's end fills by its true width.
+          const u = Math.min(1, t.util);
+          const fillW = (i + 1) * each > M.AXIS_MAX ? Math.min(w, each * g.k * u) : w * u;
+          D.add('lanes', rect(x0, top, w, h, 'seg', w > 6 ? ' rx="2"' : ''));
+          if (fillW > 0.2) D.add('lanes', rect(x0, top, fillW, h, `fill ${heat}`, ` data-fill="${id}"`));
+          fills.push([x0, fillW]);
+          if (writesU > 1e-9 && u > 0) {
+            const ww = fillW * Math.min(1, writesU / u);
+            if (ww > 0.2) D.add('lanes', rect(x0, top, ww, h, 'writes-hatch', ` data-writes="${id}"`));
+          }
+        }
+        if (clipped) {
+          const xe = g.xb;
+          D.add('lanes', `<path class="break" d="M${xe - 7} ${top - 2}l4 ${h / 2 + 2}l-4 ${h / 2 + 2}"/><path class="break-line" d="M${xe - 9} ${top - 2}l4 ${h / 2 + 2}l-4 ${h / 2 + 2}M${xe - 5} ${top - 2}l4 ${h / 2 + 2}l-4 ${h / 2 + 2}"/>`);
+        }
+        const end = Math.min(g.xb, g.x(t.ceiling));
+        D.mark({ x0: g.xa, x1: end, y0: top, y1: top + h }, owner);
+        D.meta.lanes = D.meta.lanes ?? {};
+        D.meta.lanes[id] = { x0: g.xa, x1: end, y: top, h, ceiling: t.ceiling, count, util: t.util, fills };
+        // What a tier could not take, drawn where it is shed: from its limit to what arrived.
+        if (shed) {
+          const x0 = g.x(t.ceiling);
+          const x1 = g.x(t.ceiling + t.shed);
+          D.add('lanes', rect(x0, top + 1, x1 - x0, h - 2, 'shed-block', ` data-shed="${id}"`));
+          D.mark({ x0, x1, y0: top, y1: top + h }, owner);
+          xGlyph(D, Math.max(x0 + 8, x1 - 8), top + h / 2, owner, 4, 'xground on-box');
+        }
+      }
+
+      /** A box for one tier: its name and fleet with the stepper, then its lane and caption. */
+      function tierHeader(D, g, top, name, fleets, steps, owner) {
+        const avail = (steps ? g.stepX : g.xb) - g.xa - 6;
+        const fleet = pick(fleets, (f) => tw(f, 'capB') <= avail);
+        const one = tw(name, 'label') + 10 + tw(fleet, 'capB') <= avail;
+        if (!fleet) D.text(g.xa, top + 27, [[name, 'label']], { owner, textCls: 'on-box' });
+        else if (one) {
+          D.text(g.xa, top + 27, [[name, 'label']], { owner, textCls: 'on-box' });
+          D.text(g.xa + tw(name, 'label') + 10, top + 27, [[fleet, 'capB']], { owner, textCls: 'on-box', id: `fleet-${owner}` });
+        } else {
+          D.text(g.xa, top + 19, [[name, 'label']], { owner, textCls: 'on-box' });
+          D.text(g.xa, top + 36, [[fleet, 'capB']], { owner, textCls: 'on-box', id: `fleet-${owner}` });
+        }
+        if (steps) {
+          steps.forEach((st, i) => {
+            const x = g.stepX + i * 44;
+            D.hit('step', x, top, 44, 44, { owner: `step-${st.id}-${i}`, label: st.label, glyph: i ? '+' : '−', disabled: st.disabled });
+            D.mark({ x0: x + 6, x1: x + 38, y0: top + 6, y1: top + 38 }, `step-${st.id}`);
+          });
+        }
+      }
+      function drawLines(D, x, y, lines, owner, o = {}) {
+        lines.forEach((ln, i) => D.text(x, y + i * LINE, ln, { owner, textCls: o.cls ?? 'on-box', id: o.id ? `${o.id}-${i}` : undefined }));
+      }
+
+      function buildStage(W, r, view) {
+        const g = geometry(W);
+        const D = new Draw(W);
+        const hid = hiding(view);
+        const res = reserve(W);
+        const s = r.settings;
+        const lw = g.xb - g.xa;
+        const locked = view.phase === 'asking' || view.phase === 'playing';
+        D.label = summary(r, hid);
+
+        // Header: Play, the title and the legend.
+        D.hit('play', g.pad - 4, 4, 44, 44, { owner: 'play' });
+        D.mark({ x0: g.pad, x1: g.pad + 36, y0: 8, y1: 44 }, 'play');
+        const titleX = g.pad + 46;
+        const title = pick(['Requests through the tiers', 'Through the tiers'], (t) => titleX + tw(t, 'capB') <= W - g.pad);
+        D.text(titleX, 31, [[title, 'capB']], { owner: 'title' });
+        let headerBottom;
+        if (titleX + tw(title, 'capB') + 20 + legendWidth() <= W - g.pad) {
+          drawLegend(D, W - g.pad - legendWidth(), 31, W - g.pad);
+          headerBottom = 46;
+        } else headerBottom = drawLegend(D, g.pad, 66, W - g.pad) + 8;
+
+        // Traffic: the handle sets the offered rate on the shared axis; the stream starts at its width.
+        const yL = headerBottom + 20;
+        D.text(g.xa, yL, [['Traffic', 'label']], { owner: 'traffic' });
+        const valueX = g.xa + tw('Traffic', 'label') + 8;
+        const unit = pick([' requests a second', ' requests/s', '/s'], (u) => valueX + tw(fn(s.traffic) + u, 'capB') <= W - g.pad);
+        D.text(valueX, yL, [[fn(s.traffic) + unit, 'capB']], { owner: 'traffic', id: 'traffic-value' });
+        const yT = yL + 30;
+        D.add('marks', `<line class="rail" x1="${g.x(0)}" y1="${yT}" x2="${r1(g.x(M.TRAFFIC[M.TRAFFIC.length - 1]))}" y2="${yT}"/><line class="rail-fill" x1="${g.x(0)}" y1="${yT}" x2="${r1(g.x(s.traffic))}" y2="${yT}"/>`);
+        for (const t of M.TRAFFIC) if (t !== s.traffic) D.add('marks', `<circle class="stop" cx="${r1(g.x(t))}" cy="${yT}" r="1.5"/>`);
+        D.hit('handle', r1(g.x(s.traffic) - 22), yT - 22, 44, 44, { owner: 'handle', label: 'Traffic, requests a second' });
+        D.mark({ x0: g.x(0) - 2, x1: g.x(M.TRAFFIC[M.TRAFFIC.length - 1]) + 2, y0: yT - 3, y1: yT + 3 }, 'handle');
+        const yTick = yT + 33;
+        for (const v of [0, 10000, 20000].filter((v) => v <= M.AXIS_MAX)) {
+          const x = g.x(v);
+          D.text(x, yTick, [[fn(v), 'small']], { anchor: v ? 'middle' : 'start', owner: 'axis', data: ' data-xtick="1"' });
+        }
+        D.region('traffic', { x: g.pad, y: yL - 16, w: W - 2 * g.pad, h: yTick + 6 - (yL - 16) });
+
+        // The boxes, top to bottom, and the stream in the gaps between them. Each tier's lane sits at its box's top,
+        // where the stream pours in; its name, stepper and words follow.
+        let y = yTick + 10;
+        const boxes = [];
+        const gaps = [];
+        const stubs = [];
+        const regionTop = {};
+        const subRegion = (id, end) => D.region(id, { x: g.pad + 6, y: regionTop[id] + 3, w: W - 2 * g.pad - 12, h: end + 8 - regionTop[id] - 3 });
+        const LANE_Y = 10;
+        const LANE_H = 22;
+        /** A tier's lane, header and status from `top`; returns the baseline of its last status line. */
+        const block = (id, top, steps, stub) => {
+          drawLane(D, g, id, r[id], top + LANE_Y, LANE_H, r, hid, view);
+          if (stub !== null) stubs.push({ y0: top, y1: top + LANE_Y, flow: stub, id });
+          tierHeader(D, g, top + LANE_Y + LANE_H, pick(NAMES[id], (n) => tw(n, 'label') <= g.stepX - g.xa - 6), fleetForms(r, id), steps, id);
+          const base = top + LANE_Y + LANE_H + 44 + 13;
+          drawLines(D, g.xa, base, flow(statusParts(r, id, hid), lw), id, { id: `cap-${id}` });
+          const end = base + (res[id] - 1) * LINE;
+          regionTop[id] = top;
+          if (id === 'lb' || id === 'app') D.region(id, { x: g.pad + 6, y: top + 3, w: W - 2 * g.pad - 12, h: end + 8 - top - 3 });
+          return end;
+        };
+        // Load balancers.
+        const lbTop = y + g.gap;
+        gaps.push({ y0: y, y1: lbTop, flow: r.offered, next: r.lb, nextId: 'lb' });
+        let yy = block('lb', lbTop, [
+          { id: 'lb', label: 'Fewer load balancers', disabled: locked || s.lb <= 1 },
+          { id: 'lb', label: 'More load balancers', disabled: locked || s.lb >= M.LB_MAX },
+        ], r.lb.passed);
+        const lbBottom = yy + 12;
+        boxes.push({ id: 'lb', top: lbTop, bottom: lbBottom });
+
+        // App servers, with one server's worker pool.
+        const appTop = lbBottom + g.gap;
+        gaps.push({ y0: lbBottom, y1: appTop, flow: r.lb.passed, next: r.app, nextId: 'app' });
+        yy = block('app', appTop, [
+          { id: 'app', label: 'Fewer app servers', disabled: locked || s.app <= 1 },
+          { id: 'app', label: 'More app servers', disabled: locked || s.app >= M.APP_MAX },
+        ], r.app.passed);
+        yy += LINE + 6;
+        // The pool: 100 workers on one server, in ten blocks of ten, named beside it; Little's law under it.
+        const mw = meterWidth(g);
+        const wTop = yy - 9;
+        const hideW = hid.lanes.has('workers') || hid.lanes.has('app');
+        const filled = r.app.up && !hideW ? Math.round((r.app.inFlight / M.WORKERS) * 100) : 0;
+        const cellW = (mw - 9 * 2) / 10;
+        for (let b = 0; b < 10; b++) {
+          const bx = g.xa + b * (cellW + 2);
+          D.add('lanes', rect(bx, wTop, cellW, 10, hideW ? 'lane-hidden' : 'meter-cell'));
+          const f = Math.max(0, Math.min(10, filled - b * 10)) / 10;
+          if (f > 0) D.add('lanes', rect(bx, wTop, cellW * f, 10, `fill ${r.app.need > M.WORKERS + 1e-9 ? 'full' : heatOf(r.app.inFlight / M.WORKERS, false)}`, ' data-workers="1"'));
+        }
+        D.mark({ x0: g.xa, x1: g.xa + mw, y0: wTop, y1: wTop + 10 }, 'workers');
+        const wLabel = pick(['Workers on one server', 'Workers, one server', 'Workers'], (t) => g.xa + mw + 10 + tw(t, 'label') <= g.xb);
+        D.text(g.xa + mw + 10, yy, [[wLabel, 'label']], { owner: 'workers', textCls: 'on-box' });
+        yy += LINE + 2;
+        drawLines(D, g.xa, yy, flow(workerParts(r, hid), lw), 'workers', { id: 'workers' });
+        D.region('workers', { x: g.xa - 5, y: wTop - 4, w: lw + 10, h: res.workers * LINE + 26 });
+        yy += (res.workers - 1) * LINE;
+        const appBottom = yy + 12;
+        boxes.push({ id: 'app', top: appTop, bottom: appBottom });
+
+        // The database: the primary (machine size) and the replicas, one admission, then the cache line.
+        const dbTop = appBottom + g.gap;
+        gaps.push({ y0: appBottom, y1: dbTop, flow: r.app.passed, next: { shed: r.primary.shed + r.replicas.shed }, nextId: 'db' });
+        yy = block('primary', dbTop, [
+          { id: 'size', label: 'A smaller database machine', disabled: locked || s.size <= M.SIZES[0] },
+          { id: 'size', label: 'A bigger database machine', disabled: locked || s.size >= M.SIZES[M.SIZES.length - 1] },
+        ], r.served);
+        yy += LINE;
+        drawLines(D, g.xa, yy, flow(costParts(r, 'primary'), lw), 'primary', { id: 'cost-primary' });
+        yy += (res.costP - 1) * LINE;
+        subRegion('primary', yy);
+        const repTop = yy + 10;
+        D.add('lanes', `<line class="divider" x1="${g.xa}" y1="${repTop}" x2="${g.xb}" y2="${repTop}"/>`);
+        yy = block('replicas', repTop, [
+          { id: 'replicas', label: 'Fewer read replicas', disabled: locked || s.replicas <= 0 },
+          { id: 'replicas', label: 'More read replicas', disabled: locked || s.replicas >= M.REP_MAX },
+        ], null);
+        yy += LINE;
+        drawLines(D, g.xa, yy, flow(costParts(r, 'replicas'), lw), 'replicas', { id: 'cost-replicas' });
+        yy += (res.costR - 1) * LINE;
+        subRegion('replicas', yy);
+        yy += LINE + 6;
+        drawLines(D, g.xa, yy, flow(cacheParts(r), lw), 'cache', { id: 'cache' });
+        yy += (res.cache - 1) * LINE;
+        const dbBottom = yy + 12;
+        boxes.push({ id: 'db', top: dbTop, bottom: dbBottom });
+
+        // Served: the stream that leaves the database, and the totals.
+        const sinkTop = dbBottom + g.gap;
+        gaps.push({ y0: dbBottom, y1: sinkTop, flow: r.served, next: null, nextId: 'sink' });
+        D.add('lanes', rect(g.xa, sinkTop, lw, 6, 'sink-track', ' rx="3"') + (r.served > 0 ? rect(g.xa, sinkTop, g.x(r.served) - g.xa, 6, 'sink', ' rx="3"') : ''));
+        D.mark({ x0: g.xa, x1: g.xb, y0: sinkTop, y1: sinkTop + 6 }, 'sink');
+        let ys = sinkTop + 6 + 22;
+        flow(sinkParts(r, hid), lw).forEach((ln, i) => D.text(g.xa, ys + i * 20, ln, { owner: 'sink', id: `sink-${i}` }));
+        ys += (res.sink - 1) * 20;
+        D.region('sink', { x: g.xa - 6, y: sinkTop - 6, w: lw + 12, h: ys + 8 - sinkTop + 6 });
+        const footY = ys + 22;
+        flow([[FOOTNOTE, 'small']], lw + 12).forEach((ln, i) => D.text(g.xa - 6, footY + i * 15, ln, { owner: 'foot' }));
+        const H = Math.round(footY + (res.foot - 1) * 15 + 12);
+
+        // Boxes behind their text; the bottleneck's box in the critical tone.
+        for (const b of boxes) {
+          const bottleneck = !hid.any && r.shed > 1e-9 && (b.id === r.bottleneck || (b.id === 'db' && (r.bottleneck === 'primary' || r.bottleneck === 'replicas')));
+          D.add('boxes', rect(g.pad, b.top, W - 2 * g.pad, b.bottom - b.top, `tier-box${bottleneck ? ' bottleneck' : ''}`, ' rx="10"'));
+          if (b.id === 'db') D.region('db', { x: g.pad + 2, y: b.top + 2, w: W - 2 * g.pad - 4, h: b.bottom - b.top - 4 });
+        }
+        D.meta.boxes = boxes;
+
+        // The stream: in each gap, what flows on (current) and, at its right, what the next tier will shed (critical).
+        for (const gp of gaps) {
+          const x1 = g.x(gp.flow);
+          const shedNext = gp.next && gp.next.shed > 1e-9 ? gp.next.shed : 0;
+          const xPass = g.x(gp.flow - shedNext);
+          if (gp.flow > 0) D.add('band', rect(g.xa, gp.y0, xPass - g.xa, gp.y1 - gp.y0, 'band', ` data-band="${gp.nextId}"`) + `<line class="band-edge" x1="${r1(xPass)}" y1="${gp.y0}" x2="${r1(xPass)}" y2="${gp.y1}"/>`);
+          // Strands, one per 1,000 requests a second, so a stream's width reads as a count of strands.
+          const strands = [];
+          for (let v = 1000; v < gp.flow - 1e-9; v += 1000) strands.push(`M${r1(g.x(v))} ${gp.y0}V${gp.y1}`);
+          if (strands.length) D.add('band', `<path class="strand" d="${strands.join('')}"/>`);
+          if (shedNext) {
+            D.add('band', rect(xPass, gp.y0, x1 - xPass, gp.y1 - gp.y0, 'band-shed', ` data-band-shed="${gp.nextId}"`) + `<line class="band-shed-edge" x1="${r1(xPass)}" y1="${gp.y1 - 1}" x2="${r1(x1)}" y2="${gp.y1 - 1}"/>`);
+            if (x1 - xPass >= 4) xGlyph(D, (xPass + x1) / 2, gp.y1 - 9, `gap-${gp.nextId}`, 3.5);
+          }
+          D.meta.gaps.push({ y0: gp.y0, y1: gp.y1, x0: g.xa, x1, xPass, nextId: gp.nextId });
+          gp.mark = { x0: g.xa, x1: Math.max(x1, g.xa) + 4, y0: gp.y0, y1: gp.y1 };
+          // Gridlines only in the gaps, behind the stream, so none runs under a word.
+          for (const v of [10000, 20000].filter((v) => v <= M.AXIS_MAX)) {
+            D.add('grid', `<line class="gridline" x1="${r1(g.x(v))}" y1="${gp.y0}" x2="${r1(g.x(v))}" y2="${gp.y1}"/>`);
+            D.link([[g.x(v), gp.y0 + 0.5], [g.x(v), (gp.y0 + gp.y1) / 2], [g.x(v), gp.y1 - 0.5]], 'grid');
+          }
+        }
+
+        // Inside each box the stream pours into the lane: what the tier takes, down to the lane's top. Within a tier
+        // the load balancer spreads it, so it lands as one tooth on each instance's load (none on a hidden lane).
+        for (const st of stubs) for (const [x0, w] of D.meta.lanes?.[st.id]?.fills ?? []) if (w > 0.2) D.add('lanes', rect(x0, st.y0 + 0.5, w, st.y1 - st.y0 - 0.5, 'band stub'));
+        // Requests in flight while a play runs: dots in the gaps, as many as the rate there, red where they will be shed.
+        if (view.particles) drawParticles(D, g, gaps, view);
+        // The climax: the tier that filled first, ringed where its limit is.
+        if (view.climax && D.meta.lanes?.[view.climax]) {
+          const L = D.meta.lanes[view.climax];
+          D.add('top', `<circle class="landing" cx="${r1(L.x1)}" cy="${r1(L.y + L.h / 2)}" r="15"/>`);
+        }
+        // The stream's path takes no label or tag.
+        for (const gp of gaps) D.mark(gp.mark, 'stream');
+        // Ghosts: where a lane's limit was before the last change, so a change reads as a move.
+        if (view.ghost && !hid.ghost) drawGhosts(D, g, r, M.run(view.ghost), hid);
+        D.meta.hid = hid;
+        return { D, H, g };
+      }
+
+      function drawGhosts(D, g, r, before, hid) {
+        for (const id of ['lb', 'app', 'primary', 'replicas']) {
+          const L = D.meta.lanes?.[id];
+          const old = before[id].ceiling;
+          if (!L || hid.lanes.has(id) || !Number.isFinite(old) || old <= 0 || old > M.AXIS_MAX || Math.abs(old - r[id].ceiling) < 0.5) continue;
+          const x = r1(g.x(old));
+          D.add('top', `<line class="ghost-tick" x1="${x}" y1="${L.y - 5}" x2="${x}" y2="${L.y + L.h + 5}" data-ghost="${id}"/>`);
+          D.link([[x, L.y - 5], [x, L.y + L.h + 5]], `ghost-${id}`);
+          D.place(
+            [
+              [x + 6, L.y + L.h / 2 + 4],
+              [x - 6, L.y + L.h / 2 + 4, 'end'],
+              [x, L.y + L.h + 27, 'middle'],
+            ],
+            [[`was ${fq(old)}`, 'small']],
+            { owner: `ghost-${id}`, optional: true, textCls: 'on-box', maxX: g.stepX - 4 },
+          );
+        }
+      }
+
+      /** Seeded so a frame always draws the same dots. */
+      function mulberry32(a) {
+        return () => {
+          a |= 0;
+          a = (a + 0x6d2b79f5) | 0;
+          let t = Math.imul(a ^ (a >>> 15), 1 | a);
+          t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+          return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+      }
+      // One dot for every 400 requests a second in each gap's 24 px, so dot counts follow the model's rates; at most 60.
+      function drawParticles(D, g, gaps, view) {
+        const rnd = mulberry32(view.seed ?? 7);
+        const placed = [];
+        const R = 2.5;
+        let total = 0;
+        for (const gp of gaps) {
+          const shedNext = gp.next && gp.next.shed > 1e-9 ? gp.next.shed : 0;
+          const n = Math.min(14, Math.round((gp.flow / 400) * ((gp.y1 - gp.y0) / 24) * 0.5));
+          const x1 = g.x(gp.flow);
+          const xPass = g.x(gp.flow - shedNext);
+          for (let i = 0, tries = 0; i < n && tries < 200 && total < 60; tries++) {
+            const x = g.xa + R + rnd() * Math.max(0, x1 - g.xa - 2 * R);
+            const y = gp.y0 + R + 2 + rnd() * (gp.y1 - gp.y0 - 2 * R - 4);
+            if (placed.some((p) => Math.hypot(p[0] - x, p[1] - y) < 2 * R + 2)) continue;
+            if (D.marks.some((m) => m.owner.startsWith('gap-') && x > m.x0 - R && x < m.x1 + R && y > m.y0 - R && y < m.y1 + R)) continue;
+            placed.push([x, y]);
+            D.add('dots', `<circle class="dot ${x > xPass ? 'doomed' : 'req'}" cx="${r1(x)}" cy="${r1(y)}" r="${R}" data-owner="particle"/>`);
+            i++;
+            total++;
+          }
+        }
+        D.meta.particles = total;
+      }
+
+      // ---------- Focus outlines with their "Look here" tag on the first free place (prevention 5).
+      function focusOutlines(D, ids, H) {
+        const TAG = { w: 72, h: 16 };
+        for (const id of ids) {
+          for (const b of D.regions[id] ?? []) {
+            const x = Math.max(3, b.x);
+            const yy = Math.max(3, b.y);
+            const w = Math.min(D.W - 3, b.x + b.w) - x;
+            const h = Math.min(H - 3, b.y + b.h) - yy;
+            D.add('top', `<rect class="focus-outline" x="${r1(x)}" y="${r1(yy)}" width="${r1(w)}" height="${r1(h)}" rx="10"/>`);
+            const across = [];
+            for (let ax = x + w - TAG.w - 16; ax >= x + 16; ax -= 8) across.push(ax);
+            const xs = [x + w - TAG.w - 16, x + 16, ...across, x + w - TAG.w, D.W - 3 - TAG.w];
+            const ys = [yy - TAG.h / 2, yy + h - TAG.h / 2, yy + 4, yy + h - TAG.h - 4, yy + 24, yy + h - TAG.h - 24, yy + 44, yy - TAG.h - 2, yy + h + 2];
+            let placed = false;
+            for (const [tx, ty] of ys.flatMap((t) => xs.map((sx) => [sx, t]))) {
+              const box = { x0: tx, x1: tx + TAG.w, y0: ty, y1: ty + TAG.h };
+              if (tx < 3 || tx + TAG.w > D.W - 3 || ty < 3 || ty + TAG.h > H - 3) continue;
+              if (!D.free(box, '', 1)) continue;
+              if (D.hits.some((hh) => !(hh.x + hh.w <= tx || hh.x >= tx + TAG.w || hh.y + hh.h <= ty || hh.y >= ty + TAG.h))) continue;
+              D.add('top', `<rect class="tag" x="${r1(tx)}" y="${r1(ty)}" width="${TAG.w}" height="${TAG.h}" rx="8"/>`);
+              D.add('top', `<text x="${r1(tx + TAG.w / 2)}" y="${r1(ty + 12)}" text-anchor="middle" data-owner="look" data-ground="1"><tspan class="t-look">LOOK HERE</tspan></text>`);
+              D.mark(box, 'look');
+              placed = true;
+              break;
+            }
+            if (!placed) D.missingTags = (D.missingTags ?? 0) + 1;
+          }
+        }
+      }
+
+      // ---------- Mockup states.
+      const B = M.BASE;
+      const SOL = { ...M.EXPERIMENTS[5].setup, ...M.CHALLENGE_SOLUTION };
+      const STATES = {
+        default: { s: B },
+        calm: { s: { ...B, traffic: 2000 } },
+        cached: { s: { ...B, cache: 1 }, ghost: B },
+        scaled: { s: SOL },
+        zone: { s: { ...SOL, zone: 1 }, ghost: SOL },
+        slow: { s: { ...M.SETUP.slow, slow: 1 }, ghost: M.SETUP.slow },
+        overload: { s: { ...B, traffic: 20000 } },
+        outage: { s: { traffic: 6000, lb: 1, app: 4, size: 4000, replicas: 0, cache: 0, zone: 1, slow: 0 } },
+        replicas: { s: { traffic: 14000, lb: 4, app: 12, size: 8000, replicas: 6, cache: 0, zone: 0, slow: 0 }, ghost: { traffic: 14000, lb: 4, app: 12, size: 8000, replicas: 5, cache: 0, zone: 0, slow: 0 } },
+        playing: { s: B, ramp: { from: 1000, at: 7000 } },
+        describe: { s: B, describe: true },
+        reduced: { s: B, reduced: true },
+        ask: { exp: 0, phase: 'asking' },
+        reveal: { exp: 1, phase: 'revealed' },
+        challenge: { exp: 5, phase: 'challenge' },
+      };
+      const actSettings = (spec) => ({ ...spec.setup, ...(spec.act?.set ?? {}) });
+      const LANE_IDS = ['lb', 'app', 'primary', 'replicas', 'workers'];
+      /** The lanes an act changes: their limit, load, instances or binding differ between the setup and the act. */
+      function changedLanes(a, b) {
+        const out = [];
+        for (const id of ['lb', 'app', 'primary', 'replicas']) {
+          const x = a[id];
+          const y = b[id];
+          if (Math.abs(x.ceiling - y.ceiling) > 1e-6 || Math.abs(x.util - y.util) > 1e-9 || x.up !== y.up || x.shed !== y.shed) out.push(id);
+        }
+        if (Math.abs(a.app.inFlight - b.app.inFlight) > 1e-9 || a.app.need !== b.app.need) out.push('workers');
+        return out;
+      }
+      function viewOf(name) {
+        const st = STATES[name] ?? STATES.default;
+        const expParam = params.get('exp');
+        const expIdx = expParam !== null && st.exp !== undefined ? Number(expParam) - 1 : st.exp;
+        if (expIdx === undefined) {
+          const v = { s: st.s, hide: [], phase: 'rest', ghost: st.ghost ?? null, describe: !!st.describe, reduced: !!st.reduced };
+          if (st.ramp) return { ...v, s: { ...st.s, traffic: st.ramp.at }, particles: true, climax: rampClimax(st.s, st.ramp.from, st.ramp.at), rampTo: st.s.traffic };
+          return v;
+        }
+        const spec = M.EXPERIMENTS[expIdx];
+        if (spec.goal) return expView(spec, params.get('start') === '1' ? 'start' : 'challenge');
+        const phase = params.get('phase') === 'playing' && st.phase === 'asking' ? 'playing' : st.phase;
+        return expView(spec, phase, Number(params.get('frac') ?? 0.8));
+      }
+      /** The climax of a ramp: the tier that is first full, ringed at the stop where it fills. */
+      function rampClimax(s, from, at) {
+        const plan = M.rampPlan(s, from, at);
+        return plan.climax >= 0 && plan.stops[plan.climax] === at ? plan.full : null;
+      }
+      /** One experiment's view: asking (from whatever setting came before, which must leave no trace), the answer's play
+       * at a fraction of its clock, revealed, or the challenge met or at its start. */
+      function expView(spec, phase, frac = 0.8, from = null) {
+        const e = M.renderExperiment(spec);
+        if (spec.goal) {
+          const s = phase === 'start' ? spec.setup : SOL;
+          const r = M.run(s);
+          const met = M.goalMet(spec.goal, r.settings, M.metrics(r));
+          return { s, hide: [], exp: e, spec, phase: 'challenge', met, focus: met ? spec.focus : [], ghost: null };
+        }
+        const after = actSettings(spec);
+        const a = M.run(spec.setup);
+        const b = M.run(after);
+        const view = {
+          hide: phase === 'revealed' ? [] : e.hide,
+          exp: e,
+          spec,
+          phase,
+          chosen: e.answer === 0 ? 1 : 0,
+          focus: phase === 'revealed' ? spec.focus : [],
+          changed: changedLanes(a, b),
+          ghost: phase === 'asking' ? from : phase === 'revealed' ? spec.setup : null,
+        };
+        if (phase === 'asking') return { ...view, s: spec.setup };
+        if (phase === 'playing') {
+          if (spec.act.run === 'ramp') {
+            const stops = M.rampPlan(spec.setup, spec.setup.traffic, after.traffic).stops;
+            const at = stops[Math.min(stops.length - 1, Math.floor(frac * stops.length))];
+            return { ...view, s: { ...after, traffic: at }, particles: true, seed: at, climax: null };
+          }
+          return { ...view, s: after, particles: true, seed: Math.round(frac * 100) + 3 };
+        }
+        return { ...view, s: after };
+      }
+      window.expView = expView;
+
+      // ---------- The page around the stage.
+      function controlsHtml(r, view) {
+        const s = r.settings;
+        const locked = view.phase === 'asking' || view.phase === 'playing';
+        const toggle = (on, label, hint) => `<label class="segment"><input type="checkbox" ${on ? 'checked' : ''}/><span>${label}<small>${hint}</small></span></label>`;
+        return `<fieldset class="group conditions-control"${locked ? ' disabled' : ''}><legend class="control-label">Conditions</legend><div class="toggles">
+${toggle(s.cache, 'Cache reads', `${M.formatPct(M.HIT * 100)} hit`)}
+${toggle(s.zone, 'Zone A down', 'a third lost')}
+${toggle(s.slow, 'Slow queries', `${M.formatMs(M.SLOW_MS)} each`)}</div></fieldset>
+<p class="notice" aria-live="polite" aria-atomic="true">${esc(noticeOf(r, view))}</p>`;
+      }
+      function noticeOf(r, view) {
+        if (view.phase === 'asking' || view.phase === 'playing') return 'Play and the settings this question is about wait for your answer.';
+        if (view.reduced) return rampStory(r.settings, M.TRAFFIC[0]);
+        return summary(r);
+      }
+      const ICON_RIGHT = '<svg class="mark" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="var(--g-success-line)"/><path d="M6 10.2l2.6 2.6 5.2-5.6" fill="none" stroke="var(--g-surface)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      const ICON_WRONG = '<svg class="mark" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="var(--g-danger)"/><path d="M7 7l6 6M13 7l-6 6" fill="none" stroke="var(--g-surface)" stroke-width="2" stroke-linecap="round"/></svg>';
+      /** The challenge's status, each bound in the ask's own terms and its state in words (the house goalParts). */
+      function goalChecks(r) {
+        const m = M.metrics(r);
+        const b = M.CHALLENGE_BOUNDS;
+        const said = (met) => (met ? 'met' : 'not yet');
+        const served = m.shed < 1;
+        const room = m.headroom >= b.headroom;
+        const zoneOk = m.zoneShed < 1;
+        const few = r.machines <= b.machines;
+        const z = m.zone;
+        const where = z.lanes.find((t) => t.shed > 1e-9) ?? (z.primary.outage ? z.primary : null);
+        return [
+          { met: served, text: served ? `all ${fq(r.offered)} served: met` : `${fq(r.served)} served of ${fq(r.offered)}, ${fq(r.shed)} shed: not yet` },
+          { met: room, text: `the busiest tier ${fp(r.maxUtil)} busy, so ${fp(1 - r.maxUtil)} headroom, at least ${M.formatPct(b.headroom)}: ${said(room)}` },
+          {
+            met: zoneOk,
+            text: zoneOk
+              ? 'zone A lost: nothing shed: met'
+              : z.primary.outage
+                ? 'zone A lost: the primary falls with it, and no replica takes over: not yet'
+                : `zone A lost: ${fq(m.zoneShed)} shed at ${tierWord(where?.id ?? z.bottleneck)}: not yet`,
+          },
+          { met: few, text: `${r.machines} ${plural(r.machines, 'machine', 'machines')}, at most ${b.machines}: ${said(few)}` },
+        ];
+      }
+      function dockHtml(r, view) {
+        const e = view.exp;
+        if (!e) return '';
+        if (view.phase === 'challenge') {
+          const checks = goalChecks(r);
+          const kept = M.goalKept(view.spec.goal, r.settings);
+          const status = view.met ? 'Goal met:' : kept ? '' : 'The goal keeps every zone up and the database fast; it tries losing zone A for you.';
+          return `<p class="legend">${esc(e.ask)}</p>${status ? `<p class="status-line${view.met ? ' met' : ''}" role="status">${view.met ? ICON_RIGHT : ''}${esc(status)}</p>` : ''}<ul class="status">${checks
+            .map((c) => `<li class="${c.met ? 'met' : ''}"><span class="state" aria-hidden="true">${c.met ? '✓' : '·'}</span><span>${esc(c.text)}</span></li>`)
+            .join('')}</ul>${view.met ? `<p class="reveal" aria-live="polite" aria-atomic="true">${esc(e.reveal)}</p>` : ''}`;
+        }
+        if (view.phase === 'asking') {
+          return `<fieldset style="border:0;padding:0;margin:0"><legend class="legend">${esc(e.ask)}</legend><div class="options">${e.choices.map((c) => `<button class="g-choice">${esc(c)}</button>`).join('')}</div></fieldset>`;
+        }
+        const marked = e.choices
+          .map((c, i) => {
+            const right = view.phase === 'revealed' && i === e.answer;
+            const wrong = view.phase === 'revealed' && i === view.chosen && !right;
+            const chosen = view.phase === 'playing' && i === view.chosen;
+            return `<li class="g-choice${right ? ' right' : wrong ? ' wrong' : ''}"${chosen ? ' style="border-style:dashed"' : ''}><span>${esc(c)}${chosen ? ' <small>(your guess)</small>' : ''}</span>${right ? ICON_RIGHT : wrong ? ICON_WRONG : ''}</li>`;
+          })
+          .join('');
+        if (view.phase === 'playing') return `<p class="legend">${esc(e.ask)}</p><ul class="options">${marked}</ul><p class="held">Watch the picture: the answer plays out on it.</p>`;
+        return `<p class="legend">${esc(e.ask)}</p><ul class="options">${marked}</ul><p class="reveal" aria-live="polite" aria-atomic="true">${esc(e.reveal)}</p>`;
+      }
+      function cardsHtml(view) {
+        return `<h3 class="heading"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8zM19 14l.9 2.6 2.6.9-2.6.9L19 21l-.9-2.6-2.6-.9 2.6-.9z"/></svg>Experiments</h3>
+<ol class="cards">${M.EXPERIMENTS.map((s, i) => `<li><button class="card-btn"${view.exp && view.exp.id === s.id ? ' aria-current="step"' : ''}><span class="num">${s.goal ? '⚑' : i + 1}</span><span>${esc(M.renderExperiment(s).title)}</span></button></li>`).join('')}</ol>`;
+      }
+      // Describe: a row per tier, and one for the whole path; compact under a 560 px stage.
+      function describeRows(r, compact) {
+        const head = compact ? ['Tier', 'Up', 'Limit/s', 'In/s', 'Busy', 'Shed/s'] : ['Tier', 'Up', 'Limit', 'Arriving', 'Busy', 'Shed'];
+        const q = (v) => (compact ? fn(v) : fq(v));
+        const name = compact ? { lb: 'LBs', app: 'App', primary: 'Primary', replicas: 'Replicas' } : NAME;
+        const up = (t, n) => (t.lost ? `${t.up} of ${n}` : `${t.up}`);
+        const rows = [];
+        const tierRow = (id) => {
+          const t = r[id];
+          if (id === 'replicas' && !t.up) return [name[id], t.n ? `0 of ${t.n}` : '0', '–', '–', '–', '–'];
+          if (id === 'primary' && t.outage) return [name[id], compact ? 'lost' : 'lost', '0', q(t.arriving), compact ? '–' : 'none left', q(t.shed + r.replicas.shed)];
+          const n = id === 'primary' ? 1 : t.n;
+          return [name[id], id === 'primary' ? (t.promoted ? (compact ? '1*' : '1, promoted') : '1') : up(t, n), q(t.ceiling), q(t.arriving), `${M.formatPct(t.util * 100)}`, t.shed > 1e-9 ? q(t.shed) : compact ? '0' : 'none'];
+        };
+        for (const id of ['lb', 'app', 'primary', 'replicas']) rows.push({ id, cells: tierRow(id) });
+        rows.push({ id: 'all', cells: [compact ? 'Served' : 'Served', '', '', q(r.offered), '', r.shed > 1e-9 ? q(r.shed) : compact ? '0' : 'none'], total: true });
+        return { head, rows, note: compact && r.primary.promoted ? '1*: a replica promoted to primary.' : null };
+      }
+      function describeHtml(r, view, compact) {
+        const waits = view.phase === 'asking' || view.phase === 'playing' || (view.phase === 'challenge' && !view.met);
+        const open = !!view.describe && !waits;
+        const btn = `<button class="g-btn" aria-expanded="${open}"${waits ? ' disabled' : ''}>${open ? 'Hide the description' : 'Describe'}</button>`;
+        if (waits) return `${btn}<p class="muted-note">${view.phase === 'challenge' ? 'Describe waits until you meet the goal.' : 'Describe waits for your answer.'}</p>`;
+        if (!open) return btn;
+        const { head, rows, note } = describeRows(r, compact);
+        return `${btn}<p class="summary">${esc(summary(r))}</p><div class="table-box${compact ? ' compact' : ''}" tabindex="0" role="region" aria-label="Every tier at this setting"><table><thead><tr>${head
+          .map((h) => `<th scope="col">${esc(h)}</th>`)
+          .join('')}</tr></thead><tbody>${rows.map((row) => `<tr${row.total ? ' class="total"' : ''}>${row.cells.map((c, i) => (i ? `<td>${esc(c)}</td>` : `<th scope="row">${esc(c)}</th>`)).join('')}</tr>`).join('')}</tbody></table></div>${note ? `<p class="muted-note">${esc(note)}</p>` : ''}`;
+      }
+      // Play, the traffic handle and the steppers: HTML over the drawing, so each is a real control with a 44 px target.
+      function overlaysHtml(D, view, r) {
+        const asking = view.phase === 'asking' || view.phase === 'playing';
+        const freePlaying = view.phase === 'rest' && view.particles;
+        const glyph = freePlaying ? '<rect x="12.5" y="11" width="4" height="14" rx="1"/><rect x="19.5" y="11" width="4" height="14" rx="1"/>' : '<path d="M14 11v14l11-7z"/>';
+        const label = asking ? 'Ramp the traffic, after your answer' : freePlaying ? 'Stop the ramp' : 'Ramp the traffic up to its setting';
+        const out = [];
+        for (const h of D.hits) {
+          if (h.kind === 'play') out.push(`<button class="play hit" data-owner="play" style="left:${h.x}px;top:${h.y}px" aria-label="${label}"${asking ? ' disabled' : ''}><svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="16"/>${glyph}</svg></button>`);
+          else if (h.kind === 'handle')
+            out.push(
+              `<div class="handle hit" role="slider" tabindex="0" data-owner="handle" aria-label="${esc(h.label)}" aria-valuemin="${M.TRAFFIC[0]}" aria-valuemax="${M.TRAFFIC[M.TRAFFIC.length - 1]}" aria-valuenow="${r.offered}" aria-valuetext="${fn(r.offered)} requests a second"${asking ? ' aria-disabled="true"' : ''} style="left:${h.x}px;top:${h.y}px"><span class="knob"></span></div>`,
+            );
+          else if (h.kind === 'step') out.push(`<button class="step hit" data-owner="${h.owner}" style="left:${h.x}px;top:${h.y}px" aria-label="${esc(h.label)}"${h.disabled ? ' disabled' : ''}><span aria-hidden="true">${h.glyph}</span></button>`);
+        }
+        return out.join('');
+      }
+
+      function render(name) {
+        const view = viewOf(name);
+        const r = M.run(view.s);
+        const root = document.getElementById('widget');
+        root.innerHTML = `<div class="controls">${controlsHtml(r, view)}</div>
+<div class="main"><div class="stage" role="group" aria-roledescription="visualization" aria-label="Capacity: requests flowing through load balancers, app servers and a database"><div class="well" id="well"></div></div>
+${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${esc(rampStory(r.settings, M.TRAFFIC[0]))}</p>` : ''}<div class="describe" id="describe"></div></div>
+<div class="experiments"><section class="dock" aria-label="Experiment">${dockHtml(r, view)}</section>${cardsHtml(view)}</div>`;
+        const well = document.getElementById('well');
+        const W = well.clientWidth;
+        const { D, H } = buildStage(W, r, view);
+        if (view.focus?.length) focusOutlines(D, view.focus, H);
+        well.style.height = H + 'px';
+        well.innerHTML = D.svg(H, D.label) + overlaysHtml(D, view, r);
+        document.getElementById('describe').innerHTML = describeHtml(r, view, W < 560);
+        window.__stage = { W, H, missingTags: D.missingTags ?? 0, summary: D.label, missing: D.missing };
+        return { W, H, D, view, r };
+      }
+
+      // ---------- Collisions, measured from the rendered DOM: text on text, lines through text, marks under text,
+      // off-stage text, dots on dots, text in the stream's path, hit boxes on hit boxes, axis labels closer than 6 px,
+      // text against a focus outline's stroke, and labels and tags with no place.
+      const sampleLine = (x1, y1, x2, y2, step = 2) => {
+        const n = Math.max(2, Math.ceil(Math.hypot(x2 - x1, y2 - y1) / step));
+        return Array.from({ length: n + 1 }, (_, i) => [x1 + ((x2 - x1) * i) / n, y1 + ((y2 - y1) * i) / n]);
+      };
+      function collisions(well, D) {
+        const svg = well.querySelector('svg.draw');
+        const W = Number(svg.getAttribute('width'));
+        const H = Number(svg.getAttribute('height'));
+        const owners = (el) => (el.getAttribute?.('data-owner') ?? '').split(' ').filter(Boolean);
+        const share = (a, b) => a.some((t) => b.includes(t));
+        const texts = [...svg.querySelectorAll('text')].map((t) => {
+          const b = t.getBBox();
+          return { el: t, s: t.textContent, owner: owners(t), ground: t.hasAttribute('data-ground'), x0: b.x + 0.5, x1: b.x + b.width - 0.5, y0: b.y + b.height * 0.2, y1: b.y + b.height * 0.95 };
+        });
+        const out = [];
+        const ov = (a, b, m = 0) => Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > m && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > m;
+        for (let i = 0; i < texts.length; i++) {
+          const a = texts[i];
+          if (a.x0 < -0.5 || a.x1 > W + 0.5 || a.y0 < 0 || a.y1 > H) out.push(`off-stage: "${a.s}"`);
+          for (let j = i + 1; j < texts.length; j++) if (ov(a, texts[j], 0.5)) out.push(`text on text: "${a.s}" / "${texts[j].s}"`);
+        }
+        const xt = texts.filter((t) => t.el.hasAttribute('data-xtick')).sort((a, b) => a.x0 - b.x0);
+        for (let i = 1; i < xt.length; i++) if (xt[i].x0 - xt[i - 1].x1 < 6) out.push(`axis labels ${xt[i - 1].s} and ${xt[i].s} ${(xt[i].x0 - xt[i - 1].x1).toFixed(1)} px apart`);
+        const inside = (p, t) => p.x > t.x0 + 0.5 && p.x < t.x1 - 0.5 && p.y > t.y0 + 0.5 && p.y < t.y1 - 0.5;
+        for (const el of svg.querySelectorAll('.gridline, .band-edge, .band-shed-edge, .ghost-tick, .rail, .rail-fill, .break-line')) {
+          const o = owners(el);
+          const [x1, y1, x2, y2] = el.tagName === 'line' ? ['x1', 'y1', 'x2', 'y2'].map((a) => Number(el.getAttribute(a))) : [0, 0, 0, 0];
+          const pts = el.tagName === 'line' ? sampleLine(x1, y1, x2, y2).map(([x, y]) => ({ x, y })) : Array.from({ length: Math.ceil(el.getTotalLength() / 2) + 1 }, (_, i) => el.getPointAtLength(i * 2));
+          for (const t of texts) {
+            if (share(o, t.owner)) continue;
+            if (pts.some((p) => inside(p, t))) out.push(`line through "${t.s}" (${el.getAttribute('class')})`);
+          }
+        }
+        for (const mk of svg.querySelectorAll('[data-mark]')) {
+          const b = mk.getBBox();
+          const box = { x0: b.x, x1: b.x + b.width, y0: b.y, y1: b.y + b.height };
+          for (const t of texts) if (!share(t.owner, owners(mk)) && ov(box, t, 0.5)) out.push(`text on mark ${mk.getAttribute('data-mark')}: "${t.s}"`);
+        }
+        const dots = [...svg.querySelectorAll('circle.dot')].map((c, i) => ({ id: i, x: Number(c.getAttribute('cx')), y: Number(c.getAttribute('cy')), r: Number(c.getAttribute('r')), particle: c.getAttribute('data-owner') === 'particle' }));
+        for (let i = 0; i < dots.length; i++)
+          for (let j = i + 1; j < dots.length; j++) if (Math.hypot(dots[i].x - dots[j].x, dots[i].y - dots[j].y) < dots[i].r + dots[j].r - 0.01) out.push(`dot on dot: ${dots[i].id} / ${dots[j].id}`);
+        for (const d of dots) if (d.x - d.r < -0.5 || d.x + d.r > W + 0.5 || d.y - d.r < 0 || d.y + d.r > H) out.push(`dot off-stage: ${d.id}`);
+        // The stream's path holds no word: a particle there never crosses a label.
+        for (const gp of D.meta.gaps) {
+          const box = { x0: gp.x0, x1: Math.max(gp.x1, gp.x0 + 1), y0: gp.y0, y1: gp.y1 };
+          for (const t of texts) if (ov(box, t, 0.5)) out.push(`text in the stream's path: "${t.s}"`);
+          for (const d of dots.filter((d) => d.particle)) if (d.y - d.r < gp.y0 - 0.5 && d.y + d.r > gp.y0 + 0.5) out.push('a particle across a box edge');
+        }
+        for (const o of svg.querySelectorAll('rect.focus-outline')) {
+          const [x, y, w, h] = ['x', 'y', 'width', 'height'].map((a) => Number(o.getAttribute(a)));
+          for (const t of texts) {
+            if (t.owner.includes('look')) continue;
+            const inner = t.x0 >= x + 3 && t.x1 <= x + w - 3 && t.y0 >= y + 3 && t.y1 <= y + h - 3;
+            const clear = t.x1 <= x - 4 || t.x0 >= x + w + 4 || t.y1 <= y - 4 || t.y0 >= y + h + 4;
+            if (!inner && !clear) out.push(`text at an outline's stroke: "${t.s}"`);
+          }
+        }
+        const wb = well.getBoundingClientRect();
+        const hits = [...well.querySelectorAll('.hit')].map((h) => {
+          const b = h.getBoundingClientRect();
+          return { o: h.dataset.owner, x0: b.left - wb.left - 1, x1: b.right - wb.left - 1, y0: b.top - wb.top - 1, y1: b.bottom - wb.top - 1 };
+        });
+        for (let i = 0; i < hits.length; i++) {
+          const a = hits[i];
+          if (a.x0 < -0.5 || a.x1 > W + 0.5 || a.y0 < -0.5 || a.y1 > H + 0.5) out.push(`hit box off-stage: ${a.o}`);
+          for (let j = i + 1; j < hits.length; j++) if (ov(a, hits[j], 0)) out.push(`hit on hit: ${a.o} / ${hits[j].o}`);
+          for (const t of texts) if (ov(a, t, 0.5) && !t.owner.includes(a.o) && !t.owner.includes('look')) out.push(`text under a control: ${a.o} / "${t.s}"`);
+        }
+        return out;
+      }
+      function tagMarks(well, D) {
+        const svg = well.querySelector('svg.draw');
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.setAttribute('opacity', '0');
+        for (const mk of D.marks) {
+          const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+          r.setAttribute('x', mk.x0);
+          r.setAttribute('y', mk.y0);
+          r.setAttribute('width', Math.max(0.1, mk.x1 - mk.x0));
+          r.setAttribute('height', Math.max(0.1, mk.y1 - mk.y0));
+          r.setAttribute('data-mark', mk.owner || 'mark');
+          r.setAttribute('data-owner', mk.owner || 'mark');
+          g.appendChild(r);
+        }
+        svg.appendChild(g);
+      }
+      const unplaced = (D) => [...(D.missingTags ? [`${D.missingTags} focus tag(s) without a place`] : []), ...(D.missing ?? []).map((t) => `no room for "${t}"`)];
+
+      // ---------- What must hold on every render, beyond collisions (the layout spec's assertions).
+      // A hidden value is never replaced by a wrong default, nothing past its limit is called busy, and every count
+      // keeps its separator.
+      const FALSE_CLAIMS = [/NaN/, /undefined/, /Infinity/, /(^|[^\d.,])0(\.0)?% busy/, /\b(10[1-9]|1[1-9]\d|[2-9]\d\d)(\.\d)?% busy/, /\b100\.\d% busy/, /(^|[^\d,])\d{4,}(?!\d)/, /\b1 (load balancers|app servers|replicas|machines)\b/, /\ba 8,000\b/, /shed here, the bottleneck.*shed here, the bottleneck/];
+      const stageText = (well) => [...well.querySelectorAll('text')].map((t) => t.textContent).join(' | ') + ' | ' + [...well.querySelectorAll('[aria-label],[aria-valuetext]')].map((e) => `${e.getAttribute('aria-label')} ${e.getAttribute('aria-valuetext') ?? ''}`).join(' | ');
+      function assertions(well, D, r, view) {
+        const out = [];
+        const svg = well.querySelector('svg.draw');
+        const text = stageText(well);
+        for (const g of FALSE_CLAIMS) if (g.test(text)) out.push(`false claim ${g}: ${text.match(g)[0]}`);
+        // Little's law multiplies out as printed: workers in flight = rate x time.
+        const wt = [...svg.querySelectorAll('[data-id^="workers-"]')].map((t) => t.textContent).join(' ');
+        const x = wt.match(/^([\d.,]+) of 100 busy: ([\d,.]+)\/s × ([\d,]+) ms/);
+        if (x) {
+          const [L, rate, ms] = [x[1], x[2], x[3]].map((v) => Number(v.replace(/,/g, '')));
+          if (Math.abs(L - (rate * ms) / 1000) > (0.5 * ms) / 1000 + 0.051) out.push(`Little's law does not multiply out: ${wt}`);
+        }
+        // Each lane's drawn end is its limit, its shed block ends where the stream above it does, and the served bar is the
+        // stream that leaves.
+        const g = geometry(D.W);
+        for (const [id, L] of Object.entries(D.meta.lanes ?? {})) {
+          const t = r[id];
+          if (Math.abs(L.x1 - Math.min(g.xb, g.x(t.ceiling))) > 0.6) out.push(`${id}'s lane ends off its limit`);
+          const blk = svg.querySelector(`[data-shed="${id}"]`);
+          if (blk && Math.abs(Number(blk.getAttribute('x')) + Number(blk.getAttribute('width')) - g.x(t.arriving)) > 0.6) out.push(`${id}'s shed block ends off what arrived`);
+          if (!blk && t.shed > 1e-9 && !D.meta.hid.lanes.has(id)) out.push(`${id} sheds with no block`);
+        }
+        const sink = svg.querySelector('rect.sink');
+        if (sink && Math.abs(Number(sink.getAttribute('width')) - (g.x(r.served) - g.xa)) > 0.6) out.push('the served bar is not what is served');
+        // Captions keep within their reserved lines (the stage's height depends on its width alone).
+        const res = reserve(D.W);
+        const lw = g.xb - g.xa;
+        for (const id of ['lb', 'app', 'primary', 'replicas']) if (flow(statusParts(r, id, D.meta.hid), lw).length > res[id]) out.push(`${id}'s status runs past its reserved lines`);
+        if (flow(workerParts(r, D.meta.hid), g.xb - g.xa).length > res.workers) out.push("the workers' line runs past its reserved lines");
+        if (flow(costParts(r, 'primary'), lw).length > res.costP) out.push("the primary's cost runs past its reserved lines");
+        if (flow(costParts(r, 'replicas'), lw).length > res.costR) out.push("the replicas' cost runs past its reserved lines");
+        if (flow(cacheParts(r), lw).length > res.cache) out.push('the cache line runs past its reserved lines');
+        if (flow(sinkParts(r, D.meta.hid), lw).length > res.sink) out.push('the totals run past their reserved lines');
+        // Particles: as many as the rate allows, red only where the next tier sheds.
+        for (const c of svg.querySelectorAll('circle.dot.doomed')) {
+          const cx = Number(c.getAttribute('cx'));
+          const cy = Number(c.getAttribute('cy'));
+          const gp = D.meta.gaps.find((gp) => cy >= gp.y0 && cy <= gp.y1);
+          if (!gp || cx < gp.xPass - 2.6) out.push('a red particle outside the part that is shed');
+        }
+        return out;
+      }
+      function check(well, D, r, view) {
+        tagMarks(well, D);
+        const out = [...collisions(well, D), ...unplaced(D), ...(r ? assertions(well, D, r, view) : [])];
+        well.querySelectorAll('[data-mark]').forEach((e) => e.remove());
+        return out;
+      }
+      function drawInto(well, W, r, view) {
+        const { D, H } = buildStage(W, r, view);
+        if (view.focus?.length) focusOutlines(D, view.focus, H);
+        well.style.height = H + 'px';
+        well.innerHTML = D.svg(H, D.label) + overlaysHtml(D, view, r);
+        return { D, H };
+      }
+      const show = (s) => `${s.traffic}/s lb${s.lb} app${s.app} db${s.size / 1000}k r${s.replicas}${s.cache ? ' cache' : ''}${s.zone ? ' zoneA' : ''}${s.slow ? ' slow' : ''}`;
+
+      // ---------- Every setting, at many widths: at rest, mid-ramp with particles, and with a ghost of a neighbour.
+      const ALL = [];
+      for (const traffic of M.TRAFFIC)
+        for (let lb = 1; lb <= M.LB_MAX; lb++)
+          for (let app = 1; app <= M.APP_MAX; app++)
+            for (const size of M.SIZES)
+              for (let replicas = 0; replicas <= M.REP_MAX; replicas++) for (const cache of [0, 1]) for (const zone of [0, 1]) for (const slow of [0, 1]) ALL.push({ traffic, lb, app, size, replicas, cache, zone, slow });
+      window.ALL_SETTINGS = ALL;
+      window.sweep = function (widths, list, modes = ['rest']) {
+        const well = document.getElementById('well');
+        const res = { renders: 0, failures: [] };
+        for (const W of widths) {
+          well.style.width = W + 2 + 'px';
+          for (const s of list) {
+            const r = M.run(s);
+            for (const mode of modes) {
+              const view = { s, hide: [], phase: 'rest' };
+              if (mode === 'ramp') Object.assign(view, { particles: true, seed: s.traffic + s.app, climax: rampClimax(s, M.TRAFFIC[0], s.traffic) });
+              if (mode === 'ghost') view.ghost = { ...s, app: s.app > 1 ? s.app - 1 : 2, cache: 1 - s.cache };
+              const { D } = drawInto(well, W, r, view);
+              const out = check(well, D, r, view);
+              res.renders++;
+              if (out.length) res.failures.push({ W, s: `${show(s)} ${mode}`, out: out.slice(0, 4) });
+            }
+          }
+        }
+        well.style.width = '';
+        return res;
+      };
+      window.sweepExperiments = function (widths) {
+        const well = document.getElementById('well');
+        const res = { renders: 0, failures: [] };
+        for (const W of widths) {
+          well.style.width = W + 2 + 'px';
+          M.EXPERIMENTS.forEach((spec, k) => {
+            const runs = spec.goal ? [['challenge'], ['start']] : [['asking'], ['playing', 0.05], ['playing', 0.5], ['playing', 0.95], ['revealed']];
+            for (const [phase, frac] of runs) {
+              const view = expView(spec, phase, frac);
+              const r = M.run(view.s);
+              const { D } = drawInto(well, W, r, view);
+              const out = check(well, D, r, view);
+              if (phase === 'revealed' && !well.querySelector('rect.tag')) out.push('the reveal has no Look here tag');
+              res.renders++;
+              if (out.length) res.failures.push({ W, exp: k + 1, phase: `${phase}${frac !== undefined ? ` ${frac}` : ''}`, out: out.slice(0, 4) });
+            }
+          });
+        }
+        well.style.width = '';
+        return res;
+      };
+      window.debugDraw = function (W, which, phase, frac = 0.8) {
+        const well = document.getElementById('well');
+        well.style.width = W + 2 + 'px';
+        const view = typeof which === 'object' ? { s: which, hide: [], phase: 'rest' } : expView(M.EXPERIMENTS[which - 1], phase, frac);
+        const r = M.run(view.s);
+        const { D } = drawInto(well, W, r, view);
+        return check(well, D, r, view);
+      };
+
+      // ---------- The no-answer sweep: while a question asks and while its answer plays, no rendered text, accessible
+      // name or structure may hold its answer or a false claim (prevention 1 and 2). Each question is entered from the
+      // settings every act leads to and from the challenge's solution, so nothing a learner did before can carry an answer in.
+      const ANSWERS = (() => {
+        const e = M.EXPERIMENTS.map((s) => M.renderExperiment(s));
+        const sl = (i, k) => M.formatSlot(e[i].slots[k]);
+        return {
+          tenfold: [sl(0, 'dbLimit'), 'bottleneck', 'Full', /limit [\d,]+/, /[\d.]+% busy/, /[\d,]+\/s (shed|spare)/],
+          cache: [sl(1, 'after'), sl(1, 'afterRound'), sl(1, 'ratio'), 'Full', /limit [\d,]+\/s ·[^|]*0\.38/],
+          replay: [sl(2, 'after'), sl(2, 'afterRound'), sl(2, 'limitAfter'), '900'],
+          zone: [sl(3, 'shed') + ' shed', sl(3, 'appLimit'), sl(3, 'appOver'), 'Full', 'bottleneck'],
+          slow: [sl(4, 'served'), sl(4, 'perServer'), sl(4, 'cpu'), sl(4, 'shed'), 'workers bind', 'Full'],
+        };
+      })();
+      function structural(well, spec, phase, view) {
+        const out = [];
+        const svg = well.querySelector('svg.draw');
+        if (!well.querySelector('.play')?.disabled) out.push('Play is enabled');
+        if (well.querySelector('.handle')?.getAttribute('aria-disabled') !== 'true') out.push('the traffic handle is enabled');
+        if ([...well.querySelectorAll('.step')].some((b) => !b.disabled)) out.push('a stepper is enabled');
+        const hid = hiding(view);
+        for (const id of hid.lanes) {
+          if (id === 'workers') {
+            if (svg.querySelector('[data-workers]')) out.push('the worker pool fills while hidden');
+            continue;
+          }
+          if (svg.querySelector(`[data-fill="${id}"], [data-writes="${id}"], [data-shed="${id}"], [data-ghost="${id}"]`)) out.push(`${id}'s lane shows a load, a shed or a ghost while hidden`);
+          const cap = [...svg.querySelectorAll(`[data-id^="cap-${id}-"]`)].map((t) => t.textContent).join(' ');
+          if (/\d/.test(cap.replace(/^\?% busy/, ''))) out.push(`${id}'s caption shows a number: ${cap}`);
+        }
+        if (hid.totals && !/^Served \?/i.test(svg.querySelector('[data-id="sink-0"]')?.textContent ?? '')) out.push('the served total shows');
+        if (hid.any && svg.querySelector('.tier-box.bottleneck')) out.push('a bottleneck box while hidden');
+        if (phase === 'asking' && svg.querySelector('.ghost-tick, [data-owner^="ghost-"]')) out.push('a ghost of an earlier setting while the question asks');
+        if (hid.lanes.size && svg.querySelector('.landing')) out.push('the climax ring while lanes are hidden');
+        return out;
+      }
+      function giveaways(well, spec, phase) {
+        const text = stageText(well);
+        const out = [];
+        for (const g of [...(ANSWERS[spec.id] ?? []), ...FALSE_CLAIMS]) if (typeof g === 'string' ? text.includes(g) : g.test(text)) out.push(`"${g}"`);
+        return out;
+      }
+      const ACT_TARGETS = [...M.EXPERIMENTS.filter((e) => e.act).map(actSettings), SOL];
+      window.noAnswer = function (widths) {
+        const well = document.getElementById('well');
+        const out = [];
+        let renders = 0;
+        for (const W of widths) {
+          well.style.width = W + 2 + 'px';
+          for (const spec of M.EXPERIMENTS.filter((e) => !e.goal)) {
+            const runs = [...[null, ...ACT_TARGETS].map((f) => ['asking', null, f]), ...[0, 0.2, 0.45, 0.7, 0.99].map((f) => ['playing', f, null])];
+            for (const [phase, frac, from] of runs) {
+              const view = expView(spec, phase, frac ?? 0.8, from);
+              drawInto(well, W, M.run(view.s), view);
+              renders++;
+              const where = `W${W} ${spec.id} ${phase}${frac !== null ? ` ${frac}` : ''}${from ? ` from ${show(from)}` : ''}`;
+              for (const g of [...giveaways(well, spec, phase), ...structural(well, spec, phase, view)]) out.push(`${where}: ${g}`);
+            }
+          }
+        }
+        well.style.width = '';
+        return { renders, out };
+      };
+      // Plants leaks on copies of views to prove the sweep catches each: E1 asked without `limits` (its limits show),
+      // E2 played without `after` (the database's new limit shows), E3 asked with the ghost of four replicas, and E5
+      // played with the worker pool left out of the hidden lanes.
+      window.plantedLeaks = function (W) {
+        const well = document.getElementById('well');
+        well.style.width = W + 2 + 'px';
+        const caught = [];
+        const tryLeak = (id, phase, patch, from = null) => {
+          const spec = M.EXPERIMENTS.find((e) => e.id === id);
+          const view = { ...expView(spec, phase, 0.8, from), ...patch };
+          drawInto(well, W, M.run(view.s), view);
+          caught.push(giveaways(well, spec, phase).length + structural(well, spec, phase, expView(spec, phase, 0.8, from)).length > 0);
+        };
+        tryLeak('tenfold', 'asking', { hide: [] });
+        tryLeak('cache', 'playing', { hide: [] });
+        tryLeak('replay', 'asking', { leakGhost: true }, { ...M.SETUP.replay, replicas: 4 });
+        tryLeak('slow', 'playing', { changed: ['lb'] });
+        well.style.width = '';
+        return caught;
+      };
+      window.heights = function (widths, stride = 97) {
+        const out = {};
+        for (const W of widths) {
+          const hs = new Set();
+          for (let i = 0; i < ALL.length; i += stride) hs.add(buildStage(W, M.run(ALL[i]), { s: ALL[i], hide: [], phase: 'rest' }).H);
+          for (const s of RESERVE_SET) hs.add(buildStage(W, M.run(s), { s, hide: [], phase: 'rest' }).H);
+          for (const spec of M.EXPERIMENTS)
+            for (const phase of spec.goal ? ['challenge', 'start'] : ['asking', 'playing', 'revealed']) {
+              const v = expView(spec, phase);
+              hs.add(buildStage(W, M.run(v.s), v).H);
+            }
+          out[W] = [...hs];
+        }
+        return out;
+      };
+      window.stageHeight = (W, s = B) => buildStage(W, M.run(s), { s, hide: [], phase: 'rest' }).H;
+      window.widgetHeight = () => document.getElementById('widget').getBoundingClientRect().height;
+      // Every summary, notice, ramp story, Describe row and goal check a setting prints, for the false-claim and grammar
+      // rules.
+      const WORD_RULES = [...FALSE_CLAIMS, /(^|[.!?] )\d/, /\b(\d+) (load balancer|app server|replica|machine)\b(?!s)/];
+      window.pageWords = function (stride = 7) {
+        const out = [];
+        for (let i = 0; i < ALL.length; i += stride) {
+          const s = ALL[i];
+          const r = M.run(s);
+          const words = [summary(r), rampStory(s, M.TRAFFIC[0]), ...[true, false].map((c) => describeRows(r, c).rows.flatMap((x) => x.cells).join(' ')), ...goalChecks(r).map((g) => g.text)];
+          for (const w of words)
+            for (const g of WORD_RULES) {
+              const m = w.match(g);
+              if (m && !(g.source.includes('(load balancer') && m[1] === '1')) out.push(`${show(s)}: ${g} in "${w}"`);
+            }
+        }
+        return out;
+      };
+
+      const stateName = params.get('state') ?? 'default';
+      Promise.all([
+        document.fonts.load('600 11px "Inter Variable"'),
+        document.fonts.load('500 13px "Inter Variable"'),
+        document.fonts.load('600 13px "Inter Variable"'),
+        document.fonts.load('700 11px "Inter Variable"'),
+        document.fonts.load('600 17px "JetBrains Mono Variable"'),
+      ]).then(() => {
+        const first = render(stateName);
+        const well = document.getElementById('well');
+        const issues = check(well, first.D, first.r, first.view);
+        render(stateName);
+        window.__collisions = issues;
+        document.body.dataset.ready = '1';
+      });
+    </script>
+  </body>
+</html>

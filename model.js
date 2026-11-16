@@ -30,8 +30,8 @@
   const LB_MAX = 6;
   const APP_MAX = 21;
   const REP_MAX = 6;
-  /** The shared axis, in requests a second: wide enough for 21 app servers and 6 load balancers. */
-  const AXIS_MAX = 32000;
+  /** The shared axis, in requests a second: the traffic's range with room to spare; a longer lane is cut at its end. */
+  const AXIS_MAX = 24000;
 
   const BASE = { traffic: 8000, lb: 2, app: 4, size: 8000, replicas: 2, cache: 0, zone: 0, slow: 0 };
 
