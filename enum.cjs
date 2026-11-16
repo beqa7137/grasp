@@ -85,6 +85,7 @@ console.log('\n== Claims');
     check(r.replicas.ceiling < r.settings.size / M.WRITES, `E3: ${n} replicas stay under the write ceiling`);
   }
   check(Math.round(b3.replicas.util * 100) === 61 && Math.round((a3.replicas.util / 2) * 100) === 36, 'E3: about 61% against about 36%');
+  check(Math.max(a3.replicas.ceiling, b3.replicas.ceiling, b3.settings.size / M.WRITES) <= M.AXIS_MAX, 'E3: both replica limits and the write ceiling lie on the axis');
 
   const a4 = M.run(e4.setup);
   const b4 = M.run({ ...e4.setup, ...e4.act.set });
@@ -93,6 +94,8 @@ console.log('\n== Claims');
   check(b4.app.shed === b4.shed && b4.lb.shed === 0 && b4.primary.shed + b4.replicas.shed === 0, 'E4: only the app servers shed');
   check(near(b4.lb.util, 1), 'E4: the load balancers end exactly full');
   check(b4.primary.promoted && !b4.primary.outage, 'E4: a replica became the primary');
+  check(e4.setup.lb % M.ZONES === 0 && e4.setup.app % M.ZONES === 0, 'E4: the load balancers and app servers are spread evenly over the three zones');
+  check(e4.setup.replicas % M.ZONES === 0 && b4.replicas.up === 1 && Math.round(b4.replicas.util * 1000) === 428, 'E4: the database loses its primary and a replica, and the one replica left runs at 42.8%');
   check(near(b4.app.arriving / b4.app.ceiling, a4.app.util * 1.5), 'E4: the app load on what is left is 1.5x');
 
   const a5 = M.run(e5.setup);
@@ -102,7 +105,41 @@ console.log('\n== Claims');
   check(near(b5.served / a5.offered, 0.2), 'E5: a fifth served');
   check(near(b5.app.cpuUtil, 200 / 1500), 'E5: CPU 13.3% busy');
   check(b5.primary.util < a5.primary.util, 'E5: the database does less work, not more');
+
+  // Every limit an experiment's ask, reveal or ghost compares lies on the axis, so the lane that shows it is never cut.
+  for (const e of M.EXPERIMENTS)
+    for (const s of [e.setup, { ...e.setup, ...(e.act?.set ?? {}) }]) {
+      const r = M.run(s);
+      for (const id of ['lb', 'app', 'primary', 'replicas'])
+        check(!Number.isFinite(r[id].ceiling) || r[id].ceiling <= M.AXIS_MAX + 1e-9, `${e.id}: the ${id} limit ${r[id].ceiling} lies on the axis`);
+    }
 }
+
+// ------------------------------------------------------------------ zones as drawn
+// The lane's order (B, C, then A) puts zone A's group last, so where it starts is the limit that survives zone A; its
+// size is what zoneLoss takes, and a promoted replica is a survivor.
+console.log('\n== Zones');
+for (const tier of ['lb', 'app', 'replicas'])
+  for (let n = 0; n <= (tier === 'app' ? M.APP_MAX : tier === 'lb' ? M.LB_MAX : M.REP_MAX); n++) {
+    const a = M.zoneLane(tier, n, false);
+    const b = M.zoneLane(tier, n, true);
+    const r = M.run({ ...M.BASE, lb: tier === 'lb' ? n || 1 : 2, app: tier === 'app' ? n || 1 : 4, replicas: tier === 'replicas' ? n : 2, zone: 1 });
+    const t = r[tier];
+    const ids = new Set(a.order.map((x) => x.id));
+    check(ids.size === n, `${tier} ${n}: every instance has its own id`);
+    check(a.order.slice(-b.lost.length || n).every((x, i, all) => !b.lost.length || x.zone === 'A' || all.length === 0), `${tier} ${n}: zone A's group is drawn last`);
+    if (n === 0 || (tier !== 'replicas' && n === 0)) continue;
+    check(b.lost.length === t.n - t.up - (tier === 'replicas' && r.primary.promoted ? 1 : 0), `${tier} ${n}: the drawn zone A group is what the zone loss takes`);
+    check(b.up.length === t.up, `${tier} ${n}: the instances drawn up are the model's`);
+    check(b.up.every((x, i) => x.id === a.order[i].id), `${tier} ${n}: the survivors keep their drawn places`);
+  }
+for (const lb of [1, 2, 3, 4, 5, 6])
+  for (const app of [1, 2, 4, 9, 16, 17, 21]) {
+    const s = { ...M.BASE, lb, app };
+    const r = M.run(s);
+    const z = M.run({ ...s, zone: 1 });
+    check(near(M.zoneLane('lb', lb, true).up.length * M.LB_RPS, z.lb.ceiling) && near(M.zoneLane('app', app, true).up.length * r.app.each, z.app.ceiling), `lb ${lb} app ${app}: zone A's group starts at the limit that survives it`);
+  }
 
 // ------------------------------------------------------------------ the closed form's invariants at every setting
 console.log('\n== Every setting');
@@ -134,6 +171,15 @@ for (const s of ALL) {
   }
 }
 check(invariants === 0, `${invariants} settings break an invariant (conservation, served = smallest limit, utilization in [0, 1], 100% where a tier sheds, workers within the pool)`);
+{
+  let longest = 0;
+  for (const s of ALL) {
+    const r = M.run(s);
+    for (const id of ['lb', 'app', 'primary', 'replicas']) if (Number.isFinite(r[id].ceiling)) longest = Math.max(longest, r[id].ceiling);
+  }
+  console.log(`the longest lane at any setting: ${longest}/s`);
+  check(longest <= M.AXIS_MAX + 1e-9, `no lane passes the axis's end (${longest} against ${M.AXIS_MAX})`);
+}
 
 // ------------------------------------------------------------------ the challenge
 console.log('\n== Challenge');
@@ -159,6 +205,7 @@ check(passing.length === 1 && Object.entries(M.CHALLENGE_SOLUTION).every(([k, v]
   check(!M.goalMet(ch.goal, start.settings, M.metrics(start)), 'the challenge does not start met');
   // Each lever is needed: the solution with one lever moved back fails.
   const sol = { ...ch.setup, ...M.CHALLENGE_SOLUTION };
+  check(M.run(sol).machines === M.CHALLENGE_BOUNDS.machines && M.run(sol).machines === sol.lb + sol.app + 1 + sol.replicas + M.CACHE_NODES, 'the solution uses exactly the machines allowed, the cache counted as a node in each zone');
   for (const [k, v] of [['lb', 5], ['app', 16], ['size', 4000], ['replicas', 1], ['replicas', 0], ['cache', 0]]) {
     const r = M.run({ ...sol, [k]: v });
     check(!M.goalMet(ch.goal, r.settings, M.metrics(r)), `the challenge needs ${k} != ${v}`);

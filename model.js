@@ -30,8 +30,11 @@
   const LB_MAX = 6;
   const APP_MAX = 21;
   const REP_MAX = 6;
-  /** The shared axis, in requests a second: the traffic's range with room to spare; a longer lane is cut at its end. */
-  const AXIS_MAX = 24000;
+  /** The shared axis, in requests a second: it holds the longest lane at any setting (the primary's write ceiling,
+   * 8,000 / 0.2), so no lane is ever cut and every instance that is up is drawn at its true width. */
+  const AXIS_MAX = 40000;
+  /** The cache runs one node in each zone, so losing a zone keeps its hit rate; it counts as that many machines. */
+  const CACHE_NODES = 3;
 
   const BASE = { traffic: 8000, lb: 2, app: 4, size: 8000, replicas: 2, cache: 0, zone: 0, slow: 0 };
 
@@ -43,6 +46,26 @@
   function zoneLoss(s) {
     if (!s.zone) return { lb: 0, app: 0, replicas: 0, primary: false };
     return { lb: Math.ceil(s.lb / ZONES), app: Math.ceil(s.app / ZONES), replicas: Math.floor(s.replicas / ZONES), primary: true };
+  }
+
+  const ZONE_NAMES = ['A', 'B', 'C'];
+  /** The zone of a tier's i-th instance: load balancers and app servers A, B, C, A, ...; replicas B, C, A, B, ... */
+  const zoneOf = (tier, i) => ZONE_NAMES[(tier === 'replicas' ? i + 1 : i) % ZONES];
+  /**
+   * A tier's instances in drawn order, zone B first, then C, then A, so where zone A's group starts on the lane is the
+   * limit that survives zone A. Each instance keeps a stable id (tier, zone, index within the zone). With zone A down its
+   * group is lost, and a promoted replica (the last survivor in drawn order) leaves the replicas for the primary.
+   */
+  function zoneLane(tier, n, zoneDown) {
+    const all = Array.from({ length: n }, (_, i) => ({ zone: zoneOf(tier, i) }));
+    const seen = { A: 0, B: 0, C: 0 };
+    for (const x of all) x.id = `${tier}-${x.zone}${seen[x.zone]++}`;
+    const order = ['B', 'C', 'A'].flatMap((z) => all.filter((x) => x.zone === z));
+    if (!zoneDown) return { order, up: order, lost: [], promoted: null };
+    const up = order.filter((x) => x.zone !== 'A');
+    const lost = order.filter((x) => x.zone === 'A');
+    const promoted = tier === 'replicas' && up.length ? up[up.length - 1] : null;
+    return { order, up: promoted ? up.slice(0, -1) : up, lost, promoted };
   }
 
   function run(settings) {
@@ -165,7 +188,7 @@
       busiest,
       maxUtil,
       limitOf: (id) => limits.find((l) => l.id === id)?.ceiling ?? (id === 'primary' ? primary.ceiling : replicas.ceiling),
-      machines: s.lb + s.app + 1 + s.replicas,
+      machines: s.lb + s.app + 1 + s.replicas + CACHE_NODES * s.cache,
     };
   }
 
@@ -231,7 +254,7 @@
     slow: { traffic: 6000, lb: 2, app: 6, size: 8000, replicas: 2, cache: 1, zone: 0, slow: 0 },
     challenge: { traffic: 16000, lb: 2, app: 8, size: 4000, replicas: 0, cache: 0, zone: 0, slow: 0 },
   };
-  const CHALLENGE_BOUNDS = { headroom: 30, machines: 26 };
+  const CHALLENGE_BOUNDS = { headroom: 30, machines: 29 };
   const CHALLENGE_GOAL = {
     all: [
       { metric: 'shed', below: 1 },
@@ -262,7 +285,7 @@
       reveal:
         'The database, at {dbLimit}: each request costs it {queries} queries, so its {size} queries a second carry only {dbLimitN} requests a second, fewer than the app servers’ {appLimit} or the load balancers’ {lbLimit}. Compare tiers by their limit in requests a second, never by their raw size. At {target} only {served} are served: the app servers, full at {appLimit}, shed {appShed}, and the database sheds {dbShed} more. Cache the reads or add replicas first; the app servers come next, and the load balancers end exactly {lbBusy} busy.',
       focus: ['db', 'sink'],
-      hide: ['limits'],
+      hide: ['db'],
       slots: () => {
         const a = run(SETUP.tenfold);
         const b = after(EXPERIMENTS[0]);
@@ -348,7 +371,7 @@
       reveal:
         '{after}: every replica replays every write, {writesN} a second, which takes {replay} of its {size} queries a second however many replicas share the reads. Only the {readsN} reads a second split: {readsBeforeN} each with {repBefore} replicas, {readsAfterN} with {repAfter}. Twice the replicas raise their limit from {limitBefore} to {limitAfter}, {gain} more, and no number of them passes {writeCeiling}, where replaying the writes alone fills a replica. Replicas scale reads, not writes.',
       focus: ['replicas'],
-      hide: ['after'],
+      hide: ['after', 'replay'],
       slots: () => {
         const a = run(SETUP.replay);
         const b = after(EXPERIMENTS[2]);
@@ -379,7 +402,7 @@
       title: 'Lose a zone',
       setup: SETUP.zone,
       act: { set: { zone: 1 }, run: 'flow' },
-      ask: 'Every tier is spread evenly over zones A, B and C, and none runs above {maxBusy}; all {traffic} are served. Zone A fails with every instance in it, and a replica takes over from the primary. How many requests a second are shed?',
+      ask: 'The load balancers and app servers are spread evenly over zones A, B and C, and no tier runs above {maxBusy}; all {traffic} are served. Zone A fails with every instance in it, and a replica takes over from the primary. How many requests a second are shed?',
       choices: [
         { text: 'None: every tier has {spare} to spare', value: 'none' },
         { text: 'About {third}: a third, the zone’s share', value: 'third' },
@@ -387,9 +410,9 @@
       ],
       truth: 'shed',
       reveal:
-        '{shed}, a tenth: the {appLeft} app servers left can take {appLimit}, so the {appBusy} they ran at becomes {appOver} of what they can serve. Losing one zone of three multiplies the load on what is left by {factor}, so any tier above {safe} sheds. The load balancers end exactly {lbAfter} busy, with nothing to spare, and the database barely notices: a replica became the primary. Size every tier for peak at or under {safe} of its capacity, or spread over more zones.',
+        '{shed}, a tenth: the {appLeft} app servers left can take {appLimit}, so the {appBusy} they ran at becomes {appOver} of what they can serve. Losing one zone of three multiplies the load on what is left by {factor} when a tier is spread evenly, so size every tier so that what survives the largest zone still carries the peak. The load balancers end exactly {lbAfter} busy, with nothing to spare. The database loses its primary and a replica yet keeps room: a replica became the primary (writes fail for the seconds that takes), and the one left runs at {repAfter}.',
       focus: ['app', 'lb'],
-      hide: ['after'],
+      hide: ['after', 'zones'],
       slots: () => {
         const a = run(SETUP.zone);
         const b = after(EXPERIMENTS[3]);
@@ -405,8 +428,8 @@
           appBusy: pct(a.app.util * 100),
           appOver: pct((b.app.arriving / b.app.ceiling) * 100),
           factor: times(ZONES / (ZONES - 1)),
-          safe: pct(((ZONES - 1) / ZONES) * 100),
           lbAfter: pct(b.lb.util * 100),
+          repAfter: pct(b.replicas.util * 100),
         };
       },
     },
@@ -415,7 +438,7 @@
       title: 'A slow database',
       setup: SETUP.slow,
       act: { set: { slow: 1 }, run: 'flow' },
-      ask: 'Each app server has {workers} workers, and a request holds one for its whole {fast}: at {traffic}, {inFlight} of each server’s {workers} are busy. A slow query plan makes every request take {slow}, though the database does no more work. How many requests a second are served?',
+      ask: 'Each app server has {workers} workers, and a request holds one for its whole {fast}: at {traffic}, {inFlight} of each server’s {workers} are busy. Lock waits on a hot row make every request take {slow}, though the database does no more work. How many requests a second are served?',
       choices: [
         { text: '{served}: a fifth', value: 'served' },
         { text: '{traffic}: all of them, each one slower', value: 'traffic' },
@@ -423,7 +446,7 @@
       ],
       truth: 'served',
       reveal:
-        '{served}, a fifth: requests in flight equal throughput times time (Little’s law). Each server’s {workers} workers hold at most {workers} requests at once, and at {slow} each that is {perServer}; {appN} servers serve {served}. The other {shed} are shed at the app servers while their CPUs sit {cpu} busy: the slow database used up the workers in front of it. Serving {traffic} at {slow} needs {need} requests in flight. Set timeouts, fix the slow query, and shed load early rather than only growing the pool.',
+        '{served}, a fifth: requests in flight equal throughput times time (Little’s law). Each server’s {workers} workers hold at most {workers} requests at once, and at {slow} each that is {perServer}; {appN} servers serve {served}. The other {shed} are shed at the app servers while their CPUs sit {cpu} busy: waiting on the database used up the workers in front of it. An autoscaler watching CPU sees {cpu} and adds nothing: scale and load-test on pool saturation and latency. Serving {traffic} at {slow} needs {need} requests in flight. Set timeouts, fix the lock contention, and shed load early rather than only growing the pool.',
       focus: ['app', 'workers'],
       hide: ['after'],
       slots: () => {
@@ -449,10 +472,10 @@
       id: 'challenge',
       title: 'Challenge: {target} with a zone to spare',
       setup: SETUP.challenge,
-      ask: 'Serve {target} with every tier keeping at least {headroom} headroom, nothing shed when zone A fails, and at most {machines} machines in all.',
+      ask: 'Serve {target} with every tier keeping at least {headroom} headroom, nothing shed when zone A fails, and at most {machines} machines in all; a cache runs a node in each of the {zones} zones.',
       goal: CHALLENGE_GOAL,
       reveal:
-        'The fleet that fits: {lbN} load balancers, {appN} app servers, the cache, a primary of {size} queries/s and {repN} replicas, {machines} machines. Every tier keeps its headroom, and losing zone A leaves {lbLeft} load balancers {lbZone} busy and {appLeft} app servers {appZone} busy, while one replica takes over as primary and the other carries every read at {repZone}. With {appFewer} app servers the zone loss would shed {appFewerShed}, and with no replica the primary would fall with its zone and every write with it.',
+        'The fleet that fits: {lbN} load balancers, {appN} app servers, a primary of {size} queries/s, {repN} replicas and the cache’s {zones} nodes, {fleet} machines; the busiest tier runs at {maxBusy}. Zone A holds {lbA} of the load balancers and {appA} of the app servers, so losing it leaves {lbLeft} load balancers {lbZone} busy and {appLeft} app servers {appZone} busy, while one replica takes over as primary and the other carries every read at {repZone}. With {appFewer} app servers zone A would hold {appFewerA}, and the {appFewerLeft} left would shed {appFewerShed}; with no replica the primary would fall with its zone and every write with it.',
       focus: ['lb', 'app', 'db'],
       hide: [],
       slots: () => {
@@ -462,7 +485,14 @@
         return {
           target: qps(SETUP.challenge.traffic),
           headroom: pct(CHALLENGE_BOUNDS.headroom),
-          machines: num(sol.machines),
+          machines: num(CHALLENGE_BOUNDS.machines),
+          fleet: num(sol.machines),
+          zones: num(ZONES),
+          maxBusy: pct(sol.maxUtil * 100),
+          lbA: num(z.lb.lost),
+          appA: num(z.app.lost),
+          appFewerA: num(fewer.app.lost),
+          appFewerLeft: num(fewer.app.up),
           lbN: num(sol.lb.n),
           appN: num(sol.app.n),
           size: num(sol.settings.size),
@@ -513,6 +543,10 @@
     APP_MAX,
     REP_MAX,
     AXIS_MAX,
+    CACHE_NODES,
+    ZONE_NAMES,
+    zoneOf,
+    zoneLane,
     BASE,
     SETUP,
     TIER_WORD,
