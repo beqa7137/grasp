@@ -1,13 +1,13 @@
 # Consistency & Quorums widget (`quorum`): every string, generated
 
-Generated from a production build of the widget (`/design/topics/sd-consistency`; its code is that of f8ead1c9 on
-`wip/r41-quorum`) by a browser walk, and from the engine build for the experiments. Nothing here is typed by hand. Walks:
+Generated from the built widget at 50b504ba (`/design/topics/sd-consistency`) by a browser walk, and from the engine build
+for the experiments. Nothing here is typed by hand. Walks:
 
 - **D-RM**: desktop 1280px, reduced motion, answering each question wrong.
 - **D-M**: desktop 1280px, with motion, answering each question right.
 - **320**: Pixel 7 at 320px, reduced motion, answering each question wrong.
 
-Each walk draws 25 settings (default; W1 R1 stale; R3 down; ALL, R3 down: refused; ALL, R3 stops: timed out; old; failed write; read fails; read times out; R3 back; stall; stall ALL; sloppy idle; sloppy, read asks H1; sloppy, no copy; sloppy, R2 and R3 back; sloppy, only stand-ins acked; N5; N5 stall; N5 W4 R2 stall; N5 W2 R3; N5 bug-7 setting; N5 sloppy, R3 down; N5 sloppy, two down; N5 timed out), and at each: the stage at rest, a
+Each walk draws 27 settings (default; W1 R1 stale; R3 down; ALL, R3 down: refused; ALL, R3 stops: timed out; old; failed write; read fails; read times out; R3 back; stall; stall ALL; sloppy idle; sloppy, read asks H1; sloppy, no copy; sloppy, R2 and R3 back; sloppy, only stand-ins acked; sloppy, timed out, only H1 applied; ALL and ALL; N5; N5 stall; N5 W4 R2 stall; N5 W2 R3; N5 bug-7 setting; N5 sloppy, R3 down; N5 sloppy, two down; N5 timed out), and at each: the stage at rest, a
 Play (sampled every 120 ms with motion), a card hovered or tapped, a card focused by key, and Describe open; then every
 experiment asking, playing its answer (sampled with motion), revealed, and Describe after the reveal; the challenge at N 3,
 at N 5, at N 5 W 4, met at N 5 W 4 R 2, and moved off again. A string is listed once, with the walks that showed it.
@@ -61,7 +61,7 @@ at N 5, at N 5 W 4, met at N 5 W 4 R 2, and moved off again. A string is listed 
 ### A sloppy quorum
 
 - **id:** `sloppy`
-- **Ask:** R2 and R3 were down, so a sloppy quorum took the write on R1 and stand-in H1. Both are back for the read, and 2 + 2 > 3. Can a read still miss v8?
+- **Ask:** R2 and R3 were down, so a sloppy quorum sent the write to R1 and stand-ins H1 and H2, and R1 and H1 acked. R2 and R3 are back for the read. With 2 + 2 > 3, can a read still miss v8?
 - **Choice 1:** No: R + W > N still holds
 - **Choice 2:** Yes: all 3 read sets can
 - **Choice 3 (answer):** Yes: 1 of the 3 read sets can
@@ -73,10 +73,10 @@ at N 5, at N 5 W 4, met at N 5 W 4 R 2, and moved off again. A string is listed 
 
 - **id:** `fast-fresh`
 - **Ask:** The middle replica keeps pausing for 100 ms. Choose N, W and R so that no read set can miss v8, reads take under 5 ms, writes under 50 ms, and writes survive at least 1 replica down.
-- **Reveal:** N 5, W 4, R 2: 2 + 4 > 5, the read hears R5 and R4 in 3 ms, and the 4th ack, R5's, arrives at 41 ms, so the paused R3 is never waited on. The cost is 5 copies of every write, and writes succeed 99.90% of the time against QUORUM of 3's 99.97%. In an interview, also name speculative retry (ask one more replica when one is slow), and say why LOCAL_QUORUM is not the answer here: a LOCAL_QUORUM read in the reader's data center need not overlap a LOCAL_QUORUM write in the writer's, and EACH_QUORUM writes would mean all 5 here, waiting for the paused R3.
+- **Reveal:** N 5, W 4, R 2: 2 + 4 > 5, the read hears R5 and R4 in 3 ms, and the 4th ack, R5's, arrives at 41 ms, so the paused R3 is never waited on. The cost is 5 copies of every write, and writes succeed 99.90% of the time against QUORUM of 3's 99.97%. W 4 needs a store that takes any W, as Riak does; Cassandra has no level for 4 of 5. In an interview, also name speculative retry (ask one more replica when one is slow), and say why LOCAL_QUORUM is not the answer here: a LOCAL_QUORUM read in the reader's data center need not overlap a LOCAL_QUORUM write in the writer's, and EACH_QUORUM writes would mean all 5 here, waiting for the paused R3.
 - **Focus at the reveal:** reader, latency
 
-## Stage drawing (SVG text) (379)
+## Stage drawing (SVG text) (390)
 
 - – _(D-RM, D-M, 320)_
 - ? _(D-RM, D-M, 320)_
@@ -118,7 +118,7 @@ at N 5, at N 5 W 4, met at N 5 W 4 R 2, and moved off again. A string is listed 
 - 2nd answer 4 ms _(D-RM, D-M, 320)_
 - 3 _(320)_
 - 3 + 2 is not above 5: a read of 3 can _(320)_
-- 3 + 2 is not above 5: a read of 3 can miss all 2 that _(D-RM, D-M)_
+- 3 + 2 is not above 5: a read of 3 can miss both _(D-RM, D-M)_
 - 3 ms _(D-RM, D-M, 320)_
 - 3 of 3 can miss v8 _(D-RM, D-M, 320)_
 - 4 _(D-RM, D-M, 320)_
@@ -138,6 +138,7 @@ at N 5, at N 5 W 4, met at N 5 W 4 R 2, and moved off again. A string is listed 
 - A _(320)_
 - a read of 1 that misses it returns v7. _(320)_
 - a read of 2 that misses it returns v7. _(320)_
+- a read returns v7 unless it asks a stand-in. _(D-RM, D-M)_
 - acked 104 ms _(D-RM, D-M, 320)_
 - acked 2 ms _(D-RM, D-M, 320)_
 - acked 3 ms _(D-RM, D-M, 320)_
@@ -193,6 +194,7 @@ at N 5, at N 5 W 4, met at N 5 W 4 R 2, and moved off again. A string is listed 
 - for R4 _(D-RM, D-M)_
 - goes to the home replicas: every read _(320)_
 - H1 _(D-RM, D-M, 320)_
+- H1 applied it: a read returns v7 unless _(320)_
 - H1– _(D-RM, D-M, 320)_
 - H1, H2 _(320)_
 - H1, R2 _(320)_
@@ -205,11 +207,12 @@ at N 5, at N 5 W 4, met at N 5 W 4 R 2, and moved off again. A string is listed 
 - home replicas: every read of 1 can miss v8. _(D-RM, D-M)_
 - how the write ends: after your _(320)_
 - in the read set _(D-RM, D-M, 320)_
+- it asks a stand-in. _(320)_
 - key. _(D-RM, D-M)_
 - last-write-wins can drop one. _(320)_
 - Latencyfrom each request · log scale _(D-RM, D-M, 320)_
 - Look here _(D-RM, D-M, 320)_
-- miss all 2 that acked. _(320)_
+- miss both replicas that acked. _(320)_
 - miss the replica that acked. _(320)_
 - missed _(D-M, 320)_
 - missed v8 _(D-RM, D-M)_
@@ -218,7 +221,6 @@ at N 5, at N 5 W 4, met at N 5 W 4 R 2, and moved off again. A string is listed 
 - no answer: 1 reachable, 2 needed _(D-RM, D-M, 320)_
 - no answer: 2 reachable, 3 needed _(320)_
 - no answer: 4 reachable, 5 needed _(320)_
-- none written to miss _(D-RM, D-M, 320)_
 - none: 0 reachable, 2 needed _(320)_
 - none: 1 reachable, 2 needed _(D-RM, D-M, 320)_
 - none: 2 reachable, 3 needed _(320)_
@@ -226,6 +228,7 @@ at N 5, at N 5 W 4, met at N 5 W 4 R 2, and moved off again. A string is listed 
 - none: the write was refused _(D-RM, D-M, 320)_
 - not sent _(D-RM, D-M)_
 - not the stand-ins holding the write: _(320)_
+- nothing to miss _(D-RM, D-M, 320)_
 - nothing to miss. _(320)_
 - Nothing was written, and H1 holds no _(320)_
 - Nothing was written, and H1 holds no copy of the _(D-RM, D-M)_
@@ -259,8 +262,8 @@ at N 5, at N 5 W 4, met at N 5 W 4 R 2, and moved off again. A string is listed 
 - R1, H1, H2 _(320)_
 - R1, H1, R2 _(320)_
 - R1, R2 _(320)_
-- R1, R2 and H1 both acked and answered _(D-RM, D-M, 320)_
-- R1, R2 and R3 both acked and answered _(D-RM, D-M, 320)_
+- R1, R2 and H1 each acked and answered _(D-RM, D-M, 320)_
+- R1, R2 and R3 each acked and answered _(D-RM, D-M, 320)_
 - R1, R2, H1 _(320)_
 - R1, R2, H1, H2 _(320)_
 - R1, R2, R3 _(320)_
@@ -276,7 +279,7 @@ at N 5, at N 5 W 4, met at N 5 W 4 R 2, and moved off again. A string is listed 
 - R2, H1, H2 _(320)_
 - R2, R1, H1, H2 _(D-RM, D-M, 320)_
 - R2, R3 _(320)_
-- R2, R4 and R5 both acked and answered _(D-RM, D-M, 320)_
+- R2, R4 and R5 each acked and answered _(D-RM, D-M, 320)_
 - R2? _(D-RM, D-M, 320)_
 - R2v7 _(D-RM, D-M, 320)_
 - R2v8 _(D-RM, D-M, 320)_
@@ -323,6 +326,7 @@ at N 5, at N 5 W 4, met at N 5 W 4 R 2, and moved off again. A string is listed 
 - replica that acked. _(D-RM, D-M)_
 - replica that applied it. _(D-RM, D-M)_
 - replicas only. _(320)_
+- replicas that acked. _(D-RM, D-M)_
 - returned 104 ms _(D-RM, D-M, 320)_
 - returned 2 ms _(D-RM, D-M, 320)_
 - returned 3 ms _(D-RM, D-M, 320)_
@@ -339,6 +343,8 @@ at N 5, at N 5 W 4, met at N 5 W 4 R 2, and moved off again. A string is listed 
 - returns ? · after your answer _(D-RM, D-M, 320)_
 - returns v7 · stale · 2 ms _(D-RM, D-M, 320)_
 - returns v7 · stale · 4 ms _(D-RM, D-M, 320)_
+- returns v7 · stale · 40 ms _(320)_
+- returns v7 unless it asks a stand-in. _(320)_
 - returns v8 · fresh · ? ms _(D-RM, D-M, 320)_
 - returns v8 · fresh · 104 ms _(D-RM, D-M, 320)_
 - returns v8 · fresh · 2 ms _(320)_
@@ -361,6 +367,7 @@ at N 5, at N 5 W 4, met at N 5 W 4 R 2, and moved off again. A string is listed 
 - sent at 5 ms _(D-RM, D-M, 320)_
 - sent at once _(D-RM, D-M, 320)_
 - sent when the write returns _(D-RM, D-M)_
+- stand-ins H1 and H2 applied it: a read _(320)_
 - stand-ins holding the write: only 1 home replica _(D-RM, D-M)_
 - stand-ins holding the write: only 2 home replicas _(D-RM, D-M)_
 - standing by _(D-RM, D-M)_
@@ -380,14 +387,14 @@ at N 5, at N 5 W 4, met at N 5 W 4 R 2, and moved off again. A string is listed 
 - survives 2 down · writes succeed 99.999% _(D-RM, D-M, 320)_
 - survives 2 down · writes succeed 99.9999% _(D-RM, D-M, 320)_
 - survives 3 down · reads 99.99999% _(320)_
-- survives 3 down · reads 99.9999999% _(320)_
+- survives 3 down · reads 99.99999999% _(320)_
 - survives 3 down · reads succeed 99.99999% _(D-RM, D-M)_
-- survives 3 down · reads succeed 99.9999999% _(D-RM, D-M)_
+- survives 3 down · reads succeed 99.99999999% _(D-RM, D-M)_
 - survives 3 down · writes 99.99999% _(D-RM, D-M, 320)_
 - survives 4 down · reads 99.999999% _(320)_
 - survives 4 down · reads succeed 99.999999% _(D-RM, D-M)_
 - survives 4 down · writes 99.999999% _(D-RM, D-M, 320)_
-- survives 4 down · writes 99.9999999% _(D-RM, D-M, 320)_
+- survives 4 down · writes 99.99999999% _(D-RM, D-M, 320)_
 - that acked. _(D-RM, D-M)_
 - that misses it returns v7. _(D-RM, D-M)_
 - the 1 that acked. _(320)_
@@ -400,6 +407,9 @@ at N 5, at N 5 W 4, met at N 5 W 4 R 2, and moved off again. A string is listed 
 - the sets count home replicas only. _(320)_
 - The write timed out and applied _(320)_
 - The write timed out and applied nowhere: every _(D-RM, D-M)_
+- The write timed out and only _(320)_
+- The write timed out and only stand-in _(320)_
+- The write timed out and only stand-in H1 applied it: _(D-RM, D-M)_
 - The write timed out, but R1 applied it: _(320)_
 - The write timed out, but R1 applied it: a read of 1 _(D-RM, D-M)_
 - The write timed out, but R1 applied it: a read of 2 _(D-RM, D-M)_
@@ -435,10 +445,10 @@ at N 5, at N 5 W 4, met at N 5 W 4 R 2, and moved off again. A string is listed 
 - v8· 41 ms _(D-RM, D-M)_
 - v8Artemis _(D-RM, D-M, 320)_
 - Wacks a write waits for _(D-RM, D-M, 320)_
-- waiting for a 1st ack _(D-M)_
 - waiting for a 2nd ack _(D-M)_
 - waiting for a 3rd ack _(D-M)_
 - waiting for a 5th ack _(D-M)_
+- waiting for an ack _(D-M)_
 - Which reads can miss v8 depends on _(320)_
 - Which reads can miss v8 depends on how the write _(D-RM, D-M)_
 - write _(D-RM, D-M, 320)_
@@ -454,66 +464,70 @@ at N 5, at N 5 W 4, met at N 5 W 4 R 2, and moved off again. A string is listed 
 - write timed out · returns v8 _(320)_
 - write timed out · returns v8 · 3 ms _(D-RM, D-M)_
 - write timed out · returns v8 · 40 ms _(D-RM, D-M)_
+- write timed out · returns v8 · 43 ms _(D-RM, D-M)_
 - write timed out, applied nowhere _(320)_
 - write timed out, applied nowhere · read 2 ms _(D-RM, D-M)_
 - Writer · DC A _(D-RM, D-M, 320)_
 
-## Stage summary (the drawing's accessible name) (54)
+## Stage summary (the drawing's accessible name) (57)
 
-- 3 replicas, W ALL, R ALL. The write is acked in 104 ms by R1, R3 and R2. returns v8 · fresh · 104 ms. 0 of 1 read sets can miss v8. _(D-RM, D-M, 320)_
-- 3 replicas, W ALL, R ALL. The write is refused: 2 live, 3 needed. read fails · 2 reachable, 3 needed. 1 of 1 read sets can miss v8. _(320)_
-- 3 replicas, W ALL, R ONE. The write is refused: 2 live, 3 needed. write refused · read 4 ms. 3 of 3 read sets can miss v8. _(D-RM, D-M, 320)_
-- 3 replicas, W ALL, R ONE. The write is refused: 2 live, 3 needed. write refused · read finds no copy · 43 ms. 3 of 3 read sets can miss v8. _(D-RM, D-M, 320)_
-- 3 replicas, W ALL, R ONE. The write times out. write timed out · returns v8 · 43 ms. 3 of 3 read sets can miss v8. _(320)_
+- 3 replicas, W ALL, R ALL. The write is acked in 104 ms by R1, R3 and R2. The read returns v8, fresh, in 104 ms. 0 of 1 read set can miss v8. _(D-RM, D-M, 320)_
+- 3 replicas, W ALL, R ALL. The write is acked in 40 ms by R1, R2 and R3. The read returns v8, fresh, in 40 ms. 0 of 1 read set can miss v8. _(D-RM, D-M, 320)_
+- 3 replicas, W ALL, R ALL. The write is refused: 2 live, 3 needed. The read fails: 2 reachable, 3 needed. Nothing was written, so there is nothing to miss. _(320)_
+- 3 replicas, W ALL, R ONE. The write is refused: 2 live, 3 needed. The read finds no copy in 43 ms. Nothing was written, so there is nothing to miss. _(D-RM, D-M, 320)_
+- 3 replicas, W ALL, R ONE. The write is refused: 2 live, 3 needed. The read returns v7 in 4 ms. Nothing was written, so there is nothing to miss. _(D-RM, D-M, 320)_
+- 3 replicas, W ALL, R ONE. The write times out. The read still returns v8 in 43 ms. 3 of 3 read sets can miss v8. _(320)_
 - 3 replicas, W ALL, R ONE. The write's outcome shows after your answer. What the read returns shows after your answer. _(D-RM, D-M, 320)_
-- 3 replicas, W ALL, R QUORUM. The write is refused: 1 live, 3 needed. read fails · 1 reachable, 2 needed. 3 of 3 read sets can miss v8. _(320)_
-- 3 replicas, W ALL, R QUORUM. The write is refused: 2 live, 3 needed. read times out · 1 answered, 2 needed. 3 of 3 read sets can miss v8. _(320)_
-- 3 replicas, W ALL, R QUORUM. The write is refused: 2 live, 3 needed. write refused · read 40 ms. 3 of 3 read sets can miss v8. _(D-RM, D-M, 320)_
-- 3 replicas, W ALL, R QUORUM. The write times out. write timed out · returns v8 · 40 ms. 0 of 3 read sets can miss v8. _(D-RM, D-M, 320)_
-- 3 replicas, W ONE, R ONE. The write is acked in 2 ms by R1. returns v7 · stale · 2 ms. 2 of 3 read sets can miss v8. _(D-RM, D-M, 320)_
-- 3 replicas, W ONE, R ONE. The write is acked in 4 ms by R2. returns v7 · stale · 2 ms. 2 of 3 read sets can miss v8. _(320)_
-- 3 replicas, W QUORUM, R ALL. The write is acked in 3 ms by R1 and H1. returns v8 · fresh · 43 ms. 0 of 1 read sets can miss v8. _(D-RM, D-M, 320)_
-- 3 replicas, W QUORUM, R ALL. The write is acked in 4 ms by H1 and R2. returns v8 · fresh · 45 ms. 0 of 1 read sets can miss v8. _(320)_
-- 3 replicas, W QUORUM, R ONE. The write is acked in 40 ms by H1 and R3. returns v8 · fresh · 2 ms. 2 of 3 read sets can miss v8. _(320)_
-- 3 replicas, W QUORUM, R ONE. The write is acked in 5 ms by H1 and H2. returns v7 · stale · 2 ms. 3 of 3 read sets can miss v8. _(D-RM, D-M, 320)_
-- 3 replicas, W QUORUM, R ONE. The write is refused: 1 live, 2 needed. write refused · read 2 ms. 3 of 3 read sets can miss v8. _(320)_
-- 3 replicas, W QUORUM, R ONE. The write times out. write timed out · read 2 ms. 2 of 3 read sets can miss v8. _(D-RM, D-M, 320)_
-- 3 replicas, W QUORUM, R ONE. The write times out. write timed out, applied nowhere · read 2 ms. 3 of 3 read sets can miss v8. _(D-RM, D-M, 320)_
-- 3 replicas, W QUORUM, R QUORUM. The write is acked in 104 ms by R3 and R2. returns v8 · fresh · 104 ms. 0 of 3 read sets can miss v8. _(320)_
-- 3 replicas, W QUORUM, R QUORUM. The write is acked in 3 ms by R1 and H1. returns v7 · stale · 4 ms. 1 of 3 read sets can miss v8. _(D-RM, D-M, 320)_
+- 3 replicas, W ALL, R QUORUM. The write is refused: 1 live, 3 needed. The read fails: 1 reachable, 2 needed. Nothing was written, so there is nothing to miss. _(320)_
+- 3 replicas, W ALL, R QUORUM. The write is refused: 2 live, 3 needed. The read returns v7 in 40 ms. Nothing was written, so there is nothing to miss. _(D-RM, D-M, 320)_
+- 3 replicas, W ALL, R QUORUM. The write is refused: 2 live, 3 needed. The read times out: 1 answered, 2 needed. Nothing was written, so there is nothing to miss. _(320)_
+- 3 replicas, W ALL, R QUORUM. The write times out. The read still returns v8 in 40 ms. 0 of 3 read sets can miss v8. _(D-RM, D-M, 320)_
+- 3 replicas, W ONE, R ONE. The write is acked in 2 ms by R1. The read returns v7, stale, in 2 ms. 2 of 3 read sets can miss v8. _(D-RM, D-M, 320)_
+- 3 replicas, W ONE, R ONE. The write is acked in 4 ms by R2. The read returns v7, stale, in 2 ms. 2 of 3 read sets can miss v8. _(320)_
+- 3 replicas, W QUORUM, R ALL. The write is acked in 3 ms by R1 and H1. The read returns v8, fresh, in 43 ms. 0 of 1 read set can miss v8. _(D-RM, D-M, 320)_
+- 3 replicas, W QUORUM, R ALL. The write is acked in 4 ms by H1 and R2. The read returns v8, fresh, in 45 ms. 0 of 1 read set can miss v8. _(320)_
+- 3 replicas, W QUORUM, R ONE. The write is acked in 40 ms by H1 and R3. The read returns v8, fresh, in 2 ms. 2 of 3 read sets can miss v8. _(320)_
+- 3 replicas, W QUORUM, R ONE. The write is acked in 5 ms by H1 and H2. The read returns v7, stale, in 2 ms. 3 of 3 read sets can miss v8. _(D-RM, D-M, 320)_
+- 3 replicas, W QUORUM, R ONE. The write is acked in 5 ms by H1 and H2. The read returns v7, stale, in 40 ms. 3 of 3 read sets can miss v8. _(320)_
+- 3 replicas, W QUORUM, R ONE. The write is refused: 1 live, 2 needed. The read returns v7 in 2 ms. Nothing was written, so there is nothing to miss. _(320)_
+- 3 replicas, W QUORUM, R ONE. The write times out, applied nowhere. The read returns v7 in 2 ms. 3 of 3 read sets can miss v8. _(D-RM, D-M, 320)_
+- 3 replicas, W QUORUM, R ONE. The write times out. The read returns v7 in 2 ms. 2 of 3 read sets can miss v8. _(D-RM, D-M, 320)_
+- 3 replicas, W QUORUM, R ONE. The write times out. The read still returns v8 in 43 ms. 3 of 3 read sets can miss v8. _(D-RM, D-M, 320)_
+- 3 replicas, W QUORUM, R QUORUM. The write is acked in 104 ms by R3 and R2. The read returns v8, fresh, in 104 ms. 0 of 3 read sets can miss v8. _(320)_
+- 3 replicas, W QUORUM, R QUORUM. The write is acked in 3 ms by R1 and H1. The read returns v7, stale, in 4 ms. 1 of 3 read sets can miss v8. _(D-RM, D-M, 320)_
 - 3 replicas, W QUORUM, R QUORUM. The write is acked in 3 ms by R1 and H1. The read runs after your answer. _(D-RM, D-M, 320)_
 - 3 replicas, W QUORUM, R QUORUM. The write is acked in 3 ms by R1 and H1. What the read returns shows after your answer. _(D-M)_
-- 3 replicas, W QUORUM, R QUORUM. The write is acked in 4 ms by H1 and R2. returns v8 · fresh · 6 ms. 1 of 3 read sets can miss v8. _(320)_
-- 3 replicas, W QUORUM, R QUORUM. The write is acked in 4 ms by R1 and R2. returns v8 · fresh · ? ms. 0 of 3 read sets can miss v8. _(D-RM, D-M, 320)_
-- 3 replicas, W QUORUM, R QUORUM. The write is acked in 4 ms by R1 and R2. returns v8 · fresh · 40 ms. 0 of 3 read sets can miss v8. _(D-RM, D-M, 320)_
-- 3 replicas, W QUORUM, R QUORUM. The write is acked in 4 ms by R1 and R2. returns v8 · fresh · 6 ms. 0 of 3 read sets can miss v8. _(D-RM, D-M, 320)_
-- 3 replicas, W QUORUM, R QUORUM. The write is acked in 40 ms by R1 and R3. returns v8 · fresh · 40 ms. 0 of 3 read sets can miss v8. _(D-RM, D-M, 320)_
-- 3 replicas, W QUORUM, R QUORUM. The write is acked in 40 ms by R2 and R3. returns v8 · fresh · 4 ms. 0 of 3 read sets can miss v8. _(320)_
-- 3 replicas, W QUORUM, R QUORUM. The write is acked in 5 ms by H1 and H2. returns v7 · stale · 4 ms. 3 of 3 read sets can miss v8. _(320)_
-- 3 replicas, W QUORUM, R QUORUM. The write is refused: 0 live, 2 needed. read fails · 0 reachable, 2 needed. 3 of 3 read sets can miss v8. _(320)_
-- 3 replicas, W QUORUM, R QUORUM. The write is refused: 1 live, 2 needed. read fails · 1 reachable, 2 needed. 3 of 3 read sets can miss v8. _(D-RM, D-M, 320)_
-- 3 replicas, W QUORUM, R QUORUM. The write is refused: 1 live, 2 needed. write refused · read 4 ms. 3 of 3 read sets can miss v8. _(320)_
-- 3 replicas, W QUORUM, R QUORUM. The write times out. read times out · 0 answered, 2 needed. 3 of 3 read sets can miss v8. _(320)_
-- 3 replicas, W QUORUM, R QUORUM. The write times out. read times out · 1 answered, 2 needed. 1 of 3 read sets can miss v8. _(D-RM, D-M, 320)_
+- 3 replicas, W QUORUM, R QUORUM. The write is acked in 4 ms by H1 and R2. The read returns v8, fresh, in 6 ms. 1 of 3 read sets can miss v8. _(320)_
+- 3 replicas, W QUORUM, R QUORUM. The write is acked in 4 ms by R1 and R2. The read returns v8, fresh, in 40 ms. 0 of 3 read sets can miss v8. _(D-RM, D-M, 320)_
+- 3 replicas, W QUORUM, R QUORUM. The write is acked in 4 ms by R1 and R2. The read returns v8, fresh, in 6 ms. 0 of 3 read sets can miss v8. _(D-RM, D-M, 320)_
+- 3 replicas, W QUORUM, R QUORUM. The write is acked in 4 ms by R1 and R2. The read returns v8, fresh; its time shows after your answer. 0 of 3 read sets can miss v8. _(D-RM, D-M, 320)_
+- 3 replicas, W QUORUM, R QUORUM. The write is acked in 40 ms by R1 and R3. The read returns v8, fresh, in 40 ms. 0 of 3 read sets can miss v8. _(D-RM, D-M, 320)_
+- 3 replicas, W QUORUM, R QUORUM. The write is acked in 40 ms by R2 and R3. The read returns v8, fresh, in 4 ms. 0 of 3 read sets can miss v8. _(320)_
+- 3 replicas, W QUORUM, R QUORUM. The write is acked in 5 ms by H1 and H2. The read returns v7, stale, in 4 ms. 3 of 3 read sets can miss v8. _(320)_
+- 3 replicas, W QUORUM, R QUORUM. The write is refused: 0 live, 2 needed. The read fails: 0 reachable, 2 needed. Nothing was written, so there is nothing to miss. _(320)_
+- 3 replicas, W QUORUM, R QUORUM. The write is refused: 1 live, 2 needed. The read fails: 1 reachable, 2 needed. Nothing was written, so there is nothing to miss. _(D-RM, D-M, 320)_
+- 3 replicas, W QUORUM, R QUORUM. The write is refused: 1 live, 2 needed. The read returns v7 in 4 ms. Nothing was written, so there is nothing to miss. _(320)_
+- 3 replicas, W QUORUM, R QUORUM. The write times out, applied nowhere. The read times out: 0 answered, 2 needed. 3 of 3 read sets can miss v8. _(320)_
+- 3 replicas, W QUORUM, R QUORUM. The write times out. The read times out: 1 answered, 2 needed. 1 of 3 read sets can miss v8. _(D-RM, D-M, 320)_
 - 3 replicas, W QUORUM, R QUORUM. The write's time shows after your answer. What the read returns shows after your answer. 0 of 3 read sets can miss v8. _(D-RM, D-M, 320)_
-- 5 replicas, W 2, R QUORUM. The write is acked in 3 ms by R1 and R2. returns v8 · fresh · 7 ms. _(D-RM, D-M, 320)_
-- 5 replicas, W 2, R QUORUM. The write is acked in 3 ms by R1 and R2. returns v8 · fresh · 7 ms. 1 of 10 read sets can miss v8. _(D-RM, D-M, 320)_
-- 5 replicas, W 2, R QUORUM. The write is acked in 4 ms by R2 and R3. returns v8 · fresh · 7 ms. 1 of 10 read sets can miss v8. _(320)_
-- 5 replicas, W 4, R 2. The write is acked in 104 ms by R2, R4, R5 and R3. returns v8 · fresh · 3 ms. 0 of 10 read sets can miss v8. _(320)_
-- 5 replicas, W 4, R 2. The write is acked in 41 ms by R1, R2, R4 and R5. returns v8 · fresh · 3 ms. 0 of 10 read sets can miss v8. _(D-RM, D-M, 320)_
-- 5 replicas, W 4, R QUORUM. The write is acked in 41 ms by R1, R2, R4 and R5. returns v8 · fresh · 40 ms. 0 of 10 read sets can miss v8. _(D-RM, D-M, 320)_
-- 5 replicas, W ALL, R 2. The write is refused: 4 live, 5 needed. write refused · read 3 ms. 10 of 10 read sets can miss v8. _(320)_
-- 5 replicas, W ALL, R 2. The write times out. write timed out · returns v8 · 3 ms. 0 of 10 read sets can miss v8. _(D-RM, D-M, 320)_
-- 5 replicas, W ONE, R 4. The write is acked in 2 ms by R1. returns v8 · fresh · 45 ms. 1 of 5 read sets can miss v8. _(320)_
-- 5 replicas, W ONE, R 4. The write is acked in 40 ms by R4. returns v8 · fresh · 82 ms. 1 of 5 read sets can miss v8. _(D-RM, D-M, 320)_
-- 5 replicas, W QUORUM, R ALL. The write is acked in 3 ms by R1, R2 and H1. returns v8 · fresh · 47 ms. 0 of 1 read sets can miss v8. _(D-RM, D-M, 320)_
-- 5 replicas, W QUORUM, R ALL. The write is acked in 5 ms by R2, H1 and H2. read fails · 4 reachable, 5 needed. 0 of 1 read sets can miss v8. _(320)_
-- 5 replicas, W QUORUM, R QUORUM. The write is acked in 3 ms by R1, R2 and H1. returns v8 · fresh · 43 ms. 1 of 10 read sets can miss v8. _(D-RM, D-M, 320)_
-- 5 replicas, W QUORUM, R QUORUM. The write is acked in 4 ms by R1, R2 and R3. returns v8 · fresh · 7 ms. 0 of 10 read sets can miss v8. _(D-RM, D-M, 320)_
-- 5 replicas, W QUORUM, R QUORUM. The write is acked in 40 ms by R1, R2 and R4. returns v8 · fresh · 40 ms. 0 of 10 read sets can miss v8. _(D-RM, D-M, 320)_
-- 5 replicas, W QUORUM, R QUORUM. The write is acked in 40 ms by R2, R3 and R4. returns v8 · fresh · 4 ms. 0 of 10 read sets can miss v8. _(320)_
-- 5 replicas, W QUORUM, R QUORUM. The write is acked in 41 ms by R2, R4 and R5. returns v8 · fresh · 40 ms. 0 of 10 read sets can miss v8. _(320)_
-- 5 replicas, W QUORUM, R QUORUM. The write is acked in 5 ms by R2, H1 and H2. returns v8 · fresh · 43 ms. 4 of 10 read sets can miss v8. _(320)_
+- 5 replicas, W 2, R QUORUM. The write is acked in 3 ms by R1 and R2. The read returns v8, fresh, in 7 ms. _(D-RM, D-M, 320)_
+- 5 replicas, W 2, R QUORUM. The write is acked in 3 ms by R1 and R2. The read returns v8, fresh, in 7 ms. 1 of 10 read sets can miss v8. _(D-RM, D-M, 320)_
+- 5 replicas, W 2, R QUORUM. The write is acked in 4 ms by R2 and R3. The read returns v8, fresh, in 7 ms. 1 of 10 read sets can miss v8. _(320)_
+- 5 replicas, W 4, R 2. The write is acked in 104 ms by R2, R4, R5 and R3. The read returns v8, fresh, in 3 ms. 0 of 10 read sets can miss v8. _(320)_
+- 5 replicas, W 4, R 2. The write is acked in 41 ms by R1, R2, R4 and R5. The read returns v8, fresh, in 3 ms. 0 of 10 read sets can miss v8. _(D-RM, D-M, 320)_
+- 5 replicas, W 4, R QUORUM. The write is acked in 41 ms by R1, R2, R4 and R5. The read returns v8, fresh, in 40 ms. 0 of 10 read sets can miss v8. _(D-RM, D-M, 320)_
+- 5 replicas, W ALL, R 2. The write is refused: 4 live, 5 needed. The read returns v7 in 3 ms. Nothing was written, so there is nothing to miss. _(320)_
+- 5 replicas, W ALL, R 2. The write times out. The read still returns v8 in 3 ms. 0 of 10 read sets can miss v8. _(D-RM, D-M, 320)_
+- 5 replicas, W ONE, R 4. The write is acked in 2 ms by R1. The read returns v8, fresh, in 45 ms. 1 of 5 read sets can miss v8. _(320)_
+- 5 replicas, W ONE, R 4. The write is acked in 40 ms by R4. The read returns v8, fresh, in 82 ms. 1 of 5 read sets can miss v8. _(D-RM, D-M, 320)_
+- 5 replicas, W QUORUM, R ALL. The write is acked in 3 ms by R1, R2 and H1. The read returns v8, fresh, in 47 ms. 0 of 1 read set can miss v8. _(D-RM, D-M, 320)_
+- 5 replicas, W QUORUM, R ALL. The write is acked in 5 ms by R2, H1 and H2. The read fails: 4 reachable, 5 needed. 0 of 1 read set can miss v8. _(320)_
+- 5 replicas, W QUORUM, R QUORUM. The write is acked in 3 ms by R1, R2 and H1. The read returns v8, fresh, in 43 ms. 1 of 10 read sets can miss v8. _(D-RM, D-M, 320)_
+- 5 replicas, W QUORUM, R QUORUM. The write is acked in 4 ms by R1, R2 and R3. The read returns v8, fresh, in 7 ms. 0 of 10 read sets can miss v8. _(D-RM, D-M, 320)_
+- 5 replicas, W QUORUM, R QUORUM. The write is acked in 40 ms by R1, R2 and R4. The read returns v8, fresh, in 40 ms. 0 of 10 read sets can miss v8. _(D-RM, D-M, 320)_
+- 5 replicas, W QUORUM, R QUORUM. The write is acked in 40 ms by R2, R3 and R4. The read returns v8, fresh, in 4 ms. 0 of 10 read sets can miss v8. _(320)_
+- 5 replicas, W QUORUM, R QUORUM. The write is acked in 41 ms by R2, R4 and R5. The read returns v8, fresh, in 40 ms. 0 of 10 read sets can miss v8. _(320)_
+- 5 replicas, W QUORUM, R QUORUM. The write is acked in 5 ms by R2, H1 and H2. The read returns v8, fresh, in 43 ms. 4 of 10 read sets can miss v8. _(320)_
 
 ## Accessible names (cards, Play, toolbar, sliders, tables) (48)
 
@@ -535,7 +549,7 @@ at N 5, at N 5 W 4, met at N 5 W 4 R 2, and moved off again. A string is listed 
 - R1, stops mid-write. Activate to bring it back, having missed the write. _(D-RM, D-M, 320)_
 - R1, up. _(D-RM, D-M, 320)_
 - R1, up. Activate to take it down. _(D-RM, D-M, 320)_
-- R2 and R3 were down, so a sloppy quorum took the write on R1 and stand-in H1. Both are back for the read, and 2 + 2 > 3. Can a read still miss v8? _(D-RM, D-M, 320)_
+- R2 and R3 were down, so a sloppy quorum sent the write to R1 and stand-ins H1 and H2, and R1 and H1 acked. R2 and R3 are back for the read. With 2 + 2 > 3, can a read still miss v8? _(D-RM, D-M, 320)_
 - R2 pauses for 100 ms (a GC pause), so its round trip is now 104 ms. Writes at QUORUM took 4 ms. What do they take now? _(D-RM, D-M, 320)_
 - R2, back, missed the write. _(D-RM, D-M, 320)_
 - R2, back, missed the write. Activate to bring it up. _(D-RM, D-M, 320)_
@@ -582,8 +596,8 @@ at N 5, at N 5 W 4, met at N 5 W 4 R 2, and moved off again. A string is listed 
 - ONE, 1 of 3; what it survives shows after your answer _(D-RM, D-M, 320)_
 - ONE, 1 of 3: survives 2 down, reads succeed 99.9999% _(D-RM, D-M, 320)_
 - ONE, 1 of 3: survives 2 down, writes succeed 99.9999% _(D-RM, D-M, 320)_
-- ONE, 1 of 3: survives 3 down, reads succeed 99.9999999% _(D-RM, D-M, 320)_
-- ONE, 1 of 5: survives 4 down, writes succeed 99.9999999% _(D-RM, D-M, 320)_
+- ONE, 1 of 3: survives 3 down, reads succeed 99.99999999% _(D-RM, D-M, 320)_
+- ONE, 1 of 5: survives 4 down, writes succeed 99.99999999% _(D-RM, D-M, 320)_
 - QUORUM, 2 of 3: survives 1 down, reads succeed 99.97% _(D-RM, D-M, 320)_
 - QUORUM, 2 of 3: survives 1 down, writes succeed 99.97% _(D-RM, D-M, 320)_
 - QUORUM, 2 of 3: survives 3 down, reads succeed 99.99999% _(D-RM, D-M, 320)_
@@ -593,10 +607,10 @@ at N 5, at N 5 W 4, met at N 5 W 4 R 2, and moved off again. A string is listed 
 - QUORUM, 3 of 5: survives 4 down, reads succeed 99.999999% _(D-RM, D-M, 320)_
 - QUORUM, 3 of 5: survives 4 down, writes succeed 99.999999% _(D-RM, D-M, 320)_
 
-## Notices (polite live region) (74)
+## Notices (polite live region) (80)
 
-- 5 replicas, W QUORUM, R QUORUM: returns v8 · fresh · 40 ms. _(D-RM, D-M, 320)_
-- 5 replicas, W QUORUM, R QUORUM: returns v8 · fresh · 7 ms. _(D-RM, D-M, 320)_
+- 5 replicas, W QUORUM, R QUORUM. The read returns v8, fresh, in 40 ms. _(D-RM, D-M, 320)_
+- 5 replicas, W QUORUM, R QUORUM. The read returns v8, fresh, in 7 ms. _(D-RM, D-M, 320)_
 - Acked in 104 ms by R1, R3 and R2. The read heard R3 (v8), R1 (v8) and R2 (v8) and returned v8 in 104 ms. _(D-RM, D-M, 320)_
 - Acked in 2 ms by R1. The read heard R3 (v7) and returned v7 in 2 ms. _(D-RM, D-M, 320)_
 - Acked in 3 ms by R1 and H1. The read heard R2 (v8), R1 (v8) and H1 (v8) and returned v8 in 43 ms. _(D-RM, D-M, 320)_
@@ -608,67 +622,73 @@ at N 5, at N 5 W 4, met at N 5 W 4 R 2, and moved off again. A string is listed 
 - Acked in 4 ms by R1 and R2. The read heard R3 (v7) and R2 (v8), repaired R3 and returned v8 in 6 ms. _(D-RM, D-M, 320)_
 - Acked in 4 ms by R1, R2 and R3. The read heard R5 (v7), R4 (v7) and R3 (v8), repaired R4 and R5 and returned v8 in 7 ms. _(D-RM, D-M, 320)_
 - Acked in 40 ms by R1 and R3. The read heard R3 (v8) and R1 (v8) and returned v8 in 40 ms. _(D-RM, D-M, 320)_
+- Acked in 40 ms by R1, R2 and R3. The read heard R3 (v8), R2 (v8) and R1 (v8) and returned v8 in 40 ms. _(D-RM, D-M, 320)_
 - Acked in 40 ms by R1, R2 and R4. The read heard R5 (v8), R4 (v8) and R2 (v8) and returned v8 in 40 ms. _(D-RM, D-M, 320)_
 - Acked in 40 ms by R4. The read heard R5 (v8), R4 (v8), R3 (v7) and R1 (v7), repaired R1 and R3 and returned v8 in 82 ms. _(D-RM, D-M, 320)_
 - Acked in 41 ms by R1, R2, R4 and R5. The read heard R5 (v8) and R4 (v8) and returned v8 in 3 ms. _(D-RM, D-M, 320)_
 - Acked in 5 ms by H1 and H2. The read heard R3 (v7) and returned v7 in 2 ms. _(D-RM, D-M, 320)_
+- Click or tap a replica to change its state; drag W and R on the drawing. _(D-RM, D-M, 320)_
 - Play and the settings this question is about wait for your answer. _(D-RM, D-M, 320)_
-- R 2: returns v8 · fresh · 3 ms. _(D-RM, D-M, 320)_
-- R ALL: returns v8 · fresh · 104 ms. _(D-RM, D-M, 320)_
-- R ONE: returns v7 · stale · 2 ms. _(D-RM, D-M, 320)_
-- R QUORUM: returns v8 · fresh · 40 ms. _(D-RM, D-M, 320)_
-- R QUORUM: returns v8 · fresh · 7 ms. _(D-RM, D-M, 320)_
-- R1 back, missed the write: write refused · read 2 ms. _(320)_
-- R1 down: read fails · 0 reachable, 2 needed. _(320)_
-- R1 down: read fails · 1 reachable, 2 needed. _(320)_
-- R1 down: read fails · 2 reachable, 3 needed. _(320)_
-- R1 down: read fails · 4 reachable, 5 needed. _(320)_
-- R1 down: read times out · 0 answered, 2 needed. _(320)_
-- R1 down: read times out · 1 answered, 2 needed. _(320)_
-- R1 down: returns v7 · stale · 2 ms. _(320)_
-- R1 down: returns v7 · stale · 4 ms. _(320)_
-- R1 down: returns v8 · fresh · 104 ms. _(320)_
-- R1 down: returns v8 · fresh · 3 ms. _(320)_
-- R1 down: returns v8 · fresh · 4 ms. _(320)_
-- R1 down: returns v8 · fresh · 40 ms. _(320)_
-- R1 down: returns v8 · fresh · 43 ms. _(320)_
-- R1 down: returns v8 · fresh · 45 ms. _(320)_
-- R1 down: returns v8 · fresh · 6 ms. _(320)_
-- R1 down: returns v8 · fresh · 7 ms. _(320)_
-- R1 down: write refused · read 2 ms. _(320)_
-- R1 down: write refused · read 3 ms. _(320)_
-- R1 down: write refused · read 4 ms. _(320)_
-- R1 stops mid-write: returns v8 · fresh · 2 ms. _(320)_
-- R1 stops mid-write: write timed out · returns v8 · 43 ms. _(320)_
-- R1 up: returns v8 · fresh · 45 ms. _(320)_
-- R2 down: returns v7 · stale · 2 ms. _(D-RM, D-M, 320)_
-- R2 pauses for 100 ms: returns v8 · fresh · 40 ms. _(D-RM, D-M, 320)_
-- R2 stops mid-write: write timed out · returns v8 · 3 ms. _(D-RM, D-M, 320)_
-- R3 back, missed the write: returns v7 · stale · 4 ms. _(D-RM, D-M, 320)_
-- R3 back, missed the write: returns v8 · fresh · 6 ms. _(D-RM, D-M, 320)_
-- R3 back, missed the write: returns v8 · fresh · 82 ms. _(D-RM, D-M, 320)_
-- R3 back, missed the write: write timed out · read 2 ms. _(D-RM, D-M, 320)_
-- R3 back, missed the write: write timed out, applied nowhere · read 2 ms. _(D-RM, D-M, 320)_
-- R3 down: read fails · 1 reachable, 2 needed. _(D-RM, D-M, 320)_
-- R3 down: returns v8 · fresh · 40 ms. _(D-RM, D-M, 320)_
-- R3 down: returns v8 · fresh · 43 ms. _(D-RM, D-M, 320)_
-- R3 down: write refused · read 40 ms. _(D-RM, D-M, 320)_
-- R3 down: write refused · read finds no copy · 43 ms. _(D-RM, D-M, 320)_
-- R3 pauses for 100 ms: returns v8 · fresh · 40 ms. _(D-RM, D-M, 320)_
-- R3 stops mid-write: read times out · 1 answered, 2 needed. _(D-RM, D-M, 320)_
-- R3 stops mid-write: write timed out · returns v8 · 40 ms. _(D-RM, D-M, 320)_
-- R4 down: returns v8 · fresh · 47 ms. _(D-RM, D-M, 320)_
-- Sloppy quorum, stand-ins H1 and H2: returns v8 · fresh · 6 ms. _(D-RM, D-M, 320)_
-- Tap a replica to change its state; drag W and R on the drawing. _(D-RM, D-M, 320)_
+- R 2. The read returns v8, fresh, in 3 ms. _(D-RM, D-M, 320)_
+- R ALL. The read returns v8, fresh, in 104 ms. _(D-RM, D-M, 320)_
+- R ALL. The read returns v8, fresh, in 40 ms. _(D-RM, D-M, 320)_
+- R ONE. The read returns v7, stale, in 2 ms. _(D-RM, D-M, 320)_
+- R QUORUM. The read returns v8, fresh, in 40 ms. _(D-RM, D-M, 320)_
+- R QUORUM. The read returns v8, fresh, in 7 ms. _(D-RM, D-M, 320)_
+- R1 back, missed the write. The read returns v7, stale, in 40 ms. _(320)_
+- R1 back, missed the write. The write is refused: 1 live, 2 needed. The read returns v7 in 2 ms. _(320)_
+- R1 down. The read fails: 4 reachable, 5 needed. _(320)_
+- R1 down. The read returns v7, stale, in 2 ms. _(320)_
+- R1 down. The read returns v7, stale, in 4 ms. _(320)_
+- R1 down. The read returns v8, fresh, in 104 ms. _(320)_
+- R1 down. The read returns v8, fresh, in 3 ms. _(320)_
+- R1 down. The read returns v8, fresh, in 4 ms. _(320)_
+- R1 down. The read returns v8, fresh, in 40 ms. _(320)_
+- R1 down. The read returns v8, fresh, in 43 ms. _(320)_
+- R1 down. The read returns v8, fresh, in 45 ms. _(320)_
+- R1 down. The read returns v8, fresh, in 6 ms. _(320)_
+- R1 down. The read returns v8, fresh, in 7 ms. _(320)_
+- R1 down. The write is refused: 0 live, 2 needed. The read fails: 0 reachable, 2 needed. _(320)_
+- R1 down. The write is refused: 1 live, 2 needed. The read fails: 1 reachable, 2 needed. _(320)_
+- R1 down. The write is refused: 1 live, 2 needed. The read returns v7 in 2 ms. _(320)_
+- R1 down. The write is refused: 1 live, 2 needed. The read returns v7 in 4 ms. _(320)_
+- R1 down. The write is refused: 1 live, 3 needed. The read fails: 1 reachable, 2 needed. _(320)_
+- R1 down. The write is refused: 2 live, 3 needed. The read fails: 2 reachable, 3 needed. _(320)_
+- R1 down. The write is refused: 2 live, 3 needed. The read times out: 1 answered, 2 needed. _(320)_
+- R1 down. The write is refused: 4 live, 5 needed. The read returns v7 in 3 ms. _(320)_
+- R1 down. The write times out, applied nowhere. The read times out: 0 answered, 2 needed. _(320)_
+- R1 stops mid-write. The read returns v8, fresh, in 2 ms. _(320)_
+- R1 stops mid-write. The write times out. The read still returns v8 in 43 ms. _(320)_
+- R1 up. The read returns v8, fresh, in 45 ms. _(320)_
+- R2 down. The read returns v7, stale, in 2 ms. _(D-RM, D-M, 320)_
+- R2 pauses for 100 ms. The read returns v8, fresh, in 40 ms. _(D-RM, D-M, 320)_
+- R2 stops mid-write. The write times out. The read still returns v8 in 3 ms. _(D-RM, D-M, 320)_
+- R3 back, missed the write. The read returns v7, stale, in 4 ms. _(D-RM, D-M, 320)_
+- R3 back, missed the write. The read returns v8, fresh, in 6 ms. _(D-RM, D-M, 320)_
+- R3 back, missed the write. The read returns v8, fresh, in 82 ms. _(D-RM, D-M, 320)_
+- R3 back, missed the write. The write times out, applied nowhere. The read returns v7 in 2 ms. _(D-RM, D-M, 320)_
+- R3 back, missed the write. The write times out. The read returns v7 in 2 ms. _(D-RM, D-M, 320)_
+- R3 down. The read returns v8, fresh, in 40 ms. _(D-RM, D-M, 320)_
+- R3 down. The read returns v8, fresh, in 43 ms. _(D-RM, D-M, 320)_
+- R3 down. The write is refused: 1 live, 2 needed. The read fails: 1 reachable, 2 needed. _(D-RM, D-M, 320)_
+- R3 down. The write is refused: 2 live, 3 needed. The read finds no copy in 43 ms. _(D-RM, D-M, 320)_
+- R3 down. The write is refused: 2 live, 3 needed. The read returns v7 in 40 ms. _(D-RM, D-M, 320)_
+- R3 down. The write times out. The read still returns v8 in 43 ms. _(D-RM, D-M, 320)_
+- R3 pauses for 100 ms. The read returns v8, fresh, in 40 ms. _(D-RM, D-M, 320)_
+- R3 stops mid-write. The write times out. The read still returns v8 in 40 ms. _(D-RM, D-M, 320)_
+- R3 stops mid-write. The write times out. The read times out: 1 answered, 2 needed. _(D-RM, D-M, 320)_
+- R4 down. The read returns v8, fresh, in 47 ms. _(D-RM, D-M, 320)_
+- Sloppy quorum, stand-ins H1 and H2. The read returns v8, fresh, in 6 ms. _(D-RM, D-M, 320)_
 - The write is refused at once: 1 live, 2 needed, so nothing is written. The read fails at once: 1 reachable, 2 needed. _(D-RM, D-M, 320)_
 - The write is refused at once: 2 live, 3 needed, so nothing is written. The read heard H1 (no copy) and found no copy in 43 ms. _(D-RM, D-M, 320)_
 - The write is refused at once: 2 live, 3 needed, so nothing is written. The read heard R2 (v7) and R1 (v7) and returned v7 in 40 ms. _(D-RM, D-M, 320)_
 - The write timed out at 2 s, applied nowhere. The read heard R3 (v7) and returned v7 in 2 ms. _(D-RM, D-M, 320)_
+- The write timed out at 2 s; H1 applied it. The read heard H1 (v8) and returned v8 in 43 ms. _(D-RM, D-M, 320)_
 - The write timed out at 2 s; R1 and R2 applied it. The read heard R2 (v8) and R1 (v8) and returned v8 in 40 ms. _(D-RM, D-M, 320)_
 - The write timed out at 2 s; R1 applied it. The read heard R3 (v7) and returned v7 in 2 ms. _(D-RM, D-M, 320)_
 - The write timed out at 2 s; R1 applied it. The read times out: 1 answered, 2 needed. _(D-RM, D-M, 320)_
 - The write timed out at 2 s; R1, R3, R4 and R5 applied it. The read heard R5 (v8) and R4 (v8) and returned v8 in 3 ms. _(D-RM, D-M, 320)_
-- W 4: returns v8 · fresh · 40 ms. _(D-RM, D-M, 320)_
+- W 4. The read returns v8, fresh, in 40 ms. _(D-RM, D-M, 320)_
 
 ## Card hints (18)
 
@@ -696,14 +716,15 @@ at N 5, at N 5 W 4, met at N 5 W 4 R 2, and moved off again. A string is listed 
 - 3 replicas _(D-RM, D-M, 320)_
 - 5 replicas _(D-RM, D-M, 320)_
 - Conditions _(D-RM, D-M, 320)_
-- R2 pauses 100 ms GC pause _(D-RM, D-M, 320)_
-- R3 pauses 100 ms GC pause _(D-RM, D-M, 320)_
+- R2 pauses for 100 ms (GC) _(D-RM, D-M, 320)_
+- R3 pauses for 100 ms (GC) _(D-RM, D-M, 320)_
 - Replicas (N) _(D-RM, D-M, 320)_
 - Sloppy quorum stand-ins H1, H2 _(D-RM, D-M, 320)_
 
-## Describe (111)
+## Describe (126)
 
 - – _(D-RM, D-M, 320)_
+- × _(320)_
 - 1 _(320)_
 - 1 ms _(D-RM, D-M)_
 - 1.5 _(320)_
@@ -722,6 +743,7 @@ at N 5, at N 5 W 4, met at N 5 W 4 R 2, and moved off again. A string is listed 
 - 2,002 ms _(D-RM, D-M)_
 - 2,020 ms _(D-RM, D-M)_
 - 2,022 _(320)_
+- 2,022 ms _(D-RM, D-M)_
 - 2.5 _(320)_
 - 2.5 ms _(D-RM, D-M)_
 - 20 _(320)_
@@ -754,6 +776,7 @@ at N 5, at N 5 W 4, met at N 5 W 4 R 2, and moved off again. A string is listed 
 - 42 ms _(D-RM, D-M)_
 - 43 _(320)_
 - 43 ms _(D-RM, D-M)_
+- 45 _(320)_
 - 5 _(320)_
 - 5 ms _(D-RM, D-M)_
 - 5.5 _(320)_
@@ -766,10 +789,22 @@ at N 5, at N 5 W 4, met at N 5 W 4 R 2, and moved off again. A string is listed 
 - 61 _(320)_
 - 61 ms _(D-RM, D-M)_
 - 7 _(320)_
+- 8 _(320)_
+- 8 ms _(D-RM, D-M)_
+- 8.5 _(320)_
+- 8.5 ms _(D-RM, D-M)_
+- 83 ms _(D-RM, D-M)_
+- 9 _(320)_
+- 9 ms _(D-RM, D-M)_
+- 9.5 _(320)_
+- 9.5 ms _(D-RM, D-M)_
+- Ack, ms _(320)_
+- Acked in _(D-RM, D-M)_
 - Answered _(D-RM, D-M)_
 - back _(320)_
 - back, missed the write _(D-RM, D-M)_
 - Describe _(D-RM, D-M, 320)_
+- Describe waits for the reveal. _(D-M)_
 - Describe waits for your answer. _(D-RM, D-M, 320)_
 - down _(D-RM, D-M, 320)_
 - for R1 _(320)_
@@ -783,7 +818,9 @@ at N 5, at N 5 W 4, met at N 5 W 4 R 2, and moved off again. A string is listed 
 - Has v8 at _(D-RM, D-M)_
 - Has v8 at, ms _(320)_
 - Hide the description _(D-RM, D-M, 320)_
+- no ack _(D-RM, D-M)_
 - no copy _(D-RM, D-M)_
+- not sent _(D-RM, D-M)_
 - R1 _(320)_
 - R1 (DC A) _(D-RM, D-M)_
 - R2 _(320)_
@@ -796,8 +833,8 @@ at N 5, at N 5 W 4, met at N 5 W 4 R 2, and moved off again. A string is listed 
 - R4 (DC C) _(D-RM, D-M)_
 - R5 _(320)_
 - R5 (DC C) _(D-RM, D-M)_
+- Read at _(D-RM, D-M)_
 - Read at, ms _(320)_
-- Read reaches it _(D-RM, D-M)_
 - Rep. _(320)_
 - Replica _(D-RM, D-M)_
 - stand-in for R1 _(D-RM, D-M)_
@@ -809,14 +846,20 @@ at N 5, at N 5 W 4, met at N 5 W 4 R 2, and moved off again. A string is listed 
 - stops mid-write _(D-RM, D-M)_
 - up _(D-RM, D-M, 320)_
 - v7 _(D-RM, D-M, 320)_
-- v7, fixed _(320)_
 - v7, repaired _(D-RM, D-M)_
+- v7→v8 _(320)_
 - v8 _(D-RM, D-M, 320)_
-- Write round trip _(D-RM, D-M)_
-- Write rtt, ms _(320)_
 
-## Experiment dock (40)
+## Experiment dock (45)
 
+- ·reads 40 ms, under 5 ms: not yet _(D-RM, D-M, 320)_
+- ✓No read set can miss v8: 0 of 10 can, met _(D-RM, D-M, 320)_
+- ✓No read set can miss v8: 0 of 3 can, met _(D-RM, D-M, 320)_
+- ✓reads 3 ms, under 5 ms: met _(D-RM, D-M, 320)_
+- ✓writes 40 ms, under 50 ms: met _(D-RM, D-M, 320)_
+- ✓writes 41 ms, under 50 ms: met _(D-RM, D-M, 320)_
+- ✓writes survive 1 down, at least 1: met _(D-RM, D-M, 320)_
+- ✓writes survive 2 down, at least 1: met _(D-RM, D-M, 320)_
 - 1 of 10 _(D-RM, D-M, 320)_
 - 1 of 10: R3, R4 and R5 share no replica with the 2 that acked, and that is the read drawn here. It got v8 only because v8 reached R3 at 2 ms, before the read did, and it repaired R4 and R5 before returning (7 ms in all). Had v8 reached R3 after the read, it would return v7. With R + W = N exactly one read set misses the write; R 4 makes it 4 + 2 > 5, and none can. _(D-RM, D-M, 320)_
 - 104 ms, waiting for R2 _(D-RM, D-M, 320)_
@@ -828,20 +871,16 @@ at N 5, at N 5 W 4, met at N 5 W 4 R 2, and moved off again. A string is listed 
 - Both keep working _(D-RM, D-M, 320)_
 - Challenge: fast reads that stay fresh _(D-RM, D-M, 320)_
 - Experiments _(D-RM, D-M, 320)_
-- Goal met: No read set can miss v8: 0 of 10 can, met · reads 3 ms, under 5 ms: met · writes 41 ms, under 50 ms: met · writes survive 1 down, at least 1: met _(D-RM, D-M, 320)_
-- Goal met: No read set can miss v8: 0 of 10 can, met · reads 40 ms, under 5 ms: not yet · writes 41 ms, under 50 ms: met · writes survive 1 down, at least 1: met _(D-RM, D-M, 320)_
+- Goal met: _(D-RM, D-M, 320)_
 - Is R + W = N enough? _(D-RM, D-M, 320)_
-- N 5, W 4, R 2: 2 + 4 > 5, the read hears R5 and R4 in 3 ms, and the 4th ack, R5's, arrives at 41 ms, so the paused R3 is never waited on. The cost is 5 copies of every write, and writes succeed 99.90% of the time against QUORUM of 3's 99.97%. In an interview, also name speculative retry (ask one more replica when one is slow), and say why LOCAL\_QUORUM is not the answer here: a LOCAL\_QUORUM read in the reader's data center need not overlap a LOCAL\_QUORUM write in the writer's, and EACH\_QUORUM writes would mean all 5 here, waiting for the paused R3. _(D-RM, D-M, 320)_
-- No read set can miss v8: 0 of 10 can, met · reads 40 ms, under 5 ms: not yet · writes 40 ms, under 50 ms: met · writes survive 2 down, at least 1: met _(D-RM, D-M, 320)_
-- No read set can miss v8: 0 of 10 can, met · reads 40 ms, under 5 ms: not yet · writes 41 ms, under 50 ms: met · writes survive 1 down, at least 1: met _(D-RM, D-M, 320)_
-- No read set can miss v8: 0 of 3 can, met · reads 40 ms, under 5 ms: not yet · writes 40 ms, under 50 ms: met · writes survive 1 down, at least 1: met _(D-RM, D-M, 320)_
+- N 5, W 4, R 2: 2 + 4 > 5, the read hears R5 and R4 in 3 ms, and the 4th ack, R5's, arrives at 41 ms, so the paused R3 is never waited on. The cost is 5 copies of every write, and writes succeed 99.90% of the time against QUORUM of 3's 99.97%. W 4 needs a store that takes any W, as Riak does; Cassandra has no level for 4 of 5. In an interview, also name speculative retry (ask one more replica when one is slow), and say why LOCAL\_QUORUM is not the answer here: a LOCAL\_QUORUM read in the reader's data center need not overlap a LOCAL\_QUORUM write in the writer's, and EACH\_QUORUM writes would mean all 5 here, waiting for the paused R3. _(D-RM, D-M, 320)_
 - No: R + W > N still holds _(D-RM, D-M, 320)_
 - None: 3 + 2 covers all 5 _(D-RM, D-M, 320)_
 - Nothing until a background Merkle-tree repair _(D-RM, D-M, 320)_
 - Nothing yet: the hint the coordinator kept replays v8 later _(D-RM, D-M, 320)_
 - One replica down at ALL _(D-RM, D-M, 320)_
 - One replica stalls _(D-RM, D-M, 320)_
-- R2 and R3 were down, so a sloppy quorum took the write on R1 and stand-in H1. Both are back for the read, and 2 + 2 > 3. Can a read still miss v8? _(D-RM, D-M, 320)_
+- R2 and R3 were down, so a sloppy quorum sent the write to R1 and stand-ins H1 and H2, and R1 and H1 acked. R2 and R3 are back for the read. With 2 + 2 > 3, can a read still miss v8? _(D-RM, D-M, 320)_
 - R2 pauses for 100 ms (a GC pause), so its round trip is now 104 ms. Writes at QUORUM took 4 ms. What do they take now? _(D-RM, D-M, 320)_
 - R3 was down for the write and is back. The read asks R3, which still has v7, and R2, which has v8. What happens to R3? _(D-RM, D-M, 320)_
 - Read repair: R3 answered v7 and R2 v8, so the read writes v8 to R3 and returns only then, 6 ms instead of 4 ms (Cassandra blocks the read on its repair, so a later QUORUM read cannot go backwards). The hint the coordinator kept for R3 replays the write shortly after R3 returns (by default Cassandra writes hints only for a replica's first 3 hours down); read repair fixes keys that are read; Merkle-tree repair fixes the rest. _(D-RM, D-M, 320)_
@@ -857,3 +896,4 @@ at N 5, at N 5 W 4, met at N 5 W 4 R 2, and moved off again. A string is listed 
 - Yes, 1 of the 3: R2 and R3 are back, so a read goes to the home replicas again, not to the stand-ins holding the write, and of the home replicas only R1 has v8, so a read of R2 and R3, like this one, returns v7. H1 and H2 replay v8 to R2 and R3 shortly after they return (hinted handoff); until then R + W > N promises nothing. A sloppy quorum trades the overlap for write availability: 99.97% to 99.99999% here. _(D-RM, D-M, 320)_
 - Yes: 1 of the 3 read sets can _(D-RM, D-M, 320)_
 - Yes: all 3 read sets can _(D-RM, D-M, 320)_
+- You met it; now: _(D-RM, D-M, 320)_
