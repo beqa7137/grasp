@@ -382,7 +382,8 @@
   /**
    * The moment the stage shows at rest. One shared queue: the first moment its line was longest. A queue each: the
    * moment the longest single line waited while a server that is up sat idle, the mechanism a shared queue removes;
-   * if no line ever waited beside an idle server, the moment the most were waiting. `none` when nobody waited.
+   * if no line ever waited beside an idle server, or the window is an unstable ramp, the moment the most were waiting.
+   * `none` when nobody waited.
    */
   function restMoment(smp) {
     const steps = waitingSteps(smp);
@@ -390,6 +391,8 @@
     if (most === 0) return { kind: 'none', t: smp.window, n: 0, total: 0 };
     const first = steps.find((p) => p[1] === most)[0] + 0.01;
     if (!smp.split) return { kind: 'longest', t: first, n: most, total: most };
+    // With no steady state the window is a ramp from empty, and its story is how far the lines grew.
+    if (!smp.stable) return { kind: 'most', t: first, n: most, total: most };
     const times = new Set();
     for (const r of smp.reqs) for (const x of [r.arrive, r.start, r.leave]) if (x >= 0 && x < smp.window) times.add(x);
     let best = null;

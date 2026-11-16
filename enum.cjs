@@ -478,7 +478,7 @@ const SEARCHED = { range: [1, 60000], passing: [26159, 27425, 30512, 57837] };
     const end = (m.growthPerS * smp.window) / 1000;
     const most = Math.max(...M.waitingSteps(smp).map((p) => p[1]));
     check(SCALES.some((q) => q >= Math.max(end, most)), `${show(s)}: a waiting scale holds the drift line's end ${end} and the sample's ${most}`);
-    check(smp.rest.kind !== 'idle' || smp.split, `${show(s)}: an unstable rest moment is the longest queue`);
+    check(smp.rest.kind === 'longest' || smp.rest.kind === 'most', `${show(s)}: an unstable window rests on its longest queue`);
   }
   console.log(`  ${unstable} unstable settings; the drift line fits every waiting scale`);
 }

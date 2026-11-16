@@ -1,8 +1,12 @@
 // Renders mockup.html in every state at 1280, 390 and 320 px in both themes, saves full-page screenshots to shots/,
 // prints the page's own collision report (text on text, lines through text, marks under text, off-stage text, dots on
-// dots, hit boxes on hit boxes, labels and focus tags with no place), then sweeps the stage over every setting at many
-// widths (at rest and mid-play), every experiment asking, playing and revealed, runs the no-answer sweep, proves it
-// catches two planted leaks, and prints the stage heights per width (each must be one value).
+// dots, hit boxes on hit boxes, x ticks closer than 6 px, text against a focus outline, labels and focus tags with no
+// place) and the layout spec's assertions (false claims, Little's law as printed, the speed note against the clock,
+// the 100 requests against their ticks, the chevron, the ghost's name), then sweeps the stage over every setting at
+// many widths (at rest, at moments of a free play with one waiting scale, and with curve and point ghosts), every
+// experiment asking, its answer's play and revealed, runs the no-answer sweep (each question entered from every act's
+// setting, and from every configuration at two widths), proves it catches four planted leaks, runs the false-claim
+// regexes over every page sentence, and prints the stage heights per width (each must be one value).
 // A state is a name ("busy"), a question asking, playing or revealed ("ask:3", "play:3", "reveal:1"), or the challenge
 // ("challenge", "challenge-start").
 // Usage: node shoot.cjs [--no-sweep] [--sweep-only] [--only=state,state] [--widths=1280,390]
@@ -23,9 +27,12 @@ const STATES = opt('only')?.split(',') ?? [
   'pool',
   'steady',
   'down',
+  'calm',
   'overload',
+  'critical',
   'playing',
   'describe',
+  'reduced',
   ...[1, 2, 3, 4, 5].map((k) => `ask:${k}`),
   ...[1, 2, 3, 4, 5].map((k) => `play:${k}`),
   ...[1, 2, 3, 4, 5].map((k) => `reveal:${k}`),
@@ -86,44 +93,48 @@ const server = http.createServer((req, res) => {
     await page.waitForSelector('body[data-ready="1"]', { timeout: 20000 });
     const sweepWidths = [252, 270, 300, 322, 360, 400, 460, 520, 560, 620, 700];
     const exp = await page.evaluate((w) => window.sweepExperiments(w), sweepWidths);
-    console.log(`\nexperiments, asking, playing and revealed (the challenge met and at its start): ${exp.renders} renders, ${exp.failures.length} with collisions`);
+    console.log(`\nexperiments, asking, the answer's play at three moments and revealed, the challenge met and at its start: ${exp.renders} renders, ${exp.failures.length} with findings`);
     for (const f of exp.failures.slice(0, 12)) console.log(`    W${f.W} E${f.exp} ${f.phase}: ${f.out.join(' | ')}`);
     total += exp.failures.length;
-    const giveaways = await page.evaluate((w) => window.noAnswer(w), sweepWidths);
-    console.log(`no-answer sweep, every question asking and its answer's play at five moments: ${giveaways.renders} renders, ${giveaways.out.length} giveaways`);
+    const giveaways = await page.evaluate((w) => window.noAnswer(w, [322, 620]), sweepWidths);
+    console.log(`no-answer sweep, every question asking (entered from every act's setting, and from every configuration at 322 and 620) and its answer's play at five moments: ${giveaways.renders} renders, ${giveaways.out.length} giveaways`);
     for (const g of giveaways.out.slice(0, 12)) console.log(`    ${g}`);
     total += giveaways.out.length;
     const planted = await page.evaluate(() => window.plantedLeaks(322));
     console.log(`planted leaks caught: ${planted.filter(Boolean).length} of ${planted.length}`);
-    if (!planted.every(Boolean)) total++;
+    if (!planted.every(Boolean) || planted.length !== 4) total++;
+    const words = await page.evaluate(() => window.pageWords());
+    console.log(`page sentences (summary, sample story, Describe, goal checks) over every setting: ${words.length} false claims`);
+    for (const w of words.slice(0, 8)) console.log(`    ${w}`);
+    total += words.length;
     const count = await page.evaluate(() => window.ALL_SETTINGS.length);
     const all = Array.from({ length: count }, (_, i) => i);
-    // Every setting at the phone and desktop widths; every setting mid-play at a phone width; strides elsewhere.
+    // Every setting at the phone and desktop widths, with ghosts at both; every setting at three moments of a free play
+    // at a phone width (one waiting scale); strides elsewhere.
     const plan = [
-      [252, all, [null]],
-      [322, all, [null, 140]],
-      [620, all, [null]],
-      ...[270, 300, 360, 400, 460, 520, 560, 700].map((w) => [w, all.filter((i) => i % 5 === w % 5), [null]]),
+      [252, all, [null], false],
+      [322, all, [null, 0.1, 0.9], true],
+      [620, all, [null], true],
+      ...[270, 300, 360, 400, 460, 520, 560, 700].map((w) => [w, all.filter((i) => i % 5 === w % 5), [null, 0.5], false]),
     ];
     const res = { renders: 0, failures: [] };
-    for (const [w, idx, taus] of plan)
-      for (let i = 0; i < idx.length; i += 60) {
-        const part = await page.evaluate(([w, ids, taus]) => window.sweep([w], ids.map((k) => window.ALL_SETTINGS[k]), taus), [w, idx.slice(i, i + 60), taus]);
+    for (const [w, idx, fracs, ghosts] of plan)
+      for (let i = 0; i < idx.length; i += 40) {
+        const part = await page.evaluate(([w, ids, fracs, ghosts]) => window.sweep([w], ids.map((k) => window.ALL_SETTINGS[k]), fracs, ghosts), [w, idx.slice(i, i + 40), fracs, ghosts]);
         res.renders += part.renders;
         res.failures.push(...part.failures);
       }
-    console.log(`settings sweep: ${count} settings over ${plan.map(([w, l, t]) => `${l.length * t.length} at ${w}`).join(', ')} = ${res.renders} renders, ${res.failures.length} with collisions`);
+    console.log(`settings sweep: ${count} settings = ${res.renders} renders, ${res.failures.length} with findings`);
     const byKind = {};
     for (const f of res.failures)
       for (const o of f.out) {
-        const k = o.replace(/"[^"]*"/g, '"…"').replace(/\d+/g, '#');
+        const k = o.replace(/"[^"]*"/g, '"…"').replace(/\d+(\.\d+)?/g, '#');
         byKind[k] ??= { n: 0, eg: `W${f.W} ${f.s}: ${o}` };
         byKind[k].n++;
       }
-    for (const [k, v] of Object.entries(byKind).sort((a, b) => b[1].n - a[1].n).slice(0, 14)) console.log(`    ${v.n} x ${k}   e.g. ${v.eg}`);
-    for (const f of res.failures.slice(0, 10)) console.log(`    W${f.W} ${f.s}: ${f.out.join(' | ')}`);
+    for (const [k, v] of Object.entries(byKind).sort((a, b) => b[1].n - a[1].n).slice(0, 16)) console.log(`    ${v.n} x ${k}   e.g. ${v.eg}`);
     total += res.failures.length;
-    const heights = await page.evaluate(() => window.heights([252, 300, 322, 360, 400, 460, 520, 560, 620, 700]));
+    const heights = await page.evaluate(() => window.heights([252, 270, 300, 322, 344, 360, 400, 460, 520, 560, 620, 700]));
     console.log('stage heights by width (each should be one value):', JSON.stringify(heights));
     for (const [w, hs] of Object.entries(heights)) if (hs.length !== 1) total++;
     await page.close();

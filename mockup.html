@@ -1112,6 +1112,16 @@
           }
           return b.x0 >= 2 && b.x1 <= this.W - 2;
         }
+        why(box, ignoreOwner, margin) {
+          const b = { x0: box.x0 - margin, x1: box.x1 + margin, y0: box.y0 - margin, y1: box.y1 + margin };
+          const hit = (o) => !(o.x1 <= b.x0 || o.x0 >= b.x1 || o.y1 <= b.y0 || o.y0 >= b.y1);
+          const t = this.texts.find((t) => hit(t));
+          if (t) return `text ${t.s}`;
+          const mk = this.marks.find((m) => hit(m));
+          if (mk) return `mark ${mk.owner}`;
+          const l = this.links.find((l) => l.points.some(([x, y]) => x > b.x0 && x < b.x1 && y > b.y0 && y < b.y1));
+          return l ? `link ${l.owner}` : 'edge';
+        }
         /** Puts a text at the first candidate where it covers nothing (and `ok` accepts); records it as missing when none is free. */
         place(cands, parts, o = {}) {
           for (const [x, y, anchor = 'start'] of cands) {
@@ -1119,7 +1129,10 @@
             const role = parts.reduce((a, p) => (ROLE[p[1]].size > ROLE[a].size ? p[1] : a), parts[0][1]);
             const box = this.textBox(x, y, w, role, anchor);
             if (box.y0 < (o.minY ?? 0) || box.y1 > (o.maxY ?? Infinity) || box.x0 < (o.minX ?? 2) || box.x1 > (o.maxX ?? this.W - 2)) continue;
-            if (!this.free(box, o.ignore ?? '', o.margin ?? 2)) continue;
+            if (!this.free(box, o.ignore ?? '', o.margin ?? 2)) {
+              if (window.__why) window.__why.push([parts[0][0], x, y, this.why(box, o.ignore ?? '', o.margin ?? 2)]);
+              continue;
+            }
             if (o.ok && !o.ok(box)) continue;
             return this.text(x, y, parts, { ...o, anchor });
           }
@@ -1413,7 +1426,13 @@
         const laneCls = (down) => `lane${down ? ' down' : ''}${hid.sample ? ' hidden' : ''}`;
         const queueDots = (list, xHead, yq, xTail, owner) => {
           const capN = Math.max(1, Math.floor((xHead - xTail) / PITCH) + 1);
-          const shown = list.length > capN ? capN - 2 : list.length;
+          // When the line passes the lane's room, the dots that fit beside a "+N" chip, which must fit too.
+          let shown = list.length;
+          if (list.length > capN)
+            for (shown = capN - 1; shown > 0; shown--) {
+              const cw = tw(`+${list.length - shown}`, 'mono') + 10;
+              if (xHead - shown * PITCH + DR - 2 - cw >= xTail - DR) break;
+            }
           list.slice(0, shown).forEach((r, k) => dot(D, xHead - k * PITCH, yq, DR, 'wait', owner, r.id));
           if (list.length > shown) {
             const more = `+${list.length - shown}`;
@@ -1462,8 +1481,8 @@
         // While the sample waits for the answer, the band is drawn hidden the way the model bar is: dashed lanes and ring
         // tracks and a chip in the lane, never an idle server with nobody waiting (that would be the "None" answer).
         if (hid.sample) {
-          const x0c = pad + 6;
-          const x1c = (split ? xs - 30 : xf) - 12;
+          const x0c = pad;
+          const x1c = (split ? xs - 30 : xf) - 2;
           const t = pick(['Requests arrive after your answer', 'Arrivals after your answer', 'After your answer'], (f) => tw(f, 'small') + 16 <= x1c - x0c);
           if (t) {
             const cw = tw(t, 'small') + 16;
@@ -1549,7 +1568,7 @@
         y = bt + BH + 18;
         const tlTop = y;
         const winWord = win >= 1000 ? `${win / 1000} s` : `${win} ms`;
-        const tlForms = hid.stability ? ['The sample after the failure', 'After the failure'] : !m.stable ? [`The first ${winWord}, starting empty`, `First ${winWord}, from empty`] : [`The last ${winWord} of this sample`, `The last ${winWord}`];
+        const tlForms = hid.stability ? ['The sample after the failure', 'After the failure'] : !m.stable ? [`The first ${winWord}, starting empty`, `First ${winWord}, from empty`, `${winWord} from empty`] : [`The last ${winWord} of this sample`, `The last ${winWord}`];
         // The label row's right side: the play's speed from its own clock, or at rest the moment the band shows.
         let right = [];
         let ringMark = false;
@@ -1589,7 +1608,8 @@
         D.text(pad, ya + 9, [['arrivals', 'small', 'muted']], { owner: 'tl-names' });
         const yw = ya + 18;
         const WH = 34;
-        D.text(pad, yw + WH / 2 + 6, [['waiting', 'small', 'muted']], { owner: 'tl-names' });
+        const drifting = smp && !m.stable && !critical(m) && !hid.stability;
+        D.text(pad, drifting ? yw + 17 : yw + WH / 2 + 6, [['waiting', 'small', 'muted']], { owner: 'tl-names' });
         const ys = yw + WH + 10;
         const SH = 44;
         const rh = (SH - (c - 1) * 4) / c;
@@ -1650,6 +1670,17 @@
           const edgeD = `M${x0} ${yw + WH}` + edge.map(([ex, ey]) => `L${r1(ex)} ${r1(ey)}`).join('');
           D.add('marks', `<path class="area-edge" d="${edgeD}"/>`);
           D.link(samplePath([[x0, yw + WH], ...edge], 2), 'area');
+          // The moment the band shows, at rest: a dotted line through the timeline and a ring on the area there.
+          if (ringMark) {
+            const px = X(tScene);
+            const py = Yq(rest.total);
+            D.add('top', `<line class="moment" x1="${r1(px)}" y1="${ya - 4}" x2="${r1(px)}" y2="${yax}"/>`);
+            D.link(sampleLine(px, ya - 4, px, yax), 'moment');
+            D.add('top', `<circle class="peak" cx="${r1(px)}" cy="${r1(py)}" r="3.5"/>`);
+            D.mark({ x0: px - 4, x1: px + 4, y0: py - 4, y1: py + 4 }, 'peak');
+          }
+          // The playhead runs under the stage's labels, which keep their halo over it.
+          if (playing) D.add('links', `<line class="playhead" x1="${r1(X(tNow))}" y1="${ya - 4}" x2="${r1(X(tNow))}" y2="${yax}"/>`);
           // With no steady state, the model's drift from empty as a dashed line beside the sample's wander.
           if (drift > 0) {
             D.add('links', `<line class="drift" x1="${x0}" y1="${yw + WH}" x2="${r1(X(win))}" y2="${r1(Yq(drift))}"/>`);
@@ -1664,23 +1695,18 @@
                 if (!D.free(sw, '', 1) || !D.free(box, '', 1)) continue;
                 D.add('top', `<line class="drift" x1="${xx}" y1="${yw + 7}" x2="${xx + 14}" y2="${yw + 7}"/>`);
                 D.mark(sw, 'drift-key');
-                D.text(xx + 18, yw + 11, [[t, 'small', 'ink']], { owner: 'drift-key', ground: true });
+                D.text(xx + 18, yw + 11, [[t, 'small', 'ink']], { owner: 'drift-key', ground: true, id: 'drift-key' });
                 done = true;
               }
               if (done) break;
             }
-            if (!done) D.missing.push(forms.at(-1));
+            // No room in the row: the key goes in the gutter under the row's name, in its shortest form.
+            if (!done) {
+              D.add('top', `<line class="drift" x1="${pad}" y1="${yw + 27}" x2="${pad + 12}" y2="${yw + 27}"/>`);
+              D.mark({ x0: pad, x1: pad + 12, y0: yw + 25, y1: yw + 29 }, 'drift-key');
+              D.text(pad + 15, yw + 31, [[forms.at(-1), 'small', 'ink']], { owner: 'drift-key', id: 'drift-key' });
+            }
           }
-          // The moment the band shows, at rest: a dotted line through the timeline and a ring on the area there.
-          if (ringMark) {
-            const px = X(tScene);
-            const py = Yq(rest.total);
-            D.add('top', `<line class="moment" x1="${r1(px)}" y1="${ya - 4}" x2="${r1(px)}" y2="${yax}"/>`);
-            D.link(sampleLine(px, ya - 4, px, yax), 'moment');
-            D.add('top', `<circle class="peak" cx="${r1(px)}" cy="${r1(py)}" r="3.5"/>`);
-            D.mark({ x0: px - 4, x1: px + 4, y0: py - 4, y1: py + 4 }, 'peak');
-          }
-          if (playing) D.add('top', `<line class="playhead" x1="${r1(X(tNow))}" y1="${ya - 4}" x2="${r1(X(tNow))}" y2="${yax}"/>`);
         } else {
           const later = pick(['The sample plays after your answer', 'Plays after your answer'], (t) => tw(t, 'cap') <= x1 - x0 - 8) ?? 'After your answer';
           D.text(x0 + 6, yw + WH / 2 + 4, [[later, 'cap', 'muted']], { owner: 'tl-wait' });
@@ -1693,9 +1719,22 @@
         D.text(pad, y + 24, [[pick(['Response time, exact from the model', 'Response time, from the model'], (t) => tw(t, 'capB') <= W - 2 * pad) ?? 'The model', 'capB', 'ink']], { owner: 'model' });
         y += 36;
         const headTop = y;
+        // The headline's swatches are the chart's legend; over capacity they sit at the end of its first line.
+        let swatches = !hid.numbers ? m.stable : true;
         if (!m.stable && !hid.numbers) {
           xGlyph(D, pad + 5, y + 14, 'head', 4);
           D.text(pad + 16, y + 19, [['No steady state', 'capB', 'bad']], { owner: 'head' });
+          const lw = 2 * (14 + 6 + tw('p99', 'label')) + 12;
+          if (pad + 16 + tw('No steady state', 'capB') + 16 + lw <= W - pad) {
+            let lx = W - pad - lw;
+            for (const k of ['p99', 'p50']) {
+              D.add('marks', `<line class="legend-line ${k}" x1="${lx}" y1="${y + 15}" x2="${lx + 14}" y2="${y + 15}"/>`);
+              D.mark({ x0: lx, x1: lx + 14, y0: y + 13, y1: y + 17 }, 'head');
+              D.text(lx + 20, y + 19, [[k, 'label']], { owner: 'head' });
+              lx += 14 + 6 + tw(k, 'label') + 12;
+            }
+            swatches = true;
+          }
           const gwords = pick(headlineForms(m), (t) => tw(t, 'cap') <= W - 2 * pad - 16) ?? headlineForms(m).at(-1);
           D.text(pad + 16, y + 37, [[gwords, 'cap', 'muted']], { owner: 'head' });
         } else {
@@ -1766,7 +1805,8 @@
         const chartTop = y;
         const MW = wide ? 88 : 66;
         const right100 = '100 requests';
-        const title = pick(['p50 and p99 against utilization · log scale', 'p50 and p99 · log scale'], (t) => tw(t, 'label') + tw(right100, 'label') + 16 <= W - 2 * pad);
+        // One row when the whole title fits; otherwise "log scale" keeps the first row and the axis's name the second.
+        const title = pick(['p50 and p99 against utilization · log scale'], (t) => tw(t, 'label') + tw(right100, 'label') + 16 <= W - 2 * pad);
         if (title) {
           D.text(pad, y + 12, [[title, 'label']], { owner: 'chart-title' });
           D.text(W - pad, y + 12, [[right100, 'label']], { owner: 'chart-title', anchor: 'end' });
@@ -1877,6 +1917,54 @@
               dot(D, cx, y99, 4, 'p99', 'cur-p99');
               dot(D, cx, y50, 4, 'p50', 'cur-p50');
             }
+            // Leaders run from the dots to the marginal's ticks, placed before any label so labels avoid them.
+            for (const [yy, cls] of same ? [[y50, 'p50']] : [[y50, 'p50'], [y99, 'p99']]) {
+              D.add('links', `<line class="leader" x1="${r1(cx + 5)}" y1="${r1(yy)}" x2="${MX0 - 3}" y2="${r1(yy)}"/>`);
+              D.link(sampleLine(cx + 5, yy, MX0 - 3, yy), `lead-${cls}`);
+            }
+          }
+        }
+        // The point ghost: hollow dots at the old utilization (one ringed dot where its p50 and p99 meet) and an arrow to
+        // the new cursor or the chevron, drawn before any value label; left out where it would sit on the new dots.
+        let ghostDots = null;
+        if (ghostKind === 'point') {
+          const gx = Xc(gm.rho);
+          const g99 = Yt(gm.p99);
+          const g50 = Yt(gm.p50);
+          const gclose = Math.abs(g99 - g50) < 9;
+          const pts = gclose ? [[(g99 + g50) / 2, 'both']] : [[g99, 'p99'], [g50, 'p50']];
+          const onCursor = cursor && pts.some(([yy]) => [cursor.y50, cursor.y99].some((cy) => Math.hypot(gx - cursor.x, yy - cy) < 12));
+          if (!onCursor) {
+            ghostDots = { gx, g99: gclose ? pts[0][0] : g99, g50: gclose ? pts[0][0] : g50, gclose };
+            for (const [yy, k] of pts) {
+              D.add('dots', `<circle class="ghost-dot ${k}" cx="${r1(gx)}" cy="${r1(yy)}" r="${k === 'both' ? 4.5 : 3.5}" data-owner="ghost"/>`);
+              D.mark({ x0: gx - 5.5, x1: gx + 5.5, y0: yy - 5.5, y1: yy + 5.5 }, 'ghost');
+            }
+            const target = cursor ? [cursor.x, cursor.y99] : chevron ? [chevron.x - 9, chevron.y + 9] : null;
+            if (target) {
+              const [tx, tyy] = target;
+              const fy = ghostDots.g99;
+              const len = Math.hypot(tx - gx, tyy - fy);
+              if (len > 20) {
+                const ux = (tx - gx) / len;
+                const uy = (tyy - fy) / len;
+                const ax0 = gx + ux * 7;
+                const ay0 = fy + uy * 7;
+                const ax1 = tx - ux * 8;
+                const ay1 = tyy - uy * 8;
+                const hx = ax1 - ux * 5;
+                const hy = ay1 - uy * 5;
+                D.add('links', `<line class="ghost-arrow" x1="${r1(ax0)}" y1="${r1(ay0)}" x2="${r1(ax1)}" y2="${r1(ay1)}"/><path class="ghost-head" d="M${r1(hx - uy * 3.5)} ${r1(hy + ux * 3.5)}L${r1(ax1)} ${r1(ay1)}L${r1(hx + uy * 3.5)} ${r1(hy - ux * 3.5)}"/>`);
+                D.link(sampleLine(ax0, ay0, ax1, ay1, 2), 'ghost');
+              }
+            }
+          }
+        }
+        if (cursor) {
+          const { x: cx, y50, y99 } = cursor;
+          {
+            const close = Math.abs(y99 - y50) < 9;
+            const same = fdur(m.p50) === fdur(m.p99);
             const valueCands = (yy, ups) => {
               const cands = [];
               for (const dx of [10, 22, 40, 60, 84])
@@ -1900,7 +1988,7 @@
           for (let i = 0; i < pts.length * 0.7; i += Math.max(1, Math.floor(pts.length / 24))) out.push([pts[i][0] + 3, pts[i][1] + dy, 'start']);
           return out;
         };
-        const legendShown = m.stable || hid.numbers;
+        const legendShown = swatches;
         const names = [];
         if (p99pts.length) names.push(D.place([...along(p99pts, -7), ...along(p99pts, -13), ...along(p99pts, -19)], [['p99', 'smallB', 'crit-ink']], { owner: 'c99', ground: true, minY: py0, maxY: py1 - 1, minX: px0 + 2, maxX: px1 - 2, optional: legendShown }));
         if (p50pts.length) names.push(D.place([...along(p50pts, 15), ...along(p50pts, 21), ...along(p50pts, 27)], [['p50', 'smallB', 'cur-ink']], { owner: 'c50', ground: true, minY: py0, maxY: py1 - 1, minX: px0 + 2, maxX: px1 - 2, optional: legendShown }));
@@ -1934,43 +2022,18 @@
           const placed = [gn, 'p99 before'].some((t) => D.place(cands, [[t, 'small', 'muted']], { owner: 'ghost', ground: true, minY: py0, maxY: py1 - 1, minX: px0 + 2, maxX: px1 - 2, optional: true, ok: near, id: 'ghost-name' }));
           D.meta.ghostName = placed;
         }
-        // The point ghost: hollow dots at the old utilization, the old p99 in words, and an arrow to the new cursor.
-        if (ghostKind === 'point') {
-          const gx = Xc(gm.rho);
-          const g99 = Yt(gm.p99);
-          const g50 = Yt(gm.p50);
-          for (const [yy, k] of [
-            [g99, 'p99'],
-            [g50, 'p50'],
-          ]) {
-            D.add('dots', `<circle class="ghost-dot ${k}" cx="${r1(gx)}" cy="${r1(yy)}" r="3.5" data-owner="ghost"/>`);
-            D.mark({ x0: gx - 4.5, x1: gx + 4.5, y0: yy - 4.5, y1: yy + 4.5 }, 'ghost');
-          }
-          const target = cursor ? [cursor.x, cursor.y99] : chevron ? [chevron.x - 9, chevron.y + 9] : null;
-          if (target) {
-            const [tx, tyy] = target;
-            const len = Math.hypot(tx - gx, tyy - g99);
-            if (len > 16) {
-              const ux = (tx - gx) / len;
-              const uy = (tyy - g99) / len;
-              const ax0 = gx + ux * 6;
-              const ay0 = g99 + uy * 6;
-              const ax1 = tx - ux * 7;
-              const ay1 = tyy - uy * 7;
-              const hx = ax1 - ux * 5;
-              const hy = ay1 - uy * 5;
-              D.add('links', `<line class="ghost-arrow" x1="${r1(ax0)}" y1="${r1(ay0)}" x2="${r1(ax1)}" y2="${r1(ay1)}"/><path class="ghost-head" d="M${r1(hx - uy * 3.5)} ${r1(hy + ux * 3.5)}L${r1(ax1)} ${r1(ay1)}L${r1(hx + uy * 3.5)} ${r1(hy - ux * 3.5)}"/>`);
-              D.link(sampleLine(ax0, ay0, ax1, ay1, 2), 'ghost');
-            }
-          }
+        // The point ghost's words: the old p99, and the old p50 where there is room.
+        if (ghostDots) {
+          const { gx } = ghostDots;
           const cands = (yy) => {
             const out = [];
             for (const dx of [8, 18, 30])
               for (const dy of [-8, 15, -18, 25]) out.push([gx - dx, yy + dy, 'end'], [gx + dx, yy + dy, 'start']);
             return out;
           };
-          ['before: ' + fdur(gm.p99), fdur(gm.p99)].some((t) => D.place(cands(g99), [[t, 'small', 'muted']], { owner: 'ghost', ground: true, minX: pad, maxX: MX0 - 4, minY: py0, maxY: py1 - 2, margin: 1, optional: true, id: 'ghost-p99' }));
-          D.place(cands(g50), [[fdur(gm.p50), 'small', 'muted']], { owner: 'ghost', ground: true, minX: pad, maxX: MX0 - 4, minY: py0, maxY: py1 - 2, margin: 1, optional: true, id: 'ghost-p50' });
+          const words = ghostDots.gclose && fdur(gm.p50) === fdur(gm.p99) ? [`before: ${fdur(gm.p99)}`] : [`before: ${fdur(gm.p99)}`, fdur(gm.p99)];
+          words.some((t) => D.place(cands(ghostDots.g99), [[t, 'small', 'muted']], { owner: 'ghost', ground: true, minX: pad, maxX: MX0 - 4, minY: py0, maxY: py1 - 2, margin: 1, optional: true, id: 'ghost-p99' }));
+          if (!ghostDots.gclose) D.place(cands(ghostDots.g50), [[fdur(gm.p50), 'small', 'muted']], { owner: 'ghost', ground: true, minX: pad, maxX: MX0 - 4, minY: py0, maxY: py1 - 2, margin: 1, optional: true, id: 'ghost-p50' });
         }
         // The marginal: 100 requests at the model's quantiles. Rows are anchored at the ticks: the 50 below p50 sit wholly
         // under its tick, the 49 between sit between the ticks, and the 100th sits wholly over the p99 tick; each tick keeps
@@ -2020,20 +2083,11 @@
           D.meta.marginal = { y50, y99, r, equal, rows: [] };
           D.add('grid', `<line class="mtick p50" data-tick="p50" x1="${MX0 - 3}" y1="${r1(y50)}" x2="${MX1}" y2="${r1(y50)}"/>`);
           D.add('grid', `<line class="mtick p99${equal ? ' over50' : ''}" data-tick="p99" x1="${MX0 - 3}" y1="${r1(y99)}" x2="${MX1}" y2="${r1(y99)}"/>`);
-          if (cursor) {
-            // Leaders from the cursor's dots to their ticks; where the marginal opened a row between close ticks, the p99
-            // leader steps to its tick at the column's edge.
-            for (const [yy, ty, cls] of [
-              [cursor.y50, y50, 'p50'],
-              [cursor.y99, y99, 'p99'],
-            ]) {
-              if (cls === 'p99' && equal) continue;
-              D.add('links', `<path class="leader" d="M${r1(cursor.x + 5)} ${r1(yy)}L${MX0 - 3} ${r1(yy)}L${MX0 - 3} ${r1(ty)}"/>`);
-              D.link(sampleLine(cursor.x + 5, yy, MX0 - 3, yy), `lead-${cls}`);
-            }
-          }
+          // Where the marginal opened a row between close ticks, the p99 leader steps to its tick at the column's edge.
+          if (cursor && !equal && Math.abs(y99 - cursor.y99) > 0.5) D.add('links', `<line class="leader" x1="${MX0 - 3}" y1="${r1(cursor.y99)}" x2="${MX0 - 3}" y2="${r1(y99)}"/>`);
           const atoms = m.dots.filter((t, i) => atomOf(i)).length;
           let atomRowCy = null;
+          const overflow = [];
           for (const row of rows.values()) {
             // In a row holding steady work's no-wait requests, the others are drawn first: the ones left out are then
             // all no-wait requests, which the count in words covers.
@@ -2042,17 +2096,15 @@
             list.slice(0, shown).forEach((i, k) => dot(D, MX0 + r + k * p, row.cy, r, `req${atomOf(i) ? ' nowait' : ''}`, 'marg', `q${i}`, ` data-zone="${row.zone}"`));
             const hidden = list.length - shown;
             D.meta.marginal.rows.push({ zone: row.zone, cy: row.cy, n: list.length });
-            if (list.some(atomOf)) {
-              atomRowCy = Math.max(atomRowCy ?? -Infinity, row.cy);
-              continue;
-            }
-            if (hidden > 0) D.place([[MX0, row.cy + 13], [MX0, row.cy + 24], [MX0, row.cy - 8]], [[`+${hidden}`, 'smallB', 'ink']], { owner: 'marg-more', ground: true });
+            if (list.some(atomOf)) atomRowCy = Math.max(atomRowCy ?? -Infinity, row.cy);
+            else if (hidden > 0) overflow.push([row.cy, hidden]);
           }
           // Steady work's requests that never wait all take exactly 10 ms: their count, always in words, under their row.
           if (atoms) {
             const forms = [`${atoms} at exactly ${fms(M.SERVICE_MS)}`, `${atoms} at ${fms(M.SERVICE_MS)}`];
             forms.some((t, i) => D.place([[MX1, atomRowCy + r + 13, 'end'], [MX1, atomRowCy + r + 24, 'end']], [[t, 'smallB', 'cur-ink']], { owner: 'marg-more', ground: true, minX: MX0 - 10, optional: i < forms.length - 1 }));
           }
+          for (const [cy, hidden] of overflow) D.place([[MX0, cy + 13], [MX0, cy + 24], [MX0, cy - 8], [MX1, cy + 13, 'end'], [MX1, cy - 8, 'end']], [[`+${hidden}`, 'smallB', 'ink']], { owner: 'marg-more', ground: true, data: ` data-more="${hidden}"` });
           const under = m.dots.filter((t) => t < 1).length;
           if (under) {
             const bottom = [...rows.values()].filter((row) => row.zone === 'A').sort((a, b) => b.cy - a.cy);
@@ -2069,7 +2121,8 @@
         } else {
           wrap('after your answer', 'small', MX1 - MX0).forEach((t, i) => D.text(MX0, (py0 + py1) / 2 + i * 14, [[t, 'small', 'muted']], { owner: 'marg' }));
         }
-        D.region('chart', { x: pad - 8, y: chartTop - 4, w: W - 2 * pad + 16, h: py1 + 24 - chartTop + 4 });
+        // The chart's region takes in the fan-out line under it at wide stages.
+        D.region('chart', { x: pad - 8, y: chartTop - 4, w: W - 2 * pad + 16, h: py1 + (wide ? 40 : 24) - chartTop + 4 });
         D.region('marginal', { x: MX0 - 6, y: chartTop - 4, w: MX1 - MX0 + 12, h: py1 + 24 - chartTop + 4 });
         y = py1 + 26;
         // Fan-out, at wide stages: one model line on what the p99 tick means for a page that calls many of these.
@@ -2080,7 +2133,7 @@
             if (t) D.text(pad, y + 10, [[t, 'small', 'muted']], { owner: 'fanout' });
             else D.missing.push('fan-out');
           }
-          y += 18;
+          y += 24;
         }
         D.label = summary(m, hid);
         D.view = view;
@@ -2111,19 +2164,40 @@
         const TAG = { w: 72, h: 16 };
         for (const id of ids) {
           for (const b of D.regions[id] ?? []) {
-            let x0 = b.x;
-            let y0 = b.y;
-            let x1 = b.x + b.w;
-            let y1 = b.y + b.h;
-            for (const t of D.texts) {
+            // The outline takes in the texts its region holds with 6 px to spare (3 at least); a text outside that would
+            // come within 4 px of the stroke moves that side in, or, when it cannot, is taken in too.
+            const inside = new Set(D.texts.filter((t) => {
               const cx = (t.x0 + t.x1) / 2;
               const cy = (t.y0 + t.y1) / 2;
-              if (cx < b.x || cx > b.x + b.w || cy < b.y || cy > b.y + b.h) continue;
-              x0 = Math.min(x0, t.x0 - 6);
-              y0 = Math.min(y0, t.y0 - 6);
-              x1 = Math.max(x1, t.x1 + 6);
-              y1 = Math.max(y1, t.y1 + 6);
+              return t.owner !== 'look' && cx >= b.x && cx <= b.x + b.w && cy >= b.y && cy <= b.y + b.h;
+            }));
+            const grow = (a, t, d) => ({ x0: Math.min(a.x0, t.x0 - d), y0: Math.min(a.y0, t.y0 - d), x1: Math.max(a.x1, t.x1 + d), y1: Math.max(a.y1, t.y1 + d) });
+            let box = { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h };
+            let core = { x0: b.x + 4, y0: b.y + 4, x1: b.x + b.w - 4, y1: b.y + b.h - 4 };
+            for (const t of inside) {
+              box = grow(box, t, 6);
+              core = grow(core, t, 3);
             }
+            const clash = (t) => !(t.x1 <= box.x0 - 4 || t.x0 >= box.x1 + 4 || t.y1 <= box.y0 - 4 || t.y0 >= box.y1 + 4);
+            for (let round = 0; round < 8; round++) {
+              const bad = D.texts.filter((t) => !inside.has(t) && t.owner !== 'look' && clash(t));
+              if (!bad.length) break;
+              for (const t of bad) {
+                if (t.y0 >= core.y1 && t.y0 - 4.5 >= core.y1) box.y1 = Math.min(box.y1, t.y0 - 4.5);
+                else if (t.y1 <= core.y0 && t.y1 + 4.5 <= core.y0) box.y0 = Math.max(box.y0, t.y1 + 4.5);
+                else if (t.x0 >= core.x1 && t.x0 - 4.5 >= core.x1) box.x1 = Math.min(box.x1, t.x0 - 4.5);
+                else if (t.x1 <= core.x0 && t.x1 + 4.5 <= core.x0) box.x0 = Math.max(box.x0, t.x1 + 4.5);
+                else {
+                  inside.add(t);
+                  box = grow(box, t, 6);
+                  core = grow(core, t, 3);
+                }
+              }
+            }
+            const x0 = box.x0;
+            const y0 = box.y0;
+            const x1 = box.x1;
+            const y1 = box.y1;
             const x = Math.max(3, x0);
             const yy = Math.max(3, y0);
             const w = Math.min(D.W - 3, x1) - x;
@@ -2430,7 +2504,7 @@ ${view.reduced ? `<p class="caption" role="status">${esc(sampleStory(m, M.sample
         for (let i = 1; i < xt.length; i++) if (xt[i].x0 - xt[i - 1].x1 < 6) out.push(`x ticks ${xt[i - 1].s} and ${xt[i].s} ${(xt[i].x0 - xt[i - 1].x1).toFixed(1)} px apart`);
         const inside = (p, t) => p.x > t.x0 + 0.5 && p.x < t.x1 - 0.5 && p.y > t.y0 + 0.5 && p.y < t.y1 - 0.5;
         for (const el of svg.querySelectorAll('.lane, .curve, .cursor, .leader, .cut, .gridline, .axis, .rule, .row-track, .area-edge, .playhead, .moment, .mtick, .drift, .ghost-arrow, .qgrid')) {
-          const grid = el.matches('.gridline, .axis, .rule, .row-track, .mtick, .qgrid');
+          const grid = el.matches('.gridline, .axis, .rule, .row-track, .mtick, .qgrid, .playhead');
           const o = owners(el);
           const pts = [];
           if (el.tagName === 'line') {
