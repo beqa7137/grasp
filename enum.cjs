@@ -256,26 +256,30 @@ for (const servers of M.SERVERS)
           ALL.push({ load, servers, queue, service, down });
         }
 console.log(`${ALL.length} settings`);
-// Typicality: the window's busy share against the utilization, and its average queue against the model's.
+// Typicality: the window's busy share against the utilization, and its average queue against the model's, over every
+// stable setting and again over the settings the experiments show; the seed with the smallest sum of the two means wins.
+const KEY = [{ load: 50 }, { load: 70 }, { load: 90 }, { load: 80, servers: 4, queue: 'split' }, { load: 80, servers: 4 }, { load: 90, service: 'steady' }, { load: 70, servers: 3 }, { load: 60, servers: 4, down: 1 }, { load: 60, servers: 3 }];
+function gap(s, seed) {
+  const m = M.run(s);
+  if (!m.stable) return 0;
+  const st = M.sampleStats(M.sample(s, seed));
+  return Math.abs(st.busy - m.rho) + Math.abs(Math.log((st.waiting + 0.25) / (m.waiting + 0.25))) / 3;
+}
 function score(seed) {
+  let all = 0;
   let worst = 0;
-  let total = 0;
   for (const s of ALL) {
-    const m = M.run(s);
-    if (!m.stable) continue;
-    const st = M.sampleStats(M.sample(s, seed));
-    const busyGap = Math.abs(st.busy - m.rho);
-    const qGap = Math.abs(Math.log((st.waiting + 0.25) / (m.waiting + 0.25)));
-    const v = busyGap + qGap / 3;
-    worst = Math.max(worst, v);
-    total += v;
+    const g = gap(s, seed);
+    all += g;
+    worst = Math.max(worst, g);
   }
-  return { worst, mean: total / ALL.length };
+  const key = KEY.reduce((t, s) => t + gap(s, seed), 0) / KEY.length;
+  return { mean: all / ALL.length, key, worst, total: all / ALL.length + key };
 }
 {
-  const seeds = quick ? [M.SAMPLE_SEED] : Array.from({ length: 24 }, (_, i) => i + 1);
-  const scored = seeds.map((seed) => ({ seed, ...score(seed) })).sort((a, b) => a.mean - b.mean);
-  for (const r of scored.slice(0, 5)) console.log(`seed ${r.seed}: mean gap ${r.mean.toFixed(3)}, worst ${r.worst.toFixed(3)}`);
+  const seeds = quick ? [M.SAMPLE_SEED] : Array.from({ length: 64 }, (_, i) => i + 1);
+  const scored = seeds.map((seed) => ({ seed, ...score(seed) })).sort((a, b) => a.total - b.total);
+  for (const r of scored.slice(0, 5)) console.log(`seed ${r.seed}: mean gap ${r.mean.toFixed(3)}, at the experiments ${r.key.toFixed(3)}, worst ${r.worst.toFixed(3)}`);
   if (!quick) check(scored[0].seed === M.SAMPLE_SEED, `SAMPLE_SEED is the most typical of ${seeds.length} (it is ${scored[0].seed})`);
   // Report how far the chosen seed's windows sit from the model, setting by setting, at the loads the experiments use.
   for (const s of [{ load: 50 }, { load: 70 }, { load: 90 }, { load: 80, servers: 4, queue: 'split' }, { load: 80, servers: 4 }, { load: 90, service: 'steady' }, { load: 70, servers: 3 }, { load: 60, servers: 4, down: 1 }]) {

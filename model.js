@@ -18,7 +18,7 @@
   const ANSWER_SLOW = 8;
   /** Arrivals simulated before the window, so the window opens in the steady state. */
   const WARM_ARRIVALS = 40000;
-  const SAMPLE_SEED = 7;
+  const SAMPLE_SEED = 31;
   const DOTS = 100;
 
   // ---------------------------------------------------------------- exact queueing
