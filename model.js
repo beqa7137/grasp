@@ -14,7 +14,10 @@
   const SERVICES = ['random', 'steady'];
   /** The sample's window of model time, and how much slower than real time a free play shows it. */
   const WINDOW_MS = 400;
+  /** With no steady state the queue only grows; a longer window, played faster, shows the ramp. */
+  const UNSTABLE_WINDOW_MS = 2000;
   const PLAY_SLOW = 25;
+  const UNSTABLE_PLAY_SLOW = 5;
   const ANSWER_SLOW = 8;
   /** Arrivals simulated before the window, so the window opens in the steady state. */
   const WARM_ARRIVALS = 40000;
@@ -296,7 +299,8 @@
   /**
    * A seeded run with common random numbers: the same stream of uniforms at every setting, so a higher load compresses
    * the same arrivals and every request waits at least as long. The window is the WINDOW_MS before the last simulated
-   * arrival ("now"). When the servers that are up cannot keep up, there is no steady state: the window starts empty at 0.
+   * arrival ("now"). When the servers that are up cannot keep up, there is no steady state: the window is
+   * UNSTABLE_WINDOW_MS long and starts empty at 0.
    */
   function sample(settings, seed = SAMPLE_SEED) {
     const m = latencyScenario(settings);
@@ -305,7 +309,8 @@
     const lambda = m.ratePerS / 1000;
     const rand = mulberry32(seed * 7919 + 13);
     const stable = m.stable;
-    const n = stable ? WARM_ARRIVALS : Math.ceil(lambda * WINDOW_MS * 3) + 50;
+    const win = stable ? WINDOW_MS : UNSTABLE_WINDOW_MS;
+    const n = stable ? WARM_ARRIVALS : Math.ceil(lambda * win * 1.3) + 50;
     const arrive = new Float64Array(n);
     const work = new Float64Array(n);
     const route = new Float64Array(n);
@@ -336,11 +341,11 @@
       free[k] = leaveAt[i];
       server[i] = k;
     }
-    const now = stable ? arrive[n - 1] : arrive[0] + WINDOW_MS - 1e-9;
-    const t0 = stable ? now - WINDOW_MS : arrive[0] - 1e-9;
+    const now = stable ? arrive[n - 1] : arrive[0] + win - 1e-9;
+    const t0 = stable ? now - win : arrive[0] - 1e-9;
     const reqs = [];
     for (let i = 0; i < n; i++) {
-      if (arrive[i] > t0 + WINDOW_MS) break;
+      if (arrive[i] > t0 + win) break;
       if (leaveAt[i] <= t0) continue;
       reqs.push({
         id: i,
@@ -350,7 +355,7 @@
         server: server[i],
       });
     }
-    return { t0, reqs, window: WINDOW_MS, up, stable };
+    return { t0, reqs, window: win, up, stable, slow: stable ? PLAY_SLOW : UNSTABLE_PLAY_SLOW };
   }
 
   /** What the sample shows at window time `t`: who waits (in arrival order, per queue) and who is in service. */
@@ -692,7 +697,9 @@
     QUEUES,
     SERVICES,
     WINDOW_MS,
+    UNSTABLE_WINDOW_MS,
     PLAY_SLOW,
+    UNSTABLE_PLAY_SLOW,
     ANSWER_SLOW,
     SAMPLE_SEED,
     DOTS,

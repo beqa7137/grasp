@@ -1,0 +1,2198 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Latency widget mockup</title>
+    <style>
+      @font-face {
+        font-family: 'Inter Variable';
+        src: url(fonts/inter-latin-wght-normal.woff2) format('woff2');
+        font-weight: 100 900;
+        font-display: block;
+      }
+      @font-face {
+        font-family: 'JetBrains Mono Variable';
+        src: url(fonts/jetbrains-mono-latin-wght-normal.woff2) format('woff2');
+        font-weight: 100 800;
+        font-display: block;
+      }
+      /* The app's tokens (apps/app/src/_theme.scss, styles.scss): light is the base, dark overrides. */
+      :root {
+        color-scheme: light;
+        --g-bg: #f4f5f9;
+        --g-surface: #ffffff;
+        --g-raised: #ffffff;
+        --g-sunken: #eef0f5;
+        --g-line: #dfe2ea;
+        --g-line-strong: #c6cbd6;
+        --g-stroke: #707889;
+        --g-text: #161a23;
+        --g-text-rgb: 22, 26, 35;
+        --g-muted: #4a5263;
+        --g-faint: #5c6477;
+        --g-on-fill: #ffffff;
+        --g-warn-ink: #6e4200;
+        --g-danger-ink: #9d1630;
+        --g-found-ink: #02583f;
+        --g-accent: #5846dc;
+        --g-accent-rgb: 88, 70, 220;
+        --g-accent-soft: rgba(88, 70, 220, 0.14);
+        --g-found: #036b4c;
+        --g-danger: #c3203d;
+        --g-warn: #945800;
+        --g-success-ink: var(--g-found-ink);
+        --g-success-line: var(--g-found);
+        --g-success-soft: rgba(3, 107, 76, 0.12);
+        --g-danger-soft: rgba(195, 32, 61, 0.12);
+        --g-warn-soft: rgba(148, 88, 0, 0.12);
+        --g-viz-stage: #f7f8fb;
+        --g-viz-current: #0b74ad;
+        --g-viz-current-soft: rgba(11, 116, 173, 0.16);
+        --g-viz-considering: #c77700;
+        --g-viz-considering-soft: rgba(199, 119, 0, 0.14);
+        --g-viz-final: #12925f;
+        --g-viz-final-ink: var(--g-found-ink);
+        --g-viz-discarded-ink: #687082;
+        --g-viz-critical: #d42a49;
+        --g-viz-track: #d3d7e0;
+        --g-shadow: 0 1px 2px rgba(var(--g-text-rgb), 0.06), 0 3px 10px rgba(var(--g-text-rgb), 0.07);
+        --g-shadow-raised: 0 1px 2px rgba(var(--g-text-rgb), 0.08);
+        --g-radius-xs: 6px;
+        --g-radius-sm: 10px;
+        --g-radius-md: 14px;
+        --g-radius-pill: 999px;
+        --g-text-title-m: 1.0625rem;
+        --g-text-title-s: 0.9375rem;
+        --g-text-body: 0.875rem;
+        --g-text-body-s: 0.8125rem;
+        --g-text-label: 0.6875rem;
+        --g-font: 'Inter Variable', system-ui, sans-serif;
+        --g-font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+        --g-focus-ring: 2px solid var(--g-accent);
+      }
+      :root.dark {
+        color-scheme: dark;
+        --g-bg: #0b0d12;
+        --g-surface: #141824;
+        --g-raised: #1c2130;
+        --g-sunken: #0f121a;
+        --g-line: #252a37;
+        --g-line-strong: #343b4d;
+        --g-stroke: #6b7387;
+        --g-text: #e9ebf2;
+        --g-text-rgb: 233, 235, 242;
+        --g-muted: #8b93a8;
+        --g-faint: #828a9e;
+        --g-on-fill: #0b0d12;
+        --g-warn-ink: #f3e6b3;
+        --g-danger-ink: #ffb3bd;
+        --g-found-ink: #3ddc97;
+        --g-accent: #9d8cff;
+        --g-accent-rgb: 157, 140, 255;
+        --g-accent-soft: rgba(157, 140, 255, 0.14);
+        --g-found: #3ddc97;
+        --g-danger: #ff5d73;
+        --g-warn: #ffb547;
+        --g-success-soft: rgba(61, 220, 151, 0.12);
+        --g-danger-soft: rgba(255, 93, 115, 0.12);
+        --g-warn-soft: rgba(255, 181, 71, 0.12);
+        --g-viz-stage: #0e1118;
+        --g-viz-current: #1f9fd0;
+        --g-viz-current-soft: rgba(31, 159, 208, 0.16);
+        --g-viz-considering: #c08420;
+        --g-viz-considering-soft: rgba(192, 132, 32, 0.18);
+        --g-viz-final: #22ad74;
+        --g-viz-final-ink: var(--g-found);
+        --g-viz-discarded-ink: var(--g-muted);
+        --g-viz-critical: #e5485f;
+        --g-viz-track: #2a3040;
+        --g-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        --g-shadow-raised: var(--g-shadow);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--g-bg);
+        color: var(--g-text);
+        font: 400 var(--g-text-body) / 1.5 var(--g-font);
+        font-variant-ligatures: none;
+        -webkit-font-smoothing: antialiased;
+        overflow-wrap: break-word;
+      }
+      button {
+        font-size: 0.8333rem;
+      }
+      .page {
+        max-width: 1048px;
+        margin: 0 auto;
+        padding: 20px 16px 40px;
+      }
+      .eyebrow {
+        margin: 0;
+        font: 600 var(--g-text-label) var(--g-font);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--g-muted);
+      }
+      h1 {
+        margin: 4px 0 14px;
+        font: 600 1.25rem/1.3 var(--g-font);
+      }
+      .panel {
+        border: 1px solid var(--g-line);
+        border-radius: var(--g-radius-md);
+        background: var(--g-surface);
+        box-shadow: var(--g-shadow);
+        padding: 16px;
+      }
+      /* Narrow: one column, the controls as the stage's first rows, then the stage, the question, Describe, the cards. */
+      .widget {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 12px;
+      }
+      .main,
+      .experiments {
+        display: contents;
+      }
+      .controls {
+        order: 1;
+      }
+      .stage {
+        order: 2;
+        min-width: 0;
+      }
+      .dock {
+        order: 3;
+      }
+      .describe {
+        order: 4;
+      }
+      .heading,
+      .cards {
+        order: 5;
+      }
+      .controls {
+        padding: 12px 12px 0;
+        border: 1px solid var(--g-line);
+        border-bottom: 0;
+        border-radius: var(--g-radius-md) var(--g-radius-md) 0 0;
+        background: var(--g-viz-stage);
+        display: grid;
+        gap: 10px;
+        min-width: 0;
+      }
+      .stage {
+        margin-top: -12px;
+      }
+      .stage .well {
+        border-top: 0;
+        border-radius: 0 0 var(--g-radius-md) var(--g-radius-md);
+      }
+      @media (min-width: 1000px) {
+        .widget {
+          grid-template-columns: minmax(0, 1fr) 340px;
+          grid-template-rows: auto 1fr;
+          align-items: start;
+          column-gap: 20px;
+        }
+        .main {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr);
+          gap: 12px;
+          grid-column: 1;
+          grid-row: 1 / span 2;
+          min-width: 0;
+        }
+        .controls {
+          grid-column: 2;
+          grid-row: 1;
+          padding: 0;
+          border: 0;
+          background: none;
+        }
+        .experiments {
+          display: block;
+          grid-column: 2;
+          grid-row: 2;
+          min-width: 0;
+        }
+        .stage {
+          margin-top: 0;
+        }
+        .stage .well {
+          border-top: 1px solid var(--g-line);
+          border-radius: var(--g-radius-md);
+        }
+        .dock {
+          margin-top: 12px;
+        }
+      }
+      .well {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid var(--g-line);
+        border-radius: var(--g-radius-md);
+        background-color: var(--g-viz-stage);
+        background-image: radial-gradient(circle, rgba(var(--g-text-rgb), 0.09) 1px, transparent 1.5px);
+        background-size: 24px 24px;
+        background-position: 11px 11px;
+      }
+      /* Every fieldset.group carries the same zero padding; a control's own class only adds to it (the R41 padding bug). */
+      fieldset.group {
+        margin: 0;
+        padding: 0;
+        border: 0;
+        min-width: 0;
+      }
+      .control-label {
+        font: 600 var(--g-text-label) var(--g-font);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--g-muted);
+        padding: 0;
+        margin-bottom: 4px;
+      }
+      .segments {
+        display: flex;
+        gap: 4px;
+      }
+      .segment {
+        position: relative;
+        flex: 1 1 0;
+        min-width: 0;
+      }
+      .segment input {
+        position: absolute;
+        inset: 0;
+        margin: 0;
+        opacity: 0;
+        cursor: pointer;
+      }
+      .segment span {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        min-height: 44px;
+        padding: 0 6px;
+        border-radius: var(--g-radius-sm);
+        border: 1px solid var(--g-line-strong);
+        background: var(--g-raised);
+        box-shadow: var(--g-shadow-raised);
+        color: var(--g-text);
+        font: 500 var(--g-text-body) / 1.15 var(--g-font);
+        text-align: center;
+      }
+      .segment input:checked + span {
+        background: var(--g-accent-soft);
+        border-color: var(--g-accent);
+        box-shadow: inset 0 0 0 1px var(--g-accent);
+        font-weight: 600;
+      }
+      fieldset:disabled .segment span {
+        opacity: 0.55;
+      }
+      .segment small {
+        font: 500 var(--g-text-label) var(--g-font);
+        color: var(--g-muted);
+      }
+      .toggles {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px;
+      }
+      .toggles .segment span {
+        flex-direction: column;
+        gap: 0;
+        font-size: var(--g-text-body-s);
+      }
+      .notice {
+        margin: 0;
+        min-height: 2lh;
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+      }
+      .play {
+        position: absolute;
+        width: 44px;
+        height: 44px;
+        padding: 0;
+        border: 0;
+        background: none;
+        cursor: pointer;
+        z-index: 2;
+      }
+      .play svg {
+        display: block;
+        width: 36px;
+        height: 36px;
+        margin: 4px;
+      }
+      .play circle {
+        fill: var(--g-raised);
+        stroke: var(--g-accent);
+        stroke-width: 1.5;
+      }
+      .play path {
+        fill: var(--g-accent);
+      }
+      .play:disabled {
+        cursor: default;
+        opacity: 0.55;
+      }
+      .handle {
+        position: absolute;
+        width: 44px;
+        height: 44px;
+        display: grid;
+        place-items: center;
+        cursor: ew-resize;
+        z-index: 2;
+      }
+      .handle .knob {
+        width: 14px;
+        height: 26px;
+        border-radius: var(--g-radius-pill);
+        background: var(--g-raised);
+        border: 2px solid var(--g-accent);
+        box-shadow: var(--g-shadow-raised);
+      }
+      .handle[aria-disabled='true'] {
+        cursor: default;
+      }
+      .handle[aria-disabled='true'] .knob {
+        opacity: 0.55;
+      }
+      /* Drawing roles: text sits on a stage-coloured halo; small text is measured as drawn (no tabular digits). */
+      svg.draw {
+        position: absolute;
+        left: 0;
+        top: 0;
+        display: block;
+        overflow: visible;
+      }
+      svg.draw text {
+        paint-order: stroke;
+        stroke: var(--g-viz-stage);
+        stroke-width: 3px;
+        stroke-linejoin: round;
+      }
+      svg.draw text.on-box {
+        stroke: var(--g-raised);
+      }
+      svg.draw text.on-chip {
+        stroke: none;
+      }
+      .t-label {
+        font: 600 var(--g-text-label) var(--g-font);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        fill: var(--g-muted);
+      }
+      .t-cap {
+        font: 500 var(--g-text-body-s) var(--g-font);
+        fill: var(--g-muted);
+      }
+      .t-capB {
+        font: 600 var(--g-text-body-s) var(--g-font);
+        fill: var(--g-text);
+      }
+      .t-small {
+        font: 500 var(--g-text-label) var(--g-font);
+        fill: var(--g-muted);
+      }
+      .t-smallB {
+        font: 700 var(--g-text-label) var(--g-font);
+        fill: var(--g-text);
+      }
+      .t-mono {
+        font: 600 var(--g-text-label) var(--g-font-mono);
+        fill: var(--g-text);
+      }
+      .t-nameS {
+        font: 600 13px var(--g-font-mono);
+        fill: var(--g-text);
+      }
+      .t-head {
+        font: 600 var(--g-text-title-m) var(--g-font-mono);
+        fill: var(--g-text);
+      }
+      .ink {
+        fill: var(--g-text);
+      }
+      .muted {
+        fill: var(--g-muted);
+      }
+      .bad {
+        fill: var(--g-danger-ink);
+      }
+      .wait-ink {
+        fill: var(--g-warn-ink);
+      }
+      .cur-ink {
+        fill: var(--g-viz-current);
+      }
+      .crit-ink {
+        fill: var(--g-viz-critical);
+      }
+      .rule {
+        stroke: var(--g-line);
+      }
+      .rail {
+        stroke: var(--g-viz-track);
+        stroke-width: 4;
+        stroke-linecap: round;
+      }
+      .fill {
+        stroke: var(--g-accent);
+        stroke-width: 4;
+        stroke-linecap: round;
+      }
+      .stop {
+        fill: var(--g-line-strong);
+      }
+      .lane {
+        fill: none;
+        stroke: var(--g-viz-track);
+        stroke-width: 1.5;
+      }
+      .lane.down {
+        stroke-dasharray: 3 3;
+      }
+      .router {
+        fill: var(--g-raised);
+        stroke: var(--g-stroke);
+        stroke-width: 1.25;
+      }
+      .srv {
+        fill: var(--g-raised);
+        stroke: var(--g-line-strong);
+      }
+      .srv.down {
+        fill: url(#hatch);
+        stroke-dasharray: 4 3;
+      }
+      .srv.over {
+        stroke: var(--g-viz-critical);
+        stroke-width: 1.5;
+      }
+      .hatch-fill {
+        fill: var(--g-sunken);
+      }
+      .hatch-line {
+        stroke: var(--g-viz-discarded-ink);
+        stroke-opacity: 0.35;
+        stroke-width: 1.5;
+      }
+      .ring-track {
+        fill: none;
+        stroke: var(--g-viz-track);
+        stroke-width: 2.5;
+      }
+      .ring-arc {
+        fill: none;
+        stroke: var(--g-viz-current);
+        stroke-width: 2.5;
+        stroke-linecap: round;
+      }
+      .dot.wait {
+        fill: var(--g-viz-considering);
+      }
+      .dot.serve {
+        fill: var(--g-viz-current);
+      }
+      .dot.p50 {
+        fill: var(--g-viz-current);
+        stroke: var(--g-viz-stage);
+        stroke-width: 1.5;
+      }
+      .dot.p99 {
+        fill: var(--g-viz-critical);
+        stroke: var(--g-viz-stage);
+        stroke-width: 1.5;
+      }
+      .dot.req {
+        fill: var(--g-stroke);
+      }
+      .dot.req.nowait {
+        fill: var(--g-viz-current);
+      }
+      .key-dot.wait {
+        fill: var(--g-viz-considering);
+      }
+      .key-dot.serve {
+        fill: var(--g-viz-current);
+      }
+      .chip {
+        fill: var(--g-raised);
+        stroke: var(--g-line-strong);
+      }
+      .tick-arr {
+        fill: var(--g-muted);
+      }
+      .area-wait {
+        fill: var(--g-viz-considering-soft);
+      }
+      .area-edge {
+        fill: none;
+        stroke: var(--g-viz-considering);
+        stroke-width: 1.5;
+      }
+      .row-track {
+        fill: none;
+        stroke: var(--g-line);
+      }
+      .busy {
+        fill: var(--g-viz-current);
+      }
+      .busy-down {
+        fill: url(#hatch);
+      }
+      .axis {
+        stroke: var(--g-line-strong);
+      }
+      .gridline {
+        stroke: var(--g-line);
+      }
+      .playhead {
+        stroke: var(--g-text);
+        stroke-width: 1.5;
+      }
+      .peak {
+        fill: none;
+        stroke: var(--g-text);
+        stroke-width: 1.5;
+      }
+      .bar-work {
+        fill: var(--g-viz-current);
+      }
+      .bar-wait {
+        fill: var(--g-viz-considering);
+      }
+      .bar-hidden {
+        fill: none;
+        stroke: var(--g-stroke);
+        stroke-dasharray: 4 3;
+      }
+      .curve {
+        fill: none;
+        stroke-width: 2;
+        stroke-linejoin: round;
+      }
+      .curve.p50 {
+        stroke: var(--g-viz-current);
+      }
+      .curve.p99 {
+        stroke: var(--g-viz-critical);
+        stroke-dasharray: 6 4;
+      }
+      .curve.ghost {
+        stroke: var(--g-stroke);
+        stroke-width: 1.5;
+        stroke-dasharray: 2 3;
+      }
+      .cursor {
+        stroke: var(--g-text);
+        stroke-opacity: 0.45;
+        stroke-dasharray: 3 3;
+      }
+      .cut {
+        stroke: var(--g-stroke);
+        stroke-dasharray: 2 3;
+      }
+      .leader {
+        stroke: var(--g-stroke);
+        stroke-dasharray: 2 3;
+      }
+      .mtick.p50 {
+        stroke: var(--g-viz-current);
+        stroke-width: 1.5;
+      }
+      .mtick.p99 {
+        stroke: var(--g-viz-critical);
+        stroke-width: 1.5;
+      }
+      .legend-line {
+        stroke-width: 2;
+        stroke-linecap: round;
+      }
+      .legend-line.p50 {
+        stroke: var(--g-viz-current);
+      }
+      .legend-line.p99 {
+        stroke: var(--g-viz-critical);
+        stroke-dasharray: 4 3;
+      }
+      .xmark {
+        stroke: var(--g-viz-critical);
+        stroke-width: 2;
+        stroke-linecap: round;
+        fill: none;
+      }
+      .xground {
+        fill: var(--g-viz-stage);
+      }
+      .chevron {
+        fill: none;
+        stroke: var(--g-viz-critical);
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .focus-outline {
+        fill: none;
+        stroke: var(--g-accent);
+        stroke-width: 2;
+        stroke-dasharray: 6 4;
+      }
+      .tag {
+        fill: var(--g-viz-stage);
+        stroke: var(--g-accent);
+        stroke-width: 1.5;
+      }
+      .t-look {
+        font: 600 var(--g-text-label) var(--g-font);
+        fill: var(--g-accent);
+      }
+      /* The experiment dock and cards (experiment-dock.component.ts, widget-check.component.ts). */
+      .dock {
+        padding: 12px 16px;
+        border-radius: var(--g-radius-md);
+        border: 1px solid var(--g-line);
+        border-left: 3px solid var(--g-accent);
+        background: var(--g-surface);
+      }
+      .dock:empty {
+        display: none;
+      }
+      .legend {
+        margin: 0 0 4px;
+        font-weight: 600;
+        line-height: 1.45;
+      }
+      .options {
+        list-style: none;
+        margin: 8px 0 0;
+        padding: 0;
+        display: grid;
+        gap: 8px;
+      }
+      .g-choice {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        padding: 10px 14px;
+        border-radius: 12px;
+        border: 1px solid var(--g-line-strong);
+        background: var(--g-raised);
+        color: var(--g-text);
+        font: 500 0.90625rem/1.45 var(--g-font);
+        text-align: left;
+      }
+      button.g-choice {
+        box-shadow: var(--g-shadow-raised);
+        cursor: pointer;
+      }
+      .g-choice.right {
+        border-color: var(--g-success-line);
+        background: var(--g-success-soft);
+      }
+      .g-choice.wrong {
+        border-color: var(--g-danger);
+        background: var(--g-danger-soft);
+      }
+      .mark {
+        flex: none;
+        width: 20px;
+        height: 20px;
+      }
+      .held {
+        margin: 10px 0 0;
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+      }
+      .reveal {
+        margin: 10px 0 0;
+        line-height: 1.55;
+        font-size: 0.90625rem;
+      }
+      .status-line {
+        margin: 8px 0 4px;
+        font: 600 var(--g-text-body) var(--g-font);
+        color: var(--g-muted);
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .status-line.met {
+        color: var(--g-success-ink);
+      }
+      .status {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        display: grid;
+        gap: 4px;
+        font: 600 var(--g-text-body-s) var(--g-font);
+        font-variant-numeric: tabular-nums;
+        color: var(--g-muted);
+      }
+      .status li {
+        display: flex;
+        gap: 8px;
+        align-items: baseline;
+      }
+      .status li.met {
+        color: var(--g-success-ink);
+      }
+      .status .state {
+        flex: none;
+        width: 16px;
+      }
+      .heading {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font: 600 var(--g-text-title-s) var(--g-font);
+        margin: 20px 0 8px;
+      }
+      .heading svg {
+        color: var(--g-accent);
+      }
+      .cards {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 8px;
+      }
+      .card-btn {
+        width: 100%;
+        min-height: 48px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 12px;
+        border: 1px solid var(--g-line-strong);
+        border-radius: var(--g-radius-sm);
+        background: var(--g-raised);
+        box-shadow: var(--g-shadow-raised);
+        color: var(--g-text);
+        font: 500 var(--g-text-body) var(--g-font);
+        text-align: left;
+      }
+      .card-btn[aria-current] {
+        border-color: var(--g-accent);
+        box-shadow: inset 0 0 0 1px var(--g-accent);
+        background: var(--g-accent-soft);
+      }
+      .card-btn .num {
+        flex: none;
+        display: grid;
+        place-items: center;
+        width: 26px;
+        height: 26px;
+        border-radius: var(--g-radius-pill);
+        background: var(--g-sunken);
+        font: 600 var(--g-text-body-s) var(--g-font-mono);
+        color: var(--g-muted);
+      }
+      /* Describe: a minmax(0, 1fr) grid, its table scrolling inside its own box; compact on narrow stages. */
+      .describe {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 8px;
+        justify-items: start;
+      }
+      .describe .muted-note {
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+        margin: 0;
+      }
+      .describe p.summary {
+        margin: 0;
+        font-size: var(--g-text-body-s);
+      }
+      .g-btn {
+        appearance: none;
+        border: 1px solid var(--g-line-strong);
+        background: var(--g-raised);
+        box-shadow: var(--g-shadow-raised);
+        color: var(--g-text);
+        border-radius: var(--g-radius-sm);
+        padding: 9px 14px;
+        min-height: 44px;
+        font: 500 var(--g-text-body) / 1 var(--g-font);
+      }
+      .g-btn:disabled {
+        opacity: 0.55;
+      }
+      .table-box {
+        justify-self: stretch;
+        overflow: auto;
+        max-height: 300px;
+        border-top: 1px solid var(--g-line);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font: 500 var(--g-text-body-s) var(--g-font);
+        font-variant-numeric: tabular-nums;
+      }
+      th,
+      td {
+        text-align: right;
+        padding: 4px 8px;
+        white-space: nowrap;
+      }
+      th:first-child,
+      td:first-child {
+        text-align: left;
+      }
+      th {
+        font: 600 var(--g-text-label) var(--g-font);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--g-muted);
+        position: sticky;
+        top: 0;
+        background: var(--g-surface);
+        vertical-align: bottom;
+      }
+      td {
+        border-top: 1px solid var(--g-line);
+      }
+      tr.now td {
+        background: var(--g-accent-soft);
+        font-weight: 600;
+      }
+      .compact th,
+      .compact td {
+        padding-inline: 4px;
+      }
+      .compact th {
+        letter-spacing: normal;
+        white-space: normal;
+      }
+      th .unit {
+        text-transform: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <p class="eyebrow">System design · Latency &amp; Queueing</p>
+      <h1>Try it</h1>
+      <section class="panel widget" id="widget"></section>
+    </main>
+    <script src="model.js"></script>
+    <script>
+      'use strict';
+      const M = window.LatencyModel;
+      const params = new URLSearchParams(location.search);
+      document.documentElement.classList.toggle('dark', params.get('theme') === 'dark');
+      const WIN = M.WINDOW_MS;
+
+      // ---------- Text measurement, with the fonts the app ships (no tabular digits: small text is measured as drawn).
+      const ROLE = {
+        label: { css: '600 11px "Inter Variable"', size: 11, track: 0.12, upper: true },
+        cap: { css: '500 13px "Inter Variable"', size: 13 },
+        capB: { css: '600 13px "Inter Variable"', size: 13 },
+        small: { css: '500 11px "Inter Variable"', size: 11 },
+        smallB: { css: '700 11px "Inter Variable"', size: 11 },
+        mono: { css: '600 11px "JetBrains Mono Variable"', size: 11 },
+        nameS: { css: '600 13px "JetBrains Mono Variable"', size: 13 },
+        head: { css: '600 17px "JetBrains Mono Variable"', size: 17 },
+        look: { css: '600 11px "Inter Variable"', size: 11 },
+      };
+      const ctx = document.createElement('canvas').getContext('2d');
+      const widthCache = new Map();
+      function tw(text, role) {
+        const key = role + '|' + text;
+        if (widthCache.has(key)) return widthCache.get(key);
+        const f = ROLE[role];
+        ctx.font = f.css;
+        const s = f.upper ? text.toUpperCase() : text;
+        const w = Math.ceil(ctx.measureText(s).width + (f.track ? f.track * f.size * s.length : 0)) + 1;
+        widthCache.set(key, w);
+        return w;
+      }
+      const partsWidth = (parts) => parts.reduce((s, [t, role, , dx = 0]) => s + tw(t, role) + dx, 0);
+      function wrap(text, role, width) {
+        const lines = [];
+        let line = '';
+        for (const w of text.split(' ')) {
+          const next = line ? line + ' ' + w : w;
+          if (tw(next, role) <= width || !line) line = next;
+          else {
+            lines.push(line);
+            line = w;
+          }
+        }
+        if (line) lines.push(line);
+        return lines;
+      }
+      const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      const fms = M.formatMs;
+      const fdur = M.formatDuration;
+      const r1 = (v) => Math.round(v * 10) / 10;
+      const plural = (n, one, many) => (n === 1 ? one : many);
+
+      // ---------- The drawing: SVG parts in layers, and the boxes placement checks against.
+      class Draw {
+        constructor(W) {
+          this.W = W;
+          this.layers = { back: [], grid: [], links: [], marks: [], dots: [], text: [], top: [] };
+          this.texts = [];
+          this.marks = [];
+          this.links = [];
+          this.hits = [];
+          this.regions = {};
+          this.missing = [];
+        }
+        add(layer, s) {
+          this.layers[layer].push(s);
+        }
+        textBox(x, y, w, role, anchor = 'start') {
+          const fs = ROLE[role].size;
+          const x0 = anchor === 'middle' ? x - w / 2 : anchor === 'end' ? x - w : x;
+          return { x0, x1: x0 + w, y0: y - 0.74 * fs, y1: y + 0.22 * fs };
+        }
+        text(x, y, parts, o = {}) {
+          if (typeof parts === 'string') parts = [[parts, o.role ?? 'small', o.cls ?? '']];
+          const anchor = o.anchor ?? 'start';
+          const w = partsWidth(parts);
+          const role = parts.reduce((a, p) => (ROLE[p[1]].size > ROLE[a].size ? p[1] : a), parts[0][1]);
+          const box = this.textBox(x, y, w, role, anchor);
+          box.owner = o.owner ?? '';
+          box.s = parts.map((p) => p[0]).join('');
+          this.texts.push(box);
+          const spans = parts.map(([t, r, cls = '', dx = 0]) => `<tspan class="t-${r} ${cls}"${dx ? ` dx="${dx}"` : ''}>${esc(t)}</tspan>`).join('');
+          const attrs = `x="${r1(x)}" y="${r1(y)}" text-anchor="${anchor}"${o.owner ? ` data-owner="${o.owner}"` : ''}${o.ground ? ' data-ground="1"' : ''}${o.id ? ` data-id="${o.id}"` : ''}`;
+          this.add(o.layer ?? 'text', `<text class="${o.textCls ?? ''}" ${attrs}>${spans}</text>`);
+          return box;
+        }
+        mark(box, owner = '') {
+          this.marks.push({ ...box, owner });
+        }
+        link(points, owner = '') {
+          this.links.push({ points, owner });
+        }
+        hit(kind, x, y, w, h, extra = {}) {
+          this.hits.push({ kind, x, y, w, h, ...extra });
+        }
+        region(id, box) {
+          (this.regions[id] ??= []).push(box);
+        }
+        free(box, ignoreOwner = '', margin = 2) {
+          const b = { x0: box.x0 - margin, x1: box.x1 + margin, y0: box.y0 - margin, y1: box.y1 + margin };
+          const hit = (o) => !(o.x1 <= b.x0 || o.x0 >= b.x1 || o.y1 <= b.y0 || o.y0 >= b.y1);
+          const mine = (o) => ignoreOwner && o.owner && o.owner.split(' ').some((t) => ignoreOwner.split(' ').includes(t));
+          if (this.texts.some((t) => hit(t) && !mine(t))) return false;
+          if (this.marks.some((m) => hit(m) && !mine(m))) return false;
+          for (const l of this.links) {
+            if (mine(l)) continue;
+            if (l.points.some(([x, y]) => x > b.x0 && x < b.x1 && y > b.y0 && y < b.y1)) return false;
+          }
+          return b.x0 >= 2 && b.x1 <= this.W - 2;
+        }
+        /** Puts a text at the first candidate where it covers nothing; records it as missing when none is free. */
+        place(cands, parts, o = {}) {
+          for (const [x, y, anchor = 'start'] of cands) {
+            const w = partsWidth(parts);
+            const role = parts.reduce((a, p) => (ROLE[p[1]].size > ROLE[a].size ? p[1] : a), parts[0][1]);
+            const box = this.textBox(x, y, w, role, anchor);
+            if (box.y0 < (o.minY ?? 0) || box.y1 > (o.maxY ?? Infinity) || box.x0 < (o.minX ?? 2) || box.x1 > (o.maxX ?? this.W - 2)) continue;
+            if (!this.free(box, o.ignore ?? '', o.margin ?? 2)) continue;
+            return this.text(x, y, parts, { ...o, anchor });
+          }
+          if (!o.optional) this.missing.push(parts.map((p) => p[0]).join(''));
+          return null;
+        }
+        svg(H, label) {
+          const L = this.layers;
+          return `<svg class="draw" width="${this.W}" height="${H}" viewBox="0 0 ${this.W} ${H}" role="img" aria-label="${esc(label)}">
+<defs>
+<pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" class="hatch-fill"/><line class="hatch-line" x1="0" y1="0" x2="0" y2="6"/></pattern>
+</defs>
+<g>${L.back.join('')}</g><g>${L.grid.join('')}</g><g>${L.links.join('')}</g><g>${L.marks.join('')}</g><g>${L.dots.join('')}</g><g>${L.text.join('')}</g><g>${L.top.join('')}</g></svg>`;
+        }
+      }
+      const sampleLine = (x1, y1, x2, y2, step = 3) => {
+        const n = Math.max(2, Math.ceil(Math.hypot(x2 - x1, y2 - y1) / step));
+        return Array.from({ length: n + 1 }, (_, i) => [x1 + ((x2 - x1) * i) / n, y1 + ((y2 - y1) * i) / n]);
+      };
+      const samplePath = (pts, step = 3) => pts.slice(1).flatMap((p, i) => sampleLine(pts[i][0], pts[i][1], p[0], p[1], step));
+      function xGlyph(D, cx, cy, owner, s = 4) {
+        D.add('marks', `<circle class="xground" cx="${cx}" cy="${cy}" r="${s + 3}"/><path class="xmark" d="M${cx - s} ${cy - s}l${2 * s} ${2 * s}M${cx + s} ${cy - s}l${-2 * s} ${2 * s}"/>`);
+        D.mark({ x0: cx - s - 2, x1: cx + s + 2, y0: cy - s - 2, y1: cy + s + 2 }, owner);
+      }
+      function dot(D, cx, cy, r, cls, owner, id) {
+        D.add('dots', `<circle class="dot ${cls}" cx="${r1(cx)}" cy="${r1(cy)}" r="${r}"${id !== undefined ? ` data-id="${id}"` : ''} data-owner="${owner}"/>`);
+        D.mark({ x0: cx - r, x1: cx + r, y0: cy - r, y1: cy + r }, owner);
+      }
+
+      // ---------- What an open question hides, on every surface: one map (prevention 1).
+      // `sample` hides the requests until the answer's play starts them; `numbers` hides every model number and curve at
+      // the current setting; `after` hides, during the answer's play, everything the model says about the act's new
+      // setting (its numbers, its curves, the cursor and the scene's model words); `ahead` cuts the curves at the
+      // setup's utilization, asking and playing.
+      function hiding(view) {
+        const h = new Set(view.hide ?? []);
+        const playing = view.phase === 'playing';
+        const after = h.has('after') && playing;
+        const numbers = h.has('numbers') || after;
+        return {
+          sample: h.has('sample') && !playing,
+          numbers,
+          curves: h.has('numbers') || (after && view.configChanged),
+          cursorDots: !numbers,
+          cursorLine: !after,
+          ahead: h.has('ahead') ? view.setupRho : null,
+          modelWords: numbers,
+        };
+      }
+
+      // ---------- Curves, one per configuration: p50 and p99 against the utilization of the servers that are up.
+      const curveCache = new Map();
+      function curvesOf(s) {
+        const cfg = { servers: s.servers, queue: s.servers > 1 ? s.queue : 'shared', service: s.service, down: s.servers > 1 ? s.down : 0 };
+        const key = JSON.stringify(cfg);
+        if (!curveCache.has(key)) curveCache.set(key, { p50: M.curve(cfg, 'p50', 90), p99: M.curve(cfg, 'p99', 90) });
+        return curveCache.get(key);
+      }
+
+      // ---------- Words the stage and the page share.
+      const serverWord = (n) => `${n} ${plural(n, 'server', 'servers')}`;
+      function loadParts(m, wide) {
+        const s = m.settings;
+        const busy = s.down ? `${s.load}% busy with all ${s.servers} up` : `${s.load}% busy`;
+        return { busy, rate: `${M.formatQps(m.ratePerS).replace('/s', '')} requests/s, at random` };
+      }
+      function serversLabel(m, hid) {
+        const s = m.settings;
+        const rho = hid.modelWords ? '?' : `${Math.round(m.rho * 100)}`;
+        if (s.servers === 1) return `Server · ${rho}% busy`;
+        if (s.down) return `${m.up} up · each ${rho}% busy`;
+        return `Servers · each ${rho}% busy`;
+      }
+      function queueLabel(m, hid, at, narrowQ) {
+        if (hid.sample) return narrowQ ? 'Arrivals after your answer' : 'Requests arrive after your answer';
+        const n = at.waiting.length;
+        const word = m.settings.queue === 'split' && m.up > 1 ? 'Queues' : 'Queue';
+        return `${word} · ${n} waiting now`;
+      }
+      // The longest form each label can take at any setting, so the band's label rows are one value per width.
+      const LONGEST_QUEUE = ['Requests arrive after your answer', 'Queues · 999 waiting now'];
+      const LONGEST_SERVERS = ['Servers · each ?% busy', '3 up · each 196% busy', 'Servers · each 98% busy'];
+
+      function factLines(m, hid) {
+        if (hid.numbers) return ['Who waits, and how many are in the system at once, show after your answer.'];
+        if (!m.stable)
+          return [
+            `${M.formatQps(m.ratePerS)} arrive, and the ${serverWord(m.up)} left can serve ${M.formatQps(m.capacityPerS)}.`,
+            `So ${M.formatQps(m.growthPerS).replace('/s', '')} more arrive than leave each second, and every wait grows without bound.`,
+          ];
+        const waitPct = M.formatPct(m.waitChance * 100);
+        const a =
+          m.settings.service === 'steady' && m.waitChance < 0.995
+            ? `${waitPct} of requests wait at all; the rest take exactly ${fms(M.SERVICE_MS)}.`
+            : `${waitPct} of requests wait at all.`;
+        const inSys = M.formatSlot({ value: m.inSystem, unit: 'num' });
+        const b = `${inSys} in the system at once on average: ${M.formatQps(m.ratePerS)} × ${fdur(m.mean)} (Little's law).`;
+        return [a, b];
+      }
+      // Every fact line any setting can print, for reserving their lines per width.
+      let allFactsCache = null;
+      function allFacts() {
+        if (allFactsCache) return allFactsCache;
+        const out = [];
+        for (const servers of M.SERVERS)
+          for (const queue of M.QUEUES)
+            for (const service of M.SERVICES)
+              for (const down of [0, 1])
+                for (const load of M.LOADS) {
+                  if (servers === 1 && (queue === 'split' || down)) continue;
+                  const m = M.run({ load, servers, queue, service, down });
+                  out.push(factLines(m, {}));
+                }
+        out.push(factLines(M.run(M.BASE), { numbers: true }));
+        allFactsCache = out;
+        return out;
+      }
+      const factReserve = new Map();
+      function factRows(width) {
+        if (!factReserve.has(width)) {
+          let a = 1;
+          let b = 1;
+          for (const [la, lb] of allFacts()) {
+            a = Math.max(a, wrap(la, 'cap', width).length);
+            b = Math.max(b, lb ? wrap(lb, 'cap', width).length : 0);
+          }
+          factReserve.set(width, [a, b]);
+        }
+        return factReserve.get(width);
+      }
+
+      // ---------- The stage.
+      function buildStage(W, m, view) {
+        const D = new Draw(W);
+        const hid = hiding(view);
+        const wide = W >= 520;
+        const pad = wide ? 16 : 10;
+        const s = m.settings;
+        const c = s.servers;
+        const up = m.up;
+        const win = m.stable ? M.WINDOW_MS : M.UNSTABLE_WINDOW_MS;
+        const tNow = view.tau ?? win;
+        const playing = view.tau !== null && view.tau !== undefined;
+        const smp = hid.sample ? null : M.sample(s);
+        const at = smp ? M.sampleAt(smp, tNow) : { waiting: [], serving: [] };
+
+        // Header: Play, the label and the key (beside the label when wide, its own row when narrow).
+        D.hit('play', pad - 8, 2, 44, 44, { owner: 'play' });
+        D.mark({ x0: pad - 6, x1: pad + 34, y0: 4, y1: 44 }, 'play');
+        const headForms = ['A sample of random arrivals', 'Random arrivals'];
+        D.text(pad + 40, 29, [[headForms.find((t) => tw(t, 'label') <= W - pad - (pad + 40)) ?? headForms.at(-1), 'label']], { owner: 'head' });
+        const keyItems = [
+          ['waiting', 'wait'],
+          ['in service', 'serve'],
+        ];
+        let y;
+        const keyAt = (x, ky) => {
+          let lx = x;
+          for (const [name, cls] of keyItems) {
+            D.add('marks', `<circle class="key-dot ${cls}" cx="${lx + 4}" cy="${ky - 4}" r="4"/>`);
+            D.mark({ x0: lx, x1: lx + 8, y0: ky - 8, y1: ky }, 'key');
+            D.text(lx + 12, ky, [[name, 'small', 'muted']], { owner: 'key' });
+            lx += 12 + tw(name, 'small') + 12;
+          }
+          return lx;
+        };
+        const keyW = keyItems.reduce((a, [n]) => a + 24 + tw(n, 'small'), 0) - 12;
+        if (wide) {
+          keyAt(W - pad - keyW, 29);
+          y = 50;
+        } else {
+          keyAt(pad, 62);
+          y = 70;
+        }
+
+        // Load: the planned load of the fleet with every server up, its handle, and the arrival rate it means.
+        const lp = loadParts(m, wide);
+        const loadTop = y;
+        const loadLabelY = loadTop + 12;
+        const loadLine = [['Load', 'label'], [lp.busy, 'capB', 'ink', 10]];
+        if (wide) loadLine.push([` · ${lp.rate}`, 'cap', 'muted']);
+        D.text(pad, loadLabelY, loadLine, { owner: 'load' });
+        const tx0 = pad + 8;
+        const tx1 = W - pad - 8;
+        const ty = loadTop + 34;
+        const lpos = (l) => tx0 + ((l - M.LOADS[0]) * (tx1 - tx0)) / (M.LOADS.at(-1) - M.LOADS[0]);
+        D.add('marks', `<line class="rail" x1="${tx0}" y1="${ty}" x2="${tx1}" y2="${ty}"/><line class="fill" x1="${tx0}" y1="${ty}" x2="${r1(lpos(s.load))}" y2="${ty}"/>`);
+        for (const l of M.LOADS) D.add('marks', `<circle class="stop" cx="${r1(lpos(l))}" cy="${ty}" r="2"/>`);
+        D.mark({ x0: tx0 - 4, x1: tx1 + 4, y0: ty - 14, y1: ty + 14 }, 'load');
+        D.hit('handle', lpos(s.load) - 22, ty - 22, 44, 44, { owner: 'load', label: 'Load, how busy the servers run' });
+        if (wide) {
+          D.text(tx0, ty + 28, [[`${M.LOADS[0]}%`, 'small', 'muted']], { owner: 'load' });
+          D.text(tx1, ty + 28, [[`${M.LOADS.at(-1)}%`, 'small', 'muted']], { owner: 'load', anchor: 'end' });
+          y = ty + 36;
+        } else {
+          D.text(pad, ty + 30, [[lp.rate, 'cap', 'muted']], { owner: 'load' });
+          y = ty + 38;
+        }
+        D.region('load', { x: pad - 8, y: loadTop - 4, w: W - 2 * pad + 16, h: y - loadTop + 2 });
+
+        // The band: the queue (one, or one per server behind a random router) and the servers, at the moment `tNow`.
+        const SW = wide ? 96 : 66;
+        const exitW = wide ? 18 : 10;
+        const xs = W - pad - exitW - SW;
+        const qText = queueLabel(m, hid, at, tw('Requests arrive after your answer', 'label') > W - 2 * pad);
+        const sText = serversLabel(m, hid);
+        const oneRow = Math.max(...LONGEST_QUEUE.map((t) => tw(t, 'label'))) + Math.max(...LONGEST_SERVERS.map((t) => tw(t, 'label'))) + 16 <= W - 2 * pad;
+        const over = !m.stable && !hid.modelWords;
+        D.text(pad, y + 12, [[qText, 'label', hid.sample ? 'muted' : '']], { owner: 'qlabel' });
+        const sY = oneRow ? y + 12 : y + 28;
+        D.text(W - pad, sY, [[sText, 'label', over ? 'bad' : '']], { owner: 'slabel', anchor: 'end' });
+        if (over) xGlyph(D, W - pad - tw(sText, 'label') - 10, sY - 4, 'slabel', 3.5);
+        const bt = (oneRow ? y + 16 : y + 32) + 10;
+        const BH = 4 * 30 + 3 * 6;
+        const ymid = bt + BH / 2;
+        // Fewer servers are drawn larger, so one server fills the band the way four do.
+        const bh = c === 1 ? 50 : c === 2 ? 40 : 30;
+        const gapS = c === 1 ? 0 : c === 2 ? 16 : 6;
+        const slotY = (i) => ymid + (i - (c - 1) / 2) * (bh + gapS) - bh / 2;
+        const RR = c === 1 ? 14 : c === 2 ? 11 : 9;
+        const DR = c === 1 ? 7 : c === 2 ? 6 : 5;
+        const PITCH = 2 * DR + 3;
+        const split = s.queue === 'split' && up > 1;
+        const xf = xs - 24;
+        const queueDots = (list, xHead, yq, xTail, owner) => {
+          const capN = Math.max(1, Math.floor((xHead - xTail) / PITCH) + 1);
+          const shown = list.length > capN ? capN - 2 : list.length;
+          list.slice(0, shown).forEach((r, k) => dot(D, xHead - k * PITCH, yq, DR, 'wait', owner, r.id));
+          if (list.length > shown) {
+            const more = `+${list.length - shown}`;
+            const cw = tw(more, 'mono') + 10;
+            const cx1 = xHead - shown * PITCH + DR - 2;
+            const ch = 2 * DR + 4;
+            D.add('marks', `<rect class="chip" x="${r1(cx1 - cw)}" y="${yq - ch / 2}" width="${cw}" height="${ch}" rx="${ch / 2}"/>`);
+            D.mark({ x0: cx1 - cw, x1: cx1, y0: yq - ch / 2, y1: yq + ch / 2 }, owner);
+            D.text(cx1 - cw / 2, yq + 4, [[more, 'mono', 'ink']], { owner: `${owner} lane`, anchor: 'middle', textCls: 'on-chip', ground: true });
+          }
+        };
+        if (!split) {
+          D.add('links', `<line class="lane" x1="${pad}" y1="${ymid}" x2="${xf}" y2="${ymid}"/>`);
+          D.link(sampleLine(pad, ymid, xf, ymid), 'lane');
+          for (let i = 0; i < c; i++) {
+            const sy = slotY(i) + bh / 2;
+            const d = `M${xf} ${ymid}C${xf + 14} ${ymid} ${xs - 12} ${sy} ${xs} ${sy}`;
+            D.add('links', `<path class="lane${i >= up ? ' down' : ''}" d="${d}"/>`);
+          }
+          queueDots(at.waiting, xf - 10, ymid, pad + 8, 'queue');
+        } else {
+          // A router hands each request to one server at random; its name sits over the inlet, which no lane crosses.
+          const rw = tw('random', 'small');
+          const xr = pad + rw + 14;
+          const xl0 = xr + 40;
+          D.add('links', `<line class="lane" x1="${pad}" y1="${ymid}" x2="${xr - 8}" y2="${ymid}"/>`);
+          D.link(sampleLine(pad, ymid, xr - 8, ymid), 'lane');
+          D.text(pad, ymid - 6, [['random', 'small', 'muted']], { owner: 'router' });
+          for (let i = 0; i < c; i++) {
+            const sy = slotY(i) + bh / 2;
+            const cls = `lane${i >= up ? ' down' : ''}`;
+            D.add('links', `<path class="${cls}" d="M${xr + 8} ${ymid}C${xr + 26} ${ymid} ${xl0 - 18} ${sy} ${xl0} ${sy}L${xs} ${sy}"/>`);
+            D.link(sampleLine(xl0, sy, xs, sy), 'lane');
+            if (i < up)
+              queueDots(
+                at.waiting.filter((r) => r.server === i),
+                xs - 10,
+                sy,
+                xl0 + 6,
+                'queue',
+              );
+          }
+          D.add('marks', `<path class="router" d="M${xr} ${ymid - 8}L${xr + 8} ${ymid}L${xr} ${ymid + 8}L${xr - 8} ${ymid}Z"/>`);
+          D.mark({ x0: xr - 8, x1: xr + 8, y0: ymid - 8, y1: ymid + 8 }, 'router');
+        }
+        for (let i = 0; i < c; i++) {
+          const sy = slotY(i);
+          const down = i >= up;
+          const name = `S${i + 1}`;
+          const midY = sy + bh / 2;
+          D.add('marks', `<rect class="srv${down ? ' down' : ''}${over && !down ? ' over' : ''}" x="${xs}" y="${sy}" width="${SW}" height="${bh}" rx="8"/>`);
+          D.mark({ x0: xs, x1: xs + SW, y0: sy, y1: sy + bh }, name);
+          D.text(xs + 9, midY + 5, [[name, 'nameS', down ? 'muted' : 'ink']], { owner: name, textCls: 'on-box' });
+          const rx = xs + SW - RR - 7;
+          const ry = midY;
+          if (down) {
+            D.text(xs + 9 + tw(name, 'nameS') + 6, midY + 4, [['down', 'small', 'muted']], { owner: name, textCls: 'on-box' });
+            xGlyph(D, rx, ry, name, 3.5);
+            continue;
+          }
+          D.add('marks', `<circle class="ring-track" cx="${rx}" cy="${ry}" r="${RR}"/>`);
+          const r = at.serving.find((q) => q.server === i);
+          if (r) {
+            const p = Math.max(0.02, Math.min(0.999, (tNow - r.start) / (r.leave - r.start)));
+            const ang = p * 2 * Math.PI;
+            const ex = rx + RR * Math.sin(ang);
+            const ey = ry - RR * Math.cos(ang);
+            D.add('marks', `<path class="ring-arc" d="M${rx} ${ry - RR}A${RR} ${RR} 0 ${p > 0.5 ? 1 : 0} 1 ${r1(ex)} ${r1(ey)}"/>`);
+            dot(D, rx, ry, Math.round(RR * 0.45 * 2) / 2, 'serve', name, r.id);
+          } else if (smp && xs + 9 + tw(name, 'nameS') + 6 + tw('idle', 'small') <= rx - RR - 5) {
+            D.text(rx - RR - 5, midY + 4, [['idle', 'small', 'muted']], { owner: name, anchor: 'end', textCls: 'on-box' });
+          }
+          D.add('links', `<line class="lane" x1="${xs + SW}" y1="${ry}" x2="${xs + SW + exitW - 2}" y2="${ry}"/>`);
+        }
+        D.region('scene', { x: pad - 8, y: loadTop - 4, w: W - 2 * pad + 16, h: bt + BH + 6 - loadTop + 4 });
+        D.region('band', { x: pad - 8, y: y, w: W - 2 * pad + 16, h: bt + BH + 6 - y });
+        y = bt + BH + 18;
+
+        // The timeline: the sample's last 400 ms, arrivals, the queue's length and each server's busy time.
+        D.add('grid', `<line class="rule" x1="${pad}" y1="${y}" x2="${W - pad}" y2="${y}"/>`);
+        const tlTop = y;
+        const winWord = win >= 1000 ? `${win / 1000} s` : `${win} ms`;
+        const tlLabel = !m.stable ? (wide ? `The first ${winWord}, starting empty` : `${winWord}, starting empty`) : wide ? `The last ${winWord} of this sample` : `The last ${winWord}`;
+        D.text(pad, y + 20, [[tlLabel, 'label']], { owner: 'tl' });
+        if (playing && smp) {
+          const note = [`playing ${smp.slow}× slower`, `${smp.slow}× slower`].find((t) => tw(t, 'small') + tw(tlLabel, 'label') + 16 <= W - 2 * pad);
+          if (note) D.text(W - pad, y + 20, [[note, 'small', 'muted']], { owner: 'tl', anchor: 'end' });
+        }
+        const g = wide ? 64 : 54;
+        const x0 = pad + g;
+        const x1 = W - pad - 4;
+        const X = (t) => x0 + (Math.max(0, Math.min(win, t)) / win) * (x1 - x0);
+        const ya = y + 32;
+        D.text(pad, ya + 9, [['arrivals', 'small', 'muted']], { owner: 'tl-names' });
+        const yw = ya + 18;
+        const WH = 34;
+        D.text(pad, yw + WH / 2 + 4, [['waiting', 'small', 'muted']], { owner: 'tl-names' });
+        const ys = yw + WH + 10;
+        const SH = 44;
+        const rh = (SH - (c - 1) * 4) / c;
+        const rowY = (i) => ys + i * (rh + 4);
+        for (let i = 0; i < c; i++) D.text(pad, rowY(i) + rh / 2 + 4, [[`S${i + 1}`, 'mono', i >= up ? 'muted' : 'ink']], { owner: 'tl-names' });
+        const yax = ys + SH + 8;
+        D.add('grid', `<line class="row-track" x1="${x0}" y1="${ya + 10}" x2="${x1}" y2="${ya + 10}"/><line class="row-track" x1="${x0}" y1="${yw + WH}" x2="${x1}" y2="${yw + WH}"/>`);
+        D.add('grid', `<line class="axis" x1="${x0}" y1="${yax}" x2="${x1}" y2="${yax}"/>`);
+        const tstep = (win >= 1000 ? 500 : 100) * (x1 - x0 < 260 ? 2 : 1);
+        for (let t = 0; t <= win; t += tstep) {
+          D.add('grid', `<line class="axis" x1="${r1(X(t))}" y1="${yax}" x2="${r1(X(t))}" y2="${yax + 4}"/>`);
+          const word = win >= 1000 ? (t === win ? `${t / 1000} s` : String(t / 1000)) : t === win ? `${t} ms` : String(t);
+          D.text(X(t), yax + 15, [[word, 'small', 'muted']], { owner: 'tl-axis', anchor: t === 0 ? 'start' : t === win ? 'end' : 'middle' });
+        }
+        for (let i = 0; i < c; i++) {
+          if (i >= up) D.add('marks', `<rect class="busy-down" x="${x0}" y="${r1(rowY(i))}" width="${r1(x1 - x0)}" height="${r1(rh)}"/>`);
+          else D.add('grid', `<line class="row-track" x1="${x0}" y1="${r1(rowY(i) + rh)}" x2="${x1}" y2="${r1(rowY(i) + rh)}"/>`);
+        }
+        D.mark({ x0: x0, x1: x1, y0: ya, y1: ya + 10 }, 'tl-arr');
+        D.mark({ x0: x0, x1: x1, y0: ys, y1: ys + SH }, 'tl-busy');
+        if (smp) {
+          const ticks = [];
+          for (const r of smp.reqs) if (r.arrive >= 0 && r.arrive <= tNow) ticks.push(`<rect class="tick-arr" x="${r1(X(r.arrive) - 0.75)}" y="${ya}" width="1.5" height="10" data-id="${r.id}"/>`);
+          D.add('marks', ticks.join(''));
+          const busy = [];
+          for (const r of smp.reqs) {
+            const a = Math.max(0, r.start);
+            const b = Math.min(r.leave, tNow);
+            if (b <= a) continue;
+            const xa = X(a);
+            const xb = Math.max(xa + 0.6, X(b) - (r.leave <= tNow ? 0.8 : 0));
+            busy.push(`<rect class="busy" x="${r1(xa)}" y="${r1(rowY(r.server))}" width="${r1(xb - xa)}" height="${r1(rh)}" data-id="${r.id}"/>`);
+          }
+          D.add('marks', busy.join(''));
+          const steps = M.waitingSteps(smp).filter(([t]) => t <= tNow);
+          const maxQ = Math.max(1, ...steps.map((p) => p[1]));
+          const Q = [2, 5, 10, 20, 50, 100, 200, 500, 1000].find((q) => q >= maxQ);
+          const Yq = (n) => yw + WH - (n / Q) * WH;
+          let d = `M${x0} ${yw + WH}`;
+          let edge = [];
+          let prev = 0;
+          for (const [t, n] of steps) {
+            d += `L${r1(X(t))} ${r1(Yq(prev))}L${r1(X(t))} ${r1(Yq(n))}`;
+            edge.push([X(t), Yq(prev)], [X(t), Yq(n)]);
+            prev = n;
+          }
+          d += `L${r1(X(tNow))} ${r1(Yq(prev))}`;
+          edge.push([X(tNow), Yq(prev)]);
+          D.add('marks', `<path class="area-wait" d="${d}L${r1(X(tNow))} ${yw + WH}Z"/>`);
+          const edgeD = `M${x0} ${yw + WH}` + edge.map(([ex, ey]) => `L${r1(ex)} ${r1(ey)}`).join('');
+          D.add('marks', `<path class="area-edge" d="${edgeD}"/>`);
+          D.link(samplePath([[x0, yw + WH], ...edge], 2), 'area');
+          D.text(x0 - 6, yw + 8, [[String(Q), 'small', 'muted']], { owner: 'tl-scale', anchor: 'end' });
+          // The longest queue in the window, at rest: a ring at its first moment, its count in the label row.
+          const pk = steps.find((p) => p[1] === maxQ);
+          if (pk && maxQ > 0 && !playing) {
+            const px = X(pk[0]);
+            const py = Yq(maxQ);
+            D.add('top', `<circle class="peak" cx="${r1(px)}" cy="${r1(py)}" r="3.5"/>`);
+            D.mark({ x0: px - 4, x1: px + 4, y0: py - 4, y1: py + 4 }, 'peak');
+            const room = W - 2 * pad - tw(tlLabel, 'label') - 28;
+            const word = [`at most ${maxQ} waiting at once`, `peak: ${maxQ} waiting`, `peak ${maxQ}`].find((t) => tw(t, 'small') <= room) ?? `${maxQ}`;
+            const lx = W - pad - tw(word, 'small');
+            D.add('top', `<circle class="peak" cx="${r1(lx - 8)}" cy="${tlTop + 16}" r="3.5"/>`);
+            D.mark({ x0: lx - 12, x1: lx - 4, y0: tlTop + 12, y1: tlTop + 20 }, 'tl');
+            D.text(W - pad, tlTop + 20, [[word, 'small', 'muted']], { owner: 'tl', anchor: 'end' });
+          }
+          if (playing) {
+            D.add('top', `<line class="playhead" x1="${r1(X(tNow))}" y1="${ya - 4}" x2="${r1(X(tNow))}" y2="${yax}"/>`);
+          }
+        } else {
+          const later = ['The sample plays after your answer', 'Plays after your answer'].find((t) => tw(t, 'cap') <= x1 - x0 - 8) ?? 'After your answer';
+          D.text(x0 + 6, yw + WH / 2 + 4, [[later, 'cap', 'muted']], { owner: 'tl-wait' });
+        }
+        D.region('timeline', { x: pad - 8, y: tlTop + 4, w: W - 2 * pad + 16, h: yax + 20 - tlTop - 4 });
+        y = yax + 26;
+
+        // The model: exact numbers for this setting, never the sample's.
+        D.add('grid', `<line class="rule" x1="${pad}" y1="${y}" x2="${W - pad}" y2="${y}"/>`);
+        const modelTop = y;
+        D.text(pad, y + 20, [[wide ? 'Response time · exact, from the model' : 'Response time · the model', 'label']], { owner: 'model' });
+        y += 30;
+        const headTop = y;
+        if (!m.stable && !hid.numbers) {
+          xGlyph(D, pad + 5, y + 14, 'head', 4);
+          D.text(pad + 16, y + 19, [['No steady state', 'capB', 'bad']], { owner: 'head' });
+          const grow = M.formatQps(m.growthPerS).replace('/s', '');
+          const gw = [`the queue grows by ${grow} requests a second`, `the queue grows by ${grow} a second`, `grows by ${grow} a second`].find((t) => tw(t, 'cap') <= W - 2 * pad - 16);
+          D.text(pad + 16, y + 37, [[gw, 'cap', 'muted']], { owner: 'head' });
+        } else {
+          const colW = wide ? 132 : Math.floor((W - 2 * pad) / 3);
+          const stats = [
+            ['p99', 'p99', hid.numbers ? '?' : fdur(m.p99)],
+            ['p50', 'p50', hid.numbers ? '?' : fdur(m.p50)],
+            ['mean', null, hid.numbers ? '?' : fdur(m.mean)],
+          ];
+          stats.forEach(([name, line, value], i) => {
+            const sx = pad + i * colW;
+            let lx = sx;
+            if (line) {
+              D.add('marks', `<line class="legend-line ${line}" x1="${sx}" y1="${y + 6}" x2="${sx + 14}" y2="${y + 6}"/>`);
+              D.mark({ x0: sx, x1: sx + 14, y0: y + 4, y1: y + 8 }, 'head');
+              lx = sx + 20;
+            }
+            D.text(lx, y + 10, [[name, 'label']], { owner: 'head' });
+            D.text(sx, y + 34, [[value, 'head', 'ink']], { owner: 'head' });
+          });
+        }
+        y += 46;
+        D.region('numbers', { x: pad - 8, y: headTop - 6, w: W - 2 * pad + 16, h: 0 });
+        // Where the time goes, on average: the work and the waiting, as one bar.
+        const barTop = y;
+        let bx0 = pad;
+        if (wide) {
+          D.text(pad, y + 12, [['On average', 'label']], { owner: 'bar' });
+          bx0 = pad + 92;
+        } else {
+          D.text(pad, y + 10, [['On average', 'label']], { owner: 'bar' });
+          y += 14;
+        }
+        const bx1 = W - pad;
+        const by = y + 3;
+        if (hid.numbers) {
+          D.add('marks', `<rect class="bar-hidden" x="${bx0}" y="${by}" width="${bx1 - bx0}" height="12" rx="3"/>`);
+          D.text(bx0, by + 28, [['work and waiting after your answer', 'small', 'muted']], { owner: 'bar' });
+        } else if (!m.stable) {
+          const ws = bx0 + Math.max(3, (bx1 - bx0) * 0.03);
+          D.add('marks', `<rect class="bar-work" x="${bx0}" y="${by}" width="${r1(ws - bx0)}" height="12" rx="2"/><rect class="bar-wait" x="${r1(ws + 1)}" y="${by}" width="${r1(bx1 - ws - 1)}" height="12" rx="2"/>`);
+          D.text(bx0, by + 28, [[`${fms(M.SERVICE_MS)} of work`, 'small', 'cur-ink']], { owner: 'bar' });
+          D.text(bx1, by + 28, [['waiting grows without bound', 'small', 'wait-ink']], { owner: 'bar', anchor: 'end' });
+        } else {
+          const ws = bx0 + Math.max(2, ((bx1 - bx0) * M.SERVICE_MS) / m.mean);
+          D.add('marks', `<rect class="bar-work" x="${bx0}" y="${by}" width="${r1(ws - bx0)}" height="12" rx="2"/>`);
+          if (bx1 - ws > 2) D.add('marks', `<rect class="bar-wait" x="${r1(ws + 1)}" y="${by}" width="${r1(bx1 - ws - 1)}" height="12" rx="2"/>`);
+          D.text(bx0, by + 28, [[`${fms(M.SERVICE_MS)} of work`, 'small', 'cur-ink']], { owner: 'bar' });
+          D.text(bx1, by + 28, [[`${fdur(m.meanWait)} waiting`, 'small', 'wait-ink']], { owner: 'bar', anchor: 'end' });
+        }
+        D.mark({ x0: bx0, x1: bx1, y0: by, y1: by + 12 }, 'bar');
+        y = by + 36;
+        D.region('split', { x: pad - 8, y: barTop - 4, w: W - 2 * pad + 16, h: y - barTop + 2 });
+        // Two facts: who waits at all, and Little's law. Each reserves its longest form's lines at this width.
+        const [ra, rb] = factRows(W - 2 * pad);
+        const lines = factLines(m, hid);
+        const la = wrap(lines[0], 'cap', W - 2 * pad);
+        la.forEach((t, i) => D.text(pad, y + 14 + i * 18, [[t, 'cap', i === 0 && !m.stable && !hid.numbers ? 'muted' : 'muted']], { owner: 'facts' }));
+        y += ra * 18;
+        if (lines[1]) wrap(lines[1], 'cap', W - 2 * pad).forEach((t, i) => D.text(pad, y + 14 + i * 18, [[t, 'cap', 'muted']], { owner: 'facts' }));
+        y += rb * 18 + 8;
+        D.regions.numbers[0].h = y - headTop + 2;
+
+        // The chart: p50 and p99 against utilization (log time), the cursor, and the 100 requests at this load.
+        const chartTop = y;
+        const MW = wide ? 88 : 58;
+        const titles = ['p50 and p99 against utilization · log scale', 'Against utilization · log scale', 'Against utilization'];
+        const right = '100 requests';
+        const title = titles.find((t) => tw(t, 'label') + tw(right, 'label') + 16 <= W - 2 * pad);
+        if (title) {
+          D.text(pad, y + 12, [[title, 'label']], { owner: 'chart-title' });
+          D.text(W - pad, y + 12, [[right, 'label']], { owner: 'chart-title', anchor: 'end' });
+          y += 26;
+        } else {
+          D.text(pad, y + 12, [[titles.at(-1), 'label']], { owner: 'chart-title' });
+          D.text(W - pad, y + 28, [[right, 'label']], { owner: 'chart-title', anchor: 'end' });
+          y += 42;
+        }
+        const PH = wide ? 176 : 164;
+        const px0 = pad + 42;
+        const px1 = W - pad - MW - 14;
+        const py0 = y + 4;
+        const py1 = py0 + PH;
+        const Xc = (rho) => px0 + rho * (px1 - px0);
+        const Yt = (t) => py1 - (Math.log10(Math.max(1, Math.min(10000, t))) / 4) * PH;
+        for (const [t, name] of [
+          [1, '1 ms'],
+          [10, '10 ms'],
+          [100, '100 ms'],
+          [1000, '1 s'],
+          [10000, '10 s'],
+        ]) {
+          D.add('grid', `<line class="${t === 1 ? 'axis' : 'gridline'}" x1="${px0}" y1="${r1(Yt(t))}" x2="${px1}" y2="${r1(Yt(t))}"/>`);
+          D.text(px0 - 6, Yt(t) + 4, [[name, 'small', 'muted']], { owner: 'yaxis', anchor: 'end' });
+        }
+        for (const p of px1 - px0 >= 180 ? [0, 25, 50, 75, 100] : [0, 50, 100]) {
+          D.add('grid', `<line class="axis" x1="${r1(Xc(p / 100))}" y1="${py1}" x2="${r1(Xc(p / 100))}" y2="${py1 + 4}"/>`);
+          D.text(Xc(p / 100), py1 + 16, [[`${p}%`, 'small', 'muted']], { owner: 'xaxis', anchor: p === 0 ? 'start' : p === 100 ? 'end' : 'middle' });
+        }
+        D.add('grid', `<line class="gridline" x1="${px1}" y1="${py0}" x2="${px1}" y2="${py1}"/>`);
+        const pathOf = (pts, limit) => {
+          const out = [];
+          for (const [rho, t] of pts) {
+            if (limit !== null && limit !== undefined && rho > limit + 1e-9) break;
+            const yy = Yt(t);
+            out.push([Xc(rho), yy]);
+            if (t >= 10000) break;
+          }
+          return out;
+        };
+        const drawCurve = (pts, cls, owner) => {
+          if (pts.length < 2) return;
+          D.add('links', `<path class="curve ${cls}" d="M${pts.map(([a, b]) => `${r1(a)} ${r1(b)}`).join('L')}"/>`);
+          D.link(samplePath(pts, 2), owner);
+        };
+        const cur = curvesOf(s);
+        let p50pts = [];
+        let p99pts = [];
+        if (view.ghost) {
+          const gp = pathOf(curvesOf(view.ghost).p99, null);
+          drawCurve(gp, 'ghost', 'ghost');
+          view._ghostPts = gp;
+        }
+        if (!hid.curves) {
+          p50pts = pathOf(cur.p50, hid.ahead);
+          p99pts = pathOf(cur.p99, hid.ahead);
+          drawCurve(p50pts, 'p50', 'c50');
+          drawCurve(p99pts, 'p99', 'c99');
+        }
+        if (hid.ahead !== null && !hid.curves) {
+          const cx = Xc(hid.ahead);
+          D.add('links', `<line class="cut" x1="${r1(cx)}" y1="${py0}" x2="${r1(cx)}" y2="${py1}"/>`);
+          D.link(sampleLine(cx, py0, cx, py1), 'cut');
+          const cands = [];
+          for (const yy of [py0 + 14, py0 + 30, py0 + 46, (py0 + py1) / 2]) cands.push([cx + 8, yy, 'start'], [cx - 8, yy, 'end']);
+          ['The rest after your answer', 'after your answer', '?'].some((t, i, all) =>
+            D.place(cands, [[t, i === all.length - 1 ? 'smallB' : 'small', 'muted']], { owner: 'cut', ground: true, minX: px0 + 2, maxX: px1 - 2, optional: i < all.length - 1 }),
+          );
+        }
+        // Line labels at the curves' left ends.
+        // Line names along their curves from the left, p99 over its line and p50 under it, where each covers nothing.
+        const along = (pts, dy) => {
+          const out = [];
+          for (let i = 0; i < pts.length * 0.7; i += Math.max(1, Math.floor(pts.length / 24))) out.push([pts[i][0] + 3, pts[i][1] + dy, 'start']);
+          return out;
+        };
+        if (p99pts.length) D.place([...along(p99pts, -7), ...along(p99pts, 15)], [['p99', 'smallB', 'crit-ink']], { owner: 'c99', ground: true, minY: py0, maxY: py1 - 1, minX: px0 + 2, maxX: px1 - 2 });
+        if (p50pts.length) D.place([...along(p50pts, 15), ...along(p50pts, -7)], [['p50', 'smallB', 'cur-ink']], { owner: 'c50', ground: true, minY: py0, maxY: py1 - 1, minX: px0 + 2, maxX: px1 - 2 });
+        if (view.ghost && view._ghostPts?.length) {
+          const gp = view._ghostPts;
+          const cands = [];
+          for (const dy of [-8, 16, -18, 26])
+            for (let k = 2; k < 22; k++) {
+              const p = gp[Math.floor((k / 24) * (gp.length - 1))];
+              cands.push([p[0], p[1] + dy, 'middle']);
+            }
+          [view.ghostName ?? 'before', 'before'].some((t, i) => D.place(cands, [[t, 'small', 'muted']], { owner: 'ghost', ground: true, minY: py0, maxY: py1 - 1, minX: px0 + 2, maxX: px1 - 2, optional: i === 0 }));
+        }
+        const MX0 = px1 + 14;
+        const MX1 = W - pad;
+        // Cursor: the utilization of the servers that are up, with the model's p50 and p99 there.
+        if (m.stable && hid.cursorLine) {
+          const cx = Xc(m.rho);
+          D.add('links', `<line class="cursor" x1="${r1(cx)}" y1="${py0}" x2="${r1(cx)}" y2="${py1}"/>`);
+          D.link(sampleLine(cx, py0, cx, py1), 'cursor');
+          if (hid.cursorDots) {
+            for (const [q, cls] of [
+              [m.p50, 'p50'],
+              [m.p99, 'p99'],
+            ]) {
+              const yy = Yt(q);
+              D.add('links', `<line class="leader" x1="${r1(cx + 5)}" y1="${r1(yy)}" x2="${MX0 - 3}" y2="${r1(yy)}"/>`);
+              D.link(sampleLine(cx + 5, yy, MX0 - 3, yy), `lead-${cls}`);
+            }
+          }
+        }
+        // The marginal: 100 requests at the model's quantiles, binned on the same time axis. The dot size is the largest
+        // whose fullest bin fits the column; steady work's requests that never wait share one value (10 ms), so that bin
+        // alone may end in a count.
+        D.add('grid', `<line class="axis" x1="${MX0}" y1="${py1}" x2="${MX1}" y2="${py1}"/>`);
+        if (m.stable && !hid.numbers) {
+          const atomOf = (t) => s.service === 'steady' && Math.abs(t - M.SERVICE_MS) < 1e-6;
+          const layout = (r) => {
+            const pitch = 2 * r + 1;
+            const bins = new Map();
+            m.dots.forEach((t, i) => {
+              const j = Math.max(0, Math.floor((py1 - Yt(t)) / pitch));
+              if (!bins.has(j)) bins.set(j, []);
+              bins.get(j).push({ t, i });
+            });
+            const capN = Math.floor((MX1 - MX0 + 1) / pitch);
+            const worst = Math.max(0, ...[...bins.values()].filter((l) => !l.some((d) => atomOf(d.t))).map((l) => l.length));
+            return { r, pitch, bins, capN, fits: worst <= capN };
+          };
+          const options = (wide ? [2.5, 2, 1.75] : [2, 1.75, 1.5]).map(layout);
+          const L = options.find((o) => o.fits) ?? options.at(-1);
+          const { r, pitch, bins, capN } = L;
+          const under = m.dots.filter((t) => t < 1).length;
+          for (const [q, cls] of [
+            [m.p50, 'p50'],
+            [m.p99, 'p99'],
+          ])
+            D.add('grid', `<line class="mtick ${cls}" x1="${MX0 - 3}" y1="${r1(Yt(q))}" x2="${MX1}" y2="${r1(Yt(q))}"/>`);
+          for (const [j, list] of bins) {
+            const cyy = py1 - j * pitch - pitch / 2;
+            let shown = list.length;
+            let more = '';
+            if (list.length > capN) {
+              shown = capN - Math.ceil((tw(`+${list.length}`, 'mono') + 12) / pitch);
+              more = `+${list.length - shown}`;
+            }
+            list.slice(0, shown).forEach((d, k) => dot(D, MX0 + r + k * pitch, cyy, r, `req${atomOf(d.t) ? ' nowait' : ''}`, 'marg', `q${d.i}`));
+            if (more) {
+              const cx0 = MX0 + shown * pitch + 1;
+              const cw = MX1 - cx0;
+              D.add('marks', `<rect class="chip" x="${r1(cx0)}" y="${r1(cyy - 6)}" width="${r1(cw)}" height="12" rx="6"/>`);
+              D.mark({ x0: cx0, x1: MX1, y0: cyy - 6, y1: cyy + 6 }, 'marg-chip');
+              D.text(cx0 + cw / 2, cyy + 4, [[more, 'mono', 'ink']], { owner: 'marg-chip', anchor: 'middle', textCls: 'on-chip', ground: true });
+            }
+          }
+          if (under) D.text(MX1, py1 + 16, [[wide ? `${under} under 1 ms` : `${under} < 1 ms`, 'small', 'muted']], { owner: 'marg-note', anchor: 'end' });
+          // Value labels at the cursor's dots, placed clear of the curves, the leaders and each other.
+          const cx = Xc(m.rho);
+          if (hid.cursorDots) {
+            for (const [q, cls, ink] of [
+              [m.p99, 'p99', 'crit-ink'],
+              [m.p50, 'p50', 'cur-ink'],
+            ]) {
+              const yy = Yt(q);
+              dot(D, cx, yy, 4, cls, `cur-${cls}`);
+              const word = [[fdur(q), 'smallB', ink]];
+              const cands = [];
+              for (const dx of [8, 22, 40, 60, 84])
+                for (const dy of [-6, 14, -16, 24, -28, 36]) cands.push([cx - dx, yy + dy, 'end'], [cx + dx, yy + dy, 'start']);
+              D.place(cands, word, { owner: `cur-${cls}`, ground: true, minX: px0 + 2, maxX: px1 - 2, minY: py0, maxY: py1 - 2, margin: 1 });
+            }
+          }
+        } else if (!m.stable && !hid.numbers) {
+          // Past 100% the cursor leaves the chart: a chevron at its edge, and the marginal says why there are no dots.
+          const cy = Yt(100);
+          if (hid.cursorLine) {
+            D.add('marks', `<path class="chevron" d="M${px1 + 3} ${cy - 5}L${px1 + 8} ${cy}L${px1 + 3} ${cy + 5}"/>`);
+            D.mark({ x0: px1 + 2, x1: px1 + 9, y0: cy - 6, y1: cy + 6 }, 'over');
+          }
+          D.text(MX0, cy + 4, [[`${Math.round(m.rho * 100)}% busy`, 'smallB', 'bad']], { owner: 'over' });
+          wrap('no steady state', 'small', MX1 - MX0).forEach((t, i) => D.text(MX0, cy + 20 + i * 14, [[t, 'small', 'bad']], { owner: 'over' }));
+        } else {
+          wrap('after your answer', 'small', MX1 - MX0).forEach((t, i) => D.text(MX0, (py0 + py1) / 2 + i * 14, [[t, 'small', 'muted']], { owner: 'marg' }));
+        }
+        D.region('chart', { x: pad - 8, y: chartTop - 4, w: W - 2 * pad + 16, h: py1 + 22 - chartTop + 4 });
+        D.region('marginal', { x: MX0 - 6, y: chartTop - 4, w: MX1 - MX0 + 12, h: py1 + 22 - chartTop + 4 });
+        y = py1 + 26;
+        D.label = summary(m, hid);
+        D.view = view;
+        return { D, H: y };
+      }
+
+      // ---------- The summary every surface shares: full sentences, obeying hiding().
+      function summary(m, hid) {
+        const s = m.settings;
+        const who =
+          s.servers === 1
+            ? `One server, ${s.load}% busy`
+            : `${serverWord(s.servers)} with ${s.queue === 'split' ? 'a queue each' : 'one shared queue'}${s.down ? `, one of them down` : ''}, ${s.load}% busy with all up`;
+        const work = s.service === 'steady' ? `every request taking exactly ${fms(M.SERVICE_MS)}` : `requests taking ${fms(M.SERVICE_MS)} on average`;
+        const parts = [`${who}, ${work}.`];
+        if (hid.numbers) parts.push("The model's numbers show after your answer.");
+        else if (!m.stable) parts.push(`There is no steady state: ${M.formatQps(m.ratePerS)} arrive and the servers left serve ${M.formatQps(m.capacityPerS)}, so the queue grows by ${M.formatQps(m.growthPerS).replace('/s', '')} requests a second.`);
+        else parts.push(`The model gives p50 ${fdur(m.p50)}, p99 ${fdur(m.p99)} and a mean of ${fdur(m.mean)}, of which ${fdur(m.meanWait)} is waiting.`);
+        if (hid.sample) parts.push('The sample of requests plays after your answer.');
+        return parts.join(' ');
+      }
+
+      // ---------- Focus outlines with their "Look here" tag on the first free place (prevention 5).
+      function focusOutlines(D, ids, H) {
+        const TAG = { w: 72, h: 16 };
+        for (const id of ids) {
+          for (const b of D.regions[id] ?? []) {
+            const x = Math.max(3, b.x);
+            const y0 = Math.max(3, b.y);
+            const w = Math.min(D.W - 3, b.x + b.w) - x;
+            const h = Math.min(H - 3, b.y + b.h) - y0;
+            D.add('top', `<rect class="focus-outline" x="${x}" y="${y0}" width="${w}" height="${h}" rx="10"/>`);
+            const across = [];
+            for (let ax = x + w - TAG.w - 16; ax >= x + 16; ax -= 8) across.push(ax);
+            const xs = [x + w - TAG.w - 16, x + 16, ...across];
+            const ys = [y0 - TAG.h / 2, y0 + h - TAG.h / 2, y0 + 4, y0 + h - TAG.h - 4, y0 - TAG.h - 2, y0 + h + 2];
+            const cands = ys.flatMap((ty) => xs.map((tx) => [tx, ty]));
+            let placed = false;
+            for (const [tx, ty] of cands) {
+              const box = { x0: tx, x1: tx + TAG.w, y0: ty, y1: ty + TAG.h };
+              if (tx < 3 || tx + TAG.w > D.W - 3 || ty < 3 || ty + TAG.h > H - 3) continue;
+              if (!D.free(box, '', 1)) continue;
+              D.add('top', `<rect class="tag" x="${tx}" y="${ty}" width="${TAG.w}" height="${TAG.h}" rx="8"/>`);
+              D.add('top', `<text x="${tx + TAG.w / 2}" y="${ty + 12}" text-anchor="middle" data-owner="look" data-ground="1"><tspan class="t-look">LOOK HERE</tspan></text>`);
+              D.mark(box, 'look');
+              placed = true;
+              break;
+            }
+            if (!placed) D.missingTags = (D.missingTags ?? 0) + 1;
+          }
+        }
+      }
+
+      // ---------- Mockup states.
+      const B = M.BASE;
+      const STATES = {
+        default: { s: B },
+        quiet: { s: { ...B, load: 30 } },
+        busy: { s: { ...B, load: 90 } },
+        split: { s: { ...B, servers: 4, queue: 'split', load: 80 } },
+        pool: { s: { ...B, servers: 4, queue: 'shared', load: 80 }, ghost: { ...B, servers: 4, queue: 'split', load: 80 }, ghostName: 'a queue each' },
+        steady: { s: { ...B, load: 90, service: 'steady' }, ghost: { ...B, load: 90 }, ghostName: 'random work' },
+        down: { s: { ...B, servers: 3, load: 60, down: 1 }, ghost: { ...B, servers: 3, load: 60 }, ghostName: 'all three up' },
+        overload: { s: { ...B, servers: 3, load: 70, down: 1 } },
+        playing: { s: B, tau: 236 },
+        describe: { s: B, describe: true },
+        ask: { exp: 0, phase: 'asking' },
+        reveal: { exp: 1, phase: 'revealed' },
+        challenge: { exp: 5, phase: 'challenge' },
+      };
+      const actSettings = (spec) => ({ ...spec.setup, ...(spec.act?.set ?? {}) });
+      const configKey = (s) => `${s.servers}|${s.servers > 1 ? s.queue : 'shared'}|${s.service}|${s.servers > 1 ? s.down : 0}`;
+      function viewOf(name) {
+        const st = STATES[name] ?? STATES.default;
+        const expParam = params.get('exp');
+        const expIdx = expParam !== null && st.exp !== undefined ? Number(expParam) - 1 : st.exp;
+        if (expIdx === undefined) return { s: st.s, hide: [], phase: 'rest', ghost: st.ghost ?? null, ghostName: st.ghostName, tau: st.tau ?? null, describe: !!st.describe };
+        const spec = M.EXPERIMENTS[expIdx];
+        const e = M.renderExperiment(spec);
+        if (spec.goal) {
+          const start = params.get('start') === '1';
+          const s = start ? spec.setup : { ...spec.setup, ...M.CHALLENGE_SOLUTION };
+          const m = M.run(s);
+          const met = M.goalMet(spec.goal, m.settings, m.metrics);
+          return { s, hide: [], exp: e, spec, phase: 'challenge', met, focus: met ? spec.focus : [], ghost: null, tau: null };
+        }
+        const phase = params.get('phase') === 'playing' && st.phase === 'asking' ? 'playing' : st.phase;
+        const after = actSettings(spec);
+        const s = phase === 'asking' ? spec.setup : after;
+        const setupM = M.run(spec.setup);
+        const changed = configKey(spec.setup) !== configKey(after);
+        return {
+          s,
+          hide: phase === 'revealed' ? [] : spec.hide,
+          exp: e,
+          spec,
+          phase,
+          chosen: e.answer === 0 ? 1 : 0,
+          focus: phase === 'revealed' ? spec.focus : [],
+          setupRho: setupM.rho,
+          configChanged: changed,
+          ghost: phase !== 'asking' && changed ? spec.setup : null,
+          ghostName: 'before',
+          tau: phase === 'playing' ? Number(params.get('tau') ?? 180) : null,
+        };
+      }
+
+      // ---------- The page around the stage.
+      function controlsHtml(m, view) {
+        const s = m.settings;
+        const locked = view.phase === 'asking' || view.phase === 'playing';
+        const dis = locked ? ' disabled' : '';
+        const seg = (name, items, cur) =>
+          items.map(([v, label]) => `<label class="segment"><input type="radio" name="${name}" ${v === cur ? 'checked' : ''}/><span>${label}</span></label>`).join('');
+        return `<fieldset class="group servers-control"${dis}><legend class="control-label">Servers</legend><div class="segments">${seg(
+          'servers',
+          M.SERVERS.map((k) => [k, String(k)]),
+          s.servers,
+        )}</div></fieldset>
+<fieldset class="group queue-control"${locked || s.servers === 1 ? ' disabled' : ''}><legend class="control-label">Queue</legend><div class="segments">${seg(
+          'queue',
+          [
+            ['shared', 'One queue'],
+            ['split', 'A queue each'],
+          ],
+          s.queue,
+        )}</div></fieldset>
+<fieldset class="group"${dis}><legend class="control-label">Conditions</legend><div class="toggles">
+<label class="segment"><input type="checkbox" ${s.service === 'steady' ? 'checked' : ''}/><span>Steady work<small>exactly ${fms(M.SERVICE_MS)} each</small></span></label>
+<label class="segment"><input type="checkbox" ${s.down ? 'checked' : ''}${s.servers === 1 ? ' disabled' : ''}/><span>A server down<small>its traffic moves</small></span></label></div></fieldset>
+<p class="notice" aria-live="polite">${esc(noticeOf(m, view))}</p>`;
+      }
+      function noticeOf(m, view) {
+        if (view.phase === 'asking') return 'Play and the settings this question is about wait for your answer.';
+        if (view.phase === 'playing') return '';
+        if (view.phase === 'challenge') return '';
+        return 'Drag the load, or change the servers, the queue and the conditions; Play runs the sample.';
+      }
+      const ICON_RIGHT = '<svg class="mark" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="var(--g-success-line)"/><path d="M6 10.2l2.6 2.6 5.2-5.6" fill="none" stroke="var(--g-surface)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      const ICON_WRONG = '<svg class="mark" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="var(--g-danger)"/><path d="M7 7l6 6M13 7l-6 6" fill="none" stroke="var(--g-surface)" stroke-width="2" stroke-linecap="round"/></svg>';
+      function goalChecks(m) {
+        const b = M.CHALLENGE_BOUNDS;
+        const p99 = m.stable ? fdur(m.p99) : 'no steady state';
+        return [
+          { text: `p99 with one server down: ${p99}, under ${fms(b.p99)}`, met: m.stable && m.p99 < b.p99 },
+          { text: `the fleet at ${m.settings.load}% busy with all up, at least ${b.load}%`, met: m.settings.load >= b.load },
+        ];
+      }
+      function dockHtml(m, view) {
+        const e = view.exp;
+        if (!e) return '';
+        if (view.phase === 'challenge') {
+          const checks = goalChecks(m);
+          const kept = M.goalMet({ all: [], keep: view.spec.goal.keep }, m.settings, m.metrics);
+          const status = view.met ? 'Goal met:' : kept ? 'Not yet:' : 'The goal keeps one server down and random work.';
+          return `<p class="legend">${esc(e.ask)}</p><p class="status-line${view.met ? ' met' : ''}" role="status">${view.met ? ICON_RIGHT : ''}${esc(status)}</p><ul class="status">${checks
+            .map((c) => `<li class="${c.met ? 'met' : ''}"><span class="state" aria-hidden="true">${c.met ? '✓' : '·'}</span><span>${esc(c.text)}</span></li>`)
+            .join('')}</ul>${view.met ? `<p class="reveal" aria-live="polite">${esc(e.reveal)}</p>` : ''}`;
+        }
+        if (view.phase === 'asking') {
+          return `<fieldset style="border:0;padding:0;margin:0"><legend class="legend">${esc(e.ask)}</legend><div class="options">${e.choices.map((c) => `<button class="g-choice">${esc(c)}</button>`).join('')}</div></fieldset>`;
+        }
+        const marked = e.choices
+          .map((c, i) => {
+            const right = view.phase === 'revealed' && i === e.answer;
+            const wrong = view.phase === 'revealed' && i === view.chosen && !right;
+            const chosen = view.phase === 'playing' && i === view.chosen;
+            return `<li class="g-choice${right ? ' right' : wrong ? ' wrong' : ''}"${chosen ? ' style="border-style:dashed"' : ''}><span>${esc(c)}${chosen ? ' <small>(your guess)</small>' : ''}</span>${right ? ICON_RIGHT : wrong ? ICON_WRONG : ''}</li>`;
+          })
+          .join('');
+        if (view.phase === 'playing') return `<p class="legend">${esc(e.ask)}</p><ul class="options">${marked}</ul><p class="held">Watch the picture: the answer plays out on it.</p>`;
+        return `<p class="legend">${esc(e.ask)}</p><ul class="options">${marked}</ul><p class="reveal" aria-live="polite">${esc(e.reveal)}</p>`;
+      }
+      function cardsHtml(view) {
+        return `<h3 class="heading"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8zM19 14l.9 2.6 2.6.9-2.6.9L19 21l-.9-2.6-2.6-.9 2.6-.9z"/></svg>Experiments</h3>
+<ol class="cards">${M.EXPERIMENTS.map((s, i) => `<li><button class="card-btn"${view.exp && view.exp.id === s.id ? ' aria-current="step"' : ''}><span class="num">${s.goal ? '⚑' : i + 1}</span><span>${esc(M.renderExperiment(s).title)}</span></button></li>`).join('')}</ol>`;
+      }
+      // Describe: a row per load stop for this configuration, the current one marked; compact under a 560 px stage.
+      function describeHtml(m, view, compact) {
+        const waits = view.phase === 'asking' || view.phase === 'playing' || view.phase === 'challenge';
+        const open = !!view.describe && !waits;
+        const btn = `<button class="g-btn" aria-expanded="${open}"${waits ? ' disabled' : ''}>${open ? 'Hide the description' : 'Describe'}</button>`;
+        if (waits) return `${btn}<p class="muted-note">Describe waits for your answer.</p>`;
+        if (!open) return btn;
+        const s = m.settings;
+        const head = compact ? ['Load', 'Busy', 'Mean, ms', 'p50, ms', 'p99, ms', 'Wait'] : ['Load', 'Each busy', 'Mean', 'p50', 'p99', 'Wait at all'];
+        const t = (v) => (compact ? String(Math.round(v)) : fdur(v));
+        const rows = M.LOADS.map((load) => {
+          const r = M.run({ ...s, load });
+          if (!r.stable) return { now: load === s.load, cells: [`${load}%`, `${Math.round(r.rho * 100)}%`, compact ? '∞' : 'grows', '–', '–', compact ? 'all' : 'grows'] };
+          return { now: load === s.load, cells: [`${load}%`, `${Math.round(r.rho * 100)}%`, t(r.mean), t(r.p50), t(r.p99), `${Math.round(r.waitChance * 100)}%`] };
+        });
+        const smp = M.sample(s);
+        const st = M.sampleAt(smp, smp.window);
+        const steps = M.waitingSteps(smp);
+        const maxQ = Math.max(0, ...steps.map((p) => p[1]));
+        const arrivals = smp.reqs.filter((r) => r.arrive >= 0).length;
+        const sampleLine = `This sample: ${arrivals} ${plural(arrivals, 'request', 'requests')} arrived in ${smp.stable ? 'the last' : 'the first'} ${smp.window} ms, at most ${maxQ} waited at once, and ${st.waiting.length} ${plural(st.waiting.length, 'is', 'are')} waiting now.`;
+        return `${btn}<p class="summary">${esc(summary(m, {}))} ${esc(sampleLine)}</p><div class="table-box${compact ? ' compact' : ''}" tabindex="0" role="region" aria-label="The model at every load for this setting"><table><thead><tr>${head
+          .map((h) => `<th scope="col">${h.replace(', ms', ', <span class="unit">ms</span>')}</th>`)
+          .join('')}</tr></thead><tbody>${rows.map((r) => `<tr${r.now ? ' class="now" aria-current="true"' : ''}>${r.cells.map((c) => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+      }
+      // Play and the load handle: Play waits while a question asks; the handle is a slider with its value in words.
+      function overlaysHtml(D, view, m) {
+        const asking = view.phase === 'asking' || view.phase === 'playing';
+        const play = D.hits
+          .filter((h) => h.kind === 'play')
+          .map(
+            (h) =>
+              `<button class="play hit" data-owner="play" style="left:${h.x}px;top:${h.y}px" aria-label="${asking ? 'Play the sample, after your answer' : 'Play the sample'}"${asking ? ' disabled' : ''}><svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="16"/><path d="M14 11v14l11-7z"/></svg></button>`,
+          );
+        const s = m.settings;
+        const valuetext = `${s.load}% busy${s.down ? ` with all ${s.servers} up` : ''}, ${M.formatQps(m.ratePerS).replace('/s', '')} requests a second`;
+        const handles = D.hits
+          .filter((h) => h.kind === 'handle')
+          .map(
+            (h) =>
+              `<div class="handle hit" role="slider" tabindex="0" data-owner="${h.owner}" aria-label="${esc(h.label)}" aria-valuetext="${esc(valuetext)}"${asking ? ' aria-disabled="true"' : ''} style="left:${h.x}px;top:${h.y}px"><span class="knob"></span></div>`,
+          );
+        return play.join('') + handles.join('');
+      }
+
+      function render(name) {
+        const view = viewOf(name);
+        const m = M.run(view.s);
+        const root = document.getElementById('widget');
+        root.innerHTML = `<div class="controls">${controlsHtml(m, view)}</div>
+<div class="main"><div class="stage" role="group" aria-roledescription="visualization" aria-label="Latency and queueing: requests arriving at random to busy servers"><div class="well" id="well"></div></div>
+<div class="describe">${describeHtml(m, view, window.innerWidth < 600)}</div></div>
+<div class="experiments"><section class="dock" aria-label="Experiment">${dockHtml(m, view)}</section>${cardsHtml(view)}</div>`;
+        const well = document.getElementById('well');
+        const W = well.clientWidth;
+        const { D, H } = buildStage(W, m, view);
+        if (view.focus?.length) focusOutlines(D, view.focus, H);
+        well.style.height = H + 'px';
+        well.innerHTML = D.svg(H, D.label) + overlaysHtml(D, view, m);
+        window.__stage = { W, H, missingTags: D.missingTags ?? 0, summary: D.label, missing: D.missing };
+        return { W, H, D };
+      }
+
+      // ---------- Collisions, measured from the rendered DOM: text on text, lines through text, marks under text,
+      // off-stage text, dots on dots, chips too close, hit boxes on hit boxes, labels and tags with no place.
+      function collisions(well) {
+        const svg = well.querySelector('svg.draw');
+        const W = Number(svg.getAttribute('width'));
+        const H = Number(svg.getAttribute('height'));
+        const owners = (el) => (el.getAttribute?.('data-owner') ?? '').split(' ').filter(Boolean);
+        const share = (a, b) => a.some((t) => b.includes(t));
+        const texts = [...svg.querySelectorAll('text')].map((t) => {
+          const b = t.getBBox();
+          return { s: t.textContent, owner: owners(t), ground: t.hasAttribute('data-ground'), x0: b.x + 0.5, x1: b.x + b.width - 0.5, y0: b.y + b.height * 0.2, y1: b.y + b.height * 0.95 };
+        });
+        const out = [];
+        const ov = (a, b, m = 0) => Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > m && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > m;
+        for (let i = 0; i < texts.length; i++) {
+          const a = texts[i];
+          if (a.x0 < -0.5 || a.x1 > W + 0.5 || a.y0 < 0 || a.y1 > H) out.push(`off-stage: "${a.s}"`);
+          for (let j = i + 1; j < texts.length; j++) if (ov(a, texts[j], 0.5)) out.push(`text on text: "${a.s}" / "${texts[j].s}"`);
+        }
+        const inside = (p, t) => p.x > t.x0 + 0.5 && p.x < t.x1 - 0.5 && p.y > t.y0 + 0.5 && p.y < t.y1 - 0.5;
+        for (const el of svg.querySelectorAll('.lane, .curve, .cursor, .leader, .cut, .gridline, .axis, .rule, .row-track, .area-edge, .playhead, .mtick')) {
+          const grid = el.matches('.gridline, .axis, .rule, .row-track, .mtick');
+          const o = owners(el);
+          const pts = [];
+          if (el.tagName === 'line') {
+            const [x1, y1, x2, y2] = ['x1', 'y1', 'x2', 'y2'].map((a) => Number(el.getAttribute(a)));
+            for (const [x, y] of sampleLine(x1, y1, x2, y2, 2)) pts.push({ x, y });
+          } else {
+            const len = el.getTotalLength();
+            for (let d = 0; d <= len; d += 2) pts.push(el.getPointAtLength(d));
+          }
+          for (const t of texts) {
+            if (grid && t.ground) continue;
+            if (share(o, t.owner)) continue;
+            if (pts.some((p) => inside(p, t))) out.push(`${grid ? 'grid' : 'line'} through "${t.s}" (${el.getAttribute('class')})`);
+          }
+        }
+        for (const mk of svg.querySelectorAll('[data-mark]')) {
+          const b = mk.getBBox();
+          const box = { x0: b.x, x1: b.x + b.width, y0: b.y, y1: b.y + b.height };
+          for (const t of texts) if (!share(t.owner, owners(mk)) && ov(box, t, 0.5)) out.push(`text on mark ${mk.getAttribute('data-mark')}: "${t.s}"`);
+        }
+        const dots = [...svg.querySelectorAll('circle.dot')].map((c) => ({ id: c.dataset.id ?? c.getAttribute('data-owner'), x: Number(c.getAttribute('cx')), y: Number(c.getAttribute('cy')), r: Number(c.getAttribute('r')) }));
+        for (let i = 0; i < dots.length; i++)
+          for (let j = i + 1; j < dots.length; j++) if (Math.hypot(dots[i].x - dots[j].x, dots[i].y - dots[j].y) < dots[i].r + dots[j].r - 0.01) out.push(`dot on dot: ${dots[i].id} / ${dots[j].id}`);
+        for (const d of dots) if (d.x - d.r < -0.5 || d.x + d.r > W + 0.5 || d.y - d.r < 0 || d.y + d.r > H) out.push(`dot off-stage: ${d.id}`);
+        const wb = well.getBoundingClientRect();
+        const hits = [...well.querySelectorAll('.hit')].map((h) => {
+          const b = h.getBoundingClientRect();
+          return { o: h.dataset.owner, x0: b.left - wb.left - 1, x1: b.right - wb.left - 1, y0: b.top - wb.top - 1, y1: b.bottom - wb.top - 1 };
+        });
+        for (let i = 0; i < hits.length; i++) {
+          const a = hits[i];
+          if (a.x0 < -0.5 || a.x1 > W + 0.5 || a.y0 < -0.5 || a.y1 > H + 0.5) out.push(`hit box off-stage: ${a.o}`);
+          for (let j = i + 1; j < hits.length; j++) if (ov(a, hits[j], 0)) out.push(`hit on hit: ${a.o} / ${hits[j].o}`);
+        }
+        return out;
+      }
+      // Marks for the checker: the layout's mark boxes as invisible rects with their owners.
+      function tagMarks(well, D) {
+        const svg = well.querySelector('svg.draw');
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.setAttribute('opacity', '0');
+        for (const mk of D.marks) {
+          const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+          r.setAttribute('x', mk.x0);
+          r.setAttribute('y', mk.y0);
+          r.setAttribute('width', Math.max(0.1, mk.x1 - mk.x0));
+          r.setAttribute('height', Math.max(0.1, mk.y1 - mk.y0));
+          r.setAttribute('data-mark', mk.owner || 'mark');
+          r.setAttribute('data-owner', mk.owner || 'mark');
+          g.appendChild(r);
+        }
+        svg.appendChild(g);
+      }
+      // Line owners from the layout's link list, by order of drawing, so a line is never checked against its own label.
+      function ownLines(well, D) {
+        const svg = well.querySelector('svg.draw');
+        for (const el of svg.querySelectorAll('.curve.p50')) el.setAttribute('data-owner', 'c50');
+        for (const el of svg.querySelectorAll('.curve.p99')) el.setAttribute('data-owner', 'c99');
+        for (const el of svg.querySelectorAll('.curve.ghost')) el.setAttribute('data-owner', 'ghost');
+        for (const el of svg.querySelectorAll('.cursor')) el.setAttribute('data-owner', 'cursor');
+        for (const el of svg.querySelectorAll('.cut')) el.setAttribute('data-owner', 'cut');
+        for (const el of svg.querySelectorAll('.area-edge')) el.setAttribute('data-owner', 'area');
+        for (const el of svg.querySelectorAll('.lane')) el.setAttribute('data-owner', 'lane');
+      }
+      const unplaced = (D) => [...(D.missingTags ? [`${D.missingTags} focus tag(s) without a place`] : []), ...(D.missing ?? []).map((t) => `no room for "${t}"`)];
+      function check(well, D) {
+        tagMarks(well, D);
+        ownLines(well, D);
+        const out = [...collisions(well), ...unplaced(D)];
+        well.querySelectorAll('[data-mark]').forEach((e) => e.remove());
+        return out;
+      }
+      function drawInto(well, W, m, view) {
+        const { D, H } = buildStage(W, m, view);
+        if (view.focus?.length) focusOutlines(D, view.focus, H);
+        well.style.height = H + 'px';
+        well.innerHTML = D.svg(H, D.label) + overlaysHtml(D, view, m);
+        return { D, H };
+      }
+
+      // A sweep over settings and widths, drawing only the stage, for the layout's own check.
+      const ALL = [];
+      for (const servers of M.SERVERS)
+        for (const queue of M.QUEUES)
+          for (const service of M.SERVICES)
+            for (const down of [0, 1])
+              for (const load of M.LOADS) {
+                if (servers === 1 && (queue === 'split' || down)) continue;
+                ALL.push({ load, servers, queue, service, down });
+              }
+      window.ALL_SETTINGS = ALL;
+      window.sweep = function (widths, list = ALL, taus = [null]) {
+        const well = document.getElementById('well');
+        const res = { renders: 0, failures: [] };
+        for (const W of widths) {
+          well.style.width = W + 2 + 'px';
+          for (const s of list)
+            for (const tau of taus) {
+              const m = M.run(s);
+              const { D } = drawInto(well, W, m, { hide: [], phase: 'rest', tau });
+              const out = check(well, D);
+              res.renders++;
+              if (out.length) res.failures.push({ W, s: `${s.servers} ${s.queue} ${s.service} down${s.down} ${s.load}%${tau !== null ? ` t${tau}` : ''}`, out: out.slice(0, 4) });
+            }
+        }
+        well.style.width = '';
+        return res;
+      };
+      // Every experiment asking, playing (after the act, hiding held) and revealed, with its focus and tags.
+      window.sweepExperiments = function (widths) {
+        const well = document.getElementById('well');
+        const res = { renders: 0, failures: [] };
+        for (const W of widths) {
+          well.style.width = W + 2 + 'px';
+          M.EXPERIMENTS.forEach((spec, k) => {
+            const phases = spec.goal ? ['challenge', 'start'] : ['asking', 'playing', 'revealed'];
+            for (const phase of phases) {
+              const view = expView(spec, phase);
+              const m = M.run(view.s);
+              const { D } = drawInto(well, W, m, view);
+              const out = check(well, D);
+              res.renders++;
+              if (out.length) res.failures.push({ W, exp: k + 1, phase, out: out.slice(0, 4) });
+            }
+          });
+        }
+        well.style.width = '';
+        return res;
+      };
+      function expView(spec, phase, tau = 180) {
+        const after = actSettings(spec);
+        const changed = configKey(spec.setup) !== configKey(after);
+        if (spec.goal) {
+          const s = phase === 'start' ? spec.setup : { ...spec.setup, ...M.CHALLENGE_SOLUTION };
+          return { s, hide: [], phase: 'challenge', focus: phase === 'start' ? [] : spec.focus, tau: null };
+        }
+        return {
+          s: phase === 'asking' ? spec.setup : after,
+          hide: phase === 'revealed' ? [] : spec.hide,
+          phase,
+          focus: phase === 'revealed' ? spec.focus : [],
+          setupRho: M.run(spec.setup).rho,
+          configChanged: changed,
+          ghost: phase !== 'asking' && changed ? spec.setup : null,
+          ghostName: 'before',
+          tau: phase === 'playing' ? tau : null,
+        };
+      }
+      window.expView = expView;
+
+      // ---------- The no-answer sweep: while a question asks and while its answer plays, no rendered text, accessible
+      // name or structure may hold its answer or a false claim (prevention 1 and 2).
+      const GIVEAWAYS = {
+        'idle-yet-waiting': ['of requests wait', 'waiting now', '20 ms', '10 ms waiting', 'at once', 'idle'],
+        knee: ['100 ms', '90 ms waiting', '461 ms', '69 ms', '3×'],
+        pool: ['7.46', '59.6%', '69 ms', '17 ms', 'shared queue hands'],
+        steady: ['45 ms', '229 ms', '55 ms', '40 ms'],
+        'lose-one': ['No steady state', 'no steady state', 'over capacity', '105%', 'grows', 'without bound', '200/s'],
+      };
+      // A hidden value must never be replaced by a wrong default: no "0 waiting", no "idle" servers, no "0%".
+      const FALSE_CLAIMS = ['0 waiting now', '0% of requests', 'NaN', 'undefined', 'Infinity'];
+      function structural(well, spec, phase) {
+        const out = [];
+        const svg = well.querySelector('svg.draw');
+        const hide = new Set(spec.hide);
+        if (!well.querySelector('.play')?.disabled) out.push('Play is enabled');
+        if (well.querySelector('.handle')?.getAttribute('aria-disabled') !== 'true') out.push('the load handle is enabled');
+        if (hide.has('sample') && phase === 'asking' && svg.querySelector('.dot.wait, .dot.serve, .tick-arr, .busy, .area-wait, .peak, .ring-arc')) out.push('a sample mark while the sample waits');
+        const numbersHidden = hide.has('numbers') || (hide.has('after') && phase === 'playing');
+        if (numbersHidden && svg.querySelector('.dot.req, .dot.p50, .dot.p99, .bar-work, .bar-wait, .leader, .mtick, .chevron')) out.push('a model mark while the numbers wait');
+        if (hide.has('numbers') && svg.querySelector('.curve.p50, .curve.p99')) out.push('a curve while the numbers wait');
+        if (hide.has('after') && phase === 'playing' && svg.querySelector('.cursor')) out.push('the cursor at the new setting while the answer plays');
+        if (hide.has('ahead')) {
+          const limit = M.run(spec.setup).rho;
+          for (const p of svg.querySelectorAll('.curve.p50, .curve.p99')) {
+            const box = p.getBBox();
+            const plot = svg.querySelector('.cut');
+            if (plot && box.x + box.width > Number(plot.getAttribute('x1')) + 0.6) out.push(`a curve past the cut at ${Math.round(limit * 100)}%`);
+          }
+        }
+        return out;
+      }
+      window.noAnswer = function (widths) {
+        const well = document.getElementById('well');
+        const out = [];
+        let renders = 0;
+        for (const W of widths) {
+          well.style.width = W + 2 + 'px';
+          for (const spec of M.EXPERIMENTS.filter((e) => !e.goal))
+            for (const phase of ['asking', 'playing'])
+              for (const f of phase === 'playing' ? [0, 0.15, 0.45, 0.8, 1] : [null]) {
+                const win = M.run(actSettings(spec)).stable ? M.WINDOW_MS : M.UNSTABLE_WINDOW_MS;
+                const tau = f === null ? null : Math.round(f * win);
+                const view = expView(spec, phase, tau);
+                const m = M.run(view.s);
+                drawInto(well, W, m, view);
+                renders++;
+                const text = [...well.querySelectorAll('text')].map((t) => t.textContent).join(' | ') + ' | ' + [...well.querySelectorAll('[aria-label],[aria-valuetext]')].map((e) => `${e.getAttribute('aria-label')} ${e.getAttribute('aria-valuetext') ?? ''}`).join(' | ');
+                const words = [...(GIVEAWAYS[spec.id] ?? []), ...FALSE_CLAIMS].filter((g) => !(phase === 'playing' && spec.id === 'idle-yet-waiting' && ['waiting now', 'at once', 'idle'].includes(g)));
+                for (const g of words) if (text.includes(g)) out.push(`W${W} ${spec.id} ${phase}${tau !== null ? ` t${tau}` : ''}: "${g}"`);
+                for (const g of structural(well, spec, phase)) out.push(`W${W} ${spec.id} ${phase}: ${g}`);
+              }
+        }
+        well.style.width = '';
+        return { renders, out };
+      };
+      // Plants a leak on a copy of the view to prove the sweep catches it: a shown p99 in E2 and a sample mark in E1.
+      window.plantedLeaks = function (W) {
+        const well = document.getElementById('well');
+        well.style.width = W + 2 + 'px';
+        const caught = [];
+        {
+          const spec = M.EXPERIMENTS.find((e) => e.id === 'knee');
+          const view = { ...expView(spec, 'playing', 200), hide: ['ahead'] };
+          drawInto(well, W, M.run(view.s), view);
+          const text = [...well.querySelectorAll('text')].map((t) => t.textContent).join(' | ');
+          caught.push(GIVEAWAYS.knee.some((g) => text.includes(g)) || structural(well, spec, 'playing').length > 0);
+        }
+        {
+          const spec = M.EXPERIMENTS.find((e) => e.id === 'idle-yet-waiting');
+          const view = { ...expView(spec, 'asking'), hide: ['numbers'] };
+          drawInto(well, W, M.run(view.s), view);
+          caught.push(structural(well, spec, 'asking').length > 0);
+        }
+        well.style.width = '';
+        return caught;
+      };
+      window.heights = function (widths) {
+        const well = document.getElementById('well');
+        const out = {};
+        for (const W of widths) {
+          const hs = new Set();
+          for (const s of ALL) hs.add(buildStage(W, M.run(s), { hide: [], phase: 'rest', tau: null }).H);
+          for (const spec of M.EXPERIMENTS)
+            for (const phase of spec.goal ? ['challenge', 'start'] : ['asking', 'playing', 'revealed']) {
+              const v = expView(spec, phase);
+              hs.add(buildStage(W, M.run(v.s), v).H);
+            }
+          out[W] = [...hs];
+        }
+        return out;
+      };
+      // Whole-widget heights at viewport widths, for widget-heights.ts's placeholders (the panel's content height).
+      window.widgetHeight = () => document.getElementById('widget').getBoundingClientRect().height;
+
+      const stateName = params.get('state') ?? 'default';
+      Promise.all([
+        document.fonts.load('600 11px "Inter Variable"'),
+        document.fonts.load('500 13px "Inter Variable"'),
+        document.fonts.load('700 11px "Inter Variable"'),
+        document.fonts.load('600 11px "JetBrains Mono Variable"'),
+      ]).then(() => {
+        const { D } = render(stateName);
+        const well = document.getElementById('well');
+        const issues = check(well, D);
+        render(stateName);
+        window.__collisions = issues;
+        document.body.dataset.ready = '1';
+      });
+    </script>
+  </body>
+</html>
