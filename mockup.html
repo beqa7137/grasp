@@ -1893,8 +1893,8 @@
         if (view.phase === 'challenge') {
           const checks = goalChecks(m);
           const kept = M.goalMet({ all: [], keep: view.spec.goal.keep }, m.settings, m.metrics);
-          const status = view.met ? 'Goal met:' : kept ? 'Not yet:' : 'The goal keeps one server down and random work.';
-          return `<p class="legend">${esc(e.ask)}</p><p class="status-line${view.met ? ' met' : ''}" role="status">${view.met ? ICON_RIGHT : ''}${esc(status)}</p><ul class="status">${checks
+          const status = view.met ? 'Goal met:' : kept ? '' : 'The goal keeps a server down and random work.';
+          return `<p class="legend">${esc(e.ask)}</p>${status ? `<p class="status-line${view.met ? ' met' : ''}" role="status">${view.met ? ICON_RIGHT : ''}${esc(status)}</p>` : ''}<ul class="status">${checks
             .map((c) => `<li class="${c.met ? 'met' : ''}"><span class="state" aria-hidden="true">${c.met ? '✓' : '·'}</span><span>${esc(c.text)}</span></li>`)
             .join('')}</ul>${view.met ? `<p class="reveal" aria-live="polite">${esc(e.reveal)}</p>` : ''}`;
         }
@@ -1932,11 +1932,14 @@
           return { now: load === s.load, cells: [`${load}%`, `${Math.round(r.rho * 100)}%`, t(r.mean), t(r.p50), t(r.p99), `${Math.round(r.waitChance * 100)}%`] };
         });
         const smp = M.sample(s);
-        const st = M.sampleAt(smp, smp.window);
         const steps = M.waitingSteps(smp);
         const maxQ = Math.max(0, ...steps.map((p) => p[1]));
         const arrivals = smp.reqs.filter((r) => r.arrive >= 0).length;
-        const sampleLine = `This sample: ${arrivals} ${plural(arrivals, 'request', 'requests')} arrived in ${smp.stable ? 'the last' : 'the first'} ${smp.window} ms, at most ${maxQ} waited at once, and ${st.waiting.length} ${plural(st.waiting.length, 'is', 'are')} waiting now.`;
+        const peakAt = maxQ ? steps.find((p) => p[1] === maxQ)[0] : null;
+        const span = `${smp.stable ? 'the last' : 'the first'} ${fdur(smp.window)}`;
+        const sampleLine = maxQ
+          ? `This sample: ${arrivals} ${plural(arrivals, 'request', 'requests')} arrived in ${span}, and the line was longest at ${fdur(Math.round(peakAt))}, with ${maxQ} waiting, the moment the drawing shows.`
+          : `This sample: ${arrivals} ${plural(arrivals, 'request', 'requests')} arrived in ${span}, and none had to wait.`;
         return `${btn}<p class="summary">${esc(summary(m, {}))} ${esc(sampleLine)}</p><div class="table-box${compact ? ' compact' : ''}" tabindex="0" role="region" aria-label="The model at every load for this setting"><table><thead><tr>${head
           .map((h) => `<th scope="col">${h.replace(', ms', ', <span class="unit">ms</span>')}</th>`)
           .join('')}</tr></thead><tbody>${rows.map((r) => `<tr${r.now ? ' class="now" aria-current="true"' : ''}>${r.cells.map((c) => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
@@ -2255,6 +2258,7 @@
         }
         return out;
       };
+      window.stageHeight = (W, s = M.BASE) => buildStage(W, M.run(s), { hide: [], phase: 'rest', tau: null }).H;
       // Whole-widget heights at viewport widths, for widget-heights.ts's placeholders (the panel's content height).
       window.widgetHeight = () => document.getElementById('widget').getBoundingClientRect().height;
 
