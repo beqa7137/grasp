@@ -63,6 +63,7 @@ test('the quorum widget draws one write and one read with the model numbers, and
   await widget.getByRole('radio', { name: '5 replicas' }).check();
   await expect(summary).toHaveAttribute('aria-label', /^5 replicas, W ALL, R QUORUM\./);
   await widget.getByRole('radio', { name: '3 replicas' }).check();
+  await expect(summary).toHaveAttribute('aria-label', /^3 replicas, W ALL, R QUORUM\./);
   expect(await height()).toBe(h3);
 });
 
