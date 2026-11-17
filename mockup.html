@@ -978,6 +978,20 @@
       th .unit {
         text-transform: none;
       }
+      tbody th {
+        font: inherit;
+        letter-spacing: normal;
+        text-transform: none;
+        color: inherit;
+        position: static;
+        background: none;
+        border-top: 1px solid var(--g-line);
+        font-weight: 500;
+      }
+      tr.now th {
+        background: var(--g-accent-soft);
+        font-weight: 600;
+      }
       /* ---- The Storage Engines stage. Amber is a byte written to disk, blue a page or run read, green the key found,
          muted hatch a run a filter skipped; dashed is only ever "hidden until you answer". */
       .t-num {
@@ -1419,8 +1433,9 @@
       // question asks and while its answer plays, and the marks that would draw the answer (the page written back, the
       // level's merges) while it asks; the answer's play then draws those marks at their moments. `writesAfter` hides,
       // during the answer's play, both engines' write numbers at the act's new setting; `readsAfter` the LSM tree's
-      // lookup numbers there. No ghost of an earlier setting shows while a question is open: a card's setup is a new
-      // start.
+      // lookup numbers there, and `readsWhy`, while the question asks, the lookup's arithmetic (how many runs there
+      // are and how many the filters skipped: the setup's own count stays). No ghost of an earlier setting shows while
+      // a question is open: a card's setup is a new start.
       function hiding(view) {
         const h = new Set(view.hide ?? []);
         const asking = view.phase === 'asking';
@@ -1433,6 +1448,7 @@
           lsmNumbers: (h.has('lsmWrite') && open) || writesAfter,
           lsmMarks: h.has('lsmWrite') && asking,
           readNumbers: h.has('readsAfter') && playing,
+          readWhy: h.has('readsWhy') && asking,
           ghost: open,
           locked: open,
         };
@@ -1496,6 +1512,7 @@
         }
         if (s.op !== WRITE) {
           if (hid.readNumbers) return `The lookup checks the memtable, then goes down the runs on disk. The count shows at the reveal.`;
+          if (hid.readWhy) return `The lookup checks the memtable, then asks the bloom filter of each run on disk, and reads the last level: ${M.formatReads(l.lookupReads)}.`;
           return s.bloom
             ? `The lookup checks the memtable, then asks the bloom filter of each run on disk: ${l.skipped} runs say "not here" from memory, and only the last level is read: ${M.formatReads(l.lookupReads)}.`
             : `The lookup checks the memtable, then reads every run on disk in turn, the flushed run and ${M.formatLevels(l.levels)}, until the last level turns the key up: ${M.formatReads(l.lookupReads)}.`;
@@ -1904,7 +1921,9 @@
           const oneIn = Math.round(1 / M.BLOOM_FALSE_POSITIVE);
           const forms = hid.readNumbers
             ? ['The count shows at the reveal.']
-            : s.bloom
+            : hid.readWhy
+              ? ['How the filters decide shows after your answer.']
+              : s.bloom
               ? [
                   `Each run's filter answers from memory: ${l.skipped} say "not here", so only the last run is read. About 1 lookup in ${oneIn} reads a run for nothing; the model leaves that out.`,
                   `${l.skipped} filters say "not here" from memory; only the last run is read. False positives, about 1 in ${oneIn}, are left out.`,
@@ -1914,9 +1933,9 @@
             forms.map((t) => wrap(t, 'small', pw)),
             (ls) => ls.length <= 5,
           );
-          if (on('ledger') || hid.readNumbers) lines.forEach((t, i) => D.text(x, tY + 28 + i * 13, [[t, 'small', 'muted']], { owner: 'lsm-stair', id: i === 0 ? 'filter-text' : undefined }));
+          if (on('ledger') || hid.readNumbers || hid.readWhy) lines.forEach((t, i) => D.text(x, tY + 28 + i * 13, [[t, 'small', 'muted']], { owner: 'lsm-stair', id: i === 0 ? 'filter-text' : undefined }));
           if (on('ledger')) {
-            const l1 = hid.readNumbers ? '?' : s.bloom ? `${l.runs} runs − ${l.skipped} skipped = ${l.lookupReads} read` : `${l.runs} runs, none skipped = ${l.lookupReads} read`;
+            const l1 = hid.readNumbers || hid.readWhy ? '?' : s.bloom ? `${l.runs} runs − ${l.skipped} skipped = ${l.lookupReads} read` : `${l.runs} runs, none skipped = ${l.lookupReads} read`;
             D.text(x, tY + 91, [[l1, 'mono', 'ink']], { owner: 'lsm-ledger', id: 'lsm-ledger' });
             D.text(
               x,
@@ -2021,7 +2040,7 @@
         return y + 20 + 72 + 14;
       }
       function readGroup(D, x, y, w, m, view, hid) {
-        D.text(x, y + 11, [[pick(['Disk reads for one lookup', 'Disk reads a lookup', 'Disk reads'], (t) => tw(t, 'label') <= w - TAG_ROOM), 'label', '']], { textCls: 'muted', owner: 'cost-label' });
+        D.text(x, y + 11, [[pick(['Disk reads for one lookup', 'Disk reads per lookup', 'Disk reads'], (t) => tw(t, 'label') <= w - TAG_ROOM), 'label', '']], { textCls: 'muted', owner: 'cost-label' });
         let cy = y + 20;
         const nameW = Math.max(tw(ENGINE.btree, 'small'), tw(ENGINE.lsm, 'small')) + 10;
         for (const engine of ['btree', 'lsm']) {
@@ -2360,7 +2379,7 @@
         const num = (v, d) => String(Number(v.toFixed(d)));
         const row = (name, now, levels, e) => ({
           now,
-          cells: compact ? [name, String(levels), num(e.writeAmp, 1), String(e.lookupReads), num(e.spaceAmp, 2)] : [name, String(levels), fAmp(e.writeAmp), M.formatRate(e.diskWriteMBps), M.formatReads(e.lookupReads), M.formatSpace(e.spaceAmp)],
+          cells: compact ? [name, String(levels), fAmp(e.writeAmp).replace('×', ''), String(e.lookupReads), num(e.spaceAmp, 2)] : [name, String(levels), fAmp(e.writeAmp), M.formatRate(e.diskWriteMBps), M.formatReads(e.lookupReads), M.formatSpace(e.spaceAmp)],
         });
         const rows = [
           ...M.PAGE_KB.map((page) => {
@@ -2575,6 +2594,7 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${nb(story
         }
         // Element counts are bounded by the stage, never by the data.
         const count = svg.querySelectorAll('*').length;
+        window.__maxElements = Math.max(window.__maxElements ?? 0, count);
         if (count > 420) out.push(`${count} SVG elements`);
         return out;
       }
@@ -2650,7 +2670,7 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${nb(story
         'page-rewrite': { both: [fB(M.run(B).btree.writeBytes), M.formatBytes(M.run(B).btree.writeBytes), fAmp(M.run(B).btree.writeAmp), M.formatRate(M.run(B).btree.diskWriteMBps), `${fB(4096)} written`, 'written back whole', `+${fB(100)}`, `${fB(4096)} +`], asking: ['written back'] },
         'lsm-rewrites': { both: [fAmp(24), M.formatRate(240), '≈', '5.5', '55 parts', '1 log + 1 flush', 'Merge k'] },
         'record-size': { playing: [fAmp(afterOf(2).btree.writeAmp), M.formatRate(afterOf(2).btree.diskWriteMBps), fB(afterOf(2).btree.writeBytes), fAmp(24), 'was ', '≈'] },
-        'no-filters': { playing: [M.formatReads(afterOf(3).lsm.lookupReads), `${afterOf(3).lsm.runs} runs`, 'none skipped', 'newest first', 'was '] },
+        'no-filters': { asking: [`${afterOf(3).lsm.runs} runs`, `${M.run(M.EXPERIMENTS[3].setup).lsm.skipped} say`, `${M.run(M.EXPERIMENTS[3].setup).lsm.skipped} runs say`], playing: [M.formatReads(afterOf(3).lsm.lookupReads), `${afterOf(3).lsm.runs} runs`, 'none skipped', 'newest first', 'was '] },
         'more-data': { playing: [fAmp(afterOf(4).lsm.writeAmp), M.formatRate(afterOf(4).lsm.diskWriteMBps), '≈', fAmp(42), 'was ', '5 levels ×'] },
       };
       function structural(well, spec, phase, view) {
@@ -2683,6 +2703,7 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${nb(story
           }
         }
         if (hide.has('lsmWrite') && !playing && svg.querySelector('[data-id="stair"]')) out.push("the level's merges drawn while the question asks");
+        if (hide.has('readsWhy') && !playing && (/\d/.test(tx('lsm-ledger') ?? '') || /\d/.test(tx('filter-text') ?? ''))) out.push("the lookup's arithmetic while the question asks");
         if (hide.has('readsAfter') && playing) {
           if (svg.querySelector('[data-pip="lsm"]')) out.push("an LSM read pip while the answer plays");
           if (tx('reads-lsm') !== '?') out.push(`the LSM reads value reads "${tx('reads-lsm')}"`);
@@ -2747,6 +2768,7 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${nb(story
         tryLeak("E3 played, the B-tree's new numbers shown", 'record-size', 'playing', ['btNumbers']);
         tryLeak("E3 played, the LSM tree's numbers shown", 'record-size', 'playing', ['lsmNumbers']);
         tryLeak('E4 played, the reads shown', 'no-filters', 'playing', ['readNumbers']);
+        tryLeak("E4 asked, the lookup's arithmetic shown", 'no-filters', 'asking', ['readWhy']);
         tryLeak("E5 played, the LSM tree's new numbers shown", 'more-data', 'playing', ['lsmNumbers']);
         tryLeak('E3 asked with the ghost of the setting before it', 'record-size', 'asking', ['ghost'], { ...B, page: 16 });
         well.style.width = '';

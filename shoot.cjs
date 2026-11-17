@@ -108,7 +108,7 @@ const server = http.createServer((req, res) => {
     const names = Object.keys(planted);
     console.log(`planted leaks caught: ${names.filter((n) => planted[n]).length} of ${names.length}`);
     for (const n of names.filter((n) => !planted[n])) console.log(`    NOT CAUGHT (or the clean view is not clean): ${n}`);
-    if (!names.every((n) => planted[n]) || names.length !== 10) total++;
+    if (!names.every((n) => planted[n]) || names.length !== 11) total++;
     const words = await page.evaluate(() => window.pageWords());
     console.log(`page sentences (summary, notice, both plays' stories, Describe, goal checks) over every setting: ${words.length} findings`);
     for (const w of words.slice(0, 8)) console.log(`    ${w}`);
@@ -143,6 +143,20 @@ const server = http.createServer((req, res) => {
     const heights = await page.evaluate(() => window.heights([248, 252, 270, 300, 322, 344, 360, 400, 460, 499, 500, 560, 620, 700]));
     console.log('stage heights by width (each should be one value):', JSON.stringify(heights));
     for (const hs of Object.values(heights)) if (hs.length !== 1) total++;
+    console.log(`most SVG elements in any render: ${await page.evaluate(() => window.__maxElements)}`);
+    // Describe fits its box (or scrolls inside it, never the page) at the house widths.
+    for (const width of [320, 412, 1280, 1440]) {
+      const p = await browser.newPage({ viewport: { width, height: 900 } });
+      await p.goto(`${base}?state=describe`);
+      await p.waitForSelector('body[data-ready="1"]', { timeout: 20000 });
+      const d = await p.evaluate(() => {
+        const box = document.querySelector('.table-box');
+        return { page: document.documentElement.scrollWidth > window.innerWidth, table: box.scrollWidth > box.clientWidth + 1, compact: box.classList.contains('compact') };
+      });
+      console.log(`Describe at ${width}: ${d.compact ? 'compact' : 'full'}, ${d.table ? 'scrolls inside its box' : 'fits its box'}${d.page ? ', THE PAGE SCROLLS SIDEWAYS' : ''}`);
+      if (d.page || d.table) total++;
+      await p.close();
+    }
     if (args.includes('--words')) {
       const w = await page.evaluate(() => [window.ALL_SETTINGS[0], { data: 100, record: 100, page: 4, ratio: 10, bloom: 1, op: 0 }, { data: 1000, record: 1000, page: 16, ratio: 4, bloom: 0, op: 1 }].map((s) => window.wordsOf(s)));
       console.log(JSON.stringify(w, null, 1));

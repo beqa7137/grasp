@@ -342,7 +342,7 @@
       reveal:
         '{readsOff}: the newest version of a key can sit in any run, so without filters the engine searches each in turn, the flushed run and then all {levels}, and most keys rest in the last level, which holds about {lastShare} of the data. With filters, {skipped} runs answer "not here" from memory and only the last is read. The filters take about {bits} bits a key, {memory} of memory here, and they cannot answer a range scan, which opens every run either way. The B-tree walks {height} pages, {hops} of them in memory: {btReads}, filters or not.',
       focus: ['lsm-stack', 'cost-read'],
-      hide: ['readsAfter'],
+      hide: ['readsWhy', 'readsAfter'],
       slots: () => {
         const a = run(SETUP.filters);
         const b = run({ ...SETUP.filters, bloom: 0 });
