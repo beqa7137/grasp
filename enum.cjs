@@ -39,7 +39,7 @@ for (const spec of M.EXPERIMENTS) {
   for (const [k, s] of Object.entries(e.slots)) check(s.unit !== 'word' || !/\d/.test(s.value), `${spec.id}: word slot ${k} carries digits`);
   for (const text of [e.title, e.ask, ...e.choices, e.reveal]) {
     check(!/\u2014/.test(text), `${spec.id}: em dash`);
-    check(!/ /.test(text), `${spec.id}: non-breaking space`);
+    check(!/\u00a0/.test(text), `${spec.id}: non-breaking space`);
     check(!/\d{4}/.test(text.replace(/\d{1,3}(,\d{3})+/g, '')), `${spec.id}: a number past 999 without a separator in "${text}"`);
     check(!/\/s (requests|queries) a second/.test(text), `${spec.id}: a rate said twice in "${text}"`);
   }

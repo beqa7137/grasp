@@ -1523,7 +1523,8 @@
         if (id === 'lb' || id === 'app') {
           const text = `limit ${fq(t.ceiling)}`;
           const w = tw(text, 'small');
-          const x = [occ + 6, ...rowTicks.map((tx) => tx + 5)].find((x) => fitsRow(x, x + w));
+          // At the lane's end or not at all: beside a ghost tick it would read as the old limit's label.
+          const x = [occ + 6].find((x) => fitsRow(x, x + w));
           if (x !== undefined) {
             L.limitLabel = { x, text };
             row.push([x, x + w]);
@@ -2420,6 +2421,7 @@ ${view.reduced ? `<p class="caption">${esc(rampStory(r.settings, M.TRAFFIC[0]))}
         well.innerHTML = D.svg(H, D.label) + overlaysHtml(D, view, r);
         document.getElementById('describe').innerHTML = describeHtml(r, view, W < 560);
         window.__stage = { W, H, missingTags: D.missingTags ?? 0, summary: D.label, missing: D.missing };
+        window.__last = { D, view };
         return { W, H, D, view, r };
       }
       const render = (name) => renderView(viewOf(name));
@@ -3010,6 +3012,18 @@ ${view.reduced ? `<p class="caption">${esc(rampStory(r.settings, M.TRAFFIC[0]))}
         return fits;
       };
       window.renderState = (name) => renderView(viewOf(name));
+      /** The page scroll that brings the current play's or reveal's anchor, with the stream gap above it, 8 px under a
+       * 56 px app header (the one-column layout's move when a choice starts a play, and at the reveal). */
+      window.anchorScroll = () => {
+        const { D, view } = window.__last;
+        const g = geometry(D.W);
+        let top;
+        if (view.phase === 'playing') top = D.meta.boxes.find((b) => b.id === view.anchor).top - g.gap;
+        else if (view.phase === 'revealed') top = D.regions[view.anchor][0].y + 4 - g.gap;
+        else return 0;
+        const well = document.getElementById('well').getBoundingClientRect().top + window.scrollY;
+        return Math.max(0, Math.round(well + top - 64));
+      };
 
       const stateName = params.get('state') ?? 'default';
       Promise.all([

@@ -5,10 +5,13 @@
 // as printed, every lane ending at its limit, every shed block ending where the stream above it does, the served bar,
 // captions within their reserved lines, red particles only where a tier sheds), then sweeps the stage over every
 // setting at many widths (at rest, mid-ramp with particles, and with a ghost), every experiment asking, playing and
-// revealed (with a Look here tag at every reveal), runs the no-answer sweep, proves it catches four planted leaks, runs
-// the false-claim and grammar rules over every page sentence, and prints the stage heights per width (each must be one
-// value). A state is a name ("cached"), a question asking, playing or revealed ("ask:3", "play:3", "reveal:1"), or the
-// challenge ("challenge", "challenge-start").
+// revealed (with a Look here tag and a labelled ghost for every moved limit at every reveal), runs the no-answer sweep,
+// proves it catches six planted leaks, proves every new layout and word rule catches its own planted fault, runs the
+// false-claim and grammar rules over every page sentence, checks where the one-column layout brings the stage for each
+// play and reveal (and shoots that phone view), that no condition moves the stage, that Describe's table fits at
+// phone widths, and prints the stage heights per width (each must be one value). A state is a name ("cached"), a
+// question asking, playing or revealed ("ask:3", "play:3", "reveal:1"), or the challenge ("challenge",
+// "challenge-start").
 // Usage: node shoot.cjs [--no-sweep] [--sweep-only] [--only=state,state] [--widths=1280,390] [--stride=n]
 'use strict';
 const http = require('http');
@@ -101,8 +104,18 @@ const server = http.createServer((req, res) => {
     for (const g of giveaways.out.slice(0, 12)) console.log(`    ${g}`);
     total += giveaways.out.length;
     const planted = await page.evaluate(() => window.plantedLeaks(322));
-    console.log(`planted leaks caught: ${planted.filter(Boolean).length} of ${planted.length}`);
-    if (!planted.every(Boolean) || planted.length !== 4) total++;
+    console.log(`planted leaks caught: ${planted.filter((p) => p[1]).length} of ${planted.length}`);
+    for (const [name, ok] of planted) if (!ok) console.log(`    missed: ${name}`);
+    if (!planted.every((p) => p[1]) || planted.length !== 6) total++;
+    const faults = await page.evaluate(() => window.plantedFaults(252));
+    console.log(`planted faults caught by their rules: ${faults.filter((f) => f[1]).length} of ${faults.length}`);
+    for (const [name, ok, eg] of faults) console.log(`    ${ok ? 'caught' : 'MISSED'} ${name}${eg ? `: ${eg}` : ''}`);
+    if (!faults.every((f) => f[1])) total++;
+    const anchors = await page.evaluate(() => window.anchorFit([252, 322]));
+    const off = anchors.filter((a) => a.missing.length);
+    console.log(`phone views at the play's and the reveal's anchor (650 px, 56 of them the header): ${anchors.length - off.length} of ${anchors.length} hold what they must show`);
+    for (const a of off) console.log(`    W${a.W} ${a.exp} ${a.phase} (${a.from} to ${a.to}): ${a.missing.join(', ')}`);
+    total += off.length;
     const words = await page.evaluate(() => window.pageWords(3));
     console.log(`page sentences (summary, ramp story, Describe both ways, goal checks) over a third of every setting: ${words.length} findings`);
     for (const w of words.slice(0, 8)) console.log(`    ${w}`);
@@ -111,7 +124,7 @@ const server = http.createServer((req, res) => {
     const all = Array.from({ length: count }, (_, i) => i);
     // A stride of every setting at the phone and desktop widths (at rest, mid-ramp and with a ghost), sparser elsewhere.
     const plan = [
-      [252, all.filter((i) => i % STRIDE === 0), ['rest', 'ramp']],
+      [252, all.filter((i) => i % STRIDE === 0), ['rest', 'ramp', 'reduced']],
       [322, all.filter((i) => i % STRIDE === 1), ['rest', 'ramp', 'ghost']],
       [620, all.filter((i) => i % STRIDE === 2), ['rest', 'ramp', 'ghost']],
       ...[270, 300, 344, 360, 400, 460, 520, 560, 700].map((w) => [w, all.filter((i) => i % (STRIDE * 5) === w % (STRIDE * 5)), ['rest']]),
@@ -137,6 +150,34 @@ const server = http.createServer((req, res) => {
     console.log('stage heights by width (each should be one value):', JSON.stringify(heights));
     for (const hs of Object.values(heights)) if (hs.length !== 1) total++;
     await page.close();
+  }
+  // Page-level checks at phone widths: no condition moves the stage, Describe's table fits, and the phone view of every
+  // play and reveal at its anchor.
+  if (!args.includes('--no-sweep')) {
+    for (const width of [320, 390, 412]) {
+      const page = await browser.newPage({ viewport: { width, height: 650 }, deviceScaleFactor: 2 });
+      page.on('pageerror', (e) => errors.push(`page ${width}: ${e.message}`));
+      await page.goto(`${base}?state=default&theme=dark`);
+      await page.waitForSelector('body[data-ready="1"]', { timeout: 20000 });
+      const tops = await page.evaluate(() => window.conditionTops());
+      const fits = await page.evaluate(() => window.describeFits());
+      console.log(`page ${width}: the stage's top over the eight condition settings ${JSON.stringify(tops)}; Describe's table ${fits ? 'fits' : 'scrolls'}`);
+      if (tops.length !== 1) total++;
+      if (!fits) total++;
+      await page.close();
+    }
+    for (const theme of THEMES) {
+      const page = await browser.newPage({ viewport: { width: 390, height: 650 }, deviceScaleFactor: 2 });
+      for (const k of [1, 2, 3, 4, 5])
+        for (const phase of ['play', 'reveal']) {
+          await page.goto(`${base}?${phase === 'play' ? `state=ask&exp=${k}&phase=playing&frac=0.95` : `state=reveal&exp=${k}`}&theme=${theme}`);
+          await page.waitForSelector('body[data-ready="1"]', { timeout: 20000 });
+          const y = await page.evaluate(() => window.anchorScroll());
+          await page.evaluate((y) => window.scrollTo(0, y), y);
+          await page.screenshot({ path: path.join(DIR, 'shots', `view-${phase}${k}-390-${theme}.png`) });
+        }
+      await page.close();
+    }
   }
   await browser.close();
   server.close();
