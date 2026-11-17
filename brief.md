@@ -153,8 +153,9 @@ its traffic (30%, as much as 86 ordinary keys), with "hot" on it; the scale then
 is ten thin blocks of 3% on the piles its salted keys hash to. So the conversion the lesson asks of the learner, from
 keys to load, is drawn: equal piles of keys, and one block no pile can share out. The scale ends at 184 key-heights,
 which holds every pile of keys at every setting (169 at most) and the hot key on every experiment's piles; on a fuller
-pile (two or three nodes left with the hot key) the block is cut at the scale's end under a triangle and "+2.7%", the
-traffic the cut leaves out (the row under the pile gives the node's whole share). A node that is down keeps its column:
+pile (two or three nodes left with the hot key) the block is cut at the scale's end under a triangle and "+12%", the
+traffic the cut leaves out, and a hot key with no room at all is "hot +30%" over its pile (the row under the pile gives
+the node's whole share; 26 px over the scale are kept for these words). A node that is down keeps its column:
 a grey base, a critical × and "down"; a node that left keeps it for that change with "left".
 
 Under the piles, a table in the piles' columns, a row a fact: keys; traffic; of ring (the ring only); and, once there
@@ -163,7 +164,9 @@ foot. On phones the percentages lose their sign to the row's head ("traffic %", 
 column. The busiest node's traffic is in the critical ink while the hot key is on.
 
 **The last change** ("LAST CHANGE · E JOINED"; "C WENT DOWN", "C CAME BACK", "E AND F JOINED", "D LEFT"; "NONE YET").
-The headline is the model's count, "46 of 200 keys moved" (17 px mono, the count in ink). Under it, where they went
+The headline is the model's count, "46 of 200 keys moved" (17 px mono, the count in ink). Before any node joins or
+leaves it reads "No node has joined or left" over "Change the nodes, or take the busiest node down, and watch which
+keys move."; it never says that no key moved, because a new placement or new points place the keys afresh. Under it, where they went
 against what had to move, in sentences computed for the change: "All 46 moved to E: 16 from A, 6 from B, 10 from C and
 14 from D." and "An even share for E is 40 (200 / 5)."; under hash mod N "Only 47 of them moved to E; the other 119
 changed places among A, B, C and D, because hash mod 5 places every key again."; a failure with one point "Only C's
@@ -179,15 +182,19 @@ hashes to 61.91% of the way round. The next point clockwise, at 62.12%, is one o
 under hash mod N "user:56 hashes to 2,659,197,755, and 2,659,197,755 mod 5 = 0: the first node, A, holds it. It was on
 D." (phones: "user:56: 61.91% round, next point E's (was C's)", "user:56: hash mod 5 = 0, so A (was D)").
 
-- On the ring, the strip is the stretch of ring around the followed key laid flat and magnified so that a point's arc
-  is about 20 px wide: the whole ring with one point a node ("THE WHOLE RING, LAID FLAT FROM 0"), 58% of it with 10
-  points and 5.8% with 100 on a wide stage, 22% and 2.2% on a 320 px phone ("5.8% OF THE RING AROUND user:56, MAGNIFIED
-  17×"; the magnification is the strip's own scale over the ring's, computed). The band is the arcs in their owners'
-  colours; a tick stands where each arc ends, named with its node where names keep 6 px apart; the keys in the window
-  are dots over their hashes, stacked where they would touch, hollow if they moved; the followed key has its caret and
-  name, and an arrow walks from it clockwise to the point that owns it (to the strip's edge when that point is past
-  it). When E joins, its points stand in the strip as new ticks, the stretch before each has turned E's colour, and
-  the keys over those stretches are hollow: the rule at 100 points, readable.
+- On the ring, with 10 or 100 points a node, the strip is the stretch of ring around the followed key laid flat and
+  magnified so that a point's arc is about 20 px wide, and never more than 28% of the ring, so it draws at most 60
+  keys: 28% with 10 points and 5.8% with 100 on a wide stage, 22% and 2.2% on a 320 px phone ("A CLOSER LOOK · 5.8% OF
+  THE RING AROUND user:56, MAGNIFIED 17×"; the magnification is the strip's own scale over the ring's, computed). The
+  band is the arcs in their owners' colours; a tick stands where each arc ends, named with its node where names keep
+  6 px apart; the keys in the window are dots over their hashes, stacked where they would touch, hollow if they moved;
+  the followed key has its caret and name, and an arrow walks from it clockwise to the point that owns it (to the
+  strip's edge when that point is past it). When E joins, its points stand in the strip as new ticks, the stretch
+  before each has turned E's colour, and the keys over those stretches are hollow: the rule at 100 points, readable.
+- With one point a node the strip is the whole ring, cut at 0 and laid flat ("THE WHOLE RING, LAID FLAT FROM 0"): three
+  to six arcs, each node's named under its longer part with what it holds ("C: 114 keys", "C: 114", "C" as the arc
+  narrows), which is the count by owner that arc lengths on a circle only suggest; the followed key alone is drawn
+  over it, with its walk to its point.
 - Under hash mod N the strip is a table of the 11 keys nearest the followed key by hash (5 on a 320 px phone), the
   followed key's column shaded: `user:`, `hash mod 4`, `node`; after a change `hash mod 4`, `was on`, `hash mod 5`, `now
   on`, the node as a dot in its colour and its letter, hollow where the key moved. Neighbours on the ring have
@@ -196,7 +203,7 @@ D." (phones: "user:56: 61.91% round, next point E's (was C's)", "user:56: hash m
 **Controls** (outside the stage, as Consistency & Quorums and Latency & Queueing): Placement, a native radio group drawn
 as `g-segmented` (Consistent hashing, hash mod N) in `fieldset.group.placement-control`; Points per node, the same (1,
 10, 100), disabled under hash mod N with the reason in its legend ("POINTS PER NODE · hash mod N has no ring"); Nodes,
-the same (3, 4, 5, 6, each with "A to C" under it); Conditions, three native checkboxes drawn as toggles: "A hot key ·
+the same (3, 4, 5, 6, each with its letters, "A–C", read out as "A to C"); Conditions, three native checkboxes drawn as toggles: "A hot key ·
 30% of the traffic", "Split the hot key · into 10 salted keys" (disabled with "needs the hot key"), and, full width,
 "Busiest node down · A would fail: its keys must move" ("C is down: its keys moved" while it is); the polite notice. A
 checked control keeps its weight, so nothing re-wraps. Describe sits under the stage, after the simplifications line.
@@ -217,10 +224,10 @@ heights at rest per host width.
   4.4 s for E1's 166). At 0 the node's column appears, empty (or its base turns grey with the ×); at 12% its points land
   on the ring and in the strip and the arcs that changed owner take their new colour; from 26% to 82% a hand sweeps the
   ring once from 0, and as it passes a moved key's hash that key's dot on the ring takes its new colour and its dot in
-  the pile lifts off, flies an arc over the piles for 14% of the clock (at least 340 ms) and lands on top of its new
+  the pile lifts off, flies an arc over the piles for 12% of the clock (295 ms at the least) and lands on top of its new
   pile; the dots above a key that left slide down (FLIP, 240 ms). So exactly the keys that move are the ones in flight,
   each from where it was to where it is going, hash mod N's storm between every pair of piles and the ring's thin
-  stream into one. Nothing is drawn for a key before its moment. A free play counts in the headline as keys land ("17
+  stream into one (51 keys in flight at the most, over every change: `enum.cjs`). Nothing is drawn for a key before its moment. A free play counts in the headline as keys land ("17
   of 200 keys moved so far", "Counting each key as it lands.") and the table's rows follow the piles.
 - **The climax** is the last landing: the pile, or piles, that gained keys get the 400 ms landing ring (stroke only,
   around the whole pile), the arrivals turn hollow together, the headline settles on the count and the story appears.
@@ -382,7 +389,7 @@ carry titles only. Nothing on the setup's stage states an answer: E1 and E2 show
    drawn dot. The even line's label and the gridlines' labels sit in the gutter left of the piles, where no flight goes;
    a gridline's label gives way to the even label within 17 px. Point names in the strip keep 6 px apart or are left
    out (the tick stays). Flights stay inside the pile area (asserted), which holds no label but "hot" on its block and
-   a cut's "+2.7%" over it. The landing ring is stroke only, around a whole pile. The checker flags text on text, a
+   a cut's words over it. The landing ring is stroke only, around a whole pile. The checker flags text on text, a
    line through text (the even line, gridlines, rules, ticks, the bracket, the walk, the sweep hand, the band, bases),
    text on a mark, text on a dot, text under a control, dots on dots, anything off the stage, point names closer than
    6 px, a text against a focus outline's stroke, and any label or tag with no place: zero over every screenshot and
@@ -433,7 +440,7 @@ carry titles only. Nothing on the setup's stage states an answer: E1 and E2 show
 18. **On the scale.** Every value an ask or reveal compares is on the drawn scale: the piles' scale holds every pile of
     keys at every setting and every experiment's piles with the hot key (E4's 145, E5's 57 keys under the hot key, the
     challenge's 85 under it); the even share is a line on it. The one mark that can pass the scale, the hot key's block
-    on a pile of more than 98 keys, is cut under a triangle with the traffic the cut leaves out written over it, and
+    on a pile of more than 91 keys, is cut under a triangle with the traffic the cut leaves out written over it, and
     the row under it gives the whole share. There is no ghost of an old value: a pile shows what stayed and what came,
     and what left is the out row's count under the pile it left.
 19. **Units and conversions.** The table's shortest percentages move their sign to the row's head ("traffic %"), never

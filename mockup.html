@@ -1198,14 +1198,15 @@
         return SCENARIOS;
       }
       window.ALL_SCENARIOS = allScenarios;
-      const NO_CHANGE = ['No node has joined or left yet.', 'Change the nodes, or take the busiest node down, and watch which keys move.'];
+      // Before any node joins or leaves. It never says that no key moved: a new placement or new points place keys afresh.
+      const NO_CHANGE = ['Change the nodes, or take the busiest node down, and watch which keys move.'];
       const HIDDEN_STORY = 'Which keys moved, and where, shows at the reveal.';
       const HIDDEN_STANDING = 'The fullest shard shows at the reveal.';
       const PLAYING_STORY = 'Counting each key as it lands.';
       const reserveCache = new Map();
       function reserves(width) {
         if (reserveCache.has(width)) return reserveCache.get(width);
-        let story = wrap(NO_CHANGE[1], 'cap', width).length;
+        let story = wrap(NO_CHANGE[0], 'cap', width).length;
         let standing = 1;
         for (const { s, from } of allScenarios()) {
           const sc = M.scenario(s, from);
@@ -1604,11 +1605,11 @@
         const labelText = c ? `Last change · ${M.changeLabel(c)}` : 'Last change · none yet';
         D.text(pad, vY + 11, labelText, { role: 'label', owner: 'verdict' });
         let headline;
-        if (!c) headline = [['No key has moved', 'head', 'muted']];
+        if (!c) headline = [['No node has joined or left', 'head', 'muted']];
         else if (hid.moved) headline = [['?', 'head'], [` of ${M.num(K)} keys moved`, 'head', 'muted']];
         else if (live) headline = [[M.num(frame.landed), 'head'], [` of ${M.num(K)} keys moved so far`, 'head', 'muted']];
         else headline = [[M.num(c.moved), 'head'], [` of ${M.num(K)} keys moved`, 'head', 'muted']];
-        const headForms = [headline, live && !hid.moved ? [[M.num(frame.landed), 'head'], [' moved so far', 'head', 'muted']] : headline];
+        const headForms = [headline, live && !hid.moved ? [[M.num(frame.landed), 'head'], [' moved so far', 'head', 'muted']] : !c ? [['No node joined or left', 'head', 'muted']] : headline];
         const hb = D.text(pad, vY + 37, pick(headForms, (h) => partsWidth(h) <= inner), { owner: 'verdict', id: 'moved-count' });
         if (c && hid.moved) D.add('marks', `<rect class="hidden-box" x="${r1(hb.x0 - 4)}" y="${r1(hb.y0 - 3)}" width="${tw('?', 'head') + 8}" height="22" rx="4"/>`);
         const storyLines = !c ? NO_CHANGE.flatMap((l) => wrap(l, 'cap', inner)) : hid.moved ? wrap(HIDDEN_STORY, 'cap', inner) : live ? wrap(PLAYING_STORY, 'cap', inner) : M.changeStory(sc).flatMap((l) => wrap(l, 'cap', inner));
@@ -1616,7 +1617,7 @@
         const standingText = hid.standing ? (s.hot ? HIDDEN_STANDING.replace('fullest', 'busiest') : HIDDEN_STANDING) : live ? '' : M.standing(sc);
         const sY = vY + 58 + 18 * storyLines.length + 6;
         wrap(standingText, 'cap', inner).forEach((l, k) => l && D.text(pad, sY + 18 * k, l, { role: 'cap', owner: 'verdict', id: k === 0 ? 'standing' : undefined }));
-        const vH = 58 + 18 * (Math.max(res.story, wrap(NO_CHANGE[0], 'cap', inner).length + wrap(NO_CHANGE[1], 'cap', inner).length) + res.standing) - 2;
+        const vH = 58 + 18 * (res.story + res.standing) - 2;
         D.region('verdict', { x: pad - 4, y: vY - 4, w: inner + 8, h: vH + 8 });
         y = vY + vH + 12;
 
