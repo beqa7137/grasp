@@ -1486,6 +1486,39 @@
         return P;
       }
       const shown = (view, engine, at) => !view.play || view.play.engine !== engine || view.play.frac >= at - 1e-9;
+      /**
+       * What a play is doing at its clock's moment, longest form first: it stands under the engine's name while the play
+       * runs, and is read out. It obeys hiding(): no form carries a number the question hides.
+       */
+      function stepCaption(engine, m, frac, hid) {
+        const s = m.settings;
+        const P = planOf(engine, m);
+        const write = s.op === WRITE;
+        const steps = [];
+        if (engine === 'btree') {
+          const h = m.btree.height;
+          for (let k = 0; k < h - 1; k++) steps.push([P[`walk${k}`], k === 0 ? ['at the root, in memory'] : [`level ${k + 1} of ${h}, in memory`, `level ${k + 1}, in memory`]]);
+          steps.push([P[`walk${h - 1}`], write ? ['at its leaf page'] : ['the leaf, read from disk']]);
+          if (write) {
+            steps.push([P.slice, [`its record changed, ${fB(s.record)}`, 'its record changed']]);
+            steps.push([P.log, ['a log record appended']]);
+            steps.push([P.page, ['the whole page written back']]);
+          } else steps.push([P.slice, ['the record found in the page']]);
+        } else {
+          const L = m.lsm.levels;
+          if (write) {
+            steps.push([P.log, ['appended to the log']]);
+            steps.push([P.mem, ['kept in the memtable, in memory']]);
+            steps.push([P.run0, [`memtable full after ${M.formatCount(Math.round(m.lsm.recordsPerMemtable))} writes: flushed`, 'memtable full: flushed to disk']]);
+            for (let j = 1; j <= L; j++) steps.push([P[`run${j}`], hid.lsmNumbers ? [`merged down into L${j}`] : [`merged into L${j}, rewritten about ${M.formatNum(m.lsm.rewritesPerLevel)}× there`, `merged down into L${j}`]]);
+          } else {
+            steps.push([P.mem, ['the memtable: not here']]);
+            for (let j = 0; j <= L; j++) steps.push([P[`run${j}`], s.bloom && j < L ? [`L${j}: its filter says "not here"`, `L${j}: skipped`] : [`L${j}: read from disk`]]);
+            steps.push([P.found, [`found in L${L}`]]);
+          }
+        }
+        return steps.filter(([at]) => frac >= at - 1e-9).at(-1)?.[1] ?? [write ? 'a write arrives' : 'a lookup arrives'];
+      }
 
       // ---------- Words the stage and the page share.
       const opWord = (s) => (s.op === WRITE ? 'write' : 'lookup');
@@ -1566,7 +1599,9 @@
           [[ENGINE[engine], 'capB', 'ink']],
         ];
         D.text(x + 52, y + 19, pick(forms, (f) => partsWidth(f) <= pw - 52), { owner: `title-${engine}` });
-        D.text(x + 52, y + 35, [[sub, 'small', 'muted']], { owner: `title-${engine}` });
+        const playing = view.play?.engine === engine;
+        const line = playing ? pick(stepCaption(engine, view.m, view.play.frac, hiding(view)), (t) => tw(t, 'small') <= pw - 52) : sub;
+        D.text(x + 52, y + 35, [[line, 'small', playing ? 'ink' : 'muted']], { owner: `title-${engine}`, id: `step-${engine}` });
       }
       function segments(D, x, y, pw, group, values, current, labelOf, legend) {
         D.text(x, y + 11, [[legend, 'label', '']], { owner: `legend-${group}`, textCls: 'muted' });
@@ -2112,6 +2147,7 @@
         const D = new Draw(W);
         const s = m.settings;
         const hid = hiding(view);
+        view = { ...view, m };
         const PAD = W < 300 ? 12 : 16;
         const two = W >= 500;
         const GAP = 24;
