@@ -602,6 +602,10 @@
         stroke: var(--g-text);
         stroke-opacity: 0.4;
       }
+      .moment-head {
+        fill: var(--g-text);
+        fill-opacity: 0.7;
+      }
       .ring {
         fill: none;
         stroke: var(--g-text);
@@ -1044,10 +1048,13 @@
       const partsWidth = (parts) => parts.reduce((s, [t, role, , dx = 0]) => s + tw(t, role) + dx, 0);
       /** Wraps at spaces, but never parts a number from its unit or "×" from its factor (g-code-text's rule). */
       const GLUE = /(\d[\d.,]*%?) (h|min|s|d|×|times|copies|copy|nines|weeks|outages|failovers)\b/g;
+      /** A copy's name ("DB 2") and a week's number ("Week 44") stay whole too. */
+      const NAMED = /\b(LB|App|DB|Recs|Week|week) (\d+)/g;
       function wrap(text, role, width) {
         const words = text
           .replace(GLUE, '$1\u0001$2')
           .replace(/(\d) × (\d)/g, '$1\u0001×\u0001$2')
+          .replace(NAMED, '$1\u0001$2')
           .split(' ');
         const lines = [];
         let line = '';
@@ -1072,7 +1079,8 @@
       const codeText = (t) =>
         esc(t)
           .replace(/(\d[\d.,]*) × (\d[\d.,]*) (h|min|s)\b/g, '<span class="nowrap">$1 × $2 $3</span>')
-          .replace(GLUE, '<span class="nowrap">$1 $2</span>');
+          .replace(GLUE, '<span class="nowrap">$1 $2</span>')
+          .replace(NAMED, '<span class="nowrap">$1 $2</span>');
       const fd = M.formatDown;
       const fa = M.formatAvail;
       const r1 = (v) => Math.round(v * 10) / 10;
@@ -1182,8 +1190,10 @@
       // ---------- What an open question hides, on every surface: one map (prevention 1). Each region is named in the
       // question's own `hide` list. `sample` hides the simulated year while the question asks (ticks, the request's row,
       // the band's moment, the year's sentence); `request` hides the model's numbers for the request while it asks and
-      // plays (the headline, the request's bar, the weakest-link marks and the facts); `after` hides, during the answer's
-      // play, what the model says at the act's new setting: all of `request`, and the bar and value of every part the act
+      // plays (the headline, the request's bar, the weakest-link marks and the facts); `weakest` hides, while it asks and
+      // plays, which part caps the chain (the cap line, its ends and words, the weakest parts' marked values and the
+      // weakest-link sentence), for the question whose answer is that principle; `after` hides, during the answer's play,
+      // what the model says at the act's new setting: all of `request`, and the bar and value of every part the act
       // changed. No ghost of an earlier setting shows while a question asks or plays, Describe waits, and Play and the
       // controls are disabled.
       function hiding(view) {
@@ -1194,6 +1204,7 @@
         const after = h.has('after') && playing;
         return {
           sample: h.has('sample') && asking,
+          weakest: (h.has('weakest') && active) || (h.has('request') && active) || after,
           request: (h.has('request') && active) || after,
           parts: after ? new Set(view.changed ?? []) : new Set(),
           ghost: active,
@@ -1256,17 +1267,18 @@
       function causesSentence(m) {
         const s = m.settings;
         const hard = m.parts.filter((p) => !p.optional && p.copies > 1);
-        if (!s.shared && !s.failover) return 'On paper: independent failures and instant failover, so a part is down only while all its copies are.';
+        if (!s.shared && !s.failover) return `On paper each copy adds ${Math.round(M.nines(M.COPY_U))} nines: a part is down only while all its copies are.`;
         if (!hard.length) return 'No needed part has a second copy yet, so shared failures and failover change nothing.';
         const p = hard.reduce((a, b) => (b.copies < a.copies ? b : a));
         const items = [];
-        if (p.causes.shared) items.push(`${fd(M.hoursAYear(p.causes.shared))} of shared outages`);
-        if (p.causes.failover) items.push(`${fd(M.hoursAYear(p.causes.failover))} of failovers`);
-        items.push(`${fd(M.hoursAYear(p.causes.overlap))} with ${countWord(p.copies)} down on their own`);
+        if (p.causes.shared) items.push(`${fd(M.hoursAYear(p.causes.shared))} shared`);
+        if (p.causes.failover) items.push(`${fd(M.hoursAYear(p.causes.failover))} failover`);
+        items.push(`${fd(M.hoursAYear(p.causes.overlap))} ${countWord(p.copies)} down by chance`);
         return `${setName(p.copies)} is down ${fd(p.downH)} a year: ${items.join(' + ')}.`.replace(' is down ', ': ').replace(' a year: ', ' a year = ');
       }
-      const ghostSentence = (g) => `Before this change: down ${fd(g.downH)} a year.`;
+      const ghostSentence = (g, challenge = false) => `${challenge ? 'At the start' : 'Before this change'}: ${fd(g.downH)} a year.`;
       const HIDDEN_FACT = 'The request’s numbers and its weakest link show after your answer.';
+      const HIDDEN_WEAKEST = 'The weakest link shows after your answer.';
       function chainWords(m) {
         const bits = m.parts.map((p) => `${p.copies} ${plural(p.copies, p.one, p.many)}${p.optional ? ' (optional)' : ''}`);
         return listOf(bits);
@@ -1281,7 +1293,7 @@
       function summary(m, hid) {
         const parts = [`A request crosses ${chainWords(m)}, every copy ${fa(M.COPY_U)} available; ${conditionWords(m.settings)}.`];
         if (hid.request) parts.push('The model’s numbers for the request show after your answer.');
-        else parts.push(`The model gives ${fa(m.u)} available: down ${fd(m.downH)} a year, ${fd(m.monthH)} in 30 days. ${weakestSentence(m)}`);
+        else parts.push(`The model gives ${fa(m.u)} available: down ${fd(m.downH)} a year, ${fd(m.monthH)} in 30 days. ${hid.weakest ? HIDDEN_WEAKEST : weakestSentence(m)}`);
         if (hid.sample) parts.push('The simulated year plays after your answer.');
         return parts.join(' ');
       }
@@ -1304,9 +1316,9 @@
           const key = weakestSentence(m, true) + '|' + causesSentence(m);
           if (seen.has(key)) continue;
           seen.add(key);
-          facts = Math.max(facts, lines(weakestSentence(m, true)) + lines(causesSentence(m)));
+          facts = Math.max(facts, lines(weakestSentence(m, true)) + lines(causesSentence(m)), lines(HIDDEN_WEAKEST) + lines(causesSentence(m)));
         }
-        const ghost = lines('Before this change: down 20.6 h a year.');
+        const ghost = lines('Before this change: 20.6 h a year.');
         const r = { caption, year, facts: facts + ghost };
         reserveCache.set(width, r);
         return r;
@@ -1370,29 +1382,37 @@
         // ---- Header: Play, the title, the key.
         D.hit('play', P - 4, 2, 44, 44);
         const titleX = P + 46;
-        const keyForms = [
-          ['a copy down, 1 h', 'a whole part down: the request fails'],
-          ['copy down, 1 h', 'part down: request fails'],
-          ['copy down', 'part down: request fails'],
-        ];
-        const keyWidth = (f) => f.reduce((t, w) => t + 9 + tw(w, 'small') + 14, -14);
-        const keyWords = pick(keyForms, (f) => keyWidth(f) <= (wide ? 300 : W - 2 * P));
-        const keyItems = [
-          ['key-copy', keyWords[0]],
-          ['key-fail', keyWords[1]],
-        ];
-        const keyW = keyWidth(keyWords);
-        const title = pick(['A request through its chain, over one simulated year', 'One request, one simulated year', 'One simulated year'], (t) => titleX + tw(t, 'capB') <= (wide ? W - P - keyW - 16 : W - P));
+        const hTxt = `${M.MTTR_H} h`;
+        const foTxt = `${M.FAILOVER_MIN} min`;
+        const keyRows = wide
+          ? [
+              [
+                ['key-copy', `a copy down, ${hTxt}`],
+                ['key-fail', `a part down, ${hTxt}: the request fails`],
+                ['key-short', `a failover, ${foTxt}: it fails too`],
+              ],
+            ]
+          : [
+              [
+                ['key-copy', `copy down, ${hTxt}`],
+                ['key-short', `failover, ${foTxt}`],
+              ],
+              [['key-fail', `part down, ${hTxt}: the request fails`]],
+            ];
+        const title = pick(['A request through its chain, over one simulated year', 'One request, one simulated year', 'One simulated year'], (t) => titleX + tw(t, 'capB') <= W - P);
         D.text(titleX, 29, [[title, 'capB']], { owner: 'title' });
-        let kx = wide ? W - P - keyW : P;
-        const ky = wide ? 29 : 58;
-        for (const [cls, words] of keyItems) {
-          D.add('marks', `<rect class="${cls}" x="${kx}" y="${ky - 10}" width="3" height="11" rx="0.5"/>`);
-          D.mark({ x0: kx, x1: kx + 3, y0: ky - 10, y1: ky + 1 }, 'key');
-          D.text(kx + 9, ky, [[words, 'small']], { owner: 'key' });
-          kx += 9 + tw(words, 'small') + 14;
-        }
-        y = wide ? 48 : 70;
+        keyRows.forEach((row, r) => {
+          let kx = P + 2;
+          const ky = 58 + r * 17;
+          for (const [cls, words] of row) {
+            const short = cls === 'key-short';
+            D.add('marks', `<rect class="${short ? 'key-fail' : cls}" x="${kx}" y="${ky - (short ? 5 : 10)}" width="3" height="${short ? 6 : 11}" rx="0.5"/>`);
+            D.mark({ x0: kx, x1: kx + 3, y0: ky - 10, y1: ky + 1 }, 'key');
+            D.text(kx + 9, ky, [[words, 'small']], { owner: 'key' });
+            kx += 9 + tw(words, 'small') + 16;
+          }
+        });
+        y = wide ? 68 : 86;
 
         // ---- The chain at one moment.
         const chainTop = y;
@@ -1413,6 +1433,8 @@
         const colX = (i) => cx0 + i * (cw + linkW);
         const copyY = (n, i) => (n === 1 ? ay : n === 2 ? ay + (i - 0.5) * (bh + gap) : ay + (i - 1) * (bh + gap));
         const band = bandState(m, moment, into);
+        // Every part's full name, or every part's short one: never a mix.
+        const longNames = M.PARTS.every((p) => tw(p.name, 'capB') <= cw + linkW - 6);
         // A copy's name where the longest fits beside a down mark in every box; else its number, in every box alike.
         const fullNames = cw - 2 * bus - 22 >= Math.max(...M.PARTS.map((p) => tw(copyName(p.id, 2), 'mono')));
         const fails = band.some((b) => b.cut);
@@ -1438,7 +1460,7 @@
           const xb1 = x + cw - bus;
           const ys = Array.from({ length: p.copies }, (_, k) => copyY(p.copies, k));
           // The part's name.
-          const name = pick([p.name, p.short], (t) => tw(t, 'capB') <= cw + linkW - 6);
+          const name = longNames ? p.name : p.short;
           D.text(x + cw / 2, namesY, [[name, 'capB', p.optional ? 'muted' : '']], { anchor: 'middle', owner: `name-${p.id}`, id: `name-${p.id}` });
           // Buses and stubs.
           if (p.copies > 1) {
@@ -1547,7 +1569,7 @@
         y += 22;
         const tickW = Math.max(1.5, Math.min(3, ppw * 0.42));
         const areaH = 24;
-        const stripH = 7;
+        const stripH = 8;
         const shown = (week) => !hid.sample && week + 0.5 <= upTo + 1e-9;
         const rowsTop = y;
         const requestTicks = [];
@@ -1593,7 +1615,7 @@
           requestTicks.sort((a, b) => a.week - b.week);
           const d = requestTicks
             .map((e) => {
-              const h = e.kind === 'failover' ? 7 : reqH - 2;
+              const h = e.kind === 'failover' ? 8 : reqH - 2;
               return `M${r1(wkX(e.week) - tickW / 2)} ${r1(reqY + reqH - 1 - h)}h${r1(tickW)}v${r1(h)}h${-r1(tickW)}z`;
             })
             .join('');
@@ -1605,11 +1627,12 @@
         if (moment && !playing) {
           const mx = wkX(moment.week);
           D.line(mx, rowsTop - 3, mx, y + 3, 'moment', { layer: 'grid', owner: 'grid', solid: false });
+          D.add('top', `<path class="moment-head" d="M${r1(mx - 4)} ${r1(rowsTop - 8)}h8l-4 6z"/>`);
           const pi = m.parts.findIndex((p) => p.id === moment.part);
           let ry0;
           let ry1;
           if (moment.fails) {
-            ry0 = reqY + (moment.kind === 'failover' ? reqH - 8 : 1) - 3;
+            ry0 = reqY + (moment.kind === 'failover' ? reqH - 9 : 1) - 3;
             ry1 = reqY + reqH + 2;
           } else {
             const gy = rowsTop + pi * (areaH + 2 + stripH + 9);
@@ -1724,7 +1747,7 @@
           D.mark({ x0: rx0, x1: xn(paper), y0: by, y1: by + barH }, `bar-${p.id}`);
           D.meta[`end-${p.id}`] = xn(real);
           const val = p.optional ? pick(['optional', 'opt.'], (t) => tw(t, 'small') <= valW - 2) : fd(p.downH);
-          const weakest = !p.optional && m.weakest.includes(p.id) && !hid.request;
+          const weakest = !p.optional && m.weakest.includes(p.id) && !hid.weakest;
           D.text(W - P, ry + rowH / 2 + 4, [[val, p.optional ? 'small' : weakest ? 'smallB' : 'small', weakest ? 'bad' : p.optional ? '' : 'ink']], { anchor: 'end', owner: `val-${p.id}`, id: `val-${p.id}` });
           // What the paper promised, where the model's length stops short of it.
           if (!p.optional && paper - real > 0.05 && wide) {
@@ -1748,12 +1771,14 @@
           const wi = m.parts.findIndex((p) => p.id === m.weakest[0]);
           const wx = xn(m.parts[wi].nines);
           const wy = rowsY + wi * rowH + (rowH - barH) / 2;
-          D.add('top', `<line class="capline" data-cap="${m.weakest.join(',')}" x1="${r1(wx)}" y1="${r1(wy - 2)}" x2="${r1(wx)}" y2="${r1(qby + barH + 2)}"/>`);
-          D.link(sampleLine(wx, wy - 2, wx, qby + barH + 2), 'capline');
-          for (const id of m.weakest) {
-            const k = m.parts.findIndex((p) => p.id === id);
-            const cy = rowsY + k * rowH + (rowH - barH) / 2;
-            D.add('top', `<rect class="capend" x="${r1(wx - 1.5)}" y="${r1(cy - 2)}" width="3" height="${barH + 4}"/>`);
+          if (!hid.weakest) {
+            D.add('top', `<line class="capline" data-cap="${m.weakest.join(',')}" x1="${r1(wx)}" y1="${r1(wy - 2)}" x2="${r1(wx)}" y2="${r1(qby + barH + 2)}"/>`);
+            D.link(sampleLine(wx, wy - 2, wx, qby + barH + 2), 'capline');
+            for (const id of m.weakest) {
+              const k = m.parts.findIndex((p) => p.id === id);
+              const cy = rowsY + k * rowH + (rowH - barH) / 2;
+              D.add('top', `<rect class="capend" x="${r1(wx - 1.5)}" y="${r1(cy - 2)}" width="3" height="${barH + 4}"/>`);
+            }
           }
           // The setting before a change: a hollow tick on the request's row, said in words under the facts.
           if (view.ghost && !hid.ghost) {
@@ -1767,12 +1792,12 @@
                   [gx + 6, qy + rowH / 2 + 4],
                   [gx - 6, qy + rowH / 2 + 4, 'end'],
                 ],
-                [[`before ${fd(g.downH)}`, 'small']],
+                [[`${view.phase === 'challenge' ? 'start' : 'before'} ${fd(g.downH)}`, 'small']],
                 { optional: true, owner: 'ghost', maxX: rx1 - 2, minX: rx0 + 2, id: 'ghost-words', ignore: 'ghost', ground: true },
               );
             }
           }
-          D.place(
+          if (!hid.weakest) D.place(
             [
               [wx + 6, qy + rowH / 2 + 4],
               [wx - 6, rowsY + wi * rowH - 1, 'end'],
@@ -1786,7 +1811,8 @@
         const botF = (k) => fd(M.hoursAYear(10 ** -k));
         const botKs = fitsAll(every, botF, 'small') ? every : third;
         for (const k of botKs) D.text(xn(k), y + 14, [[botF(k), 'small']], { anchor: 'middle', owner: 'r-bottom', data: ' data-xtick="bottom"', ground: true });
-        D.text(P, y + 14, [[pick(['a year', ''], (t) => !t || tw(t, 'small') <= xn(botKs[0]) - tw(botF(botKs[0]), 'small') / 2 - P - 6), 'small']], { owner: 'r-bottom-name' });
+        const botName = pick(['down a year', 'a year', ''], (t) => !t || tw(t, 'small') <= xn(botKs[0]) - tw(botF(botKs[0]), 'small') / 2 - P - 6);
+        if (botName) D.text(P, y + 14, [[botName, 'small']], { owner: 'r-bottom-name' });
         y += 28;
         D.region('ruler', { x: P - 6, y: rulerTop - 2, w: W - 2 * P + 12, h: y - rulerTop });
         // The facts, then the setting before the change in words; reserved lines collect at the stage's foot.
@@ -1794,8 +1820,8 @@
         const factLines = [];
         if (hid.request) factLines.push(...wrap(HIDDEN_FACT, 'cap', W - 2 * P));
         else {
-          factLines.push(...wrap(weakestSentence(m, true), 'cap', W - 2 * P), ...wrap(causesSentence(m), 'cap', W - 2 * P));
-          if (view.ghost && !hid.ghost) factLines.push(...wrap(ghostSentence(M.run(view.ghost)), 'cap', W - 2 * P));
+          factLines.push(...wrap(hid.weakest ? HIDDEN_WEAKEST : weakestSentence(m, true), 'cap', W - 2 * P), ...wrap(causesSentence(m), 'cap', W - 2 * P));
+          if (view.ghost && !hid.ghost) factLines.push(...wrap(ghostSentence(M.run(view.ghost), view.phase === 'challenge'), 'cap', W - 2 * P));
         }
         D.para(P, y + 12, factLines, 'cap', 18, { owner: 'facts', id: 'facts' });
         D.meta.facts = hid.request ? [] : [weakestSentence(m, true), causesSentence(m)];
@@ -1969,7 +1995,7 @@
         const downMet = m.downH < b.down;
         const copiesMet = m.copies < b.copies;
         return [
-          { met: downMet, text: `the request down ${fd(m.downH)} a year, under ${fd(b.down)}: ${said(downMet)}` },
+          { met: downMet, text: `the request down ${fd(m.downH)} a year, under ${b.down} h: ${said(downMet)}` },
           { met: copiesMet, text: `${m.copies} copies in all, no more than ${b.copies - 1}: ${said(copiesMet)}` },
         ];
       }
@@ -2029,7 +2055,7 @@
         if (!open) return btn;
         const { head, rows } = describeRows(m, compact);
         const rest = M.restMoment(m.settings);
-        const story = `${yearSentence(M.sample(m.settings).fails)} The picture rests on this moment: ${captionOf(rest, m.parts.find((p) => p.id === rest.part).copies).replace(/^Week/, 'week')}`;
+        const story = `${yearSentence(M.sample(m.settings).fails)} The picture rests on this moment: ${captionOf(rest, m.parts.find((p) => p.id === rest.part).copies).replace(/^Week/, 'week')} The year is drawn with a week between any two outages of one part, so two ticks in one column are always one shared outage; by chance alone a pair overlaps about once in ${Math.round(1 / M.partModel(2, 0, 0).overlapsPerYear)} years.`;
         return `${btn}<p class="summary">${codeText(summary(m, {}))} ${codeText(causesSentence(m))}</p><p class="summary">${codeText(story)}</p><div class="table-box${compact ? ' compact' : ''}" tabindex="0" role="region" aria-label="Each part and the request, from the model and in the simulated year"><table><thead><tr>${head
           .map((h) => `<th scope="col">${h}</th>`)
           .join('')}</tr></thead><tbody>${rows.map((r) => `<tr${r.now ? ' class="now"' : ''}>${r.cells.map((c, i) => (i === 0 ? `<th scope="row">${esc(c)}${r.weakest ? ' <small>(weakest)</small>' : ''}</th>` : `<td>${esc(c)}</td>`)).join('')}</tr>`).join('')}</tbody></table></div>`;
@@ -2047,23 +2073,101 @@
       }
 
       function render(name) {
-        const view = viewOf(name);
+        return renderView(viewOf(name));
+      }
+      function renderView(view) {
         const m = M.run(view.s);
         const root = document.getElementById('widget');
         const rest = M.restMoment(m.settings);
         root.innerHTML = `<div class="controls">${controlsHtml(m, view)}</div>
 <div class="main"><div class="stage" role="group" aria-roledescription="visualization" aria-label="Reliability: a request crossing a chain of parts, each a set of copies, over a simulated year"><div class="well" id="well"></div></div>
-${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${codeText(`${captionOf(rest, m.parts.find((p) => p.id === rest.part).copies)} ${yearSentence(M.sample(m.settings).fails)}`)}</p>` : ''}<p class="note">${codeText(NOTE)}</p><div class="describe" id="describe"></div></div>
+${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${codeText(`${captionOf(rest, m.parts.find((p) => p.id === rest.part).copies)} ${yearSentence(M.sample(m.settings).fails)}`)}</p>` : ''}<p class="note">${codeText(`${NOTE} Here ${conditionWords(m.settings)}.`)}</p><div class="describe" id="describe"></div></div>
 <div class="experiments"><section class="dock" aria-label="Experiment">${dockHtml(m, view)}</section>${cardsHtml(view)}</div>`;
+        const r = drawStage(view, m);
+        document.getElementById('describe').innerHTML = describeHtml(m, view, r.W < 560);
+        wire(view, m);
+        return { ...r, view, m };
+      }
+      function drawStage(view, m) {
         const well = document.getElementById('well');
         const W = well.clientWidth;
         const { D, H } = buildStage(W, m, view);
         if (view.focus?.length) focusOutlines(D, view.focus, H);
         well.style.height = H + 'px';
         well.innerHTML = D.svg(H, D.label) + overlaysHtml(D, view);
-        document.getElementById('describe').innerHTML = describeHtml(m, view, W < 560);
         window.__stage = { W, H, missingTags: D.missingTags ?? 0, summary: D.label, missing: D.missing };
-        return { W, H, D, view, m };
+        return { W, H, D };
+      }
+
+      // ---------- The mockup is live: the steppers, the toggles, Play, the cards and the choices work, so the motion can
+      // be judged (the play's sweep, its holds, an answer's play ending on its reveal). The app builds this with the
+      // experiment framework; here it is the least that shows it.
+      let running = 0;
+      const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches || params.get('motion') === 'off';
+      function animate(view, m, total, done) {
+        const id = ++running;
+        const t0 = performance.now();
+        const frame = (now) => {
+          if (id !== running) return;
+          const tau = Math.min(total, now - t0);
+          drawStage({ ...view, tau }, m);
+          const play = document.querySelector('.play');
+          if (play && view.phase === 'rest') play.onclick = () => stopPlay(view);
+          if (tau < total) requestAnimationFrame(frame);
+          else done();
+        };
+        requestAnimationFrame(frame);
+      }
+      function stopPlay(view) {
+        running++;
+        renderView({ ...view, tau: null });
+      }
+      function wire(view, m) {
+        const s = m.settings;
+        const change = (next) => {
+          running++;
+          if (view.phase === 'challenge') {
+            const met = M.goalMet(view.spec.goal, next);
+            renderView({ ...view, s: next, met, focus: met ? view.spec.focus : [], ghost: view.spec.setup });
+          } else renderView({ s: next, hide: [], phase: 'rest', ghost: s, tau: null, describe: view.describe });
+        };
+        document.querySelectorAll('.stepper').forEach((el, i) => {
+          const id = M.PARTS[i].id;
+          const [less, more] = el.querySelectorAll('button');
+          less.onclick = () => change({ ...s, [id]: s[id] - 1 });
+          more.onclick = () => change({ ...s, [id]: s[id] + 1 });
+        });
+        document.querySelectorAll('.toggles3 input').forEach((el, i) => {
+          el.onchange = () => change({ ...s, [CONDITIONS[i][0]]: s[CONDITIONS[i][0]] ? 0 : 1 });
+        });
+        const play = document.querySelector('.play');
+        if (play && view.phase !== 'asking' && view.phase !== 'playing')
+          play.onclick = () => {
+            if (view.tau !== null && view.tau !== undefined) return stopPlay(view);
+            if (reducedMotion()) return renderView({ ...view, tau: null, reduced: true });
+            const free = { ...view, phase: 'rest', focus: [], tau: 0 };
+            animate(free, m, M.playPlan(s).total, () => renderView({ ...view, tau: null }));
+          };
+        document.querySelectorAll('.card-btn').forEach((el, i) => {
+          el.onclick = () => {
+            running++;
+            const spec = M.EXPERIMENTS[i];
+            renderView(spec.goal ? expView(spec, 'start') : expView(spec, 'asking', 0, null));
+          };
+        });
+        if (view.phase === 'asking')
+          document.querySelectorAll('button.g-choice').forEach((el, k) => {
+            el.onclick = () => {
+              const playing = { ...expView(view.spec, 'playing', 0), chosen: k };
+              const pm = M.run(playing.s);
+              renderView(playing);
+              const reveal = () => renderView({ ...expView(view.spec, 'revealed'), chosen: k });
+              if (reducedMotion()) return reveal();
+              animate(playing, pm, M.playPlan(playing.s, true, playing.changed).total, reveal);
+            };
+          });
+        const describe = document.querySelector('.describe .g-btn');
+        if (describe && !describe.disabled) describe.onclick = () => renderView({ ...view, describe: !view.describe });
       }
 
       // ---------- Collisions, measured from the rendered DOM: text on text, lines through text, marks under text,
@@ -2232,7 +2336,9 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${codeText
             if (reqEnd !== null && e !== null && reqEnd > e + 0.6) out.push(`the request's bar passes ${p.id}'s`);
           }
           const cap = svg.querySelector('.capline');
-          if (!cap) out.push('no cap line');
+          if (hid.weakest) {
+            if (cap || svg.querySelector('.capend, [data-id="cap-words"]') || /Weakest link/.test(svg.textContent)) out.push('a weakest-link mark shows while it hides');
+          } else if (!cap) out.push('no cap line');
           else if (Math.abs(Number(cap.getAttribute('x1')) - D.meta[`end-${m.weakest[0]}`]) > 0.8) out.push('the cap line is not at the weakest part');
           if (cap && reqEnd > Number(cap.getAttribute('x1')) + 0.6) out.push('the request passes its cap');
           // The causes sentence adds up as printed, to the minute.
@@ -2240,7 +2346,7 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${codeText
           if (c) {
             const toMin = (v, u) => (u === 'h' ? v * 60 : u === 'min' ? v : v / 60);
             const total = toMin(Number(c[1]), c[2]);
-            const sum = [...c[3].matchAll(/([\d.]+) (min|h|s) (of|with)/g)].reduce((t, x) => t + toMin(Number(x[1]), x[2]), 0);
+            const sum = [...c[3].matchAll(/([\d.]+) (min|h|s) (shared|failover|both|all)/g)].reduce((t, x) => t + toMin(Number(x[1]), x[2]), 0);
             if (Math.abs(total - sum) > (c[2] === 'h' ? 6 : 1.5)) out.push(`the causes do not add up as printed: ${D.meta.facts[1]}`);
           }
         } else {
@@ -2336,7 +2442,7 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${codeText
         const hid = hiding(view);
         if (!well.querySelector('.play')?.disabled) out.push('Play is live while a question waits');
         if (svg.querySelector('[data-ghost], [data-id="ghost-words"]')) out.push('a ghost shows while a question waits');
-        if (/Before this change/.test(svg.textContent)) out.push('the ghost sentence shows while a question waits');
+        if (/Before this change|At the start/.test(svg.textContent)) out.push('the ghost sentence shows while a question waits');
         if (view.spec.hide.includes('sample') && view.phase === 'asking') {
           if (svg.querySelector('.tick-copy, .tick-fail, .tick-bypassed, .ring, .moment, .path, rect.box.down, rect.box.serving, [data-outcome]')) out.push('a sample mark shows while the sample hides');
         }
@@ -2346,6 +2452,11 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${codeText
           if (svg.querySelector('[data-id="val-request"]').textContent !== '?') out.push('the request value shows');
           if (/Weakest link/.test(svg.textContent)) out.push('the weakest link is named');
           if (/failed (once|twice|\d+ times)|has not failed|never failed/.test(svg.textContent)) out.push('the year is counted in words while the numbers hide');
+        }
+        if (view.spec.hide.includes('weakest') && view.phase !== 'revealed') {
+          if (svg.querySelector('.capline, .capend, [data-id="cap-words"]')) out.push('the cap line shows while the weakest link hides');
+          if (/Weakest link/.test(svg.textContent)) out.push('the weakest link is named');
+          if (svg.querySelector('[data-id^="val-"] tspan.bad')) out.push('a weakest value is marked');
         }
         if (view.spec.hide.includes('after') && view.phase === 'playing') {
           for (const id of view.changed) {
@@ -2405,6 +2516,8 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${codeText
         const { D } = buildStage(W, m, { ...leakGhost, phase: 'rest', hide: [] });
         well.innerHTML = D.svg(10, '') + overlaysHtml(D, leakGhost);
         caught.push(giveaways(well, leakGhost, m).length > 0);
+        // 6. E3 asked without `weakest`: the cap line and the weakest-link sentence show.
+        caught.push(run({ ...expView(ASKED[2], 'asking'), hide: ['after'] }));
         return caught;
       };
       /** Every page sentence of every setting against the false-claim list. */

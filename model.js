@@ -366,6 +366,8 @@
     if (s < 9.95) return `${trim(s, 1)} s`;
     if (s < 119.5) return `${Math.round(s)} s`;
     const min = s / 60;
+    // A whole number of hours is said in hours ("1 h", never "60 min").
+    if (hours >= 1 && hours < 72 && Math.abs(hours - Math.round(hours)) < 1 / 120) return `${Math.round(hours)} h`;
     if (min < 9.95) return `${trim(min, 1)} min`;
     if (min < 119.5) return `${Math.round(min)} min`;
     if (hours < 72) return `${trim(hours, 1)} h`;
@@ -498,7 +500,7 @@
       reveal:
         '{after}, unchanged: the request is down because of the database, a single copy down {dbDown} a year. The app servers were down together only {appBefore} a year as a pair, and {appAfter} as three. Polishing a strong part buys nothing you can measure: the weakest link caps the chain, so find the single point of failure before adding copies anywhere else.',
       focus: ['ruler', 'chain'],
-      hide: ['after'],
+      hide: ['weakest', 'after'],
       slots: () => {
         const a = run(E.weakestBefore);
         const b = run(E.weakestAfter);
@@ -598,7 +600,7 @@
         return {
           fo: down(FAILOVER_H),
           start: down(a.downH),
-          target: down(CHALLENGE_BOUNDS.down),
+          target: hours(CHALLENGE_BOUNDS.down),
           targetAvail: avail(COPY_U),
           copies: num(a.copies),
           lb: num(b.settings.lb),
