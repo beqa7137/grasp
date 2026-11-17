@@ -160,7 +160,7 @@
   const formatSpace = (v) => `${trim(v, 2)}×`;
   const formatB = (v) => `${group(v)} B`;
   const formatBytes = (v) => `${group(v)} bytes`;
-  const formatSize = (bytes) => (bytes >= GB * 0.9995 ? `${bytes >= 100 * GB ? group(bytes / GB) : trim(bytes / GB, 1)} GB` : `${group(bytes / MB)} MB`);
+  const formatSize = (bytes) => (bytes >= GB * 0.95 ? `${bytes >= 100 * GB ? group(bytes / GB) : trim(bytes / GB, 1)} GB` : `${group(bytes / MB)} MB`);
   const formatGb = (v) => `${group(v)} GB`;
   const formatKb = (v) => `${v} KB`;
   const formatRate = (v) => `${group(v)} MB/s`;
@@ -303,7 +303,7 @@
       reveal:
         'The B-tree: {btAfter} against {lsmAfter}. Writing a page costs the same {pageB} whatever changed inside it, so a record of {bigRecord} is about a quarter of what its update writes, where a record of {record} was about a fortieth. The LSM tree rewrites every byte the same number of times whatever the record size; its cost follows its levels. Small records favour the LSM tree, and at these settings the B-tree writes less once a record passes about {crossover}.',
       focus: ['bt-transform', 'cost-write'],
-      hide: ['after'],
+      hide: ['writesAfter'],
       slots: () => {
         const a = run(SETUP.record);
         const b = run({ ...SETUP.record, record: BIG_RECORD });
@@ -342,7 +342,7 @@
       reveal:
         '{readsOff}: the newest version of a key can sit in any run, so without filters the engine searches each in turn, the flushed run and then all {levels}, and most keys rest in the last level, which holds about {lastShare} of the data. With filters, {skipped} runs answer "not here" from memory and only the last is read. The filters take about {bits} bits a key, {memory} of memory here, and they cannot answer a range scan, which opens every run either way. The B-tree walks {height} pages, {hops} of them in memory: {btReads}, filters or not.',
       focus: ['lsm-stack', 'cost-read'],
-      hide: ['after'],
+      hide: ['readsAfter'],
       slots: () => {
         const a = run(SETUP.filters);
         const b = run({ ...SETUP.filters, bloom: 0 });
@@ -376,7 +376,7 @@
       reveal:
         "Only the LSM tree's: {lsmBefore} becomes {lsmAfter}. Ten times the data needs one more level at ratio {ratioN}, {levelsAfter} instead of {levelsBefore}, and every level adds about {perLevelN} rewrites. The B-tree still writes one page and one log record for an update, {btAfter}, however much data sits around it, and its walk is still {heightAfter} pages, since every level multiplies its reach by about {fanout}.",
       focus: ['lsm-stack', 'cost-write'],
-      hide: ['after'],
+      hide: ['writesAfter'],
       slots: () => {
         const a = run(SETUP.growth);
         const b = run({ ...SETUP.growth, data: BIG_DATA });

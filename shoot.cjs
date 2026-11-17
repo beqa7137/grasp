@@ -108,7 +108,7 @@ const server = http.createServer((req, res) => {
     const names = Object.keys(planted);
     console.log(`planted leaks caught: ${names.filter((n) => planted[n]).length} of ${names.length}`);
     for (const n of names.filter((n) => !planted[n])) console.log(`    NOT CAUGHT (or the clean view is not clean): ${n}`);
-    if (!names.every((n) => planted[n]) || names.length !== 11) total++;
+    if (!names.every((n) => planted[n]) || names.length !== 10) total++;
     const words = await page.evaluate(() => window.pageWords());
     console.log(`page sentences (summary, notice, both plays' stories, Describe, goal checks) over every setting: ${words.length} findings`);
     for (const w of words.slice(0, 8)) console.log(`    ${w}`);
