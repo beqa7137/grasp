@@ -291,7 +291,14 @@
         background: var(--g-accent-soft);
         border-color: var(--g-accent);
         box-shadow: inset 0 0 0 1px var(--g-accent);
-        font-weight: 600;
+      }
+      .segment .chk {
+        margin-right: 4px;
+        color: var(--g-accent);
+        font-weight: 700;
+      }
+      .segment input:not(:checked) + span .chk {
+        visibility: hidden;
       }
       fieldset:disabled .segment span,
       .segment input:disabled + span {
@@ -312,9 +319,30 @@
         gap: 4px;
       }
       .toggles .segment span {
-        flex-direction: column;
-        gap: 0;
+        display: block;
+        height: 100%;
+        padding: 6px 6px;
         font-size: var(--g-text-body-s);
+        text-align: center;
+        align-content: center;
+      }
+      .toggles .segment small {
+        display: block;
+      }
+      .hint-long,
+      .hint-short {
+        font-style: normal;
+      }
+      .hint-short {
+        display: none;
+      }
+      @media (max-width: 420px) {
+        .hint-long {
+          display: none;
+        }
+        .hint-short {
+          display: inline;
+        }
       }
       .notice {
         margin: 0;
@@ -499,6 +527,7 @@
         fill: var(--g-muted);
       }
       .gridline {
+        fill: none;
         stroke: var(--g-line);
         stroke-dasharray: 2 3;
       }
@@ -570,7 +599,63 @@
       }
       .seg.lost {
         fill: url(#hatch);
-        stroke-dasharray: 3 2;
+        stroke: var(--g-stroke);
+        stroke-width: 0.75;
+      }
+      /* A lane's end, its limit: a cap in the stroke ink, 3:1 against the box in both themes. */
+      .lane-cap {
+        stroke: var(--g-stroke);
+        stroke-width: 1.5;
+      }
+      .lane-none {
+        stroke: var(--g-line-strong);
+        stroke-width: 1;
+      }
+      /* The 70% mark in every segment, so headroom reads as a mark and not only as a colour step. */
+      .target {
+        stroke: var(--g-stroke);
+        stroke-width: 1.25;
+        fill: none;
+      }
+      .target-under {
+        stroke: var(--g-raised);
+        stroke-width: 3;
+        fill: none;
+      }
+      .zone-line {
+        stroke: var(--g-stroke);
+        stroke-width: 1;
+      }
+      .zone-tick {
+        stroke: var(--g-viz-critical);
+        stroke-width: 2;
+        stroke-dasharray: 4 2;
+      }
+      .split-hidden {
+        fill: url(#split);
+      }
+      .split-dot {
+        fill: var(--g-raised);
+        fill-opacity: 0.75;
+      }
+      .writes-key {
+        fill: url(#writes-key);
+      }
+      .writes-key-fill {
+        fill: var(--g-viz-discarded-ink);
+        fill-opacity: 0.45;
+      }
+      .writes-key-line {
+        stroke: var(--g-raised);
+        stroke-width: 1.25;
+      }
+      .xfer,
+      .xfer-tail {
+        stroke: var(--g-stroke);
+        stroke-width: 1.25;
+      }
+      .xfer-head {
+        fill: var(--g-stroke);
       }
       .fill.lo {
         fill: var(--g-viz-current);
@@ -617,9 +702,13 @@
       }
       .ghost-tick {
         stroke: var(--g-text);
-        stroke-opacity: 0.6;
+        stroke-opacity: 0.8;
         stroke-width: 1.5;
         stroke-dasharray: 2 2;
+      }
+      .ghost-under {
+        stroke: var(--g-raised);
+        stroke-width: 4.5;
       }
       .meter-cell {
         fill: var(--g-sunken);
@@ -670,15 +759,11 @@
       .dot.doomed {
         fill: var(--g-viz-critical);
       }
+      /* The climax ring: stroke only, around the gap's ×, so it covers no mark it points at. */
       .landing {
         fill: none;
         stroke: var(--g-viz-critical);
         stroke-width: 2;
-      }
-      .landing-ground {
-        fill: none;
-        stroke: var(--g-raised);
-        stroke-width: 5;
       }
       .focus-outline {
         fill: none;
@@ -691,11 +776,42 @@
         stroke: var(--g-accent);
         stroke-width: 1.5;
       }
+      /* Reduced motion's ramp story: a plain paragraph under the stage where the notice is read out only; the notice alone
+         announces it, and at wide widths, where the notice shows, it is not repeated. */
       .caption {
-        order: 2;
         margin: 0;
         font-size: var(--g-text-body-s);
         color: var(--g-muted);
+      }
+      @media (min-width: 1000px) {
+        .caption {
+          display: none;
+        }
+      }
+      .foot,
+      .caption {
+        order: 2;
+      }
+      .foot {
+        margin: 0;
+        font-size: var(--g-text-label);
+        line-height: 1.45;
+        color: var(--g-muted);
+      }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+      }
+      .back {
+        margin: 8px 0 0;
+        font-size: var(--g-text-body-s);
+      }
+      .back a {
+        color: var(--g-accent);
       }
       /* The experiment dock and cards (experiment-dock.component.ts, widget-check.component.ts). */
       .dock {
@@ -960,6 +1076,8 @@
       const M = window.CapacityModel;
       const params = new URLSearchParams(location.search);
       document.documentElement.classList.toggle('dark', params.get('theme') === 'dark');
+      /** A switch for the planted-fault proofs: each names one rule's bug, and its rule must catch it. */
+      const FAULT = { name: null };
 
       // ---------- Text measurement, with the fonts the app ships (no tabular digits: stage text is measured as drawn).
       const ROLE = {
@@ -984,49 +1102,73 @@
         return w;
       }
       const partsWidth = (parts) => parts.reduce((s, [t, role, , dx = 0]) => s + tw(t, role) + dx, 0);
-      // A space may break a line except between a number and its unit ("50 ms"), as stage-text.ts and g-code-text keep them.
-      const BREAK = / (?!(?<=\d )(?:ms|s)\b)/;
+      // A space may break a line, except: between a number and its unit ("50 ms", "8,000 queries/s", "1,000 a second",
+      // "4 of 6 up"), after an operator or "(" ("÷ 2", "× 5,000/s"), after "of" ("of 8,000/s") and after "·" (it opens
+      // the run after it), as stage-text.ts and g-code-text keep them. Runs are joined first, so the rule holds across them.
+      const BREAK = /(?<![×÷=+(·])(?<!\bof) (?!(?<=\d )(?:ms|s|queries|requests|reads|writes|replayed|workers|a|of|left|up)\b)/g;
       /** Lays runs of styled words into lines no wider than `width`: each line a list of [text, role, cls] parts. */
       function flow(parts, width) {
-        // Words keep their run's role and class; a word with no space before it is glued to the one before (no break).
-        const words = [];
-        let spaceNext = false;
+        let full = '';
+        const style = [];
         for (const [text, role, cls = ''] of parts) {
-          const pieces = text.split(BREAK);
-          pieces.forEach((w, i) => {
-            const space = i > 0 || spaceNext || /^ /.test(text);
-            if (w) words.push({ w, role, cls, space: words.length > 0 && space });
-          });
-          spaceNext = / $/.test(text);
+          for (let i = 0; i < text.length; i++) style.push([role, cls]);
+          full += text;
+        }
+        const words = [];
+        let from = 0;
+        let spaced = false;
+        BREAK.lastIndex = 0;
+        for (let m; (m = BREAK.exec(full)); ) {
+          if (m.index > from) words.push({ s: from, e: m.index, space: spaced && words.length > 0 });
+          spaced = true;
+          from = m.index + 1;
+        }
+        if (full.length > from) words.push({ s: from, e: full.length, space: spaced && words.length > 0 });
+        const runs = (s, e) => {
+          const out = [];
+          for (let i = s; i < e; i++) {
+            const last = out[out.length - 1];
+            if (last && last[1] === style[i][0] && last[2] === style[i][1]) last[0] += full[i];
+            else out.push([full[i], style[i][0], style[i][1]]);
+          }
+          return out;
+        };
+        const widthOf = (s, e) => runs(s, e).reduce((a, [t, role]) => a + tw(t, role), 0);
+        for (const w of words) {
+          w.w = widthOf(w.s, w.e);
+          w.lead = w.space ? tw(' ', style[w.s - 1][0]) : 0;
         }
         const lines = [];
         let line = [];
         let lw = 0;
-        for (const word of words) {
-          const lead = word.space ? ' ' : '';
-          const add = tw(lead + word.w, word.role);
-          if (line.length && word.space && lw + add > width) {
+        for (const w of words) {
+          if (line.length && w.space && lw + w.lead + w.w > width) {
             lines.push(line);
-            line = [[word.w, word.role, word.cls]];
-            lw = tw(word.w, word.role);
+            line = [w];
+            lw = w.w;
           } else {
-            const last = line[line.length - 1];
-            if (last && last[1] === word.role && last[2] === word.cls) last[0] += lead + word.w;
-            else line.push([lead + word.w, word.role, word.cls]);
-            lw += add;
+            lw += (line.length ? w.lead : 0) + w.w;
+            line.push(w);
           }
         }
         if (line.length) lines.push(line);
-        return lines;
+        // No single-word last line: carry the previous line's last word down when both still fit (prevention 14).
+        if (lines.length > 1 && lines[lines.length - 1].length === 1 && lines[lines.length - 2].length > 2) {
+          const prev = lines[lines.length - 2];
+          const lastW = lines[lines.length - 1][0];
+          const moved = prev[prev.length - 1];
+          if (lastW.space && moved.space && moved.w + lastW.lead + lastW.w <= width) {
+            lines.splice(lines.length - 2, 2, prev.slice(0, -1), [moved, lastW]);
+          }
+        }
+        return lines.map((ln) => runs(ln[0].s, ln[ln.length - 1].e));
       }
       const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
       const r1 = (v) => Math.round(v * 10) / 10;
-      const plural = (n, one, many) => (n === 1 ? one : many);
       const pick = (forms, fits) => forms.find(fits) ?? forms[forms.length - 1];
       const fq = (v) => M.formatQps(v);
       const fp = (u) => M.formatPct(u * 100);
       const fn = (v) => M.group(v);
-      /** A count of workers in flight: whole when it is, else one decimal. */
       /** A share of a request's queries: up to three decimals, so 0.18 split four ways reads 0.045. */
       const f3 = (v) => String(Number(v.toFixed(3)));
       const ONE_DECIMAL = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 });
@@ -1036,14 +1178,14 @@
       class Draw {
         constructor(W) {
           this.W = W;
-          this.layers = { back: [], grid: [], band: [], boxes: [], lanes: [], marks: [], dots: [], text: [], top: [] };
+          this.layers = { back: [], grid: [], band: [], boxes: [], lanes: [], fills: [], marks: [], dots: [], text: [], top: [] };
           this.texts = [];
           this.marks = [];
           this.links = [];
           this.hits = [];
           this.regions = {};
           this.missing = [];
-          this.meta = { gaps: [], reserve: [] };
+          this.meta = { gaps: [], lanes: {}, ghosts: [], rows: {} };
         }
         add(layer, s) {
           this.layers[layer].push(s);
@@ -1062,6 +1204,7 @@
           box.owner = o.owner ?? '';
           box.s = parts.map((p) => p[0]).join('');
           this.texts.push(box);
+          if (o.row) (this.meta.rows[o.row] ??= []).push(y);
           const spans = parts.map(([t, r, cls = '', dx = 0]) => `<tspan class="t-${r} ${cls}"${dx ? ` dx="${dx}"` : ''}>${esc(t)}</tspan>`).join('');
           const attrs = `x="${r1(x)}" y="${r1(y)}" text-anchor="${anchor}"${o.owner ? ` data-owner="${o.owner}"` : ''}${o.ground ? ' data-ground="1"' : ''}${o.id ? ` data-id="${o.id}"` : ''}${o.data ?? ''}`;
           this.add(o.layer ?? 'text', `<text class="${o.textCls ?? ''}" ${attrs}>${spans}</text>`);
@@ -1091,112 +1234,123 @@
           }
           return b.x0 >= 2 && b.x1 <= this.W - 2;
         }
-        /** Puts a text at the first candidate where it covers nothing; records it as missing when none is free. */
-        place(cands, parts, o = {}) {
-          for (const [x, y, anchor = 'start'] of cands) {
-            const w = partsWidth(parts);
-            const role = parts.reduce((a, p) => (ROLE[p[1]].size > ROLE[a].size ? p[1] : a), parts[0][1]);
-            const box = this.textBox(x, y, w, role, anchor);
-            if (box.y0 < (o.minY ?? 0) || box.y1 > (o.maxY ?? Infinity) || box.x0 < (o.minX ?? 2) || box.x1 > (o.maxX ?? this.W - 2)) continue;
-            if (!this.free(box, o.ignore ?? '', o.margin ?? 2)) continue;
-            return this.text(x, y, parts, { ...o, anchor });
-          }
-          if (!o.optional) this.missing.push(parts.map((p) => p[0]).join(''));
-          return null;
-        }
         svg(H, label) {
           const L = this.layers;
           return `<svg class="draw" width="${this.W}" height="${H}" viewBox="0 0 ${this.W} ${H}" role="img" aria-label="${esc(label)}">
 <defs>
 <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" class="hatch-fill"/><line class="hatch-line" x1="0" y1="0" x2="0" y2="6"/></pattern>
 <pattern id="writes" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line class="writes-line" x1="0" y1="0" x2="0" y2="5"/></pattern>
+<pattern id="writes-key" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" class="writes-key-fill"/><line class="writes-key-line" x1="0" y1="0" x2="0" y2="5"/></pattern>
+<pattern id="split" width="6" height="6" patternUnits="userSpaceOnUse"><circle class="split-dot" cx="3" cy="3" r="1"/></pattern>
 <pattern id="shedhatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)"><rect width="6" height="6" class="shed-fill"/><line class="shed-line" x1="0" y1="0" x2="0" y2="6"/></pattern>
+<marker id="xfer-head" viewBox="0 0 6 6" refX="5" refY="3" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L6 3L0 6z" class="xfer-head"/></marker>
 </defs>
-<g>${L.back.join('')}</g><g>${L.grid.join('')}</g><g>${L.band.join('')}</g><g>${L.dots.join('')}</g><g>${L.boxes.join('')}</g><g>${L.lanes.join('')}</g><g>${L.marks.join('')}</g><g>${L.text.join('')}</g><g>${L.top.join('')}</g></svg>`;
+<g>${L.back.join('')}</g><g>${L.grid.join('')}</g><g>${L.band.join('')}</g><g>${L.dots.join('')}</g><g>${L.boxes.join('')}</g><g>${L.lanes.join('')}</g><g>${L.fills.join('')}</g><g>${L.marks.join('')}</g><g>${L.text.join('')}</g><g>${L.top.join('')}</g></svg>`;
         }
       }
-      function xGlyph(D, cx, cy, owner, s = 4, ground = 'xground') {
-        D.add('marks', `<circle class="${ground}" cx="${r1(cx)}" cy="${r1(cy)}" r="${s + 3}"/><path class="xmark" data-owner="${owner}" d="M${r1(cx - s)} ${r1(cy - s)}l${2 * s} ${2 * s}M${r1(cx + s)} ${r1(cy - s)}l${-2 * s} ${2 * s}"/>`);
+      function xGlyph(D, cx, cy, owner, s = 4, ground = 'xground', layer = 'marks') {
+        D.add(layer, `<circle class="${ground}" cx="${r1(cx)}" cy="${r1(cy)}" r="${s + 3}"/><path class="xmark" data-owner="${owner}" data-x="${owner}" d="M${r1(cx - s)} ${r1(cy - s)}l${2 * s} ${2 * s}M${r1(cx + s)} ${r1(cy - s)}l${-2 * s} ${2 * s}"/>`);
         D.mark({ x0: cx - s - 2, x1: cx + s + 2, y0: cy - s - 2, y1: cy + s + 2 }, owner);
       }
       const rect = (x, y, w, h, cls, extra = '') => `<rect class="${cls}" x="${r1(x)}" y="${r1(y)}" width="${r1(Math.max(0, w))}" height="${r1(h)}"${extra}/>`;
 
       // ---------- What an open question hides, on every surface: one map (prevention 1). Each region is named in the
-      // question's own `hide` list. `limits` (asking and the answer's play) hides every tier's limit and load: the
-      // lanes are drawn empty and dashed, every busy, limit, spare, shed and served number reads "?", and no tier is
-      // named the bottleneck; the fleets, their per-instance sizes, the per-request costs and the traffic stay, since
-      // they are the question's premise. `after` (the answer's play only) hides the same for the tiers the act changes,
-      // and the served and shed totals. The stream of requests between tiers stays: it is the mechanism the play shows.
-      // No ghost of an earlier setting shows while a question asks.
+      // question's own `hide` list. `db` (E1, asking and its play) hides the database's lanes, statuses and conversions;
+      // `after` (a play) hides the lanes its act changes; while lanes hide, no tier is named the bottleneck. `totals`
+      // hide in a play only when its act changes what is served or shed; the served bar stays, since it is the stream's
+      // end and the stream is the mechanism the play shows. `replay` (E3 asking) hides what a replica does beyond its
+      // reads. `zones` (E4 asking) hides the zone groups and the "if zone A fails" ticks. The fleets, the per-request
+      // costs the ask states, the cache line and the traffic are the question's premise and stay. No ghost of an
+      // earlier setting shows while a question asks.
       function hiding(view) {
         const h = new Set(view.hide ?? []);
         const asking = view.phase === 'asking';
         const playing = view.phase === 'playing';
-        const limits = h.has('limits') && (asking || playing);
-        const after = h.has('after') && playing;
         const lanes = new Set();
-        if (limits) for (const id of ['lb', 'app', 'primary', 'replicas', 'workers']) lanes.add(id);
-        if (after) for (const id of view.changed ?? []) lanes.add(id);
-        return { lanes, totals: limits || after, ghost: asking && !view.leakGhost, any: limits || after };
+        if (h.has('db') && (asking || playing)) for (const id of ['primary', 'replicas']) lanes.add(id);
+        if (h.has('after') && playing) for (const id of view.changed ?? []) lanes.add(id);
+        const totals = playing && !!view.totalsChange && (h.has('db') || h.has('after'));
+        return {
+          lanes,
+          totals,
+          replay: h.has('replay') && asking,
+          zones: h.has('zones') && asking,
+          ghost: asking && !view.leakGhost,
+          zoneTicks: view.phase === 'rest' || view.phase === 'challenge',
+          any: lanes.size > 0 || totals,
+        };
       }
+      const NO_HIDE = { lanes: new Set(), totals: false, replay: false, zones: false, ghost: false, zoneTicks: true, any: false };
+      const ALL_HIDE = { lanes: new Set(['lb', 'app', 'primary', 'replicas', 'workers']), totals: true, replay: true, zones: true, ghost: true, zoneTicks: false, any: true };
 
       // ---------- Words.
-      const NO_HIDE_WORDS = { lanes: new Set(), totals: false };
       const NOUN = { lb: ['load balancer', 'load balancers'], app: ['app server', 'app servers'], replicas: ['read replica', 'read replicas'] };
-      const tierWord = (id) => ({ lb: 'the load balancers', app: 'the app servers', primary: 'the database primary', replicas: 'the read replicas' })[id];
-      const verb = (id) => (id === 'primary' ? 'is' : 'are');
+      const tierWord = (r, id) => (id === 'replicas' && r.replicas.up === 1 && !FAULT.name?.startsWith('eachOne') ? 'the read replica' : { lb: 'the load balancers', app: 'the app servers', primary: 'the database primary', replicas: 'the read replicas' }[id]);
+      const verb = (r, id, v = ['is', 'are']) => (id === 'primary' || (id === 'replicas' && r.replicas.up === 1 && FAULT.name !== 'eachOne') ? v[0] : v[1]);
+      const eachOf = (r, id) => (id === 'replicas' && (r.replicas.up >= 2 || FAULT.name === 'eachOne') ? ' each' : '');
       const cap1 = (t) => t[0].toUpperCase() + t.slice(1);
-      const limitOf = (r, id) => r[id].ceiling;
-      /** A block's name and its fleet beside it: instances times what each takes. */
+      const joinAnd = (xs) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
+      /** What reaches a tier: the load balancers and app servers count what arrives; the database what it admitted. */
+      const loadOf = (r, id) => (id === 'primary' || id === 'replicas' ? r.served : r[id].arriving);
       const NAMES = { lb: ['Load balancers'], app: ['App servers'], primary: ['Database primary', 'Primary'], replicas: ['Read replicas'] };
       const NAME = { lb: 'Load balancers', app: 'App servers', primary: 'Primary', replicas: 'Read replicas' };
-      function fleetForms(r, id, hid = NO_HIDE_WORDS) {
+      /** A block's fleet: instances times what each takes; it wraps rather than drop a count, a promotion or a unit. */
+      function fleetText(r, id, hid) {
         const t = r[id];
         if (id === 'lb' || id === 'app') {
-          // A hidden app tier shows what each server's CPU can do: a worker limit would be the answer.
-          const each = fq(id === 'app' && hid.lanes.has('app') ? t.cpuEach : t.each);
-          if (t.lost) return [`${t.up} of ${t.n} up × ${each}`, `${t.up} up × ${each}`, `${t.up} × ${each}`];
-          return [`${t.n} × ${each}`];
+          // A hidden tier shows its count alone: its per-instance figure may be the answer (E5's workers bind).
+          const each = id === 'app' && FAULT.name === 'fleetEach' ? t.cpuEach : t.each;
+          if (hid.lanes.has(id) && FAULT.name !== 'fleetEach') return t.lost ? `${t.up} of ${t.n} up` : `${t.n} up`;
+          return t.lost ? `${t.up} of ${t.n} up × ${fq(each)}` : `${t.n} × ${fq(each)}`;
         }
         const size = `${fn(r.settings.size)} queries/s`;
         if (id === 'primary') {
-          const largest = r.settings.size >= M.SIZES[M.SIZES.length - 1];
-          if (t.promoted) return [`${size}, a promoted replica`, `${size}, promoted`, size];
-          return largest ? [`${size}, the largest machine`, `${size}, the largest`, size] : [`${size}`];
+          if (t.outage) return `${size}, lost with zone A`;
+          if (t.promoted) return `${size}, a promoted replica`;
+          return `${size}${r.settings.size >= M.SIZES[M.SIZES.length - 1] ? ', the largest machine' : ''}, in zone A`;
         }
-        if (t.lost) return [`${t.up} of ${t.n} left × ${size}`, `${t.up} of ${t.n} left`, `${t.up} left`];
-        return t.n ? [`${t.n} × ${size}`, `${t.n} × ${fn(r.settings.size)}`, `${t.n}`] : ['none'];
+        if (!t.n) return 'none';
+        if (FAULT.name === 'unitless') return `${t.n} × ${fn(r.settings.size)}`;
+        if (t.lost) return t.up ? `${t.up} of ${t.n} left × ${size}` : `none of ${t.n} left`;
+        return `${t.n} × ${size}`;
       }
-      /** A block's status: how busy it is (bold), its limit, then what it spares or sheds. */
-      function statusParts(r, id, hid, wide = true) {
+      /** A block's status: how busy it is (bold), then what it spares or sheds; its limit when no room is free at the
+       * lane's end, and the limit before the last change when no room is free beside its ghost. */
+      function statusParts(r, id, hid, lane = {}) {
         const t = r[id];
-        if (id === 'replicas' && !t.n) return [['None: ', 'capB'], ['the primary takes every read.', 'cap']];
-        if (id === 'replicas' && !t.up) return [['None left: ', 'capB', 'crit-ink'], ['the primary takes every read.', 'cap']];
-        if (id === 'primary' && t.outage) return [['Lost with zone A: ', 'capB', 'crit-ink'], ['no replica can take over, so every request fails here.', 'cap']];
-        if ((id === 'lb' || id === 'app') && !t.up) return [['None left: ', 'capB', 'crit-ink'], [`zone A held every ${NOUN[id][0]}.`, 'cap']];
-        const each = id === 'replicas' ? ' each' : '';
-        if (hid.lanes.has(id)) return [[`?% busy${each}`, 'capB'], [' · limit after your answer', 'cap']];
-        const limit = t.ceiling;
-        // Narrow, the lane's cut end says it runs off the axis; wide, the words say so too.
-        // A database lane says its limit is in requests, beside a machine sized in queries.
-        const unit = id === 'primary' || id === 'replicas' ? `${fn(limit)} requests/s` : fq(limit);
-        const limitWords = limit > M.AXIS_MAX && wide ? `limit ${unit}, off the axis` : `limit ${unit}`;
-        const load = id === 'primary' || id === 'replicas' ? r.served : t.arriving;
-        if (t.shed > 1e-9) return [[`Full${each}`, 'capB', 'crit-ink'], [` · ${limitWords} · ${fq(t.shed)} shed${r.bottleneck === id ? ', the bottleneck' : ''}`, 'cap']];
-        if (t.util > 1 - 1e-9) return [[`100% busy${each}`, 'capB'], [` · ${limitWords} · nothing spare`, 'cap']];
-        if (load <= 0) return [[`Idle${each}`, 'capB'], [` · ${limitWords} · nothing reaches it`, 'cap']];
-        return [[`${fp(t.util)} busy${each}`, 'capB'], [` · ${limitWords} · ${fq(limit - load)} spare`, 'cap']];
+        if (id === 'replicas' && !t.n) return r.primary.outage && FAULT.name !== 'primaryReads' ? [['None: ', 'capB'], ['reads fail with the primary.', 'cap']] : [['None: ', 'capB'], ['the primary takes every read.', 'cap']];
+        if (id === 'replicas' && !t.up) return [['None left: ', 'capB', 'crit-ink'], ['the one replica became the primary, which takes every read.', 'cap']];
+        if (id === 'primary' && t.outage) return [['Lost with zone A: ', 'capB', 'crit-ink'], [r.dbArriving > 0 ? 'no replica can take over, so every request fails here.' : 'no replica can take over.', 'cap']];
+        if ((id === 'lb' || id === 'app') && !t.up) return [['None left: ', 'capB', 'crit-ink'], [t.n === 1 ? 'zone A held the only one.' : 'zone A held them all.', 'cap']];
+        const each = eachOf(r, id);
+        if (hid.lanes.has(id)) return [[`?% busy${each}`, 'capB'], [' · after your answer', 'cap']];
+        // A database lane says its limit, and the limit before the last change, in its conversion instead.
+        const db = id === 'primary' || id === 'replicas';
+        const tail = db ? '' : `${lane.limitInStatus ? ` · limit ${fq(t.ceiling)}` : ''}${lane.wasInStatus !== undefined && lane.wasInStatus !== null ? ` · limit was ${fq(lane.wasInStatus)}` : ''}`;
+        const load = loadOf(r, id);
+        if (t.shed > 1e-9) return [['Full', 'capB', 'crit-ink'], [` · ${fq(t.shed)} shed${r.bottleneck === id ? ', the bottleneck' : ''}${tail}`, 'cap']];
+        if (t.util > 1 - 1e-9) return [[`100% busy${each}`, 'capB'], [` · nothing spare${tail}`, 'cap']];
+        if (load <= 0) return [['Idle', 'capB'], [` · nothing reaches it${tail}`, 'cap']];
+        return [[`${fp(t.util)} busy${each}`, 'capB'], [` · ${fq(t.ceiling - load)} spare${tail}`, 'cap']];
       }
-      /** What one request costs this block. */
-      function costParts(r, id) {
+      /** A database block's conversion: its machine's queries a second over what one request costs it, which is its limit
+       * in requests a second (the step E1 asks for), with the limit before the last change when its ghost has no room. */
+      function convParts(r, id, hid, lane = {}) {
         const t = r[id];
+        const size = `${fn(r.settings.size)} queries/s`;
         const w = M.formatNum(r.writes);
+        const was = lane.wasInStatus !== undefined && lane.wasInStatus !== null ? [[`, was ${fq(lane.wasInStatus)}`, 'cap']] : [];
         if (id === 'primary') {
           if (t.outage) return [['With no primary, writes have nowhere to go.', 'cap']];
-          return r.replicas.up ? [[`${w} writes a request; its reads go to the replicas.`, 'cap']] : [[`${w} writes and ${M.formatNum(r.misses)} reads a request, all of them here.`, 'cap']];
+          if (hid.lanes.has('primary')) return [[`${size}; what that carries in requests shows after your answer.`, 'cap']];
+          const cost = r.replicas.up ? `÷ ${w} writes a request` : `÷ ${M.formatNum(r.writes + r.misses)} queries a request`;
+          return [[`${size} ${cost} = `, 'cap'], [`${fn(t.ceiling)} requests/s`, 'capB'], ...was];
         }
-        if (!t.up) return [['', 'cap']];
-        return [[`Each replays every write, ${w} a request, and takes ${f3(r.misses / t.up)} reads a request.`, 'cap']];
+        if (!t.up) return [];
+        const each = t.up >= 2 ? ' each' : '';
+        if (hid.replay && FAULT.name !== 'replay') return [[`Each takes ${f3(r.misses / t.up)} reads a request; what else each does shows after your answer.`, 'cap']];
+        if (hid.lanes.has('replicas')) return [[`${size}${each}; what that carries in requests shows after your answer.`, 'cap']];
+        return [[`${size} ÷ (${w} replayed writes + ${f3(r.misses / t.up)} reads) = `, 'cap'], [`${fn(t.ceiling)} requests/s`, 'capB'], ...was];
       }
       /** The cache line at the database's foot: what it answers of each request's reads. */
       function cacheParts(r) {
@@ -1204,6 +1358,8 @@
         if (!r.settings.cache) return [['Cache off: ', 'capB'], [`all ${reads} reads of each request reach the database.`, 'cap']];
         return [['Cache on: ', 'capB'], [`${M.formatNum(r.hits)} of each request’s ${reads} reads hit it; ${M.formatNum(r.misses)} reach the database.`, 'cap']];
       }
+      /** The pool binds (critical, "would need") only when the workers are the app servers' limit and they shed. */
+      const poolBinds = (r) => r.app.bound === 'workers' && r.app.shed > 1e-9;
       /** The worker pool on one app server, by Little's law: in flight = rate x time. */
       function workerParts(r, hid) {
         const a = r.app;
@@ -1211,11 +1367,12 @@
         if (hid.lanes.has('workers') || hid.lanes.has('app')) return [['? of 100 busy', 'capB'], [' after your answer.', 'cap']];
         const rate = a.passed / a.up;
         const ms = M.formatMs(a.ms);
-        if (a.need > M.WORKERS + 1e-9)
+        if (poolBinds(r))
           return [
             [`${f1(a.inFlight)} of ${a.workers} busy`, 'capB', 'crit-ink'],
-            [`: ${fq(rate)} × ${ms}. The ${fq(a.arriving / a.up)} sent to each would need ${f1(a.need)}; its CPU sits ${fp(a.cpuUtil)} busy.`, 'cap'],
+            [`: ${fq(rate)} × ${ms}. The ${fq(a.arriving / a.up)} sent to each would need ${f1(a.need)} workers; its CPU sits ${fp(a.cpuUtil)} busy.`, 'cap'],
           ];
+        if (a.shed > 1e-9) return [[`${f1(a.inFlight)} of ${a.workers} busy`, 'capB'], [`: ${fq(rate)} × ${ms} in flight; the CPU, not the pool, is full.`, 'cap']];
         return [[`${f1(a.inFlight)} of ${a.workers} busy`, 'capB'], [`: ${fq(rate)} × ${ms} in flight (Little’s law).`, 'cap']];
       }
       function sinkParts(r, hid) {
@@ -1223,37 +1380,43 @@
         const shed = r.shed > 1e-9;
         return [['Served ', 'label'], [fq(r.served), 'head'], [' of ', 'cap'], [fq(r.offered), 'capB'], shed ? [` · ${fq(r.shed)} shed, ${fp(r.shed / r.offered)}`, 'capB', 'crit-ink'] : [' · nothing shed', 'cap']];
       }
-      const FOOTNOTE = 'Simplified: every request costs a tier the same, its instances are alike, and past its limit a tier sheds rather than queues.';
+      const FOOTNOTE = 'Simplified: every request costs a tier the same, its instances are alike, and past its limit a tier sheds rather than queues. The cache runs a node in every zone, so losing one keeps its hit rate.';
+      /** The lanes at the top load, every tie named. */
+      const busiestOf = (r) => r.lanes.filter((t) => Math.abs(t.util - r.maxUtil) < 1e-9 && !(t.id === 'primary' && t.outage));
       /** The setting's sentences: what is served, where it stops, and how busy the rest run. */
-      function summary(r, hid = { lanes: new Set(), totals: false }) {
+      function summary(r, hid = NO_HIDE) {
         const s = r.settings;
         if (hid.totals || hid.lanes.size) return `Of ${fn(r.offered)} requests a second offered, what each tier takes shows after your answer.`;
         const parts = [];
-        const each = (id) => (id === 'replicas' ? ' each' : '');
-        let lead;
+        let named = [];
         if (r.shed > 1e-9) {
-          parts.push(`Of ${fn(r.offered)} requests a second, ${fn(r.served)} are served and ${fn(r.shed)} shed.`);
+          parts.push(r.served > 1e-9 ? `Of ${fn(r.offered)} requests a second, ${fn(r.served)} are served and ${fn(r.shed)} shed.` : `Of ${fn(r.offered)} requests a second, none are served.`);
           const b = r.bottleneck;
-          lead = b;
+          named = [b];
           if (b === 'primary' && r.primary.outage) parts.push('The primary fell with zone A and no replica could take over, so every request fails at the database.');
-          else if ((b === 'lb' || b === 'app') && !r[b].up) parts.push(`Zone A held every ${NOUN[b][0]}, so nothing gets past ${tierWord(b)}.`);
-          else parts.push(`${cap1(tierWord(b))} ${verb(b)} the bottleneck, full at ${fn(limitOf(r, b))} a second.`);
+          else if ((b === 'lb' || b === 'app') && !r[b].up) parts.push(`Zone A held every ${NOUN[b][0]}, so nothing gets past ${tierWord(r, b)}.`);
+          else parts.push(`${cap1(tierWord(r, b))} ${verb(r, b)} the bottleneck, full at ${fn(r.limitOf(b))} a second.`);
         } else {
-          lead = r.busiest;
+          const top = FAULT.name === 'tie' ? busiestOf(r).slice(0, 1) : busiestOf(r);
+          named = top.map((t) => t.id);
+          const each = top.length === 1 ? eachOf(r, top[0].id) : '';
+          const v = top.length > 1 ? 'are' : verb(r, top[0].id);
           parts.push(`All ${fn(r.offered)} requests a second are served.`);
-          parts.push(`${cap1(tierWord(lead))} ${verb(lead)} the busiest, at ${fp(r[lead].util)}${each(lead)}.`);
+          parts.push(`${cap1(joinAnd(top.map((t) => tierWord(r, t.id))))} ${v} the busiest, at ${fp(r.maxUtil)}${each}.`);
         }
-        const others = r.lanes.filter((t) => t.id !== lead && !(t.id === 'primary' && t.outage) && t.up !== 0);
+        const others = r.lanes.filter((t) => !named.includes(t.id) && !(t.id === 'primary' && t.outage) && t.up !== 0);
         if (others.length)
           parts.push(
             `${others
               .map((t, i) => {
-                const name = i ? tierWord(t.id) : cap1(tierWord(t.id));
-                return t.shed > 1e-9 ? `${name} ${verb(t.id)} full, shedding ${fn(t.shed)} a second` : `${name} ${verb(t.id)} at ${fp(t.util)}${each(t.id)}`;
+                const name = i ? tierWord(r, t.id) : cap1(tierWord(r, t.id));
+                if (t.shed > 1e-9) return `${name} ${verb(r, t.id)} full, shedding ${fn(t.shed)} a second`;
+                if (loadOf(r, t.id) <= 0 && FAULT.name !== 'atZero') return `${name} ${verb(r, t.id, ['receives', 'receive'])} nothing`;
+                return `${name} ${verb(r, t.id)} at ${fp(t.util)}${eachOf(r, t.id)}`;
               })
               .join('; ')}.`,
           );
-        if (!r.replicas.n) parts.push('There are no read replicas: the primary takes every read.');
+        if (!r.replicas.n && !r.primary.outage) parts.push('There are no read replicas: the primary takes every read.');
         if (s.zone) parts.push('Zone A is down.');
         if (s.slow) parts.push(`Each request takes ${M.formatMs(M.SLOW_MS)}.`);
         return parts.join(' ');
@@ -1261,25 +1424,195 @@
       /** What a ramp did, in order, for Reduced motion's caption and its notice. */
       function rampStory(s, from) {
         const plan = M.rampPlan(s, from, s.traffic);
-        const first = `Play stepped the traffic from ${fn(plan.stops[0])} to ${fn(s.traffic)} requests a second.`;
         const end = plan.runs[plan.runs.length - 1];
-        if (plan.climax < 0) return `${first} No tier filled; ${tierWord(end.busiest)} came closest, at ${fp(end[end.busiest].util)}${end.busiest === 'replicas' ? ' each' : ''}.`;
+        const one = plan.stops.length === 1 && FAULT.name !== 'fromTo';
+        const first = one ? `Play ran ${fn(s.traffic)} requests a second through the tiers.` : `Play stepped the traffic from ${fn(plan.stops[0])} to ${fn(s.traffic)} requests a second.`;
+        const served = end.served > 1e-9 ? `${fn(end.served)} a second are served and ${fn(end.shed)} shed` : 'none are served';
+        if (plan.climax < 0) {
+          const top = busiestOf(end);
+          const names = joinAnd(top.map((t) => tierWord(end, t.id)));
+          if (end.maxUtil >= 1 - 1e-9 && FAULT.name !== 'noTier100') return `${first} No tier shed; ${names} reached 100%, with nothing to spare.`;
+          return `${first} No tier ${FAULT.name === 'noTier100' ? 'filled' : 'shed'}; ${names} came closest, at ${fp(end.maxUtil)}${top.length === 1 ? eachOf(end, top[0].id) : ''}.`;
+        }
         const at = plan.runs[plan.climax];
-        return `${first} At ${fn(at.offered)}, ${tierWord(at.bottleneck)} filled first and began to shed; at ${fn(end.offered)}, ${fn(end.served)} a second are served and ${fn(end.shed)} shed.`;
+        if (one) return `${first} ${cap1(tierWord(at, at.bottleneck))} ${verb(at, at.bottleneck)} the bottleneck: ${served}.`;
+        return `${first} At ${fn(at.offered)}, ${tierWord(at, at.bottleneck)} began to shed first; at ${fn(end.offered)}, ${served}.`;
+      }
+      /** One visually hidden line per tier, which its steppers point to (aria-describedby); it obeys hiding(). */
+      function tierLine(r, id, hid) {
+        const t = r[id];
+        if (id === 'lb' || id === 'app') {
+          const count = t.lost ? `${t.n}, ${t.up} up after zone A` : `${t.n}`;
+          const label = id === 'lb' ? 'Load balancers' : 'App servers';
+          if (hid.lanes.has(id)) return `${label}: ${count}; their limit shows after your answer.`;
+          const each = id === 'app' && t.bound === 'workers' ? `each ${fn(t.each)} a second, as its workers allow` : `each ${fn(t.each)} a second`;
+          return `${label}: ${count}, ${each}; limit ${fn(t.ceiling)} a second.`;
+        }
+        if (id === 'primary') {
+          const size = `${fn(r.settings.size)} queries a second${r.settings.size >= M.SIZES[M.SIZES.length - 1] ? ', the largest' : ''}`;
+          if (t.outage) return `Database machine: ${size}, lost with zone A.`;
+          if (hid.lanes.has('primary')) return `Database machine: ${size}; its limit in requests shows after your answer.`;
+          return `Database machine: ${size}${t.promoted ? ', a promoted replica' : ''}; limit ${fn(t.ceiling)} requests a second.`;
+        }
+        if (!t.n) return 'Read replicas: none.';
+        const count = t.lost ? `${t.n}, ${t.up} left after zone A` : `${t.n}`;
+        if (!t.up) return `Read replicas: ${count}.`;
+        if (hid.lanes.has('replicas')) return `Read replicas: ${count}; their limit shows after your answer.`;
+        return `Read replicas: ${count}, ${t.up >= 2 ? 'each ' : ''}${fn(r.settings.size)} queries a second; limit ${fn(t.ceiling)} requests a second.`;
+      }
+      /** What a stepper or toggle changed, said before the setting's sentence in the notice. */
+      function changeLine(before, after) {
+        const a = before;
+        const b = after;
+        if (a.traffic !== b.traffic) return `Traffic: now ${fn(b.traffic)} requests a second.`;
+        if (a.lb !== b.lb) return `Load balancers: now ${fn(b.lb)}.`;
+        if (a.app !== b.app) return `App servers: now ${fn(b.app)}.`;
+        if (a.size !== b.size) return `Database machine: now ${fn(b.size)} queries a second.`;
+        if (a.replicas !== b.replicas) return `Read replicas: now ${b.replicas ? fn(b.replicas) : 'none'}.`;
+        if (a.cache !== b.cache) return `Cache reads: ${b.cache ? 'on' : 'off'}.`;
+        if (a.zone !== b.zone) return `Zone A: ${b.zone ? 'down' : 'back up'}.`;
+        if (a.slow !== b.slow) return `Slow queries: ${b.slow ? 'on' : 'off'}.`;
+        return '';
       }
 
-      // ---------- Geometry: one axis in requests a second, shared by the traffic, the stream and every lane.
+      // ---------- Geometry: one axis in requests a second, shared by the traffic, the stream and every lane. It runs to
+      // 40,000 a second, the longest lane at any setting (the primary's write ceiling), so no lane is ever cut.
       function geometry(W) {
         const pad = W >= 520 ? 16 : 12;
         const xa = pad + 12;
         const xb = W - pad - 12;
         const k = (xb - xa) / M.AXIS_MAX;
-        return { W, pad, xa, xb, k, x: (v) => xa + Math.min(Math.max(v, 0), M.AXIS_MAX) * k, gap: W >= 520 ? 26 : 24, stepX: W - pad - 2 - 88 };
+        // A strand every 1,000 requests a second, or every 2,000 where 1,000 is under 6 px.
+        const strand = 1000 * k >= 6 ? 1000 : 2000;
+        return { W, pad, xa, xb, k, strand, x: (v) => xa + Math.min(Math.max(v, 0), M.AXIS_MAX) * k, gap: W >= 520 ? 26 : 24, stepX: W - pad - 2 - 88 };
       }
       const LINE = 17;
+      const LANE_Y = 10;
+      const LANE_H = 22;
+      const STRIP_H = 18;
+      const PAD_BOTTOM = 12;
+      const DIVIDER_GAP = 10;
+      const TICKS = [0, 10000, 20000, 30000, 40000];
 
-      // ---------- Reserved lines: every wrapped text keeps, at each width, the most lines any setting needs, so the
-      // stage's height depends on its width alone (prevention 12). The sweep checks every setting against these.
+      /** Where a lane's words go: in its row's empty track, right of the lane's end and its shed, its limit (the load
+       * balancers and app servers; a database lane says its limit in its conversion); then the limit before the last
+       * change, beside its ghost tick in the row, else in the strip under the lane, else in the block's status or
+       * conversion. Under the primary, the label of the step from its machine's queries to its limit. */
+      function laneInfo(g, r, id, hid, ghostRun) {
+        const t = r[id];
+        const L = { id, kind: 'normal', limitLabel: null, limitInStatus: false, ghost: null, wasInStatus: null, shed: null, xfer: null };
+        if (id === 'replicas' && !t.up) L.kind = 'none';
+        else if ((id === 'primary' && t.outage) || ((id === 'lb' || id === 'app') && !t.up)) L.kind = 'lostAll';
+        else if (hid.lanes.has(id)) L.kind = 'hidden';
+        if (L.kind !== 'normal') return L;
+        const end = g.x(t.ceiling);
+        let occ = end;
+        if (t.shed > 1e-9) {
+          const x1 = g.x(t.ceiling + t.shed);
+          const narrow = x1 - end < 16;
+          L.shed = { x0: end, x1, xMark: narrow ? x1 + 8 : x1 - 8 };
+          occ = narrow ? x1 + 14 : x1;
+        }
+        const old = ghostRun?.[id]?.ceiling;
+        const ghost = ghostRun && !hid.ghost && Number.isFinite(old) && old > 0 && Math.abs(old - t.ceiling) >= 0.5;
+        const gx = ghost ? g.x(old) : null;
+        const free = (busy, ticks) => (x0, x1) => x0 >= g.xa && x1 <= g.xb && busy.every(([a, b]) => x1 + 4 <= a || x0 - 4 >= b) && ticks.every((tx) => tx < x0 - 3 || tx > x1 + 3);
+        const row = [[g.xa - 2, occ]];
+        const rowTicks = ghost && gx > occ ? [gx] : [];
+        const fitsRow = free(row, rowTicks);
+        if (id === 'lb' || id === 'app') {
+          const text = `limit ${fq(t.ceiling)}`;
+          const w = tw(text, 'small');
+          const x = [occ + 6, ...rowTicks.map((tx) => tx + 5)].find((x) => fitsRow(x, x + w));
+          if (x !== undefined) {
+            L.limitLabel = { x, text };
+            row.push([x, x + w]);
+          } else L.limitInStatus = true;
+        }
+        // The strip under the lane: its zone groups (and a lost group's old place), or the primary's step arrow.
+        const strip = [];
+        if (id === 'primary') {
+          const xs = g.x(r.settings.size);
+          const xe = g.x(t.ceiling);
+          strip.push([Math.min(xs, xe) - 1, Math.max(xs, xe) + 1]);
+          const c = M.formatNum(t.cost);
+          for (const f of [`÷ ${c} queries a request`, `÷ ${c} a request`, `÷ ${c}`]) {
+            const w = tw(f, 'small');
+            const right = Math.max(xs, xe) + 6;
+            const left = Math.min(xs, xe) - 6;
+            if (right + w <= g.xb) L.xfer = { x: right, anchor: 'start', text: f, x0: right, x1: right + w };
+            else if (left - w >= g.xa) L.xfer = { x: left, anchor: 'end', text: f, x0: left - w, x1: left };
+            if (L.xfer) break;
+          }
+          if (L.xfer) strip.push([L.xfer.x0, L.xfer.x1]);
+        } else if (t.n && !hid.zones) {
+          const lostEnd = r.settings.zone && t.lost ? g.x(M.run({ ...r.settings, zone: 0 })[id].ceiling) : end;
+          strip.push([g.xa - 4, Math.max(end, lostEnd) + 6]);
+        }
+        if (ghost) {
+          const text = `limit was ${fq(old)}`;
+          const w = tw(text, 'small');
+          const after = Math.max(...row.map((b) => b[1]));
+          const rowCands = gx > occ ? [[gx + 5, 'start'], [gx - 5, 'end']] : [[after + 8, 'start']];
+          const fitsStrip = free(strip, []);
+          const stripEnd = Math.max(g.xa, ...strip.map((b) => b[1]));
+          const stripCands = [[gx, 'middle'], [stripEnd + 8, 'start']];
+          const span = (x, a) => (a === 'end' ? [x - w, x] : a === 'middle' ? [x - w / 2, x + w / 2] : [x, x + w]);
+          let at = FAULT.name === 'ghostLabel' ? null : rowCands.find(([x, a]) => fitsRow(...span(x, a)));
+          if (at) at = { x: at[0], anchor: at[1], text, place: 'row' };
+          else if (FAULT.name !== 'ghostLabel') {
+            const sc = stripCands.find(([x, a]) => fitsStrip(...span(x, a)));
+            if (sc) at = { x: sc[0], anchor: sc[1], text, place: 'strip' };
+          }
+          L.ghost = { x: gx, old, label: at };
+          if (!at && FAULT.name !== 'ghostLabel') L.wasInStatus = old;
+        }
+        return L;
+      }
+
+      /** A block's header: the name in the label role and the fleet in the title weight, beside it when both fit, else
+       * under it, wrapping to more lines rather than dropping a count, a promotion or a unit. */
+      function headerLayout(g, id, fleet) {
+        const avail = g.stepX - g.xa - 6;
+        const name = pick(NAMES[id], (n) => tw(n, 'label') <= avail);
+        if (tw(name, 'label') + 10 + tw(fleet, 'capB') <= avail) return { name, one: true, fleet: [[[fleet, 'capB']]], h: 44 };
+        const lines = flow([[fleet, 'capB']], avail);
+        return { name, one: false, fleet: lines, h: 44 + LINE * Math.max(0, lines.length - 1) };
+      }
+      const meterWidth = (g) => Math.round(Math.min(110, (g.xb - g.xa) * 0.34));
+      const POOL_LABEL = ['Workers on one server', 'One server’s workers'];
+
+      /** Every block's words at this setting, laid into lines, and each box's content height (its last baseline from
+       * its top). The stage draws from this plan; reserve() takes its maximum over settings at each width. */
+      function planStage(g, r, hid, ghostRun) {
+        const lw = g.xb - g.xa;
+        const P = {};
+        for (const id of ['lb', 'app', 'primary', 'replicas']) {
+          const L = laneInfo(g, r, id, hid, ghostRun);
+          P[id] = {
+            L,
+            header: headerLayout(g, id, fleetText(r, id, hid)),
+            status: flow(statusParts(r, id, hid, L), lw),
+            conv: id === 'primary' || id === 'replicas' ? flow(convParts(r, id, hid, L), lw) : [],
+          };
+        }
+        P.poolBeside = g.xa + meterWidth(g) + 10 + tw(POOL_LABEL[0], 'label') <= g.xb;
+        P.pool = flow(workerParts(r, hid), lw);
+        P.cache = flow(cacheParts(r), lw);
+        P.sink = flow(sinkParts(r, hid), lw);
+        const blockEnd = (b) => LANE_Y + LANE_H + STRIP_H + b.header.h + 13 + (b.status.length - 1) * LINE + b.conv.length * LINE;
+        const pool = (P.poolBeside ? 0 : 15) + LINE + 6 + LINE + 2 + (P.pool.length - 1) * LINE;
+        P.content = {
+          lb: blockEnd(P.lb),
+          app: blockEnd(P.app) + pool,
+          db: blockEnd(P.primary) + DIVIDER_GAP + blockEnd(P.replicas) + LINE + 6 + (P.cache.length - 1) * LINE,
+          sink: (P.sink.length - 1) * 20,
+        };
+        return P;
+      }
+
+      // ---------- Reserved heights: each box keeps, at each width, the most any setting needs, its slack at its foot, so
+      // the stage's height depends on its width alone (prevention 12). The sweep checks every setting against these.
       const RESERVE_SET = (() => {
         const out = [];
         for (const traffic of [1000, 7000, 14000, 20000])
@@ -1293,172 +1626,263 @@
         return out;
       })();
       const reserveCache = new Map();
-      const NO_HIDE = { lanes: new Set(), totals: false };
-      const ALL_HIDE = { lanes: new Set(['lb', 'app', 'primary', 'replicas', 'workers']), totals: true };
+      /** Every setting one stepper press or one toggle away. */
+      function neighbours(s) {
+        const out = [];
+        const add = (k, v, lo, hi) => v >= lo && v <= hi && out.push({ ...s, [k]: v });
+        add('lb', s.lb - 1, 1, M.LB_MAX);
+        add('lb', s.lb + 1, 1, M.LB_MAX);
+        add('app', s.app - 1, 1, M.APP_MAX);
+        add('app', s.app + 1, 1, M.APP_MAX);
+        add('replicas', s.replicas - 1, 0, M.REP_MAX);
+        add('replicas', s.replicas + 1, 0, M.REP_MAX);
+        out.push({ ...s, size: s.size === M.SIZES[0] ? M.SIZES[1] : M.SIZES[0] }, { ...s, cache: 1 - s.cache }, { ...s, zone: 1 - s.zone }, { ...s, slow: 1 - s.slow });
+        return out;
+      }
       function reserve(W) {
         if (reserveCache.has(W)) return reserveCache.get(W);
         const g = geometry(W);
-        const lw = g.xb - g.xa;
-        const n = { lb: 1, app: 1, primary: 1, replicas: 1, workers: 1, costP: 1, costR: 1, cache: 1, sink: 1 };
+        const n = { lb: 0, app: 0, db: 0, sink: 0 };
+        const take = (P) => {
+          for (const k of Object.keys(n)) n[k] = Math.max(n[k], P.content[k]);
+        };
         for (const s of RESERVE_SET) {
           const r = M.run(s);
-          for (const hid of [NO_HIDE, ALL_HIDE]) {
-            for (const id of ['lb', 'app', 'primary', 'replicas']) n[id] = Math.max(n[id], flow(statusParts(r, id, hid, W >= 460), lw).length);
-            n.workers = Math.max(n.workers, flow(workerParts(r, hid), lw).length);
-            n.sink = Math.max(n.sink, flow(sinkParts(r, hid), lw).length);
+          for (const hid of [NO_HIDE, ALL_HIDE, { ...ALL_HIDE, replay: false }]) take(planStage(g, r, hid, null));
+          // A ghost is the setting before one change: words move into a status only where a lane's labels find no room.
+          const plain = ['lb', 'app', 'primary', 'replicas'].map((id) => laneInfo(g, r, id, NO_HIDE, null));
+          for (const before of neighbours(s)) {
+            const gr = M.run(before);
+            const moved = ['lb', 'app', 'primary', 'replicas'].some((id, i) => {
+              const L = laneInfo(g, r, id, NO_HIDE, gr);
+              return L.wasInStatus !== null || L.limitInStatus !== plain[i].limitInStatus;
+            });
+            if (moved) take(planStage(g, r, NO_HIDE, gr));
           }
-          n.costP = Math.max(n.costP, flow(costParts(r, 'primary'), lw).length);
-          n.costR = Math.max(n.costR, flow(costParts(r, 'replicas'), lw).length);
-          n.cache = Math.max(n.cache, flow(cacheParts(r), lw).length);
         }
-        n.foot = flow([[FOOTNOTE, 'small']], lw + 12).length;
         reserveCache.set(W, n);
         return n;
       }
-      const workerTextWidth = (g) => g.xb - g.xa - meterWidth(g) - 10;
-      const meterWidth = (g) => Math.round(Math.min(110, (g.xb - g.xa) * 0.34));
 
-      // ---------- The legend: what each mark means, in one row beside the title or in rows under it.
+      // ---------- The legend: what each mark means, in balanced rows beside the title or under it.
       const LEGEND = [
-        ['band', 'requests'],
-        ['busy', 'busy'],
-        ['track', 'spare'],
-        ['writes', 'writes'],
-        ['shed', 'shed'],
+        ['band', 'requests', 14],
+        ['busy', 'busy: under 50 · 70 · 85% · full', 30],
+        ['track', 'spare, 70% mark', 20],
+        ['writes', 'writes', 14],
+        ['lost', 'lost', 14],
+        ['shed', 'shed', 14],
+        ['zone', 'if zone A fails', 8],
       ];
+      const itemWidth = ([, t, sw]) => sw + 4 + tw(t, 'small');
+      /** Splits the legend, in order, into the fewest rows that fit, then the most even of those. */
+      function legendRows(maxW) {
+        const n = LEGEND.length;
+        const rowW = (a, b) => LEGEND.slice(a, b).reduce((s, it, i) => s + itemWidth(it) + (i ? 12 : 0), 0);
+        for (let k = 1; k <= n; k++) {
+          let best = null;
+          const cuts = (start, left, acc) => {
+            if (left === 1) {
+              const rows = [...acc, [start, n]];
+              const widths = rows.map(([a, b]) => rowW(a, b));
+              if (widths.every((w) => w <= maxW) && (!best || Math.max(...widths) < best.max)) best = { rows, max: Math.max(...widths) };
+              return;
+            }
+            for (let c = start + 1; c <= n - left + 1; c++) cuts(c, left - 1, [...acc, [start, c]]);
+          };
+          cuts(0, k, []);
+          if (best) return best.rows;
+        }
+        return LEGEND.map((_, i) => [i, i + 1]);
+      }
       function legendSwatch(D, kind, x, y) {
         if (kind === 'band') {
           D.add('marks', rect(x, y - 8, 14, 9, 'band') + `<circle class="dot req" cx="${x + 4}" cy="${y - 3.5}" r="2"/><circle class="dot req" cx="${x + 10}" cy="${y - 3.5}" r="2"/>`);
-        } else if (kind === 'busy') D.add('marks', rect(x, y - 8, 14, 9, 'fill h2'));
-        else if (kind === 'track') D.add('marks', rect(x + 0.5, y - 7.5, 13, 8, 'swatch-track'));
-        else if (kind === 'writes') D.add('marks', rect(x, y - 8, 14, 9, 'fill h2') + rect(x, y - 8, 14, 9, 'writes-hatch'));
+        } else if (kind === 'busy') D.add('marks', ['lo', 'h1', 'h2', 'h3', 'full'].map((h, i) => rect(x + i * 6, y - 8, 6, 9, `fill ${h}`)).join(''));
+        else if (kind === 'track') D.add('marks', rect(x + 0.5, y - 7.5, 19, 8, 'swatch-track') + `<line class="target-under" x1="${x + 14}" y1="${y - 8}" x2="${x + 14}" y2="${y + 1}"/><line class="target" x1="${x + 14}" y1="${y - 8}" x2="${x + 14}" y2="${y + 1}"/>`);
+        else if (kind === 'writes') D.add('marks', rect(x, y - 8, 14, 9, 'writes-key'));
+        else if (kind === 'lost') D.add('marks', rect(x + 0.5, y - 7.5, 13, 8, 'seg lost'));
+        else if (kind === 'zone') D.add('marks', `<line class="zone-tick" x1="${x + 4}" y1="${y - 10}" x2="${x + 4}" y2="${y + 2}"/>`);
         else xGlyph(D, x + 7, y - 3.5, 'legend', 3.5);
         D.mark({ x0: x, x1: x + 14, y0: y - 9, y1: y + 1 }, 'legend');
       }
-      const legendWidth = () => LEGEND.reduce((s, [, t], i) => s + 18 + tw(t, 'small') + (i ? 12 : 0), 0);
-      function drawLegend(D, x0, y, maxX) {
-        let x = x0;
-        let yy = y;
-        for (const [kind, t] of LEGEND) {
-          const w = 18 + tw(t, 'small');
-          if (x > x0 && x + w > maxX) {
-            x = x0;
-            yy += 18;
+      function drawLegend(D, x0, y, maxW) {
+        const rows = legendRows(maxW);
+        rows.forEach(([a, b], ri) => {
+          let x = x0;
+          for (const it of LEGEND.slice(a, b)) {
+            legendSwatch(D, it[0], x, y + ri * 18);
+            D.text(x + it[2] + 4, y + ri * 18, [[it[1], 'small']], { owner: 'legend' });
+            x += itemWidth(it) + 12;
           }
-          legendSwatch(D, kind, x, yy);
-          D.text(x + 18, yy, [[t, 'small']], { owner: 'legend' });
-          x += w + 12;
-        }
-        return yy;
+        });
+        return y + (rows.length - 1) * 18;
       }
 
       const heatOf = (u, shed) => (shed ? 'full' : u < 0.5 ? 'lo' : u < 0.7 ? 'h1' : u < 0.85 ? 'h2' : 'h3');
 
-      /** A row of instance segments on the axis: each as wide as its limit, filled to how busy it is. */
-      function drawLane(D, g, id, t, y, h, r, hid, view) {
+      /** A row of instance segments on the axis: each as wide as its share of the limit, filled to how busy it is,
+       * with a 70% notch; then its shed, its limit and its ghost in the row's empty track. */
+      function drawLane(D, g, id, y, L, r, hid, view, zr) {
+        const t = r[id];
         const owner = `lane-${id}`;
-        const top = y;
-        const W = D.W;
-        if (hid.lanes.has(id) && !(id === 'replicas' && !t.n)) {
-          D.add('lanes', rect(g.xa, top, g.xb - g.xa, h, 'lane-hidden', ' rx="3"'));
-          D.mark({ x0: g.xa, x1: g.xb, y0: top, y1: top + h }, owner);
-          D.text((g.xa + g.xb) / 2, top + h / 2 + 4, [['after your answer', 'small']], { anchor: 'middle', owner, textCls: 'on-box' });
+        const h = LANE_H;
+        D.meta.lanes[id] = { kind: L.kind, y, h, x1: g.xa, segs: 0 };
+        if (L.kind === 'hidden') {
+          D.add('lanes', rect(g.xa, y, g.xb - g.xa, h, 'lane-hidden', ' rx="3"'));
+          D.mark({ x0: g.xa, x1: g.xb, y0: y, y1: y + h }, owner);
+          D.text((g.xa + g.xb) / 2, y + h / 2 + 4, [['after your answer', 'small']], { anchor: 'middle', owner, textCls: 'on-box' });
           return;
         }
-        if (id === 'replicas' && !t.up) {
-          D.add('lanes', rect(g.xa, top, Math.min(90, g.xb - g.xa), h, 'lane-hidden', ' rx="3"'));
-          D.mark({ x0: g.xa, x1: g.xa + Math.min(90, g.xb - g.xa), y0: top, y1: top + h }, owner);
+        if (L.kind === 'none') {
+          // No replicas: an empty track as a solid hairline; dashes mean "hidden" and nothing else.
+          if (FAULT.name === 'dashedNone') D.add('lanes', rect(g.xa, y, Math.min(90, g.xb - g.xa), h, 'lane-hidden', ' rx="3"'));
+          else D.add('lanes', `<line class="lane-none" x1="${g.xa}" y1="${y + h / 2}" x2="${g.xb}" y2="${y + h / 2}"/>`);
+          D.mark({ x0: g.xa, x1: g.xb, y0: y + h / 2 - 1, y1: y + h / 2 + 1 }, owner);
           return;
         }
-        if (id === 'primary' && t.outage) {
+        if (L.kind === 'lostAll') {
           const w = Math.min(90, g.xb - g.xa);
-          D.add('lanes', rect(g.xa, top, w, h, 'seg lost', ' rx="2"'));
-          xGlyph(D, g.xa + w / 2, top + h / 2, owner, 4, 'xground on-box');
-          D.mark({ x0: g.xa, x1: g.xa + w, y0: top, y1: top + h }, owner);
+          D.add('lanes', rect(g.xa, y, w, h, 'seg lost', ' rx="2" data-lost-all="1"'));
+          xGlyph(D, g.xa + w / 2, y + h / 2, owner, 4, 'xground on-box');
+          D.mark({ x0: g.xa, x1: g.xa + w, y0: y, y1: y + h }, owner);
           return;
         }
-        if ((id === 'lb' || id === 'app') && !t.up) {
-          const w = Math.min(90, g.xb - g.xa);
-          D.add('lanes', rect(g.xa, top, w, h, 'seg lost', ' rx="2"'));
-          xGlyph(D, g.xa + w / 2, top + h / 2, owner, 4, 'xground on-box');
-          D.mark({ x0: g.xa, x1: g.xa + w, y0: top, y1: top + h }, owner);
-          return;
-        }
-        // The axis's gridlines run through each lane only, behind its instances, so a bar reads against the ticks.
-        for (const v of [10000, 20000].filter((v) => v <= M.AXIS_MAX)) {
-          D.add('lanes', `<line class="gridline" x1="${r1(g.x(v))}" y1="${top - 3}" x2="${r1(g.x(v))}" y2="${top + h + 3}"/>`);
-          D.link([[g.x(v), top - 3], [g.x(v), top + h / 2], [g.x(v), top + h + 3]], 'grid');
+        // The axis's gridlines run through the lane's row, behind its instances, and break around a word in its track.
+        const words = [L.limitLabel && [L.limitLabel.x, L.limitLabel.x + tw(L.limitLabel.text, 'small')], L.ghost?.label?.place === 'row' && (L.ghost.label.anchor === 'end' ? [L.ghost.label.x - tw(L.ghost.label.text, 'small'), L.ghost.label.x] : [L.ghost.label.x, L.ghost.label.x + tw(L.ghost.label.text, 'small')])].filter(Boolean);
+        for (const v of TICKS.slice(1, -1)) {
+          const gx = r1(g.x(v));
+          const cut = words.some(([a, b]) => gx > a - 3 && gx < b + 3);
+          const d = cut ? `M${gx} ${y - 3}V${y + 5}M${gx} ${y + h - 3}V${y + h + 3}` : `M${gx} ${y - 3}V${y + h + 3}`;
+          D.add('lanes', `<path class="gridline" d="${d}"/>`);
+          D.link(cut ? [[gx, y - 3], [gx, y + 5], [gx, y + h - 3], [gx, y + h + 3]] : [[gx, y - 3], [gx, y + h / 2], [gx, y + h + 3]], 'grid');
         }
         const count = id === 'primary' ? 1 : t.up;
-        const each = t.ceiling / count;
+        const segW = t.ceiling / count;
         const shed = t.shed > 1e-9;
         const heat = heatOf(t.util, shed);
         const writesU = id === 'primary' ? t.writesUtil : id === 'replicas' ? t.replayUtil : 0;
-        let clipped = false;
+        const ids = id === 'primary' ? ['primary'] : M.zoneLane(id, t.n, !!r.settings.zone).up.map((x) => x.id);
         const fills = [];
-        for (let i = 0; i < count; i++) {
-          const v0 = i * each;
-          if (v0 >= M.AXIS_MAX) {
-            clipped = true;
-            break;
-          }
-          const x0 = g.x(v0);
-          const xEnd = (i + 1) * each > M.AXIS_MAX ? g.xb : g.x((i + 1) * each) - (count > 1 ? 1 : 0);
-          if ((i + 1) * each > M.AXIS_MAX) clipped = true;
-          const w = xEnd - x0;
-          // A segment fills to how busy it is; one cut at the axis's end fills by its true width.
+        const drawn = FAULT.name === 'segments' ? count - 1 : count;
+        for (let i = 0; i < drawn; i++) {
+          const x0 = g.x(i * segW);
+          const x1 = g.x((i + 1) * segW) - (count > 1 ? 1 : 0);
+          const w = x1 - x0;
           const u = Math.min(1, t.util);
-          const fillW = (i + 1) * each > M.AXIS_MAX ? Math.min(w, each * g.k * u) : w * u;
-          D.add('lanes', rect(x0, top, w, h, 'seg', w > 6 ? ' rx="2"' : ''));
-          if (fillW > 0.2) D.add('lanes', rect(x0, top, fillW, h, `fill ${heat}`, ` data-fill="${id}"`));
+          const fillW = w * u * (FAULT.name === 'fillRatio' ? 0.8 : 1);
+          D.add('lanes', rect(x0, y, w, h, 'seg', `${w > 6 ? ' rx="2"' : ''} data-seg="${id}" data-inst="${ids[i]}"`));
+          if (fillW > 0.2) D.add('fills', rect(x0, y, fillW, h, `fill ${heat}`, ` data-fill="${id}" data-segw="${r1(w)}" data-x0="${r1(x0)}"`));
           fills.push([x0, fillW]);
-          if (writesU > 1e-9 && u > 0) {
+          if (id === 'replicas' && hid.replay && FAULT.name !== 'replay') {
+            // What a replica does beyond its reads waits for E3's answer: a neutral pattern, not a solid fill that would
+            // claim it replays nothing.
+            if (fillW > 0.2) D.add('fills', rect(x0, y, fillW, h, 'split-hidden', ` data-split="${id}"`));
+          } else if (writesU > 1e-9 && u > 0) {
             const ww = fillW * Math.min(1, writesU / u);
-            if (ww > 0.2) D.add('lanes', rect(x0, top, ww, h, 'writes-hatch', ` data-writes="${id}"`));
+            if (ww > 0.2) D.add('fills', rect(x0, y, ww, h, 'writes-hatch', ` data-writes="${id}"`));
+          }
+          if (w >= 6) {
+            const tx = r1(x0 + 0.7 * w);
+            D.add('fills', `<path class="target-under" d="M${tx} ${y}v5M${tx} ${y + h - 5}v5"/><path class="target" data-target="${id}" d="M${tx} ${y}v5M${tx} ${y + h - 5}v5"/>`);
           }
         }
-        if (clipped) {
-          const xe = g.xb;
-          D.add('lanes', `<path class="break" d="M${xe - 7} ${top - 2}l4 ${h / 2 + 2}l-4 ${h / 2 + 2}"/><path class="break-line" d="M${xe - 9} ${top - 2}l4 ${h / 2 + 2}l-4 ${h / 2 + 2}M${xe - 5} ${top - 2}l4 ${h / 2 + 2}l-4 ${h / 2 + 2}"/>`);
+        const end = g.x(t.ceiling);
+        D.add('fills', `<line class="lane-cap" x1="${r1(end)}" y1="${y - 2}" x2="${r1(end)}" y2="${y + h + 2}" data-cap="${id}"/>`);
+        D.mark({ x0: g.xa, x1: end, y0: y, y1: y + h }, owner);
+        Object.assign(D.meta.lanes[id], { x1: end, segs: drawn, count, fills, util: t.util });
+        if (L.shed) {
+          D.add('lanes', rect(L.shed.x0, y + 1, L.shed.x1 - L.shed.x0, h - 2, 'shed-block', ` data-shed="${id}"`));
+          D.mark({ x0: L.shed.x0, x1: L.shed.x1, y0: y, y1: y + h }, owner);
+          xGlyph(D, L.shed.xMark, y + h / 2, owner, 4, 'xground on-box');
         }
-        const end = Math.min(g.xb, g.x(t.ceiling));
-        D.mark({ x0: g.xa, x1: end, y0: top, y1: top + h }, owner);
-        D.meta.lanes = D.meta.lanes ?? {};
-        D.meta.lanes[id] = { x0: g.xa, x1: end, y: top, h, ceiling: t.ceiling, count, util: t.util, fills };
-        // What a tier could not take, drawn where it is shed: from its limit to what arrived.
-        if (shed) {
-          const x0 = g.x(t.ceiling);
-          const x1 = g.x(t.ceiling + t.shed);
-          D.add('lanes', rect(x0, top + 1, x1 - x0, h - 2, 'shed-block', ` data-shed="${id}"`));
-          D.mark({ x0, x1, y0: top, y1: top + h }, owner);
-          // A narrow block leaves its × to the stream's edge above, where the shed is also marked.
-          if (x1 - x0 >= 24) xGlyph(D, x1 - 9, top + h / 2, owner, 4, 'xground on-box');
+        if (L.limitLabel) D.text(L.limitLabel.x, y + h / 2 + 4, [[L.limitLabel.text, 'small']], { owner, textCls: 'on-box', id: `limit-${id}` });
+        // Where this tier's limit falls if zone A fails: a dashed critical tick, at rest and in the challenge.
+        if (zr && hid.zoneTicks && !hid.zones) {
+          const z = zr[id];
+          const zl = id === 'primary' ? (z.outage ? null : z.ceiling) : z.up > 0 ? z.ceiling : null;
+          if (zl !== null && zl < t.ceiling - 0.5) {
+            const zx = r1(g.x(zl));
+            D.add('marks', `<line class="zone-tick" data-zonetick="${id}" x1="${zx}" y1="${y - 4}" x2="${zx}" y2="${y + h + 3}"/>`);
+            D.link([[zx, y - 4], [zx, y + h / 2], [zx, y + h + 3]], 'zone');
+          }
+        }
+        if (L.ghost) {
+          const x = r1(L.ghost.x);
+          D.add('top', `<line class="ghost-under" x1="${x}" y1="${y - 4}" x2="${x}" y2="${y + h + 2}"/><line class="ghost-tick" x1="${x}" y1="${y - 4}" x2="${x}" y2="${y + h + 2}" data-ghost="${id}"/>`);
+          D.link([[x, y - 4], [x, y + h / 2], [x, y + h + 2]], `ghost-${id}`);
+          if (L.ghost.label) D.text(L.ghost.label.x, L.ghost.label.place === 'strip' ? y + h + 15 : y + h / 2 + 4, [[L.ghost.label.text, 'small']], { owner: `ghost-${id}`, anchor: L.ghost.label.anchor, textCls: 'on-box', id: `ghost-label-${id}` });
+          D.meta.ghosts.push({ id, labelled: !!L.ghost.label || L.wasInStatus !== null, old: L.ghost.old });
         }
       }
 
-      /** A box for one tier: its name and fleet with the stepper, then its lane and caption. */
-      function tierHeader(D, g, top, name, fleets, steps, owner) {
-        const avail = (steps ? g.stepX : g.xb) - g.xa - 6;
-        const fleet = pick(fleets, (f) => tw(f, 'capB') <= avail);
-        const one = tw(name, 'label') + 10 + tw(fleet, 'capB') <= avail;
-        if (!fleet) D.text(g.xa, top + 27, [[name, 'label']], { owner, textCls: 'on-box' });
-        else if (one) {
-          D.text(g.xa, top + 27, [[name, 'label']], { owner, textCls: 'on-box' });
-          D.text(g.xa + tw(name, 'label') + 10, top + 27, [[fleet, 'capB']], { owner, textCls: 'on-box', id: `fleet-${owner}` });
+      /** Under a lane: its instances' zones (each zone's group underlined and lettered, zone A's last, so where its
+       * group starts is the limit that survives zone A; a lost group hatched at its old place), or under the primary,
+       * the step from its machine's queries to its limit in requests. */
+      function drawStrip(D, g, id, y, L, r, hid) {
+        const t = r[id];
+        const s = r.settings;
+        if (id === 'primary') {
+          if (L.kind !== 'normal') return;
+          const xs = g.x(s.size);
+          const xe = g.x(t.ceiling);
+          const ay = y + 6;
+          D.add('marks', `<line class="xfer-tail" x1="${r1(xs)}" y1="${y + 2}" x2="${r1(xs)}" y2="${y + 10}"/><line class="xfer" data-xfer="1" x1="${r1(xs)}" y1="${ay}" x2="${r1(xe + (xe > xs ? -1 : 1))}" y2="${ay}" marker-end="url(#xfer-head)"/>`);
+          D.mark({ x0: Math.min(xs, xe) - 1, x1: Math.max(xs, xe) + 1, y0: y + 2, y1: y + 10 }, 'xfer');
+          if (L.xfer) D.text(L.xfer.x, y + 11, [[L.xfer.text, 'small']], { owner: 'xfer', textCls: 'on-box', anchor: L.xfer.anchor, id: 'xfer-label' });
+          return;
+        }
+        if (hid.zones || L.kind === 'hidden' || L.kind === 'lostAll' || !t.n) return;
+        const zl = M.zoneLane(id, t.n, !!s.zone);
+        const before = s.zone ? M.run({ ...s, zone: 0 })[id] : t;
+        const segW = t.up > 0 ? t.ceiling / t.up : 0;
+        const segW0 = before.ceiling / before.up;
+        const groups = [];
+        zl.up.forEach((x, i) => {
+          const last = groups[groups.length - 1];
+          const a = g.x(i * segW);
+          const b = g.x((i + 1) * segW);
+          if (last && last.zone === x.zone && !last.lost) last.x1 = b;
+          else groups.push({ zone: x.zone, x0: a, x1: b, lost: false });
+        });
+        for (const x of zl.lost) {
+          const j = zl.order.findIndex((o) => o.id === x.id);
+          const a = g.x(j * segW0);
+          const b = g.x((j + 1) * segW0);
+          D.add('lanes', rect(a, y + 1, b - a - 1, 5, 'seg lost', ` data-lost="${id}" data-inst="${x.id}"`));
+          const last = groups[groups.length - 1];
+          if (last && last.lost) last.x1 = b;
+          else groups.push({ zone: 'A', x0: a, x1: b, lost: true });
+        }
+        let prevEnd = -Infinity;
+        for (const gr of groups) {
+          if (!gr.lost) D.add('lanes', `<line class="zone-line" x1="${r1(gr.x0 + 1)}" y1="${y + 2.5}" x2="${r1(gr.x1 - 2)}" y2="${y + 2.5}"/>`);
+          D.mark({ x0: gr.x0, x1: gr.x1, y0: y + 1, y1: y + 6 }, `zone-${id}`);
+          const cx = (gr.x0 + gr.x1) / 2;
+          const w = tw(gr.zone, 'small');
+          if (cx - w / 2 < prevEnd + 3 || cx + w / 2 > g.xb + 6) continue;
+          D.text(cx, y + 15, [[gr.zone, 'small']], { anchor: 'middle', owner: `zone-${id}`, textCls: 'on-box', data: ` data-zone="${gr.zone}"` });
+          prevEnd = cx + w / 2;
+        }
+        D.meta.lanes[id].zones = groups.map((gr) => ({ zone: gr.zone, x0: gr.x0, lost: gr.lost }));
+      }
+
+      function drawHeader(D, g, top, hd, steps, owner) {
+        if (hd.one) {
+          D.text(g.xa, top + 27, [[hd.name, 'label']], { owner, textCls: 'on-box' });
+          D.text(g.xa + tw(hd.name, 'label') + 10, top + 27, hd.fleet[0], { owner, textCls: 'on-box', id: `fleet-${owner}` });
         } else {
-          D.text(g.xa, top + 19, [[name, 'label']], { owner, textCls: 'on-box' });
-          D.text(g.xa, top + 36, [[fleet, 'capB']], { owner, textCls: 'on-box', id: `fleet-${owner}` });
+          D.text(g.xa, top + 19, [[hd.name, 'label']], { owner, textCls: 'on-box' });
+          hd.fleet.forEach((ln, i) => D.text(g.xa, top + 36 + i * LINE, ln, { owner, textCls: 'on-box', id: i ? `fleet-${owner}-${i}` : `fleet-${owner}` }));
         }
-        if (steps) {
-          steps.forEach((st, i) => {
-            const x = g.stepX + i * 44;
-            D.hit('step', x, top, 44, 44, { owner: `step-${st.id}-${i}`, label: st.label, glyph: i ? '+' : '−', disabled: st.disabled });
-            D.mark({ x0: x + 6, x1: x + 38, y0: top + 6, y1: top + 38 }, `step-${st.id}`);
-          });
-        }
+        steps.forEach((st, i) => {
+          const x = g.stepX + i * 44;
+          D.hit('step', x, top, 44, 44, { owner: `step-${st.id}-${i}`, label: st.label, glyph: i ? '+' : '−', disabled: st.disabled, describedby: `tier-${owner}` });
+          D.mark({ x0: x + 6, x1: x + 38, y0: top + 6, y1: top + 38 }, `step-${st.id}`);
+        });
       }
       function drawLines(D, x, y, lines, owner, o = {}) {
-        lines.forEach((ln, i) => D.text(x, y + i * LINE, ln, { owner, textCls: o.cls ?? 'on-box', id: o.id ? `${o.id}-${i}` : undefined }));
+        lines.forEach((ln, i) => D.text(x, y + i * LINE, ln, { owner, textCls: o.cls ?? 'on-box', id: o.id ? `${o.id}-${i}` : undefined, row: o.row }));
       }
 
       function buildStage(W, r, view) {
@@ -1469,7 +1893,12 @@
         const s = r.settings;
         const lw = g.xb - g.xa;
         const locked = view.phase === 'asking' || view.phase === 'playing';
+        const ghostRun = view.ghost ? M.run(view.ghost) : null;
+        const zr = s.zone ? null : M.run({ ...s, zone: 1 });
+        const P = planStage(g, r, hid, ghostRun);
         D.label = summary(r, hid);
+        D.meta.hid = hid;
+        D.meta.plan = P;
 
         // Header: Play, the title and the legend.
         D.hit('play', g.pad - 4, 4, 44, 44, { owner: 'play' });
@@ -1477,11 +1906,12 @@
         const titleX = g.pad + 46;
         const title = pick(['Requests through the tiers', 'Through the tiers'], (t) => titleX + tw(t, 'capB') <= W - g.pad);
         D.text(titleX, 31, [[title, 'capB']], { owner: 'title' });
+        const oneRow = LEGEND.reduce((a, it, i) => a + itemWidth(it) + (i ? 12 : 0), 0);
         let headerBottom;
-        if (titleX + tw(title, 'capB') + 20 + legendWidth() <= W - g.pad) {
-          drawLegend(D, W - g.pad - legendWidth(), 31, W - g.pad);
+        if (titleX + tw(title, 'capB') + 20 + oneRow <= W - g.pad) {
+          drawLegend(D, W - g.pad - oneRow, 31, oneRow);
           headerBottom = 46;
-        } else headerBottom = drawLegend(D, g.pad, 66, W - g.pad) + 8;
+        } else headerBottom = drawLegend(D, g.pad, 66, W - 2 * g.pad) + 8;
 
         // Traffic: the handle sets the offered rate on the shared axis; the stream starts at its width.
         const yL = headerBottom + 20;
@@ -1490,182 +1920,163 @@
         const unit = pick([' requests a second', ' requests/s', '/s'], (u) => valueX + tw(fn(s.traffic) + u, 'capB') <= W - g.pad);
         D.text(valueX, yL, [[fn(s.traffic) + unit, 'capB']], { owner: 'traffic', id: 'traffic-value' });
         const yT = yL + 30;
-        D.add('marks', `<line class="rail" x1="${g.x(0)}" y1="${yT}" x2="${r1(g.x(M.TRAFFIC[M.TRAFFIC.length - 1]))}" y2="${yT}"/><line class="rail-fill" x1="${g.x(0)}" y1="${yT}" x2="${r1(g.x(s.traffic))}" y2="${yT}"/>`);
+        const tMax = M.TRAFFIC[M.TRAFFIC.length - 1];
+        D.add('marks', `<line class="rail" x1="${g.x(0)}" y1="${yT}" x2="${r1(g.x(tMax))}" y2="${yT}"/><line class="rail-fill" x1="${g.x(0)}" y1="${yT}" x2="${r1(g.x(s.traffic))}" y2="${yT}"/>`);
         for (const t of M.TRAFFIC) if (t !== s.traffic) D.add('marks', `<circle class="stop" cx="${r1(g.x(t))}" cy="${yT}" r="1.5"/>`);
         D.hit('handle', r1(g.x(s.traffic) - 22), yT - 22, 44, 44, { owner: 'handle', label: 'Traffic, requests a second' });
-        D.mark({ x0: g.x(0) - 2, x1: g.x(M.TRAFFIC[M.TRAFFIC.length - 1]) + 2, y0: yT - 3, y1: yT + 3 }, 'handle');
+        D.mark({ x0: g.x(0) - 2, x1: g.x(tMax) + 2, y0: yT - 3, y1: yT + 3 }, 'handle');
         const yTick = yT + 33;
-        for (const v of [0, 10000, 20000].filter((v) => v <= M.AXIS_MAX)) {
-          const x = g.x(v);
-          D.text(x, yTick, [[fn(v), 'small']], { anchor: v ? 'middle' : 'start', owner: 'axis', data: ' data-xtick="1"' });
-        }
+        for (const v of TICKS) D.text(g.x(v), yTick, [[fn(v), 'small']], { anchor: v ? 'middle' : 'start', owner: 'axis', data: ' data-xtick="1"' });
         D.region('traffic', { x: g.pad, y: yL - 16, w: W - 2 * g.pad, h: yTick + 6 - (yL - 16) });
 
-        // The boxes, top to bottom, and the stream in the gaps between them. Each tier's lane sits at its box's top,
-        // where the stream pours in; its name, stepper and words follow.
+        // The boxes, top to bottom, with the stream in the gaps between them. Each block's lane sits at its top, where
+        // the stream pours in; its zones, name, steppers and words follow, packed top-down, the slack at the box's foot.
         let y = yTick + 10;
         const boxes = [];
         const gaps = [];
         const stubs = [];
-        const regionTop = {};
-        const subRegion = (id, end) => D.region(id, { x: g.pad + 6, y: regionTop[id] + 3, w: W - 2 * g.pad - 12, h: end + 8 - regionTop[id] - 3 });
-        const LANE_Y = 10;
-        const LANE_H = 22;
-        /** A tier's lane, header and status from `top`; returns the baseline of its last status line. */
         const block = (id, top, steps, stub) => {
-          drawLane(D, g, id, r[id], top + LANE_Y, LANE_H, r, hid, view);
-          if (stub !== null) stubs.push({ y0: top, y1: top + LANE_Y, flow: stub, id });
-          tierHeader(D, g, top + LANE_Y + LANE_H, pick(NAMES[id], (n) => tw(n, 'label') <= g.stepX - g.xa - 6), fleetForms(r, id, hid), steps, id);
-          const base = top + LANE_Y + LANE_H + 44 + 13;
-          drawLines(D, g.xa, base, flow(statusParts(r, id, hid, W >= 460), lw), id, { id: `cap-${id}` });
-          const end = base + (res[id] - 1) * LINE;
-          regionTop[id] = top;
-          if (id === 'lb' || id === 'app') D.region(id, { x: g.pad + 6, y: top + 3, w: W - 2 * g.pad - 12, h: end + 8 - top - 3 });
-          return end;
+          const b = P[id];
+          const laneY = top + LANE_Y;
+          drawLane(D, g, id, laneY, b.L, r, hid, view, zr);
+          if (stub !== null) stubs.push({ y0: top, y1: laneY, id });
+          drawStrip(D, g, id, laneY + LANE_H, b.L, r, hid);
+          const hTop = laneY + LANE_H + STRIP_H;
+          drawHeader(D, g, hTop, b.header, steps, id);
+          const base = hTop + b.header.h + 13;
+          drawLines(D, g.xa, base, b.status, id, { id: `cap-${id}`, row: id });
+          let last = base + (b.status.length - 1) * LINE;
+          if (b.conv.length) {
+            drawLines(D, g.xa, last + LINE, b.conv, id, { id: `conv-${id}`, row: id });
+            last += b.conv.length * LINE;
+          }
+          return last;
         };
+        const boxRegion = (id, top, bottom) => D.region(id, { x: g.pad - 4, y: top - 4, w: W - 2 * g.pad + 8, h: bottom - top + 8 });
+
         // Load balancers.
         const lbTop = y + g.gap;
-        gaps.push({ y0: y, y1: lbTop, flow: r.offered, next: r.lb, nextId: 'lb' });
-        let yy = block('lb', lbTop, [
+        gaps.push({ y0: y, y1: lbTop, flow: r.offered, shedNext: r.lb.shed, nextId: 'lb' });
+        block('lb', lbTop, [
           { id: 'lb', label: 'Fewer load balancers', disabled: locked || s.lb <= 1 },
           { id: 'lb', label: 'More load balancers', disabled: locked || s.lb >= M.LB_MAX },
-        ], r.lb.passed);
-        const lbBottom = yy + 12;
+        ], true);
+        const lbBottom = lbTop + res.lb + PAD_BOTTOM;
         boxes.push({ id: 'lb', top: lbTop, bottom: lbBottom });
 
         // App servers, with one server's worker pool.
         const appTop = lbBottom + g.gap;
-        gaps.push({ y0: lbBottom, y1: appTop, flow: r.lb.passed, next: r.app, nextId: 'app' });
-        yy = block('app', appTop, [
+        gaps.push({ y0: lbBottom, y1: appTop, flow: r.lb.passed, shedNext: r.app.shed, nextId: 'app' });
+        let yy = block('app', appTop, [
           { id: 'app', label: 'Fewer app servers', disabled: locked || s.app <= 1 },
           { id: 'app', label: 'More app servers', disabled: locked || s.app >= M.APP_MAX },
-        ], r.app.passed);
-        yy += LINE + 6;
-        // The pool: 100 workers on one server, in ten blocks of ten, named beside it; Little's law under it.
+        ], true);
+        // The pool: 100 workers on one server, in ten blocks of ten, named beside it (or above it where that does not
+        // fit); Little's law under it.
         const mw = meterWidth(g);
+        yy += LINE + 6;
+        if (!P.poolBeside) {
+          D.text(g.xa, yy, [[POOL_LABEL[1], 'label']], { owner: 'workers', textCls: 'on-box', row: 'app' });
+          yy += 15;
+        }
         const wTop = yy - 9;
         const hideW = hid.lanes.has('workers') || hid.lanes.has('app');
         const filled = r.app.up && !hideW ? Math.round((r.app.inFlight / M.WORKERS) * 100) : 0;
         const cellW = (mw - 9 * 2) / 10;
+        const critical = poolBinds(r) || (FAULT.name === 'meterCritical' && r.app.need > M.WORKERS + 1e-9);
+        const meterHeat = critical ? 'full' : heatOf(r.app.inFlight / M.WORKERS, false);
         for (let b = 0; b < 10; b++) {
           const bx = g.xa + b * (cellW + 2);
           D.add('lanes', rect(bx, wTop, cellW, 10, hideW ? 'lane-hidden' : 'meter-cell'));
           const f = Math.max(0, Math.min(10, filled - b * 10)) / 10;
-          if (f > 0) D.add('lanes', rect(bx, wTop, cellW * f, 10, `fill ${r.app.need > M.WORKERS + 1e-9 ? 'full' : heatOf(r.app.inFlight / M.WORKERS, false)}`, ' data-workers="1"'));
+          if (f > 0) D.add('fills', rect(bx, wTop, cellW * f, 10, `fill ${meterHeat}`, ' data-workers="1"'));
         }
         D.mark({ x0: g.xa, x1: g.xa + mw, y0: wTop, y1: wTop + 10 }, 'workers');
-        const wLabel = pick(['Workers on one server', 'Workers, one server', 'Workers'], (t) => g.xa + mw + 10 + tw(t, 'label') <= g.xb);
-        D.text(g.xa + mw + 10, yy, [[wLabel, 'label']], { owner: 'workers', textCls: 'on-box' });
+        if (P.poolBeside) D.text(g.xa + mw + 10, yy, [[POOL_LABEL[0], 'label']], { owner: 'workers', textCls: 'on-box', row: 'app' });
         yy += LINE + 2;
-        drawLines(D, g.xa, yy, flow(workerParts(r, hid), lw), 'workers', { id: 'workers' });
-        D.region('workers', { x: g.xa - 5, y: wTop - 4, w: lw + 10, h: res.workers * LINE + 26 });
-        yy += (res.workers - 1) * LINE;
-        const appBottom = yy + 12;
+        drawLines(D, g.xa, yy, P.pool, 'workers', { id: 'workers', row: 'app' });
+        D.region('workers', { x: g.xa - 6, y: wTop - 6 - (P.poolBeside ? 0 : 15), w: lw + 12, h: yy + (P.pool.length - 1) * LINE + 6 - (wTop - 6 - (P.poolBeside ? 0 : 15)) });
+        const appBottom = appTop + res.app + PAD_BOTTOM;
         boxes.push({ id: 'app', top: appTop, bottom: appBottom });
 
         // The database: the primary (machine size) and the replicas, one admission, then the cache line.
         const dbTop = appBottom + g.gap;
-        gaps.push({ y0: appBottom, y1: dbTop, flow: r.app.passed, next: { shed: r.primary.shed + r.replicas.shed }, nextId: 'db' });
+        gaps.push({ y0: appBottom, y1: dbTop, flow: r.app.passed, shedNext: r.primary.shed + r.replicas.shed, nextId: 'db' });
         yy = block('primary', dbTop, [
           { id: 'size', label: 'A smaller database machine', disabled: locked || s.size <= M.SIZES[0] },
           { id: 'size', label: 'A bigger database machine', disabled: locked || s.size >= M.SIZES[M.SIZES.length - 1] },
-        ], r.served);
-        yy += LINE;
-        drawLines(D, g.xa, yy, flow(costParts(r, 'primary'), lw), 'primary', { id: 'cost-primary' });
-        yy += (res.costP - 1) * LINE;
-        subRegion('primary', yy);
-        const repTop = yy + 10;
+        ], true);
+        D.region('primary', { x: g.pad + 6, y: dbTop + 4, w: W - 2 * g.pad - 12, h: yy + 8 - dbTop - 4 });
+        const repTop = yy + DIVIDER_GAP;
         D.add('lanes', `<line class="divider" x1="${g.xa}" y1="${repTop}" x2="${g.xb}" y2="${repTop}"/>`);
+        D.link(sampleLine(g.xa, repTop, g.xb, repTop, 4), 'divider');
         yy = block('replicas', repTop, [
           { id: 'replicas', label: 'Fewer read replicas', disabled: locked || s.replicas <= 0 },
           { id: 'replicas', label: 'More read replicas', disabled: locked || s.replicas >= M.REP_MAX },
-        ], null);
-        yy += LINE;
-        drawLines(D, g.xa, yy, flow(costParts(r, 'replicas'), lw), 'replicas', { id: 'cost-replicas' });
-        yy += (res.costR - 1) * LINE;
-        subRegion('replicas', yy);
+        ], true);
+        D.region('replicas', { x: g.pad + 6, y: repTop + 3, w: W - 2 * g.pad - 12, h: yy + 6 - repTop - 3 });
         yy += LINE + 6;
-        drawLines(D, g.xa, yy, flow(cacheParts(r), lw), 'cache', { id: 'cache' });
-        yy += (res.cache - 1) * LINE;
-        const dbBottom = yy + 12;
+        drawLines(D, g.xa, yy, P.cache, 'cache', { id: 'cache', row: 'db' });
+        const dbBottom = dbTop + res.db + PAD_BOTTOM;
         boxes.push({ id: 'db', top: dbTop, bottom: dbBottom });
 
         // Served: the stream that leaves the database, and the totals.
         const sinkTop = dbBottom + g.gap;
-        gaps.push({ y0: dbBottom, y1: sinkTop, flow: r.served, next: null, nextId: 'sink' });
+        gaps.push({ y0: dbBottom, y1: sinkTop, flow: r.served, shedNext: 0, nextId: 'sink' });
         D.add('lanes', rect(g.xa, sinkTop, lw, 6, 'sink-track', ' rx="3"') + (r.served > 0 ? rect(g.xa, sinkTop, g.x(r.served) - g.xa, 6, 'sink', ' rx="3"') : ''));
         D.mark({ x0: g.xa, x1: g.xb, y0: sinkTop, y1: sinkTop + 6 }, 'sink');
-        let ys = sinkTop + 6 + 22;
-        flow(sinkParts(r, hid), lw).forEach((ln, i) => D.text(g.xa, ys + i * 20, ln, { owner: 'sink', id: `sink-${i}` }));
-        ys += (res.sink - 1) * 20;
-        D.region('sink', { x: g.xa - 6, y: sinkTop - 6, w: lw + 12, h: ys + 8 - sinkTop + 6 });
-        const footY = ys + 22;
-        flow([[FOOTNOTE, 'small']], lw + 12).forEach((ln, i) => D.text(g.xa - 6, footY + i * 15, ln, { owner: 'foot' }));
-        const H = Math.round(footY + (res.foot - 1) * 15 + 12);
+        const ys = sinkTop + 6 + 22;
+        P.sink.forEach((ln, i) => D.text(g.xa, ys + i * 20, ln, { owner: 'sink', id: `sink-${i}` }));
+        const sinkEnd = ys + res.sink;
+        D.region('sink', { x: g.xa - 8, y: sinkTop - 8, w: lw + 16, h: sinkEnd + 10 - sinkTop + 8 });
+        const H = Math.round(sinkEnd + 22);
 
-        // Boxes behind their text; the bottleneck's box in the critical tone.
+        // Boxes behind their text; the bottleneck's box in the critical tone, never while a lane hides.
         for (const b of boxes) {
           const bottleneck = !hid.any && r.shed > 1e-9 && (b.id === r.bottleneck || (b.id === 'db' && (r.bottleneck === 'primary' || r.bottleneck === 'replicas')));
           D.add('boxes', rect(g.pad, b.top, W - 2 * g.pad, b.bottom - b.top, `tier-box${bottleneck ? ' bottleneck' : ''}`, ' rx="10"'));
-          if (b.id === 'db') D.region('db', { x: g.pad + 2, y: b.top + 2, w: W - 2 * g.pad - 4, h: b.bottom - b.top - 4 });
+          boxRegion(b.id, b.top, b.bottom);
         }
         D.meta.boxes = boxes;
 
-        // The stream: in each gap, what flows on (current) and, at its right, what the next tier will shed (critical).
+        // The stream: in each gap, what flows on (current) and, at its right, what the next tier will shed (critical,
+        // ending on the box's edge with an underline). A × sits there only as the landing point of a play's particles.
+        const playMarks = !!view.particles || !!view.ringAtRest;
         for (const gp of gaps) {
           const x1 = g.x(gp.flow);
-          const shedNext = gp.next && gp.next.shed > 1e-9 ? gp.next.shed : 0;
+          const shedNext = gp.shedNext > 1e-9 ? gp.shedNext : 0;
           const xPass = g.x(gp.flow - shedNext);
           if (gp.flow > 0) D.add('band', rect(g.xa, gp.y0, xPass - g.xa, gp.y1 - gp.y0, 'band', ` data-band="${gp.nextId}"`) + `<line class="band-edge" x1="${r1(xPass)}" y1="${gp.y0}" x2="${r1(xPass)}" y2="${gp.y1}"/>`);
-          // Strands, one per 1,000 requests a second, so a stream's width reads as a count of strands.
           const strands = [];
-          for (let v = 1000; v < gp.flow - 1e-9; v += 1000) strands.push(`M${r1(g.x(v))} ${gp.y0}V${gp.y1}`);
+          for (let v = g.strand; v < gp.flow - 1e-9; v += g.strand) strands.push(`M${r1(g.x(v))} ${gp.y0}V${gp.y1}`);
           if (strands.length) D.add('band', `<path class="strand" d="${strands.join('')}"/>`);
+          gp.xMark = null;
           if (shedNext) {
             D.add('band', rect(xPass, gp.y0, x1 - xPass, gp.y1 - gp.y0, 'band-shed', ` data-band-shed="${gp.nextId}"`) + `<line class="band-shed-edge" x1="${r1(xPass)}" y1="${gp.y1 - 1}" x2="${r1(x1)}" y2="${gp.y1 - 1}"/>`);
-            if (x1 - xPass >= 4) xGlyph(D, (xPass + x1) / 2, gp.y1 - 9, `gap-${gp.nextId}`, 3.5);
+            gp.xMark = Math.max((xPass + x1) / 2, xPass + 4);
+            if (playMarks) xGlyph(D, gp.xMark, gp.y1 - 11, `gap-${gp.nextId}`, 3.5);
           }
-          D.meta.gaps.push({ y0: gp.y0, y1: gp.y1, x0: g.xa, x1, xPass, nextId: gp.nextId });
+          D.meta.gaps.push({ y0: gp.y0, y1: gp.y1, x0: g.xa, x1, xPass, nextId: gp.nextId, xMark: gp.xMark });
           gp.mark = { x0: g.xa, x1: Math.max(x1, g.xa) + 4, y0: gp.y0, y1: gp.y1 };
-
         }
 
-        // Inside each box the stream pours into the lane: what the tier takes, down to the lane's top. Within a tier
-        // the load balancer spreads it, so it lands as one tooth on each instance's load (none on a hidden lane).
-        for (const st of stubs) for (const [x0, w] of D.meta.lanes?.[st.id]?.fills ?? []) if (w > 0.2) D.add('lanes', rect(x0, st.y0 + 0.5, w, st.y1 - st.y0 - 0.5, 'band stub'));
-        // Requests in flight while a play runs: dots in the gaps, as many as the rate there, red where they will be shed.
+        // Inside each box the stream pours into the lane: one tooth on each instance's load, as the load balancer
+        // spreads it (none on a hidden lane); the replicas take theirs from the divider, as every admitted request also
+        // sends its reads there.
+        for (const st of stubs) for (const [x0, w] of D.meta.lanes[st.id]?.fills ?? []) if (w > 0.2) D.add('lanes', rect(x0, st.y0 + 0.5, w, st.y1 - st.y0 - 0.5, 'band stub', ` data-tooth="${st.id}"`));
         if (view.particles) drawParticles(D, g, gaps, view);
-        // The climax: the tier that filled first, ringed where its limit is.
-        if (view.climax && D.meta.lanes?.[view.climax]) {
-          const L = D.meta.lanes[view.climax];
-          D.add('top', `<circle class="landing-ground" cx="${r1(L.x1)}" cy="${r1(L.y + L.h / 2)}" r="16"/><circle class="landing" cx="${r1(L.x1)}" cy="${r1(L.y + L.h / 2)}" r="16"/>`);
+        // The climax: a ring around the gap's × above the tier that first sheds (a stream mark, never a lane), or, with
+        // nothing shed, in the gap above the busiest lane's end.
+        if (view.climax) {
+          const gapId = view.climax === 'primary' || view.climax === 'replicas' ? 'db' : view.climax;
+          const gp = D.meta.gaps.find((x) => x.nextId === gapId);
+          const lane = D.meta.lanes[view.climax];
+          const cx = FAULT.name === 'ringOver' && lane ? lane.x1 : gp?.xMark ?? lane?.x1;
+          const cy = FAULT.name === 'ringOver' && lane ? lane.y + lane.h / 2 : gp ? gp.y1 - 11 : null;
+          if (cx !== undefined && cx !== null && cy !== null) D.add('top', `<circle class="landing" data-ring="${FAULT.name === 'ringOver' ? 'lane' : 'gap'}" cx="${r1(cx)}" cy="${r1(cy)}" r="9"/>`);
         }
-        // The stream's path takes no label or tag.
         for (const gp of gaps) D.mark(gp.mark, 'stream');
-        // Ghosts: where a lane's limit was before the last change, so a change reads as a move.
-        if (view.ghost && !hid.ghost) drawGhosts(D, g, r, M.run(view.ghost), hid);
-        D.meta.hid = hid;
         return { D, H, g };
-      }
-
-      function drawGhosts(D, g, r, before, hid) {
-        for (const id of ['lb', 'app', 'primary', 'replicas']) {
-          const L = D.meta.lanes?.[id];
-          const old = before[id].ceiling;
-          if (!L || hid.lanes.has(id) || !Number.isFinite(old) || old <= 0 || old > M.AXIS_MAX || Math.abs(old - r[id].ceiling) < 0.5) continue;
-          const x = r1(g.x(old));
-          D.add('top', `<line class="ghost-tick" x1="${x}" y1="${L.y - 5}" x2="${x}" y2="${L.y + L.h + 5}" data-ghost="${id}"/>`);
-          D.link([[x, L.y - 5], [x, L.y + L.h + 5]], `ghost-${id}`);
-          D.place(
-            [
-              [x + 6, L.y + L.h / 2 + 4],
-              [x - 6, L.y + L.h / 2 + 4, 'end'],
-              [x, L.y + L.h + 27, 'middle'],
-            ],
-            [[`was ${fq(old)}`, 'small']],
-            { owner: `ghost-${id}`, optional: true, textCls: 'on-box', maxX: g.stepX - 4 },
-          );
-        }
       }
 
       /** Seeded so a frame always draws the same dots. */
@@ -1678,14 +2089,14 @@
           return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
         };
       }
-      // One dot for every 1,500 requests a second in each gap's 24 px, so dot counts follow the model's rates (at most 56).
+      // One dot for every 1,500 requests a second in each gap's 24 px, so dot counts follow the model's rates (at most 60).
       function drawParticles(D, g, gaps, view) {
         const rnd = mulberry32(view.seed ?? 7);
         const placed = [];
         const R = 2.5;
         let total = 0;
         for (const gp of gaps) {
-          const shedNext = gp.next && gp.next.shed > 1e-9 ? gp.next.shed : 0;
+          const shedNext = gp.shedNext > 1e-9 ? gp.shedNext : 0;
           const n = Math.round((gp.flow / 1500) * ((gp.y1 - gp.y0) / 24));
           const x1 = g.x(gp.flow);
           const xPass = g.x(gp.flow - shedNext);
@@ -1703,7 +2114,8 @@
         D.meta.particles = total;
       }
 
-      // ---------- Focus outlines with their "Look here" tag on the first free place (prevention 5).
+      // ---------- Focus outlines, 4 px outside a box's border (or inside it for a block), with their "Look here" tag on
+      // the first free place (prevention 5); regions in one box merge into one outline with one tag.
       function focusOutlines(D, ids, H) {
         const TAG = { w: 72, h: 16 };
         for (const id of ids) {
@@ -1712,11 +2124,11 @@
             const yy = Math.max(3, b.y);
             const w = Math.min(D.W - 3, b.x + b.w) - x;
             const h = Math.min(H - 3, b.y + b.h) - yy;
-            D.add('top', `<rect class="focus-outline" x="${r1(x)}" y="${r1(yy)}" width="${r1(w)}" height="${r1(h)}" rx="10"/>`);
+            D.add('top', `<rect class="focus-outline" data-focus="${id}" x="${r1(x)}" y="${r1(yy)}" width="${r1(w)}" height="${r1(h)}" rx="12"/>`);
             const across = [];
             for (let ax = x + w - TAG.w - 16; ax >= x + 16; ax -= 8) across.push(ax);
             const xs = [x + w - TAG.w - 16, x + 16, ...across, x + w - TAG.w, D.W - 3 - TAG.w];
-            const ys = [yy - TAG.h / 2, yy + h - TAG.h / 2, yy + 4, yy + h - TAG.h - 4, yy + 24, yy + h - TAG.h - 24, yy + 44, yy - TAG.h - 2, yy + h + 2];
+            const ys = [yy - TAG.h / 2, yy + h - TAG.h / 2, yy + 6, yy + h - TAG.h - 6, yy + 24, yy + h - TAG.h - 24, yy + 44, yy - TAG.h - 2, yy + h + 2];
             let placed = false;
             for (const [tx, ty] of ys.flatMap((t) => xs.map((sx) => [sx, t]))) {
               const box = { x0: tx, x1: tx + TAG.w, y0: ty, y1: ty + TAG.h };
@@ -1755,8 +2167,7 @@
         challenge: { exp: 5, phase: 'challenge' },
       };
       const actSettings = (spec) => ({ ...spec.setup, ...(spec.act?.set ?? {}) });
-      const LANE_IDS = ['lb', 'app', 'primary', 'replicas', 'workers'];
-      /** The lanes an act changes: their limit, load, instances or binding differ between the setup and the act. */
+      /** The lanes an act changes: their limit, load, instances or shed differ between the setup and the act. */
       function changedLanes(a, b) {
         const out = [];
         for (const id of ['lb', 'app', 'primary', 'replicas']) {
@@ -1767,14 +2178,23 @@
         if (Math.abs(a.app.inFlight - b.app.inFlight) > 1e-9 || a.app.need !== b.app.need) out.push('workers');
         return out;
       }
+      /** The climax of a ramp: the tier that is first full, at the stop where it fills. */
+      function rampClimax(s, from, at) {
+        const plan = M.rampPlan(s, from, at);
+        return plan.climax >= 0 && plan.stops[plan.climax] === at ? plan.full : null;
+      }
+      /** Reduced motion's ring: the first tier to shed on the way up, or the busiest when none does. */
+      function restRing(s) {
+        const plan = M.rampPlan(s, M.TRAFFIC[0], s.traffic);
+        return plan.full ?? busiestOf(M.run(s))[0]?.id ?? null;
+      }
       function viewOf(name) {
         const st = STATES[name] ?? STATES.default;
         const expParam = params.get('exp');
         const expIdx = expParam !== null && st.exp !== undefined ? Number(expParam) - 1 : st.exp;
         if (expIdx === undefined) {
           const v = { s: st.s, hide: [], phase: 'rest', ghost: st.ghost ?? null, describe: !!st.describe, reduced: !!st.reduced };
-          // Reduced motion: Play draws the setting at rest with the first tier to fill ringed, and says the ramp in words.
-          if (st.reduced) v.climax = M.rampPlan(st.s, M.TRAFFIC[0], st.s.traffic).full;
+          if (st.reduced) Object.assign(v, { climax: restRing(st.s), ringAtRest: true });
           if (st.ramp) return { ...v, s: { ...st.s, traffic: st.ramp.at }, particles: true, climax: rampClimax(st.s, st.ramp.from, st.ramp.at), rampTo: st.s.traffic };
           return v;
         }
@@ -1783,11 +2203,9 @@
         const phase = params.get('phase') === 'playing' && st.phase === 'asking' ? 'playing' : st.phase;
         return expView(spec, phase, Number(params.get('frac') ?? 0.8));
       }
-      /** The climax of a ramp: the tier that is first full, ringed at the stop where it fills. */
-      function rampClimax(s, from, at) {
-        const plan = M.rampPlan(s, from, at);
-        return plan.climax >= 0 && plan.stops[plan.climax] === at ? plan.full : null;
-      }
+      /** Where the stage is brought, 8 px under the app's header, in the one-column layout: the box whose lanes the play
+       * changes first, with the stream gap above it; at the reveal, the first focus region. */
+      const PLAY_ANCHOR = { tenfold: 'app', cache: 'db', replay: 'db', zone: 'lb', slow: 'app' };
       /** One experiment's view: asking (from whatever setting came before, which must leave no trace), the answer's play
        * at a fraction of its clock, revealed, or the challenge met or at its start. */
       function expView(spec, phase, frac = 0.8, from = null) {
@@ -1809,39 +2227,64 @@
           chosen: e.answer === 0 ? 1 : 0,
           focus: phase === 'revealed' ? spec.focus : [],
           changed: changedLanes(a, b),
+          totalsChange: Math.abs(a.served - b.served) > 1e-9 || Math.abs(a.shed - b.shed) > 1e-9,
           ghost: phase === 'asking' ? from : phase === 'revealed' ? spec.setup : null,
+          anchor: phase === 'revealed' ? spec.focus[0] : PLAY_ANCHOR[spec.id],
         };
         if (phase === 'asking') return { ...view, s: spec.setup };
         if (phase === 'playing') {
           if (spec.act.run === 'ramp') {
             const stops = M.rampPlan(spec.setup, spec.setup.traffic, after.traffic).stops;
             const at = stops[Math.min(stops.length - 1, Math.floor(frac * stops.length))];
-            return { ...view, s: { ...after, traffic: at }, particles: true, seed: at, climax: null };
+            // The ring lands on the gap's × above the tier that sheds first, at its stop (a stream mark, never a lane).
+            return { ...view, s: { ...after, traffic: at }, particles: true, seed: at, climax: rampClimax(spec.setup, spec.setup.traffic, at) };
           }
-          return { ...view, s: after, particles: true, seed: Math.round(frac * 100) + 3 };
+          const climax = frac >= 0.5 && b.shed > 1e-9 && a.shed <= 1e-9 ? b.bottleneck : null;
+          return { ...view, s: after, particles: true, seed: Math.round(frac * 100) + 3, climax };
         }
         return { ...view, s: after };
       }
       window.expView = expView;
 
       // ---------- The page around the stage.
+      const HINTS = { cache: () => [`${M.formatPct(M.HIT * 100)} hit`], zone: () => [FAULT.name === 'toggleHint' ? 'a third lost' : 'one zone of three'], slow: () => [`${M.formatMs(M.SLOW_MS)} a request`, M.formatMs(M.SLOW_MS)] };
       function controlsHtml(r, view) {
         const s = r.settings;
         const locked = view.phase === 'asking' || view.phase === 'playing';
-        const toggle = (on, label, hint) => `<label class="segment"><input type="checkbox" ${on ? 'checked' : ''}/><span>${label}<small>${hint}</small></span></label>`;
+        const toggle = (on, label, hints) => {
+          const [long, short = long] = hints;
+          const hint = long === short ? esc(long) : `<i class="hint-long">${esc(long)}</i><i class="hint-short">${esc(short)}</i>`;
+          return `<label class="segment"><input type="checkbox" ${on ? 'checked' : ''}/><span><b class="chk" aria-hidden="true">✓</b>${label}<small>${hint}</small></span></label>`;
+        };
         return `<fieldset class="group conditions-control"${locked ? ' disabled' : ''}><legend class="control-label">Conditions</legend><div class="toggles">
-${toggle(s.cache, 'Cache reads', `${M.formatPct(M.HIT * 100)} hit`)}
-${toggle(s.zone, 'Zone A down', 'a third lost')}
-${toggle(s.slow, 'Slow queries', `${M.formatMs(M.SLOW_MS)} each`)}</div></fieldset>
+${toggle(s.cache, 'Cache reads', HINTS.cache())}
+${toggle(s.zone, 'Zone A down', HINTS.zone())}
+${toggle(s.slow, 'Slow queries', HINTS.slow())}</div></fieldset>
 <p class="notice" aria-live="polite" aria-atomic="true">${esc(noticeOf(r, view))}</p>`;
       }
       function noticeOf(r, view) {
         if (view.phase === 'asking' || view.phase === 'playing') return 'Play and the settings this question is about wait for your answer.';
         if (view.reduced) return rampStory(r.settings, M.TRAFFIC[0]);
+        if (view.phase === 'rest' && view.ghost) return `${changeLine(view.ghost, r.settings)} ${summary(r)}`;
         return summary(r);
       }
       const ICON_RIGHT = '<svg class="mark" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="var(--g-success-line)"/><path d="M6 10.2l2.6 2.6 5.2-5.6" fill="none" stroke="var(--g-surface)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
       const ICON_WRONG = '<svg class="mark" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="var(--g-danger)"/><path d="M7 7l6 6M13 7l-6 6" fill="none" stroke="var(--g-surface)" stroke-width="2" stroke-linecap="round"/></svg>';
+      /** Where zone A's loss sheds: every tier that sheds, each with its own amount. */
+      function zoneLine(r, z) {
+        const sheds = [
+          ['lb', z.lb.shed],
+          ['app', z.app.shed],
+          [z.binding, z.primary.shed + z.replicas.shed],
+        ].filter(([, v]) => v > 1e-9);
+        if (FAULT.name === 'zoneSum' && sheds.length) return `zone A lost: ${fq(z.shed)} shed at ${tierWord(z, sheds[0][0])}: not yet`;
+        if (sheds.length === 1 && (sheds[0][0] === 'lb' || sheds[0][0] === 'app')) {
+          const t = z[sheds[0][0]];
+          const left = t.up === 1 ? `the one left sheds ${fq(sheds[0][1])}` : `the ${t.up} left shed ${fq(sheds[0][1])}`;
+          return `zone A lost: it held ${t.lost} of ${t.n} ${NOUN[sheds[0][0]][1]}; ${left}: not yet`;
+        }
+        return `zone A lost: ${joinAnd(sheds.map(([id, v], i) => `${fq(v)}${i ? '' : ' shed'} at ${tierWord(z, id)}`))}: not yet`;
+      }
       /** The challenge's status, each bound in the ask's own terms and its state in words (the house goalParts). */
       function goalChecks(r) {
         const m = M.metrics(r);
@@ -1852,19 +2295,17 @@ ${toggle(s.slow, 'Slow queries', `${M.formatMs(M.SLOW_MS)} each`)}</div></fields
         const zoneOk = m.zoneShed < 1;
         const few = r.machines <= b.machines;
         const z = m.zone;
-        const where = z.lanes.find((t) => t.shed > 1e-9) ?? (z.primary.outage ? z.primary : null);
+        const headroom =
+          r.shed > 1e-9
+            ? 'headroom: the busiest tier is full, so none: not yet'
+            : r.maxUtil >= 1 - 1e-9
+              ? 'headroom: the busiest tier is 100% busy, so none: not yet'
+              : `headroom: the busiest tier ${fp(r.maxUtil)} busy leaves ${fp(1 - r.maxUtil)}, at least ${M.formatPct(b.headroom)}: ${said(room)}`;
         return [
           { met: served, text: served ? `served: all ${fq(r.offered)}: met` : `served: ${fq(r.served)} of ${fq(r.offered)}, ${fq(r.shed)} shed: not yet` },
-          { met: room, text: `headroom: the busiest tier ${fp(r.maxUtil)} busy leaves ${fp(1 - r.maxUtil)}, at least ${M.formatPct(b.headroom)}: ${said(room)}` },
-          {
-            met: zoneOk,
-            text: zoneOk
-              ? 'zone A lost: nothing shed: met'
-              : z.primary.outage
-                ? 'zone A lost: the primary falls with it, and no replica takes over: not yet'
-                : `zone A lost: ${fq(m.zoneShed)} shed at ${tierWord(where?.id ?? z.bottleneck)}: not yet`,
-          },
-          { met: few, text: `machines: ${r.machines}, at most ${b.machines}: ${said(few)}` },
+          { met: room, text: headroom },
+          { met: zoneOk, text: zoneOk ? 'zone A lost: nothing shed: met' : z.primary.outage ? 'zone A lost: the primary falls with it, and no replica takes over: not yet' : zoneLine(r, z) },
+          { met: few, text: `machines: ${r.machines}${r.settings.cache ? `, the cache’s ${M.CACHE_NODES} nodes among them` : ''}, at most ${b.machines}: ${said(few)}` },
         ];
       }
       function dockHtml(r, view) {
@@ -1890,29 +2331,48 @@ ${toggle(s.slow, 'Slow queries', `${M.formatMs(M.SLOW_MS)} each`)}</div></fields
           })
           .join('');
         if (view.phase === 'playing') return `<p class="legend">${esc(e.ask)}</p><ul class="options">${marked}</ul><p class="held">Watch the picture: the answer plays out on it.</p>`;
-        return `<p class="legend">${esc(e.ask)}</p><ul class="options">${marked}</ul><p class="reveal" aria-live="polite" aria-atomic="true">${esc(e.reveal)}</p>`;
+        return `<p class="legend">${esc(e.ask)}</p><ul class="options">${marked}</ul><p class="reveal" aria-live="polite" aria-atomic="true">${esc(e.reveal)}</p><p class="back"><a href="#well">See it on the picture</a></p>`;
       }
       function cardsHtml(view) {
         return `<h3 class="heading"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8zM19 14l.9 2.6 2.6.9-2.6.9L19 21l-.9-2.6-2.6-.9 2.6-.9z"/></svg>Experiments</h3>
 <ol class="cards">${M.EXPERIMENTS.map((s, i) => `<li><button class="card-btn"${view.exp && view.exp.id === s.id ? ' aria-current="step"' : ''}><span class="num">${s.goal ? '⚑' : i + 1}</span><span>${esc(M.renderExperiment(s).title)}</span></button></li>`).join('')}</ol>`;
       }
-      // Describe: a row per tier, and one for the whole path; compact under a 560 px stage.
+      // Describe: a row per tier, and one for the whole path; compact (five columns, the count in the tier's cell) under
+      // a 560 px stage.
       function describeRows(r, compact) {
-        const head = compact ? ['Tier', 'Up', 'Limit/s', 'In/s', 'Busy', 'Shed/s'] : ['Tier', 'Up', 'Limit', 'Arriving', 'Busy', 'Shed'];
+        const head = compact ? ['Tier', 'Limit/s', 'In/s', 'Busy', 'Shed/s'] : ['Tier', 'Up', 'Limit', 'Arriving', 'Busy', 'Shed'];
         const q = (v) => (compact ? fn(v) : fq(v));
-        const name = compact ? { lb: 'LBs', app: 'App', primary: 'Primary', replicas: 'Replicas' } : NAME;
-        const up = (t, n) => (t.lost ? `${t.up} of ${n}` : `${t.up}`);
-        const rows = [];
-        const tierRow = (id) => {
+        const SHORT = { lb: 'LBs', app: 'App', primary: 'Primary', replicas: 'Replicas' };
+        const none = compact ? '0' : 'none';
+        const busy = (id) => {
           const t = r[id];
-          if (id === 'replicas' && !t.up) return [name[id], t.n ? `0 of ${t.n}` : '0', '–', '–', '–', '–'];
-          if (id === 'primary' && t.outage) return [name[id], compact ? 'lost' : 'lost', '0', q(t.arriving), compact ? '–' : 'none left', q(t.shed + r.replicas.shed)];
-          const n = id === 'primary' ? 1 : t.n;
-          return [name[id], id === 'primary' ? (t.promoted ? (compact ? '1*' : '1, promoted') : '1') : up(t, n), q(t.ceiling), q(t.arriving), `${M.formatPct(t.util * 100)}`, t.shed > 1e-9 ? q(t.shed) : compact ? '0' : 'none'];
+          if (t.shed > 1e-9) return FAULT.name === 'fullBusy' ? '100%' : 'full';
+          return loadOf(r, id) <= 0 ? 'idle' : M.formatPct(t.util * 100);
         };
-        for (const id of ['lb', 'app', 'primary', 'replicas']) rows.push({ id, cells: tierRow(id) });
-        rows.push({ id: 'all', cells: [compact ? 'Path' : 'Whole path', `${r.machines}`, q(Math.min(r.lb.ceiling, r.app.ceiling, r.dbCeiling)), q(r.offered), '', r.shed > 1e-9 ? q(r.shed) : compact ? '0' : 'none'], total: true });
-        return { head, rows, note: compact && r.primary.promoted ? '1*: a replica promoted to primary.' : null };
+        const rows = [];
+        for (const id of ['lb', 'app', 'primary', 'replicas']) {
+          const t = r[id];
+          let up;
+          let cells;
+          if (id === 'replicas' && !t.up) {
+            up = t.n ? `0 of ${t.n}` : '0';
+            cells = ['–', '–', '–', '–'];
+          } else if (id === 'primary' && t.outage) {
+            up = 'lost';
+            cells = ['0', q(t.arriving), 'lost', q(t.shed)];
+          } else {
+            up = id === 'primary' ? (t.promoted ? (compact ? '1*' : '1, promoted') : '1') : t.lost ? `${t.up} of ${t.n}` : `${t.n}`;
+            cells = [q(t.ceiling), q(loadOf(r, id) && id !== 'lb' && id !== 'app' ? r.dbArriving : t.arriving), busy(id), t.shed > 1e-9 ? q(t.shed) : none];
+          }
+          rows.push({ id, cells: compact ? [`${SHORT[id]} ${up}`, ...cells] : [NAME[id], up, ...cells] });
+        }
+        const pathCells = [q(Math.min(r.lb.ceiling, r.app.ceiling, r.dbCeiling)), q(r.offered), '', r.shed > 1e-9 ? q(r.shed) : none];
+        rows.push({ id: 'all', cells: compact ? ['Path', ...pathCells] : ['Whole path', `${r.machines}`, ...pathCells], total: true });
+        const notes = [];
+        if (compact) notes.push(`${r.machines} machines in all${r.settings.cache ? `, the cache’s ${M.CACHE_NODES} nodes among them` : ''}.`);
+        else if (r.settings.cache) notes.push(`The cache’s ${M.CACHE_NODES} nodes count among the ${r.machines} machines.`);
+        if (compact && r.primary.promoted) notes.push('1*: a replica promoted to primary.');
+        return { head, rows, note: notes.join(' ') || null };
       }
       function describeHtml(r, view, compact) {
         const waits = view.phase === 'asking' || view.phase === 'playing' || (view.phase === 'challenge' && !view.met);
@@ -1938,18 +2398,19 @@ ${toggle(s.slow, 'Slow queries', `${M.formatMs(M.SLOW_MS)} each`)}</div></fields
             out.push(
               `<div class="handle hit" role="slider" tabindex="0" data-owner="handle" aria-label="${esc(h.label)}" aria-valuemin="${M.TRAFFIC[0]}" aria-valuemax="${M.TRAFFIC[M.TRAFFIC.length - 1]}" aria-valuenow="${r.offered}" aria-valuetext="${fn(r.offered)} requests a second"${asking ? ' aria-disabled="true"' : ''} style="left:${h.x}px;top:${h.y}px"><span class="knob"></span></div>`,
             );
-          else if (h.kind === 'step') out.push(`<button class="step hit" data-owner="${h.owner}" style="left:${h.x}px;top:${h.y}px" aria-label="${esc(h.label)}"${h.disabled ? ' disabled' : ''}><span aria-hidden="true">${h.glyph}</span></button>`);
+          else if (h.kind === 'step') out.push(`<button class="step hit" data-owner="${h.owner}" style="left:${h.x}px;top:${h.y}px" aria-label="${esc(h.label)}" aria-describedby="${h.describedby}"${h.disabled ? ' disabled' : ''}><span aria-hidden="true">${h.glyph}</span></button>`);
         }
         return out.join('');
       }
+      const tierLines = (r, hid) => ['lb', 'app', 'primary', 'replicas'].map((id) => `<p id="tier-${id}">${esc(tierLine(r, id, hid))}</p>`).join('');
 
-      function render(name) {
-        const view = viewOf(name);
+      function renderView(view) {
         const r = M.run(view.s);
+        const hid = hiding(view);
         const root = document.getElementById('widget');
         root.innerHTML = `<div class="controls">${controlsHtml(r, view)}</div>
-<div class="main"><div class="stage" role="group" aria-roledescription="visualization" aria-label="Capacity: requests flowing through load balancers, app servers and a database"><div class="well" id="well"></div></div>
-${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${esc(rampStory(r.settings, M.TRAFFIC[0]))}</p>` : ''}<div class="describe" id="describe"></div></div>
+<div class="main"><div class="stage" role="group" aria-roledescription="visualization" aria-label="Capacity: requests flowing through load balancers, app servers and a database"><div class="well" id="well"></div><div class="sr-only">${tierLines(r, hid)}</div></div>
+${view.reduced ? `<p class="caption">${esc(rampStory(r.settings, M.TRAFFIC[0]))}</p>` : ''}<p class="foot">${esc(FOOTNOTE)}</p><div class="describe" id="describe"></div></div>
 <div class="experiments"><section class="dock" aria-label="Experiment">${dockHtml(r, view)}</section>${cardsHtml(view)}</div>`;
         const well = document.getElementById('well');
         const W = well.clientWidth;
@@ -1961,10 +2422,11 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${esc(ramp
         window.__stage = { W, H, missingTags: D.missingTags ?? 0, summary: D.label, missing: D.missing };
         return { W, H, D, view, r };
       }
+      const render = (name) => renderView(viewOf(name));
 
       // ---------- Collisions, measured from the rendered DOM: text on text, lines through text, marks under text,
       // off-stage text, dots on dots, text in the stream's path, hit boxes on hit boxes, axis labels closer than 6 px,
-      // text against a focus outline's stroke, and labels and tags with no place.
+      // text within 6 px of a focus outline's stroke, and labels and tags with no place.
       const sampleLine = (x1, y1, x2, y2, step = 2) => {
         const n = Math.max(2, Math.ceil(Math.hypot(x2 - x1, y2 - y1) / step));
         return Array.from({ length: n + 1 }, (_, i) => [x1 + ((x2 - x1) * i) / n, y1 + ((y2 - y1) * i) / n]);
@@ -1989,7 +2451,7 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${esc(ramp
         const xt = texts.filter((t) => t.el.hasAttribute('data-xtick')).sort((a, b) => a.x0 - b.x0);
         for (let i = 1; i < xt.length; i++) if (xt[i].x0 - xt[i - 1].x1 < 6) out.push(`axis labels ${xt[i - 1].s} and ${xt[i].s} ${(xt[i].x0 - xt[i - 1].x1).toFixed(1)} px apart`);
         const inside = (p, t) => p.x > t.x0 + 0.5 && p.x < t.x1 - 0.5 && p.y > t.y0 + 0.5 && p.y < t.y1 - 0.5;
-        for (const el of svg.querySelectorAll('.gridline, .band-edge, .band-shed-edge, .ghost-tick, .rail, .rail-fill, .break-line')) {
+        for (const el of svg.querySelectorAll('.gridline, .band-edge, .band-shed-edge, .ghost-tick, .rail, .rail-fill, .zone-tick, .lane-cap, .xfer, .xfer-tail, .divider, .zone-line')) {
           const o = owners(el);
           const [x1, y1, x2, y2] = el.tagName === 'line' ? ['x1', 'y1', 'x2', 'y2'].map((a) => Number(el.getAttribute(a))) : [0, 0, 0, 0];
           const pts = el.tagName === 'line' ? sampleLine(x1, y1, x2, y2).map(([x, y]) => ({ x, y })) : Array.from({ length: Math.ceil(el.getTotalLength() / 2) + 1 }, (_, i) => el.getPointAtLength(i * 2));
@@ -2018,10 +2480,20 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${esc(ramp
           for (const t of texts) {
             if (t.owner.includes('look')) continue;
             const inner = t.x0 >= x + 3 && t.x1 <= x + w - 3 && t.y0 >= y + 3 && t.y1 <= y + h - 3;
-            const clear = t.x1 <= x - 4 || t.x0 >= x + w + 4 || t.y1 <= y - 4 || t.y0 >= y + h + 4;
-            if (!inner && !clear) out.push(`text at an outline's stroke: "${t.s}"`);
+            const clear = t.x1 <= x - 6 || t.x0 >= x + w + 6 || t.y1 <= y - 6 || t.y0 >= y + h + 6;
+            if (!inner && !clear) out.push(`text within 6 px of an outline's stroke: "${t.s}"`);
           }
         }
+        // Outlines in one picture keep 8 px apart.
+        const outlines = [...svg.querySelectorAll('rect.focus-outline')].map((o) => ['x', 'y', 'width', 'height'].map((a) => Number(o.getAttribute(a))));
+        for (let i = 0; i < outlines.length; i++)
+          for (let j = i + 1; j < outlines.length; j++) {
+            const [ax, ay, aw, ah] = outlines[i];
+            const [bx, by, bw, bh] = outlines[j];
+            const apart = Math.max(bx - (ax + aw), ax - (bx + bw), by - (ay + ah), ay - (by + bh));
+            const nested = (bx > ax + 8 && by > ay + 8 && bx + bw < ax + aw - 8 && by + bh < ay + ah - 8) || (ax > bx + 8 && ay > by + 8 && ax + aw < bx + bw - 8 && ay + ah < by + bh - 8);
+            if (apart < 8 && !nested) out.push(`two focus outlines ${apart.toFixed(1)} px apart`);
+          }
         const wb = well.getBoundingClientRect();
         const hits = [...well.querySelectorAll('.hit')].map((h) => {
           const b = h.getBoundingClientRect();
@@ -2054,15 +2526,47 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${esc(ramp
       const unplaced = (D) => [...(D.missingTags ? [`${D.missingTags} focus tag(s) without a place`] : []), ...(D.missing ?? []).map((t) => `no room for "${t}"`)];
 
       // ---------- What must hold on every render, beyond collisions (the layout spec's assertions).
-      // A hidden value is never replaced by a wrong default, nothing past its limit is called busy, and every count
-      // keeps its separator.
-      const FALSE_CLAIMS = [/NaN/, /undefined/, /Infinity/, /(^|[^\d.,])0(\.0)?% busy/, /\b(10[1-9]|1[1-9]\d|[2-9]\d\d)(\.\d)?% busy/, /\b100\.\d% busy/, /(^|[^\d,])\d{4,}(?!\d)/, /\b1 (load balancers|app servers|replicas|machines)\b/, /\ba 8,000\b/, /shed here, the bottleneck.*shed here, the bottleneck/];
+      // A hidden value is never replaced by a wrong default, nothing past its limit is called busy, every count keeps its
+      // separator, and no toggle hint claims a share lost that the setting does not lose.
+      const FALSE_CLAIMS = [
+        /NaN/,
+        /undefined/,
+        /Infinity/,
+        /(^|[^\d.,])0(\.0)?% busy/,
+        / at 0(\.0)?%/,
+        /\b(10[1-9]|1[1-9]\d|[2-9]\d\d)(\.\d)?% busy/,
+        /\b100\.\d% busy/,
+        /(^|[^\d,])\d{4,}(?!\d)/,
+        /\b1 (load balancers|app servers|replicas|machines)\b/,
+        /\ba 8,000\b/,
+        /\b0 are served/,
+        /leaves 0%/,
+        /\b(a third|half) lost\b/,
+        /[Ff]rom ([\d,]+) to \1 /,
+      ];
+      /** A number of 1,000 or more on the stage stands with its unit: never "2 × 8,000" beside lanes in requests. */
+      const UNITLESS = /(?<![\d,.])\d{1,3}(?:,\d{3})+(?![\d,]|\/s| queries| requests| a second| workers| reads| writes)/;
       const stageText = (well) => [...well.querySelectorAll('text')].map((t) => t.textContent).join(' | ') + ' | ' + [...well.querySelectorAll('[aria-label],[aria-valuetext]')].map((e) => `${e.getAttribute('aria-label')} ${e.getAttribute('aria-valuetext') ?? ''}`).join(' | ');
+      /** Every word of the widget's HTML that a learner reads or hears: toggles, notice, stage, its hidden lines, captions,
+       * Describe and the dock, with accessible names. */
+      function widgetText() {
+        const w = document.getElementById('widget');
+        return `${w.textContent} | ${[...w.querySelectorAll('[aria-label],[aria-valuetext]')].map((e) => `${e.getAttribute('aria-label')} ${e.getAttribute('aria-valuetext') ?? ''}`).join(' | ')}`;
+      }
+      function htmlFindings() {
+        const text = widgetText();
+        return FALSE_CLAIMS.filter((g) => g.test(text)).map((g) => `false claim in the page ${g}: ${text.match(g)[0]}`);
+      }
+      const near = (a, b, eps = 0.5) => Math.abs(a - b) <= eps;
       function assertions(well, D, r, view) {
         const out = [];
         const svg = well.querySelector('svg.draw');
+        const hid = D.meta.hid;
         const text = stageText(well);
         for (const g of FALSE_CLAIMS) if (g.test(text)) out.push(`false claim ${g}: ${text.match(g)[0]}`);
+        const drawn = [...svg.querySelectorAll('text:not([data-xtick])')].map((t) => t.textContent);
+        for (const t of drawn) if (UNITLESS.test(t)) out.push(`a number with no unit: "${t}"`);
+        if (r.primary.outage && /takes every read/.test(text + D.label)) out.push('a lost primary is said to take reads');
         // Little's law multiplies out as printed: workers in flight = rate x time.
         const wt = [...svg.querySelectorAll('[data-id^="workers-"]')].map((t) => t.textContent).join(' ');
         const x = wt.match(/^([\d.,]+) of 100 busy: ([\d,.]+)\/s × ([\d,]+) ms/);
@@ -2070,28 +2574,73 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${esc(ramp
           const [L, rate, ms] = [x[1], x[2], x[3]].map((v) => Number(v.replace(/,/g, '')));
           if (Math.abs(L - (rate * ms) / 1000) > (0.5 * ms) / 1000 + 0.051) out.push(`Little's law does not multiply out: ${wt}`);
         }
-        // Each lane's drawn end is its limit, its shed block ends where the stream above it does, and the served bar is the
-        // stream that leaves.
+        // The pool turns critical only when all 100 workers are in flight and they are the limit.
+        if (svg.querySelector('[data-workers].full') && !(near(r.app.inFlight, M.WORKERS, 1e-6) && r.app.bound === 'workers')) out.push('the pool is critical while the CPU is the limit');
+        // Each lane's drawn end is its limit; it draws one segment per instance up, each filled to the tier's
+        // utilization; its shed block ends where the stream above it does; the served bar is the stream that leaves.
         const g = geometry(D.W);
-        for (const [id, L] of Object.entries(D.meta.lanes ?? {})) {
+        for (const [id, L] of Object.entries(D.meta.lanes)) {
           const t = r[id];
-          if (Math.abs(L.x1 - Math.min(g.xb, g.x(t.ceiling))) > 0.6) out.push(`${id}'s lane ends off its limit`);
+          if (L.kind !== 'normal') continue;
+          if (!near(L.x1, g.x(t.ceiling), 0.6)) out.push(`${id}'s lane ends off its limit`);
+          const segs = svg.querySelectorAll(`[data-seg="${id}"]`).length;
+          const up = id === 'primary' ? 1 : t.up;
+          if (segs !== up) out.push(`${id} draws ${segs} segments for ${up} instances up`);
+          for (const f of svg.querySelectorAll(`[data-fill="${id}"]`)) if (!near(Number(f.getAttribute('width')), Number(f.getAttribute('data-segw')) * Math.min(1, t.util), 0.5)) out.push(`${id}'s fill is not its utilization of its segment`);
           const blk = svg.querySelector(`[data-shed="${id}"]`);
-          if (blk && Math.abs(Number(blk.getAttribute('x')) + Number(blk.getAttribute('width')) - g.x(t.arriving)) > 0.6) out.push(`${id}'s shed block ends off what arrived`);
-          if (!blk && t.shed > 1e-9 && !D.meta.hid.lanes.has(id)) out.push(`${id} sheds with no block`);
+          if (blk && !near(Number(blk.getAttribute('x')) + Number(blk.getAttribute('width')), g.x(t.arriving), 0.6)) out.push(`${id}'s shed block ends off what arrived`);
+          if (!blk && t.shed > 1e-9) out.push(`${id} sheds with no block`);
+          // Zone A's group is drawn where the limit that survives zone A ends, and a lost group is as large as the loss.
+          if (L.zones && !r.settings.zone && (id === 'lb' || id === 'app')) {
+            const a = L.zones.find((z) => z.zone === 'A');
+            const z = M.run({ ...r.settings, zone: 1 })[id];
+            if (a && !near(a.x0, g.x(z.ceiling), 0.6)) out.push(`${id}'s zone A group starts off the limit that survives it`);
+          }
+          if (r.settings.zone && !hid.zones && id !== 'primary') {
+            const lost = svg.querySelectorAll(`[data-lost="${id}"]`).length;
+            const want = M.zoneLane(id, t.n, true).lost.length;
+            if (lost !== want) out.push(`${id} draws ${lost} lost instances for ${want} in zone A`);
+          }
+        }
+        // Every fleet's per-instance figure is the model's at the drawn setting; a hidden tier's fleet shows none.
+        for (const id of ['lb', 'app', 'replicas']) {
+          const f = [...svg.querySelectorAll(`[data-id^="fleet-${id}"]`)].map((t) => t.textContent).join(' ');
+          const m = f.match(/× ([\d,]+)(\/s| queries\/s)/);
+          if (hid.lanes.has(id) && m) out.push(`${id}'s fleet shows a per-instance figure while hidden: ${f}`);
+          else if (m) {
+            const v = Number(m[1].replace(/,/g, ''));
+            const want = id === 'replicas' ? r.settings.size : r[id].each;
+            if (!near(v, want, 0.5)) out.push(`${id}'s fleet says ${m[1]} each where the model says ${fn(want)}`);
+          }
         }
         const sink = svg.querySelector('rect.sink');
-        if (sink && Math.abs(Number(sink.getAttribute('width')) - (g.x(r.served) - g.xa)) > 0.6) out.push('the served bar is not what is served');
-        // Captions keep within their reserved lines (the stage's height depends on its width alone).
+        if (sink && !near(Number(sink.getAttribute('width')), g.x(r.served) - g.xa, 0.6)) out.push('the served bar is not what is served');
+        // Dashes mean "hidden" and nothing else.
+        if (svg.querySelector('.lane-hidden') && !hid.lanes.size) out.push('a dashed lane while nothing hides');
+        // A ring never covers a mark it points at: none on a segment or a shed block.
+        for (const c of svg.querySelectorAll('.landing')) {
+          const cx = Number(c.getAttribute('cx'));
+          const cy = Number(c.getAttribute('cy'));
+          const rr = Number(c.getAttribute('r')) + 1;
+          for (const m of svg.querySelectorAll('[data-seg], [data-shed]')) {
+            const [mx, my, mw, mh] = ['x', 'y', 'width', 'height'].map((a) => Number(m.getAttribute(a)));
+            if (cx + rr > mx && cx - rr < mx + mw && cy + rr > my && cy - rr < my + mh) {
+              out.push('the climax ring covers a lane');
+              break;
+            }
+          }
+        }
+        // Every ghost carries its old limit in words: beside its tick, or in its block's status or conversion.
+        for (const gh of D.meta.ghosts) if (!gh.labelled) out.push(`${gh.id}'s ghost has no label`);
+        // Text in a box stacks tightly: the slack collects at the box's foot, never between two blocks.
+        for (const [box, ys] of Object.entries(D.meta.rows)) {
+          const s = [...ys].sort((a, b) => a - b);
+          for (let i = 1; i < s.length; i++) if (s[i] - s[i - 1] > 2 * LINE + 6 + 0.5) out.push(`a ${Math.round(s[i] - s[i - 1])} px hole between lines in ${box}`);
+        }
+        // Boxes hold their content within the reserve (the stage's height depends on its width alone).
         const res = reserve(D.W);
-        const lw = g.xb - g.xa;
-        for (const id of ['lb', 'app', 'primary', 'replicas']) if (flow(statusParts(r, id, D.meta.hid, D.W >= 460), lw).length > res[id]) out.push(`${id}'s status runs past its reserved lines`);
-        if (flow(workerParts(r, D.meta.hid), g.xb - g.xa).length > res.workers) out.push("the workers' line runs past its reserved lines");
-        if (flow(costParts(r, 'primary'), lw).length > res.costP) out.push("the primary's cost runs past its reserved lines");
-        if (flow(costParts(r, 'replicas'), lw).length > res.costR) out.push("the replicas' cost runs past its reserved lines");
-        if (flow(cacheParts(r), lw).length > res.cache) out.push('the cache line runs past its reserved lines');
-        if (flow(sinkParts(r, D.meta.hid), lw).length > res.sink) out.push('the totals run past their reserved lines');
-        // Particles: as many as the rate allows, red only where the next tier sheds.
+        for (const k of ['lb', 'app', 'db', 'sink']) if (D.meta.plan.content[k] > res[k] + 0.5) out.push(`${k}'s content runs past its reserved height`);
+        // Particles: red only where the next tier sheds.
         for (const c of svg.querySelectorAll('circle.dot.doomed')) {
           const cx = Number(c.getAttribute('cx'));
           const cy = Number(c.getAttribute('cy'));
@@ -2133,7 +2682,8 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${esc(ramp
             for (const mode of modes) {
               const view = { s, hide: [], phase: 'rest' };
               if (mode === 'ramp') Object.assign(view, { particles: true, seed: s.traffic + s.app, climax: rampClimax(s, M.TRAFFIC[0], s.traffic) });
-              if (mode === 'ghost') view.ghost = { ...s, app: s.app > 1 ? s.app - 1 : 2, cache: 1 - s.cache };
+              if (mode === 'ghost') view.ghost = { ...s, lb: s.lb % M.LB_MAX + 1, app: s.app > 1 ? s.app - 1 : 2, cache: 1 - s.cache, replicas: (s.replicas + 1) % (M.REP_MAX + 1) };
+              if (mode === 'reduced') Object.assign(view, { climax: restRing(s), ringAtRest: true });
               const { D } = drawInto(well, W, r, view);
               const out = check(well, D, r, view);
               res.renders++;
@@ -2156,7 +2706,15 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${esc(ramp
               const r = M.run(view.s);
               const { D } = drawInto(well, W, r, view);
               const out = check(well, D, r, view);
-              if (phase === 'revealed' && !well.querySelector('rect.tag')) out.push('the reveal has no Look here tag');
+              if (phase === 'revealed') {
+                if (!well.querySelector('rect.tag')) out.push('the reveal has no Look here tag');
+                // Every lane whose limit the act moved shows the move: a ghost at the setup's limit, with its label.
+                const a = M.run(spec.setup);
+                for (const id of ['lb', 'app', 'primary', 'replicas']) {
+                  if (D.meta.lanes[id]?.kind !== 'normal' || !Number.isFinite(a[id].ceiling) || Math.abs(a[id].ceiling - r[id].ceiling) < 0.5) continue;
+                  if (!D.meta.ghosts.some((gh) => gh.id === id && gh.labelled)) out.push(`the reveal moves ${id}'s limit with no labelled ghost`);
+                }
+              }
               res.renders++;
               if (out.length) res.failures.push({ W, exp: k + 1, phase: `${phase}${frac !== undefined ? ` ${frac}` : ''}`, out: out.slice(0, 4) });
             }
@@ -2173,22 +2731,55 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${esc(ramp
         const { D } = drawInto(well, W, r, view);
         return check(well, D, r, view);
       };
+      /** Where the one-column layout brings the stage for a play and a reveal, and whether what it must show fits in a
+       * phone's view (650 px, 56 of them the app's header): the play's anchor box, the lanes it changes and its rings,
+       * and every focus region at the reveal. */
+      window.anchorFit = function (widths, view = 650) {
+        const well = document.getElementById('well');
+        const out = [];
+        for (const W of widths) {
+          well.style.width = W + 2 + 'px';
+          for (const spec of M.EXPERIMENTS.filter((e) => !e.goal))
+            for (const phase of ['playing', 'revealed']) {
+              const v = expView(spec, phase, 0.95);
+              const { D } = drawInto(well, W, M.run(v.s), v);
+              if (phase === 'revealed') focusOutlines(D, v.focus, 4000);
+              const box = phase === 'playing' ? D.meta.boxes.find((b) => b.id === v.anchor) : null;
+              const reg = phase === 'revealed' ? D.regions[v.anchor]?.[0] : null;
+              const top = (box ? box.top : reg.y + 4) - geometry(W).gap;
+              const from = top - 8;
+              const to = from + view - 56;
+              const need = [];
+              if (box) {
+                need.push([box.id, box.top, box.bottom]);
+                for (const id of v.changed.filter((id) => id !== 'workers')) if (D.meta.lanes[id]) need.push([id, D.meta.lanes[id].y, D.meta.lanes[id].y + LANE_H]);
+                const gp = D.meta.gaps.find((x) => x.xMark !== null && x.nextId !== 'sink');
+                if (gp) need.push([`gap ${gp.nextId}`, gp.y0, gp.y1]);
+              } else for (const id of v.focus) for (const rg of D.regions[id] ?? []) need.push([id, rg.y, rg.y + rg.h]);
+              const missing = need.filter(([, a, b]) => a < from - 0.5 || b > to + 0.5).map(([id, a, b]) => `${id} ${Math.round(a)}-${Math.round(b)}`);
+              out.push({ W, exp: spec.id, phase, from: Math.round(from), to: Math.round(to), missing });
+            }
+        }
+        well.style.width = '';
+        return out;
+      };
 
       // ---------- The no-answer sweep: while a question asks and while its answer plays, no rendered text, accessible
-      // name or structure may hold its answer or a false claim (prevention 1 and 2). Each question is entered from the
-      // settings every act leads to and from the challenge's solution, so nothing a learner did before can carry an answer in.
+      // name, hidden line or structure may hold its answer or a false claim (prevention 1 and 2). Each question is entered
+      // from the settings every act leads to and from the challenge's solution, so nothing a learner did before can carry
+      // an answer in.
       const ANSWERS = (() => {
         const e = M.EXPERIMENTS.map((s) => M.renderExperiment(s));
         const sl = (i, k) => M.formatSlot(e[i].slots[k]);
         return {
-          tenfold: [sl(0, 'dbLimit'), 'bottleneck', 'Full', /limit [\d,]+/, /[\d.]+% busy/, /[\d,]+\/s (shed|spare)/],
-          cache: [sl(1, 'after'), sl(1, 'afterRound'), sl(1, 'ratio'), '0.38'],
-          replay: [sl(2, 'after'), sl(2, 'afterRound'), sl(2, 'limitAfter'), '900'],
+          tenfold: ['bottleneck', '÷ 2', /= 4,000 requests/, /limit (was )?4,000 requests/, /Served 4,000/, /4,000 requests a second/],
+          cache: [sl(1, 'after'), sl(1, 'afterRound'), sl(1, 'ratio'), '0.38', '21,053'],
+          replay: [sl(2, 'after'), sl(2, 'afterRound'), '32,653', '900', /replay/i],
           zone: [sl(3, 'shed') + ' shed', sl(3, 'appLimit'), sl(3, 'appOver'), 'Full', 'bottleneck'],
-          slow: [sl(4, 'served'), sl(4, 'perServer'), sl(4, 'cpu'), sl(4, 'shed'), 'workers bind', 'Full'],
+          slow: [sl(4, 'served'), sl(4, 'perServer'), sl(4, 'cpu'), sl(4, 'shed'), 'workers bind', 'Full', 'would need'],
         };
       })();
-      function structural(well, spec, phase, view) {
+      function structural(well, view) {
         const out = [];
         const svg = well.querySelector('svg.draw');
         if (!well.querySelector('.play')?.disabled) out.push('Play is enabled');
@@ -2200,18 +2791,28 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${esc(ramp
             if (svg.querySelector('[data-workers]')) out.push('the worker pool fills while hidden');
             continue;
           }
-          if (svg.querySelector(`[data-fill="${id}"], [data-writes="${id}"], [data-shed="${id}"], [data-ghost="${id}"]`)) out.push(`${id}'s lane shows a load, a shed or a ghost while hidden`);
+          if (svg.querySelector(['fill', 'writes', 'shed', 'ghost', 'zonetick', 'split', 'target', 'tooth', 'lost'].map((k) => `[data-${k}="${id}"]`).join(', '))) out.push(`${id}'s lane shows a load, a shed, a zone or a ghost while hidden`);
           const cap = [...svg.querySelectorAll(`[data-id^="cap-${id}-"]`)].map((t) => t.textContent).join(' ');
-          if (/\d/.test(cap.replace(/^\?% busy/, ''))) out.push(`${id}'s caption shows a number: ${cap}`);
+          if (/\d/.test(cap.replace(/^\?% busy/, ''))) out.push(`${id}'s status shows a number: ${cap}`);
+          const conv = [...svg.querySelectorAll(`[data-id^="conv-${id}-"]`)].map((t) => t.textContent).join(' ');
+          if (/=|÷/.test(conv)) out.push(`${id}'s conversion shows while hidden: ${conv}`);
+          if (id === 'primary' && svg.querySelector('[data-xfer]')) out.push("the primary's conversion arrow shows while hidden");
+          const fleet = [...svg.querySelectorAll(`[data-id^="fleet-${id}"]`)].map((t) => t.textContent).join(' ');
+          if ((id === 'lb' || id === 'app') && /×/.test(fleet)) out.push(`${id}'s fleet shows a per-instance figure while hidden: ${fleet}`);
         }
         if (hid.totals && !/^Served \?/i.test(svg.querySelector('[data-id="sink-0"]')?.textContent ?? '')) out.push('the served total shows');
         if (hid.any && svg.querySelector('.tier-box.bottleneck')) out.push('a bottleneck box while hidden');
-        if (phase === 'asking' && svg.querySelector('.ghost-tick, [data-owner^="ghost-"]')) out.push('a ghost of an earlier setting while the question asks');
-        if (hid.lanes.size && svg.querySelector('.landing')) out.push('the climax ring while lanes are hidden');
+        if (view.phase === 'asking' && svg.querySelector('.ghost-tick, [data-owner^="ghost-"]')) out.push('a ghost of an earlier setting while the question asks');
+        if (svg.querySelector('.landing:not([data-ring="gap"])')) out.push('a climax ring on a lane');
+        if (hid.replay && (svg.querySelector('[data-writes="replicas"]') || /replay/i.test(stageText(well)))) out.push("the replicas' replayed writes show while E3 asks");
+        if (hid.zones && svg.querySelector('[data-zone], [data-lost], [data-zonetick]')) out.push('the zones show while E4 asks');
+        if (hid.any && svg.querySelector('[data-zonetick]')) out.push('an "if zone A fails" tick during a question');
         return out;
       }
-      function giveaways(well, spec, phase) {
-        const text = stageText(well);
+      function giveaways(well, spec, view) {
+        const r = M.run(view.s);
+        const hid = hiding(view);
+        const text = `${stageText(well)} | ${['lb', 'app', 'primary', 'replicas'].map((id) => tierLine(r, id, hid)).join(' | ')} | ${summary(r, hid)}`;
         const out = [];
         for (const g of [...(ANSWERS[spec.id] ?? []), ...FALSE_CLAIMS]) if (typeof g === 'string' ? text.includes(g) : g.test(text)) out.push(`"${g}"`);
         return out;
@@ -2230,32 +2831,135 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${esc(ramp
               drawInto(well, W, M.run(view.s), view);
               renders++;
               const where = `W${W} ${spec.id} ${phase}${frac !== null ? ` ${frac}` : ''}${from ? ` from ${show(from)}` : ''}`;
-              for (const g of [...giveaways(well, spec, phase), ...structural(well, spec, phase, view)]) out.push(`${where}: ${g}`);
+              for (const g of [...giveaways(well, spec, view), ...structural(well, view)]) out.push(`${where}: ${g}`);
             }
           }
         }
         well.style.width = '';
         return { renders, out };
       };
-      // Plants leaks on copies of views to prove the sweep catches each: E1 asked without `limits` (its limits show),
-      // E2 played without `after` (the database's new limit shows), E3 asked with the ghost of four replicas, and E5
-      // played with the worker pool left out of the hidden lanes.
+      // Plants leaks on copies of views to prove the sweep catches each: E1 asked with nothing hidden (the database's
+      // limit shows), E2 played without `after` (its new limit shows), E3 asked with the ghost of four replicas, E5 played
+      // with the pool left out of the hidden lanes, E5 played with the app fleet's per-server figure shown, and E3 asked
+      // with the replicas' replayed writes shown.
       window.plantedLeaks = function (W) {
         const well = document.getElementById('well');
         well.style.width = W + 2 + 'px';
         const caught = [];
-        const tryLeak = (id, phase, patch, from = null) => {
+        const tryLeak = (name, id, phase, patch, from = null, fault = null) => {
           const spec = M.EXPERIMENTS.find((e) => e.id === id);
-          const view = { ...expView(spec, phase, 0.8, from), ...patch };
+          const honest = expView(spec, phase, 0.8, from);
+          const view = { ...honest, ...patch };
+          FAULT.name = fault;
           drawInto(well, W, M.run(view.s), view);
-          caught.push(giveaways(well, spec, phase).length + structural(well, spec, phase, expView(spec, phase, 0.8, from)).length > 0);
+          const found = giveaways(well, spec, view).length + structural(well, honest).length;
+          FAULT.name = null;
+          caught.push([name, found > 0]);
         };
-        tryLeak('tenfold', 'asking', { hide: [] });
-        tryLeak('cache', 'playing', { hide: [] });
-        tryLeak('replay', 'asking', { leakGhost: true }, { ...M.SETUP.replay, size: 4000, replicas: 4 });
-        tryLeak('slow', 'playing', { changed: ['lb'] });
+        tryLeak('E1 asked with nothing hidden', 'tenfold', 'asking', { hide: [] });
+        tryLeak('E2 played without after', 'cache', 'playing', { hide: [] });
+        tryLeak('E3 asked with a ghost of four replicas', 'replay', 'asking', { leakGhost: true }, { ...M.SETUP.replay, replicas: 4 });
+        tryLeak('E5 played with the pool shown', 'slow', 'playing', { changed: ['lb'] });
+        tryLeak("E5 played with the fleet's per-server figure", 'slow', 'playing', {}, null, 'fleetEach');
+        tryLeak("E3 asked with the replicas' replay shown", 'replay', 'asking', {}, null, 'replay');
         well.style.width = '';
         return caught;
+      };
+      /** The page words of one setting against the false-claim and grammar rules. */
+      function wordFindings(s) {
+        const r = M.run(s);
+        const out = [];
+        const sum = summary(r);
+        const story = rampStory(s, M.TRAFFIC[0]);
+        const lines = ['lb', 'app', 'primary', 'replicas'].map((id) => tierLine(r, id, NO_HIDE));
+        const prose = [sum, story, ...lines];
+        const desc = [true, false].map((c) => describeRows(r, c));
+        const checks = goalChecks(r).map((g) => g.text);
+        const statuses = ['lb', 'app', 'primary', 'replicas'].map((id) => statusParts(r, id, NO_HIDE).map((p) => p[0]).join(''));
+        const all = [...prose, ...desc.map((d) => `${d.rows.flatMap((x) => x.cells).join(' ')} ${d.note ?? ''}`), ...checks, ...statuses];
+        for (const w of all) for (const g of FALSE_CLAIMS) if (g.test(w)) out.push(`${g} in "${w}"`);
+        for (const w of prose) {
+          if (/(^|[.!?] )\d/.test(w)) out.push(`a sentence opens on a numeral: "${w}"`);
+          const m = w.match(/\b(\d+) (load balancer|app server|replica|machine)\b(?!s)/);
+          if (m && m[1] !== '1') out.push(`a plural without its s: "${w}"`);
+          if (/No tier .* at 100%/.test(w) || /No tier filled/.test(w)) out.push(`"no tier" beside a full one: "${w}"`);
+        }
+        if (r.replicas.up === 1 && /busy each|read replicas (are|came|is)|at [\d.]+% each/.test(`${sum} ${story} ${statuses[3]}`)) out.push(`"each" or a plural with one replica: "${sum}"`);
+        if (r.shed <= 1e-9) {
+          const top = busiestOf(r);
+          const lead = sum.split(' the busiest')[0];
+          if (top.length > 1) for (const t of top) if (!lead.includes(tierWord(r, t.id).replace(/^the /, ''))) out.push(`a tie leaves out ${t.id}: "${sum}"`);
+        }
+        if (r.primary.outage && /takes every read/.test(`${sum} ${statuses.join(' ')}`)) out.push(`a lost primary takes reads: "${statuses[3]}"`);
+        for (const d of desc)
+          d.rows.forEach((row, i) => {
+            const id = row.id;
+            if (id === 'all') return;
+            const busyCell = row.cells[row.cells.length - 2];
+            if (r[id].shed > 1e-9 && busyCell !== 'full' && !(id === 'primary' && r.primary.outage)) out.push(`Describe calls a shedding ${id} "${busyCell}"`);
+          });
+        const m = M.metrics(r);
+        if (m.zoneShed >= 1 && !m.zone.primary.outage) {
+          const line = checks[2];
+          const printed = [...line.matchAll(/([\d,]+)\/s/g)].reduce((a, x) => a + Number(x[1].replace(/,/g, '')), 0);
+          if (!near(printed, m.zoneShed, 1)) out.push(`the zone line's amounts sum to ${printed}, not ${fn(m.zoneShed)}: "${line}"`);
+          const z = m.zone;
+          for (const [id, v] of [['lb', z.lb.shed], ['app', z.app.shed], [z.binding, z.primary.shed + z.replicas.shed]])
+            if (v > 1e-9 && !(line.includes(`${fq(v)}`) && line.includes(NOUN[id === 'primary' ? 'replicas' : id]?.[1].split(' ').pop() ?? 'primary'))) {
+              if (!(id === 'primary' && line.includes('primary'))) out.push(`the zone line leaves out ${id}'s ${fq(v)}: "${line}"`);
+            }
+        }
+        return out;
+      }
+      window.pageWords = function (stride = 7) {
+        const out = [];
+        for (let i = 0; i < ALL.length; i += stride) for (const f of wordFindings(ALL[i])) out.push(`${show(ALL[i])}: ${f}`);
+        return out;
+      };
+      /** Each new rule against its own planted bug: the rule must report it. */
+      window.plantedFaults = function (W = 252) {
+        const well = document.getElementById('well');
+        const out = [];
+        const layout = (name, view) => {
+          well.style.width = W + 2 + 'px';
+          FAULT.name = name;
+          const r = M.run(view.s);
+          const { D } = drawInto(well, W, r, view);
+          const found = check(well, D, r, view);
+          FAULT.name = null;
+          well.style.width = '';
+          out.push([name, found.length > 0, found[0] ?? '']);
+        };
+        const words = (name, s) => {
+          FAULT.name = name;
+          const found = wordFindings(s);
+          FAULT.name = null;
+          out.push([name, found.length > 0, found[0] ?? '']);
+        };
+        const rest = (s, extra = {}) => ({ s, hide: [], phase: 'rest', ...extra });
+        layout('segments', rest(B));
+        layout('fillRatio', rest(B));
+        layout('meterCritical', rest({ ...B, traffic: 20000 }));
+        layout('primaryReads', rest(STATES.outage.s));
+        layout('fleetEach', rest({ ...M.SETUP.slow, slow: 1 }));
+        layout('unitless', rest(B));
+        layout('dashedNone', rest({ ...B, replicas: 0 }));
+        layout('ringOver', rest(B, { climax: restRing(B), ringAtRest: true }));
+        layout('ghostLabel', rest({ ...B, cache: 1 }, { ghost: B }));
+        words('eachOne', { ...B, replicas: 1 });
+        words('atZero', { traffic: 6000, lb: 1, app: 4, size: 8000, replicas: 2, cache: 0, zone: 1, slow: 0 });
+        words('fullBusy', B);
+        words('fromTo', { ...B, traffic: 1000 });
+        words('zoneSum', { ...M.SETUP.challenge, lb: 2, app: 1 });
+        words('tie', M.SETUP.replay);
+        words('noTier100', { traffic: 1000, lb: 1, app: 5, size: 8000, replicas: 2, cache: 1, zone: 0, slow: 1 });
+        words('primaryReads', STATES.outage.s);
+        FAULT.name = 'toggleHint';
+        renderView(viewOf('default'));
+        out.push(['toggleHint', htmlFindings().length > 0, htmlFindings()[0] ?? '']);
+        FAULT.name = null;
+        renderView(viewOf(params.get('state') ?? 'default'));
+        return out;
       };
       window.heights = function (widths, stride = 97) {
         const out = {};
@@ -2285,36 +2989,40 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${esc(ramp
         return out;
       };
       window.widgetHeight = () => document.getElementById('widget').getBoundingClientRect().height;
-      // Every summary, notice, ramp story, Describe row and goal check a setting prints, for the false-claim and grammar
-      // rules.
-      const WORD_RULES = [...FALSE_CLAIMS, /(^|[.!?] )\d/, /\b(\d+) (load balancer|app server|replica|machine)\b(?!s)/];
-      window.pageWords = function (stride = 7) {
-        const out = [];
-        for (let i = 0; i < ALL.length; i += stride) {
-          const s = ALL[i];
-          const r = M.run(s);
-          const prose = [summary(r), rampStory(s, M.TRAFFIC[0])];
-          const words = [...prose, ...[true, false].map((c) => describeRows(r, c).rows.flatMap((x) => x.cells).join(' ')), ...goalChecks(r).map((g) => g.text)];
-          for (const w of words)
-            for (const g of WORD_RULES.filter((g) => prose.includes(w) || g !== WORD_RULES[FALSE_CLAIMS.length])) {
-              const m = w.match(g);
-              if (m && !(g.source.includes('(load balancer') && m[1] === '1')) out.push(`${show(s)}: ${g} in "${w}"`);
+      /** The stage's top for every combination of the three conditions: one value, so a toggle never moves the picture. */
+      window.conditionTops = function () {
+        const tops = new Set();
+        for (const cache of [0, 1])
+          for (const zone of [0, 1])
+            for (const slow of [0, 1]) {
+              renderView({ s: { ...B, cache, zone, slow }, hide: [], phase: 'rest' });
+              tops.add(Math.round(document.querySelector('.stage').getBoundingClientRect().top * 10) / 10);
             }
-        }
-        return out;
+        renderView(viewOf(params.get('state') ?? 'default'));
+        return [...tops];
       };
+      /** Describe's table scrolls inside its box only when it must: at phone widths it fits. */
+      window.describeFits = function () {
+        renderView({ s: STATES.zone.s, hide: [], phase: 'rest', describe: true });
+        const box = document.querySelector('.table-box');
+        const fits = box ? box.scrollWidth <= box.clientWidth + 0.5 : true;
+        renderView(viewOf(params.get('state') ?? 'default'));
+        return fits;
+      };
+      window.renderState = (name) => renderView(viewOf(name));
 
       const stateName = params.get('state') ?? 'default';
       Promise.all([
         document.fonts.load('600 11px "Inter Variable"'),
         document.fonts.load('500 13px "Inter Variable"'),
         document.fonts.load('600 13px "Inter Variable"'),
+        document.fonts.load('500 11px "Inter Variable"'),
         document.fonts.load('700 11px "Inter Variable"'),
         document.fonts.load('600 17px "JetBrains Mono Variable"'),
       ]).then(() => {
         const first = render(stateName);
         const well = document.getElementById('well');
-        const issues = check(well, first.D, first.r, first.view);
+        const issues = [...check(well, first.D, first.r, first.view), ...htmlFindings()];
         render(stateName);
         window.__collisions = issues;
         document.body.dataset.ready = '1';

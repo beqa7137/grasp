@@ -447,7 +447,7 @@
       truth: 'served',
       reveal:
         '{served}, a fifth: requests in flight equal throughput times time (Little’s law). Each server’s {workers} workers hold at most {workers} requests at once, and at {slow} each that is {perServer}; {appN} servers serve {served}. The other {shed} are shed at the app servers while their CPUs sit {cpu} busy: waiting on the database used up the workers in front of it. An autoscaler watching CPU sees {cpu} and adds nothing: scale and load-test on pool saturation and latency. Serving {traffic} at {slow} needs {need} requests in flight. Set timeouts, fix the lock contention, and shed load early rather than only growing the pool.',
-      focus: ['app', 'workers'],
+      focus: ['app'],
       hide: ['after'],
       slots: () => {
         const a = run(SETUP.slow);
