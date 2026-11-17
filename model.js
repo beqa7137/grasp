@@ -233,16 +233,29 @@
   const SWEEP_MS = 5200;
   const HOLD_MS = 1100;
   /**
-   * A free play holds on the first event of each kind the year has (absorbed, failover, shared, outage), in time order;
-   * an answer's play holds on its new setting's rest moment only, its climax. Returns the holds and a monotone map from
+   * A free play holds on the first event of each kind the year has (absorbed, failover, shared, outage), in time order.
+   * An answer's play holds once, on its climax: the first event in a part the act changed, a shared outage before a
+   * failover before an absorbed outage of its first copy (so a new second database is seen carrying the request the
+   * first time the first one dies); with no part changed, the rest moment. Returns the holds and a monotone map from
    * screen time to model time (weeks).
    */
-  function playPlan(settings, answer = false, seed = api.SAMPLE_SEED) {
+  function answerHold(settings, changed, seed = api.SAMPLE_SEED) {
     const smp = sample(settings, seed);
-    const rest = restMoment(settings, seed);
+    const parts = smp.parts.filter((p) => (changed ?? []).includes(p.id) && !p.optional);
+    for (const kind of ['shared', 'failover', 'outage']) {
+      const e = parts.flatMap((p) => p.events.filter((x) => x.kind === kind)).sort((a, b) => a.week - b.week)[0];
+      if (e) return { week: e.week, part: e.part, kind, copy: 0, fails: true, hours: e.hours };
+    }
+    const a = parts.flatMap((p) => p.absorbed.filter((x) => x.copy === 0).map((x) => ({ ...x, part: p.id }))).sort((x, y) => x.week - y.week)[0];
+    return a ? { week: a.week, part: a.part, kind: 'absorbed', copy: 0, fails: false, hours: MTTR_H } : restMoment(settings, seed);
+  }
+  function playPlan(settings, answer = false, changed = null, seed = api.SAMPLE_SEED) {
+    const smp = sample(settings, seed);
     let holds = [];
-    if (answer) holds = rest ? [rest] : [];
-    else {
+    if (answer) {
+      const h = answerHold(settings, changed, seed);
+      holds = h ? [h] : [];
+    } else {
       const firstOf = (kind) => smp.fails.find((e) => e.kind === kind);
       const hard = smp.parts.filter((p) => !p.optional);
       const firstAbsorbed = hard.flatMap((p) => p.absorbed.map((a) => ({ ...a, part: p.id }))).sort((a, b) => a.week - b.week)[0];
@@ -272,9 +285,10 @@
   // ---------------------------------------------------------------- the search for the year's seed
   const EXPERIMENT_SETTINGS = () => ({
     series: { lb: 1, app: 1, db: 1, recs: 1, optional: 0, shared: 0, failover: 0 },
+    parallelBefore: { lb: 1, app: 1, db: 1, recs: 1, optional: 1, shared: 0, failover: 0 },
+    parallelAfter: { lb: 1, app: 1, db: 2, recs: 1, optional: 1, shared: 0, failover: 0 },
     weakestBefore: { lb: 2, app: 2, db: 1, recs: 1, optional: 1, shared: 0, failover: 0 },
     weakestAfter: { lb: 2, app: 3, db: 1, recs: 1, optional: 1, shared: 0, failover: 0 },
-    parallelAfter: { lb: 2, app: 3, db: 2, recs: 1, optional: 1, shared: 0, failover: 0 },
     pairs: { lb: 2, app: 2, db: 2, recs: 1, optional: 1, shared: 0, failover: 0 },
     sharedAfter: { lb: 2, app: 2, db: 2, recs: 1, optional: 1, shared: 1, failover: 0 },
     failoverAfter: { lb: 2, app: 2, db: 2, recs: 1, optional: 1, shared: 0, failover: 1 },
@@ -315,7 +329,7 @@
     }
     // A free play's holds stand at least 2 weeks apart, so each reads as its own beat.
     for (const [name, s] of Object.entries(E)) {
-      const h = playPlan(s, false, seed).holds.map((x) => x.week);
+      const h = playPlan(s, false, null, seed).holds.map((x) => x.week);
       const gaps = h.slice(1).map((w, i) => w - h[i]);
       add(`${name}: a free play's holds are 2 weeks apart or more`, h.map((w) => w + 1).join(', '), gaps.every((g) => g >= 2));
     }
@@ -439,15 +453,46 @@
       },
     },
     {
+      id: 'parallel',
+      title: 'A second database',
+      setup: E.parallelBefore,
+      act: { set: { db: 2 }, run: 'year' },
+      ask: 'A load balancer, an app server and a database, one copy of each, and each down {dbDown} a year; recommendations are optional now. Give the database a second copy that fails independently of the first, and say traffic moves to it at once. How long is the database part down a year now?',
+      choices: [
+        { text: '{pair}: only while both are down at once', value: 'pair' },
+        { text: '{tenth}: a tenth, a copy buys one more nine', value: 'tenth' },
+        { text: '{halved}: half, two copies share the failures', value: 'halved' },
+      ],
+      truth: 'pair',
+      reveal:
+        '{pair}: the part is down only while both copies are down at once. Each is down {u} of the time, so both are down {u} of {u}: {pairAvail} available, {pair} a year against {dbDown}. Unavailabilities multiply, so each independent copy adds {nines} nines. The request is still down {reqAfter} a year, because the two parts left with one copy now set it. And {pair} is the ceiling of the arithmetic, not a forecast: it holds only if the copies never fail together and traffic moves instantly.',
+      focus: ['timeline', 'ruler'],
+      hide: ['after'],
+      slots: () => {
+        const a = run(E.parallelBefore);
+        const b = run(E.parallelAfter);
+        return {
+          dbDown: down(partOf(a, 'db').downH),
+          halved: down(partOf(a, 'db').downH / 2),
+          tenth: down(partOf(a, 'db').downH / 10),
+          pair: down(partOf(b, 'db').downH),
+          u: pct(COPY_U * 100),
+          pairAvail: avail(partOf(b, 'db').u),
+          nines: num(Math.round(nines(COPY_U))),
+          reqAfter: down(b.downH),
+        };
+      },
+    },
+    {
       id: 'weakest',
       title: 'One more app server',
       setup: E.weakestBefore,
       act: { set: { app: 3 }, run: 'year' },
       ask: 'The request passes {lb} load balancers, {app} app servers and {db} database, every copy {each} available; recommendations are optional. It is down {before} a year. Add a third app server. How long is the request down a year now?',
       choices: [
-        { text: '{after}: unchanged, the app servers were never the limit', value: 'after' },
-        { text: '{third}: a third less, like the share of servers added', value: 'third' },
         { text: '{halved}: half, as three app servers never fail together', value: 'halved' },
+        { text: '{third}: a third less, like the share of servers added', value: 'third' },
+        { text: '{after}: unchanged, the app servers were never the limit', value: 'after' },
       ],
       truth: 'after',
       reveal:
@@ -469,37 +514,6 @@
           dbDown: down(partOf(b, 'db').downH),
           appBefore: down(partOf(a, 'app').downH),
           appAfter: down(partOf(b, 'app').downH),
-        };
-      },
-    },
-    {
-      id: 'parallel',
-      title: 'A second database',
-      setup: E.weakestAfter,
-      act: { set: { db: 2 }, run: 'year' },
-      ask: 'The database is the single point of failure: one copy, down {dbDown} a year. Add a second copy that fails independently of the first, and say traffic moves to it at once. How long is the database part down a year now?',
-      choices: [
-        { text: '{halved}: half, two copies share the failures', value: 'halved' },
-        { text: '{tenth}: a tenth, a copy buys one more nine', value: 'tenth' },
-        { text: '{pair}: only while both are down at once', value: 'pair' },
-      ],
-      truth: 'pair',
-      reveal:
-        '{pair}: the part is down only while both copies are down at once. Each is down {u} of the time, so both are down {u} of {u}: {pairAvail} available, {pair} a year against {dbDown}. Unavailabilities multiply, so each independent copy adds {nines} nines, and the request is now down {reqAfter} a year. That is the ceiling of the arithmetic, not a forecast: it holds only if the copies never fail together and traffic moves instantly.',
-      focus: ['timeline', 'ruler'],
-      hide: ['after'],
-      slots: () => {
-        const a = run(E.weakestAfter);
-        const b = run(E.parallelAfter);
-        return {
-          dbDown: down(partOf(a, 'db').downH),
-          halved: down(partOf(a, 'db').downH / 2),
-          tenth: down(partOf(a, 'db').downH / 10),
-          pair: down(partOf(b, 'db').downH),
-          u: pct(COPY_U * 100),
-          pairAvail: avail(partOf(b, 'db').u),
-          nines: num(Math.round(nines(COPY_U))),
-          reqAfter: down(b.downH),
         };
       },
     },
@@ -646,6 +660,7 @@
     draws,
     sample,
     restMoment,
+    answerHold,
     playPlan,
     seedBounds,
     seedOk,

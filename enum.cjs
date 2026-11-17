@@ -284,7 +284,7 @@ M.EXPERIMENTS.forEach((spec, i) => {
     check(`E${i + 1}: three distinct choices`, new Set(e.choices).size === 3);
   }
   for (const t of [e.ask, e.reveal, ...e.choices]) {
-    check(`E${i + 1}: no em dash or non-breaking space`, !/[— ]/.test(t));
+    check(`E${i + 1}: no em dash or non-breaking space`, !/[\u2014\u00a0]/.test(t));
     // A reveal and a choice open on the answer's own value; no other sentence opens on a numeral.
     check(`E${i + 1}: no sentence opens on a numeral`, !/[.?!] \d/.test(t) && (t !== e.ask || !/^\d/.test(t)), t);
   }
@@ -299,12 +299,14 @@ check('answer positions vary and are not mostly second', new Set(answers).size =
   check('E1 the sum prints as the model does', M.formatDown(4 * M.hoursAYear(M.COPY_U)) === M.formatDown(series.downH));
   const a = M.chain(E.weakestBefore);
   const b = M.chain(E.weakestAfter);
-  check('E2 "unchanged": before and after print the same', M.formatDown(a.downH) === M.formatDown(b.downH));
-  check('E2 "nothing you can measure": the change is under a minute a year', (a.downH - b.downH) * 60 < 1);
-  check('E2 the weakest link is the database before and after', a.weakest.join() === 'db' && b.weakest.join() === 'db');
+  check('E3 "unchanged": before and after print the same', M.formatDown(a.downH) === M.formatDown(b.downH));
+  check('E3 "nothing you can measure": the change is under a minute a year', (a.downH - b.downH) * 60 < 1);
+  check('E3 the weakest link is the database before and after', a.weakest.join() === 'db' && b.weakest.join() === 'db');
   const pair = M.partModel(2, 0, 0);
-  check('E3 "0.1% of 0.1%"', near(pair.u, M.COPY_U * M.COPY_U, 1e-12));
-  check('E3 "a tenth" is one more nine', near(M.nines(M.COPY_U / 10), 4, 1e-9));
+  check('E2 "0.1% of 0.1%"', near(pair.u, M.COPY_U * M.COPY_U, 1e-12));
+  check('E2 "a tenth" is one more nine', near(M.nines(M.COPY_U / 10), 4, 1e-9));
+  check('E2 no pair shows in the premise (its answer is not on the stage)', Object.values({ ...E.parallelBefore, optional: 0, shared: 0, failover: 0 }).every((v) => v <= 1));
+  check('E2 "the two parts left with one copy now set it"', M.chain(E.parallelAfter).weakest.join() === 'lb,app');
   const sh = M.chain(E.sharedAfter);
   const paper = M.chain(E.pairs);
   check('E4 "about 100x"', Math.abs(sh.u / paper.u - 100) < 2, String(sh.u / paper.u));

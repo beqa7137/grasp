@@ -1,0 +1,2452 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Reliability widget mockup</title>
+    <style>
+      @font-face {
+        font-family: 'Inter Variable';
+        src: url(fonts/inter-latin-wght-normal.woff2) format('woff2');
+        font-weight: 100 900;
+        font-display: block;
+      }
+      @font-face {
+        font-family: 'JetBrains Mono Variable';
+        src: url(fonts/jetbrains-mono-latin-wght-normal.woff2) format('woff2');
+        font-weight: 100 800;
+        font-display: block;
+      }
+      /* The app's tokens (apps/app/src/_theme.scss, styles.scss): light is the base, dark overrides. */
+      :root {
+        color-scheme: light;
+        --g-bg: #f4f5f9;
+        --g-surface: #ffffff;
+        --g-raised: #ffffff;
+        --g-sunken: #eef0f5;
+        --g-line: #dfe2ea;
+        --g-line-strong: #c6cbd6;
+        --g-stroke: #707889;
+        --g-text: #161a23;
+        --g-text-rgb: 22, 26, 35;
+        --g-muted: #4a5263;
+        --g-faint: #5c6477;
+        --g-on-fill: #ffffff;
+        --g-warn-ink: #6e4200;
+        --g-danger-ink: #9d1630;
+        --g-found-ink: #02583f;
+        --g-accent: #5846dc;
+        --g-accent-rgb: 88, 70, 220;
+        --g-accent-soft: rgba(88, 70, 220, 0.14);
+        --g-found: #036b4c;
+        --g-danger: #c3203d;
+        --g-warn: #945800;
+        --g-success-ink: var(--g-found-ink);
+        --g-success-line: var(--g-found);
+        --g-success-soft: rgba(3, 107, 76, 0.12);
+        --g-danger-soft: rgba(195, 32, 61, 0.12);
+        --g-warn-soft: rgba(148, 88, 0, 0.12);
+        --g-viz-stage: #f7f8fb;
+        --g-viz-current: #0b74ad;
+        --g-viz-current-soft: rgba(11, 116, 173, 0.16);
+        --g-viz-considering: #c77700;
+        --g-viz-considering-soft: rgba(199, 119, 0, 0.14);
+        --g-viz-final: #12925f;
+        --g-viz-final-ink: var(--g-found-ink);
+        --g-viz-discarded-ink: #687082;
+        --g-viz-critical: #d42a49;
+        --g-viz-track: #d3d7e0;
+        --g-shadow: 0 1px 2px rgba(var(--g-text-rgb), 0.06), 0 3px 10px rgba(var(--g-text-rgb), 0.07);
+        --g-shadow-raised: 0 1px 2px rgba(var(--g-text-rgb), 0.08);
+        --g-radius-xs: 6px;
+        --g-radius-sm: 10px;
+        --g-radius-md: 14px;
+        --g-radius-pill: 999px;
+        --g-text-title-m: 1.0625rem;
+        --g-text-title-s: 0.9375rem;
+        --g-text-body: 0.875rem;
+        --g-text-body-s: 0.8125rem;
+        --g-text-label: 0.6875rem;
+        --g-font: 'Inter Variable', system-ui, sans-serif;
+        --g-font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+        --g-focus-ring: 2px solid var(--g-accent);
+      }
+      :root.dark {
+        color-scheme: dark;
+        --g-bg: #0b0d12;
+        --g-surface: #141824;
+        --g-raised: #1c2130;
+        --g-sunken: #0f121a;
+        --g-line: #252a37;
+        --g-line-strong: #343b4d;
+        --g-stroke: #6b7387;
+        --g-text: #e9ebf2;
+        --g-text-rgb: 233, 235, 242;
+        --g-muted: #8b93a8;
+        --g-faint: #828a9e;
+        --g-on-fill: #0b0d12;
+        --g-warn-ink: #f3e6b3;
+        --g-danger-ink: #ffb3bd;
+        --g-found-ink: #3ddc97;
+        --g-accent: #9d8cff;
+        --g-accent-rgb: 157, 140, 255;
+        --g-accent-soft: rgba(157, 140, 255, 0.14);
+        --g-found: #3ddc97;
+        --g-danger: #ff5d73;
+        --g-warn: #ffb547;
+        --g-success-soft: rgba(61, 220, 151, 0.12);
+        --g-danger-soft: rgba(255, 93, 115, 0.12);
+        --g-warn-soft: rgba(255, 181, 71, 0.12);
+        --g-viz-stage: #0e1118;
+        --g-viz-current: #1f9fd0;
+        --g-viz-current-soft: rgba(31, 159, 208, 0.16);
+        --g-viz-considering: #c08420;
+        --g-viz-considering-soft: rgba(192, 132, 32, 0.18);
+        --g-viz-final: #22ad74;
+        --g-viz-final-ink: var(--g-found);
+        --g-viz-discarded-ink: var(--g-muted);
+        --g-viz-critical: #e5485f;
+        --g-viz-track: #2a3040;
+        --g-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        --g-shadow-raised: var(--g-shadow);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--g-bg);
+        color: var(--g-text);
+        font: 400 var(--g-text-body) / 1.5 var(--g-font);
+        font-variant-ligatures: none;
+        -webkit-font-smoothing: antialiased;
+        overflow-wrap: break-word;
+      }
+      button {
+        font-size: 0.8333rem;
+      }
+      .page {
+        max-width: 1048px;
+        margin: 0 auto;
+        padding: 20px 16px 40px;
+      }
+      .eyebrow {
+        margin: 0;
+        font: 600 var(--g-text-label) var(--g-font);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--g-muted);
+      }
+      h1 {
+        margin: 4px 0 14px;
+        font: 600 1.25rem/1.3 var(--g-font);
+      }
+      .panel {
+        border: 1px solid var(--g-line);
+        border-radius: var(--g-radius-md);
+        background: var(--g-surface);
+        box-shadow: var(--g-shadow);
+        padding: 16px;
+      }
+      /* Narrow: one column, the controls as the stage's first rows, then the stage, the question, Describe, the cards. */
+      .widget {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 12px;
+      }
+      .main,
+      .experiments {
+        display: contents;
+      }
+      .controls {
+        order: 1;
+      }
+      .stage {
+        order: 2;
+        min-width: 0;
+      }
+      .dock {
+        order: 3;
+      }
+      .describe {
+        order: 4;
+      }
+      .heading,
+      .cards {
+        order: 5;
+      }
+      .controls {
+        padding: 12px 12px 0;
+        border: 1px solid var(--g-line);
+        border-bottom: 0;
+        border-radius: var(--g-radius-md) var(--g-radius-md) 0 0;
+        background: var(--g-viz-stage);
+        display: grid;
+        gap: 10px;
+        min-width: 0;
+      }
+      .stage {
+        margin-top: -12px;
+      }
+      .stage .well {
+        border-top: 0;
+        border-radius: 0 0 var(--g-radius-md) var(--g-radius-md);
+      }
+      @media (min-width: 1000px) {
+        .widget {
+          grid-template-columns: minmax(0, 1fr) 340px;
+          grid-template-rows: auto 1fr;
+          align-items: start;
+          column-gap: 20px;
+        }
+        .main {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr);
+          gap: 12px;
+          grid-column: 1;
+          grid-row: 1 / span 2;
+          min-width: 0;
+        }
+        .controls {
+          grid-column: 2;
+          grid-row: 1;
+          padding: 0;
+          border: 0;
+          background: none;
+        }
+        .experiments {
+          display: block;
+          grid-column: 2;
+          grid-row: 2;
+          min-width: 0;
+        }
+        .stage {
+          margin-top: 0;
+        }
+        .stage .well {
+          border-top: 1px solid var(--g-line);
+          border-radius: var(--g-radius-md);
+        }
+        .dock {
+          margin-top: 12px;
+        }
+      }
+      .well {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid var(--g-line);
+        border-radius: var(--g-radius-md);
+        background-color: var(--g-viz-stage);
+        background-image: radial-gradient(circle, rgba(var(--g-text-rgb), 0.09) 1px, transparent 1.5px);
+        background-size: 24px 24px;
+        background-position: 11px 11px;
+      }
+      /* Every fieldset.group carries the same zero padding; a control's own class only adds to it (the R41 padding bug). */
+      fieldset.group {
+        margin: 0;
+        padding: 0;
+        border: 0;
+        min-width: 0;
+      }
+      .control-label {
+        font: 600 var(--g-text-label) var(--g-font);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--g-muted);
+        padding: 0;
+        margin-bottom: 4px;
+      }
+      .segments {
+        display: flex;
+        gap: 4px;
+      }
+      .segment {
+        position: relative;
+        flex: 1 1 0;
+        min-width: 0;
+      }
+      .segment input {
+        position: absolute;
+        inset: 0;
+        margin: 0;
+        opacity: 0;
+        cursor: pointer;
+      }
+      .segment span {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        min-height: 44px;
+        padding: 0 6px;
+        border-radius: var(--g-radius-sm);
+        border: 1px solid var(--g-line-strong);
+        background: var(--g-raised);
+        box-shadow: var(--g-shadow-raised);
+        color: var(--g-text);
+        font: 500 var(--g-text-body) / 1.15 var(--g-font);
+        text-align: center;
+      }
+      .segment input:checked + span {
+        background: var(--g-accent-soft);
+        border-color: var(--g-accent);
+        box-shadow: inset 0 0 0 1px var(--g-accent);
+        font-weight: 600;
+      }
+      fieldset:disabled .segment span,
+      .segment input:disabled + span {
+        opacity: 0.55;
+      }
+      .control-label .why {
+        font-weight: 500;
+        letter-spacing: normal;
+        text-transform: none;
+      }
+      .segment small {
+        font: 500 var(--g-text-label) var(--g-font);
+        color: var(--g-muted);
+      }
+      .toggles {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px;
+      }
+      .toggles .segment span {
+        flex-direction: column;
+        gap: 0;
+        font-size: var(--g-text-body-s);
+      }
+      .notice {
+        margin: 0;
+        min-height: 2lh;
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+      }
+      /* Below wide the notice would sit over the stage and push it down as it speaks: read out only (_widget-controls.scss). */
+      @media (max-width: 999px) {
+        .notice {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          min-height: 0;
+          overflow: hidden;
+          clip-path: inset(50%);
+        }
+        .controls {
+          padding-bottom: 12px;
+        }
+      }
+      .caption {
+        margin: 0;
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+      }
+      .play {
+        position: absolute;
+        width: 44px;
+        height: 44px;
+        padding: 0;
+        border: 0;
+        background: none;
+        cursor: pointer;
+        z-index: 2;
+      }
+      .play svg {
+        display: block;
+        width: 36px;
+        height: 36px;
+        margin: 4px;
+      }
+      .play circle {
+        fill: var(--g-raised);
+        stroke: var(--g-accent);
+        stroke-width: 1.5;
+      }
+      .play path {
+        fill: var(--g-accent);
+      }
+      .play:disabled {
+        cursor: default;
+        opacity: 0.55;
+      }
+      .handle {
+        position: absolute;
+        width: 44px;
+        height: 44px;
+        display: grid;
+        place-items: center;
+        cursor: ew-resize;
+        z-index: 2;
+      }
+      .handle .knob {
+        width: 14px;
+        height: 26px;
+        border-radius: var(--g-radius-pill);
+        background: var(--g-raised);
+        border: 2px solid var(--g-accent);
+        box-shadow: var(--g-shadow-raised);
+      }
+      .handle[aria-disabled='true'] {
+        cursor: default;
+      }
+      .handle[aria-disabled='true'] .knob {
+        opacity: 0.55;
+      }
+      /* Drawing roles: text sits on a stage-coloured halo; small text is measured as drawn (no tabular digits). */
+      svg.draw {
+        position: absolute;
+        left: 0;
+        top: 0;
+        display: block;
+        overflow: visible;
+      }
+      svg.draw text {
+        paint-order: stroke;
+        stroke: var(--g-viz-stage);
+        stroke-width: 3px;
+        stroke-linejoin: round;
+      }
+      svg.draw text.on-box {
+        stroke: var(--g-raised);
+      }
+      svg.draw text.on-chip {
+        stroke: none;
+      }
+      .t-label {
+        font: 600 var(--g-text-label) var(--g-font);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        fill: var(--g-muted);
+      }
+      .t-cap {
+        font: 500 var(--g-text-body-s) var(--g-font);
+        fill: var(--g-muted);
+      }
+      .t-capB {
+        font: 600 var(--g-text-body-s) var(--g-font);
+        fill: var(--g-text);
+      }
+      .t-small {
+        font: 500 var(--g-text-label) var(--g-font);
+        fill: var(--g-muted);
+      }
+      .t-smallB {
+        font: 700 var(--g-text-label) var(--g-font);
+        fill: var(--g-text);
+      }
+      .t-mono {
+        font: 600 var(--g-text-label) var(--g-font-mono);
+        fill: var(--g-text);
+      }
+      .t-nameS {
+        font: 600 13px var(--g-font-mono);
+        fill: var(--g-text);
+      }
+      .t-head {
+        font: 600 var(--g-text-title-m) var(--g-font-mono);
+        fill: var(--g-text);
+      }
+      .ink {
+        fill: var(--g-text);
+      }
+      .muted {
+        fill: var(--g-muted);
+      }
+      .bad {
+        fill: var(--g-danger-ink);
+      }
+      .wait-ink {
+        fill: var(--g-warn-ink);
+      }
+      .cur-ink {
+        fill: var(--g-viz-current);
+      }
+      .crit-ink {
+        fill: var(--g-viz-critical);
+      }
+      .rule {
+        stroke: var(--g-line);
+      }
+      .t-unit {
+        text-transform: none;
+      }
+      /* The chain: wires are structure (3:1 on the stage), the request's path is the current tone. */
+      .wire {
+        fill: none;
+        stroke: var(--g-stroke);
+        stroke-width: 1.25;
+      }
+      .wire.soft {
+        stroke-opacity: 0.6;
+      }
+      .path {
+        fill: none;
+        stroke: var(--g-viz-current);
+        stroke-width: 2.75;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .path-hidden {
+        fill: none;
+        stroke: var(--g-stroke);
+        stroke-width: 1.25;
+        stroke-dasharray: 4 3;
+      }
+      .box {
+        fill: var(--g-raised);
+        stroke: var(--g-line-strong);
+        stroke-width: 1.25;
+      }
+      .box.serving {
+        stroke: var(--g-viz-current);
+        stroke-width: 2;
+      }
+      .box.next {
+        fill: var(--g-viz-current-soft);
+        stroke: var(--g-viz-current);
+      }
+      .box.down {
+        fill: url(#hatch);
+        stroke: var(--g-viz-discarded-ink);
+        stroke-width: 1.25;
+      }
+      .hatch-fill {
+        fill: var(--g-sunken);
+      }
+      .hatch-line {
+        stroke: var(--g-viz-discarded-ink);
+        stroke-opacity: 0.4;
+        stroke-width: 1.5;
+      }
+      .xmark {
+        stroke: var(--g-viz-critical);
+        stroke-width: 2;
+        stroke-linecap: round;
+        fill: none;
+      }
+      .xground {
+        fill: var(--g-viz-stage);
+      }
+      .stop {
+        fill: var(--g-viz-critical);
+        stroke: var(--g-viz-stage);
+        stroke-width: 1.5;
+        paint-order: stroke;
+      }
+      .xground.on-box {
+        fill: var(--g-raised);
+      }
+      .ok-ring {
+        fill: var(--g-viz-stage);
+        stroke: var(--g-viz-final);
+        stroke-width: 1.75;
+      }
+      .ok-mark {
+        fill: none;
+        stroke: var(--g-viz-final);
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .bad-ring {
+        fill: var(--g-viz-stage);
+        stroke: var(--g-viz-critical);
+        stroke-width: 1.75;
+      }
+      .q-ring {
+        fill: var(--g-viz-stage);
+        stroke: var(--g-stroke);
+        stroke-width: 1.25;
+        stroke-dasharray: 3 2.5;
+      }
+      .start-dot {
+        fill: var(--g-viz-current);
+      }
+      .start-dot.hidden {
+        fill: var(--g-stroke);
+      }
+      /* The year: a copy's outage is a neutral tick; what reaches the request is critical. */
+      .row-track {
+        stroke: var(--g-line);
+      }
+      .strip-track {
+        stroke: var(--g-line-strong);
+      }
+      .tick-copy {
+        fill: var(--g-text);
+        fill-opacity: 0.62;
+      }
+      .tick-fail {
+        fill: var(--g-viz-critical);
+      }
+      .tick-bypassed {
+        fill: none;
+        stroke: var(--g-stroke);
+        stroke-width: 1;
+      }
+      .req-hidden {
+        fill: none;
+        stroke: var(--g-stroke);
+        stroke-dasharray: 4 3;
+      }
+      .req-band {
+        fill: rgba(var(--g-text-rgb), 0.04);
+      }
+      .axis {
+        stroke: var(--g-line-strong);
+      }
+      .gridline {
+        stroke: var(--g-line);
+      }
+      .moment {
+        stroke: var(--g-text);
+        stroke-opacity: 0.4;
+      }
+      .ring {
+        fill: none;
+        stroke: var(--g-text);
+        stroke-width: 1.5;
+      }
+      .playhead {
+        stroke: var(--g-text);
+        stroke-width: 1.5;
+      }
+      /* The nines scale: a solid length is what the model gives; the soft length beyond it is the paper's promise. */
+      .bar {
+        fill: var(--g-viz-current);
+      }
+      .bar.paper {
+        fill: var(--g-viz-current);
+        fill-opacity: 0.22;
+      }
+      .bar.optional {
+        fill: var(--g-viz-discarded-ink);
+        fill-opacity: 0.45;
+      }
+      .bar.request {
+        fill: var(--g-text);
+        fill-opacity: 0.82;
+      }
+      .bar-hidden {
+        fill: none;
+        stroke: var(--g-stroke);
+        stroke-dasharray: 4 3;
+      }
+      .notch {
+        fill: var(--g-viz-stage);
+      }
+      .capline {
+        stroke: var(--g-viz-critical);
+        stroke-width: 1.5;
+      }
+      .capend {
+        fill: var(--g-viz-critical);
+      }
+      .ghost-tick {
+        fill: var(--g-viz-stage);
+        stroke: var(--g-stroke);
+        stroke-width: 1.25;
+      }
+      .key-copy {
+        fill: var(--g-text);
+        fill-opacity: 0.62;
+      }
+      .key-fail {
+        fill: var(--g-viz-critical);
+      }
+      .ok-ink {
+        fill: var(--g-viz-final-ink);
+      }
+      /* Steppers and toggles (kit: g-stepper, the house toggle). */
+      .steppers {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px 8px;
+      }
+      .stepper {
+        display: grid;
+        grid-template-columns: 44px minmax(0, 1fr) 44px;
+        align-items: center;
+        border: 1px solid var(--g-line-strong);
+        border-radius: var(--g-radius-sm);
+        background: var(--g-raised);
+        box-shadow: var(--g-shadow-raised);
+      }
+      .stepper button {
+        width: 44px;
+        height: 44px;
+        border: 0;
+        background: none;
+        color: var(--g-text);
+        font: 500 1.125rem/1 var(--g-font);
+        cursor: pointer;
+      }
+      .stepper button:disabled {
+        opacity: 0.35;
+        cursor: default;
+      }
+      .stepper output {
+        display: grid;
+        justify-items: center;
+        line-height: 1.15;
+        font: 600 var(--g-text-body) var(--g-font-mono);
+      }
+      .stepper output small {
+        font: 500 var(--g-text-label) var(--g-font);
+        color: var(--g-muted);
+      }
+      fieldset:disabled .stepper {
+        opacity: 0.55;
+      }
+      .toggles3 {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 4px;
+      }
+      .toggles3 .segment span {
+        flex-direction: column;
+        gap: 0;
+        min-height: 48px;
+        font-size: var(--g-text-body-s);
+        font-weight: 600;
+      }
+      .toggles3 .segment small {
+        font: 500 var(--g-text-label) var(--g-font);
+        color: var(--g-muted);
+      }
+      /* A checked toggle keeps its weight and size: only its colours change (prevention 20). */
+      .toggles3 .segment input:checked + span {
+        font-weight: 600;
+      }
+      .note,
+      .caption {
+        order: 2;
+        margin: 0;
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+      }
+      .strip-band {
+        fill: rgba(var(--g-text-rgb), 0.035);
+      }
+      .nowrap {
+        white-space: nowrap;
+      }
+      .focus-outline {
+        fill: none;
+        stroke: var(--g-accent);
+        stroke-width: 2;
+        stroke-dasharray: 6 4;
+      }
+      .tag {
+        fill: var(--g-viz-stage);
+        stroke: var(--g-accent);
+        stroke-width: 1.5;
+      }
+      .t-look {
+        font: 600 var(--g-text-label) var(--g-font);
+        fill: var(--g-accent);
+      }
+      /* The experiment dock and cards (experiment-dock.component.ts, widget-check.component.ts). */
+      .dock {
+        padding: 12px 16px;
+        border-radius: var(--g-radius-md);
+        border: 1px solid var(--g-line);
+        border-left: 3px solid var(--g-accent);
+        background: var(--g-surface);
+      }
+      .dock:empty {
+        display: none;
+      }
+      .legend {
+        margin: 0 0 4px;
+        font-weight: 600;
+        line-height: 1.45;
+      }
+      .options {
+        list-style: none;
+        margin: 8px 0 0;
+        padding: 0;
+        display: grid;
+        gap: 8px;
+      }
+      .g-choice {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        padding: 10px 14px;
+        border-radius: 12px;
+        border: 1px solid var(--g-line-strong);
+        background: var(--g-raised);
+        color: var(--g-text);
+        font: 500 0.90625rem/1.45 var(--g-font);
+        text-align: left;
+      }
+      button.g-choice {
+        box-shadow: var(--g-shadow-raised);
+        cursor: pointer;
+      }
+      .g-choice.right {
+        border-color: var(--g-success-line);
+        background: var(--g-success-soft);
+      }
+      .g-choice.wrong {
+        border-color: var(--g-danger);
+        background: var(--g-danger-soft);
+      }
+      .mark {
+        flex: none;
+        width: 20px;
+        height: 20px;
+      }
+      .held {
+        margin: 10px 0 0;
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+      }
+      .reveal {
+        margin: 10px 0 0;
+        line-height: 1.55;
+        font-size: 0.90625rem;
+      }
+      .status-line {
+        margin: 8px 0 4px;
+        font: 600 var(--g-text-body) var(--g-font);
+        color: var(--g-muted);
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .status-line.met {
+        color: var(--g-success-ink);
+      }
+      .status {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        display: grid;
+        gap: 4px;
+        font: 600 var(--g-text-body-s) var(--g-font);
+        font-variant-numeric: tabular-nums;
+        color: var(--g-muted);
+      }
+      .status li {
+        display: flex;
+        gap: 8px;
+        align-items: baseline;
+      }
+      .status li.met {
+        color: var(--g-success-ink);
+      }
+      .status .state {
+        flex: none;
+        width: 16px;
+      }
+      .heading {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font: 600 var(--g-text-title-s) var(--g-font);
+        margin: 20px 0 8px;
+      }
+      .heading svg {
+        color: var(--g-accent);
+      }
+      .cards {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 8px;
+      }
+      .card-btn {
+        width: 100%;
+        min-height: 48px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 12px;
+        border: 1px solid var(--g-line-strong);
+        border-radius: var(--g-radius-sm);
+        background: var(--g-raised);
+        box-shadow: var(--g-shadow-raised);
+        color: var(--g-text);
+        font: 500 var(--g-text-body) var(--g-font);
+        text-align: left;
+      }
+      .card-btn[aria-current] {
+        border-color: var(--g-accent);
+        box-shadow: inset 0 0 0 1px var(--g-accent);
+        background: var(--g-accent-soft);
+      }
+      .card-btn .num {
+        flex: none;
+        display: grid;
+        place-items: center;
+        width: 26px;
+        height: 26px;
+        border-radius: var(--g-radius-pill);
+        background: var(--g-sunken);
+        font: 600 var(--g-text-body-s) var(--g-font-mono);
+        color: var(--g-muted);
+      }
+      /* Describe: a minmax(0, 1fr) grid, its table scrolling inside its own box; compact on narrow stages. */
+      .describe {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 8px;
+        justify-items: start;
+      }
+      .describe .muted-note {
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+        margin: 0;
+      }
+      .describe p.summary {
+        margin: 0;
+        font-size: var(--g-text-body-s);
+      }
+      .g-btn {
+        appearance: none;
+        border: 1px solid var(--g-line-strong);
+        background: var(--g-raised);
+        box-shadow: var(--g-shadow-raised);
+        color: var(--g-text);
+        border-radius: var(--g-radius-sm);
+        padding: 9px 14px;
+        min-height: 44px;
+        font: 500 var(--g-text-body) / 1 var(--g-font);
+      }
+      .g-btn:disabled {
+        opacity: 0.55;
+      }
+      .table-box {
+        justify-self: stretch;
+        overflow: auto;
+        border-top: 1px solid var(--g-line);
+      }
+      tbody tr {
+        height: 28px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font: 500 var(--g-text-body-s) var(--g-font);
+        font-variant-numeric: tabular-nums;
+      }
+      th,
+      td {
+        text-align: right;
+        padding: 4px 8px;
+        white-space: nowrap;
+      }
+      th:first-child,
+      td:first-child {
+        text-align: left;
+      }
+      th {
+        font: 600 var(--g-text-label) var(--g-font);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--g-muted);
+        position: sticky;
+        top: 0;
+        background: var(--g-surface);
+        vertical-align: bottom;
+      }
+      td {
+        border-top: 1px solid var(--g-line);
+      }
+      tr.now td {
+        background: var(--g-accent-soft);
+        font-weight: 600;
+      }
+      .compact th,
+      .compact td {
+        padding-inline: 4px;
+      }
+      .compact th {
+        letter-spacing: normal;
+        white-space: normal;
+      }
+      th .unit {
+        text-transform: none;
+      }
+      tbody th {
+        font: 600 var(--g-text-body-s) var(--g-font);
+        letter-spacing: normal;
+        text-transform: none;
+        color: var(--g-text);
+        position: static;
+        background: none;
+        border-top: 1px solid var(--g-line);
+        text-align: left;
+        white-space: nowrap;
+        padding: 4px 8px;
+      }
+      tr.now th {
+        background: var(--g-accent-soft);
+      }
+      tbody th small {
+        font-weight: 500;
+        color: var(--g-danger-ink);
+      }
+      .held-choice {
+        border-style: dashed;
+      }
+      .describe .summary + .summary {
+        margin-top: -2px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <p class="eyebrow">System design · Reliability</p>
+      <h1>Try it</h1>
+      <section class="panel widget" id="widget"></section>
+    </main>
+    <script src="model.js"></script>
+    <script>
+      'use strict';
+      const M = window.ReliabilityModel;
+      const params = new URLSearchParams(location.search);
+      document.documentElement.classList.toggle('dark', params.get('theme') === 'dark');
+
+      // ---------- Text measurement, with the fonts the app ships (no tabular digits: stage text is measured as drawn).
+      // The label role is set in capitals, but a unit after a number keeps its case ("1 h", "5 min").
+      const ROLE = {
+        label: { css: '600 11px "Inter Variable"', size: 11, track: 0.12, upper: true },
+        cap: { css: '500 13px "Inter Variable"', size: 13 },
+        capB: { css: '600 13px "Inter Variable"', size: 13 },
+        small: { css: '500 11px "Inter Variable"', size: 11 },
+        smallB: { css: '700 11px "Inter Variable"', size: 11 },
+        mono: { css: '600 11px "JetBrains Mono Variable"', size: 11 },
+        nameS: { css: '600 13px "JetBrains Mono Variable"', size: 13 },
+        head: { css: '600 17px "JetBrains Mono Variable"', size: 17 },
+        look: { css: '600 11px "Inter Variable"', size: 11 },
+      };
+      const UNIT_AFTER_NUMBER = /(?<=\d )(min|h|s|d)\b/;
+      const upperKeepUnits = (t) => t.toUpperCase().replace(/(?<=\d )(MIN|H|S|D)\b/g, (u) => u.toLowerCase());
+      const ctx = document.createElement('canvas').getContext('2d');
+      const widthCache = new Map();
+      function tw(text, role) {
+        const key = role + '|' + text;
+        if (widthCache.has(key)) return widthCache.get(key);
+        const f = ROLE[role];
+        ctx.font = f.css;
+        const s = f.upper ? upperKeepUnits(text) : text;
+        const w = Math.ceil(ctx.measureText(s).width + (f.track ? f.track * f.size * s.length : 0)) + 1;
+        widthCache.set(key, w);
+        return w;
+      }
+      const partsWidth = (parts) => parts.reduce((s, [t, role, , dx = 0]) => s + tw(t, role) + dx, 0);
+      /** Wraps at spaces, but never parts a number from its unit or "×" from its factor (g-code-text's rule). */
+      const GLUE = /(\d[\d.,]*%?) (h|min|s|d|×|times|copies|copy|nines|weeks|outages|failovers)\b/g;
+      function wrap(text, role, width) {
+        const words = text
+          .replace(GLUE, '$1\u0001$2')
+          .replace(/(\d) × (\d)/g, '$1\u0001×\u0001$2')
+          .split(' ');
+        const lines = [];
+        let line = '';
+        for (const w of words) {
+          const next = line ? line + ' ' + w : w;
+          if (tw(next, role) <= width || !line) line = next;
+          else {
+            lines.push(line);
+            line = w;
+          }
+        }
+        if (line) lines.push(line);
+        return lines.map((l) => l.replace(/\u0001/g, ' '));
+      }
+      const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      const labelInner = (t) =>
+        esc(t)
+          .split(UNIT_AFTER_NUMBER)
+          .map((p, i) => (i % 2 ? `<tspan class="t-unit">${p}</tspan>` : p))
+          .join('');
+      /** HTML text: a number stays with its unit on one line (the app's g-code-text). */
+      const codeText = (t) =>
+        esc(t)
+          .replace(/(\d[\d.,]*) × (\d[\d.,]*) (h|min|s)\b/g, '<span class="nowrap">$1 × $2 $3</span>')
+          .replace(GLUE, '<span class="nowrap">$1 $2</span>');
+      const fd = M.formatDown;
+      const fa = M.formatAvail;
+      const r1 = (v) => Math.round(v * 10) / 10;
+      const plural = (n, one, many) => (n === 1 ? one : many);
+      const pick = (forms, fits) => forms.find(fits) ?? forms[forms.length - 1];
+      const listOf = (items) => (items.length <= 1 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`);
+      const timesWord = (n) => (n === 1 ? 'once' : n === 2 ? 'twice' : `${n} times`);
+      const cap1 = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+
+      // ---------- The drawing: SVG parts in layers, and the boxes placement checks against.
+      class Draw {
+        constructor(W) {
+          this.W = W;
+          this.layers = { back: [], grid: [], links: [], marks: [], dots: [], text: [], top: [] };
+          this.texts = [];
+          this.marks = [];
+          this.links = [];
+          this.hits = [];
+          this.regions = {};
+          this.missing = [];
+          this.meta = {};
+        }
+        add(layer, s) {
+          this.layers[layer].push(s);
+        }
+        textBox(x, y, w, role, anchor = 'start') {
+          const fs = ROLE[role].size;
+          const x0 = anchor === 'middle' ? x - w / 2 : anchor === 'end' ? x - w : x;
+          return { x0, x1: x0 + w, y0: y - 0.74 * fs, y1: y + 0.22 * fs };
+        }
+        text(x, y, parts, o = {}) {
+          if (typeof parts === 'string') parts = [[parts, o.role ?? 'small', o.cls ?? '']];
+          const anchor = o.anchor ?? 'start';
+          const w = partsWidth(parts);
+          const role = parts.reduce((a, p) => (ROLE[p[1]].size > ROLE[a].size ? p[1] : a), parts[0][1]);
+          const box = this.textBox(x, y, w, role, anchor);
+          box.owner = o.owner ?? '';
+          box.s = parts.map((p) => p[0]).join('');
+          this.texts.push(box);
+          const spans = parts.map(([t, r, cls = '', dx = 0]) => `<tspan class="t-${r} ${cls}"${dx ? ` dx="${dx}"` : ''}>${r === 'label' ? labelInner(t) : esc(t)}</tspan>`).join('');
+          const attrs = `x="${r1(x)}" y="${r1(y)}" text-anchor="${anchor}"${o.owner ? ` data-owner="${o.owner}"` : ''}${o.ground ? ' data-ground="1"' : ''}${o.id ? ` data-id="${o.id}"` : ''}${o.data ?? ''}`;
+          this.add(o.layer ?? 'text', `<text class="${o.textCls ?? ''}" ${attrs}>${spans}</text>`);
+          return box;
+        }
+        mark(box, owner = '') {
+          this.marks.push({ ...box, owner });
+        }
+        link(points, owner = '') {
+          this.links.push({ points, owner });
+        }
+        hit(kind, x, y, w, h, extra = {}) {
+          this.hits.push({ kind, x, y, w, h, ...extra });
+        }
+        region(id, box) {
+          (this.regions[id] ??= []).push(box);
+        }
+        free(box, ignoreOwner = '', margin = 2) {
+          const b = { x0: box.x0 - margin, x1: box.x1 + margin, y0: box.y0 - margin, y1: box.y1 + margin };
+          const hit = (o) => !(o.x1 <= b.x0 || o.x0 >= b.x1 || o.y1 <= b.y0 || o.y0 >= b.y1);
+          const mine = (o) => ignoreOwner && o.owner && o.owner.split(' ').some((t) => ignoreOwner.split(' ').includes(t));
+          if (this.texts.some((t) => hit(t) && !mine(t))) return false;
+          if (this.marks.some((m) => hit(m) && !mine(m))) return false;
+          for (const l of this.links) {
+            if (mine(l)) continue;
+            if (l.points.some(([x, y]) => x > b.x0 && x < b.x1 && y > b.y0 && y < b.y1)) return false;
+          }
+          return b.x0 >= 2 && b.x1 <= this.W - 2;
+        }
+        /** Puts a text at the first candidate where it covers nothing; records it as missing when none is free. */
+        place(cands, parts, o = {}) {
+          for (const [x, y, anchor = 'start'] of cands) {
+            const w = partsWidth(parts);
+            const role = parts.reduce((a, p) => (ROLE[p[1]].size > ROLE[a].size ? p[1] : a), parts[0][1]);
+            const box = this.textBox(x, y, w, role, anchor);
+            if (box.y0 < (o.minY ?? 0) || box.y1 > (o.maxY ?? Infinity) || box.x0 < (o.minX ?? 2) || box.x1 > (o.maxX ?? this.W - 2)) continue;
+            if (!this.free(box, o.ignore ?? '', o.margin ?? 2)) continue;
+            return this.text(x, y, parts, { ...o, anchor });
+          }
+          if (!o.optional) this.missing.push(parts.map((p) => p[0]).join(''));
+          return null;
+        }
+        line(x1, y1, x2, y2, cls, o = {}) {
+          this.add(o.layer ?? 'links', `<line class="${cls}" x1="${r1(x1)}" y1="${r1(y1)}" x2="${r1(x2)}" y2="${r1(y2)}"${o.owner ? ` data-owner="${o.owner}"` : ''}${o.data ?? ''}/>`);
+          if (o.solid !== false) this.link(sampleLine(x1, y1, x2, y2), o.owner ?? cls);
+        }
+        para(x, y, lines, role, lh, o = {}) {
+          lines.forEach((l, i) => this.text(x, y + i * lh, [[l, role, o.cls ?? '']], { ...o, id: o.id && i === 0 ? o.id : undefined }));
+        }
+        svg(H, label) {
+          const L = this.layers;
+          return `<svg class="draw" width="${this.W}" height="${H}" viewBox="0 0 ${this.W} ${H}" role="img" aria-label="${esc(label)}">
+<defs>
+<pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" class="hatch-fill"/><line class="hatch-line" x1="0" y1="0" x2="0" y2="6"/></pattern>
+</defs>
+<g>${L.back.join('')}</g><g>${L.grid.join('')}</g><g>${L.links.join('')}</g><g>${L.marks.join('')}</g><g>${L.dots.join('')}</g><g>${L.text.join('')}</g><g>${L.top.join('')}</g></svg>`;
+        }
+      }
+      const sampleLine = (x1, y1, x2, y2, step = 3) => {
+        const n = Math.max(2, Math.ceil(Math.hypot(x2 - x1, y2 - y1) / step));
+        return Array.from({ length: n + 1 }, (_, i) => [x1 + ((x2 - x1) * i) / n, y1 + ((y2 - y1) * i) / n]);
+      };
+      function xGlyph(D, cx, cy, owner, s = 4, ground = '') {
+        D.add('dots', `<circle class="xground ${ground}" cx="${r1(cx)}" cy="${r1(cy)}" r="${s + 2.5}"/><path class="xmark" data-owner="${owner}" d="M${r1(cx - s)} ${r1(cy - s)}l${2 * s} ${2 * s}M${r1(cx + s)} ${r1(cy - s)}l${-2 * s} ${2 * s}"/>`);
+        D.mark({ x0: cx - s - 2, x1: cx + s + 2, y0: cy - s - 2, y1: cy + s + 2 }, owner);
+      }
+
+      // ---------- What an open question hides, on every surface: one map (prevention 1). Each region is named in the
+      // question's own `hide` list. `sample` hides the simulated year while the question asks (ticks, the request's row,
+      // the band's moment, the year's sentence); `request` hides the model's numbers for the request while it asks and
+      // plays (the headline, the request's bar, the weakest-link marks and the facts); `after` hides, during the answer's
+      // play, what the model says at the act's new setting: all of `request`, and the bar and value of every part the act
+      // changed. No ghost of an earlier setting shows while a question asks or plays, Describe waits, and Play and the
+      // controls are disabled.
+      function hiding(view) {
+        const h = new Set(view.hide ?? []);
+        const asking = view.phase === 'asking';
+        const playing = view.phase === 'playing';
+        const active = asking || playing;
+        const after = h.has('after') && playing;
+        return {
+          sample: h.has('sample') && asking,
+          request: (h.has('request') && active) || after,
+          parts: after ? new Set(view.changed ?? []) : new Set(),
+          ghost: active,
+          waits: active,
+        };
+      }
+
+      // ---------- Words. Every sentence is computed for its setting.
+      const partById = (id) => M.PARTS.find((p) => p.id === id);
+      const copyName = (id, i) => `${partById(id).short} ${i + 1}`;
+      const SINGLE = { lb: 'The load balancer', app: 'The app server', db: 'The database', recs: 'The recommendations service' };
+      const MANY = { lb: 'load balancers', app: 'app servers', db: 'databases', recs: 'recommendations servers' };
+      const countWord = (n) => (n === 2 ? 'both' : `all ${n}`);
+      function captionOf(mo, n) {
+        const wk = `Week ${mo.week + 1}`;
+        if (mo.kind === 'outage') return `${wk}: ${SINGLE[mo.part].toLowerCase()} is down for 1 h and has no other copy, so the request fails.`;
+        if (mo.kind === 'shared') return `${wk}: a shared failure takes ${countWord(n)} ${MANY[mo.part]} down at once for 1 h, so the request fails.`;
+        if (mo.kind === 'failover') return `${wk}: ${copyName(mo.part, 0)} dies. For 5 min requests still go to it and fail, then ${copyName(mo.part, 1)} carries them.`;
+        const other = mo.copy === 0 ? 1 : 0;
+        return `${wk}: ${copyName(mo.part, mo.copy)} is down for 1 h. ${copyName(mo.part, other)} carries the request, so nothing fails.`;
+      }
+      const CAPTION_HIDDEN = 'The year plays after your answer.';
+      const captionSweep = (week) => `Week ${Math.min(M.WEEKS, Math.floor(week) + 1)} of ${M.WEEKS}: every part has a copy up, and the request is served.`;
+      function allCaptions() {
+        const out = [CAPTION_HIDDEN, captionSweep(51)];
+        for (const p of M.PARTS) {
+          out.push(captionOf({ week: 51, part: p.id, kind: 'outage', copy: 0 }, 1));
+          for (const n of [2, 3]) {
+            out.push(captionOf({ week: 51, part: p.id, kind: 'shared', copy: 0 }, n));
+            out.push(captionOf({ week: 51, part: p.id, kind: 'failover', copy: 0 }, n));
+            for (let c = 0; c < n; c++) out.push(captionOf({ week: 51, part: p.id, kind: 'absorbed', copy: c }, n));
+          }
+        }
+        return out;
+      }
+      /** The simulated year's own sentence: counts and hours of this one year, never the model's. */
+      function yearSentence(fails, soFar = false) {
+        const n = fails.length;
+        const lead = soFar ? 'So far this simulated year' : 'In this simulated year';
+        if (!n) return soFar ? `${lead} the request has not failed.` : `${lead} the request never failed; the model’s long-run average is below.`;
+        const hours = fails.reduce((t, e) => t + e.hours, 0);
+        const long = fails.filter((e) => e.kind !== 'failover').length;
+        const short = n - long;
+        const each = !short ? `each for ${M.MTTR_H} h` : !long ? `each for ${M.FAILOVER_MIN} min` : `${long} × ${M.MTTR_H} h and ${short} × ${M.FAILOVER_MIN} min`;
+        if (soFar) return `${lead} the request has failed ${timesWord(n)}, ${fd(hours)} in all.`;
+        return `${lead} the request failed ${timesWord(n)}, ${fd(hours)} in all: ${each}.`;
+      }
+      const YEAR_WATCH = 'Watch the request’s row: it collects every failure that reaches it.';
+      const YEAR_LONGEST = 'In this simulated year the request failed 35 times, 20.3 h in all: 19 × 1 h and 16 × 5 min.';
+      function weakestSentence(m, short = false) {
+        const ws = m.weakest.map((id) => m.parts.find((p) => p.id === id));
+        const n = ws[0].copies;
+        const copies = `${n} ${plural(n, 'copy', 'copies')}`;
+        const nm = (p) => (short ? p.short : p.the);
+        if (ws.length === 1) return `Weakest link: ${nm(ws[0])} (${copies}), down ${fd(ws[0].downH)} a year.`;
+        const names = ws.length === M.PARTS.length ? `all ${ws.length} parts` : listOf(ws.map(nm));
+        return `Weakest links: ${names} (${copies} each), each down ${fd(ws[0].downH)} a year.`;
+      }
+      const setName = (n) => (n === 2 ? 'A pair' : 'A set of 3');
+      function causesSentence(m) {
+        const s = m.settings;
+        const hard = m.parts.filter((p) => !p.optional && p.copies > 1);
+        if (!s.shared && !s.failover) return 'On paper: independent failures and instant failover, so a part is down only while all its copies are.';
+        if (!hard.length) return 'No needed part has a second copy yet, so shared failures and failover change nothing.';
+        const p = hard.reduce((a, b) => (b.copies < a.copies ? b : a));
+        const items = [];
+        if (p.causes.shared) items.push(`${fd(M.hoursAYear(p.causes.shared))} of shared outages`);
+        if (p.causes.failover) items.push(`${fd(M.hoursAYear(p.causes.failover))} of failovers`);
+        items.push(`${fd(M.hoursAYear(p.causes.overlap))} with ${countWord(p.copies)} down on their own`);
+        return `${setName(p.copies)} is down ${fd(p.downH)} a year: ${items.join(' + ')}.`.replace(' is down ', ': ').replace(' a year: ', ' a year = ');
+      }
+      const ghostSentence = (g) => `Before this change: down ${fd(g.downH)} a year.`;
+      const HIDDEN_FACT = 'The request’s numbers and its weakest link show after your answer.';
+      function chainWords(m) {
+        const bits = m.parts.map((p) => `${p.copies} ${plural(p.copies, p.one, p.many)}${p.optional ? ' (optional)' : ''}`);
+        return listOf(bits);
+      }
+      function conditionWords(s) {
+        const c = [];
+        c.push(s.shared ? `${M.SHARE_WORDS} of a copy’s outages is shared by every copy of its part` : 'copies fail independently');
+        c.push(s.failover ? `traffic takes ${M.FAILOVER_MIN} min to move off a dead copy` : 'traffic moves off a dead copy at once');
+        return c.join(', and ');
+      }
+      /** The stage's summary: the setting, then what the model gives (or that it shows after the answer). */
+      function summary(m, hid) {
+        const parts = [`A request crosses ${chainWords(m)}, every copy ${fa(M.COPY_U)} available; ${conditionWords(m.settings)}.`];
+        if (hid.request) parts.push('The model’s numbers for the request show after your answer.');
+        else parts.push(`The model gives ${fa(m.u)} available: down ${fd(m.downH)} a year, ${fd(m.monthH)} in 30 days. ${weakestSentence(m)}`);
+        if (hid.sample) parts.push('The simulated year plays after your answer.');
+        return parts.join(' ');
+      }
+      const settingSentence = (m) => `The request is ${fa(m.u)} available, down ${fd(m.downH)} a year. ${weakestSentence(m)}`;
+
+      // ---------- Reserved lines: the most any setting needs at this width (so the stage's height depends on its width only).
+      const reserveCache = new Map();
+      const ALL = [];
+      for (const lb of M.COPIES) for (const app of M.COPIES) for (const db of M.COPIES) for (const recs of M.COPIES) for (const optional of [0, 1]) for (const shared of [0, 1]) for (const failover of [0, 1]) ALL.push({ lb, app, db, recs, optional, shared, failover });
+      window.ALL_SETTINGS = ALL;
+      function reserved(width) {
+        if (reserveCache.has(width)) return reserveCache.get(width);
+        const lines = (t) => wrap(t, 'cap', width).length;
+        const caption = Math.max(...allCaptions().map(lines));
+        const year = Math.max(lines(YEAR_LONGEST), lines('So far this simulated year the request has failed 35 times, 20.3 h in all.'), lines(YEAR_WATCH));
+        let facts = lines(HIDDEN_FACT);
+        const seen = new Set();
+        for (const s of ALL) {
+          const m = M.run(s);
+          const key = weakestSentence(m, true) + '|' + causesSentence(m);
+          if (seen.has(key)) continue;
+          seen.add(key);
+          facts = Math.max(facts, lines(weakestSentence(m, true)) + lines(causesSentence(m)));
+        }
+        const ghost = lines('Before this change: down 20.6 h a year.');
+        const r = { caption, year, facts: facts + ghost };
+        reserveCache.set(width, r);
+        return r;
+      }
+
+      // ---------- The band's state at a moment: which copies are down, which copy carries the request, where it is cut.
+      function bandState(m, moment, into) {
+        let failed = false;
+        return m.parts.map((p) => {
+          const st = { id: p.id, n: p.copies, optional: p.optional, down: new Set(), serving: 0, cut: false, next: -1, reached: !failed, bypass: false };
+          if (moment && moment.part === p.id) {
+            if (moment.kind === 'outage') {
+              st.down.add(0);
+              st.serving = -1;
+              st.cut = true;
+            } else if (moment.kind === 'shared') {
+              for (let i = 0; i < p.copies; i++) st.down.add(i);
+              st.serving = -1;
+              st.cut = true;
+            } else if (moment.kind === 'failover') {
+              st.down.add(0);
+              if (into < 0.55) {
+                st.serving = -1;
+                st.cut = true;
+                st.next = 1;
+              } else st.serving = 1;
+            } else {
+              st.down.add(moment.copy);
+              st.serving = moment.copy === 0 ? 1 : 0;
+            }
+          }
+          if (st.cut && p.optional) {
+            st.cut = false;
+            st.bypass = true;
+          }
+          if (st.cut) failed = true;
+          return st;
+        });
+      }
+
+      function buildStage(W, m, view) {
+        const D = new Draw(W);
+        const hid = hiding(view);
+        const s = m.settings;
+        const wide = W >= 520;
+        const P = wide ? 14 : 10;
+        const smp = M.sample(s);
+        const rest = M.restMoment(s);
+        const playing = view.tau !== null && view.tau !== undefined;
+        const plan = playing ? M.playPlan(s, view.phase === 'playing', view.changed) : null;
+        const clock = plan ? plan.at(view.tau) : null;
+        const upTo = clock ? clock.weeks : M.WEEKS;
+        const moment = hid.sample ? null : clock ? clock.hold : rest;
+        const into = clock ? clock.into : 0;
+        const R = reserved(W - 2 * P);
+        D.meta.sample = smp;
+        D.meta.upTo = upTo;
+        D.label = summary(m, hid);
+        let y = 0;
+
+        // ---- Header: Play, the title, the key.
+        D.hit('play', P - 4, 2, 44, 44);
+        const titleX = P + 46;
+        const keyForms = [
+          ['a copy down, 1 h', 'a whole part down: the request fails'],
+          ['copy down, 1 h', 'part down: request fails'],
+          ['copy down', 'part down: request fails'],
+        ];
+        const keyWidth = (f) => f.reduce((t, w) => t + 9 + tw(w, 'small') + 14, -14);
+        const keyWords = pick(keyForms, (f) => keyWidth(f) <= (wide ? 300 : W - 2 * P));
+        const keyItems = [
+          ['key-copy', keyWords[0]],
+          ['key-fail', keyWords[1]],
+        ];
+        const keyW = keyWidth(keyWords);
+        const title = pick(['A request through its chain, over one simulated year', 'One request, one simulated year', 'One simulated year'], (t) => titleX + tw(t, 'capB') <= (wide ? W - P - keyW - 16 : W - P));
+        D.text(titleX, 29, [[title, 'capB']], { owner: 'title' });
+        let kx = wide ? W - P - keyW : P;
+        const ky = wide ? 29 : 58;
+        for (const [cls, words] of keyItems) {
+          D.add('marks', `<rect class="${cls}" x="${kx}" y="${ky - 10}" width="3" height="11" rx="0.5"/>`);
+          D.mark({ x0: kx, x1: kx + 3, y0: ky - 10, y1: ky + 1 }, 'key');
+          D.text(kx + 9, ky, [[words, 'small']], { owner: 'key' });
+          kx += 9 + tw(words, 'small') + 14;
+        }
+        y = wide ? 48 : 70;
+
+        // ---- The chain at one moment.
+        const chainTop = y;
+        const bh = wide ? 26 : 22;
+        const gap = 6;
+        const namesY = y + 12;
+        const laneY = y + 22;
+        const stackTop = y + 30;
+        const stackH = 3 * bh + 2 * gap;
+        const ay = stackTop + stackH / 2;
+        const leadIn = wide ? 56 : 12;
+        const outW = wide ? 60 : 20;
+        const linkW = wide ? 30 : 9;
+        const cx0 = P + leadIn;
+        const cx1 = W - P - outW;
+        const cw = (cx1 - cx0 - 3 * linkW) / 4;
+        const bus = wide ? 12 : 5;
+        const colX = (i) => cx0 + i * (cw + linkW);
+        const copyY = (n, i) => (n === 1 ? ay : n === 2 ? ay + (i - 0.5) * (bh + gap) : ay + (i - 1) * (bh + gap));
+        const band = bandState(m, moment, into);
+        // A copy's name where the longest fits beside a down mark in every box; else its number, in every box alike.
+        const fullNames = cw - 2 * bus - 22 >= Math.max(...M.PARTS.map((p) => tw(copyName(p.id, 2), 'mono')));
+        const fails = band.some((b) => b.cut);
+        const wire = (x1, y1, x2, y2, cls = 'wire') => D.line(x1, y1, x2, y2, cls, { owner: 'wire' });
+        const pathSeg = (pts) => {
+          D.add('marks', `<polyline class="${hid.sample ? 'path-hidden' : 'path'}" data-owner="wire" points="${pts.map((p) => `${r1(p[0])},${r1(p[1])}`).join(' ')}"/>`);
+        };
+        // Lead in.
+        const startX = P + (wide ? 4 : 2);
+        if (wide) D.text(startX - 2, ay - 9, [['request', 'small']], { owner: 'wire' });
+        wire(startX, ay, colX(0), ay);
+        D.add('dots', `<circle class="start-dot${hid.sample ? ' hidden' : ''}" cx="${startX}" cy="${ay}" r="3.5"/>`);
+        let alive = !hid.sample;
+        let pathPts = [[startX, ay]];
+        const flush = () => {
+          if (pathPts.length > 1) pathSeg(pathPts);
+          pathPts = [];
+        };
+        m.parts.forEach((p, i) => {
+          const st = band[i];
+          const x = colX(i);
+          const xb0 = x + bus;
+          const xb1 = x + cw - bus;
+          const ys = Array.from({ length: p.copies }, (_, k) => copyY(p.copies, k));
+          // The part's name.
+          const name = pick([p.name, p.short], (t) => tw(t, 'capB') <= cw + linkW - 6);
+          D.text(x + cw / 2, namesY, [[name, 'capB', p.optional ? 'muted' : '']], { anchor: 'middle', owner: `name-${p.id}`, id: `name-${p.id}` });
+          // Buses and stubs.
+          if (p.copies > 1) {
+            wire(x, ys[0], x, ys[ys.length - 1]);
+            wire(x + cw, ys[0], x + cw, ys[ys.length - 1]);
+          }
+          for (const yy of ys) {
+            wire(x, yy, xb0, yy);
+            wire(xb1, yy, x + cw, yy);
+          }
+          if (i < 3) wire(x + cw, ay, colX(i + 1), ay);
+          // The bypass around an optional part: a wire in parallel with it.
+          if (p.optional) {
+            const bx0 = x - linkW / 2;
+            const bx1 = x + cw + (wide ? 14 : 6);
+            const d = `M${r1(bx0)} ${ay}V${laneY + 5}Q${r1(bx0)} ${laneY} ${r1(bx0 + 5)} ${laneY}H${r1(bx1 - 5)}Q${r1(bx1)} ${laneY} ${r1(bx1)} ${laneY + 5}V${ay}`;
+            D.add('links', `<path class="${st.bypass && alive ? 'path' : 'wire'}" data-owner="wire bypass" d="${d}"/>`);
+            D.link([...sampleLine(bx0, ay, bx0, laneY), ...sampleLine(bx0, laneY, bx1, laneY), ...sampleLine(bx1, laneY, bx1, ay)], 'wire bypass');
+          }
+          // Copies.
+          ys.forEach((yy, k) => {
+            const down = !hid.sample && st.down.has(k);
+            const serving = alive && st.reached && st.serving === k && !st.bypass;
+            const next = alive && st.next === k;
+            D.add('marks', `<rect class="box${down ? ' down' : serving ? ' serving' : next ? ' next' : ''}" data-copy="${p.id}-${k}" x="${r1(xb0)}" y="${r1(yy - bh / 2)}" width="${r1(xb1 - xb0)}" height="${bh}" rx="6"/>`);
+            D.mark({ x0: xb0, x1: xb1, y0: yy - bh / 2, y1: yy + bh / 2 }, `box-${p.id}-${k}`);
+            const bw = xb1 - xb0;
+            const label = fullNames ? copyName(p.id, k) : String(k + 1);
+            if (down) {
+              const gx = label ? xb1 - 11 : (xb0 + xb1) / 2;
+              xGlyph(D, gx, yy, `box-${p.id}-${k}`, 3.5, 'on-box');
+              if (label) D.text(xb0 + (bw - 16) / 2, yy + 4, [[label, 'mono', 'muted']], { anchor: 'middle', owner: `box-${p.id}-${k}`, textCls: 'on-box' });
+            } else if (label) D.text((xb0 + xb1) / 2, yy + 4, [[label, 'mono']], { anchor: 'middle', owner: `box-${p.id}-${k}`, textCls: 'on-box' });
+          });
+          // The request's path through this part.
+          if (alive && st.reached) {
+            if (st.bypass) {
+              // The path follows the bypass (drawn above in the path's tone) and rejoins after the part.
+              pathPts.push([x - linkW / 2, ay]);
+              flush();
+              pathPts = [[x + cw + (wide ? 14 : 6), ay]];
+            } else if (st.cut) {
+              // The path stops at a bar before the part: a cross is only ever a copy that is down, or the outcome.
+              const sx = x - (wide ? 9 : 4);
+              pathPts.push([sx - 2, ay]);
+              flush();
+              D.add('dots', `<rect class="stop" data-stop="${p.id}" x="${r1(sx - 1.75)}" y="${r1(ay - 8)}" width="3.5" height="16" rx="1"/>`);
+              D.mark({ x0: sx - 3, x1: sx + 3, y0: ay - 9, y1: ay + 9 }, 'cut');
+              alive = false;
+            } else {
+              const yy = ys[st.serving];
+              pathPts.push([x, ay], [x, yy], [xb0, yy]);
+              flush();
+              pathPts = [[xb1, yy], [x + cw, yy], [x + cw, ay]];
+            }
+          }
+        });
+        // Lead out and the outcome.
+        const endX = W - P - (wide ? outW - 18 : 9);
+        wire(colX(3) + cw, ay, endX - 9, ay);
+        if (alive) {
+          pathPts.push([endX - 9, ay]);
+          flush();
+        }
+        if (hid.sample) {
+          D.add('dots', `<circle class="q-ring" cx="${endX}" cy="${ay}" r="8"/>`);
+          D.text(endX, ay + 4, [['?', 'smallB', 'muted']], { anchor: 'middle', owner: 'outcome' });
+        } else if (fails) {
+          D.add('dots', `<circle class="bad-ring" data-outcome="fails" cx="${endX}" cy="${ay}" r="8"/><path class="xmark" d="M${endX - 3.5} ${ay - 3.5}l7 7M${endX + 3.5} ${ay - 3.5}l-7 7"/>`);
+          if (wide) D.text(endX + 13, ay + 4, [['fails', 'smallB', 'bad']], { owner: 'outcome' });
+        } else {
+          D.add('dots', `<circle class="ok-ring" data-outcome="served" cx="${endX}" cy="${ay}" r="8"/><path class="ok-mark" d="M${endX - 4} ${ay + 0.3}l2.8 2.8 5-5.6"/>`);
+          if (wide) D.text(endX + 13, ay + 4, [['served', 'smallB', 'ok-ink']], { owner: 'outcome' });
+        }
+        D.mark({ x0: endX - 9, x1: endX + 9, y0: ay - 9, y1: ay + 9 }, 'outcome');
+        // "optional" on the bypass lane, where it fits (the caption and the summary say it either way).
+        const opt = m.parts.find((p) => p.optional);
+        if (opt) {
+          const i = m.parts.indexOf(opt);
+          const cxm = colX(i) + cw / 2;
+          if (tw('optional', 'small') <= cw - 4) D.text(cxm, laneY + 4, [['optional', 'small']], { anchor: 'middle', owner: 'wire bypass', ground: true });
+        }
+        y = stackTop + stackH + 10;
+        // The moment, in words, under the chain (reserved lines collect at the band's foot).
+        const capText = hid.sample ? CAPTION_HIDDEN : moment ? captionOf(moment, m.parts.find((p) => p.id === moment.part).copies) : captionSweep(upTo);
+        D.para(P, y + 12, wrap(capText, 'cap', W - 2 * P), 'cap', 18, { owner: 'caption', id: 'caption', cls: 'ink' });
+        D.meta.caption = capText;
+        y += R.caption * 18 + 4;
+        D.region('chain', { x: P - 6, y: chainTop - 2, w: W - 2 * P + 12, h: y - chainTop });
+
+        // ---- The year: a row per copy, a strip per part, the request's row as their union.
+        y += 10;
+        const tlTop = y;
+        const gut = wide ? 62 : 46;
+        const tx0 = P + gut;
+        const tx1 = W - P - 3;
+        const ppw = (tx1 - tx0) / M.WEEKS;
+        const wkX = (w) => tx0 + (w + 0.5) * ppw;
+        const tlForms = ['One simulated year · a tick marks an outage, not its length', 'One simulated year · ticks are not to scale'];
+        const tlLabel = tlForms.find((t) => tw(t, 'label') <= W - 2 * P - 8);
+        if (tlLabel) D.text(P, y + 11, [[tlLabel, 'label']], { owner: 'tl-label' });
+        else {
+          D.text(P, y + 11, [['A simulated year', 'label']], { owner: 'tl-label' });
+          D.text(W - P - 4, y + 11, [['ticks not to scale', 'small']], { anchor: 'end', owner: 'tl-label' });
+        }
+        y += 22;
+        const tickW = Math.max(1.5, Math.min(3, ppw * 0.42));
+        const areaH = 24;
+        const stripH = 7;
+        const shown = (week) => !hid.sample && week + 0.5 <= upTo + 1e-9;
+        const rowsTop = y;
+        const requestTicks = [];
+        m.parts.forEach((p, i) => {
+          const sp = smp.parts[i];
+          const gy = y;
+          D.text(P, gy + areaH / 2 + 4, [[p.short, 'nameS', p.optional ? 'muted' : '']], { owner: `gut-${p.id}` });
+          const rh = areaH / p.copies;
+          for (let k = 0; k < p.copies; k++) {
+            const ry = gy + k * rh;
+            D.line(tx0, ry + rh, tx1, ry + rh, 'row-track', { layer: 'grid', owner: 'grid', solid: false });
+            const weeks = sp.rows[k].filter((t) => shown(t.week)).map((t) => t.week);
+            if (weeks.length) {
+              const d = weeks.map((w) => `M${r1(wkX(w) - tickW / 2)} ${r1(ry + 1.5)}h${r1(tickW)}v${r1(rh - 2.5)}h${-r1(tickW)}z`).join('');
+              D.add('marks', `<path class="tick-copy" data-row="${p.id}-${k}" data-weeks="${weeks.join(',')}" d="${d}"/>`);
+            }
+          }
+          const sy = gy + areaH + 2;
+          D.add('back', `<rect class="strip-band" x="${tx0}" y="${sy}" width="${r1(tx1 - tx0)}" height="${stripH}"/>`);
+          D.line(tx0, sy + stripH, tx1, sy + stripH, 'strip-track', { layer: 'grid', owner: 'grid', solid: false });
+          const ev = sp.events.filter((e) => shown(e.week));
+          if (ev.length) {
+            const d = ev
+              .map((e) => {
+                const h = e.kind === 'failover' ? stripH / 2 : stripH;
+                return `M${r1(wkX(e.week) - tickW / 2)} ${r1(sy + stripH - h)}h${r1(tickW)}v${r1(h)}h${-r1(tickW)}z`;
+              })
+              .join('');
+            D.add('marks', `<path class="${p.optional ? 'tick-bypassed' : 'tick-fail'}" data-strip="${p.id}" data-weeks="${ev.map((e) => e.week).join(',')}" d="${d}"/>`);
+          }
+          if (!p.optional) for (const e of ev) requestTicks.push(e);
+          y += areaH + 2 + stripH + 9;
+        });
+        // The request's row.
+        const reqY = y;
+        const reqH = 18;
+        D.add('back', `<rect class="req-band" x="${tx0}" y="${reqY}" width="${r1(tx1 - tx0)}" height="${reqH}"/>`);
+        D.text(P, reqY + reqH / 2 + 4, [[pick(['Request', 'Req.'], (t) => tw(t, 'smallB') <= gut - 4), 'smallB']], { owner: 'gut-request' });
+        if (hid.sample) {
+          D.add('marks', `<rect class="req-hidden" x="${tx0 + 0.5}" y="${reqY + 0.5}" width="${r1(tx1 - tx0 - 1)}" height="${reqH - 1}" rx="3"/>`);
+          D.text((tx0 + tx1) / 2, reqY + reqH / 2 + 4, [[pick(['plays after your answer', 'after your answer'], (t) => tw(t, 'small') <= tx1 - tx0 - 8), 'small']], { anchor: 'middle', owner: 'req-hidden' });
+        } else if (requestTicks.length) {
+          requestTicks.sort((a, b) => a.week - b.week);
+          const d = requestTicks
+            .map((e) => {
+              const h = e.kind === 'failover' ? 7 : reqH - 2;
+              return `M${r1(wkX(e.week) - tickW / 2)} ${r1(reqY + reqH - 1 - h)}h${r1(tickW)}v${r1(h)}h${-r1(tickW)}z`;
+            })
+            .join('');
+          D.add('marks', `<path class="tick-fail" data-request="1" data-weeks="${requestTicks.map((e) => e.week).join(',')}" data-kinds="${requestTicks.map((e) => e.kind[0]).join('')}" d="${d}"/>`);
+        }
+        y = reqY + reqH;
+        D.line(tx0, y, tx1, y, 'axis', { layer: 'grid', owner: 'grid', solid: false });
+        // The moment the band shows: a line through the rows and a ring round its tick (stroke only, round the whole mark).
+        if (moment && !playing) {
+          const mx = wkX(moment.week);
+          D.line(mx, rowsTop - 3, mx, y + 3, 'moment', { layer: 'grid', owner: 'grid', solid: false });
+          const pi = m.parts.findIndex((p) => p.id === moment.part);
+          let ry0;
+          let ry1;
+          if (moment.fails) {
+            ry0 = reqY + (moment.kind === 'failover' ? reqH - 8 : 1) - 3;
+            ry1 = reqY + reqH + 2;
+          } else {
+            const gy = rowsTop + pi * (areaH + 2 + stripH + 9);
+            const rh = areaH / m.parts[pi].copies;
+            ry0 = gy + moment.copy * rh + 1.5 - 3;
+            ry1 = gy + (moment.copy + 1) * rh - 1 + 3;
+          }
+          D.add('top', `<rect class="ring" data-ring="${moment.kind}" x="${r1(mx - tickW / 2 - 3)}" y="${r1(ry0)}" width="${r1(tickW + 6)}" height="${r1(ry1 - ry0)}" rx="3"/>`);
+        }
+        if (playing) D.line(tx0 + (upTo / M.WEEKS) * (tx1 - tx0), rowsTop - 3, tx0 + (upTo / M.WEEKS) * (tx1 - tx0), y + 3, 'playhead', { layer: 'top', owner: 'grid', solid: false });
+        // Weeks.
+        const weekTicks = [0, 13, 26, 39, 52];
+        weekTicks.forEach((w, i) => {
+          const x = tx0 + (w / M.WEEKS) * (tx1 - tx0);
+          D.line(x, y, x, y + 4, 'axis', { layer: 'grid', owner: 'grid', solid: false });
+          const last = i === weekTicks.length - 1;
+          const t = last ? pick(['52 weeks', '52 wk'], (v) => tw(v, 'small') <= (13 / M.WEEKS) * (tx1 - tx0) - tw('39', 'small') / 2 - 6) : String(w);
+          D.text(last ? tx1 + 3 : x, y + 16, [[t, 'small']], { anchor: last ? 'end' : i === 0 ? 'start' : 'middle', owner: 'weeks', data: ' data-xtick="weeks"', ground: true });
+        });
+        y += 22;
+        // The year's own sentence (sample words; reserved lines at the foot).
+        // The year's own counts wait with the model's numbers: during an answer's play the row fills and the words only
+        // say where to look (the count at a play's end is close to the model's, which is the answer).
+        const yearText = hid.sample ? '' : hid.request ? YEAR_WATCH : yearSentence(smp.fails.filter((e) => shown(e.week)), playing);
+        if (yearText) D.para(P, y + 12, wrap(yearText, 'cap', W - 2 * P), 'cap', 18, { owner: 'year', id: 'year' });
+        D.meta.year = yearText;
+        y += R.year * 18 + 4;
+        D.region('timeline', { x: P - 6, y: tlTop - 4, w: W - 2 * P + 12, h: y - tlTop + 2 });
+
+        // ---- The rule between the year and the model.
+        y += 8;
+        D.line(0, y, W, y, 'rule', { layer: 'grid', owner: 'grid', solid: false });
+        y += 8;
+
+        // ---- The model: the headline, the nines scale, the facts.
+        const modelTop = y;
+        const mTitle = pick(['Availability, exact from the model', 'Availability, from the model'], (t) => tw(t, 'capB') <= W - 2 * P);
+        D.text(P, y + 16, [[mTitle, 'capB']], { owner: 'm-title' });
+        y += 26;
+        const cols = [
+          ['Available', hid.request ? '?' : fa(m.u)],
+          ['Down a year', hid.request ? '?' : fd(m.downH)],
+          ['Down in 30 days', hid.request ? '?' : fd(m.monthH)],
+        ];
+        if (wide) {
+          // Three columns: the widest values any setting prints fit (checked by the sweep).
+          const colW = (W - 2 * P) / 3;
+          cols.forEach(([lab, val], i) => {
+            const x = P + i * colW;
+            D.text(x, y + 11, [[lab, 'label']], { owner: 'headline' });
+            D.text(x, y + 33, [[val, 'head', hid.request ? 'muted' : '']], { owner: 'headline', id: `stat-${i}`, data: ' data-stat="1"' });
+          });
+          y += 46;
+        } else {
+          // Narrow: a row each, the name left and the value right, so "99.9999999%" and "under 0.01 s" fit.
+          cols.forEach(([lab, val], i) => {
+            D.text(P, y + 16 + i * 24, [[lab, 'label']], { owner: 'headline' });
+            D.text(W - P, y + 17 + i * 24, [[val, 'head', hid.request ? 'muted' : '']], { anchor: 'end', owner: 'headline', id: `stat-${i}`, data: ' data-stat="1"' });
+          });
+          y += 3 * 24 + 6;
+        }
+        // The nines scale.
+        const rulerTop = y;
+        const NMAX = 9.3;
+        const valW = Math.max(...['92 min', '0.03 s', '20.6 h', 'optional'].map((t) => tw(t, 'smallB'))) + 8;
+        const rx0 = P + gut;
+        const rx1 = W - P - valW;
+        const ppn = (rx1 - rx0) / NMAX;
+        const xn = (n) => rx0 + Math.min(NMAX, n) * ppn;
+        const rLabel = pick(['The nines scale · each step right is 10× less downtime', 'Nines · each step is 10× less downtime', 'Nines · a step is 10× less'], (t) => tw(t, 'label') <= W - 2 * P - 8);
+        D.text(P, y + 11, [[rLabel, 'label']], { owner: 'r-label' });
+        y += 20;
+        const topForms = (k) => (k <= 4 ? fa(10 ** -k) : `${k} nines`);
+        const fitsAll = (ks, f, role) => ks.every((k, i) => i === 0 || xn(k) - xn(ks[i - 1]) >= (tw(f(k), role) + tw(f(ks[i - 1]), role)) / 2 + 7);
+        const every = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+        const third = [3, 6, 9];
+        const topKs = fitsAll(every, topForms, 'small') ? every : third;
+        const topF = fitsAll(topKs, topForms, 'small') ? topForms : (k) => (k === 9 ? '9 nines' : String(k));
+        for (const k of topKs) D.text(xn(k), y + 9, [[topF(k), 'small']], { anchor: 'middle', owner: 'r-top', data: ' data-xtick="top"', ground: true });
+        y += 14;
+        const rowH = 24;
+        const barH = 12;
+        const rowsY = y;
+        for (const k of every) D.line(xn(k), rowsY - 2, xn(k), rowsY + 5 * rowH + 2, 'gridline', { layer: 'grid', owner: 'grid', solid: false });
+        D.line(rx0, rowsY - 2, rx0, rowsY + 5 * rowH + 2, 'axis', { layer: 'grid', owner: 'grid', solid: false });
+        const barRect = (cls, n0, n1, by, data = '') => {
+          if (n1 - n0 <= 1e-9) return;
+          D.add('marks', `<rect class="${cls}" x="${r1(xn(n0))}" y="${r1(by)}" width="${r1(Math.max(0.75, xn(n1) - xn(n0)))}" height="${barH}"${data}/>`);
+        };
+        m.parts.forEach((p, i) => {
+          const ry = rowsY + i * rowH;
+          const by = ry + (rowH - barH) / 2;
+          D.text(P, ry + rowH / 2 + 4, [[p.short, 'nameS', p.optional ? 'muted' : '']], { owner: `rgut-${p.id}` });
+          const hidden = hid.parts.has(p.id);
+          if (hidden) {
+            D.add('marks', `<rect class="bar-hidden" data-bar-hidden="${p.id}" x="${r1(rx0 + 0.5)}" y="${r1(by + 0.5)}" width="${r1(rx1 - rx0 - 1)}" height="${barH - 1}" rx="2"/>`);
+            D.text(W - P, ry + rowH / 2 + 4, [['?', 'smallB', 'muted']], { anchor: 'end', owner: `val-${p.id}`, id: `val-${p.id}` });
+            return;
+          }
+          const real = p.nines;
+          const paper = p.paperNines;
+          for (let c = 0; c < p.copies; c++) {
+            const a = 3 * c;
+            const b = 3 * (c + 1);
+            if (p.optional) barRect('bar optional', a, b, by);
+            else {
+              barRect('bar', a, Math.min(b, real), by, ` data-bar="${p.id}"`);
+              barRect('bar paper', Math.max(a, real), b, by, ` data-paper="${p.id}"`);
+            }
+            if (c > 0) D.add('marks', `<rect class="notch" x="${r1(xn(a) - 0.75)}" y="${r1(by - 0.5)}" width="1.5" height="${barH + 1}"/>`);
+          }
+          D.mark({ x0: rx0, x1: xn(paper), y0: by, y1: by + barH }, `bar-${p.id}`);
+          D.meta[`end-${p.id}`] = xn(real);
+          const val = p.optional ? pick(['optional', 'opt.'], (t) => tw(t, 'small') <= valW - 2) : fd(p.downH);
+          const weakest = !p.optional && m.weakest.includes(p.id) && !hid.request;
+          D.text(W - P, ry + rowH / 2 + 4, [[val, p.optional ? 'small' : weakest ? 'smallB' : 'small', weakest ? 'bad' : p.optional ? '' : 'ink']], { anchor: 'end', owner: `val-${p.id}`, id: `val-${p.id}` });
+          // What the paper promised, where the model's length stops short of it.
+          if (!p.optional && paper - real > 0.05 && wide) {
+            D.place([[xn(paper) + 5, ry + rowH / 2 + 4]], [[`on paper ${fd(p.paperDownH)}`, 'small']], { optional: true, owner: `paper-${p.id}`, maxX: rx1 - 2, id: `paper-${p.id}`, ground: true });
+          }
+        });
+        // The request's row.
+        const qy = rowsY + 4 * rowH;
+        const qby = qy + (rowH - barH) / 2;
+        D.text(P, qy + rowH / 2 + 4, [[pick(['Request', 'Req.'], (t) => tw(t, 'smallB') <= gut - 4), 'smallB']], { owner: 'rgut-request' });
+        if (hid.request) {
+          D.add('marks', `<rect class="bar-hidden" data-bar-hidden="request" x="${r1(rx0 + 0.5)}" y="${r1(qby + 0.5)}" width="${r1(rx1 - rx0 - 1)}" height="${barH - 1}" rx="2"/>`);
+          D.text((rx0 + rx1) / 2, qy + rowH / 2 + 4, [['after your answer', 'small']], { anchor: 'middle', owner: 'bar-request', ground: true });
+          D.text(W - P, qy + rowH / 2 + 4, [['?', 'smallB', 'muted']], { anchor: 'end', owner: 'val-request', id: 'val-request' });
+        } else {
+          barRect('bar request', 0, m.nines, qby, ' data-bar="request"');
+          D.mark({ x0: rx0, x1: xn(m.nines), y0: qby, y1: qby + barH }, 'bar-request');
+          D.meta['end-request'] = xn(m.nines);
+          D.text(W - P, qy + rowH / 2 + 4, [[fd(m.downH), 'smallB', 'ink']], { anchor: 'end', owner: 'val-request', id: 'val-request' });
+          // The weakest link caps the chain: a line from its end down to the request's row.
+          const wi = m.parts.findIndex((p) => p.id === m.weakest[0]);
+          const wx = xn(m.parts[wi].nines);
+          const wy = rowsY + wi * rowH + (rowH - barH) / 2;
+          D.add('top', `<line class="capline" data-cap="${m.weakest.join(',')}" x1="${r1(wx)}" y1="${r1(wy - 2)}" x2="${r1(wx)}" y2="${r1(qby + barH + 2)}"/>`);
+          D.link(sampleLine(wx, wy - 2, wx, qby + barH + 2), 'capline');
+          for (const id of m.weakest) {
+            const k = m.parts.findIndex((p) => p.id === id);
+            const cy = rowsY + k * rowH + (rowH - barH) / 2;
+            D.add('top', `<rect class="capend" x="${r1(wx - 1.5)}" y="${r1(cy - 2)}" width="3" height="${barH + 4}"/>`);
+          }
+          // The setting before a change: a hollow tick on the request's row, said in words under the facts.
+          if (view.ghost && !hid.ghost) {
+            const g = M.run(view.ghost);
+            if (Math.abs(g.nines - m.nines) * ppn > 4) {
+              const gx = xn(g.nines);
+              D.add('top', `<rect class="ghost-tick" data-ghost="1" x="${r1(gx - 2)}" y="${r1(qby - 3)}" width="4" height="${barH + 6}" rx="1"/>`);
+              D.mark({ x0: gx - 3, x1: gx + 3, y0: qby - 3, y1: qby + barH + 3 }, 'ghost');
+              D.place(
+                [
+                  [gx + 6, qy + rowH / 2 + 4],
+                  [gx - 6, qy + rowH / 2 + 4, 'end'],
+                ],
+                [[`before ${fd(g.downH)}`, 'small']],
+                { optional: true, owner: 'ghost', maxX: rx1 - 2, minX: rx0 + 2, id: 'ghost-words', ignore: 'ghost', ground: true },
+              );
+            }
+          }
+          D.place(
+            [
+              [wx + 6, qy + rowH / 2 + 4],
+              [wx - 6, rowsY + wi * rowH - 1, 'end'],
+            ],
+            [[pick(['capped by the weakest link', 'capped here'], (t) => wx + 6 + tw(t, 'small') <= rx1 - 2), 'small', 'bad']],
+            { optional: true, owner: 'capline', maxX: rx1 - 2, id: 'cap-words', ground: true },
+          );
+        }
+        y = rowsY + 5 * rowH + 2;
+        D.line(rx0, y, rx1, y, 'axis', { layer: 'grid', owner: 'grid', solid: false });
+        const botF = (k) => fd(M.hoursAYear(10 ** -k));
+        const botKs = fitsAll(every, botF, 'small') ? every : third;
+        for (const k of botKs) D.text(xn(k), y + 14, [[botF(k), 'small']], { anchor: 'middle', owner: 'r-bottom', data: ' data-xtick="bottom"', ground: true });
+        D.text(P, y + 14, [[pick(['a year', ''], (t) => !t || tw(t, 'small') <= xn(botKs[0]) - tw(botF(botKs[0]), 'small') / 2 - P - 6), 'small']], { owner: 'r-bottom-name' });
+        y += 28;
+        D.region('ruler', { x: P - 6, y: rulerTop - 2, w: W - 2 * P + 12, h: y - rulerTop });
+        // The facts, then the setting before the change in words; reserved lines collect at the stage's foot.
+        y += 10;
+        const factLines = [];
+        if (hid.request) factLines.push(...wrap(HIDDEN_FACT, 'cap', W - 2 * P));
+        else {
+          factLines.push(...wrap(weakestSentence(m, true), 'cap', W - 2 * P), ...wrap(causesSentence(m), 'cap', W - 2 * P));
+          if (view.ghost && !hid.ghost) factLines.push(...wrap(ghostSentence(M.run(view.ghost)), 'cap', W - 2 * P));
+        }
+        D.para(P, y + 12, factLines, 'cap', 18, { owner: 'facts', id: 'facts' });
+        D.meta.facts = hid.request ? [] : [weakestSentence(m, true), causesSentence(m)];
+        y += R.facts * 18 + 10;
+        D.region('model', { x: P - 6, y: modelTop, w: W - 2 * P + 12, h: y - modelTop - 4 });
+        return { D, H: Math.round(y) };
+      }
+
+      // ---------- Focus outlines with their "Look here" tag on the first free place (prevention 5). An outline takes in
+      // every text its region holds with 6 px to spare, so its stroke never runs along a text.
+      function focusOutlines(D, ids, H) {
+        const TAG = { w: 72, h: 16 };
+        for (const id of ids) {
+          for (const b of D.regions[id] ?? []) {
+            const inside = new Set(
+              D.texts.filter((t) => {
+                const cx = (t.x0 + t.x1) / 2;
+                const cy = (t.y0 + t.y1) / 2;
+                return t.owner !== 'look' && cx >= b.x && cx <= b.x + b.w && cy >= b.y && cy <= b.y + b.h;
+              }),
+            );
+            const grow = (a, t, d) => ({ x0: Math.min(a.x0, t.x0 - d), y0: Math.min(a.y0, t.y0 - d), x1: Math.max(a.x1, t.x1 + d), y1: Math.max(a.y1, t.y1 + d) });
+            let box = { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h };
+            let core = { x0: b.x + 4, y0: b.y + 4, x1: b.x + b.w - 4, y1: b.y + b.h - 4 };
+            for (const t of inside) {
+              box = grow(box, t, 6);
+              core = grow(core, t, 3);
+            }
+            const clash = (t) => !(t.x1 <= box.x0 - 4 || t.x0 >= box.x1 + 4 || t.y1 <= box.y0 - 4 || t.y0 >= box.y1 + 4);
+            for (let round = 0; round < 8; round++) {
+              const bad = D.texts.filter((t) => !inside.has(t) && t.owner !== 'look' && clash(t));
+              if (!bad.length) break;
+              for (const t of bad) {
+                if (t.y0 >= core.y1 && t.y0 - 4.5 >= core.y1) box.y1 = Math.min(box.y1, t.y0 - 4.5);
+                else if (t.y1 <= core.y0 && t.y1 + 4.5 <= core.y0) box.y0 = Math.max(box.y0, t.y1 + 4.5);
+                else if (t.x0 >= core.x1 && t.x0 - 4.5 >= core.x1) box.x1 = Math.min(box.x1, t.x0 - 4.5);
+                else if (t.x1 <= core.x0 && t.x1 + 4.5 <= core.x0) box.x0 = Math.max(box.x0, t.x1 + 4.5);
+                else {
+                  inside.add(t);
+                  box = grow(box, t, 6);
+                  core = grow(core, t, 3);
+                }
+              }
+            }
+            const x = Math.max(3, box.x0);
+            const yy = Math.max(3, box.y0);
+            const w = Math.min(D.W - 3, box.x1) - x;
+            const h = Math.min(H - 3, box.y1) - yy;
+            D.add('top', `<rect class="focus-outline" data-focus="${id}" x="${r1(x)}" y="${r1(yy)}" width="${r1(w)}" height="${r1(h)}" rx="10"/>`);
+            const across = [];
+            for (let ax = x + w - TAG.w - 16; ax >= x + 16; ax -= 8) across.push(ax);
+            const xs = [x + w - TAG.w - 16, x + 16, x + w - TAG.w - 6, x + 6, ...across];
+            const ys = [yy - TAG.h / 2, yy + h - TAG.h / 2, yy + 4, yy + h - TAG.h - 4, yy + 24, yy + 44, yy - TAG.h - 2, yy + h + 2];
+            let placed = false;
+            for (const [tx, ty] of ys.flatMap((t) => xs.map((sx) => [sx, t]))) {
+              const tb = { x0: tx, x1: tx + TAG.w, y0: ty, y1: ty + TAG.h };
+              if (tx < 3 || tx + TAG.w > D.W - 3 || ty < 3 || ty + TAG.h > H - 3) continue;
+              if (!D.free(tb, '', 1)) continue;
+              D.add('top', `<rect class="tag" x="${r1(tx)}" y="${r1(ty)}" width="${TAG.w}" height="${TAG.h}" rx="8"/>`);
+              D.add('top', `<text x="${r1(tx + TAG.w / 2)}" y="${r1(ty + 12)}" text-anchor="middle" data-owner="look" data-ground="1"><tspan class="t-look">LOOK HERE</tspan></text>`);
+              D.mark(tb, 'look');
+              placed = true;
+              break;
+            }
+            if (!placed) D.missingTags = (D.missingTags ?? 0) + 1;
+          }
+        }
+      }
+
+      // ---------- Mockup states.
+      const B = M.BASE;
+      const ES = M.EXPERIMENT_SETTINGS();
+      const STATES = {
+        default: { s: B },
+        series: { s: ES.series },
+        pairs: { s: ES.pairs, ghost: ES.weakestAfter },
+        shared: { s: ES.sharedAfter, ghost: ES.pairs },
+        failover: { s: ES.failoverAfter, ghost: ES.pairs },
+        real: { s: ES.solution },
+        triples: { s: { lb: 3, app: 3, db: 3, recs: 3, optional: 0, shared: 1, failover: 1 } },
+        optional: { s: { ...B, optional: 1 }, ghost: B },
+        playing: { s: ES.challenge, frac: 0.5 },
+        hold: { s: B, frac: 0.12 },
+        describe: { s: B, describe: true },
+        reduced: { s: ES.failoverAfter, reduced: true },
+        ask: { exp: 0, phase: 'asking' },
+        reveal: { exp: 0, phase: 'revealed' },
+        challenge: { exp: 5, phase: 'challenge' },
+      };
+      const actSettings = (spec) => ({ ...spec.setup, ...(spec.act?.set ?? {}) });
+      const changedParts = (spec) => {
+        const a = M.run(spec.setup);
+        const b = M.run(actSettings(spec));
+        return b.parts.filter((p, i) => Math.abs(p.u - a.parts[i].u) > 1e-15 || p.copies !== a.parts[i].copies).map((p) => p.id);
+      };
+      function viewOf(name) {
+        const st = STATES[name] ?? STATES.default;
+        const expParam = params.get('exp');
+        const expIdx = expParam !== null && st.exp !== undefined ? Number(expParam) - 1 : st.exp;
+        if (expIdx === undefined) {
+          const tau = st.frac !== undefined ? st.frac * M.playPlan(st.s).total : null;
+          return { s: st.s, hide: [], phase: 'rest', ghost: st.ghost ?? null, tau, describe: !!st.describe, reduced: !!st.reduced };
+        }
+        const spec = M.EXPERIMENTS[expIdx];
+        if (spec.goal) return expView(spec, params.get('start') === '1' ? 'start' : 'challenge');
+        const phase = params.get('phase') === 'playing' && st.phase === 'asking' ? 'playing' : st.phase;
+        return expView(spec, phase, Number(params.get('frac') ?? 0.8));
+      }
+      /** One experiment's view: asking (from whatever setting came before, which must leave no trace), the answer's play at
+       * a fraction of its clock, revealed, or the challenge met or at its start. */
+      function expView(spec, phase, frac = 0.8, from = null) {
+        const e = M.renderExperiment(spec);
+        if (spec.goal) {
+          const s = phase === 'start' ? spec.setup : { ...spec.setup, ...M.CHALLENGE_SOLUTION };
+          const met = M.goalMet(spec.goal, s);
+          return { s, hide: [], exp: e, spec, phase: 'challenge', met, focus: met ? spec.focus : [], ghost: met ? spec.setup : null, tau: null };
+        }
+        const after = actSettings(spec);
+        const moved = JSON.stringify(after) !== JSON.stringify(spec.setup);
+        return {
+          s: phase === 'asking' ? spec.setup : after,
+          hide: phase === 'revealed' ? [] : spec.hide,
+          exp: e,
+          spec,
+          phase,
+          chosen: e.answer === 0 ? 1 : 0,
+          focus: phase === 'revealed' ? spec.focus : [],
+          changed: changedParts(spec),
+          ghost: phase === 'asking' ? from : moved ? spec.setup : null,
+          tau: phase === 'playing' ? frac * M.playPlan(after, true, changedParts(spec)).total : null,
+        };
+      }
+      window.expView = expView;
+
+      // ---------- The page around the stage.
+      const CONDITIONS = [
+        ['optional', 'Recs', 'optional', 'Recommendations optional: the page renders without them'],
+        ['shared', 'Shared', 'failures', `Shared failures: ${M.SHARE_WORDS} of a copy’s outages hits every copy of its part`],
+        ['failover', 'Failover', `${M.FAILOVER_MIN} min`, `Failover takes ${M.FAILOVER_MIN} min: traffic needs that long to move off a dead copy`],
+      ];
+      function controlsHtml(m, view) {
+        const s = m.settings;
+        const hid = hiding(view);
+        const dis = hid.waits ? ' disabled' : '';
+        const steppers = M.PARTS.map((p) => {
+          const n = s[p.id];
+          return `<div class="stepper"><button type="button" aria-label="Fewer ${p.many}"${n <= 1 ? ' disabled' : ''}>−</button><output aria-label="${p.name}: ${n} ${plural(n, 'copy', 'copies')}"><small>${p.short}</small>${n}</output><button type="button" aria-label="More ${p.many}"${n >= 3 ? ' disabled' : ''}>+</button></div>`;
+        }).join('');
+        const keepNote = view.phase === 'challenge' ? '<span class="why"> · the goal keeps both failures on</span>' : '';
+        const toggles = CONDITIONS.map(([key, a, b, label]) => {
+          const locked = view.phase === 'challenge' && key !== 'optional';
+          return `<label class="segment"><input type="checkbox" aria-label="${esc(label)}" ${s[key] ? 'checked' : ''}${locked ? ' disabled' : ''}/><span>${a}<small>${b}</small></span></label>`;
+        }).join('');
+        return `<fieldset class="group copies-control"${dis}><legend class="control-label">Copies of each part</legend><div class="steppers">${steppers}</div></fieldset>
+<fieldset class="group conditions-control"${dis}><legend class="control-label">Conditions${keepNote}</legend><div class="toggles3">${toggles}</div></fieldset>
+<p class="notice" role="status" aria-live="polite" aria-atomic="true">${codeText(noticeOf(m, view))}</p>`;
+      }
+      function noticeOf(m, view) {
+        if (view.phase === 'asking') return 'Play and the settings this question is about wait for your answer.';
+        if (view.phase === 'playing') return '';
+        if (view.reduced) return `${captionOf(M.restMoment(m.settings), m.parts.find((p) => p.id === M.restMoment(m.settings).part).copies)} ${yearSentence(M.sample(m.settings).fails)}`;
+        return settingSentence(m);
+      }
+      const NOTE = `Every copy is ${fa(M.COPY_U)} available: ${M.FAILS_PER_YEAR} outages a year × ${M.MTTR_H} h each is ${M.FAILS_PER_YEAR * M.MTTR_H} h down, or up ${M.MTBF_H} h for every ${M.MTTR_H} h down. Parts fail independently of each other, and one copy can carry the full load.`;
+      const ICON_RIGHT = '<svg class="mark" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="var(--g-success-line)"/><path d="M6 10.2l2.6 2.6 5.2-5.6" fill="none" stroke="var(--g-surface)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      const ICON_WRONG = '<svg class="mark" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="var(--g-danger)"/><path d="M7 7l6 6M13 7l-6 6" fill="none" stroke="var(--g-surface)" stroke-width="2" stroke-linecap="round"/></svg>';
+      /** The challenge's status, each bound in the ask's own terms and its state in words (the house goalParts). */
+      function goalChecks(m) {
+        const b = M.CHALLENGE_BOUNDS;
+        const said = (met) => (met ? 'met' : 'not yet');
+        const downMet = m.downH < b.down;
+        const copiesMet = m.copies < b.copies;
+        return [
+          { met: downMet, text: `the request down ${fd(m.downH)} a year, under ${fd(b.down)}: ${said(downMet)}` },
+          { met: copiesMet, text: `${m.copies} copies in all, no more than ${b.copies - 1}: ${said(copiesMet)}` },
+        ];
+      }
+      function dockHtml(m, view) {
+        const e = view.exp;
+        if (!e) return '';
+        if (view.phase === 'challenge') {
+          const checks = goalChecks(m);
+          const kept = M.goalKept(view.spec.goal, m.settings);
+          const status = view.met ? 'Goal met:' : kept ? '' : 'The goal keeps shared failures and the 5 min failover on.';
+          return `<p class="legend">${codeText(e.ask)}</p>${status ? `<p class="status-line${view.met ? ' met' : ''}" role="status">${view.met ? ICON_RIGHT : ''}${esc(status)}</p>` : ''}<ul class="status">${checks
+            .map((c) => `<li class="${c.met ? 'met' : ''}"><span class="state" aria-hidden="true">${c.met ? '✓' : '·'}</span><span>${codeText(c.text)}</span></li>`)
+            .join('')}</ul>${view.met ? `<p class="reveal" aria-live="polite" aria-atomic="true">${codeText(e.reveal)}</p>` : ''}`;
+        }
+        if (view.phase === 'asking') {
+          return `<fieldset style="border:0;padding:0;margin:0"><legend class="legend">${codeText(e.ask)}</legend><div class="options">${e.choices.map((c) => `<button class="g-choice"><span>${codeText(c)}</span></button>`).join('')}</div></fieldset>`;
+        }
+        const marked = e.choices
+          .map((c, i) => {
+            const right = view.phase === 'revealed' && i === e.answer;
+            const wrong = view.phase === 'revealed' && i === view.chosen && !right;
+            const chosen = view.phase === 'playing' && i === view.chosen;
+            return `<li class="g-choice${right ? ' right' : wrong ? ' wrong' : ''}${chosen ? ' held-choice' : ''}"><span>${codeText(c)}${chosen ? ' <small>(your guess)</small>' : ''}</span>${right ? ICON_RIGHT : wrong ? ICON_WRONG : ''}</li>`;
+          })
+          .join('');
+        if (view.phase === 'playing') return `<p class="legend">${codeText(e.ask)}</p><ul class="options">${marked}</ul><p class="held">Watch the picture: the answer plays out on it.</p>`;
+        return `<p class="legend">${codeText(e.ask)}</p><ul class="options">${marked}</ul><p class="reveal" aria-live="polite" aria-atomic="true">${codeText(e.reveal)}</p>`;
+      }
+      function cardsHtml(view) {
+        return `<h3 class="heading"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8zM19 14l.9 2.6 2.6.9-2.6.9L19 21l-.9-2.6-2.6-.9 2.6-.9z"/></svg>Experiments</h3>
+<ol class="cards">${M.EXPERIMENTS.map((s, i) => `<li><button class="card-btn"${view.exp && view.exp.id === s.id ? ' aria-current="step"' : ''}><span class="num">${s.goal ? '⚑' : i + 1}</span><span>${esc(M.renderExperiment(s).title)}</span></button></li>`).join('')}</ol>`;
+      }
+      // Describe: a row per part and one for the request; compact under a 560 px stage.
+      function describeRows(m, compact) {
+        const smp = M.sample(m.settings);
+        const head = compact ? ['Part', 'Copies', 'Down a year', 'Simulated year'] : ['Part', 'Copies', 'Available', 'Down a year', 'In 30 days', 'Simulated year'];
+        const yearCell = (events) => {
+          if (!events.length) return compact ? 'none' : 'never failed it';
+          const hours = events.reduce((t, e) => t + e.hours, 0);
+          return compact ? `${events.length}×, ${fd(hours)}` : `failed it ${timesWord(events.length)}, ${fd(hours)}`;
+        };
+        const rows = m.parts.map((p, i) => {
+          const name = compact ? p.short : p.name;
+          if (p.optional) return { cells: compact ? [name, String(p.copies), 'optional', 'none'] : [name, String(p.copies), fa(p.u), 'optional', 'optional', 'never: it is skipped'] };
+          const ev = smp.parts[i].events;
+          return { weakest: m.weakest.includes(p.id), cells: compact ? [name, String(p.copies), fd(p.downH), yearCell(ev)] : [name, String(p.copies), fa(p.u), fd(p.downH), fd(p.u * M.MONTH_H), yearCell(ev)] };
+        });
+        const all = (t) => t.replace('failed it', 'failed').replace('never failed it', 'never failed');
+        rows.push({ now: true, cells: compact ? ['Request', String(m.copies), fd(m.downH), yearCell(smp.fails)] : ['The request', String(m.copies), fa(m.u), fd(m.downH), fd(m.monthH), all(yearCell(smp.fails))] });
+        return { head, rows };
+      }
+      function describeHtml(m, view, compact) {
+        const waits = view.phase === 'asking' || view.phase === 'playing' || (view.phase === 'challenge' && !view.met);
+        const open = !!view.describe && !waits;
+        const btn = `<button class="g-btn" aria-expanded="${open}"${waits ? ' disabled' : ''}>${open ? 'Hide the description' : 'Describe'}</button>`;
+        if (waits) return `${btn}<p class="muted-note">${view.phase === 'challenge' ? 'Describe waits until you meet the goal.' : 'Describe waits for your answer.'}</p>`;
+        if (!open) return btn;
+        const { head, rows } = describeRows(m, compact);
+        const rest = M.restMoment(m.settings);
+        const story = `${yearSentence(M.sample(m.settings).fails)} The picture rests on this moment: ${captionOf(rest, m.parts.find((p) => p.id === rest.part).copies).replace(/^Week/, 'week')}`;
+        return `${btn}<p class="summary">${codeText(summary(m, {}))} ${codeText(causesSentence(m))}</p><p class="summary">${codeText(story)}</p><div class="table-box${compact ? ' compact' : ''}" tabindex="0" role="region" aria-label="Each part and the request, from the model and in the simulated year"><table><thead><tr>${head
+          .map((h) => `<th scope="col">${h}</th>`)
+          .join('')}</tr></thead><tbody>${rows.map((r) => `<tr${r.now ? ' class="now"' : ''}>${r.cells.map((c, i) => (i === 0 ? `<th scope="row">${esc(c)}${r.weakest ? ' <small>(weakest)</small>' : ''}</th>` : `<td>${esc(c)}</td>`)).join('')}</tr>`).join('')}</tbody></table></div>`;
+      }
+      // Play: it waits while a question asks; during a free play it is Stop.
+      function overlaysHtml(D, view) {
+        const asking = view.phase === 'asking' || view.phase === 'playing';
+        const freePlaying = view.phase === 'rest' && view.tau !== null && view.tau !== undefined;
+        const glyph = freePlaying ? '<rect x="12.5" y="11" width="4" height="14" rx="1"/><rect x="19.5" y="11" width="4" height="14" rx="1"/>' : '<path d="M14 11v14l11-7z"/>';
+        const label = asking ? 'Play the year, after your answer' : freePlaying ? 'Stop the year' : 'Play the year';
+        return D.hits
+          .filter((h) => h.kind === 'play')
+          .map((h) => `<button class="play hit" data-owner="play" style="left:${h.x}px;top:${h.y}px" aria-label="${label}"${asking ? ' disabled' : ''}><svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="16"/>${glyph}</svg></button>`)
+          .join('');
+      }
+
+      function render(name) {
+        const view = viewOf(name);
+        const m = M.run(view.s);
+        const root = document.getElementById('widget');
+        const rest = M.restMoment(m.settings);
+        root.innerHTML = `<div class="controls">${controlsHtml(m, view)}</div>
+<div class="main"><div class="stage" role="group" aria-roledescription="visualization" aria-label="Reliability: a request crossing a chain of parts, each a set of copies, over a simulated year"><div class="well" id="well"></div></div>
+${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${codeText(`${captionOf(rest, m.parts.find((p) => p.id === rest.part).copies)} ${yearSentence(M.sample(m.settings).fails)}`)}</p>` : ''}<p class="note">${codeText(NOTE)}</p><div class="describe" id="describe"></div></div>
+<div class="experiments"><section class="dock" aria-label="Experiment">${dockHtml(m, view)}</section>${cardsHtml(view)}</div>`;
+        const well = document.getElementById('well');
+        const W = well.clientWidth;
+        const { D, H } = buildStage(W, m, view);
+        if (view.focus?.length) focusOutlines(D, view.focus, H);
+        well.style.height = H + 'px';
+        well.innerHTML = D.svg(H, D.label) + overlaysHtml(D, view);
+        document.getElementById('describe').innerHTML = describeHtml(m, view, W < 560);
+        window.__stage = { W, H, missingTags: D.missingTags ?? 0, summary: D.label, missing: D.missing };
+        return { W, H, D, view, m };
+      }
+
+      // ---------- Collisions, measured from the rendered DOM: text on text, lines through text, marks under text,
+      // off-stage text, hit boxes on hit boxes, axis labels too close, text against a focus outline's stroke, labels
+      // and tags with no place.
+      function collisions(well) {
+        const svg = well.querySelector('svg.draw');
+        const W = Number(svg.getAttribute('width'));
+        const H = Number(svg.getAttribute('height'));
+        const owners = (el) => (el.getAttribute?.('data-owner') ?? '').split(' ').filter(Boolean);
+        const share = (a, b) => a.some((t) => b.includes(t));
+        const texts = [...svg.querySelectorAll('text')].map((t) => {
+          const b = t.getBBox();
+          return { el: t, s: t.textContent, owner: owners(t), ground: t.hasAttribute('data-ground'), x0: b.x + 0.5, x1: b.x + b.width - 0.5, y0: b.y + b.height * 0.2, y1: b.y + b.height * 0.95 };
+        });
+        const out = [];
+        const ov = (a, b, m = 0) => Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > m && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > m;
+        for (let i = 0; i < texts.length; i++) {
+          const a = texts[i];
+          if (a.x0 < -0.5 || a.x1 > W + 0.5 || a.y0 < 0 || a.y1 > H) out.push(`off-stage: "${a.s}"`);
+          for (let j = i + 1; j < texts.length; j++) if (ov(a, texts[j], 0.5)) out.push(`text on text: "${a.s}" / "${texts[j].s}"`);
+        }
+        for (const axis of ['top', 'bottom', 'weeks']) {
+          const xt = texts.filter((t) => t.el.getAttribute('data-xtick') === axis).sort((a, b) => a.x0 - b.x0);
+          for (let i = 1; i < xt.length; i++) if (xt[i].x0 - xt[i - 1].x1 < 6) out.push(`${axis} axis labels ${xt[i - 1].s} and ${xt[i].s} ${(xt[i].x0 - xt[i - 1].x1).toFixed(1)} px apart`);
+        }
+        const inside = (p, t) => p.x > t.x0 + 0.5 && p.x < t.x1 - 0.5 && p.y > t.y0 + 0.5 && p.y < t.y1 - 0.5;
+        for (const el of svg.querySelectorAll('.wire, .path, .path-hidden, .gridline, .axis, .rule, .row-track, .strip-track, .moment, .playhead, .capline')) {
+          const grid = el.matches('.gridline, .axis, .rule, .row-track, .strip-track, .playhead, .moment');
+          const o = owners(el);
+          const pts = [];
+          if (el.tagName === 'line') {
+            const [x1, y1, x2, y2] = ['x1', 'y1', 'x2', 'y2'].map((a) => Number(el.getAttribute(a)));
+            for (const [x, y] of sampleLine(x1, y1, x2, y2, 2)) pts.push({ x, y });
+          } else {
+            const len = el.getTotalLength();
+            for (let d = 0; d <= len; d += 2) pts.push(el.getPointAtLength(d));
+          }
+          for (const t of texts) {
+            if (grid && t.ground) continue;
+            if (share(o, t.owner)) continue;
+            if (pts.some((p) => inside(p, t))) out.push(`${grid ? 'grid' : 'line'} through "${t.s}" (${el.getAttribute('class')})`);
+          }
+        }
+        for (const mk of svg.querySelectorAll('[data-mark]')) {
+          const b = mk.getBBox();
+          const box = { x0: b.x, x1: b.x + b.width, y0: b.y, y1: b.y + b.height };
+          for (const t of texts) if (!share(t.owner, owners(mk)) && ov(box, t, 0.5)) out.push(`text on mark ${mk.getAttribute('data-mark')}: "${t.s}"`);
+        }
+        // Ticks: none off the stage's rows, and a ring is round its whole mark.
+        for (const o of svg.querySelectorAll('rect.focus-outline')) {
+          const [x, y, w, h] = ['x', 'y', 'width', 'height'].map((a) => Number(o.getAttribute(a)));
+          for (const t of texts) {
+            if (t.owner.includes('look')) continue;
+            const inner = t.x0 >= x + 3 && t.x1 <= x + w - 3 && t.y0 >= y + 3 && t.y1 <= y + h - 3;
+            const clear = t.x1 <= x - 4 || t.x0 >= x + w + 4 || t.y1 <= y - 4 || t.y0 >= y + h + 4;
+            if (!inner && !clear) out.push(`text at an outline's stroke: "${t.s}"`);
+          }
+        }
+        const wb = well.getBoundingClientRect();
+        const hits = [...well.querySelectorAll('.hit')].map((h) => {
+          const b = h.getBoundingClientRect();
+          return { o: h.dataset.owner, x0: b.left - wb.left - 1, x1: b.right - wb.left - 1, y0: b.top - wb.top - 1, y1: b.bottom - wb.top - 1 };
+        });
+        for (let i = 0; i < hits.length; i++) {
+          const a = hits[i];
+          if (a.x0 < -0.5 || a.x1 > W + 0.5 || a.y0 < -0.5 || a.y1 > H + 0.5) out.push(`hit box off-stage: ${a.o}`);
+          for (let j = i + 1; j < hits.length; j++) if (ov(a, hits[j], 0)) out.push(`hit on hit: ${a.o} / ${hits[j].o}`);
+          for (const t of texts) if (ov(a, t, 0.5)) out.push(`text under the hit box ${a.o}: "${t.s}"`);
+        }
+        return out;
+      }
+      function tagMarks(well, D) {
+        const svg = well.querySelector('svg.draw');
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.setAttribute('opacity', '0');
+        for (const mk of D.marks) {
+          const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+          r.setAttribute('x', mk.x0);
+          r.setAttribute('y', mk.y0);
+          r.setAttribute('width', Math.max(0.1, mk.x1 - mk.x0));
+          r.setAttribute('height', Math.max(0.1, mk.y1 - mk.y0));
+          r.setAttribute('data-mark', mk.owner || 'mark');
+          r.setAttribute('data-owner', mk.owner || 'mark');
+          g.appendChild(r);
+        }
+        svg.appendChild(g);
+      }
+      const unplaced = (D) => [...(D.missingTags ? [`${D.missingTags} focus tag(s) without a place`] : []), ...(D.missing ?? []).map((t) => `no room for "${t}"`)];
+
+      // ---------- What must hold on every render, beyond collisions (the layout spec's assertions).
+      // A hidden value is never replaced by a wrong default; a count of one keeps its singular; nothing is 100%.
+      const FALSE_CLAIMS = [/(^|[^\d.,])0 (times|failures|outages|h|min|s|copies)\b/, /(^|[^\d.,])100%/, /\b1 (times|copies|outages|failovers)\b/, /failed 1 time/, /NaN/, /undefined/, /Infinity/, /\u2014/];
+      const stageText = (well, scales = true) => [...well.querySelectorAll(scales ? 'text' : 'text:not([data-xtick])')].map((t) => t.textContent).join(' | ') + ' | ' + [...well.querySelectorAll('[aria-label],[aria-valuetext]')].map((e) => `${e.getAttribute('aria-label')} ${e.getAttribute('aria-valuetext') ?? ''}`).join(' | ');
+      function assertions(well, D, m, view) {
+        const out = [];
+        const svg = well.querySelector('svg.draw');
+        const text = stageText(well);
+        const hid = hiding(view);
+        for (const g of FALSE_CLAIMS) if (g.test(text)) out.push(`false claim ${g}: ${text.match(g)[0]}`);
+        const smp = D.meta.sample;
+        const weeksOf = (el) => (el ? el.dataset.weeks.split(',').map(Number) : []);
+        if (!hid.sample) {
+          const shown = (w) => w + 0.5 <= D.meta.upTo + 1e-9;
+          // Every drawn count is the year's own: a tick per outage in each copy's row, and the request's row the union
+          // of the strips of the parts it needs.
+          const union = new Set();
+          m.parts.forEach((p, i) => {
+            for (let k = 0; k < p.copies; k++) {
+              const drawn = weeksOf(svg.querySelector(`[data-row="${p.id}-${k}"]`));
+              const want = smp.parts[i].rows[k].filter((t) => shown(t.week)).map((t) => t.week);
+              if (drawn.join() !== want.join()) out.push(`row ${p.id}-${k} draws ${drawn.length} ticks for ${want.length} outages`);
+            }
+            const strip = weeksOf(svg.querySelector(`[data-strip="${p.id}"]`));
+            if (!p.optional) for (const w of strip) union.add(w);
+            // Two copies of a part stand in one column only in a shared outage, and then the strip has it too.
+            const cols = new Map();
+            for (let k = 0; k < p.copies; k++) for (const w of weeksOf(svg.querySelector(`[data-row="${p.id}-${k}"]`))) cols.set(w, (cols.get(w) ?? 0) + 1);
+            for (const [w, c] of cols) {
+              if (c > 1 && c !== p.copies) out.push(`${p.id}: ${c} of ${p.copies} copies down in week ${w + 1}`);
+              if (c > 1 && !strip.includes(w)) out.push(`${p.id}: all copies down in week ${w + 1} but the part's strip is clear`);
+            }
+          });
+          const req = weeksOf(svg.querySelector('[data-request]'));
+          if (req.length !== union.size || req.some((w) => !union.has(w))) out.push(`the request's row (${req.length}) is not the union of the strips (${union.size})`);
+          if (new Set(req).size !== req.length) out.push('two failures of the request in one column');
+          // The words count what is drawn.
+          const said = D.meta.year.match(/failed (once|twice|(\d+) times)/);
+          const n = said ? (said[1] === 'once' ? 1 : said[1] === 'twice' ? 2 : Number(said[2])) : 0;
+          if (D.meta.year !== YEAR_WATCH && n !== req.length) out.push(`the year's sentence says ${n} failures and the row draws ${req.length}`);
+          // The band agrees with its caption.
+          const outcome = svg.querySelector('[data-outcome]')?.dataset.outcome;
+          const saysFails = /so the request fails|and fail, then/.test(D.meta.caption);
+          const downBoxes = svg.querySelectorAll('rect.box.down').length;
+          if (/so the request fails/.test(D.meta.caption) && outcome !== 'fails') out.push('the caption says the request fails and the band serves it');
+          if (/nothing fails|is served/.test(D.meta.caption) && outcome !== 'served') out.push('the caption says the request is served and the band fails it');
+          if (/every part has a copy up/.test(D.meta.caption) && downBoxes) out.push('the caption says every copy is up and a box is down');
+          void saysFails;
+          const ring = svg.querySelector('.ring');
+          if (ring) {
+            // The ring is round a drawn tick: its column holds a tick of the row it names.
+            const rx = Number(ring.getAttribute('x')) + Number(ring.getAttribute('width')) / 2;
+            const rest = M.restMoment(m.settings);
+            if (!rest) out.push('a ring with no rest moment');
+            else {
+              const src = rest.fails ? req : weeksOf(svg.querySelector(`[data-row="${rest.part}-${rest.copy}"]`));
+              if (!src.includes(rest.week)) out.push('the ring is round no tick');
+            }
+            void rx;
+          }
+        } else {
+          if (svg.querySelector('.tick-copy, .tick-fail, .tick-bypassed, .ring, .moment, .path, rect.box.down, [data-outcome]')) out.push('a sample mark shows while the sample hides');
+        }
+        // The nines scale: each bar ends at its own value; the request's never passes its weakest part's; the cap line
+        // stands at the weakest part's end.
+        if (!hid.request) {
+          const end = (id) => {
+            const rects = [...svg.querySelectorAll(`[data-bar="${id}"]`)];
+            return rects.length ? Math.max(...rects.map((r) => Number(r.getAttribute('x')) + Number(r.getAttribute('width')))) : null;
+          };
+          const reqEnd = end('request');
+          for (const p of m.parts) {
+            if (p.optional || hid.parts.has(p.id)) continue;
+            const e = end(p.id);
+            if (e === null || Math.abs(e - D.meta[`end-${p.id}`]) > 0.8) out.push(`the bar of ${p.id} ends ${e} for ${D.meta[`end-${p.id}`]}`);
+            if (reqEnd !== null && e !== null && reqEnd > e + 0.6) out.push(`the request's bar passes ${p.id}'s`);
+          }
+          const cap = svg.querySelector('.capline');
+          if (!cap) out.push('no cap line');
+          else if (Math.abs(Number(cap.getAttribute('x1')) - D.meta[`end-${m.weakest[0]}`]) > 0.8) out.push('the cap line is not at the weakest part');
+          if (cap && reqEnd > Number(cap.getAttribute('x1')) + 0.6) out.push('the request passes its cap');
+          // The causes sentence adds up as printed, to the minute.
+          const c = (D.meta.facts[1] ?? '').match(/: ([\d.]+) (min|h|s) a year = (.*)\./);
+          if (c) {
+            const toMin = (v, u) => (u === 'h' ? v * 60 : u === 'min' ? v : v / 60);
+            const total = toMin(Number(c[1]), c[2]);
+            const sum = [...c[3].matchAll(/([\d.]+) (min|h|s) (of|with)/g)].reduce((t, x) => t + toMin(Number(x[1]), x[2]), 0);
+            if (Math.abs(total - sum) > (c[2] === 'h' ? 6 : 1.5)) out.push(`the causes do not add up as printed: ${D.meta.facts[1]}`);
+          }
+        } else {
+          for (const st of svg.querySelectorAll('[data-stat]')) if (st.textContent !== '?') out.push(`a headline number shows while the request hides: ${st.textContent}`);
+          if (svg.querySelector('[data-bar="request"], .capline, .capend, [data-ghost]')) out.push('a request mark shows while the request hides');
+        }
+        return out;
+      }
+      function check(well, D, m, view) {
+        tagMarks(well, D);
+        const out = [...collisions(well), ...unplaced(D), ...(m ? assertions(well, D, m, view) : [])];
+        well.querySelectorAll('[data-mark]').forEach((e) => e.remove());
+        return out;
+      }
+      function drawInto(well, W, m, view) {
+        const { D, H } = buildStage(W, m, view);
+        if (view.focus?.length) focusOutlines(D, view.focus, H);
+        well.style.height = H + 'px';
+        well.innerHTML = D.svg(H, D.label) + overlaysHtml(D, view);
+        return { D, H };
+      }
+      const show = (s) => `lb${s.lb} app${s.app} db${s.db} recs${s.recs} opt${s.optional} sh${s.shared} fo${s.failover}`;
+      function scratchWell(W) {
+        let well = document.getElementById('scratch');
+        if (!well) {
+          well = document.createElement('div');
+          well.id = 'scratch';
+          well.className = 'well';
+          well.style.position = 'absolute';
+          well.style.left = '-5000px';
+          well.style.top = '0';
+          document.body.appendChild(well);
+        }
+        well.style.width = W + 'px';
+        return well;
+      }
+      /** Every setting at the widths given: at rest, and at moments of a free play; with a ghost when asked. */
+      window.sweep = (widths, settings, fracs, ghosts) => {
+        const res = { renders: 0, failures: [] };
+        for (const W of widths) {
+          const well = scratchWell(W);
+          for (const s of settings) {
+            const m = M.run(s);
+            for (const frac of fracs) {
+              const views = [{ s, hide: [], phase: 'rest', ghost: null, tau: frac === null ? null : frac * M.playPlan(s).total }];
+              if (ghosts && frac === null) views.push({ s, hide: [], phase: 'rest', ghost: M.BASE, tau: null }, { s, hide: [], phase: 'rest', ghost: ES.pairs, tau: null });
+              for (const view of views) {
+                const { D } = drawInto(well, W, m, view);
+                const out = check(well, D, m, view);
+                res.renders++;
+                if (out.length) res.failures.push({ W, s: show(s) + (frac === null ? '' : ` play ${frac}`) + (view.ghost ? ' ghost' : ''), out });
+              }
+            }
+          }
+        }
+        return res;
+      };
+      /** Every experiment asking, at moments of its answer's play, revealed; the challenge at its start and met. Every
+       * revealed frame and the met challenge must hold a placed "Look here" tag for each focus region. */
+      window.sweepExperiments = (widths) => {
+        const res = { renders: 0, failures: [] };
+        for (const W of widths) {
+          const well = scratchWell(W);
+          M.EXPERIMENTS.forEach((spec, i) => {
+            const phases = spec.goal ? [['start'], ['challenge']] : [['asking'], ['playing', 0.1], ['playing', 0.5], ['playing', 0.95], ['revealed']];
+            for (const [phase, frac] of phases) {
+              const view = expView(spec, phase, frac);
+              const m = M.run(view.s);
+              const { D } = drawInto(well, W, m, view);
+              const out = check(well, D, m, view);
+              const tags = well.querySelectorAll('rect.tag').length;
+              if ((view.focus ?? []).length !== tags) out.push(`${tags} tags for ${(view.focus ?? []).length} focus regions`);
+              res.renders++;
+              if (out.length) res.failures.push({ W, exp: i + 1, phase: phase + (frac ?? ''), out });
+            }
+          });
+        }
+        return res;
+      };
+
+      // ---------- The no-answer sweep (prevention 1): while a question asks or its answer plays, nothing on the stage,
+      // in its labels or in the page's words gives the answer; proven by planting leaks it must catch.
+      const GIVEAWAYS = {
+        series: { asking: [/35 h/, /99\.6%/, /2\.9 h/, /failed \d+ times/, /35 times/], playing: [/35 h/, /99\.6%/, /2\.9 h/] },
+        parallel: { asking: [/32 s/, /17\.5 h/, /99\.8%/, /99\.9999%/], playing: [/32 s/, /17\.5 h/, /99\.8%/, /99\.9999%/] },
+        weakest: { asking: [/0\.03 s/], playing: [/0\.03 s/, /unchanged/] },
+        shared: { asking: [/53 min/, /2\.6 h/, /99\.97%/], playing: [/53 min/, /2\.6 h/, /99\.97%/, /13 min/] },
+        failover: { asking: [/44 min/, /2\.2 h/, /99\.975%/, /27 times/, /26 times/], playing: [/44 min/, /2\.2 h/, /99\.975%/, /11 min/] },
+      };
+      function structural(well, view) {
+        const out = [];
+        const svg = well.querySelector('svg.draw');
+        const hid = hiding(view);
+        if (!well.querySelector('.play')?.disabled) out.push('Play is live while a question waits');
+        if (svg.querySelector('[data-ghost], [data-id="ghost-words"]')) out.push('a ghost shows while a question waits');
+        if (/Before this change/.test(svg.textContent)) out.push('the ghost sentence shows while a question waits');
+        if (view.spec.hide.includes('sample') && view.phase === 'asking') {
+          if (svg.querySelector('.tick-copy, .tick-fail, .tick-bypassed, .ring, .moment, .path, rect.box.down, rect.box.serving, [data-outcome]')) out.push('a sample mark shows while the sample hides');
+        }
+        if ((view.spec.hide.includes('request') && view.phase !== 'revealed') || (view.spec.hide.includes('after') && view.phase === 'playing')) {
+          for (const st of svg.querySelectorAll('[data-stat]')) if (st.textContent !== '?') out.push(`headline ${st.textContent}`);
+          if (svg.querySelector('[data-bar="request"], .capline, .capend')) out.push('the request bar or its cap shows');
+          if (svg.querySelector('[data-id="val-request"]').textContent !== '?') out.push('the request value shows');
+          if (/Weakest link/.test(svg.textContent)) out.push('the weakest link is named');
+          if (/failed (once|twice|\d+ times)|has not failed|never failed/.test(svg.textContent)) out.push('the year is counted in words while the numbers hide');
+        }
+        if (view.spec.hide.includes('after') && view.phase === 'playing') {
+          for (const id of view.changed) {
+            if (svg.querySelector(`[data-bar="${id}"], [data-paper="${id}"], [data-id="paper-${id}"]`)) out.push(`the changed part ${id} shows its bar`);
+            if (svg.querySelector(`[data-id="val-${id}"]`).textContent !== '?') out.push(`the changed part ${id} shows its value`);
+          }
+        }
+        void hid;
+        return out;
+      }
+      function giveaways(well, view, m) {
+        // The scales' own labels are the axes, present at every setting; everything else is checked.
+        const text = stageText(well, false) + ' | ' + noticeOf(m, view) + ' | ' + summary(m, hiding(view));
+        const out = structural(well, view);
+        for (const g of GIVEAWAYS[view.spec.id][view.phase] ?? []) if (g.test(text)) out.push(`answer words ${g}: ${text.match(g)[0]}`);
+        for (const g of FALSE_CLAIMS) if (g.test(text)) out.push(`false claim ${g}`);
+        return out;
+      }
+      const ASKED = M.EXPERIMENTS.filter((e) => !e.goal);
+      const FROM = [...ASKED.map(actSettings), { ...M.EXPERIMENTS[5].setup, ...M.CHALLENGE_SOLUTION }, M.BASE, { lb: 3, app: 3, db: 3, recs: 3, optional: 0, shared: 1, failover: 1 }];
+      window.noAnswer = (widths) => {
+        const res = { renders: 0, out: [] };
+        for (const W of widths) {
+          const well = scratchWell(W);
+          ASKED.forEach((spec, i) => {
+            const views = [...FROM.map((from) => expView(spec, 'asking', 0, from)), ...[0.05, 0.3, 0.6, 0.85, 1].map((f) => ({ ...expView(spec, 'playing', f), ghost: null }))];
+            for (const view of views) {
+              const m = M.run(view.s);
+              drawInto(well, W, m, view);
+              res.renders++;
+              for (const g of giveaways(well, view, m)) res.out.push(`W${W} E${i + 1} ${view.phase}: ${g}`);
+            }
+          });
+        }
+        return res;
+      };
+      /** Leaks planted on the hiding map that the sweep must catch, one per rule. */
+      window.plantedLeaks = (W) => {
+        const well = scratchWell(W);
+        const caught = [];
+        const run = (view) => {
+          const m = M.run(view.s);
+          drawInto(well, W, m, view);
+          return giveaways(well, view, m).length > 0;
+        };
+        // 1. E1 asked without `sample`: the year's ticks and its sentence show.
+        caught.push(run({ ...expView(ASKED[0], 'asking'), hide: ['request'] }));
+        // 2. E1 asked without `request`: the headline and the request's bar show.
+        caught.push(run({ ...expView(ASKED[0], 'asking'), hide: ['sample'] }));
+        // 3. E2 played without `after`: the model's new numbers show during the play.
+        caught.push(run({ ...expView(ASKED[1], 'playing', 0.5), hide: [] }));
+        // 4. E4 played with the changed parts not hidden: their bars show the cap.
+        caught.push(run({ ...expView(ASKED[3], 'playing', 0.5), changed: [] }));
+        // 5. E3 asked with the ghost of the setting before it (hiding.ghost off).
+        const leakGhost = { ...expView(ASKED[2], 'asking', 0, ES.pairs), phase: 'asking' };
+        const m = M.run(leakGhost.s);
+        const { D } = buildStage(W, m, { ...leakGhost, phase: 'rest', hide: [] });
+        well.innerHTML = D.svg(10, '') + overlaysHtml(D, leakGhost);
+        caught.push(giveaways(well, leakGhost, m).length > 0);
+        return caught;
+      };
+      /** Every page sentence of every setting against the false-claim list. */
+      window.pageWords = () => {
+        const out = [];
+        for (const s of ALL) {
+          const m = M.run(s);
+          const smp = M.sample(s);
+          const rest = M.restMoment(s);
+          const texts = [summary(m, {}), settingSentence(m), weakestSentence(m), causesSentence(m), yearSentence(smp.fails), captionOf(rest, m.parts.find((p) => p.id === rest.part).copies), ghostSentence(m), ...goalChecks(m).map((c) => c.text), ...describeRows(m, false).rows.flatMap((r) => r.cells), ...describeRows(m, true).rows.flatMap((r) => r.cells)];
+          for (const t of texts) {
+            for (const g of FALSE_CLAIMS) if (g.test(t)) out.push(`${show(s)}: ${g} in "${t}"`);
+            if (/^\d/.test(t) && / /.test(t) && /[.]$/.test(t)) out.push(`${show(s)}: a sentence opens on a numeral: "${t}"`);
+          }
+        }
+        return out;
+      };
+      window.heights = (widths) => {
+        const out = {};
+        for (const W of widths) {
+          const hs = new Set();
+          for (const s of [M.BASE, ES.series, ES.solution, { lb: 3, app: 3, db: 3, recs: 3, optional: 1, shared: 1, failover: 1 }]) {
+            hs.add(buildStage(W, M.run(s), { s, hide: [], phase: 'rest', ghost: null, tau: null }).H);
+            hs.add(buildStage(W, M.run(s), { s, hide: [], phase: 'rest', ghost: M.BASE, tau: 2000 }).H);
+          }
+          for (const spec of ASKED) for (const ph of ['asking', 'playing', 'revealed']) hs.add(buildStage(W, M.run(expView(spec, ph).s), expView(spec, ph)).H);
+          out[W] = [...hs];
+        }
+        return out;
+      };
+
+      document.fonts.ready.then(() => {
+        const r = render(params.get('state') ?? 'default');
+        const well = document.getElementById('well');
+        window.__collisions = check(well, r.D, r.m, r.view);
+        const need = (r.view.focus ?? []).length;
+        if (need !== well.querySelectorAll('rect.tag').length) window.__collisions.push(`${well.querySelectorAll('rect.tag').length} tags for ${need} focus regions`);
+        // Describe's table fits its box, or scrolls inside it; the page never scrolls sideways.
+        const box = document.querySelector('.table-box');
+        if (box && box.scrollWidth > box.clientWidth + 1 && getComputedStyle(box).overflowX === 'visible') window.__collisions.push('Describe overflows its box');
+        document.body.dataset.ready = '1';
+      });
+    </script>
+  </body>
+</html>
