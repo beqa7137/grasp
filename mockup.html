@@ -2555,6 +2555,16 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${nb(story
             if (!inner && !clear) out.push(`text at an outline's stroke: "${t.s}"`);
           }
         }
+        // Two outlines never touch or cross: each reads as its own region, 6 px or more from the next.
+        const outlines = [...svg.querySelectorAll('rect.focus-outline')].map((o) => {
+          const [x, y, w, h] = ['x', 'y', 'width', 'height'].map((a) => Number(o.getAttribute(a)));
+          return { x0: x, x1: x + w, y0: y, y1: y + h };
+        });
+        for (let i = 0; i < outlines.length; i++)
+          for (let j = i + 1; j < outlines.length; j++) {
+            const gap = Math.max(outlines[i].x0 - outlines[j].x1, outlines[j].x0 - outlines[i].x1, outlines[i].y0 - outlines[j].y1, outlines[j].y0 - outlines[i].y1);
+            if (gap < 6) out.push(`focus outlines ${gap.toFixed(1)} px apart`);
+          }
         const wb = well.getBoundingClientRect();
         const hits = [...well.querySelectorAll('.hit')].map((h) => {
           const b = h.getBoundingClientRect();
@@ -2704,6 +2714,21 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${nb(story
         }
         well.style.width = '';
         return { renders, failures };
+      };
+      // The outline rule is proven as the leaks are: E2's reveal pointed at the stack and at its staircase apart, two
+      // outlines that touch, must fail at every width.
+      window.touchingOutlines = function (widths) {
+        const well = document.getElementById('well');
+        const spec = M.EXPERIMENTS[1];
+        const caught = widths.filter((W) => {
+          well.style.width = W + 2 + 'px';
+          const view = { ...expView(spec, 'revealed'), focus: ['lsm-stack', 'lsm-transform'] };
+          const m = M.run(view.s);
+          const { D } = drawInto(well, W, m, view);
+          return check(well, D, m, view).some((o) => /^focus outlines/.test(o));
+        });
+        well.style.width = '';
+        return { caught: caught.length, of: widths.length };
       };
 
       // ---------- The no-answer sweep: while a question asks and while its answer plays, no rendered text, accessible

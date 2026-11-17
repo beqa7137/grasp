@@ -491,14 +491,18 @@ updated in place" (not "rewritten"), the toggle's off line "no memory spent" (no
    right-hand column, sizes after their bars, the leaf's action at its row's end. The found ring is a stroke around
    the whole read dot; a walked page's outline is its own stroke. The checker flags text on text, two labels on a line
    closer than 6 px, a line through text (fans, the walk, the trail, ticks, rules), text on a mark, a dot on a dot,
-   text or a mark off the stage, x tick labels closer than 6 px, a text against a focus outline's stroke, a hit box on
-   another or under 44 px, a control's words overflowing its box, and any label or tag with no place: zero over 180
+   text or a mark off the stage, x tick labels closer than 6 px, a text against a focus outline's stroke, two focus
+   outlines closer than 6 px, a hit box on another or under 44 px, a control's words overflowing its box, and any
+   label or tag with no place: zero over 180
    screenshots, 9,000 setting renders and 448 experiment renders. The key in flight rides the walk and the trail,
    which cross no label.
 5. **Look-here tags.** Edge candidates first (16 px off the corners), then just inside, then any free row inside the
    outline, outside last. Two regions with no free row of their own keep a tag's width free by construction: the cost
    block's title is cut to leave 96 px at its right end, and the read row's label likewise. `sweepExperiments` asserts
-   a placed tag for every outline of every reveal at 14 widths.
+   a placed tag for every outline of every reveal at 14 widths. Two outlines of one reveal keep 6 px between them
+   (checked): a reveal that points at two neighbouring blocks names one region that holds both, as E2's does
+   (`lsm-all`, the stack and its staircase), and the rule is proven by pointing E2's reveal at the two apart, which
+   fails at all 14 widths.
 6. **Marks before their event.** One monotone clock a play; every mark carries its moment (`planOf`), and the step's
    words change at the same moments, so nothing is drawn or said for an event before it happens. The cost block's
    numbers are the model's statement of the setting, not events, and stand through a free play.

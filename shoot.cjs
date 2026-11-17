@@ -1,10 +1,11 @@
 // Renders mockup.html in every state at 1280, 390 and 320 px in both themes, saves full-page screenshots to shots/,
 // prints the page's own collision report (text on text, labels closer than 6 px, lines through text, marks under
 // text, text or marks off the stage, dots on dots, hit boxes on hit boxes or under 44 px, x ticks closer than 6 px,
-// text against a focus outline, labels and focus tags with no place) and the layout spec's assertions (false claims,
-// bars as long as their numbers, pips and rows as counted, dashes only while a question hides, ghosts said in words,
-// element counts), then sweeps the stage over every setting at many widths (at rest, at moments of both plays, and
-// after a change, with its ghost), every experiment asking, playing and revealed, runs the no-answer sweep (each
+// text against a focus outline, two focus outlines closer than 6 px, labels and focus tags with no place) and the
+// layout spec's assertions (false claims, bars as long as their numbers, pips and rows as counted, dashes only while
+// a question hides, ghosts said in words, element counts), then sweeps the stage over every setting at many widths
+// (at rest, at moments of both plays, and after a change, with its ghost), every experiment asking, playing and
+// revealed (and proves the outline rule on two outlines that touch), runs the no-answer sweep (each
 // question entered from other settings, its answer's play at five moments, over the stage, its accessible names, the
 // notice, the summary and the play's story), proves the sweep catches a leak planted on every flag of the hiding map,
 // runs the false-claim and prose rules over every sentence of every setting, and prints the stage heights per width.
@@ -100,6 +101,9 @@ const server = http.createServer((req, res) => {
     console.log(`\nexperiments, asking, the answer's play at four moments and revealed, the challenge met and at its start: ${exp.renders} renders, ${exp.failures.length} with findings`);
     for (const f of exp.failures.slice(0, 12)) console.log(`    W${f.W} E${f.exp} ${f.phase}: ${f.out.join(' | ')}`);
     total += exp.failures.length;
+    const touching = await page.evaluate((w) => window.touchingOutlines(w), sweepWidths);
+    console.log(`two focus outlines that touch (E2's reveal pointed at the stack and its staircase apart) caught at ${touching.caught} of ${touching.of} widths`);
+    if (touching.caught !== touching.of) total++;
     const giveaways = await page.evaluate((w) => window.noAnswer(w), sweepWidths);
     console.log(`no-answer sweep, every question asking (entered afresh and from eight other settings) and its answer's play at five moments: ${giveaways.renders} renders, ${giveaways.out.length} giveaways`);
     for (const g of giveaways.out.slice(0, 12)) console.log(`    ${g}`);
