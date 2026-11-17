@@ -510,9 +510,9 @@ at the reveal; the stream is the mechanism the play shows, as the sample is in L
 9. **Words.** The summary, notices and ramp story are full sentences; no sentence opens on a numeral ("Of 8,000 requests a
    second, 6,000 are served", checked over every sentence); plurals and "each" by count; thousands separators everywhere
    (checked); no sentence spliced from pills. The challenge's status is the checklist with its states in words, "Goal
-   met:" only while the goal holds; the notice is never blank. Stage text wraps keeping a number with its unit, "of"
-   with what follows, an operator with its operand, and "·" with the run after it, and never leaves one word alone on a
-   last line.
+   met:" only while the goal holds; the notice is never blank. Stage text wraps keeping a number with its unit (and a
+   rate with "shed" or "spare"), "of" and "in" with what follows, "each" with what precedes it, an operator with its
+   operand, and "·" with the run after it, and never leaves one word alone on a last line.
 10. **Describe's width.** `minmax(0, 1fr)`, the table in its own scrolling box, compact (five columns) under a 560 px
     stage, so it fits at 320, 390 and 412 px with no scrolling (asserted) and at 1280 and 1440 px; e2e checks no sideways
     page scroll at all four.

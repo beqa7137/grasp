@@ -1103,10 +1103,10 @@
       }
       const partsWidth = (parts) => parts.reduce((s, [t, role, , dx = 0]) => s + tw(t, role) + dx, 0);
       // A space may break a line, except: between a number and its unit ("50 ms", "8,000 queries/s", "1,000 a second",
-      // "4 of 6 up", "2,000/s shed"), after an operator or "(" ("÷ 2", "× 5,000/s"), after "of" ("of 8,000/s") and after
-      // "·" (it opens the run after it), as stage-text.ts and g-code-text keep them. Runs are joined first, so the rule
-      // holds across them.
-      const BREAK = /(?<![×÷=+(·])(?<!\bof) (?!(?<=\d )(?:ms|s|queries|requests|reads|writes|replayed|workers|a|of|left|up)\b)(?!(?<=\/s )(?:shed|spare)\b)/g;
+      // "4 of 6 up", "2,000/s shed"), after an operator or "(" ("÷ 2", "× 5,000/s"), after "of" and "in" ("of 8,000/s",
+      // "in zone A"), before "each", and after "·" (it opens the run after it), as stage-text.ts and g-code-text keep them.
+      // Runs are joined first, so the rule holds across them.
+      const BREAK = /(?<![×÷=+(·])(?<!\b(?:of|in)) (?!each\b)(?!(?<=\d )(?:ms|s|queries|requests|reads|writes|replayed|workers|a|of|left|up)\b)(?!(?<=\/s )(?:shed|spare)\b)/g;
       /** Lays runs of styled words into lines no wider than `width` (the first no wider than `first`): each line a list of
        * [text, role, cls] parts. */
       function flow(parts, width, first = width) {
@@ -1154,8 +1154,10 @@
           }
         }
         if (line.length) lines.push(line);
-        // No single-word last line: carry the previous line's last word down when both still fit (prevention 14).
-        if (lines.length > 1 && lines[lines.length - 1].length === 1 && lines[lines.length - 2].length > 2) {
+        // No single-word last line: carry the previous line's last word down when both still fit (prevention 14). A glued
+        // run ("· 2,000/s spare") is not one word, so it stays as it is.
+        const lone = (w) => !/ /.test(full.slice(w.s, w.e));
+        if (lines.length > 1 && lines[lines.length - 1].length === 1 && lone(lines[lines.length - 1][0]) && lines[lines.length - 2].length > 2) {
           const prev = lines[lines.length - 2];
           const lastW = lines[lines.length - 1][0];
           const moved = prev[prev.length - 1];
