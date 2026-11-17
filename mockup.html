@@ -1,0 +1,2787 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Storage Engines widget mockup</title>
+    <style>
+      @font-face {
+        font-family: 'Inter Variable';
+        src: url(fonts/inter-latin-wght-normal.woff2) format('woff2');
+        font-weight: 100 900;
+        font-display: block;
+      }
+      @font-face {
+        font-family: 'JetBrains Mono Variable';
+        src: url(fonts/jetbrains-mono-latin-wght-normal.woff2) format('woff2');
+        font-weight: 100 800;
+        font-display: block;
+      }
+      /* The app's tokens (apps/app/src/_theme.scss, styles.scss): light is the base, dark overrides. */
+      :root {
+        color-scheme: light;
+        --g-bg: #f4f5f9;
+        --g-surface: #ffffff;
+        --g-raised: #ffffff;
+        --g-sunken: #eef0f5;
+        --g-line: #dfe2ea;
+        --g-line-strong: #c6cbd6;
+        --g-stroke: #707889;
+        --g-text: #161a23;
+        --g-text-rgb: 22, 26, 35;
+        --g-muted: #4a5263;
+        --g-faint: #5c6477;
+        --g-on-fill: #ffffff;
+        --g-warn-ink: #6e4200;
+        --g-danger-ink: #9d1630;
+        --g-found-ink: #02583f;
+        --g-accent: #5846dc;
+        --g-accent-rgb: 88, 70, 220;
+        --g-accent-soft: rgba(88, 70, 220, 0.14);
+        --g-found: #036b4c;
+        --g-danger: #c3203d;
+        --g-warn: #945800;
+        --g-success-ink: var(--g-found-ink);
+        --g-success-line: var(--g-found);
+        --g-success-soft: rgba(3, 107, 76, 0.12);
+        --g-danger-soft: rgba(195, 32, 61, 0.12);
+        --g-warn-soft: rgba(148, 88, 0, 0.12);
+        --g-viz-stage: #f7f8fb;
+        --g-viz-current: #0b74ad;
+        --g-viz-current-soft: rgba(11, 116, 173, 0.16);
+        --g-viz-considering: #c77700;
+        --g-viz-considering-soft: rgba(199, 119, 0, 0.14);
+        --g-viz-final: #12925f;
+        --g-viz-final-ink: var(--g-found-ink);
+        --g-viz-discarded-ink: #687082;
+        --g-viz-critical: #d42a49;
+        --g-viz-track: #d3d7e0;
+        --g-shadow: 0 1px 2px rgba(var(--g-text-rgb), 0.06), 0 3px 10px rgba(var(--g-text-rgb), 0.07);
+        --g-shadow-raised: 0 1px 2px rgba(var(--g-text-rgb), 0.08);
+        --g-radius-xs: 6px;
+        --g-radius-sm: 10px;
+        --g-radius-md: 14px;
+        --g-radius-pill: 999px;
+        --g-text-title-m: 1.0625rem;
+        --g-text-title-s: 0.9375rem;
+        --g-text-body: 0.875rem;
+        --g-text-body-s: 0.8125rem;
+        --g-text-label: 0.6875rem;
+        --g-font: 'Inter Variable', system-ui, sans-serif;
+        --g-font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+        --g-focus-ring: 2px solid var(--g-accent);
+      }
+      :root.dark {
+        color-scheme: dark;
+        --g-bg: #0b0d12;
+        --g-surface: #141824;
+        --g-raised: #1c2130;
+        --g-sunken: #0f121a;
+        --g-line: #252a37;
+        --g-line-strong: #343b4d;
+        --g-stroke: #6b7387;
+        --g-text: #e9ebf2;
+        --g-text-rgb: 233, 235, 242;
+        --g-muted: #8b93a8;
+        --g-faint: #828a9e;
+        --g-on-fill: #0b0d12;
+        --g-warn-ink: #f3e6b3;
+        --g-danger-ink: #ffb3bd;
+        --g-found-ink: #3ddc97;
+        --g-accent: #9d8cff;
+        --g-accent-rgb: 157, 140, 255;
+        --g-accent-soft: rgba(157, 140, 255, 0.14);
+        --g-found: #3ddc97;
+        --g-danger: #ff5d73;
+        --g-warn: #ffb547;
+        --g-success-soft: rgba(61, 220, 151, 0.12);
+        --g-danger-soft: rgba(255, 93, 115, 0.12);
+        --g-warn-soft: rgba(255, 181, 71, 0.12);
+        --g-viz-stage: #0e1118;
+        --g-viz-current: #1f9fd0;
+        --g-viz-current-soft: rgba(31, 159, 208, 0.16);
+        --g-viz-considering: #c08420;
+        --g-viz-considering-soft: rgba(192, 132, 32, 0.18);
+        --g-viz-final: #22ad74;
+        --g-viz-final-ink: var(--g-found);
+        --g-viz-discarded-ink: var(--g-muted);
+        --g-viz-critical: #e5485f;
+        --g-viz-track: #2a3040;
+        --g-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        --g-shadow-raised: var(--g-shadow);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--g-bg);
+        color: var(--g-text);
+        font: 400 var(--g-text-body) / 1.5 var(--g-font);
+        font-variant-ligatures: none;
+        -webkit-font-smoothing: antialiased;
+        overflow-wrap: break-word;
+      }
+      button {
+        font-size: 0.8333rem;
+      }
+      .page {
+        max-width: 1048px;
+        margin: 0 auto;
+        padding: 20px 16px 40px;
+      }
+      .eyebrow {
+        margin: 0;
+        font: 600 var(--g-text-label) var(--g-font);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--g-muted);
+      }
+      h1 {
+        margin: 4px 0 14px;
+        font: 600 1.25rem/1.3 var(--g-font);
+      }
+      .panel {
+        border: 1px solid var(--g-line);
+        border-radius: var(--g-radius-md);
+        background: var(--g-surface);
+        box-shadow: var(--g-shadow);
+        padding: 16px;
+      }
+      /* Narrow: one column, the controls as the stage's first rows, then the stage, the question, Describe, the cards. */
+      .widget {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 12px;
+      }
+      .main,
+      .experiments {
+        display: contents;
+      }
+      .controls {
+        order: 1;
+      }
+      .stage {
+        order: 2;
+        min-width: 0;
+      }
+      .dock {
+        order: 3;
+      }
+      .describe {
+        order: 4;
+      }
+      .heading,
+      .cards {
+        order: 5;
+      }
+      .controls {
+        padding: 12px 12px 0;
+        border: 1px solid var(--g-line);
+        border-bottom: 0;
+        border-radius: var(--g-radius-md) var(--g-radius-md) 0 0;
+        background: var(--g-viz-stage);
+        display: grid;
+        gap: 10px;
+        min-width: 0;
+      }
+      .stage {
+        margin-top: -12px;
+      }
+      .stage .well {
+        border-top: 0;
+        border-radius: 0 0 var(--g-radius-md) var(--g-radius-md);
+      }
+      @media (min-width: 1000px) {
+        .widget {
+          grid-template-columns: minmax(0, 1fr) 340px;
+          grid-template-rows: auto 1fr;
+          align-items: start;
+          column-gap: 20px;
+        }
+        .main {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr);
+          gap: 12px;
+          grid-column: 1;
+          grid-row: 1 / span 2;
+          min-width: 0;
+        }
+        .controls {
+          grid-column: 2;
+          grid-row: 1;
+          padding: 0;
+          border: 0;
+          background: none;
+        }
+        .experiments {
+          display: block;
+          grid-column: 2;
+          grid-row: 2;
+          min-width: 0;
+        }
+        .stage {
+          margin-top: 0;
+        }
+        .stage .well {
+          border-top: 1px solid var(--g-line);
+          border-radius: var(--g-radius-md);
+        }
+        .dock {
+          margin-top: 12px;
+        }
+      }
+      .well {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid var(--g-line);
+        border-radius: var(--g-radius-md);
+        background-color: var(--g-viz-stage);
+        background-image: radial-gradient(circle, rgba(var(--g-text-rgb), 0.09) 1px, transparent 1.5px);
+        background-size: 24px 24px;
+        background-position: 11px 11px;
+      }
+      /* Every fieldset.group carries the same zero padding; a control's own class only adds to it (the R41 padding bug). */
+      fieldset.group {
+        margin: 0;
+        padding: 0;
+        border: 0;
+        min-width: 0;
+      }
+      .control-label {
+        font: 600 var(--g-text-label) var(--g-font);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--g-muted);
+        padding: 0;
+        margin-bottom: 4px;
+      }
+      .segments {
+        display: flex;
+        gap: 4px;
+      }
+      .segment {
+        position: relative;
+        flex: 1 1 0;
+        min-width: 0;
+      }
+      .segment input {
+        position: absolute;
+        inset: 0;
+        margin: 0;
+        opacity: 0;
+        cursor: pointer;
+      }
+      .segment span {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        min-height: 44px;
+        padding: 0 6px;
+        border-radius: var(--g-radius-sm);
+        border: 1px solid var(--g-line-strong);
+        background: var(--g-raised);
+        box-shadow: var(--g-shadow-raised);
+        color: var(--g-text);
+        font: 500 var(--g-text-body) / 1.15 var(--g-font);
+        text-align: center;
+      }
+      .segment input:checked + span {
+        background: var(--g-accent-soft);
+        border-color: var(--g-accent);
+        box-shadow: inset 0 0 0 1px var(--g-accent);
+        font-weight: 600;
+      }
+      fieldset:disabled .segment span,
+      .segment input:disabled + span {
+        opacity: 0.55;
+      }
+      .control-label .why {
+        font-weight: 500;
+        letter-spacing: normal;
+        text-transform: none;
+      }
+      .segment small {
+        font: 500 var(--g-text-label) var(--g-font);
+        color: var(--g-muted);
+      }
+      .toggles {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px;
+      }
+      .toggles .segment span {
+        flex-direction: column;
+        gap: 0;
+        font-size: var(--g-text-body-s);
+      }
+      .notice {
+        margin: 0;
+        min-height: 2lh;
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+      }
+      /* Below wide the notice would sit over the stage and push it down as it speaks: read out only (_widget-controls.scss). */
+      @media (max-width: 999px) {
+        .notice {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          min-height: 0;
+          overflow: hidden;
+          clip-path: inset(50%);
+        }
+        .controls {
+          padding-bottom: 12px;
+        }
+      }
+      .caption {
+        margin: 0;
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+      }
+      .play {
+        position: absolute;
+        width: 44px;
+        height: 44px;
+        padding: 0;
+        border: 0;
+        background: none;
+        cursor: pointer;
+        z-index: 2;
+      }
+      .play svg {
+        display: block;
+        width: 36px;
+        height: 36px;
+        margin: 4px;
+      }
+      .play circle {
+        fill: var(--g-raised);
+        stroke: var(--g-accent);
+        stroke-width: 1.5;
+      }
+      .play path {
+        fill: var(--g-accent);
+      }
+      .play:disabled {
+        cursor: default;
+        opacity: 0.55;
+      }
+      .handle {
+        position: absolute;
+        width: 44px;
+        height: 44px;
+        display: grid;
+        place-items: center;
+        cursor: ew-resize;
+        z-index: 2;
+      }
+      .handle .knob {
+        width: 14px;
+        height: 26px;
+        border-radius: var(--g-radius-pill);
+        background: var(--g-raised);
+        border: 2px solid var(--g-accent);
+        box-shadow: var(--g-shadow-raised);
+      }
+      .handle[aria-disabled='true'] {
+        cursor: default;
+      }
+      .handle[aria-disabled='true'] .knob {
+        opacity: 0.55;
+      }
+      /* Drawing roles: text sits on a stage-coloured halo; small text is measured as drawn (no tabular digits). */
+      svg.draw {
+        position: absolute;
+        left: 0;
+        top: 0;
+        display: block;
+        overflow: visible;
+      }
+      svg.draw text {
+        paint-order: stroke;
+        stroke: var(--g-viz-stage);
+        stroke-width: 3px;
+        stroke-linejoin: round;
+      }
+      svg.draw text.on-box {
+        stroke: var(--g-raised);
+      }
+      svg.draw text.on-chip {
+        stroke: none;
+      }
+      .t-label {
+        font: 600 var(--g-text-label) var(--g-font);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        fill: var(--g-muted);
+      }
+      .t-cap {
+        font: 500 var(--g-text-body-s) var(--g-font);
+        fill: var(--g-muted);
+      }
+      .t-capB {
+        font: 600 var(--g-text-body-s) var(--g-font);
+        fill: var(--g-text);
+      }
+      .t-small {
+        font: 500 var(--g-text-label) var(--g-font);
+        fill: var(--g-muted);
+      }
+      .t-smallB {
+        font: 700 var(--g-text-label) var(--g-font);
+        fill: var(--g-text);
+      }
+      .t-mono {
+        font: 600 var(--g-text-label) var(--g-font-mono);
+        fill: var(--g-text);
+      }
+      .t-nameS {
+        font: 600 13px var(--g-font-mono);
+        fill: var(--g-text);
+      }
+      .t-head {
+        font: 600 var(--g-text-title-m) var(--g-font-mono);
+        fill: var(--g-text);
+      }
+      .ink {
+        fill: var(--g-text);
+      }
+      .muted {
+        fill: var(--g-muted);
+      }
+      .bad {
+        fill: var(--g-danger-ink);
+      }
+      .wait-ink {
+        fill: var(--g-warn-ink);
+      }
+      .cur-ink {
+        fill: var(--g-viz-current);
+      }
+      .crit-ink {
+        fill: var(--g-viz-critical);
+      }
+      .rule {
+        stroke: var(--g-line);
+      }
+      .rail {
+        stroke: var(--g-viz-track);
+        stroke-width: 4;
+        stroke-linecap: round;
+      }
+      .fill {
+        stroke: var(--g-accent);
+        stroke-width: 4;
+        stroke-linecap: round;
+      }
+      .stop {
+        fill: var(--g-line-strong);
+      }
+      .t-unit {
+        text-transform: none;
+      }
+      .lane {
+        fill: none;
+        stroke: var(--g-stroke);
+        stroke-width: 1.25;
+      }
+      .lane.down {
+        stroke-dasharray: 3 3;
+      }
+      .lane.hidden {
+        stroke-dasharray: 3 3;
+        stroke-opacity: 0.55;
+      }
+      .ring-track.hidden {
+        stroke: var(--g-stroke);
+        stroke-opacity: 0.55;
+        stroke-width: 1.25;
+        stroke-dasharray: 2 3;
+      }
+      .chip.hidden-chip {
+        fill: var(--g-viz-stage);
+        stroke: var(--g-stroke);
+        stroke-dasharray: 3 2;
+      }
+      .notch {
+        fill: var(--g-viz-stage);
+      }
+      .qgrid {
+        stroke: var(--g-line-strong);
+        stroke-dasharray: 2 3;
+      }
+      .drift {
+        stroke: var(--g-text);
+        stroke-opacity: 0.75;
+        stroke-width: 1.25;
+        stroke-dasharray: 5 3;
+      }
+      .ghost-dot {
+        fill: var(--g-viz-stage);
+        stroke: var(--g-stroke);
+        stroke-width: 1.5;
+      }
+      .ghost-arrow {
+        stroke: var(--g-stroke);
+        stroke-width: 1.25;
+        stroke-dasharray: 2 3;
+      }
+      .ghost-head {
+        fill: none;
+        stroke: var(--g-stroke);
+        stroke-width: 1.25;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .mtick.over50 {
+        stroke-dasharray: 3 3;
+      }
+      path.leader {
+        fill: none;
+      }
+      .router {
+        fill: var(--g-raised);
+        stroke: var(--g-stroke);
+        stroke-width: 1.25;
+      }
+      .srv {
+        fill: var(--g-raised);
+        stroke: var(--g-line-strong);
+      }
+      .srv.down {
+        fill: url(#hatch);
+        stroke-dasharray: 4 3;
+      }
+      .srv.over {
+        stroke: var(--g-viz-critical);
+        stroke-width: 1.5;
+      }
+      .hatch-fill {
+        fill: var(--g-sunken);
+      }
+      .hatch-line {
+        stroke: var(--g-viz-discarded-ink);
+        stroke-opacity: 0.35;
+        stroke-width: 1.5;
+      }
+      .ring-track {
+        fill: none;
+        stroke: var(--g-viz-track);
+        stroke-width: 2.5;
+      }
+      .ring-arc {
+        fill: none;
+        stroke: var(--g-viz-current);
+        stroke-width: 2.5;
+        stroke-linecap: round;
+      }
+      .dot.wait {
+        fill: var(--g-viz-considering);
+      }
+      .dot.serve {
+        fill: var(--g-viz-current);
+      }
+      .dot.p50 {
+        fill: var(--g-viz-current);
+        stroke: var(--g-viz-stage);
+        stroke-width: 1.5;
+      }
+      .dot.p99 {
+        fill: var(--g-viz-critical);
+        stroke: var(--g-viz-stage);
+        stroke-width: 1.5;
+      }
+      .dot.req {
+        fill: var(--g-stroke);
+      }
+      .dot.req.nowait {
+        fill: var(--g-viz-current);
+      }
+      .ring99 {
+        fill: none;
+        stroke: var(--g-viz-critical);
+        stroke-width: 1.75;
+      }
+      .key-dot.wait {
+        fill: var(--g-viz-considering);
+      }
+      .key-dot.serve {
+        fill: var(--g-viz-current);
+      }
+      .chip {
+        fill: var(--g-raised);
+        stroke: var(--g-line-strong);
+      }
+      .tick-arr {
+        fill: var(--g-muted);
+      }
+      .tick-arr.dense {
+        fill-opacity: 0.3;
+      }
+      .area-wait {
+        fill: var(--g-viz-considering-soft);
+      }
+      .area-edge {
+        fill: none;
+        stroke: var(--g-viz-considering);
+        stroke-width: 1.5;
+      }
+      .row-track {
+        fill: none;
+        stroke: var(--g-line);
+      }
+      .busy {
+        fill: var(--g-viz-current);
+      }
+      .busy-down {
+        fill: url(#hatch);
+      }
+      .axis {
+        stroke: var(--g-line-strong);
+      }
+      .gridline {
+        stroke: var(--g-line);
+      }
+      .playhead {
+        stroke: var(--g-text);
+        stroke-width: 1.5;
+      }
+      .moment {
+        stroke: var(--g-text);
+        stroke-opacity: 0.55;
+        stroke-dasharray: 2 2;
+      }
+      .peak {
+        fill: none;
+        stroke: var(--g-text);
+        stroke-width: 1.5;
+      }
+      .bar-work {
+        fill: var(--g-viz-current);
+      }
+      .bar-wait {
+        fill: var(--g-viz-considering);
+      }
+      .bar-hidden {
+        fill: none;
+        stroke: var(--g-stroke);
+        stroke-dasharray: 4 3;
+      }
+      .curve {
+        fill: none;
+        stroke-width: 2;
+        stroke-linejoin: round;
+      }
+      .curve.p50 {
+        stroke: var(--g-viz-current);
+      }
+      .curve.p99 {
+        stroke: var(--g-viz-critical);
+        stroke-dasharray: 6 4;
+      }
+      .curve.ghost {
+        stroke: var(--g-stroke);
+        stroke-width: 1.5;
+        stroke-dasharray: 2 3;
+      }
+      .cursor {
+        stroke: var(--g-text);
+        stroke-opacity: 0.45;
+        stroke-dasharray: 3 3;
+      }
+      .cut {
+        stroke: var(--g-stroke);
+        stroke-dasharray: 2 3;
+      }
+      .leader {
+        stroke: var(--g-stroke);
+        stroke-dasharray: 2 3;
+      }
+      .mtick.p50 {
+        stroke: var(--g-viz-current);
+        stroke-width: 1.5;
+      }
+      .mtick.p99 {
+        stroke: var(--g-viz-critical);
+        stroke-width: 1.5;
+      }
+      .legend-line {
+        stroke-width: 2;
+        stroke-linecap: round;
+      }
+      .legend-line.p50 {
+        stroke: var(--g-viz-current);
+      }
+      .legend-line.p99 {
+        stroke: var(--g-viz-critical);
+        stroke-dasharray: 4 3;
+      }
+      .xmark {
+        stroke: var(--g-viz-critical);
+        stroke-width: 2;
+        stroke-linecap: round;
+        fill: none;
+      }
+      .xground {
+        fill: var(--g-viz-stage);
+      }
+      .chevron {
+        fill: none;
+        stroke: var(--g-viz-critical);
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .focus-outline {
+        fill: none;
+        stroke: var(--g-accent);
+        stroke-width: 2;
+        stroke-dasharray: 6 4;
+      }
+      .tag {
+        fill: var(--g-viz-stage);
+        stroke: var(--g-accent);
+        stroke-width: 1.5;
+      }
+      .t-look {
+        font: 600 var(--g-text-label) var(--g-font);
+        fill: var(--g-accent);
+      }
+      /* The experiment dock and cards (experiment-dock.component.ts, widget-check.component.ts). */
+      .dock {
+        padding: 12px 16px;
+        border-radius: var(--g-radius-md);
+        border: 1px solid var(--g-line);
+        border-left: 3px solid var(--g-accent);
+        background: var(--g-surface);
+      }
+      .dock:empty {
+        display: none;
+      }
+      .legend {
+        margin: 0 0 4px;
+        font-weight: 600;
+        line-height: 1.45;
+      }
+      .options {
+        list-style: none;
+        margin: 8px 0 0;
+        padding: 0;
+        display: grid;
+        gap: 8px;
+      }
+      .g-choice {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        padding: 10px 14px;
+        border-radius: 12px;
+        border: 1px solid var(--g-line-strong);
+        background: var(--g-raised);
+        color: var(--g-text);
+        font: 500 0.90625rem/1.45 var(--g-font);
+        text-align: left;
+      }
+      button.g-choice {
+        box-shadow: var(--g-shadow-raised);
+        cursor: pointer;
+      }
+      .g-choice.right {
+        border-color: var(--g-success-line);
+        background: var(--g-success-soft);
+      }
+      .g-choice.wrong {
+        border-color: var(--g-danger);
+        background: var(--g-danger-soft);
+      }
+      .mark {
+        flex: none;
+        width: 20px;
+        height: 20px;
+      }
+      .held {
+        margin: 10px 0 0;
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+      }
+      .reveal {
+        margin: 10px 0 0;
+        line-height: 1.55;
+        font-size: 0.90625rem;
+      }
+      .status-line {
+        margin: 8px 0 4px;
+        font: 600 var(--g-text-body) var(--g-font);
+        color: var(--g-muted);
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .status-line.met {
+        color: var(--g-success-ink);
+      }
+      .status {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        display: grid;
+        gap: 4px;
+        font: 600 var(--g-text-body-s) var(--g-font);
+        font-variant-numeric: tabular-nums;
+        color: var(--g-muted);
+      }
+      .status li {
+        display: flex;
+        gap: 8px;
+        align-items: baseline;
+      }
+      .status li.met {
+        color: var(--g-success-ink);
+      }
+      .status .state {
+        flex: none;
+        width: 16px;
+      }
+      .heading {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font: 600 var(--g-text-title-s) var(--g-font);
+        margin: 20px 0 8px;
+      }
+      .heading svg {
+        color: var(--g-accent);
+      }
+      .cards {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 8px;
+      }
+      .card-btn {
+        width: 100%;
+        min-height: 48px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 12px;
+        border: 1px solid var(--g-line-strong);
+        border-radius: var(--g-radius-sm);
+        background: var(--g-raised);
+        box-shadow: var(--g-shadow-raised);
+        color: var(--g-text);
+        font: 500 var(--g-text-body) var(--g-font);
+        text-align: left;
+      }
+      .card-btn[aria-current] {
+        border-color: var(--g-accent);
+        box-shadow: inset 0 0 0 1px var(--g-accent);
+        background: var(--g-accent-soft);
+      }
+      .card-btn .num {
+        flex: none;
+        display: grid;
+        place-items: center;
+        width: 26px;
+        height: 26px;
+        border-radius: var(--g-radius-pill);
+        background: var(--g-sunken);
+        font: 600 var(--g-text-body-s) var(--g-font-mono);
+        color: var(--g-muted);
+      }
+      /* Describe: a minmax(0, 1fr) grid, its table scrolling inside its own box; compact on narrow stages. */
+      .describe {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 8px;
+        justify-items: start;
+      }
+      .describe .muted-note {
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+        margin: 0;
+      }
+      .describe p.summary {
+        margin: 0;
+        font-size: var(--g-text-body-s);
+      }
+      .g-btn {
+        appearance: none;
+        border: 1px solid var(--g-line-strong);
+        background: var(--g-raised);
+        box-shadow: var(--g-shadow-raised);
+        color: var(--g-text);
+        border-radius: var(--g-radius-sm);
+        padding: 9px 14px;
+        min-height: 44px;
+        font: 500 var(--g-text-body) / 1 var(--g-font);
+      }
+      .g-btn:disabled {
+        opacity: 0.55;
+      }
+      .table-box {
+        justify-self: stretch;
+        overflow: auto;
+        border-top: 1px solid var(--g-line);
+      }
+      tbody tr {
+        height: 28px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font: 500 var(--g-text-body-s) var(--g-font);
+        font-variant-numeric: tabular-nums;
+      }
+      th,
+      td {
+        text-align: right;
+        padding: 4px 8px;
+        white-space: nowrap;
+      }
+      th:first-child,
+      td:first-child {
+        text-align: left;
+      }
+      th {
+        font: 600 var(--g-text-label) var(--g-font);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--g-muted);
+        position: sticky;
+        top: 0;
+        background: var(--g-surface);
+        vertical-align: bottom;
+      }
+      td {
+        border-top: 1px solid var(--g-line);
+      }
+      tr.now td {
+        background: var(--g-accent-soft);
+        font-weight: 600;
+      }
+      .compact th,
+      .compact td {
+        padding-inline: 4px;
+      }
+      .compact th {
+        letter-spacing: normal;
+        white-space: normal;
+      }
+      th .unit {
+        text-transform: none;
+      }
+      /* ---- The Storage Engines stage. Amber is a byte written to disk, blue a page or run read, green the key found,
+         muted hatch a run a filter skipped; dashed is only ever "hidden until you answer". */
+      .t-num {
+        font: 600 13px var(--g-font-mono);
+        fill: var(--g-text);
+      }
+      .amber-ink {
+        fill: var(--g-warn-ink);
+      }
+      .final-ink {
+        fill: var(--g-viz-final-ink);
+      }
+      .t-num.amber-ink,
+      .t-mono.amber-ink {
+        fill: var(--g-warn-ink);
+      }
+      .t-num.cur-ink {
+        fill: var(--g-viz-current);
+      }
+      .band {
+        fill: var(--g-raised);
+        stroke: var(--g-line);
+      }
+      .pg {
+        fill: var(--g-viz-stage);
+        stroke: var(--g-stroke);
+        stroke-width: 1;
+      }
+      .pg.mem-hit {
+        stroke: var(--g-viz-current);
+        stroke-width: 2;
+      }
+      .pg.disk-read {
+        fill: var(--g-viz-current);
+        stroke: var(--g-viz-current);
+        stroke-width: 2;
+      }
+      .pg.written {
+        fill: var(--g-viz-considering);
+        stroke: var(--g-viz-considering);
+        stroke-width: 2;
+      }
+      .fan {
+        stroke: var(--g-line-strong);
+        stroke-width: 1;
+        fill: none;
+      }
+      .walk {
+        stroke: var(--g-viz-current);
+        stroke-width: 2;
+        stroke-linecap: round;
+        fill: none;
+      }
+      .more {
+        fill: var(--g-stroke);
+      }
+      .strip {
+        fill: var(--g-raised);
+        stroke: var(--g-line-strong);
+      }
+      .strip.written {
+        fill: var(--g-viz-considering-soft);
+        stroke: var(--g-viz-considering);
+        stroke-width: 1.5;
+      }
+      .strip.read {
+        fill: var(--g-viz-current-soft);
+        stroke: var(--g-viz-current);
+        stroke-width: 1.5;
+      }
+      .strip.hidden,
+      .hidden-box {
+        fill: none;
+        stroke: var(--g-stroke);
+        stroke-dasharray: 4 3;
+      }
+      .rec-ticks {
+        stroke: var(--g-stroke);
+        stroke-opacity: 0.4;
+        fill: none;
+      }
+      .free-edge {
+        stroke: var(--g-stroke);
+        stroke-opacity: 0.8;
+      }
+      .slice.changed {
+        fill: var(--g-text);
+      }
+      .slice.found {
+        fill: var(--g-viz-final);
+      }
+      .slice.logged {
+        fill: var(--g-viz-considering);
+      }
+      .logtrack {
+        fill: var(--g-raised);
+        stroke: var(--g-line-strong);
+      }
+      .run {
+        fill: var(--g-raised);
+        stroke: var(--g-stroke);
+        stroke-width: 1;
+      }
+      .run.box {
+        stroke: var(--g-line-strong);
+      }
+      .trail {
+        fill: none;
+        stroke-width: 1.5;
+        stroke-linecap: round;
+      }
+      .trail.w {
+        stroke: var(--g-viz-considering);
+      }
+      .trail.r {
+        stroke: var(--g-viz-current);
+      }
+      .dot.w {
+        fill: var(--g-viz-considering);
+      }
+      .dot.r {
+        fill: var(--g-viz-current);
+      }
+      .dot.key {
+        fill: var(--g-text);
+      }
+      .ringm {
+        fill: var(--g-raised);
+        stroke-width: 2;
+      }
+      .ringm.w {
+        stroke: var(--g-viz-considering);
+      }
+      .ringm.r {
+        stroke: var(--g-viz-current);
+      }
+      .skip {
+        fill: var(--g-viz-stage);
+        stroke: var(--g-viz-discarded-ink);
+        stroke-width: 1.5;
+      }
+      .skip-slash {
+        stroke: var(--g-viz-discarded-ink);
+        stroke-width: 1.5;
+        stroke-linecap: round;
+      }
+      .found-ring {
+        fill: none;
+        stroke: var(--g-viz-final);
+        stroke-width: 2;
+      }
+      .stair {
+        fill: var(--g-viz-considering);
+        fill-opacity: 0.42;
+      }
+      .stair-new {
+        fill: var(--g-viz-considering);
+      }
+      .bar-track {
+        fill: var(--g-raised);
+        stroke: var(--g-line-strong);
+      }
+      .bar-fill {
+        fill: var(--g-viz-considering);
+      }
+      .bar-sep {
+        stroke: var(--g-viz-stage);
+        stroke-width: 1;
+      }
+      .bar-live {
+        fill: var(--g-stroke);
+      }
+      .bar-over {
+        fill: url(#hatch);
+        stroke: var(--g-stroke);
+        stroke-width: 1;
+      }
+      .ghost-tick {
+        stroke: var(--g-text);
+        stroke-width: 1.5;
+      }
+      .pip {
+        fill: var(--g-viz-current);
+      }
+      .pwalk {
+        fill: var(--g-viz-stage);
+        stroke: var(--g-viz-current);
+        stroke-width: 1.5;
+      }
+      .pwalk.disk {
+        fill: var(--g-viz-current);
+      }
+      .tickmark {
+        stroke: var(--g-line-strong);
+      }
+      .vrule {
+        stroke: var(--g-line);
+      }
+      /* On-stage controls: native radios and a checkbox drawn as the house segments, placed by the layout. */
+      .well .segment {
+        position: absolute;
+        display: block;
+        z-index: 2;
+      }
+      .well .segment span {
+        height: 100%;
+        min-height: 0;
+      }
+      .well .segment.toggle span {
+        flex-direction: row;
+        justify-content: flex-start;
+        gap: 10px;
+        padding: 0 12px;
+        font-size: var(--g-text-body-s);
+      }
+      .well .segment.toggle .box {
+        flex: none;
+        width: 18px;
+        height: 18px;
+        border-radius: 5px;
+        border: 1.5px solid var(--g-stroke);
+        background: var(--g-raised);
+        display: grid;
+        place-items: center;
+      }
+      .well .segment.toggle input:checked + span .box {
+        background: var(--g-accent);
+        border-color: var(--g-accent);
+      }
+      .well .segment.toggle .box svg {
+        width: 12px;
+        height: 12px;
+        visibility: hidden;
+      }
+      .well .segment.toggle input:checked + span .box svg {
+        visibility: visible;
+      }
+      .well .segment.toggle .words {
+        display: grid;
+        text-align: left;
+        line-height: 1.25;
+        font-style: normal;
+        white-space: nowrap;
+      }
+      .well .segment.toggle .words b {
+        font-weight: 500;
+      }
+      /* A checked segment keeps its weight, so its label never re-wraps (prevention 20). */
+      .segment input:checked + span {
+        font-weight: 500;
+      }
+      .play.small svg {
+        width: 36px;
+        height: 36px;
+      }
+      .model-note,
+      .caption {
+        order: 2;
+      }
+      .model-note {
+        margin: 0;
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+        text-wrap: pretty;
+      }
+      .nb {
+        white-space: nowrap;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <p class="eyebrow">System design · Storage Engines</p>
+      <h1>Try it</h1>
+      <section class="panel widget" id="widget"></section>
+    </main>
+    <script src="model.js"></script>
+    <script>
+      'use strict';
+      const M = window.StorageModel;
+      const params = new URLSearchParams(location.search);
+      document.documentElement.classList.toggle('dark', params.get('theme') === 'dark');
+      const WRITE = M.OP_WRITE;
+
+      // ---------- Text measurement, with the fonts the app ships (no tabular digits: stage text is measured as drawn).
+      // The label role is set in capitals, but a unit keeps its case ("10 MB/s").
+      const ROLE = {
+        label: { css: '600 11px "Inter Variable"', size: 11, track: 0.12, upper: true },
+        cap: { css: '500 13px "Inter Variable"', size: 13 },
+        capB: { css: '600 13px "Inter Variable"', size: 13 },
+        small: { css: '500 11px "Inter Variable"', size: 11 },
+        smallB: { css: '700 11px "Inter Variable"', size: 11 },
+        mono: { css: '600 11px "JetBrains Mono Variable"', size: 11 },
+        num: { css: '600 13px "JetBrains Mono Variable"', size: 13 },
+        look: { css: '600 11px "Inter Variable"', size: 11 },
+      };
+      const UNIT = /(MB\/s)/;
+      const upperKeepUnits = (t) => t.toUpperCase().replace(/MB\/S/g, 'MB/s');
+      const ctx = document.createElement('canvas').getContext('2d');
+      const widthCache = new Map();
+      function tw(text, role) {
+        const key = role + '|' + text;
+        if (widthCache.has(key)) return widthCache.get(key);
+        const f = ROLE[role];
+        ctx.font = f.css;
+        const s = f.upper ? upperKeepUnits(text) : text;
+        const w = Math.ceil(ctx.measureText(s).width + (f.track ? f.track * f.size * s.length : 0)) + 1;
+        widthCache.set(key, w);
+        return w;
+      }
+      const partsWidth = (parts) => parts.reduce((s, [t, role, , dx = 0]) => s + tw(t, role) + dx, 0);
+      // A number never parts from its unit: the two wrap as one word (stage-text.ts's rule).
+      const KEEP = /(\d[\d,.]*(?:×)?) (B|KB|MB|GB|MB\/s|bits|levels?|runs?|parts|merges|pages?|records|disk)\b/g;
+      const glue = (t) => t.replace(KEEP, '$1 $2').replace(/(about|in|of|k) (\d)/g, '$1 $2');
+      function wrap(text, role, width) {
+        const lines = [];
+        let line = '';
+        for (const w of glue(text).split(' ')) {
+          const next = line ? line + ' ' + w : w;
+          if (tw(next.replace(/ /g, ' '), role) <= width || !line) line = next;
+          else {
+            lines.push(line);
+            line = w;
+          }
+        }
+        if (line) lines.push(line);
+        return lines.map((l) => l.replace(/ /g, ' '));
+      }
+      const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      const labelInner = (t) =>
+        esc(t)
+          .split(UNIT)
+          .map((p, i) => (i % 2 ? `<tspan class="t-unit">${p}</tspan>` : p))
+          .join('');
+      const r1 = (v) => Math.round(v * 10) / 10;
+      const plural = M.plural;
+      const pick = (forms, fits) => forms.find(fits) ?? forms[forms.length - 1];
+      const fB = M.formatB;
+      const fAmp = M.formatAmp;
+      const fSize = M.formatSize;
+      // HTML learner text keeps a number with its unit on one line (g-code-text's rule), without a non-breaking space.
+      const KEEP_HTML = /(\d[\d,.]*×?(?: (?:bytes|B|KB|MB\/s|MB|GB|bits|levels?|runs?|pages?|disk reads?|times))|ratio \d+)/g;
+      const nb = (s) =>
+        esc(s)
+          .split(KEEP_HTML)
+          .map((p, i) => (i % 2 ? `<span class="nb">${p}</span>` : p))
+          .join('');
+
+      // ---------- The drawing: SVG parts in layers, and the boxes placement checks against.
+      class Draw {
+        constructor(W) {
+          this.W = W;
+          this.layers = { back: [], grid: [], links: [], marks: [], dots: [], text: [], top: [] };
+          this.texts = [];
+          this.marks = [];
+          this.links = [];
+          this.hits = [];
+          this.regions = {};
+          this.missing = [];
+          this.meta = {};
+        }
+        add(layer, s) {
+          this.layers[layer].push(s);
+        }
+        textBox(x, y, w, role, anchor = 'start') {
+          const fs = ROLE[role].size;
+          const x0 = anchor === 'middle' ? x - w / 2 : anchor === 'end' ? x - w : x;
+          return { x0, x1: x0 + w, y0: y - 0.74 * fs, y1: y + 0.22 * fs };
+        }
+        text(x, y, parts, o = {}) {
+          if (typeof parts === 'string') parts = [[parts, o.role ?? 'small', o.cls ?? 'muted']];
+          const anchor = o.anchor ?? 'start';
+          const w = partsWidth(parts);
+          const role = parts.reduce((a, p) => (ROLE[p[1]].size > ROLE[a].size ? p[1] : a), parts[0][1]);
+          const box = this.textBox(x, y, w, role, anchor);
+          box.owner = o.owner ?? '';
+          box.s = parts.map((p) => p[0]).join('');
+          this.texts.push(box);
+          const spans = parts.map(([t, r, cls = '', dx = 0]) => `<tspan class="t-${r} ${cls}"${dx ? ` dx="${dx}"` : ''}>${r === 'label' ? labelInner(t) : esc(t)}</tspan>`).join('');
+          const attrs = `x="${r1(x)}" y="${r1(y)}" text-anchor="${anchor}"${o.owner ? ` data-owner="${o.owner}"` : ''}${o.ground ? ' data-ground="1"' : ''}${o.id ? ` data-id="${o.id}"` : ''}${o.data ?? ''}`;
+          this.add(o.layer ?? 'text', `<text class="${o.textCls ?? ''}" ${attrs}>${spans}</text>`);
+          return box;
+        }
+        mark(box, owner = '') {
+          this.marks.push({ ...box, owner });
+        }
+        link(points, owner = '') {
+          this.links.push({ points, owner });
+        }
+        hit(kind, x, y, w, h, extra = {}) {
+          this.hits.push({ kind, x, y, w, h, ...extra });
+          this.mark({ x0: x, x1: x + w, y0: y, y1: y + h }, extra.owner ?? kind);
+        }
+        region(id, box) {
+          (this.regions[id] ??= []).push(box);
+        }
+        free(box, ignoreOwner = '', margin = 2) {
+          const b = { x0: box.x0 - margin, x1: box.x1 + margin, y0: box.y0 - margin, y1: box.y1 + margin };
+          const hit = (o) => !(o.x1 <= b.x0 || o.x0 >= b.x1 || o.y1 <= b.y0 || o.y0 >= b.y1);
+          const mine = (o) => ignoreOwner && o.owner && o.owner.split(' ').some((t) => ignoreOwner.split(' ').includes(t));
+          if (this.texts.some((t) => hit(t) && !mine(t))) return false;
+          if (this.marks.some((m) => hit(m) && !mine(m))) return false;
+          for (const l of this.links) {
+            if (mine(l)) continue;
+            if (l.points.some(([x, y]) => x > b.x0 && x < b.x1 && y > b.y0 && y < b.y1)) return false;
+          }
+          return b.x0 >= 2 && b.x1 <= this.W - 2;
+        }
+        svg(H, label) {
+          const L = this.layers;
+          return `<svg class="draw" width="${this.W}" height="${H}" viewBox="0 0 ${this.W} ${H}" role="img" aria-label="${esc(label)}">
+<defs>
+<pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" class="hatch-fill"/><line class="hatch-line" x1="0" y1="0" x2="0" y2="6"/></pattern>
+</defs>
+<g>${L.back.join('')}</g><g>${L.grid.join('')}</g><g>${L.links.join('')}</g><g>${L.marks.join('')}</g><g>${L.dots.join('')}</g><g>${L.text.join('')}</g><g>${L.top.join('')}</g></svg>`;
+        }
+      }
+      const sampleLine = (x1, y1, x2, y2, step = 3) => {
+        const n = Math.max(2, Math.ceil(Math.hypot(x2 - x1, y2 - y1) / step));
+        return Array.from({ length: n + 1 }, (_, i) => [x1 + ((x2 - x1) * i) / n, y1 + ((y2 - y1) * i) / n]);
+      };
+      function dot(D, cx, cy, r, cls, owner, id, data = '') {
+        D.add('dots', `<circle class="dot ${cls}" cx="${r1(cx)}" cy="${r1(cy)}" r="${r}"${id !== undefined ? ` data-id="${id}"` : ''} data-owner="${owner}"${data}/>`);
+        D.mark({ x0: cx - r, x1: cx + r, y0: cy - r, y1: cy + r }, owner);
+      }
+      const rect = (cls, x, y, w, h, rx = 0, extra = '') => `<rect class="${cls}" x="${r1(x)}" y="${r1(y)}" width="${r1(Math.max(0, w))}" height="${r1(Math.max(0, h))}"${rx ? ` rx="${rx}"` : ''}${extra}/>`;
+      const line = (cls, x1, y1, x2, y2, extra = '') => `<line class="${cls}" x1="${r1(x1)}" y1="${r1(y1)}" x2="${r1(x2)}" y2="${r1(y2)}"${extra}/>`;
+
+      // ---------- What an open question hides, on every surface: one map (prevention 1). Each region is named in the
+      // question's own `hide` list. `btreeWrite` and `lsmWrite` hide one engine's write cost: its numbers while the
+      // question asks and while its answer plays, and the marks that would draw the answer (the page written back, the
+      // level's merges) while it asks; the answer's play then draws those marks at their moments. `after` hides, during
+      // the answer's play, every number the model gives at the act's new setting. No ghost of an earlier setting shows
+      // while a question is open: a card's setup is a new start.
+      function hiding(view) {
+        const h = new Set(view.hide ?? []);
+        const asking = view.phase === 'asking';
+        const playing = view.phase === 'playing';
+        const open = asking || playing;
+        const after = h.has('after') && playing;
+        const map = {
+          btNumbers: (h.has('btreeWrite') && open) || after,
+          btMarks: h.has('btreeWrite') && asking,
+          lsmNumbers: (h.has('lsmWrite') && open) || after,
+          lsmMarks: h.has('lsmWrite') && asking,
+          readNumbers: after,
+          spaceNumbers: after,
+          ghost: open,
+          locked: open,
+        };
+        // The sweep's planted leaks switch one flag off on a copy of a view, to prove the sweep catches it.
+        for (const flag of view.leak ?? []) map[flag] = false;
+        return map;
+      }
+      const NOTHING_HIDDEN = hiding({ phase: 'rest' });
+
+      // ---------- Each play's steps as moments of its one clock (0 to 1). A mark shows once the clock has reached its
+      // moment, so nothing is drawn for an event before it happens (prevention 6).
+      function planOf(engine, m) {
+        const write = m.settings.op === WRITE;
+        const P = {};
+        if (engine === 'btree') {
+          const h = m.btree.height;
+          for (let k = 0; k < h; k++) P[`walk${k}`] = (k / (h - 1)) * 0.42;
+          if (write) Object.assign(P, { strip: 0.5, slice: 0.58, log: 0.7, page: 0.84, ledger: 0.97 });
+          else Object.assign(P, { strip: 0.56, slice: 0.72, log: 0.86, page: 0.56, ledger: 0.95 });
+          P.seconds = write ? 4 : 2.6;
+        } else {
+          const L = m.lsm.levels;
+          if (write) {
+            Object.assign(P, { log: 0.02, mem: 0.07, stair0: 0.34, stair1: 0.88, ledger: 0.97 });
+            P.run0 = 0.2;
+            for (let j = 1; j <= L; j++) P[`run${j}`] = 0.2 + (j * 0.7) / L;
+            P.seconds = 4.5 + 0.5 * L;
+          } else {
+            Object.assign(P, { mem: 0.06, ledger: 0.96 });
+            for (let j = 0; j <= L; j++) P[`run${j}`] = 0.16 + (j * 0.68) / L;
+            P.found = P[`run${L}`] + 0.06;
+            P.seconds = 1.6 + 0.5 * (L + 1);
+          }
+        }
+        return P;
+      }
+      const shown = (view, engine, at) => !view.play || view.play.engine !== engine || view.play.frac >= at - 1e-9;
+
+      // ---------- Words the stage and the page share.
+      const opWord = (s) => (s.op === WRITE ? 'write' : 'lookup');
+      const recordWords = (s) => `records of ${M.formatBytes(s.record)}`;
+      const ENGINE = { btree: 'B-tree', lsm: 'LSM tree' };
+      function premise(s) {
+        const base = `${M.formatGb(s.data)} of records, ${M.formatBytes(s.record)} each`;
+        return s.op === WRITE
+          ? [`${base}, rewritten at random at ${M.formatRate(M.WRITE_MBPS)}. Follow one write.`, `${base}, rewritten at random. Follow one write.`]
+          : [`${base}. Follow one lookup, for a key last written long ago.`, `${base}. Follow one lookup of an old key.`];
+      }
+      const allPremises = () => M.ALL_SETTINGS.filter((s) => s.page === 4 && s.ratio === 10 && s.bloom).map(premise);
+
+      /** What a play did, in order: the notice after a play and the Reduced-motion caption. Every number is written. */
+      function story(engine, m, hid = NOTHING_HIDDEN) {
+        const s = m.settings;
+        const b = m.btree;
+        const l = m.lsm;
+        if (engine === 'btree') {
+          const walk = `walks ${b.height} pages from the root to a leaf, ${b.memoryHops} of them in memory`;
+          if (s.op !== WRITE) return `The lookup ${walk}, and reads the leaf from disk: ${M.formatReads(b.lookupReads)}.`;
+          if (hid.btNumbers) return `The write ${walk}, changes its record there, appends a log record and writes the page back. The bytes show at the reveal.`;
+          return `The write ${walk}, changes ${M.formatBytes(s.record)} there and appends ${M.formatBytes(b.logBytes)} to the log. Then the whole page goes back to disk, ${M.formatBytes(b.pageB)}: ${M.formatBytes(b.writeBytes)} written for ${M.formatBytes(s.record)} of data, ${fAmp(b.writeAmp)}.`;
+        }
+        if (s.op !== WRITE) {
+          if (hid.readNumbers) return `The lookup checks the memtable, then goes down the runs on disk, newest first. The count shows at the reveal.`;
+          return s.bloom
+            ? `The lookup checks the memtable, then asks the bloom filter of each run on disk: ${l.skipped} runs say "not here" from memory, and only the last level is read: ${M.formatReads(l.lookupReads)}.`
+            : `The lookup checks the memtable, then reads every run on disk in turn, the flushed run and ${M.formatLevels(l.levels)}, until the last level turns the key up: ${M.formatReads(l.lookupReads)}.`;
+        }
+        if (hid.lsmNumbers) return `The write is appended to the log and kept in the memtable, flushed to disk when the memtable fills, then merged down through ${M.formatLevels(l.levels)}. The count shows at the reveal.`;
+        return `The write is appended to the log and kept in the memtable. When the memtable's ${fSize(l.memtableBytes)} fill, it is flushed to disk as one sorted run, and compaction merges the record down through ${M.formatLevels(l.levels)}, rewriting it about ${M.formatNum(l.rewritesPerLevel)} times at each: ${fAmp(l.writeAmp)} the data in all.`;
+      }
+      /** One sentence for a setting, for the notice after a change, after a reveal and when the challenge opens. */
+      function settingSentence(m, hid = NOTHING_HIDDEN) {
+        const s = m.settings;
+        const b = m.btree;
+        const l = m.lsm;
+        const bt = hid.btNumbers ? `The B-tree has ${M.formatKb(s.page)} pages` : `The B-tree, with ${M.formatKb(s.page)} pages, writes ${fAmp(b.writeAmp)} the data and reads ${M.formatReads(b.lookupReads).replace(' disk', '')} from disk for a lookup`;
+        const ls = hid.lsmNumbers || hid.readNumbers ? `the LSM tree has ${M.formatLevels(l.levels)} at ratio ${s.ratio}, bloom filters ${s.bloom ? 'on' : 'off'}` : `the LSM tree, with ${M.formatLevels(l.levels)} at ratio ${s.ratio} and bloom filters ${s.bloom ? 'on' : 'off'}, writes ${fAmp(l.writeAmp)} and reads ${l.lookupReads} ${plural(l.lookupReads, 'run', 'runs')}`;
+        return `${bt}; ${ls}.`;
+      }
+      /** The stage's summary: full sentences, obeying hiding(). */
+      function summary(m, hid) {
+        const s = m.settings;
+        const b = m.btree;
+        const l = m.lsm;
+        const out = [`${M.formatGb(s.data)} of data in ${recordWords(s)}, following one ${opWord(s)} through a B-tree and an LSM tree.`];
+        out.push(`B-tree, ${M.formatKb(s.page)} pages: ${b.height} levels, ${b.memoryHops} of them cached in memory.`);
+        out.push(hid.btNumbers ? `Its write cost shows after your answer.` : `An update writes its whole page and a log record, ${M.formatBytes(b.writeBytes)} for ${M.formatBytes(s.record)}: ${fAmp(b.writeAmp)} the data. A lookup costs ${M.formatReads(b.lookupReads)}.`);
+        out.push(`LSM tree, size ratio ${s.ratio}, bloom filters ${s.bloom ? 'on' : 'off'}: a flushed run and ${M.formatLevels(l.levels)} on disk.`);
+        if (hid.lsmNumbers) out.push(`Its write cost shows after your answer.`);
+        else out.push(`A record is written once to the log, once at the flush and about ${M.formatNum(l.rewritesPerLevel)} times at each level: ${fAmp(l.writeAmp)} the data.`);
+        if (hid.readNumbers) out.push(`The lookup's cost shows at the reveal.`);
+        else out.push(`A lookup costs ${M.formatReads(l.lookupReads)}.`);
+        if (!hid.spaceNumbers) out.push(`Disk used: about ${M.formatSpace(b.spaceAmp)} the live data for the B-tree, at most ${M.formatSpace(l.spaceAmp)} for the LSM tree.`);
+        out.push('A rough model.');
+        return out.join(' ');
+      }
+      const MODEL_NOTE = `A rough model. B-tree: every update writes its whole page back alone, plus a log record; pages are about ${Math.round(M.PAGE_FILL * 100)}% full; every level above the leaves stays in memory. LSM tree: a ${M.MEMTABLE_MB} MB memtable; one log write, one flush, then about (ratio + 1) / 2 rewrites at each level as it fills; bloom filters take ${M.BLOOM_BITS} bits a key, and their false positives, about 1 lookup in ${Math.round(1 / M.BLOOM_FALSE_POSITIVE)} for each run, are left out. New data arrives at ${M.formatRate(M.WRITE_MBPS)}.`;
+
+      // ---------- The stage. One panel a engine, the same shape at every width (224 px and up), side by side from a
+      // 500 px stage; under them, what each engine pays. Heights depend on the stage's width only.
+      const PANEL = { head: 44, knob: 62, toggle: 50, tree: 168, lsmTop: 50, rows: 152, transform: 114 };
+      const lsmPanelHeight = () => PANEL.head + 6 + PANEL.knob + PANEL.toggle + 10 + PANEL.lsmTop + 16 + PANEL.rows + 10 + PANEL.transform;
+      const btreePanelHeight = () => PANEL.head + 6 + PANEL.knob + 10 + PANEL.tree + 10 + PANEL.transform;
+
+      function panelHead(D, x, y, pw, engine, sub, also, view) {
+        D.hit('play', x, y, 44, 44, { owner: `play-${engine}`, engine });
+        const forms = [
+          [
+            [ENGINE[engine], 'capB', 'ink'],
+            [` · ${also}`, 'small', 'muted'],
+          ],
+          [[ENGINE[engine], 'capB', 'ink']],
+        ];
+        D.text(x + 52, y + 19, pick(forms, (f) => partsWidth(f) <= pw - 52), { owner: `title-${engine}` });
+        D.text(x + 52, y + 35, [[sub, 'small', 'muted']], { owner: `title-${engine}` });
+      }
+      function segments(D, x, y, pw, group, values, current, labelOf, legend) {
+        D.text(x, y + 11, [[legend, 'label', '']], { owner: `legend-${group}`, textCls: 'muted' });
+        const sw = (pw - 4 * (values.length - 1)) / values.length;
+        values.forEach((v, i) => D.hit('seg', x + i * (sw + 4), y + 18, sw, 44, { owner: `${group}-${v}`, group, value: v, label: labelOf(v), checked: v === current, legend }));
+      }
+
+      function btreePanel(D, x, y, pw, m, view, hid, treeExtra) {
+        const s = m.settings;
+        const b = m.btree;
+        const write = s.op === WRITE;
+        const P = planOf('btree', m);
+        const on = (k) => shown(view, 'btree', P[k]);
+        const h = b.height;
+        let cy = y;
+        panelHead(D, x, y, pw, 'btree', 'pages rewritten in place', 'Postgres, InnoDB, SQLite', view);
+        cy += PANEL.head + 6;
+        segments(D, x, cy, pw, 'page', M.PAGE_KB, s.page, (v) => M.formatKb(v), 'Page size');
+        cy += PANEL.knob + 10;
+
+        // The tree: one row a level, the levels above the leaves in a band (memory), the leaves under it (disk).
+        const treeTop = cy;
+        const memory = fSize(b.memoryBytes);
+        const labelA = pick([`Cached in memory · ${b.memoryHops} levels, ${memory}`, `In memory · ${b.memoryHops} levels, ${memory}`, `In memory · ${memory}`], (t) => tw(t, 'label') <= pw);
+        D.text(x, cy + 11, [[labelA, 'label', '']], { textCls: 'muted', owner: 'bt-label' });
+        const bandY = cy + 18;
+        const UB = PANEL.tree - 18 - 10 - 16 - 4 - 14 + treeExtra;
+        D.add('back', rect('band', x, bandY, pw, UB, 8));
+        const countW = Math.max(...b.pages.slice(0, -1).map((n) => tw(M.formatPages(n), 'small')));
+        const BW = 16;
+        const BH = 12;
+        const BG = 5;
+        const zone = (x0, x1) => ({ x0, x1, cx: (x0 + x1) / 2, max: Math.max(2, Math.floor((x1 - x0 - 14) / (BW + BG))) });
+        const upper = zone(x + 8, x + pw - countW - 14);
+        const leafAction = write ? 'written back' : M.formatReads(b.lookupReads);
+        const leafZone = zone(x + 2, x + pw - Math.max(tw('written back', 'small'), tw(M.formatReads(1), 'small')) - 8);
+        const leafY = bandY + UB + 10 + 8;
+        const labelBY = leafY + 8 + 4;
+        const WANT = [1, 3, 5, 7, 7];
+        const PATH = [0, 1, 3, 1, 3];
+        const rows = b.pages.map((n, k) => {
+          const leaf = k === h - 1;
+          const z = leaf ? leafZone : upper;
+          const cap = Math.min(leaf ? 7 : WANT[k], z.max);
+          const drawn = Math.min(n, cap);
+          const more = n > drawn;
+          const total = drawn * BW + (drawn - 1) * BG + (more ? 14 : 0);
+          const x0 = z.cx - total / 2;
+          const cyk = leaf ? leafY : bandY + ((k + 0.5) * UB) / (h - 1);
+          const idx = Math.min(drawn - 1, PATH[k]);
+          return { n, leaf, drawn, more, x0, cy: cyk, idx, cx: (i) => x0 + i * (BW + BG) + BW / 2, total };
+        });
+        const labelB = pick([`Read from disk · ${M.formatCount(b.leaves)} leaf pages`, `On disk · ${M.formatCount(b.leaves)} leaf pages`, `On disk · ${M.formatCount(b.leaves)} leaves`], (t) => tw(t, 'label') <= pw);
+        D.text(x, labelBY + 11, [[labelB, 'label', '']], { textCls: 'muted', owner: 'bt-label' });
+        rows.forEach((r, k) => {
+          const reached = on(`walk${k}`);
+          if (k < h - 1) {
+            const next = rows[k + 1];
+            const px = r.cx(r.idx);
+            for (let i = 0; i < next.drawn; i++) {
+              const walked = i === next.idx && on(`walk${k + 1}`);
+              const pts = [px, r.cy + BH / 2, next.cx(i), next.cy - BH / 2];
+              D.add('links', line(walked ? 'walk' : 'fan', ...pts, ` data-owner="bt-tree"`));
+              D.link(sampleLine(...pts), 'bt-tree');
+            }
+            // The key in flight between two pages, while its play runs.
+            if (view.play?.engine === 'btree' && view.play.frac > P[`walk${k}`] && view.play.frac < P[`walk${k + 1}`]) {
+              const t = (view.play.frac - P[`walk${k}`]) / (P[`walk${k + 1}`] - P[`walk${k}`]);
+              D.add('top', `<circle class="dot key" cx="${r1(px + (next.cx(next.idx) - px) * t)}" cy="${r1(r.cy + BH / 2 + (next.cy - BH - r.cy) * t)}" r="3.5" data-owner="bt-tree"/>`);
+            }
+          }
+          for (let i = 0; i < r.drawn; i++) {
+            let cls = 'pg';
+            if (i === r.idx && reached) {
+              cls = 'pg mem-hit';
+              if (r.leaf && !write) cls = 'pg disk-read';
+              if (r.leaf && write && on('page') && !hid.btMarks) cls = 'pg written';
+            }
+            D.add('marks', rect(cls, r.cx(i) - BW / 2, r.cy - BH / 2, BW, BH, 2.5, ` data-owner="bt-tree"${i === r.idx ? ` data-walk="${k}"` : ''}`));
+          }
+          D.mark({ x0: r.x0 - 2, x1: r.x0 + r.total + 2, y0: r.cy - BH / 2 - 2, y1: r.cy + BH / 2 + 2 }, 'bt-tree');
+          if (r.more) for (let i = 0; i < 3; i++) D.add('marks', `<circle class="more" cx="${r1(r.x0 + r.drawn * (BW + BG) + 2 + i * 4.5)}" cy="${r1(r.cy)}" r="1.25" data-owner="bt-tree" data-more="${k}"/>`);
+          if (!r.leaf) D.text(x + pw - 8, r.cy + 4, [[M.formatPages(r.n), 'small', 'muted']], { anchor: 'end', textCls: 'on-box', owner: 'bt-count', data: ` data-pages="${k}"` });
+          else if (reached && (!write || (on('page') && !hid.btMarks))) D.text(x + pw, r.cy + 4, [[leafAction, 'small', write ? 'amber-ink' : 'cur-ink']], { anchor: 'end', owner: 'bt-count', id: 'bt-leaf-action' });
+        });
+        D.meta.btRows = rows.map((r) => ({ n: r.n, drawn: r.drawn, more: r.more }));
+        D.region('bt-tree', { x: x - 6, y: treeTop - 4, w: pw + 12, h: PANEL.tree + treeExtra + 6 });
+        cy = treeTop + PANEL.tree + treeExtra + 10;
+
+        // The leaf page, to scale: what one write changes against what it writes (or what a lookup reads).
+        const tY = cy;
+        const about = Math.round(b.recordsPerLeaf);
+        const stripShown = on('strip');
+        const labelT = pick([`The leaf page · ${fB(b.pageB)}, about ${about} records`, `The leaf page · ${fB(b.pageB)}, ${about} records`, `The leaf page · ${fB(b.pageB)}`], (t) => tw(t, 'label') <= pw);
+        if (stripShown) D.text(x, tY + 11, [[labelT, 'label', '']], { textCls: 'muted', owner: 'bt-strip' });
+        const sy = tY + 18;
+        const sh = 20;
+        const fillW = M.PAGE_FILL * pw;
+        const recPx = fillW / b.recordsPerLeaf;
+        const recW = Math.max(3, (s.record / b.pageB) * pw);
+        const recX = x + Math.floor((0.16 * pw) / recPx) * recPx;
+        const written = write && on('page') && !hid.btMarks;
+        if (stripShown) {
+          const cls = write ? (hid.btMarks ? 'strip hidden' : written ? 'strip written' : 'strip') : 'strip read';
+          D.add('marks', rect(cls, x + 0.5, sy, pw - 1, sh, 3, ` data-owner="bt-strip" data-id="page-strip"`));
+          if (recPx >= 5 && !hid.btMarks) {
+            let d = '';
+            for (let i = 1; i < b.recordsPerLeaf; i++) d += `M${r1(x + i * recPx)} ${sy + 4}v${sh - 8}`;
+            D.add('marks', `<path class="rec-ticks" d="${d}"/>`);
+          }
+          if (!hid.btMarks) D.add('marks', line('free-edge', x + fillW, sy + 1, x + fillW, sy + sh - 1));
+          if (!hid.btMarks && pw - fillW >= tw('free', 'small') + 12) D.text(x + (fillW + pw) / 2, sy + 14, [['free', 'small', 'muted']], { anchor: 'middle', textCls: 'on-chip', owner: 'bt-strip' });
+          D.mark({ x0: x, x1: x + pw, y0: sy, y1: sy + sh }, 'bt-strip');
+          if (on('slice')) D.add('marks', rect(`slice ${write ? 'changed' : 'found'}`, recX, sy, recW, sh, 1, ` data-owner="bt-strip" data-id="record-slice"`));
+          // Under the strip: what changed, at its record; what was written, at the page's right end.
+          const noteY = sy + sh + 14;
+          const leftForms = write ? [`${fB(s.record)} changed`, `${fB(s.record)}`] : [`the record, ${fB(s.record)}`, `${fB(s.record)}`];
+          let rightForms = [];
+          let rightCls = write ? 'amber-ink' : 'cur-ink';
+          if (!write) rightForms = [`${fB(b.pageB)} read from disk`, `${fB(b.pageB)} read`];
+          else if (hid.btMarks) (rightForms = ['written after your answer', 'after your answer']), (rightCls = 'muted');
+          else if (!written) rightForms = [];
+          else if (hid.btNumbers) rightForms = ['? B written back', '? B written'];
+          else rightForms = [`${fB(b.pageB)} written back whole`, `${fB(b.pageB)} written back`, `${fB(b.pageB)} written`];
+          const fits = (lf, rf) => recX + tw(lf, 'small') + 10 <= x + pw - (rf ? tw(rf, 'small') : 0);
+          let lf = leftForms[0];
+          let rf = rightForms[0] ?? null;
+          for (const cand of rightForms.length ? rightForms.flatMap((r) => leftForms.map((l) => [l, r])) : leftForms.map((l) => [l, null])) {
+            [lf, rf] = cand;
+            if (fits(lf, rf)) break;
+          }
+          if (on('slice')) D.text(recX, noteY, [[lf, 'small', write ? 'ink' : 'final-ink']], { owner: 'bt-note', id: 'record-note' });
+          if (rf) D.text(x + pw, noteY, [[rf, 'small', rightCls]], { anchor: 'end', owner: 'bt-note', id: 'page-note' });
+        } else if (hid.btMarks) {
+          D.add('marks', rect('strip hidden', x + 0.5, sy, pw - 1, sh, 3));
+        }
+        // The log (a write), drawn on the page strip's own scale; the pages walked (a lookup).
+        const rowY = sy + sh + 22;
+        if (write) {
+          if (on('log') || hid.btMarks) {
+            D.text(x, rowY + 11, [['Log', 'label', '']], { textCls: 'muted', owner: 'bt-log' });
+            const tx = x + tw('Log', 'label') + 8;
+            const trackW = Math.max(recW + 30, Math.min(0.5 * pw, 130));
+            if (hid.btMarks) D.add('marks', rect('hidden-box', tx, rowY + 3, trackW, 9, 2));
+            else {
+              D.add('marks', rect('logtrack', tx, rowY + 3, trackW, 9, 2, ' data-owner="bt-log"'));
+              D.add('marks', rect('slice logged', tx + trackW - recW, rowY + 3, recW, 9, 1, ' data-owner="bt-log" data-id="log-slice"'));
+              const logForms = hid.btNumbers ? ['+? B appended', '+? B'] : [`+${fB(b.logBytes)} appended`, `+${fB(b.logBytes)}`];
+              D.text(tx + trackW + 8, rowY + 11, [[pick(logForms, (t) => tx + trackW + 8 + tw(t, 'small') <= x + pw), 'small', 'amber-ink']], { owner: 'bt-log', id: 'log-note' });
+            }
+            D.mark({ x0: tx, x1: tx + trackW, y0: rowY + 3, y1: rowY + 12 }, 'bt-log');
+          }
+        } else if (on('log')) {
+          D.text(x, rowY + 11, [['Walk', 'label', '']], { textCls: 'muted', owner: 'bt-log' });
+          const tx = x + tw('Walk', 'label') + 8;
+          for (let k = 0; k < h; k++) D.add('marks', rect(`pwalk${k === h - 1 ? ' disk' : ''}`, tx + k * 13, rowY + 3, 9, 9, 2, ' data-owner="bt-log"'));
+          D.mark({ x0: tx, x1: tx + h * 13, y0: rowY + 3, y1: rowY + 12 }, 'bt-log');
+          const walkForms = [`${b.memoryHops} in memory, ${b.lookupReads} from disk`, `${b.memoryHops} cached, ${b.lookupReads} read`];
+          D.text(tx + h * 13 + 6, rowY + 11, [[pick(walkForms, (t) => tx + h * 13 + 6 + tw(t, 'small') <= x + pw), 'small', 'muted']], { owner: 'bt-log' });
+        }
+        if (on('ledger')) {
+          const l1 = write
+            ? hid.btNumbers
+              ? ['? B written']
+              : [`${fB(b.pageB)} + ${fB(b.logBytes)} = ${fB(b.writeBytes)} written`, `= ${fB(b.writeBytes)} written`]
+            : [`${b.height} pages walked, ${b.memoryHops} of them cached`, `${b.height} pages walked`];
+          D.text(x, tY + 92, [[pick(l1, (t) => tw(t, 'mono') <= pw), 'mono', 'ink']], { owner: 'bt-ledger', id: 'bt-ledger' });
+          const l2 = write
+            ? [
+                [hid.btNumbers ? '?×' : fAmp(b.writeAmp), 'num', 'amber-ink'],
+                [' the data', 'cap', 'ink', 4],
+              ]
+            : [
+                [String(b.lookupReads), 'num', 'cur-ink'],
+                [` disk ${plural(b.lookupReads, 'read', 'reads')}`, 'cap', 'ink', 4],
+              ];
+          D.text(x, tY + 110, l2, { owner: 'bt-ledger', id: 'bt-total' });
+        }
+        D.region('bt-transform', { x: x - 6, y: tY - 4, w: pw + 12, h: PANEL.transform + 6 });
+        return tY + PANEL.transform;
+      }
+
+      function lsmPanel(D, x, y, pw, m, view, hid) {
+        const s = m.settings;
+        const l = m.lsm;
+        const write = s.op === WRITE;
+        const P = planOf('lsm', m);
+        const on = (k) => shown(view, 'lsm', P[k]);
+        const L = l.levels;
+        const kind = write ? 'w' : 'r';
+        let cy = y;
+        panelHead(D, x, y, pw, 'lsm', 'appended, then merged down', 'RocksDB, Cassandra', view);
+        cy += PANEL.head + 6;
+        segments(D, x, cy, pw, 'ratio', M.RATIOS, s.ratio, (v) => String(v), 'Size ratio');
+        cy += PANEL.knob;
+        D.hit('toggle', x, cy + 6, pw, 44, { owner: 'bloom', checked: !!s.bloom, label: 'Bloom filters', sub: s.bloom ? `${fSize(l.bloomBytes)} of memory` : 'off: every run is read' });
+        cy += PANEL.toggle + 10;
+
+        // Memory and the log, then the sorted runs on disk, newest on top.
+        const top = cy;
+        const chipW = Math.max(tw('skipped', 'small'), tw('≈10.5×', 'mono'), tw('1 read', 'small')) + 2;
+        const memW = Math.round((pw - chipW - 8) * 0.6);
+        const logX = x + memW + 8;
+        const logW = pw - chipW - 8 - memW - 8;
+        D.text(x, cy + 11, [['In memory', 'label', '']], { textCls: 'muted', owner: 'lsm-label' });
+        D.text(logX, cy + 11, [[pick(['On disk · the log', 'The log, on disk', 'The log', 'Log'], (t) => logX + tw(t, 'label') <= x + pw), 'label', '']], { textCls: 'muted', owner: 'lsm-label' });
+        const memY = cy + 18;
+        const memH = 26;
+        const trailX = x + 24 + 12;
+        D.add('marks', rect('run box', x + 0.5, memY, memW - 1, memH, 5, ' data-owner="lsm-stack"'));
+        const memText = pick([`memtable · ${fSize(l.memtableBytes)}`, 'memtable'], (t) => trailX + 12 + tw(t, 'small') <= x + memW - 4);
+        D.text(trailX + 12, memY + 17, [[memText, 'small', 'ink']], { textCls: 'on-box', owner: 'lsm-stack' });
+        D.add('marks', rect('logtrack', logX, memY + 6, logW, 14, 3, ' data-owner="lsm-stack"'));
+        let ticks = '';
+        for (let tx = logX + 6; tx < logX + logW - 8; tx += 6) ticks += `M${r1(tx)} ${memY + 9}v8`;
+        D.add('marks', `<path class="rec-ticks" d="${ticks}"/>`);
+        D.mark({ x0: x, x1: x + pw - chipW - 8, y0: memY, y1: memY + memH }, 'lsm-stack');
+        const chip = (yc, text, cls, role, id) => D.text(x + pw, yc + 4, [[text, role, cls]], { anchor: 'end', owner: 'lsm-chip', id });
+        if (write && on('log')) {
+          D.add('marks', rect('slice logged', logX + logW - 5, memY + 6, 5, 14, 1, ' data-owner="lsm-stack" data-id="lsm-log"'));
+          chip(memY + memH / 2, hid.lsmNumbers ? '?×' : '1×', hid.lsmNumbers ? 'muted' : 'amber-ink', 'mono', 'chip-log');
+        }
+        if (on('mem')) {
+          D.add('dots', `<circle class="ringm ${kind}" cx="${trailX}" cy="${memY + memH / 2}" r="4.5" data-owner="lsm-stack" data-id="mem-mark"/>`);
+          if (!write && !hid.readNumbers) chip(memY + memH / 2, 'not here', 'muted', 'small', 'chip-mem');
+        }
+        cy = memY + memH + 6;
+        const ratioWord = `each level ${s.ratio}× the one above`;
+        const labelX = trailX + 14;
+        const labelD = pick([`On disk · sorted runs, ${ratioWord}`, `On disk · ${ratioWord}`, `On disk · levels ${s.ratio}× apart`, `On disk · sorted runs`, 'On disk'], (t) => labelX + tw(t, 'label') <= x + pw);
+        D.text(labelX, cy + 11, [[labelD, 'label', '']], { textCls: 'muted', owner: 'lsm-label' });
+        cy += 16;
+        const n = L + 1;
+        const pitch = PANEL.rows / n;
+        const barH = Math.min(12, pitch - 8);
+        const sizes = [l.memtableBytes, ...l.levelBytes].map(fSize);
+        const sizeW = Math.max(...sizes.map((t) => tw(t, 'small')));
+        const bx = x + 24;
+        const bmin = 26;
+        const bmax = pw - 24 - 6 - sizeW - 8 - chipW;
+        const rowsY = [];
+        for (let j = 0; j <= L; j++) {
+          const yc = cy + (j + 0.5) * pitch;
+          rowsY.push(yc);
+          const bw = bmin + ((bmax - bmin) * j) / L;
+          D.text(x, yc + 4, [[`L${j}`, 'mono', 'muted']], { owner: 'lsm-stack', data: ` data-level="${j}"` });
+          D.add('marks', rect('run', bx, yc - barH / 2, bw, barH, 2.5, ` data-owner="lsm-stack" data-run="${j}"`));
+          D.mark({ x0: bx, x1: bx + bw, y0: yc - barH / 2, y1: yc + barH / 2 }, 'lsm-stack');
+          const sizeForms = j === 0 ? [`${sizes[0]}, flushed`, sizes[0]] : j === L ? [`${sizes[j]}, the data`, sizes[j]] : [sizes[j]];
+          D.text(bx + bw + 6, yc + 4, [[pick(sizeForms, (t) => bx + bw + 6 + tw(t, 'small') <= x + pw - chipW - 6), 'small', 'muted']], { owner: 'lsm-size' });
+          if (!on(`run${j}`)) continue;
+          if (write) {
+            dot(D, trailX, yc, 4, 'w', 'lsm-stack', `w${j}`);
+            chip(yc, hid.lsmNumbers ? '?×' : j === 0 ? '1×' : `≈${M.formatNum(l.rewritesPerLevel)}×`, hid.lsmNumbers ? 'muted' : 'amber-ink', 'mono', `chip-${j}`);
+          } else {
+            const last = j === L;
+            if (s.bloom && !last) {
+              D.add('dots', `<circle class="skip" cx="${trailX}" cy="${r1(yc)}" r="4.5" data-owner="lsm-stack" data-skip="${j}"/>` + line('skip-slash', trailX - 3, yc + 3, trailX + 3, yc - 3));
+              if (!hid.readNumbers) chip(yc, 'skipped', 'muted', 'small', `chip-${j}`);
+            } else {
+              dot(D, trailX, yc, 4, 'r', 'lsm-stack', `r${j}`);
+              if (!hid.readNumbers) chip(yc, '1 read', 'cur-ink', 'small', `chip-${j}`);
+            }
+            if (last && on('found')) D.add('dots', `<circle class="found-ring" cx="${trailX}" cy="${r1(yc)}" r="7.5" data-owner="lsm-stack"/>`);
+          }
+        }
+        // The trail: the record's way down (a write), or the lookup's (a read), as far as the clock has come.
+        const reachedRows = rowsY.filter((_, j) => on(`run${j}`));
+        if (on('mem') && reachedRows.length) {
+          const y0 = memY + memH / 2 + 5;
+          const y1 = reachedRows.at(-1);
+          D.add('links', line(`trail ${kind}`, trailX, y0, trailX, y1, ' data-owner="lsm-stack"'));
+        }
+        if (view.play?.engine === 'lsm') {
+          const steps = ['mem', ...rowsY.map((_, j) => `run${j}`)];
+          const ys = [memY + memH / 2, ...rowsY];
+          for (let i = 0; i + 1 < steps.length; i++) {
+            const f = view.play.frac;
+            if (f > P[steps[i]] && f < P[steps[i + 1]]) {
+              const t = (f - P[steps[i]]) / (P[steps[i + 1]] - P[steps[i]]);
+              D.add('top', `<circle class="dot key" cx="${trailX}" cy="${r1(ys[i] + (ys[i + 1] - ys[i]) * t)}" r="3.5" data-owner="lsm-stack"/>`);
+            }
+          }
+        }
+        D.meta.lsmRows = n;
+        D.region('lsm-stack', { x: x - 6, y: top - 4, w: pw + 12, h: PANEL.lsmTop + 16 + PANEL.rows + 6 });
+        cy += PANEL.rows + 10;
+
+        // Why a level costs what it costs (a write), or what the filters did (a lookup).
+        const tY = cy;
+        if (write) {
+          const T = s.ratio;
+          D.text(x, tY + 11, [[pick([`One level filling · ${T} merges from above`, `One level filling · ${T} merges`, 'One level filling'], (t) => tw(t, 'label') <= pw), 'label', '']], { textCls: 'muted', owner: 'lsm-stair' });
+          const SW = 84;
+          const SH = 62;
+          const sx = x;
+          const sy = tY + 18;
+          const textX = x + SW + 12;
+          const textW = pw - SW - 12;
+          let lines;
+          if (hid.lsmMarks) {
+            D.add('marks', rect('hidden-box', sx + 0.5, sy, SW - 1, SH, 3, ' data-id="stair-hidden"'));
+            lines = wrap("One level's merges draw after your answer.", 'small', textW);
+          } else {
+            const from = view.play?.engine === 'lsm' ? Math.max(0, Math.min(1, (view.play.frac - P.stair0) / (P.stair1 - P.stair0))) : 1;
+            const rowsShown = Math.ceil(T * from - 1e-9);
+            const cw = SW / T;
+            const rh = SH / T;
+            let soft = '';
+            let fresh = '';
+            for (let k = 1; k <= rowsShown; k++) {
+              const ry = sy + (k - 1) * rh;
+              if (k > 1) soft += `M${r1(sx)} ${r1(ry)}h${r1((k - 1) * cw - 0.5)}v${r1(rh - 0.75)}h${r1(-((k - 1) * cw - 0.5))}z`;
+              fresh += `M${r1(sx + (k - 1) * cw)} ${r1(ry)}h${r1(cw - 0.5)}v${r1(rh - 0.75)}h${r1(-(cw - 0.5))}z`;
+            }
+            D.add('marks', `<path class="stair" d="${soft}" data-id="stair" data-rows="${rowsShown}"/><path class="stair-new" d="${fresh}"/>`);
+            const full = [
+              `Merge k of ${T} rewrites the k parts then there: ${l.partsWritten} parts written for ${T} of data, about ${M.formatNum(l.rewritesPerLevel)}× each.`,
+              `Merge k of ${T} rewrites k parts: ${l.partsWritten} written for ${T} of data, about ${M.formatNum(l.rewritesPerLevel)}× each.`,
+            ];
+            const quiet = ['Each merge from above rewrites what the level already holds.', 'Each merge rewrites the whole level.'];
+            lines = pick(
+              (hid.lsmNumbers ? quiet : full).map((t) => wrap(t, 'small', textW)),
+              (ls) => ls.length <= 5,
+            );
+          }
+          D.mark({ x0: sx, x1: sx + SW, y0: sy, y1: sy + SH }, 'lsm-stair');
+          if (hid.lsmMarks || rowsShownOrRest(view, P))
+            lines.forEach((t, i) => D.text(textX, sy + 10 + i * 13, [[t, 'small', 'muted']], { owner: 'lsm-stair', id: i === 0 ? 'stair-text' : undefined }));
+          if (on('ledger')) {
+            const l1 = hid.lsmNumbers ? ['?'] : [`1 log + 1 flush + ${M.formatLevels(L)} × ${M.formatNum(l.rewritesPerLevel)}`, `1 + 1 + ${L} × ${M.formatNum(l.rewritesPerLevel)}`];
+            D.text(x, tY + 96, [[pick(l1, (t) => tw(t, 'mono') <= pw), 'mono', 'ink']], { owner: 'lsm-ledger', id: 'lsm-ledger' });
+            D.text(
+              x,
+              tY + 112,
+              [
+                [hid.lsmNumbers ? '?×' : fAmp(l.writeAmp), 'num', 'amber-ink'],
+                [' the data', 'cap', 'ink', 4],
+              ],
+              { owner: 'lsm-ledger', id: 'lsm-total' },
+            );
+          }
+        } else {
+          const labelF = s.bloom ? pick([`Bloom filters · ${M.BLOOM_BITS} bits a key, ${fSize(l.bloomBytes)} of memory`, `Bloom filters · ${fSize(l.bloomBytes)} of memory`, 'Bloom filters, in memory'], (t) => tw(t, 'label') <= pw) : 'No bloom filters';
+          D.text(x, tY + 11, [[labelF, 'label', '']], { textCls: 'muted', owner: 'lsm-stair' });
+          const oneIn = Math.round(1 / M.BLOOM_FALSE_POSITIVE);
+          const forms = hid.readNumbers
+            ? ['The count shows at the reveal.']
+            : s.bloom
+              ? [
+                  `Each run's filter answers from memory: ${l.skipped} say "not here", so only the last run is read. About 1 lookup in ${oneIn} reads a run for nothing; the model leaves that out.`,
+                  `${l.skipped} filters say "not here" from memory; only the last run is read. False positives, about 1 in ${oneIn}, are left out.`,
+                ]
+              : [`Any run may hold the key's newest version, so each is read in turn, newest first, until the last level turns it up.`, `Any run may hold the newest version, so each is read in turn.`];
+          const lines = pick(
+            forms.map((t) => wrap(t, 'small', pw)),
+            (ls) => ls.length <= 5,
+          );
+          if (on('ledger') || hid.readNumbers) lines.forEach((t, i) => D.text(x, tY + 28 + i * 13, [[t, 'small', 'muted']], { owner: 'lsm-stair', id: i === 0 ? 'filter-text' : undefined }));
+          if (on('ledger')) {
+            const l1 = hid.readNumbers ? '?' : s.bloom ? `${l.skipped} runs skipped, ${l.lookupReads} read` : `${l.runs} runs read, newest first`;
+            D.text(x, tY + 96, [[l1, 'mono', 'ink']], { owner: 'lsm-ledger', id: 'lsm-ledger' });
+            D.text(
+              x,
+              tY + 112,
+              [
+                [hid.readNumbers ? '?' : String(l.lookupReads), 'num', 'cur-ink'],
+                [hid.readNumbers ? ' disk reads' : ` disk ${plural(l.lookupReads, 'read', 'reads')}`, 'cap', 'ink', 4],
+              ],
+              { owner: 'lsm-ledger', id: 'lsm-total' },
+            );
+          }
+        }
+        D.region('lsm-transform', { x: x - 6, y: tY - 4, w: pw + 12, h: PANEL.transform + 6 });
+        return tY + PANEL.transform;
+      }
+      // The staircase's words stand at rest and once its play has reached it.
+      const rowsShownOrRest = (view, P) => view.play?.engine !== 'lsm' || view.play.frac >= P.stair0;
+
+      // ---------- What each engine pays: the model's numbers on fixed scales, the write bars cut where the bytes go.
+      function costName(engine) {
+        return ENGINE[engine];
+      }
+      function writeGroup(D, x, y, w, m, view, hid) {
+        const label = pick([`Written to disk, × the new data · at ${M.formatRate(M.WRITE_MBPS)} of new data`, `Written to disk, × the new data`, `Disk writes, × the data`], (t) => tw(t, 'label') <= w);
+        D.text(x, y + 11, [[label, 'label', '']], { textCls: 'muted', owner: 'cost-label' });
+        const px = w / M.WRITE_AXIS;
+        let cy = y + 20;
+        for (const engine of ['btree', 'lsm']) {
+          const e = m[engine];
+          const hidden = engine === 'btree' ? hid.btNumbers : hid.lsmNumbers;
+          const was = view.ghost && !hid.ghost ? M.run(view.ghost)[engine].writeAmp : null;
+          const moved = was !== null && Math.abs(was - e.writeAmp) > 1e-9;
+          D.text(x, cy + 11, [[costName(engine), 'small', 'ink']], { owner: `cost-${engine}` });
+          const nameW = tw(costName(engine), 'small') + 10;
+          const forms = hidden
+            ? [[['?×', 'num', 'muted']]]
+            : [
+                ...(moved
+                  ? [
+                      [
+                        [fAmp(e.writeAmp), 'num', 'amber-ink'],
+                        [` · ${M.formatRate(e.diskWriteMBps)} · was ${fAmp(was)}`, 'small', 'muted'],
+                      ],
+                      [
+                        [fAmp(e.writeAmp), 'num', 'amber-ink'],
+                        [` · was ${fAmp(was)}`, 'small', 'muted'],
+                      ],
+                    ]
+                  : []),
+                [
+                  [fAmp(e.writeAmp), 'num', 'amber-ink'],
+                  [` · ${M.formatRate(e.diskWriteMBps)} of disk writes`, 'small', 'muted'],
+                ],
+                [
+                  [fAmp(e.writeAmp), 'num', 'amber-ink'],
+                  [` · ${M.formatRate(e.diskWriteMBps)}`, 'small', 'muted'],
+                ],
+                [[fAmp(e.writeAmp), 'num', 'amber-ink']],
+              ];
+          D.text(x + w, cy + 11, pick(forms, (f) => partsWidth(f) <= w - nameW), { anchor: 'end', owner: `cost-${engine}`, id: `write-${engine}` });
+          const by = cy + 17;
+          if (hidden) D.add('marks', rect('hidden-box', x + 0.5, by, w - 1, 10, 2, ` data-id="write-bar-${engine}-hidden"`));
+          else {
+            D.add('marks', rect('bar-track', x + 0.5, by, w - 1, 10, 2));
+            D.add('marks', rect('bar-fill', x, by, e.writeAmp * px, 10, 2, ` data-id="write-bar-${engine}" data-amp="${e.writeAmp}" data-px="${px}"`));
+            // Cuts where the bytes go (the page and its log record; the log, the flush and each level), wherever the
+            // parts on both sides of a cut are wide enough to see.
+            let at = 0;
+            let since = 0;
+            let seps = '';
+            for (const part of e.writeParts.slice(0, -1)) {
+              at += part.amp;
+              since += part.amp;
+              if (since * px >= 2.4 && (e.writeAmp - at) * px >= 2.4) {
+                seps += `M${r1(x + at * px)} ${by}v10`;
+                since = 0;
+              }
+            }
+            if (seps) D.add('marks', `<path class="bar-sep" d="${seps}" data-id="write-seps-${engine}"/>`);
+            if (moved) D.add('marks', line('ghost-tick', x + was * px, by - 3, x + was * px, by + 13, ` data-id="ghost-${engine}" data-owner="ghost"`));
+          }
+          D.mark({ x0: x, x1: x + w, y0: by - 3, y1: by + 13 }, `cost-${engine}`);
+          cy += 36;
+        }
+        // The axis: both bars share it, and it never rescales.
+        const ay = cy - 4;
+        for (const v of [0, 50, 100, 150]) {
+          const tx = x + v * px;
+          D.add('grid', line('tickmark', tx, ay, tx, ay + 4));
+          D.text(v === 0 ? tx : tx, ay + 15, [[v === 0 ? '0' : `${v}×`, 'small', 'muted']], { anchor: v === 0 ? 'start' : 'middle', data: ' data-xtick="1"', owner: 'cost-axis' });
+        }
+        D.region('cost-write', { x: x - 6, y: y - 4, w: w + 12, h: 20 + 72 + 18 });
+        return y + 20 + 72 + 14;
+      }
+      function readGroup(D, x, y, w, m, view, hid) {
+        D.text(x, y + 11, [[pick(['Disk reads for one lookup', 'Disk reads a lookup'], (t) => tw(t, 'label') <= w), 'label', '']], { textCls: 'muted', owner: 'cost-label' });
+        let cy = y + 20;
+        const nameW = Math.max(tw(ENGINE.btree, 'small'), tw(ENGINE.lsm, 'small')) + 10;
+        for (const engine of ['btree', 'lsm']) {
+          const reads = m[engine].lookupReads;
+          const hidden = hid.readNumbers;
+          const was = view.ghost && !hid.ghost ? M.run(view.ghost)[engine].lookupReads : null;
+          D.text(x, cy + 11, [[costName(engine), 'small', 'ink']], { owner: `read-${engine}` });
+          if (hidden) {
+            D.add('marks', rect('hidden-box', x + nameW, cy + 2, 60, 10, 5, ` data-id="pips-${engine}-hidden"`));
+            D.text(x + w, cy + 11, [['?', 'num', 'muted']], { anchor: 'end', owner: `read-${engine}`, id: `reads-${engine}` });
+          } else {
+            for (let i = 0; i < reads; i++) D.add('marks', `<circle class="pip" cx="${r1(x + nameW + 5 + i * 12)}" cy="${cy + 7}" r="4.5" data-pip="${engine}"/>`);
+            const moved = was !== null && was !== reads;
+            const forms = [
+              ...(moved
+                ? [
+                    [
+                      [String(reads), 'num', 'cur-ink'],
+                      [` · was ${was}`, 'small', 'muted'],
+                    ],
+                  ]
+                : []),
+              [[String(reads), 'num', 'cur-ink']],
+            ];
+            D.text(x + w, cy + 11, pick(forms, (f) => partsWidth(f) <= w - nameW - reads * 12 - 8), { anchor: 'end', owner: `read-${engine}`, id: `reads-${engine}` });
+          }
+          D.mark({ x0: x + nameW, x1: x + nameW + 8 * 12, y0: cy + 1, y1: cy + 13 }, `read-${engine}`);
+          cy += 24;
+        }
+        D.region('cost-read', { x: x - 6, y: y - 4, w: w + 12, h: 20 + 48 + 4 });
+        return y + 20 + 48;
+      }
+      function spaceGroup(D, x, y, w, m, view, hid) {
+        D.text(x, y + 11, [[pick(['Disk used, × the live data', 'Disk used, × the data'], (t) => tw(t, 'label') <= w), 'label', '']], { textCls: 'muted', owner: 'cost-label' });
+        const px = w / M.SPACE_AXIS;
+        let cy = y + 20;
+        const why = {
+          btree: [` · pages about ${Math.round(M.PAGE_FILL * 100)}% full`, ` · pages ${Math.round(M.PAGE_FILL * 100)}% full`, ''],
+          lsm: [' · at most: old versions not yet merged away', ' · at most, old versions', ' · at most'],
+        };
+        for (const engine of ['btree', 'lsm']) {
+          const amp = m[engine].spaceAmp;
+          const value = hid.spaceNumbers ? '?×' : M.formatSpace(amp);
+          const valueW = tw(value, 'num') + 8;
+          const name = pick(
+            why[engine].map((t) => [
+              [costName(engine), 'small', 'ink'],
+              [t, 'small', 'muted'],
+            ]),
+            (f) => partsWidth(f) <= w - valueW,
+          );
+          D.text(x, cy + 11, name, { owner: `space-${engine}` });
+          D.text(x + w, cy + 11, [[value, 'num', hid.spaceNumbers ? 'muted' : 'ink']], { anchor: 'end', owner: `space-${engine}`, id: `space-${engine}` });
+          const by = cy + 17;
+          if (hid.spaceNumbers) D.add('marks', rect('hidden-box', x + 0.5, by, w - 1, 10, 2));
+          else {
+            D.add('marks', rect('bar-track', x + 0.5, by, w - 1, 10, 2));
+            D.add('marks', rect('bar-live', x, by, px, 10, 2));
+            D.add('marks', rect('bar-over', x + px, by, (amp - 1) * px, 10, 0, ` data-id="space-over-${engine}"`));
+          }
+          D.mark({ x0: x, x1: x + w, y0: by, y1: by + 10 }, `space-${engine}`);
+          cy += 36;
+        }
+        const ay = cy - 4;
+        D.add('grid', line('tickmark', x + px, ay, x + px, ay + 4));
+        D.text(x + px, ay + 15, [[pick(['1× · the live data alone', '1×'], (t) => tw(t, 'small') <= px), 'small', 'muted']], { anchor: 'end', owner: 'cost-axis' });
+        D.region('cost-space', { x: x - 6, y: y - 4, w: w + 12, h: 20 + 72 + 18 });
+        return y + 20 + 72 + 14;
+      }
+
+      function buildStage(W, m, view) {
+        const D = new Draw(W);
+        const s = m.settings;
+        const hid = hiding(view);
+        const PAD = W < 300 ? 12 : 16;
+        const two = W >= 500;
+        const GAP = 24;
+        const pw = two ? Math.floor((W - 2 * PAD - GAP) / 2) : W - 2 * PAD;
+        const x1 = PAD;
+        const x2 = two ? PAD + pw + GAP : PAD;
+        // The title and the workload both engines get; its lines are reserved for the longest premise at this width.
+        const full = W - 2 * PAD;
+        D.text(PAD, 26, [[s.op === WRITE ? 'One write, through both engines' : 'One lookup, through both engines', 'capB', 'ink']], { owner: 'title' });
+        const linesOf = (forms) => pick(forms.map((t) => wrap(t, 'cap', full)), (ls) => ls.length <= 2);
+        const reserve = Math.max(...allPremises().map((forms) => linesOf(forms).length));
+        linesOf(premise(s)).forEach((t, i) => D.text(PAD, 46 + i * 18, [[t, 'cap', 'muted']], { owner: 'title' }));
+        let y = 46 + (reserve - 1) * 18 + 16;
+        const hB = btreePanelHeight();
+        const hL = lsmPanelHeight();
+        let bottom;
+        if (two) {
+          btreePanel(D, x1, y, pw, m, view, hid, hL - hB);
+          lsmPanel(D, x2, y, pw, m, view, hid);
+          D.add('grid', line('vrule', PAD + pw + GAP / 2, y, PAD + pw + GAP / 2, y + hL));
+          bottom = y + hL;
+        } else {
+          btreePanel(D, x1, y, pw, m, view, hid, 0);
+          const ry = y + hB + 12;
+          D.add('grid', line('rule', 0, ry, W, ry));
+          lsmPanel(D, x2, ry + 12, pw, m, view, hid);
+          bottom = ry + 12 + hL;
+        }
+        D.meta.panels = { two, pw, y, x1, x2, hB, hL };
+        // What each pays.
+        y = bottom + 14;
+        D.add('grid', line('rule', 0, y, W, y));
+        y += 10;
+        D.text(
+          PAD,
+          y + 14,
+          pick(
+            [
+              [
+                ['What each engine pays', 'capB', 'ink'],
+                [' · from the rough model under the stage', 'small', 'muted'],
+              ],
+              [
+                ['What each engine pays', 'capB', 'ink'],
+                [' · a rough model', 'small', 'muted'],
+              ],
+            ],
+            (f) => partsWidth(f) <= full,
+          ),
+          { owner: 'title' },
+        );
+        y += 28;
+        y = writeGroup(D, PAD, y, full, m, view, hid) + 10;
+        if (two) {
+          const a = readGroup(D, x1, y, pw, m, view, hid);
+          const b = spaceGroup(D, x2, y, pw, m, view, hid);
+          y = Math.max(a, b);
+        } else {
+          y = readGroup(D, PAD, y, full, m, view, hid) + 12;
+          y = spaceGroup(D, PAD, y, full, m, view, hid);
+        }
+        D.label = summary(m, hid);
+        return { D, H: Math.round(y + 12) };
+      }
+
+      // ---------- Focus outlines with their "Look here" tag on the first free place (prevention 5). An outline takes in
+      // every text its region holds with 6 px to spare, so its stroke never runs along a text.
+      function focusOutlines(D, ids, H) {
+        const TAG = { w: 72, h: 16 };
+        for (const id of ids) {
+          for (const b of D.regions[id] ?? []) {
+            const inside = new Set(
+              D.texts.filter((t) => {
+                const cx = (t.x0 + t.x1) / 2;
+                const cy = (t.y0 + t.y1) / 2;
+                return t.owner !== 'look' && cx >= b.x && cx <= b.x + b.w && cy >= b.y && cy <= b.y + b.h;
+              }),
+            );
+            const grow = (a, t, d) => ({ x0: Math.min(a.x0, t.x0 - d), y0: Math.min(a.y0, t.y0 - d), x1: Math.max(a.x1, t.x1 + d), y1: Math.max(a.y1, t.y1 + d) });
+            let box = { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h };
+            let core = { x0: b.x + 4, y0: b.y + 4, x1: b.x + b.w - 4, y1: b.y + b.h - 4 };
+            for (const t of inside) {
+              box = grow(box, t, 6);
+              core = grow(core, t, 3);
+            }
+            const clash = (t) => !(t.x1 <= box.x0 - 4 || t.x0 >= box.x1 + 4 || t.y1 <= box.y0 - 4 || t.y0 >= box.y1 + 4);
+            for (let round = 0; round < 8; round++) {
+              const bad = D.texts.filter((t) => !inside.has(t) && t.owner !== 'look' && clash(t));
+              if (!bad.length) break;
+              for (const t of bad) {
+                if (t.y0 >= core.y1 && t.y0 - 4.5 >= core.y1) box.y1 = Math.min(box.y1, t.y0 - 4.5);
+                else if (t.y1 <= core.y0 && t.y1 + 4.5 <= core.y0) box.y0 = Math.max(box.y0, t.y1 + 4.5);
+                else if (t.x0 >= core.x1 && t.x0 - 4.5 >= core.x1) box.x1 = Math.min(box.x1, t.x0 - 4.5);
+                else if (t.x1 <= core.x0 && t.x1 + 4.5 <= core.x0) box.x0 = Math.max(box.x0, t.x1 + 4.5);
+                else {
+                  inside.add(t);
+                  box = grow(box, t, 6);
+                  core = grow(core, t, 3);
+                }
+              }
+            }
+            const x = Math.max(3, box.x0);
+            const yy = Math.max(3, box.y0);
+            const w = Math.min(D.W - 3, box.x1) - x;
+            const h = Math.min(H - 3, box.y1) - yy;
+            D.add('top', `<rect class="focus-outline" x="${r1(x)}" y="${r1(yy)}" width="${r1(w)}" height="${r1(h)}" rx="10"/>`);
+            const across = [];
+            for (let ax = x + w - TAG.w - 16; ax >= x + 16; ax -= 8) across.push(ax);
+            const xs = [x + w - TAG.w - 16, x + 16, ...across];
+            const ys = [yy - TAG.h / 2, yy + h - TAG.h / 2, yy + 4, yy + h - TAG.h - 4, yy + 24, yy + 44, yy - TAG.h - 2, yy + h + 2];
+            let placed = false;
+            for (const [tx, ty] of ys.flatMap((t) => xs.map((sx) => [sx, t]))) {
+              const tag = { x0: tx, x1: tx + TAG.w, y0: ty, y1: ty + TAG.h };
+              if (tx < 3 || tx + TAG.w > D.W - 3 || ty < 3 || ty + TAG.h > H - 3) continue;
+              if (!D.free(tag, '', 1)) continue;
+              D.add('top', `<rect class="tag" x="${r1(tx)}" y="${r1(ty)}" width="${TAG.w}" height="${TAG.h}" rx="8"/>`);
+              D.add('top', `<text x="${r1(tx + TAG.w / 2)}" y="${r1(ty + 12)}" text-anchor="middle" data-owner="look" data-ground="1"><tspan class="t-look">LOOK HERE</tspan></text>`);
+              D.mark(tag, 'look');
+              placed = true;
+              break;
+            }
+            if (!placed) D.missingTags = (D.missingTags ?? 0) + 1;
+          }
+        }
+      }
+
+      // ---------- Mockup states.
+      const B = M.BASE;
+      const ALL = M.ALL_SETTINGS;
+      window.ALL_SETTINGS = ALL;
+      const show = (s) => `${s.data}GB ${s.record}B ${s.page}KB r${s.ratio} bloom${s.bloom} ${s.op === WRITE ? 'write' : 'read'}`;
+      const actSettings = (spec) => ({ ...spec.setup, ...(spec.act?.set ?? {}) });
+      function expView(spec, phase, frac = 0.62, from = null) {
+        const e = M.renderExperiment(spec);
+        if (spec.goal) {
+          const met = phase !== 'start';
+          return { s: met ? { ...spec.setup, ...M.CHALLENGE_SOLUTION } : spec.setup, phase: 'challenge', hide: [], focus: [], exp: e, spec, met, play: null, ghost: null };
+        }
+        const wrong = (e.answer + 1) % e.choices.length;
+        if (phase === 'asking') return { s: spec.setup, phase, hide: spec.hide, focus: [], exp: e, spec, play: null, ghost: from };
+        if (phase === 'playing') return { s: actSettings(spec), phase, hide: spec.hide, focus: [], exp: e, spec, chosen: wrong, play: { engine: spec.act.run, frac }, ghost: null };
+        return { s: actSettings(spec), phase: 'revealed', hide: [], focus: spec.focus, exp: e, spec, chosen: wrong, play: null, ghost: spec.act.set ? spec.setup : null };
+      }
+      window.expView = expView;
+      function viewOf(name) {
+        const base = { s: B, phase: 'rest', hide: [], focus: [], play: null, ghost: null };
+        const exp = M.EXPERIMENTS[Number(params.get('exp') ?? 1) - 1];
+        const frac = Number(params.get('frac') ?? 0.62);
+        switch (name) {
+          case 'read':
+            return { ...base, s: { ...B, op: M.OP_READ } };
+          case 'bigpage':
+            return { ...base, s: { ...B, page: 16 }, ghost: B, changed: true };
+          case 'bigrecord':
+            return { ...base, s: { ...B, record: 1000 }, ghost: B, changed: true };
+          case 'nobloom':
+            return { ...base, s: { ...B, op: M.OP_READ, bloom: 0 }, ghost: { ...B, op: M.OP_READ }, changed: true };
+          case 'tall':
+            return { ...base, s: { ...B, data: 1000, ratio: 4 }, ghost: B, changed: true };
+          case 'small':
+            return { ...base, s: { ...B, data: 10, ratio: 20, page: 16, record: 1000 } };
+          case 'playing':
+            return { ...base, s: { ...B, op: Number(params.get('op') ?? 0), bloom: Number(params.get('bloom') ?? 1) }, play: { engine: params.get('engine') ?? 'btree', frac } };
+          case 'describe':
+            return { ...base, describe: true };
+          case 'reduced':
+            return { ...base, reduced: true, played: params.get('engine') ?? 'lsm' };
+          case 'ask':
+            return expView(exp, params.get('phase') === 'playing' ? 'playing' : 'asking', frac);
+          case 'reveal':
+            return expView(exp, 'revealed');
+          case 'challenge':
+            return expView(M.EXPERIMENTS.at(-1), params.get('start') ? 'start' : 'met');
+          default:
+            return base;
+        }
+      }
+
+      // ---------- The page around the stage.
+      function noticeOf(m, view) {
+        const hid = hiding(view);
+        if (view.phase === 'asking') return 'Play and every setting wait for your answer.';
+        if (view.phase === 'playing') return '';
+        if (view.played) return story(view.played, m);
+        if (view.phase === 'revealed' || view.phase === 'challenge' || view.changed) return settingSentence(m, hid);
+        return "Change the workload or an engine's setting; each Play follows the write or the lookup through its engine.";
+      }
+      function controlsHtml(m, view) {
+        const s = m.settings;
+        const dis = hiding(view).locked ? ' disabled' : '';
+        const seg = (name, items, cur) => items.map(([v, label]) => `<label class="segment"><input type="radio" name="${name}" ${v === cur ? 'checked' : ''}/><span>${label}</span></label>`).join('');
+        return `<fieldset class="group follow-control"${dis}><legend class="control-label">Follow</legend><div class="segments">${seg(
+          'op',
+          [
+            [M.OP_WRITE, 'A write'],
+            [M.OP_READ, 'A lookup'],
+          ],
+          s.op,
+        )}</div></fieldset>
+<fieldset class="group data-control"${dis}><legend class="control-label">Data</legend><div class="segments">${seg(
+          'data',
+          M.DATA_GB.map((v) => [v, M.formatGb(v)]),
+          s.data,
+        )}</div></fieldset>
+<fieldset class="group record-control"${dis}><legend class="control-label">Record size</legend><div class="segments">${seg(
+          'record',
+          M.RECORD_B.map((v) => [v, fB(v)]),
+          s.record,
+        )}</div></fieldset>
+<p class="notice" aria-live="polite" aria-atomic="true">${nb(noticeOf(m, view))}</p>`;
+      }
+      const ICON_RIGHT = '<svg class="mark" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="var(--g-success-line)"/><path d="M6 10.2l2.6 2.6 5.2-5.6" fill="none" stroke="var(--g-surface)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      const ICON_WRONG = '<svg class="mark" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="var(--g-danger)"/><path d="M7 7l6 6M13 7l-6 6" fill="none" stroke="var(--g-surface)" stroke-width="2" stroke-linecap="round"/></svg>';
+      /** The challenge's status: each bound in the ask's own terms with its state in words (the house goalParts). */
+      function goalChecks(m) {
+        const b = M.CHALLENGE_BOUNDS;
+        const said = (met) => (met ? 'met' : 'not yet');
+        const w = m.lsm.writeAmp < b.lsmWrite;
+        const r = m.lsm.lookupReads < b.lsmReads;
+        const d = m.settings.data >= b.data;
+        return [
+          { met: w, text: `the LSM tree writes ${fAmp(m.lsm.writeAmp)} the data, under ${fAmp(b.lsmWrite)}: ${said(w)}` },
+          { met: r, text: `a lookup costs ${M.formatReads(m.lsm.lookupReads)}, under ${b.lsmReads}: ${said(r)}` },
+          { met: d, text: `the data is ${M.formatGb(m.settings.data)}, at least ${M.formatGb(b.data)}: ${said(d)}` },
+        ];
+      }
+      function dockHtml(m, view) {
+        const e = view.exp;
+        if (!e) return '';
+        if (view.phase === 'challenge') {
+          const checks = goalChecks(m);
+          const kept = M.goalKept(view.spec.goal, m.settings);
+          const status = view.met ? 'Goal met:' : kept ? '' : 'The goal keeps bloom filters off.';
+          return `<p class="legend">${nb(e.ask)}</p>${status ? `<p class="status-line${view.met ? ' met' : ''}" role="status">${view.met ? ICON_RIGHT : ''}${esc(status)}</p>` : ''}<ul class="status">${checks
+            .map((c) => `<li class="${c.met ? 'met' : ''}"><span class="state" aria-hidden="true">${c.met ? '✓' : '·'}</span><span>${nb(c.text)}</span></li>`)
+            .join('')}</ul>${view.met ? `<p class="reveal" aria-live="polite" aria-atomic="true">${nb(e.reveal)}</p>` : ''}`;
+        }
+        if (view.phase === 'asking') {
+          return `<fieldset style="border:0;padding:0;margin:0"><legend class="legend">${nb(e.ask)}</legend><div class="options">${e.choices.map((c) => `<button class="g-choice"><span>${nb(c)}</span></button>`).join('')}</div></fieldset>`;
+        }
+        const marked = e.choices
+          .map((c, i) => {
+            const right = view.phase === 'revealed' && i === e.answer;
+            const wrong = view.phase === 'revealed' && i === view.chosen && !right;
+            const chosen = view.phase === 'playing' && i === view.chosen;
+            return `<li class="g-choice${right ? ' right' : wrong ? ' wrong' : ''}"${chosen ? ' style="border-style:dashed"' : ''}><span>${nb(c)}${chosen ? ' <small>(your guess)</small>' : ''}</span>${right ? ICON_RIGHT : wrong ? ICON_WRONG : ''}</li>`;
+          })
+          .join('');
+        if (view.phase === 'playing') return `<p class="legend">${nb(e.ask)}</p><ul class="options">${marked}</ul><p class="held">Watch the picture: the answer plays out on it.</p>`;
+        return `<p class="legend">${nb(e.ask)}</p><ul class="options">${marked}</ul><p class="reveal" aria-live="polite" aria-atomic="true">${nb(e.reveal)}</p>`;
+      }
+      function cardsHtml(view) {
+        return `<h3 class="heading"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8zM19 14l.9 2.6 2.6.9-2.6.9L19 21l-.9-2.6-2.6-.9 2.6-.9z"/></svg>Experiments</h3>
+<ol class="cards">${M.EXPERIMENTS.map((s, i) => `<li><button class="card-btn"${view.exp && view.exp.id === s.id ? ' aria-current="step"' : ''}><span class="num">${s.goal ? '⚑' : i + 1}</span><span>${esc(M.renderExperiment(s).title)}</span></button></li>`).join('')}</ol>`;
+      }
+      // Describe: a row for the B-tree at each page size and for the LSM tree at each size ratio, this workload's;
+      // the two current rows marked. Compact under a 560 px stage.
+      function describeRows(m, compact) {
+        const s = m.settings;
+        const head = compact ? ['Engine', 'Levels', 'Write, ×', 'Reads', 'Disk, ×'] : ['Engine', 'Levels', 'Written', 'Disk writes', 'Lookup', 'Disk used'];
+        const num = (v, d) => String(Number(v.toFixed(d)));
+        const row = (name, now, levels, e) => ({
+          now,
+          cells: compact ? [name, String(levels), num(e.writeAmp, 1), String(e.lookupReads), num(e.spaceAmp, 2)] : [name, String(levels), fAmp(e.writeAmp), M.formatRate(e.diskWriteMBps), M.formatReads(e.lookupReads), M.formatSpace(e.spaceAmp)],
+        });
+        const rows = [
+          ...M.PAGE_KB.map((page) => {
+            const b = M.run({ ...s, page }).btree;
+            return row(compact ? `B-tree, ${M.formatKb(page)}` : `B-tree, ${M.formatKb(page)} pages`, page === s.page, b.height, b);
+          }),
+          ...M.RATIOS.map((ratio) => {
+            const l = M.run({ ...s, ratio }).lsm;
+            return row(compact ? `LSM, ratio ${ratio}` : `LSM tree, ratio ${ratio}`, ratio === s.ratio, l.levels, l);
+          }),
+        ];
+        const note = `Rows are this workload's: ${M.formatGb(s.data)} in ${recordWords(s)}, bloom filters ${s.bloom ? 'on' : 'off'}. The LSM tree's disk use is its most.`;
+        return { head, rows, note };
+      }
+      function describeHtml(m, view, compact) {
+        const waits = view.phase === 'asking' || view.phase === 'playing' || (view.phase === 'challenge' && !view.met);
+        const open = !!view.describe && !waits;
+        const btn = `<button class="g-btn" aria-expanded="${open}"${waits ? ' disabled' : ''}>${open ? 'Hide the description' : 'Describe'}</button>`;
+        if (waits) return `${btn}<p class="muted-note">${view.phase === 'challenge' ? 'Describe waits until you meet the goal.' : 'Describe waits for your answer.'}</p>`;
+        if (!open) return btn;
+        const { head, rows, note } = describeRows(m, compact);
+        return `${btn}<p class="summary">${nb(summary(m, NOTHING_HIDDEN))}</p><div class="table-box${compact ? ' compact' : ''}" tabindex="0" role="region" aria-label="Each engine at each of its settings, for this workload"><table><thead><tr>${head
+          .map((h) => `<th scope="col">${h.replace(', ×', ', <span class="unit">×</span>')}</th>`)
+          .join('')}</tr></thead><tbody>${rows.map((r) => `<tr${r.now ? ' class="now" aria-current="true"' : ''}>${r.cells.map((c, i) => (i === 0 ? `<th scope="row">${esc(c)}</th>` : `<td>${esc(c)}</td>`)).join('')}</tr>`).join('')}</tbody></table></div><p class="muted-note">${nb(note)}</p>`;
+      }
+      // Play and the engines' own settings sit on the stage, beside what they change; all of them wait while a
+      // question is open.
+      function overlaysHtml(D, view, m) {
+        const locked = hiding(view).locked;
+        const s = m.settings;
+        const out = [];
+        for (const h of D.hits) {
+          const at = `left:${r1(h.x)}px;top:${r1(h.y)}px;width:${r1(h.w)}px;height:${r1(h.h)}px`;
+          if (h.kind === 'play') {
+            const playing = view.phase === 'rest' && view.play?.engine === h.engine;
+            const glyph = playing ? '<rect x="12.5" y="11" width="4" height="14" rx="1"/><rect x="19.5" y="11" width="4" height="14" rx="1"/>' : '<path d="M14 11v14l11-7z"/>';
+            const label = `${playing ? 'Stop' : 'Play'} the ${opWord(s)} through the ${ENGINE[h.engine]}${locked ? ', after your answer' : ''}`;
+            out.push(`<button class="play hit" data-owner="${h.owner}" style="${at}" aria-label="${label}"${locked ? ' disabled' : ''}><svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="16"/>${glyph}</svg></button>`);
+          } else if (h.kind === 'seg') {
+            out.push(`<label class="segment hit" data-owner="${h.owner}" style="${at}"><input type="radio" name="${h.group}" aria-label="${esc(h.legend)} ${esc(h.label)}" ${h.checked ? 'checked' : ''}${locked ? ' disabled' : ''}/><span>${esc(h.label)}</span></label>`);
+          } else if (h.kind === 'toggle') {
+            out.push(
+              `<label class="segment toggle hit" data-owner="${h.owner}" style="${at}"><input type="checkbox" ${h.checked ? 'checked' : ''}${locked ? ' disabled' : ''}/><span><i class="box"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 6.2l2.4 2.4 4.6-5" fill="none" stroke="var(--g-on-fill)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></i><i class="words"><b>${esc(h.label)}</b><small>${esc(h.sub)}</small></i></span></label>`,
+            );
+          }
+        }
+        return out.join('');
+      }
+
+      function render(name) {
+        const view = viewOf(name);
+        const m = M.run(view.s);
+        const root = document.getElementById('widget');
+        root.innerHTML = `<div class="controls">${controlsHtml(m, view)}</div>
+<div class="main"><div class="stage" role="group" aria-roledescription="visualization" aria-label="Storage engines: one write or one lookup through a B-tree and an LSM tree"><div class="well" id="well"></div></div>
+${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${nb(story(view.played, m))}</p>` : ''}<p class="model-note">${nb(MODEL_NOTE)}</p><div class="describe" id="describe"></div></div>
+<div class="experiments"><section class="dock" aria-label="Experiment">${dockHtml(m, view)}</section>${cardsHtml(view)}</div>`;
+        const well = document.getElementById('well');
+        const W = well.clientWidth;
+        const { D, H } = buildStage(W, m, view);
+        if (view.focus?.length) focusOutlines(D, view.focus, H);
+        well.style.height = H + 'px';
+        well.innerHTML = D.svg(H, D.label) + overlaysHtml(D, view, m);
+        document.getElementById('describe').innerHTML = describeHtml(m, view, W < 560);
+        window.__stage = { W, H, missingTags: D.missingTags ?? 0, summary: D.label, missing: D.missing };
+        return { W, H, D, view, m };
+      }
+
+      // ---------- Collisions, measured from the rendered DOM: text on text, lines through text, marks under text,
+      // off-stage text, dots on dots, hit boxes on hit boxes or under 44 px, x ticks too close, text against a focus
+      // outline's stroke, labels and tags with no place.
+      function collisions(well) {
+        const svg = well.querySelector('svg.draw');
+        const W = Number(svg.getAttribute('width'));
+        const H = Number(svg.getAttribute('height'));
+        const owners = (el) => (el.getAttribute?.('data-owner') ?? '').split(' ').filter(Boolean);
+        const share = (a, b) => a.some((t) => b.includes(t));
+        const texts = [...svg.querySelectorAll('text')].map((t) => {
+          const b = t.getBBox();
+          return { el: t, s: t.textContent, owner: owners(t), ground: t.hasAttribute('data-ground'), x0: b.x + 0.5, x1: b.x + b.width - 0.5, y0: b.y + b.height * 0.2, y1: b.y + b.height * 0.95 };
+        });
+        const out = [];
+        const ov = (a, b, m = 0) => Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > m && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > m;
+        for (let i = 0; i < texts.length; i++) {
+          const a = texts[i];
+          if (a.x0 < -0.5 || a.x1 > W + 0.5 || a.y0 < 0 || a.y1 > H) out.push(`off-stage: "${a.s}"`);
+          for (let j = i + 1; j < texts.length; j++) {
+            if (ov(a, texts[j], 0.5)) out.push(`text on text: "${a.s}" / "${texts[j].s}"`);
+            // Two labels on one line keep 6 px between them.
+            else if (Math.min(a.y1, texts[j].y1) - Math.max(a.y0, texts[j].y0) > 2 && Math.max(a.x0, texts[j].x0) - Math.min(a.x1, texts[j].x1) < 6 && Math.max(a.x0, texts[j].x0) - Math.min(a.x1, texts[j].x1) > -0.5)
+              out.push(`labels closer than 6 px: "${a.s}" / "${texts[j].s}"`);
+          }
+        }
+        const xt = texts.filter((t) => t.el.hasAttribute('data-xtick')).sort((a, b) => a.x0 - b.x0);
+        for (let i = 1; i < xt.length; i++) if (xt[i].x0 - xt[i - 1].x1 < 6) out.push(`x ticks ${xt[i - 1].s} and ${xt[i].s} ${(xt[i].x0 - xt[i - 1].x1).toFixed(1)} px apart`);
+        const inside = (p, t) => p.x > t.x0 + 0.5 && p.x < t.x1 - 0.5 && p.y > t.y0 + 0.5 && p.y < t.y1 - 0.5;
+        for (const el of svg.querySelectorAll('line.fan, line.walk, line.trail, line.rule, line.vrule, line.tickmark, line.ghost-tick, line.free-edge, line.skip-slash')) {
+          const grid = el.matches('.rule, .vrule, .tickmark');
+          const o = owners(el);
+          const [x1, y1, x2, y2] = ['x1', 'y1', 'x2', 'y2'].map((a) => Number(el.getAttribute(a)));
+          const pts = sampleLine(x1, y1, x2, y2, 2).map(([x, y]) => ({ x, y }));
+          for (const t of texts) {
+            if (share(o, t.owner)) continue;
+            if (pts.some((p) => inside(p, t))) out.push(`${grid ? 'grid' : 'line'} through "${t.s}" (${el.getAttribute('class')})`);
+          }
+        }
+        for (const mk of svg.querySelectorAll('[data-mark]')) {
+          const b = mk.getBBox();
+          const box = { x0: b.x, x1: b.x + b.width, y0: b.y, y1: b.y + b.height };
+          for (const t of texts) if (!share(t.owner, owners(mk)) && ov(box, t, 0.5)) out.push(`text on mark ${mk.getAttribute('data-mark')}: "${t.s}"`);
+        }
+        const dots = [...svg.querySelectorAll('circle.dot, circle.ringm, circle.skip, circle.pip')].map((c) => ({ id: c.dataset.id ?? c.getAttribute('data-owner') ?? c.getAttribute('class'), x: Number(c.getAttribute('cx')), y: Number(c.getAttribute('cy')), r: Number(c.getAttribute('r')), key: c.classList.contains('key') }));
+        for (let i = 0; i < dots.length; i++)
+          for (let j = i + 1; j < dots.length; j++) if (!dots[i].key && !dots[j].key && Math.hypot(dots[i].x - dots[j].x, dots[i].y - dots[j].y) < dots[i].r + dots[j].r - 0.01) out.push(`dot on dot: ${dots[i].id} / ${dots[j].id}`);
+        for (const d of dots) if (d.x - d.r < -0.5 || d.x + d.r > W + 0.5 || d.y - d.r < 0 || d.y + d.r > H) out.push(`dot off-stage: ${d.id}`);
+        // A mark off the stage: every drawn box lies inside it.
+        for (const el of svg.querySelectorAll('rect:not(.focus-outline):not(.tag):not(.hatch-fill)')) {
+          if (el.closest('defs') || el.hasAttribute('data-mark')) continue;
+          const [x, y, w, h] = ['x', 'y', 'width', 'height'].map((a) => Number(el.getAttribute(a)));
+          if (x < -0.5 || x + w > W + 0.5 || y < 0 || y + h > H) out.push(`mark off-stage: ${el.getAttribute('class')}`);
+        }
+        for (const o of svg.querySelectorAll('rect.focus-outline')) {
+          const [x, y, w, h] = ['x', 'y', 'width', 'height'].map((a) => Number(o.getAttribute(a)));
+          for (const t of texts) {
+            if (t.owner.includes('look')) continue;
+            const inner = t.x0 >= x + 3 && t.x1 <= x + w - 3 && t.y0 >= y + 3 && t.y1 <= y + h - 3;
+            const clear = t.x1 <= x - 4 || t.x0 >= x + w + 4 || t.y1 <= y - 4 || t.y0 >= y + h + 4;
+            if (!inner && !clear) out.push(`text at an outline's stroke: "${t.s}"`);
+          }
+        }
+        const wb = well.getBoundingClientRect();
+        const hits = [...well.querySelectorAll('.hit')].map((h) => {
+          const b = h.getBoundingClientRect();
+          return { o: h.dataset.owner, x0: b.left - wb.left - 1, x1: b.right - wb.left - 1, y0: b.top - wb.top - 1, y1: b.bottom - wb.top - 1 };
+        });
+        for (let i = 0; i < hits.length; i++) {
+          const a = hits[i];
+          if (a.x0 < -0.5 || a.x1 > W + 0.5 || a.y0 < -0.5 || a.y1 > H + 0.5) out.push(`hit box off-stage: ${a.o}`);
+          if (a.x1 - a.x0 < 43.5 || a.y1 - a.y0 < 43.5) out.push(`target under 44 px: ${a.o} ${(a.x1 - a.x0).toFixed(0)}x${(a.y1 - a.y0).toFixed(0)}`);
+          for (let j = i + 1; j < hits.length; j++) if (ov(a, hits[j], 0)) out.push(`hit on hit: ${a.o} / ${hits[j].o}`);
+        }
+        // An on-stage control's own words fit its box.
+        for (const span of well.querySelectorAll('.segment.hit > span')) if (span.scrollWidth > span.clientWidth + 1 || span.scrollHeight > span.clientHeight + 1) out.push(`a control's words overflow: ${span.textContent}`);
+        return out;
+      }
+      // Marks for the checker: the layout's mark boxes as invisible rects with their owners.
+      function tagMarks(well, D) {
+        const svg = well.querySelector('svg.draw');
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.setAttribute('opacity', '0');
+        for (const mk of D.marks) {
+          const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+          r.setAttribute('x', mk.x0);
+          r.setAttribute('y', mk.y0);
+          r.setAttribute('width', Math.max(0.1, mk.x1 - mk.x0));
+          r.setAttribute('height', Math.max(0.1, mk.y1 - mk.y0));
+          r.setAttribute('data-mark', mk.owner || 'mark');
+          r.setAttribute('data-owner', mk.owner || 'mark');
+          g.appendChild(r);
+        }
+        svg.appendChild(g);
+      }
+      const unplaced = (D) => [...(D.missingTags ? [`${D.missingTags} focus tag(s) without a place`] : []), ...(D.missing ?? []).map((t) => `no room for "${t}"`)];
+
+      // ---------- What must hold on every render, beyond collisions (the layout spec's assertions).
+      // No hidden value is replaced by a wrong default, counts follow plural grammar, and nothing prints as a bare 0.
+      const FALSE_CLAIMS = [/NaN|undefined|Infinity|null/, /(^|[^\d.,])0(×| B\b| MB| GB| disk| levels| pages| runs)/, /\b1 (levels|pages|disk reads|runs|records|merges)\b/, /[^\d,.][2-9]\d* (level|page|disk read|run|record)\b(?!s)/, /\?\?/, /—| /];
+      const stageText = (well) =>
+        [...well.querySelectorAll('svg.draw text')].map((t) => t.textContent).join(' | ') +
+        ' | ' +
+        [...well.querySelectorAll('[aria-label]')].map((e) => e.getAttribute('aria-label')).join(' | ') +
+        ' | ' +
+        [...well.querySelectorAll('.segment.hit')].map((e) => e.textContent).join(' | ');
+      function assertions(well, D, m, view) {
+        const out = [];
+        const svg = well.querySelector('svg.draw');
+        const text = stageText(well);
+        for (const g of FALSE_CLAIMS) if (g.test(text)) out.push(`false claim ${g}: "${text.match(g)[0]}"`);
+        const hid = hiding(view);
+        const open = view.phase === 'asking' || view.phase === 'playing';
+        // A bar's length is its number on the fixed scale, so the drawing never disagrees with the words.
+        for (const engine of ['btree', 'lsm']) {
+          const bar = svg.querySelector(`[data-id="write-bar-${engine}"]`);
+          if (bar) {
+            const want = m[engine].writeAmp * Number(bar.dataset.px);
+            if (Math.abs(Number(bar.getAttribute('width')) - want) > 0.6) out.push(`the ${engine} write bar is ${bar.getAttribute('width')} px, not ${want.toFixed(1)}`);
+            const shownAmp = svg.querySelector(`[data-id="write-${engine}"]`)?.textContent ?? '';
+            if (!shownAmp.startsWith(fAmp(m[engine].writeAmp))) out.push(`the ${engine} write value reads "${shownAmp}"`);
+          } else if (!(engine === 'btree' ? hid.btNumbers : hid.lsmNumbers)) out.push(`no ${engine} write bar`);
+          const pips = svg.querySelectorAll(`[data-pip="${engine}"]`).length;
+          if (!hid.readNumbers && pips !== m[engine].lookupReads) out.push(`${pips} pips for ${m[engine].lookupReads} reads (${engine})`);
+        }
+        // The B-tree draws a level a row; a row cut short says so with its dots, and never draws more pages than exist.
+        const rows = D.meta.btRows;
+        if (rows.length !== m.btree.height) out.push(`${rows.length} tree rows for height ${m.btree.height}`);
+        rows.forEach((r, k) => {
+          if (r.drawn > r.n) out.push(`row ${k} draws ${r.drawn} of ${r.n} pages`);
+          if (r.more !== r.n > r.drawn) out.push(`row ${k}'s "more" dots disagree with its count`);
+          if (!!svg.querySelector(`[data-more="${k}"]`) !== r.more) out.push(`row ${k}'s dots are not drawn as counted`);
+        });
+        if (svg.querySelectorAll('[data-run]').length !== m.lsm.levels + 1) out.push(`${svg.querySelectorAll('[data-run]').length} runs drawn for ${m.lsm.levels} levels and the flushed run`);
+        // Dashed means hidden until you answer, and nothing else.
+        const dashed = svg.querySelector('.hidden-box, .strip.hidden');
+        if (dashed && !open) out.push('a dashed mark with no question open');
+        // A ghost's old value is said in words wherever its tick is drawn.
+        for (const t of svg.querySelectorAll('.ghost-tick')) {
+          const engine = t.dataset.id.replace('ghost-', '');
+          if (!/was /.test(svg.querySelector(`[data-id="write-${engine}"]`)?.textContent ?? '')) out.push(`a ghost tick on ${engine} with no "was" beside it`);
+        }
+        // Element counts are bounded by the stage, never by the data.
+        const count = svg.querySelectorAll('*').length;
+        if (count > 420) out.push(`${count} SVG elements`);
+        return out;
+      }
+      function check(well, D, m, view) {
+        tagMarks(well, D);
+        return [...collisions(well), ...unplaced(D), ...assertions(well, D, m, view)];
+      }
+      function drawInto(well, W, m, view) {
+        const { D, H } = buildStage(W, m, view);
+        if (view.focus?.length) focusOutlines(D, view.focus, H);
+        well.style.height = H + 'px';
+        well.innerHTML = D.svg(H, D.label) + overlaysHtml(D, view, m);
+        return { D, H };
+      }
+      const restView = (s, extra = {}) => ({ s, phase: 'rest', hide: [], focus: [], play: null, ghost: null, ...extra });
+
+      // Every setting at each width: at rest, at moments of each engine's play, and after a change from the default
+      // (its ghost in words). Findings carry the setting, so the report names where to look.
+      window.sweep = function (widths, list = ALL, fracs = [null], ghosts = false) {
+        const well = document.getElementById('well');
+        const failures = [];
+        let renders = 0;
+        for (const W of widths) {
+          well.style.width = W + 2 + 'px';
+          for (const s of list) {
+            const views = [];
+            for (const f of fracs) {
+              if (f === null) views.push(['rest', restView(s)]);
+              else for (const engine of ['btree', 'lsm']) views.push([`${engine} play ${f}`, restView(s, { play: { engine, frac: f } })]);
+            }
+            if (ghosts) views.push(['ghost', restView(s, { ghost: { ...B, op: s.op } })]);
+            for (const [what, view] of views) {
+              const m = M.run(s);
+              const { D } = drawInto(well, W, m, view);
+              renders++;
+              const out = check(well, D, m, view);
+              if (out.length) failures.push({ W, s: `${show(s)} ${what}`, out: out.slice(0, 4) });
+            }
+          }
+        }
+        well.style.width = '';
+        return { renders, failures };
+      };
+      window.sweepExperiments = function (widths) {
+        const well = document.getElementById('well');
+        const failures = [];
+        let renders = 0;
+        for (const W of widths) {
+          well.style.width = W + 2 + 'px';
+          M.EXPERIMENTS.forEach((spec, i) => {
+            const phases = spec.goal ? [['challenge'], ['start']] : [['asking'], ['playing', 0.1], ['playing', 0.5], ['playing', 0.9], ['playing', 1], ['revealed']];
+            for (const [phase, frac] of phases) {
+              const view = expView(spec, phase, frac);
+              const m = M.run(view.s);
+              const { D } = drawInto(well, W, m, view);
+              renders++;
+              const out = check(well, D, m, view);
+              // Every reveal's frames carry a visible tag (prevention 5).
+              if (phase === 'revealed' && well.querySelectorAll('rect.tag').length !== spec.focus.length) out.push(`${well.querySelectorAll('rect.tag').length} tags for ${spec.focus.length} outlines`);
+              if (out.length) failures.push({ W, exp: i + 1, phase: `${phase}${frac !== undefined ? ` ${frac}` : ''}`, out: out.slice(0, 4) });
+            }
+          });
+        }
+        well.style.width = '';
+        return { renders, failures };
+      };
+
+      // ---------- The no-answer sweep: while a question asks and while its answer plays, no rendered text, accessible
+      // name or structure may hold its answer or a false claim (prevention 1 and 2). Each question is entered from
+      // other settings too, so nothing a learner did before carries an answer in.
+      const afterOf = (k) => M.run(actSettings(M.EXPERIMENTS[k]));
+      const GIVEAWAYS = {
+        'page-rewrite': { both: [fB(M.run(B).btree.writeBytes), M.formatBytes(M.run(B).btree.writeBytes), fAmp(M.run(B).btree.writeAmp), M.formatRate(M.run(B).btree.diskWriteMBps), `${fB(4096)} written`, 'written back whole', `+${fB(100)}`, `${fB(4096)} +`], asking: ['written back'] },
+        'lsm-rewrites': { both: [fAmp(24), M.formatRate(240), '≈', '5.5', '55 parts', '1 log + 1 flush', 'Merge k'] },
+        'record-size': { playing: [fAmp(afterOf(2).btree.writeAmp), M.formatRate(afterOf(2).btree.diskWriteMBps), fB(afterOf(2).btree.writeBytes), fAmp(24), 'was ', '≈'] },
+        'no-filters': { playing: ['5 disk reads', '5 runs read', '1 read', 'not here', 'was ', 'newest first'] },
+        'more-data': { playing: [fAmp(afterOf(4).lsm.writeAmp), M.formatRate(afterOf(4).lsm.diskWriteMBps), '≈', fAmp(42), 'was ', '5 levels ×'] },
+      };
+      function structural(well, spec, phase, view) {
+        const out = [];
+        const svg = well.querySelector('svg.draw');
+        const hide = new Set(spec.hide);
+        const playing = phase === 'playing';
+        const tx = (id) => svg.querySelector(`[data-id="${id}"]`)?.textContent ?? null;
+        for (const p of well.querySelectorAll('.play')) if (!p.disabled) out.push('a Play is enabled');
+        for (const i of well.querySelectorAll('.segment.hit input')) if (!i.disabled) out.push('an on-stage setting is enabled');
+        if (svg.querySelector('.ghost-tick') || /was /.test(svg.textContent)) out.push('a ghost of an earlier setting');
+        const after = hide.has('after') && playing;
+        if (hide.has('btreeWrite') || after) {
+          if (svg.querySelector('[data-id="write-bar-btree"]')) out.push('the B-tree write bar');
+          if (tx('write-btree') !== '?×') out.push(`the B-tree write value reads "${tx('write-btree')}"`);
+          if (tx('bt-total') !== null && !tx('bt-total').startsWith('?×') && view.s.op === WRITE) out.push(`the B-tree total reads "${tx('bt-total')}"`);
+          if (/\d/.test(tx('log-note') ?? '') || /\d/.test(tx('page-note') ?? '') || /\d/.test(tx('bt-ledger') ?? '')) out.push('a B-tree byte count');
+        }
+        if (hide.has('btreeWrite') && !playing) {
+          if (svg.querySelector('.strip.written, .pg.written, [data-id="log-slice"]')) out.push('the page written back, or its log record, while the question asks');
+          if (tx('bt-leaf-action')) out.push('the leaf says what happened to it');
+        }
+        if (hide.has('lsmWrite') || after) {
+          if (svg.querySelector('[data-id="write-bar-lsm"]')) out.push('the LSM write bar');
+          if (tx('write-lsm') !== '?×') out.push(`the LSM write value reads "${tx('write-lsm')}"`);
+          if (view.s.op === WRITE) {
+            if (tx('lsm-total') !== null && !tx('lsm-total').startsWith('?×')) out.push(`the LSM total reads "${tx('lsm-total')}"`);
+            for (const c of svg.querySelectorAll('[data-id^="chip-"]')) if (c.textContent !== '?×') out.push(`an LSM chip reads "${c.textContent}"`);
+            if (/\d/.test(tx('stair-text') ?? '')) out.push('the staircase counts in words');
+          }
+        }
+        if (hide.has('lsmWrite') && !playing && svg.querySelector('[data-id="stair"]')) out.push("the level's merges drawn while the question asks");
+        if (after) {
+          if (svg.querySelector('[data-pip]')) out.push('a read pip while the answer plays');
+          for (const engine of ['btree', 'lsm']) if (tx(`reads-${engine}`) !== '?') out.push(`the ${engine} reads value reads "${tx(`reads-${engine}`)}"`);
+          if (view.s.op !== WRITE && svg.querySelector('[data-id^="chip-"]')) out.push('a read chip while the answer plays');
+          if (view.s.op !== WRITE && tx('lsm-total') !== null && !tx('lsm-total').startsWith('?')) out.push(`the lookup total reads "${tx('lsm-total')}"`);
+          if (svg.querySelector('[data-id^="space-over"]')) out.push('a space bar while the answer plays');
+        }
+        return out;
+      }
+      function giveaways(well, spec, phase, extraText = '') {
+        const text = stageText(well) + ' | ' + extraText;
+        const g = GIVEAWAYS[spec.id] ?? {};
+        const out = [];
+        for (const w of [...(g.both ?? []), ...(g[phase] ?? []), ...FALSE_CLAIMS]) if (typeof w === 'string' ? text.includes(w) : w.test(text)) out.push(`"${w}"${typeof w === 'string' ? '' : ` in "${text.match(w)[0]}"`}`);
+        return out;
+      }
+      const FROMS = [...M.EXPERIMENTS.filter((e) => e.act).map(actSettings), { ...B, ...M.CHALLENGE_SOLUTION }, { ...B, page: 16, ratio: 4 }, { ...B, data: 10, record: 200, ratio: 20, op: M.OP_READ }];
+      function leaky(view, flags) {
+        return { ...view, leak: new Set(flags) };
+      }
+      function probe(well, W, spec, phase, view) {
+        const m = M.run(view.s);
+        drawInto(well, W, m, view);
+        const hid = hiding(view);
+        const words = [noticeOf(m, view), summary(m, hid), view.phase === 'playing' ? story(view.play.engine, m, hid) : ''].join(' | ');
+        return [...giveaways(well, spec, phase, words), ...structural(well, spec, phase, view)];
+      }
+      window.noAnswer = function (widths) {
+        const well = document.getElementById('well');
+        const out = [];
+        let renders = 0;
+        for (const W of widths) {
+          well.style.width = W + 2 + 'px';
+          for (const spec of M.EXPERIMENTS.filter((e) => !e.goal)) {
+            const runs = [...[null, ...FROMS].map((f) => ['asking', null, f]), ...[0, 0.15, 0.45, 0.8, 1].map((f) => ['playing', f, null])];
+            for (const [phase, frac, from] of runs) {
+              const view = expView(spec, phase, frac ?? 0.6, from);
+              renders++;
+              const where = `W${W} ${spec.id} ${phase}${frac !== null ? ` ${frac}` : ''}${from ? ` from ${show(from)}` : ''}`;
+              for (const g of probe(well, W, spec, phase, view)) out.push(`${where}: ${g}`);
+            }
+          }
+        }
+        well.style.width = '';
+        return { renders, out };
+      };
+      // Plants a leak on each flag of the hiding map, on copies of the views, to prove the sweep catches every one.
+      window.plantedLeaks = function (W) {
+        const well = document.getElementById('well');
+        well.style.width = W + 2 + 'px';
+        const caught = {};
+        const tryLeak = (name, id, phase, flags, from = null) => {
+          const spec = M.EXPERIMENTS.find((e) => e.id === id);
+          const clean = probe(well, W, spec, phase, expView(spec, phase, 1, from)).length;
+          caught[name] = clean === 0 && probe(well, W, spec, phase, leaky(expView(spec, phase, 1, from), flags)).length > 0;
+        };
+        tryLeak('E1 asked, the page written back drawn', 'page-rewrite', 'asking', ['btMarks']);
+        tryLeak("E1 asked, the B-tree's numbers shown", 'page-rewrite', 'asking', ['btNumbers']);
+        tryLeak("E1 played, the B-tree's numbers shown", 'page-rewrite', 'playing', ['btNumbers']);
+        tryLeak("E2 asked, the level's merges drawn", 'lsm-rewrites', 'asking', ['lsmMarks']);
+        tryLeak("E2 played, the LSM tree's numbers shown", 'lsm-rewrites', 'playing', ['lsmNumbers']);
+        tryLeak("E3 played, the B-tree's new numbers shown", 'record-size', 'playing', ['btNumbers']);
+        tryLeak("E3 played, the LSM tree's numbers shown", 'record-size', 'playing', ['lsmNumbers']);
+        tryLeak('E4 played, the reads shown', 'no-filters', 'playing', ['readNumbers']);
+        tryLeak("E5 played, the LSM tree's new numbers shown", 'more-data', 'playing', ['lsmNumbers']);
+        tryLeak('E5 played, the space bars shown', 'more-data', 'playing', ['spaceNumbers']);
+        tryLeak('E3 asked with the ghost of the setting before it', 'record-size', 'asking', ['ghost'], { ...B, page: 16 });
+        well.style.width = '';
+        return caught;
+      };
+      window.heights = function (widths) {
+        const out = {};
+        for (const W of widths) {
+          const hs = new Set();
+          for (const s of ALL) hs.add(buildStage(W, M.run(s), restView(s)).H);
+          for (const s of ALL.filter((_, i) => i % 9 === 0)) for (const engine of ['btree', 'lsm']) hs.add(buildStage(W, M.run(s), restView(s, { play: { engine, frac: 0.5 } })).H);
+          for (const spec of M.EXPERIMENTS)
+            for (const phase of spec.goal ? ['challenge', 'start'] : ['asking', 'playing', 'revealed']) {
+              const v = expView(spec, phase);
+              hs.add(buildStage(W, M.run(v.s), v).H);
+            }
+          out[W] = [...hs];
+        }
+        return out;
+      };
+      window.stageHeight = (W, s = B) => buildStage(W, M.run(s), restView(s)).H;
+      window.widgetHeight = () => document.getElementById('widget').getBoundingClientRect().height;
+      // Every sentence any setting prints off the stage, for the false-claim rules and the prose rules: full sentences,
+      // none opening on a numeral, thousands separated.
+      const PROSE = [/(^|[.?!] )\d/, /\d{4,}/, /  /, / ,| \./];
+      window.pageWords = function () {
+        const out = [];
+        for (const s of ALL) {
+          const m = M.run(s);
+          const sentences = [summary(m, NOTHING_HIDDEN), settingSentence(m), story('btree', m), story('lsm', m), ...goalChecks(m).map((g) => g.text)];
+          const tables = [true, false].map((c) => JSON.stringify(describeRows(m, c)));
+          const words = [...sentences, ...tables].join(' | ');
+          for (const g of FALSE_CLAIMS) if (g.test(words)) out.push(`${show(s)}: ${g} in "${words.match(g)[0]}"`);
+          for (const t of [...sentences, describeRows(m, false).note]) {
+            for (const g of PROSE) if (g.test(t)) out.push(`${show(s)}: ${g} in "${t.slice(Math.max(0, t.search(g) - 20), t.search(g) + 30)}"`);
+            if (!/[.!?:]$/.test(t) && !/: (met|not yet)$/.test(t)) out.push(`${show(s)}: not a sentence: "${t.slice(-40)}"`);
+          }
+        }
+        for (const t of [MODEL_NOTE]) for (const g of [PROSE[0], PROSE[1]]) if (g.test(t)) out.push(`model note: ${g}`);
+        return out;
+      };
+      // The words of every surface, for a reader to check (shoot.cjs prints a sample of them).
+      window.wordsOf = (s) => {
+        const m = M.run(s);
+        return { summary: summary(m, NOTHING_HIDDEN), notice: settingSentence(m), btree: story('btree', m), lsm: story('lsm', m), checks: goalChecks(m).map((g) => g.text), describe: describeRows(m, false), compact: describeRows(m, true) };
+      };
+
+      const stateName = params.get('state') ?? 'default';
+      Promise.all([
+        document.fonts.load('600 11px "Inter Variable"'),
+        document.fonts.load('500 13px "Inter Variable"'),
+        document.fonts.load('600 13px "Inter Variable"'),
+        document.fonts.load('700 11px "Inter Variable"'),
+        document.fonts.load('600 11px "JetBrains Mono Variable"'),
+        document.fonts.load('600 13px "JetBrains Mono Variable"'),
+      ]).then(() => {
+        const first = render(stateName);
+        const well = document.getElementById('well');
+        const issues = check(well, first.D, first.m, first.view);
+        render(stateName);
+        window.__collisions = issues;
+        document.body.dataset.ready = '1';
+      });
+    </script>
+  </body>
+</html>
