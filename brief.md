@@ -7,7 +7,7 @@ references). Lesson: `/design/topics/sd-capacity`. Files beside this brief, on t
 | File          | What it is                                                                                                                                                                                                                                                                                                                            |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `model.js`    | The model (tiers, per-request costs, zones and the drawn order of each tier's instances, worker pools, one database admission) and the six experiments as slot templates; ported to `libs/engine/src/sysdesign/lessons/widgets/capacity.ts` and `capacity-experiments.ts`, retiring `pipeline()` from `widgets.ts` |
-| `enum.cjs`    | Prints every experiment number, proves the challenge has exactly one passing setting of 3,528, checks the reveals' word claims, checks that every lane fits the axis and that the drawn zone groups are what a zone loss takes, holds the model to its invariants at all 197,568 settings, and checks it against an independent request-by-request token-bucket simulation of 8,605 settings ({{CHECKS}} checks) |
+| `enum.cjs`    | Prints every experiment number, proves the challenge has exactly one passing setting of 3,528, checks the reveals' word claims, checks that every lane fits the axis and that the drawn zone groups are what a zone loss takes, holds the model to its invariants at all 197,568 settings, and checks it against an independent request-by-request token-bucket simulation of 8,605 settings (640 checks) |
 | `mockup.html` | The mockup with the app's tokens and fonts: `?state=default\|calm\|cached\|replicas\|scaled\|zone\|slow\|overload\|outage\|playing\|describe\|reduced\|ask&exp=1..5\|reveal&exp=1..5\|challenge&theme=light\|dark`; `ask` also takes `&phase=playing` (the answer's play, hiding held, `&frac=` its moment) and `challenge` takes `&start=1` |
 | `shoot.cjs`   | Screenshots every state at 1280, 390 and 320 px in both themes with the page's collision report and layout assertions; sweeps settings at 12 widths (at rest, mid-ramp with particles, with a one-change ghost, reduced motion); every experiment asking, playing and revealed; the no-answer sweep with six planted leaks; one planted fault per new rule; every page sentence; the phone view at each play's and reveal's anchor; the stage's top over every condition; Describe's width; and the stage heights |
 | `changes.md`  | Each critique item and what changed for it                                                                                                                                                                                                                                                                                            |
@@ -86,7 +86,7 @@ queries, 1.8 reads and 0.2 writes (the lesson's first worked example), so every 
 - The bottleneck is the smallest limit; the next is the smallest of the rest. The challenge's measures: shed, headroom
   `100% − busiest`, shed after zone A fails (the model run with `zone: 1`), machines `lb + app + 1 + replicas + 3 × cache`.
 
-**Checks** (`node enum.cjs`, {{CHECKS}} pass). Every experiment number is printed with its slots. The reveals' word
+**Checks** (`node enum.cjs`, 640 pass). Every experiment number is printed with its slots. The reveals' word
 claims: E1's ramp fills the database first and the load balancers end exactly 100% busy; E2's ratio is 2 / 0.38 = 5.26×
 and "about 21,000/s"; replay takes exactly half of every replica at 1 to 6 replicas and none passes 40,000/s; E3's limits
 before and after and the write ceiling lie on the axis; E4 sheds a tenth, only at the app servers, which carry 1.5× their
@@ -173,9 +173,10 @@ top-down and packed (the box's reserved slack collects at its foot, never betwee
    ends where the survivors end. Under the primary instead: the step from its machine to its lane, a thin arrow from
    where its queries a second would sit (8,000) to its lane's end, labelled "÷ 2 queries a request" ("÷ 2 a request",
    "÷ 2" by room), the primary's own zone named in its fleet ("in zone A").
-3. **The header** (44 px, or 61 when the fleet takes two lines under the name): the name in the label role ("LOAD
-   BALANCERS", "APP SERVERS", "DATABASE PRIMARY" or "PRIMARY", "READ REPLICAS") and the fleet in the title weight beside
-   it when both fit, else under it, wrapping rather than ever dropping a count, a promotion or a unit: "2 × 5,000/s";
+3. **The header** (44 px; 63 when the fleet takes a second line): the name in the label role ("LOAD BALANCERS", "APP
+   SERVERS", "DATABASE PRIMARY" or "PRIMARY", "READ REPLICAS") and the fleet in the title weight beside it when both fit,
+   else under it, its first line beside the steppers and any further line at full width 2 px clear of their targets,
+   wrapping rather than ever dropping a count, a promotion or a unit: "2 × 5,000/s";
    "4 of 6 up × 5,000/s"; "8,000 queries/s, the largest machine, in zone A"; "8,000 queries/s, a promoted replica";
    "2 × 8,000 queries/s"; "1 of 3 left × 8,000 queries/s"; "none"; a hidden tier its count alone ("6 up", "4 of 6 up"). At
    the right a − and a + key (32 px keys in 44 px targets).
