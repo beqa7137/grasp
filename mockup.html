@@ -1511,7 +1511,8 @@
           const isUp = up(m);
           D.add('marks', `<line class="base ${isUp ? nodeCls(m) : 'gone'}" x1="${r1(pileX(m))}" y1="${by + 1.5}" x2="${r1(pileX(m) + pile.c * pile.p)}" y2="${by + 1.5}"/>`);
           D.text(binX(m) + bw / 2, by + 18, m, { role: 'nameS', anchor: 'middle', owner: `bin${m}`, cls: isUp ? '' : 'muted' });
-          if (!isUp && m === sc.downNode) xGlyph(D, binX(m) + bw / 2, by - 12, `x${m}`);
+          // The × of a node that is down stands over whatever keys have yet to leave it.
+          if (!isUp && m === sc.downNode) xGlyph(D, binX(m) + bw / 2, by - 12 - Math.ceil(lists[m].length / pile.c) * pile.p, `x${m}`);
           lists[m].forEach((key, j) => {
             const [x, yy] = slotXY(m, j);
             const moved = showMoved && arrived[m].has(key);
@@ -1715,7 +1716,11 @@
           const cyTop = bandY - 8 - lr - topLane * (2 * lr + 1) - lr - 2;
           D.add('marks', `<path class="caret" data-owner="follow2" d="M${r1(fx)} ${r1(cyTop)}l-4 -7h8z"/>`);
           const wn = tw(follow, 'mono');
-          D.text(Math.min(Math.max(fx, sx0 + wn / 2), sx0 + stripW - wn / 2), cyTop - 11, follow, { role: 'mono', anchor: 'middle', owner: 'follow2' });
+          // Its name sits on the caret, or over any taller column of keys the name would cross.
+          const nx = Math.min(Math.max(fx, sx0 + wn / 2), sx0 + stripW - wn / 2);
+          const under = ids.filter((i) => Math.abs(X(posOf(i)) - nx) < wn / 2 + lr + 1).map((i) => stack.lane.get(i));
+          const dotsTop = bandY - 8 - lr - Math.max(0, ...under) * (2 * lr + 1) - lr;
+          D.text(nx, Math.min(cyTop - 11, dotsTop - 5), follow, { role: 'mono', anchor: 'middle', owner: 'follow2' });
           if (!hid.rule) {
             const owner = M.pointFor(placed.ring, M.KEY_AT[M.FOLLOW]);
             const orp = rel(owner.at / M.TURN, win.start);
