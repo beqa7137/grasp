@@ -5,7 +5,7 @@
 // each bar against its value, the cap line, the causes as printed), then sweeps the stage over every setting at many
 // widths (at rest, at moments of a free play, with ghosts), every experiment asking, its answer's play and revealed,
 // runs the no-answer sweep (each question entered from other settings, and its answer's play at five moments), proves
-// it catches five planted leaks, runs the false-claim list over every page sentence of every setting, and prints the
+// it catches six planted leaks, runs the false-claim list over every page sentence of every setting, and prints the
 // stage heights per width (each must be one value).
 // A state is a name ("pairs"), a question asking, playing or revealed ("ask:3", "play:3", "reveal:1"), or the challenge
 // ("challenge", "challenge-start").
@@ -101,7 +101,7 @@ const server = http.createServer((req, res) => {
     total += giveaways.out.length;
     const planted = await page.evaluate(() => window.plantedLeaks(322));
     console.log(`planted leaks caught: ${planted.filter(Boolean).length} of ${planted.length}`);
-    if (!planted.every(Boolean) || planted.length !== 5) total++;
+    if (!planted.every(Boolean) || planted.length !== 6) total++;
     const words = await page.evaluate(() => window.pageWords());
     console.log(`page sentences (summary, notice, facts, the year, the caption, Describe, goal checks) over every setting: ${words.length} findings`);
     for (const w of words.slice(0, 8)) console.log(`    ${w}`);

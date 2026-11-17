@@ -722,9 +722,14 @@
       .toggles3 .segment input:checked + span {
         font-weight: 600;
       }
-      .note,
+      .note {
+        order: 4;
+      }
       .caption {
         order: 2;
+      }
+      .note,
+      .caption {
         margin: 0;
         font-size: var(--g-text-body-s);
         color: var(--g-muted);
@@ -990,11 +995,15 @@
         white-space: nowrap;
         padding: 4px 8px;
       }
+      thead th {
+        white-space: normal;
+      }
       tr.now th {
         background: var(--g-accent-soft);
       }
       tbody th small {
-        font-weight: 500;
+        display: block;
+        font: 500 var(--g-text-label) var(--g-font);
         color: var(--g-danger-ink);
       }
       .held-choice {
@@ -1287,7 +1296,7 @@
         const c = [];
         c.push(s.shared ? `${M.SHARE_WORDS} of a copy’s outages is shared by every copy of its part` : 'copies fail independently');
         c.push(s.failover ? `traffic takes ${M.FAILOVER_MIN} min to move off a dead copy` : 'traffic moves off a dead copy at once');
-        return c.join(', and ');
+        return c.join(', and ') + (s.optional ? '; recommendations are optional, so their outages (the hollow marks) never reach the request' : '');
       }
       /** The stage's summary: the setting, then what the model gives (or that it shows after the answer). */
       function summary(m, hid) {
@@ -2028,23 +2037,22 @@
         return `<h3 class="heading"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8zM19 14l.9 2.6 2.6.9-2.6.9L19 21l-.9-2.6-2.6-.9 2.6-.9z"/></svg>Experiments</h3>
 <ol class="cards">${M.EXPERIMENTS.map((s, i) => `<li><button class="card-btn"${view.exp && view.exp.id === s.id ? ' aria-current="step"' : ''}><span class="num">${s.goal ? '⚑' : i + 1}</span><span>${esc(M.renderExperiment(s).title)}</span></button></li>`).join('')}</ol>`;
       }
-      // Describe: a row per part and one for the request; compact under a 560 px stage.
+      // Describe: a row per part and one for the request; compact under a 600 px stage.
       function describeRows(m, compact) {
         const smp = M.sample(m.settings);
-        const head = compact ? ['Part', 'Copies', 'Down a year', 'Simulated year'] : ['Part', 'Copies', 'Available', 'Down a year', 'In 30 days', 'Simulated year'];
+        const head = compact ? ['Part', 'Copies', 'Down a year', 'This year'] : ['Part', 'Copies', 'Available', 'Down a year', 'In 30 days', 'Simulated year'];
         const yearCell = (events) => {
-          if (!events.length) return compact ? 'none' : 'never failed it';
+          if (!events.length) return 'none';
           const hours = events.reduce((t, e) => t + e.hours, 0);
-          return compact ? `${events.length}×, ${fd(hours)}` : `failed it ${timesWord(events.length)}, ${fd(hours)}`;
+          return compact ? `${events.length}×, ${fd(hours)}` : `${events.length} ${plural(events.length, 'failure', 'failures')}, ${fd(hours)}`;
         };
         const rows = m.parts.map((p, i) => {
           const name = compact ? p.short : p.name;
-          if (p.optional) return { cells: compact ? [name, String(p.copies), 'optional', 'none'] : [name, String(p.copies), fa(p.u), 'optional', 'optional', 'never: it is skipped'] };
+          if (p.optional) return { cells: compact ? [name, String(p.copies), 'optional', 'none'] : [name, String(p.copies), fa(p.u), 'optional', 'optional', 'none'] };
           const ev = smp.parts[i].events;
           return { weakest: m.weakest.includes(p.id), cells: compact ? [name, String(p.copies), fd(p.downH), yearCell(ev)] : [name, String(p.copies), fa(p.u), fd(p.downH), fd(p.u * M.MONTH_H), yearCell(ev)] };
         });
-        const all = (t) => t.replace('failed it', 'failed').replace('never failed it', 'never failed');
-        rows.push({ now: true, cells: compact ? ['Request', String(m.copies), fd(m.downH), yearCell(smp.fails)] : ['The request', String(m.copies), fa(m.u), fd(m.downH), fd(m.monthH), all(yearCell(smp.fails))] });
+        rows.push({ now: true, cells: compact ? ['Request', String(m.copies), fd(m.downH), yearCell(smp.fails)] : ['The request', String(m.copies), fa(m.u), fd(m.downH), fd(m.monthH), yearCell(smp.fails)] });
         return { head, rows };
       }
       function describeHtml(m, view, compact) {
@@ -2058,7 +2066,7 @@
         const story = `${yearSentence(M.sample(m.settings).fails)} The picture rests on this moment: ${captionOf(rest, m.parts.find((p) => p.id === rest.part).copies).replace(/^Week/, 'week')} The year is drawn with a week between any two outages of one part, so two ticks in one column are always one shared outage; by chance alone a pair overlaps about once in ${Math.round(1 / M.partModel(2, 0, 0).overlapsPerYear)} years.`;
         return `${btn}<p class="summary">${codeText(summary(m, {}))} ${codeText(causesSentence(m))}</p><p class="summary">${codeText(story)}</p><div class="table-box${compact ? ' compact' : ''}" tabindex="0" role="region" aria-label="Each part and the request, from the model and in the simulated year"><table><thead><tr>${head
           .map((h) => `<th scope="col">${h}</th>`)
-          .join('')}</tr></thead><tbody>${rows.map((r) => `<tr${r.now ? ' class="now"' : ''}>${r.cells.map((c, i) => (i === 0 ? `<th scope="row">${esc(c)}${r.weakest ? ' <small>(weakest)</small>' : ''}</th>` : `<td>${esc(c)}</td>`)).join('')}</tr>`).join('')}</tbody></table></div>`;
+          .join('')}</tr></thead><tbody>${rows.map((r) => `<tr${r.now ? ' class="now"' : ''}>${r.cells.map((c, i) => (i === 0 ? `<th scope="row">${esc(c)}${r.weakest ? '<small>weakest link</small>' : ''}</th>` : `<td>${esc(c)}</td>`)).join('')}</tr>`).join('')}</tbody></table></div>`;
       }
       // Play: it waits while a question asks; during a free play it is Stop.
       function overlaysHtml(D, view) {
@@ -2084,7 +2092,7 @@
 ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${codeText(`${captionOf(rest, m.parts.find((p) => p.id === rest.part).copies)} ${yearSentence(M.sample(m.settings).fails)}`)}</p>` : ''}<p class="note">${codeText(`${NOTE} Here ${conditionWords(m.settings)}.`)}</p><div class="describe" id="describe"></div></div>
 <div class="experiments"><section class="dock" aria-label="Experiment">${dockHtml(m, view)}</section>${cardsHtml(view)}</div>`;
         const r = drawStage(view, m);
-        document.getElementById('describe').innerHTML = describeHtml(m, view, r.W < 560);
+        document.getElementById('describe').innerHTML = describeHtml(m, view, r.W < 600);
         wire(view, m);
         return { ...r, view, m };
       }

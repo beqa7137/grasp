@@ -524,7 +524,7 @@
       title: 'Failures the copies share',
       setup: E.pairs,
       act: { set: { shared: 1 }, run: 'year' },
-      ask: 'Two copies of every part: on paper the request is down only {paper} a year. Now say {share} of a copy’s outages come from something its twin shares, such as the zone both run in or a bad deploy that reaches both. How long is the request down a year now?',
+      ask: 'Two copies of every part the request needs: on paper it is down only {paper} a year. Now say {share} of a copy’s outages come from something its twin shares, such as the zone both run in or a bad deploy that reaches both. How long is the request down a year now?',
       choices: [
         { text: '{tenthMore}: a tenth more than on paper', value: 'tenthMore' },
         { text: '{real}: about {ratio} what the paper says', value: 'real' },
@@ -557,7 +557,7 @@
       title: 'Failover takes time',
       setup: E.pairs,
       act: { set: { failover: 1 }, run: 'year' },
-      ask: 'Two copies of every part, failing independently: on paper the request fails only when both copies of a part are down at once, about once in {paperYears} years. But moving traffic off a dead copy takes {fo}: health checks must notice, then the switch happens. About how many times a year does the request fail now?',
+      ask: 'Two copies of every part the request needs, failing independently: on paper it fails only when both copies of a part are down at once, about once in {paperYears} years. But moving traffic off a dead copy takes {fo}: health checks must notice, then the switch happens. About how many times a year does the request fail now?',
       choices: [
         { text: 'About {real} times: at every failure of a copy in use', value: 'real' },
         { text: 'About {one} times: as often as a single copy fails', value: 'one' },
