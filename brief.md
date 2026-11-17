@@ -442,7 +442,7 @@ at the reveal; the stream is the mechanism the play shows, as the sample is in L
    learner starts can show an answer; the answer's play keeps the hiding until the reveal; a card's setup starts afresh
    (no ghost carries an earlier setting in). The mockup's `noAnswer()` (run by `shoot.cjs`) renders every question asking,
    entered from every act's target and the challenge's solution, and its answer's play at five moments, at six widths
-   ({{NOANSWER}} renders), against each question's answer words and patterns (E1: "bottleneck", "÷ 2", "= 4,000
+   (360 renders), against each question's answer words and patterns (E1: "bottleneck", "÷ 2", "= 4,000
    requests", "limit 4,000 requests", "Served 4,000", "4,000 requests a second"; E2: "21,053/s", "21,000/s", "5.3×",
    "0.38", "21,053"; E3: "61.3%", "61%", "32,653", "900", "replay"; E4: "1,000/s shed", "9,000/s", "111.1%", "Full",
    "bottleneck"; E5: "1,200/s", "200/s", "13.3%", "4,800/s", "workers bind", "Full", "would need"), the false claims (2),
@@ -496,9 +496,9 @@ at the reveal; the stream is the mechanism the play shows, as the sample is in L
 5. **Look-here tags.** Focus outlines sit 4 px outside a box's border (so a bottleneck's border and its outline are one
    shape, offset), or inside the database box for one of its blocks; regions in one box are one outline with one tag
    (E5's focus is the app servers' box, pool included). House candidates on the outline's edge first (16 px off its
-   corners), then just inside, two inner rows, at the outline's own right edge and the stage's, outside last; the stream
-   and hit boxes are obstacles. Every reveal at 12 widths has a placed tag and a labelled ghost for every limit its act
-   moved (the sweep asserts both).
+   corners), then just inside, two inner rows, at the outline's own right edge and the stage's, outside last (above it,
+   clear of the database's block divider, or below it); the stream and hit boxes are obstacles. Every reveal at 12
+   widths has a placed tag and a labelled ghost for every limit its act moved (the sweep asserts both).
 6. **Marks before their event.** The ramp has one monotone clock; a shed's block, red stream part and × appear at the stop
    where its tier's limit is passed; the climax ring lands with it; particles become × only on reaching the box's edge;
    at the reveal fills grow from the setup's level, so nothing appears before the change that causes it.
