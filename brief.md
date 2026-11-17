@@ -134,14 +134,14 @@ angle of its hash, just outside the band, pushed outward to the first lane where
 never overlap and none sits on the band (the positions depend only on the stage's width, never on the setting). A dot
 takes its owner's colour; a key that moved in the last change is hollow. The band is each node's stretches in its
 colour, drawn as one path a node, so it is at most six elements at any number of points. With one point a node the ring
-is three to six long arcs, each point named in a chip inside the band at the end of its arc (a second lane where two
-points are close; a node that left or failed keeps a struck chip at its old point). With 100 points the band is a fine
-weave of all the colours: it is drawn exactly, as a texture that says the points lie everywhere, and the stretch the
-closer look magnifies is bracketed outside the dots. Under hash mod N there is no band, only a neutral track: the dots
-are a confetti of every colour, because a remainder has nothing to do with where a hash falls. The ring's middle says
-what is placed ("5 nodes", "100 points each"; "3 nodes up" with one down; "hash mod 5"). The followed key carries a
-caret and its name outside the ring. During a play a hand sweeps the ring once: a moved key leaves its pile as the hand
-passes its hash.
+is three to six long arcs, each point named in a chip inside the band at the end of its arc (where two points are close
+the later chip steps along the band, away from its neighbour, and its tick leans back to its own point; a node that left
+or failed keeps a struck chip at its old point). With 100 points the band is a fine weave of all the colours: it is
+drawn exactly, as a texture that says the points lie everywhere, and the stretch the closer look magnifies is bracketed
+outside the dots. Under hash mod N there is no band, only a neutral track: the dots are a confetti of every colour,
+because a remainder has nothing to do with where a hash falls. The ring's middle says what is placed ("5 nodes", "100
+points each"; "3 nodes up" with one down; "hash mod 5"). The followed key carries a caret and its name outside the ring.
+During a play a hand sweeps the ring once: a moved key leaves its pile as the hand passes its hash.
 
 **The piles** ("WHAT EACH NODE HOLDS", and under it "A pile's height is its share of all traffic"). A column a node, A
 to F at fixed places, each a pile of its keys as dots (7 to 9 dots across by width) on a base line in the node's colour,
@@ -324,10 +324,10 @@ hides; Describe waits until the goal is met ("Describe waits until you meet the 
 **One `hiding()` map** (prevention 1) from a question's regions to every surface; each region is named in the spec's own
 `hide` list with the phase that hides it, so nothing is inferred from the act:
 
-| Region  | When                    | On the stage                                                                                                                                                                                                                                                                                                                                                                                                                                                              | Elsewhere                                                                                                                                 |
-| ------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `after` | playing (E1 to E5)      | the headline's count is "?" in a dashed box; the story reads "Which keys moved, and where, shows at the reveal."; every table cell of every node up is "?"; no key is hollow, on the ring, in the strip or on a pile; the standing line reads "The fullest shard shows at the reveal." ("busiest" with the hot key); the rule line stops at the hash ("...; its node shows at the reveal."), and the remainder table keeps the setup's modulus and nodes; no landing ring | the summary ("... The answer is playing; its counts show at the reveal."), the notice ("The answer is playing on the picture."), Describe |
-| ghost   | asking (every question) | no last change: no hollow key, no in or out row, "LAST CHANGE · NONE YET", whatever the learner changed before the card                                                                                                                                                                                                                                                                                                                                                   | the summary and notice say the setup only                                                                                                 |
+| Region  | When                    | On the stage                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | Elsewhere                                                                                                                                 |
+| ------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `after` | playing (E1 to E5)      | the headline's count is "?" in a dashed box; the story reads "Which keys moved, and where, shows at the reveal."; every table cell of every node up is "?", and so is each arc's count under the whole ring ("C: ? keys"); no key is hollow, on the ring, in the strip or on a pile; the standing line reads "The fullest shard shows at the reveal." ("busiest" with the hot key); the rule line stops at the hash ("...; its node shows at the reveal."), and the remainder table keeps the setup's modulus and nodes; no landing ring | the summary ("... The answer is playing; its counts show at the reveal."), the notice ("The answer is playing on the picture."), Describe |
+| ghost   | asking (every question) | no last change: no hollow key, no in or out row, "LAST CHANGE · NONE YET", whatever the learner changed before the card                                                                                                                                                                                                                                                                                                                                                                                                                  | the summary and notice say the setup only                                                                                                 |
 
 The picture of the answer's own play (keys flying, piles growing) is the play; its numbers wait for the reveal. While
 any question asks or plays, Replay and the Placement, Points, Nodes and Conditions fieldsets are disabled, the notice
@@ -515,12 +515,13 @@ carry titles only. Nothing on the setup's stage states an answer: E1 and E2 show
 
 - The mockup's geometry is the spec: the ring's swarm (dots sorted by hash, each in the first lane that keeps 0.9 px
   from its lane's dots; the band's radius the largest that keeps every lane inside the ring's box), the annulus of
-  marks, the chips' two lanes, the piles' metrics by column width (9 dots at 6 px from 60 px, 8 at 5.6 from 48, 7 at 4.8
-  from 40, 7 at 4.4 from 34, else 7 at 3.7), the scale of 184 key-heights with 26 px over it for a cut's label, the pile
-  order (the keys that stayed by hash, then the arrivals as they landed), the table's closed-up rows, the verdict's
-  reserve (the most lines over all 456 scenarios at the width, as two constants a width band, held by the words spec),
-  the strip's window (`min(1, floor(strip / 20) / (5 × points))`, starting 42% of a window before the followed key) and
-  its stacking, the remainder table's odd count of columns.
+  marks, the chips' step along the band where two points are close, the piles' metrics by column width (9 dots at 6 px
+  from 60 px, 8 at 5.6 from 48, 7 at 4.8 from 40, 7 at 4.4 from 34, else 7 at 3.7), the scale of 184 key-heights with 26
+  px over it for a cut's label, the pile order (the keys that stayed by hash, then the arrivals as they landed), the
+  table's closed-up rows, the verdict's reserve (the most lines over all 456 scenarios at the width, as two constants a
+  width band, held by the words spec), the strip's window (the whole ring with one point a node, else
+  `min(0.28, floor(strip / 20) / (5 × points))`, starting 42% of a window before the followed key) and its stacking, the
+  remainder table's odd count of columns.
 - `ring-layout.ts` (a pure `buildStage(width, scenario, view)` returning marks, as `latency-layout.ts` does),
   `ring-words.ts` (`hiding()`, the change label and story, the standing line, the rule's forms, summary, notices,
   Describe, goal checks), `ring-motion.ts` (the clock, the sweep, the flights' pool, the FLIP of a pile, the climax, the
