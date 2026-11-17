@@ -461,7 +461,7 @@ at the reveal; the stream is the mechanism the play shows, as the sample is in L
    ("Full", Describe's "full"); a lost tier says "None left"; a lost primary takes no reads ("None: reads fail with the
    primary."). The false-claim rules (NaN, undefined, Infinity, "0% busy", "at 0%", any busy over 100%, a number past 999
    without its separator, "1 load balancers", "a 8,000", "0 are served", "leaves 0%", "a third lost" or "half lost", "from
-   1,000 to 1,000") run over every stage of the settings sweep ({{SWEEP}} renders: a stride of every setting at 12 widths,
+   1,000 to 1,000") run over every stage of the settings sweep (193,977 renders: a stride of every setting at 12 widths,
    at rest, mid-ramp, with a one-change ghost and under reduced motion), over the whole widget's HTML of every state
    (toggles and their hints, notice, stage, its hidden tier lines, caption, Describe, dock), and over every page sentence
    of a third of all settings (summary, ramp story, tier lines, statuses, Describe both ways, goal checks); none. On the
@@ -507,12 +507,13 @@ at the reveal; the stream is the mechanism the play shows, as the sample is in L
 8. **CSS specificity.** Every `fieldset.group` carries zero padding; a control's class only adds to it
    (`fieldset.group.conditions-control`); the 320 px shots show the conditions above the stage with no overlap. A checked
    toggle never changes its font weight (the stage's top is asserted equal over all eight condition settings).
-9. **Words.** The summary, notices and ramp story are full sentences; no sentence opens on a numeral ("Of 8,000 requests a
-   second, 6,000 are served", checked over every sentence); plurals and "each" by count; thousands separators everywhere
-   (checked); no sentence spliced from pills. The challenge's status is the checklist with its states in words, "Goal
-   met:" only while the goal holds; the notice is never blank. Stage text wraps keeping a number with its unit (and a
-   rate with "shed" or "spare"), "of" and "in" with what follows, "each" with what precedes it, an operator with its
-   operand, and "·" with the run after it, and never leaves one word alone on a last line.
+9. **Words.** The summary, notices and ramp story are full sentences; no sentence opens on a numeral ("Of 8,000 requests
+   a second, 6,000 are served", checked over every sentence); plurals and "each" by count; thousands separators
+   everywhere (checked); no sentence spliced from pills. The challenge's status is the checklist with its states in
+   words, "Goal met:" only while the goal holds; the notice is never blank. Stage text wraps keeping a number with its
+   unit (and a rate with "shed" or "spare"), "of", "in", "was" and "limit" with what follows ("limit was 4,200/s" stays
+   whole), "each" with what precedes it, an operator with its operand, and "·" with the run after it, and never leaves
+   one word alone on a last line.
 10. **Describe's width.** `minmax(0, 1fr)`, the table in its own scrolling box, compact (five columns) under a 560 px
     stage, so it fits at 320, 390 and 412 px with no scrolling (asserted) and at 1280 and 1440 px; e2e checks no sideways
     page scroll at all four.
