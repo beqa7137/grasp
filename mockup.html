@@ -1103,9 +1103,10 @@
       }
       const partsWidth = (parts) => parts.reduce((s, [t, role, , dx = 0]) => s + tw(t, role) + dx, 0);
       // A space may break a line, except: between a number and its unit ("50 ms", "8,000 queries/s", "1,000 a second",
-      // "4 of 6 up"), after an operator or "(" ("÷ 2", "× 5,000/s"), after "of" ("of 8,000/s") and after "·" (it opens
-      // the run after it), as stage-text.ts and g-code-text keep them. Runs are joined first, so the rule holds across them.
-      const BREAK = /(?<![×÷=+(·])(?<!\bof) (?!(?<=\d )(?:ms|s|queries|requests|reads|writes|replayed|workers|a|of|left|up)\b)/g;
+      // "4 of 6 up", "2,000/s shed"), after an operator or "(" ("÷ 2", "× 5,000/s"), after "of" ("of 8,000/s") and after
+      // "·" (it opens the run after it), as stage-text.ts and g-code-text keep them. Runs are joined first, so the rule
+      // holds across them.
+      const BREAK = /(?<![×÷=+(·])(?<!\bof) (?!(?<=\d )(?:ms|s|queries|requests|reads|writes|replayed|workers|a|of|left|up)\b)(?!(?<=\/s )(?:shed|spare)\b)/g;
       /** Lays runs of styled words into lines no wider than `width` (the first no wider than `first`): each line a list of
        * [text, role, cls] parts. */
       function flow(parts, width, first = width) {
@@ -1368,6 +1369,7 @@
         if (hid.lanes.has('workers') || hid.lanes.has('app')) return [['? of 100 busy', 'capB'], [' after your answer.', 'cap']];
         const rate = a.passed / a.up;
         const ms = M.formatMs(a.ms);
+        if (a.passed <= 0) return [['0 of 100 busy', 'capB'], [': nothing reaches the app servers.', 'cap']];
         if (poolBinds(r))
           return [
             [`${f1(a.inFlight)} of ${a.workers} busy`, 'capB', 'crit-ink'],
@@ -1517,9 +1519,12 @@
         const old = ghostRun?.[id]?.ceiling;
         const ghost = ghostRun && !hid.ghost && Number.isFinite(old) && old > 0 && Math.abs(old - t.ceiling) >= 0.5;
         const gx = ghost ? g.x(old) : null;
+        // When the change is zone A's loss, the lost group, hatched at its old place, ends at the old limit: it is the
+        // ghost, so no tick crowds the lane's own words; its label goes after it.
+        const lostGroup = ghost && id !== 'primary' && r.settings.zone && !ghostRun.settings.zone && !hid.zones && M.zoneLane(id, t.n, true).lost.length > 0;
         const free = (busy, ticks) => (x0, x1) => x0 >= g.xa && x1 <= g.xb && busy.every(([a, b]) => x1 + 4 <= a || x0 - 4 >= b) && ticks.every((tx) => tx < x0 - 3 || tx > x1 + 3);
         const row = [[g.xa - 2, occ]];
-        const rowTicks = ghost && gx > occ ? [gx] : [];
+        const rowTicks = ghost && !lostGroup && gx > occ ? [gx] : [];
         const fitsRow = free(row, rowTicks);
         // The strip under the lane: its zone groups (and a lost group's old place), or the primary's step arrow.
         const strip = [];
@@ -1559,9 +1564,9 @@
           const text = `limit was ${fq(old)}`;
           const w = tw(text, 'small');
           const after = Math.max(...row.map((b) => b[1]));
-          const rowCands = gx > occ ? [[gx + 5, 'start'], [gx - 5, 'end']] : [[after + 8, 'start']];
+          const rowCands = lostGroup ? [] : gx > occ ? [[gx + 5, 'start'], [gx - 5, 'end']] : [[after + 8, 'start']];
           const stripEnd = Math.max(g.xa, ...strip.map((b) => b[1]));
-          const stripCands = [[gx, 'middle'], [stripEnd + 8, 'start']];
+          const stripCands = lostGroup ? [[stripEnd + 2, 'start']] : [[gx, 'middle'], [stripEnd + 8, 'start']];
           const span = (x, a) => (a === 'end' ? [x - w, x] : a === 'middle' ? [x - w / 2, x + w / 2] : [x, x + w]);
           let at = FAULT.name === 'ghostLabel' ? null : rowCands.find(([x, a]) => fitsRow(...span(x, a)));
           if (at) at = { x: at[0], anchor: at[1], text, place: 'row' };
@@ -1569,7 +1574,7 @@
             const sc = stripCands.find(([x, a]) => fitsStrip(...span(x, a)));
             if (sc) at = { x: sc[0], anchor: sc[1], text, place: 'strip' };
           }
-          L.ghost = { x: gx, old, label: at };
+          L.ghost = { x: gx, old, label: at, tick: !lostGroup };
           if (!at && FAULT.name !== 'ghostLabel') L.wasInStatus = old;
         }
         return L;
@@ -1583,7 +1588,7 @@
         if (tw(name, 'label') + 10 + tw(fleet, 'capB') <= avail) return { name, one: true, fleet: [[[fleet, 'capB']]], h: 44 };
         // The fleet's first line sits beside the steppers; the lines under it run below their targets, at full width.
         const lines = flow([[fleet, 'capB']], g.xb - g.xa, avail);
-        return { name, one: false, fleet: lines, h: 44 + LINE * Math.max(0, lines.length - 1) };
+        return { name, one: false, fleet: lines, h: lines.length > 1 ? 46 + LINE * (lines.length - 1) : 44 };
       }
       const meterWidth = (g) => Math.round(Math.min(110, (g.xb - g.xa) * 0.34));
       const POOL_LABEL = ['Workers on one server', 'One server’s workers'];
@@ -1818,8 +1823,10 @@
         }
         if (L.ghost) {
           const x = r1(L.ghost.x);
-          D.add('top', `<line class="ghost-under" x1="${x}" y1="${y - 4}" x2="${x}" y2="${y + h + 2}"/><line class="ghost-tick" x1="${x}" y1="${y - 4}" x2="${x}" y2="${y + h + 2}" data-ghost="${id}"/>`);
-          D.link([[x, y - 4], [x, y + h / 2], [x, y + h + 2]], `ghost-${id}`);
+          if (L.ghost.tick) {
+            D.add('top', `<line class="ghost-under" x1="${x}" y1="${y - 4}" x2="${x}" y2="${y + h + 2}"/><line class="ghost-tick" x1="${x}" y1="${y - 4}" x2="${x}" y2="${y + h + 2}" data-ghost="${id}"/>`);
+            D.link([[x, y - 4], [x, y + h / 2], [x, y + h + 2]], `ghost-${id}`);
+          } else D.add('top', `<g data-ghost="${id}"></g>`);
           if (L.ghost.label) D.text(L.ghost.label.x, L.ghost.label.place === 'strip' ? y + h + 15 : y + h / 2 + 4, [[L.ghost.label.text, 'small']], { owner: `ghost-${id}`, anchor: L.ghost.label.anchor, textCls: 'on-box', id: `ghost-label-${id}` });
           D.meta.ghosts.push({ id, labelled: !!L.ghost.label || L.wasInStatus !== null, old: L.ghost.old });
         }
@@ -1882,7 +1889,8 @@
           D.text(g.xa + tw(hd.name, 'label') + 10, top + 27, hd.fleet[0], { owner, textCls: 'on-box', id: `fleet-${owner}` });
         } else {
           D.text(g.xa, top + 19, [[hd.name, 'label']], { owner, textCls: 'on-box' });
-          hd.fleet.forEach((ln, i) => D.text(g.xa, top + 36 + i * LINE, ln, { owner, textCls: 'on-box', id: i ? `fleet-${owner}-${i}` : `fleet-${owner}` }));
+          // Lines under the first clear the steppers' 44 px targets by 2 px more.
+          hd.fleet.forEach((ln, i) => D.text(g.xa, top + 36 + i * LINE + (i ? 2 : 0), ln, { owner, textCls: 'on-box', id: i ? `fleet-${owner}-${i}` : `fleet-${owner}` }));
         }
         steps.forEach((st, i) => {
           const x = g.stepX + i * 44;
@@ -2278,7 +2286,12 @@ ${toggle(s.slow, 'Slow queries', HINTS.slow())}</div></fieldset>
       function noticeOf(r, view) {
         if (view.phase === 'asking' || view.phase === 'playing') return 'Play and the settings this question is about wait for your answer.';
         if (view.reduced) return rampStory(r.settings, M.TRAFFIC[0]);
-        if (view.phase === 'rest' && view.ghost) return `${changeLine(view.ghost, r.settings)} ${summary(r)}`;
+        if (view.phase === 'rest' && view.ghost) {
+          // The change line says a condition once; the summary's own closing sentence for it would repeat it.
+          const line = changeLine(view.ghost, r.settings);
+          const sum = summary(r).replace(line.startsWith('Zone A') ? ' Zone A is down.' : line.startsWith('Slow') ? ` Each request takes ${M.formatMs(M.SLOW_MS)}.` : '\u0000', '');
+          return `${line} ${sum}`;
+        }
         return summary(r);
       }
       const ICON_RIGHT = '<svg class="mark" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="var(--g-success-line)"/><path d="M6 10.2l2.6 2.6 5.2-5.6" fill="none" stroke="var(--g-surface)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';

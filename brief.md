@@ -163,7 +163,8 @@ top-down and packed (the box's reserved slack collects at its foot, never betwee
    The database's fills hatch their writes' share (a replica's replayed writes). Past the lane's end, a shed block
    (critical hatch) from the limit to what arrived, its × inside it, or just after it when the block is under 16 px.
    Then, in the row's empty track: "limit 10,000/s" (load balancers and app servers) at the lane's end, or past the shed's
-   ×, where it fits; else the status carries it. Gridlines at 10,000, 20,000 and 30,000 run through the row, behind the
+   ×, where it fits; else in the strip just under the lane's end; else the status carries it (never beside a ghost tick,
+   where it would read as the old limit's label). Gridlines at 10,000, 20,000 and 30,000 run through the row, behind the
    segments, and break around a word in the track. At rest and in the challenge, a dashed critical tick at the limit
    that would survive zone A ("if zone A fails"), never while a question asks or plays. A ghost (below) last.
 2. **The strip** (18 px) under the lane: each zone's group of instances underlined and lettered ("B", "C", "A", the
@@ -192,9 +193,9 @@ top-down and packed (the box's reserved slack collects at its foot, never betwee
    flight (Little's law)."; when the CPU is the limit and the tier sheds, "**75 of 100 busy**: 1,500/s × 50 ms in flight;
    the CPU, not the pool, is full." (the meter in heat of 75 of 100); only when the workers are the limit and the tier
    sheds, "**100 of 100 busy**: 200/s × 500 ms. The 1,000/s sent to each would need 500 workers; its CPU sits 13.3%
-   busy." with the meter in the critical tone.
-7. **The cache line** at the database's foot: "**Cache on:** 1.62 of each request's 1.8 reads hit it; 0.18 reach the
-   database." / "**Cache off:** all 1.8 reads of each request reach the database."
+   busy." with the meter in the critical tone; with nothing arriving, "**0 of 100 busy**: nothing reaches the app servers."
+7. **The cache line** at the database's foot: "**Cache on:** 1.62 of 1.8 reads a request hit it; 0.18 reach the
+   database." / "**Cache off:** all 1.8 reads a request reach the database."
 
 No replicas draws a solid hairline track and "**None:** the primary takes every read." ("**None:** reads fail with the
 primary." when the primary is lost); a tier with nothing left draws one hatched lost segment with a ×. Dashes mean
@@ -209,7 +210,9 @@ value role, the largest text on the stage; " of 8,000/s" never breaks after "of"
 its old end as a dotted tick in the text ink with a 4.5 px raised under-stroke, drawn above the fills; never while a
 question asks. Its label "limit was 9,000/s" goes beside the tick in the lane's row, else in the strip (under the tick or
 past the strip's groups), else into the block's status (load balancers, app servers) or conversion (database); never on
-the header row. At a reveal the ghosts are the setup's limits, so a change reads as a move ("from 4,000 to 21,053").
+the header row. When the change is zone A's loss, zone A's lost group, hatched at its old place, ends exactly at the old
+limit and is the ghost: no tick is drawn, and "limit was 15,000/s" follows the lost group in the strip. At a reveal the
+ghosts are the setup's limits, so a change reads as a move ("from 4,000 to 21,053").
 
 **Controls.** On the stage: Play, the traffic handle, and each tier's − / + (load balancers 1 to 6, app servers 1 to 21,
 the database machine 4,000 or 8,000 queries a second, replicas 0 to 6); a key at its end is disabled and the fleet says
@@ -257,11 +260,12 @@ neighbours, then held by the sweep to every setting), its slack at its foot. Mea
   numbers land (400 ms) and the focus outlines pulse with their "Look here" tags.
 - **Where the page is, on a phone.** In the one-column layout the stage is taller than a phone's view, and the dock sits
   under it. Choosing an answer glides the page (instantly under reduced motion) so the play's anchor, with the stream gap
-  above it, sits 8 px under the app's header: the app servers' box for E1 and E5, the database's for E2 and E3, the load
-  balancers' for E4. The play and the reveal's draw-on happen there; at the reveal the page glides to its first focus
-  region if it is not in view, and once the reveal has landed (1.2 s) to the dock's reveal, whose last line, "See it on
-  the picture", brings the focus region back. The mockup's `anchorFit` checks that the anchor box, the lanes the play
-  changes and its × fit a 650 px view under a 56 px header, and every focus region at the reveal, at 252 and 322 px;
+  above it, sits 8 px under the app's header: the load balancers' box for E1 and E4 (E1's ramp changes every lane it
+  shows, and its ring lands above the database), the database's for E2 and E3, the app servers' for E5. The play and the
+  reveal's draw-on happen there; at the reveal the page glides so its topmost focus region sits 8 px under the header,
+  and once the reveal has landed (1.2 s) to the dock's reveal, whose last line, "See it on the picture", brings the focus
+  region back. The mockup's `anchorFit` checks that the anchor box, the lanes the play changes that stay visible and the
+  gap its ring lands in fit a 650 px view under a 56 px header, and every focus region at the reveal, at 252 and 322 px;
   `shoot.cjs` saves each of those phone views (`view-play1-390-dark.png` ...); the widget's e2e asserts the focus
   regions intersect the viewport during the play and at the reveal on the Android and WebKit iPhone projects.
 - **Plays pause** by the widget host's visibility (IntersectionObserver on the host, plus `visibilitychange`), never one
@@ -294,7 +298,8 @@ at 4,000/s: each request costs it 2 queries, so its 8,000 queries a second carry
 the app servers' 6,000/s or the load balancers' 10,000/s. Compare tiers by their limit in requests a second, never by
 their raw size. At 10,000/s only 4,000/s are served: the app servers, full at 6,000/s, shed 4,000/s, and the database
 sheds 2,000/s more. Cache the reads or add replicas first; the app servers come next, and the load balancers end exactly
-100% busy." Hides `db` (asking and playing). Focus: the database, the totals.
+100% busy." Hides `db` (asking and playing). Focus: the primary's block (its lane, its step arrow from 8,000 to 4,000,
+"÷ 2 queries a request", and its conversion), the totals.
 
 **E2 "Cache the reads".** Setup 10,000/s, 3 load balancers, 8 app servers, an 8,000-query primary, no replicas, no
 cache (the database tops out at 4,000 and sheds 6,000); act `set: { cache: 1 }`. Ask: "The database tops out at 4,000/s.
@@ -304,8 +309,8 @@ the reads, and 90% of them hit it. How many requests a second can the database t
 "21,053/s, 5.3× as many: the cache answers 1.62 of each request's 1.8 reads, so only 0.18 reads and the 0.2 writes reach
 the database, 0.38 queries a request instead of 2. Its 8,000 queries a second now serve 21,053/s, not the 40,000/s a 90%
 hit rate suggests: writes never hit a cache. All 10,000/s are served now, and the app servers, 83.3% busy, are the
-busiest tier." Hides `after` (playing). Focus: the database (the primary's ghost at 4,000, its lane to 21,053 and the
-step arrow from 8,000 to it, "÷ 0.38").
+busiest tier." Hides `after` (playing). Focus: the primary's block (its ghost at 4,000, its lane to 21,053 and the step
+arrow from 8,000 to it, "÷ 0.38 a request").
 
 **E3 "Two more replicas".** Setup 20,000/s, 6 load balancers, 20 app servers, an 8,000-query primary, 2 replicas, the
 cache; act `set: { replicas: 4 }`. Ask: "At 20,000/s, the database takes 4,000 writes a second and, after the cache,
@@ -332,7 +337,8 @@ load on what is left by 1.5× when a tier is spread evenly, so size every tier s
 still carries the peak. The load balancers end exactly 100% busy, with nothing to spare. The database loses its primary
 and a replica yet keeps room: a replica became the primary (writes fail for the seconds that takes), and the one left
 runs at 42.8%." The reveal draws zone A's groups hatched at their old places under the load balancers, the app servers
-and the replicas, with the ghosts at 15,000 and 13,500. Hides `after` and `zones`. Focus: the app servers, the load
+and the replicas, each ending at its tier's old limit and labelled "limit was 15,000/s", "limit was 13,500/s" and "limit
+was 30,769/s". Hides `after` and `zones`. Focus: the app servers, the load
 balancers.
 
 **E5 "A slow database".** Setup 6,000/s, 2 load balancers, 6 app servers, an 8,000-query primary, 2 replicas, the cache;
