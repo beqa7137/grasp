@@ -261,15 +261,15 @@
       title: 'Appended, then merged',
       setup: SETUP.compaction,
       act: { run: 'lsm' },
-      ask: 'An LSM tree never changes a file in place: a write is appended to the log and kept in the memtable, which is flushed to disk as a sorted file when it fills. Compaction then merges the record down through {levels}, each {ratio} the size of the one above. By the time it rests in the last level, how many times has it been written to disk, on average?',
+      ask: 'An LSM tree never changes a file in place: a write is appended to the log and kept in the memtable, which is flushed to disk as a sorted file when it fills. Compaction then merges the record down through {levels}, each {ratio} the size of the one above, so a level fills after {ratioN} merges from above, and each merge rewrites everything the level already holds. How many times is a record written at each level, on average?',
       choices: [
-        { text: '{amp}: the log, the flush, and about {perLevel} at each level', value: 'amp' },
-        { text: '{once}: the log, the flush, and once at each level', value: 'once' },
-        { text: '{two}: the log and the flush; a merge only moves files', value: 'two' },
+        { text: '{one}: once, as a merge moves it down', value: 'one' },
+        { text: '{perLevel}: in about half of the merges that fill its level', value: 'perLevel' },
+        { text: '{ratio}: in every merge that fills its level', value: 'ratio' },
       ],
-      truth: 'amp',
+      truth: 'perLevel',
       reveal:
-        '{amp}: the log and the flush are one write each, and then every level rewrites the record about {perLevel}. A level takes {ratioN} merges from the level above to fill, and each merge rewrites everything already there, so a record is rewritten (ratio + 1) / 2 times on average before it moves down; {levels} of {perLevel} make {levelsAmp}. Every one of those writes is sequential, but the bytes add up: {newData} of new data becomes {disk} of disk writes, and when the disk cannot sustain that, compaction falls behind, files pile up and the engine stalls writes.',
+        '{perLevel}: a record that arrives with the first merge is written in all {ratioN}, one that arrives with the last only once, so the average is (ratio + 1) / 2. With one write to the log and one at the flush, {levels} of {perLevel} make {amp} the data. Every one of those writes is sequential, but the bytes add up: {newData} of new data becomes {disk} of disk writes, and when the disk cannot sustain that, compaction falls behind, files pile up and the engine stalls writes.',
       focus: ['lsm-stack', 'lsm-transform'],
       hide: ['lsmWrite'],
       slots: () => {
@@ -280,9 +280,7 @@
           ratioN: num(m.settings.ratio),
           perLevel: amp(m.lsm.rewritesPerLevel),
           amp: amp(m.lsm.writeAmp),
-          once: amp(2 + m.lsm.levels),
-          two: amp(2),
-          levelsAmp: amp(m.lsm.levels * m.lsm.rewritesPerLevel),
+          one: amp(1),
           newData: rate(WRITE_MBPS),
           disk: rate(m.lsm.diskWriteMBps),
         };
@@ -293,21 +291,25 @@
       title: 'Bigger records',
       setup: SETUP.record,
       act: { set: { record: BIG_RECORD }, run: 'btree' },
-      ask: 'With records of {record}, the B-tree writes {btBefore} the data and the LSM tree {lsmBefore}. Store the same {data} as records of {bigRecord} instead. Which engine writes less now?',
+      ask: 'With records of {record}, the B-tree writes {btBefore} the data and the LSM tree {lsmBefore}. Store the same {data} as records of {bigRecord} instead. Whose write cost falls?',
       choices: [
-        { text: 'The LSM tree still: both costs fall tenfold, to {lsmTenth} against {btTenth}', value: 'both' },
-        { text: 'The B-tree: {btAfter} against {lsmAfter}, only its cost fell', value: 'btree' },
-        { text: 'The LSM tree still: {lsmBefore} against {btBefore}, the record plays no part', value: 'neither' },
+        { text: '{both}: ten times the record, a tenth of the cost, {btTenth} and {lsmTenth}', value: 'both' },
+        { text: "{btree}: to {btAfter}, against the LSM tree's unchanged {lsmAfter}", value: 'btree' },
+        { text: "{lsm}: to {lsmTenth}, against the B-tree's unchanged {btBefore}", value: 'lsm' },
       ],
       truth: 'outcome',
       reveal:
-        'The B-tree: {btAfter} against {lsmAfter}. Writing a page costs the same {pageB} whatever changed inside it, so a record of {bigRecord} is about a quarter of what its update writes, where a record of {record} was about a fortieth. The LSM tree rewrites every byte the same number of times whatever the record size; its cost follows its levels. Small records favour the LSM tree, and at these settings the B-tree writes less once a record passes about {crossover}.',
+        "{btree}: {btAfter}, so it now writes less than the LSM tree's {lsmAfter}. Writing a page costs the same {pageB} whatever changed inside it, so a record of {bigRecord} is about a quarter of what its update writes, where a record of {record} was about a fortieth. The LSM tree rewrites every byte the same number of times whatever the record size; its cost follows its levels. Small records favour the LSM tree, and at these settings the B-tree writes less once a record passes about {crossover}.",
       focus: ['bt-transform', 'cost-write'],
       hide: ['writesAfter'],
       slots: () => {
         const a = run(SETUP.record);
         const b = run({ ...SETUP.record, record: BIG_RECORD });
-        const outcome = b.btree.writeAmp < b.lsm.writeAmp ? 'btree' : b.lsm.writeAmp < a.lsm.writeAmp ? 'both' : 'neither';
+        // The right choice holds its truth in words, as the reveal spec asks.
+        const WORDS = { btree: "Only the B-tree's", lsm: "Only the LSM tree's", both: 'Both', neither: 'Neither' };
+        const btFalls = b.btree.writeAmp < a.btree.writeAmp;
+        const lsmFalls = b.lsm.writeAmp < a.lsm.writeAmp;
+        const outcome = btFalls && lsmFalls ? 'both' : btFalls ? 'btree' : lsmFalls ? 'lsm' : 'neither';
         return {
           record: bytes(a.settings.record),
           bigRecord: bytes(BIG_RECORD),
@@ -320,10 +322,10 @@
           lsmTenth: amp(a.lsm.writeAmp / 10),
           pageB: bytes(a.btree.pageB),
           crossover: bytes(Math.round(b.crossoverRecordB / 10) * 10),
-          outcome: word(outcome),
-          both: word('both'),
-          btree: word('btree'),
-          neither: word('neither'),
+          outcome: word(WORDS[outcome]),
+          both: word(WORDS.both),
+          btree: word(WORDS.btree),
+          lsm: word(WORDS.lsm),
         };
       },
     },
@@ -334,9 +336,9 @@
       act: { set: { bloom: 0 }, run: 'lsm' },
       ask: 'A lookup in this LSM tree costs {readsOn}: for each sorted run on disk, a bloom filter in memory says whether the run can hold the key. Turn the filters off, and look up a key that was last written long ago. What does the lookup cost now?',
       choices: [
-        { text: '{readsOn}: every run is sorted, so one search finds the key', value: 'readsOn' },
-        { text: '{two}: the newest run, then the last level', value: 'two' },
         { text: '{readsOff}: one in every run, from the newest down to the last level', value: 'readsOff' },
+        { text: '{two}: the newest run, then the last level', value: 'two' },
+        { text: '{readsOn}: every run is sorted, so one search finds the key', value: 'readsOn' },
       ],
       truth: 'readsOff',
       reveal:
@@ -368,13 +370,13 @@
       act: { set: { data: BIG_DATA }, run: 'lsm' },
       ask: 'With {data} of data the B-tree writes {btBefore} the data and the LSM tree {lsmBefore}. The data grows to {bigData}, with the same records and settings. Whose write cost rises?',
       choices: [
-        { text: "Only the LSM tree's: it needs another level", value: 'lsm' },
-        { text: 'Both: more data makes both trees deeper', value: 'both' },
-        { text: 'Neither: the cost depends on the record and the page, not the data', value: 'neither' },
+        { text: '{lsm}: it needs another level', value: 'lsm' },
+        { text: '{btree}: its tree grows taller', value: 'btree' },
+        { text: '{both}: more data makes both trees deeper', value: 'both' },
       ],
       truth: 'outcome',
       reveal:
-        "Only the LSM tree's: {lsmBefore} becomes {lsmAfter}. Ten times the data needs one more level at ratio {ratioN}, {levelsAfter} instead of {levelsBefore}, and every level adds about {perLevelN} rewrites. The B-tree still writes one page and one log record for an update, {btAfter}, however much data sits around it, and its walk is still {heightAfter} pages, since every level multiplies its reach by about {fanout}.",
+        '{lsm}: {lsmBefore} becomes {lsmAfter}. Ten times the data needs one more level at ratio {ratioN}, {levelsAfter} instead of {levelsBefore}, and every level adds about {perLevelN} rewrites. The B-tree still writes one page and one log record for an update, {btAfter}, however much data sits around it, and its walk is still {heightAfter} pages, since every level multiplies its reach by about {fanout}.',
       focus: ['lsm-stack', 'cost-write'],
       hide: ['writesAfter'],
       slots: () => {
@@ -395,10 +397,10 @@
           perLevelN: num(b.lsm.rewritesPerLevel),
           heightAfter: num(b.btree.height),
           fanout: num(b.btree.fanout),
-          outcome: word(bt && ls ? 'both' : ls ? 'lsm' : bt ? 'btree' : 'neither'),
-          lsm: word('lsm'),
-          both: word('both'),
-          neither: word('neither'),
+          outcome: word(bt && ls ? 'Both' : ls ? "Only the LSM tree's" : bt ? "Only the B-tree's" : 'Neither'),
+          lsm: word("Only the LSM tree's"),
+          btree: word("Only the B-tree's"),
+          both: word('Both'),
         };
       },
     },

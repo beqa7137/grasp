@@ -471,11 +471,11 @@ for (const spec of M.EXPERIMENTS) {
   if (spec.choices) {
     positions.push(e.answer + 1);
     check(new Set(e.choices).size === e.choices.length, `${spec.id}: choices differ`);
-    check(e.choices[e.answer].includes(M.formatSlot(e.slots[spec.truth])) || e.slots[spec.truth].unit === 'word', `${spec.id}: the right choice holds its truth`);
+    check(e.choices[e.answer].includes(M.formatSlot(e.slots[spec.truth])), `${spec.id}: the right choice holds its truth`);
   }
 }
 console.log(`\nanswer positions: ${positions.join(', ')}`);
-check(JSON.stringify(positions) === JSON.stringify([3, 1, 2, 3, 1]), `answer positions ${positions}`);
+check(JSON.stringify(positions) === JSON.stringify([3, 2, 2, 1, 1]), `answer positions ${positions}`);
 
 // The reveals' word claims.
 {
@@ -485,6 +485,10 @@ check(JSON.stringify(positions) === JSON.stringify([3, 1, 2, 3, 1]), `answer pos
   check(Math.abs(a.btree.writeBytes / 100 - 40) < 2.5, `"about a fortieth": 1 / ${a.btree.writeBytes / 100}`);
   check(close(b.lsm.writeAmp, a.lsm.writeAmp), 'E3: the LSM cost does not move with the record');
   check(b.btree.writeAmp < b.lsm.writeAmp && a.btree.writeAmp > a.lsm.writeAmp, 'E3: the order flips');
+  check(b.settings.record / a.settings.record === 10, 'E3: "ten times the record"');
+  const c = M.run(M.SETUP.compaction);
+  check(c.lsm.mergesToFill === c.settings.ratio && c.lsm.partsWritten / c.settings.ratio === c.lsm.rewritesPerLevel, 'E2: the first of the merges writes ratio times, the last once, the average (ratio + 1) / 2');
+  check(close(2 + c.lsm.levels * c.lsm.rewritesPerLevel, c.lsm.writeAmp), 'E2: log, flush and the levels make the total');
   check(Math.abs(b.crossoverRecordB - 178.1) < 0.1, `E3: crossover ${b.crossoverRecordB}`);
   const g0 = M.run(M.SETUP.growth);
   const g1 = M.run({ ...M.SETUP.growth, data: 1000 });

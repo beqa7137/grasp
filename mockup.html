@@ -1579,7 +1579,7 @@
         out.push('A rough model.');
         return out.join(' ');
       }
-      const MODEL_NOTE = `A rough model. B-tree: every update writes its whole page back alone, plus a log record; pages are about ${Math.round(M.PAGE_FILL * 100)}% full; every level above the leaves stays in memory. LSM tree: a ${M.MEMTABLE_MB} MB memtable; one log write, one flush, then about (ratio + 1) / 2 rewrites at each level as it fills; bloom filters take ${M.BLOOM_BITS} bits a key, and their false positives, about 1 lookup in ${Math.round(1 / M.BLOOM_FALSE_POSITIVE)} for each run, are left out. New data arrives at ${M.formatRate(M.WRITE_MBPS)}.`;
+      const MODEL_NOTE = `A rough model. B-tree: every update writes its whole page back alone, plus a log record (its leaf is read first when it is not in memory; that read is not counted); pages are about ${Math.round(M.PAGE_FILL * 100)}% full; every level above the leaves stays in memory. LSM tree: a ${M.MEMTABLE_MB} MB memtable; one log write, one flush, then about (ratio + 1) / 2 rewrites at each level as it fills (a real tree spends fewer at its small top level and more at its always-full last one, and the totals come out close); bloom filters take ${M.BLOOM_BITS} bits a key, and their false positives, about 1 lookup in ${Math.round(1 / M.BLOOM_FALSE_POSITIVE)} for each run, are left out. New data arrives at ${M.formatRate(M.WRITE_MBPS)}.`;
 
       // ---------- The stage. One panel a engine, the same shape at every width (224 px and up), side by side from a
       // 500 px stage; under them, what each engine pays. Heights depend on the stage's width only.
@@ -1998,20 +1998,20 @@
         D.text(x, y + 11, [[label, 'label', '']], { textCls: 'muted', owner: 'cost-label' });
         const px = w / M.WRITE_AXIS;
         let cy = y + 20;
+        // How each engine writes stands beside its name, in the same form for both or for neither.
+        const HOW = { btree: [' · whole pages, at random places', ' · pages, at random', ''], lsm: [' · appends and merges, all sequential', ' · sequential', ''] };
+        const hiddenOf = (engine) => (engine === 'btree' ? hid.btNumbers : hid.lsmNumbers);
+        const shortestOf = (engine) => (hiddenOf(engine) ? tw('?×', 'num') : tw(fAmp(m[engine].writeAmp), 'num') + tw(` · ${M.formatRate(m[engine].diskWriteMBps)}`, 'small'));
+        const howIndex = [0, 1, 2].find((i) => ['btree', 'lsm'].every((engine) => tw(costName(engine), 'small') + tw(HOW[engine][i], 'small') <= w - shortestOf(engine) - 12));
         for (const engine of ['btree', 'lsm']) {
           const e = m[engine];
-          const hidden = engine === 'btree' ? hid.btNumbers : hid.lsmNumbers;
+          const hidden = hiddenOf(engine);
           const was = view.ghost && !hid.ghost ? M.run(view.ghost)[engine].writeAmp : null;
           const moved = was !== null && Math.abs(was - e.writeAmp) > 1e-9;
-          const how = engine === 'btree' ? [' · whole pages, at random places', ' · pages, at random', ''] : [' · appends and merges, all sequential', ' · sequential', ''];
-          const shortest = hidden ? tw('?×', 'num') : tw(fAmp(e.writeAmp), 'num') + tw(` · ${M.formatRate(e.diskWriteMBps)}`, 'small');
-          const nameParts = pick(
-            how.map((t) => [
-              [costName(engine), 'small', 'ink'],
-              [t, 'small', 'muted'],
-            ]),
-            (f) => partsWidth(f) <= w - shortest - 12,
-          );
+          const nameParts = [
+            [costName(engine), 'small', 'ink'],
+            [HOW[engine][howIndex], 'small', 'muted'],
+          ];
           D.text(x, cy + 11, nameParts, { owner: `cost-${engine}` });
           const nameW = partsWidth(nameParts) + 10;
           const forms = hidden
