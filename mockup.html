@@ -1566,7 +1566,7 @@
           const after = Math.max(...row.map((b) => b[1]));
           const rowCands = lostGroup ? [] : gx > occ ? [[gx + 5, 'start'], [gx - 5, 'end']] : [[after + 8, 'start']];
           const stripEnd = Math.max(g.xa, ...strip.map((b) => b[1]));
-          const stripCands = lostGroup ? [[stripEnd + 2, 'start']] : [[gx, 'middle'], [stripEnd + 8, 'start']];
+          const stripCands = lostGroup ? [[stripEnd + 4, 'start']] : [[gx, 'middle'], [stripEnd + 8, 'start']];
           const span = (x, a) => (a === 'end' ? [x - w, x] : a === 'middle' ? [x - w / 2, x + w / 2] : [x, x + w]);
           let at = FAULT.name === 'ghostLabel' ? null : rowCands.find(([x, a]) => fitsRow(...span(x, a)));
           if (at) at = { x: at[0], anchor: at[1], text, place: 'row' };
