@@ -4,10 +4,9 @@ Part A lists what the mockup's own screenshot and collision rounds found (screen
 both themes; `shoot.cjs` and its sweeps). Part B is the critique of the first complete design against the bar (Stripe,
 Linear, Observable, NYT graphics, Bartosz Ciechanowski; Load Balancing, Data Modeling, Consistency & Quorums and Latency &
 Queueing as the house references), in two passes: craft, then teaching and honesty. Part C lists the items considered and
-kept as they are, with the reason. The round ends with zero collisions over 174 screenshots (29 states), zero findings
-over the settings sweep (148,940 renders across 12 widths), 324 experiment renders and 360 no-answer renders with four
-planted leaks caught, no finding over every page sentence of a third of all 197,568 settings, one stage height per
-width, and `enum.cjs` passing 366 checks.
+kept as they are, with the reason (two of them were reversed in the second round). The first round ended with zero
+collisions over 174 screenshots, zero findings over its sweeps and `enum.cjs` passing 366 checks. Part D is the second
+round: two independent critics and the showcase, 57 issues, each mapped to what changed.
 
 ## A. The mockup's own rounds
 
@@ -70,7 +69,7 @@ width, and `enum.cjs` passing 366 checks.
 | A per-request "receipt" strip (one request's work at every tier)                           | The lanes already encode cost against the shared axis (a cheaper request makes a longer lane), and each lane's cost line states it; a receipt would add a second unit system to the stage                                                          |
 | Drawing autoscaling's lag                                                                  | It is a time-domain effect that needs a second, timed stage; the ramp shows what breaks first, which an autoscaler would have to beat, and the lesson's flash-sale example carries the lag                                                       |
 | Drawing hot keys and locks                                                                 | They are "one thing every request needs", the same picture as the lone primary; drawing them needs a key model the lesson does not have                                                                                                           |
-| E3 asking shows the replayed writes' share (half of each replica)                          | It is the premise, as Latency & Queueing's E3 shows an idle server beside a line: the learner still has to predict that the share does not split and add the halved reads (50% + 11.25%)                                                       |
+| E3 asking shows the replayed writes' share (half of each replica)                          | Reversed in the second round (R7, R36): the replay is the reveal's reason, so E3 now hides it while it asks. First-round reason: it is the premise, as Latency & Queueing's E3 shows an idle server beside a line: the learner still has to predict that the share does not split and add the halved reads (50% + 11.25%)                                                       |
 | The right half of a box is empty at low traffic                                            | The axis must hold the traffic's 20,000 and the comparison across tiers depends on one scale; an axis per tier would break the ladder reading                                                                                                      |
-| Lost instances are not drawn after a zone loss                                             | The fleet says "4 of 6 up", the lane is shorter by their share, and the ghost marks the old limit; drawing the lost segments past the lane's end would sit on the shed block, which starts at the same place |
+| Lost instances are not drawn after a zone loss                                             | Reversed in the second round (R2, R18): zone A's lost group is drawn hatched in the strip under its lane, clear of the shed block. First-round reason: the fleet says "4 of 6 up", the lane is shorter by their share, and the ghost marks the old limit; drawing the lost segments past the lane's end would sit on the shed block, which starts at the same place |
 | The answer's play shows the stream narrowing where requests are shed (E1, E4, E5)           | The stream is the mechanism and the play is where the answer plays out on the picture, as Latency & Queueing's sample; every number and every hidden lane waits for the reveal                                                                    |

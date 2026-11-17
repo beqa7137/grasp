@@ -12,7 +12,8 @@
 // phone widths, and prints the stage heights per width (each must be one value). A state is a name ("cached"), a
 // question asking, playing or revealed ("ask:3", "play:3", "reveal:1"), or the challenge ("challenge",
 // "challenge-start").
-// Usage: node shoot.cjs [--no-sweep] [--sweep-only] [--only=state,state] [--widths=1280,390] [--stride=n]
+// Usage: node shoot.cjs [--no-sweep] [--sweep-only] [--no-settings] [--only=state,state] [--widths=1280,390] [--stride=n]
+// (--no-settings skips the long settings sweep and the heights, keeping every other sweep and check.)
 'use strict';
 const http = require('http');
 const fs = require('fs');
@@ -120,6 +121,9 @@ const server = http.createServer((req, res) => {
     console.log(`page sentences (summary, ramp story, Describe both ways, goal checks) over a third of every setting: ${words.length} findings`);
     for (const w of words.slice(0, 8)) console.log(`    ${w}`);
     total += words.length;
+    if (args.includes('--no-settings')) {
+      await page.close();
+    } else {
     const count = await page.evaluate(() => window.ALL_SETTINGS.length);
     const all = Array.from({ length: count }, (_, i) => i);
     // A stride of every setting at the phone and desktop widths (at rest, mid-ramp and with a ghost), sparser elsewhere.
@@ -150,6 +154,7 @@ const server = http.createServer((req, res) => {
     console.log('stage heights by width (each should be one value):', JSON.stringify(heights));
     for (const hs of Object.values(heights)) if (hs.length !== 1) total++;
     await page.close();
+    }
   }
   // Page-level checks at phone widths: no condition moves the stage, Describe's table fits, and the phone view of every
   // play and reveal at its anchor.

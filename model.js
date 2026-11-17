@@ -284,7 +284,7 @@
       truth: 'first',
       reveal:
         'The database, at {dbLimit}: each request costs it {queries} queries, so its {size} queries a second carry only {dbLimitN} requests a second, fewer than the app servers’ {appLimit} or the load balancers’ {lbLimit}. Compare tiers by their limit in requests a second, never by their raw size. At {target} only {served} are served: the app servers, full at {appLimit}, shed {appShed}, and the database sheds {dbShed} more. Cache the reads or add replicas first; the app servers come next, and the load balancers end exactly {lbBusy} busy.',
-      focus: ['db', 'sink'],
+      focus: ['primary', 'sink'],
       hide: ['db'],
       slots: () => {
         const a = run(SETUP.tenfold);
@@ -329,7 +329,7 @@
       truth: 'afterRound',
       reveal:
         '{after}, {ratio} as many: the cache answers {hits} of each request’s {reads} reads, so only {misses} reads and the {writes} writes reach the database, {cost} queries a request instead of {queries}. Its {size} queries a second now serve {after}, not the {ten} a {hit} hit rate suggests: writes never hit a cache. All {traffic} are served now, and the app servers, {appBusy} busy, are the busiest tier.',
-      focus: ['db'],
+      focus: ['primary'],
       hide: ['after'],
       slots: () => {
         const a = run(SETUP.cache);

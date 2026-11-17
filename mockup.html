@@ -1032,7 +1032,7 @@
       }
       .compact th,
       .compact td {
-        padding-inline: 4px;
+        padding-inline: 3px;
       }
       .compact th {
         letter-spacing: normal;
@@ -1060,7 +1060,7 @@
         padding: 4px 8px;
       }
       .compact tbody th {
-        padding-inline: 4px;
+        padding-inline: 3px;
       }
     </style>
   </head>
@@ -1106,8 +1106,9 @@
       // "4 of 6 up"), after an operator or "(" ("÷ 2", "× 5,000/s"), after "of" ("of 8,000/s") and after "·" (it opens
       // the run after it), as stage-text.ts and g-code-text keep them. Runs are joined first, so the rule holds across them.
       const BREAK = /(?<![×÷=+(·])(?<!\bof) (?!(?<=\d )(?:ms|s|queries|requests|reads|writes|replayed|workers|a|of|left|up)\b)/g;
-      /** Lays runs of styled words into lines no wider than `width`: each line a list of [text, role, cls] parts. */
-      function flow(parts, width) {
+      /** Lays runs of styled words into lines no wider than `width` (the first no wider than `first`): each line a list of
+       * [text, role, cls] parts. */
+      function flow(parts, width, first = width) {
         let full = '';
         const style = [];
         for (const [text, role, cls = ''] of parts) {
@@ -1142,7 +1143,7 @@
         let line = [];
         let lw = 0;
         for (const w of words) {
-          if (line.length && w.space && lw + w.lead + w.w > width) {
+          if (line.length && w.space && lw + w.lead + w.w > (lines.length ? width : first)) {
             lines.push(line);
             line = [w];
             lw = w.w;
@@ -1157,7 +1158,7 @@
           const prev = lines[lines.length - 2];
           const lastW = lines[lines.length - 1][0];
           const moved = prev[prev.length - 1];
-          if (lastW.space && moved.space && moved.w + lastW.lead + lastW.w <= width) {
+          if (lastW.space && moved.space && moved.w + lastW.lead + lastW.w <= (lines.length > 2 ? width : first)) {
             lines.splice(lines.length - 2, 2, prev.slice(0, -1), [moved, lastW]);
           }
         }
@@ -1355,8 +1356,8 @@
       /** The cache line at the database's foot: what it answers of each request's reads. */
       function cacheParts(r) {
         const reads = M.formatNum(r.reads);
-        if (!r.settings.cache) return [['Cache off: ', 'capB'], [`all ${reads} reads of each request reach the database.`, 'cap']];
-        return [['Cache on: ', 'capB'], [`${M.formatNum(r.hits)} of each request’s ${reads} reads hit it; ${M.formatNum(r.misses)} reach the database.`, 'cap']];
+        if (!r.settings.cache) return [['Cache off: ', 'capB'], [`all ${reads} reads a request reach the database.`, 'cap']];
+        return [['Cache on: ', 'capB'], [`${M.formatNum(r.hits)} of ${reads} reads a request hit it; ${M.formatNum(r.misses)} reach the database.`, 'cap']];
       }
       /** The pool binds (critical, "would need") only when the workers are the app servers' limit and they shed. */
       const poolBinds = (r) => r.app.bound === 'workers' && r.app.shed > 1e-9;
@@ -1520,16 +1521,6 @@
         const row = [[g.xa - 2, occ]];
         const rowTicks = ghost && gx > occ ? [gx] : [];
         const fitsRow = free(row, rowTicks);
-        if (id === 'lb' || id === 'app') {
-          const text = `limit ${fq(t.ceiling)}`;
-          const w = tw(text, 'small');
-          // At the lane's end or not at all: beside a ghost tick it would read as the old limit's label.
-          const x = [occ + 6].find((x) => fitsRow(x, x + w));
-          if (x !== undefined) {
-            L.limitLabel = { x, text };
-            row.push([x, x + w]);
-          } else L.limitInStatus = true;
-        }
         // The strip under the lane: its zone groups (and a lost group's old place), or the primary's step arrow.
         const strip = [];
         if (id === 'primary') {
@@ -1550,12 +1541,25 @@
           const lostEnd = r.settings.zone && t.lost ? g.x(M.run({ ...r.settings, zone: 0 })[id].ceiling) : end;
           strip.push([g.xa - 4, Math.max(end, lostEnd) + 6]);
         }
+        const fitsStrip = free(strip, []);
+        if (id === 'lb' || id === 'app') {
+          // At the lane's end, or under it in the strip: beside a ghost tick it would read as the old limit's label.
+          const text = `limit ${fq(t.ceiling)}`;
+          const w = tw(text, 'small');
+          const stripAt = Math.max(end + 2, ...strip.map((b) => b[1])) + 6;
+          if (fitsRow(occ + 6, occ + 6 + w)) {
+            L.limitLabel = { x: occ + 6, text, place: 'row' };
+            row.push([occ + 6, occ + 6 + w]);
+          } else if (fitsStrip(stripAt, stripAt + w)) {
+            L.limitLabel = { x: stripAt, text, place: 'strip' };
+            strip.push([stripAt, stripAt + w]);
+          } else L.limitInStatus = true;
+        }
         if (ghost) {
           const text = `limit was ${fq(old)}`;
           const w = tw(text, 'small');
           const after = Math.max(...row.map((b) => b[1]));
           const rowCands = gx > occ ? [[gx + 5, 'start'], [gx - 5, 'end']] : [[after + 8, 'start']];
-          const fitsStrip = free(strip, []);
           const stripEnd = Math.max(g.xa, ...strip.map((b) => b[1]));
           const stripCands = [[gx, 'middle'], [stripEnd + 8, 'start']];
           const span = (x, a) => (a === 'end' ? [x - w, x] : a === 'middle' ? [x - w / 2, x + w / 2] : [x, x + w]);
@@ -1577,7 +1581,8 @@
         const avail = g.stepX - g.xa - 6;
         const name = pick(NAMES[id], (n) => tw(n, 'label') <= avail);
         if (tw(name, 'label') + 10 + tw(fleet, 'capB') <= avail) return { name, one: true, fleet: [[[fleet, 'capB']]], h: 44 };
-        const lines = flow([[fleet, 'capB']], avail);
+        // The fleet's first line sits beside the steppers; the lines under it run below their targets, at full width.
+        const lines = flow([[fleet, 'capB']], g.xb - g.xa, avail);
         return { name, one: false, fleet: lines, h: 44 + LINE * Math.max(0, lines.length - 1) };
       }
       const meterWidth = (g) => Math.round(Math.min(110, (g.xb - g.xa) * 0.34));
@@ -1642,6 +1647,8 @@
       }
       function reserve(W) {
         if (reserveCache.has(W)) return reserveCache.get(W);
+        const fault = FAULT.name;
+        FAULT.name = null;
         const g = geometry(W);
         const n = { lb: 0, app: 0, db: 0, sink: 0 };
         const take = (P) => {
@@ -1661,6 +1668,7 @@
             if (moved) take(planStage(g, r, NO_HIDE, gr));
           }
         }
+        FAULT.name = fault;
         reserveCache.set(W, n);
         return n;
       }
@@ -1750,7 +1758,7 @@
           return;
         }
         // The axis's gridlines run through the lane's row, behind its instances, and break around a word in its track.
-        const words = [L.limitLabel && [L.limitLabel.x, L.limitLabel.x + tw(L.limitLabel.text, 'small')], L.ghost?.label?.place === 'row' && (L.ghost.label.anchor === 'end' ? [L.ghost.label.x - tw(L.ghost.label.text, 'small'), L.ghost.label.x] : [L.ghost.label.x, L.ghost.label.x + tw(L.ghost.label.text, 'small')])].filter(Boolean);
+        const words = [L.limitLabel?.place === 'row' && [L.limitLabel.x, L.limitLabel.x + tw(L.limitLabel.text, 'small')], L.ghost?.label?.place === 'row' && (L.ghost.label.anchor === 'end' ? [L.ghost.label.x - tw(L.ghost.label.text, 'small'), L.ghost.label.x] : [L.ghost.label.x, L.ghost.label.x + tw(L.ghost.label.text, 'small')])].filter(Boolean);
         for (const v of TICKS.slice(1, -1)) {
           const gx = r1(g.x(v));
           const cut = words.some(([a, b]) => gx > a - 3 && gx < b + 3);
@@ -1797,7 +1805,7 @@
           D.mark({ x0: L.shed.x0, x1: L.shed.x1, y0: y, y1: y + h }, owner);
           xGlyph(D, L.shed.xMark, y + h / 2, owner, 4, 'xground on-box');
         }
-        if (L.limitLabel) D.text(L.limitLabel.x, y + h / 2 + 4, [[L.limitLabel.text, 'small']], { owner, textCls: 'on-box', id: `limit-${id}` });
+        if (L.limitLabel) D.text(L.limitLabel.x, L.limitLabel.place === 'strip' ? y + h + 15 : y + h / 2 + 4, [[L.limitLabel.text, 'small']], { owner, textCls: 'on-box', id: `limit-${id}` });
         // Where this tier's limit falls if zone A fails: a dashed critical tick, at rest and in the challenge.
         if (zr && hid.zoneTicks && !hid.zones) {
           const z = zr[id];
@@ -2129,7 +2137,9 @@
             const across = [];
             for (let ax = x + w - TAG.w - 16; ax >= x + 16; ax -= 8) across.push(ax);
             const xs = [x + w - TAG.w - 16, x + 16, ...across, x + w - TAG.w, D.W - 3 - TAG.w];
-            const ys = [yy - TAG.h / 2, yy + h - TAG.h / 2, yy + 6, yy + h - TAG.h - 6, yy + 24, yy + h - TAG.h - 24, yy + 44, yy - TAG.h - 2, yy + h + 2];
+            const inner = [];
+            for (let iy = yy + 64; iy <= yy + h - TAG.h - 6; iy += 10) inner.push(iy);
+            const ys = [yy - TAG.h / 2, yy + h - TAG.h / 2, yy + 6, yy + h - TAG.h - 6, yy + 24, yy + h - TAG.h - 24, yy + 44, ...inner, yy - TAG.h - 2, yy + h + 2];
             let placed = false;
             for (const [tx, ty] of ys.flatMap((t) => xs.map((sx) => [sx, t]))) {
               const box = { x0: tx, x1: tx + TAG.w, y0: ty, y1: ty + TAG.h };
@@ -2206,7 +2216,9 @@
       }
       /** Where the stage is brought, 8 px under the app's header, in the one-column layout: the box whose lanes the play
        * changes first, with the stream gap above it; at the reveal, the first focus region. */
-      const PLAY_ANCHOR = { tenfold: 'app', cache: 'db', replay: 'db', zone: 'lb', slow: 'app' };
+      const PLAY_ANCHOR = { tenfold: 'lb', cache: 'db', replay: 'db', zone: 'lb', slow: 'app' };
+      /** The reveal's anchor: its topmost focus region. */
+      const revealAnchor = (D, focus) => focus.reduce((a, id) => (!a || (D.regions[id]?.[0]?.y ?? Infinity) < D.regions[a][0].y ? id : a), null);
       /** One experiment's view: asking (from whatever setting came before, which must leave no trace), the answer's play
        * at a fraction of its clock, revealed, or the challenge met or at its start. */
       function expView(spec, phase, frac = 0.8, from = null) {
@@ -2230,7 +2242,7 @@
           changed: changedLanes(a, b),
           totalsChange: Math.abs(a.served - b.served) > 1e-9 || Math.abs(a.shed - b.shed) > 1e-9,
           ghost: phase === 'asking' ? from : phase === 'revealed' ? spec.setup : null,
-          anchor: phase === 'revealed' ? spec.focus[0] : PLAY_ANCHOR[spec.id],
+          anchor: PLAY_ANCHOR[spec.id],
         };
         if (phase === 'asking') return { ...view, s: spec.setup };
         if (phase === 'playing') {
@@ -2281,6 +2293,7 @@ ${toggle(s.slow, 'Slow queries', HINTS.slow())}</div></fieldset>
         if (FAULT.name === 'zoneSum' && sheds.length) return `zone A lost: ${fq(z.shed)} shed at ${tierWord(z, sheds[0][0])}: not yet`;
         if (sheds.length === 1 && (sheds[0][0] === 'lb' || sheds[0][0] === 'app')) {
           const t = z[sheds[0][0]];
+          if (!t.up) return `zone A lost: it held ${t.n === 1 ? `the only ${NOUN[sheds[0][0]][0]}` : `all ${t.n} ${NOUN[sheds[0][0]][1]}`}, so all ${fq(sheds[0][1])} are shed: not yet`;
           const left = t.up === 1 ? `the one left sheds ${fq(sheds[0][1])}` : `the ${t.up} left shed ${fq(sheds[0][1])}`;
           return `zone A lost: it held ${t.lost} of ${t.n} ${NOUN[sheds[0][0]][1]}; ${left}: not yet`;
         }
@@ -2363,7 +2376,7 @@ ${toggle(s.slow, 'Slow queries', HINTS.slow())}</div></fieldset>
             cells = ['0', q(t.arriving), 'lost', q(t.shed)];
           } else {
             up = id === 'primary' ? (t.promoted ? (compact ? '1*' : '1, promoted') : '1') : t.lost ? `${t.up} of ${t.n}` : `${t.n}`;
-            cells = [q(t.ceiling), q(loadOf(r, id) && id !== 'lb' && id !== 'app' ? r.dbArriving : t.arriving), busy(id), t.shed > 1e-9 ? q(t.shed) : none];
+            cells = [q(t.ceiling), q(id === 'lb' || id === 'app' ? t.arriving : r.dbArriving), busy(id), t.shed > 1e-9 ? q(t.shed) : none];
           }
           rows.push({ id, cells: compact ? [`${SHORT[id]} ${up}`, ...cells] : [NAME[id], up, ...cells] });
         }
@@ -2553,7 +2566,10 @@ ${view.reduced ? `<p class="caption">${esc(rampStory(r.settings, M.TRAFFIC[0]))}
        * Describe and the dock, with accessible names. */
       function widgetText() {
         const w = document.getElementById('widget');
-        return `${w.textContent} | ${[...w.querySelectorAll('[aria-label],[aria-valuetext]')].map((e) => `${e.getAttribute('aria-label')} ${e.getAttribute('aria-valuetext') ?? ''}`).join(' | ')}`;
+        const nodes = [];
+        const walk = document.createTreeWalker(w, NodeFilter.SHOW_TEXT);
+        for (let n; (n = walk.nextNode()); ) nodes.push(n.nodeValue);
+        return `${nodes.join(' ')} | ${[...w.querySelectorAll('[aria-label],[aria-valuetext]')].map((e) => `${e.getAttribute('aria-label')} ${e.getAttribute('aria-valuetext') ?? ''}`).join(' | ')}`;
       }
       function htmlFindings() {
         const text = widgetText();
@@ -2568,7 +2584,8 @@ ${view.reduced ? `<p class="caption">${esc(rampStory(r.settings, M.TRAFFIC[0]))}
         for (const g of FALSE_CLAIMS) if (g.test(text)) out.push(`false claim ${g}: ${text.match(g)[0]}`);
         const drawn = [...svg.querySelectorAll('text:not([data-xtick])')].map((t) => t.textContent);
         for (const t of drawn) if (UNITLESS.test(t)) out.push(`a number with no unit: "${t}"`);
-        if (r.primary.outage && /takes every read/.test(text + D.label)) out.push('a lost primary is said to take reads');
+        const flat = [...svg.querySelectorAll('text')].map((t) => t.textContent).join(' ');
+        if (r.primary.outage && /takes every read/.test(`${flat} ${D.label}`)) out.push('a lost primary is said to take reads');
         // Little's law multiplies out as printed: workers in flight = rate x time.
         const wt = [...svg.querySelectorAll('[data-id^="workers-"]')].map((t) => t.textContent).join(' ');
         const x = wt.match(/^([\d.,]+) of 100 busy: ([\d,.]+)\/s × ([\d,]+) ms/);
@@ -2608,7 +2625,8 @@ ${view.reduced ? `<p class="caption">${esc(rampStory(r.settings, M.TRAFFIC[0]))}
         for (const id of ['lb', 'app', 'replicas']) {
           const f = [...svg.querySelectorAll(`[data-id^="fleet-${id}"]`)].map((t) => t.textContent).join(' ');
           const m = f.match(/× ([\d,]+)(\/s| queries\/s)/);
-          if (hid.lanes.has(id) && m) out.push(`${id}'s fleet shows a per-instance figure while hidden: ${f}`);
+          // A hidden load balancer or app tier shows its count alone; a replica's machine size is premise, never an answer.
+          if (hid.lanes.has(id) && id !== 'replicas' && m) out.push(`${id}'s fleet shows a per-instance figure while hidden: ${f}`);
           else if (m) {
             const v = Number(m[1].replace(/,/g, ''));
             const want = id === 'replicas' ? r.settings.size : r[id].each;
@@ -2684,7 +2702,11 @@ ${view.reduced ? `<p class="caption">${esc(rampStory(r.settings, M.TRAFFIC[0]))}
             for (const mode of modes) {
               const view = { s, hide: [], phase: 'rest' };
               if (mode === 'ramp') Object.assign(view, { particles: true, seed: s.traffic + s.app, climax: rampClimax(s, M.TRAFFIC[0], s.traffic) });
-              if (mode === 'ghost') view.ghost = { ...s, lb: s.lb % M.LB_MAX + 1, app: s.app > 1 ? s.app - 1 : 2, cache: 1 - s.cache, replicas: (s.replicas + 1) % (M.REP_MAX + 1) };
+              // A ghost is the setting before one change: each setting gets one of its neighbours, in turn.
+              if (mode === 'ghost') {
+                const ns = neighbours(s);
+                view.ghost = ns[(s.traffic / 1000 + s.lb * 7 + s.app * 3 + s.replicas) % ns.length];
+              }
               if (mode === 'reduced') Object.assign(view, { climax: restRing(s), ringAtRest: true });
               const { D } = drawInto(well, W, r, view);
               const out = check(well, D, r, view);
@@ -2747,15 +2769,19 @@ ${view.reduced ? `<p class="caption">${esc(rampStory(r.settings, M.TRAFFIC[0]))}
               const { D } = drawInto(well, W, M.run(v.s), v);
               if (phase === 'revealed') focusOutlines(D, v.focus, 4000);
               const box = phase === 'playing' ? D.meta.boxes.find((b) => b.id === v.anchor) : null;
-              const reg = phase === 'revealed' ? D.regions[v.anchor]?.[0] : null;
-              const top = (box ? box.top : reg.y + 4) - geometry(W).gap;
+              const reg = phase === 'revealed' ? D.regions[revealAnchor(D, v.focus)]?.[0] : null;
+              // A play brings its anchor box with the stream gap above it; a reveal, its topmost focus region itself.
+              const top = box ? box.top - geometry(W).gap : reg.y;
               const from = top - 8;
               const to = from + view - 56;
               const need = [];
               if (box) {
                 need.push([box.id, box.top, box.bottom]);
-                for (const id of v.changed.filter((id) => id !== 'workers')) if (D.meta.lanes[id]) need.push([id, D.meta.lanes[id].y, D.meta.lanes[id].y + LANE_H]);
-                const gp = D.meta.gaps.find((x) => x.xMark !== null && x.nextId !== 'sink');
+                // What plays out: the lanes the act changes that stay visible, and the gap whose × the ring lands on.
+                for (const id of v.changed.filter((id) => id !== 'workers')) if (D.meta.lanes[id]?.kind === 'normal') need.push([id, D.meta.lanes[id].y, D.meta.lanes[id].y + LANE_H]);
+                const ring = v.climax ?? M.rampPlan(spec.setup, spec.setup.traffic, actSettings(spec).traffic).full;
+                const gapId = ring === 'primary' || ring === 'replicas' ? 'db' : ring;
+                const gp = D.meta.gaps.find((x) => x.nextId === gapId);
                 if (gp) need.push([`gap ${gp.nextId}`, gp.y0, gp.y1]);
               } else for (const id of v.focus) for (const rg of D.regions[id] ?? []) need.push([id, rg.y, rg.y + rg.h]);
               const missing = need.filter(([, a, b]) => a < from - 0.5 || b > to + 0.5).map(([id, a, b]) => `${id} ${Math.round(a)}-${Math.round(b)}`);
@@ -2907,9 +2933,7 @@ ${view.reduced ? `<p class="caption">${esc(rampStory(r.settings, M.TRAFFIC[0]))}
           if (!near(printed, m.zoneShed, 1)) out.push(`the zone line's amounts sum to ${printed}, not ${fn(m.zoneShed)}: "${line}"`);
           const z = m.zone;
           for (const [id, v] of [['lb', z.lb.shed], ['app', z.app.shed], [z.binding, z.primary.shed + z.replicas.shed]])
-            if (v > 1e-9 && !(line.includes(`${fq(v)}`) && line.includes(NOUN[id === 'primary' ? 'replicas' : id]?.[1].split(' ').pop() ?? 'primary'))) {
-              if (!(id === 'primary' && line.includes('primary'))) out.push(`the zone line leaves out ${id}'s ${fq(v)}: "${line}"`);
-            }
+            if (v > 1e-9 && !(line.includes(fq(v)) && line.includes({ lb: 'balancer', app: 'server', replicas: 'replica', primary: 'primary' }[id]))) out.push(`the zone line leaves out ${id}'s ${fq(v)}: "${line}"`);
         }
         return out;
       }
@@ -2922,22 +2946,24 @@ ${view.reduced ? `<p class="caption">${esc(rampStory(r.settings, M.TRAFFIC[0]))}
       window.plantedFaults = function (W = 252) {
         const well = document.getElementById('well');
         const out = [];
-        const layout = (name, view) => {
-          well.style.width = W + 2 + 'px';
+        const fresh = (name, run) => {
+          const before = run();
           FAULT.name = name;
-          const r = M.run(view.s);
-          const { D } = drawInto(well, W, r, view);
-          const found = check(well, D, r, view);
+          const after = run();
           FAULT.name = null;
-          well.style.width = '';
-          out.push([name, found.length > 0, found[0] ?? '']);
+          const added = after.filter((f) => !before.includes(f));
+          out.push([name, added.length > 0, added[0] ?? '']);
         };
-        const words = (name, s) => {
-          FAULT.name = name;
-          const found = wordFindings(s);
-          FAULT.name = null;
-          out.push([name, found.length > 0, found[0] ?? '']);
-        };
+        const layout = (name, view) =>
+          fresh(name, () => {
+            well.style.width = W + 2 + 'px';
+            const r = M.run(view.s);
+            const { D } = drawInto(well, W, r, view);
+            const found = check(well, D, r, view);
+            well.style.width = '';
+            return found;
+          });
+        const words = (name, s) => fresh(name, () => wordFindings(s));
         const rest = (s, extra = {}) => ({ s, hide: [], phase: 'rest', ...extra });
         layout('segments', rest(B));
         layout('fillRatio', rest(B));
@@ -2952,14 +2978,14 @@ ${view.reduced ? `<p class="caption">${esc(rampStory(r.settings, M.TRAFFIC[0]))}
         words('atZero', { traffic: 6000, lb: 1, app: 4, size: 8000, replicas: 2, cache: 0, zone: 1, slow: 0 });
         words('fullBusy', B);
         words('fromTo', { ...B, traffic: 1000 });
-        words('zoneSum', { ...M.SETUP.challenge, lb: 2, app: 1 });
-        words('tie', M.SETUP.replay);
+        words('zoneSum', { ...M.SETUP.challenge, lb: 2, app: 1, size: 8000, replicas: 2 });
+        words('tie', { traffic: 10000, lb: 3, app: 10, size: 8000, replicas: 2, cache: 1, zone: 0, slow: 0 });
         words('noTier100', { traffic: 1000, lb: 1, app: 5, size: 8000, replicas: 2, cache: 1, zone: 0, slow: 1 });
         words('primaryReads', STATES.outage.s);
-        FAULT.name = 'toggleHint';
-        renderView(viewOf('default'));
-        out.push(['toggleHint', htmlFindings().length > 0, htmlFindings()[0] ?? '']);
-        FAULT.name = null;
+        fresh('toggleHint', () => {
+          renderView(viewOf('default'));
+          return htmlFindings();
+        });
         renderView(viewOf(params.get('state') ?? 'default'));
         return out;
       };
@@ -3019,7 +3045,7 @@ ${view.reduced ? `<p class="caption">${esc(rampStory(r.settings, M.TRAFFIC[0]))}
         const g = geometry(D.W);
         let top;
         if (view.phase === 'playing') top = D.meta.boxes.find((b) => b.id === view.anchor).top - g.gap;
-        else if (view.phase === 'revealed') top = D.regions[view.anchor][0].y + 4 - g.gap;
+        else if (view.phase === 'revealed') top = D.regions[revealAnchor(D, view.focus)][0].y;
         else return 0;
         const well = document.getElementById('well').getBoundingClientRect().top + window.scrollY;
         return Math.max(0, Math.round(well + top - 64));
