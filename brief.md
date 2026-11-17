@@ -10,7 +10,7 @@ B-tree and LSM levels", and the Data Modeling, Consistency & Quorums and Latency
 | `model.js`    | The rough cost model (the old `storageCost`'s formulas, plus what the picture needs: the B-tree's pages level by level, the LSM tree's level sizes, where each written byte goes, space, bloom filter memory) and the six experiments as slot templates; ported to `libs/engine/src/sysdesign/lessons/widgets/storage.ts` and `storage-experiments.ts`                          |
 | `enum.cjs`    | Prints every number, checks the model against the old `storageCost`, the lesson's quoted numbers, a real B+tree built by random inserts, a simulated LSM tree that counts the bytes it writes, a small LSM tree of real keys with real bloom filters, the experiments' word claims, and enumerates the challenge (5,108 checks)                                                |
 | `mockup.html` | The mockup with the app's tokens and fonts: `?state=default\|read\|bigpage\|bigrecord\|nobloom\|tall\|small\|playing\|describe\|reduced\|ask&exp=1..5\|reveal&exp=1..5\|challenge&theme=light\|dark`; `playing` takes `&engine=btree\|lsm&frac=&op=&bloom=`, `ask` takes `&phase=playing` (the answer's play, hiding held, `&frac=` its moment), `challenge` takes `&start=1` |
-| `shoot.cjs`   | Screenshots every state at 1280, 390 and 320 px in both themes with the page's collision report and layout assertions, then sweeps every setting at 14 widths (at rest, through both plays, after a change with its ghost), every experiment asking, playing and revealed, the no-answer sweep with eleven planted leaks, every page sentence, the stage heights and Describe's widths |
+| `shoot.cjs`   | Screenshots every state at 1280, 390 and 320 px in both themes with the page's collision report and layout assertions, then sweeps every setting at 14 widths (at rest, through both plays, after a change with its ghost), every experiment asking, playing and revealed, the no-answer sweep with twelve planted leaks, every page sentence, the stage heights and Describe's widths |
 | `changes.md`  | Each critique item and what changed for it                                                                                                                                                                                                                                                                                                                                  |
 
 ## 1. The verdict, and the mechanism
@@ -156,13 +156,14 @@ Follow one lookup, for a key last written long ago."). The lines the longest wor
 
 **An engine's head.** A Play disc (36 px in a 44 px box), the name in the title role with where it runs beside it
 where that fits ("B-tree · Postgres, InnoDB, SQLite"; "LSM tree · RocksDB, Cassandra"), and under the name what the
-engine does ("pages rewritten in place"; "appended, then merged down"). While its play runs, that line is the play's
+engine does ("sorted pages, updated in place"; "appended, then merged down"). While its play runs, that line is the play's
 step, in ink (below, Motion).
 
 **The engines' own settings sit on the stage, beside what they change**, as native radio groups drawn as
 `g-segmented` and one native checkbox drawn as a toggle, placed by the layout: Page size (4 KB, 8 KB, 16 KB) in the
 B-tree's panel; Size ratio (4, 5, 10, 20) and Bloom filters in the LSM tree's. The toggle's second line is the
-filters' price or absence: "1.3 GB of memory", "off: every run is read". On a phone the LSM panel is two screens below
+filters' price or absence: "1.3 GB of memory", "off: no memory spent" (it never says what a lookup then costs: that is
+E4's answer). On a phone the LSM panel is two screens below
 the top of the widget; a ratio control up there would change a picture the learner cannot see.
 
 **The B-tree.** "CACHED IN MEMORY · 4 LEVELS, 822 MB" ("IN MEMORY · …" narrower) over a band (the raised fill) that
@@ -404,6 +405,13 @@ Page size, Size ratio, Bloom filters and the Follow, Data and Record size fields
 and every setting wait for your answer.", and Describe waits ("Describe waits for your answer."). Cards carry titles
 only.
 
+Three always-on texts would have answered questions, so they are part of the map too. The note under the stage states
+the model's assumptions, and two of them are answers ("every update writes its whole page back", "about
+(ratio + 1) / 2 rewrites at each level"): while any question is open it reads "A rough model. Its assumptions show
+after your answer." The write rows' "whole pages, at random places" and "appends and merges, all sequential" go while
+either engine's write cost hides. And no standing label says what a question asks: the B-tree's line is "sorted pages,
+updated in place" (not "rewritten"), the toggle's off line "no memory spent" (not "every run is read").
+
 ## 4. Accessibility
 
 - The stage is `role="group"`, `aria-roledescription="visualization"`, named "Storage engines: one write or one lookup
@@ -448,17 +456,19 @@ only.
    answer in (E3 entered from 1,000-byte records would draw "was 5.1×"). The mockup's `noAnswer()` (run by
    `shoot.cjs`) renders every question asking, entered afresh and from eight other settings (every act's target, the
    challenge's solution and two more), and its answer's play at five moments of its clock, at 14 widths from 248 to
-   700 px (980 renders), against each question's answer words on the stage, in its accessible names, the notice, the
-   summary and the play's story, the false claims (below) and structure: every Play and on-stage setting disabled; no
+   700 px (980 renders), against each question's answer words (its numbers in both phases; while it asks also the words of its
+   mechanism: "whole page", "page back", "rewritten in place", "every run", "(ratio + 1) / 2") on the stage, in its
+   accessible names, the on-stage controls' text, the notice, the summary, the model's note and the play's story, the false claims (below) and structure: every Play and on-stage setting disabled; no
    ghost tick or "was"; while `btreeWrite` hides, no B-tree write bar, "?×" for its figure and total, no digit in the
    page's note, the log's note or the ledger, and while asking no written page, written leaf, log record or leaf
    action; while `lsmWrite` hides, no LSM write bar, every count "?×", no digit in the staircase's words, and while
    asking no staircase; while `readsWhy` hides, no digit in the lookup's ledger or its sentence; while `readsAfter`
    hides, no LSM pip, "?" for its figure and total, no count on the stack. It finds none, and it catches a leak planted
-   on every flag of the map (eleven: the page written back drawn while E1 asks; the B-tree's numbers shown while E1
+   on every flag of the map (twelve: the page written back drawn while E1 asks; the B-tree's numbers shown while E1
    asks and while it plays; the level's merges drawn while E2 asks; the LSM tree's numbers while E2 plays; each
    engine's new numbers while E3 plays; the reads while E4 plays; the lookup's arithmetic while E4 asks; the LSM
-   tree's new numbers while E5 plays; a ghost while E3 asks). Each leak is tried against a clean render of the same
+   tree's new numbers while E5 plays; a ghost while E3 asks; the lock itself off while E1 asks, which leaves the
+   settings live and the model's note, with its "whole page", in place). Each leak is tried against a clean render of the same
    view, so a leak that "passes" because the clean view was already dirty fails too. The built component's sweep does
    the same with motion off and on, moving every control during each question and sampling the play frame by frame.
 2. **False claims anywhere.** No hidden value has a default: hidden reads "?", "?×" or "after your answer", never 0.
@@ -591,7 +601,7 @@ only.
   marks, as `latency-layout.ts` does; `storage-tree.ts` and `storage-stack.ts` if it passes 700 lines),
   `storage-words.ts` (`hiding()`, the summary, the notice's sentence, the steps, the stories, Describe, the goal
   checks), `storage-motion.ts` (`planOf`, the clock, the particle), a prims component, the widget component and its
-  spec (the no-answer sweep with the eleven leaks), `storage-layout.spec.ts` over every setting at the mockup's widths
+  spec (the no-answer sweep with the twelve leaks), `storage-layout.spec.ts` over every setting at the mockup's widths
   with the assertions of 5, `storage-words.spec.ts` over every setting, `storage-motion.spec.ts`, and e2e
   `storage-lesson.spec.ts`.
 - The on-stage controls are real inputs positioned over the stage from the layout's hit boxes (as the Play disc and

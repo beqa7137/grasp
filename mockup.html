@@ -1258,6 +1258,9 @@
       .caption {
         order: 2;
       }
+      .caption {
+        color: var(--g-text);
+      }
       .model-note {
         margin: 0;
         font-size: var(--g-text-body-s);
@@ -1579,6 +1582,8 @@
         out.push('A rough model.');
         return out.join(' ');
       }
+      /** The note under the stage states the model's assumptions, two of which are answers: it waits while a question is open. */
+      const noteOf = (view) => (hiding(view).locked ? 'A rough model. Its assumptions show after your answer.' : MODEL_NOTE);
       const MODEL_NOTE = `A rough model. B-tree: every update writes its whole page back alone, plus a log record (its leaf is read first when it is not in memory; that read is not counted); pages are about ${Math.round(M.PAGE_FILL * 100)}% full; every level above the leaves stays in memory. LSM tree: a ${M.MEMTABLE_MB} MB memtable; one log write, one flush, then about (ratio + 1) / 2 rewrites at each level as it fills (a real tree spends fewer at its small top level and more at its always-full last one, and the totals come out close); bloom filters take ${M.BLOOM_BITS} bits a key, and their false positives, about 1 lookup in ${Math.round(1 / M.BLOOM_FALSE_POSITIVE)} for each run, are left out. New data arrives at ${M.formatRate(M.WRITE_MBPS)}.`;
 
       // ---------- The stage. One panel a engine, the same shape at every width (224 px and up), side by side from a
@@ -1617,7 +1622,7 @@
         const on = (k) => shown(view, 'btree', P[k]);
         const h = b.height;
         let cy = y;
-        panelHead(D, x, y, pw, 'btree', 'pages rewritten in place', 'Postgres, InnoDB, SQLite', view);
+        panelHead(D, x, y, pw, 'btree', 'sorted pages, updated in place', 'Postgres, InnoDB, SQLite', view);
         cy += PANEL.head + 6;
         segments(D, x, cy, pw, 'page', M.PAGE_KB, s.page, (v) => M.formatKb(v), 'Page size');
         cy += PANEL.knob + 10;
@@ -1797,7 +1802,7 @@
         cy += PANEL.head + 6;
         segments(D, x, cy, pw, 'ratio', M.RATIOS, s.ratio, (v) => String(v), 'Size ratio');
         cy += PANEL.knob;
-        D.hit('toggle', x, cy + 6, pw, 44, { owner: 'bloom', checked: !!s.bloom, label: 'Bloom filters', sub: s.bloom ? `${fSize(l.bloomBytes)} of memory` : 'off: every run is read' });
+        D.hit('toggle', x, cy + 6, pw, 44, { owner: 'bloom', checked: !!s.bloom, label: 'Bloom filters', sub: s.bloom ? `${fSize(l.bloomBytes)} of memory` : 'off: no memory spent' });
         cy += PANEL.toggle + 10;
 
         // Memory and the log, then the sorted runs on disk, newest on top.
@@ -2002,7 +2007,8 @@
         const HOW = { btree: [' · whole pages, at random places', ' · pages, at random', ''], lsm: [' · appends and merges, all sequential', ' · sequential', ''] };
         const hiddenOf = (engine) => (engine === 'btree' ? hid.btNumbers : hid.lsmNumbers);
         const shortestOf = (engine) => (hiddenOf(engine) ? tw('?×', 'num') : tw(fAmp(m[engine].writeAmp), 'num') + tw(` · ${M.formatRate(m[engine].diskWriteMBps)}`, 'small'));
-        const howIndex = [0, 1, 2].find((i) => ['btree', 'lsm'].every((engine) => tw(costName(engine), 'small') + tw(HOW[engine][i], 'small') <= w - shortestOf(engine) - 12));
+        // "Whole pages" is E1's answer in words, so the phrases go while either engine's write cost hides.
+        const howIndex = hid.btNumbers || hid.lsmNumbers ? 2 : [0, 1, 2].find((i) => ['btree', 'lsm'].every((engine) => tw(costName(engine), 'small') + tw(HOW[engine][i], 'small') <= w - shortestOf(engine) - 12));
         for (const engine of ['btree', 'lsm']) {
           const e = m[engine];
           const hidden = hiddenOf(engine);
@@ -2471,7 +2477,7 @@
         const root = document.getElementById('widget');
         root.innerHTML = `<div class="controls">${controlsHtml(m, view)}</div>
 <div class="main"><div class="stage" role="group" aria-roledescription="visualization" aria-label="Storage engines: one write or one lookup through a B-tree and an LSM tree"><div class="well" id="well"></div></div>
-${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${nb(story(view.played, m))}</p>` : ''}<p class="model-note">${nb(MODEL_NOTE)}</p><div class="describe" id="describe"></div></div>
+${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${nb(story(view.played, m))}</p>` : ''}<p class="model-note">${nb(noteOf(view))}</p><div class="describe" id="describe"></div></div>
 <div class="experiments"><section class="dock" aria-label="Experiment">${dockHtml(m, view)}</section>${cardsHtml(view)}</div>`;
         const well = document.getElementById('well');
         const W = well.clientWidth;
@@ -2703,10 +2709,10 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${nb(story
       // other settings too, so nothing a learner did before carries an answer in.
       const afterOf = (k) => M.run(actSettings(M.EXPERIMENTS[k]));
       const GIVEAWAYS = {
-        'page-rewrite': { both: [fB(M.run(B).btree.writeBytes), M.formatBytes(M.run(B).btree.writeBytes), fAmp(M.run(B).btree.writeAmp), M.formatRate(M.run(B).btree.diskWriteMBps), `${fB(4096)} written`, 'written back whole', `+${fB(100)}`, `${fB(4096)} +`], asking: ['written back'] },
-        'lsm-rewrites': { both: [fAmp(24), M.formatRate(240), '≈', '5.5', '55 parts', '1 log + 1 flush', 'Merge k'] },
+        'page-rewrite': { both: [fB(M.run(B).btree.writeBytes), M.formatBytes(M.run(B).btree.writeBytes), fAmp(M.run(B).btree.writeAmp), M.formatRate(M.run(B).btree.diskWriteMBps), `${fB(4096)} written`, 'written back whole', `+${fB(100)}`, `${fB(4096)} +`], asking: ['written back', 'whole page', 'page back', 'rewritten in place'] },
+        'lsm-rewrites': { both: [fAmp(24), M.formatRate(240), '≈', '5.5', '55 parts', '1 log + 1 flush', 'Merge k', '(ratio + 1) / 2'] },
         'record-size': { playing: [fAmp(afterOf(2).btree.writeAmp), M.formatRate(afterOf(2).btree.diskWriteMBps), fB(afterOf(2).btree.writeBytes), fAmp(24), 'was ', '≈'] },
-        'no-filters': { asking: [`${afterOf(3).lsm.runs} runs`, `${M.run(M.EXPERIMENTS[3].setup).lsm.skipped} say`, `${M.run(M.EXPERIMENTS[3].setup).lsm.skipped} runs say`], playing: [M.formatReads(afterOf(3).lsm.lookupReads), `${afterOf(3).lsm.runs} runs`, 'none skipped', 'newest first', 'was '] },
+        'no-filters': { both: ['every run'], asking: [`${afterOf(3).lsm.runs} runs`, `${M.run(M.EXPERIMENTS[3].setup).lsm.skipped} say`, `${M.run(M.EXPERIMENTS[3].setup).lsm.skipped} runs say`], playing: [M.formatReads(afterOf(3).lsm.lookupReads), `${afterOf(3).lsm.runs} runs`, 'none skipped', 'newest first', 'was '] },
         'more-data': { playing: [fAmp(afterOf(4).lsm.writeAmp), M.formatRate(afterOf(4).lsm.diskWriteMBps), '≈', fAmp(42), 'was ', '5 levels ×'] },
       };
       function structural(well, spec, phase, view) {
@@ -2764,7 +2770,7 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${nb(story
         const m = M.run(view.s);
         drawInto(well, W, m, view);
         const hid = hiding(view);
-        const words = [noticeOf(m, view), summary(m, hid), view.phase === 'playing' ? story(view.play.engine, m, hid) : ''].join(' | ');
+        const words = [noticeOf(m, view), summary(m, hid), noteOf(view), view.phase === 'playing' ? story(view.play.engine, m, hid) : ''].join(' | ');
         return [...giveaways(well, spec, phase, words), ...structural(well, spec, phase, view)];
       }
       window.noAnswer = function (widths) {
@@ -2807,6 +2813,7 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${nb(story
         tryLeak("E4 asked, the lookup's arithmetic shown", 'no-filters', 'asking', ['readWhy']);
         tryLeak("E5 played, the LSM tree's new numbers shown", 'more-data', 'playing', ['lsmNumbers']);
         tryLeak('E3 asked with the ghost of the setting before it', 'record-size', 'asking', ['ghost'], { ...B, page: 16 });
+        tryLeak("E1 asked, the model's note and the engines' settings live", 'page-rewrite', 'asking', ['locked']);
         well.style.width = '';
         return caught;
       };
