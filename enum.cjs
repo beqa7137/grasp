@@ -200,6 +200,27 @@ for (const { where, text } of sentences) {
   if (!text.includes(' | ') && !/^user:\d+:/.test(text)) for (const part of text.split(/(?<=[.!?])\s+/)) ok(!/^\d/.test(part), `a sentence opens on a numeral: "${part}" (${where})`);
 }
 
+// ------------------------------------------------------------ 5b. the play's clock
+{
+  let live = 0;
+  let shortest = Infinity;
+  for (const s of settings)
+    for (const from of froms(s)) {
+      const c = M.scenario(s, from).change;
+      if (!c) continue;
+      const ts = c.moves.map((m) => M.takeoff(m.key)).sort((a, b) => a - b);
+      for (let i = 0, j = 0; i < ts.length; i++) {
+        while (ts[i] - ts[j] >= M.PLAY.flight) j++;
+        live = Math.max(live, i - j + 1);
+      }
+      shortest = Math.min(shortest, M.playMs(c.moved) * M.PLAY.flight);
+      ok(M.PLAY.sweep1 + M.PLAY.flight <= 1, 'the last flight lands inside the clock');
+    }
+  ok(live <= M.PLAY.pool, `at most ${M.PLAY.pool} keys in flight at once (${live})`);
+  ok(shortest >= 120, `no flight under 120 ms (${Math.round(shortest)} ms)`);
+  console.log(`plays: at most ${live} keys in flight at once; the shortest flight ${Math.round(shortest)} ms; E1's play ${M.playMs(166)} ms, E2's ${M.playMs(46)} ms`);
+}
+
 // ------------------------------------------------------------ 6. the followed key
 {
   const at = M.KEY_AT[M.FOLLOW];

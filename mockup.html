@@ -1,0 +1,2372 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sharding widget mockup</title>
+    <style>
+      @font-face {
+        font-family: 'Inter Variable';
+        src: url(fonts/inter-latin-wght-normal.woff2) format('woff2');
+        font-weight: 100 900;
+        font-display: block;
+      }
+      @font-face {
+        font-family: 'JetBrains Mono Variable';
+        src: url(fonts/jetbrains-mono-latin-wght-normal.woff2) format('woff2');
+        font-weight: 100 800;
+        font-display: block;
+      }
+      /* The app's tokens (apps/app/src/_theme.scss, styles.scss): light is the base, dark overrides. */
+      :root {
+        color-scheme: light;
+        --g-bg: #f4f5f9;
+        --g-surface: #ffffff;
+        --g-raised: #ffffff;
+        --g-sunken: #eef0f5;
+        --g-line: #dfe2ea;
+        --g-line-strong: #c6cbd6;
+        --g-stroke: #707889;
+        --g-text: #161a23;
+        --g-text-rgb: 22, 26, 35;
+        --g-muted: #4a5263;
+        --g-faint: #5c6477;
+        --g-on-fill: #ffffff;
+        --g-warn-ink: #6e4200;
+        --g-danger-ink: #9d1630;
+        --g-found-ink: #02583f;
+        --g-accent: #5846dc;
+        --g-accent-rgb: 88, 70, 220;
+        --g-accent-soft: rgba(88, 70, 220, 0.14);
+        --g-found: #036b4c;
+        --g-danger: #c3203d;
+        --g-warn: #945800;
+        --g-success-ink: var(--g-found-ink);
+        --g-success-line: var(--g-found);
+        --g-success-soft: rgba(3, 107, 76, 0.12);
+        --g-danger-soft: rgba(195, 32, 61, 0.12);
+        --g-warn-soft: rgba(148, 88, 0, 0.12);
+        --g-viz-stage: #f7f8fb;
+        --g-viz-current: #0b74ad;
+        --g-viz-current-soft: rgba(11, 116, 173, 0.16);
+        --g-viz-considering: #c77700;
+        --g-viz-considering-soft: rgba(199, 119, 0, 0.14);
+        --g-viz-final: #12925f;
+        --g-viz-final-ink: var(--g-found-ink);
+        --g-viz-discarded-ink: #687082;
+        --g-viz-critical: #d42a49;
+        --g-viz-track: #d3d7e0;
+        --g-kind-lb: #3a5fcd;
+        --g-kind-cache: #c0266f;
+        --g-kind-replica: #a8841c;
+        --g-kind-worker: #2e9477;
+        --g-kind-blob: #56657f;
+        --g-pointer-alt: #9a2a08;
+        --g-shadow: 0 1px 2px rgba(var(--g-text-rgb), 0.06), 0 3px 10px rgba(var(--g-text-rgb), 0.07);
+        --g-shadow-raised: 0 1px 2px rgba(var(--g-text-rgb), 0.08);
+        --g-radius-xs: 6px;
+        --g-radius-sm: 10px;
+        --g-radius-md: 14px;
+        --g-radius-pill: 999px;
+        --g-text-title-m: 1.0625rem;
+        --g-text-title-s: 0.9375rem;
+        --g-text-body: 0.875rem;
+        --g-text-body-s: 0.8125rem;
+        --g-text-label: 0.6875rem;
+        --g-font: 'Inter Variable', system-ui, sans-serif;
+        --g-font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+        --g-focus-ring: 2px solid var(--g-accent);
+      }
+      :root.dark {
+        color-scheme: dark;
+        --g-bg: #0b0d12;
+        --g-surface: #141824;
+        --g-raised: #1c2130;
+        --g-sunken: #0f121a;
+        --g-line: #252a37;
+        --g-line-strong: #343b4d;
+        --g-stroke: #6b7387;
+        --g-text: #e9ebf2;
+        --g-text-rgb: 233, 235, 242;
+        --g-muted: #8b93a8;
+        --g-faint: #828a9e;
+        --g-on-fill: #0b0d12;
+        --g-warn-ink: #f3e6b3;
+        --g-danger-ink: #ffb3bd;
+        --g-found-ink: #3ddc97;
+        --g-accent: #9d8cff;
+        --g-accent-rgb: 157, 140, 255;
+        --g-accent-soft: rgba(157, 140, 255, 0.14);
+        --g-found: #3ddc97;
+        --g-danger: #ff5d73;
+        --g-warn: #ffb547;
+        --g-success-soft: rgba(61, 220, 151, 0.12);
+        --g-danger-soft: rgba(255, 93, 115, 0.12);
+        --g-warn-soft: rgba(255, 181, 71, 0.12);
+        --g-viz-stage: #0e1118;
+        --g-viz-current: #1f9fd0;
+        --g-viz-current-soft: rgba(31, 159, 208, 0.16);
+        --g-viz-considering: #c08420;
+        --g-viz-considering-soft: rgba(192, 132, 32, 0.18);
+        --g-viz-final: #22ad74;
+        --g-viz-final-ink: var(--g-found);
+        --g-viz-discarded-ink: var(--g-muted);
+        --g-viz-critical: #e5485f;
+        --g-viz-track: #2a3040;
+        --g-kind-lb: #7aa2ff;
+        --g-kind-cache: #ff7eb6;
+        --g-kind-replica: #ffd28a;
+        --g-kind-worker: #8be0bd;
+        --g-kind-blob: #a9b8d6;
+        --g-pointer-alt: #ff8a5c;
+        --g-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        --g-shadow-raised: var(--g-shadow);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--g-bg);
+        color: var(--g-text);
+        font: 400 var(--g-text-body) / 1.5 var(--g-font);
+        font-variant-ligatures: none;
+        -webkit-font-smoothing: antialiased;
+        overflow-wrap: break-word;
+      }
+      button {
+        font-size: 0.8333rem;
+      }
+      .page {
+        max-width: 1048px;
+        margin: 0 auto;
+        padding: 20px 16px 40px;
+      }
+      .eyebrow {
+        margin: 0;
+        font: 600 var(--g-text-label) var(--g-font);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--g-muted);
+      }
+      h1 {
+        margin: 4px 0 14px;
+        font: 600 1.25rem/1.3 var(--g-font);
+      }
+      .panel {
+        border: 1px solid var(--g-line);
+        border-radius: var(--g-radius-md);
+        background: var(--g-surface);
+        box-shadow: var(--g-shadow);
+        padding: 16px;
+      }
+      /* Narrow: one column, the controls as the stage's first rows, then the stage, the question, Describe, the cards. */
+      .widget {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 12px;
+      }
+      .main,
+      .experiments {
+        display: contents;
+      }
+      .controls {
+        order: 1;
+      }
+      .stage {
+        order: 2;
+        min-width: 0;
+      }
+      .dock {
+        order: 3;
+      }
+      .describe {
+        order: 4;
+      }
+      .heading,
+      .cards {
+        order: 5;
+      }
+      .controls {
+        padding: 12px 12px 0;
+        border: 1px solid var(--g-line);
+        border-bottom: 0;
+        border-radius: var(--g-radius-md) var(--g-radius-md) 0 0;
+        background: var(--g-viz-stage);
+        display: grid;
+        gap: 10px;
+        min-width: 0;
+      }
+      .stage {
+        margin-top: -12px;
+      }
+      .stage .well {
+        border-top: 0;
+        border-radius: 0 0 var(--g-radius-md) var(--g-radius-md);
+      }
+      @media (min-width: 1000px) {
+        .widget {
+          grid-template-columns: minmax(0, 1fr) 340px;
+          grid-template-rows: auto 1fr;
+          align-items: start;
+          column-gap: 20px;
+        }
+        .main {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr);
+          gap: 12px;
+          grid-column: 1;
+          grid-row: 1 / span 2;
+          min-width: 0;
+        }
+        .controls {
+          grid-column: 2;
+          grid-row: 1;
+          padding: 0;
+          border: 0;
+          background: none;
+        }
+        .experiments {
+          display: block;
+          grid-column: 2;
+          grid-row: 2;
+          min-width: 0;
+        }
+        .stage {
+          margin-top: 0;
+        }
+        .stage .well {
+          border-top: 1px solid var(--g-line);
+          border-radius: var(--g-radius-md);
+        }
+        .dock {
+          margin-top: 12px;
+        }
+      }
+      .well {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid var(--g-line);
+        border-radius: var(--g-radius-md);
+        background-color: var(--g-viz-stage);
+        background-image: radial-gradient(circle, rgba(var(--g-text-rgb), 0.09) 1px, transparent 1.5px);
+        background-size: 24px 24px;
+        background-position: 11px 11px;
+      }
+      /* Every fieldset.group carries the same zero padding; a control's own class only adds to it (the R41 padding bug). */
+      fieldset.group {
+        margin: 0;
+        padding: 0;
+        border: 0;
+        min-width: 0;
+      }
+      .control-label {
+        font: 600 var(--g-text-label) var(--g-font);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--g-muted);
+        padding: 0;
+        margin-bottom: 4px;
+      }
+      .segments {
+        display: flex;
+        gap: 4px;
+      }
+      .segment {
+        position: relative;
+        flex: 1 1 0;
+        min-width: 0;
+      }
+      .segment input {
+        position: absolute;
+        inset: 0;
+        margin: 0;
+        opacity: 0;
+        cursor: pointer;
+      }
+      .segment span {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        min-height: 44px;
+        padding: 0 6px;
+        border-radius: var(--g-radius-sm);
+        border: 1px solid var(--g-line-strong);
+        background: var(--g-raised);
+        box-shadow: var(--g-shadow-raised);
+        color: var(--g-text);
+        font: 500 var(--g-text-body) / 1.15 var(--g-font);
+        text-align: center;
+      }
+      .segment input:checked + span {
+        background: var(--g-accent-soft);
+        border-color: var(--g-accent);
+        box-shadow: inset 0 0 0 1px var(--g-accent);
+      }
+      fieldset:disabled .segment span,
+      .segment input:disabled + span {
+        opacity: 0.55;
+      }
+      .control-label .why {
+        font-weight: 500;
+        letter-spacing: normal;
+        text-transform: none;
+      }
+      .segment small {
+        font: 500 var(--g-text-label) var(--g-font);
+        color: var(--g-muted);
+      }
+      .toggles {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px;
+      }
+      .toggles .segment span {
+        flex-direction: column;
+        gap: 0;
+        font-size: var(--g-text-body-s);
+      }
+      .notice {
+        margin: 0;
+        min-height: 2lh;
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+      }
+      /* Below wide the notice would sit over the stage and push it down as it speaks: read out only (_widget-controls.scss). */
+      @media (max-width: 999px) {
+        .notice {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          min-height: 0;
+          overflow: hidden;
+          clip-path: inset(50%);
+        }
+        .controls {
+          padding-bottom: 12px;
+        }
+      }
+      .caption {
+        margin: 0;
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+      }
+      .play {
+        position: absolute;
+        width: 44px;
+        height: 44px;
+        padding: 0;
+        border: 0;
+        background: none;
+        cursor: pointer;
+        z-index: 2;
+      }
+      .play svg {
+        display: block;
+        width: 36px;
+        height: 36px;
+        margin: 4px;
+      }
+      .play circle {
+        fill: var(--g-raised);
+        stroke: var(--g-accent);
+        stroke-width: 1.5;
+      }
+      .play path {
+        fill: var(--g-accent);
+      }
+      .play:disabled {
+        cursor: default;
+        opacity: 0.55;
+      }
+      /* Drawing roles: text sits on a stage-coloured halo; small text is measured as drawn (no tabular digits). */
+      svg.draw {
+        position: absolute;
+        left: 0;
+        top: 0;
+        display: block;
+        overflow: visible;
+      }
+      svg.draw text {
+        paint-order: stroke;
+        stroke: var(--g-viz-stage);
+        stroke-width: 3px;
+        stroke-linejoin: round;
+      }
+      svg.draw text.on-box {
+        stroke: var(--g-raised);
+      }
+      svg.draw text.on-chip {
+        stroke: none;
+      }
+      .t-label {
+        font: 600 var(--g-text-label) var(--g-font);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        fill: var(--g-muted);
+      }
+      .t-cap {
+        font: 500 var(--g-text-body-s) var(--g-font);
+        fill: var(--g-muted);
+      }
+      .t-capB {
+        font: 600 var(--g-text-body-s) var(--g-font);
+        fill: var(--g-text);
+      }
+      .t-small {
+        font: 500 var(--g-text-label) var(--g-font);
+        fill: var(--g-muted);
+      }
+      .t-smallB {
+        font: 700 var(--g-text-label) var(--g-font);
+        fill: var(--g-text);
+      }
+      .t-mono {
+        font: 600 var(--g-text-label) var(--g-font-mono);
+        fill: var(--g-text);
+      }
+      .t-nameS {
+        font: 600 13px var(--g-font-mono);
+        fill: var(--g-text);
+      }
+      .t-head {
+        font: 600 var(--g-text-title-m) var(--g-font-mono);
+        fill: var(--g-text);
+      }
+      .ink {
+        fill: var(--g-text);
+      }
+      .muted {
+        fill: var(--g-muted);
+      }
+      .bad {
+        fill: var(--g-danger-ink);
+      }
+      .wait-ink {
+        fill: var(--g-warn-ink);
+      }
+      .cur-ink {
+        fill: var(--g-viz-current);
+      }
+      .crit-ink {
+        fill: var(--g-viz-critical);
+      }
+      .focus-outline {
+        fill: none;
+        stroke: var(--g-accent);
+        stroke-width: 2;
+      }
+      .tag {
+        fill: var(--g-viz-stage);
+        stroke: var(--g-accent);
+        stroke-width: 1.5;
+      }
+      .t-look {
+        font: 600 var(--g-text-label) var(--g-font);
+        fill: var(--g-accent);
+      }
+      /* The experiment dock and cards (experiment-dock.component.ts, widget-check.component.ts). */
+      .dock {
+        padding: 12px 16px;
+        border-radius: var(--g-radius-md);
+        border: 1px solid var(--g-line);
+        border-left: 3px solid var(--g-accent);
+        background: var(--g-surface);
+      }
+      .dock:empty {
+        display: none;
+      }
+      .legend {
+        margin: 0 0 4px;
+        font-weight: 600;
+        line-height: 1.45;
+      }
+      .options {
+        list-style: none;
+        margin: 8px 0 0;
+        padding: 0;
+        display: grid;
+        gap: 8px;
+      }
+      .g-choice {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        padding: 10px 14px;
+        border-radius: 12px;
+        border: 1px solid var(--g-line-strong);
+        background: var(--g-raised);
+        color: var(--g-text);
+        font: 500 0.90625rem/1.45 var(--g-font);
+        text-align: left;
+      }
+      button.g-choice {
+        box-shadow: var(--g-shadow-raised);
+        cursor: pointer;
+      }
+      .g-choice.right {
+        border-color: var(--g-success-line);
+        background: var(--g-success-soft);
+      }
+      .g-choice.wrong {
+        border-color: var(--g-danger);
+        background: var(--g-danger-soft);
+      }
+      .mark {
+        flex: none;
+        width: 20px;
+        height: 20px;
+      }
+      .held {
+        margin: 10px 0 0;
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+      }
+      .reveal {
+        margin: 10px 0 0;
+        line-height: 1.55;
+        font-size: 0.90625rem;
+      }
+      .status-line {
+        margin: 8px 0 4px;
+        font: 600 var(--g-text-body) var(--g-font);
+        color: var(--g-muted);
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .status-line.met {
+        color: var(--g-success-ink);
+      }
+      .status {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        display: grid;
+        gap: 4px;
+        font: 600 var(--g-text-body-s) var(--g-font);
+        font-variant-numeric: tabular-nums;
+        color: var(--g-muted);
+      }
+      .status li {
+        display: flex;
+        gap: 8px;
+        align-items: baseline;
+      }
+      .status li.met {
+        color: var(--g-success-ink);
+      }
+      .status .state {
+        flex: none;
+        width: 16px;
+      }
+      .heading {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font: 600 var(--g-text-title-s) var(--g-font);
+        margin: 20px 0 8px;
+      }
+      .heading svg {
+        color: var(--g-accent);
+      }
+      .cards {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 8px;
+      }
+      .card-btn {
+        width: 100%;
+        min-height: 48px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 12px;
+        border: 1px solid var(--g-line-strong);
+        border-radius: var(--g-radius-sm);
+        background: var(--g-raised);
+        box-shadow: var(--g-shadow-raised);
+        color: var(--g-text);
+        font: 500 var(--g-text-body) var(--g-font);
+        text-align: left;
+      }
+      .card-btn[aria-current] {
+        border-color: var(--g-accent);
+        box-shadow: inset 0 0 0 1px var(--g-accent);
+        background: var(--g-accent-soft);
+      }
+      .card-btn .num {
+        flex: none;
+        display: grid;
+        place-items: center;
+        width: 26px;
+        height: 26px;
+        border-radius: var(--g-radius-pill);
+        background: var(--g-sunken);
+        font: 600 var(--g-text-body-s) var(--g-font-mono);
+        color: var(--g-muted);
+      }
+      /* Describe: a minmax(0, 1fr) grid, its table scrolling inside its own box; compact on narrow stages. */
+      .describe {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 8px;
+        justify-items: start;
+      }
+      .describe .muted-note {
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+        margin: 0;
+      }
+      .describe p.summary {
+        margin: 0;
+        font-size: var(--g-text-body-s);
+      }
+      .g-btn {
+        appearance: none;
+        border: 1px solid var(--g-line-strong);
+        background: var(--g-raised);
+        box-shadow: var(--g-shadow-raised);
+        color: var(--g-text);
+        border-radius: var(--g-radius-sm);
+        padding: 9px 14px;
+        min-height: 44px;
+        font: 500 var(--g-text-body) / 1 var(--g-font);
+      }
+      .g-btn:disabled {
+        opacity: 0.55;
+      }
+      .table-box {
+        justify-self: stretch;
+        overflow: auto;
+        border-top: 1px solid var(--g-line);
+      }
+      tbody tr {
+        height: 28px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font: 500 var(--g-text-body-s) var(--g-font);
+        font-variant-numeric: tabular-nums;
+      }
+      th,
+      td {
+        text-align: right;
+        padding: 4px 8px;
+        white-space: nowrap;
+      }
+      th:first-child,
+      td:first-child {
+        text-align: left;
+      }
+      th {
+        font: 600 var(--g-text-label) var(--g-font);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--g-muted);
+        position: sticky;
+        top: 0;
+        background: var(--g-surface);
+        vertical-align: bottom;
+      }
+      td {
+        border-top: 1px solid var(--g-line);
+      }
+      tr.now td {
+        background: var(--g-accent-soft);
+        font-weight: 600;
+      }
+      .compact th,
+      .compact td {
+        padding-inline: 4px;
+      }
+      .compact th {
+        letter-spacing: normal;
+        white-space: normal;
+      }
+      th .unit {
+        text-transform: none;
+      }
+      /* The Sharding stage. Six node colours from the app's kind tokens; a key is a dot in its node's colour. */
+      :root {
+        --n-a: var(--g-kind-lb);
+        --n-b: var(--g-kind-cache);
+        --n-c: var(--g-kind-replica);
+        --n-d: var(--g-kind-worker);
+        --n-e: var(--g-pointer-alt);
+        --n-f: var(--g-kind-blob);
+      }
+      .nA {
+        fill: var(--n-a);
+      }
+      .nB {
+        fill: var(--n-b);
+      }
+      .nC {
+        fill: var(--n-c);
+      }
+      .nD {
+        fill: var(--n-d);
+      }
+      .nE {
+        fill: var(--n-e);
+      }
+      .nF {
+        fill: var(--n-f);
+      }
+      .band {
+        fill: none;
+        stroke-width: 8;
+      }
+      .band.nA,
+      .base.nA {
+        stroke: var(--n-a);
+      }
+      .band.nB,
+      .base.nB {
+        stroke: var(--n-b);
+      }
+      .band.nC,
+      .base.nC {
+        stroke: var(--n-c);
+      }
+      .band.nD,
+      .base.nD {
+        stroke: var(--n-d);
+      }
+      .band.nE,
+      .base.nE {
+        stroke: var(--n-e);
+      }
+      .band.nF,
+      .base.nF {
+        stroke: var(--n-f);
+      }
+      .band {
+        fill: none;
+      }
+      .base {
+        fill: none;
+        stroke-width: 3;
+        stroke-linecap: round;
+      }
+      .base.gone {
+        stroke: var(--g-viz-track);
+      }
+      .track {
+        fill: none;
+        stroke: var(--g-viz-track);
+        stroke-width: 2;
+      }
+      .t-title {
+        font: 600 var(--g-text-body-s) var(--g-font);
+        fill: var(--g-text);
+      }
+      .on-fill {
+        fill: var(--g-on-fill);
+      }
+      svg.draw text.on-block {
+        stroke: none;
+      }
+      .key.moved {
+        fill: var(--g-viz-stage);
+        stroke-width: 1.1;
+      }
+      .key.moved.nA {
+        stroke: var(--n-a);
+      }
+      .key.moved.nB {
+        stroke: var(--n-b);
+      }
+      .key.moved.nC {
+        stroke: var(--n-c);
+      }
+      .key.moved.nD {
+        stroke: var(--n-d);
+      }
+      .key.moved.nE {
+        stroke: var(--n-e);
+      }
+      .key.moved.nF {
+        stroke: var(--n-f);
+      }
+      .t-unit {
+        text-transform: none;
+      }
+      .hot {
+        fill: var(--g-viz-critical);
+      }
+      .hot-block {
+        fill: var(--g-viz-critical);
+      }
+      .cut-mark {
+        fill: var(--g-viz-critical);
+      }
+      .chip-pt {
+        fill: var(--g-viz-stage);
+        stroke-width: 1.5;
+      }
+      .chip-pt.gone {
+        stroke: var(--g-viz-discarded-ink);
+      }
+      .pt-tick {
+        stroke: var(--g-text);
+        stroke-width: 1.25;
+      }
+      .pt-tick.new {
+        stroke-width: 2;
+      }
+      .gridline {
+        stroke: var(--g-line-strong);
+        stroke-opacity: 0.7;
+      }
+      .evenline {
+        stroke: var(--g-text);
+        stroke-opacity: 0.6;
+        stroke-width: 1;
+      }
+      .axis {
+        stroke: var(--g-line-strong);
+      }
+      .bracket {
+        fill: none;
+        stroke: var(--g-text);
+        stroke-width: 1.25;
+        stroke-linecap: round;
+      }
+      .walk {
+        fill: none;
+        stroke: var(--g-text);
+        stroke-width: 1.25;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .caret {
+        fill: var(--g-text);
+      }
+      .leader {
+        fill: none;
+        stroke: var(--g-stroke);
+        stroke-width: 1;
+      }
+      .sweep {
+        stroke: var(--g-text);
+        stroke-width: 1.25;
+        stroke-opacity: 0.7;
+      }
+      .zero {
+        stroke: var(--g-stroke);
+        stroke-width: 1.25;
+      }
+      .arrow {
+        fill: none;
+        stroke: var(--g-stroke);
+        stroke-width: 1.25;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .hidden-box {
+        fill: none;
+        stroke: var(--g-stroke);
+        stroke-dasharray: 4 3;
+      }
+      .climax {
+        fill: none;
+        stroke: var(--g-text);
+        stroke-width: 1.5;
+      }
+      .fly {
+        stroke: var(--g-viz-stage);
+        stroke-width: 0.75;
+      }
+      .cell-rule {
+        stroke: var(--g-line);
+      }
+      .rule {
+        stroke: var(--g-line);
+      }
+      .xmark {
+        stroke: var(--g-viz-critical);
+        stroke-width: 2;
+        stroke-linecap: round;
+        fill: none;
+      }
+      .xground {
+        fill: var(--g-viz-stage);
+      }
+      .follow-col {
+        fill: rgba(var(--g-text-rgb), 0.07);
+      }
+      .caption {
+        order: 3;
+      }
+      .simplify {
+        order: 4;
+      }
+      .simplify {
+        margin: 0;
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+      }
+      .toggles .wide {
+        grid-column: 1 / -1;
+      }
+      .nowrap {
+        white-space: nowrap;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <p class="eyebrow">System design · Sharding</p>
+      <h1>Try it</h1>
+      <section class="panel widget" id="widget"></section>
+    </main>
+    <script src="model.js"></script>
+    <script>
+      'use strict';
+      const M = window.ShardModel;
+      const params = new URLSearchParams(location.search);
+      document.documentElement.classList.toggle('dark', params.get('theme') === 'dark');
+      const K = M.K;
+      /** The hot key drawn at the size of its traffic: as many ordinary keys as carry its 30%. */
+      const HOT_SLOTS = (M.HOT_PCT / (100 - M.HOT_PCT)) * K;
+      /** The piles' scale: every pile of keys fits it (169 at most, enum.cjs prints it), and every experiment's piles with
+       * the hot key (85 keys under it at most). A hot key on a fuller pile is cut at the scale's end and says how much of
+       * its traffic the cut leaves out; the room over the scale is the cut's label's. */
+      const MAX_SLOTS = 184;
+
+      // ---------- Text measurement, with the fonts the app ships (no tabular digits: small text is measured as drawn).
+      const ROLE = {
+        label: { css: '600 11px "Inter Variable"', size: 11, track: 0.12, upper: true },
+        title: { css: '600 13px "Inter Variable"', size: 13 },
+        cap: { css: '500 13px "Inter Variable"', size: 13 },
+        capB: { css: '600 13px "Inter Variable"', size: 13 },
+        small: { css: '500 11px "Inter Variable"', size: 11 },
+        smallB: { css: '700 11px "Inter Variable"', size: 11 },
+        mono: { css: '600 11px "JetBrains Mono Variable"', size: 11 },
+        nameS: { css: '600 13px "JetBrains Mono Variable"', size: 13 },
+        head: { css: '600 17px "JetBrains Mono Variable"', size: 17 },
+        look: { css: '600 11px "Inter Variable"', size: 11 },
+      };
+      const ctx = document.createElement('canvas').getContext('2d');
+      const widthCache = new Map();
+      // The label role is set in capitals, but a key's name keeps its case ("user:56").
+      const upperKeepNames = (t) => t.toUpperCase().replace(/USER:(\d+|HOT)/g, (m) => m.toLowerCase());
+      function tw(text, role) {
+        const key = role + '|' + text;
+        if (widthCache.has(key)) return widthCache.get(key);
+        const f = ROLE[role];
+        ctx.font = f.css;
+        const s = f.upper ? upperKeepNames(text) : text;
+        const w = Math.ceil(ctx.measureText(s).width + (f.track ? f.track * f.size * s.length : 0)) + 1;
+        widthCache.set(key, w);
+        return w;
+      }
+      const partsWidth = (parts) => parts.reduce((s, [t, role, , dx = 0]) => s + tw(t, role) + dx, 0);
+      // A line never parts a number from its unit, "mod" from its number, an equation, or what stands in brackets.
+      const NB = ' ';
+      const glue = (t) =>
+        t
+          .replace(/\(([^)]*)\)/g, (m) => m.replace(/ /g, NB))
+          .replace(/([\d,]+) mod (\d+) = (\d+)/g, `$1${NB}mod${NB}$2${NB}=${NB}$3`)
+          .replace(/\bhash mod (\d+|N)/g, `hash${NB}mod${NB}$1`)
+          .replace(/(\d) (keys?|nodes?|points?|shards?|of|×)(?=[\s,.;:]|$)/g, `$1${NB}$2`)
+          .replace(/\b(of|to|from|on|is|at|by|holds) ([\d,.]+%?|[A-F])(?=[\s,.;:']|$)/g, `$1${NB}$2`)
+          .replace(/(\d+) of(?: | )(the )?(\d+)/g, (m) => m.replace(/ /g, NB));
+      function wrap(text, role, width) {
+        const lines = [];
+        let line = '';
+        for (const w of glue(text).split(' ')) {
+          const next = line ? line + ' ' + w : w;
+          if (tw(next, role) <= width || !line) line = next;
+          else {
+            lines.push(line);
+            line = w;
+          }
+        }
+        if (line) lines.push(line);
+        return lines.map((l) => l.replace(/ /g, ' '));
+      }
+      const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      const labelInner = (t) =>
+        esc(t)
+          .split(/(user:(?:\d+|hot))/)
+          .map((p, i) => (i % 2 ? `<tspan class="t-unit">${p}</tspan>` : p))
+          .join('');
+      const r1 = (v) => Math.round(v * 10) / 10;
+      const plural = (n, one, many) => (n === 1 ? one : many);
+      const pick = (forms, fits) => forms.find(fits) ?? forms[forms.length - 1];
+
+      // ---------- The drawing: SVG parts in layers, and the boxes placement checks against.
+      class Draw {
+        constructor(W) {
+          this.W = W;
+          this.layers = { back: [], grid: [], links: [], marks: [], dots: [], fly: [], text: [], top: [] };
+          this.texts = [];
+          this.marks = [];
+          this.links = [];
+          this.hits = [];
+          this.regions = {};
+          this.missing = [];
+          this.meta = {};
+        }
+        add(layer, s) {
+          this.layers[layer].push(s);
+        }
+        textBox(x, y, w, role, anchor = 'start') {
+          const fs = ROLE[role].size;
+          const x0 = anchor === 'middle' ? x - w / 2 : anchor === 'end' ? x - w : x;
+          return { x0, x1: x0 + w, y0: y - 0.74 * fs, y1: y + 0.22 * fs };
+        }
+        text(x, y, parts, o = {}) {
+          if (typeof parts === 'string') parts = [[parts, o.role ?? 'small', o.cls ?? '']];
+          const anchor = o.anchor ?? 'start';
+          const w = partsWidth(parts);
+          const role = parts.reduce((a, p) => (ROLE[p[1]].size > ROLE[a].size ? p[1] : a), parts[0][1]);
+          const box = this.textBox(x, y, w, role, anchor);
+          box.owner = o.owner ?? '';
+          box.s = parts.map((p) => p[0]).join('');
+          this.texts.push(box);
+          const spans = parts.map(([t, r, cls = '', dx = 0]) => `<tspan class="t-${r} ${cls}"${dx ? ` dx="${dx}"` : ''}>${r === 'label' ? labelInner(t) : esc(t)}</tspan>`).join('');
+          const attrs = `x="${r1(x)}" y="${r1(y)}" text-anchor="${anchor}"${o.owner ? ` data-owner="${o.owner}"` : ''}${o.ground ? ' data-ground="1"' : ''}${o.id ? ` data-id="${o.id}"` : ''}${o.data ?? ''}`;
+          this.add(o.layer ?? 'text', `<text class="${o.textCls ?? ''}" ${attrs}>${spans}</text>`);
+          return box;
+        }
+        mark(box, owner = '') {
+          this.marks.push({ ...box, owner });
+        }
+        link(points, owner = '') {
+          this.links.push({ points, owner });
+        }
+        hit(kind, x, y, w, h, extra = {}) {
+          this.hits.push({ kind, x, y, w, h, ...extra });
+        }
+        region(id, box) {
+          (this.regions[id] ??= []).push(box);
+        }
+        free(box, ignoreOwner = '', margin = 2) {
+          const b = { x0: box.x0 - margin, x1: box.x1 + margin, y0: box.y0 - margin, y1: box.y1 + margin };
+          const hit = (o) => !(o.x1 <= b.x0 || o.x0 >= b.x1 || o.y1 <= b.y0 || o.y0 >= b.y1);
+          const mine = (o) => ignoreOwner && o.owner && o.owner.split(' ').some((t) => ignoreOwner.split(' ').includes(t));
+          if (this.texts.some((t) => hit(t) && !mine(t))) return false;
+          if (this.marks.some((m) => hit(m) && !mine(m))) return false;
+          for (const l of this.links) {
+            if (mine(l)) continue;
+            if (l.points.some(([x, y]) => x > b.x0 && x < b.x1 && y > b.y0 && y < b.y1)) return false;
+          }
+          return b.x0 >= 2 && b.x1 <= this.W - 2;
+        }
+        /** Puts a text at the first candidate where it covers nothing; records it as missing when none is free. */
+        place(cands, parts, o = {}) {
+          if (typeof parts === 'string') parts = [[parts, o.role ?? 'small', o.cls ?? '']];
+          for (const [x, y, anchor = 'start'] of cands) {
+            const w = partsWidth(parts);
+            const role = parts.reduce((a, p) => (ROLE[p[1]].size > ROLE[a].size ? p[1] : a), parts[0][1]);
+            const box = this.textBox(x, y, w, role, anchor);
+            if (box.y0 < (o.minY ?? 0) || box.y1 > (o.maxY ?? Infinity) || box.x0 < (o.minX ?? 2) || box.x1 > (o.maxX ?? this.W - 2)) continue;
+            if (!this.free(box, o.ignore ?? '', o.margin ?? 2)) continue;
+            return this.text(x, y, parts, { ...o, anchor });
+          }
+          if (!o.optional) this.missing.push(parts.map((p) => p[0]).join(''));
+          return null;
+        }
+        svg(H, label) {
+          const L = this.layers;
+          return `<svg class="draw" width="${this.W}" height="${H}" viewBox="0 0 ${this.W} ${H}" role="img" aria-label="${esc(label)}">
+<g>${L.back.join('')}</g><g>${L.grid.join('')}</g><g>${L.links.join('')}</g><g>${L.marks.join('')}</g><g>${L.dots.join('')}</g><g>${L.fly.join('')}</g><g>${L.text.join('')}</g><g>${L.top.join('')}</g></svg>`;
+        }
+      }
+      const sampleLine = (x1, y1, x2, y2, step = 3) => {
+        const n = Math.max(2, Math.ceil(Math.hypot(x2 - x1, y2 - y1) / step));
+        return Array.from({ length: n + 1 }, (_, i) => [x1 + ((x2 - x1) * i) / n, y1 + ((y2 - y1) * i) / n]);
+      };
+      function xGlyph(D, cx, cy, owner, s = 4) {
+        D.add('marks', `<circle class="xground" cx="${r1(cx)}" cy="${r1(cy)}" r="${s + 3}"/><path class="xmark" data-owner="${owner}" d="M${r1(cx - s)} ${r1(cy - s)}l${2 * s} ${2 * s}M${r1(cx + s)} ${r1(cy - s)}l${-2 * s} ${2 * s}"/>`);
+        D.mark({ x0: cx - s - 2, x1: cx + s + 2, y0: cy - s - 2, y1: cy + s + 2 }, owner);
+      }
+
+      // ---------- What an open question hides, on every surface: one map (prevention 1). A question names its regions in
+      // its own `hide` list with the phase that hides them. `after` hides, while the answer plays, every number the model
+      // gives for the act's new setting: the moved count and its story, the table's rows, the marks on moved keys, the
+      // followed key's new node, the fullest or busiest shard, the hot key's label. No trace of a change made before the
+      // card shows while a question asks: a card's setup is a new start.
+      function hiding(view) {
+        const active = new Set((view.hide ?? []).filter((h) => h.when === view.phase || h.when === 'both').map((h) => h.region));
+        const after = active.has('after');
+        return { after, numbers: after, moved: after, rule: after, standing: after, ghost: view.phase === 'asking' && !view.leakGhost };
+      }
+
+      // ---------- Geometry that depends only on the stage's width.
+      const TAU = Math.PI * 2;
+      const polar = (cx, cy, rad, a) => [cx + rad * Math.sin(a * TAU), cy - rad * Math.cos(a * TAU)];
+      const ALL_AT = [...M.KEY_AT, M.HOT_AT, ...M.SALT_AT];
+      const HOT_I = K;
+      const posOf = (i) => ALL_AT[i] / M.TURN;
+      const swarmCache = new Map();
+      /** The ring's dots: each key at its hash's angle, pushed outward to the first lane where it touches no other. The
+       * band's radius is the largest that keeps every lane inside `Rmax`. Positions never depend on the setting. */
+      function ringSwarm(Rmax, r) {
+        const id = `${Rmax}|${r}`;
+        if (swarmCache.has(id)) return swarmCache.get(id);
+        const pitch = 2 * r + 1.4;
+        const order = ALL_AT.map((_, i) => i).sort((a, b) => ALL_AT[a] - ALL_AT[b]);
+        let out = null;
+        for (let rb = Rmax - 12; rb > 30 && !out; rb -= 1) {
+          const lane0 = rb + 4 + 3 + r;
+          const lanes = [];
+          const pos = new Array(ALL_AT.length);
+          let ok = true;
+          let maxLane = 0;
+          for (const i of order) {
+            const ang = posOf(i) * TAU;
+            let lane = 0;
+            for (; ; lane++) {
+              const rad = lane0 + lane * pitch;
+              if (rad + r > Rmax) {
+                ok = false;
+                break;
+              }
+              const need = (2 * r + 0.9) / rad;
+              const arr = (lanes[lane] ??= []);
+              if (arr.every((b) => Math.min(Math.abs(b - ang), TAU - Math.abs(b - ang)) >= need)) {
+                arr.push(ang);
+                pos[i] = { rad, a: posOf(i) };
+                break;
+              }
+            }
+            if (!ok) break;
+            maxLane = Math.max(maxLane, lane);
+          }
+          if (ok) out = { rb, pos, r, outer: lane0 + maxLane * pitch + r };
+        }
+        swarmCache.set(id, out);
+        return out;
+      }
+      /** The magnified strip's window. One point a node: the whole ring. More: about one point every 20 px, so a point's
+       * arc stays wide enough to read, and never more than 28% of the ring, so the strip draws at most 60 keys. */
+      const LENS_MOST = 0.28;
+      function lensWindow(points, stripW) {
+        const f = points === 1 ? 1 : Math.min(LENS_MOST, Math.floor(stripW / 20) / (5 * points));
+        const c = posOf(M.FOLLOW);
+        return f >= 1 ? { f: 1, start: 0 } : { f, start: (((c - f * 0.42) % 1) + 1) % 1 };
+      }
+      const rel = (a, start) => (((a - start) % 1) + 1) % 1;
+      /** Dots along the strip, stacked upward where they would touch. */
+      function stripStack(xs, r) {
+        const lanes = [];
+        const out = new Map();
+        for (const [i, x] of [...xs].sort((a, b) => a[1] - b[1])) {
+          let lane = 0;
+          while (lanes[lane] !== undefined && x - lanes[lane] < 2 * r + 1) lane++;
+          lanes[lane] = x;
+          out.set(i, lane);
+        }
+        return { lane: out, lanes: lanes.length };
+      }
+      const lensLanesCache = new Map();
+      function lensLanes(stripW, r, points) {
+        const id = `${stripW}|${r}|${points}`;
+        if (lensLanesCache.has(id)) return lensLanesCache.get(id);
+        const { f, start } = lensWindow(points, stripW);
+        const xs = ALL_AT.map((_, i) => [i, rel(posOf(i), start)]).filter(([, p]) => p < f).map(([i, p]) => [i, (p / f) * stripW]);
+        const most = stripStack(xs, r).lanes;
+        lensLanesCache.set(id, most);
+        return most;
+      }
+
+      // ---------- Words reserved by width: the longest story and standing line any setting can say.
+      let SCENARIOS = null;
+      function allScenarios() {
+        if (SCENARIOS) return SCENARIOS;
+        SCENARIOS = [];
+        for (const s of M.allSettings()) {
+          const froms = [null];
+          if (!s.down) {
+            for (const n of M.NODE_COUNTS) if (n !== s.nodes) froms.push(M.NAMES.slice(0, n));
+            for (const m of M.NAMES.slice(0, s.nodes)) froms.push(M.NAMES.slice(0, s.nodes).filter((x) => x !== m));
+          }
+          for (const from of froms) SCENARIOS.push({ s, from });
+        }
+        return SCENARIOS;
+      }
+      window.ALL_SCENARIOS = allScenarios;
+      const NO_CHANGE = ['No node has joined or left yet.', 'Change the nodes, or take the busiest node down, and watch which keys move.'];
+      const HIDDEN_STORY = 'Which keys moved, and where, shows at the reveal.';
+      const HIDDEN_STANDING = 'The fullest shard shows at the reveal.';
+      const PLAYING_STORY = 'Counting each key as it lands.';
+      const reserveCache = new Map();
+      function reserves(width) {
+        if (reserveCache.has(width)) return reserveCache.get(width);
+        let story = wrap(NO_CHANGE[1], 'cap', width).length;
+        let standing = 1;
+        for (const { s, from } of allScenarios()) {
+          const sc = M.scenario(s, from);
+          if (sc.change) story = Math.max(story, M.changeStory(sc).reduce((a, l) => a + wrap(l, 'cap', width).length, 0));
+          standing = Math.max(standing, wrap(M.standing(sc), 'cap', width).length);
+        }
+        const out = { story, standing };
+        reserveCache.set(width, out);
+        return out;
+      }
+
+      // ---------- A play's clock: one monotone fraction from 0 to 1. The node set changes first, then the arcs that
+      // changed owner take their new colour, then each moved key leaves its pile as a hand sweeping the ring once passes
+      // its hash, and lands a flight later. Nothing is drawn for a key before its moment.
+      const { points: T_POINTS, sweep0: T_SWEEP0, sweep1: T_SWEEP1, flight: T_FLIGHT } = M.PLAY;
+      function frameOf(sc, frac) {
+        const c = sc.change;
+        if (frac === null || frac === undefined || !c) return null;
+        const takeoff = M.takeoff;
+        const state = new Map();
+        let landed = 0;
+        for (const mv of c.moves) {
+          const t0 = takeoff(mv.key);
+          const st = frac < t0 ? 'src' : frac < t0 + T_FLIGHT ? 'fly' : 'dst';
+          if (st === 'dst') landed++;
+          state.set(mv.key, { ...mv, st, u: st === 'fly' ? (frac - t0) / T_FLIGHT : 0, t0 });
+        }
+        return { frac, state, landed, pointsIn: frac >= T_POINTS, sweep: frac >= T_SWEEP0 && frac <= T_SWEEP1 ? (frac - T_SWEEP0) / (T_SWEEP1 - T_SWEEP0) : null, done: frac >= T_SWEEP1 + T_FLIGHT };
+      }
+
+      const nodeCls = (m) => `n${m}`;
+
+      // ---------- The stage. Its height depends only on its width.
+      function buildStage(W, sc, view) {
+        const D = new Draw(W);
+        const hid = hiding(view);
+        const s = sc.settings;
+        const c = hid.ghost ? null : sc.change;
+        const frame = c ? frameOf(sc, view.frac) : null;
+        const playing = !!frame && !frame.done;
+        const pad = W < 420 ? 12 : 16;
+        const inner = W - 2 * pad;
+        const two = W >= 600;
+        const ringMode = sc.scheme === 'ring';
+        // The placement the ring and the strip draw: the one before the change until its points move.
+        const placed = frame && !frame.pointsIn ? c.before : sc.now;
+        const ownerNow = (key) => {
+          const st = frame?.state.get(key);
+          return st && st.st === 'src' ? st.from : sc.now.owners[key];
+        };
+        const showMoved = !!c && !hid.moved;
+        const movedSet = new Map((c?.moves ?? []).map((m) => [m.key, m]));
+        const landedKey = (key) => movedSet.has(key) && (!frame || frame.state.get(key).st === 'dst');
+        D.meta = { change: c, frame, hid, sc };
+
+        // ----- Header: Replay, the title, the key.
+        D.hit('play', pad - 4, 2, 44, 44);
+        const title = D.text(pad + 44, 29, [[`Where ${M.num(K)} keys live`, 'title']], { owner: 'title' });
+        const kr = two ? 2.2 : 2;
+        const legend = [
+          ['a key, in its node’s colour', 'a key'],
+          ['moved in the last change', 'moved last'],
+        ];
+        const legendW = (k) => 2 * (2 * kr + 6) + tw(legend[0][k], 'small') + 14 + tw(legend[1][k], 'small');
+        let y = 46;
+        const sameRow = title.x1 + 20 + legendW(0) <= W - pad;
+        const lk = sameRow || legendW(0) <= inner ? 0 : 1;
+        const ly = sameRow ? 29 : y + 12;
+        let lx = sameRow ? W - pad - legendW(lk) : pad;
+        const keyDot = (x, moved) => {
+          D.add('marks', `<circle class="key nA${moved ? ' moved' : ''}" data-legend="1" cx="${r1(x + kr)}" cy="${ly - 4}" r="${moved ? kr - 0.5 : kr}"/>`);
+          D.mark({ x0: x - 2, x1: x + 2 * kr + 2, y0: ly - 4 - kr - 2, y1: ly - 4 + kr + 2 }, 'legend');
+        };
+        keyDot(lx, false);
+        lx += 2 * kr + 6;
+        lx = D.text(lx, ly, legend[0][lk], { role: 'small', owner: 'legend' }).x1 + 14;
+        keyDot(lx, true);
+        D.text(lx + 2 * kr + 6, ly, legend[1][lk], { role: 'small', owner: 'legend' });
+        if (!sameRow) y += 22;
+        y += 6;
+
+        // ----- The ring: every key at its hash, and who owns each stretch.
+        const ringW = two ? 284 : Math.min(inner, 300);
+        const ringX = two ? pad : pad + (inner - ringW) / 2;
+        const ringY = y;
+        const Rmax = ringW / 2 - 10;
+        const dr = ringW >= 280 ? 1.8 : two ? 1.7 : 1.5;
+        const sw = ringSwarm(Rmax, dr);
+        const cx = ringX + ringW / 2;
+        const cy = ringY + 18 + 14 + Rmax;
+        const ringH = 18 + 14 + 2 * Rmax + 8;
+        const ringTitle = ringMode
+          ? pick(['The ring · a key belongs to the next point clockwise', 'The ring of hashes, clockwise from 0', 'The ring of hashes'], (t) => tw(t, 'label') <= (two ? ringW : inner))
+          : pick([`Keys by hash · node = hash mod ${placed.members.length}`, 'Keys by hash'], (t) => tw(t, 'label') <= (two ? ringW : inner));
+        D.text(two ? ringX : pad, ringY + 11, ringTitle, { role: 'label', owner: 'ring-title' });
+        if (ringMode) {
+          const byNode = {};
+          const ring = placed.ring;
+          ring.forEach((p, i) => {
+            const q = ring[(i - 1 + ring.length) % ring.length];
+            const a0 = q.at / M.TURN;
+            let a1 = p.at / M.TURN;
+            if (a1 <= a0) a1 += 1;
+            const [x0, y0] = polar(cx, cy, sw.rb, a0);
+            const [x1, y1] = polar(cx, cy, sw.rb, a1);
+            (byNode[p.node] ??= []).push(`M${x0.toFixed(2)} ${y0.toFixed(2)}A${sw.rb} ${sw.rb} 0 ${a1 - a0 > 0.5 ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`);
+          });
+          // One path per node, so the band is at most six elements however many points there are.
+          for (const m of placed.members) D.add('marks', `<path class="band ${nodeCls(m)}" data-node="${m}" d="${byNode[m].join('')}"/>`);
+        } else D.add('marks', `<circle class="track" cx="${cx}" cy="${cy}" r="${sw.rb}"/>`);
+        // 0, where the ring starts and ends, and the direction a key walks.
+        const zr = sw.outer + 2;
+        D.add('marks', `<line class="zero" x1="${cx}" y1="${r1(cy - sw.rb - 4)}" x2="${cx}" y2="${r1(cy - zr - 5)}"/>`);
+        D.text(cx, cy - zr - 8, '0', { role: 'mono', anchor: 'middle', owner: 'zero', cls: 'muted' });
+        if (ringMode) {
+          const ar = sw.rb - 11;
+          const [ax0, ay0] = polar(cx, cy, ar, 0.985);
+          const [ax1, ay1] = polar(cx, cy, ar, 0.07);
+          const [hx, hy] = polar(cx, cy, ar - 4, 0.058);
+          const [hx2, hy2] = polar(cx, cy, ar + 4.5, 0.052);
+          D.add('marks', `<path class="arrow" data-owner="cw" d="M${r1(ax0)} ${r1(ay0)}A${ar} ${ar} 0 0 1 ${r1(ax1)} ${r1(ay1)}M${r1(hx)} ${r1(hy)}L${r1(ax1)} ${r1(ay1)}L${r1(hx2)} ${r1(hy2)}"/>`);
+          D.mark({ x0: ax0 - 2, x1: ax1 + 3, y0: ay0 - 3, y1: ay1 + 3 }, 'cw');
+        }
+        // The keys, each a dot in its owner's colour; a key that moved in the last change carries an ink ring.
+        for (let i = 0; i < K; i++) {
+          const p = sw.pos[i];
+          const [x, yy] = polar(cx, cy, p.rad, p.a);
+          const moved = showMoved && landedKey(i);
+          D.add('dots', `<circle class="dot key ${nodeCls(ownerNow(i))}${moved ? ' moved' : ''}" data-id="k${i}" data-owner="keys" cx="${r1(x)}" cy="${r1(yy)}" r="${moved ? dr - 0.5 : dr}"${moved ? ' data-moved="1"' : ''}/>`);
+        }
+        const hotIds = s.hot ? (s.split ? M.SALT_AT.map((_, j) => K + 1 + j) : [HOT_I]) : [];
+        for (const i of hotIds) {
+          const p = sw.pos[i];
+          const [x, yy] = polar(cx, cy, p.rad, p.a);
+          D.add('dots', `<circle class="dot hot" data-id="h${i}" data-owner="keys" cx="${r1(x)}" cy="${r1(yy)}" r="${dr}"/>`);
+        }
+        // The band and its dots as marks: an annulus in 48 sectors, so the ring's corners and its middle stay free.
+        for (let k = 0; k < 48; k++) {
+          const pts = [k / 48, (k + 1) / 48].flatMap((a) => [polar(cx, cy, sw.rb - 5, a), polar(cx, cy, sw.outer + 1, a)]);
+          D.mark({ x0: Math.min(...pts.map((p) => p[0])), x1: Math.max(...pts.map((p) => p[0])), y0: Math.min(...pts.map((p) => p[1])), y1: Math.max(...pts.map((p) => p[1])) }, 'ring-disc');
+        }
+        // One point a node: each point is named where it sits; a node that left keeps a struck chip there.
+        if (ringMode && s.points === 1) {
+          const chips = [];
+          const gone = c && (!frame || frame.pointsIn) ? c.left : [];
+          const names = [...placed.members, ...gone.filter((m) => !placed.members.includes(m))];
+          for (const m of names.sort((a, b) => M.hash32(`${a}#0`) - M.hash32(`${b}#0`))) {
+            const a = M.hash32(`${m}#0`) / M.TURN;
+            // A chip sits inside the band at its point; where two points are close the later chip steps along the band,
+            // away from its neighbour, and its tick leans back to its own point.
+            const rad = sw.rb - 18;
+            let p = polar(cx, cy, rad, a);
+            const near = chips.find((q) => Math.hypot(q[0] - p[0], q[1] - p[1]) < 20);
+            if (near) {
+              const dir = Math.sign(a - near[2]) || 1;
+              for (let k = 1; k <= 40 && chips.some((q) => Math.hypot(q[0] - p[0], q[1] - p[1]) < 20); k++) p = polar(cx, cy, rad, a + (dir * k * 1.5) / (TAU * rad));
+            }
+            chips.push([p[0], p[1], a]);
+            const out = gone.includes(m);
+            const [tx, ty] = polar(cx, cy, sw.rb - 4, a);
+            const dd = Math.hypot(tx - p[0], ty - p[1]);
+            const [ux, uy] = [p[0] + ((tx - p[0]) * 8) / dd, p[1] + ((ty - p[1]) * 8) / dd];
+            D.add('links', `<line class="pt-tick" x1="${r1(tx)}" y1="${r1(ty)}" x2="${r1(ux)}" y2="${r1(uy)}"/>`);
+            D.add('marks', `<circle class="chip-pt ${out ? 'gone' : ''}" ${out ? '' : `style="stroke:var(--n-${m.toLowerCase()})"`} cx="${r1(p[0])}" cy="${r1(p[1])}" r="8"/>`);
+            D.text(p[0], p[1] + 4, m, { role: 'mono', anchor: 'middle', owner: `chip${m}`, cls: out ? 'muted' : '', textCls: 'on-chip' });
+            if (out) D.add('marks', `<line class="pt-tick" data-owner="chip${m}" x1="${r1(p[0] - 6)}" y1="${r1(p[1] + 6)}" x2="${r1(p[0] + 6)}" y2="${r1(p[1] - 6)}"/>`);
+            D.mark({ x0: p[0] - 8, x1: p[0] + 8, y0: p[1] - 8, y1: p[1] + 8 }, `chip${m}`);
+          }
+        }
+        // The ring's middle says what is placed on it.
+        {
+          const n = placed.members.length;
+          const l1 = `${n} nodes${placed.members.length < sc.names.length ? ' up' : ''}`;
+          const l2 = ringMode ? `${M.num(s.points)} ${plural(s.points, 'point', 'points')} each` : `hash mod ${n}`;
+          D.place([[cx, cy - 1, 'middle']], [[l1, 'capB']], { owner: 'centre', optional: true });
+          D.place([[cx, cy + 14, 'middle']], [[l2, 'small']], { owner: 'centre', optional: true });
+        }
+        // The stretch the strip magnifies, bracketed outside the dots; the followed key under a caret.
+        const stripW = inner - 8;
+        const win = lensWindow(s.points, stripW);
+        const fa = posOf(M.FOLLOW);
+        const fp = sw.pos[M.FOLLOW];
+        if (ringMode && win.f < 1) {
+          const br = sw.outer + 4;
+          const a0 = win.start;
+          const a1 = win.start + win.f;
+          const [bx0, by0] = polar(cx, cy, br, a0);
+          const [bx1, by1] = polar(cx, cy, br, a1);
+          const [cx0, cy0] = polar(cx, cy, br - 4, a0);
+          const [cx1, cy1] = polar(cx, cy, br - 4, a1);
+          D.add('marks', `<path class="bracket" data-owner="bracket" d="M${r1(cx0)} ${r1(cy0)}L${r1(bx0)} ${r1(by0)}A${br} ${br} 0 ${win.f > 0.5 ? 1 : 0} 1 ${r1(bx1)} ${r1(by1)}L${r1(cx1)} ${r1(cy1)}"/>`);
+        }
+        {
+          const far = (ringMode && win.f < 1 ? sw.outer + 7 : fp.rad + dr + 2) + 1;
+          const [px, py] = polar(cx, cy, far, fa);
+          const [qx, qy] = polar(cx, cy, far + 7, fa - 0.012);
+          const [rx, ry] = polar(cx, cy, far + 7, fa + 0.012);
+          D.add('marks', `<path class="caret" data-owner="follow" d="M${r1(px)} ${r1(py)}L${r1(qx)} ${r1(qy)}L${r1(rx)} ${r1(ry)}Z"/>`);
+          D.mark({ x0: Math.min(px, qx, rx) - 1, x1: Math.max(px, qx, rx) + 1, y0: Math.min(py, qy, ry) - 1, y1: Math.max(py, qy, ry) + 1 }, 'follow');
+          const [lx0, ly0] = polar(cx, cy, far + 12, fa);
+          const name = M.KEYS[M.FOLLOW];
+          const wn = tw(name, 'mono');
+          D.place(
+            [
+              [lx0 - 2, ly0 + 9, 'end'],
+              [lx0 + 4, ly0 + 12, 'end'],
+              [ringX + 2, ly0 + 12, 'start'],
+              [ringX + 2, cy + Rmax + 4, 'start'],
+              [lx0, ly0 + 14, 'middle'],
+            ],
+            [[name, 'mono']],
+            { owner: 'follow', ignore: 'follow', minX: (two ? ringX : pad) - 2, maxX: two ? ringX + ringW : W - pad },
+          );
+          void wn;
+        }
+        // The sweep hand of a play: the keys it has passed have left their piles.
+        if (frame && frame.sweep !== null) {
+          const [hx, hy] = polar(cx, cy, sw.outer + 2, frame.sweep);
+          const [ix, iy] = polar(cx, cy, sw.rb - 6, frame.sweep);
+          D.add('top', `<line class="sweep" x1="${r1(ix)}" y1="${r1(iy)}" x2="${r1(hx)}" y2="${r1(hy)}"/>`);
+        }
+        D.region('ring', { x: (two ? ringX : pad) - 4, y: ringY - 4, w: (two ? ringW : inner) + 8, h: ringH + 4 });
+
+        // ----- The piles: what each node holds. A dot is a key; the hot key is one block as tall as its traffic, so a
+        // pile's height is the node's load.
+        const binsX = two ? pad + ringW + 20 : pad;
+        const binsW = two ? inner - ringW - 20 : inner;
+        const heads = ['keys', W < 420 ? 'traffic %' : 'traffic', ...(ringMode ? [W < 420 ? 'of ring %' : 'of ring'] : []), 'in', 'out'];
+        const gw = Math.max(...[...(W < 420 ? ['traffic %', 'of ring %'] : ['traffic', 'of ring']), 'even', '33.3%'].map((t) => tw(t, 'small'))) + 8;
+        const bw = (binsW - gw) / 6;
+        const pile = bw >= 60 ? { c: 9, p: 6, r: 2.5 } : bw >= 48 ? { c: 8, p: 5.6, r: 2.35 } : bw >= 40 ? { c: 7, p: 4.8, r: 2 } : bw >= 34 ? { c: 7, p: 4.4, r: 1.85 } : { c: 7, p: 3.7, r: 1.5 };
+        const rows = Math.ceil(MAX_SLOTS / pile.c);
+        const PH = rows * pile.p + 26;
+        const binsH = 36 + PH + 18 + 16 * 5 + 6;
+        const binsY = two ? ringY + Math.max(0, ringH - binsH) : ringY + ringH + 14;
+        const pileTop = binsY + 36;
+        const by = pileTop + PH;
+        const binX = (m) => binsX + gw + M.NAMES.indexOf(m) * bw;
+        const pileX = (m) => binX(m) + (bw - pile.c * pile.p) / 2;
+        const slotXY = (m, j) => [pileX(m) + ((j % pile.c) + 0.5) * pile.p, by - 2 - (Math.floor(j / pile.c) + 0.5) * pile.p];
+        D.text(binsX, binsY + 11, 'What each node holds', { role: 'label', owner: 'bins-title' });
+        // The members drawn: the nodes now, and a node that went down keeps its place.
+        const drawn = M.NAMES.filter((m) => sc.names.includes(m) || (c && c.left.includes(m)));
+        const up = (m) => (frame && !frame.pointsIn ? c.before.members.includes(m) : sc.now.members.includes(m));
+        // A pile's keys in order: the ones that stayed by hash, then the ones that arrived, as they landed.
+        const lists = {};
+        const arrived = {};
+        for (const m of drawn) {
+          lists[m] = [];
+          arrived[m] = new Set();
+        }
+        const order = Array.from({ length: K }, (_, i) => i).sort((a, b) => M.KEY_AT[a] - M.KEY_AT[b]);
+        const flying = [];
+        if (c) {
+          for (const i of order) {
+            const st = frame?.state.get(i);
+            const mv = movedSet.get(i);
+            if (!mv) lists[sc.now.owners[i]].push(i);
+            else if (st && st.st === 'src') lists[mv.from]?.push(i);
+          }
+          for (const i of order) {
+            const st = frame?.state.get(i);
+            const mv = movedSet.get(i);
+            if (!mv) continue;
+            if (!st || st.st === 'dst') {
+              lists[mv.to].push(i);
+              arrived[mv.to].add(i);
+            } else if (st.st === 'fly') flying.push(st);
+          }
+        } else for (const i of order) lists[sc.now.owners[i]].push(i);
+        const hotAt = {};
+        for (const m of drawn) hotAt[m] = 0;
+        if (s.hot) {
+          const hp = frame && !frame.done ? c.before : sc.now;
+          if (s.split) for (const o of hp.salts) hotAt[o]++;
+          else hotAt[hp.hot] = M.SALTS;
+        }
+        // The even share, in the pile's own unit: keys, or traffic once the hot key is on.
+        const members = drawn.filter(up);
+        const evenSlots = (K + (s.hot ? HOT_SLOTS : 0)) / members.length;
+        const evenY = by - 2 - (evenSlots / pile.c) * pile.p;
+        const evenX0 = binsX + gw - 2;
+        const evenX1 = binX(drawn[drawn.length - 1]) + bw;
+        // The piles' scale is the share of all traffic a pile's height stands for: a quarter, a half, three quarters.
+        const slotsPerPct = (K + (s.hot ? HOT_SLOTS : 0)) / 100;
+        const gridX1 = binsX + binsW;
+        for (const t of [25, 50, 75]) {
+          const slots = t * slotsPerPct;
+          if (slots > MAX_SLOTS) continue;
+          const ty = by - 2 - (slots / pile.c) * pile.p;
+          D.add('grid', `<line class="gridline" data-owner="axis" x1="${r1(evenX0)}" y1="${r1(ty)}" x2="${r1(gridX1)}" y2="${r1(ty)}"/>`);
+          if (Math.abs(ty - evenY) >= 17 || Math.abs(ty - evenY) < 0.5) {
+            if (Math.abs(ty - evenY) >= 17) D.text(binsX + gw - 6, ty + 4, `${t}%`, { role: 'small', anchor: 'end', owner: 'axis', ground: true });
+          }
+        }
+        D.add('grid', `<line class="evenline" data-owner="even" x1="${r1(evenX0)}" y1="${r1(evenY)}" x2="${r1(evenX1)}" y2="${r1(evenY)}"/>`);
+        D.text(binsX + gw - 6, evenY - 3, 'even', { role: 'small', anchor: 'end', owner: 'even', ground: true });
+        D.text(binsX + gw - 6, evenY + 11, M.pctOf(100 / members.length), { role: 'small', anchor: 'end', owner: 'even', cls: 'ink', id: 'even', ground: true });
+        D.text(binsX, binsY + 27, 'A pile’s height is its share of all traffic', { role: 'small', owner: 'axis-title' });
+        D.meta.pile = { ...pile, by, pileTop, binX, bw, gw, binsX, evenSlots, evenY, lists, hotAt, area: { x0: binsX + gw, x1: binsX + binsW, y0: pileTop, y1: by } };
+        for (const m of drawn) {
+          const isUp = up(m);
+          D.add('marks', `<line class="base ${isUp ? nodeCls(m) : 'gone'}" x1="${r1(pileX(m))}" y1="${by + 1.5}" x2="${r1(pileX(m) + pile.c * pile.p)}" y2="${by + 1.5}"/>`);
+          D.text(binX(m) + bw / 2, by + 18, m, { role: 'nameS', anchor: 'middle', owner: `bin${m}`, cls: isUp ? '' : 'muted' });
+          if (!isUp && m === sc.downNode) xGlyph(D, binX(m) + bw / 2, by - 12, `x${m}`);
+          lists[m].forEach((key, j) => {
+            const [x, yy] = slotXY(m, j);
+            const moved = showMoved && arrived[m].has(key);
+            D.add('dots', `<circle class="dot key ${nodeCls(m)}${moved ? ' moved' : ''}" data-id="p${key}" data-owner="pile" cx="${r1(x)}" cy="${r1(yy)}" r="${moved ? pile.r - 0.5 : pile.r}"${moved ? ' data-moved="1"' : ''}/>`);
+          });
+          // The hot key, or its tenths, on top of the pile: one mark each, as tall as the traffic it carries.
+          if (hotAt[m]) {
+            const n = lists[m].length;
+            const startRow = Math.ceil(n / pile.c);
+            const each = HOT_SLOTS / M.SALTS / pile.c;
+            const pieces = s.split ? hotAt[m] : 1;
+            const hRows = s.split ? each : HOT_SLOTS / pile.c;
+            let hiddenPieces = 0;
+            for (let q = 0; q < pieces; q++) {
+              const y1 = by - 2 - startRow * pile.p - q * (hRows * pile.p + 1) - 1;
+              const full = hRows * pile.p;
+              const room = y1 - (pileTop + 22);
+              if (room < Math.min(full, 10)) {
+                hiddenPieces++;
+                continue;
+              }
+              const h = Math.min(full, room);
+              const cut = h < full - 0.5;
+              D.add('marks', `<rect class="hot-block" data-owner="hot" data-node="${m}" x="${r1(pileX(m) + 0.5)}" y="${r1(y1 - h)}" width="${r1(pile.c * pile.p - 1)}" height="${r1(h)}" rx="2"${cut ? ' data-cut="1"' : ''}/>`);
+              D.mark({ x0: pileX(m), x1: pileX(m) + pile.c * pile.p, y0: y1 - h, y1 }, 'hot');
+              if (!s.split && pile.c * pile.p >= 24 && h >= 14) D.text(pileX(m) + (pile.c * pile.p) / 2, y1 - h / 2 + 4, 'hot', { role: 'small', anchor: 'middle', owner: 'hot', cls: 'on-fill', textCls: 'on-block', id: 'hot-word', ground: true });
+              // A block taller than the scale is cut at its end, and says how much of the hot key's traffic it leaves out.
+              if (cut) {
+                const xm = pileX(m) + (pile.c * pile.p) / 2;
+                D.add('marks', `<path class="cut-mark" d="M${r1(xm - 4)} ${r1(y1 - h - 2)}l4 -5l4 5z"/>`);
+                D.text(xm, y1 - h - 10, `+${M.pctOf((M.HOT_PCT * (full - h)) / full)}`, { role: 'small', anchor: 'middle', owner: 'hot', cls: 'bad', id: 'cut' });
+              }
+            }
+            if (hiddenPieces) {
+              const xm = pileX(m) + (pile.c * pile.p) / 2;
+              const yTop = by - 2 - startRow * pile.p - (pieces - hiddenPieces) * (hRows * pile.p + 1) - 3;
+              D.add('marks', `<path class="cut-mark" d="M${r1(xm - 4)} ${r1(yTop)}l4 -5l4 5z"/>`);
+              D.text(xm, yTop - 8, s.split ? `+${M.pctOf((M.HOT_PCT * hiddenPieces) / M.SALTS)}` : `hot +${M.HOT_PCT}%`, { role: 'small', anchor: 'middle', owner: 'hot', cls: 'bad', id: s.split ? 'cut' : 'hot-word' });
+            }
+          }
+        }
+        // Keys in flight: exactly the keys that are moving, each from its old pile to its new one, inside the pile area.
+        D.meta.flights = [];
+        for (const st of flying) {
+          const srcList = lists[st.from] ?? [];
+          const [x0, y0] = slotXY(st.from, srcList.length);
+          const [x1, y1] = slotXY(st.to, lists[st.to].length);
+          const lift = Math.min(36, 10 + Math.abs(x1 - x0) * 0.2);
+          const topY = Math.max(pileTop + 4, Math.min(y0, y1) - lift);
+          const u = st.u;
+          const x = x0 + (x1 - x0) * u;
+          const yy = (1 - u) * (1 - u) * y0 + 2 * u * (1 - u) * topY + u * u * y1;
+          D.add('fly', `<circle class="dot key fly ${nodeCls(st.to)}" data-id="f${st.key}" cx="${r1(x)}" cy="${r1(yy)}" r="${pile.r}"/>`);
+          D.meta.flights.push({ x, y: yy });
+        }
+        // The table under the piles: a row a fact, the rows with nothing to say left out and their room kept at the foot.
+        const cellRole = bw >= 40 ? 'mono' : 'small';
+        const q = hid.numbers ? () => '?' : null;
+        const narrowPct = W < 420;
+        const pctCell = (tenths) => (narrowPct ? M.pct(tenths).replace('%', '') : M.pct(tenths));
+        const counts = Object.fromEntries(drawn.map((m) => [m, lists[m].length]));
+        const live = frame && !frame.done;
+        const inNow = (m) => (live ? [...arrived[m]].length : c.into[m]);
+        const outNow = (m) => (live ? c.out[m] - lists[m].filter((k) => movedSet.has(k) && movedSet.get(k).from === m).length : c.out[m]);
+        const tableRows = [
+          ['keys', (m) => (up(m) ? M.num(counts[m]) : m === sc.downNode ? 'down' : 'left'), 'keys'],
+          [heads[1], (m) => (up(m) ? pctCell(live ? (s.hot ? Math.floor((7 * counts[m] + 60 * hotAt[m] + 1) / 2) : 5 * counts[m]) : (sc.traffic[m] ?? 0)) : ''), 'traffic'],
+          ...(ringMode ? [[heads[2], (m) => (up(m) ? (narrowPct ? M.pctOf(placed.ringShare[m] * 100).replace('%', '') : M.pctOf(placed.ringShare[m] * 100)) : ''), 'ring']] : []),
+          ...(c ? [['in', (m) => (inNow(m) ? `+${M.num(inNow(m))}` : hid.numbers && up(m) ? '?' : ''), 'in'], ['out', (m) => (outNow(m) ? `−${M.num(outNow(m))}` : hid.numbers && up(m) ? '?' : ''), 'out']] : []),
+        ];
+        tableRows.forEach(([head, cell, id], k) => {
+          const ty = by + 18 + 16 * (k + 1);
+          D.text(binsX + gw - 6, ty, head, { role: 'small', anchor: 'end', owner: `row-${id}` });
+          for (const m of drawn) {
+            const raw = cell(m);
+            const down = raw === 'down';
+            const left = raw === 'left';
+            const txt = down ? (bw >= 34 ? 'down' : '') : left ? 'left' : q && raw !== '' ? q() : raw;
+            if (!txt) continue;
+            const busy = id === 'traffic' && s.hot && !hid.numbers && m === sc.busiest;
+            D.text(binX(m) + bw / 2, ty, txt, { role: cellRole, anchor: 'middle', owner: `cell-${id}-${m}`, cls: down || busy ? 'bad' : left ? 'muted' : '', id: down || left ? undefined : `cell-${id}-${m}` });
+          }
+        });
+        D.region('bins', { x: binsX - 4, y: binsY - 4, w: binsW + 8, h: binsH + 4 });
+        y = Math.max(ringY + (two ? ringH : 0), binsY + binsH) + 12;
+
+        // ----- The last change, in the model's exact counts.
+        D.add('grid', `<line class="rule" x1="${pad}" y1="${y}" x2="${W - pad}" y2="${y}"/>`);
+        const vY = y + 12;
+        const res = reserves(inner);
+        const labelText = c ? `Last change · ${M.changeLabel(c)}` : 'Last change · none yet';
+        D.text(pad, vY + 11, labelText, { role: 'label', owner: 'verdict' });
+        let headline;
+        if (!c) headline = [['No key has moved', 'head', 'muted']];
+        else if (hid.moved) headline = [['?', 'head'], [` of ${M.num(K)} keys moved`, 'head', 'muted']];
+        else if (live) headline = [[M.num(frame.landed), 'head'], [` of ${M.num(K)} keys moved so far`, 'head', 'muted']];
+        else headline = [[M.num(c.moved), 'head'], [` of ${M.num(K)} keys moved`, 'head', 'muted']];
+        const headForms = [headline, live && !hid.moved ? [[M.num(frame.landed), 'head'], [' moved so far', 'head', 'muted']] : headline];
+        const hb = D.text(pad, vY + 37, pick(headForms, (h) => partsWidth(h) <= inner), { owner: 'verdict', id: 'moved-count' });
+        if (c && hid.moved) D.add('marks', `<rect class="hidden-box" x="${r1(hb.x0 - 4)}" y="${r1(hb.y0 - 3)}" width="${tw('?', 'head') + 8}" height="22" rx="4"/>`);
+        const storyLines = !c ? NO_CHANGE.flatMap((l) => wrap(l, 'cap', inner)) : hid.moved ? wrap(HIDDEN_STORY, 'cap', inner) : live ? wrap(PLAYING_STORY, 'cap', inner) : M.changeStory(sc).flatMap((l) => wrap(l, 'cap', inner));
+        storyLines.forEach((l, k) => D.text(pad, vY + 58 + 18 * k, l, { role: 'cap', owner: 'verdict', id: k === 0 ? 'story' : undefined }));
+        const standingText = hid.standing ? (s.hot ? HIDDEN_STANDING.replace('fullest', 'busiest') : HIDDEN_STANDING) : live ? '' : M.standing(sc);
+        const sY = vY + 58 + 18 * storyLines.length + 6;
+        wrap(standingText, 'cap', inner).forEach((l, k) => l && D.text(pad, sY + 18 * k, l, { role: 'cap', owner: 'verdict', id: k === 0 ? 'standing' : undefined }));
+        const vH = 58 + 18 * (Math.max(res.story, wrap(NO_CHANGE[0], 'cap', inner).length + wrap(NO_CHANGE[1], 'cap', inner).length) + res.standing) - 2;
+        D.region('verdict', { x: pad - 4, y: vY - 4, w: inner + 8, h: vH + 8 });
+        y = vY + vH + 12;
+
+        // ----- A closer look: the followed key's rule, and the stretch of ring around it, magnified.
+        D.add('grid', `<line class="rule" x1="${pad}" y1="${y}" x2="${W - pad}" y2="${y}"/>`);
+        const lY = y + 12;
+        const lr = two ? 3 : 2.5;
+        const keysHAll = Math.max(...M.POINTS.filter((p) => p > 1).map((p) => lensLanes(stripW, lr, p) * (2 * lr + 1)));
+        const sx0 = pad + 4;
+        const pct1 = (x) => `${x >= 0.1 ? Math.round(x * 100) : (x * 100).toFixed(1)}%`;
+        const mag = Math.round(stripW / win.f / (TAU * sw.rb));
+        const follow = M.KEYS[M.FOLLOW];
+        const nMod = Math.max(3, Math.min(11, Math.floor((stripW - tw('hash mod 6', 'small') - 10) / 38)) | 1);
+        const lensTitle = ringMode
+          ? win.f >= 1
+            ? pick(['A closer look · the whole ring, laid flat from 0', 'The whole ring, laid flat'], (t) => tw(t, 'label') <= inner)
+            : pick([`A closer look · ${pct1(win.f)} of the ring around ${follow}, magnified ${mag}×`, `${pct1(win.f)} of the ring around ${follow}, ${mag}×`, `${pct1(win.f)} of the ring, ${mag}×`], (t) => tw(t, 'label') <= inner)
+          : pick([`A closer look · the ${nMod} keys nearest ${follow} by hash`, `The ${nMod} keys nearest ${follow}`], (t) => tw(t, 'label') <= inner);
+        D.text(pad, lY + 11, lensTitle, { role: 'label', owner: 'lens-title' });
+        if (ringMode && tw(lensTitle, 'label') + 16 + tw('clockwise →', 'small') <= inner) D.text(W - pad, lY + 11, 'clockwise →', { role: 'small', anchor: 'end', owner: 'cw2' });
+        const ruleLong = M.rule(sc, false);
+        const ruleShort = M.rule(sc, true);
+        const ruleHidden = ringMode ? `${follow} hashes to ${M.round(M.KEY_AT[M.FOLLOW])} of the way round; its node shows at the reveal.` : `${follow} hashes to ${M.num(M.KEY_AT[M.FOLLOW])}; its node shows at the reveal.`;
+        const ruleText = hid.rule ? ruleHidden : live ? (ringMode ? `${follow} hashes to ${M.round(M.KEY_AT[M.FOLLOW])} of the way round.` : `${follow} hashes to ${M.num(M.KEY_AT[M.FOLLOW])}.`) : wrap(ruleLong, 'cap', inner).length <= 2 ? ruleLong : ruleShort;
+        wrap(ruleText, 'cap', inner).forEach((l, k) => D.text(pad, lY + 32 + 18 * k, l, { role: 'cap', owner: 'rule', id: k === 0 ? 'rule' : undefined }));
+        const stripTop = lY + 32 + 18 * 2 - 6;
+        const keysH = keysHAll + 4;
+        const bandY = stripTop + 18 + keysH + 6;
+        const lensH = bandY + 8 + 22 - lY;
+        if (ringMode) {
+          const X = (a) => sx0 + (rel(a, win.start) / win.f) * stripW;
+          const inWin = (a) => win.f >= 1 || rel(a, win.start) < win.f;
+          const ring = placed.ring;
+          // Arcs: each point owns the stretch that ends at it.
+          const pts = ring.map((p) => ({ ...p, rp: rel(p.at / M.TURN, win.start) })).sort((a, b) => a.rp - b.rp);
+          let prevX = sx0;
+          const segs = [];
+          const visible = pts.filter((p) => p.rp < win.f || win.f >= 1);
+          for (const p of visible) {
+            const x = sx0 + (p.rp / win.f) * stripW;
+            segs.push({ x0: prevX, x1: x, node: p.node, point: p });
+            prevX = x;
+          }
+          const after = pts.find((p) => p.rp >= win.f && win.f < 1) ?? pts[0];
+          segs.push({ x0: prevX, x1: sx0 + stripW, node: after.node, point: null });
+          const byNode = {};
+          for (const g of segs) if (g.x1 - g.x0 > 0.01) (byNode[g.node] ??= []).push(`M${r1(g.x0)} ${bandY}H${r1(g.x1)}`);
+          for (const m of Object.keys(byNode)) D.add('marks', `<path class="band ${nodeCls(m)}" data-lens="1" d="${byNode[m].join('')}"/>`);
+          D.mark({ x0: sx0, x1: sx0 + stripW, y0: bandY - 4, y1: bandY + 4 }, 'lens-band');
+          // Points: a tick where each arc ends, named where the names keep 6 px apart.
+          const fresh = c && (!frame || frame.pointsIn) ? c.joined : [];
+          let lastLabel = -Infinity;
+          const whole = win.f >= 1;
+          for (const g of segs) {
+            if (!g.point) continue;
+            const isNew = fresh.includes(g.node);
+            D.add('marks', `<line class="pt-tick${isNew ? ' new' : ''}" data-owner="pt" x1="${r1(g.x1)}" y1="${bandY - 7}" x2="${r1(g.x1)}" y2="${bandY + 8}"/>`);
+            const wl = tw(g.node, 'mono');
+            const lx = Math.min(Math.max(g.x1, sx0 + wl / 2), sx0 + stripW - wl / 2);
+            if (!whole && lx - wl / 2 - lastLabel >= 6) {
+              D.text(lx, bandY + 20, g.node, { role: 'mono', anchor: 'middle', owner: 'pt', id: 'pt-name', data: ' data-xtick="1"' });
+              lastLabel = lx + wl / 2;
+            }
+          }
+          // Keys in the window, each over its hash.
+          // The whole ring holds every key: its arcs say their counts, and only the followed key is drawn.
+          if (whole) {
+            // Each node's one arc is named under its longer part with its count, where the words keep 6 px apart;
+            // a narrow arc keeps its letter, or nothing.
+            const longest = {};
+            for (const g of segs) if (!longest[g.node] || g.x1 - g.x0 > longest[g.node].x1 - longest[g.node].x0) longest[g.node] = g;
+            let last = -Infinity;
+            for (const [m, g] of Object.entries(longest).sort((a, b) => a[1].x0 - b[1].x0)) {
+              const n = hid.numbers ? '?' : M.num(placed.counts[m]);
+              const forms = [`${m}: ${n} ${placed.counts[m] === 1 && !hid.numbers ? 'key' : 'keys'}`, `${m}: ${n}`, m];
+              const mid = (g.x0 + g.x1) / 2;
+              const form = forms.find((t) => tw(t, 'mono') <= Math.max(g.x1 - g.x0 - 6, t === m ? 99 : 0) && mid - tw(t, 'mono') / 2 - last >= 6 && mid - tw(t, 'mono') / 2 >= sx0 && mid + tw(t, 'mono') / 2 <= sx0 + stripW);
+              if (!form) continue;
+              D.text(mid, bandY + 20, form, { role: 'mono', anchor: 'middle', owner: 'pt', id: `arc-${m}`, data: ' data-xtick="1"' });
+              last = mid + tw(form, 'mono') / 2;
+            }
+          }
+          const ids = [...Array.from({ length: K }, (_, i) => i), ...hotIds].filter((i) => (whole ? i === M.FOLLOW : inWin(posOf(i))));
+          const stack = stripStack(ids.map((i) => [i, X(posOf(i)) - sx0]), lr);
+          for (const i of ids) {
+            const x = X(posOf(i));
+            const yy = bandY - 4 - 4 - lr - stack.lane.get(i) * (2 * lr + 1);
+            const hot = i >= K;
+            const moved = !hot && showMoved && landedKey(i);
+            D.add('dots', `<circle class="dot ${hot ? 'hot' : `key ${nodeCls(ownerNow(i))}${moved ? ' moved' : ''}`}" data-id="l${i}" data-owner="lens-keys" cx="${r1(x)}" cy="${r1(yy)}" r="${moved ? lr - 0.5 : lr}"${moved ? ' data-moved="1"' : ''}/>`);
+          }
+          // The followed key: a caret over its column, and its walk clockwise to the point that owns it.
+          const fx = X(fa);
+          const topLane = Math.max(0, ...ids.filter((i) => Math.abs(X(posOf(i)) - fx) < 2 * lr + 1).map((i) => stack.lane.get(i)));
+          const cyTop = bandY - 8 - lr - topLane * (2 * lr + 1) - lr - 2;
+          D.add('marks', `<path class="caret" data-owner="follow2" d="M${r1(fx)} ${r1(cyTop)}l-4 -7h8z"/>`);
+          const wn = tw(follow, 'mono');
+          D.text(Math.min(Math.max(fx, sx0 + wn / 2), sx0 + stripW - wn / 2), cyTop - 11, follow, { role: 'mono', anchor: 'middle', owner: 'follow2' });
+          if (!hid.rule) {
+            const owner = M.pointFor(placed.ring, M.KEY_AT[M.FOLLOW]);
+            const orp = rel(owner.at / M.TURN, win.start);
+            const inside = win.f >= 1 ? owner.at >= M.KEY_AT[M.FOLLOW] : orp < win.f && orp >= rel(fa, win.start);
+            const ex = inside ? X(owner.at / M.TURN) : sx0 + stripW;
+            const wy = bandY + 0;
+            if (ex - fx > 6) D.add('top', `<path class="walk" data-owner="walk" d="M${r1(fx)} ${wy - 9}V${wy - 5.5}M${r1(fx)} ${wy - 7}H${r1(ex - 1.5)}M${r1(ex - 5)} ${wy - 10}l3.5 3l-3.5 3"/>`);
+          }
+        } else {
+          // hash mod N: the keys nearest the followed key by hash, each with its remainder and the node it picks.
+          const byHash = Array.from({ length: K }, (_, i) => i).sort((a, b) => M.KEY_AT[a] - M.KEY_AT[b]);
+          const at = byHash.indexOf(M.FOLLOW);
+          const half = (nMod - 1) / 2;
+          const shown = Array.from({ length: nMod }, (_, k) => byHash[(at - half + k + K) % K]);
+          const nNow = sc.now.members.length;
+          const before = c && !hid.moved ? c.before : null;
+          const rowsM = [
+            ['user:', (i) => String(i), 'mono', ''],
+            ...(before ? [[`hash mod ${before.members.length}`, (i) => String(M.KEY_AT[i] % before.members.length), 'mono', 'muted'], ['was on', (i) => before.owners[i], 'mono', 'muted']] : []),
+            [`hash mod ${hid.rule ? (c ? c.before.members.length : nNow) : nNow}`, (i) => String(M.KEY_AT[i] % (hid.rule && c ? c.before.members.length : nNow)), 'mono', ''],
+            [before ? 'now on' : 'node', (i) => (hid.rule && c ? c.before.owners[i] : sc.now.owners[i]), 'nameS', ''],
+          ];
+          const gwM = Math.max(...['hash mod 6', 'was on', 'now on'].map((t) => tw(t, 'small'))) + 8;
+          const cw = (stripW - gwM) / nMod;
+          rowsM.forEach(([head, cell, role, cls], k) => {
+            const ty = stripTop + 14 + 17 * k;
+            D.text(sx0 + gwM - 8, ty, head, { role: 'small', anchor: 'end', owner: `m${k}` });
+            shown.forEach((i, j) => {
+              const x = sx0 + gwM + (j + 0.5) * cw;
+              const last = k === rowsM.length - 1;
+              const moved = last && before && before.owners[i] !== sc.now.owners[i];
+              if (last) {
+                D.add('marks', `<circle class="key ${nodeCls(cell(i))}${moved ? ' moved' : ''}" cx="${r1(x - 9)}" cy="${ty - 4}" r="${moved ? 2.5 : 3}"/>`);
+                D.text(x + 3, ty, cell(i), { role, anchor: 'middle', owner: `m${k}`, cls, id: i === M.FOLLOW ? 'mod-node' : undefined });
+              } else D.text(x, ty, cell(i), { role, anchor: 'middle', owner: `m${k}`, cls: i === M.FOLLOW && k === 0 ? 'ink' : cls });
+            });
+          });
+          const fj = shown.indexOf(M.FOLLOW);
+          const fx = sx0 + gwM + (fj + 0.5) * cw;
+          D.add('back', `<rect class="follow-col" x="${r1(fx - cw / 2 + 1)}" y="${stripTop + 1}" width="${r1(cw - 2)}" height="${17 * rowsM.length + 4}" rx="6"/>`);
+        }
+        D.region('lens', { x: pad - 4, y: lY - 4, w: inner + 8, h: lensH + 6 });
+        const H = Math.round(lY + lensH + 10);
+        D.label = summaryOf(sc, hid, view);
+        return { D, H };
+      }
+
+      /** The stage's accessible summary, under the same hiding as its marks. */
+      function summaryOf(sc, hid, view) {
+        if (hid.after) return `${M.summary(M.scenario(view.spec.setup))} The answer is playing; its counts show at the reveal.`;
+        if (hid.ghost) return M.summary(M.scenario(sc.settings));
+        return M.summary(sc);
+      }
+
+      // ---------- Focus outlines with the house "Look here" tag (stroke only, solid: dashes mean hidden and nothing else).
+      function focusOutlines(D, ids, H) {
+        const TAG = { w: 72, h: 16 };
+        for (const id of ids) {
+          for (const b of D.regions[id] ?? []) {
+            const inside = new Set(
+              D.texts.filter((t) => {
+                const cx = (t.x0 + t.x1) / 2;
+                const cy = (t.y0 + t.y1) / 2;
+                return t.owner !== 'look' && cx >= b.x && cx <= b.x + b.w && cy >= b.y && cy <= b.y + b.h;
+              }),
+            );
+            const grow = (a, t, d) => ({ x0: Math.min(a.x0, t.x0 - d), y0: Math.min(a.y0, t.y0 - d), x1: Math.max(a.x1, t.x1 + d), y1: Math.max(a.y1, t.y1 + d) });
+            let box = { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h };
+            for (const t of inside) box = grow(box, t, 6);
+            const x = Math.max(3, box.x0);
+            const yy = Math.max(3, box.y0);
+            const w = Math.min(D.W - 3, box.x1) - x;
+            const h = Math.min(H - 3, box.y1) - yy;
+            D.add('top', `<rect class="focus-outline" data-focus="${id}" x="${r1(x)}" y="${r1(yy)}" width="${r1(w)}" height="${r1(h)}" rx="10"/>`);
+            const across = [];
+            for (let ax = x + w - TAG.w - 16; ax >= x + 16; ax -= 8) across.push(ax);
+            const xs = [x + w - TAG.w - 16, x + 16, ...across];
+            const ys = [yy - TAG.h / 2, yy + h - TAG.h / 2, yy + 4, yy + h - TAG.h - 4, yy + 24, yy + 44, yy - TAG.h - 2, yy + h + 2];
+            let placed = false;
+            for (const [tx, ty] of ys.flatMap((t) => xs.map((sx) => [sx, t]))) {
+              const tb = { x0: tx, x1: tx + TAG.w, y0: ty, y1: ty + TAG.h };
+              if (tx < 3 || tx + TAG.w > D.W - 3 || ty < 3 || ty + TAG.h > H - 3) continue;
+              if (!D.free(tb, 'pile-area', 1)) continue;
+              if ((D.meta.dotBoxes ?? []).some((d) => !(d.x1 <= tb.x0 || d.x0 >= tb.x1 || d.y1 <= tb.y0 || d.y0 >= tb.y1))) continue;
+              D.add('top', `<rect class="tag" x="${r1(tx)}" y="${r1(ty)}" width="${TAG.w}" height="${TAG.h}" rx="8"/>`);
+              D.add('top', `<text x="${r1(tx + TAG.w / 2)}" y="${r1(ty + 12)}" text-anchor="middle" data-owner="look" data-ground="1"><tspan class="t-look">LOOK HERE</tspan></text>`);
+              D.mark(tb, 'look');
+              placed = true;
+              break;
+            }
+            if (!placed) D.missingTags = (D.missingTags ?? 0) + 1;
+          }
+        }
+      }
+
+      // ---------- Mockup states.
+      const B = M.BASE;
+      const ABCD = M.NAMES.slice(0, 4);
+      const STATES = {
+        default: { s: B },
+        one: { s: { ...B, points: 1 } },
+        ten: { s: { ...B, points: 10 } },
+        mod: { s: M.SETUP.mod },
+        joined: { s: { ...B, nodes: 5 }, from: ABCD },
+        onejoined: { s: { ...B, points: 1, nodes: 5 }, from: ABCD },
+        modjoined: { s: { ...M.SETUP.mod, nodes: 5 }, from: ABCD },
+        left: { s: { ...B, nodes: 3 }, from: ABCD },
+        down: { s: { ...B, down: 1 } },
+        onedown: { s: { ...B, points: 1, down: 1 } },
+        moddown: { s: { ...M.SETUP.mod, down: 1 } },
+        hot: { s: M.SETUP.hot },
+        hotsix: { s: { ...M.SETUP.hot, nodes: 6 }, from: ABCD },
+        split: { s: { ...M.SETUP.hot, split: 1 } },
+        hotdown: { s: { ...M.SETUP.hot, down: 1 } },
+        six: { s: { ...B, nodes: 6 } },
+        tallest: { s: { scheme: 0, points: 1, nodes: 3, hot: 1, split: 0, down: 1 } },
+        playing: { s: { ...B, nodes: 5 }, from: ABCD, frac: 0.55 },
+        modplaying: { s: { ...M.SETUP.mod, nodes: 5 }, from: ABCD, frac: 0.55 },
+        describe: { s: { ...B, nodes: 5 }, from: ABCD, describe: true },
+        reduced: { s: { ...B, nodes: 5 }, from: ABCD, reduced: true },
+        ask: { exp: 0, phase: 'asking' },
+        reveal: { exp: 0, phase: 'revealed' },
+        challenge: { exp: 5, phase: 'challenge' },
+      };
+      function viewOf(name) {
+        const st = STATES[name] ?? STATES.default;
+        const expParam = params.get('exp');
+        const expIdx = expParam !== null && st.exp !== undefined ? Number(expParam) - 1 : st.exp;
+        if (expIdx === undefined) return { s: st.s, from: st.from ?? null, hide: [], phase: 'rest', frac: st.frac ?? null, describe: !!st.describe, reduced: !!st.reduced };
+        const spec = M.EXPERIMENTS[expIdx];
+        if (spec.goal) return expView(spec, params.get('start') === '1' ? 'start' : 'challenge');
+        const phase = params.get('phase') === 'playing' && st.phase === 'asking' ? 'playing' : st.phase;
+        return expView(spec, phase, Number(params.get('frac') ?? 0.6));
+      }
+      /** One experiment's view: asking (whatever came before leaves no trace), the answer's play at a fraction of its
+       * clock, revealed, or the challenge met or at its start. */
+      function expView(spec, phase, frac = 0.6, enteredFrom = null) {
+        const e = M.renderExperiment(spec);
+        if (spec.goal) {
+          const s = phase === 'start' ? spec.setup : { ...spec.setup, ...M.CHALLENGE_SOLUTION };
+          const sc = M.scenario(s);
+          const met = M.goalMet(spec.goal, sc.settings, sc.metrics);
+          return { s, from: null, hide: [], exp: e, spec, phase: 'challenge', met, focus: met ? spec.focus : [], frac: null };
+        }
+        const set = spec.act.set;
+        const after = { ...spec.setup, ...set };
+        const moves = 'nodes' in set;
+        if (phase === 'asking') return { s: spec.setup, from: enteredFrom, hide: spec.hide, exp: e, spec, phase, focus: [], frac: null };
+        return {
+          s: after,
+          from: moves ? M.NAMES.slice(0, spec.setup.nodes) : null,
+          hide: phase === 'revealed' ? [] : spec.hide,
+          exp: e,
+          spec,
+          phase,
+          chosen: e.answer === 0 ? 1 : 0,
+          focus: phase === 'revealed' ? spec.focus : [],
+          frac: phase === 'playing' ? frac : null,
+        };
+      }
+      window.expView = expView;
+
+      // ---------- The page around the stage.
+      function controlsHtml(sc, view) {
+        const s = sc.settings;
+        const locked = view.phase === 'asking' || view.phase === 'playing';
+        const dis = locked ? ' disabled' : '';
+        const mod = s.scheme === 1;
+        const seg = (name, items, cur, disabledAll = false) =>
+          items.map(([v, label]) => `<label class="segment"><input type="radio" name="${name}" ${v === cur ? 'checked' : ''}${disabledAll ? ' disabled' : ''}/><span>${label}</span></label>`).join('');
+        const downNode = sc.downNode ?? M.busiestOf(sc.up, s.hot, s.split);
+        return `<fieldset class="group placement-control"${dis}><legend class="control-label">Placement</legend><div class="segments">${seg(
+          'scheme',
+          [
+            [0, 'Consistent hashing'],
+            [1, 'hash mod N'],
+          ],
+          s.scheme,
+        )}</div></fieldset>
+<fieldset class="group points-control"${dis}><legend class="control-label">Points per node${mod ? '<span class="why"> · hash mod N has no ring</span>' : ''}</legend><div class="segments">${seg(
+          'points',
+          M.POINTS.map((p) => [p, M.num(p)]),
+          s.points,
+          mod,
+        )}</div></fieldset>
+<fieldset class="group nodes-control"${dis}><legend class="control-label">Nodes</legend><div class="segments">${seg(
+          'nodes',
+          M.NODE_COUNTS.map((n) => [n, `${n}<small aria-label="${M.NAMES[0]} to ${M.NAMES[n - 1]}">${M.NAMES[0]}–${M.NAMES[n - 1]}</small>`]),
+          s.nodes,
+        )}</div></fieldset>
+<fieldset class="group conditions-control"${dis}><legend class="control-label">Conditions</legend><div class="toggles">
+<label class="segment"><input type="checkbox" ${s.hot ? 'checked' : ''}/><span>A hot key<small>${M.HOT_PCT}% of the traffic</small></span></label>
+<label class="segment"><input type="checkbox" ${s.split ? 'checked' : ''}${s.hot ? '' : ' disabled'}/><span>Split the hot key<small>${s.hot ? `into ${M.SALTS} salted keys` : 'needs the hot key'}</small></span></label>
+<label class="segment wide"><input type="checkbox" ${s.down ? 'checked' : ''}/><span>Busiest node down<small>${s.down ? `${downNode} is down: its keys moved` : `${downNode} would fail: its keys must move`}</small></span></label></div></fieldset>
+<p class="notice" aria-live="polite" aria-atomic="true">${esc(noticeOf(sc, view))}</p>`;
+      }
+      function noticeOf(sc, view) {
+        if (view.phase === 'asking') return 'Replay and the settings wait for your answer.';
+        if (view.phase === 'playing') return 'The answer is playing on the picture.';
+        if (view.phase === 'challenge') return M.summary(sc);
+        if (view.phase === 'revealed') return M.story(sc);
+        if (view.frac !== null && view.frac !== undefined) return 'The keys that change node are moving.';
+        return sc.change ? M.story(sc) : 'Change the placement, the points, the nodes or the conditions. Replay shows the last change again.';
+      }
+      const SIMPLIFIED = `The model: ${M.num(K)} keys of equal size, each hashed once. Every key gets the same traffic unless the hot key is on, and a move is counted, not timed.`;
+      const ICON_RIGHT = '<svg class="mark" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="var(--g-success-line)"/><path d="M6 10.2l2.6 2.6 5.2-5.6" fill="none" stroke="var(--g-surface)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      const ICON_WRONG = '<svg class="mark" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="var(--g-danger)"/><path d="M7 7l6 6M13 7l-6 6" fill="none" stroke="var(--g-surface)" stroke-width="2" stroke-linecap="round"/></svg>';
+      // Learner text in HTML keeps a number with its unit on one line (the app's g-code-text does the same).
+      const htmlText = (t) =>
+        esc(t)
+          .replace(/([\d,.]+%? (?:keys?|nodes?|points?|shards?)|[\d,]+ mod \d+ = \d+|hash mod (?:\d+|N)|\d+ of the \d+|\d+ of \d+|\(\d[^)]*\))/g, '<span class="nowrap">$1</span>');
+      function dockHtml(sc, view) {
+        const e = view.exp;
+        if (!e) return '';
+        if (view.phase === 'challenge') {
+          const checks = M.goalChecks(sc);
+          const kept = M.goalMet({ all: [], keep: view.spec.goal.keep }, sc.settings, sc.metrics);
+          const status = view.met ? 'Goal met:' : kept ? '' : 'The goal keeps the hot key and the node down.';
+          return `<p class="legend">${htmlText(e.ask)}</p>${status ? `<p class="status-line${view.met ? ' met' : ''}" role="status">${view.met ? ICON_RIGHT : ''}${esc(status)}</p>` : ''}<ul class="status">${checks
+            .map((c) => `<li class="${c.met ? 'met' : ''}"><span class="state" aria-hidden="true">${c.met ? '✓' : '·'}</span><span>${htmlText(c.text)}</span></li>`)
+            .join('')}</ul>${view.met ? `<p class="reveal" aria-live="polite" aria-atomic="true">${htmlText(e.reveal)}</p>` : ''}`;
+        }
+        if (view.phase === 'asking') {
+          return `<fieldset style="border:0;padding:0;margin:0"><legend class="legend">${htmlText(e.ask)}</legend><div class="options">${e.choices.map((c) => `<button class="g-choice">${htmlText(c)}</button>`).join('')}</div></fieldset>`;
+        }
+        const marked = e.choices
+          .map((c, i) => {
+            const right = view.phase === 'revealed' && i === e.answer;
+            const wrong = view.phase === 'revealed' && i === view.chosen && !right;
+            const chosen = view.phase === 'playing' && i === view.chosen;
+            return `<li class="g-choice${right ? ' right' : wrong ? ' wrong' : ''}"><span>${htmlText(c)}${chosen ? ' <small>(your guess)</small>' : ''}</span>${right ? ICON_RIGHT : wrong ? ICON_WRONG : ''}</li>`;
+          })
+          .join('');
+        if (view.phase === 'playing') return `<p class="legend">${htmlText(e.ask)}</p><ul class="options">${marked}</ul><p class="held">Watch the picture: the answer plays out on it.</p>`;
+        return `<p class="legend">${htmlText(e.ask)}</p><ul class="options">${marked}</ul><p class="reveal" aria-live="polite" aria-atomic="true">${htmlText(e.reveal)}</p>`;
+      }
+      function cardsHtml(view) {
+        return `<h3 class="heading"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8zM19 14l.9 2.6 2.6.9-2.6.9L19 21l-.9-2.6-2.6-.9 2.6-.9z"/></svg>Experiments</h3>
+<ol class="cards">${M.EXPERIMENTS.map((s, i) => `<li><button class="card-btn"${view.exp && view.exp.id === s.id ? ' aria-current="step"' : ''}><span class="num">${s.goal ? '⚑' : i + 1}</span><span>${esc(M.renderExperiment(s).title)}</span></button></li>`).join('')}</ol>`;
+      }
+      // Describe: the summary, then a row a node; compact under a 560 px stage.
+      function describeHtml(sc, view, compact) {
+        const waits = view.phase === 'asking' || view.phase === 'playing' || (view.phase === 'challenge' && !view.met);
+        const open = !!view.describe && !waits;
+        const btn = `<button class="g-btn" aria-expanded="${open}"${waits ? ' disabled' : ''}>${open ? 'Hide the description' : 'Describe'}</button>`;
+        if (waits) return `${btn}<p class="muted-note">${view.phase === 'challenge' ? 'Describe waits until you meet the goal.' : 'Describe waits for your answer.'}</p>`;
+        if (!open) return btn;
+        const rows = M.describeRows(sc);
+        const ring = sc.scheme === 'ring';
+        const head = compact ? ['Node', 'Keys', 'Traffic', 'In', 'Out'] : ['Node', ...(ring ? ['Points', 'Of the ring'] : []), 'Keys', 'Traffic', 'Moved in', 'Moved out'];
+        const cells = (r) => (compact ? [r.node, r.keys, r.traffic, r.into, r.out] : [r.node, ...(ring ? [r.points, r.ring] : []), r.keys, r.traffic, r.into, r.out]).map((v) => (compact ? v.replace('no change yet', 'none') : v));
+        return `${btn}<p class="summary">${htmlText(sc.change ? M.story(sc) : M.summary(sc))} ${htmlText(M.standing(sc))} ${htmlText(M.rule(sc))}</p><div class="table-box${compact ? ' compact' : ''}" tabindex="0" role="region" aria-label="What each node holds"><table><thead><tr>${head
+          .map((h) => `<th scope="col">${h}</th>`)
+          .join('')}</tr></thead><tbody>${rows.map((r) => `<tr${r.state === 'down' ? ' class="down-row"' : ''}>${cells(r).map((v, i) => `<td>${esc(i === 0 && r.state === 'down' ? `${v}, down` : v)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+      }
+      // Replay: waits while a question asks and when nothing has changed yet; during a free play it is Stop.
+      function overlaysHtml(D, view, sc) {
+        const asking = view.phase === 'asking' || view.phase === 'playing';
+        const freePlaying = view.phase === 'rest' && view.frac !== null && view.frac !== undefined;
+        const none = !asking && !sc.change;
+        const glyph = freePlaying ? '<rect x="12.5" y="11" width="4" height="14" rx="1"/><rect x="19.5" y="11" width="4" height="14" rx="1"/>' : '<path d="M14 11v14l11-7z"/>';
+        const label = asking ? 'Replay the last change, after your answer' : freePlaying ? 'Stop the replay' : none ? 'Replay the last change: none yet' : 'Replay the last change';
+        return D.hits
+          .filter((h) => h.kind === 'play')
+          .map((h) => `<button class="play hit" data-owner="play" style="left:${h.x}px;top:${h.y}px" aria-label="${label}"${asking || none ? ' disabled' : ''}><svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="16"/>${glyph}</svg></button>`)
+          .join('');
+      }
+
+      function drawInto(well, W, sc, view) {
+        const { D, H } = buildStage(W, sc, view);
+        if (view.focus?.length) focusOutlines(D, view.focus, H);
+        well.style.height = H + 'px';
+        well.innerHTML = D.svg(H, D.label) + overlaysHtml(D, view, sc);
+        return { D, H };
+      }
+      function render(name) {
+        const view = viewOf(name);
+        const sc = M.scenario(view.s, view.from);
+        const root = document.getElementById('widget');
+        root.innerHTML = `<div class="controls">${controlsHtml(sc, view)}</div>
+<div class="main"><div class="stage" role="group" aria-roledescription="visualization" aria-label="Sharding: 200 keys placed on nodes by their hash"><div class="well" id="well"></div></div>
+${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${htmlText(M.story(sc))}</p>` : ''}<p class="simplify">${htmlText(SIMPLIFIED)}</p><div class="describe" id="describe"></div></div>
+<div class="experiments"><section class="dock" aria-label="Experiment">${dockHtml(sc, view)}</section>${cardsHtml(view)}</div>`;
+        const well = document.getElementById('well');
+        const W = well.clientWidth;
+        const { D, H } = drawInto(well, W, sc, view);
+        document.getElementById('describe').innerHTML = describeHtml(sc, view, W < 560);
+        window.__stage = { W, H, missingTags: D.missingTags ?? 0, summary: D.label, missing: D.missing };
+        return { W, H, D, view, sc };
+      }
+
+      // ---------- Collisions, measured from the rendered DOM: text on text, lines through text, marks under text,
+      // off-stage text, dots on dots, hit boxes on hit boxes, point names too close, text against a focus outline's
+      // stroke, a flight outside the pile area, labels and tags with no place.
+      function collisions(well) {
+        const svg = well.querySelector('svg.draw');
+        const W = Number(svg.getAttribute('width'));
+        const H = Number(svg.getAttribute('height'));
+        const owners = (el) => (el.getAttribute?.('data-owner') ?? '').split(' ').filter(Boolean);
+        const share = (a, b) => a.some((t) => b.includes(t));
+        const texts = [...svg.querySelectorAll('text')].map((t) => {
+          const b = t.getBBox();
+          return { el: t, s: t.textContent, owner: owners(t), ground: t.hasAttribute('data-ground'), x0: b.x + 0.5, x1: b.x + b.width - 0.5, y0: b.y + b.height * 0.2, y1: b.y + b.height * 0.95 };
+        });
+        const out = [];
+        const ov = (a, b, m = 0) => Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > m && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > m;
+        for (let i = 0; i < texts.length; i++) {
+          const a = texts[i];
+          if (a.x0 < -0.5 || a.x1 > W + 0.5 || a.y0 < 0 || a.y1 > H) out.push(`off-stage: "${a.s}"`);
+          for (let j = i + 1; j < texts.length; j++) if (ov(a, texts[j], 0.5)) out.push(`text on text: "${a.s}" / "${texts[j].s}"`);
+        }
+        const xt = texts.filter((t) => t.el.hasAttribute('data-xtick')).sort((a, b) => a.x0 - b.x0);
+        for (let i = 1; i < xt.length; i++) if (xt[i].x0 - xt[i - 1].x1 < 5) out.push(`point names ${xt[i - 1].s} and ${xt[i].s} ${(xt[i].x0 - xt[i - 1].x1).toFixed(1)} px apart`);
+        const inside = (p, t) => p.x > t.x0 + 0.5 && p.x < t.x1 - 0.5 && p.y > t.y0 + 0.5 && p.y < t.y1 - 0.5;
+        for (const el of svg.querySelectorAll('.evenline, .walk, .bracket, .rule, .sweep, .zero, .pt-tick, .arrow, .band, .track, .base')) {
+          const grid = el.matches('.rule, .evenline');
+          const o = owners(el);
+          const pts = [];
+          if (el.tagName === 'line') {
+            const [x1, y1, x2, y2] = ['x1', 'y1', 'x2', 'y2'].map((a) => Number(el.getAttribute(a)));
+            for (const [x, y] of sampleLine(x1, y1, x2, y2, 2)) pts.push({ x, y });
+          } else if (el.tagName === 'circle') {
+            const [cx, cy, r] = ['cx', 'cy', 'r'].map((a) => Number(el.getAttribute(a)));
+            for (let a = 0; a < 360; a += 2) pts.push({ x: cx + r * Math.cos((a * Math.PI) / 180), y: cy + r * Math.sin((a * Math.PI) / 180) });
+          } else {
+            const len = el.getTotalLength();
+            for (let d = 0; d <= len; d += 2) pts.push(el.getPointAtLength(d));
+          }
+          for (const t of texts) {
+            if (grid && t.ground) continue;
+            if (share(o, t.owner)) continue;
+            if (pts.some((p) => inside(p, t))) out.push(`${grid ? 'grid' : 'line'} through "${t.s}" (${el.getAttribute('class')})`);
+          }
+        }
+        for (const mk of svg.querySelectorAll('[data-mark]')) {
+          const b = mk.getBBox();
+          const box = { x0: b.x, x1: b.x + b.width, y0: b.y, y1: b.y + b.height };
+          for (const t of texts) if (!share(t.owner, owners(mk)) && ov(box, t, 0.5)) out.push(`text on mark ${mk.getAttribute('data-mark')}: "${t.s}"`);
+        }
+        // A text never sits on a dot (the drawn dots themselves, not a box round them).
+        const dots = [...svg.querySelectorAll('circle.dot:not(.fly)')].map((c) => ({ id: c.dataset.id, x: Number(c.getAttribute('cx')), y: Number(c.getAttribute('cy')), r: Number(c.getAttribute('r')) }));
+        for (const t of texts) {
+          if (t.owner.includes('look')) continue;
+          const d = dots.find((d) => d.x + d.r > t.x0 && d.x - d.r < t.x1 && d.y + d.r > t.y0 && d.y - d.r < t.y1);
+          if (d) out.push(`text on a dot: "${t.s}" / ${d.id}`);
+        }
+        const cell = 12;
+        const grid = new Map();
+        dots.forEach((d, i) => {
+          const gx = Math.floor(d.x / cell);
+          const gy = Math.floor(d.y / cell);
+          for (let dx = -1; dx <= 1; dx++)
+            for (let dy = -1; dy <= 1; dy++)
+              for (const j of grid.get(`${gx + dx},${gy + dy}`) ?? []) if (Math.hypot(d.x - dots[j].x, d.y - dots[j].y) < d.r + dots[j].r - 0.01) out.push(`dot on dot: ${dots[j].id} / ${d.id}`);
+          (grid.get(`${gx},${gy}`) ?? grid.set(`${gx},${gy}`, []).get(`${gx},${gy}`)).push(i);
+        });
+        for (const d of dots) if (d.x - d.r < -0.5 || d.x + d.r > W + 0.5 || d.y - d.r < 0 || d.y + d.r > H) out.push(`dot off-stage: ${d.id}`);
+        for (const o of svg.querySelectorAll('rect.focus-outline')) {
+          const [x, y, w, h] = ['x', 'y', 'width', 'height'].map((a) => Number(o.getAttribute(a)));
+          for (const t of texts) {
+            if (t.owner.includes('look')) continue;
+            const inner = t.x0 >= x + 3 && t.x1 <= x + w - 3 && t.y0 >= y + 3 && t.y1 <= y + h - 3;
+            const clear = t.x1 <= x - 3 || t.x0 >= x + w + 3 || t.y1 <= y - 3 || t.y0 >= y + h + 3;
+            if (!inner && !clear) out.push(`text at an outline's stroke: "${t.s}"`);
+          }
+        }
+        const wb = well.getBoundingClientRect();
+        const hits = [...well.querySelectorAll('.hit')].map((h) => {
+          const b = h.getBoundingClientRect();
+          return { o: h.dataset.owner, x0: b.left - wb.left - 1, x1: b.right - wb.left - 1, y0: b.top - wb.top - 1, y1: b.bottom - wb.top - 1 };
+        });
+        for (const a of hits) {
+          if (a.x0 < -0.5 || a.x1 > W + 0.5 || a.y0 < -0.5 || a.y1 > H + 0.5) out.push(`hit box off-stage: ${a.o}`);
+          for (const t of texts) if (ov(a, t, 0.5)) out.push(`text under a control: "${t.s}"`);
+        }
+        return out;
+      }
+      function tagMarks(well, D) {
+        const svg = well.querySelector('svg.draw');
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.setAttribute('opacity', '0');
+        for (const mk of D.marks) {
+          const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+          r.setAttribute('x', mk.x0);
+          r.setAttribute('y', mk.y0);
+          r.setAttribute('width', Math.max(0.1, mk.x1 - mk.x0));
+          r.setAttribute('height', Math.max(0.1, mk.y1 - mk.y0));
+          r.setAttribute('data-mark', mk.owner || 'mark');
+          r.setAttribute('data-owner', mk.owner || 'mark');
+          g.appendChild(r);
+        }
+        svg.appendChild(g);
+      }
+      const unplaced = (D) => [...(D.missingTags ? [`${D.missingTags} focus tag(s) without a place`] : []), ...(D.missing ?? []).map((t) => `no room for "${t}"`)];
+
+      // ---------- What must hold on every render, beyond collisions (the layout spec's assertions).
+      const FALSE_CLAIMS = [/NaN|undefined|Infinity|null/, /(?<!\+ )\b1 (keys|nodes|shards|points)\b/, /\b0 of \d+ keys moved(?! so far)/, /\d{4,}(?![\d,]*\s*mod)(?!,)/];
+      const stageText = (well) => [...well.querySelectorAll('text')].map((t) => t.textContent).join(' | ') + ' | ' + [...well.querySelectorAll('[aria-label]')].map((e) => e.getAttribute('aria-label')).join(' | ');
+      function assertions(well, D, sc) {
+        const out = [];
+        const svg = well.querySelector('svg.draw');
+        const text = stageText(well);
+        for (const g of FALSE_CLAIMS) if (g.test(text)) out.push(`false claim ${g}: ${text.match(g)[0]}`);
+        const { hid, frame, change } = D.meta;
+        const P = D.meta.pile;
+        const live = frame && !frame.done;
+        // Every key is drawn once on the ring and once in a pile or in flight; a pile's dots are its node's count.
+        const ringKeys = svg.querySelectorAll('circle.dot.key[data-id^="k"]').length;
+        const pileKeys = svg.querySelectorAll('circle.dot.key[data-id^="p"]').length;
+        const flying = svg.querySelectorAll('circle.dot.fly').length;
+        if (ringKeys !== K) out.push(`the ring draws ${ringKeys} keys`);
+        if (pileKeys + flying !== K) out.push(`the piles and flights draw ${pileKeys + flying} keys`);
+        if (!live) for (const m of sc.now.members) if (P.lists[m].length !== sc.now.counts[m]) out.push(`pile ${m} draws ${P.lists[m].length} keys for ${sc.now.counts[m]}`);
+        // The marks on moved keys are exactly the keys that moved, on the ring and in the piles; none while hidden.
+        const ringMoved = svg.querySelectorAll('circle.dot.key[data-id^="k"][data-moved]').length;
+        const pileMoved = svg.querySelectorAll('circle.dot.key[data-id^="p"][data-moved]').length;
+        const want = change && !hid.moved ? (frame ? frame.landed : change.moved) : 0;
+        if (ringMoved !== want || pileMoved !== want) out.push(`moved marks: ring ${ringMoved}, piles ${pileMoved}, the model ${want}`);
+        // Exactly the keys in flight are the keys the clock says are flying, and each flies inside the pile area.
+        if (frame) {
+          const n = [...frame.state.values()].filter((s) => s.st === 'fly').length;
+          if (flying !== n) out.push(`${flying} dots in flight for ${n} keys flying`);
+        } else if (flying) out.push('a dot in flight at rest');
+        for (const f of D.meta.flights ?? []) if (f.x < P.area.x0 - 1 || f.x > P.area.x1 + 1 || f.y < P.area.y0 || f.y > P.area.y1) out.push('a key flies outside the pile area');
+        // The tallest pile fits its area, and the even line lies on the piles' scale.
+        for (const b of svg.querySelectorAll('.hot-block')) if (Number(b.getAttribute('y')) < P.pileTop) out.push('a hot block leaves the pile area');
+        for (const d of svg.querySelectorAll('circle.dot.key[data-id^="p"]')) if (Number(d.getAttribute('cy')) - Number(d.getAttribute('r')) < P.pileTop) out.push('a pile leaves its area');
+        if (P.evenY < P.pileTop) out.push('the even line leaves the pile area');
+        // The headline is the model's count.
+        const head = svg.querySelector('[data-id="moved-count"]')?.textContent ?? '';
+        if (change && !hid.moved && !live && !head.startsWith(`${M.num(change.moved)} of`)) out.push(`the headline "${head}" for ${change.moved} moved`);
+        // The table's in and out rows add up to the headline.
+        if (change && !hid.numbers && !live) {
+          const sum = (id) => [...svg.querySelectorAll(`[data-id^="cell-${id}-"]`)].reduce((a, t) => a + Number(t.textContent.replace(/[^\d]/g, '')), 0);
+          if (sum('in') !== change.moved || sum('out') !== change.moved) out.push(`the in and out rows (${sum('in')}, ${sum('out')}) against ${change.moved} moved`);
+        }
+        // Dashes mean hidden and nothing else.
+        const dashed = [...svg.querySelectorAll('*')].filter((e) => e.getAttribute('stroke-dasharray') || (getComputedStyle(e).strokeDasharray !== 'none' && !e.matches('.hidden-box')));
+        if (dashed.length) out.push(`a dashed mark that is not a hidden value: ${dashed[0].getAttribute('class')}`);
+        if (svg.querySelector('.hidden-box') && !hid.after) out.push('a hidden box with nothing hidden');
+        return out;
+      }
+      function check(well, D, sc) {
+        tagMarks(well, D);
+        const out = [...collisions(well), ...unplaced(D), ...(sc ? assertions(well, D, sc) : [])];
+        well.querySelectorAll('[data-mark]').forEach((e) => e.parentNode.tagName === 'g' && e.remove());
+        return out;
+      }
+
+      // ---------- Sweeps (run by shoot.cjs): every scenario at many widths, at rest and at moments of its play.
+      const show = (s, from) => `${s.scheme ? 'mod' : `ring${s.points}`} n${s.nodes}${s.hot ? ' hot' : ''}${s.split ? ' split' : ''}${s.down ? ' down' : ''}${from ? ` from ${from.join('')}` : ''}`;
+      window.sweep = function (widths, ids, fracs = [null]) {
+        const well = document.getElementById('well');
+        const res = { renders: 0, failures: [] };
+        const list = allScenarios();
+        for (const W of widths) {
+          well.style.width = W + 2 + 'px';
+          for (const k of ids) {
+            const { s, from } = list[k];
+            const sc = M.scenario(s, from);
+            for (const frac of sc.change ? fracs : [null]) {
+              const view = { s, from, hide: [], phase: 'rest', frac };
+              const { D, H } = drawInto(well, W, sc, view);
+              const out = check(well, D, sc);
+              res.renders++;
+              (res.heights ??= {})[W] ??= [];
+              if (!res.heights[W].includes(H)) res.heights[W].push(H);
+              if (out.length) res.failures.push({ W, s: `${show(s, from)}${frac !== null ? ` f${frac}` : ''}`, out: out.slice(0, 4) });
+            }
+          }
+        }
+        well.style.width = '';
+        return res;
+      };
+      window.sweepExperiments = function (widths) {
+        const well = document.getElementById('well');
+        const res = { renders: 0, failures: [], heights: {} };
+        for (const W of widths) {
+          well.style.width = W + 2 + 'px';
+          M.EXPERIMENTS.forEach((spec, k) => {
+            const runs = spec.goal ? [['challenge'], ['start']] : [['asking'], ['playing', 0.05], ['playing', 0.3], ['playing', 0.6], ['playing', 0.99], ['revealed']];
+            for (const [phase, frac] of runs) {
+              const view = expView(spec, phase, frac);
+              const sc = M.scenario(view.s, view.from);
+              const { D, H } = drawInto(well, W, sc, view);
+              const out = check(well, D, sc);
+              // Every reveal and the met challenge carry a visible "Look here" tag on each focus region.
+              if (view.focus?.length) {
+                const tags = well.querySelectorAll('rect.tag').length;
+                if (tags !== view.focus.length) out.push(`${tags} look-here tags for ${view.focus.length} focus regions`);
+              }
+              res.renders++;
+              (res.heights[W] ??= []).includes(H) || res.heights[W].push(H);
+              if (out.length) res.failures.push({ W, exp: k + 1, phase: `${phase}${frac !== undefined ? ` ${frac}` : ''}`, out: out.slice(0, 4) });
+            }
+          });
+        }
+        well.style.width = '';
+        return res;
+      };
+      window.debugDraw = function (W, which, phase, frac = null, from = null) {
+        const well = document.getElementById('well');
+        well.style.width = W + 2 + 'px';
+        const view = typeof which === 'object' ? { s: which, from, hide: [], phase: 'rest', frac } : expView(M.EXPERIMENTS[which - 1], phase, frac ?? 0.6);
+        const sc = M.scenario(view.s, view.from);
+        const { D } = drawInto(well, W, sc, view);
+        return check(well, D, sc);
+      };
+
+      // ---------- The no-answer sweep: while a question asks and while its answer plays, no rendered text, accessible
+      // name or structure may hold its answer or a false claim (prevention 1 and 2). Each question is entered from the
+      // node set every other state could leave behind, so nothing a learner did before can carry an answer in.
+      function answerWords(spec) {
+        const e = M.renderExperiment(spec);
+        const sl = e.slots;
+        const by = {
+          'mod-join': [`${sl.moved} of`, `${sl.moved} keys`, sl.movedPct, `+${sl.toNew}`, `${sl.toNew} of them`, `other ${sl.between}`, 'places every key again', 'so far'],
+          'ring-join': [`${sl.moved} of`, `All ${sl.moved}`, `+${sl.moved}`, sl.froms, 'moved to E', 'E holds it', "E's (was"],
+          'one-point': [`${sl.one} keys`, ` ${sl.one} `, `${sl.who} is the fullest`, sl.arc, `| ${sl.one} |`],
+          'lost-node': [`${sl.after} keys`, `to ${sl.after}`, `| ${sl.after} |`, `+${sl.held}`, `all to ${sl.next}`, `${sl.next} holds it`, `${sl.next} is the fullest`, 'next point clockwise.'],
+          'hot-key': [sl.now, sl.splitBusiest],
+        };
+        return by[spec.id] ?? [];
+      }
+      function structural(well, spec, phase) {
+        const out = [];
+        const svg = well.querySelector('svg.draw');
+        if (!well.querySelector('.play')?.disabled) out.push('Replay is enabled');
+        if (phase === 'asking') {
+          if (svg.querySelector('[data-moved]')) out.push('a moved mark while the question asks');
+          if (svg.querySelector('.fly, .sweep')) out.push('a play mark while the question asks');
+          if (svg.querySelector('[data-id^="cell-in-"], [data-id^="cell-out-"]')) out.push('an in or out row while the question asks');
+          if (!/none yet/i.test(svg.textContent)) out.push('a last change while the question asks');
+        }
+        if (phase === 'playing') {
+          if (svg.querySelector('[data-moved]')) out.push('a moved mark before the reveal');
+          for (const t of svg.querySelectorAll('[data-id^="cell-"]')) if (!/^(\?|down|×)$/.test(t.textContent)) out.push(`cell ${t.dataset.id} reads "${t.textContent}"`);
+          const head = svg.querySelector('[data-id="moved-count"]')?.textContent ?? '';
+          if (/^\d/.test(head)) out.push(`the headline reads "${head}"`);
+          if (svg.querySelector('[data-id="hot-word"]') === null && spec.id === 'hot-key') out.push('the hot key lost its word');
+          if (svg.querySelector('.climax')) out.push('a climax ring before the reveal');
+        }
+        return out;
+      }
+      function giveaways(root, well, spec, phase) {
+        const text = `${stageText(well)} | ${root.querySelector('.notice')?.textContent ?? ''} | ${root.querySelector('.describe')?.textContent ?? ''} | ${[...root.querySelectorAll('.controls small')].map((e) => e.textContent).join(' | ')}`;
+        const out = [];
+        for (const w of answerWords(spec)) if (text.includes(w)) out.push(`"${w}" shows`);
+        for (const g of FALSE_CLAIMS) if (g.test(text)) out.push(`false claim ${g}`);
+        return [...out, ...structural(well, spec, phase)];
+      }
+      window.noAnswer = function (widths, leak = null) {
+        const root = document.getElementById('widget');
+        const well = document.getElementById('well');
+        const res = { renders: 0, out: [] };
+        const entries = [null, M.NAMES.slice(0, 3), M.NAMES.slice(0, 5), M.NAMES.slice(0, 6), ['A', 'B', 'D'], ['A', 'C', 'D']];
+        for (const W of widths) {
+          well.style.width = W + 2 + 'px';
+          M.EXPERIMENTS.forEach((spec, k) => {
+            if (spec.goal) return;
+            const runs = [...entries.map((from) => ['asking', undefined, from]), ...[0.02, 0.2, 0.45, 0.7, 0.99].map((f) => ['playing', f, null])];
+            for (const [phase, frac, from] of runs) {
+              let view = expView(spec, phase, frac, from);
+              if (leak) view = leak(view, k) ?? view;
+              const sc = M.scenario(view.s, view.from);
+              root.querySelector('.controls').innerHTML = controlsHtml(sc, view);
+              drawInto(well, W, sc, view);
+              root.querySelector('#describe').innerHTML = describeHtml(sc, view, W < 560);
+              const out = giveaways(root, well, spec, phase);
+              res.renders++;
+              for (const o of out) res.out.push(`W${W} E${k + 1} ${phase}${frac !== undefined ? ` ${frac}` : ''}${from ? ` from ${from.join('')}` : ''}: ${o}`);
+            }
+          });
+        }
+        well.style.width = '';
+        return res;
+      };
+      // Leaks planted on the hiding map: the sweep must catch every one.
+      window.plantedLeaks = function (W) {
+        const leaks = [
+          // E1's play with nothing hidden: the count, the rows and the marks show.
+          (view, k) => (k === 0 && view.phase === 'playing' ? { ...view, hide: [] } : null),
+          // E2 asked with the ghost of the learner's last change left on the stage.
+          (view, k) => (k === 1 && view.phase === 'asking' && view.from ? { ...view, leakGhost: true } : null),
+          // E3's play with the table shown.
+          (view, k) => (k === 2 && view.phase === 'playing' ? { ...view, hide: [] } : null),
+          // E4's play with the hiding released early.
+          (view, k) => (k === 3 && view.phase === 'playing' ? { ...view, hide: [{ region: 'after', when: 'asking' }] } : null),
+          // E5's play with the traffic row shown.
+          (view, k) => (k === 4 && view.phase === 'playing' ? { ...view, hide: [] } : null),
+        ];
+        return leaks.map((leak) => window.noAnswer([W], leak).out.length > 0);
+      };
+      // The heaviest stages: how many SVG elements each draws, and how many of them are the strip's ticks.
+      window.elementCount = function (widths) {
+        const well = document.getElementById('well');
+        const out = [];
+        const heavy = [
+          [{ scheme: 0, points: 1, nodes: 6, hot: 1, split: 1, down: 0 }, M.NAMES.slice(0, 3)],
+          [{ scheme: 0, points: 100, nodes: 6, hot: 1, split: 1, down: 0 }, M.NAMES.slice(0, 5)],
+          [{ scheme: 1, points: 100, nodes: 6, hot: 1, split: 1, down: 0 }, M.NAMES.slice(0, 5)],
+          [{ scheme: 0, points: 10, nodes: 6, hot: 1, split: 1, down: 0 }, M.NAMES.slice(0, 5)],
+        ];
+        for (const W of widths) {
+          well.style.width = W + 2 + 'px';
+          for (const [s, from] of heavy) {
+            drawInto(well, W, M.scenario(s, from), { s, from, hide: [], phase: 'rest', frac: null });
+            const svg = well.querySelector('svg.draw');
+            out.push({ W, s: show(s, from), elements: svg.querySelectorAll('*').length, ticks: svg.querySelectorAll('.pt-tick').length, bands: svg.querySelectorAll('.band').length });
+          }
+        }
+        well.style.width = '';
+        return out;
+      };
+      window.heights = function (widths) {
+        const out = {};
+        const list = allScenarios();
+        const well = document.getElementById('well');
+        for (const W of widths) {
+          well.style.width = W + 2 + 'px';
+          const hs = new Set();
+          for (let k = 0; k < list.length; k += 7) {
+            const { s, from } = list[k];
+            hs.add(drawInto(well, W, M.scenario(s, from), { s, from, hide: [], phase: 'rest', frac: null }).H);
+          }
+          for (const spec of M.EXPERIMENTS) {
+            const v = spec.goal ? expView(spec, 'start') : expView(spec, 'playing', 0.5);
+            hs.add(drawInto(well, W, M.scenario(v.s, v.from), v).H);
+          }
+          out[W] = [...hs];
+        }
+        well.style.width = '';
+        return out;
+      };
+      // Every page sentence of every scenario against the false claims (the stage's own text is swept as drawn).
+      window.pageWords = function () {
+        const out = [];
+        for (const { s, from } of allScenarios()) {
+          const sc = M.scenario(s, from);
+          const texts = [M.summary(sc), M.story(sc), M.standing(sc), M.rule(sc), M.rule(sc, true), ...M.goalChecks(sc).map((c) => c.text), ...M.describeRows(sc).map((r) => Object.values(r).join(' | '))];
+          for (const t of texts) for (const g of FALSE_CLAIMS) if (g.test(t)) out.push(`${show(s, from)}: ${g} in "${t}"`);
+        }
+        return out;
+      };
+
+      document.fonts.ready.then(async () => {
+        await Promise.all([document.fonts.load('600 13px "Inter Variable"'), document.fonts.load('600 13px "JetBrains Mono Variable"')]);
+        const { D, sc } = render(params.get('state') ?? 'default');
+        const well = document.getElementById('well');
+        window.__collisions = check(well, D, sc);
+        document.body.dataset.ready = '1';
+      });
+    </script>
+  </body>
+</html>

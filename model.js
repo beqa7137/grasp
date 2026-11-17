@@ -21,6 +21,13 @@
   const SALTS = 10;
   /** The key the rule line and the magnified strip follow: it moves in the first four experiments (enum.cjs checks). */
   const FOLLOW = 56;
+  /** A play's clock, as fractions of its length: the points land, a hand sweeps the ring once and each moved key takes
+   * off as the hand passes its hash, and a flight lasts `flight`. The length is `baseMs` plus `perKeyMs` a moved key.
+   * No flight is shorter than 120 ms and no more than `pool` keys are ever in flight at once (enum.cjs checks both). */
+  const PLAY = { points: 0.12, sweep0: 0.26, sweep1: 0.82, flight: 0.12, baseMs: 2400, perKeyMs: 12, pool: 60 };
+  const playMs = (moved) => PLAY.baseMs + PLAY.perKeyMs * moved;
+  /** When a moved key leaves its pile, as a fraction of the play's clock. */
+  const takeoff = (key) => PLAY.sweep0 + (PLAY.sweep1 - PLAY.sweep0) * (KEY_AT_OF(key) / TURN);
 
   /** 32-bit FNV-1a, then MurmurHash3's finalizer (widgets.ts, byte for byte). */
   function hash32(text) {
@@ -39,6 +46,7 @@
 
   const KEYS = Array.from({ length: K }, (_, i) => `user:${i}`);
   const KEY_AT = KEYS.map(hash32);
+  const KEY_AT_OF = (key) => KEY_AT[key];
   const HOT_AT = hash32(HOT_KEY);
   const SALT_KEYS = Array.from({ length: SALTS }, (_, i) => `${HOT_KEY}#${i}`);
   const SALT_AT = SALT_KEYS.map(hash32);
@@ -666,6 +674,9 @@
     HOT_PCT,
     SALTS,
     FOLLOW,
+    PLAY,
+    playMs,
+    takeoff,
     KEYS,
     KEY_AT,
     HOT_AT,
