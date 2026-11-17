@@ -1589,7 +1589,9 @@
         const name = pick(NAMES[id], (n) => tw(n, 'label') <= avail);
         if (tw(name, 'label') + 10 + tw(fleet, 'capB') <= avail) return { name, one: true, fleet: [[[fleet, 'capB']]], h: 44 };
         // The fleet's first line sits beside the steppers; the lines under it run below their targets, at full width.
-        const lines = flow([[fleet, 'capB']], g.xb - g.xa, avail);
+        let lines = flow([[fleet, 'capB']], g.xb - g.xa, avail);
+        // A count alone beside the steppers ("4", then "× 8,000 queries/s") reads as a stray number: start under them.
+        if (lines.length > 1 && /^\d+$/.test(lines[0].map((p) => p[0]).join('').trim())) lines = [[], ...flow([[fleet, 'capB']], g.xb - g.xa)];
         return { name, one: false, fleet: lines, h: lines.length > 1 ? 46 + LINE * (lines.length - 1) : 44 };
       }
       const meterWidth = (g) => Math.round(Math.min(110, (g.xb - g.xa) * 0.34));
@@ -1892,7 +1894,7 @@
         } else {
           D.text(g.xa, top + 19, [[hd.name, 'label']], { owner, textCls: 'on-box' });
           // Lines under the first clear the steppers' 44 px targets by 2 px more.
-          hd.fleet.forEach((ln, i) => D.text(g.xa, top + 36 + i * LINE + (i ? 2 : 0), ln, { owner, textCls: 'on-box', id: i ? `fleet-${owner}-${i}` : `fleet-${owner}` }));
+          hd.fleet.forEach((ln, i) => ln.length && D.text(g.xa, top + 36 + i * LINE + (i ? 2 : 0), ln, { owner, textCls: 'on-box', id: i ? `fleet-${owner}-${i}` : `fleet-${owner}` }));
         }
         steps.forEach((st, i) => {
           const x = g.stepX + i * 44;

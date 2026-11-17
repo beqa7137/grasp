@@ -175,8 +175,9 @@ top-down and packed (the box's reserved slack collects at its foot, never betwee
    "÷ 2" by room), the primary's own zone named in its fleet ("in zone A").
 3. **The header** (44 px; 63 when the fleet takes a second line): the name in the label role ("LOAD BALANCERS", "APP
    SERVERS", "DATABASE PRIMARY" or "PRIMARY", "READ REPLICAS") and the fleet in the title weight beside it when both fit,
-   else under it, its first line beside the steppers and any further line at full width 2 px clear of their targets,
-   wrapping rather than ever dropping a count, a promotion or a unit: "2 × 5,000/s";
+   else under it, its first line beside the steppers and any further line at full width 2 px clear of their targets
+   (when that first line would be a count alone, as "4" before "× 8,000 queries/s" at 252 px, the fleet starts under
+   the steppers instead), wrapping rather than ever dropping a count, a promotion or a unit: "2 × 5,000/s";
    "4 of 6 up × 5,000/s"; "8,000 queries/s, the largest machine, in zone A"; "8,000 queries/s, a promoted replica";
    "2 × 8,000 queries/s"; "1 of 3 left × 8,000 queries/s"; "none"; a hidden tier its count alone ("6 up", "4 of 6 up"). At
    the right a − and a + key (32 px keys in 44 px targets).
@@ -233,7 +234,29 @@ notice is read out only (visually hidden, as `_widget-controls.scss` does), so i
 2,701 extreme and experiment settings at rest, with every lane hidden, and with a ghost of each of their one-change
 neighbours, then held by the sweep to every setting), its slack at its foot. Measured in the mockup:
 
-{{HEIGHTS}}
+| Stage width (px) | 252 | 270 | 300 | 322 | 344 | 360 | 400 | 460 | 520 | 560 | 620 | 700 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Stage height | 1,309 | 1,254 | 1,131 | 1,095 | 1,080 | 1,097 | 1,046 | 972 | 963 | 946 | 946 | 911 |
+
+The phone stages are 252 px wide at a 320 px viewport (1,309 px) and 322 px at 390 (1,095 px); the wide layout's is
+620 px (946 px). Every step from 248 to 760 px (`heightSteps(248, 760)`; each width where the height changes):
+
+| From (px) | 248 | 249 | 252 | 256 | 257 | 268 | 270 | 271 | 272 | 275 | 292 | 296 | 297 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Height | 1,343 | 1,326 | 1,309 | 1,290 | 1,288 | 1,271 | 1,254 | 1,220 | 1,200 | 1,183 | 1,166 | 1,149 | 1,131 |
+
+| From (px) | 312 | 317 | 330 | 346 | 347 | 349 | 350 | 357 | 358 | 360 | 361 | 369 | 371 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Height | 1,112 | 1,095 | 1,080 | 1,097 | 1,080 | 1,097 | 1,080 | 1,097 | 1,080 | 1,097 | 1,080 | 1,063 | 1,080 |
+
+| From (px) | 372 | 373 | 407 | 420 | 447 | 499 | 520 | 538 | 632 | 700 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Height | 1,063 | 1,046 | 1,028 | 1,008 | 972 | 955 | 963 | 946 | 929 | 911 |
+
+The height is one value per width but not monotone in two narrow bands, by one line or less: from 346 to 372 px, where
+one setting's ghost label ("limit was 4,200/s" on the app servers) finds room on its lane at some widths and falls to
+its status at others, and at 520 px (8 px). The built component reserves from the same plan, so its layout spec holds
+one height per width, not a monotone curve.
 
 **Motion** (3.5's grammar; WAAPI on transform and opacity; pooled particles, at most 60 live).
 
