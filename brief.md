@@ -330,7 +330,7 @@ disk cannot sustain that, compaction falls behind, files pile up and the engine 
 while it asks, every count in the stack is "?×", the staircase is a dashed box ("One level's merges draw after your
 answer."), the ledger "?" and "?× the data", the LSM write row dashed. Its play sends the record down the stack and
 draws the staircase row by row, its words without numbers ("Each merge from above rewrites what the level already
-holds."). Focus: the stack, the staircase.
+holds."). Focus: the stack and its staircase, in one outline (two would touch).
 
 **E3 "Bigger records".** Setup the default; act `set: { record: 1000 }`, `run: 'btree'`. Ask: "With records of 100
 bytes, the B-tree writes 42× the data and the LSM tree 24×. Store the same 100 GB as records of 1,000 bytes instead.

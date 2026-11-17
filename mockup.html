@@ -1989,6 +1989,8 @@
           }
         }
         D.region('lsm-transform', { x: x - 6, y: tY - 4, w: pw + 12, h: PANEL.transform + 6 });
+        // The stack and its transform as one region, for a reveal that points at both: two outlines would touch.
+        D.region('lsm-all', { x: x - 6, y: top - 4, w: pw + 12, h: tY + PANEL.transform - top + 6 });
         return tY + PANEL.transform;
       }
       // The staircase's words stand at rest and once its play has reached it.

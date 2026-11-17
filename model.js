@@ -270,7 +270,7 @@
       truth: 'perLevel',
       reveal:
         '{perLevel}: a record that arrives with the first merge is written in all {ratioN}, one that arrives with the last only once, so the average is (ratio + 1) / 2. With one write to the log and one at the flush, {levels} of {perLevel} make {amp} the data. Every one of those writes is sequential, but the bytes add up: {newData} of new data becomes {disk} of disk writes, and when the disk cannot sustain that, compaction falls behind, files pile up and the engine stalls writes.',
-      focus: ['lsm-stack', 'lsm-transform'],
+      focus: ['lsm-all'],
       hide: ['lsmWrite'],
       slots: () => {
         const m = run(SETUP.compaction);
