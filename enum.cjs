@@ -466,7 +466,7 @@ for (const spec of M.EXPERIMENTS) {
   console.log(`  REVEAL ${e.reveal}`);
   for (const t of [spec.title, spec.ask, spec.reveal, ...(spec.choices ?? []).map((c) => c.text)]) check(M.strayDigits(t).length === 0, `${spec.id}: a digit outside a slot in "${t}"`);
   for (const t of [e.title, e.ask, e.reveal, ...e.choices]) {
-    check(!/—| /.test(t), `${spec.id}: an em dash or a non-breaking space`);
+    check(!/\u2014|\u00a0/.test(t), `${spec.id}: an em dash or a non-breaking space`);
   }
   if (spec.choices) {
     positions.push(e.answer + 1);

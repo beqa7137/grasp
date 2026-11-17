@@ -2601,7 +2601,7 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${nb(story
 
       // ---------- What must hold on every render, beyond collisions (the layout spec's assertions).
       // No hidden value is replaced by a wrong default, counts follow plural grammar, and nothing prints as a bare 0.
-      const FALSE_CLAIMS = [/NaN|undefined|Infinity|null/, /(^|[^\d.,])0(×| B\b| MB| GB| disk| levels| pages| runs)/, /\b1 (levels|pages|disk reads|runs|records|merges)\b/, /[^\d,.][2-9]\d* (level|page|disk read|run|record)\b(?!s)/, /\?\?/, /—| /];
+      const FALSE_CLAIMS = [/NaN|undefined|Infinity|null/, /(^|[^\d.,])0(×| B\b| MB| GB| disk| levels| pages| runs)/, /\b1 (levels|pages|disk reads|runs|records|merges)\b/, /[^\d,.][2-9]\d* (level|page|disk read|run|record)\b(?!s)/, /\?\?/, /\u2014|\u00a0/];
       const stageText = (well) =>
         [...well.querySelectorAll('svg.draw text')].map((t) => t.textContent).join(' | ') +
         ' | ' +
