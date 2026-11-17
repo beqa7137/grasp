@@ -1103,10 +1103,10 @@
       }
       const partsWidth = (parts) => parts.reduce((s, [t, role, , dx = 0]) => s + tw(t, role) + dx, 0);
       // A space may break a line, except: between a number and its unit ("50 ms", "8,000 queries/s", "1,000 a second",
-      // "4 of 6 up", "2,000/s shed"), after an operator or "(" ("÷ 2", "× 5,000/s"), after "of" and "in" ("of 8,000/s",
-      // "in zone A"), before "each", and after "·" (it opens the run after it), as stage-text.ts and g-code-text keep them.
+      // "4 of 6 up", "2,000/s shed"), after an operator or "(" ("÷ 2", "× 5,000/s"), after "of", "in" and "was" ("of 8,000/s",
+      // "in zone A", "was 4,000/s"), before "each", and after "·" (it opens the run after it), as stage-text.ts and g-code-text keep them.
       // Runs are joined first, so the rule holds across them.
-      const BREAK = /(?<![×÷=+(·])(?<!\b(?:of|in)) (?!each\b)(?!(?<=\d )(?:ms|s|queries|requests|reads|writes|replayed|workers|a|of|left|up)\b)(?!(?<=\/s )(?:shed|spare)\b)/g;
+      const BREAK = /(?<![×÷=+(·])(?<!\b(?:of|in|was)) (?!each\b)(?!(?<=\d )(?:ms|s|queries|requests|reads|writes|replayed|workers|a|of|left|up)\b)(?!(?<=\/s )(?:shed|spare)\b)/g;
       /** Lays runs of styled words into lines no wider than `width` (the first no wider than `first`): each line a list of
        * [text, role, cls] parts. */
       function flow(parts, width, first = width) {
