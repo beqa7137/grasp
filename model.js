@@ -79,8 +79,11 @@
     const hard = parts.filter((p) => !p.optional);
     const u = seriesU(hard.map((p) => p.u));
     const paperU = seriesU(hard.map((p) => p.paper));
-    const worst = Math.max(...hard.map((p) => p.u));
-    const weakest = hard.filter((p) => p.u >= worst * (1 - 1e-9)).map((p) => p.id);
+    // The weakest links are the needed parts that print the worst downtime: a learner reads ties off the printed
+    // values and the bars, so a part a minute's rounding apart is as weak as the worst.
+    const worstPart = hard.reduce((a, b) => (b.u > a.u ? b : a));
+    const worstPrinted = formatDown(worstPart.downH);
+    const weakest = hard.filter((p) => formatDown(p.downH) === worstPrinted).map((p) => p.id);
     return {
       settings: s,
       parts,
@@ -92,6 +95,8 @@
       paperU,
       paperDownH: hoursAYear(paperU),
       weakest,
+      /** The part the cap line starts from: the one with the most downtime of the weakest. */
+      capPart: worstPart.id,
       /** The part the band rests on: the weakest, and of several tied the last in the chain. */
       focusPart: weakest[weakest.length - 1],
       failsPerYear: hard.reduce((t, p) => t + p.failsPerYear, 0),
@@ -212,6 +217,30 @@
     return { parts, fails, count: fails.length, hours: fails.reduce((t, e) => t + e.hours, 0) };
   }
 
+  /** Weeks in which the request fails: no moment that says it is served may fall in one. */
+  const failWeeks = (smp) => new Set(smp.fails.map((e) => e.week));
+  const momentOf = (e, part = e.part) => ({ week: e.week, part, kind: e.kind, copy: 0, fails: true, hours: e.hours });
+  /**
+   * A copy's outage that another copy absorbed, in a week the request does not fail. With failover off it is the first
+   * copy's, so the path visibly moves to the next copy; with failover on the first copy's outages are failovers, so it is
+   * a spare's.
+   */
+  function absorbedMoments(smp, s, ids = null) {
+    const bad = failWeeks(smp);
+    return smp.parts
+      .filter((p) => !p.optional && (!ids || ids.includes(p.id)))
+      .flatMap((p) => p.absorbed.filter((a) => !bad.has(a.week) && (s.failover || a.copy === 0)).map((a) => ({ week: a.week, part: p.id, kind: 'absorbed', copy: a.copy, fails: false, hours: MTTR_H })))
+      .sort((a, b) => a.week - b.week);
+  }
+  /** An optional part down, the page rendered without it: the bypass carries the request, in a week it does not fail. */
+  function bypassMoments(smp) {
+    const bad = failWeeks(smp);
+    return smp.parts
+      .filter((p) => p.optional)
+      .flatMap((p) => p.events.filter((e) => !bad.has(e.week)).map((e) => ({ week: e.week, part: p.id, kind: 'bypassed', cause: e.kind, copy: 0, fails: false, hours: e.hours })))
+      .sort((a, b) => a.week - b.week);
+  }
+
   /**
    * The moment the band rests on: the first failure of the request that the focus part causes, of the kind that costs
    * that part the most (a single copy's outage; else a shared outage before a failover); with no such failure, the first
@@ -223,47 +252,64 @@
     const part = smp.parts.find((p) => p.id === m.focusPart);
     for (const kind of ['outage', 'shared', 'failover']) {
       const e = part.events.find((x) => x.kind === kind);
-      if (e) return { week: e.week, part: part.id, kind, copy: 0, fails: true, hours: e.hours };
+      if (e) return momentOf(e, part.id);
     }
-    const a = part.absorbed.find((x) => x.copy === 0) ?? part.absorbed[0];
+    const bad = failWeeks(smp);
+    const ok = part.absorbed.filter((x) => !bad.has(x.week));
+    const a = ok.find((x) => x.copy === 0) ?? ok[0];
     return a ? { week: a.week, part: part.id, kind: 'absorbed', copy: a.copy, fails: false, hours: MTTR_H } : null;
   }
 
   /** Screen time: the year sweeps in SWEEP_MS, and the clock holds HOLD_MS on each moment the band acts out. */
   const SWEEP_MS = 5200;
   const HOLD_MS = 1100;
+  /** Holds stand this many weeks apart at least (300 ms of sweep), so the band never flashes between two of them. */
+  const HOLD_GAP = 3;
   /**
-   * A free play holds on the first event of each kind the year has (absorbed, failover, shared, outage), in time order.
-   * An answer's play holds once, on its climax: the first event in a part the act changed, a shared outage before a
-   * failover before an absorbed outage of its first copy (so a new second database is seen carrying the request the
-   * first time the first one dies); with no part changed, the rest moment. Returns the holds and a monotone map from
-   * screen time to model time (weeks).
+   * An answer's play holds once, on its climax, and the band keeps that moment after the reveal. `hold: 'request'`
+   * (E1, E3: the question is about the request) is the request's first failure. `hold: 'part'` (E2, E4, E5: the
+   * question is about what the act did to a part) is the first event in a part the act changed, a shared outage before a
+   * failover before a single outage, else an absorbed outage of a changed part's first copy (so a new second database is
+   * seen carrying the request the first time the first one dies). Either falls back to the rest moment.
    */
-  function answerHold(settings, changed, seed = api.SAMPLE_SEED) {
+  function answerHold(settings, changed, mode = 'part', seed = api.SAMPLE_SEED) {
     const smp = sample(settings, seed);
-    const parts = smp.parts.filter((p) => (changed ?? []).includes(p.id) && !p.optional);
+    if (mode === 'request') return smp.fails.length ? momentOf(smp.fails[0]) : restMoment(settings, seed);
+    const ids = changed ?? [];
+    const parts = smp.parts.filter((p) => ids.includes(p.id) && !p.optional);
     for (const kind of ['shared', 'failover', 'outage']) {
       const e = parts.flatMap((p) => p.events.filter((x) => x.kind === kind)).sort((a, b) => a.week - b.week)[0];
-      if (e) return { week: e.week, part: e.part, kind, copy: 0, fails: true, hours: e.hours };
+      if (e) return momentOf(e);
     }
-    const a = parts.flatMap((p) => p.absorbed.filter((x) => x.copy === 0).map((x) => ({ ...x, part: p.id }))).sort((x, y) => x.week - y.week)[0];
-    return a ? { week: a.week, part: a.part, kind: 'absorbed', copy: 0, fails: false, hours: MTTR_H } : restMoment(settings, seed);
+    const s = { ...BASE, ...settings };
+    return absorbedMoments(smp, s, ids)[0] ?? restMoment(settings, seed);
   }
-  function playPlan(settings, answer = false, changed = null, seed = api.SAMPLE_SEED) {
+  /**
+   * A free play holds on the first event of each kind the year has (a single outage, a shared outage, a failover, an
+   * absorbed outage, an optional part bypassed), taken in that order of priority, each the first of its kind that stands
+   * HOLD_GAP weeks or more from the holds already taken (else that kind is dropped); then in time order. Returns the
+   * holds and a monotone map from screen time to model time (weeks). At a hold the clock stands at the held column's
+   * leading edge, so the playhead stands clear of the marks it holds on.
+   */
+  function playPlan(settings, answer = false, changed = null, seed = api.SAMPLE_SEED, mode = 'part') {
+    const s = { ...BASE, ...settings };
     const smp = sample(settings, seed);
     let holds = [];
     if (answer) {
-      const h = answerHold(settings, changed, seed);
+      const h = answerHold(settings, changed, mode, seed);
       holds = h ? [h] : [];
     } else {
-      const firstOf = (kind) => smp.fails.find((e) => e.kind === kind);
-      const hard = smp.parts.filter((p) => !p.optional);
-      const firstAbsorbed = hard.flatMap((p) => p.absorbed.map((a) => ({ ...a, part: p.id }))).sort((a, b) => a.week - b.week)[0];
-      for (const kind of ['outage', 'shared', 'failover']) {
-        const e = firstOf(kind);
-        if (e) holds.push({ week: e.week, part: e.part, kind, copy: 0, fails: true, hours: e.hours });
+      const cands = {
+        outage: smp.fails.filter((e) => e.kind === 'outage').map((e) => momentOf(e)),
+        shared: smp.fails.filter((e) => e.kind === 'shared').map((e) => momentOf(e)),
+        failover: smp.fails.filter((e) => e.kind === 'failover').map((e) => momentOf(e)),
+        absorbed: absorbedMoments(smp, s),
+        bypassed: bypassMoments(smp),
+      };
+      for (const kind of ['outage', 'shared', 'failover', 'absorbed', 'bypassed']) {
+        const c = cands[kind].find((e) => holds.every((h) => Math.abs(h.week - e.week) >= HOLD_GAP));
+        if (c) holds.push(c);
       }
-      if (firstAbsorbed) holds.push({ week: firstAbsorbed.week, part: firstAbsorbed.part, kind: 'absorbed', copy: firstAbsorbed.copy, fails: false, hours: MTTR_H });
       holds.sort((a, b) => a.week - b.week);
     }
     const total = SWEEP_MS + holds.length * HOLD_MS;
@@ -272,14 +318,22 @@
       let t = Math.max(0, Math.min(total, ms));
       let spent = 0;
       for (const h of holds) {
-        const reach = ((h.week + 0.5) / WEEKS) * SWEEP_MS + spent;
+        const reach = ((h.week + 1) / WEEKS) * SWEEP_MS + spent;
         if (t < reach) break;
-        if (t < reach + HOLD_MS) return { weeks: h.week + 0.5, hold: h, into: (t - reach) / HOLD_MS };
+        if (t < reach + HOLD_MS) return { weeks: h.week + 1, hold: h, into: (t - reach) / HOLD_MS };
         spent += HOLD_MS;
       }
       return { weeks: ((t - spent) / SWEEP_MS) * WEEKS, hold: null, into: 0 };
     };
-    return { holds, total, at };
+    /** The screen time a fraction `into` through hold `i`. */
+    const holdAt = (i, into = 0.5) => ((holds[i].week + 1) / WEEKS) * SWEEP_MS + i * HOLD_MS + into * HOLD_MS;
+    return { holds, total, at, holdAt };
+  }
+  /** The moments a learner can step through, in order: the free play's holds, then the rest moment. */
+  function stepMoments(settings, seed = api.SAMPLE_SEED) {
+    const holds = playPlan(settings, false, null, seed).holds;
+    const rest = restMoment(settings, seed);
+    return rest ? [...holds, rest] : holds;
   }
 
   // ---------------------------------------------------------------- the search for the year's seed
@@ -327,11 +381,11 @@
       const r = restMoment(s, seed);
       add(`${name}: the rest moment falls in weeks 3 to 48`, r ? r.week + 1 : 'none', !!r && r.week >= 2 && r.week <= 47);
     }
-    // A free play's holds stand at least 2 weeks apart, so each reads as its own beat.
+    // A free play's holds stand HOLD_GAP weeks apart or more by construction; the bound keeps the rule visible.
     for (const [name, s] of Object.entries(E)) {
       const h = playPlan(s, false, null, seed).holds.map((x) => x.week);
       const gaps = h.slice(1).map((w, i) => w - h[i]);
-      add(`${name}: a free play's holds are 2 weeks apart or more`, h.map((w) => w + 1).join(', '), gaps.every((g) => g >= 2));
+      add(`${name}: a free play's holds are ${HOLD_GAP} weeks apart or more`, h.map((w) => w + 1).join(', '), gaps.every((g) => g >= HOLD_GAP));
     }
     return out;
   }
@@ -433,7 +487,7 @@
       ask: 'A page request needs {parts} parts in turn: a load balancer, an app server, a database and a recommendations service. There is one copy of each, and each is {each} available: down {eachDown} a year, in outages of {mttr}. How long is the request down a year?',
       choices: [
         { text: '{eachDown}: a chain is as good as its weakest part', value: 'eachDown' },
-        { text: '{half}: twice that, as outages often coincide', value: 'half' },
+        { text: '{half}: about twice that, as outages often coincide', value: 'half' },
         { text: '{down}: every part’s outages count in full', value: 'down' },
       ],
       truth: 'down',
@@ -441,6 +495,8 @@
         '{down}: the request needs every part, so it fails whenever any one of them is down. Outages of {mttr} that strike independently almost never coincide, so the downtime of {parts} parts adds up: {parts} × {eachDown} is {down}, and the availabilities multiply to {avail}. A chain is always worse than its weakest part, and every hard dependency you add costs its whole downtime.',
       focus: ['timeline', 'ruler'],
       hide: ['sample', 'request'],
+      hold: 'request',
+      watch: 'Watch the request’s row: it collects every failure that reaches it.',
       slots: () => {
         const m = run(E.series);
         return {
@@ -470,6 +526,8 @@
         '{pair}: the part is down only while both copies are down at once. Each is down {u} of the time, so both are down {u} of {u}: {pairAvail} available, {pair} a year against {dbDown}. Unavailabilities multiply, so each independent copy adds {nines} nines. The request is still down {reqAfter} a year, because the two parts left with one copy now set it. And {pair} is the ceiling of the arithmetic, not a forecast: it holds only if the copies never fail together and traffic moves instantly.',
       focus: ['timeline', 'ruler'],
       hide: ['after'],
+      hold: 'part',
+      watch: 'Watch the database’s two rows and the strip under them.',
       slots: () => {
         const a = run(E.parallelBefore);
         const b = run(E.parallelAfter);
@@ -493,14 +551,17 @@
       ask: 'The request passes {lb} load balancers, {app} app servers and {db} database, every copy {each} available; recommendations are optional. It is down {before} a year. Add a third app server. How long is the request down a year now?',
       choices: [
         { text: '{halved}: half, as three app servers never fail together', value: 'halved' },
-        { text: '{third}: a third less, like the share of servers added', value: 'third' },
+        { text: '{third}: a third less, as each server now carries a third of the traffic', value: 'third' },
         { text: '{after}: unchanged, the app servers were never the limit', value: 'after' },
       ],
       truth: 'after',
       reveal:
         '{after}, unchanged: the request is down because of the database, a single copy down {dbDown} a year. The app servers were down together only {appBefore} a year as a pair, and {appAfter} as three. Polishing a strong part buys nothing you can measure: the weakest link caps the chain, so find the single point of failure before adding copies anywhere else.',
       focus: ['ruler', 'chain'],
-      hide: ['weakest', 'after'],
+      // `sample` too: the year's request row is the database's strip, which names the weakest link.
+      hide: ['sample', 'weakest', 'after'],
+      hold: 'request',
+      watch: 'Watch the app servers’ rows and the request’s row.',
       slots: () => {
         const a = run(E.weakestBefore);
         const b = run(E.weakestAfter);
@@ -535,6 +596,8 @@
         '{real}, about {ratio} the paper’s {paper}. A second copy removes only the outages that are a copy’s own. A shared one takes both copies down together, so it passes straight through: {sharedDown} a year for each part, however many copies it has. With {share} of outages shared, copies buy at most one more nine, {capAvail} a part and not {pairAvail}. So spread copies across zones, roll changes out in stages and split users into cells: the fix is fewer shared causes, not more copies.',
       focus: ['timeline', 'ruler'],
       hide: ['after'],
+      hold: 'part',
+      watch: 'Watch the request’s row.',
       slots: () => {
         const a = run(E.pairs);
         const b = run(E.sharedAfter);
@@ -565,9 +628,11 @@
       ],
       truth: 'real',
       reveal:
-        'About {real} times a year, {fo} each: {foDown} a year instead of {paper}. Redundancy does not remove a copy’s failures, it shortens them: each of the {perCopy} outages a year of the copy in use now ends when traffic has moved, after {fo}, not when the repair is done, after {mttr}. Availability is MTBF / (MTBF + MTTR), and a standby turns the time to recover from the repair time into the failover time. So past four nines no human can be in the loop: detection and the switch must be automatic, and rehearsed.',
+        'About {real} times a year, {fo} each: {foDown} a year instead of {paper}. Redundancy does not remove a copy’s failures, it shortens them: each of the {perCopy} outages a year of the copy in use now ends when traffic has moved, after {fo}, not when the repair is done, after {mttr}. Availability is MTBF / (MTBF + MTTR), and a standby turns the time to recover from the repair time into the failover time. Four nines a part is {fourNines} a year; with {perCopy} failures that leaves about {perFail} for each, so detection and the switch must be automatic, and rehearsed.',
       focus: ['timeline', 'chain'],
       hide: ['after'],
+      hold: 'part',
+      watch: 'Watch the request’s row.',
       slots: () => {
         const a = run(E.pairs);
         const b = run(E.failoverAfter);
@@ -581,6 +646,8 @@
           paper: down(a.downH),
           perCopy: num(Number(partOf(b, 'db').ownPerYear.toFixed(2))),
           mttr: hours(MTTR_H),
+          fourNines: down(hoursAYear(1e-4)),
+          perFail: down(hoursAYear(1e-4) / partOf(b, 'db').ownPerYear),
         };
       },
     },
@@ -591,7 +658,7 @@
       ask: 'This design has shared failures and a {fo} failover, as real ones do, and the request is down {start} a year. Promise three nines: bring it under {target} a year, {targetAvail}, with no more than the {copies} copies it runs now.',
       goal: CHALLENGE_GOAL,
       reveal:
-        'Run {lb} load balancers, {app} app servers and {db} databases, with recommendations optional: down {down} a year, {avail}. Moving one app server to the database removes the single point of failure, and making recommendations optional takes a whole part out of the chain; the third app server was buying nothing. The {down} left are shared outages and failovers, which no further copy removes: the next nine comes from fewer shared causes and a faster switch.',
+        'Run {lb} load balancers, {app} app servers and {db} databases, with recommendations optional: down {down} a year, {avail}. Moving one app server to the database removes the single point of failure, and making recommendations optional takes a whole part out of the chain; the third app server was buying nothing. The {down} left are shared outages and failovers, which no further copy removes: the next nine comes from fewer shared causes and a faster switch. That leaves {budget} of the {target} error budget for a bad year and risky deploys: promise below what you expect.',
       focus: ['ruler', 'chain'],
       hide: [],
       slots: () => {
@@ -608,6 +675,7 @@
           db: num(b.settings.db),
           down: down(b.downH),
           avail: avail(b.u),
+          budget: down(CHALLENGE_BOUNDS.down - b.downH),
         };
       },
     },
@@ -624,7 +692,7 @@
       if (matches.length !== 1) throw new Error(`${spec.id}: ${matches.length} choices equal the model's ${truth}`);
       answer = matches[0];
     }
-    return { id: spec.id, title: fill(spec.title), ask: fill(spec.ask), choices, answer, reveal: fill(spec.reveal), slots, focus: spec.focus, hide: spec.hide };
+    return { id: spec.id, title: fill(spec.title), ask: fill(spec.ask), choices, answer, reveal: fill(spec.reveal), slots, focus: spec.focus, hide: spec.hide, hold: spec.hold ?? 'part', watch: spec.watch ?? '' };
   }
 
   const boundMet = (b, v) => ('below' in b ? v < b.below : v >= b.atLeast);
@@ -661,9 +729,13 @@
     poisson,
     draws,
     sample,
+    HOLD_GAP,
     restMoment,
     answerHold,
     playPlan,
+    stepMoments,
+    absorbedMoments,
+    bypassMoments,
     seedBounds,
     seedOk,
     EXPERIMENT_SETTINGS,

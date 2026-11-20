@@ -317,7 +317,18 @@ check('answer positions vary and are not mostly second', new Set(answers).size =
   check('E5 "about 26 times": three parts, each at every failure of its copy in use', Math.round(fo.failsPerYear) === Math.round(3 * M.FAILS_PER_YEAR));
   check('E5 downtime is failures x failover time, within 1%', near(fo.downH, (fo.failsPerYear * M.FAILOVER_MIN) / 60, 0.01), `${fo.downH} vs ${(fo.failsPerYear * M.FAILOVER_MIN) / 60}`);
   check('E5 "once in 19 years" on paper', Math.round(1 / paper.failsPerYear) === 19, String(1 / paper.failsPerYear));
-  check('E5 "past four nines": a 5 min failover alone holds a pair under four nines... 44 min a year against 53', M.hoursAYear(M.partModel(2, 0, 1).u) * 60 < 53 && M.hoursAYear(M.partModel(2, 0, 1).u) * 60 > 40);
+  check('E5 a 5 min failover keeps a pair within four nines: 44 min a year against 53', M.hoursAYear(M.partModel(2, 0, 1).u) * 60 < 53 && M.hoursAYear(M.partModel(2, 0, 1).u) * 60 > 40);
+  const e5 = M.renderExperiment(M.EXPERIMENTS[4]).slots;
+  check('E5 "four nines a part is 53 min a year"', M.formatSlot(e5.fourNines) === '53 min', M.formatSlot(e5.fourNines));
+  check('E5 "about 6 min for each": 53 min over 8.76 failures', M.formatSlot(e5.perFail) === '6 min' && near(M.hoursAYear(1e-4) / M.FAILS_PER_YEAR, 0.1, 1e-9), M.formatSlot(e5.perFail));
+  check('E5 a failover inside the per-failure budget keeps a pair within four nines', M.FAILOVER_MIN <= 6 && M.partModel(2, 0, 1).u < 1e-4);
+  const e6 = M.renderExperiment(M.EXPERIMENTS[5]).slots;
+  const sol6 = M.chain({ ...M.EXPERIMENTS[5].setup, ...M.CHALLENGE_SOLUTION });
+  check('E6 the error budget left is the target less the solution', near(e6.budget.value, M.CHALLENGE_BOUNDS.down - sol6.downH, 1e-12) && M.formatSlot(e6.budget) === '4.1 h', M.formatSlot(e6.budget));
+  // The absorbed moment's inset: a copy's 8.76 h of outages, each finding the other copy down 0.1% of the time.
+  check('the inset: 0.1% of a copy\'s 8.76 h prints as the pair\'s 32 s', M.formatDown(M.COPY_U * M.hoursAYear(M.COPY_U)) === M.formatDown(M.hoursAYear(M.partModel(2, 0, 0).u)) && M.formatDown(M.hoursAYear(M.partModel(2, 0, 0).u)) === '32 s');
+  check('the inset: 0.1% of 0.1% of 8.76 h prints as three copies\' 0.03 s', M.formatDown(M.COPY_U ** 2 * M.hoursAYear(M.COPY_U)) === M.formatDown(M.hoursAYear(M.partModel(3, 0, 0).u)));
+  check('the inset with failover on: the both-down share is unchanged', near(M.partModel(2, 0, 1).causes.overlap, M.partModel(2, 0, 0).u * (1 - 0), 1e-9));
 }
 
 // ---------------------------------------------------------------- the challenge
@@ -422,8 +433,52 @@ check('answer positions vary and are not mostly second', new Set(answers).size =
       prev = at.weeks;
     }
     check('a play ends at the year\'s end', near(plan.at(plan.total).weeks, M.WEEKS, 1e-9));
-    check('a free play holds at most four times', plan.holds.length <= 4);
+    check('a free play holds at most five times', plan.holds.length <= 5);
+    // Holds by rule: HOLD_GAP weeks apart, never two in a week; a hold that says the request is served stands in a week
+    // it does not fail; with failover off an absorbed hold is the first copy's, so the path reroutes.
+    const bad = new Set(smp.fails.map((e) => e.week));
+    const hw = plan.holds.map((h) => h.week);
+    check('a free play\'s holds stand 3 weeks apart or more', hw.slice(1).every((w, i) => w - hw[i] >= M.HOLD_GAP), `${hw} ${JSON.stringify(s)}`);
+    for (const h of plan.holds) {
+      check('a hold that serves the request stands in a week it does not fail', h.fails || !bad.has(h.week), `${h.kind} week ${h.week} ${JSON.stringify(s)}`);
+      check('a hold that fails the request stands on one of its failures', !h.fails || bad.has(h.week));
+      check('with failover off an absorbed hold is the first copy\'s', h.kind !== 'absorbed' || s.failover || h.copy === 0);
+      check('a bypassed hold is an optional part', h.kind !== 'bypassed' || (s.optional && h.part === 'recs'));
+    }
+    check('the rest moment says served only in a week the request does not fail', rest.fails || !bad.has(rest.week), JSON.stringify(s));
+    // The weakest links are exactly the needed parts that print the worst downtime.
+    const hardParts = m.parts.filter((p) => !p.optional);
+    const worst = M.formatDown(Math.max(...hardParts.map((p) => p.downH)));
+    check('the weakest links are the parts that print the worst value', m.weakest.join() === hardParts.filter((p) => M.formatDown(p.downH) === worst).map((p) => p.id).join(), JSON.stringify(s));
+    const tied = hardParts.filter((p) => m.weakest.includes(p.id));
+    if (new Set(tied.map((p) => p.copies)).size > 1) {
+      check('a tied set of mixed copies: a third copy buys under a minute a year', Math.max(...tied.map((p) => p.downH)) - Math.min(...tied.map((p) => p.downH)) < 1 / 60, JSON.stringify(s));
+      check('a tied set of mixed copies only happens with a condition on', s.shared || s.failover);
+    }
+    // The causes sentence's products print to each cause's minute: shared outages x 1 h, failovers x 5 min.
+    for (const p of m.parts) {
+      if (p.copies === 1) continue;
+      const minOf = (u) => M.hoursAYear(u) * 60;
+      if (s.shared) check('shared outages x 1 h prints to the shared minute', Math.round(Number(M.formatNum(Number(p.sharedPerYear.toFixed(2)))) * 60) === Math.round(minOf(p.causes.shared)), `${p.sharedPerYear} ${minOf(p.causes.shared)}`);
+      if (s.failover) check('failovers x 5 min prints to the failover minute', Math.round(Number(p.failovers.toFixed(2)) * M.FAILOVER_MIN) === Math.round(minOf(p.causes.failover)), `${p.failovers} ${minOf(p.causes.failover)}`);
+    }
   }
+  M.EXPERIMENTS.forEach((spec, i) => {
+    if (!spec.act) return;
+    const after = { ...spec.setup, ...(spec.act.set ?? {}) };
+    const a = M.chain(spec.setup);
+    const b = M.chain(after);
+    const changed = b.parts.filter((p, k) => Math.abs(p.u - a.parts[k].u) > 1e-15 || p.copies !== a.parts[k].copies).map((p) => p.id);
+    const h = M.answerHold(after, changed, spec.hold);
+    const bad = new Set(M.sample(after).fails.map((e) => e.week));
+    check(`E${i + 1}: the answer's hold agrees with the request's row`, h.fails === bad.has(h.week), JSON.stringify(h));
+    if (spec.hold === 'part') check(`E${i + 1}: the answer's hold is in a part the act changed`, changed.includes(h.part), JSON.stringify(h));
+    console.log(`  E${i + 1} the answer's hold: week ${h.week + 1}, ${h.part} ${h.kind}${h.kind === 'absorbed' ? ` (copy ${h.copy + 1})` : ''}`);
+  });
+  check('E3: the answer\'s hold is the database failing with three app servers', (() => {
+    const h = M.answerHold(E.weakestAfter, ['app'], 'request');
+    return h.part === 'db' && h.kind === 'outage';
+  })());
   for (const [name, s] of Object.entries(E)) {
     const smp = M.sample(s);
     const m = M.chain(s);
