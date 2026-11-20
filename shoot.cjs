@@ -109,14 +109,27 @@ const server = http.createServer((req, res) => {
     const sweepWidths = [248, 252, 270, 300, 322, 344, 360, 400, 460, 499, 500, 560, 620, 700];
     const exp = await page.evaluate((w) => window.sweepExperiments(w), sweepWidths);
     console.log(`\nexperiments, asking, the answer's play at four moments and revealed, the challenge met and at its start: ${exp.renders} renders, ${exp.failures.length} with findings`);
-    for (const f of exp.failures.slice(0, 12)) console.log(`    W${f.W} E${f.exp} ${f.phase}: ${f.out.join(' | ')}`);
+    const expKinds = {};
+    for (const f of exp.failures)
+      for (const o of f.out) {
+        const k = `E${f.exp} ${f.phase.split(' ')[0]}: ${o.replace(/\d+(\.\d+)?/g, '#')}`;
+        expKinds[k] ??= { n: 0, eg: `W${f.W} E${f.exp} ${f.phase}: ${o}` };
+        expKinds[k].n++;
+      }
+    for (const v of Object.values(expKinds).sort((a, b) => b.n - a.n).slice(0, 20)) console.log(`    ${v.n} x ${v.eg}`);
     total += exp.failures.length;
     const touching = await page.evaluate((w) => window.touchingOutlines(w), sweepWidths);
-    console.log(`two focus outlines that touch (E2's reveal pointed at the stack and its staircase apart) caught at ${touching.caught} of ${touching.of} widths`);
+    console.log(`two focus outlines that touch (E1's reveal pointed at the tree and its leaf page apart) caught at ${touching.caught} of ${touching.of} widths`);
     if (touching.caught !== touching.of) total++;
     const giveaways = await page.evaluate((w) => window.noAnswer(w), sweepWidths);
     console.log(`no-answer sweep, every question asking (entered afresh and from eight other settings) and its answer's play at five moments: ${giveaways.renders} renders, ${giveaways.out.length} giveaways`);
-    for (const g of giveaways.out.slice(0, 12)) console.log(`    ${g}`);
+    const gk = {};
+    for (const g of giveaways.out) {
+      const k = g.replace(/^W\d+ /, '').replace(/ from .*?:/, ':').replace(/ [\d.]+:/, ':');
+      gk[k] ??= { n: 0, eg: g };
+      gk[k].n++;
+    }
+    for (const v of Object.values(gk).sort((a, b) => b.n - a.n).slice(0, 20)) console.log(`    ${v.n} x ${v.eg}`);
     total += giveaways.out.length;
     const planted = await page.evaluate(() => window.plantedLeaks(322));
     const names = Object.keys(planted);

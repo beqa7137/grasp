@@ -1902,8 +1902,9 @@
         // column of memory runs down beside the runs: a filter a run, where a lookup's "not here" lands.
         const top = cy;
         const long = pw >= 270;
+        const trailX0 = 30;
         const chipW = Math.max(tw('skipped', 'small'), tw(long ? '≈10.5× avg' : '≈10.5×', 'mono'), tw(long ? '1 read, found' : '1 read', 'small'), tw('found', 'small')) + 2;
-        const memW = write ? Math.round((pw - chipW - 8) * 0.5) : pw - chipW - 8;
+        const memW = write ? Math.max(Math.round((pw - chipW - 8) * 0.5), trailX0 + 12 + tw('memtable', 'small') + 8) : pw - chipW - 8;
         const logX = x + memW + 8;
         const logW = pw - chipW - 8 - memW - 8;
         const filters = !write && !!s.bloom;
@@ -1916,7 +1917,7 @@
         }
         const memY = cy + 18;
         const memH = 26;
-        const trailX = x + 30;
+        const trailX = x + trailX0;
         D.add('marks', rect('run box', x + 0.5, memY, memW - 1, memH, 5, ' data-owner="lsm-stack"'));
         const memForms = [`memtable · ${fSize(l.memtableBytes)}, sorted`, `memtable · ${fSize(l.memtableBytes)}`, 'memtable'].map((t) => [[t, 'small', 'ink']]);
         D.text(trailX + 12, memY + 17, pick(memForms, (f) => trailX + 12 + partsWidth(f) <= x + memW - 4), { textCls: 'on-box', owner: 'lsm-stack', id: 'mem-text' });
@@ -2026,7 +2027,7 @@
           let sayNow = true;
           if (hid.lsmMarks) {
             D.add('marks', rect('hidden-box', sx + 0.5, sy, SW - 1, SH, 3, ' data-id="stair-hidden"'));
-            lines = wrap("L2's merges draw after your answer.", 'small', textW);
+            lines = wrap("This level's merges draw after your answer.", 'small', textW);
           } else {
             const playing = view.play?.engine === 'lsm';
             const from = playing ? Math.max(0, Math.min(1, (view.play.frac - P.stair0) / (P.stair1 - P.stair0))) : 1;
@@ -2308,7 +2309,7 @@
           { owner: 'title' },
         );
         y += 28;
-        y = writeGroup(D, PAD, y, full, m, view, hid) + 14;
+        y = writeGroup(D, PAD, y, full, m, view, hid) + 16;
         if (two) {
           const a = readGroup(D, x1, y, pw, m, view, hid);
           const b = spaceGroup(D, x2, y, pw, m, view, hid);
@@ -2371,7 +2372,7 @@
             D.add('top', `<rect class="focus-outline" x="${r1(x)}" y="${r1(yy)}" width="${r1(w)}" height="${r1(h)}" rx="10" data-region="${id}"/>`);
             const across = [];
             for (let ax = x + w - TAG.w - 16; ax >= x + 16; ax -= 8) across.push(ax);
-            const xs = [x + w - TAG.w - 16, x + 16, ...across];
+            const xs = [x + w - TAG.w - 12, x + w - TAG.w - 16, x + 16, ...across];
             let placed = false;
             for (const [tx, ty] of [yy - TAG.h / 2, yy + h - TAG.h / 2].flatMap((t) => xs.map((sx) => [sx, t]))) {
               const tag = { x0: tx, x1: tx + TAG.w, y0: ty, y1: ty + TAG.h };
@@ -2881,14 +2882,14 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${nb(story
         well.style.width = '';
         return { renders, failures };
       };
-      // The outline rule is proven as the leaks are: E2's reveal pointed at the stack and at its staircase apart, two
+      // The outline rule is proven as the leaks are: E1's reveal pointed at the tree and at the leaf page under it, two
       // outlines that touch, must fail at every width.
       window.touchingOutlines = function (widths) {
         const well = document.getElementById('well');
-        const spec = M.EXPERIMENTS[1];
+        const spec = M.EXPERIMENTS[0];
         const caught = widths.filter((W) => {
           well.style.width = W + 2 + 'px';
-          const view = { ...expView(spec, 'revealed'), focus: ['lsm-stack', 'lsm-transform'] };
+          const view = { ...expView(spec, 'revealed'), focus: ['bt-tree', 'bt-transform'] };
           const m = M.run(view.s);
           const { D } = drawInto(well, W, m, view);
           return check(well, D, m, view).some((o) => /^focus outlines/.test(o));
@@ -2906,10 +2907,10 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${nb(story
       const E2 = setupOf(1).lsm;
       const GIVEAWAYS = {
         'page-rewrite': {
-          both: [fB(E1.writeBytes), M.formatBytes(E1.writeBytes), fAmp(E1.writeAmp), M.formatRate(E1.diskWriteMBps), `${fB(E1.pageB)} written`, 'written back whole', 'rewritten unchanged', fB(E1.pageB - 100), `+${fB(100)}`, `${fB(E1.pageB)} +`, 'random page writes', M.formatRound(E1.randomWritesPerSec)],
-          asking: ['written back', 'whole page', 'page back', 'rewritten in place', 'written after'],
+          both: [fB(E1.writeBytes), M.formatBytes(E1.writeBytes), fAmp(E1.writeAmp), M.formatRate(E1.diskWriteMBps), `${fB(E1.pageB)} written`, 'written back whole', fB(E1.pageB - 100), `+${fB(100)}`, `${fB(E1.pageB)} +`, 'random page writes', M.formatRound(E1.randomWritesPerSec)],
+          asking: ['written back', 'whole page', 'page back', 'rewritten in place', 'written after', 'rewritten unchanged'],
         },
-        'lsm-rewrites': { both: [fAmp(E2.writeAmp), M.formatRate(E2.diskWriteMBps), '≈', M.formatNum(E2.rewritesPerLevel), `${E2.partsWritten} parts`, '1 log + 1 flush + 3', 'Merge k', '(ratio + 1) / 2', ' avg', 'on average', 'written ', 'times.'] },
+        'lsm-rewrites': { both: [fAmp(E2.writeAmp), M.formatRate(E2.diskWriteMBps), '≈', M.formatNum(E2.rewritesPerLevel), `${E2.partsWritten} parts`, '1 log + 1 flush + 3', 'Merge k', '(ratio + 1) / 2', ' avg', 'on average', 'times.'] },
         'record-size': { playing: [fAmp(afterOf(2).btree.writeAmp), M.formatRate(afterOf(2).btree.diskWriteMBps), fB(afterOf(2).btree.writeBytes), fAmp(24), 'was ', '≈'] },
         'no-filters': { both: ['every run'], asking: [`${afterOf(3).lsm.runs} runs`, `${M.run(M.EXPERIMENTS[3].setup).lsm.skipped} say`, `${M.run(M.EXPERIMENTS[3].setup).lsm.skipped} runs say`], playing: [M.formatReads(afterOf(3).lsm.lookupReads), `${afterOf(3).lsm.lookupReads} reads`, `${afterOf(3).lsm.runs} runs`, 'none skipped', 'newest first', 'was '] },
         'more-data': { playing: [fAmp(afterOf(4).lsm.writeAmp), M.formatRate(afterOf(4).lsm.diskWriteMBps), '≈', fAmp(42), 'was ', '5 levels ×'] },
