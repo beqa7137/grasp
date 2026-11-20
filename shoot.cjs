@@ -30,6 +30,11 @@ const STATES = opt('only')?.split(',') ?? [
   'optional',
   'playing',
   'hold',
+  'absorbed',
+  'failhold',
+  'bypass',
+  'tie',
+  'step',
   'describe',
   'reduced',
   ...[1, 2, 3, 4, 5].map((k) => `ask:${k}`),
@@ -101,7 +106,7 @@ const server = http.createServer((req, res) => {
     total += giveaways.out.length;
     const planted = await page.evaluate(() => window.plantedLeaks(322));
     console.log(`planted leaks caught: ${planted.filter(Boolean).length} of ${planted.length}`);
-    if (!planted.every(Boolean) || planted.length !== 6) total++;
+    if (!planted.every(Boolean) || planted.length !== 8) total++;
     const words = await page.evaluate(() => window.pageWords());
     console.log(`page sentences (summary, notice, facts, the year, the caption, Describe, goal checks) over every setting: ${words.length} findings`);
     for (const w of words.slice(0, 8)) console.log(`    ${w}`);
@@ -111,9 +116,9 @@ const server = http.createServer((req, res) => {
     // Every setting at the phone and desktop widths, with ghosts at both; every setting at three moments of a free play
     // at a phone width; strides elsewhere.
     const plan = [
-      [252, all, [null], true],
-      [322, all, [null, 0.1, 0.5, 0.9], true],
-      [620, all, [null, 0.3], true],
+      [252, all, [null, 'holds', 'steps'], true],
+      [322, all, [null, 0.1, 0.5, 0.9, 'holds'], true],
+      [620, all, [null, 0.3, 'holds', 'steps'], true],
       ...[270, 300, 344, 360, 400, 460, 520, 560, 700].map((w) => [w, all.filter((i) => i % 4 === w % 4), [null, 0.5], false]),
     ];
     const res = { renders: 0, failures: [] };
@@ -133,6 +138,11 @@ const server = http.createServer((req, res) => {
       }
     for (const [k, v] of Object.entries(byKind).sort((a, b) => b[1].n - a[1].n).slice(0, 16)) console.log(`    ${v.n} x ${k}   e.g. ${v.eg}`);
     total += res.failures.length;
+    await page.setViewportSize({ width: 320, height: 900 });
+    const readout = await page.evaluate(() => window.readoutLines());
+    console.log(`the phone readout at 320 px takes at most ${readout} lines (2 reserved)`);
+    if (readout > 2) total++;
+    await page.setViewportSize({ width: 1280, height: 900 });
     const heights = await page.evaluate(() => window.heights([252, 270, 286, 300, 322, 344, 360, 374, 400, 430, 460, 520, 560, 620, 700, 760]));
     console.log('stage heights by width (each should be one value):', JSON.stringify(heights));
     for (const hs of Object.values(heights)) if (hs.length !== 1) total++;

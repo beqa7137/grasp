@@ -412,6 +412,9 @@
       svg.draw text.on-chip {
         stroke: none;
       }
+      svg.draw text.on-sunken {
+        stroke: var(--g-sunken);
+      }
       .t-label {
         font: 600 var(--g-text-label) var(--g-font);
         letter-spacing: 0.12em;
@@ -619,9 +622,69 @@
       .bar {
         fill: var(--g-viz-current);
       }
+      /* What the paper promised: outlined in the current tone (its edge carries it, 3:1), the fill only a tint. */
       .bar.paper {
+        fill: color-mix(in srgb, var(--g-viz-current) 22%, var(--g-viz-stage));
+        stroke: var(--g-viz-current);
+        stroke-width: 1;
+      }
+      .key-paper {
         fill: var(--g-viz-current);
         fill-opacity: 0.22;
+        stroke: var(--g-viz-current);
+        stroke-width: 1;
+      }
+      .key-solid {
+        fill: var(--g-viz-current);
+      }
+      .goal-line {
+        stroke: var(--g-muted);
+        stroke-width: 1.5;
+      }
+      .goal-line.met {
+        stroke: var(--g-viz-final);
+      }
+      .ghost-caret {
+        fill: none;
+        stroke: var(--g-text);
+        stroke-width: 1.25;
+        stroke-linejoin: round;
+      }
+      .n-ring {
+        fill: var(--g-viz-stage);
+        stroke: var(--g-stroke);
+        stroke-width: 1.25;
+      }
+      .inuse {
+        fill: var(--g-viz-current);
+      }
+      .tick-shared {
+        fill: var(--g-text);
+        fill-opacity: 0.62;
+      }
+      .split-shared {
+        fill: var(--g-viz-critical);
+      }
+      .split-failover {
+        fill: var(--g-viz-critical);
+      }
+      .split-chance {
+        fill: var(--g-text);
+      }
+      .split-track {
+        stroke: var(--g-line-strong);
+      }
+      .inset-down {
+        fill: var(--g-text);
+        fill-opacity: 0.62;
+      }
+      .inset-up {
+        stroke: var(--g-viz-current);
+        stroke-width: 2;
+      }
+      .inset-frame {
+        fill: none;
+        stroke: var(--g-line-strong);
       }
       .bar.optional {
         fill: var(--g-viz-discarded-ink);
@@ -718,9 +781,38 @@
         font: 500 var(--g-text-label) var(--g-font);
         color: var(--g-muted);
       }
-      /* A checked toggle keeps its weight and size: only its colours change (prevention 20). */
+      /* A checked toggle keeps its weight and size: only its colours change, and a check glyph takes its reserved corner. */
+      .toggles3 .segment span {
+        position: relative;
+      }
       .toggles3 .segment input:checked + span {
         font-weight: 600;
+      }
+      .toggles3 .segment input:checked + span::after {
+        content: '';
+        position: absolute;
+        top: 5px;
+        right: 6px;
+        width: 8px;
+        height: 4px;
+        border-left: 2px solid var(--g-accent);
+        border-bottom: 2px solid var(--g-accent);
+        transform: rotate(-45deg);
+      }
+      /* The phone's readout of the request, inside the controls, so a press and its result share a screen. */
+      .readout {
+        margin: 0;
+        min-height: 2lh;
+        font: 600 var(--g-text-body-s) / 1.45 var(--g-font);
+        color: var(--g-text);
+      }
+      .readout .q {
+        color: var(--g-muted);
+      }
+      @media (min-width: 1000px) {
+        .readout {
+          display: none;
+        }
       }
       .note {
         order: 4;
@@ -735,7 +827,9 @@
         color: var(--g-muted);
       }
       .strip-band {
-        fill: rgba(var(--g-text-rgb), 0.035);
+        fill: var(--g-sunken);
+        stroke: var(--g-line-strong);
+        stroke-width: 1;
       }
       .nowrap {
         white-space: nowrap;
@@ -1063,6 +1157,7 @@
         const words = text
           .replace(GLUE, '$1\u0001$2')
           .replace(/(\d) × (\d)/g, '$1\u0001×\u0001$2')
+          .replace(/ × (\d)/g, '\u0001×\u0001$1')
           .replace(NAMED, '$1\u0001$2')
           .split(' ');
         const lines = [];
@@ -1088,6 +1183,7 @@
       const codeText = (t) =>
         esc(t)
           .replace(/(\d[\d.,]*) × (\d[\d.,]*) (h|min|s)\b/g, '<span class="nowrap">$1 × $2 $3</span>')
+          .replace(/([a-z]+) × (\d[\d.,]*) (h|min|s)\b/g, '<span class="nowrap">$1 × $2 $3</span>')
           .replace(GLUE, '<span class="nowrap">$1 $2</span>')
           .replace(NAMED, '<span class="nowrap">$1 $2</span>');
       const fd = M.formatDown;
@@ -1215,9 +1311,13 @@
           sample: h.has('sample') && asking,
           weakest: (h.has('weakest') && active) || (h.has('request') && active) || after,
           request: (h.has('request') && active) || after,
+          // The facts' second line (the paper rule, or what a set of copies is down from) is the principle every
+          // question is built on: it waits while any question asks or plays, and its lines stay reserved.
+          rule: active && view.leak !== 'rule',
           parts: after ? new Set(view.changed ?? []) : new Set(),
           ghost: active,
           waits: active,
+          active,
         };
       }
 
@@ -1225,18 +1325,25 @@
       const partById = (id) => M.PARTS.find((p) => p.id === id);
       const copyName = (id, i) => `${partById(id).short} ${i + 1}`;
       const SINGLE = { lb: 'The load balancer', app: 'The app server', db: 'The database', recs: 'The recommendations service' };
-      const MANY = { lb: 'load balancers', app: 'app servers', db: 'databases', recs: 'recommendations servers' };
+      const MANY = Object.fromEntries(M.PARTS.map((p) => [p.id, p.many]));
+      const STAY = { lb: 'the load balancers stay up', app: 'the app servers stay up', db: 'the databases stay up', recs: 'recommendations stay up' };
       const countWord = (n) => (n === 2 ? 'both' : `all ${n}`);
-      function captionOf(mo, n) {
+      /** The band's moment in words. An absorbed outage claims only what is true of its part; with independent copies it
+       * says why the strip under a set of copies stays empty (the other copy is itself down 0.1% of the time). */
+      function captionOf(mo, n, s = {}) {
         const wk = `Week ${mo.week + 1}`;
         if (mo.kind === 'outage') return `${wk}: ${SINGLE[mo.part].toLowerCase()} is down for 1 h and has no other copy, so the request fails.`;
         if (mo.kind === 'shared') return `${wk}: a shared failure takes ${countWord(n)} ${MANY[mo.part]} down at once for 1 h, so the request fails.`;
         if (mo.kind === 'failover') return `${wk}: ${copyName(mo.part, 0)} dies. For 5 min requests still go to it and fail, then ${copyName(mo.part, 1)} carries them.`;
-        const other = mo.copy === 0 ? 1 : 0;
-        return `${wk}: ${copyName(mo.part, mo.copy)} is down for 1 h. ${copyName(mo.part, other)} carries the request, so nothing fails.`;
+        if (mo.kind === 'bypassed') return `${wk}: recommendations are down for ${mo.cause === 'failover' ? `${M.FAILOVER_MIN} min` : `${M.MTTR_H} h`}. The page renders without them, so the request is served.`;
+        const carrier = mo.copy === 0 ? 1 : 0;
+        const said = `${wk}: ${copyName(mo.part, mo.copy)} is down for 1 h. ${copyName(mo.part, carrier)} carries the request, so ${STAY[mo.part]}.`;
+        if (s.shared) return said;
+        const pct = M.formatPct(M.COPY_U * 100);
+        return n === 2 ? `${said} ${copyName(mo.part, carrier)} is itself down only ${pct} of the time.` : `${said} The others are each down only ${pct} of the time.`;
       }
       const CAPTION_HIDDEN = 'The year plays after your answer.';
-      const captionSweep = (week) => `Week ${Math.min(M.WEEKS, Math.floor(week) + 1)} of ${M.WEEKS}: every part has a copy up, and the request is served.`;
+      const captionSweep = (week) => `Week ${Math.min(M.WEEKS, Math.floor(week) + 1)} of ${M.WEEKS}.`;
       function allCaptions() {
         const out = [CAPTION_HIDDEN, captionSweep(51)];
         for (const p of M.PARTS) {
@@ -1244,50 +1351,81 @@
           for (const n of [2, 3]) {
             out.push(captionOf({ week: 51, part: p.id, kind: 'shared', copy: 0 }, n));
             out.push(captionOf({ week: 51, part: p.id, kind: 'failover', copy: 0 }, n));
-            for (let c = 0; c < n; c++) out.push(captionOf({ week: 51, part: p.id, kind: 'absorbed', copy: c }, n));
+            for (let c = 0; c < n; c++) for (const shared of [0, 1]) out.push(captionOf({ week: 51, part: p.id, kind: 'absorbed', copy: c }, n, { shared }));
           }
         }
+        for (const cause of ['outage', 'failover']) out.push(captionOf({ week: 51, part: 'recs', kind: 'bypassed', cause, copy: 0 }, 1));
         return out;
       }
-      /** The simulated year's own sentence: counts and hours of this one year, never the model's. */
+      /** The simulated year's own sentence: counts and hours of this one year, never the model's. Hours are summed in
+       * whole minutes, so a learner multiplying the counts gets the printed figure. */
       function yearSentence(fails, soFar = false) {
         const n = fails.length;
         const lead = soFar ? 'So far this simulated year' : 'In this simulated year';
         if (!n) return soFar ? `${lead} the request has not failed.` : `${lead} the request never failed; the model’s long-run average is below.`;
-        const hours = fails.reduce((t, e) => t + e.hours, 0);
         const long = fails.filter((e) => e.kind !== 'failover').length;
         const short = n - long;
+        const hours = (long * M.MTTR_H * 60 + short * M.FAILOVER_MIN) / 60;
         const each = !short ? `each for ${M.MTTR_H} h` : !long ? `each for ${M.FAILOVER_MIN} min` : `${long} × ${M.MTTR_H} h and ${short} × ${M.FAILOVER_MIN} min`;
         if (soFar) return `${lead} the request has failed ${timesWord(n)}, ${fd(hours)} in all.`;
         return `${lead} the request failed ${timesWord(n)}, ${fd(hours)} in all: ${each}.`;
       }
-      const YEAR_WATCH = 'Watch the request’s row: it collects every failure that reaches it.';
+      const WATCHES = M.EXPERIMENTS.filter((e) => e.watch).map((e) => e.watch);
       const YEAR_LONGEST = 'In this simulated year the request failed 35 times, 20.3 h in all: 19 × 1 h and 16 × 5 min.';
+      const copiesOf = (n) => `${n} ${plural(n, 'copy', 'copies')}`;
+      /** The weakest links: every needed part that prints the worst downtime, grouped by copies when they differ. */
       function weakestSentence(m, short = false) {
         const ws = m.weakest.map((id) => m.parts.find((p) => p.id === id));
-        const n = ws[0].copies;
-        const copies = `${n} ${plural(n, 'copy', 'copies')}`;
         const nm = (p) => (short ? p.short : p.the);
-        if (ws.length === 1) return `Weakest link: ${nm(ws[0])} (${copies}), down ${fd(ws[0].downH)} a year.`;
-        const names = ws.length === M.PARTS.length ? `all ${ws.length} parts` : listOf(ws.map(nm));
-        return `Weakest links: ${names} (${copies} each), each down ${fd(ws[0].downH)} a year.`;
+        const down = fd(m.parts.find((p) => p.id === m.capPart).downH);
+        const counts = [...new Set(ws.map((p) => p.copies))].sort();
+        if (ws.length === 1) return `Weakest link: ${nm(ws[0])} (${copiesOf(ws[0].copies)}), down ${down} a year.`;
+        if (counts.length === 1) {
+          const names = ws.length === M.PARTS.length ? `all ${ws.length} parts` : listOf(ws.map(nm));
+          return `Weakest links: ${names} (${copiesOf(counts[0])} each), each down ${down} a year.`;
+        }
+        const groups = counts.map((n) => {
+          const g = ws.filter((p) => p.copies === n);
+          return `${listOf(g.map(nm))} (${copiesOf(n)}${g.length > 1 ? ' each' : ''})`;
+        });
+        return `Weakest links: ${groups.join(' and ')}, each down ${down} a year.`;
+      }
+      /** When the tied weakest parts have different copies, the third copy bought nothing measurable: say why. */
+      function tiedNote(m) {
+        const ws = m.parts.filter((p) => m.weakest.includes(p.id));
+        if (new Set(ws.map((p) => p.copies)).size < 2) return '';
+        const s = m.settings;
+        const by = s.shared && s.failover ? 'shared outages and failovers set' : s.shared ? 'shared outages set' : 'failovers set';
+        void by;
+        return 'A third copy buys under a minute a year here.';
       }
       const setName = (n) => (n === 2 ? 'A pair' : 'A set of 3');
+      /** The least redundant set of copies a request needs, which the facts and the split speak for. */
+      const leastSet = (m) => m.parts.filter((p) => !p.optional && p.copies > 1).reduce((a, b) => (!a || b.copies < a.copies ? b : a), null);
+      const NO_PAIR = 'No needed part has a second copy yet.';
+      /** What the conditions do: on paper the rule, else what the least redundant set is down from, as counts times
+       * durations (MTBF and MTTR as a transform the learner can redo). */
       function causesSentence(m) {
         const s = m.settings;
-        const hard = m.parts.filter((p) => !p.optional && p.copies > 1);
+        const p = leastSet(m);
+        if (!p) return NO_PAIR;
         if (!s.shared && !s.failover) return `On paper each copy adds ${Math.round(M.nines(M.COPY_U))} nines: a part is down only while all its copies are.`;
-        if (!hard.length) return 'No needed part has a second copy yet, so shared failures and failover change nothing.';
-        const p = hard.reduce((a, b) => (b.copies < a.copies ? b : a));
         const items = [];
-        if (p.causes.shared) items.push(`${fd(M.hoursAYear(p.causes.shared))} shared`);
-        if (p.causes.failover) items.push(`${fd(M.hoursAYear(p.causes.failover))} failover`);
+        if (p.causes.shared) items.push(`${M.formatNum(Number(p.sharedPerYear.toFixed(2)))} shared outages × ${M.MTTR_H} h`);
+        if (p.causes.failover) items.push(`${M.formatNum(Number(p.failovers.toFixed(2)))} failovers × ${M.FAILOVER_MIN} min`);
         items.push(`${fd(M.hoursAYear(p.causes.overlap))} ${countWord(p.copies)} down by chance`);
-        return `${setName(p.copies)} is down ${fd(p.downH)} a year: ${items.join(' + ')}.`.replace(' is down ', ': ').replace(' a year: ', ' a year = ');
+        return `${setName(p.copies)} is down ${fd(p.downH)} a year (${fd(p.paperDownH)} on paper): ${listOf(items)}.`;
       }
       const ghostSentence = (g, challenge = false) => `${challenge ? 'At the start' : 'Before this change'}: ${fd(g.downH)} a year.`;
       const HIDDEN_FACT = 'The request’s numbers and its weakest link show after your answer.';
       const HIDDEN_WEAKEST = 'The weakest link shows after your answer.';
+      /** The inset's words: why an independent pair's strip stays empty. */
+      function insetWords(mo, n) {
+        void mo;
+        const pct = M.formatPct(M.COPY_U * 100);
+        const odds = n === 2 ? pct : `${pct} × ${pct}`;
+        return `${countWord(n)} down: ${odds} of ${M.formatNum(M.FAILS_PER_YEAR)} h = ${fd(M.hoursAYear(M.COPY_U ** n))} a year`;
+      }
       function chainWords(m) {
         const bits = m.parts.map((p) => `${p.copies} ${plural(p.copies, p.one, p.many)}${p.optional ? ' (optional)' : ''}`);
         return listOf(bits);
@@ -1295,7 +1433,7 @@
       function conditionWords(s) {
         const c = [];
         c.push(s.shared ? `${M.SHARE_WORDS} of a copy’s outages is shared by every copy of its part` : 'copies fail independently');
-        c.push(s.failover ? `traffic takes ${M.FAILOVER_MIN} min to move off a dead copy` : 'traffic moves off a dead copy at once');
+        c.push(s.failover ? `traffic takes ${M.FAILOVER_MIN} min to move off a dead copy: requests go to the first copy while it is up, so only its outages cost a failover` : 'traffic moves off a dead copy at once');
         return c.join(', and ') + (s.optional ? '; recommendations are optional, so their outages (the hollow marks) never reach the request' : '');
       }
       /** The stage's summary: the setting, then what the model gives (or that it shows after the answer). */
@@ -1307,51 +1445,61 @@
         return parts.join(' ');
       }
       const settingSentence = (m) => `The request is ${fa(m.u)} available, down ${fd(m.downH)} a year. ${weakestSentence(m)}`;
+      const readoutText = (m, hid) => (hid.request ? 'Request: ? available · down ? a year' : `Request: ${fa(m.u)} available · down ${fd(m.downH)} a year`);
 
       // ---------- Reserved lines: the most any setting needs at this width (so the stage's height depends on its width only).
       const reserveCache = new Map();
       const ALL = [];
       for (const lb of M.COPIES) for (const app of M.COPIES) for (const db of M.COPIES) for (const recs of M.COPIES) for (const optional of [0, 1]) for (const shared of [0, 1]) for (const failover of [0, 1]) ALL.push({ lb, app, db, recs, optional, shared, failover });
       window.ALL_SETTINGS = ALL;
-      function reserved(width) {
-        if (reserveCache.has(width)) return reserveCache.get(width);
-        const lines = (t) => wrap(t, 'cap', width).length;
+      const INSET_LONGEST = insetWords({ part: 'recs', copy: 2 }, 3);
+      function reserved(width, wide) {
+        const key = `${width}|${wide}`;
+        if (reserveCache.has(key)) return reserveCache.get(key);
+        const lines = (t) => (t ? wrap(t, 'cap', width).length : 0);
         const caption = Math.max(...allCaptions().map(lines));
-        const year = Math.max(lines(YEAR_LONGEST), lines('So far this simulated year the request has failed 35 times, 20.3 h in all.'), lines(YEAR_WATCH));
+        const year = Math.max(lines(YEAR_LONGEST), lines('So far this simulated year the request has failed 35 times, 20.3 h in all.'), ...WATCHES.map(lines));
         let facts = lines(HIDDEN_FACT);
         const seen = new Set();
         for (const s of ALL) {
           const m = M.run(s);
-          const key = weakestSentence(m, true) + '|' + causesSentence(m);
-          if (seen.has(key)) continue;
-          seen.add(key);
-          facts = Math.max(facts, lines(weakestSentence(m, true)) + lines(causesSentence(m)), lines(HIDDEN_WEAKEST) + lines(causesSentence(m)));
+          const key2 = weakestSentence(m, true) + '|' + causesSentence(m) + '|' + tiedNote(m);
+          if (seen.has(key2)) continue;
+          seen.add(key2);
+          facts = Math.max(facts, lines(weakestSentence(m, true)) + lines(tiedNote(m)) + lines(causesSentence(m)), lines(HIDDEN_WEAKEST) + lines(causesSentence(m)));
         }
         const ghost = lines('Before this change: 20.6 h a year.');
-        const r = { caption, year, facts: facts + ghost };
-        reserveCache.set(width, r);
+        const insetLabelW = width - insetLeft(wide);
+        const insetLines = wrap(INSET_LONGEST, 'small', insetLabelW).length;
+        const r = { caption, year, facts: facts + ghost, inset: Math.max(3 * 12, insetLines * 14) + 8, insetLabelW };
+        reserveCache.set(key, r);
         return r;
       }
+      /** The inset's window starts after a copy name; its label after the window. */
+      const insetLeft = (wide) => (wide ? 46 + 64 + 12 : 44 + 40 + 8);
 
       // ---------- The band's state at a moment: which copies are down, which copy carries the request, where it is cut.
       function bandState(m, moment, into) {
         let failed = false;
         return m.parts.map((p) => {
-          const st = { id: p.id, n: p.copies, optional: p.optional, down: new Set(), serving: 0, cut: false, next: -1, reached: !failed, bypass: false };
+          const st = { id: p.id, n: p.copies, optional: p.optional, down: new Set(), serving: 0, cut: false, cutAt: -1, next: -1, reached: !failed, bypass: false };
           if (moment && moment.part === p.id) {
-            if (moment.kind === 'outage') {
+            const kind = moment.kind === 'bypassed' ? (moment.cause === 'shared' ? 'shared' : moment.cause === 'failover' ? 'failover-down' : 'outage') : moment.kind;
+            if (kind === 'outage' || kind === 'failover-down') {
               st.down.add(0);
               st.serving = -1;
               st.cut = true;
-            } else if (moment.kind === 'shared') {
+            } else if (kind === 'shared') {
               for (let i = 0; i < p.copies; i++) st.down.add(i);
               st.serving = -1;
               st.cut = true;
-            } else if (moment.kind === 'failover') {
+            } else if (kind === 'failover') {
               st.down.add(0);
               if (into < 0.55) {
+                // The first beat: requests still go to the dead copy, so the path runs to its box and stops there.
                 st.serving = -1;
                 st.cut = true;
+                st.cutAt = 0;
                 st.next = 1;
               } else st.serving = 1;
             } else {
@@ -1361,11 +1509,52 @@
           }
           if (st.cut && p.optional) {
             st.cut = false;
+            st.cutAt = -1;
             st.bypass = true;
           }
           if (st.cut) failed = true;
           return st;
         });
+      }
+      /** The moment the band shows when no play runs: a stepped moment, the view's own (an answer's hold after its reveal,
+       * the challenge's bypass when met), else the rest moment. */
+      function staticMoment(view, s) {
+        if (view.step !== null && view.step !== undefined) return M.stepMoments(s)[view.step];
+        return view.moment ?? M.restMoment(s);
+      }
+      const momentCopies = (m, mo) => m.parts.find((p) => p.id === mo.part).copies;
+
+      function keyEntries(wide, shared) {
+        const h = `${M.MTTR_H} h`;
+        const fo = `${M.FAILOVER_MIN} min`;
+        const e = wide
+          ? [
+              ['copy', `copy down, ${h}`],
+              ['fail', `part down, ${h}: the request fails`],
+              ['short', `failover, ${fo}: it fails too`],
+            ]
+          : [
+              ['copy', `copy down, ${h}`],
+              ['short', `failover, ${fo}`],
+              ['fail', `part down, ${h}: the request fails`],
+            ];
+        if (shared) e.splice(wide ? 3 : 2, 0, ['shared', wide ? 'shared: every copy down' : 'shared']);
+        return e;
+      }
+      /** The key flows into rows; the reserve is the rows the fullest key needs at this width. */
+      function keyRows(entries, x0, x1, gapX = 16) {
+        const rows = [[]];
+        let kx = x0;
+        for (const en of entries) {
+          const w = 9 + tw(en[1], 'small');
+          if (kx + w > x1 && rows[rows.length - 1].length) {
+            rows.push([]);
+            kx = x0;
+          }
+          rows[rows.length - 1].push([...en, kx]);
+          kx += w + gapX;
+        }
+        return rows;
       }
 
       function buildStage(W, m, view) {
@@ -1375,53 +1564,35 @@
         const wide = W >= 520;
         const P = wide ? 14 : 10;
         const smp = M.sample(s);
-        const rest = M.restMoment(s);
         const playing = view.tau !== null && view.tau !== undefined;
-        const plan = playing ? M.playPlan(s, view.phase === 'playing', view.changed) : null;
+        const plan = playing ? M.playPlan(s, view.phase === 'playing', view.changed, M.SAMPLE_SEED, view.exp?.hold ?? 'part') : null;
         const clock = plan ? plan.at(view.tau) : null;
         const upTo = clock ? clock.weeks : M.WEEKS;
-        const moment = hid.sample ? null : clock ? clock.hold : rest;
+        const held = clock ? clock.hold : null;
+        const moment = hid.sample ? null : clock ? held : staticMoment(view, s);
+        // Between holds the band claims nothing: every copy up, a neutral outcome, "Week 12 of 52."
+        const neutral = !!clock && !held;
         const into = clock ? clock.into : 0;
-        const R = reserved(W - 2 * P);
+        const R = reserved(W - 2 * P, wide);
         D.meta.sample = smp;
         D.meta.upTo = upTo;
+        D.meta.moment = moment;
+        D.meta.held = !!held;
+        D.meta.into = into;
         D.label = summary(m, hid);
         let y = 0;
 
-        // ---- Header: Play, the title, the key.
+        // ---- Header: Play, the title; on wide stages a previous and a next moment.
         D.hit('play', P - 4, 2, 44, 44);
+        if (wide) {
+          D.hit('prev', W - P - 84, 2, 44, 44);
+          D.hit('next', W - P - 40, 2, 44, 44);
+        }
         const titleX = P + 46;
-        const hTxt = `${M.MTTR_H} h`;
-        const foTxt = `${M.FAILOVER_MIN} min`;
-        const keyRows = wide
-          ? [
-              [
-                ['key-copy', `a copy down, ${hTxt}`],
-                ['key-fail', `a part down, ${hTxt}: the request fails`],
-                ['key-short', `a failover, ${foTxt}: it fails too`],
-              ],
-            ]
-          : [
-              [
-                ['key-copy', `copy down, ${hTxt}`],
-                ['key-short', `failover, ${foTxt}`],
-              ],
-              [['key-fail', `part down, ${hTxt}: the request fails`]],
-            ];
-        const title = pick(['A request through its chain, over one simulated year', 'One request, one simulated year', 'One simulated year'], (t) => titleX + tw(t, 'capB') <= W - P);
+        const titleMax = wide ? W - P - 92 : W - P;
+        const title = pick(['A request through its chain, over one simulated year', 'One request, one simulated year', 'One simulated year'], (t) => titleX + tw(t, 'capB') <= titleMax);
         D.text(titleX, 29, [[title, 'capB']], { owner: 'title' });
-        keyRows.forEach((row, r) => {
-          let kx = P + 2;
-          const ky = 58 + r * 17;
-          for (const [cls, words] of row) {
-            const short = cls === 'key-short';
-            D.add('marks', `<rect class="${short ? 'key-fail' : cls}" x="${kx}" y="${ky - (short ? 5 : 10)}" width="3" height="${short ? 6 : 11}" rx="0.5"/>`);
-            D.mark({ x0: kx, x1: kx + 3, y0: ky - 10, y1: ky + 1 }, 'key');
-            D.text(kx + 9, ky, [[words, 'small']], { owner: 'key' });
-            kx += 9 + tw(words, 'small') + 16;
-          }
-        });
-        y = wide ? 68 : 86;
+        y = 50;
 
         // ---- The chain at one moment.
         const chainTop = y;
@@ -1433,25 +1604,23 @@
         const stackH = 3 * bh + 2 * gap;
         const ay = stackTop + stackH / 2;
         const leadIn = wide ? 56 : 12;
-        const outW = wide ? 60 : 20;
+        const outW = wide ? 60 : 26;
         const linkW = wide ? 30 : 9;
         const cx0 = P + leadIn;
         const cx1 = W - P - outW;
         const cw = (cx1 - cx0 - 3 * linkW) / 4;
         const bus = wide ? 12 : 5;
+        const legOut = wide ? 4 : 3;
         const colX = (i) => cx0 + i * (cw + linkW);
         const copyY = (n, i) => (n === 1 ? ay : n === 2 ? ay + (i - 0.5) * (bh + gap) : ay + (i - 1) * (bh + gap));
         const band = bandState(m, moment, into);
-        // Every part's full name, or every part's short one: never a mix.
         const longNames = M.PARTS.every((p) => tw(p.name, 'capB') <= cw + linkW - 6);
-        // A copy's name where the longest fits beside a down mark in every box; else its number, in every box alike.
         const fullNames = cw - 2 * bus - 22 >= Math.max(...M.PARTS.map((p) => tw(copyName(p.id, 2), 'mono')));
         const fails = band.some((b) => b.cut);
         const wire = (x1, y1, x2, y2, cls = 'wire') => D.line(x1, y1, x2, y2, cls, { owner: 'wire' });
         const pathSeg = (pts) => {
           D.add('marks', `<polyline class="${hid.sample ? 'path-hidden' : 'path'}" data-owner="wire" points="${pts.map((p) => `${r1(p[0])},${r1(p[1])}`).join(' ')}"/>`);
         };
-        // Lead in.
         const startX = P + (wide ? 4 : 2);
         if (wide) D.text(startX - 2, ay - 9, [['request', 'small']], { owner: 'wire' });
         wire(startX, ay, colX(0), ay);
@@ -1468,10 +1637,8 @@
           const xb0 = x + bus;
           const xb1 = x + cw - bus;
           const ys = Array.from({ length: p.copies }, (_, k) => copyY(p.copies, k));
-          // The part's name.
           const name = longNames ? p.name : p.short;
           D.text(x + cw / 2, namesY, [[name, 'capB', p.optional ? 'muted' : '']], { anchor: 'middle', owner: `name-${p.id}`, id: `name-${p.id}` });
-          // Buses and stubs.
           if (p.copies > 1) {
             wire(x, ys[0], x, ys[ys.length - 1]);
             wire(x + cw, ys[0], x + cw, ys[ys.length - 1]);
@@ -1481,15 +1648,15 @@
             wire(xb1, yy, x + cw, yy);
           }
           if (i < 3) wire(x + cw, ay, colX(i + 1), ay);
-          // The bypass around an optional part: a wire in parallel with it.
+          // The bypass around an optional part: a wire in parallel with it, its right leg on the lead-out wire.
           if (p.optional) {
             const bx0 = x - linkW / 2;
-            const bx1 = x + cw + (wide ? 14 : 6);
+            const bx1 = x + cw + legOut;
             const d = `M${r1(bx0)} ${ay}V${laneY + 5}Q${r1(bx0)} ${laneY} ${r1(bx0 + 5)} ${laneY}H${r1(bx1 - 5)}Q${r1(bx1)} ${laneY} ${r1(bx1)} ${laneY + 5}V${ay}`;
-            D.add('links', `<path class="${st.bypass && alive ? 'path' : 'wire'}" data-owner="wire bypass" d="${d}"/>`);
+            D.add('links', `<path class="${st.bypass && alive ? 'path' : 'wire'}" data-owner="wire bypass" data-bypass="${r1(bx1)}" d="${d}"/>`);
             D.link([...sampleLine(bx0, ay, bx0, laneY), ...sampleLine(bx0, laneY, bx1, laneY), ...sampleLine(bx1, laneY, bx1, ay)], 'wire bypass');
+            D.meta.bypassX = bx1;
           }
-          // Copies.
           ys.forEach((yy, k) => {
             const down = !hid.sample && st.down.has(k);
             const serving = alive && st.reached && st.serving === k && !st.bypass;
@@ -1498,21 +1665,28 @@
             D.mark({ x0: xb0, x1: xb1, y0: yy - bh / 2, y1: yy + bh / 2 }, `box-${p.id}-${k}`);
             const bw = xb1 - xb0;
             const label = fullNames ? copyName(p.id, k) : String(k + 1);
+            // A label's halo matches its ground: the hatch's sunken fill, nothing on the soft "next" tint.
             if (down) {
-              const gx = label ? xb1 - 11 : (xb0 + xb1) / 2;
+              const gx = xb1 - 11;
               xGlyph(D, gx, yy, `box-${p.id}-${k}`, 3.5, 'on-box');
-              if (label) D.text(xb0 + (bw - 16) / 2, yy + 4, [[label, 'mono', 'muted']], { anchor: 'middle', owner: `box-${p.id}-${k}`, textCls: 'on-box' });
-            } else if (label) D.text((xb0 + xb1) / 2, yy + 4, [[label, 'mono']], { anchor: 'middle', owner: `box-${p.id}-${k}`, textCls: 'on-box' });
+              D.text(xb0 + (bw - 16) / 2, yy + 4, [[label, 'mono', 'muted']], { anchor: 'middle', owner: `box-${p.id}-${k}`, textCls: 'on-sunken' });
+            } else D.text((xb0 + xb1) / 2, yy + 4, [[label, 'mono']], { anchor: 'middle', owner: `box-${p.id}-${k}`, textCls: next ? 'on-chip' : 'on-box' });
           });
-          // The request's path through this part.
           if (alive && st.reached) {
             if (st.bypass) {
-              // The path follows the bypass (drawn above in the path's tone) and rejoins after the part.
               pathPts.push([x - linkW / 2, ay]);
               flush();
-              pathPts = [[x + cw + (wide ? 14 : 6), ay]];
+              pathPts = [[x + cw + legOut, ay]];
+            } else if (st.cut && st.cutAt >= 0) {
+              // A failover's first beat: requests still go to the dead copy; the path runs to its box and stops there.
+              const yy = ys[st.cutAt];
+              const sx = xb0 - 3;
+              pathPts.push([x, ay], [x, yy], [sx - 2.5, yy]);
+              flush();
+              D.add('dots', `<rect class="stop" data-stop="${p.id}" x="${r1(sx - 1.75)}" y="${r1(yy - 8)}" width="3.5" height="16" rx="1"/>`);
+              D.mark({ x0: sx - 3, x1: sx + 3, y0: yy - 9, y1: yy + 9 }, 'cut');
+              alive = false;
             } else if (st.cut) {
-              // The path stops at a bar before the part: a cross is only ever a copy that is down, or the outcome.
               const sx = x - (wide ? 9 : 4);
               pathPts.push([sx - 2, ay]);
               flush();
@@ -1527,7 +1701,6 @@
             }
           }
         });
-        // Lead out and the outcome.
         const endX = W - P - (wide ? outW - 18 : 9);
         wire(colX(3) + cw, ay, endX - 9, ay);
         if (alive) {
@@ -1537,6 +1710,8 @@
         if (hid.sample) {
           D.add('dots', `<circle class="q-ring" cx="${endX}" cy="${ay}" r="8"/>`);
           D.text(endX, ay + 4, [['?', 'smallB', 'muted']], { anchor: 'middle', owner: 'outcome' });
+        } else if (neutral) {
+          D.add('dots', `<circle class="n-ring" data-outcome="none" cx="${endX}" cy="${ay}" r="8"/>`);
         } else if (fails) {
           D.add('dots', `<circle class="bad-ring" data-outcome="fails" cx="${endX}" cy="${ay}" r="8"/><path class="xmark" d="M${endX - 3.5} ${ay - 3.5}l7 7M${endX + 3.5} ${ay - 3.5}l-7 7"/>`);
           if (wide) D.text(endX + 13, ay + 4, [['fails', 'smallB', 'bad']], { owner: 'outcome' });
@@ -1545,22 +1720,23 @@
           if (wide) D.text(endX + 13, ay + 4, [['served', 'smallB', 'ok-ink']], { owner: 'outcome' });
         }
         D.mark({ x0: endX - 9, x1: endX + 9, y0: ay - 9, y1: ay + 9 }, 'outcome');
-        // "optional" on the bypass lane, where it fits (the caption and the summary say it either way).
+        D.meta.outcomeX0 = endX - 8;
+        // The bypass lane is always named: "optional", or "opt." where the word does not fit.
         const opt = m.parts.find((p) => p.optional);
         if (opt) {
           const i = m.parts.indexOf(opt);
           const cxm = colX(i) + cw / 2;
-          if (tw('optional', 'small') <= cw - 4) D.text(cxm, laneY + 4, [['optional', 'small']], { anchor: 'middle', owner: 'wire bypass', ground: true });
+          const word = pick(['optional', 'opt.'], (t) => tw(t, 'small') <= cw - 4);
+          D.text(cxm, laneY + 4, [[word, 'small']], { anchor: 'middle', owner: 'wire bypass', ground: true, id: 'lane-word' });
         }
         y = stackTop + stackH + 10;
-        // The moment, in words, under the chain (reserved lines collect at the band's foot).
-        const capText = hid.sample ? CAPTION_HIDDEN : moment ? captionOf(moment, m.parts.find((p) => p.id === moment.part).copies) : captionSweep(upTo);
+        const capText = hid.sample ? CAPTION_HIDDEN : moment ? captionOf(moment, momentCopies(m, moment), s) : captionSweep(upTo);
         D.para(P, y + 12, wrap(capText, 'cap', W - 2 * P), 'cap', 18, { owner: 'caption', id: 'caption', cls: 'ink' });
         D.meta.caption = capText;
         y += R.caption * 18 + 4;
         D.region('chain', { x: P - 6, y: chainTop - 2, w: W - 2 * P + 12, h: y - chainTop });
 
-        // ---- The year: a row per copy, a strip per part, the request's row as their union.
+        // ---- The year: its label and key, a row per copy, a strip per part, the request's row as their union.
         y += 10;
         const tlTop = y;
         const gut = wide ? 62 : 46;
@@ -1575,84 +1751,128 @@
           D.text(P, y + 11, [['A simulated year', 'label']], { owner: 'tl-label' });
           D.text(W - P - 4, y + 11, [['ticks not to scale', 'small']], { anchor: 'end', owner: 'tl-label' });
         }
-        y += 22;
+        y += 18;
+        // The key, directly under the year's label, beside the marks it explains.
+        const fullKey = keyRows(keyEntries(wide, true), P + 2, W - P, wide ? 16 : 12);
+        const rows = keyRows(keyEntries(wide, !!s.shared), P + 2, W - P, wide ? 16 : 12);
+        rows.forEach((row, r) => {
+          const ky = y + 12 + r * 17;
+          for (const [cls, words, kx] of row) {
+            if (cls === 'shared') {
+              D.add('marks', `<rect class="key-copy" x="${kx}" y="${ky - 10}" width="3" height="8" rx="0.5"/><rect class="key-fail" x="${kx}" y="${ky - 1}" width="3" height="3" rx="0.5"/>`);
+            } else {
+              const short = cls === 'short';
+              D.add('marks', `<rect class="${cls === 'copy' ? 'key-copy' : 'key-fail'}" x="${kx}" y="${ky - (short ? 5 : 10)}" width="3" height="${short ? 6 : 11}" rx="0.5"/>`);
+            }
+            D.mark({ x0: kx, x1: kx + 3, y0: ky - 10, y1: ky + 2 }, 'key');
+            D.text(kx + 9, ky, [[words, 'small']], { owner: 'key', data: ` data-key="${cls}"` });
+          }
+        });
+        y += fullKey.length * 17 + 10;
         const tickW = Math.max(1.5, Math.min(3, ppw * 0.42));
         const areaH = 24;
         const stripH = 8;
+        const groupH = areaH + 2 + stripH + 9;
         const shown = (week) => !hid.sample && week + 0.5 <= upTo + 1e-9;
         const rowsTop = y;
         const requestTicks = [];
+        const reqY = rowsTop + 4 * groupH;
+        const reqH = 18;
         m.parts.forEach((p, i) => {
           const sp = smp.parts[i];
           const gy = y;
           D.text(P, gy + areaH / 2 + 4, [[p.short, 'nameS', p.optional ? 'muted' : '']], { owner: `gut-${p.id}` });
           const rh = areaH / p.copies;
-          for (let k = 0; k < p.copies; k++) {
-            const ry = gy + k * rh;
-            D.line(tx0, ry + rh, tx1, ry + rh, 'row-track', { layer: 'grid', owner: 'grid', solid: false });
-            const weeks = sp.rows[k].filter((t) => shown(t.week)).map((t) => t.week);
-            if (weeks.length) {
-              const d = weeks.map((w) => `M${r1(wkX(w) - tickW / 2)} ${r1(ry + 1.5)}h${r1(tickW)}v${r1(rh - 2.5)}h${-r1(tickW)}z`).join('');
-              D.add('marks', `<path class="tick-copy" data-row="${p.id}-${k}" data-weeks="${weeks.join(',')}" d="${d}"/>`);
-            }
-          }
           const sy = gy + areaH + 2;
-          D.add('back', `<rect class="strip-band" x="${tx0}" y="${sy}" width="${r1(tx1 - tx0)}" height="${stripH}"/>`);
-          D.line(tx0, sy + stripH, tx1, sy + stripH, 'strip-track', { layer: 'grid', owner: 'grid', solid: false });
-          const ev = sp.events.filter((e) => shown(e.week));
-          if (ev.length) {
-            const d = ev
-              .map((e) => {
-                const h = e.kind === 'failover' ? stripH / 2 : stripH;
-                return `M${r1(wkX(e.week) - tickW / 2)} ${r1(sy + stripH - h)}h${r1(tickW)}v${r1(h)}h${-r1(tickW)}z`;
-              })
-              .join('');
-            D.add('marks', `<path class="${p.optional ? 'tick-bypassed' : 'tick-fail'}" data-strip="${p.id}" data-weeks="${ev.map((e) => e.week).join(',')}" d="${d}"/>`);
+          if (!hid.sample) {
+            const sharedWeeks = p.copies > 1 && s.shared ? sp.rows[0].filter((t) => t.shared && shown(t.week)).map((t) => t.week) : [];
+            for (let k = 0; k < p.copies; k++) {
+              const ry = gy + k * rh;
+              D.line(tx0, ry + rh, tx1, ry + rh, 'row-track', { layer: 'grid', owner: 'grid', solid: false });
+              const weeks = sp.rows[k].filter((t) => shown(t.week) && !(t.shared && sharedWeeks.includes(t.week))).map((t) => t.week);
+              if (weeks.length) {
+                const d = weeks.map((w) => `M${r1(wkX(w) - tickW / 2)} ${r1(ry + 1.5)}h${r1(tickW)}v${r1(rh - 2.5)}h${-r1(tickW)}z`).join('');
+                D.add('marks', `<path class="tick-copy" data-row="${p.id}-${k}" data-weeks="${weeks.join(',')}" d="${d}"/>`);
+              }
+              if (wide && p.copies === 2) D.text(tx0 - 8, ry + rh / 2 + 4, [[String(k + 1), 'small']], { anchor: 'end', owner: `gut-${p.id}` });
+            }
+            // A shared outage is one joined mark through every copy's row and down to the strip: one cause.
+            if (sharedWeeks.length) {
+              const d = sharedWeeks.map((w) => `M${r1(wkX(w) - tickW / 2)} ${r1(gy + 1.5)}h${r1(tickW)}v${r1(sy - gy - 1.5)}h${-r1(tickW)}z`).join('');
+              D.add('marks', `<path class="tick-shared" data-shared="${p.id}" data-weeks="${sharedWeeks.join(',')}" d="${d}"/>`);
+            }
+            // The copy in use: requests go to the first copy while it is up.
+            if (p.copies > 1) D.add('marks', `<rect class="inuse" data-inuse="${p.id}" x="${r1(tx0 - 4)}" y="${r1(gy + 1.5)}" width="2" height="${r1(rh - 2.5)}"/>`);
+            D.add('back', `<rect class="strip-band" x="${tx0}" y="${sy}" width="${r1(tx1 - tx0)}" height="${stripH}"/>`);
+            if (wide) D.text(P, sy + stripH / 2 + 4, [['part', 'small']], { owner: `gut-${p.id}` });
+            const ev = sp.events.filter((e) => shown(e.week));
+            if (ev.length) {
+              const d = ev
+                .map((e) => {
+                  const h = e.kind === 'failover' ? stripH / 2 : stripH;
+                  return `M${r1(wkX(e.week) - tickW / 2)} ${r1(sy + stripH - h)}h${r1(tickW)}v${r1(h)}h${-r1(tickW)}z`;
+                })
+                .join('');
+              D.add('marks', `<path class="${p.optional ? 'tick-bypassed' : 'tick-fail'}" data-strip="${p.id}" data-weeks="${ev.map((e) => e.week).join(',')}" d="${d}"/>`);
+            }
+            if (!p.optional) for (const e of ev) requestTicks.push(e);
           }
-          if (!p.optional) for (const e of ev) requestTicks.push(e);
-          y += areaH + 2 + stripH + 9;
+          y += groupH;
         });
-        // The request's row.
-        const reqY = y;
-        const reqH = 18;
-        D.add('back', `<rect class="req-band" x="${tx0}" y="${reqY}" width="${r1(tx1 - tx0)}" height="${reqH}"/>`);
         D.text(P, reqY + reqH / 2 + 4, [[pick(['Request', 'Req.'], (t) => tw(t, 'smallB') <= gut - 4), 'smallB']], { owner: 'gut-request' });
         if (hid.sample) {
-          D.add('marks', `<rect class="req-hidden" x="${tx0 + 0.5}" y="${reqY + 0.5}" width="${r1(tx1 - tx0 - 1)}" height="${reqH - 1}" rx="3"/>`);
-          D.text((tx0 + tx1) / 2, reqY + reqH / 2 + 4, [[pick(['plays after your answer', 'after your answer'], (t) => tw(t, 'small') <= tx1 - tx0 - 8), 'small']], { anchor: 'middle', owner: 'req-hidden' });
-        } else if (requestTicks.length) {
-          requestTicks.sort((a, b) => a.week - b.week);
-          const d = requestTicks
-            .map((e) => {
-              const h = e.kind === 'failover' ? 8 : reqH - 2;
-              return `M${r1(wkX(e.week) - tickW / 2)} ${r1(reqY + reqH - 1 - h)}h${r1(tickW)}v${r1(h)}h${-r1(tickW)}z`;
-            })
-            .join('');
-          D.add('marks', `<path class="tick-fail" data-request="1" data-weeks="${requestTicks.map((e) => e.week).join(',')}" data-kinds="${requestTicks.map((e) => e.kind[0]).join('')}" d="${d}"/>`);
+          // One dashed box over every row: the whole year is hidden, not empty.
+          D.add('marks', `<rect class="req-hidden" data-year-hidden="1" x="${tx0 + 0.5}" y="${r1(rowsTop + 0.5)}" width="${r1(tx1 - tx0 - 1)}" height="${r1(reqY + reqH - rowsTop - 1)}" rx="4"/>`);
+          D.text((tx0 + tx1) / 2, (rowsTop + reqY + reqH) / 2 + 4, [[pick(['The year plays after your answer', 'plays after your answer'], (t) => tw(t, 'small') <= tx1 - tx0 - 16), 'small']], { anchor: 'middle', owner: 'req-hidden' });
+        } else {
+          D.add('back', `<rect class="req-band" x="${tx0}" y="${reqY}" width="${r1(tx1 - tx0)}" height="${reqH}"/>`);
+          if (requestTicks.length) {
+            requestTicks.sort((a, b) => a.week - b.week);
+            const d = requestTicks
+              .map((e) => {
+                const h = e.kind === 'failover' ? 8 : reqH - 2;
+                return `M${r1(wkX(e.week) - tickW / 2)} ${r1(reqY + reqH - 1 - h)}h${r1(tickW)}v${r1(h)}h${-r1(tickW)}z`;
+              })
+              .join('');
+            D.add('marks', `<path class="tick-fail" data-request="1" data-weeks="${requestTicks.map((e) => e.week).join(',')}" data-kinds="${requestTicks.map((e) => e.kind[0]).join('')}" d="${d}"/>`);
+          }
         }
         y = reqY + reqH;
         D.line(tx0, y, tx1, y, 'axis', { layer: 'grid', owner: 'grid', solid: false });
-        // The moment the band shows: a line through the rows and a ring round its tick (stroke only, round the whole mark).
-        if (moment && !playing) {
+        // The moment: at rest a line through the rows and a ring; during a hold the playhead is the line and the ring
+        // stands round the held tick the same way.
+        if (moment) {
           const mx = wkX(moment.week);
-          D.line(mx, rowsTop - 3, mx, y + 3, 'moment', { layer: 'grid', owner: 'grid', solid: false });
-          D.add('top', `<path class="moment-head" d="M${r1(mx - 4)} ${r1(rowsTop - 8)}h8l-4 6z"/>`);
+          if (!playing) {
+            D.line(mx, rowsTop - 3, mx, y + 3, 'moment', { layer: 'grid', owner: 'grid', solid: false });
+            D.add('top', `<path class="moment-head" d="M${r1(mx - 4)} ${r1(rowsTop - 8)}h8l-4 6z"/>`);
+          }
           const pi = m.parts.findIndex((p) => p.id === moment.part);
+          const gy = rowsTop + pi * groupH;
           let ry0;
           let ry1;
           if (moment.fails) {
             ry0 = reqY + (moment.kind === 'failover' ? reqH - 9 : 1) - 3;
             ry1 = reqY + reqH + 2;
+          } else if (moment.kind === 'bypassed') {
+            ry0 = gy + areaH + 2 - 3;
+            ry1 = gy + areaH + 2 + stripH + 3;
           } else {
-            const gy = rowsTop + pi * (areaH + 2 + stripH + 9);
             const rh = areaH / m.parts[pi].copies;
             ry0 = gy + moment.copy * rh + 1.5 - 3;
             ry1 = gy + (moment.copy + 1) * rh - 1 + 3;
           }
-          D.add('top', `<rect class="ring" data-ring="${moment.kind}" x="${r1(mx - tickW / 2 - 3)}" y="${r1(ry0)}" width="${r1(tickW + 6)}" height="${r1(ry1 - ry0)}" rx="3"/>`);
+          D.add('top', `<rect class="ring" data-ring="${moment.kind}" data-week="${moment.week}" x="${r1(mx - tickW / 2 - 3)}" y="${r1(ry0)}" width="${r1(tickW + 6)}" height="${r1(ry1 - ry0)}" rx="3"/>`);
         }
-        if (playing) D.line(tx0 + (upTo / M.WEEKS) * (tx1 - tx0), rowsTop - 3, tx0 + (upTo / M.WEEKS) * (tx1 - tx0), y + 3, 'playhead', { layer: 'top', owner: 'grid', solid: false });
-        // Weeks.
+        if (playing) {
+          // The playhead stands clear of a held column's marks: at least half a tick and 2.5 px past its centre.
+          let hx = tx0 + (upTo / M.WEEKS) * (tx1 - tx0);
+          for (const h of plan.holds) if (h.week + 1 <= upTo + 1e-9) hx = Math.max(hx, wkX(h.week) + tickW / 2 + 2.5);
+          D.line(hx, rowsTop - 3, hx, y + 3, 'playhead', { layer: 'top', owner: 'grid', solid: false, data: ' data-playhead="1"' });
+          D.meta.playheadX = hx;
+          if (held) D.meta.heldX = wkX(held.week);
+          D.meta.tickW = tickW;
+        }
         const weekTicks = [0, 13, 26, 39, 52];
         weekTicks.forEach((w, i) => {
           const x = tx0 + (w / M.WEEKS) * (tx1 - tx0);
@@ -1662,13 +1882,31 @@
           D.text(last ? tx1 + 3 : x, y + 16, [[t, 'small']], { anchor: last ? 'end' : i === 0 ? 'start' : 'middle', owner: 'weeks', data: ' data-xtick="weeks"', ground: true });
         });
         y += 22;
-        // The year's own sentence (sample words; reserved lines at the foot).
-        // The year's own counts wait with the model's numbers: during an answer's play the row fills and the words only
-        // say where to look (the count at a play's end is close to the model's, which is the answer).
-        const yearText = hid.sample ? '' : hid.request ? YEAR_WATCH : yearSentence(smp.fails.filter((e) => shown(e.week)), playing);
+        // The year's own sentence: during an answer's play only where to look (its count is close to the answer).
+        const yearText = hid.sample ? '' : hid.request ? view.exp?.watch ?? WATCHES[0] : yearSentence(smp.fails.filter((e) => shown(e.week)), playing);
         if (yearText) D.para(P, y + 12, wrap(yearText, 'cap', W - 2 * P), 'cap', 18, { owner: 'year', id: 'year' });
         D.meta.year = yearText;
         y += R.year * 18 + 4;
+        // "That hour": an absorbed outage zoomed in, at the year's foot, once no question waits on it.
+        const insetTop = y;
+        if (moment && moment.kind === 'absorbed' && !s.shared && !hid.active) {
+          const n = momentCopies(m, moment);
+          const wx0 = P + (wide ? 46 : 44);
+          const wx1 = wx0 + (wide ? 64 : 40);
+          const order = [moment.copy, ...Array.from({ length: n }, (_, k) => k).filter((k) => k !== moment.copy)];
+          D.add('back', `<rect class="inset-frame" x="${r1(wx0 - 0.5)}" y="${r1(y + 1.5)}" width="${r1(wx1 - wx0 + 1)}" height="${n * 12 - 3}" rx="2"/>`);
+          order.forEach((k, j) => {
+            const ry = y + 3 + j * 12;
+            D.text(P, ry + 7, [[copyName(moment.part, k), 'mono', j ? '' : 'muted']], { owner: 'inset' });
+            if (j === 0) D.add('marks', `<rect class="inset-down" data-inset="down" x="${r1(wx0 + 1)}" y="${r1(ry)}" width="${r1(wx1 - wx0 - 2)}" height="6"/>`);
+            else D.add('marks', `<line class="inset-up" data-inset="up" x1="${r1(wx0 + 1)}" y1="${r1(ry + 3)}" x2="${r1(wx1 - 1)}" y2="${r1(ry + 3)}"/>`);
+          });
+          D.mark({ x0: wx0 - 1, x1: wx1 + 1, y0: y, y1: y + n * 12 }, 'inset');
+          const words = insetWords(moment, n);
+          D.para(P + insetLeft(wide), y + 10, wrap(words, 'small', R.insetLabelW), 'small', 14, { owner: 'inset', id: 'inset' });
+          D.meta.inset = words;
+        }
+        y = insetTop + R.inset;
         D.region('timeline', { x: P - 6, y: tlTop - 4, w: W - 2 * P + 12, h: y - tlTop + 2 });
 
         // ---- The rule between the year and the model.
@@ -1687,7 +1925,6 @@
           ['Down in 30 days', hid.request ? '?' : fd(m.monthH)],
         ];
         if (wide) {
-          // Three columns: the widest values any setting prints fit (checked by the sweep).
           const colW = (W - 2 * P) / 3;
           cols.forEach(([lab, val], i) => {
             const x = P + i * colW;
@@ -1696,14 +1933,13 @@
           });
           y += 46;
         } else {
-          // Narrow: a row each, the name left and the value right, so "99.9999999%" and "under 0.01 s" fit.
           cols.forEach(([lab, val], i) => {
             D.text(P, y + 16 + i * 24, [[lab, 'label']], { owner: 'headline' });
             D.text(W - P, y + 17 + i * 24, [[val, 'head', hid.request ? 'muted' : '']], { anchor: 'end', owner: 'headline', id: `stat-${i}`, data: ' data-stat="1"' });
           });
           y += 3 * 24 + 6;
         }
-        // The nines scale.
+        // The nines scale; its value column is headed "down a year", so longer bars and smaller values read as one.
         const rulerTop = y;
         const NMAX = 9.3;
         const valW = Math.max(...['92 min', '0.03 s', '20.6 h', 'optional'].map((t) => tw(t, 'smallB'))) + 8;
@@ -1711,15 +1947,30 @@
         const rx1 = W - P - valW;
         const ppn = (rx1 - rx0) / NMAX;
         const xn = (n) => rx0 + Math.min(NMAX, n) * ppn;
-        const rLabel = pick(['The nines scale · each step right is 10× less downtime', 'Nines · each step is 10× less downtime', 'Nines · a step is 10× less'], (t) => tw(t, 'label') <= W - 2 * P - 8);
+        const head = pick(['down a year', 'a year'], (t) => tw(t, 'label') <= valW + (wide ? 48 : 16));
+        const rLabel = pick(['The nines scale · each step right is 10× less downtime', 'Nines · each step is 10× less downtime', 'Nines · a step is 10× less'], (t) => tw(t, 'label') + tw(head, 'label') + 14 <= W - 2 * P);
         D.text(P, y + 11, [[rLabel, 'label']], { owner: 'r-label' });
+        D.text(W - P, y + 11, [[head, 'label']], { anchor: 'end', owner: 'r-label', id: 'val-head' });
         y += 20;
+        // On phones the paper's outline is named once, under the label: the bars have no room for "on paper" beside them.
+        if (!wide) {
+          const shows = m.parts.some((p) => !p.optional && !hid.parts.has(p.id) && p.paperNines - p.nines > 0.05);
+          if (shows) {
+            const ky = y + 8;
+            D.add('marks', `<rect class="key-solid" x="${P}" y="${ky - 8}" width="12" height="8"/><rect class="key-paper" x="${P + 70}" y="${ky - 8}" width="12" height="8"/>`);
+            D.mark({ x0: P, x1: P + 12, y0: ky - 8, y1: ky }, 'pkey');
+            D.mark({ x0: P + 70, x1: P + 82, y0: ky - 8, y1: ky }, 'pkey');
+            D.text(P + 17, ky, [['the model', 'small']], { owner: 'pkey' });
+            D.text(P + 87, ky, [['on paper', 'small']], { owner: 'pkey', data: ' data-key="paper"' });
+          }
+          y += 16;
+        }
         const topForms = (k) => (k <= 4 ? fa(10 ** -k) : `${k} nines`);
         const fitsAll = (ks, f, role) => ks.every((k, i) => i === 0 || xn(k) - xn(ks[i - 1]) >= (tw(f(k), role) + tw(f(ks[i - 1]), role)) / 2 + 7);
         const every = [1, 2, 3, 4, 5, 6, 7, 8, 9];
         const third = [3, 6, 9];
         const topKs = fitsAll(every, topForms, 'small') ? every : third;
-        const topF = fitsAll(topKs, topForms, 'small') ? topForms : (k) => (k === 9 ? '9 nines' : String(k));
+        const topF = [topForms, (k) => (k === 3 ? '99.9%' : k === 9 ? '9 nines' : String(k)), (k) => (k === 9 ? '9 nines' : String(k))].find((f) => fitsAll(topKs, f, 'small'));
         for (const k of topKs) D.text(xn(k), y + 9, [[topF(k), 'small']], { anchor: 'middle', owner: 'r-top', data: ' data-xtick="top"', ground: true });
         y += 14;
         const rowH = 24;
@@ -1731,13 +1982,15 @@
           if (n1 - n0 <= 1e-9) return;
           D.add('marks', `<rect class="${cls}" x="${r1(xn(n0))}" y="${r1(by)}" width="${r1(Math.max(0.75, xn(n1) - xn(n0)))}" height="${barH}"${data}/>`);
         };
+        // A hidden bar is a dashed box of the row's height, so its words sit 3 px or more inside the dashes.
+        const hiddenBar = (id, ry) => D.add('marks', `<rect class="bar-hidden" data-bar-hidden="${id}" x="${r1(rx0 + 0.5)}" y="${r1(ry + 3)}" width="${r1(rx1 - rx0 - 1)}" height="${rowH - 6}" rx="3"/>`);
+        const capP = m.parts.find((p) => p.id === m.capPart);
         m.parts.forEach((p, i) => {
           const ry = rowsY + i * rowH;
           const by = ry + (rowH - barH) / 2;
           D.text(P, ry + rowH / 2 + 4, [[p.short, 'nameS', p.optional ? 'muted' : '']], { owner: `rgut-${p.id}` });
-          const hidden = hid.parts.has(p.id);
-          if (hidden) {
-            D.add('marks', `<rect class="bar-hidden" data-bar-hidden="${p.id}" x="${r1(rx0 + 0.5)}" y="${r1(by + 0.5)}" width="${r1(rx1 - rx0 - 1)}" height="${barH - 1}" rx="2"/>`);
+          if (hid.parts.has(p.id)) {
+            hiddenBar(p.id, ry);
             D.text(W - P, ry + rowH / 2 + 4, [['?', 'smallB', 'muted']], { anchor: 'end', owner: `val-${p.id}`, id: `val-${p.id}` });
             return;
           }
@@ -1751,34 +2004,47 @@
               barRect('bar', a, Math.min(b, real), by, ` data-bar="${p.id}"`);
               barRect('bar paper', Math.max(a, real), b, by, ` data-paper="${p.id}"`);
             }
-            if (c > 0) D.add('marks', `<rect class="notch" x="${r1(xn(a) - 0.75)}" y="${r1(by - 0.5)}" width="1.5" height="${barH + 1}"/>`);
+            if (c > 0) {
+              D.add('marks', `<rect class="notch" x="${r1(xn(a) - 0.75)}" y="${r1(by - 0.5)}" width="1.5" height="${barH + 1}"/>`);
+              D.mark({ x0: xn(a) - 1.5, x1: xn(a) + 1.5, y0: by, y1: by + barH }, `notch-${p.id}`);
+            }
           }
           D.mark({ x0: rx0, x1: xn(paper), y0: by, y1: by + barH }, `bar-${p.id}`);
           D.meta[`end-${p.id}`] = xn(real);
           const val = p.optional ? pick(['optional', 'opt.'], (t) => tw(t, 'small') <= valW - 2) : fd(p.downH);
           const weakest = !p.optional && m.weakest.includes(p.id) && !hid.weakest;
           D.text(W - P, ry + rowH / 2 + 4, [[val, p.optional ? 'small' : weakest ? 'smallB' : 'small', weakest ? 'bad' : p.optional ? '' : 'ink']], { anchor: 'end', owner: `val-${p.id}`, id: `val-${p.id}` });
-          // What the paper promised, where the model's length stops short of it.
-          if (!p.optional && paper - real > 0.05 && wide) {
-            D.place([[xn(paper) + 5, ry + rowH / 2 + 4]], [[`on paper ${fd(p.paperDownH)}`, 'small']], { optional: true, owner: `paper-${p.id}`, maxX: rx1 - 2, id: `paper-${p.id}`, ground: true });
+          // What the paper promised: beside the outlined length, else inside it after the solid end (or after a notch),
+          // else "paper" alone; on phones the key under the label names the outline either way.
+          if (!p.optional && paper - real > 0.05) {
+            const words = [`on paper ${fd(p.paperDownH)}`, `paper ${fd(p.paperDownH)}`];
+            const ty = ry + rowH / 2 + 4;
+            const o = { optional: true, owner: `paper-${p.id}`, id: `paper-${p.id}`, data: ` data-paper-label="${p.id}"` };
+            let placed = null;
+            for (const t of words) {
+              placed ??= D.place([[xn(paper) + 5, ty]], [[t, 'small']], { ...o, maxX: rx1 - 2, ground: true });
+              const starts = [real, ...[3, 6].filter((k) => k > real && k < paper)];
+              for (const st of starts) placed ??= D.place([[xn(st) + 4, ty - 0.5]], [[t, 'small', 'ink']], { ...o, owner: `paper-${p.id} bar-${p.id}`, maxX: xn(paper) - 3, ignore: `bar-${p.id}`, textCls: 'on-chip', margin: 1, ground: true });
+            }
           }
         });
-        // The request's row.
         const qy = rowsY + 4 * rowH;
         const qby = qy + (rowH - barH) / 2;
         D.text(P, qy + rowH / 2 + 4, [[pick(['Request', 'Req.'], (t) => tw(t, 'smallB') <= gut - 4), 'smallB']], { owner: 'rgut-request' });
         if (hid.request) {
-          D.add('marks', `<rect class="bar-hidden" data-bar-hidden="request" x="${r1(rx0 + 0.5)}" y="${r1(qby + 0.5)}" width="${r1(rx1 - rx0 - 1)}" height="${barH - 1}" rx="2"/>`);
+          hiddenBar('request', qy);
           D.text((rx0 + rx1) / 2, qy + rowH / 2 + 4, [['after your answer', 'small']], { anchor: 'middle', owner: 'bar-request', ground: true });
           D.text(W - P, qy + rowH / 2 + 4, [['?', 'smallB', 'muted']], { anchor: 'end', owner: 'val-request', id: 'val-request' });
         } else {
           barRect('bar request', 0, m.nines, qby, ' data-bar="request"');
           D.mark({ x0: rx0, x1: xn(m.nines), y0: qby, y1: qby + barH }, 'bar-request');
-          D.meta['end-request'] = xn(m.nines);
+          const reqEnd = xn(m.nines);
+          D.meta['end-request'] = reqEnd;
           D.text(W - P, qy + rowH / 2 + 4, [[fd(m.downH), 'smallB', 'ink']], { anchor: 'end', owner: 'val-request', id: 'val-request' });
-          // The weakest link caps the chain: a line from its end down to the request's row.
-          const wi = m.parts.findIndex((p) => p.id === m.weakest[0]);
-          const wx = xn(m.parts[wi].nines);
+          // The weakest link caps the chain: a line from the worst part's end down through the request's row, and an end
+          // cap on every part that prints the same value.
+          const wi = m.parts.indexOf(capP);
+          const wx = xn(capP.nines);
           const wy = rowsY + wi * rowH + (rowH - barH) / 2;
           if (!hid.weakest) {
             D.add('top', `<line class="capline" data-cap="${m.weakest.join(',')}" x1="${r1(wx)}" y1="${r1(wy - 2)}" x2="${r1(wx)}" y2="${r1(qby + barH + 2)}"/>`);
@@ -1786,34 +2052,53 @@
             for (const id of m.weakest) {
               const k = m.parts.findIndex((p) => p.id === id);
               const cy = rowsY + k * rowH + (rowH - barH) / 2;
-              D.add('top', `<rect class="capend" x="${r1(wx - 1.5)}" y="${r1(cy - 2)}" width="3" height="${barH + 4}"/>`);
+              D.add('top', `<rect class="capend" data-capend="${id}" x="${r1(xn(m.parts[k].nines) - 1.5)}" y="${r1(cy - 2)}" width="3" height="${barH + 4}"/>`);
             }
           }
-          // The setting before a change: a hollow tick on the request's row, said in words under the facts.
+          // The challenge's goal: a mark at 3 nines on the request's row, never in the cap's critical tone.
+          if (view.phase === 'challenge') {
+            const gx = xn(3);
+            D.add('top', `<line class="goal-line${view.met ? ' met' : ''}" data-goal="1" x1="${r1(gx)}" y1="${r1(qy + 1)}" x2="${r1(gx)}" y2="${r1(qy + rowH - 1)}"/>`);
+            D.link(sampleLine(gx, qy + 1, gx, qy + rowH - 1), 'goal');
+            const g = { optional: false, owner: 'goal', id: 'goal-words', maxX: rx1 - 2, minX: rx0 + 2, ignore: 'goal', ground: true };
+            const row = qy + rowH / 2 + 4;
+            const gapY = qy + 3;
+            let gp = null;
+            for (const t of [`goal: under ${M.formatNum(M.CHALLENGE_BOUNDS.down)} h`, 'goal']) {
+              gp ??= D.place([[gx + 4, gapY], [gx - 4, gapY, 'end']], [[t, 'small', view.met ? 'ok-ink' : 'ink']], { ...g, optional: true, margin: 0.5 });
+              gp ??= D.place([[gx + 5, row], [gx - 5, row, 'end'], [reqEnd + 5, row]], [[t, 'small', view.met ? 'ok-ink' : 'ink']], { ...g, optional: true });
+            }
+            if (!gp) D.missing.push('goal');
+            D.meta.goalX = gx;
+          }
+          // The setting before a change: an open caret above the request's row, never over a bar, with its words
+          // beside it where they fit; the facts' last line says it either way.
           if (view.ghost && !hid.ghost) {
             const g = M.run(view.ghost);
-            if (Math.abs(g.nines - m.nines) * ppn > 4) {
-              const gx = xn(g.nines);
-              D.add('top', `<rect class="ghost-tick" data-ghost="1" x="${r1(gx - 2)}" y="${r1(qby - 3)}" width="4" height="${barH + 6}" rx="1"/>`);
-              D.mark({ x0: gx - 3, x1: gx + 3, y0: qby - 3, y1: qby + barH + 3 }, 'ghost');
-              D.place(
-                [
-                  [gx + 6, qy + rowH / 2 + 4],
-                  [gx - 6, qy + rowH / 2 + 4, 'end'],
-                ],
-                [[`${view.phase === 'challenge' ? 'start' : 'before'} ${fd(g.downH)}`, 'small']],
-                { optional: true, owner: 'ghost', maxX: rx1 - 2, minX: rx0 + 2, id: 'ghost-words', ignore: 'ghost', ground: true },
-              );
+            const gx = xn(g.nines);
+            const cbox = { x0: gx - 4, x1: gx + 4, y0: qby - 7, y1: qby - 1 };
+            const clear = Math.abs(gx - reqEnd) >= 10 && [3, 6].every((k) => Math.abs(gx - xn(k)) >= 10) && D.free(cbox, 'ghost', 0.5);
+            if (clear) {
+              D.add('top', `<path class="ghost-caret" data-ghost="1" d="M${r1(gx - 3.5)} ${r1(qby - 6.5)}L${r1(gx)} ${r1(qby - 1.5)}L${r1(gx + 3.5)} ${r1(qby - 6.5)}"/>`);
+              D.mark({ x0: gx - 4, x1: gx + 4, y0: qby - 7, y1: qby - 1 }, 'ghost');
+              D.meta.ghostBox = { x0: gx - 4, x1: gx + 4, y0: qby - 7, y1: qby - 1 };
+              const o = { optional: true, owner: 'ghost', maxX: rx1 - 2, minX: rx0 + 2, id: 'ghost-words', ignore: 'ghost', ground: true, margin: 0.5 };
+              const word = view.phase === 'challenge' ? 'start' : 'before';
+              const gapY = qy + 3;
+              let gp = null;
+              for (const t of [`${word} ${fd(g.downH)}`, word]) gp ??= D.place([[gx + 6, gapY], [gx - 6, gapY, 'end']], [[t, 'small']], o);
             }
           }
-          if (!hid.weakest) D.place(
-            [
-              [wx + 6, qy + rowH / 2 + 4],
-              [wx - 6, rowsY + wi * rowH - 1, 'end'],
-            ],
-            [[pick(['capped by the weakest link', 'capped here'], (t) => wx + 6 + tw(t, 'small') <= rx1 - 2), 'small', 'bad']],
-            { optional: true, owner: 'capline', maxX: rx1 - 2, id: 'cap-words', ground: true },
-          );
+          if (!hid.weakest)
+            D.place(
+              [
+                [wx + 6, qy + rowH / 2 + 4],
+                [wx - 6, rowsY + wi * rowH - 1, 'end'],
+                [wx + 6, rowsY + wi * rowH - 1],
+              ],
+              [[pick(['capped by the weakest link', 'capped here'], (t) => wx + 6 + tw(t, 'small') <= rx1 - 2), 'small', 'bad']],
+              { optional: true, owner: 'capline', maxX: rx1 - 2, id: 'cap-words', ground: true },
+            );
         }
         y = rowsY + 5 * rowH + 2;
         D.line(rx0, y, rx1, y, 'axis', { layer: 'grid', owner: 'grid', solid: false });
@@ -1824,17 +2109,48 @@
         if (botName) D.text(P, y + 14, [[botName, 'small']], { owner: 'r-bottom-name' });
         y += 28;
         D.region('ruler', { x: P - 6, y: rulerTop - 2, w: W - 2 * P + 12, h: y - rulerTop });
-        // The facts, then the setting before the change in words; reserved lines collect at the stage's foot.
+        // The facts: the weakest link, then (once no question waits) the rule or what a set is down from, drawn as a
+        // split on a linear scale, then the setting before the change; reserved lines collect at the stage's foot.
         y += 10;
-        const factLines = [];
-        if (hid.request) factLines.push(...wrap(HIDDEN_FACT, 'cap', W - 2 * P));
+        const factsTop = y;
+        const facts = [];
+        if (hid.request) facts.push([HIDDEN_FACT, 'facts']);
         else {
-          factLines.push(...wrap(hid.weakest ? HIDDEN_WEAKEST : weakestSentence(m, true), 'cap', W - 2 * P), ...wrap(causesSentence(m), 'cap', W - 2 * P));
-          if (view.ghost && !hid.ghost) factLines.push(...wrap(ghostSentence(M.run(view.ghost), view.phase === 'challenge'), 'cap', W - 2 * P));
+          facts.push([hid.weakest ? HIDDEN_WEAKEST : weakestSentence(m, true), 'facts']);
+          if (!hid.weakest && tiedNote(m)) facts.push([tiedNote(m), 'tied']);
+          if (!hid.rule) facts.push([causesSentence(m), 'rule']);
         }
-        D.para(P, y + 12, factLines, 'cap', 18, { owner: 'facts', id: 'facts' });
-        D.meta.facts = hid.request ? [] : [weakestSentence(m, true), causesSentence(m)];
-        y += R.facts * 18 + 10;
+        let fy = y + 12;
+        for (const [t, id] of facts) {
+          const lines = wrap(t, 'cap', W - 2 * P);
+          D.para(P, fy, lines, 'cap', 18, { owner: 'facts', id });
+          fy += lines.length * 18;
+        }
+        const split = !hid.request && !hid.rule ? leastSet(m) : null;
+        if (split && (s.shared || s.failover)) {
+          const parts = [
+            ['split-shared', split.causes.shared, 8],
+            ['split-failover', split.causes.failover, 4],
+            ['split-chance', split.causes.overlap, 8],
+          ].filter((x) => x[1] > 0);
+          const sw = W - 2 * P;
+          let sx = P;
+          const sy = fy - 10;
+          D.line(P, sy + 8.5, P + sw, sy + 8.5, 'split-track', { layer: 'grid', owner: 'grid', solid: false });
+          const widths = [];
+          parts.forEach(([cls, u, h], k) => {
+            const w = Math.max(1.5, (u / split.u) * sw - (k < parts.length - 1 ? 1 : 0));
+            D.add('marks', `<rect class="${cls}" data-split="${cls}" x="${r1(sx)}" y="${r1(sy + 8 - h)}" width="${r1(w)}" height="${h}"/>`);
+            widths.push(w);
+            sx += w + 1;
+          });
+          D.mark({ x0: P, x1: P + sw, y0: sy, y1: sy + 8 }, 'split');
+          D.meta.split = { widths, total: sw, us: parts.map((x) => x[1] / split.u) };
+          fy += 14;
+        }
+        if (!hid.request && view.ghost && !hid.ghost) D.para(P, fy, wrap(ghostSentence(M.run(view.ghost), view.phase === 'challenge'), 'cap', W - 2 * P), 'cap', 18, { owner: 'facts', id: 'ghost-fact' });
+        D.meta.facts = hid.request ? [] : facts.map((f) => f[0]);
+        y = factsTop + R.facts * 18 + 14 + 10;
         D.region('model', { x: P - 6, y: modelTop, w: W - 2 * P + 12, h: y - modelTop - 4 });
         return { D, H: Math.round(y) };
       }
@@ -1843,6 +2159,7 @@
       // every text its region holds with 6 px to spare, so its stroke never runs along a text.
       function focusOutlines(D, ids, H) {
         const TAG = { w: 72, h: 16 };
+        const boxes = [];
         for (const id of ids) {
           for (const b of D.regions[id] ?? []) {
             const inside = new Set(
@@ -1875,28 +2192,45 @@
                 }
               }
             }
-            const x = Math.max(3, box.x0);
-            const yy = Math.max(3, box.y0);
-            const w = Math.min(D.W - 3, box.x1) - x;
-            const h = Math.min(H - 3, box.y1) - yy;
-            D.add('top', `<rect class="focus-outline" data-focus="${id}" x="${r1(x)}" y="${r1(yy)}" width="${r1(w)}" height="${r1(h)}" rx="10"/>`);
-            const across = [];
-            for (let ax = x + w - TAG.w - 16; ax >= x + 16; ax -= 8) across.push(ax);
-            const xs = [x + w - TAG.w - 16, x + 16, x + w - TAG.w - 6, x + 6, ...across];
-            const ys = [yy - TAG.h / 2, yy + h - TAG.h / 2, yy + 4, yy + h - TAG.h - 4, yy + 24, yy + 44, yy - TAG.h - 2, yy + h + 2];
-            let placed = false;
-            for (const [tx, ty] of ys.flatMap((t) => xs.map((sx) => [sx, t]))) {
-              const tb = { x0: tx, x1: tx + TAG.w, y0: ty, y1: ty + TAG.h };
-              if (tx < 3 || tx + TAG.w > D.W - 3 || ty < 3 || ty + TAG.h > H - 3) continue;
-              if (!D.free(tb, '', 1)) continue;
-              D.add('top', `<rect class="tag" x="${r1(tx)}" y="${r1(ty)}" width="${TAG.w}" height="${TAG.h}" rx="8"/>`);
-              D.add('top', `<text x="${r1(tx + TAG.w / 2)}" y="${r1(ty + 12)}" text-anchor="middle" data-owner="look" data-ground="1"><tspan class="t-look">LOOK HERE</tspan></text>`);
-              D.mark(tb, 'look');
-              placed = true;
-              break;
-            }
-            if (!placed) D.missingTags = (D.missingTags ?? 0) + 1;
+            boxes.push({ ids: [id], ...box });
           }
+        }
+        // Regions that touch, or stand less than a tag's height apart, are one outline with one tag.
+        boxes.sort((a, b) => a.y0 - b.y0);
+        const groups = [];
+        for (const b of boxes) {
+          const g = groups[groups.length - 1];
+          if (g && b.y0 - g.y1 < TAG.h + 4) Object.assign(g, { ids: [...g.ids, ...b.ids], x0: Math.min(g.x0, b.x0), x1: Math.max(g.x1, b.x1), y1: Math.max(g.y1, b.y1) });
+          else groups.push({ ...b });
+        }
+        const rects = groups.map((g) => {
+          const x = Math.max(3, g.x0);
+          const yy = Math.max(3, g.y0);
+          const w = Math.min(D.W - 3, g.x1) - x;
+          const h = Math.min(H - 3, g.y1) - yy;
+          const id = g.ids.join(' ');
+          D.add('top', `<rect class="focus-outline" data-focus="${id}" x="${r1(x)}" y="${r1(yy)}" width="${r1(w)}" height="${r1(h)}" rx="10"/>`);
+          D.link([...sampleLine(x, yy, x + w, yy), ...sampleLine(x + w, yy, x + w, yy + h), ...sampleLine(x, yy + h, x + w, yy + h), ...sampleLine(x, yy, x, yy + h)], `focus-${g.ids.join('-')}`);
+          return { x, yy, w, h, own: `focus-${g.ids.join('-')}` };
+        });
+        D.focusGroups = rects.length;
+        for (const { x, yy, w, h, own } of rects) {
+          const across = [];
+          for (let ax = x + w - TAG.w - 16; ax >= x + 16; ax -= 8) across.push(ax);
+          const xs = [x + w - TAG.w - 16, x + 16, x + w - TAG.w - 6, x + 6, ...across];
+          const ys = [yy - TAG.h / 2, yy + h - TAG.h / 2, yy + 4, yy + h - TAG.h - 4, yy + 24, yy + 44, yy - TAG.h - 2, yy + h + 2];
+          let placed = false;
+          for (const [tx, ty] of ys.flatMap((t) => xs.map((sx) => [sx, t]))) {
+            const tb = { x0: tx, x1: tx + TAG.w, y0: ty, y1: ty + TAG.h };
+            if (tx < 3 || tx + TAG.w > D.W - 3 || ty < 3 || ty + TAG.h > H - 3) continue;
+            if (!D.free(tb, own, 1)) continue;
+            D.add('top', `<rect class="tag" data-tag="${own}" x="${r1(tx)}" y="${r1(ty)}" width="${TAG.w}" height="${TAG.h}" rx="8"/>`);
+            D.add('top', `<text x="${r1(tx + TAG.w / 2)}" y="${r1(ty + 12)}" text-anchor="middle" data-owner="look" data-ground="1"><tspan class="t-look">LOOK HERE</tspan></text>`);
+            D.mark(tb, 'look');
+            placed = true;
+            break;
+          }
+          if (!placed) D.missingTags = (D.missingTags ?? 0) + 1;
         }
       }
 
@@ -1913,7 +2247,12 @@
         triples: { s: { lb: 3, app: 3, db: 3, recs: 3, optional: 0, shared: 1, failover: 1 } },
         optional: { s: { ...B, optional: 1 }, ghost: B },
         playing: { s: ES.challenge, frac: 0.5 },
-        hold: { s: B, frac: 0.12 },
+        hold: { s: B, holdKind: 'outage' },
+        absorbed: { s: ES.pairs, holdKind: 'absorbed' },
+        failhold: { s: ES.failoverAfter, holdKind: 'failover', into: 0.3 },
+        bypass: { s: ES.solution, holdKind: 'bypassed' },
+        tie: { s: { lb: 2, app: 3, db: 2, recs: 1, optional: 1, shared: 1, failover: 1 }, ghost: ES.challenge },
+        step: { s: B, step: 1, reduced: true },
         describe: { s: B, describe: true },
         reduced: { s: ES.failoverAfter, reduced: true },
         ask: { exp: 0, phase: 'asking' },
@@ -1931,8 +2270,10 @@
         const expParam = params.get('exp');
         const expIdx = expParam !== null && st.exp !== undefined ? Number(expParam) - 1 : st.exp;
         if (expIdx === undefined) {
-          const tau = st.frac !== undefined ? st.frac * M.playPlan(st.s).total : null;
-          return { s: st.s, hide: [], phase: 'rest', ghost: st.ghost ?? null, tau, describe: !!st.describe, reduced: !!st.reduced };
+          const plan = M.playPlan(st.s);
+          const hi = st.holdKind ? plan.holds.findIndex((h) => h.kind === st.holdKind) : -1;
+          const tau = hi >= 0 ? plan.holdAt(hi, st.into ?? 0.4) : st.frac !== undefined ? st.frac * plan.total : null;
+          return { s: st.s, hide: [], phase: 'rest', ghost: st.ghost ?? null, tau, describe: !!st.describe, reduced: !!st.reduced, step: st.step ?? null };
         }
         const spec = M.EXPERIMENTS[expIdx];
         if (spec.goal) return expView(spec, params.get('start') === '1' ? 'start' : 'challenge');
@@ -1946,7 +2287,7 @@
         if (spec.goal) {
           const s = phase === 'start' ? spec.setup : { ...spec.setup, ...M.CHALLENGE_SOLUTION };
           const met = M.goalMet(spec.goal, s);
-          return { s, hide: [], exp: e, spec, phase: 'challenge', met, focus: met ? spec.focus : [], ghost: met ? spec.setup : null, tau: null };
+          return { s, hide: [], exp: e, spec, phase: 'challenge', met, focus: met ? spec.focus : [], ghost: met ? spec.setup : null, tau: null, moment: met ? challengeMoment(s) : null };
         }
         const after = actSettings(spec);
         const moved = JSON.stringify(after) !== JSON.stringify(spec.setup);
@@ -1960,9 +2301,13 @@
           focus: phase === 'revealed' ? spec.focus : [],
           changed: changedParts(spec),
           ghost: phase === 'asking' ? from : moved ? spec.setup : null,
-          tau: phase === 'playing' ? frac * M.playPlan(after, true, changedParts(spec)).total : null,
+          tau: phase === 'playing' ? frac * M.playPlan(after, true, changedParts(spec), M.SAMPLE_SEED, e.hold).total : null,
+          // After the reveal the band keeps the answer's own hold until the next change or free play.
+          moment: phase === 'revealed' ? M.answerHold(after, changedParts(spec), e.hold) : null,
         };
       }
+      /** The met challenge rests on what made it: recommendations down, the page served without them. */
+      const challengeMoment = (s) => M.bypassMoments(M.sample(s))[0] ?? null;
       window.expView = expView;
 
       // ---------- The page around the stage.
@@ -1986,12 +2331,17 @@
         }).join('');
         return `<fieldset class="group copies-control"${dis}><legend class="control-label">Copies of each part</legend><div class="steppers">${steppers}</div></fieldset>
 <fieldset class="group conditions-control"${dis}><legend class="control-label">Conditions${keepNote}</legend><div class="toggles3">${toggles}</div></fieldset>
+<p class="readout" id="readout">${codeText(readoutText(m, hid)).replace(/\?/g, '<span class="q">?</span>')}</p>
 <p class="notice" role="status" aria-live="polite" aria-atomic="true">${codeText(noticeOf(m, view))}</p>`;
       }
       function noticeOf(m, view) {
         if (view.phase === 'asking') return 'Play and the settings this question is about wait for your answer.';
         if (view.phase === 'playing') return '';
-        if (view.reduced) return `${captionOf(M.restMoment(m.settings), m.parts.find((p) => p.id === M.restMoment(m.settings).part).copies)} ${yearSentence(M.sample(m.settings).fails)}`;
+        // A stepped moment is said as the band shows it.
+        if (view.step !== null && view.step !== undefined) {
+          const mo = staticMoment(view, m.settings);
+          return captionOf(mo, momentCopies(m, mo), m.settings);
+        }
         return settingSentence(m);
       }
       const NOTE = `Every copy is ${fa(M.COPY_U)} available: ${M.FAILS_PER_YEAR} outages a year × ${M.MTTR_H} h each is ${M.FAILS_PER_YEAR * M.MTTR_H} h down, or up ${M.MTBF_H} h for every ${M.MTTR_H} h down. Parts fail independently of each other, and one copy can carry the full load.`;
@@ -2008,6 +2358,8 @@
           { met: copiesMet, text: `${m.copies} copies in all, no more than ${b.copies - 1}: ${said(copiesMet)}` },
         ];
       }
+      /** A check's state stays on the line of the value before it: a line never opens on "met" alone. */
+      const stateJoined = (html) => html.replace(/(\S+(?:<\/span>)?: (?:met|not yet))$/, '<span class="nowrap">$1</span>');
       function dockHtml(m, view) {
         const e = view.exp;
         if (!e) return '';
@@ -2016,7 +2368,7 @@
           const kept = M.goalKept(view.spec.goal, m.settings);
           const status = view.met ? 'Goal met:' : kept ? '' : 'The goal keeps shared failures and the 5 min failover on.';
           return `<p class="legend">${codeText(e.ask)}</p>${status ? `<p class="status-line${view.met ? ' met' : ''}" role="status">${view.met ? ICON_RIGHT : ''}${esc(status)}</p>` : ''}<ul class="status">${checks
-            .map((c) => `<li class="${c.met ? 'met' : ''}"><span class="state" aria-hidden="true">${c.met ? '✓' : '·'}</span><span>${codeText(c.text)}</span></li>`)
+            .map((c) => `<li class="${c.met ? 'met' : ''}"><span class="state" aria-hidden="true">${c.met ? '✓' : '·'}</span><span>${stateJoined(codeText(c.text))}</span></li>`)
             .join('')}</ul>${view.met ? `<p class="reveal" aria-live="polite" aria-atomic="true">${codeText(e.reveal)}</p>` : ''}`;
         }
         if (view.phase === 'asking') {
@@ -2055,6 +2407,7 @@
         rows.push({ now: true, cells: compact ? ['Request', String(m.copies), fd(m.downH), yearCell(smp.fails)] : ['The request', String(m.copies), fa(m.u), fd(m.downH), fd(m.monthH), yearCell(smp.fails)] });
         return { head, rows };
       }
+      const restsOn = (caption) => caption.replace(/^Week (\d+): /, 'The picture rests on week $1, when ');
       function describeHtml(m, view, compact) {
         const waits = view.phase === 'asking' || view.phase === 'playing' || (view.phase === 'challenge' && !view.met);
         const open = !!view.describe && !waits;
@@ -2062,21 +2415,34 @@
         if (waits) return `${btn}<p class="muted-note">${view.phase === 'challenge' ? 'Describe waits until you meet the goal.' : 'Describe waits for your answer.'}</p>`;
         if (!open) return btn;
         const { head, rows } = describeRows(m, compact);
-        const rest = M.restMoment(m.settings);
-        const story = `${yearSentence(M.sample(m.settings).fails)} The picture rests on this moment: ${captionOf(rest, m.parts.find((p) => p.id === rest.part).copies).replace(/^Week/, 'week')} The year is drawn with a week between any two outages of one part, so two ticks in one column are always one shared outage; by chance alone a pair overlaps about once in ${Math.round(1 / M.partModel(2, 0, 0).overlapsPerYear)} years.`;
+        const mo = staticMoment(view, m.settings);
+        const story = `${yearSentence(M.sample(m.settings).fails)} ${restsOn(captionOf(mo, momentCopies(m, mo), m.settings))} The year is drawn with a week between any two outages of one part, so two ticks in one column are always one shared outage; by chance alone a pair overlaps about once in ${Math.round(1 / M.partModel(2, 0, 0).overlapsPerYear)} years.`;
         return `${btn}<p class="summary">${codeText(summary(m, {}))} ${codeText(causesSentence(m))}</p><p class="summary">${codeText(story)}</p><div class="table-box${compact ? ' compact' : ''}" tabindex="0" role="region" aria-label="Each part and the request, from the model and in the simulated year"><table><thead><tr>${head
           .map((h) => `<th scope="col">${h}</th>`)
           .join('')}</tr></thead><tbody>${rows.map((r) => `<tr${r.now ? ' class="now"' : ''}>${r.cells.map((c, i) => (i === 0 ? `<th scope="row">${esc(c)}${r.weakest ? '<small>weakest link</small>' : ''}</th>` : `<td>${esc(c)}</td>`)).join('')}</tr>`).join('')}</tbody></table></div>`;
       }
-      // Play: it waits while a question asks; during a free play it is Stop.
+      // Play: it waits while a question asks; during a free play it is Stop. Under Reduced motion each press steps to the
+      // play's next moment; on wide stages a previous and a next button step the same moments at any time.
+      const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches || params.get('motion') === 'off';
+      function stepLabel(view, dir) {
+        const n = M.stepMoments(view.s).length;
+        const cur = view.step ?? -1;
+        const k = dir > 0 ? (cur + 1) % n : (cur - 1 + n) % n;
+        return { k, label: `${dir > 0 ? 'Next' : 'Previous'} moment, ${k + 1} of ${n}` };
+      }
       function overlaysHtml(D, view) {
         const asking = view.phase === 'asking' || view.phase === 'playing';
-        const freePlaying = view.phase === 'rest' && view.tau !== null && view.tau !== undefined;
+        const freePlaying = view.phase !== 'playing' && view.tau !== null && view.tau !== undefined;
+        const stepping = (view.reduced || reducedMotion()) && !freePlaying;
         const glyph = freePlaying ? '<rect x="12.5" y="11" width="4" height="14" rx="1"/><rect x="19.5" y="11" width="4" height="14" rx="1"/>' : '<path d="M14 11v14l11-7z"/>';
-        const label = asking ? 'Play the year, after your answer' : freePlaying ? 'Stop the year' : 'Play the year';
+        const label = asking ? 'Play the year, after your answer' : freePlaying ? 'Stop the year' : stepping ? stepLabel(view, 1).label : 'Play the year';
+        const glyphs = { prev: '<path d="M21 11l-7 7 7 7" fill="none" stroke="var(--g-accent)" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/>', next: '<path d="M15 11l7 7-7 7" fill="none" stroke="var(--g-accent)" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/>' };
         return D.hits
-          .filter((h) => h.kind === 'play')
-          .map((h) => `<button class="play hit" data-owner="play" style="left:${h.x}px;top:${h.y}px" aria-label="${label}"${asking ? ' disabled' : ''}><svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="16"/>${glyph}</svg></button>`)
+          .map((h) => {
+            if (h.kind === 'play') return `<button class="play hit" data-owner="play" style="left:${h.x}px;top:${h.y}px" aria-label="${label}"${asking ? ' disabled' : ''}><svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="16"/>${glyph}</svg></button>`;
+            const dir = h.kind === 'next' ? 1 : -1;
+            return `<button class="play hit step-btn" data-owner="${h.kind}" data-step="${dir}" style="left:${h.x}px;top:${h.y}px" aria-label="${asking ? `${dir > 0 ? 'Next' : 'Previous'} moment, after your answer` : stepLabel(view, dir).label}"${asking || freePlaying ? ' disabled' : ''}><svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="16"/>${glyphs[h.kind]}</svg></button>`;
+          })
           .join('');
       }
 
@@ -2086,10 +2452,9 @@
       function renderView(view) {
         const m = M.run(view.s);
         const root = document.getElementById('widget');
-        const rest = M.restMoment(m.settings);
         root.innerHTML = `<div class="controls">${controlsHtml(m, view)}</div>
 <div class="main"><div class="stage" role="group" aria-roledescription="visualization" aria-label="Reliability: a request crossing a chain of parts, each a set of copies, over a simulated year"><div class="well" id="well"></div></div>
-${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${codeText(`${captionOf(rest, m.parts.find((p) => p.id === rest.part).copies)} ${yearSentence(M.sample(m.settings).fails)}`)}</p>` : ''}<p class="note">${codeText(`${NOTE} Here ${conditionWords(m.settings)}.`)}</p><div class="describe" id="describe"></div></div>
+<p class="note">${codeText(`${NOTE} Here ${conditionWords(m.settings)}.`)}</p><div class="describe" id="describe"></div></div>
 <div class="experiments"><section class="dock" aria-label="Experiment">${dockHtml(m, view)}</section>${cardsHtml(view)}</div>`;
         const r = drawStage(view, m);
         document.getElementById('describe').innerHTML = describeHtml(m, view, r.W < 600);
@@ -2111,7 +2476,6 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${codeText
       // be judged (the play's sweep, its holds, an answer's play ending on its reveal). The app builds this with the
       // experiment framework; here it is the least that shows it.
       let running = 0;
-      const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches || params.get('motion') === 'off';
       function animate(view, m, total, done) {
         const id = ++running;
         const t0 = performance.now();
@@ -2120,7 +2484,7 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${codeText
           const tau = Math.min(total, now - t0);
           drawStage({ ...view, tau }, m);
           const play = document.querySelector('.play');
-          if (play && view.phase === 'rest') play.onclick = () => stopPlay(view);
+          if (play && view.phase !== 'playing') play.onclick = () => stopPlay(view);
           if (tau < total) requestAnimationFrame(frame);
           else done();
         };
@@ -2148,14 +2512,30 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${codeText
         document.querySelectorAll('.toggles3 input').forEach((el, i) => {
           el.onchange = () => change({ ...s, [CONDITIONS[i][0]]: s[CONDITIONS[i][0]] ? 0 : 1 });
         });
-        const play = document.querySelector('.play');
-        if (play && view.phase !== 'asking' && view.phase !== 'playing')
+        const play = document.querySelector('.play[data-owner="play"]');
+        const stepTo = (dir) => {
+          running++;
+          renderView({ ...view, tau: null, focus: [], step: stepLabel(view, dir).k });
+          document.querySelector(dir > 0 && !document.querySelector('.step-btn') ? '.play[data-owner="play"]' : `.step-btn[data-step="${dir}"]`)?.focus();
+        };
+        if (play && view.phase !== 'asking' && view.phase !== 'playing') {
           play.onclick = () => {
             if (view.tau !== null && view.tau !== undefined) return stopPlay(view);
-            if (reducedMotion()) return renderView({ ...view, tau: null, reduced: true });
-            const free = { ...view, phase: 'rest', focus: [], tau: 0 };
-            animate(free, m, M.playPlan(s).total, () => renderView({ ...view, tau: null }));
+            if (reducedMotion() || view.reduced) return stepTo(1);
+            // A free play ends on the rest moment: an answer's held moment lasts until the next change or play.
+            const free = { ...view, phase: view.phase === 'revealed' ? 'revealed' : 'rest', focus: [], tau: 0, step: null, moment: null };
+            animate(free, m, M.playPlan(s).total, () => renderView({ ...view, tau: null, step: null, moment: view.phase === 'challenge' ? view.moment : null }));
           };
+          play.onkeydown = (ev) => {
+            if (ev.key === 'ArrowRight' || ev.key === 'ArrowLeft') {
+              ev.preventDefault();
+              stepTo(ev.key === 'ArrowRight' ? 1 : -1);
+            }
+          };
+        }
+        document.querySelectorAll('.step-btn').forEach((b) => {
+          if (!b.disabled) b.onclick = () => stepTo(Number(b.dataset.step));
+        });
         document.querySelectorAll('.card-btn').forEach((el, i) => {
           el.onclick = () => {
             running++;
@@ -2169,9 +2549,17 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${codeText
               const playing = { ...expView(view.spec, 'playing', 0), chosen: k };
               const pm = M.run(playing.s);
               renderView(playing);
-              const reveal = () => renderView({ ...expView(view.spec, 'revealed'), chosen: k });
+              const reveal = () => {
+                renderView({ ...expView(view.spec, 'revealed'), chosen: k });
+                // On a phone the reveal's first focus region comes into view before its values settle.
+                const first = document.querySelector('rect.focus-outline');
+                if (first) {
+                  const r = first.getBoundingClientRect();
+                  if (r.top < 0 || r.bottom > window.innerHeight) first.scrollIntoView({ block: 'nearest' });
+                }
+              };
               if (reducedMotion()) return reveal();
-              animate(playing, pm, M.playPlan(playing.s, true, playing.changed).total, reveal);
+              animate(playing, pm, M.playPlan(playing.s, true, playing.changed, M.SAMPLE_SEED, playing.exp.hold).total, reveal);
             };
           });
         const describe = document.querySelector('.describe .g-btn');
@@ -2203,7 +2591,8 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${codeText
           for (let i = 1; i < xt.length; i++) if (xt[i].x0 - xt[i - 1].x1 < 6) out.push(`${axis} axis labels ${xt[i - 1].s} and ${xt[i].s} ${(xt[i].x0 - xt[i - 1].x1).toFixed(1)} px apart`);
         }
         const inside = (p, t) => p.x > t.x0 + 0.5 && p.x < t.x1 - 0.5 && p.y > t.y0 + 0.5 && p.y < t.y1 - 0.5;
-        for (const el of svg.querySelectorAll('.wire, .path, .path-hidden, .gridline, .axis, .rule, .row-track, .strip-track, .moment, .playhead, .capline')) {
+        // Dashed boxes count as lines: their dashes may not run along a text (prevention 4).
+        for (const el of svg.querySelectorAll('.wire, .path, .path-hidden, .gridline, .axis, .rule, .row-track, .strip-track, .moment, .playhead, .capline, .goal-line, .bar-hidden, .req-hidden, .q-ring, .ghost-caret, .split-track')) {
           const grid = el.matches('.gridline, .axis, .rule, .row-track, .strip-track, .playhead, .moment');
           const o = owners(el);
           const pts = [];
@@ -2226,6 +2615,25 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${codeText
           for (const t of texts) if (!share(t.owner, owners(mk)) && ov(box, t, 0.5)) out.push(`text on mark ${mk.getAttribute('data-mark')}: "${t.s}"`);
         }
         // Ticks: none off the stage's rows, and a ring is round its whole mark.
+        const outlines = [...svg.querySelectorAll('rect.focus-outline')].map((o) => {
+          const [x, y, w, h] = ['x', 'y', 'width', 'height'].map((a) => Number(o.getAttribute(a)));
+          return { id: `focus-${o.dataset.focus.split(' ').join('-')}`, x, y, w, h };
+        });
+        // A tag stands on its own outline only, and two outlines keep a tag's height between them.
+        for (const tg of svg.querySelectorAll('rect.tag')) {
+          const [x, y, w, h] = ['x', 'y', 'width', 'height'].map((a) => Number(tg.getAttribute(a)));
+          for (const o of outlines) {
+            if (o.id === tg.dataset.tag) continue;
+            const inner = x >= o.x + 3 && x + w <= o.x + o.w - 3 && y >= o.y + 3 && y + h <= o.y + o.h - 3;
+            const clear = x + w <= o.x - 2 || x >= o.x + o.w + 2 || y + h <= o.y - 2 || y >= o.y + o.h + 2;
+            if (!inner && !clear) out.push(`a tag crosses another outline (${o.id})`);
+          }
+        }
+        for (let i = 0; i < outlines.length; i++)
+          for (let j = i + 1; j < outlines.length; j++) {
+            const [a, b] = [outlines[i], outlines[j]].sort((p, q) => p.y - q.y);
+            if (b.y - (a.y + a.h) < 16) out.push(`two focus outlines ${r1(b.y - (a.y + a.h))} px apart`);
+          }
         for (const o of svg.querySelectorAll('rect.focus-outline')) {
           const [x, y, w, h] = ['x', 'y', 'width', 'height'].map((a) => Number(o.getAttribute(a)));
           for (const t of texts) {
@@ -2275,66 +2683,76 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${codeText
         const svg = well.querySelector('svg.draw');
         const text = stageText(well);
         const hid = hiding(view);
+        const num = (el, a) => Number(el.getAttribute(a));
+        const rectOf = (el) => ({ x0: num(el, 'x'), x1: num(el, 'x') + num(el, 'width'), y0: num(el, 'y'), y1: num(el, 'y') + num(el, 'height') });
+        const meets = (a, b) => Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > 0 && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > 0;
         for (const g of FALSE_CLAIMS) if (g.test(text)) out.push(`false claim ${g}: ${text.match(g)[0]}`);
         const smp = D.meta.sample;
         const weeksOf = (el) => (el ? el.dataset.weeks.split(',').map(Number) : []);
+        const mo = D.meta.moment;
         if (!hid.sample) {
           const shown = (w) => w + 0.5 <= D.meta.upTo + 1e-9;
-          // Every drawn count is the year's own: a tick per outage in each copy's row, and the request's row the union
-          // of the strips of the parts it needs.
           const union = new Set();
           m.parts.forEach((p, i) => {
+            const joined = weeksOf(svg.querySelector(`[data-shared="${p.id}"]`));
             for (let k = 0; k < p.copies; k++) {
               const drawn = weeksOf(svg.querySelector(`[data-row="${p.id}-${k}"]`));
-              const want = smp.parts[i].rows[k].filter((t) => shown(t.week)).map((t) => t.week);
+              const want = smp.parts[i].rows[k].filter((t) => shown(t.week) && !joined.includes(t.week)).map((t) => t.week);
               if (drawn.join() !== want.join()) out.push(`row ${p.id}-${k} draws ${drawn.length} ticks for ${want.length} outages`);
+              if (drawn.some((w) => joined.includes(w))) out.push(`${p.id}-${k} draws its own tick in a shared week`);
             }
+            // A shared outage is one joined mark per part, in exactly the shared weeks.
+            const sharedWant = p.copies > 1 && m.settings.shared ? smp.parts[i].rows[0].filter((t) => t.shared && shown(t.week)).map((t) => t.week) : [];
+            if (joined.join() !== sharedWant.join()) out.push(`${p.id}: ${joined.length} joined marks for ${sharedWant.length} shared outages`);
+            if (svg.querySelectorAll(`[data-shared="${p.id}"]`).length > 1) out.push(`${p.id}: more than one shared path`);
             const strip = weeksOf(svg.querySelector(`[data-strip="${p.id}"]`));
             if (!p.optional) for (const w of strip) union.add(w);
-            // Two copies of a part stand in one column only in a shared outage, and then the strip has it too.
             const cols = new Map();
             for (let k = 0; k < p.copies; k++) for (const w of weeksOf(svg.querySelector(`[data-row="${p.id}-${k}"]`))) cols.set(w, (cols.get(w) ?? 0) + 1);
-            for (const [w, c] of cols) {
-              if (c > 1 && c !== p.copies) out.push(`${p.id}: ${c} of ${p.copies} copies down in week ${w + 1}`);
-              if (c > 1 && !strip.includes(w)) out.push(`${p.id}: all copies down in week ${w + 1} but the part's strip is clear`);
-            }
+            for (const [w, c] of cols) if (c > 1) out.push(`${p.id}: ${c} copies down by chance in week ${w + 1}`);
+            for (const w of joined) if (!strip.includes(w)) out.push(`${p.id}: a shared outage in week ${w + 1} but the part's strip is clear`);
+            if (p.copies > 1 && !svg.querySelector(`[data-inuse="${p.id}"]`)) out.push(`${p.id}: no mark for the copy in use`);
           });
           const req = weeksOf(svg.querySelector('[data-request]'));
           if (req.length !== union.size || req.some((w) => !union.has(w))) out.push(`the request's row (${req.length}) is not the union of the strips (${union.size})`);
           if (new Set(req).size !== req.length) out.push('two failures of the request in one column');
-          // The words count what is drawn.
           const said = D.meta.year.match(/failed (once|twice|(\d+) times)/);
           const n = said ? (said[1] === 'once' ? 1 : said[1] === 'twice' ? 2 : Number(said[2])) : 0;
-          if (D.meta.year !== YEAR_WATCH && n !== req.length) out.push(`the year's sentence says ${n} failures and the row draws ${req.length}`);
-          // The band agrees with its caption.
+          if (!WATCHES.includes(D.meta.year) && n !== req.length) out.push(`the year's sentence says ${n} failures and the row draws ${req.length}`);
+          // The band agrees with its caption, and both with the request's row in the moment's week.
           const outcome = svg.querySelector('[data-outcome]')?.dataset.outcome;
-          const saysFails = /so the request fails|and fail, then/.test(D.meta.caption);
+          const cap = D.meta.caption;
           const downBoxes = svg.querySelectorAll('rect.box.down').length;
-          if (/so the request fails/.test(D.meta.caption) && outcome !== 'fails') out.push('the caption says the request fails and the band serves it');
-          if (/nothing fails|is served/.test(D.meta.caption) && outcome !== 'served') out.push('the caption says the request is served and the band fails it');
-          if (/every part has a copy up/.test(D.meta.caption) && downBoxes) out.push('the caption says every copy is up and a box is down');
-          void saysFails;
-          const ring = svg.querySelector('.ring');
-          if (ring) {
-            // The ring is round a drawn tick: its column holds a tick of the row it names.
-            const rx = Number(ring.getAttribute('x')) + Number(ring.getAttribute('width')) / 2;
-            const rest = M.restMoment(m.settings);
-            if (!rest) out.push('a ring with no rest moment');
+          if (/so the request fails/.test(cap) && outcome !== 'fails') out.push('the caption says the request fails and the band serves it');
+          if (/is served|stay up/.test(cap) && outcome !== 'served') out.push('the caption says the request is served and the band fails it');
+          if (/^Week \d+ of \d+\.$/.test(cap) && (outcome !== 'none' || downBoxes)) out.push('between holds the band claims an outcome or a copy down');
+          if (mo) {
+            const failing = req.includes(mo.week) || smp.fails.some((e) => e.week === mo.week && !shown(e.week) === false);
+            const reqWeek = smp.fails.some((e) => e.week === mo.week);
+            if (/nothing fails|is served|stay up/.test(cap) && reqWeek) out.push(`the caption claims served in week ${mo.week + 1}, where the request fails`);
+            if (outcome === 'served' && reqWeek && !(mo.kind === 'failover' && D.meta.into >= 0.55)) out.push(`the outcome is served in week ${mo.week + 1}, where the request fails`);
+            if (outcome === 'fails' && !reqWeek) out.push(`the outcome fails in week ${mo.week + 1}, where the request is served`);
+            void failing;
+            const ring = svg.querySelector('.ring');
+            if (!ring) out.push('a moment with no ring');
             else {
-              const src = rest.fails ? req : weeksOf(svg.querySelector(`[data-row="${rest.part}-${rest.copy}"]`));
-              if (!src.includes(rest.week)) out.push('the ring is round no tick');
+              const src = mo.fails ? req : mo.kind === 'bypassed' ? weeksOf(svg.querySelector(`[data-strip="${mo.part}"]`)) : weeksOf(svg.querySelector(`[data-row="${mo.part}-${mo.copy}"]`));
+              if (!src.includes(mo.week)) out.push('the ring is round no tick');
             }
-            void rx;
           }
+          // The playhead stands clear of the marks it holds on.
+          if (D.meta.held && Math.abs(D.meta.playheadX - D.meta.heldX) < D.meta.tickW / 2 + 2 - 0.01) out.push(`the playhead covers the held tick (${r1(Math.abs(D.meta.playheadX - D.meta.heldX))} px)`);
         } else {
-          if (svg.querySelector('.tick-copy, .tick-fail, .tick-bypassed, .ring, .moment, .path, rect.box.down, [data-outcome]')) out.push('a sample mark shows while the sample hides');
+          if (svg.querySelector('.tick-copy, .tick-fail, .tick-bypassed, .tick-shared, .ring, .moment, .path, rect.box.down, [data-outcome], .row-track, .strip-band')) out.push('a sample mark shows while the sample hides');
+          if (!svg.querySelector('[data-year-hidden]')) out.push('the hidden year is not one dashed box');
         }
-        // The nines scale: each bar ends at its own value; the request's never passes its weakest part's; the cap line
-        // stands at the weakest part's end.
+        // The bypass's right leg lands on the lead-out wire, 6 px or more before the outcome.
+        if (D.meta.bypassX !== undefined && D.meta.bypassX > D.meta.outcomeX0 - 6 + 0.01) out.push(`the bypass lands ${r1(D.meta.outcomeX0 - D.meta.bypassX)} px from the outcome`);
+        if (m.parts.some((p) => p.optional) && !svg.querySelector('[data-id="lane-word"]')) out.push('the bypass lane is unnamed');
         if (!hid.request) {
           const end = (id) => {
             const rects = [...svg.querySelectorAll(`[data-bar="${id}"]`)];
-            return rects.length ? Math.max(...rects.map((r) => Number(r.getAttribute('x')) + Number(r.getAttribute('width')))) : null;
+            return rects.length ? Math.max(...rects.map((r) => num(r, 'x') + num(r, 'width'))) : null;
           };
           const reqEnd = end('request');
           for (const p of m.parts) {
@@ -2342,25 +2760,48 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${codeText
             const e = end(p.id);
             if (e === null || Math.abs(e - D.meta[`end-${p.id}`]) > 0.8) out.push(`the bar of ${p.id} ends ${e} for ${D.meta[`end-${p.id}`]}`);
             if (reqEnd !== null && e !== null && reqEnd > e + 0.6) out.push(`the request's bar passes ${p.id}'s`);
+            // Every outlined paper length is named: its own label, or the phone's key.
+            if (svg.querySelector(`[data-paper="${p.id}"]`) && !svg.querySelector(`[data-paper-label="${p.id}"]`) && !svg.querySelector('[data-key="paper"]')) out.push(`the paper length of ${p.id} is unnamed`);
           }
-          const cap = svg.querySelector('.capline');
+          const capEl = svg.querySelector('.capline');
           if (hid.weakest) {
-            if (cap || svg.querySelector('.capend, [data-id="cap-words"]') || /Weakest link/.test(svg.textContent)) out.push('a weakest-link mark shows while it hides');
-          } else if (!cap) out.push('no cap line');
-          else if (Math.abs(Number(cap.getAttribute('x1')) - D.meta[`end-${m.weakest[0]}`]) > 0.8) out.push('the cap line is not at the weakest part');
-          if (cap && reqEnd > Number(cap.getAttribute('x1')) + 0.6) out.push('the request passes its cap');
-          // The causes sentence adds up as printed, to the minute.
-          const c = (D.meta.facts[1] ?? '').match(/: ([\d.]+) (min|h|s) a year = (.*)\./);
-          if (c) {
+            if (capEl || svg.querySelector('.capend, [data-id="cap-words"]') || /Weakest link/.test(svg.textContent)) out.push('a weakest-link mark shows while it hides');
+          } else if (!capEl) out.push('no cap line');
+          else {
+            if (Math.abs(num(capEl, 'x1') - D.meta[`end-${m.capPart}`]) > 0.8) out.push('the cap line is not at the weakest part');
+            // Bold, capped and named parts are exactly the parts that print the worst value.
+            const hard = m.parts.filter((p) => !p.optional);
+            const worst = fd(Math.max(...hard.map((p) => p.downH)));
+            const want = hard.filter((p) => fd(p.downH) === worst).map((p) => p.id).join();
+            const bold = m.parts.filter((p) => svg.querySelector(`[data-id="val-${p.id}"] tspan.bad`)).map((p) => p.id).join();
+            const capped = [...svg.querySelectorAll('[data-capend]')].map((c) => c.dataset.capend).join();
+            if (bold !== want || capped !== want) out.push(`bold ${bold} and capped ${capped} for the worst ${want}`);
+          }
+          if (capEl && reqEnd > num(capEl, 'x1') + 0.6) out.push('the request passes its cap');
+          // The ghost never stands on a bar.
+          const gh = svg.querySelector('[data-ghost]');
+          if (gh && D.meta.ghostBox) for (const b of svg.querySelectorAll('[data-bar], [data-paper]')) if (meets(D.meta.ghostBox, rectOf(b))) out.push('the ghost overlaps a bar');
+          // The goal and the cap at one x both keep their words.
+          if (D.meta.goalX !== undefined && capEl && Math.abs(D.meta.goalX - num(capEl, 'x1')) < 3 && !(svg.querySelector('[data-id="goal-words"]') && svg.querySelector('[data-id="cap-words"]'))) out.push('the goal and the cap share an x without both labels');
+          // The causes sentence adds up as printed: counts times durations, and the chance overlap.
+          const rule = D.meta.facts.find((f) => / on paper\): /.test(f));
+          if (rule) {
             const toMin = (v, u) => (u === 'h' ? v * 60 : u === 'min' ? v : v / 60);
+            const c = rule.match(/is down ([\d.]+) (min|h|s) a year/);
+            let sum = 0;
+            for (const x of rule.matchAll(/([\d.]+) (?:shared outages|failovers) × ([\d.]+) (min|h)/g)) sum += Number(x[1]) * toMin(Number(x[2]), x[3]);
+            const ch = rule.match(/([\d.]+) (min|s) (?:both|all \d) down by chance/);
+            if (ch) sum += toMin(Number(ch[1]), ch[2]);
             const total = toMin(Number(c[1]), c[2]);
-            const sum = [...c[3].matchAll(/([\d.]+) (min|h|s) (shared|failover|both|all)/g)].reduce((t, x) => t + toMin(Number(x[1]), x[2]), 0);
-            if (Math.abs(total - sum) > (c[2] === 'h' ? 6 : 1.5)) out.push(`the causes do not add up as printed: ${D.meta.facts[1]}`);
+            if (Math.abs(total - sum) > (c[2] === 'h' ? 6 : 1.5)) out.push(`the causes do not add up as printed: ${rule}`);
+            const sp = D.meta.split;
+            if (sp) sp.widths.forEach((w, i) => w > 1.6 && Math.abs(w - sp.us[i] * sp.total) > 1.5 && out.push(`the split's segment ${i} is ${r1(w)} px for ${r1(sp.us[i] * sp.total)}`));
           }
         } else {
           for (const st of svg.querySelectorAll('[data-stat]')) if (st.textContent !== '?') out.push(`a headline number shows while the request hides: ${st.textContent}`);
           if (svg.querySelector('[data-bar="request"], .capline, .capend, [data-ghost]')) out.push('a request mark shows while the request hides');
         }
+        if (hid.rule && svg.querySelector('[data-id="rule"], [data-split]')) out.push('the rule line shows while a question waits');
         return out;
       }
       function check(well, D, m, view) {
@@ -2391,42 +2832,53 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${codeText
         well.style.width = W + 'px';
         return well;
       }
-      /** Every setting at the widths given: at rest, and at moments of a free play; with a ghost when asked. */
+      /** Every setting at the widths given: at rest, at moments of a free play ('holds' samples every hold, a failover
+       * in both its beats), with a ghost when asked, and every stepped moment. */
       window.sweep = (widths, settings, fracs, ghosts) => {
         const res = { renders: 0, failures: [] };
         for (const W of widths) {
           const well = scratchWell(W);
           for (const s of settings) {
             const m = M.run(s);
+            const plan = M.playPlan(s);
             for (const frac of fracs) {
-              const views = [{ s, hide: [], phase: 'rest', ghost: null, tau: frac === null ? null : frac * M.playPlan(s).total }];
-              if (ghosts && frac === null) views.push({ s, hide: [], phase: 'rest', ghost: M.BASE, tau: null }, { s, hide: [], phase: 'rest', ghost: ES.pairs, tau: null });
+              let views;
+              if (frac === 'holds') views = plan.holds.flatMap((h, i) => (h.kind === 'failover' ? [0.3, 0.8] : [0.5]).map((into) => ({ s, hide: [], phase: 'rest', ghost: null, tau: plan.holdAt(i, into), tag: `hold ${h.kind} ${into}` })));
+              else if (frac === 'steps') views = M.stepMoments(s).map((_, k) => ({ s, hide: [], phase: 'rest', ghost: null, tau: null, step: k, tag: `step ${k}` }));
+              else {
+                views = [{ s, hide: [], phase: 'rest', ghost: null, tau: frac === null ? null : frac * plan.total, tag: frac === null ? '' : `play ${frac}` }];
+                if (ghosts && frac === null) views.push({ s, hide: [], phase: 'rest', ghost: M.BASE, tau: null, tag: 'ghost' }, { s, hide: [], phase: 'rest', ghost: ES.pairs, tau: null, tag: 'ghost' });
+              }
               for (const view of views) {
                 const { D } = drawInto(well, W, m, view);
                 const out = check(well, D, m, view);
                 res.renders++;
-                if (out.length) res.failures.push({ W, s: show(s) + (frac === null ? '' : ` play ${frac}`) + (view.ghost ? ' ghost' : ''), out });
+                if (out.length) res.failures.push({ W, s: `${show(s)} ${view.tag}`, out });
               }
             }
           }
         }
         return res;
       };
-      /** Every experiment asking, at moments of its answer's play, revealed; the challenge at its start and met. Every
-       * revealed frame and the met challenge must hold a placed "Look here" tag for each focus region. */
+      /** Every experiment asking, at moments of its answer's play (and at its hold), revealed; the challenge at its start
+       * and met. Every revealed frame and the met challenge hold one placed "Look here" tag per outline. */
       window.sweepExperiments = (widths) => {
         const res = { renders: 0, failures: [] };
         for (const W of widths) {
           const well = scratchWell(W);
           M.EXPERIMENTS.forEach((spec, i) => {
-            const phases = spec.goal ? [['start'], ['challenge']] : [['asking'], ['playing', 0.1], ['playing', 0.5], ['playing', 0.95], ['revealed']];
+            const phases = spec.goal ? [['start'], ['challenge']] : [['asking'], ['playing', 0.1], ['playing', 0.5], ['playing', 0.95], ['playing', 'hold'], ['revealed']];
             for (const [phase, frac] of phases) {
-              const view = expView(spec, phase, frac);
+              let view = expView(spec, phase, typeof frac === 'number' ? frac : 0.5);
+              if (frac === 'hold') {
+                const plan = M.playPlan(view.s, true, view.changed, M.SAMPLE_SEED, view.exp.hold);
+                view = { ...view, tau: plan.holdAt(0, 0.5) };
+              }
               const m = M.run(view.s);
               const { D } = drawInto(well, W, m, view);
               const out = check(well, D, m, view);
               const tags = well.querySelectorAll('rect.tag').length;
-              if ((view.focus ?? []).length !== tags) out.push(`${tags} tags for ${(view.focus ?? []).length} focus regions`);
+              if ((D.focusGroups ?? 0) !== tags || (view.focus?.length && !tags)) out.push(`${tags} tags for ${D.focusGroups ?? 0} outlines`);
               res.renders++;
               if (out.length) res.failures.push({ W, exp: i + 1, phase: phase + (frac ?? ''), out });
             }
@@ -2439,8 +2891,8 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${codeText
       // in its labels or in the page's words gives the answer; proven by planting leaks it must catch.
       const GIVEAWAYS = {
         series: { asking: [/35 h/, /99\.6%/, /2\.9 h/, /failed \d+ times/, /35 times/], playing: [/35 h/, /99\.6%/, /2\.9 h/] },
-        parallel: { asking: [/32 s/, /17\.5 h/, /99\.8%/, /99\.9999%/], playing: [/32 s/, /17\.5 h/, /99\.8%/, /99\.9999%/] },
-        weakest: { asking: [/0\.03 s/], playing: [/0\.03 s/, /unchanged/] },
+        parallel: { asking: [/32 s/, /17\.5 h/, /99\.8%/, /99\.9999%/, /adds \d nines/, /only while (all|both)/], playing: [/32 s/, /17\.5 h/, /99\.8%/, /99\.9999%/, /adds \d nines/, /only while (all|both)/] },
+        weakest: { asking: [/0\.03 s/, /has no other copy/, /so the request fails/], playing: [/0\.03 s/, /unchanged/] },
         shared: { asking: [/53 min/, /2\.6 h/, /99\.97%/], playing: [/53 min/, /2\.6 h/, /99\.97%/, /13 min/] },
         failover: { asking: [/44 min/, /2\.2 h/, /99\.975%/, /27 times/, /26 times/], playing: [/44 min/, /2\.2 h/, /99\.975%/, /11 min/] },
       };
@@ -2448,11 +2900,14 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${codeText
         const out = [];
         const svg = well.querySelector('svg.draw');
         const hid = hiding(view);
-        if (!well.querySelector('.play')?.disabled) out.push('Play is live while a question waits');
+        if (!well.querySelector('.play[data-owner="play"]')?.disabled) out.push('Play is live while a question waits');
+        if ([...well.querySelectorAll('.step-btn')].some((b) => !b.disabled)) out.push('a moment button is live while a question waits');
         if (svg.querySelector('[data-ghost], [data-id="ghost-words"]')) out.push('a ghost shows while a question waits');
         if (/Before this change|At the start/.test(svg.textContent)) out.push('the ghost sentence shows while a question waits');
+        // The facts' rule line waits for every question.
+        if (svg.querySelector('[data-id="rule"], [data-split]') || /on paper\)|adds \d nines|No needed part/.test(svg.textContent)) out.push('the rule line shows while a question waits');
         if (view.spec.hide.includes('sample') && view.phase === 'asking') {
-          if (svg.querySelector('.tick-copy, .tick-fail, .tick-bypassed, .ring, .moment, .path, rect.box.down, rect.box.serving, [data-outcome]')) out.push('a sample mark shows while the sample hides');
+          if (svg.querySelector('.tick-copy, .tick-fail, .tick-bypassed, .tick-shared, .ring, .moment, .path, rect.box.down, rect.box.serving, [data-outcome], [data-stop]')) out.push('a sample mark shows while the sample hides');
         }
         if ((view.spec.hide.includes('request') && view.phase !== 'revealed') || (view.spec.hide.includes('after') && view.phase === 'playing')) {
           for (const st of svg.querySelectorAll('[data-stat]')) if (st.textContent !== '?') out.push(`headline ${st.textContent}`);
@@ -2465,6 +2920,8 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${codeText
           if (svg.querySelector('.capline, .capend, [data-id="cap-words"]')) out.push('the cap line shows while the weakest link hides');
           if (/Weakest link/.test(svg.textContent)) out.push('the weakest link is named');
           if (svg.querySelector('[data-id^="val-"] tspan.bad')) out.push('a weakest value is marked');
+          // While it asks, the band names no part that fails: no stop, no copy down, no ring, no moment.
+          if (view.phase === 'asking' && svg.querySelector('[data-stop], rect.box.down, .ring, .moment')) out.push('the band shows the weakest part failing while it hides');
         }
         if (view.spec.hide.includes('after') && view.phase === 'playing') {
           for (const id of view.changed) {
@@ -2472,14 +2929,19 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${codeText
             if (svg.querySelector(`[data-id="val-${id}"]`).textContent !== '?') out.push(`the changed part ${id} shows its value`);
           }
         }
+        if (svg.querySelector('[data-inset]')) out.push('the inset shows while a question waits');
         void hid;
         return out;
       }
       function giveaways(well, view, m) {
         // The scales' own labels are the axes, present at every setting; everything else is checked.
-        const text = stageText(well, false) + ' | ' + noticeOf(m, view) + ' | ' + summary(m, hiding(view));
+        const text = stageText(well, false) + ' | ' + noticeOf(m, view) + ' | ' + summary(m, hiding(view)) + ' | ' + readoutText(m, hiding(view));
         const out = structural(well, view);
         for (const g of GIVEAWAYS[view.spec.id][view.phase] ?? []) if (g.test(text)) out.push(`answer words ${g}: ${text.match(g)[0]}`);
+        // No sentence repeats the right choice's own explanation.
+        const right = view.exp.choices[view.exp.answer];
+        const clause = right.slice(right.indexOf(': ') + 2).toLowerCase();
+        if (text.toLowerCase().includes(clause)) out.push(`the right choice's clause "${clause}" is on the page`);
         for (const g of FALSE_CLAIMS) if (g.test(text)) out.push(`false claim ${g}`);
         return out;
       }
@@ -2525,7 +2987,11 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${codeText
         well.innerHTML = D.svg(10, '') + overlaysHtml(D, leakGhost);
         caught.push(giveaways(well, leakGhost, m).length > 0);
         // 6. E3 asked without `weakest`: the cap line and the weakest-link sentence show.
-        caught.push(run({ ...expView(ASKED[2], 'asking'), hide: ['after'] }));
+        caught.push(run({ ...expView(ASKED[2], 'asking'), hide: ['sample', 'after'] }));
+        // 7. E2 asked with the paper fact (the rule line not held back).
+        caught.push(run({ ...expView(ASKED[1], 'asking'), s: { ...ASKED[1].setup, lb: 2 }, leak: 'rule' }));
+        // 8. E3 asked with the weakest part's moment (the year not held back): the band shows the database failing.
+        caught.push(run({ ...expView(ASKED[2], 'asking'), hide: ['weakest', 'after'] }));
         return caught;
       };
       /** Every page sentence of every setting against the false-claim list. */
@@ -2534,11 +3000,12 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${codeText
         for (const s of ALL) {
           const m = M.run(s);
           const smp = M.sample(s);
-          const rest = M.restMoment(s);
-          const texts = [summary(m, {}), settingSentence(m), weakestSentence(m), causesSentence(m), yearSentence(smp.fails), captionOf(rest, m.parts.find((p) => p.id === rest.part).copies), ghostSentence(m), ...goalChecks(m).map((c) => c.text), ...describeRows(m, false).rows.flatMap((r) => r.cells), ...describeRows(m, true).rows.flatMap((r) => r.cells)];
+          const steps = M.stepMoments(s);
+          const texts = [summary(m, {}), settingSentence(m), weakestSentence(m), tiedNote(m), causesSentence(m), yearSentence(smp.fails), readoutText(m, {}), ...steps.map((mo) => captionOf(mo, momentCopies(m, mo), s)), ...steps.filter((mo) => mo.kind === 'absorbed').map((mo) => insetWords(mo, momentCopies(m, mo))), ghostSentence(m), ...goalChecks(m).map((c) => c.text), ...describeRows(m, false).rows.flatMap((r) => r.cells), ...describeRows(m, true).rows.flatMap((r) => r.cells)].filter(Boolean);
           for (const t of texts) {
             for (const g of FALSE_CLAIMS) if (g.test(t)) out.push(`${show(s)}: ${g} in "${t}"`);
             if (/^\d/.test(t) && / /.test(t) && /[.]$/.test(t)) out.push(`${show(s)}: a sentence opens on a numeral: "${t}"`);
+            if (/[.?!] \d/.test(t)) out.push(`${show(s)}: a sentence opens on a numeral: "${t}"`);
           }
         }
         return out;
@@ -2547,22 +3014,33 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${codeText
         const out = {};
         for (const W of widths) {
           const hs = new Set();
-          for (const s of [M.BASE, ES.series, ES.solution, { lb: 3, app: 3, db: 3, recs: 3, optional: 1, shared: 1, failover: 1 }]) {
+          for (const s of [M.BASE, ES.series, ES.solution, ES.pairs, { lb: 3, app: 3, db: 3, recs: 3, optional: 1, shared: 1, failover: 1 }]) {
             hs.add(buildStage(W, M.run(s), { s, hide: [], phase: 'rest', ghost: null, tau: null }).H);
             hs.add(buildStage(W, M.run(s), { s, hide: [], phase: 'rest', ghost: M.BASE, tau: 2000 }).H);
+            hs.add(buildStage(W, M.run(s), { s, hide: [], phase: 'rest', ghost: null, tau: null, step: 0 }).H);
           }
-          for (const spec of ASKED) for (const ph of ['asking', 'playing', 'revealed']) hs.add(buildStage(W, M.run(expView(spec, ph).s), expView(spec, ph)).H);
+          for (const spec of M.EXPERIMENTS) for (const ph of spec.goal ? ['start', 'challenge'] : ['asking', 'playing', 'revealed']) hs.add(buildStage(W, M.run(expView(spec, ph).s), expView(spec, ph)).H);
           out[W] = [...hs];
         }
         return out;
+      };
+      /** The phone readout never wraps past its reserved two lines at a 320 px page. */
+      window.readoutLines = () => {
+        const el = document.getElementById('readout');
+        let worst = 0;
+        for (const s of ALL) {
+          el.innerHTML = codeText(readoutText(M.run(s), {}));
+          worst = Math.max(worst, Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight)));
+        }
+        return worst;
       };
 
       document.fonts.ready.then(() => {
         const r = render(params.get('state') ?? 'default');
         const well = document.getElementById('well');
         window.__collisions = check(well, r.D, r.m, r.view);
-        const need = (r.view.focus ?? []).length;
-        if (need !== well.querySelectorAll('rect.tag').length) window.__collisions.push(`${well.querySelectorAll('rect.tag').length} tags for ${need} focus regions`);
+        const need = r.D.focusGroups ?? 0;
+        if (need !== well.querySelectorAll('rect.tag').length) window.__collisions.push(`${well.querySelectorAll('rect.tag').length} tags for ${need} outlines`);
         // Describe's table fits its box, or scrolls inside it; the page never scrolls sideways.
         const box = document.querySelector('.table-box');
         if (box && box.scrollWidth > box.clientWidth + 1 && getComputedStyle(box).overflowX === 'visible') window.__collisions.push('Describe overflows its box');
