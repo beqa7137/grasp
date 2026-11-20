@@ -1248,6 +1248,7 @@
           const mine = (o) => ignoreOwner && o.owner && o.owner.split(' ').some((t) => ignoreOwner.split(' ').includes(t));
           if (this.texts.some((t) => hit(t) && !mine(t))) return false;
           if (this.marks.some((m) => hit(m) && !mine(m))) return false;
+          if (this.hits.some((h) => hit({ x0: h.x, x1: h.x + h.w, y0: h.y, y1: h.y + h.h }))) return false;
           for (const l of this.links) {
             if (mine(l)) continue;
             if (l.points.some(([x, y]) => x > b.x0 && x < b.x1 && y > b.y0 && y < b.y1)) return false;
@@ -3035,7 +3036,8 @@
         return worst;
       };
 
-      document.fonts.ready.then(() => {
+      // Canvas measures only with faces already loaded: load every role's face before the first measurement.
+      Promise.all(Object.values(ROLE).map((r) => document.fonts.load(r.css, 'Ag1'))).then(() => document.fonts.ready).then(() => {
         const r = render(params.get('state') ?? 'default');
         const well = document.getElementById('well');
         window.__collisions = check(well, r.D, r.m, r.view);
