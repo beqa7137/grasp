@@ -29,7 +29,7 @@ function hashBig(text) {
   h ^= h >> 16n;
   return h;
 }
-const pointNames = M.NAMES.flatMap((n) => Array.from({ length: 100 }, (_, v) => `${n}#${v}`));
+const pointNames = M.NAMES.flatMap((n) => Array.from({ length: 100 }, (_, v) => `${n}#${v}${M.POINT_SALT}`));
 for (const text of [...M.KEYS, M.HOT_KEY, ...M.SALT_KEYS, ...pointNames]) ok(BigInt(M.hash32(text)) === hashBig(text), `hash32(${text})`);
 ok(new Set([...M.KEY_AT, M.HOT_AT, ...M.SALT_AT, ...pointNames.map(M.hash32)]).size === M.K + 1 + M.SALTS + 600, 'every key, salt and point has its own position');
 ok(!M.KEYS.includes(M.HOT_KEY), 'the hot key is not one of the 200');
@@ -43,7 +43,7 @@ function bruteOwner(scheme, points, members, text) {
   let bestDist = TURN;
   for (const node of members)
     for (let v = 0; v < points; v++) {
-      const dist = (hashBig(`${node}#${v}`) - h + TURN) % TURN;
+      const dist = (hashBig(`${node}#${v}${M.POINT_SALT}`) - h + TURN) % TURN;
       if (dist < bestDist) [best, bestDist] = [node, dist];
     }
   return best;
@@ -189,6 +189,18 @@ for (const s of settings)
       if (/^Only [A-F]'s/.test(story)) ok(c.fromLeft === c.moved && c.moved === c.leftHeld, `"Only X's keys moved" only when so ${id}`);
       if (/next point clockwise/.test(story)) ok(sc.scheme === 'ring' && s.points === 1, `"the next point clockwise" only with one point a node ${id}`);
       if (/hot key moved/.test(story)) ok(s.hot === 1 && s.split === 0 && c.hotMoved, `the hot key's move is said only when it moved ${id}`);
+      // The twins sentence appears exactly when hash mod N moved keys but none between nodes that stayed, and that
+      // happens only when the cluster doubles or halves.
+      const twin = /cheap (change|shrink)/.test(story);
+      ok(twin === (sc.scheme === 'mod' && c.between === 0 && c.moved > 0), `the twins sentence exactly when no key moved between nodes that stayed under hash mod N ${id}`);
+      if (twin) {
+        const [n, n2] = [c.before.members.length, c.after.members.length];
+        ok(n2 === 2 * n || n === 2 * n2, `the twins sentence only on a doubling or a halving ${id}`);
+        const [lo, hi] = [Math.min(n, n2), Math.max(n, n2)];
+        ok(M.KEY_AT.every((h) => h % hi === h % lo || h % hi === (h % lo) + lo), `a remainder for ${hi} is the remainder for ${lo} or that plus ${lo} ${id}`);
+      }
+      if (c.kind === 'down') ok(/a dead node sends nothing/.test(story), `a failure says the dead node sends nothing ${id}`);
+      if (/new owner serves/.test(story)) ok(c.after.members.filter((m) => c.into[m] > 0).length === 1, `"the new owner" only with one ${id}`);
     }
     const standing = M.standing(sc);
     if (/fullest shards/.test(standing)) ok(sc.now.members.filter((m) => sc.now.counts[m] === sc.now.counts[sc.fullest]).length > 1, `a tie is named as one ${id}`);
@@ -229,9 +241,28 @@ for (const { where, text } of sentences) {
   const moves = (scheme, points, a, b) => M.place(scheme, points, a).owners[M.FOLLOW] !== M.place(scheme, points, b).owners[M.FOLLOW];
   ok(moves('mod', 100, four, five), 'the followed key moves in E1');
   ok(moves('ring', 100, four, five) && M.place('ring', 100, five).owners[M.FOLLOW] === 'E', 'the followed key moves to E in E2');
-  ok(moves('ring', 1, four, five) && M.place('ring', 1, five).owners[M.FOLLOW] === 'E', 'the followed key moves to E with one point a node');
-  ok(M.place('ring', 100, four).owners[M.FOLLOW] !== M.place('ring', 1, four).owners[M.FOLLOW] || true, 'E3');
   ok(M.scenario({ ...M.SETUP.one, down: 1 }).change.moves.some((m) => m.key === M.FOLLOW), 'the followed key moves in E4');
+  // Its neighbours by hash look random under every modulus, in every window the closer look draws (11 and 9 keys) and
+  // in a 5-key one: no run of equal remainders longer than 2 (3 in the 11-key window), at most ceil(expected + 1)
+  // adjacent equal pairs, and the 9-key window holds keys that stay and keys that move from 4 nodes to 5.
+  const byHash = Array.from({ length: M.K }, (_, i) => i).sort((a, b) => M.KEY_AT[a] - M.KEY_AT[b]);
+  const win = (n) => Array.from({ length: n }, (_, k) => byHash[(byHash.indexOf(M.FOLLOW) - (n - 1) / 2 + k + M.K) % M.K]);
+  for (const n of [11, 9, 5])
+    for (const m of [3, 4, 5, 6]) {
+      const r = win(n).map((i) => M.KEY_AT[i] % m);
+      let run = 1;
+      let most = 1;
+      let pairs = 0;
+      for (let i = 1; i < r.length; i++) {
+        run = r[i] === r[i - 1] ? run + 1 : 1;
+        most = Math.max(most, run);
+        if (r[i] === r[i - 1]) pairs++;
+      }
+      ok(most <= (n === 11 ? 3 : 2), `the ${n}-key window has a run of ${most} equal remainders mod ${m}`);
+      ok(pairs <= Math.ceil((n - 1) / m + 1), `the ${n}-key window has ${pairs} adjacent equal remainders mod ${m}`);
+    }
+  const stay = win(9).filter((i) => M.KEY_AT[i] % 4 === M.KEY_AT[i] % 5).length;
+  ok(stay >= 1 && stay <= 8, `the 9-key window holds keys that stay (${stay}) and keys that move from 4 to 5`);
   console.log(`followed key ${M.KEYS[M.FOLLOW]}: hash ${M.num(at)} (${M.round(at)} round), mod 4 = ${at % 4}, mod 5 = ${at % 5}`);
 }
 
@@ -263,26 +294,42 @@ ok(answers.filter((a) => a === 2).length <= 2 && new Set(answers).size === 3, 'a
   ok(mod.moved / M.K >= 0.8, 'E1: "four keys in five" (at least 80%)');
   ok(near(160, mod.moved, 10), 'E1: "about 160"');
   const ring = M.after(M.SETUP.ring, { nodes: 5 }).change;
-  ok(ring.moved === 46 && ring.toJoined === 46 && ring.between === 0, 'E2: 46 moved, all to E');
-  ok(Math.abs(ring.moved - ring.ideal) / ring.ideal <= 0.2, 'E2: "about 40" (within a fifth of the ideal)');
+  ok(ring.moved === 39 && ring.toJoined === 39 && ring.between === 0, 'E2: 39 moved, all to E');
+  ok(Math.abs(ring.moved - ring.ideal) / ring.ideal <= 0.15, 'E2: "about 40" (within 15% of the ideal)');
   ok(four.every((m) => ring.out[m] > 0), 'E2: every old node gives some');
   const one = M.scenario({ ...M.SETUP.ring, points: 1 });
   const many = M.scenario(M.SETUP.ring);
-  ok(one.now.counts.C === 114 && one.now.counts.D === 11 && one.fullest === 'C', 'E3: C holds 114 and D 11 with one point');
-  ok(one.now.counts.C > M.K / 2, 'E3: "more than half of all the keys"');
-  ok(Math.min(...Object.values(many.now.counts)) === 43 && Math.max(...Object.values(many.now.counts)) === 57, 'E3: 43 to 57 with 100 points');
-  ok(near(one.now.ringShare.C, 0.546, 0.0005), 'E3: C owns 54.6% of the ring');
+  ok(one.now.counts.A === 107 && one.now.counts.B === 3 && one.fullest === 'A', 'E3: A holds 107 and B 3 with one point');
+  ok(one.now.counts.A > M.K / 2, 'E3: "more than half of all the keys"');
+  ok(Math.min(...Object.values(many.now.counts)) === 47 && Math.max(...Object.values(many.now.counts)) === 53, 'E3: 47 to 53 with 100 points');
+  ok(near(one.now.ringShare.A, 0.551, 0.0005), 'E3: A owns 55.1% of the ring');
+  // "The longest of 4 random arcs averages about half the ring and the shortest about a sixteenth": the expected
+  // longest of n uniform spacings is H(n) / n and the shortest 1 / n^2.
+  ok(near((1 + 1 / 2 + 1 / 3 + 1 / 4) / 4, 0.5, 0.025) && 1 / 16 === 0.0625, 'E3: the averages of the longest and shortest of 4 arcs');
+  // "About a quarter of an even share either way with 10 points, under a tenth with 100": one node's share of a ring
+  // of n nodes with p points each is Beta(p, (n - 1) p), whose standard deviation over the mean 1 / n is
+  // sqrt((n - 1) / (n p + 1)).
+  const rel = (n, p) => Math.sqrt((n - 1) / (n * p + 1));
+  ok(near(rel(4, 10), 0.25, 0.03) && rel(4, 100) < 0.1, `E3: a share's spread is ${(rel(4, 10) * 100).toFixed(0)}% of an even share with 10 points and ${(rel(4, 100) * 100).toFixed(1)}% with 100`);
   const lost = M.scenario({ ...M.SETUP.one, down: 1 });
-  ok(lost.downNode === 'C' && lost.change.moved === 114 && lost.change.into.B === 114 && lost.now.counts.B === 145, 'E4: all 114 of C go to B, 31 to 145');
-  ok(near(145 / 31, 4.7, 0.05), 'E4: 4.7×');
+  ok(lost.downNode === 'A' && lost.change.moved === 107 && lost.change.into.C === 107 && lost.now.counts.C === 180, 'E4: all 107 of A go to C, 73 to 180');
+  ok(M.times(180 / 73) === '2.5×', 'E4: 2.5×');
+  // Every number of the reveal's counterfactual is the stage's own for the setting one click away (Points 100).
+  const cf = M.scenario({ ...M.SETUP.one, points: 100, down: 1 });
+  const r4 = M.renderExperiment(M.EXPERIMENTS[3]).reveal;
+  const cfStory = M.changeStory(cf).join(' ');
+  ok(r4.includes(`its ${M.num(cf.change.leftHeld)} keys spread: `) && cfStory.includes(`Only ${cf.downNode}'s ${M.keys(cf.change.leftHeld)} moved: ${r4.split('keys spread: ')[1].split('.')[0]}.`), `E4: the counterfactual reads as the stage does at 100 points ("${cfStory}")`);
+  ok(r4.includes(`the busiest node is ${cf.downNode}`), 'E4: the counterfactual names the stage busiest node at 100 points');
   const ringOne = M.ringPoints(four, 1).map((p) => p.node).join('');
-  ok(ringOne === 'CBAD', `E4: the ring's order with one point is C, B, A, D (${ringOne}): B follows C, D precedes it`);
+  ok(ringOne === 'ACBD', `E4: the ring's order with one point is A, C, B, D (${ringOne}): C follows A, D precedes it`);
   const hot4 = M.scenario(M.SETUP.hot);
   const hot6 = M.after(M.SETUP.hot, { nodes: 6 });
   ok(hot4.now.hot === 'A' && hot6.now.hot === 'A' && !hot6.change.hotMoved, 'E5: the hot key stays on A');
-  ok(hot4.traffic.A === 500 && hot6.traffic.A === 433, 'E5: 50% then 43.3%');
+  ok(hot4.traffic.A === 486 && hot6.traffic.A === 423, 'E5: 48.6% then 42.3%');
   ok(hot6.traffic.A > 300, 'E5: never below the hot key alone');
-  ok(near((hot4.traffic.A / 10) * (4 / 6), 33.3, 0.05), 'E5: "two thirds of it"');
+  ok(near((hot4.traffic.A / 10) * (4 / 6), 32.4, 0.05), 'E5: "two thirds of it"');
+  const e2 = M.renderExperiment(M.EXPERIMENTS[1]).reveal;
+  ok(e2.includes(`An even share for E is 40 (200 / 5)`) && e2.includes(`took ${M.pctOf(M.after(M.SETUP.ring, { nodes: 5 }).now.ringShare.E * 100)} of the ring`), 'E2: the even share as the stage writes it and E\'s ring share');
   for (const n of M.NODE_COUNTS) for (const p of M.POINTS) ok(M.place('ring', p, M.NAMES.slice(0, n)).hot === 'A', `the hot key is on A on every ring (${n} nodes, ${p} points)`);
 }
 
@@ -315,7 +362,32 @@ console.log(`  ${passing.length} of ${kept.length} pass`);
   const mod = (a, b) => M.diff(M.place('mod', 0, M.NAMES.slice(0, a)), M.place('mod', 0, M.NAMES.slice(0, b))).moved;
   ok(mod(4, 5) === 166 && mod(4, 3) === 158, 'the lesson: hash mod N moves 166 (4 to 5) and 158 (4 to 3)');
   const ring = (a, b) => M.diff(M.place('ring', 100, M.NAMES.slice(0, a)), M.place('ring', 100, M.NAMES.slice(0, b)));
-  ok(ring(4, 5).moved === 46 && ring(4, 3).moved === 57, 'the lesson: the ring moves 46 (4 to 5) and 57 (4 to 3)');
+  ok(ring(4, 5).moved === 39 && ring(4, 3).moved === 47, 'the ring moves 39 (4 to 5) and 47 (4 to 3)');
+}
+
+// ------------------------------------------------------------ 10. the point names' salt, by hard bounds
+// With it the instance shows what the theory says (and sharding.spec.ts pins the same bounds): at every node count the
+// fullest shard and the largest share of the ring fall from 1 to 10 to 100 points a node; E2's joiner is within 15% of
+// its even share and every old node gives some; E3's fullest holds over half; the hot key is on one node on every ring;
+// and the challenge has exactly one solution, whose 10-point near miss fails with visibly less even key piles.
+{
+  const rows = [];
+  for (const n of M.NODE_COUNTS) {
+    const at = M.POINTS.map((p) => M.place('ring', p, M.NAMES.slice(0, n)));
+    const full = at.map((pl) => Math.max(...Object.values(pl.counts)));
+    const ring = at.map((pl) => Math.max(...Object.values(pl.ringShare)));
+    ok(full[0] >= full[1] + 4 && full[1] >= full[2] + 4, `${n} nodes: the fullest shard falls by 4 keys or more from 1 to 10 to 100 points (${full.join(' / ')})`);
+    ok(ring[0] > ring[1] + 0.01 && ring[1] > ring[2] + 0.005, `${n} nodes: the largest ring share falls from 1 to 10 to 100 points`);
+    rows.push(`${n} nodes ${full.join(' / ')} keys, ${ring.map((x) => (x * 100).toFixed(1)).join(' / ')}% of the ring`);
+  }
+  console.log(`\nfullest shard and largest ring share at 1 / 10 / 100 points:\n  ${rows.join('\n  ')}`);
+  const hots = new Set(M.NODE_COUNTS.flatMap((n) => M.POINTS.map((p) => M.place('ring', p, M.NAMES.slice(0, n)).hot)));
+  ok(hots.size === 1, 'the hot key is on one node on every ring');
+  const base = { ...M.SETUP.challenge, ...M.CHALLENGE_SOLUTION };
+  const spread = (sc) => Math.max(...Object.values(sc.now.counts)) - Math.min(...Object.values(sc.now.counts));
+  const ten = M.scenario({ ...base, points: 10 });
+  const sol = M.scenario(base);
+  ok(!M.goalMet(M.CHALLENGE_GOAL, ten.settings, ten.metrics) && spread(ten) >= spread(sol) + 6, `the challenge's 10-point near miss fails with less even piles (${spread(ten)} keys apart against ${spread(sol)})`);
 }
 
 console.log(`\nfullest shard over every setting: ${maxCount} keys; busiest: ${M.pct(maxTraffic)} of the traffic`);
