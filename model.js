@@ -73,6 +73,8 @@
         { id: 'log', amp: 1 },
       ],
       diskWriteMBps: WRITE_MBPS * writeAmp,
+      /** Each update writes one page at a random place: at 10 MB/s of new data, this many a second. */
+      randomWritesPerSec: (WRITE_MBPS * MB) / s.record,
       pagesWalked: height,
       memoryHops: height - 1,
       lookupReads: 1,
@@ -124,6 +126,57 @@
     };
   }
 
+  /**
+   * The LSM tree's own sizes run in steady state (levels sized from the bottom up, random overwrites, the last level
+   * always full), counting the bytes compaction writes: what a running tree spends against the model's
+   * (ratio + 1) / 2 a level. enum.cjs holds it near the model at all twelve sizes; E2's reveal quotes it.
+   */
+  const steadyMemo = new Map();
+  function lsmSteady(s) {
+    const key = `${s.data}|${s.ratio}`;
+    if (steadyMemo.has(key)) return steadyMemo.get(key);
+    const model = lsm({ ...s, record: 100, bloom: 1 });
+    const L = model.levels;
+    const dataMB = s.data * 1024;
+    const cap = model.levelBytes.map((b) => b / MB);
+    const size = new Array(L).fill(0);
+    size[L - 1] = dataMB;
+    let written = 0;
+    let ingested = 0;
+    let spaceMax = 0;
+    let spaceSum = 0;
+    let steps = 0;
+    const perLevel = new Array(L).fill(0);
+    function merge(j, n) {
+      if (j === L - 1) {
+        // New versions replace old ones: the output is the data again.
+        perLevel[j] += dataMB;
+        written += dataMB;
+        return;
+      }
+      perLevel[j] += size[j] + n;
+      written += size[j] + n;
+      size[j] += n;
+      if (size[j] >= cap[j]) {
+        const all = size[j];
+        size[j] = 0;
+        merge(j + 1, all);
+      }
+    }
+    while (ingested < 60 * dataMB) {
+      written += 2 * MEMTABLE_MB;
+      ingested += MEMTABLE_MB;
+      merge(0, MEMTABLE_MB);
+      const used = size.reduce((a, b) => a + b, 0) / dataMB;
+      spaceMax = Math.max(spaceMax, used);
+      spaceSum += used;
+      steps++;
+    }
+    const out = { amp: written / ingested, perLevel: perLevel.map((w) => w / ingested), spaceMax, spaceMean: spaceSum / steps, model };
+    steadyMemo.set(key, out);
+    return out;
+  }
+
   function scenario(s) {
     const b = btree(s);
     const l = lsm(s);
@@ -166,12 +219,19 @@
   const formatRate = (v) => `${group(v)} MB/s`;
   const formatCount = (v) => (v >= 1e9 ? `${trim(v / 1e9, 2)} billion` : v >= 1e6 ? `${trim(v / 1e6, 1)} million` : group(v));
   const formatPct = (v) => `${trim(v, 1)}%`;
+  /** Whole percents, for "about" comparisons (the lesson's own form). */
+  const formatPct0 = (v) => `${Math.round(v)}%`;
+  /** Three significant figures, for a rate read as "about" (104,858 a second prints 105,000). */
+  const formatRound = (v) => {
+    const p = 10 ** Math.max(0, Math.floor(Math.log10(Math.abs(v))) - 2);
+    return group(Math.round(v / p) * p);
+  };
   const formatNum = (v) => (Number.isInteger(v) ? group(v) : trim(v, 2));
   const plural = (n, one, many) => (n === 1 ? one : many);
   const formatReads = (v) => `${v} disk ${plural(v, 'read', 'reads')}`;
   const formatLevels = (v) => `${v} ${plural(v, 'level', 'levels')}`;
   const formatPages = (v) => `${formatCount(v)} ${plural(v, 'page', 'pages')}`;
-  const FORMAT = { amp: formatAmp, space: formatSpace, B: formatB, bytes: formatBytes, size: formatSize, gb: formatGb, kb: formatKb, rate: formatRate, count: formatCount, pct: formatPct, num: formatNum, reads: formatReads, levels: formatLevels, pages: formatPages };
+  const FORMAT = { amp: formatAmp, space: formatSpace, B: formatB, bytes: formatBytes, size: formatSize, gb: formatGb, kb: formatKb, rate: formatRate, count: formatCount, pct: formatPct, pct0: formatPct0, round: formatRound, num: formatNum, reads: formatReads, levels: formatLevels, pages: formatPages };
   const formatSlot = (slot) => (slot.unit === 'word' ? slot.value : FORMAT[slot.unit](slot.value));
   const slotOf = (unit) => (value) => ({ value, unit });
   const word = (value) => ({ value, unit: 'word' });
@@ -182,6 +242,8 @@
   const kb = slotOf('kb');
   const rate = slotOf('rate');
   const pct = slotOf('pct');
+  const pct0 = slotOf('pct0');
+  const round = slotOf('round');
   const num = slotOf('num');
   const reads = slotOf('reads');
   const levelsOf = slotOf('levels');
@@ -193,7 +255,7 @@
     });
   }
   /** Digits a template may carry outside a slot (the engine's TEMPLATE_DIGITS_ALLOWED gains this one). */
-  const ALLOWED = ['(ratio + 1) / 2'];
+  const ALLOWED = ['(ratio + 1) / 2', 'L1'];
   function strayDigits(t) {
     let rest = t.replace(/\{\w+\}/g, '');
     for (const p of ALLOWED) rest = rest.split(p).join('');
@@ -202,12 +264,14 @@
 
   // ---------------------------------------------------------------- experiments
   const SETUP = {
-    update: { ...BASE },
-    compaction: { ...BASE },
+    // E1 and E2 ask about another setting than the default, so the stage a learner sees on load never prints their
+    // answers (enum.cjs and the mockup's rest sweep check it).
+    update: { ...BASE, page: 8 },
+    compaction: { ...BASE, ratio: 20 },
     record: { ...BASE },
     filters: { ...BASE, op: OP_READ },
     growth: { ...BASE },
-    challenge: { ...BASE, ratio: 20, bloom: 0, op: OP_READ },
+    challenge: { ...BASE, ratio: 20, bloom: 0, op: OP_WRITE },
   };
   const CHALLENGE_BOUNDS = { lsmWrite: 20, lsmReads: 7, data: 100 };
   const CHALLENGE_GOAL = {
@@ -237,7 +301,7 @@
       ],
       truth: 'written',
       reveal:
-        '{written}: a B-tree changes its page in place, and a page goes to disk whole: {pageB} for a change of {record}, plus a log record of {record} so a crash can replay it. That is {amp} the data, and the page sits at a random place on the disk. With {bigPage} pages it would be {bigAmp}. The model is rough: it has every update write its page back alone, where a real buffer pool often gathers several changes to a hot page first.',
+        '{written}: a B-tree changes its page in place, and a page goes to disk whole: {pageB} for a change of {record}, plus a log record of {record} so a crash can replay it. That is {amp} the data. At {newData} of updates of {record}, that is about {randomWrites} page writes a second, each at a random place on the disk. With {bigPage} pages it would be {bigAmp}. The model is rough: it has every update write its page back alone, where a real buffer pool often gathers several changes to a hot page first.',
       focus: ['bt-transform', 'cost-write'],
       hide: ['btreeWrite'],
       slots: () => {
@@ -253,6 +317,8 @@
           amp: amp(m.btree.writeAmp),
           bigPage: kb(BIG_PAGE),
           bigAmp: amp(big.btree.writeAmp),
+          newData: rate(WRITE_MBPS),
+          randomWrites: round(m.btree.randomWritesPerSec),
         };
       },
     },
@@ -261,7 +327,7 @@
       title: 'Appended, then merged',
       setup: SETUP.compaction,
       act: { run: 'lsm' },
-      ask: 'An LSM tree never changes a file in place: a write is appended to the log and kept in the memtable, which is flushed to disk as a sorted file when it fills. Compaction then merges the record down through {levels}, each {ratio} the size of the one above, so a level fills after {ratioN} merges from above, and each merge rewrites everything the level already holds. How many times is a record written at each level, on average?',
+      ask: 'An LSM tree never changes a file in place: a write is appended to the log and kept in the memtable, which is flushed to disk as a sorted file when it fills. Compaction then merges the record down through {levels}; from L1 down, each is {ratio} the size of the one above. The model has every level fill after {ratioN} merges from above, and each merge rewrites everything the level already holds. How many times is a record written at each level, on average?',
       choices: [
         { text: '{one}: once, as a merge moves it down', value: 'one' },
         { text: '{perLevel}: in about half of the merges that fill its level', value: 'perLevel' },
@@ -269,7 +335,7 @@
       ],
       truth: 'perLevel',
       reveal:
-        '{perLevel}: a record that arrives with the first merge is written in all {ratioN}, one that arrives with the last only once, so the average is (ratio + 1) / 2. With one write to the log and one at the flush, {levels} of {perLevel} make {amp} the data. Every one of those writes is sequential, but the bytes add up: {newData} of new data becomes {disk} of disk writes, and when the disk cannot sustain that, compaction falls behind, files pile up and the engine stalls writes.',
+        '{perLevel}: a record that arrives with the first merge is written in all {ratioN}, one that arrives with the last only once, so the average is (ratio + 1) / 2. With one write to the log and one at the flush, {levels} of {perLevel} make {amp} the data. Every one of those writes is sequential, but the bytes add up: {newData} of new data becomes {disk} of disk writes, and when the disk cannot sustain that, compaction falls behind, files pile up and the engine stalls writes. In a running tree the last level never empties, so data merging into it costs nearer {ratio}, and the small top levels less; the totals come out close: {simAmp} simulated against the model\'s {amp}. Size-tiered compaction, Cassandra\'s default, merges runs of similar size instead: about one write a level, but more runs to search and up to twice the space.',
       focus: ['lsm-all'],
       hide: ['lsmWrite'],
       slots: () => {
@@ -283,6 +349,7 @@
           one: amp(1),
           newData: rate(WRITE_MBPS),
           disk: rate(m.lsm.diskWriteMBps),
+          simAmp: amp(lsmSteady(m.settings).amp),
         };
       },
     },
@@ -299,7 +366,7 @@
       ],
       truth: 'outcome',
       reveal:
-        "{btree}: {btAfter}, so it now writes less than the LSM tree's {lsmAfter}. Writing a page costs the same {pageB} whatever changed inside it, so a record of {bigRecord} is about a quarter of what its update writes, where a record of {record} was about a fortieth. The LSM tree rewrites every byte the same number of times whatever the record size; its cost follows its levels. Small records favour the LSM tree, and at these settings the B-tree writes less once a record passes about {crossover}.",
+        "{btree}: {btAfter}, so it now writes less than the LSM tree's {lsmAfter}. Writing a page costs the same {pageB} whatever changed inside it, so a record of {bigRecord} fills about a quarter of the page it rewrites, where one of {record} filled about a fortieth. The LSM tree rewrites every byte the same number of times whatever the record size; its cost follows its levels. Small records favour the LSM tree, and at these settings the B-tree writes less once a record passes about {crossover}.",
       focus: ['bt-transform', 'cost-write'],
       hide: ['writesAfter'],
       slots: () => {
@@ -376,7 +443,7 @@
       ],
       truth: 'outcome',
       reveal:
-        '{lsm}: {lsmBefore} becomes {lsmAfter}. Ten times the data needs one more level at ratio {ratioN}, {levelsAfter} instead of {levelsBefore}, and every level adds about {perLevelN} rewrites. The B-tree still writes one page and one log record for an update, {btAfter}, however much data sits around it, and its walk is still {heightAfter} pages, since every level multiplies its reach by about {fanout}.',
+        '{lsm}: {lsmBefore} becomes {lsmAfter}. Ten times the data needs one more level at ratio {ratioN}, {levelsAfter} instead of {levelsBefore}, and every level adds about {perLevelN} rewrites. The B-tree still writes one page and one log record for an update, {btAfter}, however much data sits around it, and its walk is still {heightAfter} pages, since every level multiplies its reach by about {fanout}. Both pay in memory instead: the B-tree\'s cached upper levels grow from {btMemBefore} to {btMemAfter}, and the LSM tree\'s filters from {bloomBefore} to {bloomAfter}.',
       focus: ['lsm-stack', 'cost-write'],
       hide: ['writesAfter'],
       slots: () => {
@@ -397,6 +464,10 @@
           perLevelN: num(b.lsm.rewritesPerLevel),
           heightAfter: num(b.btree.height),
           fanout: num(b.btree.fanout),
+          btMemBefore: size(a.btree.memoryBytes),
+          btMemAfter: size(b.btree.memoryBytes),
+          bloomBefore: size(a.lsm.bloomBytes),
+          bloomAfter: size(b.lsm.bloomBytes),
           outcome: word(bt && ls ? 'Both' : ls ? "Only the LSM tree's" : bt ? "Only the B-tree's" : 'Neither'),
           lsm: word("Only the LSM tree's"),
           btree: word("Only the B-tree's"),
@@ -411,7 +482,7 @@
       goal: CHALLENGE_GOAL,
       ask: 'This node has no memory to spare for bloom filters. Keep at least {minData} of data, and choose the size ratio so that the LSM tree writes under {maxAmp} the data and a lookup costs under {maxReads} disk reads.',
       reveal:
-        'Ratio {solRatio}: {solLevels} of about {solPer} rewrites each, {solAmp} the data, and a lookup reads {solRuns} runs. At ratio {ten} there are only {tenLevels}, but each rewrites a record about {tenPer} times: {tenAmp}. At ratio {four} the tree writes the same {fourAmp} with {fourLevels}, so a lookup costs {fourReads}. The size ratio trades the bytes compaction writes against the runs a read must search, and against space: at ratio {solRatio} up to {solStale} more disk holds versions waiting to be merged away, against {tenStale} at ratio {ten}.',
+        'Ratio {solRatio}: {solLevels} of about {solPer} rewrites each, {solAmp} the data, and a lookup reads {solRuns} runs. At ratio {ten} there are only {tenLevels}, but each rewrites a record about {tenPer} times: {tenAmp}. At ratio {four} the tree writes the same {fourAmp} with {fourLevels}, so a lookup costs {fourReads}. The size ratio trades the bytes compaction writes against the runs a read must search, and against space: at ratio {solRatio} up to about {solStale} more disk holds versions waiting to be merged away, against about {tenStale} at ratio {ten}.',
       focus: [],
       hide: [],
       slots: () => {
@@ -436,8 +507,8 @@
           fourAmp: amp(four.lsm.writeAmp),
           fourLevels: levelsOf(four.lsm.levels),
           fourReads: reads(four.lsm.lookupReads),
-          solStale: pct((sol.lsm.spaceAmp - 1) * 100),
-          tenStale: pct((ten.lsm.spaceAmp - 1) * 100),
+          solStale: pct0((sol.lsm.spaceAmp - 1) * 100),
+          tenStale: pct0((ten.lsm.spaceAmp - 1) * 100),
         };
       },
     },
@@ -483,6 +554,7 @@
     ALL_SETTINGS,
     btree,
     lsm,
+    lsmSteady,
     scenario,
     run,
     formatAmp,
@@ -495,6 +567,8 @@
     formatRate,
     formatCount,
     formatPct,
+    formatPct0,
+    formatRound,
     formatNum,
     formatReads,
     formatLevels,

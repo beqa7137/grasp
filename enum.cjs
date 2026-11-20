@@ -344,6 +344,8 @@ for (const data of M.DATA_GB)
     console.log(
       `  ${String(data).padStart(5)} GB ratio ${String(T).padStart(2)}: simulated ${sim.amp.toFixed(2)}× (levels ${sim.perLevel.map((p) => p.toFixed(2)).join(', ')}) against the model's ${M.formatAmp(sim.model.writeAmp)} (${gap >= 0 ? '+' : ''}${(gap * 100).toFixed(1)}%); space at most ${sim.spaceMax.toFixed(3)}×, mean ${sim.spaceMean.toFixed(3)}×, the model's most ${M.formatSpace(sim.model.spaceAmp)}`,
     );
+    const ported = M.lsmSteady({ ...M.BASE, data, ratio: T });
+    check(close(ported.amp, sim.amp) && ported.perLevel.every((p, j) => close(p, sim.perLevel[j])), `the model's lsmSteady equals this simulation at ${data} GB ratio ${T}`);
     // A two-level tree at ratio 20 is the outlier: its always-full last level costs the whole ratio.
     check(Math.abs(gap) < (data === 10 && T === 20 ? 0.16 : 0.08), `steady-state write amp within the band at ${data} GB ratio ${T}: ${sim.amp} against ${sim.model.writeAmp}`);
     check(sim.spaceMean <= sim.model.spaceAmp + 1e-9, `mean space under the model's most at ${data} GB ratio ${T}`);
@@ -481,12 +483,22 @@ check(JSON.stringify(positions) === JSON.stringify([3, 2, 2, 1, 1]), `answer pos
 {
   const a = M.run(M.SETUP.record);
   const b = M.run({ ...M.SETUP.record, record: 1000 });
-  check(Math.abs(1000 / b.btree.writeBytes - 0.25) < 0.06, `"about a quarter": ${1000 / b.btree.writeBytes}`);
-  check(Math.abs(a.btree.writeBytes / 100 - 40) < 2.5, `"about a fortieth": 1 / ${a.btree.writeBytes / 100}`);
+  // "fills about a quarter of the page it rewrites", "one of 100 bytes filled about a fortieth": the record's share of
+  // its page, which is what the strip draws (not of the bytes the update writes, a fifth and a forty-second).
+  check(Math.abs(1000 / b.btree.pageB - 0.25) < 0.01, `"about a quarter": ${1000 / b.btree.pageB}`);
+  check(Math.abs(a.btree.pageB / 100 - 40) < 1.5, `"about a fortieth": 1 / ${a.btree.pageB / 100}`);
   check(close(b.lsm.writeAmp, a.lsm.writeAmp), 'E3: the LSM cost does not move with the record');
   check(b.btree.writeAmp < b.lsm.writeAmp && a.btree.writeAmp > a.lsm.writeAmp, 'E3: the order flips');
   check(b.settings.record / a.settings.record === 10, 'E3: "ten times the record"');
   const c = M.run(M.SETUP.compaction);
+  // E2's reveal on a running tree: the last level costs nearer the whole ratio, the top level less, the totals close.
+  const cs = M.lsmSteady(c.settings);
+  check(Math.abs(cs.perLevel.at(-1) - c.settings.ratio) < 0.01 && cs.perLevel[0] < c.lsm.rewritesPerLevel && Math.abs(cs.amp / c.lsm.writeAmp - 1) < 0.08, `E2: a running tree, last level ${cs.perLevel.at(-1)}, top ${cs.perLevel[0]}, total ${cs.amp} against ${c.lsm.writeAmp}`);
+  console.log(`E2's running tree at ${c.settings.data} GB ratio ${c.settings.ratio}: ${cs.perLevel.map((p) => p.toFixed(2)).join(', ')} a level, ${M.formatAmp(cs.amp)} against the model's ${M.formatAmp(c.lsm.writeAmp)}`);
+  // E1's reveal: 10 MB/s of updates, one page each, at random places.
+  const u = M.run(M.SETUP.update);
+  check(M.formatRound(u.btree.randomWritesPerSec) === '105,000' && close(u.btree.randomWritesPerSec, (10 * M.MB) / 100), `E1: page writes a second ${u.btree.randomWritesPerSec}`);
+  check(M.run({ ...M.SETUP.update, page: 16 }).btree.writeAmp > u.btree.writeAmp, 'E1: bigger pages cost more');
   check(c.lsm.mergesToFill === c.settings.ratio && c.lsm.partsWritten / c.settings.ratio === c.lsm.rewritesPerLevel, 'E2: the first of the merges writes ratio times, the last once, the average (ratio + 1) / 2');
   check(close(2 + c.lsm.levels * c.lsm.rewritesPerLevel, c.lsm.writeAmp), 'E2: log, flush and the levels make the total');
   check(Math.abs(b.crossoverRecordB - 178.1) < 0.1, `E3: crossover ${b.crossoverRecordB}`);
@@ -495,6 +507,7 @@ check(JSON.stringify(positions) === JSON.stringify([3, 2, 2, 1, 1]), `answer pos
   check(g1.settings.data / g0.settings.data === 10, 'E5: "ten times"');
   check(g1.lsm.levels === g0.lsm.levels + 1, 'E5: "one more level"');
   check(g1.btree.height === g0.btree.height && close(g1.btree.writeAmp, g0.btree.writeAmp), 'E5: the B-tree "still"');
+  check(g1.btree.memoryBytes > 9 * g0.btree.memoryBytes && close(g1.lsm.bloomBytes, 10 * g0.lsm.bloomBytes), 'E5: both pay in memory, about tenfold');
   const f = M.run(M.SETUP.filters);
   check(f.lsm.skipped === f.lsm.levels && f.lsm.runs === f.lsm.levels + 1, 'E4: every run but the last skipped');
   check(Math.abs(f.lsm.lastShare - 0.9) < 0.005, `E4: "about 90%": ${f.lsm.lastShare}`);
@@ -502,6 +515,34 @@ check(JSON.stringify(positions) === JSON.stringify([3, 2, 2, 1, 1]), `answer pos
   const four = M.run({ ...M.SETUP.challenge, ...M.CHALLENGE_SOLUTION, ratio: 4 });
   check(close(sol.lsm.writeAmp, four.lsm.writeAmp), 'challenge: ratio 4 writes "the same"');
   check(Number.isInteger(sol.lsm.rewritesPerLevel), 'challenge: the solution rewrites a whole number of times a level');
+}
+
+// The stage a learner sees on load (the default, both operations) never prints an answer: each experiment's asked
+// quantity differs from the same quantity at the default. The mockup's restLeaks() checks the rendered text too.
+{
+  const base = M.run(M.BASE);
+  const asked = [
+    ['E1 bytes written', M.run(M.SETUP.update).btree.writeBytes, base.btree.writeBytes],
+    ['E1 write amplification', M.run(M.SETUP.update).btree.writeAmp, base.btree.writeAmp],
+    ['E2 rewrites a level', M.run(M.SETUP.compaction).lsm.rewritesPerLevel, base.lsm.rewritesPerLevel],
+    ['E2 write amplification', M.run(M.SETUP.compaction).lsm.writeAmp, base.lsm.writeAmp],
+    ['E3 the B-tree after', M.run({ ...M.SETUP.record, record: 1000 }).btree.writeAmp, base.btree.writeAmp],
+    ['E4 reads without filters', M.run({ ...M.SETUP.filters, bloom: 0 }).lsm.lookupReads, base.lsm.lookupReads],
+    ['E5 the LSM tree after', M.run({ ...M.SETUP.growth, data: 1000 }).lsm.writeAmp, base.lsm.writeAmp],
+  ];
+  for (const [what, a, b] of asked) check(!close(a, b), `${what} is printed at the default: ${a}`);
+  console.log(`asked quantities against the default's: ${asked.map(([w, a, b]) => `${w} ${M.formatNum(a)} (default ${M.formatNum(b)})`).join('; ')}`);
+}
+// The stack's caption says "from L1 down, each level 10x the one above": every pair it covers has the ratio; the pair
+// it leaves out (L0, the flushed memtable, to L1) mostly does not.
+{
+  let l0Off = 0;
+  for (const s of M.ALL_SETTINGS) {
+    const l = M.run(s).lsm;
+    for (let j = 0; j + 1 < l.levels; j++) check(close(l.levelBytes[j + 1] / l.levelBytes[j], s.ratio), `levels L${j + 1} to L${j + 2} at ratio ${s.ratio} ${JSON.stringify(s)}`);
+    if (!close(l.levelBytes[0] / l.memtableBytes, s.ratio)) l0Off++;
+  }
+  console.log(`L1 down, each level is the ratio times the one above at all ${M.ALL_SETTINGS.length} settings; L0 to L1 is not at ${l0Off} (so the caption starts at L1)`);
 }
 
 // The challenge: which settings pass.
