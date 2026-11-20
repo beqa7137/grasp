@@ -273,6 +273,7 @@
         cursor: pointer;
       }
       .segment span {
+        white-space: nowrap;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -323,6 +324,12 @@
         color: var(--g-muted);
       }
       /* Below wide the notice would sit over the stage and push it down as it speaks: read out only (_widget-controls.scss). */
+      /* "1,000 GB" keeps one line in a 74 px segment at a 320 px phone. */
+      @media (max-width: 359px) {
+        .controls .segment span {
+          padding-inline: 3px;
+        }
+      }
       @media (max-width: 999px) {
         .notice {
           position: absolute;
@@ -1059,9 +1066,21 @@
         fill: var(--g-raised);
         stroke: var(--g-line-strong);
       }
-      .strip.written {
-        fill: var(--g-viz-considering-soft);
+      /* One grammar for a byte written in both transforms and the log: new bytes solid amber, bytes written again
+         without change the rewritten tone (a soft fill under a 1.5 px amber stroke, which carries the 3:1). */
+      .strip.rewritten,
+      .rewritten {
+        fill: var(--g-viz-considering);
+        fill-opacity: 0.28;
         stroke: var(--g-viz-considering);
+        stroke-width: 1.5;
+      }
+      .rewritten.thin {
+        stroke-width: 1;
+      }
+      .mine {
+        fill: none;
+        stroke: var(--g-text);
         stroke-width: 1.5;
       }
       .strip.read {
@@ -1090,7 +1109,8 @@
       .slice.found {
         fill: var(--g-viz-final);
       }
-      .slice.logged {
+      .slice.logged,
+      .slice.new {
         fill: var(--g-viz-considering);
       }
       .logtrack {
@@ -1104,6 +1124,23 @@
       }
       .run.box {
         stroke: var(--g-line-strong);
+      }
+      .run.read {
+        fill: var(--g-viz-current);
+        stroke: var(--g-viz-current);
+      }
+      .fcol {
+        fill: var(--g-raised);
+        stroke: var(--g-line-strong);
+      }
+      .filt {
+        fill: var(--g-viz-stage);
+        stroke: var(--g-stroke);
+      }
+      .ring-pass {
+        fill: var(--g-viz-stage);
+        stroke: var(--g-viz-considering);
+        stroke-width: 1.5;
       }
       .trail {
         fill: none;
@@ -1136,7 +1173,7 @@
         stroke: var(--g-viz-current);
       }
       .skip {
-        fill: var(--g-viz-stage);
+        fill: var(--g-raised);
         stroke: var(--g-viz-discarded-ink);
         stroke-width: 1.5;
       }
@@ -1149,10 +1186,6 @@
         fill: none;
         stroke: var(--g-viz-final);
         stroke-width: 2;
-      }
-      .stair {
-        fill: var(--g-viz-considering);
-        fill-opacity: 0.42;
       }
       .stair-new {
         fill: var(--g-viz-considering);
@@ -1316,7 +1349,11 @@
       const partsWidth = (parts) => parts.reduce((s, [t, role, , dx = 0]) => s + tw(t, role) + dx, 0);
       // A number never parts from its unit: the two wrap as one word (stage-text.ts's rule).
       const KEEP = /(\d[\d,.]*(?:×)?) (B|KB|MB|GB|MB\/s|bits|levels?|runs?|parts|merges|pages?|records|disk)\b/g;
-      const glue = (t) => t.replace(KEEP, '$1 $2').replace(/(about|in|of|k) (\d)/g, '$1 $2');
+      const glue = (t) =>
+        t
+          .replace(KEEP, '$1 $2')
+          .replace(/(about|in|of|k|under|least) (\d)/g, '$1 $2')
+          .replace(/"[^"]*"/g, (q) => q.replace(/ /g, ' '));
       function wrap(text, role, width) {
         const lines = [];
         let line = '';
@@ -1329,6 +1366,15 @@
           }
         }
         if (line) lines.push(line);
+        // Balance: a short last word never stands alone on its line.
+        if (lines.length > 1 && !lines.at(-1).includes(' ')) {
+          const prev = lines.at(-2).split(' ');
+          const moved = prev.length > 1 ? prev.at(-1) + ' ' + lines.at(-1) : null;
+          if (moved && tw(moved.replace(/ /g, ' '), role) <= width) {
+            lines[lines.length - 2] = prev.slice(0, -1).join(' ');
+            lines[lines.length - 1] = moved;
+          }
+        }
         return lines.map((l) => l.replace(/ /g, ' '));
       }
       const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -1344,7 +1390,7 @@
       const fAmp = M.formatAmp;
       const fSize = M.formatSize;
       // HTML learner text keeps a number with its unit on one line (g-code-text's rule), without a non-breaking space.
-      const KEEP_HTML = /(\d[\d,.]*×?(?: (?:bytes|B|KB|MB\/s|MB|GB|bits|levels?|runs?|pages?|disk reads?|times))|ratio \d+)/g;
+      const KEEP_HTML = /((?:(?:under|at least|about) )?\d[\d,.]*×?(?: (?:bytes|B|KB|MB\/s|MB|GB|bits|levels?|runs?|pages?|disk reads?|times))|ratio \d+|"[^"]*")/g;
       const nb = (s) =>
         esc(s)
           .split(KEEP_HTML)
@@ -1399,8 +1445,8 @@
         region(id, box) {
           (this.regions[id] ??= []).push(box);
         }
-        free(box, ignoreOwner = '', margin = 2) {
-          const b = { x0: box.x0 - margin, x1: box.x1 + margin, y0: box.y0 - margin, y1: box.y1 + margin };
+        free(box, ignoreOwner = '', margin = 2, mx = margin) {
+          const b = { x0: box.x0 - mx, x1: box.x1 + mx, y0: box.y0 - margin, y1: box.y1 + margin };
           const hit = (o) => !(o.x1 <= b.x0 || o.x0 >= b.x1 || o.y1 <= b.y0 || o.y0 >= b.y1);
           const mine = (o) => ignoreOwner && o.owner && o.owner.split(' ').some((t) => ignoreOwner.split(' ').includes(t));
           if (this.texts.some((t) => hit(t) && !mine(t))) return false;
@@ -1452,6 +1498,8 @@
           lsmMarks: h.has('lsmWrite') && asking,
           readNumbers: h.has('readsAfter') && playing,
           readWhy: h.has('readsWhy') && asking,
+          // A hidden read row's dashed box spans the row's whole scale (8 pips), never the hidden count.
+          pipBox: true,
           ghost: open,
           locked: open,
         };
@@ -1462,7 +1510,10 @@
       const NOTHING_HIDDEN = hiding({ phase: 'rest' });
 
       // ---------- Each play's steps as moments of its one clock (0 to 1). A mark shows once the clock has reached its
-      // moment, so nothing is drawn for an event before it happens (prevention 6).
+      // moment, so nothing is drawn for an event before it happens (prevention 6). A write is answered at its log
+      // append; every step after it is "later".
+      /** The merge (1-based) that brings the followed record into the staircase's level: the middle one. */
+      const recordMerge = (T) => Math.floor(T / 2) + 1;
       function planOf(engine, m) {
         const write = m.settings.op === WRITE;
         const P = {};
@@ -1475,10 +1526,11 @@
         } else {
           const L = m.lsm.levels;
           if (write) {
-            Object.assign(P, { log: 0.02, mem: 0.07, stair0: 0.34, stair1: 0.88, ledger: 0.97 });
-            P.run0 = 0.2;
-            for (let j = 1; j <= L; j++) P[`run${j}`] = 0.2 + (j * 0.7) / L;
-            P.seconds = 4.5 + 0.5 * L;
+            // The record reaches L2, then the staircase plays in its own beat while the trail holds there (one
+            // level's ratio merges), then the descent goes on.
+            Object.assign(P, { log: 0.02, mem: 0.07, run0: 0.16, run1: 0.26, run2: 0.36, stair0: 0.4, stair1: 0.64, ledger: 0.97 });
+            for (let j = 3; j <= L; j++) P[`run${j}`] = 0.7 + ((j - 3 + 1) * 0.22) / (L - 2);
+            P.seconds = 6 + 0.5 * L;
           } else {
             Object.assign(P, { mem: 0.06, ledger: 0.96 });
             for (let j = 0; j <= L; j++) P[`run${j}`] = 0.16 + (j * 0.68) / L;
@@ -1501,19 +1553,22 @@
         if (engine === 'btree') {
           const h = m.btree.height;
           for (let k = 0; k < h - 1; k++) steps.push([P[`walk${k}`], k === 0 ? ['at the root, in memory'] : [`level ${k + 1} of ${h}, in memory`, `level ${k + 1}, in memory`]]);
-          steps.push([P[`walk${h - 1}`], write ? ['at its leaf page'] : ['the leaf, read from disk']]);
+          steps.push([P[`walk${h - 1}`], write ? ['its leaf, read from disk', 'leaf read from disk'] : ['the leaf, read from disk']]);
           if (write) {
-            steps.push([P.slice, [`its record changed, ${fB(s.record)}`, 'its record changed']]);
-            steps.push([P.log, ['a log record appended']]);
-            steps.push([P.page, ['the whole page written back']]);
+            steps.push([P.slice, hid.btNumbers ? ['its record changed'] : [`its record changed, ${fB(s.record)}`, 'its record changed']]);
+            steps.push([P.log, ['a log record appended: the write is safe and answered', 'log appended: answered']]);
+            steps.push([P.page, ['later, the whole page written back', 'later, the page written back']]);
           } else steps.push([P.slice, ['the record found in the page']]);
         } else {
           const L = m.lsm.levels;
           if (write) {
-            steps.push([P.log, ['appended to the log']]);
-            steps.push([P.mem, ['kept in the memtable, in memory']]);
-            steps.push([P.run0, [`memtable full after ${M.formatCount(Math.round(m.lsm.recordsPerMemtable))} writes: flushed`, 'memtable full: flushed to disk']]);
-            for (let j = 1; j <= L; j++) steps.push([P[`run${j}`], hid.lsmNumbers ? [`merged down into L${j}`] : [`merged into L${j}, rewritten about ${M.formatNum(m.lsm.rewritesPerLevel)}× there`, `merged down into L${j}`]]);
+            const T = s.ratio;
+            steps.push([P.log, ['appended to the log: no read first', 'appended to the log']]);
+            steps.push([P.mem, ['in the memtable too: safe and answered', 'in the memtable: answered']]);
+            steps.push([P.run0, [`later, memtable full after ${M.formatCount(Math.round(m.lsm.recordsPerMemtable))} writes: flushed`, 'later, memtable full: flushed']]);
+            for (let j = 1; j <= L; j++) steps.push([P[`run${j}`], hid.lsmNumbers ? [`later, merged down into L${j}`] : [`later, merged into L${j}, ≈${M.formatNum(m.lsm.rewritesPerLevel)}× there on average`, `later, merged into L${j}`]]);
+            steps.push([P.stair0, [`L2 fills over ${T} merges; the record is rewritten in each one after it arrives`, `L2 fills over ${T} merges`]]);
+            steps.sort((a, b) => a[0] - b[0]);
           } else {
             steps.push([P.mem, ['the memtable: not here']]);
             for (let j = 0; j <= L; j++) steps.push([P[`run${j}`], s.bloom && j < L ? [`L${j}: its filter says "not here"`, `L${j}: skipped`] : [`L${j}: read from disk`]]);
@@ -1527,6 +1582,8 @@
       const opWord = (s) => (s.op === WRITE ? 'write' : 'lookup');
       const recordWords = (s) => `records of ${M.formatBytes(s.record)}`;
       const ENGINE = { btree: 'B-tree', lsm: 'LSM tree' };
+      /** Where each family runs, as it runs there: Postgres's tables are not updated in place (only its indexes are B-trees), and Cassandra levels only with leveled compaction. */
+      const ALSO = { btree: ['InnoDB, SQLite, Postgres indexes', 'InnoDB, SQLite'], lsm: ['RocksDB; Cassandra with leveled compaction', 'RocksDB, LevelDB'] };
       function premise(s) {
         const base = `${M.formatGb(s.data)} of records, ${M.formatBytes(s.record)} each`;
         return s.op === WRITE
@@ -1543,18 +1600,19 @@
         if (engine === 'btree') {
           const walk = `walks ${b.height} pages from the root to a leaf, ${b.memoryHops} of them in memory`;
           if (s.op !== WRITE) return `The lookup ${walk}, and reads the leaf from disk: ${M.formatReads(b.lookupReads)}.`;
-          if (hid.btNumbers) return `The write ${walk}, changes its record there, appends a log record and writes the page back. The bytes show at the reveal.`;
-          return `The write ${walk}, changes ${M.formatBytes(s.record)} there and appends ${M.formatBytes(b.logBytes)} to the log. Then the whole page goes back to disk, ${M.formatBytes(b.pageB)}: ${M.formatBytes(b.writeBytes)} written for ${M.formatBytes(s.record)} of data, ${fAmp(b.writeAmp)}.`;
+          if (hid.btNumbers) return `The write ${walk}, reads its leaf from disk, changes its record there and appends a log record: the write is safe and answered. Later the page goes back to disk. The bytes show at the reveal.`;
+          return `The write ${walk}, reads its leaf from disk, changes ${M.formatBytes(s.record)} there and appends ${M.formatBytes(b.logBytes)} to the log: the write is safe and answered. Later the whole page goes back to disk, ${M.formatBytes(b.pageB)}: ${M.formatBytes(b.writeBytes)} written for ${M.formatBytes(s.record)} of data, ${fAmp(b.writeAmp)}.`;
         }
         if (s.op !== WRITE) {
           if (hid.readNumbers) return `The lookup checks the memtable, then goes down the runs on disk. The count shows at the reveal.`;
           if (hid.readWhy) return `The lookup checks the memtable, then asks the bloom filter of each run on disk, and reads the last level: ${M.formatReads(l.lookupReads)}.`;
           return s.bloom
-            ? `The lookup checks the memtable, then asks the bloom filter of each run on disk: ${l.skipped} runs say "not here" from memory, and only the last level is read: ${M.formatReads(l.lookupReads)}.`
+            ? `The lookup checks the memtable, then asks the bloom filter of each run, in memory: ${l.skipped} runs say "not here", and only the last level is read from disk: ${M.formatReads(l.lookupReads)}.`
             : `The lookup checks the memtable, then reads every run on disk in turn, the flushed run and ${M.formatLevels(l.levels)}, until the last level turns the key up: ${M.formatReads(l.lookupReads)}.`;
         }
-        if (hid.lsmNumbers) return `The write is appended to the log and kept in the memtable, flushed to disk when the memtable fills, then merged down through ${M.formatLevels(l.levels)}. The count shows at the reveal.`;
-        return `The write is appended to the log and kept in the memtable. When the memtable's ${fSize(l.memtableBytes)} fill, it is flushed to disk as one sorted run, and compaction merges the record down through ${M.formatLevels(l.levels)}, rewriting it about ${M.formatNum(l.rewritesPerLevel)} times at each: ${fAmp(l.writeAmp)} the data in all.`;
+        const answered = 'The write is appended to the log and kept in the memtable, with no read first: it is safe and answered.';
+        if (hid.lsmNumbers) return `${answered} Later it is flushed to disk when the memtable fills, then merged down through ${M.formatLevels(l.levels)}. The count shows at the reveal.`;
+        return `${answered} Later, when the memtable's ${fSize(l.memtableBytes)} fill, it is flushed to disk as one sorted run, and compaction merges the record down through ${M.formatLevels(l.levels)}, rewriting it about ${M.formatNum(l.rewritesPerLevel)} times at each on average: ${fAmp(l.writeAmp)} the data in all.`;
       }
       /** One sentence for a setting, for the notice after a change, after a reveal and when the challenge opens. */
       function settingSentence(m, hid = NOTHING_HIDDEN) {
@@ -1571,11 +1629,11 @@
         const b = m.btree;
         const l = m.lsm;
         const out = [`A B-tree and an LSM tree each hold ${M.formatGb(s.data)} of data in ${recordWords(s)}; the stage follows one ${opWord(s)} through both.`];
-        out.push(`B-tree, ${M.formatKb(s.page)} pages: ${b.height} levels, ${b.memoryHops} of them cached in memory.`);
+        out.push(`B-tree, ${M.formatKb(s.page)} pages: each page points to about ${b.fanout} children, so ${b.height} levels hold the data, ${b.memoryHops} of them cached in memory.`);
         out.push(hid.btNumbers ? `Its write cost shows after your answer.` : `An update writes its whole page and a log record, ${M.formatBytes(b.writeBytes)} for ${M.formatBytes(s.record)}: ${fAmp(b.writeAmp)} the data. A lookup costs ${M.formatReads(b.lookupReads)}.`);
         out.push(`LSM tree, size ratio ${s.ratio}, bloom filters ${s.bloom ? 'on' : 'off'}: a flushed run and ${M.formatLevels(l.levels)} on disk.`);
         if (hid.lsmNumbers) out.push(`Its write cost shows after your answer.`);
-        else out.push(`A record is written once to the log, once at the flush and about ${M.formatNum(l.rewritesPerLevel)} times at each level: ${fAmp(l.writeAmp)} the data.`);
+        else out.push(`A record is written once to the log, once at the flush and about ${M.formatNum(l.rewritesPerLevel)} times at each level on average: ${fAmp(l.writeAmp)} the data.`);
         if (hid.readNumbers) out.push(`Its lookup's cost shows at the reveal.`);
         else out.push(`A lookup costs ${M.formatReads(l.lookupReads)}.`);
         out.push(`Disk used: about ${M.formatSpace(b.spaceAmp)} the live data for the B-tree, at most ${M.formatSpace(l.spaceAmp)} for the LSM tree.`);
@@ -1584,29 +1642,37 @@
       }
       /** The note under the stage states the model's assumptions, two of which are answers: it waits while a question is open. */
       const noteOf = (view) => (hiding(view).locked ? 'A rough model. Its assumptions show after your answer.' : MODEL_NOTE);
-      const MODEL_NOTE = `A rough model. B-tree: every update writes its whole page back alone, plus a log record (its leaf is read first when it is not in memory; that read is not counted); pages are about ${Math.round(M.PAGE_FILL * 100)}% full; every level above the leaves stays in memory. LSM tree: a ${M.MEMTABLE_MB} MB memtable; one log write, one flush, then about (ratio + 1) / 2 rewrites at each level as it fills (a real tree spends fewer at its small top level and more at its always-full last one, and the totals come out close); bloom filters take ${M.BLOOM_BITS} bits a key, and their false positives, about 1 lookup in ${Math.round(1 / M.BLOOM_FALSE_POSITIVE)} for each run, are left out. New data arrives at ${M.formatRate(M.WRITE_MBPS)}.`;
+      const MODEL_NOTE = `A rough model. B-tree: every update writes its whole page back alone, plus a log record (its leaf is read from disk first when it is not in memory; that read is not counted); InnoDB's doublewrite buffer and Postgres's full-page log images can write a page twice, and the model counts it once; pages are about ${Math.round(M.PAGE_FILL * 100)}% full; every level above the leaves stays in memory. LSM tree: a ${M.MEMTABLE_MB} MB memtable; one log write, one flush, then about (ratio + 1) / 2 rewrites at each level as it fills, on average (a real tree spends fewer at its small top level and more at its always-full last one, and the totals come out close); bloom filters take ${M.BLOOM_BITS} bits a key, and their false positives, about 1 lookup in ${Math.round(1 / M.BLOOM_FALSE_POSITIVE)} for each run, are left out; each run's block index stays in memory, as the B-tree's upper levels do, and is not drawn. The level bars share one log scale. New data arrives at ${M.formatRate(M.WRITE_MBPS)}.`;
 
       // ---------- The stage. One panel a engine, the same shape at every width (224 px and up), side by side from a
       // 500 px stage; under them, what each engine pays. Heights depend on the stage's width only.
       /** A "Look here" tag's width and its margins: a row that keeps this much free at its right end always has a place for one. */
       const TAG_ROOM = 96;
-      const PANEL = { head: 44, knob: 62, toggle: 50, tree: 168, lsmTop: 50, rows: 152, transform: 114 };
-      const lsmPanelHeight = () => PANEL.head + 6 + PANEL.knob + PANEL.toggle + 10 + PANEL.lsmTop + 16 + PANEL.rows + 10 + PANEL.transform;
-      const btreePanelHeight = () => PANEL.head + 6 + PANEL.knob + 10 + PANEL.tree + 10 + PANEL.transform;
+      // `tagRow` is reserved empty under the stack in every phase: a reveal's tag sits on the stack outline's foot there.
+      // `toggleGap` keeps 8 px between the Bloom toggle and an outline round the stack.
+      const PANEL = { head: 44, knob: 62, toggle: 50, toggleGap: 16, tree: 168, lsmTop: 50, rows: 152, tagRow: 14, transform: 114 };
+      const lsmPanelHeight = () => PANEL.head + 6 + PANEL.knob + PANEL.toggle + PANEL.toggleGap + PANEL.lsmTop + 16 + PANEL.rows + 10 + PANEL.tagRow + PANEL.transform;
+      const btreePanelHeight = () => PANEL.head + 6 + PANEL.knob + 10 + PANEL.tree + 14 + PANEL.transform;
+      /** The level bars' one log scale, shared by every setting: the memtable's 64 MB to the largest data size. */
+      const SCALE_LO = M.MEMTABLE_MB * M.MB;
+      const SCALE_HI = Math.max(...M.DATA_GB) * M.GB;
+      const logShare = (bytes) => Math.log(bytes / SCALE_LO) / Math.log(SCALE_HI / SCALE_LO);
 
       function panelHead(D, x, y, pw, engine, sub, also, view) {
         D.hit('play', x, y, 44, 44, { owner: `play-${engine}`, engine });
         const forms = [
-          [
+          ...also.map((a) => [
             [ENGINE[engine], 'capB', 'ink'],
-            [` · ${also}`, 'small', 'muted'],
-          ],
+            [` · ${a}`, 'small', 'muted'],
+          ]),
           [[ENGINE[engine], 'capB', 'ink']],
         ];
         D.text(x + 52, y + 19, pick(forms, (f) => partsWidth(f) <= pw - 52), { owner: `title-${engine}` });
         const playing = view.play?.engine === engine;
-        const line = playing ? pick(stepCaption(engine, view.m, view.play.frac, hiding(view)), (t) => tw(t, 'small') <= pw - 52) : sub;
-        D.text(x + 52, y + 35, [[line, 'small', playing ? 'ink' : 'muted']], { owner: `title-${engine}`, id: `step-${engine}` });
+        // Under reduced motion Play writes its story under the stage, and the line says where.
+        const told = view.reduced && view.played === engine;
+        const line = playing ? pick(stepCaption(engine, view.m, view.play.frac, hiding(view)), (t) => tw(t, 'small') <= pw - 52) : told ? pick(['written below the picture', 'story below'], (t) => tw(t, 'small') <= pw - 52) : sub;
+        D.text(x + 52, y + 35, [[line, 'small', playing || told ? 'ink' : 'muted']], { owner: `title-${engine}`, id: `step-${engine}` });
       }
       function segments(D, x, y, pw, group, values, current, labelOf, legend) {
         D.text(x, y + 11, [[legend, 'label', '']], { owner: `legend-${group}`, textCls: 'muted' });
@@ -1622,7 +1688,7 @@
         const on = (k) => shown(view, 'btree', P[k]);
         const h = b.height;
         let cy = y;
-        panelHead(D, x, y, pw, 'btree', 'sorted pages, updated in place', 'Postgres, InnoDB, SQLite', view);
+        panelHead(D, x, y, pw, 'btree', 'sorted pages, updated in place', ALSO.btree, view);
         cy += PANEL.head + 6;
         segments(D, x, cy, pw, 'page', M.PAGE_KB, s.page, (v) => M.formatKb(v), 'Page size');
         cy += PANEL.knob + 10;
@@ -1630,7 +1696,7 @@
         // The tree: one row a level, the levels above the leaves in a band (memory), the leaves under it (disk).
         const treeTop = cy;
         const memory = fSize(b.memoryBytes);
-        const labelA = pick([`Cached in memory · ${b.memoryHops} levels, ${memory}`, `In memory · ${b.memoryHops} levels, ${memory}`, `In memory · ${memory}`], (t) => tw(t, 'label') <= pw);
+        const labelA = pick([`Cached in memory · ${b.memoryHops} levels, ${memory} · ${b.fanout} children a page`, `Cached in memory · ${b.memoryHops} levels, ${memory}`, `In memory · ${b.memoryHops} levels, ${memory}`, `In memory · ${memory}`], (t) => tw(t, 'label') <= pw);
         D.text(x, cy + 11, [[labelA, 'label', '']], { textCls: 'muted', owner: 'bt-label' });
         const bandY = cy + 18;
         const UB = PANEL.tree - 18 - 10 - 16 - 4 - 14 + treeExtra;
@@ -1641,8 +1707,7 @@
         const BG = 5;
         const zone = (x0, x1) => ({ x0, x1, cx: (x0 + x1) / 2, max: Math.max(2, Math.floor((x1 - x0 - 14) / (BW + BG))) });
         const upper = zone(x + 8, x + pw - countW - 14);
-        const leafAction = write ? 'written back' : M.formatReads(b.lookupReads);
-        const leafZone = zone(x + 2, x + pw - Math.max(tw('written back', 'small'), tw(M.formatReads(1), 'small')) - 8);
+        const leafZone = zone(x + 2, x + pw - Math.max(tw('written back', 'small'), tw(M.formatReads(1), 'small'), tw('read first', 'small')) - 8);
         const leafY = bandY + UB + 10 + 8;
         const labelBY = leafY + 8 + 4;
         const WANT = [1, 3, 5, 7, 7];
@@ -1659,8 +1724,11 @@
           const idx = Math.min(drawn - 1, PATH[k]);
           return { n, leaf, drawn, more, x0, cy: cyk, idx, cx: (i) => x0 + i * (BW + BG) + BW / 2, total };
         });
-        const labelB = pick([`Read from disk · ${M.formatCount(b.leaves)} leaf pages`, `On disk · ${M.formatCount(b.leaves)} leaf pages`, `On disk · ${M.formatCount(b.leaves)} leaves`], (t) => tw(t, 'label') <= pw);
-        D.text(x, labelBY + 11, [[labelB, 'label', '']], { textCls: 'muted', owner: 'bt-label' });
+        // The caption carries no verb: the leaf's own chip says what the operation did to it.
+        const labelB = pick([`On disk · ${M.formatCount(b.leaves)} leaf pages`, `On disk · ${M.formatCount(b.leaves)} leaves`], (t) => tw(t, 'label') <= pw);
+        D.text(x, labelBY + 11, [[labelB, 'label', '']], { textCls: 'muted', owner: 'bt-label', id: 'bt-leaf-caption' });
+        const leafReached = on(`walk${h - 1}`);
+        const pageWritten = write && on('page') && !hid.btMarks;
         rows.forEach((r, k) => {
           const reached = on(`walk${k}`);
           if (k < h - 1) {
@@ -1682,80 +1750,104 @@
             let cls = 'pg';
             if (i === r.idx && reached) {
               cls = 'pg mem-hit';
+              // A write reads its leaf from disk first (the read tone), then writes the page back (amber).
               if (r.leaf && !write) cls = 'pg disk-read';
-              if (r.leaf && write && on('page') && !hid.btMarks) cls = 'pg written';
+              if (r.leaf && write && !hid.btMarks) cls = pageWritten ? 'pg written' : 'pg disk-read';
             }
             D.add('marks', rect(cls, r.cx(i) - BW / 2, r.cy - BH / 2, BW, BH, 2.5, ` data-owner="bt-tree"${i === r.idx ? ` data-walk="${k}"` : ''}`));
           }
           D.mark({ x0: r.x0 - 2, x1: r.x0 + r.total + 2, y0: r.cy - BH / 2 - 2, y1: r.cy + BH / 2 + 2 }, 'bt-tree');
           if (r.more) for (let i = 0; i < 3; i++) D.add('marks', `<circle class="more" cx="${r1(r.x0 + r.drawn * (BW + BG) + 2 + i * 4.5)}" cy="${r1(r.cy)}" r="1.25" data-owner="bt-tree" data-more="${k}"/>`);
           if (!r.leaf) D.text(x + pw - 8, r.cy + 4, [[M.formatPages(r.n), 'small', 'muted']], { anchor: 'end', textCls: 'on-box', owner: 'bt-count', data: ` data-pages="${k}"` });
-          else if (reached && (!write || (on('page') && !hid.btMarks))) D.text(x + pw, r.cy + 4, [[leafAction, 'small', write ? 'amber-ink' : 'cur-ink']], { anchor: 'end', owner: 'bt-count', id: 'bt-leaf-action' });
+          // The fanout between two counts it multiplies (not between the root and its children: the root is partial).
+          if (k >= 1 && k + 1 <= h - 2) D.text(x + pw - 8, (r.cy + rows[k + 1].cy) / 2 + 4, [[`×${b.fanout}`, 'small', 'muted']], { anchor: 'end', textCls: 'on-box', owner: 'bt-count', data: ' data-fanout="1"' });
         });
+        if (leafReached && !hid.btMarks) {
+          const action = !write ? [M.formatReads(b.lookupReads), 'cur-ink'] : pageWritten ? ['written back', 'amber-ink'] : view.play?.engine === 'btree' ? ['read first', 'cur-ink'] : null;
+          if (action) D.text(x + pw, leafY + 4, [[action[0], 'small', action[1]]], { anchor: 'end', owner: 'bt-count', id: 'bt-leaf-action' });
+        }
         D.meta.btRows = rows.map((r) => ({ n: r.n, drawn: r.drawn, more: r.more }));
         D.region('bt-tree', { x: x - 6, y: treeTop - 4, w: pw + 12, h: PANEL.tree + treeExtra + 6 });
-        cy = treeTop + PANEL.tree + treeExtra + 10;
+        cy = treeTop + PANEL.tree + treeExtra + 14;
 
-        // The leaf page, to scale: what one write changes against what it writes (or what a lookup reads).
+        // The leaf page, to scale: what one write changes against what it writes (or what a lookup reads). Whole
+        // records only: "about 29 records" draws 29 slots of the record's width, then the free room.
         const tY = cy;
-        const about = Math.round(b.recordsPerLeaf);
+        const nRec = Math.max(1, Math.round(b.recordsPerLeaf));
         const stripShown = on('strip');
-        const labelT = pick([`The leaf page · ${fB(b.pageB)}, about ${about} records`, `The leaf page · ${fB(b.pageB)}, ${about} records`, `The leaf page · ${fB(b.pageB)}`], (t) => tw(t, 'label') <= pw);
+        const labelT = pick([`The leaf page · ${fB(b.pageB)}, about ${nRec} records`, `Leaf page · ${fB(b.pageB)}, about ${nRec} records`, `The leaf page · ${fB(b.pageB)}`], (t) => tw(t, 'label') <= pw);
         if (stripShown) D.text(x, tY + 11, [[labelT, 'label', '']], { textCls: 'muted', owner: 'bt-strip' });
         const sy = tY + 18;
         const sh = 20;
-        const fillW = M.PAGE_FILL * pw;
-        const recPx = fillW / b.recordsPerLeaf;
-        const recW = Math.max(3, (s.record / b.pageB) * pw);
+        const recPx = (s.record / b.pageB) * pw;
+        const fillEdge = x + Math.min(pw, nRec * recPx);
+        const recW = Math.max(3, recPx);
         const recX = x + Math.floor((0.16 * pw) / recPx) * recPx;
-        const written = write && on('page') && !hid.btMarks;
         if (stripShown) {
-          const cls = write ? (hid.btMarks ? 'strip hidden' : written ? 'strip written' : 'strip') : 'strip read';
-          D.add('marks', rect(cls, x + 0.5, sy, pw - 1, sh, 3, ` data-owner="bt-strip" data-id="page-strip"`));
+          const cls = write ? (hid.btMarks ? 'strip hidden' : pageWritten ? 'strip rewritten' : 'strip') : 'strip read';
+          D.add('marks', rect(cls, x + 0.75, sy, pw - 1.5, sh, 3, ` data-owner="bt-strip" data-id="page-strip"`));
           if (recPx >= 5 && !hid.btMarks) {
             let d = '';
-            for (let i = 1; i < b.recordsPerLeaf; i++) d += `M${r1(x + i * recPx)} ${sy + 4}v${sh - 8}`;
+            for (let i = 1; i < nRec; i++) d += `M${r1(x + i * recPx)} ${sy + 4}v${sh - 8}`;
             D.add('marks', `<path class="rec-ticks" d="${d}"/>`);
           }
-          if (!hid.btMarks) D.add('marks', line('free-edge', x + fillW, sy + 1, x + fillW, sy + sh - 1));
-          if (!hid.btMarks && pw - fillW >= tw('free', 'small') + 12) D.text(x + (fillW + pw) / 2, sy + 14, [['free', 'small', 'muted']], { anchor: 'middle', textCls: 'on-chip', owner: 'bt-strip' });
+          if (!hid.btMarks && fillEdge < x + pw - 2) D.add('marks', line('free-edge', fillEdge, sy + 1.5, fillEdge, sy + sh - 1.5, ` data-id="free-edge" data-x0="${x}" data-recpx="${recPx}"`));
+          if (!hid.btMarks && x + pw - fillEdge >= tw('free', 'small') + 12) D.text((fillEdge + x + pw) / 2, sy + 14, [['free', 'small', 'muted']], { anchor: 'middle', textCls: 'on-chip', owner: 'bt-strip' });
           D.mark({ x0: x, x1: x + pw, y0: sy, y1: sy + sh }, 'bt-strip');
-          if (on('slice')) D.add('marks', rect(`slice ${write ? 'changed' : 'found'}`, recX, sy, recW, sh, 1, ` data-owner="bt-strip" data-id="record-slice"`));
-          // Under the strip: what changed, at its record; what was written, at the page's right end.
+          // Inside the outline's stroke, so the slice never paints over it; new bytes amber, a changed record not yet
+          // written ink, a found record green.
+          if (on('slice')) {
+            const sx0 = Math.max(recX, x + 1.5);
+            D.add('marks', rect(`slice ${write ? (pageWritten ? 'new' : 'changed') : 'found'}`, sx0, sy + 1.5, Math.min(recW, x + pw - 1.5 - sx0), sh - 3, 1, ` data-owner="bt-strip" data-id="record-slice"`));
+          }
+          // Under the strip: what changed, at its record; what was written again unchanged, at the page's right end.
           const noteY = sy + sh + 14;
           const leftForms = write ? [`${fB(s.record)} changed`, `${fB(s.record)}`] : [`the record, ${fB(s.record)}`, `${fB(s.record)}`];
           let rightForms = [];
-          let rightCls = write ? 'amber-ink' : 'cur-ink';
+          const rightCls = write ? 'amber-ink' : 'cur-ink';
           if (!write) rightForms = [`${fB(b.pageB)} read from disk`, `${fB(b.pageB)} read`];
-          else if (hid.btMarks) (rightForms = ['written after your answer', 'after your answer']), (rightCls = 'muted');
-          else if (!written) rightForms = [];
-          else if (hid.btNumbers) rightForms = ['? B written back', '? B written'];
-          else rightForms = [`${fB(b.pageB)} written back whole`, `${fB(b.pageB)} written back`, `${fB(b.pageB)} written`];
+          else if (!pageWritten) rightForms = [];
+          else if (hid.btNumbers) rightForms = ['? B rewritten unchanged', '? B written back', '? B written'];
+          else rightForms = [`${fB(b.pageB - s.record)} rewritten unchanged`, `${fB(b.pageB)} written back whole`, `${fB(b.pageB)} written back`, `${fB(b.pageB)} written`];
           const fits = (lf, rf) => recX + tw(lf, 'small') + 10 <= x + pw - (rf ? tw(rf, 'small') : 0);
           let lf = leftForms[0];
           let rf = rightForms[0] ?? null;
-          for (const cand of rightForms.length ? rightForms.flatMap((r) => leftForms.map((l) => [l, r])) : leftForms.map((l) => [l, null])) {
+          const cands = rightForms.length ? rightForms.flatMap((r, ri) => leftForms.map((l, li) => [l, r, ri + li])).sort((a, b) => a[2] - b[2]) : leftForms.map((l) => [l, null]);
+          for (const cand of cands) {
             [lf, rf] = cand;
             if (fits(lf, rf)) break;
           }
-          if (on('slice')) D.text(recX, noteY, [[lf, 'small', write ? 'ink' : 'final-ink']], { owner: 'bt-note', id: 'record-note' });
+          if (on('slice')) D.text(recX, noteY, [[lf, 'small', write ? (pageWritten ? 'amber-ink' : 'ink') : 'final-ink']], { owner: 'bt-note', id: 'record-note' });
           if (rf) D.text(x + pw, noteY, [[rf, 'small', rightCls]], { anchor: 'end', owner: 'bt-note', id: 'page-note' });
-        } else if (hid.btMarks) {
-          D.add('marks', rect('strip hidden', x + 0.5, sy, pw - 1, sh, 3));
         }
-        // The log (a write), drawn on the page strip's own scale; the pages walked (a lookup).
+        // The log (a write), drawn on the page strip's own scale: the write is answered once its record is here; the
+        // pages walked (a lookup).
         const rowY = sy + sh + 22;
         if (write) {
           if (on('log') || hid.btMarks) {
             D.text(x, rowY + 11, [['Log', 'label', '']], { textCls: 'muted', owner: 'bt-log' });
             const tx = x + tw('Log', 'label') + 8;
-            const trackW = Math.max(recW + 30, Math.min(0.5 * pw, 130));
-            if (hid.btMarks) D.add('marks', rect('hidden-box', tx, rowY + 3, trackW, 9, 2));
-            else {
+            const trackW = Math.max(recW + 30, Math.min(0.38 * pw, 110));
+            const end = tx + trackW + 8;
+            if (hid.btMarks) {
+              D.add('marks', rect('hidden-box', tx, rowY + 3, trackW, 9, 2));
+              D.text(end, rowY + 11, [[pick(['shows after your answer', 'after your answer'], (t) => end + tw(t, 'small') <= x + pw), 'small', 'muted']], { owner: 'bt-log', id: 'log-note' });
+            } else {
               D.add('marks', rect('logtrack', tx, rowY + 3, trackW, 9, 2, ' data-owner="bt-log"'));
               D.add('marks', rect('slice logged', tx + trackW - recW, rowY + 3, recW, 9, 1, ' data-owner="bt-log" data-id="log-slice"'));
-              const logForms = hid.btNumbers ? ['+? B appended', '+? B'] : [`+${fB(b.logBytes)} appended`, `+${fB(b.logBytes)}`];
-              D.text(tx + trackW + 8, rowY + 11, [[pick(logForms, (t) => tx + trackW + 8 + tw(t, 'small') <= x + pw), 'small', 'amber-ink']], { owner: 'bt-log', id: 'log-note' });
+              const added = hid.btNumbers ? '+? B' : `+${fB(b.logBytes)}`;
+              const logForms = [
+                [
+                  [`${added} appended`, 'small', 'amber-ink'],
+                  [' · answered', 'small', 'final-ink'],
+                ],
+                [
+                  [added, 'small', 'amber-ink'],
+                  [' · answered', 'small', 'final-ink'],
+                ],
+                [[added, 'small', 'amber-ink']],
+              ];
+              D.text(end, rowY + 11, pick(logForms, (f) => end + partsWidth(f) <= x + pw), { owner: 'bt-log', id: 'log-note' });
             }
             D.mark({ x0: tx, x1: tx + trackW, y0: rowY + 3, y1: rowY + 12 }, 'bt-log');
           }
@@ -1770,7 +1862,7 @@
         if (on('ledger')) {
           const l1 = write
             ? hid.btNumbers
-              ? ['? B written']
+              ? ['? B + ? B = ? B written']
               : [`${fB(b.pageB)} + ${fB(b.logBytes)} = ${fB(b.writeBytes)} written`, `= ${fB(b.writeBytes)} written`]
             : [`${b.height} pages walked − ${b.memoryHops} in memory = ${b.lookupReads} read`, `${b.height} pages − ${b.memoryHops} cached = ${b.lookupReads} read`];
           D.text(x, tY + 89, [[pick(l1, (t) => tw(t, 'mono') <= pw), 'mono', 'ink']], { owner: 'bt-ledger', id: 'bt-ledger' });
@@ -1797,21 +1889,26 @@
         const on = (k) => shown(view, 'lsm', P[k]);
         const L = l.levels;
         const kind = write ? 'w' : 'r';
+        const avg = M.formatNum(l.rewritesPerLevel);
         let cy = y;
-        panelHead(D, x, y, pw, 'lsm', 'appended, then merged down', 'RocksDB, Cassandra', view);
+        panelHead(D, x, y, pw, 'lsm', 'appended, then merged down', ALSO.lsm, view);
         cy += PANEL.head + 6;
         segments(D, x, cy, pw, 'ratio', M.RATIOS, s.ratio, (v) => String(v), 'Size ratio');
         cy += PANEL.knob;
-        D.hit('toggle', x, cy + 6, pw, 44, { owner: 'bloom', checked: !!s.bloom, label: 'Bloom filters', sub: s.bloom ? `${fSize(l.bloomBytes)} of memory` : 'off: no memory spent' });
-        cy += PANEL.toggle + 10;
+        D.hit('toggle', x, cy + 6, pw, 44, { owner: 'bloom', checked: !!s.bloom, label: 'Bloom filters', sub: s.bloom ? `${fSize(l.bloomBytes)} of memory` : 'off: no filter memory' });
+        cy += PANEL.toggle + PANEL.toggleGap;
 
-        // Memory and the log, then the sorted runs on disk, newest on top.
+        // Memory and the log, then the sorted runs on disk, newest on top. Following a lookup with filters on, a
+        // column of memory runs down beside the runs: a filter a run, where a lookup's "not here" lands.
         const top = cy;
-        const chipW = Math.max(tw('skipped', 'small'), tw('≈10.5×', 'mono'), tw('1 read', 'small')) + 2;
-        const memW = write ? Math.round((pw - chipW - 8) * 0.6) : pw - chipW - 8;
+        const long = pw >= 270;
+        const chipW = Math.max(tw('skipped', 'small'), tw(long ? '≈10.5× avg' : '≈10.5×', 'mono'), tw(long ? '1 read, found' : '1 read', 'small'), tw('found', 'small')) + 2;
+        const memW = write ? Math.round((pw - chipW - 8) * 0.5) : pw - chipW - 8;
         const logX = x + memW + 8;
         const logW = pw - chipW - 8 - memW - 8;
-        D.text(x, cy + 11, [['In memory', 'label', '']], { textCls: 'muted', owner: 'lsm-label' });
+        const filters = !write && !!s.bloom;
+        const headA = filters ? pick(['In memory · the memtable and a filter a run', 'In memory · memtable and filters', 'In memory'], (t) => tw(t, 'label') <= pw) : 'In memory';
+        D.text(x, cy + 11, [[headA, 'label', '']], { textCls: 'muted', owner: 'lsm-label' });
         if (write) {
           const headW = tw('written', 'small') + 8;
           D.text(logX, cy + 11, [[pick(['On disk · the log', 'The log, on disk', 'The log', 'Log'], (t) => logX + tw(t, 'label') <= x + pw - headW), 'label', '']], { textCls: 'muted', owner: 'lsm-label' });
@@ -1819,15 +1916,19 @@
         }
         const memY = cy + 18;
         const memH = 26;
-        const trailX = x + 24 + 12;
+        const trailX = x + 30;
         D.add('marks', rect('run box', x + 0.5, memY, memW - 1, memH, 5, ' data-owner="lsm-stack"'));
-        const memText = pick([`memtable · ${fSize(l.memtableBytes)}, sorted`, `memtable · ${fSize(l.memtableBytes)}`, 'memtable'], (t) => trailX + 12 + tw(t, 'small') <= x + memW - 4);
-        D.text(trailX + 12, memY + 17, [[memText, 'small', 'ink']], { textCls: 'on-box', owner: 'lsm-stack' });
+        const memForms = [`memtable · ${fSize(l.memtableBytes)}, sorted`, `memtable · ${fSize(l.memtableBytes)}`, 'memtable'].map((t) => [[t, 'small', 'ink']]);
+        D.text(trailX + 12, memY + 17, pick(memForms, (f) => trailX + 12 + partsWidth(f) <= x + memW - 4), { textCls: 'on-box', owner: 'lsm-stack', id: 'mem-text' });
         if (write) {
           D.add('marks', rect('logtrack', logX, memY + 6, logW, 14, 3, ' data-owner="lsm-stack" data-id="lsm-logtrack"'));
-          let ticks = '';
-          for (let tx = logX + 6; tx < logX + logW - 8; tx += 6) ticks += `M${r1(tx)} ${memY + 9}v8`;
-          D.add('marks', `<path class="rec-ticks" d="${ticks}"/>`);
+          // Once the record is in the log and the memtable, the write is answered: said inside the log's track.
+          if (on('mem')) D.text(logX + 5, memY + 17, [['answered', 'small', 'final-ink']], { textCls: 'on-box', owner: 'lsm-stack', id: 'lsm-answered' });
+          else {
+            let ticks = '';
+            for (let tx = logX + 6; tx < logX + logW - 8; tx += 6) ticks += `M${r1(tx)} ${memY + 9}v8`;
+            D.add('marks', `<path class="rec-ticks" d="${ticks}"/>`);
+          }
         }
         D.mark({ x0: x, x1: x + pw - chipW - 8, y0: memY, y1: memY + memH }, 'lsm-stack');
         const chip = (yc, text, cls, role, id) => D.text(x + pw, yc + 4, [[text, role, cls]], { anchor: 'end', owner: 'lsm-chip', id });
@@ -1840,72 +1941,81 @@
           if (!write && !hid.readNumbers) chip(memY + memH / 2, 'not here', 'muted', 'small', 'chip-mem');
         }
         cy = memY + memH + 6;
-        const ratioWord = `each level ${s.ratio}× the one above`;
+        // The ratio claim starts at L1: L0, the flushed memtable, is not ratio times smaller than L1.
         const labelX = trailX + 14;
-        const labelD = pick([`On disk · sorted runs, ${ratioWord}`, `On disk · ${ratioWord}`, `On disk · levels ${s.ratio}× apart`, `On disk · sorted runs`, 'On disk'], (t) => labelX + tw(t, 'label') <= x + pw);
-        D.text(labelX, cy + 11, [[labelD, 'label', '']], { textCls: 'muted', owner: 'lsm-label' });
+        const labelD = pick([`On disk · from L1 down, each level ${s.ratio}× the one above, log scale`, `On disk · from L1 down, each level ${s.ratio}× the one above`, `On disk · L1 to L${L}, ${s.ratio}× apart`, `On disk · sorted runs`, 'On disk'], (t) => labelX + tw(t, 'label') <= x + pw);
+        D.text(labelX, cy + 11, [[labelD, 'label', '']], { textCls: 'muted', owner: 'lsm-label', id: 'stack-caption' });
         cy += 16;
         const n = L + 1;
         const pitch = PANEL.rows / n;
         const barH = Math.min(12, pitch - 8);
         const sizes = [l.memtableBytes, ...l.levelBytes].map(fSize);
         const sizeW = Math.max(...sizes.map((t) => tw(t, 'small')));
-        const bx = x + 24;
-        const bmin = 26;
-        const bmax = pw - 24 - 6 - sizeW - 8 - chipW;
+        // Bars start one ring radius right of the trail, so no dot or ring sits on a bar's outline.
+        const bx = trailX + 11;
+        const bmin = 16;
+        const bmax = pw - (bx - x) - 6 - sizeW - 8 - chipW;
+        const barW = (bytes) => bmin + (bmax - bmin) * logShare(bytes);
+        if (filters) D.add('back', rect('fcol', trailX - 9, memY + memH - 1, 18, cy + PANEL.rows - (memY + memH) - 1, 4, ' data-id="filter-column"'));
         const rowsY = [];
+        const reachedLast = Math.max(-1, ...Array.from({ length: n }, (_, j) => (on(`run${j}`) ? j : -1)));
         for (let j = 0; j <= L; j++) {
           const yc = cy + (j + 0.5) * pitch;
           rowsY.push(yc);
-          const bw = bmin + ((bmax - bmin) * j) / L;
+          const bytes = j === 0 ? l.memtableBytes : l.levelBytes[j - 1];
+          const bw = barW(bytes);
+          const reached = on(`run${j}`);
+          const readHere = !write && reached && (!s.bloom || j === L);
           D.text(x, yc + 4, [[`L${j}`, 'mono', 'muted']], { owner: 'lsm-stack', data: ` data-level="${j}"` });
-          D.add('marks', rect('run', bx, yc - barH / 2, bw, barH, 2.5, ` data-owner="lsm-stack" data-run="${j}"`));
+          D.add('marks', rect(`run${readHere ? ' read' : ''}`, bx, yc - barH / 2, bw, barH, 2.5, ` data-owner="lsm-stack" data-run="${j}" data-bytes="${bytes}" data-bmin="${bmin}" data-bmax="${r1(bmax)}"`));
           D.mark({ x0: bx, x1: bx + bw, y0: yc - barH / 2, y1: yc + barH / 2 }, 'lsm-stack');
           const sizeForms = j === 0 ? [`${sizes[0]}, flushed`, sizes[0]] : j === L ? [`${sizes[j]}, the data`, sizes[j]] : [sizes[j]];
           D.text(bx + bw + 6, yc + 4, [[pick(sizeForms, (t) => bx + bw + 6 + tw(t, 'small') <= x + pw - chipW - 6), 'small', 'muted']], { owner: 'lsm-size' });
-          if (!on(`run${j}`)) continue;
+          if (filters) D.add('marks', rect('filt', trailX - 5, yc - 4, 10, 8, 2, ` data-filter="${j}"`));
+          if (!reached) continue;
           if (write) {
-            dot(D, trailX, yc, 4, 'w', 'lsm-stack', `w${j}`);
-            chip(yc, hid.lsmNumbers ? '?×' : j === 0 ? '1×' : `≈${M.formatNum(l.rewritesPerLevel)}×`, hid.lsmNumbers ? 'muted' : 'amber-ink', 'mono', `chip-${j}`);
+            // The record rests in the last level it has reached: a solid dot there, hollow rings where it passed.
+            if (j < reachedLast) D.add('dots', `<circle class="ring-pass" cx="${trailX}" cy="${r1(yc)}" r="4" data-owner="lsm-stack" data-pass="${j}"/>`);
+            else dot(D, trailX, yc, 4, 'w', 'lsm-stack', `w${j}`);
+            D.mark({ x0: trailX - 4, x1: trailX + 4, y0: yc - 4, y1: yc + 4 }, 'lsm-stack');
+            chip(yc, hid.lsmNumbers ? '?×' : j === 0 ? '1×' : long ? `≈${avg}× avg` : `≈${avg}×`, hid.lsmNumbers ? 'muted' : 'amber-ink', 'mono', `chip-${j}`);
           } else {
             const last = j === L;
             if (s.bloom && !last) {
+              // The filter, in memory, answers "not here": the mark lands on the filter, and the run is not opened.
               D.add('dots', `<circle class="skip" cx="${trailX}" cy="${r1(yc)}" r="4.5" data-owner="lsm-stack" data-skip="${j}"/>` + line('skip-slash', trailX - 3, yc + 3, trailX + 3, yc - 3));
               if (!hid.readNumbers) chip(yc, 'skipped', 'muted', 'small', `chip-${j}`);
             } else {
               dot(D, trailX, yc, 4, 'r', 'lsm-stack', `r${j}`);
-              if (!hid.readNumbers) chip(yc, '1 read', 'cur-ink', 'small', `chip-${j}`);
+              const found = last && on('found');
+              if (!hid.readNumbers) chip(yc, found ? (long ? '1 read, found' : 'found') : '1 read', found ? 'final-ink' : 'cur-ink', 'small', `chip-${j}`);
             }
             if (last && on('found')) D.add('dots', `<circle class="found-ring" cx="${trailX}" cy="${r1(yc)}" r="7.5" data-owner="lsm-stack"/>`);
           }
         }
         // The trail: the record's way down (a write), or the lookup's (a read), as far as the clock has come.
-        const reachedRows = rowsY.filter((_, j) => on(`run${j}`));
-        if (on('mem') && reachedRows.length) {
-          const y0 = memY + memH / 2 + 5;
-          const y1 = reachedRows.at(-1);
-          D.add('links', line(`trail ${kind}`, trailX, y0, trailX, y1, ' data-owner="lsm-stack"'));
-        }
+        if (on('mem') && reachedLast >= 0) D.add('links', line(`trail ${kind}`, trailX, memY + memH / 2 + 5, trailX, rowsY[reachedLast], ' data-owner="lsm-stack"'));
         if (view.play?.engine === 'lsm') {
+          // The key travels in the moment before each arrival and holds still between them (the staircase's beat).
           const steps = ['mem', ...rowsY.map((_, j) => `run${j}`)];
           const ys = [memY + memH / 2, ...rowsY];
+          const f = view.play.frac;
           for (let i = 0; i + 1 < steps.length; i++) {
-            const f = view.play.frac;
-            if (f > P[steps[i]] && f < P[steps[i + 1]]) {
-              const t = (f - P[steps[i]]) / (P[steps[i + 1]] - P[steps[i]]);
-              D.add('top', `<circle class="dot key" cx="${trailX}" cy="${r1(ys[i] + (ys[i + 1] - ys[i]) * t)}" r="3.5" data-owner="lsm-stack"/>`);
-            }
+            const t1 = P[steps[i + 1]];
+            const t0 = Math.max(P[steps[i]], t1 - 0.08);
+            if (f > t0 && f < t1) D.add('top', `<circle class="dot key" cx="${trailX}" cy="${r1(ys[i] + (ys[i + 1] - ys[i]) * ((f - t0) / (t1 - t0)))}" r="3.5" data-owner="lsm-stack"/>`);
           }
         }
         D.meta.lsmRows = n;
-        D.region('lsm-stack', { x: x - 6, y: top - 4, w: pw + 12, h: PANEL.lsmTop + 16 + PANEL.rows + 6 });
-        cy += PANEL.rows + 10;
+        // The outline's foot falls in the reserved tag row, so its tag sits on the stroke clear of the last run's labels.
+        D.region('lsm-stack', { x: x - 6, y: top - 4, w: pw + 12, h: PANEL.lsmTop + 16 + PANEL.rows + 14 });
+        cy += PANEL.rows + 10 + PANEL.tagRow;
 
         // Why a level costs what it costs (a write), or what the filters did (a lookup).
         const tY = cy;
         if (write) {
           const T = s.ratio;
-          D.text(x, tY + 11, [[pick([`One level filling · ${T} merges from above`, `One level filling · ${T} merges`, 'One level filling'], (t) => tw(t, 'label') <= pw), 'label', '']], { textCls: 'muted', owner: 'lsm-stair' });
+          D.text(x, tY + 11, [[pick([`L2 filling · ${T} merges from L1`, `L2 filling · ${T} merges`, 'L2 filling'], (t) => tw(t, 'label') <= pw), 'label', '']], { textCls: 'muted', owner: 'lsm-stair' });
           const SW = 84;
           const SH = 62;
           const sx = x;
@@ -1913,37 +2023,50 @@
           const textX = x + SW + 12;
           const textW = pw - SW - 12;
           let lines;
+          let sayNow = true;
           if (hid.lsmMarks) {
             D.add('marks', rect('hidden-box', sx + 0.5, sy, SW - 1, SH, 3, ' data-id="stair-hidden"'));
-            lines = wrap("One level's merges draw after your answer.", 'small', textW);
+            lines = wrap("L2's merges draw after your answer.", 'small', textW);
           } else {
-            const from = view.play?.engine === 'lsm' ? Math.max(0, Math.min(1, (view.play.frac - P.stair0) / (P.stair1 - P.stair0))) : 1;
+            const playing = view.play?.engine === 'lsm';
+            const from = playing ? Math.max(0, Math.min(1, (view.play.frac - P.stair0) / (P.stair1 - P.stair0))) : 1;
             const rowsShown = Math.ceil(T * from - 1e-9);
+            // The sentence counts every row, so it waits until the last row is drawn (prevention 6).
+            sayNow = !playing || view.play.frac >= P.stair1 - 1e-9;
             const cw = SW / T;
             const rh = SH / T;
+            const cells = cw >= 5 && rh >= 4;
             let soft = '';
             let fresh = '';
             for (let k = 1; k <= rowsShown; k++) {
               const ry = sy + (k - 1) * rh;
-              if (k > 1) soft += `M${r1(sx)} ${r1(ry)}h${r1((k - 1) * cw - 0.5)}v${r1(rh - 0.75)}h${r1(-((k - 1) * cw - 0.5))}z`;
-              fresh += `M${r1(sx + (k - 1) * cw)} ${r1(ry)}h${r1(cw - 0.5)}v${r1(rh - 0.75)}h${r1(-(cw - 0.5))}z`;
+              if (k > 1) {
+                if (cells) for (let i = 0; i < k - 1; i++) soft += `M${r1(sx + i * cw + 0.75)} ${r1(ry + 0.75)}h${r1(cw - 2.5)}v${r1(rh - 2.5)}h${r1(-(cw - 2.5))}z`;
+                else soft += `M${r1(sx + 0.5)} ${r1(ry + 0.5)}h${r1((k - 1) * cw - 2)}v${r1(Math.max(0.5, rh - 2))}h${r1(-((k - 1) * cw - 2))}z`;
+              }
+              fresh += `M${r1(sx + (k - 1) * cw)} ${r1(ry)}h${r1(cw - 1)}v${r1(rh - 1)}h${r1(-(cw - 1))}z`;
             }
-            D.add('marks', `<path class="stair" d="${soft}" data-id="stair" data-rows="${rowsShown}"/><path class="stair-new" d="${fresh}"/>`);
+            D.add('marks', `<path class="rewritten${cells ? '' : ' thin'}" d="${soft}" data-id="stair" data-rows="${rowsShown}"/><path class="stair-new" d="${fresh}"/>`);
+            // The record the play follows arrives with the middle merge and is written in every merge after it.
+            const kr = recordMerge(T);
+            if (rowsShown >= kr) D.add('marks', rect('mine', sx + (kr - 1) * cw - 0.75, sy + (kr - 1) * rh - 0.75, cw + 0.5, (rowsShown - kr + 1) * rh + 0.5, 1, ' data-id="stair-mine"'));
+            const times = T - kr + 1;
             const full = [
-              `Merge k of ${T} rewrites the k parts then there: ${l.partsWritten} parts written for ${T} of data, about ${M.formatNum(l.rewritesPerLevel)}× each.`,
-              `Merge k of ${T} rewrites k parts: ${l.partsWritten} written for ${T} of data, about ${M.formatNum(l.rewritesPerLevel)}× each.`,
+              `Merge k writes k parts: the k − 1 already there and the new one. ${l.partsWritten} parts for ${T} new: about ${avg}× each. Outlined: the record, written ${times} times.`,
+              `Merge k writes k parts: the k − 1 already there and the new one. ${l.partsWritten} parts for ${T} new: about ${avg}× each.`,
+              `Merge k writes k parts: ${l.partsWritten} for ${T} new, about ${avg}× each.`,
             ];
-            const quiet = ['Each merge from above rewrites what the level already holds.', 'Each merge rewrites the whole level.'];
+            const quiet = ['Each merge from above rewrites what the level already holds; the outlined record is rewritten in each merge after it arrives.', 'Each merge from above rewrites what the level already holds.', 'Each merge rewrites the whole level.'];
             lines = pick(
               (hid.lsmNumbers ? quiet : full).map((t) => wrap(t, 'small', textW)),
-              (ls) => ls.length <= 5,
+              (ls) => ls.length <= 4,
             );
           }
           D.mark({ x0: sx, x1: sx + SW, y0: sy, y1: sy + SH }, 'lsm-stair');
-          if (hid.lsmMarks || rowsShownOrRest(view, P))
-            lines.forEach((t, i) => D.text(textX, sy + 10 + i * 13, [[t, 'small', 'muted']], { owner: 'lsm-stair', id: i === 0 ? 'stair-text' : undefined }));
+          if (sayNow) lines.forEach((t, i) => D.text(textX, sy + 10 + i * 13, [[t, 'small', 'muted']], { owner: 'lsm-stair', id: i === 0 ? 'stair-text' : undefined }));
           if (on('ledger')) {
-            const l1 = hid.lsmNumbers ? ['?'] : [`1 log + 1 flush + ${M.formatLevels(L)} × ${M.formatNum(l.rewritesPerLevel)}`, `1 + 1 + ${L} × ${M.formatNum(l.rewritesPerLevel)}`];
+            const levels = M.formatLevels(L);
+            const l1 = hid.lsmNumbers ? ['1 log + 1 flush + ? levels × ?'] : [`1 log + 1 flush + ${levels} × ${avg} on average`, `1 log + 1 flush + ${levels} × ${avg} avg`, `1 log + 1 flush + ${levels} × ${avg}`, `1 + 1 + ${L} × ${avg}`];
             D.text(x, tY + 91, [[pick(l1, (t) => tw(t, 'mono') <= pw), 'mono', 'ink']], { owner: 'lsm-ledger', id: 'lsm-ledger' });
             D.text(
               x,
@@ -1959,27 +2082,39 @@
           const labelF = s.bloom ? pick([`Bloom filters · ${M.BLOOM_BITS} bits a key, ${fSize(l.bloomBytes)} of memory`, `Bloom filters · ${fSize(l.bloomBytes)} of memory`, 'Bloom filters, in memory'], (t) => tw(t, 'label') <= pw) : 'No bloom filters';
           D.text(x, tY + 11, [[labelF, 'label', '']], { textCls: 'muted', owner: 'lsm-stair' });
           const oneIn = Math.round(1 / M.BLOOM_FALSE_POSITIVE);
-          const forms = hid.readNumbers
-            ? ['The count shows at the reveal.']
-            : hid.readWhy
-              ? ['How the filters decide shows after your answer.']
-              : s.bloom
-              ? [
-                  `Each run's filter answers from memory: ${l.skipped} say "not here", so only the last run is read. About 1 lookup in ${oneIn} reads a run for nothing; the model leaves that out.`,
-                  `${l.skipped} filters say "not here" from memory; only the last run is read. False positives, about 1 in ${oneIn}, are left out.`,
-                ]
-              : [`Any run may hold the key's newest version, so each is read in turn, newest first, until the last level turns it up.`, `Any run may hold the newest version, so each is read in turn.`];
-          const lines = pick(
+          const MAXL = 4;
+          const fit = (forms) => pick(
             forms.map((t) => wrap(t, 'small', pw)),
-            (ls) => ls.length <= 5,
+            (ls) => ls.length <= MAXL,
           );
-          if (on('ledger') || hid.readNumbers || hid.readWhy) lines.forEach((t, i) => D.text(x, tY + 28 + i * 13, [[t, 'small', 'muted']], { owner: 'lsm-stair', id: i === 0 ? 'filter-text' : undefined }));
+          const bloomForms = [
+            `Each run's filter answers from memory: ${l.skipped} say "not here", so only the last run is read from disk. About 1 lookup in ${oneIn} reads a run for nothing; the model leaves that out.`,
+            `${l.skipped} filters say "not here" from memory; only the last run is read. False positives, about 1 in ${oneIn}, are left out.`,
+          ];
+          const offForms = [`Any run may hold the key's newest version, so each is read in turn, newest first, until the last level turns it up.`, `Any run may hold the newest version, so each is read in turn.`];
+          const reads = (v) => `${v} ${plural(v, 'read', 'reads')}`;
+          let lastY;
+          if (hid.readWhy) {
+            // The arithmetic hides in the house hidden mark, a dashed box as tall as the sentence it stands for.
+            const nRes = fit(bloomForms).length;
+            const boxH = nRes * 13 + 8;
+            D.add('marks', rect('hidden-box', x + 0.5, tY + 18, pw - 1, boxH, 3, ' data-id="why-hidden"'));
+            wrap('How the filters decide shows after your answer.', 'small', pw - 16).forEach((t, i) => D.text(x + 8, tY + 32 + i * 13, [[t, 'small', 'muted']], { owner: 'lsm-stair', id: i === 0 ? 'filter-text' : undefined }));
+            D.mark({ x0: x, x1: x + pw, y0: tY + 18, y1: tY + 18 + boxH }, 'lsm-stair');
+            lastY = tY + 18 + boxH - 2;
+          } else if (on('ledger') || hid.readNumbers) {
+            const lines = hid.readNumbers ? ['The count shows at the reveal.'] : fit(s.bloom ? bloomForms : offForms);
+            lines.forEach((t, i) => D.text(x, tY + 28 + i * 13, [[t, 'small', 'muted']], { owner: 'lsm-stair', id: i === 0 ? 'filter-text' : undefined }));
+            lastY = tY + 28 + (lines.length - 1) * 13;
+          }
+          // The ledger and the total follow the sentence's last line; the block's spare lines fall under the total.
           if (on('ledger')) {
-            const l1 = hid.readNumbers || hid.readWhy ? '?' : s.bloom ? `${l.runs} runs − ${l.skipped} skipped = ${l.lookupReads} read` : `${l.runs} runs, none skipped = ${l.lookupReads} read`;
-            D.text(x, tY + 91, [[l1, 'mono', 'ink']], { owner: 'lsm-ledger', id: 'lsm-ledger' });
+            const l1 = hid.readNumbers ? ['? runs − ? skipped = ? reads'] : hid.readWhy ? [`? runs − ? skipped = ${reads(l.lookupReads)}`] : s.bloom ? [`${l.runs} runs − ${l.skipped} skipped = ${reads(l.lookupReads)}`, `= ${reads(l.lookupReads)}`] : [`${l.runs} runs, none skipped = ${reads(l.lookupReads)}`, `${l.runs} runs = ${reads(l.lookupReads)}`];
+            const ly = lastY + 17;
+            D.text(x, ly, [[pick(l1, (t) => tw(t, 'mono') <= pw), 'mono', 'ink']], { owner: 'lsm-ledger', id: 'lsm-ledger' });
             D.text(
               x,
-              tY + 113,
+              ly + 22,
               [
                 [hid.readNumbers ? '?' : String(l.lookupReads), 'head', hid.readNumbers ? 'muted' : 'cur-ink'],
                 [hid.readNumbers ? ' disk reads' : ` disk ${plural(l.lookupReads, 'read', 'reads')}`, 'cap', 'ink', 5],
@@ -1993,91 +2128,57 @@
         D.region('lsm-all', { x: x - 6, y: top - 4, w: pw + 12, h: tY + PANEL.transform - top + 6 });
         return tY + PANEL.transform;
       }
-      // The staircase's words stand at rest and once its play has reached it.
-      const rowsShownOrRest = (view, P) => view.play?.engine !== 'lsm' || view.play.frac >= P.stair0;
 
-      // ---------- What each engine pays: the model's numbers on fixed scales, the write bars cut where the bytes go.
+      // ---------- What each engine pays: the model's numbers on fixed scales.
       function costName(engine) {
         return ENGINE[engine];
       }
       function writeGroup(D, x, y, w, m, view, hid) {
-        const label = pick([`Written to disk, × the new data · at ${M.formatRate(M.WRITE_MBPS)} of new data`, `Disk writes for ${M.formatRate(M.WRITE_MBPS)} of new data`, `For ${M.formatRate(M.WRITE_MBPS)} of new data`], (t) => tw(t, 'label') <= w);
+        const label = pick([`Written to disk, × the new data · at ${M.formatRate(M.WRITE_MBPS)} of new data`, `Disk writes for ${M.formatRate(M.WRITE_MBPS)} of new data`, `For ${M.formatRate(M.WRITE_MBPS)} of new data`], (t) => tw(t, 'label') <= w - TAG_ROOM);
+        // Where even the shortest label leaves no tag's width at its end, the axis's last tick label leaves it instead.
+        const tagRoomTop = tw(label, 'label') <= w - TAG_ROOM;
         D.text(x, y + 11, [[label, 'label', '']], { textCls: 'muted', owner: 'cost-label' });
         const px = w / M.WRITE_AXIS;
         let cy = y + 20;
-        // How each engine writes stands beside its name, in the same form for both or for neither.
-        const HOW = { btree: [' · whole pages, at random places', ' · pages, at random', ''], lsm: [' · appends and merges, all sequential', ' · sequential', ''] };
         const hiddenOf = (engine) => (engine === 'btree' ? hid.btNumbers : hid.lsmNumbers);
-        const shortestOf = (engine) => (hiddenOf(engine) ? tw('?×', 'num') : tw(fAmp(m[engine].writeAmp), 'num') + tw(` · ${M.formatRate(m[engine].diskWriteMBps)}`, 'small'));
-        // "Whole pages" is E1's answer in words, so the phrases go while either engine's write cost hides.
-        const howIndex = hid.btNumbers || hid.lsmNumbers ? 2 : [0, 1, 2].find((i) => ['btree', 'lsm'].every((engine) => tw(costName(engine), 'small') + tw(HOW[engine][i], 'small') <= w - shortestOf(engine) - 12));
+        const wasOf = (engine) => (view.ghost && !hid.ghost ? M.run(view.ghost)[engine].writeAmp : null);
+        const movedOf = (engine) => wasOf(engine) !== null && Math.abs(wasOf(engine) - m[engine].writeAmp) > 1e-9;
+        // Both rows take one form, the longest that fits each: the first says how each engine writes (whole pages at
+        // random places, so many page writes a second; appends and merges), which waits while either write cost hides.
+        const productOf = (engine, level) => {
+          const e = m[engine];
+          const rate = M.formatRate(e.diskWriteMBps);
+          const how = engine === 'btree' ? `${rate} · ≈${M.formatRound(e.randomWritesPerSec)} random page writes/s` : `${rate} of disk writes, all sequential`;
+          const base = [how, `${rate} of disk writes`, rate][level];
+          return ` · ${base}${movedOf(engine) ? ` · was ${fAmp(wasOf(engine))}` : ''}`;
+        };
+        const figureOf = (engine, level) => (hiddenOf(engine) ? [['?×', 'num', 'muted']] : [
+          [fAmp(m[engine].writeAmp), 'num', 'amber-ink'],
+          [productOf(engine, level), 'small', 'muted'],
+        ]);
+        const nameW = (engine) => tw(costName(engine), 'small') + 10;
+        const level = [0, 1, 2].find((lv) => (lv > 0 || !(hid.btNumbers || hid.lsmNumbers)) && ['btree', 'lsm'].every((e) => partsWidth(figureOf(e, lv)) <= w - nameW(e))) ?? 2;
         for (const engine of ['btree', 'lsm']) {
           const e = m[engine];
           const hidden = hiddenOf(engine);
-          const was = view.ghost && !hid.ghost ? M.run(view.ghost)[engine].writeAmp : null;
-          const moved = was !== null && Math.abs(was - e.writeAmp) > 1e-9;
-          const nameParts = [
-            [costName(engine), 'small', 'ink'],
-            [HOW[engine][howIndex], 'small', 'muted'],
-          ];
-          D.text(x, cy + 11, nameParts, { owner: `cost-${engine}` });
-          const nameW = partsWidth(nameParts) + 10;
-          const forms = hidden
-            ? [[['?×', 'num', 'muted']]]
-            : [
-                ...(moved
-                  ? [
-                      [
-                        [fAmp(e.writeAmp), 'num', 'amber-ink'],
-                        [` · ${M.formatRate(e.diskWriteMBps)} · was ${fAmp(was)}`, 'small', 'muted'],
-                      ],
-                      [
-                        [fAmp(e.writeAmp), 'num', 'amber-ink'],
-                        [` · was ${fAmp(was)}`, 'small', 'muted'],
-                      ],
-                    ]
-                  : []),
-                [
-                  [fAmp(e.writeAmp), 'num', 'amber-ink'],
-                  [` · ${M.formatRate(e.diskWriteMBps)} of disk writes`, 'small', 'muted'],
-                ],
-                [
-                  [fAmp(e.writeAmp), 'num', 'amber-ink'],
-                  [` · ${M.formatRate(e.diskWriteMBps)}`, 'small', 'muted'],
-                ],
-                [[fAmp(e.writeAmp), 'num', 'amber-ink']],
-              ];
-          D.text(x + w, cy + 11, pick(forms, (f) => partsWidth(f) <= w - nameW), { anchor: 'end', owner: `cost-${engine}`, id: `write-${engine}` });
+          D.text(x, cy + 11, [[costName(engine), 'small', 'ink']], { owner: `cost-${engine}` });
+          D.text(x + w, cy + 11, figureOf(engine, level), { anchor: 'end', owner: `cost-${engine}`, id: `write-${engine}` });
           const by = cy + 17;
           if (hidden) D.add('marks', rect('hidden-box', x + 0.5, by, w - 1, 10, 2, ` data-id="write-bar-${engine}-hidden"`));
           else {
             D.add('marks', rect('bar-track', x + 0.5, by, w - 1, 10, 2));
             D.add('marks', rect('bar-fill', x, by, e.writeAmp * px, 10, 2, ` data-id="write-bar-${engine}" data-amp="${e.writeAmp}" data-px="${px}"`));
-            // Cuts where the bytes go (the page and its log record; the log, the flush and each level), wherever the
-            // parts on both sides of a cut are wide enough to see.
-            let at = 0;
-            let since = 0;
-            let seps = '';
-            for (const part of e.writeParts.slice(0, -1)) {
-              at += part.amp;
-              since += part.amp;
-              if (since * px >= 2.4 && (e.writeAmp - at) * px >= 2.4) {
-                seps += `M${r1(x + at * px)} ${by}v10`;
-                since = 0;
-              }
-            }
-            if (seps) D.add('marks', `<path class="bar-sep" d="${seps}" data-id="write-seps-${engine}"/>`);
-            if (moved) D.add('marks', line('ghost-tick', x + was * px, by - 3, x + was * px, by + 13, ` data-id="ghost-${engine}" data-owner="ghost"`));
+            if (movedOf(engine)) D.add('marks', line('ghost-tick', x + wasOf(engine) * px, by - 3, x + wasOf(engine) * px, by + 13, ` data-id="ghost-${engine}" data-owner="ghost"`));
           }
           D.mark({ x0: x, x1: x + w, y0: by - 3, y1: by + 13 }, `cost-${engine}`);
           cy += 36;
         }
         // The axis: both bars share it, and it never rescales.
         const ay = cy - 4;
-        for (const v of [0, 50, 100, 150]) {
+        for (const v of tagRoomTop ? [0, 50, 100, 150] : [0, 50, 100]) {
           const tx = x + v * px;
           D.add('grid', line('tickmark', tx, ay, tx, ay + 4));
-          D.text(v === 0 ? tx : tx, ay + 15, [[v === 0 ? '0' : `${v}×`, 'small', 'muted']], { anchor: v === 0 ? 'start' : 'middle', data: ' data-xtick="1"', owner: 'cost-axis' });
+          D.text(tx, ay + 15, [[v === 0 ? '0' : `${v}×`, 'small', 'muted']], { anchor: v === 0 ? 'start' : 'middle', data: ' data-xtick="1"', owner: 'cost-axis' });
         }
         D.region('cost-write', { x: x - 6, y: y - 4, w: w + 12, h: 20 + 72 + 18 });
         return y + 20 + 72 + 14;
@@ -2086,31 +2187,24 @@
         D.text(x, y + 11, [[pick(['Disk reads for one lookup', 'Disk reads per lookup', 'Disk reads'], (t) => tw(t, 'label') <= w - TAG_ROOM), 'label', '']], { textCls: 'muted', owner: 'cost-label' });
         let cy = y + 20;
         const nameW = Math.max(tw(ENGINE.btree, 'small'), tw(ENGINE.lsm, 'small')) + 10;
+        const BOX = 8 * 12;
         for (const engine of ['btree', 'lsm']) {
           const reads = m[engine].lookupReads;
           const hidden = hid.readNumbers && engine === 'lsm';
           const was = view.ghost && !hid.ghost ? M.run(view.ghost)[engine].lookupReads : null;
           D.text(x, cy + 11, [[costName(engine), 'small', 'ink']], { owner: `read-${engine}` });
           if (hidden) {
-            D.add('marks', rect('hidden-box', x + nameW, cy + 2, 60, 10, 5, ` data-id="pips-${engine}-hidden"`));
-            D.text(x + w, cy + 11, [['?', 'num', 'muted']], { anchor: 'end', owner: `read-${engine}`, id: `reads-${engine}` });
+            // The dashed box spans the row's whole scale, whatever the hidden count.
+            const bw = hid.pipBox ? BOX : reads * 12;
+            D.add('marks', rect('hidden-box', x + nameW, cy + 2, bw, 10, 5, ` data-id="pips-${engine}-hidden" data-w="${bw}"`));
+            D.text(x + nameW + BOX + 6, cy + 11, [['?', 'num', 'muted']], { owner: `read-${engine}`, id: `reads-${engine}` });
           } else {
             for (let i = 0; i < reads; i++) D.add('marks', `<circle class="pip" cx="${r1(x + nameW + 5 + i * 12)}" cy="${cy + 7}" r="4.5" data-pip="${engine}"/>`);
             const moved = was !== null && was !== reads;
-            const forms = [
-              ...(moved
-                ? [
-                    [
-                      [String(reads), 'num', 'cur-ink'],
-                      [` · was ${was}`, 'small', 'muted'],
-                    ],
-                  ]
-                : []),
-              [[String(reads), 'num', 'cur-ink']],
-            ];
-            D.text(x + w, cy + 11, pick(forms, (f) => partsWidth(f) <= w - nameW - reads * 12 - 8), { anchor: 'end', owner: `read-${engine}`, id: `reads-${engine}` });
+            // The count right after its pips.
+            D.text(x + nameW + reads * 12 + 4, cy + 11, moved ? [[String(reads), 'num', 'cur-ink'], [` · was ${was}`, 'small', 'muted']] : [[String(reads), 'num', 'cur-ink']], { owner: `read-${engine}`, id: `reads-${engine}` });
           }
-          D.mark({ x0: x + nameW, x1: x + nameW + 8 * 12, y0: cy + 1, y1: cy + 13 }, `read-${engine}`);
+          D.mark({ x0: x + nameW, x1: x + nameW + BOX, y0: cy + 1, y1: cy + 13 }, `read-${engine}`);
           cy += 24;
         }
         D.region('cost-read', { x: x - 6, y: y - 4, w: w + 12, h: 20 + 48 + 4 });
@@ -2144,9 +2238,14 @@
           D.mark({ x0: x, x1: x + w, y0: by, y1: by + 10 }, `space-${engine}`);
           cy += 36;
         }
+        // The tick's value sits at the tick: starting there, or ending there when the right has no room.
         const ay = cy - 4;
-        D.add('grid', line('tickmark', x + px, ay, x + px, ay + 4));
-        D.text(x + px, ay + 15, [[pick(['1× · the live data alone', '1×'], (t) => tw(t, 'small') <= px), 'small', 'muted']], { anchor: 'end', owner: 'cost-axis' });
+        const tx = x + px;
+        D.add('grid', line('tickmark', tx, ay, tx, ay + 4));
+        const right = '1× · the live data alone';
+        const left = 'the live data alone · 1×';
+        const [t, anchor] = tx + tw(right, 'small') <= x + w ? [right, 'start'] : tw(left, 'small') <= tx - x ? [left, 'end'] : ['1×', 'middle'];
+        D.text(tx, ay + 15, [[t, 'small', 'muted']], { anchor, owner: 'cost-axis', data: ` data-tick="${r1(tx)}" data-anchor="${anchor}"` });
         D.region('cost-space', { x: x - 6, y: y - 4, w: w + 12, h: 20 + 72 + 18 });
         return y + 20 + 72 + 14;
       }
@@ -2179,14 +2278,14 @@
           bottom = y + hL;
         } else {
           btreePanel(D, x1, y, pw, m, view, hid, 0);
-          const ry = y + hB + 12;
+          const ry = y + hB + 16;
           D.add('grid', line('rule', 0, ry, W, ry));
           lsmPanel(D, x2, ry + 12, pw, m, view, hid);
           bottom = ry + 12 + hL;
         }
         D.meta.panels = { two, pw, y, x1, x2, hB, hL };
         // What each pays.
-        y = bottom + 14;
+        y = bottom + 16;
         D.add('grid', line('rule', 0, y, W, y));
         y += 10;
         D.text(
@@ -2209,7 +2308,7 @@
           { owner: 'title' },
         );
         y += 28;
-        y = writeGroup(D, PAD, y, full, m, view, hid) + 10;
+        y = writeGroup(D, PAD, y, full, m, view, hid) + 14;
         if (two) {
           const a = readGroup(D, x1, y, pw, m, view, hid);
           const b = spaceGroup(D, x2, y, pw, m, view, hid);
@@ -2222,38 +2321,45 @@
         return { D, H: Math.round(y + 12) };
       }
 
-      // ---------- Focus outlines with their "Look here" tag on the first free place (prevention 5). An outline takes in
-      // every text its region holds with 6 px to spare, so its stroke never runs along a text.
+      // ---------- Focus outlines with their "Look here" tag (prevention 5). An outline takes in every text its region
+      // holds with 8 px to spare, and keeps 6 px from texts and 8 px from controls outside it. A tag sits only on the
+      // outline's stroke (its top or its foot), never in a row that holds labels: the stack's foot lies in a row the
+      // layout reserves empty in every phase, the cost block's title and the read row's label keep a tag's width free.
+      const GUTTER = 8;
       function focusOutlines(D, ids, H) {
         const TAG = { w: 72, h: 16 };
         for (const id of ids) {
           for (const b of D.regions[id] ?? []) {
-            const inside = new Set(
-              D.texts.filter((t) => {
-                const cx = (t.x0 + t.x1) / 2;
-                const cy = (t.y0 + t.y1) / 2;
-                return t.owner !== 'look' && cx >= b.x && cx <= b.x + b.w && cy >= b.y && cy <= b.y + b.h;
-              }),
-            );
+            const within = (t) => {
+              const cx = (t.x0 + t.x1) / 2;
+              const cy = (t.y0 + t.y1) / 2;
+              return cx >= b.x && cx <= b.x + b.w && cy >= b.y && cy <= b.y + b.h;
+            };
+            const inside = new Set(D.texts.filter((t) => t.owner !== 'look' && within(t)));
             const grow = (a, t, d) => ({ x0: Math.min(a.x0, t.x0 - d), y0: Math.min(a.y0, t.y0 - d), x1: Math.max(a.x1, t.x1 + d), y1: Math.max(a.y1, t.y1 + d) });
             let box = { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h };
             let core = { x0: b.x + 4, y0: b.y + 4, x1: b.x + b.w - 4, y1: b.y + b.h - 4 };
             for (const t of inside) {
-              box = grow(box, t, 6);
+              box = grow(box, t, GUTTER);
               core = grow(core, t, 3);
             }
-            const clash = (t) => !(t.x1 <= box.x0 - 4 || t.x0 >= box.x1 + 4 || t.y1 <= box.y0 - 4 || t.y0 >= box.y1 + 4);
+            const controls = D.hits.map((h) => ({ x0: h.x, x1: h.x + h.w, y0: h.y, y1: h.y + h.h, control: true })).filter((h) => !within(h));
+            const clash = (t) => {
+              const m = t.control ? GUTTER : 6;
+              return !(t.x1 <= box.x0 - m || t.x0 >= box.x1 + m || t.y1 <= box.y0 - m || t.y0 >= box.y1 + m);
+            };
             for (let round = 0; round < 8; round++) {
-              const bad = D.texts.filter((t) => !inside.has(t) && t.owner !== 'look' && clash(t));
+              const bad = [...D.texts.filter((t) => !inside.has(t) && t.owner !== 'look'), ...controls].filter(clash);
               if (!bad.length) break;
               for (const t of bad) {
-                if (t.y0 >= core.y1 && t.y0 - 4.5 >= core.y1) box.y1 = Math.min(box.y1, t.y0 - 4.5);
-                else if (t.y1 <= core.y0 && t.y1 + 4.5 <= core.y0) box.y0 = Math.max(box.y0, t.y1 + 4.5);
-                else if (t.x0 >= core.x1 && t.x0 - 4.5 >= core.x1) box.x1 = Math.min(box.x1, t.x0 - 4.5);
-                else if (t.x1 <= core.x0 && t.x1 + 4.5 <= core.x0) box.x0 = Math.max(box.x0, t.x1 + 4.5);
-                else {
+                const m = (t.control ? GUTTER : 6) + 0.5;
+                if (t.y0 >= core.y1 && t.y0 - m >= core.y1) box.y1 = Math.min(box.y1, t.y0 - m);
+                else if (t.y1 <= core.y0 && t.y1 + m <= core.y0) box.y0 = Math.max(box.y0, t.y1 + m);
+                else if (t.x0 >= core.x1 && t.x0 - m >= core.x1) box.x1 = Math.min(box.x1, t.x0 - m);
+                else if (t.x1 <= core.x0 && t.x1 + m <= core.x0) box.x0 = Math.max(box.x0, t.x1 + m);
+                else if (!t.control) {
                   inside.add(t);
-                  box = grow(box, t, 6);
+                  box = grow(box, t, GUTTER);
                   core = grow(core, t, 3);
                 }
               }
@@ -2262,19 +2368,15 @@
             const yy = Math.max(3, box.y0);
             const w = Math.min(D.W - 3, box.x1) - x;
             const h = Math.min(H - 3, box.y1) - yy;
-            D.add('top', `<rect class="focus-outline" x="${r1(x)}" y="${r1(yy)}" width="${r1(w)}" height="${r1(h)}" rx="10"/>`);
+            D.add('top', `<rect class="focus-outline" x="${r1(x)}" y="${r1(yy)}" width="${r1(w)}" height="${r1(h)}" rx="10" data-region="${id}"/>`);
             const across = [];
             for (let ax = x + w - TAG.w - 16; ax >= x + 16; ax -= 8) across.push(ax);
             const xs = [x + w - TAG.w - 16, x + 16, ...across];
-            // On the outline's edge first (the house's place), then just inside, then any free row inside, outside last.
-            const inner = [];
-            for (let iy = yy + 14; iy <= yy + h - TAG.h - 14; iy += 10) inner.push(iy);
-            const ys = [yy - TAG.h / 2, yy + h - TAG.h / 2, yy + 4, yy + h - TAG.h - 4, ...inner, yy - TAG.h - 2, yy + h + 2];
             let placed = false;
-            for (const [tx, ty] of ys.flatMap((t) => xs.map((sx) => [sx, t]))) {
+            for (const [tx, ty] of [yy - TAG.h / 2, yy + h - TAG.h / 2].flatMap((t) => xs.map((sx) => [sx, t]))) {
               const tag = { x0: tx, x1: tx + TAG.w, y0: ty, y1: ty + TAG.h };
               if (tx < 3 || tx + TAG.w > D.W - 3 || ty < 3 || ty + TAG.h > H - 3) continue;
-              if (!D.free(tag, '', 1)) continue;
+              if (!D.free(tag, '', 1, 6)) continue;
               D.add('top', `<rect class="tag" x="${r1(tx)}" y="${r1(ty)}" width="${TAG.w}" height="${TAG.h}" rx="8"/>`);
               D.add('top', `<text x="${r1(tx + TAG.w / 2)}" y="${r1(ty + 12)}" text-anchor="middle" data-owner="look" data-ground="1"><tspan class="t-look">LOOK HERE</tspan></text>`);
               D.mark(tag, 'look');
@@ -2341,8 +2443,8 @@
       // ---------- The page around the stage.
       function noticeOf(m, view) {
         const hid = hiding(view);
-        if (view.phase === 'asking') return 'Play and every setting wait for your answer.';
-        if (view.phase === 'playing') return '';
+        // Through the answer's play too: the controls are still locked, so the sentence is still true. Never blank.
+        if (view.phase === 'asking' || view.phase === 'playing') return 'Play and every setting wait for your answer.';
         if (view.played) return story(view.played, m);
         if (view.phase === 'revealed' || view.phase === 'challenge' || view.changed) return settingSentence(m, hid);
         return "Change the workload or an engine's setting; each Play follows the write or the lookup through its engine.";
@@ -2419,23 +2521,25 @@
       // the two current rows marked. Compact under a 560 px stage.
       function describeRows(m, compact) {
         const s = m.settings;
-        const head = compact ? ['Engine', 'Levels', 'Write, ×', 'Reads', 'Disk, ×'] : ['Engine', 'Levels', 'Written', 'Disk writes', 'Lookup', 'Disk used'];
+        // One token a compact head, so no head strands its unit on a line of its own.
+        const head = compact ? ['Engine', 'Levels', 'Write×', 'Reads', 'Disk×'] : ['Engine', 'Levels', 'Written', 'Disk writes', `Lookup, filters ${s.bloom ? 'on' : 'off'}`, 'Disk used'];
         const num = (v, d) => String(Number(v.toFixed(d)));
         const row = (name, now, levels, e) => ({
           now,
-          cells: compact ? [name, String(levels), fAmp(e.writeAmp).replace('×', ''), String(e.lookupReads), num(e.spaceAmp, 2)] : [name, String(levels), fAmp(e.writeAmp), M.formatRate(e.diskWriteMBps), M.formatReads(e.lookupReads), M.formatSpace(e.spaceAmp)],
+          cells: compact ? [name, levels, fAmp(e.writeAmp).replace('×', ''), String(e.lookupReads), num(e.spaceAmp, 2)] : [name, levels, fAmp(e.writeAmp), M.formatRate(e.diskWriteMBps), M.formatReads(e.lookupReads), M.formatSpace(e.spaceAmp)],
         });
         const rows = [
           ...M.PAGE_KB.map((page) => {
             const b = M.run({ ...s, page }).btree;
-            return row(compact ? `B-tree, ${M.formatKb(page)}` : `B-tree, ${M.formatKb(page)} pages`, page === s.page, b.height, b);
+            return row(compact ? `B-tree, ${M.formatKb(page)}` : `B-tree, ${M.formatKb(page)} pages`, page === s.page, String(b.height), b);
           }),
           ...M.RATIOS.map((ratio) => {
             const l = M.run({ ...s, ratio }).lsm;
-            return row(compact ? `LSM, ratio ${ratio}` : `LSM tree, ratio ${ratio}`, ratio === s.ratio, l.levels, l);
+            // The B-tree's levels are its height, leaves included; the LSM tree's are its levels and the flushed run.
+            return row(compact ? `LSM, ratio ${ratio}` : `LSM tree, ratio ${ratio}`, ratio === s.ratio, compact ? `${l.levels}+L0` : `${l.levels} + L0`, l);
           }),
         ];
-        const note = `Rows are this workload's: ${M.formatGb(s.data)} in ${recordWords(s)}, bloom filters ${s.bloom ? 'on' : 'off'}. The LSM tree's disk use is its most.`;
+        const note = `Rows are this workload's: ${M.formatGb(s.data)} in ${recordWords(s)}, bloom filters ${s.bloom ? 'on' : 'off'}. The LSM tree's disk use is an upper bound.`;
         return { head, rows, note };
       }
       function describeHtml(m, view, compact) {
@@ -2446,8 +2550,8 @@
         if (!open) return btn;
         const { head, rows, note } = describeRows(m, compact);
         return `${btn}<p class="summary">${nb(summary(m, NOTHING_HIDDEN))}</p><div class="table-box${compact ? ' compact' : ''}" tabindex="0" role="region" aria-label="Each engine at each of its settings, for this workload"><table><thead><tr>${head
-          .map((h) => `<th scope="col">${h.replace(', ×', ', <span class="unit">×</span>')}</th>`)
-          .join('')}</tr></thead><tbody>${rows.map((r) => `<tr${r.now ? ' class="now" aria-current="true"' : ''}>${r.cells.map((c, i) => (i === 0 ? `<th scope="row">${esc(c)}</th>` : `<td>${esc(c)}</td>`)).join('')}</tr>`).join('')}</tbody></table></div><p class="muted-note">${nb(note)}</p>`;
+          .map((h) => `<th scope="col"><span class="nb">${esc(h).replace('×', '<span class="unit">×</span>')}</span></th>`)
+          .join('')}</tr></thead><tbody>${rows.map((r) => `<tr${r.now ? ' class="now" aria-current="true"' : ''}>${r.cells.map((c, i) => (i === 0 ? `<th scope="row">${nb(c)}</th>` : `<td>${esc(c)}</td>`)).join('')}</tr>`).join('')}</tbody></table></div><p class="muted-note">${nb(note)}</p>`;
       }
       // Play and the engines' own settings sit on the stage, beside what they change; all of them wait while a
       // question is open.
@@ -2489,6 +2593,8 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${nb(story
         well.innerHTML = D.svg(H, D.label) + overlaysHtml(D, view, m);
         document.getElementById('describe').innerHTML = describeHtml(m, view, W < 560);
         window.__stage = { W, H, missingTags: D.missingTags ?? 0, summary: D.label, missing: D.missing };
+        // Reduced motion: Play's story is written under the stage; bring it into view only if it is off screen.
+        if (view.reduced) root.querySelector('.caption')?.scrollIntoView({ block: 'nearest' });
         return { W, H, D, view, m };
       }
 
@@ -2546,15 +2652,48 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${nb(story
           const [x, y, w, h] = ['x', 'y', 'width', 'height'].map((a) => Number(el.getAttribute(a)));
           if (x < -0.5 || x + w > W + 0.5 || y < 0 || y + h > H) out.push(`mark off-stage: ${el.getAttribute('class')}`);
         }
+        // An outline's stroke keeps 8 px from the texts it encloses, 4 from texts outside it and 8 from controls.
+        const wb0 = well.getBoundingClientRect();
+        const controlBoxes = [...well.querySelectorAll('.hit')].map((h) => {
+          const b = h.getBoundingClientRect();
+          return { o: h.dataset.owner, x0: b.left - wb0.left - 1, x1: b.right - wb0.left - 1, y0: b.top - wb0.top - 1, y1: b.bottom - wb0.top - 1 };
+        });
         for (const o of svg.querySelectorAll('rect.focus-outline')) {
           const [x, y, w, h] = ['x', 'y', 'width', 'height'].map((a) => Number(o.getAttribute(a)));
           for (const t of texts) {
             if (t.owner.includes('look')) continue;
-            const inner = t.x0 >= x + 3 && t.x1 <= x + w - 3 && t.y0 >= y + 3 && t.y1 <= y + h - 3;
+            const inner = t.x0 >= x + 7.5 && t.x1 <= x + w - 7.5 && t.y0 >= y + 7.5 && t.y1 <= y + h - 7.5;
             const clear = t.x1 <= x - 4 || t.x0 >= x + w + 4 || t.y1 <= y - 4 || t.y0 >= y + h + 4;
             if (!inner && !clear) out.push(`text at an outline's stroke: "${t.s}"`);
           }
+          for (const c of controlBoxes) {
+            const gap = Math.max(x - c.x1, c.x0 - (x + w), y - c.y1, c.y0 - (y + h));
+            if (gap < 7.5) out.push(`an outline ${gap.toFixed(1)} px from the control ${c.o}`);
+          }
         }
+        // A tag sits clear of every label: 6 px from any text on its row, and never on one.
+        for (const tg of svg.querySelectorAll('rect.tag')) {
+          const [x, y, w, h] = ['x', 'y', 'width', 'height'].map((a) => Number(tg.getAttribute(a)));
+          const box = { x0: x, x1: x + w, y0: y, y1: y + h };
+          for (const t of texts) {
+            if (t.owner.includes('look')) continue;
+            const rowShared = Math.min(box.y1, t.y1) - Math.max(box.y0, t.y0) > 2;
+            const gap = Math.max(box.x0 - t.x1, t.x0 - box.x1);
+            if (rowShared && gap < 6) out.push(`a tag ${gap.toFixed(1)} px from "${t.s}"`);
+          }
+        }
+        // No dot or ring crosses a run bar's outline: they sit on the trail beside the bars.
+        const bars = [...svg.querySelectorAll('rect.run:not(.box)')].map((r) => {
+          const [x, y, w, h] = ['x', 'y', 'width', 'height'].map((a) => Number(r.getAttribute(a)));
+          return { x0: x, x1: x + w, y0: y, y1: y + h };
+        });
+        for (const c of svg.querySelectorAll('circle.dot, circle.ringm, circle.ring-pass, circle.skip, circle.found-ring')) {
+          const [cx, cy, r] = ['cx', 'cy', 'r'].map((a) => Number(c.getAttribute(a)));
+          const sw = c.classList.contains('found-ring') ? 1 : 0.75;
+          for (const b of bars) if (cx + r + sw > b.x0 && cx - r - sw < b.x1 && cy + r + sw > b.y0 && cy - r - sw < b.y1) out.push(`a ${c.getAttribute('class')} crosses a run bar`);
+        }
+        // No stage line is a bare "?": a hidden figure keeps its sentence's shape or shares its row with words.
+        for (const t of texts) if (/^\?×?$/.test(t.s.trim()) && !texts.some((u) => u !== t && Math.min(u.y1, t.y1) - Math.max(u.y0, t.y0) > 2)) out.push(`a lone "${t.s}" line`);
         // Two outlines never touch or cross: each reads as its own region, 6 px or more from the next.
         const outlines = [...svg.querySelectorAll('rect.focus-outline')].map((o) => {
           const [x, y, w, h] = ['x', 'y', 'width', 'height'].map((a) => Number(o.getAttribute(a)));
@@ -2601,7 +2740,7 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${nb(story
 
       // ---------- What must hold on every render, beyond collisions (the layout spec's assertions).
       // No hidden value is replaced by a wrong default, counts follow plural grammar, and nothing prints as a bare 0.
-      const FALSE_CLAIMS = [/NaN|undefined|Infinity|null/, /(^|[^\d.,])0(×| B\b| MB| GB| disk| levels| pages| runs)/, /\b1 (levels|pages|disk reads|runs|records|merges)\b/, /[^\d,.][2-9]\d* (level|page|disk read|run|record)\b(?!s)/, /\?\?/, /\u2014|\u00a0/];
+      const FALSE_CLAIMS = [/NaN|undefined|Infinity|null/, /(^|[^\d.,])0(×| B\b| MB| GB| disk| levels| pages| runs)/, /\b1 (levels|pages|disk reads|runs|records|merges|reads)\b/, /[^\d,.][2-9]\d* (level|page|disk read|run|record)\b(?!s)/, /= ([2-9]|\d{2,}) read\b/, /\?\?/, /\u2014|\u00a0/];
       const stageText = (well) =>
         [...well.querySelectorAll('svg.draw text')].map((t) => t.textContent).join(' | ') +
         ' | ' +
@@ -2638,6 +2777,33 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${nb(story
           if (!!svg.querySelector(`[data-more="${k}"]`) !== r.more) out.push(`row ${k}'s dots are not drawn as counted`);
         });
         if (svg.querySelectorAll('[data-run]').length !== m.lsm.levels + 1) out.push(`${svg.querySelectorAll('[data-run]').length} runs drawn for ${m.lsm.levels} levels and the flushed run`);
+        // Each level bar's width is its size on the one log scale (64 MB to 1,000 GB), so a ratio's steps show.
+        for (const r of svg.querySelectorAll('[data-run]')) {
+          const want = Number(r.dataset.bmin) + (Number(r.dataset.bmax) - Number(r.dataset.bmin)) * (Math.log(Number(r.dataset.bytes) / (M.MEMTABLE_MB * M.MB)) / Math.log((1000 * M.GB) / (M.MEMTABLE_MB * M.MB)));
+          if (Math.abs(Number(r.getAttribute('width')) - want) > 0.6) out.push(`run ${r.dataset.run} is ${r.getAttribute('width')} px, not its log size ${want.toFixed(1)}`);
+        }
+        // The stack's caption claims the ratio only from L1 down.
+        if (/L0/.test(svg.querySelector('[data-id="stack-caption"]')?.textContent ?? '')) out.push('the ratio caption covers L0');
+        // Every record slot drawn in the leaf page is the record's own width: the free rule falls on a whole record.
+        const edge = svg.querySelector('[data-id="free-edge"]');
+        if (edge) {
+          const k = (Number(edge.getAttribute('x1')) - Number(edge.dataset.x0)) / Number(edge.dataset.recpx);
+          if (Math.abs(k - Math.round(k)) * Number(edge.dataset.recpx) > 0.15) out.push(`the free rule falls inside a record (${k.toFixed(2)} records)`);
+        }
+        // A tick's value lies within 6 px of its tick.
+        for (const t of svg.querySelectorAll('text[data-tick]')) {
+          const b = t.getBBox();
+          const at = Number(t.dataset.tick);
+          const d = t.dataset.anchor === 'start' ? b.x - at : t.dataset.anchor === 'end' ? at - (b.x + b.width) : Math.abs(b.x + b.width / 2 - at);
+          if (Math.abs(d) > 6) out.push(`a tick's value ${d.toFixed(1)} px from its tick`);
+        }
+        // The panels never say the other operation: no "read" following a write (but the play's step and the leaf's
+        // own chip, which tell the read before the write), no "write" following a lookup.
+        for (const t of svg.querySelectorAll('text[data-owner]')) {
+          const o = t.getAttribute('data-owner');
+          if (!/^(bt|lsm)-/.test(o) || /^step-|bt-leaf-action/.test(t.dataset.id ?? '')) continue;
+          if (m.settings.op === WRITE ? /\bread\b/i.test(t.textContent) : /\bwrit/i.test(t.textContent)) out.push(`"${t.textContent}" following a ${m.settings.op === WRITE ? 'write' : 'lookup'}`);
+        }
         // Dashed means hidden until you answer, and nothing else.
         const dashed = svg.querySelector('.hidden-box, .strip.hidden');
         if (dashed && !open) out.push('a dashed mark with no question open');
@@ -2735,11 +2901,17 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${nb(story
       // name or structure may hold its answer or a false claim (prevention 1 and 2). Each question is entered from
       // other settings too, so nothing a learner did before carries an answer in.
       const afterOf = (k) => M.run(actSettings(M.EXPERIMENTS[k]));
+      const setupOf = (k) => M.run(M.EXPERIMENTS[k].setup);
+      const E1 = setupOf(0).btree;
+      const E2 = setupOf(1).lsm;
       const GIVEAWAYS = {
-        'page-rewrite': { both: [fB(M.run(B).btree.writeBytes), M.formatBytes(M.run(B).btree.writeBytes), fAmp(M.run(B).btree.writeAmp), M.formatRate(M.run(B).btree.diskWriteMBps), `${fB(4096)} written`, 'written back whole', `+${fB(100)}`, `${fB(4096)} +`], asking: ['written back', 'whole page', 'page back', 'rewritten in place'] },
-        'lsm-rewrites': { both: [fAmp(24), M.formatRate(240), '≈', '5.5', '55 parts', '1 log + 1 flush', 'Merge k', '(ratio + 1) / 2'] },
+        'page-rewrite': {
+          both: [fB(E1.writeBytes), M.formatBytes(E1.writeBytes), fAmp(E1.writeAmp), M.formatRate(E1.diskWriteMBps), `${fB(E1.pageB)} written`, 'written back whole', 'rewritten unchanged', fB(E1.pageB - 100), `+${fB(100)}`, `${fB(E1.pageB)} +`, 'random page writes', M.formatRound(E1.randomWritesPerSec)],
+          asking: ['written back', 'whole page', 'page back', 'rewritten in place', 'written after'],
+        },
+        'lsm-rewrites': { both: [fAmp(E2.writeAmp), M.formatRate(E2.diskWriteMBps), '≈', M.formatNum(E2.rewritesPerLevel), `${E2.partsWritten} parts`, '1 log + 1 flush + 3', 'Merge k', '(ratio + 1) / 2', ' avg', 'on average', 'written ', 'times.'] },
         'record-size': { playing: [fAmp(afterOf(2).btree.writeAmp), M.formatRate(afterOf(2).btree.diskWriteMBps), fB(afterOf(2).btree.writeBytes), fAmp(24), 'was ', '≈'] },
-        'no-filters': { both: ['every run'], asking: [`${afterOf(3).lsm.runs} runs`, `${M.run(M.EXPERIMENTS[3].setup).lsm.skipped} say`, `${M.run(M.EXPERIMENTS[3].setup).lsm.skipped} runs say`], playing: [M.formatReads(afterOf(3).lsm.lookupReads), `${afterOf(3).lsm.runs} runs`, 'none skipped', 'newest first', 'was '] },
+        'no-filters': { both: ['every run'], asking: [`${afterOf(3).lsm.runs} runs`, `${M.run(M.EXPERIMENTS[3].setup).lsm.skipped} say`, `${M.run(M.EXPERIMENTS[3].setup).lsm.skipped} runs say`], playing: [M.formatReads(afterOf(3).lsm.lookupReads), `${afterOf(3).lsm.lookupReads} reads`, `${afterOf(3).lsm.runs} runs`, 'none skipped', 'newest first', 'was '] },
         'more-data': { playing: [fAmp(afterOf(4).lsm.writeAmp), M.formatRate(afterOf(4).lsm.diskWriteMBps), '≈', fAmp(42), 'was ', '5 levels ×'] },
       };
       function structural(well, spec, phase, view) {
@@ -2772,9 +2944,11 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${nb(story
           }
         }
         if (hide.has('lsmWrite') && !playing && svg.querySelector('[data-id="stair"]')) out.push("the level's merges drawn while the question asks");
-        if (hide.has('readsWhy') && !playing && (/\d/.test(tx('lsm-ledger') ?? '') || /\d/.test(tx('filter-text') ?? ''))) out.push("the lookup's arithmetic while the question asks");
+        if (hide.has('readsWhy') && !playing && (/\d.* (runs|skipped)|\d runs/.test(tx('lsm-ledger') ?? '') || /\d/.test(tx('filter-text') ?? ''))) out.push("the lookup's arithmetic while the question asks");
         if (hide.has('readsAfter') && playing) {
           if (svg.querySelector('[data-pip="lsm"]')) out.push("an LSM read pip while the answer plays");
+          const box = svg.querySelector('[data-id="pips-lsm-hidden"]');
+          if (!box || Number(box.dataset.w) !== 8 * 12) out.push(`the hidden pip box is ${box?.dataset.w} px, not the row's whole scale`);
           if (tx('reads-lsm') !== '?') out.push(`the LSM reads value reads "${tx('reads-lsm')}"`);
           if (svg.querySelector('[data-id^="chip-"]')) out.push('a read chip while the answer plays');
           if (tx('lsm-total') !== null && !tx('lsm-total').startsWith('?')) out.push(`the lookup total reads "${tx('lsm-total')}"`);
@@ -2797,8 +2971,9 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${nb(story
         const m = M.run(view.s);
         drawInto(well, W, m, view);
         const hid = hiding(view);
-        const words = [noticeOf(m, view), summary(m, hid), noteOf(view), view.phase === 'playing' ? story(view.play.engine, m, hid) : ''].join(' | ');
-        return [...giveaways(well, spec, phase, words), ...structural(well, spec, phase, view)];
+        const notice = noticeOf(m, view);
+        const words = [notice, summary(m, hid), noteOf(view), view.phase === 'playing' ? story(view.play.engine, m, hid) : ''].join(' | ');
+        return [...giveaways(well, spec, phase, words), ...structural(well, spec, phase, view), ...(notice ? [] : ['the notice is blank'])];
       }
       window.noAnswer = function (widths) {
         const well = document.getElementById('well');
@@ -2841,8 +3016,45 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${nb(story
         tryLeak("E5 played, the LSM tree's new numbers shown", 'more-data', 'playing', ['lsmNumbers']);
         tryLeak('E3 asked with the ghost of the setting before it', 'record-size', 'asking', ['ghost'], { ...B, page: 16 });
         tryLeak("E1 asked, the model's note and the engines' settings live", 'page-rewrite', 'asking', ['locked']);
+        tryLeak('E4 played, the hidden pip box sized by the count', 'no-filters', 'playing', ['pipBox']);
         well.style.width = '';
         return caught;
+      };
+      // The stage a learner sees on load (the default, either operation, at rest) never prints an answer: every
+      // experiment asks about another setting or an act the stage has not drawn.
+      const ASKED = () => {
+        const out = [];
+        for (const spec of M.EXPERIMENTS.filter((e) => e.choices)) {
+          const e = M.renderExperiment(spec);
+          const after = M.run(actSettings(spec));
+          const setup = M.run(spec.setup);
+          if (spec.id === 'page-rewrite') out.push(fB(setup.btree.writeBytes), M.formatBytes(setup.btree.writeBytes), fAmp(setup.btree.writeAmp));
+          if (spec.id === 'lsm-rewrites') out.push(`≈${M.formatNum(setup.lsm.rewritesPerLevel)}×`, fAmp(setup.lsm.rewritesPerLevel), fAmp(setup.lsm.writeAmp));
+          if (spec.id === 'record-size') out.push(fAmp(after.btree.writeAmp));
+          if (spec.id === 'no-filters') out.push(M.formatReads(after.lsm.lookupReads));
+          if (spec.id === 'more-data') out.push(fAmp(after.lsm.writeAmp));
+          const truth = M.formatSlot(e.slots[spec.truth]);
+          if (/\d/.test(truth)) out.push(truth);
+        }
+        return [...new Set(out)];
+      };
+      window.restLeaks = function (widths) {
+        const well = document.getElementById('well');
+        const out = [];
+        const asked = ASKED();
+        for (const W of widths) {
+          well.style.width = W + 2 + 'px';
+          for (const op of [M.OP_WRITE, M.OP_READ]) {
+            const s = { ...B, op };
+            const m = M.run(s);
+            const view = restView(s);
+            drawInto(well, W, m, view);
+            const text = [stageText(well), summary(m, NOTHING_HIDDEN), noteOf(view), noticeOf(m, view)].join(' | ');
+            for (const a of asked) if (text.includes(a)) out.push(`W${W} ${op === WRITE ? 'write' : 'lookup'}: "${a}" on the stage at load`);
+          }
+        }
+        well.style.width = '';
+        return { asked, out };
       };
       window.heights = function (widths) {
         const out = {};

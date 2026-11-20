@@ -78,7 +78,17 @@ const server = http.createServer((req, res) => {
         await page.goto(`${base}?${query(state)}&theme=${theme}`);
         await page.waitForSelector('body[data-ready="1"]', { timeout: 20000 });
         const { issues, stage, overflow, widget } = await page.evaluate(() => ({
-          issues: window.__collisions,
+          // The off-stage controls' words stay inside their box, on one line ("1,000 GB" at a 320 px phone).
+          issues: [
+            ...window.__collisions,
+            ...[...document.querySelectorAll('.controls .segment span')]
+              .filter((s) => {
+                const r = document.createRange();
+                r.selectNodeContents(s);
+                return s.scrollWidth > s.clientWidth + 1 || r.getClientRects().length > 1;
+              })
+              .map((s) => `an off-stage control's words wrap or overflow: ${s.textContent}`),
+          ],
           stage: window.__stage,
           overflow: document.documentElement.scrollWidth > window.innerWidth,
           widget: Math.round(window.widgetHeight()),
@@ -112,7 +122,11 @@ const server = http.createServer((req, res) => {
     const names = Object.keys(planted);
     console.log(`planted leaks caught: ${names.filter((n) => planted[n]).length} of ${names.length}`);
     for (const n of names.filter((n) => !planted[n])) console.log(`    NOT CAUGHT (or the clean view is not clean): ${n}`);
-    if (!names.every((n) => planted[n]) || names.length !== 12) total++;
+    if (!names.every((n) => planted[n]) || names.length !== 13) total++;
+    const rest = await page.evaluate((w) => window.restLeaks(w), sweepWidths);
+    console.log(`the default stage at load (either operation, at rest, 14 widths) against every question's asked quantity (${rest.asked.join(', ')}): ${rest.out.length} found`);
+    for (const r of rest.out.slice(0, 8)) console.log(`    ${r}`);
+    total += rest.out.length;
     const words = await page.evaluate(() => window.pageWords());
     console.log(`page sentences (summary, notice, both plays' stories, Describe, goal checks) over every setting: ${words.length} findings`);
     for (const w of words.slice(0, 8)) console.log(`    ${w}`);
@@ -149,14 +163,17 @@ const server = http.createServer((req, res) => {
     for (const hs of Object.values(heights)) if (hs.length !== 1) total++;
     console.log(`most SVG elements in any render: ${await page.evaluate(() => window.__maxElements)}`);
     // Describe fits its box (or scrolls inside it, never the page) at the house widths.
-    for (const width of [320, 412, 1280, 1440]) {
+    for (const width of [320, 360, 390, 412, 1280, 1440]) {
       const p = await browser.newPage({ viewport: { width, height: 900 } });
       await p.goto(`${base}?state=describe`);
       await p.waitForSelector('body[data-ready="1"]', { timeout: 20000 });
       const d = await p.evaluate(() => {
         const box = document.querySelector('.table-box');
-        return { page: document.documentElement.scrollWidth > window.innerWidth, table: box.scrollWidth > box.clientWidth + 1, compact: box.classList.contains('compact') };
+        const split = [...box.querySelectorAll('.nb')].filter((n) => n.getClientRects().length > 1).map((n) => n.textContent);
+        return { page: document.documentElement.scrollWidth > window.innerWidth, table: box.scrollWidth > box.clientWidth + 1, compact: box.classList.contains('compact'), split };
       });
+      if (d.split.length) console.log(`    a number parted from its unit: ${d.split.join(', ')}`);
+      total += d.split.length;
       console.log(`Describe at ${width}: ${d.compact ? 'compact' : 'full'}, ${d.table ? 'scrolls inside its box' : 'fits its box'}${d.page ? ', THE PAGE SCROLLS SIDEWAYS' : ''}`);
       if (d.page || d.table) total++;
       await p.close();
