@@ -37,6 +37,7 @@ const STATES = opt('only')?.split(',') ?? [
   'tallest',
   'playing',
   'modplaying',
+  'replaying',
   'describe',
   'reduced',
   ...[1, 2, 3, 4, 5].map((k) => `ask:${k}`),
@@ -79,11 +80,13 @@ const server = http.createServer((req, res) => {
       for (const state of STATES) {
         await page.goto(`${base}?${query(state)}&theme=${theme}`);
         await page.waitForSelector('body[data-ready="1"]', { timeout: 20000 });
-        const { issues, stage, overflow } = await page.evaluate(() => ({
+        const { issues, stage, overflow, page: pageIssues } = await page.evaluate(() => ({
           issues: window.__collisions,
           stage: window.__stage,
           overflow: document.documentElement.scrollWidth > window.innerWidth,
+          page: window.pageChecks(),
         }));
+        issues.push(...pageIssues);
         await page.screenshot({ path: path.join(DIR, 'shots', `${file(state)}-${width}-${theme}.png`), fullPage: true });
         const all = [...issues, ...(overflow ? ['the page scrolls sideways'] : [])];
         total += all.length;
@@ -108,7 +111,11 @@ const server = http.createServer((req, res) => {
     total += giveaways.out.length;
     const planted = await page.evaluate(() => window.plantedLeaks(322));
     console.log(`planted leaks caught: ${planted.filter(Boolean).length} of ${planted.length}`);
-    if (!planted.every(Boolean) || planted.length !== 5) total++;
+    if (!planted.every(Boolean) || planted.length !== 6) total++;
+    const units = await page.evaluate(() => window.nowrapUnits());
+    console.log(`learner sentences with a formula, a fraction or a bracket parted from itself: ${units.length}`);
+    for (const u of units.slice(0, 8)) console.log(`    ${u}`);
+    total += units.length;
     const words = await page.evaluate(() => window.pageWords());
     console.log(`page sentences (summary, story, standing line, rule, Describe, goal checks) over every scenario: ${words.length} false claims`);
     for (const w of words.slice(0, 8)) console.log(`    ${w}`);

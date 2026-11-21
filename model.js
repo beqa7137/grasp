@@ -251,7 +251,7 @@
 
   /** The sentences under the headline: where the moved keys went, against what had to move. `hot: false` leaves out
    * the hot key's sentence (a narrow stage draws that fact on the hot block instead). */
-  function changeStory(sc, { hot = true } = {}) {
+  function changeStory(sc, { hot = true, short = false } = {}) {
     const c = sc.change;
     const order = NAMES;
     const out = [];
@@ -263,12 +263,14 @@
         const sources = order.filter((m) => c.out[m] > 0);
         const where =
           c.joined.length > 1
-            ? `to ${orList(c.joined)}: ${parts(c.into, order, 'to')}`
+            ? short
+              ? `to ${orList(c.joined)}`
+              : `to ${orList(c.joined)}: ${parts(c.into, order, 'to')}`
             : sources.length === 1
               ? `to ${c.joined[0]}, ${c.moved === 1 ? 'from' : 'every one from'} ${sources[0]}`
               : `to ${c.joined[0]}: ${parts(c.out, order, 'from')}`;
         out.push(c.moved === 1 ? `The one key moved ${where}.` : `All ${num(c.moved)} moved ${where}.`);
-        if (sc.scheme === 'mod' && c.between === 0 && c.after.members.length === 2 * c.before.members.length) out.push(twins(c.before.members.length, c.after.members.length, 'join'));
+        if (sc.scheme === 'mod' && c.between === 0 && c.after.members.length === 2 * c.before.members.length) out.push(twins(c.before.members.length, c.after.members.length, 'join', short));
       } else {
         out.push(
           `Only ${num(c.toJoined)} of them moved to ${list(c.joined)}; the other ${num(c.moved - c.toJoined)} changed places among ${list(stayers)}, because hash mod ${c.after.members.length} places every key again.`,
@@ -284,7 +286,7 @@
           `Only ${who}'s ${keys(c.leftHeld)} moved${one ? `, all to ${dests[0]}${sc.settings.points === 1 && sc.scheme === 'ring' ? ', the next point clockwise' : ''}` : `: ${parts(c.into, order, 'to')}`}.`,
         );
         if (one && c.kind === 'down') out.push(`${dests[0]} went from ${keys(c.before.counts[dests[0]])} to ${num(c.after.counts[dests[0]])}.`);
-        if (sc.scheme === 'mod' && c.between === 0 && 2 * c.after.members.length === c.before.members.length) out.push(twins(c.after.members.length, c.before.members.length, 'leave'));
+        if (sc.scheme === 'mod' && c.between === 0 && 2 * c.after.members.length === c.before.members.length) out.push(twins(c.after.members.length, c.before.members.length, 'leave', short));
       } else {
         out.push(
           `${who} held ${keys(c.leftHeld)}, but ${num(c.moved)} moved: hash mod ${c.after.members.length} places every key again, so ${num(c.moved - c.fromLeft)} changed places among nodes that stayed.`,
@@ -299,7 +301,8 @@
   }
   /** Why doubling (or halving) is hash mod N's one cheap change: a key's remainder for 2n is its remainder for n, or
    * that plus n, so each key stays or moves between a node and its twin n places on. */
-  function twins(n, n2, kind) {
+  function twins(n, n2, kind, short = false) {
+    if (short) return kind === 'join' ? `Doubling is hash mod N's one cheap change: each key stays or moves ${n} nodes on, to its node's twin.` : `Halving is hash mod N's one cheap shrink: each node that left hands its keys to its twin, ${n} nodes back.`;
     return kind === 'join'
       ? `Doubling is hash mod N's one cheap change: a key's remainder for ${n2} is its remainder for ${n} or that plus ${n}, so it stays or moves to its node's new twin.`
       : `Halving is hash mod N's one cheap shrink: a key's remainder for ${n} is its remainder for ${n2} or that less ${n}, so each node that left hands its keys to one twin.`;

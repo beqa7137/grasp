@@ -806,6 +806,64 @@
       .hot-block {
         fill: var(--g-viz-critical);
       }
+      .hot-block.moved {
+        fill: color-mix(in srgb, var(--g-viz-critical) 15%, var(--g-viz-stage));
+        stroke: var(--g-viz-critical);
+        stroke-width: 1.25;
+      }
+      .hot-seam {
+        stroke: var(--g-viz-stage);
+        stroke-width: 1;
+      }
+      circle.key[data-owner='pile']:not(.moved) {
+        stroke: var(--g-viz-stage);
+        stroke-width: 0.6;
+      }
+      .legend-key {
+        fill: var(--g-text);
+      }
+      .legend-key.moved {
+        fill: var(--g-viz-stage);
+        stroke: var(--g-text);
+        stroke-width: 1.1;
+      }
+      .follow-ring {
+        fill: none;
+        stroke: var(--g-text);
+        stroke-width: 1.1;
+      }
+      .segment span.split-short {
+        display: none;
+      }
+      @media (max-width: 359px) {
+        .segment span.split-long {
+          display: none;
+        }
+        .segment span.split-short {
+          display: inline;
+        }
+      }
+      .segment span.split-long,
+      .segment span.split-short {
+        min-height: 0;
+        padding: 0;
+        border: 0;
+        background: none;
+        box-shadow: none;
+      }
+      .goal-mini {
+        margin: 0;
+        font: 600 var(--g-text-body-s) var(--g-font);
+        color: var(--g-muted);
+      }
+      .goal-mini.met {
+        color: var(--g-success-ink);
+      }
+      @media (min-width: 1000px) {
+        .goal-mini {
+          display: none;
+        }
+      }
       .cut-mark {
         fill: var(--g-viz-critical);
       }
@@ -815,6 +873,7 @@
       }
       .chip-pt.gone {
         stroke: var(--g-viz-discarded-ink);
+        fill: var(--g-viz-track);
       }
       .pt-tick {
         stroke: var(--g-text);
@@ -938,10 +997,10 @@
       const K = M.K;
       /** The hot key drawn at the size of its traffic: as many ordinary keys as carry its 30%. */
       const HOT_SLOTS = (M.HOT_PCT / (100 - M.HOT_PCT)) * K;
-      /** The piles' scale: every pile of keys fits it (169 at most, enum.cjs prints it), and every experiment's piles with
-       * the hot key (85 keys under it at most). A hot key on a fuller pile is cut at the scale's end and says how much of
-       * its traffic the cut leaves out; the room over the scale is the cut's label's. */
-      const MAX_SLOTS = 184;
+      /** The piles' scale is all the keys: every pile of keys fits it (197 at most, enum.cjs prints it). A hot key on a
+       * full pile is cut at the scale's end and says how much of its traffic the cut leaves out; the room over the scale
+       * is the cut's label's. */
+      const MAX_SLOTS = 200;
 
       // ---------- Text measurement, with the fonts the app ships (no tabular digits: small text is measured as drawn).
       const ROLE = {
@@ -1160,16 +1219,20 @@
       }
       const rel = (a, start) => (((a - start) % 1) + 1) % 1;
       /** Dots along the strip, stacked upward where they would touch. */
-      function stripStack(xs, r) {
-        const lanes = [];
+      function stripStack(xs, r, first = null) {
         const out = new Map();
-        for (const [i, x] of [...xs].sort((a, b) => a[1] - b[1])) {
+        const placedAt = [];
+        // The first key (the followed one) takes lane 0; every other key the first lane where it touches none.
+        const sorted = [...xs].sort((a, b) => (a[0] === first ? -1 : b[0] === first ? 1 : a[1] - b[1]));
+        let most = 0;
+        for (const [i, x] of sorted) {
           let lane = 0;
-          while (lanes[lane] !== undefined && x - lanes[lane] < 2 * r + 1) lane++;
-          lanes[lane] = x;
+          while (placedAt.some(([l, px]) => l === lane && Math.abs(x - px) < 2 * r + 1)) lane++;
+          placedAt.push([lane, x]);
           out.set(i, lane);
+          most = Math.max(most, lane + 1);
         }
-        return { lane: out, lanes: lanes.length };
+        return { lane: out, lanes: most };
       }
       const lensLanesCache = new Map();
       function lensLanes(stripW, r, points) {
@@ -1177,7 +1240,7 @@
         if (lensLanesCache.has(id)) return lensLanesCache.get(id);
         const { f, start } = lensWindow(points, stripW);
         const xs = ALL_AT.map((_, i) => [i, rel(posOf(i), start)]).filter(([, p]) => p < f).map(([i, p]) => [i, (p / f) * stripW]);
-        const most = stripStack(xs, r).lanes;
+        const most = stripStack(xs, r, M.FOLLOW).lanes;
         lensLanesCache.set(id, most);
         return most;
       }
@@ -1200,21 +1263,61 @@
       window.ALL_SCENARIOS = allScenarios;
       // Before any node joins or leaves. It never says that no key moved: a new placement or new points place keys afresh.
       const NO_CHANGE = ['Change the nodes, or take the busiest node down, and watch which keys move.'];
+      // While a question asks every control waits, so the free line's invitation would be false there.
+      const ASK_CHANGE = 'The answer’s change shows here.';
+      const REPLACE_HIDDEN = 'What each node holds with the new points shows at the reveal.';
+      const REPLACE_PLAYING = 'Each key moves to the owner of the next point clockwise of its hash.';
       const HIDDEN_STORY = 'Which keys moved, and where, shows at the reveal.';
       const HIDDEN_STANDING = 'The fullest shard shows at the reveal.';
-      const PLAYING_STORY = 'Counting each key as it lands.';
+      const playingLine = (n) => `Counting each key as it lands${n ? `; ${M.num(n)} ${n === 1 ? 'key is' : 'keys are'} in flight` : ''}.`;
+      const restWords = (sc, narrow) => ({ story: sc.change ? M.changeStory(sc, { hot: !narrow, short: narrow }) : NO_CHANGE, standing: M.standing(sc, { hotLine: !narrow }) });
+      /** What the last change block says, by phase; a play that will end on the story reserves its lines from the start,
+       * so nothing under the block moves at the climax. A hidden play reserves nothing it would not show. */
+      function verdictWords(sc, view, hid, c, frame, narrow) {
+        const live = frame && !frame.done;
+        const hiddenStanding = sc.settings.hot ? HIDDEN_STANDING.replace('fullest', 'busiest') : HIDDEN_STANDING;
+        if (!c) {
+          if (view.phase === 'asking') return { story: [ASK_CHANGE], standing: M.standing(sc, { hotLine: !narrow }) };
+          if (hid.after) return { story: [REPLACE_HIDDEN], standing: hiddenStanding };
+          if (live) {
+            const end = restWords(sc, narrow);
+            return { story: [REPLACE_PLAYING], standing: '', reserve: { story: (w) => end.story.reduce((a, l) => a + wrap(l, 'cap', w).length, 0), standing: (w) => wrap(end.standing, 'cap', w).length } };
+          }
+          return restWords(sc, narrow);
+        }
+        if (hid.moved) return { story: [HIDDEN_STORY], standing: hiddenStanding };
+        if (live) {
+          const end = restWords(sc, narrow);
+          return { story: [playingLine(frame.flying)], standing: '', reserve: { story: (w) => end.story.reduce((a, l) => a + wrap(l, 'cap', w).length, 0), standing: (w) => wrap(end.standing, 'cap', w).length } };
+        }
+        return restWords(sc, narrow);
+      }
+      /** The rule line: the long form where it fits two lines, else the short one; while a play runs or hides its answer,
+       * only the hash, with nothing about its node. */
+      function ruleWords(sc, hid, playing, width, ringMode) {
+        const follow = M.KEYS[M.FOLLOW];
+        if (hid.rule || playing) return ringMode ? `${follow} hashes to ${M.round(M.KEY_AT[M.FOLLOW])} of the way round.` : `${follow} hashes to ${M.num(M.KEY_AT[M.FOLLOW])}.`;
+        const long = M.rule(sc, false);
+        return wrap(long, 'cap', width).length <= 2 ? long : M.rule(sc, true);
+      }
       const reserveCache = new Map();
-      function reserves(width) {
-        if (reserveCache.has(width)) return reserveCache.get(width);
-        let story = wrap(NO_CHANGE[0], 'cap', width).length;
-        let standing = 1;
+      /** The most lines the last change block and the rule line can take at a width, over every scenario and phase: the
+       * stage's height is laid for them, and the spare room sits at the stage's foot. */
+      function reserves(width, narrow) {
+        const id = `${width}|${narrow}`;
+        if (reserveCache.has(id)) return reserveCache.get(id);
+        const lines = (t) => wrap(t, 'cap', width).length;
+        let verdict = Math.max(lines(playingLine(51)), lines(REPLACE_PLAYING), lines(REPLACE_HIDDEN), lines(HIDDEN_STORY)) + lines(HIDDEN_STANDING.replace('fullest', 'busiest'));
+        let rule = 1;
         for (const { s, from } of allScenarios()) {
           const sc = M.scenario(s, from);
-          if (sc.change) story = Math.max(story, M.changeStory(sc).reduce((a, l) => a + wrap(l, 'cap', width).length, 0));
-          standing = Math.max(standing, wrap(M.standing(sc), 'cap', width).length);
+          const w = restWords(sc, narrow);
+          const st = w.story.reduce((a, l) => a + lines(l), 0);
+          verdict = Math.max(verdict, Math.max(st, lines(playingLine(51)), sc.change ? 0 : lines(REPLACE_PLAYING)) + lines(w.standing), lines(ASK_CHANGE) + lines(w.standing));
+          rule = Math.max(rule, lines(ruleWords(sc, {}, false, width, sc.scheme === 'ring')), lines(ruleWords(sc, { rule: true }, false, width, sc.scheme === 'ring')));
         }
-        const out = { story, standing };
-        reserveCache.set(width, out);
+        const out = { verdict, rule };
+        reserveCache.set(id, out);
         return out;
       }
 
@@ -1222,8 +1325,7 @@
       // changed owner take their new colour, then each moved key leaves its pile as a hand sweeping the ring once passes
       // its hash, and lands a flight later. Nothing is drawn for a key before its moment.
       const { points: T_POINTS, sweep0: T_SWEEP0, sweep1: T_SWEEP1, flight: T_FLIGHT } = M.PLAY;
-      function frameOf(sc, frac) {
-        const c = sc.change;
+      function frameOf(c, frac) {
         if (frac === null || frac === undefined || !c) return null;
         const takeoff = M.takeoff;
         const state = new Map();
@@ -1234,7 +1336,8 @@
           if (st === 'dst') landed++;
           state.set(mv.key, { ...mv, st, u: st === 'fly' ? (frac - t0) / T_FLIGHT : 0, t0 });
         }
-        return { frac, state, landed, pointsIn: frac >= T_POINTS, sweep: frac >= T_SWEEP0 && frac <= T_SWEEP1 ? (frac - T_SWEEP0) / (T_SWEEP1 - T_SWEEP0) : null, done: frac >= T_SWEEP1 + T_FLIGHT };
+        const flying = [...state.values()].filter((m) => m.st === 'fly').length;
+        return { frac, state, landed, flying, pointsIn: frac >= T_POINTS, sweep: frac >= T_SWEEP0 && frac <= T_SWEEP1 ? (frac - T_SWEEP0) / (T_SWEEP1 - T_SWEEP0) : null, done: frac >= T_SWEEP1 + T_FLIGHT };
       }
 
       const nodeCls = (m) => `n${m}`;
@@ -1245,46 +1348,60 @@
         const hid = hiding(view);
         const s = sc.settings;
         const c = hid.ghost ? null : sc.change;
-        const frame = c ? frameOf(sc, view.frac) : null;
+        // A change of points is no change of the node set, but it plays once: each key whose owner differs flies.
+        const replay = !c && view.replace && view.frac !== null && view.frac !== undefined ? { ...M.diff(M.place('ring', view.replace.points, sc.now.members), sc.now), kind: 'replace' } : null;
+        const play = c ?? replay;
+        const frame = play ? frameOf(play, view.frac) : null;
         const playing = !!frame && !frame.done;
         const pad = W < 420 ? 12 : 16;
         const inner = W - 2 * pad;
         const two = W >= 600;
         const ringMode = sc.scheme === 'ring';
         // The placement the ring and the strip draw: the one before the change until its points move.
-        const placed = frame && !frame.pointsIn ? c.before : sc.now;
+        const placed = frame && !frame.pointsIn && !replay ? c.before : sc.now;
         const ownerNow = (key) => {
           const st = frame?.state.get(key);
           return st && st.st === 'src' ? st.from : sc.now.owners[key];
         };
         const showMoved = !!c && !hid.moved;
-        const movedSet = new Map((c?.moves ?? []).map((m) => [m.key, m]));
+        const movedSet = new Map((play?.moves ?? []).map((m) => [m.key, m]));
         const landedKey = (key) => movedSet.has(key) && (!frame || frame.state.get(key).st === 'dst');
-        D.meta = { change: c, frame, hid, sc };
+        D.meta = { change: c, play, frame, hid, sc, view };
+        const narrow = W < 324;
 
         // ----- Header: Replay, the title, the key.
         D.hit('play', pad - 4, 2, 44, 44);
         const title = D.text(pad + 44, 29, [[`Where ${M.num(K)} keys live`, 'title']], { owner: 'title' });
+        // The key: dots in the neutral ink (a key's colour is its node's), and while the hot key is on, its block. The
+        // row is laid for the widest entries any setting draws, so the height never depends on the setting.
         const kr = two ? 2.2 : 2;
         const legend = [
           ['a key, in its node’s colour', 'a key'],
           ['moved in the last change', 'moved last'],
+          [s.split ? `a tenth of the hot key, ${M.HOT_PCT / M.SALTS}%` : 'the hot key', s.split ? `a tenth, ${M.HOT_PCT / M.SALTS}%` : 'hot key'],
         ];
-        const legendW = (k) => 2 * (2 * kr + 6) + tw(legend[0][k], 'small') + 14 + tw(legend[1][k], 'small');
+        const widestHot = [`a tenth of the hot key, ${M.HOT_PCT / M.SALTS}%`, `a tenth, ${M.HOT_PCT / M.SALTS}%`];
+        const itemW = (t) => 2 * kr + 6 + tw(t, 'small');
+        const legendW = (k, withHot) => itemW(legend[0][k]) + 14 + itemW(legend[1][k]) + (withHot ? 14 + 8 + 6 + tw(widestHot[k], 'small') - 2 * kr : 0);
         let y = 46;
-        const sameRow = title.x1 + 20 + legendW(0) <= W - pad;
-        const lk = sameRow || legendW(0) <= inner ? 0 : 1;
+        const sameRow = title.x1 + 20 + legendW(0, true) <= W - pad;
+        const lk = sameRow || legendW(0, true) <= inner ? 0 : 1;
         const ly = sameRow ? 29 : y + 12;
-        let lx = sameRow ? W - pad - legendW(lk) : pad;
+        let lx = sameRow ? W - pad - legendW(lk, true) : pad;
         const keyDot = (x, moved) => {
-          D.add('marks', `<circle class="key nA${moved ? ' moved' : ''}" data-legend="1" cx="${r1(x + kr)}" cy="${ly - 4}" r="${moved ? kr - 0.5 : kr}"/>`);
+          D.add('marks', `<circle class="legend-key${moved ? ' moved' : ''}" data-legend="1" cx="${r1(x + kr)}" cy="${ly - 4}" r="${moved ? kr - 0.5 : kr}"/>`);
           D.mark({ x0: x - 2, x1: x + 2 * kr + 2, y0: ly - 4 - kr - 2, y1: ly - 4 + kr + 2 }, 'legend');
         };
         keyDot(lx, false);
         lx += 2 * kr + 6;
         lx = D.text(lx, ly, legend[0][lk], { role: 'small', owner: 'legend' }).x1 + 14;
         keyDot(lx, true);
-        D.text(lx + 2 * kr + 6, ly, legend[1][lk], { role: 'small', owner: 'legend' });
+        lx = D.text(lx + 2 * kr + 6, ly, legend[1][lk], { role: 'small', owner: 'legend' }).x1 + 14;
+        if (s.hot) {
+          D.add('marks', `<rect class="hot-block" data-legend="1" x="${r1(lx)}" y="${ly - 7}" width="8" height="6" rx="1"/>`);
+          D.mark({ x0: lx - 1, x1: lx + 9, y0: ly - 8, y1: ly }, 'legend');
+          D.text(lx + 14, ly, legend[2][lk], { role: 'small', owner: 'legend', id: 'hot-legend' });
+        }
         if (!sameRow) y += 22;
         y += 6;
 
@@ -1296,30 +1413,43 @@
         const dr = ringW >= 280 ? 1.8 : two ? 1.7 : 1.5;
         const sw = ringSwarm(Rmax, dr);
         const cx = ringX + ringW / 2;
-        const cy = ringY + 18 + 14 + Rmax;
-        const ringH = 18 + 14 + 2 * Rmax + 8;
+        // 6 px plus the title's descent part the ring's title from the "0" over the ring.
+        const cy = ringY + 18 + 14 + 6 + Rmax;
+        const ringH = 18 + 14 + 6 + 2 * Rmax + 8;
         const ringTitle = ringMode
           ? pick(['The ring · a key belongs to the next point clockwise', 'The ring of hashes, clockwise from 0', 'The ring of hashes'], (t) => tw(t, 'label') <= (two ? ringW : inner))
           : pick([`Keys by hash · node = hash mod ${placed.members.length}`, 'Keys by hash'], (t) => tw(t, 'label') <= (two ? ringW : inner));
         D.text(two ? ringX : pad, ringY + 11, ringTitle, { role: 'label', owner: 'ring-title' });
         if (ringMode) {
           const byNode = {};
-          const ring = placed.ring;
-          ring.forEach((p, i) => {
-            const q = ring[(i - 1 + ring.length) % ring.length];
-            const a0 = q.at / M.TURN;
-            let a1 = p.at / M.TURN;
-            if (a1 <= a0) a1 += 1;
-            const [x0, y0] = polar(cx, cy, sw.rb, a0);
-            const [x1, y1] = polar(cx, cy, sw.rb, a1);
-            (byNode[p.node] ??= []).push(`M${x0.toFixed(2)} ${y0.toFixed(2)}A${sw.rb} ${sw.rb} 0 ${a1 - a0 > 0.5 ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`);
-          });
+          // Each point owns the stretch that ends at it, clipped to [lo, hi) of the turn. While a change of points plays,
+          // the hand recolours the band: the new points' arcs behind it, the old ones ahead.
+          const arcs = (ring, lo, hi) =>
+            ring.forEach((p, i) => {
+              const q = ring[(i - 1 + ring.length) % ring.length];
+              let a0 = q.at / M.TURN;
+              let a1 = p.at / M.TURN;
+              if (a1 <= a0) a1 += 1;
+              for (const off of [-1, 0]) {
+                const b0 = Math.max(a0 + off, lo);
+                const b1 = Math.min(a1 + off, hi);
+                if (b1 - b0 < 1e-6) continue;
+                const [x0, y0] = polar(cx, cy, sw.rb, b0);
+                const [x1, y1] = polar(cx, cy, sw.rb, b1);
+                (byNode[p.node] ??= []).push(`M${x0.toFixed(2)} ${y0.toFixed(2)}A${sw.rb} ${sw.rb} 0 ${b1 - b0 > 0.5 ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`);
+              }
+            });
+          if (replay && frame && !frame.done) {
+            const hand = frame.sweep ?? (frame.frac < T_SWEEP0 ? 0 : 1);
+            arcs(replay.after.ring, 0, hand);
+            arcs(replay.before.ring, hand, 1);
+          } else arcs(placed.ring, 0, 1);
           // One path per node, so the band is at most six elements however many points there are.
-          for (const m of placed.members) D.add('marks', `<path class="band ${nodeCls(m)}" data-node="${m}" d="${byNode[m].join('')}"/>`);
+          for (const m of placed.members) if (byNode[m]) D.add('marks', `<path class="band ${nodeCls(m)}" data-node="${m}" d="${byNode[m].join('')}"/>`);
         } else D.add('marks', `<circle class="track" cx="${cx}" cy="${cy}" r="${sw.rb}"/>`);
         // 0, where the ring starts and ends, and the direction a key walks.
         const zr = sw.outer + 2;
-        D.add('marks', `<line class="zero" x1="${cx}" y1="${r1(cy - sw.rb - 4)}" x2="${cx}" y2="${r1(cy - zr - 5)}"/>`);
+        D.add('marks', `<line class="zero" x1="${cx}" y1="${r1(cy - sw.rb - (ringMode ? 4 : 1))}" x2="${cx}" y2="${r1(cy - zr - 5)}"/>`);
         D.text(cx, cy - zr - 8, '0', { role: 'mono', anchor: 'middle', owner: 'zero', cls: 'muted' });
         if (ringMode) {
           const ar = sw.rb - 11;
@@ -1351,7 +1481,7 @@
         // One point a node: each point is named where it sits; a node that left keeps a struck chip there.
         if (ringMode && s.points === 1) {
           const chips = [];
-          const gone = c && (!frame || frame.pointsIn) ? c.left : [];
+          const gone = c ? c.left : [];
           const names = [...placed.members, ...gone.filter((m) => !placed.members.includes(m))];
           for (const m of names.sort((a, b) => M.hash32(`${a}#0`) - M.hash32(`${b}#0`))) {
             const a = M.hash32(`${m}#0`) / M.TURN;
@@ -1359,10 +1489,10 @@
             // away from its neighbour, and its tick leans back to its own point.
             const rad = sw.rb - 18;
             let p = polar(cx, cy, rad, a);
-            const near = chips.find((q) => Math.hypot(q[0] - p[0], q[1] - p[1]) < 20);
+            const near = chips.find((q) => Math.hypot(q[0] - p[0], q[1] - p[1]) < 30);
             if (near) {
               const dir = Math.sign(a - near[2]) || 1;
-              for (let k = 1; k <= 40 && chips.some((q) => Math.hypot(q[0] - p[0], q[1] - p[1]) < 20); k++) p = polar(cx, cy, rad, a + (dir * k * 1.5) / (TAU * rad));
+              for (let k = 1; k <= 60 && chips.some((q) => Math.hypot(q[0] - p[0], q[1] - p[1]) < 30); k++) p = polar(cx, cy, rad, a + (dir * k * 1.5) / (TAU * rad));
             }
             chips.push([p[0], p[1], a]);
             const out = gone.includes(m);
@@ -1370,10 +1500,13 @@
             const dd = Math.hypot(tx - p[0], ty - p[1]);
             const [ux, uy] = [p[0] + ((tx - p[0]) * 8) / dd, p[1] + ((ty - p[1]) * 8) / dd];
             D.add('links', `<line class="pt-tick" x1="${r1(tx)}" y1="${r1(ty)}" x2="${r1(ux)}" y2="${r1(uy)}"/>`);
-            D.add('marks', `<circle class="chip-pt ${out ? 'gone' : ''}" ${out ? '' : `style="stroke:var(--n-${m.toLowerCase()})"`} cx="${r1(p[0])}" cy="${r1(p[1])}" r="8"/>`);
-            D.text(p[0], p[1] + 4, m, { role: 'mono', anchor: 'middle', owner: `chip${m}`, cls: out ? 'muted' : '', textCls: 'on-chip' });
-            if (out) D.add('marks', `<line class="pt-tick" data-owner="chip${m}" x1="${r1(p[0] - 6)}" y1="${r1(p[1] + 6)}" x2="${r1(p[0] + 6)}" y2="${r1(p[1] - 6)}"/>`);
-            D.mark({ x0: p[0] - 8, x1: p[0] + 8, y0: p[1] - 8, y1: p[1] + 8 }, `chip${m}`);
+            // A node down or gone keeps a grey chip at its point, its letter beside the piles' critical ×.
+            const hw = out ? 13 : 8;
+            D.add('marks', `<rect class="chip-pt ${out ? 'gone' : ''}" ${out ? '' : `style="stroke:var(--n-${m.toLowerCase()})"`} x="${r1(p[0] - hw)}" y="${r1(p[1] - 8)}" width="${2 * hw}" height="16" rx="8"/>`);
+            // The chip sits inside the band: the annulus's coarse sector boxes do not apply to it.
+            D.text(out ? p[0] - 4 : p[0], p[1] + 4, m, { role: 'mono', anchor: 'middle', owner: `chip${m} ring-disc`, cls: out ? 'muted' : '', textCls: 'on-chip' });
+            if (out) D.add('marks', `<path class="xmark" data-owner="chip${m}" stroke-width="1.6" d="M${r1(p[0] + 2.5)} ${r1(p[1] - 3)}l6 6M${r1(p[0] + 8.5)} ${r1(p[1] - 3)}l-6 6"/>`);
+            D.mark({ x0: p[0] - hw, x1: p[0] + hw, y0: p[1] - 8, y1: p[1] + 8 }, `chip${m}`);
           }
         }
         // The ring's middle says what is placed on it.
@@ -1386,7 +1519,9 @@
         }
         // The stretch the strip magnifies, bracketed outside the dots; the followed key under a caret.
         const stripW = inner - 8;
-        const win = lensWindow(s.points, stripW);
+        // While a change of points plays, the closer look keeps the old points until the hand passes the followed key.
+        const lensPlaced = replay && frame && !frame.done && frame.frac < M.takeoff(M.FOLLOW) ? replay.before : sc.now;
+        const win = lensWindow(ringMode ? lensPlaced.points : s.points, stripW);
         const fa = posOf(M.FOLLOW);
         const fp = sw.pos[M.FOLLOW];
         if (ringMode && win.f < 1) {
@@ -1400,7 +1535,8 @@
           D.add('marks', `<path class="bracket" data-owner="bracket" d="M${r1(cx0)} ${r1(cy0)}L${r1(bx0)} ${r1(by0)}A${br} ${br} 0 ${win.f > 0.5 ? 1 : 0} 1 ${r1(bx1)} ${r1(by1)}L${r1(cx1)} ${r1(cy1)}"/>`);
         }
         {
-          const far = (ringMode && win.f < 1 ? sw.outer + 7 : fp.rad + dr + 2) + 1;
+          // The caret sits outside the bracket, 6 px clear of it.
+          const far = ringMode && win.f < 1 ? sw.outer + 4 + 6 : fp.rad + dr + 3;
           const [px, py] = polar(cx, cy, far, fa);
           const [qx, qy] = polar(cx, cy, far + 7, fa - 0.012);
           const [rx, ry] = polar(cx, cy, far + 7, fa + 0.012);
@@ -1409,14 +1545,16 @@
           const [lx0, ly0] = polar(cx, cy, far + 12, fa);
           const name = M.KEYS[M.FOLLOW];
           const wn = tw(name, 'mono');
+          // The name sits just outside the caret: candidates round it, nearest first.
+          const near = [];
+          for (const d of [12, 16, 20, 26])
+            for (const da of [0, -0.015, 0.015, -0.03, 0.03]) {
+              const [nx, ny] = polar(cx, cy, far + d, fa + da);
+              const anchor = nx < cx - 8 ? 'end' : nx > cx + 8 ? 'start' : 'middle';
+              near.push([nx, ny + 4, anchor]);
+            }
           D.place(
-            [
-              [lx0 - 2, ly0 + 9, 'end'],
-              [lx0 + 4, ly0 + 12, 'end'],
-              [ringX + 2, ly0 + 12, 'start'],
-              [ringX + 2, cy + Rmax + 4, 'start'],
-              [lx0, ly0 + 14, 'middle'],
-            ],
+            [...near, ...[0, -8, 8, -16, 16, -24, 24].map((dy) => [two ? ringX + 2 : pad, py + 4 + dy, 'start']), [lx0 - 2, ly0 + 9, 'end'], [lx0 + 4, ly0 + 12, 'end'], [ringX + 2, ly0 + 12, 'start'], [ringX + 2, cy + Rmax + 4, 'start'], [lx0, ly0 + 14, 'middle']],
             [[name, 'mono']],
             { owner: 'follow', ignore: 'follow', minX: (two ? ringX : pad) - 2, maxX: two ? ringX + ringW : W - pad },
           );
@@ -1434,10 +1572,16 @@
         // pile's height is the node's load.
         const binsX = two ? pad + ringW + 20 : pad;
         const binsW = two ? inner - ringW - 20 : inner;
-        const heads = ['keys', W < 420 ? 'traffic %' : 'traffic', ...(ringMode ? [W < 420 ? 'of ring %' : 'of ring'] : []), 'in', 'out'];
-        const gw = Math.max(...[...(W < 420 ? ['traffic %', 'of ring %'] : ['traffic', 'of ring']), 'even', '33.3%'].map((t) => tw(t, 'small'))) + 8;
+        // The gutter holds the row heads and the even label on one line ("even 33.3%"). A share loses its sign to the
+        // row's head where "43.3%" would not keep 6 px from its neighbour.
+        const gw0 = tw('even', 'small') + 4 + tw('33.3%', 'small') + 8;
+        const bw0 = (binsW - gw0) / 6;
+        const narrowPct = tw('43.3%', bw0 >= 40 ? 'mono' : 'small') + 6 > bw0;
+        const heads = ['keys', narrowPct ? 'traffic %' : 'traffic', ...(ringMode ? [narrowPct ? 'of ring %' : 'of ring'] : []), 'in', 'out'];
+        const gw = Math.max(gw0, ...['traffic %', 'of ring %'].map((t) => tw(t, 'small') + 8));
         const bw = (binsW - gw) / 6;
-        const pile = bw >= 60 ? { c: 9, p: 6, r: 2.5 } : bw >= 48 ? { c: 8, p: 5.6, r: 2.35 } : bw >= 40 ? { c: 7, p: 4.8, r: 2 } : bw >= 34 ? { c: 7, p: 4.4, r: 1.85 } : { c: 7, p: 3.7, r: 1.5 };
+        // Beside the ring the piles take six dots a row at a larger pitch, so a play's keys are big enough to follow.
+        const pile = two ? { c: 6, p: Math.min(6, (bw - 4) / 6), r: Math.min(2.5, ((bw - 4) / 6) * 0.42) } : bw >= 60 ? { c: 9, p: 6, r: 2.5 } : bw >= 48 ? { c: 8, p: 5.6, r: 2.35 } : bw >= 40 ? { c: 7, p: 4.8, r: 2 } : bw >= 34 ? { c: 7, p: 4.4, r: 1.85 } : { c: 7, p: 3.7, r: 1.5 };
         const rows = Math.ceil(MAX_SLOTS / pile.c);
         const PH = rows * pile.p + 26;
         const binsH = 36 + PH + 18 + 16 * 5 + 6;
@@ -1447,10 +1591,13 @@
         const binX = (m) => binsX + gw + M.NAMES.indexOf(m) * bw;
         const pileX = (m) => binX(m) + (bw - pile.c * pile.p) / 2;
         const slotXY = (m, j) => [pileX(m) + ((j % pile.c) + 0.5) * pile.p, by - 2 - (Math.floor(j / pile.c) + 0.5) * pile.p];
+        /** The height of a pile of `slots` key-heights: full rows plus the partial row's fraction (a unit chart's level). */
+        const levelY = (slots) => by - 2 - (slots / pile.c) * pile.p;
+        const scaleTop = levelY(MAX_SLOTS);
         D.text(binsX, binsY + 11, 'What each node holds', { role: 'label', owner: 'bins-title' });
         // The members drawn: the nodes now, and a node that went down keeps its place.
         const drawn = M.NAMES.filter((m) => sc.names.includes(m) || (c && c.left.includes(m)));
-        const up = (m) => (frame && !frame.pointsIn ? c.before.members.includes(m) : sc.now.members.includes(m));
+        const up = (m) => sc.now.members.includes(m);
         // A pile's keys in order: the ones that stayed by hash, then the ones that arrived, as they landed.
         const lists = {};
         const arrived = {};
@@ -1460,7 +1607,7 @@
         }
         const order = Array.from({ length: K }, (_, i) => i).sort((a, b) => M.KEY_AT[a] - M.KEY_AT[b]);
         const flying = [];
-        if (c) {
+        if (play) {
           for (const i of order) {
             const st = frame?.state.get(i);
             const mv = movedSet.get(i);
@@ -1477,112 +1624,164 @@
             } else if (st.st === 'fly') flying.push(st);
           }
         } else for (const i of order) lists[sc.now.owners[i]].push(i);
+        // The hot key's pieces on each pile: the pieces that stayed, then the ones that arrived in the last change.
+        const hp = frame && !frame.done ? play.before : sc.now;
         const hotAt = {};
-        for (const m of drawn) hotAt[m] = 0;
+        const hotIn = {};
+        for (const m of drawn) hotAt[m] = hotIn[m] = 0;
         if (s.hot) {
-          const hp = frame && !frame.done ? c.before : sc.now;
-          if (s.split) for (const o of hp.salts) hotAt[o]++;
-          else hotAt[hp.hot] = M.SALTS;
+          const was = c && !(frame && !frame.done) ? c.before : null;
+          if (s.split)
+            hp.salts.forEach((o, j) => {
+              if (!(o in hotAt)) return;
+              hotAt[o]++;
+              if (was && was.salts[j] !== o) hotIn[o]++;
+            });
+          else if (hp.hot in hotAt) {
+            hotAt[hp.hot] = M.SALTS;
+            if (was && was.hot !== hp.hot) hotIn[hp.hot] = M.SALTS;
+          }
         }
         // The even share, in the pile's own unit: keys, or traffic once the hot key is on.
         const members = drawn.filter(up);
         const evenSlots = (K + (s.hot ? HOT_SLOTS : 0)) / members.length;
-        const evenY = by - 2 - (evenSlots / pile.c) * pile.p;
+        const evenY = levelY(evenSlots);
         const evenX0 = binsX + gw - 2;
         const evenX1 = binX(drawn[drawn.length - 1]) + bw;
-        // The piles' scale is the share of all traffic a pile's height stands for: a quarter, a half, three quarters.
+        // The piles' scale is the share of all traffic a pile's height stands for. A gridline within 17 px of the even
+        // line gives way to it, line and label, so every line in the pile area carries its own label.
         const slotsPerPct = (K + (s.hot ? HOT_SLOTS : 0)) / 100;
         const gridX1 = binsX + binsW;
-        for (const t of [25, 50, 75]) {
+        D.meta.lines = [];
+        for (const t of [25, 50, 75, 100]) {
           const slots = t * slotsPerPct;
-          if (slots > MAX_SLOTS) continue;
-          const ty = by - 2 - (slots / pile.c) * pile.p;
+          if (slots > MAX_SLOTS + 0.01) continue;
+          const ty = levelY(slots);
+          if (Math.abs(ty - evenY) < 19) continue;
           D.add('grid', `<line class="gridline" data-owner="axis" x1="${r1(evenX0)}" y1="${r1(ty)}" x2="${r1(gridX1)}" y2="${r1(ty)}"/>`);
-          if (Math.abs(ty - evenY) >= 17 || Math.abs(ty - evenY) < 0.5) {
-            if (Math.abs(ty - evenY) >= 17) D.text(binsX + gw - 6, ty + 4, `${t}%`, { role: 'small', anchor: 'end', owner: 'axis', ground: true });
-          }
+          D.text(binsX + gw - 6, ty + 4, `${t}%`, { role: 'small', anchor: 'end', owner: 'axis', ground: true, data: ' data-gutter="1"' });
+          D.meta.lines.push(ty);
         }
         D.add('grid', `<line class="evenline" data-owner="even" x1="${r1(evenX0)}" y1="${r1(evenY)}" x2="${r1(evenX1)}" y2="${r1(evenY)}"/>`);
-        D.text(binsX + gw - 6, evenY - 3, 'even', { role: 'small', anchor: 'end', owner: 'even', ground: true });
-        D.text(binsX + gw - 6, evenY + 11, M.pctOf(100 / members.length), { role: 'small', anchor: 'end', owner: 'even', cls: 'ink', id: 'even', ground: true });
+        D.text(binsX + gw - 6, evenY + 4, [['even ', 'small'], [M.pctOf(100 / members.length), 'small', 'ink']], { anchor: 'end', owner: 'even', id: 'even', ground: true, data: ' data-gutter="1"' });
+        D.meta.lines.push(evenY);
         D.text(binsX, binsY + 27, 'A pile’s height is its share of all traffic', { role: 'small', owner: 'axis-title' });
-        D.meta.pile = { ...pile, by, pileTop, binX, bw, gw, binsX, evenSlots, evenY, lists, hotAt, area: { x0: binsX + gw, x1: binsX + binsW, y0: pileTop, y1: by } };
+        D.meta.pile = { ...pile, by, pileTop, binX, bw, gw, binsX, evenSlots, evenY, lists, hotAt, levelY, scaleTop, slotsPerPct, area: { x0: binsX + gw, x1: binsX + binsW, y0: pileTop, y1: by }, tops: {} };
         for (const m of drawn) {
           const isUp = up(m);
           D.add('marks', `<line class="base ${isUp ? nodeCls(m) : 'gone'}" x1="${r1(pileX(m))}" y1="${by + 1.5}" x2="${r1(pileX(m) + pile.c * pile.p)}" y2="${by + 1.5}"/>`);
-          D.text(binX(m) + bw / 2, by + 18, m, { role: 'nameS', anchor: 'middle', owner: `bin${m}`, cls: isUp ? '' : 'muted' });
-          // The × of a node that is down stands over whatever keys have yet to leave it.
-          if (!isUp && m === sc.downNode) xGlyph(D, binX(m) + bw / 2, by - 12 - Math.ceil(lists[m].length / pile.c) * pile.p, `x${m}`);
+          // A node that is down: its letter beside the critical ×, under the base, where nothing else is drawn.
+          const isDown = !isUp && m === sc.downNode;
+          D.text(binX(m) + bw / 2 - (isDown ? 5 : 0), by + 18, m, { role: 'nameS', anchor: 'middle', owner: `bin${m}`, cls: isUp ? '' : 'muted' });
+          if (isDown) xGlyph(D, binX(m) + bw / 2 + 7, by + 13.5, `bin${m}`, 3);
           lists[m].forEach((key, j) => {
             const [x, yy] = slotXY(m, j);
             const moved = showMoved && arrived[m].has(key);
             D.add('dots', `<circle class="dot key ${nodeCls(m)}${moved ? ' moved' : ''}" data-id="p${key}" data-owner="pile" cx="${r1(x)}" cy="${r1(yy)}" r="${moved ? pile.r - 0.5 : pile.r}"${moved ? ' data-moved="1"' : ''}/>`);
           });
-          // The hot key, or its tenths, on top of the pile: one mark each, as tall as the traffic it carries.
+          const n = lists[m].length;
+          D.meta.pile.tops[m] = levelY(n);
+          // The hot key, or its tenths, sit on the pile's level, filling the partial row's gap first (as water would),
+          // so the stack's top is the node's whole load on the scale. One contiguous stack, a seam between tenths.
           if (hotAt[m]) {
-            const n = lists[m].length;
-            const startRow = Math.ceil(n / pile.c);
-            const each = HOT_SLOTS / M.SALTS / pile.c;
-            const pieces = s.split ? hotAt[m] : 1;
-            const hRows = s.split ? each : HOT_SLOTS / pile.c;
-            let hiddenPieces = 0;
-            for (let q = 0; q < pieces; q++) {
-              const y1 = by - 2 - startRow * pile.p - q * (hRows * pile.p + 1) - 1;
-              const full = hRows * pile.p;
-              const room = y1 - (pileTop + 22);
-              if (room < Math.min(full, 10)) {
-                hiddenPieces++;
-                continue;
+            const each = HOT_SLOTS / M.SALTS;
+            const total = s.split ? hotAt[m] * each : HOT_SLOTS;
+            const x0 = pileX(m);
+            const xR = x0 + pile.c * pile.p;
+            const full = Math.floor(n / pile.c);
+            const rem = n % pile.c;
+            const notchEnd = rem ? (full + 1) * pile.c : n;
+            const segPath = (a, b) => {
+              const ya = (sl) => (sl <= notchEnd && rem ? by - 2 - full * pile.p - ((sl - n) / (pile.c - rem)) * pile.p : levelY(sl));
+              if (rem && a < notchEnd) {
+                const xn = x0 + rem * pile.p;
+                const bNotch = Math.min(b, notchEnd);
+                if (b <= notchEnd) return `M${r1(xn)} ${r1(ya(a))}H${r1(xR)}V${r1(ya(bNotch))}H${r1(xn)}Z`;
+                return `M${r1(xn)} ${r1(ya(a))}H${r1(xR)}V${r1(levelY(b))}H${r1(x0)}V${r1(levelY(notchEnd))}H${r1(xn)}Z`;
               }
-              const h = Math.min(full, room);
-              const cut = h < full - 0.5;
-              D.add('marks', `<rect class="hot-block" data-owner="hot" data-node="${m}" x="${r1(pileX(m) + 0.5)}" y="${r1(y1 - h)}" width="${r1(pile.c * pile.p - 1)}" height="${r1(h)}" rx="2"${cut ? ' data-cut="1"' : ''}/>`);
-              D.mark({ x0: pileX(m), x1: pileX(m) + pile.c * pile.p, y0: y1 - h, y1 }, 'hot');
-              if (!s.split && pile.c * pile.p >= 24 && h >= 14) D.text(pileX(m) + (pile.c * pile.p) / 2, y1 - h / 2 + 4, 'hot', { role: 'small', anchor: 'middle', owner: 'hot', cls: 'on-fill', textCls: 'on-block', id: 'hot-word', ground: true });
-              // A block taller than the scale is cut at its end, and says how much of the hot key's traffic it leaves out.
-              if (cut) {
-                const xm = pileX(m) + (pile.c * pile.p) / 2;
-                D.add('marks', `<path class="cut-mark" d="M${r1(xm - 4)} ${r1(y1 - h - 2)}l4 -5l4 5z"/>`);
-                D.text(xm, y1 - h - 10, `+${M.pctOf((M.HOT_PCT * (full - h)) / full)}`, { role: 'small', anchor: 'middle', owner: 'hot', cls: 'bad', id: 'cut' });
-              }
+              return `M${r1(x0)} ${r1(levelY(a))}H${r1(xR)}V${r1(levelY(b))}H${r1(x0)}Z`;
+            };
+            const top = Math.min(n + total, MAX_SLOTS);
+            const stayed = s.split ? (hotAt[m] - hotIn[m]) * each : hotIn[m] ? 0 : total;
+            const parts = [
+              [n, Math.min(n + stayed, top), false],
+              [n + stayed, top, showMoved && hotIn[m] > 0],
+            ];
+            for (const [a, b, moved] of parts) {
+              if (b - a < 0.01) continue;
+              D.add('marks', `<path class="hot-block${moved ? ' moved' : ''}" data-owner="hot" data-node="${m}" d="${segPath(a, b)}"${moved ? ' data-moved="1"' : ''}${top < n + total ? ' data-cut="1"' : ''}/>`);
             }
-            if (hiddenPieces) {
-              const xm = pileX(m) + (pile.c * pile.p) / 2;
-              const yTop = by - 2 - startRow * pile.p - (pieces - hiddenPieces) * (hRows * pile.p + 1) - 3;
-              D.add('marks', `<path class="cut-mark" d="M${r1(xm - 4)} ${r1(yTop)}l4 -5l4 5z"/>`);
-              D.text(xm, yTop - 8, s.split ? `+${M.pctOf((M.HOT_PCT * hiddenPieces) / M.SALTS)}` : `hot +${M.HOT_PCT}%`, { role: 'small', anchor: 'middle', owner: 'hot', cls: 'bad', id: s.split ? 'cut' : 'hot-word' });
+            if (top > n) D.mark({ x0, x1: xR, y0: levelY(top), y1: levelY(n) }, 'hot');
+            for (let q = 1; q < (s.split ? hotAt[m] : 1); q++) {
+              const sl = n + q * each;
+              if (sl < top) D.add('marks', `<line class="hot-seam" x1="${r1(x0 + 0.5)}" y1="${r1(levelY(sl))}" x2="${r1(xR - 0.5)}" y2="${r1(levelY(sl))}"/>`);
+            }
+            D.meta.pile.tops[m] = levelY(top);
+            const h = levelY(n) - levelY(top);
+            const xm = x0 + (pile.c * pile.p) / 2;
+            if (top < n + total) {
+              // Cut at the scale's end: the words say how much of the hot key's traffic the cut leaves out.
+              const left = (M.HOT_PCT * (n + total - top)) / HOT_SLOTS;
+              D.add('marks', `<path class="cut-mark" d="M${r1(xm - 4)} ${r1(levelY(top) - 2)}l4 -5l4 5z"/>`);
+              const movedCut = showMoved && hotIn[m] > 0 && n + stayed >= top;
+              D.text(xm, levelY(top) - 10, `hot +${M.pctOf(left)}`, { role: 'small', anchor: 'middle', owner: 'hot', cls: 'bad', id: 'hot-word', data: movedCut ? ' data-hot-moved="1"' : '' });
+            } else if (!s.split && pile.c * pile.p >= 24 && levelY(Math.max(n, notchEnd)) - levelY(top) >= 14) {
+              const moved = showMoved && hotIn[m] > 0;
+              D.text(xm, (levelY(Math.max(n, notchEnd)) + levelY(top)) / 2 + 4, 'hot', { role: 'small', anchor: 'middle', owner: 'hot', cls: moved ? 'bad' : 'on-fill', textCls: 'on-block', id: 'hot-word', ground: true });
             }
           }
         }
-        // Keys in flight: exactly the keys that are moving, each from its old pile to its new one, inside the pile area.
+        // Keys in flight: exactly the keys that are moving, each from its old pile to its new one. A flight lifts
+        // straight off its pile, crosses well over every pile between and the even line, and drops onto its new pile.
         D.meta.flights = [];
+        const colIdx = (m) => M.NAMES.indexOf(m);
         for (const st of flying) {
           const srcList = lists[st.from] ?? [];
           const [x0, y0] = slotXY(st.from, srcList.length);
           const [x1, y1] = slotXY(st.to, lists[st.to].length);
-          const lift = Math.min(36, 10 + Math.abs(x1 - x0) * 0.2);
-          const topY = Math.max(pileTop + 4, Math.min(y0, y1) - lift);
+          const lo = Math.min(colIdx(st.from), colIdx(st.to));
+          const hi = Math.max(colIdx(st.from), colIdx(st.to));
+          const highest = Math.min(evenY, ...drawn.filter((m) => colIdx(m) >= lo && colIdx(m) <= hi).map((m) => D.meta.pile.tops[m]));
+          const head = highest - (pileTop + 4);
+          const apex = Math.max(pileTop + 4, highest - Math.max(48, 0.35 * Math.abs(x1 - x0), 0.4 * head));
           const u = st.u;
-          const x = x0 + (x1 - x0) * u;
-          const yy = (1 - u) * (1 - u) * y0 + 2 * u * (1 - u) * topY + u * u * y1;
+          const ease = (t) => 1 - (1 - t) * (1 - t);
+          let x;
+          let yy;
+          if (u < 0.15) [x, yy] = [x0, y0 + (apex - y0) * ease(u / 0.15)];
+          else if (u > 0.85) [x, yy] = [x1, apex + (y1 - apex) * (1 - ease(1 - (u - 0.85) / 0.15))];
+          else {
+            const t = (u - 0.15) / 0.7;
+            x = x0 + (x1 - x0) * (t * t * (3 - 2 * t));
+            yy = apex - Math.min(6, apex - pileTop - 2) * Math.sin(Math.PI * t);
+          }
           D.add('fly', `<circle class="dot key fly ${nodeCls(st.to)}" data-id="f${st.key}" cx="${r1(x)}" cy="${r1(yy)}" r="${pile.r}"/>`);
-          D.meta.flights.push({ x, y: yy });
+          D.meta.flights.push({ x, y: yy, u, from: st.from, to: st.to });
         }
         // The table under the piles: a row a fact, the rows with nothing to say left out and their room kept at the foot.
         const cellRole = bw >= 40 ? 'mono' : 'small';
         const q = hid.numbers ? () => '?' : null;
-        const narrowPct = W < 420;
-        const pctCell = (tenths) => (narrowPct ? M.pct(tenths).replace('%', '') : M.pct(tenths));
+        const pctCell = (tenths) => (narrowPct ? M.pctCol(tenths).replace('%', '') : M.pctCol(tenths));
         const counts = Object.fromEntries(drawn.map((m) => [m, lists[m].length]));
         const live = frame && !frame.done;
+        // A key counts in and out when it lands; in flight it is in neither, and the headline says how many fly.
+        const landedFrom = (m) => (c?.moves ?? []).filter((mv) => mv.from === m && (!live || frame.state.get(mv.key).st === 'dst')).length;
         const inNow = (m) => (live ? [...arrived[m]].length : c.into[m]);
-        const outNow = (m) => (live ? c.out[m] - lists[m].filter((k) => movedSet.has(k) && movedSet.get(k).from === m).length : c.out[m]);
+        const outNow = (m) => (live ? landedFrom(m) : c.out[m]);
         const tableRows = [
           ['keys', (m) => (up(m) ? M.num(counts[m]) : m === sc.downNode ? 'down' : 'left'), 'keys'],
           [heads[1], (m) => (up(m) ? pctCell(live ? (s.hot ? Math.floor((7 * counts[m] + 60 * hotAt[m] + 1) / 2) : 5 * counts[m]) : (sc.traffic[m] ?? 0)) : ''), 'traffic'],
-          ...(ringMode ? [[heads[2], (m) => (up(m) ? (narrowPct ? M.pctOf(placed.ringShare[m] * 100).replace('%', '') : M.pctOf(placed.ringShare[m] * 100)) : ''), 'ring']] : []),
-          ...(c ? [['in', (m) => (inNow(m) ? `+${M.num(inNow(m))}` : hid.numbers && up(m) ? '?' : ''), 'in'], ['out', (m) => (outNow(m) ? `−${M.num(outNow(m))}` : hid.numbers && up(m) ? '?' : ''), 'out']] : []),
+          ...(ringMode ? [[heads[2], (m) => (up(m) ? (narrowPct ? M.pctColOf(placed.ringShare[m] * 100).replace('%', '') : M.pctColOf(placed.ringShare[m] * 100)) : ''), 'ring']] : []),
+          ...(c
+            ? [
+                ['in', (m) => (inNow(m) ? `+${M.num(inNow(m))}` : up(m) || c.left.includes(m) ? '0' : ''), 'in'],
+                ['out', (m) => (outNow(m) ? `−${M.num(outNow(m))}` : up(m) ? '0' : ''), 'out'],
+              ]
+            : []),
         ];
+        // Critical ink marks the busiest shard only while something is wrong: the hot key unsplit, or the challenge's
+        // bound not yet met.
+        const alarm = s.hot && !hid.numbers && (!s.split || (view.phase === 'challenge' && !view.met));
         tableRows.forEach(([head, cell, id], k) => {
           const ty = by + 18 + 16 * (k + 1);
           D.text(binsX + gw - 6, ty, head, { role: 'small', anchor: 'end', owner: `row-${id}` });
@@ -1592,33 +1791,38 @@
             const left = raw === 'left';
             const txt = down ? (bw >= 34 ? 'down' : '') : left ? 'left' : q && raw !== '' ? q() : raw;
             if (!txt) continue;
-            const busy = id === 'traffic' && s.hot && !hid.numbers && m === sc.busiest;
+            const busy = id === 'traffic' && alarm && m === sc.busiest;
             D.text(binX(m) + bw / 2, ty, txt, { role: cellRole, anchor: 'middle', owner: `cell-${id}-${m}`, cls: down || busy ? 'bad' : left ? 'muted' : '', id: down || left ? undefined : `cell-${id}-${m}` });
           }
         });
         D.region('bins', { x: binsX - 4, y: binsY - 4, w: binsW + 8, h: binsH + 4 });
         y = Math.max(ringY + (two ? ringH : 0), binsY + binsH) + 12;
 
-        // ----- The last change, in the model's exact counts.
+        // ----- The last change, in the model's exact counts. The block holds only the lines it uses; the stage's spare
+        // height collects once, at its foot.
         D.add('grid', `<line class="rule" x1="${pad}" y1="${y}" x2="${W - pad}" y2="${y}"/>`);
         const vY = y + 12;
-        const res = reserves(inner);
+        const res = reserves(inner, narrow);
         const labelText = c ? `Last change · ${M.changeLabel(c)}` : 'Last change · none yet';
         D.text(pad, vY + 11, labelText, { role: 'label', owner: 'verdict' });
         let headline;
         if (!c) headline = [['No node has joined or left', 'head', 'muted']];
-        else if (hid.moved) headline = [['?', 'head'], [` of ${M.num(K)} keys moved`, 'head', 'muted']];
+        else if (hid.moved) headline = [['?', 'head'], [` of ${M.num(K)} keys moved`, 'head', 'muted', 6]];
         else if (live) headline = [[M.num(frame.landed), 'head'], [` of ${M.num(K)} keys moved so far`, 'head', 'muted']];
         else headline = [[M.num(c.moved), 'head'], [` of ${M.num(K)} keys moved`, 'head', 'muted']];
         const headForms = [headline, live && !hid.moved ? [[M.num(frame.landed), 'head'], [' moved so far', 'head', 'muted']] : !c ? [['No node joined or left', 'head', 'muted']] : headline];
-        const hb = D.text(pad, vY + 37, pick(headForms, (h) => partsWidth(h) <= inner), { owner: 'verdict', id: 'moved-count' });
-        if (c && hid.moved) D.add('marks', `<rect class="hidden-box" x="${r1(hb.x0 - 4)}" y="${r1(hb.y0 - 3)}" width="${tw('?', 'head') + 8}" height="22" rx="4"/>`);
-        const storyLines = !c ? NO_CHANGE.flatMap((l) => wrap(l, 'cap', inner)) : hid.moved ? wrap(HIDDEN_STORY, 'cap', inner) : live ? wrap(PLAYING_STORY, 'cap', inner) : M.changeStory(sc).flatMap((l) => wrap(l, 'cap', inner));
+        // The hidden count's dashed box sits inside the text column, 6 px before "of".
+        const hb = D.text(pad + (c && hid.moved ? 4 : 0), vY + 37, pick(headForms, (h) => partsWidth(h) <= inner), { owner: 'verdict', id: 'moved-count' });
+        if (c && hid.moved) D.add('marks', `<rect class="hidden-box" x="${r1(pad + 0.5)}" y="${r1(hb.y0 - 3)}" width="${tw('?', 'head') + 7}" height="22" rx="4"/>`);
+        const { story: storyText, standing: standingText, reserve } = verdictWords(sc, view, hid, c, frame, narrow);
+        const storyLines = storyText.flatMap((l) => wrap(l, 'cap', inner));
         storyLines.forEach((l, k) => D.text(pad, vY + 58 + 18 * k, l, { role: 'cap', owner: 'verdict', id: k === 0 ? 'story' : undefined }));
-        const standingText = hid.standing ? (s.hot ? HIDDEN_STANDING.replace('fullest', 'busiest') : HIDDEN_STANDING) : live ? '' : M.standing(sc);
-        const sY = vY + 58 + 18 * storyLines.length + 6;
-        wrap(standingText, 'cap', inner).forEach((l, k) => l && D.text(pad, sY + 18 * k, l, { role: 'cap', owner: 'verdict', id: k === 0 ? 'standing' : undefined }));
-        const vH = 58 + 18 * (res.story + res.standing) - 2;
+        const storyRoom = Math.max(storyLines.length, reserve ? reserve.story(inner) : 0);
+        const standingLines = wrap(standingText, 'cap', inner).filter(Boolean);
+        const sY = vY + 58 + 18 * storyRoom + 6;
+        standingLines.forEach((l, k) => D.text(pad, sY + 18 * k, l, { role: 'cap', owner: 'verdict', id: k === 0 ? 'standing' : undefined }));
+        const used = storyRoom + Math.max(standingLines.length, reserve ? reserve.standing(inner) : 0);
+        const vH = 58 + 18 * used - 2 - (standingLines.length || reserve ? 0 : 6);
         D.region('verdict', { x: pad - 4, y: vY - 4, w: inner + 8, h: vH + 8 });
         y = vY + vH + 12;
 
@@ -1631,7 +1835,9 @@
         const pct1 = (x) => `${x >= 0.1 ? Math.round(x * 100) : (x * 100).toFixed(1)}%`;
         const mag = Math.round(stripW / win.f / (TAU * sw.rb));
         const follow = M.KEYS[M.FOLLOW];
-        const nMod = Math.max(3, Math.min(11, Math.floor((stripW - tw('hash mod 6', 'small') - 10) / 38)) | 1);
+        // At least 9 keys in the remainder table at every width: the ids lose "user:" to the row's head.
+        const gwM = Math.max(56, tw('hash mod 6', 'small') + 10);
+        const nMod = Math.min(11, Math.max(9, Math.floor((stripW - gwM) / 26))) | 1;
         const lensTitle = ringMode
           ? win.f >= 1
             ? pick(['A closer look · the whole ring, laid flat from 0', 'The whole ring, laid flat'], (t) => tw(t, 'label') <= inner)
@@ -1639,19 +1845,17 @@
           : pick([`A closer look · the ${nMod} keys nearest ${follow} by hash`, `The ${nMod} keys nearest ${follow}`], (t) => tw(t, 'label') <= inner);
         D.text(pad, lY + 11, lensTitle, { role: 'label', owner: 'lens-title' });
         if (ringMode && tw(lensTitle, 'label') + 16 + tw('clockwise →', 'small') <= inner) D.text(W - pad, lY + 11, 'clockwise →', { role: 'small', anchor: 'end', owner: 'cw2' });
-        const ruleLong = M.rule(sc, false);
-        const ruleShort = M.rule(sc, true);
-        const ruleHidden = ringMode ? `${follow} hashes to ${M.round(M.KEY_AT[M.FOLLOW])} of the way round; its node shows at the reveal.` : `${follow} hashes to ${M.num(M.KEY_AT[M.FOLLOW])}; its node shows at the reveal.`;
-        const ruleText = hid.rule ? ruleHidden : live ? (ringMode ? `${follow} hashes to ${M.round(M.KEY_AT[M.FOLLOW])} of the way round.` : `${follow} hashes to ${M.num(M.KEY_AT[M.FOLLOW])}.`) : wrap(ruleLong, 'cap', inner).length <= 2 ? ruleLong : ruleShort;
-        wrap(ruleText, 'cap', inner).forEach((l, k) => D.text(pad, lY + 32 + 18 * k, l, { role: 'cap', owner: 'rule', id: k === 0 ? 'rule' : undefined }));
-        const stripTop = lY + 32 + 18 * 2 - 6;
-        const keysH = keysHAll + 4;
+        const ruleText = ruleWords(sc, hid, live || !!replay, inner, ringMode);
+        const ruleLines = wrap(ruleText, 'cap', inner);
+        ruleLines.forEach((l, k) => D.text(pad, lY + 32 + 18 * k, l, { role: 'cap', owner: 'rule', id: k === 0 ? 'rule' : undefined }));
+        const stripTop = lY + 32 + 18 * ruleLines.length - 6;
+        const keysH = keysHAll + 10;
         const bandY = stripTop + 18 + keysH + 6;
         const lensH = bandY + 8 + 22 - lY;
         if (ringMode) {
           const X = (a) => sx0 + (rel(a, win.start) / win.f) * stripW;
           const inWin = (a) => win.f >= 1 || rel(a, win.start) < win.f;
-          const ring = placed.ring;
+          const ring = lensPlaced.ring;
           // Arcs: each point owns the stretch that ends at it.
           const pts = ring.map((p) => ({ ...p, rp: rel(p.at / M.TURN, win.start) })).sort((a, b) => a.rp - b.rp);
           let prevX = sx0;
@@ -1683,87 +1887,132 @@
               lastLabel = lx + wl / 2;
             }
           }
-          // Keys in the window, each over its hash.
-          // The whole ring holds every key: its arcs say their counts, and only the followed key is drawn.
+          // A node down or gone keeps a struck grey tick at its point, as its chip on the ring does.
+          if (whole)
+            for (const m of c?.left ?? []) {
+              const x = X(M.hash32(`${m}#0${M.POINT_SALT}`) / M.TURN);
+              D.add('marks', `<line class="pt-tick gone-tick" data-owner="pt" x1="${r1(x)}" y1="${bandY - 7}" x2="${r1(x)}" y2="${bandY + 8}" style="stroke:var(--g-viz-discarded-ink)"/>`);
+              D.add('marks', `<path class="xmark" data-owner="pt" stroke-width="1.4" d="M${r1(x - 3)} ${bandY - 3}l6 6M${r1(x + 3)} ${bandY - 3}l-6 6"/>`);
+            }
+          // The whole ring holds every key: its arcs say their counts, and only the followed key is drawn. One form for
+          // the whole row, the longest that fits every arc that can carry a label.
           if (whole) {
-            // Each node's one arc is named under its longer part with its count, where the words keep 6 px apart;
-            // a narrow arc keeps its letter, or nothing.
             const longest = {};
             for (const g of segs) if (!longest[g.node] || g.x1 - g.x0 > longest[g.node].x1 - longest[g.node].x0) longest[g.node] = g;
-            let last = -Infinity;
-            for (const [m, g] of Object.entries(longest).sort((a, b) => a[1].x0 - b[1].x0)) {
-              const n = hid.numbers ? '?' : M.num(placed.counts[m]);
-              const forms = [`${m}: ${n} ${placed.counts[m] === 1 && !hid.numbers ? 'key' : 'keys'}`, `${m}: ${n}`, m];
-              const mid = (g.x0 + g.x1) / 2;
-              const form = forms.find((t) => tw(t, 'mono') <= Math.max(g.x1 - g.x0 - 6, t === m ? 99 : 0) && mid - tw(t, 'mono') / 2 - last >= 6 && mid - tw(t, 'mono') / 2 >= sx0 && mid + tw(t, 'mono') / 2 <= sx0 + stripW);
-              if (!form) continue;
-              D.text(mid, bandY + 20, form, { role: 'mono', anchor: 'middle', owner: 'pt', id: `arc-${m}`, data: ' data-xtick="1"' });
-              last = mid + tw(form, 'mono') / 2;
-            }
+            const arcsL = Object.entries(longest).sort((a, b) => a[1].x0 - b[1].x0);
+            const formOf = (m, k) => {
+              const n = hid.numbers ? '?' : M.num(lensPlaced.counts[m]);
+              return [`${m}: ${n} ${lensPlaced.counts[m] === 1 && !hid.numbers ? 'key' : 'keys'}`, `${m}: ${n}`, m][k];
+            };
+            const layout = (k) => {
+              let last = -Infinity;
+              const out = [];
+              for (const [m, g] of arcsL) {
+                const t = formOf(m, k);
+                const wdt = tw(t, 'mono');
+                const mid = Math.min(Math.max((g.x0 + g.x1) / 2, sx0 + wdt / 2), sx0 + stripW - wdt / 2);
+                const fitsArc = wdt <= g.x1 - g.x0 - 6;
+                const letterFits = tw(m, 'mono') <= Math.max(g.x1 - g.x0 + 4, 8) && mid - wdt / 2 - last >= 6;
+                if (!letterFits) continue;
+                if (!fitsArc && k < 2) return null;
+                if (mid - wdt / 2 - last < 6) return null;
+                out.push([m, t, mid]);
+                last = mid + wdt / 2;
+              }
+              return out;
+            };
+            const row = layout(0) ?? layout(1) ?? layout(2) ?? [];
+            for (const [m, t, mid] of row) D.text(mid, bandY + 20, t, { role: 'mono', anchor: 'middle', owner: 'pt', id: `arc-${m}`, data: ' data-xtick="1"' });
           }
+          // The row of point names is occupied as a whole, so no tag is placed among the names.
+          D.mark({ x0: sx0, x1: sx0 + stripW, y0: bandY + 10, y1: bandY + 23 }, 'pt');
+          // Keys in the window, each over its hash. The followed key takes the first lane under its caret; keys that
+          // would touch it stack above.
           const ids = [...Array.from({ length: K }, (_, i) => i), ...hotIds].filter((i) => (whole ? i === M.FOLLOW : inWin(posOf(i))));
-          const stack = stripStack(ids.map((i) => [i, X(posOf(i)) - sx0]), lr);
+          const stack = stripStack(ids.map((i) => [i, X(posOf(i)) - sx0]), lr, M.FOLLOW);
+          const laneY = (lane) => bandY - 13.5 - lr - lane * (2 * lr + 1);
           for (const i of ids) {
             const x = X(posOf(i));
-            const yy = bandY - 4 - 4 - lr - stack.lane.get(i) * (2 * lr + 1);
+            const yy = laneY(stack.lane.get(i));
             const hot = i >= K;
             const moved = !hot && showMoved && landedKey(i);
             D.add('dots', `<circle class="dot ${hot ? 'hot' : `key ${nodeCls(ownerNow(i))}${moved ? ' moved' : ''}`}" data-id="l${i}" data-owner="lens-keys" cx="${r1(x)}" cy="${r1(yy)}" r="${moved ? lr - 0.5 : lr}"${moved ? ' data-moved="1"' : ''}/>`);
           }
-          // The followed key: a caret over its column, and its walk clockwise to the point that owns it.
+          // The followed key: an ink ring, a caret over its column, and its walk clockwise to the point that owns it.
           const fx = X(fa);
+          const fy = laneY(0);
+          D.add('dots', `<circle class="follow-ring" data-owner="follow2" cx="${r1(fx)}" cy="${r1(fy)}" r="${r1(lr + 1.6)}"/>`);
           const topLane = Math.max(0, ...ids.filter((i) => Math.abs(X(posOf(i)) - fx) < 2 * lr + 1).map((i) => stack.lane.get(i)));
-          const cyTop = bandY - 8 - lr - topLane * (2 * lr + 1) - lr - 2;
-          D.add('marks', `<path class="caret" data-owner="follow2" d="M${r1(fx)} ${r1(cyTop)}l-4 -7h8z"/>`);
+          const cyTop = laneY(topLane) - lr - 2.5;
+          D.add('marks', `<path class="caret" data-owner="follow2" data-x="${r1(fx)}" d="M${r1(fx)} ${r1(cyTop)}l-4 -7h8z"/>`);
+          D.meta.strip = { fx, fy, r: lr, bandY };
           const wn = tw(follow, 'mono');
           // Its name sits on the caret, or over any taller column of keys the name would cross.
           const nx = Math.min(Math.max(fx, sx0 + wn / 2), sx0 + stripW - wn / 2);
           const under = ids.filter((i) => Math.abs(X(posOf(i)) - nx) < wn / 2 + lr + 1).map((i) => stack.lane.get(i));
-          const dotsTop = bandY - 8 - lr - Math.max(0, ...under) * (2 * lr + 1) - lr;
+          const dotsTop = laneY(Math.max(0, ...under)) - lr;
           D.text(nx, Math.min(cyTop - 11, dotsTop - 5), follow, { role: 'mono', anchor: 'middle', owner: 'follow2' });
           if (!hid.rule) {
-            const owner = M.pointFor(placed.ring, M.KEY_AT[M.FOLLOW]);
+            const owner = M.pointFor(lensPlaced.ring, M.KEY_AT[M.FOLLOW]);
             const orp = rel(owner.at / M.TURN, win.start);
             const inside = win.f >= 1 ? owner.at >= M.KEY_AT[M.FOLLOW] : orp < win.f && orp >= rel(fa, win.start);
             const ex = inside ? X(owner.at / M.TURN) : sx0 + stripW;
-            const wy = bandY + 0;
-            if (ex - fx > 6) D.add('top', `<path class="walk" data-owner="walk" d="M${r1(fx)} ${wy - 9}V${wy - 5.5}M${r1(fx)} ${wy - 7}H${r1(ex - 1.5)}M${r1(ex - 5)} ${wy - 10}l3.5 3l-3.5 3"/>`);
+            // The walk runs under the dots, between them and the band, from the followed dot to its point.
+            const wy = bandY - 8;
+            if (ex - fx > 6) D.add('top', `<path class="walk" data-owner="walk" data-x0="${r1(fx)}" d="M${r1(fx)} ${r1(fy + lr + 2)}V${wy}H${r1(ex - 1.5)}M${r1(ex - 4.5)} ${wy - 2.5}l3 2.5l-3 2.5"/>`);
           }
         } else {
-          // hash mod N: the keys nearest the followed key by hash, each with its remainder and the node it picks.
+          // hash mod N: the keys nearest the followed key by hash, each with its remainder and the node it picks. A
+          // play fills the table on its clock: the new modulus's rows come with the new points, a column's new cells
+          // when the hand passes that key's hash, its hollow mark when the key lands.
           const byHash = Array.from({ length: K }, (_, i) => i).sort((a, b) => M.KEY_AT[a] - M.KEY_AT[b]);
           const at = byHash.indexOf(M.FOLLOW);
           const half = (nMod - 1) / 2;
           const shown = Array.from({ length: nMod }, (_, k) => byHash[(at - half + k + K) % K]);
           const nNow = sc.now.members.length;
-          const before = c && !hid.moved ? c.before : null;
+          const pre = live && !frame.pointsIn;
+          const before = c && !hid.moved && !pre ? c.before : null;
+          const passed = (i) => !live || frame.frac >= M.takeoff(i);
+          const landedHere = (i) => !live || !movedSet.has(i) || frame.state.get(i).st === 'dst';
+          const modNow = hid.rule || pre ? (c ? c.before.members.length : nNow) : nNow;
+          const ownerOf = (i) => (hid.rule || pre ? (c ? c.before.owners[i] : sc.now.owners[i]) : sc.now.owners[i]);
+          // Narrow columns take short row heads ("mod 4", "was", "now") and ids in the small face.
+          const tight = (stripW - gwM) / nMod < 24;
+          const modHead = (n) => (tight ? `mod ${n}` : `hash mod ${n}`);
+          const idRole = tight ? 'small' : 'mono';
           const rowsM = [
-            ['user:', (i) => String(i), 'mono', ''],
-            ...(before ? [[`hash mod ${before.members.length}`, (i) => String(M.KEY_AT[i] % before.members.length), 'mono', 'muted'], ['was on', (i) => before.owners[i], 'mono', 'muted']] : []),
-            [`hash mod ${hid.rule ? (c ? c.before.members.length : nNow) : nNow}`, (i) => String(M.KEY_AT[i] % (hid.rule && c ? c.before.members.length : nNow)), 'mono', ''],
-            [before ? 'now on' : 'node', (i) => (hid.rule && c ? c.before.owners[i] : sc.now.owners[i]), 'nameS', ''],
+            ['user:', (i) => String(i), idRole, ''],
+            ...(before ? [[modHead(before.members.length), (i) => String(M.KEY_AT[i] % before.members.length), idRole, 'muted'], [tight ? 'was' : 'was on', (i) => before.owners[i], idRole, 'muted']] : []),
+            [modHead(modNow), (i) => (before && !passed(i) ? '…' : String(M.KEY_AT[i] % modNow)), idRole, ''],
+            [before ? (tight ? 'now' : 'now on') : 'node', (i) => (before && !passed(i) ? '…' : ownerOf(i)), 'nameS', ''],
           ];
-          const gwM = Math.max(...['hash mod 6', 'was on', 'now on'].map((t) => tw(t, 'small'))) + 8;
-          const cw = (stripW - gwM) / nMod;
+          const gwT = tight ? Math.max(...['mod 6', 'user:', 'node'].map((t) => tw(t, 'small'))) + 8 : gwM;
+          const cw = (stripW - gwT) / nMod;
+          const nodeRole = cw >= 30 ? 'nameS' : 'mono';
+          D.meta.table = [];
           rowsM.forEach(([head, cell, role, cls], k) => {
             const ty = stripTop + 14 + 17 * k;
-            D.text(sx0 + gwM - 8, ty, head, { role: 'small', anchor: 'end', owner: `m${k}` });
+            D.text(sx0 + gwT - 8, ty, head, { role: 'small', anchor: 'end', owner: `m${k}` });
             shown.forEach((i, j) => {
-              const x = sx0 + gwM + (j + 0.5) * cw;
+              const x = sx0 + gwT + (j + 0.5) * cw;
               const last = k === rowsM.length - 1;
-              const moved = last && before && before.owners[i] !== sc.now.owners[i];
-              if (last) {
-                D.add('marks', `<circle class="key ${nodeCls(cell(i))}${moved ? ' moved' : ''}" cx="${r1(x - 9)}" cy="${ty - 4}" r="${moved ? 2.5 : 3}"/>`);
-                D.text(x + 3, ty, cell(i), { role, anchor: 'middle', owner: `m${k}`, cls, id: i === M.FOLLOW ? 'mod-node' : undefined });
-              } else D.text(x, ty, cell(i), { role, anchor: 'middle', owner: `m${k}`, cls: i === M.FOLLOW && k === 0 ? 'ink' : cls });
+              const v = cell(i);
+              const pending = v === '…';
+              const moved = last && before && !pending && before.owners[i] !== sc.now.owners[i] && landedHere(i);
+              if (last && !pending) {
+                D.add('marks', `<circle class="key ${nodeCls(v)}${moved ? ' moved' : ''}" data-owner="table" data-col="${i}"${moved ? ' data-moved="1"' : ''} cx="${r1(x - 7)}" cy="${ty - 4}" r="${moved ? 2.5 : 3}"/>`);
+                D.text(x + 3, ty, v, { role: nodeRole, anchor: 'middle', owner: `m${k}`, cls, id: i === M.FOLLOW ? 'mod-node' : undefined, data: ` data-col="${i}"` });
+              } else D.text(x, ty, v, { role: last && pending ? 'mono' : role, anchor: 'middle', owner: `m${k}`, cls: i === M.FOLLOW && k === 0 ? 'ink' : pending ? 'muted' : cls, data: pending ? ` data-pending="${i}"` : '' });
+              if (last) D.meta.table.push({ key: i, pending, moved });
             });
           });
           const fj = shown.indexOf(M.FOLLOW);
-          const fx = sx0 + gwM + (fj + 0.5) * cw;
+          const fx = sx0 + gwT + (fj + 0.5) * cw;
           D.add('back', `<rect class="follow-col" x="${r1(fx - cw / 2 + 1)}" y="${stripTop + 1}" width="${r1(cw - 2)}" height="${17 * rowsM.length + 4}" rx="6"/>`);
         }
         D.region('lens', { x: pad - 4, y: lY - 4, w: inner + 8, h: lensH + 6 });
-        const H = Math.round(lY + lensH + 10);
+        // The stage's height depends only on its width: the most lines the blocks above can take, the spare at the foot.
+        const H = Math.round(vY + (58 + 18 * res.verdict - 2) + 12 + 12 + (lensH - 18 * ruleLines.length + 18 * res.rule) + 10);
         D.label = summaryOf(sc, hid, view);
         return { D, H };
       }
@@ -1839,6 +2088,7 @@
         tallest: { s: { scheme: 0, points: 1, nodes: 3, hot: 1, split: 0, down: 1 } },
         playing: { s: { ...B, nodes: 5 }, from: ABCD, frac: 0.55 },
         modplaying: { s: { ...M.SETUP.mod, nodes: 5 }, from: ABCD, frac: 0.55 },
+        replaying: { s: { ...B, points: 1 }, replace: { points: 100 }, frac: 0.55 },
         describe: { s: { ...B, nodes: 5 }, from: ABCD, describe: true },
         reduced: { s: { ...B, nodes: 5 }, from: ABCD, reduced: true },
         ask: { exp: 0, phase: 'asking' },
@@ -1849,7 +2099,8 @@
         const st = STATES[name] ?? STATES.default;
         const expParam = params.get('exp');
         const expIdx = expParam !== null && st.exp !== undefined ? Number(expParam) - 1 : st.exp;
-        if (expIdx === undefined) return { s: st.s, from: st.from ?? null, hide: [], phase: 'rest', frac: st.frac ?? null, describe: !!st.describe, reduced: !!st.reduced };
+        const frac = params.get('frac') !== null && st.frac !== undefined ? Number(params.get('frac')) : (st.frac ?? null);
+        if (expIdx === undefined) return { s: st.s, from: st.from ?? null, replace: st.replace ?? null, hide: [], phase: 'rest', frac, describe: !!st.describe, reduced: !!st.reduced };
         const spec = M.EXPERIMENTS[expIdx];
         if (spec.goal) return expView(spec, params.get('start') === '1' ? 'start' : 'challenge');
         const phase = params.get('phase') === 'playing' && st.phase === 'asking' ? 'playing' : st.phase;
@@ -1872,6 +2123,8 @@
         return {
           s: after,
           from: moves ? M.NAMES.slice(0, spec.setup.nodes) : null,
+          // A change of points plays its re-placement once and leaves no last change.
+          replace: 'points' in set && phase === 'playing' ? { points: spec.setup.points } : null,
           hide: phase === 'revealed' ? [] : spec.hide,
           exp: e,
           spec,
@@ -1892,6 +2145,8 @@
         const seg = (name, items, cur, disabledAll = false) =>
           items.map(([v, label]) => `<label class="segment"><input type="radio" name="${name}" ${v === cur ? 'checked' : ''}${disabledAll ? ' disabled' : ''}/><span>${label}</span></label>`).join('');
         const downNode = sc.downNode ?? M.busiestOf(sc.up, s.hot, s.split);
+        // The caption goes through the hiding map: while a question asks or plays it names no node.
+        const downCaption = locked && !view.leakCaption ? (s.down ? 'The busiest node is down: its keys moved' : 'The busiest node would fail: its keys must move') : s.down ? `${downNode} is down: its keys moved` : `${downNode} would fail: its keys must move`;
         return `<fieldset class="group placement-control"${dis}><legend class="control-label">Placement</legend><div class="segments">${seg(
           'scheme',
           [
@@ -1900,7 +2155,7 @@
           ],
           s.scheme,
         )}</div></fieldset>
-<fieldset class="group points-control"${dis}><legend class="control-label">Points per node${mod ? '<span class="why"> · hash mod N has no ring</span>' : ''}</legend><div class="segments">${seg(
+<fieldset class="group points-control"${dis}><legend class="control-label">Points per node <span class="why">(virtual nodes)</span>${mod ? '<span class="why"> · hash mod N has no ring</span>' : ''}</legend><div class="segments">${seg(
           'points',
           M.POINTS.map((p) => [p, M.num(p)]),
           s.points,
@@ -1913,9 +2168,18 @@
         )}</div></fieldset>
 <fieldset class="group conditions-control"${dis}><legend class="control-label">Conditions</legend><div class="toggles">
 <label class="segment"><input type="checkbox" ${s.hot ? 'checked' : ''}/><span>A hot key<small>${M.HOT_PCT}% of the traffic</small></span></label>
-<label class="segment"><input type="checkbox" ${s.split ? 'checked' : ''}${s.hot ? '' : ' disabled'}/><span>Split the hot key<small>${s.hot ? `into ${M.SALTS} salted keys` : 'needs the hot key'}</small></span></label>
-<label class="segment wide"><input type="checkbox" ${s.down ? 'checked' : ''}/><span>Busiest node down<small>${s.down ? `${downNode} is down: its keys moved` : `${downNode} would fail: its keys must move`}</small></span></label></div></fieldset>
-<p class="notice" aria-live="polite" aria-atomic="true">${esc(noticeOf(sc, view))}</p>`;
+<label class="segment"><input type="checkbox" aria-label="Split the hot key" ${s.split ? 'checked' : ''}${s.hot ? '' : ' disabled'}/><span><span class="split-long">Split the hot key</span><span class="split-short">Split the key</span><small>${s.hot ? `into ${M.SALTS} salted keys` : 'needs the hot key'}</small></span></label>
+<label class="segment wide"><input type="checkbox" ${s.down ? 'checked' : ''}/><span>Busiest node down<small class="down-caption">${downCaption}</small></span></label></div></fieldset>
+<p class="notice" aria-live="polite" aria-atomic="true">${esc(noticeOf(sc, view))}</p>${goalMini(sc, view)}`;
+      }
+      /** On a narrow layout the challenge's checklist is far below the controls that change it: a compact copy sits
+       * under them (aria-hidden: the dock stays the source). */
+      function goalMini(sc, view) {
+        if (view.phase !== 'challenge') return '';
+        const checks = M.goalChecks(sc);
+        const met = checks.filter((c) => c.met).length;
+        const short = ['busiest shard', 'keys moved', 'nodes'];
+        return `<p class="goal-mini${met === checks.length ? ' met' : ''}" aria-hidden="true">${met} of ${checks.length} met: ${checks.map((c, i) => `${short[i]} ${c.met ? 'met' : 'not yet'}`).join(' · ')}</p>`;
       }
       function noticeOf(sc, view) {
         if (view.phase === 'asking') return 'Replay and the settings wait for your answer.';
@@ -1925,13 +2189,14 @@
         if (view.frac !== null && view.frac !== undefined) return 'The keys that change node are moving.';
         return sc.change ? M.story(sc) : 'Change the placement, the points, the nodes or the conditions. Replay shows the last change again.';
       }
-      const SIMPLIFIED = `The model: ${M.num(K)} keys of equal size, each hashed once. Every key gets the same traffic unless the hot key is on, and a move is counted, not timed.`;
+      const SIMPLIFIED = `The model: ${M.num(K)} keys of equal size, each hashed once. Every key gets the same traffic unless the hot key is on, and a move is counted, not timed. A failed node's keys are drawn moving to their new owners; in a real cluster those owners already hold copies or reload them.`;
       const ICON_RIGHT = '<svg class="mark" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="var(--g-success-line)"/><path d="M6 10.2l2.6 2.6 5.2-5.6" fill="none" stroke="var(--g-surface)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
       const ICON_WRONG = '<svg class="mark" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="var(--g-danger)"/><path d="M7 7l6 6M13 7l-6 6" fill="none" stroke="var(--g-surface)" stroke-width="2" stroke-linecap="round"/></svg>';
       // Learner text in HTML keeps a number with its unit on one line (the app's g-code-text does the same).
-      const htmlText = (t) =>
-        esc(t)
-          .replace(/([\d,.]+%? (?:keys?|nodes?|points?|shards?)|[\d,]+ mod \d+ = \d+|hash mod (?:\d+|N)|\d+ of the \d+|\d+ of \d+|\(\d[^)]*\))/g, '<span class="nowrap">$1</span>');
+      // A number with its unit, an equation, "hash mod 5", a fraction ("200 / 5"), a named formula ("N / (N + 1)") and a
+      // short bracketed expression each form one unit no line parts.
+      const NOWRAP_UNITS = /(N \/ \(N \+ 1\)|K \/ \(N \+ 1\)|\(\d[\d,.]* \/ \d+\)|\(\d+ × \d+ \/ \d+\)|\d[\d,.]* \/ \d+|[\d,.]+%? (?:keys?|nodes?|points?|shards?)|[\d,]+ mod \d+ = \d+|hash mod (?:\d+|N)|\d+ of the \d+|\d+ of \d+|\([^()]{1,24}\))/g;
+      const htmlText = (t) => esc(t).replace(NOWRAP_UNITS, '<span class="nowrap">$1</span>');
       function dockHtml(sc, view) {
         const e = view.exp;
         if (!e) return '';
@@ -1944,7 +2209,7 @@
             .join('')}</ul>${view.met ? `<p class="reveal" aria-live="polite" aria-atomic="true">${htmlText(e.reveal)}</p>` : ''}`;
         }
         if (view.phase === 'asking') {
-          return `<fieldset style="border:0;padding:0;margin:0"><legend class="legend">${htmlText(e.ask)}</legend><div class="options">${e.choices.map((c) => `<button class="g-choice">${htmlText(c)}</button>`).join('')}</div></fieldset>`;
+          return `<fieldset style="border:0;padding:0;margin:0"><legend class="legend">${htmlText(e.ask)}</legend><div class="options">${e.choices.map((c) => `<button class="g-choice"><span class="choice-text">${htmlText(c)}</span></button>`).join('')}</div></fieldset>`;
         }
         const marked = e.choices
           .map((c, i) => {
@@ -1970,8 +2235,8 @@
         if (!open) return btn;
         const rows = M.describeRows(sc);
         const ring = sc.scheme === 'ring';
-        const head = compact ? ['Node', 'Keys', 'Traffic', 'In', 'Out'] : ['Node', ...(ring ? ['Points', 'Of the ring'] : []), 'Keys', 'Traffic', 'Moved in', 'Moved out'];
-        const cells = (r) => (compact ? [r.node, r.keys, r.traffic, r.into, r.out] : [r.node, ...(ring ? [r.points, r.ring] : []), r.keys, r.traffic, r.into, r.out]).map((v) => (compact ? v.replace('no change yet', 'none') : v));
+        const head = compact ? ['Node', 'Keys', 'Traffic', 'In', 'Out'] : ['Node', ...(ring ? ['Points (virtual nodes)', 'Of the ring'] : []), 'Keys', 'Traffic', 'Moved in', 'Moved out'];
+        const cells = (r) => (compact ? [r.node, r.keys, r.traffic, r.into, r.out] : [r.node, ...(ring ? [r.points, r.ring] : []), r.keys, r.traffic, r.into, r.out]).map((v) => (compact ? v.replace('no change yet', 'none yet') : v));
         return `${btn}<p class="summary">${htmlText(sc.change ? M.story(sc) : M.summary(sc))} ${htmlText(M.standing(sc))} ${htmlText(M.rule(sc))}</p><div class="table-box${compact ? ' compact' : ''}" tabindex="0" role="region" aria-label="What each node holds"><table><thead><tr>${head
           .map((h) => `<th scope="col">${h}</th>`)
           .join('')}</tr></thead><tbody>${rows.map((r) => `<tr${r.state === 'down' ? ' class="down-row"' : ''}>${cells(r).map((v, i) => `<td>${esc(i === 0 && r.state === 'down' ? `${v}, down` : v)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
@@ -2002,7 +2267,7 @@
         const root = document.getElementById('widget');
         root.innerHTML = `<div class="controls">${controlsHtml(sc, view)}</div>
 <div class="main"><div class="stage" role="group" aria-roledescription="visualization" aria-label="Sharding: 200 keys placed on nodes by their hash"><div class="well" id="well"></div></div>
-${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${htmlText(M.story(sc))}</p>` : ''}<p class="simplify">${htmlText(SIMPLIFIED)}</p><div class="describe" id="describe"></div></div>
+<p class="simplify">${htmlText(SIMPLIFIED)}</p><div class="describe" id="describe"></div></div>
 <div class="experiments"><section class="dock" aria-label="Experiment">${dockHtml(sc, view)}</section>${cardsHtml(view)}</div>`;
         const well = document.getElementById('well');
         const W = well.clientWidth;
@@ -2023,7 +2288,8 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${htmlText
         const share = (a, b) => a.some((t) => b.includes(t));
         const texts = [...svg.querySelectorAll('text')].map((t) => {
           const b = t.getBBox();
-          return { el: t, s: t.textContent, owner: owners(t), ground: t.hasAttribute('data-ground'), x0: b.x + 0.5, x1: b.x + b.width - 0.5, y0: b.y + b.height * 0.2, y1: b.y + b.height * 0.95 };
+          // The box runs from the cap height to the font's full descent, so a comma's tail counts.
+          return { el: t, s: t.textContent, owner: owners(t), ground: t.hasAttribute('data-ground'), x0: b.x + 0.5, x1: b.x + b.width - 0.5, y0: b.y + b.height * 0.2, y1: b.y + b.height };
         });
         const out = [];
         const ov = (a, b, m = 0) => Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > m && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > m;
@@ -2096,6 +2362,20 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${htmlText
           if (a.x0 < -0.5 || a.x1 > W + 0.5 || a.y0 < -0.5 || a.y1 > H + 0.5) out.push(`hit box off-stage: ${a.o}`);
           for (const t of texts) if (ov(a, t, 0.5)) out.push(`text under a control: "${t.s}"`);
         }
+        // The ring's title keeps 6 px from the "0" over the ring.
+        const title = texts.find((t) => t.owner.includes('ring-title'));
+        const zero = texts.find((t) => t.owner.includes('zero'));
+        if (title && zero && zero.x0 < title.x1 && zero.x1 > title.x0 && zero.y0 - title.y1 < 4) out.push(`the ring's title ${(zero.y0 - title.y1).toFixed(1)} px over its "0"`);
+        // The walk never runs through a dot of the strip, and keeps 3 px under the lowest lane.
+        for (const w of svg.querySelectorAll('.walk')) {
+          const len = w.getTotalLength();
+          const pts = [];
+          for (let d = 0; d <= len; d += 1.5) pts.push(w.getPointAtLength(d));
+          for (const d of svg.querySelectorAll('circle.dot[data-owner="lens-keys"]')) {
+            const [x, y, r] = ['cx', 'cy', 'r'].map((a) => Number(d.getAttribute(a)));
+            if (pts.some((p) => Math.hypot(p.x - x, p.y - y) < r + 2.5 && !(Math.abs(p.x - x) < 0.6 && p.y > y))) out.push(`the walk runs through dot ${d.dataset.id}`);
+          }
+        }
         return out;
       }
       function tagMarks(well, D) {
@@ -2139,6 +2419,13 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${htmlText
         const pileMoved = svg.querySelectorAll('circle.dot.key[data-id^="p"][data-moved]').length;
         const want = change && !hid.moved ? (frame ? frame.landed : change.moved) : 0;
         if (ringMoved !== want || pileMoved !== want) out.push(`moved marks: ring ${ringMoved}, piles ${pileMoved}, the model ${want}`);
+        // The remainder table's hollow marks are exactly its moved, landed keys; the hot key's hollow block, its move.
+        const tableMoved = svg.querySelectorAll('[data-owner="table"][data-moved]').length;
+        const tableWant = (D.meta.table ?? []).filter((t) => change && !hid.moved && change.moves.some((m) => m.key === t.key) && (!frame || frame.state.get(t.key).st === 'dst')).length;
+        if (tableMoved !== tableWant) out.push(`the table's hollow marks ${tableMoved} for ${tableWant} landed moves`);
+        const hotMoved = svg.querySelectorAll('.hot-block[data-moved], [data-hot-moved]').length > 0;
+        const hotWant = !!change && !hid.moved && (!frame || frame.done) && sc.settings.hot === 1 && (sc.settings.split ? change.before.salts.some((o, j) => o !== sc.now.salts[j]) : !!change.hotMoved);
+        if (hotMoved !== hotWant) out.push(`the hot key's moved mark ${hotMoved} against its move ${hotWant}`);
         // Exactly the keys in flight are the keys the clock says are flying, and each flies inside the pile area.
         if (frame) {
           const n = [...frame.state.values()].filter((s) => s.st === 'fly').length;
@@ -2146,13 +2433,52 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${htmlText
         } else if (flying) out.push('a dot in flight at rest');
         for (const f of D.meta.flights ?? []) if (f.x < P.area.x0 - 1 || f.x > P.area.x1 + 1 || f.y < P.area.y0 || f.y > P.area.y1) out.push('a key flies outside the pile area');
         // The tallest pile fits its area, and the even line lies on the piles' scale.
-        for (const b of svg.querySelectorAll('.hot-block')) if (Number(b.getAttribute('y')) < P.pileTop) out.push('a hot block leaves the pile area');
+        for (const b of svg.querySelectorAll('.hot-block:not([data-legend])')) if (b.getBBox().y < P.pileTop) out.push('a hot block leaves the pile area');
         for (const d of svg.querySelectorAll('circle.dot.key[data-id^="p"]')) if (Number(d.getAttribute('cy')) - Number(d.getAttribute('r')) < P.pileTop) out.push('a pile leaves its area');
         if (P.evenY < P.pileTop) out.push('the even line leaves the pile area');
+        // A pile's drawn level is its share on the scale, within 1 px (the hot key's stack included).
+        if (!live)
+          for (const m of sc.now.members) {
+            const share = sc.settings.hot ? sc.traffic[m] / 10 : (100 * sc.now.counts[m]) / K;
+            const want = P.levelY(Math.min(MAX_SLOTS, share * P.slotsPerPct));
+            if (Math.abs(P.tops[m] - want) > 1.01) out.push(`pile ${m} drawn at ${(P.tops[m]).toFixed(1)} for its share at ${want.toFixed(1)}`);
+            const stack = [...svg.querySelectorAll(`.hot-block[data-node="${m}"]`)].map((b) => b.getBBox());
+            if (stack.length && Math.abs(Math.min(...stack.map((b) => b.y)) - P.tops[m]) > 1.01) out.push(`the hot stack on ${m} tops out off its level`);
+          }
+        // Every line in the pile area carries a label centred on it, and no line runs within 12 px of the even label.
+        const gutter = [...svg.querySelectorAll('text[data-gutter]')].map((t) => t.getBBox());
+        for (const ly of D.meta.lines) if (!gutter.some((b) => Math.abs(b.y + b.height / 2 - 1 - ly) <= 3.5)) out.push(`a line at ${ly.toFixed(1)} with no label`);
+        for (const b of gutter) if (D.meta.lines.filter((ly) => Math.abs(b.y + b.height / 2 - 1 - ly) <= 3.5).length !== 1) out.push('a gutter label beside no line or two');
+        const evenBox = svg.querySelector('[data-id="even"]')?.getBBox();
+        for (const g of svg.querySelectorAll('line.gridline')) {
+          const gy = Number(g.getAttribute('y1'));
+          if (evenBox && gy > evenBox.y - 12 && gy < evenBox.y + evenBox.height + 12) out.push('a gridline within 12 px of the even label');
+        }
+        // In flight a key keeps 8 px clear of every pile top under it and of the even line, but at lift-off and landing.
+        for (const f of D.meta.flights ?? []) {
+          if (f.u < 0.15 || f.u > 0.85) continue;
+          const col = M.NAMES.find((m) => P.tops[m] !== undefined && f.x >= P.binX(m) && f.x < P.binX(m) + P.bw);
+          if (col && f.y > P.tops[col] - 8) out.push(`a key in flight over ${col} ${(P.tops[col] - f.y).toFixed(1)} px over its top`);
+          if (Math.abs(f.y - P.evenY) < 8) out.push('a key in flight on the even line');
+        }
+        // The followed key in the strip: its caret over it, its walk from it.
+        if (D.meta.strip) {
+          const caret = svg.querySelector('.caret[data-owner="follow2"]');
+          if (caret && Math.abs(Number(caret.dataset.x) - D.meta.strip.fx) > 1) out.push('the caret is off the followed key');
+          const walk = svg.querySelector('.walk');
+          if (walk && Math.abs(Number(walk.dataset.x0) - D.meta.strip.fx) > 1) out.push('the walk does not start at the followed key');
+        }
+        // Nothing for a key before its moment: a table column shows its new cells only once the hand has passed it.
+        if (live && change && !hid.rule && frame.pointsIn) for (const t of svg.querySelectorAll('text[data-col]')) if (frame.frac < M.takeoff(Number(t.dataset.col))) out.push(`table column ${t.dataset.col} shows its new node before the hand reaches it`);
         // The headline is the model's count.
         const head = svg.querySelector('[data-id="moved-count"]')?.textContent ?? '';
         if (change && !hid.moved && !live && !head.startsWith(`${M.num(change.moved)} of`)) out.push(`the headline "${head}" for ${change.moved} moved`);
-        // The table's in and out rows add up to the headline.
+        if (change && !hid.moved && live && !head.startsWith(`${M.num(frame.landed)} `)) out.push(`the headline "${head}" for ${frame.landed} landed`);
+        // The table's in and out rows add up to the headline, on every frame of a play too.
+        if (change && !hid.numbers && live) {
+          const sum = (id) => [...svg.querySelectorAll(`[data-id^="cell-${id}-"]`)].reduce((a, t) => a + Number(t.textContent.replace(/[^\d]/g, '')), 0);
+          if (sum('in') !== frame.landed || sum('out') !== frame.landed) out.push(`mid-play the in and out rows (${sum('in')}, ${sum('out')}) against ${frame.landed} landed`);
+        }
         if (change && !hid.numbers && !live) {
           const sum = (id) => [...svg.querySelectorAll(`[data-id^="cell-${id}-"]`)].reduce((a, t) => a + Number(t.textContent.replace(/[^\d]/g, '')), 0);
           if (sum('in') !== change.moved || sum('out') !== change.moved) out.push(`the in and out rows (${sum('in')}, ${sum('out')}) against ${change.moved} moved`);
@@ -2239,16 +2565,21 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${htmlText
         const by = {
           'mod-join': [`${sl.moved} of`, `${sl.moved} keys`, sl.movedPct, `+${sl.toNew}`, `${sl.toNew} of them`, `other ${sl.between}`, 'places every key again', 'so far'],
           'ring-join': [`${sl.moved} of`, `All ${sl.moved}`, `+${sl.moved}`, sl.froms, 'moved to E', 'E holds it', "E's (was"],
-          'one-point': [`${sl.one} keys`, ` ${sl.one} `, `${sl.who} is the fullest`, sl.arc, `| ${sl.one} |`],
+          'one-point': [`${sl.one} keys`, ` ${sl.one} `, sl.arc, `| ${sl.one} |`],
           'lost-node': [`${sl.after} keys`, `to ${sl.after}`, `| ${sl.after} |`, `+${sl.held}`, `all to ${sl.next}`, `${sl.next} holds it`, `${sl.next} is the fullest`, 'next point clockwise.'],
           'hot-key': [sl.now, sl.splitBusiest],
         };
         return by[spec.id] ?? [];
       }
-      function structural(well, spec, phase) {
+      function structural(well, spec, phase, root) {
         const out = [];
         const svg = well.querySelector('svg.draw');
         if (!well.querySelector('.play')?.disabled) out.push('Replay is enabled');
+        // A control's caption goes through the hiding map: no node named while a question waits.
+        const caption = root?.querySelector('.down-caption')?.textContent ?? '';
+        if (/^[A-F] /.test(caption)) out.push(`the toggle's caption names a node: "${caption}"`);
+        // The free line's invitation is false while every control waits.
+        if (svg.textContent.includes(NO_CHANGE[0].slice(0, 30))) out.push('the free invitation to change the nodes while the controls wait');
         if (phase === 'asking') {
           if (svg.querySelector('[data-moved]')) out.push('a moved mark while the question asks');
           if (svg.querySelector('.fly, .sweep')) out.push('a play mark while the question asks');
@@ -2270,7 +2601,7 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${htmlText
         const out = [];
         for (const w of answerWords(spec)) if (text.includes(w)) out.push(`"${w}" shows`);
         for (const g of FALSE_CLAIMS) if (g.test(text)) out.push(`false claim ${g}`);
-        return [...out, ...structural(well, spec, phase)];
+        return [...out, ...structural(well, spec, phase, root)];
       }
       window.noAnswer = function (widths, leak = null) {
         const root = document.getElementById('widget');
@@ -2311,6 +2642,8 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${htmlText
           (view, k) => (k === 3 && view.phase === 'playing' ? { ...view, hide: [{ region: 'after', when: 'asking' }] } : null),
           // E5's play with the traffic row shown.
           (view, k) => (k === 4 && view.phase === 'playing' ? { ...view, hide: [] } : null),
+          // E1's play with the toggle's caption taken from the after-act setting.
+          (view, k) => (k === 0 && view.phase === 'playing' ? { ...view, leakCaption: true } : null),
         ];
         return leaks.map((leak) => window.noAnswer([W], leak).out.length > 0);
       };
@@ -2354,6 +2687,43 @@ ${view.reduced ? `<p class="caption" role="status" aria-atomic="true">${htmlText
         }
         well.style.width = '';
         return out;
+      };
+      // The page around the stage: no toggle's text within 4 px of its border, every choice one label child.
+      window.pageChecks = function () {
+        const out = [];
+        for (const lab of document.querySelectorAll('.toggles .segment > span')) {
+          const box = lab.getBoundingClientRect();
+          for (const el of lab.querySelectorAll('small, span')) {
+            if (getComputedStyle(el).display === 'none') continue;
+            const r = document.createRange();
+            r.selectNodeContents(el);
+            for (const t of r.getClientRects()) if (t.width && (t.top - box.top < 4 || box.bottom - t.bottom < 4 || t.left - box.left < 4 || box.right - t.right < 4)) out.push(`a toggle's text "${el.textContent}" within 4 px of its border`);
+          }
+        }
+        for (const b of document.querySelectorAll('button.g-choice')) if (b.children.length !== 1) out.push(`a choice with ${b.children.length} children`);
+        return out;
+      };
+      // Every learner sentence: a formula, a fraction, an equation or a short bracket stays one nowrap unit.
+      window.nowrapUnits = function () {
+        const out = [];
+        const sentences = [];
+        for (const spec of M.EXPERIMENTS) {
+          const e = M.renderExperiment(spec);
+          sentences.push(e.ask, e.reveal, ...e.choices);
+        }
+        for (const { s, from } of allScenarios()) {
+          const sc = M.scenario(s, from);
+          sentences.push(M.summary(sc), M.story(sc), M.standing(sc), M.rule(sc), M.rule(sc, true), ...M.goalChecks(sc).map((c) => c.text));
+        }
+        sentences.push(SIMPLIFIED);
+        const UNIT = [/N \/ \(N \+ 1\)/g, /\([^()]{1,24}\)/g, /\d[\d,.]* \/ \d+/g, /[\d,]+ mod \d+ = \d+/g];
+        const host = document.createElement('div');
+        for (const t of new Set(sentences)) {
+          host.innerHTML = htmlText(t);
+          const kept = [...host.querySelectorAll('.nowrap')].map((n) => n.textContent);
+          for (const re of UNIT) for (const m of t.matchAll(re)) if (!kept.some((k) => k.includes(m[0]))) out.push(`"${m[0]}" can break in "${t.slice(0, 60)}"`);
+        }
+        return [...new Set(out)];
       };
       // Every page sentence of every scenario against the false claims (the stage's own text is swept as drawn).
       window.pageWords = function () {
