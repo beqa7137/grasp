@@ -540,7 +540,7 @@ joined mark; a checked toggle carries a check glyph; the weakest link is
    label. Gridlines and the playhead run under grounded labels only. The ring is stroke only, round the whole tick, and
    its line has its head clear of the label row. The checker flags text on text, a line through text, text on a mark,
    anything off the stage, text under a hit box, axis labels closer than 6 px (the weeks, the nines and the downtime
-   each as their own row), a text against a focus outline's stroke and any label or tag with no place: zero over 216
+   each as their own row), a text against a focus outline's stroke and any label or tag with no place: zero over 204
    screenshots, 23,694 setting renders and 384 experiment renders. Nothing moves across a label: the only moving marks
    are the playhead, which stays in the rows, and the path, which stays on its wires.
 5. **Look-here tags.** Focus regions that touch, or stand less than a tag's height apart, merge into one outline with
