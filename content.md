@@ -1,0 +1,894 @@
+# Reliability widget (`availability`): every string, generated
+
+Generated from the built widget at 32a1ef33 (`/design/topics/sd-reliability`) by a browser walk, and from the engine build for
+the experiments. Nothing here is typed by hand. Walks:
+
+- **D-RM**: desktop 1280px, reduced motion, answering each question wrong.
+- **D-M**: desktop 1280px, with motion, answering each question right (sampled through every play).
+- **320**: 320px, reduced motion, answering each question wrong.
+
+Each walk draws 11 settings and at each: the stage at rest, five stepped moments (and a whole play with motion), and Describe;
+then every experiment asking, playing its answer, revealed and Describe after the reveal; the challenge at its start, on the way, met and moved off. A string is listed once, with the walks that showed it.
+
+## Experiments (engine build)
+
+### Four parts in a row
+
+- **id:** `series`
+- **Ask:** A page request needs 4 parts in turn: a load balancer, an app server, a database and a recommendations service. There is one copy of each, and each is 99.9% available: down 8.8 h a year, in outages of 1 h. How long is the request down a year?
+- **Choice 1:** 8.8 h: a chain is as good as its weakest part
+- **Choice 2:** 17.5 h: about twice that, as outages often coincide
+- **Choice 3 (answer):** 35 h: every part’s outages count in full
+- **Reveal:** 35 h: the request needs every part, so it fails whenever any one of them is down. Outages of 1 h that strike independently almost never coincide, so the downtime of 4 parts adds up: 4 × 8.8 h is 35 h, and the availabilities multiply to 99.6%. A chain is always worse than its weakest part, and every hard dependency you add costs its whole downtime.
+- **Hides while asking:** sample, request
+- **Focus at the reveal:** timeline, ruler
+- **While the answer plays:** Watch the request’s row: it collects every failure that reaches it.
+
+### A second database
+
+- **id:** `parallel`
+- **Ask:** A load balancer, an app server and a database, one copy of each, and each down 8.8 h a year; recommendations are optional now. Give the database a second copy that fails independently of the first, and say traffic moves to it at once. How long is the database part down a year now?
+- **Choice 1 (answer):** 32 s: only while both are down at once
+- **Choice 2:** 53 min: a tenth, a copy buys one more nine
+- **Choice 3:** 4.4 h: half, two copies share the failures
+- **Reveal:** 32 s: the part is down only while both copies are down at once. Each is down 0.1% of the time, so both are down 0.1% of 0.1%: 99.9999% available, 32 s a year against 8.8 h. Unavailabilities multiply, so each independent copy adds 3 nines. The request is still down 17.5 h a year, because the two parts left with one copy now set it. And 32 s is the ceiling of the arithmetic, not a forecast: it holds only if the copies never fail together and traffic moves instantly.
+- **Hides while asking:** after
+- **Focus at the reveal:** timeline, ruler
+- **While the answer plays:** Watch the database’s two rows and the strip under them.
+
+### One more app server
+
+- **id:** `weakest`
+- **Ask:** The request passes 2 load balancers, 2 app servers and 1 database, every copy 99.9% available; recommendations are optional. It is down 8.8 h a year. Add a third app server. How long is the request down a year now?
+- **Choice 1:** 4.4 h: half, as three app servers never fail together
+- **Choice 2:** 5.9 h: a third less, as each server now carries a third of the traffic
+- **Choice 3 (answer):** 8.8 h: unchanged, the app servers were never the limit
+- **Reveal:** 8.8 h, unchanged: the request is down because of the database, a single copy down 8.8 h a year. The app servers were down together only 32 s a year as a pair, and 0.03 s as three. Polishing a strong part buys nothing you can measure: the weakest link caps the chain, so find the single point of failure before adding copies anywhere else.
+- **Hides while asking:** sample, weakest, after
+- **Focus at the reveal:** ruler, chain
+- **While the answer plays:** Watch the app servers’ rows and the request’s row.
+
+### Failures the copies share
+
+- **id:** `shared`
+- **Ask:** Two copies of every part the request needs: on paper it is down only 95 s a year. Now say 1 in 10 of a copy’s outages come from something its twin shares, such as the zone both run in or a bad deploy that reaches both. How long is the request down a year now?
+- **Choice 1:** 104 s: a tenth more than on paper
+- **Choice 2 (answer):** 2.6 h: about 100× what the paper says
+- **Choice 3:** 26.3 h: as much as with one copy of each
+- **Reveal:** 2.6 h, about 100× the paper’s 95 s. A second copy removes only the outages that are a copy’s own. A shared one takes both copies down together, so it passes straight through: 53 min a year for each part, however many copies it has. With 1 in 10 of outages shared, copies buy at most one more nine, 99.99% a part and not 99.9999%. So spread copies across zones, roll changes out in stages and split users into cells: the fix is fewer shared causes, not more copies.
+- **Hides while asking:** after
+- **Focus at the reveal:** timeline, ruler
+- **While the answer plays:** Watch the request’s row.
+
+### Failover takes time
+
+- **id:** `failover`
+- **Ask:** Two copies of every part the request needs, failing independently: on paper it fails only when both copies of a part are down at once, about once in 19 years. But moving traffic off a dead copy takes 5 min: health checks must notice, then the switch happens. About how many times a year does the request fail now?
+- **Choice 1 (answer):** About 26 times: at every failure of a copy in use
+- **Choice 2:** About 9 times: as often as a single copy fails
+- **Choice 3:** Still about once in 19 years: the standby was ready
+- **Reveal:** About 26 times a year, 5 min each: 2.2 h a year instead of 95 s. Redundancy does not remove a copy’s failures, it shortens them: each of the 8.76 outages a year of the copy in use now ends when traffic has moved, after 5 min, not when the repair is done, after 1 h. Availability is MTBF / (MTBF + MTTR), and a standby turns the time to recover from the repair time into the failover time. Four nines a part is 53 min a year; with 8.76 failures that leaves about 6 min for each, so detection and the switch must be automatic, and rehearsed.
+- **Hides while asking:** after
+- **Focus at the reveal:** timeline, chain
+- **While the answer plays:** Watch the request’s row.
+
+### Three nines from seven copies
+
+- **id:** `add-a-nine`
+- **Ask:** This design has shared failures and a 5 min failover, as real ones do, and the request is down 20.6 h a year. Promise three nines: bring it under 8.76 h a year, 99.9%, with no more than the 7 copies it runs now.
+- **Reveal:** Run 2 load balancers, 2 app servers and 2 databases, with recommendations optional: down 4.6 h a year, 99.947%. Moving one app server to the database removes the single point of failure, and making recommendations optional takes a whole part out of the chain; the third app server was buying nothing. The 4.6 h left are shared outages and failovers, which no further copy removes: the next nine comes from fewer shared causes and a faster switch. That leaves 4.1 h of the 8.76 h error budget for a bad year and risky deploys: promise below what you expect.
+- **Hides while asking:** nothing
+- **Focus at the reveal:** ruler, chain
+
+## Stage drawing (SVG text) (420)
+
+- A request through its chain, over one simulated year _(D-RM, D-M)_
+- request _(D-RM, D-M)_
+- Load balancer _(D-RM, D-M)_
+- LB 1 _(D-RM, D-M, 320)_
+- LB 2 _(D-RM, D-M, 320)_
+- App servers _(D-RM, D-M)_
+- App 1 _(D-RM, D-M)_
+- App 2 _(D-RM, D-M)_
+- App 3 _(D-RM, D-M)_
+- Database _(D-RM, D-M)_
+- DB 1 _(D-RM, D-M, 320)_
+- Recommendations _(D-RM, D-M)_
+- Recs 1 _(D-RM, D-M, 320)_
+- fails _(D-RM, D-M)_
+- Week 3: the recommendations service is down for 1 h and has no other copy, so the request _(D-RM, D-M)_
+- fails. _(D-RM, D-M)_
+- One simulated year · a tick marks an outage, not its length _(D-RM, D-M)_
+- copy down, 1 h _(D-RM, D-M, 320)_
+- part down, 1 h: the request fails _(D-RM, D-M, 320)_
+- failover, 5 min: it fails too _(D-RM, D-M)_
+- LB _(D-RM, D-M, 320)_
+- 1 _(D-RM, D-M, 320)_
+- 2 _(D-RM, D-M, 320)_
+- part _(D-RM, D-M)_
+- App _(D-RM, D-M, 320)_
+- DB _(D-RM, D-M, 320)_
+- Recs _(D-RM, D-M, 320)_
+- Request _(D-RM, D-M)_
+- 0 _(D-RM, D-M, 320)_
+- 13 _(D-RM, D-M, 320)_
+- 26 _(D-RM, D-M, 320)_
+- 39 _(D-RM, D-M, 320)_
+- 52 weeks _(D-RM, D-M)_
+- In this simulated year the request failed 17 times, 17 h in all: each for 1 h. _(D-RM, D-M)_
+- Availability, exact from the model _(D-RM, D-M, 320)_
+- Available _(D-RM, D-M, 320)_
+- 99.8% _(D-RM, D-M, 320)_
+- Down a year _(D-RM, D-M, 320)_
+- 17.5 h _(D-RM, D-M, 320)_
+- Down in 30 days _(D-RM, D-M, 320)_
+- 86 min _(D-RM, D-M, 320)_
+- The nines scale · each step right is 10× less downtime _(D-RM, D-M)_
+- down a year _(D-RM, D-M, 320)_
+- 90% _(D-RM, D-M)_
+- 99% _(D-RM, D-M)_
+- 99.9% _(D-RM, D-M, 320)_
+- 99.99% _(D-RM, D-M)_
+- 5 nines _(D-RM, D-M)_
+- 6 nines _(D-RM, D-M)_
+- 7 nines _(D-RM, D-M)_
+- 8 nines _(D-RM, D-M)_
+- 9 nines _(D-RM, D-M, 320)_
+- 32 s _(D-RM, D-M, 320)_
+- 0.03 s _(D-RM, D-M, 320)_
+- 8.8 h _(D-RM, D-M, 320)_
+- capped by the weakest link _(D-RM, D-M)_
+- 36.5 d _(D-RM, D-M)_
+- 3.65 d _(D-RM, D-M)_
+- 53 min _(D-RM, D-M, 320)_
+- 5.3 min _(D-RM, D-M)_
+- 3.2 s _(D-RM, D-M)_
+- 0.32 s _(D-RM, D-M)_
+- Weakest links: DB and Recs (1 copy each), each down 8.8 h a year. _(D-RM, D-M)_
+- On paper each copy adds 3 nines: a part is down only while all its copies are. _(D-RM, D-M)_
+- served _(D-RM, D-M)_
+- Week 11: LB 1 is down for 1 h. LB 2 carries the request, so the load balancers stay up. LB 2 is _(D-RM)_
+- itself down only 0.1% of the time. _(D-RM)_
+- both down: 0.1% of 8.76 h = 32 s a year _(D-RM, D-M)_
+- In this simulated year the request failed 35 times, 35 h in all: each for 1 h. _(D-RM, D-M)_
+- 99.6% _(D-RM, D-M, 320)_
+- 35 h _(D-RM, D-M, 320)_
+- 2.9 h _(D-RM, D-M, 320)_
+- Weakest links: all 4 parts (1 copy each), each down 8.8 h a year. _(D-RM, D-M)_
+- No needed part has a second copy yet. _(D-RM, D-M)_
+- Before this change: 26.3 h a year. _(D-RM, D-M, 320)_
+- DB 2 _(D-RM, D-M, 320)_
+- optional _(D-RM, D-M, 320)_
+- Week 4: DB 1 is down for 1 h. DB 2 carries the request, so the databases stay up. DB 2 is itself _(D-RM, D-M)_
+- down only 0.1% of the time. _(D-RM, D-M)_
+- In this simulated year the request never failed; the model’s long-run average is below. _(D-RM, D-M)_
+- 99.9997% _(D-RM, D-M, 320)_
+- 95 s _(D-RM, D-M, 320)_
+- 7.8 s _(D-RM, D-M, 320)_
+- Weakest links: LB, App and DB (2 copies each), each down 32 s a year. _(D-RM, D-M)_
+- Before this change: 8.8 h a year. _(D-RM, D-M, 320)_
+- Week 7: recommendations are down for 1 h. The page renders without them, so the request is _(D-RM, D-M)_
+- served. _(D-RM, D-M, 320)_
+- Week 44: a shared failure takes both databases down at once for 1 h, so the request fails. _(D-RM, D-M)_
+- shared: every copy down _(D-RM, D-M)_
+- In this simulated year the request failed 3 times, 3 h in all: each for 1 h. _(D-RM, D-M)_
+- 99.97% _(D-RM, D-M, 320)_
+- 2.6 h _(D-RM, D-M, 320)_
+- 13 min _(D-RM, D-M, 320)_
+- on paper 32 s _(D-RM, D-M)_
+- before 95 s _(D-RM, D-M)_
+- Weakest links: LB, App and DB (2 copies each), each down 53 min a year. _(D-RM, D-M)_
+- A pair is down 53 min a year (32 s on paper): 0.88 shared outages × 1 h and 26 s both down by _(D-RM, D-M)_
+- chance. _(D-RM, D-M)_
+- Before this change: 95 s a year. _(D-RM, D-M, 320)_
+- Week 4: DB 1 is down for 1 h. DB 2 carries the request, so the databases stay up. _(D-RM, D-M)_
+- Week 18: a shared failure takes both load balancers down at once for 1 h, so the request fails. _(D-RM, D-M)_
+- Week 4: DB 1 dies. For 5 min requests still go to it and fail, then DB 2 carries them. _(D-RM, D-M)_
+- In this simulated year the request failed 27 times, 2.3 h in all: each for 5 min. _(D-RM, D-M)_
+- 99.975% _(D-RM, D-M, 320)_
+- 2.2 h _(D-RM, D-M, 320)_
+- 11 min _(D-RM, D-M, 320)_
+- 44 min _(D-RM, D-M, 320)_
+- Weakest links: LB, App and DB (2 copies each), each down 44 min a year. _(D-RM, D-M)_
+- A pair is down 44 min a year (32 s on paper): 8.75 failovers × 5 min and 32 s both down by _(D-RM, D-M)_
+- Week 9: LB 2 is down for 1 h. LB 1 carries the request, so the load balancers stay up. LB 1 is _(D-RM)_
+- Week 16: recommendations are down for 1 h. The page renders without them, so the request is _(D-RM)_
+- In this simulated year the request failed 27 times, 5 h in all: 3 × 1 h and 24 × 5 min. _(D-RM, D-M)_
+- 99.947% _(D-RM, D-M, 320)_
+- 4.6 h _(D-RM, D-M, 320)_
+- 23 min _(D-RM, D-M, 320)_
+- 92 min _(D-RM, D-M, 320)_
+- before 2.2 h _(D-RM, D-M)_
+- Weakest links: LB, App and DB (2 copies each), each down 92 min a year. _(D-RM, D-M)_
+- A pair is down 92 min a year (32 s on paper): 0.88 shared outages × 1 h, 7.88 failovers × 5 min _(D-RM, D-M)_
+- and 26 s both down by chance. _(D-RM, D-M, 320)_
+- Before this change: 2.2 h a year. _(D-RM, D-M, 320)_
+- Week 9: LB 2 is down for 1 h. LB 1 carries the request, so the load balancers stay up. _(D-RM)_
+- Week 34: recommendations are down for 1 h. The page renders without them, so the request _(D-RM)_
+- is served. _(D-RM)_
+- LB 3 _(D-RM, D-M)_
+- DB 3 _(D-RM, D-M)_
+- Recs 2 _(D-RM, D-M, 320)_
+- Recs 3 _(D-RM, D-M, 320)_
+- Week 8: a shared failure takes all 3 recommendations services down at once for 1 h, so the _(D-RM, D-M)_
+- request fails. _(D-RM, D-M, 320)_
+- In this simulated year the request failed 35 times, 6.6 h in all: 4 × 1 h and 31 × 5 min. _(D-RM, D-M)_
+- 99.93% _(D-RM, D-M, 320)_
+- 6.1 h _(D-RM, D-M, 320)_
+- 30 min _(D-RM, D-M, 320)_
+- on paper 0.03 s _(D-RM, D-M)_
+- Weakest links: all 4 parts (3 copies each), each down 92 min a year. _(D-RM, D-M)_
+- A set of 3 is down 92 min a year (0.03 s on paper): 0.88 shared outages × 1 h, _(D-RM, D-M)_
+- 7.88 failovers × 5 min and 0.02 s all 3 down by chance. _(D-RM, D-M)_
+- Before this change: 4.6 h a year. _(D-RM, D-M, 320)_
+- Week 3: Recs 1 dies. For 5 min requests still go to it and fail, then Recs 2 carries them. _(D-RM, D-M)_
+- Week 17: LB 2 is down for 1 h. LB 1 carries the request, so the load balancers stay up. _(D-RM)_
+- In this simulated year the request failed 35 times, 2.9 h in all: each for 5 min. _(D-RM, D-M)_
+- 99.967% _(D-RM, D-M, 320)_
+- 14 min _(D-RM, D-M, 320)_
+- Weakest links: all 4 parts (3 copies each), each down 44 min a year. _(D-RM, D-M)_
+- A set of 3 is down 44 min a year (0.03 s on paper): 8.76 failovers × 5 min and 0.03 s all 3 down _(D-RM, D-M)_
+- by chance. _(D-RM, D-M)_
+- Before this change: 6.1 h a year. _(D-RM, D-M, 320)_
+- Week 3: Recs 1 is down for 1 h. Recs 2 carries the request, so recommendations stay up. The _(D-RM, D-M)_
+- others are each down only 0.1% of the time. _(D-RM, D-M)_
+- all 3 down: 0.1% × 0.1% of 8.76 h = 0.03 s a year _(D-RM, D-M)_
+- 99.9999996% _(D-RM, D-M, 320)_
+- 0.13 s _(D-RM, D-M, 320)_
+- 0.01 s _(D-RM, D-M, 320)_
+- before 2.9 h _(D-RM, D-M)_
+- Weakest links: all 4 parts (3 copies each), each down 0.03 s a year. _(D-RM, D-M)_
+- Before this change: 2.9 h a year. _(D-RM, D-M, 320)_
+- before 63 s _(D-RM, D-M)_
+- Weakest links: LB and DB (2 copies each) and App (3 copies), each down 53 min a year. _(D-RM, D-M)_
+- A third copy buys under a minute a year here. _(D-RM, D-M)_
+- Before this change: 63 s a year. _(D-RM, D-M, 320)_
+- before 2.6 h _(D-RM, D-M)_
+- Weakest links: LB and DB (2 copies each) and App (3 copies), each down 92 min a year. _(D-RM, D-M)_
+- Before this change: 2.6 h a year. _(D-RM, D-M, 320)_
+- Week 4: the database is down for 1 h and has no other copy, so the request fails. _(D-RM, D-M)_
+- In this simulated year the request failed 27 times, 10.5 h in all: 9 × 1 h and 18 × 5 min. _(D-RM, D-M)_
+- 99.88% _(D-RM, D-M, 320)_
+- 10.2 h _(D-RM, D-M, 320)_
+- 50 min _(D-RM, D-M, 320)_
+- Weakest link: DB (1 copy), down 8.8 h a year. _(D-RM, D-M)_
+- Before this change: 11.8 h a year. _(D-RM, D-M, 320)_
+- Week 7: recommendations are down for 5 min. The page renders without them, so the request _(D-RM)_
+- Week 11: LB 1 dies. For 5 min requests still go to it and fail, then LB 2 carries them. _(D-RM)_
+- Week 17: LB 2 is down for 1 h. LB 1 carries the request, so the load balancers stay up. LB 1 is _(D-RM)_
+- Week 19: the app server is down for 1 h and has no other copy, so the request fails. _(D-RM, D-M)_
+- In this simulated year the request failed 20 times, 20 h in all: each for 1 h. _(D-RM)_
+- 99.78% _(D-RM, D-M, 320)_
+- 19.3 h _(D-RM, D-M, 320)_
+- 95 min _(D-RM, D-M, 320)_
+- Weakest links: LB and App (1 copy each), each down 8.8 h a year. _(D-RM, D-M)_
+- Before this change: 20.6 h a year. _(D-RM, D-M, 320)_
+- Week 3: Recs 1 is down for 1 h. Recs 2 carries the request, so recommendations stay up. _(D-RM)_
+- Week 8: a shared failure takes both recommendations services down at once for 1 h, so the _(D-RM)_
+- Week 11: the load balancer is down for 1 h and has no other copy, so the request fails. _(D-RM)_
+- Look here _(D-RM, D-M, 320)_
+- In this simulated year the request failed 18 times, 18 h in all: each for 1 h. _(D-RM, D-M)_
+- ? _(D-RM, D-M, 320)_
+- The year plays after your answer. _(D-RM, 320)_
+- The year plays after your answer _(D-RM)_
+- 43 min _(D-RM, D-M, 320)_
+- The weakest link shows after your answer. _(D-RM)_
+- In this simulated year the request failed 9 times, 9 h in all: each for 1 h. _(D-RM, D-M)_
+- In this simulated year the request failed 35 times, 20.3 h in all: 19 × 1 h and 16 × 5 min. _(D-RM, D-M)_
+- 99.77% _(D-RM, D-M, 320)_
+- 20.6 h _(D-RM, D-M, 320)_
+- 101 min _(D-RM, D-M, 320)_
+- goal: under 8.76 h _(D-RM, D-M)_
+- 102 min _(D-RM, D-M, 320)_
+- At the start: 20.6 h a year. _(D-RM, D-M, 320)_
+- Week 3: recommendations are down for 1 h. The page renders without them, so the request is _(D-RM, D-M)_
+- Week 1 of 52. _(D-M)_
+- So far this simulated year the request has not failed. _(D-M)_
+- Week 2 of 52. _(D-M)_
+- Week 3 of 52. _(D-M)_
+- Week 5 of 52. _(D-M)_
+- Week 7 of 52. _(D-M)_
+- Week 9 of 52. _(D-M)_
+- Week 11 of 52. _(D-M)_
+- Week 13 of 52. _(D-M)_
+- Week 16 of 52. _(D-M)_
+- Week 18 of 52. _(D-M)_
+- So far this simulated year the request has failed once, 1 h in all. _(D-M)_
+- Week 20 of 52. _(D-M)_
+- Week 22 of 52. _(D-M)_
+- Week 24 of 52. _(D-M)_
+- Week 27 of 52. _(D-M)_
+- Week 29 of 52. _(D-M)_
+- Week 31 of 52. _(D-M)_
+- Week 33 of 52. _(D-M)_
+- Week 35 of 52. _(D-M)_
+- Week 37 of 52. _(D-M)_
+- Week 40 of 52. _(D-M)_
+- So far this simulated year the request has failed twice, 2 h in all. _(D-M)_
+- Week 42 of 52. _(D-M)_
+- Week 44 of 52. _(D-M)_
+- Week 46 of 52. _(D-M)_
+- So far this simulated year the request has failed 3 times, 3 h in all. _(D-M)_
+- Week 48 of 52. _(D-M)_
+- Week 50 of 52. _(D-M)_
+- Week 52 of 52. _(D-M)_
+- Week 14 of 52. _(D-M)_
+- Week 25 of 52. _(D-M)_
+- Week 34 of 52. _(D-M)_
+- Week 36 of 52. _(D-M)_
+- Week 38 of 52. _(D-M)_
+- Week 51 of 52. _(D-M)_
+- In this simulated year the request failed 35 times, 21.3 h in all: 20 × 1 h and 15 × 5 min. _(D-M)_
+- Before this change: 19 h a year. _(D-M, 320)_
+- after your answer _(D-M)_
+- The request’s numbers and its weakest link show after your answer. _(D-M)_
+- Watch the request’s row: it collects every failure that reaches it. _(D-M)_
+- Week 4 of 52. _(D-M)_
+- Week 6 of 52. _(D-M)_
+- Week 8 of 52. _(D-M)_
+- Week 19 of 52. _(D-M)_
+- Week 21 of 52. _(D-M)_
+- Week 23 of 52. _(D-M)_
+- Week 26 of 52. _(D-M)_
+- Week 28 of 52. _(D-M)_
+- Week 39 of 52. _(D-M)_
+- Week 41 of 52. _(D-M)_
+- Week 43 of 52. _(D-M)_
+- Week 49 of 52. _(D-M)_
+- In this simulated year the request failed 27 times, 27 h in all: each for 1 h. _(D-M)_
+- 99.7% _(D-M)_
+- 26.3 h _(D-M)_
+- Weakest links: LB, App and DB (1 copy each), each down 8.8 h a year. _(D-M)_
+- Watch the database’s two rows and the strip under them. _(D-M)_
+- Week 12 of 52. _(D-M)_
+- Week 15 of 52. _(D-M)_
+- Week 17 of 52. _(D-M)_
+- Week 30 of 52. _(D-M)_
+- Week 32 of 52. _(D-M)_
+- Week 45 of 52. _(D-M)_
+- Week 47 of 52. _(D-M)_
+- Watch the app servers’ rows and the request’s row. _(D-M)_
+- Watch the request’s row. _(D-M)_
+- One simulated year _(320)_
+- 3 _(320)_
+- Week 3: the recommendations _(320)_
+- service is down for 1 h and has no _(320)_
+- other copy, so the request fails. _(320)_
+- A simulated year _(320)_
+- ticks not to scale _(320)_
+- failover, 5 min _(320)_
+- Req. _(320)_
+- 52 wk _(320)_
+- In this simulated year the request _(320)_
+- failed 17 times, 17 h in all: each for _(320)_
+- 1 h. _(320)_
+- Nines _(320)_
+- a year _(320)_
+- 6 _(320)_
+- capped here _(320)_
+- Weakest links: DB and Recs (1 copy _(320)_
+- each), each down 8.8 h a year. _(320)_
+- On paper each copy adds 3 nines: a _(320)_
+- part is down only while all its copies _(320)_
+- are. _(320)_
+- Week 11: LB 1 is down for 1 h. LB 2 _(320)_
+- carries the request, so the load _(320)_
+- balancers stay up. LB 2 is itself down _(320)_
+- only 0.1% of the time. _(320)_
+- both down: 0.1% of 8.76 h = _(320)_
+- 32 s a year _(320)_
+- failed 35 times, 35 h in all: each for _(320)_
+- Weakest links: all 4 parts (1 copy _(320)_
+- No needed part has a second copy _(320)_
+- yet. _(320)_
+- opt. _(320)_
+- Week 4: DB 1 is down for 1 h. DB 2 _(320)_
+- carries the request, so the databases _(320)_
+- stay up. DB 2 is itself down only _(320)_
+- 0.1% of the time. _(320)_
+- never failed; the model’s long-run _(320)_
+- average is below. _(320)_
+- Weakest links: LB, App and DB _(320)_
+- (2 copies each), each down 32 s a _(320)_
+- year. _(320)_
+- Week 7: recommendations are down _(320)_
+- for 1 h. The page renders without _(320)_
+- them, so the request is served. _(320)_
+- Week 44: a shared failure takes both _(320)_
+- databases down at once for 1 h, so _(320)_
+- the request fails. _(320)_
+- shared _(320)_
+- failed 3 times, 3 h in all: each for 1 h. _(320)_
+- the model _(320)_
+- on paper _(320)_
+- (2 copies each), each down 53 min a _(320)_
+- A pair is down 53 min a year (32 s on _(320)_
+- paper): 0.88 shared outages × 1 h _(320)_
+- stay up. _(320)_
+- Week 18: a shared failure takes both _(320)_
+- load balancers down at once for 1 h, _(320)_
+- so the request fails. _(320)_
+- Week 4: DB 1 dies. For 5 min _(320)_
+- requests still go to it and fail, then _(320)_
+- DB 2 carries them. _(320)_
+- failed 27 times, 2.3 h in all: each for _(320)_
+- 5 min. _(320)_
+- (2 copies each), each down 44 min a _(320)_
+- A pair is down 44 min a year (32 s on _(320)_
+- paper): 8.75 failovers × 5 min and _(320)_
+- 32 s both down by chance. _(320)_
+- Week 9: LB 2 is down for 1 h. LB 1 _(320)_
+- balancers stay up. LB 1 is itself down _(320)_
+- Week 16: recommendations are _(320)_
+- down for 1 h. The page renders _(320)_
+- without them, so the request is _(320)_
+- failed 27 times, 5 h in all: 3 × 1 h and _(320)_
+- 24 × 5 min. _(320)_
+- (2 copies each), each down 92 min a _(320)_
+- A pair is down 92 min a year (32 s on _(320)_
+- paper): 0.88 shared outages × 1 h, _(320)_
+- 7.88 failovers × 5 min and 26 s both _(320)_
+- down by chance. _(320)_
+- balancers stay up. _(320)_
+- Week 34: recommendations are _(320)_
+- Week 8: a shared failure takes all 3 _(320)_
+- recommendations services down at _(320)_
+- once for 1 h, so the request fails. _(320)_
+- failed 35 times, 6.6 h in all: 4 × 1 h _(320)_
+- and 31 × 5 min. _(320)_
+- Weakest links: all 4 parts (3 copies _(320)_
+- each), each down 92 min a year. _(320)_
+- A set of 3 is down 92 min a year _(320)_
+- (0.03 s on paper): 0.88 shared _(320)_
+- outages × 1 h, 7.88 failovers × 5 min _(320)_
+- and 0.02 s all 3 down by chance. _(320)_
+- Week 3: Recs 1 dies. For 5 min _(320)_
+- Recs 2 carries them. _(320)_
+- Week 17: LB 2 is down for 1 h. LB 1 _(320)_
+- failed 35 times, 2.9 h in all: each for _(320)_
+- each), each down 44 min a year. _(320)_
+- A set of 3 is down 44 min a year _(320)_
+- (0.03 s on paper): _(320)_
+- 8.76 failovers × 5 min and 0.03 s all _(320)_
+- 3 down by chance. _(320)_
+- Week 3: Recs 1 is down for 1 h. _(320)_
+- Recs 2 carries the request, so _(320)_
+- recommendations stay up. The _(320)_
+- others are each down only 0.1% of _(320)_
+- the time. _(320)_
+- all 3 down: 0.1% × 0.1% of _(320)_
+- 8.76 h = 0.03 s a year _(320)_
+- each), each down 0.03 s a year. _(320)_
+- Weakest links: LB and DB (2 copies _(320)_
+- each) and App (3 copies), each _(320)_
+- down 53 min a year. _(320)_
+- A third copy buys under a minute a _(320)_
+- year here. _(320)_
+- down 92 min a year. _(320)_
+- Week 4: the database is down for 1 h _(320)_
+- and has no other copy, so the _(320)_
+- failed 27 times, 12.3 h in all: 11 × 1 h _(320)_
+- and 16 × 5 min. _(320)_
+- 99.86% _(320)_
+- 11.8 h _(320)_
+- 58 min _(320)_
+- Weakest link: DB (1 copy), down _(320)_
+- 8.8 h a year. _(320)_
+- failed 27 times, 10.5 h in all: 9 × 1 h _(320)_
+- and 18 × 5 min. _(320)_
+- Week 11: LB 1 dies. For 5 min _(320)_
+- LB 2 carries them. _(320)_
+- Week 19: the app server is down for _(320)_
+- 1 h and has no other copy, so the _(320)_
+- failed 35 times, 21.3 h in all: 20 × 1 h _(320)_
+- and 15 × 5 min. _(320)_
+- Weakest links: LB and App (1 copy _(320)_
+- failed 20 times, 20 h in all: each for _(320)_
+- Week 8: a shared failure takes both _(320)_
+- Week 11: the load balancer is down _(320)_
+- for 1 h and has no other copy, so the _(320)_
+- recommendations stay up. _(320)_
+- failed 18 times, 18 h in all: each for _(320)_
+- plays after your answer _(320)_
+- The weakest link shows after your _(320)_
+- answer. _(320)_
+- failed 9 times, 9 h in all: each for 1 h. _(320)_
+- failed 35 times, 20.3 h in all: 19 × 1 h _(320)_
+- goal _(320)_
+- failed 35 times, 13 h in all: 11 × 1 h _(320)_
+- and 24 × 5 min. _(320)_
+- 99.85% _(320)_
+- 13.4 h _(320)_
+- 66 min _(320)_
+- Weakest link: Recs (1 copy), down _(320)_
+- Week 3: recommendations are down _(320)_
+
+## Stage summary (the drawing’s accessible name) (27)
+
+- A request crosses 2 load balancers, 3 app servers, 1 database and 1 recommendations service, every copy 99.9% available; copies fail independently, and traffic moves off a dead copy at once. The model gives 99.8% available: down 17.5 h a year, 86 min in 30 days. Weakest links: the database and recommendations (1 copy each), each down 8.8 h a year. _(D-RM, D-M, 320)_
+- A request crosses 1 load balancer, 1 app server, 1 database and 1 recommendations service, every copy 99.9% available; copies fail independently, and traffic moves off a dead copy at once. The model gives 99.6% available: down 35 h a year, 2.9 h in 30 days. Weakest links: all 4 parts (1 copy each), each down 8.8 h a year. _(D-RM, D-M, 320)_
+- A request crosses 2 load balancers, 2 app servers, 2 databases and 1 recommendations service (optional), every copy 99.9% available; copies fail independently, and traffic moves off a dead copy at once; recommendations are optional, so their outages (the hollow marks) never reach the request. The model gives 99.9997% available: down 95 s a year, 7.8 s in 30 days. Weakest links: the load balancer, the app servers and the database (2 copies each), each down 32 s a year. _(D-RM, D-M, 320)_
+- A request crosses 2 load balancers, 2 app servers, 2 databases and 1 recommendations service (optional), every copy 99.9% available; 1 in 10 of a copy’s outages is shared by every copy of its part, and traffic moves off a dead copy at once; recommendations are optional, so their outages (the hollow marks) never reach the request. The model gives 99.97% available: down 2.6 h a year, 13 min in 30 days. Weakest links: the load balancer, the app servers and the database (2 copies each), each down 53 min a year. _(D-RM, D-M, 320)_
+- A request crosses 2 load balancers, 2 app servers, 2 databases and 1 recommendations service (optional), every copy 99.9% available; copies fail independently, and traffic takes 5 min to move off a dead copy: requests go to the first copy while it is up, so only its outages cost a failover; recommendations are optional, so their outages (the hollow marks) never reach the request. The model gives 99.975% available: down 2.2 h a year, 11 min in 30 days. Weakest links: the load balancer, the app servers and the database (2 copies each), each down 44 min a year. _(D-RM, D-M, 320)_
+- A request crosses 2 load balancers, 2 app servers, 2 databases and 1 recommendations service (optional), every copy 99.9% available; 1 in 10 of a copy’s outages is shared by every copy of its part, and traffic takes 5 min to move off a dead copy: requests go to the first copy while it is up, so only its outages cost a failover; recommendations are optional, so their outages (the hollow marks) never reach the request. The model gives 99.947% available: down 4.6 h a year, 23 min in 30 days. Weakest links: the load balancer, the app servers and the database (2 copies each), each down 92 min a year. _(D-RM, D-M, 320)_
+- A request crosses 3 load balancers, 3 app servers, 3 databases and 3 recommendations services, every copy 99.9% available; 1 in 10 of a copy’s outages is shared by every copy of its part, and traffic takes 5 min to move off a dead copy: requests go to the first copy while it is up, so only its outages cost a failover. The model gives 99.93% available: down 6.1 h a year, 30 min in 30 days. Weakest links: all 4 parts (3 copies each), each down 92 min a year. _(D-RM, D-M, 320)_
+- A request crosses 3 load balancers, 3 app servers, 3 databases and 3 recommendations services, every copy 99.9% available; copies fail independently, and traffic takes 5 min to move off a dead copy: requests go to the first copy while it is up, so only its outages cost a failover. The model gives 99.967% available: down 2.9 h a year, 14 min in 30 days. Weakest links: all 4 parts (3 copies each), each down 44 min a year. _(D-RM, D-M, 320)_
+- A request crosses 3 load balancers, 3 app servers, 3 databases and 3 recommendations services, every copy 99.9% available; copies fail independently, and traffic moves off a dead copy at once. The model gives 99.9999996% available: down 0.13 s a year, 0.01 s in 30 days. Weakest links: all 4 parts (3 copies each), each down 0.03 s a year. _(D-RM, D-M, 320)_
+- A request crosses 2 load balancers, 3 app servers, 2 databases and 1 recommendations service (optional), every copy 99.9% available; 1 in 10 of a copy’s outages is shared by every copy of its part, and traffic moves off a dead copy at once; recommendations are optional, so their outages (the hollow marks) never reach the request. The model gives 99.97% available: down 2.6 h a year, 13 min in 30 days. Weakest links: the load balancer and the database (2 copies each) and the app servers (3 copies), each down 53 min a year. _(D-RM, D-M, 320)_
+- A request crosses 2 load balancers, 3 app servers, 2 databases and 1 recommendations service (optional), every copy 99.9% available; 1 in 10 of a copy’s outages is shared by every copy of its part, and traffic takes 5 min to move off a dead copy: requests go to the first copy while it is up, so only its outages cost a failover; recommendations are optional, so their outages (the hollow marks) never reach the request. The model gives 99.947% available: down 4.6 h a year, 23 min in 30 days. Weakest links: the load balancer and the database (2 copies each) and the app servers (3 copies), each down 92 min a year. _(D-RM, D-M, 320)_
+- A request crosses 2 load balancers, 3 app servers, 1 database and 2 recommendations services (optional), every copy 99.9% available; copies fail independently, and traffic takes 5 min to move off a dead copy: requests go to the first copy while it is up, so only its outages cost a failover; recommendations are optional, so their outages (the hollow marks) never reach the request. The model gives 99.88% available: down 10.2 h a year, 50 min in 30 days. Weakest link: the database (1 copy), down 8.8 h a year. _(D-RM, D-M, 320)_
+- A request crosses 1 load balancer, 1 app server, 3 databases and 2 recommendations services, every copy 99.9% available; 1 in 10 of a copy’s outages is shared by every copy of its part, and traffic moves off a dead copy at once. The model gives 99.78% available: down 19.3 h a year, 95 min in 30 days. Weakest links: the load balancer and the app servers (1 copy each), each down 8.8 h a year. _(D-RM, D-M, 320)_
+- A request crosses 1 load balancer, 1 app server, 2 databases and 1 recommendations service (optional), every copy 99.9% available; copies fail independently, and traffic moves off a dead copy at once; recommendations are optional, so their outages (the hollow marks) never reach the request. The model gives 99.8% available: down 17.5 h a year, 86 min in 30 days. Weakest links: the load balancer and the app servers (1 copy each), each down 8.8 h a year. _(D-RM, D-M, 320)_
+- A request crosses 2 load balancers, 2 app servers, 1 database and 1 recommendations service (optional), every copy 99.9% available; copies fail independently, and traffic moves off a dead copy at once; recommendations are optional, so their outages (the hollow marks) never reach the request. The model gives 99.9% available: down 8.8 h a year, 43 min in 30 days. The weakest link shows after your answer. The simulated year plays after your answer. _(D-RM, 320)_
+- A request crosses 2 load balancers, 3 app servers, 1 database and 1 recommendations service (optional), every copy 99.9% available; copies fail independently, and traffic moves off a dead copy at once; recommendations are optional, so their outages (the hollow marks) never reach the request. The model gives 99.9% available: down 8.8 h a year, 43 min in 30 days. Weakest link: the database (1 copy), down 8.8 h a year. _(D-RM, D-M, 320)_
+- A request crosses 2 load balancers, 3 app servers, 1 database and 1 recommendations service, every copy 99.9% available; 1 in 10 of a copy’s outages is shared by every copy of its part, and traffic takes 5 min to move off a dead copy: requests go to the first copy while it is up, so only its outages cost a failover. The model gives 99.77% available: down 20.6 h a year, 101 min in 30 days. Weakest links: the database and recommendations (1 copy each), each down 8.8 h a year. _(D-RM, D-M)_
+- A request crosses 2 load balancers, 2 app servers, 1 database and 1 recommendations service, every copy 99.9% available; 1 in 10 of a copy’s outages is shared by every copy of its part, and traffic takes 5 min to move off a dead copy: requests go to the first copy while it is up, so only its outages cost a failover. The model gives 99.77% available: down 20.6 h a year, 102 min in 30 days. Weakest links: the database and recommendations (1 copy each), each down 8.8 h a year. _(D-RM, D-M, 320)_
+- A request crosses 1 load balancer, 1 app server, 3 databases and 2 recommendations services, every copy 99.9% available; 1 in 10 of a copy’s outages is shared by every copy of its part, and traffic takes 5 min to move off a dead copy: requests go to the first copy while it is up, so only its outages cost a failover. The model gives 99.77% available: down 20.6 h a year, 101 min in 30 days. Weakest links: the load balancer and the app servers (1 copy each), each down 8.8 h a year. _(D-M, 320)_
+- A request crosses 1 load balancer, 1 app server, 1 database and 1 recommendations service, every copy 99.9% available; copies fail independently, and traffic moves off a dead copy at once. The model’s numbers for the request show after your answer. _(D-M)_
+- A request crosses 1 load balancer, 1 app server, 1 database and 1 recommendations service (optional), every copy 99.9% available; copies fail independently, and traffic moves off a dead copy at once; recommendations are optional, so their outages (the hollow marks) never reach the request. The model gives 99.7% available: down 26.3 h a year, 2.2 h in 30 days. Weakest links: the load balancer, the app servers and the database (1 copy each), each down 8.8 h a year. _(D-M)_
+- A request crosses 1 load balancer, 1 app server, 2 databases and 1 recommendations service (optional), every copy 99.9% available; copies fail independently, and traffic moves off a dead copy at once; recommendations are optional, so their outages (the hollow marks) never reach the request. The model’s numbers for the request show after your answer. _(D-M)_
+- A request crosses 2 load balancers, 3 app servers, 1 database and 1 recommendations service (optional), every copy 99.9% available; copies fail independently, and traffic moves off a dead copy at once; recommendations are optional, so their outages (the hollow marks) never reach the request. The model’s numbers for the request show after your answer. _(D-M)_
+- A request crosses 2 load balancers, 2 app servers, 2 databases and 1 recommendations service (optional), every copy 99.9% available; 1 in 10 of a copy’s outages is shared by every copy of its part, and traffic moves off a dead copy at once; recommendations are optional, so their outages (the hollow marks) never reach the request. The model’s numbers for the request show after your answer. _(D-M)_
+- A request crosses 2 load balancers, 2 app servers, 2 databases and 1 recommendations service (optional), every copy 99.9% available; copies fail independently, and traffic takes 5 min to move off a dead copy: requests go to the first copy while it is up, so only its outages cost a failover; recommendations are optional, so their outages (the hollow marks) never reach the request. The model’s numbers for the request show after your answer. _(D-M)_
+- A request crosses 2 load balancers, 3 app servers, 1 database and 2 recommendations services (optional), every copy 99.9% available; 1 in 10 of a copy’s outages is shared by every copy of its part, and traffic takes 5 min to move off a dead copy: requests go to the first copy while it is up, so only its outages cost a failover; recommendations are optional, so their outages (the hollow marks) never reach the request. The model gives 99.86% available: down 11.8 h a year, 58 min in 30 days. Weakest link: the database (1 copy), down 8.8 h a year. _(320)_
+- A request crosses 2 load balancers, 2 app servers, 2 databases and 1 recommendations service, every copy 99.9% available; 1 in 10 of a copy’s outages is shared by every copy of its part, and traffic takes 5 min to move off a dead copy: requests go to the first copy while it is up, so only its outages cost a failover. The model gives 99.85% available: down 13.4 h a year, 66 min in 30 days. Weakest link: recommendations (1 copy), down 8.8 h a year. _(320)_
+
+## Accessible names (Play, steppers, toggles, outputs, the stage, the table) (75)
+
+- Fewer load balancers _(D-RM, D-M, 320)_
+- Load balancer: 2 copies _(D-RM, D-M, 320)_
+- More load balancers _(D-RM, D-M, 320)_
+- Fewer app servers _(D-RM, D-M, 320)_
+- App servers: 3 copies _(D-RM, D-M, 320)_
+- More app servers _(D-RM, D-M, 320)_
+- Fewer databases _(D-RM, D-M, 320)_
+- Database: 1 copy _(D-RM, D-M, 320)_
+- More databases _(D-RM, D-M, 320)_
+- Fewer recommendations services _(D-RM, D-M, 320)_
+- Recommendations: 1 copy _(D-RM, D-M, 320)_
+- More recommendations services _(D-RM, D-M, 320)_
+- Recommendations optional: the page renders without them _(D-RM, D-M, 320)_
+- Shared failures: 1 in 10 of a copy’s outages hits every copy of its part _(D-RM, D-M, 320)_
+- Failover takes 5 min: traffic needs that long to move off a dead copy _(D-RM, D-M, 320)_
+- Reliability: a request crossing a chain of parts, each a set of copies, over a simulated year _(D-RM, D-M, 320)_
+- Next moment, 1 of 3 _(D-RM, D-M, 320)_
+- Previous moment, 2 of 3 _(D-RM, D-M)_
+- Next moment, 3 of 3 _(D-RM, 320)_
+- Previous moment, 1 of 3 _(D-RM)_
+- Next moment, 2 of 3 _(D-RM, 320)_
+- Previous moment, 3 of 3 _(D-RM)_
+- Each part and the request, from the model and in the simulated year _(D-RM, D-M, 320)_
+- Load balancer: 1 copy _(D-RM, D-M, 320)_
+- App servers: 1 copy _(D-RM, D-M, 320)_
+- Next moment, 1 of 2 _(D-RM, D-M, 320)_
+- Previous moment, 1 of 2 _(D-RM, D-M)_
+- Next moment, 2 of 2 _(D-RM, D-M, 320)_
+- Previous moment, 2 of 2 _(D-RM, D-M)_
+- App servers: 2 copies _(D-RM, D-M, 320)_
+- Database: 2 copies _(D-RM, D-M, 320)_
+- Next moment, 1 of 4 _(D-RM, D-M, 320)_
+- Previous moment, 3 of 4 _(D-RM, D-M)_
+- Next moment, 2 of 4 _(D-RM, D-M, 320)_
+- Previous moment, 4 of 4 _(D-RM, D-M)_
+- Next moment, 3 of 4 _(D-RM, D-M, 320)_
+- Previous moment, 1 of 4 _(D-RM, D-M)_
+- Next moment, 4 of 4 _(D-RM, D-M, 320)_
+- Previous moment, 2 of 4 _(D-RM, D-M)_
+- Next moment, 1 of 5 _(D-RM, D-M, 320)_
+- Previous moment, 4 of 5 _(D-RM, D-M)_
+- Next moment, 3 of 5 _(D-RM, 320)_
+- Previous moment, 1 of 5 _(D-RM)_
+- Next moment, 4 of 5 _(D-RM, 320)_
+- Previous moment, 2 of 5 _(D-RM)_
+- Next moment, 5 of 5 _(D-RM, 320)_
+- Previous moment, 3 of 5 _(D-RM)_
+- Load balancer: 3 copies _(D-RM, D-M, 320)_
+- Database: 3 copies _(D-RM, D-M, 320)_
+- Recommendations: 3 copies _(D-RM, D-M, 320)_
+- Recommendations: 2 copies _(D-RM, D-M, 320)_
+- Next moment, 2 of 5 _(D-RM, 320)_
+- Previous moment, 5 of 5 _(D-RM)_
+- Experiment: Four parts in a row _(D-RM, D-M, 320)_
+- A page request needs 4 parts in turn: a load balancer, an app server, a database and a recommendations service. There is one copy of each, and each is 99.9% available: down 8.8 h a year, in outages of 1 h. How long is the request down a year? _(D-RM, D-M, 320)_
+- your answer, wrong _(D-RM, 320)_
+- correct answer _(D-RM, 320)_
+- done _(D-RM, D-M, 320)_
+- Experiment: A second database _(D-RM, D-M, 320)_
+- A load balancer, an app server and a database, one copy of each, and each down 8.8 h a year; recommendations are optional now. Give the database a second copy that fails independently of the first, and say traffic moves to it at once. How long is the database part down a year now? _(D-RM, D-M, 320)_
+- Play the year, after your answer _(D-RM, D-M, 320)_
+- Previous moment, after your answer _(D-RM, D-M)_
+- Next moment, after your answer _(D-RM, D-M)_
+- Experiment: One more app server _(D-RM, D-M, 320)_
+- The request passes 2 load balancers, 2 app servers and 1 database, every copy 99.9% available; recommendations are optional. It is down 8.8 h a year. Add a third app server. How long is the request down a year now? _(D-RM, D-M, 320)_
+- Experiment: Failures the copies share _(D-RM, D-M, 320)_
+- Two copies of every part the request needs: on paper it is down only 95 s a year. Now say 1 in 10 of a copy’s outages come from something its twin shares, such as the zone both run in or a bad deploy that reaches both. How long is the request down a year now? _(D-RM, D-M, 320)_
+- Experiment: Failover takes time _(D-RM, D-M, 320)_
+- Two copies of every part the request needs, failing independently: on paper it fails only when both copies of a part are down at once, about once in 19 years. But moving traffic off a dead copy takes 5 min: health checks must notice, then the switch happens. About how many times a year does the request fail now? _(D-RM, D-M, 320)_
+- Experiment: Three nines from seven copies _(D-RM, D-M, 320)_
+- Play the year _(D-M)_
+- Stop the year _(D-M)_
+- Play the year, after the reveal _(D-M)_
+- your answer, correct _(D-M)_
+- Next moment, 1 of 6 _(320)_
+
+## Notices (polite live region) (46)
+
+- The request is 99.8% available, down 17.5 h a year. Weakest links: the database and recommendations (1 copy each), each down 8.8 h a year. _(D-RM, D-M, 320)_
+- Week 11: LB 1 is down for 1 h. LB 2 carries the request, so the load balancers stay up. LB 2 is itself down only 0.1% of the time. _(D-RM, 320)_
+- Week 3: the recommendations service is down for 1 h and has no other copy, so the request fails. _(D-RM, 320)_
+- The request is 99.6% available, down 35 h a year. Weakest links: all 4 parts (1 copy each), each down 8.8 h a year. _(D-RM, D-M, 320)_
+- The request is 99.9997% available, down 95 s a year. Weakest links: the load balancer, the app servers and the database (2 copies each), each down 32 s a year. _(D-RM, D-M, 320)_
+- Week 4: DB 1 is down for 1 h. DB 2 carries the request, so the databases stay up. DB 2 is itself down only 0.1% of the time. _(D-RM, 320)_
+- Week 7: recommendations are down for 1 h. The page renders without them, so the request is served. _(D-RM, D-M, 320)_
+- The request is 99.97% available, down 2.6 h a year. Weakest links: the load balancer, the app servers and the database (2 copies each), each down 53 min a year. _(D-RM, D-M, 320)_
+- Week 4: DB 1 is down for 1 h. DB 2 carries the request, so the databases stay up. _(D-RM, D-M, 320)_
+- Week 18: a shared failure takes both load balancers down at once for 1 h, so the request fails. _(D-RM, D-M, 320)_
+- Week 44: a shared failure takes both databases down at once for 1 h, so the request fails. _(D-RM, D-M, 320)_
+- The request is 99.975% available, down 2.2 h a year. Weakest links: the load balancer, the app servers and the database (2 copies each), each down 44 min a year. _(D-RM, D-M, 320)_
+- Week 4: DB 1 dies. For 5 min requests still go to it and fail, then DB 2 carries them. _(D-RM, 320)_
+- Week 9: LB 2 is down for 1 h. LB 1 carries the request, so the load balancers stay up. LB 1 is itself down only 0.1% of the time. _(D-RM, 320)_
+- Week 16: recommendations are down for 1 h. The page renders without them, so the request is served. _(D-RM, 320)_
+- The request is 99.947% available, down 4.6 h a year. Weakest links: the load balancer, the app servers and the database (2 copies each), each down 92 min a year. _(D-RM, D-M, 320)_
+- Week 9: LB 2 is down for 1 h. LB 1 carries the request, so the load balancers stay up. _(D-RM, 320)_
+- Week 34: recommendations are down for 1 h. The page renders without them, so the request is served. _(D-RM, 320)_
+- The request is 99.93% available, down 6.1 h a year. Weakest links: all 4 parts (3 copies each), each down 92 min a year. _(D-RM, D-M, 320)_
+- Week 3: Recs 1 dies. For 5 min requests still go to it and fail, then Recs 2 carries them. _(D-RM, 320)_
+- Week 8: a shared failure takes all 3 recommendations services down at once for 1 h, so the request fails. _(D-RM, 320)_
+- Week 17: LB 2 is down for 1 h. LB 1 carries the request, so the load balancers stay up. _(D-RM, 320)_
+- The request is 99.967% available, down 2.9 h a year. Weakest links: all 4 parts (3 copies each), each down 44 min a year. _(D-RM, D-M, 320)_
+- Week 3: Recs 1 is down for 1 h. Recs 2 carries the request, so recommendations stay up. The others are each down only 0.1% of the time. _(D-RM, D-M, 320)_
+- The request is 99.97% available, down 2.6 h a year. Weakest links: the load balancer and the database (2 copies each) and the app servers (3 copies), each down 53 min a year. _(D-RM, D-M, 320)_
+- The request is 99.947% available, down 4.6 h a year. Weakest links: the load balancer and the database (2 copies each) and the app servers (3 copies), each down 92 min a year. _(D-RM, D-M, 320)_
+- The request is 99.88% available, down 10.2 h a year. Weakest link: the database (1 copy), down 8.8 h a year. _(D-RM, D-M)_
+- Week 4: the database is down for 1 h and has no other copy, so the request fails. _(D-RM, 320)_
+- Week 7: recommendations are down for 5 min. The page renders without them, so the request is served. _(D-RM)_
+- Week 11: LB 1 dies. For 5 min requests still go to it and fail, then LB 2 carries them. _(D-RM, 320)_
+- Week 17: LB 2 is down for 1 h. LB 1 carries the request, so the load balancers stay up. LB 1 is itself down only 0.1% of the time. _(D-RM, 320)_
+- The request is 99.78% available, down 19.3 h a year. Weakest links: the load balancer and the app servers (1 copy each), each down 8.8 h a year. _(D-RM, D-M, 320)_
+- Week 3: Recs 1 is down for 1 h. Recs 2 carries the request, so recommendations stay up. _(D-RM, 320)_
+- Week 8: a shared failure takes both recommendations services down at once for 1 h, so the request fails. _(D-RM, 320)_
+- Week 11: the load balancer is down for 1 h and has no other copy, so the request fails. _(D-RM, 320)_
+- Week 19: the app server is down for 1 h and has no other copy, so the request fails. _(D-RM)_
+- The request is 99.8% available, down 17.5 h a year. Weakest links: the load balancer and the app servers (1 copy each), each down 8.8 h a year. _(D-RM, D-M, 320)_
+- Play and the settings this question is about wait for your answer. _(D-RM, D-M, 320)_
+- The request is 99.9% available, down 8.8 h a year. Weakest link: the database (1 copy), down 8.8 h a year. _(D-RM, D-M, 320)_
+- The request is 99.77% available, down 20.6 h a year. Weakest links: the database and recommendations (1 copy each), each down 8.8 h a year. _(D-RM, D-M, 320)_
+- In this simulated year the request failed 3 times, 3 h in all: each for 1 h. Week 44: a shared failure takes both databases down at once for 1 h, so the request fails. _(D-M)_
+- The request is 99.9999996% available, down 0.13 s a year. Weakest links: all 4 parts (3 copies each), each down 0.03 s a year. _(D-M)_
+- In this simulated year the request never failed; the model’s long-run average is below. Week 3: Recs 1 is down for 1 h. Recs 2 carries the request, so recommendations stay up. The others are each down only 0.1% of the time. _(D-M)_
+- The request is 99.77% available, down 20.6 h a year. Weakest links: the load balancer and the app servers (1 copy each), each down 8.8 h a year. _(D-M, 320)_
+- The request is 99.86% available, down 11.8 h a year. Weakest link: the database (1 copy), down 8.8 h a year. _(320)_
+- The request is 99.85% available, down 13.4 h a year. Weakest link: recommendations (1 copy), down 8.8 h a year. _(320)_
+
+## Readout (one-column layout) (17)
+
+- Request: 99.8% available · down 17.5 h a year _(D-RM, D-M, 320)_
+- Request: 99.6% available · down 35 h a year _(D-RM, D-M, 320)_
+- Request: 99.9997% available · down 95 s a year _(D-RM, D-M, 320)_
+- Request: 99.97% available · down 2.6 h a year _(D-RM, D-M, 320)_
+- Request: 99.975% available · down 2.2 h a year _(D-RM, D-M, 320)_
+- Request: 99.947% available · down 4.6 h a year _(D-RM, D-M, 320)_
+- Request: 99.93% available · down 6.1 h a year _(D-RM, D-M, 320)_
+- Request: 99.967% available · down 2.9 h a year _(D-RM, D-M, 320)_
+- Request: 99.9999996% available · down 0.13 s a year _(D-RM, D-M, 320)_
+- Request: 99.88% available · down 10.2 h a year _(D-RM, D-M, 320)_
+- Request: 99.78% available · down 19.3 h a year _(D-RM, D-M, 320)_
+- Request: 99.9% available · down 8.8 h a year _(D-RM, D-M, 320)_
+- Request: 99.77% available · down 20.6 h a year _(D-RM, D-M, 320)_
+- Request: ? available · down ? a year _(D-M)_
+- Request: 99.7% available · down 26.3 h a year _(D-M)_
+- Request: 99.86% available · down 11.8 h a year _(320)_
+- Request: 99.85% available · down 13.4 h a year _(320)_
+
+## Controls (10)
+
+- Copies of each part _(D-RM, D-M, 320)_
+- LB _(D-RM, D-M, 320)_
+- App _(D-RM, D-M, 320)_
+- DB _(D-RM, D-M, 320)_
+- Recs _(D-RM, D-M, 320)_
+- Conditions _(D-RM, D-M, 320)_
+- Recsoptional _(D-RM, D-M, 320)_
+- Sharedfailures _(D-RM, D-M, 320)_
+- Failover5 min _(D-RM, D-M, 320)_
+- Conditions · the goal keeps both failures on _(D-RM, D-M, 320)_
+
+## Standing sentence (8)
+
+- Every copy is 99.9% available: 8.76 outages a year × 1 h each is 8.76 h down, or up 999 h for every 1 h down. Parts fail independently of each other, and one copy can carry the full load. Here copies fail independently, and traffic moves off a dead copy at once. _(D-RM, D-M, 320)_
+- Every copy is 99.9% available: 8.76 outages a year × 1 h each is 8.76 h down, or up 999 h for every 1 h down. Parts fail independently of each other, and one copy can carry the full load. Here copies fail independently, and traffic moves off a dead copy at once; recommendations are optional, so their outages (the hollow marks) never reach the request. _(D-RM, D-M, 320)_
+- Every copy is 99.9% available: 8.76 outages a year × 1 h each is 8.76 h down, or up 999 h for every 1 h down. Parts fail independently of each other, and one copy can carry the full load. Here 1 in 10 of a copy’s outages is shared by every copy of its part, and traffic moves off a dead copy at once; recommendations are optional, so their outages (the hollow marks) never reach the request. _(D-RM, D-M, 320)_
+- Every copy is 99.9% available: 8.76 outages a year × 1 h each is 8.76 h down, or up 999 h for every 1 h down. Parts fail independently of each other, and one copy can carry the full load. Here copies fail independently, and traffic takes 5 min to move off a dead copy: requests go to the first copy while it is up, so only its outages cost a failover; recommendations are optional, so their outages (the hollow marks) never reach the request. _(D-RM, D-M, 320)_
+- Every copy is 99.9% available: 8.76 outages a year × 1 h each is 8.76 h down, or up 999 h for every 1 h down. Parts fail independently of each other, and one copy can carry the full load. Here 1 in 10 of a copy’s outages is shared by every copy of its part, and traffic takes 5 min to move off a dead copy: requests go to the first copy while it is up, so only its outages cost a failover; recommendations are optional, so their outages (the hollow marks) never reach the request. _(D-RM, D-M, 320)_
+- Every copy is 99.9% available: 8.76 outages a year × 1 h each is 8.76 h down, or up 999 h for every 1 h down. Parts fail independently of each other, and one copy can carry the full load. Here 1 in 10 of a copy’s outages is shared by every copy of its part, and traffic takes 5 min to move off a dead copy: requests go to the first copy while it is up, so only its outages cost a failover. _(D-RM, D-M, 320)_
+- Every copy is 99.9% available: 8.76 outages a year × 1 h each is 8.76 h down, or up 999 h for every 1 h down. Parts fail independently of each other, and one copy can carry the full load. Here copies fail independently, and traffic takes 5 min to move off a dead copy: requests go to the first copy while it is up, so only its outages cost a failover. _(D-RM, D-M, 320)_
+- Every copy is 99.9% available: 8.76 outages a year × 1 h each is 8.76 h down, or up 999 h for every 1 h down. Parts fail independently of each other, and one copy can carry the full load. Here 1 in 10 of a copy’s outages is shared by every copy of its part, and traffic moves off a dead copy at once. _(D-RM, D-M, 320)_
+
+## Describe (142)
+
+- Describe _(D-RM, D-M, 320)_
+- Hide the description _(D-RM, D-M, 320)_
+- A request crosses 2 load balancers, 3 app servers, 1 database and 1 recommendations service, every copy 99.9% available; copies fail independently, and traffic moves off a dead copy at once. The model gives 99.8% available: down 17.5 h a year, 86 min in 30 days. Weakest links: the database and recommendations (1 copy each), each down 8.8 h a year. On paper each copy adds 3 nines: a part is down only while all its copies are. _(D-RM, D-M)_
+- In this simulated year the request failed 17 times, 17 h in all: each for 1 h. The picture rests on week 3, when the recommendations service is down for 1 h and has no other copy, so the request fails. The year is drawn with a week between any two outages of one part, so two ticks in one column are always one shared outage; by chance alone a pair overlaps about once in 57 years. _(D-RM, D-M)_
+- Part _(D-RM, D-M, 320)_
+- Copies _(D-RM, D-M, 320)_
+- Available _(D-RM, D-M)_
+- Down a year _(D-RM, D-M, 320)_
+- In 30 days _(D-RM, D-M)_
+- Simulated year _(D-RM, D-M)_
+- Load balancer _(D-RM, D-M)_
+- 2 _(D-RM, D-M, 320)_
+- 99.9999% _(D-RM, D-M)_
+- 32 s _(D-RM, D-M, 320)_
+- 2.6 s _(D-RM, D-M)_
+- none _(D-RM, D-M, 320)_
+- App servers _(D-RM, D-M)_
+- 3 _(D-RM, D-M, 320)_
+- 99.9999999% _(D-RM, D-M)_
+- 0.03 s _(D-RM, D-M)_
+- under 0.01 s _(D-RM, D-M)_
+- Database (weakest link) _(D-RM, D-M)_
+- 1 _(D-RM, D-M, 320)_
+- 99.9% _(D-RM, D-M)_
+- 8.8 h _(D-RM, D-M, 320)_
+- 43 min _(D-RM, D-M)_
+- 9 failures, 9 h _(D-RM, D-M)_
+- Recommendations (weakest link) _(D-RM, D-M)_
+- 8 failures, 8 h _(D-RM, D-M)_
+- The request _(D-RM, D-M)_
+- 7 _(D-RM, D-M, 320)_
+- 99.8% _(D-RM, D-M)_
+- 17.5 h _(D-RM, D-M, 320)_
+- 86 min _(D-RM, D-M)_
+- 17 failures, 17 h _(D-RM, D-M)_
+- A request crosses 1 load balancer, 1 app server, 1 database and 1 recommendations service, every copy 99.9% available; copies fail independently, and traffic moves off a dead copy at once. The model gives 99.6% available: down 35 h a year, 2.9 h in 30 days. Weakest links: all 4 parts (1 copy each), each down 8.8 h a year. No needed part has a second copy yet. _(D-RM, D-M, 320)_
+- In this simulated year the request failed 35 times, 35 h in all: each for 1 h. The picture rests on week 3, when the recommendations service is down for 1 h and has no other copy, so the request fails. The year is drawn with a week between any two outages of one part, so two ticks in one column are always one shared outage; by chance alone a pair overlaps about once in 57 years. _(D-RM, D-M, 320)_
+- Load balancer (weakest link) _(D-RM, D-M)_
+- App servers (weakest link) _(D-RM, D-M)_
+- 4 _(D-RM, D-M, 320)_
+- 99.6% _(D-RM, D-M)_
+- 35 h _(D-RM, D-M, 320)_
+- 2.9 h _(D-RM, D-M)_
+- 35 failures, 35 h _(D-RM, D-M)_
+- A request crosses 2 load balancers, 2 app servers, 2 databases and 1 recommendations service (optional), every copy 99.9% available; copies fail independently, and traffic moves off a dead copy at once; recommendations are optional, so their outages (the hollow marks) never reach the request. The model gives 99.9997% available: down 95 s a year, 7.8 s in 30 days. Weakest links: the load balancer, the app servers and the database (2 copies each), each down 32 s a year. On paper each copy adds 3 nines: a part is down only while all its copies are. _(D-RM, D-M)_
+- In this simulated year the request never failed; the model’s long-run average is below. The picture rests on week 4, when DB 1 is down for 1 h. DB 2 carries the request, so the databases stay up. DB 2 is itself down only 0.1% of the time. The year is drawn with a week between any two outages of one part, so two ticks in one column are always one shared outage; by chance alone a pair overlaps about once in 57 years. _(D-RM, D-M)_
+- Recommendations _(D-RM, D-M)_
+- optional _(D-RM, D-M, 320)_
+- 99.9997% _(D-RM, D-M)_
+- 95 s _(D-RM, D-M)_
+- 7.8 s _(D-RM, D-M)_
+- A request crosses 2 load balancers, 2 app servers, 2 databases and 1 recommendations service (optional), every copy 99.9% available; copies fail independently, and traffic takes 5 min to move off a dead copy: requests go to the first copy while it is up, so only its outages cost a failover; recommendations are optional, so their outages (the hollow marks) never reach the request. The model gives 99.975% available: down 2.2 h a year, 11 min in 30 days. Weakest links: the load balancer, the app servers and the database (2 copies each), each down 44 min a year. A pair is down 44 min a year (32 s on paper): 8.75 failovers × 5 min and 32 s both down by chance. _(D-RM, D-M, 320)_
+- In this simulated year the request failed 27 times, 2.3 h in all: each for 5 min. The picture rests on week 4, when DB 1 dies. For 5 min requests still go to it and fail, then DB 2 carries them. The year is drawn with a week between any two outages of one part, so two ticks in one column are always one shared outage; by chance alone a pair overlaps about once in 57 years. _(D-RM, D-M, 320)_
+- 99.9916% _(D-RM, D-M)_
+- 44 min _(D-RM, D-M, 320)_
+- 3.6 min _(D-RM, D-M)_
+- 9 failures, 45 min _(D-RM, D-M)_
+- 99.975% _(D-RM, D-M)_
+- 2.2 h _(D-RM, D-M, 320)_
+- 11 min _(D-RM, D-M)_
+- 27 failures, 2.2 h _(D-RM, D-M)_
+- A request crosses 2 load balancers, 2 app servers, 2 databases and 1 recommendations service (optional), every copy 99.9% available; 1 in 10 of a copy’s outages is shared by every copy of its part, and traffic takes 5 min to move off a dead copy: requests go to the first copy while it is up, so only its outages cost a failover; recommendations are optional, so their outages (the hollow marks) never reach the request. The model gives 99.947% available: down 4.6 h a year, 23 min in 30 days. Weakest links: the load balancer, the app servers and the database (2 copies each), each down 92 min a year. A pair is down 92 min a year (32 s on paper): 0.88 shared outages × 1 h, 7.88 failovers × 5 min and 26 s both down by chance. _(D-RM, D-M, 320)_
+- In this simulated year the request failed 27 times, 5 h in all: 3 × 1 h and 24 × 5 min. The picture rests on week 44, when a shared failure takes both databases down at once for 1 h, so the request fails. The year is drawn with a week between any two outages of one part, so two ticks in one column are always one shared outage; by chance alone a pair overlaps about once in 57 years. _(D-RM, D-M, 320)_
+- 99.982% _(D-RM, D-M)_
+- 92 min _(D-RM, D-M, 320)_
+- 7.6 min _(D-RM, D-M)_
+- 9 failures, 100 min _(D-RM, D-M)_
+- 99.947% _(D-RM, D-M)_
+- 4.6 h _(D-RM, D-M, 320)_
+- 23 min _(D-RM, D-M)_
+- 27 failures, 5 h _(D-RM, D-M)_
+- A request crosses 3 load balancers, 3 app servers, 3 databases and 3 recommendations services, every copy 99.9% available; copies fail independently, and traffic moves off a dead copy at once. The model gives 99.9999996% available: down 0.13 s a year, 0.01 s in 30 days. Weakest links: all 4 parts (3 copies each), each down 0.03 s a year. On paper each copy adds 3 nines: a part is down only while all its copies are. _(D-RM)_
+- In this simulated year the request never failed; the model’s long-run average is below. The picture rests on week 3, when Recs 1 is down for 1 h. Recs 2 carries the request, so recommendations stay up. The others are each down only 0.1% of the time. The year is drawn with a week between any two outages of one part, so two ticks in one column are always one shared outage; by chance alone a pair overlaps about once in 57 years. _(D-RM)_
+- 12 _(D-RM, D-M, 320)_
+- 99.9999996% _(D-RM)_
+- 0.13 s _(D-RM)_
+- 0.01 s _(D-RM)_
+- A request crosses 2 load balancers, 3 app servers, 1 database and 2 recommendations services (optional), every copy 99.9% available; copies fail independently, and traffic takes 5 min to move off a dead copy: requests go to the first copy while it is up, so only its outages cost a failover; recommendations are optional, so their outages (the hollow marks) never reach the request. The model gives 99.88% available: down 10.2 h a year, 50 min in 30 days. Weakest link: the database (1 copy), down 8.8 h a year. A pair is down 44 min a year (32 s on paper): 8.75 failovers × 5 min and 32 s both down by chance. _(D-RM, D-M, 320)_
+- In this simulated year the request failed 27 times, 10.5 h in all: 9 × 1 h and 18 × 5 min. The picture rests on week 4, when the database is down for 1 h and has no other copy, so the request fails. The year is drawn with a week between any two outages of one part, so two ticks in one column are always one shared outage; by chance alone a pair overlaps about once in 57 years. _(D-RM, D-M, 320)_
+- 99.9917% _(D-RM, D-M)_
+- 8 _(D-RM, D-M, 320)_
+- 99.88% _(D-RM, D-M)_
+- 10.2 h _(D-RM, D-M, 320)_
+- 50 min _(D-RM, D-M)_
+- 27 failures, 10.5 h _(D-RM, D-M)_
+- A request crosses 1 load balancer, 1 app server, 2 databases and 1 recommendations service (optional), every copy 99.9% available; copies fail independently, and traffic moves off a dead copy at once; recommendations are optional, so their outages (the hollow marks) never reach the request. The model gives 99.8% available: down 17.5 h a year, 86 min in 30 days. Weakest links: the load balancer and the app servers (1 copy each), each down 8.8 h a year. On paper each copy adds 3 nines: a part is down only while all its copies are. _(D-RM, D-M, 320)_
+- In this simulated year the request failed 18 times, 18 h in all: each for 1 h. The picture rests on week 19, when the app server is down for 1 h and has no other copy, so the request fails. The year is drawn with a week between any two outages of one part, so two ticks in one column are always one shared outage; by chance alone a pair overlaps about once in 57 years. _(D-RM, D-M, 320)_
+- Database _(D-RM, D-M)_
+- 5 _(D-RM, D-M, 320)_
+- 18 failures, 18 h _(D-RM, D-M)_
+- Describe waits for your answer. _(D-RM, D-M, 320)_
+- A request crosses 2 load balancers, 3 app servers, 1 database and 1 recommendations service (optional), every copy 99.9% available; copies fail independently, and traffic moves off a dead copy at once; recommendations are optional, so their outages (the hollow marks) never reach the request. The model gives 99.9% available: down 8.8 h a year, 43 min in 30 days. Weakest link: the database (1 copy), down 8.8 h a year. On paper each copy adds 3 nines: a part is down only while all its copies are. _(D-RM, D-M)_
+- In this simulated year the request failed 9 times, 9 h in all: each for 1 h. The picture rests on week 4, when the database is down for 1 h and has no other copy, so the request fails. The year is drawn with a week between any two outages of one part, so two ticks in one column are always one shared outage; by chance alone a pair overlaps about once in 57 years. _(D-RM, D-M)_
+- A request crosses 2 load balancers, 2 app servers, 2 databases and 1 recommendations service (optional), every copy 99.9% available; 1 in 10 of a copy’s outages is shared by every copy of its part, and traffic moves off a dead copy at once; recommendations are optional, so their outages (the hollow marks) never reach the request. The model gives 99.97% available: down 2.6 h a year, 13 min in 30 days. Weakest links: the load balancer, the app servers and the database (2 copies each), each down 53 min a year. A pair is down 53 min a year (32 s on paper): 0.88 shared outages × 1 h and 26 s both down by chance. _(D-RM, D-M, 320)_
+- In this simulated year the request failed 3 times, 3 h in all: each for 1 h. The picture rests on week 44, when a shared failure takes both databases down at once for 1 h, so the request fails. The year is drawn with a week between any two outages of one part, so two ticks in one column are always one shared outage; by chance alone a pair overlaps about once in 57 years. _(D-RM, D-M, 320)_
+- 99.99% _(D-RM, D-M)_
+- 53 min _(D-RM, D-M, 320)_
+- 4.4 min _(D-RM, D-M)_
+- 1 failure, 1 h _(D-RM, D-M)_
+- 99.97% _(D-RM, D-M)_
+- 2.6 h _(D-RM, D-M, 320)_
+- 13 min _(D-RM, D-M)_
+- 3 failures, 3 h _(D-RM, D-M)_
+- Describe waits until you meet the goal. _(D-RM, D-M, 320)_
+- A request crosses 3 load balancers, 3 app servers, 3 databases and 3 recommendations services, every copy 99.9% available; 1 in 10 of a copy’s outages is shared by every copy of its part, and traffic takes 5 min to move off a dead copy: requests go to the first copy while it is up, so only its outages cost a failover. The model gives 99.93% available: down 6.1 h a year, 30 min in 30 days. Weakest links: all 4 parts (3 copies each), each down 92 min a year. A set of 3 is down 92 min a year (0.03 s on paper): 0.88 shared outages × 1 h, 7.88 failovers × 5 min and 0.02 s all 3 down by chance. _(D-M, 320)_
+- In this simulated year the request failed 35 times, 6.6 h in all: 4 × 1 h and 31 × 5 min. The picture rests on week 8, when a shared failure takes all 3 recommendations services down at once for 1 h, so the request fails. The year is drawn with a week between any two outages of one part, so two ticks in one column are always one shared outage; by chance alone a pair overlaps about once in 57 years. _(D-M, 320)_
+- 8 failures, 95 min _(D-M)_
+- 99.93% _(D-M)_
+- 6.1 h _(D-M, 320)_
+- 30 min _(D-M)_
+- 35 failures, 6.6 h _(D-M)_
+- A request crosses 2 load balancers, 3 app servers, 2 databases and 1 recommendations service (optional), every copy 99.9% available; 1 in 10 of a copy’s outages is shared by every copy of its part, and traffic takes 5 min to move off a dead copy: requests go to the first copy while it is up, so only its outages cost a failover; recommendations are optional, so their outages (the hollow marks) never reach the request. The model gives 99.947% available: down 4.6 h a year, 23 min in 30 days. Weakest links: the load balancer and the database (2 copies each) and the app servers (3 copies), each down 92 min a year. A pair is down 92 min a year (32 s on paper): 0.88 shared outages × 1 h, 7.88 failovers × 5 min and 26 s both down by chance. _(D-M)_
+- A request crosses 1 load balancer, 1 app server, 3 databases and 2 recommendations services, every copy 99.9% available; 1 in 10 of a copy’s outages is shared by every copy of its part, and traffic moves off a dead copy at once. The model gives 99.78% available: down 19.3 h a year, 95 min in 30 days. Weakest links: the load balancer and the app servers (1 copy each), each down 8.8 h a year. A pair is down 53 min a year (32 s on paper): 0.88 shared outages × 1 h and 26 s both down by chance. _(D-M)_
+- In this simulated year the request failed 20 times, 20 h in all: each for 1 h. The picture rests on week 19, when the app server is down for 1 h and has no other copy, so the request fails. The year is drawn with a week between any two outages of one part, so two ticks in one column are always one shared outage; by chance alone a pair overlaps about once in 57 years. _(D-M)_
+- 4.3 min _(D-M)_
+- 99.78% _(D-M)_
+- 19.3 h _(D-M)_
+- 95 min _(D-M)_
+- 20 failures, 20 h _(D-M)_
+- This year _(320)_
+- LB (weakest) _(320)_
+- 9×, 100 min _(320)_
+- App (weakest) _(320)_
+- DB (weakest) _(320)_
+- Recs _(320)_
+- Request _(320)_
+- 27×, 5 h _(320)_
+- Recs (weakest) _(320)_
+- 8×, 95 min _(320)_
+- 35×, 6.6 h _(320)_
+- LB _(320)_
+- 9×, 45 min _(320)_
+- App _(320)_
+- 9×, 9 h _(320)_
+- 27×, 10.5 h _(320)_
+- 8×, 8 h _(320)_
+- 35×, 35 h _(320)_
+- DB _(320)_
+- 18×, 18 h _(320)_
+- 1×, 1 h _(320)_
+- 3×, 3 h _(320)_
+- 27×, 2.2 h _(320)_
+
+## Experiment dock (41)
+
+- A page request needs 4 parts in turn: a load balancer, an app server, a database and a recommendations service. There is one copy of each, and each is 99.9% available: down 8.8 h a year, in outages of 1 h. How long is the request down a year? _(D-RM, D-M, 320)_
+- 8.8 h: a chain is as good as its weakest part _(D-RM, D-M, 320)_
+- 17.5 h: about twice that, as outages often coincide _(D-RM, D-M, 320)_
+- 35 h: every part’s outages count in full _(D-RM, D-M, 320)_
+- 35 h: the request needs every part, so it fails whenever any one of them is down. Outages of 1 h that strike independently almost never coincide, so the downtime of 4 parts adds up: 4 × 8.8 h is 35 h, and the availabilities multiply to 99.6%. A chain is always worse than its weakest part, and every hard dependency you add costs its whole downtime. _(D-RM, D-M, 320)_
+- A load balancer, an app server and a database, one copy of each, and each down 8.8 h a year; recommendations are optional now. Give the database a second copy that fails independently of the first, and say traffic moves to it at once. How long is the database part down a year now? _(D-RM, D-M, 320)_
+- 32 s: only while both are down at once _(D-RM, D-M, 320)_
+- 53 min: a tenth, a copy buys one more nine _(D-RM, D-M, 320)_
+- 4.4 h: half, two copies share the failures _(D-RM, D-M, 320)_
+- 32 s: the part is down only while both copies are down at once. Each is down 0.1% of the time, so both are down 0.1% of 0.1%: 99.9999% available, 32 s a year against 8.8 h. Unavailabilities multiply, so each independent copy adds 3 nines. The request is still down 17.5 h a year, because the two parts left with one copy now set it. And 32 s is the ceiling of the arithmetic, not a forecast: it holds only if the copies never fail together and traffic moves instantly. _(D-RM, D-M, 320)_
+- The request passes 2 load balancers, 2 app servers and 1 database, every copy 99.9% available; recommendations are optional. It is down 8.8 h a year. Add a third app server. How long is the request down a year now? _(D-RM, D-M, 320)_
+- 4.4 h: half, as three app servers never fail together _(D-RM, D-M, 320)_
+- 5.9 h: a third less, as each server now carries a third of the traffic _(D-RM, D-M, 320)_
+- 8.8 h: unchanged, the app servers were never the limit _(D-RM, D-M, 320)_
+- 8.8 h, unchanged: the request is down because of the database, a single copy down 8.8 h a year. The app servers were down together only 32 s a year as a pair, and 0.03 s as three. Polishing a strong part buys nothing you can measure: the weakest link caps the chain, so find the single point of failure before adding copies anywhere else. _(D-RM, D-M, 320)_
+- Two copies of every part the request needs: on paper it is down only 95 s a year. Now say 1 in 10 of a copy’s outages come from something its twin shares, such as the zone both run in or a bad deploy that reaches both. How long is the request down a year now? _(D-RM, D-M, 320)_
+- 104 s: a tenth more than on paper _(D-RM, D-M, 320)_
+- 2.6 h: about 100× what the paper says _(D-RM, D-M, 320)_
+- 26.3 h: as much as with one copy of each _(D-RM, D-M, 320)_
+- 2.6 h, about 100× the paper’s 95 s. A second copy removes only the outages that are a copy’s own. A shared one takes both copies down together, so it passes straight through: 53 min a year for each part, however many copies it has. With 1 in 10 of outages shared, copies buy at most one more nine, 99.99% a part and not 99.9999%. So spread copies across zones, roll changes out in stages and split users into cells: the fix is fewer shared causes, not more copies. _(D-RM, D-M, 320)_
+- Two copies of every part the request needs, failing independently: on paper it fails only when both copies of a part are down at once, about once in 19 years. But moving traffic off a dead copy takes 5 min: health checks must notice, then the switch happens. About how many times a year does the request fail now? _(D-RM, D-M, 320)_
+- About 26 times: at every failure of a copy in use _(D-RM, D-M, 320)_
+- About 9 times: as often as a single copy fails _(D-RM, D-M, 320)_
+- Still about once in 19 years: the standby was ready _(D-RM, D-M, 320)_
+- About 26 times a year, 5 min each: 2.2 h a year instead of 95 s. Redundancy does not remove a copy’s failures, it shortens them: each of the 8.76 outages a year of the copy in use now ends when traffic has moved, after 5 min, not when the repair is done, after 1 h. Availability is MTBF / (MTBF + MTTR), and a standby turns the time to recover from the repair time into the failover time. Four nines a part is 53 min a year; with 8.76 failures that leaves about 6 min for each, so detection and the switch must be automatic, and rehearsed. _(D-RM, D-M, 320)_
+- This design has shared failures and a 5 min failover, as real ones do, and the request is down 20.6 h a year. Promise three nines: bring it under 8.76 h a year, 99.9%, with no more than the 7 copies it runs now. _(D-RM, D-M, 320)_
+- ·the request down 20.6 h a year, under 8.76 h: not yet _(D-RM, D-M, 320)_
+- ✓7 copies in all, no more than 7: met _(D-RM, D-M, 320)_
+- ✓6 copies in all, no more than 7: met _(D-RM, D-M, 320)_
+- Goal met: _(D-RM, D-M, 320)_
+- ✓the request down 4.6 h a year, under 8.76 h: met _(D-RM, D-M, 320)_
+- Run 2 load balancers, 2 app servers and 2 databases, with recommendations optional: down 4.6 h a year, 99.947%. Moving one app server to the database removes the single point of failure, and making recommendations optional takes a whole part out of the chain; the third app server was buying nothing. The 4.6 h left are shared outages and failovers, which no further copy removes: the next nine comes from fewer shared causes and a faster switch. That leaves 4.1 h of the 8.76 h error budget for a bad year and risky deploys: promise below what you expect. _(D-RM, D-M, 320)_
+- You met it; now: _(D-RM, D-M)_
+- ·8 copies in all, no more than 7: not yet _(D-RM, D-M)_
+- 35 h: every part’s outages count in fullyour guess _(D-M)_
+- Watch the picture: the answer plays out on it. _(D-M)_
+- 32 s: only while both are down at onceyour guess _(D-M)_
+- 8.8 h: unchanged, the app servers were never the limityour guess _(D-M)_
+- 2.6 h: about 100× what the paper saysyour guess _(D-M)_
+- About 26 times: at every failure of a copy in useyour guess _(D-M)_
+- ·the request down 13.4 h a year, under 8.76 h: not yet _(320)_
