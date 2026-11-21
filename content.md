@@ -1,6 +1,6 @@
 # Capacity & Scaling widget (`pipeline`): every string, generated
 
-Generated from the built widget at fix-round-1 (`/design/topics/sd-capacity`) by a browser walk, and from the engine build for
+Generated from the built widget at 57886608 (`/design/topics/sd-capacity`) by a browser walk, and from the engine build for
 the experiments. Nothing here is typed by hand. Walks:
 
 - **D-RM**: desktop 1280px, reduced motion, answering each question wrong.
@@ -78,14 +78,17 @@ once, with the walks that showed it.
 - **Reveal:** The fleet that fits: 6 load balancers, 17 app servers, a primary of 8,000 queries/s, 2 replicas and the cache's 3 nodes, 29 machines; the busiest tier runs at 62.7%. Zone A holds 2 of the load balancers and 6 of the app servers, so losing it leaves 4 load balancers 80% busy and 11 app servers 97% busy, while one replica takes over as primary and the other carries every read at 76%. With 16 app servers zone A would hold 6, and the 10 left would shed 1,000/s; with no replica the primary would fall with its zone and every write with it.
 - **Focus at the reveal:** lb, app, db
 
-## Stage drawing (SVG text) (462)
+## Stage drawing (SVG text) (489)
 
 - ? of 100 busy after your answer. _(D-M)_
 - ?% busy · after your answer _(D-RM, D-M)_
 - ?% busy each · after your answer _(D-M)_
+- +1 A _(320)_
+- +1 A lost _(320)_
+- +2 A _(320)_
 - ÷ 0.2 _(320)_
 - ÷ 0.2 a request _(D-RM, D-M)_
-- ÷ 0.38 a request _(320)_
+- ÷ 0.38 _(320)_
 - ÷ 0.38 queries a request _(D-RM, D-M)_
 - ÷ 2 queries a request _(D-RM, D-M, 320)_
 - × 1,500/s _(320)_
@@ -97,9 +100,11 @@ once, with the walks that showed it.
 - = 21,053 requests/s, _(320)_
 - = 27,586 requests/s _(320)_
 - = 27,586 requests/s, _(320)_
+- = 27,586 requests/s, 21,053/s _(320)_
 - = 30,769 requests/s _(320)_
+- = 30,769 requests/s, 21,053/s _(320)_
 - = 32,653 requests/s, _(320)_
-- = 34,783 requests/s _(320)_
+- = 34,783 requests/s, 30,769/s _(320)_
 - = 4,000 requests/s _(320)_
 - = 7,273 requests/s _(320)_
 - 0 _(D-RM, D-M, 320)_
@@ -122,15 +127,13 @@ once, with the walks that showed it.
 - 10,000 _(D-RM, D-M, 320)_
 - 10,000 requests a second _(D-RM, D-M)_
 - 10,000 requests/s _(320)_
+- 10.9% busy each · 24,586/s spare _(D-M)_
 - 10% _(320)_
 - 10% busy · 27,000/s spare _(D-M)_
 - 10% busy · 36,000/s spare _(D-RM, D-M, 320)_
 - 10% busy · 9,000/s spare _(D-RM, D-M, 320)_
 - 100 of 100 busy: 200/s _(320)_
 - 100 of 100 busy: 200/s × 500 ms. The 1,000/s sent to each would need 500 workers; _(D-RM, D-M)_
-- 100 of 100 busy: 200/s × 500 ms. The 333/s sent to each would need 167 workers; _(D-M)_
-- 100 of 100 busy: 200/s × 500 ms. The 500/s sent to each would need 250 workers; _(D-M)_
-- 100 of 100 busy: 200/s × 500 ms. The 833/s sent to each would need 417 workers; _(D-M)_
 - 100% busy · nothing spare _(D-RM, D-M, 320)_
 - 11,586/s spare _(320)_
 - 11.1% busy · 8,000/s spare _(D-M)_
@@ -146,26 +149,32 @@ once, with the walks that showed it.
 - 13.8% busy each · 6,273/s spare _(D-RM, D-M)_
 - 14,000 requests a second _(D-M)_
 - 14,783/s spare _(320)_
+- 14.3% _(320)_
 - 14.4% busy each · 29,783/s spare _(D-M)_
 - 15 of 100 busy: 300/s × 50 ms in flight (Little's law). _(D-M)_
+- 15,000 _(320)_
 - 15% busy · 34,000/s spare _(D-RM, D-M, 320)_
 - 16 × 1,500/s _(D-RM, D-M, 320)_
 - 16,000 requests a second _(D-RM, D-M)_
 - 16,000 requests/s _(320)_
+- 16.7 of 100 busy: 333/s × 50 ms in flight (Little's law). _(D-M)_
 - 16.7% busy · 25,000/s spare _(D-M)_
 - 16.7% busy · 5,000/s spare _(D-RM, D-M, 320)_
 - 17 × 1,500/s _(D-RM, D-M, 320)_
 - 17.3% busy each · 28,783/s spare _(D-M)_
+- 18,000 requests a second _(D-M)_
 - 18,586/s spare _(320)_
 - 18,769/s spare _(320)_
+- 18.1% busy each · 22,586/s spare _(D-M)_
 - 18.2% busy · 32,727/s spare _(D-RM, D-M, 320)_
+- 19,586/s spare _(320)_
 - 2 × 5,000/s _(D-RM, D-M, 320)_
 - 2 × 8,000 queries/s _(D-RM, D-M, 320)_
 - 2 of 3 up _(D-M, 320)_
 - 2 of 3 up × 5,000/s _(D-RM, D-M)_
 - 2 of 4 up _(320)_
 - 2 of 4 up × 1,500/s _(D-RM, D-M)_
-- 2,000 requests a second _(D-M)_
+- 2,000 requests a second _(D-RM, D-M)_
 - 2.5 of 100 busy: 50/s × 50 ms in flight (Little's law). _(D-M)_
 - 2.5% busy · 39,000/s spare _(D-RM, D-M, 320)_
 - 2.9% busy each · 33,783/s spare _(D-M)_
@@ -178,20 +187,25 @@ once, with the walks that showed it.
 - 20.6% busy each _(320)_
 - 20.6% busy each · 5,773/s spare _(D-RM, D-M)_
 - 20% busy · 24,000/s spare _(D-M)_
-- 20% busy · 32,000/s spare _(D-RM, D-M)_
+- 20% busy · 32,000/s spare _(D-M, 320)_
 - 20% busy · 4,000/s spare _(D-M)_
-- 20% busy · 8,000/s spare _(D-M)_
+- 20% busy · 8,000/s spare _(D-RM, D-M)_
+- 21,586/s spare _(320)_
+- 21.7% busy each _(320)_
 - 21.7% busy each · 21,586/s spare _(D-RM, D-M)_
+- 22.2% busy · 7,000/s spare _(D-M)_
 - 22.5% busy · 31,000/s spare _(D-RM, D-M, 320)_
 - 23% busy each · 26,783/s spare _(D-M)_
-- 25 of 100 busy: 500/s × 50 ms in flight (Little's law). _(D-M)_
+- 25 of 100 busy: 500/s × 50 ms in flight (Little's law). _(D-RM, D-M)_
 - 25% _(320)_
 - 25% busy · 3,000/s spare _(D-M)_
 - 25% busy · 30,000/s spare _(D-RM, D-M, 320)_
 - 26,386/s spare _(320)_
 - 26.7% busy · 22,000/s spare _(D-M)_
+- 27.5% busy each · 5,273/s spare _(D-RM, D-M)_
 - 28.7% busy each · 24,783/s spare _(D-M)_
-- 29% busy each · 19,586/s spare _(D-RM)_
+- 29% busy each _(320)_
+- 29% busy each · 19,586/s spare _(D-M)_
 - 3 × 5,000/s _(D-RM, D-M, 320)_
 - 3 × 8,000 queries/s _(D-RM, 320)_
 - 3,000 requests a second _(D-M)_
@@ -199,7 +213,7 @@ once, with the walks that showed it.
 - 3.6% busy each · 26,586/s spare _(D-M)_
 - 3.8% busy · 38,500/s spare _(D-RM, D-M, 320)_
 - 3% busy · 38,800/s spare _(D-RM, D-M, 320)_
-- 30,000 _(D-RM, D-M, 320)_
+- 30,000 _(D-RM, D-M)_
 - 30% busy · 28,000/s spare _(D-RM, 320)_
 - 30% busy · 7,000/s spare _(D-M)_
 - 32.5% busy each _(320)_
@@ -208,7 +222,8 @@ once, with the walks that showed it.
 - 32.6% busy each · 18,586/s spare _(D-RM, D-M)_
 - 33.3% busy · 2,000/s spare _(D-M)_
 - 33.3% busy · 20,000/s spare _(D-M)_
-- 33.3% busy · 4,000/s spare _(D-M)_
+- 33.3% busy · 4,000/s spare _(D-RM, D-M)_
+- 33.3% busy · 6,000/s spare _(D-M)_
 - 35 of 100 busy: 700/s × 50 ms in flight (Little's law). _(D-M)_
 - 35% busy · 26,000/s spare _(D-M)_
 - 37.5 of 100 busy: 750/s × 50 ms in flight (Little's law). _(D-M)_
@@ -220,15 +235,15 @@ once, with the walks that showed it.
 - 4,000 queries/s ÷ 2 queries a request = 2,000 requests/s _(D-RM, D-M)_
 - 4,000 queries/s, _(320)_
 - 4,000 queries/s, in zone A _(D-RM, D-M)_
-- 4,000 requests a second _(D-M)_
 - 4.3% busy each _(320)_
 - 4.3% busy each · 26,386/s spare _(D-RM, D-M)_
 - 4.8% busy · 20,053/s spare _(D-M)_
 - 40 of 100 busy: 800/s × 50 ms in flight (Little's law). _(D-M)_
-- 40,000 _(D-RM, D-M, 320)_
+- 40,000 _(D-RM, D-M)_
 - 40.3% busy each · 20,783/s spare _(D-M)_
 - 40% busy · 24,000/s spare _(D-RM, D-M, 320)_
-- 40% busy · 6,000/s spare _(D-M)_
+- 41.3% busy each · 4,273/s spare _(D-M)_
+- 41.7 of 100 busy: 833/s × 50 ms in flight (Little's law). _(D-M)_
 - 42.8% busy · 12,053/s spare _(D-RM, D-M, 320)_
 - 46.7% busy · 16,000/s spare _(D-M)_
 - 46% busy each · 18,783/s spare _(D-M)_
@@ -237,10 +252,11 @@ once, with the walks that showed it.
 - 47.5% busy · 11,053/s spare _(D-RM, D-M, 320)_
 - 5 × 1,500/s _(D-RM, D-M, 320)_
 - 5 of 100 busy: 100/s × 50 ms in flight (Little's law). _(D-M)_
+- 5,000 _(320)_
 - 5,000 requests a second _(D-M)_
 - 5,773/s spare _(320)_
 - 5.8% busy each · 32,783/s spare _(D-M)_
-- 5% busy · 38,000/s spare _(D-M)_
+- 5% busy · 38,000/s spare _(D-RM, D-M)_
 - 50 of 100 busy: 1,000/s _(320)_
 - 50 of 100 busy: 1,000/s × 50 ms in flight (Little's law). _(D-RM, D-M)_
 - 50% _(320)_
@@ -254,6 +270,7 @@ once, with the walks that showed it.
 - 54.5% _(320)_
 - 55.6 of 100 busy: 1,111/s _(320)_
 - 55.6 of 100 busy: 1,111/s × 50 ms in flight (Little's law). _(D-RM)_
+- 55.6% busy · 4,000/s spare _(D-M)_
 - 57.5% busy each _(320)_
 - 57.5% busy each · 14,783/s spare _(D-RM, D-M)_
 - 58% busy each _(320)_
@@ -277,23 +294,25 @@ once, with the walks that showed it.
 - 62.5 of 100 busy: 1,250/s × 50 ms in flight (Little's law). _(D-RM, D-M)_
 - 62.7% busy · 9,500/s spare _(D-RM, D-M, 320)_
 - 66.7 of 100 busy: 1,333/s _(320)_
-- 66.7 of 100 busy: 1,333/s × 50 ms in flight (Little's law). _(D-RM)_
+- 66.7 of 100 busy: 1,333/s × 50 ms in flight (Little's law). _(D-RM, D-M)_
 - 66.7% busy · 10,000/s spare _(D-RM, D-M, 320)_
-- 66.7% busy · 2,000/s spare _(D-M)_
-- 66.7% busy · 3,000/s spare _(D-RM, D-M)_
+- 66.7% busy · 3,000/s spare _(D-RM, D-M, 320)_
 - 66.7% busy · 5,000/s spare _(D-RM, D-M, 320)_
 - 66.7% busy · 8,000/s spare _(320)_
 - 66.7% busy · 8,000/s spare · limit 24,000/s _(D-RM, D-M)_
-- 7,586/s spare _(320)_
+- 68.8% busy each · 2,273/s spare _(D-M)_
+- 7,000 requests a second _(D-M)_
+- 7,000 requests/s _(320)_
+- 7.2% busy each · 25,586/s spare _(D-M)_
 - 7.5 of 100 busy: 150/s × 50 ms in flight (Little's law). _(D-M)_
 - 7.5% busy · 37,000/s spare _(D-M)_
 - 70% _(320)_
-- 72.5% busy each _(320)_
-- 72.5% busy each · 7,586/s spare _(D-RM)_
+- 70% busy · 3,000/s spare _(D-M, 320)_
 - 74.1% busy · 3,500/s spare _(D-RM, 320)_
 - 75 of 100 busy: 1,500/s _(320)_
 - 75 of 100 busy: 1,500/s × 50 ms in flight (Little's law). _(D-M)_
 - 75 of 100 busy: 1,500/s × 50 ms in flight; the CPU, not the pool, is full. _(D-RM, D-M)_
+- 75% busy · 1,000/s spare _(D-M)_
 - 8 × 1,500/s _(D-RM, D-M, 320)_
 - 8,000 queries/s ÷ (0.2 replayed _(320)_
 - 8,000 queries/s ÷ (0.2 replayed writes + 0.03 reads) = 34,783 requests/s _(D-RM, D-M)_
@@ -305,7 +324,7 @@ once, with the walks that showed it.
 - 8,000 queries/s ÷ (0.2 replayed writes + 1.8 reads) = 4,000 requests/s _(D-RM, D-M)_
 - 8,000 queries/s ÷ 0.2 writes a _(320)_
 - 8,000 queries/s ÷ 0.2 writes a request = 40,000 requests/s _(D-RM, D-M)_
-- 8,000 queries/s ÷ 0.2 writes a request = 40,000 requests/s, was 4,000/s _(D-M)_
+- 8,000 queries/s ÷ 0.2 writes a request = 40,000 requests/s, was 4,000/s _(D-RM, D-M)_
 - 8,000 queries/s ÷ 0.38 queries _(320)_
 - 8,000 queries/s ÷ 0.38 queries a request = 21,053 requests/s _(D-RM, D-M)_
 - 8,000 queries/s ÷ 2 queries a _(320)_
@@ -332,7 +351,8 @@ once, with the walks that showed it.
 - 83.3% busy · 1,000/s spare _(D-M)_
 - 83.3% busy · 2,000/s spare _(D-RM, D-M, 320)_
 - 83.3% busy · 200/s spare _(D-M)_
-- 88.9% busy · 1,000/s spare _(D-RM)_
+- 87.5% _(320)_
+- 88.9% busy · 1,000/s spare _(D-M, 320)_
 - 88.9% busy · 1,500/s spare _(D-RM, 320)_
 - 9 × 1,500/s _(D-RM, 320)_
 - 90% _(320)_
@@ -341,6 +361,7 @@ once, with the walks that showed it.
 - after your answer _(D-RM, D-M)_
 - App servers _(D-RM, D-M, 320)_
 - B _(D-RM, D-M, 320)_
+- bottleneck · limit was 13,500/s _(320)_
 - busy: under 50 · 70 · 85% · shedding _(D-RM, D-M, 320)_
 - C _(D-RM, D-M, 320)_
 - Cache off: all 1.8 reads a _(320)_
@@ -349,14 +370,13 @@ once, with the walks that showed it.
 - Cache on: 1.62 of 1.8 reads a request hit it; 0.18 reach the database. _(D-RM, D-M)_
 - can take over, so every _(320)_
 - Database primary _(D-RM, D-M)_
-- Each takes 0.09 reads a _(320)_
-- Each takes 0.09 reads a request; what else each does shows after your answer. _(D-RM)_
 - every read. _(320)_
+- fails, limit 20,000/s _(320)_
 - Full · 1,000/s shed, _(320)_
+- Full · 1,000/s shed, the _(320)_
 - Full · 1,000/s shed, the bottleneck _(D-RM, D-M)_
-- Full · 1,800/s shed, the bottleneck _(D-M)_
 - Full · 10,000/s shed _(D-RM, D-M, 320)_
-- Full · 12,000/s shed, the bottleneck _(D-M)_
+- Full · 12,000/s shed, the bottleneck _(D-RM, D-M)_
 - Full · 2,000/s shed _(D-RM, D-M, 320)_
 - Full · 2,000/s shed, _(320)_
 - Full · 2,000/s shed, the bottleneck _(D-RM, D-M)_
@@ -366,20 +386,19 @@ once, with the walks that showed it.
 - Full · 3,000/s shed, the bottleneck _(D-M)_
 - Full · 3,500/s shed, _(320)_
 - Full · 3,500/s shed, the bottleneck _(D-RM, D-M)_
-- Full · 3,800/s shed, the bottleneck _(D-M)_
 - Full · 4,000/s shed _(D-RM, D-M, 320)_
 - Full · 4,000/s shed, _(320)_
 - Full · 4,000/s shed, the bottleneck _(D-RM, D-M)_
 - Full · 4,800/s shed, _(320)_
 - Full · 4,800/s shed, the bottleneck _(D-RM, D-M)_
 - Full · 500/s shed _(D-RM, D-M, 320)_
-- Full · 6,000/s shed _(D-M)_
-- Full · 6,000/s shed, _(320)_
-- Full · 6,000/s shed, the bottleneck _(D-RM)_
-- Full · 8,000/s shed, the bottleneck _(D-M)_
+- Full · 6,000/s shed _(D-RM, D-M, 320)_
+- Full · 6,000/s shed, the bottleneck _(D-RM, D-M)_
+- Full · 8,000/s shed _(D-M)_
+- Full · 8,000/s shed, _(320)_
+- Full · 8,000/s shed, the bottleneck _(D-RM)_
 - Full · 8,727/s shed, _(320)_
 - Full · 8,727/s shed, the bottleneck _(D-RM, D-M)_
-- Full · 800/s shed, the bottleneck _(D-M)_
 - Idle · nothing reaches it _(D-RM, D-M, 320)_
 - if zone A fails _(D-RM, D-M, 320)_
 - in zone A _(320)_
@@ -390,26 +409,30 @@ once, with the walks that showed it.
 - limit 12,000/s _(D-RM, D-M, 320)_
 - limit 13,500/s _(D-RM, 320)_
 - limit 15,000/s _(D-RM, D-M, 320)_
+- limit 19,500/s _(320)_
+- limit 20,000/s _(320)_
 - limit 24,000/s _(320)_
 - limit 25,500/s _(D-RM, D-M, 320)_
 - limit 3,000/s _(D-RM, D-M, 320)_
 - limit 30,000/s _(D-RM, D-M, 320)_
+- limit 30,000/s · if zone A fails, _(320)_
 - limit 5,000/s _(D-RM, D-M, 320)_
 - limit 6,000/s _(D-RM, D-M, 320)_
 - limit 7,500/s _(D-RM, D-M, 320)_
 - limit 9,000/s _(D-RM, D-M, 320)_
 - limit was 10,000/s _(D-RM, D-M, 320)_
-- limit was 13,500/s _(D-RM, D-M, 320)_
+- limit was 13,500/s _(D-RM, D-M)_
 - limit was 15,000/s _(D-RM, D-M, 320)_
 - limit was 16,500/s _(D-RM, D-M, 320)_
-- limit was 20,000/s _(D-RM, D-M, 320)_
+- limit was 20,000/s _(D-RM, D-M)_
+- limit was 20,000/s · if zone A _(320)_
 - limit was 21,053/s _(D-RM, D-M)_
 - limit was 24,000/s _(D-RM, D-M, 320)_
 - limit was 25,500/s _(D-RM, D-M, 320)_
 - limit was 3,000/s _(D-RM, D-M, 320)_
 - limit was 30,769/s _(D-RM, D-M)_
 - limit was 4,000/s _(D-RM, D-M, 320)_
-- limit was 40,000/s _(D-RM, 320)_
+- limit was 40,000/s _(D-RM, D-M, 320)_
 - limit was 6,000/s _(D-RM, D-M, 320)_
 - limit was 7,273/s _(D-RM, D-M, 320)_
 - limit was 9,000/s _(D-RM, D-M, 320)_
@@ -434,16 +457,20 @@ once, with the walks that showed it.
 - of 10,000/s · nothing shed _(320)_
 - of 12,000/s · 3,000/s shed, _(320)_
 - of 12,000/s · nothing shed _(320)_
+- of 16,000/s · 14,000/s shed, _(320)_
 - of 16,000/s · 8,727/s shed, _(320)_
 - of 16,000/s · nothing shed _(320)_
 - of 20,000/s · 14,000/s shed, _(320)_
 - of 20,000/s · 18,000/s shed, _(320)_
 - of 20,000/s · nothing shed _(320)_
 - of 6,000/s · 4,800/s shed, _(320)_
+- of 6,000/s · nothing shed _(320)_
+- of 7,000/s · 1,000/s shed, _(320)_
 - of 8,000/s · 2,000/s shed, _(320)_
 - of 8,000/s · 4,000/s shed, _(320)_
 - of 8,000/s · 6,500/s shed, _(320)_
 - of 8,000/s · 727/s shed, 9.1% _(320)_
+- of 8,000/s · nothing shed _(320)_
 - One server's workers _(320)_
 - only one. _(320)_
 - Primary _(320)_
@@ -455,9 +482,9 @@ once, with the walks that showed it.
 - request fails here. _(320)_
 - request hit it; 0.18 reach _(320)_
 - request reach the database. _(320)_
-- request; what else each does _(320)_
 - requests _(D-RM, D-M, 320)_
 - Requests through the tiers _(D-RM, D-M, 320)_
+- Served ? of 1,000/s · shed after your answer _(D-M)_
 - Served ? of 10,000/s · shed after your answer _(D-M)_
 - Served ? of 2,000/s · shed after your answer _(D-M)_
 - Served ? of 3,000/s · shed after your answer _(D-M)_
@@ -470,9 +497,6 @@ once, with the walks that showed it.
 - Served 1,000/s of 1,000/s _(320)_
 - Served 1,000/s of 1,000/s · nothing shed _(D-RM, D-M)_
 - Served 1,200/s _(320)_
-- Served 1,200/s of 2,000/s · 800/s shed, 40% _(D-M)_
-- Served 1,200/s of 3,000/s · 1,800/s shed, 60% _(D-M)_
-- Served 1,200/s of 5,000/s · 3,800/s shed, 76% _(D-M)_
 - Served 1,200/s of 6,000/s · 4,800/s shed, 80% _(D-RM, D-M)_
 - Served 1,500/s _(320)_
 - Served 1,500/s of 8,000/s · 6,500/s shed, 81.3% _(D-RM, D-M)_
@@ -486,11 +510,10 @@ once, with the walks that showed it.
 - Served 2,000/s _(320)_
 - Served 2,000/s of 10,000/s · 8,000/s shed, 80% _(D-M)_
 - Served 2,000/s of 14,000/s · 12,000/s shed, 85.7% _(D-M)_
-- Served 2,000/s of 16,000/s · 14,000/s shed, 87.5% _(D-M)_
-- Served 2,000/s of 2,000/s · nothing shed _(D-M)_
+- Served 2,000/s of 16,000/s · 14,000/s shed, 87.5% _(D-RM, D-M)_
+- Served 2,000/s of 2,000/s · nothing shed _(D-RM, D-M)_
 - Served 2,000/s of 20,000/s · 18,000/s shed, 90% _(D-RM, D-M)_
 - Served 2,000/s of 3,000/s · 1,000/s shed, 33.3% _(D-M)_
-- Served 2,000/s of 4,000/s · 2,000/s shed, 50% _(D-M)_
 - Served 2,000/s of 5,000/s · 3,000/s shed, 60% _(D-M)_
 - Served 2,000/s of 6,000/s · 4,000/s shed, 66.7% _(D-M)_
 - Served 2,000/s of 8,000/s · 6,000/s shed, 75% _(D-M)_
@@ -499,25 +522,29 @@ once, with the walks that showed it.
 - Served 3,000/s of 3,000/s · nothing shed _(D-M)_
 - Served 4,000/s _(320)_
 - Served 4,000/s of 10,000/s · 6,000/s shed, 60% _(D-RM, D-M)_
-- Served 4,000/s of 16,000/s · 12,000/s shed, 75% _(D-M)_
-- Served 4,000/s of 4,000/s · nothing shed _(D-M)_
+- Served 4,000/s of 16,000/s · 12,000/s shed, 75% _(D-RM, D-M)_
 - Served 4,000/s of 5,000/s · 1,000/s shed, 20% _(D-M)_
 - Served 4,000/s of 6,000/s · 2,000/s shed, 33.3% _(D-M)_
 - Served 4,000/s of 8,000/s · 4,000/s shed, 50% _(D-RM, D-M)_
 - Served 5,000/s of 5,000/s · nothing shed _(D-M)_
 - Served 6,000/s _(320)_
+- Served 6,000/s of 10,000/s · 4,000/s shed, 40% _(D-M)_
+- Served 6,000/s of 14,000/s · 8,000/s shed, 57.1% _(D-M)_
+- Served 6,000/s of 16,000/s · 10,000/s shed, 62.5% _(D-M)_
+- Served 6,000/s of 18,000/s · 12,000/s shed, 66.7% _(D-M)_
 - Served 6,000/s of 20,000/s · 14,000/s shed, 70% _(D-RM, D-M)_
 - Served 6,000/s of 6,000/s · nothing shed _(D-RM, D-M)_
+- Served 6,000/s of 7,000/s · 1,000/s shed, 14.3% _(D-M)_
 - Served 6,000/s of 8,000/s · 2,000/s shed, 25% _(D-RM, D-M)_
 - Served 7,273/s _(320)_
 - Served 7,273/s of 16,000/s · 8,727/s shed, 54.5% _(D-RM, D-M)_
 - Served 7,273/s of 8,000/s · 727/s shed, 9.1% _(D-RM, D-M)_
-- Served 8,000/s of 8,000/s · nothing shed _(D-RM, D-M)_
+- Served 8,000/s _(320)_
+- Served 8,000/s of 8,000/s · nothing shed _(D-M)_
 - Served 9,000/s _(320)_
 - Served 9,000/s of 10,000/s · 1,000/s shed, 10% _(D-RM, D-M)_
 - Served 9,000/s of 12,000/s · 3,000/s shed, 25% _(D-RM, D-M)_
 - shed _(D-RM, D-M, 320)_
-- shows after your answer. _(320)_
 - spare, 70% mark _(D-RM, D-M, 320)_
 - the bottleneck _(320)_
 - the database. _(320)_
@@ -526,11 +553,11 @@ once, with the walks that showed it.
 - the primary. _(320)_
 - to each would need _(320)_
 - Traffic _(D-RM, D-M, 320)_
-- was 21,053/s _(320)_
+- was 21,053/s, 21,053/s _(320)_
 - was 27,586/s _(D-RM, D-M, 320)_
 - was 30,769/s _(320)_
 - was 4,000/s _(320)_
-- was 7,273/s _(320)_
+- was 7,273/s, 21,053/s _(320)_
 - With no primary, writes have _(320)_
 - With no primary, writes have nowhere to go. _(D-RM, D-M)_
 - Workers on one server _(D-RM, D-M)_
@@ -543,7 +570,7 @@ once, with the walks that showed it.
 - writes + 0.9 reads) _(320)_
 - writes + 1.8 reads) _(320)_
 
-## Stage summary (the drawing's accessible name) (71)
+## Stage summary (the drawing's accessible name) (78)
 
 - All 1,000 requests a second are served. The app servers are the busiest, at 11.1%. The load balancers are at 10%; the database primary is at 2.5%; the read replica is at 4.8%. Zone A is down. _(D-M)_
 - All 1,000 requests a second are served. The app servers are the busiest, at 11.1%. The load balancers are at 10%; the database primary is at 2.5%; the read replicas are at 3.6% each. _(D-M)_
@@ -561,18 +588,24 @@ once, with the walks that showed it.
 - All 16,000 requests a second are served. The app servers are the busiest, at 62.7%. The load balancers are at 53.3%; the database primary is at 40%; the read replicas are at 58% each. _(D-RM, D-M, 320)_
 - All 16,000 requests a second are served. The app servers are the busiest, at 66.7%. The load balancers are at 53.3%; the database primary is at 40%; the read replicas are at 58% each. _(D-RM, D-M, 320)_
 - All 16,000 requests a second are served. The load balancers and the app servers are the busiest, at 53.3%. The database primary is at 40%; the read replicas are at 46% each. _(D-M)_
+- All 2,000 requests a second are served. The app servers are the busiest, at 22.2%. The load balancers are at 20%; the database primary is at 5%; the read replicas are at 7.2% each. _(D-M)_
+- All 2,000 requests a second are served. The app servers are the busiest, at 33.3%. The load balancers are at 20%; the database primary is at 5%; the read replicas are at 27.5% each. _(D-RM, D-M)_
 - All 2,000 requests a second are served. The database primary is the busiest, at 100%. The load balancers are at 20%; the app servers are at 33.3%. There are no read replicas: the primary takes every read. _(D-M)_
 - All 2,000 requests a second are served. The load balancers and the app servers are the busiest, at 6.7%. The database primary is at 5%; the read replicas are at 5.8% each. _(D-M)_
 - All 2,000 requests a second are served. The read replica is the busiest, at 50%. The load balancers are at 20%; the app servers are at 33.3%; the database primary is at 5%. _(D-M)_
 - All 20,000 requests a second are served. The load balancers and the app servers are the busiest, at 66.7%. The database primary is at 50%; the read replicas are at 57.5% each. _(D-RM, D-M, 320)_
 - All 20,000 requests a second are served. The load balancers and the app servers are the busiest, at 66.7%. The database primary is at 50%; the read replicas are at 61.3% each. _(D-RM, D-M, 320)_
-- All 20,000 requests a second are served. The read replicas are the busiest, at 72.5% each. The load balancers are at 66.7%; the app servers are at 66.7%; the database primary is at 50%. _(D-RM, 320)_
+- All 3,000 requests a second are served. The app servers are the busiest, at 33.3%. The load balancers are at 30%; the database primary is at 7.5%; the read replicas are at 10.9% each. _(D-M)_
+- All 3,000 requests a second are served. The app servers are the busiest, at 50%. The load balancers are at 30%; the database primary is at 7.5%; the read replicas are at 41.3% each. _(D-M)_
 - All 3,000 requests a second are served. The load balancers and the app servers are the busiest, at 10%. The database primary is at 7.5%; the read replicas are at 8.6% each. _(D-M)_
-- All 4,000 requests a second are served. The read replica is the busiest, at 100%. The load balancers are at 40%; the app servers are at 66.7%; the database primary is at 10%. _(D-M)_
+- All 3,000 requests a second are served. The read replica is the busiest, at 75%. The load balancers are at 30%; the app servers are at 50%; the database primary is at 7.5%. _(D-M)_
+- All 5,000 requests a second are served. The app servers are the busiest, at 55.6%. The load balancers are at 50%; the database primary is at 12.5%; the read replicas are at 18.1% each. _(D-M)_
+- All 5,000 requests a second are served. The app servers are the busiest, at 83.3%. The load balancers are at 50%; the database primary is at 12.5%; the read replicas are at 68.8% each. _(D-M)_
 - All 5,000 requests a second are served. The load balancers and the app servers are the busiest, at 16.7%. The database primary is at 12.5%; the read replicas are at 14.4% each. _(D-M)_
-- All 6,000 requests a second are served. The app servers are the busiest, at 66.7%. The load balancers are at 60%; the database primary is at 15%; the read replicas are at 21.7% each. _(D-RM, D-M)_
+- All 6,000 requests a second are served. The app servers are the busiest, at 100%. The load balancers are at 60%; the database primary is at 15%; the read replicas are at 82.5% each. _(D-M)_
+- All 6,000 requests a second are served. The app servers are the busiest, at 66.7%. The load balancers are at 60%; the database primary is at 15%; the read replicas are at 21.7% each. _(D-RM, D-M, 320)_
 - All 6,000 requests a second are served. The load balancers and the app servers are the busiest, at 20%. The database primary is at 15%; the read replicas are at 17.3% each. _(D-M)_
-- All 8,000 requests a second are served. The app servers are the busiest, at 88.9%. The load balancers are at 80%; the database primary is at 20%; the read replicas are at 29% each. _(D-RM)_
+- All 8,000 requests a second are served. The app servers are the busiest, at 88.9%. The load balancers are at 80%; the database primary is at 20%; the read replicas are at 29% each. _(D-M, 320)_
 - All 8,000 requests a second are served. The load balancers and the app servers are the busiest, at 26.7%. The database primary is at 20%; the read replicas are at 23% each. _(D-M)_
 - Of 1,000 requests a second offered, what each tier takes shows after your answer. _(D-RM, D-M)_
 - Of 1,000 requests a second, none are served. The primary fell with zone A and no replica could take over, so every request fails at the database. The load balancers are at 20%; the app servers are at 33.3%. Zone A is down. _(D-M)_
@@ -580,44 +613,45 @@ once, with the walks that showed it.
 - Of 10,000 requests a second offered, what each tier takes shows after your answer. _(D-M)_
 - Of 10,000 requests a second, 2,000 are served and 8,000 shed. The database primary is the bottleneck, full at 2,000 a second. The load balancers are at 100%; the app servers are full, shedding 4,000 a second. There are no read replicas: the primary takes every read. _(D-M)_
 - Of 10,000 requests a second, 4,000 are served and 6,000 shed. The database primary is the bottleneck, full at 4,000 a second. The load balancers are at 100%; the app servers are full, shedding 4,000 a second. There are no read replicas: the primary takes every read. _(D-RM, D-M, 320)_
-- Of 10,000 requests a second, 4,000 are served and 6,000 shed. The database primary is the bottleneck, full at 4,000 a second. The load balancers are at 66.7%; the app servers are at 83.3%. There are no read replicas: the primary takes every read. _(D-RM, 320)_
+- Of 10,000 requests a second, 4,000 are served and 6,000 shed. The database primary is the bottleneck, full at 4,000 a second. The load balancers are at 66.7%; the app servers are at 83.3%. There are no read replicas: the primary takes every read. _(D-RM, D-M)_
+- Of 10,000 requests a second, 6,000 are served and 4,000 shed. The app servers are the bottleneck, full at 6,000 a second. The load balancers are at 100%; the database primary is at 15%; the read replicas are at 82.5% each. _(D-M)_
 - Of 10,000 requests a second, 9,000 are served and 1,000 shed. The app servers are the bottleneck, full at 9,000 a second. The load balancers are at 100%; the database primary is at 22.5%; the read replica is at 42.8%. Zone A is down. _(D-RM, D-M, 320)_
-- Of 10,000 requests a second, 9,000 are served and 1,000 shed. The app servers are the bottleneck, full at 9,000 a second. The load balancers are at 100%; the database primary is at 22.5%; the read replicas are at 32.6% each. _(320)_
+- Of 10,000 requests a second, 9,000 are served and 1,000 shed. The app servers are the bottleneck, full at 9,000 a second. The load balancers are at 100%; the database primary is at 22.5%; the read replicas are at 32.6% each. _(D-RM, D-M)_
 - Of 12,000 requests a second, 9,000 are served and 3,000 shed. The app servers are the bottleneck, full at 9,000 a second. The load balancers are full, shedding 2,000 a second; the database primary is at 22.5%; the read replica is at 42.8%. Zone A is down. _(D-RM, D-M, 320)_
 - Of 12,000 requests a second, 9,000 are served and 3,000 shed. The app servers are the bottleneck, full at 9,000 a second. The load balancers are full, shedding 2,000 a second; the database primary is at 22.5%; the read replicas are at 32.6% each. _(D-RM, D-M, 320)_
 - Of 14,000 requests a second, 2,000 are served and 12,000 shed. The database primary is the bottleneck, full at 2,000 a second. The load balancers are full, shedding 4,000 a second; the app servers are full, shedding 4,000 a second. There are no read replicas: the primary takes every read. _(D-M)_
-- Of 16,000 requests a second, 2,000 are served and 14,000 shed. The database primary is the bottleneck, full at 2,000 a second. The load balancers are full, shedding 6,000 a second; the app servers are at 83.3%. There are no read replicas: the primary takes every read. _(D-M)_
-- Of 16,000 requests a second, 2,000 are served and 14,000 shed. The database primary is the bottleneck, full at 2,000 a second. The load balancers are full, shedding 6,000 a second; the app servers are full, shedding 4,000 a second. There are no read replicas: the primary takes every read. _(D-M)_
-- Of 16,000 requests a second, 4,000 are served and 12,000 shed. The read replica is the bottleneck, full at 4,000 a second. The load balancers are at 53.3%; the app servers are at 62.7%; the database primary is at 10%. _(D-M)_
+- Of 14,000 requests a second, 6,000 are served and 8,000 shed. The app servers are the bottleneck, full at 6,000 a second. The load balancers are full, shedding 4,000 a second; the database primary is at 15%; the read replicas are at 82.5% each. _(D-M)_
+- Of 16,000 requests a second, 2,000 are served and 14,000 shed. The database primary is the bottleneck, full at 2,000 a second. The load balancers are full, shedding 6,000 a second; the app servers are at 83.3%. There are no read replicas: the primary takes every read. _(D-RM, 320)_
+- Of 16,000 requests a second, 2,000 are served and 14,000 shed. The database primary is the bottleneck, full at 2,000 a second. The load balancers are full, shedding 6,000 a second; the app servers are full, shedding 4,000 a second. There are no read replicas: the primary takes every read. _(D-RM, D-M)_
+- Of 16,000 requests a second, 4,000 are served and 12,000 shed. The read replica is the bottleneck, full at 4,000 a second. The load balancers are at 53.3%; the app servers are at 62.7%; the database primary is at 10%. _(D-RM, D-M)_
+- Of 16,000 requests a second, 6,000 are served and 10,000 shed. The app servers are the bottleneck, full at 6,000 a second. The load balancers are full, shedding 6,000 a second; the database primary is at 15%; the read replicas are at 82.5% each. _(D-M)_
 - Of 16,000 requests a second, 7,273 are served and 8,727 shed. The read replicas are the bottleneck, full at 7,273 a second. The load balancers are at 53.3%; the app servers are at 62.7%; the database primary is at 18.2%. _(D-RM, D-M, 320)_
+- Of 18,000 requests a second, 6,000 are served and 12,000 shed. The app servers are the bottleneck, full at 6,000 a second. The load balancers are full, shedding 8,000 a second; the database primary is at 15%; the read replicas are at 82.5% each. _(D-M)_
 - Of 2,000 requests a second offered, what each tier takes shows after your answer. _(D-M)_
-- Of 2,000 requests a second, 1,200 are served and 800 shed. The app servers are the bottleneck, full at 1,200 a second. The load balancers are at 20%; the database primary is at 3%; the read replicas are at 4.3% each. Each request takes 500 ms. _(D-M)_
 - Of 20,000 requests a second offered, what each tier takes shows after your answer. _(D-M)_
 - Of 20,000 requests a second, 2,000 are served and 18,000 shed. The database primary is the bottleneck, full at 2,000 a second. The load balancers are full, shedding 10,000 a second; the app servers are full, shedding 4,000 a second. There are no read replicas: the primary takes every read. _(D-RM, D-M, 320)_
 - Of 20,000 requests a second, 6,000 are served and 14,000 shed. The app servers are the bottleneck, full at 6,000 a second. The load balancers are full, shedding 10,000 a second; the database primary is at 15%; the read replicas are at 82.5% each. _(D-RM, D-M, 320)_
 - Of 3,000 requests a second offered, what each tier takes shows after your answer. _(D-M)_
-- Of 3,000 requests a second, 1,200 are served and 1,800 shed. The app servers are the bottleneck, full at 1,200 a second. The load balancers are at 30%; the database primary is at 3%; the read replicas are at 4.3% each. Each request takes 500 ms. _(D-M)_
 - Of 3,000 requests a second, 2,000 are served and 1,000 shed. The database primary is the bottleneck, full at 2,000 a second. The load balancers are at 30%; the app servers are at 50%. There are no read replicas: the primary takes every read. _(D-M)_
-- Of 4,000 requests a second, 2,000 are served and 2,000 shed. The database primary is the bottleneck, full at 2,000 a second. The load balancers are at 40%; the app servers are at 66.7%. There are no read replicas: the primary takes every read. _(D-M)_
 - Of 5,000 requests a second offered, what each tier takes shows after your answer. _(D-M)_
-- Of 5,000 requests a second, 1,200 are served and 3,800 shed. The app servers are the bottleneck, full at 1,200 a second. The load balancers are at 50%; the database primary is at 3%; the read replicas are at 4.3% each. Each request takes 500 ms. _(D-M)_
 - Of 5,000 requests a second, 2,000 are served and 3,000 shed. The database primary is the bottleneck, full at 2,000 a second. The load balancers are at 50%; the app servers are at 83.3%. There are no read replicas: the primary takes every read. _(D-M)_
 - Of 5,000 requests a second, 4,000 are served and 1,000 shed. The read replica is the bottleneck, full at 4,000 a second. The load balancers are at 50%; the app servers are at 83.3%; the database primary is at 10%. _(D-M)_
 - Of 6,000 requests a second offered, what each tier takes shows after your answer. _(D-M)_
 - Of 6,000 requests a second, 1,200 are served and 4,800 shed. The app servers are the bottleneck, full at 1,200 a second. The load balancers are at 60%; the database primary is at 3%; the read replicas are at 4.3% each. Each request takes 500 ms. _(D-RM, D-M, 320)_
 - Of 6,000 requests a second, 2,000 are served and 4,000 shed. The database primary is the bottleneck, full at 2,000 a second. The load balancers are at 60%; the app servers are at 100%. There are no read replicas: the primary takes every read. _(D-M)_
 - Of 6,000 requests a second, 4,000 are served and 2,000 shed. The read replica is the bottleneck, full at 4,000 a second. The load balancers are at 60%; the app servers are at 100%; the database primary is at 10%. _(D-M)_
+- Of 7,000 requests a second, 6,000 are served and 1,000 shed. The app servers are the bottleneck, full at 6,000 a second. The load balancers are at 70%; the database primary is at 15%; the read replicas are at 82.5% each. _(D-M, 320)_
 - Of 8,000 requests a second offered, what each tier takes shows after your answer. _(D-M)_
 - Of 8,000 requests a second, 1,500 are served and 6,500 shed. The app servers are the bottleneck, full at 1,500 a second. The load balancers are full, shedding 3,000 a second; the database primary is at 3.8%; the read replicas are at 20.6% each. _(D-RM, D-M, 320)_
 - Of 8,000 requests a second, 2,000 are served and 6,000 shed. The database primary is the bottleneck, full at 2,000 a second. The load balancers are at 80%; the app servers are full, shedding 2,000 a second. There are no read replicas: the primary takes every read. _(D-M)_
-- Of 8,000 requests a second, 4,000 are served and 4,000 shed. The database primary is the bottleneck, full at 4,000 a second. The load balancers are at 80%; the app servers are full, shedding 2,000 a second. There are no read replicas: the primary takes every read. _(D-RM, 320)_
+- Of 8,000 requests a second, 4,000 are served and 4,000 shed. The database primary is the bottleneck, full at 4,000 a second. The load balancers are at 80%; the app servers are full, shedding 2,000 a second. There are no read replicas: the primary takes every read. _(D-RM, D-M, 320)_
 - Of 8,000 requests a second, 4,000 are served and 4,000 shed. The read replica is the bottleneck, full at 4,000 a second. The load balancers are at 80%; the app servers are full, shedding 2,000 a second; the database primary is at 10%. _(D-RM, D-M, 320)_
 - Of 8,000 requests a second, 6,000 are served and 2,000 shed. The app servers are the bottleneck, full at 6,000 a second. The load balancers are at 80%; the database primary is at 15%; the read replicas are at 82.5% each. _(D-RM, D-M, 320)_
 - Of 8,000 requests a second, 7,273 are served and 727 shed. The read replicas are the bottleneck, full at 7,273 a second. The load balancers are at 80%; the app servers are full, shedding 500 a second; the database primary is at 18.2%. _(D-RM, D-M, 320)_
 - Of 8,000 requests a second, none are served. The primary fell with zone A and no replica could take over, so every request fails at the database. The load balancers are full, shedding 3,000 a second; the app servers are full, shedding 2,000 a second. Zone A is down. _(D-RM, D-M, 320)_
-- Of 8,000 requests a second, none are served. Zone A held every load balancer and app server, so nothing gets past the load balancers. The database primary receives nothing; the read replica receives nothing. Zone A is down. _(D-RM, D-M, 320)_
+- Of 8,000 requests a second, none are served. Zone A held every load balancer and app server, so nothing gets past the load balancers. The database primary receives nothing; the read replica receives nothing. Zone A is down. _(D-RM, 320)_
 
-## Accessible names (Play, the stage, the table) (35)
+## Accessible names (Play, the stage, the table) (37)
 
 - A bigger database machine _(D-RM, D-M, 320)_
 - A smaller database machine _(D-RM, D-M, 320)_
@@ -643,8 +677,10 @@ once, with the walks that showed it.
 - Ramp the traffic up to 10,000 requests a second _(D-RM, D-M, 320)_
 - Ramp the traffic up to 12,000 requests a second _(D-RM, D-M, 320)_
 - Ramp the traffic up to 16,000 requests a second _(D-RM, D-M, 320)_
+- Ramp the traffic up to 2,000 requests a second _(D-RM)_
 - Ramp the traffic up to 20,000 requests a second _(D-RM, D-M, 320)_
 - Ramp the traffic up to 6,000 requests a second _(D-RM, D-M, 320)_
+- Ramp the traffic up to 7,000 requests a second _(320)_
 - Ramp the traffic up to 8,000 requests a second _(D-RM, D-M, 320)_
 - Ramp the traffic, after your answer _(D-RM, D-M, 320)_
 - Stop the ramp _(D-M)_
@@ -655,70 +691,74 @@ once, with the walks that showed it.
 - your answer, correct _(D-M)_
 - your answer, wrong _(D-RM, 320)_
 
-## Slider values (aria-valuetext) (12)
+## Slider values (aria-valuetext) (13)
 
 - 1,000 requests a second _(D-RM, D-M, 320)_
 - 10,000 requests a second _(D-RM, D-M, 320)_
 - 12,000 requests a second _(D-RM, D-M, 320)_
 - 14,000 requests a second _(D-M)_
 - 16,000 requests a second _(D-RM, D-M, 320)_
-- 2,000 requests a second _(D-M)_
+- 18,000 requests a second _(D-M)_
+- 2,000 requests a second _(D-RM, D-M)_
 - 20,000 requests a second _(D-RM, D-M, 320)_
 - 3,000 requests a second _(D-M)_
-- 4,000 requests a second _(D-M)_
 - 5,000 requests a second _(D-M)_
 - 6,000 requests a second _(D-RM, D-M, 320)_
+- 7,000 requests a second _(D-M, 320)_
 - 8,000 requests a second _(D-RM, D-M, 320)_
 
-## Notices (polite live region) (47)
+## Notices (polite live region) (50)
 
+- All 1,000 requests a second are served. The app servers are the busiest, at 16.7%. The load balancers are at 10%; the database primary is at 2.5%; the read replicas are at 13.8% each. _(D-RM, D-M)_
 - All 10,000 requests a second are served. The app servers are the busiest, at 83.3%. The load balancers are at 66.7%; the database primary is at 47.5%. There are no read replicas: the primary takes every read. _(D-RM, D-M, 320)_
+- All 12,000 requests a second are served. The app servers are the busiest, at 88.9%. The load balancers are at 80%; the database primary is at 30%; the read replicas are at 39% each. _(D-RM, 320)_
+- All 2,000 requests a second are served. The app servers are the busiest, at 33.3%. The load balancers are at 20%; the database primary is at 5%; the read replicas are at 27.5% each. _(D-RM)_
+- All 20,000 requests a second are served. The load balancers and the app servers are the busiest, at 66.7%. The database primary is at 50%; the read replicas are at 57.5% each. _(D-RM, D-M, 320)_
 - All 20,000 requests a second are served. The load balancers and the app servers are the busiest, at 66.7%. The database primary is at 50%; the read replicas are at 61.3% each. _(D-RM, D-M, 320)_
+- All 6,000 requests a second are served. The app servers are the busiest, at 66.7%. The load balancers are at 60%; the database primary is at 15%; the read replicas are at 21.7% each. _(D-RM, D-M, 320)_
 - App servers: now 1. Of 8,000 requests a second, 1,500 are served and 6,500 shed. The app servers are the bottleneck, full at 1,500 a second. The load balancers are full, shedding 3,000 a second; the database primary is at 3.8%; the read replicas are at 20.6% each. _(D-RM, D-M, 320)_
 - App servers: now 16. All 16,000 requests a second are served. The app servers are the busiest, at 66.7%. The load balancers are at 53.3%; the database primary is at 40%; the read replicas are at 58% each. _(D-RM, D-M, 320)_
 - App servers: now 17. All 16,000 requests a second are served. The app servers are the busiest, at 62.7%. The load balancers are at 53.3%; the database primary is at 40%; the read replicas are at 58% each. _(D-RM, D-M, 320)_
-- App servers: now 5. Of 8,000 requests a second, 7,273 are served and 727 shed. The read replicas are the bottleneck, full at 7,273 a second. The load balancers are at 80%; the app servers are full, shedding 500 a second; the database primary is at 18.2%. _(D-RM, D-M, 320)_
+- App servers: now 5. Of 8,000 requests a second, 7,273 are served and 727 shed. The read replicas are the bottleneck, full at 7,273 a second. The load balancers are at 80%; the app servers are full, shedding 500 a second; the database primary is at 18.2%. _(D-RM, D-M)_
 - Cache reads: on. All 16,000 requests a second are served. The app servers are the busiest, at 62.7%. The load balancers are at 53.3%; the database primary is at 40%; the read replicas are at 58% each. _(D-RM, D-M, 320)_
-- Cache reads: on. All 8,000 requests a second are served. The app servers are the busiest, at 88.9%. The load balancers are at 80%; the database primary is at 20%; the read replicas are at 29% each. _(D-RM)_
+- Cache reads: on. All 8,000 requests a second are served. The app servers are the busiest, at 88.9%. The load balancers are at 80%; the database primary is at 20%; the read replicas are at 29% each. _(D-M, 320)_
 - Of 10,000 requests a second, 4,000 are served and 6,000 shed. The database primary is the bottleneck, full at 4,000 a second. The load balancers are at 100%; the app servers are full, shedding 4,000 a second. There are no read replicas: the primary takes every read. _(D-RM, D-M, 320)_
 - Of 10,000 requests a second, 9,000 are served and 1,000 shed. The app servers are the bottleneck, full at 9,000 a second. The load balancers are at 100%; the database primary is at 22.5%; the read replica is at 42.8%. Zone A is down. _(D-RM, D-M, 320)_
-- Of 16,000 requests a second, 2,000 are served and 14,000 shed. The database primary is the bottleneck, full at 2,000 a second. The load balancers are full, shedding 6,000 a second; the app servers are at 83.3%. There are no read replicas: the primary takes every read. _(D-M)_
+- Of 10,000 requests a second, 9,000 are served and 1,000 shed. The app servers are the bottleneck, full at 9,000 a second. The load balancers are at 100%; the database primary is at 22.5%; the read replicas are at 32.6% each. _(D-RM)_
+- Of 12,000 requests a second, 9,000 are served and 3,000 shed. The app servers are the bottleneck, full at 9,000 a second. The load balancers are full, shedding 2,000 a second; the database primary is at 22.5%; the read replicas are at 32.6% each. _(D-RM, 320)_
+- Of 16,000 requests a second, 2,000 are served and 14,000 shed. The database primary is the bottleneck, full at 2,000 a second. The load balancers are full, shedding 6,000 a second; the app servers are at 83.3%. There are no read replicas: the primary takes every read. _(D-RM, 320)_
+- Of 16,000 requests a second, 2,000 are served and 14,000 shed. The database primary is the bottleneck, full at 2,000 a second. The load balancers are full, shedding 6,000 a second; the app servers are full, shedding 4,000 a second. There are no read replicas: the primary takes every read. _(D-RM)_
+- Of 20,000 requests a second, 2,000 are served and 18,000 shed. The database primary is the bottleneck, full at 2,000 a second. The load balancers are full, shedding 10,000 a second; the app servers are full, shedding 4,000 a second. There are no read replicas: the primary takes every read. _(D-M, 320)_
+- Of 20,000 requests a second, 6,000 are served and 14,000 shed. The app servers are the bottleneck, full at 6,000 a second. The load balancers are full, shedding 10,000 a second; the database primary is at 15%; the read replicas are at 82.5% each. _(D-RM, D-M, 320)_
 - Of 6,000 requests a second, 1,200 are served and 4,800 shed. The app servers are the bottleneck, full at 1,200 a second. The load balancers are at 60%; the database primary is at 3%; the read replicas are at 4.3% each. Each request takes 500 ms. _(D-RM, D-M, 320)_
+- Of 7,000 requests a second, 6,000 are served and 1,000 shed. The app servers are the bottleneck, full at 6,000 a second. The load balancers are at 70%; the database primary is at 15%; the read replicas are at 82.5% each. _(320)_
 - Of 8,000 requests a second, 6,000 are served and 2,000 shed. The app servers are the bottleneck, full at 6,000 a second. The load balancers are at 80%; the database primary is at 15%; the read replicas are at 82.5% each. _(D-RM, D-M, 320)_
 - Play and the settings this question is about wait for your answer. _(D-RM, D-M, 320)_
 - Play ramps the traffic from 1,000 to 12,000 requests a second. _(D-M)_
 - Play ramps the traffic from 1,000 to 20,000 requests a second. _(D-M)_
 - Play ramps the traffic from 1,000 to 6,000 requests a second. _(D-M)_
 - Play ramps the traffic from 1,000 to 8,000 requests a second. _(D-M)_
-- Play ran 1,000 requests a second through the tiers. No tier shed; the app servers came closest, at 16.7%. _(D-RM, D-M, 320)_
+- Play ran 1,000 requests a second through the tiers. No tier shed; the app servers came closest, at 16.7%. _(D-RM, 320)_
 - Play runs 1,000 requests a second through the tiers. _(D-M)_
-- Play stepped the traffic from 1,000 to 12,000 requests a second. At 10,000, the app servers began to shed first; at 12,000, 9,000 a second are served and 3,000 shed. _(D-RM, 320)_
+- Play stepped the traffic from 1,000 to 12,000 requests a second. At 10,000, the app servers began to shed first; at 12,000, 9,000 a second are served and 3,000 shed. _(D-RM, D-M, 320)_
 - Play stepped the traffic from 1,000 to 20,000 requests a second. At 3,000, the database primary began to shed first; at 20,000, 2,000 a second are served and 18,000 shed. _(D-RM, D-M, 320)_
-- Play stepped the traffic from 1,000 to 20,000 requests a second. At 7,000, the app servers began to shed first; at 20,000, 6,000 a second are served and 14,000 shed. _(D-RM, 320)_
+- Play stepped the traffic from 1,000 to 20,000 requests a second. At 7,000, the app servers began to shed first; at 20,000, 6,000 a second are served and 14,000 shed. _(D-RM, D-M, 320)_
 - Play stepped the traffic from 1,000 to 20,000 requests a second. No tier shed; the load balancers and the app servers came closest, at 66.7%. _(D-RM, D-M, 320)_
-- Play stepped the traffic from 1,000 to 6,000 requests a second. At 2,000, the app servers began to shed first; at 6,000, 1,200 a second are served and 4,800 shed. _(D-RM, D-M, 320)_
+- Play stepped the traffic from 1,000 to 6,000 requests a second. At 2,000, the app servers began to shed first; at 6,000, 1,200 a second are served and 4,800 shed. _(D-RM, 320)_
 - Play stepped the traffic from 1,000 to 8,000 requests a second. At 5,000, the read replica began to shed first; at 8,000, 4,000 a second are served and 4,000 shed. _(D-RM, D-M, 320)_
 - Play stepped the traffic from 1,000 to 8,000 requests a second. At 7,000, the app servers began to shed first; at 8,000, 6,000 a second are served and 2,000 shed. _(D-RM, 320)_
 - Play stepped the traffic from 1,000 to 8,000 requests a second. At 8,000, two tiers began to shed at once: the app servers 500 a second and the read replicas, the bottleneck, 227; in all, 7,273 a second are served and 727 shed. _(D-RM, 320)_
 - Play stepped the traffic from 1,000 to 8,000 requests a second. From 1,000 on, every request fails at the database: the primary fell with zone A, and no replica could take over. _(D-RM, 320)_
 - Play stepped the traffic from 1,000 to 8,000 requests a second. From 1,000 on, nothing gets past the load balancers: zone A held the only one. _(D-RM, 320)_
-- Read replicas: now 1. Of 16,000 requests a second, 4,000 are served and 12,000 shed. The read replica is the bottleneck, full at 4,000 a second. The load balancers are at 53.3%; the app servers are at 62.7%; the database primary is at 10%. _(D-M)_
+- Read replicas: now 1. Of 16,000 requests a second, 4,000 are served and 12,000 shed. The read replica is the bottleneck, full at 4,000 a second. The load balancers are at 53.3%; the app servers are at 62.7%; the database primary is at 10%. _(D-RM, D-M)_
 - Read replicas: now 1. Of 8,000 requests a second, 4,000 are served and 4,000 shed. The read replica is the bottleneck, full at 4,000 a second. The load balancers are at 80%; the app servers are full, shedding 2,000 a second; the database primary is at 10%. _(D-RM, D-M, 320)_
 - Read replicas: now 2. Of 16,000 requests a second, 7,273 are served and 8,727 shed. The read replicas are the bottleneck, full at 7,273 a second. The load balancers are at 53.3%; the app servers are at 62.7%; the database primary is at 18.2%. _(D-RM, D-M, 320)_
-- Read replicas: now none. Of 8,000 requests a second, 4,000 are served and 4,000 shed. The database primary is the bottleneck, full at 4,000 a second. The load balancers are at 80%; the app servers are full, shedding 2,000 a second. There are no read replicas: the primary takes every read. _(D-RM, 320)_
+- Read replicas: now none. Of 8,000 requests a second, 4,000 are served and 4,000 shed. The database primary is the bottleneck, full at 4,000 a second. The load balancers are at 80%; the app servers are full, shedding 2,000 a second. There are no read replicas: the primary takes every read. _(D-RM, D-M, 320)_
 - Slow queries: on. Of 6,000 requests a second, 1,200 are served and 4,800 shed. The app servers are the bottleneck, full at 1,200 a second. The load balancers are at 60%; the database primary is at 3%; the read replicas are at 4.3% each. _(D-RM, D-M, 320)_
-- Traffic: now 1,000 requests a second. All 1,000 requests a second are served. The app servers are the busiest, at 16.7%. The load balancers are at 10%; the database primary is at 2.5%; the read replicas are at 13.8% each. _(D-RM, D-M, 320)_
-- Traffic: now 10,000 requests a second. Of 10,000 requests a second, 9,000 are served and 1,000 shed. The app servers are the bottleneck, full at 9,000 a second. The load balancers are at 100%; the database primary is at 22.5%; the read replicas are at 32.6% each. _(320)_
-- Traffic: now 12,000 requests a second. All 12,000 requests a second are served. The app servers are the busiest, at 88.9%. The load balancers are at 80%; the database primary is at 30%; the read replicas are at 39% each. _(D-RM, 320)_
-- Traffic: now 12,000 requests a second. Of 12,000 requests a second, 9,000 are served and 3,000 shed. The app servers are the bottleneck, full at 9,000 a second. The load balancers are full, shedding 2,000 a second; the database primary is at 22.5%; the read replicas are at 32.6% each. _(D-RM, D-M, 320)_
-- Traffic: now 20,000 requests a second. All 20,000 requests a second are served. The load balancers and the app servers are the busiest, at 66.7%. The database primary is at 50%; the read replicas are at 57.5% each. _(D-RM, D-M, 320)_
-- Traffic: now 20,000 requests a second. Of 20,000 requests a second, 2,000 are served and 18,000 shed. The database primary is the bottleneck, full at 2,000 a second. The load balancers are full, shedding 10,000 a second; the app servers are full, shedding 4,000 a second. There are no read replicas: the primary takes every read. _(D-RM, D-M, 320)_
-- Traffic: now 20,000 requests a second. Of 20,000 requests a second, 6,000 are served and 14,000 shed. The app servers are the bottleneck, full at 6,000 a second. The load balancers are full, shedding 10,000 a second; the database primary is at 15%; the read replicas are at 82.5% each. _(D-RM, D-M, 320)_
-- Traffic: now 6,000 requests a second. All 6,000 requests a second are served. The app servers are the busiest, at 66.7%. The load balancers are at 60%; the database primary is at 15%; the read replicas are at 21.7% each. _(D-RM)_
 - Zone A: back up. All 16,000 requests a second are served. The app servers are the busiest, at 62.7%. The load balancers are at 53.3%; the database primary is at 40%; the read replicas are at 58% each. _(D-RM, D-M, 320)_
 - Zone A: down. Of 12,000 requests a second, 9,000 are served and 3,000 shed. The app servers are the bottleneck, full at 9,000 a second. The load balancers are full, shedding 2,000 a second; the database primary is at 22.5%; the read replica is at 42.8%. _(D-RM, D-M, 320)_
-- Zone A: down. Of 8,000 requests a second, none are served. The primary fell with zone A and no replica could take over, so every request fails at the database. The load balancers are full, shedding 3,000 a second; the app servers are full, shedding 2,000 a second. _(D-RM, D-M, 320)_
-- Zone A: down. Of 8,000 requests a second, none are served. Zone A held every load balancer and app server, so nothing gets past the load balancers. The database primary receives nothing; the read replica receives nothing. _(D-RM, D-M, 320)_
+- Zone A: down. Of 8,000 requests a second, none are served. The primary fell with zone A and no replica could take over, so every request fails at the database. The load balancers are full, shedding 3,000 a second; the app servers are full, shedding 2,000 a second. _(D-M, 320)_
+- Zone A: down. Of 8,000 requests a second, none are served. Zone A held every load balancer and app server, so nothing gets past the load balancers. The database primary receives nothing; the read replica receives nothing. _(D-RM, 320)_
 
 ## Controls (4)
 
@@ -727,86 +767,95 @@ once, with the walks that showed it.
 - ✓Zone A down one zone of three _(D-RM, D-M, 320)_
 - Conditions _(D-RM, D-M, 320)_
 
-## Describe (118)
+## Describe (128)
 
-- – _(320)_
-- 0 _(320)_
+- – _(D-M, 320)_
+- 0 _(D-M, 320)_
+- 0 of 1 _(D-M)_
+- 0/s _(D-M)_
 - 1 _(D-RM, D-M)_
-- 1 of 3 _(D-RM, D-M)_
-- 1, promoted _(D-RM, D-M)_
-- 1,000 _(320)_
+- 1 of 2 _(D-M)_
+- 1 of 3 _(D-M)_
+- 1, promoted _(D-M)_
 - 1,000/s _(D-RM, D-M)_
-- 1,200/s _(D-RM, D-M)_
+- 1,200 _(320)_
+- 1,200/s _(D-M)_
 - 10,000 _(320)_
 - 10,000/s _(D-RM, D-M)_
-- 10% _(D-M, 320)_
-- 100% _(320)_
+- 100% _(D-M, 320)_
 - 12,000 _(320)_
 - 12,000/s _(D-RM, D-M)_
-- 13.8% _(320)_
-- 14 machines in all, the cache's 3 nodes among them. _(D-RM, D-M)_
+- 14 machines in all, the cache's 3 nodes among them. _(D-RM, D-M, 320)_
 - 14,000 _(320)_
-- 15 machines in all, the cache's 3 nodes among them. _(320)_
+- 15 machines in all, the cache's 3 nodes among them. _(D-M, 320)_
 - 15,000 _(320)_
-- 15% _(D-RM, D-M, 320)_
-- 16.7% _(320)_
-- 18,000 _(320)_
-- 19 machines in all, the cache's 3 nodes among them; 12 up with zone A down. _(D-RM, D-M)_
-- 19 machines in all, the cache's 3 nodes among them; 12 up with zone A down. 1*: a replica promoted to primary. _(320)_
+- 15,000/s _(D-M)_
+- 15% _(320)_
+- 19 machines in all, the cache's 3 nodes among them; 12 up with zone A down. _(D-M)_
 - 2 _(D-RM, D-M)_
-- 2 of 3 _(D-RM, D-M)_
+- 2 of 3 _(D-M)_
+- 2 of 4 _(D-M)_
 - 2,000 _(320)_
 - 2,000/s _(D-RM, D-M)_
-- 2.5% _(320)_
 - 20 _(D-M)_
 - 20,000 _(320)_
 - 20,000/s _(D-M)_
 - 21,053 _(320)_
-- 21,053/s _(D-RM, D-M)_
-- 22.5% _(D-RM, D-M, 320)_
+- 21,053/s _(D-M)_
+- 22.5% _(D-RM, D-M)_
+- 27,586 _(320)_
 - 27,586/s _(D-RM, D-M)_
+- 3 _(D-M)_
+- 3,000 _(320)_
 - 3,000/s _(D-RM, D-M)_
-- 3% _(D-RM, D-M)_
+- 3% _(D-M, 320)_
 - 30,000 _(320)_
 - 30,000/s _(D-M)_
-- 32.6% _(D-RM, D-M)_
+- 32,653/s _(D-M)_
+- 32.6% _(D-RM)_
+- 34 machines in all, the cache's 3 nodes among them. _(D-M)_
 - 34,783 _(320)_
-- 34,783/s _(D-M)_
-- 36 machines in all, the cache's 3 nodes among them. _(D-M, 320)_
-- 4 _(D-RM, D-M)_
+- 36 machines in all, the cache's 3 nodes among them. _(320)_
+- 4 _(D-M)_
 - 4,000 _(320)_
 - 4,000/s _(D-M)_
-- 4,800/s _(D-RM, D-M)_
-- 4.3% _(D-RM, D-M)_
+- 4,800 _(320)_
+- 4,800/s _(D-M)_
+- 4.3% _(D-M, 320)_
 - 40,000 _(320)_
 - 40,000/s _(D-RM, D-M)_
-- 42.8% _(D-RM, D-M, 320)_
-- 47.5% _(320)_
+- 42.8% _(D-M)_
+- 47.5% _(D-M, 320)_
+- 5 machines in all; 2 up with zone A down. _(D-M)_
+- 5,000 _(320)_
+- 5,000/s _(D-M)_
 - 50% _(D-M, 320)_
-- 57.5% _(D-M, 320)_
+- 57.5% _(320)_
 - 6 _(D-RM, D-M)_
-- 6 of 9 _(D-RM, D-M)_
+- 6 of 9 _(D-M)_
 - 6,000 _(320)_
-- 6,000/s _(D-RM, D-M)_
-- 60% _(D-RM, D-M)_
+- 6,000/s _(D-M)_
+- 60% _(D-M, 320)_
+- 61.3% _(D-M)_
 - 66.7% _(D-M, 320)_
+- 7 machines in all; 3 up with zone A down. _(D-M, 320)_
 - 7 machines in all. _(320)_
 - 7,273 _(320)_
-- 7,273/s _(D-RM, D-M)_
-- 8 machines in all. _(D-M)_
-- 8,000/s _(D-RM, D-M)_
-- 80% _(D-RM, D-M)_
-- 82.5% _(D-RM, D-M, 320)_
-- 83.3% _(320)_
-- 9 machines in all. _(D-RM, D-M, 320)_
-- 9,000 _(320)_
+- 8 _(D-M)_
+- 8,000 _(320)_
+- 8,000/s _(D-M)_
+- 80% _(320)_
+- 82.5% _(320)_
+- 83.3% _(D-M, 320)_
+- 9 machines in all. _(320)_
 - 9,000/s _(D-RM, D-M)_
-- All 1,000 requests a second are served. The app servers are the busiest, at 16.7%. The load balancers are at 10%; the database primary is at 2.5%; the read replicas are at 13.8% each. _(320)_
-- All 10,000 requests a second are served. The app servers are the busiest, at 83.3%. The load balancers are at 66.7%; the database primary is at 47.5%. There are no read replicas: the primary takes every read. _(320)_
-- All 20,000 requests a second are served. The load balancers and the app servers are the busiest, at 66.7%. The database primary is at 50%; the read replicas are at 57.5% each. _(D-M, 320)_
+- All 10,000 requests a second are served. The app servers are the busiest, at 83.3%. The load balancers are at 66.7%; the database primary is at 47.5%. There are no read replicas: the primary takes every read. _(D-M, 320)_
+- All 20,000 requests a second are served. The load balancers and the app servers are the busiest, at 66.7%. The database primary is at 50%; the read replicas are at 57.5% each. _(320)_
+- All 20,000 requests a second are served. The load balancers and the app servers are the busiest, at 66.7%. The database primary is at 50%; the read replicas are at 61.3% each. _(D-M)_
+- App 2 of 4 _(320)_
 - App 20 _(320)_
 - App 4 _(320)_
-- App 6 of 9 _(320)_
+- App 6 _(320)_
 - App 8 _(320)_
 - App servers _(D-RM, D-M)_
 - Arriving _(D-RM, D-M)_
@@ -816,30 +865,31 @@ once, with the walks that showed it.
 - Describe waits until you meet the goal. _(D-RM, D-M, 320)_
 - full _(D-RM, D-M, 320)_
 - Hide the description _(D-RM, D-M, 320)_
+- idle _(D-M)_
 - In/s _(320)_
+- LBs 1 of 2 _(320)_
 - LBs 2 _(320)_
-- LBs 2 of 3 _(320)_
 - LBs 3 _(320)_
 - LBs 6 _(320)_
 - Limit _(D-RM, D-M)_
 - Limit/s _(320)_
 - Load balancers _(D-RM, D-M)_
+- lost _(D-M, 320)_
 - none _(D-RM, D-M)_
-- Of 10,000 requests a second, 9,000 are served and 1,000 shed. The app servers are the bottleneck, full at 9,000 a second. The load balancers are at 100%; the database primary is at 22.5%; the read replica is at 42.8%. Zone A is down. _(320)_
-- Of 12,000 requests a second, 9,000 are served and 3,000 shed. The app servers are the bottleneck, full at 9,000 a second. The load balancers are full, shedding 2,000 a second; the database primary is at 22.5%; the read replica is at 42.8%. Zone A is down. _(D-RM, D-M)_
-- Of 12,000 requests a second, 9,000 are served and 3,000 shed. The app servers are the bottleneck, full at 9,000 a second. The load balancers are full, shedding 2,000 a second; the database primary is at 22.5%; the read replicas are at 32.6% each. _(D-RM, D-M)_
-- Of 20,000 requests a second, 2,000 are served and 18,000 shed. The database primary is the bottleneck, full at 2,000 a second. The load balancers are full, shedding 10,000 a second; the app servers are full, shedding 4,000 a second. There are no read replicas: the primary takes every read. _(320)_
+- Of 10,000 requests a second, 4,000 are served and 6,000 shed. The database primary is the bottleneck, full at 4,000 a second. The load balancers are at 100%; the app servers are full, shedding 4,000 a second. There are no read replicas: the primary takes every read. _(320)_
+- Of 10,000 requests a second, 9,000 are served and 1,000 shed. The app servers are the bottleneck, full at 9,000 a second. The load balancers are at 100%; the database primary is at 22.5%; the read replica is at 42.8%. Zone A is down. _(D-M)_
+- Of 12,000 requests a second, 9,000 are served and 3,000 shed. The app servers are the bottleneck, full at 9,000 a second. The load balancers are full, shedding 2,000 a second; the database primary is at 22.5%; the read replicas are at 32.6% each. _(D-RM)_
 - Of 20,000 requests a second, 6,000 are served and 14,000 shed. The app servers are the bottleneck, full at 6,000 a second. The load balancers are full, shedding 10,000 a second; the database primary is at 15%; the read replicas are at 82.5% each. _(320)_
-- Of 6,000 requests a second, 1,200 are served and 4,800 shed. The app servers are the bottleneck, full at 1,200 a second. The load balancers are at 60%; the database primary is at 3%; the read replicas are at 4.3% each. Each request takes 500 ms. _(D-RM, D-M)_
-- Of 8,000 requests a second, 4,000 are served and 4,000 shed. The read replica is the bottleneck, full at 4,000 a second. The load balancers are at 80%; the app servers are full, shedding 2,000 a second; the database primary is at 10%. _(D-M)_
-- Of 8,000 requests a second, 6,000 are served and 2,000 shed. The app servers are the bottleneck, full at 6,000 a second. The load balancers are at 80%; the database primary is at 15%; the read replicas are at 82.5% each. _(D-RM, D-M)_
+- Of 6,000 requests a second, 1,200 are served and 4,800 shed. The app servers are the bottleneck, full at 1,200 a second. The load balancers are at 60%; the database primary is at 3%; the read replicas are at 4.3% each. Each request takes 500 ms. _(D-M, 320)_
+- Of 8,000 requests a second, 6,000 are served and 2,000 shed. The app servers are the bottleneck, full at 6,000 a second. The load balancers are at 80%; the database primary is at 15%; the read replicas are at 82.5% each. _(320)_
+- Of 8,000 requests a second, none are served. The primary fell with zone A and no replica could take over, so every request fails at the database. The load balancers are full, shedding 3,000 a second; the app servers are full, shedding 2,000 a second. Zone A is down. _(D-M, 320)_
+- Of 8,000 requests a second, none are served. Zone A held every load balancer and app server, so nothing gets past the load balancers. The database primary receives nothing; the read replica receives nothing. Zone A is down. _(D-M)_
 - Path _(320)_
 - Primary _(D-RM, D-M)_
 - Primary 1 _(320)_
-- Primary 1* _(320)_
+- Primary lost _(320)_
 - Read replicas _(D-RM, D-M)_
 - Replicas 0 _(320)_
-- Replicas 1 of 3 _(320)_
 - Replicas 2 _(320)_
 - Replicas 6 _(320)_
 - Shed _(D-RM, D-M)_
@@ -911,17 +961,17 @@ once, with the walks that showed it.
 ## Experiment dock (53)
 
 - ·headroom: the busiest tier is full, so none: not yet _(D-RM, D-M, 320)_
-- ·served: 2,000/s of 16,000/s, 14,000/s shed: not yet _(D-M)_
-- ·served: 4,000/s of 16,000/s, 12,000/s shed: not yet _(D-M)_
+- ·served: 2,000/s of 16,000/s, 14,000/s shed: not yet _(D-RM, 320)_
+- ·served: 4,000/s of 16,000/s, 12,000/s shed: not yet _(D-RM, D-M)_
 - ·served: 7,273/s of 16,000/s, 8,727/s shed: not yet _(D-RM, D-M, 320)_
-- ·zone A lost: 12,000/s shed at the database primary: not yet _(D-M)_
+- ·zone A lost: 12,000/s shed at the database primary: not yet _(D-RM, D-M)_
 - ·zone A lost: 12,000/s shed at the read replica: not yet _(D-RM, D-M, 320)_
 - ·zone A lost: it held 6 of 16 app servers; the 10 left shed 1,000/s: not yet _(D-RM, D-M, 320)_
-- ·zone A lost: the primary falls with it, and no replica takes over: not yet _(D-M)_
+- ·zone A lost: the primary falls with it, and no replica takes over: not yet _(D-RM, 320)_
 - ✓headroom: the busiest tier 62.7% busy leaves 37.3%, at least 30%: met _(D-RM, D-M, 320)_
 - ✓headroom: the busiest tier 66.7% busy leaves 33.3%, at least 30%: met _(D-RM, D-M, 320)_
-- ✓machines: 11, at most 29: met _(D-M)_
-- ✓machines: 25, at most 29: met _(D-M)_
+- ✓machines: 11, at most 29: met _(D-RM, 320)_
+- ✓machines: 25, at most 29: met _(D-RM, D-M)_
 - ✓machines: 26, at most 29: met _(D-RM, D-M, 320)_
 - ✓machines: 28, the cache's 3 nodes among them, at most 29: met _(D-RM, D-M, 320)_
 - ✓machines: 29, the cache's 3 nodes among them, at most 29: met _(D-RM, D-M, 320)_
