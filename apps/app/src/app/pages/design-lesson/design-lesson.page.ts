@@ -17,7 +17,6 @@ import { CodeTextComponent } from '../../viz/code-text.component';
 import { MasteryRingComponent } from '../../ui/mastery-ring.component';
 import { QuickCheckComponent } from '../pattern/quick-check.component';
 import { WorkedExampleComponent } from '../pattern/worked-example.component';
-import { AvailabilityWidgetComponent } from './availability-widget.component';
 import { BatchWidgetComponent } from './batch-widget.component';
 import { BudgetWidgetComponent } from './budget-widget.component';
 import { CdnWidgetComponent } from './cdn-widget.component';
@@ -48,7 +47,7 @@ import { LazyWidgetComponent } from './lazy-widget.component';
 
 /** A system design topic taught hands-on: a widget to experiment with, the ideas to name, worked examples and a quick check. */
 /** Widgets that leave the reading column at container wide, to sit beside their controls and experiments. */
-const BREAKOUT = new Set(['balancer', 'feed-model', 'quorum', 'queue-latency', 'storage-engine']);
+const BREAKOUT = new Set(['balancer', 'feed-model', 'quorum', 'queue-latency', 'availability', 'storage-engine']);
 
 @Component({
   selector: 'app-design-lesson',
@@ -69,7 +68,6 @@ const BREAKOUT = new Set(['balancer', 'feed-model', 'quorum', 'queue-latency', '
     LazyWidgetComponent,
     RingWidgetComponent,
     LimiterWidgetComponent,
-    AvailabilityWidgetComponent,
     PipelineWidgetComponent,
     PartitionWidgetComponent,
     IdLayoutWidgetComponent,
@@ -152,7 +150,11 @@ const BREAKOUT = new Set(['balancer', 'feed-model', 'quorum', 'queue-latency', '
                     <app-limiter-widget />
                   }
                   @case ('availability') {
-                    <app-availability-widget />
+                    <app-lazy-widget
+                      [load]="loadReliabilityWidget"
+                      [inputs]="{ experiments: l.widget.experiments ?? [] }"
+                      [placeholder]="heights.reliability"
+                    />
                   }
                   @case ('pipeline') {
                     <app-pipeline-widget />
@@ -472,6 +474,7 @@ export class DesignLessonPage {
   readonly loadBalancerWidget = () => import('./balancer-widget.component').then((m) => m.BalancerWidgetComponent);
   readonly loadFeedModelWidget = () => import('./feed-model-widget.component').then((m) => m.FeedModelWidgetComponent);
   readonly loadQuorumWidget = () => import('./quorum-widget.component').then((m) => m.QuorumWidgetComponent);
+  readonly loadReliabilityWidget = () => import('./reliability-widget.component').then((m) => m.ReliabilityWidgetComponent);
   readonly breakout = computed(() => BREAKOUT.has(this.lesson()?.widget.kind ?? ''));
 
   constructor() {

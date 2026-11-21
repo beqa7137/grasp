@@ -1,14 +1,11 @@
+import { RELIABILITY_EXPERIMENTS } from './reliability-experiments.js';
 import type { SdLesson } from './types.js';
 
 export const RELIABILITY_LESSON: SdLesson = {
-  why: 'Every request crosses a chain of parts, and the chain is only as available as the product of its links: four services at 99.9% each give 99.6%, about 35 hours down a year. Redundancy buys the nines back only while copies fail independently, and most real outages come from the shared causes that break that assumption. Interviewers probe exactly this: where the single points of failure are, what failover costs, and how the system degrades instead of collapsing.',
+  why: 'Every request crosses a chain of parts, and the chain is only as available as the product of its links, so it is always worse than its weakest one. Redundancy buys the nines back only while copies fail independently, and most real outages come from the shared causes that break that assumption. Interviewers probe exactly this: where the single points of failure are, what failover costs, and how the system degrades instead of collapsing.',
   widget: {
     kind: 'availability',
-    tryThis: [
-      'Start at the defaults: the whole request is 99.950% available, down 4.4 h a year, and the database is marked weakest. The two load balancers and three app servers together lose under a second a year: a chain is capped by its weakest link, and polishing the others buys nothing.',
-      'Give the database a second copy: the readout shows 99.99997% and downtime falls to 8 s a year, about 1,900 times less. Treat that as a ceiling, not a forecast: the model assumes independent failures and instant failover, and one bad migration or a zone outage takes both copies at once.',
-      'Put the database back to 1 copy and set the app servers to 99% with 1 copy: the request drops to 98.9505%, down 91.9 h a year, and the app servers turn weakest. Add a second copy: 99.940% and 5.3 h, and the database is weakest again. A third gives 99.9499% and 4.4 h: on paper, three cheap servers match three good ones, though each 99% copy still fails for 3.65 days a year.',
-    ],
+    experiments: RELIABILITY_EXPERIMENTS,
   },
   concepts: [
     {
@@ -33,7 +30,7 @@ export const RELIABILITY_LESSON: SdLesson = {
     },
     {
       title: 'SLOs, error budgets, MTBF and MTTR',
-      body: 'An SLO is a target on a measured indicator, such as 99.9% of requests succeeding over 30 days. The error budget is the rest: 0.1% of 43,200 minutes is 43.2 minutes, and when it is spent, releases slow down until reliability recovers. Availability is MTBF / (MTBF + MTTR): mean time between failures over itself plus mean time to recover, so halving the time to recover is worth as much as halving how often you fail, and is usually cheaper: fast rollback, good alerts, automated failover.',
+      body: 'An SLO is a target on a measured indicator, such as 99.9% of requests succeeding over 30 days. The error budget is the rest: 0.1% of 43,200 minutes is 43.2 minutes, and when it is spent, releases slow down until reliability recovers. Availability is MTBF / (MTBF + MTTR): mean time between failures over itself plus mean time to recover, so halving the time to recover is worth as much as halving how often you fail, and is usually cheaper: fast rollback, good alerts, automated failover. A standby works the same way: it does not stop failures, it turns the time to recover from the repair time into the failover time.',
     },
     {
       title: 'Static stability and deadlines',

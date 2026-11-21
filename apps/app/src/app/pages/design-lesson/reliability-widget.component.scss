@@ -1,0 +1,162 @@
+@use '../../../type' as *;
+@use '../../../breakpoints' as *;
+@use 'feed-controls';
+@use 'widget-controls';
+@use 'widget-layout' as *;
+
+@include stage-layout('.reliability-stage');
+.play {
+  top: 2px;
+  &.step path.chevron {
+    fill: none;
+    stroke: var(--g-accent);
+    stroke-width: 2.25;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+}
+.control-label .why {
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+}
+// Four steppers in a 2 × 2 grid: a 44 px − and + about the part's short name over its count.
+.steppers {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--g-space-1) var(--g-space-2);
+}
+.stepper {
+  display: grid;
+  // The count takes the room it needs; the buttons give up to 8 px of their width for it on a narrow phone, never their
+  // 44 px height.
+  grid-template-columns: minmax(36px, 44px) minmax(min-content, 1fr) minmax(36px, 44px);
+  align-items: center;
+  border: 1px solid var(--g-line-strong);
+  border-radius: var(--g-radius-sm);
+  background: var(--g-raised);
+  box-shadow: var(--g-shadow-raised);
+  button {
+    width: 100%;
+    height: 44px;
+    justify-self: center;
+    padding: 0;
+    border: 0;
+    border-radius: var(--g-radius-sm);
+    background: none;
+    color: var(--g-text);
+    font: 500 var(--g-text-title-m) / 1 var(--ion-font-family);
+    cursor: pointer;
+    &:disabled {
+      opacity: 0.35;
+      cursor: default;
+    }
+    &:focus-visible {
+      outline: var(--g-focus-ring);
+      outline-offset: -2px;
+    }
+  }
+  output {
+    display: grid;
+    justify-items: center;
+    font: 600 var(--g-text-body) / 1.15 var(--g-font-mono);
+    small {
+      font: 500 var(--g-text-label) var(--ion-font-family);
+      color: var(--g-muted);
+    }
+  }
+}
+fieldset:disabled .stepper {
+  opacity: 0.55;
+}
+// Three toggles in one row; a checked one keeps its weight and size, and a check glyph sits in a band the span's top
+// padding reserves above its words, so the row never reads as pick-one and the glyph never meets a name.
+.toggles3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--g-space-1);
+  // The span is positioned for its check glyph: the input stays on top, so a tap lands on it.
+  .segment input {
+    z-index: 1;
+  }
+  .segment span {
+    position: relative;
+    flex-direction: column;
+    min-height: 48px;
+    padding-top: var(--g-space-4);
+    font-size: var(--g-text-body-s);
+    font-weight: 600;
+    line-height: 1.2;
+  }
+  .segment input:checked + span {
+    font-weight: 600;
+    &::after {
+      content: '';
+      position: absolute;
+      top: 5px;
+      right: 6px;
+      width: 8px;
+      height: 4px;
+      border-left: 2px solid var(--g-accent);
+      border-bottom: 2px solid var(--g-accent);
+      transform: rotate(-45deg);
+    }
+  }
+  small {
+    font: 500 var(--g-text-label) var(--ion-font-family);
+    color: var(--g-muted);
+  }
+}
+fieldset:disabled .segment span {
+  opacity: 0.55;
+}
+// The one-column layout's readout of the request, so a press and its result share a phone screen.
+.readout {
+  margin: 0;
+  min-height: 2lh;
+  font: 600 var(--g-text-body-s) / 1.45 var(--ion-font-family);
+  color: var(--g-text);
+}
+@include container-wide(lesson) {
+  .readout {
+    display: none;
+  }
+}
+@include container-narrow(lesson) {
+  .controls {
+    padding-bottom: var(--g-space-3);
+  }
+}
+.standing {
+  order: 4;
+  margin: 0;
+  font-size: var(--g-text-body-s);
+  color: var(--g-muted);
+}
+svg.draw {
+  display: block;
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+}
+.hatch-fill {
+  fill: var(--g-sunken);
+}
+.hatch-line {
+  stroke: var(--g-viz-discarded-ink);
+  stroke-opacity: 0.4;
+  stroke-width: 1.5;
+}
+.describe {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: start;
+  .said {
+    margin: 0;
+    font-size: var(--g-text-body-s);
+  }
+  g-data-table {
+    justify-self: stretch;
+  }
+}

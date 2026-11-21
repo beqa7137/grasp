@@ -73,11 +73,12 @@ test('the rate limiting lesson shows a fixed window passing twice the limit at a
 
 test('the reliability lesson shows a second database copy removing almost all downtime', async ({ page }) => {
   await page.goto('/design/topics/sd-reliability');
-  const whole = page.locator('.readouts div').filter({ hasText: 'Whole request' }).locator('dd');
-  await expect(whole).toHaveText('99.950%');
-  await page.getByRole('button', { name: 'More Database copies' }).click();
-  await expect(whole).toHaveText('99.99997%');
-  await expect(page.locator('.readouts div').filter({ hasText: 'Down a year' }).locator('dd')).toHaveText('8 s');
+  const widget = page.locator('app-reliability-widget');
+  const database = widget.locator('svg.draw [data-id="val-db"]');
+  await expect(database).toHaveText('8.8 h');
+  await widget.getByRole('button', { name: 'More databases' }).click();
+  await expect(database).toHaveText('32 s');
+  await expect(widget.locator('svg.draw [data-id="stat-1"]')).toHaveText('8.8 h');
 });
 
 test('the estimation drill judges a typed estimate and shows the working', async ({ page }) => {

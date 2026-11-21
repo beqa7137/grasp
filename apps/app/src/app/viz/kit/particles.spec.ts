@@ -1,4 +1,4 @@
-import { MAX_LIVE, ParticlePool, PlayClock, travelKeyframes, watchMotion } from './particles';
+import { MAX_LIVE, ParticlePool, PlayClock, travelKeyframes, watchMotion, watchVisibility } from './particles';
 
 describe('travelKeyframes', () => {
   it('spaces corners by their share of the length, and fades at the end unless the dot breaks', () => {
@@ -154,5 +154,29 @@ describe('watchMotion', () => {
     await Promise.resolve();
     document.documentElement.removeAttribute('data-motion');
     expect(seen).toEqual([true, false, true]);
+  });
+});
+
+describe('watchVisibility', () => {
+  it('takes the latest of the crossings one callback carries, so a stage that left and came back plays on', () => {
+    let report: IntersectionObserverCallback = () => {};
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        constructor(cb: IntersectionObserverCallback) {
+          report = cb;
+        }
+        observe() {}
+        disconnect() {}
+      },
+    );
+    const seen: boolean[] = [];
+    const stop = watchVisibility(document.body, (visible) => seen.push(visible));
+    const entry = (isIntersecting: boolean) => ({ isIntersecting }) as IntersectionObserverEntry;
+    report([entry(false), entry(true)], {} as IntersectionObserver);
+    report([entry(true), entry(false)], {} as IntersectionObserver);
+    stop();
+    vi.unstubAllGlobals();
+    expect(seen).toEqual([true, false]);
   });
 });

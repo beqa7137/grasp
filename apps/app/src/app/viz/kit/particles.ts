@@ -110,8 +110,9 @@ export function watchVisibility(el: Element, onChange: (visible: boolean) => voi
   const io =
     typeof IntersectionObserver === 'undefined'
       ? null
-      : new IntersectionObserver(([entry]) => {
-          onscreen = entry.isIntersecting;
+      : new IntersectionObserver((entries) => {
+          // One callback can carry several crossings of `el`, oldest first: only the latest says where it is now.
+          onscreen = entries[entries.length - 1].isIntersecting;
           report();
         });
   io?.observe(el);

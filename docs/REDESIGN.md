@@ -3098,6 +3098,113 @@ Iterations are ordered by impact, alternating between organization and visuals. 
     arrival and a block per busy period. Polish taken: opening a challenge says the setting's sentence in Data Modeling,
     Consistency & Quorums and Latency & Queueing alike, and the y axis's lowest label sits up off the x labels' row, 6
     px clear of them (checked at every width).
+- **Reliability note** (R41, the batch's fifth widget, `availability`; as built from the brief, mockup and second
+  critique round of `design/r41-reliability`, and where it differs):
+  - **Verdict.** The old widget (three boxes with a select and a stepper each, two tiles and a caveat) was the product
+    formula with a form on top: nothing was a request, a chain or a failure, and its one honest sentence (independence,
+    instant failover) was the part an interviewer probes and the part it could not show. It is redrawn as a reliability
+    block diagram at one moment over a simulated year, over the exact model's nines scale.
+  - **Engine.** `widgets/reliability.ts`: four parts in series (load balancer, app servers, database, recommendations),
+    each 1 to 3 identical copies at 99.9% (MTBF 999 h, MTTR 1 h); `partAvailability(n, shared, failover)` splits a part's
+    downtime exactly into shared outages (1 in 10 of a copy's, every copy at once), failovers (5 min per death of the
+    copy in use while another is up) and all copies down by chance; `reliabilityScenario` (memoized over the 648
+    settings) multiplies the needed parts by `log1p`/`expm1`, names as weakest every needed part that prints the worst
+    downtime, and gives the request's downtime and copies as the challenge's metrics. `formatDown` says a downtime in an
+    interviewer's unit and never as 0, `formatAvailability` to the digit after its nines, cut there and never 100%
+    (`lessons/format-time.ts`, apart from the model, since the framework formats slots with it). `widgets/reliability-
+sample.ts`: the seeded year (seed 3282478, common random numbers, no two outages of a part in one week unless they are
+    one shared outage), its rest moment, answer holds (in weeks 10 to 45), free-play plans (holds on the first of each
+    kind, three weeks apart), the step moments (each once, two or more) and the seed's 35 hard bounds. `chainAvailability` and `Availability` are retired
+    with the old widget, their only caller. `widgets/seeded-random.ts` now holds the lesson samples' generator, the
+    latency sample's copy moved there (third copy). Framework: `ExperimentRun` gains `'year'`; `SlotUnit` gains `down`,
+    `avail`, `hours` ("8.76 h", the challenge's target, which `down` rounds to 8.8 h) and `oneIn` ("1 in 10": a word
+    slot may not carry digits). `reliability-experiments.ts`: the six experiments in the brief's wording, answers at 3, 1,
+    3, 2, 1, each answer's hold and watch sentence in `RELIABILITY_ANSWER_PLAYS` (not in the shared spec type), the
+    challenge passing at exactly one of its 162 settings (2, 2, 2 with recommendations optional; the nearest miss
+    11.8 h). The specs pin every formula against state enumeration, inclusion and exclusion at all 648 settings and a
+    discrete-event simulation of a pair (20,000 years, every cause), the seed's bounds and the year's rules at every
+    setting, and every quoted string.
+  - **Picture.** `reliability-layout.ts` builds the stage on latency's `Draw` and roles (the two stages share their type
+    roles): the header with Play and, on wide stages, the previous and next moment; `reliability-band.ts` the chain
+    (copies boxed about the axis, buses, the request's path through the copy in use, a stop bar, the outcome, the bypass
+    of an optional part, always named); the year's label and key, a row per copy (one path of ticks per row), a strip per
+    part, the request's row as their union; "that hour" under an absorbed outage; the headline; the nines scale with
+    availability over and downtime a year under, a bar per part in 3-nine segments, solid to the model and outlined to
+    the paper value, the cap line and end caps, the goal mark, the ghost's caret; the facts with the causes' split. Every
+    wrapped text reserves its longest form at its width, so the height is the width's alone. Regions that touch (E5's
+    chain and year) are one outline with one tag. `stage-prims.ts` is Capacity's shared prims template, copied byte for
+    byte so the two land without a conflict.
+  - **Motion.** One monotone clock sweeps the year in 5.2 s and holds 1.1 s on each moment the band acts out; the year's
+    marks are revealed by one clip by whole columns, so no tick shows before its week, and the playhead stands past a
+    held tick. The stage is rebuilt only when a hold starts or a failover's beat turns; the caption and the year's
+    sentence are written on the clock. Plays pause by the widget host's visibility. Reduced motion draws the rest state,
+    and Play steps the moments ("Next moment, 2 of 2"), the first step always away from the picture shown; Left and Right on Play step them at every width.
+  - **Experiments.** One `hiding()` map (`reliability-words.ts`: `sample`, `request`, `weakest`, the rule and the ghost
+    for every question, and `after` with the act's changed parts) feeds the stage, the summary, the notices, the readout
+    and Describe; Play, the steppers and the toggles wait while a question asks or plays. The answer's play holds on its
+    climax and the reveal keeps it, with the setup as the ghost. The component spec's no-answer sweep checks each
+    question's answer words and the false claims, and the structure (Play, steppers, toggles, Describe, the year's
+    marks, the headline, the request's bar, the cap, the changed parts' bars, the rule and the ghost), with motion off
+    and on, and catches eight planted leaks: E1 asked without `sample` and without `request`, E3 without `weakest`, E2
+    played without `after`, and in the hiding map E4 played with its parts shown, E3 asked with a ghost and with its
+    moment, E2 asked with the rule.
+  - **Where it differs from the brief.** "Why it matters" no longer quotes 35 hours (E1's answer; the reveal spec fails
+    any why that quotes an answer's number), and three of the four concept additions are left out, as Latency &
+    Queueing's review found concepts under the widget must not answer its questions: the pair's 32 seconds (E2), "at
+    most one more nine" (E4) and the failover's 44 minutes a year (E5); the standby sentence is in. Describe's table goes compact under a 560 px stage and keeps its six columns in tight cells from 560 to 680 px (the brief's 600 px left the wide table's loose cells 80 px over its box at 1280 px) and names no weakest part in its cells, which do not fit the mark; the sentence above it names the weakest links. The bars land
+    at the reveal by growing from their left ends and fading the cap in, rather than sliding the cap line. The free
+    play's band changes without the mockup's 240 ms path swing: it is redrawn at the hold, and a play's end crossfades.
+
+  - **Fix round 1** (code, browser, content and showcase reviews). Rules, each with the spec that would have caught it:
+    the scale's axis never singles out an asking question's answer among its choices (a row that cannot print every
+    nine prints every other one, else its ends, each label in full: the phone axis had printed only E2's 32 s); the
+    layout spec now checks what latency's does (links and grid lines through text, text on marks, focus strokes, Play and
+    the step buttons, at most 270 marks) and the request's notes 4 px or more from any bar, on their own row or on the
+    lines reserved under it (two on a phone), never between rows; the key lists exactly the marks the setting can draw
+    (the failover tick and the copy in use only with failover on, the hollow mark with recommendations optional); the
+    causes' split names its shares under it; a sum of causes joins with " + ", never "and" after a unit; a failover
+    moment at rest draws the minutes the request fails, as its words and the request's row say (a spec checks every step
+    moment and answer hold); stepping never repeats a picture; answer holds fall mid-sweep (a seed bound); availability
+    is cut at its digit, so 8.78 h a year prints 99.89%, not three nines; the year's hours are summed in whole minutes
+    in one place (`yearHours`), so the sentence and Describe agree at all 648 settings; the toggles' names start with
+    their visible words; the checked glyph sits in a band the toggle reserves (an e2e check at 320 to 412 px); the
+    steppers' buttons fill columns of 36 to 44 px that leave the count its room, so the audit finds no spill. Code:
+    `TEXT.wrap` takes keep patterns and the stage wraps through it (`reliability-text.ts`), the model, scale and facts
+    moved to `reliability-scale.ts`, latency's prims use `stage-prims.ts`, `g-code-text` binds only the part and week
+    names to their numbers. Describe gains a middle form (560 to 680 px: the six columns in tight cells with short
+    names), E5's ask names the standby and its distractor is now "at every failure of either copy", E1's reveal says
+    "4 × 8.76 h is about 35 h", and parts are named by their copy count.
+  - **Fix round 2** (code and browser re-reviews). Rules, each with its spec: "that hour" titles what it draws ("That
+    hour: DB 1 down, DB 2 up.") and draws the overlap as a dashed column across every copy's row, magnified and labeled
+    "not to scale", its words giving it as what would happen ("Both at once ... 32 s a year"), never a state the hour
+    shows, on 14 px rows; a marker and its words are one unit (the ghost's caret above the request's bar with its words
+    beside it, or pointing up from just above its words on a reserved line, within 4 px, no text between); stepping
+    shows a failure of every part that fails the request before any part repeats, and a request answer's hold prefers a
+    part the rest moment does not show; answer holds take the moment nearest the middle of weeks 10 to 45; a product
+    beside a sum is grouped in parentheses.
+  - **Fix round 3** (code and browser re-reviews). A frame that shows an observed moment draws only what happened in it:
+    "that hour" draws one copy down and the others up, and what would take the part down has its own dashed frame under
+    it ("If both were down at once:"), every copy down for a magnified stretch and their overlap a dashed column in the
+    text tone, never the critical one, with its yearly figure; with shared failures on it is drawn too and adds the
+    shared outages ("26 s a year by chance, plus (0.88 shared outages × 1 h)"), so its reserved band is never blank. A
+    caret points along a column that holds no text: the ghost's column from its tip to the request's bar, and 4 px past
+    the tip, counts as part of its unit, the cap's and goal's words keep off it where they can (on phones by taking the
+    last reserved line, below the ghost's), and a caret stacked over its words stands 2 px clear, centered on them or
+    past their end, so it never reads as pointing at "capped by the weakest link" or as an accent (phones now show the
+    ghost at nearly every setting, desktops as often as before). "a year" stays with its duration when the stage
+    wraps. Layout checks for each: no text in a caret's column, the stacked caret clear and off its glyphs, no mark inside
+    the observed hour's frame but its outage, the overlap inside every copy's outage.
+  - **Rebase onto 57f9d89f** (after Storage Engines). The widget's prose keep (part and week names, a count times a
+    duration) moved off the house `g-code-text` rule into the `CODE_TEXT_KEEP` the widget provides. One formatter
+    (`causeSum`) writes a part's downtime causes for the facts line and the "if" frame alike, every product grouped, the
+    frame's ending in the total ("(0.88 shared outages × 1 h) + 26 s both down by chance = 53 min a year"), and the stage
+    wrap keeps a parenthesized group whole. With shared failures on, the "if" frame draws what its words add, in their
+    order: the shared outage first, one joined mark through every copy as the year draws it and wider than the overlap by
+    chance beside it. `watchVisibility` takes the latest crossing one callback carries, so a play whose stage leaves and
+    returns between two callbacks no longer freezes. Specs: the frame's sum matches the facts line's, no stage line parts
+    a product, the shared mark joins every copy and stands first at every shared setting and 4 widths, and a callback
+    with both crossings leaves the play running.
+
 - **Storage Engines note** (R41, the batch's seventh widget, `storage-engine`; as built from the brief, mockup and
   critique rounds of `design/r41-storage`, and where it differs):
   - **Verdict.** The old widget (four sliders, three page-size buttons, a checkbox and eight number tiles) had every

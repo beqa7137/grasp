@@ -15,6 +15,9 @@ export * from './widgets/overload.js';
 export * from './widgets/quorum.js';
 export * from './widgets/queueing.js';
 export * from './widgets/recovery.js';
+export * from './widgets/reliability.js';
+export * from './format-time.js';
+export * from './widgets/reliability-sample.js';
 export * from './widgets/replication.js';
 export * from './widgets/storage.js';
 export * from './widgets/storage-format.js';
@@ -121,21 +124,6 @@ export function runLimiter(kind: Limiter, arrivals: readonly number[], limit: nu
     worstSecond = Math.max(worstSecond, i - j + 1);
   }
   return { accepted, worstSecond };
-}
-
-export interface Availability {
-  availability: number;
-  downtimeMinutesPerYear: number;
-  /** The component that loses the most availability, the one to fix first. */
-  weakest: number;
-}
-
-/** Components in series, each with `copies` independent replicas of which one must be up. */
-export function chainAvailability(parts: readonly { availability: number; copies: number }[]): Availability {
-  const each = parts.map((p) => 1 - (1 - p.availability) ** p.copies);
-  const availability = each.reduce((a, b) => a * b, 1);
-  const weakest = each.reduce((w, a, i) => (a < each[w] ? i : w), 0);
-  return { availability, downtimeMinutesPerYear: (1 - availability) * 365 * 24 * 60, weakest };
 }
 
 export interface Pipeline {

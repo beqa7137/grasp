@@ -59,11 +59,6 @@
     "font-size": 9,
     "spacing": 38
   },
-  "app/pages/design-lesson/availability-widget.component.ts": {
-    "border-radius": 1,
-    "font-size": 5,
-    "spacing": 9
-  },
   "app/pages/design-lesson/batch-widget.component.ts": {
     "border-radius": 2,
     "font-size": 2,

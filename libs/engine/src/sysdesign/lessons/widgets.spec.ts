@@ -7,7 +7,6 @@ import {
   collisionChance,
   idLayout,
   invertedIndex,
-  chainAvailability,
   crackTime,
   delivery,
   geoQuery,
@@ -120,24 +119,6 @@ describe('rate limiters', () => {
     // 10 saved tokens, plus about 1.9 refilled over the 190 ms of the burst.
     expect(run.accepted.filter(Boolean)).toHaveLength(11);
     expect(runLimiter('token-bucket', [0, 100, 200], 10, 1).accepted).toEqual([true, true, true]);
-  });
-});
-
-describe('chain availability', () => {
-  it('multiplies series parts and lets replicas cut each part downtime', () => {
-    const single = chainAvailability([
-      { availability: 0.999, copies: 1 },
-      { availability: 0.99, copies: 1 },
-    ]);
-    expect(single.availability).toBeCloseTo(0.98901, 5);
-    expect(single.weakest).toBe(1);
-    const replicated = chainAvailability([
-      { availability: 0.999, copies: 1 },
-      { availability: 0.99, copies: 2 },
-    ]);
-    expect(replicated.availability).toBeCloseTo(0.9989, 4);
-    expect(replicated.weakest).toBe(0);
-    expect(chainAvailability([{ availability: 0.999, copies: 1 }]).downtimeMinutesPerYear).toBeCloseTo(525.6, 1);
   });
 });
 

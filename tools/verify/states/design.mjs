@@ -1,5 +1,6 @@
 import { CASE_LABS, SCENARIO_CATALOG, getCaseStudy, itemsForTopic } from '@grasp/engine';
 import { BASE, answerFirst, openReports, settle } from '../lib.mjs';
+import { reliabilityStates } from './reliability.mjs';
 
 /** The authored index of a decision's recommended option: drafts name options by it, whatever order they are shown in. */
 const recommended = (id, stage) => getCaseStudy(id).stages[stage].decision.options.findIndex((o) => o.best);
@@ -988,5 +989,6 @@ export function designStates() {
       },
     },
   ];
+  states.push(...reliabilityStates());
   return [...states, ...everyBoard(states)];
 }

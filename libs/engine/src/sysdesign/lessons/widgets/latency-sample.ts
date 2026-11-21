@@ -1,3 +1,4 @@
+import { seededRandom } from './seeded-random.js';
 import { LATENCY_QUEUE, LATENCY_SERVICE, LATENCY_SERVICE_MS, latencyScenario, latencySettings, type LatencySettings } from './queueing.js';
 
 /** The sample's window of model time: the last 400 ms of a run in its steady state. */
@@ -27,21 +28,6 @@ const WARM_ARRIVALS = 40_000;
  * design's `enum.cjs --search` reruns the search).
  */
 export const LATENCY_SAMPLE_SEED = 26_159;
-
-/**
- * `algorithms/random.ts`'s generator, copied: importing that one from a widget chunk splits it out of the app's main
- * bundle into a first-paint chunk of its own.
- */
-function mulberry32(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
 
 /** One request of the sample, its times in ms from the window's start; `id` is its place in the whole run. */
 export interface SampledRequest {
@@ -181,7 +167,7 @@ export function latencySample(settings: Partial<LatencySettings>, seed = LATENCY
   const m = latencyScenario(s);
   const up = m.up;
   const lambda = m.ratePerS / 1000;
-  const rand = mulberry32(seed * 7919 + 13);
+  const rand = seededRandom(seed * 7919 + 13);
   const stable = m.stable;
   const longest = stable ? LATENCY_WINDOW_MS : LATENCY_UNSTABLE_WINDOWS_MS[LATENCY_UNSTABLE_WINDOWS_MS.length - 1];
   const n = stable ? WARM_ARRIVALS : Math.ceil(lambda * longest * 1.3) + 50;

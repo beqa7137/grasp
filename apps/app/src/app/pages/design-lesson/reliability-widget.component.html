@@ -1,0 +1,172 @@
+<div class="controls">
+  <fieldset class="group copies-control" [disabled]="locked()">
+    <legend class="control-label">Copies of each part</legend>
+    <div class="steppers">
+      @for (p of parts; track p.id) {
+        <div class="stepper">
+          <button type="button" [attr.aria-label]="'Fewer ' + p.many" [disabled]="copies(p.id) <= minCopies" (click)="stepCopies(p.id, -1)">
+            <span aria-hidden="true">−</span>
+          </button>
+          <output [attr.aria-label]="p.name + ': ' + copies(p.id) + (copies(p.id) === 1 ? ' copy' : ' copies')">
+            <small>{{ p.short }}</small
+            >{{ copies(p.id) }}
+          </output>
+          <button type="button" [attr.aria-label]="'More ' + p.many" [disabled]="copies(p.id) >= maxCopies" (click)="stepCopies(p.id, 1)">
+            <span aria-hidden="true">+</span>
+          </button>
+        </div>
+      }
+    </div>
+  </fieldset>
+  <fieldset class="group conditions-control" [disabled]="locked()">
+    <legend class="control-label">
+      Conditions
+      @if (exp.active()?.goal) {
+        <span class="why">· the goal keeps shared failures and failover on</span>
+      }
+    </legend>
+    <div class="toggles3">
+      @for (c of conditions; track c.key) {
+        <label class="segment">
+          <input
+            type="checkbox"
+            [attr.aria-label]="c.label"
+            [checked]="settings()[c.key] === 1"
+            [disabled]="conditionLocked(c.key)"
+            (change)="setCondition(c.key, $any($event.target).checked)"
+          />
+          <span
+            >{{ c.name }}<small>{{ c.sub }}</small></span
+          >
+        </label>
+      }
+    </div>
+  </fieldset>
+  <p class="readout"><g-code-text [text]="readout()" /></p>
+  <p class="notice" aria-live="polite" aria-atomic="true"><g-code-text [text]="notice()" /></p>
+</div>
+
+<div class="main">
+  <g-stage
+    class="reliability-stage"
+    [height]="stage().H"
+    label="Reliability: a request crossing a chain of parts, each a set of copies, over a simulated year"
+  >
+    @if (ready()) {
+      @let st = stage();
+      <svg
+        class="draw"
+        [attr.viewBox]="'0 0 ' + st.W + ' ' + st.H"
+        [attr.width]="st.W"
+        [attr.height]="st.H"
+        role="img"
+        [attr.aria-label]="st.summary"
+      >
+        <defs>
+          <pattern id="reliability-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <rect class="hatch-fill" width="6" height="6" />
+            <line class="hatch-line" x1="0" y1="0" x2="0" y2="6" />
+          </pattern>
+          <clipPath id="reliability-clip"><rect x="0" y="0" [attr.width]="clipWidth()" [attr.height]="st.H" /></clipPath>
+        </defs>
+        <g app-reliability-prims [prims]="under()" />
+        <g app-reliability-prims [prims]="clipped()" [attr.clip-path]="plan() ? 'url(#reliability-clip)' : null" />
+        <g app-reliability-prims [prims]="over()" />
+        <g app-reliability-prims [prims]="liveText()" />
+        <g app-reliability-prims [prims]="playMarks()" />
+        @for (f of st.focus; track f.id) {
+          <g app-focus [box]="f" [on]="exp.focusOn().includes(f.region)" />
+        }
+      </svg>
+
+      <button
+        type="button"
+        class="play"
+        [attr.aria-label]="playName()"
+        [style.left.px]="st.play.x"
+        [style.top.px]="st.play.y"
+        [disabled]="locked()"
+        (click)="togglePlay()"
+        (keydown)="onPlayKey($event)"
+      >
+        <svg viewBox="0 0 36 36" aria-hidden="true">
+          <circle cx="18" cy="18" r="16" />
+          @if (playing() && !exp.locked()) {
+            <path d="M12.5 11h4v14h-4zM19.5 11h4v14h-4z" />
+          } @else {
+            <path d="M14 11v14l11-7z" />
+          }
+        </svg>
+      </button>
+      @if (st.steps; as steps) {
+        <button
+          type="button"
+          class="play step"
+          [attr.aria-label]="stepName(-1)"
+          [style.left.px]="steps.prev.x"
+          [style.top.px]="steps.prev.y"
+          [disabled]="locked() || playing()"
+          (click)="stepTo(-1)"
+        >
+          <svg viewBox="0 0 36 36" aria-hidden="true">
+            <circle cx="18" cy="18" r="16" />
+            <path class="chevron" d="M21 11l-7 7 7 7" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          class="play step"
+          [attr.aria-label]="stepName(1)"
+          [style.left.px]="steps.next.x"
+          [style.top.px]="steps.next.y"
+          [disabled]="locked() || playing()"
+          (click)="stepTo(1)"
+        >
+          <svg viewBox="0 0 36 36" aria-hidden="true">
+            <circle cx="18" cy="18" r="16" />
+            <path class="chevron" d="M15 11l7 7-7 7" />
+          </svg>
+        </button>
+      }
+    }
+  </g-stage>
+  <p class="standing"><g-code-text [text]="standing()" /></p>
+
+  <div class="describe">
+    <button type="button" class="g-btn" [attr.aria-expanded]="describeOpen()" [disabled]="describeWaits()" (click)="toggleDescribe()">
+      {{ describeOpen() ? 'Hide the description' : 'Describe' }}
+    </button>
+    @if (describeWaits()) {
+      <span class="muted">{{ describeWaitsWhy() }}</span>
+    }
+    @if (describeOpen() && !describeWaits()) {
+      @let d = described();
+      @for (line of d.said; track $index) {
+        <p class="said"><g-code-text [text]="line" /></p>
+      }
+      <g-data-table
+        label="Each part and the request, from the model and in the simulated year"
+        [head]="d.head"
+        [rows]="d.rows"
+        [active]="d.active"
+        [compact]="compact()"
+        [height]="tableHeight()"
+      />
+    }
+  </div>
+</div>
+
+@if (experiments().length) {
+  <app-experiment-dock
+    class="experiments"
+    [experiments]="experiments()"
+    [active]="exp.active()"
+    [phase]="exp.phase()"
+    [done]="exp.done()"
+    [goalStatus]="goalStatus()"
+    [goalChecks]="goalChecks()"
+    [chosen]="exp.chosen()"
+    (chosenChange)="exp.answer($event)"
+    (start)="start($event)"
+  />
+}

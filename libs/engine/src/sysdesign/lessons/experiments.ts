@@ -1,3 +1,4 @@
+import { formatAvailability, formatDown, formatHours, formatOneIn } from './format-time.js';
 import { formatAmp, formatBytes, formatGb, formatKb, formatLevels, formatRate, formatReads, formatSize } from './widgets/storage-format.js';
 
 /**
@@ -25,6 +26,10 @@ export type SlotUnit =
   | 'rate'
   | 'reads'
   | 'levels'
+  | 'down'
+  | 'avail'
+  | 'hours'
+  | 'oneIn'
   | 'word';
 
 /** A model value with its unit, or a `word` the model chose ("The old value"), which may carry no digits. */
@@ -41,8 +46,8 @@ export const word = (value: string): Slot => ({ value, unit: 'word' });
 /** A widget's settings by name, as the experiment applies them. */
 export type ExperimentSettings = Readonly<Record<string, number>>;
 
-/** A play a widget runs on the picture, such as loading a page, renaming an author, a write then a read, or a sample of requests. */
-export type ExperimentRun = 'load' | 'rename' | 'write-read' | 'read' | 'sample' | 'btree' | 'lsm';
+/** A play a widget runs on the picture, such as loading a page, renaming an author, a write then a read, a sample of requests or a simulated year. */
+export type ExperimentRun = 'load' | 'rename' | 'write-read' | 'read' | 'sample' | 'btree' | 'lsm' | 'year';
 
 /** What answering plays: new settings (then, if named, a run), a run on its own, or the widget's flush. */
 export type ExperimentAct = { set: ExperimentSettings; run?: ExperimentRun } | { run: ExperimentRun } | { flush: true };
@@ -156,6 +161,10 @@ const FORMAT: Record<Exclude<SlotUnit, 'word'>, (v: number) => string> = {
   rate: formatRate,
   reads: formatReads,
   levels: formatLevels,
+  down: formatDown,
+  avail: formatAvailability,
+  hours: formatHours,
+  oneIn: formatOneIn,
 };
 
 export const formatSlot = (slot: Slot) => (slot.unit === 'word' ? slot.value : FORMAT[slot.unit](slot.value));

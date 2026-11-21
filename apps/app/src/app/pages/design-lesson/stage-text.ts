@@ -27,10 +27,11 @@ export interface TextMeasure<R extends string> {
   size(role: R): number;
   partsWidth(parts: readonly Part<R>[]): number;
   /**
-   * Breaks `text` at spaces into lines no wider than `width`, never between a number and its unit ("25 ms"); a word
-   * wider than it keeps its own line. With a `lines` limit the last line takes what is left, even of an empty text.
+   * Breaks `text` at spaces into lines no wider than `width`, never between a number and its unit ("25 ms"), nor inside
+   * a match of a `keep` pattern (each global); a word wider than it keeps its own line. With a `lines` limit the last
+   * line takes what is left, even of an empty text.
    */
-  wrap(text: string, role: R, width: number, lines?: number): string[];
+  wrap(text: string, role: R, width: number, lines?: number, keep?: readonly RegExp[]): string[];
 }
 
 /** Printable ASCII from the space, then these. */
@@ -70,6 +71,8 @@ const advance = (font: Face, ch: string) => {
 const UNIT_AFTER_NUMBER = /(?<=\d )(MB\/s|ms|s)\b/;
 /** The spaces a line may break at: any but the one between a number and its unit. */
 const BREAK = / (?!(?<=\d )(?:MB\/s|ms|s)\b)/;
+/** A private-use character holds a kept space while a text is split. */
+const HOLD = '\ue000';
 
 /** A label's runs: a unit after a number apart, so it can keep its case in capitals. */
 export const unitRuns = (text: string): [text: string, unit: boolean][] =>
@@ -97,17 +100,18 @@ function measure<R extends string>(width: (text: string, role: R) => number, siz
     tw,
     size,
     partsWidth: (parts) => parts.reduce((s, [t, role, , dx = 0]) => s + tw(t, role) + dx, 0),
-    wrap(text, role, limit, lines = Infinity) {
+    wrap(text, role, limit, lines = Infinity, keep = []) {
+      const held = keep.reduce((t, re) => t.replace(re, (m) => m.replaceAll(' ', HOLD)), text);
       const out: string[] = [];
       let line = '';
-      for (const word of text.split(BREAK)) {
+      for (const word of held.split(BREAK)) {
         const next = line ? `${line} ${word}` : word;
-        if (line && tw(next, role) > limit && out.length < lines - 1) {
+        if (line && tw(next.replaceAll(HOLD, ' '), role) > limit && out.length < lines - 1) {
           out.push(line);
           line = word;
         } else line = next;
       }
-      return line || lines !== Infinity ? [...out, line] : out;
+      return (line || lines !== Infinity ? [...out, line] : out).map((l) => l.replaceAll(HOLD, ' '));
     },
   };
 }

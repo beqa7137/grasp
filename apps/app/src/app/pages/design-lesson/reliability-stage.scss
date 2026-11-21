@@ -1,0 +1,288 @@
+@use '../../../type' as *;
+
+// The Reliability stage's drawing roles; `latency-draw.ts` measures text by these sizes (the two stages share them), so a
+// size changed here changes its checks. Stage text keeps proportional digits, as measured.
+text {
+  paint-order: stroke;
+  stroke: var(--g-viz-stage);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  &.on-box {
+    stroke: var(--g-raised);
+  }
+  &.on-chip {
+    stroke: none;
+  }
+  &.on-sunken {
+    stroke: var(--g-sunken);
+  }
+}
+.t-label {
+  @include label;
+  fill: var(--g-muted);
+}
+.t-unit {
+  text-transform: none;
+}
+.t-cap {
+  font: 500 var(--g-text-body-s) var(--ion-font-family);
+  fill: var(--g-muted);
+}
+.t-capB {
+  font: 600 var(--g-text-body-s) var(--ion-font-family);
+  fill: var(--g-text);
+}
+.t-small {
+  font: 500 var(--g-text-label) var(--ion-font-family);
+  fill: var(--g-muted);
+}
+.t-smallB {
+  font: 700 var(--g-text-label) var(--ion-font-family);
+  fill: var(--g-text);
+}
+.t-mono {
+  font: 600 var(--g-text-label) var(--g-font-mono);
+  fill: var(--g-text);
+}
+.t-nameS {
+  font: 600 var(--g-text-body-s) var(--g-font-mono);
+  fill: var(--g-text);
+}
+.t-head {
+  font: 600 var(--g-text-title-m) var(--g-font-mono);
+  fill: var(--g-text);
+}
+.ink {
+  fill: var(--g-text);
+}
+.muted {
+  fill: var(--g-muted);
+}
+.bad {
+  fill: var(--g-danger-ink);
+}
+.wait-ink {
+  fill: var(--g-warn-ink);
+}
+.cur-ink {
+  fill: var(--g-viz-current);
+}
+.crit-ink {
+  fill: var(--g-viz-critical);
+}
+.rule {
+  stroke: var(--g-line);
+}
+
+// The chain: wires are structure (3:1 on the stage), the request's path is the current tone.
+.wire {
+  fill: none;
+  stroke: var(--g-stroke);
+  stroke-width: 1.25;
+}
+.path {
+  fill: none;
+  stroke: var(--g-viz-current);
+  stroke-width: 2.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.box {
+  fill: var(--g-raised);
+  stroke: var(--g-line-strong);
+  stroke-width: 1.25;
+  &.serving {
+    stroke: var(--g-viz-current);
+    stroke-width: 2;
+  }
+  &.next {
+    fill: var(--g-viz-current-soft);
+    stroke: var(--g-viz-current);
+  }
+  &.down {
+    fill: url(#reliability-hatch);
+    stroke: var(--g-viz-discarded-ink);
+  }
+}
+.xmark {
+  stroke: var(--g-viz-critical);
+  stroke-width: 2;
+  stroke-linecap: round;
+  fill: none;
+}
+.xground {
+  fill: var(--g-raised);
+}
+.stop {
+  fill: var(--g-viz-critical);
+  stroke: var(--g-viz-stage);
+  stroke-width: 1.5;
+  paint-order: stroke;
+}
+.start-dot {
+  fill: var(--g-viz-current);
+  &.hidden {
+    fill: var(--g-stroke);
+  }
+}
+.outcome {
+  fill: var(--g-viz-stage);
+  stroke: var(--g-stroke);
+  stroke-width: 1.25;
+  &.served {
+    stroke: var(--g-viz-final);
+    stroke-width: 1.75;
+  }
+  &.fails {
+    stroke: var(--g-viz-critical);
+    stroke-width: 1.75;
+  }
+  // Dashed means hidden until you answer, and nothing else.
+  &.hidden {
+    stroke-dasharray: 3 2.5;
+  }
+}
+.ok-mark {
+  fill: none;
+  stroke: var(--g-viz-final);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.ok-ink {
+  fill: var(--g-viz-final-ink);
+}
+// The year: a copy's outage is a neutral tick; what reaches the request is critical; hollow is down but skipped.
+.row-track {
+  stroke: var(--g-line);
+}
+.strip-band {
+  fill: var(--g-sunken);
+  stroke: var(--g-line-strong);
+  stroke-width: 1;
+}
+.req-band {
+  fill: rgba(var(--g-text-rgb), 0.04);
+}
+.tick-copy,
+.key-copy,
+.hour-down {
+  fill: var(--g-text);
+  fill-opacity: 0.62;
+}
+.tick-fail,
+.key-fail {
+  fill: var(--g-viz-critical);
+}
+.tick-bypassed,
+.key-bypassed {
+  fill: none;
+  stroke: var(--g-stroke);
+  stroke-width: 1;
+}
+.inuse {
+  fill: var(--g-viz-current);
+}
+.hidden-box {
+  fill: none;
+  stroke: var(--g-stroke);
+  stroke-dasharray: 4 3;
+}
+.axis {
+  stroke: var(--g-line-strong);
+}
+.gridline {
+  stroke: var(--g-line);
+}
+.moment {
+  stroke: var(--g-text);
+  stroke-opacity: 0.4;
+}
+.moment-head {
+  fill: var(--g-text);
+  fill-opacity: 0.7;
+}
+// A ring is stroke only, round the whole tick it is about.
+.ring {
+  fill: none;
+  stroke: var(--g-text);
+  stroke-width: 1.5;
+}
+.playhead {
+  stroke: var(--g-text);
+  stroke-width: 1.5;
+}
+.hour-frame {
+  fill: none;
+  stroke: var(--g-line-strong);
+  &.if {
+    stroke-dasharray: 3 2;
+  }
+}
+.hour-up {
+  stroke: var(--g-viz-current);
+  stroke-width: 2;
+}
+// A hypothetical overlap, never in the critical tone the year keeps for failed requests.
+.hour-both {
+  fill: none;
+  stroke: var(--g-text);
+  stroke-width: 1.25;
+  stroke-dasharray: 2 1.5;
+}
+// The nines scale: a solid length is what the model gives; the outlined length beyond it is the paper's promise, carried
+// by its edge (3:1), its fill only a tint.
+.bar {
+  fill: var(--g-viz-current);
+  transform-box: fill-box;
+  transform-origin: left center;
+  &.paper {
+    fill: color-mix(in srgb, var(--g-viz-current) 22%, var(--g-viz-stage));
+    stroke: var(--g-viz-current);
+    stroke-width: 1;
+  }
+  &.optional {
+    fill: var(--g-viz-discarded-ink);
+    fill-opacity: 0.45;
+  }
+  &.request {
+    fill: var(--g-text);
+    fill-opacity: 0.82;
+  }
+}
+.key-solid {
+  fill: var(--g-viz-current);
+}
+.notch {
+  fill: var(--g-viz-stage);
+}
+.capline {
+  stroke: var(--g-viz-critical);
+  stroke-width: 1.5;
+}
+.capend {
+  fill: var(--g-viz-critical);
+}
+.goal-line {
+  stroke: var(--g-muted);
+  stroke-width: 1.5;
+  &.met {
+    stroke: var(--g-viz-final);
+  }
+}
+.ghost-caret {
+  fill: none;
+  stroke: var(--g-text);
+  stroke-width: 1.25;
+  stroke-linejoin: round;
+}
+.split-shared,
+.split-failover {
+  fill: var(--g-viz-critical);
+}
+.split-chance {
+  fill: var(--g-text);
+}
+.split-track {
+  stroke: var(--g-line-strong);
+}
