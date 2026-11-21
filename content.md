@@ -1,0 +1,760 @@
+# Storage Engines widget (`storage-engine`): every string, generated
+
+Generated from the built widget at 20bbcc6f (the app and engine of 35d27055) (`/design/topics/sd-storage`) by a browser walk, and from the engine build for
+the experiments. Nothing here is typed by hand. Walks:
+
+- **D-RM**: desktop 1280px, reduced motion, answering each question wrong.
+- **D-M**: desktop 1280px, with motion, answering each question right, sampled every 150 ms through every play.
+- **320**: 320px, reduced motion, answering each question wrong.
+
+Each walk draws 9 settings (default; a lookup; 16 KB pages; 1,000 B records; ratio 4, 1,000 GB; ratio 20, 10 GB, 200 B; a lookup, filters off; a lookup, ratio 5, 1,000 GB, filters off; 8 KB, 200 B, ratio 5), and at each: the stage at rest,
+each engine's Play (sampled through the play with motion; the story without), and Describe open; then every experiment
+asking, its answer (sampled through its play with motion), revealed, and Describe after the reveal; the challenge at its
+start, with the filters on, at ratio 4, met at ratio 5, and moved off to 10. A string is listed once, with the walks
+that showed it.
+
+## Experiments (engine build)
+
+### One small update
+
+- **id:** `page-rewrite`
+- **Ask:** A B-tree with 8 KB pages holds 100 GB of records, 100 bytes each. One record changes. Once the change is safe on disk, in its page and in the log, how many bytes has the engine written?
+- **Choice 1:** 100 bytes: only the record that changed
+- **Choice 2:** 200 bytes: the record, and a log record of the same size
+- **Choice 3 (answer):** 8,292 bytes: the whole page, and a log record
+- **Reveal:** 8,292 bytes: a B-tree changes its page in place, and a page goes to disk whole: 8,192 bytes for a change of 100 bytes, plus a log record of 100 bytes so a crash can replay it. That is 82.9× the data. At 10 MB/s of updates of 100 bytes, that is about 105,000 page writes a second, each at a random place on the disk. With 16 KB pages it would be 165×. The model is rough: it has every update write its page back alone, where a real buffer pool often gathers several changes to a hot page first.
+- **Hides while asking:** btreeWrite
+- **Focus at the reveal:** bt-transform, cost-write
+
+### Appended, then merged
+
+- **id:** `lsm-rewrites`
+- **Ask:** An LSM tree never changes a file in place: a write is appended to the log and kept in the memtable, which is flushed to disk as a sorted file when it fills. Compaction then merges the record down through 3 levels; from L1 down, each is 20× the size of the one above. The model has every level fill after 20 merges from above, and each merge rewrites everything the level already holds. How many times is a record written at each level, on average?
+- **Choice 1:** 1×: once, as a merge moves it down
+- **Choice 2 (answer):** 10.5×: in about half of the merges that fill its level
+- **Choice 3:** 20×: in every merge that fills its level
+- **Reveal:** 10.5×: a record that arrives with the first merge is written in all 20, one that arrives with the last only once, so the average is (ratio + 1) / 2. With one write to the log and one at the flush, 3 levels of 10.5× make 33.5× the data. Every one of those writes is sequential, but the bytes add up: 10 MB/s of new data becomes 335 MB/s of disk writes, and when the disk cannot sustain that, compaction falls behind, files pile up and the engine stalls writes. In a running tree the last level never empties, so data merging into it costs nearer 20×, and the small top levels less; the totals come out close: 35× simulated against the model's 33.5×. Size-tiered compaction, Cassandra's default, merges runs of similar size instead: about one write a level, but more runs to search and up to twice the space.
+- **Hides while asking:** lsmWrite
+- **Focus at the reveal:** lsm-all
+
+### Bigger records
+
+- **id:** `record-size`
+- **Ask:** With records of 100 bytes, the B-tree writes 42× the data and the LSM tree 24×. Store the same 100 GB as records of 1,000 bytes instead. Whose write cost falls?
+- **Choice 1:** Both: ten times the record, a tenth of the cost, 4.2× and 2.4×
+- **Choice 2 (answer):** Only the B-tree's: to 5.1×, against the LSM tree's unchanged 24×
+- **Choice 3:** Only the LSM tree's: to 2.4×, against the B-tree's unchanged 42×
+- **Reveal:** Only the B-tree's: 5.1×, so it now writes less than the LSM tree's 24×. Writing a page costs the same 4,096 bytes whatever changed inside it, so a record of 1,000 bytes fills about a quarter of the page it rewrites, where one of 100 bytes filled about a fortieth. The LSM tree rewrites every byte the same number of times whatever the record size; its cost follows its levels. Small records favor the LSM tree, and at these settings the B-tree writes less once a record passes about 180 bytes.
+- **Hides while asking:** writesAfter
+- **Focus at the reveal:** bt-transform, cost-write
+
+### Without bloom filters
+
+- **id:** `no-filters`
+- **Ask:** A lookup in this LSM tree costs 1 disk read: for each sorted run on disk, a bloom filter in memory says whether the run can hold the key. Turn the filters off, and look up a key that was last written long ago. What does the lookup cost now?
+- **Choice 1 (answer):** 5 disk reads: one in every run, from the newest down to the last level
+- **Choice 2:** 2 disk reads: the newest run, then the last level
+- **Choice 3:** 1 disk read: every run is sorted, so one search finds the key
+- **Reveal:** 5 disk reads: the newest version of a key can sit in any run, so without filters the engine searches each in turn, the flushed run and then all 4 levels, and most keys rest in the last level, which holds about 90% of the data. With filters, 4 runs answer "not here" from memory and only the last is read. The filters take about 10 bits a key, 1.3 GB of memory here, and they cannot answer a range scan, which opens every run either way. The B-tree walks 5 pages, 4 of them in memory: 1 disk read, filters or not.
+- **Hides while asking:** readsWhy, readsAfter
+- **Focus at the reveal:** lsm-stack, cost-read
+
+### Ten times the data
+
+- **id:** `more-data`
+- **Ask:** With 100 GB of data the B-tree writes 42× the data and the LSM tree 24×. The data grows to 1,000 GB, with the same records and settings. Whose write cost rises?
+- **Choice 1 (answer):** Only the LSM tree's: it needs another level
+- **Choice 2:** Only the B-tree's: its tree grows taller
+- **Choice 3:** Both: more data makes both trees deeper
+- **Reveal:** Only the LSM tree's: 24× becomes 29.5×. Ten times the data needs one more level at ratio 10, 5 instead of 4, and every level adds about 5.5 rewrites. The B-tree still writes one page and one log record for an update, 42×, however much data sits around it, and its walk is still 5 pages, since every level multiplies its reach by about 179. Both pay in memory instead: the B-tree's cached upper levels grow from 822 MB to 8 GB, and the LSM tree's filters from 1.3 GB to 12.5 GB.
+- **Hides while asking:** writesAfter
+- **Focus at the reveal:** lsm-stack, cost-write
+
+### Challenge: tune the size ratio
+
+- **id:** `tune-ratio`
+- **Ask:** This node has no memory to spare for bloom filters. Keep at least 100 GB of data, and choose the size ratio so that the LSM tree writes under 20× the data and a lookup costs under 7 disk reads.
+- **Reveal:** Ratio 5: 5 levels of about 3 rewrites each, 17× the data, and a lookup reads 6 runs. At ratio 10 there are only 4 levels, but each rewrites a record about 5.5 times: 24×. At ratio 4 the tree writes the same 17× with 6 levels, so a lookup costs 7 disk reads. The size ratio trades the bytes compaction writes against the runs a read must search, and against space: at ratio 5 up to about 25% more disk holds versions waiting to be merged away, against about 11% at ratio 10.
+- **Hides while asking:** nothing
+- **Focus at the reveal:** none
+
+## Stage drawing (SVG text) (388)
+
+- One write, through both engines _(D-RM, D-M, 320)_
+- 100 GB of records, 100 bytes each, rewritten at random at 10 MB/s. Follow one write. _(D-RM, D-M)_
+- B-tree · InnoDB, SQLite, Postgres indexes _(D-RM, D-M)_
+- sorted pages, updated in place _(D-RM, D-M, 320)_
+- Page size _(D-RM, D-M, 320)_
+- Cached in memory · 4 levels, 822 MB _(D-RM, D-M)_
+- On disk · 37.4 million leaf pages _(D-RM, D-M)_
+- 1 page _(D-RM, D-M, 320)_
+- 7 pages _(D-RM, D-M, 320)_
+- ×179 _(D-RM, D-M, 320)_
+- 1,169 pages _(D-RM, D-M, 320)_
+- 209,214 pages _(D-RM, D-M, 320)_
+- written back _(D-RM, D-M, 320)_
+- Leaf page · 4,096 B, about 29 records _(D-RM, D-M)_
+- free _(D-RM, D-M, 320)_
+- 100 B _(D-RM, D-M, 320)_
+- 3,996 B rewritten unchanged _(D-RM, D-M)_
+- Log _(D-RM, D-M, 320)_
+- +100 B · answered _(D-RM, D-M)_
+- 4,096 B + 100 B = 4,196 B written _(D-RM, D-M, 320)_
+- 42× the data _(D-RM, D-M, 320)_
+- LSM tree · RocksDB, LevelDB _(D-RM, D-M, 320)_
+- appended, then merged down _(D-RM, D-M, 320)_
+- Size ratio _(D-RM, D-M, 320)_
+- In memory _(D-RM, D-M, 320)_
+- The log, on disk _(D-RM, D-M)_
+- written _(D-RM, D-M, 320)_
+- memtable _(D-RM, D-M, 320)_
+- answered _(D-RM, D-M, 320)_
+- 1× _(D-RM, D-M, 320)_
+- On disk · L1 to L4, 10× apart _(D-RM, D-M)_
+- L0 _(D-RM, D-M, 320)_
+- 64 MB, flushed _(D-RM, D-M, 320)_
+- L1 _(D-RM, D-M, 320)_
+- 102 MB _(D-RM, D-M, 320)_
+- ≈5.5× avg _(D-RM, D-M)_
+- L2 _(D-RM, D-M, 320)_
+- 1 GB _(D-RM, D-M, 320)_
+- L3 _(D-RM, D-M, 320)_
+- 10 GB _(D-RM, D-M, 320)_
+- L4 _(D-RM, D-M, 320)_
+- 100 GB _(D-RM, D-M, 320)_
+- L2 filling · 10 merges from L1 _(D-RM, D-M, 320)_
+- Merge k writes k parts: the k − 1 _(D-RM, D-M)_
+- already there and the new one. _(D-RM, D-M)_
+- 55 parts for 10 new: _(D-RM, D-M)_
+- about 5.5× each. _(D-RM, D-M, 320)_
+- 1 log + 1 flush + 4 levels × 5.5 avg _(D-RM, D-M)_
+- 24× the data _(D-RM, D-M, 320)_
+- What each engine pays · from the rough model under the stage _(D-RM, D-M)_
+- Written to disk, × the new data · at 10 MB/s of new data _(D-RM, D-M)_
+- B-tree _(D-RM, D-M, 320)_
+- 42× · 420 MB/s · ≈105,000 random page writes/s _(D-RM, D-M)_
+- LSM tree _(D-RM, D-M, 320)_
+- 24× · 240 MB/s of disk writes, all sequential _(D-RM, D-M)_
+- 0 _(D-RM, D-M, 320)_
+- 50× _(D-RM, D-M, 320)_
+- 100× _(D-RM, D-M, 320)_
+- 150× _(D-RM, D-M)_
+- Disk reads per lookup _(D-RM, D-M)_
+- 1 _(D-RM, D-M, 320)_
+- Disk used, × the live data _(D-RM, D-M, 320)_
+- B-tree · pages about 70% full _(D-RM, D-M, 320)_
+- 1.44× _(D-RM, D-M, 320)_
+- LSM tree · at most, old versions _(D-RM, D-M, 320)_
+- 1.11× _(D-RM, D-M, 320)_
+- the live data alone · 1× _(D-RM, D-M, 320)_
+- written below the picture _(D-RM, 320)_
+- One lookup, through both engines _(D-RM, D-M, 320)_
+- 100 GB of records, 100 bytes each. Follow one lookup, for a key last written long ago. _(D-RM, D-M)_
+- 1 disk read _(D-RM, D-M, 320)_
+- the record, 100 B _(D-RM, D-M)_
+- 4,096 B read from disk _(D-RM, D-M, 320)_
+- Walk _(D-RM, D-M, 320)_
+- 4 in memory, 1 from disk _(D-RM, D-M)_
+- 5 pages walked − 4 in memory = 1 read _(D-RM, D-M)_
+- In memory · memtable and filters _(D-RM, D-M)_
+- memtable · 64 MB, sorted _(D-RM, D-M)_
+- not here _(D-RM, D-M, 320)_
+- skipped _(D-RM, D-M, 320)_
+- 1 read, found _(D-RM, D-M)_
+- Bloom filters · 1.3 GB of memory _(D-RM, D-M)_
+- Each run's filter answers from memory: 4 say _(D-RM, D-M)_
+- "not here", so only the last run is read from disk. _(D-RM, D-M)_
+- About 1 lookup in 100 reads a run for nothing; the _(D-RM, D-M)_
+- model leaves that out. _(D-RM, D-M)_
+- 5 runs − 4 skipped = 1 read _(D-RM, D-M, 320)_
+- Cached in memory · 3 levels, 205 MB _(D-RM, D-M)_
+- On disk · 9.4 million leaf pages _(D-RM, D-M)_
+- 19 pages _(D-RM, D-M, 320)_
+- ×716 _(D-RM, D-M, 320)_
+- 13,076 pages _(D-RM, D-M, 320)_
+- The leaf page · 16,384 B _(D-RM, D-M, 320)_
+- 16,284 B rewritten unchanged _(D-RM, D-M)_
+- 16,384 B + 100 B = 16,484 B written _(D-RM, D-M)_
+- 165× the data _(D-RM, D-M, 320)_
+- 165× · 1,648 MB/s · ≈105,000 random page writes/s · was 42× _(D-RM, D-M)_
+- 1.43× _(D-RM, D-M, 320)_
+- 100 GB of records, 1,000 bytes each, rewritten at random at 10 MB/s. Follow one write. _(D-RM, D-M)_
+- Leaf page · 4,096 B, about 3 records _(D-RM, D-M)_
+- 1,000 B changed _(D-RM, D-M)_
+- 3,096 B rewritten unchanged _(D-RM, D-M, 320)_
+- +1,000 B · answered _(D-RM, D-M)_
+- 4,096 B + 1,000 B = 5,096 B written _(D-RM, D-M)_
+- 5.1× the data _(D-RM, D-M, 320)_
+- 5.1× · 51 MB/s · ≈10,500 random page writes/s · was 42× _(D-RM, D-M)_
+- 1,000 GB of records, 100 bytes each, rewritten at random at 10 MB/s. Follow one write. _(D-RM, D-M)_
+- Cached in memory · 4 levels, 8 GB _(D-RM, D-M)_
+- On disk · 374.5 million leaf pages _(D-RM, D-M)_
+- 66 pages _(D-RM, D-M, 320)_
+- 11,688 pages _(D-RM, D-M, 320)_
+- 2.1 million pages _(D-RM, D-M, 320)_
+- On disk · L1 to L7, 4× apart _(D-RM, D-M)_
+- 250 MB _(D-RM, D-M, 320)_
+- ≈2.5× avg _(D-RM, D-M)_
+- 3.9 GB _(D-RM, D-M, 320)_
+- 15.6 GB _(D-RM, D-M, 320)_
+- L5 _(D-RM, D-M, 320)_
+- 62.5 GB _(D-RM, D-M, 320)_
+- L6 _(D-RM, D-M, 320)_
+- 250 GB _(D-RM, D-M, 320)_
+- L7 _(D-RM, D-M, 320)_
+- 1,000 GB _(D-RM, D-M, 320)_
+- L2 filling · 4 merges from L1 _(D-RM, D-M, 320)_
+- Merge k writes the k − 1 parts _(D-RM, D-M)_
+- there and the new one: 10 parts for _(D-RM, D-M)_
+- 4 new, about 2.5× each. Outlined: _(D-RM, D-M)_
+- the record, written 2 times. _(D-RM, D-M)_
+- 1 log + 1 flush + 7 levels × 2.5 avg _(D-RM, D-M)_
+- 19.5× the data _(D-RM, D-M, 320)_
+- 19.5× · 195 MB/s of disk writes, all sequential · was 17× _(D-RM, D-M)_
+- 1.33× _(D-RM, D-M, 320)_
+- 10 GB of records, 200 bytes each, rewritten at random at 10 MB/s. Follow one write. _(D-RM, D-M)_
+- Cached in memory · 3 levels, 82 MB _(D-RM, D-M)_
+- On disk · 3.7 million leaf pages _(D-RM, D-M)_
+- 117 pages _(D-RM, D-M, 320)_
+- 20,922 pages _(D-RM, D-M, 320)_
+- Leaf page · 4,096 B, about 14 records _(D-RM, D-M)_
+- 200 B _(D-RM, D-M, 320)_
+- 3,896 B rewritten unchanged _(D-RM, D-M)_
+- +200 B · answered _(D-RM, D-M)_
+- 4,096 B + 200 B = 4,296 B written _(D-RM, D-M, 320)_
+- 21.5× the data _(D-RM, D-M, 320)_
+- On disk · L1 to L2, 20× apart _(D-RM, D-M)_
+- 512 MB _(D-RM, D-M, 320)_
+- ≈10.5× avg _(D-RM, D-M)_
+- 10 GB, the data _(D-RM, D-M)_
+- L2 filling · 20 merges from L1 _(D-RM, D-M, 320)_
+- 210 parts for 20 new: _(D-RM, D-M)_
+- about 10.5× each. _(D-RM, D-M, 320)_
+- 1 log + 1 flush + 2 levels × 10.5 avg _(D-RM, D-M)_
+- 23× the data _(D-RM, D-M, 320)_
+- 21.5× · 215 MB/s · ≈52,400 random page writes/s · was 42× _(D-RM, D-M)_
+- 23× · 230 MB/s of disk writes, all sequential _(D-RM, D-M)_
+- 1.05× _(D-RM, D-M, 320)_
+- 1 read _(D-RM, D-M, 320)_
+- No bloom filters _(D-RM, D-M, 320)_
+- Any run may hold the key's newest version, so each _(D-RM, D-M)_
+- is read in turn, newest first, until the last level turns _(D-RM, D-M)_
+- it up. _(D-RM, D-M)_
+- 5 runs, none skipped = 5 reads _(D-RM, D-M, 320)_
+- 5 disk reads _(D-RM, D-M, 320)_
+- 5 · was 1 _(D-RM, D-M, 320)_
+- 1,000 GB of records, 100 bytes each. Follow one lookup, for a key last written long ago. _(D-RM, D-M)_
+- On disk · L1 to L7, 5× apart _(D-RM, D-M)_
+- 66 MB _(D-RM, D-M, 320)_
+- 328 MB _(D-RM, D-M, 320)_
+- 1.6 GB _(D-RM, D-M, 320)_
+- 8 GB _(D-RM, D-M, 320)_
+- 40 GB _(D-RM, D-M, 320)_
+- 200 GB _(D-RM, D-M, 320)_
+- 8 runs, none skipped = 8 reads _(D-RM, D-M, 320)_
+- 8 disk reads _(D-RM, D-M, 320)_
+- 8 · was 1 _(D-RM, D-M, 320)_
+- 1.25× _(D-RM, D-M, 320)_
+- 100 GB of records, 200 bytes each, rewritten at random at 10 MB/s. Follow one write. _(D-RM, D-M)_
+- Cached in memory · 3 levels, 410 MB _(D-RM, D-M)_
+- On disk · 18.7 million leaf pages _(D-RM, D-M)_
+- 147 pages _(D-RM, D-M, 320)_
+- ×358 _(D-RM, D-M, 320)_
+- 52,304 pages _(D-RM, D-M, 320)_
+- Leaf page · 8,192 B, about 29 records _(D-RM, D-M)_
+- 7,992 B rewritten unchanged _(D-RM, D-M)_
+- 8,192 B + 200 B = 8,392 B written _(D-RM, D-M, 320)_
+- On disk · L1 to L5, 5× apart _(D-RM, D-M)_
+- 164 MB _(D-RM, D-M, 320)_
+- ≈3× avg _(D-RM, D-M)_
+- 819 MB _(D-RM, D-M, 320)_
+- 4 GB _(D-RM, D-M, 320)_
+- 20 GB _(D-RM, D-M, 320)_
+- L2 filling · 5 merges from L1 _(D-RM, D-M, 320)_
+- there and the new one: 15 parts for _(D-RM, D-M)_
+- 5 new, about 3× each. Outlined: _(D-RM, D-M)_
+- the record, written 3 times. _(D-RM, D-M)_
+- 1 log + 1 flush + 5 levels × 3 on average _(D-RM, D-M)_
+- 17× the data _(D-RM, D-M, 320)_
+- 42× · 420 MB/s · ≈52,400 random page writes/s _(D-RM, D-M)_
+- 17× · 170 MB/s of disk writes, all sequential · was 24× _(D-RM, D-M)_
+- Leaf page · 8,192 B, about 57 records _(D-RM, D-M)_
+- 100 B changed _(D-RM, D-M, 320)_
+- after your answer _(D-RM, D-M, 320)_
+- ? B + ? B = ? B written _(D-RM, D-M, 320)_
+- ?× the data _(D-RM, D-M, 320)_
+- ?× _(D-RM, D-M, 320)_
+- 24× · 240 MB/s of disk writes _(D-RM, D-M, 320)_
+- Look here _(D-RM, D-M, 320)_
+- 8,092 B rewritten unchanged _(D-RM, D-M)_
+- 8,192 B + 100 B = 8,292 B written _(D-RM, D-M, 320)_
+- 82.9× the data _(D-RM, D-M, 320)_
+- 82.9× · 829 MB/s · ≈105,000 random page writes/s _(D-RM, D-M)_
+- On disk · L1 to L3, 20× apart _(D-RM, D-M)_
+- 256 MB _(D-RM, D-M, 320)_
+- 5 GB _(D-RM, D-M, 320)_
+- 1 log + 1 flush + 3 levels × 10.5 avg _(D-RM, D-M)_
+- 33.5× the data _(D-RM, D-M, 320)_
+- 33.5× · 335 MB/s of disk writes, all sequential _(D-RM, D-M)_
+- How the filters decide shows after your answer. _(D-RM, D-M)_
+- ? runs − ? skipped = 1 read _(D-RM, D-M)_
+- On disk · L1 to L5, 10× apart _(D-RM, D-M)_
+- 1 log + 1 flush + 5 levels × 5.5 avg _(D-RM, D-M)_
+- 29.5× the data _(D-RM, D-M, 320)_
+- 29.5× · 295 MB/s of disk writes, all sequential · was 24× _(D-RM, D-M)_
+- 4 _(D-RM, 320)_
+- 4 · was 1 _(D-RM, D-M, 320)_
+- On disk · L1 to L6, 4× apart _(D-RM, D-M)_
+- 100 MB _(D-RM, D-M, 320)_
+- 400 MB _(D-RM, D-M, 320)_
+- 6.3 GB _(D-RM, D-M, 320)_
+- 25 GB _(D-RM, D-M, 320)_
+- 1 log + 1 flush + 6 levels × 2.5 avg _(D-RM, D-M)_
+- 17× · 170 MB/s of disk writes, all sequential · was 33.5× _(D-RM, D-M)_
+- 7 · was 4 _(D-RM, D-M, 320)_
+- 17× · 170 MB/s of disk writes, all sequential _(D-RM, D-M)_
+- 6 · was 7 _(D-RM, D-M, 320)_
+- at the root, in memory _(D-M)_
+- level 2 of 5, in memory _(D-M)_
+- level 3 of 5, in memory _(D-M)_
+- level 4 of 5, in memory _(D-M)_
+- its leaf, read from disk _(D-M)_
+- read first _(D-M)_
+- its record changed, 100 B _(D-M)_
+- log appended: answered _(D-M)_
+- later, the whole page written back _(D-M)_
+- a write arrives _(D-M)_
+- appended to the log: no read first _(D-M)_
+- in the memtable too: safe and answered _(D-M)_
+- later, memtable full: flushed _(D-M)_
+- later, merged into L1 _(D-M)_
+- later, merged into L2 _(D-M)_
+- L2 fills over 10 merges _(D-M)_
+- later, merged into L3 _(D-M)_
+- later, merged into L4 _(D-M)_
+- the leaf, read from disk _(D-M)_
+- the record found in the page _(D-M)_
+- a lookup arrives _(D-M)_
+- the memtable: not here _(D-M)_
+- L0: its filter says "not here" _(D-M)_
+- L1: its filter says "not here" _(D-M)_
+- L2: its filter says "not here" _(D-M)_
+- L3: its filter says "not here" _(D-M)_
+- L4: read from disk _(D-M)_
+- found in L4 _(D-M)_
+- level 2 of 4, in memory _(D-M)_
+- level 3 of 4, in memory _(D-M)_
+- its record changed, 1,000 B _(D-M)_
+- L2 fills over 4 merges _(D-M)_
+- later, merged into L5 _(D-M)_
+- later, merged into L6 _(D-M)_
+- later, merged into L7 _(D-M)_
+- its record changed, 200 B _(D-M)_
+- 200 B changed _(D-M)_
+- L2 fills over 20 merges _(D-M)_
+- L0: read from disk _(D-M)_
+- L1: read from disk _(D-M)_
+- L2: read from disk _(D-M)_
+- L3: read from disk _(D-M)_
+- L5: read from disk _(D-M)_
+- L6: read from disk _(D-M)_
+- L7: read from disk _(D-M)_
+- found in L7 _(D-M)_
+- later, merged into L1, ≈3× there on average _(D-M)_
+- L2 fills over 5 merges _(D-M)_
+- its record changed _(D-M)_
+- +? B · answered _(D-M)_
+- ? B rewritten unchanged _(D-M)_
+- This level's merges draw after _(D-M)_
+- your answer. _(D-M)_
+- 1 log + 1 flush + ? levels × ? _(D-M)_
+- 42× · 420 MB/s of disk writes _(D-M, 320)_
+- later, merged down into L1 _(D-M)_
+- later, merged down into L2 _(D-M)_
+- Each merge from above rewrites _(D-M)_
+- what the level already holds; the _(D-M)_
+- outlined record is rewritten in each _(D-M)_
+- merge after it arrives. _(D-M)_
+- later, merged down into L3 _(D-M)_
+- The count shows at the reveal. _(D-M)_
+- ? _(D-M)_
+- ? runs − ? skipped = ? reads _(D-M)_
+- ? disk reads _(D-M)_
+- later, merged down into L4 _(D-M)_
+- later, merged down into L5 _(D-M)_
+- 1 · was 4 _(D-M)_
+- 100 GB of records, 100 bytes each, _(320)_
+- rewritten at random at 10 MB/s. _(320)_
+- Follow one write. _(320)_
+- B-tree · InnoDB, SQLite _(320)_
+- In memory · 4 levels, 822 MB _(320)_
+- On disk · 37.4 million leaves _(320)_
+- The leaf page · 4,096 B _(320)_
+- 4,096 B written back whole _(320)_
+- +100 B _(320)_
+- The log _(320)_
+- On disk · sorted runs _(320)_
+- ≈5.5× _(320)_
+- Merge k writes k parts: _(320)_
+- 55 for 10 new, _(320)_
+- 1 log + 1 flush + 4 levels × 5.5 _(320)_
+- What each engine pays _(320)_
+- For 10 MB/s of new data _(320)_
+- Disk reads _(320)_
+- 100 GB of records, 100 bytes each. _(320)_
+- Follow one lookup, for a key last _(320)_
+- written long ago. _(320)_
+- 4 cached, 1 read _(320)_
+- 5 pages − 4 cached = 1 read _(320)_
+- memtable · 64 MB _(320)_
+- found _(320)_
+- Bloom filters, in memory _(320)_
+- Each run's filter answers from memory: 4 _(320)_
+- say "not here", so only the last run is read _(320)_
+- from disk. About 1 lookup in 100 reads a _(320)_
+- run for nothing; the model leaves that out. _(320)_
+- In memory · 3 levels, 205 MB _(320)_
+- On disk · 9.4 million leaves _(320)_
+- 16,384 B written back whole _(320)_
+- = 16,484 B written _(320)_
+- 165× · 1,648 MB/s · was 42× _(320)_
+- 24× · 240 MB/s _(320)_
+- 100 GB of records, 1,000 bytes _(320)_
+- each, rewritten at random at _(320)_
+- 10 MB/s. Follow one write. _(320)_
+- 1,000 B _(320)_
+- +1,000 B _(320)_
+- = 5,096 B written _(320)_
+- 5.1× · 51 MB/s · was 42× _(320)_
+- 1,000 GB of records, 100 bytes _(320)_
+- In memory · 4 levels, 8 GB _(320)_
+- On disk · 374.5 million leaves _(320)_
+- ≈2.5× _(320)_
+- 10 for 4 new, _(320)_
+- about 2.5× each. _(320)_
+- 1 log + 1 flush + 7 levels × 2.5 _(320)_
+- 42× · 420 MB/s _(320)_
+- 19.5× · 195 MB/s · was 17× _(320)_
+- 10 GB of records, 200 bytes each, _(320)_
+- In memory · 3 levels, 82 MB _(320)_
+- On disk · 3.7 million leaves _(320)_
+- +200 B _(320)_
+- ≈10.5× _(320)_
+- 210 for 20 new, _(320)_
+- 1 log + 1 flush + 2 levels × 10.5 _(320)_
+- 21.5× · 215 MB/s · was 42× _(320)_
+- 23× · 230 MB/s _(320)_
+- Any run may hold the key's newest _(320)_
+- version, so each is read in turn, newest _(320)_
+- first, until the last level turns it up. _(320)_
+- each. Follow one lookup, for a key _(320)_
+- last written long ago. _(320)_
+- 23× · 230 MB/s of disk writes _(320)_
+- 100 GB of records, 200 bytes each, _(320)_
+- In memory · 3 levels, 410 MB _(320)_
+- On disk · 18.7 million leaves _(320)_
+- The leaf page · 8,192 B _(320)_
+- 8,192 B written back whole _(320)_
+- ≈3× _(320)_
+- 15 for 5 new, _(320)_
+- about 3× each. _(320)_
+- 1 log + 1 flush + 5 levels × 3 avg _(320)_
+- 17× · 170 MB/s · was 24× _(320)_
+- 82.9× · 829 MB/s of disk writes _(320)_
+- 1 log + 1 flush + 3 levels × 10.5 _(320)_
+- 33.5× · 335 MB/s _(320)_
+- 1 log + 1 flush + 5 levels × 5.5 _(320)_
+- 29.5× · 295 MB/s · was 24× _(320)_
+- 1 log + 1 flush + 6 levels × 2.5 _(320)_
+- 17× · 170 MB/s · was 33.5× _(320)_
+- 17× · 170 MB/s of disk writes _(320)_
+
+## Stage summary (the drawing's accessible name) (20)
+
+- A B-tree and an LSM tree each hold 100 GB of data in records of 100 bytes; the stage follows one write through both. B-tree, 4 KB pages: each page points to about 179 children, so 5 levels hold the data, 4 of them cached in memory. An update writes its whole page and a log record, 4,196 bytes for 100 bytes: 42× the data. A lookup costs 1 disk read. LSM tree, size ratio 10, bloom filters on: a flushed run and 4 levels on disk. A record is written once to the log, once at the flush and about 5.5 times at each level on average: 24× the data. A lookup costs 1 disk read. Disk used: about 1.44× the live data for the B-tree, at most 1.11× for the LSM tree. A rough model. _(D-RM, D-M, 320)_
+- A B-tree and an LSM tree each hold 100 GB of data in records of 100 bytes; the stage follows one lookup through both. B-tree, 4 KB pages: each page points to about 179 children, so 5 levels hold the data, 4 of them cached in memory. An update writes its whole page and a log record, 4,196 bytes for 100 bytes: 42× the data. A lookup costs 1 disk read. LSM tree, size ratio 10, bloom filters on: a flushed run and 4 levels on disk. A record is written once to the log, once at the flush and about 5.5 times at each level on average: 24× the data. A lookup costs 1 disk read. Disk used: about 1.44× the live data for the B-tree, at most 1.11× for the LSM tree. A rough model. _(D-RM, D-M, 320)_
+- A B-tree and an LSM tree each hold 100 GB of data in records of 100 bytes; the stage follows one write through both. B-tree, 16 KB pages: each page points to about 716 children, so 4 levels hold the data, 3 of them cached in memory. An update writes its whole page and a log record, 16,484 bytes for 100 bytes: 165× the data. A lookup costs 1 disk read. LSM tree, size ratio 10, bloom filters on: a flushed run and 4 levels on disk. A record is written once to the log, once at the flush and about 5.5 times at each level on average: 24× the data. A lookup costs 1 disk read. Disk used: about 1.43× the live data for the B-tree, at most 1.11× for the LSM tree. A rough model. _(D-RM, D-M, 320)_
+- A B-tree and an LSM tree each hold 100 GB of data in records of 1,000 bytes; the stage follows one write through both. B-tree, 4 KB pages: each page points to about 179 children, so 5 levels hold the data, 4 of them cached in memory. An update writes its whole page and a log record, 5,096 bytes for 1,000 bytes: 5.1× the data. A lookup costs 1 disk read. LSM tree, size ratio 10, bloom filters on: a flushed run and 4 levels on disk. A record is written once to the log, once at the flush and about 5.5 times at each level on average: 24× the data. A lookup costs 1 disk read. Disk used: about 1.44× the live data for the B-tree, at most 1.11× for the LSM tree. A rough model. _(D-RM, D-M, 320)_
+- A B-tree and an LSM tree each hold 1,000 GB of data in records of 100 bytes; the stage follows one write through both. B-tree, 4 KB pages: each page points to about 179 children, so 5 levels hold the data, 4 of them cached in memory. An update writes its whole page and a log record, 4,196 bytes for 100 bytes: 42× the data. A lookup costs 1 disk read. LSM tree, size ratio 4, bloom filters on: a flushed run and 7 levels on disk. A record is written once to the log, once at the flush and about 2.5 times at each level on average: 19.5× the data. A lookup costs 1 disk read. Disk used: about 1.44× the live data for the B-tree, at most 1.33× for the LSM tree. A rough model. _(D-RM, D-M, 320)_
+- A B-tree and an LSM tree each hold 10 GB of data in records of 200 bytes; the stage follows one write through both. B-tree, 4 KB pages: each page points to about 179 children, so 4 levels hold the data, 3 of them cached in memory. An update writes its whole page and a log record, 4,296 bytes for 200 bytes: 21.5× the data. A lookup costs 1 disk read. LSM tree, size ratio 20, bloom filters on: a flushed run and 2 levels on disk. A record is written once to the log, once at the flush and about 10.5 times at each level on average: 23× the data. A lookup costs 1 disk read. Disk used: about 1.44× the live data for the B-tree, at most 1.05× for the LSM tree. A rough model. _(D-RM, D-M, 320)_
+- A B-tree and an LSM tree each hold 100 GB of data in records of 100 bytes; the stage follows one lookup through both. B-tree, 4 KB pages: each page points to about 179 children, so 5 levels hold the data, 4 of them cached in memory. An update writes its whole page and a log record, 4,196 bytes for 100 bytes: 42× the data. A lookup costs 1 disk read. LSM tree, size ratio 10, bloom filters off: a flushed run and 4 levels on disk. A record is written once to the log, once at the flush and about 5.5 times at each level on average: 24× the data. A lookup costs 5 disk reads. Disk used: about 1.44× the live data for the B-tree, at most 1.11× for the LSM tree. A rough model. _(D-RM, D-M, 320)_
+- A B-tree and an LSM tree each hold 1,000 GB of data in records of 100 bytes; the stage follows one lookup through both. B-tree, 4 KB pages: each page points to about 179 children, so 5 levels hold the data, 4 of them cached in memory. An update writes its whole page and a log record, 4,196 bytes for 100 bytes: 42× the data. A lookup costs 1 disk read. LSM tree, size ratio 5, bloom filters off: a flushed run and 7 levels on disk. A record is written once to the log, once at the flush and about 3 times at each level on average: 23× the data. A lookup costs 8 disk reads. Disk used: about 1.44× the live data for the B-tree, at most 1.25× for the LSM tree. A rough model. _(D-RM, D-M, 320)_
+- A B-tree and an LSM tree each hold 100 GB of data in records of 200 bytes; the stage follows one write through both. B-tree, 8 KB pages: each page points to about 358 children, so 4 levels hold the data, 3 of them cached in memory. An update writes its whole page and a log record, 8,392 bytes for 200 bytes: 42× the data. A lookup costs 1 disk read. LSM tree, size ratio 5, bloom filters on: a flushed run and 5 levels on disk. A record is written once to the log, once at the flush and about 3 times at each level on average: 17× the data. A lookup costs 1 disk read. Disk used: about 1.43× the live data for the B-tree, at most 1.25× for the LSM tree. A rough model. _(D-RM, D-M, 320)_
+- A B-tree and an LSM tree each hold 100 GB of data in records of 100 bytes; the stage follows one write through both. B-tree, 8 KB pages: each page points to about 358 children, so 4 levels hold the data, 3 of them cached in memory. Its write cost shows after your answer. LSM tree, size ratio 10, bloom filters on: a flushed run and 4 levels on disk. A record is written once to the log, once at the flush and about 5.5 times at each level on average: 24× the data. A lookup costs 1 disk read. Disk used: about 1.43× the live data for the B-tree, at most 1.11× for the LSM tree. A rough model. _(D-RM, D-M, 320)_
+- A B-tree and an LSM tree each hold 100 GB of data in records of 100 bytes; the stage follows one write through both. B-tree, 8 KB pages: each page points to about 358 children, so 4 levels hold the data, 3 of them cached in memory. An update writes its whole page and a log record, 8,292 bytes for 100 bytes: 82.9× the data. A lookup costs 1 disk read. LSM tree, size ratio 10, bloom filters on: a flushed run and 4 levels on disk. A record is written once to the log, once at the flush and about 5.5 times at each level on average: 24× the data. A lookup costs 1 disk read. Disk used: about 1.43× the live data for the B-tree, at most 1.11× for the LSM tree. A rough model. _(D-RM, D-M, 320)_
+- A B-tree and an LSM tree each hold 100 GB of data in records of 100 bytes; the stage follows one write through both. B-tree, 4 KB pages: each page points to about 179 children, so 5 levels hold the data, 4 of them cached in memory. An update writes its whole page and a log record, 4,196 bytes for 100 bytes: 42× the data. A lookup costs 1 disk read. LSM tree, size ratio 20, bloom filters on: a flushed run and 3 levels on disk. A record is written once to the log, once at the flush and about 10.5 times at each level on average: 33.5× the data. A lookup costs 1 disk read. Disk used: about 1.44× the live data for the B-tree, at most 1.05× for the LSM tree. A rough model. _(D-RM, D-M, 320)_
+- A B-tree and an LSM tree each hold 1,000 GB of data in records of 100 bytes; the stage follows one write through both. B-tree, 4 KB pages: each page points to about 179 children, so 5 levels hold the data, 4 of them cached in memory. An update writes its whole page and a log record, 4,196 bytes for 100 bytes: 42× the data. A lookup costs 1 disk read. LSM tree, size ratio 10, bloom filters on: a flushed run and 5 levels on disk. A record is written once to the log, once at the flush and about 5.5 times at each level on average: 29.5× the data. A lookup costs 1 disk read. Disk used: about 1.44× the live data for the B-tree, at most 1.11× for the LSM tree. A rough model. _(D-RM, D-M, 320)_
+- A B-tree and an LSM tree each hold 100 GB of data in records of 100 bytes; the stage follows one write through both. B-tree, 4 KB pages: each page points to about 179 children, so 5 levels hold the data, 4 of them cached in memory. An update writes its whole page and a log record, 4,196 bytes for 100 bytes: 42× the data. A lookup costs 1 disk read. LSM tree, size ratio 20, bloom filters off: a flushed run and 3 levels on disk. A record is written once to the log, once at the flush and about 10.5 times at each level on average: 33.5× the data. A lookup costs 4 disk reads. Disk used: about 1.44× the live data for the B-tree, at most 1.05× for the LSM tree. A rough model. _(D-RM, D-M, 320)_
+- A B-tree and an LSM tree each hold 100 GB of data in records of 100 bytes; the stage follows one write through both. B-tree, 4 KB pages: each page points to about 179 children, so 5 levels hold the data, 4 of them cached in memory. An update writes its whole page and a log record, 4,196 bytes for 100 bytes: 42× the data. A lookup costs 1 disk read. LSM tree, size ratio 4, bloom filters off: a flushed run and 6 levels on disk. A record is written once to the log, once at the flush and about 2.5 times at each level on average: 17× the data. A lookup costs 7 disk reads. Disk used: about 1.44× the live data for the B-tree, at most 1.33× for the LSM tree. A rough model. _(D-RM, D-M, 320)_
+- A B-tree and an LSM tree each hold 100 GB of data in records of 100 bytes; the stage follows one write through both. B-tree, 4 KB pages: each page points to about 179 children, so 5 levels hold the data, 4 of them cached in memory. An update writes its whole page and a log record, 4,196 bytes for 100 bytes: 42× the data. A lookup costs 1 disk read. LSM tree, size ratio 5, bloom filters off: a flushed run and 5 levels on disk. A record is written once to the log, once at the flush and about 3 times at each level on average: 17× the data. A lookup costs 6 disk reads. Disk used: about 1.44× the live data for the B-tree, at most 1.25× for the LSM tree. A rough model. _(D-RM, D-M, 320)_
+- A B-tree and an LSM tree each hold 100 GB of data in records of 100 bytes; the stage follows one write through both. B-tree, 4 KB pages: each page points to about 179 children, so 5 levels hold the data, 4 of them cached in memory. An update writes its whole page and a log record, 4,196 bytes for 100 bytes: 42× the data. A lookup costs 1 disk read. LSM tree, size ratio 20, bloom filters on: a flushed run and 3 levels on disk. Its write cost shows after your answer. A lookup costs 1 disk read. Disk used: about 1.44× the live data for the B-tree, at most 1.05× for the LSM tree. A rough model. _(D-M)_
+- A B-tree and an LSM tree each hold 100 GB of data in records of 1,000 bytes; the stage follows one write through both. B-tree, 4 KB pages: each page points to about 179 children, so 5 levels hold the data, 4 of them cached in memory. Its write cost shows after your answer. LSM tree, size ratio 10, bloom filters on: a flushed run and 4 levels on disk. Its write cost shows after your answer. A lookup costs 1 disk read. Disk used: about 1.44× the live data for the B-tree, at most 1.11× for the LSM tree. A rough model. _(D-M)_
+- A B-tree and an LSM tree each hold 100 GB of data in records of 100 bytes; the stage follows one lookup through both. B-tree, 4 KB pages: each page points to about 179 children, so 5 levels hold the data, 4 of them cached in memory. An update writes its whole page and a log record, 4,196 bytes for 100 bytes: 42× the data. A lookup costs 1 disk read. LSM tree, size ratio 10, bloom filters off: a flushed run and 4 levels on disk. A record is written once to the log, once at the flush and about 5.5 times at each level on average: 24× the data. Its lookup's cost shows at the reveal. Disk used: about 1.44× the live data for the B-tree, at most 1.11× for the LSM tree. A rough model. _(D-M)_
+- A B-tree and an LSM tree each hold 1,000 GB of data in records of 100 bytes; the stage follows one write through both. B-tree, 4 KB pages: each page points to about 179 children, so 5 levels hold the data, 4 of them cached in memory. Its write cost shows after your answer. LSM tree, size ratio 10, bloom filters on: a flushed run and 5 levels on disk. Its write cost shows after your answer. A lookup costs 1 disk read. Disk used: about 1.44× the live data for the B-tree, at most 1.11× for the LSM tree. A rough model. _(D-M)_
+
+## Accessible names and on-stage controls (46)
+
+- A B-tree and an LSM tree each hold 100 GB of data in records of 100 bytes; the stage follows one write through both. B-tree, 4 KB pages: each page points to about 179 children, so 5 levels hold the data, 4 of them cached in memory. An update writes its whole page and a log record, 4,196 bytes for 100 bytes: 42× the data. A lookup costs 1 disk read. LSM tree, size ratio 10, bloom filters on: a flushed run and 4 levels on disk. A record is written once to the log, once at the flush and about 5.5 times at each level on average: 24× the data. A lookup costs 1 disk read. Disk used: about 1.44× the live data for the B-tree, at most 1.11× for the LSM tree. A rough model. _(D-RM, D-M, 320)_
+- Play the write through the B-tree _(D-RM, D-M, 320)_
+- 4 KB _(D-RM, D-M, 320)_
+- 8 KB _(D-RM, D-M, 320)_
+- 16 KB _(D-RM, D-M, 320)_
+- Play the write through the LSM tree _(D-RM, D-M, 320)_
+- 4 _(D-RM, D-M, 320)_
+- 5 _(D-RM, D-M, 320)_
+- 10 _(D-RM, D-M, 320)_
+- 20 _(D-RM, D-M, 320)_
+- Bloom filters1.3 GB of memory _(D-RM, D-M, 320)_
+- A B-tree and an LSM tree each hold 100 GB of data in records of 100 bytes; the stage follows one lookup through both. B-tree, 4 KB pages: each page points to about 179 children, so 5 levels hold the data, 4 of them cached in memory. An update writes its whole page and a log record, 4,196 bytes for 100 bytes: 42× the data. A lookup costs 1 disk read. LSM tree, size ratio 10, bloom filters on: a flushed run and 4 levels on disk. A record is written once to the log, once at the flush and about 5.5 times at each level on average: 24× the data. A lookup costs 1 disk read. Disk used: about 1.44× the live data for the B-tree, at most 1.11× for the LSM tree. A rough model. _(D-RM, D-M, 320)_
+- Play the lookup through the B-tree _(D-RM, D-M, 320)_
+- Play the lookup through the LSM tree _(D-RM, D-M, 320)_
+- A B-tree and an LSM tree each hold 100 GB of data in records of 100 bytes; the stage follows one write through both. B-tree, 16 KB pages: each page points to about 716 children, so 4 levels hold the data, 3 of them cached in memory. An update writes its whole page and a log record, 16,484 bytes for 100 bytes: 165× the data. A lookup costs 1 disk read. LSM tree, size ratio 10, bloom filters on: a flushed run and 4 levels on disk. A record is written once to the log, once at the flush and about 5.5 times at each level on average: 24× the data. A lookup costs 1 disk read. Disk used: about 1.43× the live data for the B-tree, at most 1.11× for the LSM tree. A rough model. _(D-RM, D-M, 320)_
+- Each engine at each of its settings, for this workload _(D-RM, D-M, 320)_
+- A B-tree and an LSM tree each hold 100 GB of data in records of 1,000 bytes; the stage follows one write through both. B-tree, 4 KB pages: each page points to about 179 children, so 5 levels hold the data, 4 of them cached in memory. An update writes its whole page and a log record, 5,096 bytes for 1,000 bytes: 5.1× the data. A lookup costs 1 disk read. LSM tree, size ratio 10, bloom filters on: a flushed run and 4 levels on disk. A record is written once to the log, once at the flush and about 5.5 times at each level on average: 24× the data. A lookup costs 1 disk read. Disk used: about 1.44× the live data for the B-tree, at most 1.11× for the LSM tree. A rough model. _(D-RM, D-M, 320)_
+- Bloom filters128 MB of memory _(D-RM, D-M, 320)_
+- A B-tree and an LSM tree each hold 1,000 GB of data in records of 100 bytes; the stage follows one write through both. B-tree, 4 KB pages: each page points to about 179 children, so 5 levels hold the data, 4 of them cached in memory. An update writes its whole page and a log record, 4,196 bytes for 100 bytes: 42× the data. A lookup costs 1 disk read. LSM tree, size ratio 4, bloom filters on: a flushed run and 7 levels on disk. A record is written once to the log, once at the flush and about 2.5 times at each level on average: 19.5× the data. A lookup costs 1 disk read. Disk used: about 1.44× the live data for the B-tree, at most 1.33× for the LSM tree. A rough model. _(D-RM, D-M, 320)_
+- Bloom filters12.5 GB of memory _(D-RM, D-M, 320)_
+- A B-tree and an LSM tree each hold 10 GB of data in records of 200 bytes; the stage follows one write through both. B-tree, 4 KB pages: each page points to about 179 children, so 4 levels hold the data, 3 of them cached in memory. An update writes its whole page and a log record, 4,296 bytes for 200 bytes: 21.5× the data. A lookup costs 1 disk read. LSM tree, size ratio 20, bloom filters on: a flushed run and 2 levels on disk. A record is written once to the log, once at the flush and about 10.5 times at each level on average: 23× the data. A lookup costs 1 disk read. Disk used: about 1.44× the live data for the B-tree, at most 1.05× for the LSM tree. A rough model. _(D-RM, D-M, 320)_
+- Bloom filters64 MB of memory _(D-RM, D-M, 320)_
+- A B-tree and an LSM tree each hold 100 GB of data in records of 100 bytes; the stage follows one lookup through both. B-tree, 4 KB pages: each page points to about 179 children, so 5 levels hold the data, 4 of them cached in memory. An update writes its whole page and a log record, 4,196 bytes for 100 bytes: 42× the data. A lookup costs 1 disk read. LSM tree, size ratio 10, bloom filters off: a flushed run and 4 levels on disk. A record is written once to the log, once at the flush and about 5.5 times at each level on average: 24× the data. A lookup costs 5 disk reads. Disk used: about 1.44× the live data for the B-tree, at most 1.11× for the LSM tree. A rough model. _(D-RM, D-M, 320)_
+- Bloom filtersoff: no filter memory _(D-RM, D-M, 320)_
+- A B-tree and an LSM tree each hold 1,000 GB of data in records of 100 bytes; the stage follows one lookup through both. B-tree, 4 KB pages: each page points to about 179 children, so 5 levels hold the data, 4 of them cached in memory. An update writes its whole page and a log record, 4,196 bytes for 100 bytes: 42× the data. A lookup costs 1 disk read. LSM tree, size ratio 5, bloom filters off: a flushed run and 7 levels on disk. A record is written once to the log, once at the flush and about 3 times at each level on average: 23× the data. A lookup costs 8 disk reads. Disk used: about 1.44× the live data for the B-tree, at most 1.25× for the LSM tree. A rough model. _(D-RM, D-M, 320)_
+- A B-tree and an LSM tree each hold 100 GB of data in records of 200 bytes; the stage follows one write through both. B-tree, 8 KB pages: each page points to about 358 children, so 4 levels hold the data, 3 of them cached in memory. An update writes its whole page and a log record, 8,392 bytes for 200 bytes: 42× the data. A lookup costs 1 disk read. LSM tree, size ratio 5, bloom filters on: a flushed run and 5 levels on disk. A record is written once to the log, once at the flush and about 3 times at each level on average: 17× the data. A lookup costs 1 disk read. Disk used: about 1.43× the live data for the B-tree, at most 1.25× for the LSM tree. A rough model. _(D-RM, D-M, 320)_
+- Bloom filters640 MB of memory _(D-RM, D-M, 320)_
+- A B-tree and an LSM tree each hold 100 GB of data in records of 100 bytes; the stage follows one write through both. B-tree, 8 KB pages: each page points to about 358 children, so 4 levels hold the data, 3 of them cached in memory. Its write cost shows after your answer. LSM tree, size ratio 10, bloom filters on: a flushed run and 4 levels on disk. A record is written once to the log, once at the flush and about 5.5 times at each level on average: 24× the data. A lookup costs 1 disk read. Disk used: about 1.43× the live data for the B-tree, at most 1.11× for the LSM tree. A rough model. _(D-RM, D-M, 320)_
+- Play the write through the B-tree, after your answer _(D-RM, D-M, 320)_
+- Play the write through the LSM tree, after your answer _(D-RM, D-M, 320)_
+- A B-tree and an LSM tree each hold 100 GB of data in records of 100 bytes; the stage follows one write through both. B-tree, 8 KB pages: each page points to about 358 children, so 4 levels hold the data, 3 of them cached in memory. An update writes its whole page and a log record, 8,292 bytes for 100 bytes: 82.9× the data. A lookup costs 1 disk read. LSM tree, size ratio 10, bloom filters on: a flushed run and 4 levels on disk. A record is written once to the log, once at the flush and about 5.5 times at each level on average: 24× the data. A lookup costs 1 disk read. Disk used: about 1.43× the live data for the B-tree, at most 1.11× for the LSM tree. A rough model. _(D-RM, D-M, 320)_
+- A B-tree and an LSM tree each hold 100 GB of data in records of 100 bytes; the stage follows one write through both. B-tree, 4 KB pages: each page points to about 179 children, so 5 levels hold the data, 4 of them cached in memory. An update writes its whole page and a log record, 4,196 bytes for 100 bytes: 42× the data. A lookup costs 1 disk read. LSM tree, size ratio 20, bloom filters on: a flushed run and 3 levels on disk. A record is written once to the log, once at the flush and about 10.5 times at each level on average: 33.5× the data. A lookup costs 1 disk read. Disk used: about 1.44× the live data for the B-tree, at most 1.05× for the LSM tree. A rough model. _(D-RM, D-M, 320)_
+- Play the lookup through the B-tree, after your answer _(D-RM, D-M)_
+- Play the lookup through the LSM tree, after your answer _(D-RM, D-M)_
+- A B-tree and an LSM tree each hold 1,000 GB of data in records of 100 bytes; the stage follows one write through both. B-tree, 4 KB pages: each page points to about 179 children, so 5 levels hold the data, 4 of them cached in memory. An update writes its whole page and a log record, 4,196 bytes for 100 bytes: 42× the data. A lookup costs 1 disk read. LSM tree, size ratio 10, bloom filters on: a flushed run and 5 levels on disk. A record is written once to the log, once at the flush and about 5.5 times at each level on average: 29.5× the data. A lookup costs 1 disk read. Disk used: about 1.44× the live data for the B-tree, at most 1.11× for the LSM tree. A rough model. _(D-RM, D-M, 320)_
+- A B-tree and an LSM tree each hold 100 GB of data in records of 100 bytes; the stage follows one write through both. B-tree, 4 KB pages: each page points to about 179 children, so 5 levels hold the data, 4 of them cached in memory. An update writes its whole page and a log record, 4,196 bytes for 100 bytes: 42× the data. A lookup costs 1 disk read. LSM tree, size ratio 20, bloom filters off: a flushed run and 3 levels on disk. A record is written once to the log, once at the flush and about 10.5 times at each level on average: 33.5× the data. A lookup costs 4 disk reads. Disk used: about 1.44× the live data for the B-tree, at most 1.05× for the LSM tree. A rough model. _(D-RM, D-M, 320)_
+- A B-tree and an LSM tree each hold 100 GB of data in records of 100 bytes; the stage follows one write through both. B-tree, 4 KB pages: each page points to about 179 children, so 5 levels hold the data, 4 of them cached in memory. An update writes its whole page and a log record, 4,196 bytes for 100 bytes: 42× the data. A lookup costs 1 disk read. LSM tree, size ratio 4, bloom filters off: a flushed run and 6 levels on disk. A record is written once to the log, once at the flush and about 2.5 times at each level on average: 17× the data. A lookup costs 7 disk reads. Disk used: about 1.44× the live data for the B-tree, at most 1.33× for the LSM tree. A rough model. _(D-RM, D-M, 320)_
+- A B-tree and an LSM tree each hold 100 GB of data in records of 100 bytes; the stage follows one write through both. B-tree, 4 KB pages: each page points to about 179 children, so 5 levels hold the data, 4 of them cached in memory. An update writes its whole page and a log record, 4,196 bytes for 100 bytes: 42× the data. A lookup costs 1 disk read. LSM tree, size ratio 5, bloom filters off: a flushed run and 5 levels on disk. A record is written once to the log, once at the flush and about 3 times at each level on average: 17× the data. A lookup costs 6 disk reads. Disk used: about 1.44× the live data for the B-tree, at most 1.25× for the LSM tree. A rough model. _(D-RM, D-M, 320)_
+- Stop the write through the B-tree _(D-M)_
+- Stop the write through the LSM tree _(D-M)_
+- Stop the lookup through the B-tree _(D-M)_
+- Stop the lookup through the LSM tree _(D-M)_
+- A B-tree and an LSM tree each hold 100 GB of data in records of 100 bytes; the stage follows one write through both. B-tree, 4 KB pages: each page points to about 179 children, so 5 levels hold the data, 4 of them cached in memory. An update writes its whole page and a log record, 4,196 bytes for 100 bytes: 42× the data. A lookup costs 1 disk read. LSM tree, size ratio 20, bloom filters on: a flushed run and 3 levels on disk. Its write cost shows after your answer. A lookup costs 1 disk read. Disk used: about 1.44× the live data for the B-tree, at most 1.05× for the LSM tree. A rough model. _(D-M)_
+- A B-tree and an LSM tree each hold 100 GB of data in records of 1,000 bytes; the stage follows one write through both. B-tree, 4 KB pages: each page points to about 179 children, so 5 levels hold the data, 4 of them cached in memory. Its write cost shows after your answer. LSM tree, size ratio 10, bloom filters on: a flushed run and 4 levels on disk. Its write cost shows after your answer. A lookup costs 1 disk read. Disk used: about 1.44× the live data for the B-tree, at most 1.11× for the LSM tree. A rough model. _(D-M)_
+- A B-tree and an LSM tree each hold 100 GB of data in records of 100 bytes; the stage follows one lookup through both. B-tree, 4 KB pages: each page points to about 179 children, so 5 levels hold the data, 4 of them cached in memory. An update writes its whole page and a log record, 4,196 bytes for 100 bytes: 42× the data. A lookup costs 1 disk read. LSM tree, size ratio 10, bloom filters off: a flushed run and 4 levels on disk. A record is written once to the log, once at the flush and about 5.5 times at each level on average: 24× the data. Its lookup's cost shows at the reveal. Disk used: about 1.44× the live data for the B-tree, at most 1.11× for the LSM tree. A rough model. _(D-M)_
+- A B-tree and an LSM tree each hold 1,000 GB of data in records of 100 bytes; the stage follows one write through both. B-tree, 4 KB pages: each page points to about 179 children, so 5 levels hold the data, 4 of them cached in memory. Its write cost shows after your answer. LSM tree, size ratio 10, bloom filters on: a flushed run and 5 levels on disk. Its write cost shows after your answer. A lookup costs 1 disk read. Disk used: about 1.44× the live data for the B-tree, at most 1.11× for the LSM tree. A rough model. _(D-M)_
+
+## Notices (polite live region) (29)
+
+- Change the workload or an engine's setting; each Play follows the write or the lookup through its engine. _(D-RM, D-M, 320)_
+- The write walks 5 pages from the root to a leaf, 4 of them in memory, reads its leaf from disk, changes 100 bytes there and appends 100 bytes to the log: the write is safe and answered. Later the whole page goes back to disk, 4,096 bytes: 4,196 bytes written for 100 bytes of data, 42×. _(D-RM, D-M, 320)_
+- The write is appended to the log and kept in the memtable, with no read first: it is safe and answered. Later, when the memtable's 64 MB fill, it is flushed to disk as one sorted run, and compaction merges the record down through 4 levels, rewriting it about 5.5 times at each on average: 24× the data in all. _(D-RM, D-M, 320)_
+- The B-tree, with 4 KB pages, writes 42× the data, and a lookup reads 1 page from disk; the LSM tree, with 4 levels at ratio 10 and bloom filters on, writes 24×, and a lookup reads 1 run. _(D-RM, D-M, 320)_
+- The lookup walks 5 pages from the root to a leaf, 4 of them in memory, and reads the leaf from disk: 1 disk read. _(D-RM, D-M, 320)_
+- The lookup checks the memtable, then asks the bloom filter of each run, in memory: 4 runs say "not here", and only the last level is read from disk: 1 disk read. _(D-RM, D-M, 320)_
+- The B-tree, with 16 KB pages, writes 165× the data, and a lookup reads 1 page from disk; the LSM tree, with 4 levels at ratio 10 and bloom filters on, writes 24×, and a lookup reads 1 run. _(D-RM, D-M, 320)_
+- The write walks 4 pages from the root to a leaf, 3 of them in memory, reads its leaf from disk, changes 100 bytes there and appends 100 bytes to the log: the write is safe and answered. Later the whole page goes back to disk, 16,384 bytes: 16,484 bytes written for 100 bytes of data, 165×. _(D-RM, D-M, 320)_
+- The B-tree, with 4 KB pages, writes 5.1× the data, and a lookup reads 1 page from disk; the LSM tree, with 4 levels at ratio 10 and bloom filters on, writes 24×, and a lookup reads 1 run. _(D-RM, D-M, 320)_
+- The write walks 5 pages from the root to a leaf, 4 of them in memory, reads its leaf from disk, changes 1,000 bytes there and appends 1,000 bytes to the log: the write is safe and answered. Later the whole page goes back to disk, 4,096 bytes: 5,096 bytes written for 1,000 bytes of data, 5.1×. _(D-RM, D-M, 320)_
+- The B-tree, with 4 KB pages, writes 42× the data, and a lookup reads 1 page from disk; the LSM tree, with 7 levels at ratio 4 and bloom filters on, writes 19.5×, and a lookup reads 1 run. _(D-RM, D-M, 320)_
+- The write is appended to the log and kept in the memtable, with no read first: it is safe and answered. Later, when the memtable's 64 MB fill, it is flushed to disk as one sorted run, and compaction merges the record down through 7 levels, rewriting it about 2.5 times at each on average: 19.5× the data in all. _(D-RM, D-M, 320)_
+- The B-tree, with 4 KB pages, writes 21.5× the data, and a lookup reads 1 page from disk; the LSM tree, with 2 levels at ratio 20 and bloom filters on, writes 23×, and a lookup reads 1 run. _(D-RM, D-M, 320)_
+- The write walks 4 pages from the root to a leaf, 3 of them in memory, reads its leaf from disk, changes 200 bytes there and appends 200 bytes to the log: the write is safe and answered. Later the whole page goes back to disk, 4,096 bytes: 4,296 bytes written for 200 bytes of data, 21.5×. _(D-RM, D-M, 320)_
+- The write is appended to the log and kept in the memtable, with no read first: it is safe and answered. Later, when the memtable's 64 MB fill, it is flushed to disk as one sorted run, and compaction merges the record down through 2 levels, rewriting it about 10.5 times at each on average: 23× the data in all. _(D-RM, D-M, 320)_
+- The B-tree, with 4 KB pages, writes 42× the data, and a lookup reads 1 page from disk; the LSM tree, with 4 levels at ratio 10 and bloom filters off, writes 24×, and a lookup reads 5 runs. _(D-RM, D-M, 320)_
+- The lookup checks the memtable, then reads every run on disk in turn, the flushed run and 4 levels, until the last level turns the key up: 5 disk reads. _(D-RM, D-M, 320)_
+- The B-tree, with 4 KB pages, writes 42× the data, and a lookup reads 1 page from disk; the LSM tree, with 7 levels at ratio 5 and bloom filters off, writes 23×, and a lookup reads 8 runs. _(D-RM, D-M, 320)_
+- The lookup checks the memtable, then reads every run on disk in turn, the flushed run and 7 levels, until the last level turns the key up: 8 disk reads. _(D-RM, D-M, 320)_
+- The B-tree, with 8 KB pages, writes 42× the data, and a lookup reads 1 page from disk; the LSM tree, with 5 levels at ratio 5 and bloom filters on, writes 17×, and a lookup reads 1 run. _(D-RM, D-M, 320)_
+- The write walks 4 pages from the root to a leaf, 3 of them in memory, reads its leaf from disk, changes 200 bytes there and appends 200 bytes to the log: the write is safe and answered. Later the whole page goes back to disk, 8,192 bytes: 8,392 bytes written for 200 bytes of data, 42×. _(D-RM, D-M, 320)_
+- The write is appended to the log and kept in the memtable, with no read first: it is safe and answered. Later, when the memtable's 64 MB fill, it is flushed to disk as one sorted run, and compaction merges the record down through 5 levels, rewriting it about 3 times at each on average: 17× the data in all. _(D-RM, D-M, 320)_
+- Play and every setting wait for your answer. _(D-RM, D-M, 320)_
+- The B-tree, with 8 KB pages, writes 82.9× the data, and a lookup reads 1 page from disk; the LSM tree, with 4 levels at ratio 10 and bloom filters on, writes 24×, and a lookup reads 1 run. _(D-RM, D-M, 320)_
+- The B-tree, with 4 KB pages, writes 42× the data, and a lookup reads 1 page from disk; the LSM tree, with 3 levels at ratio 20 and bloom filters on, writes 33.5×, and a lookup reads 1 run. _(D-RM, D-M, 320)_
+- The B-tree, with 4 KB pages, writes 42× the data, and a lookup reads 1 page from disk; the LSM tree, with 5 levels at ratio 10 and bloom filters on, writes 29.5×, and a lookup reads 1 run. _(D-RM, D-M, 320)_
+- The B-tree, with 4 KB pages, writes 42× the data, and a lookup reads 1 page from disk; the LSM tree, with 3 levels at ratio 20 and bloom filters off, writes 33.5×, and a lookup reads 4 runs. _(D-RM, D-M, 320)_
+- The B-tree, with 4 KB pages, writes 42× the data, and a lookup reads 1 page from disk; the LSM tree, with 6 levels at ratio 4 and bloom filters off, writes 17×, and a lookup reads 7 runs. _(D-RM, D-M, 320)_
+- The B-tree, with 4 KB pages, writes 42× the data, and a lookup reads 1 page from disk; the LSM tree, with 5 levels at ratio 5 and bloom filters off, writes 17×, and a lookup reads 6 runs. _(D-RM, D-M, 320)_
+
+## Controls (11)
+
+- Follow _(D-RM, D-M, 320)_
+- A write _(D-RM, D-M, 320)_
+- A lookup _(D-RM, D-M, 320)_
+- Data _(D-RM, D-M, 320)_
+- 10 GB _(D-RM, D-M, 320)_
+- 100 GB _(D-RM, D-M, 320)_
+- 1,000 GB _(D-RM, D-M, 320)_
+- Record size _(D-RM, D-M, 320)_
+- 100 B _(D-RM, D-M, 320)_
+- 200 B _(D-RM, D-M, 320)_
+- 1,000 B _(D-RM, D-M, 320)_
+
+## Describe (129)
+
+- Describe _(D-RM, D-M, 320)_
+- Hide the description _(D-RM, D-M, 320)_
+- A B-tree and an LSM tree each hold 100 GB of data in records of 100 bytes; the stage follows one write through both. B-tree, 16 KB pages: each page points to about 716 children, so 4 levels hold the data, 3 of them cached in memory. An update writes its whole page and a log record, 16,484 bytes for 100 bytes: 165× the data. A lookup costs 1 disk read. LSM tree, size ratio 10, bloom filters on: a flushed run and 4 levels on disk. A record is written once to the log, once at the flush and about 5.5 times at each level on average: 24× the data. A lookup costs 1 disk read. Disk used: about 1.43× the live data for the B-tree, at most 1.11× for the LSM tree. A rough model. _(D-RM)_
+- Engine _(D-RM, D-M, 320)_
+- Levels _(D-RM, D-M, 320)_
+- Written _(D-RM, D-M)_
+- Disk writes _(D-RM, D-M)_
+- Lookup, filters on _(D-RM, D-M)_
+- Disk used _(D-RM, D-M)_
+- B-tree, 4 KB pages _(D-RM, D-M)_
+- 5 _(D-RM, D-M, 320)_
+- 42× _(D-RM, D-M)_
+- 420 MB/s _(D-RM, D-M)_
+- 1 disk read _(D-RM, D-M)_
+- 1.44× _(D-RM, D-M)_
+- B-tree, 8 KB pages _(D-RM, D-M)_
+- 4 _(D-RM, D-M, 320)_
+- 82.9× _(D-RM, D-M)_
+- 829 MB/s _(D-RM, D-M)_
+- 1.43× _(D-RM, D-M)_
+- B-tree, 16 KB pages _(D-RM, D-M)_
+- 165× _(D-RM, D-M)_
+- 1,648 MB/s _(D-RM, D-M)_
+- LSM tree, ratio 4 _(D-RM, D-M)_
+- 6 + L0 _(D-RM, D-M)_
+- 17× _(D-RM, D-M)_
+- 170 MB/s _(D-RM, D-M)_
+- 1.33× _(D-RM, D-M)_
+- LSM tree, ratio 5 _(D-RM, D-M)_
+- 5 + L0 _(D-RM, D-M)_
+- 1.25× _(D-RM, D-M)_
+- LSM tree, ratio 10 _(D-RM, D-M)_
+- 4 + L0 _(D-RM, D-M)_
+- 24× _(D-RM, D-M)_
+- 240 MB/s _(D-RM, D-M)_
+- 1.11× _(D-RM, D-M)_
+- LSM tree, ratio 20 _(D-RM, D-M)_
+- 3 + L0 _(D-RM, D-M)_
+- 33.5× _(D-RM, D-M)_
+- 335 MB/s _(D-RM, D-M)_
+- 1.05× _(D-RM, D-M)_
+- Rows are this workload's: 100 GB in records of 100 bytes, bloom filters on. The LSM tree's disk use is an upper bound. _(D-RM, D-M, 320)_
+- A B-tree and an LSM tree each hold 1,000 GB of data in records of 100 bytes; the stage follows one write through both. B-tree, 4 KB pages: each page points to about 179 children, so 5 levels hold the data, 4 of them cached in memory. An update writes its whole page and a log record, 4,196 bytes for 100 bytes: 42× the data. A lookup costs 1 disk read. LSM tree, size ratio 4, bloom filters on: a flushed run and 7 levels on disk. A record is written once to the log, once at the flush and about 2.5 times at each level on average: 19.5× the data. A lookup costs 1 disk read. Disk used: about 1.44× the live data for the B-tree, at most 1.33× for the LSM tree. A rough model. _(D-RM, D-M)_
+- 7 + L0 _(D-RM, D-M)_
+- 19.5× _(D-RM, D-M)_
+- 195 MB/s _(D-RM, D-M)_
+- 23× _(D-RM, D-M)_
+- 230 MB/s _(D-RM, D-M)_
+- 29.5× _(D-RM, D-M)_
+- 295 MB/s _(D-RM, D-M)_
+- 44× _(D-RM, D-M)_
+- 440 MB/s _(D-RM, D-M)_
+- Rows are this workload's: 1,000 GB in records of 100 bytes, bloom filters on. The LSM tree's disk use is an upper bound. _(D-RM, D-M, 320)_
+- A B-tree and an LSM tree each hold 1,000 GB of data in records of 100 bytes; the stage follows one lookup through both. B-tree, 4 KB pages: each page points to about 179 children, so 5 levels hold the data, 4 of them cached in memory. An update writes its whole page and a log record, 4,196 bytes for 100 bytes: 42× the data. A lookup costs 1 disk read. LSM tree, size ratio 5, bloom filters off: a flushed run and 7 levels on disk. A record is written once to the log, once at the flush and about 3 times at each level on average: 23× the data. A lookup costs 8 disk reads. Disk used: about 1.44× the live data for the B-tree, at most 1.25× for the LSM tree. A rough model. _(D-RM, D-M, 320)_
+- Lookup, filters off _(D-RM, D-M)_
+- 8 disk reads _(D-RM, D-M)_
+- 6 disk reads _(D-RM, D-M)_
+- 5 disk reads _(D-RM, D-M)_
+- Rows are this workload's: 1,000 GB in records of 100 bytes, bloom filters off. The LSM tree's disk use is an upper bound. _(D-RM, D-M, 320)_
+- A B-tree and an LSM tree each hold 100 GB of data in records of 200 bytes; the stage follows one write through both. B-tree, 8 KB pages: each page points to about 358 children, so 4 levels hold the data, 3 of them cached in memory. An update writes its whole page and a log record, 8,392 bytes for 200 bytes: 42× the data. A lookup costs 1 disk read. LSM tree, size ratio 5, bloom filters on: a flushed run and 5 levels on disk. A record is written once to the log, once at the flush and about 3 times at each level on average: 17× the data. A lookup costs 1 disk read. Disk used: about 1.43× the live data for the B-tree, at most 1.25× for the LSM tree. A rough model. _(D-RM)_
+- 21.5× _(D-RM, D-M)_
+- 215 MB/s _(D-RM, D-M)_
+- Rows are this workload's: 100 GB in records of 200 bytes, bloom filters on. The LSM tree's disk use is an upper bound. _(D-RM)_
+- Describe waits for your answer. _(D-RM, D-M, 320)_
+- A B-tree and an LSM tree each hold 100 GB of data in records of 100 bytes; the stage follows one write through both. B-tree, 8 KB pages: each page points to about 358 children, so 4 levels hold the data, 3 of them cached in memory. An update writes its whole page and a log record, 8,292 bytes for 100 bytes: 82.9× the data. A lookup costs 1 disk read. LSM tree, size ratio 10, bloom filters on: a flushed run and 4 levels on disk. A record is written once to the log, once at the flush and about 5.5 times at each level on average: 24× the data. A lookup costs 1 disk read. Disk used: about 1.43× the live data for the B-tree, at most 1.11× for the LSM tree. A rough model. _(D-RM, D-M, 320)_
+- A B-tree and an LSM tree each hold 100 GB of data in records of 100 bytes; the stage follows one lookup through both. B-tree, 4 KB pages: each page points to about 179 children, so 5 levels hold the data, 4 of them cached in memory. An update writes its whole page and a log record, 4,196 bytes for 100 bytes: 42× the data. A lookup costs 1 disk read. LSM tree, size ratio 10, bloom filters off: a flushed run and 4 levels on disk. A record is written once to the log, once at the flush and about 5.5 times at each level on average: 24× the data. A lookup costs 5 disk reads. Disk used: about 1.44× the live data for the B-tree, at most 1.11× for the LSM tree. A rough model. _(D-RM, D-M, 320)_
+- 7 disk reads _(D-RM, D-M)_
+- 4 disk reads _(D-RM, D-M)_
+- Rows are this workload's: 100 GB in records of 100 bytes, bloom filters off. The LSM tree's disk use is an upper bound. _(D-RM, D-M, 320)_
+- A B-tree and an LSM tree each hold 1,000 GB of data in records of 100 bytes; the stage follows one write through both. B-tree, 4 KB pages: each page points to about 179 children, so 5 levels hold the data, 4 of them cached in memory. An update writes its whole page and a log record, 4,196 bytes for 100 bytes: 42× the data. A lookup costs 1 disk read. LSM tree, size ratio 10, bloom filters on: a flushed run and 5 levels on disk. A record is written once to the log, once at the flush and about 5.5 times at each level on average: 29.5× the data. A lookup costs 1 disk read. Disk used: about 1.44× the live data for the B-tree, at most 1.11× for the LSM tree. A rough model. _(D-RM, D-M, 320)_
+- Describe waits until you meet the goal. _(D-RM, D-M, 320)_
+- A B-tree and an LSM tree each hold 100 GB of data in records of 100 bytes; the stage follows one write through both. B-tree, 4 KB pages: each page points to about 179 children, so 5 levels hold the data, 4 of them cached in memory. An update writes its whole page and a log record, 4,196 bytes for 100 bytes: 42× the data. A lookup costs 1 disk read. LSM tree, size ratio 10, bloom filters on: a flushed run and 4 levels on disk. A record is written once to the log, once at the flush and about 5.5 times at each level on average: 24× the data. A lookup costs 1 disk read. Disk used: about 1.44× the live data for the B-tree, at most 1.11× for the LSM tree. A rough model. _(D-M, 320)_
+- A B-tree and an LSM tree each hold 100 GB of data in records of 100 bytes; the stage follows one lookup through both. B-tree, 4 KB pages: each page points to about 179 children, so 5 levels hold the data, 4 of them cached in memory. An update writes its whole page and a log record, 4,196 bytes for 100 bytes: 42× the data. A lookup costs 1 disk read. LSM tree, size ratio 10, bloom filters on: a flushed run and 4 levels on disk. A record is written once to the log, once at the flush and about 5.5 times at each level on average: 24× the data. A lookup costs 1 disk read. Disk used: about 1.44× the live data for the B-tree, at most 1.11× for the LSM tree. A rough model. _(D-M)_
+- A B-tree and an LSM tree each hold 10 GB of data in records of 200 bytes; the stage follows one write through both. B-tree, 4 KB pages: each page points to about 179 children, so 4 levels hold the data, 3 of them cached in memory. An update writes its whole page and a log record, 4,296 bytes for 200 bytes: 21.5× the data. A lookup costs 1 disk read. LSM tree, size ratio 20, bloom filters on: a flushed run and 2 levels on disk. A record is written once to the log, once at the flush and about 10.5 times at each level on average: 23× the data. A lookup costs 1 disk read. Disk used: about 1.44× the live data for the B-tree, at most 1.05× for the LSM tree. A rough model. _(D-M)_
+- 12× _(D-M)_
+- 120 MB/s _(D-M)_
+- 14× _(D-M)_
+- 140 MB/s _(D-M)_
+- 18.5× _(D-M)_
+- 185 MB/s _(D-M)_
+- 2 + L0 _(D-M)_
+- Rows are this workload's: 10 GB in records of 200 bytes, bloom filters on. The LSM tree's disk use is an upper bound. _(D-M)_
+- A B-tree and an LSM tree each hold 100 GB of data in records of 100 bytes; the stage follows one write through both. B-tree, 4 KB pages: each page points to about 179 children, so 5 levels hold the data, 4 of them cached in memory. An update writes its whole page and a log record, 4,196 bytes for 100 bytes: 42× the data. A lookup costs 1 disk read. LSM tree, size ratio 20, bloom filters on: a flushed run and 3 levels on disk. A record is written once to the log, once at the flush and about 10.5 times at each level on average: 33.5× the data. A lookup costs 1 disk read. Disk used: about 1.44× the live data for the B-tree, at most 1.05× for the LSM tree. A rough model. _(D-M, 320)_
+- A B-tree and an LSM tree each hold 100 GB of data in records of 1,000 bytes; the stage follows one write through both. B-tree, 4 KB pages: each page points to about 179 children, so 5 levels hold the data, 4 of them cached in memory. An update writes its whole page and a log record, 5,096 bytes for 1,000 bytes: 5.1× the data. A lookup costs 1 disk read. LSM tree, size ratio 10, bloom filters on: a flushed run and 4 levels on disk. A record is written once to the log, once at the flush and about 5.5 times at each level on average: 24× the data. A lookup costs 1 disk read. Disk used: about 1.44× the live data for the B-tree, at most 1.11× for the LSM tree. A rough model. _(D-M, 320)_
+- 5.1× _(D-M)_
+- 51 MB/s _(D-M)_
+- 9.2× _(D-M)_
+- 92 MB/s _(D-M)_
+- 17.4× _(D-M)_
+- 174 MB/s _(D-M)_
+- Rows are this workload's: 100 GB in records of 1,000 bytes, bloom filters on. The LSM tree's disk use is an upper bound. _(D-M, 320)_
+- Write× _(320)_
+- Reads _(320)_
+- Disk× _(320)_
+- B-tree, 4 KB _(320)_
+- 42 _(320)_
+- 1 _(320)_
+- 1.44 _(320)_
+- B-tree, 8 KB _(320)_
+- 82.9 _(320)_
+- 1.43 _(320)_
+- B-tree, 16 KB _(320)_
+- 165 _(320)_
+- LSM, ratio 4 _(320)_
+- 6+L0 _(320)_
+- 17 _(320)_
+- 1.33 _(320)_
+- LSM, ratio 5 _(320)_
+- 5+L0 _(320)_
+- 1.25 _(320)_
+- LSM, ratio 10 _(320)_
+- 4+L0 _(320)_
+- 24 _(320)_
+- 1.11 _(320)_
+- LSM, ratio 20 _(320)_
+- 3+L0 _(320)_
+- 33.5 _(320)_
+- 1.05 _(320)_
+- 7 _(320)_
+- 6 _(320)_
+- 7+L0 _(320)_
+- 19.5 _(320)_
+- 8 _(320)_
+- 23 _(320)_
+- 29.5 _(320)_
+- 44 _(320)_
+- 5.1 _(320)_
+- 9.2 _(320)_
+- 17.4 _(320)_
+
+## The model's note (2)
+
+- A rough model. B-tree: every update writes its whole page back alone, plus a log record (its leaf is read from disk first when it is not in memory; that read is not counted); InnoDB's doublewrite buffer and Postgres's full-page log images can write a page twice, and the model counts it once; pages are about 70% full; every level above the leaves stays in memory. LSM tree: a 64 MB memtable; one log write, one flush, then about (ratio + 1) / 2 rewrites at each level as it fills, on average (a real tree spends fewer at its small top level and more at its always-full last one, and the totals come out close); bloom filters take 10 bits a key, and their false positives, about 1 lookup in 100 for each run, are left out; each run's block index stays in memory, as the B-tree's upper levels do, and is not drawn. The level bars share one log scale. New data arrives at 10 MB/s. _(D-RM, D-M, 320)_
+- A rough model. Its assumptions show after your answer. _(D-RM, D-M, 320)_
+
+## Reduced-motion story (13)
+
+- The write walks 5 pages from the root to a leaf, 4 of them in memory, reads its leaf from disk, changes 100 bytes there and appends 100 bytes to the log: the write is safe and answered. Later the whole page goes back to disk, 4,096 bytes: 4,196 bytes written for 100 bytes of data, 42×. _(D-RM, 320)_
+- The write is appended to the log and kept in the memtable, with no read first: it is safe and answered. Later, when the memtable's 64 MB fill, it is flushed to disk as one sorted run, and compaction merges the record down through 4 levels, rewriting it about 5.5 times at each on average: 24× the data in all. _(D-RM, 320)_
+- The lookup walks 5 pages from the root to a leaf, 4 of them in memory, and reads the leaf from disk: 1 disk read. _(D-RM, 320)_
+- The lookup checks the memtable, then asks the bloom filter of each run, in memory: 4 runs say "not here", and only the last level is read from disk: 1 disk read. _(D-RM, 320)_
+- The write walks 4 pages from the root to a leaf, 3 of them in memory, reads its leaf from disk, changes 100 bytes there and appends 100 bytes to the log: the write is safe and answered. Later the whole page goes back to disk, 16,384 bytes: 16,484 bytes written for 100 bytes of data, 165×. _(D-RM, 320)_
+- The write walks 5 pages from the root to a leaf, 4 of them in memory, reads its leaf from disk, changes 1,000 bytes there and appends 1,000 bytes to the log: the write is safe and answered. Later the whole page goes back to disk, 4,096 bytes: 5,096 bytes written for 1,000 bytes of data, 5.1×. _(D-RM, 320)_
+- The write is appended to the log and kept in the memtable, with no read first: it is safe and answered. Later, when the memtable's 64 MB fill, it is flushed to disk as one sorted run, and compaction merges the record down through 7 levels, rewriting it about 2.5 times at each on average: 19.5× the data in all. _(D-RM, 320)_
+- The write walks 4 pages from the root to a leaf, 3 of them in memory, reads its leaf from disk, changes 200 bytes there and appends 200 bytes to the log: the write is safe and answered. Later the whole page goes back to disk, 4,096 bytes: 4,296 bytes written for 200 bytes of data, 21.5×. _(D-RM, 320)_
+- The write is appended to the log and kept in the memtable, with no read first: it is safe and answered. Later, when the memtable's 64 MB fill, it is flushed to disk as one sorted run, and compaction merges the record down through 2 levels, rewriting it about 10.5 times at each on average: 23× the data in all. _(D-RM, 320)_
+- The lookup checks the memtable, then reads every run on disk in turn, the flushed run and 4 levels, until the last level turns the key up: 5 disk reads. _(D-RM, 320)_
+- The lookup checks the memtable, then reads every run on disk in turn, the flushed run and 7 levels, until the last level turns the key up: 8 disk reads. _(D-RM, 320)_
+- The write walks 4 pages from the root to a leaf, 3 of them in memory, reads its leaf from disk, changes 200 bytes there and appends 200 bytes to the log: the write is safe and answered. Later the whole page goes back to disk, 8,192 bytes: 8,392 bytes written for 200 bytes of data, 42×. _(D-RM, 320)_
+- The write is appended to the log and kept in the memtable, with no read first: it is safe and answered. Later, when the memtable's 64 MB fill, it is flushed to disk as one sorted run, and compaction merges the record down through 5 levels, rewriting it about 3 times at each on average: 17× the data in all. _(D-RM, 320)_
+
+## Experiment dock (16)
+
+- 8,292 bytes: a B-tree changes its page in place, and a page goes to disk whole: 8,192 bytes for a change of 100 bytes, plus a log record of 100 bytes so a crash can replay it. That is 82.9× the data. At 10 MB/s of updates of 100 bytes, that is about 105,000 page writes a second, each at a random place on the disk. With 16 KB pages it would be 165×. The model is rough: it has every update write its page back alone, where a real buffer pool often gathers several changes to a hot page first. _(D-RM, D-M, 320)_
+- 10.5×: a record that arrives with the first merge is written in all 20, one that arrives with the last only once, so the average is (ratio + 1) / 2. With one write to the log and one at the flush, 3 levels of 10.5× make 33.5× the data. Every one of those writes is sequential, but the bytes add up: 10 MB/s of new data becomes 335 MB/s of disk writes, and when the disk cannot sustain that, compaction falls behind, files pile up and the engine stalls writes. In a running tree the last level never empties, so data merging into it costs nearer 20×, and the small top levels less; the totals come out close: 35× simulated against the model's 33.5×. Size-tiered compaction, Cassandra's default, merges runs of similar size instead: about one write a level, but more runs to search and up to twice the space. _(D-RM, D-M, 320)_
+- Only the B-tree's: 5.1×, so it now writes less than the LSM tree's 24×. Writing a page costs the same 4,096 bytes whatever changed inside it, so a record of 1,000 bytes fills about a quarter of the page it rewrites, where one of 100 bytes filled about a fortieth. The LSM tree rewrites every byte the same number of times whatever the record size; its cost follows its levels. Small records favor the LSM tree, and at these settings the B-tree writes less once a record passes about 180 bytes. _(D-RM, D-M, 320)_
+- 5 disk reads: the newest version of a key can sit in any run, so without filters the engine searches each in turn, the flushed run and then all 4 levels, and most keys rest in the last level, which holds about 90% of the data. With filters, 4 runs answer "not here" from memory and only the last is read. The filters take about 10 bits a key, 1.3 GB of memory here, and they cannot answer a range scan, which opens every run either way. The B-tree walks 5 pages, 4 of them in memory: 1 disk read, filters or not. _(D-RM, D-M, 320)_
+- Only the LSM tree's: 24× becomes 29.5×. Ten times the data needs one more level at ratio 10, 5 instead of 4, and every level adds about 5.5 rewrites. The B-tree still writes one page and one log record for an update, 42×, however much data sits around it, and its walk is still 5 pages, since every level multiplies its reach by about 179. Both pay in memory instead: the B-tree's cached upper levels grow from 822 MB to 8 GB, and the LSM tree's filters from 1.3 GB to 12.5 GB. _(D-RM, D-M, 320)_
+- ·the LSM tree writes 33.5× the data, under 20×: not yet _(D-RM, D-M, 320)_
+- ✓a lookup costs 4 disk reads, under 7: met _(D-RM, D-M, 320)_
+- ✓the data is 100 GB, at least 100 GB: met _(D-RM, D-M, 320)_
+- ✓the LSM tree writes 17× the data, under 20×: met _(D-RM, D-M, 320)_
+- ·a lookup costs 7 disk reads, under 7: not yet _(D-RM, D-M, 320)_
+- Goal met: _(D-RM, D-M, 320)_
+- ✓a lookup costs 6 disk reads, under 7: met _(D-RM, D-M, 320)_
+- Ratio 5: 5 levels of about 3 rewrites each, 17× the data, and a lookup reads 6 runs. At ratio 10 there are only 4 levels, but each rewrites a record about 5.5 times: 24×. At ratio 4 the tree writes the same 17× with 6 levels, so a lookup costs 7 disk reads. The size ratio trades the bytes compaction writes against the runs a read must search, and against space: at ratio 5 up to about 25% more disk holds versions waiting to be merged away, against about 11% at ratio 10. _(D-RM, D-M, 320)_
+- Watch the picture: the answer plays out on it. _(D-M)_
+- The goal keeps bloom filters off. _(D-M)_
+- ✓a lookup costs 1 disk read, under 7: met _(D-M)_
