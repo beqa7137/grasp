@@ -1573,7 +1573,8 @@
         const moment = hid.sample ? null : clock ? held : staticMoment(view, s);
         // Between holds the band claims nothing: every copy up, a neutral outcome, "Week 12 of 52."
         const neutral = !!clock && !held;
-        const into = clock ? clock.into : 0;
+        // A revealed answer keeps its hold in the end beat (a failover's second beat: the next copy carries).
+        const into = clock ? clock.into : view.phase === 'revealed' ? 1 : 0;
         const R = reserved(W - 2 * P, wide);
         D.meta.sample = smp;
         D.meta.upTo = upTo;

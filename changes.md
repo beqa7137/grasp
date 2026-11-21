@@ -142,3 +142,9 @@ is said with its reason. "Model" is `model.js` and `enum.cjs`; "mockup" includes
 - Tags could be placed under the header's moment buttons; the Draw now keeps hit boxes free.
 - The stage grew: the inset, the readout's reasons moved into the stage's reserves (the absorbed sentence, the causes
   sentence, the split, the phone's paper key and a three-row key on phones). Heights are in brief 2.
+
+The round ends with zero findings over 216 screenshots (36 states at 1280, 390 and 320 px in both themes, read), 23,694
+setting renders (every one of 648 settings at rest, at every hold frame, at every step, through a free play and with
+ghosts), 384 experiment renders, 780 no-answer renders with eight planted leaks caught, every page sentence of every
+setting, the phone readout within its two lines at 320 px, one stage height per width, and `enum.cjs` passing 300,786
+checks.

@@ -8,7 +8,7 @@ the orphan branch `design/r41-reliability`:
 | File          | What it is                                                                                                                                                                                                                                                                                                                                                          |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `model.js`    | The exact model (series, parallel, shared failures, failover), the seeded simulated year with its rest moment and play plans, and the six experiments as slot templates; ported to `libs/engine/src/sysdesign/lessons/widgets/reliability.ts`, `reliability-sample.ts` and `reliability-experiments.ts`                                                             |
-| `enum.cjs`    | Prints every experiment number, proves the challenge has exactly one passing setting of 162, checks the model against first principles (state enumeration, inclusion and exclusion) and against a discrete-event simulation of failures and repairs (every part configuration over 300,000 years, whole chains over 100,000), checks the reveals' word claims and every format, and holds the year's seed to its hard bounds (282,878 checks) |
+| `enum.cjs`    | Prints every experiment number, proves the challenge has exactly one passing setting of 162, checks the model against first principles (state enumeration, inclusion and exclusion) and against a discrete-event simulation of failures and repairs (every part configuration over 300,000 years, whole chains over 100,000), checks the reveals' word claims and every format, and holds the year's seed to its hard bounds (300,786 checks) |
 | `mockup.html` | The mockup with the app's tokens and fonts, live (steppers, toggles, Play, cards and choices work): `?state=default\|series\|pairs\|shared\|failover\|real\|triples\|optional\|playing\|hold\|describe\|reduced\|ask&exp=1..5\|reveal&exp=1..5\|challenge&theme=light\|dark`; `ask` also takes `&phase=playing` (the answer's play, hiding held, `&frac=` its moment), `challenge` takes `&start=1`, and `&motion=off` plays as Reduced motion does |
 | `shoot.cjs`   | Screenshots every state at 1280, 390 and 320 px in both themes with the page's collision report and layout assertions, then sweeps every setting at 12 widths (at rest, through a free play, with ghosts), every experiment asking, playing and revealed, the no-answer sweep with eight planted leaks, every page sentence of every setting, and the stage heights          |
 | `changes.md`  | What the mockup's own rounds found, the critique of the first complete design and what changed for each item                                                                                                                                                                                                                                                        |
@@ -81,7 +81,7 @@ recommendations the weakest links.
 - Failover's one simplification: for 3 copies the formula leaves out a backup that dies while it serves (2 s a year);
   the simulation includes it and cannot tell the two apart. For 2 copies the formula is exact for the simulated process.
 
-**Checks** (`node enum.cjs`, 282,878 pass): a copy is MTBF / (MTBF + MTTR); the parallel rule by enumerating the 2^n
+**Checks** (`node enum.cjs`, 300,786 pass): a copy is MTBF / (MTBF + MTTR); the parallel rule by enumerating the 2^n
 states of independent copies; each copy adds 3 nines; the causes add up to the part at all 12 configurations; a single
 copy is 99.9% whatever the conditions; shared failures cap a part at 4 nines; more copies never hurt; the series rule by
 inclusion and exclusion at all 648 settings, never better than the weakest part and never worse than the sum. A
@@ -279,7 +279,16 @@ question, the standing sentence, Describe, the cards. Below wide the notice is r
 always reserves three copies and the bypass lane; the year always reserves three rows a part). Measured in the mockup
 per pixel from 248 to 780 px, and over every setting and every experiment phase at 16 widths:
 
-HEIGHTS_TABLE
+| Stage width (px) | 248–255 | 256   | 257–269 | 270   | 271–303 | 304–329 | 330–335 | 336–355 | 356–364 | 365–452 | 453–488 | 489–514 | 515–522     | 523–625 | 626–634 | 635–697 | 698 and up |
+| ---------------- | ------- | ----- | ------- | ----- | ------- | ------- | ------- | ------- | ------- | ------- | ------- | ------- | ----------- | ------- | ------- | ------- | ---------- |
+| Stage height     | 1,241   | 1,224 | 1,200   | 1,182 | 1,164   | 1,146   | 1,128   | 1,110   | 1,092   | 1,074   | 1,057   | 1,039   | 1,021–1,020 | 1,002   | 985     | 967     | 949        |
+
+So 252 px (a 320 phone) is 1,241, 322 (390) is 1,146, 344 (412) is 1,110, 620 (1280) is 1,002. The second round
+added about 200 px on a phone and 116 at 1280, all of it reserves for what the critics asked to see: "that hour" at
+the year's foot, the absorbed sentence's reason, a three-row key on phones, the phone's paper key, the causes sentence
+of counts and its split, and the tied-weakest note. The readout in the controls (outside the stage) puts the request's
+numbers beside the steppers, so a phone learner no longer scrolls to see a press's result. `widget-heights.ts` gets the
+built widget's measured whole heights at rest per host width, the readout's two reserved lines included.
 
 **Motion** (3.5's grammar; WAAPI on transform and opacity; the mockup's Play shows it).
 
@@ -506,7 +515,7 @@ joined mark; a checked toggle carries a check glyph; the weakest link is
    motion off and on, sampling the play frame by frame.
 2. **False claims anywhere.** No hidden value has a default: hidden reads "?" or "after your answer". The false-claim
    list ("0 times", "0 h", "0 s", "100%", "1 times", "1 copies", "failed 1 time", NaN, undefined, Infinity) runs over
-   every free setting's stage at every swept width (11,340 renders) and over every page sentence of all 648 settings
+   every free setting's stage at every swept width (23,694 renders, every hold and every step included) and over every page sentence of all 648 settings
    (the summary, the notice, the facts, the year, the moment, Describe in both forms, the goal checks): none. So no
    downtime prints as 0 ("under 0.01 s"), no availability as 100%, "once" and "twice" are words, and a year with no
    failure says so. The year is never presented as the model: its numbers are counts and hours under "simulated", and
@@ -531,8 +540,8 @@ joined mark; a checked toggle carries a check glyph; the weakest link is
    label. Gridlines and the playhead run under grounded labels only. The ring is stroke only, round the whole tick, and
    its line has its head clear of the label row. The checker flags text on text, a line through text, text on a mark,
    anything off the stage, text under a hit box, axis labels closer than 6 px (the weeks, the nines and the downtime
-   each as their own row), a text against a focus outline's stroke and any label or tag with no place: zero over 174
-   screenshots, 11,340 setting renders and 324 experiment renders. Nothing moves across a label: the only moving marks
+   each as their own row), a text against a focus outline's stroke and any label or tag with no place: zero over 216
+   screenshots, 23,694 setting renders and 384 experiment renders. Nothing moves across a label: the only moving marks
    are the playhead, which stays in the rows, and the path, which stays on its wires.
 5. **Look-here tags.** Focus regions that touch, or stand less than a tag's height apart, merge into one outline with
    one tag (E5's chain and year). House candidates on the outline's edge first (16 px, then 6 px off its corners), then
