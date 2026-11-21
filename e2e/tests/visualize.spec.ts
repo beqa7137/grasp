@@ -377,12 +377,15 @@ test(
     await fastest.click();
     await expect(fastest).toHaveAttribute('aria-checked', 'true');
     await page.keyboard.press('Escape');
-    await player.getByRole('button', { name: 'Play', exact: true }).click();
     await player.locator('.input').getByRole('button', { name: 'Edit' }).click();
     const field = player.getByRole('textbox', { name: /^Sorted numbers/ });
     await field.click();
     await page.keyboard.press('End');
     const before = await field.inputValue();
+    // At 4× the checkpoint opens within a second of Play, which can be before clicks on Edit and the field land, and it then
+    // rightly takes focus itself. So Play starts once the field has focus, by an event that leaves focus there.
+    await player.getByRole('button', { name: 'Play', exact: true }).dispatchEvent('click');
+    await expect(field).toBeFocused();
     await page.keyboard.type('12341234123412341234', { delay: 120 });
     await expect(player.getByText('Your call')).toBeVisible();
     await expect(field).toBeFocused();
