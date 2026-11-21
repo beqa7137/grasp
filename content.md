@@ -1,0 +1,1241 @@
+# Sharding widget (`hash-ring`): every string, generated
+
+Generated from the built widget at ceb1a02a (`/design/topics/sd-sharding`) by a browser walk, and from the engine build for
+the experiments. The walk ran on the build just before that head's last two changes, which alter no string (the play's
+hand and keys in flight drawn once, and `hash32` moved beside the sharding model). Nothing here is typed by hand. Walks:
+
+- **D-RM**: desktop 1280px, reduced motion, answering each question wrong.
+- **D-M**: desktop 1280px, with motion, answering each question right, sampled through every play.
+- **320**: Pixel 7 at 320px, reduced motion, answering each question wrong.
+
+Each walk draws 18 settings (default; 1 point; 10 points; hash mod N; E joins; E and F join; D leaves; hash mod N, E joins; hash mod N, 3 to 6 nodes; hash mod N, 6 to 3 nodes; busiest down; 1 point, busiest down; hash mod N, busiest down; busiest down, then back; hot key; hot key, 6 nodes; hot key split; 1 point, 3 nodes, hot key, down), each with Describe open; then every
+experiment asking, playing its answer, revealed, and Describe after the reveal; the challenge at its start, through each
+step to the goal (both checklist states), moved off it and back, and with the node back up. A string is listed once,
+with the walks that showed it.
+
+## Experiments (engine build)
+
+### A fifth node, by hash mod N
+
+- **id:** `mod-join`
+- **Ask:** The 200 keys sit on 4 nodes, each key on node number hash mod 4. A fifth node, E, joins, so every key is placed by hash mod 5. E needs 40 keys for an even share. How many keys change node?
+- **Choice 1:** About 40: the keys E needs, no more
+- **Choice 2:** About 100: half of them
+- **Choice 3 (answer):** About 160: four keys in five
+- **Reveal:** It moves 166 of the 200 keys, 83%. A key stays only where its hash leaves the same remainder for 4 and for 5, which is 4 of every 20 hashes, so about 80% move. The table under the stage shows it key by key: a key stays only where its two remainders pick the same node. Only 47 of them went to E; the other 119 changed places among A, B, C and D, and every move is data copied over the network. Going from N to N + 1 nodes moves about N / (N + 1) of the data: the more nodes, the worse.
+- **Hides while its answer plays:** after
+- **Focus at the reveal:** bins, lens
+
+### The same node, on a ring
+
+- **id:** `ring-join`
+- **Ask:** The 200 keys sit on 4 nodes, now on a consistent-hash ring with 100 points a node: a key belongs to the next point clockwise of its hash. E joins with 100 points of its own. Which keys move?
+- **Choice 1:** About 40 to E, and about as many again among A, B, C and D to even them out
+- **Choice 2 (answer):** About 40, every one of them to E
+- **Choice 3:** Most of them: a new node changes where every hash lands
+- **Reveal:** Only 39 keys move, every one of them to E: 13 from A, 10 from B, 5 from C and 11 from D. Each of E’s points takes the stretch of ring just before it from the point that owned it, and no other arc changes, so no key moves between the old nodes. An even share for E is 40 (200 / 5); E’s 100 points took 17.1% of the ring (the ‘of ring’ row), so it got 39. hash mod N moved 166 for the same change.
+- **Hides while its answer plays:** after
+- **Focus at the reveal:** bins, lens
+
+### One point a node
+
+- **id:** `one-point`
+- **Ask:** With 100 points a node the 4 shards hold 47 to 53 keys; an even share is 50. Give each node a single point on the ring instead. How many keys does the fullest shard hold?
+- **Choice 1 (answer):** 107: more than half of all the keys
+- **Choice 2:** 75: half as much again as an even share
+- **Choice 3:** 53: no change, the hash is still uniform
+- **Reveal:** A holds 107 keys, while B holds 3. One point a node cuts the ring into 4 arcs of random length: A’s arc is 55.1% of the ring, so it gets about that share of the keys. The hash is uniform, but 4 random cuts are not even. This is typical, not bad luck: the longest of 4 random arcs averages about half the ring and the shortest about a sixteenth. With 100 points a node, its virtual nodes, each shard owns 100 short arcs scattered round the ring, their lengths average out, and the fullest holds 53. A share’s spread shrinks with the square root of the points: about a quarter of an even share either way with 10 points, under a tenth with 100.
+- **Hides while its answer plays:** after
+- **Focus at the reveal:** ring, bins
+
+### The fullest node fails
+
+- **id:** `lost-node`
+- **Ask:** One point a node. A holds 107 of the 200 keys, and it fails. Where do its keys go?
+- **Choice 1:** They spread over B, C and D, about 36 each
+- **Choice 2:** To its two neighbors on the ring, C and D, about half each
+- **Choice 3 (answer):** All 107 to C, the next point clockwise
+- **Reveal:** All 107 go to C: with A’s point gone, the next point clockwise of every one of its keys is C’s. C can take over at once because each key is also kept on the next distinct nodes clockwise, so C already holds copies; what it cannot take is the load: it goes from 73 keys to 180, 2.5× its load, so it is the likeliest to fail next, and then 180 keys land on the node after it: a cascade. With 100 points a node the busiest node is A; its arcs lie all round the ring, followed by points of B, C and D, so its 53 keys spread: 25 to B, 12 to C and 16 to D. Set Points per node to 100 to see it.
+- **Hides while its answer plays:** after
+- **Focus at the reveal:** ring, bins
+
+### A hot key
+
+- **id:** `hot-key`
+- **Ask:** One key takes 30% of all the traffic, so its shard, A, carries 48.6% where an even share of 4 nodes is 25%. Add 2 nodes, so an even share is 16.7%. What does the hot key’s shard carry now?
+- **Choice 1 (answer):** 42.3%: hardly less, the hot key alone is 30%
+- **Choice 2:** 32.4%: two thirds of it, as its keys thin out
+- **Choice 3:** 16.7%: an even share of 6 nodes
+- **Reveal:** It still carries 42.3%. Hashing spreads keys, not traffic: one key lives on one shard, so its shard carries that 30% however many nodes there are, and only the other keys’ 70% thins out. More nodes never take it below 30%. Split the key instead: with a suffix from 0 to 9 it becomes 10 keys of 3% each, which land on 6 shards here, and the busiest shard carries 19.2%. The price is that a read of it gathers all 10.
+- **Hides while its answer plays:** after
+- **Focus at the reveal:** bins, verdict
+
+### Challenge: lose the busiest node and stay even
+
+- **id:** `survive`
+- **Ask:** A hot key takes 30% of the traffic, and the busiest node has failed. Choose the placement, the points, the nodes and whether to split the hot key so that no shard left carries 30% of the traffic or more, the failure moves fewer than 50 keys, and the cluster has fewer than 6 nodes.
+- **Reveal:** A ring of 5 nodes with 100 points each and the hot key split passes: when E fails only its 39 keys move, spread over the 4 left, and the busiest carries 27.6%. Unsplit, the hot key’s shard carries 48.2%; with 10 points a node the shards are less even and the busiest carries 36.4%; hash mod N would have moved 166 keys. Many points for even shards and a spread failure, a split for the key no hash can spread, and spare capacity for the node you lose.
+- **Focus at the reveal:** bins, verdict
+
+## Stage drawing (SVG text) (796)
+
+- ? _(D-M)_
+- ? of 200 keys moved _(D-M)_
+- … _(D-M)_
+- (it was on A). _(320)_
+- (it was on D). _(320)_
+- (it was on E). _(320)_
+- +1 _(D-M)_
+- +10 _(D-RM, D-M, 320)_
+- +107 _(D-RM, D-M, 320)_
+- +11 _(D-RM, D-M, 320)_
+- +119 _(D-M)_
+- +12 _(D-RM, D-M, 320)_
+- +124 _(D-RM, D-M, 320)_
+- +13 _(D-RM, D-M, 320)_
+- +14 _(D-RM, D-M, 320)_
+- +15 _(D-RM, D-M, 320)_
+- +16 _(D-RM, D-M, 320)_
+- +17 _(D-M, 320)_
+- +18 _(D-M)_
+- +19 _(D-M)_
+- +2 _(D-M)_
+- +20 _(D-M)_
+- +21 _(D-M)_
+- +22 _(D-M)_
+- +23 _(D-RM, D-M, 320)_
+- +24 _(D-M)_
+- +25 _(D-RM, D-M, 320)_
+- +26 _(D-RM, D-M, 320)_
+- +27 _(D-RM, D-M, 320)_
+- +28 _(D-RM, D-M, 320)_
+- +29 _(D-RM, D-M, 320)_
+- +3 _(D-M)_
+- +30 _(D-M)_
+- +31 _(D-RM, D-M, 320)_
+- +32 _(D-RM, D-M, 320)_
+- +33 _(D-RM, D-M, 320)_
+- +34 _(D-M)_
+- +36 _(D-RM, D-M, 320)_
+- +37 _(D-M)_
+- +39 _(D-RM, D-M, 320)_
+- +4 _(D-RM, D-M, 320)_
+- +40 _(D-M)_
+- +41 _(D-M)_
+- +43 _(D-M)_
+- +44 _(D-M)_
+- +45 _(D-RM, D-M, 320)_
+- +47 _(D-RM, D-M, 320)_
+- +48 _(D-RM, D-M, 320)_
+- +5 _(D-RM, D-M, 320)_
+- +50 _(D-M)_
+- +51 _(D-M)_
+- +53 _(D-RM, D-M, 320)_
+- +55 _(D-M)_
+- +59 _(D-M)_
+- +6 _(D-RM, D-M, 320)_
+- +61 _(D-M)_
+- +62 _(D-M)_
+- +64 _(D-M)_
+- +68 _(D-RM, D-M, 320)_
+- +7 _(D-M)_
+- +77 _(D-M)_
+- +8 _(D-M)_
+- +9 _(D-M)_
+- +94 _(D-M)_
+- −1 _(D-M)_
+- −10 _(D-RM, D-M, 320)_
+- −107 _(D-RM, D-M, 320)_
+- −11 _(D-RM, D-M, 320)_
+- −119 _(D-M)_
+- −12 _(D-RM, D-M, 320)_
+- −124 _(D-RM, D-M, 320)_
+- −13 _(D-RM, D-M, 320)_
+- −14 _(D-RM, D-M, 320)_
+- −15 _(D-M)_
+- −16 _(D-RM, D-M, 320)_
+- −17 _(D-M, 320)_
+- −18 _(D-RM, D-M, 320)_
+- −19 _(D-M)_
+- −2 _(D-M)_
+- −20 _(D-M)_
+- −21 _(D-M)_
+- −22 _(D-M)_
+- −23 _(D-M)_
+- −25 _(D-RM, D-M, 320)_
+- −26 _(D-M)_
+- −27 _(D-RM, D-M, 320)_
+- −29 _(D-M)_
+- −3 _(D-M)_
+- −30 _(D-RM, D-M, 320)_
+- −31 _(D-RM, D-M, 320)_
+- −32 _(D-RM, D-M, 320)_
+- −33 _(D-M)_
+- −34 _(D-RM, D-M, 320)_
+- −35 _(D-M)_
+- −36 _(D-M)_
+- −37 _(D-M)_
+- −38 _(D-M)_
+- −39 _(D-RM, D-M, 320)_
+- −4 _(D-M)_
+- −40 _(D-RM, D-M, 320)_
+- −41 _(D-RM, D-M, 320)_
+- −42 _(D-RM, D-M, 320)_
+- −43 _(D-RM, D-M, 320)_
+- −44 _(D-M)_
+- −45 _(D-RM, D-M, 320)_
+- −47 _(D-RM, D-M, 320)_
+- −48 _(D-M)_
+- −49 _(D-RM, D-M, 320)_
+- −5 _(D-RM, D-M, 320)_
+- −50 _(D-M)_
+- −51 _(D-M)_
+- −52 _(D-RM, D-M)_
+- −53 _(D-RM, D-M, 320)_
+- −55 _(D-RM, D-M, 320)_
+- −57 _(D-RM, 320)_
+- −59 _(D-M)_
+- −6 _(D-M)_
+- −61 _(D-M)_
+- −7 _(D-M)_
+- −77 _(D-M)_
+- −8 _(D-M)_
+- −9 _(D-M)_
+- −94 _(D-M)_
+- 0 _(D-RM, D-M, 320)_
+- 0 of 200 keys moved so far _(D-M)_
+- 0.0 _(D-M)_
+- 0.5 _(D-M)_
+- 1 _(D-RM, D-M, 320)_
+- 1 point each _(D-RM, D-M, 320)_
+- 1.0 _(D-M)_
+- 1.1 _(D-RM, D-M, 320)_
+- 1.5 _(D-RM, D-M, 320)_
+- 10 _(D-M)_
+- 10 keys of 3% each, on 3 shards. _(D-RM)_
+- 10 keys of 3% each, on 4 shards. _(D-RM, D-M)_
+- 10 keys of 3% each, on 5 shards. _(D-M)_
+- 10 of 200 keys moved so far _(D-M)_
+- 10 points each _(D-RM, D-M, 320)_
+- 10.0 _(D-M)_
+- 10.2 _(D-RM, D-M, 320)_
+- 10.5 _(D-M)_
+- 10.9 _(D-M)_
+- 100 points each _(D-RM, D-M, 320)_
+- 100% _(D-RM, D-M, 320)_
+- 105 of 200 keys moved so far _(D-M)_
+- 107 _(D-RM, D-M, 320)_
+- 107 of 200 keys moved _(D-RM, D-M, 320)_
+- 107 of 200 keys moved so far _(D-M)_
+- 11 _(D-M)_
+- 11.0 _(D-M)_
+- 11.2 _(D-RM, D-M, 320)_
+- 11.5 _(D-RM, D-M, 320)_
+- 11.6 _(D-RM, D-M, 320)_
+- 114 of 200 keys moved so far _(D-M)_
+- 116 of 200 keys moved _(D-RM, D-M, 320)_
+- 117 _(D-RM, D-M, 320)_
+- 119 _(D-RM, D-M, 320)_
+- 119 of 200 keys moved so far _(D-M)_
+- 12 _(D-M)_
+- 12 of 200 keys moved so far _(D-M)_
+- 12.0 _(D-M)_
+- 12.3 _(D-RM, D-M, 320)_
+- 12.5 _(D-RM, D-M, 320)_
+- 12.6 _(D-RM, D-M, 320)_
+- 12.8 _(D-RM, D-M, 320)_
+- 120 _(D-RM, D-M, 320)_
+- 122 of 200 keys moved so far _(D-M)_
+- 123 of 200 keys moved so far _(D-M)_
+- 124 _(320)_
+- 124 of 200 keys moved _(D-RM, D-M, 320)_
+- 13 _(D-RM, D-M)_
+- 13.0 _(D-M)_
+- 13.5 _(D-M)_
+- 13.7 _(D-M)_
+- 131 of 200 keys moved _(D-RM, D-M, 320)_
+- 132 _(D-M)_
+- 134 _(D-M)_
+- 135 _(D-RM, D-M, 320)_
+- 136 of 200 keys moved so far _(D-M)_
+- 137 _(D-RM, D-M, 320)_
+- 14 of 200 keys moved so far _(D-M)_
+- 14.0 _(D-M)_
+- 14.5 _(D-RM, D-M, 320)_
+- 148 of 200 keys moved so far _(D-M)_
+- 15 _(D-M)_
+- 15 of 200 keys moved so far _(D-M)_
+- 15.0 _(D-M)_
+- 15.1 _(D-RM)_
+- 15.5 _(D-RM, D-M, 320)_
+- 15.6 _(D-M)_
+- 15.8 _(D-M)_
+- 150 _(D-M)_
+- 152 of 200 keys moved _(D-RM, D-M, 320)_
+- 152 of 200 keys moved so far _(D-M)_
+- 155 of 200 keys moved so far _(D-M)_
+- 158 of 200 keys moved _(D-RM, D-M)_
+- 16 _(D-RM, D-M, 320)_
+- 16 of 200 keys moved so far _(D-M)_
+- 16.0 _(D-RM, D-M, 320)_
+- 16.4 _(D-RM, D-M, 320)_
+- 16.5 _(D-RM, D-M, 320)_
+- 161 of 200 keys moved _(D-RM, D-M, 320)_
+- 166 of 200 keys moved _(D-RM, D-M, 320)_
+- 167 _(D-M)_
+- 17 _(D-RM, D-M, 320)_
+- 17 of 200 keys moved _(320)_
+- 17.0 _(D-M)_
+- 17.1 _(D-RM, D-M, 320)_
+- 17.2 _(D-RM, D-M, 320)_
+- 17.5 _(D-RM, D-M, 320)_
+- 17.6 _(D-M)_
+- 18 _(D-M)_
+- 18.0 _(D-RM, D-M, 320)_
+- 18.1 _(D-M)_
+- 18.4 _(D-RM, D-M, 320)_
+- 18.5 _(D-RM, D-M, 320)_
+- 18.6 _(D-M)_
+- 18.8 _(D-M)_
+- 18.9 _(D-M)_
+- 180 _(D-RM, D-M, 320)_
+- 19 _(D-M)_
+- 19 of 200 keys moved so far _(D-M)_
+- 19.0 _(D-M)_
+- 19.2 _(D-RM, D-M, 320)_
+- 19.3 _(D-RM, D-M, 320)_
+- 19.5 _(D-RM, D-M, 320)_
+- 19.7 _(D-M)_
+- 192 _(D-M)_
+- 197 _(D-RM, D-M, 320)_
+- 2 _(D-RM, D-M, 320)_
+- 2 nodes up _(D-RM, D-M, 320)_
+- 2.0 _(D-M)_
+- 2.2% OF THE RING, 24× _(320)_
+- 2.5 _(D-RM, D-M, 320)_
+- 20 _(D-M)_
+- 20.0 _(D-RM, D-M, 320)_
+- 20.1 _(D-RM, D-M, 320)_
+- 20.3 _(D-M)_
+- 20.5 _(D-M)_
+- 20.7 _(D-M)_
+- 21 _(D-M)_
+- 21 of 200 keys moved so far _(D-M)_
+- 21.0 _(D-RM, D-M, 320)_
+- 21.1 _(D-M)_
+- 21.3 _(D-RM, D-M, 320)_
+- 21.4 _(D-M)_
+- 21.5 _(D-RM, D-M)_
+- 21.7 _(D-RM, D-M, 320)_
+- 21.8 _(D-M)_
+- 22 _(D-M)_
+- 22.0 _(D-RM, D-M, 320)_
+- 22.1 _(D-RM, D-M, 320)_
+- 22.5 _(D-RM, D-M, 320)_
+- 22.7 _(D-M)_
+- 22.8 _(D-M)_
+- 22% OF THE RING, 2× _(320)_
+- 23 _(D-RM, D-M, 320)_
+- 23.0 _(D-RM, D-M, 320)_
+- 23.1 _(D-M)_
+- 23.2 _(D-M)_
+- 23.4 _(D-M)_
+- 23.5 _(D-RM, D-M, 320)_
+- 23.7 _(D-M)_
+- 23.9 _(D-M)_
+- 24 _(D-M)_
+- 24 of 200 keys moved so far _(D-M)_
+- 24.0 _(D-M)_
+- 24.2 _(D-RM, 320)_
+- 24.4 _(D-M)_
+- 24.5 _(D-RM, D-M, 320)_
+- 25 _(D-RM, D-M, 320)_
+- 25 of 200 keys moved so far _(D-M)_
+- 25.0 _(D-RM, D-M, 320)_
+- 25.1 _(D-M)_
+- 25.2 _(D-M)_
+- 25.3 _(D-RM, D-M, 320)_
+- 25.5 _(D-M)_
+- 25.6 _(D-M, 320)_
+- 25% _(D-RM, D-M, 320)_
+- 26 _(D-M)_
+- 26 of 200 keys moved so far _(D-M)_
+- 26.0 _(D-RM, D-M, 320)_
+- 26.1 _(D-RM, D-M, 320)_
+- 26.2 _(D-M)_
+- 26.3 _(D-RM)_
+- 26.5 _(D-RM, D-M, 320)_
+- 26.8 _(D-RM, D-M, 320)_
+- 27 _(D-M)_
+- 27.0 _(D-M)_
+- 27.5 _(D-RM, D-M, 320)_
+- 27.6 _(D-RM, D-M, 320)_
+- 27.8 _(D-RM, D-M, 320)_
+- 28 _(D-M)_
+- 28.0 _(D-RM, D-M, 320)_
+- 28.5 _(D-M)_
+- 29 _(D-RM, D-M, 320)_
+- 29 of 200 keys moved so far _(D-M)_
+- 29.0 _(D-M)_
+- 29.5 _(D-M)_
+- 3 _(D-RM, D-M, 320)_
+- 3 nodes _(D-RM, D-M, 320)_
+- 3 nodes on, to its node's twin. _(320)_
+- 3 nodes up _(D-RM, D-M, 320)_
+- 3.0 _(D-M)_
+- 3.5 _(D-M)_
+- 30 _(D-RM, D-M, 320)_
+- 30 of 200 keys moved so far _(D-M)_
+- 30.0 _(D-RM, D-M, 320)_
+- 30.5 _(D-RM, D-M, 320)_
+- 30.6 _(D-RM, D-M, 320)_
+- 30.7 _(D-RM, 320)_
+- 30%, on C. _(D-RM, D-M)_
+- 31 _(D-RM, D-M, 320)_
+- 31 of 200 keys moved so far _(D-M)_
+- 31.0 _(D-RM, D-M, 320)_
+- 31.2 _(D-RM, D-M, 320)_
+- 31.5 _(D-RM, D-M, 320)_
+- 31.9 _(D-RM, D-M, 320)_
+- 32 _(D-RM, D-M, 320)_
+- 32 of 200 keys moved so far _(D-M)_
+- 32.0 _(D-M)_
+- 32.5 _(D-M)_
+- 32.7 _(D-RM, D-M, 320)_
+- 32.9 _(D-M)_
+- 33 _(D-RM, D-M, 320)_
+- 33 of 200 keys moved so far _(D-M)_
+- 33.0 _(D-M)_
+- 33.5 _(D-RM, D-M, 320)_
+- 33.8 _(D-RM, D-M, 320)_
+- 34 _(D-M)_
+- 34.0 _(D-M)_
+- 34.5 _(D-M)_
+- 35 _(D-RM, D-M, 320)_
+- 35 of 200 keys moved so far _(D-M)_
+- 35.0 _(D-M)_
+- 35.1 _(D-RM, D-M, 320)_
+- 35.5 _(D-M)_
+- 36 _(D-RM, D-M, 320)_
+- 36 of 200 keys moved so far _(D-M)_
+- 36.0 _(D-M)_
+- 36.4 _(D-RM, 320)_
+- 36.5 _(D-RM, D-M, 320)_
+- 36.9 _(D-RM, D-M, 320)_
+- 37 _(D-RM, D-M, 320)_
+- 37 of 200 keys moved so far _(D-M)_
+- 37.5 _(D-RM, D-M, 320)_
+- 38 _(D-M)_
+- 38 of 200 keys moved so far _(D-M)_
+- 38.5 _(D-RM, D-M, 320)_
+- 39 _(D-RM, D-M, 320)_
+- 39 of 200 keys moved _(D-RM, D-M, 320)_
+- 39.0 _(D-M)_
+- 39.5 _(D-M)_
+- 4 _(D-RM, D-M, 320)_
+- 4 nodes _(D-RM, D-M, 320)_
+- 4 nodes up _(D-RM, D-M, 320)_
+- 4.0 _(D-M)_
+- 4.5 _(D-M)_
+- 40 _(D-RM, D-M, 320)_
+- 40 of 200 keys moved _(D-RM)_
+- 40 of 200 keys moved so far _(D-M)_
+- 40.5 _(D-M)_
+- 41 _(D-M)_
+- 41.5 _(D-M)_
+- 42 _(D-M)_
+- 42.3 _(D-RM, D-M, 320)_
+- 42.5 _(D-RM, D-M, 320)_
+- 43 _(D-RM, D-M)_
+- 43 of 200 keys moved so far _(D-M)_
+- 44 _(D-RM, D-M, 320)_
+- 44.5 _(D-M)_
+- 45 _(D-RM, D-M, 320)_
+- 45 of 200 keys moved so far _(D-M)_
+- 46 _(D-RM, D-M, 320)_
+- 46.0 _(D-M)_
+- 46.2 _(D-M)_
+- 47 _(D-RM, D-M, 320)_
+- 47 of 200 keys moved _(D-RM, D-M, 320)_
+- 47 of 200 keys moved so far _(D-M)_
+- 48 _(D-M)_
+- 48 of 200 keys moved so far _(D-M)_
+- 48.2 _(D-RM)_
+- 48.6 _(D-RM, D-M, 320)_
+- 49 _(D-RM, D-M, 320)_
+- 49 of 200 keys moved so far _(D-M)_
+- 49.0 _(D-M)_
+- 5 _(D-RM, D-M, 320)_
+- 5 nodes _(D-RM, D-M, 320)_
+- 5 of 200 keys moved so far _(D-M)_
+- 5.0 _(D-M)_
+- 5.3 _(D-M)_
+- 5.5 _(D-M)_
+- 50 _(D-RM, D-M, 320)_
+- 50% _(D-RM, D-M, 320)_
+- 51 _(D-M)_
+- 52 _(D-RM, D-M, 320)_
+- 52 of 200 keys moved so far _(D-M)_
+- 52.5 _(D-M)_
+- 53 _(D-RM, D-M, 320)_
+- 53 of 200 keys moved _(D-RM, D-M, 320)_
+- 53 to A, 32 to B and 31 to C. _(320)_
+- 53.5 _(D-RM, D-M, 320)_
+- 54 _(D-M)_
+- 55 _(D-RM, D-M, 320)_
+- 55.1 _(D-RM, D-M, 320)_
+- 56 _(D-RM, D-M, 320)_
+- 56.3 _(D-RM, D-M, 320)_
+- 57 _(D-M)_
+- 57 of 200 keys moved _(D-RM, 320)_
+- 58 _(D-M)_
+- 58 of 200 keys moved so far _(D-M)_
+- 58.5 _(D-M)_
+- 59 _(D-M)_
+- 59 of 200 keys moved so far _(D-M)_
+- 59.8 _(D-RM, D-M, 320)_
+- 6 _(D-M)_
+- 6 nodes _(D-RM, D-M, 320)_
+- 6 of 200 keys moved so far _(D-M)_
+- 6.0 _(D-M, 320)_
+- 6.5 _(D-M)_
+- 60 _(D-RM, D-M, 320)_
+- 61 _(D-RM, D-M, 320)_
+- 61 of 200 keys moved so far _(D-M)_
+- 62 _(D-RM, D-M, 320)_
+- 62 of 200 keys moved _(D-RM, D-M, 320)_
+- 62 of 200 keys moved so far _(D-M)_
+- 62.4 _(320)_
+- 63 _(D-RM, D-M, 320)_
+- 64 _(D-RM, D-M)_
+- 64 of 200 keys moved so far _(D-M)_
+- 65 _(D-M)_
+- 66 _(D-M)_
+- 67 _(D-RM, D-M, 320)_
+- 67.0 _(D-M)_
+- 67.2 _(D-M)_
+- 68 _(D-M)_
+- 69 _(D-M)_
+- 69 of 200 keys moved so far _(D-M)_
+- 7 _(D-M)_
+- 7 of 200 keys moved so far _(D-M)_
+- 7.3 _(D-RM, D-M, 320)_
+- 7.5 _(D-M)_
+- 70 _(D-M)_
+- 71 _(D-M)_
+- 72 _(D-M)_
+- 73 _(D-RM, D-M, 320)_
+- 73.4 _(320)_
+- 75 _(D-RM, D-M, 320)_
+- 75.0 _(D-M)_
+- 75% _(D-RM, D-M, 320)_
+- 77 _(D-RM, D-M, 320)_
+- 77 of 200 keys moved so far _(D-M)_
+- 78 _(D-RM, D-M, 320)_
+- 79 _(D-M)_
+- 8 _(D-M)_
+- 8 of 200 keys moved so far _(D-M)_
+- 8.0 _(D-M)_
+- 8.5 _(D-RM, D-M, 320)_
+- 8.7 _(D-RM, D-M, 320)_
+- 8.8 _(D-RM, D-M, 320)_
+- 81 _(D-M)_
+- 82 of 200 keys moved so far _(D-M)_
+- 83 _(D-M)_
+- 83.5 _(D-M)_
+- 85 _(D-RM, D-M, 320)_
+- 85 of 200 keys moved so far _(D-M)_
+- 89 _(D-M)_
+- 9 _(D-M)_
+- 9.0 _(D-M)_
+- 9.1 _(D-M)_
+- 9.5 _(D-M)_
+- 90 of 200 keys moved so far _(D-M)_
+- 90.0 _(D-RM, D-M, 320)_
+- 90.2 _(D-RM, D-M, 320)_
+- 91 of 200 keys moved so far _(D-M)_
+- 92 _(D-M)_
+- 93.0 _(D-M, 320)_
+- 94 _(D-M)_
+- 94 of 200 keys moved so far _(D-M)_
+- 97.5 _(D-RM, D-M, 320)_
+- 98 _(D-M)_
+- 99 of 200 keys moved so far _(D-M)_
+- 99.0 _(D-RM, D-M, 320)_
+- A _(D-RM, D-M, 320)_
+- A CLOSER LOOK · 28% OF THE RING AROUND user:119, MAGNIFIED 3× _(D-RM, D-M)_
+- A CLOSER LOOK · 5.8% OF THE RING AROUND user:119, MAGNIFIED 17× _(D-RM, D-M)_
+- A CLOSER LOOK · THE 11 KEYS NEAREST user:119 BY HASH _(D-RM, D-M)_
+- A CLOSER LOOK · THE WHOLE RING, LAID FLAT FROM 0 _(D-RM, D-M)_
+- A is the busiest shard with 27.6% of _(320)_
+- A is the busiest shard with 27.6% of the traffic; an even share is 25%. The hot key is split into _(D-RM, D-M)_
+- A is the busiest shard with 42.3% of _(320)_
+- A is the busiest shard with 42.3% of the traffic; an even share is 16.7%. The hot key alone _(D-RM, D-M)_
+- A is the busiest shard with 48.6% of _(320)_
+- A is the busiest shard with 48.6% of the traffic; an even share is 25%. The hot key alone _(D-RM, D-M)_
+- A is the busiest shard with 59.8% of _(320)_
+- A is the busiest shard with 59.8% of the traffic; an even share is 33.3%. The hot key alone _(D-RM, D-M)_
+- A is the busiest shard with 73.4% of _(320)_
+- A is the fullest shard with 107 keys; _(320)_
+- A is the fullest shard with 107 keys; an even share is 50. _(D-RM, D-M)_
+- A is the fullest shard with 53 keys; _(320)_
+- A is the fullest shard with 53 keys; an even share is 50. _(D-RM, D-M)_
+- A is the fullest shard with 85 keys; _(320)_
+- A is the fullest shard with 85 keys; an even share is 66.7. _(D-RM, D-M)_
+- a key _(320)_
+- a key, in its node’s color _(D-RM, D-M)_
+- A pile’s height is its share of all traffic _(D-RM, D-M, 320)_
+- a tenth of the hot key, 3% _(D-RM, D-M)_
+- a tenth, 3% _(320)_
+- A, B, C and D, because hash mod 6 _(320)_
+- A: 107 keys _(320)_
+- A: 124 keys _(320)_
+- All 116 moved to D, E or F: 53 to D, 32 to E and 31 to F. _(D-RM, D-M)_
+- All 116 moved to D, E or F. _(320)_
+- All 39 moved to E: 13 from A, 10 _(320)_
+- All 39 moved to E: 13 from A, 10 from B, 5 from C and 11 from D. _(D-RM, D-M)_
+- All 53 moved to A: 25 from B, 12 _(320)_
+- All 53 moved to A: 25 from B, 12 from C and 16 from D. _(D-RM, D-M)_
+- All 62 moved to E or F: 29 to E and 33 to F. _(D-RM, D-M)_
+- All 62 moved to E or F. _(320)_
+- among nodes that stayed. _(D-RM, D-M)_
+- An even share for A is 50 (200 / 4). _(D-RM, D-M, 320)_
+- An even share for D, E and F _(320)_
+- An even share for D, E and F together is 100 (3 × 200 / 6). _(D-RM, D-M)_
+- An even share for E and F together _(320)_
+- An even share for E and F together is 66.7 (2 × 200 / 6). _(D-RM, D-M)_
+- An even share for E is 40 (200 / 5). _(D-RM, D-M, 320)_
+- an even share is 33.3. _(320)_
+- an even share is 40. _(320)_
+- an even share is 50. _(320)_
+- an even share is 66.7. _(320)_
+- B _(D-RM, D-M, 320)_
+- B held 55 keys, but 152 moved: _(320)_
+- B held 55 keys, but 152 moved: hash mod 3 places every key again, so 97 changed places _(D-RM, D-M)_
+- B is the busiest shard with 36.4% of _(320)_
+- B is the busiest shard with 36.4% of the traffic; an even share is 25%. The hot key is split into _(D-RM)_
+- B is the busiest shard with 48.2% of the traffic; an even share is 25%. The hot key alone _(D-RM)_
+- B is the busiest shard with 56.3% of _(320)_
+- B is the busiest shard with 56.3% of the traffic; an even share is 33.3%. The hot key alone _(D-RM, D-M)_
+- B is the fullest shard with 55 keys; _(320)_
+- B is the fullest shard with 55 keys; an even share is 50. _(D-RM, D-M)_
+- B is the fullest shard with 75 keys; _(320)_
+- B is the fullest shard with 75 keys; an even share is 66.7. _(D-RM, D-M)_
+- B, C and D, because hash mod 5 _(320)_
+- B's own keys come from their _(320)_
+- B's own keys come from their copies: a dead node sends nothing. _(D-RM, D-M)_
+- because hash mod 6 places every key again. _(D-RM, D-M)_
+- busiest node down, and watch _(320)_
+- C _(D-RM, D-M, 320)_
+- C held 49 keys, but 161 moved: _(320)_
+- C held 49 keys, but 161 moved: hash mod 3 places every key again, so 112 changed places _(D-RM, D-M)_
+- C is the busiest shard with 93% of _(320)_
+- C is the busiest shard with 93% of the traffic; an even share is 33.3%. The hot key alone _(D-M)_
+- C is the busiest shard with 99% of _(320)_
+- C is the busiest shard with 99% of the traffic; an even share is 50%. The hot key alone carries _(D-RM, D-M)_
+- C is the fullest shard with 180 keys; _(320)_
+- C is the fullest shard with 180 keys; an even share is 66.7. _(D-RM, D-M)_
+- C is the fullest shard with 36 keys; _(320)_
+- C is the fullest shard with 36 keys; an even share is 33.3. _(D-RM, D-M)_
+- C is the fullest shard with 45 keys; _(320)_
+- C is the fullest shard with 45 keys; an even share is 40. _(D-RM, D-M)_
+- C is the fullest shard with 77 keys; _(320)_
+- C is the fullest shard with 77 keys; an even share is 66.7. _(D-RM, D-M)_
+- C went from 73 keys to 180. _(D-RM, D-M, 320)_
+- C went from 73 keys to 197. _(D-RM, D-M, 320)_
+- C: 73 keys _(320)_
+- C's own keys come from their _(320)_
+- C's own keys come from their copies: a dead node sends nothing. _(D-RM, D-M)_
+- carries 30%, on A. _(D-RM, D-M)_
+- carries 30%, on B. _(D-RM, D-M)_
+- carries 30%, on C. _(D-M)_
+- Change the nodes, or take the _(320)_
+- Change the nodes, or take the busiest node down, and watch which keys move. _(D-RM, D-M)_
+- change: each key stays or moves _(320)_
+- clockwise → _(D-RM, D-M, 320)_
+- copies: a dead node sends nothing. _(320)_
+- Counting each key as it lands; 1 key is in flight. _(D-M)_
+- Counting each key as it lands; 10 keys are in flight. _(D-M)_
+- Counting each key as it lands; 11 keys are in flight. _(D-M)_
+- Counting each key as it lands; 12 keys are in flight. _(D-M)_
+- Counting each key as it lands; 13 keys are in flight. _(D-M)_
+- Counting each key as it lands; 14 keys are in flight. _(D-M)_
+- Counting each key as it lands; 15 keys are in flight. _(D-M)_
+- Counting each key as it lands; 16 keys are in flight. _(D-M)_
+- Counting each key as it lands; 17 keys are in flight. _(D-M)_
+- Counting each key as it lands; 18 keys are in flight. _(D-M)_
+- Counting each key as it lands; 19 keys are in flight. _(D-M)_
+- Counting each key as it lands; 2 keys are in flight. _(D-M)_
+- Counting each key as it lands; 20 keys are in flight. _(D-M)_
+- Counting each key as it lands; 23 keys are in flight. _(D-M)_
+- Counting each key as it lands; 24 keys are in flight. _(D-M)_
+- Counting each key as it lands; 25 keys are in flight. _(D-M)_
+- Counting each key as it lands; 27 keys are in flight. _(D-M)_
+- Counting each key as it lands; 29 keys are in flight. _(D-M)_
+- Counting each key as it lands; 3 keys are in flight. _(D-M)_
+- Counting each key as it lands; 30 keys are in flight. _(D-M)_
+- Counting each key as it lands; 31 keys are in flight. _(D-M)_
+- Counting each key as it lands; 32 keys are in flight. _(D-M)_
+- Counting each key as it lands; 33 keys are in flight. _(D-M)_
+- Counting each key as it lands; 34 keys are in flight. _(D-M)_
+- Counting each key as it lands; 35 keys are in flight. _(D-M)_
+- Counting each key as it lands; 36 keys are in flight. _(D-M)_
+- Counting each key as it lands; 37 keys are in flight. _(D-M)_
+- Counting each key as it lands; 38 keys are in flight. _(D-M)_
+- Counting each key as it lands; 4 keys are in flight. _(D-M)_
+- Counting each key as it lands; 40 keys are in flight. _(D-M)_
+- Counting each key as it lands; 44 keys are in flight. _(D-M)_
+- Counting each key as it lands; 45 keys are in flight. _(D-M)_
+- Counting each key as it lands; 47 keys are in flight. _(D-M)_
+- Counting each key as it lands; 5 keys are in flight. _(D-M)_
+- Counting each key as it lands; 6 keys are in flight. _(D-M)_
+- Counting each key as it lands; 7 keys are in flight. _(D-M)_
+- Counting each key as it lands; 8 keys are in flight. _(D-M)_
+- Counting each key as it lands; 9 keys are in flight. _(D-M)_
+- Counting each key as it lands. _(D-M)_
+- D _(D-RM, D-M, 320)_
+- D held 52 keys, but 158 moved: hash mod 3 places every key again, so 106 changed places _(D-RM, D-M)_
+- D is the fullest shard with 53 keys; _(320)_
+- D is the fullest shard with 53 keys; an even share is 33.3. _(D-RM, D-M)_
+- D is the fullest shard with 62 keys; _(320)_
+- D is the fullest shard with 62 keys; an even share is 50. _(D-RM, D-M)_
+- Doubling is hash mod N's one cheap _(320)_
+- Doubling is hash mod N's one cheap change: a key's remainder for 6 is its remainder for 3 or _(D-RM, D-M)_
+- down _(D-RM, D-M)_
+- E _(D-RM, D-M, 320)_
+- E is the busiest shard with 22.7% of the traffic; an even share is 20%. The hot key is split into _(D-M)_
+- E is the fullest shard with 47 keys; _(320)_
+- E is the fullest shard with 47 keys; an even share is 40. _(D-RM, D-M)_
+- Each key moves to the owner of the next point clockwise of its hash. _(D-M)_
+- even 16.7% _(D-RM, D-M, 320)_
+- even 20% _(D-RM, D-M, 320)_
+- even 25% _(D-RM, D-M, 320)_
+- even 33.3% _(D-RM, D-M, 320)_
+- even 50% _(D-RM, D-M, 320)_
+- F _(D-RM, D-M, 320)_
+- fifth node, E, holds it (it was on A). _(320)_
+- fifth node, E, holds it (it was on B). _(320)_
+- first node, A, holds it. _(320)_
+- from B, 5 from C and 11 from D. _(320)_
+- from C and 16 from D. _(320)_
+- Halving is hash mod N's one cheap _(320)_
+- Halving is hash mod N's one cheap shrink: a key's remainder for 3 is its remainder for 6 or that _(D-RM)_
+- hash mod 3 _(D-RM, D-M, 320)_
+- hash mod 3 places every key again, _(320)_
+- hash mod 4 _(D-RM, D-M, 320)_
+- hash mod 5 _(D-RM, D-M, 320)_
+- hash mod 5 places every key again. _(D-RM, D-M)_
+- hash mod 6 _(D-RM, D-M, 320)_
+- hot _(D-RM, D-M, 320)_
+- hot +23% _(D-M, 320)_
+- hot +29% _(D-RM, D-M, 320)_
+- hot +3.1% _(D-M)_
+- hot +3.4% _(D-M, 320)_
+- hot key _(320)_
+- in _(D-RM, D-M, 320)_
+- is 66.7 (2 × 200 / 6). _(320)_
+- is A's, so A holds it. _(320)_
+- is C's, so C holds it (it was on A). _(320)_
+- is C's, so C holds it. It was on A. _(D-RM, D-M)_
+- is one of C's, so C holds it _(320)_
+- is one of D's, so D holds it _(320)_
+- is one of D's, so D holds it. _(320)_
+- is one of E's, so E holds it _(320)_
+- It was on A. _(D-RM, D-M)_
+- It was on E. _(D-RM)_
+- it. It was on A. _(D-RM, D-M)_
+- its copies: a dead node sends _(320)_
+- keys _(D-RM, D-M, 320)_
+- KEYS BY HASH _(320)_
+- KEYS BY HASH · NODE = HASH MOD 3 _(D-RM, D-M)_
+- KEYS BY HASH · NODE = HASH MOD 4 _(D-RM, D-M)_
+- KEYS BY HASH · NODE = HASH MOD 5 _(D-RM, D-M)_
+- KEYS BY HASH · NODE = HASH MOD 6 _(D-RM, D-M)_
+- keys to its twin, 3 nodes back. _(320)_
+- LAST CHANGE · A CAME BACK _(D-RM, D-M, 320)_
+- LAST CHANGE · A WENT DOWN _(D-RM, D-M, 320)_
+- LAST CHANGE · B WENT DOWN _(D-RM, D-M, 320)_
+- LAST CHANGE · C WENT DOWN _(D-RM, D-M, 320)_
+- LAST CHANGE · D LEFT _(D-RM, D-M, 320)_
+- LAST CHANGE · D, E AND F JOINED _(D-RM, D-M, 320)_
+- LAST CHANGE · D, E AND F LEFT _(D-RM, D-M, 320)_
+- LAST CHANGE · E AND F JOINED _(D-RM, D-M, 320)_
+- LAST CHANGE · E JOINED _(D-RM, D-M, 320)_
+- LAST CHANGE · E WENT DOWN _(D-RM, D-M, 320)_
+- LAST CHANGE · NONE YET _(D-RM, D-M, 320)_
+- left _(D-RM, D-M, 320)_
+- less 3, so each node that left hands its keys to one twin. _(D-RM)_
+- Look here _(D-RM, D-M, 320)_
+- mod 3 _(320)_
+- mod 4 _(320)_
+- mod 5 _(320)_
+- mod 6 _(320)_
+- moved in the last change _(D-RM, D-M)_
+- moved last _(320)_
+- next point clockwise. _(320)_
+- No node has joined or left _(D-RM, D-M)_
+- No node joined or left _(320)_
+- node _(D-RM, D-M, 320)_
+- nodes that stayed. _(320)_
+- nothing. _(320)_
+- now _(320)_
+- now on _(D-RM, D-M)_
+- of C's, so C holds it. It was on D. _(D-RM, D-M)_
+- of D's, so D holds it. _(D-RM, D-M)_
+- of D's, so D holds it. It was on E. _(D-RM, D-M)_
+- of E's, so E holds it. _(D-RM)_
+- of E's, so E holds it. It was on D. _(D-RM, D-M)_
+- of ring % _(D-RM, D-M, 320)_
+- Only 47 of them moved to E; the _(320)_
+- Only 47 of them moved to E; the other 119 changed places among A, B, C and D, because _(D-RM, D-M)_
+- Only 63 of them moved to E and F; _(320)_
+- Only 63 of them moved to E and F; the other 68 changed places among A, B, C and D, _(D-RM, D-M)_
+- Only A's 107 keys moved, all to C, _(320)_
+- Only A's 107 keys moved, all to C, the next point clockwise. _(D-RM, D-M)_
+- Only A's 124 keys moved, all to C, _(320)_
+- Only A's 124 keys moved, all to C, the next point clockwise. _(D-RM, D-M)_
+- Only A's 40 keys moved: 12 to B, 10 to C, 14 to D and 4 to E. _(D-RM)_
+- Only A's 53 keys moved: 25 to B, 12 _(320)_
+- Only A's 53 keys moved: 25 to B, 12 to C and 16 to D. _(D-RM, D-M)_
+- Only D, E and F's 116 keys moved: _(320)_
+- Only D, E and F's 116 keys moved: 53 to A, 32 to B and 31 to C. _(D-RM)_
+- Only D's 17 keys moved, all to A, the _(320)_
+- Only D's 47 keys moved: 14 to A, 6 _(320)_
+- Only D's 47 keys moved: 14 to A, 6 to B and 27 to C. _(D-RM, D-M)_
+- Only E's 39 keys moved: 13 to A, 10 _(320)_
+- Only E's 39 keys moved: 13 to A, 10 to B, 5 to C and 11 to D. _(D-RM, D-M)_
+- Only E's 57 keys moved: 4 to A, 28 _(320)_
+- Only E's 57 keys moved: 4 to A, 28 to B and 25 to D. _(D-RM)_
+- other 119 changed places among A, _(320)_
+- out _(D-RM, D-M, 320)_
+- places every key again. _(320)_
+- second node, B, holds it _(320)_
+- second node, C, holds it _(320)_
+- shrink: each node that left hands its _(320)_
+- so 112 changed places among _(320)_
+- so 97 changed places among nodes _(320)_
+- that plus 3, so it stays or moves to its node's new twin. _(D-RM, D-M)_
+- that stayed. _(320)_
+- THE 9 KEYS NEAREST user:119 _(320)_
+- The answer’s change shows here. _(D-RM, D-M, 320)_
+- The busiest shard shows at the reveal. _(D-M)_
+- The fullest shard shows at the reveal. _(D-M)_
+- the hot key _(D-RM, D-M)_
+- The hot key moved with them, from A to B. _(D-RM, D-M)_
+- The hot key moved with them, from A to C. _(D-RM, D-M)_
+- The hot key moved with them, from C to A. _(D-RM, D-M)_
+- The new owner serves them from _(320)_
+- The new owner serves them from its copies: a dead node sends nothing. _(D-RM, D-M)_
+- The new owners serve them from _(320)_
+- The new owners serve them from their copies: a dead node sends nothing. _(D-RM, D-M)_
+- the next point clockwise. _(320)_
+- the other 68 changed places among _(320)_
+- THE RING OF HASHES _(320)_
+- THE RING OF HASHES, CLOCKWISE FROM 0 _(D-RM, D-M)_
+- the traffic; an even share is 16.7%. _(320)_
+- the traffic; an even share is 25%. _(320)_
+- the traffic; an even share is 33.3%. _(320)_
+- the traffic; an even share is 50%. _(320)_
+- THE WHOLE RING, LAID FLAT _(320)_
+- their copies: a dead node sends _(320)_
+- to B and 25 to D. _(320)_
+- to B and 27 to C. _(320)_
+- to B, 5 to C and 11 to D. _(320)_
+- to C and 16 to D. _(320)_
+- together is 100 (3 × 200 / 6). _(320)_
+- top, is A's, so A holds it. _(D-RM, D-M)_
+- traffic % _(D-RM, D-M, 320)_
+- user: _(D-RM, D-M, 320)_
+- user:119 _(D-RM, D-M, 320)_
+- user:119 hashes to 3,688,624,336, and 3,688,624,336 mod 3 = 1: the second node, B, holds it. _(D-RM, D-M)_
+- user:119 hashes to 3,688,624,336, and 3,688,624,336 mod 3 = 1: the second node, C, holds _(D-RM, D-M)_
+- user:119 hashes to 3,688,624,336, and 3,688,624,336 mod 4 = 0: the first node, A, holds it. _(D-RM, D-M)_
+- user:119 hashes to 3,688,624,336, and 3,688,624,336 mod 5 = 1: the second node, B, holds it. _(D-RM, D-M)_
+- user:119 hashes to 3,688,624,336, and 3,688,624,336 mod 6 = 4: the fifth node, E, holds it. It _(D-RM, D-M)_
+- user:119 hashes to 3,688,624,336. _(D-M)_
+- user:119 hashes to 85.88% of the _(320)_
+- user:119 hashes to 85.88% of the way round. _(D-M)_
+- user:119 hashes to 85.88% of the way round. The next point clockwise, at 36.83% past the _(D-RM, D-M)_
+- user:119 hashes to 85.88% of the way round. The next point clockwise, at 71.91% past the top, _(D-RM, D-M)_
+- user:119 hashes to 85.88% of the way round. The next point clockwise, at 85.98%, is one _(D-RM, D-M)_
+- user:119 hashes to 85.88% of the way round. The next point clockwise, at 86.84%, is one _(D-RM, D-M)_
+- user:119 hashes to 85.88% of the way round. The next point clockwise, at 87.02%, is one _(D-RM, D-M)_
+- user:119 hashes to 85.88% of the way round. The next point clockwise, at 87.30%, is one _(D-RM, D-M)_
+- user:119's hash mod 3 is 1, so the _(320)_
+- user:119's hash mod 4 is 0, so the _(320)_
+- user:119's hash mod 5 is 1, so the _(320)_
+- user:119's hash mod 6 is 4, so the _(320)_
+- was _(320)_
+- was on _(D-RM, D-M)_
+- was on A. _(D-RM, D-M)_
+- was on B. _(D-RM, D-M)_
+- way round; the next point clockwise _(320)_
+- WHAT EACH NODE HOLDS _(D-RM, D-M, 320)_
+- What each node holds with the new points shows at the reveal. _(D-M)_
+- Where 200 keys live _(D-RM, D-M, 320)_
+- which keys move. _(320)_
+- Which keys moved, and where, shows at the reveal. _(D-M)_
+
+## Stage summary (the drawing's accessible name) (32)
+
+- A consistent-hash ring with 1 point a node puts the 200 keys on 3 nodes: A holds 124, B holds 3 and C holds 73. D left: 17 of the 200 keys moved. A is the busiest shard with 73.4% of the traffic; an even share is 33.3%. The hot key alone carries 30%, on A. _(320)_
+- A consistent-hash ring with 1 point a node puts the 200 keys on 4 nodes: A holds 107, B holds 3, C holds 73 and D holds 17. _(D-RM, D-M, 320)_
+- A consistent-hash ring with 1 point a node puts the 200 keys on 4 nodes: A holds 107, B holds 3, C holds 73 and D holds 17. The answer is playing; its counts show at the reveal. _(D-M)_
+- A consistent-hash ring with 1 point a node puts the 200 keys on the 2 nodes left with A down: B holds 3 and C holds 197. A went down: 124 of the 200 keys moved. C is the busiest shard with 99% of the traffic; an even share is 50%. The hot key alone carries 30%, on C. _(D-RM, D-M, 320)_
+- A consistent-hash ring with 1 point a node puts the 200 keys on the 3 nodes left with A down: B holds 3, C holds 180 and D holds 17. A went down: 107 of the 200 keys moved. _(D-RM, D-M, 320)_
+- A consistent-hash ring with 1 point a node puts the 200 keys on the 3 nodes left with A down: B holds 3, C holds 180 and D holds 17. A went down: 107 of the 200 keys moved. C is the busiest shard with 93% of the traffic; an even share is 33.3%. The hot key alone carries 30%, on C. _(D-M, 320)_
+- A consistent-hash ring with 10 points a node puts the 200 keys on 4 nodes: A holds 52, B holds 61, C holds 25 and D holds 62. _(D-RM, D-M, 320)_
+- A consistent-hash ring with 10 points a node puts the 200 keys on the 4 nodes left with E down: A holds 52, B holds 61, C holds 25 and D holds 62. E went down: 57 of the 200 keys moved. B is the busiest shard with 36.4% of the traffic; an even share is 25%. The hot key is split into 10 keys of 3% each, on 3 shards. _(D-RM, D-M, 320)_
+- A consistent-hash ring with 100 points a node puts the 200 keys on 3 nodes: A holds 67, B holds 56 and C holds 77. D left: 47 of the 200 keys moved. _(D-RM, D-M, 320)_
+- A consistent-hash ring with 100 points a node puts the 200 keys on 4 nodes: A holds 53, B holds 50, C holds 50 and D holds 47. _(D-RM, D-M, 320)_
+- A consistent-hash ring with 100 points a node puts the 200 keys on 4 nodes: A holds 53, B holds 50, C holds 50 and D holds 47. A came back: 53 of the 200 keys moved. _(D-RM, D-M, 320)_
+- A consistent-hash ring with 100 points a node puts the 200 keys on 4 nodes: A holds 53, B holds 50, C holds 50 and D holds 47. A is the busiest shard with 27.6% of the traffic; an even share is 25%. The hot key is split into 10 keys of 3% each, on 4 shards. _(D-RM, D-M, 320)_
+- A consistent-hash ring with 100 points a node puts the 200 keys on 4 nodes: A holds 53, B holds 50, C holds 50 and D holds 47. A is the busiest shard with 48.6% of the traffic; an even share is 25%. The hot key alone carries 30%, on A. _(D-RM, D-M, 320)_
+- A consistent-hash ring with 100 points a node puts the 200 keys on 4 nodes: A holds 53, B holds 50, C holds 50 and D holds 47. A is the busiest shard with 48.6% of the traffic; an even share is 25%. The hot key alone carries 30%, on A. The answer is playing; its counts show at the reveal. _(D-M)_
+- A consistent-hash ring with 100 points a node puts the 200 keys on 4 nodes: A holds 53, B holds 50, C holds 50 and D holds 47. The answer is playing; its counts show at the reveal. _(D-M)_
+- A consistent-hash ring with 100 points a node puts the 200 keys on 5 nodes: A holds 40, B holds 40, C holds 45, D holds 36 and E holds 39. E joined: 39 of the 200 keys moved. _(D-RM, D-M, 320)_
+- A consistent-hash ring with 100 points a node puts the 200 keys on 5 nodes: A holds 40, B holds 40, C holds 45, D holds 36 and E holds 39. E joined: 39 of the 200 keys moved. E is the busiest shard with 22.7% of the traffic; an even share is 20%. The hot key is split into 10 keys of 3% each, on 5 shards. _(D-M)_
+- A consistent-hash ring with 100 points a node puts the 200 keys on 6 nodes: A holds 35, B holds 32, C holds 36, D holds 35, E holds 29 and F holds 33. E and F joined: 62 of the 200 keys moved. _(D-RM, D-M, 320)_
+- A consistent-hash ring with 100 points a node puts the 200 keys on 6 nodes: A holds 35, B holds 32, C holds 36, D holds 35, E holds 29 and F holds 33. E and F joined: 62 of the 200 keys moved. A is the busiest shard with 42.3% of the traffic; an even share is 16.7%. The hot key alone carries 30%, on A. _(D-RM, D-M, 320)_
+- A consistent-hash ring with 100 points a node puts the 200 keys on the 3 nodes left with A down: B holds 75, C holds 62 and D holds 63. A went down: 53 of the 200 keys moved. _(D-RM, D-M, 320)_
+- A consistent-hash ring with 100 points a node puts the 200 keys on the 3 nodes left with A down: B holds 75, C holds 62 and D holds 63. A went down: 53 of the 200 keys moved. B is the busiest shard with 56.3% of the traffic; an even share is 33.3%. The hot key alone carries 30%, on B. _(D-RM, D-M, 320)_
+- A consistent-hash ring with 100 points a node puts the 200 keys on the 4 nodes left with A down: B holds 52, C holds 55, D holds 50 and E holds 43. A went down: 40 of the 200 keys moved. B is the busiest shard with 48.2% of the traffic; an even share is 25%. The hot key alone carries 30%, on B. _(D-RM, D-M)_
+- A consistent-hash ring with 100 points a node puts the 200 keys on the 4 nodes left with E down: A holds 53, B holds 50, C holds 50 and D holds 47. E went down: 39 of the 200 keys moved. A is the busiest shard with 27.6% of the traffic; an even share is 25%. The hot key is split into 10 keys of 3% each, on 4 shards. _(D-RM, D-M, 320)_
+- Placing by hash mod 3 puts the 200 keys on 3 nodes: A holds 85, B holds 55 and C holds 60. D left: 158 of the 200 keys moved. _(D-RM, D-M)_
+- Placing by hash mod 3 puts the 200 keys on 3 nodes: A holds 85, B holds 55 and C holds 60. D, E and F left: 116 of the 200 keys moved. _(D-RM, D-M, 320)_
+- Placing by hash mod 3 puts the 200 keys on the 3 nodes left with B down: A holds 85, C holds 55 and D holds 60. B went down: 152 of the 200 keys moved. _(D-RM, D-M, 320)_
+- Placing by hash mod 3 puts the 200 keys on the 3 nodes left with C down: A holds 85, B holds 55 and D holds 60. C went down: 161 of the 200 keys moved. A is the busiest shard with 59.8% of the traffic; an even share is 33.3%. The hot key alone carries 30%, on A. _(D-RM, D-M, 320)_
+- Placing by hash mod 4 puts the 200 keys on 4 nodes: A holds 44, B holds 55, C holds 49 and D holds 52. _(D-RM, D-M, 320)_
+- Placing by hash mod 4 puts the 200 keys on 4 nodes: A holds 44, B holds 55, C holds 49 and D holds 52. The answer is playing; its counts show at the reveal. _(D-M)_
+- Placing by hash mod 5 puts the 200 keys on 5 nodes: A holds 37, B holds 46, C holds 37, D holds 33 and E holds 47. E joined: 166 of the 200 keys moved. _(D-RM, D-M, 320)_
+- Placing by hash mod 6 puts the 200 keys on 6 nodes: A holds 32, B holds 23, C holds 29, D holds 53, E holds 32 and F holds 31. D, E and F joined: 116 of the 200 keys moved. _(D-RM, D-M, 320)_
+- Placing by hash mod 6 puts the 200 keys on 6 nodes: A holds 32, B holds 23, C holds 29, D holds 53, E holds 32 and F holds 31. E and F joined: 131 of the 200 keys moved. _(D-RM, D-M, 320)_
+
+## Accessible names and descriptions (40)
+
+- 3 nodes, A to C _(D-RM, D-M, 320)_
+- 4 nodes, A to D _(D-RM, D-M, 320)_
+- 5 nodes, A to E _(D-RM, D-M, 320)_
+- 6 nodes, A to F _(D-RM, D-M, 320)_
+- A hot key 30% of the traffic (described by: 30% of the traffic) _(D-RM, D-M, 320)_
+- Busiest node down A is down: its keys moved (described by: A is down: its keys moved) _(D-RM, D-M, 320)_
+- Busiest node down A would fail: its keys must move (described by: A would fail: its keys must move) _(D-RM, D-M, 320)_
+- Busiest node down B is down: its keys moved (described by: B is down: its keys moved) _(D-RM, D-M, 320)_
+- Busiest node down B would fail: its keys must move (described by: B would fail: its keys must move) _(D-RM, D-M, 320)_
+- Busiest node down C is down: its keys moved (described by: C is down: its keys moved) _(D-RM, D-M, 320)_
+- Busiest node down C would fail: its keys must move (described by: C would fail: its keys must move) _(D-RM, D-M, 320)_
+- Busiest node down D would fail: its keys must move (described by: D would fail: its keys must move) _(D-RM, D-M, 320)_
+- Busiest node down E is down: its keys moved (described by: E is down: its keys moved) _(D-RM, D-M, 320)_
+- Busiest node down E would fail: its keys must move (described by: E would fail: its keys must move) _(D-RM, D-M, 320)_
+- Busiest node down The busiest node is down (described by: The busiest node is down) _(D-M)_
+- Busiest node down The busiest node would fail (described by: The busiest node would fail) _(D-RM, D-M, 320)_
+- correct answer _(D-RM, 320)_
+- done _(D-RM, D-M, 320)_
+- Experiment: A fifth node, by hash mod N _(D-RM, D-M, 320)_
+- Experiment: A hot key _(D-RM, D-M, 320)_
+- Experiment: Challenge: lose the busiest node and stay even _(D-RM, D-M, 320)_
+- Experiment: One point a node _(D-RM, D-M, 320)_
+- Experiment: The fullest node fails _(D-RM, D-M, 320)_
+- Experiment: The same node, on a ring _(D-RM, D-M, 320)_
+- One key takes 30% of all the traffic, so its shard, A, carries 48.6% where an even share of 4 nodes is 25%. Add 2 nodes, so an even share is 16.7%. What does the hot key’s shard carry now? _(D-RM, D-M, 320)_
+- One point a node. A holds 107 of the 200 keys, and it fails. Where do its keys go? _(D-RM, D-M, 320)_
+- Replay the last change _(D-RM, D-M, 320)_
+- Replay the last change, after your answer _(D-RM, D-M, 320)_
+- Replay the last change: none yet _(D-RM, D-M, 320)_
+- Sharding: 200 keys placed on nodes by their hash _(D-RM, D-M, 320)_
+- Split the hot key _(D-RM, D-M, 320)_
+- Split the hot key (described by: into 10 salted keys) _(D-RM, D-M, 320)_
+- Split the hot key (described by: needs the hot key) _(D-RM, D-M, 320)_
+- Stop the replay _(D-M)_
+- The 200 keys sit on 4 nodes, each key on node number hash mod 4. A fifth node, E, joins, so every key is placed by hash mod 5. E needs 40 keys for an even share. How many keys change node? _(D-RM, D-M, 320)_
+- The 200 keys sit on 4 nodes, now on a consistent-hash ring with 100 points a node: a key belongs to the next point clockwise of its hash. E joins with 100 points of its own. Which keys move? _(D-RM, D-M, 320)_
+- What each node holds _(D-RM, D-M, 320)_
+- With 100 points a node the 4 shards hold 47 to 53 keys; an even share is 50. Give each node a single point on the ring instead. How many keys does the fullest shard hold? _(D-RM, D-M, 320)_
+- your answer, correct _(D-M)_
+- your answer, wrong _(D-RM, 320)_
+
+## Notices (polite live region) (30)
+
+- A came back, and 53 of the 200 keys moved. All 53 moved to A: 25 from B, 12 from C and 16 from D. An even share for A is 50 (200 / 4). _(D-RM, D-M, 320)_
+- A consistent-hash ring with 1 point a node puts the 200 keys on 3 nodes: A holds 124, B holds 3 and C holds 73. D left: 17 of the 200 keys moved. A is the busiest shard with 73.4% of the traffic; an even share is 33.3%. The hot key alone carries 30%, on A. _(320)_
+- A consistent-hash ring with 1 point a node puts the 200 keys on 4 nodes: A holds 107, B holds 3, C holds 73 and D holds 17. _(D-RM, D-M, 320)_
+- A consistent-hash ring with 1 point a node puts the 200 keys on the 3 nodes left with A down: B holds 3, C holds 180 and D holds 17. A went down: 107 of the 200 keys moved. C is the busiest shard with 93% of the traffic; an even share is 33.3%. The hot key alone carries 30%, on C. _(D-M, 320)_
+- A consistent-hash ring with 10 points a node puts the 200 keys on 4 nodes: A holds 52, B holds 61, C holds 25 and D holds 62. _(D-RM, D-M, 320)_
+- A consistent-hash ring with 10 points a node puts the 200 keys on the 4 nodes left with E down: A holds 52, B holds 61, C holds 25 and D holds 62. E went down: 57 of the 200 keys moved. B is the busiest shard with 36.4% of the traffic; an even share is 25%. The hot key is split into 10 keys of 3% each, on 3 shards. _(D-RM, 320)_
+- A consistent-hash ring with 100 points a node puts the 200 keys on 4 nodes: A holds 53, B holds 50, C holds 50 and D holds 47. A is the busiest shard with 27.6% of the traffic; an even share is 25%. The hot key is split into 10 keys of 3% each, on 4 shards. _(D-RM, D-M, 320)_
+- A consistent-hash ring with 100 points a node puts the 200 keys on 4 nodes: A holds 53, B holds 50, C holds 50 and D holds 47. A is the busiest shard with 48.6% of the traffic; an even share is 25%. The hot key alone carries 30%, on A. _(D-RM, D-M, 320)_
+- A consistent-hash ring with 100 points a node puts the 200 keys on 6 nodes: A holds 35, B holds 32, C holds 36, D holds 35, E holds 29 and F holds 33. E and F joined: 62 of the 200 keys moved. A is the busiest shard with 42.3% of the traffic; an even share is 16.7%. The hot key alone carries 30%, on A. _(D-RM, D-M, 320)_
+- A consistent-hash ring with 100 points a node puts the 200 keys on the 3 nodes left with A down: B holds 75, C holds 62 and D holds 63. A went down: 53 of the 200 keys moved. B is the busiest shard with 56.3% of the traffic; an even share is 33.3%. The hot key alone carries 30%, on B. _(D-RM, D-M, 320)_
+- A consistent-hash ring with 100 points a node puts the 200 keys on the 4 nodes left with E down: A holds 53, B holds 50, C holds 50 and D holds 47. E went down: 39 of the 200 keys moved. A is the busiest shard with 27.6% of the traffic; an even share is 25%. The hot key is split into 10 keys of 3% each, on 4 shards. _(D-RM, D-M, 320)_
+- A went down, and 107 of the 200 keys moved. Only A's 107 keys moved, all to C, the next point clockwise. C went from 73 keys to 180. The new owner serves them from its copies: a dead node sends nothing. _(D-RM, D-M, 320)_
+- A went down, and 124 of the 200 keys moved. Only A's 124 keys moved, all to C, the next point clockwise. C went from 73 keys to 197. The new owner serves them from its copies: a dead node sends nothing. The hot key moved with them, from A to C. _(D-RM, D-M, 320)_
+- A went down, and 40 of the 200 keys moved. Only A's 40 keys moved: 12 to B, 10 to C, 14 to D and 4 to E. The new owners serve them from their copies: a dead node sends nothing. The hot key moved with them, from A to B. _(D-RM)_
+- A went down, and 53 of the 200 keys moved. Only A's 53 keys moved: 25 to B, 12 to C and 16 to D. The new owners serve them from their copies: a dead node sends nothing. _(D-RM, D-M, 320)_
+- B went down, and 152 of the 200 keys moved. B held 55 keys, but 152 moved: hash mod 3 places every key again, so 97 changed places among nodes that stayed. B's own keys come from their copies: a dead node sends nothing. _(D-RM, D-M, 320)_
+- Change the placement, the points, the nodes or the conditions. Replay shows the last change again. _(D-RM, D-M, 320)_
+- D left, and 158 of the 200 keys moved. D held 52 keys, but 158 moved: hash mod 3 places every key again, so 106 changed places among nodes that stayed. _(D-RM, D-M)_
+- D left, and 47 of the 200 keys moved. Only D's 47 keys moved: 14 to A, 6 to B and 27 to C. _(D-RM, D-M, 320)_
+- D, E and F joined, and 116 of the 200 keys moved. All 116 moved to D, E or F: 53 to D, 32 to E and 31 to F. Doubling is hash mod N's one cheap change: a key's remainder for 6 is its remainder for 3 or that plus 3, so it stays or moves to its node's new twin. An even share for D, E and F together is 100 (3 × 200 / 6). _(D-RM, D-M, 320)_
+- D, E and F left, and 116 of the 200 keys moved. Only D, E and F's 116 keys moved: 53 to A, 32 to B and 31 to C. Halving is hash mod N's one cheap shrink: a key's remainder for 3 is its remainder for 6 or that less 3, so each node that left hands its keys to one twin. _(D-RM, 320)_
+- E and F joined, and 131 of the 200 keys moved. Only 63 of them moved to E and F; the other 68 changed places among A, B, C and D, because hash mod 6 places every key again. An even share for E and F together is 66.7 (2 × 200 / 6). _(D-RM, D-M, 320)_
+- E and F joined, and 62 of the 200 keys moved. All 62 moved to E or F: 29 to E and 33 to F. An even share for E and F together is 66.7 (2 × 200 / 6). _(D-RM, D-M, 320)_
+- E joined, and 166 of the 200 keys moved. Only 47 of them moved to E; the other 119 changed places among A, B, C and D, because hash mod 5 places every key again. An even share for E is 40 (200 / 5). _(D-RM, D-M, 320)_
+- E joined, and 39 of the 200 keys moved. All 39 moved to E: 13 from A, 10 from B, 5 from C and 11 from D. An even share for E is 40 (200 / 5). _(D-RM, D-M, 320)_
+- Placing by hash mod 3 puts the 200 keys on the 3 nodes left with C down: A holds 85, B holds 55 and D holds 60. C went down: 161 of the 200 keys moved. A is the busiest shard with 59.8% of the traffic; an even share is 33.3%. The hot key alone carries 30%, on A. _(D-RM, D-M, 320)_
+- Placing by hash mod 4 puts the 200 keys on 4 nodes: A holds 44, B holds 55, C holds 49 and D holds 52. _(D-RM, D-M, 320)_
+- Replay and the settings wait for your answer. _(D-RM, D-M, 320)_
+- The answer is playing on the picture. _(D-M)_
+- The keys that change node are moving. _(D-M)_
+
+## Controls (33)
+
+- 1 _(D-RM, D-M, 320)_
+- 1 of 3 met: busiest shard not yet · keys moved not yet · nodes met _(D-RM, D-M, 320)_
+- 10 _(D-RM, D-M, 320)_
+- 100 _(D-RM, D-M, 320)_
+- 2 of 3 met: busiest shard not yet · keys moved met · nodes met _(D-RM, D-M)_
+- 3 of 3 met: busiest shard met · keys moved met · nodes met _(D-RM, D-M, 320)_
+- 3A–C _(D-RM, D-M, 320)_
+- 4A–D _(D-RM, D-M, 320)_
+- 5A–E _(D-RM, D-M, 320)_
+- 6A–F _(D-RM, D-M, 320)_
+- A hot key 30% of the traffic _(D-RM, D-M, 320)_
+- Busiest node down A is down: its keys moved _(D-RM, D-M, 320)_
+- Busiest node down A would fail: its keys must move _(D-RM, D-M, 320)_
+- Busiest node down B is down: its keys moved _(D-RM, D-M, 320)_
+- Busiest node down B would fail: its keys must move _(D-RM, D-M, 320)_
+- Busiest node down C is down: its keys moved _(D-RM, D-M, 320)_
+- Busiest node down C would fail: its keys must move _(D-RM, D-M, 320)_
+- Busiest node down D would fail: its keys must move _(D-RM, D-M, 320)_
+- Busiest node down E is down: its keys moved _(D-RM, D-M, 320)_
+- Busiest node down E would fail: its keys must move _(D-RM, D-M, 320)_
+- Busiest node down The busiest node is down _(D-M)_
+- Busiest node down The busiest node would fail _(D-RM, D-M, 320)_
+- Conditions _(D-RM, D-M, 320)_
+- Consistent hashing _(D-RM, D-M, 320)_
+- hash mod N _(D-RM, D-M, 320)_
+- Nodes _(D-RM, D-M, 320)_
+- Placement _(D-RM, D-M, 320)_
+- Points per node (virtual nodes) _(D-RM, D-M, 320)_
+- Points per node (virtual nodes)· hash mod N has no ring _(D-RM, D-M, 320)_
+- Split the hot keyinto 10 salted keys _(D-RM, D-M)_
+- Split the hot keyneeds the hot key _(D-RM, D-M)_
+- Split the keyinto 10 salted keys _(320)_
+- Split the keyneeds the hot key _(320)_
+
+## Describe (157)
+
+- +107 _(D-RM, D-M, 320)_
+- +12 _(D-M, 320)_
+- +124 _(D-M, 320)_
+- +14 _(320)_
+- +16 _(D-M, 320)_
+- +25 _(D-M, 320)_
+- +27 _(320)_
+- +29 _(D-RM, D-M, 320)_
+- +31 _(D-M)_
+- +32 _(D-M)_
+- +33 _(D-RM, D-M, 320)_
+- +39 _(D-RM, 320)_
+- +53 _(D-M, 320)_
+- +6 _(320)_
+- −10 _(D-RM, 320)_
+- −107 _(D-RM, D-M, 320)_
+- −11 _(D-RM, 320)_
+- −12 _(D-RM, D-M, 320)_
+- −124 _(D-M, 320)_
+- −13 _(D-RM, 320)_
+- −14 _(D-RM, D-M, 320)_
+- −16 _(D-M, 320)_
+- −18 _(D-RM, D-M, 320)_
+- −25 _(D-M, 320)_
+- −31 _(D-M)_
+- −32 _(D-M)_
+- −5 _(D-RM, 320)_
+- −53 _(D-M, 320)_
+- 0 _(D-RM, D-M, 320)_
+- 1 _(D-RM, D-M)_
+- 1.1% _(D-M, 320)_
+- 1.5% _(D-RM, D-M, 320)_
+- 10 _(D-M)_
+- 10.2% _(D-RM, D-M, 320)_
+- 100 _(D-RM, D-M)_
+- 107 _(D-RM, 320)_
+- 11.2% _(D-RM, D-M, 320)_
+- 11.5% _(D-M)_
+- 11.6% _(D-RM, D-M, 320)_
+- 12.3% _(D-RM, D-M, 320)_
+- 12.5% _(D-M)_
+- 12.6% _(D-RM, D-M, 320)_
+- 12.8% _(D-RM, D-M)_
+- 14.5% _(D-M)_
+- 15.5% _(D-M)_
+- 16.0% _(D-RM, D-M)_
+- 16.4% _(D-RM, D-M)_
+- 16.5% _(D-M)_
+- 17 _(D-RM, D-M, 320)_
+- 17.1% _(D-RM)_
+- 17.2% _(D-RM, D-M)_
+- 17.5% _(D-M)_
+- 18.0% _(D-RM, D-M, 320)_
+- 18.4% _(D-RM, D-M)_
+- 180 _(D-RM, D-M, 320)_
+- 19.2% _(D-RM, D-M)_
+- 19.5% _(D-RM, 320)_
+- 197 _(D-M, 320)_
+- 2.5% _(D-RM, D-M)_
+- 20.0% _(D-RM, 320)_
+- 20.1% _(D-RM)_
+- 21.3% _(D-RM)_
+- 21.7% _(D-RM, D-M)_
+- 22.5% _(D-RM, 320)_
+- 23 _(D-M)_
+- 23.5% _(D-RM, D-M, 320)_
+- 25 _(D-M)_
+- 25.0% _(D-RM, D-M, 320)_
+- 25.3% _(D-RM, D-M)_
+- 26.0% _(D-M)_
+- 26.1% _(D-RM, D-M)_
+- 26.5% _(D-RM, D-M, 320)_
+- 26.8% _(D-RM, D-M)_
+- 27.6% _(D-RM, 320)_
+- 27.8% _(D-M)_
+- 28.0% _(D-M, 320)_
+- 29 _(D-RM, D-M, 320)_
+- 3 _(D-RM, D-M, 320)_
+- 30.5% _(D-M)_
+- 30.6% _(D-M)_
+- 31 _(D-M)_
+- 31.0% _(D-M, 320)_
+- 31.5% _(D-M, 320)_
+- 32 _(D-RM, D-M, 320)_
+- 32.7% _(D-M)_
+- 33 _(D-RM, D-M, 320)_
+- 33.5% _(320)_
+- 33.8% _(D-M)_
+- 35 _(D-RM, D-M, 320)_
+- 35.1% _(D-RM)_
+- 36 _(D-RM, D-M, 320)_
+- 36.5% _(D-RM, 320)_
+- 37.5% _(D-M, 320)_
+- 38.5% _(D-M, 320)_
+- 39 _(D-RM, 320)_
+- 40 _(D-RM, 320)_
+- 42.3% _(D-RM, D-M, 320)_
+- 45 _(D-RM, 320)_
+- 47 _(D-RM, D-M, 320)_
+- 48.6% _(D-M)_
+- 50 _(D-RM, D-M, 320)_
+- 52 _(D-M)_
+- 53 _(D-RM, D-M, 320)_
+- 53.5% _(D-RM, 320)_
+- 55.1% _(D-RM)_
+- 56 _(320)_
+- 61 _(D-M)_
+- 62 _(D-M, 320)_
+- 63 _(D-M, 320)_
+- 67 _(320)_
+- 7.3% _(D-RM, D-M)_
+- 73 _(D-RM, 320)_
+- 75 _(D-M, 320)_
+- 77 _(320)_
+- 8.5% _(D-RM, D-M, 320)_
+- 8.7% _(D-M)_
+- 90.0% _(D-RM, D-M, 320)_
+- 90.2% _(D-RM, D-M)_
+- 97.5% _(D-M)_
+- 99.0% _(D-M, 320)_
+- A _(D-RM, D-M, 320)_
+- A came back, and 53 of the 200 keys moved. All 53 moved to A: 25 from B, 12 from C and 16 from D. An even share for A is 50 (200 / 4). A is the fullest shard with 53 keys; an even share is 50. user:119 hashes to 85.88% of the way round. The next point clockwise, at 86.84%, is one of D's, so D holds it. _(D-M, 320)_
+- A consistent-hash ring with 1 point a node puts the 200 keys on 4 nodes: A holds 107, B holds 3, C holds 73 and D holds 17. A is the fullest shard with 107 keys; an even share is 50. user:119 hashes to 85.88% of the way round. The next point clockwise, at 36.83% past the top, is A's, so A holds it. _(D-RM, 320)_
+- A consistent-hash ring with 10 points a node puts the 200 keys on 4 nodes: A holds 52, B holds 61, C holds 25 and D holds 62. D is the fullest shard with 62 keys; an even share is 50. user:119 hashes to 85.88% of the way round. The next point clockwise, at 87.30%, is one of D's, so D holds it. _(D-M)_
+- A consistent-hash ring with 100 points a node puts the 200 keys on 4 nodes: A holds 53, B holds 50, C holds 50 and D holds 47. A is the busiest shard with 27.6% of the traffic; an even share is 25%. The hot key is split into 10 keys of 3% each, on 4 shards. A is the busiest shard with 27.6% of the traffic; an even share is 25%. The hot key is split into 10 keys of 3% each, on 4 shards. user:119 hashes to 85.88% of the way round. The next point clockwise, at 86.84%, is one of D's, so D holds it. _(D-RM, 320)_
+- A consistent-hash ring with 100 points a node puts the 200 keys on 4 nodes: A holds 53, B holds 50, C holds 50 and D holds 47. A is the busiest shard with 48.6% of the traffic; an even share is 25%. The hot key alone carries 30%, on A. A is the busiest shard with 48.6% of the traffic; an even share is 25%. The hot key alone carries 30%, on A. user:119 hashes to 85.88% of the way round. The next point clockwise, at 86.84%, is one of D's, so D holds it. _(D-M)_
+- A consistent-hash ring with 100 points a node puts the 200 keys on 4 nodes: A holds 53, B holds 50, C holds 50 and D holds 47. A is the fullest shard with 53 keys; an even share is 50. user:119 hashes to 85.88% of the way round. The next point clockwise, at 86.84%, is one of D's, so D holds it. _(D-RM, D-M)_
+- A went down, and 107 of the 200 keys moved. Only A's 107 keys moved, all to C, the next point clockwise. C went from 73 keys to 180. The new owner serves them from its copies: a dead node sends nothing. C is the fullest shard with 180 keys; an even share is 66.7. user:119 hashes to 85.88% of the way round. The next point clockwise, at 71.91% past the top, is C's, so C holds it. It was on A. _(D-RM, D-M, 320)_
+- A went down, and 124 of the 200 keys moved. Only A's 124 keys moved, all to C, the next point clockwise. C went from 73 keys to 197. The new owner serves them from its copies: a dead node sends nothing. The hot key moved with them, from A to C. C is the busiest shard with 99% of the traffic; an even share is 50%. The hot key alone carries 30%, on C. user:119 hashes to 85.88% of the way round. The next point clockwise, at 71.91% past the top, is C's, so C holds it. It was on A. _(D-M, 320)_
+- A went down, and 53 of the 200 keys moved. Only A's 53 keys moved: 25 to B, 12 to C and 16 to D. The new owners serve them from their copies: a dead node sends nothing. B is the fullest shard with 75 keys; an even share is 66.7. user:119 hashes to 85.88% of the way round. The next point clockwise, at 86.84%, is one of D's, so D holds it. _(D-M, 320)_
+- A, down _(D-RM, D-M, 320)_
+- B _(D-RM, D-M, 320)_
+- C _(D-RM, D-M, 320)_
+- D _(D-RM, D-M, 320)_
+- D left, and 47 of the 200 keys moved. Only D's 47 keys moved: 14 to A, 6 to B and 27 to C. C is the fullest shard with 77 keys; an even share is 66.7. user:119 hashes to 85.88% of the way round. The next point clockwise, at 87.02%, is one of C's, so C holds it. It was on D. _(320)_
+- D, E and F joined, and 116 of the 200 keys moved. All 116 moved to D, E or F: 53 to D, 32 to E and 31 to F. Doubling is hash mod N's one cheap change: a key's remainder for 6 is its remainder for 3 or that plus 3, so it stays or moves to its node's new twin. An even share for D, E and F together is 100 (3 × 200 / 6). D is the fullest shard with 53 keys; an even share is 33.3. user:119 hashes to 3,688,624,336, and 3,688,624,336 mod 6 = 4: the fifth node, E, holds it. It was on B. _(D-M)_
+- Describe _(D-RM, D-M, 320)_
+- Describe waits for your answer. _(D-RM, D-M, 320)_
+- Describe waits until you meet the goal. _(D-RM, D-M, 320)_
+- E _(D-RM, D-M, 320)_
+- E and F joined, and 62 of the 200 keys moved. All 62 moved to E or F: 29 to E and 33 to F. An even share for E and F together is 66.7 (2 × 200 / 6). A is the busiest shard with 42.3% of the traffic; an even share is 16.7%. The hot key alone carries 30%, on A. user:119 hashes to 85.88% of the way round. The next point clockwise, at 85.98%, is one of E's, so E holds it. It was on D. _(D-RM, D-M, 320)_
+- E and F joined, and 62 of the 200 keys moved. All 62 moved to E or F: 29 to E and 33 to F. An even share for E and F together is 66.7 (2 × 200 / 6). C is the fullest shard with 36 keys; an even share is 33.3. user:119 hashes to 85.88% of the way round. The next point clockwise, at 85.98%, is one of E's, so E holds it. It was on D. _(D-M)_
+- E joined, and 39 of the 200 keys moved. All 39 moved to E: 13 from A, 10 from B, 5 from C and 11 from D. An even share for E is 40 (200 / 5). C is the fullest shard with 45 keys; an even share is 40. user:119 hashes to 85.88% of the way round. The next point clockwise, at 85.98%, is one of E's, so E holds it. It was on D. _(D-RM, 320)_
+- F _(D-RM, D-M, 320)_
+- Hide the description _(D-RM, D-M, 320)_
+- In _(320)_
+- Keys _(D-RM, D-M, 320)_
+- Moved in _(D-RM, D-M)_
+- Moved out _(D-RM, D-M)_
+- no change yet _(D-RM, D-M)_
+- Node _(D-RM, D-M, 320)_
+- none _(D-RM, D-M, 320)_
+- none yet _(320)_
+- Of the ring _(D-RM, D-M)_
+- Out _(320)_
+- Points (virtual nodes) _(D-RM, D-M)_
+- Traffic _(D-RM, D-M, 320)_
+
+## Under the stage (1)
+
+- The model: 200 keys of equal size, each hashed once. Every key gets the same traffic unless the hot key is on, and a move is counted, not timed. A failed node's keys are drawn moving to their new owners; in a real cluster those owners already hold copies or reload them. _(D-RM, D-M, 320)_
+
+## Experiment dock (50)
+
+- ·the busiest shard left carries 36.4% of the traffic, needs under 30%: not yet _(D-RM, D-M, 320)_
+- ·the busiest shard left carries 48.2% of the traffic, needs under 30%: not yet _(D-RM, D-M)_
+- ·the busiest shard left carries 56.3% of the traffic, needs under 30%: not yet _(D-RM, D-M, 320)_
+- ·the busiest shard left carries 59.8% of the traffic, needs under 30%: not yet _(D-RM, D-M, 320)_
+- ·the busiest shard left carries 93% of the traffic, needs under 30%: not yet _(D-M, 320)_
+- ·the failure moved 107 keys, needs fewer than 50: not yet _(D-M, 320)_
+- ·the failure moved 161 keys, needs fewer than 50: not yet _(D-RM, D-M, 320)_
+- ·the failure moved 53 keys, needs fewer than 50: not yet _(D-RM, D-M, 320)_
+- ·the failure moved 57 keys, needs fewer than 50: not yet _(D-RM, D-M, 320)_
+- ✓the busiest shard left carries 22.7% of the traffic, needs under 30%: met _(D-M)_
+- ✓the busiest shard left carries 27.6% of the traffic, needs under 30%: met _(D-RM, D-M, 320)_
+- ✓the cluster has 4 nodes, needs fewer than 6: met _(D-RM, D-M, 320)_
+- ✓the cluster has 5 nodes, needs fewer than 6: met _(D-RM, D-M, 320)_
+- ✓the failure moved 39 keys, needs fewer than 50: met _(D-RM, D-M, 320)_
+- ✓the failure moved 40 keys, needs fewer than 50: met _(D-RM, D-M)_
+- 107: more than half of all the keys _(D-RM, D-M, 320)_
+- 107: more than half of all the keysyour guess _(D-M)_
+- 16.7%: an even share of 6 nodes _(D-RM, D-M, 320)_
+- 32.4%: two thirds of it, as its keys thin out _(D-RM, D-M, 320)_
+- 42.3%: hardly less, the hot key alone is 30% _(D-RM, D-M, 320)_
+- 42.3%: hardly less, the hot key alone is 30%your guess _(D-M)_
+- 53: no change, the hash is still uniform _(D-RM, D-M, 320)_
+- 75: half as much again as an even share _(D-RM, D-M, 320)_
+- A holds 107 keys, while B holds 3. One point a node cuts the ring into 4 arcs of random length: A’s arc is 55.1% of the ring, so it gets about that share of the keys. The hash is uniform, but 4 random cuts are not even. This is typical, not bad luck: the longest of 4 random arcs averages about half the ring and the shortest about a sixteenth. With 100 points a node, its virtual nodes, each shard owns 100 short arcs scattered round the ring, their lengths average out, and the fullest holds 53. A share’s spread shrinks with the square root of the points: about a quarter of an even share either way with 10 points, under a tenth with 100. _(D-RM, D-M, 320)_
+- A hot key takes 30% of the traffic, and the busiest node has failed. Choose the placement, the points, the nodes and whether to split the hot key so that no shard left carries 30% of the traffic or more, the failure moves fewer than 50 keys, and the cluster has fewer than 6 nodes. _(D-RM, D-M, 320)_
+- A ring of 5 nodes with 100 points each and the hot key split passes: when E fails only its 39 keys move, spread over the 4 left, and the busiest carries 27.6%. Unsplit, the hot key’s shard carries 48.2%; with 10 points a node the shards are less even and the busiest carries 36.4%; hash mod N would have moved 166 keys. Many points for even shards and a spread failure, a split for the key no hash can spread, and spare capacity for the node you lose. _(D-RM, D-M, 320)_
+- About 100: half of them _(D-RM, D-M, 320)_
+- About 160: four keys in five _(D-RM, D-M, 320)_
+- About 160: four keys in fiveyour guess _(D-M)_
+- About 40 to E, and about as many again among A, B, C and D to even them out _(D-RM, D-M, 320)_
+- About 40, every one of them to E _(D-RM, D-M, 320)_
+- About 40, every one of them to Eyour guess _(D-M)_
+- About 40: the keys E needs, no more _(D-RM, D-M, 320)_
+- All 107 go to C: with A’s point gone, the next point clockwise of every one of its keys is C’s. C can take over at once because each key is also kept on the next distinct nodes clockwise, so C already holds copies; what it cannot take is the load: it goes from 73 keys to 180, 2.5× its load, so it is the likeliest to fail next, and then 180 keys land on the node after it: a cascade. With 100 points a node the busiest node is A; its arcs lie all round the ring, followed by points of B, C and D, so its 53 keys spread: 25 to B, 12 to C and 16 to D. Set Points per node to 100 to see it. _(D-RM, D-M, 320)_
+- All 107 to C, the next point clockwise _(D-RM, D-M, 320)_
+- All 107 to C, the next point clockwiseyour guess _(D-M)_
+- Goal met: _(D-RM, D-M, 320)_
+- It moves 166 of the 200 keys, 83%. A key stays only where its hash leaves the same remainder for 4 and for 5, which is 4 of every 20 hashes, so about 80% move. The table under the stage shows it key by key: a key stays only where its two remainders pick the same node. Only 47 of them went to E; the other 119 changed places among A, B, C and D, and every move is data copied over the network. Going from N to N + 1 nodes moves about N / (N + 1) of the data: the more nodes, the worse. _(D-RM, D-M, 320)_
+- It still carries 42.3%. Hashing spreads keys, not traffic: one key lives on one shard, so its shard carries that 30% however many nodes there are, and only the other keys’ 70% thins out. More nodes never take it below 30%. Split the key instead: with a suffix from 0 to 9 it becomes 10 keys of 3% each, which land on 6 shards here, and the busiest shard carries 19.2%. The price is that a read of it gathers all 10. _(D-RM, D-M, 320)_
+- Most of them: a new node changes where every hash lands _(D-RM, D-M, 320)_
+- One key takes 30% of all the traffic, so its shard, A, carries 48.6% where an even share of 4 nodes is 25%. Add 2 nodes, so an even share is 16.7%. What does the hot key’s shard carry now? _(D-RM, D-M, 320)_
+- One point a node. A holds 107 of the 200 keys, and it fails. Where do its keys go? _(D-RM, D-M, 320)_
+- Only 39 keys move, every one of them to E: 13 from A, 10 from B, 5 from C and 11 from D. Each of E’s points takes the stretch of ring just before it from the point that owned it, and no other arc changes, so no key moves between the old nodes. An even share for E is 40 (200 / 5); E’s 100 points took 17.1% of the ring (the ‘of ring’ row), so it got 39. hash mod N moved 166 for the same change. _(D-RM, D-M, 320)_
+- The 200 keys sit on 4 nodes, each key on node number hash mod 4. A fifth node, E, joins, so every key is placed by hash mod 5. E needs 40 keys for an even share. How many keys change node? _(D-RM, D-M, 320)_
+- The 200 keys sit on 4 nodes, now on a consistent-hash ring with 100 points a node: a key belongs to the next point clockwise of its hash. E joins with 100 points of its own. Which keys move? _(D-RM, D-M, 320)_
+- They spread over B, C and D, about 36 each _(D-RM, D-M, 320)_
+- To its two neighbors on the ring, C and D, about half each _(D-RM, D-M, 320)_
+- Watch the picture: the answer plays out on it. _(D-M)_
+- With 100 points a node the 4 shards hold 47 to 53 keys; an even share is 50. Give each node a single point on the ring instead. How many keys does the fullest shard hold? _(D-RM, D-M, 320)_
+- You met it; now: _(D-RM, D-M, 320)_
