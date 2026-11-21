@@ -3338,6 +3338,81 @@ sample.ts`: the seeded year (seed 3282478, common random numbers, no two outages
     a product, the shared mark joins every copy and stands first at every shared setting and 4 widths, and a callback
     with both crossings leaves the play running.
 
+- **Sharding note** (R41, the batch's sixth widget, `hash-ring`; as built from the brief, mockup and critique round of
+  `design/r41-sharding`, and where it differs):
+  - **Verdict.** The old ring (dots on a band, Add and Remove, one "moved" tile) showed that some dots changed, never a
+    key travelling from one machine to another, nor why a key sits where it does, and at 100 virtual nodes its band was
+    500 arcs that blended to mud. It is redrawn: the 200 keys as dots at their hashes on a ring (or a neutral track under
+    hash mod N), the same keys as piles on their nodes whose height is each node's share of all traffic, the last change
+    of the node set in the model's exact counts with where the keys went, and a closer look at one key's rule.
+  - **Engine.** `widgets/sharding.ts` replaces `hashRing`, `ringOwner`, `moduloOwner`, `place` and `movedKeys` (only
+    the old widget called them; `hash32` moves in with them, so the widget's lazy chunk never pulls `widgets.ts` and
+    its imports, and with them the seeded generator, out of `main`): 200 fixed keys, points named `A#0/10175` (the
+    salt chosen by a search with hard bounds, so 1, 10 and 100 points get more even in that order at every node
+    count), `shardPlace` (memoized), `shardDiff`, traffic in whole tenths of a percent, `shardScenario` (with a node
+    down the change is always the failure of the busiest node, so the picture is a function of the settings),
+    `SHARD_SETTINGS` (96) and `shardScenarios` (456), and the play's clock (`shardFrame`). Framework: `ExperimentRun`
+    gains `'move'`, and `TEMPLATE_DIGITS_ALLOWED` gains "hash mod N", "N / (N + 1)" and "N + 1".
+    `sharding-experiments.ts`: the six experiments in the brief's wording, answers at 3, 2, 1, 3, 1, the challenge
+    passing at exactly one of its 32 settings (a ring of 5 nodes, 100 points, the hot key split). Word slots carry no
+    digits, so E2's and E4's per-node lists are a slot a node ("{fromA} from A") and E5's suffix range two number
+    slots; the outcome words are the phrases each choice carries, since the reveal spec asks the right choice to
+    contain its truth. `sharding.spec.ts` pins the hash against BigInt, every placement against a brute-force ring,
+    all 12,768 changes of the node set against a reassignment of every key with the ring's two laws, the mod N and
+    twins laws, the traffic arithmetic and the salt's bounds; `sharding-experiments.spec.ts` every quoted string and
+    the challenge.
+  - **Where it differs from the brief.** A question's `hide` entry stays a region name (`after`), as every other
+    widget's is, and the phase it hides in is the words' `HIDE_PHASE` map (`after` while the answer plays), which the
+    component spec plants a leak in. The mockup placed the one-point chips at unsalted names; they sit at the salted
+    points here, at the end of their arcs as the brief says. The brief's play counts (51 keys in flight at most, no flight
+    under 295 ms) were stale: the model gives 56 (the pool holds 60) and 292 ms. The node colors' light CVD separation
+    measures 7.48, so `shard-colors.spec.ts` (a new file, not `theme-contrast.spec.ts`) holds it at 7.45. The stage
+    measures through `latency-draw.ts`'s roles, setting a label's capitals in the layout so a key's name keeps its case;
+    its own line breaking (`ring-geometry.ts`) glues a number to its unit, "of" to its number, "hash mod 5", an equation
+    and a bracket. `g-code-text` keeps the same counted units together on every HTML surface ("39 keys", "hash mod 5",
+    "(200 / 5)", "N / (N + 1)"), house-wide. A play draws the keys in flight and the sweep every frame from the same
+    clock and rebuilds the rest of the stage at most 20 times a second, so its counts and piles step in twentieths of a
+    second rather than per frame (on a Pixel 7 at 4× CPU the heaviest play runs at 42 to 46 frames a second, short of
+    60; LOOP's R41 Sharding follow-ups).
+  - **Fix round 1** (independent reviews, the showcase and their verifiers). With more than one point a node the
+    ring's band is neutral and only the arcs that changed owner in the last change take their new owner's color, filled
+    in as the sweep passes them: the 100-point band shows which arcs E took, or which survivors took a dead node's arcs
+    (one point a node keeps a color a node). On the one-column stage the ring is 270 px and the piles wide and short, so
+    the ring and the pile letters fit one phone screen (at most 470 px tall under a 300 px stage and 510 px up to 400,
+    held for every setting), and every play, not only an answer's, brings the piles into view. The whole ring laid flat
+    names a gone node's struck point in grey, moves an arc's name off a gone tick, ties a pushed name to its place with
+    a leader and drops none; magnified, each node's first point is always named, in a second row where the first is
+    taken; the walk wraps past 0 to the owner's point. Every number follows the play's clock (the of ring row waits
+    while a change of points plays), and a table's cells keep 6 px apart (a share drops to the small face, then to a
+    whole percent; a moved count drops its sign; the remainder table shows fewer keys). The model says a down node that
+    comes back is a return (`shardScenario`'s `back`, which the node sets alone cannot tell from a join), and a change
+    of the hot key or its split that makes another node the busiest, so the one down, plays that failure and says why.
+    `g-code-text` keeps an arithmetic expression of numbers or single letters with its counted unit together ("N + 1
+    nodes", "(200 / 5)"), replacing the short-bracket rule. The no-answer sweep compares the stage summary to the
+    setup's word for word while an answer plays and takes each card's counts from the model, proven by the act's summary
+    planted on the stage in E3 and E4.
+  - **Fix round 2.** A play started from the controls scrolls the lesson's content by hand to bring the piles into
+    view: on an iPhone (WebKit) a tapped label focuses its radio, and a smooth `scrollIntoView` begun then was dropped,
+    so the keys moved off screen; the phone e2e test now taps the visible labels (Nodes, Points, Down and the split's
+    new failure) on every project instead of force-clicking the hidden input. A control has one label at every width
+    ("Split the key"), inside its accessible name, and the learner text names it so (a component spec holds all three
+    at six widths). A down or gone node keeps a struck grey tick at each of its points in either strip, magnified or
+    whole, drawn by one helper (the layout spec counts them for every setting). The engine spec rejects a sentence that
+    opens in lowercase, a code term included.
+  - **Fix round 3.** On the one-column layout every change from the controls brings the piles into view, played or not
+    and with or without motion (the hot key, its split, the placement and every change under Reduced motion left them
+    off screen); the phone e2e test taps each control with motion and under Reduced motion. A control legend's aside is
+    one phrase ("(virtual nodes)" never breaks), and the toggles' hints go through `g-code-text`, whose counted unit
+    may carry one word ("10 salted keys"). The magnified strip's second row of point names sits a whole line of the mono
+    under the first, held for every setting by the layout spec.
+  - **Fix round 4.** A change brings the piles in only as far as keeps the challenge's goal line and a control focused
+    from the keyboard in view, the Points legend keeps a space between its asides, and the placeholder heights come
+    from every width.
+  - **Landing.** Rebased onto the other R41 widgets, its `g-code-text` keep rules are the widget's own `SHARDING_KEEP`
+    provider rather than the house rule, so they hold on its surfaces only, and the simplifications under the stage are
+    broken by measure (`proseLines`, Inter 400's advances with 6 px held back, each line set whole), so a browser whose
+    glyphs run a few px wider no longer wraps them a line earlier and moves the widget off its placeholder height.
+
 - **Storage Engines note** (R41, the batch's seventh widget, `storage-engine`; as built from the brief, mockup and
   critique rounds of `design/r41-storage`, and where it differs):
   - **Verdict.** The old widget (four sliders, three page-size buttons, a checkbox and eight number tiles) had every

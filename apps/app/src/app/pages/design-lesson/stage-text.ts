@@ -6,7 +6,7 @@
  * advance per role. Stage text never uses tabular digits, so these advances are the ones drawn.
  */
 
-export type Face = 'w500' | 'w600' | 'w700' | 'mono';
+export type Face = 'w400' | 'w500' | 'w600' | 'w700' | 'mono';
 
 /** A type role: its face and size, letter-spacing in em, and whether it is set in capitals. */
 export interface RoleSpec {
@@ -43,7 +43,14 @@ export interface TextMeasure<R extends string> {
 
 /** Printable ASCII from the space, then these. */
 const EXTRA = '·→–×✓’…÷';
-const INTER: Record<'w500' | 'w600' | 'w700', readonly number[]> = {
+const INTER: Record<'w400' | 'w500' | 'w600' | 'w700', readonly number[]> = {
+  w400: [
+    2813, 2876, 4658, 6333, 6416, 9819, 6440, 2998, 3647, 3647, 5010, 6616, 2881, 4600, 2881, 3604, 6309, 4067, 6099, 6177, 6460, 5933,
+    6201, 5659, 6187, 6201, 2881, 3018, 6616, 6616, 6616, 5112, 9658, 6899, 6543, 7305, 7217, 6011, 5903, 7461, 7432, 2686, 5708, 6719,
+    5654, 9033, 7534, 7646, 6387, 7646, 6436, 6416, 6455, 7441, 6899, 9854, 6821, 6787, 6289, 3647, 3604, 3647, 4712, 4561, 3228, 5615,
+    6123, 5713, 6123, 5830, 3701, 6133, 5913, 2422, 2422, 5488, 2422, 8760, 5908, 5996, 6123, 6123, 3765, 5278, 3271, 5913, 5620, 8184,
+    5459, 5620, 5522, 4263, 3325, 4263, 6616, 2881, 10000, 5000, 6616, 8843, 2607, 8643, 6616,
+  ],
   w500: [
     2666, 3042, 4941, 6387, 6460, 9932, 6533, 3130, 3687, 3687, 5205, 6675, 3032, 4624, 3032, 3696, 6455, 4150, 6162, 6270, 6563, 6030,
     6299, 5713, 6294, 6299, 3032, 3154, 6675, 6675, 6675, 5273, 9824, 7090, 6567, 7334, 7217, 6030, 5894, 7476, 7446, 2725, 5752, 6875,
@@ -211,6 +218,19 @@ export function fontMeasure<R extends string>(roles: Readonly<Record<R, RoleSpec
     },
     (role) => roles[role].size,
   );
+}
+
+const PROSE = new Map<number, TextMeasure<'body'>>();
+
+/**
+ * HTML prose in Inter at `size` px, broken into lines that each stop at least `slack` px short of `width`. Set each line
+ * whole on a line of its own, a block's height is then the same in every browser, whose glyph widths differ by a few
+ * px a line, so a lazy widget's placeholder can hold it.
+ */
+export function proseLines(text: string, size: number, width: number, keep: readonly RegExp[] = [], slack = 6): string[] {
+  let prose = PROSE.get(size);
+  if (!prose) PROSE.set(size, (prose = fontMeasure({ body: { font: 'w400', size } })));
+  return prose.wrap(text, 'body', width - slack, Infinity, keep);
 }
 
 /** Widths by one advance per role, in px per character. */

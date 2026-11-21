@@ -36,7 +36,6 @@ import { LimiterWidgetComponent } from './limiter-widget.component';
 import { PaginationWidgetComponent } from './pagination-widget.component';
 import { PartitionWidgetComponent } from './partition-widget.component';
 import { RegionWidgetComponent } from './region-widget.component';
-import { RingWidgetComponent } from './ring-widget.component';
 import { StreamWidgetComponent } from './stream-widget.component';
 import { TxnWidgetComponent } from './txn-widget.component';
 import { BackComponent } from '../../ui/back.component';
@@ -46,7 +45,7 @@ import { LazyWidgetComponent } from './lazy-widget.component';
 
 /** A system design topic taught hands-on: a widget to experiment with, the ideas to name, worked examples and a quick check. */
 /** Widgets that leave the reading column at container wide, to sit beside their controls and experiments. */
-const BREAKOUT = new Set(['balancer', 'feed-model', 'quorum', 'queue-latency', 'availability', 'storage-engine', 'pipeline']);
+const BREAKOUT = new Set(['balancer', 'feed-model', 'quorum', 'queue-latency', 'availability', 'storage-engine', 'pipeline', 'hash-ring']);
 
 @Component({
   selector: 'app-design-lesson',
@@ -65,7 +64,6 @@ const BREAKOUT = new Set(['balancer', 'feed-model', 'quorum', 'queue-latency', '
     WorkedExampleComponent,
     QuickCheckComponent,
     LazyWidgetComponent,
-    RingWidgetComponent,
     LimiterWidgetComponent,
     PartitionWidgetComponent,
     IdLayoutWidgetComponent,
@@ -132,7 +130,11 @@ const BREAKOUT = new Set(['balancer', 'feed-model', 'quorum', 'queue-latency', '
                     />
                   }
                   @case ('hash-ring') {
-                    <app-ring-widget />
+                    <app-lazy-widget
+                      [load]="loadRingWidget"
+                      [inputs]="{ experiments: l.widget.experiments ?? [] }"
+                      [placeholder]="heights.ring"
+                    />
                   }
                   @case ('queue-backlog') {
                     <app-lazy-widget [load]="loadQueueWidget" [placeholder]="heights.queue" />
@@ -470,6 +472,7 @@ export class DesignLessonPage {
   readonly loadLatencyWidget = () => import('./latency-widget.component').then((m) => m.LatencyWidgetComponent);
   readonly loadStorageWidget = () => import('./storage-widget.component').then((m) => m.StorageWidgetComponent);
   readonly loadCapacityWidget = () => import('./capacity-widget.component').then((m) => m.CapacityWidgetComponent);
+  readonly loadRingWidget = () => import('./ring-widget.component').then((m) => m.RingWidgetComponent);
   readonly loadQueueWidget = () => import('./queue-widget.component').then((m) => m.QueueWidgetComponent);
   readonly loadOverloadWidget = () => import('./overload-widget.component').then((m) => m.OverloadWidgetComponent);
   readonly loadLeaseWidget = () => import('./lease-widget.component').then((m) => m.LeaseWidgetComponent);

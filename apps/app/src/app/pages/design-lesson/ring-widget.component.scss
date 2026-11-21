@@ -1,0 +1,108 @@
+@use '../../../type' as *;
+@use '../../../breakpoints' as *;
+@use 'feed-controls';
+@use 'widget-controls';
+@use 'widget-layout' as *;
+
+@include stage-layout('.ring-stage');
+.simplify {
+  order: 4;
+  margin: 0;
+  font-size: var(--g-text-body-s);
+  color: var(--g-muted);
+}
+// Broken by measure (proseLines), so the browser's own glyph widths never change the block's height.
+.simplify.set span {
+  display: block;
+  white-space: nowrap;
+}
+.describe {
+  order: 4;
+}
+// Each aside is one phrase, so a legend breaks only between its phrases (a space the template keeps on purpose, since
+// Angular drops one that stands alone between two elements).
+.control-label .why {
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+}
+// Laid out in both schemes and hidden on the ring, so the legend wraps the same and the controls keep one height.
+.control-label .no-ring {
+  visibility: hidden;
+  &.shown {
+    visibility: visible;
+  }
+}
+// A checked segment keeps its weight, so its words never re-wrap and move the stage.
+.segment input:checked + span {
+  font-weight: 500;
+}
+.segment span.stack {
+  flex-direction: column;
+  line-height: 1.15;
+  small {
+    font: 500 var(--g-text-label) var(--ion-font-family);
+    color: var(--g-muted);
+  }
+}
+.toggles .wide {
+  grid-column: 1 / -1;
+}
+.goal-mini {
+  margin: 0;
+  font: 600 var(--g-text-body-s) var(--ion-font-family);
+  color: var(--g-muted);
+  &.met {
+    color: var(--g-success-ink);
+  }
+}
+@include container-wide(lesson) {
+  .goal-mini {
+    display: none;
+  }
+}
+// Below wide the notice would sit over the stage and move it as it speaks; the picture shows the change, so there it
+// is read out only.
+@container lesson (max-width: 899.98px) {
+  .notice {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    min-height: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .controls {
+    position: relative;
+    padding-bottom: var(--g-space-3);
+  }
+}
+svg.draw {
+  display: block;
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+}
+.piles-anchor {
+  position: absolute;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+// The focus outline is solid here: dashed means "hidden until you answer" on this stage, and nothing else. The extra
+// class outranks the focus box's own encapsulated rule, which is inserted after this one.
+:host ::ng-deep .focus .focus-outline {
+  stroke-dasharray: none;
+}
+.describe ::ng-deep th {
+  white-space: normal;
+  vertical-align: bottom;
+}
+.describe .said {
+  flex: 1 0 100%;
+  margin: 0;
+  font-size: var(--g-text-body-s);
+}

@@ -10,16 +10,11 @@ import {
   crackTime,
   delivery,
   geoQuery,
-  hashRing,
-  moduloOwner,
   partition,
-  movedKeys,
   pageCost,
-  place,
   queueBacklog,
   regionOutcome,
   replicaRead,
-  ringOwner,
   runLimiter,
   searchIndex,
   streamWindows,
@@ -34,37 +29,6 @@ describe('cache outcome', () => {
     expect(outcome.p99Ms).toBe(51);
     expect(cacheOutcome(10_000, 0.995, 1, 50).p99Ms).toBe(1);
     expect(cacheOutcome(10_000, 0.99, 1, 50).p99Ms).toBe(1);
-  });
-});
-
-describe('hash ring', () => {
-  const keys = Array.from({ length: 2000 }, (_, i) => `user:${i}`);
-  const four = ['A', 'B', 'C', 'D'];
-  const five = [...four, 'E'];
-
-  it('moves about a fifth of the keys when a fifth node joins, where hash mod N moves most of them', () => {
-    const ringBefore = place(keys, four, (k) => ringOwner(hashRing(four, 100), k));
-    const ringAfter = place(keys, five, (k) => ringOwner(hashRing(five, 100), k));
-    const ringMoved = movedKeys(ringBefore.owners, ringAfter.owners) / keys.length;
-    expect(ringMoved).toBeGreaterThan(0.12);
-    expect(ringMoved).toBeLessThan(0.3);
-    // Every moved key moved to the new node.
-    expect(ringAfter.owners.filter((o, i) => o !== ringBefore.owners[i] && o !== 'E')).toEqual([]);
-
-    const modMoved = movedKeys(
-      place(keys, four, (k) => moduloOwner(four, k)).owners,
-      place(keys, five, (k) => moduloOwner(five, k)).owners,
-    );
-    expect(modMoved / keys.length).toBeGreaterThan(0.7);
-  });
-
-  it('balances load with virtual nodes far better than with one point per node', () => {
-    const spread = (virtualNodes: number) => {
-      const { load } = place(keys, five, (k) => ringOwner(hashRing(five, virtualNodes), k));
-      return Math.max(...load) / (keys.length / five.length);
-    };
-    expect(spread(100)).toBeLessThan(1.4);
-    expect(spread(1)).toBeGreaterThan(spread(100));
   });
 });
 

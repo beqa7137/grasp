@@ -1,5 +1,6 @@
 import { TEXT } from './latency-draw';
 import { RELIABILITY_KEEP, RELIABILITY_PROSE_KEEP, wrapStage } from './reliability-text';
+import { fontMeasure, proseLines } from './stage-text';
 
 describe('the stage text', () => {
   it('wraps without parting a number from its unit, nor inside a kept pair', () => {
@@ -16,6 +17,18 @@ describe('the stage text', () => {
     }
     for (let w = 40; w <= 200; w += 9)
       for (const line of TEXT.wrap('p99 at 230 ms and the mean at 35 ms over 2.5 s', 'cap', w)) expect(line).not.toMatch(/^(ms|s)\b/);
+  });
+
+  it('breaks HTML prose so every line stops short of its box by the slack, keeping a kept run whole', () => {
+    const body = fontMeasure({ body: { font: 'w400', size: 13 } });
+    const t = 'The model: 200 keys of equal size, each hashed once. Under hash mod N a node that goes down is dropped from N.';
+    for (let w = 120; w <= 400; w += 3) {
+      const lines = proseLines(t, 13, w, [/\bhash mod N\b|\d+ keys/g]);
+      expect(lines.join(' ')).toBe(t);
+      for (const line of lines) expect(body.tw(line, 'body')).toBeLessThanOrEqual(w - 6);
+      for (const line of lines) expect(line).not.toMatch(/\b(?:hash|mod|200)$/);
+    }
+    expect(proseLines(t, 13, 300, [], 40)).toEqual(body.wrap(t, 'body', 260));
   });
 
   it('flows a "·"-separated clause that fits a line onto one line, and opens no line on the "·"', () => {

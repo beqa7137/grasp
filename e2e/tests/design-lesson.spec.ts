@@ -35,20 +35,16 @@ test('a design lesson opens at its top: its quick check further down takes no fo
 
 test('the sharding lesson counts the keys that move when a node joins, by consistent hashing and by hash mod N', async ({ page }) => {
   await page.goto('/design/topics/sd-sharding');
-  const moved = page.locator('.readouts div').filter({ hasText: 'Last change moved' }).locator('dd');
-  await expect(moved).toHaveText('nothing yet');
-
-  await page.getByRole('button', { name: 'Add node E' }).click();
-  await expect(moved).toHaveText('46 of 200');
-
-  const modes = page.getByRole('radiogroup', { name: 'How keys are assigned' });
-  await modes.getByRole('radio', { name: 'Consistent hashing' }).focus();
-  await page.keyboard.press('ArrowRight');
-  await expect(modes.getByRole('radio', { name: 'hash mod N' })).toBeFocused();
-  await modes.getByRole('radio', { name: 'hash mod N' }).click();
-  await expect(moved).toHaveText('nothing yet');
-  await page.getByRole('button', { name: 'Remove node E' }).click();
-  await expect(moved).toHaveText(/^1[5-7]\d of 200$/);
+  const widget = page.locator('app-ring-widget');
+  const headline = widget.locator('svg.draw [data-id="moved-count"]');
+  await expect(headline).toHaveText('No node has joined or left');
+  await widget.getByRole('radio', { name: /^5 nodes/ }).check();
+  await expect(headline).toHaveText('39 of 200 keys moved');
+  await widget.getByRole('radio', { name: 'hash mod N' }).check();
+  await expect(headline).toHaveText('No node has joined or left');
+  await widget.getByRole('radio', { name: /^3 nodes/ }).check();
+  await expect(widget.locator('svg.draw [data-id="verdict-label"]')).toHaveText('LAST CHANGE · D AND E LEFT');
+  await expect(headline).toHaveText('172 of 200 keys moved');
 });
 
 test('the queue lesson drains the backlog sooner with more consumers', async ({ page }) => {

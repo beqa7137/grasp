@@ -48,9 +48,10 @@ export type ExperimentSettings = Readonly<Record<string, number>>;
 
 /**
  * A play a widget runs on the picture, such as loading a page, renaming an author, a write then a read, a sample of
- * requests, a simulated year, a ramp of the traffic or the stream flowing through the tiers.
+ * requests, a simulated year, a ramp of the traffic, the stream flowing through the tiers or keys moving between
+ * nodes.
  */
-export type ExperimentRun = 'load' | 'rename' | 'write-read' | 'read' | 'sample' | 'btree' | 'lsm' | 'year' | 'ramp' | 'flow';
+export type ExperimentRun = 'load' | 'rename' | 'write-read' | 'read' | 'sample' | 'btree' | 'lsm' | 'year' | 'ramp' | 'flow' | 'move';
 
 /** What answering plays: new settings (then, if named, a run), a run on its own, or the widget's flush. */
 export type ExperimentAct = { set: ExperimentSettings; run?: ExperimentRun } | { run: ExperimentRun } | { flush: true };
@@ -108,6 +109,9 @@ export const TEMPLATE_DIGITS_ALLOWED = [
   '(1 + CV²) / 2',
   '(ratio + 1) / 2',
   'from L1 down',
+  'hash mod N',
+  'N / (N + 1)',
+  'N + 1',
 ] as const;
 
 const trim = (v: number, decimals: number) => String(Number(v.toFixed(decimals)));

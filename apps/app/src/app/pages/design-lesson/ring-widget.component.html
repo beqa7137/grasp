@@ -1,0 +1,175 @@
+<div class="controls">
+  <fieldset class="group placement-control" [disabled]="locked()">
+    <legend class="control-label">Placement</legend>
+    <div class="segments">
+      <label class="segment">
+        <input type="radio" name="ring-scheme" [checked]="!mod()" (change)="setScheme(0)" />
+        <span>Consistent hashing</span>
+      </label>
+      <label class="segment">
+        <input type="radio" name="ring-scheme" [checked]="mod()" (change)="setScheme(1)" />
+        <span>hash mod N</span>
+      </label>
+    </div>
+  </fieldset>
+  <fieldset class="group points-control" [disabled]="locked()">
+    <legend class="control-label">
+      Points per node <span class="why">(virtual nodes)</span>&ngsp;<span class="why no-ring" [class.shown]="mod()"
+        >· hash mod N has no ring</span
+      >
+    </legend>
+    <div class="segments">
+      @for (p of pointStops; track p) {
+        <label class="segment">
+          <input type="radio" name="ring-points" [checked]="p === value('points')" [disabled]="mod()" (change)="setPoints(p)" />
+          <span>{{ p }}</span>
+        </label>
+      }
+    </div>
+  </fieldset>
+  <fieldset class="group nodes-control" [disabled]="locked()">
+    <legend class="control-label">Nodes</legend>
+    <div class="segments">
+      @for (s of nodeStops; track s.n) {
+        <label class="segment">
+          <input
+            type="radio"
+            name="ring-nodes"
+            [checked]="s.n === value('nodes')"
+            [attr.aria-label]="s.n + ' nodes, ' + s.said"
+            (change)="setNodes(s.n)"
+          />
+          <span class="stack"
+            >{{ s.n }}<small aria-hidden="true">{{ s.range }}</small></span
+          >
+        </label>
+      }
+    </div>
+  </fieldset>
+  <fieldset class="group conditions-control" [disabled]="locked()">
+    <legend class="control-label">Conditions</legend>
+    <div class="toggles">
+      <label class="segment">
+        <input
+          type="checkbox"
+          aria-label="A hot key"
+          aria-describedby="ring-hot-hint"
+          [checked]="value('hot') === 1"
+          (change)="setHot($any($event.target).checked)"
+        />
+        <span>
+          A hot key
+          <small id="ring-hot-hint"><g-code-text [text]="hotPct + ' of the traffic'" /></small>
+        </span>
+      </label>
+      <label class="segment">
+        <input
+          type="checkbox"
+          aria-label="Split the key"
+          aria-describedby="ring-split-hint"
+          [checked]="settings().split === 1"
+          [disabled]="!value('hot')"
+          (change)="setSplit($any($event.target).checked)"
+        />
+        <span>
+          Split the key
+          <small id="ring-split-hint"><g-code-text [text]="value('hot') ? 'into ' + salts + ' salted keys' : 'needs the hot key'" /></small>
+        </span>
+      </label>
+      <label class="segment wide">
+        <input
+          type="checkbox"
+          aria-label="Busiest node down"
+          aria-describedby="ring-down-hint"
+          [checked]="value('down') === 1"
+          (change)="setDown($any($event.target).checked)"
+        />
+        <span>
+          Busiest node down
+          <small id="ring-down-hint"><g-code-text [text]="caption()" /></small>
+        </span>
+      </label>
+    </div>
+  </fieldset>
+  <p class="notice" aria-live="polite" aria-atomic="true"><g-code-text [text]="notice()" /></p>
+  @if (goalMini()) {
+    <p class="goal-mini" [class.met]="met()" aria-hidden="true">{{ goalMini() }}</p>
+  }
+</div>
+
+<div class="main">
+  <g-stage class="ring-stage" [height]="stage().H" label="Sharding: 200 keys placed on nodes by their hash">
+    @if (ready()) {
+      @let st = stage();
+      <svg
+        class="draw"
+        [class.playing]="frac() !== null"
+        [attr.viewBox]="'0 0 ' + st.D.W + ' ' + st.H"
+        [attr.width]="st.D.W"
+        [attr.height]="st.H"
+        role="img"
+        [attr.aria-label]="st.summary"
+      >
+        <g app-ring-prims [prims]="under()" />
+        <g app-ring-prims [prims]="over()" [style.--slide]="frac() !== null ? '240ms' : '0ms'" />
+        <g app-ring-prims [prims]="moving()" />
+        @for (f of st.focus; track f.id) {
+          <g app-focus [box]="f" [on]="exp.focusOn().includes(f.region)" />
+        }
+      </svg>
+      <span class="piles-anchor" aria-hidden="true" [style.top.px]="lettersY()"></span>
+      <button
+        type="button"
+        class="play"
+        [attr.aria-label]="replayName()"
+        [style.left.px]="st.play.x"
+        [style.top.px]="st.play.y"
+        [disabled]="replayOff()"
+        (click)="toggleReplay()"
+      >
+        <svg viewBox="0 0 36 36" aria-hidden="true">
+          <circle cx="18" cy="18" r="16" />
+          @if (playing() && !exp.locked()) {
+            <path d="M12.5 11h4v14h-4zM19.5 11h4v14h-4z" />
+          } @else {
+            <path d="M14 11v14l11-7z" />
+          }
+        </svg>
+      </button>
+    }
+  </g-stage>
+  <p #simplify class="simplify" [class.set]="simplifyBox()">
+    @for (line of simplified(); track $index) {
+      <span>{{ $last ? line : line + ' ' }}</span>
+    }
+  </p>
+
+  <div class="describe">
+    <button type="button" class="g-btn" [attr.aria-expanded]="describe()" [disabled]="describeWaits()" (click)="toggleDescribe()">
+      {{ describe() ? 'Hide the description' : 'Describe' }}
+    </button>
+    @if (describeWaits()) {
+      <span class="muted">{{ describeWaitsWhy() }}</span>
+    }
+    @if (describe() && !describeWaits()) {
+      @let d = describeTable();
+      <p class="said"><g-code-text [text]="describeSaid()" /></p>
+      <g-data-table label="What each node holds" [head]="d.head" [rows]="d.rows" [compact]="compact()" [height]="tableHeight()" />
+    }
+  </div>
+</div>
+
+@if (experiments().length) {
+  <app-experiment-dock
+    class="experiments"
+    [experiments]="experiments()"
+    [active]="exp.active()"
+    [phase]="exp.phase()"
+    [done]="exp.done()"
+    [goalStatus]="goalStatus()"
+    [goalChecks]="goalChecks()"
+    [chosen]="exp.chosen()"
+    (chosenChange)="exp.answer($event)"
+    (start)="start($event)"
+  />
+}

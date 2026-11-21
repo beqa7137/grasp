@@ -123,6 +123,13 @@
   --g-kind-replica: #a8841c;
   --g-kind-worker: #2e9477;
   --g-kind-blob: #56657f;
+  // The Sharding widget's six node colors, validated over every pair (shard-colors.spec).
+  --g-shard-a: #364288;
+  --g-shard-b: #9b2fb1;
+  --g-shard-c: #948312;
+  --g-shard-d: #16753b;
+  --g-shard-e: #822d06;
+  --g-shard-f: #3092c0;
 
   --g-code-text: #394152;
   --g-syntax-keyword: #7d2bb8;
@@ -198,6 +205,12 @@
   --g-kind-replica: #ffd28a;
   --g-kind-worker: #8be0bd;
   --g-kind-blob: #a9b8d6;
+  --g-shard-a: #2064ef;
+  --g-shard-b: #9a498c;
+  --g-shard-c: #b07d0a;
+  --g-shard-d: #2dad72;
+  --g-shard-e: #a83f16;
+  --g-shard-f: #1794c3;
 
   --g-code-text: #b9bfd0;
   --g-syntax-keyword: #c792ea;

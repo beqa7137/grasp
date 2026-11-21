@@ -1,14 +1,11 @@
+import { SHARDING_EXPERIMENTS } from './sharding-experiments.js';
 import type { SdLesson } from './types.js';
 
 export const SHARDING_LESSON: SdLesson = {
   why: 'Replicas scale reads, but every write still lands on one primary, and every replica stores all of the data. When writes or data outgrow one machine, you split the data into shards, and from then on the shard key decides everything: which queries stay cheap, which machine runs hot, and how painful it is to add the next one. Interviewers push on sharding because a bad key is easy to pick and very expensive to change.',
   widget: {
     kind: 'hash-ring',
-    tryThis: [
-      'Pick `hash mod N` and add node E: 166 of the 200 keys, more than 80%, change owner, although E only needs a fifth of them. Remove E to return to four, then remove D: 158 keys, almost 80%, move. Every one of those moves is data copied across the network.',
-      'Switch to consistent hashing with 100 virtual nodes, add nodes back to four, then add E: only 46 keys move, close to the ideal fifth, and every one of them moves to E. Remove D: exactly its 57 keys move and the other nodes keep all of theirs.',
-      'With consistent hashing, compare 1 and 100 virtual nodes per node. With 1, C owns 114 keys, more than half, while D owns 11. With 100, every node owns between 43 and 57, close to the fair 50.',
-    ],
+    experiments: SHARDING_EXPERIMENTS,
   },
   concepts: [
     {
@@ -21,19 +18,19 @@ export const SHARDING_LESSON: SdLesson = {
     },
     {
       title: 'Hash, range or directory',
-      body: 'Hash partitioning spreads keys evenly but turns a range scan into a query on every shard. Range partitioning keeps neighbors together, so scans are cheap, but a busy range or an ever-growing key makes one shard hot. A directory (lookup table from key to shard) lets you place any key anywhere, at the cost of a lookup service that must be fast, cached and always up.',
+      body: 'Hash partitioning spreads keys evenly but turns a range scan into a query on every shard (neighboring ids hash to unrelated places, so a range of ids lands on every shard). Range partitioning keeps neighbors together, so scans are cheap, but a busy range or an ever-growing key makes one shard hot. A directory (lookup table from key to shard) lets you place any key anywhere, at the cost of a lookup service that must be fast, cached and always up.',
     },
     {
       title: 'Consistent hashing and virtual nodes',
-      body: 'With `hash mod N`, going from 4 to 5 nodes keeps a key in place only when its hash gives the same remainder for 4 and 5, which is 4 of every 20 values: 80% of the data moves. Consistent hashing puts nodes and keys on a ring and gives each key to the next node clockwise, so a new node takes only about 1/N of the keys. Giving each machine many virtual nodes on the ring evens out the load and spreads a lost machine over all the others.',
+      body: "With `hash mod N`, a key stays in place only when its hash gives the same remainder before and after: going from 9 to 10 nodes that is 9 of every 90 values, so 90% of the data moves. Consistent hashing puts nodes and keys on a ring and gives each key to the next point clockwise, so a new node takes only the stretches just before its points. With one point a machine those stretches are a few random lengths, so shares are uneven and a lost machine's whole load lands on the next machine clockwise; many virtual nodes per machine even out the load and spread a lost machine over all the others. Many systems get the same result with a fixed number of slots: hash mod 16,384 never changes, a small table maps each slot to a machine, and adding a machine moves whole slots to it, much as a new node's points take whole stretches of the ring.",
     },
     {
       title: 'Hot keys and resharding',
-      body: 'Even hashing cannot split one key that gets a huge share of traffic. Split it instead: add a salt (a suffix from 0 to 9) to spread its writes over 10 keys and read all 10 back, or give it dedicated shards. To reshard online, copy data to the new layout in the background, dual-write new changes to both, compare, switch reads, then stop writing the old copy.',
+      body: 'Even hashing cannot split one key that gets a huge share of traffic. Split it instead: add a salt (a suffix from 0 to 9) to spread its writes over 10 keys and read all 10 back, or give it dedicated shards. Moving a key means copying its data across the network while it serves traffic, so every rebalance is throttled and can take hours: the fewer keys a change moves, the sooner the cluster is even again, which is why a cluster on hash mod N grows by doubling. To reshard online, copy data to the new layout in the background, dual-write new changes to both, compare, switch reads, then stop writing the old copy.',
     },
     {
       title: 'Secondary indexes and copies',
-      body: 'A query by anything other than the shard key needs an index. A local index lives on each shard, so writes stay on one shard but the query asks every shard; a global index is itself sharded by the indexed value, so the query asks one shard but each write updates two. For availability, each key is also copied to the next few nodes on the ring.',
+      body: 'A query by anything other than the shard key needs an index. A local index lives on each shard, so writes stay on one shard but the query asks every shard; a global index is itself sharded by the indexed value, so the query asks one shard but each write updates two. For availability, each key is also copied to the next few distinct machines clockwise on the ring (with virtual nodes the next points can belong to the same machine, so they are skipped).',
     },
   ],
   examples: [
@@ -87,6 +84,11 @@ export const SHARDING_LESSON: SdLesson = {
     'Ignoring the one huge tenant, celebrity or time-ordered key: even hashing cannot split a single hot key.',
   ],
   followUps: [
+    {
+      question: 'You add a node to a four-node cluster: how much data moves, where does it go, and how do you keep the shards even?',
+      answer:
+        'With consistent hashing about a fifth of the keys move, all of them to the new node, from the stretches its points take; with `hash mod N` about four fifths move, between every pair of nodes. Give every node 100 or more virtual nodes so the newcomer takes a little from each and shares stay near even, throttle the copy, and split or isolate hot keys, which no placement can spread.',
+    },
     {
       question: 'How do you handle a query that needs data from every shard?',
       answer:

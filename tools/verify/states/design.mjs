@@ -44,6 +44,23 @@ const quorumAt = async (p, { n, w, r, stall, sloppy, taps = [] }, ready = true) 
   for (const [i, k] of taps.entries()) for (let j = 0; j < k; j++) await widget.locator('.card-hit').nth(i).click();
   await quorumStageToTop(p);
 };
+const ringStageToTop = (p) => p.locator('app-ring-widget g-stage').evaluate((stage) => stage.scrollIntoView({ block: 'start' }));
+/** Sets the sharding widget as a learner would: placement, points, nodes and the conditions, by their names. */
+const ringAt = async (p, { scheme, points, nodes, hot, split, down }, ready = true) => {
+  const widget = p.locator('app-ring-widget');
+  if (ready) await widget.locator('svg.draw [data-id="k0"]').waitFor();
+  if (scheme) await widget.getByRole('radio', { name: scheme }).check();
+  if (points) await widget.getByRole('radio', { name: points, exact: true }).check();
+  if (nodes) await widget.getByRole('radio', { name: new RegExp(`^${nodes} nodes`) }).check();
+  if (hot) await widget.getByRole('checkbox', { name: /A hot key/ }).check();
+  if (split) await widget.getByRole('checkbox', { name: 'Split the key' }).check();
+  if (down) await widget.getByRole('checkbox', { name: /Busiest node down/ }).check();
+  await ringStageToTop(p);
+};
+const ringCard = async (p, title) => {
+  await p.locator('app-ring-widget svg.draw [data-id="k0"]').waitFor();
+  await p.locator('app-ring-widget .cards button', { hasText: title }).click();
+};
 const latencyStageToTop = (p) => p.locator('app-latency-widget g-stage').evaluate((stage) => stage.scrollIntoView({ block: 'start' }));
 /** The latency widget's load stops, as its handle steps them. */
 const LATENCY_LOADS = [10, 20, 30, 40, 50, 60, 65, 70, 75, 80, 85, 90, 95, 98];
@@ -649,12 +666,65 @@ export function designStates() {
         await cacheStageToTop(p);
       },
     },
+    { id: 'lesson-sharding', path: '/design/topics/sd-sharding', setup: (p) => ringAt(p, {}) },
+    { id: 'lesson-sharding-one', path: '/design/topics/sd-sharding', setup: (p) => ringAt(p, { points: '1' }) },
+    { id: 'lesson-sharding-mod', path: '/design/topics/sd-sharding', setup: (p) => ringAt(p, { scheme: 'hash mod N' }) },
+    { id: 'lesson-sharding-joined', path: '/design/topics/sd-sharding', setup: (p) => ringAt(p, { nodes: 5 }) },
+    { id: 'lesson-sharding-modjoined', path: '/design/topics/sd-sharding', setup: (p) => ringAt(p, { scheme: 'hash mod N', nodes: 5 }) },
+    { id: 'lesson-sharding-down', path: '/design/topics/sd-sharding', setup: (p) => ringAt(p, { points: '1', down: true }) },
+    { id: 'lesson-sharding-hot', path: '/design/topics/sd-sharding', setup: (p) => ringAt(p, { hot: true, nodes: 6 }) },
+    { id: 'lesson-sharding-split', path: '/design/topics/sd-sharding', setup: (p) => ringAt(p, { hot: true, split: true }) },
     {
-      id: 'lesson-sharding-added',
+      id: 'lesson-sharding-describe',
       path: '/design/topics/sd-sharding',
       setup: async (p) => {
-        await p.locator('#try').scrollIntoViewIfNeeded();
-        await p.getByRole('button', { name: 'Add node E' }).click();
+        await ringAt(p, { nodes: 5 });
+        await p.locator('app-ring-widget').getByRole('button', { name: 'Describe' }).click();
+        await p.locator('app-ring-widget .describe g-data-table').scrollIntoViewIfNeeded();
+      },
+    },
+    {
+      id: 'lesson-sharding-table',
+      path: '/design/topics/sd-sharding',
+      setup: async (p) => {
+        await ringAt(p, { nodes: 6, down: true });
+        await p.locator('app-ring-widget').getByRole('button', { name: 'Describe' }).click();
+        await p.locator('app-ring-widget .describe g-data-table').scrollIntoViewIfNeeded();
+      },
+    },
+    {
+      id: 'lesson-sharding-asking',
+      path: '/design/topics/sd-sharding',
+      setup: async (p) => {
+        await ringCard(p, 'The same node, on a ring');
+        await p.locator('app-widget-check legend').waitFor();
+        await ringStageToTop(p);
+      },
+    },
+    {
+      id: 'lesson-sharding-revealed',
+      path: '/design/topics/sd-sharding',
+      setup: async (p) => {
+        await ringCard(p, 'A fifth node, by hash mod N');
+        await p
+          .locator('app-widget-check')
+          .getByRole('button', { name: /^About 160/ })
+          .click();
+        await p
+          .locator('app-widget-check .explain')
+          .filter({ hasText: /^It moves 166/ })
+          .waitFor();
+        await ringStageToTop(p);
+      },
+    },
+    {
+      id: 'lesson-sharding-challenge',
+      path: '/design/topics/sd-sharding',
+      setup: async (p) => {
+        await ringCard(p, 'Challenge');
+        await ringAt(p, { scheme: 'Consistent hashing', points: '100', nodes: 5, split: true }, false);
+        await p.locator('app-experiment-dock .reveal').waitFor();
+        await ringStageToTop(p);
       },
     },
     { id: 'lesson-queues', path: '/design/topics/sd-queues', setup: (p) => p.locator('#try').scrollIntoViewIfNeeded() },

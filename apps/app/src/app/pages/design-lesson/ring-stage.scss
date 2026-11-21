@@ -1,0 +1,283 @@
+@use '../../../type' as *;
+
+// The Sharding stage's drawing roles; `latency-draw.ts` measures text by these sizes, so a size changed here changes its
+// checks. Stage text keeps proportional digits, as measured. A label is set in capitals by the layout, so a key's name
+// keeps its case ("user:119").
+text {
+  paint-order: stroke;
+  stroke: var(--g-viz-stage);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  &.on-chip,
+  &.on-block {
+    stroke: none;
+  }
+}
+.t-label {
+  @include label;
+  text-transform: none;
+  fill: var(--g-muted);
+}
+.t-cap {
+  font: 500 var(--g-text-body-s) var(--ion-font-family);
+  fill: var(--g-muted);
+}
+.t-capB {
+  font: 600 var(--g-text-body-s) var(--ion-font-family);
+  fill: var(--g-text);
+}
+.t-small {
+  font: 500 var(--g-text-label) var(--ion-font-family);
+  fill: var(--g-muted);
+}
+.t-smallB {
+  font: 700 var(--g-text-label) var(--ion-font-family);
+  fill: var(--g-text);
+}
+.t-mono {
+  font: 600 var(--g-text-label) var(--g-font-mono);
+  fill: var(--g-text);
+}
+.t-nameS {
+  font: 600 var(--g-text-body-s) var(--g-font-mono);
+  fill: var(--g-text);
+}
+.t-head {
+  font: 600 var(--g-text-title-m) var(--g-font-mono);
+  fill: var(--g-text);
+}
+.ink {
+  fill: var(--g-text);
+}
+.muted {
+  fill: var(--g-muted);
+}
+.bad {
+  fill: var(--g-danger-ink);
+}
+.on-fill {
+  fill: var(--g-on-fill);
+}
+// The six node colors: the widget's own validated series (theme-contrast.spec), each a color and a letter.
+.nA {
+  fill: var(--g-shard-a);
+}
+.band.nA,
+.base.nA,
+.chip-pt.nA,
+.key.moved.nA {
+  stroke: var(--g-shard-a);
+}
+.nB {
+  fill: var(--g-shard-b);
+}
+.band.nB,
+.base.nB,
+.chip-pt.nB,
+.key.moved.nB {
+  stroke: var(--g-shard-b);
+}
+.nC {
+  fill: var(--g-shard-c);
+}
+.band.nC,
+.base.nC,
+.chip-pt.nC,
+.key.moved.nC {
+  stroke: var(--g-shard-c);
+}
+.nD {
+  fill: var(--g-shard-d);
+}
+.band.nD,
+.base.nD,
+.chip-pt.nD,
+.key.moved.nD {
+  stroke: var(--g-shard-d);
+}
+.nE {
+  fill: var(--g-shard-e);
+}
+.band.nE,
+.base.nE,
+.chip-pt.nE,
+.key.moved.nE {
+  stroke: var(--g-shard-e);
+}
+.nF {
+  fill: var(--g-shard-f);
+}
+.band.nF,
+.base.nF,
+.chip-pt.nF,
+.key.moved.nF {
+  stroke: var(--g-shard-f);
+}
+.band {
+  fill: none;
+  stroke-width: 8;
+  &.lens {
+    stroke-width: 6;
+  }
+  &.neutral {
+    stroke: var(--g-viz-track);
+  }
+}
+.base {
+  fill: none;
+  stroke-width: 3;
+  stroke-linecap: round;
+  &.gone {
+    stroke: var(--g-viz-track);
+  }
+}
+.track {
+  fill: none;
+  stroke: var(--g-viz-track);
+  stroke-width: 2;
+}
+// A key that moved in the last change is hollow, and hollow means nothing else.
+.key.moved {
+  fill: var(--g-viz-stage);
+  stroke-width: 1.1;
+}
+.dot.pile:not(.moved) {
+  stroke: var(--g-viz-stage);
+  stroke-width: 0.6;
+}
+.dot.slide {
+  transition: transform var(--slide, 0ms) ease-out;
+}
+.fly {
+  stroke: var(--g-viz-stage);
+  stroke-width: 0.75;
+}
+.hot {
+  fill: var(--g-viz-critical);
+}
+.hot-block {
+  fill: var(--g-viz-critical);
+  &.moved {
+    fill: color-mix(in srgb, var(--g-viz-critical) 15%, var(--g-viz-stage));
+    stroke: var(--g-viz-critical);
+    stroke-width: 1.25;
+  }
+}
+.hot-seam {
+  stroke: var(--g-viz-stage);
+  stroke-width: 1;
+}
+.cut-mark {
+  fill: var(--g-viz-critical);
+}
+.legend-key {
+  fill: var(--g-text);
+  &.moved {
+    fill: var(--g-viz-stage);
+    stroke: var(--g-text);
+    stroke-width: 1.1;
+  }
+}
+.follow-ring {
+  fill: none;
+  stroke: var(--g-text);
+  stroke-width: 1.1;
+}
+.chip-pt {
+  fill: var(--g-viz-stage);
+  stroke-width: 1.5;
+  &.gone {
+    stroke: var(--g-viz-discarded-ink);
+    fill: var(--g-viz-track);
+  }
+}
+.pt-tick {
+  stroke: var(--g-text);
+  stroke-width: 1.25;
+  &.new {
+    stroke-width: 2;
+  }
+  &.gone-tick {
+    stroke: var(--g-viz-discarded-ink);
+  }
+}
+.gridline {
+  stroke: var(--g-line-strong);
+  stroke-opacity: 0.7;
+}
+.evenline {
+  stroke: var(--g-text);
+  stroke-opacity: 0.6;
+}
+.leader {
+  stroke: var(--g-muted);
+  stroke-width: 1;
+}
+.bracket,
+.walk {
+  fill: none;
+  stroke: var(--g-text);
+  stroke-width: 1.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.caret {
+  fill: var(--g-text);
+}
+.sweep {
+  stroke: var(--g-text);
+  stroke-width: 1.25;
+  stroke-opacity: 0.7;
+}
+.zero {
+  stroke: var(--g-stroke);
+  stroke-width: 1.25;
+}
+.arrow {
+  fill: none;
+  stroke: var(--g-stroke);
+  stroke-width: 1.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+// Dashed means "hidden until you answer", and nothing else.
+.hidden-box {
+  fill: none;
+  stroke: var(--g-stroke);
+  stroke-dasharray: 4 3;
+}
+.rule {
+  stroke: var(--g-line);
+}
+.xmark {
+  stroke: var(--g-viz-critical);
+  stroke-width: 2;
+  stroke-linecap: round;
+  fill: none;
+  &.thin {
+    stroke-width: 1.5;
+  }
+}
+.xground {
+  fill: var(--g-viz-stage);
+}
+.follow-col {
+  fill: rgba(var(--g-text-rgb), 0.07);
+}
+// The climax: the landing ring round the piles that gained keys, stroke only.
+.landing {
+  fill: none;
+  stroke: var(--g-text);
+  stroke-width: 1.5;
+  animation: ring-land 400ms var(--g-ease-enter, ease-out) both;
+}
+@keyframes ring-land {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
