@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, ElementRef, afterRenderEffect, inject, input } from '@angular/core';
+import { CodeTextComponent } from '../code-text.component';
 
 /**
  * A drawing's numbers as a table (REDESIGN.md 3.3, "Describe"), scrolling inside the box the drawing had, with the
@@ -7,21 +8,29 @@ import { ChangeDetectionStrategy, Component, ElementRef, afterRenderEffect, inje
 @Component({
   selector: 'g-data-table',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [CodeTextComponent],
   host: { tabindex: '0', role: 'region', '[attr.aria-label]': 'label()', '[style.height.px]': 'height()', '[class.compact]': 'compact()' },
   template: `
     <table>
       <thead>
         <tr>
           @for (h of head(); track $index) {
-            <th scope="col">{{ h }}</th>
+            <th scope="col" [class.row-head]="$first && rowHeads()">{{ h }}</th>
           }
         </tr>
       </thead>
       <tbody>
         @for (row of rows(); track $index) {
-          <tr [class.active]="$index === active()" [attr.aria-current]="$index === active() ? 'true' : null">
+          <tr
+            [class.active]="$index === active() || $index === also()"
+            [attr.aria-current]="$index === active() || $index === also() ? 'true' : null"
+          >
             @for (cell of row; track $index) {
-              <td>{{ cell }}</td>
+              @if ($first && rowHeads()) {
+                <th scope="row" class="row-head"><g-code-text [text]="cell" /></th>
+              } @else {
+                <td>{{ cell }}</td>
+              }
             }
           </tr>
         }
@@ -70,9 +79,24 @@ import { ChangeDetectionStrategy, Component, ElementRef, afterRenderEffect, inje
         vertical-align: bottom;
       }
     }
-    .active td {
+    .active td,
+    .active .row-head {
       background: var(--g-accent-soft);
       font-weight: 700;
+    }
+    // A row head's column aligns as its names do. In full a name keeps one line; compact, it may wrap between the runs
+    // g-code-text keeps whole ("B-tree, / 4 KB"), never inside one.
+    th.row-head {
+      text-align: left;
+    }
+    tbody th.row-head {
+      position: static;
+      font: inherit;
+      letter-spacing: normal;
+      text-transform: none;
+      color: var(--g-text);
+      background: none;
+      border-top: 1px solid var(--g-line);
     }
     :host(.more) {
       // A mask reads only alpha, so any opaque token works.
@@ -89,6 +113,10 @@ export class DataTableComponent {
   /** Tighter cells and plain-spaced heads that may wrap, for a phone's narrow stage. */
   readonly compact = input(false);
   readonly active = input(-1);
+  /** A second current row, for a table of two families with one current setting each. */
+  readonly also = input(-1);
+  /** The first cell of each row names it: a row header, which may wrap between the runs `g-code-text` keeps whole. */
+  readonly rowHeads = input(false);
 
   constructor() {
     const host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;

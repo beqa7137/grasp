@@ -1,0 +1,128 @@
+@use '../../../type' as *;
+@use '../../../breakpoints' as *;
+@use 'feed-controls';
+@use 'widget-controls';
+@use 'widget-layout' as *;
+
+@include stage-layout('.storage-stage');
+// A checked segment keeps its weight, so its label never re-wraps and nothing moves when one is chosen.
+.segment input:checked + span {
+  font-weight: 500;
+}
+.caption,
+.model-note {
+  order: 2;
+  margin: 0;
+  font-size: var(--g-text-body-s);
+  text-wrap: pretty;
+}
+.caption {
+  color: var(--g-text);
+}
+.model-note {
+  color: var(--g-muted);
+}
+svg.draw {
+  display: block;
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+}
+.hatch-fill {
+  fill: var(--g-sunken);
+}
+.hatch-line {
+  stroke: var(--g-viz-discarded-ink);
+  stroke-opacity: 0.35;
+  stroke-width: 1.5;
+}
+// The one moving mark is the largest in its panel, ringed in its operation's color like the trail it travels.
+.key {
+  fill: var(--g-text);
+  stroke: var(--g-viz-considering);
+  stroke-width: 2;
+  &.r {
+    stroke: var(--g-viz-current);
+  }
+}
+// The play discs and the engines' own settings sit over the stage, each in the box the layout gives it.
+.play {
+  top: auto;
+}
+fieldset.group.on-stage {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.segment.on-stage {
+  position: absolute;
+  pointer-events: auto;
+  display: block;
+  z-index: 2;
+  span {
+    height: 100%;
+    min-height: 0;
+  }
+}
+.segment.toggle span {
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: var(--g-space-2);
+  padding: 0 var(--g-space-3);
+  font-size: var(--g-text-body-s);
+}
+.segment.toggle .box {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--g-radius-xs);
+  border: 1.5px solid var(--g-stroke);
+  background: var(--g-raised);
+  svg {
+    width: 12px;
+    height: 12px;
+    visibility: hidden;
+  }
+  path {
+    fill: none;
+    stroke: var(--g-on-fill);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+}
+.segment.toggle input:checked + span .box {
+  background: var(--g-accent);
+  border-color: var(--g-accent);
+  svg {
+    visibility: visible;
+  }
+}
+.segment.toggle .words {
+  display: grid;
+  text-align: left;
+  line-height: 1.25;
+  font-style: normal;
+  white-space: nowrap;
+  b {
+    font-weight: 500;
+  }
+  small {
+    font: 500 var(--g-text-label) var(--ion-font-family);
+    color: var(--g-muted);
+  }
+}
+.describe {
+  .said {
+    flex: 1 0 100%;
+    margin: 0;
+    font-size: var(--g-text-body-s);
+  }
+  .note {
+    flex: 1 0 100%;
+    margin: 0;
+  }
+}

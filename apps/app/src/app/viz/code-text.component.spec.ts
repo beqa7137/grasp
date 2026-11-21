@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { CodeTextComponent } from './code-text.component';
+import { CODE_TEXT_KEEP, CodeTextComponent } from './code-text.component';
 
 function render(text: string): HTMLElement {
   const fixture = TestBed.createComponent(CodeTextComponent);
@@ -38,6 +38,18 @@ describe('CodeTextComponent', () => {
       '64 MB',
     ]);
     expect(el.textContent).toBe('p99 230 ms, p50 35 ms; about 1 s, or 1,500 ms in 2.5 s, from 64 MB. 3 servers and 80% busy, x = 10 ms.');
+  });
+
+  it('keeps only the house runs whole by default', () => {
+    expect([...render('at 64 MB, ratio 10 and "not here"').querySelectorAll('.keep')].map((k) => k.textContent)).toEqual(['64 MB']);
+  });
+
+  it('keeps the runs a provided keep rule names whole instead', () => {
+    TestBed.configureTestingModule({ providers: [{ provide: CODE_TEXT_KEEP, useValue: /\bratio \d+|"[^"]*"/g }] });
+    expect([...render('at 64 MB, ratio 10 and "not here"').querySelectorAll('.keep')].map((k) => k.textContent)).toEqual([
+      'ratio 10',
+      '"not here"',
+    ]);
   });
 
   it('shows an unbalanced backtick literally', () => {

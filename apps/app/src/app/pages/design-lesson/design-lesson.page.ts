@@ -39,7 +39,6 @@ import { PartitionWidgetComponent } from './partition-widget.component';
 import { PipelineWidgetComponent } from './pipeline-widget.component';
 import { RegionWidgetComponent } from './region-widget.component';
 import { RingWidgetComponent } from './ring-widget.component';
-import { StorageWidgetComponent } from './storage-widget.component';
 import { StreamWidgetComponent } from './stream-widget.component';
 import { TxnWidgetComponent } from './txn-widget.component';
 import { BackComponent } from '../../ui/back.component';
@@ -49,7 +48,7 @@ import { LazyWidgetComponent } from './lazy-widget.component';
 
 /** A system design topic taught hands-on: a widget to experiment with, the ideas to name, worked examples and a quick check. */
 /** Widgets that leave the reading column at container wide, to sit beside their controls and experiments. */
-const BREAKOUT = new Set(['balancer', 'feed-model', 'quorum', 'queue-latency']);
+const BREAKOUT = new Set(['balancer', 'feed-model', 'quorum', 'queue-latency', 'storage-engine']);
 
 @Component({
   selector: 'app-design-lesson',
@@ -76,7 +75,6 @@ const BREAKOUT = new Set(['balancer', 'feed-model', 'quorum', 'queue-latency']);
     IdLayoutWidgetComponent,
     IndexWidgetComponent,
     StreamWidgetComponent,
-    StorageWidgetComponent,
     CdnWidgetComponent,
     RegionWidgetComponent,
     BudgetWidgetComponent,
@@ -179,7 +177,11 @@ const BREAKOUT = new Set(['balancer', 'feed-model', 'quorum', 'queue-latency']);
                     <app-stream-widget />
                   }
                   @case ('storage-engine') {
-                    <app-storage-widget />
+                    <app-lazy-widget
+                      [load]="loadStorageWidget"
+                      [inputs]="{ experiments: l.widget.experiments ?? [] }"
+                      [placeholder]="heights.storage"
+                    />
                   }
                   @case ('cdn') {
                     <app-cdn-widget />
@@ -462,6 +464,7 @@ export class DesignLessonPage {
   readonly loadCacheWidget = () => import('./cache-widget.component').then((m) => m.CacheWidgetComponent);
   readonly heights = WIDGET_HEIGHTS;
   readonly loadLatencyWidget = () => import('./latency-widget.component').then((m) => m.LatencyWidgetComponent);
+  readonly loadStorageWidget = () => import('./storage-widget.component').then((m) => m.StorageWidgetComponent);
   readonly loadQueueWidget = () => import('./queue-widget.component').then((m) => m.QueueWidgetComponent);
   readonly loadOverloadWidget = () => import('./overload-widget.component').then((m) => m.OverloadWidgetComponent);
   readonly loadLeaseWidget = () => import('./lease-widget.component').then((m) => m.LeaseWidgetComponent);

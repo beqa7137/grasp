@@ -1,10 +1,12 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, InjectionToken, computed, inject, input } from '@angular/core';
 import { codeSpans, type TextPart } from '@grasp/engine';
 
 type Part = TextPart & { after?: string; keep?: boolean };
 
 /** A number and its unit, and a percentile with its value ("p99 69 ms"): a line never breaks inside one. */
 const KEEP = /(?:\bp\d{2,3} )?\d[\d,.]* (?:ns|µs|ms|s|min|KB|MB|GB|TB)\b/g;
+/** The runs a line never breaks inside, for every `g-code-text` under the provider: a widget may keep more of its own. */
+export const CODE_TEXT_KEEP = new InjectionToken<RegExp>('CODE_TEXT_KEEP', { factory: () => KEEP });
 
 /** Gives each code span the characters right after it, such as `).`, so no line break comes between them. */
 function glueTrailing(parts: TextPart[]): Part[] {
@@ -19,12 +21,12 @@ function glueTrailing(parts: TextPart[]): Part[] {
 }
 
 /** Splits the prose so each number with its unit is a run of its own, which the template keeps on one line. */
-function keepUnits(parts: Part[]): Part[] {
+function keepUnits(parts: Part[], keep: RegExp): Part[] {
   return parts.flatMap((part) => {
     if (part.code) return [part];
     const out: Part[] = [];
     let at = 0;
-    for (const m of part.text.matchAll(KEEP)) {
+    for (const m of part.text.matchAll(keep)) {
       if (m.index > at) out.push({ ...part, text: part.text.slice(at, m.index) });
       out.push({ ...part, text: m[0], keep: true });
       at = m.index + m[0].length;
@@ -79,5 +81,7 @@ function keepUnits(parts: Part[]): Part[] {
 export class CodeTextComponent {
   readonly text = input.required<string>();
 
-  readonly parts = computed(() => keepUnits(glueTrailing(codeSpans(this.text()))));
+  private readonly keep = inject(CODE_TEXT_KEEP);
+
+  readonly parts = computed(() => keepUnits(glueTrailing(codeSpans(this.text())), this.keep));
 }

@@ -1,10 +1,31 @@
+import { formatAmp, formatBytes, formatGb, formatKb, formatLevels, formatRate, formatReads, formatSize } from './widgets/storage-format.js';
+
 /**
  * Lesson widget experiments (REDESIGN.md 4.7): a card sets the widget up in one tap, asks a prediction, plays, then
  * reveals the exact numbers. Every number in the text is a slot the widget's own model fills, so the prose cannot drift
  * from what the widget shows.
  */
 
-export type SlotUnit = 'pct' | 'ms' | 'dur' | 'qps' | 'times' | 's' | 'approx' | 'num' | 'nines' | 'ordinal' | 'word';
+export type SlotUnit =
+  | 'pct'
+  | 'ms'
+  | 'dur'
+  | 'qps'
+  | 'times'
+  | 's'
+  | 'approx'
+  | 'num'
+  | 'nines'
+  | 'ordinal'
+  | 'amp'
+  | 'bytes'
+  | 'size'
+  | 'gb'
+  | 'kb'
+  | 'rate'
+  | 'reads'
+  | 'levels'
+  | 'word';
 
 /** A model value with its unit, or a `word` the model chose ("The old value"), which may carry no digits. */
 export type Slot = { value: number; unit: Exclude<SlotUnit, 'word'> } | { value: string; unit: 'word' };
@@ -21,7 +42,7 @@ export const word = (value: string): Slot => ({ value, unit: 'word' });
 export type ExperimentSettings = Readonly<Record<string, number>>;
 
 /** A play a widget runs on the picture, such as loading a page, renaming an author, a write then a read, or a sample of requests. */
-export type ExperimentRun = 'load' | 'rename' | 'write-read' | 'read' | 'sample';
+export type ExperimentRun = 'load' | 'rename' | 'write-read' | 'read' | 'sample' | 'btree' | 'lsm';
 
 /** What answering plays: new settings (then, if named, a run), a run on its own, or the widget's flush. */
 export type ExperimentAct = { set: ExperimentSettings; run?: ExperimentRun } | { run: ExperimentRun } | { flush: true };
@@ -70,7 +91,16 @@ export interface SdExperiment {
 }
 
 /** Phrases with digits a template may contain: everything else numeric must be a slot. */
-export const TEMPLATE_DIGITS_ALLOWED = ['p99', '100 requests', 'the 99th of 100', 'N+1', 'S / (1 − utilization)', '(1 + CV²) / 2'] as const;
+export const TEMPLATE_DIGITS_ALLOWED = [
+  'p99',
+  '100 requests',
+  'the 99th of 100',
+  'N+1',
+  'S / (1 − utilization)',
+  '(1 + CV²) / 2',
+  '(ratio + 1) / 2',
+  'from L1 down',
+] as const;
 
 const trim = (v: number, decimals: number) => String(Number(v.toFixed(decimals)));
 /** One formatter for every number: `toLocaleString` with a locale builds a new one on each call. */
@@ -118,6 +148,14 @@ const FORMAT: Record<Exclude<SlotUnit, 'word'>, (v: number) => string> = {
   num: (v) => (Number.isInteger(v) ? group(v) : trim(v, 2)),
   nines: formatNines,
   ordinal: formatOrdinal,
+  amp: formatAmp,
+  bytes: formatBytes,
+  size: formatSize,
+  gb: formatGb,
+  kb: formatKb,
+  rate: formatRate,
+  reads: formatReads,
+  levels: formatLevels,
 };
 
 export const formatSlot = (slot: Slot) => (slot.unit === 'word' ? slot.value : FORMAT[slot.unit](slot.value));

@@ -148,7 +148,15 @@ describe('the reveal spec', () => {
 
   it('covers the Caching, Load Balancing, Replication, Data Modeling, Consistency and Latency lessons', () => {
     expect(lessons.map(([id]) => id)).toEqual(
-      expect.arrayContaining(['sd-caching', 'sd-load-balancing', 'sd-replication', 'sd-data-modeling', 'sd-consistency', 'sd-latency']),
+      expect.arrayContaining([
+        'sd-caching',
+        'sd-load-balancing',
+        'sd-replication',
+        'sd-data-modeling',
+        'sd-consistency',
+        'sd-latency',
+        'sd-storage',
+      ]),
     );
     expect(SD_LESSONS['sd-latency'].widget.experiments).toBe(LATENCY_EXPERIMENTS);
     expect(SD_LESSONS['sd-consistency'].widget.experiments).toBe(QUORUM_EXPERIMENTS);

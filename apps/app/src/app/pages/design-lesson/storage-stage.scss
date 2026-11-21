@@ -1,0 +1,305 @@
+@use '../../../type' as *;
+
+// The Storage Engines stage's drawing roles; `storage-text.ts` measures text by these sizes, so a size changed here
+// changes its checks. Stage text keeps proportional digits, as measured.
+text {
+  paint-order: stroke;
+  stroke: var(--g-viz-stage);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  &.on-box {
+    stroke: var(--g-raised);
+  }
+  &.on-chip {
+    stroke: none;
+  }
+}
+.t-label {
+  @include label;
+  fill: var(--g-muted);
+}
+.t-unit {
+  text-transform: none;
+}
+.t-cap {
+  font: 500 var(--g-text-body-s) var(--ion-font-family);
+  fill: var(--g-muted);
+}
+.t-capB {
+  font: 600 var(--g-text-body-s) var(--ion-font-family);
+  fill: var(--g-text);
+}
+.t-small {
+  font: 500 var(--g-text-label) var(--ion-font-family);
+  fill: var(--g-muted);
+}
+.t-smallB {
+  font: 700 var(--g-text-label) var(--ion-font-family);
+  fill: var(--g-text);
+}
+.t-mono {
+  font: 600 var(--g-text-label) var(--g-font-mono);
+  fill: var(--g-text);
+}
+.t-nameS {
+  font: 600 var(--g-text-body-s) var(--g-font-mono);
+  fill: var(--g-text);
+}
+.t-head {
+  font: 600 var(--g-text-title-m) var(--g-font-mono);
+  fill: var(--g-text);
+}
+.ink {
+  fill: var(--g-text);
+}
+.muted {
+  fill: var(--g-muted);
+}
+.bad {
+  fill: var(--g-danger-ink);
+}
+.wait-ink {
+  fill: var(--g-warn-ink);
+}
+.cur-ink {
+  fill: var(--g-viz-current);
+}
+.crit-ink {
+  fill: var(--g-viz-critical);
+}
+.final-ink {
+  fill: var(--g-viz-final-ink);
+}
+.amber-ink,
+.t-nameS.amber-ink,
+.t-mono.amber-ink,
+.t-head.amber-ink {
+  fill: var(--g-warn-ink);
+}
+.t-nameS.cur-ink,
+.t-head.cur-ink {
+  fill: var(--g-viz-current);
+}
+.t-nameS.muted,
+.t-head.muted {
+  fill: var(--g-muted);
+}
+.rule,
+.vrule {
+  stroke: var(--g-line);
+}
+.tickmark {
+  stroke: var(--g-line-strong);
+}
+.hatch-fill {
+  fill: var(--g-sunken);
+}
+.hatch-line {
+  stroke: var(--g-viz-discarded-ink);
+  stroke-opacity: 0.35;
+  stroke-width: 1.5;
+}
+// The B-tree: the memory band, pages (outlined where the walk visited them in memory, filled where a page was read from
+// disk or written back), the fan of children and the walk.
+.band {
+  fill: var(--g-raised);
+  stroke: var(--g-line);
+}
+.pg {
+  fill: var(--g-viz-stage);
+  stroke: var(--g-stroke);
+  stroke-width: 1;
+  &.mem-hit {
+    stroke: var(--g-viz-current);
+    stroke-width: 2;
+  }
+  &.disk-read {
+    fill: var(--g-viz-current);
+    stroke: var(--g-viz-current);
+    stroke-width: 2;
+  }
+  &.written {
+    fill: var(--g-viz-considering);
+    stroke: var(--g-viz-considering);
+    stroke-width: 2;
+  }
+}
+.fan {
+  stroke: var(--g-line-strong);
+  stroke-width: 1;
+  fill: none;
+}
+.walk {
+  stroke: var(--g-viz-current);
+  stroke-width: 2;
+  stroke-linecap: round;
+  fill: none;
+}
+.more {
+  fill: var(--g-stroke);
+}
+// One grammar for a byte written, in both transforms and both logs: new bytes solid amber, bytes written again without
+// change the rewritten tone (a soft fill under a 1.5 px amber stroke, which carries the 3:1).
+.strip {
+  fill: var(--g-raised);
+  stroke: var(--g-line-strong);
+  &.read {
+    fill: var(--g-viz-current-soft);
+    stroke: var(--g-viz-current);
+    stroke-width: 1.5;
+  }
+}
+.strip.rewritten,
+.rewritten {
+  fill: var(--g-viz-considering);
+  fill-opacity: 0.28;
+  stroke: var(--g-viz-considering);
+  stroke-width: 1.5;
+}
+.rewritten.thin {
+  stroke-width: 1;
+}
+.mine {
+  fill: none;
+  stroke: var(--g-text);
+  stroke-width: 1.5;
+}
+// Dashed means hidden until you answer, and nothing else.
+.strip.hidden,
+.hidden-box {
+  fill: none;
+  stroke: var(--g-stroke);
+  stroke-dasharray: 4 3;
+}
+.rec-ticks {
+  stroke: var(--g-stroke);
+  stroke-opacity: 0.4;
+  fill: none;
+}
+.free-edge {
+  stroke: var(--g-stroke);
+  stroke-opacity: 0.8;
+}
+.slice {
+  &.changed {
+    fill: var(--g-text);
+  }
+  &.found {
+    fill: var(--g-viz-final);
+  }
+  &.logged,
+  &.new {
+    fill: var(--g-viz-considering);
+  }
+}
+.logtrack {
+  fill: var(--g-raised);
+  stroke: var(--g-line-strong);
+}
+.pwalk {
+  fill: var(--g-viz-stage);
+  stroke: var(--g-viz-current);
+  stroke-width: 1.5;
+  &.disk {
+    fill: var(--g-viz-current);
+  }
+}
+// The LSM tree: the memtable and the runs, the filters in memory beside them, the record's trail and its marks.
+.run {
+  fill: var(--g-raised);
+  stroke: var(--g-stroke);
+  stroke-width: 1;
+  &.box {
+    stroke: var(--g-line-strong);
+  }
+}
+.block {
+  fill: var(--g-viz-current);
+  stroke: var(--g-viz-current);
+}
+.fcol {
+  fill: var(--g-raised);
+  stroke: var(--g-line-strong);
+}
+.filt {
+  fill: var(--g-viz-stage);
+  stroke: var(--g-stroke);
+}
+.ring-pass {
+  fill: var(--g-viz-stage);
+  stroke: var(--g-viz-considering);
+  stroke-width: 1.5;
+}
+.trail {
+  fill: none;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  &.w {
+    stroke: var(--g-viz-considering);
+  }
+  &.r {
+    stroke: var(--g-viz-current);
+  }
+}
+.dot {
+  &.w {
+    fill: var(--g-viz-considering);
+  }
+  &.r {
+    fill: var(--g-viz-current);
+  }
+  &.key {
+    fill: var(--g-text);
+  }
+}
+.ringm {
+  fill: var(--g-raised);
+  stroke-width: 2;
+  &.w {
+    stroke: var(--g-viz-considering);
+  }
+  &.r {
+    stroke: var(--g-viz-current);
+  }
+}
+.skip {
+  fill: var(--g-raised);
+  stroke: var(--g-viz-discarded-ink);
+  stroke-width: 1.5;
+}
+.skip-slash {
+  stroke: var(--g-viz-discarded-ink);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+.found-ring {
+  fill: none;
+  stroke: var(--g-viz-final);
+  stroke-width: 2;
+}
+.stair-new {
+  fill: var(--g-viz-considering);
+}
+// What each pays: solid bars on fixed axes, overhead hatched, a ghost a solid tick beside its "was".
+.bar-track {
+  fill: var(--g-raised);
+  stroke: var(--g-line-strong);
+}
+.bar-fill {
+  fill: var(--g-viz-considering);
+}
+.bar-live {
+  fill: var(--g-stroke);
+}
+.bar-over {
+  fill: url(#storage-hatch);
+  stroke: var(--g-stroke);
+  stroke-width: 1;
+}
+.ghost-tick {
+  stroke: var(--g-text);
+  stroke-width: 1.5;
+}
+.pip {
+  fill: var(--g-viz-current);
+}

@@ -1,14 +1,11 @@
+import { STORAGE_EXPERIMENTS } from './storage-experiments.js';
 import type { SdLesson } from './types.js';
 
 export const STORAGE_LESSON: SdLesson = {
   why: 'Under every database sits a storage engine that decides how a write reaches disk and how a read finds it again, and the two families make opposite bets. A B-tree updates pages in place and keeps reads cheap and predictable; an LSM tree turns writes into sequential appends and pays later in background compaction. Interviewers probe whether you can say what each costs in disk writes, reads and space for a given workload, and why an ingest pipeline that crawls on Postgres flies on Cassandra, or the other way round for a read-heavy service.',
   widget: {
     kind: 'storage-engine',
-    tryThis: [
-      'Keep the defaults: 100 GB of 100-byte records, 10 MB/s of new data, 4 KB pages, size ratio 10, bloom filters on. The B-tree has 5 levels and a write amplification of about 42 (a whole 4 KB page plus its log record for each 100-byte update), so 10 MB/s of data becomes about 420 MB/s of disk writes. The LSM tree has 4 levels, amplification 24 and 240 MB/s. Both need one disk read per lookup. Raise the record size to 1,000 bytes: the B-tree drops to about 5 and 51 MB/s while the LSM stays at 24, since its cost does not depend on record size. At 200 bytes the B-tree is already slightly cheaper, about 21.5.',
-      'Back at 100-byte records, set the page size to 16 KB: the B-tree gets shorter, 4 levels, because each page holds more child pointers, but every small update now rewrites 16 KB, so amplification jumps to about 165 and disk writes to about 1,650 MB/s. Return to 4 KB and slide the data size from 10 GB to 1,000 GB: the B-tree grows from 4 to 5 levels and its amplification does not move, while the LSM grows from 3 to 5 levels and from 18.5 to 29.5, since every extra level is another rewrite.',
-      'Back to the defaults, turn bloom filters off: an LSM lookup now costs 5 disk reads instead of 1, and the B-tree is unchanged. Turn them back on and slide the size ratio to 5: amplification falls from 24 to 17 with 5 levels. At 4 it is still 17 but with 6 levels; at 20 there are only 3 levels and amplification rises to 33.5. The model is rough: it assumes each B-tree update writes its page back alone, where a real buffer pool often absorbs several updates to a hot page first, and it treats the upper levels of both engines as cached.',
-    ],
+    experiments: STORAGE_EXPERIMENTS,
   },
   concepts: [
     {
@@ -21,7 +18,7 @@ export const STORAGE_LESSON: SdLesson = {
     },
     {
       title: 'LSM trees: memtable, SSTables, compaction',
-      body: 'A log-structured merge tree appends each write to a WAL and inserts it into a sorted in-memory table, the memtable. When the memtable fills (64 MB by default in RocksDB) it is flushed as an immutable sorted file, an SSTable, and compaction later merges files into larger levels, keeping the newest version of each key. Leveled compaction keeps one sorted run per level, each level about ratio times larger than the one above (10 by default in RocksDB). Moving data down a level rewrites the overlapping part of the level below, several times the data moved, which the widget models as about (ratio + 1) / 2 rewrites per level. Tiered compaction (size-tiered in Cassandra, universal in RocksDB) waits until several runs of similar size exist and merges them together: fewer rewrites, but more runs to check on a read and more temporary space. All disk writes are large and sequential, which suits both SSDs and spinning disks.',
+      body: 'A log-structured merge tree appends each write to a WAL and inserts it into a sorted in-memory table, the memtable. When the memtable fills (64 MB by default in RocksDB) it is flushed as an immutable sorted file, an SSTable, and compaction later merges files into larger levels, keeping the newest version of each key. Leveled compaction keeps one sorted run per level, each level about ratio times larger than the one above (10 by default in RocksDB). Moving data down a level rewrites the overlapping part of the level below: a level takes about ratio merges from above to fill and each one rewrites what is already there, so a byte is rewritten several times in every level it passes through. Tiered compaction (size-tiered in Cassandra, universal in RocksDB) waits until several runs of similar size exist and merges them together: fewer rewrites, but more runs to check on a read and more temporary space. All disk writes are large and sequential, which suits both SSDs and spinning disks.',
     },
     {
       title: 'Write, read and space amplification',
@@ -49,8 +46,8 @@ export const STORAGE_LESSON: SdLesson = {
         'Multiply new data by write amplification before comparing to the drive, then check both bandwidth and endurance: time-ordered data that is never updated needs neither per-level rewrites nor random page writes.',
       steps: [
         'B-tree with 4 KB pages: each 100-byte update rewrites a 4 KB page plus a log record, 4,096 / 100 + 1, about 42 times the data. 20 MB/s times 42 is about 840 MB/s: most of the drive, with nothing left for reads or checkpoints.',
-        'Leveled LSM at ratio 10 with a 64 MB memtable: 1,000 GB / 64 MB is about 16,000, which needs 5 levels of ratio 10. Log and flush cost 2, each level about (10 + 1) / 2 = 5.5, so 2 + 5 times 5.5 = 29.5, and 20 MB/s becomes 590 MB/s. Compaction also reads roughly what it writes.',
-        'Endurance: 590 MB/s for 86,400 seconds is about 51 TB a day, against a rating of 7.68 TB a day. A five-year rating is about 14,000 TB written, so the drive would use it up in about nine months.',
+        'Leveled LSM at ratio 8 with a 64 MB memtable: 1,000 GB / 64 MB is about 16,000 memtables, which takes 5 levels of ratio 8 (8 to the fifth is about 33,000). A record is written once to the log and once at the flush, then about 4.5 times at each level on average as merges from above fill it: about 24.5 times the data, so 20 MB/s becomes 490 MB/s. Compaction also reads roughly what it writes.',
+        'Endurance: 490 MB/s for 86,400 seconds is about 42 TB a day, against a rating of 7.68 TB a day. A five-year rating is about 14,000 TB written, so the drive would use it up in about eleven months.',
         'Metrics arrive in time order and are not updated. Time-window compaction (Cassandra TWCS, or one table per day) merges files only within their window, so each point is written a few times instead of once per level; if that averages about 4, 20 MB/s is 80 MB/s, about 6.9 TB a day, just inside the rating.',
         'Retention becomes cheap too: when a window expires, the engine drops its files whole instead of writing a tombstone per point and compacting them away.',
       ],
@@ -76,8 +73,8 @@ export const STORAGE_LESSON: SdLesson = {
       insight: 'Every byte of compaction you save is paid for in reads, space or money; pick the cost the workload can afford.',
       steps: [
         '100 GB / 64 MB is 1,600 memtables, which needs 4 levels at ratio 10. Write amplification is 2 + 4 times 5.5 = 24, so 10 MB/s becomes 240 MB/s of writes, 96% of the cap before compaction reads anything. Compaction cannot keep up.',
-        'Lower the ratio to 5: 5 levels of 3 rewrites each, 2 + 15 = 17, so 170 MB/s. That leaves room only if compaction reads mostly come from cache; if reads count against the same cap, even ratio 5 needs more throughput or tiered compaction. Going to 4 buys nothing here: 6 levels of 2.5 is still 17. Going up to 20 makes it worse: 3 levels of 10.5 is 33.5.',
-        'The price of ratio 5: the last level now holds about 80% of the data instead of 90%, so space overhead in the worst case rises from about 11% to about 25%, and a range scan merges one more level. Point lookups stay at about one read thanks to bloom filters.',
+        'Lower the ratio: each level fills over fewer merges, so it rewrites a byte fewer times, but the tree needs more levels. Down to some ratio the total falls; below it the extra levels eat the saving, and every level is one more run a lookup must search when filters are off. Even the best ratio leaves room under the cap only if compaction reads mostly come from cache; if they count against it too, the service needs more throughput or tiered compaction.',
+        'The price of a lower ratio: the last level holds a smaller share of the data than the 90% it holds at ratio 10, so the worst-case space overhead rises from about 11%, and a range scan merges one more level. Point lookups stay at about one read thanks to bloom filters.',
         'Tiered (universal) compaction would cut rewrites further, but a full merge can briefly need about twice the data size on disk, and reads check more runs. A compaction rate limiter only smooths bursts: it cannot lower the total, and if it throttles below the steady rate, stalls come back.',
         'Compare with simply buying bandwidth: if the volume can be provisioned higher for a modest cost, that keeps the read path and space unchanged. Tune the ratio when space is cheap and throughput is not; buy throughput when reads matter most.',
       ],

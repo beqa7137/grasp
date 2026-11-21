@@ -153,15 +153,15 @@ test('the stream lesson drops an event that arrives after its window closed, unt
   await expect(page.locator('.readouts div').filter({ hasText: 'Windows' }).locator('dd')).toHaveText('1');
 });
 
-test('the storage lesson compares write amplification, and bloom filters keep an LSM lookup to one read', async ({ page }) => {
+test('the storage lesson draws one write through both engines, and bloom filters keep an LSM lookup to one read', async ({ page }) => {
   await page.goto('/design/topics/sd-storage');
-  const engine = (name: string) => page.getByRole('region', { name });
-  const readout = (name: string, label: string) => engine(name).locator('.readouts div').filter({ hasText: label }).locator('dd');
-  await expect(readout('B-tree', 'Write amp.')).toHaveText('42×');
-  await expect(readout('LSM tree', 'Write amp.')).toHaveText('24×');
-  await expect(readout('LSM tree', 'Reads per lookup')).toHaveText('1');
-  await page.getByRole('checkbox', { name: /Bloom filters/ }).uncheck();
-  await expect(readout('LSM tree', 'Reads per lookup')).toHaveText('5');
+  const widget = page.locator('app-storage-widget');
+  const figure = (id: string) => widget.locator(`svg.draw [data-id="${id}"]`);
+  await expect(figure('write-btree')).toHaveText(/^42×/);
+  await expect(figure('write-lsm')).toHaveText(/^24×/);
+  await expect(figure('reads-lsm')).toHaveText('1');
+  await widget.getByRole('checkbox', { name: 'Bloom filters' }).uncheck();
+  await expect(figure('reads-lsm')).toHaveText('5 · was 1');
 });
 
 test('the CDN lesson shows a shield absorbing the misses that more edge locations cause', async ({ page }) => {

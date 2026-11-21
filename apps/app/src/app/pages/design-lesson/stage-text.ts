@@ -67,9 +67,9 @@ const advance = (font: Face, ch: string) => {
   return INTER[font][i] ?? INTER[font][0x4d - 32];
 };
 
-const UNIT_AFTER_NUMBER = /(?<=\d )(ms|s)\b/;
+const UNIT_AFTER_NUMBER = /(?<=\d )(MB\/s|ms|s)\b/;
 /** The spaces a line may break at: any but the one between a number and its unit. */
-const BREAK = / (?!(?<=\d )(?:ms|s)\b)/;
+const BREAK = / (?!(?<=\d )(?:MB\/s|ms|s)\b)/;
 
 /** A label's runs: a unit after a number apart, so it can keep its case in capitals. */
 export const unitRuns = (text: string): [text: string, unit: boolean][] =>
