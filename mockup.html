@@ -694,14 +694,24 @@
       th .unit {
         text-transform: none;
       }
-      /* The Sharding stage. Six node colours from the app's kind tokens; a key is a dot in its node's colour. */
+      /* The Sharding stage. Six node colours of the widget's own series (the shard tokens, validated with the dataviz
+         validator over all pairs in both themes: 3:1 on the stage, normal-vision ΔE 15 or more, CVD ΔE 7.5 light and
+         8.9 dark, clear of the critical red and the focus purple); a key is a dot in its node's colour. */
       :root {
-        --n-a: var(--g-kind-lb);
-        --n-b: var(--g-kind-cache);
-        --n-c: var(--g-kind-replica);
-        --n-d: var(--g-kind-worker);
-        --n-e: var(--g-pointer-alt);
-        --n-f: var(--g-kind-blob);
+        --n-a: #364288;
+        --n-b: #9b2fb1;
+        --n-c: #948312;
+        --n-d: #16753b;
+        --n-e: #822d06;
+        --n-f: #3092c0;
+      }
+      :root.dark {
+        --n-a: #2064ef;
+        --n-b: #9a498c;
+        --n-c: #b07d0a;
+        --n-d: #2dad72;
+        --n-e: #a83f16;
+        --n-f: #1794c3;
       }
       .nA {
         fill: var(--n-a);
@@ -1131,7 +1141,11 @@
             const role = parts.reduce((a, p) => (ROLE[p[1]].size > ROLE[a].size ? p[1] : a), parts[0][1]);
             const box = this.textBox(x, y, w, role, anchor);
             if (box.y0 < (o.minY ?? 0) || box.y1 > (o.maxY ?? Infinity) || box.x0 < (o.minX ?? 2) || box.x1 > (o.maxX ?? this.W - 2)) continue;
-            if (!this.free(box, o.ignore ?? '', o.margin ?? 2)) continue;
+            if (o.avoidDots) {
+              const dots = this.meta.ringDots ?? [];
+              if (dots.some(([dx, dy, dr]) => dx + dr + 2 > box.x0 && dx - dr - 2 < box.x1 && dy + dr + 2 > box.y0 && dy - dr - 2 < box.y1)) continue;
+              if (!this.free(box, `${o.ignore ?? ''} ring-disc`, o.margin ?? 2)) continue;
+            } else if (!this.free(box, o.ignore ?? '', o.margin ?? 2)) continue;
             return this.text(x, y, parts, { ...o, anchor });
           }
           if (!o.optional) this.missing.push(parts.map((p) => p[0]).join(''));
@@ -1465,6 +1479,7 @@
           const p = sw.pos[i];
           const [x, yy] = polar(cx, cy, p.rad, p.a);
           const moved = showMoved && landedKey(i);
+          (D.meta.ringDots ??= []).push([x, yy, dr]);
           D.add('dots', `<circle class="dot key ${nodeCls(ownerNow(i))}${moved ? ' moved' : ''}" data-id="k${i}" data-owner="keys" cx="${r1(x)}" cy="${r1(yy)}" r="${moved ? dr - 0.5 : dr}"${moved ? ' data-moved="1"' : ''}/>`);
         }
         const hotIds = s.hot ? (s.split ? M.SALT_AT.map((_, j) => K + 1 + j) : [HOT_I]) : [];
@@ -1532,6 +1547,9 @@
           const [bx1, by1] = polar(cx, cy, br, a1);
           const [cx0, cy0] = polar(cx, cy, br - 4, a0);
           const [cx1, cy1] = polar(cx, cy, br - 4, a1);
+          const bpts = [];
+          for (let t = 0; t <= 1.0001; t += 0.02) bpts.push(polar(cx, cy, br, a0 + win.f * t));
+          D.link(bpts, 'bracket');
           D.add('marks', `<path class="bracket" data-owner="bracket" d="M${r1(cx0)} ${r1(cy0)}L${r1(bx0)} ${r1(by0)}A${br} ${br} 0 ${win.f > 0.5 ? 1 : 0} 1 ${r1(bx1)} ${r1(by1)}L${r1(cx1)} ${r1(cy1)}"/>`);
         }
         {
@@ -1554,9 +1572,9 @@
               near.push([nx, ny + 4, anchor]);
             }
           D.place(
-            [...near, ...[0, -8, 8, -16, 16, -24, 24].map((dy) => [two ? ringX + 2 : pad, py + 4 + dy, 'start']), [lx0 - 2, ly0 + 9, 'end'], [lx0 + 4, ly0 + 12, 'end'], [ringX + 2, ly0 + 12, 'start'], [ringX + 2, cy + Rmax + 4, 'start'], [lx0, ly0 + 14, 'middle']],
+            [...near, ...[0, -8, 8, -16, 16, -24, 24, -32, -40, -48].map((dy) => [two ? ringX + 2 : pad, py + 4 + dy, 'start']), [lx0 - 2, ly0 + 9, 'end'], [lx0 + 4, ly0 + 12, 'end'], [ringX + 2, ly0 + 12, 'start'], [ringX + 2, cy + Rmax + 4, 'start'], [lx0, ly0 + 14, 'middle']],
             [[name, 'mono']],
-            { owner: 'follow', ignore: 'follow', minX: (two ? ringX : pad) - 2, maxX: two ? ringX + ringW : W - pad },
+            { owner: 'follow ring-disc', ignore: 'follow', avoidDots: true, minX: (two ? ringX : pad) - 2, maxX: two ? ringX + ringW : W - pad },
           );
           void wn;
         }
@@ -2146,7 +2164,7 @@
           items.map(([v, label]) => `<label class="segment"><input type="radio" name="${name}" ${v === cur ? 'checked' : ''}${disabledAll ? ' disabled' : ''}/><span>${label}</span></label>`).join('');
         const downNode = sc.downNode ?? M.busiestOf(sc.up, s.hot, s.split);
         // The caption goes through the hiding map: while a question asks or plays it names no node.
-        const downCaption = locked && !view.leakCaption ? (s.down ? 'The busiest node is down: its keys moved' : 'The busiest node would fail: its keys must move') : s.down ? `${downNode} is down: its keys moved` : `${downNode} would fail: its keys must move`;
+        const downCaption = locked && !view.leakCaption ? (s.down ? 'The busiest node is down' : 'The busiest node would fail') : s.down ? `${downNode} is down: its keys moved` : `${downNode} would fail: its keys must move`;
         return `<fieldset class="group placement-control"${dis}><legend class="control-label">Placement</legend><div class="segments">${seg(
           'scheme',
           [
