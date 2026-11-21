@@ -16,6 +16,8 @@ export * from './widgets/quorum.js';
 export * from './widgets/queueing.js';
 export * from './widgets/recovery.js';
 export * from './widgets/replication.js';
+export * from './widgets/storage.js';
+export * from './widgets/storage-format.js';
 export * from './widgets/tenancy.js';
 
 /**
@@ -301,39 +303,6 @@ export function streamWindows(events: readonly StreamEvent[], kind: WindowKind, 
   }
   const counted = new Set(windows.flatMap((w) => w.events));
   return { windows, late: events.map((_, i) => i).filter((i) => !counted.has(i)) };
-}
-
-export interface StorageCost {
-  /** Bytes written to disk per byte of new data. */
-  writeAmplification: number;
-  /** Disk reads for one point lookup, with the index's upper levels cached. */
-  lookupReads: number;
-  /** B-tree height, or the number of LSM levels. */
-  levels: number;
-  diskWriteMBps: number;
-}
-
-/**
- * Rough costs for random single-record writes at `writeMBps` into `dataGB` of data. A B-tree rewrites a whole page
- * (plus its log record) per update and caches all but the leaf level. A leveled LSM tree writes the log, flushes the
- * memtable, then rewrites each record about (ratio + 1) / 2 times per level as it is compacted down; bloom filters
- * keep a lookup to about one read, and without them a lookup may read every level.
- */
-export function storageCost(
-  engine: 'btree' | 'lsm',
-  options: { dataGB: number; recordBytes: number; pageKB: number; memtableMB: number; ratio: number; writeMBps: number; bloom: boolean },
-): StorageCost {
-  const { dataGB, recordBytes, pageKB, memtableMB, ratio, writeMBps, bloom } = options;
-  if (engine === 'btree') {
-    const fanout = Math.max(2, Math.floor((pageKB * 1024) / 16));
-    const leaves = Math.max(1, (dataGB * 1024 ** 3) / (pageKB * 1024));
-    const levels = 1 + Math.ceil(Math.log(leaves) / Math.log(fanout));
-    const writeAmplification = (pageKB * 1024) / recordBytes + 1;
-    return { writeAmplification, lookupReads: 1, levels, diskWriteMBps: writeMBps * writeAmplification };
-  }
-  const levels = Math.max(1, Math.ceil(Math.log((dataGB * 1024) / memtableMB) / Math.log(ratio)));
-  const writeAmplification = 2 + (levels * (ratio + 1)) / 2;
-  return { writeAmplification, lookupReads: bloom ? 1 : levels + 1, levels, diskWriteMBps: writeMBps * writeAmplification };
 }
 
 export interface CdnOutcome {

@@ -3098,6 +3098,85 @@ Iterations are ordered by impact, alternating between organization and visuals. 
     arrival and a block per busy period. Polish taken: opening a challenge says the setting's sentence in Data Modeling,
     Consistency & Quorums and Latency & Queueing alike, and the y axis's lowest label sits up off the x labels' row, 6
     px clear of them (checked at every width).
+- **Storage Engines note** (R41, the batch's seventh widget, `storage-engine`; as built from the brief, mockup and
+  critique rounds of `design/r41-storage`, and where it differs):
+  - **Verdict.** The old widget (four sliders, three page-size buttons, a checkbox and eight number tiles) had every
+    number right and none of them a picture, so a learner could read "B-tree 42×, LSM 24×" without being able to say
+    where the 42 comes from. It is redrawn as B-tree and LSM levels with one write or one lookup travelling through
+    each engine, side by side, over what each pays.
+  - **Engine.** `widgets/storage.ts`: `storageScenario` (memoized over the 432 settings in `STORAGE_SETTINGS`) with
+    `btreeCost` (pages 70% full, page counts level by level, the walk, page + record written, the cached upper levels,
+    space) and `lsmCost` (levels sized from the bottom up, (ratio + 1) / 2 writes a level, runs, reads with and without
+    filters, space at most, filter memory), `lsmSteady` (the LSM tree's own sizes run in steady state, which the
+    spec pins the model's totals against) and `recordMerge`; `widgets/storage-format.ts` says its numbers. `storageCost` and `StorageCost` are
+    retired: the write and read numbers are the old formulas' at every setting, and only two B-tree heights the lesson
+    never quotes move (10 GB in 16 KB pages, 1,000 GB in 8 KB pages), since the model now fills pages 70% as the lesson
+    says. Framework: `ExperimentRun` gains `'btree'` and `'lsm'`, `TEMPLATE_DIGITS_ALLOWED` gains "(ratio + 1) / 2" and
+    "from L1 down", and slot units gain `amp`, `bytes`, `size`, `gb`, `kb`, `rate`, `reads` and `levels`.
+    `storage-experiments.ts`: the six experiments in the brief's wording, answers at 3, 2, 2, 1, 1, the challenge passing
+    at exactly one of the 24 LSM configurations (100 GB, ratio 5, filters off; 18 of the 432 settings). `storage.spec.ts`
+    pins the formulas, the old `storageCost` at every setting, the lesson's numbers, a B+tree built by random inserts
+    (pages about 70% full, the model's height, a buffer pool's writes), an LSM tree that counts its bytes (exact on full
+    trees, within 8% in steady state but one two-level size) and a small LSM tree of real keys with real bloom filters;
+    `storage-experiments.spec.ts` every rendered string, the word claims and the challenge's enumeration. The lesson's
+    concept on LSM trees says what the staircase says, and its `tryThis` is gone.
+  - **Picture.** One stage from `buildStage` (`storage-layout.ts`: the header, the cost block and the focus outlines;
+    `storage-tree.ts`: the B-tree panel; `storage-stack.ts`: the LSM panel; `storage-draw.ts`: the panel blocks, the
+    on-stage controls' hit boxes and the head), marks placed by the Latency stage's `Draw` and its text table (whose
+    13 px and 17 px mono roles this widget shares), drawn by `storage-prims.component.ts`. The B-tree: a row a level
+    (at most 1, 3, 5, 7, 7 pages, dots and the model's count when there are more, "×179" between the counts it
+    multiplies), the walk, the memory band over the leaves; the leaf page to scale with the changed record, the page
+    rewritten unchanged, the log record on the same scale and the ledger. The LSM tree: the memtable and the log, the
+    runs on one log scale with the record's trail (a solid dot where it rests, rings where it passed) or the lookup's
+    skips and reads, the staircase of L2's merges with the record outlined, or the filters' sentence and ledger. Under a
+    rule, written to disk on a fixed 0 to 180× axis, reads as pips, disk used on a fixed 0 to 1.5× axis; a ghost's old
+    value is said in words beside its figure. Page size, size ratio and Bloom filters are native inputs over the stage,
+    in the panel they change; Follow, Data and Record size are beside it. Heights are a step function of width (1,452,
+    1,434, 908 and 890 px), the steps 1 to 3 px later than the mockup's canvas. `stage-text.ts` keeps "MB/s" in its
+    case inside a label, and the widget provides its own keep rule (`CODE_TEXT_KEEP`) to every `g-code-text` in it, so byte counts, rates, counts
+    of reads, runs and levels, bounds, short quoted runs and a check's status stay on one line there while every other
+    surface keeps the house rule. `g-data-table` takes a second current row.
+  - **Motion.** Each engine's Play runs one monotone clock (`storage-motion.ts`: the B-tree's write 4 s and lookup 2.6 s,
+    the LSM tree's write 6 s plus 0.5 s a level and lookup 1.6 s plus 0.5 s a run); the stage redraws only when the
+    clock passes a step, the staircase row by row, and the key alone moves every frame, on the walk's and the trail's
+    own lines. Plays pause by the widget host's visibility. Under Reduced motion Play writes the story under the stage
+    and the panel's step line says so. An answer plays its act's engine, its panel first brought into view on a phone.
+  - **Hiding.** One `hiding()` map (`storage-words.ts`) from the regions a question names (`btreeWrite`, `lsmWrite`,
+    `writesAfter`, `readsWhy`, `readsAfter`) to the stage, the summary, the notice, the steps, the stories, the model's
+    note and Describe; while a question asks and while its answer plays every Play and setting waits and the notice
+    says so. The component spec's sweep checks text and structure with motion off and on, entering each question from
+    nine other settings and sampling the answer's play frame by frame, and catches a leak planted on each of the
+    thirteen flags of the map, each against a clean run of the same question.
+  - **Fix round 1.** Pressing the other engine's Play mid-play ends the running play before it marks the new one, so
+    the old play's `done` cannot clear it. The caption under the stage has no live role: Reduced motion's story is read
+    out once, by the notice. A lookup reads one fixed-width block on a run; a bar's length and fill say only what the run
+    holds. The record's outline and the sentence that names it are one unit of the staircase's fit ladder, and the
+    restated count goes first. The B-tree's "random" and the LSM tree's "sequential" stay at every width, the rate
+    dropped before them. L1, sized from the bottom up and often only a few memtables big, carries the model's charge
+    named as the model's ("≈5.5× model", its step "the model charges"), E2 asks what the model counts "as if" every
+    level filled over ratio merges, and its reveal and the model note say RocksDB's leveled merges cost nearer ratio a
+    level at worst, no longer quoting the model's own simulation as a running tree. The filters' sentence counts false
+    positives per filter. E1 asks for the bytes once the change has reached disk in the log and in its page; E3's
+    choices carry reasons, not numbers; E5's reveal adds the LSM tree's block indexes. The lesson's LSM concept and its
+    compaction example no longer print E2's answer or the challenge's solution. The key is 6 px with a ring in its
+    operation's color; Describe's row names keep one line in full, under a left-aligned head. Specs for each: a
+    component case switching engines mid-play, one live region for the story, layout rules (bars never filled by a
+    read, the L1 chip, the outline's sentence, both qualifiers, per-filter false positives) at three more widths up to
+    866 px, and an engine check of every true figure and the solution against the rest of the lesson page.
+  - **Fix round 2.** A step's line names where the key is for the whole step: the key leaves for its next page or run
+    as that station's line begins, travels at most 35% of the time to it and of the time it then holds there, and
+    arrives before the step's middle; the station's marks still wait for its arrival (`departures()` in
+    `storage-motion.ts`, the one schedule for the line, the redraw moments and the key's legs). The record's outline
+    waits for the staircase sentence that names it, so it never shows partway through the merges. Describe takes the
+    widest table form that fits its box unbroken, measured by `stage-text.ts` (full, then a one-word lookup head, then
+    compact), not a fixed breakpoint: at 1280 the full table was 6 to 14 px wider than its 622 px box. The L1 step
+    has a short gloss of the model's charge that fits from 248 px; the model note states its L1 caveat in one clause,
+    and only E2's reveal names RocksDB's worst case; E2's reveal restates the ask's assumption in its words; the
+    filters' short form names its rate per filter; the story and the summary charge each level "in the model"; the
+    metrics-store example uses ratio 8, which no question asks about. Specs: a motion check that the line never
+    changes while the key travels and that the key holds at each step's middle, an outline check at every moment of
+    the write at every width, a Describe width check at every width for the default, the widest and a lookup setting,
+    and a check that a level chip saying "model" has its gloss in the step line at every width.
 
 **R46 Case widgets II.**
 

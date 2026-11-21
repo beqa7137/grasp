@@ -24,7 +24,6 @@ import {
   ringOwner,
   runLimiter,
   searchIndex,
-  storageCost,
   streamWindows,
   txnOutcome,
 } from './widgets.js';
@@ -247,23 +246,6 @@ describe('stream windows', () => {
       { start: 1, end: 7, events: [0, 1] },
       { start: 12, end: 16, events: [2] },
     ]);
-  });
-});
-
-describe('storage cost', () => {
-  const options = { dataGB: 100, recordBytes: 100, pageKB: 4, memtableMB: 64, ratio: 10, writeMBps: 10, bloom: true };
-
-  it('rewrites a whole page per random B-tree update', () => {
-    const b = storageCost('btree', options);
-    expect(b.levels).toBe(5);
-    expect(b.writeAmplification).toBeCloseTo(41.96);
-    expect(b.diskWriteMBps).toBeCloseTo(419.6);
-  });
-
-  it('compacts an LSM tree level by level, with bloom filters keeping a lookup to one read', () => {
-    const l = storageCost('lsm', options);
-    expect(l).toMatchObject({ levels: 4, writeAmplification: 24, lookupReads: 1 });
-    expect(storageCost('lsm', { ...options, bloom: false }).lookupReads).toBe(5);
   });
 });
 

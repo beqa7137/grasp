@@ -68,6 +68,19 @@ const latencyCard = async (p, title) => {
   await p.locator('app-latency-widget svg.draw .curve.p99').waitFor();
   await p.locator('app-latency-widget .cards button', { hasText: title }).click();
 };
+const storageStageToTop = (p) => p.locator('app-storage-widget g-stage').evaluate((stage) => stage.scrollIntoView({ block: 'start' }));
+/** Sets the storage widget as a learner would, by its radios and its Bloom filters toggle, once its summary is drawn. */
+const storageAt = async (p, { op, data, record, page, ratio, bloom } = {}) => {
+  const widget = p.locator('app-storage-widget');
+  await widget.locator('svg.draw[aria-label^="A B-tree and an LSM tree"]').waitFor();
+  for (const name of [op, data, record, page, ratio]) if (name) await widget.getByRole('radio', { name, exact: true }).check();
+  if (bloom !== undefined) await widget.getByRole('checkbox', { name: 'Bloom filters' }).setChecked(bloom);
+  await storageStageToTop(p);
+};
+const storageCard = async (p, title) => {
+  await storageAt(p);
+  await p.locator('app-storage-widget .cards button', { hasText: title }).click();
+};
 const balancerReady = (p) => p.locator('app-balancer-widget .value.big').filter({ hasText: /\d/ }).waitFor();
 /** Steps a handle on the drawing by key, as a learner without a mouse would. */
 const stepHandle = async (p, name, key, times = 1) => {
@@ -512,6 +525,79 @@ export function designStates() {
         await latencyAt(p, { servers: 4, split: false }, false);
         await p.locator('app-experiment-dock .reveal').waitFor();
         await latencyStageToTop(p);
+      },
+    },
+    { id: 'lesson-storage', path: '/design/topics/sd-storage', setup: (p) => storageAt(p) },
+    { id: 'lesson-storage-lookup', path: '/design/topics/sd-storage', setup: (p) => storageAt(p, { op: 'A lookup' }) },
+    { id: 'lesson-storage-bigpage', path: '/design/topics/sd-storage', setup: (p) => storageAt(p, { page: '16 KB' }) },
+    { id: 'lesson-storage-bigrecord', path: '/design/topics/sd-storage', setup: (p) => storageAt(p, { record: '1,000 B' }) },
+    { id: 'lesson-storage-nobloom', path: '/design/topics/sd-storage', setup: (p) => storageAt(p, { op: 'A lookup', bloom: false }) },
+    { id: 'lesson-storage-tall', path: '/design/topics/sd-storage', setup: (p) => storageAt(p, { data: '1,000 GB', ratio: '4' }) },
+    {
+      id: 'lesson-storage-small',
+      path: '/design/topics/sd-storage',
+      setup: (p) => storageAt(p, { data: '10 GB', record: '1,000 B', page: '16 KB', ratio: '20' }),
+    },
+    {
+      id: 'lesson-storage-reduced',
+      path: '/design/topics/sd-storage',
+      setup: async (p) => {
+        await storageAt(p);
+        await p.locator('app-storage-widget').getByRole('button', { name: 'Play the write through the LSM tree' }).click();
+        await p.locator('app-storage-widget .caption').waitFor();
+      },
+    },
+    {
+      id: 'lesson-storage-describe',
+      path: '/design/topics/sd-storage',
+      setup: async (p) => {
+        await storageAt(p);
+        await p.locator('app-storage-widget').getByRole('button', { name: 'Describe' }).click();
+        await p.locator('app-storage-widget .describe g-data-table').scrollIntoViewIfNeeded();
+      },
+    },
+    {
+      id: 'lesson-storage-table',
+      path: '/design/topics/sd-storage',
+      setup: async (p) => {
+        await storageAt(p, { op: 'A lookup', data: '1,000 GB', bloom: false });
+        await p.locator('app-storage-widget').getByRole('button', { name: 'Describe' }).click();
+        await p.locator('app-storage-widget .describe g-data-table').scrollIntoViewIfNeeded();
+      },
+    },
+    {
+      id: 'lesson-storage-asking',
+      path: '/design/topics/sd-storage',
+      setup: async (p) => {
+        await storageCard(p, 'One small update');
+        await p.locator('app-widget-check legend').waitFor();
+        await storageStageToTop(p);
+      },
+    },
+    {
+      id: 'lesson-storage-revealed',
+      path: '/design/topics/sd-storage',
+      setup: async (p) => {
+        await storageCard(p, 'Without bloom filters');
+        await p
+          .locator('app-widget-check')
+          .getByRole('button', { name: /^5 disk reads: one in every run/ })
+          .click();
+        await p
+          .locator('app-widget-check .explain')
+          .filter({ hasText: /^5 disk reads: the newest version/ })
+          .waitFor();
+        await storageStageToTop(p);
+      },
+    },
+    {
+      id: 'lesson-storage-challenge',
+      path: '/design/topics/sd-storage',
+      setup: async (p) => {
+        await storageCard(p, 'Challenge');
+        await storageAt(p, { ratio: '5' });
+        await p.locator('app-experiment-dock .reveal').waitFor();
+        await storageStageToTop(p);
       },
     },
     { id: 'lesson-caching', path: '/design/topics/sd-caching', setup: (p) => cacheStageToTop(p) },
