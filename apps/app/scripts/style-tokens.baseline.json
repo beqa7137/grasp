@@ -138,11 +138,6 @@
     "font-size": 4,
     "spacing": 4
   },
-  "app/pages/design-lesson/pipeline-widget.component.ts": {
-    "border-radius": 1,
-    "font-size": 2,
-    "spacing": 6
-  },
   "app/pages/design-lesson/recovery-widget.component.ts": {
     "font-size": 2,
     "spacing": 1

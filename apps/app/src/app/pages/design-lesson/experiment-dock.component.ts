@@ -60,7 +60,11 @@ export type ExperimentPhase = 'asking' | 'playing' | 'revealed';
             [held]="phase() !== 'revealed'"
             heldText="Watch the picture: the answer plays out on it."
             [(chosen)]="chosen"
-          />
+          >
+            @if (seePicture() && phase() === 'revealed') {
+              <button type="button" class="g-btn ghost see" (click)="see.emit()">See it on the picture</button>
+            }
+          </app-widget-check>
         }
       </section>
     }
@@ -154,6 +158,10 @@ export type ExperimentPhase = 'asking' | 'playing' | 'revealed';
       line-height: 1.55;
       font-size: var(--g-text-body);
     }
+    .see {
+      justify-self: start;
+      min-height: 44px;
+    }
     .heading {
       @include title;
       display: flex;
@@ -229,7 +237,13 @@ export class ExperimentDockComponent {
   /** A challenge's bounds as a checklist under its status line, each with whether it is met now. */
   readonly goalChecks = input<readonly { text: string; met: boolean }[]>([]);
   readonly chosen = model<number | null>(null);
+  /**
+   * Ends a reveal with "See it on the picture", for a widget whose stage is taller than a screen: the page has moved on
+   * to the reveal's words, and this brings the regions it points at back.
+   */
+  readonly seePicture = input(false);
   readonly start = output<SdExperiment>();
+  readonly see = output<void>();
 
   readonly check = computed((): WidgetCheckpoint | null => {
     const e = this.active();

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CACHE_EXPERIMENTS } from './caching-experiments.js';
+import { CAPACITY_EXPERIMENTS } from './capacity-experiments.js';
 import { FEED_CHALLENGE_GOAL, FEED_EXPERIMENTS } from './data-modeling-experiments.js';
 import { QUORUM_EXPERIMENTS } from './consistency-experiments.js';
 import { LATENCY_EXPERIMENTS } from './latency-experiments.js';
@@ -146,7 +147,7 @@ describe('experiment formatting', () => {
 describe('the reveal spec', () => {
   const lessons = Object.entries(SD_LESSONS).filter(([, l]) => l.widget.experiments);
 
-  it('covers the Caching, Load Balancing, Replication, Data Modeling, Consistency and Latency lessons', () => {
+  it('covers the Caching, Load Balancing, Replication, Data Modeling, Consistency, Latency, Storage and Capacity lessons', () => {
     expect(lessons.map(([id]) => id)).toEqual(
       expect.arrayContaining([
         'sd-caching',
@@ -156,8 +157,10 @@ describe('the reveal spec', () => {
         'sd-consistency',
         'sd-latency',
         'sd-storage',
+        'sd-capacity',
       ]),
     );
+    expect(SD_LESSONS['sd-capacity'].widget.experiments).toBe(CAPACITY_EXPERIMENTS);
     expect(SD_LESSONS['sd-latency'].widget.experiments).toBe(LATENCY_EXPERIMENTS);
     expect(SD_LESSONS['sd-consistency'].widget.experiments).toBe(QUORUM_EXPERIMENTS);
     expect(SD_LESSONS['sd-data-modeling'].widget.experiments).toBe(FEED_EXPERIMENTS);

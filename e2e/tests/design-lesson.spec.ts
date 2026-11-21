@@ -92,14 +92,15 @@ test('the estimation drill judges a typed estimate and shows the working', async
   await expect(drill.getByRole('textbox')).toBeFocused();
 });
 
-test('the capacity lesson moves the bottleneck when the database gets a second instance', async ({ page }) => {
+test('the capacity lesson moves the bottleneck to the next tier when the app servers grow', async ({ page }) => {
   await page.goto('/design/topics/sd-capacity');
-  const readout = (name: string) => page.locator('.readouts div').filter({ hasText: name }).locator('dd');
-  await expect(readout('Bottleneck')).toHaveText('Database');
-  await expect(readout('Dropped')).toHaveText('4,000/s');
-  await page.getByRole('button', { name: 'More Database' }).click();
-  await expect(readout('Bottleneck')).toHaveText('App servers');
-  await expect(readout('Dropped')).toHaveText('2,000/s');
+  const summary = page.locator('app-capacity-widget svg.draw');
+  await expect(summary).toHaveAttribute('aria-label', /The app servers are the bottleneck, full at 6,000 a second\./);
+  await page.getByRole('button', { name: 'More app servers', exact: true }).click();
+  await expect(summary).toHaveAttribute(
+    'aria-label',
+    /^Of 8,000 requests a second, 7,273 are served and 727 shed\. The read replicas are the bottleneck/,
+  );
 });
 
 test('the consensus lesson lets only a majority commit, and an even split stops writes everywhere', async ({ page }) => {

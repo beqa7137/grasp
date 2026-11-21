@@ -46,8 +46,11 @@ export const word = (value: string): Slot => ({ value, unit: 'word' });
 /** A widget's settings by name, as the experiment applies them. */
 export type ExperimentSettings = Readonly<Record<string, number>>;
 
-/** A play a widget runs on the picture, such as loading a page, renaming an author, a write then a read, a sample of requests or a simulated year. */
-export type ExperimentRun = 'load' | 'rename' | 'write-read' | 'read' | 'sample' | 'btree' | 'lsm' | 'year';
+/**
+ * A play a widget runs on the picture, such as loading a page, renaming an author, a write then a read, a sample of
+ * requests, a simulated year, a ramp of the traffic or the stream flowing through the tiers.
+ */
+export type ExperimentRun = 'load' | 'rename' | 'write-read' | 'read' | 'sample' | 'btree' | 'lsm' | 'year' | 'ramp' | 'flow';
 
 /** What answering plays: new settings (then, if named, a run), a run on its own, or the widget's flush. */
 export type ExperimentAct = { set: ExperimentSettings; run?: ExperimentRun } | { run: ExperimentRun } | { flush: true };

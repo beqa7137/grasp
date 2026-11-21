@@ -1,5 +1,9 @@
 import { TAG, type Focus } from './focus-layout';
-import { fontMeasure, unitRuns, type Part as StagePart } from './stage-text';
+import { StageDraw, sampleLine, r1, type Edge } from './stage-draw';
+import { fontMeasure, type Part as StagePart } from './stage-text';
+
+export { pick, r1, sampleLine } from './stage-draw';
+export type { Anchor, Edge, Link, Mark, Prim, Region, Span, TextBox } from './stage-draw';
 
 /** The stage's type roles, as `latency-widget.component.scss` sets them; the label keeps a unit's case after a number. */
 export type Role = 'label' | 'cap' | 'capB' | 'small' | 'smallB' | 'mono' | 'nameS' | 'head';
@@ -16,192 +20,16 @@ export const TEXT = fontMeasure<Role>({
 export const tw = TEXT.tw;
 export type Part = StagePart<Role>;
 
-export type Anchor = 'start' | 'middle' | 'end';
 /** Layers bottom to top; `clip` holds the timeline's marks, which a play reveals up to its clock. */
 export type Layer = 'back' | 'grid' | 'links' | 'clip' | 'marks' | 'dots' | 'text' | 'top';
 const LAYERS: readonly Layer[] = ['back', 'grid', 'links', 'clip', 'marks', 'dots', 'text', 'top'];
 
-/** A run of a drawn text: its words and classes (role, ink, and `t-unit` for a unit that keeps its case). */
-export interface Span {
-  t: string;
-  cls: string;
-  dx?: number;
-}
-interface Base {
-  id: string;
-  cls: string;
-  owner?: string;
-}
-export type Prim =
-  | (Base & { k: 'line'; x1: number; y1: number; x2: number; y2: number })
-  | (Base & { k: 'rect'; x: number; y: number; w: number; h: number; rx: number })
-  | (Base & { k: 'circle'; cx: number; cy: number; r: number; slide?: boolean })
-  | (Base & { k: 'path'; d: string })
-  | (Base & { k: 'text'; x: number; y: number; anchor: Anchor; spans: readonly Span[]; ground?: boolean });
-
-export interface Edge {
-  x0: number;
-  x1: number;
-  y0: number;
-  y1: number;
-}
-export interface TextBox extends Edge {
-  owner: string;
-  ground: boolean;
-  s: string;
-}
-export interface Mark extends Edge {
-  owner: string;
-}
-export interface Link {
-  points: readonly (readonly [number, number])[];
-  owner: string;
-}
-export interface Region {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
-type Shape = Prim extends infer P ? (P extends Prim ? Omit<P, 'id'> : never) : never;
-export interface TextOptions {
-  anchor?: Anchor;
-  owner?: string;
-  /** Drawn on a ground of its own (a halo or a chip), so grid lines and the playhead may run under it. */
-  ground?: boolean;
-  cls?: string;
-  layer?: Layer;
-}
-export interface PlaceOptions extends TextOptions {
-  minX?: number;
-  maxX?: number;
-  minY?: number;
-  maxY?: number;
-  ignore?: string;
-  margin?: number;
-  /** A label the stage can do without: no place is not a fault. */
-  optional?: boolean;
-  ok?: (box: Edge) => boolean;
-}
-
-const roleOf = (parts: readonly Part[]) => parts.reduce((a, p) => (TEXT.size(p[1]) > TEXT.size(a) ? p[1] : a), parts[0][1]);
-
-const spansOf = (parts: readonly Part[]): Span[] =>
-  parts.flatMap(([t, role, cls = '', dx]) => {
-    const base = `t-${role}${cls ? ` ${cls}` : ''}`;
-    if (role !== 'label') return [{ t, cls: base, dx }];
-    return unitRuns(t).map(([run, unit], i) => ({ t: run, cls: unit ? `${base} t-unit` : base, dx: i ? undefined : dx }));
-  });
-
-/**
- * The stage drawing as a list of marks in layers, with the boxes placement checks against: every text, mark and line
- * placed so far. A label goes where `free` finds no text, mark or line, so nothing is drawn on anything else.
- */
-export class Draw {
-  private readonly layers: Record<Layer, Prim[]> = { back: [], grid: [], links: [], clip: [], marks: [], dots: [], text: [], top: [] };
-  private readonly ids = new Map<string, number>();
-  readonly texts: TextBox[] = [];
-  readonly marks: Mark[] = [];
-  readonly links: Link[] = [];
-  readonly regions: Record<string, Region[]> = {};
-  /** Texts no place could take, which the layout spec reports. */
-  readonly missing: string[] = [];
-
-  constructor(readonly W: number) {}
-
-  add(layer: Layer, id: string, shape: Shape): void {
-    const seen = this.ids.get(id) ?? 0;
-    this.ids.set(id, seen + 1);
-    this.layers[layer].push({ ...shape, id: seen ? `${id}#${seen}` : id } as Prim);
-  }
-
-  /** The marks of `layers`, bottom to top: all of them by default. */
-  prims(layers: readonly Layer[] = LAYERS): Prim[] {
-    return LAYERS.filter((l) => layers.includes(l)).flatMap((l) => this.layers[l]);
-  }
-
-  textBox(x: number, y: number, w: number, role: Role, anchor: Anchor = 'start'): Edge {
-    const fs = TEXT.size(role);
-    const x0 = anchor === 'middle' ? x - w / 2 : anchor === 'end' ? x - w : x;
-    return { x0, x1: x0 + w, y0: y - 0.74 * fs, y1: y + 0.22 * fs };
-  }
-
-  text(id: string, x: number, y: number, parts: readonly Part[], o: TextOptions = {}): Edge {
-    const anchor = o.anchor ?? 'start';
-    const box = this.textBox(x, y, TEXT.partsWidth(parts), roleOf(parts), anchor);
-    this.texts.push({ ...box, owner: o.owner ?? '', ground: !!o.ground, s: parts.map((p) => p[0]).join('') });
-    this.add(o.layer ?? 'text', id, {
-      k: 'text',
-      cls: o.cls ?? '',
-      x: r1(x),
-      y: r1(y),
-      anchor,
-      spans: spansOf(parts),
-      owner: o.owner,
-      ground: o.ground,
-    });
-    return box;
-  }
-
-  /** Puts a text at the first candidate where it covers nothing (and `ok` accepts); counts it missing when none is free. */
-  place(id: string, cands: readonly (readonly [number, number, Anchor?])[], parts: readonly Part[], o: PlaceOptions = {}): Edge | null {
-    const w = TEXT.partsWidth(parts);
-    const role = roleOf(parts);
-    for (const [x, y, anchor = 'start'] of cands) {
-      const box = this.textBox(x, y, w, role, anchor);
-      if (box.y0 < (o.minY ?? 0) || box.y1 > (o.maxY ?? Infinity) || box.x0 < (o.minX ?? 2) || box.x1 > (o.maxX ?? this.W - 2)) continue;
-      if (!this.free(box, o.ignore ?? '', o.margin ?? 2)) continue;
-      if (o.ok && !o.ok(box)) continue;
-      return this.text(id, x, y, parts, { ...o, anchor });
-    }
-    if (!o.optional) this.missing.push(parts.map((p) => p[0]).join(''));
-    return null;
-  }
-
-  mark(box: Edge, owner = ''): void {
-    this.marks.push({ ...box, owner });
-  }
-
-  /** A line labels keep off, as points; sorted by x, so `free` reads only those across a box. */
-  link(points: readonly (readonly [number, number])[], owner = ''): void {
-    this.links.push({ points: [...points].sort((a, b) => a[0] - b[0]), owner });
-  }
-
-  region(id: string, box: Region): void {
-    (this.regions[id] ??= []).push(box);
-  }
-
-  /** Whether `box`, grown by `margin`, keeps clear of every text, mark and line but those `ignore` owns, and of the sides. */
-  free(box: Edge, ignore = '', margin = 2): boolean {
-    const b = { x0: box.x0 - margin, x1: box.x1 + margin, y0: box.y0 - margin, y1: box.y1 + margin };
-    const hit = (o: Edge) => !(o.x1 <= b.x0 || o.x0 >= b.x1 || o.y1 <= b.y0 || o.y0 >= b.y1);
-    const mine = (owner: string) => !!ignore && !!owner && owner.split(' ').some((t) => ignore.split(' ').includes(t));
-    if (this.texts.some((t) => hit(t) && !mine(t.owner))) return false;
-    if (this.marks.some((m) => hit(m) && !mine(m.owner))) return false;
-    for (const l of this.links) {
-      if (mine(l.owner)) continue;
-      const p = l.points;
-      let lo = 0;
-      let hi = p.length;
-      while (lo < hi) {
-        const mid = (lo + hi) >> 1;
-        if (p[mid][0] <= b.x0) lo = mid + 1;
-        else hi = mid;
-      }
-      for (let i = lo; i < p.length && p[i][0] < b.x1; i++) if (p[i][1] > b.y0 && p[i][1] < b.y1) return false;
-    }
-    return b.x0 >= 2 && b.x1 <= this.W - 2;
+/** The Latency & Queueing stage's drawing: its roles and layers on the shared `StageDraw`. */
+export class Draw extends StageDraw<Role, Layer> {
+  constructor(W: number) {
+    super(W, TEXT, LAYERS, 'label');
   }
 }
-
-export const r1 = (v: number) => Math.round(v * 10) / 10;
-/** The first of `forms` that fits, longest first; null when none does. */
-export const pick = (forms: readonly string[], fits: (t: string) => boolean) => forms.find(fits) ?? null;
-
-export const sampleLine = (x1: number, y1: number, x2: number, y2: number, step = 3): [number, number][] => {
-  const n = Math.max(2, Math.ceil(Math.hypot(x2 - x1, y2 - y1) / step));
-  return Array.from({ length: n + 1 }, (_, i) => [x1 + ((x2 - x1) * i) / n, y1 + ((y2 - y1) * i) / n]);
-};
 
 export const samplePath = (pts: readonly (readonly [number, number])[], step = 3): [number, number][] =>
   pts.slice(1).flatMap((p, i) => sampleLine(pts[i][0], pts[i][1], p[0], p[1], step));

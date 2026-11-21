@@ -15,7 +15,6 @@ import {
   partition,
   movedKeys,
   pageCost,
-  pipeline,
   place,
   queueBacklog,
   regionOutcome,
@@ -119,29 +118,6 @@ describe('rate limiters', () => {
     // 10 saved tokens, plus about 1.9 refilled over the 190 ms of the burst.
     expect(run.accepted.filter(Boolean)).toHaveLength(11);
     expect(runLimiter('token-bucket', [0, 100, 200], 10, 1).accepted).toEqual([true, true, true]);
-  });
-});
-
-describe('pipeline', () => {
-  it('serves what its smallest tier can, and adding to that tier moves the bottleneck', () => {
-    const tiers = [
-      { instances: 2, perInstance: 5000 },
-      { instances: 4, perInstance: 1500 },
-      { instances: 1, perInstance: 4000 },
-    ];
-    const p = pipeline(8000, tiers);
-    expect(p.throughput).toBe(4000);
-    expect(p.bottleneck).toBe(2);
-    expect(pipeline(8000, [tiers[0], tiers[1], { instances: 3, perInstance: 4000 }]).bottleneck).toBe(1);
-    // Behind the app tier's cap, the database sees only what the app servers pass on.
-    const capped = pipeline(20_000, [
-      { instances: 10, perInstance: 5000 },
-      { instances: 10, perInstance: 1500 },
-      { instances: 10, perInstance: 4000 },
-    ]);
-    expect(capped.throughput).toBe(15_000);
-    expect(capped.bottleneck).toBe(1);
-    expect(capped.utilization).toEqual([0.4, 1, 0.375]);
   });
 });
 

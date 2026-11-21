@@ -18,6 +18,19 @@ describe('the stage text', () => {
       for (const line of TEXT.wrap('p99 at 230 ms and the mean at 35 ms over 2.5 s', 'cap', w)) expect(line).not.toMatch(/^(ms|s)\b/);
   });
 
+  it('flows a "·"-separated clause that fits a line onto one line, and opens no line on the "·"', () => {
+    const parts = [
+      ['66.7% busy', 'capB'],
+      [' · 10,000/s spare · limit 30,000/s · if zone A fails, limit 20,000/s', 'cap'],
+    ] as const;
+    const text = (lines: ReturnType<typeof TEXT.flow>) => lines.map((ln) => ln.map((p) => p[0]).join(''));
+    const w = Math.max(TEXT.partsWidth([parts[0], [' · 10,000/s spare', 'cap']]), TEXT.tw('limit 30,000/s · if zone A fails,', 'cap')) + 1;
+    expect(TEXT.tw('if zone A fails, limit 20,000/s', 'cap')).toBeLessThan(w);
+    expect(text(TEXT.flow(parts, w))).toEqual(['66.7% busy · 10,000/s spare', 'limit 30,000/s', 'if zone A fails, limit 20,000/s']);
+    // A clause wider than a line still breaks inside, as words do.
+    expect(text(TEXT.flow(parts, TEXT.tw('if zone A fails,', 'cap') + 8)).join(' | ')).toContain('if zone A fails, | limit 20,000/s');
+  });
+
   it('keeps a product in parentheses, a count times a duration, hours and days, and a copy’s or a week’s name with its number whole in the prose', () => {
     const text =
       'Week 44: DB 2 carries it. 17 × 1 h and 24 × 5 min, 8.8 h or 36.5 d, in 30 days with 2 databases. The 3 of Top 10: (0.88 shared outages × 1 h) + 26 s (optional).';

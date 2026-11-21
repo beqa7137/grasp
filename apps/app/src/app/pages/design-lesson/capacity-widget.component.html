@@ -1,0 +1,187 @@
+<div class="controls">
+  <fieldset class="group conditions-control" [disabled]="locked()">
+    <legend class="control-label">Conditions</legend>
+    <div class="toggles">
+      <label class="segment">
+        <input
+          type="checkbox"
+          aria-describedby="capacity-cache-hint"
+          [checked]="settings().cache === 1"
+          (change)="setCondition('cache', $any($event.target).checked)"
+        />
+        <span>
+          <b class="chk" aria-hidden="true">✓</b>Cache reads
+          <small id="capacity-cache-hint" aria-hidden="true">{{ hints.cache[0] }}</small>
+        </span>
+      </label>
+      <label class="segment">
+        <input
+          type="checkbox"
+          aria-describedby="capacity-zone-hint"
+          [checked]="settings().zone === 1"
+          (change)="setCondition('zone', $any($event.target).checked)"
+        />
+        <span>
+          <b class="chk" aria-hidden="true">✓</b>Zone A down
+          <small id="capacity-zone-hint" aria-hidden="true">{{ hints.zone[0] }}</small>
+        </span>
+      </label>
+      <label class="segment">
+        <input
+          type="checkbox"
+          aria-describedby="capacity-slow-hint"
+          [checked]="settings().slow === 1"
+          (change)="setCondition('slow', $any($event.target).checked)"
+        />
+        <span>
+          <b class="chk" aria-hidden="true">✓</b>Slow queries
+          <small id="capacity-slow-hint" class="hint-long" aria-hidden="true">{{ hints.slow[0] }}</small>
+          <small class="hint-short" aria-hidden="true">{{ hints.slow[1] }}</small>
+        </span>
+      </label>
+    </div>
+  </fieldset>
+  <p class="notice" aria-live="polite" aria-atomic="true"><g-code-text [text]="notice()" /></p>
+</div>
+
+<div class="main">
+  <g-stage class="capacity-stage" [height]="stage().H" [label]="stageLabel">
+    @if (ready()) {
+      @let st = stage();
+      <svg
+        class="draw"
+        [attr.viewBox]="'0 0 ' + st.D.W + ' ' + st.H"
+        [attr.width]="st.D.W"
+        [attr.height]="st.H"
+        role="img"
+        [attr.aria-label]="st.summary"
+      >
+        <defs>
+          <pattern id="capacity-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <rect class="hatch-fill" width="6" height="6" />
+            <line class="hatch-line" x1="0" y1="0" x2="0" y2="6" />
+          </pattern>
+          <pattern id="capacity-writes" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <line class="writes-line" x1="0" y1="0" x2="0" y2="5" />
+          </pattern>
+          <pattern id="capacity-writes-key" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <rect class="writes-key-fill" width="5" height="5" />
+            <line class="writes-key-line" x1="0" y1="0" x2="0" y2="5" />
+          </pattern>
+          <pattern id="capacity-split" width="6" height="6" patternUnits="userSpaceOnUse">
+            <circle class="split-dot" cx="3" cy="3" r="1" />
+          </pattern>
+          <pattern id="capacity-shed" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
+            <rect class="shed-fill" width="6" height="6" />
+            <line class="shed-line" x1="0" y1="0" x2="0" y2="6" />
+          </pattern>
+        </defs>
+        <g app-capacity-prims [prims]="under()" />
+        <g class="dots" #dots></g>
+        <g app-capacity-prims [prims]="boxes()" />
+        @for (lane of st.groups; track lane.id) {
+          @for (load of lane.loads; track load.inst) {
+            <g app-capacity-prims class="lane-fill" [attr.data-lane]="lane.id" [prims]="load.fills" />
+            @if (load.writes.length) {
+              <g app-capacity-prims class="lane-writes" [attr.data-lane]="lane.id" [prims]="load.writes" />
+            }
+          }
+        }
+        <g app-capacity-prims [prims]="over()" />
+        @for (f of st.focus; track f.id) {
+          <g app-focus [box]="f" [on]="exp.focusOn().includes(f.region)" />
+        }
+      </svg>
+
+      <button
+        type="button"
+        class="play"
+        [attr.aria-label]="playName()"
+        [style.left.px]="st.play.x"
+        [style.top.px]="st.play.y"
+        [disabled]="locked()"
+        (click)="togglePlay()"
+      >
+        <svg viewBox="0 0 36 36" aria-hidden="true">
+          <circle cx="18" cy="18" r="16" />
+          @if (playing() && !exp.locked()) {
+            <path d="M12.5 11h4v14h-4zM19.5 11h4v14h-4z" />
+          } @else {
+            <path d="M14 11v14l11-7z" />
+          }
+        </svg>
+      </button>
+      <g-handle
+        [class.glide]="ramping()"
+        label="Traffic, requests a second"
+        [values]="stops"
+        [positions]="st.traffic.positions"
+        [cross]="st.traffic.y"
+        [valuetext]="trafficText()"
+        [disabled]="locked()"
+        [value]="shown().offered"
+        (valueChange)="setTraffic($event)"
+      />
+      @for (b of st.steps; track b.id) {
+        <button
+          type="button"
+          class="step"
+          [attr.aria-label]="b.label"
+          [attr.aria-describedby]="'capacity-tier-' + b.tier"
+          [style.left.px]="b.x"
+          [style.top.px]="b.y"
+          [attr.aria-disabled]="b.disabled"
+          (click)="step(b)"
+        >
+          <span aria-hidden="true">{{ b.dir < 0 ? '−' : '+' }}</span>
+        </button>
+      }
+      @if (anchor(); as a) {
+        <div #anchor class="anchor" [style.top.px]="a.top" [style.height.px]="a.height"></div>
+      }
+    }
+    <div class="tier-lines">
+      @for (line of tierLines(); track line.id) {
+        <p [id]="'capacity-tier-' + line.id"><g-code-text [text]="line.text" /></p>
+      }
+    </div>
+  </g-stage>
+  @if (caption()) {
+    <p class="caption"><g-code-text [text]="caption()" /></p>
+  }
+  <p class="foot"><g-code-text [text]="footnote" /></p>
+
+  <div class="describe">
+    <button type="button" class="g-btn" [attr.aria-expanded]="describe()" [disabled]="describeWaits()" (click)="toggleDescribe()">
+      {{ describe() ? 'Hide the description' : 'Describe' }}
+    </button>
+    @if (describeWaits()) {
+      <span class="muted">{{ describeWaitsWhy() }}</span>
+    }
+    @if (describe() && !describeWaits()) {
+      @let d = describeTable();
+      <p class="said"><g-code-text [text]="describeSaid()" /></p>
+      <g-data-table label="Every tier at this setting" [head]="d.head" [rows]="d.rows" [compact]="compact()" [height]="null" />
+      @if (d.note) {
+        <p class="muted note"><g-code-text [text]="d.note" /></p>
+      }
+    }
+  </div>
+</div>
+
+@if (experiments().length) {
+  <app-experiment-dock
+    class="experiments"
+    [experiments]="experiments()"
+    [active]="exp.active()"
+    [phase]="exp.phase()"
+    [done]="exp.done()"
+    [goalStatus]="goalStatus()"
+    [goalChecks]="goalChecks()"
+    [chosen]="exp.chosen()"
+    [seePicture]="true"
+    (chosenChange)="exp.answer($event)"
+    (start)="start($event)"
+    (see)="seePicture()"
+  />
+}

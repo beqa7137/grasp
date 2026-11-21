@@ -1,0 +1,255 @@
+@use '../../../type' as *;
+
+// The Capacity & Scaling stage's drawing roles; `capacity-plan.ts` measures text by these sizes, so a size changed here
+// changes its checks. Stage text keeps proportional digits, as measured. Text sits on a halo of its ground.
+text {
+  paint-order: stroke;
+  stroke: var(--g-viz-stage);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  &.on-box {
+    stroke: var(--g-raised);
+  }
+}
+.t-label {
+  @include label;
+  fill: var(--g-muted);
+}
+.t-cap {
+  font: 500 var(--g-text-body-s) var(--ion-font-family);
+  fill: var(--g-muted);
+}
+.t-capB {
+  font: 600 var(--g-text-body-s) var(--ion-font-family);
+  fill: var(--g-text);
+}
+.t-small {
+  font: 500 var(--g-text-label) var(--ion-font-family);
+  fill: var(--g-muted);
+}
+.t-smallB {
+  font: 700 var(--g-text-label) var(--ion-font-family);
+  fill: var(--g-text);
+}
+.t-head {
+  font: 600 var(--g-text-title-m) var(--g-font-mono);
+  fill: var(--g-text);
+}
+.crit-ink {
+  fill: var(--g-danger-ink);
+}
+.gridline {
+  fill: none;
+  stroke: var(--g-line);
+  stroke-dasharray: 2 3;
+}
+.rail {
+  stroke: var(--g-viz-track);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+// Handles are UI, so the rail's fill takes the accent.
+.rail-fill {
+  fill: var(--g-accent);
+}
+.stop {
+  fill: var(--g-line-strong);
+}
+// The request stream between tiers: its width is the rate on the shared axis.
+.band {
+  fill: var(--g-viz-current);
+  fill-opacity: 0.2;
+  &.stub {
+    fill-opacity: 0.3;
+  }
+}
+:host-context(.ion-palette-dark) .band {
+  fill-opacity: 0.3;
+}
+.strand {
+  fill: none;
+  stroke: var(--g-viz-stage);
+  stroke-opacity: 0.7;
+  stroke-width: 1;
+}
+.band-edge {
+  stroke: var(--g-viz-current);
+  stroke-opacity: 0.8;
+  stroke-width: 1.5;
+}
+.band-shed {
+  fill: var(--g-viz-critical);
+  fill-opacity: 0.14;
+}
+.band-shed-edge {
+  fill: var(--g-viz-critical);
+}
+// A play eases a band's width and a load's reach by a transform from its own left edge.
+.band,
+.band-shed,
+.band-shed-edge,
+.rail-fill,
+.sink,
+.shed-block,
+.meter-fill {
+  transform-box: fill-box;
+  transform-origin: 0 50%;
+}
+.divider {
+  stroke: var(--g-line);
+}
+.tier-box {
+  fill: var(--g-raised);
+  stroke: var(--g-line);
+  &.bottleneck {
+    stroke: var(--g-viz-critical);
+    stroke-width: 1.5;
+  }
+}
+.seg {
+  fill: var(--g-sunken);
+  stroke: var(--g-line-strong);
+  &.lost {
+    fill: url(#capacity-hatch);
+    stroke: var(--g-stroke);
+    stroke-width: 0.75;
+  }
+}
+// A lane's end, its limit: a cap in the stroke ink, 3:1 against the box in both themes.
+.lane-cap {
+  stroke: var(--g-stroke);
+  stroke-width: 1.5;
+}
+// A lane cut at the axis's end: two strokes across it on the box's ground.
+.lane-break {
+  stroke: var(--g-stroke);
+  stroke-width: 1.25;
+  fill: none;
+}
+.break-under {
+  stroke: var(--g-raised);
+  stroke-width: 4;
+  fill: none;
+}
+// The 70% mark in every segment, so headroom reads as a mark and not only as a color step.
+.target {
+  stroke: var(--g-stroke);
+  stroke-width: 1.25;
+  fill: none;
+}
+.target-under {
+  stroke: var(--g-raised);
+  stroke-width: 3;
+  fill: none;
+}
+.zone-line {
+  stroke: var(--g-stroke);
+  stroke-width: 1;
+}
+.zone-tick {
+  stroke: var(--g-viz-critical);
+  stroke-width: 2;
+  stroke-dasharray: 4 2;
+}
+.split-hidden {
+  fill: url(#capacity-split);
+}
+.writes-key {
+  fill: url(#capacity-writes-key);
+}
+.writes-hatch {
+  fill: url(#capacity-writes);
+}
+.xfer,
+.xfer-tail {
+  stroke: var(--g-stroke);
+  stroke-width: 1.25;
+}
+.xfer-head {
+  fill: var(--g-stroke);
+}
+// Heat for load (REDESIGN.md 3.6): its second encoding is the fill's length and the % in words.
+.fill {
+  &.lo {
+    fill: var(--g-viz-current);
+  }
+  &.h1 {
+    fill: var(--g-viz-heat-1);
+  }
+  &.h2 {
+    fill: var(--g-viz-heat-2);
+  }
+  &.h3 {
+    fill: var(--g-viz-heat-3);
+  }
+  &.full {
+    fill: var(--g-viz-critical);
+  }
+}
+.swatch-track {
+  fill: var(--g-sunken);
+  stroke: var(--g-line-strong);
+}
+// Dashes mean "hidden" and nothing else.
+.lane-hidden {
+  fill: none;
+  stroke: var(--g-stroke);
+  stroke-opacity: 0.7;
+  stroke-dasharray: 3 3;
+}
+.shed-block {
+  fill: url(#capacity-shed);
+  stroke: var(--g-viz-critical);
+  stroke-width: 1.25;
+}
+.ghost-tick {
+  stroke: var(--g-text);
+  stroke-opacity: 0.8;
+  stroke-width: 1.5;
+  stroke-dasharray: 2 2;
+}
+.ghost-under {
+  stroke: var(--g-raised);
+  stroke-width: 4.5;
+}
+// A cut lane's headroom meter sits on the box's ground, apart from the lane it ends.
+.meter-ground {
+  fill: var(--g-raised);
+}
+// The part of a meter past the axis's end, which the lane cannot show.
+.meter-past {
+  fill: var(--g-raised);
+  fill-opacity: 0.8;
+}
+.meter-cell {
+  fill: var(--g-sunken);
+  stroke: var(--g-line-strong);
+}
+.sink {
+  fill: var(--g-viz-final);
+}
+.sink-track {
+  fill: var(--g-sunken);
+}
+.xmark {
+  stroke: var(--g-viz-critical);
+  stroke-width: 2;
+  stroke-linecap: round;
+  fill: none;
+}
+.xground {
+  fill: var(--g-viz-stage);
+  &.on-box {
+    fill: var(--g-raised);
+  }
+}
+.dot.req {
+  fill: var(--g-viz-current);
+}
+// The climax ring: stroke only, around the gap's ×, so it covers no mark it points at. It lands only in a play, which
+// runs only with motion; under Reduced motion it is drawn at rest.
+.landing {
+  fill: none;
+  stroke: var(--g-viz-critical);
+  stroke-width: 2;
+}

@@ -85,8 +85,25 @@ jobs:
 
       - uses: ./.github/actions/wait-for-postgres
 
-      - name: Test (engine, API against memory + Postgres, app)
-        run: npm test
+      - name: Test (engine, API against memory + Postgres)
+        run: npm run build:engine && npm test -w @grasp/engine && npm test -w @grasp/api
+
+  # The app's unit tests run on a runner of their own: with the engine's and the API's on one two-core runner, the lesson
+  # widgets' whole-space layout sweeps outgrew its 15 minutes.
+  app-test:
+    name: App unit tests
+    needs: verdict
+    if: ${{ !cancelled() && needs.verdict.outputs.passed != 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/setup
+
+      - name: Test (app)
+        run: npm run build:engine && npm test -w @grasp/app
 
   # The runners have two cores, so the suite is split across nine of them. Sharding the whole suite at once handed the
   # last shard nearly all the WebKit tests, which run about twice as slow, so each device gets its own shards, sized

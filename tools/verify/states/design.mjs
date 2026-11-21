@@ -82,6 +82,36 @@ const storageCard = async (p, title) => {
   await storageAt(p);
   await p.locator('app-storage-widget .cards button', { hasText: title }).click();
 };
+const capacityStageToTop = (p) => p.locator('app-capacity-widget g-stage').evaluate((stage) => stage.scrollIntoView({ block: 'start' }));
+/**
+ * Sets the capacity widget as a learner would: each tier's steppers pressed from the default (2 load balancers, 4 app
+ * servers, the 8,000-query machine, 2 replicas), the conditions checked, then the traffic by key.
+ */
+const capacityAt = async (
+  p,
+  { lb = 0, app = 0, smaller = false, bigger = false, replicas = 0, cache, zone, slow, traffic = 0 } = {},
+  ready = true,
+) => {
+  const widget = p.locator('app-capacity-widget');
+  if (ready) await widget.locator('svg.draw[aria-label*="requests a second"]').waitFor();
+  const press = async (name, times) => {
+    for (let i = 0; i < times; i++) await widget.getByRole('button', { name, exact: true }).click();
+  };
+  await press(lb > 0 ? 'More load balancers' : 'Fewer load balancers', Math.abs(lb));
+  await press(app > 0 ? 'More app servers' : 'Fewer app servers', Math.abs(app));
+  if (smaller) await press('A smaller database machine', 1);
+  if (bigger) await press('A bigger database machine', 1);
+  await press(replicas > 0 ? 'More read replicas' : 'Fewer read replicas', Math.abs(replicas));
+  if (cache !== undefined) await widget.getByRole('checkbox', { name: /Cache reads/ }).setChecked(cache);
+  if (zone !== undefined) await widget.getByRole('checkbox', { name: /Zone A down/ }).setChecked(zone);
+  if (slow !== undefined) await widget.getByRole('checkbox', { name: /Slow queries/ }).setChecked(slow);
+  if (traffic) await stepHandle(p, 'Traffic, requests a second', traffic > 0 ? 'ArrowRight' : 'ArrowLeft', Math.abs(traffic));
+  await capacityStageToTop(p);
+};
+const capacityCard = async (p, title) => {
+  await p.locator('app-capacity-widget svg.draw[aria-label*="requests a second"]').waitFor();
+  await p.locator('app-capacity-widget .cards button', { hasText: title }).click();
+};
 const balancerReady = (p) => p.locator('app-balancer-widget .value.big').filter({ hasText: /\d/ }).waitFor();
 /** Steps a handle on the drawing by key, as a learner without a mouse would. */
 const stepHandle = async (p, name, key, times = 1) => {
@@ -671,7 +701,114 @@ export function designStates() {
         await p.getByRole('button', { name: 'Check', exact: true }).click();
       },
     },
-    { id: 'lesson-capacity', path: '/design/topics/sd-capacity', setup: (p) => p.locator('#try').scrollIntoViewIfNeeded() },
+    { id: 'lesson-capacity', path: '/design/topics/sd-capacity', setup: (p) => capacityAt(p) },
+    { id: 'lesson-capacity-calm', path: '/design/topics/sd-capacity', setup: (p) => capacityAt(p, { traffic: -7 }) },
+    { id: 'lesson-capacity-cached', path: '/design/topics/sd-capacity', setup: (p) => capacityAt(p, { app: 4, cache: true, traffic: 2 }) },
+    {
+      id: 'lesson-capacity-replicas',
+      path: '/design/topics/sd-capacity',
+      setup: (p) => capacityAt(p, { lb: 4, app: 16, replicas: 4, cache: true, traffic: 6 }),
+    },
+    {
+      id: 'lesson-capacity-zone',
+      path: '/design/topics/sd-capacity',
+      setup: (p) => capacityAt(p, { lb: 1, app: 5, replicas: 1, cache: true, zone: true, traffic: 1 }),
+    },
+    {
+      id: 'lesson-capacity-slow',
+      path: '/design/topics/sd-capacity',
+      setup: (p) => capacityAt(p, { app: 2, cache: true, slow: true, traffic: -2 }),
+    },
+    {
+      id: 'lesson-capacity-overload',
+      path: '/design/topics/sd-capacity',
+      setup: (p) => capacityAt(p, { app: 17, replicas: 4, traffic: 13 }),
+    },
+    { id: 'lesson-capacity-outage', path: '/design/topics/sd-capacity', setup: (p) => capacityAt(p, { replicas: -2, zone: true }) },
+    {
+      id: 'lesson-capacity-ghost',
+      path: '/design/topics/sd-capacity',
+      setup: async (p) => {
+        await capacityAt(p, { cache: true });
+        await capacityAt(p, { app: 2 }, false);
+      },
+    },
+    {
+      id: 'lesson-capacity-reduced',
+      path: '/design/topics/sd-capacity',
+      setup: async (p) => {
+        await capacityAt(p);
+        await p
+          .locator('app-capacity-widget')
+          .getByRole('button', { name: /^Ramp the traffic up to [\d,]+ requests a second$/ })
+          .click();
+        await p.locator('app-capacity-widget svg.draw [data-id="ring"]').waitFor();
+      },
+    },
+    {
+      id: 'lesson-capacity-describe',
+      path: '/design/topics/sd-capacity',
+      setup: async (p) => {
+        await capacityAt(p);
+        await p.locator('app-capacity-widget').getByRole('button', { name: 'Describe' }).click();
+        await p.locator('app-capacity-widget .describe g-data-table').scrollIntoViewIfNeeded();
+      },
+    },
+    {
+      id: 'lesson-capacity-table',
+      path: '/design/topics/sd-capacity',
+      setup: async (p) => {
+        await capacityAt(p, { lb: 1, app: 5, replicas: 1, cache: true, zone: true, traffic: 1 });
+        await p.locator('app-capacity-widget').getByRole('button', { name: 'Describe' }).click();
+        await p.locator('app-capacity-widget .describe g-data-table').scrollIntoViewIfNeeded();
+      },
+    },
+    ...[
+      ['tenfold', 'Ten times the traffic'],
+      ['cache', 'Cache the reads'],
+      ['replay', 'Two more replicas'],
+      ['zone', 'Lose a zone'],
+      ['slow', 'A slow database'],
+    ].flatMap(([id, title]) => [
+      {
+        id: `lesson-capacity-asking-${id}`,
+        path: '/design/topics/sd-capacity',
+        setup: async (p) => {
+          await capacityCard(p, title);
+          await p.locator('app-widget-check legend').waitFor();
+          await capacityStageToTop(p);
+        },
+      },
+      {
+        id: `lesson-capacity-revealed-${id}`,
+        path: '/design/topics/sd-capacity',
+        setup: async (p) => {
+          await capacityCard(p, title);
+          await p.locator('app-widget-check button.g-choice').first().click();
+          await p.locator('app-widget-check .explain:not(.muted)').waitFor();
+          await capacityStageToTop(p);
+        },
+      },
+    ]),
+    {
+      id: 'lesson-capacity-challenge',
+      path: '/design/topics/sd-capacity',
+      setup: async (p) => {
+        await capacityCard(p, 'Challenge');
+        await p.locator('app-capacity-widget .checks li').first().waitFor();
+        await capacityStageToTop(p);
+      },
+    },
+    {
+      id: 'lesson-capacity-challenge-met',
+      path: '/design/topics/sd-capacity',
+      setup: async (p) => {
+        await capacityCard(p, 'Challenge');
+        await capacityAt(p, { lb: 4, app: 9, bigger: true, replicas: 2, cache: true }, false);
+        await p.locator('app-experiment-dock .reveal').waitFor();
+        await capacityStageToTop(p);
+      },
+    },
     { id: 'lesson-consistency', path: '/design/topics/sd-consistency', setup: (p) => quorumReady(p) },
     { id: 'lesson-consistency-stale', path: '/design/topics/sd-consistency', setup: (p) => quorumAt(p, { w: 1, r: 1 }) },
     { id: 'lesson-consistency-down', path: '/design/topics/sd-consistency', setup: (p) => quorumAt(p, { taps: [0, 0, 1] }) },

@@ -3098,6 +3098,139 @@ Iterations are ordered by impact, alternating between organization and visuals. 
     arrival and a block per busy period. Polish taken: opening a challenge says the setting's sentence in Data Modeling,
     Consistency & Quorums and Latency & Queueing alike, and the y axis's lowest label sits up off the x labels' row, 6
     px clear of them (checked at every width).
+- **Capacity & Scaling note** (R41, the batch's fourth widget, `pipeline`; as built from the brief, mockup and second
+  critique round of `design/r41-capacity`, and where it differs):
+  - **Verdict.** The R27b widget (a traffic slider, three tier cards with − and +, a utilization bar each and three
+    tiles) computed the right minimum but drew none of its causes: nothing flowed, each tier was a box of "requests a
+    second", so a request's different cost at each tier could not be said, and the database scaled by instances, which
+    the lesson itself calls false for a primary. The brief found it far below the bar, so it is redrawn: a request
+    stream through three tiers on one axis in requests a second, each tier's limit a lane as long as what it can take.
+  - **Engine.** `widgets/capacity.ts` ports the brief's `model.js`: load balancers (5,000/s each), app servers (1,500/s
+    of CPU and 100 workers each, so 200/s when a request holds its worker 500 ms), a primary sized in queries a second
+    (4,000 or 8,000, the largest) and 0 to 6 replicas that replay every write, a cache in front of the reads (90% hit),
+    zone A's loss (the largest failure domain, a replica promoted) and one database admission; `capacityRun`,
+    `capacityMetrics`, `capacityRamp`, `capacityZoneLane` (each instance's stable id and the drawn zone order B, C, A)
+    and `capacityAllSettings` (197,568 settings). `pipeline` and `Pipeline` are retired from `widgets.ts`, its only
+    caller with them. Framework: `ExperimentRun` gains `'ramp'` and `'flow'`. `capacity-experiments.ts`: the six
+    experiments in the brief's wording, every number a slot through a `count` helper that throws on a fraction, answers
+    at 3, 2, 1, 3, 1, the challenge passing at exactly one of its 3,528 settings (6 load balancers, 17 app servers, the
+    8,000-query primary, 2 replicas and the cache, 29 machines). `capacity.spec.ts` pins the formulas, the invariants
+    over every setting, the ramp and the zones; `capacity-simulation.spec.ts` checks the model against an independent
+    request-by-request token-bucket simulation at a stride of the settings; `capacity-experiments.spec.ts` every quoted
+    number and the challenge's enumeration. The lesson's text fixes are in, and its `tryThis` is gone.
+  - **Picture.** One stage from `buildStage` (`capacity-layout.ts`), planned by `capacity-plan.ts` (`laneInfo` places a
+    lane's limit, shed and ghost words; `planStage` lays every block's words into lines) and drawn by
+    `capacity-lane.ts` (lanes and zone strips) on the shared `StageDraw` (`stage-draw.ts`, now the one drawing class
+    for the Latency & Queueing and Capacity & Scaling stages, with `stage-prims.ts`'s template). Text is measured by
+    `stage-text.ts`; its `flow` keeps a number with its unit, a rate with "shed" or "spare", "of", "in", "was" and
+    "limit" with what follows and "each" with what precedes it. The stage's height depends on its width alone: each box
+    reserves the most any setting needs, measured over 5,389 extreme and experiment settings (the extremes, one step in
+    from the top of the load balancers and app servers, so a ghost of the top fits, and every experiment's setup, act
+    and solution) at rest, with every lane hidden and with a ghost of each one-change neighbor, and held by the sweep;
+    the table is `capacity-reserves.ts`, generated at every width from 248 to 1,000 px (one step in from the top was
+    added when the sweep found a 248 px ghost of six load balancers that the brief's 2,701 settings missed).
+    The phone stages are 1,326 px tall at 252 px (a 320 px viewport; the brief's 1,309 plus the line that ghost needs)
+    and 1,095 at 322 px (390), the wide one 946 px at 620, as the brief's; between them the steps fall 1 to 5 px from
+    the brief's (per-character advances against the mockup's canvas), with the same narrow bands from 346 to 385 px and
+    at 520 px where one setting's ghost label finds room on its lane at some widths only. Since the first fix round each
+    box reserves the most any stage at least as wide needs (the height had flipped by 17 px from pixel to pixel between
+    346 and 373 px); since the second, the padding step and the stream's gaps no longer add height at 520 px either.
+  - **Motion.** Play ramps the traffic through its stops on one monotone clock (360 ms a stop): the stream's widths and
+    the loads ease by transform, values swap and flash, a shed appears only at the stop that passes its limit, and the
+    climax (the first stop that sheds) gets a landing ring around the gap's × above that tier, then a 600 ms dwell.
+    Particles fall through the gaps only, one per 600 requests a second, at most 36 alive with the eases inside the 60
+    REDESIGN.md 3.5 allows, and a dot in the part the next tier sheds breaks into a × on the box's edge. An answer's play
+    is E1's ramp from 1,000 to 10,000 with the database hidden, or the act's flow for 2.4 s with the changed lanes
+    hidden; at the reveal the hidden lanes grow from the setup's level and the held-back words land. Plays pause by the
+    widget host's visibility. Under Reduced motion nothing animates: Play rings the first tier to shed at rest and the
+    ramp's story is the notice and, below wide, a caption.
+  - **Experiments.** One `hiding()` map (`capacity-words.ts`) feeds the stage, its summary, the tier lines the steppers
+    point to, the notices, the handle and Describe: `db` (E1, asking and playing), `after` (the lanes an act changes,
+    computed), the totals in a play that changes them, `replay` (E3 asking), `zones` (E4 asking), no ghost while a
+    question asks and no "if zone A fails" tick during a question. While a question asks or its answer plays, Play, the
+    handle, every stepper and the conditions wait, and Describe waits until the reveal (in the challenge, until the goal
+    is met). The challenge's status is the house checklist; its zone line names each tier that sheds with its own
+    amount. The worker pool hides only as its own region, so a hidden app lane whose pool did not change keeps it.
+  - **Checks.** `capacity-layout.spec.ts` lays a stride of every setting at 13 widths from 248 to 700 px at rest, with a
+    one-change ghost, mid-ramp and under Reduced motion (one height per width), and every experiment asking, at every
+    stop of its play and revealed: no text on text, off the stage, under a line or on a mark, no text in the stream's
+    path, axis labels 6 px apart, no text at an outline's stroke, outlines 8 px apart, no ring on a lane, hit boxes
+    apart, every tag and ghost label placed, and the brief's assertions (lane ends, instance counts, fills, zone A's
+    group, lost groups, the pool's tone, fleets' figures, shed blocks under the stream, the served bar, words stacked
+    with no hole, each box within its reserve), each proven by a planted fault. `capacity-words.spec.ts` runs the word
+    rules over a sixth of every setting with a one-change notice (false claims, no sentence opening on a numeral,
+    "each" and plurals by count, every tied tier named, Describe's "full", the zone line's amounts, Little's law as
+    printed), each proven by a planted fault; `capacity-motion.spec.ts` the clock, the climax, the particles' budget
+    and paths, and eases by transform and opacity only; the component spec runs the no-answer sweep (every control
+    pressed during each question, then the answer's play sampled frame by frame, against answer words, false claims and
+    structural giveaways) with motion off and on, and catches leaks planted in copies of E1 and E2 and in the hiding
+    map (a ghost carried into E3, E3's replay, E5's pool and E5's app fleet figure).
+  - **Fix round 1** (from the code, browser, content and showcase reviews):
+    - **Loads.** Each instance's fill, stream tooth, hidden split and writes hatch are drawn from the instance's own left
+      edge as wide as its load (they were rects as wide as the segment, set back and clipped by one union per lane, so
+      every instance but the last looked almost full). A play scales each instance's group from its left; the lanes
+      with the fewest instances ease within a budget of 24 marks a stop (`EASE_BUDGET`), and the rest land at once. The
+      layout spec checks the painted rects, not the meta: each inside its own segment, its width the load.
+    - **Zones.** `zoneStrip` (`capacity-plan.ts`) is the one source for the strip: the lost group follows the
+      survivors at its width before the loss (a replica's limit grows when fewer share the reads, so the old place lay
+      inside the survivors), and the letters go under every group or none. The current limit goes into a strip only
+      where it has no zone letters, else into the status. With no replica up the block has no lane row or strip, so its
+      words follow the one divider.
+    - **Words.** The ramp's story names every tier that begins to shed at the climax in flow order with its amount and
+      says which is the bottleneck, "first" only when one tier sheds, and says a tier zone A took fails from the first
+      step rather than "began to shed". While a ramp plays the notice says only what plays, and its story lands at the
+      end. Describe's whole-path row leaves its Up cell blank and its note counts the machines up with zone A down.
+      `g-code-text` keeps rates with their numbers ("8,000 queries/s", "1,000 requests a second"). A "·" never opens a
+      line in `stage-text.ts`'s `flow`. Focus tags stay off box borders, and no word comes within 2 px of a stepper's
+      target. Steppers at an end are `aria-disabled`, so a press keeps the focus. The checklist's headroom is rounded at
+      the source, so 70% busy leaves the 30% it shows.
+    - **Content.** Two numeric answers sit at an extreme (E3 the largest, E5 the smallest) and every choice of a
+      question gives a reason or none does, held by a spec; E5's cause is a network fault every request pays; the
+      footnote states the read routing and the replay cost; the cache keeps a full copy in each zone; E1's advice names
+      the replicas the model needs; worked example 1 says what a whole zone needs.
+  - **Fix round 2** (from the code and browser re-reviews):
+    - **Phones.** Under a 520 px stage the axis ends at the traffic's top, 20,000/s, where every request, every shed and
+      every bottleneck lies, at twice the scale: one app server is at least 14 px wide at any width (it was 8 px on an
+      iPhone), so its 70% notch and zone letter read. A lane whose limit lies past the axis's end (the primary's
+      40,000/s write ceiling, replicas behind the cache, five or more load balancers) is cut there with a break of two
+      strokes instead of a cap, its limit in its status or conversion; a ghost or an "if zone A fails" limit past it gets
+      no tick, only words. From 520 px the axis runs to 40,000/s as before.
+    - **Boxes.** A bordered box hugs its own words: each box still starts where the reserves above it put it, so the
+      stage keeps one height per width and nothing moves when a setting changes, but the slack is stream in the gap
+      under the box (the database box with no replica, E1's reveal included, had framed a band of up to 110 px). The
+      padding grows with the stage from 488 to 520 px and the stream's gaps are 24 px at every width, so the height never
+      grows as the stage widens at any width from 248 to 1,000 px, which the layout spec checks at every pixel.
+    - **Zones.** The lost group runs from the survivors' limit to the limit before zone A's loss, which shares out what
+      zone A took, so it never runs past the axis and its end is the old limit a ghost would mark: no ghost tick is drawn
+      within 12 px of it, and "limit was" labels the group. Where one lost instance would be under 4 px the group is one
+      hatched mark.
+    - **Words.** `g-code-text` keeps a number with the thing it counts ("29 machines", "2 read replicas", "4,000
+      writes"), and a rate's "a second" may start the next line, so a narrow column keeps no long gap. A traffic change's
+      notice opens on the summary, which states the traffic once. Worked example 1 sizes the replicas (5) and the
+      primary's connections (30 servers, 600) for losing a zone, as its step 3 does.
+  - **Fix round 3** (from the browser re-review and the showcase):
+    - **Zones past the axis.** On a phone's cut axis every zone with instances is lettered on its strip or named at the
+      lane's end in the strip's small type ("+2 A", "+2 A lost"): in the challenge zone A's two load balancers lie from
+      20,000 to 30,000/s and had vanished, letter and all, so the stage showed a two-zone fleet while the checklist and
+      the reveal spoke of zone A's. A letter beside those words centers on its group's part left of them. An "if zone A
+      fails" limit whose tick would sit in a cut lane's break or past it is said in the status ("if zone A fails, limit
+      20,000/s") or the conversion, and the stage's word flow keeps "if zone A" whole.
+    - **Headroom on a cut lane.** A cut lane with no instance whole on the axis (the primary at any setting on a phone,
+      a replica wider than the axis) ends in a 40 px meter before its break, on the box's ground: one instance's whole
+      width, filled in heat as busy as it is (the writes' hatch on its part), with its 70% mark. The primary at 50% had
+      filled its whole visible lane and read as full; its load's reach still shows in the stream's tooth above the lane.
+    - **The break's slot.** No mark on a cut lane comes within 3 px of the break's first stroke: the conversion arrow
+      ends 10 px before the axis's end (its head had touched the break), and a notch, ghost or zone tick there becomes
+      words.
+    - **Words.** `g-code-text` keeps a number with the first word of what it counts ("17 app", "2 read", "4 load"),
+      so a 304 px column keeps no 100 px unbreakable span, and a number, an operator and the next number ("4,000 /
+      0.38"); the e2e split check matches the same spans.
+    - **Verified.** `npm run verify`, CI's whole three-device suite on the round's head, and the 24 capacity audit
+      states in both themes on desktop, Pixel 7 and w320 (72 of 72 clean each).
+  - **Landing fixes.** Rebased onto Reliability and Storage Engines, with the widget's keep rule in its own
+    `CODE_TEXT_KEEP` provider; the stage's word flow never splits a "·" clause that fits a line, a limit said in words is
+    its own clause with one figure said once ("if zone A fails, back to 21,053/s"), and a cut lane's meter is dimmed past
+    the axis's end, so its lit part reads as the lane does, with a legend entry on phone stages.
 - **Reliability note** (R41, the batch's fifth widget, `availability`; as built from the brief, mockup and second
   critique round of `design/r41-reliability`, and where it differs):
   - **Verdict.** The old widget (three boxes with a select and a stepper each, two tiles and a caveat) was the product

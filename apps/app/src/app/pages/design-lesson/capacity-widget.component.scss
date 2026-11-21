@@ -1,0 +1,228 @@
+@use '../../../type' as *;
+@use '../../../breakpoints' as *;
+@use 'feed-controls';
+@use 'widget-controls';
+@use 'widget-layout' as *;
+
+@include stage-layout('.capacity-stage');
+.caption,
+.foot {
+  order: 2;
+  margin: 0;
+  color: var(--g-muted);
+}
+.caption {
+  font-size: var(--g-text-body-s);
+}
+.foot {
+  font-size: var(--g-text-label);
+  line-height: 1.45;
+}
+// At wide the notice shows the ramp's story beside the stage, so the caption would repeat it.
+@include container-wide(lesson) {
+  .caption {
+    display: none;
+  }
+}
+@include container-narrow(lesson) {
+  .controls {
+    padding-bottom: var(--g-space-3);
+  }
+}
+// Three conditions side by side, stretched to one height. A checked one changes its fill, border and shadow and shows
+// its ✓, never its weight, so checking one moves nothing.
+.conditions-control {
+  .toggles {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .segment span {
+    height: 100%;
+    display: block;
+    align-content: center;
+    padding: var(--g-space-1);
+  }
+  .segment input:checked + span {
+    font-weight: 500;
+  }
+  small {
+    display: block;
+  }
+  .chk {
+    margin-right: var(--g-space-1);
+    color: var(--g-accent);
+    font-weight: 700;
+  }
+  .segment input:not(:checked) + span .chk {
+    visibility: hidden;
+  }
+  .hint-short {
+    display: none;
+  }
+}
+@container lesson (max-width: 639.98px) {
+  .conditions-control {
+    .hint-long {
+      display: none;
+    }
+    .hint-short {
+      display: block;
+    }
+  }
+}
+svg.draw {
+  display: block;
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+}
+.hatch-fill {
+  fill: var(--g-sunken);
+}
+.hatch-line {
+  stroke: var(--g-viz-discarded-ink);
+  stroke-opacity: 0.4;
+  stroke-width: 1.5;
+}
+.writes-line {
+  stroke: var(--g-raised);
+  stroke-opacity: 0.85;
+  stroke-width: 1.25;
+}
+.writes-key-fill {
+  fill: var(--g-viz-discarded-ink);
+  fill-opacity: 0.45;
+}
+.writes-key-line {
+  stroke: var(--g-raised);
+  stroke-width: 1.25;
+}
+.split-dot {
+  fill: var(--g-raised);
+  fill-opacity: 0.75;
+}
+.shed-fill {
+  fill: var(--g-viz-critical);
+  fill-opacity: 0.12;
+}
+.shed-line {
+  stroke: var(--g-viz-critical);
+  stroke-opacity: 0.6;
+  stroke-width: 1.25;
+}
+// A play's ramp moves the traffic handle from stop to stop.
+g-handle.glide {
+  transition: transform 240ms var(--g-ease-standard, ease-in-out);
+}
+// A tier's stepper: a 32px key in a 44px target.
+.step {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  span {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--g-radius-xs);
+    border: 1px solid var(--g-line-strong);
+    background: var(--g-raised);
+    box-shadow: var(--g-shadow-raised);
+    color: var(--g-text);
+    font: 600 var(--g-text-title-m) / 1 var(--ion-font-family);
+  }
+  &:focus-visible {
+    outline: none;
+    span {
+      outline: var(--g-focus-ring);
+      outline-offset: 2px;
+    }
+  }
+  // aria-disabled, not disabled: a press that reaches a stepper's end keeps its focus where it was.
+  &[aria-disabled='true'] {
+    cursor: default;
+    span {
+      opacity: 0.45;
+    }
+  }
+}
+// An instance's load scales from its own left edge.
+.lane-fill,
+.lane-writes {
+  transform-box: fill-box;
+  transform-origin: left center;
+}
+// Where a play or a reveal brings the page on a stage taller than the screen: never seen, only scrolled to.
+.anchor {
+  position: absolute;
+  left: 0;
+  width: 1px;
+  visibility: hidden;
+  pointer-events: none;
+}
+// One line per tier, which its steppers point to: read out, never shown.
+.tier-lines p {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+// The stream's particles: a request in the current tone; one in the part the next tier sheds is critical and breaks
+// into a × on the box's edge.
+.dots ::ng-deep .particle {
+  circle {
+    fill: var(--g-viz-current);
+  }
+  path {
+    display: none;
+    fill: none;
+    stroke: var(--g-viz-critical);
+    stroke-width: 2;
+    stroke-linecap: round;
+  }
+  text {
+    display: none;
+  }
+  &.doomed circle {
+    fill: var(--g-viz-critical);
+  }
+  &.broken {
+    circle {
+      display: none;
+    }
+    path {
+      display: inline;
+    }
+  }
+}
+.describe {
+  // Compact, the tier's cell may wrap its count under its name, and a cell keeps only its right padding from the one
+  // before it, so five columns fit a 252 px stage.
+  ::ng-deep g-data-table.compact {
+    :is(th, td) + :is(th, td) {
+      padding-inline-start: 0;
+    }
+    td:first-child {
+      white-space: normal;
+    }
+  }
+  .said {
+    flex: 1 0 100%;
+    margin: 0;
+    font-size: var(--g-text-body-s);
+  }
+  .note {
+    flex: 1 0 100%;
+    margin: 0;
+  }
+}

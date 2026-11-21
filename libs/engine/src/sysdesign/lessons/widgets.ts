@@ -4,6 +4,7 @@ export * from './widgets/balancing.js';
 export * from './widgets/balancing-settings.js';
 export * from './widgets/balancing-sweeps.js';
 export * from './widgets/caching.js';
+export * from './widgets/capacity.js';
 export * from './widgets/clocks.js';
 export * from './widgets/data-modeling.js';
 export * from './widgets/discovery.js';
@@ -124,31 +125,6 @@ export function runLimiter(kind: Limiter, arrivals: readonly number[], limit: nu
     worstSecond = Math.max(worstSecond, i - j + 1);
   }
   return { accepted, worstSecond };
-}
-
-export interface Pipeline {
-  /** Requests a second each tier can serve: instances times per-instance capacity. */
-  capacities: number[];
-  /** Requests a second reaching each tier: what the tiers before it passed on. */
-  arriving: number[];
-  throughput: number;
-  /** The tier with the least capacity: it caps the throughput, though tiers before it may drop requests too. */
-  bottleneck: number;
-  /** Busy fraction of each tier, capped at 1. */
-  utilization: number[];
-}
-
-/** Requests pass the tiers in order, and each passes on only what it can serve, so tiers behind a bottleneck see less. */
-export function pipeline(offered: number, tiers: readonly { instances: number; perInstance: number }[]): Pipeline {
-  const capacities = tiers.map((t) => t.instances * t.perInstance);
-  const arriving: number[] = [];
-  let flow = offered;
-  for (const capacity of capacities) {
-    arriving.push(flow);
-    flow = Math.min(flow, capacity);
-  }
-  const bottleneck = capacities.reduce((b, c, i) => (c < capacities[b] ? i : b), 0);
-  return { capacities, arriving, throughput: flow, bottleneck, utilization: capacities.map((c, i) => Math.min(1, arriving[i] / c)) };
 }
 
 export interface Partition {

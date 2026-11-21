@@ -1,23 +1,20 @@
+import { CAPACITY_EXPERIMENTS } from './capacity-experiments.js';
 import type { SdLesson } from './types.js';
 
 export const CAPACITY_LESSON: SdLesson = {
-  why: 'A system serves only as many requests as its most constrained resource allows: load balancers good for 10,000 requests a second and app servers good for 6,000 still serve only 4,000 if the database tops out there. Scaling is the loop of finding that resource, raising its limit, and finding the next one before users do. Interviewers probe it with one question: at 10 times the traffic, what breaks first, and what do you do about it?',
+  why: 'A system serves only as many requests as its most constrained resource allows: load balancers good for 12,000 requests a second and app servers good for 9,000 still serve only 5,000 if the database tops out there. Scaling is the loop of finding that resource, raising its limit, and finding the next one before users do. Interviewers probe it with one question: at 10 times the traffic, what breaks first, and what do you do about it?',
   widget: {
     kind: 'pipeline',
-    tryThis: [
-      'Start at the defaults: 8,000 requests a second meet a database that can serve 4,000, so 4,000 are served and 4,000 dropped. Add a second database instance: the app tier (6,000) becomes the bottleneck and 2,000 are still dropped. Raise the app servers to 6: all 8,000 are served, but the database now shows 100% busy with no headroom at all.',
-      'Set the load to 20,000 and every tier to 10 instances: the load balancers are 40% busy and the database only 37.5%, since it sees just the 15,000 the app servers pass on: 10 app servers at 1,500 each is the ceiling, and 5,000 are dropped. When a tier runs out of instances, the next levers are a bigger machine or less work per request.',
-      'Set 2 load balancers, 8 app servers and 3 database instances at 8,000: everything is served, with the load balancers at 80% and the other tiers at 67%. Push to 10,000: the load balancers reach 100%. At 12,000 they cap throughput at 10,000 and drop 2,000; a third load balancer serves all 12,000, but the app servers and database then sit at 100%. The busiest tier at normal load breaks first in a spike, and it is often the one nobody watches.',
-    ],
+    experiments: CAPACITY_EXPERIMENTS,
   },
   concepts: [
     {
       title: 'The bottleneck caps throughput',
-      body: 'When every request passes every tier, the system serves the smallest tier capacity and no more. Adding capacity anywhere else changes nothing; raising the bottleneck moves the limit to the next smallest tier. The widget simplifies: each request costs the same at every tier, and load past the bottleneck is dropped rather than queued, while real systems also share hidden limits such as connection pools, locks and network bandwidth.',
+      body: "When every request passes every tier, the system serves the smallest tier capacity and no more. Adding capacity anywhere else changes nothing; raising the bottleneck moves the limit to the next smallest tier. The widget simplifies: every request costs a given tier the same work, a tier's instances are alike, and load past a tier's limit is shed rather than queued, while real systems also share hidden limits such as connection pools, locks and network bandwidth.",
     },
     {
       title: 'Vertical versus horizontal',
-      body: 'Vertical scaling buys a bigger machine: no code changes, but it has a ceiling, costs more per unit near the top, and remains one failure domain. Horizontal scaling adds machines and scales much further, but only for parts that can share work. A single primary that takes every write, a global lock, a hot key and a singleton job do not scale by adding copies. The widget treats database instances as interchangeable, which holds for read replicas or shards, not for a lone primary.',
+      body: 'Vertical scaling buys a bigger machine: no code changes, but it has a ceiling, costs more per unit near the top, and remains one failure domain. Horizontal scaling adds machines and scales much further, but only for parts that can share work. A single primary that takes every write, a global lock, a hot key and a singleton job do not scale by adding copies. The widget draws the difference: app servers and replicas scale by adding copies, the primary only by a bigger machine, and every replica replays every write, so replicas raise the read limit but never the write limit.',
     },
     {
       title: 'Stateless services and load balancing',
@@ -29,7 +26,7 @@ export const CAPACITY_LESSON: SdLesson = {
     },
     {
       title: 'Peak plus headroom',
-      body: 'Size for peak, not average: daily peaks are often two to three times the mean, and events go higher. At peak, aim for around 60 to 70% utilization on every tier so the tail stays flat, and check the loss of the largest failure domain: with three zones, the two left must carry 50% more each.',
+      body: "Size for peak, not average: daily peaks are often two to three times the mean, and events go higher. At peak, aim for around 60 to 70% utilization on every tier so the tail stays flat, and check the loss of the largest failure domain: with three zones, the two left must carry 50% more each. When the primary's zone fails, a replica is promoted, and writes fail until the promotion finishes, seconds to minutes.",
     },
     {
       title: 'Load testing and the right signal',
@@ -50,10 +47,10 @@ export const CAPACITY_LESSON: SdLesson = {
       steps: [
         'Today the app tier caps at 3,000 requests a second and the database at 4,000 / 2 = 2,000. The database is the bottleneck, and it saturates at twice current traffic.',
         'Cache reads with a 90% hit rate: each request sends 0.2 writes and 1.8 × 0.1 = 0.18 reads to the database, 0.38 queries. The database now caps at 4,000 / 0.38, about 10,500, so the app tier (3,000) is next.',
-        'App servers are stateless, so scale out: at 70% each takes 1,050, and 20,000 / 1,050 rounds up to 20 servers. Run 21, so losing one leaves 20 at 1,000 each (67%).',
+        'App servers are stateless, so scale out: at 70% each takes 1,050, and 20,000 / 1,050 rounds up to 20 servers. Run 21, so losing one leaves 20 at 1,000 each (67%); to survive a whole zone, as the widget challenge asks, run 30, 10 in each of three.',
         'At 20,000, the database sees 20,000 × 0.38 = 7,600 queries a second: 4,000 writes and 3,600 reads. The writes alone fill the primary, and every replica replays them too, so replicas this size have no room for reads.',
-        'Scale up first: at twice the capacity, 8,000, the primary is 50% busy, and each replica that size has 70% of 8,000 minus 4,000 of replay, 1,600 reads a second: 3 replicas, or 4 to survive losing one. Beyond that, batch writes or shard by key.',
-        'Check the pieces people forget: 21 servers with 20 connections each is 420 connections to the primary, so add a pooler, and confirm the load balancer tier handles 20,000 at 70%.',
+        'Scale up first: at twice the capacity, 8,000, the primary is 50% busy, and each replica that size has 70% of 8,000 minus 4,000 of replay, 1,600 reads a second: 3 replicas, or 5 to survive losing the zone that holds the primary (it takes one replica, and another is promoted to primary). Beyond that, batch writes or shard by key.',
+        'Check the pieces people forget: 30 servers with 20 connections each is 600 connections to the primary, so add a pooler, and confirm the load balancer tier handles 20,000 at 70%.',
       ],
     },
     {
@@ -88,6 +85,7 @@ export const CAPACITY_LESSON: SdLesson = {
     'Assuming horizontal scaling is linear: shared state, a single primary, locks and connection limits flatten the curve.',
     'Sizing to average traffic, or to peak with no room to lose a zone.',
     'Trusting autoscaling for a known spike or a sudden one: it reacts in minutes, starts instances cold, and does not scale the database.',
+    'Counting on the cache to be there: a cache that is lost or starts cold sends every read back to the database. At 2 queries a request instead of 0.38, the same database carries about a fifth of the requests. Replicate the cache across zones, warm it before a launch, and know what the database can carry without it.',
   ],
   followUps: [
     {
