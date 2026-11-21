@@ -1,6 +1,6 @@
 # Reliability widget (`availability`): every string, generated
 
-Generated from the built widget at 6d420175 (`/design/topics/sd-reliability`) by a browser walk, and from the engine build for
+Generated from the built widget at 237e7948 (`/design/topics/sd-reliability`) by a browser walk, and from the engine build for
 the experiments. Nothing here is typed by hand. Walks:
 
 - **D-RM**: desktop 1280px, reduced motion, answering each question wrong.
