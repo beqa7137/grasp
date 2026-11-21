@@ -99,3 +99,13 @@ unless said.
 
 The outline rule's proof moved: E2's stack and staircase are now 9 px apart (the reserved tag row), so two outlines
 there no longer touch; the proof points E1's reveal at the tree and the leaf page under it, which touch at every width.
+
+## Open after round 1
+
+- The phone stage grew from 1,416 to 1,452 px (the reserved tag row, the toggle's gap, the outline gutters). Each
+  engine still carries its own Play, settings and total, so a panel reads alone.
+- "≈5.5× avg" and "on average" fit panels of 270 px or wider; a 320 px phone shows "≈5.5×", and the average is said by
+  the staircase's "about 5.5× each", the step and the note.
+- The staircase's "Outlined: the record, written 5 times." fits four lines at 1280 and 390, not at 320 px, where the
+  outline is explained by the play's step ("the record is rewritten in each one after it arrives") and the story.
+- Describe's full table gives "Lookup, filters on" two lines at 1280 rather than widen past its box.

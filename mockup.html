@@ -985,6 +985,10 @@
       th .unit {
         text-transform: none;
       }
+      /* "Lookup, filters on" may take two lines rather than widen the table past its box. */
+      th.wrap {
+        white-space: normal;
+      }
       tbody th {
         font: inherit;
         letter-spacing: normal;
@@ -1390,7 +1394,7 @@
       const fAmp = M.formatAmp;
       const fSize = M.formatSize;
       // HTML learner text keeps a number with its unit on one line (g-code-text's rule), without a non-breaking space.
-      const KEEP_HTML = /((?:(?:under|at least|about) )?\d[\d,.]*×?(?: (?:bytes|B|KB|MB\/s|MB|GB|bits|levels?|runs?|pages?|disk reads?|times))|ratio \d+|"[^"]*")/g;
+      const KEEP_HTML = /(filters (?:on|off)|(?:(?:under|at least|about) )?\d[\d,.]*×?(?: (?:bytes|B|KB|MB\/s|MB|GB|bits|levels?|runs?|pages?|disk reads?|times))|ratio \d+|"[^"]*")/g;
       const nb = (s) =>
         esc(s)
           .split(KEEP_HTML)
@@ -2053,6 +2057,7 @@
             if (rowsShown >= kr) D.add('marks', rect('mine', sx + (kr - 1) * cw - 0.75, sy + (kr - 1) * rh - 0.75, cw + 0.5, (rowsShown - kr + 1) * rh + 0.5, 1, ' data-id="stair-mine"'));
             const times = T - kr + 1;
             const full = [
+              `Merge k writes the k − 1 parts there and the new one: ${l.partsWritten} parts for ${T} new, about ${avg}× each. Outlined: the record, written ${times} times.`,
               `Merge k writes k parts: the k − 1 already there and the new one. ${l.partsWritten} parts for ${T} new: about ${avg}× each. Outlined: the record, written ${times} times.`,
               `Merge k writes k parts: the k − 1 already there and the new one. ${l.partsWritten} parts for ${T} new: about ${avg}× each.`,
               `Merge k writes k parts: ${l.partsWritten} for ${T} new, about ${avg}× each.`,
@@ -2551,7 +2556,7 @@
         if (!open) return btn;
         const { head, rows, note } = describeRows(m, compact);
         return `${btn}<p class="summary">${nb(summary(m, NOTHING_HIDDEN))}</p><div class="table-box${compact ? ' compact' : ''}" tabindex="0" role="region" aria-label="Each engine at each of its settings, for this workload"><table><thead><tr>${head
-          .map((h) => `<th scope="col"><span class="nb">${esc(h).replace('×', '<span class="unit">×</span>')}</span></th>`)
+          .map((h) => (/, filters/.test(h) ? `<th scope="col" class="wrap">${nb(h)}</th>` : `<th scope="col"><span class="nb">${esc(h).replace('×', '<span class="unit">×</span>')}</span></th>`))
           .join('')}</tr></thead><tbody>${rows.map((r) => `<tr${r.now ? ' class="now" aria-current="true"' : ''}>${r.cells.map((c, i) => (i === 0 ? `<th scope="row">${nb(c)}</th>` : `<td>${esc(c)}</td>`)).join('')}</tr>`).join('')}</tbody></table></div><p class="muted-note">${nb(note)}</p>`;
       }
       // Play and the engines' own settings sit on the stage, beside what they change; all of them wait while a

@@ -72,7 +72,9 @@ const server = http.createServer((req, res) => {
   const shots = !args.includes('--sweep-only');
   for (const theme of shots ? THEMES : [])
     for (const width of WIDTHS) {
-      const page = await browser.newPage({ viewport: { width, height: 900 }, deviceScaleFactor: width < 600 ? 2 : 1 });
+      // A fresh browser for each width and theme: one browser through every tall full-page capture runs out of room.
+      const shooter = await chromium.launch({ executablePath: EXECUTABLE });
+      const page = await shooter.newPage({ viewport: { width, height: 900 }, deviceScaleFactor: width < 600 ? 2 : 1 });
       page.on('pageerror', (e) => errors.push(`${theme} ${width}: ${e.message}`));
       for (const state of STATES) {
         await page.goto(`${base}?${query(state)}&theme=${theme}`);
@@ -93,13 +95,15 @@ const server = http.createServer((req, res) => {
           overflow: document.documentElement.scrollWidth > window.innerWidth,
           widget: Math.round(window.widgetHeight()),
         }));
-        await page.screenshot({ path: path.join(DIR, 'shots', `${file(state)}-${width}-${theme}.png`), fullPage: true });
+        const shotPath = path.join(DIR, 'shots', `${file(state)}-${width}-${theme}.png`);
+        // A loaded shared machine sometimes refuses a capture: one retry.
+        await page.screenshot({ path: shotPath, fullPage: true }).catch(() => page.screenshot({ path: shotPath, fullPage: true }));
         const all = [...issues, ...(overflow ? ['the page scrolls sideways'] : [])];
         total += all.length;
         console.log(`${state.padEnd(20)} ${String(width).padStart(4)} ${theme.padEnd(5)} stage ${stage.W}x${stage.H} widget ${widget}  ${all.length ? `${all.length} collisions` : 'clean'}`);
         for (const i of all.slice(0, 8)) console.log(`    ${i}`);
       }
-      await page.close();
+      await shooter.close();
     }
   if (!args.includes('--no-sweep')) {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
@@ -182,7 +186,13 @@ const server = http.createServer((req, res) => {
       await p.waitForSelector('body[data-ready="1"]', { timeout: 20000 });
       const d = await p.evaluate(() => {
         const box = document.querySelector('.table-box');
-        const split = [...box.querySelectorAll('.nb')].filter((n) => n.getClientRects().length > 1).map((n) => n.textContent);
+        const split = [...box.querySelectorAll('.nb')]
+          .filter((n) => {
+            const r = document.createRange();
+            r.selectNodeContents(n);
+            return new Set([...r.getClientRects()].map((c) => Math.round(c.top))).size > 1;
+          })
+          .map((n) => n.textContent);
         return { page: document.documentElement.scrollWidth > window.innerWidth, table: box.scrollWidth > box.clientWidth + 1, compact: box.classList.contains('compact'), split };
       });
       if (d.split.length) console.log(`    a number parted from its unit: ${d.split.join(', ')}`);
