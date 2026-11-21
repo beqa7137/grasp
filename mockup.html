@@ -1394,7 +1394,7 @@
       const fAmp = M.formatAmp;
       const fSize = M.formatSize;
       // HTML learner text keeps a number with its unit on one line (g-code-text's rule), without a non-breaking space.
-      const KEEP_HTML = /(filters (?:on|off)|(?:(?:under|at least|about) )?\d[\d,.]*×?(?: (?:bytes|B|KB|MB\/s|MB|GB|bits|levels?|runs?|pages?|disk reads?|times))|ratio \d+|"[^"]*")/g;
+      const KEEP_HTML = /(filters (?:on|off)|(?:(?:under|at least|about) )?\d[\d,.]*(?:×(?: (?:bytes|B|KB|MB\/s|MB|GB|bits|levels?|runs?|pages?|disk reads?|times))?| (?:bytes|B|KB|MB\/s|MB|GB|bits|levels?|runs?|pages?|disk reads?|times))|ratio \d+|(?:under|at least) \d[\d,.]*|"[^"]*")/g;
       const nb = (s) =>
         esc(s)
           .split(KEEP_HTML)
