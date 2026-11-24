@@ -1,0 +1,2282 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CDNs &amp; Edge widget mockup</title>
+    <style>
+      @font-face {
+        font-family: 'Inter Variable';
+        src: url(fonts/inter-latin-wght-normal.woff2) format('woff2');
+        font-weight: 100 900;
+        font-display: block;
+      }
+      @font-face {
+        font-family: 'JetBrains Mono Variable';
+        src: url(fonts/jetbrains-mono-latin-wght-normal.woff2) format('woff2');
+        font-weight: 100 800;
+        font-display: block;
+      }
+      /* The app's tokens (apps/app/src/_theme.scss, styles.scss): light is the base, dark overrides. */
+      :root {
+        color-scheme: light;
+        --g-bg: #f4f5f9;
+        --g-surface: #ffffff;
+        --g-raised: #ffffff;
+        --g-sunken: #eef0f5;
+        --g-line: #dfe2ea;
+        --g-line-strong: #c6cbd6;
+        --g-stroke: #707889;
+        --g-text: #161a23;
+        --g-text-rgb: 22, 26, 35;
+        --g-muted: #4a5263;
+        --g-faint: #5c6477;
+        --g-on-fill: #ffffff;
+        --g-warn-ink: #6e4200;
+        --g-danger-ink: #9d1630;
+        --g-found-ink: #02583f;
+        --g-accent: #5846dc;
+        --g-accent-rgb: 88, 70, 220;
+        --g-accent-soft: rgba(88, 70, 220, 0.14);
+        --g-found: #036b4c;
+        --g-danger: #c3203d;
+        --g-warn: #945800;
+        --g-success-ink: var(--g-found-ink);
+        --g-success-line: var(--g-found);
+        --g-success-soft: rgba(3, 107, 76, 0.12);
+        --g-danger-soft: rgba(195, 32, 61, 0.12);
+        --g-warn-soft: rgba(148, 88, 0, 0.12);
+        --g-viz-stage: #f7f8fb;
+        --g-viz-current: #0b74ad;
+        --g-viz-current-soft: rgba(11, 116, 173, 0.16);
+        --g-viz-considering: #c77700;
+        --g-viz-considering-soft: rgba(199, 119, 0, 0.14);
+        --g-viz-final: #12925f;
+        --g-viz-final-soft: rgba(18, 146, 95, 0.14);
+        --g-viz-final-ink: var(--g-found-ink);
+        --g-viz-discarded-ink: #687082;
+        --g-viz-critical: #d42a49;
+        --g-viz-track: #d3d7e0;
+        --g-shadow: 0 1px 2px rgba(var(--g-text-rgb), 0.06), 0 3px 10px rgba(var(--g-text-rgb), 0.07);
+        --g-shadow-raised: 0 1px 2px rgba(var(--g-text-rgb), 0.08);
+        --g-radius-xs: 6px;
+        --g-radius-sm: 10px;
+        --g-radius-md: 14px;
+        --g-radius-pill: 999px;
+        --g-text-title-m: 1.0625rem;
+        --g-text-title-s: 0.9375rem;
+        --g-text-body: 0.875rem;
+        --g-text-body-s: 0.8125rem;
+        --g-text-label: 0.6875rem;
+        --g-font: 'Inter Variable', system-ui, sans-serif;
+        --g-font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+        --g-focus-ring: 2px solid var(--g-accent);
+      }
+      :root.dark {
+        color-scheme: dark;
+        --g-bg: #0b0d12;
+        --g-surface: #141824;
+        --g-raised: #1c2130;
+        --g-sunken: #0f121a;
+        --g-line: #252a37;
+        --g-line-strong: #343b4d;
+        --g-stroke: #6b7387;
+        --g-text: #e9ebf2;
+        --g-text-rgb: 233, 235, 242;
+        --g-muted: #8b93a8;
+        --g-faint: #828a9e;
+        --g-on-fill: #0b0d12;
+        --g-warn-ink: #f3e6b3;
+        --g-danger-ink: #ffb3bd;
+        --g-found-ink: #3ddc97;
+        --g-accent: #9d8cff;
+        --g-accent-rgb: 157, 140, 255;
+        --g-accent-soft: rgba(157, 140, 255, 0.14);
+        --g-found: #3ddc97;
+        --g-danger: #ff5d73;
+        --g-warn: #ffb547;
+        --g-success-soft: rgba(61, 220, 151, 0.12);
+        --g-danger-soft: rgba(255, 93, 115, 0.12);
+        --g-warn-soft: rgba(255, 181, 71, 0.12);
+        --g-viz-stage: #0e1118;
+        --g-viz-current: #1f9fd0;
+        --g-viz-current-soft: rgba(31, 159, 208, 0.16);
+        --g-viz-considering: #c08420;
+        --g-viz-considering-soft: rgba(192, 132, 32, 0.18);
+        --g-viz-final: #22ad74;
+        --g-viz-final-soft: rgba(34, 173, 116, 0.18);
+        --g-viz-final-ink: var(--g-found);
+        --g-viz-discarded-ink: var(--g-muted);
+        --g-viz-critical: #e5485f;
+        --g-viz-track: #2a3040;
+        --g-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        --g-shadow-raised: var(--g-shadow);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--g-bg);
+        color: var(--g-text);
+        font: 400 var(--g-text-body) / 1.5 var(--g-font);
+        font-variant-ligatures: none;
+        -webkit-font-smoothing: antialiased;
+        overflow-wrap: break-word;
+      }
+      button {
+        font-size: 0.8333rem;
+      }
+      .page {
+        max-width: 1048px;
+        margin: 0 auto;
+        padding: 20px 16px 40px;
+      }
+      .eyebrow {
+        margin: 0;
+        font: 600 var(--g-text-label) var(--g-font);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--g-muted);
+      }
+      h1 {
+        margin: 4px 0 14px;
+        font: 600 1.25rem/1.3 var(--g-font);
+      }
+      .panel {
+        border: 1px solid var(--g-line);
+        border-radius: var(--g-radius-md);
+        background: var(--g-surface);
+        box-shadow: var(--g-shadow);
+        padding: 16px;
+      }
+      /* Narrow: one column, the controls as the stage's first rows, then the stage, the question, Describe, the cards. */
+      .widget {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 12px;
+      }
+      .main,
+      .experiments {
+        display: contents;
+      }
+      .controls {
+        order: 1;
+      }
+      .stage {
+        order: 2;
+        min-width: 0;
+      }
+      .dock {
+        order: 3;
+      }
+      .describe {
+        order: 4;
+      }
+      .heading,
+      .cards {
+        order: 5;
+      }
+      .controls {
+        padding: 12px 12px 0;
+        border: 1px solid var(--g-line);
+        border-bottom: 0;
+        border-radius: var(--g-radius-md) var(--g-radius-md) 0 0;
+        background: var(--g-viz-stage);
+        display: grid;
+        gap: 10px;
+        min-width: 0;
+      }
+      .stage {
+        margin-top: -12px;
+      }
+      .stage .well {
+        border-top: 0;
+        border-radius: 0 0 var(--g-radius-md) var(--g-radius-md);
+      }
+      @media (min-width: 1000px) {
+        .widget {
+          grid-template-columns: minmax(0, 1fr) 340px;
+          grid-template-rows: auto 1fr;
+          align-items: start;
+          column-gap: 20px;
+        }
+        .main {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr);
+          gap: 12px;
+          grid-column: 1;
+          grid-row: 1 / span 2;
+          min-width: 0;
+        }
+        .controls {
+          grid-column: 2;
+          grid-row: 1;
+          padding: 0;
+          border: 0;
+          background: none;
+        }
+        .experiments {
+          display: block;
+          grid-column: 2;
+          grid-row: 2;
+          min-width: 0;
+        }
+        .stage {
+          margin-top: 0;
+        }
+        .stage .well {
+          border-top: 1px solid var(--g-line);
+          border-radius: var(--g-radius-md);
+        }
+        .dock {
+          margin-top: 12px;
+        }
+      }
+      .well {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid var(--g-line);
+        border-radius: var(--g-radius-md);
+        background-color: var(--g-viz-stage);
+        background-image: radial-gradient(circle, rgba(var(--g-text-rgb), 0.09) 1px, transparent 1.5px);
+        background-size: 24px 24px;
+        background-position: 11px 11px;
+      }
+      /* Every fieldset.group carries the same zero padding; a control's own class only adds to it (the R41 padding bug). */
+      fieldset.group {
+        margin: 0;
+        padding: 0;
+        border: 0;
+        min-width: 0;
+      }
+      .control-label {
+        font: 600 var(--g-text-label) var(--g-font);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--g-muted);
+        padding: 0;
+        margin-bottom: 4px;
+      }
+      .segments {
+        display: flex;
+        gap: 4px;
+      }
+      .segment {
+        position: relative;
+        flex: 1 1 0;
+        min-width: 0;
+      }
+      .segment input {
+        position: absolute;
+        inset: 0;
+        margin: 0;
+        opacity: 0;
+        cursor: pointer;
+      }
+      .segment span {
+        white-space: nowrap;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        min-height: 44px;
+        padding: 0 6px;
+        border-radius: var(--g-radius-sm);
+        border: 1px solid var(--g-line-strong);
+        background: var(--g-raised);
+        box-shadow: var(--g-shadow-raised);
+        color: var(--g-text);
+        font: 500 var(--g-text-body) / 1.15 var(--g-font);
+        text-align: center;
+      }
+      .segment input:checked + span {
+        background: var(--g-accent-soft);
+        border-color: var(--g-accent);
+        box-shadow: inset 0 0 0 1px var(--g-accent);
+        font-weight: 600;
+      }
+      fieldset:disabled .segment span,
+      .segment input:disabled + span {
+        opacity: 0.55;
+      }
+      .control-label .why {
+        font-weight: 500;
+        letter-spacing: normal;
+        text-transform: none;
+      }
+      .segment small {
+        font: 500 var(--g-text-label) var(--g-font);
+        color: var(--g-muted);
+      }
+      .toggles {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px;
+      }
+      .toggles .segment span {
+        flex-direction: column;
+        gap: 0;
+        font-size: var(--g-text-body-s);
+      }
+      .notice {
+        margin: 0;
+        min-height: 2lh;
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+      }
+      /* Below wide the notice would sit over the stage and push it down as it speaks: read out only (_widget-controls.scss). */
+      /* "1,000 GB" keeps one line in a 74 px segment at a 320 px phone. */
+      @media (max-width: 359px) {
+        .controls .segment span {
+          padding-inline: 3px;
+        }
+      }
+      @media (max-width: 999px) {
+        .notice {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          min-height: 0;
+          overflow: hidden;
+          clip-path: inset(50%);
+        }
+        .controls {
+          padding-bottom: 12px;
+        }
+      }
+      .caption {
+        margin: 0;
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+      }
+      .play {
+        position: absolute;
+        width: 44px;
+        height: 44px;
+        padding: 0;
+        border: 0;
+        background: none;
+        cursor: pointer;
+        z-index: 2;
+      }
+      .play svg {
+        display: block;
+        width: 36px;
+        height: 36px;
+        margin: 4px;
+      }
+      .play circle {
+        fill: var(--g-raised);
+        stroke: var(--g-accent);
+        stroke-width: 1.5;
+      }
+      .play path {
+        fill: var(--g-accent);
+      }
+      .play:disabled {
+        cursor: default;
+        opacity: 0.55;
+      }
+      .handle {
+        position: absolute;
+        width: 44px;
+        height: 44px;
+        display: grid;
+        place-items: center;
+        cursor: ew-resize;
+        z-index: 2;
+      }
+      .handle .knob {
+        width: 14px;
+        height: 26px;
+        border-radius: var(--g-radius-pill);
+        background: var(--g-raised);
+        border: 2px solid var(--g-accent);
+        box-shadow: var(--g-shadow-raised);
+      }
+      .handle[aria-disabled='true'] {
+        cursor: default;
+      }
+      .handle[aria-disabled='true'] .knob {
+        opacity: 0.55;
+      }
+      /* Drawing roles: text sits on a stage-coloured halo; small text is measured as drawn (no tabular digits). */
+      svg.draw {
+        position: absolute;
+        left: 0;
+        top: 0;
+        display: block;
+        overflow: visible;
+      }
+      svg.draw text {
+        paint-order: stroke;
+        stroke: var(--g-viz-stage);
+        stroke-width: 3px;
+        stroke-linejoin: round;
+      }
+      svg.draw text.on-box {
+        stroke: var(--g-raised);
+      }
+      svg.draw text.on-chip {
+        stroke: none;
+      }
+      .t-label {
+        font: 600 var(--g-text-label) var(--g-font);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        fill: var(--g-muted);
+      }
+      .t-cap {
+        font: 500 var(--g-text-body-s) var(--g-font);
+        fill: var(--g-muted);
+      }
+      .t-capB {
+        font: 600 var(--g-text-body-s) var(--g-font);
+        fill: var(--g-text);
+      }
+      .t-small {
+        font: 500 var(--g-text-label) var(--g-font);
+        fill: var(--g-muted);
+      }
+      .t-smallB {
+        font: 700 var(--g-text-label) var(--g-font);
+        fill: var(--g-text);
+      }
+      .t-mono {
+        font: 600 var(--g-text-label) var(--g-font-mono);
+        fill: var(--g-text);
+      }
+      .t-nameS {
+        font: 600 13px var(--g-font-mono);
+        fill: var(--g-text);
+      }
+      .t-head {
+        font: 600 var(--g-text-title-m) var(--g-font-mono);
+        fill: var(--g-text);
+      }
+      .ink {
+        fill: var(--g-text);
+      }
+      .muted {
+        fill: var(--g-muted);
+      }
+      .bad {
+        fill: var(--g-danger-ink);
+      }
+      .wait-ink {
+        fill: var(--g-warn-ink);
+      }
+      .cur-ink {
+        fill: var(--g-viz-current);
+      }
+      .crit-ink {
+        fill: var(--g-viz-critical);
+      }
+      /* A focus outline is solid: dashed means only "hidden until you answer" (prevention 17). */
+      .focus-outline {
+        fill: none;
+        stroke: var(--g-accent);
+        stroke-width: 2;
+      }
+      .tag {
+        fill: var(--g-viz-stage);
+        stroke: var(--g-accent);
+        stroke-width: 1.5;
+      }
+      .t-look {
+        font: 600 var(--g-text-label) var(--g-font);
+        fill: var(--g-accent);
+      }
+      /* The experiment dock and cards (experiment-dock.component.ts, widget-check.component.ts). */
+      .dock {
+        padding: 12px 16px;
+        border-radius: var(--g-radius-md);
+        border: 1px solid var(--g-line);
+        border-left: 3px solid var(--g-accent);
+        background: var(--g-surface);
+      }
+      .dock:empty {
+        display: none;
+      }
+      .legend {
+        margin: 0 0 4px;
+        font-weight: 600;
+        line-height: 1.45;
+      }
+      .options {
+        list-style: none;
+        margin: 8px 0 0;
+        padding: 0;
+        display: grid;
+        gap: 8px;
+      }
+      .g-choice {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        padding: 10px 14px;
+        border-radius: 12px;
+        border: 1px solid var(--g-line-strong);
+        background: var(--g-raised);
+        color: var(--g-text);
+        font: 500 0.90625rem/1.45 var(--g-font);
+        text-align: left;
+      }
+      button.g-choice {
+        box-shadow: var(--g-shadow-raised);
+        cursor: pointer;
+      }
+      .g-choice.right {
+        border-color: var(--g-success-line);
+        background: var(--g-success-soft);
+      }
+      .g-choice.wrong {
+        border-color: var(--g-danger);
+        background: var(--g-danger-soft);
+      }
+      .mark {
+        flex: none;
+        width: 20px;
+        height: 20px;
+      }
+      .held {
+        margin: 10px 0 0;
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+      }
+      .reveal {
+        margin: 10px 0 0;
+        line-height: 1.55;
+        font-size: 0.90625rem;
+      }
+      .status-line {
+        margin: 8px 0 4px;
+        font: 600 var(--g-text-body) var(--g-font);
+        color: var(--g-muted);
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .status-line.met {
+        color: var(--g-success-ink);
+      }
+      .status {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        display: grid;
+        gap: 4px;
+        font: 600 var(--g-text-body-s) var(--g-font);
+        font-variant-numeric: tabular-nums;
+        color: var(--g-muted);
+      }
+      .status li {
+        display: flex;
+        gap: 8px;
+        align-items: baseline;
+      }
+      .status li.met {
+        color: var(--g-success-ink);
+      }
+      .status .state {
+        flex: none;
+        width: 16px;
+      }
+      .heading {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font: 600 var(--g-text-title-s) var(--g-font);
+        margin: 20px 0 8px;
+      }
+      .heading svg {
+        color: var(--g-accent);
+      }
+      .cards {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 8px;
+      }
+      .card-btn {
+        width: 100%;
+        min-height: 48px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 12px;
+        border: 1px solid var(--g-line-strong);
+        border-radius: var(--g-radius-sm);
+        background: var(--g-raised);
+        box-shadow: var(--g-shadow-raised);
+        color: var(--g-text);
+        font: 500 var(--g-text-body) var(--g-font);
+        text-align: left;
+      }
+      .card-btn[aria-current] {
+        border-color: var(--g-accent);
+        box-shadow: inset 0 0 0 1px var(--g-accent);
+        background: var(--g-accent-soft);
+      }
+      .card-btn .num {
+        flex: none;
+        display: grid;
+        place-items: center;
+        width: 26px;
+        height: 26px;
+        border-radius: var(--g-radius-pill);
+        background: var(--g-sunken);
+        font: 600 var(--g-text-body-s) var(--g-font-mono);
+        color: var(--g-muted);
+      }
+      /* Describe: a minmax(0, 1fr) grid, its table scrolling inside its own box; compact on narrow stages. */
+      .describe {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 8px;
+        justify-items: start;
+      }
+      .describe .muted-note {
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+        margin: 0;
+      }
+      .describe p.summary {
+        margin: 0;
+        font-size: var(--g-text-body-s);
+      }
+      .g-btn {
+        appearance: none;
+        border: 1px solid var(--g-line-strong);
+        background: var(--g-raised);
+        box-shadow: var(--g-shadow-raised);
+        color: var(--g-text);
+        border-radius: var(--g-radius-sm);
+        padding: 9px 14px;
+        min-height: 44px;
+        font: 500 var(--g-text-body) / 1 var(--g-font);
+      }
+      .g-btn:disabled {
+        opacity: 0.55;
+      }
+      .table-box {
+        justify-self: stretch;
+        overflow: auto;
+        border-top: 1px solid var(--g-line);
+      }
+      tbody tr {
+        height: 28px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font: 500 var(--g-text-body-s) var(--g-font);
+        font-variant-numeric: tabular-nums;
+      }
+      th,
+      td {
+        text-align: right;
+        padding: 4px 8px;
+        white-space: nowrap;
+      }
+      th:first-child,
+      td:first-child {
+        text-align: left;
+      }
+      th {
+        font: 600 var(--g-text-label) var(--g-font);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--g-muted);
+        position: sticky;
+        top: 0;
+        background: var(--g-surface);
+        vertical-align: bottom;
+      }
+      td {
+        border-top: 1px solid var(--g-line);
+      }
+      tr.now td {
+        background: var(--g-accent-soft);
+        font-weight: 600;
+      }
+      .compact th,
+      .compact td {
+        padding-inline: 4px;
+      }
+      .compact th {
+        letter-spacing: normal;
+        white-space: normal;
+      }
+      th .unit {
+        text-transform: none;
+      }
+      /* "Lookup, filters on" may take two lines rather than widen the table past its box. */
+      th.wrap {
+        white-space: normal;
+      }
+      tbody th {
+        font: inherit;
+        letter-spacing: normal;
+        text-transform: none;
+        color: inherit;
+        position: static;
+        background: none;
+        border-top: 1px solid var(--g-line);
+        font-weight: 500;
+      }
+      tr.now th {
+        background: var(--g-accent-soft);
+        font-weight: 600;
+      }
+      .well .segment {
+        position: absolute;
+        display: block;
+        z-index: 2;
+      }
+      .well .segment span {
+        height: 100%;
+        min-height: 0;
+      }
+      .well .segment.toggle span {
+        flex-direction: row;
+        justify-content: flex-start;
+        gap: 10px;
+        padding: 0 12px;
+        font-size: var(--g-text-body-s);
+      }
+      .well .segment.toggle .box {
+        flex: none;
+        width: 18px;
+        height: 18px;
+        border-radius: 5px;
+        border: 1.5px solid var(--g-stroke);
+        background: var(--g-raised);
+        display: grid;
+        place-items: center;
+      }
+      .well .segment.toggle input:checked + span .box {
+        background: var(--g-accent);
+        border-color: var(--g-accent);
+      }
+      .well .segment.toggle .box svg {
+        width: 12px;
+        height: 12px;
+        visibility: hidden;
+      }
+      .well .segment.toggle input:checked + span .box svg {
+        visibility: visible;
+      }
+      .well .segment.toggle .words {
+        display: grid;
+        text-align: left;
+        line-height: 1.25;
+        font-style: normal;
+        white-space: nowrap;
+      }
+      .well .segment.toggle .words b {
+        font-weight: 500;
+      }
+      /* A checked segment keeps its weight, so its label never re-wraps (prevention 20). */
+      .segment input:checked + span {
+        font-weight: 500;
+      }
+      .play.small svg {
+        width: 36px;
+        height: 36px;
+      }
+      .model-note,
+      .caption {
+        order: 2;
+      }
+      .caption {
+        color: var(--g-text);
+      }
+      .model-note {
+        margin: 0;
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+        text-wrap: pretty;
+      }
+      .nb {
+        white-space: nowrap;
+      }
+      /* ---- The CDNs & Edge stage. Colour says who answered a request: green the edge (its location's copy), amber
+         the shield, red the origin; blue is a request still travelling. Dashed is only ever "hidden until you
+         answer". */
+      .t-title {
+        font: 600 15px var(--g-font);
+        fill: var(--g-text);
+      }
+      .t-num {
+        font: 600 13px var(--g-font-mono);
+        fill: var(--g-text);
+      }
+      .t-monoS {
+        font: 700 12px var(--g-font-mono);
+        fill: var(--g-text);
+      }
+      .edge-ink {
+        fill: var(--g-found-ink);
+      }
+      .shield-ink {
+        fill: var(--g-warn-ink);
+      }
+      .origin-ink {
+        fill: var(--g-danger-ink);
+      }
+      .user {
+        fill: var(--g-stroke);
+      }
+      .anycast {
+        stroke: var(--g-line-strong);
+        stroke-width: 1;
+      }
+      .pop {
+        fill: var(--g-raised);
+        stroke: var(--g-stroke);
+        stroke-width: 1.25;
+      }
+      .pop.watched {
+        stroke: var(--g-text);
+        stroke-width: 2;
+      }
+      .fill-edge {
+        fill: var(--g-viz-final);
+      }
+      .fill-shield {
+        fill: var(--g-viz-considering);
+      }
+      .fill-origin {
+        fill: var(--g-viz-critical);
+      }
+      .fill-travel {
+        fill: var(--g-viz-current);
+        fill-opacity: 0.42;
+      }
+      .tier {
+        fill: var(--g-raised);
+        stroke: var(--g-stroke);
+        stroke-width: 1.25;
+      }
+      .hidden-box {
+        fill: none;
+        stroke: var(--g-stroke);
+        stroke-width: 1.25;
+        stroke-dasharray: 4 3;
+      }
+      .copy {
+        fill: var(--g-viz-final-soft);
+        stroke: var(--g-viz-final);
+        stroke-width: 1;
+      }
+      .copy.shield {
+        fill: var(--g-viz-considering-soft);
+        stroke: var(--g-viz-considering);
+      }
+      .tick-hit {
+        stroke: var(--g-viz-final);
+        stroke-width: 1.5;
+      }
+      .tick-req {
+        stroke: var(--g-stroke);
+        stroke-width: 1.5;
+      }
+      .tick-other {
+        stroke: var(--g-stroke);
+        stroke-width: 1;
+      }
+      .tick-miss {
+        stroke: var(--g-text);
+        stroke-width: 1.5;
+      }
+      .dot.ans-shield {
+        fill: var(--g-viz-considering);
+        stroke: var(--g-viz-stage);
+        stroke-width: 1;
+      }
+      .dot.ans-origin {
+        fill: var(--g-viz-critical);
+        stroke: var(--g-viz-stage);
+        stroke-width: 1;
+      }
+      .dot.key {
+        fill: var(--g-text);
+      }
+      .dense {
+        fill: url(#dense);
+      }
+      .dense-line {
+        stroke: var(--g-viz-final);
+        stroke-width: 1;
+      }
+      .dense-other {
+        fill: url(#dense-other);
+      }
+      .dense-other-line {
+        stroke: var(--g-stroke);
+        stroke-width: 1;
+      }
+      .track {
+        stroke: var(--g-line-strong);
+      }
+      .axis {
+        stroke: var(--g-line-strong);
+      }
+      .gridline {
+        stroke: var(--g-line);
+      }
+      .tickmark {
+        stroke: var(--g-line-strong);
+      }
+      .playhead {
+        stroke: var(--g-text);
+        stroke-width: 1.5;
+      }
+      .band-edge {
+        fill: var(--g-viz-final);
+      }
+      .band-shield {
+        fill: var(--g-viz-considering);
+      }
+      .band-origin {
+        fill: var(--g-viz-critical);
+      }
+      .knee {
+        fill: var(--g-viz-stage);
+        stroke: var(--g-text);
+        stroke-width: 1.5;
+      }
+      .knee-line {
+        stroke: var(--g-text);
+        stroke-width: 1;
+      }
+      .bracket {
+        fill: none;
+        stroke: var(--g-stroke);
+        stroke-width: 1.25;
+      }
+      .lane-mark {
+        fill: var(--g-text);
+      }
+      .swatch-edge {
+        fill: var(--g-viz-final);
+      }
+      .swatch-shield {
+        fill: var(--g-viz-considering);
+      }
+      .swatch-origin {
+        fill: var(--g-viz-critical);
+      }
+      .rule {
+        stroke: var(--g-line);
+      }
+      .switch {
+        position: absolute;
+        z-index: 2;
+        display: block;
+      }
+      .switch input {
+        position: absolute;
+        inset: 0;
+        margin: 0;
+        opacity: 0;
+        cursor: pointer;
+      }
+      .switch span {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 100%;
+        padding: 0 10px;
+        border-radius: var(--g-radius-sm);
+        border: 1px solid var(--g-line-strong);
+        background: var(--g-raised);
+        box-shadow: var(--g-shadow-raised);
+        font: 500 var(--g-text-body-s) / 1.2 var(--g-font);
+        color: var(--g-text);
+        white-space: nowrap;
+      }
+      .switch .knob {
+        flex: none;
+        position: relative;
+        width: 30px;
+        height: 18px;
+        border-radius: 9px;
+        background: var(--g-viz-track);
+        border: 1px solid var(--g-stroke);
+      }
+      .switch .knob::after {
+        content: '';
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--g-raised);
+        border: 1px solid var(--g-stroke);
+      }
+      .switch input:checked + span .knob {
+        background: var(--g-accent);
+        border-color: var(--g-accent);
+      }
+      .switch input:checked + span .knob::after {
+        left: 14px;
+      }
+      .switch input:disabled + span {
+        opacity: 0.55;
+      }
+      .switch input:focus-visible + span,
+      .segment input:focus-visible + span,
+      .play:focus-visible {
+        outline: var(--g-focus-ring);
+        outline-offset: 2px;
+      }
+      .guess-note {
+        flex: none;
+        font-size: var(--g-text-body-s);
+        color: var(--g-muted);
+      }
+      .knee-key {
+        stroke-width: 1.25;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <p class="eyebrow">System design · CDNs &amp; Edge</p>
+      <h1>Try it</h1>
+      <section class="panel widget" id="widget"></section>
+    </main>
+    <script src="model.js"></script>
+    <script>
+'use strict';
+const M = window.CdnModel;
+const F = M.fmt;
+const params = new URLSearchParams(location.search);
+document.documentElement.classList.toggle('dark', params.get('theme') === 'dark');
+
+// ---------- Text measurement, with the fonts the app ships (stage-text.ts's one module: no tabular digits, stage text
+// is measured as drawn; the label role is set in capitals with its tracking).
+const ROLE = {
+  label: { css: '600 11px "Inter Variable"', size: 11, track: 0.12, upper: true },
+  title: { css: '600 15px "Inter Variable"', size: 15 },
+  cap: { css: '500 13px "Inter Variable"', size: 13 },
+  capB: { css: '600 13px "Inter Variable"', size: 13 },
+  small: { css: '500 11px "Inter Variable"', size: 11 },
+  smallB: { css: '700 11px "Inter Variable"', size: 11 },
+  mono: { css: '600 11px "JetBrains Mono Variable"', size: 11 },
+  monoS: { css: '700 12px "JetBrains Mono Variable"', size: 12 },
+  num: { css: '600 13px "JetBrains Mono Variable"', size: 13 },
+  look: { css: '600 11px "Inter Variable"', size: 11 },
+};
+const LH = { cap: 17, capB: 17, small: 14, smallB: 14, title: 20, label: 14, mono: 14, monoS: 15, num: 17 };
+const ctx = document.createElement('canvas').getContext('2d');
+const widthCache = new Map();
+function tw(text, role) {
+  const key = role + '|' + text;
+  if (widthCache.has(key)) return widthCache.get(key);
+  const f = ROLE[role];
+  ctx.font = f.css;
+  const s = f.upper ? text.toUpperCase() : text;
+  const w = Math.ceil(ctx.measureText(s).width + (f.track ? f.track * f.size * s.length : 0)) + 1;
+  widthCache.set(key, w);
+  return w;
+}
+// A number never parts from its unit, nor a percentile from its value: they wrap as one word (stage-text.ts's keep
+// rule, the same one g-code-text applies to HTML).
+const KEEP = /(\d[\d,.]*\+?%?|\?%?) (ms|s|min|h|minutes?|seconds?|hours?|locations?|requests|URLs|times|a second|a minute|of requests)\b/g;
+const glue = (t) =>
+  t
+    .replace(KEEP, '$1⁠$2')
+    .replace(/(about|of|at|under|in|was|the) (\d|\?)/g, '$1⁠$2')
+    .replace(/(\d[\d,.]*%?) (×) (\d)/g, '$1⁠$2⁠$3');
+const unglue = (t) => t.replace(/⁠/g, ' ');
+/** Lines of `text` in `role` within `width`, with the measurement's 1 px slack and the keep rule. */
+function wrap(text, role, width) {
+  const lines = [];
+  let line = '';
+  for (const w of glue(text).split(' ')) {
+    const next = line ? line + ' ' + w : w;
+    if (tw(unglue(next), role) <= width || !line) line = next;
+    else {
+      lines.push(line);
+      line = w;
+    }
+  }
+  if (line) lines.push(line);
+  if (lines.length > 1 && !lines.at(-1).includes(' ') && !lines.at(-1).includes('⁠')) {
+    const prev = lines.at(-2).split(' ');
+    const moved = prev.length > 1 ? prev.at(-1) + ' ' + lines.at(-1) : null;
+    if (moved && tw(unglue(moved), role) <= width) {
+      lines[lines.length - 2] = prev.slice(0, -1).join(' ');
+      lines[lines.length - 1] = moved;
+    }
+  }
+  return lines.map(unglue);
+}
+const pick = (forms, fits) => forms.find(fits) ?? forms[forms.length - 1];
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const r1 = (v) => Math.round(v * 10) / 10;
+// HTML learner text keeps a number with its unit on one line (g-code-text's rule), without a non-breaking space.
+const KEEP_HTML = /((?:about |under |at most |was )?\d[\d,.]*\+?%?(?: (?:ms|s|min|h|minutes?|seconds?|hours?|locations?|requests|URLs|times|a second|a minute))?|\?\/s|\? ms)/g;
+const nb = (s) =>
+  esc(s)
+    .split(KEEP_HTML)
+    .map((p, i) => (i % 2 ? `<span class="nb">${p}</span>` : p))
+    .join('');
+
+// ---------- The drawing: SVG parts in layers, and the boxes the checks measure against.
+class Draw {
+  constructor(W) {
+    this.W = W;
+    this.layers = { back: [], grid: [], links: [], marks: [], dots: [], text: [], top: [] };
+    this.texts = [];
+    this.marks = [];
+    this.hits = [];
+    this.regions = {};
+    this.missing = [];
+    this.meta = {};
+  }
+  add(layer, s) {
+    this.layers[layer].push(s);
+  }
+  text(x, y, parts, o = {}) {
+    if (typeof parts === 'string') parts = [[parts, o.role ?? 'small', o.cls ?? 'muted']];
+    const anchor = o.anchor ?? 'start';
+    const w = parts.reduce((s, [t, role]) => s + tw(t, role), 0);
+    const role = parts.reduce((a, p) => (ROLE[p[1]].size > ROLE[a].size ? p[1] : a), parts[0][1]);
+    const fs = ROLE[role].size;
+    const x0 = anchor === 'middle' ? x - w / 2 : anchor === 'end' ? x - w : x;
+    const box = { x0, x1: x0 + w, y0: y - 0.74 * fs, y1: y + 0.22 * fs, owner: o.owner ?? '', s: parts.map((p) => p[0]).join('') };
+    this.texts.push(box);
+    const spans = parts.map(([t, r, cls = '']) => `<tspan class="t-${r} ${cls}">${esc(r === 'label' ? t.toUpperCase() : t)}</tspan>`).join('');
+    const attrs = `x="${r1(x)}" y="${r1(y)}" text-anchor="${anchor}"${o.owner ? ` data-owner="${o.owner}"` : ''}${o.id ? ` data-id="${o.id}"` : ''}${o.xtick ? ' data-xtick="1"' : ''}${o.data ?? ''}`;
+    this.add(o.layer ?? 'text', `<text ${attrs}>${spans}</text>`);
+    return box;
+  }
+  /** Wrapped muted lines from y (a baseline); returns the baseline after the last line. */
+  para(x, y, text, width, o = {}) {
+    const role = o.role ?? 'cap';
+    const lines = wrap(text, role, width);
+    for (const l of lines) {
+      this.text(x, y, [[l, role, o.cls ?? 'muted']], o);
+      y += LH[role];
+    }
+    return y;
+  }
+  mark(box, owner = '') {
+    this.marks.push({ ...box, owner });
+  }
+  region(id, box) {
+    (this.regions[id] ??= []).push(box);
+  }
+  svg(H, label) {
+    const L = this.layers;
+    return `<svg class="draw" width="${this.W}" height="${H}" viewBox="0 0 ${this.W} ${H}" role="img" aria-label="${esc(label)}">
+<defs>
+<pattern id="dense" width="3" height="10" patternUnits="userSpaceOnUse"><line class="dense-line" x1="1" y1="0" x2="1" y2="10"/></pattern>
+<pattern id="dense-other" width="4" height="10" patternUnits="userSpaceOnUse"><line class="dense-other-line" x1="1" y1="0" x2="1" y2="10"/></pattern>
+</defs>
+<g>${L.back.join('')}</g><g>${L.grid.join('')}</g><g>${L.links.join('')}</g><g>${L.marks.join('')}</g><g>${L.dots.join('')}</g><g>${L.text.join('')}</g><g>${L.top.join('')}</g></svg>`;
+  }
+}
+/** Axis labels: the first and last always; a middle one only where it keeps 6 px from its kept neighbours. */
+function placeTicks(D, ticks, y, owner) {
+  const box = (t) => {
+    const w = tw(t.text, 'small');
+    const x0 = t.anchor === 'middle' ? t.x - w / 2 : t.anchor === 'end' ? t.x - w : t.x;
+    return { x0, x1: x0 + w };
+  };
+  const kept = [ticks[0], ticks.at(-1)];
+  for (const t of ticks.slice(1, -1)) {
+    const b = box(t);
+    if (kept.every((k) => { const c = box(k); return b.x1 + 6 <= c.x0 || c.x1 + 6 <= b.x0; })) kept.push(t);
+  }
+  for (const t of kept) D.text(t.x, y, [[t.text, 'small', 'muted']], { anchor: t.anchor, xtick: true, owner });
+}
+function dot(D, cx, cy, r, cls, owner, id) {
+  D.add('dots', `<circle class="dot ${cls}" cx="${r1(cx)}" cy="${r1(cy)}" r="${r}" data-owner="${owner}"${id ? ` data-id="${id}"` : ''}/>`);
+}
+const rect = (cls, x, y, w, h, rx = 0, extra = '') => `<rect class="${cls}" x="${r1(x)}" y="${r1(y)}" width="${r1(Math.max(0, w))}" height="${r1(Math.max(0, h))}"${rx ? ` rx="${rx}"` : ''}${extra}/>`;
+const line = (cls, x1, y1, x2, y2, extra = '') => `<line class="${cls}" x1="${r1(x1)}" y1="${r1(y1)}" x2="${r1(x2)}" y2="${r1(y2)}"${extra}/>`;
+
+// ---------- What an open question hides, on every surface: one map (prevention 1). Each region is named in the
+// question's own `hide` list. `curve` (E1) hides which objects hit: while the question asks, the square's bands and
+// half-hit ranks, the lanes' hit shares and the outcome of every sampled request (ticks drawn as plain arrivals, no
+// copies); while its answer plays the marks land as the play reaches them, and the numbers stay "?". `outcome` (E2 to
+// E5) hides, while the answer plays at the act's setting, where requests are answered: every share and rate below the
+// users, the streams and fills that would draw them, the square's bands, the half-hit ranks, the lanes' hit shares and
+// the mean response. No ghost shows while a question is open: a card's setup is a new start.
+function hiding(view) {
+  const h = new Set(view.hide ?? []);
+  const asking = view.phase === 'asking';
+  const playing = view.phase === 'playing';
+  const open = asking || playing;
+  const curve = h.has('curve') && open;
+  const outcome = h.has('outcome') && playing;
+  const map = {
+    open,
+    curveNumbers: curve || outcome,
+    curveBands: curve || outcome,
+    laneHits: curve || outcome,
+    laneMarks: h.has('curve') && asking,
+    tierNumbers: outcome,
+    tierFlows: outcome,
+    mean: outcome,
+    ghost: open,
+    note: open,
+  };
+  for (const k of view.leak ?? []) map[k] = false;
+  return map;
+}
+const NOTHING = hiding({ phase: 'free' });
+
+// ---------- Words. Every figure is a model value through model.js's formatting.
+const locs = (n) => `${n} ${n === 1 ? 'location' : 'locations'}`;
+const urls = (s) => (s.variants > 1 ? ` A tracking parameter gives each image ${s.variants} URLs, each cached on its own.` : '');
+const windowWords = (s) => {
+  const w = M.WINDOW_TTLS * s.ttl;
+  return { 25: '25 seconds', 300: '5 minutes', 1500: '25 minutes', 18000: '5 hours' }[w];
+};
+function titleOf(s) {
+  return `${F.group(s.rps)} requests a second through ${locs(s.pops)}`;
+}
+function subOf(s) {
+  return `100,000 images, popularity on a Zipf curve. Each location keeps a copy for ${F.ttlWords(s.ttl)} after a miss.${urls(s)}`;
+}
+function tierWords(sc, hid, ghost, cols = sc.s.pops) {
+  const s = sc.s;
+  const q = (v) => (hid.tierNumbers ? '?' : v);
+  const was = (now, then) => (ghost && !hid.ghost && then !== now ? ` (was ${then})` : '');
+  return {
+    users: { fig: F.rate(s.rps), head: 'requests', body: 'from users, each sent to its nearest location (anycast or DNS).' },
+    edge: {
+      fig: hid.tierNumbers ? '?/s' : F.rate(sc.edgeRps),
+      head: 'answered at the edge',
+      body: `${q(F.pct(sc.edgeShare))} of requests, in ${F.ms(sc.paths.edge)}. ${locs(s.pops)}, ${F.rate(sc.perPopRps)} each${cols < s.pops ? `, drawn as ${cols} columns of ${s.pops / cols}` : ''}; each keeps its own copies.`,
+    },
+    shield: s.shield
+      ? {
+          fig: hid.tierNumbers ? '?/s' : F.rate(sc.shieldRps),
+          head: 'answered by the shield',
+          body: `${q(F.pct(sc.shieldShare))} of requests, in ${F.ms(sc.paths.shield)}. It sees every location's misses.`,
+        }
+      : { fig: null, head: null, body: 'No shield: every miss goes on to the origin.' },
+    origin: {
+      fig: hid.tierNumbers ? '?/s' : F.rate(sc.originRps),
+      head: 'reach the origin',
+      body: `${q(F.pct(sc.originShare))} of ${F.rate(s.rps)}, in ${F.ms(sc.paths.origin)}.${hid.tierNumbers ? '' : was(F.rate(sc.originRps), ghost && F.rate(ghost.originRps)).replace(' (', ' (').replace(/^ \(was (.*)\)$/, ' It was $1.')}`,
+    },
+    mean: hid.mean
+      ? 'Mean response: shows after your answer.'
+      : `Mean response ${F.ms(sc.meanMs)} = ${[
+          [sc.edgeShare, sc.paths.edge],
+          [sc.shieldShare, sc.paths.shield],
+          [sc.originShare, sc.paths.origin],
+        ]
+          .filter(([sh], i) => i !== 1 || s.shield)
+          .map(([sh, p]) => `${F.pct(sh)} × ${F.ms(p)}`)
+          .join(' + ')}.${ghost && !hid.ghost && F.ms(ghost.meanMs) !== F.ms(sc.meanMs) ? ` It was ${F.ms(ghost.meanMs)}.` : ''}`,
+  };
+}
+function laneWords(sc, i, hid) {
+  const l = sc.lanes[i];
+  const s = sc.s;
+  const who = `#${F.group(l.rank)}${s.variants > 1 ? ', one of its URLs,' : ''}`;
+  const asked = `asked for ${F.often(l.perPop)} here`;
+  const hits = hid.laneHits ? 'edge hit ?%' : `edge hit ${F.pct(l.edge)}`;
+  const sh = s.shield ? (hid.laneHits ? ' · shield hit ?%' : ` · shield hit ${F.pct(l.shieldHit)}`) : '';
+  return { who, asked, hits: hits + sh };
+}
+function legendItems(sc, hid) {
+  const q = (v) => (hid.curveNumbers ? '?%' : v);
+  const items = [{ cls: 'edge', t: `${q(F.pct(sc.edgeShare))} at the edge` }];
+  if (sc.s.shield) items.push({ cls: 'shield', t: `${q(F.pct(sc.shieldShare))} by the shield` });
+  items.push({ cls: 'origin', t: `${q(F.pct(sc.originShare))} at the origin` });
+  return items;
+}
+function kneeWords(sc, hid) {
+  const k = (v) => (hid.curveNumbers ? '?' : v < 1 ? 'none' : v > M.OBJECTS ? 'beyond the 100,000th' : `the ${F.ord(v)}`);
+  const edge = `Half of its requests hit at the edge: ${k(sc.edgeKnee)}`;
+  const shield = sc.s.shield ? (sc.shieldKnee > 0 ? `Half of its edge misses hit the shield: ${k(sc.shieldKnee)}` : 'With 1 location the shield never hits: its copy expires with the edge’s.') : '';
+  return { edge, shield };
+}
+/** The stage's summary: obeys hiding(), and says which numbers are the model's and which marks are a sample. */
+function summary(sc, hid) {
+  const s = sc.s;
+  const t = tierWords(sc, hid, null);
+  const parts = [`A CDN with ${locs(s.pops)} serves ${F.group(s.rps)} requests a second for 100,000 images with Zipf popularity; each location keeps a copy for ${F.ttlWords(s.ttl)} after a miss${s.shield ? ', and an origin shield sits between the locations and the origin' : ''}.${urls(s)}`];
+  if (hid.tierNumbers) parts.push('Where the requests are answered shows after your answer.');
+  else {
+    parts.push(`By the model, ${F.pct(sc.edgeShare)} are answered at the edge in ${F.ms(sc.paths.edge)}${s.shield ? `, ${F.pct(sc.shieldShare)} by the shield in ${F.ms(sc.paths.shield)}` : ''}, and ${F.rate(sc.originRps)} reach the origin, in ${F.ms(sc.paths.origin)}: a mean response of ${F.ms(sc.meanMs)}.`);
+  }
+  if (hid.curveNumbers) parts.push('Which objects hit shows after your answer.');
+  else parts.push(`Popular objects hit and the long tail misses: an object hits half the time at the edge from ${kneeWords(sc, hid).edge.split(': ')[1]} down.`);
+  parts.push('The timeline is one random sample of the outlined location’s requests.');
+  return parts.join(' ');
+}
+function settingSentence(sc) {
+  const s = sc.s;
+  return `With ${locs(s.pops)}, a ${F.ttlAdj(s.ttl)} TTL${s.shield ? ' and the shield' : ' and no shield'}${s.variants > 1 ? `, ${s.variants} URLs an image` : ''}, ${F.pct(sc.edgeShare)} of ${F.group(s.rps)} requests a second hit at the edge, ${F.rate(sc.originRps)} reach the origin, and the mean response is ${F.ms(sc.meanMs)}.`;
+}
+function noteOf(view) {
+  if (hiding(view).note) return 'An analytic model with a random sample beside it. Its assumptions show after your answer.';
+  return `An analytic model: requests are independent Poisson arrivals, spread evenly over the locations; an object never changes during its TTL; caches have no size limit; a miss is fetched at once (request collapsing keeps it to one fetch). A copy asked for at rate r hits with probability rT ÷ (1 + rT). Users reach the nearest of n locations in 10 ms × √(20 ÷ n); the shield adds 30 ms and the origin 120 ms. The timeline is one random sample; the hit shares beside it are the model's.`;
+}
+
+// ---------- Play: one monotone clock over the timeline's window. Marks land when the clock reaches them.
+function events(sample, s) {
+  const ev = [];
+  sample.lanes.forEach((l, i) => {
+    for (const q of l.reqs) {
+      let where = 'edge';
+      if (!q.hit) {
+        if (l.shield) {
+          const a = l.shield.arrivals.find((x) => x.own && Math.abs(x.at - q.at) < 1e-9);
+          where = a?.hit ? 'shield' : 'origin';
+        } else where = 'origin';
+      }
+      ev.push({ lane: i, at: q.at, hit: q.hit, where, dense: l.dense });
+    }
+  });
+  return ev.sort((a, b) => a.at - b.at);
+}
+function stepWords(sc, sample, t, hid) {
+  const ev = events(sample, sc.s).filter((e) => !e.hit && e.at <= t);
+  const last = ev.at(-1);
+  const clock = F.clock(t);
+  if (!last || t - last.at > M.WINDOW_TTLS * sc.s.ttl * 0.08) return `${clock}: requests arrive at the outlined location; most find their copy there.`;
+  const rank = `#${F.group(sc.lanes[last.lane].rank)}`;
+  const where = { shield: `the shield had a copy, ${F.ms(sc.paths.shield)}`, origin: `fetched from the origin, ${F.ms(sc.paths.origin)}` }[last.where];
+  return `${clock}: ${rank} has no live copy here, a miss: ${hid.laneHits && false ? '' : where}; a new copy lives ${F.ttlWords(sc.s.ttl)}.`;
+}
+function story(sc, sample, hid) {
+  const ev = events(sample, sc.s);
+  const miss = ev.filter((e) => !e.hit);
+  const byLane = sc.lanes.map((l, i) => miss.filter((e) => e.lane === i).length);
+  const parts = [`In this sample of ${windowWords(sc.s)} at the outlined location, `];
+  parts.push(
+    sc.lanes
+      .map((l, i) => {
+        const n = byLane[i];
+        const total = ev.filter((e) => e.lane === i).length;
+        const name = `#${F.group(l.rank)}`;
+        if (sample.lanes[i].dense) return `${name} missed ${n === 1 ? 'once' : `${n} times`}, once each time its copy expired, and every other request hit`;
+        if (!total) return `${name} was not asked for at all`;
+        return `${name} was asked for ${total === 1 ? 'once' : `${total} times`} and missed ${n === 1 ? 'once' : n === 0 ? 'never' : `${n} times`}`;
+      })
+      .join('; '),
+  );
+  parts.push('. A miss starts a copy that lives for the TTL.');
+  if (sc.s.shield) parts.push(` Of its ${miss.length} ${miss.length === 1 ? 'miss' : 'misses'}, ${miss.filter((e) => e.where === 'shield').length} found a copy at the shield.`);
+  parts.push(hid.laneHits ? ' The model’s hit shares show after your answer.' : ' The hit shares beside each object are the model’s.');
+  return parts.join('');
+}
+
+// ---------- Layout. Heights depend only on the stage's width: every text block reserves the lines its longest form
+// needs at this width over all 192 settings and every hidden form.
+const reserveCache = new Map();
+function geometry(W) {
+  const pad = W < 360 ? 12 : 16;
+  const x0 = pad;
+  const x1 = W - pad;
+  const iw = x1 - x0;
+  const wide = iw >= 480;
+  const labelW = wide ? 232 : Math.max(108, Math.round(iw * 0.47));
+  const artW = iw - labelW - (wide ? 20 : 10);
+  return { pad, x0, x1, iw, wide, labelW, artW, labelX: x1 - labelW };
+}
+/** Columns drawn for `pops` locations: the most that divide them evenly, up to 20, each at least 15 px. */
+function colsFor(g, pops) {
+  const maxCols = Math.max(1, Math.floor(g.artW / 15));
+  return [100, 50, 25, 20, 10, 5, 4, 2, 1].find((d) => pops % d === 0 && d <= Math.min(20, maxCols)) ?? 1;
+}
+function linesOf(text, role, width) {
+  return wrap(text, role, width).length;
+}
+function reserve(W) {
+  if (reserveCache.has(W)) return reserveCache.get(W);
+  const g = geometry(W);
+  const r = { title: 1, sub: 1, users: 1, edge: 1, shield: 1, origin: 1, mean: 1, lane: [1, 1, 1], step: 1, legend: 1, knee: 1, kneeS: 1, cap: 1 };
+  const hids = [NOTHING, { ...NOTHING, tierNumbers: true, mean: true, curveNumbers: true, laneHits: true }];
+  for (const s of M.SETTINGS) {
+    const sc = M.scenario(s);
+    r.title = Math.max(r.title, linesOf(titleOf(s), 'title', g.iw));
+    r.sub = Math.max(r.sub, linesOf(subOf(s), 'cap', g.iw));
+    for (const hid of hids) {
+      const t = tierWords(sc, hid, M.scenario({ ...s, pops: s.pops === 20 ? 100 : 20 }), colsFor(g, s.pops));
+      for (const k of ['users', 'edge', 'shield', 'origin']) r[k] = Math.max(r[k], tierLines(t[k], g.labelW));
+      r.mean = Math.max(r.mean, linesOf(t.mean, 'cap', g.iw));
+      for (let i = 0; i < 3; i++) r.lane[i] = Math.max(r.lane[i], laneLines(laneWords(sc, i, hid), g.iw));
+      r.legend = Math.max(r.legend, legendRows(legendItems(sc, hid), g.iw).length);
+      const kw = kneeWords(sc, hid);
+      r.knee = Math.max(r.knee, linesOf(kw.edge, 'small', g.iw - 14));
+      r.kneeS = Math.max(r.kneeS, kw.shield ? linesOf(kw.shield, 'small', g.iw - 14) : 1);
+    }
+  }
+  for (const s of M.SETTINGS.filter((x) => x.rps === 10000)) {
+    const sc = M.scenario(s);
+    const sm = M.sample(sc);
+    for (const frac of [0.05, 0.3, 0.55, 0.8, 1]) r.step = Math.max(r.step, linesOf(stepWords(sc, sm, frac * M.WINDOW_TTLS * s.ttl, NOTHING), 'cap', g.iw));
+  }
+  r.step = Math.max(r.step, linesOf(restStep(M.scenario(M.BASE)), 'cap', g.iw), linesOf('Played below the picture: motion is reduced.', 'cap', g.iw));
+  r.cap = linesOf(CAPTION, 'small', g.iw);
+  reserveCache.set(W, r);
+  return r;
+}
+const CAPTION = 'One random sample. A bar is a copy, alive for the TTL after the miss that fetched it. A short tick is a hit; a tall tick is a miss, its dot amber if the shield answered and red if the origin did.';
+const restStep = (sc) => `Play runs these ${windowWords(sc.s)} at the outlined location.`;
+function tierLines(t, width) {
+  let n = 0;
+  if (t.fig) n += wrap(`${t.fig} ${t.head}`, 'capB', width - Math.max(0, tw(t.fig, 'num') - tw(t.fig, 'capB'))).length;
+  n += wrap(t.body, 'cap', width).length;
+  return n;
+}
+function laneLines(w, width) {
+  const one = `${w.who} ${w.asked} · ${w.hits}`;
+  if (tw(one, 'cap') <= width) return 1;
+  return wrap(`${w.who} ${w.asked}`, 'cap', width).length + wrap(w.hits, 'small', width).length;
+}
+function legendRows(items, width) {
+  const rows = [[]];
+  let x = 0;
+  for (const it of items) {
+    const w = 14 + tw(it.t, 'cap');
+    if (x > 0 && x + w > width) {
+      rows.push([]);
+      x = 0;
+    }
+    rows.at(-1).push({ ...it, dx: x });
+    x += w + 16;
+  }
+  return rows;
+}
+
+// The users row, the locations (drawn as columns when there are more than fit), the shield and the origin. Widths are
+// shares of all requests: a column's box is its share, its green part the hits, what leaves its foot the misses.
+function tiers(D, y, sc, view, hid) {
+  const g = geometry(D.W);
+  const r = reserve(D.W);
+  const s = sc.s;
+  const top = y;
+  D.text(g.x0, y + 11, [[pick(['Where the requests go · the model', 'Where requests go · model', 'The model'], (f) => tw(f, 'label') <= g.iw), 'label', 'muted']], { owner: 'tiers' });
+  y += 26;
+  const artX0 = g.x0;
+  const artX1 = g.x0 + g.artW;
+  const cx = (artX0 + artX1) / 2;
+  const cols = colsFor(g, s.pops);
+  const slot = g.artW / cols;
+  const band = Math.min(g.artW * 0.72, 150, (slot - 5) * cols);
+  const bw = band / cols;
+  const t = tierWords(sc, hid, view.ghost, cols);
+  const lab = (row, yy) => {
+    let b = yy + 12;
+    if (row.fig) {
+      const head = wrap(`${row.fig} ${row.head}`, 'capB', g.labelW - Math.max(0, tw(row.fig, 'num') - tw(row.fig, 'capB')));
+      head.forEach((l, i) => {
+        if (i === 0 && l.startsWith(row.fig)) D.text(g.labelX, b, [[row.fig, 'num', row.cls], [l.slice(row.fig.length), 'capB', '']], { owner: row.owner, id: `fig-${row.owner}` });
+        else D.text(g.labelX, b, [[l, 'capB', '']], { owner: row.owner });
+        b += LH.capB;
+      });
+    }
+    return D.para(g.labelX, b, row.body, g.labelW, { owner: row.owner, id: `body-${row.owner}` });
+  };
+  // Users.
+  const usersH = Math.max(16, r.users * 17);
+  const nUsers = Math.max(2, Math.floor(g.artW / 9));
+  const uy = y + 7;
+  for (let i = 0; i < nUsers; i++) dot(D, artX0 + 4 + ((g.artW - 8) * i) / (nUsers - 1), uy, 2.5, 'user', 'users');
+  lab({ ...t.users, owner: 'users', cls: '' }, y);
+  y += usersH + 22;
+  // Edge locations.
+  const ey = y;
+  const boxH = 18;
+  const colX = (j) => artX0 + slot * (j + 0.5);
+  for (let i = 0; i < nUsers; i++) {
+    const ux = artX0 + 4 + ((g.artW - 8) * i) / (nUsers - 1);
+    const j = Math.min(cols - 1, Math.max(0, Math.floor((ux - artX0) / slot)));
+    D.add('links', line('anycast', ux, uy + 3, colX(j), ey - 1));
+  }
+  const h = sc.edgeShare;
+  for (let j = 0; j < cols; j++) {
+    const x = colX(j) - bw / 2;
+    D.add('marks', rect(`pop${j === 0 ? ' watched' : ''}`, x - 2, ey, bw + 4, boxH, 2, ` data-id="pop-${j}"`));
+    if (!hid.tierFlows) {
+      D.add('marks', rect('fill-edge', x, ey + 2, bw * h, boxH - 4, 0, ' data-band="edge"'));
+      D.add('marks', rect('fill-travel', x + bw * h, ey + 2, bw * (1 - h), boxH - 4));
+    }
+  }
+  D.region('pop0', { x0: colX(0) - bw / 2 - 2, x1: colX(0) + bw / 2 + 2, y0: ey, y1: ey + boxH });
+  const edgeTextEnd = lab({ ...t.edge, owner: 'edge', cls: 'edge-ink' }, ey - 2);
+  D.meta.cols = cols;
+  D.meta.band = band;
+  const edgeH = Math.max(boxH, r.edge * 17 + 2);
+  y = ey + edgeH + 8;
+  // Fan-in to the shield row, then the origin.
+  const shieldRowH = Math.max(44 + 6 + r.shield * 17, 64);
+  const sy = y + 34; // the shield box's top
+  const shieldBox = { y: sy, h: 20 };
+  const oy = y + shieldRowH + 26; // the origin box's top
+  const originH = 24;
+  const missW = band * (1 - h);
+  const originW = band * sc.originShare;
+  const shieldW = band * sc.shieldShare;
+  const bx0 = cx - missW / 2; // the merged band's left edge at the shield
+  if (!hid.tierFlows) {
+    for (let j = 0; j < cols; j++) {
+      const sx0 = colX(j) - bw / 2 + bw * h;
+      const sx1 = colX(j) + bw / 2;
+      const tx0 = bx0 + j * (bw * (1 - h));
+      const tx1 = tx0 + bw * (1 - h);
+      const ya = ey + boxH;
+      const yb = s.shield ? sy : sy + shieldBox.h / 2;
+      const m = (ya + yb) / 2;
+      D.add('links', `<path class="fill-travel" d="M${r1(sx0)},${r1(ya)} C${r1(sx0)},${r1(m)} ${r1(tx0)},${r1(m)} ${r1(tx0)},${r1(yb)} L${r1(tx1)},${r1(yb)} C${r1(tx1)},${r1(m)} ${r1(sx1)},${r1(m)} ${r1(sx1)},${r1(ya)} Z" data-stream="${j}"/>`);
+    }
+    if (s.shield) {
+      const w = Math.max(missW + 4, 28);
+      D.add('marks', rect('tier', cx - w / 2, sy, w, shieldBox.h, 3, ' data-id="shield-box"'));
+      D.add('marks', rect('fill-shield', bx0, sy + 2, shieldW, shieldBox.h - 4, 0, ' data-band="shield"'));
+      D.add('marks', rect('fill-travel', bx0 + shieldW, sy + 2, originW, shieldBox.h - 4));
+      D.add('links', rect('fill-travel', bx0 + shieldW, sy + shieldBox.h, originW, oy - sy - shieldBox.h));
+    } else {
+      D.add('links', rect('fill-travel', bx0, sy + shieldBox.h / 2, missW, oy - sy - shieldBox.h / 2));
+    }
+    const ow = Math.max(originW + 4, 40);
+    const ox0 = s.shield ? bx0 + shieldW : bx0;
+    D.add('marks', rect('tier', cx - ow / 2, oy, ow, originH, 3, ' data-id="origin-box"'));
+    D.add('marks', rect('fill-origin', ox0, oy + 2, originW, originH - 4, 0, ' data-band="origin"'));
+    D.meta.flows = { missW, shieldW, originW };
+  } else {
+    // Hidden until the reveal: the shield and the origin as plain outlines, the flows between a dashed box.
+    D.add('marks', rect('hidden-box', artX0 + 2, ey + boxH + 6, g.artW - 4, oy + originH - (ey + boxH + 6), 4, ' data-id="flows-hidden"'));
+    D.text(cx, (ey + boxH + sy) / 2 + 4, [[pick(['shows after your answer', 'after your answer', 'after answering'], (f) => tw(f, 'small') <= g.artW - 16), 'small', 'muted']], { anchor: 'middle', owner: 'flows' });
+    if (s.shield) D.add('marks', rect('tier', cx - 14, sy, 28, shieldBox.h, 3, ' data-id="shield-box"'));
+    D.add('marks', rect('tier', cx - 20, oy, 40, originH, 3, ' data-id="origin-box"'));
+  }
+  D.region('shield', { x0: cx - 14, x1: cx + 14, y0: sy, y1: sy + shieldBox.h });
+  D.region('origin', { x0: cx - 20, x1: cx + 20, y0: oy, y1: oy + originH });
+  // The shield's switch sits in the label column on the shield row; its words follow under it.
+  D.hits.push({ kind: 'shield', x: g.labelX, y: y + 2, w: Math.min(g.labelW, 168), h: 44 });
+  lab({ ...t.shield, owner: 'shield', cls: 'shield-ink' }, y + 2 + 44 + 4);
+  lab({ ...t.origin, owner: 'origin', cls: 'origin-ink' }, oy - 2);
+  const originRowH = Math.max(originH, r.origin * 17 + 2);
+  y = oy + originRowH + 10;
+  D.para(g.x0, y + 12, t.mean, g.iw, { owner: 'mean', cls: '', id: 'mean' });
+  y += r.mean * 17 + 6;
+  D.meta.tierRows = { ey, sy, oy, colX: colX(0), bw, h, cx, bx0 };
+  D.region('tiers', { x0: g.x0 - 8, x1: g.x1 + 8, y0: top - 6, y1: y });
+  return y + 26;
+}
+
+// The outlined location over five TTLs: three objects' requests, their copies, and with a shield what the shield held.
+function timeline(D, y, sc, view, hid, sample) {
+  const g = geometry(D.W);
+  const r = reserve(D.W);
+  const s = sc.s;
+  const top = y;
+  const W = M.WINDOW_TTLS * s.ttl;
+  const label = pick([`The outlined location, ${windowWords(s)} · one sample`, `Outlined location, ${windowWords(s)} · sample`, `${windowWords(s)} · a sample`], (f) => tw(f, 'label') <= g.iw - 56);
+  D.text(g.x0, y + 26, [[label, 'label', 'muted']], { owner: 'timeline' });
+  D.hits.push({ kind: 'play', x: g.x1 - 44, y, w: 44, h: 44 });
+  y += 48;
+  const frac = view.frac ?? (view.reduced && view.played ? 1 : null);
+  const tNow = frac == null ? null : frac * W;
+  const playing = tNow != null && frac < 1 && !view.reduced;
+  const step = view.reduced && view.played ? 'Played below the picture: motion is reduced.' : playing ? stepWords(sc, sample, tNow, hid) : restStep(sc);
+  D.para(g.x0, y + 12, step, g.iw, { owner: 'step', cls: playing ? '' : 'muted', id: 'step' });
+  y += r.step * 17 + 6;
+  const xOf = (t) => g.x0 + (g.iw * Math.max(0, Math.min(W, t))) / W;
+  const show = (t) => tNow == null || t <= tNow;
+  const ev = events(sample, s);
+  const laneTop = [];
+  for (let i = 0; i < 3; i++) {
+    const w = laneWords(sc, i, hid);
+    const one = `${w.who} ${w.asked} · ${w.hits}`;
+    let b = y + 12;
+    if (tw(one, 'cap') <= g.iw) {
+      D.text(g.x0, b, [[w.who, 'capB', ''], [` ${w.asked} · `, 'cap', 'muted'], [w.hits, 'capB', hid.laneHits ? 'muted' : '']], { owner: `lane-${i}`, id: `lane-words-${i}` });
+      b += 17;
+    } else {
+      const a = wrap(`${w.who} ${w.asked}`, 'cap', g.iw);
+      a.forEach((l, k) => {
+        if (k === 0) D.text(g.x0, b, [[w.who, 'capB', ''], [l.slice(w.who.length), 'cap', 'muted']], { owner: `lane-${i}` });
+        else D.text(g.x0, b, [[l, 'cap', 'muted']], { owner: `lane-${i}` });
+        b += 17;
+      });
+      wrap(w.hits, 'smallB', g.iw).forEach((l) => {
+        D.text(g.x0, b - 2, [[l, 'smallB', hid.laneHits ? 'muted' : '']], { owner: `lane-${i}`, id: `lane-hits-${i}` });
+        b += 14;
+      });
+    }
+    const lanesUsed = Math.max(1, (b - (y + 12)) / 17);
+    y += r.lane[i] * 17 + 2;
+    const ty = y; // the edge track's top
+    laneTop.push(ty);
+    const L = sample.lanes[i];
+    D.add('grid', line('track', g.x0, ty + 13, g.x1, ty + 13));
+    if (!hid.laneMarks) {
+      for (const c of L.copies) {
+        if (!show(Math.max(0, c.from))) continue;
+        const to = tNow == null ? c.to : Math.min(c.to, tNow);
+        const x0 = xOf(c.from);
+        const x1 = xOf(to);
+        if (x1 - x0 < 0.5) continue;
+        D.add('marks', rect('copy', x0, ty + 3, x1 - x0, 10, 1.5, ` data-copy="${i}"`));
+        if (L.dense) D.add('marks', rect('dense', x0 + 1, ty + 4, Math.max(0, x1 - x0 - 2), 8, 0, ` data-dense="${i}"`));
+      }
+    }
+    for (const e of ev.filter((q) => q.lane === i)) {
+      if (!show(e.at)) continue;
+      const x = xOf(e.at);
+      if (hid.laneMarks) {
+        D.add('marks', line('tick-req', x, ty + 4, x, ty + 13));
+        continue;
+      }
+      if (e.hit) D.add('marks', line('tick-hit', x, ty + 4, x, ty + 13, ` data-req="${i}"`));
+      else {
+        D.add('marks', line('tick-miss', x, ty + 1, x, ty + 13, ` data-req="${i}"`));
+        dot(D, x, ty + 1, 2.5, `ans-${e.where}`, `lane-${i}`, `miss-${i}-${e.at.toFixed(3)}`);
+      }
+    }
+    if (s.shield) {
+      const sy = ty + 18;
+      D.add('grid', line('track', g.x0, sy + 6, g.x1, sy + 6));
+      if (!hid.laneMarks && L.shield) {
+        for (const c of L.shield.copies) {
+          if (!show(Math.max(0, c.from))) continue;
+          const to = tNow == null ? c.to : Math.min(c.to, tNow);
+          if (xOf(to) - xOf(c.from) < 0.5) continue;
+          D.add('marks', rect('copy shield', xOf(c.from), sy + 1, xOf(to) - xOf(c.from), 5, 1, ` data-scopy="${i}"`));
+        }
+        if (L.shield.dense) {
+          const to = tNow == null ? W : tNow;
+          D.add('marks', rect('dense-other', g.x0, sy + 6, xOf(to) - g.x0, 4));
+        } else for (const a of L.shield.arrivals) if (!a.own && show(a.at)) D.add('marks', line('tick-other', xOf(a.at), sy + 6, xOf(a.at), sy + 10));
+      }
+      if (i === 0) D.text(g.x1, sy - 2 + 30, [['', 'small', 'muted']]);
+    }
+    y = ty + 38;
+    void lanesUsed;
+  }
+  // The axis: TTL marks across the window.
+  D.add('grid', line('axis', g.x0, y, g.x1, y));
+  const tt = [];
+  for (let k = 0; k <= M.WINDOW_TTLS; k++) {
+    const x = xOf(k * s.ttl);
+    D.add('grid', line('tickmark', x, y, x, y + 4));
+    tt.push({ x, text: F.clock(k * s.ttl), anchor: k === 0 ? 'start' : k === M.WINDOW_TTLS ? 'end' : 'middle' });
+  }
+  placeTicks(D, tt, y + 16, 'taxis');
+  if (tNow != null && frac < 1) {
+    const x = xOf(tNow);
+    for (const ty of laneTop) D.add('top', line('playhead', x, ty - 2, x, ty + (s.shield ? 30 : 16)));
+    D.add('top', line('playhead', x, y - 4, x, y + 2));
+  }
+  y += 24;
+  D.para(g.x0, y + 10, CAPTION, g.iw, { role: 'small', owner: 'caption' });
+  y += r.cap * 14 + 4;
+  D.region('timeline', { x0: g.x0 - 8, x1: g.x1 + 8, y0: top - 6, y1: y });
+  return y + 26;
+}
+
+// The square: every request, objects ordered by popularity, each as wide as its share of requests; the height of a
+// column is where its requests are answered. Each band's area is its share, exactly (model.js's columns()).
+function square(D, y, sc, view, hid) {
+  const g = geometry(D.W);
+  const r = reserve(D.W);
+  const s = sc.s;
+  const top = y;
+  D.text(g.x0, y + 11, [[pick(['Every request, most popular objects first · the model', 'Every request, popular first · model', 'Every request · model'], (f) => tw(f, 'label') <= g.iw), 'label', 'muted']], { owner: 'square' });
+  y += 22;
+  const rows = legendRows(legendItems(sc, hid), g.iw);
+  rows.forEach((row, k) => {
+    for (const it of row) {
+      D.add('marks', rect(`swatch-${it.cls}`, g.x0 + it.dx, y + k * 18 + 3, 10, 10, 2));
+      D.text(g.x0 + it.dx + 14, y + k * 18 + 12, [[it.t, 'cap', '']], { owner: 'legend', id: `legend-${it.cls}` });
+    }
+  });
+  y += r.legend * 18 + 4;
+  const yAxisW = 32;
+  const px0 = g.x0 + yAxisW;
+  const px1 = g.x1;
+  const pw = px1 - px0;
+  const X = (share) => px0 + pw * share;
+  // The tail bracket and the lanes' objects, above the plot.
+  const tailX0 = X(M.cumShare(10000));
+  const tailText = `the 90,000 least popular: ${F.pct(1 - M.cumShare(10000))} of requests`;
+  const tailForms = [tailText, `90,000 least popular: ${F.pct(1 - M.cumShare(10000))}`, `the tail: ${F.pct(1 - M.cumShare(10000))}`];
+  const tailT = pick(tailForms, (f) => tw(f, 'small') <= g.iw - 4);
+  D.text(px1, y + 9, [[tailT, 'small', 'muted']], { anchor: 'end', owner: 'tail' });
+  D.add('grid', `<path class="bracket" d="M${r1(tailX0)},${r1(y + 18)} V${r1(y + 14)} H${r1(px1)} V${r1(y + 18)}"/>`);
+  y += 22;
+  // Lane markers: three small labels with ticks, nudged apart to keep 6 px.
+  const marks = sc.lanes.map((l) => ({ rank: l.rank, x: X((M.cumShare(l.rank - 1) + M.cumShare(l.rank)) / 2), t: `#${F.group(l.rank)}` }));
+  let prevEnd = -Infinity;
+  const placed = marks.map((m) => {
+    const w = tw(m.t, 'mono');
+    let x0 = Math.max(px0 - yAxisW + 2, m.x - w / 2);
+    x0 = Math.max(x0, prevEnd + 6);
+    x0 = Math.min(x0, px1 - w);
+    prevEnd = x0 + w;
+    return { ...m, x0, w };
+  });
+  for (let i = placed.length - 2; i >= 0; i--) if (placed[i].x0 + placed[i].w + 6 > placed[i + 1].x0) placed[i].x0 = placed[i + 1].x0 - 6 - placed[i].w;
+  for (const m of placed) {
+    D.text(m.x0, y + 9, [[m.t, 'mono', '']], { owner: `lanemark`, id: `lanemark-${m.rank}` });
+    D.add('grid', `<path class="lane-mark" d="M${r1(m.x - 3)},${r1(y + 12)} L${r1(m.x + 3)},${r1(y + 12)} L${r1(m.x)},${r1(y + 16)} Z"/>`);
+  }
+  y += 18;
+  // The plot.
+  const ph = D.W < 420 ? 112 : 140;
+  const py0 = y;
+  const py1 = y + ph;
+  const Y = (v) => py1 - ph * v;
+  if (!hid.curveBands) {
+    const n = Math.max(40, Math.round(pw));
+    const cols = M.columns(sc, n);
+    const ptsE = cols.map((c, i) => [X((i + 0.5) / n), Y(c.edge)]);
+    const ptsS = cols.map((c, i) => [X((i + 0.5) / n), Y(c.edge + c.shield)]);
+    const path = (pts) => pts.map(([x, yy]) => `${r1(x)},${r1(yy)}`).join(' L');
+    D.add('marks', `<path class="band-origin" d="M${r1(px0)},${r1(py0)} H${r1(px1)} V${r1(py1)} H${r1(px0)} Z"/>`);
+    if (s.shield) D.add('marks', `<path class="band-shield" data-band="sq-shield" d="M${r1(px0)},${r1(py1)} L${r1(px0)},${r1(ptsS[0][1])} L${path(ptsS)} L${r1(px1)},${r1(ptsS.at(-1)[1])} V${r1(py1)} Z"/>`);
+    D.add('marks', `<path class="band-edge" data-band="sq-edge" d="M${r1(px0)},${r1(py1)} L${r1(px0)},${r1(ptsE[0][1])} L${path(ptsE)} L${r1(px1)},${r1(ptsE.at(-1)[1])} V${r1(py1)} Z"/>`);
+    D.add('grid', line('gridline', px0, Y(0.5), px1, Y(0.5)));
+    // The half-hit ranks: a ring around the point where a band's edge crosses one half.
+    const ring = (rank, yv, id) => {
+      if (!(rank >= 1 && rank <= M.OBJECTS)) return null;
+      const x = X(M.xOfRank(rank));
+      D.add('top', line('knee-line', x, Y(yv) + 4, x, py1 + 5));
+      D.add('top', `<circle class="knee" cx="${r1(x)}" cy="${r1(Y(yv))}" r="4" data-id="${id}"/>`);
+      return x;
+    };
+    D.meta.kneeX = ring(sc.edgeKnee, 0.5, 'knee-edge');
+    if (s.shield && sc.shieldKnee > 0) {
+      const k = M.key(s, Math.round(sc.shieldKnee));
+      D.meta.kneeSX = ring(sc.shieldKnee, k.edge + (1 - k.edge) * 0.5, 'knee-shield');
+    }
+  } else {
+    D.add('marks', rect('hidden-box', px0, py0, pw, ph, 3, ' data-id="square-hidden"'));
+    D.text((px0 + px1) / 2, (py0 + py1) / 2 + 4, [[pick(['Which objects hit shows after your answer', 'shows after your answer', 'after your answer'], (f) => tw(f, 'small') <= pw - 12), 'small', 'muted']], { anchor: 'middle', owner: 'sqhidden' });
+  }
+  D.add('grid', line('axis', px0, py1, px1, py1));
+  D.add('grid', line('axis', px0, py0, px0, py1));
+  for (const [v, t] of [[1, '100%'], [0.5, '50%'], [0, '0']]) D.text(px0 - 5, Y(v) + 4, [[t, 'small', 'muted']], { anchor: 'end', owner: 'yaxis' });
+  y = py1;
+  const xt = [{ x: px0 + 2, text: '1', anchor: 'start' }];
+  for (const rank of [10, 100, 1000, 10000, 100000]) {
+    const x = X(M.cumShare(rank));
+    D.add('grid', line('tickmark', x, py1, x, py1 + 4));
+    xt.push({ x: rank === 100000 ? x : x - 2, text: F.group(rank), anchor: 'end' });
+  }
+  placeTicks(D, xt, py1 + 16, 'xaxis');
+  y += 20;
+  y = D.para(g.x0, y + 10, 'Objects by popularity rank, each as wide as its share of requests: a column’s height is where its requests are answered.', g.iw, { role: 'small', owner: 'xtitle' }) - 10;
+  y = Math.max(y, 0) + 8;
+  y = py1 + 20 + linesOf('Objects by popularity rank, each as wide as its share of requests: a column’s height is where its requests are answered.', 'small', g.iw) * 14 + 4;
+  const kw = kneeWords(sc, hid);
+  const kneeRow = (text, id, owner) => {
+    D.add('top', `<circle class="knee knee-key" cx="${r1(g.x0 + 4)}" cy="${r1(y + 6)}" r="4" data-id="${id}-key"/>`);
+    D.para(g.x0 + 14, y + 10, text, g.iw - 14, { role: 'small', owner, cls: '', id });
+  };
+  kneeRow(kw.edge, 'knee-words', 'knee');
+  y += r.knee * 14 + 2;
+  if (kw.shield) kneeRow(kw.shield, 'knee-shield-words', 'kneeS');
+  y += r.kneeS * 14 + 4;
+  D.region('square', { x0: g.x0 - 8, x1: g.x1 + 8, y0: top - 6, y1: y });
+  return y + 26;
+}
+
+function buildStage(W, view) {
+  const D = new Draw(W);
+  const g = geometry(W);
+  const r = reserve(W);
+  const sc = M.scenario(view.s);
+  const hid = hiding(view);
+  const sample = M.sample(sc);
+  D.meta.sample = sample;
+  let y = 14;
+  D.para(g.x0, y + 15, titleOf(view.s), g.iw, { role: 'title', cls: '', owner: 'title' });
+  y += r.title * 20 + 2;
+  D.para(g.x0, y + 13, subOf(view.s), g.iw, { role: 'cap', owner: 'sub' });
+  y += r.sub * 17 + 14;
+  D.add('grid', line('rule', g.x0, y - 7, g.x1, y - 7));
+  y = tiers(D, y, sc, view, hid);
+  D.add('grid', line('rule', g.x0, y - 13, g.x1, y - 13));
+  y = timeline(D, y, sc, view, hid, sample);
+  D.add('grid', line('rule', g.x0, y - 13, g.x1, y - 13));
+  y = square(D, y, sc, view, hid);
+  const H = Math.round(y - 2);
+  D.label = summary(sc, hid);
+  return { D, H, sc, hid, sample };
+}
+// A reveal's regions get an outline (stroke only, around the whole region) and the house "Look here" tag at the
+// region's foot, in the 18 px every block reserves there.
+function focusOutlines(D, ids) {
+  for (const id of ids) {
+    const b = D.regions[id]?.[0];
+    if (!b) {
+      D.missingTags = (D.missingTags ?? 0) + 1;
+      continue;
+    }
+    D.add('top', rect('focus-outline', b.x0, b.y0, b.x1 - b.x0, b.y1 - b.y0 + 12, 8, ` data-focus="${id}"`));
+    const t = 'Look here';
+    const w = tw(t, 'look') + 14;
+    D.add('top', rect('tag', b.x1 - w - 14, b.y1 + 12 - 9, w, 18, 9, ` data-tag="${id}"`));
+    D.text(b.x1 - 14 - w / 2, b.y1 + 12 + 4, [[t, 'look', 't-look']], { anchor: 'middle', owner: 'look', layer: 'top' });
+  }
+}
+
+// ---------- Views from the URL. Free states: default, shield, many, few, short, long, busy, quiet, utm, playing
+// (&frac=), describe, reduced (&played=1). Questions: ask&exp=n (&phase=playing&frac=), reveal&exp=n. The challenge:
+// challenge (&start=1 for its opening state).
+const FREE = {
+  default: {},
+  shield: { shield: 1 },
+  many: { pops: 100 },
+  few: { pops: 1 },
+  short: { ttl: 5 },
+  long: { ttl: 3600, shield: 1 },
+  busy: { rps: 100000 },
+  quiet: { rps: 1000, pops: 5 },
+  utm: { variants: 10, shield: 1 },
+  ghost: { pops: 100 },
+};
+function expView(spec, phase, frac) {
+  const s = phase === 'asking' ? { ...spec.setup } : { ...spec.setup, ...(spec.act.set ?? {}) };
+  return { s, phase, exp: spec, hide: spec.hide, frac: phase === 'playing' ? frac : null, focus: phase === 'revealed' ? spec.focus : null };
+}
+function viewOf(p) {
+  const name = p.get('state') ?? 'default';
+  const reduced = name === 'reduced' || p.get('reduced') === '1';
+  if (name === 'ask' || name === 'reveal') {
+    const spec = M.EXPERIMENTS[Number(p.get('exp') ?? 1) - 1];
+    const phase = name === 'reveal' ? 'revealed' : p.get('phase') === 'playing' ? 'playing' : 'asking';
+    return { ...expView(spec, phase, Number(p.get('frac') ?? 0.62)), reduced };
+  }
+  if (name === 'challenge') {
+    const start = p.get('start') === '1';
+    const s = start ? { ...M.CHALLENGE.setup } : { ...M.BASE, pops: 100, ttl: 300, shield: 1 };
+    return { s, phase: 'challenge', exp: M.CHALLENGE, ghost: start ? null : M.scenario({ ...M.BASE, pops: 20, ttl: 300, shield: 1 }), reduced };
+  }
+  const s = { ...M.BASE, ...(FREE[name] ?? {}) };
+  for (const k of ['rps', 'pops', 'ttl', 'shield', 'variants']) if (p.has(k)) s[k] = Number(p.get(k));
+  const view = { s, phase: 'free', reduced, describe: name === 'describe' };
+  if (name === 'ghost') view.ghost = M.scenario(M.BASE);
+  if (name === 'playing') view.frac = Number(p.get('frac') ?? 0.55);
+  if (reduced) view.played = true;
+  return view;
+}
+function noticeOf(view, sc) {
+  if (hiding(view).open) return 'Play and every setting wait for your answer.';
+  if (view.phase === 'challenge') return settingSentence(sc);
+  if (view.frac != null && view.frac < 1) return stepWords(sc, M.sample(sc), view.frac * M.WINDOW_TTLS * sc.s.ttl, NOTHING);
+  return settingSentence(sc);
+}
+
+// ---------- HTML around the stage: controls, the dock, the cards, Describe.
+function fieldset(name, legend, values, current, labelOf, disabled) {
+  return `<fieldset class="group"${disabled ? ' disabled' : ''}><legend class="control-label">${legend}</legend><div class="segments">${values
+    .map((v) => `<label class="segment"><input type="radio" name="${name}" value="${v}"${v === current ? ' checked' : ''}><span>${esc(labelOf(v))}</span></label>`)
+    .join('')}</div></fieldset>`;
+}
+function controlsHtml(view, sc) {
+  const s = view.s;
+  const dis = hiding(view).open;
+  return [
+    fieldset('rps', 'Traffic', M.RPS, s.rps, (v) => `${F.group(v)}/s`, dis),
+    fieldset('pops', 'Edge locations', M.POPS, s.pops, String, dis),
+    fieldset('ttl', 'TTL', M.TTLS, s.ttl, F.ttlShort, dis),
+    fieldset('variants', 'Cache key', M.VARIANTS, s.variants, (v) => (v === 1 ? 'Path only' : '+ utm_source'), dis),
+    `<p class="notice" role="status" aria-live="polite" aria-atomic="true">${nb(noticeOf(view, sc))}</p>`,
+  ].join('');
+}
+function goalChecks(s) {
+  const g = M.goalParts(s);
+  const sc = M.scenario(s);
+  const lines = [
+    { met: g.parts[0].met, t: `the origin takes ${F.rate(sc.originRps)}, under 500/s` },
+    { met: g.parts[1].met, t: `the mean response is ${F.ms(sc.meanMs)}, under 18 ms` },
+    { met: g.parts[2].met, t: `the TTL is ${F.ttlWords(s.ttl)}, at most 5 minutes` },
+  ];
+  return { met: g.met, kept: g.kept, lines };
+}
+function dockHtml(view, sc) {
+  const e = view.exp;
+  if (!e) return '<p class="legend">Pick an experiment below, or change a setting and watch the picture.</p>';
+  if (view.phase === 'challenge') {
+    const v = M.challengeSlots(view.s);
+    const gc = goalChecks(view.s);
+    const head = gc.met ? 'Goal met:' : view.ghost ? 'Not yet:' : 'Your goal:';
+    return `<p class="legend">${nb(M.fill(M.CHALLENGE.ask, M.challengeSlots(M.CHALLENGE.setup)))}</p>
+<p class="status-line${gc.met ? ' met' : ''}">${head}</p><ul class="status">${gc.lines.map((l) => `<li class="${l.met ? 'met' : ''}"><span class="state" aria-hidden="true">${l.met ? '✓' : '·'}</span><span>${nb(l.t)}: ${l.met ? 'met' : 'not yet'}</span></li>`).join('')}</ul>
+${gc.met ? `<p class="reveal">${nb(M.fill(M.CHALLENGE.reveal, v))}</p>` : ''}`;
+  }
+  const s2 = M.afterAct(e);
+  const v = M.slots(e, e.setup, s2);
+  const guessed = view.phase !== 'asking';
+  const right = e.choices.findIndex((c) => c.right);
+  const guess = view.guess ?? (e.id === 2 ? 1 : right);
+  const opts = e.choices
+    .map((c, i) => {
+      const t = nb(M.fill(c.text, v));
+      if (!guessed) return `<li><button class="g-choice" type="button"><span>${t}</span></button></li>`;
+      const cls = view.phase === 'revealed' ? (c.right ? ' right' : i === guess ? ' wrong' : '') : '';
+      return `<li><div class="g-choice${cls}"${i === guess ? ' aria-current="true"' : ''}><span>${t}</span>${i === guess ? '<span class="guess-note">your guess</span>' : ''}</div></li>`;
+    })
+    .join('');
+  const tail = view.phase === 'playing' ? '<p class="held">Watch the picture: the answer plays out on it.</p>' : view.phase === 'revealed' ? `<p class="reveal" role="status" aria-atomic="true">${nb(M.fill(e.reveal, v))}</p>` : '';
+  return `<p class="legend">${nb(M.fill(e.ask, v))}</p><ol class="options">${opts}</ol>${tail}`;
+}
+function cardsHtml(view) {
+  const all = [...M.EXPERIMENTS, M.CHALLENGE];
+  return `<h3 class="heading">Experiments</h3><ol class="cards">${all
+    .map((e) => `<li><button class="card-btn" type="button"${view.exp?.id === e.id ? ' aria-current="true"' : ''}><span class="num">${e.id}</span>${esc(e.title)}${e.id === 6 ? ' · challenge' : ''}</button></li>`)
+    .join('')}</ol>`;
+}
+function describeRows(view, compact) {
+  return M.POPS.map((p) => {
+    const a = M.scenario({ ...view.s, pops: p, shield: 0 });
+    const b = M.scenario({ ...view.s, pops: p, shield: 1 });
+    const now = p === view.s.pops;
+    const cells = compact ? [F.pct(a.edgeShare), F.sig3(a.originRps), F.sig3(b.originRps), r1(view.s.shield ? b.meanMs : a.meanMs)] : [F.ms(a.paths.edge), F.pct(a.edgeShare), F.rate(a.originRps), F.rate(b.originRps), F.ms(a.meanMs), F.ms(b.meanMs)];
+    return `<tr class="${now ? 'now' : ''}"${now ? ' aria-current="true"' : ''}><th scope="row">${compact ? p : locs(p)}</th>${cells.map((c) => `<td>${nb(String(c))}</td>`).join('')}</tr>`;
+  }).join('');
+}
+function describeHtml(view, sc, compact) {
+  const open = hiding(view).open;
+  const challengeWait = view.phase === 'challenge' && !M.goalParts(view.s).met;
+  const waiting = open || challengeWait;
+  const btn = `<button class="g-btn" type="button"${waiting ? ' disabled' : ''} aria-expanded="${view.describe && !waiting ? 'true' : 'false'}">Describe</button>`;
+  if (waiting) return `${btn}<p class="muted-note">${open ? 'Describe waits for your answer.' : 'Describe waits until you meet the goal.'}</p>`;
+  if (!view.describe) return btn;
+  const head = compact
+    ? '<tr><th scope="col">Locations</th><th scope="col">Edge hit</th><th scope="col">Origin <span class="unit">/s</span></th><th scope="col">With shield <span class="unit">/s</span></th><th scope="col">Mean <span class="unit">ms</span></th></tr>'
+    : '<tr><th scope="col">Locations</th><th scope="col">Nearest</th><th scope="col">Edge hit</th><th scope="col">Origin</th><th scope="col">Origin, shield</th><th scope="col">Mean</th><th scope="col">Mean, shield</th></tr>';
+  return `${btn}<p class="summary">${nb(summary(sc, NOTHING))}</p><div class="table-box${compact ? ' compact' : ''}"><table${compact ? ' class="compact"' : ''}><caption class="muted-note" style="caption-side:bottom;text-align:left;padding-top:6px">Rows are this traffic and TTL${view.s.variants > 1 ? `, ${view.s.variants} URLs an image` : ''}; the edge hit rate does not depend on the shield.${compact ? ` Mean is ${view.s.shield ? 'with' : 'without'} the shield.` : ''}</caption><thead>${head}</thead><tbody>${describeRows(view, compact)}</tbody></table></div>`;
+}
+function overlaysHtml(D, view) {
+  const dis = hiding(view).open;
+  return D.hits
+    .map((h) => {
+      const style = `left:${h.x}px;top:${h.y}px;width:${h.w}px;height:${h.h}px`;
+      if (h.kind === 'play') {
+        const playing = view.frac != null && view.frac < 1 && !view.reduced;
+        const name = playing ? 'Stop the timeline' : dis ? 'Play the timeline, after your answer' : `Play ${windowWords(view.s)} at the outlined location`;
+        return `<button class="play hit" data-owner="play" style="${style}" aria-label="${esc(name)}"${dis ? ' disabled' : ''}><svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="17"/>${playing ? '<path d="M13 12h3.5v12H13zM19.5 12H23v12h-3.5z"/>' : '<path d="M14.5 11.5 25 18l-10.5 6.5z"/>'}</svg></button>`;
+      }
+      return `<label class="switch hit" data-owner="shield-switch" style="${style}"><input type="checkbox"${view.s.shield ? ' checked' : ''}${dis ? ' disabled' : ''} aria-label="Origin shield"><span><span class="knob" aria-hidden="true"></span>${h.w >= 150 ? 'Origin shield' : 'Shield'}</span></label>`;
+    })
+    .join('');
+}
+
+// ---------- Render.
+const root = document.getElementById('widget');
+function render(view) {
+  const sc = M.scenario(view.s);
+  root.innerHTML = `<div class="controls">${controlsHtml(view, sc)}</div>
+<div class="main"><div class="stage" role="group" aria-roledescription="visualization" aria-label="CDNs and edge: where requests are answered, one location's copies, and every request by popularity"><div class="well" id="well"></div></div>
+${view.reduced && view.played && !hiding(view).open ? `<p class="caption" role="status" aria-atomic="true">${nb(story(sc, M.sample(sc), hiding(view)))}</p>` : ''}<p class="model-note">${nb(noteOf(view))}</p><div class="describe" id="describe"></div></div>
+<div class="experiments"><section class="dock" aria-label="Experiment">${dockHtml(view, sc)}</section>${cardsHtml(view)}</div>`;
+  const well = document.getElementById('well');
+  const W = well.clientWidth;
+  const out = buildStage(W, view);
+  if (view.focus?.length) focusOutlines(out.D, view.focus);
+  well.style.height = out.H + 'px';
+  well.innerHTML = out.D.svg(out.H, out.D.label) + overlaysHtml(out.D, view);
+  document.getElementById('describe').innerHTML = describeHtml(view, sc, W < 560);
+  window.__stage = { W, H: out.H, summary: out.D.label, missingTags: out.D.missingTags ?? 0 };
+  return { W, ...out, view, well };
+}
+
+// ---------- Collisions, measured from the rendered DOM.
+function collisions(well) {
+  const svg = well.querySelector('svg.draw');
+  const W = Number(svg.getAttribute('width'));
+  const H = Number(svg.getAttribute('height'));
+  const owner = (el) => el.getAttribute?.('data-owner') ?? '';
+  const texts = [...svg.querySelectorAll('text')]
+    .filter((t) => t.textContent.trim())
+    .map((t) => {
+      const b = t.getBBox();
+      return { el: t, s: t.textContent, owner: owner(t), x0: b.x + 0.5, x1: b.x + b.width - 0.5, y0: b.y + b.height * 0.2, y1: b.y + b.height * 0.95 };
+    });
+  const out = [];
+  const ov = (a, b, m = 0) => Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > m && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > m;
+  for (let i = 0; i < texts.length; i++) {
+    const a = texts[i];
+    if (a.x0 < -0.5 || a.x1 > W + 0.5 || a.y0 < 0 || a.y1 > H) out.push(`off-stage: "${a.s}"`);
+    for (let j = i + 1; j < texts.length; j++) {
+      const b = texts[j];
+      if (ov(a, b, 0.5)) out.push(`text on text: "${a.s}" / "${b.s}"`);
+      else {
+        const rowShared = Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > 2;
+        const gap = Math.max(a.x0, b.x0) - Math.min(a.x1, b.x1);
+        if (rowShared && gap < 6 && gap > -0.5) out.push(`labels closer than 6 px: "${a.s}" / "${b.s}"`);
+      }
+    }
+  }
+  const inside = (p, t) => p.x > t.x0 + 0.5 && p.x < t.x1 - 0.5 && p.y > t.y0 + 0.5 && p.y < t.y1 - 0.5;
+  // Lines and marks never run through text (the text's own marks and stage-ground halos aside).
+  const markEls = [...svg.querySelectorAll('rect, path, line, circle')].filter((el) => !el.closest('defs') && !el.matches('.focus-outline, .tag, .rule, .hidden-box'));
+  for (const el of markEls) {
+    const b = el.getBBox();
+    if (b.width === 0 && b.height === 0) continue;
+    const box = { x0: b.x, x1: b.x + b.width, y0: b.y, y1: b.y + b.height };
+    if (box.x0 < -0.5 || box.x1 > W + 0.5 || box.y0 < -0.5 || box.y1 > H + 0.5) out.push(`mark off-stage: ${el.getAttribute('class')}`);
+    for (const t of texts) {
+      if (t.owner === 'look' && el.matches('.tag')) continue;
+      if (ov(box, t, 0.5)) out.push(`mark under text: ${el.getAttribute('class')} / "${t.s}"`);
+    }
+  }
+  // Dots never sit on dots.
+  const dots = [...svg.querySelectorAll('circle.dot:not(.user), circle.knee')].map((c) => ({ id: c.dataset.id ?? c.getAttribute('class'), x: +c.getAttribute('cx'), y: +c.getAttribute('cy'), r: +c.getAttribute('r') }));
+  let dd = 0;
+  for (let i = 0; i < dots.length; i++) for (let j = i + 1; j < dots.length; j++) if (Math.hypot(dots[i].x - dots[j].x, dots[i].y - dots[j].y) < dots[i].r + dots[j].r - 1.5) dd++;
+  if (dd) out.push(`${dd} dots on dots`);
+  // X ticks keep 6 px from each other.
+  for (const owner of ['taxis', 'xaxis']) {
+    const xt = texts.filter((t) => t.owner === owner).sort((a, b) => a.x0 - b.x0);
+    for (let i = 1; i < xt.length; i++) if (xt[i].x0 - xt[i - 1].x1 < 6) out.push(`x ticks "${xt[i - 1].s}" and "${xt[i].s}" ${(xt[i].x0 - xt[i - 1].x1).toFixed(1)} px apart`);
+  }
+  // Outlines: text inside keeps 6 px from the stroke, and no tag sits on text.
+  for (const o of svg.querySelectorAll('rect.focus-outline')) {
+    const [x, y, w, h] = ['x', 'y', 'width', 'height'].map((a) => +o.getAttribute(a));
+    for (const t of texts) {
+      if (t.owner === 'look') continue;
+      const inner = t.x0 >= x + 5.5 && t.x1 <= x + w - 5.5 && t.y0 >= y + 5.5 && t.y1 <= y + h - 5.5;
+      const clear = t.x1 <= x - 3 || t.x0 >= x + w + 3 || t.y1 <= y - 3 || t.y0 >= y + h + 3;
+      if (!inner && !clear) out.push(`text at an outline's stroke: "${t.s}"`);
+    }
+  }
+  for (const tg of svg.querySelectorAll('rect.tag')) {
+    const [x, y, w, h] = ['x', 'y', 'width', 'height'].map((a) => +tg.getAttribute(a));
+    for (const t of texts) if (t.owner !== 'look' && ov({ x0: x, x1: x + w, y0: y, y1: y + h }, t, 0)) out.push(`a tag on "${t.s}"`);
+    if (x < 0 || x + w > W || y < 0 || y + h > H) out.push('a tag off the stage');
+  }
+  // Hit boxes: 44 px, inside the stage, never on each other or on text.
+  const wb = well.getBoundingClientRect();
+  const hits = [...well.querySelectorAll('.hit')].map((h) => {
+    const b = h.getBoundingClientRect();
+    return { o: h.dataset.owner, x0: b.left - wb.left - 1, x1: b.right - wb.left - 1, y0: b.top - wb.top - 1, y1: b.bottom - wb.top - 1 };
+  });
+  for (let i = 0; i < hits.length; i++) {
+    const a = hits[i];
+    if (a.x0 < -0.5 || a.x1 > W + 0.5 || a.y0 < -0.5 || a.y1 > H + 0.5) out.push(`hit box off-stage: ${a.o}`);
+    if (a.x1 - a.x0 < 43.5 || a.y1 - a.y0 < 43.5) out.push(`target under 44 px: ${a.o}`);
+    for (let j = i + 1; j < hits.length; j++) if (ov(a, hits[j])) out.push(`hit on hit: ${a.o} / ${hits[j].o}`);
+    for (const t of texts) if (ov(a, t, 0.5)) out.push(`a control on "${t.s}"`);
+  }
+  for (const sp of well.querySelectorAll('.switch > span')) if (sp.scrollWidth > sp.clientWidth + 1) out.push('the shield switch overflows');
+  return out;
+}
+// What must hold beyond collisions: no false claims, areas as numbers, dashes only while hidden, counts bounded.
+const FALSE_CLAIMS = [/NaN|undefined|Infinity|null/, /\b1 (locations|requests|URLs|times|minutes)\b/, /\b([2-9]|\d{2,}) (location|minute|second|hour)\b(?!s)/, /(^|[^\d.,])0\/s/, /\?\?/, /—| /, /\d{4,}(?![\d,])/];
+function assertions(r) {
+  const { well, D, sc, hid, view } = r;
+  const out = [];
+  const svg = well.querySelector('svg.draw');
+  const text = [...svg.querySelectorAll('text')].map((t) => t.textContent).join(' | ') + ' | ' + D.label;
+  for (const g of FALSE_CLAIMS) if (g.test(text)) out.push(`false claim ${g}: "${text.match(g)[0]}"`);
+  // A box's green part is the edge share of its width; the merged miss band, the shield's and the origin's are their shares of the full band.
+  if (!hid.tierFlows) {
+    const f = D.meta.flows;
+    const want = { missW: D.meta.band * (1 - sc.edgeShare), shieldW: D.meta.band * sc.shieldShare, originW: D.meta.band * sc.originShare };
+    for (const k of Object.keys(want)) if (Math.abs(f[k] - want[k]) > 0.05) out.push(`flow ${k} ${f[k]} for ${want[k]}`);
+    const o = svg.querySelector('[data-band="origin"]');
+    if (Math.abs(+o.getAttribute('width') - r1(want.originW)) > 0.11) out.push('origin fill off its share');
+  } else if (svg.querySelector('[data-band], [data-stream]')) out.push('a flow drawn while hidden');
+  if (hid.curveBands && svg.querySelector('[data-band^="sq-"], .knee:not(.knee-key)')) out.push('the square drawn while hidden');
+  if (!hid.curveBands && !svg.querySelector('[data-band="sq-edge"]')) out.push('no square');
+  // Dashed only while a question hides something.
+  if (svg.querySelector('.hidden-box') && !hid.open) out.push('a dashed mark with no question open');
+  // A ghost is said in words: "It was" only after a change, never while a question is open.
+  if (hid.open && /It was|\(was/.test(text)) out.push('a ghost while a question is open');
+  // The sample: marks never beyond the playhead; requests and copies as the sample has them.
+  if (view.frac != null && view.frac < 1) {
+    const ph = svg.querySelector('.playhead');
+    const x = +ph.getAttribute('x1');
+    for (const el of svg.querySelectorAll('[data-req]')) if (+el.getAttribute('x1') > x + 0.11) out.push('a request drawn before its moment');
+    for (const el of svg.querySelectorAll('[data-copy]')) if (+el.getAttribute('x') + +el.getAttribute('width') > x + 0.2) out.push('a copy drawn past the playhead');
+  }
+  // Element counts are bounded by the stage, never by the data.
+  const count = svg.querySelectorAll('*').length;
+  window.__maxElements = Math.max(window.__maxElements ?? 0, count);
+  if (count > 900) out.push(`${count} SVG elements`);
+  if (D.missingTags) out.push(`${D.missingTags} focus tags without a place`);
+  return out;
+}
+function checkAll(r) {
+  return [...collisions(r.well), ...assertions(r)];
+}
+
+// ---------- Sweeps (run by shoot.cjs).
+function renderAt(W, view) {
+  root.style.width = W + 'px';
+  return render(view);
+}
+const ALL_FREE = () => M.SETTINGS.map((s) => ({ s, phase: 'free' }));
+window.sweep = function (widths, fracs = [null]) {
+  const issues = new Map();
+  const heights = {};
+  for (const W of widths) {
+    for (const v0 of ALL_FREE()) {
+      for (const frac of fracs) {
+        const view = { ...v0, frac };
+        const r = renderStageOnly(W, view);
+        (heights[W] ??= new Set()).add(r.H);
+        for (const i of checkAll(r)) {
+          const k = `${W}: ${i}`;
+          if (!issues.has(k)) issues.set(k, JSON.stringify(view.s) + (frac != null ? ` @${frac}` : ''));
+        }
+      }
+    }
+  }
+  return { issues: [...issues].slice(0, 60).map(([k, v]) => `${k} (${v})`), count: issues.size, heights: Object.fromEntries(Object.entries(heights).map(([w, s]) => [w, [...s]])) };
+};
+// The stage alone at width W (the well's width), for sweeps.
+function renderStageOnly(W, view) {
+  let well = document.getElementById('sweep-well');
+  if (!well) {
+    well = document.createElement('div');
+    well.id = 'sweep-well';
+    well.className = 'well';
+    well.style.position = 'absolute';
+    well.style.left = '0';
+    well.style.top = '0';
+    well.style.visibility = 'hidden';
+    document.body.appendChild(well);
+  }
+  well.style.width = W + 2 + 'px';
+  const out = buildStage(W, view);
+  if (view.focus?.length) focusOutlines(out.D, view.focus);
+  well.style.height = out.H + 'px';
+  well.innerHTML = out.D.svg(out.H, out.D.label) + overlaysHtml(out.D, view);
+  return { W, ...out, view, well };
+}
+window.sweepExperiments = function (widths) {
+  const issues = [];
+  const heights = {};
+  for (const W of widths)
+    for (const spec of M.EXPERIMENTS)
+      for (const [phase, frac] of [['asking'], ['playing', 0.2], ['playing', 0.6], ['playing', 1], ['revealed']]) {
+        const view = expView(spec, phase, frac);
+        const r = renderStageOnly(W, view);
+        (heights[W] ??= new Set()).add(r.H);
+        for (const i of checkAll(r)) issues.push(`${W} E${spec.id} ${phase}${frac ?? ''}: ${i}`);
+        if (phase === 'revealed') {
+          const tags = r.well.querySelectorAll('rect.tag').length;
+          if (tags !== spec.focus.length) issues.push(`${W} E${spec.id}: ${tags} tags for ${spec.focus.length} regions`);
+        }
+      }
+  return { issues: [...new Set(issues)].slice(0, 60), count: issues.length, heights: Object.fromEntries(Object.entries(heights).map(([w, s]) => [w, [...s]])) };
+};
+// The no-answer sweep: every question asking and playing (five moments), with motion off and on, against its answer's
+// words on every surface, false claims, and structure (no flows, bands, knees or ghosts while hidden, every control
+// and Play disabled).
+function answerTokens(spec) {
+  const s2 = M.afterAct(spec);
+  const v = M.slots(spec, spec.setup, s2);
+  if (spec.id === 1) {
+    const a = M.scenario(spec.setup);
+    return [v.knee.replace(/(st|nd|rd|th)$/, ''), F.group(a.edgeKnee), ...a.lanes.map((l) => F.pct(l.edge)), F.pct(a.shieldShare)].filter((t) => t && t !== '0.0%');
+  }
+  const b = M.scenario(s2);
+  return [F.sig3(b.originRps), F.sig2(b.originRps), F.pct(b.edgeShare), F.pct(b.originShare), F.ms(b.meanMs), F.group(b.edgeKnee), ...(s2.shield ? [F.pct(b.shieldShare)] : [])].filter((t) => !(spec.id === 3 && t === F.pct(b.edgeShare)));
+}
+function surfaces(r) {
+  const sc = r.sc;
+  return [
+    [...r.well.querySelectorAll('svg.draw text')].map((t) => t.textContent).join(' | '),
+    [...r.well.querySelectorAll('[aria-label]')].map((e) => e.getAttribute('aria-label')).join(' | '),
+    noticeOf(r.view, sc),
+    noteOf(r.view),
+    controlsHtml(r.view, sc).replace(/<[^>]+>/g, ' '),
+    describeHtml(r.view, sc, r.W < 560).replace(/<[^>]+>/g, ' '),
+  ].join(' || ');
+}
+function probe(r, spec) {
+  const out = [];
+  const text = surfaces(r);
+  for (const t of answerTokens(spec)) if (text.includes(t)) out.push(`E${spec.id} ${r.view.phase}: "${t}" shows`);
+  for (const g of FALSE_CLAIMS) if (g.test(text)) out.push(`E${spec.id}: false claim ${g}`);
+  const svg = r.well.querySelector('svg.draw');
+  if (r.view.phase === 'playing' && spec.hide.includes('outcome') && svg.querySelector('[data-band], [data-stream]')) out.push(`E${spec.id}: flows drawn`);
+  if (svg.querySelector('[data-band^="sq-"], .knee:not(.knee-key)')) out.push(`E${spec.id}: square bands or knees drawn`);
+  if (r.view.phase === 'asking' && spec.hide.includes('curve') && svg.querySelector('[data-copy], .dot.ans-shield, .dot.ans-origin, .tick-hit')) out.push(`E${spec.id}: sampled outcomes drawn`);
+  if (/It was|\(was/.test(text)) out.push(`E${spec.id}: a ghost`);
+  for (const el of r.well.querySelectorAll('.hit input, button.hit')) if (!el.disabled) out.push(`E${spec.id}: a control is live`);
+  if (!/wait for your answer/.test(noticeOf(r.view, r.sc))) out.push(`E${spec.id}: the notice does not say the settings wait`);
+  if (!/Describe waits/.test(describeHtml(r.view, r.sc, false))) out.push(`E${spec.id}: Describe is open`);
+  return out;
+}
+window.noAnswer = function (widths, leak = []) {
+  const out = [];
+  for (const W of widths)
+    for (const spec of M.EXPERIMENTS)
+      for (const reduced of [false, true])
+        for (const [phase, frac] of [['asking'], ['playing', 0.05], ['playing', 0.3], ['playing', 0.55], ['playing', 0.8], ['playing', 1]]) {
+          const view = { ...expView(spec, phase, frac), reduced, leak };
+          out.push(...probe(renderStageOnly(W, view), spec));
+        }
+  return [...new Set(out)];
+};
+// Plant a leak on each flag of the hiding map: the sweep must catch every one.
+window.plantedLeaks = function (W) {
+  const flags = ['curveNumbers', 'curveBands', 'laneHits', 'laneMarks', 'tierNumbers', 'tierFlows', 'mean', 'ghost'];
+  return flags.map((f) => {
+    const caught = window.noAnswer([W], [f]).length > 0;
+    return `${f}: ${caught ? 'caught' : 'MISSED'}`;
+  });
+};
+// The load-time stage never prints an answer.
+window.restLeaks = function (W) {
+  const r = renderStageOnly(W, { s: { ...M.BASE }, phase: 'free' });
+  const text = surfaces(r);
+  const out = [];
+  for (const spec of M.EXPERIMENTS) for (const t of answerTokens(spec)) if (text.includes(t) && !(spec.id === 1 && t === '99.9%+')) out.push(`E${spec.id}'s "${t}" on the load-time stage`);
+  return out;
+};
+window.heights = function (widths) {
+  const res = {};
+  for (const W of widths) {
+    const set = new Set();
+    for (const v of [...ALL_FREE(), ...M.EXPERIMENTS.flatMap((e) => ['asking', 'playing', 'revealed'].map((p) => expView(e, p, 0.5)))]) set.add(renderStageOnly(W, v).H);
+    res[W] = [...set];
+  }
+  return res;
+};
+window.pageWords = function () {
+  const out = [];
+  const texts = [];
+  for (const s of M.SETTINGS) {
+    const sc = M.scenario(s);
+    texts.push(summary(sc, NOTHING), settingSentence(sc), story(sc, M.sample(sc), NOTHING), subOf(s), titleOf(s));
+    const t = tierWords(sc, NOTHING, null);
+    texts.push(t.edge.body, t.shield.body, t.origin.body, t.mean);
+  }
+  for (const t of new Set(texts)) {
+    for (const g of FALSE_CLAIMS) if (g.test(t)) out.push(`${g}: ${t.slice(0, 80)}`);
+    if (/(^|[.:;] )\d/.test(t)) out.push(`opens on a numeral: ${t.slice(0, 80)}`);
+    if (/ 1 times| 0 times|missed 1 /.test(t)) out.push(`grammar: ${t.slice(0, 80)}`);
+  }
+  return [...new Set(out)].slice(0, 40);
+};
+
+Promise.all(['600 11px "JetBrains Mono Variable"', '700 12px "JetBrains Mono Variable"', '600 13px "JetBrains Mono Variable"', '500 13px "Inter Variable"', '600 15px "Inter Variable"'].map((f) => document.fonts.load(f))).then(() => document.fonts.ready).then(() => {
+  const view = viewOf(params);
+  const r = render(view);
+  window.__collisions = checkAll(r);
+  window.__ready = true;
+});
+
+    </script>
+  </body>
+</html>

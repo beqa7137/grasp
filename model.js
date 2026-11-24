@@ -318,8 +318,11 @@
   }
   /** How often one key is asked for at one location: "41 a second", "1.2 a minute", "once every 10 minutes". */
   function often(perSec) {
-    if (perSec >= 1) return `${sig3(perSec)} a second`;
-    if (perSec * 60 >= 1) return `${sig3(perSec * 60)} a minute`;
+    if (perSec >= 1.5) return `${sig3(perSec)} times a second`;
+    if (perSec >= 1) return 'about once a second';
+    if (perSec * 60 >= 59.5) return `${sig3(perSec * 60)} times a minute`;
+    if (perSec * 60 >= 1.5) return `${sig3(perSec * 60)} times a minute`;
+    if (perSec * 60 >= 1) return 'about once a minute';
     if (perSec * 3600 >= 1) {
       const every = 1 / (perSec * 60);
       return every < 1.5 ? 'about once a minute' : `once every ${Math.round(every)} minutes`;
